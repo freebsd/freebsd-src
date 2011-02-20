@@ -100,6 +100,8 @@ static int hw_clockrate;
 SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD, 
     &hw_clockrate, 0, "CPU instruction clock rate");
 
+static eventhandler_tag tsc_post_tag;
+
 static char cpu_brand[48];
 
 #define	MAX_BRAND_INDEX	8
@@ -742,7 +744,7 @@ printcpuinfo(void)
 				"\017xTPR"	/* Send Task Priority Messages*/
 				"\020PDCM"	/* Perf/Debug Capability MSR */
 				"\021<b16>"
-				"\022<b17>"
+				"\022PCID"	/* Process-context Identifiers */
 				"\023DCA"	/* Direct Cache Access */
 				"\024SSE4.1"
 				"\025SSE4.2"
@@ -856,28 +858,6 @@ printcpuinfo(void)
 			 * If this CPU supports P-state invariant TSC then
 			 * mention the capability.
 			 */
-			switch (cpu_vendor_id) {
-			case CPU_VENDOR_AMD:
-				if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
-				    CPUID_TO_FAMILY(cpu_id) >= 0x10 ||
-				    cpu_id == 0x60fb2)
-					tsc_is_invariant = 1;
-				break;
-			case CPU_VENDOR_INTEL:
-				if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
-				    (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
-				    CPUID_TO_MODEL(cpu_id) >= 0xe) ||
-				    (CPUID_TO_FAMILY(cpu_id) == 0xf &&
-				    CPUID_TO_MODEL(cpu_id) >= 0x3))
-					tsc_is_invariant = 1;
-				break;
-			case CPU_VENDOR_CENTAUR:
-				if (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
-				    CPUID_TO_MODEL(cpu_id) >= 0xf &&
-				    (rdmsr(0x1203) & 0x100000000ULL) == 0)
-					tsc_is_invariant = 1;
-				break;
-			}
 			if (tsc_is_invariant)
 				printf("\n  TSC: P-state invariant");
 
@@ -1037,12 +1017,11 @@ identblue(void)
 static void
 identifycyrix(void)
 {
-	u_int	eflags;
+	register_t saveintr;
 	int	ccr2_test = 0, dir_test = 0;
 	u_char	ccr2, ccr3;
 
-	eflags = read_eflags();
-	disable_intr();
+	saveintr = intr_disable();
 
 	ccr2 = read_cyrix_reg(CCR2);
 	write_cyrix_reg(CCR2, ccr2 ^ CCR2_LOCK_NW);
@@ -1067,26 +1046,34 @@ identifycyrix(void)
 	else
 		cyrix_did = 0x00ff;		/* Old 486SLC/DLC and TI486SXLC/SXL */
 
-	write_eflags(eflags);
+	intr_restore(saveintr);
 }
 
 /* Update TSC freq with the value indicated by the caller. */
 static void
-tsc_freq_changed(void *arg, const struct cf_level *level, int status)
+tsc_freq_changed(void *arg __unused, const struct cf_level *level, int status)
 {
-	/*
-	 * If there was an error during the transition or
-	 * TSC is P-state invariant, don't do anything.
-	 */
-	if (status != 0 || tsc_is_invariant)
+
+	/* If there was an error during the transition, don't do anything. */
+	if (status != 0)
 		return;
 
 	/* Total setting for this level gives the new frequency in MHz. */
 	hw_clockrate = level->total_set.freq;
 }
 
-EVENTHANDLER_DEFINE(cpufreq_post_change, tsc_freq_changed, NULL,
-    EVENTHANDLER_PRI_ANY);
+static void
+hook_tsc_freq(void *arg __unused)
+{
+
+	if (tsc_is_invariant)
+		return;
+
+	tsc_post_tag = EVENTHANDLER_REGISTER(cpufreq_post_change,
+	    tsc_freq_changed, NULL, EVENTHANDLER_PRI_ANY);
+}
+
+SYSINIT(hook_tsc_freq, SI_SUB_CONFIGURE, SI_ORDER_ANY, hook_tsc_freq, NULL);
 
 /*
  * Final stage of CPU identification. -- Should I check TI?

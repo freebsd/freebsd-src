@@ -177,7 +177,7 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, shm_use_phys, CTLFLAG_RW,
 SYSCTL_INT(_kern_ipc, OID_AUTO, shm_allow_removed, CTLFLAG_RW,
     &shm_allow_removed, 0,
     "Enable/Disable attachment to attached segments marked for removal");
-SYSCTL_PROC(_kern_ipc, OID_AUTO, shmsegs, CTLFLAG_RD,
+SYSCTL_PROC(_kern_ipc, OID_AUTO, shmsegs, CTLTYPE_OPAQUE | CTLFLAG_RD,
     NULL, 0, sysctl_shmsegs, "",
     "Current number of shared memory segments allocated");
 
@@ -878,8 +878,6 @@ shminit()
 
 	shmalloced = shminfo.shmmni;
 	shmsegs = malloc(shmalloced * sizeof(shmsegs[0]), M_SHM, M_WAITOK);
-	if (shmsegs == NULL)
-		panic("cannot allocate initial memory for sysvshm");
 	for (i = 0; i < shmalloced; i++) {
 		shmsegs[i].u.shm_perm.mode = SHMSEG_FREE;
 		shmsegs[i].u.shm_perm.seq = 0;

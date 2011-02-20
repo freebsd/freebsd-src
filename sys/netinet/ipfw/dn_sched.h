@@ -166,6 +166,8 @@ dn_dequeue(struct dn_queue *q)
 	if (m == NULL)
 		return NULL;
 	q->mq.head = m->m_nextpkt;
+
+	/* Update stats for the queue */
 	q->ni.length--;
 	q->ni.len_bytes -= m->m_pkthdr.len;
 	if (q->_si) {

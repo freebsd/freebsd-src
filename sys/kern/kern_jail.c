@@ -140,7 +140,9 @@ static int prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6);
 #define	PD_LIST_XLOCKED	0x10
 
 /*
- * Parameter names corresponding to PR_* flag values
+ * Parameter names corresponding to PR_* flag values.  Size values are for kvm
+ * as we cannot figure out the size of a sparse array, or an array without a
+ * terminating entry.
  */
 static char *pr_flag_names[] = {
 	[0] = "persist",
@@ -151,6 +153,7 @@ static char *pr_flag_names[] = {
 	[8] = "ip6.saddrsel",
 #endif
 };
+const size_t pr_flag_names_size = sizeof(pr_flag_names);
 
 static char *pr_flag_nonames[] = {
 	[0] = "nopersist",
@@ -161,6 +164,7 @@ static char *pr_flag_nonames[] = {
 	[8] = "ip6.nosaddrsel",
 #endif
 };
+const size_t pr_flag_nonames_size = sizeof(pr_flag_nonames);
 
 struct jailsys_flags {
 	const char	*name;
@@ -178,6 +182,7 @@ struct jailsys_flags {
 	{ "ip6", PR_IP6_USER | PR_IP6_DISABLE, PR_IP6_USER },
 #endif
 };
+const size_t pr_flag_jailsys_size = sizeof(pr_flag_jailsys);
 
 static char *pr_allow_names[] = {
 	"allow.set_hostname",
@@ -188,6 +193,7 @@ static char *pr_allow_names[] = {
 	"allow.quotas",
 	"allow.socket_af",
 };
+const size_t pr_allow_names_size = sizeof(pr_allow_names);
 
 static char *pr_allow_nonames[] = {
 	"allow.noset_hostname",
@@ -198,6 +204,7 @@ static char *pr_allow_nonames[] = {
 	"allow.noquotas",
 	"allow.nosocket_af",
 };
+const size_t pr_allow_nonames_size = sizeof(pr_allow_nonames);
 
 #define	JAIL_DEFAULT_ALLOW		PR_ALLOW_SET_HOSTNAME
 #define	JAIL_DEFAULT_ENFORCE_STATFS	2
@@ -584,12 +591,15 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		gotchildmax = 1;
 
 	error = vfs_copyopt(opts, "enforce_statfs", &enforce, sizeof(enforce));
-	gotenforce = (error == 0);
-	if (gotenforce) {
-		if (enforce < 0 || enforce > 2)
-			return (EINVAL);
-	} else if (error != ENOENT)
+	if (error == ENOENT)
+		gotenforce = 0;
+	else if (error != 0)
 		goto done_free;
+	else if (enforce < 0 || enforce > 2) {
+		error = EINVAL;
+		goto done_free;
+	} else
+		gotenforce = 1;
 
 	pr_flags = ch_flags = 0;
 	for (fi = 0; fi < sizeof(pr_flag_names) / sizeof(pr_flag_names[0]);
@@ -735,7 +745,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
 
 #ifdef COMPAT_FREEBSD32
-	if (td->td_proc->p_sysent->sv_flags & SV_ILP32) {
+	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		uint32_t hid32;
 
 		error = vfs_copyopt(opts, "host.hostid", &hid32, sizeof(hid32));
@@ -1962,7 +1972,7 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 	if (error != 0 && error != ENOENT)
 		goto done_deref;
 #ifdef COMPAT_FREEBSD32
-	if (td->td_proc->p_sysent->sv_flags & SV_ILP32) {
+	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		uint32_t hid32 = pr->pr_hostid;
 
 		error = vfs_setopt(opts, "host.hostid", &hid32, sizeof(hid32));

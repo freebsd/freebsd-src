@@ -105,8 +105,9 @@ __ElfType(Auxinfo);
 #define	AT_NCPUS	17	/* Number of CPUs. */
 #define	AT_PAGESIZES	18	/* Pagesizes. */
 #define	AT_PAGESIZESLEN	19	/* Number of pagesizes. */
+#define	AT_STACKPROT	21	/* Initial stack protection. */
 
-#define	AT_COUNT	20	/* Count of defined aux entry types. */
+#define	AT_COUNT	22	/* Count of defined aux entry types. */
 
 /*
  * Relocation types.

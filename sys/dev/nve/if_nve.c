@@ -541,11 +541,12 @@ nve_attach(device_t dev)
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_MTU;
 
-	/* Probe device for MII interface to PHY */
-	DEBUGOUT(NVE_DEBUG_INIT, "nve: do mii_phy_probe\n");
-	if (mii_phy_probe(dev, &sc->miibus, nve_ifmedia_upd, nve_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
+	/* Attach device for MII interface to PHY */
+	DEBUGOUT(NVE_DEBUG_INIT, "nve: do mii_attach\n");
+	error = mii_attach(dev, &sc->miibus, ifp, nve_ifmedia_upd,
+	    nve_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -553,10 +554,10 @@ nve_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 
 	/* Activate our interrupt handler. - attach last to avoid lock */
-	error = bus_setup_intr(sc->dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE,
+	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, nve_intr, sc, &sc->sc_ih);
 	if (error) {
-		device_printf(sc->dev, "couldn't set up interrupt handler\n");
+		device_printf(dev, "couldn't set up interrupt handler\n");
 		goto fail;
 	}
 	DEBUGOUT(NVE_DEBUG_INIT, "nve: nve_attach - exit\n");

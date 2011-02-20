@@ -55,7 +55,6 @@ options 	STACK			# stack(9) support
 options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
-options 	P1003_1B_SEMAPHORES	# POSIX-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
@@ -112,6 +111,7 @@ device		hptiop		# Highpoint RocketRaid 3xxx series
 device		isp		# Qlogic family
 #device		ispfw		# Firmware for QLogic HBAs- normally a module
 device		mpt		# LSI-Logic MPT-Fusion
+device		mps		# LSI-Logic MPT-Fusion 2
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 device		trm		# Tekram DC395U/UW/F DC315U adapters

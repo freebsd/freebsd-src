@@ -165,7 +165,6 @@ system call uses a
 structure to minimize the number of directly supplied arguments.
 This structure has the following form, as defined in
 .In sys/socket.h :
-.Pp
 .Bd -literal
 struct msghdr {
 	void		*msg_name;	/* optional address */
@@ -242,7 +241,6 @@ should be a structure of type
 which is defined in
 .In sys/socket.h
 as follows:
-.Pp
 .Bd -literal
 struct cmsgcred {
 	pid_t	cmcred_pid;		/* PID of sending process */

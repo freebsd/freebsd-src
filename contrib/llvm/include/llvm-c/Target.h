@@ -1,26 +1,26 @@
-/*===-- llvm-c/Target.h - Target Lib C Iface --------------------*- C++ -*-===*\
-|*                                                                            *|
-|*                     The LLVM Compiler Infrastructure                       *|
-|*                                                                            *|
-|* This file is distributed under the University of Illinois Open Source      *|
-|* License. See LICENSE.TXT for details.                                      *|
-|*                                                                            *|
-|*===----------------------------------------------------------------------===*|
-|*                                                                            *|
-|* This header declares the C interface to libLLVMTarget.a, which             *|
-|* implements target information.                                             *|
-|*                                                                            *|
-|* Many exotic languages can interoperate with C code but have a harder time  *|
-|* with C++ due to name mangling. So in addition to C, this interface enables *|
-|* tools written in such languages.                                           *|
-|*                                                                            *|
-\*===----------------------------------------------------------------------===*/
+/*===-- llvm-c/Target.h - Target Lib C Iface --------------------*- C++ -*-===*/
+/*                                                                            */
+/*                     The LLVM Compiler Infrastructure                       */
+/*                                                                            */
+/* This file is distributed under the University of Illinois Open Source      */
+/* License. See LICENSE.TXT for details.                                      */
+/*                                                                            */
+/*===----------------------------------------------------------------------===*/
+/*                                                                            */
+/* This header declares the C interface to libLLVMTarget.a, which             */
+/* implements target information.                                             */
+/*                                                                            */
+/* Many exotic languages can interoperate with C code but have a harder time  */
+/* with C++ due to name mangling. So in addition to C, this interface enables */
+/* tools written in such languages.                                           */
+/*                                                                            */
+/*===----------------------------------------------------------------------===*/
 
 #ifndef LLVM_C_TARGET_H
 #define LLVM_C_TARGET_H
 
 #include "llvm-c/Core.h"
-#include "llvm/Config/config.h"
+#include "llvm/Config/llvm-config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,15 +64,10 @@ static inline void LLVMInitializeAllTargets(void) {
     for JIT applications to ensure that the target gets linked in correctly. */
 static inline LLVMBool LLVMInitializeNativeTarget(void) {
   /* If we have a native target, initialize it to ensure it is linked in. */
-#ifdef LLVM_NATIVE_ARCH
-#define DoInit2(TARG) \
-  LLVMInitialize ## TARG ## Info ();          \
-  LLVMInitialize ## TARG ()
-#define DoInit(T) DoInit2(T)
-  DoInit(LLVM_NATIVE_ARCH);
+#ifdef LLVM_NATIVE_TARGET
+  LLVM_NATIVE_TARGETINFO();
+  LLVM_NATIVE_TARGET();
   return 0;
-#undef DoInit
-#undef DoInit2
 #else
   return 1;
 #endif

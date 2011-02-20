@@ -43,6 +43,7 @@
 #define AR_U	0x0200		/* only extract or update newer members.*/
 #define AR_V	0x0400		/* verbose mode */
 #define AR_Z	0x0800		/* gzip compression */
+#define AR_D	0x1000		/* insert dummy mode, mtime, uid and gid */
 
 #define DEF_BLKSZ 10240		/* default block size */
 

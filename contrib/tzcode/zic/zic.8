@@ -119,6 +119,9 @@ Any line that is blank (after comment stripping) is ignored.
 Non-blank lines are expected to be of one of three types:
 rule lines, zone lines, and link lines.
 .Pp
+Names (such as month names) must be in English and are case insensitive.
+Abbreviations, if used, must be unambiguous in context.
+.Pp
 A rule line has the form:
 .Dl "Rule	NAME	FROM	TO	TYPE	IN	ON		AT	SAVE	LETTER/S"
 For example:
@@ -460,6 +463,6 @@ standard directory used for created files
 .Xr ctime 3 ,
 .Xr tzfile 5 ,
 .Xr zdump 8
-.\" @(#)zic.8	8.5
+.\" @(#)zic.8	8.6
 .\" This file is in the public domain, so clarified as of
 .\" 2009-05-17 by Arthur David Olson.

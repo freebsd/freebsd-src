@@ -27,6 +27,33 @@
 
 #ifndef AT91RM92REG_H_
 #define AT91RM92REG_H_
+
+/* Chip Specific limits */
+#define RM9200_PLL_A_MIN_IN_FREQ	  1000000 /*   1 MHz */
+#define RM9200_PLL_A_MAX_IN_FREQ	 32000000 /*  32 MHz */
+#define RM9200_PLL_A_MIN_OUT_FREQ	 80000000 /*  80 MHz */
+#define RM9200_PLL_A_MAX_OUT_FREQ	180000000 /* 180 MHz */
+#define RM9200_PLL_A_MUL_SHIFT 16
+#define RM9200_PLL_A_MUL_MASK 0x7FF 
+#define RM9200_PLL_A_DIV_SHIFT 0
+#define RM9200_PLL_A_DIV_MASK 0xFF 
+
+/*
+ * PLL B input frequency spec sheet says it must be between 1MHz and 32MHz,
+ * but it works down as low as 100kHz, a frequency necessary for some
+ * output frequencies to work.
+ *
+ * PLL Max output frequency is 240MHz.  The errata says 180MHz is the max
+ * for some revisions of this part.  Be more permissive and optimistic.
+ */
+#define RM9200_PLL_B_MIN_IN_FREQ	   100000 /* 100 KHz */
+#define RM9200_PLL_B_MAX_IN_FREQ	 32000000 /*  32 MHz */
+#define RM9200_PLL_B_MIN_OUT_FREQ	 30000000 /*  30 MHz */
+#define RM9200_PLL_B_MAX_OUT_FREQ	240000000 /* 240 MHz */
+#define RM9200_PLL_B_MUL_SHIFT 16
+#define RM9200_PLL_B_MUL_MASK 0x7FF 
+#define RM9200_PLL_B_DIV_SHIFT 0
+#define RM9200_PLL_B_DIV_MASK 0xFF 
 /* 
  * Memory map, from datasheet :
  * 0x00000000 - 0x0ffffffff : Internal Memories
@@ -45,20 +72,26 @@
 #define AT91RM92_BASE		0xd0000000
 /* Usart */
 
+#define AT91RM92_USART_SIZE	0x4000
 #define AT91RM92_USART0_BASE	0xffc0000
 #define AT91RM92_USART0_PDC	0xffc0100
+#define AT91RM92_USART0_SIZE	AT91RM92_USART_SIZE
 #define AT91RM92_USART1_BASE	0xffc4000
 #define AT91RM92_USART1_PDC	0xffc4100
+#define AT91RM92_USART1_SIZE	AT91RM92_USART_SIZE
 #define AT91RM92_USART2_BASE	0xffc8000
 #define AT91RM92_USART2_PDC	0xffc8100
+#define AT91RM92_USART2_SIZE	AT91RM92_USART_SIZE
 #define AT91RM92_USART3_BASE	0xffcc000
 #define AT91RM92_USART3_PDC	0xffcc100
-#define AT91RM92_USART_SIZE	0x4000
+#define AT91RM92_USART3_SIZE	AT91RM92_USART_SIZE
 
 /* System Registers */
 
 #define AT91RM92_SYS_BASE	0xffff000
 #define AT91RM92_SYS_SIZE	0x1000
+
+#if  0
 /* Interrupt Controller */
 #define IC_SMR			(0) /* Source mode register */
 #define IC_SVR			(128) /* Source vector register */
@@ -79,13 +112,6 @@
 #define IC_FFDR			(324) /* Fast forcing disable register */
 #define IC_FFSR			(328) /* Fast forcing status register */
 
-/* DBGU */
-
-#define DBGU			0x200
-#define DBGU_SIZE		0x200
-#define DBGU_C1R		(0x200 + 64) /* Chip ID1 Register */
-#define DBGU_C2R		(0x200 + 68) /* Chip ID2 Register */
-#define DBGU_FNTR		(0x200 + 72) /* Force NTRST Register */
 
 #define PIOA_PER		(0x400) /* PIO Enable Register */
 #define PIOA_PDR		(0x400 + 4) /* PIO Disable Register */
@@ -204,14 +230,19 @@
 #define PIOD_OWDR		(0xa00 + 164) /* Output write disable register */
 #define PIOD_OWSR		(0xa00 + 168) /* Output write status register */
 
+#endif
 /*
  * PIO
  */
-#define AT91RM92_PIOA_BASE	0xffff400
 #define AT91RM92_PIO_SIZE	0x200
+#define AT91RM92_PIOA_BASE	0xffff400
+#define AT91RM92_PIOA_SIZE	AT91RM92_PIO_SIZE
 #define AT91RM92_PIOB_BASE	0xffff600
+#define AT91RM92_PIOB_SIZE	AT91RM92_PIO_SIZE
 #define AT91RM92_PIOC_BASE	0xffff800
+#define AT91RM92_PIOC_SIZE	AT91RM92_PIO_SIZE
 #define AT91RM92_PIOD_BASE	0xffffa00
+#define AT91RM92_PIOD_SIZE	AT91RM92_PIO_SIZE
 
 /*
  * PMC
@@ -271,21 +302,40 @@
 #define AT91RM92_IRQ_SSC0	14
 #define AT91RM92_IRQ_SSC1	15
 #define AT91RM92_IRQ_SSC2	16
-#define AT91RM92_IRQ_TC0	17
-#define AT91RM92_IRQ_TC1	18
-#define AT91RM92_IRQ_TC2	19
-#define AT91RM92_IRQ_TC3	20
-#define AT91RM92_IRQ_TC4	21
-#define AT91RM92_IRQ_TC5	22
+#define AT91RM92_IRQ_TC0	17,18,19
+#define AT91RM92_IRQ_TC0C0	17
+#define AT91RM92_IRQ_TC0C1	18
+#define AT91RM92_IRQ_TC0C2	19
+#define AT91RM92_IRQ_TC1	20,21,22
+#define AT91RM92_IRQ_TC1C1	20
+#define AT91RM92_IRQ_TC1C2	21
+#define AT91RM92_IRQ_TC1C3	22
 #define AT91RM92_IRQ_UHP	23
 #define AT91RM92_IRQ_EMAC	24
-#define AT91RM92_IRQ_AIC_BASE	25
+#define AT91RM92_IRQ_AIC_IRQ0	25
+#define AT91RM92_IRQ_AIC_IRQ1	26
+#define AT91RM92_IRQ_AIC_IRQ2	27
+#define AT91RM92_IRQ_AIC_IRQ3	28
+#define AT91RM92_IRQ_AIC_IRQ4	29
+#define AT91RM92_IRQ_AIC_IRQ5	30
+#define AT91RM92_IRQ_AIC_IRQ6	31
+
+/* Alias */
+#define AT91RM92_IRQ_DBGU AT91RM92_IRQ_SYSTEM
+#define AT91RM92_IRQ_PMC  AT91RM92_IRQ_SYSTEM
+#define AT91RM92_IRQ_ST   AT91RM92_IRQ_SYSTEM
+#define AT91RM92_IRQ_RTC  AT91RM92_IRQ_SYSTEM
+#define AT91RM92_IRQ_MC   AT91RM92_IRQ_SYSTEM
+#define AT91RM92_IRQ_OHCI AT91RM92_IRQ_UHP
+#define AT91RM92_IRQ_AIC -1
+#define AT91RM92_IRQ_CF -1
 
 /* Timer */
 
 #define AT91RM92_AIC_BASE	0xffff000
 #define AT91RM92_AIC_SIZE	0x200
 
+/* DBGU */
 #define AT91RM92_DBGU_BASE	0xffff200
 #define AT91RM92_DBGU_SIZE	0x200
 
@@ -302,16 +352,18 @@
 #define AT91RM92_SPI_SIZE	0x4000
 #define AT91RM92_SPI_PDC	0xffe0100
 
+#define AT91RM92_SSC_SIZE	0x4000
 #define AT91RM92_SSC0_BASE	0xffd0000
 #define AT91RM92_SSC0_PDC	0xffd0100
+#define AT91RM92_SSC0_SIZE	AT91RM92_SSC_SIZE	
 
 #define AT91RM92_SSC1_BASE	0xffd4000
 #define AT91RM92_SSC1_PDC	0xffd4100
+#define AT91RM92_SSC1_SIZE	AT91RM92_SSC_SIZE	
 
 #define AT91RM92_SSC2_BASE	0xffd8000
 #define AT91RM92_SSC2_PDC	0xffd8100
-
-#define AT91RM92_SSC_SIZE	0x4000
+#define AT91RM92_SSC2_SIZE	AT91RM92_SSC_SIZE	
 
 #define AT91RM92_EMAC_BASE	0xffbc000
 #define AT91RM92_EMAC_SIZE	0x4000
@@ -326,17 +378,23 @@
 #define AT91RM92_UDP_BASE	0xffb0000
 #define AT91RM92_UDP_SIZE	0x4000
 
-#define AT91RM92_TC0_BASE	0xffa0000
 #define AT91RM92_TC_SIZE	0x4000
+#define AT91RM92_TC0_BASE	0xffa0000
+#define AT91RM92_TC0_SIZE	AT91RM92_TC_SIZE
 #define AT91RM92_TC0C0_BASE	0xffa0000
 #define AT91RM92_TC0C1_BASE	0xffa0040
 #define AT91RM92_TC0C2_BASE	0xffa0080
 
 #define AT91RM92_TC1_BASE	0xffa4000
+#define AT91RM92_TC1_SIZE	AT91RM92_TC_SIZE
 #define AT91RM92_TC1C0_BASE	0xffa4000
 #define AT91RM92_TC1C1_BASE	0xffa4040
 #define AT91RM92_TC1C2_BASE	0xffa4080
 
+/* XXX Needs to be carfully coordinated with
+ * other * soc's so phyical and vm address
+ * mapping are unique. XXX
+ */
 #define AT91RM92_OHCI_BASE	0xdfe00000
 #define AT91RM92_OHCI_PA_BASE	0x00300000
 #define AT91RM92_OHCI_SIZE	0x00100000

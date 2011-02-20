@@ -141,9 +141,6 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		fc->path = path;
 		fc->isp = isp;
 		fc->ready = 1;
-		fc->gone_device_time = isp_gone_device_time;
-		fc->loop_down_limit = isp_loop_down_limit;
-		fc->hysteresis = isp_fabric_hysteresis;
 		callout_init_mtx(&fc->ldt, &isp->isp_osinfo.lock, 0);
 		callout_init_mtx(&fc->gdt, &isp->isp_osinfo.lock, 0);
 
@@ -607,11 +604,11 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 				break;
 			}
 			isp_put_24xx_tmf(isp, tmf, fcp->isp_scratch);
-			MEMORYBARRIER(isp, SYNC_SFORDEV, 0, QENTRY_LEN);
+			MEMORYBARRIER(isp, SYNC_SFORDEV, 0, QENTRY_LEN, chan);
 			sp = (isp24xx_statusreq_t *) local;
 			sp->req_completion_status = 1;
 			retval = isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
-			MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN);
+			MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
 			isp_get_24xx_response(isp, &((isp24xx_statusreq_t *)fcp->isp_scratch)[1], sp);
 			FC_SCRATCH_RELEASE(isp, chan);
 			if (retval || sp->req_completion_status != 0) {
@@ -1790,7 +1787,7 @@ isp_handle_platform_atio(ispsoftc_t *isp, at_entry_t *aep)
 	 * The firmware status (except for the QLTM_SVALID bit)
 	 * indicates why this ATIO was sent to us.
 	 *
-	 * If QLTM_SVALID is set, the firware has recommended Sense Data.
+	 * If QLTM_SVALID is set, the firmware has recommended Sense Data.
 	 *
 	 * If the DISCONNECTS DISABLED bit is set in the flags field,
 	 * we're still connected on the SCSI bus.
@@ -1917,7 +1914,7 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	 * The firmware status (except for the QLTM_SVALID bit)
 	 * indicates why this ATIO was sent to us.
 	 *
-	 * If QLTM_SVALID is set, the firware has recommended Sense Data.
+	 * If QLTM_SVALID is set, the firmware has recommended Sense Data.
 	 */
 	if ((aep->at_status & ~QLTM_SVALID) != AT_CDB) {
 		isp_prt(isp, ISP_LOGWARN, "bogus atio (0x%x) leaked to platform", aep->at_status);
@@ -2581,7 +2578,7 @@ isp_handle_platform_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot)
 
 		/*
 		 * Note that we're just getting notification that an ELS was received
-		 * (possibly with some associcated information sent upstream). This is
+		 * (possibly with some associated information sent upstream). This is
 		 * *not* the same as being given the ELS frame to accept or reject.
 		 */
 		switch (inot->in_status_subcode) {
@@ -2784,7 +2781,7 @@ isp_handle_platform_target_notify_ack(ispsoftc_t *isp, isp_notify_t *mp)
 }
 
 /*
- * Handle task managment functions.
+ * Handle task management functions.
  *
  * We show up here with a notify structure filled out.
  *
@@ -2894,7 +2891,7 @@ bad:
 }
 
 /*
- * Find the associated private data and makr it as dead so
+ * Find the associated private data and mark it as dead so
  * we don't try to work on it any further.
  */
 static void
@@ -5368,7 +5365,7 @@ isp_default_wwn(ispsoftc_t * isp, int chan, int isactive, int iswwnn)
 
 
 	/*
-	 * For channel zero just return what we have. For either ACIIVE or
+	 * For channel zero just return what we have. For either ACTIVE or
 	 * DEFAULT cases, we depend on default override of NVRAM values for
 	 * channel zero.
 	 */
@@ -5404,7 +5401,7 @@ isp_default_wwn(ispsoftc_t * isp, int chan, int isactive, int iswwnn)
 		 * physical port on dual-port chips (23XX/24XX)
 		 * 
 		 * This is somewhat nutty, particularly since bit 48 is
-		 * irrelevant as they assign seperate serial numbers to
+		 * irrelevant as they assign separate serial numbers to
 		 * different physical ports anyway.
 		 * 
 		 * We'll stick our channel number plus one first into bits

@@ -99,7 +99,7 @@ static struct g_part_scheme g_part_bsd_scheme = {
 	sizeof(struct g_part_bsd_table),
 	.gps_entrysz = sizeof(struct g_part_bsd_entry),
 	.gps_minent = 8,
-	.gps_maxent = 20,
+	.gps_maxent = 20,	/* Only 22 entries fit in 512 byte sectors */
 	.gps_bootcodesz = BBSIZE,
 };
 G_PART_SCHEME_DECLARE(g_part_bsd);
@@ -426,6 +426,8 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 			continue;
 		if (part.p_offset < table->offset)
 			continue;
+		if (part.p_offset - table->offset > basetable->gpt_last)
+			goto invalid_label;
 		baseentry = g_part_new_entry(basetable, index + 1,
 		    part.p_offset - table->offset,
 		    part.p_offset - table->offset + part.p_size - 1);
@@ -440,6 +442,7 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
  invalid_label:
 	printf("GEOM: %s: invalid disklabel.\n", pp->name);
 	g_free(table->bbarea);
+	table->bbarea = NULL;
 	return (EINVAL);
 }
 

@@ -20,10 +20,6 @@
 cpu		CPU_MIPS32
 ident		QEMU
 
-# XXX: These two options must be defined in MIPS kernel configs.
-makeoptions	MIPS_LITTLE_ENDIAN=defined
-makeoptions	ARCH_FLAGS=-march=mips32
-
 # Don't build any modules yet.
 makeoptions	MODULES_OVERRIDE=""
 

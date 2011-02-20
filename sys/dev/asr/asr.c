@@ -3708,9 +3708,9 @@ asr_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 		Info.drive1CMOS = j;
 
 		Info.numDrives = *((char *)ptok(0x475));
-#endif /* ASR_IOCTL_COMPAT */
-
+#else /* ASR_IOCTL_COMPAT */
 		bzero(&Info, sizeof(Info));
+#endif /* ASR_IOCTL_COMPAT */
 
 		Info.processorFamily = ASR_sig.dsProcessorFamily;
 #if defined(__i386__)

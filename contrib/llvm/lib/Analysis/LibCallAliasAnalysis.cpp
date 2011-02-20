@@ -20,11 +20,8 @@ using namespace llvm;
   
 // Register this pass...
 char LibCallAliasAnalysis::ID = 0;
-static RegisterPass<LibCallAliasAnalysis>
-X("libcall-aa", "LibCall Alias Analysis", false, true);
-  
-// Declare that we implement the AliasAnalysis interface
-static RegisterAnalysisGroup<AliasAnalysis> Y(X);
+INITIALIZE_AG_PASS(LibCallAliasAnalysis, AliasAnalysis, "libcall-aa",
+                   "LibCall Alias Analysis", false, true, false);
 
 FunctionPass *llvm::createLibCallAliasAnalysisPass(LibCallInfo *LCI) {
   return new LibCallAliasAnalysis(LCI);
@@ -46,7 +43,7 @@ void LibCallAliasAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
 /// vs the specified pointer/size.
 AliasAnalysis::ModRefResult
 LibCallAliasAnalysis::AnalyzeLibCallDetails(const LibCallFunctionInfo *FI,
-                                            CallSite CS, Value *P,
+                                            ImmutableCallSite CS, const Value *P,
                                             unsigned Size) {
   // If we have a function, check to see what kind of mod/ref effects it
   // has.  Start by including any info globally known about the function.
@@ -120,13 +117,14 @@ LibCallAliasAnalysis::AnalyzeLibCallDetails(const LibCallFunctionInfo *FI,
 // specified memory object.
 //
 AliasAnalysis::ModRefResult
-LibCallAliasAnalysis::getModRefInfo(CallSite CS, Value *P, unsigned Size) {
+LibCallAliasAnalysis::getModRefInfo(ImmutableCallSite CS,
+                                    const Value *P, unsigned Size) {
   ModRefResult MRInfo = ModRef;
   
   // If this is a direct call to a function that LCI knows about, get the
   // information about the runtime function.
   if (LCI) {
-    if (Function *F = CS.getCalledFunction()) {
+    if (const Function *F = CS.getCalledFunction()) {
       if (const LibCallFunctionInfo *FI = LCI->getFunctionInfo(F)) {
         MRInfo = ModRefResult(MRInfo & AnalyzeLibCallDetails(FI, CS, P, Size));
         if (MRInfo == NoModRef) return NoModRef;

@@ -61,11 +61,6 @@ struct rtentry;
 #include <string.h>
 #include <unistd.h>
 
-#include "gnuc.h"
-#ifdef HAVE_OS_PROTO_H
-#include "os-proto.h"
-#endif
-
 #include "ifaddrlist.h"
 
 /*
@@ -76,14 +71,14 @@ ifaddrlist(register struct ifaddrlist **ipaddrp, register char *errbuf)
 {
 	register int fd, nipaddr;
 #ifdef HAVE_SOCKADDR_SA_LEN
-	register int n;
+	size_t n;
 #endif
 	register struct ifreq *ifrp, *ifend, *ifnext, *mp;
 	register struct sockaddr_in *sin;
 	register struct ifaddrlist *al;
 	struct ifconf ifc;
 	struct ifreq ibuf[(32 * 1024) / sizeof(struct ifreq)], ifr;
-#define MAX_IPADDR (sizeof(ibuf) / sizeof(ibuf[0]))
+#define MAX_IPADDR ((int)(sizeof(ibuf) / sizeof(ibuf[0])))
 	static struct ifaddrlist ifaddrlist[MAX_IPADDR];
 	char device[sizeof(ifr.ifr_name) + 1];
 
@@ -96,10 +91,10 @@ ifaddrlist(register struct ifaddrlist **ipaddrp, register char *errbuf)
 	ifc.ifc_buf = (caddr_t)ibuf;
 
 	if (ioctl(fd, SIOCGIFCONF, (char *)&ifc) < 0 ||
-	    ifc.ifc_len < sizeof(struct ifreq)) {
+	    ifc.ifc_len < (int)sizeof(struct ifreq)) {
 		if (errno == EINVAL)
 			(void)sprintf(errbuf,
-			    "SIOCGIFCONF: ifreq struct too small (%d bytes)",
+			    "SIOCGIFCONF: ifreq struct too small (%zu bytes)",
 			    sizeof(ibuf));
 		else
 			(void)sprintf(errbuf, "SIOCGIFCONF: %s",

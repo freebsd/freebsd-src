@@ -164,11 +164,7 @@ mips_ipi_handler(void *arg)
 			break;
 		case IPI_HARDCLOCK:
 			CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
-			hardclockintr(arg);;
-			break;
-		case IPI_STATCLOCK:
-			CTR1(KTR_SMP, "%s: IPI_STATCLOCK", __func__);
-			statclockintr(arg);;
+			hardclockintr();
 			break;
 		default:
 			panic("Unknown IPI 0x%0x on cpu %d", ipi, curcpu);
@@ -204,12 +200,14 @@ start_ap(int cpuid)
 void
 cpu_mp_setmaxid(void)
 {
+	cpumask_t cpumask;
 
-	mp_ncpus = platform_num_processors();
+	cpumask = platform_cpu_mask();
+	mp_ncpus = bitcount32(cpumask);
 	if (mp_ncpus <= 0)
 		mp_ncpus = 1;
 
-	mp_maxid = min(mp_ncpus, MAXCPU) - 1;
+	mp_maxid = min(fls(cpumask), MAXCPU) - 1;
 }
 
 void
@@ -235,24 +233,30 @@ void
 cpu_mp_start(void)
 {
 	int error, cpuid;
+	cpumask_t cpumask;
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
-	all_cpus = 1;		/* BSP */
-	for (cpuid = 1; cpuid < platform_num_processors(); ++cpuid) {
+	all_cpus = 0;
+	cpumask = platform_cpu_mask();
+
+	while (cpumask != 0) {
+		cpuid = ffs(cpumask) - 1;
+		cpumask &= ~(1 << cpuid);
+
 		if (cpuid >= MAXCPU) {
 			printf("cpu_mp_start: ignoring AP #%d.\n", cpuid);
 			continue;
 		}
 
-		if ((error = start_ap(cpuid)) != 0) {
-			printf("AP #%d failed to start: %d\n", cpuid, error);
-			continue;
+		if (cpuid != platform_processor_id()) {
+			if ((error = start_ap(cpuid)) != 0) {
+				printf("AP #%d failed to start: %d\n", cpuid, error);
+				continue;
+			}
+			if (bootverbose)
+				printf("AP #%d started!\n", cpuid);
 		}
-		
-		if (bootverbose)
-			printf("AP #%d started!\n", cpuid);
-
 		all_cpus |= 1 << cpuid;
 	}
 
@@ -314,8 +318,6 @@ smp_init_secondary(u_int32_t cpuid)
 	while (smp_started == 0)
 		; /* nothing */
 
-	intr_enable();
-
 	/* Start per-CPU event timers. */
 	cpu_initclocks_ap();
 
@@ -339,7 +341,7 @@ release_aps(void *dummy __unused)
 	 */
 	ipi_irq = platform_ipi_intrnum();
 	cpu_establish_hardintr("ipi", mips_ipi_handler, NULL, NULL, ipi_irq,
-			       INTR_TYPE_MISC | INTR_EXCL | INTR_FAST, NULL);
+			       INTR_TYPE_MISC | INTR_EXCL, NULL);
 
 	atomic_store_rel_int(&aps_ready, 1);
 

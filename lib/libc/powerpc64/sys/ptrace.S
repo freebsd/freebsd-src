@@ -32,8 +32,8 @@ __FBSDID("$FreeBSD$");
 
 ENTRY(ptrace)
 	mflr	%r0
-	stdu	%r1,-68(%r1)
-	std	%r0,84(%r1)
+	std	%r0,16(%r1)
+	stdu	%r1,-80(%r1)
 	stw	%r3,48(%r1)
 	stw	%r4,52(%r1)
 	std	%r5,56(%r1)
@@ -47,10 +47,10 @@ ENTRY(ptrace)
 	lwz	%r3,48(%r1)
 	lwz	%r4,52(%r1)
 	ld	%r5,56(%r1)
-	ld	%r0,84(%r1)
 	lwz	%r6,64(%r1)
-	mtlr	%r0
 	ld	%r1,0(%r1)
+	ld	%r0,16(%r1)
+	mtlr	%r0
 	li	%r0,SYS_ptrace
 	sc
 	bso	1f
@@ -63,3 +63,5 @@ ENTRY(ptrace)
 	ld	%r0,16(%r1)
 	mtlr	%r0
 	blr
+
+	.section .note.GNU-stack,"",%progbits

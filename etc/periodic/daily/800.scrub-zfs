@@ -5,6 +5,10 @@
 
 # If there is a global system configuration file, suck it in.
 #
+
+newline="
+" # A single newline
+
 if [ -r /etc/defaults/periodic.conf ]
 then
     . /etc/defaults/periodic.conf
@@ -24,13 +28,19 @@ case "$daily_scrub_zfs_enable" in
 
 	for pool in ${daily_scrub_zfs_pools}; do
 		# sanity check
-		zpool list ${pool} >/dev/null 2>&1
+		_status=$(zpool list "${pool}" 2> /dev/null)
 		if [ $? -ne 0 ]; then
 			echo "   WARNING: pool '${pool}' specified in"
 			echo "            '/etc/periodic.conf:daily_scrub_zfs_pools'"
 			echo "            does not exist"
 			continue
 		fi
+		_status=${_status##*$newline}
+		case ${_status} in
+		*FAULTED*)
+			echo "Skipping faulted pool: ${pool}"
+			continue ;;
+		esac
 
 		# successful only if there is at least one pool to scrub
 		rc=0
@@ -53,7 +63,7 @@ case "$daily_scrub_zfs_enable" in
 		# Now minus last scrub (both in seconds) converted to days.
 		_scrub_diff=$(expr -e \( $(date +%s) - \
 		    $(date -j -f %F.%T ${_last_scrub} +%s) \) / 60 / 60 / 24)
-		if [ ${_scrub_diff} -le ${_pool_threshold} ]; then
+		if [ ${_scrub_diff} -lt ${_pool_threshold} ]; then
 			echo "   skipping scrubbing of pool '${pool}':"
 			echo "      last scrubbing is ${_scrub_diff} days ago, threshold is set to ${_pool_threshold} days"
 			continue
@@ -65,11 +75,11 @@ case "$daily_scrub_zfs_enable" in
 				echo "   scrubbing of pool '${pool}' already in progress, skipping:"
 				;;
 			*"none requested"*)
-				echo "   starting first scrubbing (after reboot) of pool '${pool}':"
+				echo "   starting first scrub (since reboot) of pool '${pool}':"
 				zpool scrub ${pool}
 				;;
 			*)
-				echo "   starting scrubbing of pool '${pool}':"
+				echo "   starting scrub of pool '${pool}':"
 				zpool scrub ${pool}
 				;;
 		esac

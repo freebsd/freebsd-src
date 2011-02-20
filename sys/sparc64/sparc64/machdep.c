@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_kstack_pages.h"
-#include "opt_msgbuf.h"
 
 #include <sys/param.h>
 #include <sys/malloc.h>
@@ -224,9 +223,10 @@ spinlock_enter(void)
 	if (td->td_md.md_spinlock_count == 0) {
 		pil = rdpr(pil);
 		wrpr(pil, 0, PIL_TICK);
+		td->td_md.md_spinlock_count = 1;
 		td->td_md.md_saved_pil = pil;
-	}
-	td->td_md.md_spinlock_count++;
+	} else
+		td->td_md.md_spinlock_count++;
 	critical_enter();
 }
 
@@ -234,12 +234,14 @@ void
 spinlock_exit(void)
 {
 	struct thread *td;
+	register_t pil;
 
 	td = curthread;
 	critical_exit();
+	pil = td->td_md.md_saved_pil;
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
-		wrpr(pil, td->td_md.md_saved_pil, 0);
+		wrpr(pil, pil, 0);
 }
 
 static phandle_t
@@ -495,7 +497,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	if (cpu_use_vis) {
 		switch (cpu_impl) {
 		case CPU_IMPL_SPARC64:
-		case CPU_IMPL_SPARC64V:
 		case CPU_IMPL_ULTRASPARCI:
 		case CPU_IMPL_ULTRASPARCII:
 		case CPU_IMPL_ULTRASPARCIIi:
@@ -508,6 +509,10 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		case CPU_IMPL_ULTRASPARCIIIip:
 			cpu_block_copy = spitfire_block_copy;
 			cpu_block_zero = spitfire_block_zero;
+			break;
+		case CPU_IMPL_SPARC64V:
+			cpu_block_copy = zeus_block_copy;
+			cpu_block_zero = zeus_block_zero;
 			break;
 		}
 	}
@@ -543,6 +548,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	proc0.p_md.md_sigtramp = NULL;
 	proc0.p_md.md_utrap = NULL;
 	thread0.td_kstack = kstack0;
+	thread0.td_kstack_pages = KSTACK_PAGES;
 	thread0.td_pcb = (struct pcb *)
 	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	frame0.tf_tstate = TSTATE_IE | TSTATE_PEF | TSTATE_PRIV;
@@ -575,7 +581,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * buffer (after setting the trap table).
 	 */
 	dpcpu_init(dpcpu0, 0);
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufinit(msgbufp, msgbufsize);
 
 	/*
 	 * Initialize mutexes.
@@ -587,7 +593,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * enable them.
 	 */
 	intr_init2();
-	wrpr(pil, 0, PIL_TICK);
+	wrpr(pil, 0, 0);
 	wrpr(pstate, 0, PSTATE_KERNEL);
 
 	/*
@@ -959,7 +965,7 @@ int
 cpu_idle_wakeup(int cpu)
 {
 
-	return (0);
+	return (1);
 }
 
 int

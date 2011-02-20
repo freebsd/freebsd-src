@@ -118,6 +118,7 @@ struct nfscldeleg {
 #define	NFSCLDL_NEEDRECLAIM	0x08
 #define	NFSCLDL_ZAPPED		0x10
 #define	NFSCLDL_MODTIMESET	0x20
+#define	NFSCLDL_DELEGRET	0x40
 
 /*
  * MALLOC'd to the correct length to accommodate the file handle.

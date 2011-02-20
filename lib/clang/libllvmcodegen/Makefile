@@ -15,7 +15,6 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	ELFCodeEmitter.cpp \
 	ELFWriter.cpp \
 	GCMetadata.cpp \
-	GCMetadataPrinter.cpp \
 	GCStrategy.cpp \
 	IfConversion.cpp \
 	InlineSpiller.cpp \
@@ -26,6 +25,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	LiveIntervalAnalysis.cpp \
 	LiveStackAnalysis.cpp \
 	LiveVariables.cpp \
+	LocalStackSlotAllocation.cpp \
 	LowerSubregs.cpp \
 	MachineBasicBlock.cpp \
 	MachineCSE.cpp \
@@ -46,10 +46,10 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	MachineVerifier.cpp \
 	ObjectCodeEmitter.cpp \
 	OcamlGC.cpp \
-	OptimizeExts.cpp \
 	OptimizePHIs.cpp \
 	PHIElimination.cpp \
 	Passes.cpp \
+	PeepholeOptimizer.cpp \
 	PostRAHazardRecognizer.cpp \
 	PostRASchedulerList.cpp \
 	PreAllocSplitting.cpp \
@@ -61,6 +61,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	RegAllocPBQP.cpp \
 	RegisterCoalescer.cpp \
 	RegisterScavenging.cpp \
+	RenderMachineFunction.cpp \
 	ScheduleDAG.cpp \
 	ScheduleDAGEmit.cpp \
 	ScheduleDAGInstrs.cpp \
@@ -71,6 +72,8 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	SjLjEHPrepare.cpp \
 	SlotIndexes.cpp \
 	Spiller.cpp \
+	SplitKit.cpp \
+	Splitter.cpp \
 	StackProtector.cpp \
 	StackSlotColoring.cpp \
 	StrongPHIElimination.cpp \

@@ -77,61 +77,61 @@ def VSTRS  : ASI5<0b1101, 0b00, (outs), (ins SPR:$src, addrmode5:$addr),
 //
 
 let mayLoad = 1, neverHasSideEffects = 1, hasExtraDefRegAllocReq = 1 in {
-def VLDMD : AXDI5<(outs), (ins addrmode5:$addr, pred:$p, reglist:$dsts,
+def VLDMD : AXDI4<(outs), (ins addrmode4:$addr, pred:$p, reglist:$dsts,
                            variable_ops), IndexModeNone, IIC_fpLoadm,
-                  "vldm${addr:submode}${p}\t${addr:base}, $dsts", "", []> {
+                  "vldm${addr:submode}${p}\t$addr, $dsts", "", []> {
   let Inst{20} = 1;
 }
 
-def VLDMS : AXSI5<(outs), (ins addrmode5:$addr, pred:$p, reglist:$dsts,
+def VLDMS : AXSI4<(outs), (ins addrmode4:$addr, pred:$p, reglist:$dsts,
                            variable_ops), IndexModeNone, IIC_fpLoadm,
-                  "vldm${addr:submode}${p}\t${addr:base}, $dsts", "", []> {
+                  "vldm${addr:submode}${p}\t$addr, $dsts", "", []> {
   let Inst{20} = 1;
 }
 
-def VLDMD_UPD : AXDI5<(outs GPR:$wb), (ins addrmode5:$addr, pred:$p,
+def VLDMD_UPD : AXDI4<(outs GPR:$wb), (ins addrmode4:$addr, pred:$p,
                                        reglist:$dsts, variable_ops),
                       IndexModeUpd, IIC_fpLoadm,
-                      "vldm${addr:submode}${p}\t${addr:base}!, $dsts",
-                      "$addr.base = $wb", []> {
+                      "vldm${addr:submode}${p}\t$addr!, $dsts",
+                      "$addr.addr = $wb", []> {
   let Inst{20} = 1;
 }
 
-def VLDMS_UPD : AXSI5<(outs GPR:$wb), (ins addrmode5:$addr, pred:$p,
+def VLDMS_UPD : AXSI4<(outs GPR:$wb), (ins addrmode4:$addr, pred:$p,
                                        reglist:$dsts, variable_ops),
                       IndexModeUpd, IIC_fpLoadm, 
-                      "vldm${addr:submode}${p}\t${addr:base}!, $dsts",
-                      "$addr.base = $wb", []> {
+                      "vldm${addr:submode}${p}\t$addr!, $dsts",
+                      "$addr.addr = $wb", []> {
   let Inst{20} = 1;
 }
 } // mayLoad, neverHasSideEffects, hasExtraDefRegAllocReq
 
 let mayStore = 1, neverHasSideEffects = 1, hasExtraSrcRegAllocReq = 1 in {
-def VSTMD : AXDI5<(outs), (ins addrmode5:$addr, pred:$p, reglist:$srcs,
+def VSTMD : AXDI4<(outs), (ins addrmode4:$addr, pred:$p, reglist:$srcs,
                            variable_ops), IndexModeNone, IIC_fpStorem,
-                  "vstm${addr:submode}${p}\t${addr:base}, $srcs", "", []> {
+                  "vstm${addr:submode}${p}\t$addr, $srcs", "", []> {
   let Inst{20} = 0;
 }
 
-def VSTMS : AXSI5<(outs), (ins addrmode5:$addr, pred:$p, reglist:$srcs,
+def VSTMS : AXSI4<(outs), (ins addrmode4:$addr, pred:$p, reglist:$srcs,
                            variable_ops), IndexModeNone, IIC_fpStorem,
-                  "vstm${addr:submode}${p}\t${addr:base}, $srcs", "", []> {
+                  "vstm${addr:submode}${p}\t$addr, $srcs", "", []> {
   let Inst{20} = 0;
 }
 
-def VSTMD_UPD : AXDI5<(outs GPR:$wb), (ins addrmode5:$addr, pred:$p,
+def VSTMD_UPD : AXDI4<(outs GPR:$wb), (ins addrmode4:$addr, pred:$p,
                                        reglist:$srcs, variable_ops),
                       IndexModeUpd, IIC_fpStorem,
-                      "vstm${addr:submode}${p}\t${addr:base}!, $srcs",
-                      "$addr.base = $wb", []> {
+                      "vstm${addr:submode}${p}\t$addr!, $srcs",
+                      "$addr.addr = $wb", []> {
   let Inst{20} = 0;
 }
 
-def VSTMS_UPD : AXSI5<(outs GPR:$wb), (ins addrmode5:$addr, pred:$p,
+def VSTMS_UPD : AXSI4<(outs GPR:$wb), (ins addrmode4:$addr, pred:$p,
                                        reglist:$srcs, variable_ops),
                       IndexModeUpd, IIC_fpStorem,
-                      "vstm${addr:submode}${p}\t${addr:base}!, $srcs",
-                      "$addr.base = $wb", []> {
+                      "vstm${addr:submode}${p}\t$addr!, $srcs",
+                      "$addr.addr = $wb", []> {
   let Inst{20} = 0;
 }
 } // mayStore, neverHasSideEffects, hasExtraSrcRegAllocReq
@@ -420,33 +420,34 @@ def VTOUIZS : AVConv1In<0b11101, 0b11, 0b1100, 0b1010,
 
 // And the Z bit '0' variants, i.e. use the rounding mode specified by FPSCR.
 // For disassembly only.
-
+let Uses = [FPSCR] in {
 def VTOSIRD : AVConv1I<0b11101, 0b11, 0b1101, 0b1011,
                        (outs SPR:$dst), (ins DPR:$a),
                  IIC_fpCVTDI, "vcvtr", ".s32.f64\t$dst, $a",
-                 [/* For disassembly only; pattern left blank */]> {
+                 [(set SPR:$dst, (int_arm_vcvtr (f64 DPR:$a)))]> {
   let Inst{7} = 0; // Z bit
 }
 
 def VTOSIRS : AVConv1In<0b11101, 0b11, 0b1101, 0b1010,
                         (outs SPR:$dst), (ins SPR:$a),
                  IIC_fpCVTSI, "vcvtr", ".s32.f32\t$dst, $a",
-                 [/* For disassembly only; pattern left blank */]> {
+                 [(set SPR:$dst, (int_arm_vcvtr SPR:$a))]> {
   let Inst{7} = 0; // Z bit
 }
 
 def VTOUIRD : AVConv1I<0b11101, 0b11, 0b1100, 0b1011,
                        (outs SPR:$dst), (ins DPR:$a),
                  IIC_fpCVTDI, "vcvtr", ".u32.f64\t$dst, $a",
-                 [/* For disassembly only; pattern left blank */]> {
+                 [(set SPR:$dst, (int_arm_vcvtru (f64 DPR:$a)))]> {
   let Inst{7} = 0; // Z bit
 }
 
 def VTOUIRS : AVConv1In<0b11101, 0b11, 0b1100, 0b1010,
                         (outs SPR:$dst), (ins SPR:$a),
                  IIC_fpCVTSI, "vcvtr", ".u32.f32\t$dst, $a",
-                 [/* For disassembly only; pattern left blank */]> {
+                 [(set SPR:$dst, (int_arm_vcvtru SPR:$a))]> {
   let Inst{7} = 0; // Z bit
+}
 }
 
 // Convert between floating-point and fixed-point
@@ -460,6 +461,7 @@ let Constraints = "$a = $dst" in {
 
 // FP to Fixed-Point:
 
+let isCodeGenOnly = 1 in {
 def VTOSHS : AVConv1XI<0b11101, 0b11, 0b1110, 0b1010, 0,
                        (outs SPR:$dst), (ins SPR:$a, i32imm:$fbits),
                  IIC_fpCVTSI, "vcvt", ".s16.f32\t$dst, $a, $fbits",
@@ -499,9 +501,11 @@ def VTOULD : AVConv1XI<0b11101, 0b11, 0b1111, 0b1011, 1,
                        (outs DPR:$dst), (ins DPR:$a, i32imm:$fbits),
                  IIC_fpCVTDI, "vcvt", ".u32.f64\t$dst, $a, $fbits",
                  [/* For disassembly only; pattern left blank */]>;
+}
 
 // Fixed-Point to FP:
 
+let isCodeGenOnly = 1 in {
 def VSHTOS : AVConv1XI<0b11101, 0b11, 0b1010, 0b1010, 0,
                        (outs SPR:$dst), (ins SPR:$a, i32imm:$fbits),
                  IIC_fpCVTIS, "vcvt", ".f32.s16\t$dst, $a, $fbits",
@@ -541,6 +545,7 @@ def VULTOD : AVConv1XI<0b11101, 0b11, 0b1011, 0b1011, 1,
                        (outs DPR:$dst), (ins DPR:$a, i32imm:$fbits),
                  IIC_fpCVTID, "vcvt", ".f64.u32\t$dst, $a, $fbits",
                  [/* For disassembly only; pattern left blank */]>;
+}
 
 } // End of 'let Constraints = "$src = $dst" in'
 
@@ -654,32 +659,27 @@ def FMSTAT : VFPAI<(outs), (ins), VFPMiscFrm, IIC_fpSTAT, "vmrs",
 }
 
 // FPSCR <-> GPR (for disassembly only)
-
-let neverHasSideEffects = 1 in {
-let Uses = [FPSCR] in {
-def VMRS : VFPAI<(outs GPR:$dst), (ins), VFPMiscFrm, IIC_fpSTAT, "vmrs",
-                 "\t$dst, fpscr",
-             [/* For disassembly only; pattern left blank */]> {
+let hasSideEffects = 1, Uses = [FPSCR] in
+def VMRS : VFPAI<(outs GPR:$dst), (ins), VFPMiscFrm, IIC_fpSTAT,
+                 "vmrs", "\t$dst, fpscr",
+             [(set GPR:$dst, (int_arm_get_fpscr))]> {
   let Inst{27-20} = 0b11101111;
   let Inst{19-16} = 0b0001;
   let Inst{11-8}  = 0b1010;
   let Inst{7}     = 0;
   let Inst{4}     = 1;
 }
-}
 
-let Defs = [FPSCR] in {
-def VMSR : VFPAI<(outs), (ins GPR:$src), VFPMiscFrm, IIC_fpSTAT, "vmsr",
-                 "\tfpscr, $src",
-             [/* For disassembly only; pattern left blank */]> {
+let Defs = [FPSCR] in 
+def VMSR : VFPAI<(outs), (ins GPR:$src), VFPMiscFrm, IIC_fpSTAT, 
+                 "vmsr", "\tfpscr, $src",
+             [(int_arm_set_fpscr GPR:$src)]> {
   let Inst{27-20} = 0b11101110;
   let Inst{19-16} = 0b0001;
   let Inst{11-8}  = 0b1010;
   let Inst{7}     = 0;
   let Inst{4}     = 1;
 }
-}
-} // neverHasSideEffects
 
 // Materialize FP immediates. VFP3 only.
 let isReMaterializable = 1 in {

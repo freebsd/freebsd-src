@@ -758,7 +758,7 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 	struct ipsecrequest *isr;
 	struct secasindex saidx;
 	int error;
-	struct sockaddr_in6* dst6;
+	struct sockaddr_in6 *dst6;
 	struct mbuf *m;
 
 	IPSEC_ASSERT(state != NULL, ("null state"));
@@ -829,7 +829,8 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 		}
 		ip6 = mtod(m, struct ip6_hdr *);
 
-		state->ro = &isr->sav->sah->sa_route;
+		state->ro =
+		    (struct route *)&isr->sav->sah->route_cache.sin6_route;
 		state->dst = (struct sockaddr *)&state->ro->ro_dst;
 		dst6 = (struct sockaddr_in6 *)state->dst;
 		if (state->ro->ro_rt
@@ -853,10 +854,8 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 		}
 
 		/* adjust state->dst if tunnel endpoint is offlink */
-		if (state->ro->ro_rt->rt_flags & RTF_GATEWAY) {
+		if (state->ro->ro_rt->rt_flags & RTF_GATEWAY)
 			state->dst = (struct sockaddr *)state->ro->ro_rt->rt_gateway;
-			dst6 = (struct sockaddr_in6 *)state->dst;
-		}
 	}
 
 	m = ipsec6_splithdr(m);

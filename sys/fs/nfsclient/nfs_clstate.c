@@ -929,8 +929,10 @@ nfscl_getbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 		ldp = dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh,
 		    np->n_fhp->nfh_len);
 		/* Just sanity check for correct type of delegation */
-		if (dp != NULL && ((dp->nfsdl_flags & NFSCLDL_RECALL) ||
-		    (type == F_WRLCK && !(dp->nfsdl_flags & NFSCLDL_WRITE))))
+		if (dp != NULL && ((dp->nfsdl_flags &
+		    (NFSCLDL_RECALL | NFSCLDL_DELEGRET)) != 0 ||
+		     (type == F_WRLCK &&
+		      (dp->nfsdl_flags & NFSCLDL_WRITE) == 0)))
 			dp = NULL;
 	}
 	if (dp != NULL) {
@@ -2495,8 +2497,8 @@ tryagain:
 		    if (dp->nfsdl_rwlock.nfslock_usecnt == 0 &&
 			dp->nfsdl_rwlock.nfslock_lock == 0 &&
 			dp->nfsdl_timestamp < NFSD_MONOSEC &&
-			!(dp->nfsdl_flags & (NFSCLDL_RECALL | NFSCLDL_ZAPPED |
-			  NFSCLDL_NEEDRECLAIM))) {
+			(dp->nfsdl_flags & (NFSCLDL_RECALL | NFSCLDL_ZAPPED |
+			  NFSCLDL_NEEDRECLAIM | NFSCLDL_DELEGRET)) == 0) {
 			clearok = 1;
 			LIST_FOREACH(owp, &dp->nfsdl_owner, nfsow_list) {
 			    op = LIST_FIRST(&owp->nfsow_open);
@@ -3086,7 +3088,8 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 				if (clp != NULL) {
 					dp = nfscl_finddeleg(clp, nfhp->nfh_fh,
 					    nfhp->nfh_len);
-					if (dp != NULL) {
+					if (dp != NULL && (dp->nfsdl_flags &
+					    NFSCLDL_DELEGRET) == 0) {
 						dp->nfsdl_flags |=
 						    NFSCLDL_RECALL;
 						wakeup((caddr_t)clp);
@@ -3338,7 +3341,6 @@ nfscl_recalldeleg(struct nfsclclient *clp, struct nfsmount *nmp,
 		np = VTONFS(vp);
 	}
 	dp->nfsdl_flags &= ~NFSCLDL_MODTIMESET;
-	NFSINVALATTRCACHE(np);
 
 	/*
 	 * Ok, if it's a write delegation, flush data to the server, so
@@ -3347,21 +3349,14 @@ nfscl_recalldeleg(struct nfsclclient *clp, struct nfsmount *nmp,
 	ret = 0;
 	NFSLOCKNODE(np);
 	if ((dp->nfsdl_flags & NFSCLDL_WRITE) && (np->n_flag & NMODIFIED)) {
-#ifdef APPLE
-		OSBitOrAtomic((u_int32_t)NDELEGRECALL, (UInt32 *)&np->n_flag);
-#else
 		np->n_flag |= NDELEGRECALL;
-#endif
 		NFSUNLOCKNODE(np);
 		ret = ncl_flush(vp, MNT_WAIT, cred, p, 1,
 		    called_from_renewthread);
 		NFSLOCKNODE(np);
-#ifdef APPLE
-		OSBitAndAtomic((int32_t)~(NMODIFIED | NDELEGRECALL), (UInt32 *)&np->n_flag);
-#else
-		np->n_flag &= ~(NMODIFIED | NDELEGRECALL);
-#endif
+		np->n_flag &= ~NDELEGRECALL;
 	}
+	NFSINVALATTRCACHE(np);
 	NFSUNLOCKNODE(np);
 	if (ret == EIO && called_from_renewthread != 0) {
 		/*
@@ -3534,8 +3529,10 @@ nfscl_totalrecall(struct nfsclclient *clp)
 {
 	struct nfscldeleg *dp;
 
-	TAILQ_FOREACH(dp, &clp->nfsc_deleg, nfsdl_list)
-		dp->nfsdl_flags |= NFSCLDL_RECALL;
+	TAILQ_FOREACH(dp, &clp->nfsc_deleg, nfsdl_list) {
+		if ((dp->nfsdl_flags & NFSCLDL_DELEGRET) == 0)
+			dp->nfsdl_flags |= NFSCLDL_RECALL;
+	}
 }
 
 /*
@@ -3754,8 +3751,9 @@ nfscl_mustflush(vnode_t vp)
 		return (1);
 	}
 	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len);
-	if (dp != NULL && (dp->nfsdl_flags & (NFSCLDL_WRITE | NFSCLDL_RECALL))
-	     == NFSCLDL_WRITE &&
+	if (dp != NULL && (dp->nfsdl_flags &
+	    (NFSCLDL_WRITE | NFSCLDL_RECALL | NFSCLDL_DELEGRET)) ==
+	     NFSCLDL_WRITE &&
 	    (dp->nfsdl_sizelimit >= np->n_size ||
 	     !NFSHASSTRICT3530(nmp))) {
 		NFSUNLOCKCLSTATE();
@@ -3787,9 +3785,10 @@ nfscl_nodeleg(vnode_t vp, int writedeleg)
 		return (1);
 	}
 	dp = nfscl_finddeleg(clp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len);
-	if (dp != NULL && (dp->nfsdl_flags & NFSCLDL_RECALL) == 0 &&
-	    (writedeleg == 0 || (dp->nfsdl_flags & NFSCLDL_WRITE)
-	     == NFSCLDL_WRITE)) {
+	if (dp != NULL &&
+	    (dp->nfsdl_flags & (NFSCLDL_RECALL | NFSCLDL_DELEGRET)) == 0 &&
+	    (writedeleg == 0 || (dp->nfsdl_flags & NFSCLDL_WRITE) ==
+	     NFSCLDL_WRITE)) {
 		NFSUNLOCKCLSTATE();
 		return (0);
 	}
@@ -3860,6 +3859,7 @@ nfscl_removedeleg(vnode_t vp, NFSPROC_T *p, nfsv4stateid_t *stp)
 			}
 		    }
 		    if (needsrecall && !triedrecall) {
+			dp->nfsdl_flags |= NFSCLDL_DELEGRET;
 			islept = 0;
 			while (!igotlock) {
 			    igotlock = nfsv4_lock(&clp->nfsc_lock, 1,
@@ -3958,6 +3958,7 @@ nfscl_renamedeleg(vnode_t fvp, nfsv4stateid_t *fstp, int *gotfdp, vnode_t tvp,
 			}
 		    }
 		    if (needsrecall && !triedrecall) {
+			dp->nfsdl_flags |= NFSCLDL_DELEGRET;
 			islept = 0;
 			while (!igotlock) {
 			    igotlock = nfsv4_lock(&clp->nfsc_lock, 1,

@@ -67,7 +67,7 @@ extern "C" void LLVMLinkInJIT() {
 }
 
 
-#if defined(__GNUC__) && !defined(__ARM__EABI__)
+#if defined(__GNUC__) && !defined(__ARM_EABI__) && !defined(__USING_SJLJ_EXCEPTIONS__)
  
 // libgcc defines the __register_frame function to dynamically register new
 // dwarf frames for exception handling. This functionality is not portable
@@ -219,10 +219,8 @@ ExecutionEngine *JIT::createJIT(Module *M,
                                 StringRef MArch,
                                 StringRef MCPU,
                                 const SmallVectorImpl<std::string>& MAttrs) {
-  // Make sure we can resolve symbols in the program as well. The zero arg
-  // to the function tells DynamicLibrary to load the program, not a library.
-  if (sys::DynamicLibrary::LoadLibraryPermanently(0, ErrorStr))
-    return 0;
+  // Try to register the program as a source of symbols to resolve against.
+  sys::DynamicLibrary::LoadLibraryPermanently(0, NULL);
 
   // Pick a target either via -march or by guessing the native arch.
   TargetMachine *TM = JIT::selectTarget(M, MArch, MCPU, MAttrs, ErrorStr);
@@ -308,7 +306,7 @@ JIT::JIT(Module *M, TargetMachine &tm, TargetJITInfo &tji,
   }
   
   // Register routine for informing unwinding runtime about new EH frames
-#if defined(__GNUC__) && !defined(__ARM_EABI__)
+#if defined(__GNUC__) && !defined(__ARM_EABI__) && !defined(__USING_SJLJ_EXCEPTIONS__)
 #if USE_KEYMGR
   struct LibgccObjectInfo* LOI = (struct LibgccObjectInfo*)
     _keymgr_get_and_lock_processwide_ptr(KEYMGR_GCC3_DW2_OBJ_LIST);

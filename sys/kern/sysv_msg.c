@@ -200,18 +200,10 @@ msginit()
 	TUNABLE_INT_FETCH("kern.ipc.msgtql", &msginfo.msgtql);
 
 	msgpool = malloc(msginfo.msgmax, M_MSG, M_WAITOK);
-	if (msgpool == NULL)
-		panic("msgpool is NULL");
 	msgmaps = malloc(sizeof(struct msgmap) * msginfo.msgseg, M_MSG, M_WAITOK);
-	if (msgmaps == NULL)
-		panic("msgmaps is NULL");
 	msghdrs = malloc(sizeof(struct msg) * msginfo.msgtql, M_MSG, M_WAITOK);
-	if (msghdrs == NULL)
-		panic("msghdrs is NULL");
 	msqids = malloc(sizeof(struct msqid_kernel) * msginfo.msgmni, M_MSG,
 	    M_WAITOK);
-	if (msqids == NULL)
-		panic("msqids is NULL");
 
 	/*
 	 * msginfo.msgssz should be a power of two for efficiency reasons.
@@ -233,9 +225,6 @@ msginit()
 		panic("msginfo.msgseg > 32767");
 	}
 
-	if (msgmaps == NULL)
-		panic("msgmaps is NULL");
-
 	for (i = 0; i < msginfo.msgseg; i++) {
 		if (i > 0)
 			msgmaps[i-1].next = i;
@@ -243,9 +232,6 @@ msginit()
 	}
 	free_msgmaps = 0;
 	nfree_msgmaps = msginfo.msgseg;
-
-	if (msghdrs == NULL)
-		panic("msghdrs is NULL");
 
 	for (i = 0; i < msginfo.msgtql; i++) {
 		msghdrs[i].msg_type = 0;
@@ -257,9 +243,6 @@ msginit()
 #endif
     	}
 	free_msghdrs = &msghdrs[0];
-
-	if (msqids == NULL)
-		panic("msqids is NULL");
 
 	for (i = 0; i < msginfo.msgmni; i++) {
 		msqids[i].u.msg_qbytes = 0;	/* implies entry is available */
@@ -1301,7 +1284,7 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, msgssz, CTLFLAG_RDTUN, &msginfo.msgssz, 0,
     "Size of a message segment");
 SYSCTL_INT(_kern_ipc, OID_AUTO, msgseg, CTLFLAG_RDTUN, &msginfo.msgseg, 0,
     "Number of message segments");
-SYSCTL_PROC(_kern_ipc, OID_AUTO, msqids, CTLFLAG_RD,
+SYSCTL_PROC(_kern_ipc, OID_AUTO, msqids, CTLTYPE_OPAQUE | CTLFLAG_RD,
     NULL, 0, sysctl_msqids, "", "Message queue IDs");
 
 #ifdef COMPAT_FREEBSD32

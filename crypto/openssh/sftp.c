@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.123 2010/01/27 19:21:39 djm Exp $ */
+/* $OpenBSD: sftp.c,v 1.125 2010/06/18 00:58:39 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -181,6 +181,8 @@ static const struct CMD cmds[] = {
 	{ "ls",		I_LS,		REMOTE	},
 	{ "lumask",	I_LUMASK,	NOARGS	},
 	{ "mkdir",	I_MKDIR,	REMOTE	},
+	{ "mget",	I_GET,		REMOTE	},
+	{ "mput",	I_PUT,		LOCAL	},
 	{ "progress",	I_PROGRESS,	NOARGS	},
 	{ "put",	I_PUT,		LOCAL	},
 	{ "pwd",	I_PWD,		REMOTE	},
@@ -1366,7 +1368,7 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 		break;
 	case I_LS:
 		if (!path1) {
-			do_globbed_ls(conn, *pwd, *pwd, lflag);
+			do_ls_dir(conn, *pwd, *pwd, lflag);
 			break;
 		}
 

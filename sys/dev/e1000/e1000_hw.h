@@ -120,21 +120,27 @@ struct e1000_hw;
 #define E1000_DEV_ID_ICH10_R_BM_LM            0x10CC
 #define E1000_DEV_ID_ICH10_R_BM_LF            0x10CD
 #define E1000_DEV_ID_ICH10_R_BM_V             0x10CE
+#define E1000_DEV_ID_ICH10_HANKSVILLE         0xF0FE
 #define E1000_DEV_ID_ICH10_D_BM_LM            0x10DE
 #define E1000_DEV_ID_ICH10_D_BM_LF            0x10DF
+#define E1000_DEV_ID_ICH10_D_BM_V             0x1525
 
 #define E1000_DEV_ID_PCH_M_HV_LM              0x10EA
 #define E1000_DEV_ID_PCH_M_HV_LC              0x10EB
 #define E1000_DEV_ID_PCH_D_HV_DM              0x10EF
 #define E1000_DEV_ID_PCH_D_HV_DC              0x10F0
+#define E1000_DEV_ID_PCH2_LV_LM               0x1502
+#define E1000_DEV_ID_PCH2_LV_V                0x1503
 #define E1000_DEV_ID_82576                    0x10C9
 #define E1000_DEV_ID_82576_FIBER              0x10E6
 #define E1000_DEV_ID_82576_SERDES             0x10E7
 #define E1000_DEV_ID_82576_QUAD_COPPER        0x10E8
+#define E1000_DEV_ID_82576_QUAD_COPPER_ET2    0x1526
 #define E1000_DEV_ID_82576_NS                 0x150A
 #define E1000_DEV_ID_82576_NS_SERDES          0x1518
 #define E1000_DEV_ID_82576_SERDES_QUAD        0x150D
 #define E1000_DEV_ID_82576_VF                 0x10CA
+#define E1000_DEV_ID_I350_VF                  0x1520
 #define E1000_DEV_ID_82575EB_COPPER           0x10A7
 #define E1000_DEV_ID_82575EB_FIBER_SERDES     0x10A9
 #define E1000_DEV_ID_82575GB_QUAD_COPPER      0x10D6
@@ -144,6 +150,15 @@ struct e1000_hw;
 #define E1000_DEV_ID_82580_SERDES             0x1510
 #define E1000_DEV_ID_82580_SGMII              0x1511
 #define E1000_DEV_ID_82580_COPPER_DUAL        0x1516
+#define E1000_DEV_ID_82580_QUAD_FIBER         0x1527
+#define E1000_DEV_ID_I350_COPPER              0x1521
+#define E1000_DEV_ID_I350_FIBER               0x1522
+#define E1000_DEV_ID_I350_SERDES              0x1523
+#define E1000_DEV_ID_I350_SGMII               0x1524
+#define E1000_DEV_ID_DH89XXCC_SGMII           0x0438
+#define E1000_DEV_ID_DH89XXCC_SERDES          0x043A
+#define E1000_DEV_ID_DH89XXCC_BACKPLANE       0x043C
+#define E1000_DEV_ID_DH89XXCC_SFP             0x0440
 #define E1000_REVISION_0 0
 #define E1000_REVISION_1 1
 #define E1000_REVISION_2 2
@@ -184,10 +199,13 @@ enum e1000_mac_type {
 	e1000_ich9lan,
 	e1000_ich10lan,
 	e1000_pchlan,
+	e1000_pch2lan,
 	e1000_82575,
 	e1000_82576,
 	e1000_82580,
+	e1000_i350,
 	e1000_vfadapt,
+	e1000_vfadapt_i350,
 	e1000_num_macs  /* List is 1-based, so subtract 1 for TRUE count. */
 };
 
@@ -228,6 +246,7 @@ enum e1000_phy_type {
 	e1000_phy_bm,
 	e1000_phy_82578,
 	e1000_phy_82577,
+	e1000_phy_82579,
 	e1000_phy_82580,
 	e1000_phy_vf,
 };
@@ -316,6 +335,9 @@ enum e1000_serdes_link_state {
 	e1000_serdes_link_forced_up
 };
 
+#define __le16 u16
+#define __le32 u32
+#define __le64 u64
 /* Receive Descriptor */
 struct e1000_rx_desc {
 	__le64 buffer_addr; /* Address of the descriptor's data buffer */
@@ -688,8 +710,8 @@ struct e1000_nvm_operations {
 
 struct e1000_mac_info {
 	struct e1000_mac_operations ops;
-	u8 addr[6];
-	u8 perm_addr[6];
+	u8 addr[ETH_ADDR_LEN];
+	u8 perm_addr[ETH_ADDR_LEN];
 
 	enum e1000_mac_type type;
 
@@ -799,6 +821,34 @@ struct e1000_fc_info {
 	enum e1000_fc_mode requested_mode; /* FC mode requested by caller */
 };
 
+struct e1000_mbx_operations {
+	s32 (*init_params)(struct e1000_hw *hw);
+	s32 (*read)(struct e1000_hw *, u32 *, u16,  u16);
+	s32 (*write)(struct e1000_hw *, u32 *, u16, u16);
+	s32 (*read_posted)(struct e1000_hw *, u32 *, u16,  u16);
+	s32 (*write_posted)(struct e1000_hw *, u32 *, u16, u16);
+	s32 (*check_for_msg)(struct e1000_hw *, u16);
+	s32 (*check_for_ack)(struct e1000_hw *, u16);
+	s32 (*check_for_rst)(struct e1000_hw *, u16);
+};
+
+struct e1000_mbx_stats {
+	u32 msgs_tx;
+	u32 msgs_rx;
+
+	u32 acks;
+	u32 reqs;
+	u32 rsts;
+};
+
+struct e1000_mbx_info {
+	struct e1000_mbx_operations ops;
+	struct e1000_mbx_stats stats;
+	u32 timeout;
+	u32 usec_delay;
+	u16 size;
+};
+
 struct e1000_dev_spec_82541 {
 	enum e1000_dsp_config dsp_config;
 	enum e1000_ffe_config ffe_config;
@@ -819,6 +869,7 @@ struct e1000_dev_spec_82543 {
 struct e1000_dev_spec_82571 {
 	bool laa_is_present;
 	u32 smb_counter;
+	E1000_MUTEX swflag_mutex;
 };
 
 struct e1000_dev_spec_80003es2lan {
@@ -830,7 +881,7 @@ struct e1000_shadow_ram {
 	bool modified;
 };
 
-#define E1000_SHADOW_RAM_WORDS		2048
+#define E1000_SHADOW_RAM_WORDS  2048
 
 struct e1000_dev_spec_ich8lan {
 	bool kmrn_lock_loss_workaround_enabled;
@@ -838,45 +889,19 @@ struct e1000_dev_spec_ich8lan {
 	E1000_MUTEX nvm_mutex;
 	E1000_MUTEX swflag_mutex;
 	bool nvm_k1_enabled;
-};
-
-struct e1000_mbx_operations {
-	s32 (*init_params)(struct e1000_hw *hw);
-	s32 (*read)(struct e1000_hw *, u32 *, u16,  u16);
-	s32 (*write)(struct e1000_hw *, u32 *, u16, u16);
-	s32 (*read_posted)(struct e1000_hw *, u32 *, u16,  u16);
-	s32 (*write_posted)(struct e1000_hw *, u32 *, u16, u16);
-	s32 (*check_for_msg)(struct e1000_hw *, u16);
-	s32 (*check_for_ack)(struct e1000_hw *, u16);
-	s32 (*check_for_rst)(struct e1000_hw *, u16);
-};
-
-struct e1000_mbx_stats {
-	u32 msgs_tx;
-	u32 msgs_rx;
-	u32 acks;
-	u32 reqs;
-	u32 rsts;
-};
-
-struct e1000_mbx_info {
-	struct e1000_mbx_operations ops;
-	struct e1000_mbx_stats stats;
-	u32 timeout;
-	u32 usec_delay;
-	u16 size;
+	bool eee_disable;
 };
 
 struct e1000_dev_spec_82575 {
 	bool sgmii_active;
 	bool global_device_reset;
+	bool eee_disable;
 };
 
 struct e1000_dev_spec_vf {
-	u32	vf_number;
-	u32	v2p_mailbox;
+	u32 vf_number;
+	u32 v2p_mailbox;
 };
-
 
 struct e1000_hw {
 	void *back;
@@ -894,14 +919,14 @@ struct e1000_hw {
 	struct e1000_host_mng_dhcp_cookie mng_cookie;
 
 	union {
-		struct e1000_dev_spec_82541	_82541;
-		struct e1000_dev_spec_82542	_82542;
-		struct e1000_dev_spec_82543	_82543;
-		struct e1000_dev_spec_82571	_82571;
+		struct e1000_dev_spec_82541 _82541;
+		struct e1000_dev_spec_82542 _82542;
+		struct e1000_dev_spec_82543 _82543;
+		struct e1000_dev_spec_82571 _82571;
 		struct e1000_dev_spec_80003es2lan _80003es2lan;
-		struct e1000_dev_spec_ich8lan	ich8lan;
-		struct e1000_dev_spec_82575	_82575;
-		struct e1000_dev_spec_vf	vf;
+		struct e1000_dev_spec_ich8lan ich8lan;
+		struct e1000_dev_spec_82575 _82575;
+		struct e1000_dev_spec_vf vf;
 	} dev_spec;
 
 	u16 device_id;

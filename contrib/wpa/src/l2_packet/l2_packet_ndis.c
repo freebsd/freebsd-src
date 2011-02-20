@@ -137,11 +137,17 @@ int l2_packet_send(struct l2_packet_data *l2, const u8 *dst_addr, u16 proto,
 		DWORD err = GetLastError();
 #ifndef _WIN32_WCE
 		if (err == ERROR_IO_PENDING) {
-			/* For now, just assume that the packet will be sent in
-			 * time before the next write happens. This could be
-			 * cleaned up at some point to actually wait for
-			 * completion before starting new writes.
-			 */
+			wpa_printf(MSG_DEBUG, "L2(NDISUIO): Wait for pending "
+				   "write to complete");
+			res = GetOverlappedResult(
+				driver_ndis_get_ndisuio_handle(), &overlapped,
+				&written, TRUE);
+			if (!res) {
+				wpa_printf(MSG_DEBUG, "L2(NDISUIO): "
+					   "GetOverlappedResult failed: %d",
+					   (int) GetLastError());
+				return -1;
+			}
 			return 0;
 		}
 #endif /* _WIN32_WCE */

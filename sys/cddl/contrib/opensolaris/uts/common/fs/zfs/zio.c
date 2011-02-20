@@ -49,11 +49,12 @@ uint8_t zio_priority_table[ZIO_PRIORITY_TABLE_SIZE] = {
 	0,	/* ZIO_PRIORITY_NOW		*/
 	0,	/* ZIO_PRIORITY_SYNC_READ	*/
 	0,	/* ZIO_PRIORITY_SYNC_WRITE	*/
-	6,	/* ZIO_PRIORITY_ASYNC_READ	*/
-	4,	/* ZIO_PRIORITY_ASYNC_WRITE	*/
-	4,	/* ZIO_PRIORITY_FREE		*/
-	0,	/* ZIO_PRIORITY_CACHE_FILL	*/
 	0,	/* ZIO_PRIORITY_LOG_WRITE	*/
+	1,	/* ZIO_PRIORITY_CACHE_FILL	*/
+	1,	/* ZIO_PRIORITY_AGG		*/
+	4,	/* ZIO_PRIORITY_FREE		*/
+	4,	/* ZIO_PRIORITY_ASYNC_WRITE	*/
+	6,	/* ZIO_PRIORITY_ASYNC_READ	*/
 	10,	/* ZIO_PRIORITY_RESILVER	*/
 	20,	/* ZIO_PRIORITY_SCRUB		*/
 };
@@ -64,7 +65,9 @@ uint8_t zio_priority_table[ZIO_PRIORITY_TABLE_SIZE] = {
  * ==========================================================================
  */
 char *zio_type_name[ZIO_TYPES] = {
-	"null", "read", "write", "free", "claim", "ioctl" };
+	"zio_null", "zio_read", "zio_write", "zio_free", "zio_claim",
+	"zio_ioctl"
+};
 
 #define	SYNC_PASS_DEFERRED_FREE	1	/* defer frees after this pass */
 #define	SYNC_PASS_DONT_COMPRESS	4	/* don't compress after this pass */
@@ -942,7 +945,20 @@ zio_write_bp_init(zio_t *zio)
 static void
 zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q)
 {
+	spa_t *spa = zio->io_spa;
 	zio_type_t t = zio->io_type;
+#ifdef _KERNEL
+	struct ostask *task;
+#endif
+
+	ASSERT(q == ZIO_TASKQ_ISSUE || q == ZIO_TASKQ_INTERRUPT);
+
+#ifdef _KERNEL
+	if (q == ZIO_TASKQ_ISSUE)
+		task = &zio->io_task_issue;
+	else /* if (q == ZIO_TASKQ_INTERRUPT) */
+		task = &zio->io_task_interrupt;
+#endif
 
 	/*
 	 * If we're a config writer or a probe, the normal issue and
@@ -958,8 +974,21 @@ zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q)
 	if (t == ZIO_TYPE_WRITE && zio->io_vd && zio->io_vd->vdev_aux)
 		t = ZIO_TYPE_NULL;
 
-	(void) taskq_dispatch_safe(zio->io_spa->spa_zio_taskq[t][q],
-	    (task_func_t *)zio_execute, zio, &zio->io_task);
+	/*
+	 * If this is a high priority I/O, then use the high priority taskq.
+	 */
+	if (zio->io_priority == ZIO_PRIORITY_NOW &&
+	    spa->spa_zio_taskq[t][q + 1] != NULL)
+		q++;
+
+	ASSERT3U(q, <, ZIO_TASKQ_TYPES);
+#ifdef _KERNEL
+	(void) taskq_dispatch_safe(spa->spa_zio_taskq[t][q],
+	    (task_func_t *)zio_execute, zio, task);
+#else
+	(void) taskq_dispatch(spa->spa_zio_taskq[t][q],
+	    (task_func_t *)zio_execute, zio, TQ_SLEEP);
+#endif
 }
 
 static boolean_t
@@ -1858,7 +1887,8 @@ zio_vdev_io_done(zio_t *zio)
 			vdev_cache_write(zio);
 
 		if (zio_injection_enabled && zio->io_error == 0)
-			zio->io_error = zio_handle_device_injection(vd, EIO);
+			zio->io_error = zio_handle_device_injection(vd,
+			    zio, EIO);
 
 		if (zio_injection_enabled && zio->io_error == 0)
 			zio->io_error = zio_handle_label_injection(zio, EIO);
@@ -2287,9 +2317,16 @@ zio_done(zio_t *zio)
 			 * Reexecution is potentially a huge amount of work.
 			 * Hand it off to the otherwise-unused claim taskq.
 			 */
+#ifdef _KERNEL
 			(void) taskq_dispatch_safe(
 			    spa->spa_zio_taskq[ZIO_TYPE_CLAIM][ZIO_TASKQ_ISSUE],
-			    (task_func_t *)zio_reexecute, zio, &zio->io_task);
+			    (task_func_t *)zio_reexecute, zio,
+				&zio->io_task_issue);
+#else
+			(void) taskq_dispatch(
+			    spa->spa_zio_taskq[ZIO_TYPE_CLAIM][ZIO_TASKQ_ISSUE],
+				(task_func_t *)zio_reexecute, zio, TQ_SLEEP);
+#endif
 		}
 		return (ZIO_PIPELINE_STOP);
 	}

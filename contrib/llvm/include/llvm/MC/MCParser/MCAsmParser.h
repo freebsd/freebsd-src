@@ -14,6 +14,7 @@
 
 namespace llvm {
 class AsmToken;
+class MCAsmInfo;
 class MCAsmLexer;
 class MCAsmParserExtension;
 class MCContext;
@@ -22,17 +23,24 @@ class MCStreamer;
 class SMLoc;
 class SourceMgr;
 class StringRef;
+class Target;
+class TargetAsmParser;
 class Twine;
 
 /// MCAsmParser - Generic assembler parser interface, for use by target specific
 /// assembly parsers.
 class MCAsmParser {
 public:
-  typedef bool (MCAsmParserExtension::*DirectiveHandler)(StringRef, SMLoc);
+  typedef bool (*DirectiveHandler)(MCAsmParserExtension*, StringRef, SMLoc);
 
 private:
   MCAsmParser(const MCAsmParser &);   // DO NOT IMPLEMENT
   void operator=(const MCAsmParser &);  // DO NOT IMPLEMENT
+
+  TargetAsmParser *TargetParser;
+
+  unsigned ShowParsedOperands : 1;
+
 protected: // Can only create subclasses.
   MCAsmParser();
 
@@ -51,6 +59,15 @@ public:
 
   /// getStreamer - Return the output streamer for the assembler.
   virtual MCStreamer &getStreamer() = 0;
+
+  TargetAsmParser &getTargetParser() const { return *TargetParser; }
+  void setTargetParser(TargetAsmParser &P);
+
+  bool getShowParsedOperands() const { return ShowParsedOperands; }
+  void setShowParsedOperands(bool Value) { ShowParsedOperands = Value; }
+
+  /// Run - Run the parser on the input source buffer.
+  virtual bool Run(bool NoInitialTextSection, bool NoFinalize = false) = 0;
 
   /// Warning - Emit a warning at the location \arg L, with the message \arg
   /// Msg.
@@ -71,11 +88,16 @@ public:
   const AsmToken &getTok();
 
   /// \brief Report an error at the current lexer location.
-  bool TokError(const char *Msg);
+  bool TokError(const Twine &Msg);
 
   /// ParseIdentifier - Parse an identifier or string (as a quoted identifier)
   /// and set \arg Res to the identifier contents.
   virtual bool ParseIdentifier(StringRef &Res) = 0;
+
+  /// \brief Parse up to the end of statement and return the contents from the
+  /// current token until the end of the statement; the current token on exit
+  /// will be either the EndOfStatement or EOF.
+  virtual StringRef ParseStringToEndOfStatement() = 0;
 
   /// ParseExpression - Parse an arbitrary expression.
   ///
@@ -101,6 +123,10 @@ public:
   /// @result - False on success.
   virtual bool ParseAbsoluteExpression(int64_t &Res) = 0;
 };
+
+/// \brief Create an MCAsmParser instance.
+MCAsmParser *createMCAsmParser(const Target &, SourceMgr &, MCContext &,
+                               MCStreamer &, const MCAsmInfo &);
 
 } // End llvm namespace
 

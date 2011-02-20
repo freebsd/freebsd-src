@@ -160,7 +160,8 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 
 	for (d = hid_start_parse(hid_device->desc, 1 << hid_input, -1);
 	     hid_get_item(d, &h) > 0; ) {
-		if ((h.flags & HIO_CONST) || (h.report_ID != report_id))
+		if ((h.flags & HIO_CONST) || (h.report_ID != report_id) ||
+		    (h.kind != hid_input))
 			continue;
 
 		page = HID_PAGE(h.usage);

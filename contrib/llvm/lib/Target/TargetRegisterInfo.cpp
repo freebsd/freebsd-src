@@ -63,7 +63,7 @@ TargetRegisterInfo::getMinimalPhysRegClass(unsigned reg, EVT VT) const {
 /// getAllocatableSetForRC - Toggle the bits that represent allocatable
 /// registers for the specific register class.
 static void getAllocatableSetForRC(const MachineFunction &MF,
-                                   const TargetRegisterClass *RC, BitVector &R){  
+                                   const TargetRegisterClass *RC, BitVector &R){
   for (TargetRegisterClass::iterator I = RC->allocation_order_begin(MF),
          E = RC->allocation_order_end(MF); I != E; ++I)
     R.set(*I);
@@ -74,12 +74,16 @@ BitVector TargetRegisterInfo::getAllocatableSet(const MachineFunction &MF,
   BitVector Allocatable(NumRegs);
   if (RC) {
     getAllocatableSetForRC(MF, RC, Allocatable);
-    return Allocatable;
+  } else {
+    for (TargetRegisterInfo::regclass_iterator I = regclass_begin(),
+         E = regclass_end(); I != E; ++I)
+      getAllocatableSetForRC(MF, *I, Allocatable);
   }
 
-  for (TargetRegisterInfo::regclass_iterator I = regclass_begin(),
-         E = regclass_end(); I != E; ++I)
-    getAllocatableSetForRC(MF, *I, Allocatable);
+  // Mask out the reserved registers
+  BitVector Reserved = getReservedRegs(MF);
+  Allocatable ^= Reserved & Allocatable;
+
   return Allocatable;
 }
 

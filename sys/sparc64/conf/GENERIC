@@ -56,7 +56,6 @@ options 	STACK			# stack(9) support
 options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
-options 	P1003_1B_SEMAPHORES	# POSIX-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
@@ -185,7 +184,7 @@ device		nge		# NatSemi DP83820 gigabit Ethernet
 device		re		# RealTek 8139C+/8169/8169S/8110S
 device		rl		# RealTek 8129/8139
 device		sf		# Adaptec AIC-6915 (``Starfire'')
-#device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
+device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		sk		# SysKonnect SK-984x & SK-982x gigabit Ethernet
 device		ste		# Sundance ST201 (D-Link DFE-550TX)
 device		stge		# Sundance/Tamarack TC9021 gigabit Ethernet

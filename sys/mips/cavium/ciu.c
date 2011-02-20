@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/malloc.h>
+#include <sys/smp.h>
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
@@ -57,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #define	CIU_IRQ_EN0_COUNT	((CIU_IRQ_EN0_END - CIU_IRQ_EN0_BEGIN) + 1)
 
 #define	CIU_IRQ_EN1_BEGIN	CVMX_IRQ_WDOG0
-#define	CIU_IRQ_EN1_END		CVMX_IRQ_WDOG15
+#define	CIU_IRQ_EN1_END		CVMX_IRQ_DFM
 #define	CIU_IRQ_EN1_COUNT	((CIU_IRQ_EN1_END - CIU_IRQ_EN1_BEGIN) + 1)
 
 struct ciu_softc {
@@ -78,13 +79,26 @@ static struct resource	*ciu_alloc_resource(device_t, device_t, int, int *,
 static int		ciu_setup_intr(device_t, device_t, struct resource *,
 				       int, driver_filter_t *, driver_intr_t *,
 				       void *, void **);
+static int		ciu_teardown_intr(device_t, device_t,
+					  struct resource *, void *);
+static int		ciu_bind_intr(device_t, device_t, struct resource *,
+				      int);
+static int		ciu_describe_intr(device_t, device_t,
+					  struct resource *, void *,
+					  const char *);
 static void		ciu_hinted_child(device_t, const char *, int);
 
 static void		ciu_en0_intr_mask(void *);
 static void		ciu_en0_intr_unmask(void *);
+#ifdef SMP
+static int		ciu_en0_intr_bind(void *, u_char);
+#endif
 
 static void		ciu_en1_intr_mask(void *);
 static void		ciu_en1_intr_unmask(void *);
+#ifdef SMP
+static int		ciu_en1_intr_bind(void *, u_char);
+#endif
 
 static int		ciu_intr(void *);
 
@@ -194,6 +208,7 @@ ciu_setup_intr(device_t bus, device_t child, struct resource *res, int flags,
 	struct intr_event *event, **eventp;
 	void (*mask_func)(void *);
 	void (*unmask_func)(void *);
+	int (*bind_func)(void *, u_char);
 	mips_intrcnt_t intrcnt;
 	int error;
 	int irq;
@@ -204,16 +219,25 @@ ciu_setup_intr(device_t bus, device_t child, struct resource *res, int flags,
 		intrcnt = ciu_en0_intrcnt[irq - CIU_IRQ_EN0_BEGIN];
 		mask_func = ciu_en0_intr_mask;
 		unmask_func = ciu_en0_intr_unmask;
+#ifdef SMP
+		bind_func = ciu_en0_intr_bind;
+#endif
 	} else {
 		eventp = &ciu_en1_intr_events[irq - CIU_IRQ_EN1_BEGIN];
 		intrcnt = ciu_en1_intrcnt[irq - CIU_IRQ_EN1_BEGIN];
 		mask_func = ciu_en1_intr_mask;
 		unmask_func = ciu_en1_intr_unmask;
+#ifdef SMP
+		bind_func = ciu_en1_intr_bind;
+#endif
 	}
+#if !defined(SMP)
+	bind_func = NULL;
+#endif
 
 	if ((event = *eventp) == NULL) {
 		error = intr_event_create(eventp, (void *)(uintptr_t)irq, 0,
-		    irq, mask_func, unmask_func, NULL, NULL, "int%d", irq);
+		    irq, mask_func, unmask_func, NULL, bind_func, "int%d", irq);
 		if (error != 0)
 			return (error);
 
@@ -224,6 +248,63 @@ ciu_setup_intr(device_t bus, device_t child, struct resource *res, int flags,
 
 	intr_event_add_handler(event, device_get_nameunit(child),
 	    filter, intr, arg, intr_priority(flags), flags, cookiep);
+
+	mips_intrcnt_setname(intrcnt, event->ie_fullname);
+
+	return (0);
+}
+
+static int
+ciu_teardown_intr(device_t bus, device_t child, struct resource *res,
+		  void *cookie)
+{
+	int error;
+
+	error = intr_event_remove_handler(cookie);
+	if (error != 0)
+		return (error);
+
+	return (0);
+}
+
+#ifdef SMP
+static int
+ciu_bind_intr(device_t bus, device_t child, struct resource *res, int cpu)
+{
+	struct intr_event *event;
+	int irq;
+	
+	irq = rman_get_start(res);
+	if (irq <= CIU_IRQ_EN0_END)
+		event = ciu_en0_intr_events[irq - CIU_IRQ_EN0_BEGIN];
+	else
+		event = ciu_en1_intr_events[irq - CIU_IRQ_EN1_BEGIN];
+
+	return (intr_event_bind(event, cpu));
+}
+#endif
+
+static int
+ciu_describe_intr(device_t bus, device_t child, struct resource *res,
+		  void *cookie, const char *descr)
+{
+	struct intr_event *event;
+	mips_intrcnt_t intrcnt;
+	int error;
+	int irq;
+	
+	irq = rman_get_start(res);
+	if (irq <= CIU_IRQ_EN0_END) {
+		event = ciu_en0_intr_events[irq - CIU_IRQ_EN0_BEGIN];
+		intrcnt = ciu_en0_intrcnt[irq - CIU_IRQ_EN0_BEGIN];
+	} else {
+		event = ciu_en1_intr_events[irq - CIU_IRQ_EN1_BEGIN];
+		intrcnt = ciu_en1_intrcnt[irq - CIU_IRQ_EN1_BEGIN];
+	}
+
+	error = intr_event_describe_handler(event, cookie, descr);
+	if (error != 0)
+		return (error);
 
 	mips_intrcnt_setname(intrcnt, event->ie_fullname);
 
@@ -260,6 +341,28 @@ ciu_en0_intr_unmask(void *arg)
 	cvmx_write_csr(CVMX_CIU_INTX_EN0(cvmx_get_core_num()*2), mask);
 }
 
+#ifdef SMP
+static int
+ciu_en0_intr_bind(void *arg, u_char target)
+{
+	uint64_t mask;
+	int core;
+	int irq;
+
+	irq = (uintptr_t)arg;
+	CPU_FOREACH(core) {
+		mask = cvmx_read_csr(CVMX_CIU_INTX_EN0(core*2));
+		if (core == target)
+			mask |= 1ull << (irq - CIU_IRQ_EN0_BEGIN);
+		else
+			mask &= ~(1ull << (irq - CIU_IRQ_EN0_BEGIN));
+		cvmx_write_csr(CVMX_CIU_INTX_EN0(core*2), mask);
+	}
+
+	return (0);
+}
+#endif
+
 static void
 ciu_en1_intr_mask(void *arg)
 {
@@ -283,6 +386,28 @@ ciu_en1_intr_unmask(void *arg)
 	mask |= 1ull << (irq - CIU_IRQ_EN1_BEGIN);
 	cvmx_write_csr(CVMX_CIU_INTX_EN1(cvmx_get_core_num()*2), mask);
 }
+
+#ifdef SMP
+static int
+ciu_en1_intr_bind(void *arg, u_char target)
+{
+	uint64_t mask;
+	int core;
+	int irq;
+
+	irq = (uintptr_t)arg;
+	CPU_FOREACH(core) {
+		mask = cvmx_read_csr(CVMX_CIU_INTX_EN1(core*2));
+		if (core == target)
+			mask |= 1ull << (irq - CIU_IRQ_EN1_BEGIN);
+		else
+			mask &= ~(1ull << (irq - CIU_IRQ_EN1_BEGIN));
+		cvmx_write_csr(CVMX_CIU_INTX_EN1(core*2), mask);
+	}
+
+	return (0);
+}
+#endif
 
 static int
 ciu_intr(void *arg)
@@ -342,7 +467,11 @@ static device_method_t ciu_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	ciu_alloc_resource),
 	DEVMETHOD(bus_activate_resource,bus_generic_activate_resource),
 	DEVMETHOD(bus_setup_intr,	ciu_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_teardown_intr,	ciu_teardown_intr),
+#ifdef SMP
+	DEVMETHOD(bus_bind_intr,	ciu_bind_intr),
+#endif
+	DEVMETHOD(bus_describe_intr,	ciu_describe_intr),
 
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
 	DEVMETHOD(bus_hinted_child,	ciu_hinted_child),

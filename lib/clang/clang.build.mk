@@ -18,14 +18,14 @@ TARGET_ARCH?=	${MACHINE_ARCH}
 CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH}-undermydesk-freebsd9.0\"
 
 .ifndef LLVM_REQUIRES_EH
-CFLAGS+=-fno-exceptions
+CXXFLAGS+=-fno-exceptions
 .else
 # If the library or program requires EH, it also requires RTTI.
 LLVM_REQUIRES_RTTI=
 .endif
 
 .ifndef LLVM_REQUIRES_RTTI
-CFLAGS+=-fno-rtti
+CXXFLAGS+=-fno-rtti
 .endif
 
 .ifdef TOOLS_PREFIX
@@ -48,6 +48,8 @@ Intrinsics.inc.h: ${LLVM_SRCS}/include/llvm/Intrinsics.td
 	CallingConv/-gen-callingconv \
 	CodeEmitter/-gen-emitter \
 	DAGISel/-gen-dag-isel \
+	DisassemblerTables/-gen-disassembler \
+	EDInfo/-gen-enhanced-disassembly-info \
 	FastISel/-gen-fast-isel \
 	InstrInfo/-gen-instr-desc \
 	InstrNames/-gen-instr-enums \
@@ -65,16 +67,28 @@ Attrs.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${TBLGEN} -I${CLANG_SRCS}/include/clang/Basic \
 	  -gen-clang-attr-classes ${.ALLSRC} > ${.TARGET}
 
+AttrImpl.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${TBLGEN} -I${CLANG_SRCS}/include/clang/Basic \
+	  -gen-clang-attr-impl ${.ALLSRC} > ${.TARGET}
+
 AttrList.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${TBLGEN} -I${CLANG_SRCS}/include/clang/Basic \
 	  -gen-clang-attr-list ${.ALLSRC} > ${.TARGET}
+
+AttrPCHRead.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${TBLGEN} -I${CLANG_SRCS}/include/clang/Basic \
+	  -gen-clang-attr-pch-read ${.ALLSRC} > ${.TARGET}
+
+AttrPCHWrite.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${TBLGEN} -I${CLANG_SRCS}/include/clang/Basic \
+	  -gen-clang-attr-pch-write ${.ALLSRC} > ${.TARGET}
 
 DeclNodes.inc.h: ${CLANG_SRCS}/include/clang/Basic/DeclNodes.td
 	${TBLGEN} -I${CLANG_SRCS}/include/clang/Basic \
 	  -gen-clang-decl-nodes ${.ALLSRC} > ${.TARGET}
 
 StmtNodes.inc.h: ${CLANG_SRCS}/include/clang/Basic/StmtNodes.td
-	${TBLGEN} -I${CLANG_SRCS}/include/clang/AST \
+	${TBLGEN} -I${CLANG_SRCS}/include/clang/Basic \
 	  -gen-clang-stmt-nodes ${.ALLSRC} > ${.TARGET}
 
 arm_neon.inc.h: ${CLANG_SRCS}/include/clang/Basic/arm_neon.td

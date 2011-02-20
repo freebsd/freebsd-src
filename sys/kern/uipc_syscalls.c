@@ -260,14 +260,9 @@ listen(td, uap)
 		so = fp->f_data;
 #ifdef MAC
 		error = mac_socket_check_listen(td->td_ucred, so);
-		if (error == 0) {
+		if (error == 0)
 #endif
-			CURVNET_SET(so->so_vnet);
 			error = solisten(so, uap->backlog, td);
-			CURVNET_RESTORE();
-#ifdef MAC
-		}
-#endif
 		fdrop(fp, td);
 	}
 	return(error);
@@ -428,9 +423,7 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 	tmp = fflag & FASYNC;
 	(void) fo_ioctl(nfp, FIOASYNC, &tmp, td->td_ucred, td);
 	sa = 0;
-	CURVNET_SET(so->so_vnet);
 	error = soaccept(so, &sa);
-	CURVNET_RESTORE();
 	if (error) {
 		/*
 		 * return a namelen of zero for older code which might
@@ -981,11 +974,9 @@ kern_recvit(td, s, mp, fromseg, controlp)
 		ktruio = cloneuio(&auio);
 #endif
 	len = auio.uio_resid;
-	CURVNET_SET(so->so_vnet);
 	error = soreceive(so, &fromsa, &auio, (struct mbuf **)0,
 	    (mp->msg_control || controlp) ? &control : (struct mbuf **)0,
 	    &mp->msg_flags);
-	CURVNET_RESTORE();
 	if (error) {
 		if (auio.uio_resid != (int)len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
@@ -1331,9 +1322,7 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
-		CURVNET_SET(so->so_vnet);
 		error = sosetopt(so, &sopt);
-		CURVNET_RESTORE();
 		fdrop(fp, td);
 	}
 	return(error);
@@ -1412,9 +1401,7 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 	error = getsock(td->td_proc->p_fd, s, &fp, NULL);
 	if (error == 0) {
 		so = fp->f_data;
-		CURVNET_SET(so->so_vnet);
 		error = sogetopt(so, &sopt);
-		CURVNET_RESTORE();
 		*valsize = sopt.sopt_valsize;
 		fdrop(fp, td);
 	}
@@ -1888,8 +1875,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 		mnw = 1;
 
 	if (uap->flags & SF_SYNC) {
-		sfs = malloc(sizeof *sfs, M_TEMP, M_WAITOK);
-		memset(sfs, 0, sizeof *sfs);
+		sfs = malloc(sizeof *sfs, M_TEMP, M_WAITOK | M_ZERO);
 		mtx_init(&sfs->mtx, "sendfile", NULL, MTX_DEF);
 		cv_init(&sfs->cv, "sendfile");
 	}
@@ -2116,8 +2102,7 @@ retry_space:
 				 * then free it.
 				 */
 				if (pg->wire_count == 0 && pg->valid == 0 &&
-				    pg->busy == 0 && !(pg->oflags & VPO_BUSY) &&
-				    pg->hold_count == 0)
+				    pg->busy == 0 && !(pg->oflags & VPO_BUSY))
 					vm_page_free(pg);
 				vm_page_unlock(pg);
 				VM_OBJECT_UNLOCK(obj);
@@ -2127,18 +2112,25 @@ retry_space:
 			}
 
 			/*
-			 * Get a sendfile buf.  We usually wait as long
-			 * as necessary, but this wait can be interrupted.
+			 * Get a sendfile buf.  When allocating the
+			 * first buffer for mbuf chain, we usually
+			 * wait as long as necessary, but this wait
+			 * can be interrupted.  For consequent
+			 * buffers, do not sleep, since several
+			 * threads might exhaust the buffers and then
+			 * deadlock.
 			 */
-			if ((sf = sf_buf_alloc(pg,
-			    (mnw ? SFB_NOWAIT : SFB_CATCH))) == NULL) {
+			sf = sf_buf_alloc(pg, (mnw || m != NULL) ? SFB_NOWAIT :
+			    SFB_CATCH);
+			if (sf == NULL) {
 				mbstat.sf_allocfail++;
 				vm_page_lock(pg);
 				vm_page_unwire(pg, 0);
 				KASSERT(pg->object != NULL,
 				    ("kern_sendfile: object disappeared"));
 				vm_page_unlock(pg);
-				error = (mnw ? EAGAIN : EINTR);
+				if (m == NULL)
+					error = (mnw ? EAGAIN : EINTR);
 				break;
 			}
 
@@ -2381,7 +2373,6 @@ sctp_generic_sendmsg (td, uap)
 	struct sctp_sndrcvinfo sinfo, *u_sinfo = NULL;
 	struct socket *so;
 	struct file *fp = NULL;
-	int use_rcvinfo = 1;
 	int error = 0, len;
 	struct sockaddr *to = NULL;
 #ifdef KTRACE
@@ -2434,7 +2425,7 @@ sctp_generic_sendmsg (td, uap)
 	CURVNET_SET(so->so_vnet);
 	error = sctp_lower_sosend(so, to, &auio,
 		    (struct mbuf *)NULL, (struct mbuf *)NULL,
-		    uap->flags, use_rcvinfo, u_sinfo, td);
+		    uap->flags, u_sinfo, td);
 	CURVNET_RESTORE();
 	if (error) {
 		if (auio.uio_resid != len && (error == ERESTART ||
@@ -2485,7 +2476,6 @@ sctp_generic_sendmsg_iov(td, uap)
 	struct sctp_sndrcvinfo sinfo, *u_sinfo = NULL;
 	struct socket *so;
 	struct file *fp = NULL;
-	int use_rcvinfo = 1;
 	int error=0, len, i;
 	struct sockaddr *to = NULL;
 #ifdef KTRACE
@@ -2552,7 +2542,7 @@ sctp_generic_sendmsg_iov(td, uap)
 	CURVNET_SET(so->so_vnet);
 	error = sctp_lower_sosend(so, to, &auio,
 		    (struct mbuf *)NULL, (struct mbuf *)NULL,
-		    uap->flags, use_rcvinfo, u_sinfo, td);
+		    uap->flags, u_sinfo, td);
 	CURVNET_RESTORE();
 	if (error) {
 		if (auio.uio_resid != len && (error == ERESTART ||

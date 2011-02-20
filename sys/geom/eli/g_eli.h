@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,11 +57,12 @@
  * 1 - Added data authentication support (md_aalgo field and
  *     G_ELI_FLAG_AUTH flag).
  * 2 - Added G_ELI_FLAG_READONLY.
- *   - IV is generated from offset converted to little-endian
- *     (flag G_ELI_FLAG_NATIVE_BYTE_ORDER will be set for older versions).
  * 3 - Added 'configure' subcommand.
+ * 4 - IV is generated from offset converted to little-endian
+ *     (flag G_ELI_FLAG_NATIVE_BYTE_ORDER will be set for older versions).
+ * 5 - Added multiple encrypton keys and AES-XTS support.
  */
-#define	G_ELI_VERSION		3
+#define	G_ELI_VERSION		5
 
 /* ON DISK FLAGS. */
 /* Use random, onetime keys. */
@@ -83,6 +84,12 @@
 #define	G_ELI_FLAG_DESTROY		0x00020000
 /* Provider uses native byte-order for IV generation. */
 #define	G_ELI_FLAG_NATIVE_BYTE_ORDER	0x00040000
+/* Provider uses single encryption key. */
+#define	G_ELI_FLAG_SINGLE_KEY		0x00080000
+/* Device suspended. */
+#define	G_ELI_FLAG_SUSPEND		0x00100000
+
+#define	G_ELI_NEW_BIO	255
 
 #define	SHA512_MDLEN		64
 #define	G_ELI_AUTH_SECKEYLEN	SHA256_DIGEST_LENGTH
@@ -97,12 +104,16 @@
 #define	G_ELI_DATAIVKEYLEN	(G_ELI_DATAKEYLEN + G_ELI_IVKEYLEN)
 /* Data-Key, IV-Key, HMAC_SHA512(Derived-Key, Data-Key+IV-Key) */
 #define	G_ELI_MKEYLEN		(G_ELI_DATAIVKEYLEN + SHA512_MDLEN)
+#define	G_ELI_OVERWRITES	5
+/* Switch data encryption key every 2^20 blocks. */
+#define	G_ELI_KEY_SHIFT		20
 
 #ifdef _KERNEL
-extern u_int g_eli_debug;
+extern int g_eli_debug;
 extern u_int g_eli_overwrites;
 extern u_int g_eli_batch;
 
+#define	G_ELI_CRYPTO_UNKNOWN	0
 #define	G_ELI_CRYPTO_HW		1
 #define	G_ELI_CRYPTO_SW		2
 
@@ -134,31 +145,36 @@ struct g_eli_worker {
 	struct proc		*w_proc;
 	u_int			 w_number;
 	uint64_t		 w_sid;
+	boolean_t		 w_active;
 	LIST_ENTRY(g_eli_worker) w_next;
 };
 
 struct g_eli_softc {
-	struct g_geom	*sc_geom;
-	u_int		 sc_crypto;
-	uint8_t		 sc_mkey[G_ELI_DATAIVKEYLEN];
-	uint8_t		 sc_ekey[G_ELI_DATAKEYLEN];
-	u_int		 sc_ealgo;
-	u_int		 sc_ekeylen;
-	uint8_t		 sc_akey[G_ELI_AUTHKEYLEN];
-	u_int		 sc_aalgo;
-	u_int		 sc_akeylen;
-	u_int		 sc_alen;
-	SHA256_CTX	 sc_akeyctx;
-	uint8_t		 sc_ivkey[G_ELI_IVKEYLEN];
-	SHA256_CTX	 sc_ivctx;
-	int		 sc_nkey;
-	uint32_t	 sc_flags;
-	u_int		 sc_bytes_per_sector;
-	u_int		 sc_data_per_sector;
+	struct g_geom	 *sc_geom;
+	u_int		  sc_crypto;
+	uint8_t		  sc_mkey[G_ELI_DATAIVKEYLEN];
+	uint8_t		**sc_ekeys;
+	u_int		  sc_nekeys;
+	u_int		  sc_ealgo;
+	u_int		  sc_ekeylen;
+	uint8_t		  sc_akey[G_ELI_AUTHKEYLEN];
+	u_int		  sc_aalgo;
+	u_int		  sc_akeylen;
+	u_int		  sc_alen;
+	SHA256_CTX	  sc_akeyctx;
+	uint8_t		  sc_ivkey[G_ELI_IVKEYLEN];
+	SHA256_CTX	  sc_ivctx;
+	int		  sc_nkey;
+	uint32_t	  sc_flags;
+	int		  sc_inflight;
+	off_t		  sc_mediasize;
+	size_t		  sc_sectorsize;
+	u_int		  sc_bytes_per_sector;
+	u_int		  sc_data_per_sector;
 
 	/* Only for software cryptography. */
 	struct bio_queue_head sc_queue;
-	struct mtx	 sc_queue_mtx;
+	struct mtx	  sc_queue_mtx;
 	LIST_HEAD(, g_eli_worker) sc_workers;
 };
 #define	sc_name		 sc_geom->name
@@ -228,8 +244,9 @@ eli_metadata_decode_v0(const u_char *data, struct g_eli_metadata *md)
 		return (EINVAL);
 	return (0);
 }
+
 static __inline int
-eli_metadata_decode_v1v2v3(const u_char *data, struct g_eli_metadata *md)
+eli_metadata_decode_v1v2v3v4v5(const u_char *data, struct g_eli_metadata *md)
 {
 	MD5_CTX ctx;
 	const u_char *p;
@@ -266,7 +283,9 @@ eli_metadata_decode(const u_char *data, struct g_eli_metadata *md)
 	case 1:
 	case 2:
 	case 3:
-		error = eli_metadata_decode_v1v2v3(data, md);
+	case 4:
+	case 5:
+		error = eli_metadata_decode_v1v2v3v4v5(data, md);
 		break;
 	default:
 		error = EINVAL;
@@ -282,13 +301,25 @@ g_eli_str2ealgo(const char *name)
 
 	if (strcasecmp("null", name) == 0)
 		return (CRYPTO_NULL_CBC);
+	else if (strcasecmp("null-cbc", name) == 0)
+		return (CRYPTO_NULL_CBC);
 	else if (strcasecmp("aes", name) == 0)
+		return (CRYPTO_AES_XTS);
+	else if (strcasecmp("aes-cbc", name) == 0)
 		return (CRYPTO_AES_CBC);
+	else if (strcasecmp("aes-xts", name) == 0)
+		return (CRYPTO_AES_XTS);
 	else if (strcasecmp("blowfish", name) == 0)
+		return (CRYPTO_BLF_CBC);
+	else if (strcasecmp("blowfish-cbc", name) == 0)
 		return (CRYPTO_BLF_CBC);
 	else if (strcasecmp("camellia", name) == 0)
 		return (CRYPTO_CAMELLIA_CBC);
+	else if (strcasecmp("camellia-cbc", name) == 0)
+		return (CRYPTO_CAMELLIA_CBC);
 	else if (strcasecmp("3des", name) == 0)
+		return (CRYPTO_3DES_CBC);
+	else if (strcasecmp("3des-cbc", name) == 0)
 		return (CRYPTO_3DES_CBC);
 	return (CRYPTO_ALGORITHM_MIN - 1);
 }
@@ -321,6 +352,8 @@ g_eli_algo2str(u_int algo)
 		return ("NULL");
 	case CRYPTO_AES_CBC:
 		return ("AES-CBC");
+	case CRYPTO_AES_XTS:
+		return ("AES-XTS");
 	case CRYPTO_BLF_CBC:
 		return ("Blowfish-CBC");
 	case CRYPTO_CAMELLIA_CBC:
@@ -394,13 +427,23 @@ g_eli_keylen(u_int algo, u_int keylen)
 				keylen = 0;
 		}
 		return (keylen);
-	case CRYPTO_AES_CBC: /* FALLTHROUGH */
+	case CRYPTO_AES_CBC:
 	case CRYPTO_CAMELLIA_CBC:
 		switch (keylen) {
 		case 0:
 			return (128);
 		case 128:
 		case 192:
+		case 256:
+			return (keylen);
+		default:
+			return (0);
+		}
+	case CRYPTO_AES_XTS:
+		switch (keylen) {
+		case 0:
+			return (128);
+		case 128:
 		case 256:
 			return (keylen);
 		default:
@@ -458,9 +501,12 @@ void g_eli_config(struct gctl_req *req, struct g_class *mp, const char *verb);
 void g_eli_read_done(struct bio *bp);
 void g_eli_write_done(struct bio *bp);
 int g_eli_crypto_rerun(struct cryptop *crp);
+uint8_t *g_eli_crypto_key(struct g_eli_softc *sc, off_t offset,
+    size_t blocksize);
 void g_eli_crypto_ivgen(struct g_eli_softc *sc, off_t offset, u_char *iv,
     size_t size);
 
+void g_eli_crypto_read(struct g_eli_softc *sc, struct bio *bp, boolean_t fromworker);
 void g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp);
 
 void g_eli_auth_read(struct g_eli_softc *sc, struct bio *bp);

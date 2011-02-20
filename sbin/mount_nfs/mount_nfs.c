@@ -177,7 +177,7 @@ main(int argc, char *argv[])
 			mountmode = V3;
 			break;
 		case 'a':
-			printf("-a deprecated, use -o readhead=<value>\n");
+			printf("-a deprecated, use -o readahead=<value>\n");
 			build_iovec(&iov, &iovlen, "readahead", optarg, (size_t)-1);
 			break;
 		case 'b':
@@ -213,7 +213,7 @@ main(int argc, char *argv[])
 			build_iovec(&iov, &iovlen, "intr", NULL, 0);
 			break;
 		case 'L':
-			printf("-i deprecated, use -o nolockd\n");
+			printf("-L deprecated, use -o nolockd\n");
 			build_iovec(&iov, &iovlen, "nolockd", NULL, 0);
 			break;
 		case 'l':
@@ -866,6 +866,7 @@ nfs_tryproto(struct addrinfo *ai, char *hostp, char *spec, char **errstr,
 	enum clnt_stat stat;
 	enum mountmode trymntmode;
 
+	sotype = 0;
 	trymntmode = mountmode;
 	errbuf[0] = '\0';
 	*errstr = errbuf;

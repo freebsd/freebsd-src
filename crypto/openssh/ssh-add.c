@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-add.c,v 1.94 2010/03/01 11:07:06 otto Exp $ */
+/* $OpenBSD: ssh-add.c,v 1.96 2010/05/14 00:47:22 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -194,7 +194,7 @@ add_file(AuthenticationConnection *ac, const char *filename)
 			    "Lifetime set to %d seconds\n", lifetime);
 		if (confirm != 0)
 			fprintf(stderr,
-			    "The user has to confirm each use of the key\n");
+			    "The user must confirm each use of the key\n");
 	} else {
 		fprintf(stderr, "Could not add identity: %s\n", filename);
 	}
@@ -202,29 +202,37 @@ add_file(AuthenticationConnection *ac, const char *filename)
 
 	/* Now try to add the certificate flavour too */
 	xasprintf(&certpath, "%s-cert.pub", filename);
-	if ((cert = key_load_public(certpath, NULL)) != NULL) {
-		/* Graft with private bits */
-		if (key_to_certified(private) != 0)
-			fatal("%s: key_to_certified failed", __func__);
-		key_cert_copy(cert, private);
+	if ((cert = key_load_public(certpath, NULL)) == NULL)
+		goto out;
+
+	if (!key_equal_public(cert, private)) {
+		error("Certificate %s does not match private key %s",
+		    certpath, filename);
 		key_free(cert);
+		goto out;
+	} 
 
-		if (ssh_add_identity_constrained(ac, private, comment,
-		    lifetime, confirm)) {
-			fprintf(stderr, "Certificate added: %s (%s)\n",
-			    certpath, private->cert->key_id);
-			if (lifetime != 0)
-				fprintf(stderr, "Lifetime set to %d seconds\n",
-				    lifetime);
-			if (confirm != 0)
-				fprintf(stderr, "The user has to confirm each "
-				    "use of the key\n");
-		} else {
-			error("Certificate %s (%s) add failed", certpath,
-			    private->cert->key_id);
-		}
+	/* Graft with private bits */
+	if (key_to_certified(private, key_cert_is_legacy(cert)) != 0) {
+		error("%s: key_to_certified failed", __func__);
+		key_free(cert);
+		goto out;
 	}
+	key_cert_copy(cert, private);
+	key_free(cert);
 
+	if (!ssh_add_identity_constrained(ac, private, comment,
+	    lifetime, confirm)) {
+		error("Certificate %s (%s) add failed", certpath,
+		    private->cert->key_id);
+	}
+	fprintf(stderr, "Certificate added: %s (%s)\n", certpath,
+	    private->cert->key_id);
+	if (lifetime != 0)
+		fprintf(stderr, "Lifetime set to %d seconds\n", lifetime);
+	if (confirm != 0)
+		fprintf(stderr, "The user must confirm each use of the key\n");
+ out:
 	xfree(certpath);
 	xfree(comment);
 	key_free(private);

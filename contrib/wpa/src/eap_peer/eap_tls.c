@@ -15,10 +15,10 @@
 #include "includes.h"
 
 #include "common.h"
+#include "crypto/tls.h"
 #include "eap_i.h"
 #include "eap_tls_common.h"
 #include "eap_config.h"
-#include "tls.h"
 
 
 static void eap_tls_deinit(struct eap_sm *sm, void *priv);

@@ -87,10 +87,12 @@ int	Nflag;			/* run without writing file system */
 int	Oflag = 2;		/* file system format (1 => UFS1, 2 => UFS2) */
 int	Rflag;			/* regression test */
 int	Uflag;			/* enable soft updates for file system */
+int	jflag;			/* enable soft updates journaling for filesys */
 int	Xflag = 0;		/* exit in middle of newfs for testing */
 int	Jflag;			/* enable gjournal for file system */
 int	lflag;			/* enable multilabel for file system */
 int	nflag;			/* do not create .snap directory */
+int	tflag;			/* enable TRIM */
 intmax_t fssize;		/* file system size */
 int	sectorsize;		/* bytes/sector */
 int	realsectorsize;		/* bytes/sector in hardware */
@@ -139,7 +141,7 @@ main(int argc, char *argv[])
 	part_name = 'c';
 	reserved = 0;
 	while ((ch = getopt(argc, argv,
-	    "EJL:NO:RS:T:UXa:b:c:d:e:f:g:h:i:lm:no:r:s:")) != -1)
+	    "EJL:NO:RS:T:UXa:b:c:d:e:f:g:h:i:jlm:no:p:r:s:t")) != -1)
 		switch (ch) {
 		case 'E':
 			Eflag = 1;
@@ -179,6 +181,9 @@ main(int argc, char *argv[])
 		case 'T':
 			disktype = optarg;
 			break;
+		case 'j':
+			jflag = 1;
+			/* fall through to enable soft updates */
 		case 'U':
 			Uflag = 1;
 			break;
@@ -278,6 +283,9 @@ main(int argc, char *argv[])
 			if (errno != 0 || cp == optarg ||
 			    *cp != '\0' || fssize < 0)
 				errx(1, "%s: bad file system size", optarg);
+			break;
+		case 't':
+			tflag = 1;
 			break;
 		case '?':
 		default:
@@ -393,7 +401,11 @@ main(int argc, char *argv[])
 			rewritelabel(special, lp);
 	}
 	ufs_disk_close(&disk);
-	exit(0);
+	if (!jflag)
+		exit(0);
+	if (execlp("tunefs", "newfs", "-j", "enable", special, NULL) < 0)
+		err(1, "Cannot enable soft updates journaling, tunefs");
+	/* NOT REACHED */
 }
 
 void
@@ -488,6 +500,7 @@ usage()
 	fprintf(stderr, "\t-g average file size\n");
 	fprintf(stderr, "\t-h average files per directory\n");
 	fprintf(stderr, "\t-i number of bytes per inode\n");
+	fprintf(stderr, "\t-j enable soft updates journaling\n");
 	fprintf(stderr, "\t-l enable multilabel MAC\n");
 	fprintf(stderr, "\t-n do not create .snap directory\n");
 	fprintf(stderr, "\t-m minimum free space %%\n");
@@ -495,6 +508,7 @@ usage()
 	fprintf(stderr, "\t-p partition name (a..h)\n");
 	fprintf(stderr, "\t-r reserved sectors at the end of device\n");
 	fprintf(stderr, "\t-s file system size (sectors)\n");
+	fprintf(stderr, "\t-t enable TRIM\n");
 	exit(1);
 }
 

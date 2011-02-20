@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -72,14 +74,22 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	struct sctp_inpcb *in6p = NULL;
 	struct sctp_nets *net;
 	int refcount_up = 0;
-	uint32_t check, calc_check;
 	uint32_t vrf_id = 0;
+
+#ifdef IPSEC
 	struct inpcb *in6p_ip;
+
+#endif
 	struct sctp_chunkhdr *ch;
 	int length, offset, iphlen;
 	uint8_t ecn_bits;
 	struct sctp_tcb *stcb = NULL;
 	int pkt_len = 0;
+
+#if !defined(SCTP_WITH_NO_CSUM)
+	uint32_t check, calc_check;
+
+#endif
 	int off = *offp;
 	uint16_t port = 0;
 
@@ -133,6 +143,9 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	    m->m_pkthdr.len,
 	    if_name(m->m_pkthdr.rcvif),
 	    m->m_pkthdr.csum_flags);
+#if defined(SCTP_WITH_NO_CSUM)
+	SCTP_STAT_INCR(sctps_recvnocrc);
+#else
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP_VALID) {
 		SCTP_STAT_INCR(sctps_recvhwcrc);
 		goto sctp_skip_csum;
@@ -157,6 +170,12 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 			}
 			net->port = port;
 		}
+		if ((net != NULL) && (m->m_flags & M_FLOWID)) {
+			net->flowid = m->m_pkthdr.flowid;
+#ifdef INVARIANTS
+			net->flowidset = 1;
+#endif
+		}
 		/* in6p's ref-count increased && stcb locked */
 		if ((in6p) && (stcb)) {
 			sctp_send_packet_dropped(stcb, net, m, iphlen, 1);
@@ -171,6 +190,7 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	sh->checksum = calc_check;
 
 sctp_skip_csum:
+#endif
 	net = NULL;
 	/*
 	 * Locate pcb and tcb for datagram sctp_findassociation_addr() wants
@@ -183,6 +203,12 @@ sctp_skip_csum:
 			sctp_pathmtu_adjustment(in6p, stcb, net, net->mtu - sizeof(struct udphdr));
 		}
 		net->port = port;
+	}
+	if ((net != NULL) && (m->m_flags & M_FLOWID)) {
+		net->flowid = m->m_pkthdr.flowid;
+#ifdef INVARIANTS
+		net->flowidset = 1;
+#endif
 	}
 	/* in6p's ref-count increased */
 	if (in6p == NULL) {
@@ -216,11 +242,11 @@ sctp_skip_csum:
 	} else if (stcb == NULL) {
 		refcount_up = 1;
 	}
-	in6p_ip = (struct inpcb *)in6p;
 #ifdef IPSEC
 	/*
 	 * Check AH/ESP integrity.
 	 */
+	in6p_ip = (struct inpcb *)in6p;
 	if (in6p_ip && (ipsec6_in_reject(m, in6p_ip))) {
 /* XXX */
 		MODULE_GLOBAL(ipsec6stat).in_polvio++;
@@ -414,7 +440,8 @@ sctp6_notify(struct sctp_inpcb *inp,
 			 * PF state.
 			 */
 			/* Stop any running T3 timers here? */
-			if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) && SCTP_BASE_SYSCTL(sctp_cmt_pf)) {
+			if ((stcb->asoc.sctp_cmt_on_off > 0) &&
+			    (stcb->asoc.sctp_cmt_pf > 0)) {
 				net->dest_state &= ~SCTP_ADDR_PF;
 				SCTPDBG(SCTP_DEBUG_TIMER4, "Destination %p moved from PF to unreachable.\n",
 				    net);
@@ -804,7 +831,6 @@ sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
     struct mbuf *control, struct thread *p)
 {
 	struct sctp_inpcb *inp;
-	struct inpcb *in_inp;
 	struct in6pcb *inp6;
 
 #ifdef INET
@@ -823,7 +849,6 @@ sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
 		return EINVAL;
 	}
-	in_inp = (struct inpcb *)inp;
 	inp6 = (struct in6pcb *)inp;
 	/*
 	 * For the TCP model we may get a NULL addr, if we are a connected
@@ -1069,6 +1094,8 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 	 * Do the malloc first in case it blocks.
 	 */
 	SCTP_MALLOC_SONAME(sin6, struct sockaddr_in6 *, sizeof *sin6);
+	if (sin6 == NULL)
+		return ENOMEM;
 	sin6->sin6_family = AF_INET6;
 	sin6->sin6_len = sizeof(*sin6);
 
@@ -1173,6 +1200,8 @@ sctp6_peeraddr(struct socket *so, struct sockaddr **addr)
 		return (ENOTCONN);
 	}
 	SCTP_MALLOC_SONAME(sin6, struct sockaddr_in6 *, sizeof *sin6);
+	if (sin6 == NULL)
+		return (ENOMEM);
 	sin6->sin6_family = AF_INET6;
 	sin6->sin6_len = sizeof(*sin6);
 

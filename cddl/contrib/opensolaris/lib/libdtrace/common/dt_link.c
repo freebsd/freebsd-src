@@ -1616,6 +1616,18 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 	int eprobes = 0, ret = 0;
 
 #if !defined(sun)
+	if (access(file, R_OK) == 0) {
+		fprintf(stderr, "dtrace: target object (%s) already exists. "
+		    "Please remove the target\ndtrace: object and rebuild all "
+		    "the source objects if you wish to run the DTrace\n"
+		    "dtrace: linking process again\n", file);
+		/*
+		 * Several build infrastructures run DTrace twice (e.g.
+		 * postgres) and we don't want the build to fail. Return
+		 * 0 here since this isn't really a fatal error.
+		 */
+		return (0);
+	}
 	/* XXX Should get a temp file name here. */
 	snprintf(tfile, sizeof(tfile), "%s.tmp", file);
 #endif

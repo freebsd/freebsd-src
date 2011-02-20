@@ -180,6 +180,7 @@ static void	iwi_release_fw_dma(struct iwi_softc *sc);
 static int	iwi_config(struct iwi_softc *);
 static int	iwi_get_firmware(struct iwi_softc *, enum ieee80211_opmode);
 static void	iwi_put_firmware(struct iwi_softc *);
+static void	iwi_monitor_scan(void *, int);
 static int	iwi_scanchan(struct iwi_softc *, unsigned long, int);
 static void	iwi_scan_start(struct ieee80211com *);
 static void	iwi_scan_end(struct ieee80211com *);
@@ -292,6 +293,7 @@ iwi_attach(device_t dev)
 	TASK_INIT(&sc->sc_restarttask, 0, iwi_restart, sc);
 	TASK_INIT(&sc->sc_disassoctask, 0, iwi_disassoc, sc);
 	TASK_INIT(&sc->sc_wmetask, 0, iwi_update_wme, sc);
+	TASK_INIT(&sc->sc_monitortask, 0, iwi_monitor_scan, sc);
 
 	callout_init_mtx(&sc->sc_wdtimer, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->sc_rftimer, &sc->sc_mtx, 0);
@@ -460,6 +462,7 @@ iwi_detach(device_t dev)
 	ieee80211_draintask(ic, &sc->sc_radiofftask);
 	ieee80211_draintask(ic, &sc->sc_restarttask);
 	ieee80211_draintask(ic, &sc->sc_disassoctask);
+	ieee80211_draintask(ic, &sc->sc_monitortask);
 
 	iwi_stop(sc);
 
@@ -988,7 +991,8 @@ iwi_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * This is all totally bogus and needs to be redone.
 			 */
 			iwi_auth_and_assoc(sc, vap);
-		}
+		} else if (vap->iv_opmode == IEEE80211_M_MONITOR)
+			ieee80211_runtask(ic, &sc->sc_monitortask);
 		break;
 	case IEEE80211_S_ASSOC:
 		/*
@@ -1364,7 +1368,7 @@ iwi_checkforqos(struct ieee80211vap *vap,
 
 	ni = vap->iv_bss;
 	ni->ni_capinfo = capinfo;
-	ni->ni_associd = associd;
+	ni->ni_associd = associd & 0x3fff;
 	if (wme != NULL)
 		ni->ni_flags |= IEEE80211_NODE_QOS;
 	else
@@ -1406,6 +1410,18 @@ iwi_notification_intr(struct iwi_softc *sc, struct iwi_notif *notif)
 		    scan->status));
 
 		IWI_STATE_END(sc, IWI_FW_SCANNING);
+
+		/*
+		 * Monitor mode works by doing a passive scan to set
+		 * the channel and enable rx.  Because we don't want
+		 * to abort a scan lest the firmware crash we scan
+		 * for a short period of time and automatically restart
+		 * the scan when notified the sweep has completed.
+		 */
+		if (vap->iv_opmode == IEEE80211_M_MONITOR) {
+			ieee80211_runtask(ic, &sc->sc_monitortask);
+			break;
+		}
 
 		if (scan->status == IWI_SCAN_COMPLETED) {
 			/* NB: don't need to defer, net80211 does it for us */
@@ -1467,7 +1483,7 @@ iwi_notification_intr(struct iwi_softc *sc, struct iwi_notif *notif)
 			IWI_STATE_END(sc, IWI_FW_ASSOCIATING);
 			iwi_checkforqos(vap,
 			    (const struct ieee80211_frame *)(assoc+1),
-			    le16toh(notif->len) - sizeof(*assoc));
+			    le16toh(notif->len) - sizeof(*assoc) - 1);
 			ieee80211_new_state(vap, IEEE80211_S_RUN, -1);
 			break;
 		case IWI_ASSOC_INIT:
@@ -2557,6 +2573,11 @@ iwi_config(struct iwi_softc *sc)
 	config.answer_pbreq = (ic->ic_opmode == IEEE80211_M_IBSS) ? 1 : 0;
 	config.disable_unicast_decryption = 1;
 	config.disable_multicast_decryption = 1;
+	if (ic->ic_opmode == IEEE80211_M_MONITOR) {
+		config.allow_invalid_frames = 1;
+		config.allow_beacon_and_probe_resp = 1;
+		config.allow_mgt = 1;
+	}
 	DPRINTF(("Configuring adapter\n"));
 	error = iwi_cmd(sc, IWI_CMD_SET_CONFIG, &config, sizeof config);
 	if (error != 0)
@@ -2640,6 +2661,17 @@ static __inline int
 scan_band(const struct ieee80211_channel *c)
 {
 	return IEEE80211_IS_CHAN_5GHZ(c) ?  IWI_CHAN_5GHZ : IWI_CHAN_2GHZ;
+}
+
+static void
+iwi_monitor_scan(void *arg, int npending)
+{
+	struct iwi_softc *sc = arg;
+	IWI_LOCK_DECL;
+
+	IWI_LOCK(sc);
+	(void) iwi_scanchan(sc, 2000, 0);
+	IWI_UNLOCK(sc);
 }
 
 /*
@@ -3483,14 +3515,14 @@ iwi_ledattach(struct iwi_softc *sc)
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"softled", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		iwi_sysctl_softled, "I", "enable/disable software LED support");
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ledpin", CTLFLAG_RW, &sc->sc_ledpin, 0,
 		"pin setting to turn activity LED on");
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ledidle", CTLFLAG_RW, &sc->sc_ledidle, 0,
 		"idle time for inactivity LED (ticks)");
 	/* XXX for debugging */
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"nictype", CTLFLAG_RD, &sc->sc_nictype, 0,
 		"NIC type from EEPROM");
 

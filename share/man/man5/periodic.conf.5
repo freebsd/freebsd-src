@@ -482,6 +482,14 @@ Set to
 .Dq Li YES
 to compare the modes and modification times of setuid executables with
 the previous day's values.
+.It Va daily_status_security_neggrpperm_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to check for files where the group of a file has less permissions than
+the world at large.
+When users are in more than 14 supplemental groups these negative
+permissions may not be enforced via NFS shares.
 .It Va daily_status_security_chkmounts_enable
 .Pq Vt bool
 Set to

@@ -356,8 +356,6 @@ write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size)
 	if (n != mbr_size)
 	   errx(1, "%s: short write", fname);
 	return;
-    } else {
-	    err(1, "write_mbr: %s", fname);
     }
 
     /*

@@ -22,7 +22,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/utsname.h>
+#include <sys/sysctl.h>
 #include <err.h>
 #include <getopt.h>
 
@@ -82,7 +82,11 @@ struct {
 	{ 700000, 700099, "/packages-7.0-release" },
 	{ 701000, 701099, "/packages-7.1-release" },
 	{ 702000, 702099, "/packages-7.2-release" },
+	{ 703000, 703099, "/packages-7.3-release" },
+	{ 704000, 704099, "/packages-7.4-release" },
 	{ 800000, 800499, "/packages-8.0-release" },
+	{ 801000, 801499, "/packages-8.1-release" },
+	{ 802000, 802499, "/packages-8.2-release" },
 	{ 300000, 399000, "/packages-3-stable" },
 	{ 400000, 499000, "/packages-4-stable" },
 	{ 502100, 502128, "/packages-5-current" },
@@ -227,9 +231,9 @@ main(int argc, char **argv)
 		    >= sizeof(temppackageroot))
 		    errx(1, "package name too long");
 		remotepkg = temppackageroot;
-		if (!((ptr = strrchr(remotepkg, '.')) && ptr[1] == 't' && 
-			(ptr[2] == 'b' || ptr[2] == 'g') && ptr[3] == 'z' &&
-			!ptr[4]))
+		if (!((ptr = strrchr(remotepkg, '.')) && ptr[1] == 't' &&
+			(ptr[2] == 'b' || ptr[2] == 'g' || ptr[2] == 'x') &&
+			ptr[3] == 'z' && !ptr[4]))
 		    if (strlcat(remotepkg, ".tbz",
 			sizeof(temppackageroot)) >= sizeof(temppackageroot))
 			errx(1, "package name too long");
@@ -301,7 +305,9 @@ getpackagesite(void)
 {
     int reldate, i;
     static char sitepath[MAXPATHLEN];
-    struct utsname u;
+    int archmib[] = { CTL_HW, HW_MACHINE_ARCH };
+    char arch[64];
+    size_t archlen = sizeof(arch);
 
     if (getenv("PACKAGESITE")) {
 	if (strlcpy(sitepath, getenv("PACKAGESITE"), sizeof(sitepath))
@@ -324,8 +330,10 @@ getpackagesite(void)
 	>= sizeof(sitepath))
 	return NULL;
 
-    uname(&u);
-    if (strlcat(sitepath, u.machine, sizeof(sitepath)) >= sizeof(sitepath))
+    if (sysctl(archmib, 2, arch, &archlen, NULL, 0) == -1)
+	return NULL;
+    arch[archlen-1] = 0;
+    if (strlcat(sitepath, arch, sizeof(sitepath)) >= sizeof(sitepath))
 	return NULL;
 
     reldate = getosreldate();

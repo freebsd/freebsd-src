@@ -265,6 +265,7 @@ g_io_flush(struct g_consumer *cp)
 	g_trace(G_T_BIO, "bio_flush(%s)", cp->provider->name);
 	bp = g_alloc_bio();
 	bp->bio_cmd = BIO_FLUSH;
+	bp->bio_flags |= BIO_ORDERED;
 	bp->bio_done = NULL;
 	bp->bio_attribute = NULL;
 	bp->bio_offset = cp->provider->mediasize;

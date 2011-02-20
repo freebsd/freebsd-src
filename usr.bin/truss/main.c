@@ -97,6 +97,9 @@ struct ex_types {
 #ifdef __powerpc__
 	{ "FreeBSD ELF", powerpc_syscall_entry, powerpc_syscall_exit },
 	{ "FreeBSD ELF32", powerpc_syscall_entry, powerpc_syscall_exit },
+#ifdef __powerpc64__
+	{ "FreeBSD ELF64", powerpc64_syscall_entry, powerpc64_syscall_exit },
+#endif
 #endif
 #ifdef __sparc64__
 	{ "FreeBSD ELF64", sparc64_syscall_entry, sparc64_syscall_exit },
@@ -152,7 +155,7 @@ strsig(int sig)
 	ret = NULL;
 	if (sig > 0 && sig < NSIG) {
 		int i;
-		asprintf(&ret, "sig%s", sys_signame[sig]);
+		asprintf(&ret, "SIG%s", sys_signame[sig]);
 		if (ret == NULL)
 			return (NULL);
 		for (i = 0; ret[i] != '\0'; ++i)
@@ -238,13 +241,14 @@ main(int ac, char **av)
 	if (fname != NULL) { /* Use output file */
 		if ((trussinfo->outfile = fopen(fname, "w")) == NULL)
 			errx(1, "cannot open %s", fname);
+		/*
+		 * Set FD_CLOEXEC, so that the output file is not shared with
+		 * the traced process.
+		 */
+		if (fcntl(fileno(trussinfo->outfile), F_SETFD, FD_CLOEXEC) ==
+		    -1)
+			warn("fcntl()");
 	}
-	/*
-	 * Set FD_CLOEXEC, so that the output file is not shared with
-	 * the traced process.
-	 */
-	if (fcntl(fileno(trussinfo->outfile), F_SETFD, FD_CLOEXEC) == -1)
-		warn("fcntl()");
 
 	/*
 	 * If truss starts the process itself, it will ignore some signals --

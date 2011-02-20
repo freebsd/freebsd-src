@@ -34,7 +34,7 @@ namespace {
     Module *M;
   public:
     static char ID; // Class identification, replacement for typeinfo
-    AliasAnalysisCounter() : ModulePass(&ID) {
+    AliasAnalysisCounter() : ModulePass(ID) {
       No = May = Must = 0;
       NoMR = JustRef = JustMod = MR = 0;
     }
@@ -87,8 +87,8 @@ namespace {
     /// an analysis interface through multiple inheritance.  If needed, it
     /// should override this to adjust the this pointer as needed for the
     /// specified pass info.
-    virtual void *getAdjustedAnalysisPointer(const PassInfo *PI) {
-      if (PI->isPassID(&AliasAnalysis::ID))
+    virtual void *getAdjustedAnalysisPointer(AnalysisID PI) {
+      if (PI == &AliasAnalysis::ID)
         return (AliasAnalysis*)this;
       return this;
     }
@@ -103,17 +103,18 @@ namespace {
     AliasResult alias(const Value *V1, unsigned V1Size,
                       const Value *V2, unsigned V2Size);
 
-    ModRefResult getModRefInfo(CallSite CS, Value *P, unsigned Size);
-    ModRefResult getModRefInfo(CallSite CS1, CallSite CS2) {
+    ModRefResult getModRefInfo(ImmutableCallSite CS,
+                               const Value *P, unsigned Size);
+    ModRefResult getModRefInfo(ImmutableCallSite CS1,
+                               ImmutableCallSite CS2) {
       return AliasAnalysis::getModRefInfo(CS1,CS2);
     }
   };
 }
 
 char AliasAnalysisCounter::ID = 0;
-static RegisterPass<AliasAnalysisCounter>
-X("count-aa", "Count Alias Analysis Query Responses", false, true);
-static RegisterAnalysisGroup<AliasAnalysis> Y(X);
+INITIALIZE_AG_PASS(AliasAnalysisCounter, AliasAnalysis, "count-aa",
+                   "Count Alias Analysis Query Responses", false, true, false);
 
 ModulePass *llvm::createAliasAnalysisCounterPass() {
   return new AliasAnalysisCounter();
@@ -146,7 +147,8 @@ AliasAnalysisCounter::alias(const Value *V1, unsigned V1Size,
 }
 
 AliasAnalysis::ModRefResult
-AliasAnalysisCounter::getModRefInfo(CallSite CS, Value *P, unsigned Size) {
+AliasAnalysisCounter::getModRefInfo(ImmutableCallSite CS,
+                                    const Value *P, unsigned Size) {
   ModRefResult R = getAnalysis<AliasAnalysis>().getModRefInfo(CS, P, Size);
 
   const char *MRString;

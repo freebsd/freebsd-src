@@ -42,6 +42,8 @@
 extern	long	Maxmem;
 extern	char	sigcode[];
 extern	int	szsigcode, szosigcode;
+extern	uint32_t *vm_page_dump;
+extern	int vm_page_dump_size;
 
 extern vm_offset_t kstack0;
 extern vm_offset_t kernel_kseg0_end;
@@ -52,10 +54,8 @@ void	cpu_swapin(struct proc *);
 uintptr_t MipsEmulateBranch(struct trapframe *, uintptr_t, int, uintptr_t);
 void MipsSwitchFPState(struct thread *, struct trapframe *);
 u_long	kvtop(void *addr);
-int	is_physical_memory(vm_offset_t addr);
+int	is_cacheable_mem(vm_paddr_t addr);
 void	mips_generic_reset(void);
-
-#define	is_cacheable_mem(pa)	is_physical_memory((pa))
 
 #define	MIPS_DEBUG   0
 
@@ -75,9 +75,10 @@ void	mips_postboot_fixup(void);
 void	platform_identify(void);
 
 extern int busdma_swi_pending;
-void busdma_swi(void);
+void	busdma_swi(void);
 
-u_int32_t set_intr_mask(u_int32_t);
-u_int32_t get_intr_mask(void);
-
+struct	dumperinfo;
+void	dump_add_page(vm_paddr_t);
+void	dump_drop_page(vm_paddr_t);
+void	minidumpsys(struct dumperinfo *);
 #endif /* !_MACHINE_MD_VAR_H_ */

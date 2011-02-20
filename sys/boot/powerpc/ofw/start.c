@@ -50,7 +50,20 @@ _start:				\n\
 	addi	%r1,%r1,stack@l	\n\
 	addi	%r1,%r1,8192	\n\
 				\n\
-	b	startup		\n\
+	/* Clear the .bss!!! */	\n\
+	li      %r0,0		\n\
+	lis     %r8,_edata@ha	\n\
+	addi    %r8,%r8,_edata@l\n\
+	lis     %r9,_end@ha	\n\
+	addi    %r9,%r9,_end@l	\n\
+				\n\
+1:	cmpw    0,%r8,%r9	\n\
+	bge     2f		\n\
+	stw     %r0,0(%r8)	\n\
+	addi    %r8,%r8,4	\n\
+	b       1b		\n\
+				\n\
+2:	b	startup		\n\
 ");
 
 void

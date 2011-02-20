@@ -60,7 +60,7 @@ copy_component()
 	    RESULT="$?"
         ;;
 
-      ftp|sftp)
+      ftp)
         get_value_from_cfg ftpPath
         if [ -z "$VAL" ]
         then
@@ -71,6 +71,8 @@ copy_component()
         fetch_file "${FTPPATH}/${COMPFILEDIR}/${SUBDIR}/${CFILE}" "${FSMNT}/${COMPTMPDIR}/${CFILE}" "0"
         RESULT="$?"
        ;;
+
+      sftp) ;;
     esac
 
     if [ "${RESULT}" != "0" ]

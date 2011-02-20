@@ -41,7 +41,7 @@ namespace {
     MachineRegisterInfo *MRI;
   public:
     static char ID; // Pass identification
-    MachineCSE() : MachineFunctionPass(&ID), LookAheadLimit(5), CurrVN(0) {}
+    MachineCSE() : MachineFunctionPass(ID), LookAheadLimit(5), CurrVN(0) {}
 
     virtual bool runOnMachineFunction(MachineFunction &MF);
     
@@ -49,8 +49,14 @@ namespace {
       AU.setPreservesCFG();
       MachineFunctionPass::getAnalysisUsage(AU);
       AU.addRequired<AliasAnalysis>();
+      AU.addPreservedID(MachineLoopInfoID);
       AU.addRequired<MachineDominatorTree>();
       AU.addPreserved<MachineDominatorTree>();
+    }
+
+    virtual void releaseMemory() {
+      ScopeMap.clear();
+      Exps.clear();
     }
 
   private:
@@ -85,8 +91,8 @@ namespace {
 } // end anonymous namespace
 
 char MachineCSE::ID = 0;
-static RegisterPass<MachineCSE>
-X("machine-cse", "Machine Common Subexpression Elimination");
+INITIALIZE_PASS(MachineCSE, "machine-cse",
+                "Machine Common Subexpression Elimination", false, false);
 
 FunctionPass *llvm::createMachineCSEPass() { return new MachineCSE(); }
 
@@ -100,36 +106,16 @@ bool MachineCSE::PerformTrivialCoalescing(MachineInstr *MI,
     unsigned Reg = MO.getReg();
     if (!Reg || TargetRegisterInfo::isPhysicalRegister(Reg))
       continue;
-    if (!MRI->hasOneUse(Reg))
+    if (!MRI->hasOneNonDBGUse(Reg))
       // Only coalesce single use copies. This ensure the copy will be
       // deleted.
       continue;
     MachineInstr *DefMI = MRI->getVRegDef(Reg);
     if (DefMI->getParent() != MBB)
       continue;
-    unsigned SrcReg, DstReg, SrcSubIdx, DstSubIdx;
-    if (TII->isMoveInstr(*DefMI, SrcReg, DstReg, SrcSubIdx, DstSubIdx) &&
-        TargetRegisterInfo::isVirtualRegister(SrcReg) &&
-        !SrcSubIdx && !DstSubIdx) {
-      const TargetRegisterClass *SRC   = MRI->getRegClass(SrcReg);
-      const TargetRegisterClass *RC    = MRI->getRegClass(Reg);
-      const TargetRegisterClass *NewRC = getCommonSubClass(RC, SRC);
-      if (!NewRC)
-        continue;
-      DEBUG(dbgs() << "Coalescing: " << *DefMI);
-      DEBUG(dbgs() << "*** to: " << *MI);
-      MO.setReg(SrcReg);
-      MRI->clearKillFlags(SrcReg);
-      if (NewRC != SRC)
-        MRI->setRegClass(SrcReg, NewRC);
-      DefMI->eraseFromParent();
-      ++NumCoalesces;
-      Changed = true;
-    }
-
     if (!DefMI->isCopy())
       continue;
-    SrcReg = DefMI->getOperand(1).getReg();
+    unsigned SrcReg = DefMI->getOperand(1).getReg();
     if (!TargetRegisterInfo::isVirtualRegister(SrcReg))
       continue;
     if (DefMI->getOperand(0).getSubReg() || DefMI->getOperand(1).getSubReg())
@@ -261,19 +247,13 @@ bool MachineCSE::PhysRegDefReaches(MachineInstr *CSMI, MachineInstr *MI,
   return false;
 }
 
-static bool isCopy(const MachineInstr *MI, const TargetInstrInfo *TII) {
-  unsigned SrcReg, DstReg, SrcSubIdx, DstSubIdx;
-  return MI->isCopyLike() ||
-    TII->isMoveInstr(*MI, SrcReg, DstReg, SrcSubIdx, DstSubIdx);
-}
-
 bool MachineCSE::isCSECandidate(MachineInstr *MI) {
   if (MI->isLabel() || MI->isPHI() || MI->isImplicitDef() ||
       MI->isKill() || MI->isInlineAsm() || MI->isDebugValue())
     return false;
 
   // Ignore copies.
-  if (isCopy(MI, TII))
+  if (MI->isCopyLike())
     return false;
 
   // Ignore stuff that we obviously can't move.
@@ -329,7 +309,7 @@ bool MachineCSE::isProfitableToCSE(unsigned CSReg, unsigned Reg,
            E = MRI->use_nodbg_end(); I != E; ++I) {
       MachineInstr *Use = &*I;
       // Ignore copies.
-      if (!isCopy(Use, TII)) {
+      if (!Use->isCopyLike()) {
         HasNonCopyUse = true;
         break;
       }
@@ -385,7 +365,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
       // Look for trivial copy coalescing opportunities.
       if (PerformTrivialCoalescing(MI, MBB)) {
         // After coalescing MI itself may become a copy.
-        if (isCopy(MI, TII))
+        if (MI->isCopyLike())
           continue;
         FoundCSE = VNT.count(MI);
       }
@@ -493,6 +473,8 @@ bool MachineCSE::PerformCSE(MachineDomTreeNode *Node) {
   SmallVector<MachineDomTreeNode*, 8> WorkList;
   DenseMap<MachineDomTreeNode*, MachineDomTreeNode*> ParentMap;
   DenseMap<MachineDomTreeNode*, unsigned> OpenChildren;
+
+  CurrVN = 0;
 
   // Perform a DFS walk to determine the order of visit.
   WorkList.push_back(Node);

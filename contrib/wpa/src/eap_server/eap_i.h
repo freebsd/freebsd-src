@@ -185,6 +185,8 @@ struct eap_sm {
 	struct wpabuf *assoc_wps_ie;
 
 	Boolean start_reauth;
+
+	u8 peer_addr[ETH_ALEN];
 };
 
 int eap_user_get(struct eap_sm *sm, const u8 *identity, size_t identity_len,

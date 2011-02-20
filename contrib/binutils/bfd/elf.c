@@ -6316,6 +6316,12 @@ _bfd_elf_rel_vtable_reloc_fn
 
 #ifdef HAVE_SYS_PROCFS_H
 # include <sys/procfs.h>
+
+/* Define HAVE_THRMISC_T for consistency with other similar GNU-type stubs. */
+#undef	HAVE_THRMISC_T
+#if defined (THRMISC_VERSION)
+#define	HAVE_THRMISC_T	1
+#endif
 #endif
 
 /* FIXME: this is kinda wrong, but it's what gdb wants.  */
@@ -6496,6 +6502,16 @@ elfcore_grok_prxfpreg (bfd *abfd, Elf_Internal_Note *note)
 {
   return elfcore_make_note_pseudosection (abfd, ".reg-xfp", note);
 }
+
+#if defined (HAVE_THRMISC_T)
+
+static bfd_boolean
+elfcore_grok_thrmisc (bfd *abfd, Elf_Internal_Note *note)
+{
+  return elfcore_make_note_pseudosection (abfd, ".tname", note);
+}
+
+#endif /* defined (HAVE_THRMISC_T) */
 
 #if defined (HAVE_PRPSINFO_T)
 typedef prpsinfo_t   elfcore_psinfo_t;
@@ -6863,6 +6879,12 @@ elfcore_grok_note (bfd *abfd, Elf_Internal_Note *note)
 
 	return TRUE;
       }
+
+#if defined (HAVE_THRMISC_T)
+    case NT_THRMISC:
+      return elfcore_grok_thrmisc (abfd, note);
+#endif
+
     }
 }
 
@@ -7242,6 +7264,22 @@ elfcore_write_prfpreg (bfd *abfd,
   char *note_name = "CORE";
   return elfcore_write_note (abfd, buf, bufsiz,
 			     note_name, NT_FPREGSET, fpregs, size);
+}
+
+char *
+elfcore_write_thrmisc (bfd *abfd,
+		       char *buf,
+		       int *bufsiz,
+		       const char *tname,
+		       int size)
+{
+#if defined (HAVE_THRMISC_T)
+  char *note_name = "CORE";
+  return elfcore_write_note (abfd, buf, bufsiz,
+			     note_name, NT_THRMISC, tname, size);
+#else
+  return buf;
+#endif
 }
 
 char *

@@ -9,7 +9,7 @@ SRCDIR=		${BIND_DIR}/bin/named
 
 PROG=		named
 
-CONFIGARGS='--prefix=/usr' '--infodir=/usr/share/info' '--mandir=/usr/share/man' '--enable-threads' '--disable-ipv6' '--enable-getifaddrs' '--disable-linux-caps' '--with-openssl=/usr' '--with-randomdev=/dev/random'
+CONFIGARGS='--prefix=/usr' '--infodir=/usr/share/info' '--mandir=/usr/share/man' '--enable-threads' '--enable-getifaddrs' '--disable-linux-caps' '--with-openssl=/usr' '--with-randomdev=/dev/random'
 
 # Optional features
 .if ${MK_BIND_LARGE_FILE} == "yes"

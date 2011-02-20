@@ -42,12 +42,19 @@ ASTConsumer *FixItAction::CreateASTConsumer(CompilerInstance &CI,
   return new ASTConsumer();
 }
 
-class FixItActionSuffixInserter : public FixItPathRewriter {
+class FixItRewriteInPlace : public FixItOptions {
+public:
+  std::string RewriteFilename(const std::string &Filename) { return Filename; }
+};
+
+class FixItActionSuffixInserter : public FixItOptions {
   std::string NewSuffix;
 
 public:
-  explicit FixItActionSuffixInserter(std::string NewSuffix)
-    : NewSuffix(NewSuffix) {}
+  FixItActionSuffixInserter(std::string NewSuffix, bool FixWhatYouCan)
+    : NewSuffix(NewSuffix) {
+      this->FixWhatYouCan = FixWhatYouCan;
+  }
 
   std::string RewriteFilename(const std::string &Filename) {
     llvm::sys::Path Path(Filename);
@@ -62,12 +69,14 @@ bool FixItAction::BeginSourceFileAction(CompilerInstance &CI,
                                         llvm::StringRef Filename) {
   const FrontendOptions &FEOpts = getCompilerInstance().getFrontendOpts();
   if (!FEOpts.FixItSuffix.empty()) {
-    PathRewriter.reset(new FixItActionSuffixInserter(FEOpts.FixItSuffix));
+    FixItOpts.reset(new FixItActionSuffixInserter(FEOpts.FixItSuffix,
+                                                  FEOpts.FixWhatYouCan));
   } else {
-    PathRewriter.reset();
+    FixItOpts.reset(new FixItRewriteInPlace);
+    FixItOpts->FixWhatYouCan = FEOpts.FixWhatYouCan;
   }
   Rewriter.reset(new FixItRewriter(CI.getDiagnostics(), CI.getSourceManager(),
-                                   CI.getLangOpts(), PathRewriter.get()));
+                                   CI.getLangOpts(), FixItOpts.get()));
   return true;
 }
 

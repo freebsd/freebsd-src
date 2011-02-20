@@ -916,6 +916,8 @@ gz_uncompress(int in, int out, char *pre, size_t prelen, off_t *gsizep,
 			switch (error) {
 			/* Z_BUF_ERROR goes with Z_FINISH... */
 			case Z_BUF_ERROR:
+				if (z.avail_out > 0 && !done_reading)
+					continue;
 			case Z_STREAM_END:
 			case Z_OK:
 				break;
@@ -1160,7 +1162,7 @@ unlink_input(const char *file, const struct stat *sb)
 	if (kflag)
 		return;
 	if (stat(file, &nsb) != 0)
-		/* Must be gone alrady */
+		/* Must be gone already */
 		return;
 	if (nsb.st_dev != sb->st_dev || nsb.st_ino != sb->st_ino)
 		/* Definitely a different file */

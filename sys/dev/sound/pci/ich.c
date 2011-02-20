@@ -1192,12 +1192,6 @@ ich_pci_resume(device_t dev)
 
 	sc = pcm_getdevinfo(dev);
 
-	if (sc->regtype == SYS_RES_IOPORT)
-		pci_enable_io(dev, SYS_RES_IOPORT);
-	else
-		pci_enable_io(dev, SYS_RES_MEMORY);
-	pci_enable_busmaster(dev);
-
 	ICH_LOCK(sc);
 	/* Reinit audio device */
     	if (ich_init(sc) == -1) {

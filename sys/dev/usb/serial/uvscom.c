@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -321,6 +320,8 @@ uvscom_attach(device_t dev)
 	if (error) {
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	/* start interrupt pipe */
 	mtx_lock(&sc->sc_mtx);
 	usbd_transfer_start(sc->sc_xfer[UVSCOM_INTR_DT_RD]);
@@ -345,7 +346,7 @@ uvscom_detach(device_t dev)
 	if (sc->sc_xfer[UVSCOM_INTR_DT_RD])
 		usbd_transfer_stop(sc->sc_xfer[UVSCOM_INTR_DT_RD]);
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UVSCOM_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 

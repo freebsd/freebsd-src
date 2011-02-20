@@ -275,12 +275,12 @@ public:
     return I->second;
   }
   
-  LatticeVal getStructLatticeValueFor(Value *V, unsigned i) const {
+  /*LatticeVal getStructLatticeValueFor(Value *V, unsigned i) const {
     DenseMap<std::pair<Value*, unsigned>, LatticeVal>::const_iterator I = 
       StructValueState.find(std::make_pair(V, i));
     assert(I != StructValueState.end() && "V is not in valuemap!");
     return I->second;
-  }
+  }*/
 
   /// getTrackedRetVals - Get the inferred return value map.
   ///
@@ -508,17 +508,16 @@ private:
   void visitLoadInst      (LoadInst &I);
   void visitGetElementPtrInst(GetElementPtrInst &I);
   void visitCallInst      (CallInst &I) {
-    visitCallSite(CallSite::get(&I));
+    visitCallSite(&I);
   }
   void visitInvokeInst    (InvokeInst &II) {
-    visitCallSite(CallSite::get(&II));
+    visitCallSite(&II);
     visitTerminatorInst(II);
   }
   void visitCallSite      (CallSite CS);
   void visitUnwindInst    (TerminatorInst &I) { /*returns void*/ }
   void visitUnreachableInst(TerminatorInst &I) { /*returns void*/ }
   void visitAllocaInst    (Instruction &I) { markOverdefined(&I); }
-  void visitVANextInst    (Instruction &I) { markOverdefined(&I); }
   void visitVAArgInst     (Instruction &I) { markAnythingOverdefined(&I); }
 
   void visitInstruction(Instruction &I) {
@@ -1586,7 +1585,7 @@ namespace {
   ///
   struct SCCP : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
-    SCCP() : FunctionPass(&ID) {}
+    SCCP() : FunctionPass(ID) {}
 
     // runOnFunction - Run the Sparse Conditional Constant Propagation
     // algorithm, and return true if the function was modified.
@@ -1600,8 +1599,8 @@ namespace {
 } // end anonymous namespace
 
 char SCCP::ID = 0;
-static RegisterPass<SCCP>
-X("sccp", "Sparse Conditional Constant Propagation");
+INITIALIZE_PASS(SCCP, "sccp",
+                "Sparse Conditional Constant Propagation", false, false);
 
 // createSCCPPass - This is the public interface to this file.
 FunctionPass *llvm::createSCCPPass() {
@@ -1702,14 +1701,15 @@ namespace {
   ///
   struct IPSCCP : public ModulePass {
     static char ID;
-    IPSCCP() : ModulePass(&ID) {}
+    IPSCCP() : ModulePass(ID) {}
     bool runOnModule(Module &M);
   };
 } // end anonymous namespace
 
 char IPSCCP::ID = 0;
-static RegisterPass<IPSCCP>
-Y("ipsccp", "Interprocedural Sparse Conditional Constant Propagation");
+INITIALIZE_PASS(IPSCCP, "ipsccp",
+                "Interprocedural Sparse Conditional Constant Propagation",
+                false, false);
 
 // createIPSCCPPass - This is the public interface to this file.
 ModulePass *llvm::createIPSCCPPass() {
@@ -1748,6 +1748,13 @@ static bool AddressIsTaken(const GlobalValue *GV) {
 bool IPSCCP::runOnModule(Module &M) {
   SCCPSolver Solver(getAnalysisIfAvailable<TargetData>());
 
+  // AddressTakenFunctions - This set keeps track of the address-taken functions
+  // that are in the input.  As IPSCCP runs through and simplifies code,
+  // functions that were address taken can end up losing their
+  // address-taken-ness.  Because of this, we keep track of their addresses from
+  // the first pass so we can use them for the later simplification pass.
+  SmallPtrSet<Function*, 32> AddressTakenFunctions;
+  
   // Loop over all functions, marking arguments to those with their addresses
   // taken or that are external as overdefined.
   //
@@ -1763,9 +1770,13 @@ bool IPSCCP::runOnModule(Module &M) {
     // If this function only has direct calls that we can see, we can track its
     // arguments and return value aggressively, and can assume it is not called
     // unless we see evidence to the contrary.
-    if (F->hasLocalLinkage() && !AddressIsTaken(F)) {
-      Solver.AddArgumentTrackedFunction(F);
-      continue;
+    if (F->hasLocalLinkage()) {
+      if (AddressIsTaken(F))
+        AddressTakenFunctions.insert(F);
+      else {
+        Solver.AddArgumentTrackedFunction(F);
+        continue;
+      }
     }
 
     // Assume the function is called.
@@ -1950,7 +1961,7 @@ bool IPSCCP::runOnModule(Module &M) {
       continue;
   
     // We can only do this if we know that nothing else can call the function.
-    if (!F->hasLocalLinkage() || AddressIsTaken(F))
+    if (!F->hasLocalLinkage() || AddressTakenFunctions.count(F))
       continue;
     
     for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB)

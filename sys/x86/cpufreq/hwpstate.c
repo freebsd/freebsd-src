@@ -118,8 +118,9 @@ static int	hwpstate_get_info_from_msr(device_t dev);
 static int	hwpstate_goto_pstate(device_t dev, int pstate_id);
 
 static int	hwpstate_verbose = 0;
-SYSCTL_INT(_debug, OID_AUTO, hwpstate_verbose, CTLFLAG_RDTUN,
+SYSCTL_INT(_debug, OID_AUTO, hwpstate_verbose, CTLFLAG_RW | CTLFLAG_TUN,
        &hwpstate_verbose, 0, "Debug hwpstate");
+TUNABLE_INT("debug.hwpstate_verbose", &hwpstate_verbose);
 
 static device_method_t hwpstate_methods[] = {
 	/* Device interface */
@@ -156,7 +157,6 @@ DRIVER_MODULE(hwpstate, cpu, hwpstate_driver, hwpstate_devclass, 0, 0);
 static int
 hwpstate_goto_pstate(device_t dev, int pstate)
 {
-	struct pcpu *pc;
 	int i;
 	uint64_t msr;
 	int j;
@@ -170,18 +170,15 @@ hwpstate_goto_pstate(device_t dev, int pstate)
 	if(limit > id)
 		id = limit;
 
-	error = 0;
 	/*
 	 * We are going to the same Px-state on all cpus.
+	 * Probably should take _PSD into account.
 	 */
-	for (i = 0; i < mp_ncpus; i++) {
-		/* Find each cpu. */
-		pc = pcpu_find(i);
-		if (pc == NULL)
-			return (ENXIO);
-		thread_lock(curthread);
+	error = 0;
+	CPU_FOREACH(i) {
 		/* Bind to each cpu. */
-		sched_bind(curthread, pc->pc_cpuid);
+		thread_lock(curthread);
+		sched_bind(curthread, i);
 		thread_unlock(curthread);
 		HWPSTATE_DEBUG(dev, "setting P%d-state on cpu%d\n",
 			id, PCPU_GET(cpuid));
@@ -203,10 +200,10 @@ hwpstate_goto_pstate(device_t dev, int pstate)
 			HWPSTATE_DEBUG(dev, "error: loop is not enough.\n");
 			error = ENXIO;
 		}
-		thread_lock(curthread);
-		sched_unbind(curthread);
-		thread_unlock(curthread);
 	}
+	thread_lock(curthread);
+	sched_unbind(curthread);
+	thread_unlock(curthread);
 	return (error);
 }
 

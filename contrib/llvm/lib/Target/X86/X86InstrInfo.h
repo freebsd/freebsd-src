@@ -311,6 +311,12 @@ namespace X86II {
     MRM_F0 = 40,
     MRM_F8 = 41,
     MRM_F9 = 42,
+    
+    /// RawFrmImm16 - This is used for CALL FAR instructions, which have two
+    /// immediates, the first of which is a 16 or 32-bit immediate (specified by
+    /// the imm encoding) and the second is a 16-bit fixed value.  In the AMD
+    /// manual, this operand is described as pntr16:32 and pntr16:16
+    RawFrmImm16 = 43,
 
     FormMask       = 63,
 
@@ -439,27 +445,27 @@ namespace X86II {
 
     //===------------------------------------------------------------------===//
     // VEX - The opcode prefix used by AVX instructions
-    VEX         = 1ULL << 32,
+    VEX         = 1U << 0,
 
     // VEX_W - Has a opcode specific functionality, but is used in the same
     // way as REX_W is for regular SSE instructions.
-    VEX_W       = 1ULL << 33,
+    VEX_W       = 1U << 1,
 
     // VEX_4V - Used to specify an additional AVX/SSE register. Several 2
     // address instructions in SSE are represented as 3 address ones in AVX
     // and the additional register is encoded in VEX_VVVV prefix.
-    VEX_4V      = 1ULL << 34,
+    VEX_4V      = 1U << 2,
 
     // VEX_I8IMM - Specifies that the last register used in a AVX instruction,
     // must be encoded in the i8 immediate field. This usually happens in
     // instructions with 4 operands.
-    VEX_I8IMM   = 1ULL << 35,
+    VEX_I8IMM   = 1U << 3,
 
     // VEX_L - Stands for a bit in the VEX opcode prefix meaning the current
     // instruction uses 256-bit wide registers. This is usually auto detected if
     // a VR256 register is used, but some AVX instructions also have this field
     // marked when using a f256 memory references.
-    VEX_L       = 1ULL << 36
+    VEX_L       = 1U << 4
   };
   
   // getBaseOpcodeFor - This function returns the "base" X86 opcode for the
@@ -522,11 +528,12 @@ namespace X86II {
     case X86II::AddRegFrm:
     case X86II::MRMDestReg:
     case X86II::MRMSrcReg:
+    case X86II::RawFrmImm16:
        return -1;
     case X86II::MRMDestMem:
       return 0;
     case X86II::MRMSrcMem: {
-      bool HasVEX_4V = TSFlags & X86II::VEX_4V;
+      bool HasVEX_4V = (TSFlags >> 32) & X86II::VEX_4V;
       unsigned FirstMemOp = 1;
       if (HasVEX_4V)
         ++FirstMemOp;// Skip the register source (which is encoded in VEX_VVVV).
@@ -609,12 +616,6 @@ public:
   /// always be able to get register info as well (through this method).
   ///
   virtual const X86RegisterInfo &getRegisterInfo() const { return RI; }
-
-  /// Return true if the instruction is a register to register move and return
-  /// the source and dest operands and their sub-register indices by reference.
-  virtual bool isMoveInstr(const MachineInstr &MI,
-                           unsigned &SrcReg, unsigned &DstReg,
-                           unsigned &SrcSubIdx, unsigned &DstSubIdx) const;
 
   /// isCoalescableExtInstr - Return true if the instruction is a "coalescable"
   /// extension instruction. That is, it's like a copy where it's legal for the
@@ -826,15 +827,10 @@ public:
     if (!MO.isReg()) return false;
     return isX86_64ExtendedReg(MO.getReg());
   }
-  static unsigned determineREX(const MachineInstr &MI);
 
   /// isX86_64ExtendedReg - Is the MachineOperand a x86-64 extended (r8 or
   /// higher) register?  e.g. r8, xmm8, xmm13, etc.
   static bool isX86_64ExtendedReg(unsigned RegNo);
-
-  /// GetInstSize - Returns the size of the specified MachineInstr.
-  ///
-  virtual unsigned GetInstSizeInBytes(const MachineInstr *MI) const;
 
   /// getGlobalBaseReg - Return a virtual register initialized with the
   /// the global base register value. Output instructions required to

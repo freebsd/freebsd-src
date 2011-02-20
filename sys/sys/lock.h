@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from BSDI $Id: mutex.h,v 2.7.2.35 2000/04/27 03:10:26 cp Exp $
+ *	from BSDI Id: mutex.h,v 2.7.2.35 2000/04/27 03:10:26 cp
  * $FreeBSD$
  */
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ncache.c,v 1.43.334.2 2010/02/25 10:57:11 tbox Exp $ */
+/* $Id: ncache.c,v 1.43.48.7 2010-05-19 09:53:46 marka Exp $ */
 
 /*! \file */
 
@@ -40,6 +40,7 @@
  *
  *	owner name
  *	type
+ *	trust
  *	rdata count
  *		rdata length			These two occur 'rdata count'
  *		rdata				times.
@@ -189,6 +190,8 @@ dns_ncache_addoptout(dns_message_t *message, dns_db_t *cache,
 						return (ISC_R_NOSPACE);
 					isc_buffer_putuint16(&buffer,
 							     rdataset->type);
+					isc_buffer_putuint8(&buffer,
+					       (unsigned char)rdataset->trust);
 					/*
 					 * Copy the rdataset into the buffer.
 					 */
@@ -245,10 +248,9 @@ dns_ncache_addoptout(dns_message_t *message, dns_db_t *cache,
 		 * Copy the type and a zero rdata count to the buffer.
 		 */
 		isc_buffer_availableregion(&buffer, &r);
-		if (r.length < 4)
+		if (r.length < 5)
 			return (ISC_R_NOSPACE);
-		isc_buffer_putuint16(&buffer, 0);
-		isc_buffer_putuint16(&buffer, 0);
+		isc_buffer_putuint16(&buffer, 0);	/* type */
 		/*
 		 * RFC2308, section 5, says that negative answers without
 		 * SOAs should not be cached.
@@ -266,6 +268,9 @@ dns_ncache_addoptout(dns_message_t *message, dns_db_t *cache,
 			trust = dns_trust_authauthority;
 		} else
 			trust = dns_trust_additional;
+		isc_buffer_putuint8(&buffer, (unsigned char)trust); /* trust */
+		isc_buffer_putuint16(&buffer, 0);	/* count */
+
 		/*
 		 * Now add it to the cache.
 		 */
@@ -335,8 +340,9 @@ dns_ncache_towire(dns_rdataset_t *rdataset, dns_compress_t *cctx,
 		isc_buffer_forward(&source, name.length);
 		remaining.length -= name.length;
 
-		INSIST(remaining.length >= 4);
+		INSIST(remaining.length >= 5);
 		type = isc_buffer_getuint16(&source);
+		isc_buffer_forward(&source, 1);
 		rcount = isc_buffer_getuint16(&source);
 
 		for (i = 0; i < rcount; i++) {
@@ -506,6 +512,13 @@ rdataset_count(dns_rdataset_t *rdataset) {
 	return (count);
 }
 
+static void
+rdataset_settrust(dns_rdataset_t *rdataset, dns_trust_t trust) {
+	unsigned char *raw = rdataset->private3;
+
+	raw[-1] = (unsigned char)trust;
+}
+
 static dns_rdatasetmethods_t rdataset_methods = {
 	rdataset_disassociate,
 	rdataset_first,
@@ -520,7 +533,7 @@ static dns_rdatasetmethods_t rdataset_methods = {
 	NULL,
 	NULL,
 	NULL,
-	NULL,
+	rdataset_settrust,
 	NULL
 };
 
@@ -534,6 +547,8 @@ dns_ncache_getrdataset(dns_rdataset_t *ncacherdataset, dns_name_t *name,
 	isc_buffer_t source;
 	dns_name_t tname;
 	dns_rdatatype_t ttype;
+	dns_trust_t trust = dns_trust_none;
+	dns_rdataset_t clone;
 
 	REQUIRE(ncacherdataset != NULL);
 	REQUIRE(ncacherdataset->type == 0);
@@ -541,9 +556,11 @@ dns_ncache_getrdataset(dns_rdataset_t *ncacherdataset, dns_name_t *name,
 	REQUIRE(!dns_rdataset_isassociated(rdataset));
 	REQUIRE(type != dns_rdatatype_rrsig);
 
-	result = dns_rdataset_first(ncacherdataset);
+	dns_rdataset_init(&clone);
+	dns_rdataset_clone(ncacherdataset, &clone);
+	result = dns_rdataset_first(&clone);
 	while (result == ISC_R_SUCCESS) {
-		dns_rdataset_current(ncacherdataset, &rdata);
+		dns_rdataset_current(&clone, &rdata);
 		isc_buffer_init(&source, rdata.data, rdata.length);
 		isc_buffer_add(&source, rdata.length);
 		dns_name_init(&tname, NULL);
@@ -553,16 +570,19 @@ dns_ncache_getrdataset(dns_rdataset_t *ncacherdataset, dns_name_t *name,
 		isc_buffer_forward(&source, tname.length);
 		remaining.length -= tname.length;
 
-		INSIST(remaining.length >= 4);
+		INSIST(remaining.length >= 3);
 		ttype = isc_buffer_getuint16(&source);
 
 		if (ttype == type && dns_name_equal(&tname, name)) {
+			trust = isc_buffer_getuint8(&source);
+			INSIST(trust <= dns_trust_ultimate);
 			isc_buffer_remainingregion(&source, &remaining);
 			break;
 		}
-		result = dns_rdataset_next(ncacherdataset);
+		result = dns_rdataset_next(&clone);
 		dns_rdata_reset(&rdata);
 	}
+	dns_rdataset_disassociate(&clone);
 	if (result == ISC_R_NOMORE)
 		return (ISC_R_NOTFOUND);
 	if (result != ISC_R_SUCCESS)
@@ -575,7 +595,108 @@ dns_ncache_getrdataset(dns_rdataset_t *ncacherdataset, dns_name_t *name,
 	rdataset->type = type;
 	rdataset->covers = 0;
 	rdataset->ttl = ncacherdataset->ttl;
-	rdataset->trust = ncacherdataset->trust;
+	rdataset->trust = trust;
+	rdataset->private1 = NULL;
+	rdataset->private2 = NULL;
+
+	rdataset->private3 = remaining.base;
+
+	/*
+	 * Reset iterator state.
+	 */
+	rdataset->privateuint4 = 0;
+	rdataset->private5 = NULL;
+	rdataset->private6 = NULL;
+	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+dns_ncache_getsigrdataset(dns_rdataset_t *ncacherdataset, dns_name_t *name,
+			  dns_rdatatype_t covers, dns_rdataset_t *rdataset)
+{
+	dns_name_t tname;
+	dns_rdata_rrsig_t rrsig;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
+	dns_rdataset_t clone;
+	dns_rdatatype_t type;
+	dns_trust_t trust = dns_trust_none;
+	isc_buffer_t source;
+	isc_region_t remaining, sigregion;
+	isc_result_t result;
+	unsigned char *raw;
+	unsigned int count;
+
+	REQUIRE(ncacherdataset != NULL);
+	REQUIRE(ncacherdataset->type == 0);
+	REQUIRE(name != NULL);
+	REQUIRE(!dns_rdataset_isassociated(rdataset));
+
+	dns_rdataset_init(&clone);
+	dns_rdataset_clone(ncacherdataset, &clone);
+	result = dns_rdataset_first(&clone);
+	while (result == ISC_R_SUCCESS) {
+		dns_rdataset_current(&clone, &rdata);
+		isc_buffer_init(&source, rdata.data, rdata.length);
+		isc_buffer_add(&source, rdata.length);
+		dns_name_init(&tname, NULL);
+		isc_buffer_remainingregion(&source, &remaining);
+		dns_name_fromregion(&tname, &remaining);
+		INSIST(remaining.length >= tname.length);
+		isc_buffer_forward(&source, tname.length);
+		remaining.length -= tname.length;
+		remaining.base += tname.length;
+
+		INSIST(remaining.length >= 2);
+		type = isc_buffer_getuint16(&source);
+		remaining.length -= 2;
+		remaining.base += 2;
+
+		if (type != dns_rdatatype_rrsig ||
+		    !dns_name_equal(&tname, name)) {
+			result = dns_rdataset_next(&clone);
+			dns_rdata_reset(&rdata);
+			continue;
+		}
+
+		INSIST(remaining.length >= 1);
+		trust = isc_buffer_getuint8(&source);
+		INSIST(trust <= dns_trust_ultimate);
+		remaining.length -= 1;
+		remaining.base += 1;
+
+		raw = remaining.base;
+		count = raw[0] * 256 + raw[1];
+		INSIST(count > 0);
+		raw += 2;
+		sigregion.length = raw[0] * 256 + raw[1];
+		raw += 2;
+		sigregion.base = raw;
+		dns_rdata_reset(&rdata);
+		dns_rdata_fromregion(&rdata, rdataset->rdclass,
+				     dns_rdatatype_rrsig, &sigregion);
+		(void)dns_rdata_tostruct(&rdata, &rrsig, NULL);
+		if (rrsig.covered == covers) {
+			isc_buffer_remainingregion(&source, &remaining);
+			break;
+		}
+
+		result = dns_rdataset_next(&clone);
+		dns_rdata_reset(&rdata);
+	}
+	dns_rdataset_disassociate(&clone);
+	if (result == ISC_R_NOMORE)
+		return (ISC_R_NOTFOUND);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	INSIST(remaining.length != 0);
+
+	rdataset->methods = &rdataset_methods;
+	rdataset->rdclass = ncacherdataset->rdclass;
+	rdataset->type = dns_rdatatype_rrsig;
+	rdataset->covers = covers;
+	rdataset->ttl = ncacherdataset->ttl;
+	rdataset->trust = trust;
 	rdataset->private1 = NULL;
 	rdataset->private2 = NULL;
 
@@ -595,6 +716,7 @@ dns_ncache_current(dns_rdataset_t *ncacherdataset, dns_name_t *found,
 		   dns_rdataset_t *rdataset)
 {
 	dns_rdata_t rdata = DNS_RDATA_INIT;
+	dns_trust_t trust;
 	isc_region_t remaining, sigregion;
 	isc_buffer_t source;
 	dns_name_t tname;
@@ -619,8 +741,10 @@ dns_ncache_current(dns_rdataset_t *ncacherdataset, dns_name_t *found,
 	isc_buffer_forward(&source, found->length);
 	remaining.length -= found->length;
 
-	INSIST(remaining.length >= 4);
+	INSIST(remaining.length >= 5);
 	type = isc_buffer_getuint16(&source);
+	trust = isc_buffer_getuint8(&source);
+	INSIST(trust <= dns_trust_ultimate);
 	isc_buffer_remainingregion(&source, &remaining);
 
 	rdataset->methods = &rdataset_methods;
@@ -645,7 +769,7 @@ dns_ncache_current(dns_rdataset_t *ncacherdataset, dns_name_t *found,
 	} else
 		rdataset->covers = 0;
 	rdataset->ttl = ncacherdataset->ttl;
-	rdataset->trust = ncacherdataset->trust;
+	rdataset->trust = trust;
 	rdataset->private1 = NULL;
 	rdataset->private2 = NULL;
 

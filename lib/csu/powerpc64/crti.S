@@ -22,7 +22,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-	
+
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
+
 	.section .init,"ax",@progbits
 	.align	2
 	.globl	_init
@@ -57,5 +60,4 @@ _fini:
 	mflr 0
 	std 0,64(1)
 
-	.section .rodata
-.ascii "$FreeBSD$\0"
+	.section .note.GNU-stack,"",%progbits

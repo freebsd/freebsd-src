@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,20 +56,20 @@ MALLOC_DEFINE(M_ELI, "eli data", "GEOM_ELI Data");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, eli, CTLFLAG_RW, 0, "GEOM_ELI stuff");
-u_int g_eli_debug = 0;
+int g_eli_debug = 0;
 TUNABLE_INT("kern.geom.eli.debug", &g_eli_debug);
-SYSCTL_UINT(_kern_geom_eli, OID_AUTO, debug, CTLFLAG_RW, &g_eli_debug, 0,
+SYSCTL_INT(_kern_geom_eli, OID_AUTO, debug, CTLFLAG_RW, &g_eli_debug, 0,
     "Debug level");
 static u_int g_eli_tries = 3;
 TUNABLE_INT("kern.geom.eli.tries", &g_eli_tries);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, tries, CTLFLAG_RW, &g_eli_tries, 0,
     "Number of tries for entering the passphrase");
-static u_int g_eli_visible_passphrase = 0;
+static u_int g_eli_visible_passphrase = GETS_NOECHO;
 TUNABLE_INT("kern.geom.eli.visible_passphrase", &g_eli_visible_passphrase);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, visible_passphrase, CTLFLAG_RW,
     &g_eli_visible_passphrase, 0,
-    "Turn on echo when entering the passphrase (for debug purposes only!!)");
-u_int g_eli_overwrites = 5;
+    "Visibility of passphrase prompt (0 = invisible, 1 = visible, 2 = asterisk)");
+u_int g_eli_overwrites = G_ELI_OVERWRITES;
 TUNABLE_INT("kern.geom.eli.overwrites", &g_eli_overwrites);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, overwrites, CTLFLAG_RW, &g_eli_overwrites,
     0, "Number of times on-disk keys should be overwritten when destroying them");
@@ -106,7 +106,7 @@ struct g_class g_eli_class = {
 /*
  * Code paths:
  * BIO_READ:
- *	g_eli_start -> g_io_request -> g_eli_read_done -> g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver
+ *	g_eli_start -> g_eli_crypto_read -> g_io_request -> g_eli_read_done -> g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver
  * BIO_WRITE:
  *	g_eli_start -> g_eli_crypto_run -> g_eli_crypto_write_done -> g_io_request -> g_eli_write_done -> g_io_deliver
  */
@@ -148,7 +148,7 @@ g_eli_crypto_rerun(struct cryptop *crp)
 /*
  * The function is called afer reading encrypted data from the provider.
  *
- * g_eli_start -> g_io_request -> G_ELI_READ_DONE -> g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver
+ * g_eli_start -> g_eli_crypto_read -> g_io_request -> G_ELI_READ_DONE -> g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver
  */
 void
 g_eli_read_done(struct bio *bp)
@@ -167,6 +167,7 @@ g_eli_read_done(struct bio *bp)
 	if (pbp->bio_inbed < pbp->bio_children)
 		return;
 	g_destroy_bio(bp);
+	sc = pbp->bio_to->geom->softc;
 	if (pbp->bio_error != 0) {
 		G_ELI_LOGREQ(0, pbp, "%s() failed", __func__);
 		pbp->bio_completed = 0;
@@ -175,9 +176,9 @@ g_eli_read_done(struct bio *bp)
 			pbp->bio_driver2 = NULL;
 		}
 		g_io_deliver(pbp, pbp->bio_error);
+		atomic_subtract_int(&sc->sc_inflight, 1);
 		return;
 	}
-	sc = pbp->bio_to->geom->softc;
 	mtx_lock(&sc->sc_queue_mtx);
 	bioq_insert_tail(&sc->sc_queue, pbp);
 	mtx_unlock(&sc->sc_queue_mtx);
@@ -192,6 +193,7 @@ g_eli_read_done(struct bio *bp)
 void
 g_eli_write_done(struct bio *bp)
 {
+	struct g_eli_softc *sc;
 	struct bio *pbp;
 
 	G_ELI_LOGREQ(2, bp, "Request done.");
@@ -218,7 +220,9 @@ g_eli_write_done(struct bio *bp)
 	 * Write is finished, send it up.
 	 */
 	pbp->bio_completed = pbp->bio_length;
+	sc = pbp->bio_to->geom->softc;
 	g_io_deliver(pbp, pbp->bio_error);
+	atomic_subtract_int(&sc->sc_inflight, 1);
 }
 
 /*
@@ -241,12 +245,14 @@ g_eli_orphan(struct g_consumer *cp)
 	sc = cp->geom->softc;
 	if (sc == NULL)
 		return;
-	g_eli_destroy(sc, 1);
+	g_eli_destroy(sc, TRUE);
 }
 
 /*
- * BIO_READ : G_ELI_START -> g_io_request -> g_eli_read_done -> g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver
- * BIO_WRITE: G_ELI_START -> g_eli_crypto_run -> g_eli_crypto_write_done -> g_io_request -> g_eli_write_done -> g_io_deliver
+ * BIO_READ:
+ *	G_ELI_START -> g_eli_crypto_read -> g_io_request -> g_eli_read_done -> g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver
+ * BIO_WRITE:
+ *	G_ELI_START -> g_eli_crypto_run -> g_eli_crypto_write_done -> g_io_request -> g_eli_write_done -> g_io_deliver
  */
 static void
 g_eli_start(struct bio *bp)
@@ -282,24 +288,16 @@ g_eli_start(struct bio *bp)
 		g_io_deliver(bp, ENOMEM);
 		return;
 	}
+	bp->bio_driver1 = cbp;
+	bp->bio_pflags = G_ELI_NEW_BIO;
 	switch (bp->bio_cmd) {
 	case BIO_READ:
 		if (!(sc->sc_flags & G_ELI_FLAG_AUTH)) {
-			bp->bio_driver2 = NULL;
-			cbp->bio_done = g_eli_read_done;
-			cp = LIST_FIRST(&sc->sc_geom->consumer);
-			cbp->bio_to = cp->provider;
-			G_ELI_LOGREQ(2, cbp, "Sending request.");
-			/*
-			 * Read encrypted data from provider.
-			 */
-			g_io_request(cbp, cp);
+			g_eli_crypto_read(sc, bp, 0);
 			break;
 		}
-		bp->bio_pflags = 255;
 		/* FALLTHROUGH */
 	case BIO_WRITE:
-		bp->bio_driver1 = cbp;
 		mtx_lock(&sc->sc_queue_mtx);
 		bioq_insert_tail(&sc->sc_queue, bp);
 		mtx_unlock(&sc->sc_queue_mtx);
@@ -316,6 +314,104 @@ g_eli_start(struct bio *bp)
 	}
 }
 
+static int
+g_eli_newsession(struct g_eli_worker *wr)
+{
+	struct g_eli_softc *sc;
+	struct cryptoini crie, cria;
+	int error;
+
+	sc = wr->w_softc;
+
+	bzero(&crie, sizeof(crie));
+	crie.cri_alg = sc->sc_ealgo;
+	crie.cri_klen = sc->sc_ekeylen;
+	if (sc->sc_ealgo == CRYPTO_AES_XTS)
+		crie.cri_klen <<= 1;
+	crie.cri_key = sc->sc_ekeys[0];
+	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
+		bzero(&cria, sizeof(cria));
+		cria.cri_alg = sc->sc_aalgo;
+		cria.cri_klen = sc->sc_akeylen;
+		cria.cri_key = sc->sc_akey;
+		crie.cri_next = &cria;
+	}
+
+	switch (sc->sc_crypto) {
+	case G_ELI_CRYPTO_SW:
+		error = crypto_newsession(&wr->w_sid, &crie,
+		    CRYPTOCAP_F_SOFTWARE);
+		break;
+	case G_ELI_CRYPTO_HW:
+		error = crypto_newsession(&wr->w_sid, &crie,
+		    CRYPTOCAP_F_HARDWARE);
+		break;
+	case G_ELI_CRYPTO_UNKNOWN:
+		error = crypto_newsession(&wr->w_sid, &crie,
+		    CRYPTOCAP_F_HARDWARE);
+		if (error == 0) {
+			mtx_lock(&sc->sc_queue_mtx);
+			if (sc->sc_crypto == G_ELI_CRYPTO_UNKNOWN)
+				sc->sc_crypto = G_ELI_CRYPTO_HW;
+			mtx_unlock(&sc->sc_queue_mtx);
+		} else {
+			error = crypto_newsession(&wr->w_sid, &crie,
+			    CRYPTOCAP_F_SOFTWARE);
+			mtx_lock(&sc->sc_queue_mtx);
+			if (sc->sc_crypto == G_ELI_CRYPTO_UNKNOWN)
+				sc->sc_crypto = G_ELI_CRYPTO_SW;
+			mtx_unlock(&sc->sc_queue_mtx);
+		}
+		break;
+	default:
+		panic("%s: invalid condition", __func__);
+	}
+
+	return (error);
+}
+
+static void
+g_eli_freesession(struct g_eli_worker *wr)
+{
+
+	crypto_freesession(wr->w_sid);
+}
+
+static void
+g_eli_cancel(struct g_eli_softc *sc)
+{
+	struct bio *bp;
+
+	mtx_assert(&sc->sc_queue_mtx, MA_OWNED);
+
+	while ((bp = bioq_takefirst(&sc->sc_queue)) != NULL) {
+		KASSERT(bp->bio_pflags == G_ELI_NEW_BIO,
+		    ("Not new bio when canceling (bp=%p).", bp));
+		g_io_deliver(bp, ENXIO);
+	}
+}
+
+static struct bio *
+g_eli_takefirst(struct g_eli_softc *sc)
+{
+	struct bio *bp;
+
+	mtx_assert(&sc->sc_queue_mtx, MA_OWNED);
+
+	if (!(sc->sc_flags & G_ELI_FLAG_SUSPEND))
+		return (bioq_takefirst(&sc->sc_queue));
+	/*
+	 * Device suspended, so we skip new I/O requests.
+	 */
+	TAILQ_FOREACH(bp, &sc->sc_queue.queue, bio_queue) {
+		if (bp->bio_pflags != G_ELI_NEW_BIO)
+			break;
+	}
+	if (bp != NULL)
+		bioq_remove(&sc->sc_queue, bp);
+	return (bp);
+}
+
 /*
  * This is the main function for kernel worker thread when we don't have
  * hardware acceleration and we have to do cryptography in software.
@@ -328,6 +424,7 @@ g_eli_worker(void *arg)
 	struct g_eli_softc *sc;
 	struct g_eli_worker *wr;
 	struct bio *bp;
+	int error;
 
 	wr = arg;
 	sc = wr->w_softc;
@@ -349,11 +446,13 @@ g_eli_worker(void *arg)
 
 	for (;;) {
 		mtx_lock(&sc->sc_queue_mtx);
-		bp = bioq_takefirst(&sc->sc_queue);
+again:
+		bp = g_eli_takefirst(sc);
 		if (bp == NULL) {
 			if (sc->sc_flags & G_ELI_FLAG_DESTROY) {
+				g_eli_cancel(sc);
 				LIST_REMOVE(wr, w_next);
-				crypto_freesession(wr->w_sid);
+				g_eli_freesession(wr);
 				free(wr, M_ELI);
 				G_ELI_DEBUG(1, "Thread %s exiting.",
 				    curthread->td_proc->p_comm);
@@ -361,17 +460,92 @@ g_eli_worker(void *arg)
 				mtx_unlock(&sc->sc_queue_mtx);
 				kproc_exit(0);
 			}
+			while (sc->sc_flags & G_ELI_FLAG_SUSPEND) {
+				if (sc->sc_inflight > 0) {
+					G_ELI_DEBUG(0, "inflight=%d", sc->sc_inflight);
+					/*
+					 * We still have inflight BIOs, so
+					 * sleep and retry.
+					 */
+					msleep(sc, &sc->sc_queue_mtx, PRIBIO,
+					    "geli:inf", hz / 5);
+					goto again;
+				}
+				/*
+				 * Suspend requested, mark the worker as
+				 * suspended and go to sleep.
+				 */
+				if (wr->w_active) {
+					g_eli_freesession(wr);
+					wr->w_active = FALSE;
+				}
+				wakeup(&sc->sc_workers);
+				msleep(sc, &sc->sc_queue_mtx, PRIBIO,
+				    "geli:suspend", 0);
+				if (!wr->w_active &&
+				    !(sc->sc_flags & G_ELI_FLAG_SUSPEND)) {
+					error = g_eli_newsession(wr);
+					KASSERT(error == 0,
+					    ("g_eli_newsession() failed on resume (error=%d)",
+					    error));
+					wr->w_active = TRUE;
+				}
+				goto again;
+			}
 			msleep(sc, &sc->sc_queue_mtx, PDROP, "geli:w", 0);
 			continue;
 		}
+		if (bp->bio_pflags == G_ELI_NEW_BIO)
+			atomic_add_int(&sc->sc_inflight, 1);
 		mtx_unlock(&sc->sc_queue_mtx);
-		if (bp->bio_cmd == BIO_READ && bp->bio_pflags == 255)
-			g_eli_auth_read(sc, bp);
-		else if (sc->sc_flags & G_ELI_FLAG_AUTH)
-			g_eli_auth_run(wr, bp);
-		else
-			g_eli_crypto_run(wr, bp);
+		if (bp->bio_pflags == G_ELI_NEW_BIO) {
+			bp->bio_pflags = 0;
+			if (sc->sc_flags & G_ELI_FLAG_AUTH) {
+				if (bp->bio_cmd == BIO_READ)
+					g_eli_auth_read(sc, bp);
+				else
+					g_eli_auth_run(wr, bp);
+			} else {
+				if (bp->bio_cmd == BIO_READ)
+					g_eli_crypto_read(sc, bp, 1);
+				else
+					g_eli_crypto_run(wr, bp);
+			}
+		} else {
+			if (sc->sc_flags & G_ELI_FLAG_AUTH)
+				g_eli_auth_run(wr, bp);
+			else
+				g_eli_crypto_run(wr, bp);
+		}
 	}
+}
+
+/*
+ * Select encryption key. If G_ELI_FLAG_SINGLE_KEY is present we only have one
+ * key available for all the data. If the flag is not present select the key
+ * based on data offset.
+ */
+uint8_t *
+g_eli_crypto_key(struct g_eli_softc *sc, off_t offset, size_t blocksize)
+{
+	u_int nkey;
+
+	if (sc->sc_nekeys == 1)
+		return (sc->sc_ekeys[0]);
+
+	KASSERT(sc->sc_nekeys > 1, ("%s: sc_nekeys=%u", __func__,
+	    sc->sc_nekeys));
+	KASSERT((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) == 0,
+	    ("%s: SINGLE_KEY flag set, but sc_nekeys=%u", __func__,
+	    sc->sc_nekeys));
+
+	/* We switch key every 2^G_ELI_KEY_SHIFT blocks. */
+	nkey = (offset >> G_ELI_KEY_SHIFT) / blocksize;
+
+	KASSERT(nkey < sc->sc_nekeys, ("%s: nkey=%u >= sc_nekeys=%u", __func__,
+	    nkey, sc->sc_nekeys));
+
+	return (sc->sc_ekeys[nkey]);
 }
 
 /*
@@ -381,16 +555,31 @@ void
 g_eli_crypto_ivgen(struct g_eli_softc *sc, off_t offset, u_char *iv,
     size_t size)
 {
-	u_char off[8], hash[SHA256_DIGEST_LENGTH];
-	SHA256_CTX ctx;
+	uint8_t off[8];
 
-	if (!(sc->sc_flags & G_ELI_FLAG_NATIVE_BYTE_ORDER))
+	if ((sc->sc_flags & G_ELI_FLAG_NATIVE_BYTE_ORDER) != 0)
+		bcopy(&offset, off, sizeof(off));
+	else
 		le64enc(off, (uint64_t)offset);
-	/* Copy precalculated SHA256 context for IV-Key. */
-	bcopy(&sc->sc_ivctx, &ctx, sizeof(ctx));
-	SHA256_Update(&ctx, (uint8_t *)&offset, sizeof(offset));
-	SHA256_Final(hash, &ctx);
-	bcopy(hash, iv, size);
+
+	switch (sc->sc_ealgo) {
+	case CRYPTO_AES_XTS:
+		bcopy(off, iv, sizeof(off));
+		bzero(iv + sizeof(off), size - sizeof(off));
+		break;
+	default:
+	    {
+		u_char hash[SHA256_DIGEST_LENGTH];
+		SHA256_CTX ctx;
+
+		/* Copy precalculated SHA256 context for IV-Key. */
+		bcopy(&sc->sc_ivctx, &ctx, sizeof(ctx));
+		SHA256_Update(&ctx, off, sizeof(off));
+		SHA256_Final(hash, &ctx);
+		bcopy(hash, iv, MIN(sizeof(hash), size));
+		break;
+	    }
+	}
 }
 
 int
@@ -457,7 +646,7 @@ g_eli_last_close(struct g_eli_softc *sc)
 	gp = sc->sc_geom;
 	pp = LIST_FIRST(&gp->provider);
 	strlcpy(ppname, pp->name, sizeof(ppname));
-	error = g_eli_destroy(sc, 1);
+	error = g_eli_destroy(sc, TRUE);
 	KASSERT(error == 0, ("Cannot detach %s on last close (error=%d).",
 	    ppname, error));
 	G_ELI_DEBUG(0, "Detached %s on last close.", ppname);
@@ -514,7 +703,6 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct g_consumer *cp;
-	struct cryptoini crie, cria;
 	u_int i, threads;
 	int error;
 
@@ -541,18 +729,16 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	else
 		gp->access = g_std_access;
 
-	sc->sc_crypto = G_ELI_CRYPTO_SW;
+	sc->sc_inflight = 0;
+	sc->sc_crypto = G_ELI_CRYPTO_UNKNOWN;
 	sc->sc_flags = md->md_flags;
 	/* Backward compatibility. */
-	if (md->md_version < 2)
+	if (md->md_version < 4)
 		sc->sc_flags |= G_ELI_FLAG_NATIVE_BYTE_ORDER;
+	if (md->md_version < 5)
+		sc->sc_flags |= G_ELI_FLAG_SINGLE_KEY;
 	sc->sc_ealgo = md->md_ealgo;
 	sc->sc_nkey = nkey;
-	/*
-	 * Remember the keys in our softc structure.
-	 */
-	g_eli_mkey_propagate(sc, mkey);
-	sc->sc_ekeylen = md->md_keylen;
 
 	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
 		sc->sc_akeylen = sizeof(sc->sc_akey) * 8;
@@ -572,23 +758,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		sc->sc_bytes_per_sector =
 		    (md->md_sectorsize - 1) / sc->sc_data_per_sector + 1;
 		sc->sc_bytes_per_sector *= bpp->sectorsize;
-		/*
-		 * Precalculate SHA256 for HMAC key generation.
-		 * This is expensive operation and we can do it only once now or
-		 * for every access to sector, so now will be much better.
-		 */
-		SHA256_Init(&sc->sc_akeyctx);
-		SHA256_Update(&sc->sc_akeyctx, sc->sc_akey,
-		    sizeof(sc->sc_akey));
 	}
-
-	/*
-	 * Precalculate SHA256 for IV generation.
-	 * This is expensive operation and we can do it only once now or for
-	 * every access to sector, so now will be much better.
-	 */
-	SHA256_Init(&sc->sc_ivctx);
-	SHA256_Update(&sc->sc_ivctx, sc->sc_ivkey, sizeof(sc->sc_ivkey));
 
 	gp->softc = sc;
 	sc->sc_geom = gp;
@@ -631,19 +801,24 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		goto failed;
 	}
 
-	LIST_INIT(&sc->sc_workers);
-
-	bzero(&crie, sizeof(crie));
-	crie.cri_alg = sc->sc_ealgo;
-	crie.cri_klen = sc->sc_ekeylen;
-	crie.cri_key = sc->sc_ekey;
-	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
-		bzero(&cria, sizeof(cria));
-		cria.cri_alg = sc->sc_aalgo;
-		cria.cri_klen = sc->sc_akeylen;
-		cria.cri_key = sc->sc_akey;
-		crie.cri_next = &cria;
+	sc->sc_sectorsize = md->md_sectorsize;
+	sc->sc_mediasize = bpp->mediasize;
+	if (!(sc->sc_flags & G_ELI_FLAG_ONETIME))
+		sc->sc_mediasize -= bpp->sectorsize;
+	if (!(sc->sc_flags & G_ELI_FLAG_AUTH))
+		sc->sc_mediasize -= (sc->sc_mediasize % sc->sc_sectorsize);
+	else {
+		sc->sc_mediasize /= sc->sc_bytes_per_sector;
+		sc->sc_mediasize *= sc->sc_sectorsize;
 	}
+
+	/*
+	 * Remember the keys in our softc structure.
+	 */
+	g_eli_mkey_propagate(sc, mkey);
+	sc->sc_ekeylen = md->md_keylen;
+
+	LIST_INIT(&sc->sc_workers);
 
 	threads = g_eli_threads;
 	if (threads == 0)
@@ -662,21 +837,9 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		wr = malloc(sizeof(*wr), M_ELI, M_WAITOK | M_ZERO);
 		wr->w_softc = sc;
 		wr->w_number = i;
+		wr->w_active = TRUE;
 
-		/*
-		 * If this is the first pass, try to get hardware support.
-		 * Use software cryptography, if we cannot get it.
-		 */
-		if (LIST_EMPTY(&sc->sc_workers)) {
-			error = crypto_newsession(&wr->w_sid, &crie,
-			    CRYPTOCAP_F_HARDWARE);
-			if (error == 0)
-				sc->sc_crypto = G_ELI_CRYPTO_HW;
-		}
-		if (sc->sc_crypto == G_ELI_CRYPTO_SW) {
-			error = crypto_newsession(&wr->w_sid, &crie,
-			    CRYPTOCAP_F_SOFTWARE);
-		}
+		error = g_eli_newsession(wr);
 		if (error != 0) {
 			free(wr, M_ELI);
 			if (req != NULL) {
@@ -692,7 +855,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		error = kproc_create(g_eli_worker, wr, &wr->w_proc, 0, 0,
 		    "g_eli[%u] %s", i, bpp->name);
 		if (error != 0) {
-			crypto_freesession(wr->w_sid);
+			g_eli_freesession(wr);
 			free(wr, M_ELI);
 			if (req != NULL) {
 				gctl_error(req, "Cannot create kernel thread "
@@ -713,16 +876,8 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	 * Create decrypted provider.
 	 */
 	pp = g_new_providerf(gp, "%s%s", bpp->name, G_ELI_SUFFIX);
-	pp->sectorsize = md->md_sectorsize;
-	pp->mediasize = bpp->mediasize;
-	if (!(sc->sc_flags & G_ELI_FLAG_ONETIME))
-		pp->mediasize -= bpp->sectorsize;
-	if (!(sc->sc_flags & G_ELI_FLAG_AUTH))
-		pp->mediasize -= (pp->mediasize % pp->sectorsize);
-	else {
-		pp->mediasize /= sc->sc_bytes_per_sector;
-		pp->mediasize *= pp->sectorsize;
-	}
+	pp->mediasize = sc->sc_mediasize;
+	pp->sectorsize = sc->sc_sectorsize;
 
 	g_error_provider(pp, 0);
 
@@ -753,6 +908,11 @@ failed:
 	}
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
+	if (sc->sc_ekeys != NULL) {
+		bzero(sc->sc_ekeys,
+		    sc->sc_nekeys * (sizeof(uint8_t *) + G_ELI_DATAKEYLEN));
+		free(sc->sc_ekeys, M_ELI);
+	}
 	bzero(sc, sizeof(*sc));
 	free(sc, M_ELI);
 	return (NULL);
@@ -792,6 +952,12 @@ g_eli_destroy(struct g_eli_softc *sc, boolean_t force)
 	}
 	mtx_destroy(&sc->sc_queue_mtx);
 	gp->softc = NULL;
+	if (sc->sc_ekeys != NULL) {
+		/* The sc_ekeys field can be NULL is device is suspended. */
+		bzero(sc->sc_ekeys,
+		    sc->sc_nekeys * (sizeof(uint8_t *) + G_ELI_DATAKEYLEN));
+		free(sc->sc_ekeys, M_ELI);
+	}
 	bzero(sc, sizeof(*sc));
 	free(sc, M_ELI);
 
@@ -809,14 +975,15 @@ g_eli_destroy_geom(struct gctl_req *req __unused,
 	struct g_eli_softc *sc;
 
 	sc = gp->softc;
-	return (g_eli_destroy(sc, 0));
+	return (g_eli_destroy(sc, FALSE));
 }
 
 static int
 g_eli_keyfiles_load(struct hmac_ctx *ctx, const char *provider)
 {
-	u_char *keyfile, *data, *size;
+	u_char *keyfile, *data;
 	char *file, name[64];
+	size_t size;
 	int i;
 
 	for (i = 0; ; i++) {
@@ -824,15 +991,14 @@ g_eli_keyfiles_load(struct hmac_ctx *ctx, const char *provider)
 		keyfile = preload_search_by_type(name);
 		if (keyfile == NULL)
 			return (i);	/* Return number of loaded keyfiles. */
-		data = preload_search_info(keyfile, MODINFO_ADDR);
+		data = preload_fetch_addr(keyfile);
 		if (data == NULL) {
 			G_ELI_DEBUG(0, "Cannot find key file data for %s.",
 			    name);
 			return (0);
 		}
-		data = *(void **)data;
-		size = preload_search_info(keyfile, MODINFO_SIZE);
-		if (size == NULL) {
+		size = preload_fetch_size(keyfile);
+		if (size == 0) {
 			G_ELI_DEBUG(0, "Cannot find key file size for %s.",
 			    name);
 			return (0);
@@ -845,15 +1011,16 @@ g_eli_keyfiles_load(struct hmac_ctx *ctx, const char *provider)
 		}
 		G_ELI_DEBUG(1, "Loaded keyfile %s for %s (type: %s).", file,
 		    provider, name);
-		g_eli_crypto_hmac_update(ctx, data, *(size_t *)size);
+		g_eli_crypto_hmac_update(ctx, data, size);
 	}
 }
 
 static void
 g_eli_keyfiles_clear(const char *provider)
 {
-	u_char *keyfile, *data, *size;
+	u_char *keyfile, *data;
 	char name[64];
+	size_t size;
 	int i;
 
 	for (i = 0; ; i++) {
@@ -861,12 +1028,10 @@ g_eli_keyfiles_clear(const char *provider)
 		keyfile = preload_search_by_type(name);
 		if (keyfile == NULL)
 			return;
-		data = preload_search_info(keyfile, MODINFO_ADDR);
-		size = preload_search_info(keyfile, MODINFO_SIZE);
-		if (data == NULL || size == NULL)
-			continue;
-		data = *(void **)data;
-		bzero(data, *(size_t *)size);
+		data = preload_fetch_addr(keyfile);
+		size = preload_fetch_size(keyfile);
+		if (data != NULL && size != 0)
+			bzero(data, size);
 	}
 }
 
@@ -1040,6 +1205,8 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sbuf_printf(sb, name);					\
 	}								\
 } while (0)
+		ADD_FLAG(G_ELI_FLAG_SUSPEND, "SUSPEND");
+		ADD_FLAG(G_ELI_FLAG_SINGLE_KEY, "SINGLE-KEY");
 		ADD_FLAG(G_ELI_FLAG_NATIVE_BYTE_ORDER, "NATIVE-BYTE-ORDER");
 		ADD_FLAG(G_ELI_FLAG_ONETIME, "ONETIME");
 		ADD_FLAG(G_ELI_FLAG_BOOT, "BOOT");
@@ -1079,6 +1246,8 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	    sc->sc_ekeylen);
 	sbuf_printf(sb, "%s<EncryptionAlgorithm>%s</EncryptionAlgorithm>\n", indent,
 	    g_eli_algo2str(sc->sc_ealgo));
+	sbuf_printf(sb, "%s<State>%s</State>\n", indent,
+	    (sc->sc_flags & G_ELI_FLAG_SUSPEND) ? "SUSPENDED" : "ACTIVE");
 }
 
 static void
@@ -1100,7 +1269,7 @@ g_eli_shutdown_pre_sync(void *arg, int howto)
 		pp = LIST_FIRST(&gp->provider);
 		KASSERT(pp != NULL, ("No provider? gp=%p (%s)", gp, gp->name));
 		if (pp->acr + pp->acw + pp->ace == 0)
-			error = g_eli_destroy(sc, 1);
+			error = g_eli_destroy(sc, TRUE);
 		else {
 			sc->sc_flags |= G_ELI_FLAG_RW_DETACH;
 			gp->access = g_eli_access;

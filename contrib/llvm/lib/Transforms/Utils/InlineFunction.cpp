@@ -215,12 +215,12 @@ static void UpdateCallGraphAfterInlining(CallSite CS,
     if (I->second->getFunction() == 0)
       if (Function *F = CallSite(NewCall).getCalledFunction()) {
         // Indirect call site resolved to direct call.
-        CallerNode->addCalledFunction(CallSite::get(NewCall), CG[F]);
-        
+        CallerNode->addCalledFunction(CallSite(NewCall), CG[F]);
+
         continue;
       }
-    
-    CallerNode->addCalledFunction(CallSite::get(NewCall), I->second);
+
+    CallerNode->addCalledFunction(CallSite(NewCall), I->second);
   }
   
   // Update the call graph by deleting the edge from Callee to Caller.  We must
@@ -365,7 +365,8 @@ bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
     // have no dead or constant instructions leftover after inlining occurs
     // (which can happen, e.g., because an argument was constant), but we'll be
     // happy with whatever the cloner can do.
-    CloneAndPruneFunctionInto(Caller, CalledFunc, VMap, Returns, ".i",
+    CloneAndPruneFunctionInto(Caller, CalledFunc, VMap, 
+                              /*ModuleLevelChanges=*/false, Returns, ".i",
                               &InlinedFunctionInfo, IFI.TD, TheCall);
 
     // Remember the first block that is newly cloned over.

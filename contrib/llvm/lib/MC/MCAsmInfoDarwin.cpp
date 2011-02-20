@@ -44,5 +44,8 @@ MCAsmInfoDarwin::MCAsmInfoDarwin() {
   
   HasDotTypeDotSizeDirective = false;
   HasNoDeadStrip = true;
+
+  DwarfUsesAbsoluteLabelForStmtList = false;
+  DwarfUsesLabelOffsetForRanges = false;
 }
 

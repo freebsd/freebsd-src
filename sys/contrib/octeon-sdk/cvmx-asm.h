@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -46,12 +48,70 @@
  *
  * This is file defines ASM primitives for the executive.
 
- * <hr>$Revision: 42280 $<hr>
+ * <hr>$Revision: 52004 $<hr>
  *
  *
  */
 #ifndef __CVMX_ASM_H__
 #define __CVMX_ASM_H__
+
+#define COP0_INDEX	$0,0	/* TLB read/write index */
+#define COP0_RANDOM	$1,0	/* TLB random index */
+#define COP0_ENTRYLO0	$2,0	/* TLB entryLo0 */
+#define COP0_ENTRYLO1	$3,0	/* TLB entryLo1 */
+#define COP0_CONTEXT	$4,0	/* Context */
+#define COP0_PAGEMASK	$5,0	/* TLB pagemask */
+#define COP0_PAGEGRAIN	$5,1	/* TLB config for max page sizes */
+#define COP0_WIRED	$6,0	/* TLB number of wired entries */
+#define COP0_HWRENA	$7,0	/* rdhw instruction enable per register */
+#define COP0_BADVADDR	$8,0	/* Bad virtual address */
+#define COP0_COUNT	$9,0	/* Mips count register */
+#define COP0_CVMCOUNT	$9,6	/* Cavium count register */
+#define COP0_CVMCTL	$9,7	/* Cavium control */
+#define COP0_ENTRYHI	$10,0	/* TLB entryHi */
+#define COP0_COMPARE	$11,0	/* Mips compare register */
+#define COP0_POWTHROTTLE $11,6	/* Power throttle register */
+#define COP0_CVMMEMCTL	$11,7	/* Cavium memory control */
+#define COP0_STATUS	$12,0	/* Mips status register */
+#define COP0_INTCTL	$12,1	/* Useless (Vectored interrupts) */
+#define COP0_SRSCTL	$12,2	/* Useless (Shadow registers) */
+#define COP0_CAUSE	$13,0	/* Mips cause register */
+#define COP0_EPC	$14,0	/* Exception program counter */
+#define COP0_PRID	$15,0	/* Processor ID */
+#define COP0_EBASE	$15,1	/* Exception base */
+#define COP0_CONFIG	$16,0	/* Misc config options */
+#define COP0_CONFIG1	$16,1	/* Misc config options */
+#define COP0_CONFIG2	$16,2	/* Misc config options */
+#define COP0_CONFIG3	$16,3	/* Misc config options */
+#define COP0_WATCHLO0	$18,0	/* Address watch registers */
+#define COP0_WATCHLO1	$18,1	/* Address watch registers */
+#define COP0_WATCHHI0	$19,0	/* Address watch registers */
+#define COP0_WATCHHI1	$19,1	/* Address watch registers */
+#define COP0_XCONTEXT	$20,0	/* OS context */
+#define COP0_MULTICOREDEBUG $22,0 /* Cavium debug */
+#define COP0_DEBUG	$23,0	/* Debug status */
+#define COP0_DEPC	$24,0	/* Debug PC */
+#define COP0_PERFCONTROL0 $25,0	/* Performance counter control */
+#define COP0_PERFCONTROL1 $25,2	/* Performance counter control */
+#define COP0_PERFVALUE0	$25,1	/* Performance counter */
+#define COP0_PERFVALUE1	$25,3	/* Performance counter */
+#define COP0_CACHEERRI	$27,0	/* I cache error status */
+#define COP0_CACHEERRD	$27,1	/* D cache error status */
+#define COP0_TAGLOI	$28,0	/* I cache tagLo */
+#define COP0_TAGLOD	$28,2	/* D cache tagLo */
+#define COP0_DATALOI	$28,1	/* I cache dataLo */
+#define COP0_DATALOD	$28,3	/* D cahce dataLo */
+#define COP0_TAGHI	$29,2	/* ? */
+#define COP0_DATAHII	$29,1	/* ? */
+#define COP0_DATAHID	$29,3	/* ? */
+#define COP0_ERROREPC	$30,0	/* Error PC */
+#define COP0_DESAVE	$31,0	/* Debug scratch area */
+
+/* This header file can be included from a .S file.  Keep non-preprocessor
+   things under !__ASSEMBLER__.  */
+#ifndef __ASSEMBLER__
+
+#include "octeon-model.h"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -61,11 +121,23 @@ extern "C" {
 #define CVMX_TMP_STR(x) CVMX_TMP_STR2(x)
 #define CVMX_TMP_STR2(x) #x
 
+#if !OCTEON_IS_COMMON_BINARY()
+ #if CVMX_COMPILED_FOR(OCTEON_CN63XX)
+   #define CVMX_CAVIUM_OCTEON2
+ #endif
+#endif
+
 /* other useful stuff */
 #define CVMX_BREAK asm volatile ("break")
 #define CVMX_SYNC asm volatile ("sync" : : :"memory")
 /* String version of SYNCW macro for using in inline asm constructs */
-#define CVMX_SYNCW_STR "syncw\nsyncw\n"
+#define CVMX_SYNCW_STR_OCTEON2 "syncw\n"
+#ifdef CVMX_CAVIUM_OCTEON2
+ #define CVMX_SYNCW_STR CVMX_SYNCW_STR_OCTEON2
+#else
+ #define CVMX_SYNCW_STR "syncw\nsyncw\n"
+#endif /* CVMX_CAVIUM_OCTEON2 */
+
 #ifdef __OCTEON__
     #define CVMX_SYNCIO asm volatile ("nop")   /* Deprecated, will be removed in future release */
     #define CVMX_SYNCIOBDMA asm volatile ("synciobdma" : : :"memory")
@@ -75,13 +147,20 @@ extern "C" {
         errata Core-401. This can cause a single syncw to not enforce
         ordering under very rare conditions. Even if it is rare, better safe
         than sorry */
-    #define CVMX_SYNCW asm volatile ("syncw\nsyncw\n" : : :"memory")
+    #define CVMX_SYNCW_OCTEON2 asm volatile ("syncw\n" : : :"memory")
+    #ifdef CVMX_CAVIUM_OCTEON2
+     #define CVMX_SYNCW CVMX_SYNCW_OCTEON2
+    #else
+     #define CVMX_SYNCW asm volatile ("syncw\nsyncw\n" : : :"memory")
+    #endif /* CVMX_CAVIUM_OCTEON2 */
 #if defined(VXWORKS) || defined(__linux__)
-    /* Define new sync instructions to be normal SYNC instructions for
-        operating systems that use threads */
-    #define CVMX_SYNCWS CVMX_SYNCW
-    #define CVMX_SYNCS  CVMX_SYNC
-    #define CVMX_SYNCWS_STR CVMX_SYNCW_STR
+        /* Define new sync instructions to be normal SYNC instructions for
+           operating systems that use threads */
+        #define CVMX_SYNCWS CVMX_SYNCW
+        #define CVMX_SYNCS  CVMX_SYNC
+        #define CVMX_SYNCWS_STR CVMX_SYNCW_STR
+        #define CVMX_SYNCWS_OCTEON2 CVMX_SYNCW_OCTEON2
+        #define CVMX_SYNCWS_STR_OCTEON2 CVMX_SYNCW_STR_OCTEON2
 #else
     #if defined(CVMX_BUILD_FOR_TOOLCHAIN)
         /* While building simple exec toolchain, always use syncw to
@@ -89,15 +168,24 @@ extern "C" {
         #define CVMX_SYNCWS CVMX_SYNCW
         #define CVMX_SYNCS  CVMX_SYNC
         #define CVMX_SYNCWS_STR CVMX_SYNCW_STR
+        #define CVMX_SYNCWS_OCTEON2 CVMX_SYNCW_OCTEON2
+        #define CVMX_SYNCWS_STR_OCTEON2 CVMX_SYNCW_STR_OCTEON2
     #else
         /* Again, just like syncw, we may need two syncws instructions in a row due
-            errata Core-401 */
-        #define CVMX_SYNCWS asm volatile ("syncws\nsyncws\n" : : :"memory")
+           errata Core-401. Only one syncws is required for Octeon2 models */
         #define CVMX_SYNCS asm volatile ("syncs" : : :"memory")
-        #define CVMX_SYNCWS_STR "syncws\nsyncws\n"
+        #define CVMX_SYNCWS_OCTEON2 asm volatile ("syncws\n" : : :"memory")
+        #define CVMX_SYNCWS_STR_OCTEON2 "syncws\n"
+        #ifdef CVMX_CAVIUM_OCTEON2
+          #define CVMX_SYNCWS CVMX_SYNCWS_OCTEON2
+          #define CVMX_SYNCWS_STR CVMX_SYNCWS_STR_OCTEON2
+        #else
+          #define CVMX_SYNCWS asm volatile ("syncws\nsyncws\n" : : :"memory")
+          #define CVMX_SYNCWS_STR "syncws\nsyncws\n"
+        #endif /* CVMX_CAVIUM_OCTEON2 */
     #endif
 #endif
-#else
+#else /* !__OCTEON__ */
     /* Not using a Cavium compiler, always use the slower sync so the assembler stays happy */
     #define CVMX_SYNCIO asm volatile ("nop")   /* Deprecated, will be removed in future release */
     #define CVMX_SYNCIOBDMA asm volatile ("sync" : : :"memory")
@@ -106,6 +194,8 @@ extern "C" {
     #define CVMX_SYNCWS CVMX_SYNCW
     #define CVMX_SYNCS  CVMX_SYNC
     #define CVMX_SYNCWS_STR CVMX_SYNCW_STR
+    #define CVMX_SYNCWS_OCTEON2 CVMX_SYNCW
+    #define CVMX_SYNCWS_STR_OCTEON2 CVMX_SYNCW_STR
 #endif
 #define CVMX_SYNCI(address, offset) asm volatile ("synci " CVMX_TMP_STR(offset) "(%[rbase])" : : [rbase] "d" (address) )
 #define CVMX_PREFETCH0(address) CVMX_PREFETCH(address, 0)
@@ -136,6 +226,12 @@ extern "C" {
 #define CVMX_ICACHE_INVALIDATE  { CVMX_SYNC; asm volatile ("synci 0($0)" : : ); }    // flush stores, invalidate entire icache
 #define CVMX_ICACHE_INVALIDATE2 { CVMX_SYNC; asm volatile ("cache 0, 0($0)" : : ); } // flush stores, invalidate entire icache
 #define CVMX_DCACHE_INVALIDATE  { CVMX_SYNC; asm volatile ("cache 9, 0($0)" : : ); } // complete prefetches, invalidate entire dcache
+
+#define CVMX_CACHE(op, address, offset) asm volatile ("cache " CVMX_TMP_STR(op) ", " CVMX_TMP_STR(offset) "(%[rbase])" : : [rbase] "d" (address) )
+#define CVMX_CACHE_LCKL2(address, offset) CVMX_CACHE(31, address, offset) // fetch and lock the state.
+#define CVMX_CACHE_WBIL2(address, offset) CVMX_CACHE(23, address, offset) // unlock the state.
+#define CVMX_CACHE_WBIL2I(address, offset) CVMX_CACHE(3, address, offset) // invalidate the cache block and clear the USED bits for the block
+#define CVMX_CACHE_LTGL2I(address, offset) CVMX_CACHE(7, address, offset) // load virtual tag and data for the L2 cache block into L2C_TAD0_TAG register
 
 /* new instruction to make RC4 run faster */
 #define CVMX_BADDU(result, input1, input2) asm ("baddu %[rd],%[rs],%[rt]" : [rd] "=d" (result) : [rs] "d" (input1) , [rt] "d" (input2))
@@ -232,7 +328,7 @@ extern "C" {
     ASM_STMT ("rdhwr\t%0,$" CVMX_TMP_STR(regstr) : "=d"(_v));		\
     result = (__typeof(result))_v;					\
   }})
-  
+
 
 
 #  define CVMX_RDHWR(result, regstr) CVMX_RDHWRX(result, regstr, asm volatile)
@@ -408,18 +504,67 @@ extern "C" {
 #define CVMX_MF_AES_KEY(val,pos)    asm volatile ("dmfc2 %[rt],0x0104+" CVMX_TMP_STR(pos) : [rt] "=d" (val) :               )
 #define CVMX_MF_AES_KEYLENGTH(val)  asm volatile ("dmfc2 %[rt],0x0110"                   : [rt] "=d" (val) :               ) // read the keylen
 #define CVMX_MF_AES_DAT0(val)       asm volatile ("dmfc2 %[rt],0x0111"                   : [rt] "=d" (val) :               ) // first piece of input data
-/* GFM COP2 macros */
-/* index can be 0 or 1 */
-#define CVMX_MF_GFM_MUL(val, index)     asm volatile ("dmfc2 %[rt],0x0258+" CVMX_TMP_STR(index) : [rt] "=d" (val) :               )
-#define CVMX_MF_GFM_POLY(val)           asm volatile ("dmfc2 %[rt],0x025e"                      : [rt] "=d" (val) :               )
-#define CVMX_MF_GFM_RESINP(val, index)  asm volatile ("dmfc2 %[rt],0x025a+" CVMX_TMP_STR(index) : [rt] "=d" (val) :               )
 
-#define CVMX_MT_GFM_MUL(val, index)     asm volatile ("dmtc2 %[rt],0x0258+" CVMX_TMP_STR(index) :                 : [rt] "d" (val))
-#define CVMX_MT_GFM_POLY(val)           asm volatile ("dmtc2 %[rt],0x025e"                      :                 : [rt] "d" (val))
-#define CVMX_MT_GFM_RESINP(val, index)  asm volatile ("dmtc2 %[rt],0x025a+" CVMX_TMP_STR(index) :                 : [rt] "d" (val))
-#define CVMX_MT_GFM_XOR0(val)           asm volatile ("dmtc2 %[rt],0x025c"                      :                 : [rt] "d" (val))
-#define CVMX_MT_GFM_XORMUL1(val)        asm volatile ("dmtc2 %[rt],0x425d"                      :                 : [rt] "d" (val))
+// GFM
 
+// pos can be 0-1
+#define CVMX_MF_GFM_MUL(val,pos)             asm volatile ("dmfc2 %[rt],0x0258+" CVMX_TMP_STR(pos) : [rt] "=d" (val) :               )
+#define CVMX_MF_GFM_POLY(val)                asm volatile ("dmfc2 %[rt],0x025e"                    : [rt] "=d" (val) :               )
+// pos can be 0-1
+#define CVMX_MF_GFM_RESINP(val,pos)          asm volatile ("dmfc2 %[rt],0x025a+" CVMX_TMP_STR(pos) : [rt] "=d" (val) :               )
+// pos can be 0-1
+#define CVMX_MF_GFM_RESINP_REFLECT(val,pos)  asm volatile ("dmfc2 %[rt],0x005a+" CVMX_TMP_STR(pos) : [rt] "=d" (val) :               )
+
+// pos can be 0-1
+#define CVMX_MT_GFM_MUL(val,pos)             asm volatile ("dmtc2 %[rt],0x0258+" CVMX_TMP_STR(pos) :                 : [rt] "d" (val))
+#define CVMX_MT_GFM_POLY(val)                asm volatile ("dmtc2 %[rt],0x025e"                    :                 : [rt] "d" (val))
+// pos can be 0-1
+#define CVMX_MT_GFM_RESINP(val,pos)          asm volatile ("dmtc2 %[rt],0x025a+" CVMX_TMP_STR(pos) :                 : [rt] "d" (val))
+#define CVMX_MT_GFM_XOR0(val)                asm volatile ("dmtc2 %[rt],0x025c"                    :                 : [rt] "d" (val))
+#define CVMX_MT_GFM_XORMUL1(val)             asm volatile ("dmtc2 %[rt],0x425d"                    :                 : [rt] "d" (val))
+// pos can be 0-1
+#define CVMX_MT_GFM_MUL_REFLECT(val,pos)     asm volatile ("dmtc2 %[rt],0x0058+" CVMX_TMP_STR(pos) : [rt] "=d" (val) :               )
+#define CVMX_MT_GFM_XOR0_REFLECT(val)        asm volatile ("dmtc2 %[rt],0x005c"                    :                 : [rt] "d" (val))
+#define CVMX_MT_GFM_XORMUL1_REFLECT(val)     asm volatile ("dmtc2 %[rt],0x405d"                    :                 : [rt] "d" (val))
+
+// SNOW 3G
+
+// pos can be 0-7
+#define CVMX_MF_SNOW3G_LFSR(val,pos)    asm volatile ("dmfc2 %[rt],0x0240+" CVMX_TMP_STR(pos) : [rt] "=d" (val) :               )
+// pos can be 0-2
+#define CVMX_MF_SNOW3G_FSM(val,pos)     asm volatile ("dmfc2 %[rt],0x0251+" CVMX_TMP_STR(pos) : [rt] "=d" (val) :               )
+#define CVMX_MF_SNOW3G_RESULT(val)      asm volatile ("dmfc2 %[rt],0x0250"                    : [rt] "=d" (val) :               )
+
+// pos can be 0-7
+#define CVMX_MT_SNOW3G_LFSR(val,pos)    asm volatile ("dmtc2 %[rt],0x0240+" CVMX_TMP_STR(pos) : : [rt] "d" (val))
+// pos can be 0-2
+#define CVMX_MT_SNOW3G_FSM(val,pos)     asm volatile ("dmtc2 %[rt],0x0251+" CVMX_TMP_STR(pos) : : [rt] "d" (val))
+#define CVMX_MT_SNOW3G_RESULT(val)      asm volatile ("dmtc2 %[rt],0x0250"                    : : [rt] "d" (val))
+#define CVMX_MT_SNOW3G_START(val)       asm volatile ("dmtc2 %[rt],0x404d"                    : : [rt] "d" (val))
+#define CVMX_MT_SNOW3G_MORE(val)        asm volatile ("dmtc2 %[rt],0x404e"                    : : [rt] "d" (val))
+
+// SMS4
+
+// pos can be 0-1
+#define CVMX_MF_SMS4_IV(val,pos)	asm volatile ("dmfc2 %[rt],0x0102+"CVMX_TMP_STR(pos) : [rt] "=d" (val) :               )
+// pos can be 0-1
+#define CVMX_MF_SMS4_KEY(val,pos)	asm volatile ("dmfc2 %[rt],0x0104+"CVMX_TMP_STR(pos) : [rt] "=d" (val) :               )
+// pos can be 0-1
+#define CVMX_MF_SMS4_RESINP(val,pos)	asm volatile ("dmfc2 %[rt],0x0100+"CVMX_TMP_STR(pos) : [rt] "=d" (val) :               )
+#define CVMX_MT_SMS4_DEC_CBC0(val)	asm volatile ("dmtc2 %[rt],0x010c"                   : : [rt] "d" (val))
+#define CVMX_MT_SMS4_DEC_CBC1(val)	asm volatile ("dmtc2 %[rt],0x311d"      : : [rt] "d" (val))
+#define CVMX_MT_SMS4_DEC0(val)		asm volatile ("dmtc2 %[rt],0x010e"      : : [rt] "d" (val))
+#define CVMX_MT_SMS4_DEC1(val)		asm volatile ("dmtc2 %[rt],0x311f"      : : [rt] "d" (val))
+#define CVMX_MT_SMS4_ENC_CBC0(val)	asm volatile ("dmtc2 %[rt],0x0108"      : : [rt] "d" (val))
+#define CVMX_MT_SMS4_ENC_CBC1(val)	asm volatile ("dmtc2 %[rt],0x3119"      : : [rt] "d" (val))
+#define CVMX_MT_SMS4_ENC0(val)		asm volatile ("dmtc2 %[rt],0x010a"      : : [rt] "d" (val))
+#define CVMX_MT_SMS4_ENC1(val)		asm volatile ("dmtc2 %[rt],0x311b"      : : [rt] "d" (val))
+// pos can be 0-1
+#define CVMX_MT_SMS4_IV(val,pos)	asm volatile ("dmtc2 %[rt],0x0102+"CVMX_TMP_STR(pos) : : [rt] "d" (val))
+// pos can be 0-1
+#define CVMX_MT_SMS4_KEY(val,pos)	asm volatile ("dmtc2 %[rt],0x0104+"CVMX_TMP_STR(pos) : : [rt] "d" (val))
+// pos can be 0-1
+#define CVMX_MT_SMS4_RESINP(val,pos)	asm volatile ("dmtc2 %[rt],0x0100+"CVMX_TMP_STR(pos) : : [rt] "d" (val))
 
 /* check_ordering stuff */
 #if 0
@@ -436,19 +581,25 @@ extern "C" {
 
 #define CVMX_MT_CYCLE(src)         asm volatile ("dmtc0 %[rt],$9,6" :: [rt] "d" (src))
 
-#define CVMX_MF_CACHE_ERR(val)            asm volatile ("dmfc0 %[rt],$27,0" :  [rt] "=d" (val):)
-#define CVMX_MF_DCACHE_ERR(val)           asm volatile ("dmfc0 %[rt],$27,1" :  [rt] "=d" (val):)
-#define CVMX_MF_CVM_MEM_CTL(val)          asm volatile ("dmfc0 %[rt],$11,7" :  [rt] "=d" (val):)
-#define CVMX_MF_CVM_CTL(val)              asm volatile ("dmfc0 %[rt],$9,7"  :  [rt] "=d" (val):)
-#define CVMX_MT_CACHE_ERR(val)            asm volatile ("dmtc0 %[rt],$27,0" : : [rt] "d" (val))
-#define CVMX_MT_DCACHE_ERR(val)           asm volatile ("dmtc0 %[rt],$27,1" : : [rt] "d" (val))
-#define CVMX_MT_CVM_MEM_CTL(val)          asm volatile ("dmtc0 %[rt],$11,7" : : [rt] "d" (val))
-#define CVMX_MT_CVM_CTL(val)              asm volatile ("dmtc0 %[rt],$9,7"  : : [rt] "d" (val))
+#define VASTR(...) #__VA_ARGS__
+
+#define CVMX_MF_COP0(val, cop0)           asm volatile ("dmfc0 %[rt]," VASTR(cop0) : [rt] "=d" (val));
+#define CVMX_MT_COP0(val, cop0)           asm volatile ("dmtc0 %[rt]," VASTR(cop0) : : [rt] "d" (val));
+
+#define CVMX_MF_CACHE_ERR(val)            CVMX_MF_COP0(val, COP0_CACHEERRI)
+#define CVMX_MF_DCACHE_ERR(val)           CVMX_MF_COP0(val, COP0_CACHEERRD)
+#define CVMX_MF_CVM_MEM_CTL(val)          CVMX_MF_COP0(val, COP0_CVMMEMCTL)
+#define CVMX_MF_CVM_CTL(val)              CVMX_MF_COP0(val, COP0_CVMCTL)
+#define CVMX_MT_CACHE_ERR(val)            CVMX_MT_COP0(val, COP0_CACHEERRI)
+#define CVMX_MT_DCACHE_ERR(val)           CVMX_MT_COP0(val, COP0_CACHEERRD)
+#define CVMX_MT_CVM_MEM_CTL(val)          CVMX_MT_COP0(val, COP0_CVMMEMCTL)
+#define CVMX_MT_CVM_CTL(val)              CVMX_MT_COP0(val, COP0_CVMCTL)
 
 /* Macros for TLB */
 #define CVMX_TLBWI                       asm volatile ("tlbwi" : : )
 #define CVMX_TLBWR                       asm volatile ("tlbwr" : : )
 #define CVMX_TLBR                        asm volatile ("tlbr" : : )
+#define CVMX_TLBP                        asm volatile ("tlbp" : : )
 #define CVMX_MT_ENTRY_HIGH(val)          asm volatile ("dmtc0 %[rt],$10,0" : : [rt] "d" (val))
 #define CVMX_MT_ENTRY_LO_0(val)          asm volatile ("dmtc0 %[rt],$2,0" : : [rt] "d" (val))
 #define CVMX_MT_ENTRY_LO_1(val)          asm volatile ("dmtc0 %[rt],$3,0" : : [rt] "d" (val))
@@ -464,12 +615,18 @@ extern "C" {
 #define CVMX_MF_PAGEMASK(val)            asm volatile ("mfc0 %[rt],$5,0" :  [rt] "=d" (val):)
 #define CVMX_MF_PAGEGRAIN(val)           asm volatile ("mfc0 %[rt],$5,1" :  [rt] "=d" (val):)
 #define CVMX_MF_TLB_WIRED(val)           asm volatile ("mfc0 %[rt],$6,0" :  [rt] "=d" (val):)
+#define CVMX_MF_TLB_INDEX(val)           asm volatile ("mfc0 %[rt],$0,0" :  [rt] "=d" (val):)
 #define CVMX_MF_TLB_RANDOM(val)          asm volatile ("mfc0 %[rt],$1,0" :  [rt] "=d" (val):)
 #define TLB_DIRTY   (0x1ULL<<2)
 #define TLB_VALID   (0x1ULL<<1)
 #define TLB_GLOBAL  (0x1ULL<<0)
 
 
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+/* Macros to PUSH and POP Octeon2 ISA. */
+#define CVMX_PUSH_OCTEON2    asm volatile (".set push\n.set arch=octeon2")
+#define CVMX_POP_OCTEON2     asm volatile (".set pop")
+#endif
 
 /* assembler macros to guarantee byte loads/stores are used */
 /* for an unaligned 16-bit access (these use AT register) */
@@ -509,5 +666,7 @@ extern "C" {
 #ifdef	__cplusplus
 }
 #endif
+
+#endif	/* __ASSEMBLER__ */
 
 #endif /* __CVMX_ASM_H__ */

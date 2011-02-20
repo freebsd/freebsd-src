@@ -54,6 +54,10 @@ hint.fled.0.addr=0x5a
 # Octal LED Latch
 hint.led_cambria.0.at="ixp0"
 
+# GPIO pins
+hint.gpio_cambria.0.at="iicbus0"
+hint.gpio_cambria.0.addr=0x56
+
 # Analog Devices AD7418 temperature sensor
 hint.ad7418.0.at="iicbus0"
 hint.ad7418.0.addr=0x50

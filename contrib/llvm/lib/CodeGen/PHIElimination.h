@@ -13,19 +13,21 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
 
 namespace llvm {
   class LiveVariables;
+  class MachineRegisterInfo;
+  class MachineLoopInfo;
   
   /// Lower PHI instructions to copies.  
   class PHIElimination : public MachineFunctionPass {
-    MachineRegisterInfo  *MRI; // Machine register information
+    MachineRegisterInfo *MRI; // Machine register information
 
   public:
     static char ID; // Pass identification, replacement for typeid
-    PHIElimination() : MachineFunctionPass(&ID) {}
+    PHIElimination() : MachineFunctionPass(ID) {}
 
     virtual bool runOnMachineFunction(MachineFunction &Fn);
     
@@ -49,7 +51,7 @@ namespace llvm {
 
     /// Split critical edges where necessary for good coalescer performance.
     bool SplitPHIEdges(MachineFunction &MF, MachineBasicBlock &MBB,
-                       LiveVariables &LV);
+                       LiveVariables &LV, MachineLoopInfo *MLI);
 
     /// SplitCriticalEdge - Split a critical edge from A to B by
     /// inserting a new MBB. Update branches in A and PHI instructions

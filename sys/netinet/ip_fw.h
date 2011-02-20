@@ -192,9 +192,12 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 
 	O_SETFIB,		/* arg1=FIB number */
 	O_FIB,			/* arg1=FIB desired fib number */
+	
+	O_SOCKARG,		/* socket argument */
 
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
+
 
 /*
  * The extension header are filtered only for presence using a bit

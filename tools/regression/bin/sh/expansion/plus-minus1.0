@@ -43,14 +43,9 @@ testcase 'set -- ${e:+$w"$e"}'			'0|'
 testcase 'set -- ${w:+"$w"}'			'1|a b c'
 testcase 'set -- ${w:+$w"$w"}'			'3|a|b|ca b c'
 
-# These two are known broken in FreeBSD /bin/sh
-#testcase 'set -- ${s+a b}'			'2|a|b'
-#testcase 'set -- ${e:-a b}'			'2|a|b'
 testcase 'set -- "${s+a b}"'			'1|a b'
 testcase 'set -- "${e:-a b}"'			'1|a b'
 testcase 'set -- ${e:-\}}'			'1|}'
-# Currently broken in FreeBSD /bin/sh
-#testcase 'set -- "${e:-\}}"'			'1|}'
 testcase 'set -- ${e:+{}}'			'1|}'
 testcase 'set -- "${e:+{}}"'			'1|}'
 

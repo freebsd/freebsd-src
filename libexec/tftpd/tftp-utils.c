@@ -59,7 +59,7 @@ int	acting_as_client;
  * first timeout) to 'timeoutnetwork' (i.e. the last timeout)
  */
 int
-settimeouts(int _timeoutpacket, int _timeoutnetwork, int _maxtimeouts)
+settimeouts(int _timeoutpacket, int _timeoutnetwork, int _maxtimeouts __unused)
 {
 	int i;
 	
@@ -91,7 +91,7 @@ unmappedaddr(struct sockaddr_in6 *sin6)
 	    !IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr))
 		return;
 	sin4 = (struct sockaddr_in *)sin6;
-	addr = *(u_int32_t *)&sin6->sin6_addr.s6_addr[12];
+	memcpy(&addr, &sin6->sin6_addr.s6_addr[12], sizeof(addr));
 	port = sin6->sin6_port;
 	memset(sin4, 0, sizeof(struct sockaddr_in));
 	sin4->sin_addr.s_addr = addr;
@@ -100,7 +100,7 @@ unmappedaddr(struct sockaddr_in6 *sin6)
 	sin4->sin_len = sizeof(struct sockaddr_in);
 }
 
-/* Get a field from a \0 seperated string */
+/* Get a field from a \0 separated string */
 ssize_t
 get_field(int peer, char *buffer, ssize_t size)
 {
@@ -170,7 +170,7 @@ struct packettypes packettypes[] = {
 	{ 0,		NULL	},
 };
 
-char *
+const char *
 packettype(int type)
 {
 	static char failed[100];
@@ -231,7 +231,7 @@ debug_finds(char *s)
 	return (i);
 }
 
-char *
+const char *
 debug_show(int d)
 {
 	static char s[100];
@@ -317,4 +317,3 @@ printstats(const char *direction, int verbose, struct tftp_stats *ts)
 		printf(" [%.0f bits/sec]", (ts->amount*8.)/delta);
 	putchar('\n');
 }
-

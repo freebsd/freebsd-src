@@ -97,7 +97,7 @@ static int	suppress_naks;
 static int	logging;
 static int	ipchroot;
 static int	create_new = 0;
-static char	*newfile_format = "%Y%m%d";
+static const char *newfile_format = "%Y%m%d";
 static int	increase_name = 0;
 static mode_t	mask = S_IWGRP | S_IWOTH;
 
@@ -604,7 +604,6 @@ tftp_rrq(int peer, char *recvbuffer, ssize_t size)
 		 */
 		if (suppress_naks && *filename != '/' && ecode == ENOTFOUND)
 			exit(0);
-		tftp_log(LOG_ERR, "Prevent NAK storm");
 		send_error(peer, ecode);
 		exit(1);
 	}
@@ -785,7 +784,6 @@ static void
 tftp_xmitfile(int peer, const char *mode)
 {
 	uint16_t block;
-	uint32_t amount;
 	time_t now;
 	struct tftp_stats ts;
 
@@ -799,13 +797,12 @@ tftp_xmitfile(int peer, const char *mode)
 	read_close();
 	if (debug&DEBUG_SIMPLE)
 		tftp_log(LOG_INFO, "Sent %d bytes in %d seconds",
-		    amount, time(NULL) - now);
+		    ts.amount, time(NULL) - now);
 }
 
 static void
 tftp_recvfile(int peer, const char *mode)
 {
-	uint32_t filesize; 
 	uint16_t block;
 	struct timeval now1, now2;
 	struct tftp_stats ts;
@@ -820,6 +817,7 @@ tftp_recvfile(int peer, const char *mode)
 	tftp_receive(peer, &block, &ts, NULL, 0);
 
 	write_close();
+	gettimeofday(&now2, NULL);
 
 	if (debug&DEBUG_SIMPLE) {
 		double f;
@@ -832,9 +830,8 @@ tftp_recvfile(int peer, const char *mode)
 		    (now2.tv_usec - now1.tv_usec) / 100000.0;
 		tftp_log(LOG_INFO,
 		    "Download of %d bytes in %d blocks completed after %0.1f seconds\n",
-		    filesize, block, f);
+		    ts.amount, block, f);
 	}
 
 	return;
 }
-

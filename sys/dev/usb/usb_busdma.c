@@ -32,7 +32,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -366,9 +365,9 @@ usb_dma_tag_create(struct usb_dma_tag *udt,
 	     /* filter    */ NULL,
 	     /* filterarg */ NULL,
 	     /* maxsize   */ size,
-	     /* nsegments */ (align == 1) ?
+	     /* nsegments */ (align == 1 && size > 1) ?
 	    (2 + (size / USB_PAGE_SIZE)) : 1,
-	     /* maxsegsz  */ (align == 1) ?
+	     /* maxsegsz  */ (align == 1 && size > USB_PAGE_SIZE) ?
 	    USB_PAGE_SIZE : size,
 	     /* flags     */ BUS_DMA_KEEP_PG_OFFSET,
 	     /* lockfn    */ &usb_dma_lock_cb,

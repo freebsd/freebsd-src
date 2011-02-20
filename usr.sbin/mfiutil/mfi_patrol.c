@@ -62,11 +62,13 @@ mfi_get_time(int fd, uint32_t *at)
 static int
 patrol_get_props(int fd, struct mfi_pr_properties *prop)
 {
+	int error;
 
 	if (mfi_dcmd_command(fd, MFI_DCMD_PR_GET_PROPERTIES, prop,
 	    sizeof(*prop), NULL, 0, NULL) < 0) {
+		error = errno;
 		warn("Failed to get patrol read properties");
-		return (-1);
+		return (error);
 	}
 	return (0);
 }
@@ -81,19 +83,21 @@ show_patrol(int ac, char **av)
 	char label[16];
 	time_t now;
 	uint32_t at;
-	int fd;
+	int error, fd;
 	u_int i;
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	time(&now);
 	mfi_get_time(fd, &at);
-	if (patrol_get_props(fd, &prop) < 0)
-		return (errno);
+	error = patrol_get_props(fd, &prop);
+	if (error)
+		return (error);
 	printf("Operation Mode: ");
 	switch (prop.op_mode) {
 	case MFI_PR_OPMODE_AUTO:
@@ -122,8 +126,9 @@ show_patrol(int ac, char **av)
 
 	if (mfi_dcmd_command(fd, MFI_DCMD_PR_GET_STATUS, &status,
 	    sizeof(status), NULL, 0, NULL) < 0) {
+		error = errno;
 		warn("Failed to get patrol read properties");
-		return (errno);
+		return (error);
 	}
 	printf("Runs Completed: %u\n", status.num_iteration);
 	printf("Current State: ");
@@ -146,8 +151,9 @@ show_patrol(int ac, char **av)
 	}
 	if (status.state == MFI_PR_STATE_ACTIVE) {
 		if (mfi_pd_get_list(fd, &list, NULL) < 0) {
+			error = errno;
 			warn("Failed to get drive list");
-			return (errno);
+			return (error);
 		}
 
 		for (i = 0; i < list->count; i++) {
@@ -156,9 +162,10 @@ show_patrol(int ac, char **av)
 
 			if (mfi_pd_get_info(fd, list->addr[i].device_id, &info,
 			    NULL) < 0) {
+				error = errno;
 				warn("Failed to fetch info for drive %u",
 				    list->addr[i].device_id);
-				return (errno);
+				return (error);
 			}
 			if (info.prog_info.active & MFI_PD_PROGRESS_PATROL) {
 				snprintf(label, sizeof(label), "    Drive %u",
@@ -178,18 +185,20 @@ MFI_COMMAND(show, patrol, show_patrol);
 static int
 start_patrol(int ac, char **av)
 {
-	int fd;
+	int error, fd;
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_dcmd_command(fd, MFI_DCMD_PR_START, NULL, 0, NULL, 0, NULL) <
 	    0) {
+		error = errno;
 		warn("Failed to start patrol read");
-		return (errno);
+		return (error);
 	}
 
 	close(fd);
@@ -201,18 +210,20 @@ MFI_COMMAND(start, patrol, start_patrol);
 static int
 stop_patrol(int ac, char **av)
 {
-	int fd;
+	int error, fd;
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_dcmd_command(fd, MFI_DCMD_PR_STOP, NULL, 0, NULL, 0, NULL) <
 	    0) {
+		error = errno;
 		warn("Failed to stop patrol read");
-		return (errno);
+		return (error);
 	}
 
 	close(fd);
@@ -227,10 +238,10 @@ patrol_config(int ac, char **av)
 	struct mfi_pr_properties prop;
 	long val;
 	time_t now;
+	int error, fd;
 	uint32_t at, next_exec, exec_freq;
 	char *cp;
 	uint8_t op_mode;
-	int fd;
 
 	exec_freq = 0;	/* GCC too stupid */
 	next_exec = 0;
@@ -272,12 +283,14 @@ patrol_config(int ac, char **av)
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
-	if (patrol_get_props(fd, &prop) < 0)
-		return (errno);
+	error = patrol_get_props(fd, &prop);
+	if (error)
+		return (error);
 	prop.op_mode = op_mode;
 	if (op_mode == MFI_PR_OPMODE_AUTO) {
 		if (ac > 2)
@@ -294,8 +307,9 @@ patrol_config(int ac, char **av)
 	}
 	if (mfi_dcmd_command(fd, MFI_DCMD_PR_SET_PROPERTIES, &prop,
 	    sizeof(prop), NULL, 0, NULL) < 0) {
+		error = errno;
 		warn("Failed to set patrol read properties");
-		return (errno);
+		return (error);
 	}
 
 	close(fd);

@@ -26,10 +26,11 @@
  */
 
 enum ieee80211_ratealgs {
-	IEEE80211_RATECTL_AMRR 		= 0,
+	IEEE80211_RATECTL_AMRR		= 0,
 	IEEE80211_RATECTL_RSSADAPT	= 1,
 	IEEE80211_RATECTL_ONOE		= 2,
 	IEEE80211_RATECTL_SAMPLE	= 3,
+	IEEE80211_RATECTL_NONE		= 4,
 	IEEE80211_RATECTL_MAX
 };
 
@@ -56,15 +57,10 @@ struct ieee80211_ratectl {
 
 void	ieee80211_ratectl_register(int, const struct ieee80211_ratectl *);
 void	ieee80211_ratectl_unregister(int);
+void	ieee80211_ratectl_init(struct ieee80211vap *);
 void	ieee80211_ratectl_set(struct ieee80211vap *, int);
 
 MALLOC_DECLARE(M_80211_RATECTL);
-
-static void __inline
-ieee80211_ratectl_init(struct ieee80211vap *vap)
-{
-	vap->iv_rate->ir_init(vap);
-}
 
 static void __inline
 ieee80211_ratectl_deinit(struct ieee80211vap *vap)
@@ -85,8 +81,6 @@ ieee80211_ratectl_node_deinit(struct ieee80211_node *ni)
 {
 	const struct ieee80211vap *vap = ni->ni_vap;
 
-	if (ni->ni_rctls == NULL)	/* ratectl not setup */
-		return;
 	vap->iv_rate->ir_node_deinit(ni);
 }
 
@@ -95,8 +89,6 @@ ieee80211_ratectl_rate(struct ieee80211_node *ni, void *arg, uint32_t iarg)
 {
 	const struct ieee80211vap *vap = ni->ni_vap;
 
-	if (ni->ni_rctls == NULL)	/* ratectl not setup */
-		return 0;
 	return vap->iv_rate->ir_rate(ni, arg, iarg);
 }
 
@@ -104,8 +96,6 @@ static void __inline
 ieee80211_ratectl_tx_complete(const struct ieee80211vap *vap,
     const struct ieee80211_node *ni, int status, void *arg1, void *arg2)
 {
-	if (ni->ni_rctls == NULL)	/* ratectl not setup */
-		return;
 	vap->iv_rate->ir_tx_complete(vap, ni, status, arg1, arg2);
 }
 
@@ -114,8 +104,6 @@ ieee80211_ratectl_tx_update(const struct ieee80211vap *vap,
     const struct ieee80211_node *ni, void *arg1, void *arg2, void *arg3)
 {
 	if (vap->iv_rate->ir_tx_update == NULL)
-		return;
-	if (ni->ni_rctls == NULL)	/* ratectl not setup */
 		return;
 	vap->iv_rate->ir_tx_update(vap, ni, arg1, arg2, arg3);
 }

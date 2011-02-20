@@ -58,7 +58,7 @@ ar5416AniSetup(struct ath_hal *ah)
 		.period			= 100,
 	};
 	/* NB: ANI is not enabled yet */
-	ar5212AniAttach(ah, &aniparams, &aniparams, AH_FALSE);
+	ar5416AniAttach(ah, &aniparams, &aniparams, AH_FALSE);
 }
 
 /*
@@ -98,16 +98,19 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_setupXTxDesc		= ar5416SetupXTxDesc;
 	ah->ah_fillTxDesc		= ar5416FillTxDesc;
 	ah->ah_procTxDesc		= ar5416ProcTxDesc;
+	ah->ah_getTxCompletionRates	= ar5416GetTxCompletionRates;
 
 	/* Receive Functions */
 	ah->ah_startPcuReceive		= ar5416StartPcuReceive;
 	ah->ah_stopPcuReceive		= ar5416StopPcuReceive;
 	ah->ah_setupRxDesc		= ar5416SetupRxDesc;
 	ah->ah_procRxDesc		= ar5416ProcRxDesc;
-	ah->ah_rxMonitor		= ar5416AniPoll,
-	ah->ah_procMibEvent		= ar5416ProcessMibIntr,
+	ah->ah_rxMonitor		= ar5416RxMonitor;
+	ah->ah_aniPoll			= ar5416AniPoll;
+	ah->ah_procMibEvent		= ar5416ProcessMibIntr;
 
 	/* Misc Functions */
+	ah->ah_getCapability		= ar5416GetCapability;
 	ah->ah_getDiagState		= ar5416GetDiagState;
 	ah->ah_setLedState		= ar5416SetLedState;
 	ah->ah_gpioCfgOutput		= ar5416GpioCfgOutput;
@@ -133,8 +136,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_setStationBeaconTimers	= ar5416SetStaBeaconTimers;
 	ah->ah_resetStationBeaconTimers	= ar5416ResetStaBeaconTimers;
 
-	/* XXX 802.11n Functions */
-#if 0
+	/* 802.11n Functions */
 	ah->ah_chainTxDesc		= ar5416ChainTxDesc;
 	ah->ah_setupFirstTxDesc		= ar5416SetupFirstTxDesc;
 	ah->ah_setupLastTxDesc		= ar5416SetupLastTxDesc;
@@ -146,7 +148,6 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_set11nMac2040		= ar5416Set11nMac2040;
 	ah->ah_get11nRxClear		= ar5416Get11nRxClear;
 	ah->ah_set11nRxClear		= ar5416Set11nRxClear;
-#endif
 
 	/* Interrupt functions */
 	ah->ah_isInterruptPending	= ar5416IsInterruptPending;
@@ -167,6 +168,9 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	 */
 	AH5416(ah)->ah_rx_chainmask = AR5416_DEFAULT_RXCHAINMASK;
 	AH5416(ah)->ah_tx_chainmask = AR5416_DEFAULT_TXCHAINMASK;
+
+	/* Enable all ANI functions to begin with */
+	AH5416(ah)->ah_ani_function = HAL_ANI_ALL;
 }
 
 uint32_t
@@ -189,7 +193,8 @@ ar5416GetRadioRev(struct ath_hal *ah)
  */
 static struct ath_hal *
 ar5416Attach(uint16_t devid, HAL_SOFTC sc,
-	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status)
+	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata,
+	HAL_STATUS *status)
 {
 	struct ath_hal_5416 *ahp5416;
 	struct ath_hal_5212 *ahp;
@@ -354,6 +359,14 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	}
 
 	ar5416AniSetup(ah);			/* Anti Noise Immunity */
+
+	AH5416(ah)->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_5416_2GHZ;
+	AH5416(ah)->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_5416_2GHZ;
+	AH5416(ah)->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_5416_2GHZ;
+	AH5416(ah)->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_5416_5GHZ;
+	AH5416(ah)->nf_5g.min = AR_PHY_CCA_MIN_GOOD_VAL_5416_5GHZ;
+	AH5416(ah)->nf_5g.nominal = AR_PHY_CCA_NOM_VAL_5416_5GHZ;
+
 	ar5416InitNfHistBuff(AH5416(ah)->ah_cal.nfCalHist);
 
 	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s: return\n", __func__);
@@ -801,6 +814,7 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halWowMatchPatternExact = AH_FALSE;
 	pCap->halBtCoexSupport = AH_FALSE;	/* XXX need support */
 	pCap->halAutoSleepSupport = AH_FALSE;
+	pCap->hal4kbSplitTransSupport = AH_TRUE;
 #if 0	/* XXX not yet */
 	pCap->halNumAntCfg2GHz = ar5416GetNumAntConfig(ahp, HAL_FREQ_BAND_2GHZ);
 	pCap->halNumAntCfg5GHz = ar5416GetNumAntConfig(ahp, HAL_FREQ_BAND_5GHZ);
@@ -809,6 +823,9 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halTxChainMask = ath_hal_eepromGet(ah, AR_EEP_TXMASK, AH_NULL);
 	/* XXX CB71 uses GPIO 0 to indicate 3 rx chains */
 	pCap->halRxChainMask = ath_hal_eepromGet(ah, AR_EEP_RXMASK, AH_NULL);
+	/* AR5416 may have 3 antennas but is a 2x2 stream device */
+	pCap->halTxStreams = 2;
+	pCap->halRxStreams = 2;
 	pCap->halRtsAggrLimit = 8*1024;		/* Owl 2.0 limit */
 	pCap->halMbssidAggrSupport = AH_TRUE;
 	pCap->halForcePpmSupport = AH_TRUE;

@@ -499,6 +499,32 @@ null_accessx(struct vop_accessx_args *ap)
 }
 
 /*
+ * Increasing refcount of lower vnode is needed at least for the case
+ * when lower FS is NFS to do sillyrename if the file is in use.
+ * Unfortunately v_usecount is incremented in many places in
+ * the kernel and, as such, there may be races that result in
+ * the NFS client doing an extraneous silly rename, but that seems
+ * preferable to not doing a silly rename when it is needed.
+ */
+static int
+null_remove(struct vop_remove_args *ap)
+{
+	int retval, vreleit;
+	struct vnode *lvp;
+
+	if (vrefcnt(ap->a_vp) > 1) {
+		lvp = NULLVPTOLOWERVP(ap->a_vp);
+		VREF(lvp);
+		vreleit = 1;
+	} else
+		vreleit = 0;
+	retval = null_bypass(&ap->a_gen);
+	if (vreleit != 0)
+		vrele(lvp);
+	return (retval);
+}
+
+/*
  * We handle this to eliminate null FS to lower FS
  * file moving. Don't know why we don't allow this,
  * possibly we should.
@@ -809,6 +835,7 @@ struct vop_vector null_vnodeops = {
 	.vop_open =		null_open,
 	.vop_print =		null_print,
 	.vop_reclaim =		null_reclaim,
+	.vop_remove =		null_remove,
 	.vop_rename =		null_rename,
 	.vop_setattr =		null_setattr,
 	.vop_strategy =		VOP_EOPNOTSUPP,

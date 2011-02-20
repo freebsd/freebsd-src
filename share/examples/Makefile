@@ -17,6 +17,7 @@ LDIRS=	BSD_daemon \
 	ibcs2 \
 	indent \
 	ipfw \
+	jails \
 	kld \
 	libvgl \
 	mdoc \
@@ -80,6 +81,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	ibcs2/hello.uu \
 	indent/indent.pro \
 	ipfw/change_rules.sh \
+	jails/README \
 	kld/Makefile \
 	kld/cdev/Makefile \
 	kld/cdev/README \
@@ -116,6 +118,8 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	netgraph/ngctl \
 	netgraph/raw \
 	netgraph/udp.tunnel \
+	netgraph/virtual.chain \
+	netgraph/virtual.lan \
 	nwclient/dot.nwfsrc \
 	nwclient/nwfs.sh.sample \
 	perfmon/Makefile \

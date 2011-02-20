@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -46,13 +48,19 @@
  *
  * Module to support operations on core such as TLB config, etc.
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 49862 $<hr>
  *
  */
 
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include <linux/module.h>
+#include <asm/octeon/cvmx.h>
+#include <asm/octeon/cvmx-core.h>
+#else
 #include "cvmx-config.h"
 #include "cvmx.h"
 #include "cvmx-core.h"
+#endif
 
 
 /**
@@ -64,21 +72,15 @@
  * @param lo1    lo1 register value
  * @param page_mask   pagemask register value
  *
- * @return Success: TLB index used (0-31) or (0-63) for OCTEON Plus
- *         Failure: -1
+ * @return Success: TLB index used (0-31 Octeon, 0-63 Octeon+, or 0-127
+ *         Octeon2). Failure: -1
  */
 int cvmx_core_add_wired_tlb_entry(uint64_t hi, uint64_t lo0, uint64_t lo1, cvmx_tlb_pagemask_t page_mask)
 {
     uint32_t index;
-    uint32_t index_limit = 31;
-
-    if (!OCTEON_IS_MODEL(OCTEON_CN3XXX))
-    {
-        index_limit=63;
-    }
 
     CVMX_MF_TLB_WIRED(index);
-    if (index >= index_limit)
+    if (index >= (unsigned int)cvmx_core_get_tlb_entries())
     {
         return(-1);
     }
@@ -144,4 +146,17 @@ int cvmx_core_add_fixed_tlb_mapping(uint64_t vaddr, uint64_t page0_addr, uint64_
 
     return(cvmx_core_add_fixed_tlb_mapping_bits(vaddr, page0_addr | TLB_DIRTY | TLB_VALID | TLB_GLOBAL, page1_addr | TLB_DIRTY | TLB_VALID | TLB_GLOBAL, page_mask));
 
+}
+
+/**
+ * Return number of TLB entries.
+ */
+int cvmx_core_get_tlb_entries(void)
+{
+    if (OCTEON_IS_MODEL(OCTEON_CN3XXX))
+        return 32;
+    else if (OCTEON_IS_MODEL(OCTEON_CN5XXX))
+        return 64;
+    else
+        return 128;
 }

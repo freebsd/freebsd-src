@@ -11,7 +11,6 @@ SRCS=	Mangler.cpp \
 	TargetELFWriterInfo.cpp \
 	TargetFrameInfo.cpp \
 	TargetInstrInfo.cpp \
-	TargetIntrinsicInfo.cpp \
 	TargetLoweringObjectFile.cpp \
 	TargetMachine.cpp \
 	TargetRegisterInfo.cpp \

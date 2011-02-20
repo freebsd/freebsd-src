@@ -287,12 +287,13 @@ static void dc_reset(struct dc_softc *);
 static int dc_list_rx_init(struct dc_softc *);
 static int dc_list_tx_init(struct dc_softc *);
 
-static void dc_read_srom(struct dc_softc *, int);
-static void dc_parse_21143_srom(struct dc_softc *);
-static void dc_decode_leaf_sia(struct dc_softc *, struct dc_eblock_sia *);
-static void dc_decode_leaf_mii(struct dc_softc *, struct dc_eblock_mii *);
-static void dc_decode_leaf_sym(struct dc_softc *, struct dc_eblock_sym *);
+static int dc_read_srom(struct dc_softc *, int);
+static int dc_parse_21143_srom(struct dc_softc *);
+static int dc_decode_leaf_sia(struct dc_softc *, struct dc_eblock_sia *);
+static int dc_decode_leaf_mii(struct dc_softc *, struct dc_eblock_mii *);
+static int dc_decode_leaf_sym(struct dc_softc *, struct dc_eblock_sym *);
 static void dc_apply_fixup(struct dc_softc *, int);
+static int dc_check_multiport(struct dc_softc *);
 
 #ifdef DC_USEIOSPACE
 #define DC_RES			SYS_RES_IOPORT
@@ -778,26 +779,6 @@ dc_miibus_readreg(device_t dev, int phy, int reg)
 	sc = device_get_softc(dev);
 	bzero(&frame, sizeof(frame));
 
-	/*
-	 * Note: both the AL981 and AN983 have internal PHYs,
-	 * however the AL981 provides direct access to the PHY
-	 * registers while the AN983 uses a serial MII interface.
-	 * The AN983's MII interface is also buggy in that you
-	 * can read from any MII address (0 to 31), but only address 1
-	 * behaves normally. To deal with both cases, we pretend
-	 * that the PHY is at MII address 1.
-	 */
-	if (DC_IS_ADMTEK(sc) && phy != DC_ADMTEK_PHYADDR)
-		return (0);
-
-	/*
-	 * Note: the ukphy probes of the RS7112 report a PHY at
-	 * MII address 0 (possibly HomePNA?) and 1 (ethernet)
-	 * so we only respond to correct one.
-	 */
-	if (DC_IS_CONEXANT(sc) && phy != DC_CONEXANT_PHYADDR)
-		return (0);
-
 	if (sc->dc_pmode != DC_PMODE_MII) {
 		if (phy == (MII_NPHY - 1)) {
 			switch (reg) {
@@ -900,12 +881,6 @@ dc_miibus_writereg(device_t dev, int phy, int reg, int data)
 	sc = device_get_softc(dev);
 	bzero(&frame, sizeof(frame));
 
-	if (DC_IS_ADMTEK(sc) && phy != DC_ADMTEK_PHYADDR)
-		return (0);
-
-	if (DC_IS_CONEXANT(sc) && phy != DC_CONEXANT_PHYADDR)
-		return (0);
-
 	if (DC_IS_PNIC(sc)) {
 		CSR_WRITE_4(sc, DC_PN_MII, DC_PN_MIIOPCODE_WRITE |
 		    (phy << 23) | (reg << 10) | data);
@@ -969,23 +944,45 @@ static void
 dc_miibus_statchg(device_t dev)
 {
 	struct dc_softc *sc;
+	struct ifnet *ifp;
 	struct mii_data *mii;
 	struct ifmedia *ifm;
 
 	sc = device_get_softc(dev);
-	if (DC_IS_ADMTEK(sc))
-		return;
 
 	mii = device_get_softc(sc->dc_miibus);
+	ifp = sc->dc_ifp;
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
+
 	ifm = &mii->mii_media;
 	if (DC_IS_DAVICOM(sc) &&
 	    IFM_SUBTYPE(ifm->ifm_media) == IFM_HPNA_1) {
 		dc_setcfg(sc, ifm->ifm_media);
 		sc->dc_if_media = ifm->ifm_media;
-	} else {
-		dc_setcfg(sc, mii->mii_media_active);
-		sc->dc_if_media = mii->mii_media_active;
+		return;
 	}
+
+	sc->dc_link = 0;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			sc->dc_link = 1;
+			break;
+		default:
+			break;
+		}
+	}
+	if (sc->dc_link == 0)
+		return;
+
+	sc->dc_if_media = mii->mii_media_active;
+	if (DC_IS_ADMTEK(sc))
+		return;
+	dc_setcfg(sc, mii->mii_media_active);
 }
 
 /*
@@ -1429,8 +1426,6 @@ dc_setcfg(struct dc_softc *sc, int media)
 			if (!DC_IS_DAVICOM(sc))
 				DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
 			DC_CLRBIT(sc, DC_10BTCTRL, 0xFFFF);
-			if (DC_IS_INTEL(sc))
-				dc_apply_fixup(sc, IFM_AUTO);
 		} else {
 			if (DC_IS_PNIC(sc)) {
 				DC_PN_GPIO_SETBIT(sc, DC_PN_GPIO_SPEEDSEL);
@@ -1440,10 +1435,6 @@ dc_setcfg(struct dc_softc *sc, int media)
 			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
 			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PCS);
 			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_SCRAMBLER);
-			if (DC_IS_INTEL(sc))
-				dc_apply_fixup(sc,
-				    (media & IFM_GMASK) == IFM_FDX ?
-				    IFM_100_TX | IFM_FDX : IFM_100_TX);
 		}
 	}
 
@@ -1467,8 +1458,6 @@ dc_setcfg(struct dc_softc *sc, int media)
 			if (!DC_IS_DAVICOM(sc))
 				DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
 			DC_CLRBIT(sc, DC_10BTCTRL, 0xFFFF);
-			if (DC_IS_INTEL(sc))
-				dc_apply_fixup(sc, IFM_AUTO);
 		} else {
 			if (DC_IS_PNIC(sc)) {
 				DC_PN_GPIO_CLRBIT(sc, DC_PN_GPIO_SPEEDSEL);
@@ -1488,9 +1477,6 @@ dc_setcfg(struct dc_softc *sc, int media)
 				DC_SETBIT(sc, DC_SIARESET, DC_SIA_RESET);
 				DC_CLRBIT(sc, DC_10BTCTRL,
 				    DC_TCTL_AUTONEGENBL);
-				dc_apply_fixup(sc,
-				    (media & IFM_GMASK) == IFM_FDX ?
-				    IFM_10_T | IFM_FDX : IFM_10_T);
 				DELAY(20000);
 			}
 		}
@@ -1562,7 +1548,7 @@ dc_reset(struct dc_softc *sc)
 	 */
 	if (DC_IS_INTEL(sc)) {
 		DC_SETBIT(sc, DC_SIARESET, DC_SIA_RESET);
-		CSR_WRITE_4(sc, DC_10BTCTRL, 0);
+		CSR_WRITE_4(sc, DC_10BTCTRL, 0xFFFFFFFF);
 		CSR_WRITE_4(sc, DC_WATCHDOG, 0);
 	}
 }
@@ -1641,12 +1627,16 @@ dc_apply_fixup(struct dc_softc *sc, int media)
 	}
 }
 
-static void
+static int
 dc_decode_leaf_sia(struct dc_softc *sc, struct dc_eblock_sia *l)
 {
 	struct dc_mediainfo *m;
 
 	m = malloc(sizeof(struct dc_mediainfo), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (m == NULL) {
+		device_printf(sc->dc_dev, "Could not allocate mediainfo\n");
+		return (ENOMEM);
+	}
 	switch (l->dc_sia_code & ~DC_SIA_CODE_EXT) {
 	case DC_SIA_CODE_10BT:
 		m->dc_media = IFM_10_T;
@@ -1683,14 +1673,19 @@ dc_decode_leaf_sia(struct dc_softc *sc, struct dc_eblock_sia *l)
 	sc->dc_mi = m;
 
 	sc->dc_pmode = DC_PMODE_SIA;
+	return (0);
 }
 
-static void
+static int
 dc_decode_leaf_sym(struct dc_softc *sc, struct dc_eblock_sym *l)
 {
 	struct dc_mediainfo *m;
 
 	m = malloc(sizeof(struct dc_mediainfo), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (m == NULL) {
+		device_printf(sc->dc_dev, "Could not allocate mediainfo\n");
+		return (ENOMEM);
+	}
 	if (l->dc_sym_code == DC_SYM_CODE_100BT)
 		m->dc_media = IFM_100_TX;
 
@@ -1704,15 +1699,20 @@ dc_decode_leaf_sym(struct dc_softc *sc, struct dc_eblock_sym *l)
 	sc->dc_mi = m;
 
 	sc->dc_pmode = DC_PMODE_SYM;
+	return (0);
 }
 
-static void
+static int
 dc_decode_leaf_mii(struct dc_softc *sc, struct dc_eblock_mii *l)
 {
 	struct dc_mediainfo *m;
 	u_int8_t *p;
 
 	m = malloc(sizeof(struct dc_mediainfo), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (m == NULL) {
+		device_printf(sc->dc_dev, "Could not allocate mediainfo\n");
+		return (ENOMEM);
+	}
 	/* We abuse IFM_AUTO to represent MII. */
 	m->dc_media = IFM_AUTO;
 	m->dc_gp_len = l->dc_gpr_len;
@@ -1727,24 +1727,30 @@ dc_decode_leaf_mii(struct dc_softc *sc, struct dc_eblock_mii *l)
 
 	m->dc_next = sc->dc_mi;
 	sc->dc_mi = m;
+	return (0);
 }
 
-static void
+static int
 dc_read_srom(struct dc_softc *sc, int bits)
 {
 	int size;
 
-	size = 2 << bits;
+	size = DC_ROM_SIZE(bits);
 	sc->dc_srom = malloc(size, M_DEVBUF, M_NOWAIT);
+	if (sc->dc_srom == NULL) {
+		device_printf(sc->dc_dev, "Could not allocate SROM buffer\n");
+		return (ENOMEM);
+	}
 	dc_read_eeprom(sc, (caddr_t)sc->dc_srom, 0, (size / 2), 0);
+	return (0);
 }
 
-static void
+static int
 dc_parse_21143_srom(struct dc_softc *sc)
 {
 	struct dc_leaf_hdr *lhdr;
 	struct dc_eblock_hdr *hdr;
-	int have_mii, i, loff;
+	int error, have_mii, i, loff;
 	char *ptr;
 
 	have_mii = 0;
@@ -1771,20 +1777,21 @@ dc_parse_21143_srom(struct dc_softc *sc)
 	 */
 	ptr = (char *)lhdr;
 	ptr += sizeof(struct dc_leaf_hdr) - 1;
+	error = 0;
 	for (i = 0; i < lhdr->dc_mcnt; i++) {
 		hdr = (struct dc_eblock_hdr *)ptr;
 		switch (hdr->dc_type) {
 		case DC_EBLOCK_MII:
-			dc_decode_leaf_mii(sc, (struct dc_eblock_mii *)hdr);
+			error = dc_decode_leaf_mii(sc, (struct dc_eblock_mii *)hdr);
 			break;
 		case DC_EBLOCK_SIA:
 			if (! have_mii)
-				dc_decode_leaf_sia(sc,
+				error = dc_decode_leaf_sia(sc,
 				    (struct dc_eblock_sia *)hdr);
 			break;
 		case DC_EBLOCK_SYM:
 			if (! have_mii)
-				dc_decode_leaf_sym(sc,
+				error = dc_decode_leaf_sym(sc,
 				    (struct dc_eblock_sym *)hdr);
 			break;
 		default:
@@ -1794,6 +1801,7 @@ dc_parse_21143_srom(struct dc_softc *sc)
 		ptr += (hdr->dc_len & 0x7F);
 		ptr++;
 	}
+	return (error);
 }
 
 static void
@@ -1814,14 +1822,13 @@ dc_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static int
 dc_attach(device_t dev)
 {
-	int tmp = 0;
 	uint32_t eaddr[(ETHER_ADDR_LEN+3)/4];
 	u_int32_t command;
 	struct dc_softc *sc;
 	struct ifnet *ifp;
+	struct dc_mediainfo *m;
 	u_int32_t reg, revision;
-	int error = 0, rid, mac_offset;
-	int i;
+	int error, i, mac_offset, phy, rid, tmp;
 	u_int8_t *mac;
 
 	sc = device_get_softc(dev);
@@ -1862,6 +1869,7 @@ dc_attach(device_t dev)
 	sc->dc_info = dc_devtype(dev);
 	revision = pci_get_revid(dev);
 
+	error = 0;
 	/* Get the eeprom width, but PNIC and XIRCOM have diff eeprom */
 	if (sc->dc_info->dc_devid !=
 	    DC_DEVID(DC_VENDORID_LO, DC_DEVICEID_82C168) &&
@@ -1875,7 +1883,9 @@ dc_attach(device_t dev)
 		sc->dc_flags |= DC_TX_POLL | DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_REDUCED_MII_POLL;
 		/* Save EEPROM contents so we can parse them later. */
-		dc_read_srom(sc, sc->dc_romwidth);
+		error = dc_read_srom(sc, sc->dc_romwidth);
+		if (error != 0)
+			goto fail;
 		break;
 	case DC_DEVID(DC_VENDORID_DAVICOM, DC_DEVICEID_DM9009):
 	case DC_DEVID(DC_VENDORID_DAVICOM, DC_DEVICEID_DM9100):
@@ -1894,7 +1904,9 @@ dc_attach(device_t dev)
 		sc->dc_flags |= DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_TX_ADMTEK_WAR;
 		sc->dc_pmode = DC_PMODE_MII;
-		dc_read_srom(sc, sc->dc_romwidth);
+		error = dc_read_srom(sc, sc->dc_romwidth);
+		if (error != 0)
+			goto fail;
 		break;
 	case DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_AN983):
 	case DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_AN985):
@@ -1961,6 +1973,12 @@ dc_attach(device_t dev)
 		sc->dc_flags |= DC_TX_STORENFWD | DC_TX_INTR_ALWAYS;
 		sc->dc_flags |= DC_PNIC_RX_BUG_WAR;
 		sc->dc_pnic_rx_buf = malloc(DC_RXLEN * 5, M_DEVBUF, M_NOWAIT);
+		if (sc->dc_pnic_rx_buf == NULL) {
+			device_printf(sc->dc_dev,
+			    "Could not allocate PNIC RX buffer\n");
+			error = ENOMEM;
+			goto fail;
+		}
 		if (revision < DC_REVISION_82C169)
 			sc->dc_pmode = DC_PMODE_SYM;
 		break;
@@ -1986,7 +2004,9 @@ dc_attach(device_t dev)
 		sc->dc_flags |= DC_TX_INTR_ALWAYS;
 		sc->dc_flags |= DC_REDUCED_MII_POLL;
 		sc->dc_pmode = DC_PMODE_MII;
-		dc_read_srom(sc, sc->dc_romwidth);
+		error = dc_read_srom(sc, sc->dc_romwidth);
+		if (error != 0)
+			goto fail;
 		break;
 	default:
 		device_printf(dev, "unknown device: %x\n",
@@ -2017,9 +2037,11 @@ dc_attach(device_t dev)
 	 * The tricky ones are the Macronix/PNIC II and the
 	 * Intel 21143.
 	 */
-	if (DC_IS_INTEL(sc))
-		dc_parse_21143_srom(sc);
-	else if (DC_IS_MACRONIX(sc) || DC_IS_PNICII(sc)) {
+	if (DC_IS_INTEL(sc)) {
+		error = dc_parse_21143_srom(sc);
+		if (error != 0)
+			goto fail;
+	} else if (DC_IS_MACRONIX(sc) || DC_IS_PNICII(sc)) {
 		if (sc->dc_type == DC_TYPE_98713)
 			sc->dc_pmode = DC_PMODE_MII;
 		else
@@ -2086,6 +2108,36 @@ dc_attach(device_t dev)
 	default:
 		dc_read_eeprom(sc, (caddr_t)&eaddr, DC_EE_NODEADDR, 3, 0);
 		break;
+	}
+
+	bcopy(eaddr, sc->dc_eaddr, sizeof(eaddr));
+	/*
+	 * If we still have invalid station address, see whether we can
+	 * find station address for chip 0.  Some multi-port controllers
+	 * just store station address for chip 0 if they have a shared
+	 * SROM.
+	 */
+	if ((sc->dc_eaddr[0] == 0 && (sc->dc_eaddr[1] & ~0xffff) == 0) ||
+	    (sc->dc_eaddr[0] == 0xffffffff &&
+	    (sc->dc_eaddr[1] & 0xffff) == 0xffff)) {
+		error = dc_check_multiport(sc);
+		if (error == 0) {
+			bcopy(sc->dc_eaddr, eaddr, sizeof(eaddr));
+			/* Extract media information. */
+			if (DC_IS_INTEL(sc) && sc->dc_srom != NULL) {
+				while (sc->dc_mi != NULL) {
+					m = sc->dc_mi->dc_next;
+					free(sc->dc_mi, M_DEVBUF);
+					sc->dc_mi = m;
+				}
+				error = dc_parse_21143_srom(sc);
+				if (error != 0)
+					goto fail;
+			}
+		} else if (error == ENOMEM)
+			goto fail;
+		else
+			error = 0;
 	}
 
 	/* Allocate a busdma tag and DMA safe memory for TX/RX descriptors. */
@@ -2202,6 +2254,7 @@ dc_attach(device_t dev)
 	 * old selection (SIA only or SIA/SYM) and attach the dcphy
 	 * driver instead.
 	 */
+	tmp = 0;
 	if (DC_IS_INTEL(sc)) {
 		dc_apply_fixup(sc, IFM_AUTO);
 		tmp = sc->dc_pmode;
@@ -2210,7 +2263,7 @@ dc_attach(device_t dev)
 
 	/*
 	 * Setup General Purpose port mode and data so the tulip can talk
-	 * to the MII.  This needs to be done before mii_phy_probe so that
+	 * to the MII.  This needs to be done before mii_attach so that
 	 * we can actually see them.
 	 */
 	if (DC_IS_XIRCOM(sc)) {
@@ -2222,16 +2275,37 @@ dc_attach(device_t dev)
 		DELAY(10);
 	}
 
-	error = mii_phy_probe(dev, &sc->dc_miibus,
-	    dc_ifmedia_upd, dc_ifmedia_sts);
+	phy = MII_PHY_ANY;
+	/*
+	 * Note: both the AL981 and AN983 have internal PHYs, however the
+	 * AL981 provides direct access to the PHY registers while the AN983
+	 * uses a serial MII interface. The AN983's MII interface is also
+	 * buggy in that you can read from any MII address (0 to 31), but
+	 * only address 1 behaves normally. To deal with both cases, we
+	 * pretend that the PHY is at MII address 1.
+	 */
+	if (DC_IS_ADMTEK(sc))
+		phy = DC_ADMTEK_PHYADDR;
+
+	/*
+	 * Note: the ukphy probes of the RS7112 report a PHY at MII address
+	 * 0 (possibly HomePNA?) and 1 (ethernet) so we only respond to the
+	 * correct one.
+	 */
+	if (DC_IS_CONEXANT(sc))
+		phy = DC_CONEXANT_PHYADDR;
+
+	error = mii_attach(dev, &sc->dc_miibus, ifp, dc_ifmedia_upd,
+	    dc_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
 
 	if (error && DC_IS_INTEL(sc)) {
 		sc->dc_pmode = tmp;
 		if (sc->dc_pmode != DC_PMODE_SIA)
 			sc->dc_pmode = DC_PMODE_SYM;
 		sc->dc_flags |= DC_21143_NWAY;
-		mii_phy_probe(dev, &sc->dc_miibus,
-		    dc_ifmedia_upd, dc_ifmedia_sts);
+		mii_attach(dev, &sc->dc_miibus, ifp, dc_ifmedia_upd,
+		    dc_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY,
+		    MII_OFFSET_ANY, 0);
 		/*
 		 * For non-MII cards, we need to have the 21143
 		 * drive the LEDs. Except there are some systems
@@ -2246,7 +2320,7 @@ dc_attach(device_t dev)
 	}
 
 	if (error) {
-		device_printf(dev, "MII without any PHY!\n");
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -2399,6 +2473,7 @@ dc_list_tx_init(struct dc_softc *sc)
 	}
 
 	cd->dc_tx_prod = cd->dc_tx_cons = cd->dc_tx_cnt = 0;
+	cd->dc_tx_pkts = 0;
 	bus_dmamap_sync(sc->dc_ltag, sc->dc_lmap,
 	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 	return (0);
@@ -2767,6 +2842,9 @@ dc_txeof(struct dc_softc *sc)
 	int idx;
 	u_int32_t ctl, txstat;
 
+	if (sc->dc_cdata.dc_tx_cnt == 0)
+		return;
+
 	ifp = sc->dc_ifp;
 
 	/*
@@ -2878,6 +2956,13 @@ dc_tick(void *xsc)
 	ifp = sc->dc_ifp;
 	mii = device_get_softc(sc->dc_miibus);
 
+	/*
+	 * Reclaim transmitted frames for controllers that do
+	 * not generate TX completion interrupt for every frame.
+	 */
+	if (sc->dc_flags & DC_TX_USE_TX_INTR)
+		dc_txeof(sc);
+
 	if (sc->dc_flags & DC_REDUCED_MII_POLL) {
 		if (sc->dc_flags & DC_21143_NWAY) {
 			r = CSR_READ_4(sc, DC_10BTSTAT);
@@ -2900,11 +2985,8 @@ dc_tick(void *xsc)
 			 */
 			if ((DC_HAS_BROKEN_RXSTATE(sc) || (CSR_READ_4(sc,
 			    DC_ISR) & DC_ISR_RX_STATE) == DC_RXSTATE_WAIT) &&
-			    sc->dc_cdata.dc_tx_cnt == 0) {
+			    sc->dc_cdata.dc_tx_cnt == 0)
 				mii_tick(mii);
-				if (!(mii->mii_media_status & IFM_ACTIVE))
-					sc->dc_link = 0;
-			}
 		}
 	} else
 		mii_tick(mii);
@@ -2928,12 +3010,8 @@ dc_tick(void *xsc)
 	 * that time, packets will stay in the send queue, and once the
 	 * link comes up, they will be flushed out to the wire.
 	 */
-	if (!sc->dc_link && mii->mii_media_status & IFM_ACTIVE &&
-	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-		sc->dc_link++;
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			dc_start_locked(ifp);
-	}
+	if (sc->dc_link != 0 && !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		dc_start_locked(ifp);
 
 	if (sc->dc_flags & DC_21143_NWAY && !sc->dc_link)
 		callout_reset(&sc->dc_stat_ch, hz/10, dc_tick, sc);
@@ -3255,8 +3333,11 @@ dc_encap(struct dc_softc *sc, struct mbuf **m_head)
 		    htole32(DC_TXCTL_FINT);
 	if (sc->dc_flags & DC_TX_INTR_ALWAYS)
 		sc->dc_ldata->dc_tx_list[cur].dc_ctl |= htole32(DC_TXCTL_FINT);
-	if (sc->dc_flags & DC_TX_USE_TX_INTR && sc->dc_cdata.dc_tx_cnt > 64)
+	if (sc->dc_flags & DC_TX_USE_TX_INTR &&
+	    ++sc->dc_cdata.dc_tx_pkts >= 8) {
+		sc->dc_cdata.dc_tx_pkts = 0;
 		sc->dc_ldata->dc_tx_list[cur].dc_ctl |= htole32(DC_TXCTL_FINT);
+	}
 	sc->dc_ldata->dc_tx_list[first].dc_status = htole32(DC_TXSTAT_OWN);
 
 	bus_dmamap_sync(sc->dc_mtag, sc->dc_cdata.dc_tx_map[idx],
@@ -3324,11 +3405,6 @@ dc_start_locked(struct ifnet *ifp)
 		 * to him.
 		 */
 		BPF_MTAP(ifp, m_head);
-
-		if (sc->dc_flags & DC_TX_ONE) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			break;
-		}
 	}
 
 	if (queued > 0) {
@@ -3358,6 +3434,7 @@ dc_init_locked(struct dc_softc *sc)
 {
 	struct ifnet *ifp = sc->dc_ifp;
 	struct mii_data *mii;
+	struct ifmedia *ifm;
 
 	DC_LOCK_ASSERT(sc);
 
@@ -3368,6 +3445,10 @@ dc_init_locked(struct dc_softc *sc)
 	 */
 	dc_stop(sc);
 	dc_reset(sc);
+	if (DC_IS_INTEL(sc)) {
+		ifm = &mii->mii_media;
+		dc_apply_fixup(sc, ifm->ifm_media);
+	}
 
 	/*
 	 * Set cache alignment and burst length.
@@ -3511,11 +3592,11 @@ dc_init_locked(struct dc_softc *sc)
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ON);
 	CSR_WRITE_4(sc, DC_RXSTART, 0xFFFFFFFF);
 
-	mii_mediachg(mii);
-	dc_setcfg(sc, sc->dc_if_media);
-
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
+	mii_mediachg(mii);
+	dc_setcfg(sc, sc->dc_if_media);
 
 	/* Don't start the ticker if this is a homePNA link. */
 	if (IFM_SUBTYPE(mii->mii_media.ifm_media) == IFM_HPNA_1)
@@ -3547,7 +3628,9 @@ dc_ifmedia_upd(struct ifnet *ifp)
 	mii_mediachg(mii);
 	ifm = &mii->mii_media;
 
-	if (DC_IS_DAVICOM(sc) &&
+	if (DC_IS_INTEL(sc))
+		dc_setcfg(sc, ifm->ifm_media);
+	else if (DC_IS_DAVICOM(sc) &&
 	    IFM_SUBTYPE(ifm->ifm_media) == IFM_HPNA_1)
 		dc_setcfg(sc, ifm->ifm_media);
 	else
@@ -3807,4 +3890,53 @@ dc_shutdown(device_t dev)
 	DC_UNLOCK(sc);
 
 	return (0);
+}
+
+static int
+dc_check_multiport(struct dc_softc *sc)
+{
+	struct dc_softc *dsc;
+	devclass_t dc;
+	device_t child;
+	uint8_t *eaddr;
+	int unit;
+
+	dc = devclass_find("dc");
+	for (unit = 0; unit < devclass_get_maxunit(dc); unit++) {
+		child = devclass_get_device(dc, unit);
+		if (child == NULL)
+			continue;
+		if (child == sc->dc_dev)
+			continue;
+		if (device_get_parent(child) != device_get_parent(sc->dc_dev))
+			continue;
+		if (unit > device_get_unit(sc->dc_dev))
+			continue;
+		if (device_is_attached(child) == 0)
+			continue;
+		dsc = device_get_softc(child);
+		device_printf(sc->dc_dev,
+		    "Using station address of %s as base\n",
+		    device_get_nameunit(child));
+		bcopy(dsc->dc_eaddr, sc->dc_eaddr, ETHER_ADDR_LEN);
+		eaddr = (uint8_t *)sc->dc_eaddr;
+		eaddr[5]++;
+		/* Prepare SROM to parse again. */
+		if (DC_IS_INTEL(sc) && dsc->dc_srom != NULL &&
+		    sc->dc_romwidth != 0) {
+			free(sc->dc_srom, M_DEVBUF);
+			sc->dc_romwidth = dsc->dc_romwidth;
+			sc->dc_srom = malloc(DC_ROM_SIZE(sc->dc_romwidth),
+			    M_DEVBUF, M_NOWAIT);
+			if (sc->dc_srom == NULL) {
+				device_printf(sc->dc_dev,
+				    "Could not allocate SROM buffer\n");
+				return (ENOMEM);
+			}
+			bcopy(dsc->dc_srom, sc->dc_srom,
+			    DC_ROM_SIZE(sc->dc_romwidth));
+		}
+		return (0);
+	}
+	return (ENOENT);
 }

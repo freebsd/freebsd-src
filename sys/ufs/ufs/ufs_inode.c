@@ -76,12 +76,10 @@ ufs_inactive(ap)
 	struct thread *td = ap->a_td;
 	mode_t mode;
 	int error = 0;
-	int isize;
+	off_t isize;
 	struct mount *mp;
 
 	mp = NULL;
-	if (prtactive && vp->v_usecount != 0)
-		vprint("ufs_inactive: pushing active", vp);
 	/*
 	 * Ignore inodes related to stale file handles.
 	 */
@@ -191,8 +189,6 @@ ufs_reclaim(ap)
 	int i;
 #endif
 
-	if (prtactive && vp->v_usecount != 0)
-		vprint("ufs_reclaim: pushing active", vp);
 	/*
 	 * Destroy the vm object and flush associated pages.
 	 */

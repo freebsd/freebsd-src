@@ -76,7 +76,7 @@ static struct wpabuf * eap_md5_process(struct eap_sm *sm, void *priv,
 
 	wpa_printf(MSG_DEBUG, "EAP-MD5: Generating Challenge Response");
 	ret->methodState = METHOD_DONE;
-	ret->decision = DECISION_UNCOND_SUCC;
+	ret->decision = DECISION_COND_SUCC;
 	ret->allowNotifications = TRUE;
 
 	resp = eap_msg_alloc(EAP_VENDOR_IETF, EAP_TYPE_MD5, 1 + CHAP_MD5_LEN,

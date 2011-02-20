@@ -40,7 +40,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -1740,7 +1739,7 @@ static const struct usb_device_descriptor uss820dci_devd = {
 	.bcdUSB = {0x00, 0x02},
 	.bDeviceClass = UDCLASS_HUB,
 	.bDeviceSubClass = UDSUBCLASS_HUB,
-	.bDeviceProtocol = UDPROTO_HSHUBSTT,
+	.bDeviceProtocol = UDPROTO_FSHUB,
 	.bMaxPacketSize = 64,
 	.bcdDevice = {0x00, 0x01},
 	.iManufacturer = 1,
@@ -1776,7 +1775,7 @@ static const struct uss820dci_config_desc uss820dci_confd = {
 		.bNumEndpoints = 1,
 		.bInterfaceClass = UICLASS_HUB,
 		.bInterfaceSubClass = UISUBCLASS_HUB,
-		.bInterfaceProtocol = UIPROTO_HSHUBSTT,
+		.bInterfaceProtocol = 0,
 	},
 
 	.endpd = {

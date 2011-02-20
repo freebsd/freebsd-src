@@ -606,7 +606,7 @@ l2tp_avp_print(const u_char *dat, int length)
 void
 l2tp_print(const u_char *dat, u_int length)
 {
-	const u_int16_t *ptr = (u_int16_t *)dat;
+	const u_char *ptr = dat;
 	u_int cnt = 0;			/* total octets consumed */
 	u_int16_t pad;
 	int flag_t, flag_l, flag_s, flag_o;
@@ -614,7 +614,7 @@ l2tp_print(const u_char *dat, u_int length)
 
 	flag_t = flag_l = flag_s = flag_o = FALSE;
 
-	TCHECK(*ptr);	/* Flags & Version */
+	TCHECK2(*ptr, 2);	/* Flags & Version */
 	if ((EXTRACT_16BITS(ptr) & L2TP_VERSION_MASK) == L2TP_VERSION_L2TP) {
 		printf(" l2tp:");
 	} else if ((EXTRACT_16BITS(ptr) & L2TP_VERSION_MASK) == L2TP_VERSION_L2F) {
@@ -646,37 +646,42 @@ l2tp_print(const u_char *dat, u_int length)
 		printf("P");
 	printf("]");
 
-	ptr++;
+	ptr += 2;
 	cnt += 2;
 
 	if (flag_l) {
-		TCHECK(*ptr);	/* Length */
-		l2tp_len = EXTRACT_16BITS(ptr); ptr++;
+		TCHECK2(*ptr, 2);	/* Length */
+		l2tp_len = EXTRACT_16BITS(ptr);
+		ptr += 2;
 		cnt += 2;
 	} else {
 		l2tp_len = 0;
 	}
 
-	TCHECK(*ptr);		/* Tunnel ID */
-	printf("(%u/", EXTRACT_16BITS(ptr)); ptr++;
+	TCHECK2(*ptr, 2);		/* Tunnel ID */
+	printf("(%u/", EXTRACT_16BITS(ptr));
+	ptr += 2;
 	cnt += 2;
-	TCHECK(*ptr);		/* Session ID */
-	printf("%u)",  EXTRACT_16BITS(ptr)); ptr++;
+	TCHECK2(*ptr, 2);		/* Session ID */
+	printf("%u)",  EXTRACT_16BITS(ptr));
+	ptr += 2;
 	cnt += 2;
 
 	if (flag_s) {
-		TCHECK(*ptr);	/* Ns */
-		printf("Ns=%u,", EXTRACT_16BITS(ptr)); ptr++;
+		TCHECK2(*ptr, 2);	/* Ns */
+		printf("Ns=%u,", EXTRACT_16BITS(ptr));
+		ptr += 2;
 		cnt += 2;
-		TCHECK(*ptr);	/* Nr */
-		printf("Nr=%u",  EXTRACT_16BITS(ptr)); ptr++;
+		TCHECK2(*ptr, 2);	/* Nr */
+		printf("Nr=%u",  EXTRACT_16BITS(ptr));
+		ptr += 2;
 		cnt += 2;
 	}
 
 	if (flag_o) {
-		TCHECK(*ptr);	/* Offset Size */
-		pad =  EXTRACT_16BITS(ptr); ptr++;
-		ptr += pad / sizeof(*ptr);
+		TCHECK2(*ptr, 2);	/* Offset Size */
+		pad =  EXTRACT_16BITS(ptr);
+		ptr += (2 + pad);
 		cnt += (2 + pad);
 	}
 
@@ -699,11 +704,11 @@ l2tp_print(const u_char *dat, u_int length)
 		if (length - cnt == 0) {
 			printf(" ZLB");
 		} else {
-			l2tp_avp_print((u_char *)ptr, length - cnt);
+			l2tp_avp_print(ptr, length - cnt);
 		}
 	} else {
 		printf(" {");
-		ppp_print((u_char *)ptr, length - cnt);
+		ppp_print(ptr, length - cnt);
 		printf("}");
 	}
 

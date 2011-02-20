@@ -575,12 +575,15 @@ softdep_get_depcounts(struct mount *mp,
 }
 
 #else
+
+FEATURE(softupdates, "FFS soft-updates support");
+
 /*
  * These definitions need to be adapted to the system to which
  * this file is being ported.
  */
 
-#define M_SOFTDEP_FLAGS	(M_WAITOK | M_USE_RESERVE)
+#define M_SOFTDEP_FLAGS	(M_WAITOK)
 
 #define	D_PAGEDEP	0
 #define	D_INODEDEP	1
@@ -622,9 +625,9 @@ SYSCTL_NODE(_debug_softdep, OID_AUTO, current, CTLFLAG_RW, 0,
 
 #define	SOFTDEP_TYPE(type, str, long)					\
     static MALLOC_DEFINE(M_ ## type, #str, long);			\
-    SYSCTL_LONG(_debug_softdep_total, OID_AUTO, str, CTLFLAG_RD,	\
+    SYSCTL_ULONG(_debug_softdep_total, OID_AUTO, str, CTLFLAG_RD,	\
 	&dep_total[D_ ## type], 0, "");					\
-    SYSCTL_LONG(_debug_softdep_current, OID_AUTO, str, CTLFLAG_RD, 	\
+    SYSCTL_ULONG(_debug_softdep_current, OID_AUTO, str, CTLFLAG_RD, 	\
 	&dep_current[D_ ## type], 0, "");
 
 SOFTDEP_TYPE(PAGEDEP, pagedep, "File page dependencies"); 
@@ -691,6 +694,8 @@ static struct malloc_type *memtype[] = {
 	M_JTRUNC
 };
 
+static LIST_HEAD(mkdirlist, mkdir) mkdirlisthd;
+
 #define DtoM(type) (memtype[type])
 
 /*
@@ -745,7 +750,7 @@ static	void handle_written_jnewblk(struct jnewblk *);
 static	void handle_written_jfreeblk(struct jfreeblk *);
 static	void handle_written_jfreefrag(struct jfreefrag *);
 static	void complete_jseg(struct jseg *);
-static	void jseg_write(struct fs *, struct jblocks *, struct jseg *,
+static	void jseg_write(struct ufsmount *ump, struct jblocks *, struct jseg *,
 	    uint8_t *);
 static	void jaddref_write(struct jaddref *, struct jseg *, uint8_t *);
 static	void jremref_write(struct jremref *, struct jseg *, uint8_t *);
@@ -874,8 +879,8 @@ static	struct jfreeblk *newjfreeblk(struct freeblks *, ufs_lbn_t,
 	    ufs2_daddr_t, int);
 static	struct jfreefrag *newjfreefrag(struct freefrag *, struct inode *,
 	    ufs2_daddr_t, long, ufs_lbn_t);
-static	struct freework *newfreework(struct freeblks *, struct freework *, 
-	    ufs_lbn_t, ufs2_daddr_t, int, int);
+static	struct freework *newfreework(struct ufsmount *, struct freeblks *,
+	    struct freework *, ufs_lbn_t, ufs2_daddr_t, int, int);
 static	void jwait(struct worklist *wk);
 static	struct inodedep *inodedep_lookup_ip(struct inode *);
 static	int bmsafemap_rollbacks(struct bmsafemap *);
@@ -1340,7 +1345,7 @@ softdep_process_worklist(mp, full)
 	int full;
 {
 	struct thread *td = curthread;
-	int cnt, matchcnt, loopcount;
+	int cnt, matchcnt;
 	struct ufsmount *ump;
 	long starttime;
 
@@ -1352,7 +1357,6 @@ softdep_process_worklist(mp, full)
 	matchcnt = 0;
 	ump = VFSTOUFS(mp);
 	ACQUIRE_LOCK(&lk);
-	loopcount = 1;
 	starttime = time_second;
 	softdep_process_journal(mp, full?MNT_WAIT:0);
 	while (ump->softdep_on_worklist > 0) {
@@ -1377,9 +1381,9 @@ softdep_process_worklist(mp, full)
 		 * We do not generally want to stop for buffer space, but if
 		 * we are really being a buffer hog, we will stop and wait.
 		 */
-		if (loopcount++ % 128 == 0) {
+		if (should_yield()) {
 			FREE_LOCK(&lk);
-			uio_yield();
+			kern_yield(-1);
 			bwillwrite();
 			ACQUIRE_LOCK(&lk);
 		}
@@ -2270,7 +2274,6 @@ journal_mount(mp, fs, cred)
 	int error;
 	int i;
 
-	mp->mnt_kern_flag |= MNTK_SUJ;
 	error = softdep_journal_lookup(mp, &vp);
 	if (error != 0) {
 		printf("Failed to find journal.  Use tunefs to create one\n");
@@ -2295,20 +2298,26 @@ journal_mount(mp, fs, cred)
 	}
 	jblocks->jb_low = jblocks->jb_free / 3;	/* Reserve 33%. */
 	jblocks->jb_min = jblocks->jb_free / 10; /* Suspend at 10%. */
-	/*
-	 * Only validate the journal contents if the filesystem is clean,
-	 * otherwise we write the logs but they'll never be used.  If the
-	 * filesystem was still dirty when we mounted it the journal is
-	 * invalid and a new journal can only be valid if it starts from a
-	 * clean mount.
-	 */
-	if (fs->fs_clean) {
-		DIP_SET(ip, i_modrev, fs->fs_mtime);
-		ip->i_flags |= IN_MODIFIED;
-		ffs_update(vp, 1);
-	}
 	VFSTOUFS(mp)->softdep_jblocks = jblocks;
 out:
+	if (error == 0) {
+		MNT_ILOCK(mp);
+		mp->mnt_kern_flag |= MNTK_SUJ;
+		MNT_IUNLOCK(mp);
+		/*
+		 * Only validate the journal contents if the
+		 * filesystem is clean, otherwise we write the logs
+		 * but they'll never be used.  If the filesystem was
+		 * still dirty when we mounted it the journal is
+		 * invalid and a new journal can only be valid if it
+		 * starts from a clean mount.
+		 */
+		if (fs->fs_clean) {
+			DIP_SET(ip, i_modrev, fs->fs_mtime);
+			ip->i_flags |= IN_MODIFIED;
+			ffs_update(vp, 1);
+		}
+	}
 	vput(vp);
 	return (error);
 }
@@ -2378,7 +2387,8 @@ remove_from_journal(wk)
 	/*
 	 * We emulate a TAILQ to save space in most structures which do not
 	 * require TAILQ semantics.  Here we must update the tail position
-	 * when removing the tail which is not the final entry.
+	 * when removing the tail which is not the final entry. This works
+	 * only if the worklist linkage are at the beginning of the structure.
 	 */
 	if (ump->softdep_journal_tail == wk)
 		ump->softdep_journal_tail =
@@ -2547,8 +2557,8 @@ softdep_prelink(dvp, vp)
 }
 
 static void
-jseg_write(fs, jblocks, jseg, data)
-	struct fs *fs;
+jseg_write(ump, jblocks, jseg, data)
+	struct ufsmount *ump;
 	struct jblocks *jblocks;
 	struct jseg *jseg;
 	uint8_t *data;
@@ -2559,9 +2569,9 @@ jseg_write(fs, jblocks, jseg, data)
 	rec->jsr_seq = jseg->js_seq;
 	rec->jsr_oldest = jblocks->jb_oldestseq;
 	rec->jsr_cnt = jseg->js_cnt;
-	rec->jsr_blocks = jseg->js_size / DEV_BSIZE;
+	rec->jsr_blocks = jseg->js_size / ump->um_devvp->v_bufobj.bo_bsize;
 	rec->jsr_crc = 0;
-	rec->jsr_time = fs->fs_mtime;
+	rec->jsr_time = ump->um_fs->fs_mtime;
 }
 
 static inline void
@@ -2605,7 +2615,7 @@ jremref_write(jremref, jseg, data)
 	inoref_write(&jremref->jr_ref, jseg, rec);
 }
 
-static	void
+static void
 jmvref_write(jmvref, jseg, data)
 	struct jmvref *jmvref;
 	struct jseg *jseg;
@@ -2711,19 +2721,21 @@ softdep_process_journal(mp, flags)
 	int size;
 	int cnt;
 	int off;
+	int devbsize;
 
 	if ((mp->mnt_kern_flag & MNTK_SUJ) == 0)
 		return;
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
 	jblocks = ump->softdep_jblocks;
+	devbsize = ump->um_devvp->v_bufobj.bo_bsize;
 	/*
 	 * We write anywhere between a disk block and fs block.  The upper
 	 * bound is picked to prevent buffer cache fragmentation and limit
 	 * processing time per I/O.
 	 */
-	jrecmin = (DEV_BSIZE / JREC_SIZE) - 1; /* -1 for seg header */
-	jrecmax = (fs->fs_bsize / DEV_BSIZE) * jrecmin;
+	jrecmin = (devbsize / JREC_SIZE) - 1; /* -1 for seg header */
+	jrecmax = (fs->fs_bsize / devbsize) * jrecmin;
 	segwritten = 0;
 	while ((cnt = ump->softdep_on_journal) != 0) {
 		/*
@@ -2778,7 +2790,7 @@ softdep_process_journal(mp, flags)
 		 */
 		cnt = ump->softdep_on_journal;
 		if (cnt < jrecmax)
-			size = howmany(cnt, jrecmin) * DEV_BSIZE;
+			size = howmany(cnt, jrecmin) * devbsize;
 		else
 			size = fs->fs_bsize;
 		/*
@@ -2798,7 +2810,7 @@ softdep_process_journal(mp, flags)
 		 * sequence number to it and link it in-order.
 		 */
 		cnt = MIN(ump->softdep_on_journal,
-		    (size / DEV_BSIZE) * jrecmin);
+		    (size / devbsize) * jrecmin);
 		jseg->js_buf = bp;
 		jseg->js_cnt = cnt;
 		jseg->js_refs = cnt + 1;	/* Self ref. */
@@ -2817,8 +2829,8 @@ softdep_process_journal(mp, flags)
 		while ((wk = LIST_FIRST(&ump->softdep_journal_pending))
 		    != NULL) {
 			/* Place a segment header on every device block. */
-			if ((off % DEV_BSIZE) == 0) {
-				jseg_write(fs, jblocks, jseg, data);
+			if ((off % devbsize) == 0) {
+				jseg_write(ump, jblocks, jseg, data);
 				off += JREC_SIZE;
 				data = bp->b_data + off;
 			}
@@ -2898,17 +2910,18 @@ complete_jseg(jseg)
 	struct worklist *wk;
 	struct jmvref *jmvref;
 	int waiting;
-	int i;
+#ifdef INVARIANTS
+	int i = 0;
+#endif
 
-	i = 0;
 	while ((wk = LIST_FIRST(&jseg->js_entries)) != NULL) {
 		WORKLIST_REMOVE(wk);
 		waiting = wk->wk_state & IOWAITING;
 		wk->wk_state &= ~(IOSTARTED | IOWAITING);
 		wk->wk_state |= COMPLETE;
-		KASSERT(i < jseg->js_cnt,
+		KASSERT(i++ < jseg->js_cnt,
 		    ("handle_written_jseg: overflow %d >= %d",
-		    i, jseg->js_cnt));
+		    i - 1, jseg->js_cnt));
 		switch (wk->wk_type) {
 		case D_JADDREF:
 			handle_written_jaddref(WK_JADDREF(wk));
@@ -3358,7 +3371,8 @@ free_freedep(freedep)
  * is visible outside of softdep_setup_freeblocks().
  */
 static struct freework *
-newfreework(freeblks, parent, lbn, nb, frags, journal)
+newfreework(ump, freeblks, parent, lbn, nb, frags, journal)
+	struct ufsmount *ump;
 	struct freeblks *freeblks;
 	struct freework *parent;
 	ufs_lbn_t lbn;
@@ -3375,7 +3389,8 @@ newfreework(freeblks, parent, lbn, nb, frags, journal)
 	freework->fw_lbn = lbn;
 	freework->fw_blkno = nb;
 	freework->fw_frags = frags;
-	freework->fw_ref = 0;
+	freework->fw_ref = ((UFSTOVFS(ump)->mnt_kern_flag & MNTK_SUJ) == 0 ||
+	    lbn >= -NXADDR) ? 0 : NINDIR(ump->um_fs) + 1;
 	freework->fw_off = 0;
 	LIST_INIT(&freework->fw_jwork);
 
@@ -5190,15 +5205,16 @@ softdep_setup_freeblocks(ip, length, flags)
 				continue;
 			frags = sblksize(fs, oldsize, i);
 			frags = numfrags(fs, frags);
-			newfreework(freeblks, NULL, i, blkno, frags, needj);
+			newfreework(ip->i_ump, freeblks, NULL, i, blkno, frags,
+			    needj);
 		}
 		for (i = 0, tmpval = NINDIR(fs), lbn = NDADDR; i < NIADDR;
 		    i++, tmpval *= NINDIR(fs)) {
 			blkno = DIP(ip, i_ib[i]);
 			DIP_SET(ip, i_ib[i], 0);
-			if (blkno) 
-				newfreework(freeblks, NULL, -lbn - i, blkno,
-				    fs->fs_frag, needj);
+			if (blkno)
+				newfreework(ip->i_ump, freeblks, NULL, -lbn - i,
+				    blkno, fs->fs_frag, needj);
 			lbn += tmpval;
 		}
 		UFS_LOCK(ip->i_ump);
@@ -5216,8 +5232,8 @@ softdep_setup_freeblocks(ip, length, flags)
 				continue;
 			frags = sblksize(fs, oldextsize, i);
 			frags = numfrags(fs, frags);
-			newfreework(freeblks, NULL, -1 - i, blkno, frags,
-			    needj);
+			newfreework(ip->i_ump, freeblks, NULL, -1 - i, blkno,
+			    frags, needj);
 		}
 	}
 	if (LIST_EMPTY(&freeblks->fb_jfreeblkhd))
@@ -5263,7 +5279,7 @@ softdep_setup_freeblocks(ip, length, flags)
 	if (delay)
 		WORKLIST_INSERT(&bp->b_dep, &freeblks->fb_list);
 	else if (needj)
-		freeblks->fb_state |= DEPCOMPLETE | COMPLETE;
+		freeblks->fb_state |= COMPLETE;
 	/*
 	 * Because the file length has been truncated to zero, any
 	 * pending block allocation dependency structures associated
@@ -5325,8 +5341,9 @@ restart:
 	if (inodedep_lookup(mp, ip->i_number, 0, &inodedep) != 0)
 		(void) free_inodedep(inodedep);
 
-	if (delay) {
+	if (delay || needj)
 		freeblks->fb_state |= DEPCOMPLETE;
+	if (delay) {
 		/*
 		 * If the inode with zeroed block pointers is now on disk
 		 * we can start freeing blocks. Add freeblks to the worklist
@@ -5337,6 +5354,8 @@ restart:
 		if ((freeblks->fb_state & ALLCOMPLETE) == ALLCOMPLETE)
 			add_to_worklist(&freeblks->fb_list, 1);
 	}
+	if (needj && LIST_EMPTY(&freeblks->fb_jfreeblkhd))
+		needj = 0;
 
 	FREE_LOCK(&lk);
 	/*
@@ -5486,7 +5505,7 @@ cancel_allocdirect(adphead, adp, freeblks, delay)
 	newblk = (struct newblk *)adp;
 	/*
 	 * If the journal hasn't been written the jnewblk must be passed
-	 * to the call to ffs_freeblk that reclaims the space.  We accomplish
+	 * to the call to ffs_blkfree that reclaims the space.  We accomplish
 	 * this by linking the journal dependency into the freework to be
 	 * freed when freework_freeblock() is called.  If the journal has
 	 * been written we can simply reclaim the journal space when the
@@ -6014,11 +6033,12 @@ handle_complete_freeblocks(freeblks)
 		vput(vp);
 	}
 
-#ifdef INVARIANTS
-	if (freeblks->fb_chkcnt != 0 && 
-	    ((fs->fs_flags & FS_UNCLEAN) == 0 || (flags & LK_NOWAIT) != 0))
-		printf("handle_workitem_freeblocks: block count\n");
-#endif /* INVARIANTS */
+	if (!(freeblks->fb_chkcnt == 0 ||
+	    ((fs->fs_flags & FS_UNCLEAN) != 0 && (flags & LK_NOWAIT) == 0)))
+	        printf(
+	"handle_workitem_freeblocks: inode %ju block count %jd\n",
+		   (uintmax_t)freeblks->fb_previousinum,
+		   (intmax_t)freeblks->fb_chkcnt);
 
 	ACQUIRE_LOCK(&lk);
 	/*
@@ -6073,9 +6093,7 @@ indir_trunc(freework, dbn, lbn)
 	fs_pendingblocks = 0;
 	freedeps = 0;
 	needj = UFSTOVFS(ump)->mnt_kern_flag & MNTK_SUJ;
-	lbnadd = 1;
-	for (i = level; i > 0; i--)
-		lbnadd *= NINDIR(fs);
+	lbnadd = lbn_offset(fs, level);
 	/*
 	 * Get buffer of block pointers to be freed. This routine is not
 	 * called until the zero'ed inode has been written, so it is safe
@@ -6129,25 +6147,26 @@ indir_trunc(freework, dbn, lbn)
 		ufs1fmt = 0;
 		bap2 = (ufs2_daddr_t *)bp->b_data;
 	}
+
 	/*
 	 * Reclaim indirect blocks which never made it to disk.
 	 */
 	cnt = 0;
 	LIST_FOREACH_SAFE(wk, &wkhd, wk_list, wkn) {
-		struct workhead freewk;
 		if (wk->wk_type != D_JNEWBLK)
 			continue;
-		WORKLIST_REMOVE_UNLOCKED(wk);
-		LIST_INIT(&freewk);
-		WORKLIST_INSERT_UNLOCKED(&freewk, wk);
+		ACQUIRE_LOCK(&lk);
+		WORKLIST_REMOVE(wk);
+		FREE_LOCK(&lk);
 		jnewblk = WK_JNEWBLK(wk);
 		if (jnewblk->jn_lbn > 0)
 			i = (jnewblk->jn_lbn - -lbn) / lbnadd;
 		else
-			i = (jnewblk->jn_lbn - (lbn + 1)) / lbnadd;
+			i = (-(jnewblk->jn_lbn + level - 1) - -(lbn + level)) /
+			    lbnadd;
 		KASSERT(i >= 0 && i < NINDIR(fs),
-		    ("indir_trunc: Index out of range %d parent %jd lbn %jd",
-		    i, lbn, jnewblk->jn_lbn));
+		    ("indir_trunc: Index out of range %d parent %jd lbn %jd level %d",
+		    i, lbn, jnewblk->jn_lbn, level));
 		/* Clear the pointer so it isn't found below. */
 		if (ufs1fmt) {
 			nb = bap1[i];
@@ -6159,13 +6178,29 @@ indir_trunc(freework, dbn, lbn)
 		KASSERT(nb == jnewblk->jn_blkno,
 		    ("indir_trunc: Block mismatch %jd != %jd",
 		    nb, jnewblk->jn_blkno));
-		ffs_blkfree(ump, fs, freeblks->fb_devvp, jnewblk->jn_blkno,
-		    fs->fs_bsize, freeblks->fb_previousinum, &freewk);
+		if (level != 0) {
+			ufs_lbn_t nlbn;
+
+			nlbn = (lbn + 1) - (i * lbnadd);
+			nfreework = newfreework(ump, freeblks, freework,
+			    nlbn, nb, fs->fs_frag, 0);
+			WORKLIST_INSERT_UNLOCKED(&nfreework->fw_jwork, wk);
+			freedeps++;
+			indir_trunc(nfreework, fsbtodb(fs, nb), nlbn);
+		} else {
+			struct workhead freewk;
+
+			LIST_INIT(&freewk);
+			ACQUIRE_LOCK(&lk);
+			WORKLIST_INSERT(&freewk, wk);
+			FREE_LOCK(&lk);
+			ffs_blkfree(ump, fs, freeblks->fb_devvp,
+			    jnewblk->jn_blkno, fs->fs_bsize,
+			    freeblks->fb_previousinum, &freewk);
+		}
 		cnt++;
 	}
 	ACQUIRE_LOCK(&lk);
-	if (needj)
-		freework->fw_ref += NINDIR(fs) + 1;
 	/* Any remaining journal work can be completed with freeblks. */
 	jwork_move(&freeblks->fb_jwork, &wkhd);
 	FREE_LOCK(&lk);
@@ -6194,7 +6229,7 @@ indir_trunc(freework, dbn, lbn)
 
 			nlbn = (lbn + 1) - (i * lbnadd);
 			if (needj != 0) {
-				nfreework = newfreework(freeblks, freework,
+				nfreework = newfreework(ump, freeblks, freework,
 				    nlbn, nb, fs->fs_frag, 0);
 				freedeps++;
 			}
@@ -6271,7 +6306,7 @@ cancel_allocindir(aip, inodedep, freeblks)
 
 	/*
 	 * If the journal hasn't been written the jnewblk must be passed
-	 * to the call to ffs_freeblk that reclaims the space.  We accomplish
+	 * to the call to ffs_blkfree that reclaims the space.  We accomplish
 	 * this by linking the journal dependency into the indirdep to be
 	 * freed when indir_trunc() is called.  If the journal has already
 	 * been written we can simply reclaim the journal space when the
@@ -6887,7 +6922,7 @@ softdep_setup_remove(bp, dp, ip, isrmdir)
 	 * newdirrem() to setup the full directory remove which requires
 	 * isrmdir > 1.
 	 */
-	dirrem = newdirrem(bp, dp, ip, isrmdir?2:0, &prevdirrem);
+	dirrem = newdirrem(bp, dp, ip, isrmdir, &prevdirrem);
 	/*
 	 * Add the dirrem to the inodedep's pending remove list for quick
 	 * discovery later.
@@ -7121,14 +7156,12 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 			    ip->i_effnlink + 2);
 			dotremref = newjremref(dirrem, ip, ip, DOT_OFFSET,
 			    ip->i_effnlink + 1);
-		} else
-			jremref = newjremref(dirrem, dp, ip, dp->i_offset,
-			    ip->i_effnlink + 1);
-		if (isrmdir > 1) {
 			dotdotremref = newjremref(dirrem, ip, dp, DOTDOT_OFFSET,
 			    dp->i_effnlink + 1);
 			dotdotremref->jr_state |= MKDIR_PARENT;
-		}
+		} else
+			jremref = newjremref(dirrem, dp, ip, dp->i_offset,
+			    ip->i_effnlink + 1);
 	}
 	ACQUIRE_LOCK(&lk);
 	lbn = lblkno(dp->i_fs, dp->i_offset);
@@ -7153,7 +7186,7 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	 * cancel it.  Any pending journal work will be added to the dirrem
 	 * to be completed when the workitem remove completes.
 	 */
-	if (isrmdir > 1)
+	if (isrmdir)
 		dotdotremref = cancel_diradd_dotdot(ip, dirrem, dotdotremref);
 	/*
 	 * Check for a diradd dependency for the same directory entry.
@@ -7492,7 +7525,7 @@ handle_written_sbdep(sbdep, bp)
 	if (inodedep_lookup(mp, fs->fs_sujfree, 0, &inodedep) == 0)
 		panic("handle_written_sbdep: lost inodedep");
 	/*
-	 * Now that we have a record of this indode in stable store allow it
+	 * Now that we have a record of this inode in stable store allow it
 	 * to be written to free up pending work.  Inodes may see a lot of
 	 * write activity after they are unlinked which we must not hold up.
 	 */
@@ -7509,8 +7542,7 @@ handle_written_sbdep(sbdep, bp)
 }
 
 /*
- * Mark an inodedep has unlinked and insert it into the in-memory unlinked
- * list.
+ * Mark an inodedep as unlinked and insert it into the in-memory unlinked list.
  */
 static void
 unlinked_inodedep(mp, inodedep)
@@ -7576,7 +7608,7 @@ clear_unlinked_inodedep(inodedep)
 		 * link before us, whether it be the superblock or an inode.
 		 * Unfortunately the list may change while we're waiting
 		 * on the buf lock for either resource so we must loop until
-		 * we lock. the right one.  If both the superblock and an
+		 * we lock the right one.  If both the superblock and an
 		 * inode point to this inode we must clear the inode first
 		 * followed by the superblock.
 		 */
@@ -9094,7 +9126,7 @@ handle_jwork(wkhd)
 /*
  * Handle the bufwait list on an inode when it is safe to release items
  * held there.  This normally happens after an inode block is written but
- * may be delayed and handle later if there are pending journal items that
+ * may be delayed and handled later if there are pending journal items that
  * are not yet safe to be released.
  */
 static struct freefile *
@@ -9464,7 +9496,7 @@ handle_written_indirdep(indirdep, bp, bpp)
 	indirdep->ir_state |= ATTACHED;
 	/*
 	 * Move allocindirs with written pointers to the completehd if
-	 * the the indirdep's pointer is not yet written.  Otherwise
+	 * the indirdep's pointer is not yet written.  Otherwise
 	 * free them here.
 	 */
 	while ((aip = LIST_FIRST(&indirdep->ir_writehd)) != 0) {

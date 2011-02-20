@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mem.h,v 1.78.120.3 2009/02/11 03:07:01 jinmei Exp $ */
+/* $Id: mem.h,v 1.78.120.6 2010-08-11 23:04:21 jinmei Exp $ */
 
 #ifndef ISC_MEM_H
 #define ISC_MEM_H 1
@@ -121,7 +121,7 @@ LIBISC_EXTERNAL_DATA extern unsigned int isc_mem_debugging;
 
 #if ISC_MEM_TRACKLINES
 #define _ISC_MEM_FILELINE	, __FILE__, __LINE__
-#define _ISC_MEM_FLARG		, const char *, int
+#define _ISC_MEM_FLARG		, const char *, unsigned int
 #else
 #define _ISC_MEM_FILELINE
 #define _ISC_MEM_FLARG
@@ -332,6 +332,14 @@ isc_mem_inuse(isc_mem_t *mctx);
  * Get an estimate of the number of memory in use in 'mctx', in bytes.
  * This includes quantization overhead, but does not include memory
  * allocated from the system but not yet used.
+ */
+
+isc_boolean_t
+isc_mem_isovermem(isc_mem_t *mctx);
+/*%<
+ * Return true iff the memory context is in "over memory" state, i.e.,
+ * a hiwater mark has been set and the used amount of memory has exceeds
+ * the mark.
  */
 
 void

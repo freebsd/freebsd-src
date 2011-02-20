@@ -81,11 +81,18 @@ namespace llvm {
 
   //===--------------------------------------------------------------------===//
   //
+  // createTypeBasedAliasAnalysisPass - This pass implements metadata-based
+  // type-based alias analysis.
+  //
+  ImmutablePass *createTypeBasedAliasAnalysisPass();
+
+  //===--------------------------------------------------------------------===//
+  //
   // createProfileLoaderPass - This pass loads information from a profile dump
   // file.
   //
   ModulePass *createProfileLoaderPass();
-  extern const PassInfo *ProfileLoaderPassID;
+  extern char &ProfileLoaderPassID;
 
   //===--------------------------------------------------------------------===//
   //
@@ -99,7 +106,7 @@ namespace llvm {
   // instead of loading it from a previous run.
   //
   FunctionPass *createProfileEstimatorPass();
-  extern const PassInfo *ProfileEstimatorPassID;
+  extern char &ProfileEstimatorPassID;
 
   //===--------------------------------------------------------------------===//
   //
@@ -153,6 +160,13 @@ namespace llvm {
 
   // print debug info intrinsics in human readable form
   FunctionPass *createDbgInfoPrinterPass();
+
+  //===--------------------------------------------------------------------===//
+  //
+  // createRegionInfoPass - This pass finds all single entry single exit regions
+  // in a function and builds the region hierarchy.
+  //
+  FunctionPass *createRegionInfoPass();
 
   // Print module-level debug info metadata in human-readable form.
   ModulePass *createModuleDebugInfoPrinterPass();

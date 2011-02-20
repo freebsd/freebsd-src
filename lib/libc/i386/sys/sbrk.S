@@ -89,3 +89,5 @@ err:
 	jmp	HIDENAME(cerror)
 #endif /* PIC */
 END(sbrk)
+
+	.section .note.GNU-stack,"",%progbits

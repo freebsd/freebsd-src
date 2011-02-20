@@ -8,22 +8,20 @@ SRCS=	AliasAnalysis.cpp \
 	AliasAnalysisEvaluator.cpp \
 	AliasDebugger.cpp \
 	AliasSetTracker.cpp \
-	Analysis.cpp \
 	BasicAliasAnalysis.cpp \
 	CFGPrinter.cpp \
 	CaptureTracking.cpp \
 	ConstantFolding.cpp \
 	DbgInfoPrinter.cpp \
 	DebugInfo.cpp \
+	DomPrinter.cpp \
 	IVUsers.cpp \
 	InlineCost.cpp \
-	InstCount.cpp \
 	InstructionSimplify.cpp \
 	Interval.cpp \
 	IntervalPartition.cpp \
 	LazyValueInfo.cpp \
 	LibCallAliasAnalysis.cpp \
-	LibCallSemantics.cpp \
 	Lint.cpp \
 	LiveValues.cpp \
 	Loads.cpp \
@@ -41,12 +39,13 @@ SRCS=	AliasAnalysis.cpp \
 	ProfileInfoLoader.cpp \
 	ProfileInfoLoaderPass.cpp \
 	ProfileVerifierPass.cpp \
+	RegionInfo.cpp \
+	RegionPrinter.cpp \
 	ScalarEvolution.cpp \
 	ScalarEvolutionAliasAnalysis.cpp \
 	ScalarEvolutionExpander.cpp \
 	ScalarEvolutionNormalization.cpp \
 	SparsePropagation.cpp \
-	Trace.cpp \
 	ValueTracking.cpp
 
 TGHDRS=	Intrinsics

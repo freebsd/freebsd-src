@@ -200,7 +200,7 @@ cpu_initclocks(void)
 	if (!irq)
 		panic("Unable to allocate the clock irq handler.\n");
 
-	err = bus_setup_intr(dev, irq, INTR_TYPE_CLK | INTR_FAST,
+	err = bus_setup_intr(dev, irq, INTR_TYPE_CLK,
 	    clock_intr, NULL, NULL, &ihl);
 	if (err != 0)
 		panic("Unable to setup the clock irq handler.\n");

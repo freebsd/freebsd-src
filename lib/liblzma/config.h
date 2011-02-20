@@ -4,7 +4,6 @@
 #define HAVE_CHECK_CRC64 1
 #define HAVE_CHECK_SHA256 1
 #define HAVE_DECL_PROGRAM_INVOCATION_NAME 0
-#define HAVE_DECODER 1
 #define HAVE_DECODER_ARM 1
 #define HAVE_DECODER_ARMTHUMB 1
 #define HAVE_DECODER_DELTA 1
@@ -15,7 +14,6 @@
 #define HAVE_DECODER_SPARC 1
 #define HAVE_DECODER_X86 1
 #define HAVE_DLFCN_H 1
-#define HAVE_ENCODER 1
 #define HAVE_ENCODER_ARM 1
 #define HAVE_ENCODER_ARMTHUMB 1
 #define HAVE_ENCODER_DELTA 1
@@ -31,6 +29,7 @@
 #define HAVE_GETOPT_LONG 1
 #define HAVE_INTTYPES_H 1
 #define HAVE_LIMITS_H 1
+#define HAVE_MBRTOWC 1
 #define HAVE_MEMORY_H 1
 #define HAVE_MF_BT2 1
 #define HAVE_MF_BT3 1
@@ -53,19 +52,20 @@
 #define HAVE_UINTPTR_T 1
 #define HAVE_UNISTD_H 1
 #define HAVE_VISIBILITY 1
+#define HAVE_WCWIDTH 1
 #define HAVE__BOOL 1
 #define LT_OBJDIR ".libs/"
 #define NDEBUG 1
 #define PACKAGE "xz"
 #define PACKAGE_BUGREPORT "lasse.collin@tukaani.org"
 #define PACKAGE_NAME "XZ Utils"
-#define PACKAGE_STRING "XZ Utils 4.999.9beta"
+#define PACKAGE_STRING "XZ Utils 5.0.0"
 #define PACKAGE_TARNAME "xz"
 #define PACKAGE_URL "http://tukaani.org/xz/"
-#define PACKAGE_VERSION "4.999.9beta"
+#define PACKAGE_VERSION "5.0.0"
 #define SIZEOF_SIZE_T 8
 #define STDC_HEADERS 1
-#define TUKLIB_CPUCORES_SYSCONF 1
+#define TUKLIB_CPUCORES_SYSCTL 1
 #define TUKLIB_PHYSMEM_SYSCONF 1
 #ifndef _ALL_SOURCE
 # define _ALL_SOURCE 1
@@ -82,7 +82,7 @@
 #ifndef __EXTENSIONS__
 # define __EXTENSIONS__ 1
 #endif
-#define VERSION "4.999.9beta"
+#define VERSION "5.0.0"
 #if defined(__FreeBSD__)
 #include <machine/endian.h>
 #if _BYTE_ORDER == _BIG_ENDIAN

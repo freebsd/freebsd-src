@@ -389,6 +389,7 @@ do_execve(td, args, mac_p)
 	imgp->canarylen = 0;
 	imgp->pagesizes = 0;
 	imgp->pagesizeslen = 0;
+	imgp->stack_prot = 0;
 
 #ifdef MAC
 	error = mac_execve_enter(imgp, mac_p);
@@ -655,16 +656,8 @@ interpret:
 		setsugid(p);
 
 #ifdef KTRACE
-		if (p->p_tracevp != NULL &&
-		    priv_check_cred(oldcred, PRIV_DEBUG_DIFFCRED, 0)) {
-			mtx_lock(&ktrace_mtx);
-			p->p_traceflag = 0;
-			tracevp = p->p_tracevp;
-			p->p_tracevp = NULL;
-			tracecred = p->p_tracecred;
-			p->p_tracecred = NULL;
-			mtx_unlock(&ktrace_mtx);
-		}
+		if (priv_check_cred(oldcred, PRIV_DEBUG_DIFFCRED, 0))
+			ktrprocexec(p, &tracecred, &tracevp);
 #endif
 		/*
 		 * Close any file descriptors 0..2 that reference procfs,
@@ -1004,6 +997,7 @@ exec_new_vmspace(imgp, sv)
 	int error;
 	struct proc *p = imgp->proc;
 	struct vmspace *vmspace = p->p_vmspace;
+	vm_object_t obj;
 	vm_offset_t sv_minuser, stack_addr;
 	vm_map_t map;
 	u_long ssiz;
@@ -1037,6 +1031,20 @@ exec_new_vmspace(imgp, sv)
 		map = &vmspace->vm_map;
 	}
 
+	/* Map a shared page */
+	obj = sv->sv_shared_page_obj;
+	if (obj != NULL) {
+		vm_object_reference(obj);
+		error = vm_map_fixed(map, obj, 0,
+		    sv->sv_shared_page_base, sv->sv_shared_page_len,
+		    VM_PROT_READ | VM_PROT_EXECUTE, VM_PROT_ALL,
+		    MAP_COPY_ON_WRITE | MAP_ACC_NO_CHARGE);
+		if (error) {
+			vm_object_deallocate(obj);
+			return (error);
+		}
+	}
+
 	/* Allocate a new stack */
 	if (sv->sv_maxssiz != NULL)
 		ssiz = *sv->sv_maxssiz;
@@ -1044,7 +1052,9 @@ exec_new_vmspace(imgp, sv)
 		ssiz = maxssiz;
 	stack_addr = sv->sv_usrstack - ssiz;
 	error = vm_map_stack(map, stack_addr, (vm_size_t)ssiz,
-	    sv->sv_stackprot, VM_PROT_ALL, MAP_STACK_GROWS_DOWN);
+	    obj != NULL && imgp->stack_prot != 0 ? imgp->stack_prot :
+		sv->sv_stackprot,
+	    VM_PROT_ALL, MAP_STACK_GROWS_DOWN);
 	if (error)
 		return (error);
 
@@ -1216,8 +1226,10 @@ exec_copyout_strings(imgp)
 	p = imgp->proc;
 	szsigcode = 0;
 	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
-	if (p->p_sysent->sv_szsigcode != NULL)
-		szsigcode = *(p->p_sysent->sv_szsigcode);
+	if (p->p_sysent->sv_sigcode_base == 0) {
+		if (p->p_sysent->sv_szsigcode != NULL)
+			szsigcode = *(p->p_sysent->sv_szsigcode);
+	}
 	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
 	    roundup(execpath_len, sizeof(char *)) -
 	    roundup(sizeof(canary), sizeof(char *)) -
@@ -1227,7 +1239,7 @@ exec_copyout_strings(imgp)
 	/*
 	 * install sigcode
 	 */
-	if (szsigcode)
+	if (szsigcode != 0)
 		copyout(p->p_sysent->sv_sigcode, ((caddr_t)arginfo -
 		    szsigcode), szsigcode);
 
@@ -1363,17 +1375,17 @@ exec_check_permissions(imgp)
 	if (error)
 		return (error);
 #endif
-	
+
 	/*
-	 * 1) Check if file execution is disabled for the filesystem that this
-	 *	file resides on.
-	 * 2) Insure that at least one execute bit is on - otherwise root
-	 *	will always succeed, and we don't want to happen unless the
-	 *	file really is executable.
-	 * 3) Insure that the file is a regular file.
+	 * 1) Check if file execution is disabled for the filesystem that
+	 *    this file resides on.
+	 * 2) Ensure that at least one execute bit is on. Otherwise, a
+	 *    privileged user will always succeed, and we don't want this
+	 *    to happen unless the file really is executable.
+	 * 3) Ensure that the file is a regular file.
 	 */
 	if ((vp->v_mount->mnt_flag & MNT_NOEXEC) ||
-	    ((attr->va_mode & 0111) == 0) ||
+	    (attr->va_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) == 0 ||
 	    (attr->va_type != VREG))
 		return (EACCES);
 
@@ -1466,4 +1478,65 @@ exec_unregister(execsw_arg)
 		free(execsw, M_TEMP);
 	execsw = newexecsw;
 	return (0);
+}
+
+static vm_object_t shared_page_obj;
+static int shared_page_free;
+
+int
+shared_page_fill(int size, int align, const char *data)
+{
+	vm_page_t m;
+	struct sf_buf *s;
+	vm_offset_t sk;
+	int res;
+
+	VM_OBJECT_LOCK(shared_page_obj);
+	m = vm_page_grab(shared_page_obj, 0, VM_ALLOC_RETRY);
+	res = roundup(shared_page_free, align);
+	if (res + size >= IDX_TO_OFF(shared_page_obj->size))
+		res = -1;
+	else {
+		VM_OBJECT_UNLOCK(shared_page_obj);
+		s = sf_buf_alloc(m, SFB_DEFAULT);
+		sk = sf_buf_kva(s);
+		bcopy(data, (void *)(sk + res), size);
+		shared_page_free = res + size;
+		sf_buf_free(s);
+		VM_OBJECT_LOCK(shared_page_obj);
+	}
+	vm_page_wakeup(m);
+	VM_OBJECT_UNLOCK(shared_page_obj);
+	return (res);
+}
+
+static void
+shared_page_init(void *dummy __unused)
+{
+	vm_page_t m;
+
+	shared_page_obj = vm_pager_allocate(OBJT_PHYS, 0, PAGE_SIZE,
+	    VM_PROT_DEFAULT, 0, NULL);
+	VM_OBJECT_LOCK(shared_page_obj);
+	m = vm_page_grab(shared_page_obj, 0, VM_ALLOC_RETRY | VM_ALLOC_NOBUSY |
+	    VM_ALLOC_ZERO);
+	m->valid = VM_PAGE_BITS_ALL;
+	VM_OBJECT_UNLOCK(shared_page_obj);
+}
+
+SYSINIT(shp, SI_SUB_EXEC, SI_ORDER_FIRST, (sysinit_cfunc_t)shared_page_init,
+    NULL);
+
+void
+exec_sysvec_init(void *param)
+{
+	struct sysentvec *sv;
+
+	sv = (struct sysentvec *)param;
+
+	if ((sv->sv_flags & SV_SHP) == 0)
+		return;
+	sv->sv_shared_page_obj = shared_page_obj;
+	sv->sv_sigcode_base = sv->sv_shared_page_base +
+	    shared_page_fill(*(sv->sv_szsigcode), 16, sv->sv_sigcode);
 }

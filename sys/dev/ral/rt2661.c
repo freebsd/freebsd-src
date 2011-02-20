@@ -100,7 +100,6 @@ static void		rt2661_reset_rx_ring(struct rt2661_softc *,
 			    struct rt2661_rx_ring *);
 static void		rt2661_free_rx_ring(struct rt2661_softc *,
 			    struct rt2661_rx_ring *);
-static void		rt2661_newassoc(struct ieee80211_node *, int);
 static int		rt2661_newstate(struct ieee80211vap *,
 			    enum ieee80211_state, int);
 static uint16_t		rt2661_eeprom_read(struct rt2661_softc *, uint8_t);
@@ -294,7 +293,6 @@ rt2661_attach(device_t dev, int id)
 		| IEEE80211_C_TXFRAG		/* handle tx frags */
 		| IEEE80211_C_WME		/* 802.11e */
 #endif
-		| IEEE80211_C_RATECTL		/* use ratectl */
 		;
 
 	bands = 0;
@@ -305,7 +303,6 @@ rt2661_attach(device_t dev, int id)
 	ieee80211_init_channels(ic, NULL, &bands);
 
 	ieee80211_ifattach(ic, macaddr);
-	ic->ic_newassoc = rt2661_newassoc;
 #if 0
 	ic->ic_wme.wme_update = rt2661_wme_update;
 #endif
@@ -763,13 +760,6 @@ rt2661_free_rx_ring(struct rt2661_softc *sc, struct rt2661_rx_ring *ring)
 
 	if (ring->data_dmat != NULL)
 		bus_dma_tag_destroy(ring->data_dmat);
-}
-
-static void
-rt2661_newassoc(struct ieee80211_node *ni, int isnew)
-{
-	/* XXX move */
-	ieee80211_ratectl_node_init(ni);
 }
 
 static int

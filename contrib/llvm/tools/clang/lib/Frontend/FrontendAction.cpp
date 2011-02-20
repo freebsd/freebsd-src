@@ -8,13 +8,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Frontend/FrontendAction.h"
+#include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
-#include "clang/Sema/ParseAST.h"
+#include "clang/Parse/ParseAST.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -50,7 +51,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
 
     llvm::IntrusiveRefCntPtr<Diagnostic> Diags(&CI.getDiagnostics());
     std::string Error;
-    ASTUnit *AST = ASTUnit::LoadFromPCHFile(Filename, Diags);
+    ASTUnit *AST = ASTUnit::LoadFromASTFile(Filename, Diags);
     if (!AST)
       goto failure;
 
@@ -112,18 +113,21 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   if (!usesPreprocessorOnly()) {
     CI.createASTContext();
 
-    /// Use PCH? If so, we want the PCHReader active before the consumer
-    /// is created, because the consumer might be interested in the reader
-    /// (e.g. the PCH writer for chaining).
+    llvm::OwningPtr<ASTConsumer> Consumer(CreateASTConsumer(CI, Filename));
+
+    /// Use PCH?
     if (!CI.getPreprocessorOpts().ImplicitPCHInclude.empty()) {
       assert(hasPCHSupport() && "This action does not have PCH support!");
       CI.createPCHExternalASTSource(
-        CI.getPreprocessorOpts().ImplicitPCHInclude);
+                                CI.getPreprocessorOpts().ImplicitPCHInclude,
+                                CI.getPreprocessorOpts().DisablePCHValidation,
+                                CI.getInvocation().getFrontendOpts().ChainedPCH?
+                                 Consumer->GetASTDeserializationListener() : 0);
       if (!CI.getASTContext().getExternalSource())
         goto failure;
     }
 
-    CI.setASTConsumer(CreateASTConsumer(CI, Filename));
+    CI.setASTConsumer(Consumer.take());
     if (!CI.hasASTConsumer())
       goto failure;
   }
@@ -192,12 +196,16 @@ void FrontendAction::EndSourceFile() {
   // FIXME: There is more per-file stuff we could just drop here?
   if (CI.getFrontendOpts().DisableFree) {
     CI.takeASTConsumer();
-    if (!isCurrentFileAST())
+    if (!isCurrentFileAST()) {
+      CI.takeSema();
       CI.takeASTContext();
+    }
   } else {
-    CI.setASTConsumer(0);
-    if (!isCurrentFileAST())
+    if (!isCurrentFileAST()) {
+      CI.setSema(0);
       CI.setASTContext(0);
+    }
+    CI.setASTConsumer(0);
   }
 
   // Inform the preprocessor we are done.
@@ -221,6 +229,7 @@ void FrontendAction::EndSourceFile() {
   CI.getDiagnosticClient().EndSourceFile();
 
   if (isCurrentFileAST()) {
+    CI.takeSema();
     CI.takeASTContext();
     CI.takePreprocessor();
     CI.takeSourceManager();
@@ -249,9 +258,10 @@ void ASTFrontendAction::ExecuteAction() {
   if (CI.hasCodeCompletionConsumer())
     CompletionConsumer = &CI.getCodeCompletionConsumer();
 
-  ParseAST(CI.getPreprocessor(), &CI.getASTConsumer(), CI.getASTContext(),
-           CI.getFrontendOpts().ShowStats,
-           usesCompleteTranslationUnit(), CompletionConsumer);
+  if (!CI.hasSema())
+    CI.createSema(usesCompleteTranslationUnit(), CompletionConsumer);
+
+  ParseAST(CI.getSema(), CI.getFrontendOpts().ShowStats);
 }
 
 ASTConsumer *

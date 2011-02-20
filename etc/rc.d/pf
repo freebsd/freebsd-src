@@ -29,7 +29,7 @@ pf_start()
 	$pf_program -F all > /dev/null 2>&1
 	$pf_program -f "$pf_rules" $pf_flags
 	if ! $pf_program -s info | grep -q "Enabled" ; then
-		$pf_program -e
+		$pf_program -eq
 	fi
 	check_startmsgs && echo '.'
 }
@@ -38,7 +38,7 @@ pf_stop()
 {
 	if $pf_program -s info | grep -q "Enabled" ; then
 		echo -n 'Disabling pf'
-		$pf_program -d
+		$pf_program -dq
 		echo '.'
 	fi
 }

@@ -159,7 +159,8 @@ static devclass_t psycho_devclass;
 
 DEFINE_CLASS_0(pcib, psycho_driver, psycho_methods,
     sizeof(struct psycho_softc));
-DRIVER_MODULE(psycho, nexus, psycho_driver, psycho_devclass, 0, 0);
+EARLY_DRIVER_MODULE(psycho, nexus, psycho_driver, psycho_devclass, 0, 0,
+    BUS_PASS_BUS);
 
 static SLIST_HEAD(, psycho_softc) psycho_softcs =
     SLIST_HEAD_INITIALIZER(psycho_softcs);
@@ -715,7 +716,7 @@ psycho_set_intr(struct psycho_softc *sc, u_int index, bus_addr_t intrmap,
 	    INTVEC(PSYCHO_READ8(sc, intrmap)) != vec ||
 	    intr_vectors[vec].iv_ic != &psycho_ic ||
 	    bus_setup_intr(sc->sc_dev, sc->sc_irq_res[index],
-	    INTR_TYPE_MISC | INTR_FAST, filt, intr, sc,
+	    INTR_TYPE_MISC | INTR_BRIDGE, filt, intr, sc,
 	    &sc->sc_ihand[index]) != 0)
 		panic("%s: failed to set up interrupt %d", __func__, index);
 }

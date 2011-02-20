@@ -167,6 +167,7 @@ public:
                                    bool lval = false);
   virtual llvm::Value *GetSelector(CGBuilderTy &Builder, const ObjCMethodDecl
       *Method);
+  virtual llvm::Constant *GetEHType(QualType T);
 
   virtual llvm::Function *GenerateMethod(const ObjCMethodDecl *OMD,
                                          const ObjCContainerDecl *CD);
@@ -192,7 +193,8 @@ public:
   virtual void EmitObjCWeakAssign(CodeGen::CodeGenFunction &CGF,
                                   llvm::Value *src, llvm::Value *dst);
   virtual void EmitObjCGlobalAssign(CodeGen::CodeGenFunction &CGF,
-                                    llvm::Value *src, llvm::Value *dest);
+                                    llvm::Value *src, llvm::Value *dest,
+                                    bool threadlocal=false);
   virtual void EmitObjCIvarAssign(CodeGen::CodeGenFunction &CGF,
                                     llvm::Value *src, llvm::Value *dest,
                                     llvm::Value *ivarOffset);
@@ -210,6 +212,10 @@ public:
   virtual llvm::Value *EmitIvarOffset(CodeGen::CodeGenFunction &CGF,
                                       const ObjCInterfaceDecl *Interface,
                                       const ObjCIvarDecl *Ivar);
+  virtual llvm::Constant *GCBlockLayout(CodeGen::CodeGenFunction &CGF,
+              const llvm::SmallVectorImpl<const BlockDeclRefExpr *> &) {
+    return NULLPtr;
+  }
 };
 } // end anonymous namespace
 
@@ -402,6 +408,11 @@ llvm::Value *CGObjCGNU::GetSelector(CGBuilderTy &Builder, const ObjCMethodDecl
   return Builder.CreateLoad(Sel);
 }
 
+llvm::Constant *CGObjCGNU::GetEHType(QualType T) {
+  llvm_unreachable("asking for catch type for ObjC type in GNU runtime");
+  return 0;
+}
+
 llvm::Constant *CGObjCGNU::MakeConstantString(const std::string &Str,
                                               const std::string &Name) {
   llvm::Constant *ConstStr = CGM.GetAddrOfConstantCString(Str, Name.c_str());
@@ -438,7 +449,7 @@ llvm::Constant *CGObjCGNU::MakeGlobal(const llvm::ArrayType *Ty,
 /// Generate an NSConstantString object.
 llvm::Constant *CGObjCGNU::GenerateConstantString(const StringLiteral *SL) {
 
-  std::string Str(SL->getStrData(), SL->getByteLength());
+  std::string Str = SL->getString().str();
 
   // Look for an existing one
   llvm::StringMap<llvm::Constant*>::iterator old = ObjCStrings.find(Str);
@@ -691,7 +702,7 @@ CGObjCGNU::GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
     Params.push_back(SelectorTy);
     llvm::Value *self;
 
-    if (isa<ObjCMethodDecl>(CGF.CurFuncDecl)) {
+    if (isa<ObjCMethodDecl>(CGF.CurCodeDecl)) {
       self = CGF.LoadObjCSelf();
     } else {
       self = llvm::ConstantPointerNull::get(IdTy);
@@ -721,8 +732,8 @@ CGObjCGNU::GenerateMessageSend(CodeGen::CodeGenFunction &CGF,
 
     // The lookup function may have changed the receiver, so make sure we use
     // the new one.
-    ActualArgs[0] =
-        std::make_pair(RValue::get(Builder.CreateLoad(ReceiverPtr)), ASTIdTy);
+    ActualArgs[0] = std::make_pair(RValue::get(
+        Builder.CreateLoad(ReceiverPtr, true)), ASTIdTy);
   } else {
     std::vector<const llvm::Type*> Params;
     Params.push_back(Receiver->getType());
@@ -1854,6 +1865,19 @@ llvm::Constant *CGObjCGNU::EnumerationMutationFunction() {
   return CGM.CreateRuntimeFunction(FTy, "objc_enumerationMutation");
 }
 
+namespace {
+  struct CallSyncExit : EHScopeStack::Cleanup {
+    llvm::Value *SyncExitFn;
+    llvm::Value *SyncArg;
+    CallSyncExit(llvm::Value *SyncExitFn, llvm::Value *SyncArg)
+      : SyncExitFn(SyncExitFn), SyncArg(SyncArg) {}
+
+    void Emit(CodeGenFunction &CGF, bool IsForEHCleanup) {
+      CGF.Builder.CreateCall(SyncExitFn, SyncArg)->setDoesNotThrow();
+    }
+  };
+}
+
 void CGObjCGNU::EmitSynchronizedStmt(CodeGen::CodeGenFunction &CGF,
                                      const ObjCAtSynchronizedStmt &S) {
   std::vector<const llvm::Type*> Args(1, IdTy);
@@ -1870,13 +1894,8 @@ void CGObjCGNU::EmitSynchronizedStmt(CodeGen::CodeGenFunction &CGF,
   CGF.Builder.CreateCall(SyncEnter, SyncArg);
 
   // Register an all-paths cleanup to release the lock.
-  {
-    CodeGenFunction::CleanupBlock ReleaseScope(CGF, NormalAndEHCleanup);
-
-    llvm::Value *SyncExit = CGM.CreateRuntimeFunction(FTy, "objc_sync_exit");
-    SyncArg = CGF.Builder.CreateBitCast(SyncArg, IdTy);
-    CGF.Builder.CreateCall(SyncExit, SyncArg);
-  }
+  llvm::Value *SyncExit = CGM.CreateRuntimeFunction(FTy, "objc_sync_exit");
+  CGF.EHStack.pushCleanup<CallSyncExit>(NormalAndEHCleanup, SyncExit, SyncArg);
 
   // Emit the body of the statement.
   CGF.EmitStmt(S.getSynchBody());
@@ -2007,13 +2026,11 @@ void CGObjCGNU::EmitTryStmt(CodeGen::CodeGenFunction &CGF,
   if (S.getFinallyStmt())
     CGF.ExitFinallyBlock(FinallyInfo);
 
-  if (Cont.Block) {
-    if (Cont.Block->use_empty())
-      delete Cont.Block;
-    else {
-      CGF.EmitBranch(Cont.Block);
-      CGF.EmitBlock(Cont.Block);
-    }
+  if (Cont.isValid()) {
+    if (Cont.getBlock()->use_empty())
+      delete Cont.getBlock();
+    else
+      CGF.EmitBlock(Cont.getBlock());
   }
 }
 
@@ -2075,11 +2092,16 @@ void CGObjCGNU::EmitObjCWeakAssign(CodeGen::CodeGenFunction &CGF,
 }
 
 void CGObjCGNU::EmitObjCGlobalAssign(CodeGen::CodeGenFunction &CGF,
-                                     llvm::Value *src, llvm::Value *dst) {
+                                     llvm::Value *src, llvm::Value *dst,
+                                     bool threadlocal) {
   CGBuilderTy B = CGF.Builder;
   src = EnforceType(B, src, IdTy);
   dst = EnforceType(B, dst, PtrToIdTy);
-  B.CreateCall2(GlobalAssignFn, src, dst);
+  if (!threadlocal)
+    B.CreateCall2(GlobalAssignFn, src, dst);
+  else
+    // FIXME. Add threadloca assign API
+    assert(false && "EmitObjCGlobalAssign - Threal Local API NYI");
 }
 
 void CGObjCGNU::EmitObjCIvarAssign(CodeGen::CodeGenFunction &CGF,

@@ -105,7 +105,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_cpu.h"
 #include "opt_pmap.h"
-#include "opt_msgbuf.h"
 #include "opt_smp.h"
 #include "opt_xbox.h"
 
@@ -217,13 +216,18 @@ pt_entry_t pg_nx;
 static uma_zone_t pdptzone;
 #endif
 
-static int pat_works = 0;		/* Is page attribute table sane? */
-
 SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
+
+static int pat_works = 1;
+SYSCTL_INT(_vm_pmap, OID_AUTO, pat_works, CTLFLAG_RD, &pat_works, 1,
+    "Is page attribute table fully functional?");
 
 static int pg_ps_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN, &pg_ps_enabled, 0,
     "Are large page mappings enabled?");
+
+#define	PAT_INDEX_SIZE	8
+static int pat_index[PAT_INDEX_SIZE];	/* cache mode to PAT index conversion */
 
 /*
  * Data for the pv entry allocation mechanism
@@ -247,7 +251,7 @@ struct sysmaps {
 	caddr_t	CADDR2;
 };
 static struct sysmaps sysmaps_pcpu[MAXCPU];
-pt_entry_t *CMAP1 = 0, *KPTmap;
+pt_entry_t *CMAP1 = 0;
 static pt_entry_t *CMAP3;
 static pd_entry_t *KPTD;
 caddr_t CADDR1 = 0, ptvmmap = 0;
@@ -362,12 +366,11 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	int i;
 
 	/*
-	 * XXX The calculation of virtual_avail is wrong. It's NKPT*PAGE_SIZE too
-	 * large. It should instead be correctly calculated in locore.s and
-	 * not based on 'first' (which is a physical address, not a virtual
-	 * address, for the start of unused physical memory). The kernel
-	 * page tables are NOT double mapped and thus should not be included
-	 * in this calculation.
+	 * Initialize the first available kernel virtual address.  However,
+	 * using "firstaddr" may waste a few pages of the kernel virtual
+	 * address space, because locore may not have mapped every physical
+	 * page that it allocated.  Preferably, locore would provide a first
+	 * unused virtual address in addition to "firstaddr".
 	 */
 	virtual_avail = (vm_offset_t) KERNBASE + firstaddr;
 
@@ -433,10 +436,14 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	/*
 	 * msgbufp is used to map the system message buffer.
 	 */
-	SYSMAP(struct msgbuf *, unused, msgbufp, atop(round_page(MSGBUF_SIZE)))
+	SYSMAP(struct msgbuf *, unused, msgbufp, atop(round_page(msgbufsize)))
 
 	/*
 	 * KPTmap is used by pmap_kextract().
+	 *
+	 * KPTmap is first initialized by locore.  However, that initial
+	 * KPTmap can only support NKPT page table pages.  Here, a larger
+	 * KPTmap is created that can support KVA_PAGES page table pages.
 	 */
 	SYSMAP(pt_entry_t *, KPTD, KPTmap, KVA_PAGES)
 
@@ -487,13 +494,28 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 void
 pmap_init_pat(void)
 {
+	int pat_table[PAT_INDEX_SIZE];
 	uint64_t pat_msr;
-	char *sysenv;
-	static int pat_tested = 0;
+	u_long cr0, cr4;
+	int i;
+
+	/* Set default PAT index table. */
+	for (i = 0; i < PAT_INDEX_SIZE; i++)
+		pat_table[i] = -1;
+	pat_table[PAT_WRITE_BACK] = 0;
+	pat_table[PAT_WRITE_THROUGH] = 1;
+	pat_table[PAT_UNCACHEABLE] = 3;
+	pat_table[PAT_WRITE_COMBINING] = 3;
+	pat_table[PAT_WRITE_PROTECTED] = 3;
+	pat_table[PAT_UNCACHED] = 3;
 
 	/* Bail if this CPU doesn't implement PAT. */
-	if (!(cpu_feature & CPUID_PAT))
+	if ((cpu_feature & CPUID_PAT) == 0) {
+		for (i = 0; i < PAT_INDEX_SIZE; i++)
+			pat_index[i] = pat_table[i];
+		pat_works = 0;
 		return;
+	}
 
 	/*
 	 * Due to some Intel errata, we can only safely use the lower 4
@@ -505,27 +527,10 @@ pmap_init_pat(void)
 	 *
 	 *   Intel Pentium IV  Processor Specification Update
 	 * Errata N46 (PAT Index MSB May Be Calculated Incorrectly)
-	 *
-	 * Some Apple Macs based on nVidia chipsets cannot enter ACPI mode
-	 * via SMI# when we use upper 4 PAT entries for unknown reason.
 	 */
-	if (!pat_tested) {
-		if (cpu_vendor_id != CPU_VENDOR_INTEL ||
-		    (CPUID_TO_FAMILY(cpu_id) == 6 &&
-		    CPUID_TO_MODEL(cpu_id) >= 0xe)) {
-			pat_works = 1;
-			sysenv = getenv("smbios.system.product");
-			if (sysenv != NULL) {
-				if (strncmp(sysenv, "MacBook5,1", 10) == 0 ||
-				    strncmp(sysenv, "MacBookPro5,5", 13) == 0 ||
-				    strncmp(sysenv, "Macmini3,1", 10) == 0 ||
-				    strncmp(sysenv, "iMac9,1", 7) == 0)
-					pat_works = 0;
-				freeenv(sysenv);
-			}
-		}
-		pat_tested = 1;
-	}
+	if (cpu_vendor_id == CPU_VENDOR_INTEL &&
+	    !(CPUID_TO_FAMILY(cpu_id) == 6 && CPUID_TO_MODEL(cpu_id) >= 0xe))
+		pat_works = 0;
 
 	/* Initialize default PAT entries. */
 	pat_msr = PAT_VALUE(0, PAT_WRITE_BACK) |
@@ -540,20 +545,48 @@ pmap_init_pat(void)
 	if (pat_works) {
 		/*
 		 * Leave the indices 0-3 at the default of WB, WT, UC-, and UC.
-		 * Program 4 and 5 as WP and WC.
-		 * Leave 6 and 7 as UC- and UC.
+		 * Program 5 and 6 as WP and WC.
+		 * Leave 4 and 7 as WB and UC.
 		 */
-		pat_msr &= ~(PAT_MASK(4) | PAT_MASK(5));
-		pat_msr |= PAT_VALUE(4, PAT_WRITE_PROTECTED) |
-		    PAT_VALUE(5, PAT_WRITE_COMBINING);
+		pat_msr &= ~(PAT_MASK(5) | PAT_MASK(6));
+		pat_msr |= PAT_VALUE(5, PAT_WRITE_PROTECTED) |
+		    PAT_VALUE(6, PAT_WRITE_COMBINING);
+		pat_table[PAT_UNCACHED] = 2;
+		pat_table[PAT_WRITE_PROTECTED] = 5;
+		pat_table[PAT_WRITE_COMBINING] = 6;
 	} else {
 		/*
 		 * Just replace PAT Index 2 with WC instead of UC-.
 		 */
 		pat_msr &= ~PAT_MASK(2);
 		pat_msr |= PAT_VALUE(2, PAT_WRITE_COMBINING);
+		pat_table[PAT_WRITE_COMBINING] = 2;
 	}
+
+	/* Disable PGE. */
+	cr4 = rcr4();
+	load_cr4(cr4 & ~CR4_PGE);
+
+	/* Disable caches (CD = 1, NW = 0). */
+	cr0 = rcr0();
+	load_cr0((cr0 & ~CR0_NW) | CR0_CD);
+
+	/* Flushes caches and TLBs. */
+	wbinvd();
+	invltlb();
+
+	/* Update PAT and index table. */
 	wrmsr(MSR_PAT, pat_msr);
+	for (i = 0; i < PAT_INDEX_SIZE; i++)
+		pat_index[i] = pat_table[i];
+
+	/* Flush caches and TLBs again. */
+	wbinvd();
+	invltlb();
+
+	/* Restore caches and PGE. */
+	load_cr0(cr0);
+	load_cr4(cr4);
 }
 
 /*
@@ -789,78 +822,24 @@ SYSCTL_ULONG(_vm_pmap_pde, OID_AUTO, promotions, CTLFLAG_RD,
 int
 pmap_cache_bits(int mode, boolean_t is_pde)
 {
-	int pat_flag, pat_index, cache_bits;
+	int cache_bits, pat_flag, pat_idx;
+
+	if (mode < 0 || mode >= PAT_INDEX_SIZE || pat_index[mode] < 0)
+		panic("Unknown caching mode %d\n", mode);
 
 	/* The PAT bit is different for PTE's and PDE's. */
 	pat_flag = is_pde ? PG_PDE_PAT : PG_PTE_PAT;
 
-	/* If we don't support PAT, map extended modes to older ones. */
-	if (!(cpu_feature & CPUID_PAT)) {
-		switch (mode) {
-		case PAT_UNCACHEABLE:
-		case PAT_WRITE_THROUGH:
-		case PAT_WRITE_BACK:
-			break;
-		case PAT_UNCACHED:
-		case PAT_WRITE_COMBINING:
-		case PAT_WRITE_PROTECTED:
-			mode = PAT_UNCACHEABLE;
-			break;
-		}
-	}
-	
 	/* Map the caching mode to a PAT index. */
-	if (pat_works) {
-		switch (mode) {
-		case PAT_UNCACHEABLE:
-			pat_index = 3;
-			break;
-		case PAT_WRITE_THROUGH:
-			pat_index = 1;
-			break;
-		case PAT_WRITE_BACK:
-			pat_index = 0;
-			break;
-		case PAT_UNCACHED:
-			pat_index = 2;
-			break;
-		case PAT_WRITE_COMBINING:
-			pat_index = 5;
-			break;
-		case PAT_WRITE_PROTECTED:
-			pat_index = 4;
-			break;
-		default:
-			panic("Unknown caching mode %d\n", mode);
-		}
-	} else {
-		switch (mode) {
-		case PAT_UNCACHED:
-		case PAT_UNCACHEABLE:
-		case PAT_WRITE_PROTECTED:
-			pat_index = 3;
-			break;
-		case PAT_WRITE_THROUGH:
-			pat_index = 1;
-			break;
-		case PAT_WRITE_BACK:
-			pat_index = 0;
-			break;
-		case PAT_WRITE_COMBINING:
-			pat_index = 2;
-			break;
-		default:
-			panic("Unknown caching mode %d\n", mode);
-		}
-	}
+	pat_idx = pat_index[mode];
 
 	/* Map the 3-bit index value into the PAT, PCD, and PWT bits. */
 	cache_bits = 0;
-	if (pat_index & 0x4)
+	if (pat_idx & 0x4)
 		cache_bits |= pat_flag;
-	if (pat_index & 0x2)
+	if (pat_idx & 0x2)
 		cache_bits |= PG_NC_PCD;
-	if (pat_index & 0x1)
+	if (pat_idx & 0x1)
 		cache_bits |= PG_NC_PWT;
 	return (cache_bits);
 }
@@ -1233,7 +1212,7 @@ pmap_pte(pmap_t pmap, vm_offset_t va)
 		}
 		return (PADDR2 + (i386_btop(va) & (NPTEPG - 1)));
 	}
-	return (0);
+	return (NULL);
 }
 
 /*
@@ -1342,7 +1321,7 @@ vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
 	pd_entry_t pde;
-	pt_entry_t pte;
+	pt_entry_t pte, *ptep;
 	vm_page_t m;
 	vm_paddr_t pa;
 
@@ -1362,8 +1341,9 @@ retry:
 				vm_page_hold(m);
 			}
 		} else {
-			sched_pin();
-			pte = *pmap_pte_quick(pmap, va);
+			ptep = pmap_pte(pmap, va);
+			pte = *ptep;
+			pmap_pte_release(ptep);
 			if (pte != 0 &&
 			    ((pte & PG_RW) || (prot & VM_PROT_WRITE) == 0)) {
 				if (vm_page_pa_tryrelock(pmap, pte & PG_FRAME, &pa))
@@ -1371,7 +1351,6 @@ retry:
 				m = PHYS_TO_VM_PAGE(pte & PG_FRAME);
 				vm_page_hold(m);
 			}
-			sched_unpin();
 		}
 	}
 	PA_UNLOCK_COND(pa);
@@ -1386,6 +1365,8 @@ retry:
 /*
  * Add a wired page to the kva.
  * Note: not SMP coherent.
+ *
+ * This function may be used before pmap_bootstrap() is called.
  */
 PMAP_INLINE void 
 pmap_kenter(vm_offset_t va, vm_paddr_t pa)
@@ -1408,6 +1389,8 @@ pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode)
 /*
  * Remove a page from the kernel pagetables.
  * Note: not SMP coherent.
+ *
+ * This function may be used before pmap_bootstrap() is called.
  */
 PMAP_INLINE void
 pmap_kremove(vm_offset_t va)
@@ -1671,11 +1654,19 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t *free)
 	return (pmap_unwire_pte_hold(pmap, mpte, free));
 }
 
+/*
+ * Initialize the pmap for the swapper process.
+ */
 void
 pmap_pinit0(pmap_t pmap)
 {
 
 	PMAP_LOCK_INIT(pmap);
+	/*
+	 * Since the page table directory is shared with the kernel pmap,
+	 * which is already included in the list "allpmaps", this pmap does
+	 * not need to be inserted into that list.
+	 */
 	pmap->pm_pdir = (pd_entry_t *)(KERNBASE + (vm_offset_t)IdlePTD);
 #ifdef PAE
 	pmap->pm_pdpt = (pdpt_entry_t *)(KERNBASE + (vm_offset_t)IdlePDPT);
@@ -1685,9 +1676,6 @@ pmap_pinit0(pmap_t pmap)
 	PCPU_SET(curpmap, pmap);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
-	mtx_lock_spin(&allpmaps_lock);
-	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
-	mtx_unlock_spin(&allpmaps_lock);
 }
 
 /*
@@ -1752,9 +1740,9 @@ pmap_pinit(pmap_t pmap)
 
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
-	mtx_unlock_spin(&allpmaps_lock);
-	/* Wire in kernel global address entries. */
+	/* Copy the kernel page table directory entries. */
 	bcopy(PTD + KPTDI, pmap->pm_pdir + KPTDI, nkpt * sizeof(pd_entry_t));
+	mtx_unlock_spin(&allpmaps_lock);
 
 	/* install self-referential address mapping entry(s) */
 	for (i = 0; i < NPGPTD; i++) {

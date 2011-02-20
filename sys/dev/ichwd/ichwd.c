@@ -110,7 +110,56 @@ static struct ichwd_device ichwd_devices[] = {
 	{ DEVICEID_ICH10D,   "Intel ICH10D watchdog timer",	10 },
 	{ DEVICEID_ICH10DO,  "Intel ICH10DO watchdog timer",	10 },
 	{ DEVICEID_ICH10R,   "Intel ICH10R watchdog timer",	10 },
+	{ DEVICEID_PCH,      "Intel PCH watchdog timer",	10 },
+	{ DEVICEID_PCHM,     "Intel PCH watchdog timer",	10 },
+	{ DEVICEID_P55,      "Intel P55 watchdog timer",	10 },
+	{ DEVICEID_PM55,     "Intel PM55 watchdog timer",	10 },
 	{ DEVICEID_H55,      "Intel H55 watchdog timer",	10 },
+	{ DEVICEID_QM57,     "Intel QM57 watchdog timer",       10 },
+	{ DEVICEID_H57,      "Intel H57 watchdog timer",        10 },
+	{ DEVICEID_HM55,     "Intel HM55 watchdog timer",       10 },
+	{ DEVICEID_Q57,      "Intel Q57 watchdog timer",        10 },
+	{ DEVICEID_HM57,     "Intel HM57 watchdog timer",       10 },
+	{ DEVICEID_PCHMSFF,  "Intel PCHMSFF watchdog timer",    10 },
+	{ DEVICEID_QS57,     "Intel QS57 watchdog timer",       10 },
+	{ DEVICEID_3400,     "Intel 3400 watchdog timer",       10 },
+	{ DEVICEID_3420,     "Intel 3420 watchdog timer",       10 },
+	{ DEVICEID_3450,     "Intel 3450 watchdog timer",       10 },
+	{ DEVICEID_CPT0,     "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT1,     "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT2,     "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT3,     "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT4,     "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT5,     "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT6,     "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT7,     "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT8,     "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT9,     "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT10,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT11,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT12,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT13,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT14,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT15,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT16,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT17,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT18,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT19,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT20,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT21,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT22,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT23,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT23,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT25,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT26,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT27,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT28,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT29,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT30,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_CPT31,    "Intel Cougar Point watchdog timer",	10 },
+	{ DEVICEID_DH89XXCC_LPC,  "Intel DH89xxCC watchdog timer",	10 },
+	{ DEVICEID_PATSBURG_LPC1, "Intel Patsburg watchdog timer",	10 },
+	{ DEVICEID_PATSBURG_LPC2, "Intel Patsburg watchdog timer",	10 },
 	{ 0, NULL, 0 },
 };
 
@@ -179,12 +228,12 @@ ichwd_sts_reset(struct ichwd_softc *sc)
 	 * by writing a 1, not a 0.
 	 */
 	ichwd_write_tco_2(sc, TCO1_STS, TCO_TIMEOUT);
-	/*
-	 * XXX The datasheet says that TCO_SECOND_TO_STS must be cleared
-	 * before TCO_BOOT_STS, not the other way around.
+	/* 
+	 * According to Intel's docs, clearing SECOND_TO_STS and BOOT_STS must 
+	 * be done in two separate operations.
 	 */
-	ichwd_write_tco_2(sc, TCO2_STS, TCO_BOOT_STS);
 	ichwd_write_tco_2(sc, TCO2_STS, TCO_SECOND_TO_STS);
+	ichwd_write_tco_2(sc, TCO2_STS, TCO_BOOT_STS);
 }
 
 /*
@@ -242,30 +291,23 @@ static __inline void
 ichwd_tmr_set(struct ichwd_softc *sc, unsigned int timeout)
 {
 
-	/*
-	 * If the datasheets are to be believed, the minimum value
-	 * actually varies from chipset to chipset - 4 for ICH5 and 2 for
-	 * all other chipsets.  I suspect this is a bug in the ICH5
-	 * datasheet and that the minimum is uniformly 2, but I'd rather
-	 * err on the side of caution.
-	 */
-	if (timeout < 4)
-		timeout = 4;
+	if (timeout < TCO_RLD_TMR_MIN)
+		timeout = TCO_RLD_TMR_MIN;
 
 	if (sc->ich_version <= 5) {
 		uint8_t tmr_val8 = ichwd_read_tco_1(sc, TCO_TMR1);
 
-		tmr_val8 &= 0xc0;
-		if (timeout > 0x3f)
-			timeout = 0x3f;
+		tmr_val8 &= (~TCO_RLD1_TMR_MAX & 0xff);
+		if (timeout > TCO_RLD1_TMR_MAX)
+			timeout = TCO_RLD1_TMR_MAX;
 		tmr_val8 |= timeout;
 		ichwd_write_tco_1(sc, TCO_TMR1, tmr_val8);
 	} else {
 		uint16_t tmr_val16 = ichwd_read_tco_2(sc, TCO_TMR2);
 
-		tmr_val16 &= 0xfc00;
-		if (timeout > 0x03ff)
-			timeout = 0x03ff;
+		tmr_val16 &= (~TCO_RLD2_TMR_MAX & 0xffff);
+		if (timeout > TCO_RLD2_TMR_MAX)
+			timeout = TCO_RLD2_TMR_MAX;
 		tmr_val16 |= timeout;
 		ichwd_write_tco_2(sc, TCO_TMR2, tmr_val16);
 	}
@@ -474,11 +516,13 @@ ichwd_attach(device_t dev)
 	    device_get_desc(dev), sc->ich_version);
 
 	/*
-	 * XXX we should check the status registers (specifically, the
-	 * TCO_SECOND_TO_STS bit in the TCO2_STS register) to see if we
-	 * just came back from a watchdog-induced reset, and let the user
-	 * know.
+	 * Determine if we are coming up after a watchdog-induced reset.  Some
+	 * BIOSes may clear this bit at bootup, preventing us from reporting
+	 * this case on such systems.  We clear this bit in ichwd_sts_reset().
 	 */
+	if ((ichwd_read_tco_2(sc, TCO2_STS) & TCO_SECOND_TO_STS) != 0)
+		device_printf(dev,
+		    "resuming after hardware watchdog timeout\n");
 
 	/* reset the watchdog status registers */
 	ichwd_sts_reset(sc);

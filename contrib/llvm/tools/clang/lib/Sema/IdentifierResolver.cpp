@@ -12,7 +12,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "IdentifierResolver.h"
+#include "clang/Sema/IdentifierResolver.h"
+#include "clang/Sema/Scope.h"
+#include "clang/AST/Decl.h"
 #include "clang/Basic/LangOptions.h"
 
 using namespace clang;
@@ -103,7 +105,7 @@ IdentifierResolver::~IdentifierResolver() {
 /// true if 'D' belongs to the given declaration context.
 bool IdentifierResolver::isDeclInScope(Decl *D, DeclContext *Ctx,
                                        ASTContext &Context, Scope *S) const {
-  Ctx = Ctx->getLookupContext();
+  Ctx = Ctx->getRedeclContext();
 
   if (Ctx->isFunctionOrMethod()) {
     // Ignore the scopes associated within transparent declaration contexts.
@@ -111,7 +113,7 @@ bool IdentifierResolver::isDeclInScope(Decl *D, DeclContext *Ctx,
            ((DeclContext *)S->getEntity())->isTransparentContext())
       S = S->getParent();
 
-    if (S->isDeclScope(Action::DeclPtrTy::make(D)))
+    if (S->isDeclScope(D))
       return true;
     if (LangOpt.CPlusPlus) {
       // C++ 3.3.2p3:
@@ -128,17 +130,20 @@ bool IdentifierResolver::isDeclInScope(Decl *D, DeclContext *Ctx,
       //
       assert(S->getParent() && "No TUScope?");
       if (S->getParent()->getFlags() & Scope::ControlScope)
-        return S->getParent()->isDeclScope(Action::DeclPtrTy::make(D));
+        return S->getParent()->isDeclScope(D);
     }
     return false;
   }
 
-  return D->getDeclContext()->getLookupContext()->Equals(Ctx);
+  return D->getDeclContext()->getRedeclContext()->Equals(Ctx);
 }
 
 /// AddDecl - Link the decl to its shadowed decl chain.
 void IdentifierResolver::AddDecl(NamedDecl *D) {
   DeclarationName Name = D->getDeclName();
+  if (IdentifierInfo *II = Name.getAsIdentifierInfo())
+    II->setIsFromAST(false);
+
   void *Ptr = Name.getFETokenInfo<void>();
 
   if (!Ptr) {
@@ -164,6 +169,9 @@ void IdentifierResolver::AddDecl(NamedDecl *D) {
 void IdentifierResolver::RemoveDecl(NamedDecl *D) {
   assert(D && "null param passed");
   DeclarationName Name = D->getDeclName();
+  if (IdentifierInfo *II = Name.getAsIdentifierInfo())
+    II->setIsFromAST(false);
+
   void *Ptr = Name.getFETokenInfo<void>();
 
   assert(Ptr && "Didn't find this decl on its identifier's chain!");
@@ -182,6 +190,9 @@ bool IdentifierResolver::ReplaceDecl(NamedDecl *Old, NamedDecl *New) {
          "Cannot replace a decl with another decl of a different name");
 
   DeclarationName Name = Old->getDeclName();
+  if (IdentifierInfo *II = Name.getAsIdentifierInfo())
+    II->setIsFromAST(false);
+
   void *Ptr = Name.getFETokenInfo<void>();
 
   if (!Ptr)
@@ -218,6 +229,7 @@ IdentifierResolver::begin(DeclarationName Name) {
 
 void IdentifierResolver::AddDeclToIdentifierChain(IdentifierInfo *II,
                                                   NamedDecl *D) {
+  II->setIsFromAST(false);
   void *Ptr = II->getFETokenInfo<void>();
 
   if (!Ptr) {
@@ -260,4 +272,17 @@ IdentifierResolver::IdDeclInfoMap::operator[](DeclarationName Name) {
                                                                      );
   ++CurIndex;
   return *IDI;
+}
+
+void IdentifierResolver::iterator::incrementSlowCase() {
+  NamedDecl *D = **this;
+  void *InfoPtr = D->getDeclName().getFETokenInfo<void>();
+  assert(!isDeclPtr(InfoPtr) && "Decl with wrong id ?");
+  IdDeclInfo *Info = toIdDeclInfo(InfoPtr);
+
+  BaseIter I = getIterator();
+  if (I != Info->decls_begin())
+    *this = iterator(I-1);
+  else // No more decls.
+    *this = iterator();
 }

@@ -44,6 +44,7 @@ struct mem_region {
 };
 
 void	mem_regions(struct mem_region **, int *, struct mem_region **, int *);
+vm_offset_t platform_real_maxaddr(void);
 
 u_long	platform_timebase_freq(struct cpuref *);
   

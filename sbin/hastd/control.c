@@ -32,17 +32,19 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <signal.h>
 
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "hast.h"
 #include "hastd.h"
 #include "hast_proto.h"
+#include "hooks.h"
 #include "nv.h"
 #include "pjdlog.h"
 #include "proto.h"
@@ -50,10 +52,28 @@ __FBSDID("$FreeBSD$");
 
 #include "control.h"
 
+void
+child_cleanup(struct hast_resource *res)
+{
+
+	proto_close(res->hr_ctrl);
+	res->hr_ctrl = NULL;
+	if (res->hr_event != NULL) {
+		proto_close(res->hr_event);
+		res->hr_event = NULL;
+	}
+	if (res->hr_conn != NULL) {
+		proto_close(res->hr_conn);
+		res->hr_conn = NULL;
+	}
+	res->hr_workerpid = 0;
+}
+
 static void
 control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
     uint8_t role, struct hast_resource *res, const char *name, unsigned int no)
 {
+	int oldrole;
 
 	/* Name is always needed. */
 	if (name != NULL)
@@ -85,6 +105,7 @@ control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
 	pjdlog_info("Role changed to %s.", role2str(role));
 
 	/* Change role to the new one. */
+	oldrole = res->hr_role;
 	res->hr_role = role;
 	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
 
@@ -106,13 +127,15 @@ control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
 			pjdlog_debug(1, "Worker process %u stopped.",
 			    (unsigned int)res->hr_workerpid);
 		}
-		res->hr_workerpid = 0;
+		child_cleanup(res);
 	}
 
 	/* Start worker process if we are changing to primary. */
 	if (role == HAST_ROLE_PRIMARY)
 		hastd_primary(res);
 	pjdlog_prefix_set("%s", "");
+	hook_exec(res->hr_exec, "role", res->hr_name, role2str(oldrole),
+	    role2str(res->hr_role), NULL);
 }
 
 void
@@ -140,12 +163,13 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 	nv_add_uint8(cnvout, HASTCTL_STATUS, "cmd");
 	error = nv_error(cnvout);
 	if (error != 0) {
-		/* LOG */
+		pjdlog_common(LOG_ERR, 0, error,
+		    "Unable to prepare control header");
 		goto end;
 	}
 	if (hast_proto_send(res, res->hr_ctrl, cnvout, NULL, 0) < 0) {
 		error = errno;
-		/* LOG */
+		pjdlog_errno(LOG_ERR, "Unable to send control header");
 		goto end;
 	}
 
@@ -154,17 +178,17 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 	 */
 	if (hast_proto_recv_hdr(res->hr_ctrl, &cnvin) < 0) {
 		error = errno;
-		/* LOG */
+		pjdlog_errno(LOG_ERR, "Unable to receive control header");
 		goto end;
 	}
 
-	error = nv_get_int64(cnvin, "error");
+	error = nv_get_int16(cnvin, "error");
 	if (error != 0)
 		goto end;
 
 	if ((str = nv_get_string(cnvin, "status")) == NULL) {
 		error = ENOENT;
-		/* LOG */
+		pjdlog_errno(LOG_ERR, "Field 'status' is missing.");
 		goto end;
 	}
 	nv_add_string(nvout, str, "status%u", no);
@@ -258,6 +282,7 @@ control_handle(struct hastd_config *cfg)
 		return;
 	}
 
+	cfg->hc_controlin = conn;
 	nvin = nvout = NULL;
 	role = HAST_ROLE_UNDEF;
 
@@ -364,6 +389,7 @@ close:
 	if (nvout != NULL)
 		nv_free(nvout);
 	proto_close(conn);
+	cfg->hc_controlin = NULL;
 }
 
 /*
@@ -382,7 +408,8 @@ ctrl_thread(void *arg)
 				pthread_exit(NULL);
 			pjdlog_errno(LOG_ERR,
 			    "Unable to receive control message");
-			continue;
+			kill(getpid(), SIGTERM);
+			pthread_exit(NULL);
 		}
 		cmd = nv_get_uint8(nvin, "cmd");
 		if (cmd == 0) {
@@ -390,7 +417,6 @@ ctrl_thread(void *arg)
 			nv_free(nvin);
 			continue;
 		}
-		nv_free(nvin);
 		nvout = nv_alloc();
 		switch (cmd) {
 		case HASTCTL_STATUS:
@@ -412,11 +438,23 @@ ctrl_thread(void *arg)
 				nv_add_uint32(nvout, (uint32_t)0, "keepdirty");
 				nv_add_uint64(nvout, (uint64_t)0, "dirty");
 			}
+			nv_add_int16(nvout, 0, "error");
+			break;
+		case HASTCTL_RELOAD:
+			/*
+			 * When parent receives SIGHUP and discovers that
+			 * something related to us has changes, it sends reload
+			 * message to us.
+			 */
+			assert(res->hr_role == HAST_ROLE_PRIMARY);
+			primary_config_reload(res, nvin);
+			nv_add_int16(nvout, 0, "error");
 			break;
 		default:
 			nv_add_int16(nvout, EINVAL, "error");
 			break;
 		}
+		nv_free(nvin);
 		if (nv_error(nvout) != 0) {
 			pjdlog_error("Unable to create answer on control message.");
 			nv_free(nvout);

@@ -386,7 +386,7 @@ main(int argc, char *argv[])
 			continue;	/* file unreasonable */
 
 		if (sflag && (cp = linked(arg)) != NULL) {
-			(void) snprintf(buf, sizeof(buf), "%d %d", statb.st_dev,
+			(void) snprintf(buf, sizeof(buf), "%u %u", statb.st_dev,
 				statb.st_ino);
 			card('S', buf);
 			if (format == 'p')

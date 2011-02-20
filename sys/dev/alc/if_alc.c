@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/in_cksum.h>
 
@@ -160,6 +159,7 @@ static void	alc_setlinkspeed(struct alc_softc *);
 static void	alc_setwol(struct alc_softc *);
 static int	alc_shutdown(device_t);
 static void	alc_start(struct ifnet *);
+static void	alc_start_locked(struct ifnet *);
 static void	alc_start_queue(struct alc_softc *);
 static void	alc_stats_clear(struct alc_softc *);
 static void	alc_stats_update(struct alc_softc *);
@@ -169,7 +169,6 @@ static void	alc_stop_queue(struct alc_softc *);
 static int	alc_suspend(device_t);
 static void	alc_sysctl_node(struct alc_softc *);
 static void	alc_tick(void *);
-static void	alc_tx_task(void *, int);
 static void	alc_txeof(struct alc_softc *);
 static void	alc_watchdog(struct alc_softc *);
 static int	sysctl_int_range(SYSCTL_HANDLER_ARGS, int, int);
@@ -235,9 +234,6 @@ alc_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	if (phy != sc->alc_phyaddr)
-		return (0);
-
 	/*
 	 * For AR8132 fast ethernet controller, do not report 1000baseT
 	 * capability to mii(4). Even though AR8132 uses the same
@@ -273,9 +269,6 @@ alc_miibus_writereg(device_t dev, int phy, int reg, int val)
 	int i;
 
 	sc = device_get_softc(dev);
-
-	if (phy != sc->alc_phyaddr)
-		return (0);
 
 	CSR_WRITE_4(sc, ALC_MDIO, MDIO_OP_EXECUTE | MDIO_OP_WRITE |
 	    (val & MDIO_DATA_MASK) << MDIO_DATA_SHIFT |
@@ -337,8 +330,8 @@ alc_miibus_statchg(device_t dev)
 		reg = CSR_READ_4(sc, ALC_MAC_CFG);
 		reg |= MAC_CFG_TX_ENB | MAC_CFG_RX_ENB;
 		CSR_WRITE_4(sc, ALC_MAC_CFG, reg);
+		alc_aspm(sc, IFM_SUBTYPE(mii->mii_media_active));
 	}
-	alc_aspm(sc, IFM_SUBTYPE(mii->mii_media_active));
 }
 
 static void
@@ -684,7 +677,7 @@ alc_aspm(struct alc_softc *sc, int media)
 	pmcfg &= ~PM_CFG_SERDES_PD_EX_L1;
 	pmcfg &= ~(PM_CFG_L1_ENTRY_TIMER_MASK | PM_CFG_LCKDET_TIMER_MASK);
 	pmcfg |= PM_CFG_MAC_ASPM_CHK;
-	pmcfg |= PM_CFG_SERDES_ENB | PM_CFG_RBER_ENB;
+	pmcfg |= (PM_CFG_LCKDET_TIMER_DEFAULT << PM_CFG_LCKDET_TIMER_SHIFT);
 	pmcfg &= ~(PM_CFG_ASPM_L1_ENB | PM_CFG_ASPM_L0S_ENB);
 
 	if ((sc->alc_flags & ALC_FLAG_APS) != 0) {
@@ -817,7 +810,7 @@ alc_attach(device_t dev)
 		    CSR_READ_4(sc, ALC_PCIE_PHYMISC) |
 		    PCIE_PHYMISC_FORCE_RCV_DET);
 		if (sc->alc_ident->deviceid == DEVICEID_ATHEROS_AR8152_B &&
-		    sc->alc_rev == ATHEROS_AR8152_B_V10) {
+		    pci_get_revid(dev) == ATHEROS_AR8152_B_V10) {
 			val = CSR_READ_4(sc, ALC_PCIE_PHYMISC2);
 			val &= ~(PCIE_PHYMISC2_SERDES_CDR_MASK |
 			    PCIE_PHYMISC2_SERDES_TH_MASK);
@@ -978,9 +971,11 @@ alc_attach(device_t dev)
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Set up MII bus. */
-	if ((error = mii_phy_probe(dev, &sc->alc_miibus, alc_mediachange,
-	    alc_mediastatus)) != 0) {
-		device_printf(dev, "no PHY found!\n");
+	error = mii_attach(dev, &sc->alc_miibus, ifp, alc_mediachange,
+	    alc_mediastatus, BMSR_DEFCAPMASK, sc->alc_phyaddr, MII_OFFSET_ANY,
+	    MIIF_DOPAUSE);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -1007,7 +1002,6 @@ alc_attach(device_t dev)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 
 	/* Create local taskq. */
-	TASK_INIT(&sc->alc_tx_task, 1, alc_tx_task, ifp);
 	sc->alc_tq = taskqueue_create_fast("alc_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->alc_tq);
 	if (sc->alc_tq == NULL) {
@@ -1058,14 +1052,12 @@ alc_detach(device_t dev)
 
 	ifp = sc->alc_ifp;
 	if (device_is_attached(dev)) {
+		ether_ifdetach(ifp);
 		ALC_LOCK(sc);
-		sc->alc_flags |= ALC_FLAG_DETACH;
 		alc_stop(sc);
 		ALC_UNLOCK(sc);
 		callout_drain(&sc->alc_tick_ch);
 		taskqueue_drain(sc->alc_tq, &sc->alc_int_task);
-		taskqueue_drain(sc->alc_tq, &sc->alc_tx_task);
-		ether_ifdetach(ifp);
 	}
 
 	if (sc->alc_tq != NULL) {
@@ -1113,7 +1105,7 @@ alc_detach(device_t dev)
 #define	ALC_SYSCTL_STAT_ADD32(c, h, n, p, d)	\
 	    SYSCTL_ADD_UINT(c, h, OID_AUTO, n, CTLFLAG_RD, p, 0, d)
 #define	ALC_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
-	    SYSCTL_ADD_QUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
+	    SYSCTL_ADD_UQUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
 
 static void
 alc_sysctl_node(struct alc_softc *sc)
@@ -2019,7 +2011,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 	struct tcphdr *tcp;
 	bus_dma_segment_t txsegs[ALC_MAXTXSEGS];
 	bus_dmamap_t map;
-	uint32_t cflags, hdrlen, poff, vtag;
+	uint32_t cflags, hdrlen, ip_off, poff, vtag;
 	int error, idx, nsegs, prod;
 
 	ALC_LOCK_ASSERT(sc);
@@ -2029,7 +2021,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 	m = *m_head;
 	ip = NULL;
 	tcp = NULL;
-	poff = 0;
+	ip_off = poff = 0;
 	if ((m->m_pkthdr.csum_flags & (ALC_CSUM_FEATURES | CSUM_TSO)) != 0) {
 		/*
 		 * AR813x/AR815x requires offset of TCP/UDP header in its
@@ -2039,6 +2031,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 		 * cycles on FreeBSD so fast host CPU is required to get
 		 * smooth TSO performance.
 		 */
+		struct ether_header *eh;
 
 		if (M_WRITABLE(m) == 0) {
 			/* Get a writable copy. */
@@ -2052,15 +2045,32 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 			*m_head = m;
 		}
 
-		m = m_pullup(m, sizeof(struct ether_header) +
-		    sizeof(struct ip));
+		ip_off = sizeof(struct ether_header);
+		m = m_pullup(m, ip_off);
 		if (m == NULL) {
 			*m_head = NULL;
 			return (ENOBUFS);
 		}
-		ip = (struct ip *)(mtod(m, char *) +
-		    sizeof(struct ether_header));
-		poff = sizeof(struct ether_header) + (ip->ip_hl << 2);
+		eh = mtod(m, struct ether_header *);
+		/*
+		 * Check if hardware VLAN insertion is off.
+		 * Additional check for LLC/SNAP frame?
+		 */
+		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
+			ip_off = sizeof(struct ether_vlan_header);
+			m = m_pullup(m, ip_off);
+			if (m == NULL) {
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
+		}
+		m = m_pullup(m, ip_off + sizeof(struct ip));
+		if (m == NULL) {
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
+		ip = (struct ip *)(mtod(m, char *) + ip_off);
+		poff = ip_off + (ip->ip_hl << 2);
 		if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
 			m = m_pullup(m, poff + sizeof(struct tcphdr));
 			if (m == NULL) {
@@ -2086,6 +2096,8 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 			 * Reset IP checksum and recompute TCP pseudo
 			 * checksum as NDIS specification said.
 			 */
+			ip = (struct ip *)(mtod(m, char *) + ip_off);
+			tcp = (struct tcphdr *)(mtod(m, char *) + poff);
 			ip->ip_sum = 0;
 			tcp->th_sum = in_pseudo(ip->ip_src.s_addr,
 			    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
@@ -2222,16 +2234,18 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 }
 
 static void
-alc_tx_task(void *arg, int pending)
+alc_start(struct ifnet *ifp)
 {
-	struct ifnet *ifp;
+	struct alc_softc *sc;
 
-	ifp = (struct ifnet *)arg;
-	alc_start(ifp);
+	sc = ifp->if_softc;
+	ALC_LOCK(sc);
+	alc_start_locked(ifp);
+	ALC_UNLOCK(sc);
 }
 
 static void
-alc_start(struct ifnet *ifp)
+alc_start_locked(struct ifnet *ifp)
 {
 	struct alc_softc *sc;
 	struct mbuf *m_head;
@@ -2239,17 +2253,15 @@ alc_start(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
-	ALC_LOCK(sc);
+	ALC_LOCK_ASSERT(sc);
 
 	/* Reclaim transmitted frames. */
 	if (sc->alc_cdata.alc_tx_cnt >= ALC_TX_DESC_HIWAT)
 		alc_txeof(sc);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || (sc->alc_flags & ALC_FLAG_LINK) == 0) {
-		ALC_UNLOCK(sc);
+	    IFF_DRV_RUNNING || (sc->alc_flags & ALC_FLAG_LINK) == 0)
 		return;
-	}
 
 	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd); ) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
@@ -2288,8 +2300,6 @@ alc_start(struct ifnet *ifp)
 		/* Set a timeout in case the chip goes out to lunch. */
 		sc->alc_watchdog_timer = ALC_TX_TIMEOUT;
 	}
-
-	ALC_UNLOCK(sc);
 }
 
 static void
@@ -2315,7 +2325,7 @@ alc_watchdog(struct alc_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	alc_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue(sc->alc_tq, &sc->alc_tx_task);
+		alc_start_locked(ifp);
 }
 
 static int
@@ -2357,7 +2367,7 @@ alc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			    ((ifp->if_flags ^ sc->alc_if_flags) &
 			    (IFF_PROMISC | IFF_ALLMULTI)) != 0)
 				alc_rxfilter(sc);
-			else if ((sc->alc_flags & ALC_FLAG_DETACH) == 0)
+			else
 				alc_init_locked(sc);
 		} else if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 			alc_stop(sc);
@@ -2459,12 +2469,10 @@ alc_mac_config(struct alc_softc *sc)
 	}
 	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
 		reg |= MAC_CFG_FULL_DUPLEX;
-#ifdef notyet
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_TXPAUSE) != 0)
 			reg |= MAC_CFG_TX_FC;
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_RXPAUSE) != 0)
 			reg |= MAC_CFG_RX_FC;
-#endif
 	}
 	CSR_WRITE_4(sc, ALC_MAC_CFG, reg);
 }
@@ -2654,9 +2662,11 @@ alc_int_task(void *arg, int pending)
 	ifp = sc->alc_ifp;
 
 	status = CSR_READ_4(sc, ALC_INTR_STATUS);
-	more = atomic_readandclear_int(&sc->alc_morework);
-	if (more != 0)
+	ALC_LOCK(sc);
+	if (sc->alc_morework != 0) {
+		sc->alc_morework = 0;
 		status |= INTR_RX_PKT;
+	}
 	if ((status & ALC_INTRS) == 0)
 		goto done;
 
@@ -2668,9 +2678,8 @@ alc_int_task(void *arg, int pending)
 		if ((status & INTR_RX_PKT) != 0) {
 			more = alc_rxintr(sc, sc->alc_process_limit);
 			if (more == EAGAIN)
-				atomic_set_int(&sc->alc_morework, 1);
+				sc->alc_morework = 1;
 			else if (more == EIO) {
-				ALC_LOCK(sc);
 				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				alc_init_locked(sc);
 				ALC_UNLOCK(sc);
@@ -2688,7 +2697,6 @@ alc_int_task(void *arg, int pending)
 			if ((status & INTR_TXQ_TO_RST) != 0)
 				device_printf(sc->alc_dev,
 				    "TxQ reset! -- resetting\n");
-			ALC_LOCK(sc);
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			alc_init_locked(sc);
 			ALC_UNLOCK(sc);
@@ -2696,11 +2704,12 @@ alc_int_task(void *arg, int pending)
 		}
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
 		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			taskqueue_enqueue(sc->alc_tq, &sc->alc_tx_task);
+			alc_start_locked(ifp);
 	}
 
 	if (more == EAGAIN ||
 	    (CSR_READ_4(sc, ALC_INTR_STATUS) & ALC_INTRS) != 0) {
+		ALC_UNLOCK(sc);
 		taskqueue_enqueue(sc->alc_tq, &sc->alc_int_task);
 		return;
 	}
@@ -2710,6 +2719,7 @@ done:
 		/* Re-enable interrupts if we're running. */
 		CSR_WRITE_4(sc, ALC_INTR_STATUS, 0x7FFFFFFF);
 	}
+	ALC_UNLOCK(sc);
 }
 
 static void
@@ -2948,8 +2958,8 @@ alc_rxeof(struct alc_softc *sc, struct rx_rdesc *rrd)
 		 *  errored frames.
 		 */
 		status |= RRD_TCP_UDPCSUM_NOK | RRD_IPCSUM_NOK;
-		if ((RRD_ERR_CRC | RRD_ERR_ALIGN | RRD_ERR_TRUNC |
-		    RRD_ERR_RUNT) != 0)
+		if ((status & (RRD_ERR_CRC | RRD_ERR_ALIGN |
+		    RRD_ERR_TRUNC | RRD_ERR_RUNT)) != 0)
 			return;
 	}
 
@@ -3029,7 +3039,9 @@ alc_rxeof(struct alc_softc *sc, struct rx_rdesc *rrd)
 #endif
 			{
 			/* Pass it on. */
+			ALC_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);
+			ALC_LOCK(sc);
 			}
 		}
 	}
@@ -3135,6 +3147,9 @@ alc_init_locked(struct alc_softc *sc)
 	alc_init_tx_ring(sc);
 	alc_init_cmb(sc);
 	alc_init_smb(sc);
+
+	/* Enable all clocks. */
+	CSR_WRITE_4(sc, ALC_CLK_GATING_CFG, 0);
 
 	/* Reprogram the station address. */
 	bcopy(IF_LLADDR(ifp), eaddr, ETHER_ADDR_LEN);
@@ -3541,7 +3556,7 @@ alc_stop_queue(struct alc_softc *sc)
 	}
 	/* Disable TxQ. */
 	reg = CSR_READ_4(sc, ALC_TXQ_CFG);
-	if ((reg & TXQ_CFG_ENB) == 0) {
+	if ((reg & TXQ_CFG_ENB) != 0) {
 		reg &= ~TXQ_CFG_ENB;
 		CSR_WRITE_4(sc, ALC_TXQ_CFG, reg);
 	}

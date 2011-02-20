@@ -339,7 +339,6 @@ mvs_intr(void *data)
 	u_int32_t ic, aic;
 
 	ic = ATA_INL(ctlr->r_mem, CHIP_MIC);
-//device_printf(ctlr->dev, "irq MIC:%08x\n", ic);
 	if (ctlr->msi) {
 		/* We have to to mask MSI during processing. */
 		mtx_lock(&ctlr->mtx);

@@ -116,6 +116,7 @@ enum {
 	EZFS_VDEVNOTSUP,	/* unsupported vdev type */
 	EZFS_NOTSUP,		/* ops not supported on this dataset */
 	EZFS_ACTIVE_SPARE,	/* pool has active shared spare devices */
+	EZFS_UNPLAYED_LOGS,	/* log device has unplayed logs */
 	EZFS_UNKNOWN
 };
 

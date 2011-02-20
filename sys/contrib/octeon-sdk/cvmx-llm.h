@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -46,7 +48,7 @@
  *
  * interface to the low latency DRAM
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 49448 $<hr>
  *
  */
 
@@ -223,10 +225,7 @@ static inline void cvmx_llm_write_narrow(cvmx_llm_address_t address, uint64_t va
     cvmx_llm_data_t data;
     data.s.mbz = 0;
 
-    if (cvmx_octeon_is_pass1())
-        data.s.dat = ((value & 0x3ffff) << 18) | ((value >> 18) & 0x3ffff);
-    else
-        data.s.dat = value;
+    data.s.dat = value;
 
     data.s.xxor = 0;
 
@@ -256,24 +255,15 @@ static inline void cvmx_llm_write_narrow(cvmx_llm_address_t address, uint64_t va
  */
 static inline void cvmx_llm_write_wide(cvmx_llm_address_t address, uint64_t value, int set)
 {
-    if (cvmx_octeon_is_pass1())
+    if (set)
     {
-        cvmx_llm_write36(address, value & 0xfffffffffull, set);
-        address.s.address+=4;
-        cvmx_llm_write36(address, ((value>>36) & 0xfffffff) | (cvmx_llm_ecc(value) << 28), set);
+        CVMX_MT_LLM_DATA(1, value);
+        CVMX_MT_LLM_WRITE64_ADDR_INTERNAL(1, address.u64);
     }
     else
     {
-        if (set)
-        {
-            CVMX_MT_LLM_DATA(1, value);
-            CVMX_MT_LLM_WRITE64_ADDR_INTERNAL(1, address.u64);
-        }
-        else
-        {
-            CVMX_MT_LLM_DATA(0, value);
-            CVMX_MT_LLM_WRITE64_ADDR_INTERNAL(0, address.u64);
-        }
+        CVMX_MT_LLM_DATA(0, value);
+        CVMX_MT_LLM_WRITE64_ADDR_INTERNAL(0, address.u64);
     }
 }
 

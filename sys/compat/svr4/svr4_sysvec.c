@@ -309,5 +309,5 @@ static moduledata_t svr4_elf_mod = {
 	svr4_elf_modevent,
 	0
 };
-DECLARE_MODULE(svr4elf, svr4_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);
+DECLARE_MODULE_TIED(svr4elf, svr4_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);
 MODULE_DEPEND(svr4elf, streams, 1, 1, 1);

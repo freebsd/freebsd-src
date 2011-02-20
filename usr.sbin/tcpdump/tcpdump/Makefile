@@ -15,9 +15,9 @@ SRCS =	addrtoname.c af.c checksum.c cpack.c gmpls.c oui.c gmt2local.c \
 	print-cfm.c print-chdlc.c print-cip.c print-cnfp.c print-dccp.c \
 	print-decnet.c print-domain.c print-dtp.c print-dvmrp.c print-enc.c \
 	print-egp.c print-eap.c print-eigrp.c \
-	print-esp.c print-ether.c print-fddi.c print-fr.c \
+	print-esp.c print-ether.c print-fddi.c print-forces.c print-fr.c \
 	print-gre.c print-hsrp.c print-icmp.c print-igmp.c \
-	print-igrp.c print-ip.c print-ipcomp.c print-ipfc.c \
+	print-igrp.c print-ip.c print-ipcomp.c print-ipfc.c print-ipnet.c \
 	print-ipx.c print-isakmp.c print-isoclns.c print-juniper.c print-krb.c \
 	print-l2tp.c print-lane.c print-ldp.c print-lldp.c print-llc.c \
         print-lmp.c print-lspping.c \
@@ -33,7 +33,7 @@ SRCS =	addrtoname.c af.c checksum.c cpack.c gmpls.c oui.c gmt2local.c \
 	print-timed.c print-token.c print-udld.c print-udp.c print-vjc.c \
 	print-vqp.c print-vrrp.c print-vtp.c \
 	print-wb.c print-zephyr.c setsignal.c tcpdump.c util.c \
-	print-smb.c smbutil.c \
+	print-smb.c signature.c smbutil.c \
 	version.c
 CLEANFILES+=	version.c
 
@@ -56,7 +56,7 @@ LDADD=	-ll -lpcap
 DPADD+= ${LIBCRYPTO}
 LDADD+= -lcrypto
 CFLAGS+= -I${DESTDIR}/usr/include/openssl
-CFLAGS+= -DHAVE_LIBCRYPTO -DHAVE_RC5_H -DHAVE_CAST_H -DHAVE_OPENSSL_EVP_H
+CFLAGS+= -DHAVE_LIBCRYPTO -DHAVE_OPENSSL_EVP_H
 .endif
 
 .if ${MK_PF} != "no"

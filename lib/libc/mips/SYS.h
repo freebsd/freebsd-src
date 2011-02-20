@@ -91,7 +91,7 @@
 #else
 # define PIC_PROLOGUE(x)
 # define PIC_TAILCALL(l)	j  _C_LABEL(l)
-# define PIC_RETURN()
+# define PIC_RETURN()		j ra
 #endif /* __ABICALLS__ */
 
 # define SYSTRAP(x)	li v0,SYS_ ## x; syscall;

@@ -164,6 +164,7 @@ namespace sys {
 
       /// GetMainExecutable - Return the path to the main executable, given the
       /// value of argv[0] from program startup and the address of main itself.
+      /// In extremis, this function may fail and return an empty path.
       static Path GetMainExecutable(const char *argv0, void *MainAddr);
 
       /// This is one of the very few ways in which a path can be constructed
@@ -336,9 +337,9 @@ namespace sys {
       /// native Dynamic Library (shared library, shared object) by looking at
       /// the file's magic number. The Path object must reference a file, not a
       /// directory.
-      /// @return strue if the file starts with the magid number for a native
+      /// @returns true if the file starts with the magic number for a native
       /// shared library.
-      /// @brief Determine if the path reference a dynamic library.
+      /// @brief Determine if the path references a dynamic library.
       bool isDynamicLibrary() const;
 
       /// This function determines if the path name references an existing file

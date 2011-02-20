@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_cputype.h"
 #include "opt_ddb.h"
 #include "opt_md.h"
-#include "opt_msgbuf.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -103,8 +102,11 @@ __FBSDID("$FreeBSD$");
 char machine[] = "mips";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "Machine class");
 
-static char cpu_model[30];
+char cpu_model[80];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "Machine model");
+
+char cpu_board[80];
+SYSCTL_STRING(_hw, OID_AUTO, board, CTLFLAG_RD, cpu_board, 0, "Machine board");
 
 int cold = 1;
 long realmem = 0;
@@ -136,8 +138,9 @@ char pcpu_space[MAXCPU][PAGE_SIZE * 2] \
 
 struct pcpu *pcpup = (struct pcpu *)pcpu_space;
 
-vm_offset_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
-vm_offset_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
+vm_paddr_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
+vm_paddr_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
+vm_paddr_t dump_avail[PHYS_AVAIL_ENTRIES + 2];
 
 #ifdef UNIMPLEMENTED
 struct platform platform;
@@ -204,8 +207,9 @@ cpu_startup(void *dummy)
 
 	vm_ksubmap_init(&kmi);
 
-	printf("avail memory = %lu (%luMB)\n", ptoa(cnt.v_free_count),
-	    ptoa(cnt.v_free_count) / 1048576);
+	printf("avail memory = %ju (%juMB)\n", 
+	    ptoa((uintmax_t)cnt.v_free_count),
+	    ptoa((uintmax_t)cnt.v_free_count) / 1048576);
 	cpu_init_interrupts();
 
 	/*
@@ -356,7 +360,7 @@ mips_vector_init(void)
 	 * Mask all interrupts. Each interrupt will be enabled
 	 * when handler is installed for it
 	 */
-	set_intr_mask(MIPS_SR_INT_MASK);
+	set_intr_mask(0);
 
 	/* Clear BEV in SR so we start handling our own exceptions */
 	mips_wr_status(mips_rd_status() & ~MIPS_SR_BEV);
@@ -425,8 +429,10 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 	pcpu->pc_next_asid = 1;
 	pcpu->pc_asid_generation = 1;
 #ifdef SMP
-	if ((vm_offset_t)pcpup >= VM_MIN_KERNEL_ADDRESS)
+	if ((vm_offset_t)pcpup >= VM_MIN_KERNEL_ADDRESS &&
+	    (vm_offset_t)pcpup <= VM_MAX_KERNEL_ADDRESS) {
 		mips_pcpu_tlb_init(pcpu);
+	}
 #endif
 }
 
@@ -450,11 +456,15 @@ void
 spinlock_enter(void)
 {
 	struct thread *td;
+	register_t intr;
 
 	td = curthread;
-	if (td->td_md.md_spinlock_count == 0)
-		td->td_md.md_saved_intr = intr_disable();
-	td->td_md.md_spinlock_count++;
+	if (td->td_md.md_spinlock_count == 0) {
+		intr = intr_disable();
+		td->td_md.md_spinlock_count = 1;
+		td->td_md.md_saved_intr = intr;
+	} else
+		td->td_md.md_spinlock_count++;
 	critical_enter();
 }
 
@@ -462,12 +472,14 @@ void
 spinlock_exit(void)
 {
 	struct thread *td;
+	register_t intr;
 
 	td = curthread;
 	critical_exit();
+	intr = td->td_md.md_saved_intr;
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
-		intr_restore(td->td_md.md_saved_intr);
+		intr_restore(intr);
 }
 
 /*
@@ -476,17 +488,20 @@ spinlock_exit(void)
 void
 cpu_idle(int busy)
 {
-	if (mips_rd_status() & MIPS_SR_INT_IE)
-		__asm __volatile ("wait");
-	else
-		panic("ints disabled in idleproc!");
-}
+	KASSERT((mips_rd_status() & MIPS_SR_INT_IE) != 0,
+		("interrupts disabled in idle process."));
+	KASSERT((mips_rd_status() & MIPS_INT_MASK) != 0,
+		("all interrupts masked in idle process."));
 
-void
-dumpsys(struct dumperinfo *di __unused)
-{
-
-	printf("Kernel dumps not implemented on this architecture\n");
+	if (!busy) {
+		critical_enter();
+		cpu_idleclock();
+	}
+	__asm __volatile ("wait");
+	if (!busy) {
+		cpu_activeclock();
+		critical_exit();
+	}
 }
 
 int
@@ -497,12 +512,12 @@ cpu_idle_wakeup(int cpu)
 }
 
 int
-is_physical_memory(vm_offset_t addr)
+is_cacheable_mem(vm_paddr_t pa)
 {
 	int i;
 
 	for (i = 0; physmem_desc[i + 1] != 0; i += 2) {
-		if (addr >= physmem_desc[i] && addr < physmem_desc[i + 1])
+		if (pa >= physmem_desc[i] && pa < physmem_desc[i + 1])
 			return (1);
 	}
 

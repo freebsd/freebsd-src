@@ -11,14 +11,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Sema.h"
-#include "Lookup.h"
+#include "clang/Sema/SemaInternal.h"
+#include "clang/Sema/Lookup.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/Basic/PartialDiagnostic.h"
-#include "clang/Parse/DeclSpec.h"
+#include "clang/Sema/DeclSpec.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace clang;
@@ -283,7 +283,7 @@ NamedDecl *Sema::FindFirstQualifierInScope(Scope *S, NestedNameSpecifier *NNS) {
 bool Sema::isNonTypeNestedNameSpecifier(Scope *S, CXXScopeSpec &SS,
                                         SourceLocation IdLoc,
                                         IdentifierInfo &II,
-                                        TypeTy *ObjectTypePtr) {
+                                        ParsedType ObjectTypePtr) {
   QualType ObjectType = GetTypeFromParser(ObjectTypePtr);
   LookupResult Found(*this, &II, IdLoc, LookupNestedNameSpecifierName);
   
@@ -416,7 +416,17 @@ Sema::CXXScopeTy *Sema::BuildCXXNestedNameSpecifier(Scope *S,
 
       ObjectTypeSearchedInScope = true;
     }
-  } else if (isDependent) {
+  } else if (!isDependent) {
+    // Perform unqualified name lookup in the current scope.
+    LookupName(Found, S);
+  }
+
+  // If we performed lookup into a dependent context and did not find anything,
+  // that's fine: just build a dependent nested-name-specifier.
+  if (Found.empty() && isDependent &&
+      !(LookupCtx && LookupCtx->isRecord() &&
+        (!cast<CXXRecordDecl>(LookupCtx)->hasDefinition() ||
+         !cast<CXXRecordDecl>(LookupCtx)->hasAnyDependentBases()))) {
     // Don't speculate if we're just trying to improve error recovery.
     if (ErrorRecoveryLookup)
       return 0;
@@ -429,11 +439,8 @@ Sema::CXXScopeTy *Sema::BuildCXXNestedNameSpecifier(Scope *S,
       return NestedNameSpecifier::Create(Context, &II);
 
     return NestedNameSpecifier::Create(Context, Prefix, &II);
-  } else {
-    // Perform unqualified name lookup in the current scope.
-    LookupName(Found, S);
-  }
-
+  } 
+  
   // FIXME: Deal with ambiguities cleanly.
 
   if (Found.empty() && !ErrorRecoveryLookup) {
@@ -560,10 +567,10 @@ Sema::CXXScopeTy *Sema::ActOnCXXNestedNameSpecifier(Scope *S,
                                                     SourceLocation IdLoc,
                                                     SourceLocation CCLoc,
                                                     IdentifierInfo &II,
-                                                    TypeTy *ObjectTypePtr,
+                                                    ParsedType ObjectTypePtr,
                                                     bool EnteringContext) {
   return BuildCXXNestedNameSpecifier(S, SS, IdLoc, CCLoc, II,
-                                     QualType::getFromOpaquePtr(ObjectTypePtr),
+                                     GetTypeFromParser(ObjectTypePtr),
                                      /*ScopeLookupResult=*/0, EnteringContext,
                                      false);
 }
@@ -575,21 +582,20 @@ Sema::CXXScopeTy *Sema::ActOnCXXNestedNameSpecifier(Scope *S,
 ///
 /// The arguments are the same as those passed to ActOnCXXNestedNameSpecifier.
 bool Sema::IsInvalidUnlessNestedName(Scope *S, CXXScopeSpec &SS,
-                                     IdentifierInfo &II, TypeTy *ObjectType,
+                                     IdentifierInfo &II, ParsedType ObjectType,
                                      bool EnteringContext) {
   return BuildCXXNestedNameSpecifier(S, SS, SourceLocation(), SourceLocation(),
-                                     II, QualType::getFromOpaquePtr(ObjectType),
+                                     II, GetTypeFromParser(ObjectType),
                                      /*ScopeLookupResult=*/0, EnteringContext,
                                      true);
 }
 
 Sema::CXXScopeTy *Sema::ActOnCXXNestedNameSpecifier(Scope *S,
                                                     const CXXScopeSpec &SS,
-                                                    TypeTy *Ty,
+                                                    ParsedType Ty,
                                                     SourceRange TypeRange,
                                                     SourceLocation CCLoc) {
-  NestedNameSpecifier *Prefix
-    = static_cast<NestedNameSpecifier *>(SS.getScopeRep());
+  NestedNameSpecifier *Prefix = SS.getScopeRep();
   QualType T = GetTypeFromParser(Ty);
   return NestedNameSpecifier::Create(Context, Prefix, /*FIXME:*/false,
                                      T.getTypePtr());
@@ -620,7 +626,7 @@ bool Sema::ShouldEnterDeclaratorScope(Scope *S, const CXXScopeSpec &SS) {
   case NestedNameSpecifier::Namespace:
     // These are always namespace scopes.  We never want to enter a
     // namespace scope from anything but a file context.
-    return CurContext->getLookupContext()->isFileContext();
+    return CurContext->getRedeclContext()->isFileContext();
 
   case NestedNameSpecifier::Identifier:
   case NestedNameSpecifier::TypeSpec:

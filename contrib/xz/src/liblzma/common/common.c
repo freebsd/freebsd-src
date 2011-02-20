@@ -76,7 +76,7 @@ lzma_bufcpy(const uint8_t *restrict in, size_t *restrict in_pos,
 {
 	const size_t in_avail = in_size - *in_pos;
 	const size_t out_avail = out_size - *out_pos;
-	const size_t copy_size = MIN(in_avail, out_avail);
+	const size_t copy_size = my_min(in_avail, out_avail);
 
 	memcpy(out + *out_pos, in + *in_pos, copy_size);
 
@@ -181,6 +181,20 @@ lzma_code(lzma_stream *strm, lzma_action action)
 			|| (unsigned int)(action) > LZMA_FINISH
 			|| !strm->internal->supported_actions[action])
 		return LZMA_PROG_ERROR;
+
+	// Check if unsupported members have been set to non-zero or non-NULL,
+	// which would indicate that some new feature is wanted.
+	if (strm->reserved_ptr1 != NULL
+			|| strm->reserved_ptr2 != NULL
+			|| strm->reserved_ptr3 != NULL
+			|| strm->reserved_ptr4 != NULL
+			|| strm->reserved_int1 != 0
+			|| strm->reserved_int2 != 0
+			|| strm->reserved_int3 != 0
+			|| strm->reserved_int4 != 0
+			|| strm->reserved_enum1 != LZMA_RESERVED_ENUM
+			|| strm->reserved_enum2 != LZMA_RESERVED_ENUM)
+		return LZMA_OPTIONS_ERROR;
 
 	switch (strm->internal->sequence) {
 	case ISEQ_RUN:

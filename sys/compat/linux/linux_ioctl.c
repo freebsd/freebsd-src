@@ -1749,7 +1749,7 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 			strncpy(info.id, "OSS", sizeof(info.id) - 1);
 			strncpy(info.name, "FreeBSD OSS Mixer", sizeof(info.name) - 1);
 			copyout(&info, (void *)args->arg, sizeof(info));
-			break;
+			return (0);
 		}
 		case 0x0030: {	/* SOUND_OLD_MIXER_INFO */
 			struct linux_old_mixer_info info;
@@ -1757,7 +1757,7 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 			strncpy(info.id, "OSS", sizeof(info.id) - 1);
 			strncpy(info.name, "FreeBSD OSS Mixer", sizeof(info.name) - 1);
 			copyout(&info, (void *)args->arg, sizeof(info));
-			break;
+			return (0);
 		}
 		default:
 			return (ENOIOCTL);
@@ -1772,6 +1772,10 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 
 	case LINUX_SOUND_MIXER_READ_STEREODEVS:
 		args->cmd = SOUND_MIXER_READ_STEREODEVS;
+		return (ioctl(td, (struct ioctl_args *)args));
+
+	case LINUX_SOUND_MIXER_READ_CAPS:
+		args->cmd = SOUND_MIXER_READ_CAPS;
 		return (ioctl(td, (struct ioctl_args *)args));
 
 	case LINUX_SOUND_MIXER_READ_RECMASK:
@@ -2220,7 +2224,7 @@ again:
 				addrs++;
 			}
 
-			if (!sbuf_overflowed(sb))
+			if (sbuf_error(sb) == 0)
 				valid_len = sbuf_len(sb);
 		}
 		if (addrs == 0) {
@@ -2228,7 +2232,7 @@ again:
 			sbuf_bcat(sb, &ifr, sizeof(ifr));
 			max_len += sizeof(ifr);
 
-			if (!sbuf_overflowed(sb))
+			if (sbuf_error(sb) == 0)
 				valid_len = sbuf_len(sb);
 		}
 	}

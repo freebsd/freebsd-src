@@ -1,6 +1,6 @@
 /*
  * hostapd - command line interface for hostapd daemon
- * Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2010, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,14 +15,14 @@
 #include "includes.h"
 #include <dirent.h>
 
-#include "wpa_ctrl.h"
+#include "common/wpa_ctrl.h"
 #include "common.h"
-#include "version.h"
+#include "common/version.h"
 
 
 static const char *hostapd_cli_version =
 "hostapd_cli v" VERSION_STR "\n"
-"Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi> and contributors";
+"Copyright (c) 2004-2010, Jouni Malinen <j@w1.fi> and contributors";
 
 
 static const char *hostapd_cli_license =
@@ -83,12 +83,18 @@ static const char *commands_help =
 "   sta <addr>           get MIB variables for one station\n"
 "   all_sta              get MIB variables for all stations\n"
 "   new_sta <addr>       add a new station\n"
+"   deauthenticate <addr>  deauthenticate a station\n"
+"   disassociate <addr>  disassociate a station\n"
 #ifdef CONFIG_IEEE80211W
 "   sa_query <addr>      send SA Query to a station\n"
 #endif /* CONFIG_IEEE80211W */
 #ifdef CONFIG_WPS
 "   wps_pin <uuid> <pin> [timeout]  add WPS Enrollee PIN (Device Password)\n"
 "   wps_pbc              indicate button pushed to initiate PBC\n"
+#ifdef CONFIG_WPS_OOB
+"   wps_oob <type> <path> <method>  use WPS with out-of-band (UFD)\n"
+#endif /* CONFIG_WPS_OOB */
+"   wps_ap_pin <cmd> [params..]  enable/disable AP PIN\n"
 #endif /* CONFIG_WPS */
 "   help                 show this usage help\n"
 "   interface [ifname]   show interfaces/select interface\n"
@@ -101,23 +107,29 @@ static int hostapd_cli_quit = 0;
 static int hostapd_cli_attached = 0;
 static const char *ctrl_iface_dir = "/var/run/hostapd";
 static char *ctrl_ifname = NULL;
+static const char *pid_file = NULL;
+static const char *action_file = NULL;
 static int ping_interval = 5;
 
 
 static void usage(void)
 {
 	fprintf(stderr, "%s\n", hostapd_cli_version);
-	fprintf(stderr, 
-		"\n"	
-		"usage: hostapd_cli [-p<path>] [-i<ifname>] [-hv] "
-		"[-G<ping interval>] \\\n"
-		"        [command..]\n"
+	fprintf(stderr,
+		"\n"
+		"usage: hostapd_cli [-p<path>] [-i<ifname>] [-hvB] "
+		"[-a<path>] \\\n"
+		"                   [-G<ping interval>] [command..]\n"
 		"\n"
 		"Options:\n"
 		"   -h           help (show this usage text)\n"
 		"   -v           shown version information\n"
 		"   -p<path>     path to find control sockets (default: "
 		"/var/run/hostapd)\n"
+		"   -a<file>     run in daemon mode executing the action file "
+		"based on events\n"
+		"                from hostapd\n"
+		"   -B           run a daemon in the background\n"
 		"   -i<ifname>   Interface to listen on (default: first "
 		"interface found in the\n"
 		"                socket path)\n\n"
@@ -212,6 +224,51 @@ static int hostapd_cli_cmd_mib(struct wpa_ctrl *ctrl, int argc, char *argv[])
 }
 
 
+static int hostapd_cli_exec(const char *program, const char *arg1,
+			    const char *arg2)
+{
+	char *cmd;
+	size_t len;
+	int res;
+	int ret = 0;
+
+	len = os_strlen(program) + os_strlen(arg1) + os_strlen(arg2) + 3;
+	cmd = os_malloc(len);
+	if (cmd == NULL)
+		return -1;
+	res = os_snprintf(cmd, len, "%s %s %s", program, arg1, arg2);
+	if (res < 0 || (size_t) res >= len) {
+		os_free(cmd);
+		return -1;
+	}
+	cmd[len - 1] = '\0';
+#ifndef _WIN32_WCE
+	if (system(cmd) < 0)
+		ret = -1;
+#endif /* _WIN32_WCE */
+	os_free(cmd);
+
+	return ret;
+}
+
+
+static void hostapd_cli_action_process(char *msg, size_t len)
+{
+	const char *pos;
+
+	pos = msg;
+	if (*pos == '<') {
+		pos = os_strchr(pos, '>');
+		if (pos)
+			pos++;
+		else
+			pos = msg;
+	}
+
+	hostapd_cli_exec(action_file, ctrl_ifname, pos);
+}
+
+
 static int hostapd_cli_cmd_sta(struct wpa_ctrl *ctrl, int argc, char *argv[])
 {
 	char buf[64];
@@ -235,6 +292,42 @@ static int hostapd_cli_cmd_new_sta(struct wpa_ctrl *ctrl, int argc,
 		return -1;
 	}
 	snprintf(buf, sizeof(buf), "NEW_STA %s", argv[0]);
+	return wpa_ctrl_command(ctrl, buf);
+}
+
+
+static int hostapd_cli_cmd_deauthenticate(struct wpa_ctrl *ctrl, int argc,
+					  char *argv[])
+{
+	char buf[64];
+	if (argc < 1) {
+		printf("Invalid 'deauthenticate' command - exactly one "
+		       "argument, STA address, is required.\n");
+		return -1;
+	}
+	if (argc > 1)
+		os_snprintf(buf, sizeof(buf), "DEAUTHENTICATE %s %s",
+			    argv[0], argv[1]);
+	else
+		os_snprintf(buf, sizeof(buf), "DEAUTHENTICATE %s", argv[0]);
+	return wpa_ctrl_command(ctrl, buf);
+}
+
+
+static int hostapd_cli_cmd_disassociate(struct wpa_ctrl *ctrl, int argc,
+					char *argv[])
+{
+	char buf[64];
+	if (argc < 1) {
+		printf("Invalid 'disassociate' command - exactly one "
+		       "argument, STA address, is required.\n");
+		return -1;
+	}
+	if (argc > 1)
+		os_snprintf(buf, sizeof(buf), "DISASSOCIATE %s %s",
+			    argv[0], argv[1]);
+	else
+		os_snprintf(buf, sizeof(buf), "DISASSOCIATE %s", argv[0]);
 	return wpa_ctrl_command(ctrl, buf);
 }
 
@@ -278,6 +371,61 @@ static int hostapd_cli_cmd_wps_pbc(struct wpa_ctrl *ctrl, int argc,
 				   char *argv[])
 {
 	return wpa_ctrl_command(ctrl, "WPS_PBC");
+}
+
+
+#ifdef CONFIG_WPS_OOB
+static int hostapd_cli_cmd_wps_oob(struct wpa_ctrl *ctrl, int argc,
+				   char *argv[])
+{
+	char cmd[256];
+	int res;
+
+	if (argc != 3 && argc != 4) {
+		printf("Invalid WPS_OOB command: need three or four "
+		       "arguments:\n"
+		       "- DEV_TYPE: use 'ufd' or 'nfc'\n"
+		       "- PATH: path of OOB device like '/mnt'\n"
+		       "- METHOD: OOB method 'pin-e' or 'pin-r', "
+		       "'cred'\n"
+		       "- DEV_NAME: (only for NFC) device name like "
+		       "'pn531'\n");
+		return -1;
+	}
+
+	if (argc == 3)
+		res = os_snprintf(cmd, sizeof(cmd), "WPS_OOB %s %s %s",
+				  argv[0], argv[1], argv[2]);
+	else
+		res = os_snprintf(cmd, sizeof(cmd), "WPS_OOB %s %s %s %s",
+				  argv[0], argv[1], argv[2], argv[3]);
+	if (res < 0 || (size_t) res >= sizeof(cmd) - 1) {
+		printf("Too long WPS_OOB command.\n");
+		return -1;
+	}
+	return wpa_ctrl_command(ctrl, cmd);
+}
+#endif /* CONFIG_WPS_OOB */
+
+
+static int hostapd_cli_cmd_wps_ap_pin(struct wpa_ctrl *ctrl, int argc,
+				      char *argv[])
+{
+	char buf[64];
+	if (argc < 1) {
+		printf("Invalid 'wps_ap_pin' command - at least one argument "
+		       "is required.\n");
+		return -1;
+	}
+	if (argc > 2)
+		snprintf(buf, sizeof(buf), "WPS_AP_PIN %s %s %s",
+			 argv[0], argv[1], argv[2]);
+	else if (argc > 1)
+		snprintf(buf, sizeof(buf), "WPS_AP_PIN %s %s",
+			 argv[0], argv[1]);
+	else
+		snprintf(buf, sizeof(buf), "WPS_AP_PIN %s", argv[0]);
+	return wpa_ctrl_command(ctrl, buf);
 }
 #endif /* CONFIG_WPS */
 
@@ -430,12 +578,18 @@ static struct hostapd_cli_cmd hostapd_cli_commands[] = {
 	{ "sta", hostapd_cli_cmd_sta },
 	{ "all_sta", hostapd_cli_cmd_all_sta },
 	{ "new_sta", hostapd_cli_cmd_new_sta },
+	{ "deauthenticate", hostapd_cli_cmd_deauthenticate },
+	{ "disassociate", hostapd_cli_cmd_disassociate },
 #ifdef CONFIG_IEEE80211W
 	{ "sa_query", hostapd_cli_cmd_sa_query },
 #endif /* CONFIG_IEEE80211W */
 #ifdef CONFIG_WPS
 	{ "wps_pin", hostapd_cli_cmd_wps_pin },
 	{ "wps_pbc", hostapd_cli_cmd_wps_pbc },
+#ifdef CONFIG_WPS_OOB
+	{ "wps_oob", hostapd_cli_cmd_wps_oob },
+#endif /* CONFIG_WPS_OOB */
+	{ "wps_ap_pin", hostapd_cli_cmd_wps_ap_pin },
 #endif /* CONFIG_WPS */
 	{ "help", hostapd_cli_cmd_help },
 	{ "interface", hostapd_cli_cmd_interface },
@@ -480,7 +634,8 @@ static void wpa_request(struct wpa_ctrl *ctrl, int argc, char *argv[])
 }
 
 
-static void hostapd_cli_recv_pending(struct wpa_ctrl *ctrl, int in_read)
+static void hostapd_cli_recv_pending(struct wpa_ctrl *ctrl, int in_read,
+				     int action_monitor)
 {
 	int first = 1;
 	if (ctrl_conn == NULL)
@@ -490,10 +645,14 @@ static void hostapd_cli_recv_pending(struct wpa_ctrl *ctrl, int in_read)
 		size_t len = sizeof(buf) - 1;
 		if (wpa_ctrl_recv(ctrl, buf, &len) == 0) {
 			buf[len] = '\0';
-			if (in_read && first)
-				printf("\n");
-			first = 0;
-			printf("%s\n", buf);
+			if (action_monitor)
+				hostapd_cli_action_process(buf, len);
+			else {
+				if (in_read && first)
+					printf("\n");
+				first = 0;
+				printf("%s\n", buf);
+			}
 		} else {
 			printf("Could not read pending message.\n");
 			break;
@@ -511,7 +670,7 @@ static void hostapd_cli_interactive(void)
 	printf("\nInteractive mode\n\n");
 
 	do {
-		hostapd_cli_recv_pending(ctrl_conn, 0);
+		hostapd_cli_recv_pending(ctrl_conn, 0, 0);
 		printf("> ");
 		alarm(ping_interval);
 		res = fgets(cmd, sizeof(cmd), stdin);
@@ -548,9 +707,19 @@ static void hostapd_cli_interactive(void)
 }
 
 
-static void hostapd_cli_terminate(int sig)
+static void hostapd_cli_cleanup(void)
 {
 	hostapd_cli_close_connection();
+	if (pid_file)
+		os_daemonize_terminate(pid_file);
+
+	os_program_deinit();
+}
+
+
+static void hostapd_cli_terminate(int sig)
+{
+	hostapd_cli_cleanup();
 	exit(0);
 }
 
@@ -574,8 +743,45 @@ static void hostapd_cli_alarm(int sig)
 		}
 	}
 	if (ctrl_conn)
-		hostapd_cli_recv_pending(ctrl_conn, 1);
+		hostapd_cli_recv_pending(ctrl_conn, 1, 0);
 	alarm(ping_interval);
+}
+
+
+static void hostapd_cli_action(struct wpa_ctrl *ctrl)
+{
+	fd_set rfds;
+	int fd, res;
+	struct timeval tv;
+	char buf[256];
+	size_t len;
+
+	fd = wpa_ctrl_get_fd(ctrl);
+
+	while (!hostapd_cli_quit) {
+		FD_ZERO(&rfds);
+		FD_SET(fd, &rfds);
+		tv.tv_sec = ping_interval;
+		tv.tv_usec = 0;
+		res = select(fd + 1, &rfds, NULL, NULL, &tv);
+		if (res < 0 && errno != EINTR) {
+			perror("select");
+			break;
+		}
+
+		if (FD_ISSET(fd, &rfds))
+			hostapd_cli_recv_pending(ctrl, 0, 1);
+		else {
+			len = sizeof(buf) - 1;
+			if (wpa_ctrl_request(ctrl, "PING", 4, buf, &len,
+					     hostapd_cli_action_process) < 0 ||
+			    len < 4 || os_memcmp(buf, "PONG", 4) != 0) {
+				printf("hostapd did not reply to PING "
+				       "command - exiting\n");
+				break;
+			}
+		}
+	}
 }
 
 
@@ -584,12 +790,22 @@ int main(int argc, char *argv[])
 	int interactive;
 	int warning_displayed = 0;
 	int c;
+	int daemonize = 0;
+
+	if (os_program_init())
+		return -1;
 
 	for (;;) {
-		c = getopt(argc, argv, "hG:i:p:v");
+		c = getopt(argc, argv, "a:BhG:i:p:v");
 		if (c < 0)
 			break;
 		switch (c) {
+		case 'a':
+			action_file = optarg;
+			break;
+		case 'B':
+			daemonize = 1;
+			break;
 		case 'G':
 			ping_interval = atoi(optarg);
 			break;
@@ -600,8 +816,8 @@ int main(int argc, char *argv[])
 			printf("%s\n", hostapd_cli_version);
 			return 0;
 		case 'i':
-			free(ctrl_ifname);
-			ctrl_ifname = strdup(optarg);
+			os_free(ctrl_ifname);
+			ctrl_ifname = os_strdup(optarg);
 			break;
 		case 'p':
 			ctrl_iface_dir = optarg;
@@ -612,7 +828,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	interactive = argc == optind;
+	interactive = (argc == optind) && (action_file == NULL);
 
 	if (interactive) {
 		printf("%s\n\n%s\n\n", hostapd_cli_version,
@@ -625,12 +841,13 @@ int main(int argc, char *argv[])
 			DIR *dir = opendir(ctrl_iface_dir);
 			if (dir) {
 				while ((dent = readdir(dir))) {
-					if (strcmp(dent->d_name, ".") == 0 ||
-					    strcmp(dent->d_name, "..") == 0)
+					if (os_strcmp(dent->d_name, ".") == 0
+					    ||
+					    os_strcmp(dent->d_name, "..") == 0)
 						continue;
 					printf("Selected interface '%s'\n",
 					       dent->d_name);
-					ctrl_ifname = strdup(dent->d_name);
+					ctrl_ifname = os_strdup(dent->d_name);
 					break;
 				}
 				closedir(dir);
@@ -653,7 +870,7 @@ int main(int argc, char *argv[])
 			printf("Could not connect to hostapd - re-trying\n");
 			warning_displayed = 1;
 		}
-		sleep(1);
+		os_sleep(1, 0);
 		continue;
 	}
 
@@ -661,17 +878,27 @@ int main(int argc, char *argv[])
 	signal(SIGTERM, hostapd_cli_terminate);
 	signal(SIGALRM, hostapd_cli_alarm);
 
-	if (interactive) {
+	if (interactive || action_file) {
 		if (wpa_ctrl_attach(ctrl_conn) == 0) {
 			hostapd_cli_attached = 1;
 		} else {
 			printf("Warning: Failed to attach to hostapd.\n");
+			if (action_file)
+				return -1;
 		}
+	}
+
+	if (daemonize && os_daemonize(pid_file))
+		return -1;
+
+	if (interactive)
 		hostapd_cli_interactive();
-	} else
+	else if (action_file)
+		hostapd_cli_action(ctrl_conn);
+	else
 		wpa_request(ctrl_conn, argc - optind, &argv[optind]);
 
-	free(ctrl_ifname);
-	hostapd_cli_close_connection();
+	os_free(ctrl_ifname);
+	hostapd_cli_cleanup();
 	return 0;
 }

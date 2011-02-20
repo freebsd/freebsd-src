@@ -36,6 +36,12 @@ namespace llvm {
   class LLVMContext;
   class raw_ostream;
 
+  class DIFile;
+  class DISubprogram;
+  class DILexicalBlock;
+  class DIVariable;
+  class DIType;
+
   /// DIDescriptor - A thin wraper around MDNode to access encoded debug info.
   /// This should not be stored in a container, because underly MDNode may
   /// change in certain situations.
@@ -56,11 +62,17 @@ namespace llvm {
     }
 
     GlobalVariable *getGlobalVariableField(unsigned Elt) const;
+    Constant *getConstantField(unsigned Elt) const;
     Function *getFunctionField(unsigned Elt) const;
 
   public:
     explicit DIDescriptor() : DbgNode(0) {}
     explicit DIDescriptor(const MDNode *N) : DbgNode(N) {}
+    explicit DIDescriptor(const DIFile F);
+    explicit DIDescriptor(const DISubprogram F);
+    explicit DIDescriptor(const DILexicalBlock F);
+    explicit DIDescriptor(const DIVariable F);
+    explicit DIDescriptor(const DIType F);
 
     bool Verify() const { return DbgNode != 0; }
 
@@ -134,7 +146,7 @@ namespace llvm {
   public:
     explicit DICompileUnit(const MDNode *N = 0) : DIScope(N) {}
 
-    unsigned getLanguage() const     { return getUnsignedField(2); }
+    unsigned getLanguage() const   { return getUnsignedField(2); }
     StringRef getFilename() const  { return getStringField(3);   }
     StringRef getDirectory() const { return getStringField(4);   }
     StringRef getProducer() const  { return getStringField(5);   }
@@ -260,6 +272,10 @@ namespace llvm {
     StringRef getFilename() const    { return getCompileUnit().getFilename();}
     StringRef getDirectory() const   { return getCompileUnit().getDirectory();}
 
+    /// replaceAllUsesWith - Replace all uses of debug info referenced by
+    /// this descriptor.
+    void replaceAllUsesWith(DIDescriptor &D);
+
     /// print - print type.
     void print(raw_ostream &OS) const;
 
@@ -273,6 +289,9 @@ namespace llvm {
     explicit DIBasicType(const MDNode *N = 0) : DIType(N) {}
 
     unsigned getEncoding() const { return getUnsignedField(9); }
+
+    /// Verify - Verify that a basic type descriptor is well formed.
+    bool Verify() const;
 
     /// print - print basic type.
     void print(raw_ostream &OS) const;
@@ -297,16 +316,14 @@ namespace llvm {
     /// return base type size.
     uint64_t getOriginalTypeSize() const;
 
+    /// Verify - Verify that a derived type descriptor is well formed.
+    bool Verify() const;
+
     /// print - print derived type.
     void print(raw_ostream &OS) const;
 
     /// dump - print derived type to dbgs() with a newline.
     void dump() const;
-
-    /// replaceAllUsesWith - Replace all uses of debug info referenced by
-    /// this descriptor. After this completes, the current debug info value
-    /// is erased.
-    void replaceAllUsesWith(DIDescriptor &D);
   };
 
   /// DICompositeType - This descriptor holds a type that can refer to multiple
@@ -437,6 +454,7 @@ namespace llvm {
     unsigned isDefinition() const       { return getUnsignedField(10); }
 
     GlobalVariable *getGlobal() const { return getGlobalVariableField(11); }
+    Constant *getConstant() const   { return getConstantField(11); }
 
     /// Verify - Verify that a global variable descriptor is well formed.
     bool Verify() const;
@@ -504,10 +522,18 @@ namespace llvm {
   public:
     explicit DILexicalBlock(const MDNode *N = 0) : DIScope(N) {}
     DIScope getContext() const       { return getFieldAs<DIScope>(1);      }
-    StringRef getDirectory() const   { return getContext().getDirectory(); }
-    StringRef getFilename() const    { return getContext().getFilename();  }
     unsigned getLineNumber() const   { return getUnsignedField(2);         }
     unsigned getColumnNumber() const { return getUnsignedField(3);         }
+    StringRef getDirectory() const {
+      DIFile F = getFieldAs<DIFile>(4);
+      StringRef dir = F.getDirectory();
+      return !dir.empty() ? dir : getContext().getDirectory();
+    }
+    StringRef getFilename() const {
+      DIFile F = getFieldAs<DIFile>(4);
+      StringRef filename = F.getFilename();
+      return !filename.empty() ? filename : getContext().getFilename();
+    }
   };
 
   /// DINameSpace - A wrapper for a C++ style name space.
@@ -634,6 +660,9 @@ namespace llvm {
                                         unsigned RunTimeLang = 0,
                                         MDNode *ContainingType = 0);
 
+    /// CreateTemporaryType - Create a temporary forward-declared type.
+    DIType CreateTemporaryType();
+
     /// CreateArtificialType - Create a new DIType with "artificial" flag set.
     DIType CreateArtificialType(DIType Ty);
 
@@ -648,7 +677,8 @@ namespace llvm {
                                           unsigned Flags,
                                           DIType DerivedFrom,
                                           DIArray Elements,
-                                          unsigned RunTimeLang = 0);
+                                          unsigned RunTimeLang = 0,
+                                          MDNode *ContainingType = 0);
 
     /// CreateSubprogram - Create a new descriptor for the specified subprogram.
     /// See comments in DISubprogram for descriptions of these fields.
@@ -678,6 +708,15 @@ namespace llvm {
                          unsigned LineNo, DIType Ty, bool isLocalToUnit,
                          bool isDefinition, llvm::GlobalVariable *GV);
 
+    /// CreateGlobalVariable - Create a new descriptor for the specified constant.
+    DIGlobalVariable
+    CreateGlobalVariable(DIDescriptor Context, StringRef Name,
+                         StringRef DisplayName,
+                         StringRef LinkageName,
+                         DIFile F,
+                         unsigned LineNo, DIType Ty, bool isLocalToUnit,
+                         bool isDefinition, llvm::Constant *C);
+
     /// CreateVariable - Create a new descriptor for the specified variable.
     DIVariable CreateVariable(unsigned Tag, DIDescriptor Context,
                               StringRef Name,
@@ -694,8 +733,8 @@ namespace llvm {
 
     /// CreateLexicalBlock - This creates a descriptor for a lexical block
     /// with the specified parent context.
-    DILexicalBlock CreateLexicalBlock(DIDescriptor Context, unsigned Line = 0,
-                                      unsigned Col = 0);
+    DILexicalBlock CreateLexicalBlock(DIDescriptor Context, DIFile F,
+                                      unsigned Line = 0, unsigned Col = 0);
 
     /// CreateNameSpace - This creates new descriptor for a namespace
     /// with the specified parent context.

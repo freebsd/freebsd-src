@@ -137,7 +137,6 @@ struct npe_softc {
 	int		rx_freeqid;	/* rx free buffers qid */
 	int		tx_qid;		/* tx qid */
 	int		tx_doneqid;	/* tx completed qid */
-	int		sc_phy;		/* PHY id */
 	struct ifmib_iso_8802_3 mibdata;
 	bus_dma_tag_t	sc_stats_tag;	/* bus dma tag for stats block */
 	struct npestats	*sc_stats;
@@ -668,7 +667,7 @@ static int
 npe_activate(device_t dev)
 {
 	struct npe_softc *sc = device_get_softc(dev);
-	int error, i, macbase, miibase;
+	int error, i, macbase, miibase, phy;
 
 	/*
 	 * Setup NEP ID, MAC, and MII bindings.  We allow override
@@ -693,8 +692,8 @@ npe_activate(device_t dev)
 	}
 
 	/* PHY */
-	if (!override_unit(dev, "phy", &sc->sc_phy, 0, MII_NPHY-1))
-		sc->sc_phy = npeconfig[sc->sc_npeid].phy;
+	if (!override_unit(dev, "phy", &phy, 0, MII_NPHY - 1))
+		phy = npeconfig[sc->sc_npeid].phy;
 	if (!override_addr(dev, "mii", &miibase))
 		miibase = npeconfig[sc->sc_npeid].miibase;
 	device_printf(sc->sc_dev, "MII at 0x%x\n", miibase);
@@ -721,10 +720,12 @@ npe_activate(device_t dev)
 		return error;
 	}
 
-	/* probe for PHY */
-	if (mii_phy_probe(dev, &sc->sc_mii, npe_ifmedia_update, npe_ifmedia_status)) {
-		device_printf(dev, "cannot find PHY %d.\n", sc->sc_phy);
-		return ENXIO;
+	/* attach PHY */
+	error = mii_attach(dev, &sc->sc_mii, sc->sc_ifp, npe_ifmedia_update,
+	    npe_ifmedia_status, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
+		return error;
 	}
 
 	error = npe_dma_setup(sc, &sc->txdma, "tx", npe_txbuf, NPE_MAXSEG);
@@ -1700,8 +1701,6 @@ npe_miibus_readreg(device_t dev, int phy, int reg)
 	struct npe_softc *sc = device_get_softc(dev);
 	uint32_t v;
 
-	if (phy != sc->sc_phy)		/* XXX no auto-detect */
-		return 0xffff;
 	v = (phy << NPE_MII_ADDR_SHL) | (reg << NPE_MII_REG_SHL) | NPE_MII_GO;
 	npe_mii_mdio_write(sc, NPE_MAC_MDIO_CMD, v);
 	if (npe_mii_mdio_wait(sc))
@@ -1717,8 +1716,6 @@ npe_miibus_writereg(device_t dev, int phy, int reg, int data)
 	struct npe_softc *sc = device_get_softc(dev);
 	uint32_t v;
 
-	if (phy != sc->sc_phy)		/* XXX */
-		return (0);
 	v = (phy << NPE_MII_ADDR_SHL) | (reg << NPE_MII_REG_SHL)
 	  | data | NPE_MII_WRITE
 	  | NPE_MII_GO;

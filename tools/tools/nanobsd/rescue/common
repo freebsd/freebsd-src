@@ -5,6 +5,7 @@ NANO_TOOLS=`pwd`
 NANO_PACKAGE_DIR=`pwd`/Pkg
 NANO_RAM_TMPVARSIZE=20480
 NANO_PMAKE="make -j 8"
+NANO_LABEL="rescue"
 
 # Options to put in make.conf during buildworld only
 CONF_BUILD='
@@ -52,7 +53,7 @@ cust_etc_cfg () (
 	echo "keymap=\"german.iso\"" >> etc/rc.conf
 	echo "#ifconfig_fxp0=\"AUTO\"" >> etc/rc.conf
 	echo "#sshd_enable=\"YES\"" >> etc/rc.conf
-	echo "/dev/acd0 / cd9660 ro 0 0" > etc/fstab
+	echo "/dev/iso9660/${NANO_LABEL} / cd9660 ro,noatime 0 0" > etc/fstab
 	echo "tmpfs /tmp tmpfs rw,size=268435456,mode=1777 0 0" >> etc/fstab
 	echo "ports:/usr/ports /usr/ports nfs rw,noauto,noatime,bg,soft,intr,nfsv3 0 0" >> etc/fstab
 #	echo "/dev/ad1s1a /scratch ufs rw,noauto,noatime 0 0" >> etc/fstab
@@ -81,7 +82,16 @@ last_orders () (
 	touch conf/default/etc/.keepme
 	touch conf/default/var/.keepme
 	cd ..
-	mkisofs -quiet -r -J -no-emul-boot -b boot/cdboot -o _.disk.iso _.w/
+	mkisofs -quiet -r -J -no-emul-boot \
+	-V ${NANO_LABEL} \
+	-b boot/cdboot -o _.disk.iso _.w/
 	)
 )
 
+create_i386_diskimage () {
+	#currently not used
+}
+
+create_amd64_diskimage () {
+	create_i386_diskimage
+}

@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -52,14 +54,15 @@
 #include "cvmx-sysinfo.h"
 #include "cvmx-bootmem.h"
 #include "cvmx-uart.h"
-#include "cvmx-ciu.h"
 #include "cvmx-coremask.h"
 #include "cvmx-core.h"
 #include "cvmx-interrupt.h"
 #include "cvmx-ebt3000.h"
+#include "cvmx-sim-magic.h"
+#include "cvmx-debug.h"
 #include "../../bootloader/u-boot/include/octeon_mem_map.h"
 
-int cvmx_debug_uart;
+int cvmx_debug_uart = -1;
 
 /**
  * @file
@@ -114,7 +117,7 @@ static void process_boot_desc_ver_6(octeon_boot_descriptor_t *app_desc_ptr, cvmx
         sys_info_ptr->stack_top = cvmx_bootinfo_ptr->stack_top;
         sys_info_ptr->stack_size = cvmx_bootinfo_ptr->stack_size;
         sys_info_ptr->init_core = cvmx_get_core_num();
-        sys_info_ptr->phy_mem_desc_ptr = CASTPTR(void, CVMX_ADD_SEG32(CVMX_MIPS32_SPACE_KSEG0, cvmx_bootinfo_ptr->phy_mem_desc_addr));
+        sys_info_ptr->phy_mem_desc_addr = cvmx_bootinfo_ptr->phy_mem_desc_addr;
         sys_info_ptr->exception_base_addr = cvmx_bootinfo_ptr->exception_base_addr;
         sys_info_ptr->cpu_clock_hz  = cvmx_bootinfo_ptr->eclock_hz;
         sys_info_ptr->dram_data_rate_hz  = cvmx_bootinfo_ptr->dclock_hz * 2;
@@ -129,7 +132,7 @@ static void process_boot_desc_ver_6(octeon_boot_descriptor_t *app_desc_ptr, cvmx
         if (cvmx_bootinfo_ptr->flags & OCTEON_BL_FLAG_CONSOLE_UART1)
             sys_info_ptr->console_uart_num = 1;
 
-        if (cvmx_bootinfo_ptr->dram_size > 16*1024*1024)
+        if (cvmx_bootinfo_ptr->dram_size > 32*1024*1024)
             sys_info_ptr->system_dram_size = (uint64_t)cvmx_bootinfo_ptr->dram_size;  /* older bootloaders incorrectly gave this in bytes, so don't convert */
         else
             sys_info_ptr->system_dram_size = (uint64_t)cvmx_bootinfo_ptr->dram_size * 1024 * 1024;  /* convert from Megabytes to bytes */
@@ -140,7 +143,8 @@ static void process_boot_desc_ver_6(octeon_boot_descriptor_t *app_desc_ptr, cvmx
             sys_info_ptr->led_display_base_addr = cvmx_bootinfo_ptr->led_display_base_addr;
         }
         else if (sys_info_ptr->board_type == CVMX_BOARD_TYPE_EBT3000 ||
-                 sys_info_ptr->board_type == CVMX_BOARD_TYPE_EBT5800)
+                 sys_info_ptr->board_type == CVMX_BOARD_TYPE_EBT5800 ||
+                 sys_info_ptr->board_type == CVMX_BOARD_TYPE_EBT5810)
         {
             /* Default these variables so that users of structure can be the same no
             ** matter what version fo boot info block the bootloader passes */
@@ -178,46 +182,10 @@ static void process_boot_desc_ver_6(octeon_boot_descriptor_t *app_desc_ptr, cvmx
     {
         printf("ERROR: Incompatible CVMX descriptor passed by bootloader: %d.%d\n",
                (int)cvmx_bootinfo_ptr->major_version, (int)cvmx_bootinfo_ptr->minor_version);
-        while (1);
+        exit(-1);
     }
 }
 
-
-/**
- * Interrupt handler for debugger Control-C interrupts.
- *
- * @param irq_number IRQ interrupt number
- * @param registers  CPU registers at the time of the interrupt
- * @param user_arg   Unused user argument
- */
-static void process_debug_interrupt(int irq_number, uint64_t registers[32], void *user_arg)
-{
-    int uart = irq_number - CVMX_IRQ_UART0;
-    cvmx_uart_lsr_t lsrval;
-
-    /* Check for a Control-C interrupt from the debugger. This loop will eat
-        all input received on the uart */
-    lsrval.u64 = cvmx_read_csr(CVMX_MIO_UARTX_LSR(uart));
-    while (lsrval.s.dr)
-    {
-        int c = cvmx_read_csr(CVMX_MIO_UARTX_RBR(uart));
-        if (c == '\003')
-        {
-            register uint64_t tmp;
-            fflush(stderr);
-            fflush(stdout);
-            /* Pulse MCD0 signal on Ctrl-C to stop all the cores. Also
-                set the MCD0 to be not masked by this core so we know
-                the signal is received by someone */
-            asm volatile (
-                "dmfc0 %0, $22\n"
-                "ori   %0, %0, 0x1110\n"
-                "dmtc0 %0, $22\n"
-                : "=r" (tmp));
-        }
-        lsrval.u64 = cvmx_read_csr(CVMX_MIO_UARTX_LSR(uart));
-    }
-}
 
 /**
  * Interrupt handler for calling exit on Control-C interrupts.
@@ -309,6 +277,7 @@ void __cvmx_app_init(uint64_t app_desc_addr)
 
     /* app info structure used by the simple exec */
     cvmx_sysinfo_t *sys_info_ptr = cvmx_sysinfo_get();
+    int breakflag = 0;
 
     if (cvmx_coremask_first_core(app_desc_ptr->core_mask))
     {
@@ -316,8 +285,7 @@ void __cvmx_app_init(uint64_t app_desc_addr)
         if (app_desc_ptr->desc_version < 6)
         {
             printf("Obsolete bootloader, can't run application\n");
-            while (1)
-                ;
+            exit(-1);
         }
         else
         {
@@ -332,94 +300,58 @@ void __cvmx_app_init(uint64_t app_desc_addr)
     }
     cvmx_coremask_barrier_sync(app_desc_ptr->core_mask);
 
-    /* All cores need to enable MCD0 signals if the debugger flag is set */
-    if (sys_info_ptr->bootloader_config_flags & CVMX_BOOTINFO_CFG_FLAG_DEBUG)
+    breakflag = sys_info_ptr->bootloader_config_flags & CVMX_BOOTINFO_CFG_FLAG_BREAK;
+
+    /* No need to initialize bootmem, interrupts, interrupt handler and error handler
+       if version does not match. */
+    if (cvmx_coremask_first_core(sys_info_ptr->core_mask))
     {
-        /* Set all cores to stop on MCD0 signals */
-        uint64_t tmp;
-        asm volatile(
-            "dmfc0 %0, $22, 0\n"
-            "or %0, %0, 0x1100\n"
-            "dmtc0 %0, $22, 0\n" : "=r" (tmp));
+        /* Check to make sure the Chip version matches the configured version */
+        uint32_t chip_id = cvmx_get_proc_id();
+        /* Make sure we can properly run on this chip */
+        octeon_model_version_check(chip_id);
     }
 
     cvmx_interrupt_initialize();
 
     if (cvmx_coremask_first_core(sys_info_ptr->core_mask))
     {
-        /* Check to make sure the Chip version matches the configured version */
-        uint32_t chip_id = cvmx_get_proc_id();
-	int debugflag = sys_info_ptr->bootloader_config_flags & CVMX_BOOTINFO_CFG_FLAG_DEBUG;
-	int breakflag = sys_info_ptr->bootloader_config_flags & CVMX_BOOTINFO_CFG_FLAG_BREAK;
-	int uart;
+        int break_uart = 0;
+        unsigned int i;
 
         /* Intialize the bootmem allocator with the descriptor that was provided by
-        ** the bootloader
-        ** IMPORTANT:  All printfs must happen after this since PCI console uses named
-        ** blocks.
-        */
-        cvmx_bootmem_init(sys_info_ptr->phy_mem_desc_ptr);
-
-        /* Make sure we can properly run on this chip */
-        octeon_model_version_check(chip_id);
-
-	/* Default to the second uart port.  Set this even if debug was
-	   not passed.  The idea is that if the program crashes one would
-	   be able to break in on uart1 even without debug.  */
-	cvmx_debug_uart = 1;
-        /* If the debugger flag is set, setup the uart Control-C interrupt
-            handler */
-        if (debugflag)
+         * the bootloader
+         * IMPORTANT:  All printfs must happen after this since PCI console uses named
+         * blocks.
+         */
+        cvmx_bootmem_init(sys_info_ptr->phy_mem_desc_addr);
+        if (breakflag && cvmx_debug_booted())
         {
-            /* Search through the arguments for a debug=X */
-            unsigned int i;
-            for (i=0; i<app_desc_ptr->argc; i++)
-            {
-                const char *argv = CASTPTR(const char, CVMX_ADD_SEG32(CVMX_MIPS32_SPACE_KSEG0, app_desc_ptr->argv[i]));
-                if (strncmp(argv, "debug=", 6) == 0)
-                {
-                    /* Use the supplied uart as an override */
-                    cvmx_debug_uart = atoi(argv+6);
-                    break;
-                }
-            }
-	    cvmx_interrupt_register(CVMX_IRQ_UART0+cvmx_debug_uart, process_debug_interrupt, NULL);
-	    uart = cvmx_debug_uart;
-	}
-	else if (breakflag)
-	{
-            unsigned int i;
-	    int32_t *trampoline = CASTPTR(int32_t, CVMX_ADD_SEG32(CVMX_MIPS32_SPACE_KSEG0, BOOTLOADER_DEBUG_TRAMPOLINE));
-	    /* Default to the first uart port. */
-	    uart = 0;
+            printf("ERROR: Using debug and break together in not supported.\n");
+            while (1)
+                ;
+        }
 
-            /* Search through the arguments for a break=X */
-            for (i = 0; i < app_desc_ptr->argc; i++)
-            {
-                const char *argv = CASTPTR(const char, CVMX_ADD_SEG32(CVMX_MIPS32_SPACE_KSEG0, app_desc_ptr->argv[i]));
-                if (strncmp(argv, "break=", 6) == 0)
-                {
-                    /* Use the supplied uart as an override */
-                    uart = atoi(argv+6);
-                    break;
-                }
-            }
+        /* Search through the arguments for a break=X or a debug=X. */
+        for (i = 0; i < app_desc_ptr->argc; i++)
+        {
+            const char *argv = CASTPTR(const char, CVMX_ADD_SEG32(CVMX_MIPS32_SPACE_KSEG0, app_desc_ptr->argv[i]));
+            if (strncmp(argv, "break=", 6) == 0)
+                break_uart = atoi(argv + 6);
+            else if (strncmp(argv, "debug=", 6) == 0)
+                cvmx_debug_uart = atoi(argv + 6);
+        }
 
-	    /* On debug exception, call exit_on_break from all cores. */
-	    *trampoline = (int32_t)(long)&exit_on_break;
-	    cvmx_interrupt_register(CVMX_IRQ_UART0 + uart, process_break_interrupt, NULL);
-	}
-	if (debugflag || breakflag)
-	{
-            /* Enable uart interrupts for debugger Control-C processing */
-            cvmx_uart_ier_t ier;
-            ier.u64 = cvmx_read_csr(CVMX_MIO_UARTX_IER(uart));
-            ier.s.erbfi = 1;
-            cvmx_write_csr(CVMX_MIO_UARTX_IER(uart), ier.u64);
-
-            cvmx_interrupt_unmask_irq(CVMX_IRQ_UART0+uart);
+        if (breakflag)
+        {
+            int32_t *trampoline = CASTPTR(int32_t, CVMX_ADD_SEG32(CVMX_MIPS32_SPACE_KSEG0, BOOTLOADER_DEBUG_TRAMPOLINE));
+            /* On debug exception, call exit_on_break from all cores. */
+            *trampoline = (int32_t)(long)&exit_on_break;
+            cvmx_uart_enable_intr(break_uart, process_break_interrupt);
         }
     }
+
+    cvmx_coremask_barrier_sync(app_desc_ptr->core_mask);
 
     /* Clear BEV now that we have installed exception handlers. */
     uint64_t tmp;
@@ -443,6 +375,11 @@ void __cvmx_app_init(uint64_t app_desc_addr)
         "dmtc0 %0, $22, 0\n" : "=r" (tmp));
 
     CVMX_SYNC;
+
+    /* Now intialize the debug exception handler as BEV is cleared. */
+    if (!breakflag)
+        cvmx_debug_init();
+
     /* Synchronise all cores at this point */
     cvmx_coremask_barrier_sync(app_desc_ptr->core_mask);
 
@@ -470,11 +407,6 @@ int cvmx_user_app_init(void)
         printf("BIST FAILURE: COP0_CACHE_ERR: 0x%llx\n", (unsigned long long)bist_val);
         bist_errors++;
     }
-    /* Clear parity error bits */
-    CVMX_MF_CACHE_ERR(bist_val);
-    bist_val &= ~0x7ull;
-    CVMX_MT_CACHE_ERR(bist_val);
-
 
     mask = 0xfc00000000000000ull;
     CVMX_MF_CVM_MEM_CTL(bist_val);
@@ -485,29 +417,16 @@ int cvmx_user_app_init(void)
         bist_errors++;
     }
 
-    /* Clear DCACHE parity error bit */
-    bist_val = 0;
-    CVMX_MF_DCACHE_ERR(bist_val);
-
-    mask =     0x18ull;
-    bist_val = cvmx_read_csr(CVMX_L2D_ERR);
-    if (bist_val & mask)
-    {
-        printf("ERROR: ECC error detected in L2 Data, L2D_ERR: 0x%llx\n", (unsigned long long)bist_val);
-        cvmx_write_csr(CVMX_L2D_ERR, bist_val); /* Clear error bits if set */
-    }
-    bist_val = cvmx_read_csr(CVMX_L2T_ERR);
-    if (bist_val & mask)
-    {
-        printf("ERROR: ECC error detected in L2 Tags, L2T_ERR: 0x%llx\n", (unsigned long long)bist_val);
-        cvmx_write_csr(CVMX_L2T_ERR, bist_val); /* Clear error bits if set */
-    }
-
-
     /* Set up 4 cache lines of local memory, make available from Kernel space */
     CVMX_MF_CVM_MEM_CTL(tmp);
     tmp &= ~0x1ffull;
     tmp |= 0x104ull;
+    /* Set WBTHRESH=4 as per Core-14752 errata in cn63xxp1.X. */
+    if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X))
+    {
+        tmp &= ~(0xfull << 11);
+        tmp |= 4 << 11;
+    }
     CVMX_MT_CVM_MEM_CTL(tmp);
 
 
@@ -519,10 +438,8 @@ int cvmx_user_app_init(void)
     {
         printf("ERROR: 1-1 TLB mappings configured and oversize application loaded.\n");
         printf("ERROR: Either 1-1 TLB mappings must be disabled or application size reduced.\n");
-        while (1)
-            ;
+        exit(-1);
     }
-
 
     /* Create 1-1 Mappings for all DRAM up to 8 gigs, excluding the low 1 Megabyte.  This area
     ** is reserved for the bootloader and exception vectors.  By not mapping this area, NULL pointer
@@ -549,67 +466,62 @@ int cvmx_user_app_init(void)
 #endif
     cvmx_core_add_fixed_tlb_mapping(0x8000000ULL, 0x8000000ULL, 0xc000000ULL, CVMX_TLB_PAGEMASK_64M);
 
-    /* Create 1-1 mapping for next 256 megs
-    ** bottom page is not valid */
-    cvmx_core_add_fixed_tlb_mapping_bits(0x400000000ULL, 0, 0x410000000ULL  | TLB_DIRTY | TLB_VALID | TLB_GLOBAL, CVMX_TLB_PAGEMASK_256M);
-
-    /* Map from 0.5 up to the installed memory size in 512 MByte chunks.  If this loop runs out of memory,
-    ** the NULL pointer detection can be disabled to free up more TLB entries. */
-    if (cvmx_sysinfo_get()->system_dram_size > 0x20000000ULL)
+    if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
     {
-        for (base_addr = 0x20000000ULL; base_addr <= (cvmx_sysinfo_get()->system_dram_size - 0x20000000ULL); base_addr += 0x20000000ULL)
+        for (base_addr = 0x20000000ULL; base_addr < (cvmx_sysinfo_get()->system_dram_size + 0x10000000ULL); base_addr += 0x20000000ULL)
         {
             if (0 > cvmx_core_add_fixed_tlb_mapping(base_addr,  base_addr,  base_addr + 0x10000000ULL, CVMX_TLB_PAGEMASK_256M))
             {
                 printf("ERROR adding 1-1 TLB mapping for address 0x%llx\n", (unsigned long long)base_addr);
-                while (1);    /* Hang here, as expected memory mappings aren't set up if this fails */
+                /* Exit from here, as expected memory mappings aren't set
+                   up if this fails */
+		exit(-1);
             }
         }
     }
+    else
+    {
+        /* Create 1-1 mapping for next 256 megs
+        ** bottom page is not valid */
+        cvmx_core_add_fixed_tlb_mapping_bits(0x400000000ULL, 0, 0x410000000ULL  | TLB_DIRTY | TLB_VALID | TLB_GLOBAL, CVMX_TLB_PAGEMASK_256M);
 
-
+        /* Map from 0.5 up to the installed memory size in 512 MByte chunks.  If this loop runs out of memory,
+        ** the NULL pointer detection can be disabled to free up more TLB entries. */
+        if (cvmx_sysinfo_get()->system_dram_size > 0x20000000ULL)
+        {
+            for (base_addr = 0x20000000ULL; base_addr <= (cvmx_sysinfo_get()->system_dram_size - 0x20000000ULL); base_addr += 0x20000000ULL)
+            {
+                if (0 > cvmx_core_add_fixed_tlb_mapping(base_addr,  base_addr,  base_addr + 0x10000000ULL, CVMX_TLB_PAGEMASK_256M))
+                {
+                    printf("ERROR adding 1-1 TLB mapping for address 0x%llx\n", (unsigned long long)base_addr);
+                    /* Exit from here, as expected memory mappings
+                       aren't set up if this fails */
+                    exit(-1);
+                }
+            }
+        }
+    }
 #endif
 
 
     cvmx_sysinfo_t *sys_info_ptr = cvmx_sysinfo_get();
-    cvmx_bootmem_init(sys_info_ptr->phy_mem_desc_ptr);
+    cvmx_bootmem_init(sys_info_ptr->phy_mem_desc_addr);
 
     return(0);
 }
 
 void __cvmx_app_exit(void)
 {
-    if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM)
+    cvmx_debug_finish();
+
+    if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
     {
-       uint64_t val;
-       uint64_t mask, expected;
-       int bist_errors = 0;
-
-       mask =     0x1ull;
-       expected = 0x0ull;
-       CVMX_MF_DCACHE_ERR(val);
-       val = (val & mask) ^ expected;
-       if (val)
-       {
-           printf("DCACHE Parity error: 0x%llx\n", (unsigned long long)val);
-           bist_errors++;
-       }
-
-       mask =     0x18ull;
-       expected = 0x0ull;
-       val = cvmx_read_csr(CVMX_L2D_ERR);
-       val = (val & mask) ^ expected;
-       if (val)
-       {
-           printf("L2 Parity error: 0x%llx\n", (unsigned long long)val);
-           bist_errors++;
-       }
-
-
-       while (1)
-           ;
-
+	CVMX_BREAK;
     }
+    /* Hang forever, until more appropriate stand alone simple executive
+       exit() is implemented */
+
+    while (1);
 }
 
 

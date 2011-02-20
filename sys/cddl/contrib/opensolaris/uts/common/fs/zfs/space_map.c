@@ -368,10 +368,8 @@ space_map_unload(space_map_t *sm)
 uint64_t
 space_map_maxsize(space_map_t *sm)
 {
-	if (sm->sm_loaded && sm->sm_ops != NULL)
-		return (sm->sm_ops->smop_max(sm));
-	else
-		return (-1ULL);
+	ASSERT(sm->sm_ops != NULL);
+	return (sm->sm_ops->smop_max(sm));
 }
 
 uint64_t

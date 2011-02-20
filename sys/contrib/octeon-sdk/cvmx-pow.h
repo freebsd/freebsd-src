@@ -1,44 +1,41 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
-
-
-
-
 
 
 /**
@@ -64,7 +61,7 @@
  * - WQE pointer not matching the one attached to the core by
  *   the POW.
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 49448 $<hr>
  */
 
 #ifndef __CVMX_POW_H__
@@ -72,7 +69,10 @@
 
 #include "cvmx-scratch.h"
 #include "cvmx-wqe.h"
+
+#ifndef CVMX_BUILD_FOR_LINUX_KERNEL
 #include "cvmx-warn.h"
+#endif
 
 #ifdef	__cplusplus
 extern "C" {
@@ -842,7 +842,7 @@ typedef union
 } cvmx_pow_iobdma_store_t;
 
 
-/* CSR typedefs have been moved to cvmx-csr-*.h */
+/* CSR typedefs have been moved to cvmx-pow-defs.h */
 
 /**
  * Get the POW tag for this core. This returns the current
@@ -1539,7 +1539,7 @@ static inline void cvmx_pow_tag_sw_desched_nocheck(uint32_t tag, cvmx_pow_tag_ty
     ptr.sio.is_io = 1;
     ptr.sio.did = CVMX_OCT_DID_TAG_TAG3;
 
-    cvmx_write_io(ptr.u64, tag_req.u64); // since TAG3 is used, this store will clear the local pending switch bit
+    cvmx_write_io(ptr.u64, tag_req.u64); /* since TAG3 is used, this store will clear the local pending switch bit */
 }
 /**
  * Performs a tag switch and then an immediate deschedule. This completes
@@ -1631,7 +1631,7 @@ static inline void cvmx_pow_desched(uint64_t no_sched)
     ptr.sio.is_io = 1;
     ptr.sio.did = CVMX_OCT_DID_TAG_TAG3;
 
-    cvmx_write_io(ptr.u64, tag_req.u64); // since TAG3 is used, this store will clear the local pending switch bit
+    cvmx_write_io(ptr.u64, tag_req.u64); /* since TAG3 is used, this store will clear the local pending switch bit */
 }
 
 
@@ -1746,4 +1746,4 @@ extern int cvmx_pow_get_num_entries(void);
 }
 #endif
 
-#endif  // __CVMX_POW_H__
+#endif  /* __CVMX_POW_H__ */

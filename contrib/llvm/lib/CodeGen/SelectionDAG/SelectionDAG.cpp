@@ -2236,7 +2236,7 @@ unsigned SelectionDAG::ComputeNumSignBits(SDValue Op, unsigned Depth) const{
 
 bool SelectionDAG::isKnownNeverNaN(SDValue Op) const {
   // If we're told that NaNs won't happen, assume they won't.
-  if (FiniteOnlyFPMath())
+  if (NoNaNsFPMath)
     return true;
 
   // If the value is a constant, we can obviously see if it is a NaN or not.
@@ -2278,35 +2278,6 @@ bool SelectionDAG::isVerifiedDebugInfoDesc(SDValue Op) const {
   const GlobalVariable *GV = dyn_cast<GlobalVariable>(GA->getGlobal());
   if (!GV) return false;
   return MF->getMMI().hasDebugInfo();
-}
-
-
-/// getShuffleScalarElt - Returns the scalar element that will make up the ith
-/// element of the result of the vector shuffle.
-SDValue SelectionDAG::getShuffleScalarElt(const ShuffleVectorSDNode *N,
-                                          unsigned i) {
-  EVT VT = N->getValueType(0);
-  if (N->getMaskElt(i) < 0)
-    return getUNDEF(VT.getVectorElementType());
-  unsigned Index = N->getMaskElt(i);
-  unsigned NumElems = VT.getVectorNumElements();
-  SDValue V = (Index < NumElems) ? N->getOperand(0) : N->getOperand(1);
-  Index %= NumElems;
-
-  if (V.getOpcode() == ISD::BIT_CONVERT) {
-    V = V.getOperand(0);
-    EVT VVT = V.getValueType();
-    if (!VVT.isVector() || VVT.getVectorNumElements() != (unsigned)NumElems)
-      return SDValue();
-  }
-  if (V.getOpcode() == ISD::SCALAR_TO_VECTOR)
-    return (Index == 0) ? V.getOperand(0)
-                      : getUNDEF(VT.getVectorElementType());
-  if (V.getOpcode() == ISD::BUILD_VECTOR)
-    return V.getOperand(Index);
-  if (const ShuffleVectorSDNode *SVN = dyn_cast<ShuffleVectorSDNode>(V))
-    return getShuffleScalarElt(SVN, Index);
-  return SDValue();
 }
 
 
@@ -2624,7 +2595,8 @@ SDValue SelectionDAG::getNode(unsigned Opcode, DebugLoc DL, EVT VT,
     // one big BUILD_VECTOR.
     if (N1.getOpcode() == ISD::BUILD_VECTOR &&
         N2.getOpcode() == ISD::BUILD_VECTOR) {
-      SmallVector<SDValue, 16> Elts(N1.getNode()->op_begin(), N1.getNode()->op_end());
+      SmallVector<SDValue, 16> Elts(N1.getNode()->op_begin(),
+                                    N1.getNode()->op_end());
       Elts.append(N2.getNode()->op_begin(), N2.getNode()->op_end());
       return getNode(ISD::BUILD_VECTOR, DL, VT, &Elts[0], Elts.size());
     }
@@ -3021,7 +2993,8 @@ SDValue SelectionDAG::getNode(unsigned Opcode, DebugLoc DL, EVT VT,
     if (N1.getOpcode() == ISD::BUILD_VECTOR &&
         N2.getOpcode() == ISD::BUILD_VECTOR &&
         N3.getOpcode() == ISD::BUILD_VECTOR) {
-      SmallVector<SDValue, 16> Elts(N1.getNode()->op_begin(), N1.getNode()->op_end());
+      SmallVector<SDValue, 16> Elts(N1.getNode()->op_begin(),
+                                    N1.getNode()->op_end());
       Elts.append(N2.getNode()->op_begin(), N2.getNode()->op_end());
       Elts.append(N3.getNode()->op_begin(), N3.getNode()->op_end());
       return getNode(ISD::BUILD_VECTOR, DL, VT, &Elts[0], Elts.size());
@@ -5872,6 +5845,7 @@ std::string ISD::ArgFlagsTy::getArgFlagsString() {
 void SDNode::dump() const { dump(0); }
 void SDNode::dump(const SelectionDAG *G) const {
   print(dbgs(), G);
+  dbgs() << '\n';
 }
 
 void SDNode::print_types(raw_ostream &OS, const SelectionDAG *G) const {
@@ -5895,7 +5869,7 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
       for (MachineSDNode::mmo_iterator i = MN->memoperands_begin(),
            e = MN->memoperands_end(); i != e; ++i) {
         OS << **i;
-        if (next(i) != e)
+        if (llvm::next(i) != e)
           OS << " ";
       }
       OS << ">";

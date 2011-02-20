@@ -25,6 +25,12 @@
 #include "tuklib_gettext.h"
 #include "tuklib_progname.h"
 #include "tuklib_exit.h"
+#include "tuklib_mbstr.h"
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#	define WIN32_LEAN_AND_MEAN
+#	include <windows.h>
+#endif
 
 #ifndef STDIN_FILENO
 #	define STDIN_FILENO (fileno(stdin))

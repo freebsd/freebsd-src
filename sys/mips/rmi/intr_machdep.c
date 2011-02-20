@@ -44,39 +44,83 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/trap.h>
 #include <machine/hwfunc.h>
-#include <mips/rmi/xlrconfig.h>
+
+#include <mips/rmi/rmi_mips_exts.h>
 #include <mips/rmi/interrupt.h>
-#include <mips/rmi/clock.h>
 #include <mips/rmi/pic.h>
 
-/*#include <machine/intrcnt.h>*/
+struct xlr_intrsrc {
+	void (*busack)(int);		/* Additional ack */
+	struct intr_event *ie;		/* event corresponding to intr */
+	int irq;
+};
+	
+static struct xlr_intrsrc xlr_interrupts[XLR_MAX_INTR];
 static mips_intrcnt_t mips_intr_counters[XLR_MAX_INTR];
-static struct intr_event *mips_intr_events[XLR_MAX_INTR];
 static int intrcnt_index;
 
 void
-xlr_mask_hard_irq(void *source)
+xlr_enable_irq(int irq)
 {
-	uintptr_t irq = (uintptr_t) source;
+	uint64_t eimr;
 
-	write_c0_eimr64(read_c0_eimr64() & ~(1ULL << irq));
+	eimr = read_c0_eimr64();
+	write_c0_eimr64(eimr | (1ULL << irq));
 }
 
 void
-xlr_unmask_hard_irq(void *source)
+cpu_establish_softintr(const char *name, driver_filter_t * filt,
+    void (*handler) (void *), void *arg, int irq, int flags,
+    void **cookiep)
 {
-	uintptr_t irq = (uintptr_t) source;
 
-	write_c0_eimr64(read_c0_eimr64() | (1ULL << irq));
+	panic("Soft interrupts unsupported!\n");
 }
 
 void
-xlr_cpu_establish_hardintr(const char *name, driver_filter_t * filt,
-    void (*handler) (void *), void *arg, int irq, int flags, void **cookiep,
-    void (*pre_ithread)(void *), void (*post_ithread)(void *),
-    void (*post_filter)(void *), int (*assign_cpu)(void *, u_char))
+cpu_establish_hardintr(const char *name, driver_filter_t * filt,
+    void (*handler) (void *), void *arg, int irq, int flags,
+    void **cookiep)
+{
+
+	xlr_establish_intr(name, filt, handler, arg, irq, flags,
+	    cookiep, NULL);
+}
+
+static void
+xlr_post_filter(void *source)
+{
+	struct xlr_intrsrc *src = source;
+	
+	if (src->busack)
+		src->busack(src->irq);
+	pic_ack(PIC_IRQ_TO_INTR(src->irq));
+}
+
+static void
+xlr_pre_ithread(void *source)
+{
+	struct xlr_intrsrc *src = source;
+
+	if (src->busack)
+		src->busack(src->irq);
+}
+
+static void
+xlr_post_ithread(void *source)
+{
+	struct xlr_intrsrc *src = source;
+
+	pic_ack(PIC_IRQ_TO_INTR(src->irq));
+}
+
+void
+xlr_establish_intr(const char *name, driver_filter_t filt,
+    driver_intr_t handler, void *arg, int irq, int flags,
+    void **cookiep, void (*busack)(int))
 {
 	struct intr_event *ie;	/* descriptor for the IRQ */
+	struct xlr_intrsrc *src = NULL;
 	int errcode;
 
 	if (irq < 0 || irq > XLR_MAX_INTR)
@@ -86,43 +130,34 @@ xlr_cpu_establish_hardintr(const char *name, driver_filter_t * filt,
 	 * FIXME locking - not needed now, because we do this only on
 	 * startup from CPU0
 	 */
-	ie = mips_intr_events[irq];
-	/* mih->cntp = &intrcnt[irq]; */
+	src = &xlr_interrupts[irq];
+	ie = src->ie;
 	if (ie == NULL) {
-		errcode = intr_event_create(&ie, (void *)(uintptr_t) irq, 0,
-		    irq, pre_ithread, post_ithread, post_filter, assign_cpu,
-		    "hard intr%d:", irq);
-
+		/*
+		 * PIC based interrupts need ack in PIC, and some SoC
+		 * components need additional acks (e.g. PCI)
+		 */
+		if (PIC_IRQ_IS_PICINTR(irq))
+			errcode = intr_event_create(&ie, src, 0, irq,
+			    xlr_pre_ithread, xlr_post_ithread, xlr_post_filter,
+			    NULL, "hard intr%d:", irq);
+		else {
+			if (filt == NULL)
+				panic("Not supported - non filter percpu intr");
+			errcode = intr_event_create(&ie, src, 0, irq,
+			    NULL, NULL, NULL, NULL, "hard intr%d:", irq);
+		}
 		if (errcode) {
 			printf("Could not create event for intr %d\n", irq);
 			return;
 		}
-		mips_intr_events[irq] = ie;
+		src->irq = irq;
+		src->busack = busack;
+		src->ie = ie;
 	}
-
 	intr_event_add_handler(ie, name, filt, handler, arg,
 	    intr_priority(flags), flags, cookiep);
-	xlr_unmask_hard_irq((void *)(uintptr_t) irq);
-}
-
-void
-cpu_establish_hardintr(const char *name, driver_filter_t * filt,
-    void (*handler) (void *), void *arg, int irq, int flags, void **cookiep)
-{
-	xlr_cpu_establish_hardintr(name, filt, handler, arg, irq,
-		flags, cookiep, xlr_mask_hard_irq, xlr_unmask_hard_irq,
-		NULL, NULL);
-}
-
-void
-cpu_establish_softintr(const char *name, driver_filter_t * filt,
-    void (*handler) (void *), void *arg, int irq, int flags,
-    void **cookiep)
-{
-	/* we don't separate them into soft/hard like other mips */
-	xlr_cpu_establish_hardintr(name, filt, handler, arg, irq,
-		flags, cookiep, xlr_mask_hard_irq, xlr_unmask_hard_irq,
-		NULL, NULL);
+	xlr_enable_irq(irq);
 }
 
 void
@@ -148,7 +183,7 @@ cpu_intr(struct trapframe *tf)
 	 * compare which ACKs the interrupt.
 	 */
 	if (eirr & (1 << IRQ_TIMER)) {
-		intr_event_handle(mips_intr_events[IRQ_TIMER], tf);
+		intr_event_handle(xlr_interrupts[IRQ_TIMER].ie, tf);
 		critical_exit();
 		return;
 	}
@@ -158,7 +193,7 @@ cpu_intr(struct trapframe *tf)
 		if ((eirr & (1ULL << i)) == 0)
 			continue;
 
-		ie = mips_intr_events[i];
+		ie = xlr_interrupts[i].ie;
 		/* Don't account special IRQs */
 		switch (i) {
 		case IRQ_IPI:
@@ -167,16 +202,12 @@ cpu_intr(struct trapframe *tf)
 		default:
 			mips_intrcnt_inc(mips_intr_counters[i]);
 		}
+
+		/* Ack the IRQ on the CPU */
 		write_c0_eirr64(1ULL << i);
-		pic_ack(i, 0);
-		if (!ie || TAILQ_EMPTY(&ie->ie_handlers)) {
-			printf("stray interrupt %d\n", i);
-			continue;
-		}
 		if (intr_event_handle(ie, tf) != 0) {
 			printf("stray interrupt %d\n", i);
 		}
-		pic_delayed_ack(i, 0);
 	}
 	critical_exit();
 }

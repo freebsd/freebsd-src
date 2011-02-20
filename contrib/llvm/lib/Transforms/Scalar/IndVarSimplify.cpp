@@ -77,7 +77,7 @@ namespace {
   public:
 
     static char ID; // Pass identification, replacement for typeid
-    IndVarSimplify() : LoopPass(&ID) {}
+    IndVarSimplify() : LoopPass(ID) {}
 
     virtual bool runOnLoop(Loop *L, LPPassManager &LPM);
 
@@ -102,7 +102,7 @@ namespace {
     void RewriteNonIntegerIVs(Loop *L);
 
     ICmpInst *LinearFunctionTestReplace(Loop *L, const SCEV *BackedgeTakenCount,
-                                   Value *IndVar,
+                                   PHINode *IndVar,
                                    BasicBlock *ExitingBlock,
                                    BranchInst *BI,
                                    SCEVExpander &Rewriter);
@@ -117,8 +117,8 @@ namespace {
 }
 
 char IndVarSimplify::ID = 0;
-static RegisterPass<IndVarSimplify>
-X("indvars", "Canonicalize Induction Variables");
+INITIALIZE_PASS(IndVarSimplify, "indvars",
+                "Canonicalize Induction Variables", false, false);
 
 Pass *llvm::createIndVarSimplifyPass() {
   return new IndVarSimplify();
@@ -131,7 +131,7 @@ Pass *llvm::createIndVarSimplifyPass() {
 /// is actually a much broader range than just linear tests.
 ICmpInst *IndVarSimplify::LinearFunctionTestReplace(Loop *L,
                                    const SCEV *BackedgeTakenCount,
-                                   Value *IndVar,
+                                   PHINode *IndVar,
                                    BasicBlock *ExitingBlock,
                                    BranchInst *BI,
                                    SCEVExpander &Rewriter) {
@@ -181,7 +181,7 @@ ICmpInst *IndVarSimplify::LinearFunctionTestReplace(Loop *L,
     // The BackedgeTaken expression contains the number of times that the
     // backedge branches to the loop header.  This is one less than the
     // number of times the loop executes, so use the incremented indvar.
-    CmpIndVar = L->getCanonicalInductionVariableIncrement();
+    CmpIndVar = IndVar->getIncomingValueForBlock(ExitingBlock);
   } else {
     // We have to use the preincremented value...
     RHS = SE->getTruncateOrZeroExtend(BackedgeTakenCount,
@@ -534,7 +534,7 @@ bool IndVarSimplify::runOnLoop(Loop *L, LPPassManager &LPM) {
 
   // Now that we know the largest of the induction variable expressions
   // in this loop, insert a canonical induction variable of the largest size.
-  Value *IndVar = 0;
+  PHINode *IndVar = 0;
   if (NeedCannIV) {
     // Check to see if the loop already has any canonical-looking induction
     // variables. If any are present and wider than the planned canonical
@@ -862,9 +862,9 @@ void IndVarSimplify::HandleFloatingPointIV(Loop *L, PHINode *PN) {
   // Check Incr uses. One user is PN and the other user is an exit condition
   // used by the conditional terminator.
   Value::use_iterator IncrUse = Incr->use_begin();
-  Instruction *U1 = cast<Instruction>(IncrUse++);
+  Instruction *U1 = cast<Instruction>(*IncrUse++);
   if (IncrUse == Incr->use_end()) return;
-  Instruction *U2 = cast<Instruction>(IncrUse++);
+  Instruction *U2 = cast<Instruction>(*IncrUse++);
   if (IncrUse != Incr->use_end()) return;
 
   // Find exit condition, which is an fcmp.  If it doesn't exist, or if it isn't

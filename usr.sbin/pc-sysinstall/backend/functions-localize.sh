@@ -38,25 +38,46 @@ localize_freebsd()
   rm ${FSMNT}/etc/login.conf.bak
 };
 
+localize_x_desktops() {
+
+  # Check for and customize KDE lang
+  ##########################################################################
+
+  # Check if we can localize KDE via skel
+  if [ -e "${FSMNT}/usr/share/skel/.kde4/share/config/kdeglobals" ] ; then
+    sed -i '' "s/Country=us/Country=${COUNTRY}/g" ${FSMNT}/usr/share/skel/.kde4/share/config/kdeglobals
+    sed -i '' "s/Country=us/Country=${COUNTRY}/g" ${FSMNT}/root/.kde4/share/config/kdeglobals
+    sed -i '' "s/Language=en_US/Language=${SETLANG}:${LOCALE}/g" ${FSMNT}/usr/share/skel/.kde4/share/config/kdeglobals
+  fi
+
+  # Check if we have a KDE root config
+  if [ -e "${FSMNT}/root/.kde4/share/config/kdeglobals" ] ; then
+    sed -i '' "s/Language=en_US/Language=${SETLANG}:${LOCALE}/g" ${FSMNT}/root/.kde4/share/config/kdeglobals
+  fi
+
+  # Check for KDM
+  if [ -e "${FSMNT}/usr/local/kde4/share/config/kdm/kdmrc" ] ; then
+    sed -i '' "s/Language=en_US/Language=${LOCALE}.UTF-8/g" ${FSMNT}/usr/local/kde4/share/config/kdm/kdmrc
+  fi
+
+  # Check for and customize GNOME / GDM lang
+  ##########################################################################
+
+  # See if GDM is enabled and customize its lang
+  cat ${FSMNT}/etc/rc.conf 2>/dev/null | grep "gdm_enable=\"YES\"" >/dev/null 2>/dev/null
+  if [ "$?" = "0" ] ; then
+    echo "gdm_lang=\"${LOCALE}.UTF-8\"" >> ${FSMNT}/etc/rc.conf
+  fi
+
+};
 
 # Function which localizes a PC-BSD install
 localize_pcbsd()
 {
-  #Change the skel files
-  ##########################################################################
-  sed -i.bak "s/Country=us/Country=${COUNTRY}/g" ${FSMNT}/usr/share/skel/.kde4/share/config/kdeglobals
-  sed -i.bak "s/Country=us/Country=${COUNTRY}/g" ${FSMNT}/root/.kde4/share/config/kdeglobals
-  sed -i.bak "s/Language=en_US/Language=${SETLANG}:${LOCALE}/g" ${FSMNT}/usr/share/skel/.kde4/share/config/kdeglobals
-  sed -i.bak "s/Language=en_US/Language=${SETLANG}:${LOCALE}/g" ${FSMNT}/root/.kde4/share/config/kdeglobals
-
-  #Change KDM Langs
-  ##########################################################################
-  sed -i.bak "s/Language=en_US/Language=${LOCALE}.UTF-8/g" ${FSMNT}/usr/local/kde4/share/config/kdm/kdmrc
-
   # Check if we have a localized splash screen and copy it
-  if [ -e "${FSMNT}/usr/PCBSD/splash-screens/loading-screen-${SETLANG}.pcx" ]
+  if [ -e "${FSMNT}/usr/local/share/pcbsd/splash-screens/loading-screen-${SETLANG}.pcx" ]
   then
-    cp ${FSMNT}/usr/PCBSD/splash-screens/loading-screen-${SETLANG}.pcx ${FSMNT}/boot/loading-screen.pcx    
+    cp ${FSMNT}/usr/local/share/pcbsd/splash-screens/loading-screen-${SETLANG}.pcx ${FSMNT}/boot/loading-screen.pcx    
   fi
 
 };
@@ -117,12 +138,14 @@ localize_x_keyboard()
     cp ${FSMNT}/usr/share/skel/.xprofile ${FSMNT}/root/.xprofile
 
     # Save it for KDM
-    echo "setxkbmap ${SETXKBMAP}" >>${FSMNT}/usr/local/kde4/share/config/kdm/Xsetup
+    if [ -e "${FSMNT}/usr/local/kde4/share/config/kdm/Xsetup" ] ; then
+      echo "setxkbmap ${SETXKBMAP}" >>${FSMNT}/usr/local/kde4/share/config/kdm/Xsetup
+    fi
   fi
  
-
-   # Create the kxkbrc configuration using these options
-  echo "[Layout]
+  # Create the kxkbrc configuration using these options
+  if [ -d "${FSMNT}/usr/share/skel/.kde4/share/config" ] ; then
+    echo "[Layout]
 DisplayNames=${KXLAYOUT}${COUNTRY}
 IndicatorOnly=false
 LayoutList=${KXLAYOUT}${KXVAR}${COUNTRY}
@@ -133,6 +156,7 @@ ShowFlag=true
 ShowSingle=false
 SwitchMode=WinClass
 Use=true " >${FSMNT}/usr/share/skel/.kde4/share/config/kxkbrc
+  fi
 
 };
 
@@ -454,7 +478,12 @@ run_localize()
       then
         localize_pcbsd "$VAL"
       fi
+
+      # Localize FreeBSD
       localize_freebsd "$VAL"
+
+      # Localize any X pkgs
+      localize_x_desktops "$VAL"
     fi
 
     # Check if we need to do any keylayouts

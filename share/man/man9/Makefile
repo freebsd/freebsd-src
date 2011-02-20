@@ -173,6 +173,7 @@ MAN=	accept_filter.9 \
 	mutex.9 \
 	namei.9 \
 	netisr.9 \
+	osd.9 \
 	panic.9 \
 	pbuf.9 \
 	p_candebug.9 \
@@ -244,6 +245,7 @@ MAN=	accept_filter.9 \
 	sysctl.9 \
 	sysctl_add_oid.9 \
 	sysctl_ctx_init.9 \
+	SYSINIT.9 \
 	taskqueue.9 \
 	thread_exit.9 \
 	time.9 \
@@ -324,7 +326,7 @@ MAN=	accept_filter.9 \
 	vm_page_lookup.9 \
 	vm_page_protect.9 \
 	vm_page_rename.9 \
-	vm_page_sleep_busy.9 \
+	vm_page_sleep_if_busy.9 \
 	vm_page_wakeup.9 \
 	vm_page_wire.9 \
 	vm_page_zero_fill.9 \
@@ -364,7 +366,6 @@ MAN=	accept_filter.9 \
 	VOP_STRATEGY.9 \
 	VOP_VPTOCNP.9 \
 	VOP_VPTOFH.9 \
-	vput.9 \
 	vref.9 \
 	vrefcnt.9 \
 	vrele.9 \
@@ -776,7 +777,8 @@ MLINKS+=make_dev.9 destroy_dev.9 \
 	make_dev.9 dev_depends.9 \
 	make_dev.9 make_dev_alias.9 \
 	make_dev.9 make_dev_cred.9 \
-	make_dev.9 make_dev_credf.9
+	make_dev.9 make_dev_credf.9 \
+	make_dev.9 make_dev_p.9
 MLINKS+=malloc.9 free.9 \
 	malloc.9 MALLOC_DECLARE.9 \
 	malloc.9 MALLOC_DEFINE.9 \
@@ -986,6 +988,7 @@ MLINKS+=rman.9 rman_activate_resource.9 \
 MLINKS+=rmlock.9 rm_destroy.9 \
 	rmlock.9 rm_init.9 \
 	rmlock.9 rm_rlock.9 \
+	rmlock.9 rm_try_rlock.9 \
 	rmlock.9 rm_runlock.9 \
 	rmlock.9 RM_SYSINIT.9 \
 	rmlock.9 rm_wlock.9 \
@@ -1024,12 +1027,14 @@ MLINKS+=sbuf.9 sbuf_bcat.9 \
 	sbuf.9 sbuf_data.9 \
 	sbuf.9 sbuf_delete.9 \
 	sbuf.9 sbuf_done.9 \
+	sbuf.9 sbuf_error.9 \
 	sbuf.9 sbuf_finish.9 \
 	sbuf.9 sbuf_len.9 \
 	sbuf.9 sbuf_new.9 \
-	sbuf.9 sbuf_overflowed.9 \
+	sbuf.9 sbuf_new_for_sysctl.9 \
 	sbuf.9 sbuf_printf.9 \
 	sbuf.9 sbuf_putc.9 \
+	sbuf.9 sbuf_set_drain.9 \
 	sbuf.9 sbuf_setpos.9 \
 	sbuf.9 sbuf_trim.9 \
 	sbuf.9 sbuf_vprintf.9
@@ -1189,8 +1194,7 @@ MLINKS+=sysctl.9 SYSCTL_DECL.9 \
 	sysctl.9 SYSCTL_STRUCT.9 \
 	sysctl.9 SYSCTL_UINT.9 \
 	sysctl.9 SYSCTL_ULONG.9 \
-	sysctl.9 SYSCTL_XINT.9 \
-	sysctl.9 SYSCTL_XLONG.9
+	sysctl.9 SYSCTL_QUAD.9
 MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_INT.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_LONG.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_NODE.9 \
@@ -1201,6 +1205,7 @@ MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_INT.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_STRUCT.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_UINT.9 \
 	sysctl_add_oid.9 SYSCTL_ADD_ULONG.9 \
+	sysctl_add_oid.9 SYSCTL_ADD_QUAD.9 \
 	sysctl_add_oid.9 SYSCTL_CHILDREN.9 \
 	sysctl_add_oid.9 sysctl_move_oid.9 \
 	sysctl_add_oid.9 sysctl_remove_oid.9 \
@@ -1209,13 +1214,21 @@ MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_add.9 \
 	sysctl_ctx_init.9 sysctl_ctx_entry_del.9 \
 	sysctl_ctx_init.9 sysctl_ctx_entry_find.9 \
 	sysctl_ctx_init.9 sysctl_ctx_free.9
+MLINKS+=SYSINIT.9 SYSUNINIT.9
 MLINKS+=taskqueue.9 TASK_INIT.9 \
+	taskqueue.9 taskqueue_cancel.9 \
 	taskqueue.9 taskqueue_create.9 \
+	taskqueue.9 taskqueue_create_fast.9 \
 	taskqueue.9 TASKQUEUE_DECLARE.9 \
 	taskqueue.9 TASKQUEUE_DEFINE.9 \
+	taskqueue.9 TASKQUEUE_DEFINE_THREAD.9 \
+	taskqueue.9 taskqueue_drain.9 \
 	taskqueue.9 taskqueue_enqueue.9 \
-	taskqueue.9 taskqueue_find.9 \
+	taskqueue.9 taskqueue_enqueue_fast.9 \
+	taskqueue.9 TASKQUEUE_FAST_DEFINE.9 \
+	taskqueue.9 TASKQUEUE_FAST_DEFINE_THREAD.9 \
 	taskqueue.9 taskqueue_free.9 \
+	taskqueue.9 taskqueue_member.9 \
 	taskqueue.9 taskqueue_run.9
 MLINKS+=time.9 boottime.9 \
 	time.9 time_second.9 \
@@ -1309,7 +1322,6 @@ MLINKS+=vfs_getopt.9 vfs_copyopt.9 \
 	vfs_getopt.9 vfs_setopt_part.9 \
 	vfs_getopt.9 vfs_setopts.9
 MLINKS+=VFS_LOCK_GIANT.9 VFS_UNLOCK_GIANT.9
-MLINKS+=vgone.9 vgonel.9
 MLINKS+=vhold.9 vdrop.9 \
 	vhold.9 vdropl.9 \
 	vhold.9 vholdl.9
@@ -1364,6 +1376,8 @@ MLINKS+=VOP_RDWR.9 VOP_READ.9 \
 	VOP_RDWR.9 VOP_WRITE.9
 MLINKS+=VOP_REMOVE.9 VOP_RMDIR.9
 MLINKS+=vref.9 VREF.9
+MLINKS+=vrele.9 vput.9 \
+	vrele.9 vunref.9
 MLINKS+=vslock.9 vsunlock.9
 MLINKS+=zero_copy.9 zero_copy_sockets.9
 MLINKS+=zone.9 uma.9 \

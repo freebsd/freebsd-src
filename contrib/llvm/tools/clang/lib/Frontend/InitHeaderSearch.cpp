@@ -1,4 +1,4 @@
-//===--- InitHeaderSearch.cpp - Initialize header search paths ----------*-===//
+//===--- InitHeaderSearch.cpp - Initialize header search paths ------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -199,6 +199,8 @@ void InitHeaderSearch::AddMinGWCPlusPlusIncludePaths(llvm::StringRef Base,
           System, true, false, false);
   AddPath(Base + "/" + Arch + "/" + Version + "/include/c++",
           System, true, false, false);
+  AddPath(Base + "/" + Arch + "/" + Version + "/include/c++/" + Arch,
+          System, true, false, false);
   AddPath(Base + "/" + Arch + "/" + Version + "/include/c++/backward",
           System, true, false, false);
 }
@@ -327,9 +329,19 @@ static bool getSystemRegistryString(const char*, const char*, char*, size_t) {
 
   // Get Visual Studio installation directory.
 static bool getVisualStudioDir(std::string &path) {
+  // First check the environment variables that vsvars32.bat sets.
+  const char* vcinstalldir = getenv("VCINSTALLDIR");
+  if(vcinstalldir) {
+    char *p = const_cast<char *>(strstr(vcinstalldir, "\\VC"));
+    if (p)
+      *p = '\0';
+    path = vcinstalldir;
+    return(true);
+  }
+
   char vsIDEInstallDir[256];
   char vsExpressIDEInstallDir[256];
-  // Try the Windows registry first.
+  // Then try the windows registry.
   bool hasVCDir = getSystemRegistryString(
     "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VisualStudio\\$VERSION",
     "InstallDir", vsIDEInstallDir, sizeof(vsIDEInstallDir) - 1);
@@ -446,7 +458,7 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
       if (getVisualStudioDir(VSDir)) {
         AddPath(VSDir + "\\VC\\include", System, false, false, false);
         if (getWindowsSDKDir(WindowsSDKDir))
-          AddPath(WindowsSDKDir, System, false, false, false);
+          AddPath(WindowsSDKDir + "\\include", System, false, false, false);
         else
           AddPath(VSDir + "\\VC\\PlatformSDK\\Include",
             System, false, false, false);
@@ -516,7 +528,7 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
     AddPath("/boot/develop/headers/glibc", System, true, false, false);
     AddPath("/boot/develop/headers/posix", System, true, false, false);
     AddPath("/boot/develop/headers",  System, true, false, false);
-  	break;
+    break;
   case llvm::Triple::MinGW64:
   case llvm::Triple::MinGW32:
     AddPath("c:/mingw/include", System, true, false, false);
@@ -559,12 +571,16 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple) {
         System, true, false, false);
     break;
   case llvm::Triple::MinGW64:
+    // Try gcc 4.5.0
+    AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw64", "4.5.0");
     // Try gcc 4.4.0
     AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw64", "4.4.0");
     // Try gcc 4.3.0
     AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw64", "4.3.0");
     // Fall through.
   case llvm::Triple::MinGW32:
+   // Try gcc 4.5.0
+    AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.5.0"); 
     // Try gcc 4.4.0
     AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.4.0");
     // Try gcc 4.3.0
@@ -726,6 +742,11 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple) {
     AddGnuCPlusPlusIncludePaths(
         "/usr/lib/gcc/x86_64-pc-linux-gnu/4.4.3/include/g++-v4",
         "x86_64-pc-linux-gnu", "32", "", triple);
+
+    // Gentoo amd64 llvm-gcc trunk
+    AddGnuCPlusPlusIncludePaths(
+        "/usr/lib/llvm-gcc-4.2-9999/include/c++/4.2.1",
+        "x86_64-pc-linux-gnu", "", "", triple);
     
     break;
   case llvm::Triple::FreeBSD:
@@ -736,6 +757,17 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple) {
     AddGnuCPlusPlusIncludePaths(CLANG_PREFIX "/usr/include/c++/4.2/backward",
                                 "", "", "", triple);
     break;
+  case llvm::Triple::NetBSD:
+    AddGnuCPlusPlusIncludePaths("/usr/include/g++", "", "", "", triple);
+    break;
+  case llvm::Triple::OpenBSD: {
+    std::string t = triple.getTriple();
+    if (t.substr(0, 6) == "x86_64")
+      t.replace(0, 6, "amd64");
+    AddGnuCPlusPlusIncludePaths("/usr/include/g++",
+                                t, "", "", triple);
+    break;
+  }
   case llvm::Triple::Minix:
     AddGnuCPlusPlusIncludePaths("/usr/gnu/include/c++/4.4.3",
                                 "", "", "", triple);
@@ -902,7 +934,7 @@ void clang::ApplyHeaderSearchOptions(HeaderSearch &HS,
   for (unsigned i = 0, e = HSOpts.UserEntries.size(); i != e; ++i) {
     const HeaderSearchOptions::Entry &E = HSOpts.UserEntries[i];
     Init.AddPath(E.Path, E.Group, false, E.IsUserSupplied, E.IsFramework,
-                 false);
+                 !E.IsSysRootRelative);
   }
 
   // Add entries from CPATH and friends.

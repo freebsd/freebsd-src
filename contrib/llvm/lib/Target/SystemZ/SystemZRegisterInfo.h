@@ -34,7 +34,7 @@ struct SystemZRegisterInfo : public SystemZGenRegisterInfo {
 
   BitVector getReservedRegs(const MachineFunction &MF) const;
 
-  bool hasReservedCallFrame(MachineFunction &MF) const { return true; }
+  bool hasReservedCallFrame(const MachineFunction &MF) const { return true; }
   bool hasFP(const MachineFunction &MF) const;
 
   int getFrameIndexOffset(const MachineFunction &MF, int FI) const;
@@ -43,9 +43,8 @@ struct SystemZRegisterInfo : public SystemZGenRegisterInfo {
                                      MachineBasicBlock &MBB,
                                      MachineBasicBlock::iterator I) const;
 
-  unsigned eliminateFrameIndex(MachineBasicBlock::iterator II,
-                               int SPAdj, FrameIndexValue *Value = NULL,
-                               RegScavenger *RS = NULL) const;
+  void eliminateFrameIndex(MachineBasicBlock::iterator II,
+                           int SPAdj, RegScavenger *RS = NULL) const;
 
 
   void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,

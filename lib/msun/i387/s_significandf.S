@@ -14,3 +14,5 @@ ENTRY(significandf)
 	fstp	%st(1)
 	ret
 END(significandf)
+
+	.section .note.GNU-stack,"",%progbits

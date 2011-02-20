@@ -2,6 +2,6 @@
 
 .PATH: ${.CURDIR}/../../misc
 
-CLASS=	nop
+GEOM_CLASS=	nop
 
 .include <bsd.lib.mk>

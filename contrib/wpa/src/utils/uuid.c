@@ -15,8 +15,6 @@
 #include "includes.h"
 
 #include "common.h"
-#include "crypto.h"
-#include "sha1.h"
 #include "uuid.h"
 
 int uuid_str2bin(const char *str, u8 *bin)
@@ -76,32 +74,4 @@ int is_nil_uuid(const u8 *uuid)
 		if (uuid[i])
 			return 0;
 	return 1;
-}
-
-
-void uuid_gen_mac_addr(const u8 *mac_addr, u8 *uuid)
-{
-	const u8 *addr[2];
-	size_t len[2];
-	u8 hash[SHA1_MAC_LEN];
-	u8 nsid[16] = {
-		0x52, 0x64, 0x80, 0xf8,
-		0xc9, 0x9b,
-		0x4b, 0xe5,
-		0xa6, 0x55,
-		0x58, 0xed, 0x5f, 0x5d, 0x60, 0x84
-	};
-
-	addr[0] = nsid;
-	len[0] = sizeof(nsid);
-	addr[1] = mac_addr;
-	len[1] = 6;
-	sha1_vector(2, addr, len, hash);
-	os_memcpy(uuid, hash, 16);
-
-	/* Version: 5 = named-based version using SHA-1 */
-	uuid[6] = (5 << 4) | (uuid[6] & 0x0f);
-
-	/* Variant specified in RFC 4122 */
-	uuid[8] = 0x80 | (uuid[8] & 0x3f);
 }

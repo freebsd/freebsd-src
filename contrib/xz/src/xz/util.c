@@ -14,6 +14,13 @@
 #include <stdarg.h>
 
 
+/// Buffers for uint64_to_str() and uint64_to_nicestr()
+static char bufs[4][128];
+
+/// Thousand separator support in uint64_to_str() and uint64_to_nicestr()
+static enum { UNKNOWN, WORKS, BROKEN } thousand = UNKNOWN;
+
+
 extern void *
 xrealloc(void *ptr, size_t size)
 {
@@ -56,11 +63,17 @@ str_to_uint64(const char *name, const char *value, uint64_t min, uint64_t max)
 
 	do {
 		// Don't overflow.
-		if (result > (UINT64_MAX - 9) / 10)
+		if (result > UINT64_MAX / 10)
 			goto error;
 
 		result *= 10;
-		result += *value - '0';
+
+		// Another overflow check
+		const uint32_t add = *value - '0';
+		if (UINT64_MAX - add < result)
+			goto error;
+
+		result += add;
 		++value;
 	} while (*value >= '0' && *value <= '9');
 
@@ -119,21 +132,27 @@ round_up_to_mib(uint64_t n)
 }
 
 
+/// Check if thousand separator is supported. Run-time checking is easiest,
+/// because it seems to be sometimes lacking even on POSIXish system.
+static void
+check_thousand_sep(uint32_t slot)
+{
+	if (thousand == UNKNOWN) {
+		bufs[slot][0] = '\0';
+		snprintf(bufs[slot], sizeof(bufs[slot]), "%'u", 1U);
+		thousand = bufs[slot][0] == '1' ? WORKS : BROKEN;
+	}
+
+	return;
+}
+
+
 extern const char *
 uint64_to_str(uint64_t value, uint32_t slot)
 {
-	// 2^64 with thousand separators is 26 bytes plus trailing '\0'.
-	static char bufs[4][32];
-
 	assert(slot < ARRAY_SIZE(bufs));
 
-	static enum { UNKNOWN, WORKS, BROKEN } thousand = UNKNOWN;
-	if (thousand == UNKNOWN) {
-		bufs[slot][0] = '\0';
-		snprintf(bufs[slot], sizeof(bufs[slot]), "%'" PRIu64,
-				UINT64_C(1));
-		thousand = bufs[slot][0] == '1' ? WORKS : BROKEN;
-	}
+	check_thousand_sep(slot);
 
 	if (thousand == WORKS)
 		snprintf(bufs[slot], sizeof(bufs[slot]), "%'" PRIu64, value);
@@ -151,14 +170,21 @@ uint64_to_nicestr(uint64_t value, enum nicestr_unit unit_min,
 {
 	assert(unit_min <= unit_max);
 	assert(unit_max <= NICESTR_TIB);
+	assert(slot < ARRAY_SIZE(bufs));
+
+	check_thousand_sep(slot);
 
 	enum nicestr_unit unit = NICESTR_B;
-	const char *str;
+	char *pos = bufs[slot];
+	size_t left = sizeof(bufs[slot]);
 
 	if ((unit_min == NICESTR_B && value < 10000)
 			|| unit_max == NICESTR_B) {
 		// The value is shown as bytes.
-		str = uint64_to_str(value, slot);
+		if (thousand == WORKS)
+			my_snprintf(&pos, &left, "%'u", (unsigned int)value);
+		else
+			my_snprintf(&pos, &left, "%u", (unsigned int)value);
 	} else {
 		// Scale the value to a nicer unit. Unless unit_min and
 		// unit_max limit us, we will show at most five significant
@@ -169,49 +195,23 @@ uint64_to_nicestr(uint64_t value, enum nicestr_unit unit_min,
 			++unit;
 		} while (unit < unit_min || (d > 9999.9 && unit < unit_max));
 
-		str = double_to_str(d);
+		if (thousand == WORKS)
+			my_snprintf(&pos, &left, "%'.1f", d);
+		else
+			my_snprintf(&pos, &left, "%.1f", d);
 	}
 
 	static const char suffix[5][4] = { "B", "KiB", "MiB", "GiB", "TiB" };
+	my_snprintf(&pos, &left, " %s", suffix[unit]);
 
-	// Minimum buffer size:
-	// 26   2^64 with thousand separators
-	//  4   " KiB"
-	//  2   " ("
-	// 26   2^64 with thousand separators
-	//  3   " B)"
-	//  1   '\0'
-	// 62   Total
-	static char buf[4][64];
-	char *pos = buf[slot];
-	size_t left = sizeof(buf[slot]);
-	my_snprintf(&pos, &left, "%s %s", str, suffix[unit]);
-
-	if (always_also_bytes && value >= 10000)
-		snprintf(pos, left, " (%s B)", uint64_to_str(value, slot));
-
-	return buf[slot];
-}
-
-
-extern const char *
-double_to_str(double value)
-{
-	static char buf[64];
-
-	static enum { UNKNOWN, WORKS, BROKEN } thousand = UNKNOWN;
-	if (thousand == UNKNOWN) {
-		buf[0] = '\0';
-		snprintf(buf, sizeof(buf), "%'.1f", 2.0);
-		thousand = buf[0] == '2' ? WORKS : BROKEN;
+	if (always_also_bytes && value >= 10000) {
+		if (thousand == WORKS)
+			snprintf(pos, left, " (%'" PRIu64 " B)", value);
+		else
+			snprintf(pos, left, " (%" PRIu64 " B)", value);
 	}
 
-	if (thousand == WORKS)
-		snprintf(buf, sizeof(buf), "%'.1f", value);
-	else
-		snprintf(buf, sizeof(buf), "%.1f", value);
-
-	return buf;
+	return bufs[slot];
 }
 
 
@@ -225,7 +225,10 @@ my_snprintf(char **pos, size_t *left, const char *fmt, ...)
 
 	// If an error occurred, we want the caller to think that the whole
 	// buffer was used. This way no more data will be written to the
-	// buffer. We don't need better error handling here.
+	// buffer. We don't need better error handling here, although it
+	// is possible that the result looks garbage on the terminal if
+	// e.g. an UTF-8 character gets split. That shouldn't (easily)
+	// happen though, because the buffers used have some extra room.
 	if (len < 0 || (size_t)(len) >= *left) {
 		*left = 0;
 	} else {
@@ -235,45 +238,6 @@ my_snprintf(char **pos, size_t *left, const char *fmt, ...)
 
 	return;
 }
-
-
-/*
-/// \brief      Simple quoting to get rid of ASCII control characters
-///
-/// This is not so cool and locale-dependent, but should be good enough
-/// At least we don't print any control characters on the terminal.
-///
-extern char *
-str_quote(const char *str)
-{
-	size_t dest_len = 0;
-	bool has_ctrl = false;
-
-	while (str[dest_len] != '\0')
-		if (*(unsigned char *)(str + dest_len++) < 0x20)
-			has_ctrl = true;
-
-	char *dest = malloc(dest_len + 1);
-	if (dest != NULL) {
-		if (has_ctrl) {
-			for (size_t i = 0; i < dest_len; ++i)
-				if (*(unsigned char *)(str + i) < 0x20)
-					dest[i] = '?';
-				else
-					dest[i] = str[i];
-
-			dest[dest_len] = '\0';
-
-		} else {
-			// Usually there are no control characters,
-			// so we can optimize.
-			memcpy(dest, str, dest_len + 1);
-		}
-	}
-
-	return dest;
-}
-*/
 
 
 extern bool

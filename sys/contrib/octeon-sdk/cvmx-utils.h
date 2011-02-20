@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2009 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 /**
  * @file
@@ -44,6 +46,10 @@
 */
 #ifndef __CVMX_UTILS_H__
 #define __CVMX_UTILS_H__
+
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+#include <stdarg.h>
+#endif
 
 #ifdef	__cplusplus
 extern "C" {
@@ -69,10 +75,17 @@ extern "C" {
 #if CVMX_ENABLE_DEBUG_PRINTS
     #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
         #define cvmx_dprintf        printk
+        #define cvmx_dvprintf       vprintk
     #else
         #define cvmx_dprintf        printf
+        #define cvmx_dvprintf       vprintf
     #endif
 #else
+    static inline void cvmx_dvprintf(const char *format, va_list ap)
+    {
+        /* Prints are disbled, do nothing */
+    }
+
     static inline void cvmx_dprintf(const char *format, ...) __attribute__ ((format(printf, 1, 2)));
     static inline void cvmx_dprintf(const char *format, ...)
     {
@@ -80,7 +93,7 @@ extern "C" {
     }
 #endif
 
-#define CAST64(v) ((long long)(long)(v))
+#define CAST64(v) ((long long)(long)(v)) // use only when 'v' is a pointer
 #define CASTPTR(type, v) ((type *)(long)(v))
 #define CVMX_MAX_CORES          (16)
 #define CVMX_CACHE_LINE_SIZE    (128)   // In bytes
@@ -99,8 +112,8 @@ extern "C" {
 #define CVMX_WAIT_FOR_FIELD64(address, type, field, op, value, timeout_usec)\
     ({int result;                                                       \
     do {                                                                \
-        uint64_t done = cvmx_get_cycle() + (uint64_t)timeout_usec *     \
-                           cvmx_sysinfo_get()->cpu_clock_hz / 1000000;  \
+        uint64_t done = cvmx_clock_get_count(CVMX_CLOCK_CORE) + (uint64_t)timeout_usec * \
+                        cvmx_clock_get_rate(CVMX_CLOCK_CORE) / 1000000; \
         type c;                                                         \
         while (1)                                                       \
         {                                                               \
@@ -108,7 +121,7 @@ extern "C" {
             if ((c.s.field) op (value)) {                               \
                 result = 0;                                             \
                 break;                                                  \
-            } else if (cvmx_get_cycle() > done) {                       \
+            } else if (cvmx_clock_get_count(CVMX_CLOCK_CORE) > done) {  \
                 result = -1;                                            \
                 break;                                                  \
             } else                                                      \
@@ -178,17 +191,6 @@ static inline uint32_t cvmx_octeon_num_cores(void)
 
 
 /**
- * Return true if Octeon is CN38XX pass 1
- *
- * @return
- */
-static inline int cvmx_octeon_is_pass1(void)
-{
-    return OCTEON_IS_MODEL(OCTEON_CN38XX_PASS1);
-}
-
-
-/**
  * Return true if Octeon is CN36XX
  *
  * @return
@@ -196,7 +198,6 @@ static inline int cvmx_octeon_is_pass1(void)
 static inline int cvmx_octeon_model_CN36XX(void)
 {
     return(OCTEON_IS_MODEL(OCTEON_CN38XX)
-           && !OCTEON_IS_MODEL(OCTEON_CN38XX_PASS1)
            &&cvmx_fuse_read(264));
 }
 

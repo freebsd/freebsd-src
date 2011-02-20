@@ -25,7 +25,4 @@
 #
 # $FreeBSD$
 
-MEM=`sysctl hw.realmem | sed "s|hw.realmem: ||g"`
-MEM=`expr $MEM / 1024`
-MEM=`expr $MEM / 1024`
-echo $MEM
+expr $(sysctl -n hw.realmem) / 1048576

@@ -62,3 +62,5 @@ L2:
 	popl	%ebx
 	ret
 END(strchr)
+
+	.section .note.GNU-stack,"",%progbits

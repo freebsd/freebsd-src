@@ -54,7 +54,7 @@
 	lwz	sr,9*4(pmap);	mtsr	9,sr; \
 	lwz	sr,10*4(pmap);	mtsr	10,sr; \
 	lwz	sr,11*4(pmap);	mtsr	11,sr; \
-	lwz	sr,12*4(pmap);	mtsr	12,sr; \
+	/* Skip segment 12 (USER_SR), which is restored differently */ \
 	lwz	sr,13*4(pmap);	mtsr	13,sr; \
 	lwz	sr,14*4(pmap);	mtsr	14,sr; \
 	lwz	sr,15*4(pmap);	mtsr	15,sr; isync;
@@ -66,7 +66,9 @@
 	GET_CPUINFO(pmap); \
 	lwz	pmap,PC_CURPMAP(pmap); \
 	lwzu	sr,PM_SR(pmap); \
-	RESTORE_SRS(pmap,sr)
+	RESTORE_SRS(pmap,sr) \
+	/* Restore SR 12 */ \
+	lwz	sr,12*4(pmap);	mtsr	12,sr
 
 /*
  * Kernel SRs are loaded directly from kernel_pmap_
@@ -360,6 +362,207 @@ CNAME(alitrap):
 CNAME(alisize) = .-CNAME(alitrap)
 
 /*
+ * G2 specific: instuction TLB miss.
+ */
+	.globl	CNAME(imisstrap),CNAME(imisssize)
+CNAME(imisstrap):
+	mfspr %r2, SPR_HASH1		/* get first pointer */
+	addi %r1, 0, 8			/* load 8 for counter */
+	mfctr %r0			/* save counter */
+	mfspr %r3, SPR_ICMP		/* get first compare value */
+	addi %r2, %r2, -8		/* pre dec the pointer */
+im0:
+	mtctr %r1			/* load counter */
+im1:
+	lwzu %r1, 8(%r2)		/* get next pte */
+	cmp 0, %r1, %r3			/* see if found pte */
+	bdnzf 2, im1			/* dec count br if cmp ne and if
+					 * count not zero */
+	bne instr_sec_hash		/* if not found set up second hash
+					 * or exit */
+	lwz %r1, +4(%r2)		/* load tlb entry lower-word */
+	andi. %r3, %r1, 8		/* check G bit */
+	bne do_isi_prot			/* if guarded, take an ISI */
+	mtctr %r0			/* restore counter */
+	mfspr %r0, SPR_IMISS		/* get the miss address for the tlbli */
+	mfspr %r3, SPR_SRR1		/* get the saved cr0 bits */
+	mtcrf 0x80, %r3			/* restore CR0 */
+	mtspr SPR_RPA, %r1		/* set the pte */
+	ori %r1, %r1, 0x100		/* set reference bit */
+	srwi %r1, %r1, 8		/* get byte 7 of pte */
+	tlbli %r0 			/* load the itlb */
+	stb %r1, +6(%r2)		/* update page table */
+	rfi				/* return to executing program */
+
+instr_sec_hash:
+	andi. %r1, %r3, 0x0040		/* see if we have done second hash */
+	bne do_isi			/* if so, go to ISI interrupt */
+	mfspr %r2, SPR_HASH2		/* get the second pointer */
+	ori %r3, %r3, 0x0040		/* change the compare value */
+	addi %r1, %r0, 8		/* load 8 for counter */
+	addi %r2, %r2, -8		/* pre dec for update on load */
+	b im0				/* try second hash */
+
+/* Create a faked ISI interrupt as the address was not found */ 
+do_isi_prot:
+	mfspr %r3, SPR_SRR1		/* get srr1 */
+	andi. %r2, %r3, 0xffff		/* clean upper srr1 */
+	addis %r2, %r2, 0x0800		/* or in srr<4> = 1 to flag prot
+					 * violation */
+	b isi1
+do_isi:
+	mfspr %r3, SPR_SRR1		/* get srr1 */
+	andi. %r2, %r3, 0xffff		/* clean srr1 */
+	addis %r2, %r2, 0x4000		/* or in srr1<1> = 1 to flag pte
+					 * not found */
+isi1: 
+	mtctr %r0			/* restore counter */
+	mtspr SPR_SRR1, %r2		/* set srr1 */
+	mfmsr %r0			/* get msr */
+	xoris %r0, %r0, 0x2		/* flip the msr<tgpr> bit */
+	mtcrf 0x80, %r3			/* restore CR0 */
+	mtmsr %r0			/* flip back to the native gprs */
+	ba EXC_ISI			/* go to instr. access interrupt */
+
+CNAME(imisssize) = .-CNAME(imisstrap)
+
+/*
+ * G2 specific: data load TLB miss.
+ */
+	.globl	CNAME(dlmisstrap),CNAME(dlmisssize)
+CNAME(dlmisstrap):
+	mfspr %r2, SPR_HASH1		/* get first pointer */
+	addi %r1, 0, 8			/* load 8 for counter */
+	mfctr %r0			/* save counter */
+	mfspr %r3, SPR_DCMP		/* get first compare value */
+	addi %r2, %r2, -8		/* pre dec the pointer */
+dm0: 
+	mtctr %r1			/* load counter */
+dm1:	
+	lwzu %r1, 8(%r2)		/* get next pte */
+	cmp 0, 0, %r1, %r3		/* see if found pte */
+	bdnzf 2, dm1			/* dec count br if cmp ne and if
+					 * count not zero */
+	bne data_sec_hash		/* if not found set up second hash
+					 * or exit */
+	lwz %r1, +4(%r2)		/* load tlb entry lower-word */
+	mtctr %r0			/* restore counter */
+	mfspr %r0, SPR_DMISS		/* get the miss address for the tlbld */
+	mfspr %r3, SPR_SRR1		/* get the saved cr0 bits */
+	mtcrf 0x80, %r3			/* restore CR0 */
+	mtspr SPR_RPA, %r1		/* set the pte */
+	ori %r1, %r1, 0x100		/* set reference bit */
+	srwi %r1, %r1, 8		/* get byte 7 of pte */
+	tlbld %r0			/* load the dtlb */
+	stb %r1, +6(%r2)		/* update page table */
+	rfi				/* return to executing program */
+ 
+data_sec_hash:
+	andi. %r1, %r3, 0x0040		/* see if we have done second hash */
+	bne do_dsi			/* if so, go to DSI interrupt */
+	mfspr %r2, SPR_HASH2		/* get the second pointer */
+	ori %r3, %r3, 0x0040		/* change the compare value */
+	addi %r1, 0, 8			/* load 8 for counter */
+	addi %r2, %r2, -8		/* pre dec for update on load */
+	b dm0				/* try second hash */
+
+CNAME(dlmisssize) = .-CNAME(dlmisstrap)
+
+/*
+ *  G2 specific: data store TLB miss.
+ */
+	.globl	CNAME(dsmisstrap),CNAME(dsmisssize)
+CNAME(dsmisstrap):
+	mfspr %r2, SPR_HASH1		/* get first pointer */
+	addi %r1, 0, 8			/* load 8 for counter */
+	mfctr %r0			/* save counter */
+	mfspr %r3, SPR_DCMP		/* get first compare value */
+	addi %r2, %r2, -8		/* pre dec the pointer */
+ds0:
+	mtctr %r1			/* load counter */
+ds1:
+	lwzu %r1, 8(%r2)		/* get next pte */
+	cmp 0, 0, %r1, %r3		/* see if found pte */
+	bdnzf 2, ds1			/* dec count br if cmp ne and if
+					 * count not zero */
+	bne data_store_sec_hash		/* if not found set up second hash
+					 * or exit */
+	lwz %r1, +4(%r2)		/* load tlb entry lower-word */
+	andi. %r3, %r1, 0x80		/* check the C-bit */
+	beq data_store_chk_prot		/* if (C==0)
+					 *     go check protection modes */
+ds2:
+	mtctr %r0			/* restore counter */
+	mfspr %r0, SPR_DMISS		/* get the miss address for the tlbld */
+	mfspr %r3, SPR_SRR1		/* get the saved cr0 bits */
+	mtcrf 0x80, %r3			/* restore CR0 */
+	mtspr SPR_RPA, %r1		/* set the pte */
+	tlbld %r0			/* load the dtlb */
+	rfi				/* return to executing program */
+
+data_store_sec_hash:
+	andi. %r1, %r3, 0x0040		/* see if we have done second hash */
+	bne do_dsi			/* if so, go to DSI interrupt */
+	mfspr %r2, SPR_HASH2		/* get the second pointer */
+	ori %r3, %r3, 0x0040		/* change the compare value */
+	addi %r1, 0, 8			/* load 8 for counter */
+	addi %r2, %r2, -8		/* pre dec for update on load */
+	b ds0				/* try second hash */
+	
+/* Check the protection before setting PTE(c-bit) */
+data_store_chk_prot:
+	rlwinm. %r3,%r1,30,0,1		/* test PP */
+	bge- chk0			/* if (PP == 00 or PP == 01)
+					 *     goto chk0: */
+	andi. %r3, %r1, 1		/* test PP[0] */
+	beq+ chk2			/* return if PP[0] == 0 */
+	b do_dsi_prot			/* else DSIp */
+chk0:
+	mfspr %r3,SPR_SRR1		/* get old msr */
+	andis. %r3,%r3,0x0008		/* test the KEY bit (SRR1-bit 12) */
+	beq chk2			/* if (KEY==0) goto chk2: */
+	b do_dsi_prot			/* else do_dsi_prot */
+chk2:
+	ori %r1, %r1, 0x180		/* set reference and change bit */
+	sth %r1, 6(%r2)			/* update page table */
+	b ds2				/* and back we go */
+	
+/* Create a faked DSI interrupt as the address was not found */ 
+do_dsi:
+	mfspr %r3, SPR_SRR1		/* get srr1 */
+	rlwinm %r1,%r3,9,6,6		/* get srr1<flag> to bit 6 for
+					 * load/store, zero rest */
+	addis %r1, %r1, 0x4000		/* or in dsisr<1> = 1 to flag pte
+					 * not found */
+	b dsi1
+
+do_dsi_prot:
+	mfspr %r3, SPR_SRR1		/* get srr1 */
+	rlwinm %r1,%r3,9,6,6		/* get srr1<flag> to bit 6 for
+					   *load/store, zero rest */
+	addis %r1, %r1, 0x0800		/* or in dsisr<4> = 1 to flag prot
+					 * violation */
+
+dsi1:
+	mtctr %r0			/* restore counter */
+	andi. %r2, %r3, 0xffff		/* clear upper bits of srr1 */
+	mtspr SPR_SRR1, %r2		/* set srr1 */
+	mtspr SPR_DSISR, %r1		/* load the dsisr */
+	mfspr %r1, SPR_DMISS		/* get miss address */
+	rlwinm. %r2,%r2,0,31,31		/* test LE bit */
+	beq dsi2			/* if little endian then: */
+	xor %r1, %r1, 0x07		/* de-mung the data address */
+dsi2:
+	mtspr SPR_DAR, %r1		/* put in dar */
+	mfmsr %r0			/* get msr */
+	xoris %r0, %r0, 0x2		/* flip the msr<tgpr> bit */
+	mtcrf 0x80, %r3			/* restore CR0 */
+	mtmsr %r0			/* flip back to the native gprs */
+	ba EXC_DSI			/* branch to DSI interrupt */
+
+CNAME(dsmisssize) = .-CNAME(dsmisstrap)
+
+/*
  * Similar to the above for DSI
  * Has to handle BAT spills
  * and standard pagetable spills
@@ -537,6 +740,11 @@ u_trap:
  */
 k_trap:
 	FRAME_SETUP(PC_TEMPSAVE)
+	/* Restore USER_SR */
+	GET_CPUINFO(%r30)
+	lwz	%r30,PC_CURPCB(%r30)
+	lwz	%r30,PCB_AIM_USR_VSID(%r30)
+	mtsr	USER_SR,%r30; sync; isync
 /* Call C interrupt dispatcher: */
 trapagain:
 	addi	%r3,%r1,8

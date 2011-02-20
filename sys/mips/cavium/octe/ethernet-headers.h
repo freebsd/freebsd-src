@@ -40,4 +40,11 @@ AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR W
 #include "ethernet-tx.h"
 #include "ethernet-util.h"
 
+/*
+ * Any board- or vendor-specific includes.
+ */
+#ifdef OCTEON_VENDOR_LANNER
+#include "ethernet-mv88e61xx.h"
+#endif
+
 #endif

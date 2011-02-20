@@ -157,6 +157,12 @@ static struct runq runq_pcpu[MAXCPU];
 long runq_length[MAXCPU];
 #endif
 
+struct pcpuidlestat {
+	u_int idlecalls;
+	u_int oldidlecalls;
+};
+static DPCPU_DEFINE(struct pcpuidlestat, idlestat);
+
 static void
 setup_runqs(void)
 {
@@ -423,7 +429,7 @@ maybe_preempt(struct thread *td)
 
 /* decay 95% of `ts_pctcpu' in 60 seconds; see CCPU_SHIFT before changing */
 static fixpt_t	ccpu = 0.95122942450071400909 * FSCALE;	/* exp(-1/20) */
-SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
+SYSCTL_UINT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
 
 /*
  * If `ccpu' is not equal to `exp(-1/20)' and you still want to use the
@@ -684,6 +690,7 @@ sched_rr_interval(void)
 void
 sched_clock(struct thread *td)
 {
+	struct pcpuidlestat *stat;
 	struct td_sched *ts;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -703,6 +710,10 @@ sched_clock(struct thread *td)
 	if (!TD_IS_IDLETHREAD(td) &&
 	    ticks - PCPU_GET(switchticks) >= sched_quantum)
 		td->td_flags |= TDF_NEEDRESCHED;
+
+	stat = DPCPU_PTR(idlestat);
+	stat->oldidlecalls = stat->idlecalls;
+	stat->idlecalls = 0;
 }
 
 /*
@@ -748,6 +759,7 @@ sched_fork_thread(struct thread *td, struct thread *childtd)
 	childtd->td_estcpu = td->td_estcpu;
 	childtd->td_lock = &sched_lock;
 	childtd->td_cpuset = cpuset_ref(td->td_cpuset);
+	childtd->td_priority = childtd->td_base_pri;
 	ts = childtd->td_sched;
 	bzero(ts, sizeof(*ts));
 	ts->ts_flags |= (td->td_sched->ts_flags & TSF_AFFINITY);
@@ -868,40 +880,25 @@ sched_prio(struct thread *td, u_char prio)
 void
 sched_user_prio(struct thread *td, u_char prio)
 {
-	u_char oldprio;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	td->td_base_user_pri = prio;
-	if (td->td_flags & TDF_UBORROWING && td->td_user_pri <= prio)
+	if (td->td_lend_user_pri <= prio)
 		return;
-	oldprio = td->td_user_pri;
 	td->td_user_pri = prio;
 }
 
 void
 sched_lend_user_prio(struct thread *td, u_char prio)
 {
-	u_char oldprio;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	td->td_flags |= TDF_UBORROWING;
-	oldprio = td->td_user_pri;
-	td->td_user_pri = prio;
-}
-
-void
-sched_unlend_user_prio(struct thread *td, u_char prio)
-{
-	u_char base_pri;
-
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	base_pri = td->td_base_user_pri;
-	if (prio >= base_pri) {
-		td->td_flags &= ~TDF_UBORROWING;
-		sched_user_prio(td, base_pri);
-	} else {
-		sched_lend_user_prio(td, prio);
-	}
+	td->td_lend_user_pri = prio;
+	td->td_user_pri = min(prio, td->td_base_user_pri);
+	if (td->td_priority > td->td_user_pri)
+		sched_prio(td, td->td_user_pri);
+	else if (td->td_priority != td->td_user_pri)
+		td->td_flags |= TDF_NEEDRESCHED;
 }
 
 void
@@ -911,7 +908,7 @@ sched_sleep(struct thread *td, int pri)
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	td->td_slptick = ticks;
 	td->td_sched->ts_slptime = 0;
-	if (pri)
+	if (pri != 0 && PRI_BASE(td->td_pri_class) == PRI_TIMESHARE)
 		sched_prio(td, pri);
 	if (TD_IS_SUSPENDED(td) || pri >= PSOCK)
 		td->td_flags |= TDF_CANSWAP;
@@ -1137,7 +1134,15 @@ forward_wakeup(int cpunum)
 	}
 	if (map) {
 		forward_wakeups_delivered++;
-		ipi_selected(map, IPI_AST);
+		SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+			id = pc->pc_cpumask;
+			if ((map & id) == 0)
+				continue;
+			if (cpu_idle_wakeup(pc->pc_cpuid))
+				map &= ~id;
+		}
+		if (map)
+			ipi_selected(map, IPI_AST);
 		return (1);
 	}
 	if (cpunum == NOCPU)
@@ -1154,7 +1159,8 @@ kick_other_cpu(int pri, int cpuid)
 	pcpu = pcpu_find(cpuid);
 	if (idle_cpus_mask & pcpu->pc_cpumask) {
 		forward_wakeups_delivered++;
-		ipi_cpu(cpuid, IPI_AST);
+		if (!cpu_idle_wakeup(cpuid))
+			ipi_cpu(cpuid, IPI_AST);
 		return;
 	}
 
@@ -1527,7 +1533,7 @@ sched_pctcpu(struct thread *td)
 }
 
 void
-sched_tick(void)
+sched_tick(int cnt)
 {
 }
 
@@ -1537,12 +1543,16 @@ sched_tick(void)
 void
 sched_idletd(void *dummy)
 {
+	struct pcpuidlestat *stat;
 
+	stat = DPCPU_PTR(idlestat);
 	for (;;) {
 		mtx_assert(&Giant, MA_NOTOWNED);
 
-		while (sched_runnable() == 0)
-			cpu_idle(0);
+		while (sched_runnable() == 0) {
+			cpu_idle(stat->idlecalls + stat->oldidlecalls > 64);
+			stat->idlecalls++;
+		}
 
 		mtx_lock_spin(&sched_lock);
 		mi_switch(SW_VOL | SWT_IDLE, NULL);

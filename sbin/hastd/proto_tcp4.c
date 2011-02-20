@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -61,6 +60,7 @@ struct tcp4_ctx {
 #define	TCP4_SIDE_SERVER_WORK	2
 };
 
+static int tcp4_connect_wait(void *ctx, int timeout);
 static void tcp4_close(void *ctx);
 
 static in_addr_t
@@ -168,10 +168,15 @@ tcp4_addr(const char *addr, struct sockaddr_in *sinp)
 }
 
 static int
-tcp4_common_setup(const char *addr, void **ctxp, int side)
+tcp4_setup_new(const char *addr, int side, void **ctxp)
 {
 	struct tcp4_ctx *tctx;
-	int ret, val;
+	int ret, nodelay;
+
+	PJDLOG_ASSERT(addr != NULL);
+	PJDLOG_ASSERT(side == TCP4_SIDE_CLIENT ||
+	    side == TCP4_SIDE_SERVER_LISTEN);
+	PJDLOG_ASSERT(ctxp != NULL);
 
 	tctx = malloc(sizeof(*tctx));
 	if (tctx == NULL)
@@ -183,6 +188,8 @@ tcp4_common_setup(const char *addr, void **ctxp, int side)
 		return (ret);
 	}
 
+	PJDLOG_ASSERT(tctx->tc_sin.sin_family != AF_UNSPEC);
+
 	tctx->tc_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (tctx->tc_fd == -1) {
 		ret = errno;
@@ -191,22 +198,35 @@ tcp4_common_setup(const char *addr, void **ctxp, int side)
 	}
 
 	/* Socket settings. */
-	val = 1;
-	if (setsockopt(tctx->tc_fd, IPPROTO_TCP, TCP_NODELAY, &val,
-	    sizeof(val)) == -1) {
-		pjdlog_warning("Unable to set TCP_NOELAY on %s", addr);
-	}
-	val = 131072;
-	if (setsockopt(tctx->tc_fd, SOL_SOCKET, SO_SNDBUF, &val,
-	    sizeof(val)) == -1) {
-		pjdlog_warning("Unable to set send buffer size on %s", addr);
-	}
-	val = 131072;
-	if (setsockopt(tctx->tc_fd, SOL_SOCKET, SO_RCVBUF, &val,
-	    sizeof(val)) == -1) {
-		pjdlog_warning("Unable to set receive buffer size on %s", addr);
+	nodelay = 1;
+	if (setsockopt(tctx->tc_fd, IPPROTO_TCP, TCP_NODELAY, &nodelay,
+	    sizeof(nodelay)) == -1) {
+		pjdlog_errno(LOG_WARNING, "Unable to set TCP_NOELAY");
 	}
 
+	tctx->tc_side = side;
+	tctx->tc_magic = TCP4_CTX_MAGIC;
+	*ctxp = tctx;
+
+	return (0);
+}
+
+static int
+tcp4_setup_wrap(int fd, int side, void **ctxp)
+{
+	struct tcp4_ctx *tctx;
+
+	PJDLOG_ASSERT(fd >= 0);
+	PJDLOG_ASSERT(side == TCP4_SIDE_CLIENT ||
+	    side == TCP4_SIDE_SERVER_WORK);
+	PJDLOG_ASSERT(ctxp != NULL);
+
+	tctx = malloc(sizeof(*tctx));
+	if (tctx == NULL)
+		return (errno);
+
+	tctx->tc_fd = fd;
+	tctx->tc_sin.sin_family = AF_UNSPEC;
 	tctx->tc_side = side;
 	tctx->tc_magic = TCP4_CTX_MAGIC;
 	*ctxp = tctx;
@@ -218,22 +238,21 @@ static int
 tcp4_client(const char *addr, void **ctxp)
 {
 
-	return (tcp4_common_setup(addr, ctxp, TCP4_SIDE_CLIENT));
+	return (tcp4_setup_new(addr, TCP4_SIDE_CLIENT, ctxp));
 }
 
 static int
-tcp4_connect(void *ctx)
+tcp4_connect(void *ctx, int timeout)
 {
 	struct tcp4_ctx *tctx = ctx;
-	struct timeval tv;
-	fd_set fdset;
-	socklen_t esize;
-	int error, flags, ret;
+	int error, flags;
 
-	assert(tctx != NULL);
-	assert(tctx->tc_magic == TCP4_CTX_MAGIC);
-	assert(tctx->tc_side == TCP4_SIDE_CLIENT);
-	assert(tctx->tc_fd >= 0);
+	PJDLOG_ASSERT(tctx != NULL);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx->tc_side == TCP4_SIDE_CLIENT);
+	PJDLOG_ASSERT(tctx->tc_fd >= 0);
+	PJDLOG_ASSERT(tctx->tc_sin.sin_family != AF_UNSPEC);
+	PJDLOG_ASSERT(timeout >= -1);
 
 	flags = fcntl(tctx->tc_fd, F_GETFL);
 	if (flags == -1) {
@@ -242,8 +261,8 @@ tcp4_connect(void *ctx)
 		return (errno);
 	}
 	/*
-	 * We make socket non-blocking so we have decided about connection
-	 * timeout.
+	 * We make socket non-blocking so we can handle connection timeout
+	 * manually.
 	 */
 	flags |= O_NONBLOCK;
 	if (fcntl(tctx->tc_fd, F_SETFL, flags) == -1) {
@@ -254,6 +273,8 @@ tcp4_connect(void *ctx)
 
 	if (connect(tctx->tc_fd, (struct sockaddr *)&tctx->tc_sin,
 	    sizeof(tctx->tc_sin)) == 0) {
+		if (timeout == -1)
+			return (0);
 		error = 0;
 		goto done;
 	}
@@ -262,11 +283,36 @@ tcp4_connect(void *ctx)
 		pjdlog_common(LOG_DEBUG, 1, errno, "connect() failed");
 		goto done;
 	}
-	/*
-	 * Connection can't be established immediately, let's wait
-	 * for HAST_TIMEOUT seconds.
-	 */
-	tv.tv_sec = HAST_TIMEOUT;
+	if (timeout == -1)
+		return (0);
+	return (tcp4_connect_wait(ctx, timeout));
+done:
+	flags &= ~O_NONBLOCK;
+	if (fcntl(tctx->tc_fd, F_SETFL, flags) == -1) {
+		if (error == 0)
+			error = errno;
+		pjdlog_common(LOG_DEBUG, 1, errno,
+		    "fcntl(F_SETFL, ~O_NONBLOCK) failed");
+	}
+	return (error);
+}
+
+static int
+tcp4_connect_wait(void *ctx, int timeout)
+{
+	struct tcp4_ctx *tctx = ctx;
+	struct timeval tv;
+	fd_set fdset;
+	socklen_t esize;
+	int error, flags, ret;
+
+	PJDLOG_ASSERT(tctx != NULL);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx->tc_side == TCP4_SIDE_CLIENT);
+	PJDLOG_ASSERT(tctx->tc_fd >= 0);
+	PJDLOG_ASSERT(timeout >= 0);
+
+	tv.tv_sec = timeout;
 	tv.tv_usec = 0;
 again:
 	FD_ZERO(&fdset);
@@ -282,8 +328,8 @@ again:
 		pjdlog_common(LOG_DEBUG, 1, errno, "select() failed");
 		goto done;
 	}
-	assert(ret > 0);
-	assert(FD_ISSET(tctx->tc_fd, &fdset));
+	PJDLOG_ASSERT(ret > 0);
+	PJDLOG_ASSERT(FD_ISSET(tctx->tc_fd, &fdset));
 	esize = sizeof(error);
 	if (getsockopt(tctx->tc_fd, SOL_SOCKET, SO_ERROR, &error,
 	    &esize) == -1) {
@@ -299,6 +345,13 @@ again:
 	}
 	error = 0;
 done:
+	flags = fcntl(tctx->tc_fd, F_GETFL);
+	if (flags == -1) {
+		if (error == 0)
+			error = errno;
+		pjdlog_common(LOG_DEBUG, 1, errno, "fcntl(F_GETFL) failed");
+		return (error);
+	}
 	flags &= ~O_NONBLOCK;
 	if (fcntl(tctx->tc_fd, F_SETFL, flags) == -1) {
 		if (error == 0)
@@ -315,7 +368,7 @@ tcp4_server(const char *addr, void **ctxp)
 	struct tcp4_ctx *tctx;
 	int ret, val;
 
-	ret = tcp4_common_setup(addr, ctxp, TCP4_SIDE_SERVER_LISTEN);
+	ret = tcp4_setup_new(addr, TCP4_SIDE_SERVER_LISTEN, ctxp);
 	if (ret != 0)
 		return (ret);
 
@@ -325,6 +378,8 @@ tcp4_server(const char *addr, void **ctxp)
 	/* Ignore failure. */
 	(void)setsockopt(tctx->tc_fd, SOL_SOCKET, SO_REUSEADDR, &val,
 	   sizeof(val));
+
+	PJDLOG_ASSERT(tctx->tc_sin.sin_family != AF_UNSPEC);
 
 	if (bind(tctx->tc_fd, (struct sockaddr *)&tctx->tc_sin,
 	    sizeof(tctx->tc_sin)) < 0) {
@@ -349,10 +404,11 @@ tcp4_accept(void *ctx, void **newctxp)
 	socklen_t fromlen;
 	int ret;
 
-	assert(tctx != NULL);
-	assert(tctx->tc_magic == TCP4_CTX_MAGIC);
-	assert(tctx->tc_side == TCP4_SIDE_SERVER_LISTEN);
-	assert(tctx->tc_fd >= 0);
+	PJDLOG_ASSERT(tctx != NULL);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx->tc_side == TCP4_SIDE_SERVER_LISTEN);
+	PJDLOG_ASSERT(tctx->tc_fd >= 0);
+	PJDLOG_ASSERT(tctx->tc_sin.sin_family != AF_UNSPEC);
 
 	newtctx = malloc(sizeof(*newtctx));
 	if (newtctx == NULL)
@@ -375,27 +431,37 @@ tcp4_accept(void *ctx, void **newctxp)
 }
 
 static int
-tcp4_send(void *ctx, const unsigned char *data, size_t size)
+tcp4_wrap(int fd, bool client, void **ctxp)
 {
-	struct tcp4_ctx *tctx = ctx;
 
-	assert(tctx != NULL);
-	assert(tctx->tc_magic == TCP4_CTX_MAGIC);
-	assert(tctx->tc_fd >= 0);
-
-	return (proto_common_send(tctx->tc_fd, data, size));
+	return (tcp4_setup_wrap(fd,
+	    client ? TCP4_SIDE_CLIENT : TCP4_SIDE_SERVER_WORK, ctxp));
 }
 
 static int
-tcp4_recv(void *ctx, unsigned char *data, size_t size)
+tcp4_send(void *ctx, const unsigned char *data, size_t size, int fd)
 {
 	struct tcp4_ctx *tctx = ctx;
 
-	assert(tctx != NULL);
-	assert(tctx->tc_magic == TCP4_CTX_MAGIC);
-	assert(tctx->tc_fd >= 0);
+	PJDLOG_ASSERT(tctx != NULL);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx->tc_fd >= 0);
+	PJDLOG_ASSERT(fd == -1);
 
-	return (proto_common_recv(tctx->tc_fd, data, size));
+	return (proto_common_send(tctx->tc_fd, data, size, -1));
+}
+
+static int
+tcp4_recv(void *ctx, unsigned char *data, size_t size, int *fdp)
+{
+	struct tcp4_ctx *tctx = ctx;
+
+	PJDLOG_ASSERT(tctx != NULL);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx->tc_fd >= 0);
+	PJDLOG_ASSERT(fdp == NULL);
+
+	return (proto_common_recv(tctx->tc_fd, data, size, NULL));
 }
 
 static int
@@ -403,8 +469,8 @@ tcp4_descriptor(const void *ctx)
 {
 	const struct tcp4_ctx *tctx = ctx;
 
-	assert(tctx != NULL);
-	assert(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx != NULL);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
 
 	return (tctx->tc_fd);
 }
@@ -415,8 +481,8 @@ sin2str(struct sockaddr_in *sinp, char *addr, size_t size)
 	in_addr_t ip;
 	unsigned int port;
 
-	assert(addr != NULL);
-	assert(sinp->sin_family == AF_INET);
+	PJDLOG_ASSERT(addr != NULL);
+	PJDLOG_ASSERT(sinp->sin_family == AF_INET);
 
 	ip = ntohl(sinp->sin_addr.s_addr);
 	port = ntohs(sinp->sin_port);
@@ -433,8 +499,8 @@ tcp4_address_match(const void *ctx, const char *addr)
 	socklen_t sinlen;
 	in_addr_t ip1, ip2;
 
-	assert(tctx != NULL);
-	assert(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx != NULL);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
 
 	if (tcp4_addr(addr, &sin) != 0)
 		return (false);
@@ -455,8 +521,8 @@ tcp4_local_address(const void *ctx, char *addr, size_t size)
 	struct sockaddr_in sin;
 	socklen_t sinlen;
 
-	assert(tctx != NULL);
-	assert(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx != NULL);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
 
 	sinlen = sizeof(sin);
 	if (getsockname(tctx->tc_fd, (struct sockaddr *)&sin, &sinlen) < 0) {
@@ -473,8 +539,8 @@ tcp4_remote_address(const void *ctx, char *addr, size_t size)
 	struct sockaddr_in sin;
 	socklen_t sinlen;
 
-	assert(tctx != NULL);
-	assert(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx != NULL);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
 
 	sinlen = sizeof(sin);
 	if (getpeername(tctx->tc_fd, (struct sockaddr *)&sin, &sinlen) < 0) {
@@ -489,8 +555,8 @@ tcp4_close(void *ctx)
 {
 	struct tcp4_ctx *tctx = ctx;
 
-	assert(tctx != NULL);
-	assert(tctx->tc_magic == TCP4_CTX_MAGIC);
+	PJDLOG_ASSERT(tctx != NULL);
+	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
 
 	if (tctx->tc_fd >= 0)
 		close(tctx->tc_fd);
@@ -502,8 +568,10 @@ static struct hast_proto tcp4_proto = {
 	.hp_name = "tcp4",
 	.hp_client = tcp4_client,
 	.hp_connect = tcp4_connect,
+	.hp_connect_wait = tcp4_connect_wait,
 	.hp_server = tcp4_server,
 	.hp_accept = tcp4_accept,
+	.hp_wrap = tcp4_wrap,
 	.hp_send = tcp4_send,
 	.hp_recv = tcp4_recv,
 	.hp_descriptor = tcp4_descriptor,

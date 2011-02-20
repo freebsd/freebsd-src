@@ -683,7 +683,7 @@ padding between the header and the link level protocol.
 The purpose here is to guarantee proper alignment of the packet
 data structures, which is required on alignment sensitive
 architectures and improves performance on many other architectures.
-The packet filter insures that the
+The packet filter ensures that the
 .Vt bpf_xhdr ,
 .Vt bpf_hdr
 and the network layer
@@ -804,7 +804,6 @@ are the corresponding fields in the
 instruction definition.
 .Dq len
 refers to the length of the packet.
-.Pp
 .Bl -tag -width BPF_STXx
 .It Dv BPF_LD
 These instructions copy a value into the accumulator.
@@ -833,7 +832,6 @@ or byte
 The semantics of all the recognized
 .Dv BPF_LD
 instructions follow.
-.Pp
 .Bd -literal
 BPF_LD+BPF_W+BPF_ABS	A <- P[k:4]
 BPF_LD+BPF_H+BPF_ABS	A <- P[k:2]
@@ -852,7 +850,6 @@ the addressing modes are more restrictive than those of the accumulator loads,
 but they include
 .Dv BPF_MSH ,
 a hack for efficiently loading the IP header length.
-.Pp
 .Bd -literal
 BPF_LDX+BPF_W+BPF_IMM	X <- k
 BPF_LDX+BPF_W+BPF_MEM	X <- M[k]
@@ -863,13 +860,11 @@ BPF_LDX+BPF_B+BPF_MSH	X <- 4*(P[k:1]&0xf)
 This instruction stores the accumulator into the scratch memory.
 We do not need an addressing mode since there is only one possibility
 for the destination.
-.Pp
 .Bd -literal
 BPF_ST			M[k] <- A
 .Ed
 .It Dv BPF_STX
 This instruction stores the index register in the scratch memory store.
-.Pp
 .Bd -literal
 BPF_STX			M[k] <- X
 .Ed
@@ -880,7 +875,6 @@ For binary operations, a source mode is required
 .Dv ( BPF_K
 or
 .Dv BPF_X ) .
-.Pp
 .Bd -literal
 BPF_ALU+BPF_ADD+BPF_K	A <- A + k
 BPF_ALU+BPF_SUB+BPF_K	A <- A - k
@@ -916,7 +910,6 @@ opcode uses the 32 bit
 .Li k
 field as the offset, allowing arbitrarily distant destinations.
 All conditionals use unsigned comparison conventions.
-.Pp
 .Bd -literal
 BPF_JMP+BPF_JA		pc += k
 BPF_JMP+BPF_JGT+BPF_K	pc += (A > k) ? jt : jf
@@ -936,7 +929,6 @@ The return value is either a constant
 .Pq Dv BPF_K
 or the accumulator
 .Pq Dv BPF_A .
-.Pp
 .Bd -literal
 BPF_RET+BPF_A		accept A bytes
 BPF_RET+BPF_K		accept k bytes
@@ -947,7 +939,6 @@ fit into the above classes, and for any new instructions that might need to
 be added.
 Currently, these are the register transfer instructions
 that copy the index register to the accumulator or vice versa.
-.Pp
 .Bd -literal
 BPF_MISC+BPF_TAX	X <- A
 BPF_MISC+BPF_TXA	A <- X

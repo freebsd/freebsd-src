@@ -138,7 +138,6 @@ _kvm_minidump_freevtop(kvm_t *kd)
 int
 _kvm_minidump_initvtop(kvm_t *kd)
 {
-	u_long pa;
 	struct vmstate *vmst;
 	off_t off;
 
@@ -179,7 +178,7 @@ _kvm_minidump_initvtop(kvm_t *kd)
 	}
 
 	if (pread(kd->pmfd, vmst->bitmap, vmst->hdr.bitmapsize, off) !=
-	    vmst->hdr.bitmapsize) {
+	    (ssize_t)vmst->hdr.bitmapsize) {
 		_kvm_err(kd, kd->program, "cannot read %d bytes for page bitmap",
 		    vmst->hdr.bitmapsize);
 		return (-1);
@@ -194,7 +193,7 @@ _kvm_minidump_initvtop(kvm_t *kd)
 	}
 
 	if (pread(kd->pmfd, vmst->ptemap, vmst->hdr.ptesize, off) !=
-	    vmst->hdr.ptesize) {
+	    (ssize_t)vmst->hdr.ptesize) {
 		_kvm_err(kd, kd->program, "cannot read %d bytes for ptemap",
 		    vmst->hdr.ptesize);
 		return (-1);
@@ -216,7 +215,6 @@ _kvm_minidump_kvatop(kvm_t *kd, u_long va, off_t *pa)
 	u_long offset, pteindex, a;
 	off_t ofs;
 	uint32_t *ptemap;
-	int i;
 
 	if (ISALIVE(kd)) {
 		_kvm_err(kd, 0, "kvm_kvatop called in live kernel!");

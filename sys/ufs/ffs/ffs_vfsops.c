@@ -318,7 +318,7 @@ ffs_mount(struct mount *mp)
 					    fs->fs_fsmnt);
 					if (fs->fs_flags & FS_SUJ)
 						printf(
-"WARNING: Forced mount will invalidated journal contents\n");
+"WARNING: Forced mount will invalidate journal contents\n");
 					return (EPERM);
 				}
 			}
@@ -362,7 +362,7 @@ ffs_mount(struct mount *mp)
 		 * Soft updates is incompatible with "async",
 		 * so if we are doing softupdates stop the user
 		 * from setting the async flag in an update.
-		 * Softdep_mount() clears it in an initial mount 
+		 * Softdep_mount() clears it in an initial mount
 		 * or ro->rw remount.
 		 */
 		if (mp->mnt_flag & MNT_SOFTDEP) {
@@ -387,7 +387,7 @@ ffs_mount(struct mount *mp)
 			mp->mnt_flag |= MNT_NFS4ACLS;
 			MNT_IUNLOCK(mp);
 		}
-	
+
 		/*
 		 * If this is a snapshot request, take the snapshot.
 		 */
@@ -463,6 +463,7 @@ static int
 ffs_cmount(struct mntarg *ma, void *data, int flags)
 {
 	struct ufs_args args;
+	struct export_args exp;
 	int error;
 
 	if (data == NULL)
@@ -470,9 +471,10 @@ ffs_cmount(struct mntarg *ma, void *data, int flags)
 	error = copyin(data, &args, sizeof args);
 	if (error)
 		return (error);
+	vfs_oexport_conv(&args.export, &exp);
 
 	ma = mount_argsu(ma, "from", args.fspec, MAXPATHLEN);
-	ma = mount_arg(ma, "export", &args.export, sizeof args.export);
+	ma = mount_arg(ma, "export", &exp, sizeof(exp));
 	error = kernel_mount(ma, flags);
 
 	return (error);
@@ -720,8 +722,7 @@ ffs_mountfs(devvp, mp, td)
 		if (ronly || (mp->mnt_flag & MNT_FORCE) ||
 		    ((fs->fs_flags & (FS_SUJ | FS_NEEDSFSCK)) == 0 &&
 		     (fs->fs_flags & FS_DOSOFTDEP))) {
-			printf(
-"WARNING: %s was not properly dismounted\n",
+			printf("WARNING: %s was not properly dismounted\n",
 			    fs->fs_fsmnt);
 		} else {
 			printf(
@@ -729,7 +730,7 @@ ffs_mountfs(devvp, mp, td)
 			    fs->fs_fsmnt);
 			if (fs->fs_flags & FS_SUJ)
 				printf(
-"WARNING: Forced mount will invalidated journal contents\n");
+"WARNING: Forced mount will invalidate journal contents\n");
 			error = EPERM;
 			goto out;
 		}
@@ -840,7 +841,7 @@ ffs_mountfs(devvp, mp, td)
 	mp->mnt_stat.f_fsid.val[0] = fs->fs_id[0];
 	mp->mnt_stat.f_fsid.val[1] = fs->fs_id[1];
 	nmp = NULL;
-	if (fs->fs_id[0] == 0 || fs->fs_id[1] == 0 || 
+	if (fs->fs_id[0] == 0 || fs->fs_id[1] == 0 ||
 	    (nmp = vfs_getvfs(&mp->mnt_stat.f_fsid))) {
 		if (nmp)
 			vfs_rel(nmp);
@@ -873,8 +874,7 @@ ffs_mountfs(devvp, mp, td)
 
 		MNT_IUNLOCK(mp);
 #else
-		printf(
-"WARNING: %s: ACLs flag on fs but no ACLs support\n",
+		printf("WARNING: %s: ACLs flag on fs but no ACLs support\n",
 		    mp->mnt_stat.f_mntonname);
 #endif
 	}
@@ -894,6 +894,21 @@ ffs_mountfs(devvp, mp, td)
 "WARNING: %s: NFSv4 ACLs flag on fs but no ACLs support\n",
 		    mp->mnt_stat.f_mntonname);
 #endif
+	}
+	if ((fs->fs_flags & FS_TRIM) != 0) {
+		size = sizeof(int);
+		if (g_io_getattr("GEOM::candelete", cp, &size,
+		    &ump->um_candelete) == 0) {
+			if (!ump->um_candelete)
+				printf(
+"WARNING: %s: TRIM flag on fs but disk does not support TRIM\n",
+				    mp->mnt_stat.f_mntonname);
+		} else {
+			printf(
+"WARNING: %s: TRIM flag on fs but cannot get whether disk supports TRIM\n",
+			    mp->mnt_stat.f_mntonname);
+			ump->um_candelete = 0;
+		}
 	}
 
 	ump->um_mountp = mp;
@@ -928,6 +943,7 @@ ffs_mountfs(devvp, mp, td)
 		if ((fs->fs_flags & FS_DOSOFTDEP) &&
 		    (error = softdep_mount(devvp, mp, fs, cred)) != 0) {
 			free(fs->fs_csp, M_UFSMNT);
+			ffs_flushfiles(mp, FORCECLOSE, td);
 			goto out;
 		}
 		if (fs->fs_snapinum[0] != 0)
@@ -1682,7 +1698,7 @@ ffs_sbupdate(mp, waitfor, suspended)
 	int i, size, error, allerror = 0;
 
 	if (fs->fs_ronly == 1 &&
-	    (mp->um_mountp->mnt_flag & (MNT_RDONLY | MNT_UPDATE)) != 
+	    (mp->um_mountp->mnt_flag & (MNT_RDONLY | MNT_UPDATE)) !=
 	    (MNT_RDONLY | MNT_UPDATE))
 		panic("ffs_sbupdate: write read-only filesystem");
 	/*
@@ -1836,7 +1852,7 @@ ffs_backgroundwritedone(struct buf *bp)
  *
  * Note that we set B_CACHE here, indicating that buffer is
  * fully valid and thus cacheable.  This is true even of NFS
- * now so we set it generally.  This could be set either here 
+ * now so we set it generally.  This could be set either here
  * or in biodone() since the I/O is synchronous.  We put it
  * here.
  */
@@ -1885,7 +1901,7 @@ ffs_bufwrite(struct buf *bp)
 	 * This optimization eats a lot of memory.  If we have a page
 	 * or buffer shortfall we can't do it.
 	 */
-	if (dobkgrdwrite && (bp->b_xflags & BX_BKGRDWRITE) && 
+	if (dobkgrdwrite && (bp->b_xflags & BX_BKGRDWRITE) &&
 	    (bp->b_flags & B_ASYNC) &&
 	    !vm_page_count_severe() &&
 	    !buf_dirty_count_severe()) {
@@ -1927,7 +1943,7 @@ ffs_bufwrite(struct buf *bp)
 			bundirty(bp);
 #else
 		bundirty(bp);
-#endif 
+#endif
 
 		/*
 		 * Initiate write on the copy, release the original to

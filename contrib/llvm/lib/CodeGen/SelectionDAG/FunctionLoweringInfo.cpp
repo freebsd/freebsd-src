@@ -20,6 +20,7 @@
 #include "llvm/IntrinsicInst.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
+#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/CodeGen/Analysis.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -111,16 +112,55 @@ void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf) {
 
         TySize *= CUI->getZExtValue();   // Get total allocated size.
         if (TySize == 0) TySize = 1; // Don't create zero-sized stack objects.
+
+        // The object may need to be placed onto the stack near the stack
+        // protector if one exists. Determine here if this object is a suitable
+        // candidate. I.e., it would trigger the creation of a stack protector.
+        bool MayNeedSP =
+          (AI->isArrayAllocation() ||
+           (TySize > 8 && isa<ArrayType>(Ty) &&
+            cast<ArrayType>(Ty)->getElementType()->isIntegerTy(8)));
         StaticAllocaMap[AI] =
-          MF->getFrameInfo()->CreateStackObject(TySize, Align, false);
+          MF->getFrameInfo()->CreateStackObject(TySize, Align, false, MayNeedSP);
       }
 
   for (; BB != EB; ++BB)
-    for (BasicBlock::const_iterator I = BB->begin(), E = BB->end(); I != E; ++I)
+    for (BasicBlock::const_iterator I = BB->begin(), E = BB->end(); I != E; ++I) {
+      // Mark values used outside their block as exported, by allocating
+      // a virtual register for them.
       if (isUsedOutsideOfDefiningBlock(I))
         if (!isa<AllocaInst>(I) ||
             !StaticAllocaMap.count(cast<AllocaInst>(I)))
           InitializeRegForValue(I);
+
+      // Collect llvm.dbg.declare information. This is done now instead of
+      // during the initial isel pass through the IR so that it is done
+      // in a predictable order.
+      if (const DbgDeclareInst *DI = dyn_cast<DbgDeclareInst>(I)) {
+        MachineModuleInfo &MMI = MF->getMMI();
+        if (MMI.hasDebugInfo() &&
+            DIVariable(DI->getVariable()).Verify() &&
+            !DI->getDebugLoc().isUnknown()) {
+          // Don't handle byval struct arguments or VLAs, for example.
+          // Non-byval arguments are handled here (they refer to the stack
+          // temporary alloca at this point).
+          const Value *Address = DI->getAddress();
+          if (Address) {
+            if (const BitCastInst *BCI = dyn_cast<BitCastInst>(Address))
+              Address = BCI->getOperand(0);
+            if (const AllocaInst *AI = dyn_cast<AllocaInst>(Address)) {
+              DenseMap<const AllocaInst *, int>::iterator SI =
+                StaticAllocaMap.find(AI);
+              if (SI != StaticAllocaMap.end()) { // Check for VLAs.
+                int FI = SI->second;
+                MMI.setVariableDbgInfo(DI->getVariable(),
+                                       FI, DI->getDebugLoc());
+              }
+            }
+          }
+        }
+      }
+    }
 
   // Create an initial MachineBasicBlock for each LLVM BasicBlock in F.  This
   // also creates the initial PHI MachineInstrs, though none of the input
@@ -181,6 +221,7 @@ void FunctionLoweringInfo::clear() {
 #endif
   LiveOutRegInfo.clear();
   ArgDbgValues.clear();
+  ByValArgFrameIndexMap.clear();
   RegFixups.clear();
 }
 
@@ -212,6 +253,28 @@ unsigned FunctionLoweringInfo::CreateRegs(const Type *Ty) {
     }
   }
   return FirstReg;
+}
+
+/// setByValArgumentFrameIndex - Record frame index for the byval
+/// argument. This overrides previous frame index entry for this argument,
+/// if any.
+void FunctionLoweringInfo::setByValArgumentFrameIndex(const Argument *A, 
+                                                      int FI) {
+  assert (A->hasByValAttr() && "Argument does not have byval attribute!");
+  ByValArgFrameIndexMap[A] = FI;
+}
+  
+/// getByValArgumentFrameIndex - Get frame index for the byval argument.
+/// If the argument does not have any assigned frame index then 0 is
+/// returned.
+int FunctionLoweringInfo::getByValArgumentFrameIndex(const Argument *A) {
+  assert (A->hasByValAttr() && "Argument does not have byval attribute!");
+  DenseMap<const Argument *, int>::iterator I = 
+    ByValArgFrameIndexMap.find(A);
+  if (I != ByValArgFrameIndexMap.end())
+    return I->second;
+  DEBUG(dbgs() << "Argument does not have assigned frame index!");
+  return 0;
 }
 
 /// AddCatchInfo - Extract the personality and type infos from an eh.selector

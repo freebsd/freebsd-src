@@ -154,7 +154,7 @@ namespace {
     int FnNum;
   public:
     static char ID;
-    IfConverter() : MachineFunctionPass(&ID), FnNum(-1) {}
+    IfConverter() : MachineFunctionPass(ID), FnNum(-1) {}
 
     virtual bool runOnMachineFunction(MachineFunction &MF);
     virtual const char *getPassName() const { return "If Converter"; }
@@ -230,8 +230,7 @@ namespace {
   char IfConverter::ID = 0;
 }
 
-static RegisterPass<IfConverter>
-X("if-converter", "If Converter");
+INITIALIZE_PASS(IfConverter, "if-converter", "If Converter", false, false);
 
 FunctionPass *llvm::createIfConverterPass() { return new IfConverter(); }
 

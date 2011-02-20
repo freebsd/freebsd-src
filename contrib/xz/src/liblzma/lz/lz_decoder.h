@@ -129,7 +129,7 @@ dict_repeat(lzma_dict *dict, uint32_t distance, uint32_t *len)
 {
 	// Don't write past the end of the dictionary.
 	const size_t dict_avail = dict->limit - dict->pos;
-	uint32_t left = MIN(dict_avail, *len);
+	uint32_t left = my_min(dict_avail, *len);
 	*len -= left;
 
 	// Repeat a block of data from the history. Because memcpy() is faster

@@ -33,7 +33,6 @@
 #include "opt_compat.h"
 #include "opt_inet6.h"
 #include "opt_inet.h"
-#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -62,10 +61,6 @@
 #include <machine/stdarg.h>
 #include <vm/uma.h>
 
-#ifdef DDB
-#include <ddb/ddb.h>
-#endif
-
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_clone.h>
@@ -92,6 +87,11 @@
 
 #include <security/mac/mac_framework.h>
 
+#ifdef COMPAT_FREEBSD32
+#include <sys/mount.h>
+#include <compat/freebsd32/freebsd32.h>
+#endif
+
 struct ifindex_entry {
 	struct  ifnet *ife_ifnet;
 };
@@ -100,7 +100,7 @@ SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
 
 TUNABLE_INT("net.link.ifqmaxlen", &ifqmaxlen);
-SYSCTL_UINT(_net_link, OID_AUTO, ifqmaxlen, CTLFLAG_RDTUN,
+SYSCTL_INT(_net_link, OID_AUTO, ifqmaxlen, CTLFLAG_RDTUN,
     &ifqmaxlen, 0, "max send queue size");
 
 /* Log link state change events */
@@ -186,7 +186,7 @@ VNET_DEFINE(struct ifgrouphead, ifg_head);
 static VNET_DEFINE(int, if_indexlim) = 8;
 
 /* Table of ifnet by index. */
-static VNET_DEFINE(struct ifindex_entry *, ifindex_table);
+VNET_DEFINE(struct ifindex_entry *, ifindex_table);
 
 #define	V_if_indexlim		VNET(if_indexlim)
 #define	V_ifindex_table		VNET(ifindex_table)
@@ -266,6 +266,7 @@ ifindex_alloc_locked(u_short *idxp)
 
 	IFNET_WLOCK_ASSERT();
 
+retry:
 	/*
 	 * Try to find an empty slot below V_if_index.  If we fail, take the
 	 * next slot.
@@ -278,10 +279,12 @@ ifindex_alloc_locked(u_short *idxp)
 	/* Catch if_index overflow. */
 	if (idx < 1)
 		return (ENOSPC);
+	if (idx >= V_if_indexlim) {
+		if_grow();
+		goto retry;
+	}
 	if (idx > V_if_index)
 		V_if_index = idx;
-	if (V_if_index >= V_if_indexlim)
-		if_grow();
 	*idxp = idx;
 	return (0);
 }
@@ -351,10 +354,12 @@ vnet_if_init(const void *unused __unused)
 
 	TAILQ_INIT(&V_ifnet);
 	TAILQ_INIT(&V_ifg_head);
+	IFNET_WLOCK();
 	if_grow();				/* create initial table */
+	IFNET_WUNLOCK();
 	vnet_if_clone_init();
 }
-VNET_SYSINIT(vnet_if_init, SI_SUB_INIT_IF, SI_ORDER_FIRST, vnet_if_init,
+VNET_SYSINIT(vnet_if_init, SI_SUB_INIT_IF, SI_ORDER_SECOND, vnet_if_init,
     NULL);
 
 /* ARGSUSED*/
@@ -365,7 +370,7 @@ if_init(void *dummy __unused)
 	IFNET_LOCK_INIT();
 	if_clone_init();
 }
-SYSINIT(interfaces, SI_SUB_INIT_IF, SI_ORDER_SECOND, if_init, NULL);
+SYSINIT(interfaces, SI_SUB_INIT_IF, SI_ORDER_FIRST, if_init, NULL);
 
 
 #ifdef VIMAGE
@@ -373,8 +378,10 @@ static void
 vnet_if_uninit(const void *unused __unused)
 {
 
-	VNET_ASSERT(TAILQ_EMPTY(&V_ifnet));
-	VNET_ASSERT(TAILQ_EMPTY(&V_ifg_head));
+	VNET_ASSERT(TAILQ_EMPTY(&V_ifnet), ("%s:%d tailq &V_ifnet=%p "
+	    "not empty", __func__, __LINE__, &V_ifnet));
+	VNET_ASSERT(TAILQ_EMPTY(&V_ifg_head), ("%s:%d tailq &V_ifg_head=%p "
+	    "not empty", __func__, __LINE__, &V_ifg_head));
 
 	free((caddr_t)V_ifindex_table, M_IFNET);
 }
@@ -385,16 +392,25 @@ VNET_SYSUNINIT(vnet_if_uninit, SI_SUB_INIT_IF, SI_ORDER_FIRST,
 static void
 if_grow(void)
 {
+	int oldlim;
 	u_int n;
 	struct ifindex_entry *e;
 
-	V_if_indexlim <<= 1;
-	n = V_if_indexlim * sizeof(*e);
+	IFNET_WLOCK_ASSERT();
+	oldlim = V_if_indexlim;
+	IFNET_WUNLOCK();
+	n = (oldlim << 1) * sizeof(*e);
 	e = malloc(n, M_IFNET, M_WAITOK | M_ZERO);
+	IFNET_WLOCK();
+	if (V_if_indexlim != oldlim) {
+		free(e, M_IFNET);
+		return;
+	}
 	if (V_ifindex_table != NULL) {
 		memcpy((caddr_t)e, (caddr_t)V_ifindex_table, n/2);
 		free((caddr_t)V_ifindex_table, M_IFNET);
 	}
+	V_if_indexlim <<= 1;
 	V_ifindex_table = e;
 }
 
@@ -2402,6 +2418,17 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	return (error);
 }
 
+#ifdef COMPAT_FREEBSD32
+struct ifconf32 {
+	int32_t	ifc_len;
+	union {
+		uint32_t	ifcu_buf;
+		uint32_t	ifcu_req;
+	} ifc_ifcu;
+};
+#define	SIOCGIFCONF32	_IOWR('i', 36, struct ifconf32)
+#endif
+
 /*
  * Interface ioctls.
  */
@@ -2413,13 +2440,29 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 	int error;
 	int oif_flags;
 
+	CURVNET_SET(so->so_vnet);
 	switch (cmd) {
 	case SIOCGIFCONF:
 	case OSIOCGIFCONF:
-#ifdef __amd64__
+		error = ifconf(cmd, data);
+		CURVNET_RESTORE();
+		return (error);
+
+#ifdef COMPAT_FREEBSD32
 	case SIOCGIFCONF32:
+		{
+			struct ifconf32 *ifc32;
+			struct ifconf ifc;
+
+			ifc32 = (struct ifconf32 *)data;
+			ifc.ifc_len = ifc32->ifc_len;
+			ifc.ifc_buf = PTRIN(ifc32->ifc_buf);
+
+			error = ifconf(SIOCGIFCONF, (void *)&ifc);
+			CURVNET_RESTORE();
+			return (error);
+		}
 #endif
-		return (ifconf(cmd, data));
 	}
 	ifr = (struct ifreq *)data;
 
@@ -2427,42 +2470,55 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 #ifdef VIMAGE
 	case SIOCSIFRVNET:
 		error = priv_check(td, PRIV_NET_SETIFVNET);
-		if (error)
-			return (error);
-		return (if_vmove_reclaim(td, ifr->ifr_name, ifr->ifr_jid));
+		if (error == 0)
+			error = if_vmove_reclaim(td, ifr->ifr_name,
+			    ifr->ifr_jid);
+		CURVNET_RESTORE();
+		return (error);
 #endif
 	case SIOCIFCREATE:
 	case SIOCIFCREATE2:
 		error = priv_check(td, PRIV_NET_IFCREATE);
-		if (error)
-			return (error);
-		return (if_clone_create(ifr->ifr_name, sizeof(ifr->ifr_name),
-			cmd == SIOCIFCREATE2 ? ifr->ifr_data : NULL));
+		if (error == 0)
+			error = if_clone_create(ifr->ifr_name,
+			    sizeof(ifr->ifr_name),
+			    cmd == SIOCIFCREATE2 ? ifr->ifr_data : NULL);
+		CURVNET_RESTORE();
+		return (error);
 	case SIOCIFDESTROY:
 		error = priv_check(td, PRIV_NET_IFDESTROY);
-		if (error)
-			return (error);
-		return if_clone_destroy(ifr->ifr_name);
+		if (error == 0)
+			error = if_clone_destroy(ifr->ifr_name);
+		CURVNET_RESTORE();
+		return (error);
 
 	case SIOCIFGCLONERS:
-		return (if_clone_list((struct if_clonereq *)data));
+		error = if_clone_list((struct if_clonereq *)data);
+		CURVNET_RESTORE();
+		return (error);
 	case SIOCGIFGMEMB:
-		return (if_getgroupmembers((struct ifgroupreq *)data));
+		error = if_getgroupmembers((struct ifgroupreq *)data);
+		CURVNET_RESTORE();
+		return (error);
 	}
 
 	ifp = ifunit_ref(ifr->ifr_name);
-	if (ifp == NULL)
+	if (ifp == NULL) {
+		CURVNET_RESTORE();
 		return (ENXIO);
+	}
 
 	error = ifhwioctl(cmd, ifp, data, td);
 	if (error != ENOIOCTL) {
 		if_rele(ifp);
+		CURVNET_RESTORE();
 		return (error);
 	}
 
 	oif_flags = ifp->if_flags;
 	if (so->so_proto == NULL) {
 		if_rele(ifp);
+		CURVNET_RESTORE();
 		return (EOPNOTSUPP);
 	}
 #ifndef COMPAT_43
@@ -2537,6 +2593,7 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 #endif
 	}
 	if_rele(ifp);
+	CURVNET_RESTORE();
 	return (error);
 }
 
@@ -2646,23 +2703,12 @@ static int
 ifconf(u_long cmd, caddr_t data)
 {
 	struct ifconf *ifc = (struct ifconf *)data;
-#ifdef __amd64__
-	struct ifconf32 *ifc32 = (struct ifconf32 *)data;
-	struct ifconf ifc_swab;
-#endif
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 	struct ifreq ifr;
 	struct sbuf *sb;
 	int error, full = 0, valid_len, max_len;
 
-#ifdef __amd64__
-	if (cmd == SIOCGIFCONF32) {
-		ifc_swab.ifc_len = ifc32->ifc_len;
-		ifc_swab.ifc_buf = (caddr_t)(uintptr_t)ifc32->ifc_buf;
-		ifc = &ifc_swab;
-	}
-#endif
 	/* Limit initial buffer size to MAXPHYS to avoid DoS from userspace. */
 	max_len = MAXPHYS - 1;
 
@@ -2726,7 +2772,7 @@ again:
 				max_len += sa->sa_len;
 			}
 
-			if (!sbuf_overflowed(sb))
+			if (sbuf_error(sb) == 0)
 				valid_len = sbuf_len(sb);
 		}
 		IF_ADDR_UNLOCK(ifp);
@@ -2735,7 +2781,7 @@ again:
 			sbuf_bcat(sb, &ifr, sizeof(ifr));
 			max_len += sizeof(ifr);
 
-			if (!sbuf_overflowed(sb))
+			if (sbuf_error(sb) == 0)
 				valid_len = sbuf_len(sb);
 		}
 	}
@@ -2752,10 +2798,6 @@ again:
 	}
 
 	ifc->ifc_len = valid_len;
-#ifdef __amd64__
-	if (cmd == SIOCGIFCONF32)
-		ifc32->ifc_len = valid_len;
-#endif
 	sbuf_finish(sb);
 	error = copyout(sbuf_data(sb), ifc->ifc_req, ifc->ifc_len);
 	sbuf_delete(sb);
@@ -3354,79 +3396,3 @@ if_deregister_com_alloc(u_char type)
 	if_com_alloc[type] = NULL;
 	if_com_free[type] = NULL;
 }
-
-#ifdef DDB
-static void
-if_show_ifnet(struct ifnet *ifp)
-{
-
-	if (ifp == NULL)
-		return;
-	db_printf("%s:\n", ifp->if_xname);
-#define	IF_DB_PRINTF(f, e)	db_printf("   %s = " f "\n", #e, ifp->e);
-	IF_DB_PRINTF("%s", if_dname);
-	IF_DB_PRINTF("%d", if_dunit);
-	IF_DB_PRINTF("%s", if_description);
-	IF_DB_PRINTF("%u", if_index);
-	IF_DB_PRINTF("%u", if_refcount);
-	IF_DB_PRINTF("%d", if_index_reserved);
-	IF_DB_PRINTF("%p", if_softc);
-	IF_DB_PRINTF("%p", if_l2com);
-	IF_DB_PRINTF("%p", if_vnet);
-	IF_DB_PRINTF("%p", if_home_vnet);
-	IF_DB_PRINTF("%p", if_addr);
-	IF_DB_PRINTF("%p", if_llsoftc);
-	IF_DB_PRINTF("%p", if_label);
-	IF_DB_PRINTF("%u", if_pcount);
-	IF_DB_PRINTF("0x%08x", if_flags);
-	IF_DB_PRINTF("0x%08x", if_drv_flags);
-	IF_DB_PRINTF("0x%08x", if_capabilities);
-	IF_DB_PRINTF("0x%08x", if_capenable);
-	IF_DB_PRINTF("%p", if_snd.ifq_head);
-	IF_DB_PRINTF("%p", if_snd.ifq_tail);
-	IF_DB_PRINTF("%d", if_snd.ifq_len);
-	IF_DB_PRINTF("%d", if_snd.ifq_maxlen);
-	IF_DB_PRINTF("%d", if_snd.ifq_drops);
-	IF_DB_PRINTF("%p", if_snd.ifq_drv_head);
-	IF_DB_PRINTF("%p", if_snd.ifq_drv_tail);
-	IF_DB_PRINTF("%d", if_snd.ifq_drv_len);
-	IF_DB_PRINTF("%d", if_snd.ifq_drv_maxlen);
-	IF_DB_PRINTF("%d", if_snd.altq_type);
-	IF_DB_PRINTF("%x", if_snd.altq_flags);
-#undef IF_DB_PRINTF
-}
-
-DB_SHOW_COMMAND(ifnet, db_show_ifnet)
-{
-
-	if (!have_addr) {
-		db_printf("usage: show ifnet <struct ifnet *>\n");
-		return;
-	}
-
-	if_show_ifnet((struct ifnet *)addr);
-}
-
-DB_SHOW_ALL_COMMAND(ifnets, db_show_all_ifnets)
-{
-	VNET_ITERATOR_DECL(vnet_iter);
-	struct ifnet *ifp;
-	u_short idx;
-
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET_QUIET(vnet_iter);
-#ifdef VIMAGE
-		db_printf("vnet=%p\n", curvnet);
-#endif
-		for (idx = 1; idx <= V_if_index; idx++) {
-			ifp = V_ifindex_table[idx].ife_ifnet;
-			if (ifp == NULL)
-				continue;
-			db_printf( "%20s ifp=%p\n", ifp->if_xname, ifp);
-			if (db_pager_quit)
-				break;
-		}
-		CURVNET_RESTORE();
-	}
-}
-#endif

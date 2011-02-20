@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2009 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 /**
  * @file
@@ -63,28 +65,26 @@ typedef enum {
    CVMX_MIPS_XKSEG_SPACE_KSEG3 = 3LL
 } cvmx_mips_xkseg_space_t;
 
-// decodes <14:13> of a kseg3 window address
+  /* decodes <14:13> of a kseg3 window address */
 typedef enum {
    CVMX_ADD_WIN_SCR = 0L,
-   CVMX_ADD_WIN_DMA = 1L,   // see cvmx_add_win_dma_dec_t for further decode
+   CVMX_ADD_WIN_DMA = 1L,   /* see cvmx_add_win_dma_dec_t for further decode */
    CVMX_ADD_WIN_UNUSED = 2L,
    CVMX_ADD_WIN_UNUSED2 = 3L
 } cvmx_add_win_dec_t;
 
-// decode within DMA space
+  /* decode within DMA space */
 typedef enum {
-   CVMX_ADD_WIN_DMA_ADD = 0L,     // add store data to the write buffer entry, allocating it if necessary
-   CVMX_ADD_WIN_DMA_SENDMEM = 1L, // send out the write buffer entry to DRAM
-                                     // store data must be normal DRAM memory space address in this case
-   CVMX_ADD_WIN_DMA_SENDDMA = 2L, // send out the write buffer entry as an IOBDMA command
-                                     // see CVMX_ADD_WIN_DMA_SEND_DEC for data contents
-   CVMX_ADD_WIN_DMA_SENDIO = 3L,  // send out the write buffer entry as an IO write
-                                     // store data must be normal IO space address in this case
-   CVMX_ADD_WIN_DMA_SENDSINGLE = 4L, // send out a single-tick command on the NCB bus
-                                        // no write buffer data needed/used
+   CVMX_ADD_WIN_DMA_ADD = 0L,     /* add store data to the write buffer entry, allocating it if necessary */
+   CVMX_ADD_WIN_DMA_SENDMEM = 1L, /* send out the write buffer entry to DRAM */
+   /* store data must be normal DRAM memory space address in this case */
+   CVMX_ADD_WIN_DMA_SENDDMA = 2L, /* send out the write buffer entry as an IOBDMA command */
+   /* see CVMX_ADD_WIN_DMA_SEND_DEC for data contents */
+   CVMX_ADD_WIN_DMA_SENDIO = 3L,  /* send out the write buffer entry as an IO write */
+   /* store data must be normal IO space address in this case */
+   CVMX_ADD_WIN_DMA_SENDSINGLE = 4L, /* send out a single-tick command on the NCB bus */
+   /* no write buffer data needed/used */
 } cvmx_add_win_dma_dec_t;
-
-
 
 /**
  *   Physical Address Decode
@@ -116,63 +116,63 @@ typedef union {
    struct {
       cvmx_mips_space_t          R   : 2;
       uint64_t               offset :62;
-   } sva; // mapped or unmapped virtual address
+   } sva; /* mapped or unmapped virtual address */
 
    struct {
       uint64_t               zeroes :33;
       uint64_t               offset :31;
-   } suseg; // mapped USEG virtual addresses (typically)
+   } suseg; /* mapped USEG virtual addresses (typically) */
 
    struct {
       uint64_t                ones  :33;
       cvmx_mips_xkseg_space_t   sp   : 2;
       uint64_t               offset :29;
-   } sxkseg; // mapped or unmapped virtual address
+   } sxkseg; /* mapped or unmapped virtual address */
 
    struct {
-      cvmx_mips_space_t          R   : 2; // CVMX_MIPS_SPACE_XKPHYS in this case
-      uint64_t                 cca  : 3; // ignored by octeon
+      cvmx_mips_space_t          R   : 2; /* CVMX_MIPS_SPACE_XKPHYS in this case */
+      uint64_t                 cca  : 3; /* ignored by octeon */
       uint64_t                 mbz  :10;
-      uint64_t                  pa  :49; // physical address
-   } sxkphys; // physical address accessed through xkphys unmapped virtual address
+      uint64_t                  pa  :49; /* physical address */
+   } sxkphys; /* physical address accessed through xkphys unmapped virtual address */
 
    struct {
       uint64_t                 mbz  :15;
-      uint64_t                is_io : 1; // if set, the address is uncached and resides on MCB bus
-      uint64_t                 did  : 8; // the hardware ignores this field when is_io==0, else device ID
-      uint64_t                unaddr: 4; // the hardware ignores <39:36> in Octeon I
+      uint64_t                is_io : 1; /* if set, the address is uncached and resides on MCB bus */
+      uint64_t                 did  : 8; /* the hardware ignores this field when is_io==0, else device ID */
+      uint64_t                unaddr: 4; /* the hardware ignores <39:36> in Octeon I */
       uint64_t               offset :36;
-   } sphys; // physical address
+   } sphys; /* physical address */
 
    struct {
-      uint64_t               zeroes :24; // techically, <47:40> are dont-cares
-      uint64_t                unaddr: 4; // the hardware ignores <39:36> in Octeon I
+      uint64_t               zeroes :24; /* techically, <47:40> are dont-cares */
+      uint64_t                unaddr: 4; /* the hardware ignores <39:36> in Octeon I */
       uint64_t               offset :36;
-   } smem; // physical mem address
+   } smem; /* physical mem address */
 
    struct {
       uint64_t                 mem_region  :2;
       uint64_t                 mbz  :13;
-      uint64_t                is_io : 1; // 1 in this case
-      uint64_t                 did  : 8; // the hardware ignores this field when is_io==0, else device ID
-      uint64_t                unaddr: 4; // the hardware ignores <39:36> in Octeon I
+      uint64_t                is_io : 1; /* 1 in this case */
+      uint64_t                 did  : 8; /* the hardware ignores this field when is_io==0, else device ID */
+      uint64_t                unaddr: 4; /* the hardware ignores <39:36> in Octeon I */
       uint64_t               offset :36;
-   } sio; // physical IO address
+   } sio; /* physical IO address */
 
    struct {
       uint64_t                ones   : 49;
-      cvmx_add_win_dec_t   csrdec : 2;    // CVMX_ADD_WIN_SCR (0) in this case
+      cvmx_add_win_dec_t   csrdec : 2;    /* CVMX_ADD_WIN_SCR (0) in this case */
       uint64_t                addr   : 13;
-   } sscr; // scratchpad virtual address - accessed through a window at the end of kseg3
+   } sscr; /* scratchpad virtual address - accessed through a window at the end of kseg3 */
 
-   // there should only be stores to IOBDMA space, no loads
+   /* there should only be stores to IOBDMA space, no loads */
    struct {
       uint64_t                ones   : 49;
-      cvmx_add_win_dec_t   csrdec : 2;    // CVMX_ADD_WIN_DMA (1) in this case
+      cvmx_add_win_dec_t   csrdec : 2;    /* CVMX_ADD_WIN_DMA (1) in this case */
       uint64_t                unused2: 3;
       cvmx_add_win_dma_dec_t type : 3;
       uint64_t                addr   : 7;
-   } sdma; // IOBDMA virtual address - accessed through a window at the end of kseg3
+   } sdma; /* IOBDMA virtual address - accessed through a window at the end of kseg3 */
 
    struct {
       uint64_t                didspace : 24;
@@ -203,8 +203,8 @@ typedef union {
 #define CVMX_FULL_DID(did,subdid)           (((did) << 3) | (subdid))
 
 
-// from include/ncb_rsl_id.v
-#define CVMX_OCT_DID_MIS 0ULL   // misc stuff
+   /* from include/ncb_rsl_id.v */
+#define CVMX_OCT_DID_MIS 0ULL   /* misc stuff */
 #define CVMX_OCT_DID_GMX0 1ULL
 #define CVMX_OCT_DID_GMX1 2ULL
 #define CVMX_OCT_DID_PCI 3ULL
@@ -217,7 +217,7 @@ typedef union {
 #define CVMX_OCT_DID_PKT 10ULL
 #define CVMX_OCT_DID_TIM 11ULL
 #define CVMX_OCT_DID_TAG 12ULL
-// the rest are not on the IO bus
+   /* the rest are not on the IO bus */
 #define CVMX_OCT_DID_L2C 16ULL
 #define CVMX_OCT_DID_LMC 17ULL
 #define CVMX_OCT_DID_SPX0 18ULL

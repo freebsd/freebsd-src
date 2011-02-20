@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 ENTRY(HIDENAME(cerror))
 	mflr	%r0
 	std	%r0,16(%r1)		/* save lr */
-	stdu	%r1,-56(%r1)		/* allocate new stack frame */
+	stdu	%r1,-64(%r1)		/* allocate new stack frame */
 	std	%r31,48(%r1)
 
 	mr	%r31,%r3          /* stash errval in callee-saved register */
@@ -57,4 +57,4 @@ ENTRY(HIDENAME(cerror))
 	li	%r4,-1
 	blr
 
-
+	.section .note.GNU-stack,"",%progbits

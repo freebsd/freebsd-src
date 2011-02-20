@@ -3,9 +3,7 @@
 LIB=	clangparse
 
 SRCDIR=	tools/clang/lib/Parse
-SRCS=	AttributeList.cpp \
-	DeclSpec.cpp \
-	MinimalAction.cpp \
+SRCS=	ParseAST.cpp \
 	ParseCXXInlineMethods.cpp \
 	ParseDecl.cpp \
 	ParseDeclCXX.cpp \
@@ -19,7 +17,12 @@ SRCS=	AttributeList.cpp \
 	ParseTentative.cpp \
 	Parser.cpp
 
-TGHDRS=	DiagnosticCommonKinds \
-	DiagnosticParseKinds
+TGHDRS=	AttrList \
+	Attrs \
+	DeclNodes \
+	DiagnosticCommonKinds \
+	DiagnosticParseKinds \
+	DiagnosticSemaKinds \
+	StmtNodes
 
 .include "../clang.lib.mk"

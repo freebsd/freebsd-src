@@ -47,25 +47,21 @@ _pthread_detach(pthread_t pthread)
 	if (pthread == NULL)
 		return (EINVAL);
 
-	THREAD_LIST_LOCK(curthread);
 	if ((rval = _thr_find_thread(curthread, pthread,
 			/*include dead*/1)) != 0) {
-		THREAD_LIST_UNLOCK(curthread);
 		return (rval);
 	}
 
 	/* Check if the thread is already detached or has a joiner. */
-	if ((pthread->tlflags & TLFLAGS_DETACHED) != 0 ||
+	if ((pthread->flags & THR_FLAGS_DETACHED) != 0 ||
 	    (pthread->joiner != NULL)) {
-		THREAD_LIST_UNLOCK(curthread);
+		THR_THREAD_UNLOCK(curthread, pthread);
 		return (EINVAL);
 	}
 
 	/* Flag the thread as detached. */
-	pthread->tlflags |= TLFLAGS_DETACHED;
-	if (pthread->state == PS_DEAD)
-		THR_GCLIST_ADD(pthread);
-	THREAD_LIST_UNLOCK(curthread);
+	pthread->flags |= THR_FLAGS_DETACHED;
+	_thr_try_gc(curthread, pthread); /* thread lock released */
 
 	return (0);
 }

@@ -17,6 +17,8 @@
 
 #include "ARMSubtarget.h"
 #include "llvm/Target/TargetLowering.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/CodeGen/FastISel.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include <vector>
@@ -44,6 +46,8 @@ namespace llvm {
       RET_FLAG,     // Return with a flag operand.
 
       PIC_ADD,      // Add with a PC operand and a PIC label.
+
+      AND,          // ARM "and" instruction that sets the 's' flag in CPSR.
 
       CMP,          // ARM compare instructions.
       CMPZ,         // ARM compare that sets only Z flag.
@@ -80,7 +84,7 @@ namespace llvm {
 
       MEMBARRIER,   // Memory barrier
       SYNCBARRIER,  // Memory sync barrier
-
+      
       VCEQ,         // Vector compare equal.
       VCGE,         // Vector compare greater than or equal.
       VCGEU,        // Vector compare unsigned greater than or equal.
@@ -141,6 +145,10 @@ namespace llvm {
       VUZP,         // unzip (deinterleave)
       VTRN,         // transpose
 
+      // Vector multiply long:
+      VMULLs,       // ...signed
+      VMULLu,       // ...unsigned
+
       // Operands of the standard BUILD_VECTOR node are not legalized, which
       // is fine if BUILD_VECTORs are always lowered to shuffles or other
       // operations, but for ARM some BUILD_VECTORs are legal as-is and their
@@ -150,7 +158,10 @@ namespace llvm {
 
       // Floating-point max and min:
       FMAX,
-      FMIN
+      FMIN,
+
+      // Bit-field insert
+      BFI
     };
   }
 
@@ -162,6 +173,7 @@ namespace llvm {
     /// returns -1.
     int getVFPf32Imm(const APFloat &FPImm);
     int getVFPf64Imm(const APFloat &FPImm);
+    bool isBitFieldInvertedMask(unsigned v);
   }
 
   //===--------------------------------------------------------------------===//
@@ -170,6 +182,8 @@ namespace llvm {
   class ARMTargetLowering : public TargetLowering {
   public:
     explicit ARMTargetLowering(TargetMachine &TM);
+
+    virtual unsigned getJumpTableEncoding(void) const;
 
     virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const;
 
@@ -255,7 +269,18 @@ namespace llvm {
     /// getFunctionAlignment - Return the Log2 alignment of this function.
     virtual unsigned getFunctionAlignment(const Function *F) const;
 
+    /// getMaximalGlobalOffset - Returns the maximal possible offset which can
+    /// be used for loads / stores from the global.
+    virtual unsigned getMaximalGlobalOffset() const;
+
+    /// createFastISel - This method returns a target specific FastISel object,
+    /// or null if the target does not support "fast" ISel.
+    virtual FastISel *createFastISel(FunctionLoweringInfo &funcInfo) const;
+
     Sched::Preference getSchedulingPreference(SDNode *N) const;
+
+    unsigned getRegPressureLimit(const TargetRegisterClass *RC,
+                                 MachineFunction &MF) const;
 
     bool isShuffleMaskLegal(const SmallVectorImpl<int> &M, EVT VT) const;
     bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const;
@@ -265,10 +290,16 @@ namespace llvm {
     /// materialize the FP immediate as a load from a constant pool.
     virtual bool isFPImmLegal(const APFloat &Imm, EVT VT) const;
 
+  protected:
+    std::pair<const TargetRegisterClass*, uint8_t>
+    findRepresentativeClass(EVT VT) const;
+
   private:
     /// Subtarget - Keep a pointer to the ARMSubtarget around so that we can
     /// make the right decision when generating code for different targets.
     const ARMSubtarget *Subtarget;
+
+    const TargetRegisterInfo *RegInfo;
 
     /// ARMPCLabelIndex - Keep track of the number of ARM PC labels created.
     ///
@@ -310,14 +341,15 @@ namespace llvm {
                                    SelectionDAG &DAG) const;
     SDValue LowerGLOBAL_OFFSET_TABLE(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerBR_JT(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSELECT(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerFCOPYSIGN(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerDYNAMIC_STACKALLOC(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerShiftRightParts(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerShiftLeftParts(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerFLT_ROUNDS_(SDValue Op, SelectionDAG &DAG) const;
 
     SDValue LowerCallResult(SDValue Chain, SDValue InFlag,
                             CallingConv::ID CallConv, bool isVarArg,
@@ -377,6 +409,10 @@ namespace llvm {
                                         unsigned BinOpcode) const;
 
   };
+  
+  namespace ARM {
+    FastISel *createFastISel(FunctionLoweringInfo &funcInfo);
+  }
 }
 
 #endif  // ARMISELLOWERING_H

@@ -16,6 +16,7 @@
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/MacroInfo.h"
 #include "clang/Lex/LexDiagnostic.h"
+#include "clang/Lex/CodeCompletionHandler.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/APInt.h"
@@ -25,7 +26,7 @@ using namespace clang;
 // Utility Methods for Preprocessor Directive Handling.
 //===----------------------------------------------------------------------===//
 
-MacroInfo *Preprocessor::AllocateMacroInfo(SourceLocation L) {
+MacroInfo *Preprocessor::AllocateMacroInfo() {
   MacroInfo *MI;
 
   if (!MICache.empty()) {
@@ -33,15 +34,26 @@ MacroInfo *Preprocessor::AllocateMacroInfo(SourceLocation L) {
     MICache.pop_back();
   } else
     MI = (MacroInfo*) BP.Allocate<MacroInfo>();
+  return MI;
+}
+
+MacroInfo *Preprocessor::AllocateMacroInfo(SourceLocation L) {
+  MacroInfo *MI = AllocateMacroInfo();
   new (MI) MacroInfo(L);
+  return MI;
+}
+
+MacroInfo *Preprocessor::CloneMacroInfo(const MacroInfo &MacroToClone) {
+  MacroInfo *MI = AllocateMacroInfo();
+  new (MI) MacroInfo(MacroToClone, BP);
   return MI;
 }
 
 /// ReleaseMacroInfo - Release the specified MacroInfo.  This memory will
 ///  be reused for allocating new MacroInfo objects.
-void Preprocessor::ReleaseMacroInfo(MacroInfo* MI) {
+void Preprocessor::ReleaseMacroInfo(MacroInfo *MI) {
   MICache.push_back(MI);
-  MI->FreeArgumentList(BP);
+  MI->FreeArgumentList();
 }
 
 
@@ -63,6 +75,13 @@ void Preprocessor::ReadMacroName(Token &MacroNameTok, char isDefineUndef) {
   // Read the token, don't allow macro expansion on it.
   LexUnexpandedToken(MacroNameTok);
 
+  if (MacroNameTok.is(tok::code_completion)) {
+    if (CodeComplete)
+      CodeComplete->CodeCompleteMacroName(isDefineUndef == 1);
+    LexUnexpandedToken(MacroNameTok);
+    return;
+  }
+  
   // Missing macro name?
   if (MacroNameTok.is(tok::eom)) {
     Diag(MacroNameTok, diag::err_pp_missing_macro_name);
@@ -166,13 +185,20 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
   while (1) {
     CurLexer->Lex(Tok);
 
+    if (Tok.is(tok::code_completion)) {
+      if (CodeComplete)
+        CodeComplete->CodeCompleteInConditionalExclusion();
+      continue;
+    }
+    
     // If this is the end of the buffer, we have an error.
     if (Tok.is(tok::eof)) {
       // Emit errors for each unterminated conditional on the stack, including
       // the current one.
       while (!CurPPLexer->ConditionalStack.empty()) {
-        Diag(CurPPLexer->ConditionalStack.back().IfLoc,
-             diag::err_pp_unterminated_conditional);
+        if (!isCodeCompletionFile(Tok.getLocation()))
+          Diag(CurPPLexer->ConditionalStack.back().IfLoc,
+               diag::err_pp_unterminated_conditional);
         CurPPLexer->ConditionalStack.pop_back();
       }
 
@@ -510,7 +536,11 @@ TryAgain:
     // Handle stuff like "# /*foo*/ define X" in -E -C mode.
     LexUnexpandedToken(Result);
     goto TryAgain;
-
+  case tok::code_completion:
+    if (CodeComplete)
+      CodeComplete->CodeCompleteDirective(
+                                    CurPPLexer->getConditionalStackDepth() > 0);
+    return;
   case tok::numeric_constant:  // # 7  GNU line marker directive.
     if (getLangOptions().AsmPreprocessor)
       break;  // # 4 is not a preprocessor directive in .S files.
@@ -1445,15 +1475,15 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
       if (!OtherMI->isUsed())
         Diag(OtherMI->getDefinitionLoc(), diag::pp_macro_not_used);
 
-      // Macros must be identical.  This means all tokes and whitespace
+      // Macros must be identical.  This means all tokens and whitespace
       // separation must be the same.  C99 6.10.3.2.
-      if (!MI->isIdenticalTo(*OtherMI, *this)) {
+      if (!OtherMI->isAllowRedefinitionsWithoutWarning() &&
+          !MI->isIdenticalTo(*OtherMI, *this)) {
         Diag(MI->getDefinitionLoc(), diag::ext_pp_macro_redef)
           << MacroNameTok.getIdentifierInfo();
         Diag(OtherMI->getDefinitionLoc(), diag::note_previous_definition);
       }
     }
-
     ReleaseMacroInfo(OtherMI);
   }
 
@@ -1490,7 +1520,8 @@ void Preprocessor::HandleUndefDirective(Token &UndefTok) {
 
   // If the callbacks want to know, tell them about the macro #undef.
   if (Callbacks)
-    Callbacks->MacroUndefined(MacroNameTok.getIdentifierInfo(), MI);
+    Callbacks->MacroUndefined(MacroNameTok.getLocation(),
+                              MacroNameTok.getIdentifierInfo(), MI);
 
   // Free macro definition.
   ReleaseMacroInfo(MI);

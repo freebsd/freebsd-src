@@ -32,7 +32,8 @@ namespace  {
 
 
   void addSpecialAttribute(const char* pName, StringLiteral* Str) {
-    Doc.addAttribute(pName, Doc.escapeString(Str->getStrData(), Str->getByteLength()));
+    Doc.addAttribute(pName, Doc.escapeString(Str->getString().data(),
+                                             Str->getString().size()));
   }
 
   void addSpecialAttribute(const char* pName, SizeOfAlignOfExpr* S) {
@@ -261,7 +262,6 @@ const char *StmtXML::getOpcodeStr(UnaryOperator::Opcode Op) {
   case UnaryOperator::Real:    return "__real";
   case UnaryOperator::Imag:    return "__imag";
   case UnaryOperator::Extension: return "__extension__";
-  case UnaryOperator::OffsetOf: return "__builtin_offsetof";
   }
 }
 

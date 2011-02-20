@@ -49,10 +49,12 @@ s32  e1000_phy_setup_autoneg(struct e1000_hw *hw);
 s32  e1000_copper_link_autoneg(struct e1000_hw *hw);
 s32  e1000_copper_link_setup_igp(struct e1000_hw *hw);
 s32  e1000_copper_link_setup_m88(struct e1000_hw *hw);
+s32  e1000_copper_link_setup_m88_gen2(struct e1000_hw *hw);
 s32  e1000_phy_force_speed_duplex_igp(struct e1000_hw *hw);
 s32  e1000_phy_force_speed_duplex_m88(struct e1000_hw *hw);
 s32  e1000_phy_force_speed_duplex_ife(struct e1000_hw *hw);
 s32  e1000_get_cable_length_m88(struct e1000_hw *hw);
+s32  e1000_get_cable_length_m88_gen2(struct e1000_hw *hw);
 s32  e1000_get_cable_length_igp_2(struct e1000_hw *hw);
 s32  e1000_get_cfg_done_generic(struct e1000_hw *hw);
 s32  e1000_get_phy_id(struct e1000_hw *hw);
@@ -120,6 +122,7 @@ s32  e1000_get_cable_length_82577(struct e1000_hw *hw);
 
 /* BM/HV Specific Registers */
 #define BM_PORT_CTRL_PAGE                 769
+#define BM_PORT_GEN_CFG_REG               PHY_REG(BM_PORT_CTRL_PAGE, 17)
 #define BM_PCIE_PAGE                      770
 #define BM_WUC_PAGE                       800
 #define BM_WUC_ADDRESS_OPCODE             0x11
@@ -169,6 +172,12 @@ s32  e1000_get_cable_length_82577(struct e1000_hw *hw);
 /* I82577 PHY Diagnostics Status */
 #define I82577_DSTATUS_CABLE_LENGTH       0x03FC
 #define I82577_DSTATUS_CABLE_LENGTH_SHIFT 2
+
+/* 82580 PHY Power Management */
+#define E1000_82580_PHY_POWER_MGMT        0xE14
+#define E1000_82580_PM_SPD                0x0001 /* Smart Power Down */
+#define E1000_82580_PM_D0_LPLU            0x0002 /* For D0a states */
+#define E1000_82580_PM_D3_LPLU            0x0004 /* For all other states */
 
 /* BM PHY Copper Specific Control 1 */
 #define BM_CS_CTRL1                       16
@@ -230,12 +239,15 @@ s32  e1000_get_cable_length_82577(struct e1000_hw *hw);
 #define E1000_KMRNCTRLSTA_OFFSET          0x001F0000
 #define E1000_KMRNCTRLSTA_OFFSET_SHIFT    16
 #define E1000_KMRNCTRLSTA_REN             0x00200000
+#define E1000_KMRNCTRLSTA_CTRL_OFFSET     0x1    /* Kumeran Control */
 #define E1000_KMRNCTRLSTA_DIAG_OFFSET     0x3    /* Kumeran Diagnostic */
 #define E1000_KMRNCTRLSTA_TIMEOUTS        0x4    /* Kumeran Timeouts */
 #define E1000_KMRNCTRLSTA_INBAND_PARAM    0x9    /* Kumeran InBand Parameters */
+#define E1000_KMRNCTRLSTA_IBIST_DISABLE   0x0200 /* Kumeran IBIST Disable */
 #define E1000_KMRNCTRLSTA_DIAG_NELPBK     0x1000 /* Nearend Loopback mode */
 #define E1000_KMRNCTRLSTA_K1_CONFIG        0x7
 #define E1000_KMRNCTRLSTA_K1_ENABLE        0x0002
+#define E1000_KMRNCTRLSTA_HD_CTRL         0x10   /* Kumeran HD Control */
 
 #define IFE_PHY_EXTENDED_STATUS_CONTROL 0x10
 #define IFE_PHY_SPECIAL_CONTROL     0x11 /* 100BaseTx PHY Special Control */

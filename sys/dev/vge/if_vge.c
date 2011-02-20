@@ -368,9 +368,6 @@ vge_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	if (phy != sc->vge_phyaddr)
-		return (0);
-
 	vge_miipoll_stop(sc);
 
 	/* Specify the register we want to read. */
@@ -403,9 +400,6 @@ vge_miibus_writereg(device_t dev, int phy, int reg, int data)
 	int i, rval = 0;
 
 	sc = device_get_softc(dev);
-
-	if (phy != sc->vge_phyaddr)
-		return (0);
 
 	vge_miipoll_stop(sc);
 
@@ -1091,10 +1085,11 @@ vge_attach(device_t dev)
 	}
 
 	/* Do MII setup */
-	if (mii_phy_probe(dev, &sc->vge_miibus,
-	    vge_ifmedia_upd, vge_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->vge_miibus, ifp, vge_ifmedia_upd,
+	    vge_ifmedia_sts, BMSR_DEFCAPMASK, sc->vge_phyaddr, MII_OFFSET_ANY,
+	    0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 

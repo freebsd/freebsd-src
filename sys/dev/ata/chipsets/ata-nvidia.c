@@ -281,7 +281,7 @@ ata_nvidia_status(device_t dev)
 
     /* do we have any PHY events ? */
     if (istatus & (0x0c << shift))
-	ata_sata_phy_check_events(dev);
+	ata_sata_phy_check_events(dev, -1);
 
     /* clear interrupt(s) */
     if (ctlr->chip->cfg1 & NVQ)

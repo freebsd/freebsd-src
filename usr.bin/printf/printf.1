@@ -12,10 +12,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -35,7 +31,7 @@
 .\"	@(#)printf.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd April 14, 2005
+.Dd November 19, 2010
 .Dt PRINTF 1
 .Os
 .Sh NAME
@@ -109,12 +105,13 @@ Write a <single quote> character.
 .It Cm \e\e
 Write a backslash character.
 .It Cm \e Ns Ar num
-.It Cm \e0 Ns Ar num
-Write an 8-bit character whose
-.Tn ASCII
+Write a byte whose
 value is the 1-, 2-, or 3-digit
 octal number
 .Ar num .
+Multibyte characters can be constructed using multiple
+.Cm \e Ns Ar num
+sequences.
 .El
 .Pp
 Each format specification is introduced by the percent character
@@ -289,6 +286,11 @@ As for
 .Cm s ,
 but interpret character escapes in backslash notation in the string
 .Ar argument .
+The permitted escape sequences are slightly different in that
+octal escapes are
+.Cm \e0 Ns Ar num
+instead of
+.Cm \e Ns Ar num .
 .It Cm \&%
 Print a `%'; no argument is used.
 .El
@@ -300,6 +302,13 @@ character is defined in the program's locale (category
 In no case does a non-existent or small field width cause truncation of
 a field; padding takes place only if the specified field width exceeds
 the actual width.
+.Pp
+Some shells may provide a builtin
+.Nm
+command which is similar or identical to this utility.
+Consult the
+.Xr builtin 1
+manual page.
 .Sh EXIT STATUS
 .Ex -std
 .Sh COMPATIBILITY
@@ -310,7 +319,9 @@ with a digit to the
 .Tn ASCII
 code of the first character is not supported.
 .Sh SEE ALSO
+.Xr builtin 1 ,
 .Xr echo 1 ,
+.Xr sh 1 ,
 .Xr printf 3
 .Sh STANDARDS
 The
@@ -349,3 +360,10 @@ Multibyte characters are not recognized in format strings (this is only
 a problem if
 .Ql %
 can appear inside a multibyte character).
+.Pp
+Trying to print a dash ("-") as the first character causes
+.Nm
+to interpet the dash as a program argument.
+.Nm --
+must be used before 
+.Ar format .

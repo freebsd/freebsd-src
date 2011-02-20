@@ -73,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -213,6 +212,7 @@ MODULE_DEPEND(rue, uether, 1, 1, 1);
 MODULE_DEPEND(rue, usb, 1, 1, 1);
 MODULE_DEPEND(rue, ether, 1, 1, 1);
 MODULE_DEPEND(rue, miibus, 1, 1, 1);
+MODULE_VERSION(rue, 1);
 
 static const struct usb_ether_methods rue_ue_methods = {
 	.ue_attach_post = rue_attach_post,

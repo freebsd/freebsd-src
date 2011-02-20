@@ -18,7 +18,9 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/Utils.h"
+#include "clang/Serialization/ASTWriter.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
@@ -69,22 +71,35 @@ ASTConsumer *DeclContextPrintAction::CreateASTConsumer(CompilerInstance &CI,
 
 ASTConsumer *GeneratePCHAction::CreateASTConsumer(CompilerInstance &CI,
                                                   llvm::StringRef InFile) {
-  const std::string &Sysroot = CI.getHeaderSearchOpts().Sysroot;
-  if (CI.getFrontendOpts().RelocatablePCH &&
-      Sysroot.empty()) {
-    CI.getDiagnostics().Report(diag::err_relocatable_without_without_isysroot);
+  std::string Sysroot;
+  llvm::raw_ostream *OS = 0;
+  bool Chaining;
+  if (ComputeASTConsumerArguments(CI, InFile, Sysroot, OS, Chaining))
     return 0;
+
+  const char *isysroot = CI.getFrontendOpts().RelocatablePCH ?
+                             Sysroot.c_str() : 0;  
+  return new PCHGenerator(CI.getPreprocessor(), Chaining, isysroot, OS);
+}
+
+bool GeneratePCHAction::ComputeASTConsumerArguments(CompilerInstance &CI,
+                                                    llvm::StringRef InFile,
+                                                    std::string &Sysroot,
+                                                    llvm::raw_ostream *&OS,
+                                                    bool &Chaining) {
+  Sysroot = CI.getHeaderSearchOpts().Sysroot;
+  if (CI.getFrontendOpts().RelocatablePCH && Sysroot.empty()) {
+    CI.getDiagnostics().Report(diag::err_relocatable_without_isysroot);
+    return true;
   }
 
-  llvm::raw_ostream *OS = CI.createDefaultOutputFile(true, InFile);
+  OS = CI.createDefaultOutputFile(true, InFile);
   if (!OS)
-    return 0;
+    return true;
 
-  PCHReader *Chain = CI.getInvocation().getFrontendOpts().ChainedPCH ?
-                               CI.getPCHReader() : 0;
-  const char *isysroot = CI.getFrontendOpts().RelocatablePCH ?
-                             Sysroot.c_str() : 0;
-  return CreatePCHGenerator(CI.getPreprocessor(), OS, Chain, isysroot);
+  Chaining = CI.getInvocation().getFrontendOpts().ChainedPCH &&
+             !CI.getPreprocessorOpts().ImplicitPCHInclude.empty();
+  return false;
 }
 
 ASTConsumer *InheritanceViewAction::CreateASTConsumer(CompilerInstance &CI,
@@ -146,15 +161,6 @@ void GeneratePTHAction::ExecuteAction() {
   CacheTokens(CI.getPreprocessor(), OS);
 }
 
-void ParseOnlyAction::ExecuteAction() {
-  Preprocessor &PP = getCompilerInstance().getPreprocessor();
-  llvm::OwningPtr<Action> PA(new MinimalAction(PP));
-
-  Parser P(PP, *PA);
-  PP.EnterMainSourceFile();
-  P.ParseTranslationUnit();
-}
-
 void PreprocessOnlyAction::ExecuteAction() {
   Preprocessor &PP = getCompilerInstance().getPreprocessor();
 
@@ -169,19 +175,6 @@ void PreprocessOnlyAction::ExecuteAction() {
   } while (Tok.isNot(tok::eof));
 }
 
-void PrintParseAction::ExecuteAction() {
-  CompilerInstance &CI = getCompilerInstance();
-  Preprocessor &PP = getCompilerInstance().getPreprocessor();
-  llvm::raw_ostream *OS = CI.createDefaultOutputFile(false, getCurrentFile());
-  if (!OS) return;
-
-  llvm::OwningPtr<Action> PA(CreatePrintParserActionsAction(PP, OS));
-
-  Parser P(PP, *PA);
-  PP.EnterMainSourceFile();
-  P.ParseTranslationUnit();
-}
-
 void PrintPreprocessedAction::ExecuteAction() {
   CompilerInstance &CI = getCompilerInstance();
   // Output file needs to be set to 'Binary', to avoid converting Unix style
@@ -191,4 +184,33 @@ void PrintPreprocessedAction::ExecuteAction() {
 
   DoPrintPreprocessedInput(CI.getPreprocessor(), OS,
                            CI.getPreprocessorOutputOpts());
+}
+
+void PrintPreambleAction::ExecuteAction() {
+  switch (getCurrentFileKind()) {
+  case IK_C:
+  case IK_CXX:
+  case IK_ObjC:
+  case IK_ObjCXX:
+  case IK_OpenCL:
+    break;
+      
+  case IK_None:
+  case IK_Asm:
+  case IK_PreprocessedC:
+  case IK_PreprocessedCXX:
+  case IK_PreprocessedObjC:
+  case IK_PreprocessedObjCXX:
+  case IK_AST:
+  case IK_LLVM_IR:
+    // We can't do anything with these.
+    return;
+  }
+  
+  llvm::MemoryBuffer *Buffer = llvm::MemoryBuffer::getFile(getCurrentFile());
+  if (Buffer) {
+    unsigned Preamble = Lexer::ComputePreamble(Buffer).first;
+    llvm::outs().write(Buffer->getBufferStart(), Preamble);
+    delete Buffer;
+  }
 }

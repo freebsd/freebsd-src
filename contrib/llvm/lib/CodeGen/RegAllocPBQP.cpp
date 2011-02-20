@@ -34,6 +34,8 @@
 #include "PBQP/HeuristicSolver.h"
 #include "PBQP/Graph.h"
 #include "PBQP/Heuristics/Briggs.h"
+#include "RenderMachineFunction.h"
+#include "Splitter.h"
 #include "VirtRegMap.h"
 #include "VirtRegRewriter.h"
 #include "llvm/CodeGen/CalcSpillWeights.h"
@@ -65,6 +67,11 @@ pbqpCoalescing("pbqp-coalescing",
                 cl::desc("Attempt coalescing during PBQP register allocation."),
                 cl::init(false), cl::Hidden);
 
+static cl::opt<bool>
+pbqpPreSplitting("pbqp-pre-splitting",
+                 cl::desc("Pre-splite before PBQP register allocation."),
+                 cl::init(false), cl::Hidden);
+
 namespace {
 
   ///
@@ -77,7 +84,7 @@ namespace {
     static char ID;
 
     /// Construct a PBQP register allocator.
-    PBQPRegAlloc() : MachineFunctionPass(&ID) {}
+    PBQPRegAlloc() : MachineFunctionPass(ID) {}
 
     /// Return the pass name.
     virtual const char* getPassName() const {
@@ -96,7 +103,10 @@ namespace {
       au.addPreserved<LiveStacks>();
       au.addRequired<MachineLoopInfo>();
       au.addPreserved<MachineLoopInfo>();
+      if (pbqpPreSplitting)
+        au.addRequired<LoopSplitter>();
       au.addRequired<VirtRegMap>();
+      au.addRequired<RenderMachineFunction>();
       MachineFunctionPass::getAnalysisUsage(au);
     }
 
@@ -104,7 +114,15 @@ namespace {
     virtual bool runOnMachineFunction(MachineFunction &MF);
 
   private:
-    typedef std::map<const LiveInterval*, unsigned> LI2NodeMap;
+
+    class LIOrdering {
+    public:
+      bool operator()(const LiveInterval *li1, const LiveInterval *li2) const {
+        return li1->reg < li2->reg;
+      }
+    };
+
+    typedef std::map<const LiveInterval*, unsigned, LIOrdering> LI2NodeMap;
     typedef std::vector<const LiveInterval*> Node2LIMap;
     typedef std::vector<unsigned> AllowedSet;
     typedef std::vector<AllowedSet> AllowedSetMap;
@@ -112,7 +130,7 @@ namespace {
     typedef std::pair<unsigned, unsigned> RegPair;
     typedef std::map<RegPair, PBQP::PBQPNum> CoalesceMap;
 
-    typedef std::set<LiveInterval*> LiveIntervalSet;
+    typedef std::set<LiveInterval*, LIOrdering> LiveIntervalSet;
 
     typedef std::vector<PBQP::Graph::NodeItr> NodeVector;
 
@@ -122,6 +140,7 @@ namespace {
     const TargetInstrInfo *tii;
     const MachineLoopInfo *loopInfo;
     MachineRegisterInfo *mri;
+    RenderMachineFunction *rmf;
 
     LiveIntervals *lis;
     LiveStacks *lss;
@@ -379,11 +398,13 @@ PBQPRegAlloc::CoalesceMap PBQPRegAlloc::findCoalesces() {
          iItr != iEnd; ++iItr) {
 
       const MachineInstr *instr = &*iItr;
-      unsigned srcReg, dstReg, srcSubReg, dstSubReg;
 
       // If this isn't a copy then continue to the next instruction.
-      if (!tii->isMoveInstr(*instr, srcReg, dstReg, srcSubReg, dstSubReg))
+      if (!instr->isCopy())
         continue;
+
+      unsigned srcReg = instr->getOperand(1).getReg();
+      unsigned dstReg = instr->getOperand(0).getReg();
 
       // If the registers are already the same our job is nice and easy.
       if (dstReg == srcReg)
@@ -567,6 +588,8 @@ PBQP::Graph PBQPRegAlloc::constructPBQPProblem() {
   // Resize allowedSets container appropriately.
   allowedSets.resize(vregIntervalsToAlloc.size());
 
+  BitVector ReservedRegs = tri->getReservedRegs(*mf);
+
   // Iterate over virtual register intervals to compute allowed sets...
   for (unsigned node = 0; node < node2LI.size(); ++node) {
 
@@ -575,8 +598,12 @@ PBQP::Graph PBQPRegAlloc::constructPBQPProblem() {
     const TargetRegisterClass *liRC = mri->getRegClass(li->reg);
 
     // Start by assuming all allocable registers in the class are allowed...
-    RegVector liAllowed(liRC->allocation_order_begin(*mf),
-                        liRC->allocation_order_end(*mf));
+    RegVector liAllowed;
+    TargetRegisterClass::iterator aob = liRC->allocation_order_begin(*mf);
+    TargetRegisterClass::iterator aoe = liRC->allocation_order_end(*mf);
+    for (TargetRegisterClass::iterator it = aob; it != aoe; ++it)
+      if (!ReservedRegs.test(*it))
+        liAllowed.push_back(*it);
 
     // Eliminate the physical registers which overlap with this range, along
     // with all their aliases.
@@ -735,9 +762,11 @@ bool PBQPRegAlloc::mapPBQPToRegAlloc(const PBQP::Solution &solution) {
       const LiveInterval *spillInterval = node2LI[node];
       double oldSpillWeight = spillInterval->weight;
       SmallVector<LiveInterval*, 8> spillIs;
+      rmf->rememberUseDefs(spillInterval);
       std::vector<LiveInterval*> newSpills =
         lis->addIntervalsForSpills(*spillInterval, spillIs, loopInfo, *vrm);
       addStackInterval(spillInterval, mri);
+      rmf->rememberSpills(spillInterval, newSpills);
 
       (void) oldSpillWeight;
       DEBUG(dbgs() << "VREG " << virtReg << " -> SPILLED (Cost: "
@@ -845,8 +874,10 @@ bool PBQPRegAlloc::runOnMachineFunction(MachineFunction &MF) {
   lis = &getAnalysis<LiveIntervals>();
   lss = &getAnalysis<LiveStacks>();
   loopInfo = &getAnalysis<MachineLoopInfo>();
+  rmf = &getAnalysis<RenderMachineFunction>();
 
   vrm = &getAnalysis<VirtRegMap>();
+
 
   DEBUG(dbgs() << "PBQP Register Allocating for " << mf->getFunction()->getName() << "\n");
 
@@ -883,6 +914,8 @@ bool PBQPRegAlloc::runOnMachineFunction(MachineFunction &MF) {
 
   // Finalise allocation, allocate empty ranges.
   finalizeAlloc();
+
+  rmf->renderMachineFunction("After PBQP register allocation.", vrm);
 
   vregIntervalsToAlloc.clear();
   emptyVRegIntervals.clear();

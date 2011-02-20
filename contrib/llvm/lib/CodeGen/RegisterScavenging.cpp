@@ -21,7 +21,9 @@
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
@@ -226,19 +228,14 @@ void RegScavenger::getRegsUsed(BitVector &used, bool includeReserved) {
     used = ~RegsAvailable & ~ReservedRegs;
 }
 
-/// CreateRegClassMask - Set the bits that represent the registers in the
-/// TargetRegisterClass.
-static void CreateRegClassMask(const TargetRegisterClass *RC, BitVector &Mask) {
-  for (TargetRegisterClass::iterator I = RC->begin(), E = RC->end(); I != E;
-       ++I)
-    Mask.set(*I);
-}
-
 unsigned RegScavenger::FindUnusedReg(const TargetRegisterClass *RC) const {
   for (TargetRegisterClass::iterator I = RC->begin(), E = RC->end();
        I != E; ++I)
-    if (!isAliasUsed(*I))
+    if (!isAliasUsed(*I)) {
+      DEBUG(dbgs() << "Scavenger found unused reg: " << TRI->getName(*I) <<
+            "\n");
       return *I;
+    }
   return 0;
 }
 
@@ -325,11 +322,9 @@ unsigned RegScavenger::findSurvivorReg(MachineBasicBlock::iterator StartMI,
 unsigned RegScavenger::scavengeRegister(const TargetRegisterClass *RC,
                                         MachineBasicBlock::iterator I,
                                         int SPAdj) {
-  // Mask off the registers which are not in the TargetRegisterClass.
-  BitVector Candidates(NumPhysRegs, false);
-  CreateRegClassMask(RC, Candidates);
-  // Do not include reserved registers.
-  Candidates ^= ReservedRegs & Candidates;
+  // Consider all allocatable registers in the register class initially
+  BitVector Candidates =
+    TRI->getAllocatableSet(*I->getParent()->getParent(), RC);
 
   // Exclude all the registers being used by the instruction.
   for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i) {
@@ -349,8 +344,10 @@ unsigned RegScavenger::scavengeRegister(const TargetRegisterClass *RC,
   unsigned SReg = findSurvivorReg(I, Candidates, 25, UseMI);
 
   // If we found an unused register there is no reason to spill it.
-  if (!isAliasUsed(SReg))
+  if (!isAliasUsed(SReg)) {
+    DEBUG(dbgs() << "Scavenged register: " << TRI->getName(SReg) << "\n");
     return SReg;
+  }
 
   assert(ScavengedReg == 0 &&
          "Scavenger slot is live, unable to scavenge another register!");
@@ -366,12 +363,12 @@ unsigned RegScavenger::scavengeRegister(const TargetRegisterClass *RC,
            "Cannot scavenge register without an emergency spill slot!");
     TII->storeRegToStackSlot(*MBB, I, SReg, true, ScavengingFrameIndex, RC,TRI);
     MachineBasicBlock::iterator II = prior(I);
-    TRI->eliminateFrameIndex(II, SPAdj, NULL, this);
+    TRI->eliminateFrameIndex(II, SPAdj, this);
 
     // Restore the scavenged register before its use (or first terminator).
     TII->loadRegFromStackSlot(*MBB, UseMI, SReg, ScavengingFrameIndex, RC, TRI);
     II = prior(UseMI);
-    TRI->eliminateFrameIndex(II, SPAdj, NULL, this);
+    TRI->eliminateFrameIndex(II, SPAdj, this);
   }
 
   ScavengeRestore = prior(UseMI);
@@ -379,6 +376,9 @@ unsigned RegScavenger::scavengeRegister(const TargetRegisterClass *RC,
   // Doing this here leads to infinite regress.
   // ScavengedReg = SReg;
   ScavengedRC = RC;
+
+  DEBUG(dbgs() << "Scavenged register (with spill): " << TRI->getName(SReg) <<
+        "\n");
 
   return SReg;
 }

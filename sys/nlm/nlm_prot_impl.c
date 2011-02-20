@@ -55,8 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <nfs/nfsproto.h>
-#include <nfsclient/nfs.h>
-#include <nfsclient/nfsnode.h>
+#include <nfs/nfs_lock.h>
 
 #include <nlm/nlm_prot.h>
 #include <nlm/sm_inter.h>
@@ -863,9 +862,9 @@ nlm_create_host(const char* caller_name)
 	    OID_AUTO, host->nh_sysid_string, CTLFLAG_RD, NULL, "");
 	SYSCTL_ADD_STRING(&host->nh_sysctl, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "hostname", CTLFLAG_RD, host->nh_caller_name, 0, "");
-	SYSCTL_ADD_INT(&host->nh_sysctl, SYSCTL_CHILDREN(oid), OID_AUTO,
+	SYSCTL_ADD_UINT(&host->nh_sysctl, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "version", CTLFLAG_RD, &host->nh_vers, 0, "");
-	SYSCTL_ADD_INT(&host->nh_sysctl, SYSCTL_CHILDREN(oid), OID_AUTO,
+	SYSCTL_ADD_UINT(&host->nh_sysctl, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "monitored", CTLFLAG_RD, &host->nh_monstate, 0, "");
 	SYSCTL_ADD_PROC(&host->nh_sysctl, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "lock_count", CTLTYPE_INT | CTLFLAG_RD, host, 0,
@@ -1055,13 +1054,13 @@ nlm_find_host_by_addr(const struct sockaddr *addr, int vers)
 
 	switch (addr->sa_family) {
 	case AF_INET:
-		__rpc_inet_ntop(AF_INET,
+		inet_ntop(AF_INET,
 		    &((const struct sockaddr_in *) addr)->sin_addr,
 		    tmp, sizeof tmp);
 		break;
 #ifdef INET6
 	case AF_INET6:
-		__rpc_inet_ntop(AF_INET6,
+		inet_ntop(AF_INET6,
 		    &((const struct sockaddr_in6 *) addr)->sin6_addr,
 		    tmp, sizeof tmp);
 		break;
@@ -2431,5 +2430,5 @@ DECLARE_MODULE(nfslockd, nfslockd_mod, SI_SUB_VFS, SI_ORDER_ANY);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_DEPEND(nfslockd, krpc, 1, 1, 1);
-MODULE_DEPEND(nfslockd, nfs, 1, 1, 1);
+MODULE_DEPEND(nfslockd, nfslock, 1, 1, 1);
 MODULE_VERSION(nfslockd, 1);

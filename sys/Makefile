@@ -14,7 +14,7 @@ CSCOPEDIRS=	boot bsm cam cddl compat conf contrib crypto ddb dev fs gdb \
 		netsmb nfs nfsclient nfsserver nlm opencrypto \
 		pci rpc security sys ufs vm xdr ${CSCOPE_ARCHDIR}
 .if defined(ALL_ARCH)
-CSCOPE_ARCHDIR ?= amd64 arm i386 ia64 mips pc98 powerpc sparc64 sun4v
+CSCOPE_ARCHDIR ?= amd64 arm i386 ia64 mips pc98 powerpc sparc64 sun4v x86
 .else
 CSCOPE_ARCHDIR ?= ${MACHINE}
 .endif
@@ -34,7 +34,7 @@ cscope.out: ${.CURDIR}/cscope.files
 
 ${.CURDIR}/cscope.files: .PHONY
 	cd ${.CURDIR}; \
-		find ${CSCOPEDIRS} -name "*.[chSs]" -a -type f > ${.TARGET}
+		find ${CSCOPEDIRS} -name "*.[chSsly]" -a -type f > ${.TARGET}
 
 cscope-clean:
 	rm -f cscope.files cscope.out cscope.in.out cscope.po.out

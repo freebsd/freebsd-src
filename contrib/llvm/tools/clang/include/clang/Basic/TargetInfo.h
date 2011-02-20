@@ -16,6 +16,7 @@
 
 // FIXME: Daniel isn't smart enough to use a prototype for this.
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/System/DataTypes.h"
 #include <cassert>
@@ -36,6 +37,22 @@ class SourceManager;
 class TargetOptions;
 
 namespace Builtin { struct Info; }
+
+/// TargetCXXABI - The types of C++ ABIs for which we can generate code.
+enum TargetCXXABI {
+  /// The generic ("Itanium") C++ ABI, documented at:
+  ///   http://www.codesourcery.com/public/cxx-abi/
+  CXXABI_Itanium,
+
+  /// The ARM C++ ABI, based largely on the Itanium ABI but with
+  /// significant differences.
+  ///    http://infocenter.arm.com
+  ///                    /help/topic/com.arm.doc.ihi0041c/IHI0041C_cppabi.pdf
+  CXXABI_ARM,
+
+  /// The Visual Studio ABI.  Only scattered official documentation exists.
+  CXXABI_Microsoft
+};
 
 /// TargetInfo - This class exposes information about the current target.
 ///
@@ -58,7 +75,7 @@ protected:
   const char *UserLabelPrefix;
   const llvm::fltSemantics *FloatFormat, *DoubleFormat, *LongDoubleFormat;
   unsigned char RegParmMax, SSERegParmMax;
-  std::string CXXABI;
+  TargetCXXABI CXXABI;
 
   unsigned HasAlignMac68kSupport : 1;
   unsigned RealTypeUsesObjCFPRet : 3;
@@ -412,7 +429,7 @@ public:
   }
 
   /// getCXXABI - Get the C++ ABI in use.
-  virtual llvm::StringRef getCXXABI() const {
+  virtual TargetCXXABI getCXXABI() const {
     return CXXABI;
   }
 
@@ -434,11 +451,23 @@ public:
 
   /// setCXXABI - Use this specific C++ ABI.
   ///
-  /// \return - False on error (invalid ABI name).
-  virtual bool setCXXABI(const std::string &Name) {
-    if (Name != "itanium" && Name != "microsoft")
-      return false;
-    CXXABI = Name;
+  /// \return - False on error (invalid C++ ABI name).
+  bool setCXXABI(const std::string &Name) {
+    static const TargetCXXABI Unknown = static_cast<TargetCXXABI>(-1);
+    TargetCXXABI ABI = llvm::StringSwitch<TargetCXXABI>(Name)
+      .Case("arm", CXXABI_ARM)
+      .Case("itanium", CXXABI_Itanium)
+      .Case("microsoft", CXXABI_Microsoft)
+      .Default(Unknown);
+    if (ABI == Unknown) return false;
+    return setCXXABI(ABI);
+  }
+
+  /// setCXXABI - Set the C++ ABI to be used by this implementation.
+  ///
+  /// \return - False on error (ABI not valid on this target)
+  virtual bool setCXXABI(TargetCXXABI ABI) {
+    CXXABI = ABI;
     return true;
   }
 

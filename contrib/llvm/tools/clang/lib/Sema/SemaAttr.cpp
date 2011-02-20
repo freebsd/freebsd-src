@@ -12,8 +12,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Sema.h"
-#include "Lookup.h"
+#include "clang/Sema/SemaInternal.h"
+#include "clang/Sema/Lookup.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/Expr.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Lex/Preprocessor.h"
@@ -62,18 +63,30 @@ namespace {
     /// alignment to the previous value. If \arg Name is non-zero then
     /// the first such named record is popped, otherwise the top record
     /// is popped. Returns true if the pop succeeded.
-    bool pop(IdentifierInfo *Name);
+    bool pop(IdentifierInfo *Name, bool IsReset);
   };
 }  // end anonymous namespace.
 
-bool PragmaPackStack::pop(IdentifierInfo *Name) {
-  if (Stack.empty())
-    return false;
-
+bool PragmaPackStack::pop(IdentifierInfo *Name, bool IsReset) {
   // If name is empty just pop top.
   if (!Name) {
-    Alignment = Stack.back().Alignment;
-    Stack.pop_back();
+    // An empty stack is a special case...
+    if (Stack.empty()) {
+      // If this isn't a reset, it is always an error.
+      if (!IsReset)
+        return false;
+
+      // Otherwise, it is an error only if some alignment has been set.
+      if (!Alignment)
+        return false;
+
+      // Otherwise, reset to the default alignment.
+      Alignment = 0;
+    } else {
+      Alignment = Stack.back().Alignment;
+      Stack.pop_back();
+    }
+
     return true;
   }
 
@@ -108,9 +121,11 @@ void Sema::AddAlignmentAttributesForRecord(RecordDecl *RD) {
   // Otherwise, check to see if we need a max field alignment attribute.
   if (unsigned Alignment = Stack->getAlignment()) {
     if (Alignment == PackStackEntry::kMac68kAlignmentSentinel)
-      RD->addAttr(::new (Context) AlignMac68kAttr());
+      RD->addAttr(::new (Context) AlignMac68kAttr(SourceLocation(), Context));
     else
-      RD->addAttr(::new (Context) MaxFieldAlignmentAttr(Alignment * 8));
+      RD->addAttr(::new (Context) MaxFieldAlignmentAttr(SourceLocation(),
+                                                        Context,
+                                                        Alignment * 8));
   }
 }
 
@@ -122,13 +137,10 @@ void Sema::ActOnPragmaOptionsAlign(PragmaOptionsAlignKind Kind,
 
   PragmaPackStack *Context = static_cast<PragmaPackStack*>(PackContext);
 
-  // Reset just pops the top of the stack.
-  if (Kind == Action::POAK_Reset) {
-    // Do the pop.
-    if (!Context->pop(0)) {
-      // If a name was specified then failure indicates the name
-      // wasn't found. Otherwise failure indicates the stack was
-      // empty.
+  // Reset just pops the top of the stack, or resets the current alignment to
+  // default.
+  if (Kind == Sema::POAK_Reset) {
+    if (!Context->pop(0, /*IsReset=*/true)) {
       Diag(PragmaLoc, diag::warn_pragma_options_align_reset_failed)
         << "stack empty";
     }
@@ -188,7 +200,6 @@ void Sema::ActOnPragmaPack(PragmaPackKind Kind, IdentifierInfo *Name,
         !(Val == 0 || Val.isPowerOf2()) ||
         Val.getZExtValue() > 16) {
       Diag(PragmaLoc, diag::warn_pragma_pack_invalid_alignment);
-      Alignment->Destroy(Context);
       return; // Ignore
     }
 
@@ -201,11 +212,11 @@ void Sema::ActOnPragmaPack(PragmaPackKind Kind, IdentifierInfo *Name,
   PragmaPackStack *Context = static_cast<PragmaPackStack*>(PackContext);
 
   switch (Kind) {
-  case Action::PPK_Default: // pack([n])
+  case Sema::PPK_Default: // pack([n])
     Context->setAlignment(AlignmentVal);
     break;
 
-  case Action::PPK_Show: // pack(show)
+  case Sema::PPK_Show: // pack(show)
     // Show the current alignment, making sure to show the right value
     // for the default.
     AlignmentVal = Context->getAlignment();
@@ -218,21 +229,21 @@ void Sema::ActOnPragmaPack(PragmaPackKind Kind, IdentifierInfo *Name,
       Diag(PragmaLoc, diag::warn_pragma_pack_show) << AlignmentVal;
     break;
 
-  case Action::PPK_Push: // pack(push [, id] [, [n])
+  case Sema::PPK_Push: // pack(push [, id] [, [n])
     Context->push(Name);
     // Set the new alignment if specified.
     if (Alignment)
       Context->setAlignment(AlignmentVal);
     break;
 
-  case Action::PPK_Pop: // pack(pop [, id] [,  n])
+  case Sema::PPK_Pop: // pack(pop [, id] [,  n])
     // MSDN, C/C++ Preprocessor Reference > Pragma Directives > pack:
     // "#pragma pack(pop, identifier, n) is undefined"
     if (Alignment && Name)
       Diag(PragmaLoc, diag::warn_pragma_pack_pop_identifer_and_alignment);
 
     // Do the pop.
-    if (!Context->pop(Name)) {
+    if (!Context->pop(Name, /*IsReset=*/false)) {
       // If a name was specified then failure indicates the name
       // wasn't found. Otherwise failure indicates the stack was
       // empty.
@@ -277,6 +288,80 @@ void Sema::ActOnPragmaUnused(const Token *Identifiers, unsigned NumIdentifiers,
       continue;
     }
 
-    VD->addAttr(::new (Context) UnusedAttr());
+    VD->addAttr(::new (Context) UnusedAttr(Tok.getLocation(), Context));
   }
+}
+
+typedef std::vector<std::pair<VisibilityAttr::VisibilityType,
+                              SourceLocation> > VisStack;
+
+void Sema::AddPushedVisibilityAttribute(Decl *D) {
+  if (!VisContext)
+    return;
+
+  if (D->hasAttr<VisibilityAttr>())
+    return;
+
+  VisStack *Stack = static_cast<VisStack*>(VisContext);
+  VisibilityAttr::VisibilityType type = Stack->back().first;
+  SourceLocation loc = Stack->back().second;
+
+  D->addAttr(::new (Context) VisibilityAttr(loc, Context, type));
+}
+
+/// FreeVisContext - Deallocate and null out VisContext.
+void Sema::FreeVisContext() {
+  delete static_cast<VisStack*>(VisContext);
+  VisContext = 0;
+}
+
+static void PushPragmaVisibility(Sema &S, VisibilityAttr::VisibilityType type,
+                                 SourceLocation loc) {
+  // Put visibility on stack.
+  if (!S.VisContext)
+    S.VisContext = new VisStack;
+
+  VisStack *Stack = static_cast<VisStack*>(S.VisContext);
+  Stack->push_back(std::make_pair(type, loc));
+}
+
+void Sema::ActOnPragmaVisibility(bool IsPush, const IdentifierInfo* VisType,
+                                 SourceLocation PragmaLoc) {
+  if (IsPush) {
+    // Compute visibility to use.
+    VisibilityAttr::VisibilityType type;
+    if (VisType->isStr("default"))
+      type = VisibilityAttr::Default;
+    else if (VisType->isStr("hidden"))
+      type = VisibilityAttr::Hidden;
+    else if (VisType->isStr("internal"))
+      type = VisibilityAttr::Hidden; // FIXME
+    else if (VisType->isStr("protected"))
+      type = VisibilityAttr::Protected;
+    else {
+      Diag(PragmaLoc, diag::warn_attribute_unknown_visibility) <<
+        VisType->getName();
+      return;
+    }
+    PushPragmaVisibility(*this, type, PragmaLoc);
+  } else {
+    PopPragmaVisibility();
+  }
+}
+
+void Sema::PushVisibilityAttr(const VisibilityAttr *Attr) {
+  PushPragmaVisibility(*this, Attr->getVisibility(), Attr->getLocation());
+}
+
+void Sema::PopPragmaVisibility() {
+  // Pop visibility from stack, if there is one on the stack.
+  if (VisContext) {
+    VisStack *Stack = static_cast<VisStack*>(VisContext);
+
+    Stack->pop_back();
+    // To simplify the implementation, never keep around an empty stack.
+    if (Stack->empty())
+      FreeVisContext();
+  }
+  // FIXME: Add diag for pop without push.
 }

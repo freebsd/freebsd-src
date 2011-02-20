@@ -2,7 +2,7 @@
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc. All rights reserved.
  * Copyright (c) 1998 Lennart Augustsson. All rights reserved.
- * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2008-2010 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,7 +38,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -53,6 +52,7 @@
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_ioctl.h>
 #include <dev/usb/usbdi.h>
+#include <dev/usb/usbdi_util.h>
 
 #define	USB_DEBUG_VAR uhub_debug
 
@@ -109,6 +109,7 @@ struct uhub_softc {
 #define	UHUB_PROTO(sc) ((sc)->sc_udev->ddesc.bDeviceProtocol)
 #define	UHUB_IS_HIGH_SPEED(sc) (UHUB_PROTO(sc) != UDPROTO_FSHUB)
 #define	UHUB_IS_SINGLE_TT(sc) (UHUB_PROTO(sc) == UDPROTO_HSHUBSTT)
+#define	UHUB_IS_SUPER_SPEED(sc) (UHUB_PROTO(sc) == UDPROTO_SSHUB)
 
 /* prototypes for type checking: */
 
@@ -170,6 +171,7 @@ static driver_t uhub_driver = {
 
 DRIVER_MODULE(uhub, usbus, uhub_driver, uhub_devclass, 0, 0);
 DRIVER_MODULE(uhub, uhub, uhub_driver, uhub_devclass, NULL, 0);
+MODULE_VERSION(uhub, 1);
 
 static void
 uhub_intr_callback(struct usb_xfer *xfer, usb_error_t error)
@@ -234,6 +236,27 @@ uhub_explore_sub(struct uhub_softc *sc, struct usb_port *up)
 		/* nothing to do */
 		goto done;
 	}
+
+	/* check if device should be re-enumerated */
+
+	if (child->flags.usb_mode == USB_MODE_HOST) {
+		usbd_enum_lock(child);
+		if (child->re_enumerate_wait) {
+			err = usbd_set_config_index(child, USB_UNCONFIG_INDEX);
+			if (err == 0)
+				err = usbd_req_re_enumerate(child, NULL);
+			if (err == 0)
+				err = usbd_set_config_index(child, 0);
+			if (err == 0) {
+				err = usb_probe_and_attach(child,
+				    USB_IFACE_INDEX_ANY);
+			}
+			child->re_enumerate_wait = 0;
+			err = 0;
+		}
+		usbd_enum_unlock(child);
+	}
+
 	/* check if probe and attach should be done */
 
 	if (child->driver_added_refcount != refcount) {
@@ -246,14 +269,14 @@ uhub_explore_sub(struct uhub_softc *sc, struct usb_port *up)
 	}
 	/* start control transfer, if device mode */
 
-	if (child->flags.usb_mode == USB_MODE_DEVICE) {
+	if (child->flags.usb_mode == USB_MODE_DEVICE)
 		usbd_ctrl_transfer_setup(child);
-	}
+
 	/* if a HUB becomes present, do a recursive HUB explore */
 
-	if (child->hub) {
+	if (child->hub)
 		err = (child->hub->explore) (child);
-	}
+
 done:
 	return (err);
 }
@@ -352,11 +375,17 @@ repeat:
 		DPRINTF("Port %d is in Host Mode\n", portno);
 
 		if (sc->sc_st.port_status & UPS_SUSPEND) {
+			/*
+			 * NOTE: Should not get here in SuperSpeed
+			 * mode, because the HUB should report this
+			 * bit as zero.
+			 */
 			DPRINTF("Port %d was still "
 			    "suspended, clearing.\n", portno);
-			err = usbd_req_clear_port_feature(sc->sc_udev,
+			err = usbd_req_clear_port_feature(udev,
 			    NULL, portno, UHF_PORT_SUSPEND);
 		}
+
 		/* USB Host Mode */
 
 		/* wait for maximum device power up time */
@@ -417,11 +446,49 @@ repeat:
 	case USB_SPEED_LOW:
 		speed = USB_SPEED_LOW;
 		break;
+	case USB_SPEED_SUPER:
+		if (udev->parent_hub == NULL) {
+			/* Root HUB - special case */
+			switch (sc->sc_st.port_status & UPS_OTHER_SPEED) {
+			case 0:
+				speed = USB_SPEED_FULL;
+				break;
+			case UPS_LOW_SPEED:
+				speed = USB_SPEED_LOW;
+				break;
+			case UPS_HIGH_SPEED:
+				speed = USB_SPEED_HIGH;
+				break;
+			default:
+				speed = USB_SPEED_SUPER;
+				break;
+			}
+		} else {
+			speed = USB_SPEED_SUPER;
+		}
+		break;
 	default:
 		/* same speed like parent */
 		speed = udev->speed;
 		break;
 	}
+	if (speed == USB_SPEED_SUPER) {
+		err = usbd_req_set_hub_u1_timeout(udev, NULL,
+		    portno, 128 - (2 * udev->depth));
+		if (err) {
+			DPRINTFN(0, "port %d U1 timeout "
+			    "failed, error=%s\n",
+			    portno, usbd_errstr(err));
+		}
+		err = usbd_req_set_hub_u2_timeout(udev, NULL,
+		    portno, 128 - (2 * udev->depth));
+		if (err) {
+			DPRINTFN(0, "port %d U2 timeout "
+			    "failed, error=%s\n",
+			    portno, usbd_errstr(err));
+		}
+	}
+
 	/*
 	 * Figure out the device mode
 	 *
@@ -464,6 +531,28 @@ error:
 }
 
 /*------------------------------------------------------------------------*
+ *	usb_device_20_compatible
+ *
+ * Returns:
+ *    0: HUB does not support suspend and resume
+ * Else: HUB supports suspend and resume
+ *------------------------------------------------------------------------*/
+static uint8_t
+usb_device_20_compatible(struct usb_device *udev)
+{
+	if (udev == NULL)
+		return (0);
+	switch (udev->speed) {
+	case USB_SPEED_LOW:
+	case USB_SPEED_FULL:
+	case USB_SPEED_HIGH:
+		return (1);
+	default:
+		return (0);
+	}
+}
+
+/*------------------------------------------------------------------------*
  *	uhub_suspend_resume_port
  *
  * Returns:
@@ -486,8 +575,14 @@ uhub_suspend_resume_port(struct uhub_softc *sc, uint8_t portno)
 
 	/* first clear the port suspend change bit */
 
-	err = usbd_req_clear_port_feature(udev, NULL,
-	    portno, UHF_C_PORT_SUSPEND);
+	if (usb_device_20_compatible(udev)) {
+		err = usbd_req_clear_port_feature(udev, NULL,
+		    portno, UHF_C_PORT_SUSPEND);
+	} else {
+		err = usbd_req_clear_port_feature(udev, NULL,
+		    portno, UHF_C_PORT_LINK_STATE);
+	}
+
 	if (err) {
 		DPRINTF("clearing suspend failed.\n");
 		goto done;
@@ -499,12 +594,24 @@ uhub_suspend_resume_port(struct uhub_softc *sc, uint8_t portno)
 		DPRINTF("reading port status failed.\n");
 		goto done;
 	}
-	/* get current state */
+	/* convert current state */
 
-	if (sc->sc_st.port_status & UPS_SUSPEND) {
-		is_suspend = 1;
+	if (usb_device_20_compatible(udev)) {
+		if (sc->sc_st.port_status & UPS_SUSPEND) {
+			is_suspend = 1;
+		} else {
+			is_suspend = 0;
+		}
 	} else {
-		is_suspend = 0;
+		switch (UPS_PORT_LINK_STATE_GET(sc->sc_st.port_status)) {
+		case UPS_PORT_LS_U0:
+		case UPS_PORT_LS_U1:
+			is_suspend = 0;
+			break;
+		default:
+			is_suspend = 1;
+			break;
+		}
 	}
 
 	DPRINTF("suspended=%u\n", is_suspend);
@@ -519,7 +626,8 @@ uhub_suspend_resume_port(struct uhub_softc *sc, uint8_t portno)
 		 */
 		if (is_suspend == 0)
 			usb_dev_resume_peer(child);
-		else if (child->flags.usb_mode == USB_MODE_DEVICE)
+		else if ((child->flags.usb_mode == USB_MODE_DEVICE) ||
+		    (usb_device_20_compatible(child) == 0))
 			usb_dev_suspend_peer(child);
 	}
 done:
@@ -539,6 +647,26 @@ uhub_root_intr(struct usb_bus *bus, const uint8_t *ptr, uint8_t len)
 	USB_BUS_LOCK_ASSERT(bus, MA_OWNED);
 
 	usb_needs_explore(bus, 0);
+}
+
+static uint8_t
+uhub_is_too_deep(struct usb_device *udev)
+{
+	switch (udev->speed) {
+	case USB_SPEED_FULL:
+	case USB_SPEED_LOW:
+	case USB_SPEED_HIGH:
+		if (udev->depth > USB_HUB_MAX_DEPTH)
+			return (1);
+		break;
+	case USB_SPEED_SUPER:
+		if (udev->depth > USB_SS_HUB_DEPTH_MAX)
+			return (1);
+		break;
+	default:
+		break;
+	}
+	return (0);
 }
 
 /*------------------------------------------------------------------------*
@@ -563,11 +691,11 @@ uhub_explore(struct usb_device *udev)
 
 	DPRINTFN(11, "udev=%p addr=%d\n", udev, udev->address);
 
-	/* ignore hubs that are too deep */
-	if (udev->depth > USB_HUB_MAX_DEPTH) {
+	/* ignore devices that are too deep */
+	if (uhub_is_too_deep(udev))
 		return (USB_ERR_TOO_DEEP);
-	}
 
+	/* check if device is suspended */
 	if (udev->flags.self_suspended) {
 		/* need to wait until the child signals resume */
 		DPRINTF("Device is suspended!\n");
@@ -634,7 +762,7 @@ uhub_explore(struct usb_device *udev)
 				break;
 			}
 		}
-		if (sc->sc_st.port_change & UPS_C_SUSPEND) {
+		if (sc->sc_st.port_change & (UPS_C_SUSPEND | UPS_C_PORT_LINK_STATE)) {
 			err = uhub_suspend_resume_port(sc, portno);
 			if (err) {
 				/* most likely the HUB is gone */
@@ -662,18 +790,79 @@ uhub_probe(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 
-	if (uaa->usb_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
-	}
+
 	/*
-	 * The subclass for USB HUBs is ignored because it is 0 for
-	 * some and 1 for others.
+	 * The subclass for USB HUBs is currently ignored because it
+	 * is 0 for some and 1 for others.
 	 */
-	if ((uaa->info.bConfigIndex == 0) &&
-	    (uaa->info.bDeviceClass == UDCLASS_HUB)) {
+	if (uaa->info.bConfigIndex == 0 &&
+	    uaa->info.bDeviceClass == UDCLASS_HUB)
 		return (0);
-	}
+
 	return (ENXIO);
+}
+
+/* NOTE: The information returned by this function can be wrong. */
+usb_error_t
+uhub_query_info(struct usb_device *udev, uint8_t *pnports, uint8_t *ptt)
+{
+	struct usb_hub_descriptor hubdesc20;
+	struct usb_hub_ss_descriptor hubdesc30;
+	usb_error_t err;
+	uint8_t nports;
+	uint8_t tt;
+
+	if (udev->ddesc.bDeviceClass != UDCLASS_HUB)
+		return (USB_ERR_INVAL);
+
+	nports = 0;
+	tt = 0;
+
+	switch (udev->speed) {
+	case USB_SPEED_LOW:
+	case USB_SPEED_FULL:
+	case USB_SPEED_HIGH:
+		/* assuming that there is one port */
+		err = usbd_req_get_hub_descriptor(udev, NULL, &hubdesc20, 1);
+		if (err) {
+			DPRINTFN(0, "getting USB 2.0 HUB descriptor failed,"
+			    "error=%s\n", usbd_errstr(err));
+			break;
+		}
+		nports = hubdesc20.bNbrPorts;
+		if (nports > 127)
+			nports = 127;
+
+		if (udev->speed == USB_SPEED_HIGH)
+			tt = (UGETW(hubdesc20.wHubCharacteristics) >> 5) & 3;
+		break;
+
+	case USB_SPEED_SUPER:
+		err = usbd_req_get_ss_hub_descriptor(udev, NULL, &hubdesc30, 1);
+		if (err) {
+			DPRINTFN(0, "Getting USB 3.0 HUB descriptor failed,"
+			    "error=%s\n", usbd_errstr(err));
+			break;
+		}
+		nports = hubdesc30.bNbrPorts;
+		if (nports > 16)
+			nports = 16;
+		break;
+
+	default:
+		err = USB_ERR_INVAL;
+		break;
+	}
+
+	if (pnports != NULL)
+		*pnports = nports;
+
+	if (ptt != NULL)
+		*ptt = tt;
+
+	return (err);
 }
 
 static int
@@ -684,7 +873,8 @@ uhub_attach(device_t dev)
 	struct usb_device *udev = uaa->device;
 	struct usb_device *parent_hub = udev->parent_hub;
 	struct usb_hub *hub;
-	struct usb_hub_descriptor hubdesc;
+	struct usb_hub_descriptor hubdesc20;
+	struct usb_hub_ss_descriptor hubdesc30;
 	uint16_t pwrdly;
 	uint8_t x;
 	uint8_t nports;
@@ -711,38 +901,114 @@ uhub_attach(device_t dev)
 	    parent_hub ?
 	    parent_hub->flags.self_powered : 0);
 
-	if (udev->depth > USB_HUB_MAX_DEPTH) {
-		DPRINTFN(0, "hub depth, %d, exceeded. HUB ignored\n",
-		    USB_HUB_MAX_DEPTH);
+	if (uhub_is_too_deep(udev)) {
+		DPRINTFN(0, "HUB at depth %d, "
+		    "exceeds maximum. HUB ignored\n", (int)udev->depth);
 		goto error;
 	}
+
 	if (!udev->flags.self_powered && parent_hub &&
-	    (!parent_hub->flags.self_powered)) {
-		DPRINTFN(0, "bus powered HUB connected to "
+	    !parent_hub->flags.self_powered) {
+		DPRINTFN(0, "Bus powered HUB connected to "
 		    "bus powered HUB. HUB ignored\n");
 		goto error;
 	}
 	/* get HUB descriptor */
 
-	DPRINTFN(2, "getting HUB descriptor\n");
+	DPRINTFN(2, "Getting HUB descriptor\n");
 
-	/* assuming that there is one port */
-	err = usbd_req_get_hub_descriptor(udev, NULL, &hubdesc, 1);
+	switch (udev->speed) {
+	case USB_SPEED_LOW:
+	case USB_SPEED_FULL:
+	case USB_SPEED_HIGH:
+		/* assuming that there is one port */
+		err = usbd_req_get_hub_descriptor(udev, NULL, &hubdesc20, 1);
+		if (err) {
+			DPRINTFN(0, "getting USB 2.0 HUB descriptor failed,"
+			    "error=%s\n", usbd_errstr(err));
+			goto error;
+		}
+		/* get number of ports */
+		nports = hubdesc20.bNbrPorts;
 
-	nports = hubdesc.bNbrPorts;
+		/* get power delay */
+		pwrdly = ((hubdesc20.bPwrOn2PwrGood * UHD_PWRON_FACTOR) +
+		    USB_EXTRA_POWER_UP_TIME);
 
-	if (!err && (nports >= 8)) {
 		/* get complete HUB descriptor */
-		err = usbd_req_get_hub_descriptor(udev, NULL, &hubdesc, nports);
-	}
-	if (err) {
-		DPRINTFN(0, "getting hub descriptor failed,"
-		    "error=%s\n", usbd_errstr(err));
-		goto error;
-	}
-	if (hubdesc.bNbrPorts != nports) {
-		DPRINTFN(0, "number of ports changed\n");
-		goto error;
+		if (nports >= 8) {
+			/* check number of ports */
+			if (nports > 127) {
+				DPRINTFN(0, "Invalid number of USB 2.0 ports,"
+				    "error=%s\n", usbd_errstr(err));
+				goto error;
+			}
+			/* get complete HUB descriptor */
+			err = usbd_req_get_hub_descriptor(udev, NULL, &hubdesc20, nports);
+
+			if (err) {
+				DPRINTFN(0, "Getting USB 2.0 HUB descriptor failed,"
+				    "error=%s\n", usbd_errstr(err));
+				goto error;
+			}
+			if (hubdesc20.bNbrPorts != nports) {
+				DPRINTFN(0, "Number of ports changed\n");
+				goto error;
+			}
+		}
+		break;
+	case USB_SPEED_SUPER:
+		if (udev->parent_hub != NULL) {
+			err = usbd_req_set_hub_depth(udev, NULL,
+			    udev->depth - 1);
+			if (err) {
+				DPRINTFN(0, "Setting USB 3.0 HUB depth failed,"
+				    "error=%s\n", usbd_errstr(err));
+				goto error;
+			}
+		}
+		err = usbd_req_get_ss_hub_descriptor(udev, NULL, &hubdesc30, 1);
+		if (err) {
+			DPRINTFN(0, "Getting USB 3.0 HUB descriptor failed,"
+			    "error=%s\n", usbd_errstr(err));
+			goto error;
+		}
+		/* get number of ports */
+		nports = hubdesc30.bNbrPorts;
+
+		/* get power delay */
+		pwrdly = ((hubdesc30.bPwrOn2PwrGood * UHD_PWRON_FACTOR) +
+		    USB_EXTRA_POWER_UP_TIME);
+
+		/* get complete HUB descriptor */
+		if (nports >= 8) {
+			/* check number of ports */
+			if (nports > ((udev->parent_hub != NULL) ? 15 : 127)) {
+				DPRINTFN(0, "Invalid number of USB 3.0 ports,"
+				    "error=%s\n", usbd_errstr(err));
+				goto error;
+			}
+			/* get complete HUB descriptor */
+			err = usbd_req_get_ss_hub_descriptor(udev, NULL, &hubdesc30, nports);
+
+			if (err) {
+				DPRINTFN(0, "Getting USB 2.0 HUB descriptor failed,"
+				    "error=%s\n", usbd_errstr(err));
+				goto error;
+			}
+			if (hubdesc30.bNbrPorts != nports) {
+				DPRINTFN(0, "Number of ports changed\n");
+				goto error;
+			}
+		}
+		break;
+	default:
+		DPRINTF("Assuming HUB has only one port\n");
+		/* default number of ports */
+		nports = 1;
+		/* default power delay */
+		pwrdly = ((10 * UHD_PWRON_FACTOR) + USB_EXTRA_POWER_UP_TIME);
+		break;
 	}
 	if (nports == 0) {
 		DPRINTFN(0, "portless HUB\n");
@@ -763,7 +1029,7 @@ uhub_attach(device_t dev)
 	/* initialize HUB structure */
 	hub->hubsoftc = sc;
 	hub->explore = &uhub_explore;
-	hub->nports = hubdesc.bNbrPorts;
+	hub->nports = nports;
 	hub->hubudev = udev;
 
 	/* if self powered hub, give ports maximum current */
@@ -819,8 +1085,6 @@ uhub_attach(device_t dev)
 	/* XXX should check for none, individual, or ganged power? */
 
 	removable = 0;
-	pwrdly = ((hubdesc.bPwrOn2PwrGood * UHD_PWRON_FACTOR) +
-	    USB_EXTRA_POWER_UP_TIME);
 
 	for (x = 0; x != nports; x++) {
 		/* set up data structures */
@@ -831,8 +1095,21 @@ uhub_attach(device_t dev)
 		portno = x + 1;
 
 		/* check if port is removable */
-		if (!UHD_NOT_REMOV(&hubdesc, portno)) {
+		switch (udev->speed) {
+		case USB_SPEED_LOW:
+		case USB_SPEED_FULL:
+		case USB_SPEED_HIGH:
+			if (!UHD_NOT_REMOV(&hubdesc20, portno))
+				removable++;
+			break;
+		case USB_SPEED_SUPER:
+			if (!UHD_NOT_REMOV(&hubdesc30, portno))
+				removable++;
+			break;
+		default:
+			DPRINTF("Assuming removable port\n");
 			removable++;
+			break;
 		}
 		if (!err) {
 			/* turn the power on */
@@ -893,9 +1170,8 @@ uhub_detach(device_t dev)
 	struct usb_device *child;
 	uint8_t x;
 
-	if (hub == NULL) {		/* must be partially working */
+	if (hub == NULL)		/* must be partially working */
 		return (0);
-	}
 
 	/* Make sure interrupt transfer is gone. */
 	usbd_transfer_unsetup(sc->sc_xfer, UHUB_N_TRANSFER);
@@ -1053,15 +1329,17 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 		    "devclass=0x%02x devsubclass=0x%02x "
 		    "sernum=\"%s\" "
 		    "release=0x%04x "
-		    "intclass=0x%02x intsubclass=0x%02x",
+		    "intclass=0x%02x intsubclass=0x%02x" "%s%s",
 		    UGETW(res.udev->ddesc.idVendor),
 		    UGETW(res.udev->ddesc.idProduct),
 		    res.udev->ddesc.bDeviceClass,
 		    res.udev->ddesc.bDeviceSubClass,
-		    res.udev->serial,
+		    usb_get_serial(res.udev),
 		    UGETW(res.udev->ddesc.bcdDevice),
 		    iface->idesc->bInterfaceClass,
-		    iface->idesc->bInterfaceSubClass);
+		    iface->idesc->bInterfaceSubClass,
+		    iface->pnpinfo ? " " : "",
+		    iface->pnpinfo ? iface->pnpinfo : "");
 	} else {
 		if (buflen) {
 			buf[0] = '\0';
@@ -1761,10 +2039,13 @@ static uint8_t
 usb_peer_should_wakeup(struct usb_device *udev)
 {
 	return ((udev->power_mode == USB_POWER_MODE_ON) ||
+	    (udev->driver_added_refcount != udev->bus->driver_added_refcount) ||
+	    (udev->re_enumerate_wait != 0) ||
 	    (udev->pwr_save.type_refs[UE_ISOCHRONOUS] != 0) ||
 	    (udev->pwr_save.write_refs != 0) ||
 	    ((udev->pwr_save.read_refs != 0) &&
 	    (udev->flags.usb_mode == USB_MODE_HOST) &&
+	    (usb_device_20_compatible(udev) != 0) &&
 	    (usb_peer_can_wakeup(udev) == 0)));
 }
 
@@ -1936,13 +2217,16 @@ usb_dev_resume_peer(struct usb_device *udev)
 	/* reduce chance of instant resume failure by waiting a little bit */
 	usb_pause_mtx(NULL, USB_MS_TO_TICKS(20));
 
-	/* resume current port (Valid in Host and Device Mode) */
-	err = usbd_req_clear_port_feature(udev->parent_hub,
-	    NULL, udev->port_no, UHF_PORT_SUSPEND);
-	if (err) {
-		DPRINTFN(0, "Resuming port failed\n");
-		return;
+	if (usb_device_20_compatible(udev)) {
+		/* resume current port (Valid in Host and Device Mode) */
+		err = usbd_req_clear_port_feature(udev->parent_hub,
+		    NULL, udev->port_no, UHF_PORT_SUSPEND);
+		if (err) {
+			DPRINTFN(0, "Resuming port failed\n");
+			return;
+		}
 	}
+
 	/* resume settle time */
 	usb_pause_mtx(NULL, USB_MS_TO_TICKS(USB_PORT_RESUME_DELAY));
 
@@ -1982,7 +2266,8 @@ usb_dev_resume_peer(struct usb_device *udev)
 	usbd_sr_unlock(udev);
 
 	/* check if peer has wakeup capability */
-	if (usb_peer_can_wakeup(udev)) {
+	if (usb_peer_can_wakeup(udev) &&
+	    usb_device_20_compatible(udev)) {
 		/* clear remote wakeup */
 		err = usbd_req_clear_device_feature(udev,
 		    NULL, UF_DEVICE_REMOTE_WAKEUP);
@@ -1992,7 +2277,6 @@ usb_dev_resume_peer(struct usb_device *udev)
 			    usbd_errstr(err));
 		}
 	}
-	return;
 }
 
 /*------------------------------------------------------------------------*
@@ -2030,7 +2314,6 @@ repeat:
 
 		/* check if all devices on the HUB are suspended */
 		for (x = 0; x != nports; x++) {
-
 			child = usb_bus_port_get_device(udev->bus,
 			    udev->hub->ports + x);
 
@@ -2042,6 +2325,22 @@ repeat:
 
 			DPRINTFN(1, "Port %u is busy on the HUB!\n", x + 1);
 			return;
+		}
+	}
+
+	if (usb_peer_can_wakeup(udev) &&
+	    usb_device_20_compatible(udev)) {
+		/*
+		 * This request needs to be done before we set
+		 * "udev->flags.self_suspended":
+		 */
+
+		/* allow device to do remote wakeup */
+		err = usbd_req_set_device_feature(udev,
+		    NULL, UF_DEVICE_REMOTE_WAKEUP);
+		if (err) {
+			DPRINTFN(0, "Setting device "
+			    "remote wakeup failed\n");
 		}
 	}
 
@@ -2062,6 +2361,17 @@ repeat:
 	USB_BUS_UNLOCK(udev->bus);
 
 	if (err != 0) {
+		if (usb_peer_can_wakeup(udev) &&
+		    usb_device_20_compatible(udev)) {
+			/* allow device to do remote wakeup */
+			err = usbd_req_clear_device_feature(udev,
+			    NULL, UF_DEVICE_REMOTE_WAKEUP);
+			if (err) {
+				DPRINTFN(0, "Setting device "
+				    "remote wakeup failed\n");
+			}
+		}
+
 		if (udev->flags.usb_mode == USB_MODE_DEVICE) {
 			/* resume parent HUB first */
 			usb_dev_resume_peer(udev->parent_hub);
@@ -2087,16 +2397,6 @@ repeat:
 
 	usbd_sr_unlock(udev);
 
-	if (usb_peer_can_wakeup(udev)) {
-		/* allow device to do remote wakeup */
-		err = usbd_req_set_device_feature(udev,
-		    NULL, UF_DEVICE_REMOTE_WAKEUP);
-		if (err) {
-			DPRINTFN(0, "Setting device "
-			    "remote wakeup failed\n");
-		}
-	}
-
 	if (udev->bus->methods->device_suspend != NULL) {
 		usb_timeout_t temp;
 
@@ -2104,16 +2404,20 @@ repeat:
 		(udev->bus->methods->device_suspend) (udev);
 
 		/* do DMA delay */
-		temp = usbd_get_dma_delay(udev->bus);
-		usb_pause_mtx(NULL, USB_MS_TO_TICKS(temp));
+		temp = usbd_get_dma_delay(udev);
+		if (temp != 0)
+			usb_pause_mtx(NULL, USB_MS_TO_TICKS(temp));
 
 	}
-	/* suspend current port */
-	err = usbd_req_set_port_feature(udev->parent_hub,
-	    NULL, udev->port_no, UHF_PORT_SUSPEND);
-	if (err) {
-		DPRINTFN(0, "Suspending port failed\n");
-		return;
+
+	if (usb_device_20_compatible(udev)) {
+		/* suspend current port */
+		err = usbd_req_set_port_feature(udev->parent_hub,
+		    NULL, udev->port_no, UHF_PORT_SUSPEND);
+		if (err) {
+			DPRINTFN(0, "Suspending port failed\n");
+			return;
+		}
 	}
 
 	udev = udev->parent_hub;
@@ -2131,12 +2435,39 @@ usbd_set_power_mode(struct usb_device *udev, uint8_t power_mode)
 {
 	/* filter input argument */
 	if ((power_mode != USB_POWER_MODE_ON) &&
-	    (power_mode != USB_POWER_MODE_OFF)) {
+	    (power_mode != USB_POWER_MODE_OFF))
 		power_mode = USB_POWER_MODE_SAVE;
-	}
+
+	power_mode = usbd_filter_power_mode(udev, power_mode);	
+
 	udev->power_mode = power_mode;	/* update copy of power mode */
 
 #if USB_HAVE_POWERD
 	usb_bus_power_update(udev->bus);
 #endif
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_filter_power_mode
+ *
+ * This function filters the power mode based on hardware requirements.
+ *------------------------------------------------------------------------*/
+uint8_t
+usbd_filter_power_mode(struct usb_device *udev, uint8_t power_mode)
+{
+	struct usb_bus_methods *mtod;
+	int8_t temp;
+
+	mtod = udev->bus->methods;
+	temp = -1;
+
+	if (mtod->get_power_mode != NULL)
+		(mtod->get_power_mode) (udev, &temp);
+
+	/* check if we should not filter */
+	if (temp < 0)
+		return (power_mode);
+
+	/* use fixed power mode given by hardware driver */
+	return (temp);
 }

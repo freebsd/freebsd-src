@@ -14,3 +14,5 @@ ENTRY(logbf)
 	fstp	%st
 	ret
 END(logbf)
+
+	.section .note.GNU-stack,"",%progbits

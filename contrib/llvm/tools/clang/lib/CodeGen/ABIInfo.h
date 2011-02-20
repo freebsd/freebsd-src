@@ -16,52 +16,52 @@
 namespace llvm {
   class Value;
   class LLVMContext;
+  class TargetData;
 }
 
 namespace clang {
   class ASTContext;
 
-  // FIXME: This is a layering issue if we want to move ABIInfo
-  // down. Fortunately CGFunctionInfo has no real tie to CodeGen.
   namespace CodeGen {
     class CGFunctionInfo;
     class CodeGenFunction;
+    class CodeGenTypes;
   }
 
-  /* FIXME: All of this stuff should be part of the target interface
-     somehow. It is currently here because it is not clear how to factor
-     the targets to support this, since the Targets currently live in a
-     layer below types n'stuff.
-  */
+  // FIXME: All of this stuff should be part of the target interface
+  // somehow. It is currently here because it is not clear how to factor
+  // the targets to support this, since the Targets currently live in a
+  // layer below types n'stuff.
 
   /// ABIArgInfo - Helper class to encapsulate information about how a
   /// specific C type should be passed to or returned from a function.
   class ABIArgInfo {
   public:
     enum Kind {
-      Direct,    /// Pass the argument directly using the normal
-                 /// converted LLVM type. Complex and structure types
-                 /// are passed using first class aggregates.
+      /// Direct - Pass the argument directly using the normal converted LLVM
+      /// type, or by coercing to another specified type stored in
+      /// 'CoerceToType').  If an offset is specified (in UIntData), then the
+      /// argument passed is offset by some number of bytes in the memory
+      /// representation.
+      Direct,
 
-      Extend,    /// Valid only for integer argument types. Same as 'direct'
-                 /// but also emit a zero/sign extension attribute.
+      /// Extend - Valid only for integer argument types. Same as 'direct'
+      /// but also emit a zero/sign extension attribute.
+      Extend,
 
-      Indirect,  /// Pass the argument indirectly via a hidden pointer
-                 /// with the specified alignment (0 indicates default
-                 /// alignment).
+      /// Indirect - Pass the argument indirectly via a hidden pointer
+      /// with the specified alignment (0 indicates default alignment).
+      Indirect,
 
-      Ignore,    /// Ignore the argument (treat as void). Useful for
-                 /// void and empty structs.
+      /// Ignore - Ignore the argument (treat as void). Useful for void and
+      /// empty structs.
+      Ignore,
 
-      Coerce,    /// Only valid for aggregate return types, the argument
-                 /// should be accessed by coercion to a provided type.
-
-      Expand,    /// Only valid for aggregate argument types. The
-                 /// structure should be expanded into consecutive
-                 /// arguments for its constituent fields. Currently
-                 /// expand is only allowed on structures whose fields
-                 /// are all scalar types or are themselves expandable
-                 /// types.
+      /// Expand - Only valid for aggregate argument types. The structure should
+      /// be expanded into consecutive arguments for its constituent fields.
+      /// Currently expand is only allowed on structures whose fields
+      /// are all scalar types or are themselves expandable types.
+      Expand,
 
       KindFirst=Direct, KindLast=Expand
     };
@@ -79,17 +79,14 @@ namespace clang {
   public:
     ABIArgInfo() : TheKind(Direct), TypeData(0), UIntData(0) {}
 
-    static ABIArgInfo getDirect() {
-      return ABIArgInfo(Direct);
+    static ABIArgInfo getDirect(const llvm::Type *T = 0, unsigned Offset = 0) {
+      return ABIArgInfo(Direct, T, Offset);
     }
-    static ABIArgInfo getExtend() {
-      return ABIArgInfo(Extend);
+    static ABIArgInfo getExtend(const llvm::Type *T = 0) {
+      return ABIArgInfo(Extend, T, 0);
     }
     static ABIArgInfo getIgnore() {
       return ABIArgInfo(Ignore);
-    }
-    static ABIArgInfo getCoerce(const llvm::Type *T) {
-      return ABIArgInfo(Coerce, T);
     }
     static ABIArgInfo getIndirect(unsigned Alignment, bool ByVal = true) {
       return ABIArgInfo(Indirect, 0, Alignment, ByVal);
@@ -102,16 +99,28 @@ namespace clang {
     bool isDirect() const { return TheKind == Direct; }
     bool isExtend() const { return TheKind == Extend; }
     bool isIgnore() const { return TheKind == Ignore; }
-    bool isCoerce() const { return TheKind == Coerce; }
     bool isIndirect() const { return TheKind == Indirect; }
     bool isExpand() const { return TheKind == Expand; }
 
-    // Coerce accessors
+    bool canHaveCoerceToType() const {
+      return TheKind == Direct || TheKind == Extend;
+    }
+    
+    // Direct/Extend accessors
+    unsigned getDirectOffset() const {
+      assert((isDirect() || isExtend()) && "Not a direct or extend kind");
+      return UIntData;
+    }
     const llvm::Type *getCoerceToType() const {
-      assert(TheKind == Coerce && "Invalid kind!");
+      assert(canHaveCoerceToType() && "Invalid kind!");
       return TypeData;
     }
-
+    
+    void setCoerceToType(const llvm::Type *T) {
+      assert(canHaveCoerceToType() && "Invalid kind!");
+      TypeData = T;
+    }
+    
     // Indirect accessors
     unsigned getIndirectAlign() const {
       assert(TheKind == Indirect && "Invalid kind!");
@@ -130,15 +139,16 @@ namespace clang {
   /// passed or returned from functions.
   class ABIInfo {
   public:
+    CodeGen::CodeGenTypes &CGT;
+    
+    ABIInfo(CodeGen::CodeGenTypes &cgt) : CGT(cgt) {}
     virtual ~ABIInfo();
+    
+    ASTContext &getContext() const;
+    llvm::LLVMContext &getVMContext() const;
+    const llvm::TargetData &getTargetData() const;
 
-    virtual void computeInfo(CodeGen::CGFunctionInfo &FI,
-                             ASTContext &Ctx,
-                             llvm::LLVMContext &VMContext,
-                             // This is the preferred type for argument lowering
-                             // which can be used to generate better IR.
-                             const llvm::Type *const *PrefTypes = 0,
-                             unsigned NumPrefTypes = 0) const = 0;
+    virtual void computeInfo(CodeGen::CGFunctionInfo &FI) const = 0;
 
     /// EmitVAArg - Emit the target dependent code to load a value of
     /// \arg Ty from the va_list pointed to by \arg VAListAddr.

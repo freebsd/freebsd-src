@@ -117,8 +117,6 @@ cpioVerbosity()
 
     if (cp && !strcmp(cp, "high"))
 	return "-v";
-    else if (cp && !strcmp(cp, "medium"))
-	return "-V";
     return "";
 }
 
@@ -241,7 +239,7 @@ mediaSetUSB(dialogMenuItem *self)
 	cnt = deviceCount(devs);
 
 	if (!cnt) {
-		msgConfirm("No USB devices found!");
+		msgConfirm("No USB devices found (try Options/Re-scan Devices)");
 		return DITEM_FAILURE | DITEM_CONTINUE;
 	}
 	else if (cnt > 1) {
@@ -848,8 +846,6 @@ mediaSetCPIOVerbosity(dialogMenuItem *self)
     }
     else {
 	if (!strcmp(cp, "low"))
-	    variable_set2(VAR_CPIO_VERBOSITY, "medium", 0);
-	else if (!strcmp(cp, "medium"))
 	    variable_set2(VAR_CPIO_VERBOSITY, "high", 0);
 	else /* must be "high" - wrap around */
 	    variable_set2(VAR_CPIO_VERBOSITY, "low", 0);

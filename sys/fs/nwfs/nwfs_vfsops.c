@@ -186,8 +186,7 @@ static int nwfs_mount(struct mount *mp)
 	ncp_conn_unlock(conn, td);	/* we keep the ref */
 	mp->mnt_stat.f_iosize = conn->buffer_size;
         /* We must malloc our own mount info */
-        nmp = malloc(sizeof(struct nwmount),M_NWFSDATA,
-	    M_WAITOK | M_USE_RESERVE | M_ZERO);
+        nmp = malloc(sizeof(struct nwmount), M_NWFSDATA, M_WAITOK | M_ZERO);
         if (nmp == NULL) {
                 nwfs_printf("could not alloc nwmount\n");
                 error = ENOMEM;

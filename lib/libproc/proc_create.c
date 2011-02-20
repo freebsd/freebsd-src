@@ -84,7 +84,7 @@ proc_attach(pid_t pid, int flags, struct proc_handle **pphdl)
 	else
 		*pphdl = phdl;
 out:
-
+	proc_free(phdl);
 	return (error);
 }
 

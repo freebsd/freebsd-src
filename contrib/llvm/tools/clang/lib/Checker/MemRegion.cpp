@@ -18,6 +18,7 @@
 #include "clang/Analysis/AnalysisContext.h"
 #include "clang/Analysis/Support/BumpVector.h"
 #include "clang/AST/CharUnits.h"
+#include "clang/AST/RecordLayout.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
@@ -177,7 +178,7 @@ const StackFrameContext *VarRegion::getStackFrame() const {
 
 DefinedOrUnknownSVal DeclRegion::getExtent(ValueManager& ValMgr) const {
   ASTContext& Ctx = ValMgr.getContext();
-  QualType T = getDesugaredValueType(Ctx);
+  QualType T = getDesugaredValueType();
 
   if (isa<VariableArrayType>(T))
     return nonloc::SymbolVal(ValMgr.getSymbolManager().getExtentSymbol(this));
@@ -195,8 +196,7 @@ DefinedOrUnknownSVal FieldRegion::getExtent(ValueManager& ValMgr) const {
   // A zero-length array at the end of a struct often stands for dynamically-
   // allocated extra memory.
   if (Extent.isZeroConstant()) {
-    ASTContext& Ctx = ValMgr.getContext();
-    QualType T = getDesugaredValueType(Ctx);
+    QualType T = getDesugaredValueType();
 
     if (isa<ConstantArrayType>(T))
       return UnknownVal();
@@ -785,7 +785,7 @@ static bool IsCompleteType(ASTContext &Ctx, QualType Ty) {
   return true;
 }
 
-RegionRawOffset ElementRegion::getAsRawOffset() const {
+RegionRawOffset ElementRegion::getAsArrayOffset() const {
   CharUnits offset = CharUnits::Zero();
   const ElementRegion *ER = this;
   const MemRegion *superR = NULL;
@@ -825,6 +825,67 @@ RegionRawOffset ElementRegion::getAsRawOffset() const {
 
   assert(superR && "super region cannot be NULL");
   return RegionRawOffset(superR, offset.getQuantity());
+}
+
+RegionOffset MemRegion::getAsOffset() const {
+  const MemRegion *R = this;
+  int64_t Offset = 0;
+
+  while (1) {
+    switch (R->getKind()) {
+    default:
+      return RegionOffset(0);
+    case SymbolicRegionKind:
+    case AllocaRegionKind:
+    case CompoundLiteralRegionKind:
+    case CXXThisRegionKind:
+    case StringRegionKind:
+    case VarRegionKind:
+    case CXXObjectRegionKind:
+      goto Finish;
+    case ElementRegionKind: {
+      const ElementRegion *ER = cast<ElementRegion>(R);
+      QualType EleTy = ER->getValueType();
+
+      if (!IsCompleteType(getContext(), EleTy))
+        return RegionOffset(0);
+
+      SVal Index = ER->getIndex();
+      if (const nonloc::ConcreteInt *CI=dyn_cast<nonloc::ConcreteInt>(&Index)) {
+        int64_t i = CI->getValue().getSExtValue();
+        CharUnits Size = getContext().getTypeSizeInChars(EleTy);
+        Offset += i * Size.getQuantity() * 8;
+      } else {
+        // We cannot compute offset for non-concrete index.
+        return RegionOffset(0);
+      }
+      R = ER->getSuperRegion();
+      break;
+    }
+    case FieldRegionKind: {
+      const FieldRegion *FR = cast<FieldRegion>(R);
+      const RecordDecl *RD = FR->getDecl()->getParent();
+      if (!RD->isDefinition())
+        // We cannot compute offset for incomplete type.
+        return RegionOffset(0);
+      // Get the field number.
+      unsigned idx = 0;
+      for (RecordDecl::field_iterator FI = RD->field_begin(), 
+             FE = RD->field_end(); FI != FE; ++FI, ++idx)
+        if (FR->getDecl() == *FI)
+          break;
+
+      const ASTRecordLayout &Layout = getContext().getASTRecordLayout(RD);
+      // This is offset in bits.
+      Offset += Layout.getFieldOffset(idx);
+      R = FR->getSuperRegion();
+      break;
+    }
+    }
+  }
+
+ Finish:
+  return RegionOffset(R, Offset);
 }
 
 //===----------------------------------------------------------------------===//

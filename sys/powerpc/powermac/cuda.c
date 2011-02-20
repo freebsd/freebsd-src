@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/clock.h>
+#include <sys/reboot.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
@@ -72,6 +73,7 @@ static u_int	cuda_adb_autopoll(device_t dev, uint16_t mask);
 static u_int	cuda_poll(device_t dev);
 static void	cuda_send_inbound(struct cuda_softc *sc);
 static void	cuda_send_outbound(struct cuda_softc *sc);
+static void	cuda_shutdown(void *xsc, int howto);
 
 /*
  * Clock interface
@@ -249,6 +251,8 @@ cuda_attach(device_t dev)
 	}
 
 	clock_register(dev, 1000);
+	EVENTHANDLER_REGISTER(shutdown_final, cuda_shutdown, sc,
+	    SHUTDOWN_PRI_LAST);
 
 	return (bus_generic_attach(dev));
 }
@@ -737,6 +741,20 @@ cuda_adb_autopoll(device_t dev, uint16_t mask) {
 	mtx_unlock(&sc->sc_mutex);
 
 	return (0);
+}
+
+static void
+cuda_shutdown(void *xsc, int howto)
+{
+	struct cuda_softc *sc = xsc;
+	uint8_t cmd[] = {CUDA_PSEUDO, 0};
+
+	cmd[1] = (howto & RB_HALT) ? CMD_POWEROFF : CMD_RESET;
+	cuda_poll(sc->sc_dev);
+	cuda_send(sc, 1, 2, cmd);
+
+	while (1)
+		cuda_poll(sc->sc_dev);
 }
 
 #define DIFF19041970	2082844800

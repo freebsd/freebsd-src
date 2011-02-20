@@ -345,7 +345,7 @@ __FBSDID("$FreeBSD$");
  * position takes place.
  *
  * Most likely this is used to ignore rest of the program in cases
- * where group of verts arent visible. For some reason this "section"
+ * where group of verts aren't visible. For some reason this "section"
  * is sometimes accepted other instruction that have no relationship with
  * position calculations.
  */
@@ -590,7 +590,7 @@ __FBSDID("$FreeBSD$");
 #define R300_RE_FOG_START                     0x4298
 
 /* Not sure why there are duplicate of factor and constant values.
- * My best guess so far is that there are seperate zbiases for test and write.
+ * My best guess so far is that there are separate zbiases for test and write.
  * Ordering might be wrong.
  * Some of the tests indicate that fgl has a fallback implementation of zbias
  * via pixel shaders.
@@ -608,7 +608,7 @@ __FBSDID("$FreeBSD$");
  * My guess is that there are two bits for each zbias primitive
  * (FILL, LINE, POINT).
  *  One to enable depth test and one for depth write.
- * Yet this doesnt explain why depth writes work ...
+ * Yet this doesn't explain why depth writes work ...
  */
 #define R300_RE_OCCLUSION_CNTL		    0x42B4
 #	define R300_OCCLUSION_ON		(1<<1)
@@ -693,7 +693,7 @@ __FBSDID("$FreeBSD$");
  * the ROUTE_0_COLOR bit is set and ROUTE_0_COLOR_DEST contains the
  * color register index.
  *
- * Apperently you may set the R300_RS_ROUTE_0_COLOR bit, but not provide any
+ * Apparently you may set the R300_RS_ROUTE_0_COLOR bit, but not provide any
  * R300_RS_ROUTE_0_COLOR_DEST value; this setup is used for clearing the state.
  * See r300_ioctl.c:r300EmitClearState. I'm not sure if this setup is strictly
  * correct or not. - Oliver.
@@ -817,8 +817,8 @@ __FBSDID("$FreeBSD$");
 #	define R300_TX_MIN_FILTER_LINEAR_MIP_NEAREST        (6  <<  11)
 #	define R300_TX_MIN_FILTER_LINEAR_MIP_LINEAR         (10 <<  11)
 
-/* NOTE: NEAREST doesnt seem to exist.
- * Im not seting MAG_FILTER_MASK and (3 << 11) on for all
+/* NOTE: NEAREST doesn't seem to exist.
+ * I'm not setting MAG_FILTER_MASK and (3 << 11) on for all
  * anisotropy modes because that would void selected mag filter
  */
 #	define R300_TX_MIN_FILTER_ANISO_NEAREST             (0 << 13)

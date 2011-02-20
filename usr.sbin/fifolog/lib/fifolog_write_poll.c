@@ -33,6 +33,9 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/endian.h>
+#if 0
+#include <sys/uio.h>
+#endif
 
 #include <zlib.h>
 
@@ -65,9 +68,8 @@ fifolog_write_assert(const struct fifolog_writer *f)
 {
 
 	CHECK_OBJ_NOTNULL(f, FIFOLOG_WRITER_MAGIC);
-	assert(f->iptr == f->ff->zs->next_in + f->ff->zs->avail_in);
 	assert(f->ff->zs->next_out + f->ff->zs->avail_out == \
-	    f->ff->recbuf + f->ff->recsize);
+	    f->obuf + f->obufsize);
 }
 
 struct fifolog_writer *
@@ -75,8 +77,8 @@ fifolog_write_new(void)
 {
 	struct fifolog_writer *f;
 
-	ALLOC(&f, sizeof *f);
-	f->magic = FIFOLOG_WRITER_MAGIC;
+	ALLOC_OBJ(f, FIFOLOG_WRITER_MAGIC);
+	assert(f != NULL);
 	return (f);
 }
 
@@ -94,34 +96,9 @@ fifolog_write_close(struct fifolog_writer *f)
 	CHECK_OBJ_NOTNULL(f, FIFOLOG_WRITER_MAGIC);
 	fifolog_int_close(&f->ff);
 	free(f->ff);
-	if (f->ibuf != NULL)
-		free(f->ibuf);
+	if (f->obuf != NULL)
+		free(f->obuf);
 	free(f);
-}
-
-static void
-fifo_prepobuf(struct fifolog_writer *f, time_t now, int flag)
-{
-
-	memset(f->ff->recbuf, 0, f->ff->recsize);
-	f->ff->zs->next_out = f->ff->recbuf + 5;
-	f->ff->zs->avail_out = f->ff->recsize - 5;
-	if (f->recno == 0 && f->seq == 0) {
-		srandomdev();
-		do {
-			f->seq = random();
-		} while (f->seq == 0);
-	}
-	be32enc(f->ff->recbuf, f->seq++);
-	f->ff->recbuf[4] = f->flag;
-	f->flag = 0;
-	if (flag) {
-		f->ff->recbuf[4] |= FIFOLOG_FLG_SYNC;
-		be32enc(f->ff->recbuf + 5, (u_int)now);
-		f->ff->zs->next_out += 4;
-		f->ff->zs->avail_out -= 4;
-	}
-	fifolog_write_assert(f);
 }
 
 const char *
@@ -164,144 +141,154 @@ fifolog_write_open(struct fifolog_writer *f, const char *fn, unsigned writerate,
 		f->seq++;
 	}
 
-	f->ibufsize = 32768;
-	ALLOC(&f->ibuf, f->ibufsize);
-	f->iptr = f->ibuf;
-	f->ff->zs->next_in = f->iptr;
+	f->obufsize = f->ff->recsize;
+	ALLOC(&f->obuf, f->obufsize);
+
 	i = deflateInit(f->ff->zs, (int)f->compression);
 	assert(i == Z_OK);
 
 	f->flag |= FIFOLOG_FLG_RESTART;
+	f->flag |= FIFOLOG_FLG_SYNC;
+	f->ff->zs->next_out = f->obuf + 9;
+	f->ff->zs->avail_out = f->obufsize - 9;
 
 	time(&now);
-	fifo_prepobuf(f, now, 1);
 	f->starttime = now;
+	f->lastsync = now;
+	f->lastwrite = now;
 
 	fifolog_write_assert(f);
 	return (NULL);
 }
 
-static void
-fifo_writerec(struct fifolog_writer *f)
+static int
+fifolog_write_output(struct fifolog_writer *f, int fl, time_t now)
 {
-	int i;
-	time_t t;
+	long h, l = f->ff->zs->next_out - f->obuf;
+	int i, w;
 
-	fifolog_write_assert(f);
-	f->writes_since_sync++;
-
-	assert(f->recno < f->ff->logsize);
-	f->cnt[FIFOLOG_PT_BYTES_POST] += f->ff->recsize - f->ff->zs->avail_out;
-	if (f->ff->zs->avail_out == 0) {
-		/* nothing */
-	} else if (f->ff->zs->avail_out <= 255) {
-		f->ff->recbuf[f->ff->recsize - 1] = 
-		    (u_char)f->ff->zs->avail_out;
-		f->ff->recbuf[4] |= FIFOLOG_FLG_1BYTE;
-	} else {
-		be32enc(f->ff->recbuf + f->ff->recsize - 4,
-		    f->ff->zs->avail_out);
-		f->ff->recbuf[4] |= FIFOLOG_FLG_4BYTE;
+	h = 4;					/* seq */
+	be32enc(f->obuf, f->seq);
+	f->obuf[h] = f->flag;
+	h += 1;					/* flag */
+	if (f->flag & FIFOLOG_FLG_SYNC) {
+		be32enc(f->obuf + h, now);
+		h += 4;				/* timestamp */
 	}
-	i = pwrite(f->ff->fd, f->ff->recbuf, f->ff->recsize,
-		(f->recno + 1) * f->ff->recsize);
-	assert (i == (int)f->ff->recsize);
-	if (++f->recno == f->ff->logsize)
-		f->recno = 0;
+
+	assert(l <= (long)f->ff->recsize);
+	assert(l >= h);
+	if (l == h)
+		return (0);
+
+
+	if (h + l < (long)f->ff->recsize && fl == Z_NO_FLUSH) 
+		return (0);
+
+	w = f->ff->recsize - l;
+	if (w >  255) {
+		be32enc(f->obuf + f->ff->recsize - 4, w);
+		f->obuf[4] |= FIFOLOG_FLG_4BYTE;
+	} else if (w > 0) {
+		f->obuf[f->ff->recsize - 1] = w;
+		f->obuf[4] |= FIFOLOG_FLG_1BYTE;
+	}
+
+	f->cnt[FIFOLOG_PT_BYTES_POST] += w;
+
+#ifdef DBG
+fprintf(stderr, "W: fl=%d h=%ld l=%ld w=%d recno=%jd fx %02x\n",
+    fl, h, l, w, f->recno, f->obuf[4]);
+#endif
+
+	i = pwrite(f->ff->fd, f->obuf, f->ff->recsize,
+	    (f->recno + 1) * f->ff->recsize);
+	assert(i == (int)f->ff->recsize);
+
 	f->cnt[FIFOLOG_PT_WRITES]++;
-	time(&t);
-	f->cnt[FIFOLOG_PT_RUNTIME] = t - f->starttime; /*lint !e776 */
-	fifolog_write_assert(f);
+
+	f->lastwrite = now;
+	f->seq++;
+	f->recno++;
+#ifdef DBG
+if (f->flag)
+fprintf(stderr, "SYNC- %d\n", __LINE__);
+#endif
+	f->flag = 0;
+
+	memset(f->obuf, 0, f->obufsize);
+	f->ff->zs->next_out = f->obuf + 5;
+	f->ff->zs->avail_out = f->obufsize - 5;
+	return (1);
+}
+
+static void
+fifolog_write_gzip(struct fifolog_writer *f, const void *p, int len, time_t now, int fin)
+{
+	int i, fl;
+
+	f->cnt[FIFOLOG_PT_BYTES_PRE] += len;
+
+	if (fin == 0)
+		fl = Z_NO_FLUSH;
+	else if (f->cleanup || now >= (int)(f->lastsync + f->syncrate)) {
+		f->cleanup = 0;
+		fl = Z_FINISH;
+		f->cnt[FIFOLOG_PT_SYNC]++;
+	} else if (now >= (int)(f->lastwrite + f->writerate)) {
+		fl = Z_SYNC_FLUSH;
+		f->cnt[FIFOLOG_PT_FLUSH]++;
+	} else if (p == NULL)
+		return;
+	else
+		fl = Z_NO_FLUSH;
+
+	f->ff->zs->avail_in = len;
+	f->ff->zs->next_in = (void*)(uintptr_t)p;
+#ifdef DBG
+if (fl != Z_NO_FLUSH)
+fprintf(stderr, "Z len %3d fin %d now %ld fl %d ai %u ao %u\n",
+    len, fin, now, fl,
+    f->ff->zs->avail_in,
+    f->ff->zs->avail_out);
+#endif
+
+	while (1) {
+		i = deflate(f->ff->zs, fl);
+
+#ifdef DBG
+if (i || f->ff->zs->avail_in)
+fprintf(stderr, "fl = %d, i = %d ai = %u ao = %u fx=%02x\n", fl, i, 
+    f->ff->zs->avail_in,
+    f->ff->zs->avail_out, f->flag);
+#endif
+
+		assert(i == Z_OK || i == Z_BUF_ERROR || i == Z_STREAM_END);
+		assert(f->ff->zs->avail_in == 0);
+
+		if (!fifolog_write_output(f, fl, now))
+			break;
+	}
+	assert(f->ff->zs->avail_in == 0);
+	if (fl == Z_FINISH) {
+		f->flag |= FIFOLOG_FLG_SYNC;
+		f->ff->zs->next_out = f->obuf + 9;
+		f->ff->zs->avail_out = f->obufsize - 9;
+		f->lastsync = now;
+#ifdef DBG
+fprintf(stderr, "SYNC %d\n", __LINE__);
+#endif
+		assert(Z_OK == deflateReset(f->ff->zs));
+	}
 }
 
 int
 fifolog_write_poll(struct fifolog_writer *f, time_t now)
 {
-	int i, fl, bo, bf;
-
 	if (now == 0)
 		time(&now);
-
-	fifolog_write_assert(f);
-	if (f->cleanup || now >= (int)(f->lastsync + f->syncrate)) {
-		/*
-		 * We always check the sync timer, otherwise a flood of data
-		 * would not get any sync records at all
-		 */
-		f->cleanup = 0;
-		fl = Z_FINISH;
-		f->lastsync = now;
-		f->lastwrite = now;
-		f->cnt[FIFOLOG_PT_SYNC]++;
-	} else if (f->ff->zs->avail_in == 0 &&
-	    now >= (int)(f->lastwrite + f->writerate)) {
-		/*
-		 * We only check for writerate timeouts when the input 
-		 * buffer is empty.  It would be silly to force a write if
-		 * pending input could cause it to happen on its own.
-		 */
-		fl = Z_SYNC_FLUSH;
-		f->lastwrite = now;
-		f->cnt[FIFOLOG_PT_FLUSH]++;
-	} else if (f->ff->zs->avail_in == 0)
-		return (0);			/* nothing to do */
-	else
-		fl = Z_NO_FLUSH;
-
-	for (;;) {
-		assert(f->ff->zs->avail_out > 0);
-
-		bf = f->ff->zs->avail_out;
-
-		i = deflate(f->ff->zs, fl);
-		assert (i == Z_OK || i == Z_BUF_ERROR || i == Z_STREAM_END);
-
-		bo = f->ff->zs->avail_out;
-
-		/* If we have output space and not in a hurry.. */
-		if (bo > 0 && fl == Z_NO_FLUSH)
-			break;
-	
-		/* Write output buffer, if anything in it */
-		if (bo != bf)
-			fifo_writerec(f);
-
-		/* If the buffer were full, we need to check again */
-		if (bo == 0) {
-			fifo_prepobuf(f, now, 0);
-			continue;
-		}
-
-		if (fl == Z_FINISH) {
-			/* Make next record a SYNC record */
-			fifo_prepobuf(f, now, 1);
-			/* And reset the zlib engine */
-			i = deflateReset(f->ff->zs);
-			assert(i == Z_OK);
-			f->writes_since_sync = 0;
-		} else {
-			fifo_prepobuf(f, now, 0);
-		}
-		break;
-	}
-
-	if (f->ff->zs->avail_in == 0) {
-		/* Reset input buffer when empty */
-		f->iptr = f->ibuf;
-		f->ff->zs->next_in = f->iptr;
-	}
-
-	fifolog_write_assert(f);
-	return (1);
-}
-
-static void
-fifolog_acct(struct fifolog_writer *f, unsigned bytes)
-{
-
-	f->ff->zs->avail_in += bytes;
-	f->iptr += bytes;
-	f->cnt[FIFOLOG_PT_BYTES_PRE] += bytes;
+	fifolog_write_gzip(f, NULL, 0, now, 1);
+	return (0);
 }
 
 /*
@@ -312,8 +299,8 @@ fifolog_acct(struct fifolog_writer *f, unsigned bytes)
 int
 fifolog_write_bytes(struct fifolog_writer *f, uint32_t id, time_t now, const void *ptr, unsigned len)
 {
-	u_int l;
 	const unsigned char *p;
+	uint8_t buf[4];
 
 	fifolog_write_assert(f);
 	assert(!(id & (FIFOLOG_TIMESTAMP|FIFOLOG_LENGTH)));
@@ -322,46 +309,45 @@ fifolog_write_bytes(struct fifolog_writer *f, uint32_t id, time_t now, const voi
 	p = ptr;
 	if (len == 0) {
 		len = strlen(ptr) + 1;
-		l = 4 + len;		/* id */
 	} else {
 		assert(len <= 255);
 		id |= FIFOLOG_LENGTH;
-		l = 5 + len;		/* id + len */
 	}
-
-	l += 4; 		/* A timestamp may be necessary */
 
 	/* Now do timestamp, if needed */
 	if (now == 0)
 		time(&now);
-
-	assert(l < f->ibufsize);
-
-	/* Return if there is not enough space */
-	if (f->iptr + l > f->ibuf + f->ibufsize)
-		return (0);
 
 	if (now != f->last) {
 		id |= FIFOLOG_TIMESTAMP;
 		f->last = now;
 	} 
 
-	/* Emit instance+flag and length */
-	be32enc(f->iptr, id);
-	fifolog_acct(f, 4);
+	/* Emit instance+flag */
+	be32enc(buf, id);
+	fifolog_write_gzip(f, buf, 4, now, 0);
 
 	if (id & FIFOLOG_TIMESTAMP) {
-		be32enc(f->iptr, (uint32_t)f->last);
-		fifolog_acct(f, 4);
+		be32enc(buf, (uint32_t)f->last);
+		fifolog_write_gzip(f, buf, 4, now, 0);
 	}
 	if (id & FIFOLOG_LENGTH) {
-		f->iptr[0] = (u_char)len;
-		fifolog_acct(f, 1);
+		buf[0] = (u_char)len;
+		fifolog_write_gzip(f, buf, 1, now, 0);
 	}
 
 	assert (len > 0);
-	memcpy(f->iptr, p, len);
-	fifolog_acct(f, len);
+#if 1
+	if (len > f->ibufsize) {
+		free(f->ibuf);
+		f->ibufsize = len;
+		ALLOC(&f->ibuf, f->ibufsize);
+	}
+	memcpy(f->ibuf, p, len);
+	fifolog_write_gzip(f, f->ibuf, len, now, 1);
+#else
+	fifolog_write_gzip(f, p, len, now, 1);
+#endif
 	fifolog_write_assert(f);
 	return (1);
 }
@@ -384,7 +370,6 @@ fifolog_write_bytes_poll(struct fifolog_writer *f, uint32_t id, time_t now, cons
 
 	if (len == 0) {
 		while (!fifolog_write_bytes(f, id, now, ptr, len)) {
-			(void)fifolog_write_poll(f, now);
 			(void)usleep(10000);
 		}
 	} else {
@@ -394,7 +379,6 @@ fifolog_write_bytes_poll(struct fifolog_writer *f, uint32_t id, time_t now, cons
 			if (l > 255)
 				l = 255;
 			while (!fifolog_write_bytes(f, id, now, p, l)) {
-				(void)fifolog_write_poll(f, now);
 				(void)usleep(10000);
 			}
 		}

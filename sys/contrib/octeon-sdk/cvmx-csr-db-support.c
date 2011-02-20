@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -46,15 +48,16 @@
  *
  * Utility functions for working with the CSR database
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 49507 $<hr>
  */
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#define PRINTF printk
+#include <asm/octeon/cvmx.h>
+#include <asm/octeon/cvmx-csr-db.h>
+#else
+#define PRINTF printf
 #include "cvmx.h"
 #include "cvmx-csr-db.h"
-
-#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
-    #define PRINTF printk
-#else
-    #define PRINTF printf
 #endif
 
 /**
@@ -84,6 +87,8 @@ int cvmx_db_get_chipindex(int identifier)
             return 2;
         case 0x000d0700: /* CN52XX */
             return 10;
+        case 0x000d9000: /* CN63XX */
+            return 11;
     }
 
     /* Next try PCI device IDs */
@@ -109,6 +114,8 @@ int cvmx_db_get_chipindex(int identifier)
             return 8;
         case 0x0080177d: /* CN52XX Pass 2 */
             return 10;
+        case 0x0090177d: /* CN63XX Pass 1 */
+            return 11;
     }
 
     /* Default to Pass 3 if we don't know */
@@ -142,6 +149,28 @@ const CVMX_CSR_DB_ADDRESS_TYPE *cvmx_csr_db_get(int identifier, const char *name
 }
 #endif
 
+static void __cvmx_csr_db_decode_csr(int chip, int index, uint64_t value)
+{
+    int field;
+    int csr = cvmx_csr_db_addresses[chip][index].csroff;
+    PRINTF("%s(0x%016llx) = 0x%016llx\n", cvmx_csr_db_addresses[chip][index].name, (unsigned long long)cvmx_csr_db_addresses[chip][index].address, (unsigned long long)value);
+    for (field=cvmx_csr_db[chip][csr].fieldoff+cvmx_csr_db[chip][csr].numfields-1; field>=cvmx_csr_db[chip][csr].fieldoff; field--)
+    {
+        uint64_t v = (value >> cvmx_csr_db_fields[chip][field].startbit);
+        if(cvmx_csr_db_fields[chip][field].sizebits < 64)
+            v = v & ~((~0x0ull) << cvmx_csr_db_fields[chip][field].sizebits);
+        if (cvmx_csr_db_fields[chip][field].sizebits == 1)
+            PRINTF("  [   %2d] %-20s = %10llu (0x%llx)\n",
+                cvmx_csr_db_fields[chip][field].startbit, cvmx_csr_db_fields[chip][field].name,
+                (unsigned long long)v, (unsigned long long)v);
+        else
+            PRINTF("  [%2d:%2d] %-20s = %10llu (0x%llx)\n",
+                cvmx_csr_db_fields[chip][field].startbit + cvmx_csr_db_fields[chip][field].sizebits - 1,
+                cvmx_csr_db_fields[chip][field].startbit,
+                cvmx_csr_db_fields[chip][field].name,
+                (unsigned long long)v, (unsigned long long)v);
+    }
+}
 
 /**
  * Decode a CSR value into named bitfields. The model can either
@@ -161,26 +190,29 @@ void cvmx_csr_db_decode(int identifier, uint64_t address, uint64_t value)
     while (cvmx_csr_db_addresses[chip][index].name)
     {
         if (cvmx_csr_db_addresses[chip][index].address == address)
+            __cvmx_csr_db_decode_csr(chip, index, value);
+        index++;
+    }
+}
+
+/**
+ * Decode a CSR value into named bitfields. The model can either
+ * be specified as a processor id or PCI id.
+ *
+ * @param identifier Identifer to choose the CSR DB with
+ * @param name       CSR name to decode
+ * @param value      Value to decode
+ */
+void cvmx_csr_db_decode_by_name(int identifier, const char *name, uint64_t value)
+{
+    int chip = cvmx_db_get_chipindex(identifier);
+    int index=0;
+    while (cvmx_csr_db_addresses[chip][index].name)
+    {
+        if (strcasecmp(name, cvmx_csr_db_addresses[chip][index].name) == 0)
         {
-            int field;
-            int csr = cvmx_csr_db_addresses[chip][index].csroff;
-            PRINTF("%s(0x%016llx) = 0x%016llx\n", cvmx_csr_db_addresses[chip][index].name, (unsigned long long)address, (unsigned long long)value);
-            for (field=cvmx_csr_db[chip][csr].fieldoff+cvmx_csr_db[chip][csr].numfields-1; field>=cvmx_csr_db[chip][csr].fieldoff; field--)
-            {
-                uint64_t v = (value >> cvmx_csr_db_fields[chip][field].startbit);
-                if(cvmx_csr_db_fields[chip][field].sizebits < 64)
-                    v = v & ~((~0x0ull) << cvmx_csr_db_fields[chip][field].sizebits);
-		if (cvmx_csr_db_fields[chip][field].sizebits == 1)
-                    PRINTF("  [   %2d] %-20s = %10llu (0x%llx)\n",
-                        cvmx_csr_db_fields[chip][field].startbit, cvmx_csr_db_fields[chip][field].name,
-                        (unsigned long long)v, (unsigned long long)v);
-                else
-                    PRINTF("  [%2d:%2d] %-20s = %10llu (0x%llx)\n",
-                        cvmx_csr_db_fields[chip][field].startbit + cvmx_csr_db_fields[chip][field].sizebits - 1,
-                        cvmx_csr_db_fields[chip][field].startbit,
-                        cvmx_csr_db_fields[chip][field].name,
-                        (unsigned long long)v, (unsigned long long)v);
-            }
+            __cvmx_csr_db_decode_csr(chip, index, value);
+            break;
         }
         index++;
     }

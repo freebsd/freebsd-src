@@ -12,7 +12,6 @@ SRCS=	ArgumentPromotion.cpp \
 	GlobalDCE.cpp \
 	GlobalOpt.cpp \
 	IPConstantPropagation.cpp \
-	IPO.cpp \
 	InlineAlways.cpp \
 	InlineSimple.cpp \
 	Inliner.cpp \
@@ -20,6 +19,7 @@ SRCS=	ArgumentPromotion.cpp \
 	LoopExtractor.cpp \
 	LowerSetJmp.cpp \
 	MergeFunctions.cpp \
+	PartialInlining.cpp \
 	PartialSpecialization.cpp \
 	PruneEH.cpp \
 	StripDeadPrototypes.cpp \

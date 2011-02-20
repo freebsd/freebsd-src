@@ -9,13 +9,19 @@ CFLAGS+=-DLIBC_SCCS -I${.CURDIR}
 CFLAGS+=-DSUN4V
 .endif
 
-WARNS?=	0
+.if exists(${.CURDIR}/kvm_${MACHINE_ARCH}.c)
+KVM_ARCH=${MACHINE_ARCH}
+.else
+KVM_ARCH=${MACHINE_CPUARCH}
+.endif
 
-SRCS=	kvm.c kvm_${MACHINE_CPUARCH}.c kvm_cptime.c kvm_file.c kvm_getloadavg.c \
+WARNS?=	3
+
+SRCS=	kvm.c kvm_${KVM_ARCH}.c kvm_cptime.c kvm_file.c kvm_getloadavg.c \
 	kvm_getswapinfo.c kvm_pcpu.c kvm_proc.c kvm_vnet.c
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
-    ${MACHINE_CPUARCH} == "arm"
-SRCS+=	kvm_minidump_${MACHINE_CPUARCH}.c
+    ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "mips"
+SRCS+=	kvm_minidump_${KVM_ARCH}.c
 .endif
 INCS=	kvm.h
 

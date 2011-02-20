@@ -75,7 +75,7 @@ private:
 
   /// getTypeAction - Return how we should legalize values of this type.
   LegalizeAction getTypeAction(EVT VT) const {
-    switch (ValueTypeActions.getTypeAction(*DAG.getContext(), VT)) {
+    switch (ValueTypeActions.getTypeAction(VT)) {
     default:
       assert(false && "Unknown legalize action!");
     case TargetLowering::Legal:
@@ -86,8 +86,7 @@ private:
       //   2) For vectors, use a wider vector type (e.g. v3i32 -> v4i32).
       if (!VT.isVector())
         return PromoteInteger;
-      else
-        return WidenVector;
+      return WidenVector;
     case TargetLowering::Expand:
       // Expand can mean
       // 1) split scalar in half, 2) convert a float to an integer,
@@ -95,23 +94,21 @@ private:
       if (!VT.isVector()) {
         if (VT.isInteger())
           return ExpandInteger;
-        else if (VT.getSizeInBits() ==
-                 TLI.getTypeToTransformTo(*DAG.getContext(), VT).getSizeInBits())
+        if (VT.getSizeInBits() ==
+                TLI.getTypeToTransformTo(*DAG.getContext(), VT).getSizeInBits())
           return SoftenFloat;
-        else
-          return ExpandFloat;
-      } else if (VT.getVectorNumElements() == 1) {
-        return ScalarizeVector;
-      } else {
-        return SplitVector;
+        return ExpandFloat;
       }
+        
+      if (VT.getVectorNumElements() == 1)
+        return ScalarizeVector;
+      return SplitVector;
     }
   }
 
   /// isTypeLegal - Return true if this type is legal on this target.
   bool isTypeLegal(EVT VT) const {
-    return (ValueTypeActions.getTypeAction(*DAG.getContext(), VT) == 
-            TargetLowering::Legal);
+    return ValueTypeActions.getTypeAction(VT) == TargetLowering::Legal;
   }
 
   /// IgnoreNodeResults - Pretend all of this node's results are legal.
@@ -584,6 +581,7 @@ private:
   SDValue SplitVecOp_EXTRACT_SUBVECTOR(SDNode *N);
   SDValue SplitVecOp_EXTRACT_VECTOR_ELT(SDNode *N);
   SDValue SplitVecOp_STORE(StoreSDNode *N, unsigned OpNo);
+  SDValue SplitVecOp_CONCAT_VECTORS(SDNode *N);
 
   //===--------------------------------------------------------------------===//
   // Vector Widening Support: LegalizeVectorTypes.cpp

@@ -90,7 +90,7 @@ static int		octe_miibus_writereg(device_t, int, int, int);
 
 static void		octe_init(void *);
 static void		octe_stop(void *);
-static void		octe_start(struct ifnet *);
+static int		octe_transmit(struct ifnet *, struct mbuf *);
 
 static int		octe_mii_medchange(struct ifnet *);
 static void		octe_mii_medstat(struct ifnet *, struct ifmediareq *);
@@ -125,16 +125,6 @@ static devclass_t octe_devclass;
 DRIVER_MODULE(octe, octebus, octe_driver, octe_devclass, 0, 0);
 DRIVER_MODULE(miibus, octe, miibus_driver, miibus_devclass, 0, 0);
 
-static driver_t pow_driver = {
-	"pow",
-	octe_methods,
-	sizeof (cvm_oct_private_t),
-};
-
-static devclass_t pow_devclass;
-
-DRIVER_MODULE(pow, octebus, pow_driver, pow_devclass, 0, 0);
-
 static int
 octe_probe(device_t dev)
 {
@@ -146,6 +136,7 @@ octe_attach(device_t dev)
 {
 	struct ifnet *ifp;
 	cvm_oct_private_t *priv;
+	device_t child;
 	unsigned qos;
 	int error;
 
@@ -155,10 +146,16 @@ octe_attach(device_t dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
 	if (priv->phy_id != -1) {
-		error = mii_phy_probe(dev, &priv->miibus, octe_mii_medchange,
-				      octe_mii_medstat);
-		if (error != 0) {
-			device_printf(dev, "missing phy %u\n", priv->phy_id);
+		if (priv->phy_device == NULL) {
+			error = mii_attach(dev, &priv->miibus, ifp,
+			    octe_mii_medchange, octe_mii_medstat,
+			    BMSR_DEFCAPMASK, priv->phy_id, MII_OFFSET_ANY, 0);
+			if (error != 0)
+				device_printf(dev, "attaching PHYs failed\n");
+		} else {
+			child = device_add_child(dev, priv->phy_device, -1);
+			if (child == NULL)
+				device_printf(dev, "missing phy %u device %s\n", priv->phy_id, priv->phy_device);
 		}
 	}
 
@@ -178,7 +175,6 @@ octe_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST | IFF_ALLMULTI;
 	ifp->if_init = octe_init;
 	ifp->if_ioctl = octe_ioctl;
-	ifp->if_start = octe_start;
 
 	priv->if_flags = ifp->if_flags;
 
@@ -191,6 +187,8 @@ octe_attach(device_t dev)
 
 	ether_ifattach(ifp, priv->mac);
 
+	ifp->if_transmit = octe_transmit;
+
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities = IFCAP_VLAN_MTU | IFCAP_HWCSUM;
 	ifp->if_capenable = ifp->if_capabilities;
@@ -202,7 +200,7 @@ octe_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 	OCTE_TX_UNLOCK(priv);
 
-	return (0);
+	return (bus_generic_attach(dev));
 }
 
 static int
@@ -224,9 +222,17 @@ octe_miibus_readreg(device_t dev, int phy, int reg)
 
 	priv = device_get_softc(dev);
 
-	if (phy != priv->phy_id)
-		return (0);
+	/*
+	 * Try interface-specific MII routine.
+	 */
+	if (priv->mdio_read != NULL)
+		return (priv->mdio_read(priv->ifp, phy, reg));
 
+	/*
+	 * Try generic MII routine.
+	 */
+	KASSERT(phy == priv->phy_id,
+	    ("read from phy %u but our phy is %u", phy, priv->phy_id));
 	return (cvm_oct_mdio_read(priv->ifp, phy, reg));
 }
 
@@ -237,9 +243,19 @@ octe_miibus_writereg(device_t dev, int phy, int reg, int val)
 
 	priv = device_get_softc(dev);
 
+	/*
+	 * Try interface-specific MII routine.
+	 */
+	if (priv->mdio_write != NULL) {
+		priv->mdio_write(priv->ifp, phy, reg, val);
+		return (0);
+	}
+
+	/*
+	 * Try generic MII routine.
+	 */
 	KASSERT(phy == priv->phy_id,
 	    ("write to phy %u but our phy is %u", phy, priv->phy_id));
-
 	cvm_oct_mdio_write(priv->ifp, phy, reg, val);
 
 	return (0);
@@ -265,8 +281,8 @@ octe_init(void *arg)
 
 	cvm_oct_common_set_mac_address(ifp, IF_LLADDR(ifp));
 
-	if (priv->poll != NULL)
-		priv->poll(ifp);
+	cvm_oct_common_poll(ifp);
+
 	if (priv->miibus != NULL)
 		mii_mediachg(device_get_softc(priv->miibus));
 
@@ -292,56 +308,20 @@ octe_stop(void *arg)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 }
 
-static void
-octe_start(struct ifnet *ifp)
+static int
+octe_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	cvm_oct_private_t *priv;
-	struct mbuf *m;
-	int error;
 
 	priv = ifp->if_softc;
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != IFF_DRV_RUNNING)
-		return;
-
-	OCTE_TX_LOCK(priv);
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-
-		OCTE_TX_UNLOCK(priv);
-
-		/*
-		 * XXX
-		 *
-		 * We may not be able to pass the mbuf up to BPF for one of
-		 * two very good reasons:
-		 * (1) immediately after our inserting it another CPU may be
-		 *     kind enough to free it for us.
-		 * (2) m_collapse gets called on m and we don't get back the
-		 *     modified pointer.
-		 *
-		 * We have some options other than an m_dup route:
-		 * (1) use a mutex or spinlock to prevent another CPU from
-		 *     freeing it.  We could lock the tx_free_list's lock,
-		 *     that would make sense.
-		 * (2) get back the new mbuf pointer.
-		 * (3) do the collapse here.
-		 */
-
-		if (priv->queue != -1) {
-			error = cvm_oct_xmit(m, ifp);
-		} else {
-			error = cvm_oct_xmit_pow(m, ifp);
-		}
-
-		if (error != 0) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			return;
-		}
-
-		OCTE_TX_LOCK(priv);
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING) {
+		m_freem(m);
+		return (0);
 	}
-	OCTE_TX_UNLOCK(priv);
+
+	return (cvm_oct_xmit(m, ifp));
 }
 
 static int

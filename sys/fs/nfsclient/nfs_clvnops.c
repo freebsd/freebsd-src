@@ -84,7 +84,6 @@ __FBSDID("$FreeBSD$");
 
 extern struct nfsstats newnfsstats;
 MALLOC_DECLARE(M_NEWNFSREQ);
-vop_advlock_t	*ncl_advlock_p = nfs_dolock;
 
 /*
  * Ifdef for FreeBSD-current merged buffer cache. It is unfortunate that these
@@ -495,24 +494,46 @@ nfs_open(struct vop_open_args *ap)
 	 * Now, if this Open will be doing reading, re-validate/flush the
 	 * cache, so that Close/Open coherency is maintained.
 	 */
-	if ((fmode & FREAD) != 0 &&
-	    (!NFS_ISV4(vp) || nfscl_mustflush(vp) != 0)) {
+	mtx_lock(&np->n_mtx);
+	if (np->n_flag & NMODIFIED) {
+		mtx_unlock(&np->n_mtx);
+		error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
+		if (error == EINTR || error == EIO) {
+			if (NFS_ISV4(vp))
+				(void) nfsrpc_close(vp, 0, ap->a_td);
+			return (error);
+		}
 		mtx_lock(&np->n_mtx);
-		if (np->n_flag & NMODIFIED) {
-			mtx_unlock(&np->n_mtx);			
-			error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
-			if (error == EINTR || error == EIO) {
-				if (NFS_ISV4(vp))
-					(void) nfsrpc_close(vp, 0, ap->a_td);
-				return (error);
-			}
-			mtx_lock(&np->n_mtx);
-			np->n_attrstamp = 0;
+		np->n_attrstamp = 0;
+		if (vp->v_type == VDIR)
+			np->n_direofoffset = 0;
+		mtx_unlock(&np->n_mtx);
+		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
+		if (error) {
+			if (NFS_ISV4(vp))
+				(void) nfsrpc_close(vp, 0, ap->a_td);
+			return (error);
+		}
+		mtx_lock(&np->n_mtx);
+		np->n_mtime = vattr.va_mtime;
+		if (NFS_ISV4(vp))
+			np->n_change = vattr.va_filerev;
+	} else {
+		mtx_unlock(&np->n_mtx);
+		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
+		if (error) {
+			if (NFS_ISV4(vp))
+				(void) nfsrpc_close(vp, 0, ap->a_td);
+			return (error);
+		}
+		mtx_lock(&np->n_mtx);
+		if ((NFS_ISV4(vp) && np->n_change != vattr.va_filerev) ||
+		    NFS_TIMESPEC_COMPARE(&np->n_mtime, &vattr.va_mtime)) {
 			if (vp->v_type == VDIR)
 				np->n_direofoffset = 0;
 			mtx_unlock(&np->n_mtx);
-			error = VOP_GETATTR(vp, &vattr, ap->a_cred);
-			if (error) {
+			error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
+			if (error == EINTR || error == EIO) {
 				if (NFS_ISV4(vp))
 					(void) nfsrpc_close(vp, 0, ap->a_td);
 				return (error);
@@ -521,42 +542,16 @@ nfs_open(struct vop_open_args *ap)
 			np->n_mtime = vattr.va_mtime;
 			if (NFS_ISV4(vp))
 				np->n_change = vattr.va_filerev;
-			mtx_unlock(&np->n_mtx);
-		} else {
-			mtx_unlock(&np->n_mtx);						
-			error = VOP_GETATTR(vp, &vattr, ap->a_cred);
-			if (error) {
-				if (NFS_ISV4(vp))
-					(void) nfsrpc_close(vp, 0, ap->a_td);
-				return (error);
-			}
-			mtx_lock(&np->n_mtx);
-			if ((NFS_ISV4(vp) && np->n_change != vattr.va_filerev) ||
-			    NFS_TIMESPEC_COMPARE(&np->n_mtime, &vattr.va_mtime)) {
-				if (vp->v_type == VDIR)
-					np->n_direofoffset = 0;
-				mtx_unlock(&np->n_mtx);
-				error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
-				if (error == EINTR || error == EIO) {
-					if (NFS_ISV4(vp))
-						(void) nfsrpc_close(vp, 0,
-						    ap->a_td);
-					return (error);
-				}
-				mtx_lock(&np->n_mtx);
-				np->n_mtime = vattr.va_mtime;
-				if (NFS_ISV4(vp))
-					np->n_change = vattr.va_filerev;
-			}
-			mtx_unlock(&np->n_mtx);
 		}
 	}
 
 	/*
 	 * If the object has >= 1 O_DIRECT active opens, we disable caching.
 	 */
-	if (newnfs_directio_enable && (fmode & O_DIRECT) && (vp->v_type == VREG)) {
+	if (newnfs_directio_enable && (fmode & O_DIRECT) &&
+	    (vp->v_type == VREG)) {
 		if (np->n_directio_opens == 0) {
+			mtx_unlock(&np->n_mtx);
 			error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 			if (error) {
 				if (NFS_ISV4(vp))
@@ -565,12 +560,10 @@ nfs_open(struct vop_open_args *ap)
 			}
 			mtx_lock(&np->n_mtx);
 			np->n_flag |= NNONCACHE;
-		} else {
-			mtx_lock(&np->n_mtx);
 		}
 		np->n_directio_opens++;
-		mtx_unlock(&np->n_mtx);
 	}
+	mtx_unlock(&np->n_mtx);
 	vnode_create_vobject(vp, vattr.va_size, ap->a_td);
 	return (0);
 }
@@ -988,7 +981,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct nfsfh *nfhp;
 	struct nfsvattr dnfsva, nfsva;
 	struct vattr vattr;
-	time_t dmtime;
+	struct timespec dmtime;
 	
 	*vpp = NULLVP;
 	if ((flags & ISLASTCN) && (mp->mnt_flag & MNT_RDONLY) &&
@@ -1038,7 +1031,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 		}
 		if (nfscl_nodeleg(newvp, 0) == 0 ||
 		    (VOP_GETATTR(newvp, &vattr, cnp->cn_cred) == 0 &&
-		    vattr.va_ctime.tv_sec == newnp->n_ctime)) {
+		    timespeccmp(&vattr.va_ctime, &newnp->n_ctime, ==))) {
 			NFSINCRGLOBAL(newnfsstats.lookupcache_hits);
 			if (cnp->cn_nameiop != LOOKUP &&
 			    (flags & ISLASTCN))
@@ -1065,13 +1058,13 @@ nfs_lookup(struct vop_lookup_args *ap)
 		if ((u_int)(ticks - np->n_dmtime_ticks) <
 		    (nmp->nm_negnametimeo * hz) &&
 		    VOP_GETATTR(dvp, &vattr, cnp->cn_cred) == 0 &&
-		    vattr.va_mtime.tv_sec == np->n_dmtime) {
+		    timespeccmp(&vattr.va_mtime, &np->n_dmtime, ==)) {
 			NFSINCRGLOBAL(newnfsstats.lookupcache_hits);
 			return (ENOENT);
 		}
 		cache_purge_negative(dvp);
 		mtx_lock(&np->n_mtx);
-		np->n_dmtime = 0;
+		timespecclear(&np->n_dmtime);
 		mtx_unlock(&np->n_mtx);
 	}
 
@@ -1086,7 +1079,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	 * the lookup RPC has been performed on the server but before
 	 * n_dmtime is set at the end of this function.
 	 */
-	dmtime = np->n_vattr.na_mtime.tv_sec;
+	dmtime = np->n_vattr.na_mtime;
 	error = 0;
 	newvp = NULLVP;
 	NFSINCRGLOBAL(newnfsstats.lookupcache_misses);
@@ -1139,8 +1132,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 			 * lookup.
 			 */
 			mtx_lock(&np->n_mtx);
-			if (np->n_dmtime <= dmtime) {
-				if (np->n_dmtime == 0) {
+			if (timespeccmp(&np->n_dmtime, &dmtime, <=)) {
+				if (!timespecisset(&np->n_dmtime)) {
 					np->n_dmtime = dmtime;
 					np->n_dmtime_ticks = ticks;
 				}
@@ -1241,7 +1234,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 		cnp->cn_flags |= SAVENAME;
 	if ((cnp->cn_flags & MAKEENTRY) &&
 	    (cnp->cn_nameiop != DELETE || !(flags & ISLASTCN))) {
-		np->n_ctime = np->n_vattr.na_vattr.va_ctime.tv_sec;
+		np->n_ctime = np->n_vattr.na_vattr.va_ctime;
 		cache_enter(dvp, newvp, cnp);
 	}
 	*vpp = newvp;
@@ -2937,10 +2930,12 @@ nfs_advlock(struct vop_advlock_args *ap)
 			VOP_UNLOCK(vp, 0);
 			error = lf_advlock(ap, &(vp->v_lockf), size);
 		} else {
-			if (ncl_advlock_p)
-				error = ncl_advlock_p(ap);
-			else
+			if (nfs_advlock_p != NULL)
+				error = nfs_advlock_p(ap);
+			else {
+				VOP_UNLOCK(vp, 0);
 				error = ENOLCK;
+			}
 		}
 	}
 	return (error);

@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -46,13 +48,29 @@
  *
  * Support library for the SPI
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 49448 $<hr>
  */
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include <linux/module.h>
+#include <asm/octeon/cvmx.h>
+#include <asm/octeon/cvmx-config.h>
+#include <asm/octeon/cvmx-spxx-defs.h>
+#include <asm/octeon/cvmx-stxx-defs.h>
+#include <asm/octeon/cvmx-srxx-defs.h>
+#include <asm/octeon/cvmx-pko.h>
+#include <asm/octeon/cvmx-spi.h>
+#include <asm/octeon/cvmx-clock.h>
+#else
 #include "cvmx.h"
-#include "cvmx-mio.h"
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+#include "cvmx-config.h"
+#endif
+#include "cvmx-sysinfo.h"
 #include "cvmx-pko.h"
 #include "cvmx-spi.h"
-#include "cvmx-sysinfo.h"
+#include "cvmx-clock.h"
+#endif
+
 
 #define INVOKE_CB(function_p, args...) \
         do { \
@@ -164,7 +182,9 @@ int cvmx_spi_restart_interface(int interface, cvmx_spi_mode_t mode, int timeout)
     if (!(OCTEON_IS_MODEL(OCTEON_CN38XX) || OCTEON_IS_MODEL(OCTEON_CN58XX)))
         return res;
 
+#if CVMX_ENABLE_DEBUG_PRINTS
     cvmx_dprintf ("SPI%d: Restart %s\n", interface, modes[mode]);
+#endif
 
     // Callback to perform SPI4 reset
     INVOKE_CB(cvmx_spi_callbacks.reset_cb, interface,mode);
@@ -186,6 +206,9 @@ int cvmx_spi_restart_interface(int interface, cvmx_spi_mode_t mode, int timeout)
 
     return res;
 }
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_spi_restart_interface);
+#endif
 
 /**
  * Callback to perform SPI4 reset
@@ -207,7 +230,7 @@ int cvmx_spi_reset_cb(int interface, cvmx_spi_mode_t mode)
     cvmx_stxx_int_msk_t stxx_int_msk;
     cvmx_spxx_trn4_ctl_t spxx_trn4_ctl;
     int index;
-    uint64_t MS = cvmx_sysinfo_get()->cpu_clock_hz / 1000;
+    uint64_t MS = cvmx_clock_get_rate(CVMX_CLOCK_CORE) / 1000;
 
     /* Disable SPI error events while we run BIST */
     spxx_int_msk.u64 = cvmx_read_csr(CVMX_SPXX_INT_MSK(interface));
@@ -257,7 +280,7 @@ int cvmx_spi_reset_cb(int interface, cvmx_spi_mode_t mode)
     spxx_clk_ctl.s.clkdly = 0x10;
     spxx_clk_ctl.s.runbist = 0;
     spxx_clk_ctl.s.statdrv = 0;
-    spxx_clk_ctl.s.statrcv = 1; /* This should always be on the opposite edge as statdrv */ 
+    spxx_clk_ctl.s.statrcv = 1; /* This should always be on the opposite edge as statdrv */
     spxx_clk_ctl.s.sndtrn = 0;
     spxx_clk_ctl.s.drptrn = 0;
     spxx_clk_ctl.s.rcvtrn = 0;
@@ -417,7 +440,7 @@ int cvmx_spi_clock_detect_cb(int interface, cvmx_spi_mode_t mode, int timeout)
     int                          clock_transitions;
     cvmx_spxx_clk_stat_t         stat;
     uint64_t                     timeout_time;
-    uint64_t                     MS = cvmx_sysinfo_get()->cpu_clock_hz / 1000;
+    uint64_t                     MS = cvmx_clock_get_rate(CVMX_CLOCK_CORE) / 1000;
 
     /* Regardless of operating mode, both Tx and Rx clocks must be present
         for the SPI interface to operate. */
@@ -488,7 +511,7 @@ int cvmx_spi_training_cb(int interface, cvmx_spi_mode_t mode, int timeout)
 {
     cvmx_spxx_trn4_ctl_t         spxx_trn4_ctl;
     cvmx_spxx_clk_stat_t         stat;
-    uint64_t                     MS = cvmx_sysinfo_get()->cpu_clock_hz / 1000;
+    uint64_t                     MS = cvmx_clock_get_rate(CVMX_CLOCK_CORE) / 1000;
     uint64_t                     timeout_time = cvmx_get_cycle() + 1000ull * MS * timeout;
     int                          rx_training_needed;
 
@@ -499,7 +522,7 @@ int cvmx_spi_training_cb(int interface, cvmx_spi_mode_t mode, int timeout)
     spxx_clk_ctl.s.clkdly = 0x10;
     spxx_clk_ctl.s.runbist = 0;
     spxx_clk_ctl.s.statdrv = 0;
-    spxx_clk_ctl.s.statrcv = 1; /* This should always be on the opposite edge as statdrv */ 
+    spxx_clk_ctl.s.statrcv = 1; /* This should always be on the opposite edge as statdrv */
     spxx_clk_ctl.s.sndtrn = 1;
     spxx_clk_ctl.s.drptrn = 1;
     spxx_clk_ctl.s.rcvtrn = 1;
@@ -515,7 +538,11 @@ int cvmx_spi_training_cb(int interface, cvmx_spi_mode_t mode, int timeout)
     // Wait for the training sequence to complete
     cvmx_dprintf ("SPI%d: Waiting for training\n", interface);
     cvmx_wait (1000 * MS);
+#if !defined(OCTEON_VENDOR_LANNER)
     timeout_time = cvmx_get_cycle() + 1000ull * MS * 600;  /* Wait a really long time here */
+#else
+    timeout_time = cvmx_get_cycle() + 1000ull * MS * 10;
+#endif
     /* The HRM says we must wait for 34 + 16 * MAXDIST training sequences.
         We'll be pessimistic and wait for a lot more */
     rx_training_needed = 500;
@@ -551,7 +578,7 @@ int cvmx_spi_training_cb(int interface, cvmx_spi_mode_t mode, int timeout)
  */
 int cvmx_spi_calendar_sync_cb(int interface, cvmx_spi_mode_t mode, int timeout)
 {
-    uint64_t MS = cvmx_sysinfo_get()->cpu_clock_hz / 1000;
+    uint64_t MS = cvmx_clock_get_rate(CVMX_CLOCK_CORE) / 1000;
     if (mode & CVMX_SPI_MODE_RX_HALFPLEX) {
         // SRX0 interface should be good, send calendar data
         cvmx_srxx_com_ctl_t srxx_com_ctl;

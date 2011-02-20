@@ -821,7 +821,7 @@ ng_iface_disconnect(hook_p hook)
 	const iffam_p iffam = get_iffam_from_hook(priv, hook);
 
 	if (iffam == NULL)
-		panic(__func__);
+		panic("%s", __func__);
 	*get_hook_from_iffam(priv, iffam) = NULL;
 	return (0);
 }

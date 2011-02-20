@@ -345,6 +345,7 @@ SCSI_NCR_MYADDR		opt_ncr.h
 ISP_TARGET_MODE		opt_isp.h
 ISP_FW_CRASH_DUMP	opt_isp.h
 ISP_DEFAULT_ROLES	opt_isp.h
+ISP_INTERNAL_TARGET	opt_isp.h
 
 # Options used only in dev/iscsi
 ISCSI_INITIATOR_DEBUG	opt_iscsi_initiator.h
@@ -438,6 +439,7 @@ SCTP_PACKET_LOGGING	opt_sctp.h # Log to a packet buffer last N packets
 SCTP_LTRACE_CHUNKS	opt_sctp.h # Log to KTR chunks processed
 SCTP_LTRACE_ERRORS	opt_sctp.h # Log to KTR error returns.
 SCTP_USE_PERCPU_STAT    opt_sctp.h # Use per cpu stats.
+SCTP_MCORE_INPUT        opt_sctp.h # Have multiple input threads for input mbufs
 #
 #
 #
@@ -641,6 +643,7 @@ BUS_DEBUG		opt_bus.h
 
 # options for USB support
 USB_DEBUG		opt_usb.h
+USB_HOST_ALIGN		opt_usb.h
 USB_REQ_DEBUG		opt_usb.h
 USB_VERBOSE		opt_usb.h
 USB_EHCI_BIG_ENDIAN_DESC	opt_usb.h
@@ -696,6 +699,7 @@ ED_SIC			opt_ed.h
 
 # bce driver
 BCE_DEBUG		opt_bce.h
+BCE_NVRAM_WRITE_SUPPORT	opt_bce.h
 
 SOCKBUF_DEBUG		opt_global.h
 

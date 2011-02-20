@@ -814,13 +814,13 @@ again:
 
 #ifdef DIAGNOSTIC
 		if ((hbh->ip6h_len + 1) << 3 > exthdrs.ip6e_hbh->m_len)
-			panic("ip6e_hbh is not continuous");
+			panic("ip6e_hbh is not contiguous");
 #endif
 		/*
 		 *  XXX: if we have to send an ICMPv6 error to the sender,
 		 *       we need the M_LOOP flag since icmp6_error() expects
 		 *       the IPv6 and the hop-by-hop options header are
-		 *       continuous unless the flag is set.
+		 *       contiguous unless the flag is set.
 		 */
 		m->m_flags |= M_LOOP;
 		m->m_pkthdr.rcvif = ifp;
@@ -1823,6 +1823,7 @@ do { \
 			case IPV6_PORTRANGE:
 			case IPV6_RECVTCLASS:
 			case IPV6_AUTOFLOWLABEL:
+			case IPV6_BINDANY:
 				switch (optname) {
 
 				case IPV6_RECVHOPOPTS:

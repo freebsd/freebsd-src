@@ -28,6 +28,8 @@
 #ifndef ARM_AT91_IF_ATEREG_H
 #define ARM_AT91_IF_ATEREG_H
 
+/* deines begining ETHB_ are EMACB (newer SAM9 hardware) versions only */
+
 #define ETH_CTL		0x00		/* EMAC Control Register */
 #define ETH_CFG		0x04		/* EMAC Configuration Register */
 #define ETH_SR		0x08		/* EMAC STatus Register */
@@ -35,7 +37,7 @@
 #define ETH_TCR		0x10		/* EMAC Transmit Control Register */
 #define ETH_TSR		0x14		/* EMAC Transmit Status Register */
 #define ETH_RBQP	0x18		/* EMAC Receive Buffer Queue Pointer */
-		/*	0x1c		   reserved */
+#define ETHB_TBQP	0x1c		/*  reserved */
 #define ETH_RSR		0x20		/* EMAC Receive Status Register */
 #define ETH_ISR		0x24		/* EMAC Interrupt Status Register */
 #define ETH_IER		0x28		/* EMAC Interrupt Enable Register */
@@ -74,6 +76,8 @@
 #define ETH_SA3H	0xac		/* EMAC Specific Address 3 High */
 #define ETH_SA4L	0xb0		/* EMAC Specific Address 4 Low */
 #define ETH_SA4H	0xb4		/* EMAC Specific Address 4 High */
+#define ETHB_TID	0xb8		/* EMAC Type ID Checking */
+#define ETHB_UIO	0xC0		/* EMAC User I/O Reg */
 
 
 /* ETH_CTL */
@@ -86,6 +90,9 @@
 #define ETH_CTL_ISR	(1U << 6)	/* ISR: Incremenet Statistics Regs */
 #define ETH_CTL_WES	(1U << 7)	/* WES: Write Enable Statistics regs */
 #define ETH_CTL_BP	(1U << 8)	/* BP: Back Pressure */
+
+#define ETHB_CTL_TGO	(1U << 9)	/* TGO: Transmitter Start */
+#define ETHB_CTL_TSTP	(1U << 10)	/* TSTP: Transmitter Stop */
 
 /* ETH_CFG */
 #define ETH_CFG_SPD	(1U << 0)	/* SPD: Speed 1 == 100: 0 == 10 */
@@ -104,6 +111,17 @@
 #define ETH_CFG_CLK_64	(3U << 10)	/* CLK: Clock / 64 */
 #define ETH_CFG_RTY	(1U << 12)	/* RTY: Retry Test*/
 #define ETH_CFG_RMII	(1U << 13)	/* RMII: Reduce MII */
+
+#define ETHB_CFG_JBO	(1U << 3)	/* JBO: Jumbo Frames */
+#define ETHB_CFG_PAE	(1U << 13)	/* PAE: Pause Enable */
+#define ETHB_CFG_RBOF_0	(0U << 14)	/* RBOF: Rx Buffer Offset */
+#define ETHB_CFG_RBOF_1	(1U << 14)	/* RBOF: Rx Buffer Offset */
+#define ETHB_CFG_RBOF_2	(3U << 14)	/* RBOF: Rx Buffer Offset */
+#define ETHB_CFG_RBOF_3	(3U << 14)	/* RBOF: Rx Buffer Offset */
+#define ETHB_CFG_RCLE	(1U << 16)	/* RCLE: Rx Length Check Enable */
+#define ETHB_CFG_DRFC	(1U << 17)	/* DRFC: Discard Rx FCS */
+#define ETHB_CFG_RHD	(1U << 18)	/* RHD: RX TX'ed frame in half-duplex */
+#define ETHB_CFG_IFCS	(1U << 19)	/* IFCS: Ignore bad RX FCS */
 
 /* ETH_SR */
 #define ETH_SR_LINK	(1U << 0)	/* Reserved! */
@@ -142,6 +160,10 @@
 #define ETH_ISR_ROVR	(1U << 10)	/* ROVR: RX Overrun */
 #define ETH_ISR_ABT	(1U << 11)	/* ABT: Abort */
 
+/* ETHB_UIO */
+#define ETHB_UIO_RMII	(1U << 0)	/* RMII: Reduce MII */
+#define ETHB_UIO_CLKE	(1U << 1)	/* CLKE: Clock Enable */
+
 /* ETH_MAN */
 #define ETH_MAN_BITS	0x40020000	/* HIGH and CODE bits */
 #define ETH_MAN_READ	(2U << 28)
@@ -160,8 +182,11 @@ typedef struct {
 	uint32_t	addr;
 #define ETH_CPU_OWNER	(1U << 0)
 #define ETH_WRAP_BIT	(1U << 1)
+#define ETH_ADR_MASK	~(EHT_CPU_OWNER | ETH_WRAP_BIT)
 	uint32_t	status;
 #define ETH_LEN_MASK	0x7ff
+#define ETH_BUF_FIRST	(1U << 14)	/* Packet matched addr 4 */
+#define ETH_BUF_LAST	(1U << 15)	/* Packet matched addr 4 */
 #define ETH_MAC_LOCAL_4	(1U << 23)	/* Packet matched addr 4 */
 #define ETH_MAC_LOCAL_3	(1U << 24)	/* Packet matched addr 3 */
 #define ETH_MAC_LOCAL_2	(1U << 25)	/* Packet matched addr 2 */
@@ -172,5 +197,18 @@ typedef struct {
 #define ETH_MAC_MCAST	(1U << 30)	/* Multicast hash match */
 #define ETH_MAC_ONES	(1U << 31)	/* Global all ones bcast addr */
 } eth_rx_desc_t;
+
+typedef struct {
+	uint32_t	addr;
+	uint32_t	status;
+#define ETHB_TX_LEN_MASK 0x7ff
+#define ETHB_TX_BUF_LAST (1U << 15)	/* Last buffer in packet */
+#define ETHB_TX_NOCRC	 (1U << 16)	/* Don't xmit CRC*/
+#define ETHB_TX_BUFE	 (1U << 27)	/* Buffers exhausted mid frame */
+#define ETHB_TX_TUND	 (1U << 28)	/* Transmit Underrun  */
+#define ETHB_TX_RTRYE	 (1U << 29)	/* Re-try limit exceeded */
+#define ETHB_TX_WRAP	 (1U << 30)	/* Last descritor in list */
+#define ETHB_TX_USED	 (1U << 31)	/* Packet Transmitted */
+} eth_tx_desc_t;
 
 #endif /* ARM_AT91_IF_ATEREG_H */

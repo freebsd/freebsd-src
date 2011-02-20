@@ -25,13 +25,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2009
+.Dd January 25, 2011
 .Dt SBUF 9
 .Os
 .Sh NAME
 .Nm sbuf ,
 .Nm sbuf_new ,
 .Nm sbuf_new_auto ,
+.Nm sbuf_new_for_sysctl ,
 .Nm sbuf_clear ,
 .Nm sbuf_setpos ,
 .Nm sbuf_bcat ,
@@ -43,8 +44,9 @@
 .Nm sbuf_printf ,
 .Nm sbuf_vprintf ,
 .Nm sbuf_putc ,
+.Nm sbuf_set_drain ,
 .Nm sbuf_trim ,
-.Nm sbuf_overflowed ,
+.Nm sbuf_error ,
 .Nm sbuf_finish ,
 .Nm sbuf_data ,
 .Nm sbuf_len ,
@@ -54,6 +56,8 @@
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/sbuf.h
+.Ft typedef\ int ( sbuf_drain_func ) ( void\ *arg, const\ char\ *data, int\ len ) ;
+.Pp
 .Ft struct sbuf *
 .Fn sbuf_new "struct sbuf *s" "char *buf" "int length" "int flags"
 .Ft struct sbuf *
@@ -80,11 +84,13 @@
 .Fn sbuf_vprintf "struct sbuf *s" "const char *fmt" "va_list ap"
 .Ft int
 .Fn sbuf_putc "struct sbuf *s" "int c"
+.Ft void
+.Fn sbuf_set_drain "struct sbuf *s" "sbuf_drain_func *func" "void *arg"
 .Ft int
 .Fn sbuf_trim "struct sbuf *s"
 .Ft int
-.Fn sbuf_overflowed "struct sbuf *s"
-.Ft void
+.Fn sbuf_error "struct sbuf *s"
+.Ft int
 .Fn sbuf_finish "struct sbuf *s"
 .Ft char *
 .Fn sbuf_data "struct sbuf *s"
@@ -94,11 +100,14 @@
 .Fn sbuf_done "struct sbuf *s"
 .Ft void
 .Fn sbuf_delete "struct sbuf *s"
+.In sys/sysctl.h
+.Ft struct sbuf *
+.Fn sbuf_new_for_sysctl "struct sbuf *s" "char *buf" "int length" "struct sysctl_req *req"
 .Sh DESCRIPTION
 The
 .Nm
 family of functions allows one to safely allocate, construct and
-release bounded null-terminated strings in kernel space.
+release bounded NUL-terminated strings in kernel space.
 Instead of arrays of characters, these functions operate on structures
 called
 .Fa sbufs ,
@@ -164,6 +173,15 @@ and
 .Dv SBUF_AUTOEXTEND .
 .Pp
 The
+.Fn sbuf_new_for_sysctl
+function will set up an sbuf with a drain function to use
+.Fn SYSCTL_OUT
+when the internal buffer fills.
+Note that if the various functions which append to an sbuf are used while
+a non-sleepable lock is held, the user buffer should be wired using
+.Fn sysctl_wire_old_buffer .
+.Pp
+The
 .Fn sbuf_delete
 function clears the
 .Fa sbuf
@@ -224,6 +242,51 @@ to the
 at the current position.
 .Pp
 The
+.Fn sbuf_set_drain
+function sets a drain function
+.Fa func
+for the
+.Fa sbuf ,
+and records a pointer
+.Fa arg
+to be passed to the drain on callback.
+The drain function cannot be changed while
+.Fa sbuf_len
+is non-zero.
+.Pp
+The registered drain function
+.Vt sbuf_drain_func
+will be called with the argument
+.Fa arg
+provided to
+.Fn sbuf_set_drain ,
+a pointer
+.Fa data
+to a byte string that is the contents of the sbuf, and the length
+.Fa len
+of the data.
+If the drain function exists, it will be called when the sbuf internal
+buffer is full, or on behalf of
+.Fn sbuf_finish .
+The drain function may drain some or all of the data, but must drain
+at least 1 byte.
+The return value from the drain function, if positive, indicates how
+many bytes were drained.
+If negative, the return value indicates the negative error code which
+will be returned from this or a later call to
+.Fn sbuf_finish .
+The returned drained length cannot be zero.
+To do unbuffered draining, initialize the sbuf with a two-byte buffer.
+The drain will be called for every byte added to the sbuf.
+The
+.Fn sbuf_bcopyin ,
+.Fn sbuf_copyin ,
+.Fn sbuf_trim ,
+and
+.Fn sbuf_data
+functions cannot be used on an sbuf with a drain.
+.Pp
+The
 .Fn sbuf_copyin
 function copies a NUL-terminated string from the specified userland
 address into the
@@ -282,34 +345,60 @@ function removes trailing whitespace from the
 .Fa sbuf .
 .Pp
 The
-.Fn sbuf_overflowed
-function returns a non-zero value if the
+.Fn sbuf_error
+function returns any error value that the
+.Fa sbuf
+may have accumulated, either from the drain function, or ENOMEM if the
 .Fa sbuf
 overflowed.
+This function is generally not needed and instead the error code from
+.Fn sbuf_finish
+is the preferred way to discover whether an sbuf had an error.
 .Pp
 The
 .Fn sbuf_finish
-function null-terminates the
+function will call the attached drain function if one exists until all
+the data in the
 .Fa sbuf
-and marks it as finished, which means that it may no longer be
-modified using
+is flushed.
+If there is no attached drain,
+.Fn sbuf_finish
+NUL-terminates the
+.Fa sbuf .
+In either case it marks the
+.Fa sbuf
+as finished, which means that it may no longer be modified using
 .Fn sbuf_setpos ,
 .Fn sbuf_cat ,
 .Fn sbuf_cpy ,
 .Fn sbuf_printf
 or
-.Fn sbuf_putc .
+.Fn sbuf_putc ,
+until
+.Fn sbuf_clear
+is used to reset the sbuf.
 .Pp
 The
 .Fn sbuf_data
-and
-.Fn sbuf_len
-functions return the actual string and its length, respectively;
+function returns the actual string;
 .Fn sbuf_data
 only works on a finished
 .Fa sbuf .
+The
+.Fn sbuf_len function returns the length of the string.
+For an
+.Fa sbuf
+with an attached drain,
+.Fn sbuf_len
+returns the length of the un-drained data.
 .Fn sbuf_done
-returns non-zero if the sbuf is finished.
+returns non-zero if the
+.Fa sbuf
+is finished.
+.Fn sbuf_done
+returns non-zero if the
+.Fa sbuf
+is finished.
 .Sh NOTES
 If an operation caused an
 .Fa sbuf
@@ -324,6 +413,22 @@ size of its storage buffer using
 .Fn sbuf_setpos ,
 or it is reinitialized to a sufficiently short string using
 .Fn sbuf_cpy .
+.Pp
+Drains in user-space will not always function as indicated.
+While the drain function will be called immediately on overflow from
+the
+.Fa sbuf_putc ,
+.Fa sbuf_bcat ,
+.Fa sbuf_cat
+functions,
+.Fa sbuf_printf
+and
+.Fa sbuf_vprintf
+currently have no way to determine whether there will be an overflow
+until after it occurs, and cannot do a partial expansion of the format
+string.
+Thus when using libsbuf the buffer may be extended to allow completion
+of a single printf call, even though a drain is attached.
 .Sh RETURN VALUES
 The
 .Fn sbuf_new
@@ -350,9 +455,9 @@ functions
 all return \-1 if the buffer overflowed, and zero otherwise.
 .Pp
 The
-.Fn sbuf_overflowed
-function
-returns a non-zero value if the buffer overflowed, and zero otherwise.
+.Fn sbuf_error
+function returns a non-zero value if the buffer has an overflow or
+drain error, and zero otherwise.
 .Pp
 The
 .Fn sbuf_data
@@ -367,6 +472,14 @@ The
 function
 returns \-1 if copying string from userland failed, and number of bytes
 copied otherwise.
+The
+.Fn sbuf_finish
+function returns ENOMEM if the sbuf overflowed before being finished,
+or returns the error code from the drain if one is attached.
+When used as
+.Xr sbuf_finish 3 ,
+.Fn sbuf_finish
+will return \-1 and set errno on error instead.
 .Sh SEE ALSO
 .Xr printf 3 ,
 .Xr strcat 3 ,
@@ -391,6 +504,8 @@ Additional improvements were suggested by
 .An Justin T. Gibbs Aq gibbs@FreeBSD.org .
 Auto-extend support added by
 .An Kelly Yancey Aq kbyanc@FreeBSD.org .
+Drain functionality added by
+.An Matthew Fleming Aq mdf@FreeBSD.org .
 .Pp
 This manual page was written by
 .An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .

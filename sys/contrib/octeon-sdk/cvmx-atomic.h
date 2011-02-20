@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -46,7 +48,7 @@
  *
  * This file provides atomic operations
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 49448 $<hr>
  *
  *
  */
@@ -353,18 +355,48 @@ static inline int64_t cvmx_atomic_fetch_and_add64_nosync(int64_t *ptr, int64_t i
 {
     uint64_t tmp, ret;
 
-    __asm__ __volatile__(
-    ".set noreorder          \n"
-    "1: lld   %[tmp], %[val] \n"
-    "   move  %[ret], %[tmp] \n"
-    "   daddu %[tmp], %[inc] \n"
-    "   scd   %[tmp], %[val] \n"
-    "   beqz  %[tmp], 1b     \n"
-    "   nop                  \n"
-    ".set reorder            \n"
-    : [val] "+m" (*ptr), [tmp] "=&r" (tmp), [ret] "=&r" (ret)
-    : [inc] "r" (incr)
-    : "memory");
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+    if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+    {
+	CVMX_PUSH_OCTEON2;
+	if (__builtin_constant_p(incr) && incr == 1)
+	{
+	    __asm__ __volatile__(
+		"laid  %0,(%2)"
+		: "=r" (ret), "+m" (ptr) : "r" (ptr) : "memory");
+	}
+	else if (__builtin_constant_p(incr) && incr == -1)
+        {
+	    __asm__ __volatile__(
+		"ladd  %0,(%2)"
+		: "=r" (ret), "+m" (ptr) : "r" (ptr) : "memory");
+        }
+        else
+        {
+	    __asm__ __volatile__(
+		"laad  %0,(%2),%3"
+		: "=r" (ret), "+m" (ptr) : "r" (ptr), "r" (incr) : "memory");
+        }
+	CVMX_POP_OCTEON2;
+    }
+    else
+    {
+#endif
+        __asm__ __volatile__(
+            ".set noreorder          \n"
+            "1: lld   %[tmp], %[val] \n"
+            "   move  %[ret], %[tmp] \n"
+            "   daddu %[tmp], %[inc] \n"
+            "   scd   %[tmp], %[val] \n"
+            "   beqz  %[tmp], 1b     \n"
+            "   nop                  \n"
+            ".set reorder            \n"
+            : [val] "+m" (*ptr), [tmp] "=&r" (tmp), [ret] "=&r" (ret)
+            : [inc] "r" (incr)
+            : "memory");
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+    }
+#endif
 
     return (ret);
 }
@@ -408,18 +440,48 @@ static inline int32_t cvmx_atomic_fetch_and_add32_nosync(int32_t *ptr, int32_t i
 {
     uint32_t tmp, ret;
 
-    __asm__ __volatile__(
-    ".set noreorder         \n"
-    "1: ll   %[tmp], %[val] \n"
-    "   move %[ret], %[tmp] \n"
-    "   addu %[tmp], %[inc] \n"
-    "   sc   %[tmp], %[val] \n"
-    "   beqz %[tmp], 1b     \n"
-    "   nop                 \n"
-    ".set reorder           \n"
-    : [val] "+m" (*ptr), [tmp] "=&r" (tmp), [ret] "=&r" (ret)
-    : [inc] "r" (incr)
-    : "memory");
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+    if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+    {
+	CVMX_PUSH_OCTEON2;
+	if (__builtin_constant_p(incr) && incr == 1)
+	{
+	    __asm__ __volatile__(
+		"lai  %0,(%2)"
+		: "=r" (ret), "+m" (ptr) : "r" (ptr) : "memory");
+	}
+	else if (__builtin_constant_p(incr) && incr == -1)
+        {
+	    __asm__ __volatile__(
+		"lad  %0,(%2)"
+		: "=r" (ret), "+m" (ptr) : "r" (ptr) : "memory");
+        }
+        else
+        {
+	    __asm__ __volatile__(
+		"laa  %0,(%2),%3"
+		: "=r" (ret), "+m" (ptr) : "r" (ptr), "r" (incr) : "memory");
+        }
+	CVMX_POP_OCTEON2;
+    }
+    else
+    {
+#endif
+        __asm__ __volatile__(
+            ".set noreorder         \n"
+            "1: ll   %[tmp], %[val] \n"
+            "   move %[ret], %[tmp] \n"
+            "   addu %[tmp], %[inc] \n"
+            "   sc   %[tmp], %[val] \n"
+            "   beqz %[tmp], 1b     \n"
+            "   nop                 \n"
+            ".set reorder           \n"
+            : [val] "+m" (*ptr), [tmp] "=&r" (tmp), [ret] "=&r" (ret)
+            : [inc] "r" (incr)
+            : "memory");
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+    }
+#endif
 
     return (ret);
 }
@@ -538,9 +600,8 @@ static inline uint64_t cvmx_atomic_fetch_and_bclr64_nosync(uint64_t *ptr, uint64
     "   beqz %[tmp], 1b     \n"
     "   nop                 \n"
     ".set reorder           \n"
-    : [val] "+m" (*ptr), [tmp] "=&r" (tmp), [ret] "=&r" (ret)
-    : [msk] "r" (mask)
-    : "memory");
+    : [val] "+m" (*ptr), [tmp] "=&r" (tmp), [ret] "=&r" (ret), [msk] "+r" (mask)
+    : : "memory");
 
     return (ret);
 }
@@ -572,9 +633,8 @@ static inline uint32_t cvmx_atomic_fetch_and_bclr32_nosync(uint32_t *ptr, uint32
     "   beqz %[tmp], 1b     \n"
     "   nop                 \n"
     ".set reorder           \n"
-    : [val] "+m" (*ptr), [tmp] "=&r" (tmp), [ret] "=&r" (ret)
-    : [msk] "r" (mask)
-    : "memory");
+    : [val] "+m" (*ptr), [tmp] "=&r" (tmp), [ret] "=&r" (ret), [msk] "+r" (mask)
+    : : "memory");
 
     return (ret);
 }
@@ -596,17 +656,47 @@ static inline uint64_t cvmx_atomic_swap64_nosync(uint64_t *ptr, uint64_t new_val
 {
     uint64_t tmp, ret;
 
-    __asm__ __volatile__(
-    ".set noreorder         \n"
-    "1: lld  %[ret], %[val] \n"
-    "   move %[tmp], %[new_val] \n"
-    "   scd  %[tmp], %[val] \n"
-    "   beqz %[tmp],  1b    \n"
-    "   nop                 \n"
-    ".set reorder           \n"
-    : [val] "+m" (*ptr), [tmp] "=&r" (tmp), [ret] "=&r" (ret)
-    : [new_val] "r"  (new_val)
-    : "memory");
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+    if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+    {
+	CVMX_PUSH_OCTEON2;
+	if (__builtin_constant_p(new_val) && new_val == 0)
+	{
+	    __asm__ __volatile__(
+		"lacd  %0,(%1)"
+		: "=r" (ret) : "r" (ptr) : "memory");
+	}
+	else if (__builtin_constant_p(new_val) && new_val == ~0ull)
+        {
+	    __asm__ __volatile__(
+		"lasd  %0,(%1)"
+		: "=r" (ret) : "r" (ptr) : "memory");
+        }
+        else
+        {
+	    __asm__ __volatile__(
+		"lawd  %0,(%1),%2"
+		: "=r" (ret) : "r" (ptr), "r" (new_val) : "memory");
+        }
+	CVMX_POP_OCTEON2;
+    }
+    else
+    {
+#endif
+        __asm__ __volatile__(
+            ".set noreorder         \n"
+            "1: lld  %[ret], %[val] \n"
+            "   move %[tmp], %[new_val] \n"
+            "   scd  %[tmp], %[val] \n"
+            "   beqz %[tmp],  1b    \n"
+            "   nop                 \n"
+            ".set reorder           \n"
+            : [val] "+m" (*ptr), [tmp] "=&r" (tmp), [ret] "=&r" (ret)
+            : [new_val] "r"  (new_val)
+            : "memory");
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+    }
+#endif
 
     return (ret);
 }
@@ -628,17 +718,47 @@ static inline uint32_t cvmx_atomic_swap32_nosync(uint32_t *ptr, uint32_t new_val
 {
     uint32_t tmp, ret;
 
-    __asm__ __volatile__(
-    ".set noreorder         \n"
-    "1: ll   %[ret], %[val] \n"
-    "   move %[tmp], %[new_val] \n"
-    "   sc   %[tmp], %[val] \n"
-    "   beqz %[tmp],  1b    \n"
-    "   nop                 \n"
-    ".set reorder           \n"
-    : [val] "+m" (*ptr), [tmp] "=&r" (tmp), [ret] "=&r" (ret)
-    : [new_val] "r"  (new_val)
-    : "memory");
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+    if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+    {
+	CVMX_PUSH_OCTEON2;
+	if (__builtin_constant_p(new_val) && new_val == 0)
+	{
+	    __asm__ __volatile__(
+		"lac  %0,(%1)"
+		: "=r" (ret) : "r" (ptr) : "memory");
+	}
+	else if (__builtin_constant_p(new_val) && new_val == ~0u)
+        {
+	    __asm__ __volatile__(
+		"las  %0,(%1)"
+		: "=r" (ret) : "r" (ptr) : "memory");
+        }
+        else
+        {
+	    __asm__ __volatile__(
+		"law  %0,(%1),%2"
+		: "=r" (ret) : "r" (ptr), "r" (new_val) : "memory");
+        }
+	CVMX_POP_OCTEON2;
+    }
+    else
+    {
+#endif
+        __asm__ __volatile__(
+        ".set noreorder         \n"
+        "1: ll   %[ret], %[val] \n"
+        "   move %[tmp], %[new_val] \n"
+        "   sc   %[tmp], %[val] \n"
+        "   beqz %[tmp],  1b    \n"
+        "   nop                 \n"
+        ".set reorder           \n"
+        : [val] "+m" (*ptr), [tmp] "=&r" (tmp), [ret] "=&r" (ret)
+        : [new_val] "r"  (new_val)
+        : "memory");
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+    }
+#endif
 
     return (ret);
 }

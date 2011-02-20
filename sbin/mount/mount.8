@@ -28,7 +28,7 @@
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2010
+.Dd January 25, 2011
 .Dt MOUNT 8
 .Os
 .Sh NAME
@@ -208,7 +208,11 @@ This option
 is useful on file systems where there are large numbers of files and
 performance is more critical than updating the file access time (which is
 rarely ever important).
-This option is currently only supported on local file systems.
+This option is not supported on network file systems when the
+server is FreeBSD.
+Support in network files servers on other operating systems
+with a FreeBSD client is possible,
+but should be tested before it is relied on.
 .It Cm noauto
 This file system should be skipped when
 .Nm
@@ -305,9 +309,6 @@ When you are done with the mounted snapshot:
 umount /mnt
 mdconfig -d -u 4
 .Ed
-.Pp
-Further details can be found in the file at
-.Pa /usr/src/sys/ufs/ffs/README.snapshot .
 .El
 .It Cm suiddir
 A directory on the mounted file system will respond to the SUID bit

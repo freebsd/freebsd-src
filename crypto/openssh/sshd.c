@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.374 2010/03/07 11:57:13 dtucker Exp $ */
+/* $OpenBSD: sshd.c,v 1.375 2010/04/16 01:47:26 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -755,6 +755,8 @@ list_hostkey_types(void)
 		if (key == NULL)
 			continue;
 		switch (key->type) {
+		case KEY_RSA_CERT_V00:
+		case KEY_DSA_CERT_V00:
 		case KEY_RSA_CERT:
 		case KEY_DSA_CERT:
 			if (buffer_len(&b) > 0)
@@ -778,10 +780,17 @@ get_hostkey_by_type(int type, int need_private)
 	Key *key;
 
 	for (i = 0; i < options.num_host_key_files; i++) {
-		if (type == KEY_RSA_CERT || type == KEY_DSA_CERT)
+		switch (type) {
+		case KEY_RSA_CERT_V00:
+		case KEY_DSA_CERT_V00:
+		case KEY_RSA_CERT:
+		case KEY_DSA_CERT:
 			key = sensitive_data.host_certificates[i];
-		else
+			break;
+		default:
 			key = sensitive_data.host_keys[i];
+			break;
+		}
 		if (key != NULL && key->type == type)
 			return need_private ?
 			    sensitive_data.host_keys[i] : key;

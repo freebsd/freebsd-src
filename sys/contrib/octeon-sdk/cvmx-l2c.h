@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -47,7 +49,7 @@
  * Interface to the Level 2 Cache (L2C) control, measurement, and debugging
  * facilities.
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 52004 $<hr>
  *
  */
 
@@ -65,24 +67,15 @@
 /* Defines for index aliasing computations */
 #define CVMX_L2C_TAG_ADDR_ALIAS_SHIFT (CVMX_L2C_IDX_ADDR_SHIFT + cvmx_l2c_get_set_bits())
 #define CVMX_L2C_ALIAS_MASK (CVMX_L2C_IDX_MASK << CVMX_L2C_TAG_ADDR_ALIAS_SHIFT)
+#define CVMX_L2C_MEMBANK_SELECT_SIZE  4096
 
+/* Defines for Virtualizations, valid only from Octeon II onwards. */
+#define CVMX_L2C_VRT_MAX_VIRTID_ALLOWED ((OCTEON_IS_MODEL(OCTEON_CN63XX)) ? 64 : 0)
+#define CVMX_L2C_VRT_MAX_MEMSZ_ALLOWED ((OCTEON_IS_MODEL(OCTEON_CN63XX)) ? 32 : 0)
 
   /*------------*/
   /*  TYPEDEFS  */
   /*------------*/
-typedef union {        // L2C Tag/Data Store Debug Register
-  uint64_t    u64;
-  struct {
-    uint64_t  reserved: 32,
-	      lfb_enum:  4,
-	      lfb_dmp:   1,
-	      ppnum:     4,
-	      set:       3,
-	      finv:      1,
-	      l2d:       1,
-	      l2t:       1;
-  };
-} cvmx_l2c_dbg;
 
 typedef union
 {
@@ -100,65 +93,100 @@ typedef union
 #endif
 } cvmx_l2c_tag_t;
 
+/* Number of L2C Tag-and-data sections (TADs) that are connected to LMC. */
+#define CVMX_L2C_TADS  1
 
   /* L2C Performance Counter events. */
 typedef enum
 {
-    CVMX_L2C_EVENT_CYCLES           =  0,
-    CVMX_L2C_EVENT_INSTRUCTION_MISS =  1,
-    CVMX_L2C_EVENT_INSTRUCTION_HIT  =  2,
-    CVMX_L2C_EVENT_DATA_MISS        =  3,
-    CVMX_L2C_EVENT_DATA_HIT         =  4,
-    CVMX_L2C_EVENT_MISS             =  5,
-    CVMX_L2C_EVENT_HIT              =  6,
-    CVMX_L2C_EVENT_VICTIM_HIT       =  7,
-    CVMX_L2C_EVENT_INDEX_CONFLICT   =  8,
-    CVMX_L2C_EVENT_TAG_PROBE        =  9,
-    CVMX_L2C_EVENT_TAG_UPDATE       = 10,
-    CVMX_L2C_EVENT_TAG_COMPLETE     = 11,
-    CVMX_L2C_EVENT_TAG_DIRTY        = 12,
-    CVMX_L2C_EVENT_DATA_STORE_NOP   = 13,
-    CVMX_L2C_EVENT_DATA_STORE_READ  = 14,
-    CVMX_L2C_EVENT_DATA_STORE_WRITE = 15,
-    CVMX_L2C_EVENT_FILL_DATA_VALID  = 16,
-    CVMX_L2C_EVENT_WRITE_REQUEST    = 17,
-    CVMX_L2C_EVENT_READ_REQUEST     = 18,
-    CVMX_L2C_EVENT_WRITE_DATA_VALID = 19,
-    CVMX_L2C_EVENT_XMC_NOP          = 20,
-    CVMX_L2C_EVENT_XMC_LDT          = 21,
-    CVMX_L2C_EVENT_XMC_LDI          = 22,
-    CVMX_L2C_EVENT_XMC_LDD          = 23,
-    CVMX_L2C_EVENT_XMC_STF          = 24,
-    CVMX_L2C_EVENT_XMC_STT          = 25,
-    CVMX_L2C_EVENT_XMC_STP          = 26,
-    CVMX_L2C_EVENT_XMC_STC          = 27,
-    CVMX_L2C_EVENT_XMC_DWB          = 28,
-    CVMX_L2C_EVENT_XMC_PL2          = 29,
-    CVMX_L2C_EVENT_XMC_PSL1         = 30,
-    CVMX_L2C_EVENT_XMC_IOBLD        = 31,
-    CVMX_L2C_EVENT_XMC_IOBST        = 32,
-    CVMX_L2C_EVENT_XMC_IOBDMA       = 33,
-    CVMX_L2C_EVENT_XMC_IOBRSP       = 34,
-    CVMX_L2C_EVENT_XMC_BUS_VALID    = 35,
-    CVMX_L2C_EVENT_XMC_MEM_DATA     = 36,
-    CVMX_L2C_EVENT_XMC_REFL_DATA    = 37,
-    CVMX_L2C_EVENT_XMC_IOBRSP_DATA  = 38,
-    CVMX_L2C_EVENT_RSC_NOP          = 39,
-    CVMX_L2C_EVENT_RSC_STDN         = 40,
-    CVMX_L2C_EVENT_RSC_FILL         = 41,
-    CVMX_L2C_EVENT_RSC_REFL         = 42,
-    CVMX_L2C_EVENT_RSC_STIN         = 43,
-    CVMX_L2C_EVENT_RSC_SCIN         = 44,
-    CVMX_L2C_EVENT_RSC_SCFL         = 45,
-    CVMX_L2C_EVENT_RSC_SCDN         = 46,
-    CVMX_L2C_EVENT_RSC_DATA_VALID   = 47,
-    CVMX_L2C_EVENT_RSC_VALID_FILL   = 48,
-    CVMX_L2C_EVENT_RSC_VALID_STRSP  = 49,
-    CVMX_L2C_EVENT_RSC_VALID_REFL   = 50,
-    CVMX_L2C_EVENT_LRF_REQ          = 51,
-    CVMX_L2C_EVENT_DT_RD_ALLOC      = 52,
-    CVMX_L2C_EVENT_DT_WR_INVAL      = 53
+    CVMX_L2C_EVENT_CYCLES           =  0,    /**< Cycles */
+    CVMX_L2C_EVENT_INSTRUCTION_MISS =  1,    /**< L2 Instruction Miss */
+    CVMX_L2C_EVENT_INSTRUCTION_HIT  =  2,    /**< L2 Instruction Hit */
+    CVMX_L2C_EVENT_DATA_MISS        =  3,    /**< L2 Data Miss */
+    CVMX_L2C_EVENT_DATA_HIT         =  4,    /**< L2 Data Hit */
+    CVMX_L2C_EVENT_MISS             =  5,    /**< L2 Miss (I/D) */
+    CVMX_L2C_EVENT_HIT              =  6,    /**< L2 Hit (I/D) */
+    CVMX_L2C_EVENT_VICTIM_HIT       =  7,    /**< L2 Victim Buffer Hit (Retry Probe) */
+    CVMX_L2C_EVENT_INDEX_CONFLICT   =  8,    /**< LFB-NQ Index Conflict */
+    CVMX_L2C_EVENT_TAG_PROBE        =  9,    /**< L2 Tag Probe (issued - could be VB-Retried) */
+    CVMX_L2C_EVENT_TAG_UPDATE       = 10,    /**< L2 Tag Update (completed). Note: Some CMD types do not update */
+    CVMX_L2C_EVENT_TAG_COMPLETE     = 11,    /**< L2 Tag Probe Completed (beyond VB-RTY window) */
+    CVMX_L2C_EVENT_TAG_DIRTY        = 12,    /**< L2 Tag Dirty Victim */
+    CVMX_L2C_EVENT_DATA_STORE_NOP   = 13,    /**< L2 Data Store NOP */
+    CVMX_L2C_EVENT_DATA_STORE_READ  = 14,    /**< L2 Data Store READ */
+    CVMX_L2C_EVENT_DATA_STORE_WRITE = 15,    /**< L2 Data Store WRITE */
+    CVMX_L2C_EVENT_FILL_DATA_VALID  = 16,    /**< Memory Fill Data valid */
+    CVMX_L2C_EVENT_WRITE_REQUEST    = 17,    /**< Memory Write Request */
+    CVMX_L2C_EVENT_READ_REQUEST     = 18,    /**< Memory Read Request */
+    CVMX_L2C_EVENT_WRITE_DATA_VALID = 19,    /**< Memory Write Data valid */
+    CVMX_L2C_EVENT_XMC_NOP          = 20,    /**< XMC NOP */
+    CVMX_L2C_EVENT_XMC_LDT          = 21,    /**< XMC LDT */
+    CVMX_L2C_EVENT_XMC_LDI          = 22,    /**< XMC LDI */
+    CVMX_L2C_EVENT_XMC_LDD          = 23,    /**< XMC LDD */
+    CVMX_L2C_EVENT_XMC_STF          = 24,    /**< XMC STF */
+    CVMX_L2C_EVENT_XMC_STT          = 25,    /**< XMC STT */
+    CVMX_L2C_EVENT_XMC_STP          = 26,    /**< XMC STP */
+    CVMX_L2C_EVENT_XMC_STC          = 27,    /**< XMC STC */
+    CVMX_L2C_EVENT_XMC_DWB          = 28,    /**< XMC DWB */
+    CVMX_L2C_EVENT_XMC_PL2          = 29,    /**< XMC PL2 */
+    CVMX_L2C_EVENT_XMC_PSL1         = 30,    /**< XMC PSL1 */
+    CVMX_L2C_EVENT_XMC_IOBLD        = 31,    /**< XMC IOBLD */
+    CVMX_L2C_EVENT_XMC_IOBST        = 32,    /**< XMC IOBST */
+    CVMX_L2C_EVENT_XMC_IOBDMA       = 33,    /**< XMC IOBDMA */
+    CVMX_L2C_EVENT_XMC_IOBRSP       = 34,    /**< XMC IOBRSP */
+    CVMX_L2C_EVENT_XMC_BUS_VALID    = 35,    /**< XMC Bus valid (all) */
+    CVMX_L2C_EVENT_XMC_MEM_DATA     = 36,    /**< XMC Bus valid (DST=L2C) Memory */
+    CVMX_L2C_EVENT_XMC_REFL_DATA    = 37,    /**< XMC Bus valid (DST=IOB) REFL Data */
+    CVMX_L2C_EVENT_XMC_IOBRSP_DATA  = 38,    /**< XMC Bus valid (DST=PP) IOBRSP Data */
+    CVMX_L2C_EVENT_RSC_NOP          = 39,    /**< RSC NOP */
+    CVMX_L2C_EVENT_RSC_STDN         = 40,    /**< RSC STDN */
+    CVMX_L2C_EVENT_RSC_FILL         = 41,    /**< RSC FILL */
+    CVMX_L2C_EVENT_RSC_REFL         = 42,    /**< RSC REFL */
+    CVMX_L2C_EVENT_RSC_STIN         = 43,    /**< RSC STIN */
+    CVMX_L2C_EVENT_RSC_SCIN         = 44,    /**< RSC SCIN */
+    CVMX_L2C_EVENT_RSC_SCFL         = 45,    /**< RSC SCFL */
+    CVMX_L2C_EVENT_RSC_SCDN         = 46,    /**< RSC SCDN */
+    CVMX_L2C_EVENT_RSC_DATA_VALID   = 47,    /**< RSC Data Valid */
+    CVMX_L2C_EVENT_RSC_VALID_FILL   = 48,    /**< RSC Data Valid (FILL) */
+    CVMX_L2C_EVENT_RSC_VALID_STRSP  = 49,    /**< RSC Data Valid (STRSP) */
+    CVMX_L2C_EVENT_RSC_VALID_REFL   = 50,    /**< RSC Data Valid (REFL) */
+    CVMX_L2C_EVENT_LRF_REQ          = 51,    /**< LRF-REQ (LFB-NQ) */
+    CVMX_L2C_EVENT_DT_RD_ALLOC      = 52,    /**< DT RD-ALLOC */
+    CVMX_L2C_EVENT_DT_WR_INVAL      = 53,    /**< DT WR-INVAL */
+    CVMX_L2C_EVENT_MAX
 } cvmx_l2c_event_t;
+
+/* L2C Performance Counter events for Octeon2. */
+typedef enum
+{
+     CVMX_L2C_TAD_EVENT_NONE          = 0,     /* None */
+     CVMX_L2C_TAD_EVENT_TAG_HIT       = 1,     /* L2 Tag Hit */
+     CVMX_L2C_TAD_EVENT_TAG_MISS      = 2,     /* L2 Tag Miss */
+     CVMX_L2C_TAD_EVENT_TAG_NOALLOC   = 3,     /* L2 Tag NoAlloc (forced no-allocate) */
+     CVMX_L2C_TAD_EVENT_TAG_VICTIM    = 4,     /* L2 Tag Victim */
+     CVMX_L2C_TAD_EVENT_SC_FAIL       = 5,     /* SC Fail */
+     CVMX_L2C_TAD_EVENT_SC_PASS       = 6,     /* SC Pass */
+     CVMX_L2C_TAD_EVENT_LFB_VALID     = 7,     /* LFB Occupancy (each cycle adds \# of LFBs valid) */
+     CVMX_L2C_TAD_EVENT_LFB_WAIT_LFB  = 8,     /* LFB Wait LFB (each cycle adds \# LFBs waiting for other LFBs) */
+     CVMX_L2C_TAD_EVENT_LFB_WAIT_VAB  = 9,     /* LFB Wait VAB (each cycle adds \# LFBs waiting for VAB) */
+     CVMX_L2C_TAD_EVENT_QUAD0_INDEX   = 128,   /* Quad 0 index bus inuse */
+     CVMX_L2C_TAD_EVENT_QUAD0_READ    = 129,   /* Quad 0 read data bus inuse */
+     CVMX_L2C_TAD_EVENT_QUAD0_BANK    = 130,   /* Quad 0 \# banks inuse (0-4/cycle) */
+     CVMX_L2C_TAD_EVENT_QUAD0_WDAT    = 131,   /* Quad 0 wdat flops inuse (0-4/cycle) */
+     CVMX_L2C_TAD_EVENT_QUAD1_INDEX   = 144,   /* Quad 1 index bus inuse */
+     CVMX_L2C_TAD_EVENT_QUAD1_READ    = 145,   /* Quad 1 read data bus inuse */
+     CVMX_L2C_TAD_EVENT_QUAD1_BANK    = 146,   /* Quad 1 \# banks inuse (0-4/cycle) */
+     CVMX_L2C_TAD_EVENT_QUAD1_WDAT    = 147,   /* Quad 1 wdat flops inuse (0-4/cycle) */
+     CVMX_L2C_TAD_EVENT_QUAD2_INDEX   = 160,   /* Quad 2 index bus inuse */
+     CVMX_L2C_TAD_EVENT_QUAD2_READ    = 161,   /* Quad 2 read data bus inuse */
+     CVMX_L2C_TAD_EVENT_QUAD2_BANK    = 162,   /* Quad 2 \# banks inuse (0-4/cycle) */
+     CVMX_L2C_TAD_EVENT_QUAD2_WDAT    = 163,   /* Quad 2 wdat flops inuse (0-4/cycle) */
+     CVMX_L2C_TAD_EVENT_QUAD3_INDEX   = 176,   /* Quad 3 index bus inuse */
+     CVMX_L2C_TAD_EVENT_QUAD3_READ    = 177,   /* Quad 3 read data bus inuse */
+     CVMX_L2C_TAD_EVENT_QUAD3_BANK    = 178,   /* Quad 3 \# banks inuse (0-4/cycle) */
+     CVMX_L2C_TAD_EVENT_QUAD3_WDAT    = 179,   /* Quad 3 wdat flops inuse (0-4/cycle) */
+     CVMX_L2C_TAD_EVENT_MAX
+} cvmx_l2c_tad_event_t;
 
 /**
  * Configure one of the four L2 Cache performance counters to capture event
@@ -171,9 +199,8 @@ typedef enum
  *
  * @note The routine does not clear the counter.
  */
-void cvmx_l2c_config_perf(uint32_t         counter,
-                               cvmx_l2c_event_t event,
-                               uint32_t         clear_on_read);
+void cvmx_l2c_config_perf(uint32_t counter, cvmx_l2c_event_t event, uint32_t clear_on_read);
+
 /**
  * Read the given L2 Cache performance counter. The counter must be configured
  * before reading, but this routine does not enforce this requirement.
@@ -299,7 +326,8 @@ int cvmx_l2c_unlock_mem_region(uint64_t start, uint64_t len);
  */
 cvmx_l2c_tag_t cvmx_l2c_get_tag(uint32_t association, uint32_t index);
 
-/* Wrapper around deprecated old function name */
+/* Wrapper providing a deprecated old function name */
+static inline cvmx_l2c_tag_t cvmx_get_l2c_tag(uint32_t association, uint32_t index) __attribute__((deprecated));
 static inline cvmx_l2c_tag_t cvmx_get_l2c_tag(uint32_t association, uint32_t index)
 {
     return cvmx_l2c_get_tag(association, index);
@@ -360,5 +388,67 @@ int cvmx_l2c_get_num_assoc(void);
  * @param index  Index to flush
  */
 void cvmx_l2c_flush_line(uint32_t assoc, uint32_t index);
+
+/*
+ * Set maxium number of Virtual IDS allowed in a machine.
+ *
+ * @param nvid  Number of virtial ids allowed in a machine.
+ * @return      Return 0 on success or -1 on failure.
+ */
+int cvmx_l2c_vrt_set_max_virtids(int nvid);
+
+/**
+ * Get maxium number of virtual IDs allowed in a machine.
+ *
+ * @return  Return number of virtual machine IDs. Return -1 on failure.
+ */
+int cvmx_l2c_vrt_get_max_virtids(void);
+
+/**
+ * Set the maxium size of memory space to be allocated for virtualization.
+ *
+ * @param memsz     Size of the virtual memory in GB
+ * @return          Return 0 on success or -1 on failure.
+ */
+int cvmx_l2c_vrt_set_max_memsz(int memsz);
+
+/**
+ * Set a Virtual ID to a set of cores.
+ *
+ * @param virtid    Assign virtid to a set of cores.
+ * @param coremask  The group of cores to assign a unique virtual id.
+ * @return          Return 0 on success, otherwise -1.
+ */
+int cvmx_l2c_vrt_assign_virtid(int virtid, uint32_t coremask);
+
+/**
+ * Remove a virt id assigned to a set of cores. Update the virtid mask and
+ * virtid stored for each core.
+ *
+ * @param coremask  the group of cores whose virtual id is removed.
+ */
+void cvmx_l2c_vrt_remove_virtid(int virtid);
+
+/**
+ * Block a memory region to be updated by a set of virtids.
+ *
+ * @param start_addr   Starting address of memory region
+ * @param size         Size of the memory to protect
+ * @param virtid_mask  Virtual ID to use
+ * @param mode         Allow/Disallow write access
+ *                        = 0,  Allow write access by virtid
+ *                        = 1,  Disallow write access by virtid
+ */
+int cvmx_l2c_vrt_memprotect(uint64_t start_addr, int size, int virtid, int mode);
+
+/**
+ * Enable virtualization.
+ */
+void cvmx_l2c_vrt_enable(int mode);
+
+/**
+ * Disable virtualization.
+ */
+void cvmx_l2c_vrt_disable(void);
 
 #endif /* __CVMX_L2C_H__ */

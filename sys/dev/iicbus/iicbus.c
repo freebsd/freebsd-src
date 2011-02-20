@@ -188,7 +188,7 @@ iicbus_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 }
 
 static device_t
-iicbus_add_child(device_t dev, int order, const char *name, int unit)
+iicbus_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t child;
 	struct iicbus_ivar *devi;

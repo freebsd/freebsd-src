@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.h,v 1.103 2010/01/26 01:28:35 djm Exp $ */
+/* $OpenBSD: channels.h,v 1.104 2010/05/14 23:29:23 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -60,6 +60,7 @@
 struct Channel;
 typedef struct Channel Channel;
 
+typedef void channel_open_fn(int, int, void *);
 typedef void channel_callback_fn(int, void *);
 typedef int channel_infilter_fn(struct Channel *, char *, int);
 typedef void channel_filter_cleanup_fn(int, void *);
@@ -130,7 +131,7 @@ struct Channel {
 	char   *ctype;		/* type */
 
 	/* callback */
-	channel_callback_fn	*open_confirm;
+	channel_open_fn		*open_confirm;
 	void			*open_confirm_ctx;
 	channel_callback_fn	*detach_user;
 	int			detach_close;
@@ -151,6 +152,7 @@ struct Channel {
 	/* multiplexing protocol hook, called for each packet received */
 	mux_callback_fn		*mux_rcb;
 	void			*mux_ctx;
+	int			mux_pause;
 };
 
 #define CHAN_EXTENDED_IGNORE		0
@@ -208,7 +210,7 @@ void	 channel_stop_listening(void);
 void	 channel_send_open(int);
 void	 channel_request_start(int, char *, int);
 void	 channel_register_cleanup(int, channel_callback_fn *, int);
-void	 channel_register_open_confirm(int, channel_callback_fn *, void *);
+void	 channel_register_open_confirm(int, channel_open_fn *, void *);
 void	 channel_register_filter(int, channel_infilter_fn *,
     channel_outfilter_fn *, channel_filter_cleanup_fn *, void *);
 void	 channel_register_status_confirm(int, channel_confirm_cb *,

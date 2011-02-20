@@ -91,9 +91,9 @@ struct var vps1;
 struct var vps2;
 struct var vps4;
 struct var vvers;
-STATIC struct var voptind;
+static struct var voptind;
 
-STATIC const struct varinit varinit[] = {
+static const struct varinit varinit[] = {
 #ifndef NO_HISTORY
 	{ &vhistsize,	VUNSET,				"HISTSIZE=",
 	  sethistsize },
@@ -125,19 +125,19 @@ STATIC const struct varinit varinit[] = {
 	  NULL }
 };
 
-STATIC struct var *vartab[VTABSIZE];
+static struct var *vartab[VTABSIZE];
 
-STATIC const char *const locale_names[7] = {
+static const char *const locale_names[7] = {
 	"LC_COLLATE", "LC_CTYPE", "LC_MONETARY",
 	"LC_NUMERIC", "LC_TIME", "LC_MESSAGES", NULL
 };
-STATIC const int locale_categories[7] = {
+static const int locale_categories[7] = {
 	LC_COLLATE, LC_CTYPE, LC_MONETARY, LC_NUMERIC, LC_TIME, LC_MESSAGES, 0
 };
 
-STATIC struct var **hashvar(const char *);
-STATIC int varequal(const char *, const char *);
-STATIC int localevar(const char *);
+static struct var **hashvar(const char *);
+static int varequal(const char *, const char *);
+static int localevar(const char *);
 
 /*
  * Initialize the variable symbol tables and import the environment.
@@ -161,7 +161,7 @@ INIT {
 
 /*
  * This routine initializes the builtin variables.  It is called when the
- * shell is initialized and again when a shell procedure is spawned.
+ * shell is initialized.
  */
 
 void
@@ -268,7 +268,7 @@ setvar(const char *name, const char *val, int flags)
 	setvareq(nameeq, flags);
 }
 
-STATIC int
+static int
 localevar(const char *s)
 {
 	const char *const *ss;
@@ -333,6 +333,8 @@ setvareq(char *s, int flags)
 				len = strchr(s, '=') - s;
 				error("%.*s: is read only", len, s);
 			}
+			if (flags & VNOSET)
+				return;
 			INTOFF;
 
 			if (vp->func && (flags & VNOFUNC) == 0)
@@ -365,6 +367,8 @@ setvareq(char *s, int flags)
 		}
 	}
 	/* not found */
+	if (flags & VNOSET)
+		return;
 	vp = ckmalloc(sizeof (*vp));
 	vp->flags = flags;
 	vp->text = s;
@@ -386,13 +390,13 @@ setvareq(char *s, int flags)
  */
 
 void
-listsetvar(struct strlist *list)
+listsetvar(struct strlist *list, int flags)
 {
 	struct strlist *lp;
 
 	INTOFF;
 	for (lp = list ; lp ; lp = lp->next) {
-		setvareq(savestr(lp->text), 0);
+		setvareq(savestr(lp->text), flags);
 	}
 	INTON;
 }
@@ -431,11 +435,15 @@ bltinlookup(const char *name, int doall)
 {
 	struct strlist *sp;
 	struct var *v;
+	char *result;
 
+	result = NULL;
 	for (sp = cmdenviron ; sp ; sp = sp->next) {
 		if (varequal(sp->text, name))
-			return strchr(sp->text, '=') + 1;
+			result = strchr(sp->text, '=') + 1;
 	}
+	if (result != NULL)
+		return result;
 	for (v = *hashvar(name) ; v ; v = v->next) {
 		if (varequal(v->text, name)) {
 			if ((v->flags & VUNSET)
@@ -534,47 +542,6 @@ environment(void)
 }
 
 
-/*
- * Called when a shell procedure is invoked to clear out nonexported
- * variables.  It is also necessary to reallocate variables of with
- * VSTACK set since these are currently allocated on the stack.
- */
-
-MKINIT void shprocvar(void);
-
-#ifdef mkinit
-SHELLPROC {
-	shprocvar();
-}
-#endif
-
-void
-shprocvar(void)
-{
-	struct var **vpp;
-	struct var *vp, **prev;
-
-	for (vpp = vartab ; vpp < vartab + VTABSIZE ; vpp++) {
-		for (prev = vpp ; (vp = *prev) != NULL ; ) {
-			if ((vp->flags & VEXPORT) == 0) {
-				*prev = vp->next;
-				if ((vp->flags & VTEXTFIXED) == 0)
-					ckfree(vp->text);
-				if ((vp->flags & VSTRFIXED) == 0)
-					ckfree(vp);
-			} else {
-				if (vp->flags & VSTACK) {
-					vp->text = savestr(vp->text);
-					vp->flags &=~ VSTACK;
-				}
-				prev = &vp->next;
-			}
-		}
-	}
-	initvar();
-}
-
-
 static int
 var_compare(const void *a, const void *b)
 {
@@ -592,9 +559,8 @@ var_compare(const void *a, const void *b)
 
 
 /*
- * Command to list all variables which are set.  Currently this command
- * is invoked from the set command when the set command is called without
- * any variables.
+ * Command to list all variables which are set.  This is invoked from the
+ * set command when it is called without any options or operands.
  */
 
 int
@@ -629,10 +595,10 @@ showvarscmd(int argc __unused, char **argv __unused)
 
 	qsort(vars, n, sizeof(*vars), var_compare);
 	for (i = 0; i < n; i++) {
-		for (s = vars[i]; *s != '='; s++)
-			out1c(*s);
-		out1c('=');
-		out1qstr(s + 1);
+		s = strchr(vars[i], '=');
+		s++;
+		outbin(vars[i], s - vars[i], out1);
+		out1qstr(s);
 		out1c('\n');
 	}
 	ckfree(vars);
@@ -706,12 +672,15 @@ found:;
 						out1str(cmdname);
 						out1c(' ');
 					}
-					for (p = vp->text ; *p != '=' ; p++)
-						out1c(*p);
+					p = strchr(vp->text, '=');
 					if (values && !(vp->flags & VUNSET)) {
-						out1c('=');
-						out1qstr(p + 1);
-					}
+						p++;
+						outbin(vp->text, p - vp->text,
+						    out1);
+						out1qstr(p);
+					} else
+						outbin(vp->text, p - vp->text,
+						    out1);
 					out1c('\n');
 				}
 			}
@@ -801,6 +770,7 @@ poplocalvars(void)
 		if (vp == NULL) {	/* $- saved */
 			memcpy(optlist, lvp->text, sizeof optlist);
 			ckfree(lvp->text);
+			optschanged();
 		} else if ((lvp->flags & (VUNSET|VSTRFIXED)) == VUNSET) {
 			(void)unsetvar(vp->text);
 		} else {
@@ -822,15 +792,13 @@ setvarcmd(int argc, char **argv)
 	else if (argc == 3)
 		setvar(argv[1], argv[2], 0);
 	else
-		error("List assignment not implemented");
+		error("too many arguments");
 	return 0;
 }
 
 
 /*
- * The unset builtin command.  We unset the function before we unset the
- * variable to allow a function to be unset when there is a readonly variable
- * with the same name.
+ * The unset builtin command.
  */
 
 int
@@ -905,7 +873,7 @@ unsetvar(const char *s)
  * Find the appropriate entry in the hash table from the name.
  */
 
-STATIC struct var **
+static struct var **
 hashvar(const char *p)
 {
 	unsigned int hashval;
@@ -924,7 +892,7 @@ hashvar(const char *p)
  * either '=' or '\0'.
  */
 
-STATIC int
+static int
 varequal(const char *p, const char *q)
 {
 	while (*p == *q++) {

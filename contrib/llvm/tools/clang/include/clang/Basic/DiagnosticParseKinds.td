@@ -35,8 +35,9 @@ def ext_integer_complex : Extension<
   "complex integer types are an extension">;
 def ext_thread_before : Extension<"'__thread' before 'static'">;
 
-def ext_empty_struct_union_enum : Extension<"use of empty %0 extension">;
-
+def ext_empty_struct_union : Extension<"empty %select{struct|union}0 "
+  "(accepted as an extension) has size 0 in C, size 1 in C++">, 
+  InGroup<CXXCompat>;
 def error_empty_enum : Error<"use of empty enum">;
 def err_invalid_sign_spec : Error<"'%0' cannot be signed or unsigned">;
 def err_invalid_short_spec : Error<"'short %0' is invalid">;
@@ -102,6 +103,8 @@ def err_expected_member_name_or_semi : Error<
   "expected member name or ';' after declaration specifiers">;
 def err_function_declared_typedef : Error<
   "function definition declared 'typedef'">;
+def err_iboutletcollection_builtintype : Error<
+  "type argument of iboutletcollection attribute cannot be a builtin type">;
 def err_expected_fn_body : Error<
   "expected function body after function declarator">;
 def err_expected_method_body : Error<"expected method body">;
@@ -125,6 +128,7 @@ def err_expected_semi_after_namespace_name : Error<
   "expected ';' after namespace name">;
 def err_unexpected_namespace_attributes_alias : Error<
   "attributes can not be specified on namespace alias">;
+def err_inline_namespace_alias : Error<"namespace alias cannot be inline">;
 def err_namespace_nonnamespace_scope : Error<
   "namespaces can only be defined in global or namespace scope">;
 def err_expected_semi_after_attribute_list : Error<
@@ -150,6 +154,8 @@ def err_illegal_decl_reference_to_reference : Error<
   "%0 declared as a reference to a reference">;
 def err_rvalue_reference : Error<
   "rvalue references are only allowed in C++0x">;
+def ext_inline_namespace : Extension<
+  "inline namespaces are a C++0x feature">;
 def err_argument_required_after_attribute : Error<
   "argument required after attribute">;
 def err_missing_param : Error<"expected parameter declarator">;
@@ -270,6 +276,8 @@ def err_destructor_tilde_identifier : Error<
   "expected a class name after '~' to name a destructor">;
 def err_destructor_template_id : Error<
   "destructor name %0 does not refer to a template">;
+def err_default_arg_unparsed : Error<
+  "unexpected end of default argument expression">;
 
 // C++ derived classes
 def err_dup_virtual : Error<"duplicate 'virtual' in base specifier">;
@@ -373,10 +381,10 @@ def warn_pragma_extra_tokens_at_eol : Warning<
 // - #pragma options
 def warn_pragma_options_expected_align : Warning<
   "expected 'align' following '#pragma options' - ignored">;
-def warn_pragma_options_expected_equal : Warning<
-  "expected '=' following '#pragma options align' - ignored">;
-def warn_pragma_options_invalid_option : Warning<
-  "invalid alignment option in '#pragma options align' - ignored">;
+def warn_pragma_align_expected_equal : Warning<
+  "expected '=' following '#pragma %select{align|options align}0' - ignored">;
+def warn_pragma_align_invalid_option : Warning<
+  "invalid alignment option in '#pragma %select{align|options align}0' - ignored">;
 // - #pragma pack
 def warn_pragma_pack_invalid_action : Warning<
   "unknown action for '#pragma pack' - ignored">;

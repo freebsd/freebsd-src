@@ -117,18 +117,17 @@ public:
 
   bool needsStackRealignment(const MachineFunction &MF) const;
 
-  bool hasReservedCallFrame(MachineFunction &MF) const;
+  bool hasReservedCallFrame(const MachineFunction &MF) const;
 
-  bool hasReservedSpillSlot(MachineFunction &MF, unsigned Reg,
+  bool hasReservedSpillSlot(const MachineFunction &MF, unsigned Reg,
                             int &FrameIdx) const;
 
   void eliminateCallFramePseudoInstr(MachineFunction &MF,
                                      MachineBasicBlock &MBB,
                                      MachineBasicBlock::iterator MI) const;
 
-  unsigned eliminateFrameIndex(MachineBasicBlock::iterator MI,
-                               int SPAdj, FrameIndexValue *Value = NULL,
-                               RegScavenger *RS = NULL) const;
+  void eliminateFrameIndex(MachineBasicBlock::iterator MI,
+                           int SPAdj, RegScavenger *RS = NULL) const;
 
   void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                             RegScavenger *RS = NULL) const;

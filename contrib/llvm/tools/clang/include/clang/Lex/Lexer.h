@@ -219,6 +219,33 @@ public:
                                      const SourceManager &SM,
                                      const LangOptions &LangOpts);
 
+  /// \brief Given a location any where in a source buffer, find the location
+  /// that corresponds to the beginning of the token in which the original
+  /// source location lands.
+  ///
+  /// \param Loc 
+  static SourceLocation GetBeginningOfToken(SourceLocation Loc,
+                                            const SourceManager &SM,
+                                            const LangOptions &LangOpts);
+  
+  /// \brief Compute the preamble of the given file.
+  ///
+  /// The preamble of a file contains the initial comments, include directives,
+  /// and other preprocessor directives that occur before the code in this
+  /// particular file actually begins. The preamble of the main source file is
+  /// a potential prefix header.
+  ///
+  /// \param Buffer The memory buffer containing the file's contents.
+  ///
+  /// \param MaxLines If non-zero, restrict the length of the preamble
+  /// to fewer than this number of lines.
+  ///
+  /// \returns The offset into the file where the preamble ends and the rest
+  /// of the file begins along with a boolean value indicating whether 
+  /// the preamble ends at the beginning of a new line.
+  static std::pair<unsigned, bool>
+  ComputePreamble(const llvm::MemoryBuffer *Buffer, unsigned MaxLines = 0);
+                                        
   //===--------------------------------------------------------------------===//
   // Internal implementation interfaces.
 private:
@@ -361,6 +388,8 @@ private:
   //===--------------------------------------------------------------------===//
   // Other lexer functions.
 
+  void SkipBytes(unsigned Bytes, bool StartOfLine);
+  
   // Helper functions to lex the remainder of a token of the specific type.
   void LexIdentifier         (Token &Result, const char *CurPtr);
   void LexNumericConstant    (Token &Result, const char *CurPtr);

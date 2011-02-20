@@ -15,13 +15,37 @@
 #include "includes.h"
 
 #include "common.h"
+#include "trace.h"
 #include "wpabuf.h"
+
+#ifdef WPA_TRACE
+#define WPABUF_MAGIC 0x51a974e3
+
+struct wpabuf_trace {
+	unsigned int magic;
+};
+
+static struct wpabuf_trace * wpabuf_get_trace(const struct wpabuf *buf)
+{
+	return (struct wpabuf_trace *)
+		((const u8 *) buf - sizeof(struct wpabuf_trace));
+}
+#endif /* WPA_TRACE */
+
 
 static void wpabuf_overflow(const struct wpabuf *buf, size_t len)
 {
+#ifdef WPA_TRACE
+	struct wpabuf_trace *trace = wpabuf_get_trace(buf);
+	if (trace->magic != WPABUF_MAGIC) {
+		wpa_printf(MSG_ERROR, "wpabuf: invalid magic %x",
+			   trace->magic);
+	}
+#endif /* WPA_TRACE */
 	wpa_printf(MSG_ERROR, "wpabuf %p (size=%lu used=%lu) overflow len=%lu",
 		   buf, (unsigned long) buf->size, (unsigned long) buf->used,
 		   (unsigned long) len);
+	wpa_trace_show("wpabuf overflow");
 	abort();
 }
 
@@ -29,10 +53,25 @@ static void wpabuf_overflow(const struct wpabuf *buf, size_t len)
 int wpabuf_resize(struct wpabuf **_buf, size_t add_len)
 {
 	struct wpabuf *buf = *_buf;
+#ifdef WPA_TRACE
+	struct wpabuf_trace *trace;
+#endif /* WPA_TRACE */
+
 	if (buf == NULL) {
 		*_buf = wpabuf_alloc(add_len);
 		return *_buf == NULL ? -1 : 0;
 	}
+
+#ifdef WPA_TRACE
+	trace = wpabuf_get_trace(buf);
+	if (trace->magic != WPABUF_MAGIC) {
+		wpa_printf(MSG_ERROR, "wpabuf: invalid magic %x",
+			   trace->magic);
+		wpa_trace_show("wpabuf_resize invalid magic");
+		abort();
+	}
+#endif /* WPA_TRACE */
+
 	if (buf->used + add_len > buf->size) {
 		unsigned char *nbuf;
 		if (buf->ext_data) {
@@ -42,6 +81,18 @@ int wpabuf_resize(struct wpabuf **_buf, size_t add_len)
 			os_memset(nbuf + buf->used, 0, add_len);
 			buf->ext_data = nbuf;
 		} else {
+#ifdef WPA_TRACE
+			nbuf = os_realloc(trace, sizeof(struct wpabuf_trace) +
+					  sizeof(struct wpabuf) +
+					  buf->used + add_len);
+			if (nbuf == NULL)
+				return -1;
+			trace = (struct wpabuf_trace *) nbuf;
+			buf = (struct wpabuf *) (trace + 1);
+			os_memset(nbuf + sizeof(struct wpabuf_trace) +
+				  sizeof(struct wpabuf) + buf->used, 0,
+				  add_len);
+#else /* WPA_TRACE */
 			nbuf = os_realloc(buf, sizeof(struct wpabuf) +
 					  buf->used + add_len);
 			if (nbuf == NULL)
@@ -49,6 +100,7 @@ int wpabuf_resize(struct wpabuf **_buf, size_t add_len)
 			buf = (struct wpabuf *) nbuf;
 			os_memset(nbuf + sizeof(struct wpabuf) + buf->used, 0,
 				  add_len);
+#endif /* WPA_TRACE */
 			*_buf = buf;
 		}
 		buf->size = buf->used + add_len;
@@ -65,9 +117,20 @@ int wpabuf_resize(struct wpabuf **_buf, size_t add_len)
  */
 struct wpabuf * wpabuf_alloc(size_t len)
 {
+#ifdef WPA_TRACE
+	struct wpabuf_trace *trace = os_zalloc(sizeof(struct wpabuf_trace) +
+					       sizeof(struct wpabuf) + len);
+	struct wpabuf *buf;
+	if (trace == NULL)
+		return NULL;
+	trace->magic = WPABUF_MAGIC;
+	buf = (struct wpabuf *) (trace + 1);
+#else /* WPA_TRACE */
 	struct wpabuf *buf = os_zalloc(sizeof(struct wpabuf) + len);
 	if (buf == NULL)
 		return NULL;
+#endif /* WPA_TRACE */
+
 	buf->size = len;
 	return buf;
 }
@@ -75,9 +138,19 @@ struct wpabuf * wpabuf_alloc(size_t len)
 
 struct wpabuf * wpabuf_alloc_ext_data(u8 *data, size_t len)
 {
+#ifdef WPA_TRACE
+	struct wpabuf_trace *trace = os_zalloc(sizeof(struct wpabuf_trace) +
+					       sizeof(struct wpabuf));
+	struct wpabuf *buf;
+	if (trace == NULL)
+		return NULL;
+	trace->magic = WPABUF_MAGIC;
+	buf = (struct wpabuf *) (trace + 1);
+#else /* WPA_TRACE */
 	struct wpabuf *buf = os_zalloc(sizeof(struct wpabuf));
 	if (buf == NULL)
 		return NULL;
+#endif /* WPA_TRACE */
 
 	buf->size = len;
 	buf->used = len;
@@ -111,10 +184,25 @@ struct wpabuf * wpabuf_dup(const struct wpabuf *src)
  */
 void wpabuf_free(struct wpabuf *buf)
 {
+#ifdef WPA_TRACE
+	struct wpabuf_trace *trace;
+	if (buf == NULL)
+		return;
+	trace = wpabuf_get_trace(buf);
+	if (trace->magic != WPABUF_MAGIC) {
+		wpa_printf(MSG_ERROR, "wpabuf_free: invalid magic %x",
+			   trace->magic);
+		wpa_trace_show("wpabuf_free magic mismatch");
+		abort();
+	}
+	os_free(buf->ext_data);
+	os_free(trace);
+#else /* WPA_TRACE */
 	if (buf == NULL)
 		return;
 	os_free(buf->ext_data);
 	os_free(buf);
+#endif /* WPA_TRACE */
 }
 
 

@@ -4,11 +4,11 @@ LIB=	clangsema
 
 SRCDIR=	tools/clang/lib/Sema
 SRCS=	AnalysisBasedWarnings.cpp \
+	AttributeList.cpp \
 	CodeCompleteConsumer.cpp \
-	IdentifierResolver.cpp \
+	DeclSpec.cpp \
 	IdentifierResolver.cpp \
 	JumpDiagnostics.cpp \
-	ParseAST.cpp \
 	Sema.cpp \
 	SemaAccess.cpp \
 	SemaAttr.cpp \
@@ -31,7 +31,6 @@ SRCS=	AnalysisBasedWarnings.cpp \
 	SemaStmt.cpp \
 	SemaTemplate.cpp \
 	SemaTemplateDeduction.cpp \
-	SemaTemplateInstantiate.cpp \
 	SemaTemplateInstantiate.cpp \
 	SemaTemplateInstantiateDecl.cpp \
 	SemaType.cpp \

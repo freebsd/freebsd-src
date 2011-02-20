@@ -433,6 +433,22 @@ pmap_mapdev(vm_offset_t pa, vm_size_t size)
 	return (MMU_MAPDEV(mmu_obj, pa, size));
 }
 
+void *
+pmap_mapdev_attr(vm_offset_t pa, vm_size_t size, vm_memattr_t attr)
+{
+
+	CTR4(KTR_PMAP, "%s(%#x, %#x, %#x)", __func__, pa, size, attr);
+	return (MMU_MAPDEV_ATTR(mmu_obj, pa, size, attr));
+}
+
+void
+pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
+{
+
+	CTR3(KTR_PMAP, "%s(%p, %#x)", __func__, m, ma);
+	return (MMU_PAGE_SET_MEMATTR(mmu_obj, m, ma));
+}
+
 void
 pmap_unmapdev(vm_offset_t va, vm_size_t size)
 {
@@ -455,6 +471,14 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 
 	CTR3(KTR_PMAP, "%s(%#x, %#x)", __func__, va, pa);
 	MMU_KENTER(mmu_obj, va, pa);
+}
+
+void
+pmap_kenter_attr(vm_offset_t va, vm_offset_t pa, vm_memattr_t ma)
+{
+
+	CTR4(KTR_PMAP, "%s(%#x, %#x, %#x)", __func__, va, pa, ma);
+	MMU_KENTER_ATTR(mmu_obj, va, pa, ma);
 }
 
 boolean_t

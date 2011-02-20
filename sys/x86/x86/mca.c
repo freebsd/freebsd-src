@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/apicvar.h>
 #include <machine/cputypes.h>
-#include <machine/mca.h>
+#include <x86/mca.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
@@ -105,6 +105,7 @@ SYSCTL_INT(_hw_mca, OID_AUTO, erratum383, CTLFLAG_RD, &workaround_erratum383, 0,
 static STAILQ_HEAD(, mca_internal) mca_records;
 static struct callout mca_timer;
 static int mca_ticks = 3600;	/* Check hourly by default. */
+static struct taskqueue *mca_tq;
 static struct task mca_task;
 static struct mtx mca_lock;
 
@@ -606,7 +607,7 @@ static void
 mca_periodic_scan(void *arg)
 {
 
-	taskqueue_enqueue(taskqueue_thread, &mca_task);
+	taskqueue_enqueue(mca_tq, &mca_task);
 	callout_reset(&mca_timer, mca_ticks * hz, mca_periodic_scan, NULL);
 }
 
@@ -620,7 +621,7 @@ sysctl_mca_scan(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 	if (i)
-		taskqueue_enqueue(taskqueue_thread, &mca_task);
+		taskqueue_enqueue(mca_tq, &mca_task);
 	return (0);
 }
 
@@ -631,6 +632,9 @@ mca_startup(void *dummy)
 	if (!mca_enabled || !(cpu_feature & CPUID_MCA))
 		return;
 
+	mca_tq = taskqueue_create("mca", M_WAITOK, taskqueue_thread_enqueue,
+	    &mca_tq);
+	taskqueue_start_threads(&mca_tq, 1, PI_SWI(SWI_TQ), "mca taskq");
 	callout_reset(&mca_timer, mca_ticks * hz, mca_periodic_scan,
 		    NULL);
 }
@@ -670,7 +674,7 @@ mca_setup(uint64_t mcg_cap)
 
 	mtx_init(&mca_lock, "mca", NULL, MTX_SPIN);
 	STAILQ_INIT(&mca_records);
-	TASK_INIT(&mca_task, 0x8000, mca_scan_cpus, NULL);
+	TASK_INIT(&mca_task, 0, mca_scan_cpus, NULL);
 	callout_init(&mca_timer, CALLOUT_MPSAFE);
 	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "count", CTLFLAG_RD, &mca_count, 0, "Record count");

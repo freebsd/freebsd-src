@@ -121,8 +121,12 @@ main(int argc, char **argv)
 	build_iovec(&iov, &iovlen, "update", NULL, 0);
 	build_iovec(&iov, &iovlen, "snapshot", NULL, 0);
 
-	if (nmount(iov, iovlen, stfsbuf.f_flags) < 0)
-		err(1, "Cannot create snapshot %s: %s", snapname, errmsg);
+	*errmsg = '\0';
+	if (nmount(iov, iovlen, stfsbuf.f_flags) < 0) {
+		errmsg[sizeof(errmsg) - 1] = '\0';
+		err(1, "Cannot create snapshot %s%s%s", snapname,
+		    *errmsg != '\0' ? ": " : "", errmsg);
+	}
 	if ((fd = open(snapname, O_RDONLY)) < 0)
 		err(1, "Cannot open %s", snapname);
 	if (fstat(fd, &stbuf) != 0)

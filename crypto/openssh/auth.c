@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.c,v 1.86 2010/03/05 02:58:11 djm Exp $ */
+/* $OpenBSD: auth.c,v 1.89 2010/08/04 05:42:47 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -144,7 +144,7 @@ allowed_user(struct passwd * pw)
 			locked = 1;
 #endif
 #ifdef USE_LIBIAF
-		free(passwd);
+		free((void *) passwd);
 #endif /* USE_LIBIAF */
 		if (locked) {
 			logit("User %.100s not allowed because account is locked",
@@ -367,6 +367,14 @@ authorized_keys_file2(struct passwd *pw)
 	return expand_authorized_keys(options.authorized_keys_file2, pw);
 }
 
+char *
+authorized_principals_file(struct passwd *pw)
+{
+	if (options.authorized_principals_file == NULL)
+		return NULL;
+	return expand_authorized_keys(options.authorized_principals_file, pw);
+}
+
 /* return ok if key exists in sysfile or userfile */
 HostStatus
 check_key_in_hostfiles(struct passwd *pw, Key *key, const char *host,
@@ -378,7 +386,7 @@ check_key_in_hostfiles(struct passwd *pw, Key *key, const char *host,
 	HostStatus host_status;
 
 	/* Check if we know the host and its host key. */
-	found = key_new(key->type);
+	found = key_new(key_is_cert(key) ? KEY_UNSPEC : key->type);
 	host_status = check_host_in_hostfile(sysfile, host, key, found, NULL);
 
 	if (host_status != HOST_OK && userfile != NULL) {
@@ -390,6 +398,8 @@ check_key_in_hostfiles(struct passwd *pw, Key *key, const char *host,
 			logit("Authentication refused for %.100s: "
 			    "bad owner or modes for %.200s",
 			    pw->pw_name, user_hostfile);
+			auth_debug_add("Ignored %.200s: bad ownership or modes",
+			    user_hostfile);
 		} else {
 			temporarily_use_uid(pw);
 			host_status = check_host_in_hostfile(user_hostfile,
@@ -478,21 +488,18 @@ secure_filename(FILE *f, const char *file, struct passwd *pw,
 	return 0;
 }
 
-FILE *
-auth_openkeyfile(const char *file, struct passwd *pw, int strict_modes)
+static FILE *
+auth_openfile(const char *file, struct passwd *pw, int strict_modes,
+    int log_missing, char *file_type)
 {
 	char line[1024];
 	struct stat st;
 	int fd;
 	FILE *f;
 
-	/*
-	 * Open the file containing the authorized keys
-	 * Fail quietly if file does not exist
-	 */
 	if ((fd = open(file, O_RDONLY|O_NONBLOCK)) == -1) {
-		if (errno != ENOENT)
-			debug("Could not open keyfile '%s': %s", file,
+		if (log_missing || errno != ENOENT)
+			debug("Could not open %s '%s': %s", file_type, file,
 			   strerror(errno));
 		return NULL;
 	}
@@ -502,8 +509,8 @@ auth_openkeyfile(const char *file, struct passwd *pw, int strict_modes)
 		return NULL;
 	}
 	if (!S_ISREG(st.st_mode)) {
-		logit("User %s authorized keys %s is not a regular file",
-		    pw->pw_name, file);
+		logit("User %s %s %s is not a regular file",
+		    pw->pw_name, file_type, file);
 		close(fd);
 		return NULL;
 	}
@@ -516,10 +523,25 @@ auth_openkeyfile(const char *file, struct passwd *pw, int strict_modes)
 	    secure_filename(f, file, pw, line, sizeof(line)) != 0) {
 		fclose(f);
 		logit("Authentication refused: %s", line);
+		auth_debug_add("Ignored %s: %s", file_type, line);
 		return NULL;
 	}
 
 	return f;
+}
+
+
+FILE *
+auth_openkeyfile(const char *file, struct passwd *pw, int strict_modes)
+{
+	return auth_openfile(file, pw, strict_modes, 1, "authorized keys");
+}
+
+FILE *
+auth_openprincipals(const char *file, struct passwd *pw, int strict_modes)
+{
+	return auth_openfile(file, pw, strict_modes, 0,
+	    "authorized principals");
 }
 
 struct passwd *

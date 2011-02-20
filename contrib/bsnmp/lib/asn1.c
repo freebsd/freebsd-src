@@ -196,7 +196,7 @@ asn_put_temp_header(struct asn_buf *b, u_char type, u_char **ptr)
 	return (ret);
 }
 enum asn_err
-asn_commit_header(struct asn_buf *b, u_char *ptr)
+asn_commit_header(struct asn_buf *b, u_char *ptr, size_t *moved)
 {
 	asn_len_t len;
 	u_int lenlen, shift;
@@ -215,6 +215,8 @@ asn_commit_header(struct asn_buf *b, u_char *ptr)
 		memmove(ptr + 1 + lenlen, ptr + TEMP_LEN, len);
 		b->asn_ptr -= shift;
 		b->asn_len += shift;
+		if (moved != NULL)
+			*moved = shift;
 	}
 	return (ASN_ERR_OK);
 }
@@ -909,6 +911,20 @@ asn_skip(struct asn_buf *b, asn_len_t len)
 		return (ASN_ERR_EOBUF);
 	b->asn_cptr += len;
 	b->asn_len -= len;
+	return (ASN_ERR_OK);
+}
+
+/*
+ * Add a padding
+ */
+enum asn_err
+asn_pad(struct asn_buf *b, asn_len_t len)
+{
+	if (b->asn_len < len)
+		return (ASN_ERR_EOBUF);
+	b->asn_ptr += len;
+	b->asn_len -= len;
+
 	return (ASN_ERR_OK);
 }
 

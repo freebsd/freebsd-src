@@ -23,7 +23,6 @@ LZMAINCS+=	base.h \
 		index_hash.h \
 		lzma.h \
 		stream_flags.h \
-		subblock.h \
 		version.h \
 		vli.h
 
@@ -79,6 +78,7 @@ SRCS+=	check.c \
 .if defined(MACHINE_ARCH) && ${MACHINE_ARCH} == "i386"
 SRCS+=	crc32_x86.S \
 	crc64_x86.S
+ACFLAGS+=	-Wa,--noexecstack
 .else
 SRCS+=	crc32_fast.c \
 	crc64_fast.c
@@ -129,7 +129,6 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${LZMADIR}/lz \
 		-I${LZMADIR}/rangecoder \
 		-I${LZMADIR}/lzma \
-		-I${LZMADIR}/subblock \
 		-I${LZMADIR}/delta \
 		-I${LZMADIR}/simple \
 		-I${LZMADIR}/../common

@@ -874,9 +874,6 @@ iommu_dvmamap_create(bus_dma_tag_t dt, int flags, bus_dmamap_t *mapp)
 	 */
 	maxpre = imin(dt->dt_nsegments, IOMMU_MAX_PRE_SEG);
 	presz = dt->dt_maxsize / maxpre;
-	KASSERT(presz != 0, ("%s: bogus preallocation size , nsegments = %d, "
-	    "maxpre = %d, maxsize = %lu", __func__, dt->dt_nsegments, maxpre,
-	    dt->dt_maxsize));
 	for (i = 1; i < maxpre && totsz < IOMMU_MAX_PRE; i++) {
 		currsz = round_io_page(ulmin(presz, IOMMU_MAX_PRE - totsz));
 		error = iommu_dvma_valloc(dt, is, *mapp, currsz);

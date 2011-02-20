@@ -18,6 +18,7 @@
 #include "clang/AST/ParentMap.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Analysis/Analyses/LiveVariables.h"
+#include "clang/Analysis/Analyses/PseudoConstantAnalysis.h"
 #include "clang/Analysis/AnalysisContext.h"
 #include "clang/Analysis/CFG.h"
 #include "clang/Analysis/Support/BumpVector.h"
@@ -54,8 +55,11 @@ const ImplicitParamDecl *AnalysisContext::getSelfDecl() const {
 }
 
 CFG *AnalysisContext::getCFG() {
+  if (UseUnoptimizedCFG)
+    return getUnoptimizedCFG();
+
   if (!builtCFG) {
-    cfg = CFG::buildCFG(D, getBody(), &D->getASTContext(), AddEHEdges);
+    cfg = CFG::buildCFG(D, getBody(), &D->getASTContext(), true, AddEHEdges);
     // Even when the cfg is not successfully built, we don't
     // want to try building it again.
     builtCFG = true;
@@ -63,10 +67,27 @@ CFG *AnalysisContext::getCFG() {
   return cfg;
 }
 
+CFG *AnalysisContext::getUnoptimizedCFG() {
+  if (!builtCompleteCFG) {
+    completeCFG = CFG::buildCFG(D, getBody(), &D->getASTContext(),
+                                false, AddEHEdges);
+    // Even when the cfg is not successfully built, we don't
+    // want to try building it again.
+    builtCompleteCFG = true;
+  }
+  return completeCFG;
+}
+
 ParentMap &AnalysisContext::getParentMap() {
   if (!PM)
     PM = new ParentMap(getBody());
   return *PM;
+}
+
+PseudoConstantAnalysis *AnalysisContext::getPseudoConstantAnalysis() {
+  if (!PCA)
+    PCA = new PseudoConstantAnalysis(getBody());
+  return PCA;
 }
 
 LiveVariables *AnalysisContext::getLiveVariables() {
@@ -83,10 +104,25 @@ LiveVariables *AnalysisContext::getLiveVariables() {
   return liveness;
 }
 
-AnalysisContext *AnalysisContextManager::getContext(const Decl *D) {
+LiveVariables *AnalysisContext::getRelaxedLiveVariables() {
+  if (!relaxedLiveness) {
+    CFG *c = getCFG();
+    if (!c)
+      return 0;
+
+    relaxedLiveness = new LiveVariables(*this, false);
+    relaxedLiveness->runOnCFG(*c);
+    relaxedLiveness->runOnAllBlocks(*c, 0, true);
+  }
+
+  return relaxedLiveness;
+}
+
+AnalysisContext *AnalysisContextManager::getContext(const Decl *D,
+                                                    idx::TranslationUnit *TU) {
   AnalysisContext *&AC = Contexts[D];
   if (!AC)
-    AC = new AnalysisContext(D);
+    AC = new AnalysisContext(D, TU, UseUnoptimizedCFG);
 
   return AC;
 }
@@ -296,8 +332,11 @@ AnalysisContext::getReferencedBlockVars(const BlockDecl *BD) {
 
 AnalysisContext::~AnalysisContext() {
   delete cfg;
+  delete completeCFG;
   delete liveness;
+  delete relaxedLiveness;
   delete PM;
+  delete PCA;
   delete ReferencedBlockVars;
 }
 

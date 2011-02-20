@@ -1,0 +1,6 @@
+manpage.links
+manpage.refs
+*.8
+*.5
+*.html
+*.pdf

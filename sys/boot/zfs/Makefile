@@ -5,6 +5,7 @@ INTERNALLIB=
 
 SRCS+=		zfs.c
 
+CFLAGS+=	-DBOOTPROG=\"zfsloader\"
 CFLAGS+=	-I${.CURDIR}/../common -I${.CURDIR}/../.. -I.
 CFLAGS+=	-I${.CURDIR}/../../../lib/libstand
 CFLAGS+=	-I${.CURDIR}/../../cddl/boot/zfs
@@ -12,10 +13,7 @@ CFLAGS+=	-I${.CURDIR}/../../cddl/boot/zfs
 CFLAGS+=	-ffreestanding
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=	-mpreferred-stack-boundary=2
-CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2
-.endif
-.if ${MACHINE_CPUARCH} == "i386"
-CFLAGS+=	-mno-sse3
+CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 -msoft-float
 .endif
 .if ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "arm"
 CFLAGS+=	-msoft-float

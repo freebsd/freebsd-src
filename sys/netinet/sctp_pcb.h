@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- *
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
@@ -240,7 +241,7 @@ struct sctp_base_info {
 	 */
 	struct sctp_epinfo sctppcbinfo;
 #if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
-	struct sctpstat sctpstat[MAXCPU];
+	struct sctpstat *sctpstat;
 #else
 	struct sctpstat sctpstat;
 #endif
@@ -276,6 +277,7 @@ struct sctp_pcb {
 	uint32_t sctp_sws_receiver;
 
 	uint32_t sctp_default_cc_module;
+	uint32_t sctp_default_ss_module;
 	/* authentication related fields */
 	struct sctp_keyhead shared_keys;
 	sctp_auth_chklist_t *local_auth_chunks;
@@ -316,7 +318,8 @@ struct sctp_pcb {
 	uint32_t initial_sequence_debug;
 	uint32_t adaptation_layer_indicator;
 	uint32_t store_at;
-	uint8_t max_burst;
+	uint32_t max_burst;
+	uint32_t fr_max_burst;
 	char current_secret_number;
 	char last_secret_number;
 };
@@ -389,6 +392,8 @@ struct sctp_inpcb {
 	uint32_t sctp_frag_point;
 	uint32_t partial_delivery_point;
 	uint32_t sctp_context;
+	uint32_t sctp_cmt_on_off;
+	uint32_t sctp_ecn_enable;
 	struct sctp_nonpad_sndrcvinfo def_send;
 	/*-
 	 * These three are here for the sosend_dgram
@@ -620,6 +625,12 @@ sctp_initiate_iterator(inp_func inpf,
     end_func ef,
     struct sctp_inpcb *,
     uint8_t co_off);
+
+#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
+void
+     sctp_queue_to_mcore(struct mbuf *m, int off, int cpu_to_use);
+
+#endif
 
 #ifdef INVARIANTS
 void

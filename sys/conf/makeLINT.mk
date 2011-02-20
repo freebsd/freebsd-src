@@ -17,6 +17,6 @@ LINT: ${NOTES} ../../conf/makeLINT.sed
 	echo "ident ${.TARGET}-VIMAGE"	>> ${.TARGET}-VIMAGE
 	echo "options VIMAGE"		>> ${.TARGET}-VIMAGE
 .endif
-.if ${TARGET} == "powerpc"
+.if ${TARGET} == "powerpc" || ${TARGET} == "mips"
 	echo "machine	${TARGET} ${TARGET_ARCH}" >> ${.TARGET}
 .endif

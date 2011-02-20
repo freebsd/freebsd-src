@@ -25,6 +25,8 @@ SRCS=	APValue.cpp \
 	ExprConstant.cpp \
 	FullExpr.cpp \
 	InheritViz.cpp \
+	ItaniumCXXABI.cpp \
+	MicrosoftCXXABI.cpp \
 	NestedNameSpecifier.cpp \
 	ParentMap.cpp \
 	RecordLayout.cpp \
@@ -41,7 +43,8 @@ SRCS=	APValue.cpp \
 	TypeLoc.cpp \
 	TypePrinter.cpp
 
-TGHDRS=	AttrList \
+TGHDRS=	AttrImpl \
+	AttrList \
 	Attrs \
 	DeclNodes \
 	DiagnosticASTKinds \

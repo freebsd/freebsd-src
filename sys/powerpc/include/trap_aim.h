@@ -54,9 +54,12 @@
 /* The following is only available on the 601: */
 #define	EXC_RUNMODETRC	0x2000		/* Run Mode/Trace Exception */
 
+/* The following are only available on 970(G5): */
+#define	EXC_VECAST_G5	0x1700		/* AltiVec Assist */
+
 /* The following are only available on 7400(G4): */
 #define	EXC_VEC		0x0f20		/* AltiVec Unavailable */
-#define	EXC_VECAST	0x1600		/* AltiVec Assist */
+#define	EXC_VECAST_G4	0x1600		/* AltiVec Assist */
 
 /* The following are only available on 604/750/7400: */
 #define	EXC_PERF	0x0f00		/* Performance Monitoring */

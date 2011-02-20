@@ -36,7 +36,6 @@
 
 /*
  * TODO:
- *	remove empty directories
  *	mkdir: want it ?
  */
 
@@ -191,6 +190,7 @@ devfs_clear_cdevpriv(void)
 static int
 devfs_populate_vp(struct vnode *vp)
 {
+	struct devfs_dirent *de;
 	struct devfs_mount *dmp;
 	int locked;
 
@@ -214,7 +214,14 @@ devfs_populate_vp(struct vnode *vp)
 		devfs_unmount_final(dmp);
 		return (EBADF);
 	}
-	if (vp->v_iflag & VI_DOOMED) {
+	if ((vp->v_iflag & VI_DOOMED) != 0) {
+		sx_xunlock(&dmp->dm_lock);
+		return (EBADF);
+	}
+	de = vp->v_data;
+	KASSERT(de != NULL,
+	    ("devfs_populate_vp: vp->v_data == NULL but vnode not doomed"));
+	if ((de->de_flags & DE_DOOMED) != 0) {
 		sx_xunlock(&dmp->dm_lock);
 		return (EBADF);
 	}
@@ -234,11 +241,13 @@ devfs_vptocnp(struct vop_vptocnp_args *ap)
 	int i, error;
 
 	dmp = VFSTODEVFS(vp->v_mount);
+
+	error = devfs_populate_vp(vp);
+	if (error != 0)
+		return (error);
+
 	i = *buflen;
 	dd = vp->v_data;
-	error = 0;
-
-	sx_xlock(&dmp->dm_lock);
 
 	if (vp->v_type == VCHR) {
 		i -= strlen(dd->de_cdp->cdp_c.si_name);
@@ -290,29 +299,34 @@ finished:
 }
 
 /*
- * Construct the fully qualified path name relative to the mountpoint
+ * Construct the fully qualified path name relative to the mountpoint.
+ * If a NULL cnp is provided, no '/' is appended to the resulting path.
  */
-static char *
-devfs_fqpn(char *buf, struct vnode *dvp, struct componentname *cnp)
+char *
+devfs_fqpn(char *buf, struct devfs_mount *dmp, struct devfs_dirent *dd,
+    struct componentname *cnp)
 {
 	int i;
-	struct devfs_dirent *de, *dd;
-	struct devfs_mount *dmp;
+	struct devfs_dirent *de;
 
-	dmp = VFSTODEVFS(dvp->v_mount);
-	dd = dvp->v_data;
+	sx_assert(&dmp->dm_lock, SA_LOCKED);
+
 	i = SPECNAMELEN;
 	buf[i] = '\0';
-	i -= cnp->cn_namelen;
+	if (cnp != NULL)
+		i -= cnp->cn_namelen;
 	if (i < 0)
 		 return (NULL);
-	bcopy(cnp->cn_nameptr, buf + i, cnp->cn_namelen);
+	if (cnp != NULL)
+		bcopy(cnp->cn_nameptr, buf + i, cnp->cn_namelen);
 	de = dd;
 	while (de != dmp->dm_rootdir) {
-		i--;
-		if (i < 0)
-			 return (NULL);
-		buf[i] = '/';
+		if (cnp != NULL || i < SPECNAMELEN) {
+			i--;
+			if (i < 0)
+				 return (NULL);
+			buf[i] = '/';
+		}
 		i -= de->de_dirent->d_namlen;
 		if (i < 0)
 			 return (NULL);
@@ -618,9 +632,17 @@ devfs_getattr(struct vop_getattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
-	int error = 0;
+	int error;
 	struct devfs_dirent *de;
+	struct devfs_mount *dmp;
 	struct cdev *dev;
+
+	error = devfs_populate_vp(vp);
+	if (error != 0)
+		return (error);
+
+	dmp = VFSTODEVFS(vp->v_mount);
+	sx_xunlock(&dmp->dm_lock);
 
 	de = vp->v_data;
 	KASSERT(de != NULL, ("Null dirent in devfs_getattr vp=%p", vp));
@@ -861,7 +883,7 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 		 * OK, we didn't have an entry for the name we were asked for
 		 * so we try to see if anybody can create it on demand.
 		 */
-		pname = devfs_fqpn(specname, dvp, cnp);
+		pname = devfs_fqpn(specname, dmp, dd, cnp);
 		if (pname == NULL)
 			break;
 
@@ -1263,10 +1285,14 @@ devfs_reclaim(struct vop_reclaim_args *ap)
 static int
 devfs_remove(struct vop_remove_args *ap)
 {
+	struct vnode *dvp = ap->a_dvp;
 	struct vnode *vp = ap->a_vp;
 	struct devfs_dirent *dd;
 	struct devfs_dirent *de, *de_covered;
 	struct devfs_mount *dmp = VFSTODEVFS(vp->v_mount);
+
+	ASSERT_VOP_ELOCKED(dvp, "devfs_remove");
+	ASSERT_VOP_ELOCKED(vp, "devfs_remove");
 
 	sx_xlock(&dmp->dm_lock);
 	dd = ap->a_dvp->v_data;
@@ -1279,11 +1305,19 @@ devfs_remove(struct vop_remove_args *ap)
 			if (de_covered != NULL)
 				de_covered->de_flags &= ~DE_COVERED;
 		}
-		devfs_delete(dmp, de, 1);
+		/* We need to unlock dvp because devfs_delete() may lock it. */
+		VOP_UNLOCK(vp, 0);
+		if (dvp != vp)
+			VOP_UNLOCK(dvp, 0);
+		devfs_delete(dmp, de, 0);
+		sx_xunlock(&dmp->dm_lock);
+		if (dvp != vp)
+			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	} else {
 		de->de_flags |= DE_WHITEOUT;
+		sx_xunlock(&dmp->dm_lock);
 	}
-	sx_xunlock(&dmp->dm_lock);
 	return (0);
 }
 
@@ -1525,23 +1559,32 @@ devfs_symlink(struct vop_symlink_args *ap)
 	if (error)
 		return(error);
 	dmp = VFSTODEVFS(ap->a_dvp->v_mount);
+	if (devfs_populate_vp(ap->a_dvp) != 0)
+		return (ENOENT);
+
 	dd = ap->a_dvp->v_data;
 	de = devfs_newdirent(ap->a_cnp->cn_nameptr, ap->a_cnp->cn_namelen);
+	de->de_flags = DE_USER;
 	de->de_uid = 0;
 	de->de_gid = 0;
 	de->de_mode = 0755;
 	de->de_inode = alloc_unr(devfs_inos);
+	de->de_dir = dd;
 	de->de_dirent->d_type = DT_LNK;
 	i = strlen(ap->a_target) + 1;
 	de->de_symlink = malloc(i, M_DEVFS, M_WAITOK);
 	bcopy(ap->a_target, de->de_symlink, i);
-	sx_xlock(&dmp->dm_lock);
 #ifdef MAC
 	mac_devfs_create_symlink(ap->a_cnp->cn_cred, dmp->dm_mount, dd, de);
 #endif
 	de_covered = devfs_find(dd, de->de_dirent->d_name,
 	    de->de_dirent->d_namlen, 0);
 	if (de_covered != NULL) {
+		if ((de_covered->de_flags & DE_USER) != 0) {
+			devfs_delete(dmp, de, DEVFS_DEL_NORECURSE);
+			sx_xunlock(&dmp->dm_lock);
+			return (EEXIST);
+		}
 		KASSERT((de_covered->de_flags & DE_COVERED) == 0,
 		    ("devfs_symlink: entry %p already covered", de_covered));
 		de_covered->de_flags |= DE_COVERED;
@@ -1550,6 +1593,8 @@ devfs_symlink(struct vop_symlink_args *ap)
 	de_dotdot = TAILQ_FIRST(&dd->de_dlist);		/* "." */
 	de_dotdot = TAILQ_NEXT(de_dotdot, de_list);	/* ".." */
 	TAILQ_INSERT_AFTER(&dd->de_dlist, de_dotdot, de, de_list);
+	devfs_dir_ref_de(dmp, dd);
+	devfs_rules_apply(dmp, de);
 
 	return (devfs_allocv(de, ap->a_dvp->v_mount, LK_EXCLUSIVE, ap->a_vpp));
 }

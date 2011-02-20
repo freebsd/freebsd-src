@@ -72,7 +72,7 @@ namespace {  // Anonymous namespace for class
   struct PreVerifier : public FunctionPass {
     static char ID; // Pass ID, replacement for typeid
 
-    PreVerifier() : FunctionPass(&ID) { }
+    PreVerifier() : FunctionPass(ID) { }
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesAll();
@@ -102,9 +102,9 @@ namespace {  // Anonymous namespace for class
 }
 
 char PreVerifier::ID = 0;
-static RegisterPass<PreVerifier>
-PreVer("preverify", "Preliminary module verification");
-static const PassInfo *const PreVerifyID = &PreVer;
+INITIALIZE_PASS(PreVerifier, "preverify", "Preliminary module verification", 
+                false, false);
+char &PreVerifyID = PreVerifier::ID;
 
 namespace {
   class TypeSet : public AbstractTypeUser {
@@ -182,23 +182,13 @@ namespace {
     SmallPtrSet<MDNode *, 32> MDNodes;
 
     Verifier()
-      : FunctionPass(&ID), 
+      : FunctionPass(ID), 
       Broken(false), RealPass(true), action(AbortProcessAction),
       Mod(0), Context(0), DT(0), MessagesStr(Messages) {}
     explicit Verifier(VerifierFailureAction ctn)
-      : FunctionPass(&ID), 
+      : FunctionPass(ID), 
       Broken(false), RealPass(true), action(ctn), Mod(0), Context(0), DT(0),
       MessagesStr(Messages) {}
-    explicit Verifier(bool AB)
-      : FunctionPass(&ID), 
-      Broken(false), RealPass(true),
-      action( AB ? AbortProcessAction : PrintMessageAction), Mod(0),
-      Context(0), DT(0), MessagesStr(Messages) {}
-    explicit Verifier(DominatorTree &dt)
-      : FunctionPass(&ID), 
-      Broken(false), RealPass(false), action(PrintMessageAction), Mod(0),
-      Context(0), DT(&dt), MessagesStr(Messages) {}
-
 
     bool doInitialization(Module &M) {
       Mod = &M;
@@ -331,6 +321,7 @@ namespace {
     void visitBranchInst(BranchInst &BI);
     void visitReturnInst(ReturnInst &RI);
     void visitSwitchInst(SwitchInst &SI);
+    void visitIndirectBrInst(IndirectBrInst &BI);
     void visitSelectInst(SelectInst &SI);
     void visitUserOp1(Instruction &I);
     void visitUserOp2(Instruction &I) { visitUserOp1(I); }
@@ -402,7 +393,7 @@ namespace {
 } // End anonymous namespace
 
 char Verifier::ID = 0;
-static RegisterPass<Verifier> X("verify", "Module Verifier");
+INITIALIZE_PASS(Verifier, "verify", "Module Verifier", false, false);
 
 // Assert - We know that cond should be true, if not print an error message.
 #define Assert(C, M) \
@@ -445,6 +436,10 @@ void Verifier::visitGlobalValue(GlobalValue &GV) {
     Assert1(GVar && GVar->getType()->getElementType()->isArrayTy(),
             "Only global arrays can have appending linkage!", GVar);
   }
+
+  Assert1(!GV.hasLinkerPrivateWeakDefAutoLinkage() || GV.hasDefaultVisibility(),
+          "linker_private_weak_def_auto can only have default visibility!",
+          &GV);
 }
 
 void Verifier::visitGlobalVariable(GlobalVariable &GV) {
@@ -504,8 +499,8 @@ void Verifier::visitNamedMDNode(NamedMDNode &NMD) {
     if (!MD)
       continue;
 
-    Assert2(!MD->isFunctionLocal(),
-            "Named metadata operand cannot be function local!", &NMD, MD);
+    Assert1(!MD->isFunctionLocal(),
+            "Named metadata operand cannot be function local!", MD);
     visitMDNode(*MD, 0);
   }
 }
@@ -520,7 +515,7 @@ void Verifier::visitMDNode(MDNode &MD, Function *F) {
     Value *Op = MD.getOperand(i);
     if (!Op)
       continue;
-    if (isa<Constant>(Op) || isa<MDString>(Op) || isa<NamedMDNode>(Op))
+    if (isa<Constant>(Op) || isa<MDString>(Op))
       continue;
     if (MDNode *N = dyn_cast<MDNode>(Op)) {
       Assert2(MD.isFunctionLocal() || !N->isFunctionLocal(),
@@ -864,6 +859,16 @@ void Verifier::visitSwitchInst(SwitchInst &SI) {
   visitTerminatorInst(SI);
 }
 
+void Verifier::visitIndirectBrInst(IndirectBrInst &BI) {
+  Assert1(BI.getAddress()->getType()->isPointerTy(),
+          "Indirectbr operand must have pointer type!", &BI);
+  for (unsigned i = 0, e = BI.getNumDestinations(); i != e; ++i)
+    Assert1(BI.getDestination(i)->getType()->isLabelTy(),
+            "Indirectbr destinations must all have pointer type!", &BI);
+
+  visitTerminatorInst(BI);
+}
+
 void Verifier::visitSelectInst(SelectInst &SI) {
   Assert1(!SelectInst::areInvalidOperands(SI.getOperand(0), SI.getOperand(1),
                                           SI.getOperand(2)),
@@ -1202,6 +1207,7 @@ void Verifier::visitCallInst(CallInst &CI) {
 
 void Verifier::visitInvokeInst(InvokeInst &II) {
   VerifyCallSite(&II);
+  visitTerminatorInst(II);
 }
 
 /// visitBinaryOperator - Check that both arguments to the binary operator are
@@ -1266,28 +1272,37 @@ void Verifier::visitBinaryOperator(BinaryOperator &B) {
   visitInstruction(B);
 }
 
-void Verifier::visitICmpInst(ICmpInst& IC) {
+void Verifier::visitICmpInst(ICmpInst &IC) {
   // Check that the operands are the same type
-  const Type* Op0Ty = IC.getOperand(0)->getType();
-  const Type* Op1Ty = IC.getOperand(1)->getType();
+  const Type *Op0Ty = IC.getOperand(0)->getType();
+  const Type *Op1Ty = IC.getOperand(1)->getType();
   Assert1(Op0Ty == Op1Ty,
           "Both operands to ICmp instruction are not of the same type!", &IC);
   // Check that the operands are the right type
   Assert1(Op0Ty->isIntOrIntVectorTy() || Op0Ty->isPointerTy(),
           "Invalid operand types for ICmp instruction", &IC);
+  // Check that the predicate is valid.
+  Assert1(IC.getPredicate() >= CmpInst::FIRST_ICMP_PREDICATE &&
+          IC.getPredicate() <= CmpInst::LAST_ICMP_PREDICATE,
+          "Invalid predicate in ICmp instruction!", &IC);
 
   visitInstruction(IC);
 }
 
-void Verifier::visitFCmpInst(FCmpInst& FC) {
+void Verifier::visitFCmpInst(FCmpInst &FC) {
   // Check that the operands are the same type
-  const Type* Op0Ty = FC.getOperand(0)->getType();
-  const Type* Op1Ty = FC.getOperand(1)->getType();
+  const Type *Op0Ty = FC.getOperand(0)->getType();
+  const Type *Op1Ty = FC.getOperand(1)->getType();
   Assert1(Op0Ty == Op1Ty,
           "Both operands to FCmp instruction are not of the same type!", &FC);
   // Check that the operands are the right type
   Assert1(Op0Ty->isFPOrFPVectorTy(),
           "Invalid operand types for FCmp instruction", &FC);
+  // Check that the predicate is valid.
+  Assert1(FC.getPredicate() >= CmpInst::FIRST_FCMP_PREDICATE &&
+          FC.getPredicate() <= CmpInst::LAST_FCMP_PREDICATE,
+          "Invalid predicate in FCmp instruction!", &FC);
+
   visitInstruction(FC);
 }
 
@@ -1310,27 +1325,6 @@ void Verifier::visitShuffleVectorInst(ShuffleVectorInst &SV) {
   Assert1(ShuffleVectorInst::isValidOperands(SV.getOperand(0), SV.getOperand(1),
                                              SV.getOperand(2)),
           "Invalid shufflevector operands!", &SV);
-
-  const VectorType *VTy = dyn_cast<VectorType>(SV.getOperand(0)->getType());
-  Assert1(VTy, "Operands are not a vector type", &SV);
-
-  // Check to see if Mask is valid.
-  if (const ConstantVector *MV = dyn_cast<ConstantVector>(SV.getOperand(2))) {
-    for (unsigned i = 0, e = MV->getNumOperands(); i != e; ++i) {
-      if (ConstantInt* CI = dyn_cast<ConstantInt>(MV->getOperand(i))) {
-        Assert1(!CI->uge(VTy->getNumElements()*2),
-                "Invalid shufflevector shuffle mask!", &SV);
-      } else {
-        Assert1(isa<UndefValue>(MV->getOperand(i)),
-                "Invalid shufflevector shuffle mask!", &SV);
-      }
-    }
-  } else {
-    Assert1(isa<UndefValue>(SV.getOperand(2)) || 
-            isa<ConstantAggregateZero>(SV.getOperand(2)),
-            "Invalid shufflevector shuffle mask!", &SV);
-  }
-
   visitInstruction(SV);
 }
 
@@ -1407,10 +1401,6 @@ void Verifier::visitInstruction(Instruction &I) {
       Assert1(*UI != (User*)&I || !DT->isReachableFromEntry(BB),
               "Only PHI nodes may reference their own value!", &I);
   }
-
-  // Verify that if this is a terminator that it is at the end of the block.
-  if (isa<TerminatorInst>(I))
-    Assert1(BB->getTerminator() == &I, "Terminator not at end of block!", &I);
 
   // Check that void typed values don't have names
   Assert1(!I.getType()->isVoidTy() || !I.hasName(),
@@ -1570,7 +1560,8 @@ void Verifier::VerifyType(const Type *Ty) {
               "Function type with invalid parameter type", ElTy, FTy);
       VerifyType(ElTy);
     }
-  } break;
+    break;
+  }
   case Type::StructTyID: {
     const StructType *STy = cast<StructType>(Ty);
     for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i) {
@@ -1579,34 +1570,29 @@ void Verifier::VerifyType(const Type *Ty) {
               "Structure type with invalid element type", ElTy, STy);
       VerifyType(ElTy);
     }
-  } break;
-  case Type::UnionTyID: {
-    const UnionType *UTy = cast<UnionType>(Ty);
-    for (unsigned i = 0, e = UTy->getNumElements(); i != e; ++i) {
-      const Type *ElTy = UTy->getElementType(i);
-      Assert2(UnionType::isValidElementType(ElTy),
-              "Union type with invalid element type", ElTy, UTy);
-      VerifyType(ElTy);
-    }
-  } break;
+    break;
+  }
   case Type::ArrayTyID: {
     const ArrayType *ATy = cast<ArrayType>(Ty);
     Assert1(ArrayType::isValidElementType(ATy->getElementType()),
             "Array type with invalid element type", ATy);
     VerifyType(ATy->getElementType());
-  } break;
+    break;
+  }
   case Type::PointerTyID: {
     const PointerType *PTy = cast<PointerType>(Ty);
     Assert1(PointerType::isValidElementType(PTy->getElementType()),
             "Pointer type with invalid element type", PTy);
     VerifyType(PTy->getElementType());
-  } break;
+    break;
+  }
   case Type::VectorTyID: {
     const VectorType *VTy = cast<VectorType>(Ty);
     Assert1(VectorType::isValidElementType(VTy->getElementType()),
             "Vector type with invalid element type", VTy);
     VerifyType(VTy->getElementType());
-  } break;
+    break;
+  }
   default:
     break;
   }
@@ -1832,8 +1818,13 @@ bool Verifier::PerformTypeCheck(Intrinsic::ID ID, Function *F, const Type *Ty,
     // and iPTR. In the verifier, we can not distinguish which case we have so
     // allow either case to be legal.
     if (const PointerType* PTyp = dyn_cast<PointerType>(Ty)) {
-      Suffix += ".p" + utostr(PTyp->getAddressSpace()) + 
-        EVT::getEVT(PTyp->getElementType()).getEVTString();
+      EVT PointeeVT = EVT::getEVT(PTyp->getElementType(), true);
+      if (PointeeVT == MVT::Other) {
+        CheckFailed("Intrinsic has pointer to complex type.");
+        return false;
+      }
+      Suffix += ".p" + utostr(PTyp->getAddressSpace()) +
+        PointeeVT.getEVTString();
     } else {
       CheckFailed(IntrinsicParam(ArgNo, NumRetVals) + " is not a "
                   "pointer and a pointer is required.", F);

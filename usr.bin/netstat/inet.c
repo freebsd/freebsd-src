@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -411,24 +407,30 @@ protopr(u_long off, const char *name, int af1, int proto)
 			if (Lflag)
 				printf("%-5.5s %-14.14s %-22.22s\n",
 				    "Proto", "Listen", "Local Address");
-			else {
+			if (Tflag) 
+				printf((Aflag && !Wflag) ?
+			    "%-5.5s %-6.6s %-6.6s %-6.6s %-18.18s %s\n" :
+			    "%-5.5s %-6.6s %-6.6s %-6.6s %-22.22s %s\n",
+				    "Proto", "Rexmit", "OOORcv", "0-win",
+				    "Local Address", "Foreign Address");
+			if (xflag) {
+				printf("%-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s ",
+				       "R-MBUF", "S-MBUF", "R-CLUS", 
+				       "S-CLUS", "R-HIWA", "S-HIWA", 
+				       "R-LOWA", "S-LOWA", "R-BCNT", 
+				       "S-BCNT", "R-BMAX", "S-BMAX");
+				printf("%7.7s %7.7s %7.7s %7.7s %7.7s %7.7s %s\n",
+				       "rexmt", "persist", "keep",
+				       "2msl", "delack", "rcvtime",
+				       "(state)");
+			}
+			if (!xflag && !Tflag) {
 				printf((Aflag && !Wflag) ? 
 				       "%-5.5s %-6.6s %-6.6s  %-18.18s %-18.18s" :
 				       "%-5.5s %-6.6s %-6.6s  %-22.22s %-22.22s",
 				       "Proto", "Recv-Q", "Send-Q",
 				       "Local Address", "Foreign Address");
-				if (xflag) {
-					printf("%-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s ",
-					       	"R-MBUF", "S-MBUF", "R-CLUS", 
-						"S-CLUS", "R-HIWA", "S-HIWA", 
-						"R-LOWA", "S-LOWA", "R-BCNT", 
-						"S-BCNT", "R-BMAX", "S-BMAX");
-					printf("%7.7s %7.7s %7.7s %7.7s %7.7s %7.7s %s\n",
-						"rexmt", "persist", "keep",
-						"2msl", "delack", "rcvtime",
-						"(state)");
-				} else
-					printf("(state)\n");
+				printf("(state)\n");
 			}
 			first = 0;
 		}
@@ -455,6 +457,10 @@ protopr(u_long off, const char *name, int af1, int proto)
 			snprintf(buf1, 15, "%d/%d/%d", so->so_qlen,
 			    so->so_incqlen, so->so_qlimit);
 			printf("%-14.14s ", buf1);
+		} else if (Tflag) {
+			if (istcp)
+				printf("%6u %6u %6u ", tp->t_sndrexmitpack,
+				       tp->t_rcvoopack, tp->t_sndzerowin);
 		} else {
 			printf("%6u %6u ", so->so_rcv.sb_cc, so->so_snd.sb_cc);
 		}
@@ -540,7 +546,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 					    timer->t_rcvtime / 1000, (timer->t_rcvtime % 1000) / 10);
 			}
 		}
-		if (istcp && !Lflag) {
+		if (istcp && !Lflag && !xflag && !Tflag) {
 			if (tp->t_state < 0 || tp->t_state >= TCP_NSTATES)
 				printf("%d", tp->t_state);
 			else {
@@ -689,6 +695,9 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(tcps_sc_zonefail, "\t\t%lu zone failure%s\n");
 	p(tcps_sc_sendcookie, "\t%lu cookie%s sent\n");
 	p(tcps_sc_recvcookie, "\t%lu cookie%s received\n");
+
+	p(tcps_hc_added, "\t%lu hostcache entrie%s added\n");
+	p1a(tcps_hc_bucketoverflow, "\t\t%lu bucket overflow\n");
 
 	p(tcps_sack_recovery_episode, "\t%lu SACK recovery episode%s\n");
 	p(tcps_sack_rexmits,

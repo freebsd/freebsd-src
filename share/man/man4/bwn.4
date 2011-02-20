@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2010
+.Dd February 15, 2011
 .Dt BWN 4
 .Os
 .Sh NAME
@@ -78,23 +78,26 @@ driver supports Broadcom BCM43xx based wireless devices, including:
 .Pp
 .Bl -column -compact "Apple Airport Extreme" "BCM4306" "Mini PCI" "a/b/g" -offset 6n
 .It Em "Card	Chip	Bus	Standard"
-.It "Apple Airport Extreme	BCM4306	PCI	b/g"
 .It "Apple Airport Extreme	BCM4318	PCI	b/g"
 .It "ASUS WL-138g	BCM4318	PCI	b/g"
 .It "Buffalo WLI-CB-G54S	BCM4318	CardBus	b/g"
-.It "Buffalo WLI-PCI-G54S	BCM4306	PCI	b/g"
-.It "Compaq R4035 onboard	BCM4306	PCI	b/g"
+.It "Dell Wireless 1390 BCM4311 Mini PCI	b/g"
 .It "Dell Wireless 1470	BCM4318	Mini PCI	b/g"
 .It "Dell Truemobile 1400	BCM4309	Mini PCI	b/g"
+.It "HP Compaq 6715b	BCM4312	PCI	b/g"
 .It "HP nx6125	BCM4319	PCI	b/g"
 .It "Linksys WPC54G Ver 3	BCM4318	CardBus	b/g"
 .It "Linksys WPC54GS Ver 2	BCM4318	CardBus	b/g"
-.It "TRENDnet TEW-401PCplus	BCM4306	CardBus	b/g"
 .It "US Robotics 5411	BCM4318	CardBus	b/g"
 .El
+.Pp
+Users of older Broadcom chipsets (BCM4301, BCM4303 and BCM4306 rev 2)
+must use
+.Xr bwi 4
+because the v4 version of the firmware does not support these chips.
+The newer firmware is too big to fit into these old chips.
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
-.Pp
 .Bd -literal -offset indent
 ifconfig wlan create wlandev bwn0 inet 192.168.0.20 \e
     netmask 0xffffff00
@@ -110,8 +113,23 @@ Join a specific BSS network with 64-bit WEP encryption:
 ifconfig wlan create wlandev bwn0 ssid my_net \e
         wepmode on wepkey 0x1234567890 weptxkey 1 up
 .Ed
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.bwn.msi_disable
+This tunable disables MSI support on the hardware.
+The default value is 0.
+.It Va hw.bwn.usedma
+This tunable enables DMA operations on the hardware.
+If the value is 0, PIO mode would be used.
+The default value is 1.
+.El
 .Sh SEE ALSO
 .Xr arp 4 ,
+.Xr bwi 4 ,
 .Xr cardbus 4 ,
 .Xr intro 4 ,
 .Xr pci 4 ,
@@ -124,6 +142,9 @@ The
 .Nm
 driver first appeared in
 .Fx 8.1 .
+.Sh CAVEATS
+Some LP PHY devices have DMA operation problems that in that case try to
+use PIO mode.
 .Sh AUTHORS
 .An -nosplit
 The

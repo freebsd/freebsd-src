@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -614,7 +616,7 @@ sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t key_id)
 		if ((skey->refcount <= 1) && (skey->deactivated)) {
 			/* notify ULP that key is no longer used */
 			sctp_ulp_notify(SCTP_NOTIFY_AUTH_FREE_KEY, stcb,
-			    key_id, 0, SCTP_SO_NOT_LOCKED);
+			    key_id, 0, SCTP_SO_LOCKED);
 			SCTPDBG(SCTP_DEBUG_AUTH2,
 			    "%s: stcb %p key %u no longer used, %d\n",
 			    __FUNCTION__, stcb, key_id, skey->refcount);

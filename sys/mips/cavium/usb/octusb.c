@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -1885,7 +1884,7 @@ octusb_xfer_unsetup(struct usb_xfer *xfer)
 }
 
 static void
-octusb_get_dma_delay(struct usb_bus *bus, uint32_t *pus)
+octusb_get_dma_delay(struct usb_device *udev, uint32_t *pus)
 {
 	/* DMA delay - wait until any use of memory is finished */
 	*pus = (2125);			/* microseconds */

@@ -1176,11 +1176,8 @@ ndis_rxeof_eth(adapter, ctx, addr, hdr, hdrlen, lookahead, lookaheadlen, pktlen)
 	block = adapter;
 
 	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-
-	if (m == NULL) {
-		NdisFreePacket(p);
+	if (m == NULL)
 		return;
-	}
 
 	/* Save the data provided to us so far. */
 
@@ -1644,10 +1641,6 @@ ndis_linksts_done(adapter)
 	default:
 		break;
 	}
-
-	/* Notify possible listners of interface change. */
-
-	rt_ifmsg(ifp);
 }
 
 static void
@@ -2115,7 +2108,7 @@ ndis_set_cipher(sc, cipher)
 
 	len = sizeof(arg);
 
-	if (cipher == WPA_CSE_WEP40 || WPA_CSE_WEP104) {
+	if (cipher == WPA_CSE_WEP40 || cipher == WPA_CSE_WEP104) {
 		if (!(ic->ic_cryptocaps & IEEE80211_CRYPTO_WEP))
 			return (ENOTSUP);
 		arg = NDIS_80211_WEPSTAT_ENC1ENABLED;

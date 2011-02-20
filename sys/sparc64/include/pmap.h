@@ -61,18 +61,16 @@ struct pmap {
 	struct	mtx pm_mtx;
 	struct	tte *pm_tsb;
 	vm_object_t pm_tsb_obj;
-	cpumask_t	pm_active;
-	uint32_t	pm_gen_count;	/* generation count (pmap lock dropped) */
-	u_int			pm_retries;
+	cpumask_t pm_active;
 	u_int	pm_context[MAXCPU];
 	struct	pmap_statistics pm_stats;
 };
 
 #define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)
-#define	PMAP_LOCK_ASSERT(pmap, type) \
+#define	PMAP_LOCK_ASSERT(pmap, type)					\
 				mtx_assert(&(pmap)->pm_mtx, (type))
 #define	PMAP_LOCK_DESTROY(pmap)	mtx_destroy(&(pmap)->pm_mtx)
-#define	PMAP_LOCK_INIT(pmap)	mtx_init(&(pmap)->pm_mtx, "pmap", \
+#define	PMAP_LOCK_INIT(pmap)	mtx_init(&(pmap)->pm_mtx, "pmap",	\
 				    NULL, MTX_DEF | MTX_DUPOK)
 #define	PMAP_LOCKED(pmap)	mtx_owned(&(pmap)->pm_mtx)
 #define	PMAP_MTX(pmap)		(&(pmap)->pm_mtx)
@@ -99,6 +97,7 @@ int	pmap_protect_tte(struct pmap *pm1, struct pmap *pm2, struct tte *tp,
 			 vm_offset_t va);
 
 void	pmap_map_tsb(void);
+void	pmap_set_kctx(void);
 
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
@@ -114,7 +113,7 @@ SYSCTL_DECL(_debug_pmap_stats);
 
 #define	PMAP_STATS_VAR(name) \
 	static long name; \
-	SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, name, CTLFLAG_RW, \
+	SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, name, CTLFLAG_RW,	\
 	    &name, 0, "")
 
 #define	PMAP_STATS_INC(var) \

@@ -26,6 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  * RMI_BSD */
 #ifndef _RMI_RGE_H_
 #define _RMI_RGE_H_
@@ -972,12 +973,12 @@ enum {
 };
 
 struct rge_softc_stats {
-	unsigned long rx_frames;
-	unsigned long tx_frames;
-	unsigned long rx_packets;
-	unsigned long rx_bytes;
-	unsigned long tx_packets;
-	unsigned long tx_bytes;
+	unsigned int rx_frames;
+	unsigned int tx_frames;
+	unsigned int rx_packets;
+	unsigned int rx_bytes;
+	unsigned int tx_packets;
+	unsigned int tx_bytes;
 };
 
 struct driver_data {

@@ -25,19 +25,17 @@
 #include "llvm/Support/CallSite.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include "llvm/Transforms/Utils/PromoteMemToReg.h"
+#include "llvm/Transforms/Utils/SSAUpdater.h"
 using namespace llvm;
 
 STATISTIC(NumLandingPadsSplit,     "Number of landing pads split");
 STATISTIC(NumUnwindsLowered,       "Number of unwind instructions lowered");
 STATISTIC(NumExceptionValuesMoved, "Number of eh.exception calls moved");
-STATISTIC(NumStackTempsIntroduced, "Number of stack temporaries introduced");
 
 namespace {
   class DwarfEHPrepare : public FunctionPass {
     const TargetMachine *TM;
     const TargetLowering *TLI;
-    bool CompileFast;
 
     // The eh.exception intrinsic.
     Function *ExceptionValueIntrinsic;
@@ -54,9 +52,8 @@ namespace {
     // _Unwind_Resume or the target equivalent.
     Constant *RewindFunction;
 
-    // Dominator info is used when turning stack temporaries into registers.
+    // We both use and preserve dominator info.
     DominatorTree *DT;
-    DominanceFrontier *DF;
 
     // The function we are running on.
     Function *F;
@@ -65,28 +62,14 @@ namespace {
     typedef SmallPtrSet<BasicBlock*, 8> BBSet;
     BBSet LandingPads;
 
-    // Stack temporary used to hold eh.exception values.
-    AllocaInst *ExceptionValueVar;
-
     bool NormalizeLandingPads();
     bool LowerUnwinds();
     bool MoveExceptionValueCalls();
-    bool FinishStackTemporaries();
-    bool PromoteStackTemporaries();
 
     Instruction *CreateExceptionValueCall(BasicBlock *BB);
-    Instruction *CreateValueLoad(BasicBlock *BB);
-
-    /// CreateReadOfExceptionValue - Return the result of the eh.exception
-    /// intrinsic by calling the intrinsic if in a landing pad, or loading it
-    /// from the exception value variable otherwise.
-    Instruction *CreateReadOfExceptionValue(BasicBlock *BB) {
-      return LandingPads.count(BB) ?
-        CreateExceptionValueCall(BB) : CreateValueLoad(BB);
-    }
 
     /// CleanupSelectors - Any remaining eh.selector intrinsic calls which still
-    /// use the ".llvm.eh.catch.all.value" call need to convert to using its
+    /// use the "llvm.eh.catch.all.value" call need to convert to using its
     /// initializer instead.
     bool CleanupSelectors(SmallPtrSet<IntrinsicInst*, 32> &Sels);
 
@@ -112,69 +95,19 @@ namespace {
     bool FindSelectorAndURoR(Instruction *Inst, bool &URoRInvoke,
                              SmallPtrSet<IntrinsicInst*, 8> &SelCalls);
       
-    /// DoMem2RegPromotion - Take an alloca call and promote it from memory to a
-    /// register.
-    bool DoMem2RegPromotion(Value *V) {
-      AllocaInst *AI = dyn_cast<AllocaInst>(V);
-      if (!AI || !isAllocaPromotable(AI)) return false;
-
-      // Turn the alloca into a register.
-      std::vector<AllocaInst*> Allocas(1, AI);
-      PromoteMemToReg(Allocas, *DT, *DF);
-      return true;
-    }
-
-    /// PromoteStoreInst - Perform Mem2Reg on a StoreInst.
-    bool PromoteStoreInst(StoreInst *SI) {
-      if (!SI || !DT || !DF) return false;
-      if (DoMem2RegPromotion(SI->getOperand(1)))
-        return true;
-      return false;
-    }
-
-    /// PromoteEHPtrStore - Promote the storing of an EH pointer into a
-    /// register. This should get rid of the store and subsequent loads.
-    bool PromoteEHPtrStore(IntrinsicInst *II) {
-      if (!DT || !DF) return false;
-
-      bool Changed = false;
-      StoreInst *SI;
-
-      while (1) {
-        SI = 0;
-        for (Value::use_iterator
-               I = II->use_begin(), E = II->use_end(); I != E; ++I) {
-          SI = dyn_cast<StoreInst>(I);
-          if (SI) break;
-        }
-
-        if (!PromoteStoreInst(SI))
-          break;
-
-        Changed = true;
-      }
-
-      return Changed;
-    }
-
   public:
     static char ID; // Pass identification, replacement for typeid.
-    DwarfEHPrepare(const TargetMachine *tm, bool fast) :
-      FunctionPass(&ID), TM(tm), TLI(TM->getTargetLowering()),
-      CompileFast(fast),
+    DwarfEHPrepare(const TargetMachine *tm) :
+      FunctionPass(ID), TM(tm), TLI(TM->getTargetLowering()),
       ExceptionValueIntrinsic(0), SelectorIntrinsic(0),
       URoR(0), EHCatchAllValue(0), RewindFunction(0) {}
 
     virtual bool runOnFunction(Function &Fn);
 
-    // getAnalysisUsage - We need dominance frontiers for memory promotion.
+    // getAnalysisUsage - We need the dominator tree for handling URoR.
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-      if (!CompileFast)
-        AU.addRequired<DominatorTree>();
+      AU.addRequired<DominatorTree>();
       AU.addPreserved<DominatorTree>();
-      if (!CompileFast)
-        AU.addRequired<DominanceFrontier>();
-      AU.addPreserved<DominanceFrontier>();
     }
 
     const char *getPassName() const {
@@ -186,8 +119,8 @@ namespace {
 
 char DwarfEHPrepare::ID = 0;
 
-FunctionPass *llvm::createDwarfEHPass(const TargetMachine *tm, bool fast) {
-  return new DwarfEHPrepare(tm, fast);
+FunctionPass *llvm::createDwarfEHPass(const TargetMachine *tm) {
+  return new DwarfEHPrepare(tm);
 }
 
 /// HasCatchAllInSelector - Return true if the intrinsic instruction has a
@@ -207,7 +140,7 @@ FindAllCleanupSelectors(SmallPtrSet<IntrinsicInst*, 32> &Sels,
   for (Value::use_iterator
          I = SelectorIntrinsic->use_begin(),
          E = SelectorIntrinsic->use_end(); I != E; ++I) {
-    IntrinsicInst *II = cast<IntrinsicInst>(I);
+    IntrinsicInst *II = cast<IntrinsicInst>(*I);
 
     if (II->getParent()->getParent() != F)
       continue;
@@ -225,13 +158,13 @@ FindAllURoRInvokes(SmallPtrSet<InvokeInst*, 32> &URoRInvokes) {
   for (Value::use_iterator
          I = URoR->use_begin(),
          E = URoR->use_end(); I != E; ++I) {
-    if (InvokeInst *II = dyn_cast<InvokeInst>(I))
+    if (InvokeInst *II = dyn_cast<InvokeInst>(*I))
       URoRInvokes.insert(II);
   }
 }
 
 /// CleanupSelectors - Any remaining eh.selector intrinsic calls which still use
-/// the ".llvm.eh.catch.all.value" call need to convert to using its
+/// the "llvm.eh.catch.all.value" call need to convert to using its
 /// initializer instead.
 bool DwarfEHPrepare::CleanupSelectors(SmallPtrSet<IntrinsicInst*, 32> &Sels) {
   if (!EHCatchAllValue) return false;
@@ -247,7 +180,7 @@ bool DwarfEHPrepare::CleanupSelectors(SmallPtrSet<IntrinsicInst*, 32> &Sels) {
          I = Sels.begin(), E = Sels.end(); I != E; ++I) {
     IntrinsicInst *Sel = *I;
 
-    // Index of the ".llvm.eh.catch.all.value" variable.
+    // Index of the "llvm.eh.catch.all.value" variable.
     unsigned OpIdx = Sel->getNumArgOperands() - 1;
     GlobalVariable *GV = dyn_cast<GlobalVariable>(Sel->getArgOperand(OpIdx));
     if (GV != EHCatchAllValue) continue;
@@ -268,10 +201,9 @@ DwarfEHPrepare::FindSelectorAndURoR(Instruction *Inst, bool &URoRInvoke,
   SmallPtrSet<PHINode*, 32> SeenPHIs;
   bool Changed = false;
 
- restart:
   for (Value::use_iterator
          I = Inst->use_begin(), E = Inst->use_end(); I != E; ++I) {
-    Instruction *II = dyn_cast<Instruction>(I);
+    Instruction *II = dyn_cast<Instruction>(*I);
     if (!II || II->getParent()->getParent() != F) continue;
     
     if (IntrinsicInst *Sel = dyn_cast<IntrinsicInst>(II)) {
@@ -282,11 +214,6 @@ DwarfEHPrepare::FindSelectorAndURoR(Instruction *Inst, bool &URoRInvoke,
         URoRInvoke = true;
     } else if (CastInst *CI = dyn_cast<CastInst>(II)) {
       Changed |= FindSelectorAndURoR(CI, URoRInvoke, SelCalls);
-    } else if (StoreInst *SI = dyn_cast<StoreInst>(II)) {
-      if (!PromoteStoreInst(SI)) continue;
-      Changed = true;
-      SeenPHIs.clear();
-      goto restart;             // Uses may have changed, restart loop.
     } else if (PHINode *PN = dyn_cast<PHINode>(II)) {
       if (SeenPHIs.insert(PN))
         // Don't process a PHI node more than once.
@@ -304,7 +231,7 @@ DwarfEHPrepare::FindSelectorAndURoR(Instruction *Inst, bool &URoRInvoke,
 bool DwarfEHPrepare::HandleURoRInvokes() {
   if (!EHCatchAllValue) {
     EHCatchAllValue =
-      F->getParent()->getNamedGlobal(".llvm.eh.catch.all.value");
+      F->getParent()->getNamedGlobal("llvm.eh.catch.all.value");
     if (!EHCatchAllValue) return false;
   }
 
@@ -317,10 +244,6 @@ bool DwarfEHPrepare::HandleURoRInvokes() {
   SmallPtrSet<IntrinsicInst*, 32> Sels;
   SmallPtrSet<IntrinsicInst*, 32> CatchAllSels;
   FindAllCleanupSelectors(Sels, CatchAllSels);
-
-  if (!DT)
-    // We require DominatorTree information.
-    return CleanupSelectors(CatchAllSels);
 
   if (!URoR) {
     URoR = F->getParent()->getFunction("_Unwind_Resume_or_Rethrow");
@@ -338,7 +261,7 @@ bool DwarfEHPrepare::HandleURoRInvokes() {
     for (SmallPtrSet<InvokeInst*, 32>::iterator
            UI = URoRInvokes.begin(), UE = URoRInvokes.end(); UI != UE; ++UI) {
       const BasicBlock *URoRBB = (*UI)->getParent();
-      if (SelBB == URoRBB || DT->dominates(SelBB, URoRBB)) {
+      if (DT->dominates(SelBB, URoRBB)) {
         SelsToConvert.insert(*SI);
         break;
       }
@@ -360,10 +283,8 @@ bool DwarfEHPrepare::HandleURoRInvokes() {
     for (Value::use_iterator
            I = ExceptionValueIntrinsic->use_begin(),
            E = ExceptionValueIntrinsic->use_end(); I != E; ++I) {
-      IntrinsicInst *EHPtr = dyn_cast<IntrinsicInst>(I);
+      IntrinsicInst *EHPtr = dyn_cast<IntrinsicInst>(*I);
       if (!EHPtr || EHPtr->getParent()->getParent() != F) continue;
-
-      Changed |= PromoteEHPtrStore(EHPtr);
 
       bool URoRInvoke = false;
       SmallPtrSet<IntrinsicInst*, 8> SelCalls;
@@ -532,11 +453,8 @@ bool DwarfEHPrepare::NormalizeLandingPads() {
     // Add a fallthrough from NewBB to the original landing pad.
     BranchInst::Create(LPad, NewBB);
 
-    // Now update DominatorTree and DominanceFrontier analysis information.
-    if (DT)
-      DT->splitBlock(NewBB);
-    if (DF)
-      DF->splitBlock(NewBB);
+    // Now update DominatorTree analysis information.
+    DT->splitBlock(NewBB);
 
     // Remember the newly constructed landing pad.  The original landing pad
     // LPad is no longer a landing pad now that all unwind edges have been
@@ -586,7 +504,7 @@ bool DwarfEHPrepare::LowerUnwinds() {
 
     // Create the call...
     CallInst *CI = CallInst::Create(RewindFunction,
-                                    CreateReadOfExceptionValue(TI->getParent()),
+                                    CreateExceptionValueCall(TI->getParent()),
                                     "", TI);
     CI->setCallingConv(TLI->getLibcallCallingConv(RTLIB::UNWIND_RESUME));
     // ...followed by an UnreachableInst.
@@ -602,9 +520,11 @@ bool DwarfEHPrepare::LowerUnwinds() {
 }
 
 /// MoveExceptionValueCalls - Ensure that eh.exception is only ever called from
-/// landing pads by replacing calls outside of landing pads with loads from a
-/// stack temporary.  Move eh.exception calls inside landing pads to the start
-/// of the landing pad (optional, but may make things simpler for later passes).
+/// landing pads by replacing calls outside of landing pads with direct use of
+/// a register holding the appropriate value; this requires adding calls inside
+/// all landing pads to initialize the register.  Also, move eh.exception calls
+/// inside landing pads to the start of the landing pad (optional, but may make
+/// things simpler for later passes).
 bool DwarfEHPrepare::MoveExceptionValueCalls() {
   // If the eh.exception intrinsic is not declared in the module then there is
   // nothing to do.  Speed up compilation by checking for this common case.
@@ -614,61 +534,87 @@ bool DwarfEHPrepare::MoveExceptionValueCalls() {
 
   bool Changed = false;
 
-  for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
-    for (BasicBlock::iterator II = BB->begin(), E = BB->end(); II != E;)
-      if (IntrinsicInst *CI = dyn_cast<IntrinsicInst>(II++))
-        if (CI->getIntrinsicID() == Intrinsic::eh_exception) {
-          if (!CI->use_empty()) {
-            Value *ExceptionValue = CreateReadOfExceptionValue(BB);
-            if (CI == ExceptionValue) {
-              // The call was at the start of a landing pad - leave it alone.
-              assert(LandingPads.count(BB) &&
-                     "Created eh.exception call outside landing pad!");
-              continue;
-            }
-            CI->replaceAllUsesWith(ExceptionValue);
-          }
-          CI->eraseFromParent();
-          ++NumExceptionValuesMoved;
-          Changed = true;
-        }
-  }
-
-  return Changed;
-}
-
-/// FinishStackTemporaries - If we introduced a stack variable to hold the
-/// exception value then initialize it in each landing pad.
-bool DwarfEHPrepare::FinishStackTemporaries() {
-  if (!ExceptionValueVar)
-    // Nothing to do.
-    return false;
-
-  bool Changed = false;
-
-  // Make sure that there is a store of the exception value at the start of
-  // each landing pad.
-  for (BBSet::iterator LI = LandingPads.begin(), LE = LandingPads.end();
+  // Move calls to eh.exception that are inside a landing pad to the start of
+  // the landing pad.
+  for (BBSet::const_iterator LI = LandingPads.begin(), LE = LandingPads.end();
        LI != LE; ++LI) {
-    Instruction *ExceptionValue = CreateReadOfExceptionValue(*LI);
-    Instruction *Store = new StoreInst(ExceptionValue, ExceptionValueVar);
-    Store->insertAfter(ExceptionValue);
-    Changed = true;
+    BasicBlock *LP = *LI;
+    for (BasicBlock::iterator II = LP->getFirstNonPHIOrDbg(), IE = LP->end();
+         II != IE;)
+      if (EHExceptionInst *EI = dyn_cast<EHExceptionInst>(II++)) {
+        // Found a call to eh.exception.
+        if (!EI->use_empty()) {
+          // If there is already a call to eh.exception at the start of the
+          // landing pad, then get hold of it; otherwise create such a call.
+          Value *CallAtStart = CreateExceptionValueCall(LP);
+
+          // If the call was at the start of a landing pad then leave it alone.
+          if (EI == CallAtStart)
+            continue;
+          EI->replaceAllUsesWith(CallAtStart);
+        }
+        EI->eraseFromParent();
+        ++NumExceptionValuesMoved;
+        Changed = true;
+      }
   }
 
-  return Changed;
-}
+  // Look for calls to eh.exception that are not in a landing pad.  If one is
+  // found, then a register that holds the exception value will be created in
+  // each landing pad, and the SSAUpdater will be used to compute the values
+  // returned by eh.exception calls outside of landing pads.
+  SSAUpdater SSA;
 
-/// PromoteStackTemporaries - Turn any stack temporaries we introduced into
-/// registers if possible.
-bool DwarfEHPrepare::PromoteStackTemporaries() {
-  if (ExceptionValueVar && DT && DF && isAllocaPromotable(ExceptionValueVar)) {
-    // Turn the exception temporary into registers and phi nodes if possible.
-    std::vector<AllocaInst*> Allocas(1, ExceptionValueVar);
-    PromoteMemToReg(Allocas, *DT, *DF);
-    return true;
+  // Remember where we found the eh.exception call, to avoid rescanning earlier
+  // basic blocks which we already know contain no eh.exception calls.
+  bool FoundCallOutsideLandingPad = false;
+  Function::iterator BB = F->begin();
+  for (Function::iterator BE = F->end(); BB != BE; ++BB) {
+    // Skip over landing pads.
+    if (LandingPads.count(BB))
+      continue;
+
+    for (BasicBlock::iterator II = BB->getFirstNonPHIOrDbg(), IE = BB->end();
+         II != IE; ++II)
+      if (isa<EHExceptionInst>(II)) {
+        SSA.Initialize(II->getType(), II->getName());
+        FoundCallOutsideLandingPad = true;
+        break;
+      }
+
+    if (FoundCallOutsideLandingPad)
+      break;
   }
-  return false;
+
+  // If all calls to eh.exception are in landing pads then we are done.
+  if (!FoundCallOutsideLandingPad)
+    return Changed;
+
+  // Add a call to eh.exception at the start of each landing pad, and tell the
+  // SSAUpdater that this is the value produced by the landing pad.
+  for (BBSet::iterator LI = LandingPads.begin(), LE = LandingPads.end();
+       LI != LE; ++LI)
+    SSA.AddAvailableValue(*LI, CreateExceptionValueCall(*LI));
+
+  // Now turn all calls to eh.exception that are not in a landing pad into a use
+  // of the appropriate register.
+  for (Function::iterator BE = F->end(); BB != BE; ++BB) {
+    // Skip over landing pads.
+    if (LandingPads.count(BB))
+      continue;
+
+    for (BasicBlock::iterator II = BB->getFirstNonPHIOrDbg(), IE = BB->end();
+         II != IE;)
+      if (EHExceptionInst *EI = dyn_cast<EHExceptionInst>(II++)) {
+        // Found a call to eh.exception, replace it with the value from any
+        // upstream landing pad(s).
+        EI->replaceAllUsesWith(SSA.GetValueAtEndOfBlock(BB));
+        EI->eraseFromParent();
+        ++NumExceptionValuesMoved;
+      }
+  }
+
+  return true;
 }
 
 /// CreateExceptionValueCall - Insert a call to the eh.exception intrinsic at
@@ -691,36 +637,11 @@ Instruction *DwarfEHPrepare::CreateExceptionValueCall(BasicBlock *BB) {
   return CallInst::Create(ExceptionValueIntrinsic, "eh.value.call", Start);
 }
 
-/// CreateValueLoad - Insert a load of the exception value stack variable
-/// (creating it if necessary) at the start of the basic block (unless
-/// there already is a load, in which case the existing load is returned).
-Instruction *DwarfEHPrepare::CreateValueLoad(BasicBlock *BB) {
-  Instruction *Start = BB->getFirstNonPHIOrDbg();
-  // Is this a load of the exception temporary?
-  if (ExceptionValueVar)
-    if (LoadInst* LI = dyn_cast<LoadInst>(Start))
-      if (LI->getPointerOperand() == ExceptionValueVar)
-        // Reuse the existing load.
-        return Start;
-
-  // Create the temporary if we didn't already.
-  if (!ExceptionValueVar) {
-    ExceptionValueVar = new AllocaInst(PointerType::getUnqual(
-           Type::getInt8Ty(BB->getContext())), "eh.value", F->begin()->begin());
-    ++NumStackTempsIntroduced;
-  }
-
-  // Load the value.
-  return new LoadInst(ExceptionValueVar, "eh.value.load", Start);
-}
-
 bool DwarfEHPrepare::runOnFunction(Function &Fn) {
   bool Changed = false;
 
   // Initialize internal state.
-  DT = getAnalysisIfAvailable<DominatorTree>();
-  DF = getAnalysisIfAvailable<DominanceFrontier>();
-  ExceptionValueVar = 0;
+  DT = &getAnalysis<DominatorTree>();
   F = &Fn;
 
   // Ensure that only unwind edges end at landing pads (a landing pad is a
@@ -734,13 +655,6 @@ bool DwarfEHPrepare::runOnFunction(Function &Fn) {
 
   // Move eh.exception calls to landing pads.
   Changed |= MoveExceptionValueCalls();
-
-  // Initialize any stack temporaries we introduced.
-  Changed |= FinishStackTemporaries();
-
-  // Turn any stack temporaries into registers if possible.
-  if (!CompileFast)
-    Changed |= PromoteStackTemporaries();
 
   Changed |= HandleURoRInvokes();
 

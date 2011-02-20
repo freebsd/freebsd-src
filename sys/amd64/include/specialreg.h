@@ -126,6 +126,7 @@
 #define	CPUID2_CX16	0x00002000
 #define	CPUID2_XTPR	0x00004000
 #define	CPUID2_PDCM	0x00008000
+#define	CPUID2_PCID	0x00020000
 #define	CPUID2_DCA	0x00040000
 #define	CPUID2_SSE41	0x00080000
 #define	CPUID2_SSE42	0x00100000
@@ -133,6 +134,15 @@
 #define	CPUID2_MOVBE	0x00400000
 #define	CPUID2_POPCNT	0x00800000
 #define	CPUID2_AESNI	0x02000000
+
+/*
+ * Important bits in the Thermal and Power Management flags
+ * CPUID.6 EAX and ECX.
+ */
+#define	CPUTPM1_SENSOR	0x00000001
+#define	CPUTPM1_TURBO	0x00000002
+#define	CPUTPM1_ARAT	0x00000004
+#define	CPUTPM2_EFFREQ	0x00000001
 
 /*
  * Important bits in the AMD extended cpuid flags
@@ -205,6 +215,7 @@
 #define	AMDPM_100MHZ_STEPS	0x00000040
 #define	AMDPM_HW_PSTATE		0x00000080
 #define	AMDPM_TSC_INVARIANT	0x00000100
+#define	AMDPM_CPB		0x00000200
 
 /*
  * AMD extended function 8000_0008h ecx info
@@ -238,6 +249,8 @@
 #define	MSR_BIOS_SIGN		0x08b
 #define	MSR_PERFCTR0		0x0c1
 #define	MSR_PERFCTR1		0x0c2
+#define	MSR_MPERF		0x0e7
+#define	MSR_APERF		0x0e8
 #define	MSR_IA32_EXT_CONFIG	0x0ee	/* Undocumented. Core Solo/Duo only */
 #define	MSR_MTRRcap		0x0fe
 #define	MSR_BBL_CR_ADDR		0x116
@@ -502,6 +515,7 @@
 #define	MSR_PERFCTR2	0xc0010006
 #define	MSR_PERFCTR3	0xc0010007
 #define	MSR_SYSCFG	0xc0010010
+#define	MSR_HWCR	0xc0010015
 #define	MSR_IORRBASE0	0xc0010016
 #define	MSR_IORRMASK0	0xc0010017
 #define	MSR_IORRBASE1	0xc0010018

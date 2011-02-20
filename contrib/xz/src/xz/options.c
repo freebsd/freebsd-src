@@ -139,67 +139,6 @@ parse_options(const char *str, const option_map *opts,
 }
 
 
-//////////////
-// Subblock //
-//////////////
-
-enum {
-	OPT_SIZE,
-	OPT_RLE,
-	OPT_ALIGN,
-};
-
-
-static void
-set_subblock(void *options, uint32_t key, uint64_t value,
-		const char *valuestr lzma_attribute((unused)))
-{
-	lzma_options_subblock *opt = options;
-
-	switch (key) {
-	case OPT_SIZE:
-		opt->subblock_data_size = value;
-		break;
-
-	case OPT_RLE:
-		opt->rle = value;
-		break;
-
-	case OPT_ALIGN:
-		opt->alignment = value;
-		break;
-	}
-}
-
-
-extern lzma_options_subblock *
-options_subblock(const char *str)
-{
-	static const option_map opts[] = {
-		{ "size", NULL,   LZMA_SUBBLOCK_DATA_SIZE_MIN,
-		                  LZMA_SUBBLOCK_DATA_SIZE_MAX },
-		{ "rle",  NULL,   LZMA_SUBBLOCK_RLE_OFF,
-		                  LZMA_SUBBLOCK_RLE_MAX },
-		{ "align",NULL,   LZMA_SUBBLOCK_ALIGNMENT_MIN,
-		                  LZMA_SUBBLOCK_ALIGNMENT_MAX },
-		{ NULL,   NULL,   0, 0 }
-	};
-
-	lzma_options_subblock *options
-			= xmalloc(sizeof(lzma_options_subblock));
-	*options = (lzma_options_subblock){
-		.allow_subfilters = false,
-		.alignment = LZMA_SUBBLOCK_ALIGNMENT_DEFAULT,
-		.subblock_data_size = LZMA_SUBBLOCK_DATA_SIZE_DEFAULT,
-		.rle = LZMA_SUBBLOCK_RLE_OFF,
-	};
-
-	parse_options(str, opts, &set_subblock, options);
-
-	return options;
-}
-
-
 ///////////
 // Delta //
 ///////////
@@ -407,24 +346,13 @@ options_lzma(const char *str)
 	};
 
 	lzma_options_lzma *options = xmalloc(sizeof(lzma_options_lzma));
-	*options = (lzma_options_lzma){
-		.dict_size = LZMA_DICT_SIZE_DEFAULT,
-		.preset_dict =  NULL,
-		.preset_dict_size = 0,
-		.lc = LZMA_LC_DEFAULT,
-		.lp = LZMA_LP_DEFAULT,
-		.pb = LZMA_PB_DEFAULT,
-		.mode = LZMA_MODE_NORMAL,
-		.nice_len = 64,
-		.mf = LZMA_MF_BT4,
-		.depth = 0,
-	};
+	if (lzma_lzma_preset(options, LZMA_PRESET_DEFAULT))
+		message_bug();
 
 	parse_options(str, opts, &set_lzma, options);
 
 	if (options->lc + options->lp > LZMA_LCLP_MAX)
-		message_fatal(_("The sum of lc and lp must be at "
-				"maximum of 4"));
+		message_fatal(_("The sum of lc and lp must not exceed 4"));
 
 	const uint32_t nice_len_min = options->mf & 0x0F;
 	if (options->nice_len < nice_len_min)

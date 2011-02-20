@@ -109,7 +109,7 @@ clear_fsc(void) {
  */
 
 void
-powerpc_syscall_entry(struct trussinfo *trussinfo, int nargs) {
+powerpc64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   char buf[32];
   struct reg regs;
   void *args;
@@ -250,11 +250,11 @@ powerpc_syscall_entry(struct trussinfo *trussinfo, int nargs) {
  * And when the system call is done, we handle it here.
  * Currently, no attempt is made to ensure that the system calls
  * match -- this needs to be fixed (and is, in fact, why S_SCX includes
- * the sytem call number instead of, say, an error status).
+ * the system call number instead of, say, an error status).
  */
 
 long
-powerpc_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
+powerpc64_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
 {
   struct reg regs;
   long retval;

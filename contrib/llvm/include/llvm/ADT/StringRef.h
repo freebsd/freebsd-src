@@ -149,7 +149,10 @@ namespace llvm {
     unsigned edit_distance(StringRef Other, bool AllowReplacements = true);
 
     /// str - Get the contents as an std::string.
-    std::string str() const { return std::string(Data, Length); }
+    std::string str() const {
+      if (Data == 0) return std::string();
+      return std::string(Data, Length);
+    }
 
     /// @}
     /// @name Operator Overloads
@@ -228,12 +231,14 @@ namespace llvm {
 
     /// find_first_of - Find the first character in the string that is \arg C,
     /// or npos if not found. Same as find.
-    size_type find_first_of(char C, size_t = 0) const { return find(C); }
+    size_type find_first_of(char C, size_t From = 0) const {
+      return find(C, From);
+    }
 
     /// find_first_of - Find the first character in the string that is in \arg
     /// Chars, or npos if not found.
     ///
-    /// Note: O(size() * Chars.size())
+    /// Note: O(size() + Chars.size())
     size_type find_first_of(StringRef Chars, size_t From = 0) const;
 
     /// find_first_not_of - Find the first character in the string that is not
@@ -243,7 +248,7 @@ namespace llvm {
     /// find_first_not_of - Find the first character in the string that is not
     /// in the string \arg Chars, or npos if not found.
     ///
-    /// Note: O(size() * Chars.size())
+    /// Note: O(size() + Chars.size())
     size_type find_first_not_of(StringRef Chars, size_t From = 0) const;
 
     /// @}

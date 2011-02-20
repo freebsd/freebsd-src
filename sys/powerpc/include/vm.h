@@ -32,11 +32,13 @@
 #include <machine/pte.h>
 
 /* Memory attributes. */
-#define	VM_MEMATTR_CACHING_INHIBIT	((vm_memattr_t)PTE_I)
-#define	VM_MEMATTR_GUARD		((vm_memattr_t)PTE_G)
-#define	VM_MEMATTR_MEMORY_COHERENCE	((vm_memattr_t)PTE_M)
-#define	VM_MEMATTR_WRITE_THROUGH	((vm_memattr_t)PTE_W)
-
 #define	VM_MEMATTR_DEFAULT		0
+#define	VM_MEMATTR_UNCACHEABLE		0x01
+#define	VM_MEMATTR_UNCACHED		VM_MEMATTR_UNCACHEABLE
+#define	VM_MEMATTR_CACHEABLE		0x02
+#define	VM_MEMATTR_WRITE_COMBINING	0x04
+#define	VM_MEMATTR_WRITE_BACK		0x08
+#define	VM_MEMATTR_WRITE_THROUGH	0x10
+#define	VM_MEMATTR_PREFETCHABLE		0x20
 
 #endif /* !_MACHINE_VM_H_ */

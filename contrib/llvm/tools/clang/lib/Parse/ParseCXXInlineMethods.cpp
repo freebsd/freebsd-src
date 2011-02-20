@@ -13,26 +13,25 @@
 
 #include "clang/Parse/ParseDiagnostic.h"
 #include "clang/Parse/Parser.h"
-#include "clang/Parse/DeclSpec.h"
-#include "clang/Parse/Scope.h"
+#include "clang/Sema/DeclSpec.h"
+#include "clang/Sema/Scope.h"
 using namespace clang;
 
 /// ParseCXXInlineMethodDef - We parsed and verified that the specified
 /// Declarator is a well formed C++ inline method definition. Now lex its body
 /// and store its tokens for parsing after the C++ class is complete.
-Parser::DeclPtrTy
-Parser::ParseCXXInlineMethodDef(AccessSpecifier AS, Declarator &D,
+Decl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS, Declarator &D,
                                 const ParsedTemplateInfo &TemplateInfo) {
   assert(D.getTypeObject(0).Kind == DeclaratorChunk::Function &&
          "This isn't a function declarator!");
   assert((Tok.is(tok::l_brace) || Tok.is(tok::colon) || Tok.is(tok::kw_try)) &&
          "Current token not a '{', ':' or 'try'!");
 
-  Action::MultiTemplateParamsArg TemplateParams(Actions,
+  MultiTemplateParamsArg TemplateParams(Actions,
           TemplateInfo.TemplateParams ? TemplateInfo.TemplateParams->data() : 0,
           TemplateInfo.TemplateParams ? TemplateInfo.TemplateParams->size() : 0);
 
-  DeclPtrTy FnD;
+  Decl *FnD;
   if (D.getDeclSpec().isFriendSpecified())
     // FIXME: Friend templates
     FnD = Actions.ActOnFriendFunctionDecl(getCurScope(), D, true,
@@ -139,12 +138,17 @@ void Parser::ParseLexedMethodDeclarations(ParsingClass &Class) {
         assert(Tok.is(tok::equal) && "Default argument not starting with '='");
         SourceLocation EqualLoc = ConsumeToken();
 
-        OwningExprResult DefArgResult(ParseAssignmentExpression());
+        ExprResult DefArgResult(ParseAssignmentExpression());
         if (DefArgResult.isInvalid())
           Actions.ActOnParamDefaultArgumentError(LM.DefaultArgs[I].Param);
-        else
+        else {
+          if (Tok.is(tok::cxx_defaultarg_end))
+            ConsumeToken();
+          else
+            Diag(Tok.getLocation(), diag::err_default_arg_unparsed);
           Actions.ActOnParamDefaultArgument(LM.DefaultArgs[I].Param, EqualLoc,
-                                            move(DefArgResult));
+                                            DefArgResult.take());
+        }
 
         assert(!PP.getSourceManager().isBeforeInTranslationUnit(origLoc,
                                                            Tok.getLocation()) &&
@@ -227,7 +231,7 @@ void Parser::ParseLexedMethodDefs(ParsingClass &Class) {
 
       // Error recovery.
       if (!Tok.is(tok::l_brace)) {
-        Actions.ActOnFinishFunctionBody(LM.D, Action::StmtArg(Actions));
+        Actions.ActOnFinishFunctionBody(LM.D, 0);
         continue;
       }
     } else

@@ -609,16 +609,20 @@ aio_init_aioinfo(struct proc *p)
 static int
 aio_sendsig(struct proc *p, struct sigevent *sigev, ksiginfo_t *ksi)
 {
-	int ret = 0;
+	struct thread *td;
+	int error;
 
-	PROC_LOCK(p);
+	error = sigev_findtd(p, sigev, &td);
+	if (error)
+		return (error);
 	if (!KSI_ONQ(ksi)) {
+		ksiginfo_set_sigev(ksi, sigev);
 		ksi->ksi_code = SI_ASYNCIO;
 		ksi->ksi_flags |= KSI_EXT | KSI_INS;
-		ret = psignal_event(p, sigev, ksi);
+		tdsendsignal(p, td, ksi->ksi_signo, ksi);
 	}
 	PROC_UNLOCK(p);
-	return (ret);
+	return (error);
 }
 
 /*

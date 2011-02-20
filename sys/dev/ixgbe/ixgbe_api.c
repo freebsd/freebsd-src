@@ -37,6 +37,7 @@
 
 extern s32 ixgbe_init_ops_82598(struct ixgbe_hw *hw);
 extern s32 ixgbe_init_ops_82599(struct ixgbe_hw *hw);
+extern s32 ixgbe_init_ops_vf(struct ixgbe_hw *hw);
 
 /**
  *  ixgbe_init_shared_code - Initialize the shared code
@@ -67,6 +68,9 @@ s32 ixgbe_init_shared_code(struct ixgbe_hw *hw)
 		break;
 	case ixgbe_mac_82599EB:
 		status = ixgbe_init_ops_82599(hw);
+		break;
+	case ixgbe_mac_82599_vf:
+		status = ixgbe_init_ops_vf(hw);
 		break;
 	default:
 		status = IXGBE_ERR_DEVICE_NOT_SUPPORTED;
@@ -110,9 +114,14 @@ s32 ixgbe_set_mac_type(struct ixgbe_hw *hw)
 		case IXGBE_DEV_ID_82599_XAUI_LOM:
 		case IXGBE_DEV_ID_82599_COMBO_BACKPLANE:
 		case IXGBE_DEV_ID_82599_SFP:
+		case IXGBE_DEV_ID_82599_BACKPLANE_FCOE:
+		case IXGBE_DEV_ID_82599_SFP_FCOE:
 		case IXGBE_DEV_ID_82599_CX4:
 		case IXGBE_DEV_ID_82599_T3_LOM:
 			hw->mac.type = ixgbe_mac_82599EB;
+			break;
+		case IXGBE_DEV_ID_82599_VF:
+			hw->mac.type = ixgbe_mac_82599_vf;
 			break;
 		default:
 			ret_val = IXGBE_ERR_DEVICE_NOT_SUPPORTED;
@@ -281,6 +290,20 @@ s32 ixgbe_get_wwn_prefix(struct ixgbe_hw *hw, u16 *wwnn_prefix,
 }
 
 /**
+ *  ixgbe_get_fcoe_boot_status -  Get FCOE boot status from EEPROM
+ *  @hw: pointer to hardware structure
+ *  @bs: the fcoe boot status
+ *
+ *  This function will read the FCOE boot status from the iSCSI FCOE block
+ **/
+s32 ixgbe_get_fcoe_boot_status(struct ixgbe_hw *hw, u16 *bs)
+{
+	return ixgbe_call_func(hw, hw->mac.ops.get_fcoe_boot_status,
+	                       (hw, bs),
+	                       IXGBE_NOT_IMPLEMENTED);
+}
+
+/**
  *  ixgbe_get_bus_info - Set PCI bus info
  *  @hw: pointer to hardware structure
  *
@@ -330,6 +353,32 @@ s32 ixgbe_stop_adapter(struct ixgbe_hw *hw)
 }
 
 /**
+ *  ixgbe_read_pba_string - Reads part number string from EEPROM
+ *  @hw: pointer to hardware structure
+ *  @pba_num: stores the part number string from the EEPROM
+ *  @pba_num_size: part number string buffer length
+ *
+ *  Reads the part number string from the EEPROM.
+ **/
+s32 ixgbe_read_pba_string(struct ixgbe_hw *hw, u8 *pba_num, u32 pba_num_size)
+{
+	return ixgbe_read_pba_string_generic(hw, pba_num, pba_num_size);
+}
+
+/**
+ *  ixgbe_read_pba_length - Reads part number string length from EEPROM
+ *  @hw: pointer to hardware structure
+ *  @pba_num_size: part number string buffer length
+ *
+ *  Reads the part number length from the EEPROM.
+ *  Returns expected buffer size in pba_num_size.
+ **/
+s32 ixgbe_read_pba_length(struct ixgbe_hw *hw, u32 *pba_num_size)
+{
+	return ixgbe_read_pba_length_generic(hw, pba_num_size);
+}
+
+/**
  *  ixgbe_read_pba_num - Reads part number from EEPROM
  *  @hw: pointer to hardware structure
  *  @pba_num: stores the part number from the EEPROM
@@ -352,9 +401,7 @@ s32 ixgbe_identify_phy(struct ixgbe_hw *hw)
 	s32 status = IXGBE_SUCCESS;
 
 	if (hw->phy.type == ixgbe_phy_unknown) {
-		status = ixgbe_call_func(hw,
-		                         hw->phy.ops.identify,
-		                         (hw),
+		status = ixgbe_call_func(hw, hw->phy.ops.identify, (hw),
 		                         IXGBE_NOT_IMPLEMENTED);
 	}
 
@@ -487,6 +534,44 @@ s32 ixgbe_check_link(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 	return ixgbe_call_func(hw, hw->mac.ops.check_link, (hw, speed,
 	                       link_up, link_up_wait_to_complete),
 	                       IXGBE_NOT_IMPLEMENTED);
+}
+
+/**
+ *  ixgbe_disable_tx_laser - Disable Tx laser
+ *  @hw: pointer to hardware structure
+ *
+ *  If the driver needs to disable the laser on SFI optics.
+ **/
+void ixgbe_disable_tx_laser(struct ixgbe_hw *hw)
+{
+	if (hw->mac.ops.disable_tx_laser)
+		hw->mac.ops.disable_tx_laser(hw);
+}
+
+/**
+ *  ixgbe_enable_tx_laser - Enable Tx laser
+ *  @hw: pointer to hardware structure
+ *
+ *  If the driver needs to enable the laser on SFI optics.
+ **/
+void ixgbe_enable_tx_laser(struct ixgbe_hw *hw)
+{
+	if (hw->mac.ops.enable_tx_laser)
+		hw->mac.ops.enable_tx_laser(hw);
+}
+
+/**
+ *  ixgbe_flap_tx_laser - flap Tx laser to start autotry process
+ *  @hw: pointer to hardware structure
+ *
+ *  When the driver changes the link speeds that it can support then
+ *  flap the tx laser to alert the link partner to start autotry
+ *  process on its end.
+ **/
+void ixgbe_flap_tx_laser(struct ixgbe_hw *hw)
+{
+	if (hw->mac.ops.flap_tx_laser)
+		hw->mac.ops.flap_tx_laser(hw);
 }
 
 /**

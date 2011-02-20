@@ -187,6 +187,14 @@ static struct core_fns mipsfbsd_core_fns =
   NULL					/* next */
 };
 
+static struct core_fns mipsfbsd_elfcore_fns =
+{
+  bfd_target_elf_flavour,		/* core_flavour */
+  default_check_format,			/* check_format */
+  default_core_sniffer,			/* core_sniffer */
+  fetch_elfcore_registers,		/* core_read_registers */
+  NULL					/* next */
+};
 
 /*
  * MIPSFBSD Offsets
@@ -576,4 +584,6 @@ _initialize_mipsfbsd_tdep (void)
 {
   gdbarch_register_osabi (bfd_arch_mips, 0, GDB_OSABI_FREEBSD_ELF,
 			  mipsfbsd_init_abi);
+  add_core_fns (&mipsfbsd_core_fns);
+  add_core_fns (&mipsfbsd_elfcore_fns);
 }

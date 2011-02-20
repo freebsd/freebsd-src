@@ -27,11 +27,14 @@
 #ifndef _USB_QUIRK_H_
 #define	_USB_QUIRK_H_
 
-/* NOTE: UQ_NONE is not a valid quirk */
-enum {	/* keep in sync with usb_quirk_str table */
-	UQ_NONE,
+enum {
+	/*
+	 * Keep in sync with theusb_quirk_str usb_quirk.c, and with the
+	 * share/man/man4/usb_quirk.4
+	 */
+	UQ_NONE,		/* not a valid quirk */
 
-	UQ_MATCH_VENDOR_ONLY,
+	UQ_MATCH_VENDOR_ONLY,	/* match quirk on vendor only */
 
 	/* Various quirks */
 
@@ -59,31 +62,43 @@ enum {	/* keep in sync with usb_quirk_str table */
 	UQ_CFG_INDEX_3,		/* select configuration index 3 by default */
 	UQ_CFG_INDEX_4,		/* select configuration index 4 by default */
 	UQ_CFG_INDEX_0,		/* select configuration index 0 by default */
-	UQ_ASSUME_CM_OVER_DATA,	/* modem device breaks on cm over data */
+	UQ_ASSUME_CM_OVER_DATA,	/* assume cm over data feature */
 
 	/* USB Mass Storage Quirks. See "storage/umass.c" for a detailed description. */
-	UQ_MSC_NO_TEST_UNIT_READY,
-	UQ_MSC_NO_RS_CLEAR_UA,
-	UQ_MSC_NO_START_STOP,
-	UQ_MSC_NO_GETMAXLUN,
-	UQ_MSC_NO_INQUIRY,
-	UQ_MSC_NO_INQUIRY_EVPD,
-	UQ_MSC_NO_SYNC_CACHE,
-	UQ_MSC_SHUTTLE_INIT,
-	UQ_MSC_ALT_IFACE_1,
-	UQ_MSC_FLOPPY_SPEED,
-	UQ_MSC_IGNORE_RESIDUE,
-	UQ_MSC_WRONG_CSWSIG,
-	UQ_MSC_RBC_PAD_TO_12,
-	UQ_MSC_READ_CAP_OFFBY1,
-	UQ_MSC_FORCE_SHORT_INQ,
-	UQ_MSC_FORCE_WIRE_BBB,
-	UQ_MSC_FORCE_WIRE_CBI,
-	UQ_MSC_FORCE_WIRE_CBI_I,
-	UQ_MSC_FORCE_PROTO_SCSI,
-	UQ_MSC_FORCE_PROTO_ATAPI,
-	UQ_MSC_FORCE_PROTO_UFI,
-	UQ_MSC_FORCE_PROTO_RBC,
+	UQ_MSC_NO_TEST_UNIT_READY,	/* send start/stop instead of TUR */
+	UQ_MSC_NO_RS_CLEAR_UA,		/* does not reset Unit Att. */
+	UQ_MSC_NO_START_STOP,		/* does not support start/stop */
+	UQ_MSC_NO_GETMAXLUN,		/* does not support get max LUN */
+	UQ_MSC_NO_INQUIRY,		/* fake generic inq response */
+	UQ_MSC_NO_INQUIRY_EVPD,		/* does not support inq EVPD */
+	UQ_MSC_NO_SYNC_CACHE,		/* does not support sync cache */ 
+	UQ_MSC_SHUTTLE_INIT,		/* requires Shuttle init sequence */
+	UQ_MSC_ALT_IFACE_1,		/* switch to alternate interface 1 */
+	UQ_MSC_FLOPPY_SPEED,		/* does floppy speeds (20kb/s) */
+	UQ_MSC_IGNORE_RESIDUE,		/* gets residue wrong */
+	UQ_MSC_WRONG_CSWSIG,		/* uses wrong CSW signature */
+	UQ_MSC_RBC_PAD_TO_12,		/* pad RBC requests to 12 bytes */
+	UQ_MSC_READ_CAP_OFFBY1,		/* reports sector count, not max sec. */
+	UQ_MSC_FORCE_SHORT_INQ,		/* does not support full inq. */
+	UQ_MSC_FORCE_WIRE_BBB,		/* force BBB wire protocol */
+	UQ_MSC_FORCE_WIRE_CBI,		/* force CBI wire protocol */
+	UQ_MSC_FORCE_WIRE_CBI_I,	/* force CBI with int. wire protocol */
+	UQ_MSC_FORCE_PROTO_SCSI,	/* force SCSI command protocol */
+	UQ_MSC_FORCE_PROTO_ATAPI,	/* force ATAPI command protocol */
+	UQ_MSC_FORCE_PROTO_UFI,		/* force UFI command protocol */
+	UQ_MSC_FORCE_PROTO_RBC,		/* force RBC command protocol */
+
+	/* Ejection of mass storage (driver disk) */
+	UQ_MSC_EJECT_HUAWEI,		/* ejects after Huawei USB command */
+	UQ_MSC_EJECT_SIERRA,		/* ejects after Sierra USB command */
+	UQ_MSC_EJECT_SCSIEJECT,		/* ejects after SCSI eject command */
+	UQ_MSC_EJECT_REZERO,		/* ejects after SCSI rezero command */
+	UQ_MSC_EJECT_ZTESTOR,		/* ejects after ZTE SCSI command */
+	UQ_MSC_EJECT_CMOTECH,		/* ejects after C-motech SCSI cmd */
+	UQ_MSC_EJECT_WAIT,		/* wait for the device to eject */
+	UQ_MSC_EJECT_SAEL_M460,		/* ejects after Sael USB commands */ 
+	UQ_MSC_EJECT_HUAWEISCSI,	/* ejects after Huawei SCSI command */
+	UQ_MSC_EJECT_TCT,		/* ejects after TCT SCSI command */
 
 	USB_QUIRK_MAX
 };

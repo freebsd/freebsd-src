@@ -444,11 +444,11 @@ invlpg(u_int addr)
 #endif
 }
 
-static __inline u_int
+static __inline u_short
 rfs(void)
 {
-	u_int sel;
-	__asm __volatile("mov %%fs,%0" : "=rm" (sel));
+	u_short sel;
+	__asm __volatile("movw %%fs,%0" : "=rm" (sel));
 	return (sel);
 }
 
@@ -460,11 +460,11 @@ rgdt(void)
 	return (gdtr);
 }
 
-static __inline u_int
+static __inline u_short
 rgs(void)
 {
-	u_int sel;
-	__asm __volatile("mov %%gs,%0" : "=rm" (sel));
+	u_short sel;
+	__asm __volatile("movw %%gs,%0" : "=rm" (sel));
 	return (sel);
 }
 
@@ -484,11 +484,11 @@ rldt(void)
 	return (ldtr);
 }
 
-static __inline u_int
+static __inline u_short
 rss(void)
 {
-	u_int sel;
-	__asm __volatile("mov %%ss,%0" : "=rm" (sel));
+	u_short sel;
+	__asm __volatile("movw %%ss,%0" : "=rm" (sel));
 	return (sel);
 }
 
@@ -501,15 +501,15 @@ rtr(void)
 }
 
 static __inline void
-load_fs(u_int sel)
+load_fs(u_short sel)
 {
-	__asm __volatile("mov %0,%%fs" : : "rm" (sel));
+	__asm __volatile("movw %0,%%fs" : : "rm" (sel));
 }
 
 static __inline void
-load_gs(u_int sel)
+load_gs(u_short sel)
 {
-	__asm __volatile("mov %0,%%gs" : : "rm" (sel));
+	__asm __volatile("movw %0,%%gs" : : "rm" (sel));
 }
 
 static __inline void
@@ -706,8 +706,8 @@ void	load_dr4(u_int dr4);
 void	load_dr5(u_int dr5);
 void	load_dr6(u_int dr6);
 void	load_dr7(u_int dr7);
-void	load_fs(u_int sel);
-void	load_gs(u_int sel);
+void	load_fs(u_short sel);
+void	load_gs(u_short sel);
 void	ltr(u_short sel);
 void	outb(u_int port, u_char data);
 void	outl(u_int port, u_int data);

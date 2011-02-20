@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include "pathnames.h"
 
 static void	makelabel(const char *, struct disklabel *);
+static int	geom_bsd_available(void);
 static int	writelabel(void);
 static int	readlabel(int flag);
 static void	display(FILE *, const struct disklabel *);
@@ -369,20 +370,45 @@ readboot(void)
 		p[60] = (st.st_size + secsize - 1) / secsize;
 		p[61] = 1;
 		p[62] = 0;
+		close(fd);
 		return;
 	} else if ((!alphacksum) && st.st_size <= BBSIZE) {
 		if (read(fd, bootarea, st.st_size) != st.st_size)
 			err(1, "read error %s", xxboot);
+		close(fd);
 		return;
 	}
 	errx(1, "boot code %s is wrong size", xxboot);
 }
 
 static int
+geom_bsd_available(void)
+{
+	struct gclass *class;
+	struct gmesh mesh;
+	int error;
+
+	error = geom_gettree(&mesh);
+	if (error != 0)
+		errc(1, error, "Cannot get GEOM tree");
+
+	LIST_FOREACH(class, &mesh.lg_class, lg_class) {
+		if (strcmp(class->lg_name, "BSD") == 0) {
+			geom_deletetree(&mesh);
+			return (1);
+		}
+	}
+
+	geom_deletetree(&mesh);
+
+	return (0);
+}
+
+static int
 writelabel(void)
 {
 	uint64_t *p, sum;
-	int i, fd;
+	int i, fd, serrno;
 	struct gctl_req *grq;
 	char const *errstr;
 	struct disklabel *lp = &lab;
@@ -416,6 +442,13 @@ writelabel(void)
 		if (is_file) {
 			warn("cannot open file %s for writing label", specname);
 			return(1);
+		} else
+			serrno = errno;
+
+		/* Give up if GEOM_BSD is not available. */
+		if (geom_bsd_available() == 0) {
+			warnc(serrno, "%s", specname);
+			return (1);
 		}
 
 		grq = gctl_get_handle();
@@ -484,7 +517,7 @@ readlabel(int flag)
 
 	f = open(specname, O_RDONLY);
 	if (f < 0)
-		err(1, specname);
+		err(1, "%s", specname);
 	if (is_file)
 		get_file_parms(f);
 	else {

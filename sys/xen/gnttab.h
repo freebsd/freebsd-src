@@ -43,6 +43,8 @@
 #include <machine/xen/xen-os.h>
 #include <xen/features.h>
 
+#define GNTTAB_LIST_END GRANT_REF_INVALID
+
 struct gnttab_free_callback {
 	struct gnttab_free_callback *next;
 	void (*fn)(void *);
@@ -73,6 +75,13 @@ int gnttab_end_foreign_access_ref(grant_ref_t ref);
  * some time later.  page may be 0, in which case no freeing will occur.
  */
 void gnttab_end_foreign_access(grant_ref_t ref, void *page);
+
+/*
+ * Eventually end access through the given array of grant references.
+ * Access will be ended immediately iff the grant entry is not in use,
+ * otherwise it will happen some time later
+ */
+void gnttab_end_foreign_access_references(u_int count, grant_ref_t *refs);
 
 int gnttab_grant_foreign_transfer(domid_t domid, unsigned long pfn, grant_ref_t *result);
 

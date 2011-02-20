@@ -171,13 +171,12 @@ public:
     : Begin(Begin), End(End), C(Begin), P(Begin), PEnd(NULL) { }
 
   // Return true if string literal is next.
-  bool Next(const std::string &S) {
-    std::string::size_type LEN = S.length();
+  bool Next(llvm::StringRef S) {
     P = C;
-    PEnd = C + LEN;
+    PEnd = C + S.size();
     if (PEnd > End)
       return false;
-    return !memcmp(P, S.c_str(), LEN);
+    return !memcmp(P, S.data(), S.size());
   }
 
   // Return true if number is next.
@@ -198,9 +197,9 @@ public:
 
   // Return true if string literal is found.
   // When true, P marks begin-position of S in content.
-  bool Search(const std::string &S) {
+  bool Search(llvm::StringRef S) {
     P = std::search(C, End, S.begin(), S.end());
-    PEnd = P + S.length();
+    PEnd = P + S.size();
     return P != End;
   }
 
@@ -484,7 +483,7 @@ void VerifyDiagnosticsClient::CheckDiagnostics() {
   ExpectedData ED;
 
   // Ensure any diagnostics go to the primary client.
-  DiagnosticClient *CurClient = Diags.getClient();
+  DiagnosticClient *CurClient = Diags.takeClient();
   Diags.setClient(PrimaryClient.get());
 
   // If we have a preprocessor, scan the source for expected diagnostic
@@ -507,6 +506,7 @@ void VerifyDiagnosticsClient::CheckDiagnostics() {
                                "note", false));
   }
 
+  Diags.takeClient();
   Diags.setClient(CurClient);
 
   // Reset the buffer, we have processed all the diagnostics in it.

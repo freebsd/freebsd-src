@@ -151,6 +151,7 @@ void	 x86bios_init_regs(struct x86regs *regs);
 void	 x86bios_intr(struct x86regs *regs, int intno);
 int	 x86bios_match_device(uint32_t offset, device_t dev);
 void	*x86bios_offset(uint32_t offset);
+void	 x86bios_set_intr(int intno, uint32_t saddr);
 __END_DECLS
 
 #endif /* !_X86BIOS_H_ */

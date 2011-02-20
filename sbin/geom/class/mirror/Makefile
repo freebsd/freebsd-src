@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../misc
+.PATH: ${.CURDIR}/../../misc
 
-CLASS=	mirror
+GEOM_CLASS=	mirror
 
 DPADD=	${LIBMD}
 LDADD=	-lmd

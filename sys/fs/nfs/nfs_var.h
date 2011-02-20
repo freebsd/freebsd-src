@@ -251,6 +251,7 @@ int nfsv4_lock(struct nfsv4lock *, int, int *, void *);
 void nfsv4_unlock(struct nfsv4lock *, int);
 void nfsv4_relref(struct nfsv4lock *);
 void nfsv4_getref(struct nfsv4lock *, int *, void *);
+int nfsv4_getref_nonblock(struct nfsv4lock *);
 int nfsv4_testlock(struct nfsv4lock *);
 int nfsrv_mtostr(struct nfsrv_descript *, char *, int);
 int nfsrv_checkutf8(u_int8_t *, int);
@@ -278,7 +279,7 @@ int nfscl_request(struct nfsrv_descript *, vnode_t,
 void nfsm_stateidtom(struct nfsrv_descript *, nfsv4stateid_t *, int);
 
 /* nfs_nfsdsubs.c */
-void nfsd_fhtovp(struct nfsrv_descript *, struct nfsrvfh *,
+void nfsd_fhtovp(struct nfsrv_descript *, struct nfsrvfh *, int,
     vnode_t *, struct nfsexstuff *,
     mount_t *, int, NFSPROC_T *);
 int nfsd_excred(struct nfsrv_descript *, struct nfsexstuff *, struct ucred *);
@@ -509,7 +510,7 @@ void ncl_invalcaches(vnode_t);
 
 /* nfs_nfsdport.c */
 int nfsvno_getattr(vnode_t, struct nfsvattr *, struct ucred *,
-    NFSPROC_T *);
+    NFSPROC_T *, int);
 int nfsvno_setattr(vnode_t, struct nfsvattr *, struct ucred *,
     NFSPROC_T *, struct nfsexstuff *);
 int nfsvno_getfh(vnode_t, fhandle_t *, NFSPROC_T *);
@@ -563,18 +564,16 @@ int nfsv4_sattr(struct nfsrv_descript *, struct nfsvattr *, nfsattrbit_t *,
     NFSACL_T *, NFSPROC_T *);
 int nfsvno_checkexp(mount_t, NFSSOCKADDR_T, struct nfsexstuff *,
     struct ucred **);
-int nfsvno_fhtovp(mount_t, fhandle_t *, NFSSOCKADDR_T,
+int nfsvno_fhtovp(mount_t, fhandle_t *, NFSSOCKADDR_T, int,
     vnode_t *, struct nfsexstuff *, struct ucred **);
 int nfsvno_pathconf(vnode_t, int, register_t *, struct ucred *,
     NFSPROC_T *);
 vnode_t nfsvno_getvp(fhandle_t *);
-int nfsvno_localconflict(vnode_t, int, u_int64_t, u_int64_t,
-    struct nfslockconflict *, NFSPROC_T *);
 int nfsvno_advlock(vnode_t, int, u_int64_t, u_int64_t, NFSPROC_T *);
-void nfsvno_unlockvfs(mount_t);
-int nfsvno_lockvfs(mount_t);
 int nfsrv_v4rootexport(void *, struct ucred *, NFSPROC_T *);
 int nfsvno_testexp(struct nfsrv_descript *, struct nfsexstuff *);
+uint32_t nfsrv_hashfh(fhandle_t *);
+void nfsrv_backupstable(void);
 
 /* nfs_commonkrpc.c */
 int newnfs_nmcancelreqs(struct nfsmount *);

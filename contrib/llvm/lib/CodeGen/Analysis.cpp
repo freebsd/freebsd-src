@@ -109,7 +109,7 @@ GlobalVariable *llvm::ExtractTypeInfo(Value *V) {
   V = V->stripPointerCasts();
   GlobalVariable *GV = dyn_cast<GlobalVariable>(V);
 
-  if (GV && GV->getName() == ".llvm.eh.catch.all.value") {
+  if (GV && GV->getName() == "llvm.eh.catch.all.value") {
     assert(GV->hasInitializer() &&
            "The EH catch-all value must have an initializer");
     Value *Init = GV->getInitializer();
@@ -171,7 +171,7 @@ ISD::CondCode llvm::getFCmpCondCode(FCmpInst::Predicate Pred) {
     FOC = FPC = ISD::SETFALSE;
     break;
   }
-  if (FiniteOnlyFPMath())
+  if (NoNaNsFPMath)
     return FOC;
   else
     return FPC;

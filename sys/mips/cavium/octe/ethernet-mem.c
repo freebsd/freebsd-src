@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
  * @param size     Size of the buffer needed for the pool
  * @param elements Number of buffers to allocate
  */
-static int cvm_oct_fill_hw_mbuf(int pool, int size, int elements)
+int cvm_oct_mem_fill_fpa(int pool, int size, int elements)
 {
 	int freed = elements;
 	while (freed) {
@@ -79,7 +79,7 @@ static int cvm_oct_fill_hw_mbuf(int pool, int size, int elements)
  * @param size     Size of the buffer needed for the pool
  * @param elements Number of buffers to allocate
  */
-static void cvm_oct_free_hw_mbuf(int pool, int size, int elements)
+void cvm_oct_mem_empty_fpa(int pool, int size, int elements)
 {
 	char *memory;
 
@@ -97,111 +97,3 @@ static void cvm_oct_free_hw_mbuf(int pool, int size, int elements)
 	else if (elements > 0)
 		printf("Warning: Freeing of pool %u is missing %d mbufs\n", pool, elements);
 }
-
-
-/**
- * This function fills a hardware pool with memory. Depending
- * on the config defines, this memory might come from the
- * kernel or global 32bit memory allocated with
- * cvmx_bootmem_alloc.
- *
- * @param pool     Pool to populate
- * @param size     Size of each buffer in the pool
- * @param elements Number of buffers to allocate
- */
-static int cvm_oct_fill_hw_memory(int pool, int size, int elements)
-{
-	char *memory;
-	int freed = elements;
-
-	if (USE_32BIT_SHARED) {
-#if 0
-		extern uint64_t octeon_reserve32_memory;
-
-		memory = cvmx_bootmem_alloc_range(elements*size, 128, octeon_reserve32_memory,
-						octeon_reserve32_memory + (CONFIG_CAVIUM_RESERVE32<<20) - 1);
-		if (memory == NULL)
-			panic("Unable to allocate %u bytes for FPA pool %d\n", elements*size, pool);
-
-		printf("Memory range %p - %p reserved for hardware\n", memory, memory + elements*size - 1);
-
-		while (freed) {
-			cvmx_fpa_free(memory, pool, 0);
-			memory += size;
-			freed--;
-		}
-#else
-		panic("%s: may need to implement using shared memory.", __func__);
-#endif
-	} else {
-		while (freed) {
-			/* We need to force alignment to 128 bytes here */
-#if 0
-			memory = kmalloc(size + 127, GFP_ATOMIC);
-#else
-			panic("%s: not yet implemented.", __func__);
-#endif
-			if (__predict_false(memory == NULL)) {
-				printf("Unable to allocate %u bytes for FPA pool %d\n", elements*size, pool);
-				break;
-			}
-			memory = (char *)(((unsigned long)memory+127) & -128);
-			cvmx_fpa_free(memory, pool, 0);
-			freed--;
-		}
-	}
-	return (elements - freed);
-}
-
-
-/**
- * Free memory previously allocated with cvm_oct_fill_hw_memory
- *
- * @param pool     FPA pool to free
- * @param size     Size of each buffer in the pool
- * @param elements Number of buffers that should be in the pool
- */
-static void cvm_oct_free_hw_memory(int pool, int size, int elements)
-{
-	if (USE_32BIT_SHARED) {
-		printf("Warning: 32 shared memory is not freeable\n");
-	} else {
-		char *memory;
-		do {
-			memory = cvmx_fpa_alloc(pool);
-			if (memory) {
-				elements--;
-#if 0
-				kfree(phys_to_virt(cvmx_ptr_to_phys(memory)));
-#else
-				panic("%s: not yet implemented.", __func__);
-#endif
-			}
-		} while (memory);
-
-		if (elements < 0)
-			printf("Freeing of pool %u had too many buffers (%d)\n", pool, elements);
-		else if (elements > 0)
-			printf("Warning: Freeing of pool %u is missing %d buffers\n", pool, elements);
-	}
-}
-
-
-int cvm_oct_mem_fill_fpa(int pool, int size, int elements)
-{
-	int freed;
-	if (USE_MBUFS_IN_HW)
-		freed = cvm_oct_fill_hw_mbuf(pool, size, elements);
-	else
-		freed = cvm_oct_fill_hw_memory(pool, size, elements);
-	return (freed);
-}
-
-void cvm_oct_mem_empty_fpa(int pool, int size, int elements)
-{
-	if (USE_MBUFS_IN_HW)
-		cvm_oct_free_hw_mbuf(pool, size, elements);
-	else
-		cvm_oct_free_hw_memory(pool, size, elements);
-}
-

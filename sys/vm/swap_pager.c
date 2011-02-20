@@ -147,6 +147,7 @@ struct swblock {
 	daddr_t		swb_pages[SWAP_META_PAGES];
 };
 
+static MALLOC_DEFINE(M_VMPGDATA, "vm_pgdata", "swap pager private data");
 static struct mtx sw_dev_mtx;
 static TAILQ_HEAD(, swdevt) swtailq = TAILQ_HEAD_INITIALIZER(swtailq);
 static struct swdevt *swdevhd;	/* Allocate from here next */
@@ -174,16 +175,19 @@ int
 swap_reserve(vm_ooffset_t incr)
 {
 
-	return (swap_reserve_by_uid(incr, curthread->td_ucred->cr_ruidinfo));
+	return (swap_reserve_by_cred(incr, curthread->td_ucred));
 }
 
 int
-swap_reserve_by_uid(vm_ooffset_t incr, struct uidinfo *uip)
+swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred)
 {
 	vm_ooffset_t r, s;
 	int res, error;
 	static int curfail;
 	static struct timeval lastfail;
+	struct uidinfo *uip;
+	
+	uip = cred->cr_ruidinfo;
 
 	if (incr & PAGE_MASK)
 		panic("swap_reserve: & PAGE_MASK");
@@ -249,17 +253,20 @@ swap_reserve_force(vm_ooffset_t incr)
 void
 swap_release(vm_ooffset_t decr)
 {
-	struct uidinfo *uip;
+	struct ucred *cred;
 
 	PROC_LOCK(curproc);
-	uip = curthread->td_ucred->cr_ruidinfo;
-	swap_release_by_uid(decr, uip);
+	cred = curthread->td_ucred;
+	swap_release_by_cred(decr, cred);
 	PROC_UNLOCK(curproc);
 }
 
 void
-swap_release_by_uid(vm_ooffset_t decr, struct uidinfo *uip)
+swap_release_by_cred(vm_ooffset_t decr, struct ucred *cred)
 {
+ 	struct uidinfo *uip;
+	
+	uip = cred->cr_ruidinfo;
 
 	if (decr & PAGE_MASK)
 		panic("swap_release: & PAGE_MASK");
@@ -579,9 +586,7 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 {
 	vm_object_t object;
 	vm_pindex_t pindex;
-	struct uidinfo *uip;
 
-	uip = NULL;
 	pindex = OFF_TO_IDX(offset + PAGE_MASK + size);
 	if (handle) {
 		mtx_lock(&Giant);
@@ -595,19 +600,18 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		object = vm_pager_object_lookup(NOBJLIST(handle), handle);
 		if (object == NULL) {
 			if (cred != NULL) {
-				uip = cred->cr_ruidinfo;
-				if (!swap_reserve_by_uid(size, uip)) {
+				if (!swap_reserve_by_cred(size, cred)) {
 					sx_xunlock(&sw_alloc_sx);
 					mtx_unlock(&Giant);
 					return (NULL);
 				}
-				uihold(uip);
+				crhold(cred);
 			}
 			object = vm_object_allocate(OBJT_DEFAULT, pindex);
 			VM_OBJECT_LOCK(object);
 			object->handle = handle;
 			if (cred != NULL) {
-				object->uip = uip;
+				object->cred = cred;
 				object->charge = size;
 			}
 			swp_pager_meta_build(object, 0, SWAPBLK_NONE);
@@ -617,15 +621,14 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		mtx_unlock(&Giant);
 	} else {
 		if (cred != NULL) {
-			uip = cred->cr_ruidinfo;
-			if (!swap_reserve_by_uid(size, uip))
+			if (!swap_reserve_by_cred(size, cred))
 				return (NULL);
-			uihold(uip);
+			crhold(cred);
 		}
 		object = vm_object_allocate(OBJT_DEFAULT, pindex);
 		VM_OBJECT_LOCK(object);
 		if (cred != NULL) {
-			object->uip = uip;
+			object->cred = cred;
 			object->charge = size;
 		}
 		swp_pager_meta_build(object, 0, SWAPBLK_NONE);
@@ -1460,8 +1463,8 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
  *	Completion routine for asynchronous reads and writes from/to swap.
  *	Also called manually by synchronous code to finish up a bp.
  *
- *	For READ operations, the pages are PG_BUSY'd.  For WRITE operations, 
- *	the pages are vm_page_t->busy'd.  For READ operations, we PG_BUSY 
+ *	For READ operations, the pages are VPO_BUSY'd.  For WRITE operations, 
+ *	the pages are vm_page_t->busy'd.  For READ operations, we VPO_BUSY 
  *	unbusy all pages except the 'main' request page.  For WRITE 
  *	operations, we vm_page_t->busy'd unbusy all pages ( we can do this 
  *	because we marked them all VM_PAGER_PEND on return from putpages ).
@@ -1677,8 +1680,6 @@ swap_pager_isswapped(vm_object_t object, struct swdevt *sp)
 			}
 		}
 		index += SWAP_META_PAGES;
-		if (index > 0x20000000)
-			panic("swap_pager_isswapped: failed to locate all swap meta blocks");
 	}
 	mtx_unlock(&swhash_mtx);
 	return (0);
@@ -1993,8 +1994,6 @@ swp_pager_meta_free_all(vm_object_t object)
 		}
 		mtx_unlock(&swhash_mtx);
 		index += SWAP_META_PAGES;
-		if (index > 0x20000000)
-			panic("swp_pager_meta_free_all: failed to locate all swap meta blocks");
 	}
 }
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,16 +30,16 @@
 #define	_SUBR_H_
 #include <stdint.h>
 
-unsigned g_lcm(unsigned a, unsigned b);
+unsigned int g_lcm(unsigned int a, unsigned int b);
 uint32_t bitcount32(uint32_t x);
-int g_parse_lba(const char *lbastr, unsigned sectorsize, off_t *sectors);
+int g_parse_lba(const char *lbastr, unsigned int sectorsize, off_t *sectors);
 
 off_t g_get_mediasize(const char *name);
-unsigned g_get_sectorsize(const char *name);
+unsigned int g_get_sectorsize(const char *name);
 
-int g_metadata_read(const char *name, u_char *md, size_t size,
+int g_metadata_read(const char *name, unsigned char *md, size_t size,
     const char *magic);
-int g_metadata_store(const char *name, u_char *md, size_t size);
+int g_metadata_store(const char *name, const unsigned char *md, size_t size);
 int g_metadata_clear(const char *name, const char *magic);
 
 void gctl_error(struct gctl_req *req, const char *error, ...) __printflike(2, 3);

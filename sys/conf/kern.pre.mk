@@ -15,7 +15,7 @@ KODIR?=		/boot/${KERNEL}
 LDSCRIPT_NAME?=	ldscript.$M
 LDSCRIPT?=	$S/conf/${LDSCRIPT_NAME}
 
-M=	${MACHINE_CPUARCH}
+M=		${MACHINE_CPUARCH}
 
 AWK?=		awk
 LINT?=		lint
@@ -42,7 +42,7 @@ COPTFLAGS+= -fno-strict-aliasing
 . endif
 .endif
 .if !defined(NO_CPU_COPTFLAGS)
-. if ${CC} == "icc"
+. if ${CC:T:Micc} == "icc"
 COPTFLAGS+= ${_ICC_CPUCFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
 . else
 COPTFLAGS+= ${_CPUCFLAGS}
@@ -82,11 +82,8 @@ INCLUDES+= -I$S/dev/twa
 # ...  and XFS
 INCLUDES+= -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs
 
-# ...  and OpenSolaris
-INCLUDES+= -I$S/contrib/opensolaris/compat
-
-# ... and the same for cxgb
-INCLUDES+= -I$S/dev/cxgb
+# ... and the same for cxgb and cxgbe
+INCLUDES+= -I$S/dev/cxgb -I$S/dev/cxgbe
 
 .endif
 
@@ -100,8 +97,9 @@ CFLAGS+= --param inline-unit-growth=100
 CFLAGS+= --param large-function-growth=1000
 .else
 # XXX Actually a gross hack just for Octeon because of the Simple Executive.
-CFLAGS+= --param inline-unit-growth=1000
+CFLAGS+= --param inline-unit-growth=10000
 CFLAGS+= --param large-function-growth=100000
+CFLAGS+= --param max-inline-insns-single=10000
 .endif
 .endif
 WERROR?= -Werror
@@ -168,6 +166,9 @@ MKMODULESENV+=	ALL_MODULES=LINT
 .endif
 .if defined(MODULES_OVERRIDE)
 MKMODULESENV+=	MODULES_OVERRIDE="${MODULES_OVERRIDE}"
+.endif
+.if defined(WITHOUT_MODULES)
+MKMODULESENV+=	WITHOUT_MODULES="${WITHOUT_MODULES}"
 .endif
 .if defined(DEBUG)
 MKMODULESENV+=	DEBUG_FLAGS="${DEBUG}"

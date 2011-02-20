@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,30 +54,20 @@ struct std_metadata {
 };
 
 static void
-std_metadata_decode(const u_char *data, struct std_metadata *md)
+std_metadata_decode(const unsigned char *data, struct std_metadata *md)
 {
 
         bcopy(data, md->md_magic, sizeof(md->md_magic));
         md->md_version = le32dec(data + 16);
 }
 
-static void
-pathgen(const char *name, char *path, size_t size)
-{
-
-	if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) != 0)
-		snprintf(path, size, "%s%s", _PATH_DEV, name);
-	else
-		strlcpy(path, name, size);
-}
-
 /*
  * Greatest Common Divisor.
  */
-static unsigned
-gcd(unsigned a, unsigned b)
+static unsigned int
+gcd(unsigned int a, unsigned int b)
 {
-	u_int c;
+	unsigned int c;
 
 	while (b != 0) {
 		c = a;
@@ -90,8 +80,8 @@ gcd(unsigned a, unsigned b)
 /*
  * Least Common Multiple.
  */
-unsigned
-g_lcm(unsigned a, unsigned b)
+unsigned int
+g_lcm(unsigned int a, unsigned int b)
 {
 
 	return ((a * b) / gcd(a, b));
@@ -129,7 +119,7 @@ bitcount32(uint32_t x)
  *
  */
 int
-g_parse_lba(const char *lbastr, unsigned sectorsize, off_t *sectors)
+g_parse_lba(const char *lbastr, unsigned int sectorsize, off_t *sectors)
 {
 	off_t number, mult, unit;
 	char *s;
@@ -200,76 +190,69 @@ done:
 off_t
 g_get_mediasize(const char *name)
 {
-	char path[MAXPATHLEN];
 	off_t mediasize;
 	int fd;
 
-	pathgen(name, path, sizeof(path));
-	fd = open(path, O_RDONLY);
+	fd = g_open(name, 0);
 	if (fd == -1)
 		return (0);
-	if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) < 0) {
-		close(fd);
-		return (0);
-	}
-	close(fd);
+	mediasize = g_mediasize(fd);
+	if (mediasize == -1)
+		mediasize = 0;
+	(void)g_close(fd);
 	return (mediasize);
 }
 
-unsigned
+unsigned int
 g_get_sectorsize(const char *name)
 {
-	char path[MAXPATHLEN];
-	unsigned sectorsize;
+	ssize_t sectorsize;
 	int fd;
 
-	pathgen(name, path, sizeof(path));
-	fd = open(path, O_RDONLY);
+	fd = g_open(name, 0);
 	if (fd == -1)
 		return (0);
-	if (ioctl(fd, DIOCGSECTORSIZE, &sectorsize) < 0) {
-		close(fd);
-		return (0);
-	}
-	close(fd);
-	return (sectorsize);
+	sectorsize = g_sectorsize(fd);
+	if (sectorsize == -1)
+		sectorsize = 0;
+	(void)g_close(fd);
+	return ((unsigned int)sectorsize);
 }
 
 int
-g_metadata_read(const char *name, u_char *md, size_t size, const char *magic)
+g_metadata_read(const char *name, unsigned char *md, size_t size,
+    const char *magic)
 {
 	struct std_metadata stdmd;
-	char path[MAXPATHLEN];
-	unsigned sectorsize;
+	unsigned char *sector;
+	ssize_t sectorsize;
 	off_t mediasize;
-	u_char *sector;
 	int error, fd;
 
-	pathgen(name, path, sizeof(path));
 	sector = NULL;
 	error = 0;
 
-	fd = open(path, O_RDONLY);
+	fd = g_open(name, 0);
 	if (fd == -1)
 		return (errno);
-	mediasize = g_get_mediasize(name);
-	if (mediasize == 0) {
+	mediasize = g_mediasize(fd);
+	if (mediasize == -1) {
 		error = errno;
 		goto out;
 	}
-	sectorsize = g_get_sectorsize(name);
-	if (sectorsize == 0) {
+	sectorsize = g_sectorsize(fd);
+	if (sectorsize == -1) {
 		error = errno;
 		goto out;
 	}
-	assert(sectorsize >= size);
+	assert(sectorsize >= (ssize_t)size);
 	sector = malloc(sectorsize);
 	if (sector == NULL) {
 		error = ENOMEM;
 		goto out;
 	}
 	if (pread(fd, sector, sectorsize, mediasize - sectorsize) !=
-	    (ssize_t)sectorsize) {
+	    sectorsize) {
 		error = errno;
 		goto out;
 	}
@@ -284,37 +267,35 @@ g_metadata_read(const char *name, u_char *md, size_t size, const char *magic)
 out:
 	if (sector != NULL)
 		free(sector);
-	close(fd);
+	g_close(fd);
 	return (error);
 }
 
 int
-g_metadata_store(const char *name, u_char *md, size_t size)
+g_metadata_store(const char *name, const unsigned char *md, size_t size)
 {
-	char path[MAXPATHLEN];
-	unsigned sectorsize;
+	unsigned char *sector;
+	ssize_t sectorsize;
 	off_t mediasize;
-	u_char *sector;
 	int error, fd;
 
-	pathgen(name, path, sizeof(path));
 	sector = NULL;
 	error = 0;
 
-	fd = open(path, O_WRONLY);
+	fd = g_open(name, 1);
 	if (fd == -1)
 		return (errno);
-	mediasize = g_get_mediasize(name);
-	if (mediasize == 0) {
+	mediasize = g_mediasize(fd);
+	if (mediasize == -1) {
 		error = errno;
 		goto out;
 	}
-	sectorsize = g_get_sectorsize(name);
-	if (sectorsize == 0) {
+	sectorsize = g_sectorsize(fd);
+	if (sectorsize == -1) {
 		error = errno;
 		goto out;
 	}
-	assert(sectorsize >= size);
+	assert(sectorsize >= (ssize_t)size);
 	sector = malloc(sectorsize);
 	if (sector == NULL) {
 		error = ENOMEM;
@@ -322,15 +303,15 @@ g_metadata_store(const char *name, u_char *md, size_t size)
 	}
 	bcopy(md, sector, size);
 	if (pwrite(fd, sector, sectorsize, mediasize - sectorsize) !=
-	    (ssize_t)sectorsize) {
+	    sectorsize) {
 		error = errno;
 		goto out;
 	}
-	(void)ioctl(fd, DIOCGFLUSH, NULL);
+	(void)g_flush(fd);
 out:
 	if (sector != NULL)
 		free(sector);
-	close(fd);
+	(void)g_close(fd);
 	return (error);
 }
 
@@ -338,25 +319,23 @@ int
 g_metadata_clear(const char *name, const char *magic)
 {
 	struct std_metadata md;
-	char path[MAXPATHLEN];
-	unsigned sectorsize;
+	unsigned char *sector;
+	ssize_t sectorsize;
 	off_t mediasize;
-	u_char *sector;
 	int error, fd;
 
-	pathgen(name, path, sizeof(path));
 	sector = NULL;
 	error = 0;
 
-	fd = open(path, O_RDWR);
+	fd = g_open(name, 1);
 	if (fd == -1)
 		return (errno);
-	mediasize = g_get_mediasize(name);
+	mediasize = g_mediasize(fd);
 	if (mediasize == 0) {
 		error = errno;
 		goto out;
 	}
-	sectorsize = g_get_sectorsize(name);
+	sectorsize = g_sectorsize(fd);
 	if (sectorsize == 0) {
 		error = errno;
 		goto out;
@@ -368,7 +347,7 @@ g_metadata_clear(const char *name, const char *magic)
 	}
 	if (magic != NULL) {
 		if (pread(fd, sector, sectorsize, mediasize - sectorsize) !=
-		    (ssize_t)sectorsize) {
+		    sectorsize) {
 			error = errno;
 			goto out;
 		}
@@ -380,15 +359,15 @@ g_metadata_clear(const char *name, const char *magic)
 	}
 	bzero(sector, sectorsize);
 	if (pwrite(fd, sector, sectorsize, mediasize - sectorsize) !=
-	    (ssize_t)sectorsize) {
+	    sectorsize) {
 		error = errno;
 		goto out;
 	}
-	(void)ioctl(fd, DIOCGFLUSH, NULL);
+	(void)g_flush(fd);
 out:
 	if (sector != NULL)
 		free(sector);
-	close(fd);
+	g_close(fd);
 	return (error);
 }
 
@@ -412,8 +391,8 @@ gctl_get_param(struct gctl_req *req, size_t len, const char *pfmt, va_list ap)
 {
 	struct gctl_req_arg *argp;
 	char param[256];
+	unsigned int i;
 	void *p;
-	unsigned i;
 
 	vsnprintf(param, sizeof(param), pfmt, ap);
 	for (i = 0; i < req->narg; i++) {
@@ -486,7 +465,7 @@ gctl_change_param(struct gctl_req *req, const char *name, int len,
     const void *value)
 {
 	struct gctl_req_arg *ap;
-	unsigned i;
+	unsigned int i;
 
 	if (req == NULL || req->error != NULL)
 		return (EDOOFUS);

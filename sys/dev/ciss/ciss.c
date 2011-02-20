@@ -4394,7 +4394,7 @@ ciss_name_ldrive_org(int org)
     case CISS_LDRIVE_RAID0:
 	return("RAID 0");
     case CISS_LDRIVE_RAID1:
-	return("RAID 1");
+	return("RAID 1(1+0)");
     case CISS_LDRIVE_RAID4:
 	return("RAID 4");
     case CISS_LDRIVE_RAID5:

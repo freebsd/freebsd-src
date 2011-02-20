@@ -187,4 +187,9 @@ strrchr(const char *p, int ch)
 #define	FNM_IGNORECASE	FNM_CASEFOLD
 #define	FNM_FILE_NAME	FNM_PATHNAME
 
+/* Visibility of characters in gets() */
+#define	GETS_NOECHO	0	/* Disable echoing of characters. */
+#define	GETS_ECHO	1	/* Enable echoing of characters. */
+#define	GETS_ECHOPASS	2	/* Print a * for every character. */
+
 #endif /* !_SYS_LIBKERN_H_ */

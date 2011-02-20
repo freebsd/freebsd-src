@@ -424,7 +424,7 @@ intr_next_cpu(void)
 
 	/* Leave all interrupts on the BSP during boot. */
 	if (!assign_cpu)
-		return (cpu_apic_ids[0]);
+		return (PCPU_GET(apic_id));
 
 	mtx_lock_spin(&icu_lock);
 	apic_id = cpu_apic_ids[current_cpu];

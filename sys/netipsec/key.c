@@ -2758,9 +2758,9 @@ key_delsah(sah)
 		/* remove from tree of SA index */
 		if (__LIST_CHAINED(sah))
 			LIST_REMOVE(sah, chain);
-		if (sah->sa_route.ro_rt) {
-			RTFREE(sah->sa_route.ro_rt);
-			sah->sa_route.ro_rt = (struct rtentry *)NULL;
+		if (sah->route_cache.sa_route.ro_rt) {
+			RTFREE(sah->route_cache.sa_route.ro_rt);
+			sah->route_cache.sa_route.ro_rt = (struct rtentry *)NULL;
 		}
 		free(sah, M_IPSEC_SAH);
 	}
@@ -6095,6 +6095,9 @@ key_getsizes_ah(
 		case SADB_X_AALG_MD5:	*min = *max = 16; break;
 		case SADB_X_AALG_SHA:	*min = *max = 20; break;
 		case SADB_X_AALG_NULL:	*min = 1; *max = 256; break;
+		case SADB_X_AALG_SHA2_256: *min = *max = 32; break;
+		case SADB_X_AALG_SHA2_384: *min = *max = 48; break;
+		case SADB_X_AALG_SHA2_512: *min = *max = 64; break;
 		default:
 			DPRINTF(("%s: unknown AH algorithm %u\n",
 				__func__, alg));
@@ -6120,7 +6123,11 @@ key_getcomb_ah()
 	for (i = 1; i <= SADB_AALG_MAX; i++) {
 #if 1
 		/* we prefer HMAC algorithms, not old algorithms */
-		if (i != SADB_AALG_SHA1HMAC && i != SADB_AALG_MD5HMAC)
+		if (i != SADB_AALG_SHA1HMAC &&
+		    i != SADB_AALG_MD5HMAC  &&
+		    i != SADB_X_AALG_SHA2_256 &&
+		    i != SADB_X_AALG_SHA2_384 &&
+		    i != SADB_X_AALG_SHA2_512)
 			continue;
 #endif
 		algo = ah_algorithm_lookup(i);
@@ -7925,7 +7932,7 @@ key_sa_routechange(dst)
 
 	SAHTREE_LOCK();
 	LIST_FOREACH(sah, &V_sahtree, chain) {
-		ro = &sah->sa_route;
+		ro = &sah->route_cache.sa_route;
 		if (ro->ro_rt && dst->sa_len == ro->ro_dst.sa_len
 		 && bcmp(dst, &ro->ro_dst, dst->sa_len) == 0) {
 			RTFREE(ro->ro_rt);

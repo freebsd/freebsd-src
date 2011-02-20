@@ -114,7 +114,7 @@ struct vm_map_entry {
 	vm_inherit_t inheritance;	/* inheritance */
 	int wired_count;		/* can be paged if = 0 */
 	vm_pindex_t lastr;		/* last read */
-	struct uidinfo *uip;		/* tmp storage for creator ref */
+	struct ucred *cred;		/* tmp storage for creator ref */
 };
 
 #define MAP_ENTRY_NOSYNC		0x0001
@@ -185,15 +185,16 @@ struct vm_map {
 	vm_flags_t flags;		/* flags for this vm_map */
 	vm_map_entry_t root;		/* Root of a binary search tree */
 	pmap_t pmap;			/* (c) Physical map */
-	vm_map_entry_t deferred_freelist;
 #define	min_offset	header.start	/* (c) */
 #define	max_offset	header.end	/* (c) */
+	int busy;
 };
 
 /*
  * vm_flags_t values
  */
 #define MAP_WIREFUTURE		0x01	/* wire all future pages */
+#define	MAP_BUSY_WAKEUP		0x02
 
 #ifdef	_KERNEL
 static __inline vm_offset_t
@@ -237,7 +238,7 @@ struct vmspace {
 	caddr_t vm_taddr;	/* (c) user virtual address of text */
 	caddr_t vm_daddr;	/* (c) user virtual address of data */
 	caddr_t vm_maxsaddr;	/* user VA at max stack growth */
-	int	vm_refcnt;	/* number of references */
+	volatile int vm_refcnt;	/* number of references */
 	/*
 	 * Keep the PMAP last, so that CPU-specific variations of that
 	 * structure on a single architecture don't result in offset
@@ -267,6 +268,7 @@ vmspace_pmap(struct vmspace *vmspace)
 
 void _vm_map_lock(vm_map_t map, const char *file, int line);
 void _vm_map_unlock(vm_map_t map, const char *file, int line);
+int _vm_map_unlock_and_wait(vm_map_t map, int timo, const char *file, int line);
 void _vm_map_lock_read(vm_map_t map, const char *file, int line);
 void _vm_map_unlock_read(vm_map_t map, const char *file, int line);
 int _vm_map_trylock(vm_map_t map, const char *file, int line);
@@ -274,11 +276,15 @@ int _vm_map_trylock_read(vm_map_t map, const char *file, int line);
 int _vm_map_lock_upgrade(vm_map_t map, const char *file, int line);
 void _vm_map_lock_downgrade(vm_map_t map, const char *file, int line);
 int vm_map_locked(vm_map_t map);
-int vm_map_unlock_and_wait(vm_map_t map, int timo);
 void vm_map_wakeup(vm_map_t map);
+void vm_map_busy(vm_map_t map);
+void vm_map_unbusy(vm_map_t map);
+void vm_map_wait_busy(vm_map_t map);
 
 #define	vm_map_lock(map)	_vm_map_lock(map, LOCK_FILE, LOCK_LINE)
 #define	vm_map_unlock(map)	_vm_map_unlock(map, LOCK_FILE, LOCK_LINE)
+#define	vm_map_unlock_and_wait(map, timo)	\
+			_vm_map_unlock_and_wait(map, timo, LOCK_FILE, LOCK_LINE)
 #define	vm_map_lock_read(map)	_vm_map_lock_read(map, LOCK_FILE, LOCK_LINE)
 #define	vm_map_unlock_read(map)	_vm_map_unlock_read(map, LOCK_FILE, LOCK_LINE)
 #define	vm_map_trylock(map)	_vm_map_trylock(map, LOCK_FILE, LOCK_LINE)
@@ -319,6 +325,7 @@ long vmspace_wired_count(struct vmspace *vmspace);
  */
 #define VM_FAULT_NORMAL 0		/* Nothing special */
 #define VM_FAULT_CHANGE_WIRING 1	/* Change the wiring as appropriate */
+#define	VM_FAULT_DIRTY 2		/* Dirty the page; use w/VM_PROT_COPY */
 
 /*
  * The following "find_space" options are supported by vm_map_find()

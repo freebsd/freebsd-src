@@ -96,10 +96,14 @@ SYSCTL_INT(_vfs_newnfs, NFS_TPRINTF_DELAY,
 
 static void	nfs_sec_name(char *, int *);
 static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp,
-		    struct nfs_args *argp, struct ucred *, struct thread *);
+		    struct nfs_args *argp, const char *, struct ucred *,
+		    struct thread *);
 static int	mountnfs(struct nfs_args *, struct mount *,
 		    struct sockaddr *, char *, u_char *, u_char *, u_char *,
 		    struct vnode **, struct ucred *, struct thread *, int);
+static void	nfs_getnlminfo(struct vnode *, uint8_t *, size_t *,
+		    struct sockaddr_storage *, int *, off_t *,
+		    struct timeval *);
 static vfs_mount_t nfs_mount;
 static vfs_cmount_t nfs_cmount;
 static vfs_unmount_t nfs_unmount;
@@ -448,10 +452,12 @@ ncl_mountroot(struct mount *mp)
 		sin.sin_family = AF_INET;
 		sin.sin_len = sizeof(sin);
                 /* XXX MRT use table 0 for this sort of thing */
+		CURVNET_SET(TD_TO_VNET(td));
 		error = rtrequest(RTM_ADD, (struct sockaddr *)&sin,
 		    (struct sockaddr *)&nd->mygateway,
 		    (struct sockaddr *)&mask,
 		    RTF_UP | RTF_GATEWAY, NULL);
+		CURVNET_RESTORE();
 		if (error)
 			panic("nfs_mountroot: RTM_ADD: %d", error);
 	}
@@ -518,10 +524,11 @@ nfs_sec_name(char *sec, int *flagsp)
 
 static void
 nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
-    struct ucred *cred, struct thread *td)
+    const char *hostname, struct ucred *cred, struct thread *td)
 {
 	int s;
 	int adjsock;
+	char *p;
 
 	s = splnet();
 
@@ -658,6 +665,14 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 	} else {
 		nmp->nm_sotype = argp->sotype;
 		nmp->nm_soproto = argp->proto;
+	}
+
+	if (hostname != NULL) {
+		strlcpy(nmp->nm_hostname, hostname,
+		    sizeof(nmp->nm_hostname));
+		p = strchr(nmp->nm_hostname, ':');
+		if (p != NULL)
+			*p = '\0';
 	}
 }
 
@@ -933,7 +948,7 @@ nfs_mount(struct mount *mp)
 			 NFSMNT_INTEGRITY |
 			 NFSMNT_PRIVACY |
 			 NFSMNT_NOLOCKD /*|NFSMNT_XLATECOOKIE*/));
-		nfs_decode_args(mp, nmp, &args, td->td_ucred, td);
+		nfs_decode_args(mp, nmp, &args, NULL, td->td_ucred, td);
 		goto out;
 	}
 
@@ -1110,13 +1125,15 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		nmp->nm_sockreq.nr_cred = crhold(cred);
 		mtx_init(&nmp->nm_sockreq.nr_mtx, "nfssock", NULL, MTX_DEF);
 		mp->mnt_data = nmp;
+		nmp->nm_getinfo = nfs_getnlminfo;
+		nmp->nm_vinvalbuf = ncl_vinvalbuf;
 	}
 	vfs_getnewfsid(mp);
 	nmp->nm_mountp = mp;
 	mtx_init(&nmp->nm_mtx, "NFSmount lock", NULL, MTX_DEF | MTX_DUPOK);			
 	nmp->nm_negnametimeo = negnametimeo;
 
-	nfs_decode_args(mp, nmp, argp, cred, td);
+	nfs_decode_args(mp, nmp, argp, hst, cred, td);
 
 	/*
 	 * V2 can only handle 32 bit filesizes.  A 4GB-1 limit may be too
@@ -1445,5 +1462,33 @@ nfs_sysctl(struct mount *mp, fsctlop_t op, struct sysctl_req *req)
 		return (ENOTSUP);
 	}
 	return (0);
+}
+
+/*
+ * Extract the information needed by the nlm from the nfs vnode.
+ */
+static void
+nfs_getnlminfo(struct vnode *vp, uint8_t *fhp, size_t *fhlenp,
+    struct sockaddr_storage *sp, int *is_v3p, off_t *sizep,
+    struct timeval *timeop)
+{
+	struct nfsmount *nmp;
+	struct nfsnode *np = VTONFS(vp);
+
+	nmp = VFSTONFS(vp->v_mount);
+	if (fhlenp != NULL)
+		*fhlenp = (size_t)np->n_fhp->nfh_len;
+	if (fhp != NULL)
+		bcopy(np->n_fhp->nfh_fh, fhp, np->n_fhp->nfh_len);
+	if (sp != NULL)
+		bcopy(nmp->nm_nam, sp, min(nmp->nm_nam->sa_len, sizeof(*sp)));
+	if (is_v3p != NULL)
+		*is_v3p = NFS_ISV3(vp);
+	if (sizep != NULL)
+		*sizep = np->n_size;
+	if (timeop != NULL) {
+		timeop->tv_sec = nmp->nm_timeo / NFS_HZ;
+		timeop->tv_usec = (nmp->nm_timeo % NFS_HZ) * (1000000 / NFS_HZ);
+	}
 }
 

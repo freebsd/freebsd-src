@@ -67,6 +67,8 @@ def FeatureSSE4A   : SubtargetFeature<"sse4a", "HasSSE4A", "true",
 
 def FeatureAVX     : SubtargetFeature<"avx", "HasAVX", "true",
                                       "Enable AVX instructions">;
+def FeatureCLMUL   : SubtargetFeature<"clmul", "HasCLMUL", "true",
+                               "Enable carry-less multiplication instructions">;
 def FeatureFMA3    : SubtargetFeature<"fma3", "HasFMA3", "true",
                                      "Enable three-operand fused multiple-add">;
 def FeatureFMA4    : SubtargetFeature<"fma4", "HasFMA4", "true",
@@ -180,8 +182,6 @@ include "X86CallingConv.td"
 // Currently the X86 assembly parser only supports ATT syntax.
 def ATTAsmParser : AsmParser {
   string AsmParserClassName = "ATTAsmParser";
-  string AsmParserInstCleanup = "InstructionCleanup";
-  string MatchInstructionName = "MatchInstructionImpl";
   int Variant = 0;
 
   // Discard comments in assembly strings.

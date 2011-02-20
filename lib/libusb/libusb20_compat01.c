@@ -457,6 +457,11 @@ usb_parse_configuration(struct usb_config_descriptor *config,
 
 	/* allocate memory for our configuration */
 	ptr = malloc(a + b + c + d);
+	if (ptr == NULL) {
+		/* free config structure */
+		free(ps.a.currcfg);
+		return (-1);
+	}
 
 	/* "currifcw" must be first, hence this pointer is freed */
 	ps.b.currifcw = (void *)(ptr);
@@ -793,6 +798,19 @@ usb_reset(usb_dev_handle * dev)
 	 * handle after reset!
 	 */
 	return (usb_close(dev));
+}
+
+int
+usb_check_connected(usb_dev_handle * dev)
+{
+	int err;
+
+	err = libusb20_dev_check_connected((void *)dev);
+
+	if (err)
+		return (-1);
+
+	return (0);
 }
 
 const char *

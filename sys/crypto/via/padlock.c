@@ -170,7 +170,7 @@ padlock_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	struct padlock_session *ses = NULL;
 	struct cryptoini *encini, *macini;
 	struct thread *td;
-	int error;
+	int error, saved_ctx;
 
 	if (sidp == NULL || cri == NULL)
 		return (EINVAL);
@@ -238,10 +238,18 @@ padlock_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 
 	if (macini != NULL) {
 		td = curthread;
-		error = fpu_kern_enter(td, &ses->ses_fpu_ctx, FPU_KERN_NORMAL);
+		if (!is_fpu_kern_thread(0)) {
+			error = fpu_kern_enter(td, &ses->ses_fpu_ctx,
+			    FPU_KERN_NORMAL);
+			saved_ctx = 1;
+		} else {
+			error = 0;
+			saved_ctx = 0;
+		}
 		if (error == 0) {
 			error = padlock_hash_setup(ses, macini);
-			fpu_kern_leave(td, &ses->ses_fpu_ctx);
+			if (saved_ctx)
+				fpu_kern_leave(td, &ses->ses_fpu_ctx);
 		}
 		if (error != 0) {
 			padlock_freesession_one(sc, ses, 0);

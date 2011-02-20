@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -113,7 +113,8 @@ extern void vdev_queue_io_done(zio_t *zio);
 
 extern void vdev_config_dirty(vdev_t *vd);
 extern void vdev_config_clean(vdev_t *vd);
-extern int vdev_config_sync(vdev_t **svd, int svdcount, uint64_t txg);
+extern int vdev_config_sync(vdev_t **svd, int svdcount, uint64_t txg,
+    boolean_t);
 
 extern void vdev_state_dirty(vdev_t *vd);
 extern void vdev_state_clean(vdev_t *vd);

@@ -319,9 +319,15 @@ set(int argc, char **argv)
 	doing_proxy = flags = proxy_only = expire_time = 0;
 	while (argc-- > 0) {
 		if (strncmp(argv[0], "temp", 4) == 0) {
-			struct timeval tv;
-			gettimeofday(&tv, 0);
-			expire_time = tv.tv_sec + 20 * 60;
+			struct timespec tp;
+			int max_age;
+			size_t len = sizeof(max_age);
+
+			clock_gettime(CLOCK_MONOTONIC, &tp);
+			if (sysctlbyname("net.link.ether.inet.max_age",
+			    &max_age, &len, NULL, 0) != 0)
+				err(1, "sysctlbyname");
+			expire_time = tp.tv_sec + max_age;
 		} else if (strncmp(argv[0], "pub", 3) == 0) {
 			flags |= RTF_ANNOUNCE;
 			doing_proxy = 1;
@@ -602,10 +608,10 @@ print_entry(struct sockaddr_dl *sdl,
 	if (rtm->rtm_rmx.rmx_expire == 0)
 		printf(" permanent");
 	else {
-		static struct timeval tv;
-		if (tv.tv_sec == 0)
-			gettimeofday(&tv, 0);
-		if ((expire_time = rtm->rtm_rmx.rmx_expire - tv.tv_sec) > 0)
+		static struct timespec tp;
+		if (tp.tv_sec == 0)
+			clock_gettime(CLOCK_MONOTONIC, &tp);
+		if ((expire_time = rtm->rtm_rmx.rmx_expire - tp.tv_sec) > 0)
 			printf(" expires in %d seconds", (int)expire_time);
 		else
 			printf(" expired");

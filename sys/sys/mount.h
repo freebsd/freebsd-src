@@ -56,7 +56,7 @@ typedef struct fsid { int32_t val[2]; } fsid_t;	/* filesystem id type */
 
 struct fid {
 	u_short		fid_len;		/* length of data in bytes */
-	u_short		fid_reserved;		/* force longword alignment */
+	u_short		fid_data0;		/* force longword alignment */
 	char		fid_data[MAXFIDSZ];	/* data (variable length) */
 };
 
@@ -644,7 +644,11 @@ vfs_statfs_t	__vfs_statfs;
 		_locked = 0;						\
 	_locked;							\
 })
-#define	VFS_UNLOCK_GIANT(locked)	if ((locked)) mtx_unlock(&Giant);
+#define	VFS_UNLOCK_GIANT(locked) do					\
+{									\
+	if ((locked))							\
+		mtx_unlock(&Giant);					\
+} while (0)
 #define	VFS_ASSERT_GIANT(MP) do						\
 {									\
 	struct mount *_mp;						\
@@ -730,7 +734,8 @@ void	vfs_msync(struct mount *, int);
 int	vfs_busy(struct mount *, int);
 int	vfs_export			 /* process mount export info */
 	    (struct mount *, struct export_args *);
-int	vfs_allocate_syncvnode(struct mount *);
+void	vfs_allocate_syncvnode(struct mount *);
+void	vfs_deallocate_syncvnode(struct mount *);
 int	vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions);
 void	vfs_getnewfsid(struct mount *);
 struct cdev *vfs_getrootfsid(struct mount *);
@@ -740,6 +745,8 @@ int	vfs_modevent(module_t, int, void *);
 void	vfs_mount_error(struct mount *, const char *, ...);
 void	vfs_mountroot(void);			/* mount our root filesystem */
 void	vfs_mountedfrom(struct mount *, const char *from);
+void	vfs_oexport_conv(const struct oexport_args *oexp,
+	    struct export_args *exp);
 void	vfs_ref(struct mount *);
 void	vfs_rel(struct mount *);
 struct mount *vfs_mount_alloc(struct vnode *, struct vfsconf *, const char *,

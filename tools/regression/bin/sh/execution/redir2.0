@@ -10,7 +10,7 @@ brokenpipe=0
 mkfifo fifo1 fifo2
 {
 	{
-		exec sh -c 'exec <fifo1; read dummy'
+		exec ${SH} -c 'exec <fifo1; read dummy'
 	} 7<&- # fifo2 should be kept open, but not passed to programs
 	true
 } 7<fifo2 &

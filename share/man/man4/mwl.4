@@ -112,7 +112,6 @@ driver come in either Cardbus or mini-PCI packages.
 Wireless cards in Cardbus slots may be inserted and ejected on the fly.
 .Sh EXAMPLES
 Join an existing BSS network (ie: connect to an access point):
-.Pp
 .Bd -literal -offset indent
 ifconfig wlan create wlandev mwl0 inet 192.168.0.20 \e
 	netmask 0xffffff00"
@@ -120,7 +119,6 @@ ifconfig wlan create wlandev mwl0 inet 192.168.0.20 \e
 .Pp
 Join a specific BSS network with network name
 .Dq Li my_net :
-.Pp
 .Bd -literal -offset indent
 ifconfig wlan create wlandev mwl0 inet 192.168.0.20 \e
 	netmask 0xffffff00 ssid my_net"

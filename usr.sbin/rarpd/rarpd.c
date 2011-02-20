@@ -666,6 +666,7 @@ struct {
 static void
 update_arptab(u_char *ep, in_addr_t ipaddr)
 {
+	struct timespec tp;
 	int cc;
 	struct sockaddr_inarp *ar, *ar2;
 	struct sockaddr_dl *ll, *ll2;
@@ -731,7 +732,8 @@ update_arptab(u_char *ep, in_addr_t ipaddr)
 	rt->rtm_version = RTM_VERSION;
 	rt->rtm_addrs = RTA_DST | RTA_GATEWAY;
 	rt->rtm_inits = RTV_EXPIRE;
-	rt->rtm_rmx.rmx_expire = time(0) + ARPSECS;
+	clock_gettime(CLOCK_MONOTONIC, &tp);
+	rt->rtm_rmx.rmx_expire = tp.tv_sec + ARPSECS;
 	rt->rtm_flags = RTF_HOST | RTF_STATIC;
 	rt->rtm_type = RTM_ADD;
 	rt->rtm_seq = ++seq;

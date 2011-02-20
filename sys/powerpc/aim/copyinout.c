@@ -80,19 +80,34 @@ int	setfault(faultbuf);	/* defined in locore.S */
 static __inline void
 set_user_sr(pmap_t pm, const void *addr)
 {
-	register_t esid, vsid, slb1, slb2;
+	struct slb *slb;
+	register_t slbv;
 
-	esid = USER_ADDR >> ADDR_SR_SHFT;
-	PMAP_LOCK(pm);
-	vsid = va_to_vsid(pm, (vm_offset_t)addr);
-	PMAP_UNLOCK(pm);
+	/* Try lockless look-up first */
+	slb = user_va_to_slb_entry(pm, (vm_offset_t)addr);
 
-	slb1 = vsid << SLBV_VSID_SHIFT;
-	slb2 = (esid << SLBE_ESID_SHIFT) | SLBE_VALID | USER_SR;
+	if (slb == NULL) {
+		/* If it isn't there, we need to pre-fault the VSID */
+		PMAP_LOCK(pm);
+		slbv = va_to_vsid(pm, (vm_offset_t)addr) << SLBV_VSID_SHIFT;
+		PMAP_UNLOCK(pm);
+	} else {
+		slbv = slb->slbv;
+	}
 
-	__asm __volatile ("slbie %0; slbmte %1, %2" :: "r"(esid << 28),
-	    "r"(slb1), "r"(slb2));
-	isync();
+	/* Mark segment no-execute */
+	slbv |= SLBV_N;
+
+	/* If we have already set this VSID, we can just return */
+	if (curthread->td_pcb->pcb_cpu.aim.usr_vsid == slbv) 
+		return;
+
+	__asm __volatile("isync");
+	curthread->td_pcb->pcb_cpu.aim.usr_segm =
+	    (uintptr_t)addr >> ADDR_SR_SHFT;
+	curthread->td_pcb->pcb_cpu.aim.usr_vsid = slbv;
+	__asm __volatile ("slbie %0; slbmte %1, %2; isync" ::
+	    "r"(USER_ADDR), "r"(slbv), "r"(USER_SLB_SLBE));
 }
 #else
 static __inline void
@@ -102,9 +117,18 @@ set_user_sr(pmap_t pm, const void *addr)
 
 	vsid = va_to_vsid(pm, (vm_offset_t)addr);
 
-	isync();
-	__asm __volatile ("mtsr %0,%1" :: "n"(USER_SR), "r"(vsid));
-	isync();
+	/* Mark segment no-execute */
+	vsid |= SR_N;
+
+	/* If we have already set this VSID, we can just return */
+	if (curthread->td_pcb->pcb_cpu.aim.usr_vsid == vsid)
+		return;
+
+	__asm __volatile("isync");
+	curthread->td_pcb->pcb_cpu.aim.usr_segm =
+	    (uintptr_t)addr >> ADDR_SR_SHFT;
+	curthread->td_pcb->pcb_cpu.aim.usr_vsid = vsid;
+	__asm __volatile("mtsr %0,%1; isync" :: "n"(USER_SR), "r"(vsid));
 }
 #endif
 

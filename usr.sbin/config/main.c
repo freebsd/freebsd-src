@@ -108,7 +108,6 @@ main(int argc, char **argv)
 	struct stat buf;
 	int ch, len;
 	char *p;
-	char xxx[MAXPATHLEN];
 	char *kernfile;
 	int printmachine;
 
@@ -218,32 +217,6 @@ main(int argc, char **argv)
 	} else if (!S_ISDIR(buf.st_mode))
 		errx(EXIT_FAILURE, "%s isn't a directory", p);
 
-	/*
-	 * make symbolic links in compilation directory
-	 * for "sys" (to make genassym.c work along with #include <sys/xxx>)
-	 * and similarly for "machine".
-	 */
-	if (*srcdir == '\0')
-		(void)snprintf(xxx, sizeof(xxx), "../../include");
-	else
-		(void)snprintf(xxx, sizeof(xxx), "%s/%s/include",
-		    srcdir, machinename);
-	(void) unlink(path("machine"));
-	(void) symlink(xxx, path("machine"));
-	if (strcmp(machinename, machinearch) != 0) {
-		/*
-		 * make symbolic links in compilation directory for
-		 * machinearch, if it is different than machinename.
-		 */
-		if (*srcdir == '\0')
-			(void)snprintf(xxx, sizeof(xxx), "../../../%s/include",
-			    machinearch);
-		else
-			(void)snprintf(xxx, sizeof(xxx), "%s/%s/include",
-			    srcdir, machinearch);
-		(void) unlink(path(machinearch));
-		(void) symlink(xxx, path(machinearch));
-	}
 	configfile();			/* put config file into kernel*/
 	options();			/* make options .h files */
 	makefile();			/* build Makefile */

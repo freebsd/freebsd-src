@@ -830,6 +830,25 @@ ata_promise_mio_pm_read(device_t dev, int port, int reg, u_int32_t *result)
     struct ata_channel *ch = device_get_softc(dev);
     int timeout = 0;
 
+    if (port < 0) {
+	*result = ATA_IDX_INL(ch, reg);
+	return (0);
+    }
+    if (port < ATA_PM) {
+	switch (reg) {
+	case ATA_SSTATUS:
+	    reg = 0;
+	    break;
+	case ATA_SERROR:
+	    reg = 1;
+	    break;
+	case ATA_SCONTROL:
+	    reg = 2;
+	    break;
+	default:
+	    return (EINVAL);
+	}
+    }
     /* set portmultiplier port */
     ATA_OUTB(ctlr->r_res2, 0x4e8 + (ch->unit << 8), 0x0f);
 
@@ -862,6 +881,25 @@ ata_promise_mio_pm_write(device_t dev, int port, int reg, u_int32_t value)
     struct ata_channel *ch = device_get_softc(dev);
     int timeout = 0;
 
+    if (port < 0) {
+	ATA_IDX_OUTL(ch, reg, value);
+	return (0);
+    }
+    if (port < ATA_PM) {
+	switch (reg) {
+	case ATA_SSTATUS:
+	    reg = 0;
+	    break;
+	case ATA_SERROR:
+	    reg = 1;
+	    break;
+	case ATA_SCONTROL:
+	    reg = 2;
+	    break;
+	default:
+	    return (EINVAL);
+	}
+    }
     /* set portmultiplier port */
     ATA_OUTB(ctlr->r_res2, 0x4e8 + (ch->unit << 8), 0x0f);
 
@@ -941,12 +979,11 @@ ata_promise_mio_dmainit(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
 
-    ata_dmainit(dev);
     /* note start and stop are not used here */
     ch->dma.setprd = ata_promise_mio_setprd;
     ch->dma.max_iosize = 65536;
+    ata_dmainit(dev);
 }
-
 
 #define MAXLASTSGSIZE (32 * sizeof(u_int32_t))
 static void 

@@ -1,13 +1,13 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 # $FreeBSD$
 
-CFLAGS=-g -Wall
-WARNS=	3
+.PATH: ${.CURDIR}/../../libexec/tftpd
+
 PROG=	tftp
-SRCS=	main.c tftp.c tftp-utils.c tftp-io.c tftp-file.c tftp-transfer.c tftp-options.c
+SRCS=	main.c tftp-file.c tftp-io.c tftp-options.c tftp-transfer.c
+SRCS+=	tftp-utils.c tftp.c
+CFLAGS+=-I${.CURDIR}/../../libexec/tftpd
 DPADD=	${LIBEDIT} ${LIBTERMCAP}
 LDADD=	-ledit -ltermcap
-CFLAGS+=-I${.CURDIR}/../../libexec/tftpd -I${.CURDIR}/../../usr.bin/tftp
-.PATH:  ${.CURDIR}/../../libexec/tftpd
 
 .include <bsd.prog.mk>

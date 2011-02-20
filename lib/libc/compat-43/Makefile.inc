@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # compat-43 sources
-.PATH: ${.CURDIR}/${MACHINE_CPUARCH}/compat-43 ${.CURDIR}/compat-43
+.PATH: ${.CURDIR}/${LIBC_ARCH}/compat-43 ${.CURDIR}/compat-43
 
 SRCS+=	creat.c gethostid.c getwd.c killpg.c sethostid.c setpgrp.c \
 	setrgid.c setruid.c sigcompat.c

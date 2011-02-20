@@ -285,6 +285,8 @@ mode_t			acl_posix1e_newfilemode(mode_t cmode,
 struct acl		*acl_alloc(int flags);
 void			acl_free(struct acl *aclp);
 
+void			acl_nfs4_trivial_from_mode(struct acl *aclp,
+			    mode_t mode);
 void			acl_nfs4_sync_acl_from_mode(struct acl *aclp,
 			    mode_t mode, int file_owner_id);
 void			acl_nfs4_sync_mode_from_acl(mode_t *mode,

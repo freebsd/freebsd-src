@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.380.14.24.2.1 2010/02/25 05:39:32 marka Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.380.14.28 2010-08-20 01:38:26 marka Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -4983,7 +4983,7 @@ category notify { null; };
 		the server can acquire through the default system
 		key file, normally <filename>/etc/krb5.keytab</filename>.
 		Normally this principal is of the form
-		"<userinput>dns/</userinput><varname>server.domain</varname>".
+		"<userinput>DNS/</userinput><varname>server.domain</varname>".
 		To use GSS-TSIG, <command>tkey-domain</command>
 		must also be set.
 	      </para>
@@ -7860,6 +7860,14 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
                   and clamp the SOA refresh and retry times to the specified
                   values.
                 </para>
+		<para>
+		  The following defaults apply.
+		  <command>min-refresh-time</command> 300 seconds,
+		  <command>max-refresh-time</command> 2419200 seconds
+		  (4 weeks), <command>min-retry-time</command> 500 seconds,
+		  and <command>max-retry-time</command> 1209600 seconds
+		  (2 weeks).
+		</para>
               </listitem>
             </varlistentry>
 
@@ -8102,9 +8110,12 @@ XXX: end of RFC1918 addresses #defined out -->
 	      <listitem>127.IN-ADDR.ARPA</listitem>
 	      <listitem>254.169.IN-ADDR.ARPA</listitem>
 	      <listitem>2.0.192.IN-ADDR.ARPA</listitem>
+	      <listitem>100.51.198.IN-ADDR.ARPA</listitem>
+	      <listitem>113.0.203.IN-ADDR.ARPA</listitem>
 	      <listitem>255.255.255.255.IN-ADDR.ARPA</listitem>
 	      <listitem>0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.IP6.ARPA</listitem>
 	      <listitem>1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.IP6.ARPA</listitem>
+	      <listitem>8.B.D.0.1.0.0.2.IP6.ARPA</listitem>
 	      <listitem>D.F.IP6.ARPA</listitem>
 	      <listitem>8.E.F.IP6.ARPA</listitem>
 	      <listitem>9.E.F.IP6.ARPA</listitem>

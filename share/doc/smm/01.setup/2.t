@@ -482,13 +482,7 @@ lw(2i) l.
 \fB#\fP \fImount_mfs -s 1000 -T type /dev/null /tmp\fP	(create a writable filesystem)
 (\fItype\fP is the disk type as determined from /etc/disktab)
 \fB#\fP \fIcd /tmp\fP	(connect to that directory)
-\fB#\fP \fI../dev/MAKEDEV \*(Dk#\fP	(create special files for root disk)
-(\fI\*(Dk\fP is the disk type, \fI#\fP is the unit number)
-(ignore warning from ``sh'')
 \fB#\fP \fImount \-uw /tmp/\*(Dk#a /\fP	(read-write mount root filesystem)
-\fB#\fP \fIcd /dev\fP	(go to device directory)
-\fB#\fP \fI./MAKEDEV \*(Dk#\fP	(create permanent special files for root disk)
-(again, ignore warning from ``sh'')
 .TE
 .DE
 .Sh 4 "Step 4: (optional) restoring the root filesystem"
@@ -513,8 +507,6 @@ To really create the root filesystem on drive 1
 you should first label the disk as described in step 5 below.
 Then run the following commands:
 .DS
-\fB#\fP \fIcd /dev\fP
-\fB#\fP \fI./MAKEDEV \*(Dk1a\fP
 \fB#\fP\|\fInewfs /dev/r\*(Dk1a\fP
 \fB#\fP\|\fImount /dev/\*(Dk1a /mnt\fP
 \fB#\fP\|\fIcd /mnt\fP
@@ -1393,8 +1385,6 @@ To make the
 .Pn /var
 filesystem we would do:
 .DS
-\fB#\fP \fIcd /dev\fP
-\fB#\fP \fIMAKEDEV \*(Dk1\fP
 \fB#\fP \fIdisklabel -wr \*(Dk1 "disk type" "disk name"\fP
 \fB#\fP \fInewfs \*(Dk1f\fP
 (information about filesystem prints out)

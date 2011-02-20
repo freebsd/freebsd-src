@@ -250,10 +250,6 @@ jailparam_all(struct jailparam **jpp)
 		}
 		if (jailparam_init(jp + njp, buf + sizeof(SJPARAM)) < 0)
 			goto error;
-		if (jailparam_type(jp + njp) < 0) {
-			njp++;
-			goto error;
-		}
 		mib1[1] = 2;
 	}
 	jp = realloc(jp, njp * sizeof(*jp));
@@ -279,6 +275,10 @@ jailparam_init(struct jailparam *jp, const char *name)
 		strerror_r(errno, jail_errmsg, JAIL_ERRMSGLEN);
 		return (-1);
 	}
+	if (jailparam_type(jp) < 0) {
+		jailparam_free(jp, 1);
+		return (-1);
+	}
 	return (0);
 }
 
@@ -293,8 +293,6 @@ jailparam_import(struct jailparam *jp, const char *value)
 	const char *avalue;
 	int i, nval, fw;
 
-	if (!jp->jp_ctltype && jailparam_type(jp) < 0)
-		return (-1);
 	if (value == NULL)
 		return (0);
 	if ((jp->jp_ctltype & CTLTYPE) == CTLTYPE_STRING) {
@@ -383,9 +381,13 @@ jailparam_import(struct jailparam *jp, const char *value)
 			((unsigned long *)jp->jp_value)[i] =
 			    strtoul(avalue, &ep, 10);
 			goto integer_test;
-		case CTLTYPE_QUAD:
+		case CTLTYPE_S64:
 			((int64_t *)jp->jp_value)[i] =
 			    strtoimax(avalue, &ep, 10);
+			goto integer_test;
+		case CTLTYPE_U64:
+			((uint64_t *)jp->jp_value)[i] =
+			    strtoumax(avalue, &ep, 10);
 			goto integer_test;
 		case CTLTYPE_STRUCT:
 			tvalue = alloca(fw + 1);
@@ -563,8 +565,6 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 	jp_lastjid = jp_jid = jp_name = NULL;
 	arrays = 0;
 	for (ai = j = 0; j < njp; j++) {
-		if (!jp[j].jp_ctltype && jailparam_type(jp + j) < 0)
-			return (-1);
 		if (!strcmp(jp[j].jp_name, "lastjid"))
 			jp_lastjid = jp + j;
 		else if (!strcmp(jp[j].jp_name, "jid"))
@@ -719,13 +719,12 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 char *
 jailparam_export(struct jailparam *jp)
 {
+	size_t *valuelens;
 	char *value, *tvalue, **values;
 	size_t valuelen;
 	int i, nval, ival;
 	char valbuf[INET6_ADDRSTRLEN];
 
-	if (!jp->jp_ctltype && jailparam_type(jp) < 0)
-		return (NULL);
 	if ((jp->jp_ctltype & CTLTYPE) == CTLTYPE_STRING) {
 		value = strdup(jp->jp_value);
 		if (value == NULL)
@@ -740,6 +739,7 @@ jailparam_export(struct jailparam *jp)
 		return (value);
 	}
 	values = alloca(nval * sizeof(char *));
+	valuelens = alloca(nval * sizeof(size_t));
 	valuelen = 0;
 	for (i = 0; i < nval; i++) {
 		switch (jp->jp_ctltype & CTLTYPE) {
@@ -772,9 +772,13 @@ jailparam_export(struct jailparam *jp)
 			snprintf(valbuf, sizeof(valbuf), "%lu",
 			    ((unsigned long *)jp->jp_value)[i]);
 			break;
-		case CTLTYPE_QUAD:
+		case CTLTYPE_S64:
 			snprintf(valbuf, sizeof(valbuf), "%jd",
 			    (intmax_t)((int64_t *)jp->jp_value)[i]);
+			break;
+		case CTLTYPE_U64:
+			snprintf(valbuf, sizeof(valbuf), "%ju",
+			    (uintmax_t)((uint64_t *)jp->jp_value)[i]);
 			break;
 		case CTLTYPE_STRUCT:
 			switch (jp->jp_structtype) {
@@ -784,7 +788,6 @@ jailparam_export(struct jailparam *jp)
 				    valbuf, sizeof(valbuf)) == NULL) {
 					strerror_r(errno, jail_errmsg,
 					    JAIL_ERRMSGLEN);
-
 					return (NULL);
 				}
 				break;
@@ -794,7 +797,6 @@ jailparam_export(struct jailparam *jp)
 				    valbuf, sizeof(valbuf)) == NULL) {
 					strerror_r(errno, jail_errmsg,
 					    JAIL_ERRMSGLEN);
-
 					return (NULL);
 				}
 				break;
@@ -809,11 +811,12 @@ jailparam_export(struct jailparam *jp)
 			errno = ENOENT;
 			return (NULL);
 		}
-		valuelen += strlen(valbuf) + 1;
-		values[i] = alloca(valuelen);
+		valuelens[i] = strlen(valbuf) + 1;
+		valuelen += valuelens[i];
+		values[i] = alloca(valuelens[i]);
 		strcpy(values[i], valbuf);
 	}
-	value = malloc(valuelen + 1);
+	value = malloc(valuelen);
 	if (value == NULL)
 		strerror_r(errno, jail_errmsg, JAIL_ERRMSGLEN);
 	else {
@@ -821,8 +824,8 @@ jailparam_export(struct jailparam *jp)
 		for (i = 0; i < nval; i++) {
 			strcpy(tvalue, values[i]);
 			if (i < nval - 1) {
-				tvalue += strlen(values[i]);
-				*tvalue++ = ',';
+				tvalue += valuelens[i];
+				tvalue[-1] = ',';
 			}
 		}
 	}
@@ -830,7 +833,7 @@ jailparam_export(struct jailparam *jp)
 }
 
 /*
- * Free the contents of a jail parameter list (but not thst list itself).
+ * Free the contents of a jail parameter list (but not the list itself).
  */
 void
 jailparam_free(struct jailparam *jp, unsigned njp)
@@ -891,7 +894,7 @@ jailparam_type(struct jailparam *jp)
 				mib[1] = 4;
 				desclen = sizeof(desc);
 				if (sysctl(mib, (miblen / sizeof(int)) + 2,
-					   &desc, &desclen, NULL, 0) < 0) {
+				    &desc, &desclen, NULL, 0) < 0) {
 					snprintf(jail_errmsg,
 					    JAIL_ERRMSGLEN,
 					    "sysctl(0.4.%s): %s", desc.s,
@@ -931,7 +934,7 @@ jailparam_type(struct jailparam *jp)
 		isarray = 1;
 		p[-2] = 0;
 	}
-	/* Look for types we understand */
+	/* Look for types we understand. */
 	jp->jp_ctltype = desc.i;
 	switch (desc.i & CTLTYPE) {
 	case CTLTYPE_INT:
@@ -946,7 +949,8 @@ jailparam_type(struct jailparam *jp)
 	case CTLTYPE_ULONG:
 		jp->jp_valuelen = sizeof(long);
 		break;
-	case CTLTYPE_QUAD:
+	case CTLTYPE_S64:
+	case CTLTYPE_U64:
 		jp->jp_valuelen = sizeof(int64_t);
 		break;
 	case CTLTYPE_STRING:

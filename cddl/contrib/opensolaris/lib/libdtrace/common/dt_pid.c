@@ -641,7 +641,6 @@ dt_pid_create_usdt_probes(dtrace_probedesc_t *pdp, dtrace_hdl_t *dtp,
 	assert(DT_MUTEX_HELD(&dpr->dpr_lock));
 #if defined(sun)
 	(void) Pupdate_maps(P);
-#endif
 	if (Pobject_iter(P, dt_pid_usdt_mapping, P) != 0) {
 		ret = -1;
 		(void) dt_pid_error(dtp, pcb, dpr, NULL, D_PROC_USDT,
@@ -652,6 +651,9 @@ dt_pid_create_usdt_probes(dtrace_probedesc_t *pdp, dtrace_hdl_t *dtp,
 		    (int)proc_getpid(P), strerror(errno));
 #endif
 	}
+#else
+	ret = 0;
+#endif
 
 	/*
 	 * Put the module name in its canonical form.

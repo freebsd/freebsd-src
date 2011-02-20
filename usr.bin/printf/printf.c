@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(BUILTIN) && !defined(SHELL)
+#ifndef SHELL
 #ifndef lint
 static char const copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
@@ -53,6 +49,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,15 +58,7 @@ static const char rcsid[] =
 #ifdef SHELL
 #define main printfcmd
 #include "bltin/bltin.h"
-#include "memalloc.h"
-#else
-#define	warnx1(a, b, c)		warnx(a)
-#define	warnx2(a, b, c)		warnx(a, b)
-#define	warnx3(a, b, c)		warnx(a, b, c)
-#endif
-
-#ifndef BUILTIN
-#include <locale.h>
+#include "error.h"
 #endif
 
 #define PF(f, func) do { \
@@ -90,7 +79,7 @@ static const char rcsid[] =
 } while (0)
 
 static int	 asciicode(void);
-static char	*doformat(char *, int *);
+static char	*printf_doformat(char *, int *);
 static int	 escape(char *, int, size_t *);
 static int	 getchr(void);
 static int	 getfloating(long double *, int);
@@ -98,24 +87,23 @@ static int	 getint(int *);
 static int	 getnum(intmax_t *, uintmax_t *, int);
 static const char
 		*getstr(void);
-static char	*mknum(char *, int);
+static char	*mknum(char *, char);
 static void	 usage(void);
 
 static char **gargv;
 
 int
-#ifdef BUILTIN
-progprintf(int argc, char *argv[])
-#else
 main(int argc, char *argv[])
-#endif
 {
 	size_t len;
 	int ch, chopped, end, rval;
 	char *format, *fmt, *start;
 
-#ifndef BUILTIN
-	(void) setlocale(LC_NUMERIC, "");
+#ifndef SHELL
+	(void) setlocale(LC_ALL, "");
+#endif
+#ifdef SHELL
+	optreset = 1; optind = 1; opterr = 0; /* initialize getopt */
 #endif
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch (ch) {
@@ -132,6 +120,9 @@ main(int argc, char *argv[])
 		return (1);
 	}
 
+#ifdef SHELL
+	INTOFF;
+#endif
 	/*
 	 * Basic algorithm is to scan the format string for conversion
 	 * specifications -- once one is found, find out if the field
@@ -154,9 +145,13 @@ main(int argc, char *argv[])
 					putchar('%');
 					fmt += 2;
 				} else {
-					fmt = doformat(fmt, &rval);
-					if (fmt == NULL)
+					fmt = printf_doformat(fmt, &rval);
+					if (fmt == NULL) {
+#ifdef SHELL
+						INTON;
+#endif
 						return (1);
+					}
 					end = 0;
 				}
 				start = fmt;
@@ -165,12 +160,19 @@ main(int argc, char *argv[])
 		}
 
 		if (end == 1) {
-			warnx1("missing format character", NULL, NULL);
+			warnx("missing format character");
+#ifdef SHELL
+			INTON;
+#endif
 			return (1);
 		}
 		fwrite(start, 1, fmt - start, stdout);
-		if (chopped || !*gargv)
+		if (chopped || !*gargv) {
+#ifdef SHELL
+			INTON;
+#endif
 			return (rval);
+		}
 		/* Restart at the beginning of the format string. */
 		fmt = format;
 		end = 1;
@@ -180,7 +182,7 @@ main(int argc, char *argv[])
 
 
 static char *
-doformat(char *start, int *rval)
+printf_doformat(char *start, int *rval)
 {
 	static const char skip1[] = "#'-+ 0";
 	static const char skip2[] = "0123456789";
@@ -219,7 +221,7 @@ doformat(char *start, int *rval)
 	} else
 		haveprec = 0;
 	if (!*fmt) {
-		warnx1("missing format character", NULL, NULL);
+		warnx("missing format character");
 		return (NULL);
 	}
 
@@ -237,7 +239,7 @@ doformat(char *start, int *rval)
 		mod_ldbl = 1;
 		fmt++;
 		if (!strchr("aAeEfFgG", *fmt)) {
-			warnx2("bad modifier L for %%%c", *fmt, NULL);
+			warnx("bad modifier L for %%%c", *fmt);
 			return (NULL);
 		}
 	} else {
@@ -253,24 +255,16 @@ doformat(char *start, int *rval)
 		char *p;
 		int getout;
 
-#ifdef SHELL
-		p = savestr(getstr());
-#else
 		p = strdup(getstr());
-#endif
 		if (p == NULL) {
-			warnx2("%s", strerror(ENOMEM), NULL);
+			warnx("%s", strerror(ENOMEM));
 			return (NULL);
 		}
 		getout = escape(p, 0, &len);
 		*(fmt - 1) = 's';
 		PF(start, p);
 		*(fmt - 1) = 'b';
-#ifdef SHELL
-		ckfree(p);
-#else
 		free(p);
-#endif
 		if (getout)
 			return (fmt);
 		break;
@@ -321,7 +315,7 @@ doformat(char *start, int *rval)
 		break;
 	}
 	default:
-		warnx2("illegal format character %c", convch, NULL);
+		warnx("illegal format character %c", convch);
 		return (NULL);
 	}
 	*fmt = nextch;
@@ -329,7 +323,7 @@ doformat(char *start, int *rval)
 }
 
 static char *
-mknum(char *str, int ch)
+mknum(char *str, char ch)
 {
 	static char *copy;
 	static size_t copy_size;
@@ -339,13 +333,9 @@ mknum(char *str, int ch)
 	len = strlen(str) + 2;
 	if (len > copy_size) {
 		newlen = ((len + 1023) >> 10) << 10;
-#ifdef SHELL
-		if ((newcopy = ckrealloc(copy, newlen)) == NULL)
-#else
 		if ((newcopy = realloc(copy, newlen)) == NULL)
-#endif
 		{
-			warnx2("%s", strerror(ENOMEM), NULL);
+			warnx("%s", strerror(ENOMEM));
 			return (NULL);
 		}
 		copy = newcopy;
@@ -458,7 +448,7 @@ getint(int *ip)
 		return (1);
 	rval = 0;
 	if (val < INT_MIN || val > INT_MAX) {
-		warnx3("%s: %s", *gargv, strerror(ERANGE));
+		warnx("%s: %s", *gargv, strerror(ERANGE));
 		rval = 1;
 	}
 	*ip = (int)val;
@@ -489,15 +479,15 @@ getnum(intmax_t *ip, uintmax_t *uip, int signedconv)
 	else
 		*uip = strtoumax(*gargv, &ep, 0);
 	if (ep == *gargv) {
-		warnx2("%s: expected numeric value", *gargv, NULL);
+		warnx("%s: expected numeric value", *gargv);
 		rval = 1;
 	}
 	else if (*ep != '\0') {
-		warnx2("%s: not completely converted", *gargv, NULL);
+		warnx("%s: not completely converted", *gargv);
 		rval = 1;
 	}
 	if (errno == ERANGE) {
-		warnx3("%s: %s", *gargv, strerror(ERANGE));
+		warnx("%s: %s", *gargv, strerror(ERANGE));
 		rval = 1;
 	}
 	++gargv;
@@ -525,14 +515,14 @@ getfloating(long double *dp, int mod_ldbl)
 	else
 		*dp = strtod(*gargv, &ep);
 	if (ep == *gargv) {
-		warnx2("%s: expected numeric value", *gargv, NULL);
+		warnx("%s: expected numeric value", *gargv);
 		rval = 1;
 	} else if (*ep != '\0') {
-		warnx2("%s: not completely converted", *gargv, NULL);
+		warnx("%s: not completely converted", *gargv);
 		rval = 1;
 	}
 	if (errno == ERANGE) {
-		warnx3("%s: %s", *gargv, strerror(ERANGE));
+		warnx("%s: %s", *gargv, strerror(ERANGE));
 		rval = 1;
 	}
 	++gargv;

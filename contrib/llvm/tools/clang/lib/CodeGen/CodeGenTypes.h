@@ -14,12 +14,11 @@
 #ifndef CLANG_CODEGEN_CODEGENTYPES_H
 #define CLANG_CODEGEN_CODEGENTYPES_H
 
+#include "CGCall.h"
+#include "GlobalDecl.h"
 #include "llvm/Module.h"
 #include "llvm/ADT/DenseMap.h"
 #include <vector>
-
-#include "CGCall.h"
-#include "GlobalDecl.h"
 
 namespace llvm {
   class FunctionType;
@@ -51,6 +50,7 @@ namespace clang {
   typedef CanQual<Type> CanQualType;
 
 namespace CodeGen {
+  class CGCXXABI;
   class CGRecordLayout;
 
 /// CodeGenTypes - This class organizes the cross-module state that is used
@@ -61,6 +61,7 @@ class CodeGenTypes {
   llvm::Module& TheModule;
   const llvm::TargetData& TheTargetData;
   const ABIInfo& TheABIInfo;
+  CGCXXABI &TheCXXABI;
 
   llvm::SmallVector<std::pair<QualType,
                               llvm::OpaqueType *>, 8>  PointersToResolve;
@@ -102,13 +103,14 @@ private:
 
 public:
   CodeGenTypes(ASTContext &Ctx, llvm::Module &M, const llvm::TargetData &TD,
-               const ABIInfo &Info);
+               const ABIInfo &Info, CGCXXABI &CXXABI);
   ~CodeGenTypes();
 
   const llvm::TargetData &getTargetData() const { return TheTargetData; }
   const TargetInfo &getTarget() const { return Target; }
   ASTContext &getContext() const { return Context; }
   const ABIInfo &getABIInfo() const { return TheABIInfo; }
+  CGCXXABI &getCXXABI() const { return TheCXXABI; }
   llvm::LLVMContext &getLLVMContext() { return TheModule.getContext(); }
 
   /// ConvertType - Convert type T into a llvm::Type.
@@ -139,7 +141,7 @@ public:
   /// GetFunctionTypeForVTable - Get the LLVM function type for use in a vtable,
   /// given a CXXMethodDecl. If the method to has an incomplete return type, 
   /// and/or incomplete argument types, this will return the opaque type.
-  const llvm::Type *GetFunctionTypeForVTable(const CXXMethodDecl *MD);
+  const llvm::Type *GetFunctionTypeForVTable(GlobalDecl GD);
                                                      
   const CGRecordLayout &getCGRecordLayout(const RecordDecl*) const;
 
@@ -169,7 +171,9 @@ public:
   const CGFunctionInfo &getFunctionInfo(CanQual<FunctionNoProtoType> Ty,
                                         bool IsRecursive = false);
 
-  // getFunctionInfo - Get the function info for a member function.
+  /// getFunctionInfo - Get the function info for a member function of
+  /// the given type.  This is used for calls through member function
+  /// pointers.
   const CGFunctionInfo &getFunctionInfo(const CXXRecordDecl *RD,
                                         const FunctionProtoType *FTP);
   
@@ -205,13 +209,13 @@ public:  // These are internal details of CGT that shouldn't be used externally.
   void GetExpandedTypes(QualType Ty, std::vector<const llvm::Type*> &ArgTys,
                         bool IsRecursive);
   
-  /// ContainsPointerToDataMember - Return whether the given type contains a
-  /// pointer to a data member.
-  bool ContainsPointerToDataMember(QualType T);
+  /// IsZeroInitializable - Return whether a type can be
+  /// zero-initialized (in the C++ sense) with an LLVM zeroinitializer.
+  bool isZeroInitializable(QualType T);
   
-  /// ContainsPointerToDataMember - Return whether the record decl contains a
-  /// pointer to a data member.
-  bool ContainsPointerToDataMember(const CXXRecordDecl *RD);
+  /// IsZeroInitializable - Return whether a record type can be
+  /// zero-initialized (in the C++ sense) with an LLVM zeroinitializer.
+  bool isZeroInitializable(const CXXRecordDecl *RD);
 };
 
 }  // end namespace CodeGen

@@ -417,6 +417,7 @@ CTASSERT(sizeof(struct fs) == 1376);
 #define FS_FLAGS_UPDATED 0x0080	/* flags have been moved to new location */
 #define FS_NFS4ACLS	0x0100	/* file system has NFSv4 ACLs enabled */
 #define FS_INDEXDIRS	0x0200	/* kernel supports indexed directories */
+#define	FS_TRIM		0x0400	/* issue BIO_DELETE for deleted blocks */
 
 /*
  * Macros to access bits in the fs_active array.
@@ -607,6 +608,11 @@ struct cg {
 	  : (fragroundup(fs, blkoff(fs, (size)))))
 
 /*
+ * Number of indirects in a filesystem block.
+ */
+#define	NINDIR(fs)	((fs)->fs_nindir)
+
+/*
  * Indirect lbns are aligned on NDADDR addresses where single indirects
  * are the negated address of the lowest lbn reachable, double indirects
  * are this lbn - 1 and triple indirects are this lbn - 2.  This yields
@@ -631,16 +637,22 @@ lbn_level(ufs_lbn_t lbn)
 	}
 	return (-1);
 }
+
+static inline ufs_lbn_t
+lbn_offset(struct fs *fs, int level)
+{
+	ufs_lbn_t res;
+
+	for (res = 1; level > 0; level--)
+		res *= NINDIR(fs);
+	return (res);
+}
+
 /*
  * Number of inodes in a secondary storage block/fragment.
  */
 #define	INOPB(fs)	((fs)->fs_inopb)
 #define	INOPF(fs)	((fs)->fs_inopb >> (fs)->fs_fragshift)
-
-/*
- * Number of indirects in a filesystem block.
- */
-#define	NINDIR(fs)	((fs)->fs_nindir)
 
 /*
  * Softdep journal record format.
@@ -661,7 +673,7 @@ lbn_level(ufs_lbn_t lbn)
 
 /*
  * Size of the segment record header.  There is at most one for each disk
- * block n the journal.  The segment header is followed by an array of
+ * block in the journal.  The segment header is followed by an array of
  * records.  fsck depends on the first element in each record being 'op'
  * and the second being 'ino'.  Segments may span multiple disk blocks but
  * the header is present on each.
@@ -670,7 +682,7 @@ struct jsegrec {
 	uint64_t	jsr_seq;	/* Our sequence number */
 	uint64_t	jsr_oldest;	/* Oldest valid sequence number */
 	uint16_t	jsr_cnt;	/* Count of valid records */
-	uint16_t	jsr_blocks;	/* Count of DEV_BSIZE blocks. */
+	uint16_t	jsr_blocks;	/* Count of device bsize blocks. */
 	uint32_t	jsr_crc;	/* 32bit crc of the valid space */
 	ufs_time_t	jsr_time;	/* timestamp for mount instance */
 };

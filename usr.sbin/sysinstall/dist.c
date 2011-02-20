@@ -87,7 +87,7 @@ static Distribution DistTable[] = {
     DTE_TARBALL("proflibs", &Dists, PROFLIBS, "/"),
     DTE_TARBALL("dict",	    &Dists, DICT,     "/"),
     DTE_TARBALL("info",	    &Dists, INFO,     "/"),
-#ifdef __amd64__
+#if defined(__amd64__) || defined(__powerpc64__)
     DTE_TARBALL("lib32",    &Dists, LIB32,    "/"),
 #endif
     DTE_SUBDIST("src",	    &Dists, SRC,      SrcDistTable),
@@ -98,7 +98,7 @@ static Distribution DistTable[] = {
 
 /* The kernel distributions */
 static Distribution KernelDistTable[] = {
-    DTE_TARBALL("GENERIC",  &KernelDists, KERNEL_GENERIC, "/boot"),
+    DTE_TARBALL(GENERIC_KERNEL_NAME,  &KernelDists, KERNEL_GENERIC, "/boot"),
     DTE_END,
 };
 
@@ -757,6 +757,9 @@ distExtract(char *parent, Distribution *me)
 			canceled = 1;	
 
 		    status = FALSE;
+		} else {
+			// ignore any failures with DIST_LOCAL
+			status = TRUE;
 		}
 	    }
 	    break;
@@ -913,7 +916,7 @@ distExtractAll(dialogMenuItem *self)
     restorescr(w);
 
     if (extract_status == FALSE)
-	status = DITEM_FAILURE;
+	status = FALSE;
 
     return status;
 }

@@ -114,7 +114,15 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 		if (error)
 			return (error);
 	}
+
 	ivp = iv;
+
+	/*
+	 * xforms that provide a reinit method perform all IV
+	 * handling themselves.
+	 */
+	if (exf->reinit)
+		exf->reinit(sw->sw_kschedule, iv);
 
 	if (flags & CRYPTO_F_IMBUF) {
 		struct mbuf *m = (struct mbuf *) buf;
@@ -135,7 +143,15 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 				m_copydata(m, k, blks, blk);
 
 				/* Actual encryption/decryption */
-				if (crd->crd_flags & CRD_F_ENCRYPT) {
+				if (exf->reinit) {
+					if (crd->crd_flags & CRD_F_ENCRYPT) {
+						exf->encrypt(sw->sw_kschedule,
+						    blk);
+					} else {
+						exf->decrypt(sw->sw_kschedule,
+						    blk);
+					}
+				} else if (crd->crd_flags & CRD_F_ENCRYPT) {
 					/* XOR with previous block */
 					for (j = 0; j < blks; j++)
 						blk[j] ^= ivp[j];
@@ -205,7 +221,15 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 			idat = mtod(m, unsigned char *) + k;
 
 	   		while (m->m_len >= k + blks && i > 0) {
-				if (crd->crd_flags & CRD_F_ENCRYPT) {
+				if (exf->reinit) {
+					if (crd->crd_flags & CRD_F_ENCRYPT) {
+						exf->encrypt(sw->sw_kschedule,
+						    idat);
+					} else {
+						exf->decrypt(sw->sw_kschedule,
+						    idat);
+					}
+				} else if (crd->crd_flags & CRD_F_ENCRYPT) {
 					/* XOR with previous block/IV */
 					for (j = 0; j < blks; j++)
 						idat[j] ^= ivp[j];
@@ -261,7 +285,15 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 				cuio_copydata(uio, k, blks, blk);
 
 				/* Actual encryption/decryption */
-				if (crd->crd_flags & CRD_F_ENCRYPT) {
+				if (exf->reinit) {
+					if (crd->crd_flags & CRD_F_ENCRYPT) {
+						exf->encrypt(sw->sw_kschedule,
+						    blk);
+					} else {
+						exf->decrypt(sw->sw_kschedule,
+						    blk);
+					}
+				} else if (crd->crd_flags & CRD_F_ENCRYPT) {
 					/* XOR with previous block */
 					for (j = 0; j < blks; j++)
 						blk[j] ^= ivp[j];
@@ -319,7 +351,15 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 			idat = (char *)iov->iov_base + k;
 
 	   		while (iov->iov_len >= k + blks && i > 0) {
-				if (crd->crd_flags & CRD_F_ENCRYPT) {
+				if (exf->reinit) {
+					if (crd->crd_flags & CRD_F_ENCRYPT) {
+						exf->encrypt(sw->sw_kschedule,
+						    idat);
+					} else {
+						exf->decrypt(sw->sw_kschedule,
+						    idat);
+					}
+				} else if (crd->crd_flags & CRD_F_ENCRYPT) {
 					/* XOR with previous block/IV */
 					for (j = 0; j < blks; j++)
 						idat[j] ^= ivp[j];
@@ -360,7 +400,15 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 
 		return 0; /* Done with iovec encryption/decryption */
 	} else {	/* contiguous buffer */
-		if (crd->crd_flags & CRD_F_ENCRYPT) {
+		if (exf->reinit) {
+			for (i = crd->crd_skip;
+			    i < crd->crd_skip + crd->crd_len; i += blks) {
+				if (crd->crd_flags & CRD_F_ENCRYPT)
+					exf->encrypt(sw->sw_kschedule, buf + i);
+				else
+					exf->decrypt(sw->sw_kschedule, buf + i);
+			}
+		} else if (crd->crd_flags & CRD_F_ENCRYPT) {
 			for (i = crd->crd_skip;
 			    i < crd->crd_skip + crd->crd_len; i += blks) {
 				/* XOR with the IV/previous block, as appropriate. */
@@ -687,6 +735,9 @@ swcr_newsession(device_t dev, u_int32_t *sid, struct cryptoini *cri)
 		case CRYPTO_RIJNDAEL128_CBC:
 			txf = &enc_xform_rijndael128;
 			goto enccommon;
+		case CRYPTO_AES_XTS:
+			txf = &enc_xform_aes_xts;
+			goto enccommon;
 		case CRYPTO_CAMELLIA_CBC:
 			txf = &enc_xform_camellia;
 			goto enccommon;
@@ -845,6 +896,7 @@ swcr_freesession(device_t dev, u_int64_t tid)
 		case CRYPTO_CAST_CBC:
 		case CRYPTO_SKIPJACK_CBC:
 		case CRYPTO_RIJNDAEL128_CBC:
+		case CRYPTO_AES_XTS:
 		case CRYPTO_CAMELLIA_CBC:
 		case CRYPTO_NULL_CBC:
 			txf = swd->sw_exf;
@@ -958,6 +1010,7 @@ swcr_process(device_t dev, struct cryptop *crp, int hint)
 		case CRYPTO_CAST_CBC:
 		case CRYPTO_SKIPJACK_CBC:
 		case CRYPTO_RIJNDAEL128_CBC:
+		case CRYPTO_AES_XTS:
 		case CRYPTO_CAMELLIA_CBC:
 			if ((crp->crp_etype = swcr_encdec(crd, sw,
 			    crp->crp_buf, crp->crp_flags)) != 0)
@@ -1007,7 +1060,7 @@ swcr_identify(driver_t *drv, device_t parent)
 {
 	/* NB: order 10 is so we get attached after h/w devices */
 	if (device_find_child(parent, "cryptosoft", -1) == NULL &&
-	    BUS_ADD_CHILD(parent, 10, "cryptosoft", -1) == 0)
+	    BUS_ADD_CHILD(parent, 10, "cryptosoft", 0) == 0)
 		panic("cryptosoft: could not attach");
 }
 
@@ -1015,7 +1068,7 @@ static int
 swcr_probe(device_t dev)
 {
 	device_set_desc(dev, "software crypto");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
@@ -1050,6 +1103,7 @@ swcr_attach(device_t dev)
 	REGISTER(CRYPTO_MD5);
 	REGISTER(CRYPTO_SHA1);
 	REGISTER(CRYPTO_RIJNDAEL128_CBC);
+	REGISTER(CRYPTO_AES_XTS);
  	REGISTER(CRYPTO_CAMELLIA_CBC);
 	REGISTER(CRYPTO_DEFLATE_COMP);
 #undef REGISTER

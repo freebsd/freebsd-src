@@ -23,6 +23,7 @@ class Triple;
 
 namespace clang {
 class ASTConsumer;
+class CompilerInstance;
 class Decl;
 class DependencyOutputOptions;
 class Diagnostic;
@@ -31,7 +32,6 @@ class HeaderSearch;
 class HeaderSearchOptions;
 class IdentifierTable;
 class LangOptions;
-class MinimalAction;
 class Preprocessor;
 class PreprocessorOptions;
 class PreprocessorOutputOptions;
@@ -64,11 +64,6 @@ void ProcessWarningOptions(Diagnostic &Diags, const DiagnosticOptions &Opts);
 /// DoPrintPreprocessedInput - Implement -E mode.
 void DoPrintPreprocessedInput(Preprocessor &PP, llvm::raw_ostream* OS,
                               const PreprocessorOutputOptions &Opts);
-
-/// CreatePrintParserActionsAction - Return the actions implementation that
-/// implements the -parse-print-callbacks option.
-MinimalAction *CreatePrintParserActionsAction(Preprocessor &PP,
-                                              llvm::raw_ostream* OS);
 
 /// CheckDiagnostics - Gather the expected diagnostics and check them.
 bool CheckDiagnostics(Preprocessor &PP);

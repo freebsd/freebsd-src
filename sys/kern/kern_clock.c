@@ -195,7 +195,7 @@ deadlkres(void)
 		panic("%s: possible deadlock detected on allproc_lock\n",
 				    __func__);
 			tryl++;
-			pause("allproc_lock deadlkres", sleepfreq * hz);
+			pause("allproc", sleepfreq * hz);
 			continue;
 		}
 		tryl = 0;
@@ -288,7 +288,7 @@ deadlkres(void)
 		sx_sunlock(&allproc_lock);
 
 		/* Sleep for sleepfreq seconds. */
-		pause("deadlkres", sleepfreq * hz);
+		pause("-", sleepfreq * hz);
 	}
 }
 
@@ -373,11 +373,8 @@ int	profprocs;
 int	ticks;
 int	psratio;
 
-int	timer1hz;
-int	timer2hz;
-static DPCPU_DEFINE(u_int, hard_cnt);
-static DPCPU_DEFINE(u_int, stat_cnt);
-static DPCPU_DEFINE(u_int, prof_cnt);
+static DPCPU_DEFINE(int, pcputicks);	/* Per-CPU version of ticks. */
+static int global_hardclock_run = 0;
 
 /*
  * Initialize clock frequencies and start both clocks running.
@@ -406,52 +403,6 @@ initclocks(dummy)
 #ifdef SW_WATCHDOG
 	EVENTHANDLER_REGISTER(watchdog_list, watchdog_config, NULL, 0);
 #endif
-}
-
-void
-timer1clock(int usermode, uintfptr_t pc)
-{
-	u_int *cnt;
-
-	cnt = DPCPU_PTR(hard_cnt);
-	*cnt += hz;
-	if (*cnt >= timer1hz) {
-		*cnt -= timer1hz;
-		if (*cnt >= timer1hz)
-			*cnt = 0;
-		if (PCPU_GET(cpuid) == 0)
-			hardclock(usermode, pc);
-		else
-			hardclock_cpu(usermode);
-	}
-	if (timer2hz == 0)
-		timer2clock(usermode, pc);
-}
-
-void
-timer2clock(int usermode, uintfptr_t pc)
-{
-	u_int *cnt;
-	int t2hz = timer2hz ? timer2hz : timer1hz;
-
-	cnt = DPCPU_PTR(stat_cnt);
-	*cnt += stathz;
-	if (*cnt >= t2hz) {
-		*cnt -= t2hz;
-		if (*cnt >= t2hz)
-			*cnt = 0;
-		statclock(usermode);
-	}
-	if (profprocs == 0)
-		return;
-	cnt = DPCPU_PTR(prof_cnt);
-	*cnt += profhz;
-	if (*cnt >= t2hz) {
-		*cnt -= t2hz;
-		if (*cnt >= t2hz)
-			*cnt = 0;
-		profclock(usermode, pc);
-	}
 }
 
 /*
@@ -486,7 +437,7 @@ hardclock_cpu(int usermode)
 		PROC_SUNLOCK(p);
 	}
 	thread_lock(td);
-	sched_tick();
+	sched_tick(1);
 	td->td_flags |= flags;
 	thread_unlock(td);
 
@@ -506,7 +457,8 @@ hardclock(int usermode, uintfptr_t pc)
 
 	atomic_add_int((volatile int *)&ticks, 1);
 	hardclock_cpu(usermode);
-	tc_ticktock();
+	tc_ticktock(1);
+	cpu_tick_calibration();
 	/*
 	 * If no separate statistics clock is available, run it from here.
 	 *
@@ -523,6 +475,94 @@ hardclock(int usermode, uintfptr_t pc)
 	if (watchdog_enabled > 0 && --watchdog_ticks <= 0)
 		watchdog_fire();
 #endif /* SW_WATCHDOG */
+}
+
+void
+hardclock_anycpu(int cnt, int usermode)
+{
+	struct pstats *pstats;
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
+	int *t = DPCPU_PTR(pcputicks);
+	int flags, global, newticks;
+#ifdef SW_WATCHDOG
+	int i;
+#endif /* SW_WATCHDOG */
+
+	/*
+	 * Update per-CPU and possibly global ticks values.
+	 */
+	*t += cnt;
+	do {
+		global = ticks;
+		newticks = *t - global;
+		if (newticks <= 0) {
+			if (newticks < -1)
+				*t = global - 1;
+			newticks = 0;
+			break;
+		}
+	} while (!atomic_cmpset_int(&ticks, global, *t));
+
+	/*
+	 * Run current process's virtual and profile time, as needed.
+	 */
+	pstats = p->p_stats;
+	flags = 0;
+	if (usermode &&
+	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value)) {
+		PROC_SLOCK(p);
+		if (itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL],
+		    tick * cnt) == 0)
+			flags |= TDF_ALRMPEND | TDF_ASTPENDING;
+		PROC_SUNLOCK(p);
+	}
+	if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value)) {
+		PROC_SLOCK(p);
+		if (itimerdecr(&pstats->p_timer[ITIMER_PROF],
+		    tick * cnt) == 0)
+			flags |= TDF_PROFPEND | TDF_ASTPENDING;
+		PROC_SUNLOCK(p);
+	}
+	thread_lock(td);
+	sched_tick(cnt);
+	td->td_flags |= flags;
+	thread_unlock(td);
+
+#ifdef	HWPMC_HOOKS
+	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(cpuid)))
+		PMC_CALL_HOOK_UNLOCKED(curthread, PMC_FN_DO_SAMPLES, NULL);
+#endif
+	callout_tick();
+	/* We are in charge to handle this tick duty. */
+	if (newticks > 0) {
+		/* Dangerous and no need to call these things concurrently. */
+		if (atomic_cmpset_acq_int(&global_hardclock_run, 0, 1)) {
+			tc_ticktock(newticks);
+#ifdef DEVICE_POLLING
+			/* This is very short and quick. */
+			hardclock_device_poll();
+#endif /* DEVICE_POLLING */
+			atomic_store_rel_int(&global_hardclock_run, 0);
+		}
+#ifdef SW_WATCHDOG
+		if (watchdog_enabled > 0) {
+			i = atomic_fetchadd_int(&watchdog_ticks, -newticks);
+			if (i > 0 && i <= newticks)
+				watchdog_fire();
+		}
+#endif /* SW_WATCHDOG */
+	}
+	if (curcpu == CPU_FIRST())
+		cpu_tick_calibration();
+}
+
+void
+hardclock_sync(int cpu)
+{
+	int	*t = DPCPU_ID_PTR(cpu, pcputicks);
+
+	*t = ticks;
 }
 
 /*

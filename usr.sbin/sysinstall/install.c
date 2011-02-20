@@ -637,10 +637,10 @@ installStandard(dialogMenuItem *self)
     variable_set2(SYSTEM_STATE, "standard", 0);
     dialog_clear_norefresh();
 #ifdef WITH_SLICES
-    msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
+    msgConfirm("In the next menu, you will need to set up an MBR partitioning\n"
 	       "scheme for your hard disk.  If you simply wish to devote all disk space\n"
-	       "to FreeBSD (overwriting anything else that might be on the disk(s) selected)\n"
-	       "then use the (A)ll command to select the default partitioning scheme followed\n"
+	       "to FreeBSD (overwriting anything else that might be on the disk selected)\n"
+	       "then use the (A)ll command to create a single partition followed\n"
 	       "by a (Q)uit.  If you wish to allocate only free space to FreeBSD, move to a\n"
 	       "partition marked \"unused\" and use the (C)reate command.");
 
@@ -655,7 +655,7 @@ nodisks:
 	goto nodisks;
     }
 
-    msgConfirm("Now you need to create BSD partitions inside of the fdisk partition(s)\n"
+    msgConfirm("Now you need to create BSD partitions inside of the MBR partition(s)\n"
 	       "just created.  If you have a reasonable amount of disk space (1GB or more)\n"
 	       "and don't have any special requirements, simply use the (A)uto command to\n"
 	       "allocate space automatically.  If you have more specific needs or just don't\n"
@@ -692,7 +692,7 @@ nodisks:
 		   "may do so by typing: /usr/sbin/sysinstall.");
     }
     if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
-	if (!msgYesNo("Would you like to configure any Ethernet network devices?")) {
+	if (!msgYesNo("Would you like to configure any Ethernet or PLIP network devices?")) {
 	    Device *tmp = tcpDeviceSelect();
 
 	    if (tmp && !((DevInfo *)tmp->private)->use_dhcp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
@@ -756,7 +756,7 @@ nodisks:
 
     dialog_clear_norefresh();
     if (!msgYesNo("The FreeBSD package collection is a collection of thousands of ready-to-run\n"
-		  "applications, from text editors to games to WEB servers and more.  Would you\n"
+		  "applications, from text editors to games to Web servers and more.  Would you\n"
 		  "like to browse the collection now?")) {
 	(void)configPackages(self);
     }
@@ -855,7 +855,7 @@ try_media:
     i = distExtractAll(self);
 
     if (i == FALSE)
-	    return FALSE;
+	    return DITEM_FAILURE;
 
     /* When running as init, *now* it's safe to grab the rc.foo vars */
     installEnvironment();
@@ -872,6 +872,9 @@ installConfigure(void)
     if (!msgNoYes("Visit the general configuration menu for a chance to set\n"
 		  "any last options?"))
 	dmenuOpenSimple(&MenuConfigure, FALSE);
+    else
+	dmenuExit(NULL);
+
     configRC_conf();
     sync();
 }
@@ -979,7 +982,7 @@ installFixupKernel(dialogMenuItem *self, int dists)
 	 *     already and the /boot/kernel we remove is empty.
 	 */
 	vsystem("rm -rf /boot/kernel");
-		vsystem("mv /boot/GENERIC /boot/kernel");
+		vsystem("mv /boot/" GENERIC_KERNEL_NAME " /boot/kernel");
     }
     return DITEM_SUCCESS | DITEM_RESTORE;
 }

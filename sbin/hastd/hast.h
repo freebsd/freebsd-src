@@ -48,7 +48,12 @@
 
 #include "proto.h"
 
-#define	HAST_PROTO_VERSION	0
+/*
+ * Version history:
+ * 0 - initial version
+ * 1 - HIO_KEEPALIVE added
+ */
+#define	HAST_PROTO_VERSION	1
 
 #define	EHAST_OK		0
 #define	EHAST_NOENTRY		1
@@ -74,7 +79,9 @@
 #define	HIO_WRITE		2
 #define	HIO_DELETE		3
 #define	HIO_FLUSH		4
+#define	HIO_KEEPALIVE		5
 
+#define	HAST_USER	"hast"
 #define	HAST_TIMEOUT	5
 #define	HAST_CONFIG	"/etc/hast.conf"
 #define	HAST_CONTROL	"/var/run/hastctl"
@@ -95,6 +102,8 @@ struct hastd_config {
 	char	 hc_controladdr[HAST_ADDRSIZE];
 	/* Protocol-specific data. */
 	struct proto_conn *hc_controlconn;
+	/* Incoming control connection. */
+	struct proto_conn *hc_controlin;
 	/* Address to listen on. */
 	char	 hc_listenaddr[HAST_ADDRSIZE];
 	/* Protocol-specific data. */
@@ -121,6 +130,8 @@ struct hast_resource {
 	int	hr_extentsize;
 	/* Maximum number of extents that are kept dirty. */
 	int	hr_keepdirty;
+	/* Path to a program to execute on various events. */
+	char	hr_exec[PATH_MAX];
 
 	/* Path to local component. */
 	char	hr_localpath[PATH_MAX];
@@ -171,8 +182,12 @@ struct hast_resource {
 	int	hr_previous_role;
 	/* PID of child worker process. 0 - no child. */
 	pid_t	hr_workerpid;
-	/* Control connection between parent and child. */
+	/* Control commands from parent to child. */
 	struct proto_conn *hr_ctrl;
+	/* Events from child to parent. */
+	struct proto_conn *hr_event;
+	/* Connection requests from child to parent. */
+	struct proto_conn *hr_conn;
 
 	/* Activemap structure. */
 	struct activemap *hr_amp;

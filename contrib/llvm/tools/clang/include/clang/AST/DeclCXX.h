@@ -17,6 +17,7 @@
 
 #include "clang/AST/Expr.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/TypeLoc.h"
 #include "clang/AST/UnresolvedSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -159,7 +160,6 @@ class CXXBaseSpecifier {
   /// Range - The source code range that covers the full base
   /// specifier, including the "virtual" (if present) and access
   /// specifier (if present).
-  // FIXME: Move over to a TypeLoc!
   SourceRange Range;
 
   /// Virtual - Whether this is a virtual base class or not.
@@ -177,15 +177,17 @@ class CXXBaseSpecifier {
   /// VC++ bug.
   unsigned Access : 2;
 
-  /// BaseType - The type of the base class. This will be a class or
-  /// struct (or a typedef of such).
-  QualType BaseType;
+  /// BaseTypeInfo - The type of the base class. This will be a class or struct
+  /// (or a typedef of such). The source code range does not include the
+  /// "virtual" or access specifier.
+  TypeSourceInfo *BaseTypeInfo;
 
 public:
   CXXBaseSpecifier() { }
 
-  CXXBaseSpecifier(SourceRange R, bool V, bool BC, AccessSpecifier A, QualType T)
-    : Range(R), Virtual(V), BaseOfClass(BC), Access(A), BaseType(T) { }
+  CXXBaseSpecifier(SourceRange R, bool V, bool BC, AccessSpecifier A,
+                   TypeSourceInfo *TInfo)
+    : Range(R), Virtual(V), BaseOfClass(BC), Access(A), BaseTypeInfo(TInfo) { }
 
   /// getSourceRange - Retrieves the source range that contains the
   /// entire base specifier.
@@ -195,7 +197,7 @@ public:
   /// class (or not).
   bool isVirtual() const { return Virtual; }
 
-  /// \brief Determine whether this base class if a base of a class declared
+  /// \brief Determine whether this base class is a base of a class declared
   /// with the 'class' keyword (vs. one declared with the 'struct' keyword).
   bool isBaseOfClass() const { return BaseOfClass; }
   
@@ -221,7 +223,10 @@ public:
 
   /// getType - Retrieves the type of the base class. This type will
   /// always be an unqualified class type.
-  QualType getType() const { return BaseType; }
+  QualType getType() const { return BaseTypeInfo->getType(); }
+
+  /// getTypeLoc - Retrieves the type and source location of the base class.
+  TypeSourceInfo *getTypeSourceInfo() const { return BaseTypeInfo; }
 };
 
 /// CXXRecordDecl - Represents a C++ struct/union/class.
@@ -400,8 +405,6 @@ protected:
                 CXXRecordDecl *PrevDecl,
                 SourceLocation TKL = SourceLocation());
 
-  ~CXXRecordDecl();
-
 public:
   /// base_class_iterator - Iterator that traverses the base classes
   /// of a class.
@@ -448,8 +451,6 @@ public:
                                CXXRecordDecl* PrevDecl=0,
                                bool DelayTypeCreation = false);
   static CXXRecordDecl *Create(ASTContext &C, EmptyShell Empty);
-
-  virtual void Destroy(ASTContext& C);
 
   bool isDynamicClass() const {
     return data().Polymorphic || data().NumVBases != 0;
@@ -1056,29 +1057,30 @@ public:
     return true;
   }
 
-  friend class PCHDeclReader;
-  friend class PCHDeclWriter;
+  friend class ASTDeclReader;
+  friend class ASTDeclWriter;
 };
 
 /// CXXMethodDecl - Represents a static or instance method of a
 /// struct/union/class.
 class CXXMethodDecl : public FunctionDecl {
 protected:
-  CXXMethodDecl(Kind DK, CXXRecordDecl *RD, SourceLocation L,
-                DeclarationName N, QualType T, TypeSourceInfo *TInfo,
+  CXXMethodDecl(Kind DK, CXXRecordDecl *RD,
+                const DeclarationNameInfo &NameInfo,
+                QualType T, TypeSourceInfo *TInfo,
                 bool isStatic, StorageClass SCAsWritten, bool isInline)
-    : FunctionDecl(DK, RD, L, N, T, TInfo, (isStatic ? Static : None),
+    : FunctionDecl(DK, RD, NameInfo, T, TInfo, (isStatic ? SC_Static : SC_None),
                    SCAsWritten, isInline) {}
 
 public:
   static CXXMethodDecl *Create(ASTContext &C, CXXRecordDecl *RD,
-                              SourceLocation L, DeclarationName N,
-                              QualType T, TypeSourceInfo *TInfo,
-                              bool isStatic = false,
-                              StorageClass SCAsWritten = FunctionDecl::None,
-                              bool isInline = false);
+                               const DeclarationNameInfo &NameInfo,
+                               QualType T, TypeSourceInfo *TInfo,
+                               bool isStatic = false,
+                               StorageClass SCAsWritten = SC_None,
+                               bool isInline = false);
 
-  bool isStatic() const { return getStorageClass() == Static; }
+  bool isStatic() const { return getStorageClass() == SC_Static; }
   bool isInstance() const { return !isStatic(); }
 
   bool isVirtual() const {
@@ -1249,9 +1251,6 @@ public:
                                             VarDecl **Indices,
                                             unsigned NumIndices);
   
-  /// \brief Destroy the base or member initializer.
-  void Destroy(ASTContext &Context);
-
   /// isBaseInitializer - Returns true when this initializer is
   /// initializing a base class.
   bool isBaseInitializer() const { return BaseOrMember.is<TypeSourceInfo*>(); }
@@ -1285,7 +1284,7 @@ public:
   /// getMember - If this is a member initializer, returns the
   /// declaration of the non-static data member being
   /// initialized. Otherwise, returns NULL.
-  FieldDecl *getMember() {
+  FieldDecl *getMember() const {
     if (isMemberInitializer())
       return BaseOrMember.get<FieldDecl*>();
     else
@@ -1363,7 +1362,7 @@ public:
     reinterpret_cast<VarDecl **>(this + 1)[I] = Index;
   }
   
-  Expr *getInit() { return static_cast<Expr *>(Init); }
+  Expr *getInit() const { return static_cast<Expr *>(Init); }
 };
 
 /// CXXConstructorDecl - Represents a C++ constructor within a
@@ -1394,22 +1393,21 @@ class CXXConstructorDecl : public CXXMethodDecl {
   CXXBaseOrMemberInitializer **BaseOrMemberInitializers;
   unsigned NumBaseOrMemberInitializers;
 
-  CXXConstructorDecl(CXXRecordDecl *RD, SourceLocation L,
-                     DeclarationName N, QualType T, TypeSourceInfo *TInfo,
+  CXXConstructorDecl(CXXRecordDecl *RD, const DeclarationNameInfo &NameInfo,
+                     QualType T, TypeSourceInfo *TInfo,
                      bool isExplicitSpecified, bool isInline, 
                      bool isImplicitlyDeclared)
-    : CXXMethodDecl(CXXConstructor, RD, L, N, T, TInfo, false,
-                    FunctionDecl::None, isInline),
+    : CXXMethodDecl(CXXConstructor, RD, NameInfo, T, TInfo, false,
+                    SC_None, isInline),
       IsExplicitSpecified(isExplicitSpecified), ImplicitlyDefined(false),
       BaseOrMemberInitializers(0), NumBaseOrMemberInitializers(0) {
     setImplicit(isImplicitlyDeclared);
   }
-  virtual void Destroy(ASTContext& C);
 
 public:
   static CXXConstructorDecl *Create(ASTContext &C, EmptyShell Empty);
   static CXXConstructorDecl *Create(ASTContext &C, CXXRecordDecl *RD,
-                                    SourceLocation L, DeclarationName N,
+                                    const DeclarationNameInfo &NameInfo,
                                     QualType T, TypeSourceInfo *TInfo,
                                     bool isExplicit,
                                     bool isInline, bool isImplicitlyDeclared);
@@ -1519,8 +1517,8 @@ public:
   static bool classof(const CXXConstructorDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == CXXConstructor; }
   
-  friend class PCHDeclReader;
-  friend class PCHDeclWriter;
+  friend class ASTDeclReader;
+  friend class ASTDeclWriter;
 };
 
 /// CXXDestructorDecl - Represents a C++ destructor within a
@@ -1543,11 +1541,10 @@ class CXXDestructorDecl : public CXXMethodDecl {
 
   FunctionDecl *OperatorDelete;
   
-  CXXDestructorDecl(CXXRecordDecl *RD, SourceLocation L,
-                    DeclarationName N, QualType T,
-                    bool isInline, bool isImplicitlyDeclared)
-    : CXXMethodDecl(CXXDestructor, RD, L, N, T, /*TInfo=*/0, false,
-                    FunctionDecl::None, isInline),
+  CXXDestructorDecl(CXXRecordDecl *RD, const DeclarationNameInfo &NameInfo,
+                    QualType T, bool isInline, bool isImplicitlyDeclared)
+    : CXXMethodDecl(CXXDestructor, RD, NameInfo, T, /*TInfo=*/0, false,
+                    SC_None, isInline),
       ImplicitlyDefined(false), OperatorDelete(0) {
     setImplicit(isImplicitlyDeclared);
   }
@@ -1555,7 +1552,7 @@ class CXXDestructorDecl : public CXXMethodDecl {
 public:
   static CXXDestructorDecl *Create(ASTContext& C, EmptyShell Empty);
   static CXXDestructorDecl *Create(ASTContext &C, CXXRecordDecl *RD,
-                                   SourceLocation L, DeclarationName N,
+                                   const DeclarationNameInfo &NameInfo,
                                    QualType T, bool isInline,
                                    bool isImplicitlyDeclared);
 
@@ -1585,8 +1582,8 @@ public:
   static bool classof(const CXXDestructorDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == CXXDestructor; }
   
-  friend class PCHDeclReader;
-  friend class PCHDeclWriter;
+  friend class ASTDeclReader;
+  friend class ASTDeclWriter;
 };
 
 /// CXXConversionDecl - Represents a C++ conversion function within a
@@ -1604,17 +1601,17 @@ class CXXConversionDecl : public CXXMethodDecl {
   /// explicitly wrote a cast. This is a C++0x feature.
   bool IsExplicitSpecified : 1;
 
-  CXXConversionDecl(CXXRecordDecl *RD, SourceLocation L,
-                    DeclarationName N, QualType T, TypeSourceInfo *TInfo,
+  CXXConversionDecl(CXXRecordDecl *RD, const DeclarationNameInfo &NameInfo,
+                    QualType T, TypeSourceInfo *TInfo,
                     bool isInline, bool isExplicitSpecified)
-    : CXXMethodDecl(CXXConversion, RD, L, N, T, TInfo, false,
-                    FunctionDecl::None, isInline),
+    : CXXMethodDecl(CXXConversion, RD, NameInfo, T, TInfo, false,
+                    SC_None, isInline),
       IsExplicitSpecified(isExplicitSpecified) { }
 
 public:
   static CXXConversionDecl *Create(ASTContext &C, EmptyShell Empty);
   static CXXConversionDecl *Create(ASTContext &C, CXXRecordDecl *RD,
-                                   SourceLocation L, DeclarationName N,
+                                   const DeclarationNameInfo &NameInfo,
                                    QualType T, TypeSourceInfo *TInfo,
                                    bool isInline, bool isExplicit);
 
@@ -1642,8 +1639,8 @@ public:
   static bool classof(const CXXConversionDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == CXXConversion; }
   
-  friend class PCHDeclReader;
-  friend class PCHDeclWriter;
+  friend class ASTDeclReader;
+  friend class ASTDeclWriter;
 };
 
 /// LinkageSpecDecl - This represents a linkage specification.  For example:
@@ -1710,7 +1707,9 @@ public:
 // artificial name, for all using-directives in order to store
 // them in DeclContext effectively.
 class UsingDirectiveDecl : public NamedDecl {
-
+  /// \brief The location of the "using" keyword.
+  SourceLocation UsingLoc;
+  
   /// SourceLocation - Location of 'namespace' token.
   SourceLocation NamespaceLoc;
 
@@ -1721,10 +1720,6 @@ class UsingDirectiveDecl : public NamedDecl {
   /// \brief The nested-name-specifier that precedes the namespace
   /// name, if any.
   NestedNameSpecifier *Qualifier;
-
-  /// IdentLoc - Location of nominated namespace-name identifier.
-  // FIXME: We don't store location of scope specifier.
-  SourceLocation IdentLoc;
 
   /// NominatedNamespace - Namespace nominated by using-directive.
   NamedDecl *NominatedNamespace;
@@ -1740,17 +1735,16 @@ class UsingDirectiveDecl : public NamedDecl {
     return DeclarationName::getUsingDirectiveName();
   }
 
-  UsingDirectiveDecl(DeclContext *DC, SourceLocation L,
+  UsingDirectiveDecl(DeclContext *DC, SourceLocation UsingLoc,
                      SourceLocation NamespcLoc,
                      SourceRange QualifierRange,
                      NestedNameSpecifier *Qualifier,
                      SourceLocation IdentLoc,
                      NamedDecl *Nominated,
                      DeclContext *CommonAncestor)
-    : NamedDecl(UsingDirective, DC, L, getName()),
+    : NamedDecl(UsingDirective, DC, IdentLoc, getName()), UsingLoc(UsingLoc),
       NamespaceLoc(NamespcLoc), QualifierRange(QualifierRange),
-      Qualifier(Qualifier), IdentLoc(IdentLoc),
-      NominatedNamespace(Nominated),
+      Qualifier(Qualifier), NominatedNamespace(Nominated),
       CommonAncestor(CommonAncestor) {
   }
 
@@ -1759,17 +1753,9 @@ public:
   /// that qualifies the namespace name.
   SourceRange getQualifierRange() const { return QualifierRange; }
 
-  /// \brief Set the source range of the nested-name-specifier that
-  /// qualifies the namespace name.
-  void setQualifierRange(SourceRange R) { QualifierRange = R; }
-
   /// \brief Retrieve the nested-name-specifier that qualifies the
   /// name of the namespace.
   NestedNameSpecifier *getQualifier() const { return Qualifier; }
-
-  /// \brief Set the nested-name-specifier that qualifes the name of the
-  /// namespace.
-  void setQualifier(NestedNameSpecifier *NNS) { Qualifier = NNS; }
 
   NamedDecl *getNominatedNamespaceAsWritten() { return NominatedNamespace; }
   const NamedDecl *getNominatedNamespaceAsWritten() const {
@@ -1783,34 +1769,23 @@ public:
     return const_cast<UsingDirectiveDecl*>(this)->getNominatedNamespace();
   }
 
-  /// setNominatedNamespace - Set the namespace nominataed by the
-  /// using-directive.
-  void setNominatedNamespace(NamedDecl* NS);
-
   /// \brief Returns the common ancestor context of this using-directive and
   /// its nominated namespace.
   DeclContext *getCommonAncestor() { return CommonAncestor; }
   const DeclContext *getCommonAncestor() const { return CommonAncestor; }
 
-  /// \brief Set the common ancestor context of this using-directive and its
-  /// nominated namespace.
-  void setCommonAncestor(DeclContext* Cxt) { CommonAncestor = Cxt; }
-
+  /// \brief Return the location of the "using" keyword.
+  SourceLocation getUsingLoc() const { return UsingLoc; }
+  
   // FIXME: Could omit 'Key' in name.
   /// getNamespaceKeyLocation - Returns location of namespace keyword.
   SourceLocation getNamespaceKeyLocation() const { return NamespaceLoc; }
 
-  /// setNamespaceKeyLocation - Set the the location of the namespacekeyword.
-  void setNamespaceKeyLocation(SourceLocation L) { NamespaceLoc = L; }
-
   /// getIdentLocation - Returns location of identifier.
-  SourceLocation getIdentLocation() const { return IdentLoc; }
-
-  /// setIdentLocation - set the location of the identifier.
-  void setIdentLocation(SourceLocation L) { IdentLoc = L; }
+  SourceLocation getIdentLocation() const { return getLocation(); }
 
   static UsingDirectiveDecl *Create(ASTContext &C, DeclContext *DC,
-                                    SourceLocation L,
+                                    SourceLocation UsingLoc,
                                     SourceLocation NamespaceLoc,
                                     SourceRange QualifierRange,
                                     NestedNameSpecifier *Qualifier,
@@ -1818,12 +1793,18 @@ public:
                                     NamedDecl *Nominated,
                                     DeclContext *CommonAncestor);
 
+  SourceRange getSourceRange() const {
+    return SourceRange(UsingLoc, getLocation());
+  }
+  
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const UsingDirectiveDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == UsingDirective; }
 
   // Friend for getUsingDirectiveName.
   friend class DeclContext;
+  
+  friend class ASTDeclReader;
 };
 
 /// NamespaceAliasDecl - Represents a C++ namespace alias. For example:
@@ -1832,7 +1813,8 @@ public:
 /// namespace Foo = Bar;
 /// @endcode
 class NamespaceAliasDecl : public NamedDecl {
-  SourceLocation AliasLoc;
+  /// \brief The location of the "namespace" keyword.
+  SourceLocation NamespaceLoc;
 
   /// \brief The source range that covers the nested-name-specifier
   /// preceding the namespace name.
@@ -1849,15 +1831,17 @@ class NamespaceAliasDecl : public NamedDecl {
   /// NamespaceDecl or a NamespaceAliasDecl.
   NamedDecl *Namespace;
 
-  NamespaceAliasDecl(DeclContext *DC, SourceLocation L,
+  NamespaceAliasDecl(DeclContext *DC, SourceLocation NamespaceLoc,
                      SourceLocation AliasLoc, IdentifierInfo *Alias,
                      SourceRange QualifierRange,
                      NestedNameSpecifier *Qualifier,
                      SourceLocation IdentLoc, NamedDecl *Namespace)
-    : NamedDecl(NamespaceAlias, DC, L, Alias), AliasLoc(AliasLoc),
-      QualifierRange(QualifierRange), Qualifier(Qualifier),
-      IdentLoc(IdentLoc), Namespace(Namespace) { }
+    : NamedDecl(NamespaceAlias, DC, AliasLoc, Alias), 
+      NamespaceLoc(NamespaceLoc), QualifierRange(QualifierRange), 
+      Qualifier(Qualifier), IdentLoc(IdentLoc), Namespace(Namespace) { }
 
+  friend class ASTDeclReader;
+  
 public:
   /// \brief Retrieve the source range of the nested-name-specifier
   /// that qualifiers the namespace name.
@@ -1889,41 +1873,31 @@ public:
 
   /// Returns the location of the alias name, i.e. 'foo' in
   /// "namespace foo = ns::bar;".
-  SourceLocation getAliasLoc() const { return AliasLoc; }
-
-  /// Set the location o;f the alias name, e.e., 'foo' in
-  /// "namespace foo = ns::bar;".
-  void setAliasLoc(SourceLocation L) { AliasLoc = L; }
+  SourceLocation getAliasLoc() const { return getLocation(); }
 
   /// Returns the location of the 'namespace' keyword.
-  SourceLocation getNamespaceLoc() const { return getLocation(); }
+  SourceLocation getNamespaceLoc() const { return NamespaceLoc; }
 
   /// Returns the location of the identifier in the named namespace.
   SourceLocation getTargetNameLoc() const { return IdentLoc; }
-
-  /// Set the location of the identifier in the named namespace.
-  void setTargetNameLoc(SourceLocation L) { IdentLoc = L; }
 
   /// \brief Retrieve the namespace that this alias refers to, which
   /// may either be a NamespaceDecl or a NamespaceAliasDecl.
   NamedDecl *getAliasedNamespace() const { return Namespace; }
 
-  /// \brief Set the namespace or namespace alias pointed to by this
-  /// alias decl.
-  void setAliasedNamespace(NamedDecl *ND) {
-    assert((isa<NamespaceAliasDecl>(ND) || isa<NamespaceDecl>(ND)) &&
-      "expecting namespace or namespace alias decl");
-      Namespace = ND;
-  }
-
   static NamespaceAliasDecl *Create(ASTContext &C, DeclContext *DC,
-                                    SourceLocation L, SourceLocation AliasLoc,
+                                    SourceLocation NamespaceLoc, 
+                                    SourceLocation AliasLoc,
                                     IdentifierInfo *Alias,
                                     SourceRange QualifierRange,
                                     NestedNameSpecifier *Qualifier,
                                     SourceLocation IdentLoc,
                                     NamedDecl *Namespace);
 
+  virtual SourceRange getSourceRange() const {
+    return SourceRange(NamespaceLoc, IdentLoc);
+  }
+  
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const NamespaceAliasDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == NamespaceAlias; }
@@ -2002,6 +1976,10 @@ class UsingDecl : public NamedDecl {
   /// \brief Target nested name specifier.
   NestedNameSpecifier* TargetNestedName;
 
+  /// DNLoc - Provides source/type location info for the
+  /// declaration name embedded in the ValueDecl base class.
+  DeclarationNameLoc DNLoc;
+
   /// \brief The collection of shadow declarations associated with
   /// this using declaration.  This set can change as a class is
   /// processed.
@@ -2010,40 +1988,41 @@ class UsingDecl : public NamedDecl {
   // \brief Has 'typename' keyword.
   bool IsTypeName;
 
-  UsingDecl(DeclContext *DC, SourceLocation L, SourceRange NNR,
+  UsingDecl(DeclContext *DC, SourceRange NNR,
             SourceLocation UL, NestedNameSpecifier* TargetNNS,
-            DeclarationName Name, bool IsTypeNameArg)
-    : NamedDecl(Using, DC, L, Name),
+            const DeclarationNameInfo &NameInfo, bool IsTypeNameArg)
+    : NamedDecl(Using, DC, NameInfo.getLoc(), NameInfo.getName()),
       NestedNameRange(NNR), UsingLocation(UL), TargetNestedName(TargetNNS),
-      IsTypeName(IsTypeNameArg) {
+      DNLoc(NameInfo.getInfo()), IsTypeName(IsTypeNameArg) {
   }
 
 public:
-  // FIXME: Should be const?
   /// \brief Returns the source range that covers the nested-name-specifier
   /// preceding the namespace name.
-  SourceRange getNestedNameRange() { return NestedNameRange; }
+  SourceRange getNestedNameRange() const { return NestedNameRange; }
 
   /// \brief Set the source range of the nested-name-specifier.
   void setNestedNameRange(SourceRange R) { NestedNameRange = R; }
 
-  // FIXME; Should be const?
   // FIXME: Naming is inconsistent with other get*Loc functions.
   /// \brief Returns the source location of the "using" keyword.
-  SourceLocation getUsingLocation() { return UsingLocation; }
+  SourceLocation getUsingLocation() const { return UsingLocation; }
 
   /// \brief Set the source location of the 'using' keyword.
   void setUsingLocation(SourceLocation L) { UsingLocation = L; }
 
-
   /// \brief Get the target nested name declaration.
-  NestedNameSpecifier* getTargetNestedNameDecl() {
+  NestedNameSpecifier* getTargetNestedNameDecl() const {
     return TargetNestedName;
   }
 
   /// \brief Set the target nested name declaration.
   void setTargetNestedNameDecl(NestedNameSpecifier *NNS) {
     TargetNestedName = NNS;
+  }
+
+  DeclarationNameInfo getNameInfo() const {
+    return DeclarationNameInfo(getDeclName(), getLocation(), DNLoc);
   }
 
   /// \brief Return true if the using declaration has 'typename'.
@@ -2076,15 +2055,21 @@ public:
   }
 
   static UsingDecl *Create(ASTContext &C, DeclContext *DC,
-      SourceLocation IdentL, SourceRange NNR, SourceLocation UsingL,
-      NestedNameSpecifier* TargetNNS, DeclarationName Name, bool IsTypeNameArg);
+                           SourceRange NNR, SourceLocation UsingL,
+                           NestedNameSpecifier* TargetNNS,
+                           const DeclarationNameInfo &NameInfo,
+                           bool IsTypeNameArg);
+
+  SourceRange getSourceRange() const {
+    return SourceRange(UsingLocation, getNameInfo().getEndLoc());
+  }
 
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const UsingDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == Using; }
 
-  friend class PCHDeclReader;
-  friend class PCHDeclWriter;
+  friend class ASTDeclReader;
+  friend class ASTDeclWriter;
 };
 
 /// UnresolvedUsingValueDecl - Represents a dependent using
@@ -2105,14 +2090,18 @@ class UnresolvedUsingValueDecl : public ValueDecl {
 
   NestedNameSpecifier *TargetNestedNameSpecifier;
 
+  /// DNLoc - Provides source/type location info for the
+  /// declaration name embedded in the ValueDecl base class.
+  DeclarationNameLoc DNLoc;
+
   UnresolvedUsingValueDecl(DeclContext *DC, QualType Ty,
                            SourceLocation UsingLoc, SourceRange TargetNNR,
                            NestedNameSpecifier *TargetNNS,
-                           SourceLocation TargetNameLoc,
-                           DeclarationName TargetName)
-    : ValueDecl(UnresolvedUsingValue, DC, TargetNameLoc, TargetName, Ty),
-    TargetNestedNameRange(TargetNNR), UsingLocation(UsingLoc),
-    TargetNestedNameSpecifier(TargetNNS)
+                           const DeclarationNameInfo &NameInfo)
+    : ValueDecl(UnresolvedUsingValue, DC,
+                NameInfo.getLoc(), NameInfo.getName(), Ty),
+      TargetNestedNameRange(TargetNNR), UsingLocation(UsingLoc),
+      TargetNestedNameSpecifier(TargetNNS), DNLoc(NameInfo.getInfo())
   { }
 
 public:
@@ -2125,7 +2114,7 @@ public:
   void setTargetNestedNameRange(SourceRange R) { TargetNestedNameRange = R; }
 
   /// \brief Get target nested name declaration.
-  NestedNameSpecifier* getTargetNestedNameSpecifier() {
+  NestedNameSpecifier* getTargetNestedNameSpecifier() const {
     return TargetNestedNameSpecifier;
   }
 
@@ -2140,10 +2129,18 @@ public:
   /// \brief Set the source location of the 'using' keyword.
   void setUsingLoc(SourceLocation L) { UsingLocation = L; }
 
+  DeclarationNameInfo getNameInfo() const {
+    return DeclarationNameInfo(getDeclName(), getLocation(), DNLoc);
+  }
+
   static UnresolvedUsingValueDecl *
     Create(ASTContext &C, DeclContext *DC, SourceLocation UsingLoc,
            SourceRange TargetNNR, NestedNameSpecifier *TargetNNS,
-           SourceLocation TargetNameLoc, DeclarationName TargetName);
+           const DeclarationNameInfo &NameInfo);
+
+  SourceRange getSourceRange() const {
+    return SourceRange(UsingLocation, getNameInfo().getEndLoc());
+  }
 
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const UnresolvedUsingValueDecl *D) { return true; }
@@ -2181,36 +2178,23 @@ class UnresolvedUsingTypenameDecl : public TypeDecl {
     TypenameLocation(TypenameLoc), TargetNestedNameSpecifier(TargetNNS)
   { }
 
+  friend class ASTDeclReader;
+  
 public:
   /// \brief Returns the source range that covers the nested-name-specifier
   /// preceding the namespace name.
   SourceRange getTargetNestedNameRange() const { return TargetNestedNameRange; }
-
-  /// \brief Set the source range coverting the nested-name-specifier preceding
-  /// the namespace name.
-  void setTargetNestedNameRange(SourceRange R) { TargetNestedNameRange = R; }
 
   /// \brief Get target nested name declaration.
   NestedNameSpecifier* getTargetNestedNameSpecifier() {
     return TargetNestedNameSpecifier;
   }
 
-  /// \brief Set the nested name declaration.
-  void setTargetNestedNameSpecifier(NestedNameSpecifier* NNS) {
-    TargetNestedNameSpecifier = NNS;
-  }
-
   /// \brief Returns the source location of the 'using' keyword.
   SourceLocation getUsingLoc() const { return UsingLocation; }
 
-  /// \brief Set the source location of the 'using' keyword.
-  void setUsingLoc(SourceLocation L) { UsingLocation = L; }
-
   /// \brief Returns the source location of the 'typename' keyword.
   SourceLocation getTypenameLoc() const { return TypenameLocation; }
-
-  /// \brief Set the source location of the 'typename' keyword.
-  void setTypenameLoc(SourceLocation L) { TypenameLocation = L; }
 
   static UnresolvedUsingTypenameDecl *
     Create(ASTContext &C, DeclContext *DC, SourceLocation UsingLoc,
@@ -2218,6 +2202,10 @@ public:
            SourceRange TargetNNR, NestedNameSpecifier *TargetNNS,
            SourceLocation TargetNameLoc, DeclarationName TargetName);
 
+  SourceRange getSourceRange() const {
+    return SourceRange(UsingLocation, getLocation());
+  }
+  
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const UnresolvedUsingTypenameDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == UnresolvedUsingTypename; }
@@ -2243,12 +2231,11 @@ public:
   StringLiteral *getMessage() { return Message; }
   const StringLiteral *getMessage() const { return Message; }
 
-  virtual ~StaticAssertDecl();
-  virtual void Destroy(ASTContext& C);
-
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(StaticAssertDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == StaticAssert; }
+
+  friend class ASTDeclReader;
 };
 
 /// Insertion operator for diagnostics.  This allows sending AccessSpecifier's

@@ -222,11 +222,13 @@ protected:
   // NOTE: VC++ treats enums as signed, avoid using the AccessSpecifier enum
   unsigned Access : 2;
   friend class CXXClassMemberWrapper;
-  
-  // PCHLevel - the "level" of precompiled header/AST file from which this
-  // declaration was built.
-  unsigned PCHLevel : 3;
-  
+
+  /// PCHLevel - the "level" of AST file from which this declaration was built.
+  unsigned PCHLevel : 2;
+
+  /// ChangedAfterLoad - if this declaration has changed since being loaded
+  bool ChangedAfterLoad : 1;
+
   /// IdentifierNamespace - This specifies what IDNS_* namespace this lives in.
   unsigned IdentifierNamespace : 15;
 
@@ -243,7 +245,7 @@ protected:
     : NextDeclInContext(0), DeclCtx(DC),
       Loc(L), DeclKind(DK), InvalidDecl(0),
       HasAttrs(false), Implicit(false), Used(false),
-      Access(AS_none), PCHLevel(0),
+      Access(AS_none), PCHLevel(0), ChangedAfterLoad(false),
       IdentifierNamespace(getIdentifierNamespaceForKind(DK)) {
     if (Decl::CollectingStats()) add(DK);
   }
@@ -251,7 +253,7 @@ protected:
   Decl(Kind DK, EmptyShell Empty)
     : NextDeclInContext(0), DeclKind(DK), InvalidDecl(0),
       HasAttrs(false), Implicit(false), Used(false),
-      Access(AS_none), PCHLevel(0),
+      Access(AS_none), PCHLevel(0), ChangedAfterLoad(false),
       IdentifierNamespace(getIdentifierNamespaceForKind(DK)) {
     if (Decl::CollectingStats()) add(DK);
   }
@@ -305,24 +307,52 @@ public:
   }
 
   bool hasAttrs() const { return HasAttrs; }
-  void initAttrs(Attr *attrs);
-  void addAttr(Attr *attr);
-  const Attr *getAttrs() const {
-    if (!HasAttrs) return 0;  // common case, no attributes.
-    return getAttrsImpl();    // Uncommon case, out of line hash lookup.
+  void setAttrs(const AttrVec& Attrs);
+  AttrVec& getAttrs() {
+    return const_cast<AttrVec&>(const_cast<const Decl*>(this)->getAttrs());
   }
+  const AttrVec &getAttrs() const;
   void swapAttrs(Decl *D);
-  void invalidateAttrs();
+  void dropAttrs();
 
-  template<typename T> const T *getAttr() const {
-    for (const Attr *attr = getAttrs(); attr; attr = attr->getNext())
-      if (const T *V = dyn_cast<T>(attr))
-        return V;
-    return 0;
+  void addAttr(Attr *A) {
+    if (hasAttrs())
+      getAttrs().push_back(A);
+    else
+      setAttrs(AttrVec(1, A));
   }
 
+  typedef AttrVec::const_iterator attr_iterator;
+
+  // FIXME: Do not rely on iterators having comparable singular values.
+  //        Note that this should error out if they do not.
+  attr_iterator attr_begin() const {
+    return hasAttrs() ? getAttrs().begin() : 0;
+  }
+  attr_iterator attr_end() const {
+    return hasAttrs() ? getAttrs().end() : 0;
+  }
+
+  template <typename T>
+  specific_attr_iterator<T> specific_attr_begin() const {
+    return specific_attr_iterator<T>(attr_begin());
+  }
+  template <typename T>
+  specific_attr_iterator<T> specific_attr_end() const {
+    return specific_attr_iterator<T>(attr_end());
+  }
+
+  template<typename T> T *getAttr() const {
+    return hasAttrs() ? getSpecificAttr<T>(getAttrs()) : 0;
+  }
   template<typename T> bool hasAttr() const {
-    return getAttr<T>() != 0;
+    return hasAttrs() && hasSpecificAttr<T>(getAttrs());
+  }
+
+  /// getMaxAlignment - return the maximum alignment specified by attributes
+  /// on this decl, 0 if there are none.
+  unsigned getMaxAlignment() const {
+    return hasAttrs() ? getMaxAttrAlignment(getAttrs(), getASTContext()) : 0;
   }
 
   /// setInvalidDecl - Indicates the Decl had a semantic error. This
@@ -343,27 +373,39 @@ public:
   /// (in addition to the "used" bit set by \c setUsed()) when determining
   /// whether the function is used.
   bool isUsed(bool CheckUsedAttr = true) const;
-  
+
   void setUsed(bool U = true) { Used = U; }
 
   /// \brief Retrieve the level of precompiled header from which this
   /// declaration was generated.
   ///
   /// The PCH level of a declaration describes where the declaration originated
-  /// from. A PCH level of 0 indicates that the declaration was not from a 
-  /// precompiled header. A PCH level of 1 indicates that the declaration was
-  /// from a top-level precompiled header; 2 indicates that the declaration 
-  /// comes from a precompiled header on which the top-level precompiled header
-  /// depends, and so on. 
+  /// from. A PCH level of 0 indicates that the declaration was parsed from
+  /// source. A PCH level of 1 indicates that the declaration was loaded from
+  /// a top-level AST file. A PCH level 2 indicates that the declaration was
+  /// loaded from a PCH file the AST file depends on, and so on.
   unsigned getPCHLevel() const { return PCHLevel; }
 
   /// \brief The maximum PCH level that any declaration may have.
-  static const unsigned MaxPCHLevel = 7;
+  static const unsigned MaxPCHLevel = 3;
 
   /// \brief Set the PCH level of this declaration.
   void setPCHLevel(unsigned Level) { 
     assert(Level <= MaxPCHLevel && "PCH level exceeds the maximum");
     PCHLevel = Level;
+  }
+
+  /// \brief Query whether this declaration was changed in a significant way
+  /// since being loaded from an AST file.
+  ///
+  /// In an epic violation of layering, what is "significant" is entirely
+  /// up to the serialization system, but implemented in AST and Sema.
+  bool isChangedSinceDeserialization() const { return ChangedAfterLoad; }
+
+  /// \brief Mark this declaration as having changed since deserialization, or
+  /// reset the flag.
+  void setChangedSinceDeserialization(bool Changed) {
+    ChangedAfterLoad = Changed;
   }
 
   unsigned getIdentifierNamespace() const {
@@ -411,10 +453,10 @@ public:
 
   void setLexicalDeclContext(DeclContext *DC);
 
-  // isDefinedOutsideFunctionOrMethod - This predicate returns true if this
-  // scoped decl is defined outside the current function or method.  This is
-  // roughly global variables and functions, but also handles enums (which could
-  // be defined inside or outside a function etc).
+  /// isDefinedOutsideFunctionOrMethod - This predicate returns true if this
+  /// scoped decl is defined outside the current function or method.  This is
+  /// roughly global variables and functions, but also handles enums (which
+  /// could be defined inside or outside a function etc).
   bool isDefinedOutsideFunctionOrMethod() const;
 
   /// \brief Retrieves the "canonical" declaration of the given declaration.
@@ -572,9 +614,6 @@ public:
   static DeclContext *castToDeclContext(const Decl *);
   static Decl *castFromDeclContext(const DeclContext *);
 
-  /// Destroy - Call destructors and release memory.
-  virtual void Destroy(ASTContext& C);
-
   void print(llvm::raw_ostream &Out, unsigned Indentation = 0) const;
   void print(llvm::raw_ostream &Out, const PrintingPolicy &Policy,
              unsigned Indentation = 0) const;
@@ -603,6 +642,29 @@ public:
   virtual void print(llvm::raw_ostream &OS) const;
 };
 
+class DeclContextLookupResult
+  : public std::pair<NamedDecl**,NamedDecl**> {
+public:
+  DeclContextLookupResult(NamedDecl **I, NamedDecl **E)
+    : std::pair<NamedDecl**,NamedDecl**>(I, E) {}
+  DeclContextLookupResult()
+    : std::pair<NamedDecl**,NamedDecl**>() {}
+
+  using std::pair<NamedDecl**,NamedDecl**>::operator=;
+};
+
+class DeclContextLookupConstResult
+  : public std::pair<NamedDecl*const*, NamedDecl*const*> {
+public:
+  DeclContextLookupConstResult(std::pair<NamedDecl**,NamedDecl**> R)
+    : std::pair<NamedDecl*const*, NamedDecl*const*>(R) {}
+  DeclContextLookupConstResult(NamedDecl * const *I, NamedDecl * const *E)
+    : std::pair<NamedDecl*const*, NamedDecl*const*>(I, E) {}
+  DeclContextLookupConstResult()
+    : std::pair<NamedDecl*const*, NamedDecl*const*>() {}
+
+  using std::pair<NamedDecl*const*,NamedDecl*const*>::operator=;
+};
 
 /// DeclContext - This is used only as base class of specific decl types that
 /// can act as declaration contexts. These decls are (only the top classes
@@ -653,8 +715,6 @@ protected:
      : DeclKind(K), ExternalLexicalStorage(false),
        ExternalVisibleStorage(false), LookupPtr(0), FirstDecl(0),
        LastDecl(0) { }
-
-  void DestroyDecls(ASTContext &C);
 
 public:
   ~DeclContext();
@@ -724,6 +784,8 @@ public:
     return DeclKind == Decl::Namespace;
   }
 
+  bool isInlineNamespace() const;
+
   /// \brief Determines whether this context is dependent on a
   /// template parameter.
   bool isDependentContext() const;
@@ -742,19 +804,18 @@ public:
   /// Here, E is a transparent context, so its enumerator (Val1) will
   /// appear (semantically) that it is in the same context of E.
   /// Examples of transparent contexts include: enumerations (except for
-  /// C++0x scoped enums), C++ linkage specifications, and C++0x
-  /// inline namespaces.
+  /// C++0x scoped enums), and C++ linkage specifications.
   bool isTransparentContext() const;
 
   /// \brief Determine whether this declaration context is equivalent
   /// to the declaration context DC.
-  bool Equals(DeclContext *DC) {
+  bool Equals(const DeclContext *DC) const {
     return DC && this->getPrimaryContext() == DC->getPrimaryContext();
   }
 
   /// \brief Determine whether this declaration context encloses the
   /// declaration context DC.
-  bool Encloses(DeclContext *DC);
+  bool Encloses(const DeclContext *DC) const;
 
   /// getPrimaryContext - There may be many different
   /// declarations of the same entity (including forward declarations
@@ -767,13 +828,12 @@ public:
     return const_cast<DeclContext*>(this)->getPrimaryContext();
   }
 
-  /// getLookupContext - Retrieve the innermost non-transparent
-  /// context of this context, which corresponds to the innermost
-  /// location from which name lookup can find the entities in this
-  /// context.
-  DeclContext *getLookupContext();
-  const DeclContext *getLookupContext() const {
-    return const_cast<DeclContext *>(this)->getLookupContext();
+  /// getRedeclContext - Retrieve the context in which an entity conflicts with
+  /// other entities of the same name, or where it is a redeclaration if the
+  /// two entities are compatible. This skips through transparent contexts.
+  DeclContext *getRedeclContext();
+  const DeclContext *getRedeclContext() const {
+    return const_cast<DeclContext *>(this)->getRedeclContext();
   }
 
   /// \brief Retrieve the nearest enclosing namespace context.
@@ -781,6 +841,14 @@ public:
   const DeclContext *getEnclosingNamespaceContext() const {
     return const_cast<DeclContext *>(this)->getEnclosingNamespaceContext();
   }
+
+  /// \brief Test if this context is part of the enclosing namespace set of
+  /// the context NS, as defined in C++0x [namespace.def]p9. If either context
+  /// isn't a namespace, this is equivalent to Equals().
+  ///
+  /// The enclosing namespace set of a namespace is the namespace and, if it is
+  /// inline, its enclosing namespace, recursively.
+  bool InEnclosingNamespaceSetOf(const DeclContext *NS) const;
 
   /// getNextContext - If this is a DeclContext that may have other
   /// DeclContexts that are semantically connected but syntactically
@@ -844,6 +912,12 @@ public:
   decl_iterator decls_begin() const;
   decl_iterator decls_end() const;
   bool decls_empty() const;
+
+  /// noload_decls_begin/end - Iterate over the declarations stored in this
+  /// context that are currently loaded; don't attempt to retrieve anything
+  /// from an external source.
+  decl_iterator noload_decls_begin() const;
+  decl_iterator noload_decls_end() const;
 
   /// specific_decl_iterator - Iterates over a subrange of
   /// declarations stored in a DeclContext, providing only those that
@@ -1020,9 +1094,8 @@ public:
   /// access to the results of lookup up a name within this context.
   typedef NamedDecl * const * lookup_const_iterator;
 
-  typedef std::pair<lookup_iterator, lookup_iterator> lookup_result;
-  typedef std::pair<lookup_const_iterator, lookup_const_iterator>
-    lookup_const_result;
+  typedef DeclContextLookupResult lookup_result;
+  typedef DeclContextLookupConstResult lookup_const_result;
 
   /// lookup - Find the declarations (if any) with the given Name in
   /// this context. Returns a range of iterators that contains all of
@@ -1051,6 +1124,14 @@ public:
   /// the lookup tables because it can be easily recovered by walking
   /// the declaration chains.
   void makeDeclVisibleInContext(NamedDecl *D, bool Recoverable = true);
+
+  /// \brief Deserialize all the visible declarations from external storage.
+  ///
+  /// Name lookup deserializes visible declarations lazily, thus a DeclContext
+  /// may not have a complete name lookup table. This function deserializes
+  /// the rest of visible declarations from the external storage and completes
+  /// the name lookup table.
+  void MaterializeVisibleDeclsFromExternalStorage();
 
   /// udir_iterator - Iterates through the using-directives stored
   /// within this context.
@@ -1109,7 +1190,6 @@ public:
 
 private:
   void LoadLexicalDeclsFromExternalStorage() const;
-  void LoadVisibleDeclsFromExternalStorage() const;
 
   friend class DependentDiagnostic;
   StoredDeclsMap *CreateStoredDeclsMap(ASTContext &C) const;
@@ -1122,7 +1202,6 @@ inline bool Decl::isTemplateParameter() const {
   return getKind() == TemplateTypeParm || getKind() == NonTypeTemplateParm ||
          getKind() == TemplateTemplateParm;
 }
-
 
 // Specialization selected when ToTy is not a known subclass of DeclContext.
 template <class ToTy,

@@ -14,7 +14,7 @@
  * Original code by Hannes Gredler (hannes@juniper.net)
  */
 
-extern struct tok nlpid_values[];
+extern const struct tok nlpid_values[];
 
 #define	NLPID_NULLNS	0x00
 #define NLPID_Q933      0x08 /* ANSI T1.617 Annex D or ITU-T Q.933 Annex A */

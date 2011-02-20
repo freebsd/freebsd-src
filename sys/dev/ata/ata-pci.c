@@ -615,6 +615,7 @@ ata_pcichannel_attach(device_t dev)
 	return (0);
     ch->attached = 1;
 
+    ch->dev = dev;
     ch->unit = (intptr_t)device_get_ivars(dev);
 
     resource_int_value(device_get_name(dev),

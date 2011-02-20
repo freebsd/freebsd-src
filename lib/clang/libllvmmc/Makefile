@@ -3,18 +3,18 @@
 LIB=	llvmmc
 
 SRCDIR=	lib/MC
-SRCS=	MCAsmInfo.cpp \
+SRCS=	ELFObjectWriter.cpp \
+	MCAsmInfo.cpp \
 	MCAsmInfoCOFF.cpp \
 	MCAsmInfoDarwin.cpp \
 	MCAsmStreamer.cpp \
 	MCAssembler.cpp \
 	MCCodeEmitter.cpp \
 	MCContext.cpp \
-	MCDisassembler.cpp \
+	MCELFStreamer.cpp \
 	MCExpr.cpp \
 	MCInst.cpp \
 	MCInstPrinter.cpp \
-	MCLabel.cpp \
 	MCLoggingStreamer.cpp \
 	MCMachOStreamer.cpp \
 	MCNullStreamer.cpp \
@@ -26,7 +26,6 @@ SRCS=	MCAsmInfo.cpp \
 	MCSectionMachO.cpp \
 	MCStreamer.cpp \
 	MCSymbol.cpp \
-	MCValue.cpp \
 	MachObjectWriter.cpp \
 	TargetAsmBackend.cpp \
 	WinCOFFObjectWriter.cpp \

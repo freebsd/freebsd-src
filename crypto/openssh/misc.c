@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.75 2010/01/09 23:04:13 dtucker Exp $ */
+/* $OpenBSD: misc.c,v 1.80 2010/07/21 02:10:58 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.
@@ -178,6 +178,7 @@ strdelim(char **s)
 			return (NULL);		/* no matching quote */
 		} else {
 			*s[0] = '\0';
+			*s += strspn(*s + 1, WHITESPACE) + 1;
 			return (old);
 		}
 	}
@@ -425,7 +426,7 @@ colon(char *cp)
 	int flag = 0;
 
 	if (*cp == ':')		/* Leading colon is part of file name. */
-		return (0);
+		return NULL;
 	if (*cp == '[')
 		flag = 1;
 
@@ -437,9 +438,9 @@ colon(char *cp)
 		if (*cp == ':' && !flag)
 			return (cp);
 		if (*cp == '/')
-			return (0);
+			return NULL;
 	}
-	return (0);
+	return NULL;
 }
 
 /* function to assist building execv() arguments */
@@ -849,6 +850,16 @@ ms_to_timeval(struct timeval *tv, int ms)
 	tv->tv_usec = (ms % 1000) * 1000;
 }
 
+int
+timingsafe_bcmp(const void *b1, const void *b2, size_t n)
+{
+	const unsigned char *p1 = b1, *p2 = b2;
+	int ret = 0;
+
+	for (; n > 0; n--)
+		ret |= *p1++ ^ *p2++;
+	return (ret != 0);
+}
 void
 sock_set_v6only(int s)
 {

@@ -66,7 +66,7 @@ static ssize_t ofw_fdt_canon(ofw_t, const char *, char *, size_t);
 static phandle_t ofw_fdt_finddevice(ofw_t, const char *);
 static ssize_t ofw_fdt_instance_to_path(ofw_t, ihandle_t, char *, size_t);
 static ssize_t ofw_fdt_package_to_path(ofw_t, phandle_t, char *, size_t);
-static int ofw_fdt_interpret(ofw_t, const char *, int, unsigned long *);
+static int ofw_fdt_interpret(ofw_t, const char *, int, cell_t *);
 
 static ofw_method_t ofw_fdt_methods[] = {
 	OFWMETHOD(ofw_init,			ofw_fdt_init),
@@ -221,7 +221,7 @@ ofw_fdt_instance_to_package(ofw_t ofw, ihandle_t instance)
 	 */
 	offset = fdt_node_offset_by_phandle(fdtp, instance);
 	if (offset < 0)
-		return (0);
+		return (-1);
 
 	p = (phandle_t)fdt_offset_ptr(fdtp, offset, sizeof(phandle_t));
 	return (p);
@@ -236,7 +236,7 @@ ofw_fdt_getproplen(ofw_t ofw, phandle_t package, const char *propname)
 
 	offset = fdt_phandle_offset(package);
 	if (offset < 0)
-		return (0);
+		return (-1);
 
 	if (strcmp(propname, "name") == 0) {
 		/* Emulate the 'name' property */
@@ -244,7 +244,7 @@ ofw_fdt_getproplen(ofw_t ofw, phandle_t package, const char *propname)
 		return (len + 1);
 	}
 
-	len = 0;
+	len = -1;
 	prop = fdt_get_property(fdtp, offset, propname, &len);
 
 	return (len);
@@ -261,7 +261,7 @@ ofw_fdt_getprop(ofw_t ofw, phandle_t package, const char *propname, void *buf,
 
 	offset = fdt_phandle_offset(package);
 	if (offset < 0)
-		return (0);
+		return (-1);
 
 	if (strcmp(propname, "name") == 0) {
 		/* Emulate the 'name' property */
@@ -274,7 +274,7 @@ ofw_fdt_getprop(ofw_t ofw, phandle_t package, const char *propname, void *buf,
 
 	prop = fdt_getprop(fdtp, offset, propname, &len);
 	if (prop == NULL)
-		return (0);
+		return (-1);
 
 	if (len > buflen)
 		len = buflen;
@@ -314,7 +314,7 @@ fdt_nextprop(int offset, char *buf, size_t size)
 			depth = -1;
 	} while (depth >= 0);
 
-	return (0);
+	return (-1);
 }
 
 /*
@@ -330,7 +330,7 @@ ofw_fdt_nextprop(ofw_t ofw, phandle_t package, const char *previous, char *buf,
 
 	offset = fdt_phandle_offset(package);
 	if (offset < 0)
-		return (0);
+		return (-1);
 
 	if (previous == NULL)
 		/* Find the first prop in the node */
@@ -341,7 +341,7 @@ ofw_fdt_nextprop(ofw_t ofw, phandle_t package, const char *previous, char *buf,
 	 */
 	prop = fdt_get_property(fdtp, offset, previous, NULL);
 	if (prop == NULL)
-		return (0);
+		return (-1);
 
 	offset = fdt_phandle_offset((phandle_t)prop);
 	rv = fdt_nextprop(offset, buf, size);
@@ -435,7 +435,7 @@ ofw_fdt_fixup(ofw_t ofw)
 }
 
 static int
-ofw_fdt_interpret(ofw_t ofw, const char *cmd, int nret, unsigned long *retvals)
+ofw_fdt_interpret(ofw_t ofw, const char *cmd, int nret, cell_t *retvals)
 {
 	int rv;
 

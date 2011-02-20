@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
-#include <machine/ocpbus.h>
 #include <machine/pio.h>
 
 #include <powerpc/mpc85xx/mpc85xx.h>
@@ -79,7 +78,6 @@ static void atpic_eoi(device_t, u_int);
 static void atpic_ipi(device_t, u_int);
 static void atpic_mask(device_t, u_int);
 static void atpic_unmask(device_t, u_int);
-static uint32_t atpic_id (device_t dev);
 
 static device_method_t atpic_isa_methods[] = {
 	/* Device interface */
@@ -95,7 +93,6 @@ static device_method_t atpic_isa_methods[] = {
 	DEVMETHOD(pic_ipi,		atpic_ipi),
 	DEVMETHOD(pic_mask,		atpic_mask),
 	DEVMETHOD(pic_unmask,		atpic_unmask),
-	DEVMETHOD(pic_id,		atpic_id),
 
 	{ 0, 0 },
 };
@@ -154,7 +151,7 @@ atpic_isa_identify(driver_t *drv, device_t parent)
 	bus_set_resource(child, SYS_RES_IOPORT, ATPIC_SLAVE, IO_ICU2, 2);
 
 	/* ISA interrupts are routed through external interrupt 0. */
-	bus_set_resource(child, SYS_RES_IRQ, 0, PIC_IRQ_EXT(0), 1);
+	bus_set_resource(child, SYS_RES_IRQ, 0, 16, 1);
 }
 
 static int
@@ -221,7 +218,7 @@ atpic_isa_attach(device_t dev)
 	atpic_init(sc, ATPIC_SLAVE);
 	atpic_init(sc, ATPIC_MASTER);
 
-	powerpc_register_pic(dev, 0x10);
+	powerpc_register_pic(dev, 0, 16, 0, TRUE);
 	return (0);
 
  fail:
@@ -328,11 +325,3 @@ atpic_unmask(device_t dev, u_int irq)
 		atpic_write(sc, ATPIC_MASTER, 1, sc->sc_mask[ATPIC_MASTER]);
 	}
 }
-
-static uint32_t
-atpic_id (device_t dev)
-{
-
-	return (ATPIC_ID);
-}
-

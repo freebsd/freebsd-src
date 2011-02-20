@@ -34,8 +34,7 @@
  */
 
 #include <machine/asm.h>
-
-RCSID("$FreeBSD$")
+__FBSDID("$FreeBSD$")
 
 ENTRY(cos)
 	fldl	4(%esp)
@@ -55,3 +54,5 @@ ENTRY(cos)
 	fcos
 	ret
 END(cos)
+
+	.section .note.GNU-stack,"",%progbits

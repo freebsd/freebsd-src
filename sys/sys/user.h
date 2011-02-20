@@ -85,7 +85,7 @@
  */
 #define	KI_NSPARE_INT	9
 #define	KI_NSPARE_LONG	12
-#define	KI_NSPARE_PTR	7
+#define	KI_NSPARE_PTR	6
 
 #ifndef _KERNEL
 #ifndef KINFO_PROC_SIZE
@@ -188,6 +188,7 @@ struct kinfo_proc {
 	struct	pcb *ki_pcb;		/* kernel virtual addr of pcb */
 	void	*ki_kstack;		/* kernel virtual addr of stack */
 	void	*ki_udata;		/* User convenience pointer */
+	struct	thread *ki_tdaddr;	/* address of thread */
 	/*
 	 * When adding new variables, take space for pointers from the
 	 * front of ki_spareptrs, and longs from the end of ki_sparelongs.

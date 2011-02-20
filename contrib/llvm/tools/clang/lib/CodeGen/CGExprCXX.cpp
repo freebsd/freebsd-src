@@ -12,7 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "CodeGenFunction.h"
+#include "CGCXXABI.h"
 #include "CGObjCRuntime.h"
+#include "llvm/Intrinsics.h"
 using namespace clang;
 using namespace CodeGen;
 
@@ -91,14 +93,9 @@ RValue CodeGenFunction::EmitCXXMemberCallExpr(const CXXMemberCallExpr *CE,
     return EmitCall(getContext().getPointerType(MD->getType()), Callee,
                     ReturnValue, CE->arg_begin(), CE->arg_end());
   }
-  
-  const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
 
-  const llvm::Type *Ty =
-    CGM.getTypes().GetFunctionType(CGM.getTypes().getFunctionInfo(MD),
-                                   FPT->isVariadic());
+  // Compute the object pointer.
   llvm::Value *This;
-
   if (ME->isArrow())
     This = EmitScalarExpr(ME->getBase());
   else {
@@ -106,7 +103,10 @@ RValue CodeGenFunction::EmitCXXMemberCallExpr(const CXXMemberCallExpr *CE,
     This = BaseLV.getAddress();
   }
 
-  if (MD->isCopyAssignment() && MD->isTrivial()) {
+  if (MD->isTrivial()) {
+    if (isa<CXXDestructorDecl>(MD)) return RValue::get(0);
+
+    assert(MD->isCopyAssignment() && "unknown trivial member function");
     // We don't like to generate the trivial copy assignment operator when
     // it isn't necessary; just produce the proper effect here.
     llvm::Value *RHS = EmitLValue(*CE->arg_begin()).getAddress();
@@ -114,25 +114,34 @@ RValue CodeGenFunction::EmitCXXMemberCallExpr(const CXXMemberCallExpr *CE,
     return RValue::get(This);
   }
 
+  // Compute the function type we're calling.
+  const CGFunctionInfo &FInfo =
+    (isa<CXXDestructorDecl>(MD)
+     ? CGM.getTypes().getFunctionInfo(cast<CXXDestructorDecl>(MD),
+                                      Dtor_Complete)
+     : CGM.getTypes().getFunctionInfo(MD));
+
+  const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
+  const llvm::Type *Ty
+    = CGM.getTypes().GetFunctionType(FInfo, FPT->isVariadic());
+
   // C++ [class.virtual]p12:
   //   Explicit qualification with the scope operator (5.1) suppresses the
   //   virtual call mechanism.
   //
   // We also don't emit a virtual call if the base expression has a record type
   // because then we know what the type is.
+  bool UseVirtualCall = MD->isVirtual() && !ME->hasQualifier()
+                     && !canDevirtualizeMemberFunctionCalls(ME->getBase());
+
   llvm::Value *Callee;
-  if (const CXXDestructorDecl *Destructor
-             = dyn_cast<CXXDestructorDecl>(MD)) {
-    if (Destructor->isTrivial())
-      return RValue::get(0);
-    if (MD->isVirtual() && !ME->hasQualifier() && 
-        !canDevirtualizeMemberFunctionCalls(ME->getBase())) {
-      Callee = BuildVirtualCall(Destructor, Dtor_Complete, This, Ty); 
+  if (const CXXDestructorDecl *Dtor = dyn_cast<CXXDestructorDecl>(MD)) {
+    if (UseVirtualCall) {
+      Callee = BuildVirtualCall(Dtor, Dtor_Complete, This, Ty);
     } else {
-      Callee = CGM.GetAddrOfFunction(GlobalDecl(Destructor, Dtor_Complete), Ty);
+      Callee = CGM.GetAddrOfFunction(GlobalDecl(Dtor, Dtor_Complete), Ty);
     }
-  } else if (MD->isVirtual() && !ME->hasQualifier() && 
-             !canDevirtualizeMemberFunctionCalls(ME->getBase())) {
+  } else if (UseVirtualCall) {
     Callee = BuildVirtualCall(MD, This, Ty); 
   } else {
     Callee = CGM.GetAddrOfFunction(MD, Ty);
@@ -152,89 +161,27 @@ CodeGenFunction::EmitCXXMemberPointerCallExpr(const CXXMemberCallExpr *E,
   
   const MemberPointerType *MPT = 
     MemFnExpr->getType()->getAs<MemberPointerType>();
+
   const FunctionProtoType *FPT = 
     MPT->getPointeeType()->getAs<FunctionProtoType>();
   const CXXRecordDecl *RD = 
     cast<CXXRecordDecl>(MPT->getClass()->getAs<RecordType>()->getDecl());
 
-  const llvm::FunctionType *FTy = 
-    CGM.getTypes().GetFunctionType(CGM.getTypes().getFunctionInfo(RD, FPT),
-                                   FPT->isVariadic());
-
-  const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(VMContext);
-
   // Get the member function pointer.
-  llvm::Value *MemFnPtr = CreateMemTemp(MemFnExpr->getType(), "mem.fn");
-  EmitAggExpr(MemFnExpr, MemFnPtr, /*VolatileDest=*/false);
+  llvm::Value *MemFnPtr = EmitScalarExpr(MemFnExpr);
 
   // Emit the 'this' pointer.
   llvm::Value *This;
   
-  if (BO->getOpcode() == BinaryOperator::PtrMemI)
+  if (BO->getOpcode() == BO_PtrMemI)
     This = EmitScalarExpr(BaseExpr);
   else 
     This = EmitLValue(BaseExpr).getAddress();
-  
-  // Adjust it.
-  llvm::Value *Adj = Builder.CreateStructGEP(MemFnPtr, 1);
-  Adj = Builder.CreateLoad(Adj, "mem.fn.adj");
-  
-  llvm::Value *Ptr = Builder.CreateBitCast(This, Int8PtrTy, "ptr");
-  Ptr = Builder.CreateGEP(Ptr, Adj, "adj");
-  
-  This = Builder.CreateBitCast(Ptr, This->getType(), "this");
-  
-  llvm::Value *FnPtr = Builder.CreateStructGEP(MemFnPtr, 0, "mem.fn.ptr");
-  
-  const llvm::Type *PtrDiffTy = ConvertType(getContext().getPointerDiffType());
 
-  llvm::Value *FnAsInt = Builder.CreateLoad(FnPtr, "fn");
+  // Ask the ABI to load the callee.  Note that This is modified.
+  llvm::Value *Callee =
+    CGM.getCXXABI().EmitLoadOfMemberFunctionPointer(CGF, This, MemFnPtr, MPT);
   
-  // If the LSB in the function pointer is 1, the function pointer points to
-  // a virtual function.
-  llvm::Value *IsVirtual 
-    = Builder.CreateAnd(FnAsInt, llvm::ConstantInt::get(PtrDiffTy, 1),
-                        "and");
-  
-  IsVirtual = Builder.CreateTrunc(IsVirtual,
-                                  llvm::Type::getInt1Ty(VMContext));
-  
-  llvm::BasicBlock *FnVirtual = createBasicBlock("fn.virtual");
-  llvm::BasicBlock *FnNonVirtual = createBasicBlock("fn.nonvirtual");
-  llvm::BasicBlock *FnEnd = createBasicBlock("fn.end");
-  
-  Builder.CreateCondBr(IsVirtual, FnVirtual, FnNonVirtual);
-  EmitBlock(FnVirtual);
-  
-  const llvm::Type *VTableTy = 
-    FTy->getPointerTo()->getPointerTo();
-
-  llvm::Value *VTable = Builder.CreateBitCast(This, VTableTy->getPointerTo());
-  VTable = Builder.CreateLoad(VTable);
-  
-  VTable = Builder.CreateBitCast(VTable, Int8PtrTy);
-  llvm::Value *VTableOffset = 
-    Builder.CreateSub(FnAsInt, llvm::ConstantInt::get(PtrDiffTy, 1));
-  
-  VTable = Builder.CreateGEP(VTable, VTableOffset, "fn");
-  VTable = Builder.CreateBitCast(VTable, VTableTy);
-  
-  llvm::Value *VirtualFn = Builder.CreateLoad(VTable, "virtualfn");
-  
-  EmitBranch(FnEnd);
-  EmitBlock(FnNonVirtual);
-  
-  // If the function is not virtual, just load the pointer.
-  llvm::Value *NonVirtualFn = Builder.CreateLoad(FnPtr, "fn");
-  NonVirtualFn = Builder.CreateIntToPtr(NonVirtualFn, FTy->getPointerTo());
-  
-  EmitBlock(FnEnd);
-
-  llvm::PHINode *Callee = Builder.CreatePHI(FTy->getPointerTo());
-  Callee->reserveOperandSpace(2);
-  Callee->addIncoming(VirtualFn, FnVirtual);
-  Callee->addIncoming(NonVirtualFn, FnNonVirtual);
-
   CallArgList Args;
 
   QualType ThisType = 
@@ -263,11 +210,17 @@ CodeGenFunction::EmitCXXOperatorMemberCallExpr(const CXXOperatorCallExpr *E,
              "EmitCXXOperatorMemberCallExpr - user declared copy assignment");
       LValue LV = EmitLValue(E->getArg(0));
       llvm::Value *This;
-      if (LV.isPropertyRef()) {
+      if (LV.isPropertyRef() || LV.isKVCRef()) {
         llvm::Value *AggLoc  = CreateMemTemp(E->getArg(1)->getType());
         EmitAggExpr(E->getArg(1), AggLoc, false /*VolatileDest*/);
-        EmitObjCPropertySet(LV.getPropertyRefExpr(),
-                            RValue::getAggregate(AggLoc, false /*VolatileDest*/));
+        if (LV.isPropertyRef())
+          EmitObjCPropertySet(LV.getPropertyRefExpr(),
+                              RValue::getAggregate(AggLoc, 
+                                                   false /*VolatileDest*/));
+        else
+          EmitObjCPropertySet(LV.getKVCRefExpr(),
+                              RValue::getAggregate(AggLoc, 
+                                                   false /*VolatileDest*/));
         return RValue::getAggregate(0, false);
       }
       else
@@ -286,8 +239,11 @@ CodeGenFunction::EmitCXXOperatorMemberCallExpr(const CXXOperatorCallExpr *E,
                                    FPT->isVariadic());
   LValue LV = EmitLValue(E->getArg(0));
   llvm::Value *This;
-  if (LV.isPropertyRef()) {
-    RValue RV = EmitLoadOfPropertyRefLValue(LV, E->getArg(0)->getType());
+  if (LV.isPropertyRef() || LV.isKVCRef()) {
+    QualType QT = E->getArg(0)->getType();
+    RValue RV = 
+      LV.isPropertyRef() ? EmitLoadOfPropertyRefLValue(LV, QT)
+                         : EmitLoadOfKVCRefLValue(LV, QT);
     assert (!RV.isScalar() && "EmitCXXOperatorMemberCallExpr");
     This = RV.getAggregateAddr();
   }
@@ -309,19 +265,18 @@ CodeGenFunction::EmitCXXConstructExpr(llvm::Value *Dest,
                                       const CXXConstructExpr *E) {
   assert(Dest && "Must have a destination!");
   const CXXConstructorDecl *CD = E->getConstructor();
-  const ConstantArrayType *Array =
-  getContext().getAsConstantArrayType(E->getType());
-  // For a copy constructor, even if it is trivial, must fall thru so
-  // its argument is code-gen'ed.
-  if (!CD->isCopyConstructor()) {
-    QualType InitType = E->getType();
-    if (Array)
-      InitType = getContext().getBaseElementType(Array);
-    const CXXRecordDecl *RD =
-    cast<CXXRecordDecl>(InitType->getAs<RecordType>()->getDecl());
-    if (RD->hasTrivialConstructor())
-      return;
-  }
+  
+  // If we require zero initialization before (or instead of) calling the
+  // constructor, as can be the case with a non-user-provided default
+  // constructor, emit the zero initialization now.
+  if (E->requiresZeroInitialization())
+    EmitNullInitialization(Dest, E->getType());
+
+  
+  // If this is a call to a trivial default constructor, do nothing.
+  if (CD->isTrivial() && CD->isDefaultConstructor())
+    return;
+  
   // Code gen optimization to eliminate copy constructor and return
   // its first argument instead, if in fact that argument is a temporary 
   // object.
@@ -331,6 +286,9 @@ CodeGenFunction::EmitCXXConstructExpr(llvm::Value *Dest,
       return;
     }
   }
+  
+  const ConstantArrayType *Array 
+    = getContext().getAsConstantArrayType(E->getType());
   if (Array) {
     QualType BaseElementTy = getContext().getBaseElementType(Array);
     const llvm::Type *BasePtr = ConvertType(BaseElementTy);
@@ -354,131 +312,205 @@ CodeGenFunction::EmitCXXConstructExpr(llvm::Value *Dest,
   }
 }
 
-static CharUnits CalculateCookiePadding(ASTContext &Ctx, QualType ElementType) {
-  const RecordType *RT = ElementType->getAs<RecordType>();
-  if (!RT)
-    return CharUnits::Zero();
-  
-  const CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(RT->getDecl());
-  if (!RD)
-    return CharUnits::Zero();
-  
-  // Check if the class has a trivial destructor.
-  if (RD->hasTrivialDestructor()) {
-    // Check if the usual deallocation function takes two arguments.
-    const CXXMethodDecl *UsualDeallocationFunction = 0;
-    
-    DeclarationName OpName =
-      Ctx.DeclarationNames.getCXXOperatorName(OO_Array_Delete);
-    DeclContext::lookup_const_iterator Op, OpEnd;
-    for (llvm::tie(Op, OpEnd) = RD->lookup(OpName);
-         Op != OpEnd; ++Op) {
-      const CXXMethodDecl *Delete = cast<CXXMethodDecl>(*Op);
+/// Check whether the given operator new[] is the global placement
+/// operator new[].
+static bool IsPlacementOperatorNewArray(ASTContext &Ctx,
+                                        const FunctionDecl *Fn) {
+  // Must be in global scope.  Note that allocation functions can't be
+  // declared in namespaces.
+  if (!Fn->getDeclContext()->getRedeclContext()->isFileContext())
+    return false;
 
-      if (Delete->isUsualDeallocationFunction()) {
-        UsualDeallocationFunction = Delete;
-        break;
-      }
-    }
-    
-    // No usual deallocation function, we don't need a cookie.
-    if (!UsualDeallocationFunction)
-      return CharUnits::Zero();
-    
-    // The usual deallocation function doesn't take a size_t argument, so we
-    // don't need a cookie.
-    if (UsualDeallocationFunction->getNumParams() == 1)
-      return CharUnits::Zero();
-        
-    assert(UsualDeallocationFunction->getNumParams() == 2 && 
-           "Unexpected deallocation function type!");
-  }  
-  
-  // Padding is the maximum of sizeof(size_t) and alignof(ElementType)
-  return std::max(Ctx.getTypeSizeInChars(Ctx.getSizeType()),
-                  Ctx.getTypeAlignInChars(ElementType));
+  // Signature must be void *operator new[](size_t, void*).
+  // The size_t is common to all operator new[]s.
+  if (Fn->getNumParams() != 2)
+    return false;
+
+  CanQualType ParamType = Ctx.getCanonicalType(Fn->getParamDecl(1)->getType());
+  return (ParamType == Ctx.VoidPtrTy);
 }
 
-static CharUnits CalculateCookiePadding(ASTContext &Ctx, const CXXNewExpr *E) {
+static CharUnits CalculateCookiePadding(CodeGenFunction &CGF,
+                                        const CXXNewExpr *E) {
   if (!E->isArray())
     return CharUnits::Zero();
 
   // No cookie is required if the new operator being used is 
   // ::operator new[](size_t, void*).
   const FunctionDecl *OperatorNew = E->getOperatorNew();
-  if (OperatorNew->getDeclContext()->getLookupContext()->isFileContext()) {
-    if (OperatorNew->getNumParams() == 2) {
-      CanQualType ParamType = 
-        Ctx.getCanonicalType(OperatorNew->getParamDecl(1)->getType());
-      
-      if (ParamType == Ctx.VoidPtrTy)
-        return CharUnits::Zero();
-    }
-  }
-      
-  return CalculateCookiePadding(Ctx, E->getAllocatedType());
+  if (IsPlacementOperatorNewArray(CGF.getContext(), OperatorNew))
+    return CharUnits::Zero();
+
+  return CGF.CGM.getCXXABI().GetArrayCookieSize(E->getAllocatedType());
 }
 
 static llvm::Value *EmitCXXNewAllocSize(ASTContext &Context,
-                                        CodeGenFunction &CGF, 
+                                        CodeGenFunction &CGF,
                                         const CXXNewExpr *E,
-                                        llvm::Value *& NumElements) {
-  QualType Type = E->getAllocatedType();
-  CharUnits TypeSize = CGF.getContext().getTypeSizeInChars(Type);
-  const llvm::Type *SizeTy = CGF.ConvertType(CGF.getContext().getSizeType());
-  
-  if (!E->isArray())
-    return llvm::ConstantInt::get(SizeTy, TypeSize.getQuantity());
+                                        llvm::Value *&NumElements,
+                                        llvm::Value *&SizeWithoutCookie) {
+  QualType ElemType = E->getAllocatedType();
 
-  CharUnits CookiePadding = CalculateCookiePadding(CGF.getContext(), E);
+  const llvm::IntegerType *SizeTy =
+    cast<llvm::IntegerType>(CGF.ConvertType(CGF.getContext().getSizeType()));
   
-  Expr::EvalResult Result;
-  if (E->getArraySize()->Evaluate(Result, CGF.getContext()) &&
-      !Result.HasSideEffects && Result.Val.isInt()) {
+  CharUnits TypeSize = CGF.getContext().getTypeSizeInChars(ElemType);
 
-    CharUnits AllocSize = 
-      Result.Val.getInt().getZExtValue() * TypeSize + CookiePadding;
-    
-    NumElements = 
-      llvm::ConstantInt::get(SizeTy, Result.Val.getInt().getZExtValue());
-    while (const ArrayType *AType = Context.getAsArrayType(Type)) {
-      const llvm::ArrayType *llvmAType =
-        cast<llvm::ArrayType>(CGF.ConvertType(Type));
-      NumElements =
-        CGF.Builder.CreateMul(NumElements, 
-                              llvm::ConstantInt::get(
-                                        SizeTy, llvmAType->getNumElements()));
-      Type = AType->getElementType();
+  if (!E->isArray()) {
+    SizeWithoutCookie = llvm::ConstantInt::get(SizeTy, TypeSize.getQuantity());
+    return SizeWithoutCookie;
+  }
+
+  // Figure out the cookie size.
+  CharUnits CookieSize = CalculateCookiePadding(CGF, E);
+
+  // Emit the array size expression.
+  // We multiply the size of all dimensions for NumElements.
+  // e.g for 'int[2][3]', ElemType is 'int' and NumElements is 6.
+  NumElements = CGF.EmitScalarExpr(E->getArraySize());
+  assert(NumElements->getType() == SizeTy && "element count not a size_t");
+
+  uint64_t ArraySizeMultiplier = 1;
+  while (const ConstantArrayType *CAT
+             = CGF.getContext().getAsConstantArrayType(ElemType)) {
+    ElemType = CAT->getElementType();
+    ArraySizeMultiplier *= CAT->getSize().getZExtValue();
+  }
+
+  llvm::Value *Size;
+  
+  // If someone is doing 'new int[42]' there is no need to do a dynamic check.
+  // Don't bloat the -O0 code.
+  if (llvm::ConstantInt *NumElementsC =
+        dyn_cast<llvm::ConstantInt>(NumElements)) {
+    llvm::APInt NEC = NumElementsC->getValue();
+    unsigned SizeWidth = NEC.getBitWidth();
+
+    // Determine if there is an overflow here by doing an extended multiply.
+    NEC.zext(SizeWidth*2);
+    llvm::APInt SC(SizeWidth*2, TypeSize.getQuantity());
+    SC *= NEC;
+
+    if (!CookieSize.isZero()) {
+      // Save the current size without a cookie.  We don't care if an
+      // overflow's already happened because SizeWithoutCookie isn't
+      // used if the allocator returns null or throws, as it should
+      // always do on an overflow.
+      llvm::APInt SWC = SC;
+      SWC.trunc(SizeWidth);
+      SizeWithoutCookie = llvm::ConstantInt::get(SizeTy, SWC);
+
+      // Add the cookie size.
+      SC += llvm::APInt(SizeWidth*2, CookieSize.getQuantity());
     }
     
-    return llvm::ConstantInt::get(SizeTy, AllocSize.getQuantity());
-  }
-  
-  // Emit the array size expression.
-  NumElements = CGF.EmitScalarExpr(E->getArraySize());
-  
-  // Multiply with the type size.
-  llvm::Value *V = 
-    CGF.Builder.CreateMul(NumElements, 
-                          llvm::ConstantInt::get(SizeTy, 
-                                                 TypeSize.getQuantity()));
-  
-  while (const ArrayType *AType = Context.getAsArrayType(Type)) {
-    const llvm::ArrayType *llvmAType =
-      cast<llvm::ArrayType>(CGF.ConvertType(Type));
-    NumElements =
-      CGF.Builder.CreateMul(NumElements, 
-                            llvm::ConstantInt::get(
-                                          SizeTy, llvmAType->getNumElements()));
-    Type = AType->getElementType();
+    if (SC.countLeadingZeros() >= SizeWidth) {
+      SC.trunc(SizeWidth);
+      Size = llvm::ConstantInt::get(SizeTy, SC);
+    } else {
+      // On overflow, produce a -1 so operator new throws.
+      Size = llvm::Constant::getAllOnesValue(SizeTy);
+    }
+
+    // Scale NumElements while we're at it.
+    uint64_t N = NEC.getZExtValue() * ArraySizeMultiplier;
+    NumElements = llvm::ConstantInt::get(SizeTy, N);
+
+  // Otherwise, we don't need to do an overflow-checked multiplication if
+  // we're multiplying by one.
+  } else if (TypeSize.isOne()) {
+    assert(ArraySizeMultiplier == 1);
+
+    Size = NumElements;
+
+    // If we need a cookie, add its size in with an overflow check.
+    // This is maybe a little paranoid.
+    if (!CookieSize.isZero()) {
+      SizeWithoutCookie = Size;
+
+      llvm::Value *CookieSizeV
+        = llvm::ConstantInt::get(SizeTy, CookieSize.getQuantity());
+
+      const llvm::Type *Types[] = { SizeTy };
+      llvm::Value *UAddF
+        = CGF.CGM.getIntrinsic(llvm::Intrinsic::uadd_with_overflow, Types, 1);
+      llvm::Value *AddRes
+        = CGF.Builder.CreateCall2(UAddF, Size, CookieSizeV);
+
+      Size = CGF.Builder.CreateExtractValue(AddRes, 0);
+      llvm::Value *DidOverflow = CGF.Builder.CreateExtractValue(AddRes, 1);
+      Size = CGF.Builder.CreateSelect(DidOverflow,
+                                      llvm::ConstantInt::get(SizeTy, -1),
+                                      Size);
+    }
+
+  // Otherwise use the int.umul.with.overflow intrinsic.
+  } else {
+    llvm::Value *OutermostElementSize
+      = llvm::ConstantInt::get(SizeTy, TypeSize.getQuantity());
+
+    llvm::Value *NumOutermostElements = NumElements;
+
+    // Scale NumElements by the array size multiplier.  This might
+    // overflow, but only if the multiplication below also overflows,
+    // in which case this multiplication isn't used.
+    if (ArraySizeMultiplier != 1)
+      NumElements = CGF.Builder.CreateMul(NumElements,
+                         llvm::ConstantInt::get(SizeTy, ArraySizeMultiplier));
+
+    // The requested size of the outermost array is non-constant.
+    // Multiply that by the static size of the elements of that array;
+    // on unsigned overflow, set the size to -1 to trigger an
+    // exception from the allocation routine.  This is sufficient to
+    // prevent buffer overruns from the allocator returning a
+    // seemingly valid pointer to insufficient space.  This idea comes
+    // originally from MSVC, and GCC has an open bug requesting
+    // similar behavior:
+    //   http://gcc.gnu.org/bugzilla/show_bug.cgi?id=19351
+    //
+    // This will not be sufficient for C++0x, which requires a
+    // specific exception class (std::bad_array_new_length).
+    // That will require ABI support that has not yet been specified.
+    const llvm::Type *Types[] = { SizeTy };
+    llvm::Value *UMulF
+      = CGF.CGM.getIntrinsic(llvm::Intrinsic::umul_with_overflow, Types, 1);
+    llvm::Value *MulRes = CGF.Builder.CreateCall2(UMulF, NumOutermostElements,
+                                                  OutermostElementSize);
+
+    // The overflow bit.
+    llvm::Value *DidOverflow = CGF.Builder.CreateExtractValue(MulRes, 1);
+
+    // The result of the multiplication.
+    Size = CGF.Builder.CreateExtractValue(MulRes, 0);
+
+    // If we have a cookie, we need to add that size in, too.
+    if (!CookieSize.isZero()) {
+      SizeWithoutCookie = Size;
+
+      llvm::Value *CookieSizeV
+        = llvm::ConstantInt::get(SizeTy, CookieSize.getQuantity());
+      llvm::Value *UAddF
+        = CGF.CGM.getIntrinsic(llvm::Intrinsic::uadd_with_overflow, Types, 1);
+      llvm::Value *AddRes
+        = CGF.Builder.CreateCall2(UAddF, SizeWithoutCookie, CookieSizeV);
+
+      Size = CGF.Builder.CreateExtractValue(AddRes, 0);
+
+      llvm::Value *AddDidOverflow = CGF.Builder.CreateExtractValue(AddRes, 1);
+      DidOverflow = CGF.Builder.CreateAnd(DidOverflow, AddDidOverflow);
+    }
+
+    Size = CGF.Builder.CreateSelect(DidOverflow,
+                                    llvm::ConstantInt::get(SizeTy, -1),
+                                    Size);
   }
 
-  // And add the cookie padding if necessary.
-  if (!CookiePadding.isZero())
-    V = CGF.Builder.CreateAdd(V, 
-        llvm::ConstantInt::get(SizeTy, CookiePadding.getQuantity()));
-  
-  return V;
+  if (CookieSize.isZero())
+    SizeWithoutCookie = Size;
+  else
+    assert(SizeWithoutCookie && "didn't set SizeWithoutCookie?");
+
+  return Size;
 }
 
 static void StoreAnyExprIntoOneUnit(CodeGenFunction &CGF, const CXXNewExpr *E,
@@ -489,10 +521,13 @@ static void StoreAnyExprIntoOneUnit(CodeGenFunction &CGF, const CXXNewExpr *E,
   
   const Expr *Init = E->getConstructorArg(0);
   QualType AllocType = E->getAllocatedType();
-  
+
+  unsigned Alignment =
+    CGF.getContext().getTypeAlignInChars(AllocType).getQuantity();
   if (!CGF.hasAggregateLLVMType(AllocType)) 
     CGF.EmitStoreOfScalar(CGF.EmitScalarExpr(Init), NewPtr,
-                          AllocType.isVolatileQualified(), AllocType);
+                          AllocType.isVolatileQualified(), Alignment,
+                          AllocType);
   else if (AllocType->isAnyComplexType())
     CGF.EmitComplexExprIntoAddr(Init, NewPtr, 
                                 AllocType.isVolatileQualified());
@@ -554,18 +589,59 @@ CodeGenFunction::EmitNewArrayInitializer(const CXXNewExpr *E,
   EmitBlock(AfterFor, true);
 }
 
+static void EmitZeroMemSet(CodeGenFunction &CGF, QualType T,
+                           llvm::Value *NewPtr, llvm::Value *Size) {
+  llvm::LLVMContext &VMContext = CGF.CGM.getLLVMContext();
+  const llvm::Type *BP = llvm::Type::getInt8PtrTy(VMContext);
+  if (NewPtr->getType() != BP)
+    NewPtr = CGF.Builder.CreateBitCast(NewPtr, BP, "tmp");
+  
+  CGF.Builder.CreateCall5(CGF.CGM.getMemSetFn(BP, CGF.IntPtrTy), NewPtr,
+                llvm::Constant::getNullValue(llvm::Type::getInt8Ty(VMContext)),
+                          Size,
+                    llvm::ConstantInt::get(CGF.Int32Ty, 
+                                           CGF.getContext().getTypeAlign(T)/8),
+                          llvm::ConstantInt::get(llvm::Type::getInt1Ty(VMContext),
+                                                 0));
+}
+                       
 static void EmitNewInitializer(CodeGenFunction &CGF, const CXXNewExpr *E,
                                llvm::Value *NewPtr,
-                               llvm::Value *NumElements) {
+                               llvm::Value *NumElements,
+                               llvm::Value *AllocSizeWithoutCookie) {
   if (E->isArray()) {
     if (CXXConstructorDecl *Ctor = E->getConstructor()) {
-      if (!Ctor->getParent()->hasTrivialConstructor())
-        CGF.EmitCXXAggrConstructorCall(Ctor, NumElements, NewPtr, 
-                                       E->constructor_arg_begin(), 
-                                       E->constructor_arg_end());
+      bool RequiresZeroInitialization = false;
+      if (Ctor->getParent()->hasTrivialConstructor()) {
+        // If new expression did not specify value-initialization, then there
+        // is no initialization.
+        if (!E->hasInitializer() || Ctor->getParent()->isEmpty())
+          return;
+      
+        if (CGF.CGM.getTypes().isZeroInitializable(E->getAllocatedType())) {
+          // Optimization: since zero initialization will just set the memory
+          // to all zeroes, generate a single memset to do it in one shot.
+          EmitZeroMemSet(CGF, E->getAllocatedType(), NewPtr, 
+                         AllocSizeWithoutCookie);
+          return;
+        }
+
+        RequiresZeroInitialization = true;
+      }
+      
+      CGF.EmitCXXAggrConstructorCall(Ctor, NumElements, NewPtr, 
+                                     E->constructor_arg_begin(), 
+                                     E->constructor_arg_end(),
+                                     RequiresZeroInitialization);
       return;
-    }
-    else {
+    } else if (E->getNumConstructorArgs() == 1 &&
+               isa<ImplicitValueInitExpr>(E->getConstructorArg(0))) {
+      // Optimization: since zero initialization will just set the memory
+      // to all zeroes, generate a single memset to do it in one shot.
+      EmitZeroMemSet(CGF, E->getAllocatedType(), NewPtr, 
+                     AllocSizeWithoutCookie);
+      return;      
+    } else {
       CGF.EmitNewArrayInitializer(E, NewPtr, NumElements);
       return;
     }
@@ -595,6 +671,10 @@ static void EmitNewInitializer(CodeGenFunction &CGF, const CXXNewExpr *E,
 
 llvm::Value *CodeGenFunction::EmitCXXNewExpr(const CXXNewExpr *E) {
   QualType AllocType = E->getAllocatedType();
+  if (AllocType->isArrayType())
+    while (const ArrayType *AType = getContext().getAsArrayType(AllocType))
+      AllocType = AType->getElementType();
+
   FunctionDecl *NewFD = E->getOperatorNew();
   const FunctionProtoType *NewFTy = NewFD->getType()->getAs<FunctionProtoType>();
 
@@ -604,8 +684,10 @@ llvm::Value *CodeGenFunction::EmitCXXNewExpr(const CXXNewExpr *E) {
   QualType SizeTy = getContext().getSizeType();
 
   llvm::Value *NumElements = 0;
+  llvm::Value *AllocSizeWithoutCookie = 0;
   llvm::Value *AllocSize = EmitCXXNewAllocSize(getContext(),
-                                               *this, E, NumElements);
+                                               *this, E, NumElements,
+                                               AllocSizeWithoutCookie);
   
   NewArgs.push_back(std::make_pair(RValue::get(AllocSize), SizeTy));
 
@@ -654,112 +736,69 @@ llvm::Value *CodeGenFunction::EmitCXXNewExpr(const CXXNewExpr *E) {
   bool NullCheckResult = NewFTy->hasEmptyExceptionSpec() &&
     !(AllocType->isPODType() && !E->hasInitializer());
 
-  llvm::BasicBlock *NewNull = 0;
+  llvm::BasicBlock *NullCheckSource = 0;
   llvm::BasicBlock *NewNotNull = 0;
   llvm::BasicBlock *NewEnd = 0;
 
   llvm::Value *NewPtr = RV.getScalarVal();
+  unsigned AS = cast<llvm::PointerType>(NewPtr->getType())->getAddressSpace();
 
   if (NullCheckResult) {
-    NewNull = createBasicBlock("new.null");
+    NullCheckSource = Builder.GetInsertBlock();
     NewNotNull = createBasicBlock("new.notnull");
     NewEnd = createBasicBlock("new.end");
 
-    llvm::Value *IsNull =
-      Builder.CreateICmpEQ(NewPtr,
-                           llvm::Constant::getNullValue(NewPtr->getType()),
-                           "isnull");
-
-    Builder.CreateCondBr(IsNull, NewNull, NewNotNull);
+    llvm::Value *IsNull = Builder.CreateIsNull(NewPtr, "new.isnull");
+    Builder.CreateCondBr(IsNull, NewEnd, NewNotNull);
     EmitBlock(NewNotNull);
   }
   
-  CharUnits CookiePadding = CalculateCookiePadding(getContext(), E);
-  if (!CookiePadding.isZero()) {
-    CharUnits CookieOffset = 
-      CookiePadding - getContext().getTypeSizeInChars(SizeTy);
-    
-    llvm::Value *NumElementsPtr = 
-      Builder.CreateConstInBoundsGEP1_64(NewPtr, CookieOffset.getQuantity());
-    
-    NumElementsPtr = Builder.CreateBitCast(NumElementsPtr, 
-                                           ConvertType(SizeTy)->getPointerTo());
-    Builder.CreateStore(NumElements, NumElementsPtr);
+  assert((AllocSize == AllocSizeWithoutCookie) ==
+         CalculateCookiePadding(*this, E).isZero());
+  if (AllocSize != AllocSizeWithoutCookie) {
+    assert(E->isArray());
+    NewPtr = CGM.getCXXABI().InitializeArrayCookie(CGF, NewPtr, NumElements,
+                                                   AllocType);
+  }
 
-    // Now add the padding to the new ptr.
-    NewPtr = Builder.CreateConstInBoundsGEP1_64(NewPtr, 
-                                                CookiePadding.getQuantity());
-  }
-  
-  if (AllocType->isArrayType()) {
-    while (const ArrayType *AType = getContext().getAsArrayType(AllocType))
-      AllocType = AType->getElementType();
-    NewPtr = 
-      Builder.CreateBitCast(NewPtr, 
-                          ConvertType(getContext().getPointerType(AllocType)));
-    EmitNewInitializer(*this, E, NewPtr, NumElements);
-    NewPtr = Builder.CreateBitCast(NewPtr, ConvertType(E->getType()));
-  }
-  else {
-    NewPtr = Builder.CreateBitCast(NewPtr, ConvertType(E->getType()));
-    EmitNewInitializer(*this, E, NewPtr, NumElements);
+  const llvm::Type *ElementPtrTy
+    = ConvertTypeForMem(AllocType)->getPointerTo(AS);
+  NewPtr = Builder.CreateBitCast(NewPtr, ElementPtrTy);
+  if (E->isArray()) {
+    EmitNewInitializer(*this, E, NewPtr, NumElements, AllocSizeWithoutCookie);
+
+    // NewPtr is a pointer to the base element type.  If we're
+    // allocating an array of arrays, we'll need to cast back to the
+    // array pointer type.
+    const llvm::Type *ResultTy = ConvertTypeForMem(E->getType());
+    if (NewPtr->getType() != ResultTy)
+      NewPtr = Builder.CreateBitCast(NewPtr, ResultTy);
+  } else {
+    EmitNewInitializer(*this, E, NewPtr, NumElements, AllocSizeWithoutCookie);
   }
   
   if (NullCheckResult) {
     Builder.CreateBr(NewEnd);
-    NewNotNull = Builder.GetInsertBlock();
-    EmitBlock(NewNull);
-    Builder.CreateBr(NewEnd);
+    llvm::BasicBlock *NotNullSource = Builder.GetInsertBlock();
     EmitBlock(NewEnd);
 
     llvm::PHINode *PHI = Builder.CreatePHI(NewPtr->getType());
     PHI->reserveOperandSpace(2);
-    PHI->addIncoming(NewPtr, NewNotNull);
-    PHI->addIncoming(llvm::Constant::getNullValue(NewPtr->getType()), NewNull);
+    PHI->addIncoming(NewPtr, NotNullSource);
+    PHI->addIncoming(llvm::Constant::getNullValue(NewPtr->getType()),
+                     NullCheckSource);
 
     NewPtr = PHI;
   }
-
+  
   return NewPtr;
-}
-
-static std::pair<llvm::Value *, llvm::Value *>
-GetAllocatedObjectPtrAndNumElements(CodeGenFunction &CGF,
-                                    llvm::Value *Ptr, QualType DeleteTy) {
-  QualType SizeTy = CGF.getContext().getSizeType();
-  const llvm::Type *SizeLTy = CGF.ConvertType(SizeTy);
-  
-  CharUnits DeleteTypeAlign = CGF.getContext().getTypeAlignInChars(DeleteTy);
-  CharUnits CookiePadding = 
-    std::max(CGF.getContext().getTypeSizeInChars(SizeTy),
-             DeleteTypeAlign);
-  assert(!CookiePadding.isZero() && "CookiePadding should not be 0.");
-
-  const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
-  CharUnits CookieOffset = 
-    CookiePadding - CGF.getContext().getTypeSizeInChars(SizeTy);
-
-  llvm::Value *AllocatedObjectPtr = CGF.Builder.CreateBitCast(Ptr, Int8PtrTy);
-  AllocatedObjectPtr = 
-    CGF.Builder.CreateConstInBoundsGEP1_64(AllocatedObjectPtr,
-                                           -CookiePadding.getQuantity());
-
-  llvm::Value *NumElementsPtr =
-    CGF.Builder.CreateConstInBoundsGEP1_64(AllocatedObjectPtr, 
-                                           CookieOffset.getQuantity());
-  NumElementsPtr = 
-    CGF.Builder.CreateBitCast(NumElementsPtr, SizeLTy->getPointerTo());
-  
-  llvm::Value *NumElements = CGF.Builder.CreateLoad(NumElementsPtr);
-  NumElements = 
-    CGF.Builder.CreateIntCast(NumElements, SizeLTy, /*isSigned=*/false);
-  
-  return std::make_pair(AllocatedObjectPtr, NumElements);
 }
 
 void CodeGenFunction::EmitDeleteCall(const FunctionDecl *DeleteFD,
                                      llvm::Value *Ptr,
                                      QualType DeleteTy) {
+  assert(DeleteFD->getOverloadedOperator() == OO_Delete);
+
   const FunctionProtoType *DeleteFTy =
     DeleteFD->getType()->getAs<FunctionProtoType>();
 
@@ -775,21 +814,6 @@ void CodeGenFunction::EmitDeleteCall(const FunctionDecl *DeleteFD,
                                   DeleteTypeSize.getQuantity());
   }
   
-  if (DeleteFD->getOverloadedOperator() == OO_Array_Delete &&
-      !CalculateCookiePadding(getContext(), DeleteTy).isZero()) {
-    // We need to get the number of elements in the array from the cookie.
-    llvm::Value *AllocatedObjectPtr;
-    llvm::Value *NumElements;
-    llvm::tie(AllocatedObjectPtr, NumElements) =
-      GetAllocatedObjectPtrAndNumElements(*this, Ptr, DeleteTy);
-    
-    // Multiply the size with the number of elements.
-    if (Size)
-      Size = Builder.CreateMul(NumElements, Size);
-    
-    Ptr = AllocatedObjectPtr;
-  }
-  
   QualType ArgTy = DeleteFTy->getArgType(0);
   llvm::Value *DeletePtr = Builder.CreateBitCast(Ptr, ConvertType(ArgTy));
   DeleteArgs.push_back(std::make_pair(RValue::get(DeletePtr), ArgTy));
@@ -803,20 +827,169 @@ void CodeGenFunction::EmitDeleteCall(const FunctionDecl *DeleteFD,
            DeleteArgs, DeleteFD);
 }
 
+namespace {
+  /// Calls the given 'operator delete' on a single object.
+  struct CallObjectDelete : EHScopeStack::Cleanup {
+    llvm::Value *Ptr;
+    const FunctionDecl *OperatorDelete;
+    QualType ElementType;
+
+    CallObjectDelete(llvm::Value *Ptr,
+                     const FunctionDecl *OperatorDelete,
+                     QualType ElementType)
+      : Ptr(Ptr), OperatorDelete(OperatorDelete), ElementType(ElementType) {}
+
+    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+      CGF.EmitDeleteCall(OperatorDelete, Ptr, ElementType);
+    }
+  };
+}
+
+/// Emit the code for deleting a single object.
+static void EmitObjectDelete(CodeGenFunction &CGF,
+                             const FunctionDecl *OperatorDelete,
+                             llvm::Value *Ptr,
+                             QualType ElementType) {
+  // Find the destructor for the type, if applicable.  If the
+  // destructor is virtual, we'll just emit the vcall and return.
+  const CXXDestructorDecl *Dtor = 0;
+  if (const RecordType *RT = ElementType->getAs<RecordType>()) {
+    CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
+    if (!RD->hasTrivialDestructor()) {
+      Dtor = RD->getDestructor();
+
+      if (Dtor->isVirtual()) {
+        const llvm::Type *Ty =
+          CGF.getTypes().GetFunctionType(CGF.getTypes().getFunctionInfo(Dtor,
+                                                               Dtor_Complete),
+                                         /*isVariadic=*/false);
+          
+        llvm::Value *Callee
+          = CGF.BuildVirtualCall(Dtor, Dtor_Deleting, Ptr, Ty);
+        CGF.EmitCXXMemberCall(Dtor, Callee, ReturnValueSlot(), Ptr, /*VTT=*/0,
+                              0, 0);
+
+        // The dtor took care of deleting the object.
+        return;
+      }
+    }
+  }
+
+  // Make sure that we call delete even if the dtor throws.
+  CGF.EHStack.pushCleanup<CallObjectDelete>(NormalAndEHCleanup,
+                                            Ptr, OperatorDelete, ElementType);
+
+  if (Dtor)
+    CGF.EmitCXXDestructorCall(Dtor, Dtor_Complete,
+                              /*ForVirtualBase=*/false, Ptr);
+
+  CGF.PopCleanupBlock();
+}
+
+namespace {
+  /// Calls the given 'operator delete' on an array of objects.
+  struct CallArrayDelete : EHScopeStack::Cleanup {
+    llvm::Value *Ptr;
+    const FunctionDecl *OperatorDelete;
+    llvm::Value *NumElements;
+    QualType ElementType;
+    CharUnits CookieSize;
+
+    CallArrayDelete(llvm::Value *Ptr,
+                    const FunctionDecl *OperatorDelete,
+                    llvm::Value *NumElements,
+                    QualType ElementType,
+                    CharUnits CookieSize)
+      : Ptr(Ptr), OperatorDelete(OperatorDelete), NumElements(NumElements),
+        ElementType(ElementType), CookieSize(CookieSize) {}
+
+    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+      const FunctionProtoType *DeleteFTy =
+        OperatorDelete->getType()->getAs<FunctionProtoType>();
+      assert(DeleteFTy->getNumArgs() == 1 || DeleteFTy->getNumArgs() == 2);
+
+      CallArgList Args;
+      
+      // Pass the pointer as the first argument.
+      QualType VoidPtrTy = DeleteFTy->getArgType(0);
+      llvm::Value *DeletePtr
+        = CGF.Builder.CreateBitCast(Ptr, CGF.ConvertType(VoidPtrTy));
+      Args.push_back(std::make_pair(RValue::get(DeletePtr), VoidPtrTy));
+
+      // Pass the original requested size as the second argument.
+      if (DeleteFTy->getNumArgs() == 2) {
+        QualType size_t = DeleteFTy->getArgType(1);
+        const llvm::IntegerType *SizeTy
+          = cast<llvm::IntegerType>(CGF.ConvertType(size_t));
+        
+        CharUnits ElementTypeSize =
+          CGF.CGM.getContext().getTypeSizeInChars(ElementType);
+
+        // The size of an element, multiplied by the number of elements.
+        llvm::Value *Size
+          = llvm::ConstantInt::get(SizeTy, ElementTypeSize.getQuantity());
+        Size = CGF.Builder.CreateMul(Size, NumElements);
+
+        // Plus the size of the cookie if applicable.
+        if (!CookieSize.isZero()) {
+          llvm::Value *CookieSizeV
+            = llvm::ConstantInt::get(SizeTy, CookieSize.getQuantity());
+          Size = CGF.Builder.CreateAdd(Size, CookieSizeV);
+        }
+
+        Args.push_back(std::make_pair(RValue::get(Size), size_t));
+      }
+
+      // Emit the call to delete.
+      CGF.EmitCall(CGF.getTypes().getFunctionInfo(Args, DeleteFTy),
+                   CGF.CGM.GetAddrOfFunction(OperatorDelete),
+                   ReturnValueSlot(), Args, OperatorDelete);
+    }
+  };
+}
+
+/// Emit the code for deleting an array of objects.
+static void EmitArrayDelete(CodeGenFunction &CGF,
+                            const FunctionDecl *OperatorDelete,
+                            llvm::Value *Ptr,
+                            QualType ElementType) {
+  llvm::Value *NumElements = 0;
+  llvm::Value *AllocatedPtr = 0;
+  CharUnits CookieSize;
+  CGF.CGM.getCXXABI().ReadArrayCookie(CGF, Ptr, ElementType,
+                                      NumElements, AllocatedPtr, CookieSize);
+
+  assert(AllocatedPtr && "ReadArrayCookie didn't set AllocatedPtr");
+
+  // Make sure that we call delete even if one of the dtors throws.
+  CGF.EHStack.pushCleanup<CallArrayDelete>(NormalAndEHCleanup,
+                                           AllocatedPtr, OperatorDelete,
+                                           NumElements, ElementType,
+                                           CookieSize);
+
+  if (const CXXRecordDecl *RD = ElementType->getAsCXXRecordDecl()) {
+    if (!RD->hasTrivialDestructor()) {
+      assert(NumElements && "ReadArrayCookie didn't find element count"
+                            " for a class with destructor");
+      CGF.EmitCXXAggrDestructorCall(RD->getDestructor(), NumElements, Ptr);
+    }
+  }
+
+  CGF.PopCleanupBlock();
+}
+
 void CodeGenFunction::EmitCXXDeleteExpr(const CXXDeleteExpr *E) {
   
   // Get at the argument before we performed the implicit conversion
   // to void*.
   const Expr *Arg = E->getArgument();
   while (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(Arg)) {
-    if (ICE->getCastKind() != CastExpr::CK_UserDefinedConversion &&
+    if (ICE->getCastKind() != CK_UserDefinedConversion &&
         ICE->getType()->isVoidPointerType())
       Arg = ICE->getSubExpr();
     else
       break;
   }
-  
-  QualType DeleteTy = Arg->getType()->getAs<PointerType>()->getPointeeType();
 
   llvm::Value *Ptr = EmitScalarExpr(Arg);
 
@@ -830,41 +1003,38 @@ void CodeGenFunction::EmitCXXDeleteExpr(const CXXDeleteExpr *E) {
 
   Builder.CreateCondBr(IsNull, DeleteEnd, DeleteNotNull);
   EmitBlock(DeleteNotNull);
-  
-  bool ShouldCallDelete = true;
-  
-  // Call the destructor if necessary.
-  if (const RecordType *RT = DeleteTy->getAs<RecordType>()) {
-    if (CXXRecordDecl *RD = dyn_cast<CXXRecordDecl>(RT->getDecl())) {
-      if (!RD->hasTrivialDestructor()) {
-        const CXXDestructorDecl *Dtor = RD->getDestructor();
-        if (E->isArrayForm()) {
-          llvm::Value *AllocatedObjectPtr;
-          llvm::Value *NumElements;
-          llvm::tie(AllocatedObjectPtr, NumElements) =
-            GetAllocatedObjectPtrAndNumElements(*this, Ptr, DeleteTy);
-          
-          EmitCXXAggrDestructorCall(Dtor, NumElements, Ptr);
-        } else if (Dtor->isVirtual()) {
-          const llvm::Type *Ty =
-            CGM.getTypes().GetFunctionType(CGM.getTypes().getFunctionInfo(Dtor),
-                                           /*isVariadic=*/false);
-          
-          llvm::Value *Callee = BuildVirtualCall(Dtor, Dtor_Deleting, Ptr, Ty);
-          EmitCXXMemberCall(Dtor, Callee, ReturnValueSlot(), Ptr, /*VTT=*/0,
-                            0, 0);
 
-          // The dtor took care of deleting the object.
-          ShouldCallDelete = false;
-        } else 
-          EmitCXXDestructorCall(Dtor, Dtor_Complete, /*ForVirtualBase=*/false,
-                                Ptr);
-      }
+  // We might be deleting a pointer to array.  If so, GEP down to the
+  // first non-array element.
+  // (this assumes that A(*)[3][7] is converted to [3 x [7 x %A]]*)
+  QualType DeleteTy = Arg->getType()->getAs<PointerType>()->getPointeeType();
+  if (DeleteTy->isConstantArrayType()) {
+    llvm::Value *Zero = Builder.getInt32(0);
+    llvm::SmallVector<llvm::Value*,8> GEP;
+
+    GEP.push_back(Zero); // point at the outermost array
+
+    // For each layer of array type we're pointing at:
+    while (const ConstantArrayType *Arr
+             = getContext().getAsConstantArrayType(DeleteTy)) {
+      // 1. Unpeel the array type.
+      DeleteTy = Arr->getElementType();
+
+      // 2. GEP to the first element of the array.
+      GEP.push_back(Zero);
     }
+
+    Ptr = Builder.CreateInBoundsGEP(Ptr, GEP.begin(), GEP.end(), "del.first");
   }
 
-  if (ShouldCallDelete)
-    EmitDeleteCall(E->getOperatorDelete(), Ptr, DeleteTy);
+  assert(ConvertTypeForMem(DeleteTy) ==
+         cast<llvm::PointerType>(Ptr->getType())->getElementType());
+
+  if (E->isArrayForm()) {
+    EmitArrayDelete(*this, E->getOperatorDelete(), Ptr, DeleteTy);
+  } else {
+    EmitObjectDelete(*this, E->getOperatorDelete(), Ptr, DeleteTy);
+  }
 
   EmitBlock(DeleteEnd);
 }
@@ -895,7 +1065,7 @@ llvm::Value * CodeGenFunction::EmitCXXTypeidExpr(const CXXTypeidExpr *E) {
       // FIXME: PointerType->hasAttr<NonNullAttr>()
       bool CanBeZero = false;
       if (UnaryOperator *UO = dyn_cast<UnaryOperator>(subE->IgnoreParens()))
-        if (UO->getOpcode() == UnaryOperator::Deref)
+        if (UO->getOpcode() == UO_Deref)
           CanBeZero = true;
       if (CanBeZero) {
         llvm::BasicBlock *NonZeroBlock = createBasicBlock();

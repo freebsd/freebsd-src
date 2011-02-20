@@ -180,6 +180,9 @@ mi_startup(void)
 	int verbose;
 #endif
 
+	if (boothowto & RB_VERBOSE)
+		bootverbose++;
+
 	if (sysinit == NULL) {
 		sysinit = SET_BEGIN(sysinit_set);
 		sysinit_end = SET_LIMIT(sysinit_set);
@@ -327,15 +330,6 @@ SYSINIT(diagwarn2, SI_SUB_RUN_SCHEDULER, SI_ORDER_THIRD + 2,
     print_caddr_t, diag_warn);
 #endif
 
-static void
-set_boot_verbose(void *data __unused)
-{
-
-	if (boothowto & RB_VERBOSE)
-		bootverbose++;
-}
-SYSINIT(boot_verbose, SI_SUB_TUNABLES, SI_ORDER_ANY, set_boot_verbose, NULL);
-
 static int
 null_fetch_syscall_args(struct thread *td __unused,
     struct syscall_args *sa __unused)
@@ -461,12 +455,14 @@ proc0_init(void *dummy __unused)
 	STAILQ_INIT(&p->p_ktr);
 	p->p_nice = NZERO;
 	td->td_tid = PID_MAX + 1;
+	LIST_INSERT_HEAD(TIDHASH(td->td_tid), td, td_hash);
 	td->td_state = TDS_RUNNING;
 	td->td_pri_class = PRI_TIMESHARE;
 	td->td_user_pri = PUSER;
 	td->td_base_user_pri = PUSER;
+	td->td_lend_user_pri = PRI_MAX;
 	td->td_priority = PVM;
-	td->td_base_pri = PUSER;
+	td->td_base_pri = PVM;
 	td->td_oncpu = 0;
 	td->td_flags = TDF_INMEM|TDP_KTHREAD;
 	td->td_cpuset = cpuset_thread0();

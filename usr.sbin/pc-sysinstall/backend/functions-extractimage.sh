@@ -70,7 +70,7 @@ start_extract_uzip_tar()
       if [ "$?" != "0" ]
       then
         cd /
-        echo "TAR failure occured:" >>${LOGOUT}
+        echo "TAR failure occurred:" >>${LOGOUT}
         cat ${FSMNT}/.tar-extract.log | grep "tar:" >>${LOGOUT}
         umount ${FSMNT}.uzip
         mdconfig -d -u ${MDDEVICE}
@@ -147,6 +147,7 @@ start_extract_split()
     then
       exit_err "ERROR: Failed extracting ${KERNELS}"
     fi
+    rm -rf "${FSMNT}/boot/kernel"
     mv "${FSMNT}/boot/GENERIC" "${FSMNT}/boot/kernel"
   else
     exit_err "ERROR: ${KERNELS}/install.sh does not exist"
@@ -274,7 +275,7 @@ EOF
   INSFILE="${OUTFILE}" ; export INSFILE
 }
 
-# Function which does the rsync download from the server specifed in cfg
+# Function which does the rsync download from the server specified in cfg
 start_rsync_copy()
 {
   # Load our rsync config values
@@ -328,6 +329,46 @@ start_rsync_copy()
 
 };
 
+start_image_install()
+{
+  if [ -z "${IMAGE_FILE}" ]
+  then
+    exit_err "ERROR: installMedium set to image but no image file specified!"
+  fi
+
+  # We are ready to start mounting, lets read the config and do it
+  while read line
+  do
+    echo $line | grep "^disk0=" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ]
+    then
+      # Found a disk= entry, lets get the disk we are working on
+      get_value_from_string "${line}"
+      strip_white_space "$VAL"
+      DISK="$VAL"
+    fi
+
+    echo $line | grep "^commitDiskPart" >/dev/null 2>/dev/null
+    if [ "$?" = "0" ]
+    then
+      # Found our flag to commit this disk setup / lets do sanity check and do it
+      if [ ! -z "${DISK}" ]
+      then
+
+        # Write the image
+        write_image "${IMAGE_FILE}" "${DISK}"
+
+        # Increment our disk counter to look for next disk and unset
+        unset DISK
+        break
+
+      else
+        exit_err "ERROR: commitDiskPart was called without procceding disk<num>= and partition= entries!!!"
+      fi
+    fi
+
+  done <${CFGF}
+};
 
 # Entrance function, which starts the installation process
 init_extraction()
@@ -377,7 +418,7 @@ init_extraction()
       fi
       ;;
 
-    ftp|sftp)
+    ftp)
       if [ "$PACKAGETYPE" = "split" ]
       then
         fetch_split_files
@@ -390,9 +431,10 @@ init_extraction()
       fi
       ;;
 
-      rsync) start_rsync_copy ;;
-    img)
-		;;
+    sftp) ;;
+
+    rsync) start_rsync_copy ;;
+    image) start_image_install ;;
     *) exit_err "ERROR: Unknown install medium" ;;
   esac
 

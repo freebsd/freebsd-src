@@ -366,7 +366,7 @@ ip6_ipsec_mtu(struct mbuf *m)
 		if (sp->req != NULL &&
 		    sp->req->sav != NULL &&
 		    sp->req->sav->sah != NULL) {
-			ro = &sp->req->sav->sah->sa_route;
+			ro = &sp->req->sav->sah->route_cache.sa_route;
 			if (ro->ro_rt && ro->ro_rt->rt_ifp) {
 				mtu =
 				    ro->ro_rt->rt_rmx.rmx_mtu ?

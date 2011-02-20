@@ -3,17 +3,31 @@
 .include "${.CURDIR}/../Makefile.inc"
 
 .PATH.c:${HOSTAPD_DISTDIR} \
+	${WPA_DISTDIR}/src/ap \
 	${WPA_DISTDIR}/src/eap_server \
+	${WPA_DISTDIR}/src/eap_common \
+	${WPA_DISTDIR}/src/eapol_auth \
+	${WPA_DISTDIR}/src/drivers \
 	${WPA_DISTDIR}/src/radius \
+	${WPA_DISTDIR}
 
 PROG=	hostapd
-SRCS=	accounting.c aes.c aes_wrap.c ap_list.c beacon.c common.c \
-	config.c ctrl_iface.c drivers.c eapol_sm.c eap.c eap_common.c \
-	eap_identity.c eap_methods.c eloop.c hostapd.c \
-	hw_features.c ieee802_11.c ieee802_11_common.c ieee802_11_auth.c \
-	ieee802_1x.c ip_addr.c md5.c mlme.c pmksa_cache.c radius.c \
-	radius_client.c rc4.c sha1.c sta_info.c vlan_init.c wme.c \
-	wpa.c wpa_auth_ie.c wpa_common.c wpa_debug.c wpabuf.c
+SRCS=	accounting.c aes-wrap.c ap_config.c \
+	ap_drv_ops.c ap_mlme.c authsrv.c \
+	chap.c common.c config_file.c ctrl_iface.c crypto_openssl.c \
+	ctrl_iface_ap.c drivers.c drv_callbacks.c dump_state.c \
+	eap_common.c eap_peap_common.c eap_register.c eap_server.c \
+	eap_server_gtc.c eap_server_identity.c eap_server_md5.c \
+	eap_server_methods.c eap_server_mschapv2.c eap_server_peap.c \
+	eap_server_tls.c eap_server_tls_common.c eap_server_ttls.c \
+	eapol_auth_dump.c eapol_auth_sm.c eloop.c hostapd.c ieee802_11_auth.c \
+	ieee802_11_common.c ieee802_11_ht.c ieee802_1x.c ip_addr.c \
+	md5.c main.c ms_funcs.c peerkey_auth.c pmksa_cache_auth.c \
+	preauth_auth.c radius.c radius_client.c sta_info.c \
+	sha1-pbkdf2.c sha1-tlsprf.c sha1-tprf.c sha1.c \
+	tkip_countermeasures.c utils.c \
+	vlan_init.c wpa_auth.c wpa_auth_glue.c wpa_auth_ie.c wpa_common.c \
+	wpa_debug.c wpabuf.c
 SRCS+=	l2_packet_freebsd.c driver_freebsd.c os_unix.c
 
 MAN=	hostapd.8 hostapd.conf.5
@@ -24,16 +38,16 @@ FILESDIR= ${SHAREDIR}/examples/hostapd
 FILES=	hostapd.conf hostapd.eap_user hostapd.wpa_psk
 .endif
 
-CFLAGS+= -I${HOSTAPD_DISTDIR}
+CFLAGS+= -I${HOSTAPD_DISTDIR} -I${WPA_DISTDIR}/src/drivers
 
-CFLAGS+= -DCONFIG_DRIVER_BSD
+CFLAGS+= -DCONFIG_DRIVER_BSD -DHOSTAPD
 CFLAGS+= -DCONFIG_DRIVER_RADIUS_ACL
 .if ${MK_INET6} != "no"
 CFLAGS+= -DCONFIG_IPV6
 .endif
-CFLAGS+= -g
-DPADD+=	${LIBPCAP}
-LDADD+=	-lpcap
+#CFLAGS+= -g
+DPADD+=	${LIBPCAP} ${LIBSSL}
+LDADD+=	-lpcap -lssl
 
 # User customizations for wpa_supplicant/hostapd build environment
 CFLAGS+=${HOSTAPD_CFLAGS}

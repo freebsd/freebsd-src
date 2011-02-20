@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_kstack_pages.h"
-#include "opt_msgbuf.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -159,22 +158,11 @@ int             setfault(faultbuf);             /* defined in locore.S */
 long		Maxmem = 0;
 long		realmem = 0;
 
-struct pmap	ofw_pmap;
-
 #ifndef __powerpc64__
 struct bat	battable[16];
 #endif
 
 struct kva_md_info kmi;
-
-static void
-powerpc_ofw_shutdown(void *junk, int howto)
-{
-	if (howto & RB_HALT) {
-		OF_halt();
-	}
-	OF_reboot();
-}
 
 static void
 cpu_startup(void *dummy)
@@ -233,9 +221,6 @@ cpu_startup(void *dummy)
 	 */
 	bufinit();
 	vm_pager_bufferinit();
-
-	EVENTHANDLER_REGISTER(shutdown_final, powerpc_ofw_shutdown, 0,
-	    SHUTDOWN_PRI_LAST);
 }
 
 extern char	kernel_text[], _end[];
@@ -257,6 +242,9 @@ extern void	*dsitrap, *dsisize;
 extern void	*decrint, *decrsize;
 extern void     *extint, *extsize;
 extern void	*dblow, *dbsize;
+extern void	*imisstrap, *imisssize;
+extern void	*dlmisstrap, *dlmisssize;
+extern void	*dsmisstrap, *dsmisssize;
 
 uintptr_t
 powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
@@ -270,6 +258,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
         char		*env;
 	register_t	msr, scratch;
 	uint8_t		*cache_check;
+	int		cacheline_warn;
 	#ifndef __powerpc64__
 	int		ppc64;
 	#endif
@@ -277,6 +266,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	end = 0;
 	kmdp = NULL;
 	trap_offset = 0;
+	cacheline_warn = 0;
 
 	/*
 	 * Parse metadata if present and fetch parameters.  Must be done
@@ -372,7 +362,8 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 
 	/*
 	 * Disable translation in case the vector area hasn't been
-	 * mapped (G5).
+	 * mapped (G5). Note that no OFW calls can be made until
+	 * translation is re-enabled.
 	 */
 
 	msr = mfmsr();
@@ -399,7 +390,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 
 	/* Work around psim bug */
 	if (cacheline_size == 0) {
-		printf("WARNING: cacheline size undetermined, setting to 32\n");
+		cacheline_warn = 1;
 		cacheline_size = 32;
 	}
 
@@ -498,8 +489,14 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	bcopy(generictrap, (void *)EXC_SC,   (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_FPA,  (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_VEC,  (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_VECAST, (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_THRM, (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_VECAST_G4, (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_VECAST_G5, (size_t)&trapsize);
+	#ifndef __powerpc64__
+	/* G2-specific TLB miss helper handlers */
+	bcopy(&imisstrap, (void *)EXC_IMISS,  (size_t)&imisssize);
+	bcopy(&dlmisstrap, (void *)EXC_DLMISS,  (size_t)&dlmisssize);
+	bcopy(&dsmisstrap, (void *)EXC_DSMISS,  (size_t)&dsmisssize);
+	#endif
 	__syncicache(EXC_RSVD, EXC_LAST - EXC_RSVD);
 
 	/*
@@ -508,6 +505,11 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	mtmsr(msr);
 	isync();
 	
+	/* Warn if cachline size was not determined */
+	if (cacheline_warn == 1) {
+		printf("WARNING: cacheline size undetermined, setting to 32\n");
+	}
+
 	/*
 	 * Choose a platform module so we can get the physical memory map.
 	 */
@@ -552,7 +554,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	pc->pc_curpcb = thread0.td_pcb;
 
 	/* Initialise the message buffer. */
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufinit(msgbufp, msgbufsize);
 
 #ifdef KDB
 	if (boothowto & RB_KDB)
@@ -621,8 +623,7 @@ cpu_initclocks(void)
 {
 
 	decr_tc_init();
-	stathz = hz;
-	profhz = hz;
+	cpu_initclocks_bsp();
 }
 
 /*
@@ -633,52 +634,6 @@ cpu_halt(void)
 {
 
 	OF_exit();
-}
-
-void
-cpu_idle(int busy)
-{
-	register_t msr;
-	uint16_t vers;
-
-	msr = mfmsr();
-	vers = mfpvr() >> 16;
-
-#ifdef INVARIANTS
-	if ((msr & PSL_EE) != PSL_EE) {
-		struct thread *td = curthread;
-		printf("td msr %#lx\n", (u_long)td->td_md.md_saved_msr);
-		panic("ints disabled in idleproc!");
-	}
-#endif
-	if (powerpc_pow_enabled) {
-		switch (vers) {
-		case IBM970:
-		case IBM970FX:
-		case IBM970MP:
-		case MPC7447A:
-		case MPC7448:
-		case MPC7450:
-		case MPC7455:
-		case MPC7457:
-			__asm __volatile("\
-			    dssall; sync; mtmsr %0; isync"
-			    :: "r"(msr | PSL_POW));
-			break;
-		default:
-			powerpc_sync();
-			mtmsr(msr | PSL_POW);
-			isync();
-			break;
-		}
-	}
-}
-
-int
-cpu_idle_wakeup(int cpu)
-{
-
-	return (0);
 }
 
 int
@@ -744,11 +699,15 @@ void
 spinlock_enter(void)
 {
 	struct thread *td;
+	register_t msr;
 
 	td = curthread;
-	if (td->td_md.md_spinlock_count == 0)
-		td->td_md.md_saved_msr = intr_disable();
-	td->td_md.md_spinlock_count++;
+	if (td->td_md.md_spinlock_count == 0) {
+		msr = intr_disable();
+		td->td_md.md_spinlock_count = 1;
+		td->td_md.md_saved_msr = msr;
+	} else
+		td->td_md.md_spinlock_count++;
 	critical_enter();
 }
 
@@ -756,12 +715,14 @@ void
 spinlock_exit(void)
 {
 	struct thread *td;
+	register_t msr;
 
 	td = curthread;
 	critical_exit();
+	msr = td->td_md.md_saved_msr;
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
-		intr_restore(td->td_md.md_saved_msr);
+		intr_restore(msr);
 }
 
 /*

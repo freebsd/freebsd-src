@@ -111,6 +111,9 @@
 #define	SPR_SDR1		0x019	/* .68 Page table base address register */
 #define	SPR_SRR0		0x01a	/* 468 Save/Restore Register 0 */
 #define	SPR_SRR1		0x01b	/* 468 Save/Restore Register 1 */
+#define	  SRR1_ISI_PFAULT	0x40000000 /* ISI page not found */
+#define	  SRR1_ISI_NOEXECUTE	0x10000000 /* Memory marked no-execute */
+#define	  SRR1_ISI_PP		0x08000000 /* PP bits forbid access */
 #define	SPR_DECAR		0x036	/* ..8 Decrementer auto reload */
 #define SPR_EIE			0x050	/* ..8 Exception Interrupt ??? */
 #define SPR_EID			0x051	/* ..8 Exception Interrupt ??? */
@@ -420,6 +423,10 @@
 #define	SPR_HID1		0x3f1	/* ..8 Hardware Implementation Register 1 */
 #define	SPR_HID4		0x3f4	/* ..8 Hardware Implementation Register 4 */
 #define	SPR_HID5		0x3f6	/* ..8 Hardware Implementation Register 5 */
+#define	SPR_HID6		0x3f9	/* ..8 Hardware Implementation Register 6 */
+
+#define	SPR_CELL_TSRL		0x380	/* ... Cell BE Thread Status Register */
+#define	SPR_CELL_TSCR		0x399	/* ... Cell BE Thread Switch Register */
 
 #if defined(AIM)
 #define	SPR_DBSR		0x3f0	/* 4.. Debug Status Register */

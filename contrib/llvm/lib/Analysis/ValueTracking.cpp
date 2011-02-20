@@ -880,19 +880,20 @@ bool llvm::ComputeMultiple(Value *V, unsigned Base, Value *&Multiple,
     }
 
     Value *Mul0 = NULL;
-    Value *Mul1 = NULL;
-    bool M0 = ComputeMultiple(Op0, Base, Mul0,
-                              LookThroughSExt, Depth+1);
-    bool M1 = ComputeMultiple(Op1, Base, Mul1,
-                              LookThroughSExt, Depth+1);
-
-    if (M0) {
-      if (isa<Constant>(Op1) && isa<Constant>(Mul0)) {
-        // V == Base * (Mul0 * Op1), so return (Mul0 * Op1)
-        Multiple = ConstantExpr::getMul(cast<Constant>(Mul0),
-                                        cast<Constant>(Op1));
-        return true;
-      }
+    if (ComputeMultiple(Op0, Base, Mul0, LookThroughSExt, Depth+1)) {
+      if (Constant *Op1C = dyn_cast<Constant>(Op1))
+        if (Constant *MulC = dyn_cast<Constant>(Mul0)) {
+          if (Op1C->getType()->getPrimitiveSizeInBits() < 
+              MulC->getType()->getPrimitiveSizeInBits())
+            Op1C = ConstantExpr::getZExt(Op1C, MulC->getType());
+          if (Op1C->getType()->getPrimitiveSizeInBits() > 
+              MulC->getType()->getPrimitiveSizeInBits())
+            MulC = ConstantExpr::getZExt(MulC, Op1C->getType());
+          
+          // V == Base * (Mul0 * Op1), so return (Mul0 * Op1)
+          Multiple = ConstantExpr::getMul(MulC, Op1C);
+          return true;
+        }
 
       if (ConstantInt *Mul0CI = dyn_cast<ConstantInt>(Mul0))
         if (Mul0CI->getValue() == 1) {
@@ -902,13 +903,21 @@ bool llvm::ComputeMultiple(Value *V, unsigned Base, Value *&Multiple,
         }
     }
 
-    if (M1) {
-      if (isa<Constant>(Op0) && isa<Constant>(Mul1)) {
-        // V == Base * (Mul1 * Op0), so return (Mul1 * Op0)
-        Multiple = ConstantExpr::getMul(cast<Constant>(Mul1),
-                                        cast<Constant>(Op0));
-        return true;
-      }
+    Value *Mul1 = NULL;
+    if (ComputeMultiple(Op1, Base, Mul1, LookThroughSExt, Depth+1)) {
+      if (Constant *Op0C = dyn_cast<Constant>(Op0))
+        if (Constant *MulC = dyn_cast<Constant>(Mul1)) {
+          if (Op0C->getType()->getPrimitiveSizeInBits() < 
+              MulC->getType()->getPrimitiveSizeInBits())
+            Op0C = ConstantExpr::getZExt(Op0C, MulC->getType());
+          if (Op0C->getType()->getPrimitiveSizeInBits() > 
+              MulC->getType()->getPrimitiveSizeInBits())
+            MulC = ConstantExpr::getZExt(MulC, Op0C->getType());
+          
+          // V == Base * (Mul1 * Op0), so return (Mul1 * Op0)
+          Multiple = ConstantExpr::getMul(MulC, Op0C);
+          return true;
+        }
 
       if (ConstantInt *Mul1CI = dyn_cast<ConstantInt>(Mul1))
         if (Mul1CI->getValue() == 1) {
@@ -972,195 +981,6 @@ bool llvm::CannotBeNegativeZero(const Value *V, unsigned Depth) {
   
   return false;
 }
-
-
-/// GetLinearExpression - Analyze the specified value as a linear expression:
-/// "A*V + B", where A and B are constant integers.  Return the scale and offset
-/// values as APInts and return V as a Value*.  The incoming Value is known to
-/// have IntegerType.  Note that this looks through extends, so the high bits
-/// may not be represented in the result.
-static Value *GetLinearExpression(Value *V, APInt &Scale, APInt &Offset,
-                                  const TargetData *TD, unsigned Depth) {
-  assert(V->getType()->isIntegerTy() && "Not an integer value");
-
-  // Limit our recursion depth.
-  if (Depth == 6) {
-    Scale = 1;
-    Offset = 0;
-    return V;
-  }
-  
-  if (BinaryOperator *BOp = dyn_cast<BinaryOperator>(V)) {
-    if (ConstantInt *RHSC = dyn_cast<ConstantInt>(BOp->getOperand(1))) {
-      switch (BOp->getOpcode()) {
-      default: break;
-      case Instruction::Or:
-        // X|C == X+C if all the bits in C are unset in X.  Otherwise we can't
-        // analyze it.
-        if (!MaskedValueIsZero(BOp->getOperand(0), RHSC->getValue(), TD))
-          break;
-        // FALL THROUGH.
-      case Instruction::Add:
-        V = GetLinearExpression(BOp->getOperand(0), Scale, Offset, TD, Depth+1);
-        Offset += RHSC->getValue();
-        return V;
-      case Instruction::Mul:
-        V = GetLinearExpression(BOp->getOperand(0), Scale, Offset, TD, Depth+1);
-        Offset *= RHSC->getValue();
-        Scale *= RHSC->getValue();
-        return V;
-      case Instruction::Shl:
-        V = GetLinearExpression(BOp->getOperand(0), Scale, Offset, TD, Depth+1);
-        Offset <<= RHSC->getValue().getLimitedValue();
-        Scale <<= RHSC->getValue().getLimitedValue();
-        return V;
-      }
-    }
-  }
-  
-  // Since clients don't care about the high bits of the value, just scales and
-  // offsets, we can look through extensions.
-  if (isa<SExtInst>(V) || isa<ZExtInst>(V)) {
-    Value *CastOp = cast<CastInst>(V)->getOperand(0);
-    unsigned OldWidth = Scale.getBitWidth();
-    unsigned SmallWidth = CastOp->getType()->getPrimitiveSizeInBits();
-    Scale.trunc(SmallWidth);
-    Offset.trunc(SmallWidth);
-    Value *Result = GetLinearExpression(CastOp, Scale, Offset, TD, Depth+1);
-    Scale.zext(OldWidth);
-    Offset.zext(OldWidth);
-    return Result;
-  }
-  
-  Scale = 1;
-  Offset = 0;
-  return V;
-}
-
-/// DecomposeGEPExpression - If V is a symbolic pointer expression, decompose it
-/// into a base pointer with a constant offset and a number of scaled symbolic
-/// offsets.
-///
-/// The scaled symbolic offsets (represented by pairs of a Value* and a scale in
-/// the VarIndices vector) are Value*'s that are known to be scaled by the
-/// specified amount, but which may have other unrepresented high bits. As such,
-/// the gep cannot necessarily be reconstructed from its decomposed form.
-///
-/// When TargetData is around, this function is capable of analyzing everything
-/// that Value::getUnderlyingObject() can look through.  When not, it just looks
-/// through pointer casts.
-///
-const Value *llvm::DecomposeGEPExpression(const Value *V, int64_t &BaseOffs,
-                 SmallVectorImpl<std::pair<const Value*, int64_t> > &VarIndices,
-                                          const TargetData *TD) {
-  // Limit recursion depth to limit compile time in crazy cases.
-  unsigned MaxLookup = 6;
-  
-  BaseOffs = 0;
-  do {
-    // See if this is a bitcast or GEP.
-    const Operator *Op = dyn_cast<Operator>(V);
-    if (Op == 0) {
-      // The only non-operator case we can handle are GlobalAliases.
-      if (const GlobalAlias *GA = dyn_cast<GlobalAlias>(V)) {
-        if (!GA->mayBeOverridden()) {
-          V = GA->getAliasee();
-          continue;
-        }
-      }
-      return V;
-    }
-    
-    if (Op->getOpcode() == Instruction::BitCast) {
-      V = Op->getOperand(0);
-      continue;
-    }
-    
-    const GEPOperator *GEPOp = dyn_cast<GEPOperator>(Op);
-    if (GEPOp == 0)
-      return V;
-    
-    // Don't attempt to analyze GEPs over unsized objects.
-    if (!cast<PointerType>(GEPOp->getOperand(0)->getType())
-        ->getElementType()->isSized())
-      return V;
-    
-    // If we are lacking TargetData information, we can't compute the offets of
-    // elements computed by GEPs.  However, we can handle bitcast equivalent
-    // GEPs.
-    if (!TD) {
-      if (!GEPOp->hasAllZeroIndices())
-        return V;
-      V = GEPOp->getOperand(0);
-      continue;
-    }
-    
-    // Walk the indices of the GEP, accumulating them into BaseOff/VarIndices.
-    gep_type_iterator GTI = gep_type_begin(GEPOp);
-    for (User::const_op_iterator I = GEPOp->op_begin()+1,
-         E = GEPOp->op_end(); I != E; ++I) {
-      Value *Index = *I;
-      // Compute the (potentially symbolic) offset in bytes for this index.
-      if (const StructType *STy = dyn_cast<StructType>(*GTI++)) {
-        // For a struct, add the member offset.
-        unsigned FieldNo = cast<ConstantInt>(Index)->getZExtValue();
-        if (FieldNo == 0) continue;
-        
-        BaseOffs += TD->getStructLayout(STy)->getElementOffset(FieldNo);
-        continue;
-      }
-      
-      // For an array/pointer, add the element offset, explicitly scaled.
-      if (ConstantInt *CIdx = dyn_cast<ConstantInt>(Index)) {
-        if (CIdx->isZero()) continue;
-        BaseOffs += TD->getTypeAllocSize(*GTI)*CIdx->getSExtValue();
-        continue;
-      }
-      
-      uint64_t Scale = TD->getTypeAllocSize(*GTI);
-      
-      // Use GetLinearExpression to decompose the index into a C1*V+C2 form.
-      unsigned Width = cast<IntegerType>(Index->getType())->getBitWidth();
-      APInt IndexScale(Width, 0), IndexOffset(Width, 0);
-      Index = GetLinearExpression(Index, IndexScale, IndexOffset, TD, 0);
-      
-      // The GEP index scale ("Scale") scales C1*V+C2, yielding (C1*V+C2)*Scale.
-      // This gives us an aggregate computation of (C1*Scale)*V + C2*Scale.
-      BaseOffs += IndexOffset.getZExtValue()*Scale;
-      Scale *= IndexScale.getZExtValue();
-      
-      
-      // If we already had an occurrance of this index variable, merge this
-      // scale into it.  For example, we want to handle:
-      //   A[x][x] -> x*16 + x*4 -> x*20
-      // This also ensures that 'x' only appears in the index list once.
-      for (unsigned i = 0, e = VarIndices.size(); i != e; ++i) {
-        if (VarIndices[i].first == Index) {
-          Scale += VarIndices[i].second;
-          VarIndices.erase(VarIndices.begin()+i);
-          break;
-        }
-      }
-      
-      // Make sure that we have a scale that makes sense for this target's
-      // pointer size.
-      if (unsigned ShiftBits = 64-TD->getPointerSizeInBits()) {
-        Scale <<= ShiftBits;
-        Scale >>= ShiftBits;
-      }
-      
-      if (Scale)
-        VarIndices.push_back(std::make_pair(Index, Scale));
-    }
-    
-    // Analyze the base pointer next.
-    V = GEPOp->getOperand(0);
-  } while (--MaxLookup);
-  
-  // If the chain of expressions is too deep, just return early.
-  return V;
-}
-
 
 // This is the recursive version of BuildSubAggregate. It takes a few different
 // arguments. Idxs is the index within the nested struct From that we are

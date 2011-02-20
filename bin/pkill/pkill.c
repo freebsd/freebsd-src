@@ -156,7 +156,7 @@ main(int argc, char **argv)
 				argv++;
 				argc--;
 			} else {
-				if (strncasecmp(p, "sig", 3) == 0)
+				if (strncasecmp(p, "SIG", 3) == 0)
 					p += 3;
 				for (i = 1; i < NSIG; i++)
 					if (strcasecmp(sys_signame[i], p) == 0)

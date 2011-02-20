@@ -41,8 +41,6 @@ public:
   MicrosoftCXXNameMangler(MangleContext &C, llvm::SmallVectorImpl<char> &Res)
   : Context(C), Out(Res) { }
 
-  llvm::raw_svector_ostream &getStream() { return Out; }
-
   void mangle(const NamedDecl *D, llvm::StringRef Prefix = "?");
   void mangleName(const NamedDecl *ND);
   void mangleFunctionEncoding(const FunctionDecl *FD);
@@ -110,14 +108,42 @@ public:
                              llvm::SmallVectorImpl<char> &);
 };
 
-class MicrosoftCXXABI : public CXXABI {
+class MicrosoftCXXABI : public CGCXXABI {
   MicrosoftMangleContext MangleCtx;
 public:
   MicrosoftCXXABI(CodeGenModule &CGM)
-   : MangleCtx(CGM.getContext(), CGM.getDiags()) {}
+    : CGCXXABI(CGM), MangleCtx(CGM.getContext(), CGM.getDiags()) {}
 
   MicrosoftMangleContext &getMangleContext() {
     return MangleCtx;
+  }
+
+  void BuildConstructorSignature(const CXXConstructorDecl *Ctor,
+                                 CXXCtorType Type,
+                                 CanQualType &ResTy,
+                                 llvm::SmallVectorImpl<CanQualType> &ArgTys) {
+    // 'this' is already in place
+    // TODO: 'for base' flag
+  }  
+
+  void BuildDestructorSignature(const CXXDestructorDecl *Ctor,
+                                CXXDtorType Type,
+                                CanQualType &ResTy,
+                                llvm::SmallVectorImpl<CanQualType> &ArgTys) {
+    // 'this' is already in place
+    // TODO: 'for base' flag
+  }
+
+  void BuildInstanceFunctionParams(CodeGenFunction &CGF,
+                                   QualType &ResTy,
+                                   FunctionArgList &Params) {
+    BuildThisParam(CGF, Params);
+    // TODO: 'for base' flag
+  }
+
+  void EmitInstanceFunctionProlog(CodeGenFunction &CGF) {
+    EmitThisParam(CGF);
+    // TODO: 'for base' flag
   }
 };
 
@@ -893,6 +919,7 @@ void MicrosoftCXXNameMangler::mangleCallingConvention(const FunctionType *T) {
   switch (T->getCallConv()) {
     case CC_Default:
     case CC_C: Out << 'A'; break;
+    case CC_X86Pascal: Out << 'C'; break;
     case CC_X86ThisCall: Out << 'E'; break;
     case CC_X86StdCall: Out << 'G'; break;
     case CC_X86FastCall: Out << 'I'; break;
@@ -1185,7 +1212,7 @@ void MicrosoftMangleContext::mangleCXXDtor(const CXXDestructorDecl *D,
   assert(false && "Can't yet mangle destructors!");
 }
 
-CXXABI *clang::CodeGen::CreateMicrosoftCXXABI(CodeGenModule &CGM) {
+CGCXXABI *clang::CodeGen::CreateMicrosoftCXXABI(CodeGenModule &CGM) {
   return new MicrosoftCXXABI(CGM);
 }
 

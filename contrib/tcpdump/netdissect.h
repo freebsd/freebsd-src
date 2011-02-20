@@ -21,7 +21,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/tcpdump/netdissect.h,v 1.23.2.2 2008-04-04 19:42:52 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/netdissect.h,v 1.27 2008-08-16 11:36:20 hannes Exp $ (LBL)
  */
 
 #ifndef netdissect_h
@@ -84,6 +84,7 @@ typedef struct netdissect_options netdissect_options;
 
 struct netdissect_options {
   int ndo_aflag;		/* translate network and broadcast addresses */
+  int ndo_bflag;		/* print 4 byte ASes in ASDOT notation */
   int ndo_eflag;		/* print ethernet header */
   int ndo_fflag;		/* don't translate "foreign" IP address */
   int ndo_Kflag;		/* don't check TCP checksums */
@@ -122,7 +123,7 @@ struct netdissect_options {
   struct sa_list *ndo_sa_list_head;  /* used by print-esp.c */
   struct sa_list *ndo_sa_default;
 
-  char *ndo_tcpmd5secret;     	/* TCP-MD5 secret key */
+  char *ndo_sigsecret;     	/* Signature verification secret key */
 
   struct esp_algorithm *ndo_espsecret_xform;   /* cache of decoded  */
   char                 *ndo_espsecret_key;
@@ -148,11 +149,23 @@ struct netdissect_options {
   void (*ndo_info)(netdissect_options *, int verbose);
 
   int  (*ndo_printf)(netdissect_options *,
-		     const char *fmt, ...);
+		     const char *fmt, ...)
+#ifdef __ATTRIBUTE___FORMAT_OK_FOR_FUNCTION_POINTERS
+		     __attribute__ ((format (printf, 2, 3)))
+#endif
+		     ;
   void (*ndo_error)(netdissect_options *,
-		    const char *fmt, ...);
+		    const char *fmt, ...)
+#ifdef __ATTRIBUTE___FORMAT_OK_FOR_FUNCTION_POINTERS
+		     __attribute__ ((format (printf, 2, 3)))
+#endif
+		     ;
   void (*ndo_warning)(netdissect_options *,
-		      const char *fmt, ...);
+		      const char *fmt, ...)
+#ifdef __ATTRIBUTE___FORMAT_OK_FOR_FUNCTION_POINTERS
+		     __attribute__ ((format (printf, 2, 3)))
+#endif
+		     ;
 };
 
 #define PT_VAT		1	/* Visual Audio Tool */
@@ -170,22 +183,21 @@ struct netdissect_options {
 #define max(a,b) ((b)>(a)?(b):(a))
 #endif
 
-#ifndef INET6
 /*
- * The default snapshot length.  This value allows most printers to print
- * useful information while keeping the amount of unwanted data down.
- * In particular, it allows for an ethernet header, tcp/ip header, and
- * 14 bytes of data (assuming no ip options).
+ * Maximum snapshot length.  This should be enough to capture the full
+ * packet on most network interfaces.
+ *
+ * XXX - could it be larger?  If so, should it?  Some applications might
+ * use the snapshot length in a savefile header to control the size of
+ * the buffer they allocate, so a size of, say, 2^31-1 might not work
+ * well.
  */
-#define DEFAULT_SNAPLEN 68
-#else
-#define DEFAULT_SNAPLEN 96
-#endif
+#define MAXIMUM_SNAPLEN	65535
 
-#ifndef BIG_ENDIAN
-#define BIG_ENDIAN 4321
-#define LITTLE_ENDIAN 1234
-#endif
+/*
+ * The default snapshot length is the maximum.
+ */
+#define DEFAULT_SNAPLEN	MAXIMUM_SNAPLEN
 
 #define ESRC(ep) ((ep)->ether_shost)
 #define EDST(ep) ((ep)->ether_dhost)
@@ -257,6 +269,8 @@ extern int esp_print(netdissect_options *,
 		     register const u_char *bp, int len, register const u_char *bp2,
 		     int *nhdr, int *padlen);
 extern void arp_print(netdissect_options *,const u_char *, u_int, u_int);
+extern void icmp6_print(netdissect_options *ndo, const u_char *,
+                        u_int, const u_char *, int);
 extern void isakmp_print(netdissect_options *,const u_char *,
 			 u_int, const u_char *);
 extern void isakmp_rfc3948_print(netdissect_options *,const u_char *,
@@ -277,8 +291,8 @@ extern void hex_print_with_offset(netdissect_options *,const char *,
 				  u_int, u_int);
 extern void hex_print(netdissect_options *,const char *, u_int);
 extern void telnet_print(netdissect_options *,const u_char *, u_int);
-extern int ether_encap_print(netdissect_options *,u_short, const u_char *,
-			     u_int, u_int, u_short *);
+extern int ethertype_print(netdissect_options *,u_short, const u_char *,
+			     u_int, u_int);
 extern int llc_print(netdissect_options *,
 		     const u_char *, u_int, u_int, const u_char *,
 		     const u_char *, u_short *);
@@ -345,7 +359,7 @@ extern void ospf_print(netdissect_options *,const u_char *,
 		       u_int, const u_char *);
 extern void pimv1_print(netdissect_options *,const u_char *, u_int);
 extern void mobile_print(netdissect_options *,const u_char *, u_int);
-extern void pim_print(netdissect_options *,const u_char *, u_int);
+extern void pim_print(netdissect_options *,const u_char *, u_int, u_int);
 extern void pppoe_if_print(u_char *,const struct pcap_pkthdr *, const u_char *);
 extern void pppoe_print(netdissect_options *,const u_char *, u_int);
 extern void ppp_print(netdissect_options *,
@@ -416,10 +430,15 @@ extern void stp_print(netdissect_options *,const u_char *p, u_int length);
 extern void radius_print(netdissect_options *,const u_char *, u_int);
 extern void lwres_print(netdissect_options *,const u_char *, u_int);
 extern void pptp_print(netdissect_options *,const u_char *, u_int);
+#endif
 
+extern u_int ipnet_if_print(netdissect_options *,const struct pcap_pkthdr *, const u_char *);
+
+#if 0
 #ifdef INET6
 extern void ip6_print(netdissect_options *,const u_char *, u_int);
 extern void ip6_opt_print(netdissect_options *,const u_char *, int);
+extern int nextproto6_cksum(const struct ip6_hdr *, const u_short *, u_int, u_int);
 extern int hbhopt_print(netdissect_options *,const u_char *);
 extern int dstopt_print(netdissect_options *,const u_char *);
 extern int frag6_print(netdissect_options *,const u_char *,
@@ -440,5 +459,12 @@ extern u_short in_cksum(const u_short *,
 			register u_int, int);
 
 #endif
+
+extern void esp_print_decodesecret(netdissect_options *ndo);
+extern int esp_print_decrypt_buffer_by_ikev2(netdissect_options *ndo,
+					     int initiator,
+					     u_char spii[8], u_char spir[8],
+					     u_char *buf, u_char *end);
+
 
 #endif  /* netdissect_h */

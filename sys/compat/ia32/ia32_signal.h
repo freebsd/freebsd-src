@@ -29,6 +29,9 @@
  * $FreeBSD$
  */
 
+#ifndef	_COMPAT_IA32_IA32_SIGNAL_H
+#define	_COMPAT_IA32_IA32_SIGNAL_H
+
 struct ia32_mcontext {
 	u_int32_t	mc_onstack;		/* XXX - sigcontext compat. */
 	u_int32_t	mc_gs;			/* machine state (struct trapframe) */
@@ -188,3 +191,5 @@ extern int sz_freebsd4_ia32_sigcode;
 extern void ia32_sendsig(sig_t, struct ksiginfo *, sigset_t *);
 extern void ia32_setregs(struct thread *td, struct image_params *imgp,
     u_long stack);
+
+#endif

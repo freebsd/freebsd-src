@@ -299,6 +299,9 @@ void TypePrinter::PrintFunctionProto(const FunctionProtoType *T,
   case CC_X86ThisCall:
     S += " __attribute__((thiscall))";
     break;
+  case CC_X86Pascal:
+    S += " __attribute__((pascal))";
+    break;
   }
   if (Info.getNoReturn())
     S += " __attribute__((noreturn))";
@@ -430,9 +433,10 @@ void TypePrinter::PrintTag(TagDecl *D, std::string &InnerString) {
     Buffer += ' ';
   }
 
+  // Compute the full nested-name-specifier for this type.
+  // In C, this will always be empty except when the type
+  // being printed is anonymous within other Record.
   if (!Policy.SuppressScope)
-    // Compute the full nested-name-specifier for this type. In C,
-    // this will always be empty.
     AppendScope(D->getDeclContext(), Buffer);
 
   if (const IdentifierInfo *II = D->getIdentifier())
@@ -463,7 +467,6 @@ void TypePrinter::PrintTag(TagDecl *D, std::string &InnerString) {
     }
     
     OS << '>';
-    OS.flush();
   }
 
   // If this is a class template specialization, print the template

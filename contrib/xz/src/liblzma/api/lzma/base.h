@@ -281,21 +281,21 @@ typedef enum {
 		 * Using LZMA_SYNC_FLUSH very often can dramatically reduce
 		 * the compression ratio. With some filters (for example,
 		 * LZMA2), fine-tuning the compression options may help
-		 * mitigate this problem significantly.
+		 * mitigate this problem significantly (for example,
+		 * match finder with LZMA2).
 		 *
 		 * Decoders don't support LZMA_SYNC_FLUSH.
 		 */
 
 	LZMA_FULL_FLUSH = 2,
 		/**<
-		 * \brief       Make all the input available at output
+		 * \brief       Finish encoding of the current Block
 		 *
-		 * Finish encoding of the current Block. All the input
-		 * data going to the current Block must have been given
-		 * to the encoder (the last bytes can still be pending in
-		 * next_in). Call lzma_code() with LZMA_FULL_FLUSH until
-		 * it returns LZMA_STREAM_END. Then continue normally with
-		 * LZMA_RUN or finish the Stream with LZMA_FINISH.
+		 * All the input data going to the current Block must have
+		 * been given to the encoder (the last bytes can still be
+		 * pending in* next_in). Call lzma_code() with LZMA_FULL_FLUSH
+		 * until it returns LZMA_STREAM_END. Then continue normally
+		 * with LZMA_RUN or finish the Stream with LZMA_FINISH.
 		 *
 		 * This action is currently supported only by Stream encoder
 		 * and easy encoder (which uses Stream encoder). If there is
@@ -306,12 +306,12 @@ typedef enum {
 		/**<
 		 * \brief       Finish the coding operation
 		 *
-		 * Finishes the coding operation. All the input data must
-		 * have been given to the encoder (the last bytes can still
-		 * be pending in next_in). Call lzma_code() with LZMA_FINISH
-		 * until it returns LZMA_STREAM_END. Once LZMA_FINISH has
-		 * been used, the amount of input must no longer be changed
-		 * by the application.
+		 * All the input data must have been given to the encoder
+		 * (the last bytes can still be pending in next_in).
+		 * Call lzma_code() with LZMA_FINISH until it returns
+		 * LZMA_STREAM_END. Once LZMA_FINISH has been used,
+		 * the amount of input must no longer be changed by
+		 * the application.
 		 *
 		 * When decoding, using LZMA_FINISH is optional unless the
 		 * LZMA_CONCATENATED flag was used when the decoder was
@@ -478,8 +478,12 @@ typedef struct {
 	 */
 	void *reserved_ptr1;
 	void *reserved_ptr2;
+	void *reserved_ptr3;
+	void *reserved_ptr4;
 	uint64_t reserved_int1;
 	uint64_t reserved_int2;
+	size_t reserved_int3;
+	size_t reserved_int4;
 	lzma_reserved_enum reserved_enum1;
 	lzma_reserved_enum reserved_enum2;
 
@@ -506,7 +510,8 @@ typedef struct {
  */
 #define LZMA_STREAM_INIT \
 	{ NULL, 0, 0, NULL, 0, 0, NULL, NULL, \
-	NULL, NULL, 0, 0, LZMA_RESERVED_ENUM, LZMA_RESERVED_ENUM }
+	NULL, NULL, NULL, NULL, 0, 0, 0, 0, \
+	LZMA_RESERVED_ENUM, LZMA_RESERVED_ENUM }
 
 
 /**
@@ -554,11 +559,11 @@ extern LZMA_API(void) lzma_end(lzma_stream *strm) lzma_nothrow;
  * this may give misleading information if decoding .xz Streams that have
  * multiple Blocks, because each Block can have different memory requirements.
  *
- * \return      Rough estimate of how much memory is currently allocated
- *              for the filter decoders. If no filter chain is currently
- *              allocated, some non-zero value is still returned, which is
- *              less than or equal to what any filter chain would indicate
- *              as its memory requirement.
+ * \return      How much memory is currently allocated for the filter
+ *              decoders. If no filter chain is currently allocated,
+ *              some non-zero value is still returned, which is less than
+ *              or equal to what any filter chain would indicate as its
+ *              memory requirement.
  *
  *              If this function isn't supported by *strm or some other error
  *              occurs, zero is returned.

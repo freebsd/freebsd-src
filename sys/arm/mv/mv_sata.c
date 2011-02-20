@@ -710,7 +710,7 @@ sata_channel_status(device_t dev)
 	if ((icr & SATA_ICR_DEV(ch->unit)) || iecr) {
 		/* Disable EDMA before accessing SATA registers */
 		sata_edma_ctrl(dev, 0);
-		ata_sata_phy_check_events(dev);
+		ata_sata_phy_check_events(dev, -1);
 
 		/* Ack device and error interrupt */
 		SATA_OUTL(sc, SATA_ICR, ~SATA_ICR_DEV(ch->unit));

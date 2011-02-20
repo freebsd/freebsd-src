@@ -69,7 +69,7 @@ namespace {
   public:
     static char ID;
     explicit TailDuplicatePass(bool PreRA) :
-      MachineFunctionPass(&ID), PreRegAlloc(PreRA) {}
+      MachineFunctionPass(ID), PreRegAlloc(PreRA) {}
 
     virtual bool runOnMachineFunction(MachineFunction &MF);
     virtual const char *getPassName() const { return "Tail Duplication"; }
@@ -254,14 +254,15 @@ bool TailDuplicatePass::TailDuplicateBlocks(MachineFunction &MF) {
       // SSA form.
       for (unsigned i = 0, e = Copies.size(); i != e; ++i) {
         MachineInstr *Copy = Copies[i];
-        unsigned Src, Dst, SrcSR, DstSR;
-        if (TII->isMoveInstr(*Copy, Src, Dst, SrcSR, DstSR)) {
-          MachineRegisterInfo::use_iterator UI = MRI->use_begin(Src);
-          if (++UI == MRI->use_end()) {
-            // Copy is the only use. Do trivial copy propagation here.
-            MRI->replaceRegWith(Dst, Src);
-            Copy->eraseFromParent();
-          }
+        if (!Copy->isCopy())
+          continue;
+        unsigned Dst = Copy->getOperand(0).getReg();
+        unsigned Src = Copy->getOperand(1).getReg();
+        MachineRegisterInfo::use_iterator UI = MRI->use_begin(Src);
+        if (++UI == MRI->use_end()) {
+          // Copy is the only use. Do trivial copy propagation here.
+          MRI->replaceRegWith(Dst, Src);
+          Copy->eraseFromParent();
         }
       }
 

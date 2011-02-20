@@ -213,6 +213,12 @@ struct {								\
 	SLIST_FIRST((head)) = SLIST_NEXT(SLIST_FIRST((head)), field);	\
 } while (0)
 
+#define SLIST_SWAP(head1, head2, type) do {				\
+	struct type *swap_first = SLIST_FIRST(head1);			\
+	SLIST_FIRST(head1) = SLIST_FIRST(head2);			\
+	SLIST_FIRST(head2) = swap_first;				\
+} while (0)
+
 /*
  * Singly-linked Tail queue declarations.
  */

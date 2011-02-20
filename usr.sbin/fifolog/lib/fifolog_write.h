@@ -44,8 +44,6 @@ struct fifolog_writer {
 	unsigned			syncrate;
 	unsigned			compression;
 
-	unsigned			writes_since_sync;
-
 	int				cleanup;
 
 	intmax_t			cnt[FIFOLOG_NPOINT];
@@ -55,9 +53,11 @@ struct fifolog_writer {
 	int				flag;
 	time_t				last;
 
+	u_int				obufsize;
+	u_char				*obuf;
+
 	u_int				ibufsize;
 	u_char				*ibuf;
-	u_char				*iptr;
 
 	time_t				starttime;
 	time_t				lastwrite;

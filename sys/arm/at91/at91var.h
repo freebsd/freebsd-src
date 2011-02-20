@@ -28,21 +28,62 @@
 #ifndef _AT91VAR_H_
 #define _AT91VAR_H_
 
+#include <sys/bus.h>
 #include <sys/rman.h>
+
+#include <arm/at91/at91reg.h>
 
 struct at91_softc {
 	device_t dev;
 	bus_space_tag_t sc_st;
 	bus_space_handle_t sc_sh;
-	bus_space_handle_t sc_sys_sh;
+	bus_space_handle_t sc_aic_sh;
 	struct rman sc_irq_rman;
 	struct rman sc_mem_rman;
+	uint32_t sc_irq_system;
 };
 
 struct at91_ivar {
 	struct resource_list resources;
 };
 
+struct cpu_devs
+{
+	const char *name;
+	int unit;
+	bus_addr_t mem_base;
+	bus_size_t mem_len;
+	int irq0;
+	int irq1;
+	int irq2;
+	const char *parent_clk;
+};
+
+extern uint32_t at91_chip_id;
+
+static inline int at91_is_rm92(void);
+static inline int at91_is_sam9(void) ;
+static inline int at91_cpu_is(u_int cpu);
+
+static inline int 
+at91_is_rm92(void) 
+{
+	return (AT91_ARCH(at91_chip_id) == AT91_ARCH_RM92);
+}
+
+static inline int 
+at91_is_sam9(void) 
+{
+	return (AT91_ARCH(at91_chip_id) == AT91_ARCH_SAM9);
+}
+
+static inline int 
+at91_cpu_is(u_int cpu)
+{
+	return (AT91_CPU(at91_chip_id) == cpu);
+}
+
+extern uint32_t at91_irq_system;
 extern uint32_t at91_master_clock;
 
 #endif /* _AT91VAR_H_ */

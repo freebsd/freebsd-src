@@ -511,14 +511,6 @@ struct ConstantKeyData<ConstantStruct> {
   }
 };
 
-template<>
-struct ConstantKeyData<ConstantUnion> {
-  typedef Constant* ValType;
-  static ValType getValType(ConstantUnion *CU) {
-    return cast<Constant>(CU->getOperand(0));
-  }
-};
-
 // ConstantPointerNull does not take extra "value" argument...
 template<class ValType>
 struct ConstantCreator<ConstantPointerNull, PointerType, ValType> {
@@ -757,9 +749,13 @@ public:
       
     // If this constant is the representative element for its abstract type,
     // update the AbstractTypeMap so that the representative element is I.
-    if (C->getType()->isAbstract()) {
+    //
+    // This must use getRawType() because if the type is under refinement, we
+    // will get the refineAbstractType callback below, and we don't want to
+    // kick union find in on the constant.
+    if (C->getRawType()->isAbstract()) {
       typename AbstractTypeMapTy::iterator ATI =
-          AbstractTypeMap.find(C->getType());
+          AbstractTypeMap.find(cast<DerivedType>(C->getRawType()));
       assert(ATI != AbstractTypeMap.end() &&
              "Abstract type not in AbstractTypeMap?");
       if (ATI->second == OldI)

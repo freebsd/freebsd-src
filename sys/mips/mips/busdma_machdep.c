@@ -133,7 +133,7 @@ struct bus_dmamap {
 	struct bp_list	bpages;
 	int		pagesneeded;
 	int		pagesreserved;
-        bus_dma_tag_t	dmat;
+	bus_dma_tag_t	dmat;
 	int		flags;
 	void 		*buffer;
 	void		*origbuffer;
@@ -142,7 +142,7 @@ struct bus_dmamap {
 	int		len;
 	STAILQ_ENTRY(bus_dmamap) links;
 	bus_dmamap_callback_t *callback;
-	void		      *callback_arg;
+	void		*callback_arg;
 
 };
 
@@ -310,11 +310,11 @@ _busdma_free_dmamap(bus_dmamap_t map)
 
 int
 bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
-		   bus_size_t boundary, bus_addr_t lowaddr,
-		   bus_addr_t highaddr, bus_dma_filter_t *filter,
-		   void *filterarg, bus_size_t maxsize, int nsegments,
-		   bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
-		   void *lockfuncarg, bus_dma_tag_t *dmat)
+    bus_size_t boundary, bus_addr_t lowaddr,
+    bus_addr_t highaddr, bus_dma_filter_t *filter,
+    void *filterarg, bus_size_t maxsize, int nsegments,
+    bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
+    void *lockfuncarg, bus_dma_tag_t *dmat)
 {
 	bus_dma_tag_t newtag;
 	int error = 0;
@@ -337,8 +337,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->highaddr = trunc_page((vm_offset_t)highaddr) + (PAGE_SIZE - 1);
 	newtag->filter = filter;
 	newtag->filterarg = filterarg;
-        newtag->maxsize = maxsize;
-        newtag->nsegments = nsegments;
+	newtag->maxsize = maxsize;
+	newtag->nsegments = nsegments;
 	newtag->maxsegsz = maxsegsz;
 	newtag->flags = flags;
 	if (cpuinfo.cache_coherent_dma)
@@ -352,28 +352,28 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		newtag->lockfunc = dflt_lock;
 		newtag->lockfuncarg = NULL;
 	}
-        /*
+	/*
 	 * Take into account any restrictions imposed by our parent tag
 	 */
-        if (parent != NULL) {
-                newtag->lowaddr = min(parent->lowaddr, newtag->lowaddr);
-                newtag->highaddr = max(parent->highaddr, newtag->highaddr);
+	if (parent != NULL) {
+		newtag->lowaddr = min(parent->lowaddr, newtag->lowaddr);
+		newtag->highaddr = max(parent->highaddr, newtag->highaddr);
 		if (newtag->boundary == 0)
 			newtag->boundary = parent->boundary;
 		else if (parent->boundary != 0)
-                	newtag->boundary = min(parent->boundary,
-					       newtag->boundary);
+			newtag->boundary =
+			    min(parent->boundary, newtag->boundary);
 		if ((newtag->filter != NULL) ||
 		    ((parent->flags & BUS_DMA_COULD_BOUNCE) != 0))
 			newtag->flags |= BUS_DMA_COULD_BOUNCE;
-                if (newtag->filter == NULL) {
-                        /*
-                         * Short circuit looking at our parent directly
-                         * since we have encapsulated all of its information
-                         */
-                        newtag->filter = parent->filter;
-                        newtag->filterarg = parent->filterarg;
-                        newtag->parent = parent->parent;
+		if (newtag->filter == NULL) {
+			/*
+			* Short circuit looking at our parent directly
+			* since we have encapsulated all of its information
+			*/
+			newtag->filter = parent->filter;
+			newtag->filterarg = parent->filterarg;
+			newtag->parent = parent->parent;
 		}
 		if (newtag->parent != NULL)
 			atomic_add_int(&parent->ref_count, 1);
@@ -425,30 +425,29 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 #endif
 
 	if (dmat != NULL) {
+		if (dmat->map_count != 0)
+			return (EBUSY);
 		
-                if (dmat->map_count != 0)
-                        return (EBUSY);
-		
-                while (dmat != NULL) {
-                        bus_dma_tag_t parent;
+		while (dmat != NULL) {
+			bus_dma_tag_t parent;
 			
-                        parent = dmat->parent;
-                        atomic_subtract_int(&dmat->ref_count, 1);
-                        if (dmat->ref_count == 0) {
-                                free(dmat, M_DEVBUF);
-                                /*
-                                 * Last reference count, so
-                                 * release our reference
-                                 * count on our parent.
-                                 */
-                                dmat = parent;
-                        } else
-                                dmat = NULL;
-                }
-        }
+			parent = dmat->parent;
+			atomic_subtract_int(&dmat->ref_count, 1);
+			if (dmat->ref_count == 0) {
+				free(dmat, M_DEVBUF);
+				/*
+				 * Last reference count, so
+				 * release our reference
+				 * count on our parent.
+				 */
+				dmat = parent;
+			} else
+			dmat = NULL;
+		}
+	}
 	CTR2(KTR_BUSDMA, "%s tag %p", __func__, dmat_copy);
 
-        return (0);
+	return (0);
 }
 
 #include <sys/kdb.h>
@@ -554,7 +553,7 @@ bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
  */
 int
 bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
-                 bus_dmamap_t *mapp)
+    bus_dmamap_t *mapp)
 {
 	bus_dmamap_t newmap = NULL;
 
@@ -590,50 +589,37 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	if (flags & BUS_DMA_COHERENT)
 	    newmap->flags |= DMAMAP_UNCACHEABLE;
 
-        if (dmat->maxsize <= PAGE_SIZE &&
+	if (dmat->maxsize <= PAGE_SIZE &&
 	   (dmat->alignment < dmat->maxsize) &&
 	   !_bus_dma_can_bounce(dmat->lowaddr, dmat->highaddr) && 
 	   !(newmap->flags & DMAMAP_UNCACHEABLE)) {
                 *vaddr = malloc(dmat->maxsize, M_DEVBUF, mflags);
 		newmap->flags |= DMAMAP_MALLOCUSED;
-        } else {
-                /*
-                 * XXX Use Contigmalloc until it is merged into this facility
-                 *     and handles multi-seg allocations.  Nobody is doing
-                 *     multi-seg allocations yet though.
-                 */
-	         vm_paddr_t maxphys;
-	         if((uint32_t)dmat->lowaddr >= MIPS_KSEG0_LARGEST_PHYS) {
-		   /* Note in the else case I just put in what was already
-		    * being passed in dmat->lowaddr. I am not sure
-		    * how this would have worked. Since lowaddr is in the
-		    * max address postion. I would have thought that the
-		    * caller would have wanted dmat->highaddr. That is
-		    * presuming they are asking for physical addresses
-		    * which is what contigmalloc takes. - RRS
-		    */
-		   maxphys = MIPS_KSEG0_LARGEST_PHYS - 1;
-		 } else {
-		   maxphys = dmat->lowaddr;
-		 }
-                *vaddr = contigmalloc(dmat->maxsize, M_DEVBUF, mflags,
-                    0ul, dmat->lowaddr, dmat->alignment? dmat->alignment : 1ul,
-                    dmat->boundary);
-        }
-        if (*vaddr == NULL) {
+	} else {
+		/*
+		 * XXX Use Contigmalloc until it is merged into this facility
+		 *     and handles multi-seg allocations.  Nobody is doing
+		 *     multi-seg allocations yet though.
+		 */
+		*vaddr = contigmalloc(dmat->maxsize, M_DEVBUF, mflags,
+		    0ul, dmat->lowaddr, dmat->alignment? dmat->alignment : 1ul,
+		    dmat->boundary);
+	}
+	if (*vaddr == NULL) {
 		if (newmap != NULL) {
 			_busdma_free_dmamap(newmap);
 			dmat->map_count--;
 		}
 		*mapp = NULL;
-                return (ENOMEM);
+		return (ENOMEM);
 	}
 
 	if (newmap->flags & DMAMAP_UNCACHEABLE) {
 		void *tmpaddr = (void *)*vaddr;
 
 		if (tmpaddr) {
-			tmpaddr = (void *)MIPS_PHYS_TO_KSEG1(vtophys(tmpaddr));
+			tmpaddr = (void *)pmap_mapdev(vtophys(tmpaddr),
+			    dmat->maxsize);
 			newmap->origbuffer = *vaddr;
 			newmap->allocbuffer = tmpaddr;
 			mips_dcache_wbinv_range((vm_offset_t)*vaddr,
@@ -644,7 +630,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	} else
 		newmap->origbuffer = newmap->allocbuffer = NULL;
 
-        return (0);
+	return (0);
 }
 
 /*
@@ -660,9 +646,11 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 		vaddr = map->origbuffer;
 	}
 
-        if (map->flags & DMAMAP_MALLOCUSED)
+	if (map->flags & DMAMAP_UNCACHEABLE)
+		pmap_unmapdev((vm_offset_t)map->allocbuffer, dmat->maxsize);
+	if (map->flags & DMAMAP_MALLOCUSED)
 		free(vaddr, M_DEVBUF);
-        else
+	else
 		contigfree(vaddr, dmat->maxsize, M_DEVBUF);
 
 	dmat->map_count--;
@@ -831,10 +819,10 @@ segdone:
  */
 int
 bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
-                bus_size_t buflen, bus_dmamap_callback_t *callback,
-                void *callback_arg, int flags)
+    bus_size_t buflen, bus_dmamap_callback_t *callback,
+    void *callback_arg, int flags)
 {
-     	vm_offset_t	lastaddr = 0;
+	vm_offset_t	lastaddr = 0;
 	int		error, nsegs = -1;
 #ifdef __CC_SUPPORTS_DYNAMIC_ARRAY_INIT
 	bus_dma_segment_t dm_segments[dmat->nsegments];
@@ -871,8 +859,8 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
  */
 int
 bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
-		     bus_dmamap_callback2_t *callback, void *callback_arg,
-		     int flags)
+    bus_dmamap_callback2_t *callback, void *callback_arg,
+    int flags)
 {
 #ifdef __CC_SUPPORTS_DYNAMIC_ARRAY_INIT
 	bus_dma_segment_t dm_segments[dmat->nsegments];
@@ -1360,7 +1348,7 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 		}
 		bpage->busaddr = pmap_kextract(bpage->vaddr);
 		bpage->vaddr_nocache = 
-		    (vm_offset_t)MIPS_PHYS_TO_KSEG1(bpage->busaddr);
+		    (vm_offset_t)pmap_mapdev(bpage->busaddr, PAGE_SIZE);
 		mtx_lock(&bounce_lock);
 		STAILQ_INSERT_TAIL(&bz->bounce_page_list, bpage, links);
 		total_bpages++;

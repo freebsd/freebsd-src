@@ -34,8 +34,7 @@
  */
 
 #include <machine/asm.h>
-
-RCSID("$FreeBSD$")
+__FBSDID("$FreeBSD$")
 
 ENTRY(ceil)
 	pushl	%ebp
@@ -57,3 +56,5 @@ ENTRY(ceil)
 	leave
 	ret
 END(ceil)
+
+	.section .note.GNU-stack,"",%progbits

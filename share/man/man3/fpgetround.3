@@ -32,7 +32,7 @@
 .\"     @(#)fpgetround.3	1.0 (Berkeley) 9/23/93
 .\" $FreeBSD$
 .\"
-.Dd August 23, 1993
+.Dd December 3, 2010
 .Dt FPGETROUND 3
 .Os
 .Sh NAME
@@ -47,7 +47,6 @@
 .Nd IEEE floating point interface
 .Sh SYNOPSIS
 .In ieeefp.h
-.Pp
 .Bd -literal
 typedef enum {
 	FP_RN,		/* round to nearest */
@@ -60,7 +59,6 @@ typedef enum {
 .Fn fpgetround void
 .Ft fp_rnd_t
 .Fn fpsetround "fp_rnd_t direction"
-.Pp
 .Bd -literal
 typedef enum {
 	FP_PS,		/* 24 bit (single-precision) */
@@ -73,7 +71,6 @@ typedef enum {
 .Fn fpgetprec void
 .Ft fp_prec_t
 .Fn fpsetprec "fp_prec_t precision"
-.Pp
 .Bd -literal
 #define fp_except_t	int
 #define FP_X_INV	0x01	/* invalid operation */
@@ -167,6 +164,10 @@ and
 .Fn fpsetprec
 functions provide functionality unavailable on many platforms.
 At present, they are implemented only on the i386 and amd64 platforms.
+Changing precision isn't a supported feature:
+it may be ineffective when code is compiled to take advantage of SSE,
+and many library functions and compiler optimizations depend upon the
+default precision for correct behavior.
 .Sh SEE ALSO
 .Xr fenv 3 ,
 .Xr isnan 3

@@ -42,9 +42,9 @@ typedef uint64_t pci_addr_t;
 /* Interesting values for PCI power management */
 struct pcicfg_pp {
     uint16_t	pp_cap;		/* PCI power management capabilities */
-    uint8_t	pp_status;	/* config space address of PCI power status reg */
-    uint8_t	pp_pmcsr;	/* config space address of PMCSR reg */
-    uint8_t	pp_data;	/* config space address of PCI power data reg */
+    uint8_t	pp_status;	/* conf. space addr. of PM control/status reg */
+    uint8_t	pp_bse;		/* conf. space addr. of PM BSE reg */
+    uint8_t	pp_data;	/* conf. space addr. of PM data reg */
 };
  
 struct vpd_readonly {

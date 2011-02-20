@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* @(#) $Header: /tcpdump/master/tcpdump/ieee802_11.h,v 1.12 2007-07-22 19:59:06 guy Exp $ (LBL) */
 /*
  * Copyright (c) 2001
@@ -74,6 +73,7 @@
 /* RESERVED 			0xF  */
 
 
+#define CTRL_CONTROL_WRAPPER	0x7
 #define	CTRL_BAR	0x8
 #define	CTRL_BA		0x9
 #define	CTRL_PS_POLL	0xA
@@ -143,12 +143,6 @@ struct mgmt_header_t {
 #define	CAPABILITY_CFP(cap)	((cap) & 0x0004)
 #define	CAPABILITY_CFP_REQ(cap)	((cap) & 0x0008)
 #define	CAPABILITY_PRIVACY(cap)	((cap) & 0x0010)
-
-typedef enum {
-	NOT_PRESENT,
-	PRESENT,
-	TRUNCATED
-} elem_status_t;
 
 struct ssid_t {
 	u_int8_t	element_id;
@@ -237,20 +231,20 @@ struct mgmt_body_t {
 	u_int16_t	reason_code;
 	u_int16_t	auth_alg;
 	u_int16_t	auth_trans_seq_num;
-	elem_status_t	challenge_status;
+	int		challenge_present;
 	struct challenge_t  challenge;
 	u_int16_t	capability_info;
-	elem_status_t	ssid_status;
+	int		ssid_present;
 	struct ssid_t	ssid;
-	elem_status_t	rates_status;
+	int		rates_present;
 	struct rates_t 	rates;
-	elem_status_t	ds_status;
+	int		ds_present;
 	struct ds_t	ds;
-	elem_status_t	cf_status;
+	int		cf_present;
 	struct cf_t	cf;
-	elem_status_t	fh_status;
+	int		fh_present;
 	struct fh_t	fh;
-	elem_status_t	tim_status;
+	int		tim_present;
 	struct tim_t	tim;
 };
 

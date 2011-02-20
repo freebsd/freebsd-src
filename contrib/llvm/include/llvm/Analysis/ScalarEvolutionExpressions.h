@@ -202,33 +202,14 @@ namespace llvm {
     op_iterator op_begin() const { return Operands; }
     op_iterator op_end() const { return Operands + NumOperands; }
 
-    virtual bool isLoopInvariant(const Loop *L) const {
-      for (unsigned i = 0, e = getNumOperands(); i != e; ++i)
-        if (!getOperand(i)->isLoopInvariant(L)) return false;
-      return true;
-    }
+    virtual bool isLoopInvariant(const Loop *L) const;
 
     // hasComputableLoopEvolution - N-ary expressions have computable loop
     // evolutions iff they have at least one operand that varies with the loop,
     // but that all varying operands are computable.
-    virtual bool hasComputableLoopEvolution(const Loop *L) const {
-      bool HasVarying = false;
-      for (unsigned i = 0, e = getNumOperands(); i != e; ++i)
-        if (!getOperand(i)->isLoopInvariant(L)) {
-          if (getOperand(i)->hasComputableLoopEvolution(L))
-            HasVarying = true;
-          else
-            return false;
-        }
-      return HasVarying;
-    }
+    virtual bool hasComputableLoopEvolution(const Loop *L) const;
 
-    virtual bool hasOperand(const SCEV *O) const {
-      for (unsigned i = 0, e = getNumOperands(); i != e; ++i)
-        if (O == getOperand(i) || getOperand(i)->hasOperand(O))
-          return true;
-      return false;
-    }
+    virtual bool hasOperand(const SCEV *O) const;
 
     bool dominates(BasicBlock *BB, DominatorTree *DT) const;
 
@@ -520,15 +501,28 @@ namespace llvm {
   /// value, and only represent it as its LLVM Value.  This is the "bottom"
   /// value for the analysis.
   ///
-  class SCEVUnknown : public SCEV {
+  class SCEVUnknown : public SCEV, private CallbackVH {
     friend class ScalarEvolution;
 
-    Value *V;
-    SCEVUnknown(const FoldingSetNodeIDRef ID, Value *v) :
-      SCEV(ID, scUnknown), V(v) {}
+    // Implement CallbackVH.
+    virtual void deleted();
+    virtual void allUsesReplacedWith(Value *New);
+
+    /// SE - The parent ScalarEvolution value. This is used to update
+    /// the parent's maps when the value associated with a SCEVUnknown
+    /// is deleted or RAUW'd.
+    ScalarEvolution *SE;
+
+    /// Next - The next pointer in the linked list of all
+    /// SCEVUnknown instances owned by a ScalarEvolution.
+    SCEVUnknown *Next;
+
+    SCEVUnknown(const FoldingSetNodeIDRef ID, Value *V,
+                ScalarEvolution *se, SCEVUnknown *next) :
+      SCEV(ID, scUnknown), CallbackVH(V), SE(se), Next(next) {}
 
   public:
-    Value *getValue() const { return V; }
+    Value *getValue() const { return getValPtr(); }
 
     /// isSizeOf, isAlignOf, isOffsetOf - Test whether this is a special
     /// constant representing a type size, alignment, or field offset in

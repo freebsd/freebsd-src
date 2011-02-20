@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -399,6 +398,7 @@ ums_hid_parse(struct ums_softc *sc, device_t dev, const uint8_t *buf,
 	struct ums_info *info = &sc->sc_info[index];
 	uint32_t flags;
 	uint8_t i;
+	uint8_t j;
 
 	if (hid_locate(buf, len, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
 	    hid_input, index, &info->sc_loc_x, &flags, &info->sc_iid_x)) {
@@ -476,6 +476,17 @@ ums_hid_parse(struct ums_softc *sc, device_t dev, const uint8_t *buf,
 			break;
 		}
 	}
+
+	/* detect other buttons */
+
+	for (j = 0; (i < UMS_BUTTON_MAX) && (j < 2); i++, j++) {
+		if (!hid_locate(buf, len, HID_USAGE2(HUP_MICROSOFT, (j + 1)),
+		    hid_input, index, &info->sc_loc_btn[i], NULL, 
+		    &info->sc_iid_btn[i])) {
+			break;
+		}
+	}
+
 	info->sc_buttons = i;
 
 	if (i > sc->sc_buttons)
@@ -1010,3 +1021,4 @@ static driver_t ums_driver = {
 
 DRIVER_MODULE(ums, uhub, ums_driver, ums_devclass, NULL, 0);
 MODULE_DEPEND(ums, usb, 1, 1, 1);
+MODULE_VERSION(ums, 1);

@@ -18,6 +18,7 @@ MAN=	aac.4 \
 	adv.4 \
 	adw.4 \
 	ae.4 \
+	${_aesni.4} \
 	age.4 \
 	agp.4 \
 	aha.4 \
@@ -49,6 +50,8 @@ MAN=	aac.4 \
 	atkbd.4 \
 	atkbdc.4 \
 	${_atp.4} \
+	${_atrtc.4} \
+	${_attimer.4} \
 	audit.4 \
 	auditpipe.4 \
 	aue.4 \
@@ -80,6 +83,7 @@ MAN=	aac.4 \
 	crypto.4 \
 	cue.4 \
 	cxgb.4 \
+	cxgbe.4 \
 	cy.4 \
 	da.4 \
 	dc.4 \
@@ -132,6 +136,7 @@ MAN=	aac.4 \
 	hfa.4 \
 	hifn.4 \
 	hme.4 \
+	hpet.4 \
 	${_hptiop.4} \
 	${_hptmv.4} \
 	${_hptrr.4} \
@@ -217,7 +222,9 @@ MAN=	aac.4 \
 	mmc.4 \
 	mmcsd.4 \
 	mn.4 \
+	mos.4 \
 	mouse.4 \
+	mps.4 \
 	mpt.4 \
 	msk.4 \
 	mtio.4 \
@@ -332,6 +339,7 @@ MAN=	aac.4 \
 	random.4 \
 	rc.4 \
 	re.4 \
+	rgephy.4 \
 	rl.4 \
 	rndtest.4 \
 	route.4 \
@@ -339,6 +347,7 @@ MAN=	aac.4 \
 	rue.4 \
 	rum.4 \
 	run.4 \
+	runfw.4 \
 	sa.4 \
 	safe.4 \
 	sbp.4 \
@@ -352,6 +361,7 @@ MAN=	aac.4 \
 	sctp.4 \
 	sdhci.4 \
 	sem.4 \
+	send.4 \
 	ses.4 \
 	sf.4 \
 	sge.4 \
@@ -463,6 +473,7 @@ MAN=	aac.4 \
 	urio.4 \
 	${_urtw.4} \
 	usb.4 \
+	usb_quirk.4 \
 	uslcom.4 \
 	utopia.4 \
 	uvisor.4 \
@@ -475,6 +486,7 @@ MAN=	aac.4 \
 	vlan.4 \
 	vpo.4 \
 	vr.4 \
+	vte.4 \
 	watchdog.4 \
 	wb.4 \
 	wi.4 \
@@ -488,6 +500,7 @@ MAN=	aac.4 \
 	wlan_xauth.4 \
 	${_wpi.4} \
 	xe.4 \
+	${_xen.4} \
 	xl.4 \
 	xpt.4 \
 	zero.4 \
@@ -542,7 +555,9 @@ MLINKS+=gif.4 if_gif.4
 MLINKS+=gre.4 if_gre.4
 MLINKS+=hatm.4 if_hatm.4
 MLINKS+=hme.4 if_hme.4
+MLINKS+=hpet.4 acpi_hpet.4
 MLINKS+=${_hptrr.4} ${_rr232x.4}
+MLINKS+=${_attimer.4} ${_i8254.4}
 MLINKS+=idt.4 if_idt.4
 MLINKS+=igb.4 if_igb.4
 MLINKS+=ip.4 rawip.4
@@ -638,6 +653,9 @@ _acpi_panasonic.4=acpi_panasonic.4
 _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
 _acpi_wmi.4=	acpi_wmi.4
+_aesni.4=	aesni.4
+_atrtc.4=	atrtc.4
+_attimer.4=	attimer.4
 _aibs.4=	aibs.4
 _amdsbwd.4=	amdsbwd.4
 _amdsmb.4=	amdsmb.4
@@ -650,6 +668,7 @@ _dpms.4=	dpms.4
 _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
 _hptrr.4=	hptrr.4
+_i8254.4=	i8254.4
 _ichwd.4=	ichwd.4
 _if_ndis.4=	if_ndis.4
 _if_nfe.4=	if_nfe.4
@@ -674,6 +693,7 @@ _spkr.4=	spkr.4
 _tpm.4=		tpm.4
 _urtw.4=	urtw.4
 _wpi.4=		wpi.4
+_xen.4=		xen.4
 
 MLINKS+=lindev.4 full.4
 .endif

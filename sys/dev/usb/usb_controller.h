@@ -62,7 +62,7 @@ struct usb_bus_methods {
 		    struct usb_endpoint_descriptor *, struct usb_endpoint *);
 	void    (*xfer_setup) (struct usb_setup_params *);
 	void    (*xfer_unsetup) (struct usb_xfer *);
-	void    (*get_dma_delay) (struct usb_bus *, uint32_t *);
+	void    (*get_dma_delay) (struct usb_device *, uint32_t *);
 	void    (*device_suspend) (struct usb_device *);
 	void    (*device_resume) (struct usb_device *);
 	void    (*set_hw_power) (struct usb_bus *);
@@ -97,11 +97,40 @@ struct usb_bus_methods {
 
 	void    (*get_hw_ep_profile) (struct usb_device *udev, const struct usb_hw_ep_profile **ppf, uint8_t ep_addr);
 	void    (*set_stall) (struct usb_device *udev, struct usb_xfer *xfer, struct usb_endpoint *ep, uint8_t *did_stall);
+
+	/* USB Device mode mandatory. USB Host mode optional. */
+
 	void    (*clear_stall) (struct usb_device *udev, struct usb_endpoint *ep);
 
 	/* Optional transfer polling support */
 
 	void	(*xfer_poll) (struct usb_bus *);
+
+	/* Optional fixed power mode support */
+
+	void	(*get_power_mode) (struct usb_device *udev, int8_t *pmode);
+
+	/* Optional endpoint uninit */
+
+	void    (*endpoint_uninit) (struct usb_device *, struct usb_endpoint *);
+
+	/* Optional device init */
+
+	usb_error_t	(*device_init) (struct usb_device *);
+
+	/* Optional device uninit */
+
+	void	(*device_uninit) (struct usb_device *);
+
+	/* Optional for device and host mode */
+
+	void	(*start_dma_delay) (struct usb_xfer *);
+
+	void	(*device_state_change) (struct usb_device *);
+
+	/* Optional for host mode */
+
+	usb_error_t	(*set_address) (struct usb_device *, struct mtx *, uint16_t);
 };
 
 /*

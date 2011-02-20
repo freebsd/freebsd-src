@@ -584,7 +584,7 @@ ac(const char *file)
 	if (!(Flags & AC_W))
 		usht.ut_tv.tv_sec = time(NULL);
 	else
-		usht.ut_tv.tv_sec = ut_timecopy;;
+		usht.ut_tv.tv_sec = ut_timecopy;
 	usht.ut_type = SHUTDOWN_TIME;
 
 	if (Flags & AC_D) {

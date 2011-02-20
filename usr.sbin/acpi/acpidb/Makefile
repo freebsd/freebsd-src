@@ -6,7 +6,8 @@ SRCS+=	osunixxf.c
 
 # debugger
 SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c	\
-	dbinput.c dbstats.c dbutils.c dbxface.c
+	dbinput.c dbmethod.c dbnames.c dbstats.c dbutils.c	\
+	dbxface.c
 
 # disassembler
 SRCS+=	dmbuffer.c dmnames.c dmobject.c dmopcode.c dmresrc.c	\
@@ -15,15 +16,16 @@ SRCS+=	dmbuffer.c dmnames.c dmobject.c dmopcode.c dmresrc.c	\
 # events
 SRCS+=	evevent.c evgpe.c evgpeblk.c evgpeinit.c evgpeutil.c	\
 	evmisc.c evregion.c evrgnini.c evsci.c evxface.c	\
-	evxfevnt.c evxfregn.c
+	evxfevnt.c evxfgpe.c evxfregn.c
 
 # hardware
-SRCS+=	hwacpi.c hwgpe.c hwregs.c hwsleep.c hwvalid.c hwxface.c
+SRCS+=	hwacpi.c hwgpe.c hwpci.c hwregs.c hwsleep.c hwvalid.c	\
+	hwxface.c
 
 # interpreter/dispatcher
-SRCS+=	dsfield.c dsinit.c dsmethod.c dsmthdat.c dsobject.c	\
-	dsopcode.c dsutils.c dswexec.c dswload.c dswscope.c	\
-	dswstate.c
+SRCS+=	dsargs.c dscontrol.c dsfield.c dsinit.c dsmethod.c	\
+	dsmthdat.c dsobject.c dsopcode.c dsutils.c dswexec.c	\
+	dswload.c dswload2.c dswscope.c dswstate.c
 
 # interpreter/executer
 SRCS+=	exconfig.c exconvrt.c excreate.c exdebug.c exdump.c	\
@@ -52,10 +54,10 @@ SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c	\
 	tbxfroot.c
 
 # utilities
-SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c	\
-	uteval.c utglobal.c utids.c utinit.c utlock.c utmath.c	\
-	utmisc.c utmutex.c utobject.c utosi.c utresrc.c		\
-	utstate.c uttrack.c utxface.c
+SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdecode.c	\
+	utdelete.c uteval.c utglobal.c utids.c utinit.c		\
+	utlock.c utmath.c utmisc.c utmutex.c utobject.c utosi.c	\
+	utresrc.c utstate.c uttrack.c utxface.c utxferror.c
 
 MAN=	acpidb.8
 WARNS?=	2

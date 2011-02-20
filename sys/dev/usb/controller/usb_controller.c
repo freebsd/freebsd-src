@@ -34,7 +34,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -61,6 +60,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_pf.h>
 
 /* function prototypes  */
 
@@ -103,10 +103,15 @@ static driver_t usb_driver = {
 	.size = 0,
 };
 
+/* Host Only Drivers */
 DRIVER_MODULE(usbus, ohci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, uhci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, ehci, usb_driver, usb_devclass, 0, 0);
+DRIVER_MODULE(usbus, xhci, usb_driver, usb_devclass, 0, 0);
+
+/* Device Only Drivers */
 DRIVER_MODULE(usbus, at91_udp, usb_driver, usb_devclass, 0, 0);
+DRIVER_MODULE(usbus, musbotg, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, uss820, usb_driver, usb_devclass, 0, 0);
 
 /*------------------------------------------------------------------------*
@@ -119,6 +124,16 @@ usb_probe(device_t dev)
 {
 	DPRINTF("\n");
 	return (0);
+}
+
+static void
+usb_root_mount_rel(struct usb_bus *bus)
+{
+	if (bus->bus_roothold != NULL) {
+		DPRINTF("Releasing root mount hold %p\n", bus->bus_roothold);
+		root_mount_rel(bus->bus_roothold);
+		bus->bus_roothold = NULL;
+	}
 }
 
 /*------------------------------------------------------------------------*
@@ -164,10 +179,7 @@ usb_detach(device_t dev)
 	usb_callout_drain(&bus->power_wdog);
 
 	/* Let the USB explore process detach all devices. */
-	if (bus->bus_roothold != NULL) {
-		root_mount_rel(bus->bus_roothold);
-		bus->bus_roothold = NULL;
-	}
+	usb_root_mount_rel(bus);
 
 	USB_BUS_LOCK(bus);
 	if (usb_proc_msignal(&bus->explore_proc,
@@ -194,6 +206,9 @@ usb_detach(device_t dev)
 
 	usb_proc_free(&bus->control_xfer_proc);
 
+#if USB_HAVE_PF
+	usbpf_detach(bus);
+#endif
 	return (0);
 }
 
@@ -244,10 +259,7 @@ usb_bus_explore(struct usb_proc_msg *pm)
 		(udev->hub->explore) (udev);
 		USB_BUS_LOCK(bus);
 	}
-	if (bus->bus_roothold != NULL) {
-		root_mount_rel(bus->bus_roothold);
-		bus->bus_roothold = NULL;
-	}
+	usb_root_mount_rel(bus);
 }
 
 /*------------------------------------------------------------------------*
@@ -351,8 +363,14 @@ usb_bus_attach(struct usb_proc_msg *pm)
 		device_printf(bus->bdev, "480Mbps Wireless USB v2.5\n");
 		break;
 
+	case USB_REV_3_0:
+		speed = USB_SPEED_SUPER;
+		device_printf(bus->bdev, "4.8Gbps Super Speed USB v3.0\n");
+		break;
+
 	default:
 		device_printf(bus->bdev, "Unsupported USB revision\n");
+		usb_root_mount_rel(bus);
 		return;
 	}
 
@@ -394,6 +412,7 @@ usb_bus_attach(struct usb_proc_msg *pm)
 	if (err) {
 		device_printf(bus->bdev, "Root HUB problem, error=%s\n",
 		    usbd_errstr(err));
+		usb_root_mount_rel(bus);
 	}
 
 	/* set softc - we are ready */
@@ -418,6 +437,9 @@ usb_attach_sub(device_t dev, struct usb_bus *bus)
 		usb_devclass_ptr = devclass_find("usbus");
 	mtx_unlock(&Giant);
 
+#if USB_HAVE_PF
+	usbpf_attach(bus);
+#endif
 	/* Initialise USB process messages */
 	bus->explore_msg[0].hdr.pm_callback = &usb_bus_explore;
 	bus->explore_msg[0].bus = bus;
@@ -438,19 +460,19 @@ usb_attach_sub(device_t dev, struct usb_bus *bus)
 
 	if (usb_proc_create(&bus->giant_callback_proc,
 	    &bus->bus_mtx, pname, USB_PRI_MED)) {
-		printf("WARNING: Creation of USB Giant "
+		device_printf(dev, "WARNING: Creation of USB Giant "
 		    "callback process failed.\n");
 	} else if (usb_proc_create(&bus->non_giant_callback_proc,
 	    &bus->bus_mtx, pname, USB_PRI_HIGH)) {
-		printf("WARNING: Creation of USB non-Giant "
+		device_printf(dev, "WARNING: Creation of USB non-Giant "
 		    "callback process failed.\n");
 	} else if (usb_proc_create(&bus->explore_proc,
 	    &bus->bus_mtx, pname, USB_PRI_MED)) {
-		printf("WARNING: Creation of USB explore "
+		device_printf(dev, "WARNING: Creation of USB explore "
 		    "process failed.\n");
 	} else if (usb_proc_create(&bus->control_xfer_proc,
 	    &bus->bus_mtx, pname, USB_PRI_MED)) {
-		printf("WARNING: Creation of USB control transfer "
+		device_printf(dev, "WARNING: Creation of USB control transfer "
 		    "process failed.\n");
 	} else {
 		/* Get final attach going */
@@ -580,3 +602,4 @@ usb_bus_mem_free_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb)
 
 	mtx_destroy(&bus->bus_mtx);
 }
+

@@ -75,6 +75,7 @@ static const char *const LogNames[] = {
 static u_long LogMask = MSK(LogPHASE);
 static u_long LogMaskLocal = MSK(LogERROR) | MSK(LogALERT) | MSK(LogWARN);
 static int LogTunno = -1;
+static const char *LogIfaceName;
 static struct prompt *promptlist;	/* Where to log local stuff */
 struct prompt *log_PromptContext;
 int log_PromptListChanged;
@@ -296,9 +297,10 @@ log_Open(const char *Name)
 }
 
 void
-log_SetTun(int tunno)
+log_SetTun(int tunno, const char *ifaceName)
 {
   LogTunno = tunno;
+  LogIfaceName = ifaceName;
 }
 
 void
@@ -306,6 +308,7 @@ log_Close()
 {
   closelog();
   LogTunno = -1;
+  LogIfaceName = NULL;
 }
 
 void
@@ -319,10 +322,14 @@ log_Printf(int lev, const char *fmt,...)
 
     va_start(ap, fmt);
     if (promptlist && (log_IsKept(lev) & LOG_KEPT_LOCAL)) {
-      if ((log_IsKept(LogTUN) & LOG_KEPT_LOCAL) && LogTunno != -1)
-        snprintf(nfmt, sizeof nfmt, "%s%d: %s: %s", TUN_NAME,
+      if ((log_IsKept(LogTUN) & LOG_KEPT_LOCAL) && LogTunno != -1) {
+        if (LogIfaceName)
+          snprintf(nfmt, sizeof nfmt, "%s%d(%s): %s: %s", TUN_NAME,
+	         LogTunno, LogIfaceName, log_Name(lev), fmt);
+        else
+          snprintf(nfmt, sizeof nfmt, "%s%d: %s: %s", TUN_NAME,
 	         LogTunno, log_Name(lev), fmt);
-      else
+      } else
         snprintf(nfmt, sizeof nfmt, "%s: %s", log_Name(lev), fmt);
 
       if (log_PromptContext && lev == LogWARN)
@@ -337,10 +344,14 @@ log_Printf(int lev, const char *fmt,...)
     va_start(ap, fmt);
     if ((log_IsKept(lev) & LOG_KEPT_SYSLOG) &&
         (lev != LogWARN || !log_PromptContext)) {
-      if ((log_IsKept(LogTUN) & LOG_KEPT_SYSLOG) && LogTunno != -1)
-        snprintf(nfmt, sizeof nfmt, "%s%d: %s: %s", TUN_NAME,
+      if ((log_IsKept(LogTUN) & LOG_KEPT_SYSLOG) && LogTunno != -1) {
+        if (LogIfaceName)
+          snprintf(nfmt, sizeof nfmt, "%s%d(%s): %s: %s", TUN_NAME,
+	         LogTunno, LogIfaceName, log_Name(lev), fmt);
+        else
+          snprintf(nfmt, sizeof nfmt, "%s%d: %s: %s", TUN_NAME,
 	         LogTunno, log_Name(lev), fmt);
-      else
+      } else
         snprintf(nfmt, sizeof nfmt, "%s: %s", log_Name(lev), fmt);
       vsyslog(syslogLevel(lev), nfmt, ap);
     }

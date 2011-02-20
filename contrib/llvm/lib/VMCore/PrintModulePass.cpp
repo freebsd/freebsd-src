@@ -28,10 +28,10 @@ namespace {
     bool DeleteStream;      // Delete the ostream in our dtor?
   public:
     static char ID;
-    PrintModulePass() : ModulePass(&ID), Out(&dbgs()), 
+    PrintModulePass() : ModulePass(ID), Out(&dbgs()), 
       DeleteStream(false) {}
     PrintModulePass(const std::string &B, raw_ostream *o, bool DS)
-        : ModulePass(&ID), Banner(B), Out(o), DeleteStream(DS) {}
+        : ModulePass(ID), Banner(B), Out(o), DeleteStream(DS) {}
     
     ~PrintModulePass() {
       if (DeleteStream) delete Out;
@@ -53,12 +53,12 @@ namespace {
     bool DeleteStream;      // Delete the ostream in our dtor?
   public:
     static char ID;
-    PrintFunctionPass() : FunctionPass(&ID), Banner(""), Out(&dbgs()), 
+    PrintFunctionPass() : FunctionPass(ID), Banner(""), Out(&dbgs()), 
                           DeleteStream(false) {}
     PrintFunctionPass(const std::string &B, raw_ostream *o, bool DS)
-      : FunctionPass(&ID), Banner(B), Out(o), DeleteStream(DS) {}
+      : FunctionPass(ID), Banner(B), Out(o), DeleteStream(DS) {}
     
-    inline ~PrintFunctionPass() {
+    ~PrintFunctionPass() {
       if (DeleteStream) delete Out;
     }
     
@@ -77,11 +77,11 @@ namespace {
 }
 
 char PrintModulePass::ID = 0;
-static RegisterPass<PrintModulePass>
-X("print-module", "Print module to stderr");
+INITIALIZE_PASS(PrintModulePass, "print-module",
+                "Print module to stderr", false, false);
 char PrintFunctionPass::ID = 0;
-static RegisterPass<PrintFunctionPass>
-Y("print-function","Print function to stderr");
+INITIALIZE_PASS(PrintFunctionPass, "print-function",
+                "Print function to stderr", false, false);
 
 /// createPrintModulePass - Create and return a pass that writes the
 /// module to the specified raw_ostream.

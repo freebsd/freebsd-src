@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd August 22, 2010
+.Dd February 8, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -40,9 +40,24 @@
 .Nd command interpreter (shell)
 .Sh SYNOPSIS
 .Nm
-.Op Fl /+abCEefIimnPpsTuVvx
+.Op Fl /+abCEefIimnPpTuVvx
 .Op Fl /+o Ar longname
-.Op Fl c Ar string
+.Oo
+.Ar script
+.Op Ar arg ...
+.Oc
+.Nm
+.Op Fl /+abCEefIimnPpTuVvx
+.Op Fl /+o Ar longname
+.Fl c Ar string
+.Oo
+.Ar name
+.Op Ar arg ...
+.Oc
+.Nm
+.Op Fl /+abCEefIimnPpTuVvx
+.Op Fl /+o Ar longname
+.Fl s
 .Op Ar arg ...
 .Sh DESCRIPTION
 The
@@ -50,20 +65,13 @@ The
 utility is the standard command interpreter for the system.
 The current version of
 .Nm
-is in the process of being changed to
-conform with the
-.St -p1003.2
+is close to the
+.St -p1003.1
 specification for the shell.
-This version has many features which make
-it appear
-similar in some respects to the Korn shell, but it is not a Korn
-shell clone like
-.Nm pdksh .
-Only features
+It only supports features
 designated by
 .Tn POSIX ,
-plus a few Berkeley extensions, are being
-incorporated into this shell.
+plus a few Berkeley extensions.
 This man page is not intended to be a tutorial nor a complete
 specification of the shell.
 .Ss Overview
@@ -448,9 +456,10 @@ would become
 Aliases provide a convenient way for naive users to
 create shorthands for commands without having to learn how
 to create functions with arguments.
-They can also be
-used to create lexically obscure code.
-This use is discouraged.
+Using aliases in scripts is discouraged
+because the command that defines them must be executed
+before the code that uses them is parsed.
+This is fragile and not portable.
 .Pp
 An alias name may be escaped in a command line, so that it is not
 replaced by its alias value, by using quoting characters within or
@@ -618,6 +627,7 @@ There are two kinds of built-in commands: regular and special.
 Assignments before special builtins persist after they finish
 executing and assignment errors, redirection errors and certain
 operand errors cause a script to be aborted.
+Special builtins cannot be overridden with a function.
 Both regular and special builtins can affect the shell in ways
 normal programs cannot.
 .Pp
@@ -637,15 +647,10 @@ resulting in an
 .Er ENOEXEC
 return value from
 .Xr execve 2 )
-the shell will interpret the program in a subshell.
-The child shell will reinitialize itself in this case,
-so that the effect will be
-as if a new shell had been invoked to handle the ad-hoc shell script,
-except that the location of hashed commands located in
-the parent shell will be remembered by the child
-(see the description of the
-.Ic hash
-built-in command below).
+but appears to be a text file,
+the shell will run a new instance of
+.Nm
+to interpret it.
 .Pp
 Note that previous versions of this document
 and the source code itself misleadingly and sporadically
@@ -736,6 +741,13 @@ both of a command is considered to be assigned by the
 pipeline before any redirection specified by redirection
 operators that are part of the command.
 .Pp
+Note that unlike some other shells,
+.Nm
+executes each process in a pipeline with more than one command
+in a subshell environment and as a child of the
+.Nm
+process.
+.Pp
 If the pipeline is not in the background (discussed later),
 the shell waits for all commands to complete.
 .Pp
@@ -773,15 +785,6 @@ to be executed sequentially;
 an
 .Ql &
 causes asynchronous execution of the preceding AND-OR-list.
-.Pp
-Note that unlike some other shells,
-.Nm
-executes each process in the pipeline as a child of the
-.Nm
-process.
-Shell built-in commands are the exception to this rule.
-They are executed in the current shell, although they do not affect its
-environment when used in pipelines.
 .Ss Background Commands (&)
 If a command is terminated by the control operator ampersand
 .Pq Ql & ,
@@ -1111,7 +1114,12 @@ the process ID and its exit status until the
 .Ic wait
 built-in command reports completion of the process.
 .It Li $0
-(zero) Expands to the name of the shell or shell script.
+(zero) Expands to the name of the shell script if passed on the command line,
+the
+.Ar name
+operand if given (with
+.Fl c )
+or otherwise argument 0 passed to the shell.
 .El
 .Ss Special Variables
 The following variables are set by the shell or
@@ -1257,19 +1265,22 @@ consists of all characters until the matching
 .Ql } .
 Any
 .Ql }
-escaped by a backslash or within a single-quoted string, and characters in
+escaped by a backslash or within a single-quoted or double-quoted
+string, and characters in
 embedded arithmetic expansions, command substitutions, and variable
 expansions, are not examined in determining the matching
 .Ql } .
-Except for the variants with
+If the variants with
 .Ql + ,
 .Ql - ,
 .Ql =
 or
-.Ql ?\& ,
-any
+.Ql ?\&
+occur within a double-quoted string,
+as an extension there may be unquoted parts
+(via double-quotes inside the expansion);
 .Ql }
-within a double-quoted string is also not examined in determining the matching
+within such parts are also not examined in determining the matching
 .Ql } .
 .Pp
 The simplest form for parameter expansion is:
@@ -1488,13 +1499,8 @@ and contain integer constants.
 .Li "* / % + - << >> < <= > >= == != & ^ | && ||"
 .It Assignment operators
 .Li "= += -= *= /= %= <<= >>= &= ^= |="
-.It Short-circuit evaluation
-The
-.Li &&
-and
-.Li ||
-operators always evaluate both sides.
-This is a bug.
+.It Conditional operator
+.Li "? :"
 .El
 .Pp
 The result of the expression is substituted in decimal.
@@ -1578,12 +1584,7 @@ To include a
 .Ql - ,
 make it the first or last character listed.
 .Ss Built-in Commands
-This section lists the commands which
-are built-in because they need to perform some operation
-that cannot be performed by a separate process.
-In addition to
-these, built-in versions of essential utilities
-are provided for efficiency.
+This section lists the built-in commands.
 .Bl -tag -width indent
 .It Ic \&:
 A null command that returns a 0 (true) exit value.
@@ -1634,15 +1635,19 @@ subsection.
 Continue the specified jobs
 (or the current job if no jobs are given)
 in the background.
+.It Ic bind Oo Fl aeklrsv Oc Oo Ar key Oo Ar command Oc Oc
+List or alter key bindings for the line editor.
+This command is documented in
+.Xr editrc 5 .
+.It Ic break Op Ar num
+See the
+.Sx Flow-Control Constructs
+subsection.
 .It Ic builtin Ar cmd Op Ar arg ...
 Execute the specified built-in command,
 .Ar cmd .
 This is useful when the user wishes to override a shell function
 with the same name as a built-in command.
-.It Ic bind Oo Fl aeklrsv Oc Oo Ar key Oo Ar command Oc Oc
-List or alter key bindings for the line editor.
-This command is documented in
-.Xr editrc 5 .
 .It Ic cd Oo Fl L | P Oc Op Ar directory
 Switch to the specified
 .Ar directory ,
@@ -1697,7 +1702,8 @@ A synonym for the
 .Ic cd
 built-in command.
 .It Ic command Oo Fl p Oc Op Ar utility Op Ar argument ...
-.It Ic command Oo Fl v | V Oc Op Ar utility
+.It Ic command Oo Fl p Oc Fl v Ar utility
+.It Ic command Oo Fl p Oc Fl V Ar utility
 The first form of invocation executes the specified
 .Ar utility ,
 ignoring shell functions in the search.
@@ -1743,6 +1749,10 @@ a shell keyword
 or
 an alias for
 .Ar value .
+.It Ic continue Op Ar num
+See the
+.Sx Flow-Control Constructs
+subsection.
 .It Ic echo Oo Fl e | n Oc Op Ar string ...
 Print a space-separated list of the arguments to the standard output
 and append a newline character.
@@ -1828,7 +1838,12 @@ If
 .Ar exitstatus
 is given
 it is used as the exit status of the shell;
-otherwise the exit status of the preceding command is used.
+otherwise, if the shell is executing an
+.Cm EXIT
+trap, the exit status of the last command before the trap is used;
+if the shell is executing a trap for a signal,
+the shell exits by resending the signal to itself;
+otherwise, the exit status of the preceding command is used.
 The exit status should be an integer between 0 and 255.
 .It Ic export Ar name ...
 .It Ic export Op Fl p
@@ -2030,10 +2045,17 @@ If the
 .Fl s
 option is specified, only the PIDs of the job commands are printed, one per
 line.
+.It Ic kill
+A built-in equivalent of
+.Xr kill 1
+that additionally supports sending signals to jobs.
 .It Ic local Oo Ar variable ... Oc Op Fl
 See the
 .Sx Functions
 subsection.
+.It Ic printf
+A built-in equivalent of
+.Xr printf 1 .
 .It Ic pwd Op Fl L | P
 Print the path of the current directory.
 The built-in command may
@@ -2455,8 +2477,8 @@ will return the argument.
 .Xr echo 1 ,
 .Xr ed 1 ,
 .Xr emacs 1 ,
-.Xr expr 1 ,
-.Xr getopt 1 ,
+.Xr kill 1 ,
+.Xr printf 1 ,
 .Xr pwd 1 ,
 .Xr test 1 ,
 .Xr vi 1 ,

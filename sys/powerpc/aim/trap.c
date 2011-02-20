@@ -203,9 +203,19 @@ trap(struct trapframe *frame)
 			enable_vec(td);
 			break;
 
-		case EXC_VECAST:
-			printf("Vector assist exception!\n");
-			sig = SIGILL;
+		case EXC_VECAST_G4:
+		case EXC_VECAST_G5:
+			/*
+			 * We get a VPU assist exception for IEEE mode
+			 * vector operations on denormalized floats.
+			 * Emulating this is a giant pain, so for now,
+			 * just switch off IEEE mode and treat them as
+			 * zero.
+			 */
+
+			save_vec(td);
+			td->td_pcb->pcb_vec.vscr |= ALTIVEC_VSCR_NJ;
+			enable_vec(td);
 			break;
 
 		case EXC_ALI:
@@ -239,8 +249,16 @@ trap(struct trapframe *frame)
  				return;
 			break;
 #ifdef __powerpc64__
-		case EXC_ISE:
 		case EXC_DSE:
+			if ((frame->cpu.aim.dar & SEGMENT_MASK) == USER_ADDR) {
+				__asm __volatile ("slbmte %0, %1" ::
+				     "r"(td->td_pcb->pcb_cpu.aim.usr_vsid),
+				     "r"(USER_SLB_SLBE));
+				return;
+			}
+
+			/* FALLTHROUGH */
+		case EXC_ISE:
 			if (handle_slb_spill(kernel_pmap,
 			    (type == EXC_ISE) ? frame->srr0 :
 			    frame->cpu.aim.dar) != 0)
@@ -371,7 +389,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		 * so as to maintain quad alignment
 		 * for the rest of the args.
 		 */
-		if (p->p_sysent->sv_flags & SV_ILP32) {
+		if (SV_PROC_FLAG(p, SV_ILP32)) {
 			params += sizeof(register_t);
 			sa->code = *(register_t *) params;
 			params += sizeof(register_t);
@@ -392,7 +410,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 
 	sa->narg = sa->callp->sy_narg;
 
-	if (p->p_sysent->sv_flags & SV_ILP32) {
+	if (SV_PROC_FLAG(p, SV_ILP32)) {
 		argsz = sizeof(uint32_t);
 
 		for (i = 0; i < n; i++)
@@ -412,7 +430,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 		error = 0;
 
 #ifdef __powerpc64__
-	if (p->p_sysent->sv_flags & SV_ILP32 && sa->narg > n) {
+	if (SV_PROC_FLAG(p, SV_ILP32) && sa->narg > n) {
 		/* Expand the size of arguments copied from the stack */
 
 		for (i = sa->narg; i >= n; i--)
@@ -437,6 +455,15 @@ syscall(struct trapframe *frame)
 	td = PCPU_GET(curthread);
 	td->td_frame = frame;
 
+#ifdef __powerpc64__
+	/*
+	 * Speculatively restore last user SLB segment, which we know is
+	 * invalid already, since we are likely to do copyin()/copyout().
+	 */
+	__asm __volatile ("slbmte %0, %1; isync" ::
+            "r"(td->td_pcb->pcb_cpu.aim.usr_vsid), "r"(USER_SLB_SLBE));
+#endif
+
 	error = syscallenter(td, &sa);
 	syscallret(td, error, &sa);
 }
@@ -445,33 +472,35 @@ syscall(struct trapframe *frame)
 static int 
 handle_slb_spill(pmap_t pm, vm_offset_t addr)
 {
-	struct slb slb_entry;
-	int error, i;
+	struct slb *user_entry;
+	uint64_t esid;
+	int i;
+
+	esid = (uintptr_t)addr >> ADDR_SR_SHFT;
 
 	if (pm == kernel_pmap) {
-		error = va_to_slb_entry(pm, addr, &slb_entry);
-		if (error)
-			return (error);
-
-		slb_insert(pm, PCPU_GET(slb), &slb_entry);
+		slb_insert_kernel((esid << SLBE_ESID_SHIFT) | SLBE_VALID,
+		    kernel_va_to_slbv(addr));
 		return (0);
 	}
 
 	PMAP_LOCK(pm);
-	error = va_to_slb_entry(pm, addr, &slb_entry);
-	if (error != 0)
-		(void)allocate_vsid(pm, (uintptr_t)addr >> ADDR_SR_SHFT, 0);
-	else {
+	user_entry = user_va_to_slb_entry(pm, addr);
+
+	if (user_entry == NULL) {
+		/* allocate_vsid auto-spills it */
+		(void)allocate_user_vsid(pm, esid, 0);
+	} else {
 		/*
 		 * Check that another CPU has not already mapped this.
 		 * XXX: Per-thread SLB caches would be better.
 		 */
-		for (i = 0; i < 64; i++)
-			if (pm->pm_slb[i].slbe == (slb_entry.slbe | i))
+		for (i = 0; i < pm->pm_slb_len; i++)
+			if (pm->pm_slb[i] == user_entry)
 				break;
 
-		if (i == 64)
-			slb_insert(pm, pm->pm_slb, &slb_entry);
+		if (i == pm->pm_slb_len)
+			slb_insert_user(pm, user_entry);
 	}
 	PMAP_UNLOCK(pm);
 
@@ -494,7 +523,9 @@ trap_pfault(struct trapframe *frame, int user)
 	p = td->td_proc;
 	if (frame->exc == EXC_ISI) {
 		eva = frame->srr0;
-		ftype = VM_PROT_READ | VM_PROT_EXECUTE;
+		ftype = VM_PROT_EXECUTE;
+		if (frame->srr1 & SRR1_ISI_PFAULT)
+			ftype |= VM_PROT_READ;
 	} else {
 		eva = frame->cpu.aim.dar;
 		if (frame->cpu.aim.dsisr & DSISR_STORE)
@@ -512,25 +543,7 @@ trap_pfault(struct trapframe *frame, int user)
 
 			map = &p->p_vmspace->vm_map;
 
-			#ifdef __powerpc64__
-			user_sr = 0;
-			__asm ("slbmfev %0, %1"
-			    : "=r"(user_sr)
-			    : "r"(USER_SR));
-
-			PMAP_LOCK(&p->p_vmspace->vm_pmap);
-			user_sr >>= SLBV_VSID_SHIFT;
-			rv = vsid_to_esid(&p->p_vmspace->vm_pmap, user_sr,
-			    &user_sr);
-			PMAP_UNLOCK(&p->p_vmspace->vm_pmap);
-
-			if (rv != 0) 
-				return (SIGSEGV);
-			#else
-			__asm ("mfsr %0, %1"
-			    : "=r"(user_sr)
-			    : "K"(USER_SR));
-			#endif
+			user_sr = td->td_pcb->pcb_cpu.aim.usr_segm;
 			eva &= ADDR_PIDX | ADDR_POFF;
 			eva |= user_sr << ADDR_SR_SHFT;
 		} else {

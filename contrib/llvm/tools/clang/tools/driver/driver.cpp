@@ -19,15 +19,19 @@
 #include "clang/Frontend/TextDiagnosticPrinter.h"
 
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Config/config.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Regex.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Host.h"
 #include "llvm/System/Path.h"
+#include "llvm/System/Program.h"
 #include "llvm/System/Signals.h"
 using namespace clang;
 using namespace clang::driver;
@@ -75,7 +79,7 @@ static const char *SaveStringInSet(std::set<std::string> &SavedStrings,
 /// \param Edit - The override command to perform.
 /// \param SavedStrings - Set to use for storing string representations.
 static void ApplyOneQAOverride(llvm::raw_ostream &OS,
-                               std::vector<const char*> &Args,
+                               llvm::SmallVectorImpl<const char*> &Args,
                                llvm::StringRef Edit,
                                std::set<std::string> &SavedStrings) {
   // This does not need to be efficient.
@@ -141,7 +145,7 @@ static void ApplyOneQAOverride(llvm::raw_ostream &OS,
 
 /// ApplyQAOverride - Apply a comma separate list of edits to the
 /// input argument lists. See ApplyOneQAOverride.
-static void ApplyQAOverride(std::vector<const char*> &Args,
+static void ApplyQAOverride(llvm::SmallVectorImpl<const char*> &Args,
                             const char *OverrideStr,
                             std::set<std::string> &SavedStrings) {
   llvm::raw_ostream *OS = &llvm::errs();
@@ -173,19 +177,97 @@ extern int cc1_main(const char **ArgBegin, const char **ArgEnd,
 extern int cc1as_main(const char **ArgBegin, const char **ArgEnd,
                       const char *Argv0, void *MainAddr);
 
-int main(int argc, const char **argv) {
+static void ExpandArgsFromBuf(const char *Arg,
+                              llvm::SmallVectorImpl<const char*> &ArgVector,
+                              std::set<std::string> &SavedStrings) {
+  const char *FName = Arg + 1;
+  llvm::MemoryBuffer *MemBuf = llvm::MemoryBuffer::getFile(FName);
+  if (!MemBuf) {
+    ArgVector.push_back(SaveStringInSet(SavedStrings, Arg));
+    return;
+  }
+
+  const char *Buf = MemBuf->getBufferStart();
+  char InQuote = ' ';
+  std::string CurArg;
+
+  for (const char *P = Buf; ; ++P) {
+    if (*P == '\0' || (isspace(*P) && InQuote == ' ')) {
+      if (!CurArg.empty()) {
+
+        if (CurArg[0] != '@') {
+          ArgVector.push_back(SaveStringInSet(SavedStrings, CurArg));
+        } else {
+          ExpandArgsFromBuf(CurArg.c_str(), ArgVector, SavedStrings);
+        }
+
+        CurArg = "";
+      }
+      if (*P == '\0')
+        break;
+      else
+        continue;
+    }
+
+    if (isspace(*P)) {
+      if (InQuote != ' ')
+        CurArg.push_back(*P);
+      continue;
+    }
+
+    if (*P == '"' || *P == '\'') {
+      if (InQuote == *P)
+        InQuote = ' ';
+      else if (InQuote == ' ')
+        InQuote = *P;
+      else
+        CurArg.push_back(*P);
+      continue;
+    }
+
+    if (*P == '\\') {
+      ++P;
+      if (*P != '\0')
+        CurArg.push_back(*P);
+      continue;
+    }
+    CurArg.push_back(*P);
+  }
+  delete MemBuf;
+}
+
+static void ExpandArgv(int argc, const char **argv,
+                       llvm::SmallVectorImpl<const char*> &ArgVector,
+                       std::set<std::string> &SavedStrings) {
+  for (int i = 0; i < argc; ++i) {
+    const char *Arg = argv[i];
+    if (Arg[0] != '@') {
+      ArgVector.push_back(SaveStringInSet(SavedStrings, std::string(Arg)));
+      continue;
+    }
+
+    ExpandArgsFromBuf(Arg, ArgVector, SavedStrings);
+  }
+}
+
+int main(int argc_, const char **argv_) {
   llvm::sys::PrintStackTraceOnErrorSignal();
-  llvm::PrettyStackTraceProgram X(argc, argv);
+  llvm::PrettyStackTraceProgram X(argc_, argv_);
+
+  std::set<std::string> SavedStrings;
+  llvm::SmallVector<const char*, 256> argv;
+
+  ExpandArgv(argc_, argv_, argv, SavedStrings);
 
   // Handle -cc1 integrated tools.
-  if (argc > 1 && llvm::StringRef(argv[1]).startswith("-cc1")) {
+  if (argv.size() > 1 && llvm::StringRef(argv[1]).startswith("-cc1")) {
     llvm::StringRef Tool = argv[1] + 4;
 
     if (Tool == "")
-      return cc1_main(argv+2, argv+argc, argv[0],
+      return cc1_main(argv.data()+2, argv.data()+argv.size(), argv[0],
                       (void*) (intptr_t) GetExecutablePath);
     if (Tool == "as")
-      return cc1as_main(argv+2, argv+argc, argv[0],
+      return cc1as_main(argv.data()+2, argv.data()+argv.size(), argv[0],
                       (void*) (intptr_t) GetExecutablePath);
 
     // Reject unknown tools.
@@ -194,7 +276,7 @@ int main(int argc, const char **argv) {
   }
 
   bool CanonicalPrefixes = true;
-  for (int i = 1; i < argc; ++i) {
+  for (int i = 1, size = argv.size(); i < size; ++i) {
     if (llvm::StringRef(argv[i]) == "-no-canonical-prefixes") {
       CanonicalPrefixes = false;
       break;
@@ -203,10 +285,10 @@ int main(int argc, const char **argv) {
 
   llvm::sys::Path Path = GetExecutablePath(argv[0], CanonicalPrefixes);
 
-  TextDiagnosticPrinter DiagClient(llvm::errs(), DiagnosticOptions());
-  DiagClient.setPrefix(Path.getBasename());
-
-  Diagnostic Diags(&DiagClient);
+  TextDiagnosticPrinter *DiagClient
+    = new TextDiagnosticPrinter(llvm::errs(), DiagnosticOptions());
+  DiagClient->setPrefix(Path.getBasename());
+  Diagnostic Diags(DiagClient);
 
 #ifdef CLANG_IS_PRODUCTION
   const bool IsProduction = true;
@@ -219,10 +301,26 @@ int main(int argc, const char **argv) {
   const bool IsProduction = false;
   const bool CXXIsProduction = false;
 #endif
-  Driver TheDriver(Path.getBasename(), Path.getDirname(),
-                   llvm::sys::getHostTriple(),
+  Driver TheDriver(Path.str(), llvm::sys::getHostTriple(),
                    "a.out", IsProduction, CXXIsProduction,
                    Diags);
+
+  // Attempt to find the original path used to invoke the driver, to determine
+  // the installed path. We do this manually, because we want to support that
+  // path being a symlink.
+  llvm::sys::Path InstalledPath(argv[0]);
+
+  // Do a PATH lookup, if there are no directory components.
+  if (InstalledPath.getLast() == InstalledPath.str()) {
+    llvm::sys::Path Tmp =
+      llvm::sys::Program::FindProgramByName(InstalledPath.getLast());
+    if (!Tmp.empty())
+      InstalledPath = Tmp;
+  }
+  InstalledPath.makeAbsolute();
+  InstalledPath.eraseComponent();
+  if (InstalledPath.exists())
+    TheDriver.setInstalledDir(InstalledPath.str());
 
   // Check for ".*++" or ".*++-[^-]*" to determine if we are a C++
   // compiler. This matches things like "c++", "clang++", and "clang++-1.1".
@@ -231,14 +329,13 @@ int main(int argc, const char **argv) {
   // being a symlink.
   //
   // We use *argv instead of argv[0] to work around a bogus g++ warning.
-  std::string ProgName(llvm::sys::Path(*argv).getBasename());
+  const char *progname = argv_[0];
+  std::string ProgName(llvm::sys::Path(progname).getBasename());
   if (llvm::StringRef(ProgName).endswith("++") ||
       llvm::StringRef(ProgName).rsplit('-').first.endswith("++")) {
     TheDriver.CCCIsCXX = true;
     TheDriver.CCCGenericGCCName = "g++";
   }
-
-  llvm::OwningPtr<Compilation> C;
 
   // Handle CC_PRINT_OPTIONS and CC_PRINT_OPTIONS_FILE.
   TheDriver.CCPrintOptions = !!::getenv("CC_PRINT_OPTIONS");
@@ -247,46 +344,35 @@ int main(int argc, const char **argv) {
 
   // Handle QA_OVERRIDE_GCC3_OPTIONS and CCC_ADD_ARGS, used for editing a
   // command line behind the scenes.
-  std::set<std::string> SavedStrings;
   if (const char *OverrideStr = ::getenv("QA_OVERRIDE_GCC3_OPTIONS")) {
     // FIXME: Driver shouldn't take extra initial argument.
-    std::vector<const char*> StringPointers(argv, argv + argc);
-
-    ApplyQAOverride(StringPointers, OverrideStr, SavedStrings);
-
-    C.reset(TheDriver.BuildCompilation(StringPointers.size(),
-                                       &StringPointers[0]));
+    ApplyQAOverride(argv, OverrideStr, SavedStrings);
   } else if (const char *Cur = ::getenv("CCC_ADD_ARGS")) {
-    std::vector<const char*> StringPointers;
-
     // FIXME: Driver shouldn't take extra initial argument.
-    StringPointers.push_back(argv[0]);
+    std::vector<const char*> ExtraArgs;
 
     for (;;) {
       const char *Next = strchr(Cur, ',');
 
       if (Next) {
-        StringPointers.push_back(SaveStringInSet(SavedStrings,
-                                                 std::string(Cur, Next)));
+        ExtraArgs.push_back(SaveStringInSet(SavedStrings,
+                                            std::string(Cur, Next)));
         Cur = Next + 1;
       } else {
         if (*Cur != '\0')
-          StringPointers.push_back(SaveStringInSet(SavedStrings, Cur));
+          ExtraArgs.push_back(SaveStringInSet(SavedStrings, Cur));
         break;
       }
     }
 
-    StringPointers.insert(StringPointers.end(), argv + 1, argv + argc);
+    argv.insert(&argv[1], ExtraArgs.begin(), ExtraArgs.end());
+  }
 
-    C.reset(TheDriver.BuildCompilation(StringPointers.size(),
-                                       &StringPointers[0]));
-  } else
-    C.reset(TheDriver.BuildCompilation(argc, argv));
-
+  llvm::OwningPtr<Compilation> C(TheDriver.BuildCompilation(argv.size(),
+                                                            &argv[0]));
   int Res = 0;
   if (C.get())
     Res = TheDriver.ExecuteCompilation(*C);
-
   
   // If any timers were active but haven't been destroyed yet, print their
   // results now.  This happens in -disable-free mode.

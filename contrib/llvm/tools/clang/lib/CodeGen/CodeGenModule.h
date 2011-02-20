@@ -22,7 +22,6 @@
 #include "CGCall.h"
 #include "CGCXX.h"
 #include "CGVTables.h"
-#include "CGCXXABI.h"
 #include "CodeGenTypes.h"
 #include "GlobalDecl.h"
 #include "Mangle.h"
@@ -71,6 +70,7 @@ namespace clang {
 namespace CodeGen {
 
   class CodeGenFunction;
+  class CGCXXABI;
   class CGDebugInfo;
   class CGObjCRuntime;
   class MangleBuffer;
@@ -109,6 +109,7 @@ class CodeGenModule : public BlockModule {
   const llvm::TargetData &TheTargetData;
   mutable const TargetCodeGenInfo *TheTargetCodeGenInfo;
   Diagnostic &Diags;
+  CGCXXABI &ABI;
   CodeGenTypes Types;
 
   /// VTables - Holds information about C++ vtables.
@@ -116,7 +117,6 @@ class CodeGenModule : public BlockModule {
   friend class CodeGenVTables;
 
   CGObjCRuntime* Runtime;
-  CXXABI* ABI;
   CGDebugInfo* DebugInfo;
 
   // WeakRefReferences - A set of references that have only been seen via
@@ -162,6 +162,12 @@ class CodeGenModule : public BlockModule {
   /// CXXGlobalInits - Global variables with initializers that need to run
   /// before main.
   std::vector<llvm::Constant*> CXXGlobalInits;
+
+  /// When a C++ decl with an initializer is deferred, null is
+  /// appended to CXXGlobalInits, and the index of that null is placed
+  /// here so that the initializer will be performed in the correct
+  /// order.
+  llvm::DenseMap<const Decl*, unsigned> DelayedCXXInitPosition;
   
   /// - Global variables with initializers whose order of initialization
   /// is set by init_priority attribute.
@@ -183,10 +189,23 @@ class CodeGenModule : public BlockModule {
 
   /// Lazily create the Objective-C runtime
   void createObjCRuntime();
-  /// Lazily create the C++ ABI
-  void createCXXABI();
 
   llvm::LLVMContext &VMContext;
+
+  /// @name Cache for Blocks Runtime Globals
+  /// @{
+
+  const VarDecl *NSConcreteGlobalBlockDecl;
+  const VarDecl *NSConcreteStackBlockDecl;
+  llvm::Constant *NSConcreteGlobalBlock;
+  llvm::Constant *NSConcreteStackBlock;
+
+  const FunctionDecl *BlockObjectAssignDecl;
+  const FunctionDecl *BlockObjectDisposeDecl;
+  llvm::Constant *BlockObjectAssign;
+  llvm::Constant *BlockObjectDispose;
+
+  /// @}
 public:
   CodeGenModule(ASTContext &C, const CodeGenOptions &CodeGenOpts,
                 llvm::Module &M, const llvm::TargetData &TD, Diagnostic &Diags);
@@ -207,15 +226,8 @@ public:
   /// been configured.
   bool hasObjCRuntime() { return !!Runtime; }
 
-  /// getCXXABI() - Return a reference to the configured
-  /// C++ ABI.
-  CXXABI &getCXXABI() {
-    if (!ABI) createCXXABI();
-    return *ABI;
-  }
-
-  /// hasCXXABI() - Return true iff a C++ ABI has been configured.
-  bool hasCXXABI() { return !!ABI; }
+  /// getCXXABI() - Return a reference to the configured C++ ABI.
+  CGCXXABI &getCXXABI() { return ABI; }
 
   llvm::Value *getStaticLocalDeclAddress(const VarDecl *VD) {
     return StaticLocalDeclMap[VD];
@@ -231,15 +243,11 @@ public:
   const LangOptions &getLangOptions() const { return Features; }
   llvm::Module &getModule() const { return TheModule; }
   CodeGenTypes &getTypes() { return Types; }
-  MangleContext &getMangleContext() {
-    if (!ABI) createCXXABI();
-    return ABI->getMangleContext();
-  }
   CodeGenVTables &getVTables() { return VTables; }
   Diagnostic &getDiags() const { return Diags; }
   const llvm::TargetData &getTargetData() const { return TheTargetData; }
   llvm::LLVMContext &getLLVMContext() { return VMContext; }
-  const TargetCodeGenInfo &getTargetCodeGenInfo() const;
+  const TargetCodeGenInfo &getTargetCodeGenInfo();
   bool isTargetDarwin() const;
 
   /// getDeclVisibilityMode - Compute the visibility of the decl \arg D.
@@ -248,6 +256,11 @@ public:
   /// setGlobalVisibility - Set the visibility for the given LLVM
   /// GlobalValue.
   void setGlobalVisibility(llvm::GlobalValue *GV, const Decl *D) const;
+
+  /// setTypeVisibility - Set the visibility for the given global
+  /// value which holds information about a type.
+  void setTypeVisibility(llvm::GlobalValue *GV, const CXXRecordDecl *D,
+                         bool IsForRTTI) const;
 
   llvm::Constant *GetAddrOfGlobal(GlobalDecl GD) {
     if (isa<CXXConstructorDecl>(GD.getDecl()))
@@ -289,7 +302,8 @@ public:
   /// a class. Returns null if the offset is 0. 
   llvm::Constant *
   GetNonVirtualBaseClassOffset(const CXXRecordDecl *ClassDecl,
-                               const CXXBaseSpecifierArray &BasePath);
+                               CastExpr::path_const_iterator PathBegin,
+                               CastExpr::path_const_iterator PathEnd);
   
   /// GetStringForStringLiteral - Return the appropriate bytes for a string
   /// literal, properly padded to match the literal type. If only the address of
@@ -344,10 +358,6 @@ public:
   llvm::GlobalValue *GetAddrOfCXXDestructor(const CXXDestructorDecl *D,
                                             CXXDtorType Type);
 
-  // GetCXXMemberFunctionPointerValue - Given a method declaration, return the
-  // integer used in a member function pointer to refer to that value.
-  llvm::Constant *GetCXXMemberFunctionPointerValue(const CXXMethodDecl *MD);
-
   /// getBuiltinLibFunction - Given a builtin id for a function like
   /// "__builtin_fabsf", return a Function* for "fabsf".
   llvm::Value *getBuiltinLibFunction(const FunctionDecl *FD,
@@ -392,6 +402,16 @@ public:
   llvm::Constant *CreateRuntimeVariable(const llvm::Type *Ty,
                                         llvm::StringRef Name);
 
+  ///@name Custom Blocks Runtime Interfaces
+  ///@{
+
+  llvm::Constant *getNSConcreteGlobalBlock();
+  llvm::Constant *getNSConcreteStackBlock();
+  llvm::Constant *getBlockObjectAssign();
+  llvm::Constant *getBlockObjectDispose();
+
+  ///@}
+
   void UpdateCompletedType(const TagDecl *TD) {
     // Make sure that this type is translated.
     Types.UpdateCompletedType(TD);
@@ -410,8 +430,6 @@ public:
 
   llvm::Constant *EmitAnnotateAttr(llvm::GlobalValue *GV,
                                    const AnnotateAttr *AA, unsigned LineNo);
-
-  llvm::Constant *EmitPointerToDataMember(const FieldDecl *FD);
 
   /// ErrorUnsupported - Print out an error that codegen doesn't support the
   /// specified stmt yet.
@@ -472,15 +490,6 @@ public:
   void EmitTentativeDefinition(const VarDecl *D);
 
   void EmitVTable(CXXRecordDecl *Class, bool DefinitionRequired);
-
-  enum GVALinkage {
-    GVA_Internal,
-    GVA_C99Inline,
-    GVA_CXXInline,
-    GVA_StrongExternal,
-    GVA_TemplateInstantiation,
-    GVA_ExplicitTemplateInstantiation
-  };
 
   llvm::GlobalVariable::LinkageTypes
   getFunctionLinkage(const FunctionDecl *FD);

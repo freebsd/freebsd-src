@@ -3,11 +3,11 @@
 .include <bsd.own.mk>
 
 FILES=	100.chksetuid \
+	110.neggrpperm \
 	200.chkmounts \
 	300.chkuid0 \
 	400.passwdless \
 	410.logincheck \
-	460.chkportsum \
 	700.kernelmsg \
 	800.loginfail \
 	900.tcpwrap \
@@ -26,6 +26,10 @@ FILES+=	500.ipfwdenied \
 
 .if ${MK_PF} != "no"
 FILES+=	520.pfdenied
+.endif
+
+.if ${MK_PKGTOOLS} != "no"
+FILES+=	460.chkportsum
 .endif
 
 .include <bsd.prog.mk>

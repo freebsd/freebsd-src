@@ -79,8 +79,6 @@ struct pmap {
 	pd_entry_t *pm_segtab;	/* KVA of segment table */
 	TAILQ_HEAD(, pv_entry) pm_pvlist;	/* list of mappings in
 						 * pmap */
-	uint32_t	pm_gen_count;	/* generation count (pmap lock dropped) */
-	u_int		pm_retries;
 	cpumask_t	pm_active;		/* active on cpus */
 	struct {
 		u_int32_t asid:ASID_BITS;	/* TLB address space tag */
@@ -126,11 +124,6 @@ typedef struct pv_entry {
 	vm_page_t pv_ptem;	/* VM page for pte */
 }       *pv_entry_t;
 
-
-#if defined(DIAGNOSTIC)
-#define	PMAP_DIAGNOSTIC
-#endif
-
 /*
  * physmem_desc[] is a superset of phys_avail[] and describes all the
  * memory present in the system.
@@ -143,28 +136,34 @@ typedef struct pv_entry {
  * regions.
  */
 #define	PHYS_AVAIL_ENTRIES	10
-extern vm_offset_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
-extern vm_offset_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
+extern vm_paddr_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
+extern vm_paddr_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
 
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
+
+extern vm_paddr_t dump_avail[PHYS_AVAIL_ENTRIES + 2];
 
 #define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 #define	pmap_page_set_memattr(m, ma)	(void)0
 
 void pmap_bootstrap(void);
-void *pmap_mapdev(vm_offset_t, vm_size_t);
+void *pmap_mapdev(vm_paddr_t, vm_size_t);
 void pmap_unmapdev(vm_offset_t, vm_size_t);
 vm_offset_t pmap_steal_memory(vm_size_t size);
-int page_is_managed(vm_offset_t pa);
+int page_is_managed(vm_paddr_t pa);
 void pmap_kenter(vm_offset_t va, vm_paddr_t pa);
+void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int attr);
 void pmap_kremove(vm_offset_t va);
 void *pmap_kenter_temporary(vm_paddr_t pa, int i);
 void pmap_kenter_temporary_free(vm_paddr_t pa);
 int pmap_compute_pages_to_dump(void);
 void pmap_flush_pvcache(vm_page_t m);
 int pmap_emulate_modified(pmap_t pmap, vm_offset_t va);
+void pmap_grow_direct_page_cache(void);
+vm_page_t pmap_alloc_direct_page(unsigned int index, int req);
+
 #endif				/* _KERNEL */
 
 #endif				/* !LOCORE */

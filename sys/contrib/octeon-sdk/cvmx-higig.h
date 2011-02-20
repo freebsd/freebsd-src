@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -47,7 +49,7 @@
  * Functions and typedefs for using Octeon in HiGig/HiGig+/HiGig2 mode over
  * XAUI.
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 49448 $<hr>
  */
 
 #ifndef __CVMX_HIGIG_H__
@@ -176,6 +178,129 @@ typedef struct
         } o2;
     } dw2;
 } cvmx_higig_header_t;
+
+typedef struct
+{
+    union
+    {
+        uint32_t u32;
+        struct
+        {
+            uint32_t k_sop          : 8;  /**< The delimiter indicating the start of a packet transmission */
+            uint32_t reserved_21_23 : 3;
+            uint32_t mcst           : 1;  /**< MCST indicates whether the packet should be unicast or
+                                            multicast forwarded through the XGS switching fabric
+                                            - 0: Unicast
+                                            - 1: Mulitcast */
+            uint32_t tc             : 4;  /**< Traffic Class [3:0] indicates the distinctive Quality of Service (QoS)
+                                            the switching fabric will provide when forwarding the packet
+                                            through the fabric */
+            uint32_t dst_modid_mgid : 8;  /**< When MCST=0, this field indicates the destination XGS module to
+                                            which the packet will be delivered. When MCST=1, this field indicates
+                                            higher order bits of the Multicast Group ID. */
+            uint32_t dst_pid_mgid   : 8;  /**< When MCST=0, this field indicates a port associated with the
+                                            module indicated by the DST_MODID, through which the packet
+                                            will exit the system. When MCST=1, this field indicates lower order
+                                            bits of the Multicast Group ID */
+        } s;
+    } dw0;
+    union
+    {
+        uint32_t u32;
+        struct
+        {
+            uint32_t src_modid      : 8;  /**< Source Module ID indicates the source XGS module from which
+                                            the packet is originated. (It can also be used for the fabric multicast
+                                            load balancing purpose.) */
+            uint32_t src_pid        : 8;  /**< Source Port ID indicates a port associated with the module
+                                            indicated by the SRC_MODID, through which the packet has
+                                            entered the system */
+            uint32_t lbid           : 8;  /**< Load Balancing ID indicates a packet flow hashing index
+                                            computed by the ingress XGS module for statistical distribution of
+                                            packet flows through a multipath fabric */
+            uint32_t dp             : 2;  /**< Drop Precedence indicates the traffic rate violation status of the
+                                            packet measured by the ingress module.
+                                            - 00: GREEN
+                                            - 01: RED
+                                            - 10: Reserved
+                                            - 11: Yellow */
+            uint32_t reserved_3_5   : 3;
+            uint32_t ppd_type       : 3;  /**< Packet Processing Descriptor Type
+                                            - 000: PPD Overlay1
+                                            - 001: PPD Overlay2
+                                            - 010~111: Reserved */
+        } s;
+    } dw1;
+    union
+    {
+        uint32_t u32;
+        struct
+        {
+            uint32_t dst_t          : 1;  /**< Destination Trunk: Indicates that the destination port is a member of a trunk
+                                            group. */
+            uint32_t dst_tgid       : 3;  /**< Destination Trunk Group ID: Trunk group ID of the destination port. The
+                                            DO_NOT_LEARN bit is overlaid on the second bit of this field. */
+            uint32_t ingress_tagged : 1;  /**< Ingress Tagged: Indicates whether the packet was tagged when it originally
+                                            ingressed the system. */
+            uint32_t mirror_only    : 1;  /**< Mirror Only: XGS 1/2 mode: Indicates that the packet was switched and only
+                                            needs to be mirrored. */
+            uint32_t mirror_done    : 1;  /**< Mirroring Done: XGS1/2 mode: Indicates that the packet was mirrored and
+                                            may still need to be switched. */
+            uint32_t mirror         : 1;  /**< Mirror: XGS3 mode: a mirror copy packet. XGS1/2 mode: Indicates that the
+                                            packet was switched and only needs to be mirrored. */
+            uint32_t reserved_22_23 : 2;
+            uint32_t l3             : 1;  /**< L3: Indicates that the packet is L3 switched */
+            uint32_t label_present  : 1;  /**< Label Present: Indicates that header contains a 20-bit VC label: HiGig+
+                                            added field. */
+            uint32_t vc_label       : 20; /**< Refer to the HiGig+ Architecture Specification */
+        } o1;
+        struct
+        {
+            uint32_t classification : 16; /**< Classification tag information from the HiGig device FFP */
+            uint32_t reserved_0_15  : 16;
+        } o2;
+    } dw2;
+    union
+    {
+        uint32_t u32;
+        struct
+        {
+            uint32_t vid            : 16; /**< VLAN tag information */
+            uint32_t pfm            : 2;  /**< Three Port Filtering Modes (0, 1, 2) used in handling registed/unregistered
+                                            multicast (unknown L2 multicast and IPMC) packets. This field is used
+                                            when OPCODE is 011 or 100 Semantics of PFM bits are as follows;
+                                            For registered L2 multicast packets:
+                                                PFM= 0 ­ Flood to VLAN
+                                                PFM= 1 or 2 ­ Send to group members in the L2MC table
+                                            For unregistered L2 multicast packets:
+                                                PFM= 0 or 1 ­ Flood to VLAN
+                                                PFM= 2 ­ Drop the packet */
+            uint32_t src_t          : 1;  /**< If the MSB of this field is set, then it indicates the LAG the packet ingressed
+                                            on, else it represents the physical port the packet ingressed on. */
+            uint32_t reserved_11_12 : 2;
+            uint32_t opcode         : 3;  /**< XGS HiGig op-code, indicating the type of packet
+                                            000 =     Control frames used for CPU to CPU communications
+                                            001 =     Unicast packet with destination resolved; The packet can be
+                                                      either Layer 2 unicast packet or L3 unicast packet that was
+                                                      routed in the ingress chip.
+                                            010 =     Broadcast or unknown Unicast packet or unknown multicast,
+                                                      destined to all members of the VLAN
+                                            011 =     L2 Multicast packet, destined to all ports of the group indicated
+                                                      in the L2MC_INDEX which is overlayed on DST_PORT/DST_MODID fields
+                                            100 =     IP Multicast packet, destined to all ports of the group indicated
+                                                      in the IPMC_INDEX which is overlayed on DST_PORT/DST_MODID fields
+                                            101 =     Reserved
+                                            110 =     Reserved
+                                            111 =     Reserved */
+            uint32_t hdr_ext_len    : 3;  /**< This field is valid only if the HGI field is a b'10' and it indicates the extension
+                                            to the standard 12-bytes of XGS HiGig header. Each unit represents 4
+                                            bytes, giving a total of 16 additional extension bytes. Value of b'101', b'110'
+                                            and b'111' are reserved. For HGI field value of b'01' this field should be
+                                            b'01'. For all other values of HGI it is don't care. */
+            uint32_t reserved_0_4   : 5;
+        } s;
+    } dw3;
+} cvmx_higig2_header_t;
 
 
 /**

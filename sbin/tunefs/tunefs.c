@@ -82,11 +82,13 @@ int
 main(int argc, char *argv[])
 {
 	char *avalue, *jvalue, *Jvalue, *Lvalue, *lvalue, *Nvalue, *nvalue;
+	char *tvalue;
 	const char *special, *on;
 	const char *name;
 	int active;
 	int Aflag, aflag, eflag, evalue, fflag, fvalue, jflag, Jflag, Lflag;
 	int lflag, mflag, mvalue, Nflag, nflag, oflag, ovalue, pflag, sflag;
+	int tflag;
 	int svalue, Sflag, Svalue;
 	int ch, found_arg, i;
 	const char *chg[2];
@@ -96,12 +98,13 @@ main(int argc, char *argv[])
 	if (argc < 3)
 		usage();
 	Aflag = aflag = eflag = fflag = jflag = Jflag = Lflag = lflag = 0;
-	mflag = Nflag = nflag = oflag = pflag = sflag = 0;
+	mflag = Nflag = nflag = oflag = pflag = sflag = tflag = 0;
 	avalue = jvalue = Jvalue = Lvalue = lvalue = Nvalue = nvalue = NULL;
 	evalue = fvalue = mvalue = ovalue = svalue = Svalue = 0;
 	active = 0;
 	found_arg = 0;		/* At least one arg is required. */
-	while ((ch = getopt(argc, argv, "Aa:e:f:j:J:L:l:m:N:n:o:ps:S:")) != -1)
+	while ((ch = getopt(argc, argv, "Aa:e:f:j:J:L:l:m:N:n:o:ps:S:t:"))
+	    != -1)
 		switch (ch) {
 
 		case 'A':
@@ -266,6 +269,18 @@ main(int argc, char *argv[])
 				errx(10, "%s must be >= %d (was %s)",
 				    name, SUJ_MIN, optarg);
 			Sflag = 1;
+			break;
+
+		case 't':
+			found_arg = 1;
+			name = "trim";
+			tvalue = optarg;
+			if (strcmp(tvalue, "enable") != 0 &&
+			    strcmp(tvalue, "disable") != 0) {
+				errx(10, "bad %s (options are %s)",
+				    name, "`enable' or `disable'");
+			}
+			tflag = 1;
 			break;
 
 		default:
@@ -493,6 +508,24 @@ main(int argc, char *argv[])
 			sblock.fs_avgfpdir = svalue;
 		}
 	}
+	if (tflag) {
+		name = "issue TRIM to the disk";
+ 		if (strcmp(tvalue, "enable") == 0) {
+			if (sblock.fs_flags & FS_TRIM)
+				warnx("%s remains unchanged as enabled", name);
+			else {
+ 				sblock.fs_flags |= FS_TRIM;
+ 				warnx("%s set", name);
+			}
+ 		} else if (strcmp(tvalue, "disable") == 0) {
+			if ((~sblock.fs_flags & FS_TRIM) == FS_TRIM)
+				warnx("%s remains unchanged as disabled", name);
+			else {
+ 				sblock.fs_flags &= ~FS_TRIM;
+ 				warnx("%s cleared", name);
+			}
+ 		}
+	}
 
 	if (sbwrite(&disk, Aflag) == -1)
 		goto err;
@@ -655,6 +688,19 @@ journal_findfile(void)
 	return (0);
 }
 
+static void
+dir_clear_block(char *block, off_t off)
+{
+	struct direct *dp;
+
+	for (; off < sblock.fs_bsize; off += DIRBLKSIZ) {
+		dp = (struct direct *)&block[off];
+		dp->d_ino = 0;
+		dp->d_reclen = DIRBLKSIZ;
+		dp->d_type = DT_UNKNOWN;
+	}
+}
+
 /*
  * Insert the journal at inode 'ino' into directory blk 'blk' at the first
  * free offset of 'off'.  DIRBLKSIZ blocks after off are initialized as
@@ -677,13 +723,7 @@ dir_insert(ufs2_daddr_t blk, off_t off, ino_t ino)
 	dp->d_type = DT_REG;
 	dp->d_namlen = strlen(SUJ_FILE);
 	bcopy(SUJ_FILE, &dp->d_name, strlen(SUJ_FILE));
-	off += DIRBLKSIZ;
-	for (; off < sblock.fs_bsize; off += DIRBLKSIZ) {
-		dp = (struct direct *)&block[off];
-		dp->d_ino = 0;
-		dp->d_reclen = DIRBLKSIZ;
-		dp->d_type = DT_UNKNOWN;
-	}
+	dir_clear_block(block, off + DIRBLKSIZ);
 	if (bwrite(&disk, fsbtodb(&sblock, blk), block, sblock.fs_bsize) <= 0) {
 		warn("Failed to write dir block");
 		return (-1);
@@ -700,16 +740,19 @@ dir_extend(ufs2_daddr_t blk, ufs2_daddr_t nblk, off_t size, ino_t ino)
 {
 	char block[MAXBSIZE];
 
-	if (bread(&disk, fsbtodb(&sblock, blk), block, size) <= 0) {
+	if (bread(&disk, fsbtodb(&sblock, blk), block,
+	    roundup(size, sblock.fs_fsize)) <= 0) {
 		warn("Failed to read dir block");
 		return (-1);
 	}
-	if (bwrite(&disk, fsbtodb(&sblock, nblk), block, size) <= 0) {
+	dir_clear_block(block, size);
+	if (bwrite(&disk, fsbtodb(&sblock, nblk), block, sblock.fs_bsize)
+	    <= 0) {
 		warn("Failed to write dir block");
 		return (-1);
 	}
 
-	return dir_insert(nblk, size, ino);
+	return (dir_insert(nblk, size, ino));
 }
 
 /*
@@ -1011,12 +1054,13 @@ out:
 void
 usage(void)
 {
-	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: tunefs [-A] [-a enable | disable] [-e maxbpg] [-f avgfilesize]",
 "              [-J enable | disable] [-j enable | disable]", 
 "              [-L volname] [-l enable | disable] [-m minfree]",
 "              [-N enable | disable] [-n enable | disable]",
-"              [-o space | time] [-p] [-s avgfpdir] special | filesystem");
+"              [-o space | time] [-p] [-s avgfpdir] [-t enable | disable]",
+"              special | filesystem");
 	exit(2);
 }
 
@@ -1035,6 +1079,8 @@ printfs(void)
 		(sblock.fs_flags & FS_SUJ)? "enabled" : "disabled");
 	warnx("gjournal: (-J)                                     %s",
 		(sblock.fs_flags & FS_GJOURNAL)? "enabled" : "disabled");
+	warnx("trim: (-t)                                         %s", 
+		(sblock.fs_flags & FS_TRIM)? "enabled" : "disabled");
 	warnx("maximum blocks per file in a cylinder group: (-e)  %d",
 	      sblock.fs_maxbpg);
 	warnx("average file size: (-f)                            %d",

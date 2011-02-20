@@ -60,14 +60,8 @@ if [ "$?" != "0" ] ; then
 fi
 
 # Display if this is GPT or MBR formatted
-gpart show ${1} | grep "GPT" >/dev/null 2>/dev/null
-if [ "$?" = "0" ] ; then
-  echo "${1}-format: GPT"
-  TYPE="GPT"
-else
-  echo "${1}-format: MBR"
-  TYPE="MBR"
-fi
+TYPE=`gpart show ${1} | awk '/^=>/ { printf("%s",$5); }'`
+echo "${1}-format: $TYPE"
 
 # Set some search flags
 PART="0"

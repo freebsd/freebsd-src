@@ -52,6 +52,7 @@ struct wpa_driver_ndis_data {
 	struct ndis_pmkid_entry *pmkid;
 	char *adapter_desc;
 	int wired;
+	int native80211;
 	int mode;
 	int wzc_disabled;
 	int oid_bssid_set;

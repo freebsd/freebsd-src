@@ -46,10 +46,14 @@
  * Match finder has major effect on both speed and compression ratio.
  * Usually hash chains are faster than binary trees.
  *
+ * If you will use LZMA_SYNC_FLUSH often, the hash chains may be a better
+ * choice, because binary trees get much higher compression ratio penalty
+ * with LZMA_SYNC_FLUSH.
+ *
  * The memory usage formulas are only rough estimates, which are closest to
  * reality when dict_size is a power of two. The formulas are  more complex
  * in reality, and can also change a little between liblzma versions. Use
- * lzma_memusage_encoder() to get more accurate estimate of memory usage.
+ * lzma_raw_encoder_memusage() to get more accurate estimate of memory usage.
  */
 typedef enum {
 	LZMA_MF_HC3     = 0x03,
@@ -69,7 +73,9 @@ typedef enum {
 		 *
 		 * Minimum nice_len: 4
 		 *
-		 * Memory usage: dict_size * 7.5
+		 * Memory usage:
+		 *  - dict_size <= 32 MiB: dict_size * 7.5
+		 *  - dict_size > 32 MiB: dict_size * 6.5
 		 */
 
 	LZMA_MF_BT2     = 0x12,
@@ -98,7 +104,9 @@ typedef enum {
 		 *
 		 * Minimum nice_len: 4
 		 *
-		 * Memory usage: dict_size * 11.5
+		 * Memory usage:
+		 *  - dict_size <= 32 MiB: dict_size * 11.5
+		 *  - dict_size > 32 MiB: dict_size * 10.5
 		 */
 } lzma_match_finder;
 
@@ -169,6 +177,7 @@ extern LZMA_API(lzma_bool) lzma_mode_is_supported(lzma_mode mode)
  * Since LZMA1 and LZMA2 share most of the code, it's simplest to share
  * the options structure too. For encoding, all but the reserved variables
  * need to be initialized unless specifically mentioned otherwise.
+ * lzma_lzma_preset() can be used to get a good starting point.
  *
  * For raw decoding, both LZMA1 and LZMA2 need dict_size, preset_dict, and
  * preset_dict_size (if preset_dict != NULL). LZMA1 needs also lc, lp, and pb.
@@ -251,7 +260,13 @@ typedef struct {
 	 * eight-bit byte (also known as `literal') are taken into
 	 * account when predicting the bits of the next literal.
 	 *
-	 * \todo        Example
+	 * E.g. in typical English text, an upper-case letter is
+	 * often followed by a lower-case letter, and a lower-case
+	 * letter is usually followed by another lower-case letter.
+	 * In the US-ASCII character set, the highest three bits are 010
+	 * for upper-case letters and 011 for lower-case letters.
+	 * When lc is at least 3, the literal coding can take advantage of
+	 * this property in the uncompressed data.
 	 *
 	 * There is a limit that applies to literal context bits and literal
 	 * position bits together: lc + lp <= 4. Without this limit the
@@ -271,12 +286,9 @@ typedef struct {
 	/**
 	 * \brief       Number of literal position bits
 	 *
-	 * How many of the lowest bits of the current position (number
-	 * of bytes from the beginning of the uncompressed data) in the
-	 * uncompressed data is taken into account when predicting the
-	 * bits of the next literal (a single eight-bit byte).
-	 *
-	 * \todo        Example
+	 * lp affects what kind of alignment in the uncompressed data is
+	 * assumed when encoding literals. A literal is a single 8-bit byte.
+	 * See pb below for more information about alignment.
 	 */
 	uint32_t lp;
 #	define LZMA_LP_DEFAULT  0
@@ -284,14 +296,22 @@ typedef struct {
 	/**
 	 * \brief       Number of position bits
 	 *
-	 * How many of the lowest bits of the current position in the
-	 * uncompressed data is taken into account when estimating
-	 * probabilities of matches. A match is a sequence of bytes for
-	 * which a matching sequence is found from the dictionary and
-	 * thus can be stored as distance-length pair.
+	 * pb affects what kind of alignment in the uncompressed data is
+	 * assumed in general. The default means four-byte alignment
+	 * (2^ pb =2^2=4), which is often a good choice when there's
+	 * no better guess.
 	 *
-	 * Example: If most of the matches occur at byte positions of
-	 * 8 * n + 3, that is, 3, 11, 19, ... set pb to 3, because 2**3 == 8.
+	 * When the aligment is known, setting pb accordingly may reduce
+	 * the file size a little. E.g. with text files having one-byte
+	 * alignment (US-ASCII, ISO-8859-*, UTF-8), setting pb=0 can
+	 * improve compression slightly. For UTF-16 text, pb=1 is a good
+	 * choice. If the alignment is an odd number like 3 bytes, pb=0
+	 * might be the best choice.
+	 *
+	 * Even though the assumed alignment can be adjusted with pb and
+	 * lp, LZMA1 and LZMA2 still slightly favor 16-byte alignment.
+	 * It might be worth taking into account when designing file formats
+	 * that are likely to be often compressed with LZMA1 or LZMA2.
 	 */
 	uint32_t pb;
 #	define LZMA_PB_MIN      0
@@ -342,7 +362,7 @@ typedef struct {
 	 *
 	 * Setting depth to zero tells liblzma to use an automatic default
 	 * value, that depends on the selected match finder and nice_len.
-	 * The default is in the range [10, 200] or so (it may vary between
+	 * The default is in the range [4, 200] or so (it may vary between
 	 * liblzma versions).
 	 *
 	 * Using a bigger depth value than the default can increase
@@ -361,8 +381,6 @@ typedef struct {
 	 * with the currently supported options, so it is safe to leave these
 	 * uninitialized.
 	 */
-	void *reserved_ptr1;
-	void *reserved_ptr2;
 	uint32_t reserved_int1;
 	uint32_t reserved_int2;
 	uint32_t reserved_int3;
@@ -375,6 +393,8 @@ typedef struct {
 	lzma_reserved_enum reserved_enum2;
 	lzma_reserved_enum reserved_enum3;
 	lzma_reserved_enum reserved_enum4;
+	void *reserved_ptr1;
+	void *reserved_ptr2;
 
 } lzma_options_lzma;
 

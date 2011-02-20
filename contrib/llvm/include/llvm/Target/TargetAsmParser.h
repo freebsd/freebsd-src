@@ -28,13 +28,19 @@ class TargetAsmParser : public MCAsmParserExtension {
 protected: // Can only create subclasses.
   TargetAsmParser(const Target &);
  
-  /// TheTarget - The Target that this machine was created for.
+  /// The Target that this machine was created for.
   const Target &TheTarget;
+
+  /// The current set of available features.
+  unsigned AvailableFeatures;
 
 public:
   virtual ~TargetAsmParser();
 
   const Target &getTarget() const { return TheTarget; }
+
+  unsigned getAvailableFeatures() const { return AvailableFeatures; }
+  void setAvailableFeatures(unsigned Value) { AvailableFeatures = Value; }
 
   /// ParseInstruction - Parse one assembly instruction.
   ///
@@ -67,8 +73,12 @@ public:
   /// MatchInstruction - Recognize a series of operands of a parsed instruction
   /// as an actual MCInst.  This returns false and fills in Inst on success and
   /// returns true on failure to match.
+  ///
+  /// On failure, the target parser is responsible for emitting a diagnostic
+  /// explaining the match failure.
   virtual bool 
-  MatchInstruction(const SmallVectorImpl<MCParsedAsmOperand*> &Operands,
+  MatchInstruction(SMLoc IDLoc,
+                   const SmallVectorImpl<MCParsedAsmOperand*> &Operands,
                    MCInst &Inst) = 0;
   
 };

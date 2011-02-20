@@ -26,24 +26,16 @@
 # $FreeBSD$
 
 # Query a disk for partitions and display them
-#############################
+#############################################################################
 
 . ${PROGDIR}/backend/functions.sh
 . ${PROGDIR}/backend/functions-disk.sh
 
-if [ -z "${1}" ]
-then
-  echo "Error: No disk specified!"
-  exit 1
-fi
-
-if [ ! -e "/dev/${1}" ]
-then
-  echo "Error: Disk /dev/${1} does not exist!"
-  exit 1
-fi
-
 DISK="${1}"
+
+[ -z "${DISK}" ] && { echo 'Error: No disk specified!'; exit 1; }
+[ ! -e "/dev/${DISK}" ] && \
+	{ echo "Error: Disk /dev/${DISK} does not exist!"; exit 1; }
 
 get_disk_cyl "${DISK}"
 CYLS="${VAL}"
@@ -66,4 +58,3 @@ echo "heads=${HEADS}"
 echo "sectors=${SECS}"
 echo "size=${MB}"
 echo "type=${CTYPE}"
-

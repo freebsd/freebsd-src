@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/if_macbvar.h>
 #include <arm/at91/at91_piovar.h>
 
-#include <arm/at91/at91_pio_sam9.h>
 #include <arm/at91/at91sam9g20reg.h>
 
 #include <machine/bus.h>
@@ -138,7 +137,6 @@ macb_watchdog(struct macb_softc *sc);
 
 static int macb_intr_rx_locked(struct macb_softc *sc, int count);
 static void macb_intr_task(void *arg, int pending __unused);
-static void	macb_tx_task(void *arg, int pending __unused);
 static void macb_intr(void *xsc);
 
 static void
@@ -534,7 +532,7 @@ macb_watchdog(struct macb_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	macbinit_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_tx_task);
+		macbstart_locked(ifp);
 }
 
 
@@ -838,6 +836,7 @@ macb_intr(void *xsc)
 		return;
 	}
 
+	MACB_LOCK(sc);
 	status = read_4(sc, EMAC_ISR);
 
 	while (status) {
@@ -847,16 +846,15 @@ macb_intr(void *xsc)
 		}
 
 		if (status & TCOMP_INTERRUPT) {
-			MACB_LOCK(sc);
 			macb_tx_cleanup(sc);
-			MACB_UNLOCK(sc);
 		}
 
 		status = read_4(sc, EMAC_ISR);
 	}
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_tx_task);
+		macbstart_locked(ifp);
+	MACB_UNLOCK(sc);
 }
 
 static inline int
@@ -1023,16 +1021,6 @@ macbstart(struct ifnet *ifp)
 	macbstart_locked(ifp);
 	MACB_UNLOCK(sc);
 
-}
-
-
-static void
-macb_tx_task(void *arg, int pending __unused)
-{
-	struct ifnet *ifp;
-
-	ifp = (struct ifnet *)arg;
-	macbstart(ifp);
 }
 
 
@@ -1336,34 +1324,8 @@ macb_attach(device_t dev)
 		goto out;
 	}
 
-	at91_pio_use_periph_a(AT91SAM9G20_PIOA_BASE, 1<<7, 0);
-
-	at91_pio_gpio_input(AT91SAM9G20_PIOA_BASE, 1<<7);
-	at91_pio_gpio_set_deglitch(AT91SAM9G20_PIOA_BASE, 1<<7, 1);
-
-	at91_pio_use_periph_a(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA19, 0);	/* ETXCK_EREFCK */
-	at91_pio_use_periph_a(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA17, 0);	/* ERXDV */
-	at91_pio_use_periph_a(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA14, 0);	/* ERX0 */
-	at91_pio_use_periph_a(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA15, 0);	/* ERX1 */
-	at91_pio_use_periph_a(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA18, 0);	/* ERXER */
-	at91_pio_use_periph_a(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA16, 0);	/* ETXEN */
-	at91_pio_use_periph_a(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA12, 0);	/* ETX0 */
-	at91_pio_use_periph_a(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA13, 0);	/* ETX1 */
-	at91_pio_use_periph_a(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA21, 0);	/* EMDIO */
-	at91_pio_use_periph_a(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA20, 0);	/* EMDC */
-
-	at91_pio_use_periph_b(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA28, 0);	/* ECRS */
-	at91_pio_use_periph_b(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA29, 0);	/* ECOL */
-	at91_pio_use_periph_b(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA25, 0);	/* ERX2 */
-	at91_pio_use_periph_b(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA26, 0);	/* ERX3 */
-	at91_pio_use_periph_b(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA27, 0);	/* ERXCK */
-	at91_pio_use_periph_b(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA23, 0);	/* ETX2 */
-	at91_pio_use_periph_b(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA24, 0);	/* ETX3 */
-	at91_pio_use_periph_b(AT91SAM9G20_PIOA_BASE, AT91C_PIO_PA22, 0);	/* ETXER */
-
-
 	/*setup clock*/
-	sc->clk = at91_pmc_clock_ref("macb_clk");
+	sc->clk = at91_pmc_clock_ref(device_get_nameunit(sc->dev));
 	at91_pmc_clock_enable(sc->clk);
 
 	macb_reset(sc);
@@ -1391,9 +1353,10 @@ macb_attach(device_t dev)
 	write_4(sc, EMAC_NCR, MPE_ENABLE); //enable MPE
 
 	sc->ifp = ifp = if_alloc(IFT_ETHER);
-	if (mii_phy_probe(dev, &sc->miibus, macb_ifmedia_upd, macb_ifmedia_sts)) {
-		device_printf(dev, "Cannot find my PHY.\n");
-		err = ENXIO;
+	err = mii_attach(dev, &sc->miibus, ifp, macb_ifmedia_upd,
+	    macb_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (err != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto out;
 	}
 
@@ -1418,7 +1381,6 @@ macb_attach(device_t dev)
 	sc->if_flags = ifp->if_flags;
 
 	TASK_INIT(&sc->sc_intr_task, 0, macb_intr_task, sc);
-	TASK_INIT(&sc->sc_tx_task, 0, macb_tx_task, ifp);
 
 	sc->sc_tq = taskqueue_create_fast("macb_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->sc_tq);
@@ -1460,8 +1422,18 @@ macb_detach(device_t dev)
 	struct macb_softc *sc;
 
 	sc = device_get_softc(dev);
+	ether_ifdetach(sc->ifp);
+	MACB_LOCK(sc);
 	macbstop(sc);
+	MACB_UNLOCK(sc);
+	callout_drain(&sc->tick_ch);
+	bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
+	taskqueue_drain(sc->sc_tq, &sc->sc_intr_task);
+	taskqueue_free(sc->sc_tq);
 	macb_deactivate(dev);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
+	bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->mem_res);
+	MACB_LOCK_DESTROY(sc);
 
 	return (0);
 }

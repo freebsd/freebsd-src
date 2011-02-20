@@ -86,3 +86,5 @@ err:
 	jmp	HIDENAME(cerror)
 #endif
 END(brk)
+
+	.section .note.GNU-stack,"",%progbits

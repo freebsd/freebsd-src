@@ -12,13 +12,13 @@ cd link
 [ "$PWD" = "$TP/link" ]
 [ "$(pwd)" = "$TP/link" ]
 [ "$(pwd -P)" = "$TP/test1" ]
-[ "$(sh -c pwd)" = "$TP/link" ]
-[ "$(sh -c pwd\ -P)" = "$TP/test1" ]
+[ "$(${SH} -c pwd)" = "$TP/link" ]
+[ "$(${SH} -c pwd\ -P)" = "$TP/test1" ]
 cd ..
 [ "$(pwd)" = "$TP" ]
 cd -P link
 [ "$PWD" = "$TP/test1" ]
 [ "$(pwd)" = "$TP/test1" ]
 [ "$(pwd -P)" = "$TP/test1" ]
-[ "$(sh -c pwd)" = "$TP/test1" ]
-[ "$(sh -c pwd\ -P)" = "$TP/test1" ]
+[ "$(${SH} -c pwd)" = "$TP/test1" ]
+[ "$(${SH} -c pwd\ -P)" = "$TP/test1" ]

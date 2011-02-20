@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 29, 2009
+.Dd October 18, 2010
 .Dt LAGG 4
 .Os
 .Sh NAME
@@ -73,11 +73,19 @@ The interface link state is used to validate if the port is active or
 not.
 .Bl -tag -width loadbalance
 .It Ic failover
-Sends and receives traffic only through the master port.
+Sends traffic only through the active port.
 If the master port becomes unavailable,
 the next active port is used.
 The first interface added is the master port;
 any interfaces added after that are used as failover devices.
+.Pp
+By default, received traffic is only accepted when they are received
+through the active port.
+This constraint can be relaxed by setting the
+.Va net.link.lagg.failover_rx_all
+.Xr sysctl 8
+variable to a nonzero value,
+which is useful for certain bridged network setups.
 .It Ic fec
 Supports Cisco EtherChannel.
 This is a static setup and does not negotiate aggregation with the peer or
@@ -153,6 +161,7 @@ device as a workaround.)
 .Sh SEE ALSO
 .Xr ng_fec 4 ,
 .Xr ng_one2many 4 ,
+.Xr sysctl 8 ,
 .Xr ifconfig 8
 .Sh HISTORY
 The

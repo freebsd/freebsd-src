@@ -1,4 +1,4 @@
-/* $Id: openbsd-compat.h,v 1.49 2010/01/16 12:58:37 dtucker Exp $ */
+/* $Id: openbsd-compat.h,v 1.50 2010/08/16 03:15:23 dtucker Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
@@ -85,6 +85,11 @@ int setenv(register const char *name, register const char *value, int rewrite);
 
 #ifndef HAVE_STRMODE
 void strmode(int mode, char *p);
+#endif
+
+#ifndef HAVE_STRPTIME
+#include  <time.h>
+char *strptime(const char *buf, const char *fmt, struct tm *tm);
 #endif
 
 #if !defined(HAVE_MKDTEMP) || defined(HAVE_STRICT_MKSTEMP)

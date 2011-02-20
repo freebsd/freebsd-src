@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/clock.h>
+#include <sys/reboot.h>
 #include <sys/sysctl.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -81,6 +82,11 @@ static u_int	pmu_adb_send(device_t dev, u_char command_byte, int len,
 static u_int	pmu_adb_autopoll(device_t dev, uint16_t mask);
 static u_int	pmu_poll(device_t dev);
 
+/*
+ * Power interface
+ */
+
+static void	pmu_shutdown(void *xsc, int howto);
 static void	pmu_set_sleepled(void *xsc, int onoff);
 static int	pmu_server_mode(SYSCTL_HANDLER_ARGS);
 static int	pmu_acline_state(SYSCTL_HANDLER_ARGS);
@@ -474,6 +480,12 @@ pmu_attach(device_t dev)
 
 	clock_register(dev, 1000);
 
+	/*
+	 * Register power control handler
+	 */
+	EVENTHANDLER_REGISTER(shutdown_final, pmu_shutdown, sc,
+	    SHUTDOWN_PRI_LAST);
+
 	return (bus_generic_attach(dev));
 }
 
@@ -748,6 +760,20 @@ pmu_adb_autopoll(device_t dev, uint16_t mask)
 	mtx_unlock(&sc->sc_mutex);
 	
 	return 0;
+}
+
+static void
+pmu_shutdown(void *xsc, int howto)
+{
+	struct pmu_softc *sc = xsc;
+	uint8_t cmd[] = {'M', 'A', 'T', 'T'};
+	
+	if (howto & RB_HALT)
+		pmu_send(sc, PMU_POWER_OFF, 4, cmd, 0, NULL);
+	else
+		pmu_send(sc, PMU_RESET_CPU, 0, NULL, 0, NULL);
+
+	for (;;);
 }
 
 static void

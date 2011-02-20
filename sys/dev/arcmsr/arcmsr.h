@@ -37,22 +37,21 @@
 **************************************************************************
 * $FreeBSD$
 */
-#define ARCMSR_DRIVER_VERSION                        "Driver Version 1.20.00.17 2010-07-15"
-#define ARCMSR_SCSI_INITIATOR_ID                                              255
-#define ARCMSR_DEV_SECTOR_SIZE                                                512
-#define ARCMSR_MAX_XFER_SECTORS                                              4096
-#define ARCMSR_MAX_TARGETID                                                    17 /*16 max target id + 1*/
-#define ARCMSR_MAX_TARGETLUN                                                    8 /*8*/
-#define ARCMSR_MAX_CHIPTYPE_NUM                                                 4
-#define ARCMSR_MAX_OUTSTANDING_CMD                                            256
-#define ARCMSR_MAX_START_JOB                                                  257
-#define ARCMSR_MAX_CMD_PERLUN                          ARCMSR_MAX_OUTSTANDING_CMD
-#define ARCMSR_MAX_FREESRB_NUM                                                320
-#define ARCMSR_MAX_QBUFFER                                                   4096 /* ioctl QBUFFER */
-#define ARCMSR_MAX_SG_ENTRIES                                                  38 /* max 38*/
-#define ARCMSR_MAX_ADAPTER                                                      4
-#define ARCMSR_RELEASE_SIMQ_LEVEL                                             230
-#define ARCMSR_MAX_HBB_POSTQUEUE                                              264 /* (ARCMSR_MAX_OUTSTANDING_CMD+8) */
+#define ARCMSR_SCSI_INITIATOR_ID			255
+#define ARCMSR_DEV_SECTOR_SIZE				512
+#define ARCMSR_MAX_XFER_SECTORS				4096
+#define ARCMSR_MAX_TARGETID					17 /*16 max target id + 1*/
+#define ARCMSR_MAX_TARGETLUN				8 /*8*/
+#define ARCMSR_MAX_CHIPTYPE_NUM				4
+#define ARCMSR_MAX_OUTSTANDING_CMD			256
+#define ARCMSR_MAX_START_JOB				257
+#define ARCMSR_MAX_CMD_PERLUN				ARCMSR_MAX_OUTSTANDING_CMD
+#define ARCMSR_MAX_FREESRB_NUM				320
+#define ARCMSR_MAX_QBUFFER					4096 /* ioctl QBUFFER */
+#define ARCMSR_MAX_SG_ENTRIES				38 /* max 38*/
+#define ARCMSR_MAX_ADAPTER					4
+#define ARCMSR_RELEASE_SIMQ_LEVEL			230
+#define ARCMSR_MAX_HBB_POSTQUEUE			264 /* (ARCMSR_MAX_OUTSTANDING_CMD+8) */
 /*
 *********************************************************************
 */
@@ -74,45 +73,51 @@
 **
 **********************************************************************************
 */
-#define PCI_VENDOR_ID_ARECA                                                0x17D3 /* Vendor ID	*/
-#define PCI_DEVICE_ID_ARECA_1110                                           0x1110 /* Device ID	*/
-#define PCI_DEVICE_ID_ARECA_1120                                           0x1120 /* Device ID	*/
-#define PCI_DEVICE_ID_ARECA_1130                                           0x1130 /* Device ID	*/
-#define PCI_DEVICE_ID_ARECA_1160                                           0x1160 /* Device ID	*/
-#define PCI_DEVICE_ID_ARECA_1170                                           0x1170 /* Device ID	*/
-#define PCI_DEVICE_ID_ARECA_1210                                           0x1210 /* Device ID	*/
-#define PCI_DEVICE_ID_ARECA_1220                                           0x1220 /* Device ID	*/
-#define PCI_DEVICE_ID_ARECA_1230                                           0x1230 /* Device ID	*/
-#define PCI_DEVICE_ID_ARECA_1260                                           0x1260 /* Device ID	*/
-#define PCI_DEVICE_ID_ARECA_1270                                           0x1270 /* Device ID	*/
-#define PCI_DEVICE_ID_ARECA_1280                                           0x1280 /* Device ID	*/
+#define PCI_VENDOR_ID_ARECA				0x17D3 /* Vendor ID	*/
+#define PCI_DEVICE_ID_ARECA_1110        0x1110 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1120        0x1120 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1130        0x1130 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1160        0x1160 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1170        0x1170 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1200        0x1200 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1201        0x1201 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1210        0x1210 /* Device ID	*/
 #define PCI_DEVICE_ID_ARECA_1212        0x1212 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1220        0x1220 /* Device ID	*/
 #define PCI_DEVICE_ID_ARECA_1222        0x1222 /* Device ID	*/
-#define PCI_DEVICE_ID_ARECA_1380                                           0x1380 /* Device ID	*/
-#define PCI_DEVICE_ID_ARECA_1381                                           0x1381 /* Device ID	*/
-#define PCI_DEVICE_ID_ARECA_1680                                           0x1680 /* Device ID	*/
-#define PCI_DEVICE_ID_ARECA_1681                                           0x1681 /* Device ID	*/
-#define PCI_DEVICE_ID_ARECA_1201                                           0x1201 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1230        0x1230 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1231        0x1231 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1260        0x1260 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1261        0x1261 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1270        0x1270 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1280        0x1280 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1380        0x1380 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1381        0x1381 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1680        0x1680 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1681        0x1681 /* Device ID	*/
 #define PCI_DEVICE_ID_ARECA_1880        0x1880 /* Device ID	*/
 
-#define PCIDevVenIDARC1110                                           0x111017D3 /* Vendor Device ID	*/
-#define PCIDevVenIDARC1120                                           0x112017D3 /* Vendor Device ID	*/
-#define PCIDevVenIDARC1130                                           0x113017D3 /* Vendor Device ID	*/
-#define PCIDevVenIDARC1160                                           0x116017D3 /* Vendor Device ID	*/
-#define PCIDevVenIDARC1170                                           0x117017D3 /* Vendor Device ID	*/
-#define PCIDevVenIDARC1210                                           0x121017D3 /* Vendor Device ID	*/
-#define PCIDevVenIDARC1220                                           0x122017D3 /* Vendor Device ID	*/
-#define PCIDevVenIDARC1230                                           0x123017D3 /* Vendor Device ID	*/
-#define PCIDevVenIDARC1260                                           0x126017D3 /* Vendor Device ID	*/
-#define PCIDevVenIDARC1270                                           0x127017D3 /* Vendor Device ID	*/
-#define PCIDevVenIDARC1280                                           0x128017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1110              0x111017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1120              0x112017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1130              0x113017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1160              0x116017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1170              0x117017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1200              0x120017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1201              0x120117D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1210              0x121017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1212              0x121217D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1220              0x122017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1222              0x122217D3 /* Vendor Device ID	*/
-#define PCIDevVenIDARC1380                                           0x138017D3 /* Vendor Device ID	*/
-#define PCIDevVenIDARC1381                                           0x138117D3 /* Vendor Device ID	*/
-#define PCIDevVenIDARC1680                                           0x168017D3 /* Vendor Device ID	*/
-#define PCIDevVenIDARC1681                                           0x168117D3 /* Vendor Device ID	*/
-#define PCIDevVenIDARC1201                                           0x120117D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1230              0x123017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1231              0x123117D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1260              0x126017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1261              0x126117D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1270              0x127017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1280              0x128017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1380              0x138017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1381              0x138117D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1680              0x168017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1681              0x168117D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1880              0x188017D3 /* Vendor Device ID	*/
 
 #ifndef PCIR_BARS
@@ -120,30 +125,30 @@
 	#define	PCIR_BAR(x)	(PCIR_BARS + (x) * 4)
 #endif
 
-#define PCI_BASE_ADDR0                                               0x10
-#define PCI_BASE_ADDR1                                               0x14
-#define PCI_BASE_ADDR2                                               0x18
-#define PCI_BASE_ADDR3                                               0x1C
-#define PCI_BASE_ADDR4                                               0x20
-#define PCI_BASE_ADDR5                                               0x24
+#define PCI_BASE_ADDR0                  0x10
+#define PCI_BASE_ADDR1                  0x14
+#define PCI_BASE_ADDR2                  0x18
+#define PCI_BASE_ADDR3                  0x1C
+#define PCI_BASE_ADDR4                  0x20
+#define PCI_BASE_ADDR5                  0x24
 /*
 **********************************************************************************
 **
 **********************************************************************************
 */
-#define ARCMSR_SCSICMD_IOCTL                                         0x77
-#define ARCMSR_CDEVSW_IOCTL                                          0x88
-#define ARCMSR_MESSAGE_FAIL                                          0x0001
-#define	ARCMSR_MESSAGE_SUCCESS                                       0x0000
+#define ARCMSR_SCSICMD_IOCTL            0x77
+#define ARCMSR_CDEVSW_IOCTL             0x88
+#define ARCMSR_MESSAGE_FAIL             0x0001
+#define	ARCMSR_MESSAGE_SUCCESS          0x0000
 /*
 **********************************************************************************
 **
 **********************************************************************************
 */
-#define arcmsr_ccbsrb_ptr                  							spriv_ptr0
-#define arcmsr_ccbacb_ptr                  							spriv_ptr1
-#define dma_addr_hi32(addr)                							(u_int32_t) ((addr>>16)>>16)
-#define dma_addr_lo32(addr)                							(u_int32_t) (addr & 0xffffffff)
+#define arcmsr_ccbsrb_ptr               spriv_ptr0
+#define arcmsr_ccbacb_ptr               spriv_ptr1
+#define dma_addr_hi32(addr)             (u_int32_t) ((addr>>16)>>16)
+#define dma_addr_lo32(addr)             (u_int32_t) (addr & 0xffffffff)
 #define get_min(x,y)            ((x) < (y) ? (x) : (y))
 #define get_max(x,y)            ((x) < (y) ? (y) : (x))
 /*
@@ -210,9 +215,9 @@ struct CMD_MESSAGE_FIELD {
 #define ARCMSR_MESSAGE_FLUSH_ADAPTER_CACHE      _IOWR('F', FUNCTION_FLUSH_ADAPTER_CACHE, struct CMD_MESSAGE_FIELD)
 
 /* ARECA IOCTL ReturnCode */
-#define ARCMSR_MESSAGE_RETURNCODE_OK              0x00000001
-#define ARCMSR_MESSAGE_RETURNCODE_ERROR           0x00000006
-#define ARCMSR_MESSAGE_RETURNCODE_3F              0x0000003F
+#define ARCMSR_MESSAGE_RETURNCODE_OK			0x00000001
+#define ARCMSR_MESSAGE_RETURNCODE_ERROR			0x00000006
+#define ARCMSR_MESSAGE_RETURNCODE_3F			0x0000003F
 #define ARCMSR_IOCTL_RETURNCODE_BUS_HANG_ON		0x00000088
 /* 
 ************************************************************************
@@ -533,32 +538,32 @@ struct CMD_MESSAGE_FIELD {
 ************************************************************************************************
 */
 /* signature of set and get firmware config */
-#define ARCMSR_SIGNATURE_GET_CONFIG                   0x87974060
-#define ARCMSR_SIGNATURE_SET_CONFIG                   0x87974063
+#define ARCMSR_SIGNATURE_GET_CONFIG                 0x87974060
+#define ARCMSR_SIGNATURE_SET_CONFIG                 0x87974063
 /* message code of inbound message register */
-#define ARCMSR_INBOUND_MESG0_NOP                      0x00000000
-#define ARCMSR_INBOUND_MESG0_GET_CONFIG               0x00000001
-#define ARCMSR_INBOUND_MESG0_SET_CONFIG               0x00000002
-#define ARCMSR_INBOUND_MESG0_ABORT_CMD                0x00000003
-#define ARCMSR_INBOUND_MESG0_STOP_BGRB                0x00000004
-#define ARCMSR_INBOUND_MESG0_FLUSH_CACHE              0x00000005
-#define ARCMSR_INBOUND_MESG0_START_BGRB               0x00000006
-#define ARCMSR_INBOUND_MESG0_CHK331PENDING            0x00000007
-#define ARCMSR_INBOUND_MESG0_SYNC_TIMER               0x00000008
+#define ARCMSR_INBOUND_MESG0_NOP                    0x00000000
+#define ARCMSR_INBOUND_MESG0_GET_CONFIG             0x00000001
+#define ARCMSR_INBOUND_MESG0_SET_CONFIG             0x00000002
+#define ARCMSR_INBOUND_MESG0_ABORT_CMD              0x00000003
+#define ARCMSR_INBOUND_MESG0_STOP_BGRB              0x00000004
+#define ARCMSR_INBOUND_MESG0_FLUSH_CACHE            0x00000005
+#define ARCMSR_INBOUND_MESG0_START_BGRB             0x00000006
+#define ARCMSR_INBOUND_MESG0_CHK331PENDING          0x00000007
+#define ARCMSR_INBOUND_MESG0_SYNC_TIMER             0x00000008
 /* doorbell interrupt generator */
-#define ARCMSR_INBOUND_DRIVER_DATA_WRITE_OK           0x00000001
-#define ARCMSR_INBOUND_DRIVER_DATA_READ_OK            0x00000002
-#define ARCMSR_OUTBOUND_IOP331_DATA_WRITE_OK          0x00000001
-#define ARCMSR_OUTBOUND_IOP331_DATA_READ_OK           0x00000002
+#define ARCMSR_INBOUND_DRIVER_DATA_WRITE_OK         0x00000001
+#define ARCMSR_INBOUND_DRIVER_DATA_READ_OK          0x00000002
+#define ARCMSR_OUTBOUND_IOP331_DATA_WRITE_OK        0x00000001
+#define ARCMSR_OUTBOUND_IOP331_DATA_READ_OK         0x00000002
 /* srb areca cdb flag */
-#define ARCMSR_SRBPOST_FLAG_SGL_BSIZE                 0x80000000
-#define ARCMSR_SRBPOST_FLAG_IAM_BIOS                  0x40000000
-#define ARCMSR_SRBREPLY_FLAG_IAM_BIOS                 0x40000000
-#define ARCMSR_SRBREPLY_FLAG_ERROR                    0x10000000
+#define ARCMSR_SRBPOST_FLAG_SGL_BSIZE				0x80000000
+#define ARCMSR_SRBPOST_FLAG_IAM_BIOS				0x40000000
+#define ARCMSR_SRBREPLY_FLAG_IAM_BIOS				0x40000000
+#define ARCMSR_SRBREPLY_FLAG_ERROR					0x10000000
 #define ARCMSR_SRBREPLY_FLAG_ERROR_MODE0        	0x10000000
 #define ARCMSR_SRBREPLY_FLAG_ERROR_MODE1			0x00000001
 /* outbound firmware ok */
-#define ARCMSR_OUTBOUND_MESG1_FIRMWARE_OK             0x80000000
+#define ARCMSR_OUTBOUND_MESG1_FIRMWARE_OK			0x80000000
 /*
 **********************************
 **
@@ -603,15 +608,15 @@ struct QBUFFER {
 #define	ARCMSR_FW_CFGVER_OFFSET		25
 
 struct FIRMWARE_INFO {
-	u_int32_t      signature;                /*0,00-03*/
-	u_int32_t      request_len;              /*1,04-07*/
-	u_int32_t      numbers_queue;            /*2,08-11*/
-	u_int32_t      sdram_size;               /*3,12-15*/
-	u_int32_t      ide_channels;             /*4,16-19*/
-	char           vendor[40];               /*5,20-59*/
-	char           model[8];                 /*15,60-67*/
-	char           firmware_ver[16];         /*17,68-83*/
-	char           device_map[16];           /*21,84-99*/
+	u_int32_t      signature;           /*0,00-03*/
+	u_int32_t      request_len;         /*1,04-07*/
+	u_int32_t      numbers_queue;       /*2,08-11*/
+	u_int32_t      sdram_size;          /*3,12-15*/
+	u_int32_t      ide_channels;        /*4,16-19*/
+	char           vendor[40];          /*5,20-59*/
+	char           model[8];            /*15,60-67*/
+	char           firmware_ver[16];	/*17,68-83*/
+	char           device_map[16];      /*21,84-99*/
     u_int32_t      cfgVersion;          /*25,100-103 Added for checking of new firmware capability*/
     char           cfgSerial[16];       /*26,104-119*/
     u_int32_t      cfgPicStatus;        /*30,120-123*/
@@ -649,33 +654,33 @@ struct FIRMWARE_INFO {
 ************************************************************************************************
 */
 struct ARCMSR_CDB {
-	u_int8_t     						Bus;              /* 00h   should be 0            */
-	u_int8_t     						TargetID;         /* 01h   should be 0--15        */
-	u_int8_t     						LUN;              /* 02h   should be 0--7         */
-	u_int8_t     						Function;         /* 03h   should be 1            */
+	u_int8_t     	Bus;              /* 00h   should be 0            */
+	u_int8_t     	TargetID;         /* 01h   should be 0--15        */
+	u_int8_t     	LUN;              /* 02h   should be 0--7         */
+	u_int8_t     	Function;         /* 03h   should be 1            */
 	
-	u_int8_t     						CdbLength;        /* 04h   not used now           */
-	u_int8_t     						sgcount;          /* 05h                          */
-	u_int8_t     						Flags;            /* 06h                          */
-#define ARCMSR_CDB_FLAG_SGL_BSIZE          0x01   /* bit 0: 0(256) / 1(512) bytes         */
-#define ARCMSR_CDB_FLAG_BIOS               0x02   /* bit 1: 0(from driver) / 1(from BIOS) */
-#define ARCMSR_CDB_FLAG_WRITE              0x04	  /* bit 2: 0(Data in) / 1(Data out)      */
-#define ARCMSR_CDB_FLAG_SIMPLEQ            0x00	  /* bit 4/3 ,00 : simple Q,01 : head of Q,10 : ordered Q */
-#define ARCMSR_CDB_FLAG_HEADQ              0x08
-#define ARCMSR_CDB_FLAG_ORDEREDQ           0x10
+	u_int8_t     	CdbLength;        /* 04h   not used now           */
+	u_int8_t     	sgcount;          /* 05h                          */
+	u_int8_t     	Flags;            /* 06h                          */
+#define ARCMSR_CDB_FLAG_SGL_BSIZE		0x01	/* bit 0: 0(256) / 1(512) bytes         */
+#define ARCMSR_CDB_FLAG_BIOS			0x02	/* bit 1: 0(from driver) / 1(from BIOS) */
+#define ARCMSR_CDB_FLAG_WRITE			0x04	/* bit 2: 0(Data in) / 1(Data out)      */
+#define ARCMSR_CDB_FLAG_SIMPLEQ			0x00	/* bit 4/3 ,00 : simple Q,01 : head of Q,10 : ordered Q */
+#define ARCMSR_CDB_FLAG_HEADQ			0x08
+#define ARCMSR_CDB_FLAG_ORDEREDQ		0x10
 	u_int8_t     	msgPages;         /* 07h                          */
 	
-	u_int32_t    						Context;          /* 08h   Address of this request */
-	u_int32_t    						DataLength;       /* 0ch   not used now            */
+	u_int32_t    	Context;          /* 08h   Address of this request */
+	u_int32_t    	DataLength;       /* 0ch   not used now           */
 	
-	u_int8_t     						Cdb[16];          /* 10h   SCSI CDB                */
+	u_int8_t     	Cdb[16];          /* 10h   SCSI CDB               */
 	/*
 	********************************************************
 	**Device Status : the same from SCSI bus if error occur 
 	** SCSI bus status codes.
 	********************************************************
 	*/
-	u_int8_t     						DeviceStatus;     /* 20h   if error                */
+	u_int8_t     	DeviceStatus;     /* 20h   if error                */
 #define SCSISTAT_GOOD                  		0x00
 #define SCSISTAT_CHECK_CONDITION       		0x02
 #define SCSISTAT_CONDITION_MET         		0x04
@@ -685,15 +690,15 @@ struct ARCMSR_CDB {
 #define SCSISTAT_RESERVATION_CONFLICT  		0x18
 #define SCSISTAT_COMMAND_TERMINATED    		0x22
 #define SCSISTAT_QUEUE_FULL            		0x28
-#define ARCMSR_DEV_SELECT_TIMEOUT               0xF0
-#define ARCMSR_DEV_ABORTED                      0xF1
-#define ARCMSR_DEV_INIT_FAIL                    0xF2
+#define ARCMSR_DEV_SELECT_TIMEOUT			0xF0
+#define ARCMSR_DEV_ABORTED					0xF1
+#define ARCMSR_DEV_INIT_FAIL				0xF2
 	
-	u_int8_t     						SenseData[15];    /* 21h   output                  */        
+	u_int8_t     	SenseData[15];    /* 21h   output                  */        
 	
 	union {
-		struct SG32ENTRY                sg32entry[ARCMSR_MAX_SG_ENTRIES];        /* 30h   Scatter gather address  */
-		struct SG64ENTRY                sg64entry[ARCMSR_MAX_SG_ENTRIES];        /* 30h                           */
+		struct SG32ENTRY		sg32entry[ARCMSR_MAX_SG_ENTRIES];        /* 30h   Scatter gather address  */
+		struct SG64ENTRY		sg64entry[ARCMSR_MAX_SG_ENTRIES];        /* 30h                           */
 	} u;
 };
 /*
@@ -706,23 +711,23 @@ struct ARCMSR_CDB {
 */
 struct CommandControlBlock {
 	struct ARCMSR_CDB			arcmsr_cdb;				/* 0  -503 (size of CDB=504): arcmsr messenger scsi command descriptor size 504 bytes */
-	u_int32_t					cdb_shifted_phyaddr;     /* 504-507 */
+	u_int32_t					cdb_shifted_phyaddr;	/* 504-507 */
 	u_int32_t					arc_cdb_size;			/* 508-511 */
 	/*  ======================512+32 bytes============================  */
 #if defined(__x86_64__) || defined(__amd64__) || defined(__ia64__) || defined(__sparc64__) || defined(__powerpc__)
 	union ccb					*pccb;					/* 512-515 516-519 pointer of freebsd scsi command */
 	struct AdapterControlBlock	*acb;					/* 520-523 524-527 */
-		bus_dmamap_t				dm_segs_dmamap;          /* 528-531 532-535 */
-		u_int16_t   				srb_flags;               /* 536-537 */
-		u_int16_t				startdone;                /* 538-539 */
-	    u_int32_t					reserved2;                /* 540-543 */
+	bus_dmamap_t				dm_segs_dmamap;			/* 528-531 532-535 */
+	u_int16_t   				srb_flags;				/* 536-537 */
+	u_int16_t					startdone;                /* 538-539 */
+	u_int32_t					reserved2;                /* 540-543 */
 #else
 	union ccb					*pccb;                    /* 512-515 pointer of freebsd scsi command */
 	struct AdapterControlBlock	*acb;                     /* 516-519 */
-		bus_dmamap_t				dm_segs_dmamap;           /* 520-523 */
-		u_int16_t   				srb_flags;                /* 524-525 */
-		u_int16_t				startdone;                /* 526-527 */
-		u_int32_t				reserved2[4];             /* 528-531 532-535 536-539 540-543 */
+	bus_dmamap_t				dm_segs_dmamap;           /* 520-523 */
+	u_int16_t   				srb_flags;                /* 524-525 */
+	u_int16_t					startdone;                /* 526-527 */
+	u_int32_t					reserved2[4];             /* 528-531 532-535 536-539 540-543 */
 #endif
     /*  ==========================================================  */
 /*	struct	callout				ccb_callout; */
@@ -752,37 +757,37 @@ struct CommandControlBlock {
 **                 Adapter Control Block
 *********************************************************************
 */
-#define ACB_ADAPTER_TYPE_A            0x00000001                /* hba I IOP */
-#define ACB_ADAPTER_TYPE_B            0x00000002                /* hbb M IOP */
+#define ACB_ADAPTER_TYPE_A            0x00000001			/* hba I IOP */
+#define ACB_ADAPTER_TYPE_B            0x00000002			/* hbb M IOP */
 #define ACB_ADAPTER_TYPE_C            0x00000004			/* hbc L IOP */
-#define ACB_ADAPTER_TYPE_D            0x00000008                /* hbd A IOP */
-	
+#define ACB_ADAPTER_TYPE_D            0x00000008			/* hbd A IOP */
+
 struct AdapterControlBlock {
 	u_int32_t					adapter_type;               /* adapter A,B..... */
 	
-	bus_space_tag_t					btag[2];
-	bus_space_handle_t				bhandle[2];
-	bus_dma_tag_t					parent_dmat;
-	bus_dma_tag_t					dm_segs_dmat;                         /* dmat for buffer I/O */  
-	bus_dma_tag_t					srb_dmat;                             /* dmat for freesrb */
-	bus_dmamap_t					srb_dmamap;
+	bus_space_tag_t				btag[2];
+	bus_space_handle_t			bhandle[2];
+	bus_dma_tag_t				parent_dmat;
+	bus_dma_tag_t				dm_segs_dmat;               /* dmat for buffer I/O */  
+	bus_dma_tag_t				srb_dmat;                   /* dmat for freesrb */
+	bus_dmamap_t				srb_dmamap;
 	device_t					pci_dev;
 #if __FreeBSD_version < 503000
 	dev_t						ioctl_dev;
 #else
-	struct cdev *					ioctl_dev;
+	struct cdev *				ioctl_dev;
 #endif
-	int						pci_unit;
+	int							pci_unit;
 	
-	struct resource *				sys_res_arcmsr[2];
-	struct resource *				irqres;
-	void *						ih;                                    /* interrupt handle */
+	struct resource *			sys_res_arcmsr[2];
+	struct resource *			irqres;
+	void *						ih;                         /* interrupt handle */
 	
 	/* Hooks into the CAM XPT */
 	struct						cam_sim *psim;
 	struct						cam_path *ppath;
 	u_int8_t *					uncacheptr;
-	unsigned long					vir2phy_offset;
+	unsigned long				vir2phy_offset;
 	union	{
 		unsigned long			phyaddr;
 		struct {
@@ -794,14 +799,14 @@ struct AdapterControlBlock {
 	/* Offset is used in making arc cdb physical to virtual calculations */
 	u_int32_t					outbound_int_enable;
 	
-	struct MessageUnit_UNION *				pmu;                                   /* message unit ATU inbound base address0 */
+	struct MessageUnit_UNION *	pmu;                        /* message unit ATU inbound base address0 */
 	
-	u_int8_t					adapter_index;                         /*  */
+	u_int8_t					adapter_index;              /*  */
 	u_int8_t					irq;
-	u_int16_t					acb_flags;                             /*  */
+	u_int16_t					acb_flags;                  /*  */
 	
-	struct CommandControlBlock *			psrb_pool[ARCMSR_MAX_FREESRB_NUM];     /* serial srb pointer array */
-	struct CommandControlBlock *			srbworkingQ[ARCMSR_MAX_FREESRB_NUM];   /* working srb pointer array */
+	struct CommandControlBlock *	psrb_pool[ARCMSR_MAX_FREESRB_NUM];     /* serial srb pointer array */
+	struct CommandControlBlock *	srbworkingQ[ARCMSR_MAX_FREESRB_NUM];   /* working srb pointer array */
 	int32_t						workingsrb_doneindex;                  /* done srb array index */
 	int32_t						workingsrb_startindex;                 /* start srb array index  */
 	int32_t						srboutstandingcount;
@@ -814,20 +819,20 @@ struct AdapterControlBlock {
 	u_int32_t					wqbuf_firstindex;                      /* first of write buffer */
 	u_int32_t					wqbuf_lastindex;                       /* last of write buffer  */
 	
-	arcmsr_lock_t					workingQ_done_lock;
-	arcmsr_lock_t					workingQ_start_lock;
-	arcmsr_lock_t					qbuffer_lock;
+	arcmsr_lock_t				workingQ_done_lock;
+	arcmsr_lock_t				workingQ_start_lock;
+	arcmsr_lock_t				qbuffer_lock;
 	
 	u_int8_t					devstate[ARCMSR_MAX_TARGETID][ARCMSR_MAX_TARGETLUN]; /* id0 ..... id15,lun0...lun7 */
 	u_int32_t					num_resets;
 	u_int32_t					num_aborts;
-	u_int32_t					firm_request_len;                      /*1,04-07*/
-	u_int32_t					firm_numbers_queue;                    /*2,08-11*/
-	u_int32_t					firm_sdram_size;                       /*3,12-15*/
-	u_int32_t					firm_ide_channels;                     /*4,16-19*/
+	u_int32_t					firm_request_len;			/*1,04-07*/
+	u_int32_t					firm_numbers_queue;         /*2,08-11*/
+	u_int32_t					firm_sdram_size;            /*3,12-15*/
+	u_int32_t					firm_ide_channels;          /*4,16-19*/
 	u_int32_t					firm_cfg_version;
-	char						firm_model[12];	                       /*15,60-67*/
-	char						firm_version[20];                      /*17,68-83*/
+	char						firm_model[12];	            /*15,60-67*/
+	char						firm_version[20];           /*17,68-83*/
 	char						device_map[20];				/*21,84-99 */
 	struct	callout				devmap_callout;
 };/* HW_DEVICE_EXTENSION */
@@ -885,7 +890,7 @@ struct HBA_MessageUnit
 */
 struct HBB_DOORBELL
 {
-	u_int8_t				doorbell_reserved[132096]; /*reserved */
+	u_int8_t				doorbell_reserved[ARCMSR_DRV2IOP_DOORBELL]; /*reserved */
 	u_int32_t				drv2iop_doorbell;          /*offset 0x00020400:00,01,02,03: window of "instruction flags" from driver to iop */
 	u_int32_t				drv2iop_doorbell_mask;     /*                  04,05,06,07: doorbell mask */
 	u_int32_t				iop2drv_doorbell;          /*                  08,09,10,11: window of "instruction flags" from iop to driver */
@@ -898,7 +903,7 @@ struct HBB_DOORBELL
 */
 struct HBB_RWBUFFER
 {
-	u_int8_t				message_reserved0[64000];   /*reserved */
+	u_int8_t				message_reserved0[ARCMSR_MSGCODE_RWBUFFER];   /*reserved */
 	u_int32_t				msgcode_rwbuffer[256];      /*offset 0x0000fa00:   0,   1,   2,   3,...,1023: message code read write 1024bytes */
 	u_int32_t				message_wbuffer[32];        /*offset 0x0000fe00:1024,1025,1026,1027,...,1151: user space data to iop 128bytes */
 	u_int32_t				message_reserved1[32];      /*                  1152,1153,1154,1155,...,1279: message reserved*/
@@ -1014,38 +1019,38 @@ struct MessageUnit_UNION
 *************************************************************
 */
 struct SENSE_DATA {
-    u_int8_t 						ErrorCode:7;
-    u_int8_t 						Valid:1;
-    u_int8_t 						SegmentNumber;
-    u_int8_t 						SenseKey:4;
-    u_int8_t 						Reserved:1;
-    u_int8_t 						IncorrectLength:1;
-    u_int8_t 						EndOfMedia:1;
-    u_int8_t 						FileMark:1;
-    u_int8_t 						Information[4];
-    u_int8_t 						AdditionalSenseLength;
-    u_int8_t 						CommandSpecificInformation[4];
-    u_int8_t 						AdditionalSenseCode;
-    u_int8_t 						AdditionalSenseCodeQualifier;
-    u_int8_t 						FieldReplaceableUnitCode;
-    u_int8_t 						SenseKeySpecific[3];
+    u_int8_t 	ErrorCode:7;
+    u_int8_t 	Valid:1;
+    u_int8_t 	SegmentNumber;
+    u_int8_t 	SenseKey:4;
+    u_int8_t 	Reserved:1;
+    u_int8_t 	IncorrectLength:1;
+    u_int8_t 	EndOfMedia:1;
+    u_int8_t 	FileMark:1;
+    u_int8_t 	Information[4];
+    u_int8_t 	AdditionalSenseLength;
+    u_int8_t 	CommandSpecificInformation[4];
+    u_int8_t 	AdditionalSenseCode;
+    u_int8_t 	AdditionalSenseCodeQualifier;
+    u_int8_t 	FieldReplaceableUnitCode;
+    u_int8_t 	SenseKeySpecific[3];
 };
 /* 
 **********************************
 **  Peripheral Device Type definitions 
 **********************************
 */
-#define SCSI_DASD		      0x00	   /* Direct-access Device	   */
-#define SCSI_SEQACESS		      0x01	   /* Sequential-access device     */
-#define SCSI_PRINTER		      0x02	   /* Printer device		   */
-#define SCSI_PROCESSOR		      0x03	   /* Processor device		   */
-#define SCSI_WRITEONCE		      0x04	   /* Write-once device 	   */
-#define SCSI_CDROM		      0x05	   /* CD-ROM device		   */
-#define SCSI_SCANNER		      0x06	   /* Scanner device		   */
-#define SCSI_OPTICAL		      0x07	   /* Optical memory device	   */
-#define SCSI_MEDCHGR		      0x08	   /* Medium changer device	   */
-#define SCSI_COMM		      0x09	   /* Communications device	   */
-#define SCSI_NODEV		      0x1F	   /* Unknown or no device type    */
+#define SCSI_DASD			0x00	   /* Direct-access Device	   */
+#define SCSI_SEQACESS		0x01	   /* Sequential-access device     */
+#define SCSI_PRINTER		0x02	   /* Printer device		   */
+#define SCSI_PROCESSOR		0x03	   /* Processor device		   */
+#define SCSI_WRITEONCE		0x04	   /* Write-once device 	   */
+#define SCSI_CDROM			0x05	   /* CD-ROM device		   */
+#define SCSI_SCANNER		0x06	   /* Scanner device		   */
+#define SCSI_OPTICAL		0x07	   /* Optical memory device	   */
+#define SCSI_MEDCHGR		0x08	   /* Medium changer device	   */
+#define SCSI_COMM			0x09	   /* Communications device	   */
+#define SCSI_NODEV			0x1F	   /* Unknown or no device type    */
 /*
 ************************************************************************************************************
 **				         @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -1168,8 +1173,8 @@ struct SENSE_DATA {
 **                                                            1=The bridge target response to I/O transactions on the primary interface is enabled.
 **==============================================================================
 */
-#define     ARCMSR_PCI2PCI_PRIMARY_COMMAND_REG		 0x04    /*word*/
-#define     PCI_DISABLE_INTERRUPT                        0x0400
+#define     ARCMSR_PCI2PCI_PRIMARY_COMMAND_REG		0x04    /*word*/
+#define     PCI_DISABLE_INTERRUPT					0x0400
 /*
 **==============================================================================
 **  0x07-0x06 : status register 

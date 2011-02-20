@@ -117,37 +117,25 @@ rlswitch_attach(device_t dev)
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
 	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
-
-	/*
-	 * We handle all pseudo PHY in a single instance, so never allow
-	 * non-zero * instances!
-	 */
-	if (mii->mii_instance != 0) {
-		device_printf(dev, "ignoring this PHY, non-zero instance\n");
-		return (ENXIO);
-	}
-
+	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
+	sc->mii_flags = miibus_get_flags(dev);
+	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = rlswitch_service;
 	sc->mii_pdata = mii;
-	mii->mii_instance++;
 
+	/*
+	 * We handle all pseudo PHYs in a single instance.
+	 */
 	sc->mii_flags |= MIIF_NOISOLATE;
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 
-#if 0 /* See above. */
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
-	    BMCR_ISO);
-#endif
-
 #if 0
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    BMCR_LOOP|BMCR_S100);
+	    MII_MEDIA_100_TX);
 #endif
 
 	sc->mii_capabilities = BMSR_100TXFDX & ma->mii_capmask;

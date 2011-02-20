@@ -7,7 +7,7 @@ cpu		I686_CPU
 ident		XEN
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-makeoptions	MODULES_OVERRIDE=""
+makeoptions	WITHOUT_MODULES="aha ahb amd cxgb dpt drm hptmv ida malo mps mwl nve sound sym trm xfs"
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption

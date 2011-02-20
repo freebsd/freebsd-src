@@ -491,35 +491,37 @@ dump_metaslab_stats(metaslab_t *msp)
 static void
 dump_metaslab(metaslab_t *msp)
 {
-	char freebuf[5];
-	space_map_obj_t *smo = &msp->ms_smo;
 	vdev_t *vd = msp->ms_group->mg_vd;
 	spa_t *spa = vd->vdev_spa;
+	space_map_t *sm = &msp->ms_map;
+	space_map_obj_t *smo = &msp->ms_smo;
+	char freebuf[5];
 
-	nicenum(msp->ms_map.sm_size - smo->smo_alloc, freebuf);
+	nicenum(sm->sm_size - smo->smo_alloc, freebuf);
 
 	(void) printf(
 	    "\tvdev %5llu   offset %12llx   spacemap %6llu   free    %5s\n",
-	    (u_longlong_t)vd->vdev_id, (u_longlong_t)msp->ms_map.sm_start,
-	    (u_longlong_t)smo->smo_object, freebuf);
+	    (u_longlong_t)(sm->sm_start / sm->sm_size),
+	    (u_longlong_t)sm->sm_start, (u_longlong_t)smo->smo_object, freebuf);
 
 	if (dump_opt['m'] > 1) {
 		mutex_enter(&msp->ms_lock);
-		VERIFY(space_map_load(&msp->ms_map, zfs_metaslab_ops,
-		    SM_FREE, &msp->ms_smo, spa->spa_meta_objset) == 0);
+		space_map_load_wait(sm);
+		if (!sm->sm_loaded)
+			VERIFY(space_map_load(sm, zfs_metaslab_ops,
+			    SM_FREE, smo, spa->spa_meta_objset) == 0);
 		dump_metaslab_stats(msp);
-		space_map_unload(&msp->ms_map);
+		space_map_unload(sm);
 		mutex_exit(&msp->ms_lock);
 	}
 
 	if (dump_opt['d'] > 5 || dump_opt['m'] > 2) {
-		ASSERT(msp->ms_map.sm_size == (1ULL << vd->vdev_ms_shift));
+		ASSERT(sm->sm_size == (1ULL << vd->vdev_ms_shift));
 
 		mutex_enter(&msp->ms_lock);
-		dump_spacemap(spa->spa_meta_objset, smo, &msp->ms_map);
+		dump_spacemap(spa->spa_meta_objset, smo, sm);
 		mutex_exit(&msp->ms_lock);
 	}
-
 }
 
 static void

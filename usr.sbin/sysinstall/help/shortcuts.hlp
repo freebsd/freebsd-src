@@ -13,7 +13,7 @@ blanktime               Screen blank time setting in seconds
 bootManager             Select boot manager: booteasy, standard or none
 browserBinary           Which doc browser to use (default: links)
 browserPackage          Which package to get browser from (default: links)
-cpioVerbose             How verbose to be with cpio: high, medium or low
+cpioVerbose             How verbose to be with cpio: high or low
 debug                   Extra debugging?
 defaultrouter           IP address of default route
 disk                    Which disk to operate on (ad0, da0, etc).

@@ -25,6 +25,7 @@ SRCS+=	scsi_ses.c
 SRCS+=	scsi_sg.c
 SRCS+=	scsi_targ_bh.c scsi_target.c
 SRCS+=	scsi_xpt.c
+SRCS+=	smp_all.c
 SRCS+=	ata_all.c
 SRCS+=	ata_xpt.c
 SRCS+=	ata_da.c

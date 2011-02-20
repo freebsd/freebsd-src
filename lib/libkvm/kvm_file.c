@@ -69,16 +69,14 @@ static char sccsid[] = "@(#)kvm_file.c	8.1 (Berkeley) 6/4/93";
 	(kvm_read(kd, addr, obj, sizeof(*obj)) != sizeof(*obj))
 
 #define KREADN(kd, addr, obj, cnt) \
-	(kvm_read(kd, addr, obj, (cnt)) != (cnt))
+	(kvm_read(kd, addr, obj, (cnt)) != (ssize_t)(cnt))
 
 /*
  * Get file structures.
  */
 static int
-kvm_deadfiles(kd, op, arg, allproc_o, nprocs)
-	kvm_t *kd;
-	int op, arg, nprocs;
-	long allproc_o;
+kvm_deadfiles(kvm_t *kd, int op __unused, int arg __unused, long allproc_o,
+    int nprocs __unused)
 {
 	struct proc proc;
 	struct filedesc filed;
@@ -88,7 +86,7 @@ kvm_deadfiles(kd, op, arg, allproc_o, nprocs)
 	struct proc *p;
 	char *where = kd->argspc;
 
-	if (buflen < sizeof (struct file *) + sizeof (struct file))
+	if (buflen < (int)(sizeof(struct file *) + sizeof(struct file)))
 		return (0);
 	if (KREAD(kd, allproc_o, &p)) {
 		_kvm_err(kd, kd->program, "cannot read allproc");
@@ -96,7 +94,7 @@ kvm_deadfiles(kd, op, arg, allproc_o, nprocs)
 	}
 	for (; p != NULL; p = LIST_NEXT(&proc, p_list)) {
 		if (KREAD(kd, (u_long)p, &proc)) {
-			_kvm_err(kd, kd->program, "can't read proc at %x", p);
+			_kvm_err(kd, kd->program, "can't read proc at %p", p);
 			goto fail;
 		}
 		if (proc.p_state == PRS_NEW)
@@ -104,7 +102,7 @@ kvm_deadfiles(kd, op, arg, allproc_o, nprocs)
 		if (proc.p_fd == NULL)
 			continue;
 		if (KREAD(kd, (u_long)p->p_fd, &filed)) {
-			_kvm_err(kd, kd->program, "can't read filedesc at %x",
+			_kvm_err(kd, kd->program, "can't read filedesc at %p",
 			    p->p_fd);
 			goto fail;
 		}
@@ -118,7 +116,7 @@ kvm_deadfiles(kd, op, arg, allproc_o, nprocs)
 		}
 		if (KREADN(kd, (u_long)filed.fd_ofiles, ofiles,
 		    ocnt * sizeof(struct file *))) {
-			_kvm_err(kd, kd->program, "can't read ofiles at %x",
+			_kvm_err(kd, kd->program, "can't read ofiles at %p",
 			    filed.fd_ofiles);
 			return (0);
 		}
@@ -135,7 +133,7 @@ kvm_deadfiles(kd, op, arg, allproc_o, nprocs)
 				where += sizeof (fp);
 				once = 1;
 			}
-			if (buflen < sizeof (struct file))
+			if (buflen < (int)sizeof(struct file))
 				goto fail;
 			if (KREAD(kd, (long)fp, ((struct file *)where))) {
 				_kvm_err(kd, kd->program, "can't read kfp");
@@ -156,10 +154,7 @@ fail:
 }
 
 char *
-kvm_getfiles(kd, op, arg, cnt)
-	kvm_t *kd;
-	int op, arg;
-	int *cnt;
+kvm_getfiles(kvm_t *kd, int op, int arg, int *cnt)
 {
 	int mib[2], st, n, nfiles, nprocs;
 	size_t size;
@@ -177,7 +172,7 @@ kvm_getfiles(kd, op, arg, cnt)
 		}
 		if (kd->argspc == 0)
 			kd->argspc = (char *)_kvm_malloc(kd, size);
-		else if (kd->arglen < size)
+		else if (kd->arglen < (int)size)
 			kd->argspc = (char *)_kvm_realloc(kd, kd->argspc, size);
 		if (kd->argspc == 0)
 			return (0);
@@ -214,7 +209,7 @@ kvm_getfiles(kd, op, arg, cnt)
 		size = sizeof(void *) + (nfiles + 10) * sizeof(struct file);
 		if (kd->argspc == 0)
 			kd->argspc = (char *)_kvm_malloc(kd, size);
-		else if (kd->arglen < size)
+		else if (kd->arglen < (int)size)
 			kd->argspc = (char *)_kvm_realloc(kd, kd->argspc, size);
 		if (kd->argspc == 0)
 			return (0);

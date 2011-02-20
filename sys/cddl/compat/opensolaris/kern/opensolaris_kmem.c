@@ -112,18 +112,30 @@ zfs_kmem_free(void *buf, size_t size __unused)
 	free(buf, M_SOLARIS);
 }
 
+static uint64_t kmem_size_val;
+
+static void
+kmem_size_init(void *unused __unused)
+{
+
+	kmem_size_val = (uint64_t)cnt.v_page_count * PAGE_SIZE;
+	if (kmem_size_val > vm_kmem_size)
+		kmem_size_val = vm_kmem_size;
+}
+SYSINIT(kmem_size_init, SI_SUB_KMEM, SI_ORDER_ANY, kmem_size_init, NULL);
+
 uint64_t
 kmem_size(void)
 {
 
-	return ((uint64_t)vm_kmem_size);
+	return (kmem_size_val);
 }
 
 uint64_t
 kmem_used(void)
 {
 
-	return ((uint64_t)kmem_map->size);
+	return (kmem_map->size);
 }
 
 static int

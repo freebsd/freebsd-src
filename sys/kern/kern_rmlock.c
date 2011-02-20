@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rmlock.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
-#include <sys/systm.h>
 #include <sys/turnstile.h>
 #include <sys/lock_profile.h>
 #include <machine/cpu.h>
@@ -187,6 +186,8 @@ rm_cleanIPI(void *arg)
 	}
 }
 
+CTASSERT((RM_SLEEPABLE & LO_CLASSFLAGS) == RM_SLEEPABLE);
+
 void
 rm_init_flags(struct rmlock *rm, const char *name, int opts)
 {
@@ -197,9 +198,13 @@ rm_init_flags(struct rmlock *rm, const char *name, int opts)
 		liflags |= LO_WITNESS;
 	if (opts & RM_RECURSE)
 		liflags |= LO_RECURSABLE;
-	rm->rm_noreadtoken = 1;
+	rm->rm_writecpus = all_cpus;
 	LIST_INIT(&rm->rm_activeReaders);
-	mtx_init(&rm->rm_lock, name, "rmlock_mtx", MTX_NOWITNESS);
+	if (opts & RM_SLEEPABLE) {
+		liflags |= RM_SLEEPABLE;
+		sx_init_flags(&rm->rm_lock_sx, "rmlock_sx", SX_RECURSE);
+	} else
+		mtx_init(&rm->rm_lock_mtx, name, "rmlock_mtx", MTX_NOWITNESS);
 	lock_init(&rm->lock_object, &lock_class_rm, name, NULL, liflags);
 }
 
@@ -214,7 +219,10 @@ void
 rm_destroy(struct rmlock *rm)
 {
 
-	mtx_destroy(&rm->rm_lock);
+	if (rm->lock_object.lo_flags & RM_SLEEPABLE)
+		sx_destroy(&rm->rm_lock_sx);
+	else
+		mtx_destroy(&rm->rm_lock_mtx);
 	lock_destroy(&rm->lock_object);
 }
 
@@ -222,7 +230,10 @@ int
 rm_wowned(struct rmlock *rm)
 {
 
-	return (mtx_owned(&rm->rm_lock));
+	if (rm->lock_object.lo_flags & RM_SLEEPABLE)
+		return (sx_xlocked(&rm->rm_lock_sx));
+	else
+		return (mtx_owned(&rm->rm_lock_mtx));
 }
 
 void
@@ -241,8 +252,8 @@ rm_sysinit_flags(void *arg)
 	rm_init_flags(args->ra_rm, args->ra_desc, args->ra_opts);
 }
 
-static void
-_rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker)
+static int
+_rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 {
 	struct pcpu *pc;
 	struct rm_queue *queue;
@@ -252,9 +263,9 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker)
 	pc = pcpu_find(curcpu);
 
 	/* Check if we just need to do a proper critical_exit. */
-	if (0 == rm->rm_noreadtoken) {
+	if (!(pc->pc_cpumask & rm->rm_writecpus)) {
 		critical_exit();
-		return;
+		return (1);
 	}
 
 	/* Remove our tracker from the per-cpu list. */
@@ -265,7 +276,7 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker)
 		/* Just add back tracker - we hold the lock. */
 		rm_tracker_add(pc, tracker);
 		critical_exit();
-		return;
+		return (1);
 	}
 
 	/*
@@ -289,7 +300,7 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker)
 				mtx_unlock_spin(&rm_spinlock);
 				rm_tracker_add(pc, tracker);
 				critical_exit();
-				return;
+				return (1);
 			}
 		}
 	}
@@ -297,20 +308,38 @@ _rm_rlock_hard(struct rmlock *rm, struct rm_priotracker *tracker)
 	sched_unpin();
 	critical_exit();
 
-	mtx_lock(&rm->rm_lock);
-	rm->rm_noreadtoken = 0;
-	critical_enter();
+	if (trylock) {
+		if (rm->lock_object.lo_flags & RM_SLEEPABLE) {
+			if (!sx_try_xlock(&rm->rm_lock_sx))
+				return (0);
+		} else {
+			if (!mtx_trylock(&rm->rm_lock_mtx))
+				return (0);
+		}
+	} else {
+		if (rm->lock_object.lo_flags & RM_SLEEPABLE)
+			sx_xlock(&rm->rm_lock_sx);
+		else
+			mtx_lock(&rm->rm_lock_mtx);
+	}
 
+	critical_enter();
 	pc = pcpu_find(curcpu);
+	rm->rm_writecpus &= ~pc->pc_cpumask;
 	rm_tracker_add(pc, tracker);
 	sched_pin();
 	critical_exit();
 
-	mtx_unlock(&rm->rm_lock);
+	if (rm->lock_object.lo_flags & RM_SLEEPABLE)
+		sx_xunlock(&rm->rm_lock_sx);
+	else
+		mtx_unlock(&rm->rm_lock_mtx);
+
+	return (1);
 }
 
-void
-_rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker)
+int
+_rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 {
 	struct thread *td = curthread;
 	struct pcpu *pc;
@@ -337,11 +366,11 @@ _rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker)
 	 * Fast path to combine two common conditions into a single
 	 * conditional jump.
 	 */
-	if (0 == (td->td_owepreempt | rm->rm_noreadtoken))
-		return;
+	if (0 == (td->td_owepreempt | (rm->rm_writecpus & pc->pc_cpumask)))
+		return (1);
 
 	/* We do not have a read token and need to acquire one. */
-	_rm_rlock_hard(rm, tracker);
+	return _rm_rlock_hard(rm, tracker, trylock);
 }
 
 static void
@@ -400,20 +429,26 @@ _rm_wlock(struct rmlock *rm)
 {
 	struct rm_priotracker *prio;
 	struct turnstile *ts;
+	cpumask_t readcpus;
 
-	mtx_lock(&rm->rm_lock);
+	if (rm->lock_object.lo_flags & RM_SLEEPABLE)
+		sx_xlock(&rm->rm_lock_sx);
+	else
+		mtx_lock(&rm->rm_lock_mtx);
 
-	if (rm->rm_noreadtoken == 0) {
+	if (rm->rm_writecpus != all_cpus) {
 		/* Get all read tokens back */
 
-		rm->rm_noreadtoken = 1;
+		readcpus = all_cpus & (all_cpus & ~rm->rm_writecpus);
+		rm->rm_writecpus = all_cpus;
 
 		/*
-		 * Assumes rm->rm_noreadtoken update is visible on other CPUs
+		 * Assumes rm->rm_writecpus update is visible on other CPUs
 		 * before rm_cleanIPI is called.
 		 */
 #ifdef SMP
-		smp_rendezvous(smp_no_rendevous_barrier,
+		smp_rendezvous_cpus(readcpus,
+		    smp_no_rendevous_barrier,
 		    rm_cleanIPI,
 		    smp_no_rendevous_barrier,
 		    rm);
@@ -439,7 +474,10 @@ void
 _rm_wunlock(struct rmlock *rm)
 {
 
-	mtx_unlock(&rm->rm_lock);
+	if (rm->lock_object.lo_flags & RM_SLEEPABLE)
+		sx_xunlock(&rm->rm_lock_sx);
+	else
+		mtx_unlock(&rm->rm_lock_mtx);
 }
 
 #ifdef LOCK_DEBUG
@@ -454,7 +492,11 @@ void _rm_wlock_debug(struct rmlock *rm, const char *file, int line)
 
 	LOCK_LOG_LOCK("RMWLOCK", &rm->lock_object, 0, 0, file, line);
 
-	WITNESS_LOCK(&rm->lock_object, LOP_EXCLUSIVE, file, line);
+	if (rm->lock_object.lo_flags & RM_SLEEPABLE)
+		WITNESS_LOCK(&rm->rm_lock_sx.lock_object, LOP_EXCLUSIVE,
+		    file, line);	
+	else
+		WITNESS_LOCK(&rm->lock_object, LOP_EXCLUSIVE, file, line);
 
 	curthread->td_locks++;
 
@@ -465,25 +507,35 @@ _rm_wunlock_debug(struct rmlock *rm, const char *file, int line)
 {
 
 	curthread->td_locks--;
-	WITNESS_UNLOCK(&rm->lock_object, LOP_EXCLUSIVE, file, line);
+	if (rm->lock_object.lo_flags & RM_SLEEPABLE)
+		WITNESS_UNLOCK(&rm->rm_lock_sx.lock_object, LOP_EXCLUSIVE,
+		    file, line);
+	else
+		WITNESS_UNLOCK(&rm->lock_object, LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("RMWUNLOCK", &rm->lock_object, 0, 0, file, line);
 	_rm_wunlock(rm);
 }
 
-void
+int
 _rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
-    const char *file, int line)
+    int trylock, const char *file, int line)
 {
-
+	if (!trylock && (rm->lock_object.lo_flags & RM_SLEEPABLE))
+		WITNESS_CHECKORDER(&rm->rm_lock_sx.lock_object, LOP_NEWORDER,
+		    file, line, NULL);
 	WITNESS_CHECKORDER(&rm->lock_object, LOP_NEWORDER, file, line, NULL);
 
-	_rm_rlock(rm, tracker);
+	if (_rm_rlock(rm, tracker, trylock)) {
+		LOCK_LOG_LOCK("RMRLOCK", &rm->lock_object, 0, 0, file, line);
 
-	LOCK_LOG_LOCK("RMRLOCK", &rm->lock_object, 0, 0, file, line);
+		WITNESS_LOCK(&rm->lock_object, 0, file, line);
 
-	WITNESS_LOCK(&rm->lock_object, 0, file, line);
+		curthread->td_locks++;
 
-	curthread->td_locks++;
+		return (1);
+	}
+
+	return (0);
 }
 
 void
@@ -517,12 +569,12 @@ _rm_wunlock_debug(struct rmlock *rm, const char *file, int line)
 	_rm_wunlock(rm);
 }
 
-void
+int
 _rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
-    const char *file, int line)
+    int trylock, const char *file, int line)
 {
 
-	_rm_rlock(rm, tracker);
+	return _rm_rlock(rm, tracker, trylock);
 }
 
 void

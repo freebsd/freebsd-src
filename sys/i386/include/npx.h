@@ -151,13 +151,12 @@ int	npxdna(void);
 void	npxdrop(void);
 void	npxexit(struct thread *td);
 int	npxformat(void);
-int	npxgetregs(struct thread *td, union savefpu *addr);
-int	npxgetuserregs(struct thread *td, union savefpu *addr);
+int	npxgetregs(struct thread *td);
 void	npxinit(void);
 void	npxsave(union savefpu *addr);
 void	npxsetregs(struct thread *td, union savefpu *addr);
-void	npxsetuserregs(struct thread *td, union savefpu *addr);
 int	npxtrap(void);
+void	npxuserinited(struct thread *);
 int	fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx,
 	    u_int flags);
 int	fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx);

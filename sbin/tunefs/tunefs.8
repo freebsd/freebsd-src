@@ -28,7 +28,7 @@
 .\"     @(#)tunefs.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2010
+.Dd December 9, 2010
 .Dt TUNEFS 8
 .Os
 .Sh NAME
@@ -51,6 +51,7 @@
 .Op Fl p
 .Op Fl s Ar avgfpdir
 .Op Fl S Ar size
+.Op Fl t Cm enable | disable
 .Ar special | filesystem
 .Sh DESCRIPTION
 The
@@ -143,6 +144,14 @@ Specify the expected number of files per directory.
 .It Fl S Ar size
 Specify the softdep journal size in bytes.
 The minimum is 4M.
+.It Fl t Cm enable | disable
+Turn on/off the TRIM enable flag.
+If enabled, and if the underlying device supports the BIO_DELETE
+command, the file system will send a delete request to the underlying
+device for each freed block.
+The trim enable flag is typically set when the underlying device
+uses flash-memory as the device can use the delete command to
+pre-zero or at least avoid copying blocks that have been deleted.
 .El
 .Pp
 At least one of the above flags is required.

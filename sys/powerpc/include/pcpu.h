@@ -55,7 +55,7 @@ struct pmap;
 
 #define PCPU_MD_AIM64_FIELDS						\
 	struct slb	pc_slb[64];					\
-	struct slb	*pc_userslb;
+	struct slb	**pc_userslb;
 
 #ifdef __powerpc64__
 #define PCPU_MD_AIM_FIELDS	PCPU_MD_AIM64_FIELDS

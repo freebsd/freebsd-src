@@ -38,6 +38,7 @@
 .Nm cfsetospeed ,
 .Nm cfsetspeed ,
 .Nm cfmakeraw ,
+.Nm cfmakesane ,
 .Nm tcgetattr ,
 .Nm tcsetattr
 .Nd manipulating the termios structure
@@ -57,6 +58,8 @@
 .Fn cfsetspeed "struct termios *t" "speed_t speed"
 .Ft void
 .Fn cfmakeraw "struct termios *t"
+.Ft void
+.Fn cfmakesane "struct termios *t"
 .Ft int
 .Fn tcgetattr "int fd" "struct termios *t"
 .Ft int
@@ -64,6 +67,7 @@
 .Sh DESCRIPTION
 The
 .Fn cfmakeraw ,
+.Fn cfmakesane ,
 .Fn tcgetattr
 and
 .Fn tcsetattr
@@ -180,14 +184,20 @@ The
 .Fn cfmakeraw
 function sets the flags stored in the termios structure to a state disabling
 all input and output processing, giving a
-.Dq raw I/O path .
+.Dq raw I/O path ,
+while the
+.Fn cfmakesane
+function sets them to a state similar to those of a newly created
+terminal device.
 It should be noted that there is no function to reverse this effect.
 This is because there are a variety of processing options that could be
 re-enabled and the correct method is for an application to snapshot the
 current terminal state using the function
 .Fn tcgetattr ,
-setting raw mode with
+setting raw or sane mode with
 .Fn cfmakeraw
+or
+.Fn cfmakesane
 and the subsequent
 .Fn tcsetattr ,
 and then using another
@@ -316,7 +326,8 @@ functions are expected to be compliant with the
 .St -p1003.1-88
 specification.
 The
-.Fn cfmakeraw
+.Fn cfmakeraw ,
+.Fn cfmakesane
 and
 .Fn cfsetspeed
 functions,

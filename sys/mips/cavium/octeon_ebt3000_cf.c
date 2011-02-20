@@ -148,6 +148,8 @@ struct g_class g_cf_class = {
         .ioctl =        cf_ioctl,
 };
 
+DECLARE_GEOM_CLASS(g_cf_class, g_cf);
+
 /* Device methods */
 static int	cf_probe(device_t);
 static void	cf_identify(driver_t *, device_t);

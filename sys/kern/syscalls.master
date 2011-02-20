@@ -40,7 +40,7 @@
 ;	NOPROTO	same as STD except do not create structure or
 ;		function prototype in sys/sysproto.h.  Does add a
 ;		definition to syscall.h besides adding a sysent.
-;	NONSTATIC syscall is loadable
+;	NOTSTATIC syscall is loadable
 ;
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
@@ -594,7 +594,9 @@
 337	AUE_NULL	STD	{ int kldsym(int fileid, int cmd, \
 				    void *data); }
 338	AUE_JAIL	STD	{ int jail(struct jail *jail); }
-339	AUE_NULL	UNIMPL	pioctl
+339	AUE_NULL	NOSTD|NOTSTATIC	{ int nnpfs_syscall(int operation, \
+				    char *a_pathP, int a_opcode, \
+				    void *a_paramsP, int a_followSymlinks); }
 340	AUE_SIGPROCMASK	STD	{ int sigprocmask(int how, \
 				    const sigset_t *set, sigset_t *oset); }
 341	AUE_SIGSUSPEND	STD	{ int sigsuspend(const sigset_t *sigmask); }
@@ -670,7 +672,9 @@
 374	AUE_NULL	STD	{ int __setugid(int flag); }
 375	AUE_NULL	UNIMPL	nfsclnt
 376	AUE_EACCESS	STD	{ int eaccess(char *path, int flags); }
-377	AUE_NULL	UNIMPL	afs_syscall
+377	AUE_NULL	NOSTD|NOTSTATIC	{ int afs3_syscall(long syscall, \
+				    long parm1, long parm2, long parm3, \
+				    long parm4, long parm5, long parm6); }
 378	AUE_NMOUNT	STD	{ int nmount(struct iovec *iovp, \
 				    unsigned int iovcnt, int flags); }
 379	AUE_NULL	UNIMPL	kse_exit

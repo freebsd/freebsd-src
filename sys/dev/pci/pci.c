@@ -182,6 +182,7 @@ struct pci_quirk {
 	int	type;
 #define	PCI_QUIRK_MAP_REG	1 /* PCI map register in weird place */
 #define	PCI_QUIRK_DISABLE_MSI	2 /* MSI/MSI-X doesn't work */
+#define	PCI_QUIRK_ENABLE_MSI_VM	3 /* Older chipset in VM where MSI works */
 	int	arg1;
 	int	arg2;
 };
@@ -217,6 +218,12 @@ struct pci_quirk pci_quirks[] = {
 	 * bridge.
 	 */
 	{ 0x74501022, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+
+	/*
+	 * Some virtualization environments emulate an older chipset
+	 * but support MSI just fine.  QEMU uses the Intel 82440.
+	 */
+	{ 0x12378086, PCI_QUIRK_ENABLE_MSI_VM,	0,	0 },
 
 	{ 0 }
 };
@@ -256,6 +263,12 @@ TUNABLE_INT("hw.pci.do_power_resume", &pci_do_power_resume);
 SYSCTL_INT(_hw_pci, OID_AUTO, do_power_resume, CTLFLAG_RW,
     &pci_do_power_resume, 1,
   "Transition from D3 -> D0 on resume.");
+
+int pci_do_power_suspend = 1;
+TUNABLE_INT("hw.pci.do_power_suspend", &pci_do_power_suspend);
+SYSCTL_INT(_hw_pci, OID_AUTO, do_power_suspend, CTLFLAG_RW,
+    &pci_do_power_suspend, 1,
+  "Transition from D0 -> D3 on suspend.");
 
 static int pci_do_msi = 1;
 TUNABLE_INT("hw.pci.enable_msi", &pci_do_msi);
@@ -594,7 +607,7 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 			if (cfg->pp.pp_cap == 0) {
 				cfg->pp.pp_cap = REG(ptr + PCIR_POWER_CAP, 2);
 				cfg->pp.pp_status = ptr + PCIR_POWER_STATUS;
-				cfg->pp.pp_pmcsr = ptr + PCIR_POWER_PMCSR;
+				cfg->pp.pp_bse = ptr + PCIR_POWER_BSE;
 				if ((nextptr - ptr) > PCIR_POWER_DATA)
 					cfg->pp.pp_data = ptr + PCIR_POWER_DATA;
 			}
@@ -1828,6 +1841,23 @@ pci_msi_device_blacklisted(device_t dev)
 }
 
 /*
+ * Returns true if a specified chipset supports MSI when it is
+ * emulated hardware in a virtual machine.
+ */
+static int
+pci_msi_vm_chipset(device_t dev)
+{
+	struct pci_quirk *q;
+
+	for (q = &pci_quirks[0]; q->devid; q++) {
+		if (q->devid == pci_get_devid(dev) &&
+		    q->type == PCI_QUIRK_ENABLE_MSI_VM)
+			return (1);
+	}
+	return (0);
+}
+
+/*
  * Determine if MSI is blacklisted globally on this sytem.  Currently,
  * we just check for blacklisted chipsets as represented by the
  * host-PCI bridge at device 0:0:0.  In the future, it may become
@@ -1843,8 +1873,14 @@ pci_msi_blacklisted(void)
 		return (0);
 
 	/* Blacklist all non-PCI-express and non-PCI-X chipsets. */
-	if (!(pcie_chipset || pcix_chipset))
+	if (!(pcie_chipset || pcix_chipset)) {
+		if (vm_guest != VM_GUEST_NO) {
+			dev = pci_find_bsf(0, 0, 0);
+			if (dev != NULL)
+				return (pci_msi_vm_chipset(dev) == 0);
+		}
 		return (1);
+	}
 
 	dev = pci_find_bsf(0, 0, 0);
 	if (dev != NULL)
@@ -2767,7 +2803,7 @@ ehci_early_takeover(device_t self)
 				    "SMM does not respond\n");
 		}
 		/* Disable interrupts */
-		offs = bus_read_1(res, EHCI_CAPLENGTH);
+		offs = EHCI_CAPLENGTH(bus_read_4(res, EHCI_CAPLEN_HCIVERSION));
 		bus_write_4(res, offs + EHCI_USBINTR, 0);
 	}
 	bus_release_resource(self, SYS_RES_MEMORY, rid, res);
@@ -2903,12 +2939,38 @@ pci_attach(device_t dev)
 	return (bus_generic_attach(dev));
 }
 
+static void
+pci_set_power_children(device_t dev, device_t *devlist, int numdevs,
+    int state)
+{
+	device_t child, pcib;
+	struct pci_devinfo *dinfo;
+	int dstate, i;
+
+	/*
+	 * Set the device to the given state.  If the firmware suggests
+	 * a different power state, use it instead.  If power management
+	 * is not present, the firmware is responsible for managing
+	 * device power.  Skip children who aren't attached since they
+	 * are handled separately.
+	 */
+	pcib = device_get_parent(dev);
+	for (i = 0; i < numdevs; i++) {
+		child = devlist[i];
+		dinfo = device_get_ivars(child);
+		dstate = state;
+		if (device_is_attached(child) &&
+		    PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
+			pci_set_powerstate(child, dstate);
+	}
+}
+
 int
 pci_suspend(device_t dev)
 {
-	int dstate, error, i, numdevs;
-	device_t child, *devlist, pcib;
+	device_t child, *devlist;
 	struct pci_devinfo *dinfo;
+	int error, i, numdevs;
 
 	/*
 	 * Save the PCI configuration space for each child and set the
@@ -2918,7 +2980,7 @@ pci_suspend(device_t dev)
 		return (error);
 	for (i = 0; i < numdevs; i++) {
 		child = devlist[i];
-		dinfo = (struct pci_devinfo *) device_get_ivars(child);
+		dinfo = device_get_ivars(child);
 		pci_cfg_save(child, dinfo, 0);
 	}
 
@@ -2928,26 +2990,9 @@ pci_suspend(device_t dev)
 		free(devlist, M_TEMP);
 		return (error);
 	}
-
-	/*
-	 * Always set the device to D3.  If the firmware suggests a
-	 * different power state, use it instead.  If power management
-	 * is not present, the firmware is responsible for managing
-	 * device power.  Skip children who aren't attached since they
-	 * are powered down separately.  Only manage type 0 devices
-	 * for now.
-	 */
-	pcib = device_get_parent(dev);
-	for (i = 0; pci_do_power_resume && i < numdevs; i++) {
-		child = devlist[i];
-		dinfo = (struct pci_devinfo *) device_get_ivars(child);
-		dstate = PCI_POWERSTATE_D3;
-		if (device_is_attached(child) &&
-		    (dinfo->cfg.hdrtype & PCIM_HDRTYPE) ==
-		    PCIM_HDRTYPE_NORMAL &&
-		    PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
-			pci_set_powerstate(child, dstate);
-	}
+	if (pci_do_power_suspend)
+		pci_set_power_children(dev, devlist, numdevs,
+		    PCI_POWERSTATE_D3);
 	free(devlist, M_TEMP);
 	return (0);
 }
@@ -2955,52 +3000,76 @@ pci_suspend(device_t dev)
 int
 pci_resume(device_t dev)
 {
-	int i, numdevs, error;
-	device_t child, *devlist, pcib;
+	device_t child, *devlist;
 	struct pci_devinfo *dinfo;
+	int error, i, numdevs;
 
 	/*
 	 * Set each child to D0 and restore its PCI configuration space.
 	 */
 	if ((error = device_get_children(dev, &devlist, &numdevs)) != 0)
 		return (error);
-	pcib = device_get_parent(dev);
-	for (i = 0; i < numdevs; i++) {
-		/*
-		 * Notify power managment we're going to D0 but ignore
-		 * the result.  If power management is not present,
-		 * the firmware is responsible for managing device
-		 * power.  Only manage type 0 devices for now.
-		 */
-		child = devlist[i];
-		dinfo = (struct pci_devinfo *) device_get_ivars(child);
-		if (device_is_attached(child) &&
-		    (dinfo->cfg.hdrtype & PCIM_HDRTYPE) ==
-		    PCIM_HDRTYPE_NORMAL &&
-		    PCIB_POWER_FOR_SLEEP(pcib, dev, NULL) == 0)
-			pci_set_powerstate(child, PCI_POWERSTATE_D0);
+	if (pci_do_power_resume)
+		pci_set_power_children(dev, devlist, numdevs,
+		    PCI_POWERSTATE_D0);
 
-		/* Now the device is powered up, restore its config space. */
+	/* Now the device is powered up, restore its config space. */
+	for (i = 0; i < numdevs; i++) {
+		child = devlist[i];
+		dinfo = device_get_ivars(child);
+
 		pci_cfg_restore(child, dinfo);
 		if (!device_is_attached(child))
 			pci_cfg_save(child, dinfo, 1);
 	}
+
+	/*
+	 * Resume critical devices first, then everything else later.
+	 */
+	for (i = 0; i < numdevs; i++) {
+		child = devlist[i];
+		switch (pci_get_class(child)) {
+		case PCIC_DISPLAY:
+		case PCIC_MEMORY:
+		case PCIC_BRIDGE:
+		case PCIC_BASEPERIPH:
+			DEVICE_RESUME(child);
+			break;
+		}
+	}
+	for (i = 0; i < numdevs; i++) {
+		child = devlist[i];
+		switch (pci_get_class(child)) {
+		case PCIC_DISPLAY:
+		case PCIC_MEMORY:
+		case PCIC_BRIDGE:
+		case PCIC_BASEPERIPH:
+			break;
+		default:
+			DEVICE_RESUME(child);
+		}
+	}
 	free(devlist, M_TEMP);
-	return (bus_generic_resume(dev));
+	return (0);
 }
 
 static void
 pci_load_vendor_data(void)
 {
-	caddr_t vendordata, info;
+	caddr_t data;
+	void *ptr;
+	size_t sz;
 
-	if ((vendordata = preload_search_by_type("pci_vendor_data")) != NULL) {
-		info = preload_search_info(vendordata, MODINFO_ADDR);
-		pci_vendordata = *(char **)info;
-		info = preload_search_info(vendordata, MODINFO_SIZE);
-		pci_vendordata_size = *(size_t *)info;
-		/* terminate the database */
-		pci_vendordata[pci_vendordata_size] = '\n';
+	data = preload_search_by_type("pci_vendor_data");
+	if (data != NULL) {
+		ptr = preload_fetch_addr(data);
+		sz = preload_fetch_size(data);
+		if (ptr != NULL && sz != 0) {
+			pci_vendordata = ptr;
+			pci_vendordata_size = sz;
+			/* terminate the database */
+			pci_vendordata[pci_vendordata_size] = '\n';
+		}
 	}
 }
 
@@ -3338,7 +3407,7 @@ pci_probe_nomatch(device_t dev, device_t child)
 	}
 	printf(" at device %d.%d (no driver attached)\n",
 	    pci_get_slot(child), pci_get_function(child));
-	pci_cfg_save(child, (struct pci_devinfo *)device_get_ivars(child), 1);
+	pci_cfg_save(child, device_get_ivars(child), 1);
 	return;
 }
 
@@ -3657,9 +3726,15 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	res = NULL;
 	pci_read_bar(child, *rid, &map, &testval);
 
-	/* Ignore a BAR with a base of 0. */
-	if ((*rid == PCIR_BIOS && pci_rombase(testval) == 0) ||
-	    pci_mapbase(testval) == 0)
+	/*
+	 * Determine the size of the BAR and ignore BARs with a size
+	 * of 0.  Device ROM BARs use a different mask value.
+	 */
+	if (*rid == PCIR_BIOS)
+		mapsize = pci_romsize(testval);
+	else
+		mapsize = pci_mapsize(testval);
+	if (mapsize == 0)
 		goto out;
 
 	if (PCI_BAR_MEM(testval) || *rid == PCIR_BIOS) {
@@ -3688,13 +3763,7 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	 * actually uses and we would otherwise have a
 	 * situation where we might allocate the excess to
 	 * another driver, which won't work.
-	 *
-	 * Device ROM BARs use a different mask value.
 	 */
-	if (*rid == PCIR_BIOS)
-		mapsize = pci_romsize(testval);
-	else
-		mapsize = pci_mapsize(testval);
 	count = 1UL << mapsize;
 	if (RF_ALIGNMENT(flags) < mapsize)
 		flags = (flags & ~RF_ALIGNMENT_MASK) | RF_ALIGNMENT_LOG2(mapsize);
@@ -4019,9 +4088,8 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 	 * the noise on boot by doing nothing if we are already in
 	 * state D0.
 	 */
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
+	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0)
 		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-	}
 	for (i = 0; i < dinfo->cfg.nummaps; i++)
 		pci_write_config(dev, PCIR_BAR(i), dinfo->cfg.bar[i], 4);
 	pci_write_config(dev, PCIR_BIOS, dinfo->cfg.bios, 4);

@@ -374,7 +374,7 @@ ata_marvell_edma_status(device_t dev)
 	ATA_OUTL(ctlr->r_res1, 0x02008 + ATA_MV_EDMA_BASE(ch), 0x0);
 
 	/* do we have any PHY events ? */
-	ata_sata_phy_check_events(dev);
+	ata_sata_phy_check_events(dev, -1);
     }
 
     /* do we have any device action ? */
@@ -614,7 +614,6 @@ ata_marvell_edma_dmainit(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
-    ata_dmainit(dev);
     /* note start and stop are not used here */
     ch->dma.setprd = ata_marvell_edma_dmasetprd;
 	
@@ -625,6 +624,7 @@ ata_marvell_edma_dmainit(device_t dev)
     /* chip does not reliably do 64K DMA transfers */
     if (ctlr->chip->cfg2 == MV_50XX || ctlr->chip->cfg2 == MV_60XX)
 	ch->dma.max_iosize = 64 * DEV_BSIZE;
+    ata_dmainit(dev);
 }
 
 ATA_DECLARE_DRIVER(ata_marvell);

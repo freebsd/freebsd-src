@@ -671,7 +671,7 @@
 /* #undef VERSION */
 
 /* Define if builtin atomic operations are supported on this host. */
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 #define _GLIBCXX_ATOMIC_BUILTINS 1
 #endif
 

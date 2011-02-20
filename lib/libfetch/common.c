@@ -321,9 +321,9 @@ fetch_connect(const char *host, int port, int af, int verbose)
 int
 fetch_ssl(conn_t *conn, int verbose)
 {
+#ifdef WITH_SSL
 	int ret, ssl_err;
 
-#ifdef WITH_SSL
 	/* Init the SSL library and context */
 	if (!SSL_library_init()){
 		fprintf(stderr, "SSL library init failed\n");

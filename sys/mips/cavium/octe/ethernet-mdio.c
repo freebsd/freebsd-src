@@ -70,10 +70,6 @@ int cvm_oct_mdio_read(struct ifnet *ifp, int phy_id, int location)
 	cvmx_write_csr(CVMX_SMI_CMD, smi_cmd.u64);
 
 	do {
-#if 0
-		if (!in_interrupt())
-			yield();
-#endif
 		smi_rd.u64 = cvmx_read_csr(CVMX_SMI_RD_DAT);
 	} while (smi_rd.s.pending);
 
@@ -111,10 +107,6 @@ void cvm_oct_mdio_write(struct ifnet *ifp, int phy_id, int location, int val)
 	cvmx_write_csr(CVMX_SMI_CMD, smi_cmd.u64);
 
 	do {
-#if 0
-		if (!in_interrupt())
-			yield();
-#endif
 		smi_wr.u64 = cvmx_read_csr(CVMX_SMI_WR_DAT);
 	} while (smi_wr.s.pending);
 	MDIO_UNLOCK();
@@ -132,6 +124,9 @@ int cvm_oct_mdio_setup_device(struct ifnet *ifp)
 	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
 
 	priv->phy_id = cvmx_helper_board_get_mii_address(priv->port);
+	priv->phy_device = NULL;
+	priv->mdio_read = NULL;
+	priv->mdio_write = NULL;
 
 	return 0;
 }

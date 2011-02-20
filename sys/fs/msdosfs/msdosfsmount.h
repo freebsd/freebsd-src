@@ -234,7 +234,7 @@ uint32_t msdosfs_fileno_map(struct mount *, uint64_t);
  */
 struct msdosfs_args {
 	char	*fspec;		/* blocks special holding the fs to mount */
-	struct	export_args export;	/* network export information */
+	struct	oexport_args export;	/* network export information */
 	uid_t	uid;		/* uid that owns msdosfs files */
 	gid_t	gid;		/* gid that owns msdosfs files */
 	mode_t	mask;		/* file mask to be applied for msdosfs perms */

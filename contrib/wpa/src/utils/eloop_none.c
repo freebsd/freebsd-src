@@ -41,8 +41,6 @@ struct eloop_signal {
 };
 
 struct eloop_data {
-	void *user_data;
-
 	int max_sock, reader_count;
 	struct eloop_sock *readers;
 
@@ -60,10 +58,9 @@ struct eloop_data {
 static struct eloop_data eloop;
 
 
-int eloop_init(void *user_data)
+int eloop_init(void)
 {
 	memset(&eloop, 0, sizeof(eloop));
-	eloop.user_data = user_data;
 	return 0;
 }
 
@@ -401,10 +398,4 @@ void eloop_wait_for_read_sock(int sock)
 	 * TODO: wait for the file descriptor to have something available for
 	 * reading
 	 */
-}
-
-
-void * eloop_get_user_data(void)
-{
-	return eloop.user_data;
 }

@@ -103,6 +103,24 @@ log_dummy(struct ifnet *ifp, u_long cmd, caddr_t addr)
 	return EINVAL;
 }
 
+static int
+ipfw_log_output(struct ifnet *ifp, struct mbuf *m,
+	struct sockaddr *dst, struct route *ro)
+{
+	if (m != NULL)
+		m_freem(m);
+	return EINVAL;
+}
+
+static void
+ipfw_log_start(struct ifnet* ifp)
+{
+	panic("ipfw_log_start() must not be called");
+}
+
+static const u_char ipfwbroadcastaddr[6] =
+	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
 void
 ipfw_log_bpf(int onoff)
 {
@@ -119,11 +137,12 @@ ipfw_log_bpf(int onoff)
 		ifp->if_flags = IFF_UP | IFF_SIMPLEX | IFF_MULTICAST;
 		ifp->if_init = (void *)log_dummy;
 		ifp->if_ioctl = log_dummy;
-		ifp->if_start = (void *)log_dummy;
-		ifp->if_output = (void *)log_dummy;
+		ifp->if_start = ipfw_log_start;
+		ifp->if_output = ipfw_log_output;
 		ifp->if_addrlen = 6;
 		ifp->if_hdrlen = 14;
 		if_attach(ifp);
+		ifp->if_broadcastaddr = ipfwbroadcastaddr;
 		ifp->if_baudrate = IF_Mbps(10);
 		bpfattach(ifp, DLT_EN10MB, 14);
 		log_if = ifp;

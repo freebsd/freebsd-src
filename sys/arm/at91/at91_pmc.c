@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2010 Greg Ansley.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,14 +24,13 @@
  * SUCH DAMAGE.
  */
 
-#include "opt_at91.h"
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/time.h>
 #include <sys/bus.h>
@@ -44,8 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
-#include <arm/at91/at91rm92reg.h>
-#include <arm/at91/at91sam9g20reg.h>
+#include <arm/at91/at91reg.h>
+#include <arm/at91/at91var.h>
 
 #include <arm/at91/at91_pmcreg.h>
 #include <arm/at91/at91_pmcvar.h>
@@ -59,9 +59,13 @@ static struct at91_pmc_softc {
 	uint32_t		pllb_init;
 } *pmc_softc;
 
+MALLOC_DECLARE(M_PMC);
+MALLOC_DEFINE(M_PMC, "at91_pmc_clocks", "AT91 PMC Clock descriptors");
+
 static void at91_pmc_set_pllb_mode(struct at91_pmc_clock *, int);
 static void at91_pmc_set_sys_mode(struct at91_pmc_clock *, int);
 static void at91_pmc_set_periph_mode(struct at91_pmc_clock *, int);
+static void at91_pmc_clock_alias(const char *name, const char *alias);
 
 static struct at91_pmc_clock slck = {
 	.name = "slck",		// 32,768 Hz slow clock
@@ -71,6 +75,10 @@ static struct at91_pmc_clock slck = {
 	.primary = 1,
 };
 
+/*
+ * NOTE: Clocks for "ordinary peripheral" devices e.g. spi0, udp0, uhp0 etc.
+ * are now created automatically. Only "system" clocks need be defined here.
+ */
 static struct at91_pmc_clock main_ck = {
 	.name = "main",		// Main clock
 	.refcnt = 0,
@@ -115,60 +123,20 @@ static struct at91_pmc_clock uhpck = {
 };
 
 static struct at91_pmc_clock mck = {
-	.name = "mck",
+	.name = "mck",		// Master (Peripheral) Clock
 	.pmc_mask = PMC_IER_MCKRDY,
 	.refcnt = 0,
 };
 
-#ifdef AT91SAM9G20
-#define IRQ_UDP AT91SAM9G20_IRQ_UDP
-#define IRQ_UHP	AT91SAM9G20_IRQ_UHP
-#else
-#define IRQ_UDP AT91RM92_IRQ_UDP
-#define IRQ_UHP AT91RM92_IRQ_UHP
-#endif /* AT91SAM9G20 */
-
-static struct at91_pmc_clock udc_clk = {
-	.name = "udc_clk",
-	.parent = &mck,
-	.pmc_mask = 1 << IRQ_UDP,
-	.set_mode = &at91_pmc_set_periph_mode
+static struct at91_pmc_clock cpu = {
+	.name = "cpu",		// CPU Clock
+	.parent = &plla,
+	.pmc_mask = PMC_SCER_PCK,
+	.refcnt = 0,
 };
 
-static struct at91_pmc_clock ohci_clk = {
-	.name = "ohci_clk",
-	.parent = &mck,
-	.pmc_mask = 1 << IRQ_UHP,
-	.set_mode = &at91_pmc_set_periph_mode
-};
-
-#ifdef AT91SAM9G20
-static struct at91_pmc_clock macb_clk = {
-	.name = "macb_clk",
-	.parent = &mck,
-
-	.pmc_mask = 1 << 21,
-	.set_mode = &at91_pmc_set_periph_mode
-};
-
-static struct at91_pmc_clock spi0_clk = {
-	.name = "spi0_clk",
-	.parent = &mck,
-
-	.pmc_mask = 1 << 12,
-	.set_mode = &at91_pmc_set_periph_mode
-};
-
-static struct at91_pmc_clock spi1_clk = {
-	.name = "spi1_clk",
-	.parent = &mck,
-	.pmc_mask = 1 << 13,
-	.set_mode = &at91_pmc_set_periph_mode
-};
-
-#endif /* AT91SAM9G20 */
-
-static struct at91_pmc_clock *const clock_list[] = {
+/* "+32" or the automatic peripheral clocks */
+static struct at91_pmc_clock *clock_list[16+32] = {
 	&slck,
 	&main_ck,
 	&plla,
@@ -176,13 +144,7 @@ static struct at91_pmc_clock *const clock_list[] = {
 	&udpck,
 	&uhpck,
 	&mck,
-	&udc_clk,
-#ifdef AT91SAM9G20
-	&macb_clk,
-	&spi0_clk,
-	&spi1_clk,
-#endif /* AT91SAM9G20 */
-	&ohci_clk
+	&cpu
 };
 
 #if !defined(AT91C_MAIN_CLOCK)
@@ -200,7 +162,7 @@ static const unsigned int at91_mainf_tbl[] = {
 static inline uint32_t
 RD4(struct at91_pmc_softc *sc, bus_size_t off)
 {
-	return bus_read_4(sc->mem_res, off);
+	return (bus_read_4(sc->mem_res, off));
 }
 
 static inline void
@@ -209,7 +171,7 @@ WR4(struct at91_pmc_softc *sc, bus_size_t off, uint32_t val)
 	bus_write_4(sc->mem_res, off, val);
 }
 
-static void
+void
 at91_pmc_set_pllb_mode(struct at91_pmc_clock *clk, int on)
 {
 	struct at91_pmc_softc *sc = pmc_softc;
@@ -221,6 +183,15 @@ at91_pmc_set_pllb_mode(struct at91_pmc_clock *clk, int on)
 	} else {
 		value = 0;
 	}
+
+	/* Workaround RM9200 Errata #26 */
+	if (at91_is_rm92() &&
+	   ((value ^ RD4(sc, CKGR_PLLBR)) & 0x03f0ff) != 0) {
+		WR4(sc, CKGR_PLLBR, value ^ 1);
+		while ((RD4(sc, PMC_SR) & PMC_IER_LOCKB) != on)
+			continue;
+	}
+
 	WR4(sc, CKGR_PLLBR, value);
 	while ((RD4(sc, PMC_SR) & PMC_IER_LOCKB) != on)
 		continue;
@@ -255,14 +226,74 @@ at91_pmc_set_periph_mode(struct at91_pmc_clock *clk, int on)
 }
 
 struct at91_pmc_clock *
+at91_pmc_clock_add(const char *name, uint32_t irq, struct at91_pmc_clock *parent)
+{
+	struct at91_pmc_clock *clk;
+	int i, buflen;
+
+	clk = malloc(sizeof(*clk), M_PMC, M_NOWAIT | M_ZERO);
+	if (clk == NULL) 
+		goto err;
+
+	buflen = strlen(name) + 1;
+	clk->name = malloc(buflen, M_PMC, M_NOWAIT);
+	if (clk->name == NULL) 
+		goto err;
+
+	strlcpy(clk->name, name, buflen);
+	clk->pmc_mask = 1 << irq;
+	clk->set_mode = &at91_pmc_set_periph_mode;
+	if (parent == NULL)
+		clk->parent = &mck;
+	else
+		clk->parent = parent;
+
+	for (i = 0; i < sizeof(clock_list) / sizeof(clock_list[0]); i++) {
+		if (clock_list[i] == NULL) {
+			clock_list[i] = clk;
+			return (clk);
+		}
+	}
+err:
+	if (clk != NULL) {
+		if (clk->name != NULL) 
+			free(clk->name, M_PMC);
+		free(clk, M_PMC);
+	}
+
+	panic("could not allocate pmc clock '%s'", name);
+	return (NULL);
+}
+
+static void
+at91_pmc_clock_alias(const char *name, const char *alias)
+{
+	struct at91_pmc_clock *clk, *alias_clk;
+
+	clk = at91_pmc_clock_ref(name);
+	if (clk)
+		alias_clk = at91_pmc_clock_add(alias, 0, clk->parent);
+
+	if (clk && alias_clk) {
+		alias_clk->hz = clk->hz;
+		alias_clk->pmc_mask = clk->pmc_mask;
+		alias_clk->set_mode = clk->set_mode;
+	}
+}
+
+struct at91_pmc_clock *
 at91_pmc_clock_ref(const char *name)
 {
 	int i;
 
-	for (i = 0; i < sizeof(clock_list) / sizeof(clock_list[0]); i++)
+	for (i = 0; i < sizeof(clock_list) / sizeof(clock_list[0]); i++) {
+		if (clock_list[i] == NULL)
+		    break;
 		if (strcmp(name, clock_list[i]->name) == 0)
 			return (clock_list[i]);
+	}
 
+	//printf("at91_pmc: Warning - did not find clock '%s'", name);
 	return (NULL);
 }
 
@@ -292,55 +323,53 @@ at91_pmc_clock_disable(struct at91_pmc_clock *clk)
 }
 
 static int
-at91_pmc_pll_rate(int freq, uint32_t reg, int is_pllb)
+at91_pmc_pll_rate(struct at91_pmc_clock *clk, uint32_t reg)
 {
-	uint32_t mul, div;
+	uint32_t mul, div, freq;
 
-	div = reg & 0xff;
-#ifdef AT91SAM9G20
-	if (is_pllb)
-		mul = (reg >> 16) & 0x3f;
-	else
-		mul = (reg >> 16) & 0xff;
-#else
-	mul = (reg >> 16) & 0x7ff;
-#endif
+	freq = clk->parent->hz;
+	div = (reg >> clk->pll_div_shift) & clk->pll_div_mask;
+	mul = (reg >> clk->pll_mul_shift) & clk->pll_mul_mask;
+
+//	printf("pll = (%d /  %d) * %d = %d\n",
+//	    freq, div ,mul + 1, (freq/div) * (mul+1));
+
 	if (div != 0 && mul != 0) {
 		freq /= div;
 		freq *= mul + 1;
 	} else {
 		freq = 0;
 	}
-#ifndef AT91SAM9G20
-	if (is_pllb && (reg & (1 << 28)))
-		freq >>= 1;
-#endif
+	clk->hz = freq;
+
+
 	return (freq);
 }
 
 static uint32_t
-at91_pmc_pll_calc(uint32_t main_freq, uint32_t out_freq)
+at91_pmc_pll_calc(struct at91_pmc_clock *clk, uint32_t out_freq)
 {
 	uint32_t i, div = 0, mul = 0, diff = 1 << 30;
-	unsigned ret = (out_freq > PMC_PLL_FAST_THRESH) ? 0xbe00 : 0x3e00; 
 
-	if (out_freq > PMC_PLL_MAX_OUT_FREQ)
+	unsigned ret = 0x3e00;
+
+	if (out_freq > clk->pll_max_out)
 		goto fail;
 
 	for (i = 1; i < 256; i++) {
 		int32_t diff1;
 		uint32_t input, mul1;
 
-		input = main_freq / i;
-		if (input < PMC_PLL_MIN_IN_FREQ)
+		input = clk->parent->hz / i;
+		if (input < clk->pll_min_in)
 			break;
-		if (input > PMC_PLL_MAX_IN_FREQ)
+		if (input > clk->pll_max_in)
 			continue;
 
 		mul1 = out_freq / input;
-		if (mul1 > PMC_PLL_MULT_MAX)
+		if (mul1 > (clk->pll_mul_mask + 1))
 			continue;
-		if (mul1 < PMC_PLL_MULT_MIN)
+		if (mul1 == 0)
 			break;
 
 		diff1 = out_freq - input * mul1;
@@ -356,53 +385,94 @@ at91_pmc_pll_calc(uint32_t main_freq, uint32_t out_freq)
 	}
 	if (diff > (out_freq >> PMC_PLL_SHIFT_TOL))
 		goto fail;
-	return ret | ((mul - 1) << 16) | div;
+
+	if (clk->set_outb != NULL)
+		ret |= clk->set_outb(out_freq);
+
+	return (ret |
+		((mul - 1) << clk->pll_mul_shift) |
+		(div << clk->pll_div_shift));
 fail:
-	return 0;
+	return (0);
 }
 
 static void
 at91_pmc_init_clock(struct at91_pmc_softc *sc, unsigned int main_clock)
 {
 	uint32_t mckr;
-	int freq;
+	uint32_t mdiv;
 
+	if (at91_is_sam9()) {
+		uhpck.pmc_mask = PMC_SCER_UHP_SAM9;
+		udpck.pmc_mask = PMC_SCER_UDP_SAM9;
+	}
+	mckr = RD4(sc, PMC_MCKR);
 	sc->main_clock_hz = main_clock;
 	main_ck.hz = main_clock;
-	plla.hz = at91_pmc_pll_rate(main_clock, RD4(sc, CKGR_PLLAR), 0);
+
+	at91_pmc_pll_rate(&plla, RD4(sc, CKGR_PLLAR));
+
+	if (at91_cpu_is(AT91_CPU_SAM9G45) && (mckr & PMC_MCKR_PLLADIV2))
+		plla.hz /= 2;
 
 	/*
 	 * Initialize the usb clock.  This sets up pllb, but disables the
 	 * actual clock.
 	 */
-	sc->pllb_init = at91_pmc_pll_calc(main_clock, 48000000 * 2) |0x10000000;
-	pllb.hz = at91_pmc_pll_rate(main_clock, sc->pllb_init, 1);
-	WR4(sc, PMC_PCDR, (1 << IRQ_UHP) | (1 << IRQ_UDP));
-	WR4(sc, PMC_SCDR, PMC_SCER_UHP | PMC_SCER_UDP);
-	WR4(sc, CKGR_PLLBR, 0);
-#ifndef AT91SAM9G20
-	WR4(sc, PMC_SCER, PMC_SCER_MCKUDP);
+	sc->pllb_init = at91_pmc_pll_calc(&pllb, 48000000 * 2) | 0x10000000;
+	at91_pmc_pll_rate(&pllb, sc->pllb_init);
+
+#if 0
+	/* Turn off USB clocks */
+	at91_pmc_set_periph_mode(&ohci_clk, 0);
+	at91_pmc_set_periph_mode(&udc_clk, 0);
 #endif
+
+	if (at91_is_rm92()) {
+		WR4(sc, PMC_SCDR, PMC_SCER_UHP | PMC_SCER_UDP);
+		WR4(sc, PMC_SCER, PMC_SCER_MCKUDP);
+	} else {
+		WR4(sc, PMC_SCDR, PMC_SCER_UHP_SAM9 | PMC_SCER_UDP_SAM9);
+	}
+	WR4(sc, CKGR_PLLBR, 0);
 
 	/*
 	 * MCK and PCU derive from one of the primary clocks.  Initialize
 	 * this relationship.
 	 */
-	mckr = RD4(sc, PMC_MCKR);
 	mck.parent = clock_list[mckr & 0x3];
 	mck.parent->refcnt++;
-	freq = mck.parent->hz / (1 << ((mckr >> 2) & 3));
-	mck.hz = freq / (1 + ((mckr >> 8) & 3));
+
+	cpu.hz = 
+	mck.hz = mck.parent->hz /
+  	     (1 << ((mckr & PMC_MCKR_PRES_MASK) >> 2));
+
+	mdiv = (mckr & PMC_MCKR_MDIV_MASK) >> 8;
+	if (at91_is_sam9()) {
+		if (mdiv > 0)
+			mck.hz /= mdiv * 2;
+	} else 
+		mck.hz /= (1 + mdiv);
+
+	/* Only found on SAM9G20 */
+	if (at91_cpu_is(AT91_CPU_SAM9G20))
+		cpu.hz /= (mckr & PMC_MCKR_PDIV) ?  2 : 1;
+
+	at91_master_clock = mck.hz;
 
 	device_printf(sc->dev,
 	    "Primary: %d Hz PLLA: %d MHz CPU: %d MHz MCK: %d MHz\n",
 	    sc->main_clock_hz,
-	    at91_pmc_pll_rate(main_clock, RD4(sc, CKGR_PLLAR), 0) / 1000000,
-	    freq / 1000000, mck.hz / 1000000);
+	    plla.hz / 1000000,
+	    cpu.hz / 1000000, mck.hz / 1000000);
+
+	/* Turn off "Progamable" clocks */
 	WR4(sc, PMC_SCDR, PMC_SCER_PCK0 | PMC_SCER_PCK1 | PMC_SCER_PCK2 |
 	    PMC_SCER_PCK3);
+
 	/* XXX kludge, turn on all peripherals */
 	WR4(sc, PMC_PCER, 0xffffffff);
+
 	/* Disable all interrupts for PMC */
 	WR4(sc, PMC_IDR, 0xffffffff);
 }
@@ -482,7 +552,7 @@ at91_pmc_attach(device_t dev)
 	pmc_softc = device_get_softc(dev);
 	pmc_softc->dev = dev;
 	if ((err = at91_pmc_activate(dev)) != 0)
-		return err;
+		return (err);
 
 	/*
 	 * Configure main clock frequency.
@@ -493,6 +563,11 @@ at91_pmc_attach(device_t dev)
 	mainf = AT91C_MAIN_CLOCK;
 #endif
 	at91_pmc_init_clock(pmc_softc, mainf);
+
+	/* These clocks refrenced by "special" names */
+	at91_pmc_clock_alias("ohci0", "ohci_clk");
+	at91_pmc_clock_alias("udp0",  "udp_clk");
+
 	return (0);
 }
 

@@ -844,13 +844,14 @@ mpt_complete_request_chain(struct mpt_softc *mpt, struct req_queue *chain,
 		MSG_REQUEST_HEADER *msg_hdr;
 		u_int		    cb_index;
 
-		TAILQ_REMOVE(chain, req, links);
 		msg_hdr = (MSG_REQUEST_HEADER *)req->req_vbuf;
 		ioc_status_frame.Function = msg_hdr->Function;
 		ioc_status_frame.MsgContext = msg_hdr->MsgContext;
 		cb_index = MPT_CONTEXT_TO_CBI(le32toh(msg_hdr->MsgContext));
 		mpt_reply_handlers[cb_index](mpt, req, msg_hdr->MsgContext,
 		    &ioc_status_frame);
+		if (mpt_req_on_pending_list(mpt, req) != 0)
+			TAILQ_REMOVE(chain, req, links);
 	}
 }
 
@@ -2125,10 +2126,10 @@ mpt_sysctl_attach(struct mpt_softc *mpt)
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(mpt->dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(mpt->dev);
 
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		       "debug", CTLFLAG_RW, &mpt->verbose, 0,
 		       "Debugging/Verbose level");
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		       "role", CTLFLAG_RD, &mpt->role, 0,
 		       "HBA role");
 #ifdef	MPT_TEST_MULTIPATH

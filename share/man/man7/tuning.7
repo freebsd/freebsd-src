@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 11, 2010
+.Dd October 16, 2010
 .Dt TUNING 7
 .Os
 .Sh NAME
@@ -534,6 +534,24 @@ It may be tuned down in specific cases where the I/O load is such that
 read-ahead adversely affects performance or where system memory is really
 low.
 .Pp
+The
+.Va vfs.ncsizefactor
+sysctl defines how large VFS namecache may grow.
+The number of currently allocated entries in namecache is provided by
+.Va debug.numcache
+sysctl and the condition
+debug.numcache < kern.maxvnodes * vfs.ncsizefactor
+is adhered to.
+.Pp
+The
+.Va vfs.ncnegfactor
+sysctl defines how many negative entries VFS namecache is allowed to create.
+The number of currently allocated negative entries is provided by
+.Va debug.numneg
+sysctl and the condition
+vfs.ncnegfactor * debug.numneg < debug.numcache
+is adhered to.
+.Pp
 There are various other buffer-cache and VM page cache related sysctls.
 We do not recommend modifying these values.
 As of
@@ -1019,6 +1037,7 @@ over services you export from your box (web services, email).
 .Xr rc.conf 5 ,
 .Xr sysctl.conf 5 ,
 .Xr firewall 7 ,
+.Xr eventtimers 7 ,
 .Xr hier 7 ,
 .Xr ports 7 ,
 .Xr boot 8 ,

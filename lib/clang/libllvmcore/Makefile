@@ -27,6 +27,7 @@ SRCS=	AsmWriter.cpp \
 	Module.cpp \
 	Pass.cpp \
 	PassManager.cpp \
+	PassRegistry.cpp \
 	PrintModulePass.cpp \
 	Type.cpp \
 	TypeSymbolTable.cpp \

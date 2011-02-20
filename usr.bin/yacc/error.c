@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -49,8 +45,7 @@ __FBSDID("$FreeBSD$");
 static void print_pos(char *, char *);
 
 void
-fatal(msg)
-const char *msg;
+fatal(const char *msg)
 {
     warnx("f - %s", msg);
     done(2);
@@ -58,7 +53,7 @@ const char *msg;
 
 
 void
-no_space()
+no_space(void)
 {
     warnx("f - out of space");
     done(2);
@@ -66,8 +61,7 @@ no_space()
 
 
 void
-open_error(filename)
-const char *filename;
+open_error(const char *filename)
 {
     warnx("f - cannot open \"%s\"", filename);
     done(2);
@@ -75,7 +69,7 @@ const char *filename;
 
 
 void
-unexpected_EOF()
+unexpected_EOF(void)
 {
     warnx("e - line %d of \"%s\", unexpected end-of-file",
 	    lineno, input_file_name);
@@ -84,9 +78,7 @@ unexpected_EOF()
 
 
 static void
-print_pos(st_line, st_cptr)
-char *st_line;
-char *st_cptr;
+print_pos(char *st_line, char *st_cptr)
 {
     char *s;
 
@@ -112,10 +104,7 @@ char *st_cptr;
 
 
 void
-syntax_error(st_lineno, st_line, st_cptr)
-int st_lineno;
-char *st_line;
-char *st_cptr;
+syntax_error(int st_lineno, char *st_line, char *st_cptr)
 {
     warnx("e - line %d of \"%s\", syntax error",
 	    st_lineno, input_file_name);
@@ -125,10 +114,7 @@ char *st_cptr;
 
 
 void
-unterminated_comment(c_lineno, c_line, c_cptr)
-int c_lineno;
-char *c_line;
-char *c_cptr;
+unterminated_comment(int c_lineno, char *c_line, char *c_cptr)
 {
     warnx("e - line %d of \"%s\", unmatched /*",
 	    c_lineno, input_file_name);
@@ -138,10 +124,7 @@ char *c_cptr;
 
 
 void
-unterminated_string(s_lineno, s_line, s_cptr)
-int s_lineno;
-char *s_line;
-char *s_cptr;
+unterminated_string(int s_lineno, char *s_line, char *s_cptr)
 {
     warnx("e - line %d of \"%s\", unterminated string",
 	    s_lineno, input_file_name);
@@ -151,10 +134,7 @@ char *s_cptr;
 
 
 void
-unterminated_text(t_lineno, t_line, t_cptr)
-int t_lineno;
-char *t_line;
-char *t_cptr;
+unterminated_text(int t_lineno, char *t_line, char *t_cptr)
 {
     warnx("e - line %d of \"%s\", unmatched %%{",
 	    t_lineno, input_file_name);
@@ -164,10 +144,7 @@ char *t_cptr;
 
 
 void
-unterminated_union(u_lineno, u_line, u_cptr)
-int u_lineno;
-char *u_line;
-char *u_cptr;
+unterminated_union(int u_lineno, char *u_line, char *u_cptr)
 {
     warnx("e - line %d of \"%s\", unterminated %%union declaration",
 		u_lineno, input_file_name);
@@ -177,8 +154,7 @@ char *u_cptr;
 
 
 void
-over_unionized(u_cptr)
-char *u_cptr;
+over_unionized(char *u_cptr)
 {
     warnx("e - line %d of \"%s\", too many %%union declarations",
 		lineno, input_file_name);
@@ -188,10 +164,7 @@ char *u_cptr;
 
 
 void
-illegal_tag(t_lineno, t_line, t_cptr)
-int t_lineno;
-char *t_line;
-char *t_cptr;
+illegal_tag(int t_lineno, char *t_line, char *t_cptr)
 {
     warnx("e - line %d of \"%s\", illegal tag", t_lineno, input_file_name);
     print_pos(t_line, t_cptr);
@@ -200,8 +173,7 @@ char *t_cptr;
 
 
 void
-illegal_character(c_cptr)
-char *c_cptr;
+illegal_character(char *c_cptr)
 {
     warnx("e - line %d of \"%s\", illegal character", lineno, input_file_name);
     print_pos(line, c_cptr);
@@ -210,8 +182,7 @@ char *c_cptr;
 
 
 void
-used_reserved(s)
-char *s;
+used_reserved(char *s)
 {
     warnx("e - line %d of \"%s\", illegal use of reserved symbol %s",
 		lineno, input_file_name, s);
@@ -220,8 +191,7 @@ char *s;
 
 
 void
-tokenized_start(s)
-char *s;
+tokenized_start(char *s)
 {
      warnx("e - line %d of \"%s\", the start symbol %s cannot be \
 declared to be a token", lineno, input_file_name, s);
@@ -230,8 +200,7 @@ declared to be a token", lineno, input_file_name, s);
 
 
 void
-retyped_warning(s)
-char *s;
+retyped_warning(char *s)
 {
     warnx("w - line %d of \"%s\", the type of %s has been redeclared",
 		lineno, input_file_name, s);
@@ -239,8 +208,7 @@ char *s;
 
 
 void
-reprec_warning(s)
-char *s;
+reprec_warning(char *s)
 {
     warnx("w - line %d of \"%s\", the precedence of %s has been redeclared",
 		lineno, input_file_name, s);
@@ -248,8 +216,7 @@ char *s;
 
 
 void
-revalued_warning(s)
-char *s;
+revalued_warning(char *s)
 {
     warnx("w - line %d of \"%s\", the value of %s has been redeclared",
 		lineno, input_file_name, s);
@@ -257,8 +224,7 @@ char *s;
 
 
 void
-terminal_start(s)
-char *s;
+terminal_start(char *s)
 {
     warnx("e - line %d of \"%s\", the start symbol %s is a token",
 		lineno, input_file_name, s);
@@ -267,7 +233,7 @@ char *s;
 
 
 void
-restarted_warning()
+restarted_warning(void)
 {
     warnx("w - line %d of \"%s\", the start symbol has been redeclared",
 		lineno, input_file_name);
@@ -275,7 +241,7 @@ restarted_warning()
 
 
 void
-no_grammar()
+no_grammar(void)
 {
     warnx("e - line %d of \"%s\", no grammar has been specified",
 		lineno, input_file_name);
@@ -284,8 +250,7 @@ no_grammar()
 
 
 void
-terminal_lhs(s_lineno)
-int s_lineno;
+terminal_lhs(int s_lineno)
 {
     warnx("e - line %d of \"%s\", a token appears on the lhs of a production",
 		s_lineno, input_file_name);
@@ -294,7 +259,7 @@ int s_lineno;
 
 
 void
-prec_redeclared()
+prec_redeclared(void)
 {
     warnx("w - line %d of  \"%s\", conflicting %%prec specifiers",
 		lineno, input_file_name);
@@ -302,10 +267,7 @@ prec_redeclared()
 
 
 void
-unterminated_action(a_lineno, a_line, a_cptr)
-int a_lineno;
-char *a_line;
-char *a_cptr;
+unterminated_action(int a_lineno, char *a_line, char *a_cptr)
 {
     warnx("e - line %d of \"%s\", unterminated action",
 	    a_lineno, input_file_name);
@@ -315,9 +277,7 @@ char *a_cptr;
 
 
 void
-dollar_warning(a_lineno, i)
-int a_lineno;
-int i;
+dollar_warning(int a_lineno, int i)
 {
     warnx("w - line %d of \"%s\", $%d references beyond the \
 end of the current rule", a_lineno, input_file_name, i);
@@ -325,10 +285,7 @@ end of the current rule", a_lineno, input_file_name, i);
 
 
 void
-dollar_error(a_lineno, a_line, a_cptr)
-int a_lineno;
-char *a_line;
-char *a_cptr;
+dollar_error(int a_lineno, char *a_line, char *a_cptr)
 {
     warnx("e - line %d of \"%s\", illegal $-name", a_lineno, input_file_name);
     print_pos(a_line, a_cptr);
@@ -337,7 +294,7 @@ char *a_cptr;
 
 
 void
-untyped_lhs()
+untyped_lhs(void)
 {
     warnx("e - line %d of \"%s\", $$ is untyped", lineno, input_file_name);
     done(1);
@@ -345,9 +302,7 @@ untyped_lhs()
 
 
 void
-untyped_rhs(i, s)
-int i;
-char *s;
+untyped_rhs(int i, char *s)
 {
     warnx("e - line %d of \"%s\", $%d (%s) is untyped",
 	    lineno, input_file_name, i, s);
@@ -356,8 +311,7 @@ char *s;
 
 
 void
-unknown_rhs(i)
-int i;
+unknown_rhs(int i)
 {
     warnx("e - line %d of \"%s\", $%d is untyped", lineno, input_file_name, i);
     done(1);
@@ -365,7 +319,7 @@ int i;
 
 
 void
-default_action_warning()
+default_action_warning(void)
 {
     warnx("w - line %d of \"%s\", the default action assigns an \
 undefined value to $$", lineno, input_file_name);
@@ -373,8 +327,7 @@ undefined value to $$", lineno, input_file_name);
 
 
 void
-undefined_goal(s)
-char *s;
+undefined_goal(char *s)
 {
     warnx("e - the start symbol %s is undefined", s);
     done(1);
@@ -382,8 +335,7 @@ char *s;
 
 
 void
-undefined_symbol_warning(s)
-char *s;
+undefined_symbol_warning(char *s)
 {
     warnx("w - the symbol %s is undefined", s);
 }

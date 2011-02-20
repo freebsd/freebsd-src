@@ -34,39 +34,10 @@
  * 
  */
 
-#ifndef _FS_EXT2FS_EXT2_FS_H
-#define _FS_EXT2FS_EXT2_FS_H
+#ifndef _FS_EXT2FS_EXT2_FS_H_
+#define _FS_EXT2FS_EXT2_FS_H_
 
 #include <sys/types.h>
-
-/*
- * Special inode numbers
- */
-#define	EXT2_BAD_INO		 1	/* Bad blocks inode */
-#define EXT2_ROOT_INO		 2	/* Root inode */
-#define EXT2_BOOT_LOADER_INO	 5	/* Boot loader inode */
-#define EXT2_UNDEL_DIR_INO	 6	/* Undelete directory inode */
-
-/* First non-reserved inode for old ext2 filesystems */
-#define E2FS_REV0_FIRST_INO	11
-
-/*
- * The second extended file system magic number
- */
-#define E2FS_MAGIC		0xEF53
-
-#if defined(_KERNEL)
-/*
- * FreeBSD passes the pointer to the in-core struct with relevant
- * fields to EXT2_SB macro when accessing superblock fields.
- */
-#define EXT2_SB(sb)	(sb)
-#else
-/* Assume that user mode programs are passing in an ext2fs superblock, not
- * a kernel struct super_block.  This will allow us to call the feature-test
- * macros from user land. */
-#define EXT2_SB(sb)	(sb)
-#endif
 
 /*
  * Maximal count of links to a file
@@ -135,11 +106,6 @@ struct ext2fs {
 };
 
 
-/* Assume that user mode programs are passing in an ext2fs superblock, not
- * a kernel struct super_block.  This will allow us to call the feature-test
- * macros from user land. */
-#define EXT2_SB(sb)	(sb)
-
 /*
  * In-Memory Superblock
  */
@@ -153,8 +119,8 @@ struct m_ext2fs {
 	uint32_t e2fs_bshift;     /* calc of logical block no */
 	int32_t e2fs_bmask;       /* calc of block offset */
 	int32_t e2fs_bpg;         /* Number of blocks per group */
-	int64_t e2fs_qbmask;       /* = s_blocksize -1 */
-	uint32_t e2fs_fsbtodb;     /* Shift to get disk block */
+	int64_t e2fs_qbmask;      /* = s_blocksize -1 */
+	uint32_t e2fs_fsbtodb;    /* Shift to get disk block */
 	uint32_t e2fs_ipg;        /* Number of inodes per group */
 	uint32_t e2fs_ipb;        /* Number of inodes per block */
 	uint32_t e2fs_itpg;       /* Number of inode table per group */
@@ -170,7 +136,7 @@ struct m_ext2fs {
 	uint32_t e2fs_mount_opt;
 	uint32_t e2fs_blocksize_bits;
 	uint32_t e2fs_total_dir;  /* Total number of directories */
-	uint8_t	*e2fs_contigdirs;
+	uint8_t	*e2fs_contigdirs; /* (u) # of contig. allocated dirs */
 	char e2fs_wasvalid;       /* valid at mount time */
 	off_t e2fs_maxfilesize;
 	struct ext2_gd *e2fs_gd; /* Group Descriptors */
@@ -181,6 +147,11 @@ struct m_ext2fs {
  */
 #define E2FS_DATE		"95/08/09"
 #define E2FS_VERSION		"0.5b"
+
+/*
+ * The second extended file system magic number
+ */
+#define E2FS_MAGIC		0xEF53
 
 /*
  * Revision levels
@@ -197,6 +168,7 @@ struct m_ext2fs {
  * compatible/incompatible features
  */
 #define EXT2F_COMPAT_PREALLOC		0x0001
+#define EXT2F_COMPAT_HASJOURNAL		0x0004
 #define EXT2F_COMPAT_RESIZE		0x0010
 
 #define EXT2F_ROCOMPAT_SPARSESUPER	0x0001
@@ -218,6 +190,11 @@ struct m_ext2fs {
 #define EXT2F_ROCOMPAT_SUPP		(EXT2F_ROCOMPAT_SPARSESUPER \
 					 | EXT2F_ROCOMPAT_LARGEFILE)
 #define EXT2F_INCOMPAT_SUPP		EXT2F_INCOMPAT_FTYPE
+
+/* Assume that user mode programs are passing in an ext2fs superblock, not
+ * a kernel struct super_block.  This will allow us to call the feature-test
+ * macros from user land. */
+#define EXT2_SB(sb)	(sb)
 
 /*
  * Feature set definitions
@@ -271,6 +248,7 @@ struct ext2_gd {
 
 #define e2fs_cgload(old, new, size) memcpy((new), (old), (size));
 #define e2fs_cgsave(old, new, size) memcpy((new), (old), (size));
+
 /*
  * Macro-instructions used to manage several block sizes
  */
@@ -326,4 +304,4 @@ struct ext2_gd {
 
 #endif
 
-#endif	/* _LINUX_EXT2_FS_H */
+#endif	/* !_FS_EXT2FS_EXT2FS_H_ */

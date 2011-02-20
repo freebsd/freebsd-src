@@ -29,6 +29,7 @@
 #include "clang/Checker/PathSensitive/GRTransferFuncs.h"
 #include "clang/Checker/PathDiagnosticClients.h"
 #include "GRExprEngineExperimentalChecks.h"
+#include "GRExprEngineInternalChecks.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Frontend/AnalyzerOptions.h"
@@ -173,10 +174,12 @@ public:
     Mgr.reset(new AnalysisManager(*Ctx, PP.getDiagnostics(),
                                   PP.getLangOptions(), PD,
                                   CreateStoreMgr, CreateConstraintMgr,
+                                  /* Indexer */ 0, 
                                   Opts.MaxNodes, Opts.MaxLoop,
                                   Opts.VisualizeEGDot, Opts.VisualizeEGUbi,
                                   Opts.PurgeDead, Opts.EagerlyAssume,
-                                  Opts.TrimGraph, Opts.InlineCall));
+                                  Opts.TrimGraph, Opts.InlineCall,
+                                  Opts.UnoptimizedCFG));
   }
 
   virtual void HandleTranslationUnit(ASTContext &C);
@@ -341,7 +344,10 @@ static void ActionGRExprEngine(AnalysisConsumer &C, AnalysisManager& mgr,
   if (C.Opts.EnableExperimentalChecks)
     RegisterExperimentalChecks(Eng);
 
-  if (C.Opts.EnableIdempotentOperationChecker)
+  // Enable idempotent operation checking if it was explicitly turned on, or if
+  // we are running experimental checks (i.e. everything)
+  if (C.Opts.IdempotentOps || C.Opts.EnableExperimentalChecks
+      || C.Opts.EnableExperimentalInternalChecks)
     RegisterIdempotentOperationChecker(Eng);
 
   // Set the graph auditor.
@@ -352,7 +358,7 @@ static void ActionGRExprEngine(AnalysisConsumer &C, AnalysisManager& mgr,
   }
 
   // Execute the worklist algorithm.
-  Eng.ExecuteWorkList(mgr.getStackFrame(D), mgr.getMaxNodes());
+  Eng.ExecuteWorkList(mgr.getStackFrame(D, 0), mgr.getMaxNodes());
 
   // Release the auditor (if any) so that it doesn't monitor the graph
   // created BugReporter.

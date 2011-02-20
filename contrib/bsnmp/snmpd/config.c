@@ -31,6 +31,7 @@
  * Parse configuration file.
  */
 #include <sys/types.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <stdio.h>
@@ -810,6 +811,7 @@ parse_oid(const char *varname, struct asn_oid *oid)
 	struct snmp_node *node;
 	u_int i;
 	u_char ip[4];
+	struct asn_oid str_oid;
 
 	for (node = tree; node < &tree[tree_size]; node++)
 		if (strcmp(varname, node->name) == 0)
@@ -824,7 +826,19 @@ parse_oid(const char *varname, struct asn_oid *oid)
 				report("subid too large %#"QUADXFMT, numval);
 			if (oid->len == ASN_MAXOIDLEN)
 				report("index too long");
-			oid->subs[oid->len++] = numval;
+			if (gettoken() != ':')
+				oid->subs[oid->len++] = numval;
+			else {
+				str_oid.len = 0;
+				str_oid.subs[str_oid.len++] = numval;
+				while (gettoken() == TOK_NUM) {
+					str_oid.subs[str_oid.len++] = numval;
+					if (gettoken() != ':')
+						break;
+				}
+				oid->subs[oid->len++] = str_oid.len;
+				asn_append_oid(oid, &str_oid);
+			}
 
 		} else if (token == TOK_STR) {
 			if (strvallen + oid->len + 1 > ASN_MAXOIDLEN)
@@ -832,6 +846,7 @@ parse_oid(const char *varname, struct asn_oid *oid)
 			oid->subs[oid->len++] = strvallen;
 			for (i = 0; i < strvallen; i++)
 				oid->subs[oid->len++] = strval[i];
+			gettoken();
 
 		} else if (token == TOK_HOST) {
 			gethost(strval, ip);
@@ -839,10 +854,9 @@ parse_oid(const char *varname, struct asn_oid *oid)
 				report("index too long");
 			for (i = 0; i < 4; i++)
 				oid->subs[oid->len++] = ip[i];
-
+			gettoken();
 		} else
 			report("bad token in index");
-		gettoken();
 	}
 
 	return (node);
@@ -1006,7 +1020,7 @@ parse_assign(const char *varname)
 
 	node = parse_oid(varname, &vindex);
 	if (token != '=')
-		report("'=' expected");
+		report("'=' expected, got '%c'", token);
 	gettoken();
 
 	if (ignore) {

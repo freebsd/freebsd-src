@@ -576,7 +576,7 @@ stge_attach(device_t dev)
 	struct stge_softc *sc;
 	struct ifnet *ifp;
 	uint8_t enaddr[ETHER_ADDR_LEN];
-	int error, i;
+	int error, flags, i;
 	uint16_t cmd;
 	uint32_t val;
 
@@ -738,9 +738,14 @@ stge_attach(device_t dev)
 	    (PC_PhyDuplexPolarity | PC_PhyLnkPolarity);
 
 	/* Set up MII bus. */
-	if ((error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus, stge_mediachange,
-	    stge_mediastatus)) != 0) {
-		device_printf(sc->sc_dev, "no PHY found!\n");
+	flags = MIIF_DOPAUSE;
+	if (sc->sc_rev >= 0x40 && sc->sc_rev <= 0x4e)
+		flags |= MIIF_MACPRIV0;
+	error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp, stge_mediachange,
+	    stge_mediastatus, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY,
+	    flags);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -1377,6 +1382,7 @@ stge_watchdog(struct stge_softc *sc)
 	ifp = sc->sc_ifp;
 	if_printf(sc->sc_ifp, "device timeout\n");
 	ifp->if_oerrors++;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	stge_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		stge_start_locked(ifp);
@@ -1405,7 +1411,10 @@ stge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		else if (ifp->if_mtu != ifr->ifr_mtu) {
 			ifp->if_mtu = ifr->ifr_mtu;
 			STGE_LOCK(sc);
-			stge_init_locked(sc);
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				stge_init_locked(sc);
+			}
 			STGE_UNLOCK(sc);
 		}
 		break;
@@ -1515,9 +1524,9 @@ stge_link_task(void *arg, int pending)
 	sc->sc_MACCtrl = 0;
 	if (((mii->mii_media_active & IFM_GMASK) & IFM_FDX) != 0)
 		sc->sc_MACCtrl |= MC_DuplexSelect;
-	if (((mii->mii_media_active & IFM_GMASK) & IFM_FLAG0) != 0)
+	if (((mii->mii_media_active & IFM_GMASK) & IFM_ETH_RXPAUSE) != 0)
 		sc->sc_MACCtrl |= MC_RxFlowControlEnable;
-	if (((mii->mii_media_active & IFM_GMASK) & IFM_FLAG1) != 0)
+	if (((mii->mii_media_active & IFM_GMASK) & IFM_ETH_TXPAUSE) != 0)
 		sc->sc_MACCtrl |= MC_TxFlowControlEnable;
 	/*
 	 * Update STGE_MACCtrl register depending on link status.
@@ -1639,8 +1648,10 @@ stge_intr(void *arg)
 	}
 
 force_init:
-	if (reinit != 0)
+	if (reinit != 0) {
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		stge_init_locked(sc);
+	}
 
 	/* Re-enable interrupts. */
 	CSR_WRITE_2(sc, STGE_IntEnable, sc->sc_IntEnable);
@@ -1936,11 +1947,14 @@ stge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			if ((status & IS_HostError) != 0) {
 				device_printf(sc->sc_dev,
 				    "Host interface error, resetting...\n");
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				stge_init_locked(sc);
 			}
 			if ((status & IS_TxComplete) != 0) {
-				if (stge_tx_error(sc) != 0)
+				if (stge_tx_error(sc) != 0) {
+					ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 					stge_init_locked(sc);
+				}
 			}
 		}
 
@@ -2121,6 +2135,8 @@ stge_init_locked(struct stge_softc *sc)
 	STGE_LOCK_ASSERT(sc);
 
 	ifp = sc->sc_ifp;
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 	mii = device_get_softc(sc->sc_miibus);
 
 	/*

@@ -1,4 +1,4 @@
-.\"     $OpenBSD: nc.1,v 1.53 2010/02/23 23:00:52 schwarze Exp $
+.\"     $OpenBSD: nc.1,v 1.55 2010/07/25 07:51:39 guenther Exp $
 .\"
 .\" Copyright (c) 1996 David Sacerdote
 .\" All rights reserved.
@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2010
+.Dd July 25, 2010
 .Dt NC 1
 .Os
 .Sh NAME
@@ -46,7 +46,7 @@
 .Op Fl p Ar source_port
 .Op Fl s Ar source_ip_address
 .Op Fl T Ar ToS
-.Op Fl V Ar fib
+.Op Fl V Ar rtable
 .Op Fl w Ar timeout
 .Op Fl X Ar proxy_protocol
 .Oo Xo
@@ -158,7 +158,6 @@ TCP_NOOPT
 socket option.
 .It Fl O Ar length
 Specifies the size of the TCP send buffer.
-When
 .It Fl P Ar proxy_username
 Specifies a username to present to a proxy server that requires authentication.
 If no username is specified then authentication will not be attempted.
@@ -202,8 +201,10 @@ Specifies to use
 sockets.
 .It Fl u
 Use UDP instead of the default option of TCP.
-.It Fl V Ar fib
-Set the routing table (FIB).
+.It Fl V Ar rtable
+Set the routing table
+.Pq Dq FIB
+to be used.
 The default is 0.
 .It Fl v
 Have

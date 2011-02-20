@@ -220,9 +220,7 @@ clnt_vc_create(
 		}
 	}
 
-	CURVNET_SET(so->so_vnet);
 	if (!__rpc_socket2sockinfo(so, &si)) {
-		CURVNET_RESTORE();
 		goto err;
 	}
 
@@ -245,7 +243,6 @@ clnt_vc_create(
 		sopt.sopt_valsize = sizeof(one);
 		sosetopt(so, &sopt);
 	}
-	CURVNET_RESTORE();
 
 	ct->ct_closeit = FALSE;
 
@@ -288,13 +285,19 @@ clnt_vc_create(
 	 * Create a client handle which uses xdrrec for serialization
 	 * and authnone for authentication.
 	 */
+	sendsz = __rpc_get_t_size(si.si_af, si.si_proto, (int)sendsz);
+	recvsz = __rpc_get_t_size(si.si_af, si.si_proto, (int)recvsz);
+	error = soreserve(ct->ct_socket, sendsz, recvsz);
+	if (error != 0) {
+		if (ct->ct_closeit) {
+			soclose(ct->ct_socket);
+		}
+		goto err;
+	}
 	cl->cl_refs = 1;
 	cl->cl_ops = &clnt_vc_ops;
 	cl->cl_private = ct;
 	cl->cl_auth = authnone_create();
-	sendsz = __rpc_get_t_size(si.si_af, si.si_proto, (int)sendsz);
-	recvsz = __rpc_get_t_size(si.si_af, si.si_proto, (int)recvsz);
-	soreserve(ct->ct_socket, sendsz, recvsz);
 
 	SOCKBUF_LOCK(&ct->ct_socket->so_rcv);
 	soupcall_set(ct->ct_socket, SO_RCV, clnt_vc_soupcall, ct);
@@ -910,7 +913,7 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 				mtx_unlock(&ct->ct_lock);
 				break;
 			}
-			bcopy(mtod(m, uint32_t *), &header, sizeof(uint32_t));
+			m_copydata(m, 0, sizeof(uint32_t), (char *)&header);
 			header = ntohl(header);
 			ct->ct_record = NULL;
 			ct->ct_record_resid = header & 0x7fffffff;
@@ -969,14 +972,11 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 				 * The XID is in the first uint32_t of
 				 * the reply.
 				 */
-				if (ct->ct_record->m_len < sizeof(xid))
-					ct->ct_record =
-						m_pullup(ct->ct_record,
-						    sizeof(xid));
-				if (!ct->ct_record)
+				if (ct->ct_record->m_len < sizeof(xid) &&
+				    m_length(ct->ct_record, NULL) < sizeof(xid))
 					break;
-				bcopy(mtod(ct->ct_record, uint32_t *),
-				    &xid, sizeof(uint32_t));
+				m_copydata(ct->ct_record, 0, sizeof(xid),
+				    (char *)&xid);
 				xid = ntohl(xid);
 
 				mtx_lock(&ct->ct_lock);

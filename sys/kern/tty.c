@@ -263,12 +263,14 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	if (!tty_opened(tp)) {
 		/* Set proper termios flags. */
-		if (TTY_CALLOUT(tp, dev)) {
+		if (TTY_CALLOUT(tp, dev))
 			tp->t_termios = tp->t_termios_init_out;
-		} else {
+		else
 			tp->t_termios = tp->t_termios_init_in;
-		}
 		ttydevsw_param(tp, &tp->t_termios);
+		/* Prevent modem control on callout devices and /dev/console. */
+		if (TTY_CALLOUT(tp, dev) || dev == dev_console)
+			tp->t_termios.c_cflag |= CLOCAL;
 
 		ttydevsw_modem(tp, SER_DTR|SER_RTS, 0);
 
@@ -281,7 +283,7 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	}
 
 	/* Wait for Carrier Detect. */
-	if (!TTY_CALLOUT(tp, dev) && (oflags & O_NONBLOCK) == 0 &&
+	if ((oflags & O_NONBLOCK) == 0 &&
 	    (tp->t_termios.c_cflag & CLOCAL) == 0) {
 		while ((ttydevsw_modem(tp, 0, 0) & SER_DCD) == 0) {
 			error = tty_wait(tp, &tp->t_dcdwait);
@@ -1944,8 +1946,8 @@ static void
 ttyconsdev_init(void *unused)
 {
 
-	dev_console = make_dev(&ttyconsdev_cdevsw, 0, UID_ROOT, GID_WHEEL,
-	    0600, "console");
+	dev_console = make_dev_credf(MAKEDEV_ETERNAL, &ttyconsdev_cdevsw, 0,
+	    NULL, UID_ROOT, GID_WHEEL, 0600, "console");
 }
 
 SYSINIT(tty, SI_SUB_DRIVERS, SI_ORDER_FIRST, ttyconsdev_init, NULL);

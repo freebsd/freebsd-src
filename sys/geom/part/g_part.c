@@ -76,7 +76,10 @@ struct g_part_alias_list {
 	{ "apple-raid-offline", G_PART_ALIAS_APPLE_RAID_OFFLINE },
 	{ "apple-tv-recovery", G_PART_ALIAS_APPLE_TV_RECOVERY },
 	{ "apple-ufs", G_PART_ALIAS_APPLE_UFS },
+	{ "bios-boot", G_PART_ALIAS_BIOS_BOOT },
+	{ "ebr", G_PART_ALIAS_EBR },
 	{ "efi", G_PART_ALIAS_EFI },
+	{ "fat32", G_PART_ALIAS_MS_FAT32 },
 	{ "freebsd", G_PART_ALIAS_FREEBSD },
 	{ "freebsd-boot", G_PART_ALIAS_FREEBSD_BOOT },
 	{ "freebsd-swap", G_PART_ALIAS_FREEBSD_SWAP },
@@ -87,6 +90,7 @@ struct g_part_alias_list {
 	{ "linux-lvm", G_PART_ALIAS_LINUX_LVM },
 	{ "linux-raid", G_PART_ALIAS_LINUX_RAID },
 	{ "linux-swap", G_PART_ALIAS_LINUX_SWAP },
+	{ "mbr", G_PART_ALIAS_MBR },
 	{ "ms-basic-data", G_PART_ALIAS_MS_BASIC_DATA },
 	{ "ms-ldm-data", G_PART_ALIAS_MS_LDM_DATA },
 	{ "ms-ldm-metadata", G_PART_ALIAS_MS_LDM_METADATA },
@@ -98,7 +102,6 @@ struct g_part_alias_list {
 	{ "netbsd-lfs", G_PART_ALIAS_NETBSD_LFS },
 	{ "netbsd-raid", G_PART_ALIAS_NETBSD_RAID },
 	{ "netbsd-swap", G_PART_ALIAS_NETBSD_SWAP },
-	{ "mbr", G_PART_ALIAS_MBR }
 };
 
 /*
@@ -296,91 +299,164 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 	g_error_provider(entry->gpe_pp, 0);
 }
 
-static int
-g_part_parm_geom(const char *rawname, struct g_geom **v)
+static struct g_geom*
+g_part_find_geom(const char *name)
 {
 	struct g_geom *gp;
-	const char *pname;
-
-	if (strncmp(rawname, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-		pname = rawname + strlen(_PATH_DEV);
-	else
-		pname = rawname;
 	LIST_FOREACH(gp, &g_part_class.geom, geom) {
-		if (!strcmp(pname, gp->name))
+		if (!strcmp(name, gp->name))
 			break;
 	}
-	if (gp == NULL)
+	return (gp);
+}
+
+static int
+g_part_parm_geom(struct gctl_req *req, const char *name, struct g_geom **v)
+{
+	struct g_geom *gp;
+	const char *gname;
+
+	gname = gctl_get_asciiparam(req, name);
+	if (gname == NULL)
+		return (ENOATTR);
+	if (strncmp(gname, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+		gname += sizeof(_PATH_DEV) - 1;
+	gp = g_part_find_geom(gname);
+	if (gp == NULL) {
+		gctl_error(req, "%d %s '%s'", EINVAL, name, gname);
 		return (EINVAL);
+	}
 	*v = gp;
 	return (0);
 }
 
 static int
-g_part_parm_provider(const char *pname, struct g_provider **v)
+g_part_parm_provider(struct gctl_req *req, const char *name,
+    struct g_provider **v)
 {
 	struct g_provider *pp;
+	const char *pname;
 
-	if (strncmp(pname, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-		pp = g_provider_by_name(pname + strlen(_PATH_DEV));
-	else
-		pp = g_provider_by_name(pname);
-	if (pp == NULL)
+	pname = gctl_get_asciiparam(req, name);
+	if (pname == NULL)
+		return (ENOATTR);
+	if (strncmp(pname, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+		pname += sizeof(_PATH_DEV) - 1;
+	pp = g_provider_by_name(pname);
+	if (pp == NULL) {
+		gctl_error(req, "%d %s '%s'", EINVAL, name, pname);
 		return (EINVAL);
+	}
 	*v = pp;
 	return (0);
 }
 
 static int
-g_part_parm_quad(const char *p, quad_t *v)
+g_part_parm_quad(struct gctl_req *req, const char *name, quad_t *v)
 {
+	const char *p;
 	char *x;
 	quad_t q;
 
+	p = gctl_get_asciiparam(req, name);
+	if (p == NULL)
+		return (ENOATTR);
 	q = strtoq(p, &x, 0);
-	if (*x != '\0' || q < 0)
+	if (*x != '\0' || q < 0) {
+		gctl_error(req, "%d %s '%s'", EINVAL, name, p);
 		return (EINVAL);
+	}
 	*v = q;
 	return (0);
 }
 
 static int
-g_part_parm_scheme(const char *p, struct g_part_scheme **v)
+g_part_parm_scheme(struct gctl_req *req, const char *name,
+    struct g_part_scheme **v)
 {
 	struct g_part_scheme *s;
+	const char *p;
 
+	p = gctl_get_asciiparam(req, name);
+	if (p == NULL)
+		return (ENOATTR);
 	TAILQ_FOREACH(s, &g_part_schemes, scheme_list) {
 		if (s == &g_part_null_scheme)
 			continue;
 		if (!strcasecmp(s->name, p))
 			break;
 	}
-	if (s == NULL)
+	if (s == NULL) {
+		gctl_error(req, "%d %s '%s'", EINVAL, name, p);
 		return (EINVAL);
+	}
 	*v = s;
 	return (0);
 }
 
 static int
-g_part_parm_str(const char *p, const char **v)
+g_part_parm_str(struct gctl_req *req, const char *name, const char **v)
 {
+	const char *p;
 
-	if (p[0] == '\0')
+	p = gctl_get_asciiparam(req, name);
+	if (p == NULL)
+		return (ENOATTR);
+	/* An empty label is always valid. */
+	if (strcmp(name, "label") != 0 && p[0] == '\0') {
+		gctl_error(req, "%d %s '%s'", EINVAL, name, p);
 		return (EINVAL);
+	}
 	*v = p;
 	return (0);
 }
 
 static int
-g_part_parm_uint(const char *p, u_int *v)
+g_part_parm_intmax(struct gctl_req *req, const char *name, u_int *v)
 {
-	char *x;
-	long l;
+	const intmax_t *p;
+	int size;
 
-	l = strtol(p, &x, 0);
-	if (*x != '\0' || l < 0 || l > INT_MAX)
+	p = gctl_get_param(req, name, &size);
+	if (p == NULL)
+		return (ENOATTR);
+	if (size != sizeof(*p) || *p < 0 || *p > INT_MAX) {
+		gctl_error(req, "%d %s '%jd'", EINVAL, name, *p);
 		return (EINVAL);
-	*v = (unsigned int)l;
+	}
+	*v = (u_int)*p;
+	return (0);
+}
+
+static int
+g_part_parm_uint32(struct gctl_req *req, const char *name, u_int *v)
+{
+	const uint32_t *p;
+	int size;
+
+	p = gctl_get_param(req, name, &size);
+	if (p == NULL)
+		return (ENOATTR);
+	if (size != sizeof(*p) || *p > INT_MAX) {
+		gctl_error(req, "%d %s '%u'", EINVAL, name, (unsigned int)*p);
+		return (EINVAL);
+	}
+	*v = (u_int)*p;
+	return (0);
+}
+
+static int
+g_part_parm_bootcode(struct gctl_req *req, const char *name, const void **v,
+    unsigned int *s)
+{
+	const void *p;
+	int size;
+
+	p = gctl_get_param(req, name, &size);
+	if (p == NULL)
+		return (ENOATTR);
+	*v = p;
+	*s = size;
 	return (0);
 }
 
@@ -571,7 +647,7 @@ g_part_ctl_bootcode(struct gctl_req *req, struct g_part_parms *gpp)
 	/* Provide feedback if so requested. */
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
 		sb = sbuf_new_auto();
-		sbuf_printf(sb, "%s has bootcode\n", gp->name);
+		sbuf_printf(sb, "bootcode written to %s\n", gp->name);
 		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
@@ -683,8 +759,8 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	g_topology_assert();
 
 	/* Check that there isn't already a g_part geom on the provider. */
-	error = g_part_parm_geom(pp->name, &gp);
-	if (!error) {
+	gp = g_part_find_geom(pp->name);
+	if (gp != NULL) {
 		null = gp->softc;
 		if (null->gpt_scheme != &g_part_null_scheme) {
 			gctl_error(req, "%d geom '%s'", EEXIST, pp->name);
@@ -859,7 +935,7 @@ g_part_ctl_destroy(struct gctl_req *req, struct g_part_parms *gpp)
 	struct g_consumer *cp;
 	struct g_geom *gp;
 	struct g_provider *pp;
-	struct g_part_entry *entry;
+	struct g_part_entry *entry, *tmp;
 	struct g_part_table *null, *table;
 	struct sbuf *sb;
 	int error;
@@ -869,11 +945,32 @@ g_part_ctl_destroy(struct gctl_req *req, struct g_part_parms *gpp)
 	g_topology_assert();
 
 	table = gp->softc;
+	/* Check for busy providers. */
 	LIST_FOREACH(entry, &table->gpt_entry, gpe_entry) {
 		if (entry->gpe_deleted || entry->gpe_internal)
 			continue;
+		if (gpp->gpp_force) {
+			pp = entry->gpe_pp;
+			if (pp == NULL)
+				continue;
+			if (pp->acr == 0 && pp->acw == 0 && pp->ace == 0)
+				continue;
+		}
 		gctl_error(req, "%d", EBUSY);
 		return (EBUSY);
+	}
+
+	if (gpp->gpp_force) {
+		/* Destroy all providers. */
+		LIST_FOREACH_SAFE(entry, &table->gpt_entry, gpe_entry, tmp) {
+			pp = entry->gpe_pp;
+			if (pp != NULL) {
+				pp->private = NULL;
+				g_wither_provider(pp, ENXIO);
+			}
+			LIST_REMOVE(entry, gpe_entry);
+			g_free(entry);
+		}
 	}
 
 	error = G_PART_DESTROY(table, gpp);
@@ -967,13 +1064,44 @@ g_part_ctl_move(struct gctl_req *req, struct g_part_parms *gpp)
 {
 	gctl_error(req, "%d verb 'move'", ENOSYS);
 	return (ENOSYS);
-} 
+}
 
 static int
 g_part_ctl_recover(struct gctl_req *req, struct g_part_parms *gpp)
 {
-	gctl_error(req, "%d verb 'recover'", ENOSYS);
-	return (ENOSYS);
+	struct g_part_table *table;
+	struct g_geom *gp;
+	struct sbuf *sb;
+	int error, recovered;
+
+	gp = gpp->gpp_geom;
+	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, gp->name));
+	g_topology_assert();
+	table = gp->softc;
+	error = recovered = 0;
+
+	if (table->gpt_corrupt) {
+		error = G_PART_RECOVER(table);
+		if (error) {
+			gctl_error(req, "%d recovering '%s' failed",
+			    error, gp->name);
+			return (error);
+		}
+		recovered = 1;
+	}
+	/* Provide feedback if so requested. */
+	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
+		sb = sbuf_new_auto();
+		if (recovered)
+			sbuf_printf(sb, "%s recovered\n", gp->name);
+		else
+			sbuf_printf(sb, "%s recovering is not needed\n",
+			    gp->name);
+		sbuf_finish(sb);
+		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+		sbuf_delete(sb);
+	}
+	return (0);
 }
 
 static int
@@ -1095,9 +1223,10 @@ g_part_ctl_setunset(struct gctl_req *req, struct g_part_parms *gpp,
 	/* Provide feedback if so requested. */
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
 		sb = sbuf_new_auto();
-		G_PART_FULLNAME(table, entry, sb, gp->name);
-		sbuf_printf(sb, " has %s %sset\n", gpp->gpp_attrib,
+		sbuf_printf(sb, "%s %sset on ", gpp->gpp_attrib,
 		    (set) ? "" : "un");
+		G_PART_FULLNAME(table, entry, sb, gp->name);
+		sbuf_printf(sb, "\n");
 		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
@@ -1207,6 +1336,7 @@ g_part_wither(struct g_geom *gp, int error)
 
 	table = gp->softc;
 	if (table != NULL) {
+		G_PART_DESTROY(table, NULL);
 		while ((entry = LIST_FIRST(&table->gpt_entry)) != NULL) {
 			LIST_REMOVE(entry, gpe_entry);
 			g_free(entry);
@@ -1229,11 +1359,10 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 	struct g_part_parms gpp;
 	struct g_part_table *table;
 	struct gctl_req_arg *ap;
-	const char *p;
 	enum g_part_ctl ctlreq;
 	unsigned int i, mparms, oparms, parm;
 	int auto_commit, close_on_error;
-	int error, len, modifies;
+	int error, modifies;
 
 	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s,%s)", __func__, mp->name, verb));
 	g_topology_assert();
@@ -1275,6 +1404,7 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		} else if (!strcmp(verb, "destroy")) {
 			ctlreq = G_PART_CTL_DESTROY;
 			mparms |= G_PART_PARM_GEOM;
+			oparms |= G_PART_PARM_FORCE;
 		}
 		break;
 	case 'm':
@@ -1327,6 +1457,10 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		parm = 0;
 		switch (ap->name[0]) {
 		case 'a':
+			if (!strcmp(ap->name, "arg0")) {
+				parm = mparms &
+				    (G_PART_PARM_GEOM | G_PART_PARM_PROVIDER);
+			}
 			if (!strcmp(ap->name, "attrib"))
 				parm = G_PART_PARM_ATTRIB;
 			break;
@@ -1345,10 +1479,8 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		case 'f':
 			if (!strcmp(ap->name, "flags"))
 				parm = G_PART_PARM_FLAGS;
-			break;
-		case 'g':
-			if (!strcmp(ap->name, "geom"))
-				parm = G_PART_PARM_GEOM;
+			else if (!strcmp(ap->name, "force"))
+				parm = G_PART_PARM_FORCE;
 			break;
 		case 'i':
 			if (!strcmp(ap->name, "index"))
@@ -1361,10 +1493,6 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		case 'o':
 			if (!strcmp(ap->name, "output"))
 				parm = G_PART_PARM_OUTPUT;
-			break;
-		case 'p':
-			if (!strcmp(ap->name, "provider"))
-				parm = G_PART_PARM_PROVIDER;
 			break;
 		case 's':
 			if (!strcmp(ap->name, "scheme"))
@@ -1389,69 +1517,71 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			gctl_error(req, "%d param '%s'", EINVAL, ap->name);
 			return;
 		}
-		if (parm == G_PART_PARM_BOOTCODE)
-			p = gctl_get_param(req, ap->name, &len);
-		else
-			p = gctl_get_asciiparam(req, ap->name);
-		if (p == NULL) {
-			gctl_error(req, "%d param '%s'", ENOATTR, ap->name);
-			return;
-		}
 		switch (parm) {
 		case G_PART_PARM_ATTRIB:
-			error = g_part_parm_str(p, &gpp.gpp_attrib);
+			error = g_part_parm_str(req, ap->name,
+			    &gpp.gpp_attrib);
 			break;
 		case G_PART_PARM_BOOTCODE:
-			gpp.gpp_codeptr = p;
-			gpp.gpp_codesize = len;
-			error = 0;
+			error = g_part_parm_bootcode(req, ap->name,
+			    &gpp.gpp_codeptr, &gpp.gpp_codesize);
 			break;
 		case G_PART_PARM_ENTRIES:
-			error = g_part_parm_uint(p, &gpp.gpp_entries);
+			error = g_part_parm_intmax(req, ap->name,
+			    &gpp.gpp_entries);
 			break;
 		case G_PART_PARM_FLAGS:
-			if (p[0] == '\0')
-				continue;
-			error = g_part_parm_str(p, &gpp.gpp_flags);
+			error = g_part_parm_str(req, ap->name, &gpp.gpp_flags);
+			break;
+		case G_PART_PARM_FORCE:
+			error = g_part_parm_uint32(req, ap->name,
+			    &gpp.gpp_force);
 			break;
 		case G_PART_PARM_GEOM:
-			error = g_part_parm_geom(p, &gpp.gpp_geom);
+			error = g_part_parm_geom(req, ap->name, &gpp.gpp_geom);
 			break;
 		case G_PART_PARM_INDEX:
-			error = g_part_parm_uint(p, &gpp.gpp_index);
+			error = g_part_parm_intmax(req, ap->name,
+			    &gpp.gpp_index);
 			break;
 		case G_PART_PARM_LABEL:
-			/* An empty label is always valid. */
-			gpp.gpp_label = p;
-			error = 0;
+			error = g_part_parm_str(req, ap->name, &gpp.gpp_label);
 			break;
 		case G_PART_PARM_OUTPUT:
 			error = 0;	/* Write-only parameter */
 			break;
 		case G_PART_PARM_PROVIDER:
-			error = g_part_parm_provider(p, &gpp.gpp_provider);
+			error = g_part_parm_provider(req, ap->name,
+			    &gpp.gpp_provider);
 			break;
 		case G_PART_PARM_SCHEME:
-			error = g_part_parm_scheme(p, &gpp.gpp_scheme);
+			error = g_part_parm_scheme(req, ap->name,
+			    &gpp.gpp_scheme);
 			break;
 		case G_PART_PARM_SIZE:
-			error = g_part_parm_quad(p, &gpp.gpp_size);
+			error = g_part_parm_quad(req, ap->name, &gpp.gpp_size);
 			break;
 		case G_PART_PARM_START:
-			error = g_part_parm_quad(p, &gpp.gpp_start);
+			error = g_part_parm_quad(req, ap->name,
+			    &gpp.gpp_start);
 			break;
 		case G_PART_PARM_TYPE:
-			error = g_part_parm_str(p, &gpp.gpp_type);
+			error = g_part_parm_str(req, ap->name, &gpp.gpp_type);
 			break;
 		case G_PART_PARM_VERSION:
-			error = g_part_parm_uint(p, &gpp.gpp_version);
+			error = g_part_parm_uint32(req, ap->name,
+			    &gpp.gpp_version);
 			break;
 		default:
 			error = EDOOFUS;
+			gctl_error(req, "%d %s", error, ap->name);
 			break;
 		}
-		if (error) {
-			gctl_error(req, "%d %s '%s'", error, ap->name, p);
+		if (error != 0) {
+			if (error == ENOATTR) {
+				gctl_error(req, "%d param '%s'", error,
+				    ap->name);
+			}
 			return;
 		}
 		gpp.gpp_parms |= parm;
@@ -1467,6 +1597,13 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 	table = NULL;
 	if (modifies && (gpp.gpp_parms & G_PART_PARM_GEOM)) {
 		table = gpp.gpp_geom->softc;
+		if (table != NULL && table->gpt_corrupt &&
+		    ctlreq != G_PART_CTL_DESTROY &&
+		    ctlreq != G_PART_CTL_RECOVER) {
+			gctl_error(req, "%d table '%s' is corrupt",
+			    EPERM, gpp.gpp_geom->name);
+			return;
+		}
 		if (table != NULL && !table->gpt_opened) {
 			error = g_access(LIST_FIRST(&gpp.gpp_geom->consumer),
 			    1, 1, 1);
@@ -1540,7 +1677,8 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		    (gpp.gpp_parms & G_PART_PARM_FLAGS) &&
 		    strchr(gpp.gpp_flags, 'C') != NULL) ? 1 : 0;
 		if (auto_commit) {
-			KASSERT(gpp.gpp_parms & G_PART_PARM_GEOM, (__func__));
+			KASSERT(gpp.gpp_parms & G_PART_PARM_GEOM, ("%s",
+			    __func__));
 			error = g_part_ctl_commit(req, &gpp);
 		}
 	}
@@ -1680,11 +1818,11 @@ g_part_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	struct g_part_entry *entry;
 	struct g_part_table *table;
 
-	KASSERT(sb != NULL && gp != NULL, (__func__));
+	KASSERT(sb != NULL && gp != NULL, ("%s", __func__));
 	table = gp->softc;
 
 	if (indent == NULL) {
-		KASSERT(cp == NULL && pp != NULL, (__func__));
+		KASSERT(cp == NULL && pp != NULL, ("%s", __func__));
 		entry = pp->private;
 		if (entry == NULL)
 			return;
@@ -1699,7 +1837,7 @@ g_part_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		 */
 		G_PART_DUMPCONF(table, entry, sb, indent);
 	} else if (cp != NULL) {	/* Consumer configuration. */
-		KASSERT(pp == NULL, (__func__));
+		KASSERT(pp == NULL, ("%s", __func__));
 		/* none */
 	} else if (pp != NULL) {	/* Provider configuration. */
 		entry = pp->private;
@@ -1731,6 +1869,10 @@ g_part_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		    table->gpt_sectors);
 		sbuf_printf(sb, "%s<fwheads>%u</fwheads>\n", indent,
 		    table->gpt_heads);
+		sbuf_printf(sb, "%s<state>%s</state>\n", indent,
+		    table->gpt_corrupt ? "CORRUPT": "OK");
+		sbuf_printf(sb, "%s<modified>%s</modified>\n", indent,
+		    table->gpt_opened ? "true": "false");
 		G_PART_DUMPCONF(table, NULL, sb, indent);
 	}
 }
@@ -1742,11 +1884,11 @@ g_part_orphan(struct g_consumer *cp)
 	struct g_part_table *table;
 
 	pp = cp->provider;
-	KASSERT(pp != NULL, (__func__));
+	KASSERT(pp != NULL, ("%s", __func__));
 	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, pp->name));
 	g_topology_assert();
 
-	KASSERT(pp->error != 0, (__func__));
+	KASSERT(pp->error != 0, ("%s", __func__));
 	table = cp->geom->softc;
 	if (table != NULL && table->gpt_opened)
 		g_access(cp, -1, -1, -1);

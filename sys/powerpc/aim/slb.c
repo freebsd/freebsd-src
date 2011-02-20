@@ -32,78 +32,227 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
-#include <sys/tree.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/uma.h>
+#include <vm/vm.h>
 #include <vm/vm_map.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
+#include <vm/vm_phys.h>
 
 #include <machine/md_var.h>
+#include <machine/platform.h>
 #include <machine/pmap.h>
 #include <machine/vmparam.h>
 
 uintptr_t moea64_get_unique_vsid(void);
 void moea64_release_vsid(uint64_t vsid);
-
-struct slbcontainer {
-	struct slb slb;
-	SPLAY_ENTRY(slbcontainer) slb_node;
-};
-
-static int slb_compare(struct slbcontainer *a, struct slbcontainer *b);
 static void slb_zone_init(void *);
 
-SPLAY_PROTOTYPE(slb_tree, slbcontainer, slb_node, slb_compare);
-SPLAY_GENERATE(slb_tree, slbcontainer, slb_node, slb_compare);
-
-uma_zone_t slb_zone;
+uma_zone_t slbt_zone;
 uma_zone_t slb_cache_zone;
 
 SYSINIT(slb_zone_init, SI_SUB_KMEM, SI_ORDER_ANY, slb_zone_init, NULL);
 
-int
-va_to_slb_entry(pmap_t pm, vm_offset_t va, struct slb *slb)
+struct slbtnode {
+	uint16_t	ua_alloc;
+	uint8_t		ua_level;
+	/* Only 36 bits needed for full 64-bit address space. */
+	uint64_t	ua_base;
+	union {
+		struct slbtnode	*ua_child[16];
+		struct slb	slb_entries[16];
+	} u;
+};
+
+/*
+ * For a full 64-bit address space, there are 36 bits in play in an
+ * esid, so 8 levels, with the leaf being at level 0.
+ *
+ * |3333|3322|2222|2222|1111|1111|11  |    |    |  esid
+ * |5432|1098|7654|3210|9876|5432|1098|7654|3210|  bits
+ * +----+----+----+----+----+----+----+----+----+--------
+ * | 8  | 7  | 6  | 5  | 4  | 3  | 2  | 1  | 0  | level
+ */
+#define UAD_ROOT_LEVEL  8
+#define UAD_LEAF_LEVEL  0
+
+static inline int
+esid2idx(uint64_t esid, int level)
 {
-	struct slbcontainer cont, *found;
-	uint64_t esid;
+	int shift;
 
-	esid = (uintptr_t)va >> ADDR_SR_SHFT;
-	slb->slbe = (esid << SLBE_ESID_SHIFT) | SLBE_VALID;
+	shift = level * 4;
+	return ((esid >> shift) & 0xF);
+}
 
-	if (pm == kernel_pmap) {
-		/* Set kernel VSID to deterministic value */
-		slb->slbv = va_to_vsid(kernel_pmap, va) << SLBV_VSID_SHIFT;
+/*
+ * The ua_base field should have 0 bits after the first 4*(level+1)
+ * bits; i.e. only
+ */
+#define uad_baseok(ua)                          \
+	(esid2base(ua->ua_base, ua->ua_level) == ua->ua_base)
 
-		/* Figure out if this is a large-page mapping */
-		if (hw_direct_map && va < VM_MIN_KERNEL_ADDRESS) {
-			/*
-			 * XXX: If we have set up a direct map, assumes
-			 * all physical memory is mapped with large pages.
-			 */
-			if (mem_valid(va, 0) == 0)
-				slb->slbv |= SLBV_L;
-		}
-			
-		return (0);
+
+static inline uint64_t
+esid2base(uint64_t esid, int level)
+{
+	uint64_t mask;
+	int shift;
+
+	shift = (level + 1) * 4;
+	mask = ~((1ULL << shift) - 1);
+	return (esid & mask);
+}
+
+/*
+ * Allocate a new leaf node for the specified esid/vmhandle from the
+ * parent node.
+ */
+static struct slb *
+make_new_leaf(uint64_t esid, uint64_t slbv, struct slbtnode *parent)
+{
+	struct slbtnode *child;
+	struct slb *retval;
+	int idx;
+
+	idx = esid2idx(esid, parent->ua_level);
+	KASSERT(parent->u.ua_child[idx] == NULL, ("Child already exists!"));
+
+	/* unlock and M_WAITOK and loop? */
+	child = uma_zalloc(slbt_zone, M_NOWAIT | M_ZERO);
+	KASSERT(child != NULL, ("unhandled NULL case"));
+
+	child->ua_level = UAD_LEAF_LEVEL;
+	child->ua_base = esid2base(esid, child->ua_level);
+	idx = esid2idx(esid, child->ua_level);
+	child->u.slb_entries[idx].slbv = slbv;
+	child->u.slb_entries[idx].slbe = (esid << SLBE_ESID_SHIFT) | SLBE_VALID;
+	setbit(&child->ua_alloc, idx);
+
+	retval = &child->u.slb_entries[idx];
+
+	/*
+	 * The above stores must be visible before the next one, so
+	 * that a lockless searcher always sees a valid path through
+	 * the tree.
+	 */
+	powerpc_sync();
+
+	idx = esid2idx(esid, parent->ua_level);
+	parent->u.ua_child[idx] = child;
+	setbit(&parent->ua_alloc, idx);
+
+	return (retval);
+}
+
+/*
+ * Allocate a new intermediate node to fit between the parent and
+ * esid.
+ */
+static struct slbtnode*
+make_intermediate(uint64_t esid, struct slbtnode *parent)
+{
+	struct slbtnode *child, *inter;
+	int idx, level;
+
+	idx = esid2idx(esid, parent->ua_level);
+	child = parent->u.ua_child[idx];
+	KASSERT(esid2base(esid, child->ua_level) != child->ua_base,
+	    ("No need for an intermediate node?"));
+
+	/*
+	 * Find the level where the existing child and our new esid
+	 * meet.  It must be lower than parent->ua_level or we would
+	 * have chosen a different index in parent.
+	 */
+	level = child->ua_level + 1;
+	while (esid2base(esid, level) !=
+	    esid2base(child->ua_base, level))
+		level++;
+	KASSERT(level < parent->ua_level,
+	    ("Found splitting level %d for %09jx and %09jx, "
+	    "but it's the same as %p's",
+	    level, esid, child->ua_base, parent));
+
+	/* unlock and M_WAITOK and loop? */
+	inter = uma_zalloc(slbt_zone, M_NOWAIT | M_ZERO);
+	KASSERT(inter != NULL, ("unhandled NULL case"));
+
+	/* Set up intermediate node to point to child ... */
+	inter->ua_level = level;
+	inter->ua_base = esid2base(esid, inter->ua_level);
+	idx = esid2idx(child->ua_base, inter->ua_level);
+	inter->u.ua_child[idx] = child;
+	setbit(&inter->ua_alloc, idx);
+	powerpc_sync();
+
+	/* Set up parent to point to intermediate node ... */
+	idx = esid2idx(inter->ua_base, parent->ua_level);
+	parent->u.ua_child[idx] = inter;
+	setbit(&parent->ua_alloc, idx);
+
+	return (inter);
+}
+
+uint64_t
+kernel_va_to_slbv(vm_offset_t va)
+{
+	uint64_t slbv;
+
+	/* Set kernel VSID to deterministic value */
+	slbv = (KERNEL_VSID((uintptr_t)va >> ADDR_SR_SHFT)) << SLBV_VSID_SHIFT;
+
+	/* Figure out if this is a large-page mapping */
+	if (hw_direct_map && va < VM_MIN_KERNEL_ADDRESS) {
+		/*
+		 * XXX: If we have set up a direct map, assumes
+		 * all physical memory is mapped with large pages.
+		 */
+		if (mem_valid(va, 0) == 0)
+			slbv |= SLBV_L;
+	}
+		
+	return (slbv);
+}
+
+struct slb *
+user_va_to_slb_entry(pmap_t pm, vm_offset_t va)
+{
+	uint64_t esid = va >> ADDR_SR_SHFT;
+	struct slbtnode *ua;
+	int idx;
+
+	ua = pm->pm_slb_tree_root;
+
+	for (;;) {
+		KASSERT(uad_baseok(ua), ("uad base %016jx level %d bad!",
+		    ua->ua_base, ua->ua_level));
+		idx = esid2idx(esid, ua->ua_level);
+
+		/*
+		 * This code is specific to ppc64 where a load is
+		 * atomic, so no need for atomic_load macro.
+		 */
+		if (ua->ua_level == UAD_LEAF_LEVEL)
+			return ((ua->u.slb_entries[idx].slbe & SLBE_VALID) ?
+			    &ua->u.slb_entries[idx] : NULL);
+
+		ua = ua->u.ua_child[idx];
+		if (ua == NULL ||
+		    esid2base(esid, ua->ua_level) != ua->ua_base)
+			return (NULL);
 	}
 
-	PMAP_LOCK_ASSERT(pm, MA_OWNED);
-
-	cont.slb.slbe = slb->slbe;
-	found = SPLAY_FIND(slb_tree, &pm->pm_slbtree, &cont);
-
-	if (found == NULL)
-		return (-1);
-
-	slb->slbv = found->slb.slbv;
-	return (0);
+	return (NULL);
 }
 
 uint64_t
 va_to_vsid(pmap_t pm, vm_offset_t va)
 {
-	struct slb entry;
+	struct slb *entry;
 
 	/* Shortcut kernel case */
 	if (pm == kernel_pmap)
@@ -114,54 +263,148 @@ va_to_vsid(pmap_t pm, vm_offset_t va)
 	 * to the PMAP's segment table.
 	 */
 
-	if (va_to_slb_entry(pm, va, &entry) != 0)
-		return (allocate_vsid(pm, (uintptr_t)va >> ADDR_SR_SHFT, 0));
+	entry = user_va_to_slb_entry(pm, va);
 
-	return ((entry.slbv & SLBV_VSID_MASK) >> SLBV_VSID_SHIFT);
+	if (entry == NULL)
+		return (allocate_user_vsid(pm,
+		    (uintptr_t)va >> ADDR_SR_SHFT, 0));
+
+	return ((entry->slbv & SLBV_VSID_MASK) >> SLBV_VSID_SHIFT);
 }
 
 uint64_t
-allocate_vsid(pmap_t pm, uint64_t esid, int large)
+allocate_user_vsid(pmap_t pm, uint64_t esid, int large)
 {
-	uint64_t vsid;
-	struct slbcontainer *slb_entry, kern_entry;
-	struct slb *prespill;
+	uint64_t vsid, slbv;
+	struct slbtnode *ua, *next, *inter;
+	struct slb *slb;
+	int idx;
 
-	prespill = NULL;
+	KASSERT(pm != kernel_pmap, ("Attempting to allocate a kernel VSID"));
 
-	if (pm == kernel_pmap) {
-		vsid = va_to_vsid(pm, esid << ADDR_SR_SHFT);
-		slb_entry = &kern_entry;
-		prespill = PCPU_GET(slb);
-	} else {
-		vsid = moea64_get_unique_vsid();
-		slb_entry = uma_zalloc(slb_zone, M_NOWAIT);
+	PMAP_LOCK_ASSERT(pm, MA_OWNED);
+	vsid = moea64_get_unique_vsid();
 
-		if (slb_entry == NULL)
-			panic("Could not allocate SLB mapping!");
-
-		prespill = pm->pm_slb;
-	}
-
-	slb_entry->slb.slbe = (esid << SLBE_ESID_SHIFT) | SLBE_VALID;
-	slb_entry->slb.slbv = vsid << SLBV_VSID_SHIFT;
-
+	slbv = vsid << SLBV_VSID_SHIFT;
 	if (large)
-		slb_entry->slb.slbv |= SLBV_L;
+		slbv |= SLBV_L;
 
-	if (pm != kernel_pmap) {
-		PMAP_LOCK_ASSERT(pm, MA_OWNED);
-		SPLAY_INSERT(slb_tree, &pm->pm_slbtree, slb_entry);
+	ua = pm->pm_slb_tree_root;
+
+	/* Descend to the correct leaf or NULL pointer. */
+	for (;;) {
+		KASSERT(uad_baseok(ua),
+		   ("uad base %09jx level %d bad!", ua->ua_base, ua->ua_level));
+		idx = esid2idx(esid, ua->ua_level);
+
+		if (ua->ua_level == UAD_LEAF_LEVEL) {
+			ua->u.slb_entries[idx].slbv = slbv;
+			eieio();
+			ua->u.slb_entries[idx].slbe = (esid << SLBE_ESID_SHIFT)
+			    | SLBE_VALID;
+			setbit(&ua->ua_alloc, idx);
+			slb = &ua->u.slb_entries[idx];
+			break;
+		}
+
+		next = ua->u.ua_child[idx];
+		if (next == NULL) {
+			slb = make_new_leaf(esid, slbv, ua);
+			break;
+                }
+
+		/*
+		 * Check if the next item down has an okay ua_base.
+		 * If not, we need to allocate an intermediate node.
+		 */
+		if (esid2base(esid, next->ua_level) != next->ua_base) {
+			inter = make_intermediate(esid, ua);
+			slb = make_new_leaf(esid, slbv, inter);
+			break;
+		}
+
+		ua = next;
 	}
 
 	/*
 	 * Someone probably wants this soon, and it may be a wired
 	 * SLB mapping, so pre-spill this entry.
 	 */
-	if (prespill != NULL)
-		slb_insert(pm, prespill, &slb_entry->slb);
+	eieio();
+	slb_insert_user(pm, slb);
 
 	return (vsid);
+}
+
+void
+free_vsid(pmap_t pm, uint64_t esid, int large)
+{
+	struct slbtnode *ua;
+	int idx;
+
+	PMAP_LOCK_ASSERT(pm, MA_OWNED);
+
+	ua = pm->pm_slb_tree_root;
+	/* Descend to the correct leaf. */
+	for (;;) {
+		KASSERT(uad_baseok(ua),
+		   ("uad base %09jx level %d bad!", ua->ua_base, ua->ua_level));
+		
+		idx = esid2idx(esid, ua->ua_level);
+		if (ua->ua_level == UAD_LEAF_LEVEL) {
+			ua->u.slb_entries[idx].slbv = 0;
+			eieio();
+			ua->u.slb_entries[idx].slbe = 0;
+			clrbit(&ua->ua_alloc, idx);
+			return;
+		}
+
+		ua = ua->u.ua_child[idx];
+		if (ua == NULL ||
+		    esid2base(esid, ua->ua_level) != ua->ua_base) {
+			/* Perhaps just return instead of assert? */
+			KASSERT(0,
+			    ("Asked to remove an entry that was never inserted!"));
+			return;
+		}
+	}
+}
+
+static void
+free_slb_tree_node(struct slbtnode *ua)
+{
+	int idx;
+
+	for (idx = 0; idx < 16; idx++) {
+		if (ua->ua_level != UAD_LEAF_LEVEL) {
+			if (ua->u.ua_child[idx] != NULL)
+				free_slb_tree_node(ua->u.ua_child[idx]);
+		} else {
+			if (ua->u.slb_entries[idx].slbv != 0)
+				moea64_release_vsid(ua->u.slb_entries[idx].slbv
+				    >> SLBV_VSID_SHIFT);
+		}
+	}
+
+	uma_zfree(slbt_zone, ua);
+}
+
+void
+slb_free_tree(pmap_t pm)
+{
+
+	free_slb_tree_node(pm->pm_slb_tree_root);
+}
+
+struct slbtnode *
+slb_alloc_tree(void)
+{
+	struct slbtnode *root;
+
+	root = uma_zalloc(slbt_zone, M_NOWAIT | M_ZERO);
+	root->ua_level = UAD_ROOT_LEVEL;
+
+	return (root);
 }
 
 /* Lock entries mapping kernel text and stacks */
@@ -171,126 +414,130 @@ allocate_vsid(pmap_t pm, uint64_t esid, int large)
 	    (slbe & SLBE_ESID_MASK) > 16*SEGMENT_LENGTH) || \
 	    (slbe & SLBE_ESID_MASK) > VM_MAX_KERNEL_ADDRESS)
 void
-slb_insert(pmap_t pm, struct slb *slbcache, struct slb *slb_entry)
+slb_insert_kernel(uint64_t slbe, uint64_t slbv)
 {
-	uint64_t slbe, slbv;
-	int i, j, to_spill;
+	struct slb *slbcache;
+	int i, j;
 
 	/* We don't want to be preempted while modifying the kernel map */
 	critical_enter();
 
-	to_spill = -1;
-	slbv = slb_entry->slbv;
-	slbe = slb_entry->slbe;
+	slbcache = PCPU_GET(slb);
 
-	/* Hunt for a likely candidate */
-
-	for (i = mftb() % 64, j = 0; j < 64; j++, i = (i+1) % 64) {
-		if (pm == kernel_pmap && i == USER_SR)
-				continue;
-
-		if (!(slbcache[i].slbe & SLBE_VALID)) {
-			to_spill = i;
-			break;
+	/* Check for an unused slot, abusing the user slot as a full flag */
+	if (slbcache[USER_SLB_SLOT].slbe == 0) {
+		for (i = 0; i < USER_SLB_SLOT; i++) {
+			if (!(slbcache[i].slbe & SLBE_VALID)) 
+				goto fillkernslb;
 		}
 
-		if (to_spill < 0 && (pm != kernel_pmap ||
-		    SLB_SPILLABLE(slbcache[i].slbe)))
-			to_spill = i;
+		if (i == USER_SLB_SLOT)
+			slbcache[USER_SLB_SLOT].slbe = 1;
 	}
 
-	if (to_spill < 0)
-		panic("SLB spill on ESID %#lx, but no available candidates!\n",
-		   (slbe & SLBE_ESID_MASK) >> SLBE_ESID_SHIFT);
+	for (i = mftb() % 64, j = 0; j < 64; j++, i = (i+1) % 64) {
+		if (i == USER_SLB_SLOT)
+			continue;
 
-	if (slbcache[to_spill].slbe & SLBE_VALID) {
-		/* Invalidate this first to avoid races */
-		slbcache[to_spill].slbe = 0;
-		mb();
+		if (SLB_SPILLABLE(slbcache[i].slbe))
+			break;
 	}
-	slbcache[to_spill].slbv = slbv;
-	slbcache[to_spill].slbe = slbe | (uint64_t)to_spill;
+
+	KASSERT(j < 64, ("All kernel SLB slots locked!"));
+
+fillkernslb:
+	slbcache[i].slbv = slbv;
+	slbcache[i].slbe = slbe | (uint64_t)i;
 
 	/* If it is for this CPU, put it in the SLB right away */
-	if (pm == kernel_pmap && pmap_bootstrapped) {
+	if (pmap_bootstrapped) {
 		/* slbie not required */
 		__asm __volatile ("slbmte %0, %1" :: 
-		    "r"(slbcache[to_spill].slbv),
-		    "r"(slbcache[to_spill].slbe)); 
+		    "r"(slbcache[i].slbv), "r"(slbcache[i].slbe)); 
 	}
 
 	critical_exit();
 }
 
-int
-vsid_to_esid(pmap_t pm, uint64_t vsid, uint64_t *esid)
+void
+slb_insert_user(pmap_t pm, struct slb *slb)
 {
-	uint64_t slbv;
-	struct slbcontainer *entry;
-
-#ifdef INVARIANTS
-	if (pm == kernel_pmap)
-		panic("vsid_to_esid only works on user pmaps");
+	int i;
 
 	PMAP_LOCK_ASSERT(pm, MA_OWNED);
-#endif
 
-	slbv = vsid << SLBV_VSID_SHIFT;
-
-	SPLAY_FOREACH(entry, slb_tree, &pm->pm_slbtree) {
-		if (slbv == entry->slb.slbv) {
-			*esid = entry->slb.slbe >> SLBE_ESID_SHIFT;
-			return (0);
-		}
+	if (pm->pm_slb_len < 64) {
+		i = pm->pm_slb_len;
+		pm->pm_slb_len++;
+	} else {
+		i = mftb() % 64;
 	}
 
-	return (-1);
+	/* Note that this replacement is atomic with respect to trap_subr */
+	pm->pm_slb[i] = slb;
 }
 
-void
-free_vsids(pmap_t pm)
+static void *
+slb_uma_real_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
-	struct slbcontainer *entry;
+	static vm_offset_t realmax = 0;
+	void *va;
+	vm_page_t m;
 
-	while (!SPLAY_EMPTY(&pm->pm_slbtree)) {
-		entry = SPLAY_MIN(slb_tree, &pm->pm_slbtree);
+	if (realmax == 0)
+		realmax = platform_real_maxaddr();
 
-		SPLAY_REMOVE(slb_tree, &pm->pm_slbtree, entry);
+	*flags = UMA_SLAB_PRIV;
 
-		moea64_release_vsid(entry->slb.slbv >> SLBV_VSID_SHIFT);
-		uma_zfree(slb_zone, entry);
-	}
-}
+	for (;;) {
+		m = vm_phys_alloc_contig(1, 0, realmax, PAGE_SIZE,
+			    PAGE_SIZE);
+		if (m == NULL) {
+			if (wait & M_NOWAIT)
+				return (NULL);
+			VM_WAIT;
+		} else
+                        break;
+        }
 
-static int
-slb_compare(struct slbcontainer *a, struct slbcontainer *b)
-{
-	if (a->slb.slbe == b->slb.slbe)
-		return (0);
-	else if (a->slb.slbe < b->slb.slbe)
-		return (-1);
-	else
-		return (1);
+	va = (void *) VM_PAGE_TO_PHYS(m);
+
+	if (!hw_direct_map)
+		pmap_kenter((vm_offset_t)va, VM_PAGE_TO_PHYS(m));
+
+	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
+		bzero(va, PAGE_SIZE);
+
+	/* vm_phys_alloc_contig does not track wiring */
+	atomic_add_int(&cnt.v_wire_count, 1);
+	m->wire_count = 1;
+
+	return (va);
 }
 
 static void
 slb_zone_init(void *dummy)
 {
 
-	slb_zone = uma_zcreate("SLB segment", sizeof(struct slbcontainer),
+	slbt_zone = uma_zcreate("SLB tree node", sizeof(struct slbtnode),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
-	slb_cache_zone = uma_zcreate("SLB cache", 64*sizeof(struct slb),
+	slb_cache_zone = uma_zcreate("SLB cache", 64*sizeof(struct slb *),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
+
+	if (platform_real_maxaddr() != VM_MAX_ADDRESS) {
+		uma_zone_set_allocf(slb_cache_zone, slb_uma_real_alloc);
+		uma_zone_set_allocf(slbt_zone, slb_uma_real_alloc);
+	}
 }
 
-struct slb *
+struct slb **
 slb_alloc_user_cache(void)
 {
 	return (uma_zalloc(slb_cache_zone, M_ZERO));
 }
 
 void
-slb_free_user_cache(struct slb *slb)
+slb_free_user_cache(struct slb **slb)
 {
 	uma_zfree(slb_cache_zone, slb);
 }

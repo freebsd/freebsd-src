@@ -85,6 +85,7 @@ if_check_value_exists()
     VALID="1"
     for i in ${2}
     do
+      VAL=`echo "$VAL"|tr A-Z a-z`
       if [ "$VAL" = "${i}" ]
       then 
         VALID="0"

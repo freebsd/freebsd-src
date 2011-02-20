@@ -13,7 +13,6 @@ SUBDIR= ${_binutils} \
 	${_gperf} \
 	${_grep} \
 	${_groff} \
-	${_man} \
 	patch \
 	${_rcs} \
 	sdiff \
@@ -42,10 +41,6 @@ _dtc=		dtc
 
 .if ${MK_INFO} != "no"
 _texinfo=	texinfo
-.endif
-
-.if ${MK_MAN_UTILS} != "no"
-_man=		man
 .endif
 
 .if ${MK_RCS} != "no"

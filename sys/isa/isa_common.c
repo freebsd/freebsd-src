@@ -597,7 +597,7 @@ isa_probe_children(device_t dev)
  * Add a new child with default ivars.
  */
 static device_t
-isa_add_child(device_t dev, int order, const char *name, int unit)
+isa_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t child;
 	struct	isa_device *idev;

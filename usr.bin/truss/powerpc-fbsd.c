@@ -63,7 +63,12 @@ static const char rcsid[] =
 
 static int cpid = -1;
 
+#ifdef __powerpc64__	/* 32-bit compatibility */
+#include "freebsd32_syscalls.h"
+#define  syscallnames freebsd32_syscallnames
+#else			/* native 32-bit */
 #include "syscalls.h"
+#endif
 
 static int nsyscalls = sizeof(syscallnames) / sizeof(syscallnames[0]);
 
@@ -257,7 +262,7 @@ powerpc_syscall_entry(struct trussinfo *trussinfo, int nargs) {
  * And when the system call is done, we handle it here.
  * Currently, no attempt is made to ensure that the system calls
  * match -- this needs to be fixed (and is, in fact, why S_SCX includes
- * the sytem call number instead of, say, an error status).
+ * the system call number instead of, say, an error status).
  */
 
 long

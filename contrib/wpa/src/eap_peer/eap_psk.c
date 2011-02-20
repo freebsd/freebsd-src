@@ -18,9 +18,9 @@
 #include "includes.h"
 
 #include "common.h"
-#include "eap_peer/eap_i.h"
-#include "aes_wrap.h"
+#include "crypto/aes_wrap.h"
 #include "eap_common/eap_psk_common.h"
+#include "eap_i.h"
 
 
 struct eap_psk_data {

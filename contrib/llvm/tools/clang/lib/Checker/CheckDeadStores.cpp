@@ -217,7 +217,7 @@ public:
               // If x is EVER assigned a new value later, don't issue
               // a warning.  This is because such initialization can be
               // due to defensive programming.
-              if (E->isConstantInitializer(Ctx))
+              if (E->isConstantInitializer(Ctx, false))
                 return;
 
               if (DeclRefExpr *DRE=dyn_cast<DeclRefExpr>(E->IgnoreParenCasts()))
@@ -268,7 +268,7 @@ public:
     // Check for '&'.  Any VarDecl whose value has its address-taken we
     // treat as escaped.
     Expr* E = U->getSubExpr()->IgnoreParenCasts();
-    if (U->getOpcode() == UnaryOperator::AddrOf)
+    if (U->getOpcode() == UO_AddrOf)
       if (DeclRefExpr* DR = dyn_cast<DeclRefExpr>(E))
         if (VarDecl* VD = dyn_cast<VarDecl>(DR->getDecl())) {
           Escaped.insert(VD);

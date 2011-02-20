@@ -156,7 +156,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	#endif
 
 	#ifdef COMPAT_FREEBSD32
-	if (p->p_sysent->sv_flags & SV_ILP32) {
+	if (SV_PROC_FLAG(p, SV_ILP32)) {
 		siginfo_to_siginfo32(&ksi->ksi_info, &siginfo32);
 		sig = siginfo32.si_signo;
 		code = siginfo32.si_code;
@@ -251,9 +251,9 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	tf->fixreg[FIRSTARG] = sig;
 	#ifdef COMPAT_FREEBSD32
 	tf->fixreg[FIRSTARG+2] = (register_t)usfp +
-	    (p->p_sysent->sv_flags & SV_ILP32) ?
+	    ((SV_PROC_FLAG(p, SV_ILP32)) ?
 	    offsetof(struct sigframe32, sf_uc) :
-	    offsetof(struct sigframe, sf_uc);
+	    offsetof(struct sigframe, sf_uc));
 	#else
 	tf->fixreg[FIRSTARG+2] = (register_t)usfp +
 	    offsetof(struct sigframe, sf_uc);
@@ -263,7 +263,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		 * Signal handler installed with SA_SIGINFO.
 		 */
 		#ifdef COMPAT_FREEBSD32
-		if (p->p_sysent->sv_flags & SV_ILP32) {
+		if (SV_PROC_FLAG(p, SV_ILP32)) {
 			sf32.sf_si = siginfo32;
 			tf->fixreg[FIRSTARG+1] = (register_t)usfp +
 			    offsetof(struct sigframe32, sf_si);
@@ -290,8 +290,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(p);
 
-	tf->srr0 = (register_t)(p->p_sysent->sv_psstrings -
-	    *(p->p_sysent->sv_szsigcode));
+	tf->srr0 = (register_t)p->p_sysent->sv_sigcode_base;
 
 	/*
 	 * copy the frame out to userland.
@@ -872,7 +871,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 	tf = td->td_frame;
 
 	if (tf->fixreg[0] == SYS___syscall &&
-	    (p->p_sysent->sv_flags & SV_ILP32)) {
+	    (SV_PROC_FLAG(p, SV_ILP32))) {
 		int code = tf->fixreg[FIRSTARG + 1];
 		if (p->p_sysent->sv_mask)
 			code &= p->p_sysent->sv_mask;
@@ -945,7 +944,7 @@ int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
-	if (td->td_proc->p_sysent->sv_flags & SV_LP64) 
+	if (SV_PROC_FLAG(td->td_proc, SV_LP64))
 		td->td_frame->fixreg[13] = (register_t)tls_base + 0x7010;
 	else
 		td->td_frame->fixreg[2] = (register_t)tls_base + 0x7008;
@@ -986,7 +985,6 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	pcb2->pcb_lr = (register_t)fork_trampoline;
 	#endif
 	pcb2->pcb_cpu.aim.usr_vsid = 0;
-	pcb2->pcb_cpu.aim.usr_esid = 0;
 
 	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
@@ -1013,7 +1011,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 
 	tf->fixreg[1] = (register_t)sp;
 	tf->fixreg[3] = (register_t)arg;
-	if (td->td_proc->p_sysent->sv_flags & SV_ILP32) {
+	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		tf->srr0 = (register_t)entry;
 	    #ifdef AIM
 		tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;

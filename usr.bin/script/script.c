@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -235,14 +231,21 @@ static void
 doshell(char **av)
 {
 	const char *shell;
+	int k;
 
 	shell = getenv("SHELL");
 	if (shell == NULL)
 		shell = _PATH_BSHELL;
 
+	if (av[0])
+		for (k = 0 ; av[k] ; ++k)
+			fprintf(fscript, "%s%s", k ? " " : "", av[k]);
+		fprintf(fscript, "\r\n");
+
 	(void)close(master);
 	(void)fclose(fscript);
 	login_tty(slave);
+	setenv("SCRIPT", fname, 1);
 	if (av[0]) {
 		execvp(av[0], av);
 		warn("%s", av[0]);

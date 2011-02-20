@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -277,6 +276,7 @@ static driver_t ubsa_driver = {
 DRIVER_MODULE(ubsa, uhub, ubsa_driver, ubsa_devclass, NULL, 0);
 MODULE_DEPEND(ubsa, ucom, 1, 1, 1);
 MODULE_DEPEND(ubsa, usb, 1, 1, 1);
+MODULE_VERSION(ubsa, 1);
 
 static int
 ubsa_probe(device_t dev)
@@ -330,6 +330,8 @@ ubsa_attach(device_t dev)
 		DPRINTF("ucom_attach failed\n");
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	return (0);
 
 detach:
@@ -344,7 +346,7 @@ ubsa_detach(device_t dev)
 
 	DPRINTF("sc=%p\n", sc);
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UBSA_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 

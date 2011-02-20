@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 2, 2010
+.Dd October 26, 2010
 .Dt ACPI 4
 .Os
 .Sh NAME
@@ -112,7 +112,6 @@ exiting to legacy mode first.
 Default is 0, leave ACPI enabled.
 .It Va hw.acpi.handle_reboot
 Use the ACPI Reset Register capability to reboot the system.
-Default is 0, use legacy reboot support.
 Some newer systems require use of this register, while some only work
 with legacy rebooting support.
 .It Va hw.acpi.lid_switch_state
@@ -225,6 +224,26 @@ Try increasing this number if you get the error
 .Qq Li AE_NO_HARDWARE_RESPONSE .
 .It Va hw.acpi.host_mem_start
 Override the assumed memory starting address for PCI host bridges.
+.It Va hw.acpi.install_interface , hw.acpi.remove_interface
+Install or remove OS interface(s) to control return value of
+.Ql _OSI
+query method.  When an OS interface is specified in
+.Va hw.acpi.install_interface ,
+.Li _OSI
+query for the interface returns it is
+.Em supported .
+Conversely, when an OS interface is specified in
+.Va hw.acpi.remove_interface ,
+.Li _OSI
+query returns it is
+.Em not supported .
+Multiple interfaces can be specified in a comma-separated list and
+any leading white spaces will be ignored.  For example,
+.Qq Li FreeBSD, Linux
+is a valid list of two interfaces
+.Qq Li FreeBSD
+and
+.Qq Li Linux .
 .It Va hw.acpi.reset_video
 Enables calling the VESA reset BIOS vector on the resume path.
 This can fix some graphics cards that have problems such as LCD white-out

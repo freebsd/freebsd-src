@@ -2695,7 +2695,8 @@ pmc_init(void)
 	 */
 	cpu_has_iaf_counters = 0;
 	for (t = 0; t < cpu_info.pm_nclass; t++)
-		if (cpu_info.pm_classes[t].pm_class == PMC_CLASS_IAF)
+		if (cpu_info.pm_classes[t].pm_class == PMC_CLASS_IAF &&
+		    cpu_info.pm_classes[t].pm_num > 0)
 			cpu_has_iaf_counters = 1;
 #endif
 
@@ -2708,9 +2709,8 @@ pmc_init(void)
 
 #define	PMC_MDEP_INIT_INTEL_V2(C) do {					\
 		PMC_MDEP_INIT(C);					\
-		if (cpu_has_iaf_counters) 				\
-			pmc_class_table[n++] = &iaf_class_table_descr;	\
-		else							\
+		pmc_class_table[n++] = &iaf_class_table_descr;		\
+		if (!cpu_has_iaf_counters) 				\
 			pmc_mdep_event_aliases =			\
 				C##_aliases_without_iaf;		\
 		pmc_class_table[n] = &C##_class_table_descr;		\

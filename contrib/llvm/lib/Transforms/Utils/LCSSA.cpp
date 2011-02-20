@@ -47,7 +47,7 @@ STATISTIC(NumLCSSA, "Number of live out of a loop variables");
 namespace {
   struct LCSSA : public LoopPass {
     static char ID; // Pass identification, replacement for typeid
-    LCSSA() : LoopPass(&ID) {}
+    LCSSA() : LoopPass(ID) {}
 
     // Cached analysis information for the current function.
     DominatorTree *DT;
@@ -64,22 +64,13 @@ namespace {
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesCFG();
 
-      // LCSSA doesn't actually require LoopSimplify, but the PassManager
-      // doesn't know how to schedule LoopSimplify by itself.
-      AU.addRequiredID(LoopSimplifyID);
-      AU.addPreservedID(LoopSimplifyID);
-      AU.addRequiredTransitive<LoopInfo>();
-      AU.addPreserved<LoopInfo>();
-      AU.addRequiredTransitive<DominatorTree>();
-      AU.addPreserved<ScalarEvolution>();
+      AU.addRequired<DominatorTree>();
       AU.addPreserved<DominatorTree>();
-
-      // Request DominanceFrontier now, even though LCSSA does
-      // not use it. This allows Pass Manager to schedule Dominance
-      // Frontier early enough such that one LPPassManager can handle
-      // multiple loop transformation passes.
-      AU.addRequired<DominanceFrontier>(); 
       AU.addPreserved<DominanceFrontier>();
+      AU.addRequired<LoopInfo>();
+      AU.addPreserved<LoopInfo>();
+      AU.addPreservedID(LoopSimplifyID);
+      AU.addPreserved<ScalarEvolution>();
     }
   private:
     bool ProcessInstruction(Instruction *Inst,
@@ -99,10 +90,10 @@ namespace {
 }
   
 char LCSSA::ID = 0;
-static RegisterPass<LCSSA> X("lcssa", "Loop-Closed SSA Form Pass");
+INITIALIZE_PASS(LCSSA, "lcssa", "Loop-Closed SSA Form Pass", false, false);
 
 Pass *llvm::createLCSSAPass() { return new LCSSA(); }
-const PassInfo *const llvm::LCSSAID = &X;
+char &llvm::LCSSAID = LCSSA::ID;
 
 
 /// BlockDominatesAnExit - Return true if the specified block dominates at least
@@ -215,7 +206,7 @@ bool LCSSA::ProcessInstruction(Instruction *Inst,
   DomTreeNode *DomNode = DT->getNode(DomBB);
 
   SSAUpdater SSAUpdate;
-  SSAUpdate.Initialize(Inst);
+  SSAUpdate.Initialize(Inst->getType(), Inst->getName());
   
   // Insert the LCSSA phi's into all of the exit blocks dominated by the
   // value, and add them to the Phi's map.

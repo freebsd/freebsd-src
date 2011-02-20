@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / UNIX domain socket -based control interface
- * Copyright (c) 2004-2005, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,10 +18,11 @@
 #include <grp.h>
 #include <stddef.h>
 
-#include "common.h"
-#include "eloop.h"
-#include "config.h"
+#include "utils/common.h"
+#include "utils/eloop.h"
+#include "utils/list.h"
 #include "eapol_supp/eapol_supp_sm.h"
+#include "config.h"
 #include "wpa_supplicant_i.h"
 #include "ctrl_iface.h"
 
@@ -35,7 +36,7 @@
  * ctrl_iface_unix.c and should not be touched directly from other files.
  */
 struct wpa_ctrl_dst {
-	struct wpa_ctrl_dst *next;
+	struct dl_list list;
 	struct sockaddr_un addr;
 	socklen_t addrlen;
 	int debug_level;
@@ -46,7 +47,7 @@ struct wpa_ctrl_dst {
 struct ctrl_iface_priv {
 	struct wpa_supplicant *wpa_s;
 	int sock;
-	struct wpa_ctrl_dst *ctrl_dst;
+	struct dl_list ctrl_dst;
 };
 
 
@@ -67,8 +68,7 @@ static int wpa_supplicant_ctrl_iface_attach(struct ctrl_iface_priv *priv,
 	os_memcpy(&dst->addr, from, sizeof(struct sockaddr_un));
 	dst->addrlen = fromlen;
 	dst->debug_level = MSG_INFO;
-	dst->next = priv->ctrl_dst;
-	priv->ctrl_dst = dst;
+	dl_list_add(&priv->ctrl_dst, &dst->list);
 	wpa_hexdump(MSG_DEBUG, "CTRL_IFACE monitor attached",
 		    (u8 *) from->sun_path,
 		    fromlen - offsetof(struct sockaddr_un, sun_path));
@@ -80,18 +80,14 @@ static int wpa_supplicant_ctrl_iface_detach(struct ctrl_iface_priv *priv,
 					    struct sockaddr_un *from,
 					    socklen_t fromlen)
 {
-	struct wpa_ctrl_dst *dst, *prev = NULL;
+	struct wpa_ctrl_dst *dst;
 
-	dst = priv->ctrl_dst;
-	while (dst) {
+	dl_list_for_each(dst, &priv->ctrl_dst, struct wpa_ctrl_dst, list) {
 		if (fromlen == dst->addrlen &&
 		    os_memcmp(from->sun_path, dst->addr.sun_path,
 			      fromlen - offsetof(struct sockaddr_un, sun_path))
 		    == 0) {
-			if (prev == NULL)
-				priv->ctrl_dst = dst->next;
-			else
-				prev->next = dst->next;
+			dl_list_del(&dst->list);
 			os_free(dst);
 			wpa_hexdump(MSG_DEBUG, "CTRL_IFACE monitor detached",
 				    (u8 *) from->sun_path,
@@ -99,8 +95,6 @@ static int wpa_supplicant_ctrl_iface_detach(struct ctrl_iface_priv *priv,
 				    offsetof(struct sockaddr_un, sun_path));
 			return 0;
 		}
-		prev = dst;
-		dst = dst->next;
 	}
 	return -1;
 }
@@ -115,8 +109,7 @@ static int wpa_supplicant_ctrl_iface_level(struct ctrl_iface_priv *priv,
 
 	wpa_printf(MSG_DEBUG, "CTRL_IFACE LEVEL %s", level);
 
-	dst = priv->ctrl_dst;
-	while (dst) {
+	dl_list_for_each(dst, &priv->ctrl_dst, struct wpa_ctrl_dst, list) {
 		if (fromlen == dst->addrlen &&
 		    os_memcmp(from->sun_path, dst->addr.sun_path,
 			      fromlen - offsetof(struct sockaddr_un, sun_path))
@@ -128,7 +121,6 @@ static int wpa_supplicant_ctrl_iface_level(struct ctrl_iface_priv *priv,
 			dst->debug_level = atoi(level);
 			return 0;
 		}
-		dst = dst->next;
 	}
 
 	return -1;
@@ -274,6 +266,7 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 	priv = os_zalloc(sizeof(*priv));
 	if (priv == NULL)
 		return NULL;
+	dl_list_init(&priv->ctrl_dst);
 	priv->wpa_s = wpa_s;
 	priv->sock = -1;
 
@@ -353,7 +346,7 @@ wpa_supplicant_ctrl_iface_init(struct wpa_supplicant *wpa_s)
 	}
 
 	os_memset(&addr, 0, sizeof(addr));
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 	addr.sun_len = sizeof(addr);
 #endif /* __FreeBSD__ */
 	addr.sun_family = AF_UNIX;
@@ -433,7 +426,7 @@ void wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv)
 		char *fname;
 		char *buf, *dir = NULL, *gid_str = NULL;
 		eloop_unregister_read_sock(priv->sock);
-		if (priv->ctrl_dst) {
+		if (!dl_list_empty(&priv->ctrl_dst)) {
 			/*
 			 * Wait a second before closing the control socket if
 			 * there are any attached monitors in order to allow
@@ -477,12 +470,9 @@ void wpa_supplicant_ctrl_iface_deinit(struct ctrl_iface_priv *priv)
 	}
 
 free_dst:
-	dst = priv->ctrl_dst;
-	while (dst) {
-		prev = dst;
-		dst = dst->next;
-		os_free(prev);
-	}
+	dl_list_for_each_safe(dst, prev, &priv->ctrl_dst, struct wpa_ctrl_dst,
+			      list)
+		os_free(dst);
 	os_free(priv);
 }
 
@@ -506,8 +496,7 @@ static void wpa_supplicant_ctrl_iface_send(struct ctrl_iface_priv *priv,
 	struct msghdr msg;
 	struct iovec io[2];
 
-	dst = priv->ctrl_dst;
-	if (priv->sock < 0 || dst == NULL)
+	if (priv->sock < 0 || dl_list_empty(&priv->ctrl_dst))
 		return;
 
 	res = os_snprintf(levelstr, sizeof(levelstr), "<%d>", level);
@@ -522,8 +511,8 @@ static void wpa_supplicant_ctrl_iface_send(struct ctrl_iface_priv *priv,
 	msg.msg_iovlen = 2;
 
 	idx = 0;
-	while (dst) {
-		next = dst->next;
+	dl_list_for_each_safe(dst, next, &priv->ctrl_dst, struct wpa_ctrl_dst,
+			      list) {
 		if (level >= dst->debug_level) {
 			wpa_hexdump(MSG_DEBUG, "CTRL_IFACE monitor send",
 				    (u8 *) dst->addr.sun_path, dst->addrlen -
@@ -536,7 +525,9 @@ static void wpa_supplicant_ctrl_iface_send(struct ctrl_iface_priv *priv,
 					   "%d - %s",
 					   idx, errno, strerror(errno));
 				dst->errors++;
-				if (dst->errors > 10 || _errno == ENOENT) {
+				if (dst->errors > 1000 ||
+				    (_errno != ENOBUFS && dst->errors > 10) ||
+				    _errno == ENOENT) {
 					wpa_supplicant_ctrl_iface_detach(
 						priv, &dst->addr,
 						dst->addrlen);
@@ -545,7 +536,6 @@ static void wpa_supplicant_ctrl_iface_send(struct ctrl_iface_priv *priv,
 				dst->errors = 0;
 		}
 		idx++;
-		dst = next;
 	}
 }
 
@@ -657,7 +647,7 @@ wpa_supplicant_global_ctrl_iface_init(struct wpa_global *global)
 	}
 
 	os_memset(&addr, 0, sizeof(addr));
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 	addr.sun_len = sizeof(addr);
 #endif /* __FreeBSD__ */
 	addr.sun_family = AF_UNIX;

@@ -75,6 +75,9 @@ CONF_WORLD=' '
 # Kernel config file to use
 NANO_KERNEL=GENERIC
 
+# Kernel modules to build; default is none
+NANO_MODULES=
+
 # Customize commands.
 NANO_CUSTOMIZE=""
 
@@ -88,7 +91,7 @@ NANO_NEWFS="-b 4096 -f 512 -i 8192 -O1 -U"
 NANO_DRIVE=ad0
 
 # Target media size in 512 bytes sectors
-NANO_MEDIASIZE=1200000
+NANO_MEDIASIZE=1500000
 
 # Number of code images on media (1 or 2)
 NANO_IMAGES=2
@@ -135,13 +138,26 @@ NANO_MD_BACKING="file"
 # Progress Print level
 PPLEVEL=3
 
+# Set NANO_LABEL to non-blank to form the basis for using /dev/ufs/label
+# in preference to /dev/${NANO_DRIVE}
+# Root partition will be ${NANO_LABEL}s{1,2}
+# /cfg partition will be ${NANO_LABEL}s3
+# /data partition will be ${NANO_LABEL}s4
+NANO_LABEL=""
+
 #######################################################################
 # Architecture to build.  Corresponds to TARGET_ARCH in a buildworld.
-# Unfortunately, there's no way to set TARGET at this time, and it 
+# Unfortunately, there's no way to set TARGET at this time, and it
 # conflates the two, so architectures where TARGET != TARGET_ARCH do
 # not work.  This defaults to the arch of the current machine.
 
 NANO_ARCH=`uname -p`
+
+# Directory to populate /cfg from
+NANO_CFGDIR=""
+
+# Directory to populate /data from
+NANO_DATADIR=""
 
 #######################################################################
 #
@@ -166,6 +182,7 @@ make_conf_build ( ) (
 
 	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF_BUILD}
 	echo "${CONF_BUILD}" >> ${NANO_MAKE_CONF_BUILD}
+	echo "SRCCONF=/dev/null" >> ${NANO_MAKE_CONF_BUILD}
 )
 
 build_world ( ) (
@@ -182,19 +199,26 @@ build_kernel ( ) (
 	pprint 2 "build kernel ($NANO_KERNEL)"
 	pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.bk"
 
+	(
 	if [ -f ${NANO_KERNEL} ] ; then
-		cp ${NANO_KERNEL} ${NANO_SRC}/sys/${NANO_ARCH}/conf
+		kernconfdir=$(realpath $(dirname ${NANO_KERNEL}))
+		kernconf=$(basename ${NANO_KERNEL})
+	else
+		kernconf=${NANO_KERNEL}
 	fi
 
-	(cd ${NANO_SRC};
+	cd ${NANO_SRC};
 	# unset these just in case to avoid compiler complaints
 	# when cross-building
 	unset TARGET_CPUTYPE
 	unset TARGET_BIG_ENDIAN
+	# Note: We intentionally build all modules, not only the ones in
+	# NANO_MODULES so the built world can be reused by multiple images.
 	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} buildkernel \
-		__MAKE_CONF=${NANO_MAKE_CONF_BUILD} KERNCONF=`basename ${NANO_KERNEL}` \
-		> ${MAKEOBJDIRPREFIX}/_.bk 2>&1
-	)
+		__MAKE_CONF=${NANO_MAKE_CONF_BUILD} \
+		${kernconfdir:+"KERNCONFDIR="}${kernconfdir} \
+		KERNCONF=${kernconf}
+	) > ${MAKEOBJDIRPREFIX}/_.bk 2>&1
 )
 
 clean_world ( ) (
@@ -221,6 +245,7 @@ make_conf_install ( ) (
 
 	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF_INSTALL}
 	echo "${CONF_INSTALL}" >> ${NANO_MAKE_CONF_INSTALL}
+	echo "SRCCONF=/dev/null" >> ${NANO_MAKE_CONF_INSTALL}
 )
 
 install_world ( ) (
@@ -251,14 +276,25 @@ install_etc ( ) (
 )
 
 install_kernel ( ) (
-	pprint 2 "install kernel"
+	pprint 2 "install kernel ($NANO_KERNEL)"
 	pprint 3 "log: ${NANO_OBJ}/_.ik"
+
+	(
+	if [ -f ${NANO_KERNEL} ] ; then
+		kernconfdir=$(realpath $(dirname ${NANO_KERNEL}))
+		kernconf=$(basename ${NANO_KERNEL})
+	else
+		kernconf=${NANO_KERNEL}
+	fi
 
 	cd ${NANO_SRC}
 	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} installkernel \
 		DESTDIR=${NANO_WORLDDIR} \
-		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} KERNCONF=`basename ${NANO_KERNEL}` \
-		> ${NANO_OBJ}/_.ik 2>&1
+		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} \
+		${kernconfdir:+"KERNCONFDIR="}${kernconfdir} \
+		KERNCONF=${kernconf} \
+		MODULES_OVERRIDE="${NANO_MODULES}"
+	) > ${NANO_OBJ}/_.ik 2>&1
 )
 
 run_customize() (
@@ -269,7 +305,7 @@ run_customize() (
 		pprint 2 "customize \"$c\""
 		pprint 3 "log: ${NANO_OBJ}/_.cust.$c"
 		pprint 4 "`type $c`"
-		( $c ) > ${NANO_OBJ}/_.cust.$c 2>&1
+		( set -x ; $c ) > ${NANO_OBJ}/_.cust.$c 2>&1
 	done
 )
 
@@ -281,7 +317,7 @@ run_late_customize() (
 		pprint 2 "late customize \"$c\""
 		pprint 3 "log: ${NANO_OBJ}/_.late_cust.$c"
 		pprint 4 "`type $c`"
-		( $c ) > ${NANO_OBJ}/_.late_cust.$c 2>&1
+		( set -x ; $c ) > ${NANO_OBJ}/_.late_cust.$c 2>&1
 	done
 )
 
@@ -361,16 +397,26 @@ prune_usr() (
 		done
 )
 
+newfs_part ( ) (
+	local dev mnt lbl
+	dev=$1
+	mnt=$2
+	lbl=$3
+	echo newfs ${NANO_NEWFS} ${NANO_LABEL:+-L${NANO_LABEL}${lbl}} ${dev}
+	newfs ${NANO_NEWFS} ${NANO_LABEL:+-L${NANO_LABEL}${lbl}} ${dev}
+	mount -o async ${dev} ${mnt}
+)
+
 populate_slice ( ) (
-	local dev dir mnt
+	local dev dir mnt lbl
 	dev=$1
 	dir=$2
 	mnt=$3
+	lbl=$4
 	test -z $2 && dir=/var/empty
-	test -d $d || dir=/var/empty
+	test -d $dir || dir=/var/empty
 	echo "Creating ${dev} with ${dir} (mounting on ${mnt})"
-	newfs ${NANO_NEWFS} ${dev}
-	mount ${dev} ${mnt}
+	newfs_part $dev $mnt $lbl
 	cd ${dir}
 	find . -print | grep -Ev '/(CVS|\.svn)' | cpio -dumpv ${mnt}
 	df -i ${mnt}
@@ -378,11 +424,11 @@ populate_slice ( ) (
 )
 
 populate_cfg_slice ( ) (
-	populate_slice "$1" "$2" "$3"
+	populate_slice "$1" "$2" "$3" "$4"
 )
 
 populate_data_slice ( ) (
-	populate_slice "$1" "$2" "$3"
+	populate_slice "$1" "$2" "$3" "$4"
 )
 
 create_i386_diskimage ( ) (
@@ -467,8 +513,8 @@ create_i386_diskimage ( ) (
 			-y ${NANO_HEADS}`
 	else
 		echo "Creating md backing file..."
-		dd if=/dev/zero of=${IMG} bs=${NANO_SECTS}b \
-			count=`expr ${NANO_MEDIASIZE} / ${NANO_SECTS}`
+		rm -f ${IMG}
+		dd if=/dev/zero of=${IMG} seek=${NANO_MEDIASIZE} count=0
 		MD=`mdconfig -a -t vnode -f ${IMG} -x ${NANO_SECTS} \
 			-y ${NANO_HEADS}`
 	fi
@@ -484,13 +530,8 @@ create_i386_diskimage ( ) (
 	bsdlabel ${MD}s1
 
 	# Create first image
-	# XXX: should use populate_slice for easier override
-	newfs ${NANO_NEWFS} /dev/${MD}s1a
+	populate_slice /dev/${MD}s1a ${NANO_WORLDDIR} ${MNT} "s1a"
 	mount /dev/${MD}s1a ${MNT}
-	df -i ${MNT}
-	echo "Copying worlddir..."
-	( cd ${NANO_WORLDDIR} && find . -print | cpio -dump ${MNT} )
-	df -i ${MNT}
 	echo "Generating mtree..."
 	( cd ${MNT} && mtree -c ) > ${NANO_OBJ}/_.mtree
 	( cd ${MNT} && du -k ) > ${NANO_OBJ}/_.du
@@ -503,17 +544,22 @@ create_i386_diskimage ( ) (
 		mount /dev/${MD}s2a ${MNT}
 		for f in ${MNT}/etc/fstab ${MNT}/conf/base/etc/fstab
 		do
-			sed -i "" "s/${NANO_DRIVE}s1/${NANO_DRIVE}s2/g" $f
+			sed -i "" "s=${NANO_DRIVE}s1=${NANO_DRIVE}s2=g" $f
 		done
 		umount ${MNT}
+		# Override the label from the first partition so we
+		# don't confuse glabel with duplicates.
+		if [ ! -z ${NANO_LABEL} ]; then
+			tunefs -L ${NANO_LABEL}"s2a" /dev/${MD}s2a
+		fi
 	fi
 	
 	# Create Config slice
-	populate_cfg_slice /dev/${MD}s3 "${NANO_CFGDIR}" ${MNT}
+	populate_cfg_slice /dev/${MD}s3 "${NANO_CFGDIR}" ${MNT} "s3"
 
 	# Create Data slice, if any.
 	if [ $NANO_DATASIZE -ne 0 ] ; then
-		populate_data_slice /dev/${MD}s4 "${NANO_DATADIR}" ${MNT}
+		populate_data_slice /dev/${MD}s4 "${NANO_DATADIR}" ${MNT} "s4"
 	fi
 
 	if [ "${NANO_MD_BACKING}" = "swap" ] ; then
@@ -612,7 +658,7 @@ cust_comconsole () (
 	sed -i "" -e '/^ttyv[0-8]/s/	on/	off/' ${NANO_WORLDDIR}/etc/ttys
 
 	# Tell loader to use serial console early.
-	echo "${NANO_BOOT2CFG}" > ${NANO_WORLDDIR}/boot.config
+	echo " -h" > ${NANO_WORLDDIR}/boot.config
 )
 
 #######################################################################
@@ -820,6 +866,11 @@ else
 	NANO_PMAKE="${NANO_PMAKE} -DNO_CLEAN"
 fi
 
+# Override user's NANO_DRIVE if they specified a NANO_LABEL
+if [ ! -z "${NANO_LABEL}" ]; then
+	NANO_DRIVE=ufs/${NANO_LABEL}
+fi
+
 export MAKEOBJDIRPREFIX
 
 export NANO_ARCH
@@ -844,6 +895,7 @@ export NANO_TOOLS
 export NANO_WORLDDIR
 export NANO_BOOT0CFG
 export NANO_BOOTLOADER
+export NANO_LABEL
 
 #######################################################################
 # And then it is as simple as that...
@@ -867,6 +919,9 @@ else
 fi
 
 if $do_kernel ; then
+	if ! $do_world ; then
+		make_conf_build
+	fi
 	build_kernel
 else
 	pprint 2 "Skipping buildkernel (as instructed)"

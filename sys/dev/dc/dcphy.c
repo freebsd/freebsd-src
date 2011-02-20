@@ -146,10 +146,11 @@ dcphy_attach(device_t dev)
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
 	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
+	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
+	sc->mii_flags = miibus_get_flags(dev);
+	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = dcphy_service;
 	sc->mii_pdata = mii;
@@ -158,8 +159,6 @@ dcphy_attach(device_t dev)
 	 * Apparently, we can neither isolate nor do loopback.
 	 */
 	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP;
-
-	mii->mii_instance++;
 
 	/*dcphy_reset(sc);*/
 	dc_sc = mii->mii_ifp->if_softc;
@@ -204,28 +203,15 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			break;
 
-		sc->mii_flags = 0;
 		mii->mii_media_active = IFM_NONE;
 		mode = CSR_READ_4(dc_sc, DC_NETCFG);
 		mode &= ~(DC_NETCFG_FULLDUPLEX | DC_NETCFG_PORTSEL |
@@ -236,17 +222,12 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			/*dcphy_reset(sc);*/
 			(void) dcphy_auto(sc);
 			break;
-		case IFM_100_T4:
-			/*
-			 * XXX Not supported as a manual setting right now.
-			 */
-			return (EINVAL);
 		case IFM_100_TX:
 			dcphy_reset(sc);
 			DC_CLRBIT(dc_sc, DC_10BTCTRL, DC_TCTL_AUTONEGENBL);
 			mode |= DC_NETCFG_PORTSEL | DC_NETCFG_PCS |
 			    DC_NETCFG_SCRAMBLER;
-			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
+			if ((ife->ifm_media & IFM_FDX) != 0)
 				mode |= DC_NETCFG_FULLDUPLEX;
 			else
 				mode &= ~DC_NETCFG_FULLDUPLEX;
@@ -255,7 +236,7 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		case IFM_10_T:
 			DC_CLRBIT(dc_sc, DC_SIARESET, DC_SIA_RESET);
 			DC_CLRBIT(dc_sc, DC_10BTCTRL, 0xFFFF);
-			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
+			if ((ife->ifm_media & IFM_FDX) != 0)
 				DC_SETBIT(dc_sc, DC_10BTCTRL, 0x7F3D);
 			else
 				DC_SETBIT(dc_sc, DC_10BTCTRL, 0x7F3F);
@@ -263,7 +244,7 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			DC_CLRBIT(dc_sc, DC_10BTCTRL, DC_TCTL_AUTONEGENBL);
 			mode &= ~DC_NETCFG_PORTSEL;
 			mode |= DC_NETCFG_SPEEDSEL;
-			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
+			if ((ife->ifm_media & IFM_FDX) != 0)
 				mode |= DC_NETCFG_FULLDUPLEX;
 			else
 				mode &= ~DC_NETCFG_FULLDUPLEX;
@@ -275,12 +256,6 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
-
 		/*
 		 * Is the interface even up?
 		 */
@@ -361,14 +336,14 @@ dcphy_status(struct mii_softc *sc)
 				mii->mii_media_active |= IFM_100_TX | IFM_FDX;
 			else if (anlpar & ANLPAR_T4 &&
 			    sc->mii_capabilities & BMSR_100T4)
-				mii->mii_media_active |= IFM_100_T4;
+				mii->mii_media_active |= IFM_100_T4 | IFM_HDX;
 			else if (anlpar & ANLPAR_TX &&
 			    sc->mii_capabilities & BMSR_100TXHDX)
-				mii->mii_media_active |= IFM_100_TX;
+				mii->mii_media_active |= IFM_100_TX | IFM_HDX;
 			else if (anlpar & ANLPAR_10_FD)
 				mii->mii_media_active |= IFM_10_T | IFM_FDX;
 			else if (anlpar & ANLPAR_10)
-				mii->mii_media_active |= IFM_10_T;
+				mii->mii_media_active |= IFM_10_T | IFM_HDX;
 			else
 				mii->mii_media_active |= IFM_NONE;
 			if (DC_IS_INTEL(dc_sc))
@@ -386,9 +361,9 @@ dcphy_status(struct mii_softc *sc)
 		 * change the media settings if we're wrong.
 		 */
 		if (!(reg & DC_TSTAT_LS100))
-			mii->mii_media_active |= IFM_100_TX;
+			mii->mii_media_active |= IFM_100_TX | IFM_HDX;
 		else if (!(reg & DC_TSTAT_LS10))
-			mii->mii_media_active |= IFM_10_T;
+			mii->mii_media_active |= IFM_10_T | IFM_HDX;
 		else
 			mii->mii_media_active |= IFM_NONE;
 		if (DC_IS_INTEL(dc_sc))
@@ -403,6 +378,8 @@ skip:
 		mii->mii_media_active |= IFM_100_TX;
 	if (CSR_READ_4(dc_sc, DC_NETCFG) & DC_NETCFG_FULLDUPLEX)
 		mii->mii_media_active |= IFM_FDX;
+	else
+		mii->mii_media_active |= IFM_HDX;
 }
 
 static int

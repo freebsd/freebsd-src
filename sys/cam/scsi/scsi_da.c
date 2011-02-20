@@ -1127,9 +1127,9 @@ dasysctlinit(void *context, int pending)
 		struct ccb_trans_settings_fc *fc = &cts.xport_specific.fc;
 		if (fc->valid & CTS_FC_VALID_WWPN) {
 			softc->wwpn = fc->wwpn;
-			SYSCTL_ADD_XLONG(&softc->sysctl_ctx,
+			SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
 			    SYSCTL_CHILDREN(softc->sysctl_tree),
-			    OID_AUTO, "wwpn", CTLTYPE_QUAD | CTLFLAG_RD,
+			    OID_AUTO, "wwpn", CTLFLAG_RD,
 			    &softc->wwpn, "World Wide Port Name");
 		}
 	}
@@ -1354,7 +1354,8 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 
 			bioq_remove(&softc->bio_queue, bp);
 
-			if ((softc->flags & DA_FLAG_NEED_OTAG) != 0) {
+			if ((bp->bio_flags & BIO_ORDERED) != 0
+			 || (softc->flags & DA_FLAG_NEED_OTAG) != 0) {
 				softc->flags &= ~DA_FLAG_NEED_OTAG;
 				softc->ordered_tag_count++;
 				tag_code = MSG_ORDERED_Q_TAG;
@@ -1368,7 +1369,8 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 						/*retries*/da_retry_count,
 						/*cbfcnp*/dadone,
 						/*tag_action*/tag_code,
-						/*read_op*/bp->bio_cmd == BIO_READ,
+						/*read_op*/bp->bio_cmd
+							== BIO_READ,
 						/*byte2*/0,
 						softc->minimum_cmd_size,
 						/*lba*/bp->bio_pblkno,
@@ -1377,17 +1379,24 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 						/*data_ptr*/ bp->bio_data,
 						/*dxfer_len*/ bp->bio_bcount,
 						/*sense_len*/SSD_FULL_SIZE,
-						/*timeout*/da_default_timeout*1000);
+						da_default_timeout * 1000);
 				break;
 			case BIO_FLUSH:
+				/*
+				 * BIO_FLUSH doesn't currently communicate
+				 * range data, so we synchronize the cache
+				 * over the whole disk.  We also force
+				 * ordered tag semantics the flush applies
+				 * to all previously queued I/O.
+				 */
 				scsi_synchronize_cache(&start_ccb->csio,
 						       /*retries*/1,
 						       /*cbfcnp*/dadone,
-						       MSG_SIMPLE_Q_TAG,
-						       /*begin_lba*/0,/* Cover the whole disk */
+						       MSG_ORDERED_Q_TAG,
+						       /*begin_lba*/0,
 						       /*lb_count*/0,
 						       SSD_FULL_SIZE,
-						       /*timeout*/da_default_timeout*1000);
+						       da_default_timeout*1000);
 				break;
 			}
 			start_ccb->ccb_h.ccb_state = DA_CCB_BUFFER_IO;
@@ -1658,7 +1667,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * give them an 'illegal' value we'll avoid that
 			 * here.
 			 */
-			if (block_size >= MAXPHYS || block_size == 0) {
+			if (block_size == 0 && maxsector == 0) {
+				snprintf(announce_buf, sizeof(announce_buf),
+				        "0MB (no media?)");
+			} else if (block_size >= MAXPHYS || block_size == 0) {
 				xpt_print(periph->path,
 				    "unsupportable block size %ju\n",
 				    (uintmax_t) block_size);

@@ -162,6 +162,7 @@ struct cpcht_softc {
 	vm_offset_t		sc_data;
 	uint64_t		sc_populated_slots;
 	struct			rman sc_mem_rman;
+	struct			rman sc_io_rman;
 
 	struct cpcht_irq	htirq_map[128];
 	struct mtx		htirq_mtx;
@@ -176,6 +177,9 @@ static driver_t	cpcht_driver = {
 static devclass_t	cpcht_devclass;
 
 DRIVER_MODULE(cpcht, nexus, cpcht_driver, cpcht_devclass, 0, 0);
+
+#define CPCHT_IOPORT_BASE	0xf4000000UL /* Hardwired */
+#define CPCHT_IOPORT_SIZE	0x00400000UL
 
 #define HTAPIC_REQUEST_EOI	0x20
 #define HTAPIC_TRIGGER_LEVEL	0x02
@@ -236,7 +240,14 @@ cpcht_attach(device_t dev)
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "CPCHT Device Memory";
 	error = rman_init(&sc->sc_mem_rman);
+	if (error) {
+		device_printf(dev, "rman_init() failed. error = %d\n", error);
+		return (error);
+	}
 
+	sc->sc_io_rman.rm_type = RMAN_ARRAY;
+	sc->sc_io_rman.rm_descr = "CPCHT I/O Memory";
+	error = rman_init(&sc->sc_io_rman);
 	if (error) {
 		device_printf(dev, "rman_init() failed. error = %d\n", error);
 		return (error);
@@ -247,6 +258,9 @@ cpcht_attach(device_t dev)
 	 * the ranges are properties of the child bridges, and this is also
 	 * where we get the HT interrupts properties.
 	 */
+
+	/* I/O port mappings are usually not in the device tree */
+	rman_manage_region(&sc->sc_io_rman, 0, CPCHT_IOPORT_SIZE - 1);
 
 	bzero(sc->htirq_map, sizeof(sc->htirq_map));
 	mtx_init(&sc->htirq_mtx, "cpcht irq", NULL, MTX_DEF);
@@ -268,7 +282,7 @@ cpcht_configure_htbridge(device_t dev, phandle_t child)
 {
 	struct cpcht_softc *sc;
 	struct ofw_pci_register pcir;
-	struct cpcht_range ranges[6], *rp;
+	struct cpcht_range ranges[7], *rp;
 	int nranges, ptr, nextptr;
 	uint32_t vend, val;
 	int i, nirq, irq;
@@ -292,13 +306,17 @@ cpcht_configure_htbridge(device_t dev, phandle_t child)
 	 */
 	bzero(ranges, sizeof(ranges));
 	nranges = OF_getprop(child, "ranges", ranges, sizeof(ranges));
+	nranges /= sizeof(ranges[0]);
 	
 	ranges[6].pci_hi = 0;
-	for (rp = ranges; rp->pci_hi != 0; rp++) {
+	for (rp = ranges; rp < ranges + nranges && rp->pci_hi != 0; rp++) {
 		switch (rp->pci_hi & OFW_PCI_PHYS_HI_SPACEMASK) {
 		case OFW_PCI_PHYS_HI_SPACE_CONFIG:
 			break;
 		case OFW_PCI_PHYS_HI_SPACE_IO:
+			rman_manage_region(&sc->sc_io_rman, rp->pci_lo,
+			    rp->pci_lo + rp->size_lo - 1);
+			break;
 		case OFW_PCI_PHYS_HI_SPACE_MEM32:
 			rman_manage_region(&sc->sc_mem_rman, rp->pci_lo,
 			    rp->pci_lo + rp->size_lo - 1);
@@ -457,10 +475,6 @@ cpcht_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 static int
 cpcht_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
-	struct	cpcht_softc *sc;
-
-	sc = device_get_softc(dev);
-
 	switch (which) {
 	case PCIB_IVAR_DOMAIN:
 		*result = device_get_unit(dev);
@@ -496,19 +510,19 @@ cpcht_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct			cpcht_softc *sc;
 	struct			resource *rv;
 	struct			rman *rm;
-	int			needactivate, err;
+	int			needactivate;
 
 	needactivate = flags & RF_ACTIVE;
 	flags &= ~RF_ACTIVE;
 
 	sc = device_get_softc(bus);
-	err = 0;
 
 	switch (type) {
 	case SYS_RES_IOPORT:
 		end = min(end, start + count);
+		rm = &sc->sc_io_rman;
+		break;
 
-		/* FALLTHROUGH */
 	case SYS_RES_MEMORY:
 		rm = &sc->sc_mem_rman;
 		break;
@@ -550,9 +564,6 @@ cpcht_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
 	void	*p;
-	struct	cpcht_softc *sc;
-
-	sc = device_get_softc(bus);
 
 	if (type == SYS_RES_IRQ)
 		return (bus_activate_resource(bus, type, rid, res));
@@ -561,6 +572,9 @@ cpcht_activate_resource(device_t bus, device_t child, int type, int rid,
 		vm_offset_t start;
 
 		start = (vm_offset_t)rman_get_start(res);
+
+		if (type == SYS_RES_IOPORT)
+			start += CPCHT_IOPORT_BASE;
 
 		if (bootverbose)
 			printf("cpcht mapdev: start %zx, len %ld\n", start,
@@ -641,7 +655,7 @@ cpcht_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 	}
 
 	for (j = 0; j < count; j++) {
-		irqs[j] = INTR_VEC(cpcht_msipic, i+j);
+		irqs[j] = MAP_IRQ(cpcht_msipic, i+j);
 		sc->htirq_map[i+j].irq_type = IRQ_MSI;
 	}
 	mtx_unlock(&sc->htirq_mtx);
@@ -681,7 +695,7 @@ cpcht_alloc_msix(device_t dev, device_t child, int *irq)
 	for (i = 8; i < 124; i++) {
 		if (sc->htirq_map[i].irq_type == IRQ_NONE) {
 			sc->htirq_map[i].irq_type = IRQ_MSI;
-			*irq = INTR_VEC(cpcht_msipic, i);
+			*irq = MAP_IRQ(cpcht_msipic, i);
 
 			mtx_unlock(&sc->htirq_mtx);
 			return (0);
@@ -743,7 +757,6 @@ static void	openpic_cpcht_config(device_t, u_int irq,
 static void	openpic_cpcht_enable(device_t, u_int irq, u_int vector);
 static void	openpic_cpcht_unmask(device_t, u_int irq);
 static void	openpic_cpcht_eoi(device_t, u_int irq);
-static uint32_t	openpic_cpcht_id(device_t);
 
 static device_method_t  openpic_cpcht_methods[] = {
 	/* Device interface */
@@ -759,7 +772,6 @@ static device_method_t  openpic_cpcht_methods[] = {
 	DEVMETHOD(pic_ipi,		openpic_ipi),
 	DEVMETHOD(pic_mask,		openpic_mask),
 	DEVMETHOD(pic_unmask,		openpic_cpcht_unmask),
-	DEVMETHOD(pic_id,		openpic_cpcht_id),
 
 	{ 0, 0 },
 };
@@ -794,9 +806,11 @@ static int
 openpic_cpcht_attach(device_t dev)
 {
 	struct openpic_cpcht_softc *sc;
+	phandle_t node;
 	int err, irq;
 
-	err = openpic_attach(dev);
+	node = ofw_bus_get_node(dev);
+	err = openpic_common_attach(dev, node);
 	if (err != 0)
 		return (err);
 
@@ -825,9 +839,8 @@ openpic_cpcht_attach(device_t dev)
 	 * be necessary, but Linux does it, and I cannot find any U3 machines
 	 * with MSI devices to test.
 	 */
-	
 	if (dev == root_pic)
-		cpcht_msipic = PIC_ID(dev);
+		cpcht_msipic = node;
 
 	return (0);
 }
@@ -967,10 +980,3 @@ openpic_cpcht_eoi(device_t dev, u_int irq)
 
 	openpic_eoi(dev, irq);
 }
-
-static uint32_t
-openpic_cpcht_id(device_t dev)
-{
-	return (ofw_bus_get_node(dev));
-}
-

@@ -66,14 +66,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/fls64.h>
 #include <machine/intr_machdep.h>
 #include <machine/smp.h>
-#include <mips/rmi/rmi_mips_exts.h>
 
 #include <mips/rmi/iomap.h>
-#include <mips/rmi/clock.h>
 #include <mips/rmi/msgring.h>
-#include <mips/rmi/xlrconfig.h>
 #include <mips/rmi/interrupt.h>
 #include <mips/rmi/pic.h>
+#include <mips/rmi/board.h>
+#include <mips/rmi/rmi_mips_exts.h>
+#include <mips/rmi/rmi_boot_info.h>
 
 void mpwait(void);
 unsigned long xlr_io_base = (unsigned long)(DEFAULT_XLR_IO_BASE);
@@ -82,11 +82,12 @@ unsigned long xlr_io_base = (unsigned long)(DEFAULT_XLR_IO_BASE);
    the dynamic kenv is setup */
 char boot1_env[4096];
 int rmi_spin_mutex_safe=0;
+struct mtx xlr_pic_lock;
+
 /*
  * Parameters from boot loader
  */
 struct boot1_info xlr_boot1_info;
-struct xlr_loader_info xlr_loader_info;	/* FIXME : Unused */
 int xlr_run_mode;
 int xlr_argc;
 int32_t *xlr_argv, *xlr_envp;
@@ -104,7 +105,7 @@ int xlr_hwtid_to_cpuid[MAXCPU];
 static void 
 xlr_setup_mmu_split(void)
 {
-	int mmu_setup;
+	uint64_t mmu_setup;
 	int val = 0;
 
 	if (xlr_threads_per_core == 4 && xlr_shtlb_enabled == 0)
@@ -119,7 +120,7 @@ xlr_setup_mmu_split(void)
 		val = 3; break;
 	}
 	
-	mmu_setup = read_32bit_phnx_ctrl_reg(4, 0);
+	mmu_setup = read_xlr_ctrl_register(4, 0);
 	mmu_setup = mmu_setup & ~0x06;
 	mmu_setup |= (val << 1);
 
@@ -127,7 +128,7 @@ xlr_setup_mmu_split(void)
 	if (xlr_shtlb_enabled)
 		mmu_setup |= 0x01;
 
-	write_32bit_phnx_ctrl_reg(4, 0, mmu_setup);
+	write_xlr_ctrl_register(4, 0, mmu_setup);
 }
 
 static void
@@ -166,6 +167,14 @@ xlr_parse_mmu_options(void)
 	 */
 	xlr_ncores = 1;
 	cpu_map = xlr_boot1_info.cpu_online_map;
+
+#ifndef SMP /* Uniprocessor! */
+	if (cpu_map != 0x1) {
+		printf("WARNING: Starting uniprocessor kernel on cpumask [0x%lx]!\n"
+		   "WARNING: Other CPUs will be unused.\n", (u_long)cpu_map);
+		cpu_map = 0x1;
+	}
+#endif
 	core0_thr_mask = cpu_map & 0xf;
 	switch (core0_thr_mask) {
 	case 1:
@@ -187,9 +196,9 @@ xlr_parse_mmu_options(void)
 			xlr_ncores++;
 		}
 	}
+	xlr_hw_thread_mask = cpu_map;
 
 	/* setup hardware processor id to cpu id mapping */
-	xlr_hw_thread_mask = xlr_boot1_info.cpu_online_map;
 	for (i = 0; i< MAXCPU; i++)
 		xlr_cpuid_to_hwtid[i] = 
 		    xlr_hwtid_to_cpuid [i] = -1;
@@ -264,8 +273,8 @@ mips_init(void)
 	init_param1();
 	init_param2(physmem);
 
-	/* XXX: Catch 22. Something touches the tlb. */
 	mips_cpu_init();
+	cpuinfo.cache_coherent_dma = TRUE;
 	pmap_bootstrap();
 #ifdef DDB
 	kdb_init();
@@ -277,21 +286,136 @@ mips_init(void)
 	mutex_init();
 }
 
+u_int
+platform_get_timecount(struct timecounter *tc __unused)
+{
+
+	return (0xffffffffU - pic_timer_count32(PIC_CLOCK_TIMER));
+}
+
+static void 
+xlr_pic_init(void)
+{
+	struct timecounter pic_timecounter = {
+		platform_get_timecount, /* get_timecount */
+		0,                      /* no poll_pps */
+		~0U,                    /* counter_mask */
+		PIC_TIMER_HZ,           /* frequency */
+		"XLRPIC",               /* name */
+		2000,                   /* quality (adjusted in code) */
+	};
+	xlr_reg_t *mmio = xlr_io_mmio(XLR_IO_PIC_OFFSET);
+	int i, irq;
+
+	write_c0_eimr64(0ULL);
+	mtx_init(&xlr_pic_lock, "pic", NULL, MTX_SPIN);
+	xlr_write_reg(mmio, PIC_CTRL, 0);
+
+	/* Initialize all IRT entries */
+	for (i = 0; i < PIC_NUM_IRTS; i++) {
+		irq = PIC_INTR_TO_IRQ(i);
+
+		/*
+		 * Disable all IRTs. Set defaults (local scheduling, high
+		 * polarity, level * triggered, and CPU irq)
+		 */
+		xlr_write_reg(mmio, PIC_IRT_1(i), (1 << 30) | (1 << 6) | irq);
+		/* Bind all PIC irqs to cpu 0 */
+		xlr_write_reg(mmio, PIC_IRT_0(i), 0x01);
+	}
+
+	/* Setup timer 7 of PIC as a timestamp, no interrupts */
+	pic_init_timer(PIC_CLOCK_TIMER);
+	pic_set_timer(PIC_CLOCK_TIMER, ~UINT64_C(0));
+	platform_timecounter = &pic_timecounter;
+}
+
+static void
+xlr_mem_init(void)
+{
+	struct xlr_boot1_mem_map *boot_map;
+	vm_size_t physsz = 0;
+	int i, j;
+
+	/* get physical memory info from boot loader */
+	boot_map = (struct xlr_boot1_mem_map *)
+	    (unsigned long)xlr_boot1_info.psb_mem_map;
+	for (i = 0, j = 0; i < boot_map->num_entries; i++, j += 2) {
+		if (boot_map->physmem_map[i].type != BOOT1_MEM_RAM)
+			continue;
+		if (j == 14) {
+			printf("*** ERROR *** memory map too large ***\n");
+			break;
+		}
+		if (j == 0) {
+			/* start after kernel end */
+			phys_avail[0] = (vm_paddr_t)
+			    MIPS_KSEG0_TO_PHYS(&_end) + 0x20000;
+			/* boot loader start */
+			/* HACK to Use bootloaders memory region */
+			if (boot_map->physmem_map[0].size == 0x0c000000) {
+				boot_map->physmem_map[0].size = 0x0ff00000;
+			}
+			phys_avail[1] = boot_map->physmem_map[0].addr +
+			    boot_map->physmem_map[0].size;
+			printf("First segment: addr:%#jx -> %#jx \n",
+			       (uintmax_t)phys_avail[0], 
+			       (uintmax_t)phys_avail[1]);
+
+			dump_avail[0] = phys_avail[0];
+			dump_avail[1] = phys_avail[1];
+		} else {
+#if !defined(__mips_n64) && !defined(__mips_n32) /* !PHYSADDR_64_BIT */
+			/*
+			 * In 32 bit physical address mode we cannot use 
+			 * mem > 0xffffffff
+			 */
+			if (boot_map->physmem_map[i].addr > 0xfffff000U) {
+				printf("Memory: start %#jx size %#jx ignored"
+				    "(>4GB)\n",
+				    (intmax_t)boot_map->physmem_map[i].addr,
+				    (intmax_t)boot_map->physmem_map[i].size);
+				continue;
+			}
+			if (boot_map->physmem_map[i].addr +
+			    boot_map->physmem_map[i].size > 0xfffff000U) {
+				boot_map->physmem_map[i].size = 0xfffff000U - 
+				    boot_map->physmem_map[i].addr;
+				printf("Memory: start %#jx limited to 4GB\n",
+				    (intmax_t)boot_map->physmem_map[i].addr);
+			}
+#endif /* !PHYSADDR_64_BIT */
+			phys_avail[j] = (vm_paddr_t)
+			    boot_map->physmem_map[i].addr;
+			phys_avail[j + 1] = phys_avail[j] +
+			    boot_map->physmem_map[i].size;
+			printf("Next segment : addr:%#jx -> %#jx\n",
+			       (uintmax_t)phys_avail[j], 
+			       (uintmax_t)phys_avail[j+1]);
+		}
+
+		dump_avail[j] = phys_avail[j];
+		dump_avail[j+1] = phys_avail[j+1];
+
+		physsz += boot_map->physmem_map[i].size;
+	}
+
+	phys_avail[j] = phys_avail[j + 1] = 0;
+	realmem = physmem = btoc(physsz);
+}
+
 void
 platform_start(__register_t a0 __unused,
     __register_t a1 __unused,
     __register_t a2 __unused,
     __register_t a3 __unused)
 {
-	vm_size_t physsz = 0;
-	int i, j;
-	struct xlr_boot1_mem_map *boot_map;
+	int i;
 #ifdef SMP
 	uint32_t tmp;
 	void (*wakeup) (void *, void *, unsigned int);
-
 #endif
-	/* XXX FIXME the code below is not 64 bit clean */
+
 	/* Save boot loader and other stuff from scratch regs */
 	xlr_boot1_info = *(struct boot1_info *)(intptr_t)(int)read_c0_register32(MIPS_COP_0_OSSCRATCH, 0);
 	cpu_mask_info = read_c0_register64(MIPS_COP_0_OSSCRATCH, 1);
@@ -303,9 +427,6 @@ platform_start(__register_t a0 __unused,
 	 */
 	xlr_argv = (int32_t *)(intptr_t)(int)read_c0_register32(MIPS_COP_0_OSSCRATCH, 5);
 	xlr_envp = (int32_t *)(intptr_t)(int)read_c0_register32(MIPS_COP_0_OSSCRATCH, 6);
-
-	/* TODO: Verify the magic number here */
-	/* FIXMELATER: xlr_boot1_info.magic_number */
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();
@@ -345,64 +466,7 @@ platform_start(__register_t a0 __unused,
 	xlr_set_boot_flags();
 	xlr_parse_mmu_options();
 
-	/* get physical memory info from boot loader */
-	boot_map = (struct xlr_boot1_mem_map *)
-	    (unsigned long)xlr_boot1_info.psb_mem_map;
-	for (i = 0, j = 0; i < boot_map->num_entries; i++, j += 2) {
-		if (boot_map->physmem_map[i].type == BOOT1_MEM_RAM) {
-			if (j == 14) {
-				printf("*** ERROR *** memory map too large ***\n");
-				break;
-			}
-			if (j == 0) {
-				/* TODO FIXME  */
-				/* start after kernel end */
-				phys_avail[0] = (vm_paddr_t)
-				    MIPS_KSEG0_TO_PHYS(&_end) + 0x20000;
-				/* boot loader start */
-				/* HACK to Use bootloaders memory region */
-				/* TODO FIXME  */
-				if (boot_map->physmem_map[0].size == 0x0c000000) {
-					boot_map->physmem_map[0].size = 0x0ff00000;
-				}
-				phys_avail[1] = boot_map->physmem_map[0].addr +
-				    boot_map->physmem_map[0].size;
-				printf("First segment: addr:%p -> %p \n",
-				       (void *)phys_avail[0], 
-				       (void *)phys_avail[1]);
-
-			} else {
-/*
- * Can't use this code yet, because most of the fixed allocations happen from
- * the biggest physical area. If we have more than 512M memory the kernel will try
- * to map from the second are which is not in KSEG0 and not mapped
- */
-				phys_avail[j] = (vm_paddr_t)
-				    boot_map->physmem_map[i].addr;
-				phys_avail[j + 1] = phys_avail[j] +
-				    boot_map->physmem_map[i].size;
-				if (phys_avail[j + 1] < phys_avail[j] ) {
-					/* Houston we have an issue. Memory is
-					 * larger than possible. Its probably in
-					 * 64 bit > 4Gig and we are in 32 bit mode.
-					 */
-					phys_avail[j + 1] = 0xfffff000;
-					printf("boot map size was %jx\n", (intmax_t)boot_map->physmem_map[i].size);
-					boot_map->physmem_map[i].size = phys_avail[j + 1] - phys_avail[j];
-					printf("reduced to %jx\n", (intmax_t)boot_map->physmem_map[i].size);
-				}
-				printf("Next segment : addr:%p -> %p \n",
-				       (void *)phys_avail[j], 
-				       (void *)phys_avail[j+1]);
-			}
-			physsz += boot_map->physmem_map[i].size;
-		}
-	}
-
-	/* FIXME XLR TODO */
-	phys_avail[j] = phys_avail[j + 1] = 0;
-	realmem = physmem = btoc(physsz);
-
+	xlr_mem_init();
 	/* Set up hz, among others. */
 	mips_init();
 
@@ -436,14 +500,14 @@ platform_start(__register_t a0 __unused,
 #endif
 
 	/* xlr specific post initialization */
-	/*
-	 * The expectation is that mutex_init() is already done in
-	 * mips_init() XXX NOTE: We may need to move this to SMP based init
-	 * code for each CPU, later.
-	 */
-	rmi_spin_mutex_safe = 1;
-	on_chip_init();
+	/* initialize other on chip stuff */
+	xlr_board_info_setup();
+	xlr_msgring_config();
+	xlr_pic_init();
+	xlr_msgring_cpu_init();
+
 	mips_timer_init_params(xlr_boot1_info.cpu_frequency, 0);
+
 	printf("Platform specific startup now completes\n");
 }
 
@@ -455,14 +519,11 @@ platform_cpu_init()
 void
 platform_identify(void)
 {
+
 	printf("Board [%d:%d], processor 0x%08x\n", (int)xlr_boot1_info.board_major_version,
 	    (int)xlr_boot1_info.board_minor_version, mips_rd_prid());
 }
 
-/*
- * XXX Maybe return the state of the watchdog in enter, and pass it to
- * exit?  Like spl().
- */
 void
 platform_trap_enter(void)
 {
@@ -517,12 +578,12 @@ platform_init_ap(int cpuid)
 	stat |= MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT;
 	mips_wr_status(stat);
 
-	xlr_unmask_hard_irq((void *)IRQ_IPI);
-	xlr_unmask_hard_irq((void *)IRQ_TIMER);
-	if (xlr_thr_id() == 0) {
+	write_c0_eimr64(0ULL);
+	xlr_enable_irq(IRQ_IPI);
+	xlr_enable_irq(IRQ_TIMER);
+	if (xlr_thr_id() == 0)
 		xlr_msgring_cpu_init(); 
-	 	xlr_unmask_hard_irq((void *)IRQ_MSGRING);
-	}
+	 xlr_enable_irq(IRQ_MSGRING);
 
 	return;
 }
@@ -530,14 +591,15 @@ platform_init_ap(int cpuid)
 int
 platform_ipi_intrnum(void) 
 {
+
 	return (IRQ_IPI);
 }
 
 void
 platform_ipi_send(int cpuid)
 {
-	pic_send_ipi(xlr_cpuid_to_hwtid[cpuid],
-	    platform_ipi_intrnum(), 0);
+
+	pic_send_ipi(xlr_cpuid_to_hwtid[cpuid], platform_ipi_intrnum());
 }
 
 void
@@ -548,18 +610,21 @@ platform_ipi_clear(void)
 int
 platform_processor_id(void)
 {
+
 	return (xlr_hwtid_to_cpuid[xlr_cpu_id()]);
 }
 
-int
-platform_num_processors(void)
+cpumask_t
+platform_cpu_mask(void)
 {
-	return (xlr_ncores * xlr_threads_per_core);
+
+	return (~0U >> (32 - (xlr_ncores * xlr_threads_per_core)));
 }
 
 struct cpu_group *
 platform_smp_topo()
 {
+
 	return (smp_topo_2level(CG_SHARE_L2, xlr_ncores, CG_SHARE_L1,
 		xlr_threads_per_core, CG_FLAG_THREAD));
 }

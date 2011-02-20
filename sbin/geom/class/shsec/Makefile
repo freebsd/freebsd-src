@@ -2,6 +2,6 @@
 
 .PATH: ${.CURDIR}/../../misc
 
-CLASS=	shsec
+GEOM_CLASS=	shsec
 
 .include <bsd.lib.mk>

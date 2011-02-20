@@ -92,12 +92,16 @@ struct octeon_feature_description {
 
 extern int	*edata;
 extern int	*end;
+extern char cpu_model[];
+extern char cpu_board[];
 
 static const struct octeon_feature_description octeon_feature_descriptions[] = {
 	{ OCTEON_FEATURE_SAAD,			"SAAD" },
 	{ OCTEON_FEATURE_ZIP,			"ZIP" },
 	{ OCTEON_FEATURE_CRYPTO,		"CRYPTO" },
+	{ OCTEON_FEATURE_DORM_CRYPTO,		"DORM_CRYPTO" },
 	{ OCTEON_FEATURE_PCIE,			"PCIE" },
+	{ OCTEON_FEATURE_SRIO,			"SRIO" },
 	{ OCTEON_FEATURE_KEY_MEMORY,		"KEY_MEMORY" },
 	{ OCTEON_FEATURE_LED_CONTROLLER,	"LED_CONTROLLER" },
 	{ OCTEON_FEATURE_TRA,			"TRA" },
@@ -107,6 +111,7 @@ static const struct octeon_feature_description octeon_feature_descriptions[] = {
 	{ OCTEON_FEATURE_NO_WPTR,		"NO_WPTR" },
 	{ OCTEON_FEATURE_DFA,			"DFA" },
 	{ OCTEON_FEATURE_MDIO_CLAUSE_45,	"MDIO_CLAUSE_45" },
+	{ OCTEON_FEATURE_NPEI,			"NPEI" },
 	{ 0,					NULL }
 };
 
@@ -262,7 +267,7 @@ octeon_memory_init(void)
 {
 	vm_paddr_t phys_end;
 	int64_t addr;
-	unsigned i;
+	unsigned i, j;
 
 	phys_end = round_page(MIPS_KSEG0_TO_PHYS((vm_offset_t)&end));
 
@@ -270,6 +275,9 @@ octeon_memory_init(void)
 		/* Simulator we limit to 96 meg */
 		phys_avail[0] = phys_end;
 		phys_avail[1] = 96 << 20;
+
+		dump_avail[0] = phys_avail[0];
+		dump_avail[1] = phys_avail[1];
 
 		realmem = physmem = btoc(phys_avail[1] - phys_avail[0]);
 		return;
@@ -281,10 +289,30 @@ octeon_memory_init(void)
 	 */
 	i = 0;
 	while (i < PHYS_AVAIL_ENTRIES) {
+		/*
+		 * If there is less than 2MB of memory available in 128-byte
+		 * blocks, do not steal any more memory.  We need to leave some
+		 * memory for the command queues to be allocated out of.
+		 */
+		if (cvmx_bootmem_available_mem(128) < 2 << 20)
+			break;
+
 		addr = cvmx_bootmem_phy_alloc(1 << 20, phys_end,
 					      ~(vm_paddr_t)0, PAGE_SIZE, 0);
 		if (addr == -1)
 			break;
+
+		/*
+		 * The SDK needs to be able to easily map any memory that might
+		 * come to it e.g. in the form of an mbuf.  Because on !n64 we
+		 * can't direct-map some addresses and we don't want to manage
+		 * temporary mappings within the SDK, don't feed memory that
+		 * can't be direct-mapped to the kernel.
+		 */
+#if !defined(__mips_n64)
+		if (!MIPS_DIRECT_MAPPABLE(addr + (1 << 20) - 1))
+			continue;
+#endif
 
 		physmem += btoc(1 << 20);
 
@@ -298,6 +326,9 @@ octeon_memory_init(void)
 
 		i += 2;
 	}
+
+	for (j = 0; j < i; j++)
+		dump_avail[j] = phys_avail[j];
 
 	realmem = physmem;
 }
@@ -355,14 +386,12 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 	if (boothowto & RB_KDB)
 		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
-	platform_counter_freq = cvmx_sysinfo_get()->cpu_clock_hz;
-
-	octeon_timecounter.tc_frequency = cvmx_sysinfo_get()->cpu_clock_hz;
+	cpu_clock = cvmx_sysinfo_get()->cpu_clock_hz;
+	platform_counter_freq = cpu_clock;
+	octeon_timecounter.tc_frequency = cpu_clock;
 	platform_timecounter = &octeon_timecounter;
-
 	mips_timer_init_params(platform_counter_freq, 0);
-
-	set_cputicker(octeon_get_ticks, cvmx_sysinfo_get()->cpu_clock_hz, 0);
+	set_cputicker(octeon_get_ticks, cpu_clock, 0);
 
 #ifdef SMP
 	/*
@@ -392,6 +421,49 @@ static unsigned
 octeon_get_timecount(struct timecounter *tc)
 {
 	return ((unsigned)octeon_get_ticks());
+}
+
+/**
+ * version of printf that works better in exception context.
+ *
+ * @param format
+ *
+ * XXX If this function weren't in cvmx-interrupt.c, we'd use the SDK version.
+ */
+void cvmx_safe_printf(const char *format, ...)
+{
+    char buffer[256];
+    char *ptr = buffer;
+    int count;
+    va_list args;
+
+    va_start(args, format);
+#ifndef __U_BOOT__
+    count = vsnprintf(buffer, sizeof(buffer), format, args);
+#else
+    count = vsprintf(buffer, format, args);
+#endif
+    va_end(args);
+
+    while (count-- > 0)
+    {
+        cvmx_uart_lsr_t lsrval;
+
+        /* Spin until there is room */
+        do
+        {
+            lsrval.u64 = cvmx_read_csr(CVMX_MIO_UARTX_LSR(0));
+#if !defined(CONFIG_OCTEON_SIM_SPEED)
+            if (lsrval.s.temt == 0)
+                cvmx_wait(10000);   /* Just to reduce the load on the system */
+#endif
+        }
+        while (lsrval.s.temt == 0);
+
+        if (*ptr == '\n')
+            cvmx_write_csr(CVMX_MIO_UARTX_THR(0), '\r');
+        cvmx_write_csr(CVMX_MIO_UARTX_THR(0), *ptr++);
+    }
 }
 
 /* impSTART: This stuff should move back into the Cavium SDK */
@@ -478,8 +550,6 @@ octeon_is_simulation(void)
 static void
 octeon_process_app_desc_ver_6(void)
 {
-	void *phy_mem_desc_ptr;
-
 	/* XXX Why is 0x00000000ffffffffULL a bad value?  */
 	if (app_desc_ptr->cvmx_desc_vaddr == 0 ||
 	    app_desc_ptr->cvmx_desc_vaddr == 0xfffffffful)
@@ -494,9 +564,7 @@ octeon_process_app_desc_ver_6(void)
                        (int) octeon_bootinfo->major_version,
                        (int) octeon_bootinfo->minor_version, octeon_bootinfo);
 
-	phy_mem_desc_ptr =
-	    (void *)MIPS_PHYS_TO_KSEG0(octeon_bootinfo->phy_mem_desc_addr);
-	cvmx_sysinfo_minimal_initialize(phy_mem_desc_ptr,
+	cvmx_sysinfo_minimal_initialize(octeon_bootinfo->phy_mem_desc_addr,
 					octeon_bootinfo->board_type,
 					octeon_bootinfo->board_rev_major,
 					octeon_bootinfo->board_rev_minor,
@@ -517,9 +585,9 @@ octeon_boot_params_init(register_t ptr)
 
 	KASSERT(octeon_bootinfo != NULL, ("octeon_bootinfo should be set"));
 
-	if (cvmx_sysinfo_get()->phy_mem_desc_ptr == NULL)
+	if (cvmx_sysinfo_get()->phy_mem_desc_addr == (uint64_t)0)
 		panic("Your boot loader did not supply a memory descriptor.");
-	cvmx_bootmem_init(cvmx_sysinfo_get()->phy_mem_desc_ptr);
+	cvmx_bootmem_init(cvmx_sysinfo_get()->phy_mem_desc_addr);
 
         printf("Boot Descriptor Ver: %u -> %u/%u",
                app_desc_ptr->desc_version, octeon_bootinfo->major_version,
@@ -542,13 +610,20 @@ octeon_boot_params_init(register_t ptr)
 	    octeon_bootinfo->mac_addr_count);
 
 #if defined(OCTEON_BOARD_CAPK_0100ND)
-	if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_CN3010_EVB_HS5)
+	strcpy(cpu_board, "CAPK-0100ND");
+	if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_CN3010_EVB_HS5) {
 		printf("Compiled for CAPK-0100ND, but board type is %s\n",
 		    cvmx_board_type_to_string(cvmx_sysinfo_get()->board_type));
+		strcat(cpu_board, " hardwired, but type is ");
+		strcat(cpu_board, 
+		    cvmx_board_type_to_string(cvmx_sysinfo_get()->board_type));
+	}
 #else
-	printf("Board: %s\n",
+	strcpy(cpu_board,
 	    cvmx_board_type_to_string(cvmx_sysinfo_get()->board_type));
+	printf("Board: %s\n", cpu_board);
 #endif
-	printf("Model: %s\n", octeon_model_get_string(cvmx_get_proc_id()));
+	strcpy(cpu_model, octeon_model_get_string(cvmx_get_proc_id()));
+	printf("Model: %s\n", cpu_model);
 }
 /* impEND: This stuff should move back into the Cavium SDK */

@@ -66,13 +66,14 @@
 	WEAK_REF(func, SYM_FBP10(sym));			\
 	SYM_DEFAULT(sym, SYM_FBP10(sym), FBSDprivate_1.0)
 
-#ifndef __hidden
-#define __hidden		__attribute__((visibility("hidden")))
-#endif
-
 #include "pthread_md.h"
 #include "thr_umtx.h"
 #include "thread_db.h"
+
+#ifdef _PTHREAD_FORCED_UNWIND
+#define _BSD_SOURCE
+#include <unwind.h>
+#endif
 
 typedef TAILQ_HEAD(pthreadlist, pthread) pthreadlist;
 typedef TAILQ_HEAD(atfork_head, pthread_atfork) atfork_head;
@@ -125,15 +126,30 @@ TAILQ_HEAD(mutex_queue, pthread_mutex);
 		}						\
 	} while (0)
 
+/* XXX These values should be same as those defined in pthread.h */
+#define	THR_MUTEX_INITIALIZER		((struct pthread_mutex *)NULL)
+#define	THR_ADAPTIVE_MUTEX_INITIALIZER	((struct pthread_mutex *)1)
+#define	THR_MUTEX_DESTROYED		((struct pthread_mutex *)2)
+#define	THR_COND_INITIALIZER		((struct pthread_cond *)NULL)
+#define	THR_COND_DESTROYED		((struct pthread_cond *)1)
+#define	THR_RWLOCK_INITIALIZER		((struct pthread_rwlock *)NULL)
+#define	THR_RWLOCK_DESTROYED		((struct pthread_rwlock *)1)
+
+#define PMUTEX_FLAG_TYPE_MASK	0x0ff
+#define PMUTEX_FLAG_PRIVATE	0x100
+#define PMUTEX_FLAG_DEFERED	0x200
+#define PMUTEX_TYPE(mtxflags)	((mtxflags) & PMUTEX_FLAG_TYPE_MASK)
+
+#define MAX_DEFER_WAITERS       50
+
 struct pthread_mutex {
 	/*
 	 * Lock for accesses to this structure.
 	 */
 	struct umutex			m_lock;
-	enum pthread_mutextype		m_type;
+	int				m_flags;
 	struct pthread			*m_owner;
 	int				m_count;
-	int				m_refcount;
 	int				m_spinloops;
 	int				m_yieldloops;
 	/*
@@ -152,10 +168,10 @@ struct pthread_mutex_attr {
 	{ PTHREAD_MUTEX_DEFAULT, PTHREAD_PRIO_NONE, 0, MUTEX_FLAGS_PRIVATE }
 
 struct pthread_cond {
-	struct umutex	c_lock;
-	struct ucond	c_kerncv;
-	int		c_pshared;
-	int		c_clockid;
+	__uint32_t	__has_user_waiters;
+	__uint32_t	__has_kern_waiters;
+	__uint32_t	__flags;
+	__uint32_t	__clock_id;
 };
 
 struct pthread_cond_attr {
@@ -219,6 +235,7 @@ struct pthread_atfork {
 };
 
 struct pthread_attr {
+#define pthread_attr_start_copy	sched_policy
 	int	sched_policy;
 	int	sched_inherit;
 	int	prio;
@@ -228,8 +245,24 @@ struct pthread_attr {
 	void	*stackaddr_attr;
 	size_t	stacksize_attr;
 	size_t	guardsize_attr;
+#define pthread_attr_end_copy	cpuset
 	cpuset_t	*cpuset;
 	size_t	cpusetsize;
+};
+
+struct wake_addr {
+	struct wake_addr *link;
+	unsigned int	value;
+	char		pad[12];
+};
+
+struct sleepqueue {
+	TAILQ_HEAD(, pthread)    sq_blocked;
+	SLIST_HEAD(, sleepqueue) sq_freeq;
+	LIST_ENTRY(sleepqueue)   sq_hash;
+	SLIST_ENTRY(sleepqueue)  sq_flink;
+	void			 *sq_wchan;
+	int			 sq_type;
 };
 
 /*
@@ -343,6 +376,9 @@ struct pthread {
 	/* Hash queue entry. */
 	LIST_ENTRY(pthread)	hle;
 
+	/* Sleep queue entry */
+	TAILQ_ENTRY(pthread)    wle;
+
 	/* Threads reference count. */
 	int			refcount;
 
@@ -355,9 +391,8 @@ struct pthread {
 	struct pthread_attr	attr;
 
 #define	SHOULD_CANCEL(thr)					\
-	((thr)->cancel_pending &&				\
-	 ((thr)->cancel_point || (thr)->cancel_async) &&	\
-	 (thr)->cancel_enable && (thr)->cancelling == 0)
+	((thr)->cancel_pending && (thr)->cancel_enable &&	\
+	 (thr)->no_cancel == 0)
 
 	/* Cancellation is enabled */
 	int			cancel_enable;
@@ -368,8 +403,8 @@ struct pthread {
 	/* Thread is at cancellation point */
 	int			cancel_point;
 
-	/* Cancellation should be synchoronized */
-	int			cancel_defer;
+	/* Cancellation is temporarily disabled */
+	int			no_cancel;
 
 	/* Asynchronouse cancellation is enabled */
 	int			cancel_async;
@@ -380,11 +415,20 @@ struct pthread {
 	/* Thread temporary signal mask. */
 	sigset_t		sigmask;
 
-	/* Thread is in SIGCANCEL handler. */
-	int			in_sigcancel_handler;
-
-	/* New thread should unblock SIGCANCEL. */
+	/* Thread should unblock SIGCANCEL. */
 	int			unblock_sigcancel;
+
+	/* In sigsuspend state */
+	int			in_sigsuspend;
+
+	/* deferred signal info	*/
+	siginfo_t		deferred_siginfo;
+
+	/* signal mask to restore. */
+	sigset_t		deferred_sigmask;
+
+	/* the sigaction should be used for deferred signal. */
+	struct sigaction	deferred_sigact;
 
 	/* Force new thread to exit. */
 	int			force_exit;
@@ -409,13 +453,13 @@ struct pthread {
 #define THR_FLAGS_PRIVATE	0x0001
 #define	THR_FLAGS_NEED_SUSPEND	0x0002	/* thread should be suspended */
 #define	THR_FLAGS_SUSPENDED	0x0004	/* thread is suspended */
+#define	THR_FLAGS_DETACHED	0x0008	/* thread is detached */
 
 	/* Thread list flags; only set with thread list lock held. */
 	int			tlflags;
 #define	TLFLAGS_GC_SAFE		0x0001	/* thread safe for cleaning */
 #define	TLFLAGS_IN_TDLIST	0x0002	/* thread in all thread list */
 #define	TLFLAGS_IN_GCLIST	0x0004	/* thread in gc list */
-#define	TLFLAGS_DETACHED	0x0008	/* thread is detached */
 
 	/* Queue of currently owned NORMAL or PRIO_INHERIT type mutexes. */
 	struct mutex_queue	mutexq;
@@ -440,6 +484,12 @@ struct pthread {
 	/* Cleanup handlers Link List */
 	struct pthread_cleanup	*cleanup;
 
+#ifdef _PTHREAD_FORCED_UNWIND
+	struct _Unwind_Exception	ex;
+	void			*unwind_stackend;
+	int			unwind_disabled;
+#endif
+
 	/*
 	 * Magic value to help recognize a valid thread structure
 	 * from an invalid one:
@@ -455,7 +505,32 @@ struct pthread {
 
 	/* Event */
 	td_event_msg_t		event_buf;
+
+	struct wake_addr	*wake_addr;
+#define WAKE_ADDR(td)           ((td)->wake_addr)
+
+	/* Sleep queue */
+	struct	sleepqueue	*sleepqueue;
+
+	/* Wait channel */
+	void			*wchan;
+
+	/* Referenced mutex. */
+	struct pthread_mutex	*mutex_obj;
+
+	/* Thread will sleep. */
+	int			will_sleep;
+
+	/* Number of threads deferred. */
+	int			nwaiter_defer;
+
+	/* Deferred threads from pthread_cond_signal. */
+	unsigned int 		*defer_waiters[MAX_DEFER_WAITERS];
 };
+
+#define THR_SHOULD_GC(thrd) 						\
+	((thrd)->refcount == 0 && (thrd)->state == PS_DEAD &&		\
+	 ((thrd)->flags & THR_FLAGS_DETACHED) != 0)
 
 #define	THR_IN_CRITICAL(thrd)				\
 	(((thrd)->locklevel > 0) ||			\
@@ -488,6 +563,12 @@ do {							\
 	_thr_umutex_lock(lck, TID(thrd));		\
 } while (0)
 
+#define	THR_LOCK_ACQUIRE_SPIN(thrd, lck)		\
+do {							\
+	(thrd)->locklevel++;				\
+	_thr_umutex_lock_spin(lck, TID(thrd));		\
+} while (0)
+
 #ifdef	_PTHREADS_INVARIANTS
 #define	THR_ASSERT_LOCKLEVEL(thrd)			\
 do {							\
@@ -511,14 +592,23 @@ do {							\
 #define	THR_THREAD_LOCK(curthrd, thr)	THR_LOCK_ACQUIRE(curthrd, &(thr)->lock)
 #define	THR_THREAD_UNLOCK(curthrd, thr)	THR_LOCK_RELEASE(curthrd, &(thr)->lock)
 
-#define	THREAD_LIST_LOCK(curthrd)				\
+#define	THREAD_LIST_RDLOCK(curthrd)				\
 do {								\
-	THR_LOCK_ACQUIRE((curthrd), &_thr_list_lock);		\
+	(curthrd)->locklevel++;					\
+	_thr_rwl_rdlock(&_thr_list_lock);			\
+} while (0)
+
+#define	THREAD_LIST_WRLOCK(curthrd)				\
+do {								\
+	(curthrd)->locklevel++;					\
+	_thr_rwl_wrlock(&_thr_list_lock);			\
 } while (0)
 
 #define	THREAD_LIST_UNLOCK(curthrd)				\
 do {								\
-	THR_LOCK_RELEASE((curthrd), &_thr_list_lock);		\
+	_thr_rwl_unlock(&_thr_list_lock);			\
+	(curthrd)->locklevel--;					\
+	_thr_ast(curthrd);					\
 } while (0)
 
 /*
@@ -554,6 +644,16 @@ do {								\
 	}							\
 } while (0)
 
+#define THR_REF_ADD(curthread, pthread) {			\
+	THR_CRITICAL_ENTER(curthread);				\
+	pthread->refcount++;					\
+} while (0)
+
+#define THR_REF_DEL(curthread, pthread) {			\
+	pthread->refcount--;					\
+	THR_CRITICAL_LEAVE(curthread);				\
+} while (0)
+
 #define GC_NEEDED()	(_gc_count >= 5)
 
 #define SHOULD_REPORT_EVENT(curthr, e)			\
@@ -582,13 +682,14 @@ extern pthreadlist	_thread_gc_list __hidden;
 
 extern int		_thread_active_threads;
 extern atfork_head	_thr_atfork_list __hidden;
-extern struct umutex	_thr_atfork_lock __hidden;
+extern struct urwlock	_thr_atfork_lock __hidden;
 
 /* Default thread attributes: */
 extern struct pthread_attr _pthread_attr_default __hidden;
 
 /* Default mutex attributes: */
 extern struct pthread_mutex_attr _pthread_mutexattr_default __hidden;
+extern struct pthread_mutex_attr _pthread_mutexattr_adaptive_default __hidden;
 
 /* Default condition variable attributes: */
 extern struct pthread_cond_attr _pthread_condattr_default __hidden;
@@ -612,7 +713,7 @@ extern struct umutex	_mutex_static_lock __hidden;
 extern struct umutex	_cond_static_lock __hidden;
 extern struct umutex	_rwlock_static_lock __hidden;
 extern struct umutex	_keytable_lock __hidden;
-extern struct umutex	_thr_list_lock __hidden;
+extern struct urwlock	_thr_list_lock __hidden;
 extern struct umutex	_thr_event_lock __hidden;
 
 /*
@@ -620,33 +721,33 @@ extern struct umutex	_thr_event_lock __hidden;
  */
 __BEGIN_DECLS
 int	_thr_setthreaded(int) __hidden;
-int	_mutex_cv_lock(pthread_mutex_t *, int count) __hidden;
-int	_mutex_cv_unlock(pthread_mutex_t *, int *count) __hidden;
+int	_mutex_cv_lock(struct pthread_mutex *, int count) __hidden;
+int	_mutex_cv_unlock(struct pthread_mutex *, int *count) __hidden;
+int     _mutex_cv_attach(struct pthread_mutex *, int count) __hidden;
+int     _mutex_cv_detach(struct pthread_mutex *, int *count) __hidden;
+int     _mutex_owned(struct pthread *, const struct pthread_mutex *) __hidden;
 int	_mutex_reinit(pthread_mutex_t *) __hidden;
 void	_mutex_fork(struct pthread *curthread) __hidden;
 void	_libpthread_init(struct pthread *) __hidden;
 struct pthread *_thr_alloc(struct pthread *) __hidden;
 void	_thread_exit(const char *, int, const char *) __hidden __dead2;
-void	_thr_exit_cleanup(void) __hidden;
 int	_thr_ref_add(struct pthread *, struct pthread *, int) __hidden;
 void	_thr_ref_delete(struct pthread *, struct pthread *) __hidden;
 void	_thr_ref_delete_unlocked(struct pthread *, struct pthread *) __hidden;
 int	_thr_find_thread(struct pthread *, struct pthread *, int) __hidden;
 void	_thr_rtld_init(void) __hidden;
 void	_thr_rtld_fini(void) __hidden;
+void	_thr_rtld_postfork_child(void) __hidden;
 int	_thr_stack_alloc(struct pthread_attr *) __hidden;
 void	_thr_stack_free(struct pthread_attr *) __hidden;
 void	_thr_free(struct pthread *, struct pthread *) __hidden;
 void	_thr_gc(struct pthread *) __hidden;
 void    _thread_cleanupspecific(void) __hidden;
-void    _thread_dump_info(void) __hidden;
 void	_thread_printf(int, const char *, ...) __hidden;
 void	_thr_spinlock_init(void) __hidden;
 void	_thr_cancel_enter(struct pthread *) __hidden;
-void	_thr_cancel_leave(struct pthread *) __hidden;
-void	_thr_cancel_leave2(struct pthread *, int) __hidden;
-void	_thr_cancel_enter_defer(struct pthread *, int) __hidden;
-void	_thr_cancel_leave_defer(struct pthread *, int) __hidden;
+void	_thr_cancel_enter2(struct pthread *, int) __hidden;
+void	_thr_cancel_leave(struct pthread *, int) __hidden;
 void	_thr_testcancel(struct pthread *) __hidden;
 void	_thr_signal_block(struct pthread *) __hidden;
 void	_thr_signal_unblock(struct pthread *) __hidden;
@@ -659,7 +760,6 @@ void	_thr_hash_remove(struct pthread *) __hidden;
 struct pthread *_thr_hash_find(struct pthread *) __hidden;
 void	_thr_link(struct pthread *, struct pthread *) __hidden;
 void	_thr_unlink(struct pthread *, struct pthread *) __hidden;
-void	_thr_suspend_check(struct pthread *) __hidden;
 void	_thr_assert_lock_level(void) __hidden __dead2;
 void	_thr_ast(struct pthread *) __hidden;
 void	_thr_once_init(void) __hidden;
@@ -668,6 +768,10 @@ void	_thr_report_creation(struct pthread *curthread,
 void	_thr_report_death(struct pthread *curthread) __hidden;
 int	_thr_getscheduler(lwpid_t, int *, struct sched_param *) __hidden;
 int	_thr_setscheduler(lwpid_t, int, const struct sched_param *) __hidden;
+void	_thr_signal_prefork(void) __hidden;
+void	_thr_signal_postfork(void) __hidden;
+void	_thr_signal_postfork_child(void) __hidden;
+void	_thr_try_gc(struct pthread *, struct pthread *) __hidden;
 int	_rtp_to_schedparam(const struct rtprio *rtp, int *policy,
 		struct sched_param *param) __hidden;
 int	_schedparam_to_rtp(int policy, const struct sched_param *param,
@@ -675,12 +779,12 @@ int	_schedparam_to_rtp(int policy, const struct sched_param *param,
 void	_thread_bp_create(void);
 void	_thread_bp_death(void);
 int	_sched_yield(void);
-void	_thr_sem_prefork(void);
-void	_thr_sem_postfork(void);
-void	_thr_sem_child_postfork(void);
 
 void	_pthread_cleanup_push(void (*)(void *), void *);
 void	_pthread_cleanup_pop(int);
+void	_pthread_exit_mask(void *status, sigset_t *mask) __dead2 __hidden;
+void	_pthread_cancel_enter(int maycancel);
+void 	_pthread_cancel_leave(int maycancel);
 
 /* #include <fcntl.h> */
 #ifdef  _SYS_FCNTL_H_
@@ -696,7 +800,7 @@ int     __sys_sigaction(int, const struct sigaction *, struct sigaction *);
 int     __sys_sigpending(sigset_t *);
 int     __sys_sigprocmask(int, const sigset_t *, sigset_t *);
 int     __sys_sigsuspend(const sigset_t *);
-int     __sys_sigreturn(ucontext_t *);
+int     __sys_sigreturn(const ucontext_t *);
 int     __sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
 int	__sys_sigwait(const sigset_t *, int *);
 int	__sys_sigtimedwait(const sigset_t *, siginfo_t *,
@@ -707,6 +811,12 @@ int	__sys_sigwaitinfo(const sigset_t *set, siginfo_t *info);
 /* #include <time.h> */
 #ifdef	_TIME_H_
 int	__sys_nanosleep(const struct timespec *, struct timespec *);
+#endif
+
+/* #include <sys/ucontext.h> */
+#ifdef _SYS_UCONTEXT_H_
+int	__sys_setcontext(const ucontext_t *ucp);
+int	__sys_swapcontext(ucontext_t *oucp, const ucontext_t *ucp);
 #endif
 
 /* #include <unistd.h> */
@@ -740,8 +850,55 @@ _thr_check_init(void)
 		_libpthread_init(NULL);
 }
 
+struct wake_addr *_thr_alloc_wake_addr(void);
+void	_thr_release_wake_addr(struct wake_addr *);
+int	_thr_sleep(struct pthread *, int, const struct timespec *);
+
+void _thr_wake_addr_init(void) __hidden;
+
+static inline void
+_thr_clear_wake(struct pthread *td)
+{
+	td->wake_addr->value = 0;
+}
+
+static inline int
+_thr_is_woken(struct pthread *td)
+{
+	return td->wake_addr->value != 0;
+}
+
+static inline void
+_thr_set_wake(unsigned int *waddr)
+{
+	*waddr = 1;
+	_thr_umtx_wake(waddr, INT_MAX, 0);
+}
+
+void _thr_wake_all(unsigned int *waddrs[], int) __hidden;
+
+static inline struct pthread *
+_sleepq_first(struct sleepqueue *sq)
+{
+	return TAILQ_FIRST(&sq->sq_blocked);
+}
+
+void	_sleepq_init(void) __hidden;
+struct sleepqueue *_sleepq_alloc(void) __hidden;
+void	_sleepq_free(struct sleepqueue *) __hidden;
+void	_sleepq_lock(void *) __hidden;
+void	_sleepq_unlock(void *) __hidden;
+struct sleepqueue *_sleepq_lookup(void *) __hidden;
+void	_sleepq_add(void *, struct pthread *) __hidden;
+int	_sleepq_remove(struct sleepqueue *, struct pthread *) __hidden;
+void	_sleepq_drop(struct sleepqueue *,
+		void (*cb)(struct pthread *, void *arg), void *) __hidden;
+
 struct dl_phdr_info;
 void __pthread_cxa_finalize(struct dl_phdr_info *phdr_info);
+void _thr_tsd_unload(struct dl_phdr_info *phdr_info) __hidden;
+void _thr_sigact_unload(struct dl_phdr_info *phdr_info) __hidden;
+void _thr_stack_fix_protection(struct pthread *thrd);
 
 __END_DECLS
 

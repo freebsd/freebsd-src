@@ -138,7 +138,7 @@ namespace {
 
   public:
     static char ID; // Pass identification, replacement for typeid
-    TwoAddressInstructionPass() : MachineFunctionPass(&ID) {}
+    TwoAddressInstructionPass() : MachineFunctionPass(ID) {}
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesCFG();
@@ -159,10 +159,10 @@ namespace {
 }
 
 char TwoAddressInstructionPass::ID = 0;
-static RegisterPass<TwoAddressInstructionPass>
-X("twoaddressinstruction", "Two-Address instruction pass");
+INITIALIZE_PASS(TwoAddressInstructionPass, "twoaddressinstruction",
+                "Two-Address instruction pass", false, false);
 
-const PassInfo *const llvm::TwoAddressInstructionPassID = &X;
+char &llvm::TwoAddressInstructionPassID = TwoAddressInstructionPass::ID;
 
 /// Sink3AddrInstruction - A two-address instruction has been converted to a
 /// three-address instruction to avoid clobbering a register. Try to sink it
@@ -380,26 +380,18 @@ static bool isCopyToReg(MachineInstr &MI, const TargetInstrInfo *TII,
                         bool &IsSrcPhys, bool &IsDstPhys) {
   SrcReg = 0;
   DstReg = 0;
-  unsigned SrcSubIdx, DstSubIdx;
-  if (!TII->isMoveInstr(MI, SrcReg, DstReg, SrcSubIdx, DstSubIdx)) {
-    if (MI.isCopy()) {
-      DstReg = MI.getOperand(0).getReg();
-      SrcReg = MI.getOperand(1).getReg();
-    } else if (MI.isInsertSubreg()) {
-      DstReg = MI.getOperand(0).getReg();
-      SrcReg = MI.getOperand(2).getReg();
-    } else if (MI.isSubregToReg()) {
-      DstReg = MI.getOperand(0).getReg();
-      SrcReg = MI.getOperand(2).getReg();
-    }
-  }
+  if (MI.isCopy()) {
+    DstReg = MI.getOperand(0).getReg();
+    SrcReg = MI.getOperand(1).getReg();
+  } else if (MI.isInsertSubreg() || MI.isSubregToReg()) {
+    DstReg = MI.getOperand(0).getReg();
+    SrcReg = MI.getOperand(2).getReg();
+  } else
+    return false;
 
-  if (DstReg) {
-    IsSrcPhys = TargetRegisterInfo::isPhysicalRegister(SrcReg);
-    IsDstPhys = TargetRegisterInfo::isPhysicalRegister(DstReg);
-    return true;
-  }
-  return false;
+  IsSrcPhys = TargetRegisterInfo::isPhysicalRegister(SrcReg);
+  IsDstPhys = TargetRegisterInfo::isPhysicalRegister(DstReg);
+  return true;
 }
 
 /// isKilled - Test if the given register value, which is used by the given
@@ -1454,7 +1446,17 @@ bool TwoAddressInstructionPass::EliminateRegSequences() {
         //
         // If the REG_SEQUENCE doesn't kill its source, keeping live variables
         // correctly up to date becomes very difficult. Insert a copy.
-        //
+
+        // Defer any kill flag to the last operand using SrcReg. Otherwise, we
+        // might insert a COPY that uses SrcReg after is was killed.
+        if (isKill)
+          for (unsigned j = i + 2; j < e; j += 2)
+            if (MI->getOperand(j).getReg() == SrcReg) {
+              MI->getOperand(j).setIsKill();
+              isKill = false;
+              break;
+            }
+
         MachineBasicBlock::iterator InsertLoc = MI;
         MachineInstr *CopyMI = BuildMI(*MI->getParent(), InsertLoc,
                                 MI->getDebugLoc(), TII->get(TargetOpcode::COPY))

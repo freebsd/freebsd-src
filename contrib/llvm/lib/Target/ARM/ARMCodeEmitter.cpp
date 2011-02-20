@@ -65,7 +65,7 @@ namespace {
     static char ID;
   public:
     ARMCodeEmitter(TargetMachine &tm, JITCodeEmitter &mce)
-      : MachineFunctionPass(&ID), JTI(0),
+      : MachineFunctionPass(ID), JTI(0),
         II((const ARMInstrInfo *)tm.getInstrInfo()),
         TD(tm.getTargetData()), TM(tm),
         MCE(mce), MCPEs(0), MJTEs(0),
@@ -123,6 +123,8 @@ namespace {
     void emitExtendInstruction(const MachineInstr &MI);
 
     void emitMiscArithInstruction(const MachineInstr &MI);
+
+    void emitSaturateInstruction(const MachineInstr &MI);
 
     void emitBranchInstruction(const MachineInstr &MI);
 
@@ -389,6 +391,9 @@ void ARMCodeEmitter::emitInstruction(const MachineInstr &MI) {
   case ARMII::ArithMiscFrm:
     emitMiscArithInstruction(MI);
     break;
+  case ARMII::SatFrm:
+    emitSaturateInstruction(MI);
+    break;
   case ARMII::BrFrm:
     emitBranchInstruction(MI);
     break;
@@ -654,6 +659,19 @@ void ARMCodeEmitter::emitPseudoInstruction(const MachineInstr &MI) {
   switch (Opcode) {
   default:
     llvm_unreachable("ARMCodeEmitter::emitPseudoInstruction");
+  case ARM::BX:
+  case ARM::BMOVPCRX:
+  case ARM::BXr9:
+  case ARM::BMOVPCRXr9: {
+    // First emit mov lr, pc
+    unsigned Binary = 0x01a0e00f;
+    Binary |= II->getPredicate(&MI) << ARMII::CondShift;
+    emitWordLE(Binary);
+
+    // and then emit the branch.
+    emitMiscBranchInstruction(MI);
+    break;
+  }
   case TargetOpcode::INLINEASM: {
     // We allow inline assembler nodes with empty bodies - they can
     // implicitly define registers, which is ok for JIT.
@@ -662,7 +680,7 @@ void ARMCodeEmitter::emitPseudoInstruction(const MachineInstr &MI) {
     }
     break;
   }
-  case TargetOpcode::DBG_LABEL:
+  case TargetOpcode::PROLOG_LABEL:
   case TargetOpcode::EH_LABEL:
     MCE.emitLabel(MI.getOperand(0).getMCSymbol());
     break;
@@ -1209,8 +1227,54 @@ void ARMCodeEmitter::emitMiscArithInstruction(const MachineInstr &MI) {
 
   // Encode shift_imm.
   unsigned ShiftAmt = MI.getOperand(OpIdx).getImm();
+  if (TID.Opcode == ARM::PKHTB) {
+    assert(ShiftAmt != 0 && "PKHTB shift_imm is 0!");
+    if (ShiftAmt == 32)
+      ShiftAmt = 0;
+  }
   assert(ShiftAmt < 32 && "shift_imm range is 0 to 31!");
   Binary |= ShiftAmt << ARMII::ShiftShift;
+
+  emitWordLE(Binary);
+}
+
+void ARMCodeEmitter::emitSaturateInstruction(const MachineInstr &MI) {
+  const TargetInstrDesc &TID = MI.getDesc();
+
+  // Part of binary is determined by TableGen.
+  unsigned Binary = getBinaryCodeForInstr(MI);
+
+  // Set the conditional execution predicate
+  Binary |= II->getPredicate(&MI) << ARMII::CondShift;
+
+  // Encode Rd
+  Binary |= getMachineOpValue(MI, 0) << ARMII::RegRdShift;
+
+  // Encode saturate bit position.
+  unsigned Pos = MI.getOperand(1).getImm();
+  if (TID.Opcode == ARM::SSAT || TID.Opcode == ARM::SSAT16)
+    Pos -= 1;
+  assert((Pos < 16 || (Pos < 32 &&
+                       TID.Opcode != ARM::SSAT16 &&
+                       TID.Opcode != ARM::USAT16)) &&
+         "saturate bit position out of range");
+  Binary |= Pos << 16;
+
+  // Encode Rm
+  Binary |= getMachineOpValue(MI, 2);
+
+  // Encode shift_imm.
+  if (TID.getNumOperands() == 4) {
+    unsigned ShiftOp = MI.getOperand(3).getImm();
+    ARM_AM::ShiftOpc Opc = ARM_AM::getSORegShOp(ShiftOp);
+    if (Opc == ARM_AM::asr)
+      Binary |= (1 << 6);
+    unsigned ShiftAmt = MI.getOperand(3).getImm();
+    if (ShiftAmt == 32 && Opc == ARM_AM::asr)
+      ShiftAmt = 0;
+    assert(ShiftAmt < 32 && "shift_imm range is 0 to 31!");
+    Binary |= ShiftAmt << ARMII::ShiftShift;
+  }
 
   emitWordLE(Binary);
 }
@@ -1485,7 +1549,7 @@ ARMCodeEmitter::emitVFPLoadStoreMultipleInstruction(const MachineInstr &MI) {
 
   // Set addressing mode by modifying bits U(23) and P(24)
   const MachineOperand &MO = MI.getOperand(OpIdx++);
-  Binary |= getAddrModeUPBits(ARM_AM::getAM5SubMode(MO.getImm()));
+  Binary |= getAddrModeUPBits(ARM_AM::getAM4SubMode(MO.getImm()));
 
   // Set bit W(21)
   if (IsUpdating)
@@ -1494,7 +1558,7 @@ ARMCodeEmitter::emitVFPLoadStoreMultipleInstruction(const MachineInstr &MI) {
   // First register is encoded in Dd.
   Binary |= encodeVFPRd(MI, OpIdx+2);
 
-  // Number of registers are encoded in offset field.
+  // Count the number of registers.
   unsigned NumRegs = 1;
   for (unsigned i = OpIdx+3, e = MI.getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = MI.getOperand(i);

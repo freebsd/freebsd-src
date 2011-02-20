@@ -9,6 +9,8 @@ Help Commands
    	Display the help data for the specified command
 
 System Query Commands
+    install-image <image> <device>
+        Installs an image file to a device file
 
     disk-list 
         Provides a listing of the disk drives detected on this system

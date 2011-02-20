@@ -103,6 +103,7 @@ Print lines from today and the next
 days (forward, future).
 Ignore weekends when calculating the number of days.
 .El
+.Sh FILE FORMAT
 .Pp
 To handle calendars in your national code table you can specify
 .Dq LANG=<locale_name>
@@ -127,7 +128,7 @@ The solar equinox in March.
 .It JunSolstice
 The solar solstice in June.
 .It SepEquinox
-The solar equinox in March.
+The solar equinox in September.
 .It DecSolstice
 The solar solstice in December.
 .It ChineseNewYear
@@ -154,7 +155,7 @@ The names of the recognized special days may be followed by a
 positive or negative integer, like:
 .Dq Easter+3
 or
-.Dq Pashka-4 .
+.Dq Paskha-4 .
 .Pp
 Weekdays may be followed by ``-4'' ...\& ``+5'' (aliases for
 last, first, second, third, fourth) for moving events like
@@ -196,6 +197,7 @@ Jun. 15\fB\et\fRJune 15.
 Thursday\fB\et\fREvery Thursday.
 June\fB\et\fREvery June 1st.
 15 *\fB\et\fR15th of every month.
+2010/4/15\fB\et\fR15 April 2010
 
 May Sun+2\fB\et\fRsecond Sunday in May (Muttertag)
 04/SunLast\fB\et\fRlast Sunday in April,
@@ -255,8 +257,8 @@ Other holidays, including the not-well-known, obscure, and
 obscure.
 .It Pa calendar.judaic
 Jewish holidays.
-This calendar should be updated yearly by the local system administrator
-so that roving holidays are set correctly for the current year.
+The entries for this calendar have been obtained from the port
+deskutils/hebcal.
 .It Pa calendar.music
 Musical events, births, and deaths.
 Strongly oriented toward rock 'n' roll.

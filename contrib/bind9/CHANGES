@@ -1,11 +1,331 @@
-	--- 9.6.2-P2 released ---
+	--- 9.6.3 released ---
+
+3009.	[bug]		clients-per-query code didn't work as expected with
+			particular query patterns. [RT #22972]
+
+	--- 9.6.3rc1 released ---
+
+3007.	[bug]		Named failed to preserve the case of domain names in
+			rdata which is not compressible when writing master
+			files.  [RT #22863]
+
+3002.	[bug]		isc_mutex_init_errcheck() failed to destroy attr.
+			[RT #22766]
+
+2996.	[security]	Temporarily disable SO_ACCEPTFILTER support.
+			[RT #22589]
+
+2995.	[bug]		The Kerberos realm was not being correctly extracted
+			from the signer's identity. [RT #22770]
+
+2994.	[port]		NetBSD: use pthreads by default on NetBSD >= 5.0, and
+			do not use threads on earlier versions.  Also kill
+			the unproven-pthreads, mit-pthreads, and ptl2 support.
+
+2984.	[bug]		Don't run MX checks when the target of the MX record
+			is ".".  [RT #22645]
+
+2817.	[cleanup]	Removed unnecessary isc_task_endexclusive() calls.
+			[RT #20768]
+
+	--- 9.6.3b1 released ---
+
+2982.	[bug]		Reference count dst keys.  dst_key_attach() can be used
+			increment the reference count.
+
+			Note: dns_tsigkey_createfromkey() callers should now
+			always call dst_key_free() rather than setting it
+			to NULL on success. [RT #22672]
+
+2979.	[bug]		named could deadlock during shutdown if two
+			"rndc stop" commands were issued at the same
+			time. [RT #22108]
+
+2978.	[port]		hpux: look for <devpoll.h> [RT #21919]
+
+2976.	[bug]		named could die on exit after negotiating a GSS-TSIG
+			key. [RT #22573]
+
+2975.	[bug]		rbtdb.c:cleanup_dead_nodes_callback() aquired the
+			wrong lock which could lead to server deadlock.
+			[RT #22614]
+
+2972.	[bug]		win32: address windows socket errors. [RT #21906]
+
+2971.	[bug]		Fixed a bug that caused journal files not to be
+			compacted on Windows systems as a result of
+			non-POSIX-compliant rename() semantics. [RT #22434]
+
+2970.	[security]	Adding a NO DATA negative cache entry failed to clear
+			any matching RRSIG records.  A subsequent lookup of
+			of NO DATA cache entry could trigger a INSIST when the
+			unexpected RRSIG was also returned with the NO DATA
+			cache entry.
+
+			CVE-2010-3613, VU#706148. [RT #22288]
+
+2969.	[security]	Fix acl type processing so that allow-query works
+			in options and view statements.  Also add a new
+			set of tests to verify proper functioning.
+
+			CVE-2010-3615, VU#510208. [RT #22418]
+
+2968.	[security]	Named could fail to prove a data set was insecure
+			before marking it as insecure.  One set of conditions
+			that can trigger this occurs naturally when rolling
+			DNSKEY algorithms.
+
+			CVE-2010-3614, VU#837744. [RT #22309]
+
+2967.	[bug]		'host -D' now turns on debugging messages earlier.
+			[RT #22361]
+
+2966.	[bug]		isc_print_vsnprintf() failed to check if there was
+			space available in the buffer when adding a left
+			justified character with a non zero width,
+			(e.g. "%-1c"). [RT #22270]
+
+2965.	[func]		Test HMAC functions using test data from RFC 2104 and
+			RFC 4634. [RT #21702]
+
+2964.	[bug]		view->queryacl was being overloaded.  Seperate the
+			usage into view->queryacl, view->cacheacl and
+			view->queryonacl. [RT #22114]
+
+2962.	[port]		win32: add more dependencies to BINDBuild.dsw.
+			[RT #22062]
+
+2960.	[func]		Check that named accepts non-authoritative answers.
+			[RT #21594]
+
+2959.	[func]		Check that named starts with a missing masterfile.
+			[RT #22076]
+
+2957.	[bug]		entropy_get() and entropy_getpseudo() failed to match
+			the API for RAND_bytes() and RAND_pseudo_bytes()
+			respectively. [RT #21962]
+
+2956.	[port]		Enable atomic operations on the PowerPC64. [RT #21899]
+
+2954.	[bug]		contrib: dlz_mysql_driver.c bad error handling on
+			build_sqldbinstance failure. [RT #21623]
+
+2953.	[bug]		Silence spurious "expected covering NSEC3, got an
+			exact match" message when returning a wildcard
+			no data response. [RT #21744]
+
+2952.	[port]		win32: named-checkzone and named-checkconf failed
+			to initialise winsock. [RT #21932]
+
+2951.	[bug]		named failed to generate a correct signed response
+			in a optout, delegation only zone with no secure
+			delegations. [RT #22007]
+
+2950.	[bug]		named failed to perform a SOA up to date check when
+			falling back to TCP on UDP timeouts when
+			ixfr-from-differences was set. [RT #21595]
+
+2946.	[doc]		Document the default values for the minimum and maximum
+			zone refresh and retry values in the ARM. [RT #21886]
+
+2945.	[doc]		Update empty-zones list in ARM. [RT #21772]
+
+2944.	[maint]		Remove ORCHID prefix from built in empty zones.
+			[RT #21772]
+
+2942.	[contrib]	zone2sqlite failed to setup the entropy sources.
+			[RT #21610]
+
+2941.	[bug]		sdb and sdlz (dlz's zone database) failed to support
+			DNAME at the zone apex.  [RT #21610]
+
+2939.	[func]		Check that named successfully skips NSEC3 records
+			that fail to match the NSEC3PARAM record currently
+			in use. [RT# 21868]
+
+2937.	[bug]		Worked around an apparent race condition in over
+			memory conditions.  Without this fix a DNS cache DB or
+			ADB could incorrectly stay in an over memory state,
+			effectively refusing further caching, which
+			subsequently made a BIND 9 caching server unworkable.
+			This fix prevents this problem from happening by
+			polling the state of the memory context, rather than
+			making a copy of the state, which appeared to cause
+			a race.  This is a "workaround" in that it doesn't
+			solve the possible race per se, but several experiments
+			proved this change solves the symptom.  Also, the
+			polling overhead hasn't been reported to be an issue.
+			This bug should only affect a caching server that
+			specifies a finite max-cache-size.  It's also quite
+			likely that the bug happens only when enabling threads,
+			but it's not confirmed yet. [RT #21818]
+
+2935.	[bug]		nsupdate: improve 'file not found' error message.
+			[RT #21871]
+
+2934.	[bug]		Use ANSI C compliant shift range in lib/isc/entropy.c.
+			[RT #21871]
+
+2933.	[bug]		'dig +nsid' used stack memory after it went out of
+			scope.  This could potentially result in a unknown,
+			potentially malformed, EDNS option being sent instead
+			of the desired NSID option. [RT #21781]
+
+2932.	[cleanup]	Corrected a numbering error in the "dnssec" test.
+			[RT #21597]
+
+2931.	[bug]		Temporarily and partially disable change 2864
+			because it would cause infinite attempts of RRSIG
+			queries.  This is an urgent care fix; we'll
+			revisit the issue and complete the fix later.
+			[RT #21710]
+
+2929.	[bug]		Improved handling of GSS security contexts:
+			 - added LRU expiration for generated TSIGs
+			 - added the ability to use a non-default realm
+                         - added new "realm" keyword in nsupdate
+			 - limited lifetime of generated keys to 1 hour
+			   or the lifetime of the context (whichever is
+			   smaller)
+			[RT #19737]
+
+2925.	[bug]		Named failed to accept uncachable negative responses
+			from insecure zones. [RT# 21555]
+
+2923.	[bug]		'dig +trace' could drop core after "connection
+			timeout". [RT #21514]
+
+2922.	[contrib]	Update zkt to version 1.0.
+
+2921.	[bug]		The resolver could attempt to destroy a fetch context
+			too soon.  [RT #19878]
+
+2918.	[maint]		Add AAAA address for I.ROOT-SERVERS.NET.
+
+2916.	[func]		Add framework to use IPv6 in tests.
+			fd92:7065:b8e:ffff::1 ... fd92:7065:b8e:ffff::7
+
+2915.	[cleanup]	Be smarter about which objects we attempt to compile
+			based on configure options. [RT #21444]
+
+2912.	[func]		Windows clients don't like UPDATE responses that clear
+			the zone section. [RT #20986]
+
+2911.	[bug]		dnssec-signzone didn't handle out of zone records well.
+			[RT #21367]
+
+2910.	[func]		Sanity check Kerberos credentials. [RT #20986]
+
+2908.	[bug]		It was possible for re-signing to stop after removing
+			a DNSKEY. [RT #21384]
+
+2905.	[port]		aix: set use_atomic=yes with native compiler.
+			[RT #21402]
+
+2904.   [bug]           When using DLV, sub-zones of the zones in the DLV,
+			could be incorrectly marked as insecure instead of
+			secure leading to negative proofs failing.  This was
+			a unintended outcome from change 2890. [RT# 21392]
+
+2901.	[port]		Use AC_C_FLEXIBLE_ARRAY_MEMBER. [RT #21316]
+
+2900.	[bug]		The placeholder negative caching element was not
+			properly constructed triggering a INSIST in
+			dns_ncache_towire(). [RT #21346]
+
+2899.	[port]		win32: Support linking against OpenSSL 1.0.0.
+
+2898.	[bug]		nslookup leaked memory when -domain=value was
+			specified. [RT #21301]
+
+2894.	[contrib]	DLZ LDAP support now use '$' not '%'. [RT #21294]
+
+2891.	[maint]		Update empty-zones list to match
+			draft-ietf-dnsop-default-local-zones-13. [RT# 21099]
+
+2890.	[bug]		Handle the introduction of new trusted-keys and
+			DS, DLV RRsets better. [RT #21097]
+
+2889.	[bug]		Elements of the grammar where not properly reported.
+			[RT #21046]
+
+2888.	[bug]		Only the first EDNS option was displayed. [RT #21273]
+
+2885.	[bug]		Improve -fno-strict-aliasing support probing in
+			configure. [RT #21080]
+
+2884.	[bug]		Insufficient validation in dns_name_getlabelsequence().
+			[RT #21283]
+
+2883.	[bug]		'dig +short' failed to handle really large datasets.
+			[RT #21113]
+
+2882.	[bug]		Remove memory context from list of active contexts
+			before clearing 'magic'. [RT #21274]
+
+2881.	[bug]		Reduce the amount of time the rbtdb write lock
+			is held when closing a version. [RT #21198]
+
+2879.	[contrib]	DLZ bdbhpt driver fails to close correct cursor.
+			[RT #21106]
+
+2877.	[bug]		The validator failed to skip obviously mismatching
+			RRSIGs. [RT #21138]
 
 2876.	[bug]		Named could return SERVFAIL for negative responses
 			from unsigned zones. [RT #21131]
 
-	--- 9.6.2-P1 released ---
+2875.	[bug]		dns_time64_fromtext() could accept non digits.
+			[RT #21033]
+
+2874.	[bug]		Cache lack of EDNS support only after the server
+			successfully responds to the query using plain DNS.
+			[RT #20930]
+
+2870.	[maint]		Add AAAA address for L.ROOT-SERVERS.NET.
+
+2869.	[bug]		Fix arguments to dns_keytable_findnextkeynode() call.
+			[RT #20877]
+
+2868.	[cleanup]	Run "make clean" at the end of configure to ensure
+			any changes made by configure are integrated.
+			Use --with-make-clean=no to disable.  [RT #20994]
+
+2867.	[bug]		Don't set GSS_C_SEQUENCE_FLAG as Windows DNS servers
+			don't like it.  [RT #20986]
+
+2866.	[bug]		Windows does not like the TSIG name being compressed.
+			[RT #20986]
+
+2865.	[bug]		memset to zero event.data.  [RT #20986]
+
+2864.	[bug]		Direct SIG/RRSIG queries were not handled correctly.
+			[RT #21050]
+
+2863.	[port]		linux: disable IPv6 PMTUD and use network minimum MTU.
+			[RT #21056]
+
+2862.	[bug]		nsupdate didn't default to the parent zone when
+			updating DS records. [RT #20896]
+
+2859.	[bug]		When cancelling validation it was possible to leak
+			memory. [RT #20800]
+
+2858.	[bug]		RTT estimates were not being adjusted on ICMP errors.
+			[RT #20772]
+
+2857.	[bug]		named-checkconf did not fail on a bad trusted key.
+			[RT #20705]
+
+2856.	[bug]		The size of a memory allocation was not always properly
+			recorded. [RT #20927]
+
+2853.	[bug]		add_sigs() could run out of scratch space. [RT #21015]
 
 2852.	[bug]		Handle broken DNSSEC trust chains better. [RT #15619]
+
+2851.	[doc]		nslookup.1, removed <informalexample> from the docbook
+			source as it produced bad nroff.  [RT #21007]
 
 	--- 9.6.2 released ---
 
@@ -47,10 +367,10 @@
 
 2823.	[bug]		rbtdb.c:getsigningtime() was missing locks. [RT #20781]
 
-2819.	[cleanup]	Removed unnecessary DNS_POINTER_MAXHOPS define
+2819.	[cleanup]	Removed unnecessary DNS_POINTER_MAXHOPS define.
 			[RT #20771]
 
-2818.	[cleanup]	rndc could return an incorrect error code 
+2818.	[cleanup]	rndc could return an incorrect error code
 			when a zone was not found. [RT #20767]
 
 2815.	[bug]		Exclusively lock the task when freezing a zone.
@@ -266,7 +586,7 @@
 
 2621.	[doc]		Made copyright boilterplate consistent.  [RT #19833]
 
-2920.	[bug]		Delay thawing the zone until the reload of it has
+2620.	[bug]		Delay thawing the zone until the reload of it has
 			completed successfully.  [RT #19750]
 
 2618.	[bug]		The sdb and sdlz db_interator_seek() methods could

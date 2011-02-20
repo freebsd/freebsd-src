@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -115,8 +111,7 @@ static void usage(void);
 volatile sig_atomic_t sigdie;
 
 __dead2 void
-done(k)
-int k;
+done(int k)
 {
     if (action_file) { fclose(action_file); unlink(action_file_name); }
     if (text_file) { fclose(text_file); unlink(text_file_name); }
@@ -127,8 +122,7 @@ int k;
 
 
 static void
-onintr(signo)
-	int signo __unused;
+onintr(int signo __unused)
 {
     sigdie = 1;
     done(1);
@@ -136,7 +130,7 @@ onintr(signo)
 
 
 static void
-set_signals()
+set_signals(void)
 {
 #ifdef SIGINT
     if (signal(SIGINT, SIG_IGN) != SIG_IGN)
@@ -154,7 +148,7 @@ set_signals()
 
 
 static void
-usage()
+usage(void)
 {
     fprintf(stderr, "%s\n%s\n",
 		"usage: yacc [-dlrtv] [-b file_prefix] [-o output_filename]",
@@ -164,13 +158,11 @@ usage()
 
 
 static void
-getargs(argc, argv)
-int argc;
-char *argv[];
+getargs(int argc, char *argv[])
 {
     int ch;
 
-    while ((ch = getopt(argc, argv, "b:dlo:p:rtv")) != -1)
+    while ((ch = getopt(argc, argv, "b:dlo:p:rtvy")) != -1)
     {
 	switch (ch)
 	{
@@ -206,6 +198,10 @@ char *argv[];
 	    vflag = 1;
 	    break;
 
+	case 'y':
+	    /* for bison compatibility -- byacc is already POSIX compatible */
+	    break;
+
 	default:
 	    usage();
 	}
@@ -220,16 +216,15 @@ char *argv[];
 }
 
 
-char *
-allocate(n)
-unsigned n;
+void *
+allocate(size_t n)
 {
-    char *p;
+    void *p;
 
     p = NULL;
     if (n)
     {
-	p = CALLOC(1, n);
+	p = calloc(1, n);
 	if (!p) no_space();
     }
     return (p);
@@ -237,7 +232,7 @@ unsigned n;
 
 
 static void
-create_file_names()
+create_file_names(void)
 {
     int i, len;
     const char *tmpdir;
@@ -250,11 +245,11 @@ create_file_names()
     if (len && tmpdir[len-1] != '/')
 	++i;
 
-    action_file_name = MALLOC(i);
+    action_file_name = malloc(i);
     if (action_file_name == 0) no_space();
-    text_file_name = MALLOC(i);
+    text_file_name = malloc(i);
     if (text_file_name == 0) no_space();
-    union_file_name = MALLOC(i);
+    union_file_name = malloc(i);
     if (union_file_name == 0) no_space();
 
     strcpy(action_file_name, tmpdir);
@@ -285,7 +280,7 @@ create_file_names()
     else
     {
 	len = strlen(file_prefix);
-	output_file_name = MALLOC(len + 7);
+	output_file_name = malloc(len + 7);
 	if (output_file_name == 0)
 	    no_space();
 	strcpy(output_file_name, file_prefix);
@@ -294,7 +289,7 @@ create_file_names()
 
     if (rflag)
     {
-	code_file_name = MALLOC(len + 8);
+	code_file_name = malloc(len + 8);
 	if (code_file_name == 0)
 	    no_space();
 	strcpy(code_file_name, file_prefix);
@@ -319,7 +314,7 @@ create_file_names()
 
     if (dflag)
     {
-	defines_file_name = MALLOC(len + 7);
+	defines_file_name = malloc(len + 7);
 	if (defines_file_name == 0)
 	    no_space();
 	strcpy(defines_file_name, file_prefix);
@@ -337,7 +332,7 @@ create_file_names()
 
     if (vflag)
     {
-	verbose_file_name = MALLOC(len + 8);
+	verbose_file_name = malloc(len + 8);
 	if (verbose_file_name == 0)
 	    no_space();
 	strcpy(verbose_file_name, file_prefix);
@@ -357,7 +352,7 @@ create_file_names()
 
 
 static void
-open_files()
+open_files(void)
 {
     int fd;
 

@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.92 2010/03/13 23:38:13 jmc Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.98 2010/08/04 06:07:11 djm Exp $
 .\"	$FreeBSD$
 .\"
 .\"  -*- nroff -*-
@@ -38,15 +38,15 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd March 13, 2010
+.Dd August 4, 2010
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
 .Nm ssh-keygen
 .Nd authentication key generation, management and conversion
 .Sh SYNOPSIS
-.Nm ssh-keygen
 .Bk -words
+.Nm ssh-keygen
 .Op Fl q
 .Op Fl b Ar bits
 .Fl t Ar type
@@ -60,9 +60,11 @@
 .Op Fl f Ar keyfile
 .Nm ssh-keygen
 .Fl i
+.Op Fl m Ar key_format
 .Op Fl f Ar input_keyfile
 .Nm ssh-keygen
 .Fl e
+.Op Fl m Ar key_format
 .Op Fl f Ar input_keyfile
 .Nm ssh-keygen
 .Fl y
@@ -111,8 +113,9 @@
 .Fl I Ar certificate_identity
 .Op Fl h
 .Op Fl n Ar principals
-.Op Fl O Ar constraint
+.Op Fl O Ar option
 .Op Fl V Ar validity_interval
+.Op Fl z Ar serial_number
 .Ar
 .Nm ssh-keygen
 .Fl L
@@ -213,13 +216,20 @@ the passphrase if the key has one, and for the new comment.
 .It Fl D Ar pkcs11
 Download the RSA public keys provided by the PKCS#11 shared library
 .Ar pkcs11 .
+When used in combination with
+.Fl s ,
+this option indicates that a CA key resides in a PKCS#11 token (see the
+.Sx CERTIFICATES
+section for details).
 .It Fl e
 This option will read a private or public OpenSSH key file and
-print the key in
-RFC 4716 SSH Public Key File Format
-to stdout.
-This option allows exporting keys for use by several commercial
-SSH implementations.
+print to stdout the key in one of the formats specified by the
+.Fl m
+option.
+The default export format is
+.Dq RFC4716 .
+This option allows exporting OpenSSH keys for use by other programs, including
+several commercial SSH implementations.
 .It Fl F Ar hostname
 Search for the specified
 .Ar hostname
@@ -270,13 +280,14 @@ Please see the
 section for details.
 .It Fl i
 This option will read an unencrypted private (or public) key file
-in SSH2-compatible format and print an OpenSSH compatible private
+in the format specified by the
+.Fl m
+option and print an OpenSSH compatible private
 (or public) key to stdout.
-.Nm
-also reads the
-RFC 4716 SSH Public Key File Format.
-This option allows importing keys from several commercial
-SSH implementations.
+This option allows importing keys from other software, including several
+commercial SSH implementations.
+The default import format is
+.Dq RFC4716 .
 .It Fl L
 Prints the contents of a certificate.
 .It Fl l
@@ -291,6 +302,22 @@ an ASCII art representation of the key is supplied with the fingerprint.
 .It Fl M Ar memory
 Specify the amount of memory to use (in megabytes) when generating
 candidate moduli for DH-GEX.
+.It Fl m Ar key_format
+Specify a key format for the
+.Fl i
+(import) or
+.Fl e
+(export) conversion options.
+The supported key formats are:
+.Dq RFC4716
+(RFC 4716/SSH2 public or private key),
+.Dq PKCS8
+(PEM PKCS8 public key)
+or
+.Dq PEM
+(PEM public key).
+The default conversion format is
+.Dq RFC4716 .
 .It Fl N Ar new_passphrase
 Provides the new passphrase.
 .It Fl n Ar principals
@@ -300,13 +327,13 @@ Multiple principals may be specified, separated by commas.
 Please see the
 .Sx CERTIFICATES
 section for details.
-.It Fl O Ar constraint
-Specify a certificate constraint when signing a key.
+.It Fl O Ar option
+Specify a certificate option when signing a key.
 This option may be specified multiple times.
 Please see the
 .Sx CERTIFICATES
 section for details.
-The constraints that are valid for user certificates are:
+The options that are valid for user certificates are:
 .Bl -tag -width Ds
 .It Ic clear
 Clear all enabled permissions.
@@ -356,7 +383,7 @@ is a comma-separated list of one or more address/netmask pairs in CIDR
 format.
 .El
 .Pp
-At present, no constraints are valid for host keys.
+At present, no options are valid for host keys.
 .It Fl P Ar passphrase
 Provides the (old) passphrase.
 .It Fl p
@@ -442,6 +469,10 @@ Specify desired generator when testing candidate moduli for DH-GEX.
 .It Fl y
 This option will read a private
 OpenSSH format file and print an OpenSSH public key to stdout.
+.It Fl z Ar serial_number
+Specifies a serial number to be embedded in the certificate to distinguish
+this certificate from others from the same CA.
+The default serial number is zero.
 .El
 .Sh MODULI GENERATION
 .Nm
@@ -502,7 +533,7 @@ that both ends of a connection share common moduli.
 supports signing of keys to produce certificates that may be used for
 user or host authentication.
 Certificates consist of a public key, some identity information, zero or
-more principal (user or host) names and an optional set of constraints that
+more principal (user or host) names and a set of options that
 are signed by a Certification Authority (CA) key.
 Clients or servers may then trust only the CA key and verify its signature
 on a certificate rather than trusting many user/host keys.
@@ -528,7 +559,17 @@ option:
 .Pp
 The host certificate will be output to
 .Pa /path/to/host_key-cert.pub .
-In both cases,
+.Pp
+It is possible to sign using a CA key stored in a PKCS#11 token by
+providing the token library using
+.Fl D
+and identifying the CA key by providing its public half as an argument
+to
+.Fl s :
+.Pp
+.Dl $ ssh-keygen -s ca_key.pub -D libpkcs11.so -I key_id host_key.pub
+.Pp
+In all cases,
 .Ar key_id
 is a "key identifier" that is logged by the server when the certificate
 is used for authentication.
@@ -542,11 +583,11 @@ To generate a certificate for a specified set of principals:
 .Dl "$ ssh-keygen -s ca_key -I key_id -h -n host.domain user_key.pub"
 .Pp
 Additional limitations on the validity and use of user certificates may
-be specified through certificate constraints.
-A constrained certificate may disable features of the SSH session, may be
+be specified through certificate options.
+A certificate option may disable features of the SSH session, may be
 valid only when presented from particular source addresses or may
 force the use of a specific command.
-For a list of valid certificate constraints, see the documentation for the
+For a list of valid certificate options, see the documentation for the
 .Fl O
 option above.
 .Pp

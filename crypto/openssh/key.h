@@ -1,4 +1,4 @@
-/* $OpenBSD: key.h,v 1.29 2010/03/15 19:40:02 stevesk Exp $ */
+/* $OpenBSD: key.h,v 1.30 2010/04/16 01:47:26 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -37,6 +37,8 @@ enum types {
 	KEY_DSA,
 	KEY_RSA_CERT,
 	KEY_DSA_CERT,
+	KEY_RSA_CERT_V00,
+	KEY_DSA_CERT_V00,
 	KEY_UNSPEC
 };
 enum fp_type {
@@ -56,11 +58,13 @@ enum fp_rep {
 struct KeyCert {
 	Buffer		 certblob; /* Kept around for use on wire */
 	u_int		 type; /* SSH2_CERT_TYPE_USER or SSH2_CERT_TYPE_HOST */
+	u_int64_t	 serial;
 	char		*key_id;
 	u_int		 nprincipals;
 	char		**principals;
 	u_int64_t	 valid_after, valid_before;
-	Buffer		 constraints;
+	Buffer		 critical;
+	Buffer		 extensions;
 	Key		*signature_key;
 };
 
@@ -92,12 +96,13 @@ Key	*key_from_private(const Key *);
 int	 key_type_from_name(char *);
 int	 key_is_cert(const Key *);
 int	 key_type_plain(int);
-int	 key_to_certified(Key *);
+int	 key_to_certified(Key *, int);
 int	 key_drop_cert(Key *);
 int	 key_certify(Key *, Key *);
 void	 key_cert_copy(const Key *, struct Key *);
 int	 key_cert_check_authority(const Key *, int, int, const char *,
 	    const char **);
+int	 key_cert_is_legacy(Key *);
 
 Key		*key_from_blob(const u_char *, u_int);
 int		 key_to_blob(const Key *, u_char **, u_int *);

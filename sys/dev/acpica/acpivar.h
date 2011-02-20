@@ -51,13 +51,10 @@ struct acpi_softc {
     device_t		acpi_dev;
     struct cdev		*acpi_dev_t;
 
-    struct resource	*acpi_irq;
-    int			acpi_irq_rid;
-    void		*acpi_irq_handle;
-
     int			acpi_enabled;
     int			acpi_sstate;
     int			acpi_sleep_disabled;
+    int			acpi_resources_reserved;
 
     struct sysctl_ctx_list acpi_sysctl_ctx;
     struct sysctl_oid	*acpi_sysctl_tree;
@@ -395,6 +392,9 @@ ACPI_STATUS	acpi_pwr_wake_enable(ACPI_HANDLE consumer, int enable);
 ACPI_STATUS	acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state);
 int		acpi_device_pwr_for_sleep(device_t bus, device_t dev,
 		    int *dstate);
+
+/* APM emulation */
+void		acpi_apm_init(struct acpi_softc *);
 
 /* Misc. */
 static __inline struct acpi_softc *

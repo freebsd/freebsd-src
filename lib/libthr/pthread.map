@@ -173,6 +173,7 @@ FBSDprivate_1.0 {
 	___creat;
 	___pause;
 	___pselect;
+	___sigwait;
 	___sleep;
 	___system;
 	___tcdrain;
@@ -206,7 +207,6 @@ FBSDprivate_1.0 {
 	__sendto;
 	__sigsuspend;
 	__sigtimedwait;
-	__sigwait;
 	__sigwaitinfo;
 	__wait3;
 	__wait4;
@@ -246,6 +246,8 @@ FBSDprivate_1.0 {
 	_pthread_attr_setstackaddr;
 	_pthread_attr_setstacksize;
 	_pthread_cancel;
+	_pthread_cancel_enter;
+	_pthread_cancel_leave;
 	_pthread_cleanup_pop;
 	_pthread_cleanup_push;
 	_pthread_cond_broadcast;
@@ -270,6 +272,7 @@ FBSDprivate_1.0 {
 	_pthread_getprio;
 	_pthread_getschedparam;
 	_pthread_getspecific;
+	_pthread_getthreadid_np;
 	_pthread_join;
 	_pthread_key_create;
 	_pthread_key_delete;
@@ -342,6 +345,7 @@ FBSDprivate_1.0 {
 	_pthread_timedjoin_np;
 	_pthread_yield;
 	_raise;
+	_setcontext;
 	_sigaction;
 	_sigprocmask;
 	_sigsuspend;
@@ -351,6 +355,7 @@ FBSDprivate_1.0 {
 	_spinlock;
 	_spinlock_debug;
 	_spinunlock;
+	_swapcontext;
 
 	/* Debugger needs these. */
 	_libthr_debug;
@@ -378,6 +383,8 @@ FBSDprivate_1.0 {
 	_thread_size_key;
 	_thread_state_running;
 	_thread_state_zoombie;
+
+	__pthread_map_stacks_exec;
 };
 
 FBSD_1.1 {
@@ -397,4 +404,7 @@ FBSD_1.1 {
 
 FBSD_1.2 {
 	openat;
+	pthread_getthreadid_np;
+	setcontext;
+	swapcontext;
 };

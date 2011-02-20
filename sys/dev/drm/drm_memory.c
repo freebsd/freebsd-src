@@ -73,7 +73,7 @@ void drm_mem_uninit(void)
 
 void *drm_ioremap_wc(struct drm_device *dev, drm_local_map_t *map)
 {
-	return pmap_mapdev_attr(map->offset, map->size, PAT_WRITE_COMBINING);
+	return pmap_mapdev_attr(map->offset, map->size, VM_MEMATTR_WRITE_COMBINING);
 }
 
 void *drm_ioremap(struct drm_device *dev, drm_local_map_t *map)

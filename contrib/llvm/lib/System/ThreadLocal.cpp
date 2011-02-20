@@ -27,6 +27,7 @@ ThreadLocalImpl::ThreadLocalImpl() { }
 ThreadLocalImpl::~ThreadLocalImpl() { }
 void ThreadLocalImpl::setInstance(const void* d) { data = const_cast<void*>(d);}
 const void* ThreadLocalImpl::getInstance() { return data; }
+void ThreadLocalImpl::removeInstance() { data = 0; }
 }
 #else
 
@@ -65,6 +66,10 @@ void ThreadLocalImpl::setInstance(const void* d) {
 const void* ThreadLocalImpl::getInstance() {
   pthread_key_t* key = static_cast<pthread_key_t*>(data);
   return pthread_getspecific(*key);
+}
+
+void ThreadLocalImpl::removeInstance() {
+  setInstance(0);
 }
 
 }

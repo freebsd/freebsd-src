@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "archive.h"
+#include "archive_entry.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 #include "archive_write_disk_private.h"
@@ -107,7 +108,7 @@ archive_read_extract2(struct archive *_a, struct archive_entry *entry,
 	if (r != ARCHIVE_OK)
 		/* If _write_header failed, copy the error. */
  		archive_copy_error(&a->archive, ad);
-	else
+	else if (archive_entry_size(entry) > 0)
 		/* Otherwise, pour data into the entry. */
 		r = copy_data(_a, ad);
 	r2 = archive_write_finish_entry(ad);
@@ -172,10 +173,7 @@ archive_read_extract_cleanup(struct archive_read *a)
 {
 	int ret = ARCHIVE_OK;
 
-#if ARCHIVE_API_VERSION > 1
-	ret =
-#endif
-	    archive_write_finish(a->extract->ad);
+	ret = archive_write_free(a->extract->ad);
 	free(a->extract);
 	a->extract = NULL;
 	return (ret);

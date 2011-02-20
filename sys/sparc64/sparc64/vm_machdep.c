@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
-#include <sys/linker_set.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
@@ -484,7 +483,7 @@ sf_buf_free(struct sf_buf *sf)
 	SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf, free_list);
 	nsfbufsused--;
 	if (sf_buf_alloc_want > 0)
-		wakeup_one(&sf_freelist);
+		wakeup(&sf_freelist);
 	mtx_unlock(&sf_freelist.sf_lock);
 }
 
@@ -492,10 +491,7 @@ void
 swi_vm(void *v)
 {
 
-	/*
-	 * Nothing to do here yet - busdma bounce buffers are not yet
-	 * implemented.
-	 */
+	/* Nothing to do here - busdma bounce buffers are not implemented. */
 }
 
 void *
@@ -540,7 +536,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	}
 	va = (void *)TLB_PHYS_TO_DIRECT(pa);
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
-		bzero(va, PAGE_SIZE);
+		cpu_block_zero(va, PAGE_SIZE);
 	return (va);
 }
 

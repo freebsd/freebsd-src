@@ -72,7 +72,8 @@ static int ufs_mindirhashsize = DIRBLKSIZ * 5;
 SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_minsize, CTLFLAG_RW,
     &ufs_mindirhashsize,
     0, "minimum directory size in bytes for which to use hashed lookup");
-static int ufs_dirhashmaxmem = 2 * 1024 * 1024;
+static int ufs_dirhashmaxmem = 2 * 1024 * 1024;	/* NOTE: initial value. It is
+						   tuned in ufsdirhash_init() */
 SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_maxmem, CTLFLAG_RW, &ufs_dirhashmaxmem,
     0, "maximum allowed dirhash memory usage");
 static int ufs_dirhashmem;
@@ -1290,6 +1291,9 @@ ufsdirhash_lowmem()
 void
 ufsdirhash_init()
 {
+	ufs_dirhashmaxmem = lmax(roundup(hibufspace / 64, PAGE_SIZE),
+	    2 * 1024 * 1024);
+
 	ufsdirhash_zone = uma_zcreate("DIRHASH", DH_NBLKOFF * sizeof(doff_t),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	mtx_init(&ufsdirhash_mtx, "dirhash list", NULL, MTX_DEF);

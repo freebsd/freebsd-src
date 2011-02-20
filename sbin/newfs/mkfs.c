@@ -44,6 +44,14 @@ static char sccsid[] = "@(#)mkfs.c	8.11 (Berkeley) 5/3/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/disklabel.h>
+#include <sys/file.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/resource.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 #include <err.h>
 #include <grp.h>
 #include <limits.h>
@@ -52,20 +60,11 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <time.h>
 #include <unistd.h>
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <sys/resource.h>
-#include <sys/stat.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
-#include <sys/disklabel.h>
-#include <sys/file.h>
-#include <sys/mman.h>
-#include <sys/ioctl.h>
 #include "newfs.h"
 
 /*
@@ -151,6 +150,8 @@ mkfs(struct partition *pp, char *fsys)
 		sblock.fs_flags |= FS_GJOURNAL;
 	if (lflag)
 		sblock.fs_flags |= FS_MULTILABEL;
+	if (tflag)
+		sblock.fs_flags |= FS_TRIM;
 	/*
 	 * Validate the given file system size.
 	 * Verify that its last block can actually be accessed.
@@ -376,16 +377,20 @@ restart:
 	 * Start packing more blocks into the cylinder group until
 	 * it cannot grow any larger, the number of cylinder groups
 	 * drops below MINCYLGRPS, or we reach the size requested.
+	 * For UFS1 inodes per cylinder group are stored in an int16_t
+	 * so fs_ipg is limited to 2^15 - 1.
 	 */
 	for ( ; sblock.fs_fpg < maxblkspercg; sblock.fs_fpg += sblock.fs_frag) {
 		sblock.fs_ipg = roundup(howmany(sblock.fs_fpg, fragsperinode),
 		    INOPB(&sblock));
-		if (sblock.fs_size / sblock.fs_fpg < MINCYLGRPS)
-			break;
-		if (CGSIZE(&sblock) < (unsigned long)sblock.fs_bsize)
-			continue;
-		if (CGSIZE(&sblock) == (unsigned long)sblock.fs_bsize)
-			break;
+		if (Oflag > 1 || (Oflag == 1 && sblock.fs_ipg <= 0x7fff)) {
+			if (sblock.fs_size / sblock.fs_fpg < MINCYLGRPS)
+				break;
+			if (CGSIZE(&sblock) < (unsigned long)sblock.fs_bsize)
+				continue;
+			if (CGSIZE(&sblock) == (unsigned long)sblock.fs_bsize)
+				break;
+		}
 		sblock.fs_fpg -= sblock.fs_frag;
 		sblock.fs_ipg = roundup(howmany(sblock.fs_fpg, fragsperinode),
 		    INOPB(&sblock));
@@ -584,8 +589,20 @@ restart:
 		printf("** Exiting on Xflag 3\n");
 		exit(0);
 	}
-	if (!Nflag)
+	if (!Nflag) {
 		do_sbwrite(&disk);
+		/*
+		 * For UFS1 filesystems with a blocksize of 64K, the first
+		 * alternate superblock resides at the location used for
+		 * the default UFS2 superblock. As there is a valid
+		 * superblock at this location, the boot code will use
+		 * it as its first choice. Thus we have to ensure that
+		 * all of its statistcs on usage are correct.
+		 */
+		if (Oflag == 1 && sblock.fs_bsize == 65536)
+			wtfs(fsbtodb(&sblock, cgsblock(&sblock, 0)),
+			    sblock.fs_bsize, (char *)&sblock);
+	}
 	for (i = 0; i < sblock.fs_cssize; i += sblock.fs_bsize)
 		wtfs(fsbtodb(&sblock, sblock.fs_csaddr + numfrags(&sblock, i)),
 			sblock.fs_cssize - i < sblock.fs_bsize ?

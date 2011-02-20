@@ -28,8 +28,8 @@ using namespace llvm;
 using namespace llvm::dwarf;
 
 // Handle the Pass registration stuff necessary to use TargetData's.
-static RegisterPass<MachineModuleInfo>
-X("machinemoduleinfo", "Machine Module Information");
+INITIALIZE_PASS(MachineModuleInfo, "machinemoduleinfo",
+                "Machine Module Information", false, false);
 char MachineModuleInfo::ID = 0;
 
 // Out of line virtual method.
@@ -254,7 +254,7 @@ void MMIAddrLabelMapCallbackPtr::allUsesReplacedWith(Value *V2) {
 //===----------------------------------------------------------------------===//
 
 MachineModuleInfo::MachineModuleInfo(const MCAsmInfo &MAI)
-: ImmutablePass(&ID), Context(MAI),
+: ImmutablePass(ID), Context(MAI),
   ObjFileMMI(0),
   CurCallSite(0), CallsEHReturn(0), CallsUnwindInit(0), DbgInfoAvailable(false){
   // Always emit some info, by default "no personality" info.
@@ -264,7 +264,7 @@ MachineModuleInfo::MachineModuleInfo(const MCAsmInfo &MAI)
 }
 
 MachineModuleInfo::MachineModuleInfo()
-: ImmutablePass(&ID), Context(*(MCAsmInfo*)0) {
+: ImmutablePass(ID), Context(*(MCAsmInfo*)0) {
   assert(0 && "This MachineModuleInfo constructor should never be called, MMI "
          "should always be explicitly constructed by LLVMTargetMachine");
   abort();
@@ -578,11 +578,4 @@ namespace {
        return false;
     }
   };
-}
-
-MachineModuleInfo::VariableDbgInfoMapTy &
-MachineModuleInfo::getVariableDbgInfo() {
-  std::stable_sort(VariableDbgInfo.begin(), VariableDbgInfo.end(),
-                   VariableDebugSorter());
-  return VariableDbgInfo;
 }

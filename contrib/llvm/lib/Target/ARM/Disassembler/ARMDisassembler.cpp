@@ -26,6 +26,8 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 
+//#define DEBUG(X) do { X; } while (0)
+
 /// ARMGenDecoderTables.inc - ARMDecoderTables.inc is tblgen'ed from
 /// ARMDecoderEmitter.cpp TableGen backend.  It contains:
 ///
@@ -87,6 +89,11 @@ static unsigned decodeARMInstruction(uint32_t &insn) {
       return ARM::BFI;
   }
 
+  // Ditto for STRBT, which is a super-instruction for A8.6.199 Encoding A1 & A2.
+  // As a result, the decoder fails to deocode USAT properly.
+  if (slice(insn, 27, 21) == 0x37 && slice(insn, 5, 4) == 1)
+    return ARM::USAT;
+
   // Ditto for ADDSrs, which is a super-instruction for A8.6.7 & A8.6.8.
   // As a result, the decoder fails to decode UMULL properly.
   if (slice(insn, 27, 21) == 0x04 && slice(insn, 7, 4) == 9) {
@@ -106,7 +113,7 @@ static unsigned decodeARMInstruction(uint32_t &insn) {
   // Ditto for STRT, which is a super-instruction for A8.6.210 Encoding A1 & A2.
   // As a result, the decoder fails to deocode SSAT properly.
   if (slice(insn, 27, 21) == 0x35 && slice(insn, 5, 4) == 1)
-    return slice(insn, 6, 6) == 0 ? ARM::SSATlsl : ARM::SSATasr;
+    return ARM::SSAT;
 
   // Ditto for RSCrs, which is a super-instruction for A8.6.146 & A8.6.147.
   // As a result, the decoder fails to decode STRHT/LDRHT/LDRSHT/LDRSBT.
@@ -291,7 +298,7 @@ static unsigned T2Morph2LoadLiteral(unsigned Opcode) {
 /// decodeInstruction(insn) is invoked on the original insn.
 ///
 /// Otherwise, decodeThumbInstruction is called with the original insn.
-static unsigned decodeThumbSideEffect(bool IsThumb2, uint32_t &insn) {
+static unsigned decodeThumbSideEffect(bool IsThumb2, unsigned &insn) {
   if (IsThumb2) {
     uint16_t op1 = slice(insn, 28, 27);
     uint16_t op2 = slice(insn, 26, 20);
@@ -429,7 +436,7 @@ bool ThumbDisassembler::getInstruction(MCInst &MI,
   // passed to decodeThumbInstruction().  For 16-bit Thumb instruction, the top
   // halfword of insn is 0x00 0x00; otherwise, the first halfword is moved to
   // the top half followed by the second halfword.
-  uint32_t insn = 0;
+  unsigned insn = 0;
   // Possible second halfword.
   uint16_t insn1 = 0;
 

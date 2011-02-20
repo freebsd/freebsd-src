@@ -353,16 +353,24 @@ kmem_back(vm_map_t map, vm_offset_t addr, vm_size_t size, int flags)
 	vm_map_entry_t entry;
 	vm_page_t m;
 	int pflags;
+	boolean_t found;
 
-	/*
-	 * XXX the map must be locked for write on entry, but there's
-	 * no easy way to assert that.
-	 */
-
+	KASSERT(vm_map_locked(map), ("kmem_back: map %p is not locked", map));
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	vm_object_reference(kmem_object);
 	vm_map_insert(map, kmem_object, offset, addr, addr + size,
-		VM_PROT_ALL, VM_PROT_ALL, 0);
+	    VM_PROT_ALL, VM_PROT_ALL, 0);
+
+	/*
+	 * Assert: vm_map_insert() will never be able to extend the
+	 * previous entry so vm_map_lookup_entry() will find a new
+	 * entry exactly corresponding to this address range and it
+	 * will have wired_count == 0.
+	 */
+	found = vm_map_lookup_entry(map, addr, &entry);
+	KASSERT(found && entry->start == addr && entry->end == addr + size &&
+	    entry->wired_count == 0 && (entry->eflags & MAP_ENTRY_IN_TRANSITION)
+	    == 0, ("kmem_back: entry not found or misaligned"));
 
 	if ((flags & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
 		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
@@ -385,9 +393,15 @@ retry:
 		if (m == NULL) {
 			if ((flags & M_NOWAIT) == 0) {
 				VM_OBJECT_UNLOCK(kmem_object);
+				entry->eflags |= MAP_ENTRY_IN_TRANSITION;
 				vm_map_unlock(map);
 				VM_WAIT;
 				vm_map_lock(map);
+				KASSERT(
+(entry->eflags & (MAP_ENTRY_IN_TRANSITION | MAP_ENTRY_NEEDS_WAKEUP)) ==
+				    MAP_ENTRY_IN_TRANSITION,
+				    ("kmem_back: volatile entry"));
+				entry->eflags &= ~MAP_ENTRY_IN_TRANSITION;
 				VM_OBJECT_LOCK(kmem_object);
 				goto retry;
 			}
@@ -417,15 +431,11 @@ retry:
 	VM_OBJECT_UNLOCK(kmem_object);
 
 	/*
-	 * Mark map entry as non-pageable. Assert: vm_map_insert() will never
-	 * be able to extend the previous entry so there will be a new entry
-	 * exactly corresponding to this address range and it will have
-	 * wired_count == 0.
+	 * Mark map entry as non-pageable.  Repeat the assert.
 	 */
-	if (!vm_map_lookup_entry(map, addr, &entry) ||
-	    entry->start != addr || entry->end != addr + size ||
-	    entry->wired_count != 0)
-		panic("kmem_malloc: entry not found or misaligned");
+	KASSERT(entry->start == addr && entry->end == addr + size &&
+	    entry->wired_count == 0,
+	    ("kmem_back: entry not found or misaligned after allocation"));
 	entry->wired_count = 1;
 
 	/*

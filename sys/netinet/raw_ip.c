@@ -741,6 +741,8 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		if (err == 0)
 			ia->ia_flags |= IFA_ROUTE;
 		err = ifa_add_loopback_route((struct ifaddr *)ia, sa);
+		if (err == 0)
+			ia->ia_flags |= IFA_RTSELF;
 		ifa_free(&ia->ia_ifa);
 		break;
 	}
@@ -1080,7 +1082,8 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_net_inet_raw, OID_AUTO/*XXX*/, pcblist, CTLFLAG_RD, 0, 0,
+SYSCTL_PROC(_net_inet_raw, OID_AUTO/*XXX*/, pcblist,
+    CTLTYPE_OPAQUE | CTLFLAG_RD, NULL, 0,
     rip_pcblist, "S,xinpcb", "List of active raw IP sockets");
 
 struct pr_usrreqs rip_usrreqs = {

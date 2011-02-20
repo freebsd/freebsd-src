@@ -651,6 +651,53 @@ static unsigned getVectorTypeBreakdownMVT(MVT VT, MVT &IntermediateVT,
   return NumVectorRegs;
 }
 
+/// isLegalRC - Return true if the value types that can be represented by the
+/// specified register class are all legal.
+bool TargetLowering::isLegalRC(const TargetRegisterClass *RC) const {
+  for (TargetRegisterClass::vt_iterator I = RC->vt_begin(), E = RC->vt_end();
+       I != E; ++I) {
+    if (isTypeLegal(*I))
+      return true;
+  }
+  return false;
+}
+
+/// hasLegalSuperRegRegClasses - Return true if the specified register class
+/// has one or more super-reg register classes that are legal.
+bool
+TargetLowering::hasLegalSuperRegRegClasses(const TargetRegisterClass *RC) const{
+  if (*RC->superregclasses_begin() == 0)
+    return false;
+  for (TargetRegisterInfo::regclass_iterator I = RC->superregclasses_begin(),
+         E = RC->superregclasses_end(); I != E; ++I) {
+    const TargetRegisterClass *RRC = *I;
+    if (isLegalRC(RRC))
+      return true;
+  }
+  return false;
+}
+
+/// findRepresentativeClass - Return the largest legal super-reg register class
+/// of the register class for the specified type and its associated "cost".
+std::pair<const TargetRegisterClass*, uint8_t>
+TargetLowering::findRepresentativeClass(EVT VT) const {
+  const TargetRegisterClass *RC = RegClassForVT[VT.getSimpleVT().SimpleTy];
+  if (!RC)
+    return std::make_pair(RC, 0);
+  const TargetRegisterClass *BestRC = RC;
+  for (TargetRegisterInfo::regclass_iterator I = RC->superregclasses_begin(),
+         E = RC->superregclasses_end(); I != E; ++I) {
+    const TargetRegisterClass *RRC = *I;
+    if (RRC->isASubClass() || !isLegalRC(RRC))
+      continue;
+    if (!hasLegalSuperRegRegClasses(RRC))
+      return std::make_pair(RRC, 1);
+    BestRC = RRC;
+  }
+  return std::make_pair(BestRC, 1);
+}
+
+
 /// computeRegisterProperties - Once all of the register classes are added,
 /// this allows us to compute derived properties we expose.
 void TargetLowering::computeRegisterProperties() {
@@ -736,6 +783,28 @@ void TargetLowering::computeRegisterProperties() {
     MVT VT = (MVT::SimpleValueType)i;
     if (isTypeLegal(VT)) continue;
     
+    // Determine if there is a legal wider type.  If so, we should promote to
+    // that wider vector type.
+    EVT EltVT = VT.getVectorElementType();
+    unsigned NElts = VT.getVectorNumElements();
+    if (NElts != 1) {
+      bool IsLegalWiderType = false;
+      for (unsigned nVT = i+1; nVT <= MVT::LAST_VECTOR_VALUETYPE; ++nVT) {
+        EVT SVT = (MVT::SimpleValueType)nVT;
+        if (SVT.getVectorElementType() == EltVT &&
+            SVT.getVectorNumElements() > NElts && 
+            isTypeSynthesizable(SVT)) {
+          TransformToType[i] = SVT;
+          RegisterTypeForVT[i] = SVT;
+          NumRegistersForVT[i] = 1;
+          ValueTypeActions.setTypeAction(VT, Promote);
+          IsLegalWiderType = true;
+          break;
+        }
+      }
+      if (IsLegalWiderType) continue;
+    }
+    
     MVT IntermediateVT;
     EVT RegisterVT;
     unsigned NumIntermediates;
@@ -744,31 +813,28 @@ void TargetLowering::computeRegisterProperties() {
                                 RegisterVT, this);
     RegisterTypeForVT[i] = RegisterVT;
     
-    // Determine if there is a legal wider type.
-    bool IsLegalWiderType = false;
-    EVT EltVT = VT.getVectorElementType();
-    unsigned NElts = VT.getVectorNumElements();
-    for (unsigned nVT = i+1; nVT <= MVT::LAST_VECTOR_VALUETYPE; ++nVT) {
-      EVT SVT = (MVT::SimpleValueType)nVT;
-      if (isTypeSynthesizable(SVT) && SVT.getVectorElementType() == EltVT &&
-          SVT.getVectorNumElements() > NElts && NElts != 1) {
-        TransformToType[i] = SVT;
-        ValueTypeActions.setTypeAction(VT, Promote);
-        IsLegalWiderType = true;
-        break;
-      }
+    EVT NVT = VT.getPow2VectorType();
+    if (NVT == VT) {
+      // Type is already a power of 2.  The default action is to split.
+      TransformToType[i] = MVT::Other;
+      ValueTypeActions.setTypeAction(VT, Expand);
+    } else {
+      TransformToType[i] = NVT;
+      ValueTypeActions.setTypeAction(VT, Promote);
     }
-    if (!IsLegalWiderType) {
-      EVT NVT = VT.getPow2VectorType();
-      if (NVT == VT) {
-        // Type is already a power of 2.  The default action is to split.
-        TransformToType[i] = MVT::Other;
-        ValueTypeActions.setTypeAction(VT, Expand);
-      } else {
-        TransformToType[i] = NVT;
-        ValueTypeActions.setTypeAction(VT, Promote);
-      }
-    }
+  }
+
+  // Determine the 'representative' register class for each value type.
+  // An representative register class is the largest (meaning one which is
+  // not a sub-register class / subreg register class) legal register class for
+  // a group of value types. For example, on i386, i8, i16, and i32
+  // representative would be GR32; while on x86_64 it's GR64.
+  for (unsigned i = 0; i != MVT::LAST_VALUETYPE; ++i) {
+    const TargetRegisterClass* RRC;
+    uint8_t Cost;
+    tie(RRC, Cost) =  findRepresentativeClass((MVT::SimpleValueType)i);
+    RepRegClassForVT[i] = RRC;
+    RepRegClassCostForVT[i] = Cost;
   }
 }
 
@@ -798,8 +864,21 @@ unsigned TargetLowering::getVectorTypeBreakdown(LLVMContext &Context, EVT VT,
                                                 EVT &IntermediateVT,
                                                 unsigned &NumIntermediates,
                                                 EVT &RegisterVT) const {
-  // Figure out the right, legal destination reg to copy into.
   unsigned NumElts = VT.getVectorNumElements();
+  
+  // If there is a wider vector type with the same element type as this one,
+  // we should widen to that legal vector type.  This handles things like
+  // <2 x float> -> <4 x float>.
+  if (NumElts != 1 && getTypeAction(VT) == Promote) {
+    RegisterVT = getTypeToTransformTo(Context, VT);
+    if (isTypeLegal(RegisterVT)) {
+      IntermediateVT = RegisterVT;
+      NumIntermediates = 1;
+      return 1;
+    }
+  }
+  
+  // Figure out the right, legal destination reg to copy into.
   EVT EltTy = VT.getVectorElementType();
   
   unsigned NumVectorRegs = 1;
@@ -828,16 +907,12 @@ unsigned TargetLowering::getVectorTypeBreakdown(LLVMContext &Context, EVT VT,
 
   EVT DestVT = getRegisterType(Context, NewVT);
   RegisterVT = DestVT;
-  if (DestVT.bitsLT(NewVT)) {
-    // Value is expanded, e.g. i64 -> i16.
+  if (DestVT.bitsLT(NewVT))   // Value is expanded, e.g. i64 -> i16.
     return NumVectorRegs*(NewVT.getSizeInBits()/DestVT.getSizeInBits());
-  } else {
-    // Otherwise, promotion or legal types use the same number of registers as
-    // the vector decimated to the appropriate level.
-    return NumVectorRegs;
-  }
   
-  return 1;
+  // Otherwise, promotion or legal types use the same number of registers as
+  // the vector decimated to the appropriate level.
+  return NumVectorRegs;
 }
 
 /// Get the EVTs and ArgFlags collections that represent the legalized return 
@@ -1308,9 +1383,32 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
         }
       }      
       
-      if (SimplifyDemandedBits(Op.getOperand(0), NewMask.lshr(ShAmt),
+      if (SimplifyDemandedBits(InOp, NewMask.lshr(ShAmt),
                                KnownZero, KnownOne, TLO, Depth+1))
         return true;
+
+      // Convert (shl (anyext x, c)) to (anyext (shl x, c)) if the high bits
+      // are not demanded. This will likely allow the anyext to be folded away.
+      if (InOp.getNode()->getOpcode() == ISD::ANY_EXTEND) {
+        SDValue InnerOp = InOp.getNode()->getOperand(0);
+        EVT InnerVT = InnerOp.getValueType();
+        if ((APInt::getHighBitsSet(BitWidth,
+                                   BitWidth - InnerVT.getSizeInBits()) &
+               DemandedMask) == 0 &&
+            isTypeDesirableForOp(ISD::SHL, InnerVT)) {
+          EVT ShTy = getShiftAmountTy();
+          if (!APInt(BitWidth, ShAmt).isIntN(ShTy.getSizeInBits()))
+            ShTy = InnerVT;
+          SDValue NarrowShl =
+            TLO.DAG.getNode(ISD::SHL, dl, InnerVT, InnerOp,
+                            TLO.DAG.getConstant(ShAmt, ShTy));
+          return
+            TLO.CombineTo(Op,
+                          TLO.DAG.getNode(ISD::ANY_EXTEND, dl, Op.getValueType(),
+                                          NarrowShl));
+        }
+      }
+
       KnownZero <<= SA->getZExtValue();
       KnownOne  <<= SA->getZExtValue();
       // low bits known zero.
@@ -1415,11 +1513,10 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
     // present in the input.
     APInt NewBits =
       APInt::getHighBitsSet(BitWidth,
-                            BitWidth - EVT.getScalarType().getSizeInBits()) &
-      NewMask;
+                            BitWidth - EVT.getScalarType().getSizeInBits());
     
     // If none of the extended bits are demanded, eliminate the sextinreg.
-    if (NewBits == 0)
+    if ((NewBits & NewMask) == 0)
       return TLO.CombineTo(Op, Op.getOperand(0));
 
     APInt InSignBit = APInt::getSignBit(EVT.getScalarType().getSizeInBits());
@@ -1886,12 +1983,9 @@ TargetLowering::SimplifySetCC(EVT VT, SDValue N0, SDValue N1,
       EVT ExtDstTy = N0.getValueType();
       unsigned ExtDstTyBits = ExtDstTy.getSizeInBits();
 
-      // If the extended part has any inconsistent bits, it cannot ever
-      // compare equal.  In other words, they have to be all ones or all
-      // zeros.
-      APInt ExtBits =
-        APInt::getHighBitsSet(ExtDstTyBits, ExtDstTyBits - ExtSrcTyBits);
-      if ((C1 & ExtBits) != 0 && (C1 & ExtBits) != ExtBits)
+      // If the constant doesn't fit into the number of bits for the source of
+      // the sign extension, it is impossible for both sides to be equal.
+      if (C1.getMinSignedBits() > ExtSrcTyBits)
         return DAG.getConstant(Cond == ISD::SETNE, VT);
       
       SDValue ZextOp;
@@ -2476,7 +2570,7 @@ void TargetLowering::LowerAsmOperandForConstraint(SDValue Op,
         int64_t Offs = GA->getOffset();
         if (C) Offs += C->getZExtValue();
         Ops.push_back(DAG.getTargetGlobalAddress(GA->getGlobal(), 
-                                                 C->getDebugLoc(),
+                                                 C ? C->getDebugLoc() : DebugLoc(),
                                                  Op.getValueType(), Offs));
         return;
       }

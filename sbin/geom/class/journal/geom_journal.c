@@ -47,18 +47,16 @@ __FBSDID("$FreeBSD$");
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_JOURNAL_VERSION;
 
-static intmax_t default_jsize = -1;
-
 static void journal_main(struct gctl_req *req, unsigned flags);
 static void journal_clear(struct gctl_req *req);
 static void journal_dump(struct gctl_req *req);
 static void journal_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
-	{ "clear", G_FLAG_VERBOSE, journal_main, G_NULL_OPTS, NULL,
+	{ "clear", G_FLAG_VERBOSE, journal_main, G_NULL_OPTS,
 	    "[-v] prov ..."
 	},
-	{ "dump", 0, journal_main, G_NULL_OPTS, NULL,
+	{ "dump", 0, journal_main, G_NULL_OPTS,
 	    "prov ..."
 	},
 	{ "label", G_FLAG_VERBOSE, journal_main,
@@ -66,19 +64,19 @@ struct g_command class_commands[] = {
 		{ 'c', "checksum", NULL, G_TYPE_BOOL },
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
-		{ 's', "jsize", &default_jsize, G_TYPE_NUMBER },
+		{ 's', "jsize", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-cfhv] [-s jsize] dataprov [jprov]"
+	    "[-cfhv] [-s jsize] dataprov [jprov]"
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-fv] name ..."
+	    "[-fv] name ..."
 	},
-	{ "sync", G_FLAG_VERBOSE, NULL, G_NULL_OPTS, NULL,
+	{ "sync", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "[-v]"
 	},
 	G_CMD_SENTINEL
@@ -271,8 +269,8 @@ journal_label(struct gctl_req *req)
 		if (!hardcode)
 			bzero(md.md_provider, sizeof(md.md_provider));
 		else {
-			if (strncmp(str, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-				str += strlen(_PATH_DEV);
+			if (strncmp(str, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+				str += sizeof(_PATH_DEV) - 1;
 			strlcpy(md.md_provider, str, sizeof(md.md_provider));
 		}
 		journal_metadata_encode(&md, sector);

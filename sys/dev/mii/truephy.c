@@ -147,20 +147,17 @@ truephy_attach(device_t dev)
 	ma = device_get_ivars(dev);
 
 	sc->mii_phy = ma->mii_phyno;
-	if (sc->mii_anegticks == 0)
-		sc->mii_anegticks = MII_ANEGTICKS;
 	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
+	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
+	sc->mii_flags = miibus_get_flags(dev);
+	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = truephy_service;
 	sc->mii_pdata = mii;
 
 	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP;
-
-	mii->mii_instance++;
 
 	if (MII_MODEL(ma->mii_id2) == MII_MODEL_AGERE_ET1011)
 		mii_phy_reset(sc);
@@ -175,15 +172,11 @@ truephy_attach(device_t dev)
 	}
 
 	device_printf(dev, " ");
-	if ((sc->mii_capabilities & BMSR_MEDIAMASK) == 0 &&
-	    (sc->mii_extcapabilities & EXTSR_MEDIAMASK) == 0)
-		printf("no media present");
-	else
-		mii_phy_add_media(sc);
+	mii_phy_add_media(sc);
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return 0;
+	return (0);
 }
 
 static int
@@ -194,24 +187,9 @@ truephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return 0;
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			bmcr = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, bmcr | BMCR_ISO);
-			return 0;
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -238,14 +216,8 @@ truephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return 0;
-
 		if (mii_phy_tick(sc) == EJUSTRETURN)
-			return 0;
+			return (0);
 		break;
 	}
 
@@ -254,7 +226,7 @@ truephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 	/* Callback if something changed. */
 	mii_phy_update(sc, cmd);
-	return 0;
+	return (0);
 }
 
 static void

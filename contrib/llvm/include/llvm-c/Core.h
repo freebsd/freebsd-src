@@ -204,8 +204,7 @@ typedef enum {
   LLVMPointerTypeKind,     /**< Pointers */
   LLVMOpaqueTypeKind,      /**< Opaque: type with unknown structure */
   LLVMVectorTypeKind,      /**< SIMD 'packed' format, or other vector type */
-  LLVMMetadataTypeKind,    /**< Metadata */
-  LLVMUnionTypeKind        /**< Unions */
+  LLVMMetadataTypeKind     /**< Metadata */
 } LLVMTypeKind;
 
 typedef enum {
@@ -227,7 +226,9 @@ typedef enum {
   LLVMGhostLinkage,       /**< Obsolete */
   LLVMCommonLinkage,      /**< Tentative definitions */
   LLVMLinkerPrivateLinkage, /**< Like Private, but linker removes. */
-  LLVMLinkerPrivateWeakLinkage /**< Like LinkerPrivate, but is weak. */
+  LLVMLinkerPrivateWeakLinkage, /**< Like LinkerPrivate, but is weak. */
+  LLVMLinkerPrivateWeakDefAutoLinkage /**< Like LinkerPrivateWeak, but possibly
+                                           hidden. */
 } LLVMLinkage;
 
 typedef enum {
@@ -393,13 +394,6 @@ unsigned LLVMCountStructElementTypes(LLVMTypeRef StructTy);
 void LLVMGetStructElementTypes(LLVMTypeRef StructTy, LLVMTypeRef *Dest);
 LLVMBool LLVMIsPackedStruct(LLVMTypeRef StructTy);
 
-/* Operations on union types */
-LLVMTypeRef LLVMUnionTypeInContext(LLVMContextRef C, LLVMTypeRef *ElementTypes,
-                                   unsigned ElementCount);
-LLVMTypeRef LLVMUnionType(LLVMTypeRef *ElementTypes, unsigned ElementCount);
-unsigned LLVMCountUnionElementTypes(LLVMTypeRef UnionTy);
-void LLVMGetUnionElementTypes(LLVMTypeRef UnionTy, LLVMTypeRef *Dest);
-
 /* Operations on array, pointer, and vector types (sequence types) */
 LLVMTypeRef LLVMArrayType(LLVMTypeRef ElementType, unsigned ElementCount);
 LLVMTypeRef LLVMPointerType(LLVMTypeRef ElementType, unsigned AddressSpace);
@@ -523,6 +517,8 @@ LLVMValueRef LLVMGetUsedValue(LLVMUseRef U);
 
 /* Operations on Users */
 LLVMValueRef LLVMGetOperand(LLVMValueRef Val, unsigned Index);
+void LLVMSetOperand(LLVMValueRef User, unsigned Index, LLVMValueRef Val);
+int LLVMGetNumOperands(LLVMValueRef Val);
 
 /* Operations on constants of any type */
 LLVMValueRef LLVMConstNull(LLVMTypeRef Ty); /* all zeroes */
@@ -570,7 +566,6 @@ LLVMValueRef LLVMConstArray(LLVMTypeRef ElementTy,
 LLVMValueRef LLVMConstStruct(LLVMValueRef *ConstantVals, unsigned Count,
                              LLVMBool Packed);
 LLVMValueRef LLVMConstVector(LLVMValueRef *ScalarConstantVals, unsigned Size);
-LLVMValueRef LLVMConstUnion(LLVMTypeRef Ty, LLVMValueRef Val);
 
 /* Constant expressions */
 LLVMOpcode LLVMGetConstOpcode(LLVMValueRef ConstantVal);
@@ -749,6 +744,9 @@ LLVMBasicBlockRef LLVMAppendBasicBlock(LLVMValueRef Fn, const char *Name);
 LLVMBasicBlockRef LLVMInsertBasicBlock(LLVMBasicBlockRef InsertBeforeBB,
                                        const char *Name);
 void LLVMDeleteBasicBlock(LLVMBasicBlockRef BB);
+
+void LLVMMoveBasicBlockBefore(LLVMBasicBlockRef BB, LLVMBasicBlockRef MovePos);
+void LLVMMoveBasicBlockAfter(LLVMBasicBlockRef BB, LLVMBasicBlockRef MovePos);
 
 /* Operations on instructions */
 LLVMBasicBlockRef LLVMGetInstructionParent(LLVMValueRef Inst);

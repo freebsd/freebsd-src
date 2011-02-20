@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Sema.h"
+#include "clang/Sema/SemaInternal.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
@@ -261,6 +261,14 @@ bool Sema::CheckEquivalentExceptionSpec(const PartialDiagnostic &DiagID,
 
   bool OldAny = !Old->hasExceptionSpec() || Old->hasAnyExceptionSpec();
   bool NewAny = !New->hasExceptionSpec() || New->hasAnyExceptionSpec();
+  if (getLangOptions().Microsoft) {
+    // Treat throw(whatever) as throw(...) to be compatible with MS headers.
+    if (New->hasExceptionSpec() && New->getNumExceptions() > 0)
+      NewAny = true;
+    if (Old->hasExceptionSpec() && Old->getNumExceptions() > 0)
+      OldAny = true;
+  }
+
   if (OldAny && NewAny)
     return false;
   if (OldAny || NewAny) {

@@ -94,7 +94,7 @@ bool FastISel::hasTrivialKill(const Value *V) const {
          !(I->getOpcode() == Instruction::BitCast ||
            I->getOpcode() == Instruction::PtrToInt ||
            I->getOpcode() == Instruction::IntToPtr) &&
-         cast<Instruction>(I->use_begin())->getParent() == I->getParent();
+         cast<Instruction>(*I->use_begin())->getParent() == I->getParent();
 }
 
 unsigned FastISel::getRegForValue(const Value *V) {
@@ -146,7 +146,7 @@ unsigned FastISel::getRegForValue(const Value *V) {
   return Reg;
 }
 
-/// materializeRegForValue - Helper for getRegForVale. This function is
+/// materializeRegForValue - Helper for getRegForValue. This function is
 /// called when the value isn't already available in a register and must
 /// be materialized with new instructions.
 unsigned FastISel::materializeRegForValue(const Value *V, MVT VT) {
@@ -276,6 +276,7 @@ std::pair<unsigned, bool> FastISel::getRegForGEPIndex(const Value *Idx) {
 void FastISel::recomputeInsertPt() {
   if (getLastLocalValue()) {
     FuncInfo.InsertPt = getLastLocalValue();
+    FuncInfo.MBB = FuncInfo.InsertPt->getParent();
     ++FuncInfo.InsertPt;
   } else
     FuncInfo.InsertPt = FuncInfo.MBB->getFirstNonPHI();
@@ -472,17 +473,7 @@ bool FastISel::SelectCall(const User *I) {
       return true;
     const AllocaInst *AI = dyn_cast<AllocaInst>(Address);
     // Don't handle byval struct arguments or VLAs, for example.
-    // Note that if we have a byval struct argument, fast ISel is turned off;
-    // those are handled in SelectionDAGBuilder.
-    if (AI) {
-      DenseMap<const AllocaInst*, int>::iterator SI =
-        FuncInfo.StaticAllocaMap.find(AI);
-      if (SI == FuncInfo.StaticAllocaMap.end()) break; // VLAs.
-      int FI = SI->second;
-      if (!DI->getDebugLoc().isUnknown())
-        FuncInfo.MF->getMMI().setVariableDbgInfo(DI->getVariable(),
-                                                 FI, DI->getDebugLoc());
-    } else
+    if (!AI)
       // Building the map above is target independent.  Generating DBG_VALUE
       // inline is target dependent; do this now.
       (void)TargetSelectInstruction(cast<Instruction>(I));

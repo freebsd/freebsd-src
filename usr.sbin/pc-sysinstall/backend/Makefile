@@ -7,7 +7,7 @@ FILES=	functions-bsdlabel.sh functions-cleanup.sh functions-disk.sh \
 	functions-newfs.sh functions-packages.sh functions-parse.sh \
 	functions-runcommands.sh functions-unmount.sh \
 	functions-upgrade.sh functions-users.sh \
-	functions.sh parseconfig.sh startautoinstall.sh
+	functions.sh parseconfig.sh startautoinstall.sh installimage.sh
 FILESMODE=	${BINMODE}
 FILESDIR=${SHAREDIR}/pc-sysinstall/backend
 NO_OBJ=

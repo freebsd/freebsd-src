@@ -110,3 +110,5 @@ ENTRY(__siglongjmp)
 1:	movl	%ecx,0(%esp)
 	ret
 END(__siglongjmp)
+
+	.section .note.GNU-stack,"",%progbits

@@ -50,7 +50,6 @@
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/systm.h
-.Pp
 .Bd -literal
 typedef void timeout_t (void *);
 .Ed
@@ -58,7 +57,6 @@ typedef void timeout_t (void *);
 .Fn timeout "timeout_t *func" "void *arg" "int ticks"
 .Ft void
 .Fn callout_handle_init "struct callout_handle *handle"
-.Pp
 .Bd -literal
 struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
 .Ed

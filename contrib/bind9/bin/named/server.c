@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.520.12.11.8.2 2010/02/25 10:57:11 tbox Exp $ */
+/* $Id: server.c,v 1.520.12.21 2011-01-14 23:45:49 tbox Exp $ */
 
 /*! \file */
 
@@ -205,11 +205,13 @@ static const struct {
 	{ "168.192.IN-ADDR.ARPA", ISC_TRUE },
 #endif
 
-	/* RFC 3330 */
+	/* RFC 5735 and RFC 5737 */
 	{ "0.IN-ADDR.ARPA", ISC_FALSE },	/* THIS NETWORK */
 	{ "127.IN-ADDR.ARPA", ISC_FALSE },	/* LOOPBACK */
 	{ "254.169.IN-ADDR.ARPA", ISC_FALSE },	/* LINK LOCAL */
 	{ "2.0.192.IN-ADDR.ARPA", ISC_FALSE },	/* TEST NET */
+	{ "100.51.198.IN-ADDR.ARPA", ISC_FALSE },	/* TEST NET 2 */
+	{ "113.0.203.IN-ADDR.ARPA", ISC_FALSE },	/* TEST NET 3 */
 	{ "255.255.255.255.IN-ADDR.ARPA", ISC_FALSE },	/* BROADCAST */
 
 	/* Local IPv6 Unicast Addresses */
@@ -221,6 +223,9 @@ static const struct {
 	{ "9.E.F.IP6.ARPA", ISC_FALSE },	/* LINK LOCAL */
 	{ "A.E.F.IP6.ARPA", ISC_FALSE },	/* LINK LOCAL */
 	{ "B.E.F.IP6.ARPA", ISC_FALSE },	/* LINK LOCAL */
+
+	/* Example Prefix, RFC 3849. */
+	{ "8.B.D.0.1.0.0.2.IP6.ARPA", ISC_FALSE },
 
 	{ NULL, ISC_FALSE }
 };
@@ -1132,6 +1137,14 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 		dns_acache_setcachesize(view->acache, max_acache_size);
 	}
 
+	CHECK(configure_view_acl(vconfig, config, "allow-query", actx,
+				 ns_g_mctx, &view->queryacl));
+
+	if (view->queryacl == NULL) {
+		CHECK(configure_view_acl(NULL, ns_g_config, "allow-query", actx,
+					 ns_g_mctx, &view->queryacl));
+	}
+
 	/*
 	 * Configure the zones.
 	 */
@@ -1606,13 +1619,13 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 	 * configured in named.conf.
 	 */
 	CHECK(configure_view_acl(vconfig, config, "allow-query-cache",
-				 actx, ns_g_mctx, &view->queryacl));
+				 actx, ns_g_mctx, &view->cacheacl));
 	CHECK(configure_view_acl(vconfig, config, "allow-query-cache-on",
-				 actx, ns_g_mctx, &view->queryonacl));
-	if (view->queryonacl == NULL)
+				 actx, ns_g_mctx, &view->cacheonacl));
+	if (view->cacheonacl == NULL)
 		CHECK(configure_view_acl(NULL, ns_g_config,
 					 "allow-query-cache-on", actx,
-					 ns_g_mctx, &view->queryonacl));
+					 ns_g_mctx, &view->cacheonacl));
 	if (strcmp(view->name, "_bind") != 0) {
 		CHECK(configure_view_acl(vconfig, config, "allow-recursion",
 					 actx, ns_g_mctx,
@@ -1628,14 +1641,14 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 	 * "allow-recursion" inherits from "allow-query-cache" if set,
 	 * otherwise from "allow-query" if set.
 	 */
-	if (view->queryacl == NULL && view->recursionacl != NULL)
-		dns_acl_attach(view->recursionacl, &view->queryacl);
-	if (view->queryacl == NULL && view->recursion)
+	if (view->cacheacl == NULL && view->recursionacl != NULL)
+		dns_acl_attach(view->recursionacl, &view->cacheacl);
+	if (view->cacheacl == NULL && view->recursion)
 		CHECK(configure_view_acl(vconfig, config, "allow-query",
-					 actx, ns_g_mctx, &view->queryacl));
+					 actx, ns_g_mctx, &view->cacheacl));
 	if (view->recursion &&
-	    view->recursionacl == NULL && view->queryacl != NULL)
-		dns_acl_attach(view->queryacl, &view->recursionacl);
+	    view->recursionacl == NULL && view->cacheacl != NULL)
+		dns_acl_attach(view->cacheacl, &view->recursionacl);
 
 	/*
 	 * Set default "allow-recursion", "allow-recursion-on" and
@@ -1651,16 +1664,13 @@ configure_view(dns_view_t *view, const cfg_obj_t *config,
 					 "allow-recursion-on",
 					 actx, ns_g_mctx,
 					 &view->recursiononacl));
-	if (view->queryacl == NULL) {
+	if (view->cacheacl == NULL) {
 		if (view->recursion)
 			CHECK(configure_view_acl(NULL, ns_g_config,
 						 "allow-query-cache", actx,
-						 ns_g_mctx, &view->queryacl));
-		else {
-			if (view->queryacl != NULL)
-				dns_acl_detach(&view->queryacl);
-			CHECK(dns_acl_none(ns_g_mctx, &view->queryacl));
-		}
+						 ns_g_mctx, &view->cacheacl));
+		else
+			CHECK(dns_acl_none(ns_g_mctx, &view->cacheacl));
 	}
 
 	/*
@@ -5272,10 +5282,8 @@ ns_server_tsigdelete(ns_server_t *server, char *command, isc_buffer_t *text) {
 	n = snprintf((char *)isc_buffer_used(text),
 		     isc_buffer_availablelength(text),
 		     "%d tsig keys deleted.\n", foundkeys);
-	if (n >= isc_buffer_availablelength(text)) {
-		isc_task_endexclusive(server->task);
+	if (n >= isc_buffer_availablelength(text))
 		return (ISC_R_NOSPACE);
-	}
 	isc_buffer_add(text, n);
 
 	return (ISC_R_SUCCESS);
@@ -5391,10 +5399,8 @@ ns_server_tsiglist(ns_server_t *server, isc_buffer_t *text) {
 		n = snprintf((char *)isc_buffer_used(text),
 			     isc_buffer_availablelength(text),
 			     "no tsig keys found.\n");
-		if (n >= isc_buffer_availablelength(text)) {
-			isc_task_endexclusive(server->task);
+		if (n >= isc_buffer_availablelength(text))
 			return (ISC_R_NOSPACE);
-		}
 		isc_buffer_add(text, n);
 	}
 

@@ -13,9 +13,14 @@
 #include "private.h"
 #include <ctype.h>
 
-
 /// Exit status to use. This can be changed with set_exit_status().
 static enum exit_status_type exit_status = E_SUCCESS;
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+/// exit_status has to be protected with a critical section due to
+/// how "signal handling" is done on Windows. See signals.c for details.
+static CRITICAL_SECTION exit_status_cs;
+#endif
 
 /// True if --no-warn is specified. When this is true, we don't set
 /// the exit status to E_WARNING when something worth a warning happens.
@@ -27,8 +32,16 @@ set_exit_status(enum exit_status_type new_status)
 {
 	assert(new_status == E_WARNING || new_status == E_ERROR);
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	EnterCriticalSection(&exit_status_cs);
+#endif
+
 	if (exit_status != E_ERROR)
 		exit_status = new_status;
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	LeaveCriticalSection(&exit_status_cs);
+#endif
 
 	return;
 }
@@ -129,6 +142,10 @@ read_name(const args_info *args)
 int
 main(int argc, char **argv)
 {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	InitializeCriticalSection(&exit_status_cs);
+#endif
+
 	// Set up the progname variable.
 	tuklib_progname_init(argv);
 
@@ -262,11 +279,24 @@ main(int argc, char **argv)
 	// of calling tuklib_exit().
 	signals_exit();
 
+	// Make a local copy of exit_status to keep the Windows code
+	// thread safe. At this point it is fine if we miss the user
+	// pressing C-c and don't set the exit_status to E_ERROR on
+	// Windows.
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	EnterCriticalSection(&exit_status_cs);
+#endif
+
+	enum exit_status_type es = exit_status;
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	LeaveCriticalSection(&exit_status_cs);
+#endif
+
 	// Suppress the exit status indicating a warning if --no-warn
 	// was specified.
-	if (exit_status == E_WARNING && no_warn)
-		exit_status = E_SUCCESS;
+	if (es == E_WARNING && no_warn)
+		es = E_SUCCESS;
 
-	tuklib_exit(exit_status, E_ERROR,
-			message_verbosity_get() != V_SILENT);
+	tuklib_exit(es, E_ERROR, message_verbosity_get() != V_SILENT);
 }

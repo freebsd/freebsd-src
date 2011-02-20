@@ -169,6 +169,9 @@ _ILINKS= machine
 .if ${MACHINE} != ${MACHINE_CPUARCH}
 _ILINKS+= ${MACHINE_CPUARCH}
 .endif
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+_ILINKS+= x86
+.endif
 
 # Ensure that the link exists without depending on it when it exists.
 .for _link in ${_ILINKS}
@@ -181,8 +184,8 @@ ${_ILINKS}:
 	@case ${.TARGET} in \
 	machine) \
 		path=${S}/${MACHINE}/include ;; \
-	${MACHINE_CPUARCH}) \
-		path=${S}/${MACHINE_CPUARCH}/include ;; \
+	*) \
+		path=${S}/${.TARGET}/include ;; \
 	esac ; \
 	${ECHO} ${.TARGET} "->" $$path ; \
 	ln -s $$path ${.TARGET}

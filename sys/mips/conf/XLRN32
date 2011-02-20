@@ -17,23 +17,20 @@
 #
 # $FreeBSD$
 
-machine 	mips
-cpu 		CPU_RMI
+machine 	mips mipsn32eb
 ident 		XLRN32
-
-makeoptions	MODULES_OVERRIDE=""
-makeoptions     TARGET_BIG_ENDIAN
-
 include		"../rmi/std.xlr"
 
+makeoptions	MODULES_OVERRIDE=""
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	ARCH_FLAGS="-march=mips64 -mabi=n32"
-makeoptions	LDSCRIPT_NAME=ldscript.mips.n32
+makeoptions	KERNLOADADDR=0x80100000
 
+options		ISA_MIPS64
 #profile		2
 
 options 	SCHED_ULE		# ULE scheduler
-#options		VERBOSE_SYSINIT
+#options 	VERBOSE_SYSINIT
 #options 	SCHED_4BSD		# 4BSD scheduler
 options         SMP
 options 	PREEMPTION		# Enable kernel thread preemption
@@ -50,14 +47,14 @@ options		NFS_ROOT
 options         BOOTP
 options         BOOTP_NFSROOT
 options         BOOTP_NFSV3
-options         BOOTP_WIRED_TO=rge0
+options         BOOTP_WIRED_TO=nlge0
 options         BOOTP_COMPAT
 options		ROOTDEVNAME=\"nfs:10.1.1.8:/usr/extra/nfsroot\"
 #
 #options 	MD_ROOT			# MD is a potential root device
-#options		MD_ROOT_SIZE=27000
-#options		MD_ROOT_SIZE=5120
-#options		ROOTDEVNAME=\"ufs:md0\"
+#options 	MD_ROOT_SIZE=27000
+#options 	MD_ROOT_SIZE=5120
+#options 	ROOTDEVNAME=\"ufs:md0\"
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	HZ=1000	
 options 	NO_SWAPPING
@@ -74,29 +71,29 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 #options 	WITNESS			#Enable checks to detect deadlocks and cycles
 #options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 #options 	KTR			# ktr(4) and ktrdump(8) support
-#options 	KTR_COMPILE=(KTR_LOCK|KTR_PROC|KTR_INTR|KTR_CALLOUT|KTR_UMA|KTR_SYSC|KTR_CRITICAL)
+#options 	KTR_COMPILE=(KTR_LOCK|KTR_PROC|KTR_INTR|KTR_CALLOUT|KTR_UMA|KTR_SYSC)
 #options 	KTR_ENTRIES=131072
-#options 	MUTEX_DEBUG
-#options 	MUTEX_PROFILING
+
+#options 	LOCK_PROFILING
+#options 	SLEEPQUEUE_PROFILING
+#options 	TURNSTILE_PROFILING
 
 device		pci
 #device		ata
 #device		atadisk
 #options 	XLR_PERFMON		# Enable XLR processor activity monitoring
 options  	BREAK_TO_DEBUGGER
-#device 		genclock
 device 		uart
 # Pseudo
 device 		loop
 device 		random
 device 		md
-device 		mem
 device 		pty
 device		bpf
 
 # Network
 device		miibus
-device		rge
+device		nlge
 device 		ether
 device		re
 device		msk
@@ -115,19 +112,16 @@ device          umass           # Disks/Mass storage - Requires scbus and da
 #device		cfi
 
 #i2c
-# Not yet
-#device      ic
-#device      iic
-#device      iicbb
-#device      iicbus
-#device      xlr_rtc
-#device      xlr_temperature
-#device      xlr_eeprom
+device		ic
+device		iic
+device		iicbb
+device		iicbus
+device		ds1374u		# RTC on XLR boards
+device		max6657		# Temparature sensor on XLR boards
+device		at24co2n	# EEPROM on XLR boards
 
 #crypto
 # Not yet
 #device cryptodev
 #device crypto
 #device rmisec
-options		ISA_MIPS64
-makeoptions	KERNLOADADDR=0x80100000

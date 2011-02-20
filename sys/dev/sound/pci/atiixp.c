@@ -1202,7 +1202,6 @@ atiixp_pci_attach(device_t dev)
 	else
 		sc->polling = 0;
 
-	pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 	pci_enable_busmaster(dev);
 
 	sc->regid = PCIR_BAR(0);
@@ -1354,7 +1353,6 @@ atiixp_pci_suspend(device_t dev)
 	value = atiixp_rd(sc, ATI_REG_CMD);
 	value |= ATI_REG_CMD_POWERDOWN | ATI_REG_CMD_AC_RESET;
 	atiixp_wr(sc, ATI_REG_CMD, ATI_REG_CMD_POWERDOWN);
-	pci_set_powerstate(dev, PCI_POWERSTATE_D3);
 	atiixp_unlock(sc);
 
 	return (0);
@@ -1366,10 +1364,6 @@ atiixp_pci_resume(device_t dev)
 	struct atiixp_info *sc = pcm_getdevinfo(dev);
 
 	atiixp_lock(sc);
-	/* power up pci bus */
-	pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-	pci_enable_io(dev, SYS_RES_MEMORY);
-	pci_enable_busmaster(dev);
 	/* reset / power up aclink */
 	atiixp_reset_aclink(sc);
 	atiixp_unlock(sc);

@@ -23,8 +23,8 @@ TGHDRS=	Intrinsics \
 	PPCGenDAGISel \
 	PPCGenInstrInfo \
 	PPCGenInstrNames \
-	PPCGenRegisterInfo.h \
 	PPCGenRegisterInfo \
+	PPCGenRegisterInfo.h \
 	PPCGenRegisterNames \
 	PPCGenSubtarget
 

@@ -5,14 +5,11 @@
 #
 
 ident		AR71XX
-cpu		CPU_MIPS4KC
-options 	ISA_MIPS32
-makeoptions	TARGET_BIG_ENDIAN
 makeoptions	KERNLOADADDR=0x80050000
 options		HZ=1000
 
-files		"../atheros/files.ar71xx"
 hints		"AR71XX.hints"
+include		"../atheros/std.ar71xx"
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 #makeoptions	MODULES_OVERRIDE=""
@@ -73,6 +70,9 @@ options		USB_EHCI_BIG_ENDIAN_DESC        # handle big-endian byte order
 # options		USB_DEBUG
 device		ohci
 device		ehci
+
+device		gpio
+device		gpioled
 
 device		spibus
 device		ar71xx_spi

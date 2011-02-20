@@ -40,7 +40,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_apic.h"
 #include "opt_atalk.h"
 #include "opt_compat.h"
 #include "opt_cpu.h"
@@ -50,10 +49,10 @@ __FBSDID("$FreeBSD$");
 #include "opt_isa.h"
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
-#include "opt_msgbuf.h"
 #include "opt_npx.h"
 #include "opt_perfmon.h"
 #include "opt_xbox.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -73,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/memrange.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
@@ -114,7 +112,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/intr_machdep.h>
-#include <machine/mca.h>
+#include <x86/mca.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/pc/bios.h>
@@ -238,8 +236,6 @@ static struct trapframe proc0_tf;
 struct pcpu __pcpu[MAXCPU];
 
 struct mtx icu_lock;
-
-struct mem_range_softc mem_range_softc;
 
 static void
 cpu_startup(dummy)
@@ -380,12 +376,14 @@ osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
 	sf.sf_scp = (register_t)&fp->sf_siginfo.si_sc;
+	bzero(&sf.sf_siginfo, sizeof(sf.sf_siginfo));
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		sf.sf_arg2 = (register_t)&fp->sf_siginfo;
 		sf.sf_siginfo.si_signo = sig;
 		sf.sf_siginfo.si_code = ksi->ksi_code;
 		sf.sf_ahu.sf_action = (__osiginfohandler_t *)catcher;
+		sf.sf_addr = 0;
 	} else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_arg2 = ksi->ksi_code;
@@ -499,6 +497,11 @@ freebsd4_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(*regs));
+	bzero(sf.sf_uc.uc_mcontext.mc_fpregs,
+	    sizeof(sf.sf_uc.uc_mcontext.mc_fpregs));
+	bzero(sf.sf_uc.uc_mcontext.__spare__,
+	    sizeof(sf.sf_uc.uc_mcontext.__spare__));
+	bzero(sf.sf_uc.__spare__, sizeof(sf.sf_uc.__spare__));
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -518,6 +521,7 @@ freebsd4_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
 	sf.sf_ucontext = (register_t)&sfp->sf_uc;
+	bzero(&sf.sf_si, sizeof(sf.sf_si));
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		sf.sf_siginfo = (register_t)&sfp->sf_si;
@@ -633,13 +637,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(*regs));
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
-
-	/*
-	 * The get_fpcontext() call must be placed before assignments
-	 * to mc_fsbase and mc_gsbase due to the alignment-override
-	 * code in get_fpcontext() that possibly clobbers 12 bytes of
-	 * mcontext after mc_fpstate.
-	 */
 	get_fpcontext(td, &sf.sf_uc.uc_mcontext);
 	fpstate_drop(td);
 	/*
@@ -651,6 +648,11 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sdp = &td->td_pcb->pcb_gsd;
 	sf.sf_uc.uc_mcontext.mc_gsbase = sdp->sd_hibase << 24 |
 	    sdp->sd_lobase;
+	bzero(sf.sf_uc.uc_mcontext.mc_spare1,
+	    sizeof(sf.sf_uc.uc_mcontext.mc_spare1));
+	bzero(sf.sf_uc.uc_mcontext.mc_spare2,
+	    sizeof(sf.sf_uc.uc_mcontext.mc_spare2));
+	bzero(sf.sf_uc.__spare__, sizeof(sf.sf_uc.__spare__));
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -672,6 +674,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
 	sf.sf_ucontext = (register_t)&sfp->sf_uc;
+	bzero(&sf.sf_si, sizeof(sf.sf_si));
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		sf.sf_siginfo = (register_t)&sfp->sf_si;
@@ -1138,6 +1141,10 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	if (!tsc_present)
 		return (EOPNOTSUPP);
 
+	/* If TSC is P-state invariant, DELAY(9) based logic fails. */
+	if (tsc_is_invariant)
+		return (EOPNOTSUPP);
+
 	/* If we're booting, trust the rate calibrated moments ago. */
 	if (cold) {
 		*rate = tsc_freq;
@@ -1164,18 +1171,19 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	thread_unlock(curthread);
 #endif
 
+	tsc2 -= tsc1;
+	if (tsc_freq != 0 && !tsc_is_broken) {
+		*rate = tsc2 * 1000;
+		return (0);
+	}
+
 	/*
-	 * Calculate the difference in readings, convert to Mhz, and
-	 * subtract 0.5% of the total.  Empirical testing has shown that
+	 * Subtract 0.5% of the total.  Empirical testing has shown that
 	 * overhead in DELAY() works out to approximately this value.
 	 */
-	tsc2 -= tsc1;
 	*rate = tsc2 * 1000 - tsc2 * 5;
 	return (0);
 }
-
-
-void (*cpu_idle_hook)(void) = NULL;	/* ACPI idle hook. */
 
 #ifdef XEN
 
@@ -1207,60 +1215,94 @@ cpu_halt(void)
 		__asm__ ("hlt");
 }
 
-static void
-cpu_idle_hlt(int busy)
-{
-	/*
-	 * we must absolutely guarentee that hlt is the next instruction
-	 * after sti or we introduce a timing window.
-	 */
-	disable_intr();
-  	if (sched_runnable())
-		enable_intr();
-	else
-		__asm __volatile("sti; hlt");
-}
 #endif
+
+void (*cpu_idle_hook)(void) = NULL;	/* ACPI idle hook. */
+static int	cpu_ident_amdc1e = 0;	/* AMD C1E supported. */
+static int	idle_mwait = 1;		/* Use MONITOR/MWAIT for short idle. */
+TUNABLE_INT("machdep.idle_mwait", &idle_mwait);
+SYSCTL_INT(_machdep, OID_AUTO, idle_mwait, CTLFLAG_RW, &idle_mwait,
+    0, "Use MONITOR/MWAIT for short idle");
+
+#define	STATE_RUNNING	0x0
+#define	STATE_MWAIT	0x1
+#define	STATE_SLEEPING	0x2
 
 static void
 cpu_idle_acpi(int busy)
 {
+	int *state;
+
+	state = (int *)PCPU_PTR(monitorbuf);
+	*state = STATE_SLEEPING;
 	disable_intr();
-  	if (sched_runnable())
+	if (sched_runnable())
 		enable_intr();
 	else if (cpu_idle_hook)
 		cpu_idle_hook();
 	else
 		__asm __volatile("sti; hlt");
+	*state = STATE_RUNNING;
 }
 
-static int cpu_ident_amdc1e = 0;
+#ifndef XEN
+static void
+cpu_idle_hlt(int busy)
+{
+	int *state;
 
-static int
-cpu_probe_amdc1e(void)
-{ 
-#ifdef DEV_APIC
+	state = (int *)PCPU_PTR(monitorbuf);
+	*state = STATE_SLEEPING;
+	/*
+	 * We must absolutely guarentee that hlt is the next instruction
+	 * after sti or we introduce a timing window.
+	 */
+	disable_intr();
+	if (sched_runnable())
+		enable_intr();
+	else
+		__asm __volatile("sti; hlt");
+	*state = STATE_RUNNING;
+}
+#endif
+
+/*
+ * MWAIT cpu power states.  Lower 4 bits are sub-states.
+ */
+#define	MWAIT_C0	0xf0
+#define	MWAIT_C1	0x00
+#define	MWAIT_C2	0x10
+#define	MWAIT_C3	0x20
+#define	MWAIT_C4	0x30
+
+static void
+cpu_idle_mwait(int busy)
+{
+	int *state;
+
+	state = (int *)PCPU_PTR(monitorbuf);
+	*state = STATE_MWAIT;
+	if (!sched_runnable()) {
+		cpu_monitor(state, 0, 0);
+		if (*state == STATE_MWAIT)
+			cpu_mwait(0, MWAIT_C1);
+	}
+	*state = STATE_RUNNING;
+}
+
+static void
+cpu_idle_spin(int busy)
+{
+	int *state;
 	int i;
 
-	/*
-	 * Forget it, if we're not using local APIC timer.
-	 */
-	if (resource_disabled("apic", 0) ||
-	    (resource_int_value("apic", 0, "clock", &i) == 0 && i == 0))
-		return (0);
-
-	/*
-	 * Detect the presence of C1E capability mostly on latest
-	 * dual-cores (or future) k8 family.
-	 */
-	if (cpu_vendor_id == CPU_VENDOR_AMD &&
-	    (cpu_id & 0x00000f00) == 0x00000f00 &&
-	    (cpu_id & 0x0fff0000) >=  0x00040000) {
-		cpu_ident_amdc1e = 1;
-		return (1);
+	state = (int *)PCPU_PTR(monitorbuf);
+	*state = STATE_RUNNING;
+	for (i = 0; i < 1000; i++) {
+		if (sched_runnable())
+			return;
+		cpu_spinwait();
 	}
-#endif
-	return (0);
 }
 
 /*
@@ -1278,30 +1320,18 @@ cpu_probe_amdc1e(void)
 #define	AMDK8_CMPHALT		(AMDK8_SMIONCMPHALT | AMDK8_C1EONCMPHALT)
 
 static void
-cpu_idle_amdc1e(int busy)
+cpu_probe_amdc1e(void)
 {
 
-	disable_intr();
-	if (sched_runnable())
-		enable_intr();
-	else {
-		uint64_t msr;
-
-		msr = rdmsr(MSR_AMDK8_IPM);
-		if (msr & AMDK8_CMPHALT)
-			wrmsr(MSR_AMDK8_IPM, msr & ~AMDK8_CMPHALT);
-
-		if (cpu_idle_hook)
-			cpu_idle_hook();
-		else
-			__asm __volatile("sti; hlt");
+	/*
+	 * Detect the presence of C1E capability mostly on latest
+	 * dual-cores (or future) k8 family.
+	 */
+	if (cpu_vendor_id == CPU_VENDOR_AMD &&
+	    (cpu_id & 0x00000f00) == 0x00000f00 &&
+	    (cpu_id & 0x0fff0000) >=  0x00040000) {
+		cpu_ident_amdc1e = 1;
 	}
-}
-
-static void
-cpu_idle_spin(int busy)
-{
-	return;
 }
 
 #ifdef XEN
@@ -1313,79 +1343,72 @@ void (*cpu_idle_fn)(int) = cpu_idle_acpi;
 void
 cpu_idle(int busy)
 {
+	uint64_t msr;
+
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
+	    busy, curcpu);
 #if defined(SMP) && !defined(XEN)
 	if (mp_grab_cpu_hlt())
 		return;
 #endif
-	cpu_idle_fn(busy);
-}
-
-/*
- * mwait cpu power states.  Lower 4 bits are sub-states.
- */
-#define	MWAIT_C0	0xf0
-#define	MWAIT_C1	0x00
-#define	MWAIT_C2	0x10
-#define	MWAIT_C3	0x20
-#define	MWAIT_C4	0x30
-
-#define	MWAIT_DISABLED	0x0
-#define	MWAIT_WOKEN	0x1
-#define	MWAIT_WAITING	0x2
-
-static void
-cpu_idle_mwait(int busy)
-{
-	int *mwait;
-
-	mwait = (int *)PCPU_PTR(monitorbuf);
-	*mwait = MWAIT_WAITING;
-	if (sched_runnable())
-		return;
-	cpu_monitor(mwait, 0, 0);
-	if (*mwait == MWAIT_WAITING)
-		cpu_mwait(0, MWAIT_C1);
-}
-
-static void
-cpu_idle_mwait_hlt(int busy)
-{
-	int *mwait;
-
-	mwait = (int *)PCPU_PTR(monitorbuf);
-	if (busy == 0) {
-		*mwait = MWAIT_DISABLED;
-		cpu_idle_hlt(busy);
-		return;
+	/* If we are busy - try to use fast methods. */
+	if (busy) {
+		if ((cpu_feature2 & CPUID2_MON) && idle_mwait) {
+			cpu_idle_mwait(busy);
+			goto out;
+		}
 	}
-	*mwait = MWAIT_WAITING;
-	if (sched_runnable())
-		return;
-	cpu_monitor(mwait, 0, 0);
-	if (*mwait == MWAIT_WAITING)
-		cpu_mwait(0, MWAIT_C1);
+
+#ifndef XEN
+	/* If we have time - switch timers into idle mode. */
+	if (!busy) {
+		critical_enter();
+		cpu_idleclock();
+	}
+#endif
+
+	/* Apply AMD APIC timer C1E workaround. */
+	if (cpu_ident_amdc1e
+#ifndef XEN
+	    && cpu_disable_deep_sleep
+#endif
+	    ) {
+		msr = rdmsr(MSR_AMDK8_IPM);
+		if (msr & AMDK8_CMPHALT)
+			wrmsr(MSR_AMDK8_IPM, msr & ~AMDK8_CMPHALT);
+	}
+
+	/* Call main idle method. */
+	cpu_idle_fn(busy);
+
+#ifndef XEN
+	/* Switch timers mack into active mode. */
+	if (!busy) {
+		cpu_activeclock();
+		critical_exit();
+	}
+#endif
+out:
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
+	    busy, curcpu);
 }
 
 int
 cpu_idle_wakeup(int cpu)
 {
 	struct pcpu *pcpu;
-	int *mwait;
+	int *state;
 
-	if (cpu_idle_fn == cpu_idle_spin)
-		return (1);
-	if (cpu_idle_fn != cpu_idle_mwait && cpu_idle_fn != cpu_idle_mwait_hlt)
-		return (0);
 	pcpu = pcpu_find(cpu);
-	mwait = (int *)pcpu->pc_monitorbuf;
+	state = (int *)pcpu->pc_monitorbuf;
 	/*
 	 * This doesn't need to be atomic since missing the race will
 	 * simply result in unnecessary IPIs.
 	 */
-	if (cpu_idle_fn == cpu_idle_mwait_hlt && *mwait == MWAIT_DISABLED)
+	if (*state == STATE_SLEEPING)
 		return (0);
-	*mwait = MWAIT_WOKEN;
-
+	if (*state == STATE_MWAIT)
+		*state = STATE_RUNNING;
 	return (1);
 }
 
@@ -1398,8 +1421,6 @@ struct {
 } idle_tbl[] = {
 	{ cpu_idle_spin, "spin" },
 	{ cpu_idle_mwait, "mwait" },
-	{ cpu_idle_mwait_hlt, "mwait_hlt" },
-	{ cpu_idle_amdc1e, "amdc1e" },
 	{ cpu_idle_hlt, "hlt" },
 	{ cpu_idle_acpi, "acpi" },
 	{ NULL, NULL }
@@ -1418,15 +1439,19 @@ idle_sysctl_available(SYSCTL_HANDLER_ARGS)
 		if (strstr(idle_tbl[i].id_name, "mwait") &&
 		    (cpu_feature2 & CPUID2_MON) == 0)
 			continue;
-		if (strcmp(idle_tbl[i].id_name, "amdc1e") == 0 &&
-		    cpu_ident_amdc1e == 0)
+		if (strcmp(idle_tbl[i].id_name, "acpi") == 0 &&
+		    cpu_idle_hook == NULL)
 			continue;
-		p += sprintf(p, "%s, ", idle_tbl[i].id_name);
+		p += sprintf(p, "%s%s", p != avail ? ", " : "",
+		    idle_tbl[i].id_name);
 	}
 	error = sysctl_handle_string(oidp, avail, 0, req);
 	free(avail, M_TEMP);
 	return (error);
 }
+
+SYSCTL_PROC(_machdep, OID_AUTO, idle_available, CTLTYPE_STRING | CTLFLAG_RD,
+    0, 0, idle_sysctl_available, "A", "list of available idle functions");
 
 static int
 idle_sysctl(SYSCTL_HANDLER_ARGS)
@@ -1451,8 +1476,8 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 		if (strstr(idle_tbl[i].id_name, "mwait") &&
 		    (cpu_feature2 & CPUID2_MON) == 0)
 			continue;
-		if (strcmp(idle_tbl[i].id_name, "amdc1e") == 0 &&
-		    cpu_ident_amdc1e == 0)
+		if (strcmp(idle_tbl[i].id_name, "acpi") == 0 &&
+		    cpu_idle_hook == NULL)
 			continue;
 		if (strcmp(idle_tbl[i].id_name, buf))
 			continue;
@@ -1461,9 +1486,6 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 	}
 	return (EINVAL);
 }
-
-SYSCTL_PROC(_machdep, OID_AUTO, idle_available, CTLTYPE_STRING | CTLFLAG_RD,
-    0, 0, idle_sysctl_available, "A", "list of available idle functions");
 
 SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
     idle_sysctl, "A", "currently selected idle function");
@@ -1876,7 +1898,11 @@ extern inthand_t
 	IDTVEC(bnd), IDTVEC(ill), IDTVEC(dna), IDTVEC(fpusegm),
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
-	IDTVEC(xmm), IDTVEC(lcall_syscall), IDTVEC(int0x80_syscall);
+	IDTVEC(xmm),
+#ifdef KDTRACE_HOOKS
+	IDTVEC(dtrace_ret),
+#endif
+	IDTVEC(lcall_syscall), IDTVEC(int0x80_syscall);
 
 #ifdef DDB
 /*
@@ -1935,6 +1961,7 @@ sdtossd(sd, ssd)
 	ssd->ssd_gran  = sd->sd_gran;
 }
 
+#ifndef XEN
 static int
 add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 {
@@ -1953,7 +1980,7 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 		return (1);
 
 #ifndef PAE
-	if (smap->base >= 0xffffffff) {
+	if (smap->base > 0xffffffff) {
 		printf("%uK of memory above 4GB ignored\n",
 		    (u_int)(smap->length / 1024));
 		return (1);
@@ -2014,78 +2041,13 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 	return (1);
 }
 
-/*
- * Populate the (physmap) array with base/bound pairs describing the
- * available physical memory in the system, then test this memory and
- * build the phys_avail array describing the actually-available memory.
- *
- * If we cannot accurately determine the physical memory map, then use
- * value from the 0xE801 call, and failing that, the RTC.
- *
- * Total memory size may be set by the kernel environment variable
- * hw.physmem or the compile-time define MAXMEM.
- *
- * XXX first should be vm_paddr_t.
- */
 static void
-getmemsize(int first)
+basemem_setup(void)
 {
-	int i, off, physmap_idx, pa_indx, da_indx;
-	int hasbrokenint12, has_smap;
-	u_long physmem_tunable;
-	u_int extmem;
-	struct vm86frame vmf;
-	struct vm86context vmc;
-	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
+	vm_paddr_t pa;
 	pt_entry_t *pte;
-	struct bios_smap *smap, *smapbase, *smapend;
-	u_int32_t smapsize;
-	quad_t dcons_addr, dcons_size;
-	caddr_t kmdp;
+	int i;
 
-	has_smap = 0;
-#ifdef XBOX
-	if (arch_i386_is_xbox) {
-		/*
-		 * We queried the memory size before, so chop off 4MB for
-		 * the framebuffer and inform the OS of this.
-		 */
-		physmap[0] = 0;
-		physmap[1] = (arch_i386_xbox_memsize * 1024 * 1024) - XBOX_FB_SIZE;
-		physmap_idx = 0;
-		goto physmap_done;
-	}
-#endif
-#if defined(XEN)
-	has_smap = 0;
-	Maxmem = xen_start_info->nr_pages - init_first;
-	physmem = Maxmem;
-	basemem = 0;
-	physmap[0] = init_first << PAGE_SHIFT;
-	physmap[1] = ptoa(Maxmem) - round_page(MSGBUF_SIZE);
-	physmap_idx = 0;
-	goto physmap_done;
-#endif	
-	hasbrokenint12 = 0;
-	TUNABLE_INT_FETCH("hw.hasbrokenint12", &hasbrokenint12);
-	bzero(&vmf, sizeof(vmf));
-	bzero(physmap, sizeof(physmap));
-	basemem = 0;
-
-	/*
-	 * Some newer BIOSes has broken INT 12H implementation which cause
-	 * kernel panic immediately. In this case, we need to scan SMAP
-	 * with INT 15:E820 first, then determine base memory size.
-	 */
-	if (hasbrokenint12) {
-		goto int15e820;
-	}
-
-	/*
-	 * Perform "base memory" related probes & setup
-	 */
-	vm86_intcall(0x12, &vmf);
-	basemem = vmf.vmf_ax;
 	if (basemem > 640) {
 		printf("Preposterous BIOS basemem of %uK, truncating to 640K\n",
 			basemem);
@@ -2125,12 +2087,69 @@ getmemsize(int first)
 	pte = (pt_entry_t *)vm86paddr;
 	for (i = basemem / 4; i < 160; i++)
 		pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
+}
+#endif
 
-int15e820:
+/*
+ * Populate the (physmap) array with base/bound pairs describing the
+ * available physical memory in the system, then test this memory and
+ * build the phys_avail array describing the actually-available memory.
+ *
+ * If we cannot accurately determine the physical memory map, then use
+ * value from the 0xE801 call, and failing that, the RTC.
+ *
+ * Total memory size may be set by the kernel environment variable
+ * hw.physmem or the compile-time define MAXMEM.
+ *
+ * XXX first should be vm_paddr_t.
+ */
+static void
+getmemsize(int first)
+{
+	int has_smap, off, physmap_idx, pa_indx, da_indx;
+	u_long physmem_tunable;
+	vm_paddr_t physmap[PHYSMAP_SIZE];
+	pt_entry_t *pte;
+	quad_t dcons_addr, dcons_size;
+#ifndef XEN
+	int hasbrokenint12, i;
+	u_int extmem;
+	struct vm86frame vmf;
+	struct vm86context vmc;
+	vm_paddr_t pa;
+	struct bios_smap *smap, *smapbase, *smapend;
+	u_int32_t smapsize;
+	caddr_t kmdp;
+#endif
+
+	has_smap = 0;
+#if defined(XEN)
+	Maxmem = xen_start_info->nr_pages - init_first;
+	physmem = Maxmem;
+	basemem = 0;
+	physmap[0] = init_first << PAGE_SHIFT;
+	physmap[1] = ptoa(Maxmem) - round_page(msgbufsize);
+	physmap_idx = 0;
+#else
+#ifdef XBOX
+	if (arch_i386_is_xbox) {
+		/*
+		 * We queried the memory size before, so chop off 4MB for
+		 * the framebuffer and inform the OS of this.
+		 */
+		physmap[0] = 0;
+		physmap[1] = (arch_i386_xbox_memsize * 1024 * 1024) - XBOX_FB_SIZE;
+		physmap_idx = 0;
+		goto physmap_done;
+	}
+#endif
+	bzero(&vmf, sizeof(vmf));
+	bzero(physmap, sizeof(physmap));
+	basemem = 0;
+
 	/*
-	 * Fetch the memory map with INT 15:E820.  First, check to see
-	 * if the loader supplied it and use that if so.  Otherwise,
-	 * use vm86 to invoke the BIOS call directly.
+	 * Check if the loader supplied an SMAP memory map.  If so,
+	 * use that and do not make any VM86 calls.
 	 */
 	physmap_idx = 0;
 	smapbase = NULL;
@@ -2141,9 +2160,10 @@ int15e820:
 		smapbase = (struct bios_smap *)preload_search_info(kmdp,
 		    MODINFO_METADATA | MODINFOMD_SMAP);
 	if (smapbase != NULL) {
-		/* subr_module.c says:
+		/*
+		 * subr_module.c says:
 		 * "Consumer may safely assume that size value precedes data."
-		 * ie: an int32_t immediately precedes smap.
+		 * ie: an int32_t immediately precedes SMAP.
 		 */
 		smapsize = *((u_int32_t *)smapbase - 1);
 		smapend = (struct bios_smap *)((uintptr_t)smapbase + smapsize);
@@ -2152,33 +2172,50 @@ int15e820:
 		for (smap = smapbase; smap < smapend; smap++)
 			if (!add_smap_entry(smap, physmap, &physmap_idx))
 				break;
-	} else {
-		/*
-		 * map page 1 R/W into the kernel page table so we can use it
-		 * as a buffer.  The kernel will unmap this page later.
-		 */
-		pmap_kenter(KERNBASE + (1 << PAGE_SHIFT), 1 << PAGE_SHIFT);
-		vmc.npages = 0;
-		smap = (void *)vm86_addpage(&vmc, 1, KERNBASE +
-		    (1 << PAGE_SHIFT));
-		vm86_getptr(&vmc, (vm_offset_t)smap, &vmf.vmf_es, &vmf.vmf_di);
-
-		vmf.vmf_ebx = 0;
-		do {
-			vmf.vmf_eax = 0xE820;
-			vmf.vmf_edx = SMAP_SIG;
-			vmf.vmf_ecx = sizeof(struct bios_smap);
-			i = vm86_datacall(0x15, &vmf, &vmc);
-			if (i || vmf.vmf_eax != SMAP_SIG)
-				break;
-			has_smap = 1;
-			if (!add_smap_entry(smap, physmap, &physmap_idx))
-				break;
-		} while (vmf.vmf_ebx != 0);
+		goto have_smap;
 	}
 
 	/*
-	 * Perform "base memory" related probes & setup based on SMAP
+	 * Some newer BIOSes have a broken INT 12H implementation
+	 * which causes a kernel panic immediately.  In this case, we
+	 * need use the SMAP to determine the base memory size.
+	 */
+	hasbrokenint12 = 0;
+	TUNABLE_INT_FETCH("hw.hasbrokenint12", &hasbrokenint12);
+	if (hasbrokenint12 == 0) {
+		/* Use INT12 to determine base memory size. */
+		vm86_intcall(0x12, &vmf);
+		basemem = vmf.vmf_ax;
+		basemem_setup();
+	}
+
+	/*
+	 * Fetch the memory map with INT 15:E820.  Map page 1 R/W into
+	 * the kernel page table so we can use it as a buffer.  The
+	 * kernel will unmap this page later.
+	 */
+	pmap_kenter(KERNBASE + (1 << PAGE_SHIFT), 1 << PAGE_SHIFT);
+	vmc.npages = 0;
+	smap = (void *)vm86_addpage(&vmc, 1, KERNBASE + (1 << PAGE_SHIFT));
+	vm86_getptr(&vmc, (vm_offset_t)smap, &vmf.vmf_es, &vmf.vmf_di);
+
+	vmf.vmf_ebx = 0;
+	do {
+		vmf.vmf_eax = 0xE820;
+		vmf.vmf_edx = SMAP_SIG;
+		vmf.vmf_ecx = sizeof(struct bios_smap);
+		i = vm86_datacall(0x15, &vmf, &vmc);
+		if (i || vmf.vmf_eax != SMAP_SIG)
+			break;
+		has_smap = 1;
+		if (!add_smap_entry(smap, physmap, &physmap_idx))
+			break;
+	} while (vmf.vmf_ebx != 0);
+
+have_smap:
+	/*
+	 * If we didn't fetch the "base memory" size from INT12,
+	 * figure it out from the SMAP (or just guess).
 	 */
 	if (basemem == 0) {
 		for (i = 0; i <= physmap_idx; i += 2) {
@@ -2188,49 +2225,39 @@ int15e820:
 			}
 		}
 
-		/*
-		 * XXX this function is horribly organized and has to the same
-		 * things that it does above here.
-		 */
+		/* XXX: If we couldn't find basemem from SMAP, just guess. */
 		if (basemem == 0)
 			basemem = 640;
-		if (basemem > 640) {
-			printf(
-		    "Preposterous BIOS basemem of %uK, truncating to 640K\n",
-			    basemem);
-			basemem = 640;
-		}
-
-		/*
-		 * Let vm86 scribble on pages between basemem and
-		 * ISA_HOLE_START, as above.
-		 */
-		for (pa = trunc_page(basemem * 1024);
-		     pa < ISA_HOLE_START; pa += PAGE_SIZE)
-			pmap_kenter(KERNBASE + pa, pa);
-		pte = (pt_entry_t *)vm86paddr;
-		for (i = basemem / 4; i < 160; i++)
-			pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
+		basemem_setup();
 	}
 
 	if (physmap[1] != 0)
 		goto physmap_done;
 
 	/*
-	 * If we failed above, try memory map with INT 15:E801
+	 * If we failed to find an SMAP, figure out the extended
+	 * memory size.  We will then build a simple memory map with
+	 * two segments, one for "base memory" and the second for
+	 * "extended memory".  Note that "extended memory" starts at a
+	 * physical address of 1MB and that both basemem and extmem
+	 * are in units of 1KB.
+	 *
+	 * First, try to fetch the extended memory size via INT 15:E801.
 	 */
 	vmf.vmf_ax = 0xE801;
 	if (vm86_intcall(0x15, &vmf) == 0) {
 		extmem = vmf.vmf_cx + vmf.vmf_dx * 64;
 	} else {
+		/*
+		 * If INT15:E801 fails, this is our last ditch effort
+		 * to determine the extended memory size.  Currently
+		 * we prefer the RTC value over INT15:88.
+		 */
 #if 0
 		vmf.vmf_ah = 0x88;
 		vm86_intcall(0x15, &vmf);
 		extmem = vmf.vmf_ax;
-#elif !defined(XEN)
-		/*
-		 * Prefer the RTC value for extended memory.
-		 */
+#else
 		extmem = rtcin(RTC_EXTLO) + (rtcin(RTC_EXTHI) << 8);
 #endif
 	}
@@ -2255,6 +2282,7 @@ int15e820:
 	physmap[physmap_idx + 1] = physmap[physmap_idx] + extmem * 1024;
 
 physmap_done:
+#endif	
 	/*
 	 * Now, physmap contains a map of physical memory.
 	 */
@@ -2451,7 +2479,7 @@ do_next:
 	 * calculation, etc.).
 	 */
 	while (phys_avail[pa_indx - 1] + PAGE_SIZE +
-	    round_page(MSGBUF_SIZE) >= phys_avail[pa_indx]) {
+	    round_page(msgbufsize) >= phys_avail[pa_indx]) {
 		physmem -= atop(phys_avail[pa_indx] - phys_avail[pa_indx - 1]);
 		phys_avail[pa_indx--] = 0;
 		phys_avail[pa_indx--] = 0;
@@ -2460,10 +2488,10 @@ do_next:
 	Maxmem = atop(phys_avail[pa_indx]);
 
 	/* Trim off space for the message buffer. */
-	phys_avail[pa_indx] -= round_page(MSGBUF_SIZE);
+	phys_avail[pa_indx] -= round_page(msgbufsize);
 
 	/* Map the message buffer. */
-	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
+	for (off = 0; off < round_page(msgbufsize); off += PAGE_SIZE)
 		pmap_kenter((vm_offset_t)msgbufp + off, phys_avail[pa_indx] +
 		    off);
 
@@ -2479,6 +2507,7 @@ init386(first)
 {
 	unsigned long gdtmachpfn;
 	int error, gsel_tss, metadata_missing, x, pa;
+	size_t kstack0_sz;
 	struct pcpu *pc;
 	struct callback_register event = {
 		.type = CALLBACKTYPE_event,
@@ -2490,8 +2519,9 @@ init386(first)
 	};
 
 	thread0.td_kstack = proc0kstack;
-	thread0.td_pcb = (struct pcb *)
-	   (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	thread0.td_kstack_pages = KSTACK_PAGES;
+	kstack0_sz = thread0.td_kstack_pages * PAGE_SIZE;
+	thread0.td_pcb = (struct pcb *)(thread0.td_kstack + kstack0_sz) - 1;
 
 	/*
  	 * This may be done better later if it gets more high level
@@ -2566,6 +2596,8 @@ init386(first)
 		pmap_kenter(pa + KERNBASE, pa);
 	dpcpu_init((void *)(first + KERNBASE), 0);
 	first += DPCPU_SIZE;
+	physfree += DPCPU_SIZE;
+	init_first += DPCPU_SIZE / PAGE_SIZE;
 
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
@@ -2640,7 +2672,7 @@ init386(first)
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	/* Note: -16 is so we can grow the trapframe if we came from vm86 */
 	PCPU_SET(common_tss.tss_esp0, thread0.td_kstack +
-	    KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb) - 16);
+	    kstack0_sz - sizeof(struct pcb) - 16);
 	PCPU_SET(common_tss.tss_ss0, GSEL(GDATA_SEL, SEL_KPL));
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	HYPERVISOR_stack_switch(GSEL(GDATA_SEL, SEL_KPL),
@@ -2672,7 +2704,7 @@ init386(first)
 
 	/* now running on new page tables, configured,and u/iom is accessible */
 
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufinit(msgbufp, msgbufsize);
 	/* transfer to user mode */
 
 	_ucodesel = GSEL(GUCODE_SEL, SEL_UPL);
@@ -2690,8 +2722,7 @@ init386(first)
 	thread0.td_pcb->pcb_fsd = PCPU_GET(fsgs_gdt)[0];
 	thread0.td_pcb->pcb_gsd = PCPU_GET(fsgs_gdt)[1];
 
-	if (cpu_probe_amdc1e())
-		cpu_idle_fn = cpu_idle_amdc1e;
+	cpu_probe_amdc1e();
 }
 
 #else
@@ -2701,11 +2732,13 @@ init386(first)
 {
 	struct gate_descriptor *gdp;
 	int gsel_tss, metadata_missing, x, pa;
+	size_t kstack0_sz;
 	struct pcpu *pc;
 
 	thread0.td_kstack = proc0kstack;
-	thread0.td_pcb = (struct pcb *)
-	   (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	thread0.td_kstack_pages = KSTACK_PAGES;
+	kstack0_sz = thread0.td_kstack_pages * PAGE_SIZE;
+	thread0.td_pcb = (struct pcb *)(thread0.td_kstack + kstack0_sz) - 1;
 
 	/*
  	 * This may be done better later if it gets more high level
@@ -2825,6 +2858,10 @@ init386(first)
 	    GSEL(GCODE_SEL, SEL_KPL));
  	setidt(IDT_SYSCALL, &IDTVEC(int0x80_syscall), SDT_SYS386TGT, SEL_UPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
+#ifdef KDTRACE_HOOKS
+	setidt(IDT_DTRACE_RET, &IDTVEC(dtrace_ret), SDT_SYS386TGT, SEL_UPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+#endif
 
 	r_idt.rd_limit = sizeof(idt0) - 1;
 	r_idt.rd_base = (int) idt;
@@ -2893,7 +2930,7 @@ init386(first)
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	/* Note: -16 is so we can grow the trapframe if we came from vm86 */
 	PCPU_SET(common_tss.tss_esp0, thread0.td_kstack +
-	    KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb) - 16);
+	    kstack0_sz - sizeof(struct pcb) - 16);
 	PCPU_SET(common_tss.tss_ss0, GSEL(GDATA_SEL, SEL_KPL));
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	PCPU_SET(tss_gdt, &gdt[GPROC0_SEL].sd);
@@ -2927,7 +2964,7 @@ init386(first)
 
 	/* now running on new page tables, configured,and u/iom is accessible */
 
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufinit(msgbufp, msgbufsize);
 
 	/* make a call gate to reenter kernel with */
 	gdp = &ldt[LSYS5CALLS_SEL].gd;
@@ -2961,8 +2998,7 @@ init386(first)
 	thread0.td_pcb->pcb_ext = 0;
 	thread0.td_frame = &proc0_tf;
 
-	if (cpu_probe_amdc1e())
-		cpu_idle_fn = cpu_idle_amdc1e;
+	cpu_probe_amdc1e();
 }
 #endif
 
@@ -2977,11 +3013,15 @@ void
 spinlock_enter(void)
 {
 	struct thread *td;
+	register_t flags;
 
 	td = curthread;
-	if (td->td_md.md_spinlock_count == 0)
-		td->td_md.md_saved_flags = intr_disable();
-	td->td_md.md_spinlock_count++;
+	if (td->td_md.md_spinlock_count == 0) {
+		flags = intr_disable();
+		td->td_md.md_spinlock_count = 1;
+		td->td_md.md_saved_flags = flags;
+	} else
+		td->td_md.md_spinlock_count++;
 	critical_enter();
 }
 
@@ -2989,12 +3029,14 @@ void
 spinlock_exit(void)
 {
 	struct thread *td;
+	register_t flags;
 
 	td = curthread;
 	critical_exit();
+	flags = td->td_md.md_saved_flags;
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
-		intr_restore(td->td_md.md_saved_flags);
+		intr_restore(flags);
 }
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
@@ -3080,6 +3122,13 @@ fill_regs(struct thread *td, struct reg *regs)
 
 	tp = td->td_frame;
 	pcb = td->td_pcb;
+	regs->r_gs = pcb->pcb_gs;
+	return (fill_frame_regs(tp, regs));
+}
+
+int
+fill_frame_regs(struct trapframe *tp, struct reg *regs)
+{
 	regs->r_fs = tp->tf_fs;
 	regs->r_es = tp->tf_es;
 	regs->r_ds = tp->tf_ds;
@@ -3095,7 +3144,6 @@ fill_regs(struct thread *td, struct reg *regs)
 	regs->r_eflags = tp->tf_eflags;
 	regs->r_esp = tp->tf_esp;
 	regs->r_ss = tp->tf_ss;
-	regs->r_gs = pcb->pcb_gs;
 	return (0);
 }
 
@@ -3184,28 +3232,40 @@ set_fpregs_xmm(sv_87, sv_xmm)
 int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
+
+	KASSERT(td == curthread || TD_IS_SUSPENDED(td),
+	    ("not suspended thread %p", td));
+#ifdef DEV_NPX
+	npxgetregs(td);
+#else
+	bzero(fpregs, sizeof(*fpregs));
+#endif
 #ifdef CPU_ENABLE_SSE
-	if (cpu_fxsr) {
+	if (cpu_fxsr)
 		fill_fpregs_xmm(&td->td_pcb->pcb_user_save.sv_xmm,
-						(struct save87 *)fpregs);
-		return (0);
-	}
+		    (struct save87 *)fpregs);
+	else
 #endif /* CPU_ENABLE_SSE */
-	bcopy(&td->td_pcb->pcb_user_save.sv_87, fpregs, sizeof *fpregs);
+		bcopy(&td->td_pcb->pcb_user_save.sv_87, fpregs,
+		    sizeof(*fpregs));
 	return (0);
 }
 
 int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
+
 #ifdef CPU_ENABLE_SSE
-	if (cpu_fxsr) {
+	if (cpu_fxsr)
 		set_fpregs_xmm((struct save87 *)fpregs,
 		    &td->td_pcb->pcb_user_save.sv_xmm);
-		return (0);
-	}
+	else
 #endif /* CPU_ENABLE_SSE */
-	bcopy(fpregs, &td->td_pcb->pcb_user_save.sv_87, sizeof *fpregs);
+		bcopy(fpregs, &td->td_pcb->pcb_user_save.sv_87,
+		    sizeof(*fpregs));
+#ifdef DEV_NPX
+	npxuserinited(td);
+#endif
 	return (0);
 }
 
@@ -3247,19 +3307,13 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_esp = tp->tf_esp;
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
-
-	/*
-	 * The get_fpcontext() call must be placed before assignments
-	 * to mc_fsbase and mc_gsbase due to the alignment-override
-	 * code in get_fpcontext() that possibly clobbers 12 bytes of
-	 * mcontext after mc_fpstate.
-	 */
 	get_fpcontext(td, mcp);
 	sdp = &td->td_pcb->pcb_fsd;
 	mcp->mc_fsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
 	sdp = &td->td_pcb->pcb_gsd;
 	mcp->mc_gsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
-
+	bzero(mcp->mc_spare1, sizeof(mcp->mc_spare1));
+	bzero(mcp->mc_spare2, sizeof(mcp->mc_spare2));
 	return (0);
 }
 
@@ -3304,39 +3358,15 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 static void
 get_fpcontext(struct thread *td, mcontext_t *mcp)
 {
+
 #ifndef DEV_NPX
 	mcp->mc_fpformat = _MC_FPFMT_NODEV;
 	mcp->mc_ownedfp = _MC_FPOWNED_NONE;
+	bzero(mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
 #else
-	union savefpu *addr;
-
-	/*
-	 * XXX mc_fpstate might be misaligned, since its declaration is not
-	 * unportabilized using __attribute__((aligned(16))) like the
-	 * declaration of struct savemm, and anyway, alignment doesn't work
-	 * for auto variables since we don't use gcc's pessimal stack
-	 * alignment.  Work around this by abusing the spare fields after
-	 * mcp->mc_fpstate.
-	 *
-	 * XXX unpessimize most cases by only aligning when fxsave might be
-	 * called, although this requires knowing too much about
-	 * npxgetuserregs()'s internals.
-	 */
-	addr = (union savefpu *)&mcp->mc_fpstate;
-	if (td == PCPU_GET(fpcurthread) &&
-#ifdef CPU_ENABLE_SSE
-	    cpu_fxsr &&
-#endif
-	    ((uintptr_t)(void *)addr & 0xF)) {
-		do
-			addr = (void *)((char *)addr + 4);
-		while ((uintptr_t)(void *)addr & 0xF);
-	}
-	mcp->mc_ownedfp = npxgetuserregs(td, addr);
-	if (addr != (union savefpu *)&mcp->mc_fpstate) {
-		bcopy(addr, &mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
-		bzero(&mcp->mc_spare2, sizeof(mcp->mc_spare2));
-	}
+	mcp->mc_ownedfp = npxgetregs(td);
+	bcopy(&td->td_pcb->pcb_user_save, &mcp->mc_fpstate,
+	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = npxformat();
 #endif
 }
@@ -3344,7 +3374,6 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 static int
 set_fpcontext(struct thread *td, const mcontext_t *mcp)
 {
-	union savefpu *addr;
 
 	if (mcp->mc_fpformat == _MC_FPFMT_NODEV)
 		return (0);
@@ -3356,30 +3385,14 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		fpstate_drop(td);
 	else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
-		/* XXX align as above. */
-		addr = (union savefpu *)&mcp->mc_fpstate;
-		if (td == PCPU_GET(fpcurthread) &&
-#ifdef CPU_ENABLE_SSE
-		    cpu_fxsr &&
-#endif
-		    ((uintptr_t)(void *)addr & 0xF)) {
-			do
-				addr = (void *)((char *)addr + 4);
-			while ((uintptr_t)(void *)addr & 0xF);
-			bcopy(&mcp->mc_fpstate, addr, sizeof(mcp->mc_fpstate));
-		}
 #ifdef DEV_NPX
 #ifdef CPU_ENABLE_SSE
 		if (cpu_fxsr)
-			addr->sv_xmm.sv_env.en_mxcsr &= cpu_mxcsr_mask;
+			((union savefpu *)&mcp->mc_fpstate)->sv_xmm.sv_env.
+			    en_mxcsr &= cpu_mxcsr_mask;
 #endif
-		npxsetuserregs(td, addr);
+		npxsetregs(td, (union savefpu *)&mcp->mc_fpstate);
 #endif
-		/*
-		 * Don't bother putting things back where they were in the
-		 * misaligned case, since we know that the caller won't use
-		 * them again.
-		 */
 	} else
 		return (EINVAL);
 	return (0);
@@ -3397,12 +3410,12 @@ fpstate_drop(struct thread *td)
 #endif
 	/*
 	 * XXX force a full drop of the npx.  The above only drops it if we
-	 * owned it.  npxgetuserregs() has the same bug in the !cpu_fxsr case.
+	 * owned it.  npxgetregs() has the same bug in the !cpu_fxsr case.
 	 *
-	 * XXX I don't much like npxgetuserregs()'s semantics of doing a full
+	 * XXX I don't much like npxgetregs()'s semantics of doing a full
 	 * drop.  Dropping only to the pcb matches fnsave's behaviour.
 	 * We only need to drop to !PCB_INITDONE in sendsig().  But
-	 * sendsig() is the only caller of npxgetuserregs()... perhaps we just
+	 * sendsig() is the only caller of npxgetregs()... perhaps we just
 	 * have too many layers.
 	 */
 	curthread->td_pcb->pcb_flags &= ~(PCB_NPXINITDONE |
@@ -3587,102 +3600,6 @@ user_dbreg_trap(void)
          */
         return 0;
 }
-
-#ifndef DEV_APIC
-#include <machine/apicvar.h>
-
-/*
- * Provide stub functions so that the MADT APIC enumerator in the acpi
- * kernel module will link against a kernel without 'device apic'.
- *
- * XXX - This is a gross hack.
- */
-void
-apic_register_enumerator(struct apic_enumerator *enumerator)
-{
-}
-
-void *
-ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
-{
-	return (NULL);
-}
-
-int
-ioapic_disable_pin(void *cookie, u_int pin)
-{
-	return (ENXIO);
-}
-
-int
-ioapic_get_vector(void *cookie, u_int pin)
-{
-	return (-1);
-}
-
-void
-ioapic_register(void *cookie)
-{
-}
-
-int
-ioapic_remap_vector(void *cookie, u_int pin, int vector)
-{
-	return (ENXIO);
-}
-
-int
-ioapic_set_extint(void *cookie, u_int pin)
-{
-	return (ENXIO);
-}
-
-int
-ioapic_set_nmi(void *cookie, u_int pin)
-{
-	return (ENXIO);
-}
-
-int
-ioapic_set_polarity(void *cookie, u_int pin, enum intr_polarity pol)
-{
-	return (ENXIO);
-}
-
-int
-ioapic_set_triggermode(void *cookie, u_int pin, enum intr_trigger trigger)
-{
-	return (ENXIO);
-}
-
-void
-lapic_create(u_int apic_id, int boot_cpu)
-{
-}
-
-void
-lapic_init(vm_paddr_t addr)
-{
-}
-
-int
-lapic_set_lvt_mode(u_int apic_id, u_int lvt, u_int32_t mode)
-{
-	return (ENXIO);
-}
-
-int
-lapic_set_lvt_polarity(u_int apic_id, u_int lvt, enum intr_polarity pol)
-{
-	return (ENXIO);
-}
-
-int
-lapic_set_lvt_triggermode(u_int apic_id, u_int lvt, enum intr_trigger trigger)
-{
-	return (ENXIO);
-}
-#endif
 
 #ifdef KDB
 

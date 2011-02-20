@@ -597,6 +597,15 @@ yesno:
 		return (lvalue);
 #endif
 
+#ifdef _SC_CPUSET_SIZE
+	case _SC_CPUSET_SIZE:
+		len = sizeof(lvalue);
+		if (sysctlbyname("kern.sched.cpusetsize", &lvalue, &len, NULL,
+		    0) == -1)
+			return (-1);
+		return (lvalue);
+#endif
+
 	default:
 		errno = EINVAL;
 		return (-1);

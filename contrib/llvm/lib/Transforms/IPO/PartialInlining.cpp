@@ -30,7 +30,7 @@ namespace {
   struct PartialInliner : public ModulePass {
     virtual void getAnalysisUsage(AnalysisUsage &AU) const { }
     static char ID; // Pass identification, replacement for typeid
-    PartialInliner() : ModulePass(&ID) {}
+    PartialInliner() : ModulePass(ID) {}
     
     bool runOnModule(Module& M);
     
@@ -40,7 +40,8 @@ namespace {
 }
 
 char PartialInliner::ID = 0;
-static RegisterPass<PartialInliner> X("partial-inliner", "Partial Inliner");
+INITIALIZE_PASS(PartialInliner, "partial-inliner",
+                "Partial Inliner", false, false);
 
 ModulePass* llvm::createPartialInliningPass() { return new PartialInliner(); }
 
@@ -67,7 +68,8 @@ Function* PartialInliner::unswitchFunction(Function* F) {
   
   // Clone the function, so that we can hack away on it.
   ValueMap<const Value*, Value*> VMap;
-  Function* duplicateFunction = CloneFunction(F, VMap);
+  Function* duplicateFunction = CloneFunction(F, VMap,
+                                              /*ModuleLevelChanges=*/false);
   duplicateFunction->setLinkage(GlobalValue::InternalLinkage);
   F->getParent()->getFunctionList().push_back(duplicateFunction);
   BasicBlock* newEntryBlock = cast<BasicBlock>(VMap[entryBlock]);
@@ -159,7 +161,7 @@ bool PartialInliner::runOnModule(Module& M) {
     bool recursive = false;
     for (Function::use_iterator UI = currFunc->use_begin(),
          UE = currFunc->use_end(); UI != UE; ++UI)
-      if (Instruction* I = dyn_cast<Instruction>(UI))
+      if (Instruction* I = dyn_cast<Instruction>(*UI))
         if (I->getParent()->getParent() == currFunc) {
           recursive = true;
           break;

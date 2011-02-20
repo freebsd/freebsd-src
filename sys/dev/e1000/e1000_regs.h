@@ -53,6 +53,7 @@
 #define E1000_FCAL     0x00028  /* Flow Control Address Low - RW */
 #define E1000_FCAH     0x0002C  /* Flow Control Address High -RW */
 #define E1000_FEXT     0x0002C  /* Future Extended - RW */
+#define E1000_FEXTNVM4 0x00024  /* Future Extended NVM 4 - RW */
 #define E1000_FEXTNVM  0x00028  /* Future Extended NVM - RW */
 #define E1000_FCT      0x00030  /* Flow Control Type - RW */
 #define E1000_CONNSW   0x00034  /* Copper/Fiber switch control - RW */
@@ -90,6 +91,7 @@
 #define E1000_EXTCNF_CTRL  0x00F00  /* Extended Configuration Control */
 #define E1000_EXTCNF_SIZE  0x00F08  /* Extended Configuration Size */
 #define E1000_PHY_CTRL     0x00F10  /* PHY Control Register in CSR */
+#define E1000_POEMB        E1000_PHY_CTRL /* PHY OEM Bits */
 #define E1000_PBA      0x01000  /* Packet Buffer Allocation - RW */
 #define E1000_PBS      0x01008  /* Packet Buffer Size */
 #define E1000_EEMNGCTL 0x01010  /* MNG EEprom Control */
@@ -128,6 +130,7 @@
 #define E1000_PBDIAG   0x02458  /* Packet Buffer Diagnostic - RW */
 #define E1000_RXPBS    0x02404  /* Rx Packet Buffer Size - RW */
 #define E1000_IRPBS 0x02404 /* Same as RXPBS, renamed for newer adapters - RW */
+#define E1000_PBRWAC   0x024E8 /* Rx packet buffer wrap around counter - RO */
 #define E1000_RDTR     0x02820  /* Rx Delay Timer - RW */
 #define E1000_RADV     0x0282C  /* Rx Interrupt Absolute Delay Timer - RW */
 /*
@@ -186,6 +189,8 @@
                                        (0x054E0 + ((_i - 16) * 8)))
 #define E1000_RAH(_i)  (((_i) <= 15) ? (0x05404 + ((_i) * 8)) : \
                                        (0x054E4 + ((_i - 16) * 8)))
+#define E1000_SHRAL(_i)         (0x05438 + ((_i) * 8))
+#define E1000_SHRAH(_i)         (0x0543C + ((_i) * 8))
 #define E1000_IP4AT_REG(_i)     (0x05840 + ((_i) * 8))
 #define E1000_IP6AT_REG(_i)     (0x05880 + ((_i) * 4))
 #define E1000_WUPM_REG(_i)      (0x05A00 + ((_i) * 4))
@@ -426,6 +431,7 @@
 #define E1000_UFUSE     0x05B78 /* UFUSE - RO */
 #define E1000_FFLT_DBG  0x05F04 /* Debug Register */
 #define E1000_HICR      0x08F00 /* Host Interface Control */
+#define E1000_FWSTS     0x08F0C /* FW Status */
 
 /* RSS registers */
 #define E1000_CPUVEC    0x02C10 /* CPU Vector Register - RW */
@@ -457,10 +463,19 @@
 #define E1000_VFTE      0x00C90 /* VF Transmit Enables */
 #define E1000_QDE       0x02408 /* Queue Drop Enable - RW */
 #define E1000_DTXSWC    0x03500 /* DMA Tx Switch Control - RW */
+#define E1000_WVBR      0x03554 /* VM Wrong Behavior - RWS */
 #define E1000_RPLOLR    0x05AF0 /* Replication Offload - RW */
 #define E1000_UTA       0x0A000 /* Unicast Table Array - RW */
 #define E1000_IOVTCL    0x05BBC /* IOV Control Register */
 #define E1000_VMRCTL    0X05D80 /* Virtual Mirror Rule Control */
+#define E1000_VMRVLAN   0x05D90 /* Virtual Mirror Rule VLAN */
+#define E1000_VMRVM     0x05DA0 /* Virtual Mirror Rule VM */
+#define E1000_MDFB      0x03558 /* Malicious Driver free block */
+#define E1000_LVMMC     0x03548 /* Last VM Misbehavior cause */
+#define E1000_TXSWC     0x05ACC /* Tx Switch Control */
+#define E1000_SCCRL     0x05DB0 /* Storm Control Control */
+#define E1000_BSCTRH    0x05DB8 /* Broadcast Storm Control Threshold */
+#define E1000_MSCTRH    0x05DBC /* Multicast Storm Control Threshold */
 /* These act per VF so an array friendly macro is used */
 #define E1000_V2PMAILBOX(_n)   (0x00C40 + (4 * (_n)))
 #define E1000_P2VMAILBOX(_n)   (0x00C00 + (4 * (_n)))
@@ -470,6 +485,7 @@
 #define E1000_VLVF(_n)         (0x05D00 + (4 * (_n))) /* VLAN Virtual Machine
                                                        * Filter - RW */
 #define E1000_VMVIR(_n)        (0x03700 + (4 * (_n)))
+#define E1000_DVMOLR(_n)       (0x0C038 + (0x40 * (_n))) /* DMA VM offload */
 /* Time Sync */
 #define E1000_TSYNCRXCTL 0x0B620 /* Rx Time Sync Control register - RW */
 #define E1000_TSYNCTXCTL 0x0B614 /* Tx Time Sync Control register - RW */
@@ -533,10 +549,34 @@
 #define E1000_DMCTXTH           0x03550 /* Transmit Threshold */
 #define E1000_DMCTLX            0x02514 /* Time to Lx Request */
 #define E1000_DMCRTRH           0x05DD0 /* Receive Packet Rate Threshold */
-#define E1000_DMCCNT            0x05DD4 /* Current RX Count */
+#define E1000_DMCCNT            0x05DD4 /* Current Rx Count */
 #define E1000_FCRTC             0x02170 /* Flow Control Rx high watermark */
 #define E1000_PCIEMISC          0x05BB8 /* PCIE misc config register */
 
 /* PCIe Parity Status Register */
 #define E1000_PCIEERRSTS        0x05BA8
+
+#define E1000_PROXYS            0x5F64 /* Proxying Status */
+#define E1000_PROXYFC           0x5F60 /* Proxying Filter Control */
+/* Thermal sensor configuration and status registers */
+#define E1000_THMJT             0x08100 /* Junction Temperature */
+#define E1000_THLOWTC           0x08104 /* Low Threshold Control */
+#define E1000_THMIDTC           0x08108 /* Mid Threshold Control */
+#define E1000_THHIGHTC          0x0810C /* High Threshold Control */
+#define E1000_THSTAT            0x08110 /* Thermal Sensor Status */
+
+/*Energy Efficient Ethernet "EEE" registers */
+#define E1000_IPCNFG            0x0E38 /* Internal PHY Configuration */
+#define E1000_LTRC              0x01A0 /* Latency Tolerance Reporting Control */
+#define E1000_EEER              0x0E30 /* Energy Efficient Ethernet "EEE"*/
+#define E1000_EEE_SU            0x0E34 /* EEE Setup */
+#define E1000_TLPIC             0x4148 /* EEE Tx LPI Count - TLPIC */
+#define E1000_RLPIC             0x414C /* EEE Rx LPI Count - RLPIC */
+
+/* OS2BMC Registers */
+#define E1000_B2OSPC            0x08FE0 /* BMC2OS packets sent by BMC */
+#define E1000_B2OGPRC           0x04158 /* BMC2OS packets received by host */
+#define E1000_O2BGPTC           0x08FE4 /* OS2BMC packets received by BMC */
+#define E1000_O2BSPC            0x0415C /* OS2BMC packets transmitted by host */
+
 #endif

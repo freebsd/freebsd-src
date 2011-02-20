@@ -67,15 +67,14 @@ fi
 export CFGF
 
 # Start by doing a sanity check, which will catch any obvious mistakes in the config
-file_sanity_check "installMode disk0 installType installMedium packageType"
+file_sanity_check "installMode installType installMedium packageType"
 
 # We passed the Sanity check, lets grab some of the universal config settings and store them
-check_value installMode "fresh upgrade"
-check_value bootManager "bsd none"
+check_value installMode "fresh upgrade extract"
 check_value installType "PCBSD FreeBSD"
-check_value installMedium "dvd usb ftp rsync img"
+check_value installMedium "dvd usb ftp rsync image"
 check_value packageType "uzip tar rsync split"
-if_check_value_exists partition "all ALL s1 s2 s3 s4 free FREE"
+if_check_value_exists partition "all s1 s2 s3 s4 free image"
 if_check_value_exists mirrorbal "load prefer round-robin split"
 
 # We passed all sanity checks! Yay, lets start the install
@@ -98,79 +97,33 @@ PACKAGETYPE="${VAL}" ; export PACKAGETYPE
 start_networking
 
 # If we are not doing an upgrade, lets go ahead and setup the disk
-if [ "${INSTALLMODE}" = "fresh" ]
-then
+case "${INSTALLMODE}" in
+  fresh)
+    if [ "${INSTALLMEDIUM}" = "image" ]
+    then
+      install_image
+    else
+      install_fresh
+    fi
+    ;;
 
-  # Lets start setting up the disk slices now
-  setup_disk_slice
-  
-  # Disk setup complete, now lets parse WORKINGSLICES and setup the bsdlabels
-  setup_disk_label
-  
-  # Now we've setup the bsdlabels, lets go ahead and run newfs / zfs 
-  # to setup the filesystems
-  setup_filesystems
+  extract)
+    # Extracting only, make sure we have a valid target directory
+    get_value_from_cfg installLocation
+    FSMNT="${VAL}" ; export FSMNT
+    if [ -z "$FSMNT" ] ; then exit_err "Missing installLocation=" ; fi
+    if [ ! -d "$FSMNT" ] ; then exit_err "No such directory: $FSMNT" ; fi
 
-  # Lets mount the partitions now
-  mount_all_filesystems
+    install_extractonly
+    ;;
 
-  # We are ready to begin extraction, lets start now
-  init_extraction
+  upgrade)
+    install_upgrade
+    ;;
 
-  # Check if we have any optional modules to load 
-  install_components
+  *)
+    exit 1
+    ;;
+esac
 
-  # Check if we have any packages to install
-  install_packages
-
-  # Do any localization in configuration
-  run_localize
-  
-  # Save any networking config on the installed system
-  save_networking_install
-
-  # Now add any users
-  setup_users
-
-  # Now run any commands specified
-  run_commands
-  
-  # Do any last cleanup / setup before unmounting
-  run_final_cleanup
-
-  # Unmount and finish up
-  unmount_all_filesystems
-
-  echo_log "Installation finished!"
-  exit 0
-
-else
-  # We're going to do an upgrade, skip all the disk setup 
-  # and start by mounting the target drive/slices
-  mount_upgrade
-  
-  # Start the extraction process
-  init_extraction
-
-  # Do any localization in configuration
-  run_localize
-
-  # Now run any commands specified
-  run_commands
-  
-  # Merge any old configuration files
-  merge_old_configs
-
-  # Check if we have any optional modules to load 
-  install_components
-
-  # Check if we have any packages to install
-  install_packages
-
-  # All finished, unmount the file-systems
-  unmount_upgrade
-
-  echo_log "Upgrade finished!"
-  exit 0
-fi
-
+exit 0

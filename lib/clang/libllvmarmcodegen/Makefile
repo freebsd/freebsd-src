@@ -3,19 +3,22 @@
 LIB=	llvmarmcodegen
 
 SRCDIR=	lib/Target/ARM
-SRCS=	ARMBaseInstrInfo.cpp \
+SRCS=	ARMAsmPrinter.cpp \
+	ARMBaseInstrInfo.cpp \
 	ARMBaseRegisterInfo.cpp \
 	ARMCodeEmitter.cpp \
 	ARMConstantIslandPass.cpp \
 	ARMConstantPoolValue.cpp \
 	ARMExpandPseudoInsts.cpp \
+	ARMFastISel.cpp \
+	ARMGlobalMerge.cpp \
 	ARMISelDAGToDAG.cpp \
 	ARMISelLowering.cpp \
 	ARMInstrInfo.cpp \
 	ARMJITInfo.cpp \
 	ARMLoadStoreOptimizer.cpp \
-	ARMLoadStoreOptimizer.cpp \
 	ARMMCAsmInfo.cpp \
+	ARMMCInstLower.cpp \
 	ARMRegisterInfo.cpp \
 	ARMSelectionDAGInfo.cpp \
 	ARMSubtarget.cpp \
@@ -31,13 +34,15 @@ SRCS=	ARMBaseInstrInfo.cpp \
 	Thumb2RegisterInfo.cpp \
 	Thumb2SizeReduction.cpp
 
-TGHDRS=	ARMGenCallingConv \
+TGHDRS=	ARMGenAsmWriter \
+	ARMGenCallingConv \
 	ARMGenCodeEmitter \
 	ARMGenDAGISel \
+	ARMGenFastISel \
 	ARMGenInstrInfo \
 	ARMGenInstrNames \
-	ARMGenRegisterInfo.h \
 	ARMGenRegisterInfo \
+	ARMGenRegisterInfo.h \
 	ARMGenRegisterNames \
 	ARMGenSubtarget \
 	Intrinsics

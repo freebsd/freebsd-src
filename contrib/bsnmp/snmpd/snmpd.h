@@ -30,7 +30,7 @@
  *
  * Private SNMPd data and functions.
  */
-#include <sys/queue.h>
+
 #ifdef USE_LIBBEGEMOT
 #include <rpoll.h>
 #else
@@ -247,7 +247,8 @@ extern struct snmpd snmpd;
 
 #define	VERS_ENABLE_V1	0x00000001
 #define	VERS_ENABLE_V2C	0x00000002
-#define	VERS_ENABLE_ALL	0x00000003
+#define	VERS_ENABLE_V3	0x00000004
+#define	VERS_ENABLE_ALL	(VERS_ENABLE_V1 | VERS_ENABLE_V2C | VERS_ENABLE_V3)
 
 /*
  * The debug group
@@ -278,6 +279,11 @@ struct snmpd_stats {
 	u_int32_t	noRxbuf;
 };
 extern struct snmpd_stats snmpd_stats;
+
+/*
+ * SNMPd Engine
+ */
+extern struct snmp_engine snmpd_engine;
 
 /*
  * OR Table
@@ -322,6 +328,11 @@ extern const char *syspath;
 extern int32_t snmp_serial_no;
 
 int init_actvals(void);
+
+extern char engine_file[];
+int init_snmpd_engine(void);
+int set_snmpd_engine(void);
+
 int read_config(const char *, struct lmodule *);
 int define_macro(const char *name, const char *value);
 

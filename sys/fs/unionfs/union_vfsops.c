@@ -89,7 +89,6 @@ unionfs_domount(struct mount *mp)
 	u_short		ufile;
 	unionfs_copymode copymode;
 	unionfs_whitemode whitemode;
-	struct componentname fakecn;
 	struct nameidata nd, *ndp;
 	struct vattr	va;
 
@@ -278,26 +277,6 @@ unionfs_domount(struct mount *mp)
 	 * Copy upper layer's RDONLY flag.
 	 */
 	mp->mnt_flag |= ump->um_uppervp->v_mount->mnt_flag & MNT_RDONLY;
-
-	/*
-	 * Check whiteout
-	 */
-	if ((mp->mnt_flag & MNT_RDONLY) == 0) {
-		memset(&fakecn, 0, sizeof(fakecn));
-		fakecn.cn_nameiop = LOOKUP;
-		fakecn.cn_thread = td;
-		error = VOP_WHITEOUT(ump->um_uppervp, &fakecn, LOOKUP);
-		if (error) {
-			if (below) {
-				VOP_UNLOCK(ump->um_uppervp, 0);
-				vrele(upperrootvp);
-			} else
-				vput(ump->um_uppervp);
-			free(ump, M_UNIONFSMNT);
-			mp->mnt_data = NULL;
-			return (error);
-		}
-	}
 
 	/*
 	 * Unlock the node

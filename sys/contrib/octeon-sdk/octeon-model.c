@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -47,11 +49,16 @@
  * File defining functions for working with different Octeon
  * models.
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 49922 $<hr>
  */
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include <asm/octeon/octeon.h>
+#include <asm/octeon/cvmx-clock.h>
+#else
 #include "cvmx.h"
 #include "cvmx-pow.h"
 #include "cvmx-warn.h"
+#endif
 
 #if defined(CVMX_BUILD_FOR_LINUX_USER) || defined(CVMX_BUILD_FOR_STANDALONE)
 #include <octeon-app-init.h>
@@ -71,19 +78,7 @@
 int octeon_model_version_check(uint32_t chip_id)
 {
     //printf("Model Number: %s\n", octeon_model_get_string(chip_id));
-#if OCTEON_IS_COMMON_BINARY()
-    if (chip_id == OCTEON_CN38XX_PASS1)
-    {
-        printf("Runtime Octeon Model checking binaries do not support OCTEON_CN38XX_PASS1 chips\n");
-#ifdef CVMX_BUILD_FOR_STANDALONE
-        if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
-            CVMX_BREAK;
-        while (1);
-#else
-        exit(-1);
-#endif
-    }
-#else
+#if !OCTEON_IS_COMMON_BINARY()
     /* Check for special case of mismarked 3005 samples, and adjust cpuid */
     if (chip_id == OCTEON_CN3010_PASS1 && (cvmx_read_csr(0x80011800800007B8ull) & (1ull << 34)))
         chip_id |= 0x10;
@@ -96,13 +91,7 @@ int octeon_model_version_check(uint32_t chip_id)
                    "         Expecting ID=0x%08x, Chip is 0x%08x\n", (OCTEON_MODEL & 0xffffff), (unsigned int)chip_id);
             if ((OCTEON_MODEL & 0xffffff) > chip_id)
                 printf("Refusing to run on older revision than program was compiled for.\n");
-#ifdef CVMX_BUILD_FOR_STANDALONE
-            if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
-                CVMX_BREAK;
-            while (1);
-#else
-            exit(-1);
-#endif
+	    exit(-1);
         }
         else
         {
@@ -119,6 +108,33 @@ int octeon_model_version_check(uint32_t chip_id)
     cvmx_warn_if(CVMX_ENABLE_CSR_ADDRESS_CHECKING, "CSR address checks are enabled. Expect some performance loss due to the extra checking\n");
     cvmx_warn_if(CVMX_ENABLE_POW_CHECKS, "POW state checks are enabled. Expect some performance loss due to the extra checking\n");
 
+    /* Core-14449 errata check. Generate a warning message if application 
+       compiled for OcteonPlus/Octeon models are run on Octeon II Pass1 chip */
+    {
+        uint32_t insn;
+
+        asm volatile (
+                      ".set push\n"            \
+                      ".set noreorder\n"       \
+                      "pref_errata:\tpref 0,0($zero)\n"      \
+                      "lw %0, pref_errata\n" \
+                      ".set pop"  : "=r" (insn) : : "memory");
+
+        if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X) && ((insn >> 16) & 0x1f) != 28)
+        {
+            printf("\n###################################################\n");
+            printf("WARNING: Application not compiled for cn63xx pass1.x chips, use of\n"
+                   "         certain prefetch operations can cause dcache corruption.\n");
+            printf("###################################################\n\n");
+            return -1;
+        }
+        else if (!OCTEON_IS_MODEL(OCTEON_CN63XX) && ((insn >> 16) & 0x1f) == 28)
+        {
+            printf("\n###################################################\n");
+            printf("WARNING: Software configured with -mfix-cn63xxp1 (Core-14449 errata), expect some performance loss.\n");
+            printf("###################################################\n\n");
+        }
+    }
     return(0);
 }
 
@@ -148,9 +164,6 @@ const char *octeon_model_get_string(uint32_t chip_id)
 */
 const char *octeon_model_get_string_buffer(uint32_t chip_id, char * buffer)
 {
-#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
-    extern uint64_t octeon_get_clock_rate(void);
-#endif
     const char *        family;
     const char *        core_model;
     char                pass[4];
@@ -163,7 +176,8 @@ const char *octeon_model_get_string_buffer(uint32_t chip_id, char * buffer)
     char fuse_model[10];
     uint32_t fuse_data = 0;
 
-    fus3.u64 = cvmx_read_csr(CVMX_L2D_FUS3);
+    if (!OCTEON_IS_MODEL(OCTEON_CN6XXX))
+        fus3.u64 = cvmx_read_csr(CVMX_L2D_FUS3);
     fus_dat2.u64 = cvmx_read_csr(CVMX_MIO_FUS_DAT2);
     fus_dat3.u64 = cvmx_read_csr(CVMX_MIO_FUS_DAT3);
     num_cores = cvmx_pop(cvmx_read_csr(CVMX_CIU_FUSE));
@@ -306,7 +320,7 @@ const char *octeon_model_get_string_buffer(uint32_t chip_id, char * buffer)
                 else
                     suffix = "SSP";
             }
-            else 
+            else
             {
                 if (fus_dat2.cn56xx.nocrypto)
                     suffix = "CP";
@@ -331,6 +345,17 @@ const char *octeon_model_get_string_buffer(uint32_t chip_id, char * buffer)
             else
                 family = "52";
             break;
+	case 0x90: /* CN63XX */
+            family = "63";
+            if (num_cores == 6)
+                core_model = "35";
+            if (fus_dat2.cn63xx.nocrypto)
+                suffix = "CP";
+            else if (fus_dat2.cn63xx.dorm_crypto)
+                suffix = "DAP";
+            else
+                suffix = "AAP";
+            break;
         default:
             family = "XX";
             core_model = "XX";
@@ -339,16 +364,7 @@ const char *octeon_model_get_string_buffer(uint32_t chip_id, char * buffer)
             break;
     }
 
-#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
-    clock_mhz = octeon_get_clock_rate() / 1000000;
-#elif defined(CVMX_BUILD_FOR_LINUX_HOST)
-    clock_mhz = 0;
-#else
-    if (cvmx_sysinfo_get())
-        clock_mhz = cvmx_sysinfo_get()->cpu_clock_hz / 1000000;
-    else
-        clock_mhz = 0;
-#endif
+    clock_mhz = cvmx_clock_get_rate(CVMX_CLOCK_RCLK) / 1000000;
 
     if (family[0] != '3')
     {

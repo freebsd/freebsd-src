@@ -904,6 +904,9 @@
 /* Define to 1 if you have the `strnvis' function. */
 /* #undef HAVE_STRNVIS */
 
+/* Define to 1 if you have the `strptime' function. */
+#define HAVE_STRPTIME 1
+
 /* Define to 1 if you have the `strsep' function. */
 #define HAVE_STRSEP 1
 

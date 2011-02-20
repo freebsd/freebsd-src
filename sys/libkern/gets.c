@@ -60,8 +60,16 @@ gets(char *cp, size_t size, int visible)
 			continue;
 		default:
 			if (lp < end) {
-				if (visible)
+				switch (visible) {
+				case GETS_NOECHO:
+					break;
+				case GETS_ECHOPASS:
+					printf("*");
+					break;
+				default:	
 					printf("%c", c);
+					break;
+				}
 				*lp++ = c;
 			}
 		}

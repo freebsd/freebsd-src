@@ -2467,18 +2467,31 @@ unsigned PrepareCall(SelectionDAG &DAG, SDValue &Callee, SDValue &InFlag,
 
   unsigned CallOpc = isSVR4ABI ? PPCISD::CALL_SVR4 : PPCISD::CALL_Darwin;
 
-  // If the callee is a GlobalAddress/ExternalSymbol node (quite common, every
-  // direct call is) turn it into a TargetGlobalAddress/TargetExternalSymbol
-  // node so that legalize doesn't hack it.
-  if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee))
-    Callee = DAG.getTargetGlobalAddress(G->getGlobal(), dl, 
-                                        Callee.getValueType());
-  else if (ExternalSymbolSDNode *S = dyn_cast<ExternalSymbolSDNode>(Callee))
-    Callee = DAG.getTargetExternalSymbol(S->getSymbol(), Callee.getValueType());
-  else if (SDNode *Dest = isBLACompatibleAddress(Callee, DAG))
+  bool needIndirectCall = true;
+  if (SDNode *Dest = isBLACompatibleAddress(Callee, DAG)) {
     // If this is an absolute destination address, use the munged value.
     Callee = SDValue(Dest, 0);
-  else {
+    needIndirectCall = false;
+  }
+  // XXX Work around for http://llvm.org/bugs/show_bug.cgi?id=5201
+  // Use indirect calls for ALL functions calls in JIT mode, since the
+  // far-call stubs may be outside relocation limits for a BL instruction.
+  if (!DAG.getTarget().getSubtarget<PPCSubtarget>().isJITCodeModel()) {
+    // If the callee is a GlobalAddress/ExternalSymbol node (quite common, every
+    // direct call is) turn it into a TargetGlobalAddress/TargetExternalSymbol
+    // node so that legalize doesn't hack it.
+    if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(Callee)) {
+      Callee = DAG.getTargetGlobalAddress(G->getGlobal(), dl,
+					  Callee.getValueType());
+      needIndirectCall = false;
+    }
+  }
+  if (ExternalSymbolSDNode *S = dyn_cast<ExternalSymbolSDNode>(Callee)) {
+      Callee = DAG.getTargetExternalSymbol(S->getSymbol(),
+					   Callee.getValueType());
+      needIndirectCall = false;
+  }
+  if (needIndirectCall) {
     // Otherwise, this is an indirect call.  We have to use a MTCTR/BCTRL pair
     // to do the call, we can't use PPCISD::CALL.
     SDValue MTCTROps[] = {Chain, Callee, InFlag};
@@ -3942,17 +3955,17 @@ SDValue PPCTargetLowering::LowerBUILD_VECTOR(SDValue Op,
     }
 
     // t = vsplti c, result = vsldoi t, t, 1
-    if (SextVal == ((i << 8) | (i >> (TypeShiftAmt-8)))) {
+    if (SextVal == ((i << 8) | (i < 0 ? 0xFF : 0))) {
       SDValue T = BuildSplatI(i, SplatSize, MVT::v16i8, DAG, dl);
       return BuildVSLDOI(T, T, 1, Op.getValueType(), DAG, dl);
     }
     // t = vsplti c, result = vsldoi t, t, 2
-    if (SextVal == ((i << 16) | (i >> (TypeShiftAmt-16)))) {
+    if (SextVal == ((i << 16) | (i < 0 ? 0xFFFF : 0))) {
       SDValue T = BuildSplatI(i, SplatSize, MVT::v16i8, DAG, dl);
       return BuildVSLDOI(T, T, 2, Op.getValueType(), DAG, dl);
     }
     // t = vsplti c, result = vsldoi t, t, 3
-    if (SextVal == ((i << 24) | (i >> (TypeShiftAmt-24)))) {
+    if (SextVal == ((i << 24) | (i < 0 ? 0xFFFFFF : 0))) {
       SDValue T = BuildSplatI(i, SplatSize, MVT::v16i8, DAG, dl);
       return BuildVSLDOI(T, T, 3, Op.getValueType(), DAG, dl);
     }

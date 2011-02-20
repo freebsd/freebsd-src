@@ -107,40 +107,43 @@ enum zio_compress {
 #define	ZIO_PRIORITY_NOW		(zio_priority_table[0])
 #define	ZIO_PRIORITY_SYNC_READ		(zio_priority_table[1])
 #define	ZIO_PRIORITY_SYNC_WRITE		(zio_priority_table[2])
-#define	ZIO_PRIORITY_ASYNC_READ		(zio_priority_table[3])
-#define	ZIO_PRIORITY_ASYNC_WRITE	(zio_priority_table[4])
-#define	ZIO_PRIORITY_FREE		(zio_priority_table[5])
-#define	ZIO_PRIORITY_CACHE_FILL		(zio_priority_table[6])
-#define	ZIO_PRIORITY_LOG_WRITE		(zio_priority_table[7])
-#define	ZIO_PRIORITY_RESILVER		(zio_priority_table[8])
-#define	ZIO_PRIORITY_SCRUB		(zio_priority_table[9])
-#define	ZIO_PRIORITY_TABLE_SIZE		10
+#define	ZIO_PRIORITY_LOG_WRITE		(zio_priority_table[3])
+#define	ZIO_PRIORITY_CACHE_FILL		(zio_priority_table[4])
+#define	ZIO_PRIORITY_AGG		(zio_priority_table[5])
+#define	ZIO_PRIORITY_FREE		(zio_priority_table[6])
+#define	ZIO_PRIORITY_ASYNC_WRITE	(zio_priority_table[7])
+#define	ZIO_PRIORITY_ASYNC_READ		(zio_priority_table[8])
+#define	ZIO_PRIORITY_RESILVER		(zio_priority_table[9])
+#define	ZIO_PRIORITY_SCRUB		(zio_priority_table[10])
+#define	ZIO_PRIORITY_TABLE_SIZE		11
 
-#define	ZIO_FLAG_MUSTSUCCEED		0x00000
-#define	ZIO_FLAG_CANFAIL		0x00001
-#define	ZIO_FLAG_SPECULATIVE		0x00002
-#define	ZIO_FLAG_CONFIG_WRITER		0x00004
-#define	ZIO_FLAG_DONT_RETRY		0x00008
+#define	ZIO_FLAG_MUSTSUCCEED		0x000000
+#define	ZIO_FLAG_CANFAIL		0x000001
+#define	ZIO_FLAG_SPECULATIVE		0x000002
+#define	ZIO_FLAG_CONFIG_WRITER		0x000004
+#define	ZIO_FLAG_DONT_RETRY		0x000008
 
-#define	ZIO_FLAG_DONT_CACHE		0x00010
-#define	ZIO_FLAG_DONT_QUEUE		0x00020
-#define	ZIO_FLAG_DONT_AGGREGATE		0x00040
-#define	ZIO_FLAG_DONT_PROPAGATE		0x00080
+#define	ZIO_FLAG_DONT_CACHE		0x000010
+#define	ZIO_FLAG_DONT_QUEUE		0x000020
+#define	ZIO_FLAG_DONT_AGGREGATE		0x000040
+#define	ZIO_FLAG_DONT_PROPAGATE		0x000080
 
-#define	ZIO_FLAG_IO_BYPASS		0x00100
-#define	ZIO_FLAG_IO_REPAIR		0x00200
-#define	ZIO_FLAG_IO_RETRY		0x00400
-#define	ZIO_FLAG_IO_REWRITE		0x00800
+#define	ZIO_FLAG_IO_BYPASS		0x000100
+#define	ZIO_FLAG_IO_REPAIR		0x000200
+#define	ZIO_FLAG_IO_RETRY		0x000400
+#define	ZIO_FLAG_IO_REWRITE		0x000800
 
-#define	ZIO_FLAG_SELF_HEAL		0x01000
-#define	ZIO_FLAG_RESILVER		0x02000
-#define	ZIO_FLAG_SCRUB			0x04000
-#define	ZIO_FLAG_SCRUB_THREAD		0x08000
+#define	ZIO_FLAG_SELF_HEAL		0x001000
+#define	ZIO_FLAG_RESILVER		0x002000
+#define	ZIO_FLAG_SCRUB			0x004000
+#define	ZIO_FLAG_SCRUB_THREAD		0x008000
 
-#define	ZIO_FLAG_PROBE			0x10000
-#define	ZIO_FLAG_GANG_CHILD		0x20000
-#define	ZIO_FLAG_RAW			0x40000
-#define	ZIO_FLAG_GODFATHER		0x80000
+#define	ZIO_FLAG_PROBE			0x010000
+#define	ZIO_FLAG_GANG_CHILD		0x020000
+#define	ZIO_FLAG_RAW			0x040000
+#define	ZIO_FLAG_GODFATHER		0x080000
+
+#define	ZIO_FLAG_TRYHARD		0x100000
 
 #define	ZIO_FLAG_GANG_INHERIT		\
 	(ZIO_FLAG_CANFAIL |		\
@@ -158,7 +161,8 @@ enum zio_compress {
 	(ZIO_FLAG_GANG_INHERIT |	\
 	ZIO_FLAG_IO_REPAIR |		\
 	ZIO_FLAG_IO_RETRY |		\
-	ZIO_FLAG_PROBE)
+	ZIO_FLAG_PROBE |		\
+	ZIO_FLAG_TRYHARD)
 
 #define	ZIO_FLAG_AGG_INHERIT		\
 	(ZIO_FLAG_DONT_AGGREGATE |	\
@@ -336,7 +340,8 @@ struct zio {
 
 #ifdef _KERNEL
 	/* FreeBSD only. */
-	struct ostask	io_task;
+	struct ostask	io_task_issue;
+	struct ostask	io_task_interrupt;
 #endif
 };
 
@@ -439,7 +444,7 @@ extern int zio_inject_list_next(int *id, char *name, size_t buflen,
     struct zinject_record *record);
 extern int zio_clear_fault(int id);
 extern int zio_handle_fault_injection(zio_t *zio, int error);
-extern int zio_handle_device_injection(vdev_t *vd, int error);
+extern int zio_handle_device_injection(vdev_t *vd, zio_t *zio, int error);
 extern int zio_handle_label_injection(zio_t *zio, int error);
 
 #ifdef	__cplusplus

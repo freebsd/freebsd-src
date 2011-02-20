@@ -12,26 +12,36 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Sema.h"
+#include "clang/Sema/SemaInternal.h"
+#include "clang/Sema/DelayedDiagnostic.h"
 #include "TargetAttributesSema.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/APFloat.h"
+#include "clang/Sema/CXXFieldCollector.h"
 #include "clang/Sema/ExternalSemaSource.h"
-#include "clang/AST/ASTConsumer.h"
+#include "clang/Sema/PrettyDeclStackTrace.h"
+#include "clang/Sema/Scope.h"
+#include "clang/Sema/ScopeInfo.h"
+#include "clang/Sema/SemaConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDiagnostic.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Expr.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/PartialDiagnostic.h"
 #include "clang/Basic/TargetInfo.h"
 using namespace clang;
+using namespace sema;
 
 FunctionScopeInfo::~FunctionScopeInfo() { }
 
 void FunctionScopeInfo::Clear(unsigned NumErrors) {
-  NeedsScopeChecking = false;
+  HasBranchProtectedScope = false;
+  HasBranchIntoScope = false;
+  HasIndirectGoto = false;
+  
   LabelMap.clear();
   SwitchStack.clear();
   Returns.clear();
@@ -40,13 +50,13 @@ void FunctionScopeInfo::Clear(unsigned NumErrors) {
 
 BlockScopeInfo::~BlockScopeInfo() { }
 
-void Sema::ActOnTranslationUnitScope(SourceLocation Loc, Scope *S) {
+void Sema::ActOnTranslationUnitScope(Scope *S) {
   TUScope = S;
   PushDeclContext(S, Context.getTranslationUnitDecl());
 
   VAListTagName = PP.getIdentifierInfo("__va_list_tag");
 
-  if (!Context.isInt128Installed() && // May be set by PCHReader.
+  if (!Context.isInt128Installed() && // May be set by ASTReader.
       PP.getTargetInfo().getPointerWidth(0) >= 64) {
     TypeSourceInfo *TInfo;
 
@@ -68,7 +78,7 @@ void Sema::ActOnTranslationUnitScope(SourceLocation Loc, Scope *S) {
 
   if (!PP.getLangOptions().ObjC1) return;
 
-  // Built-in ObjC types may already be set by PCHReader (hence isNull checks).
+  // Built-in ObjC types may already be set by ASTReader (hence isNull checks).
   if (Context.getObjCSelType().isNull()) {
     // Create the built-in typedef for 'SEL'.
     QualType SelT = Context.getPointerType(Context.ObjCBuiltinSelTy);
@@ -113,7 +123,7 @@ void Sema::ActOnTranslationUnitScope(SourceLocation Loc, Scope *S) {
     PushOnScopeChains(ClassTypedef, TUScope);
     Context.setObjCClassType(Context.getTypeDeclType(ClassTypedef));
     Context.ObjCClassRedefinitionType = Context.getObjCClassType();
-  }
+  }  
 }
 
 Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
@@ -123,9 +133,8 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
     LangOpts(pp.getLangOptions()), PP(pp), Context(ctxt), Consumer(consumer),
     Diags(PP.getDiagnostics()), SourceMgr(PP.getSourceManager()),
     ExternalSource(0), CodeCompleter(CodeCompleter), CurContext(0), 
-    PackContext(0), TopFunctionScope(0), ParsingDeclDepth(0),
-    IdResolver(pp.getLangOptions()), StdNamespace(0), StdBadAlloc(0),
-    GlobalNewDeleteDeclared(false), 
+    PackContext(0), VisContext(0), ParsingDeclDepth(0),
+    IdResolver(pp.getLangOptions()), GlobalNewDeleteDeclared(false), 
     CompleteTranslationUnit(CompleteTranslationUnit),
     NumSFINAEErrors(0), SuppressAccessChecking(false),
     NonInstantiationEntries(0), CurrentInstantiationScope(0), TyposCorrected(0),
@@ -140,22 +149,52 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
                                        &Context);
 
   ExprEvalContexts.push_back(
-                  ExpressionEvaluationContextRecord(PotentiallyEvaluated, 0));
+                  ExpressionEvaluationContextRecord(PotentiallyEvaluated, 0));  
+
+  FunctionScopes.push_back(new FunctionScopeInfo(Diags.getNumErrors()));
+}
+
+void Sema::Initialize() {
+  // Tell the AST consumer about this Sema object.
+  Consumer.Initialize(Context);
+  
+  // FIXME: Isn't this redundant with the initialization above?
+  if (SemaConsumer *SC = dyn_cast<SemaConsumer>(&Consumer))
+    SC->InitializeSema(*this);
+  
+  // Tell the external Sema source about this Sema object.
+  if (ExternalSemaSource *ExternalSema
+      = dyn_cast_or_null<ExternalSemaSource>(Context.getExternalSource()))
+    ExternalSema->InitializeSema(*this);
 }
 
 Sema::~Sema() {
   if (PackContext) FreePackedContext();
+  if (VisContext) FreeVisContext();
   delete TheTargetAttributesSema;
-  while (!FunctionScopes.empty())
-    PopFunctionOrBlockScope();
+
+  // Kill all the active scopes.
+  for (unsigned I = 1, E = FunctionScopes.size(); I != E; ++I)
+    delete FunctionScopes[I];
+  if (FunctionScopes.size() == 1)
+    delete FunctionScopes[0];
+  
+  // Tell the SemaConsumer to forget about us; we're going out of scope.
+  if (SemaConsumer *SC = dyn_cast<SemaConsumer>(&Consumer))
+    SC->ForgetSema();
+
+  // Detach from the external Sema source.
+  if (ExternalSemaSource *ExternalSema
+        = dyn_cast_or_null<ExternalSemaSource>(Context.getExternalSource()))
+    ExternalSema->ForgetSema();
 }
 
 /// ImpCastExprToType - If Expr is not of type 'Type', insert an implicit cast.
 /// If there is already an implicit cast, merge into the existing one.
-/// If isLvalue, the result of the cast is an lvalue.
+/// The result is of the given category.
 void Sema::ImpCastExprToType(Expr *&Expr, QualType Ty,
-                             CastExpr::CastKind Kind, 
-                             bool isLvalue, CXXBaseSpecifierArray BasePath) {
+                             CastKind Kind, ExprValueKind VK,
+                             const CXXCastPath *BasePath) {
   QualType ExprTy = Context.getCanonicalType(Expr->getType());
   QualType TypeTy = Context.getCanonicalType(Ty);
 
@@ -173,8 +212,8 @@ void Sema::ImpCastExprToType(Expr *&Expr, QualType Ty,
 
   // If this is a derived-to-base cast to a through a virtual base, we
   // need a vtable.
-  if (Kind == CastExpr::CK_DerivedToBase && 
-      BasePathInvolvesVirtualBase(BasePath)) {
+  if (Kind == CK_DerivedToBase && 
+      BasePathInvolvesVirtualBase(*BasePath)) {
     QualType T = Expr->getType();
     if (const PointerType *Pointer = T->getAs<PointerType>())
       T = Pointer->getPointeeType();
@@ -184,53 +223,96 @@ void Sema::ImpCastExprToType(Expr *&Expr, QualType Ty,
   }
 
   if (ImplicitCastExpr *ImpCast = dyn_cast<ImplicitCastExpr>(Expr)) {
-    if (ImpCast->getCastKind() == Kind && BasePath.empty()) {
+    if (ImpCast->getCastKind() == Kind && (!BasePath || BasePath->empty())) {
       ImpCast->setType(Ty);
-      ImpCast->setLvalueCast(isLvalue);
+      ImpCast->setValueKind(VK);
       return;
     }
   }
 
-  Expr = new (Context) ImplicitCastExpr(Ty, Kind, Expr, BasePath, isLvalue);
+  Expr = ImplicitCastExpr::Create(Context, Ty, Kind, Expr, BasePath, VK);
 }
 
-void Sema::DeleteExpr(ExprTy *E) {
-  if (E) static_cast<Expr*>(E)->Destroy(Context);
+ExprValueKind Sema::CastCategory(Expr *E) {
+  Expr::Classification Classification = E->Classify(Context);
+  return Classification.isRValue() ? VK_RValue :
+      (Classification.isLValue() ? VK_LValue : VK_XValue);
 }
-void Sema::DeleteStmt(StmtTy *S) {
-  if (S) static_cast<Stmt*>(S)->Destroy(Context);
+
+/// \brief Used to prune the decls of Sema's UnusedFileScopedDecls vector.
+static bool ShouldRemoveFromUnused(Sema *SemaRef, const DeclaratorDecl *D) {
+  if (D->isUsed())
+    return true;
+
+  if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
+    // UnusedFileScopedDecls stores the first declaration.
+    // The declaration may have become definition so check again.
+    const FunctionDecl *DeclToCheck;
+    if (FD->hasBody(DeclToCheck))
+      return !SemaRef->ShouldWarnIfUnusedFileScopedDecl(DeclToCheck);
+
+    // Later redecls may add new information resulting in not having to warn,
+    // so check again.
+    DeclToCheck = FD->getMostRecentDeclaration();
+    if (DeclToCheck != FD)
+      return !SemaRef->ShouldWarnIfUnusedFileScopedDecl(DeclToCheck);
+  }
+
+  if (const VarDecl *VD = dyn_cast<VarDecl>(D)) {
+    // UnusedFileScopedDecls stores the first declaration.
+    // The declaration may have become definition so check again.
+    const VarDecl *DeclToCheck = VD->getDefinition(); 
+    if (DeclToCheck)
+      return !SemaRef->ShouldWarnIfUnusedFileScopedDecl(DeclToCheck);
+
+    // Later redecls may add new information resulting in not having to warn,
+    // so check again.
+    DeclToCheck = VD->getMostRecentDeclaration();
+    if (DeclToCheck != VD)
+      return !SemaRef->ShouldWarnIfUnusedFileScopedDecl(DeclToCheck);
+  }
+
+  return false;
 }
 
 /// ActOnEndOfTranslationUnit - This is called at the very end of the
 /// translation unit when EOF is reached and all but the top-level scope is
 /// popped.
-void Sema::ActOnEndOfTranslationUnit() {  
-  while (1) {
-    // C++: Perform implicit template instantiations.
-    //
-    // FIXME: When we perform these implicit instantiations, we do not carefully
-    // keep track of the point of instantiation (C++ [temp.point]). This means
-    // that name lookup that occurs within the template instantiation will
-    // always happen at the end of the translation unit, so it will find
-    // some names that should not be found. Although this is common behavior
-    // for C++ compilers, it is technically wrong. In the future, we either need
-    // to be able to filter the results of name lookup or we need to perform
-    // template instantiations earlier.
-    PerformPendingImplicitInstantiations();
-    
-    /// If DefinedUsedVTables ends up marking any virtual member
-    /// functions it might lead to more pending template
-    /// instantiations, which is why we need to loop here.
-    if (!DefineUsedVTables())
-      break;
-  }
+void Sema::ActOnEndOfTranslationUnit() {
+  // At PCH writing, implicit instantiations and VTable handling info are
+  // stored and performed when the PCH is included.
+  if (CompleteTranslationUnit)
+    while (1) {
+      // C++: Perform implicit template instantiations.
+      //
+      // FIXME: When we perform these implicit instantiations, we do not
+      // carefully keep track of the point of instantiation (C++ [temp.point]).
+      // This means that name lookup that occurs within the template
+      // instantiation will always happen at the end of the translation unit,
+      // so it will find some names that should not be found. Although this is
+      // common behavior for C++ compilers, it is technically wrong. In the
+      // future, we either need to be able to filter the results of name lookup
+      // or we need to perform template instantiations earlier.
+      PerformPendingInstantiations();
+
+      /// If DefinedUsedVTables ends up marking any virtual member
+      /// functions it might lead to more pending template
+      /// instantiations, which is why we need to loop here.
+      if (!DefineUsedVTables())
+        break;
+    }
   
-  // Remove functions that turned out to be used.
-  UnusedStaticFuncs.erase(std::remove_if(UnusedStaticFuncs.begin(), 
-                                         UnusedStaticFuncs.end(), 
-                             std::bind2nd(std::mem_fun(&FunctionDecl::isUsed),
-                                          true)), 
-                          UnusedStaticFuncs.end());
+  // Remove file scoped decls that turned out to be used.
+  UnusedFileScopedDecls.erase(std::remove_if(UnusedFileScopedDecls.begin(),
+                                             UnusedFileScopedDecls.end(),
+                              std::bind1st(std::ptr_fun(ShouldRemoveFromUnused),
+                                           this)),
+                              UnusedFileScopedDecls.end());
+
+  if (!CompleteTranslationUnit) {
+    TUScope = 0;
+    return;
+  }
 
   // Check for #pragma weak identifiers that were never declared
   // FIXME: This will cause diagnostics to be emitted in a non-determinstic
@@ -243,9 +325,6 @@ void Sema::ActOnEndOfTranslationUnit() {
     Diag(I->second.getLocation(), diag::warn_weak_identifier_undeclared)
       << I->first;
   }
-
-  if (!CompleteTranslationUnit)
-    return;
 
   // C99 6.9.2p2:
   //   A declaration of an identifier for an object that has file
@@ -293,14 +372,28 @@ void Sema::ActOnEndOfTranslationUnit() {
 
   }
   
-  // Output warning for unused functions.
-  for (std::vector<FunctionDecl*>::iterator
-       F = UnusedStaticFuncs.begin(),
-       FEnd = UnusedStaticFuncs.end();
-       F != FEnd;
-       ++F)
-    Diag((*F)->getLocation(), diag::warn_unused_function) << (*F)->getDeclName();
-  
+  // Output warning for unused file scoped decls.
+  for (llvm::SmallVectorImpl<const DeclaratorDecl*>::iterator
+         I = UnusedFileScopedDecls.begin(),
+         E = UnusedFileScopedDecls.end(); I != E; ++I) {
+    if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(*I)) {
+      const FunctionDecl *DiagD;
+      if (!FD->hasBody(DiagD))
+        DiagD = FD;
+      Diag(DiagD->getLocation(),
+           isa<CXXMethodDecl>(DiagD) ? diag::warn_unused_member_function
+                                     : diag::warn_unused_function)
+            << DiagD->getDeclName();
+    } else {
+      const VarDecl *DiagD = cast<VarDecl>(*I)->getDefinition();
+      if (!DiagD)
+        DiagD = cast<VarDecl>(*I);
+      Diag(DiagD->getLocation(), diag::warn_unused_variable)
+            << DiagD->getDeclName();
+    }
+  }
+
+  TUScope = 0;
 }
 
 
@@ -418,11 +511,11 @@ Scope *Sema::getScopeForContext(DeclContext *Ctx) {
 
 /// \brief Enter a new function scope
 void Sema::PushFunctionScope() {
-  if (FunctionScopes.empty()) {
-    // Use the "top" function scope rather than having to allocate memory for
-    // a new scope.
-    TopFunctionScope.Clear(getDiagnostics().getNumErrors());
-    FunctionScopes.push_back(&TopFunctionScope);
+  if (FunctionScopes.size() == 1) {
+    // Use the "top" function scope rather than having to allocate
+    // memory for a new scope.
+    FunctionScopes.back()->Clear(getDiagnostics().getNumErrors());
+    FunctionScopes.push_back(FunctionScopes.back());
     return;
   }
   
@@ -436,21 +529,17 @@ void Sema::PushBlockScope(Scope *BlockScope, BlockDecl *Block) {
 }
 
 void Sema::PopFunctionOrBlockScope() {
-  if (FunctionScopes.back() != &TopFunctionScope)
-    delete FunctionScopes.back();
-  else
-    TopFunctionScope.Clear(getDiagnostics().getNumErrors());
-  
-  FunctionScopes.pop_back();
+  FunctionScopeInfo *Scope = FunctionScopes.pop_back_val();
+  assert(!FunctionScopes.empty() && "mismatched push/pop!");
+  if (FunctionScopes.back() != Scope)
+    delete Scope;
 }
 
 /// \brief Determine whether any errors occurred within this function/method/
 /// block.
 bool Sema::hasAnyErrorsInThisFunction() const {
-  unsigned NumErrors = TopFunctionScope.NumErrorsAtStartOfFunction;
-  if (!FunctionScopes.empty())
-    NumErrors = FunctionScopes.back()->NumErrorsAtStartOfFunction;
-  return NumErrors != getDiagnostics().getNumErrors();
+  return getCurFunction()->NumErrorsAtStartOfFunction
+             != getDiagnostics().getNumErrors();
 }
 
 BlockScopeInfo *Sema::getCurBlock() {
@@ -462,3 +551,21 @@ BlockScopeInfo *Sema::getCurBlock() {
 
 // Pin this vtable to this file.
 ExternalSemaSource::~ExternalSemaSource() {}
+
+void PrettyDeclStackTraceEntry::print(llvm::raw_ostream &OS) const {
+  SourceLocation Loc = this->Loc;
+  if (!Loc.isValid() && TheDecl) Loc = TheDecl->getLocation();
+  if (Loc.isValid()) {
+    Loc.print(OS, S.getSourceManager());
+    OS << ": ";
+  }
+  OS << Message;
+
+  if (TheDecl && isa<NamedDecl>(TheDecl)) {
+    std::string Name = cast<NamedDecl>(TheDecl)->getNameAsString();
+    if (!Name.empty())
+      OS << " '" << Name << '\'';
+  }
+
+  OS << '\n';
+}

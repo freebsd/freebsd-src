@@ -859,7 +859,9 @@ unzip(const char *fn)
 	int fd, ret;
 	uintmax_t total_size, file_count, error_count;
 
-	if ((fd = open(fn, O_RDONLY)) < 0)
+	if (strcmp(fn, "-") == 0)
+		fd = STDIN_FILENO;
+	else if ((fd = open(fn, O_RDONLY)) < 0)
 		error("%s", fn);
 
 	if ((a = archive_read_new()) == NULL)
@@ -913,7 +915,7 @@ unzip(const char *fn)
 	ac(archive_read_close(a));
 	(void)archive_read_finish(a);
 
-	if (close(fd) != 0)
+	if (fd != STDIN_FILENO && close(fd) != 0)
 		error("%s", fn);
 
 	if (t_opt) {

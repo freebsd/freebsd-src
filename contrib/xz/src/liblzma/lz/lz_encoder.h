@@ -281,7 +281,7 @@ mf_read(lzma_mf *mf, uint8_t *out, size_t *out_pos, size_t out_size,
 		size_t *left)
 {
 	const size_t out_avail = out_size - *out_pos;
-	const size_t copy_size = MIN(out_avail, *left);
+	const size_t copy_size = my_min(out_avail, *left);
 
 	assert(mf->read_ahead == 0);
 	assert(mf->read_pos >= *left);

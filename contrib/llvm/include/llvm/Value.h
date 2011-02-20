@@ -215,12 +215,10 @@ public:
     ConstantFPVal,            // This is an instance of ConstantFP
     ConstantArrayVal,         // This is an instance of ConstantArray
     ConstantStructVal,        // This is an instance of ConstantStruct
-    ConstantUnionVal,         // This is an instance of ConstantUnion
     ConstantVectorVal,        // This is an instance of ConstantVector
     ConstantPointerNullVal,   // This is an instance of ConstantPointerNull
     MDNodeVal,                // This is an instance of MDNode
     MDStringVal,              // This is an instance of MDString
-    NamedMDNodeVal,           // This is an instance of NamedMDNode
     InlineAsmVal,             // This is an instance of InlineAsm
     PseudoSourceValueVal,     // This is an instance of PseudoSourceValue
     FixedStackPseudoSourceValueVal, // This is an instance of 
@@ -307,6 +305,10 @@ public:
                                 const BasicBlock *PredBB) const{
     return const_cast<Value*>(this)->DoPHITranslation(CurBB, PredBB);
   }
+  
+  /// MaximumAlignment - This is the greatest alignment value supported by
+  /// load, store, and alloca instructions, and global values.
+  static const unsigned MaximumAlignment = 1u << 29;
   
 protected:
   unsigned short getSubclassDataFromValue() const { return SubclassData; }

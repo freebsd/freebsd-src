@@ -355,7 +355,7 @@ sctp_process_inpcb(struct xsctp_inpcb *xinpcb, const char *name,
 		first = 0;
 	}
 	if (Lflag && xinpcb->maxqlen == 0) {
-		(int)sctp_skip_xinpcb_ifneed(buf, buflen, offset);
+		sctp_skip_xinpcb_ifneed(buf, buflen, offset);
 		return;
 	}
 	if (Aflag)

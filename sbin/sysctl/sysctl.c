@@ -67,7 +67,6 @@ static int	show_var(int *, int);
 static int	sysctl_all(int *oid, int len);
 static int	name2oid(char *, int *);
 
-static void	set_T_dev_t(char *, void **, size_t *);
 static int	set_IK(const char *, int *);
 
 static void
@@ -171,7 +170,8 @@ parse(char *string)
 	long longval;
 	unsigned long ulongval;
 	size_t newsize = 0;
-	quad_t quadval;
+	int64_t i64val;
+	uint64_t u64val;
 	int mib[CTL_MAXNAME];
 	char *cp, *bufp, buf[BUFSIZ], *endptr, fmt[BUFSIZ];
 	u_int kind;
@@ -231,7 +231,8 @@ parse(char *string)
 		    (kind & CTLTYPE) == CTLTYPE_UINT ||
 		    (kind & CTLTYPE) == CTLTYPE_LONG ||
 		    (kind & CTLTYPE) == CTLTYPE_ULONG ||
-		    (kind & CTLTYPE) == CTLTYPE_QUAD) {
+		    (kind & CTLTYPE) == CTLTYPE_S64 ||
+		    (kind & CTLTYPE) == CTLTYPE_U64) {
 			if (strlen(newval) == 0)
 				errx(1, "empty numeric value");
 		}
@@ -278,19 +279,23 @@ parse(char *string)
 				break;
 			case CTLTYPE_STRING:
 				break;
-			case CTLTYPE_QUAD:
-				quadval = strtoq(newval, &endptr, 0);
+			case CTLTYPE_S64:
+				i64val = strtoimax(newval, &endptr, 0);
 				if (endptr == newval || *endptr != '\0')
-					errx(1, "invalid quad integer"
-					    " '%s'", (char *)newval);
-				newval = &quadval;
-				newsize = sizeof(quadval);
+					errx(1, "invalid int64_t '%s'",
+					    (char *)newval);
+				newval = &i64val;
+				newsize = sizeof(i64val);
+				break;
+			case CTLTYPE_U64:
+				u64val = strtoumax(newval, &endptr, 0);
+				if (endptr == newval || *endptr != '\0')
+					errx(1, "invalid uint64_t '%s'",
+					    (char *)newval);
+				newval = &u64val;
+				newsize = sizeof(u64val);
 				break;
 			case CTLTYPE_OPAQUE:
-				if (strcmp(fmt, "T,dev_t") == 0) {
-					set_T_dev_t (newval, &newval, &newsize);
-					break;
-				}
 				/* FALLTHROUGH */
 			default:
 				errx(1, "oid '%s' is type %d,"
@@ -406,9 +411,9 @@ S_vmtotal(int l2, void *p)
 	    "%hd Sleep: %hd)\n",
 	    v->t_rq, v->t_dw, v->t_pw, v->t_sl);
 	printf(
-	    "Virtual Memory:\t\t(Total: %dK, Active %dK)\n",
+	    "Virtual Memory:\t\t(Total: %dK Active: %dK)\n",
 	    v->t_vm * pageKilo, v->t_avm * pageKilo);
-	printf("Real Memory:\t\t(Total: %dK Active %dK)\n",
+	printf("Real Memory:\t\t(Total: %dK Active: %dK)\n",
 	    v->t_rm * pageKilo, v->t_arm * pageKilo);
 	printf("Shared Virtual Memory:\t(Total: %dK Active: %dK)\n",
 	    v->t_vmshr * pageKilo, v->t_avmshr * pageKilo);
@@ -417,40 +422,6 @@ S_vmtotal(int l2, void *p)
 	printf("Free Memory Pages:\t%dK\n", v->t_free * pageKilo);
 
 	return (0);
-}
-
-static int
-T_dev_t(int l2, void *p)
-{
-	dev_t *d = (dev_t *)p;
-
-	if (l2 != sizeof(*d)) {
-		warnx("T_dev_T %d != %zu", l2, sizeof(*d));
-		return (1);
-	}
-	printf("%s", devname(*d, S_IFCHR));
-	return (0);
-}
-
-static void
-set_T_dev_t(char *path, void **val, size_t *size)
-{
-	static struct stat statb;
-
-	if (strcmp(path, "none") && strcmp(path, "off")) {
-		int rc = stat (path, &statb);
-		if (rc) {
-			err(1, "cannot stat %s", path);
-		}
-
-		if (!S_ISCHR(statb.st_mode)) {
-			errx(1, "must specify a device special file.");
-		}
-	} else {
-		statb.st_rdev = NODEV;
-	}
-	*val = (void *) &statb.st_rdev;
-	*size = sizeof(statb.st_rdev);
 }
 
 static int
@@ -532,6 +503,21 @@ oidfmt(int *oid, int len, char *fmt, u_int *kind)
 	return (0);
 }
 
+static int ctl_sign[CTLTYPE+1] = {
+	[CTLTYPE_INT] = 1,
+	[CTLTYPE_LONG] = 1,
+	[CTLTYPE_S64] = 1,
+};
+
+static int ctl_size[CTLTYPE+1] = {
+	[CTLTYPE_INT] = sizeof(int),
+	[CTLTYPE_UINT] = sizeof(u_int),
+	[CTLTYPE_LONG] = sizeof(long),
+	[CTLTYPE_ULONG] = sizeof(u_long),
+	[CTLTYPE_S64] = sizeof(int64_t),
+	[CTLTYPE_U64] = sizeof(int64_t),
+};
+
 /*
  * This formats and outputs the value of one variable
  *
@@ -539,7 +525,6 @@ oidfmt(int *oid, int len, char *fmt, u_int *kind)
  * Returns one if didn't know what to do with this.
  * Return minus one if we had errors.
  */
-
 static int
 show_var(int *oid, int nlen)
 {
@@ -549,7 +534,7 @@ show_var(int *oid, int nlen)
 	int qoid[CTL_MAXNAME+2];
 	uintmax_t umv;
 	intmax_t mv;
-	int i, hexlen;
+	int i, hexlen, sign, ctltype;
 	size_t intlen;
 	size_t j, len;
 	u_int kind;
@@ -614,46 +599,51 @@ show_var(int *oid, int nlen)
 	fmt = buf;
 	oidfmt(oid, nlen, fmt, &kind);
 	p = val;
-	switch (*fmt) {
-	case 'A':
+	ctltype = (kind & CTLTYPE);
+	sign = ctl_sign[ctltype];
+	intlen = ctl_size[ctltype];
+
+	switch (ctltype) {
+	case CTLTYPE_STRING:
 		if (!nflag)
 			printf("%s%s", name, sep);
 		printf("%.*s", (int)len, p);
 		free(oval);
 		return (0);
 
-	case 'I':
-	case 'L':
-	case 'Q':
+	case CTLTYPE_INT:
+	case CTLTYPE_UINT:
+	case CTLTYPE_LONG:
+	case CTLTYPE_ULONG:
+	case CTLTYPE_S64:
+	case CTLTYPE_U64:
 		if (!nflag)
 			printf("%s%s", name, sep);
-		switch (*fmt) {
-		case 'I': intlen = sizeof(int); break;
-		case 'L': intlen = sizeof(long); break;
-		case 'Q': intlen = sizeof(quad_t); break;
-		}
 		hexlen = 2 + (intlen * CHAR_BIT + 3) / 4;
 		sep1 = "";
 		while (len >= intlen) {
-			switch (*fmt) {
-			case 'I':
+			switch (kind & CTLTYPE) {
+			case CTLTYPE_INT:
+			case CTLTYPE_UINT:
 				umv = *(u_int *)p;
 				mv = *(int *)p;
 				break;
-			case 'L':
+			case CTLTYPE_LONG:
+			case CTLTYPE_ULONG:
 				umv = *(u_long *)p;
 				mv = *(long *)p;
 				break;
-			case 'Q':
-				umv = *(u_quad_t *)p;
-				mv = *(quad_t *)p;
+			case CTLTYPE_S64:
+			case CTLTYPE_U64:
+				umv = *(uint64_t *)p;
+				mv = *(int64_t *)p;
 				break;
 			}
 			fputs(sep1, stdout);
-			if (fmt[1] == 'U')
-				printf(hflag ? "%'ju" : "%ju", umv);
-			else if (fmt[1] == 'X')
+			if (xflag)
 				printf("%#0*jx", hexlen, umv);
+			else if (!sign)
+				printf(hflag ? "%'ju" : "%ju", umv);
 			else if (fmt[1] == 'K') {
 				if (mv < 0)
 					printf("%jd", mv);
@@ -668,15 +658,7 @@ show_var(int *oid, int nlen)
 		free(oval);
 		return (0);
 
-	case 'P':
-		if (!nflag)
-			printf("%s%s", name, sep);
-		printf("%p", *(void **)p);
-		free(oval);
-		return (0);
-
-	case 'T':
-	case 'S':
+	case CTLTYPE_OPAQUE:
 		i = 0;
 		if (strcmp(fmt, "S,clockinfo") == 0)
 			func = S_clockinfo;
@@ -686,8 +668,6 @@ show_var(int *oid, int nlen)
 			func = S_loadavg;
 		else if (strcmp(fmt, "S,vmtotal") == 0)
 			func = S_vmtotal;
-		else if (strcmp(fmt, "T,dev_t") == 0)
-			func = T_dev_t;
 		else
 			func = NULL;
 		if (func) {

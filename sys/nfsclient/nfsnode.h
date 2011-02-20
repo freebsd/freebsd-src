@@ -102,10 +102,9 @@ struct nfsnode {
 	time_t			n_attrstamp;	/* Attr. cache timestamp */
 	struct nfs_accesscache	n_accesscache[NFS_ACCESSCACHESIZE];
 	struct timespec		n_mtime;	/* Prev modify time. */
-	time_t			n_ctime;	/* Prev create time. */
-	time_t			n_dmtime;	/* Prev dir modify time. */
+	struct timespec		n_ctime;	/* Prev create time. */
+	struct timespec		n_dmtime;	/* Prev dir modify time. */
 	int			n_dmtime_ticks;	/* Tick of -ve cache entry */
-	time_t			n_expiry;	/* Lease expiry time */
 	nfsfh_t			*n_fhp;		/* NFS File Handle */
 	struct vnode		*n_vnode;	/* associated vnode */
 	struct vnode		*n_dvp;		/* parent vnode */
@@ -166,16 +165,13 @@ struct nfsnode {
 #define NFS_TIMESPEC_COMPARE(T1, T2)	(((T1)->tv_sec != (T2)->tv_sec) || ((T1)->tv_nsec != (T2)->tv_nsec))
 
 /*
- * NFS iod threads can be in one of these three states once spawned.
+ * NFS iod threads can be in one of these two states once spawned.
  * NFSIOD_NOT_AVAILABLE - Cannot be assigned an I/O operation at this time.
  * NFSIOD_AVAILABLE - Available to be assigned an I/O operation.
- * NFSIOD_CREATED_FOR_NFS_ASYNCIO - Newly created for nfs_asyncio() and
- *	will be used by the thread that called nfs_asyncio().
  */
 enum nfsiod_state {
 	NFSIOD_NOT_AVAILABLE = 0,
 	NFSIOD_AVAILABLE = 1,
-	NFSIOD_CREATED_FOR_NFS_ASYNCIO = 2,
 };
 
 /*
@@ -190,9 +186,6 @@ extern struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 extern	struct vop_vector	nfs_fifoops;
 extern	struct vop_vector	nfs_vnodeops;
 extern struct buf_ops buf_ops_nfs;
-
-extern vop_advlock_t *nfs_advlock_p;
-extern vop_reclaim_t *nfs_reclaim_p;
 
 /*
  * Prototypes for NFS vnode operations

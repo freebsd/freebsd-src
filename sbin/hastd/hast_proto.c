@@ -56,8 +56,10 @@ struct hast_main_header {
 	uint32_t	size;
 } __packed;
 
-typedef int hps_send_t(struct hast_resource *, struct nv *nv, void **, size_t *, bool *);
-typedef int hps_recv_t(struct hast_resource *, struct nv *nv, void **, size_t *, bool *);
+typedef int hps_send_t(const struct hast_resource *, struct nv *nv, void **,
+    size_t *, bool *);
+typedef int hps_recv_t(const struct hast_resource *, struct nv *nv, void **,
+    size_t *, bool *);
 
 struct hast_pipe_stage {
 	const char	*hps_name;
@@ -65,14 +67,14 @@ struct hast_pipe_stage {
 	hps_recv_t	*hps_recv;
 };
 
-static int compression_send(struct hast_resource *res, struct nv *nv,
+static int compression_send(const struct hast_resource *res, struct nv *nv,
     void **datap, size_t *sizep, bool *freedatap);
-static int compression_recv(struct hast_resource *res, struct nv *nv,
+static int compression_recv(const struct hast_resource *res, struct nv *nv,
     void **datap, size_t *sizep, bool *freedatap);
 #ifdef HAVE_CRYPTO
-static int checksum_send(struct hast_resource *res, struct nv *nv,
+static int checksum_send(const struct hast_resource *res, struct nv *nv,
     void **datap, size_t *sizep, bool *freedatap);
-static int checksum_recv(struct hast_resource *res, struct nv *nv,
+static int checksum_recv(const struct hast_resource *res, struct nv *nv,
     void **datap, size_t *sizep, bool *freedatap);
 #endif
 
@@ -84,7 +86,7 @@ static struct hast_pipe_stage pipeline[] = {
 };
 
 static int
-compression_send(struct hast_resource *res, struct nv *nv, void **datap,
+compression_send(const struct hast_resource *res, struct nv *nv, void **datap,
     size_t *sizep, bool *freedatap)
 {
 	unsigned char *newbuf;
@@ -132,7 +134,7 @@ compression_send(struct hast_resource *res, struct nv *nv, void **datap,
 }
 
 static int
-compression_recv(struct hast_resource *res, struct nv *nv, void **datap,
+compression_recv(const struct hast_resource *res, struct nv *nv, void **datap,
     size_t *sizep, bool *freedatap)
 {
 	unsigned char *newbuf;
@@ -169,7 +171,7 @@ compression_recv(struct hast_resource *res, struct nv *nv, void **datap,
 
 #ifdef HAVE_CRYPTO
 static int
-checksum_send(struct hast_resource *res, struct nv *nv, void **datap,
+checksum_send(const struct hast_resource *res, struct nv *nv, void **datap,
     size_t *sizep, bool *freedatap __unused)
 {
 	unsigned char hash[SHA256_DIGEST_LENGTH];
@@ -188,7 +190,7 @@ checksum_send(struct hast_resource *res, struct nv *nv, void **datap,
 }
 
 static int
-checksum_recv(struct hast_resource *res, struct nv *nv, void **datap,
+checksum_recv(const struct hast_resource *res, struct nv *nv, void **datap,
     size_t *sizep, bool *freedatap __unused)
 {
 	unsigned char chash[SHA256_DIGEST_LENGTH];
@@ -236,7 +238,7 @@ checksum_recv(struct hast_resource *res, struct nv *nv, void **datap,
  * There can be no data at all (data is NULL then).
  */
 int
-hast_proto_send(struct hast_resource *res, struct proto_conn *conn,
+hast_proto_send(const struct hast_resource *res, struct proto_conn *conn,
     struct nv *nv, const void *data, size_t size)
 {
 	struct hast_main_header hdr;
@@ -293,7 +295,7 @@ end:
 }
 
 int
-hast_proto_recv_hdr(struct proto_conn *conn, struct nv **nvp)
+hast_proto_recv_hdr(const struct proto_conn *conn, struct nv **nvp)
 {
 	struct hast_main_header hdr;
 	struct nv *nv;
@@ -335,7 +337,7 @@ fail:
 }
 
 int
-hast_proto_recv_data(struct hast_resource *res, struct proto_conn *conn,
+hast_proto_recv_data(const struct hast_resource *res, struct proto_conn *conn,
     struct nv *nv, void *data, size_t size)
 {
 	unsigned int ii;
@@ -384,7 +386,7 @@ if (ret < 0) printf("%s:%u %s\n", __func__, __LINE__, strerror(errno));
 }
 
 int
-hast_proto_recv(struct hast_resource *res, struct proto_conn *conn,
+hast_proto_recv(const struct hast_resource *res, struct proto_conn *conn,
     struct nv **nvp, void *data, size_t size)
 {
 	struct nv *nv;

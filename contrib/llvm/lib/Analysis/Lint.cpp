@@ -108,7 +108,7 @@ namespace {
     raw_string_ostream MessagesStr;
 
     static char ID; // Pass identification, replacement for typeid
-    Lint() : FunctionPass(&ID), MessagesStr(Messages) {}
+    Lint() : FunctionPass(ID), MessagesStr(Messages) {}
 
     virtual bool runOnFunction(Function &F);
 
@@ -167,8 +167,7 @@ namespace {
 }
 
 char Lint::ID = 0;
-static RegisterPass<Lint>
-X("lint", "Statically lint-checks LLVM IR", false, true);
+INITIALIZE_PASS(Lint, "lint", "Statically lint-checks LLVM IR", false, true);
 
 // Assert - We know that cond should be true, if not print an error message.
 #define Assert(C, M) \
@@ -247,8 +246,7 @@ void Lint::visitCallSite(CallSite CS) {
         // where nothing is known.
         if (Formal->hasNoAliasAttr() && Actual->getType()->isPointerTy())
           for (CallSite::arg_iterator BI = CS.arg_begin(); BI != AE; ++BI) {
-            Assert1(AI == BI ||
-                    AA->alias(*AI, ~0u, *BI, ~0u) != AliasAnalysis::MustAlias,
+            Assert1(AI == BI || AA->alias(*AI, *BI) != AliasAnalysis::MustAlias,
                     "Unusual: noalias argument aliases another argument", &I);
           }
 
@@ -520,6 +518,9 @@ void Lint::visitVAArgInst(VAArgInst &I) {
 
 void Lint::visitIndirectBrInst(IndirectBrInst &I) {
   visitMemoryReference(I, I.getAddress(), ~0u, 0, 0, MemRef::Branchee);
+
+  Assert1(I.getNumDestinations() != 0,
+          "Undefined behavior: indirectbr with no destinations", &I);
 }
 
 void Lint::visitExtractElementInst(ExtractElementInst &I) {

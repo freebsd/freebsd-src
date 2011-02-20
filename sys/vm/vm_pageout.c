@@ -326,7 +326,8 @@ vm_pageout_clean(vm_page_t m)
 	vm_pindex_t pindex = m->pindex;
 
 	vm_page_lock_assert(m, MA_OWNED);
-	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
+	object = m->object;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 
 	/*
 	 * It doesn't cost us anything to pageout OBJT_DEFAULT or OBJT_SWAP
@@ -343,6 +344,7 @@ vm_pageout_clean(vm_page_t m)
 	KASSERT(m->busy == 0 && (m->oflags & VPO_BUSY) == 0,
 	    ("vm_pageout_clean: page %p is busy", m));
 	KASSERT(m->hold_count == 0, ("vm_pageout_clean: page %p is held", m));
+	vm_page_unlock(m);
 
 	mc[vm_pageout_page_count] = pb = ps = m;
 	pageout_count = 1;
@@ -369,7 +371,6 @@ vm_pageout_clean(vm_page_t m)
 	 * first and attempt to align our cluster, then do a 
 	 * forward scan if room remains.
 	 */
-	object = m->object;
 more:
 	while (ib && pageout_count < vm_pageout_page_count) {
 		vm_page_t p;
@@ -434,11 +435,10 @@ more:
 	if (ib && pageout_count < vm_pageout_page_count)
 		goto more;
 
-	vm_page_unlock(m);
 	/*
 	 * we allow reads during pageouts...
 	 */
-	return (vm_pageout_flush(&mc[page_base], pageout_count, 0));
+	return (vm_pageout_flush(&mc[page_base], pageout_count, 0, 0, NULL));
 }
 
 /*
@@ -449,14 +449,17 @@ more:
  *	reference count all in here rather then in the parent.  If we want
  *	the parent to do more sophisticated things we may have to change
  *	the ordering.
+ *
+ *	Returned runlen is the count of pages between mreq and first
+ *	page after mreq with status VM_PAGER_AGAIN.
  */
 int
-vm_pageout_flush(vm_page_t *mc, int count, int flags)
+vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen)
 {
 	vm_object_t object = mc[0]->object;
 	int pageout_status[count];
 	int numpagedout = 0;
-	int i;
+	int i, runlen;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	mtx_assert(&vm_page_queue_mtx, MA_NOTOWNED);
@@ -482,6 +485,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 
 	vm_pager_put_pages(object, mc, count, flags, pageout_status);
 
+	runlen = count - mreq;
 	for (i = 0; i < count; i++) {
 		vm_page_t mt = mc[i];
 
@@ -513,6 +517,8 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 			vm_page_unlock(mt);
 			break;
 		case VM_PAGER_AGAIN:
+			if (i >= mreq && i - mreq < runlen)
+				runlen = i - mreq;
 			break;
 		}
 
@@ -532,6 +538,8 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags)
 			}
 		}
 	}
+	if (prunlen != NULL)
+		*prunlen = runlen;
 	return (numpagedout);
 }
 
@@ -701,8 +709,11 @@ vm_pageout_map_deactivate_pages(map, desired)
 	 * table pages.
 	 */
 	if (desired == 0 && nothingwired) {
-		pmap_remove(vm_map_pmap(map), vm_map_min(map),
-		    vm_map_max(map));
+		tmpe = map->header.next;
+		while (tmpe != &map->header) {
+			pmap_remove(vm_map_pmap(map), tmpe->start, tmpe->end);
+			tmpe = tmpe->next;
+		}
 	}
 	vm_map_unlock(map);
 }
@@ -844,9 +855,9 @@ rescan0:
 		} else if (((m->flags & PG_REFERENCED) == 0) &&
 			(actcount = pmap_ts_referenced(m))) {
 			vm_page_activate(m);
-			VM_OBJECT_UNLOCK(object);
-			m->act_count += (actcount + ACT_ADVANCE);
 			vm_page_unlock(m);
+			m->act_count += actcount + ACT_ADVANCE;
+			VM_OBJECT_UNLOCK(object);
 			continue;
 		}
 
@@ -860,9 +871,9 @@ rescan0:
 			vm_page_flag_clear(m, PG_REFERENCED);
 			actcount = pmap_ts_referenced(m);
 			vm_page_activate(m);
-			VM_OBJECT_UNLOCK(object);
-			m->act_count += (actcount + ACT_ADVANCE + 1);
 			vm_page_unlock(m);
+			m->act_count += actcount + ACT_ADVANCE + 1;
+			VM_OBJECT_UNLOCK(object);
 			continue;
 		}
 

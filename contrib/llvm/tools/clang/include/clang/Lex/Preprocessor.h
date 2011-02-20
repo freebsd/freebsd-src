@@ -42,6 +42,7 @@ class CommentHandler;
 class ScratchBuffer;
 class TargetInfo;
 class PPCallbacks;
+class CodeCompletionHandler;
 class DirectoryLookup;
 class PreprocessingRecord;
   
@@ -77,7 +78,8 @@ class Preprocessor {
   IdentifierInfo *Ident__BASE_FILE__;              // __BASE_FILE__
   IdentifierInfo *Ident__TIMESTAMP__;              // __TIMESTAMP__
   IdentifierInfo *Ident__COUNTER__;                // __COUNTER__
-  IdentifierInfo *Ident_Pragma, *Ident__VA_ARGS__; // _Pragma, __VA_ARGS__
+  IdentifierInfo *Ident_Pragma, *Ident__pragma;    // _Pragma, __pragma
+  IdentifierInfo *Ident__VA_ARGS__;                // __VA_ARGS__
   IdentifierInfo *Ident__has_feature;              // __has_feature
   IdentifierInfo *Ident__has_builtin;              // __has_builtin
   IdentifierInfo *Ident__has_include;              // __has_include
@@ -117,7 +119,7 @@ class Preprocessor {
   /// conceptually similar the IdentifierTable. In addition, the current control
   /// flow (in clang::ParseAST()), make it convenient to put here.
   /// FIXME: Make sure the lifetime of Identifiers/Selectors *isn't* tied to
-  /// the lifetime fo the preprocessor.
+  /// the lifetime of the preprocessor.
   SelectorTable Selectors;
 
   /// BuiltinInfo - Information about builtins.
@@ -131,9 +133,18 @@ class Preprocessor {
   /// with this preprocessor.
   std::vector<CommentHandler *> CommentHandlers;
 
+  /// \brief The code-completion handler.
+  CodeCompletionHandler *CodeComplete;
+  
   /// \brief The file that we're performing code-completion for, if any.
   const FileEntry *CodeCompletionFile;
 
+  /// \brief The number of bytes that we will initially skip when entering the
+  /// main file, which is used when loading a precompiled preamble, along
+  /// with a flag that indicates whether skipping this number of bytes will
+  /// place the lexer at the start of a line.
+  std::pair<unsigned, bool> SkipMainFilePreamble;
+  
   /// CurLexer - This is the current top of the stack that we're lexing from if
   /// not expanding a macro and we are lexing directly from source code.
   ///  Only one of CurLexer, CurPTHLexer, or CurTokenLexer will be non-null.
@@ -192,6 +203,11 @@ class Preprocessor {
   /// reused for quick allocation.
   MacroArgs *MacroArgCache;
   friend class MacroArgs;
+ 
+  /// PragmaPushMacroInfo - For each IdentifierInfo used in a #pragma 
+  /// push_macro directive, we keep a MacroInfo stack used to restore 
+  /// previous macro value.
+  llvm::DenseMap<IdentifierInfo*, std::vector<MacroInfo*> > PragmaPushMacroInfo;
 
   // Various statistics we track for performance analysis.
   unsigned NumDirectives, NumIncluded, NumDefined, NumUndefined, NumPragma;
@@ -362,6 +378,25 @@ public:
   /// It is an error to remove a handler that has not been registered.
   void RemoveCommentHandler(CommentHandler *Handler);
 
+  /// \brief Set the code completion handler to the given object.
+  void setCodeCompletionHandler(CodeCompletionHandler &Handler) {
+    CodeComplete = &Handler;
+  }
+  
+  /// \brief Retrieve the current code-completion handler.
+  CodeCompletionHandler *getCodeCompletionHandler() const {
+    return CodeComplete;
+  }
+  
+  /// \brief Clear out the code completion handler.
+  void clearCodeCompletionHandler() {
+    CodeComplete = 0;
+  }
+  
+  /// \brief Hook used by the lexer to invoke the "natural language" code
+  /// completion point.
+  void CodeCompleteNaturalLanguage();
+  
   /// \brief Retrieve the preprocessing record, or NULL if there is no
   /// preprocessing record.
   PreprocessingRecord *getPreprocessingRecord() const { return Record; }
@@ -556,6 +591,18 @@ public:
   /// for which we are performing code completion.
   bool isCodeCompletionFile(SourceLocation FileLoc) const;
 
+  /// \brief Instruct the preprocessor to skip part of the main
+  /// the main source file.
+  ///
+  /// \brief Bytes The number of bytes in the preamble to skip.
+  ///
+  /// \brief StartOfLine Whether skipping these bytes puts the lexer at the
+  /// start of a line.
+  void setSkipMainFilePreamble(unsigned Bytes, bool StartOfLine) { 
+    SkipMainFilePreamble.first = Bytes;
+    SkipMainFilePreamble.second = StartOfLine;
+  }
+  
   /// Diag - Forwarding function for diagnostics.  This emits a diagnostic at
   /// the specified Token's location, translating the token's start
   /// position in the current buffer into a SourcePosition object for rendering.
@@ -726,7 +773,10 @@ public:
 
   /// AllocateMacroInfo - Allocate a new MacroInfo object with the provide
   ///  SourceLocation.
-  MacroInfo* AllocateMacroInfo(SourceLocation L);
+  MacroInfo *AllocateMacroInfo(SourceLocation L);
+
+  /// CloneMacroInfo - Allocate a new MacroInfo object which is clone of MI.
+  MacroInfo *CloneMacroInfo(const MacroInfo &MI);
 
   /// GetIncludeFilenameSpelling - Turn the specified lexer token into a fully
   /// checked and spelled filename, e.g. as an operand of #include. This returns
@@ -783,6 +833,9 @@ private:
     CurDirLookup  = IncludeMacroStack.back().TheDirLookup;
     IncludeMacroStack.pop_back();
   }
+
+  /// AllocateMacroInfo - Allocate a new MacroInfo object.
+  MacroInfo *AllocateMacroInfo();
 
   /// ReleaseMacroInfo - Release the specified MacroInfo.  This memory will
   ///  be reused for allocating new MacroInfo objects.
@@ -852,6 +905,13 @@ private:
   /// been read into 'Tok'.
   void Handle_Pragma(Token &Tok);
 
+  /// HandleMicrosoft__pragma - Like Handle_Pragma except the pragma text
+  /// is not enclosed within a string literal.
+  void HandleMicrosoft__pragma(Token &Tok);
+
+  void Handle_Pragma(const std::string &StrVal, SourceLocation PragmaLoc,
+                     SourceLocation RParenLoc);
+
   /// EnterSourceFileWithLexer - Add a lexer to the top of the include stack and
   /// start lexing tokens from it instead of the current buffer.
   void EnterSourceFileWithLexer(Lexer *TheLexer, const DirectoryLookup *Dir);
@@ -880,7 +940,8 @@ private:
   bool InCachingLexMode() const {
     // If the Lexer pointers are 0 and IncludeMacroStack is empty, it means
     // that we are past EOF, not that we are in CachingLex mode.
-    return CurPPLexer == 0 && CurTokenLexer == 0 && !IncludeMacroStack.empty();
+    return CurPPLexer == 0 && CurTokenLexer == 0 && CurPTHLexer == 0 && 
+           !IncludeMacroStack.empty();
   }
   void EnterCachingLexMode();
   void ExitCachingLexMode() {
@@ -929,6 +990,10 @@ public:
   void HandlePragmaDependency(Token &DependencyTok);
   void HandlePragmaComment(Token &CommentTok);
   void HandlePragmaMessage(Token &MessageTok);
+  void HandlePragmaPushMacro(Token &Tok);
+  void HandlePragmaPopMacro(Token &Tok);
+  IdentifierInfo *ParsePragmaPushOrPopMacro(Token &Tok);
+
   // Return true and store the first token only if any CommentHandler
   // has inserted some tokens and getCommentRetentionState() is false.
   bool HandleComment(Token &Token, SourceRange Comment);

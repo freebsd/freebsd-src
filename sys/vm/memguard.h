@@ -38,6 +38,7 @@ struct vm_map;
 unsigned long	memguard_fudge(unsigned long, unsigned long);
 void	memguard_init(struct vm_map *);
 void 	*memguard_alloc(unsigned long, int);
+void	*memguard_realloc(void *, unsigned long, struct malloc_type *, int);
 void	memguard_free(void *);
 int	memguard_cmp(struct malloc_type *, unsigned long);
 int	is_memguard_addr(void *);
@@ -45,6 +46,7 @@ int	is_memguard_addr(void *);
 #define	memguard_fudge(size, xxx)	(size)
 #define	memguard_init(map)		do { } while (0)
 #define	memguard_alloc(size, flags)	NULL
+#define	memguard_realloc(a, s, mtp, f)	NULL
 #define	memguard_free(addr)		do { } while (0)
 #define	memguard_cmp(mtp, size)		0
 #define	is_memguard_addr(addr)		0

@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -47,19 +49,38 @@
  * Support functions for managing command queues used for
  * various hardware blocks.
  *
- * <hr>$Revision: 42150 $<hr>
+ * <hr>$Revision: 49448 $<hr>
  */
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include <linux/module.h>
+#include <asm/octeon/cvmx.h>
+#include <asm/octeon/cvmx-bootmem.h>
+#include <asm/octeon/cvmx-npei-defs.h>
+#include <asm/octeon/cvmx-pexp-defs.h>
+#include <asm/octeon/cvmx-dpi-defs.h>
+#include <asm/octeon/cvmx-pko-defs.h>
+#include <asm/octeon/cvmx-config.h>
+#include <asm/octeon/cvmx-fpa.h>
+#include <asm/octeon/cvmx-cmd-queue.h>
+#else
 #include "cvmx.h"
+#include "cvmx-bootmem.h"
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+#include "cvmx-config.h"
+#endif
 #include "cvmx-fpa.h"
 #include "cvmx-cmd-queue.h"
-#include "cvmx-bootmem.h"
+#endif
+
 
 /**
  * This application uses this pointer to access the global queue
  * state. It points to a bootmem named block.
  */
-CVMX_SHARED __cvmx_cmd_queue_all_state_t *__cvmx_cmd_queue_state_ptr = NULL;
-
+CVMX_SHARED __cvmx_cmd_queue_all_state_t *__cvmx_cmd_queue_state_ptr;
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(__cvmx_cmd_queue_state_ptr);
+#endif
 
 /**
  * @INTERNAL
@@ -78,7 +99,7 @@ static cvmx_cmd_queue_result_t __cvmx_cmd_queue_init_state_ptr(void)
         return CVMX_CMD_QUEUE_SUCCESS;
 
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
-#if CONFIG_CAVIUM_RESERVE32
+#if defined(CONFIG_CAVIUM_RESERVE32) && CONFIG_CAVIUM_RESERVE32
     if (octeon_reserve32_memory)
         __cvmx_cmd_queue_state_ptr = cvmx_bootmem_alloc_named_range(sizeof(*__cvmx_cmd_queue_state_ptr),
                                                               octeon_reserve32_memory,
@@ -94,7 +115,7 @@ static cvmx_cmd_queue_result_t __cvmx_cmd_queue_init_state_ptr(void)
         memset(__cvmx_cmd_queue_state_ptr, 0, sizeof(*__cvmx_cmd_queue_state_ptr));
     else
     {
-        cvmx_bootmem_named_block_desc_t *block_desc = cvmx_bootmem_find_named_block(alloc_name);
+        const cvmx_bootmem_named_block_desc_t *block_desc = cvmx_bootmem_find_named_block(alloc_name);
         if (block_desc)
             __cvmx_cmd_queue_state_ptr = cvmx_phys_to_ptr(block_desc->base_addr);
         else
@@ -149,17 +170,17 @@ cvmx_cmd_queue_result_t cvmx_cmd_queue_initialize(cvmx_cmd_queue_id_t queue_id, 
     {
         if (max_depth != (int)qstate->max_depth)
         {
-            cvmx_dprintf("ERROR: cvmx_cmd_queue_initialize: Queue already initalized with different max_depth (%d).\n", (int)qstate->max_depth);
+            cvmx_dprintf("ERROR: cvmx_cmd_queue_initialize: Queue already initialized with different max_depth (%d).\n", (int)qstate->max_depth);
             return CVMX_CMD_QUEUE_INVALID_PARAM;
         }
         if (fpa_pool != qstate->fpa_pool)
         {
-            cvmx_dprintf("ERROR: cvmx_cmd_queue_initialize: Queue already initalized with different FPA pool (%u).\n", qstate->fpa_pool);
+            cvmx_dprintf("ERROR: cvmx_cmd_queue_initialize: Queue already initialized with different FPA pool (%u).\n", qstate->fpa_pool);
             return CVMX_CMD_QUEUE_INVALID_PARAM;
         }
         if ((pool_size>>3)-1 != qstate->pool_size_m1)
         {
-            cvmx_dprintf("ERROR: cvmx_cmd_queue_initialize: Queue already initalized with different FPA pool size (%u).\n", (qstate->pool_size_m1+1)<<3);
+            cvmx_dprintf("ERROR: cvmx_cmd_queue_initialize: Queue already initialized with different FPA pool size (%u).\n", (qstate->pool_size_m1+1)<<3);
             return CVMX_CMD_QUEUE_INVALID_PARAM;
         }
         CVMX_SYNCWS;
@@ -275,9 +296,16 @@ int cvmx_cmd_queue_length(cvmx_cmd_queue_id_t queue_id)
             // FIXME: Implement other lengths
             return 0;
         case CVMX_CMD_QUEUE_DMA_BASE:
+            if (octeon_has_feature(OCTEON_FEATURE_NPEI))
             {
                 cvmx_npei_dmax_counts_t dmax_counts;
                 dmax_counts.u64 = cvmx_read_csr(CVMX_PEXP_NPEI_DMAX_COUNTS(queue_id & 0x7));
+                return dmax_counts.s.dbell;
+            }
+            else
+            {
+                cvmx_dpi_dmax_counts_t dmax_counts;
+                dmax_counts.u64 = cvmx_read_csr(CVMX_DPI_DMAX_COUNTS(queue_id & 0x7));
                 return dmax_counts.s.dbell;
             }
         case CVMX_CMD_QUEUE_END:
@@ -289,7 +317,7 @@ int cvmx_cmd_queue_length(cvmx_cmd_queue_id_t queue_id)
 
 /**
  * Return the command buffer to be written to. The purpose of this
- * function is to allow CVMX routine access t othe low level buffer
+ * function is to allow CVMX routine access to the low level buffer
  * for initial hardware setup. User applications should not call this
  * function directly.
  *

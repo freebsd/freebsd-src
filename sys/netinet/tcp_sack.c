@@ -425,6 +425,7 @@ tcp_sack_doack(struct tcpcb *tp, struct tcpopt *to, tcp_seq th_ack)
 	 * are received.
 	 */
 	sblkp = &sack_blocks[num_sack_blks - 1];	/* Last SACK block */
+	tp->sackhint.last_sack_ack = sblkp->end;
 	if (SEQ_LT(tp->snd_fack, sblkp->start)) {
 		/*
 		 * The highest SACK block is beyond fack.  Append new SACK
@@ -576,7 +577,7 @@ tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 	tcp_timer_activate(tp, TT_REXMT, 0);
 	tp->t_rtttime = 0;
 	/* Send one or 2 segments based on how much new data was acked. */
-	if (((th->th_ack - tp->snd_una) / tp->t_maxseg) > 2)
+	if ((BYTES_THIS_ACK(tp, th) / tp->t_maxseg) > 2)
 		num_segs = 2;
 	tp->snd_cwnd = (tp->sackhint.sack_bytes_rexmit +
 	    (tp->snd_nxt - tp->sack_newdata) + num_segs * tp->t_maxseg);

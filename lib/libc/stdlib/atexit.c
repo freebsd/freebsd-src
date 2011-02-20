@@ -200,6 +200,6 @@ __cxa_finalize(void *dso)
 	if (dso == NULL)
 		_MUTEX_DESTROY(&atexit_mutex);
 
-	if (&__pthread_cxa_finalize != NULL)
+	if (has_phdr && &__pthread_cxa_finalize != NULL)
 		__pthread_cxa_finalize(&phdr_info);
 }

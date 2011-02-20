@@ -3,8 +3,7 @@
 LIB=	llvmbitwriter
 
 SRCDIR=	lib/Bitcode/Writer
-SRCS=	BitWriter.cpp \
-	BitcodeWriter.cpp \
+SRCS=	BitcodeWriter.cpp \
 	BitcodeWriterPass.cpp \
 	ValueEnumerator.cpp
 

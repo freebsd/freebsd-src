@@ -341,7 +341,7 @@ dropit:
 				}
 				(void)memcpy(&ipaddr.sin_addr, sin,
 				    sizeof(struct in_addr));
-				if (ifa_ifwithaddr((SA)&ipaddr) == NULL)
+				if (ifa_ifwithaddr_check((SA)&ipaddr) == 0)
 					continue;
 				cp[IPOPT_OFFSET] += sizeof(struct in_addr);
 				off += sizeof(struct in_addr);

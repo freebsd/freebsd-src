@@ -304,7 +304,7 @@ trap(struct trapframe *trapframe)
 	 * return to userland.
 	 */
 	if (trapframe->sr & MIPS_SR_INT_IE) {
-		set_intr_mask(~(trapframe->sr & MIPS_SR_INT_MASK));
+		set_intr_mask(trapframe->sr & MIPS_SR_INT_MASK);
 		intr_enable();
 	} else {
 		intr_disable();
@@ -1276,8 +1276,8 @@ log_illegal_instruction(const char *msg, struct trapframe *frame)
 	if (!(pc & 3) &&
 	    useracc((caddr_t)(intptr_t)pc, sizeof(int) * 4, VM_PROT_READ)) {
 		/* dump page table entry for faulting instruction */
-		log(LOG_ERR, "Page table info for pc address %#jx: pde = %p, pte = %#x\n",
-		    (intmax_t)pc, (void *)(intptr_t)*pdep, ptep ? *ptep : 0);
+		log(LOG_ERR, "Page table info for pc address %#jx: pde = %p, pte = %#jx\n",
+		    (intmax_t)pc, (void *)(intptr_t)*pdep, (uintmax_t)(ptep ? *ptep : 0));
 
 		addr = (unsigned int *)(intptr_t)pc;
 		log(LOG_ERR, "Dumping 4 words starting at pc address %p: \n",
@@ -1285,8 +1285,8 @@ log_illegal_instruction(const char *msg, struct trapframe *frame)
 		log(LOG_ERR, "%08x %08x %08x %08x\n",
 		    addr[0], addr[1], addr[2], addr[3]);
 	} else {
-		log(LOG_ERR, "pc address %#jx is inaccessible, pde = %p, pte = %#x\n",
-		    (intmax_t)pc, (void *)(intptr_t)*pdep, ptep ? *ptep : 0);
+		log(LOG_ERR, "pc address %#jx is inaccessible, pde = %p, pte = %#jx\n",
+		    (intmax_t)pc, (void *)(intptr_t)*pdep, (uintmax_t)(ptep ? *ptep : 0));
 	}
 }
 
@@ -1340,8 +1340,8 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 	    (trap_type != T_BUS_ERR_IFETCH) &&
 	    useracc((caddr_t)(intptr_t)pc, sizeof(int) * 4, VM_PROT_READ)) {
 		/* dump page table entry for faulting instruction */
-		log(LOG_ERR, "Page table info for pc address %#jx: pde = %p, pte = %#x\n",
-		    (intmax_t)pc, (void *)(intptr_t)*pdep, ptep ? *ptep : 0);
+		log(LOG_ERR, "Page table info for pc address %#jx: pde = %p, pte = %#jx\n",
+		    (intmax_t)pc, (void *)(intptr_t)*pdep, (uintmax_t)(ptep ? *ptep : 0));
 
 		addr = (unsigned int *)(intptr_t)pc;
 		log(LOG_ERR, "Dumping 4 words starting at pc address %p: \n",
@@ -1349,13 +1349,13 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 		log(LOG_ERR, "%08x %08x %08x %08x\n",
 		    addr[0], addr[1], addr[2], addr[3]);
 	} else {
-		log(LOG_ERR, "pc address %#jx is inaccessible, pde = %p, pte = %#x\n",
-		    (intmax_t)pc, (void *)(intptr_t)*pdep, ptep ? *ptep : 0);
+		log(LOG_ERR, "pc address %#jx is inaccessible, pde = %p, pte = %#jx\n",
+		    (intmax_t)pc, (void *)(intptr_t)*pdep, (uintmax_t)(ptep ? *ptep : 0));
 	}
 
 	get_mapping_info((vm_offset_t)frame->badvaddr, &pdep, &ptep);
-	log(LOG_ERR, "Page table info for bad address %#jx: pde = %p, pte = %#x\n",
-	    (intmax_t)frame->badvaddr, (void *)(intptr_t)*pdep, ptep ? *ptep : 0);
+	log(LOG_ERR, "Page table info for bad address %#jx: pde = %p, pte = %#jx\n",
+	    (intmax_t)frame->badvaddr, (void *)(intptr_t)*pdep, (uintmax_t)(ptep ? *ptep : 0));
 }
 
 

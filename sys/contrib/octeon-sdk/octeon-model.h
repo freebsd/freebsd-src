@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -46,7 +48,7 @@
  * File defining different Octeon model IDs and macros to
  * compare them.
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 52119 $<hr>
  */
 
 #ifndef __OCTEON_MODEL_H__
@@ -87,6 +89,21 @@ extern "C" {
 #define OM_MATCH_PREVIOUS_MODELS  0x04000000      /* Match all models previous than the one specified */
 #define OM_IGNORE_MINOR_REVISION  0x08000000      /* Ignores the minor revison on newer parts */
 #define OM_FLAG_MASK              0xff000000
+
+#define OM_MATCH_5XXX_FAMILY_MODELS     0x20000000 /* Match all cn5XXX Octeon models. */
+#define OM_MATCH_6XXX_FAMILY_MODELS     0x40000000 /* Match all cn6XXX Octeon models. */
+
+/*
+ * CN6XXX models with new revision encoding
+ */
+#define OCTEON_CN63XX_PASS1_0   0x000d9000
+#define OCTEON_CN63XX_PASS1_1   0x000d9001
+#define OCTEON_CN63XX_PASS1_2   0x000d9002
+#define OCTEON_CN63XX_PASS2_0   0x000d9008
+
+#define OCTEON_CN63XX           (OCTEON_CN63XX_PASS1_0 | OM_IGNORE_REVISION)
+#define OCTEON_CN63XX_PASS1_X   (OCTEON_CN63XX_PASS1_0 | OM_IGNORE_MINOR_REVISION)
+#define OCTEON_CN63XX_PASS2_X   (OCTEON_CN63XX_PASS2_0 | OM_IGNORE_MINOR_REVISION)
 
 /*
  * CN5XXX models with new revision encoding
@@ -146,10 +163,10 @@ extern "C" {
 #define OCTEON_CN52XX_PASS1     OCTEON_CN52XX_PASS1_X
 #define OCTEON_CN52XX_PASS2     OCTEON_CN52XX_PASS2_X
 
-/* 
+/*
  * CN3XXX models with old revision enconding
  */
-#define OCTEON_CN38XX_PASS1     0x000d0000
+//#define OCTEON_CN38XX_PASS1     0x000d0000    // is not supported
 #define OCTEON_CN38XX_PASS2     0x000d0001
 #define OCTEON_CN38XX_PASS3     0x000d0003
 #define OCTEON_CN38XX           (OCTEON_CN38XX_PASS3 | OM_IGNORE_REVISION)
@@ -189,24 +206,26 @@ extern "C" {
 
 /* This matches the complete family of CN3xxx CPUs, and not subsequent models */
 #define OCTEON_CN3XXX           (OCTEON_CN58XX_PASS1_0 | OM_MATCH_PREVIOUS_MODELS | OM_IGNORE_REVISION)
+#define OCTEON_CN5XXX           (OCTEON_CN58XX_PASS1_0 | OM_MATCH_5XXX_FAMILY_MODELS)
+#define OCTEON_CN6XXX           (OCTEON_CN63XX_PASS1_0 | OM_MATCH_6XXX_FAMILY_MODELS)
 
 /* The revision byte (low byte) has two different encodings.
 ** CN3XXX:
-** 
+**
 **     bits
 **     <7:5>: reserved (0)
 **     <4>:   alternate package
 **     <3:0>: revision
-**     
+**
 ** CN5XXX:
-** 
+**
 **     bits
 **     <7>:   reserved (0)
 **     <6>:   alternate package
 **     <5:3>: major revision
 **     <2:0>: minor revision
-** 
-*/ 
+**
+*/
 
 /* Masks used for the various types of model/family/revision matching */
 #define OCTEON_38XX_FAMILY_MASK      0x00ffff00
@@ -220,6 +239,7 @@ extern "C" {
 #define OCTEON_58XX_MODEL_MASK       0x00ffffc0
 #define OCTEON_58XX_MODEL_REV_MASK   (OCTEON_58XX_FAMILY_REV_MASK | OCTEON_58XX_MODEL_MASK)
 #define OCTEON_58XX_MODEL_MINOR_REV_MASK (OCTEON_58XX_MODEL_REV_MASK & 0x00fffff8)
+#define OCTEON_5XXX_MODEL_MASK       0x00ff0fc0
 
 
 #define __OCTEON_MATCH_MASK__(x,y,z) (((x) & (z)) == ((y) & (z)))
@@ -250,11 +270,15 @@ extern "C" {
        && __OCTEON_MATCH_MASK__((chip_model), (arg_model), OCTEON_58XX_FAMILY_MASK)) || \
      ((((arg_model) & (OM_FLAG_MASK)) == OM_CHECK_SUBMODEL) \
        && __OCTEON_MATCH_MASK__((chip_model), (arg_model), OCTEON_58XX_MODEL_REV_MASK)) || \
+     ((((arg_model) & (OM_MATCH_5XXX_FAMILY_MODELS)) == OM_MATCH_5XXX_FAMILY_MODELS) \
+       && ((chip_model) >= OCTEON_CN58XX_PASS1_0) && ((chip_model) < OCTEON_CN63XX_PASS1_0)) || \
+     ((((arg_model) & (OM_MATCH_6XXX_FAMILY_MODELS)) == OM_MATCH_6XXX_FAMILY_MODELS) \
+       && ((chip_model) >= OCTEON_CN63XX_PASS1_0)) || \
      ((((arg_model) & (OM_MATCH_PREVIOUS_MODELS)) == OM_MATCH_PREVIOUS_MODELS) \
        && (((chip_model) & OCTEON_58XX_MODEL_MASK) < ((arg_model) & OCTEON_58XX_MODEL_MASK))) \
     )))
 
-#if defined(USE_RUNTIME_MODEL_CHECKS) || defined(__U_BOOT__) || (defined(__linux__) && defined(__KERNEL__)) || (defined(__FreeBSD__) && defined(_KERNEL))
+#if defined(USE_RUNTIME_MODEL_CHECKS) || defined(__U_BOOT__) || (defined(__linux__) && defined(__KERNEL__)) || defined(__OCTEON_NEWLIB__) || (defined(__FreeBSD__) && defined(_KERNEL))
 
 /* NOTE: This for internal use only!!!!! */
 static inline int __octeon_is_model_runtime__(uint32_t model)
@@ -297,8 +321,6 @@ static inline int __octeon_is_model_runtime__(uint32_t model)
 
 const char *octeon_model_get_string(uint32_t chip_id);
 const char *octeon_model_get_string_buffer(uint32_t chip_id, char * buffer);
-
-#include "octeon-feature.h"
 
 #ifdef	__cplusplus
 }

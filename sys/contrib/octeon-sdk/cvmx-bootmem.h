@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -45,7 +47,7 @@
  * Simple allocate only memory allocator.  Used to allocate memory at application
  * start time.
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 49448 $<hr>
  *
  */
 
@@ -89,14 +91,14 @@ typedef struct
 ** Note: This structure must be naturally 64 bit aligned, as a single
 ** memory image will be used by both 32 and 64 bit programs.
 */
-typedef struct
+struct cvmx_bootmem_named_block_desc
 {
     uint64_t base_addr;     /**< Base address of named block */
     uint64_t size;          /**< Size actually allocated for named block (may differ from requested) */
     char name[CVMX_BOOTMEM_NAME_LEN];   /**< name of named block */
-} cvmx_bootmem_named_block_desc_t;
+};
 
-
+typedef struct cvmx_bootmem_named_block_desc cvmx_bootmem_named_block_desc_t;
 
 /* Current descriptor versions */
 #define CVMX_BOOTMEM_DESC_MAJ_VER   3   /* CVMX bootmem descriptor major version */
@@ -127,10 +129,10 @@ typedef struct
  * Initialize the boot alloc memory structures. This is
  * normally called inside of cvmx_user_app_init()
  *
- * @param mem_desc_ptr	Address of the free memory list
+ * @param mem_desc_addr	Address of the free memory list
  * @return
  */
-extern int cvmx_bootmem_init(void *mem_desc_ptr);
+extern int cvmx_bootmem_init(uint64_t mem_desc_addr);
 
 
 /**
@@ -190,7 +192,7 @@ extern void *cvmx_bootmem_alloc_range(uint64_t size, uint64_t alignment, uint64_
  *
  * @return pointer to block of memory, NULL on error
  */
-extern void *cvmx_bootmem_alloc_named(uint64_t size, uint64_t alignment, char *name);
+extern void *cvmx_bootmem_alloc_named(uint64_t size, uint64_t alignment, const char *name);
 
 
 
@@ -207,7 +209,7 @@ extern void *cvmx_bootmem_alloc_named(uint64_t size, uint64_t alignment, char *n
  *
  * @return pointer to block of memory, NULL on error
  */
-extern void *cvmx_bootmem_alloc_named_address(uint64_t size, uint64_t address, char *name);
+extern void *cvmx_bootmem_alloc_named_address(uint64_t size, uint64_t address, const char *name);
 
 
 
@@ -226,7 +228,7 @@ extern void *cvmx_bootmem_alloc_named_address(uint64_t size, uint64_t address, c
  *
  * @return pointer to block of memory, NULL on error
  */
-extern void *cvmx_bootmem_alloc_named_range(uint64_t size, uint64_t min_addr, uint64_t max_addr, uint64_t align, char *name);
+extern void *cvmx_bootmem_alloc_named_range(uint64_t size, uint64_t min_addr, uint64_t max_addr, uint64_t align, const char *name);
 
 /**
  * Frees a previously allocated named bootmem block.
@@ -236,7 +238,7 @@ extern void *cvmx_bootmem_alloc_named_range(uint64_t size, uint64_t min_addr, ui
  * @return 0 on failure,
  *         !0 on success
  */
-extern int cvmx_bootmem_free_named(char *name);
+extern int cvmx_bootmem_free_named(const char *name);
 
 
 /**
@@ -247,7 +249,7 @@ extern int cvmx_bootmem_free_named(char *name);
  * @return pointer to named block descriptor on success
  *         0 on failure
  */
-cvmx_bootmem_named_block_desc_t * cvmx_bootmem_find_named_block(char *name);
+const cvmx_bootmem_named_block_desc_t *cvmx_bootmem_find_named_block(const char *name);
 
 
 
@@ -310,7 +312,7 @@ int64_t cvmx_bootmem_phy_alloc(uint64_t req_size, uint64_t address_min, uint64_t
  *
  * @return physical address of block allocated, or -1 on failure
  */
-int64_t cvmx_bootmem_phy_named_block_alloc(uint64_t size, uint64_t min_addr, uint64_t max_addr, uint64_t alignment, char *name, uint32_t flags);
+int64_t cvmx_bootmem_phy_named_block_alloc(uint64_t size, uint64_t min_addr, uint64_t max_addr, uint64_t alignment, const char *name, uint32_t flags);
 
 
 /**
@@ -319,13 +321,13 @@ int64_t cvmx_bootmem_phy_named_block_alloc(uint64_t size, uint64_t min_addr, uin
  *
  * @param name   Name of memory block to find.
  *               If NULL pointer given, then finds unused descriptor, if available.
- * @param flags     Flags to control options for the allocation.
+ * @param flags  Flags to control options for the allocation.
  *
- * @return Pointer to memory block descriptor, NULL if not found.
- *         If NULL returned when name parameter is NULL, then no memory
- *         block descriptors are available.
+ * @return Physical address of the memory block descriptor, zero if not
+ *         found. If zero returned when name parameter is NULL, then no
+ *         memory block descriptors are available.
  */
-cvmx_bootmem_named_block_desc_t * cvmx_bootmem_phy_named_block_find(char *name, uint32_t flags);
+uint64_t cvmx_bootmem_phy_named_block_find(const char *name, uint32_t flags);
 
 
 /**
@@ -349,7 +351,7 @@ uint64_t cvmx_bootmem_phy_available_mem(uint64_t min_block_size);
  * @return 0 on failure
  *         1 on success
  */
-int cvmx_bootmem_phy_named_block_free(char *name, uint32_t flags);
+int cvmx_bootmem_phy_named_block_free(const char *name, uint32_t flags);
 
 /**
  * Frees a block to the bootmem allocator list.  This must

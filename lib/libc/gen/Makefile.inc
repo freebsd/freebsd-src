@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # machine-independent gen sources
-.PATH: ${.CURDIR}/${MACHINE_CPUARCH}/gen ${.CURDIR}/gen
+.PATH: ${.CURDIR}/${LIBC_ARCH}/gen ${.CURDIR}/gen
 
 SRCS+=  __getosreldate.c __xuname.c \
 	_once_stub.c _pthread_stubs.c _rand48.c _spinlock_stub.c \
@@ -25,7 +25,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 	pause.c pmadvise.c popen.c posix_spawn.c \
 	psignal.c pututxline.c pw_scan.c pwcache.c \
 	raise.c readdir.c readpassphrase.c rewinddir.c \
-	scandir.c seed48.c seekdir.c sem.c sem_new.c semctl.c \
+	scandir.c seed48.c seekdir.c semctl.c \
 	setdomainname.c sethostname.c setjmperr.c setmode.c \
 	setproctitle.c setprogname.c siginterrupt.c siglist.c signal.c \
 	sigsetops.c sleep.c srand48.c statvfs.c stringlist.c strtofflags.c \
@@ -35,12 +35,18 @@ SRCS+=  __getosreldate.c __xuname.c \
 	usleep.c utime.c utxdb.c valloc.c vis.c wait.c wait3.c waitpid.c \
 	wordexp.c
 
+CANCELPOINTS_SRCS=sem.c sem_new.c
+.for src in ${CANCELPOINTS_SRCS}
+SRCS+=cancelpoints_${src}
+CLEANFILES+=cancelpoints_${src}
+cancelpoints_${src}:
+	ln -sf ${.CURDIR}/gen/${src} ${.TARGET}
+.endfor
+
 SYM_MAPS+=${.CURDIR}/gen/Symbol.map
 
 # machine-dependent gen sources
-.if exists(${.CURDIR}/${MACHINE_CPUARCH}/gen/Makefile.inc)
-.include "${.CURDIR}/${MACHINE_CPUARCH}/gen/Makefile.inc"
-.endif
+.sinclude "${.CURDIR}/${LIBC_ARCH}/gen/Makefile.inc"
 
 MAN+=	alarm.3 arc4random.3 \
 	basename.3 check_utility_compat.3 clock.3 \
@@ -174,9 +180,9 @@ MLINKS+=syslog.3 closelog.3 syslog.3 openlog.3 syslog.3 setlogmask.3 \
 	syslog.3 vsyslog.3
 MLINKS+=tcsendbreak.3 tcdrain.3 tcsendbreak.3 tcflow.3 tcsendbreak.3 tcflush.3
 MLINKS+=tcsetattr.3 cfgetispeed.3 tcsetattr.3 cfgetospeed.3 \
-	tcsetattr.3 cfmakeraw.3 tcsetattr.3 cfsetispeed.3 \
-	tcsetattr.3 cfsetospeed.3 tcsetattr.3 cfsetspeed.3 \
-	tcsetattr.3 tcgetattr.3
+	tcsetattr.3 cfmakeraw.3 tcsetattr.3 cfmakesane.3 \
+	tcsetattr.3 cfsetispeed.3 tcsetattr.3 cfsetospeed.3 \
+	tcsetattr.3 cfsetspeed.3 tcsetattr.3 tcgetattr.3
 MLINKS+=ttyname.3 isatty.3 ttyname.3 ttyname_r.3
 MLINKS+=tzset.3 tzsetwall.3
 MLINKS+=unvis.3 strunvis.3 unvis.3 strunvisx.3

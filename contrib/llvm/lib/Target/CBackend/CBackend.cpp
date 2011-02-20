@@ -73,7 +73,7 @@ namespace {
   public:
     static char ID;
     CBackendNameAllUsedStructsAndMergeFunctions() 
-      : ModulePass(&ID) {}
+      : ModulePass(ID) {}
     void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addRequired<FindUsedTypes>();
     }
@@ -110,7 +110,7 @@ namespace {
   public:
     static char ID;
     explicit CWriter(formatted_raw_ostream &o)
-      : FunctionPass(&ID), Out(o), IL(0), Mang(0), LI(0), 
+      : FunctionPass(ID), Out(o), IL(0), Mang(0), LI(0), 
         TheModule(0), TAsm(0), TCtx(0), TD(0), OpaqueCounter(0),
         NextAnonValueNumber(0) {
       FPCounter = 0;
@@ -199,7 +199,6 @@ namespace {
 
     void lowerIntrinsics(Function &F);
 
-    void printModule(Module *M);
     void printModuleTypes(const TypeSymbolTable &ST);
     void printContainedStructs(const Type *Ty, std::set<const Type *> &);
     void printFloatingPointConstants(Function &F);
@@ -1300,6 +1299,13 @@ void CWriter::printConstantWithCast(Constant* CPV, unsigned Opcode) {
 }
 
 std::string CWriter::GetValueName(const Value *Operand) {
+
+  // Resolve potential alias.
+  if (const GlobalAlias *GA = dyn_cast<GlobalAlias>(Operand)) {
+    if (const Value *V = GA->resolveAliasedGlobal(false))
+      Operand = V;
+  }
+
   // Mangle globals with the standard mangler interface for LLC compatibility.
   if (const GlobalValue *GV = dyn_cast<GlobalValue>(Operand)) {
     SmallString<128> Str;

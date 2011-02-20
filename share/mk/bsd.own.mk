@@ -30,6 +30,8 @@
 #
 # LIBDATADIR	Base path for misc. utility data files. [/usr/libdata]
 #
+# LIBEXECDIR	Base path for system daemons and utilities. [/usr/libexec]
+#
 # LINTLIBDIR	Base path for lint libraries. [/usr/libdata/lint]
 #
 # SHLIBDIR	Base path for shared libraries. [${LIBDIR}]
@@ -129,6 +131,7 @@ KMODMODE?=	${BINMODE}
 LIBDIR?=	/usr/lib
 LIBCOMPATDIR?=	/usr/lib/compat
 LIBDATADIR?=	/usr/libdata
+LIBEXECDIR?=	/usr/libexec
 LINTLIBDIR?=	/usr/libdata/lint
 SHLIBDIR?=	${LIBDIR}
 LIBOWN?=	${BINOWN}
@@ -326,6 +329,7 @@ _clang_no=CLANG
     DICT \
     DYNAMICROOT \
     EXAMPLES \
+    FDT \
     FLOPPY \
     FORTH \
     FP_LIBC \
@@ -421,7 +425,7 @@ MK_${var}:=	yes
     BIND_XML \
     BSD_GREP \
     ${_clang_no} \
-    FDT \
+    GPIO \
     HESIOD \
     IDEA
 .if defined(WITH_${var}) && defined(WITHOUT_${var})

@@ -297,7 +297,11 @@ g_disk_start(struct bio *bp)
 		} while (bp2 != NULL);
 		break;
 	case BIO_GETATTR:
-		if (g_handleattr_int(bp, "GEOM::fwsectors", dp->d_fwsectors))
+		if (g_handleattr_int(bp, "GEOM::candelete",
+		    (dp->d_flags & DISKFLAG_CANDELETE) != 0))
+			break;
+		else if (g_handleattr_int(bp, "GEOM::fwsectors",
+		    dp->d_fwsectors))
 			break;
 		else if (g_handleattr_int(bp, "GEOM::fwheads", dp->d_fwheads))
 			break;
@@ -523,6 +527,7 @@ sysctl_disks(SYSCTL_HANDLER_ARGS)
 	return error;
 }
  
-SYSCTL_PROC(_kern, OID_AUTO, disks, CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NOLOCK, 0, 0, 
+SYSCTL_PROC(_kern, OID_AUTO, disks,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_disks, "A", "names of available disks");
 

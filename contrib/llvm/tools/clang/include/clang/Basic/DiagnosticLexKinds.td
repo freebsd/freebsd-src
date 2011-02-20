@@ -51,6 +51,7 @@ def err_empty_character : Error<"empty character constant">;
 def err_unterminated_block_comment : Error<"unterminated /* comment">;
 def err_invalid_character_to_charify : Error<
   "invalid argument to convert to character">;
+def err_unterminated___pragma : Error<"missing terminating ')' character">;
 
 def err_conflict_marker : Error<"version control conflict marker in file">;
 
@@ -94,7 +95,10 @@ def ext_binary_literal : Extension<
 def err_pascal_string_too_long : Error<"Pascal string is too long">;
 def warn_octal_escape_too_large : ExtWarn<"octal escape sequence out of range">;
 def warn_hex_escape_too_large : ExtWarn<"hex escape sequence out of range">;
-
+def ext_string_too_long : Extension<"string literal of length %0 exceeds "
+  "maximum length %1 that %select{C90|ISO C99|C++}2 compilers are required to "
+  "support">, InGroup<OverlengthStrings>;
+  
 //===----------------------------------------------------------------------===//
 // PTH Diagnostics
 //===----------------------------------------------------------------------===//
@@ -227,6 +231,10 @@ def err_pragma_comment_malformed : Error<
   "pragma comment requires parenthesized identifier and optional string">;
 def err_pragma_message_malformed : Error<
   "pragma message requires parenthesized string">;
+def err_pragma_push_pop_macro_malformed : Error<
+   "pragma %0 requires a parenthesized string">;
+def warn_pragma_pop_macro_no_push : Warning<
+   "pragma pop_macro could not pop '%0', no matching push_macro">;
 def warn_pragma_message : Warning<"%0">;
 def warn_pragma_ignored : Warning<"unknown pragma ignored">,
    InGroup<UnknownPragmas>, DefaultIgnore;
@@ -241,15 +249,11 @@ def ext_stdc_pragma_syntax_eom :
 def warn_stdc_fenv_access_not_supported :
    Warning<"pragma STDC FENV_ACCESS ON is not supported, ignoring pragma">,
    InGroup<UnknownPragmas>;
-def warn_pragma_diagnostic_gcc_invalid :
-   ExtWarn<"pragma diagnostic expected 'error', 'warning', 'ignored', or"
-            " 'fatal'">,
-   InGroup<UnknownPragmas>;
-def warn_pragma_diagnostic_clang_invalid :
-   ExtWarn<"pragma diagnostic expected 'error', 'warning', 'ignored', 'fatal'"
+def warn_pragma_diagnostic_invalid :
+   ExtWarn<"pragma diagnostic expected 'error', 'warning', 'ignored', 'fatal',"
             " 'push', or 'pop'">,
    InGroup<UnknownPragmas>;
-def warn_pragma_diagnostic_clang_cannot_ppp :
+def warn_pragma_diagnostic_cannot_pop :
    ExtWarn<"pragma diagnostic pop could not pop, no matching push">,
    InGroup<UnknownPragmas>;
 def warn_pragma_diagnostic_invalid_option :
@@ -261,6 +265,9 @@ def warn_pragma_diagnostic_invalid_token :
 def warn_pragma_diagnostic_unknown_warning :
    ExtWarn<"unknown warning group '%0', ignored">,
    InGroup<UnknownPragmas>;
+// - #pragma __debug
+def warn_pragma_debug_unexpected_command : Warning<
+  "unexpected debug command '%0'">;
 
 def err_pragma_comment_unknown_kind : Error<"unknown kind of pragma comment">;
 def err_defined_macro_name : Error<"'defined' cannot be used as a macro name">;
@@ -277,6 +284,9 @@ def err_too_few_args_in_macro_invoc : Error<
   "too few arguments provided to function-like macro invocation">;
 def err_pp_bad_paste : Error<
   "pasting formed '%0', an invalid preprocessing token">;
+def err_pp_bad_paste_ms : Warning<
+  "pasting formed '%0', an invalid preprocessing token">, DefaultError,
+  InGroup<DiagGroup<"invalid-token-paste">>;
 def err_pp_operator_used_as_macro_name : Error<
   "C++ operator '%0' cannot be used as a macro name">;
 def err_pp_illegal_floating_literal : Error<

@@ -6,6 +6,7 @@ SRCDIR=	tools/clang/lib/Checker
 SRCS=	AdjustedReturnValueChecker.cpp \
 	AggExprVisitor.cpp \
 	AnalysisConsumer.cpp \
+	AnalysisManager.cpp \
 	ArrayBoundChecker.cpp \
 	AttrNonNullChecker.cpp \
 	BasicConstraintManager.cpp \
@@ -18,7 +19,6 @@ SRCS=	AdjustedReturnValueChecker.cpp \
 	CFRefCount.cpp \
 	CStringChecker.cpp \
 	CallAndMessageChecker.cpp \
-	CallInliner.cpp \
 	CastSizeChecker.cpp \
 	CastToStructChecker.cpp \
 	CheckDeadStores.cpp \
@@ -27,6 +27,7 @@ SRCS=	AdjustedReturnValueChecker.cpp \
 	CheckSecuritySyntaxOnly.cpp \
 	CheckSizeofPointer.cpp \
 	Checker.cpp \
+	CheckerHelpers.cpp \
 	CocoaConventions.cpp \
 	DereferenceChecker.cpp \
 	DivZeroChecker.cpp \
@@ -67,8 +68,8 @@ SRCS=	AdjustedReturnValueChecker.cpp \
 	SimpleConstraintManager.cpp \
 	SimpleSValuator.cpp \
 	StackAddrLeakChecker.cpp \
-	StreamChecker.cpp \
 	Store.cpp \
+	StreamChecker.cpp \
 	SymbolManager.cpp \
 	UndefBranchChecker.cpp \
 	UndefCapturedBlockVarChecker.cpp \
@@ -76,13 +77,13 @@ SRCS=	AdjustedReturnValueChecker.cpp \
 	UndefinedArraySubscriptChecker.cpp \
 	UndefinedAssignmentChecker.cpp \
 	UnixAPIChecker.cpp \
+	UnreachableCodeChecker.cpp \
 	VLASizeChecker.cpp \
 	ValueManager.cpp
 
-TGHDRS=	Attrs \
-	AttrList \
+TGHDRS=	AttrList \
+	Attrs \
 	DeclNodes \
-	DiagnosticAnalysisKinds \
 	DiagnosticCommonKinds \
 	StmtNodes
 

@@ -120,26 +120,27 @@ PO_FLAG=-pg
 		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .asm.po:
-	${CC} -x assembler-with-cpp -DPROF ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} -x assembler-with-cpp -DPROF ${PO_CFLAGS} ${ACFLAGS} \
+		-c ${.IMPSRC} -o ${.TARGET}
 	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
 		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
 		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .asm.So:
-	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS} \
+	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} \
 	    -c ${.IMPSRC} -o ${.TARGET}
 	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
 		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
 		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .S.po:
-	${CC} -DPROF ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} -DPROF ${PO_CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
 		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
 		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .S.So:
-	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
 		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
 		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
@@ -198,7 +199,11 @@ SOBJS+=		${OBJS:.o=.So}
 .if defined(SHLIB_NAME)
 _LIBS+=		${SHLIB_NAME}
 
+.if target(beforelinking)
+${SHLIB_NAME}: ${SOBJS} beforelinking
+.else
 ${SHLIB_NAME}: ${SOBJS}
+.endif
 	@${ECHO} building shared library ${SHLIB_NAME}
 	@rm -f ${.TARGET} ${SHLIB_LINK}
 .if defined(SHLIB_LINK)

@@ -95,7 +95,9 @@ struct vnet {
  * Location of the kernel's 'set_vnet' linker set.
  */
 extern uintptr_t	*__start_set_vnet;
+__GLOBL(__start_set_vnet);
 extern uintptr_t	*__stop_set_vnet;
+__GLOBL(__stop_set_vnet);
 
 #define	VNET_START	(uintptr_t)&__start_set_vnet
 #define	VNET_STOP	(uintptr_t)&__stop_set_vnet
@@ -116,22 +118,27 @@ void	vnet_destroy(struct vnet *vnet);
  * Various macros -- get and set the current network stack, but also
  * assertions.
  */
+#if defined(INVARIANTS) || defined(VNET_DEBUG)
+#define	VNET_ASSERT(exp, msg)	do {					\
+	if (!(exp))							\
+		panic msg;						\
+} while (0)
+#else
+#define	VNET_ASSERT(exp, msg)	do {					\
+} while (0)
+#endif
+
 #ifdef VNET_DEBUG
 void vnet_log_recursion(struct vnet *, const char *, int);
 
-#define	VNET_ASSERT(condition)						\
-	if (!(condition)) {						\
-		printf("VNET_ASSERT @ %s:%d %s():\n",			\
-			__FILE__, __LINE__, __FUNCTION__);		\
-		panic(#condition);					\
-	}
-
 #define	CURVNET_SET_QUIET(arg)						\
-	VNET_ASSERT((arg)->vnet_magic_n == VNET_MAGIC_N);		\
+	VNET_ASSERT((arg) != NULL && (arg)->vnet_magic_n == VNET_MAGIC_N, \
+	    ("CURVNET_SET at %s:%d %s() curvnet=%p vnet=%p",		\
+	    __FILE__, __LINE__, __func__, curvnet, (arg)));		\
 	struct vnet *saved_vnet = curvnet;				\
 	const char *saved_vnet_lpush = curthread->td_vnet_lpush;	\
 	curvnet = arg;							\
-	curthread->td_vnet_lpush = __FUNCTION__;
+	curthread->td_vnet_lpush = __func__;
  
 #define	CURVNET_SET_VERBOSE(arg)					\
 	CURVNET_SET_QUIET(arg)						\
@@ -141,21 +148,31 @@ void vnet_log_recursion(struct vnet *, const char *, int);
 #define	CURVNET_SET(arg)	CURVNET_SET_VERBOSE(arg)
  
 #define	CURVNET_RESTORE()						\
-	VNET_ASSERT(saved_vnet == NULL ||				\
-		    saved_vnet->vnet_magic_n == VNET_MAGIC_N);		\
+	VNET_ASSERT(curvnet != NULL && (saved_vnet == NULL ||		\
+	    saved_vnet->vnet_magic_n == VNET_MAGIC_N),			\
+	    ("CURVNET_RESTORE at %s:%d %s() curvnet=%p saved_vnet=%p",	\
+	    __FILE__, __LINE__, __func__, curvnet, saved_vnet));	\
 	curvnet = saved_vnet;						\
 	curthread->td_vnet_lpush = saved_vnet_lpush;
 #else /* !VNET_DEBUG */
-#define	VNET_ASSERT(condition)
 
-#define	CURVNET_SET(arg)						\
+#define	CURVNET_SET_QUIET(arg)						\
+	VNET_ASSERT((arg) != NULL && (arg)->vnet_magic_n == VNET_MAGIC_N, \
+	    ("CURVNET_SET at %s:%d %s() curvnet=%p vnet=%p",		\
+	    __FILE__, __LINE__, __func__, curvnet, (arg)));		\
 	struct vnet *saved_vnet = curvnet;				\
 	curvnet = arg;	
  
-#define	CURVNET_SET_VERBOSE(arg)	CURVNET_SET(arg)
-#define	CURVNET_SET_QUIET(arg)		CURVNET_SET(arg)
+#define	CURVNET_SET_VERBOSE(arg)					\
+	CURVNET_SET_QUIET(arg)
+
+#define	CURVNET_SET(arg)	CURVNET_SET_VERBOSE(arg)
  
 #define	CURVNET_RESTORE()						\
+	VNET_ASSERT(curvnet != NULL && (saved_vnet == NULL ||		\
+	    saved_vnet->vnet_magic_n == VNET_MAGIC_N),			\
+	    ("CURVNET_RESTORE at %s:%d %s() curvnet=%p saved_vnet=%p",	\
+	    __FILE__, __LINE__, __func__, curvnet, saved_vnet));	\
 	curvnet = saved_vnet;
 #endif /* VNET_DEBUG */
 
@@ -191,15 +208,6 @@ extern struct sx vnet_sxlock;
  * Virtual network stack memory allocator, which allows global variables to
  * be automatically instantiated for each network stack instance.
  */
-__asm__(
-#if defined(__arm__)
-	".section " VNET_SETNAME ", \"aw\", %progbits\n"
-#else
-	".section " VNET_SETNAME ", \"aw\", @progbits\n"
-#endif
-	"\t.p2align " __XSTRING(CACHE_LINE_SHIFT) "\n"
-	"\t.previous");
-
 #define	VNET_NAME(n)		vnet_entry_##n
 #define	VNET_DECLARE(t, n)	extern t VNET_NAME(n)
 #define	VNET_DEFINE(t, n)	t VNET_NAME(n) __section(VNET_SETNAME) __used
@@ -243,6 +251,7 @@ int	vnet_sysctl_handle_uint(SYSCTL_HANDLER_ARGS);
 	    ptr, val, vnet_sysctl_handle_int, "I", descr)
 #define	SYSCTL_VNET_PROC(parent, nbr, name, access, ptr, arg, handler,	\
 	    fmt, descr)							\
+	CTASSERT(((access) & CTLTYPE) != 0);				\
 	SYSCTL_OID(parent, nbr, name, CTLFLAG_VNET|(access), ptr, arg, 	\
 	    handler, fmt, descr)
 #define	SYSCTL_VNET_OPAQUE(parent, nbr, name, access, ptr, len, fmt,    \
@@ -357,7 +366,7 @@ do {									\
  */
 #define	curvnet			NULL
 
-#define	VNET_ASSERT(condition)
+#define	VNET_ASSERT(exp, msg)
 #define	CURVNET_SET(arg)
 #define	CURVNET_SET_QUIET(arg)
 #define	CURVNET_RESTORE()

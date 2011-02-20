@@ -38,7 +38,14 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/CommandLine.h"
 using namespace llvm;
+
+static cl::opt<bool>
+ForceStackAlign("force-align-stack",
+                 cl::desc("Force align the stack to the minimum alignment"
+                           " needed for the function."),
+                 cl::init(false), cl::Hidden);
 
 X86RegisterInfo::X86RegisterInfo(X86TargetMachine &tm,
                                  const TargetInstrInfo &tii)
@@ -192,6 +199,12 @@ unsigned X86RegisterInfo::getX86RegNum(unsigned RegNo) {
     return 6;
   case X86::DR7:
     return 7;
+
+  // Pseudo index registers are equivalent to a "none"
+  // scaled index (See Intel Manual 2A, table 2-3)
+  case X86::EIZ:
+  case X86::RIZ:
+    return 4;
 
   default:
     assert(isVirtualRegister(RegNo) && "Unknown physical register!");
@@ -456,26 +469,29 @@ bool X86RegisterInfo::canRealignStack(const MachineFunction &MF) const {
 bool X86RegisterInfo::needsStackRealignment(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
   const Function *F = MF.getFunction();
-  bool requiresRealignment =
-    RealignStack && ((MFI->getMaxAlignment() > StackAlign) ||
-                     F->hasFnAttr(Attribute::StackAlignment));
+  bool requiresRealignment = ((MFI->getMaxAlignment() > StackAlign) ||
+                               F->hasFnAttr(Attribute::StackAlignment));
 
   // FIXME: Currently we don't support stack realignment for functions with
   //        variable-sized allocas.
-  // FIXME: Temporary disable the error - it seems to be too conservative.
+  // FIXME: It's more complicated than this...
   if (0 && requiresRealignment && MFI->hasVarSizedObjects())
     report_fatal_error(
       "Stack realignment in presense of dynamic allocas is not supported");
-
-  return (requiresRealignment && !MFI->hasVarSizedObjects());
+    
+  // If we've requested that we force align the stack do so now.
+  if (ForceStackAlign)
+    return canRealignStack(MF);
+    
+  return requiresRealignment && canRealignStack(MF);
 }
 
-bool X86RegisterInfo::hasReservedCallFrame(MachineFunction &MF) const {
+bool X86RegisterInfo::hasReservedCallFrame(const MachineFunction &MF) const {
   return !MF.getFrameInfo()->hasVarSizedObjects();
 }
 
-bool X86RegisterInfo::hasReservedSpillSlot(MachineFunction &MF, unsigned Reg,
-                                           int &FrameIdx) const {
+bool X86RegisterInfo::hasReservedSpillSlot(const MachineFunction &MF,
+                                           unsigned Reg, int &FrameIdx) const {
   if (Reg == FramePtr && hasFP(MF)) {
     FrameIdx = MF.getFrameInfo()->getObjectIndexBegin();
     return true;
@@ -610,10 +626,9 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
   MBB.erase(I);
 }
 
-unsigned
+void
 X86RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
-                                     int SPAdj, FrameIndexValue *Value,
-                                     RegScavenger *RS) const{
+                                     int SPAdj, RegScavenger *RS) const{
   assert(SPAdj == 0 && "Unexpected");
 
   unsigned i = 0;
@@ -660,7 +675,6 @@ X86RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     uint64_t Offset = FIOffset + (uint64_t)MI.getOperand(i+3).getOffset();
     MI.getOperand(i+3).setOffset(Offset);
   }
-  return 0;
 }
 
 void
@@ -750,7 +764,7 @@ void mergeSPUpdatesUp(MachineBasicBlock &MBB, MachineBasicBlock::iterator &MBBI,
   }
 }
 
-/// mergeSPUpdatesUp - Merge two stack-manipulating instructions lower iterator.
+/// mergeSPUpdatesDown - Merge two stack-manipulating instructions lower iterator.
 static
 void mergeSPUpdatesDown(MachineBasicBlock &MBB,
                         MachineBasicBlock::iterator &MBBI,
@@ -901,6 +915,17 @@ void X86RegisterInfo::emitPrologue(MachineFunction &MF) const {
   bool HasFP = hasFP(MF);
   DebugLoc DL;
 
+  // If we're forcing a stack realignment we can't rely on just the frame
+  // info, we need to know the ABI stack alignment as well in case we
+  // have a call out.  Otherwise just make sure we have some alignment - we'll
+  // go with the minimum SlotSize.
+  if (ForceStackAlign) {
+    if (MFI->hasCalls())
+      MaxAlign = (StackAlign > MaxAlign) ? StackAlign : MaxAlign;
+    else if (MaxAlign < SlotSize)
+      MaxAlign = SlotSize;
+  }
+
   // Add RETADDR move area to callee saved frame size.
   int TailCallReturnAddrDelta = X86FI->getTCReturnAddrDelta();
   if (TailCallReturnAddrDelta < 0)
@@ -979,7 +1004,7 @@ void X86RegisterInfo::emitPrologue(MachineFunction &MF) const {
     if (needsFrameMoves) {
       // Mark the place where EBP/RBP was saved.
       MCSymbol *FrameLabel = MMI.getContext().CreateTempSymbol();
-      BuildMI(MBB, MBBI, DL, TII.get(X86::DBG_LABEL)).addSym(FrameLabel);
+      BuildMI(MBB, MBBI, DL, TII.get(X86::PROLOG_LABEL)).addSym(FrameLabel);
 
       // Define the current CFA rule to use the provided offset.
       if (StackSize) {
@@ -1007,7 +1032,7 @@ void X86RegisterInfo::emitPrologue(MachineFunction &MF) const {
     if (needsFrameMoves) {
       // Mark effective beginning of when frame pointer becomes valid.
       MCSymbol *FrameLabel = MMI.getContext().CreateTempSymbol();
-      BuildMI(MBB, MBBI, DL, TII.get(X86::DBG_LABEL)).addSym(FrameLabel);
+      BuildMI(MBB, MBBI, DL, TII.get(X86::PROLOG_LABEL)).addSym(FrameLabel);
 
       // Define the current CFA to use the EBP/RBP register.
       MachineLocation FPDst(FramePtr);
@@ -1047,7 +1072,7 @@ void X86RegisterInfo::emitPrologue(MachineFunction &MF) const {
     if (!HasFP && needsFrameMoves) {
       // Mark callee-saved push instruction.
       MCSymbol *Label = MMI.getContext().CreateTempSymbol();
-      BuildMI(MBB, MBBI, DL, TII.get(X86::DBG_LABEL)).addSym(Label);
+      BuildMI(MBB, MBBI, DL, TII.get(X86::PROLOG_LABEL)).addSym(Label);
 
       // Define the current CFA rule to use the provided offset.
       unsigned Ptr = StackSize ?
@@ -1062,7 +1087,17 @@ void X86RegisterInfo::emitPrologue(MachineFunction &MF) const {
   DL = MBB.findDebugLoc(MBBI);
 
   // Adjust stack pointer: ESP -= numbytes.
-  if (NumBytes >= 4096 && Subtarget->isTargetCygMing()) {
+
+  // Windows and cygwin/mingw require a prologue helper routine when allocating
+  // more than 4K bytes on the stack.  Windows uses __chkstk and cygwin/mingw
+  // uses __alloca.  __alloca and the 32-bit version of __chkstk will probe
+  // the stack and adjust the stack pointer in one go.  The 64-bit version
+  // of __chkstk is only responsible for probing the stack.  The 64-bit
+  // prologue is responsible for adjusting the stack pointer.  Touching the
+  // stack at 4K increments is necessary to ensure that the guard pages used
+  // by the OS virtual memory manager are allocated in correct sequence.
+  if (NumBytes >= 4096 &&
+     (Subtarget->isTargetCygMing() || Subtarget->isTargetWin32())) {
     // Check, whether EAX is livein for this function.
     bool isEAXAlive = false;
     for (MachineRegisterInfo::livein_iterator
@@ -1073,16 +1108,16 @@ void X86RegisterInfo::emitPrologue(MachineFunction &MF) const {
                     Reg == X86::AH || Reg == X86::AL);
     }
 
-    // Function prologue calls _alloca to probe the stack when allocating more
-    // than 4k bytes in one go. Touching the stack at 4K increments is necessary
-    // to ensure that the guard pages used by the OS virtual memory manager are
-    // allocated in correct sequence.
+
+    const char *StackProbeSymbol =
+      Subtarget->isTargetWindows() ? "_chkstk" : "_alloca";
     if (!isEAXAlive) {
       BuildMI(MBB, MBBI, DL, TII.get(X86::MOV32ri), X86::EAX)
         .addImm(NumBytes);
       BuildMI(MBB, MBBI, DL, TII.get(X86::CALLpcrel32))
-        .addExternalSymbol("_alloca")
-        .addReg(StackPtr, RegState::Define | RegState::Implicit);
+        .addExternalSymbol(StackProbeSymbol)
+        .addReg(StackPtr,    RegState::Define | RegState::Implicit)
+        .addReg(X86::EFLAGS, RegState::Define | RegState::Implicit);
     } else {
       // Save EAX
       BuildMI(MBB, MBBI, DL, TII.get(X86::PUSH32r))
@@ -1093,8 +1128,9 @@ void X86RegisterInfo::emitPrologue(MachineFunction &MF) const {
       BuildMI(MBB, MBBI, DL, TII.get(X86::MOV32ri), X86::EAX)
         .addImm(NumBytes - 4);
       BuildMI(MBB, MBBI, DL, TII.get(X86::CALLpcrel32))
-        .addExternalSymbol("_alloca")
-        .addReg(StackPtr, RegState::Define | RegState::Implicit);
+        .addExternalSymbol(StackProbeSymbol)
+        .addReg(StackPtr,    RegState::Define | RegState::Implicit)
+        .addReg(X86::EFLAGS, RegState::Define | RegState::Implicit);
 
       // Restore EAX
       MachineInstr *MI = addRegOffset(BuildMI(MF, DL, TII.get(X86::MOV32rm),
@@ -1119,7 +1155,7 @@ void X86RegisterInfo::emitPrologue(MachineFunction &MF) const {
   if ((NumBytes || PushedRegs) && needsFrameMoves) {
     // Mark end of stack pointer adjustment.
     MCSymbol *Label = MMI.getContext().CreateTempSymbol();
-    BuildMI(MBB, MBBI, DL, TII.get(X86::DBG_LABEL)).addSym(Label);
+    BuildMI(MBB, MBBI, DL, TII.get(X86::PROLOG_LABEL)).addSym(Label);
 
     if (!HasFP && NumBytes) {
       // Define the current CFA rule to use the provided offset.
@@ -1171,6 +1207,17 @@ void X86RegisterInfo::emitEpilogue(MachineFunction &MF,
   uint64_t MaxAlign  = MFI->getMaxAlignment();
   unsigned CSSize = X86FI->getCalleeSavedFrameSize();
   uint64_t NumBytes = 0;
+
+  // If we're forcing a stack realignment we can't rely on just the frame
+  // info, we need to know the ABI stack alignment as well in case we
+  // have a call out.  Otherwise just make sure we have some alignment - we'll
+  // go with the minimum.
+  if (ForceStackAlign) {
+    if (MFI->hasCalls())
+      MaxAlign = (StackAlign > MaxAlign) ? StackAlign : MaxAlign;
+    else
+      MaxAlign = MaxAlign ? MaxAlign : 4;
+  }
 
   if (hasFP(MF)) {
     // Calculate required stack adjustment.
@@ -1519,7 +1566,7 @@ unsigned getX86SubSuperRegister(unsigned Reg, EVT VT, bool High) {
 namespace {
   struct MSAH : public MachineFunctionPass {
     static char ID;
-    MSAH() : MachineFunctionPass(&ID) {}
+    MSAH() : MachineFunctionPass(ID) {}
 
     virtual bool runOnMachineFunction(MachineFunction &MF) {
       const X86TargetMachine *TM =

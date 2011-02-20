@@ -19,9 +19,6 @@
 
 ident		ADM5120
 
-#makeoptions	ARCH_FLAGS=-march=mips32
-makeoptions	MIPS_LITTLE_ENDIAN=defined
-
 # Don't build any modules yet.
 makeoptions	MODULES_OVERRIDE=""
 

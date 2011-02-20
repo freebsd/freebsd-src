@@ -1,6 +1,6 @@
 /*
- * WPA Supplicant / SSL/TLS interface definition
- * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
+ * SSL/TLS interface definition
+ * Copyright (c) 2004-2010, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -28,10 +28,54 @@ struct tls_keys {
 	size_t inner_secret_len;
 };
 
+enum tls_event {
+	TLS_CERT_CHAIN_FAILURE,
+	TLS_PEER_CERTIFICATE
+};
+
+/*
+ * Note: These are used as identifier with external programs and as such, the
+ * values must not be changed.
+ */
+enum tls_fail_reason {
+	TLS_FAIL_UNSPECIFIED = 0,
+	TLS_FAIL_UNTRUSTED = 1,
+	TLS_FAIL_REVOKED = 2,
+	TLS_FAIL_NOT_YET_VALID = 3,
+	TLS_FAIL_EXPIRED = 4,
+	TLS_FAIL_SUBJECT_MISMATCH = 5,
+	TLS_FAIL_ALTSUBJECT_MISMATCH = 6,
+	TLS_FAIL_BAD_CERTIFICATE = 7,
+	TLS_FAIL_SERVER_CHAIN_PROBE = 8
+};
+
+union tls_event_data {
+	struct {
+		int depth;
+		const char *subject;
+		enum tls_fail_reason reason;
+		const char *reason_txt;
+		const struct wpabuf *cert;
+	} cert_fail;
+
+	struct {
+		int depth;
+		const char *subject;
+		const struct wpabuf *cert;
+		const u8 *hash;
+		size_t hash_len;
+	} peer_cert;
+};
+
 struct tls_config {
 	const char *opensc_engine_path;
 	const char *pkcs11_engine_path;
 	const char *pkcs11_module_path;
+	int fips_mode;
+
+	void (*event_cb)(void *ctx, enum tls_event ev,
+			 union tls_event_data *data);
+	void *cb_ctx;
 };
 
 #define TLS_CONN_ALLOW_SIGN_RSA_MD5 BIT(0)
@@ -292,17 +336,14 @@ int __must_check  tls_connection_prf(void *tls_ctx,
  * tls_connection_handshake - Process TLS handshake (client side)
  * @tls_ctx: TLS context data from tls_init()
  * @conn: Connection context data from tls_connection_init()
- * @in_data: Input data from TLS peer
- * @in_len: Input data length
- * @out_len: Length of the output buffer.
+ * @in_data: Input data from TLS server
  * @appl_data: Pointer to application data pointer, or %NULL if dropped
- * @appl_data_len: Pointer to variable that is set to appl_data length
- * Returns: Pointer to output data, %NULL on failure
+ * Returns: Output data, %NULL on failure
  *
- * Caller is responsible for freeing returned output data. If the final
+ * The caller is responsible for freeing the returned output data. If the final
  * handshake message includes application data, this is decrypted and
- * appl_data (if not %NULL) is set to point this data. Caller is responsible
- * for freeing appl_data.
+ * appl_data (if not %NULL) is set to point this data. The caller is
+ * responsible for freeing appl_data.
  *
  * This function is used during TLS handshake. The first call is done with
  * in_data == %NULL and the library is expected to return ClientHello packet.
@@ -318,62 +359,55 @@ int __must_check  tls_connection_prf(void *tls_ctx,
  * tls_connection_established() should return 1 once the TLS handshake has been
  * completed successfully.
  */
-u8 * tls_connection_handshake(void *tls_ctx, struct tls_connection *conn,
-			      const u8 *in_data, size_t in_len,
-			      size_t *out_len, u8 **appl_data,
-			      size_t *appl_data_len);
+struct wpabuf * tls_connection_handshake(void *tls_ctx,
+					 struct tls_connection *conn,
+					 const struct wpabuf *in_data,
+					 struct wpabuf **appl_data);
 
 /**
  * tls_connection_server_handshake - Process TLS handshake (server side)
  * @tls_ctx: TLS context data from tls_init()
  * @conn: Connection context data from tls_connection_init()
  * @in_data: Input data from TLS peer
- * @in_len: Input data length
- * @out_len: Length of the output buffer.
- * Returns: pointer to output data, %NULL on failure
+ * @appl_data: Pointer to application data pointer, or %NULL if dropped
+ * Returns: Output data, %NULL on failure
  *
- * Caller is responsible for freeing returned output data.
+ * The caller is responsible for freeing the returned output data.
  */
-u8 * tls_connection_server_handshake(void *tls_ctx,
-				     struct tls_connection *conn,
-				     const u8 *in_data, size_t in_len,
-				     size_t *out_len);
+struct wpabuf * tls_connection_server_handshake(void *tls_ctx,
+						struct tls_connection *conn,
+						const struct wpabuf *in_data,
+						struct wpabuf **appl_data);
 
 /**
  * tls_connection_encrypt - Encrypt data into TLS tunnel
  * @tls_ctx: TLS context data from tls_init()
  * @conn: Connection context data from tls_connection_init()
- * @in_data: Pointer to plaintext data to be encrypted
- * @in_len: Input buffer length
- * @out_data: Pointer to output buffer (encrypted TLS data)
- * @out_len: Maximum out_data length 
- * Returns: Number of bytes written to out_data, -1 on failure
+ * @in_data: Plaintext data to be encrypted
+ * Returns: Encrypted TLS data or %NULL on failure
  *
  * This function is used after TLS handshake has been completed successfully to
- * send data in the encrypted tunnel.
+ * send data in the encrypted tunnel. The caller is responsible for freeing the
+ * returned output data.
  */
-int __must_check tls_connection_encrypt(void *tls_ctx,
-					struct tls_connection *conn,
-					const u8 *in_data, size_t in_len,
-					u8 *out_data, size_t out_len);
+struct wpabuf * tls_connection_encrypt(void *tls_ctx,
+				       struct tls_connection *conn,
+				       const struct wpabuf *in_data);
 
 /**
  * tls_connection_decrypt - Decrypt data from TLS tunnel
  * @tls_ctx: TLS context data from tls_init()
  * @conn: Connection context data from tls_connection_init()
- * @in_data: Pointer to input buffer (encrypted TLS data)
- * @in_len: Input buffer length
- * @out_data: Pointer to output buffer (decrypted data from TLS tunnel)
- * @out_len: Maximum out_data length
- * Returns: Number of bytes written to out_data, -1 on failure
+ * @in_data: Encrypted TLS data
+ * Returns: Decrypted TLS data or %NULL on failure
  *
  * This function is used after TLS handshake has been completed successfully to
- * receive data from the encrypted tunnel.
+ * receive data from the encrypted tunnel. The caller is responsible for
+ * freeing the returned output data.
  */
-int __must_check tls_connection_decrypt(void *tls_ctx,
-					struct tls_connection *conn,
-					const u8 *in_data, size_t in_len,
-					u8 *out_data, size_t out_len);
+struct wpabuf * tls_connection_decrypt(void *tls_ctx,
+				       struct tls_connection *conn,
+				       const struct wpabuf *in_data);
 
 /**
  * tls_connection_resumed - Was session resumption used
@@ -493,16 +527,13 @@ unsigned int tls_capabilities(void *tls_ctx);
  * @tls_ctx: TLS context data from tls_init()
  * @conn: Connection context data from tls_connection_init()
  * @final: 1 = FinalPhaseFinished, 0 = IntermediatePhaseFinished
- * @out_data: Pointer to output buffer (encrypted TLS/IA data)
- * @out_len: Maximum out_data length 
- * Returns: Number of bytes written to out_data on success, -1 on failure
+ * Returns: Encrypted TLS/IA data, %NULL on failure
  *
  * This function is used to send the TLS/IA end phase message, e.g., when the
  * EAP server completes EAP-TTLSv1.
  */
-int __must_check tls_connection_ia_send_phase_finished(
-	void *tls_ctx, struct tls_connection *conn, int final,
-	u8 *out_data, size_t out_len);
+struct wpabuf * tls_connection_ia_send_phase_finished(
+	void *tls_ctx, struct tls_connection *conn, int final);
 
 /**
  * tls_connection_ia_final_phase_finished - Has final phase been completed

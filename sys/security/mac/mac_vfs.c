@@ -637,6 +637,8 @@ mac_vnode_check_open(struct ucred *cred, struct vnode *vp, accmode_t accmode)
 	ASSERT_VOP_LOCKED(vp, "mac_vnode_check_open");
 
 	MAC_POLICY_CHECK(vnode_check_open, cred, vp, vp->v_label, accmode);
+	MAC_CHECK_PROBE3(vnode_check_open, error, cred, vp, accmode);
+
 	return (error);
 }
 

@@ -44,11 +44,11 @@ UTILS="alias,\
 set -- ${SPECIAL}
 for cmd in "$@"
 do
-	sh -c "command ${cmd} > /; exit 0" 2>/dev/null || exit 1
+	${SH} -c "command ${cmd} > /; exit 0" 2>/dev/null || exit 1
 done
 
 set -- ${UTILS}
 for cmd in "$@"
 do
-	sh -c "command ${cmd} > /; exit 0" 2>/dev/null || exit 1
+	${SH} -c "command ${cmd} > /; exit 0" 2>/dev/null || exit 1
 done

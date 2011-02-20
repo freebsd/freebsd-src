@@ -422,6 +422,7 @@ config::parse_files_in_dir(const char *dirname)
 			parse_one_file(path);
 		}
 	}
+	closedir(dirp);
 }
 
 class epv_greater {
@@ -749,9 +750,13 @@ process_event(char *buffer)
 		if (sp == NULL)
 			return;	/* Can't happen? */
 		*sp++ = '\0';
+		while (isspace(*sp))
+			sp++;
 		if (strncmp(sp, "at ", 3) == 0)
 			sp += 3;
 		sp = cfg.set_vars(sp);
+		while (isspace(*sp))
+			sp++;
 		if (strncmp(sp, "on ", 3) == 0)
 			cfg.set_variable("bus", sp + 3);
 		break;
@@ -762,9 +767,13 @@ process_event(char *buffer)
 			return;	/* Can't happen? */
 		*sp++ = '\0';
 		cfg.set_variable("device-name", buffer);
+		while (isspace(*sp))
+			sp++;
 		if (strncmp(sp, "at ", 3) == 0)
 			sp += 3;
 		sp = cfg.set_vars(sp);
+		while (isspace(*sp))
+			sp++;
 		if (strncmp(sp, "on ", 3) == 0)
 			cfg.set_variable("bus", sp + 3);
 		break;

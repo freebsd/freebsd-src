@@ -15,8 +15,8 @@
 #include "includes.h"
 
 #include "common.h"
-#include "wpa.h"
-#include "sha1.h"
+#include "crypto/sha1.h"
+#include "rsn_supp/wpa.h"
 #include "eap_peer/eap.h"
 #include "config.h"
 
@@ -917,6 +917,130 @@ static char * wpa_config_write_auth_alg(const struct parse_data *data,
 #endif /* NO_CONFIG_WRITE */
 
 
+static int * wpa_config_parse_freqs(const struct parse_data *data,
+				    struct wpa_ssid *ssid, int line,
+				    const char *value)
+{
+	int *freqs;
+	size_t used, len;
+	const char *pos;
+
+	used = 0;
+	len = 10;
+	freqs = os_zalloc((len + 1) * sizeof(int));
+	if (freqs == NULL)
+		return NULL;
+
+	pos = value;
+	while (pos) {
+		while (*pos == ' ')
+			pos++;
+		if (used == len) {
+			int *n;
+			size_t i;
+			n = os_realloc(freqs, (len * 2 + 1) * sizeof(int));
+			if (n == NULL) {
+				os_free(freqs);
+				return NULL;
+			}
+			for (i = len; i <= len * 2; i++)
+				n[i] = 0;
+			freqs = n;
+			len *= 2;
+		}
+
+		freqs[used] = atoi(pos);
+		if (freqs[used] == 0)
+			break;
+		used++;
+		pos = os_strchr(pos + 1, ' ');
+	}
+
+	return freqs;
+}
+
+
+static int wpa_config_parse_scan_freq(const struct parse_data *data,
+				      struct wpa_ssid *ssid, int line,
+				      const char *value)
+{
+	int *freqs;
+
+	freqs = wpa_config_parse_freqs(data, ssid, line, value);
+	if (freqs == NULL)
+		return -1;
+	os_free(ssid->scan_freq);
+	ssid->scan_freq = freqs;
+
+	return 0;
+}
+
+
+static int wpa_config_parse_freq_list(const struct parse_data *data,
+				      struct wpa_ssid *ssid, int line,
+				      const char *value)
+{
+	int *freqs;
+
+	freqs = wpa_config_parse_freqs(data, ssid, line, value);
+	if (freqs == NULL)
+		return -1;
+	os_free(ssid->freq_list);
+	ssid->freq_list = freqs;
+
+	return 0;
+}
+
+
+#ifndef NO_CONFIG_WRITE
+static char * wpa_config_write_freqs(const struct parse_data *data,
+				     const int *freqs)
+{
+	char *buf, *pos, *end;
+	int i, ret;
+	size_t count;
+
+	if (freqs == NULL)
+		return NULL;
+
+	count = 0;
+	for (i = 0; freqs[i]; i++)
+		count++;
+
+	pos = buf = os_zalloc(10 * count + 1);
+	if (buf == NULL)
+		return NULL;
+	end = buf + 10 * count + 1;
+
+	for (i = 0; freqs[i]; i++) {
+		ret = os_snprintf(pos, end - pos, "%s%u",
+				  i == 0 ? "" : " ", freqs[i]);
+		if (ret < 0 || ret >= end - pos) {
+			end[-1] = '\0';
+			return buf;
+		}
+		pos += ret;
+	}
+
+	return buf;
+}
+
+
+static char * wpa_config_write_scan_freq(const struct parse_data *data,
+					 struct wpa_ssid *ssid)
+{
+	return wpa_config_write_freqs(data, ssid->scan_freq);
+}
+
+
+static char * wpa_config_write_freq_list(const struct parse_data *data,
+					 struct wpa_ssid *ssid)
+{
+	return wpa_config_write_freqs(data, ssid->freq_list);
+}
+#endif /* NO_CONFIG_WRITE */
+
+
 #ifdef IEEE8021X_EAPOL
 static int wpa_config_parse_eap(const struct parse_data *data,
 				struct wpa_ssid *ssid, int line,
@@ -1317,6 +1441,8 @@ static const struct parse_data ssid_fields[] = {
 	{ FUNC(pairwise) },
 	{ FUNC(group) },
 	{ FUNC(auth_alg) },
+	{ FUNC(scan_freq) },
+	{ FUNC(freq_list) },
 #ifdef IEEE8021X_EAPOL
 	{ FUNC(eap) },
 	{ STR_LENe(identity) },
@@ -1366,7 +1492,7 @@ static const struct parse_data ssid_fields[] = {
 	{ STRe(pac_file) },
 	{ INTe(fragment_size) },
 #endif /* IEEE8021X_EAPOL */
-	{ INT_RANGE(mode, 0, 1) },
+	{ INT_RANGE(mode, 0, 2) },
 	{ INT_RANGE(proactive_key_caching, 0, 1) },
 	{ INT_RANGE(disabled, 0, 1) },
 	{ STR(id_str) },
@@ -1376,7 +1502,8 @@ static const struct parse_data ssid_fields[] = {
 	{ INT_RANGE(peerkey, 0, 1) },
 	{ INT_RANGE(mixed_cell, 0, 1) },
 	{ INT_RANGE(frequency, 0, 10000) },
-	{ INT(wpa_ptk_rekey) }
+	{ INT(wpa_ptk_rekey) },
+	{ STR(bgscan) },
 };
 
 #undef OFFSET
@@ -1460,7 +1587,7 @@ int wpa_config_add_prio_network(struct wpa_config *config,
  * configuration when a network is being added or removed. This is also called
  * if a priority for a network is changed.
  */
-static int wpa_config_update_prio_list(struct wpa_config *config)
+int wpa_config_update_prio_list(struct wpa_config *config)
 {
 	struct wpa_ssid *ssid;
 	int ret = 0;
@@ -1540,6 +1667,9 @@ void wpa_config_free_ssid(struct wpa_ssid *ssid)
 	eap_peer_config_free(&ssid->eap);
 #endif /* IEEE8021X_EAPOL */
 	os_free(ssid->id_str);
+	os_free(ssid->scan_freq);
+	os_free(ssid->freq_list);
+	os_free(ssid->bgscan);
 	os_free(ssid);
 }
 
@@ -1576,11 +1706,9 @@ void wpa_config_free(struct wpa_config *config)
 
 	os_free(config->ctrl_interface);
 	os_free(config->ctrl_interface_group);
-#ifdef EAP_TLS_OPENSSL
 	os_free(config->opensc_engine_path);
 	os_free(config->pkcs11_engine_path);
 	os_free(config->pkcs11_module_path);
-#endif /* EAP_TLS_OPENSSL */
 	os_free(config->driver_param);
 	os_free(config->device_name);
 	os_free(config->manufacturer);
@@ -1588,6 +1716,7 @@ void wpa_config_free(struct wpa_config *config)
 	os_free(config->model_number);
 	os_free(config->serial_number);
 	os_free(config->device_type);
+	os_free(config->config_methods);
 	os_free(config->pssid);
 	os_free(config);
 }
@@ -1744,6 +1873,65 @@ int wpa_config_set(struct wpa_ssid *ssid, const char *var, const char *value,
 	}
 
 	return ret;
+}
+
+
+/**
+ * wpa_config_get_all - Get all options from network configuration
+ * @ssid: Pointer to network configuration data
+ * @get_keys: Determines if keys/passwords will be included in returned list
+ * Returns: %NULL terminated list of all set keys and their values in the form
+ * of [key1, val1, key2, val2, ... , NULL]
+ *
+ * This function can be used to get list of all configured network properties.
+ * The caller is responsible for freeing the returned list and all its
+ * elements.
+ */
+char ** wpa_config_get_all(struct wpa_ssid *ssid, int get_keys)
+{
+	const struct parse_data *field;
+	char *key, *value;
+	size_t i;
+	char **props;
+	int fields_num;
+
+	props = os_zalloc(sizeof(char *) * ((2 * NUM_SSID_FIELDS) + 1));
+	if (!props)
+		return NULL;
+
+	fields_num = 0;
+	for (i = 0; i < NUM_SSID_FIELDS; i++) {
+		field = &ssid_fields[i];
+		if (field->key_data && !get_keys)
+			continue;
+		value = field->writer(field, ssid);
+		if (value == NULL)
+			continue;
+		if (os_strlen(value) == 0) {
+			os_free(value);
+			continue;
+		}
+
+		key = os_strdup(field->name);
+		if (key == NULL) {
+			os_free(value);
+			goto err;
+		}
+
+		props[fields_num * 2] = key;
+		props[fields_num * 2 + 1] = value;
+
+		fields_num++;
+	}
+
+	return props;
+
+err:
+	value = *props;
+	while (value)
+		os_free(value++);
+	os_free(props);
+	return NULL;
 }
 
 
@@ -1943,6 +2131,7 @@ struct wpa_config * wpa_config_alloc_empty(const char *ctrl_interface,
 	config->eapol_version = DEFAULT_EAPOL_VERSION;
 	config->ap_scan = DEFAULT_AP_SCAN;
 	config->fast_reauth = DEFAULT_FAST_REAUTH;
+	config->bss_max_count = DEFAULT_BSS_MAX_COUNT;
 
 	if (ctrl_interface)
 		config->ctrl_interface = os_strdup(ctrl_interface);

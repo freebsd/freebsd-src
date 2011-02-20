@@ -15,9 +15,9 @@
 #include "ARM.h"
 #include "ARMAddressingModes.h"
 #include "ARMConstantPoolValue.h"
-#include "ARMGenInstrInfo.inc"
 #include "ARMMachineFunctionInfo.h"
 #include "ARMRegisterInfo.h"
+#include "ARMGenInstrInfo.inc"
 #include "llvm/Constants.h"
 #include "llvm/Function.h"
 #include "llvm/GlobalValue.h"
@@ -501,7 +501,7 @@ unsigned ARMBaseInstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
       llvm_unreachable("Unknown or unset size field for instr!");
     case TargetOpcode::IMPLICIT_DEF:
     case TargetOpcode::KILL:
-    case TargetOpcode::DBG_LABEL:
+    case TargetOpcode::PROLOG_LABEL:
     case TargetOpcode::EH_LABEL:
     case TargetOpcode::DBG_VALUE:
       return 0;
@@ -571,48 +571,6 @@ unsigned ARMBaseInstrInfo::GetInstSizeInBytes(const MachineInstr *MI) const {
   }
   }
   return 0; // Not reached
-}
-
-/// Return true if the instruction is a register to register move and
-/// leave the source and dest operands in the passed parameters.
-///
-bool
-ARMBaseInstrInfo::isMoveInstr(const MachineInstr &MI,
-                              unsigned &SrcReg, unsigned &DstReg,
-                              unsigned& SrcSubIdx, unsigned& DstSubIdx) const {
-  switch (MI.getOpcode()) {
-  default: break;
-  case ARM::VMOVS:
-  case ARM::VMOVD:
-  case ARM::VMOVDneon:
-  case ARM::VMOVQ:
-  case ARM::VMOVQQ : {
-    SrcReg = MI.getOperand(1).getReg();
-    DstReg = MI.getOperand(0).getReg();
-    SrcSubIdx = MI.getOperand(1).getSubReg();
-    DstSubIdx = MI.getOperand(0).getSubReg();
-    return true;
-  }
-  case ARM::MOVr:
-  case ARM::MOVr_TC:
-  case ARM::tMOVr:
-  case ARM::tMOVgpr2tgpr:
-  case ARM::tMOVtgpr2gpr:
-  case ARM::tMOVgpr2gpr:
-  case ARM::t2MOVr: {
-    assert(MI.getDesc().getNumOperands() >= 2 &&
-           MI.getOperand(0).isReg() &&
-           MI.getOperand(1).isReg() &&
-           "Invalid ARM MOV instruction");
-    SrcReg = MI.getOperand(1).getReg();
-    DstReg = MI.getOperand(0).getReg();
-    SrcSubIdx = MI.getOperand(1).getSubReg();
-    DstSubIdx = MI.getOperand(0).getSubReg();
-    return true;
-  }
-  }
-
-  return false;
 }
 
 unsigned
@@ -763,8 +721,9 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                             Align);
 
   // tGPR is used sometimes in ARM instructions that need to avoid using
-  // certain registers.  Just treat it as GPR here.
-  if (RC == ARM::tGPRRegisterClass || RC == ARM::tcGPRRegisterClass)
+  // certain registers.  Just treat it as GPR here. Likewise, rGPR.
+  if (RC == ARM::tGPRRegisterClass || RC == ARM::tcGPRRegisterClass
+      || RC == ARM::rGPRRegisterClass)
     RC = ARM::GPRRegisterClass;
 
   switch (RC->getID()) {
@@ -798,7 +757,7 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
       AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VSTMQ))
                      .addReg(SrcReg, getKillRegState(isKill))
                      .addFrameIndex(FI)
-                     .addImm(ARM_AM::getAM5Opc(ARM_AM::ia, 4))
+                     .addImm(ARM_AM::getAM4ModeImm(ARM_AM::ia))
                      .addMemOperand(MMO));
     }
     break;
@@ -818,7 +777,7 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
       MachineInstrBuilder MIB =
         AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VSTMD))
                        .addFrameIndex(FI)
-                       .addImm(ARM_AM::getAM5Opc(ARM_AM::ia, 4)))
+                       .addImm(ARM_AM::getAM4ModeImm(ARM_AM::ia)))
         .addMemOperand(MMO);
       MIB = AddDReg(MIB, SrcReg, ARM::dsub_0, getKillRegState(isKill), TRI);
       MIB = AddDReg(MIB, SrcReg, ARM::dsub_1, 0, TRI);
@@ -830,7 +789,7 @@ storeRegToStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     MachineInstrBuilder MIB =
       AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VSTMD))
                      .addFrameIndex(FI)
-                     .addImm(ARM_AM::getAM5Opc(ARM_AM::ia, 4)))
+                     .addImm(ARM_AM::getAM4ModeImm(ARM_AM::ia)))
       .addMemOperand(MMO);
     MIB = AddDReg(MIB, SrcReg, ARM::dsub_0, getKillRegState(isKill), TRI);
     MIB = AddDReg(MIB, SrcReg, ARM::dsub_1, 0, TRI);
@@ -865,7 +824,8 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
 
   // tGPR is used sometimes in ARM instructions that need to avoid using
   // certain registers.  Just treat it as GPR here.
-  if (RC == ARM::tGPRRegisterClass || RC == ARM::tcGPRRegisterClass)
+  if (RC == ARM::tGPRRegisterClass || RC == ARM::tcGPRRegisterClass
+      || RC == ARM::rGPRRegisterClass)
     RC = ARM::GPRRegisterClass;
 
   switch (RC->getID()) {
@@ -893,7 +853,7 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     } else {
       AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VLDMQ), DestReg)
                      .addFrameIndex(FI)
-                     .addImm(ARM_AM::getAM5Opc(ARM_AM::ia, 4))
+                     .addImm(ARM_AM::getAM4ModeImm(ARM_AM::ia))
                      .addMemOperand(MMO));
     }
     break;
@@ -910,7 +870,7 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
       MachineInstrBuilder MIB =
         AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VLDMD))
                        .addFrameIndex(FI)
-                       .addImm(ARM_AM::getAM5Opc(ARM_AM::ia, 4)))
+                       .addImm(ARM_AM::getAM4ModeImm(ARM_AM::ia)))
         .addMemOperand(MMO);
       MIB = AddDReg(MIB, DestReg, ARM::dsub_0, RegState::Define, TRI);
       MIB = AddDReg(MIB, DestReg, ARM::dsub_1, RegState::Define, TRI);
@@ -922,7 +882,7 @@ loadRegFromStackSlot(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
     MachineInstrBuilder MIB =
       AddDefaultPred(BuildMI(MBB, I, DL, get(ARM::VLDMD))
                      .addFrameIndex(FI)
-                     .addImm(ARM_AM::getAM5Opc(ARM_AM::ia, 4)))
+                     .addImm(ARM_AM::getAM4ModeImm(ARM_AM::ia)))
       .addMemOperand(MMO);
     MIB = AddDReg(MIB, DestReg, ARM::dsub_0, RegState::Define, TRI);
     MIB = AddDReg(MIB, DestReg, ARM::dsub_1, RegState::Define, TRI);
@@ -963,6 +923,11 @@ static unsigned duplicateCPV(MachineFunction &MF, unsigned &CPI) {
 
   unsigned PCLabelId = AFI->createConstPoolEntryUId();
   ARMConstantPoolValue *NewCPV = 0;
+  // FIXME: The below assumes PIC relocation model and that the function
+  // is Thumb mode (t1 or t2). PCAdjustment would be 8 for ARM mode PIC, and
+  // zero for non-PIC in ARM or Thumb. The callers are all of thumb LDR
+  // instructions, so that's probably OK, but is PIC always correct when
+  // we get here?
   if (ACPV->isGlobalValue())
     NewCPV = new ARMConstantPoolValue(ACPV->getGV(), PCLabelId,
                                       ARMCP::CPValue, 4);
@@ -972,6 +937,9 @@ static unsigned duplicateCPV(MachineFunction &MF, unsigned &CPI) {
   else if (ACPV->isBlockAddress())
     NewCPV = new ARMConstantPoolValue(ACPV->getBlockAddress(), PCLabelId,
                                       ARMCP::CPBlockAddress, 4);
+  else if (ACPV->isLSDA())
+    NewCPV = new ARMConstantPoolValue(MF.getFunction(), PCLabelId,
+                                      ARMCP::CPLSDA, 4);
   else
     llvm_unreachable("Unexpected ARM constantpool value type!!");
   CPI = MCP->getConstantPoolIndex(NewCPV, MCPE.getAlignment());
@@ -1392,4 +1360,69 @@ bool llvm::rewriteARMFrameIndex(MachineInstr &MI, unsigned FrameRegIdx,
 
   Offset = (isSub) ? -Offset : Offset;
   return Offset == 0;
+}
+
+bool ARMBaseInstrInfo::
+AnalyzeCompare(const MachineInstr *MI, unsigned &SrcReg, int &CmpValue) const {
+  switch (MI->getOpcode()) {
+  default: break;
+  case ARM::CMPri:
+  case ARM::CMPzri:
+  case ARM::t2CMPri:
+  case ARM::t2CMPzri:
+    SrcReg = MI->getOperand(0).getReg();
+    CmpValue = MI->getOperand(1).getImm();
+    return true;
+  }
+
+  return false;
+}
+
+/// ConvertToSetZeroFlag - Convert the instruction to set the "zero" flag so
+/// that we can remove a "comparison with zero".
+bool ARMBaseInstrInfo::
+ConvertToSetZeroFlag(MachineInstr *MI, MachineInstr *CmpInstr) const {
+  // Conservatively refuse to convert an instruction which isn't in the same BB
+  // as the comparison.
+  if (MI->getParent() != CmpInstr->getParent())
+    return false;
+
+  // Check that CPSR isn't set between the comparison instruction and the one we
+  // want to change.
+  MachineBasicBlock::const_iterator I = CmpInstr, E = MI,
+    B = MI->getParent()->begin();
+  --I;
+  for (; I != E; --I) {
+    const MachineInstr &Instr = *I;
+
+    for (unsigned IO = 0, EO = Instr.getNumOperands(); IO != EO; ++IO) {
+      const MachineOperand &MO = Instr.getOperand(IO);
+      if (!MO.isReg() || !MO.isDef()) continue;
+
+      // This instruction modifies CPSR before the one we want to change. We
+      // can't do this transformation.
+      if (MO.getReg() == ARM::CPSR)
+        return false;
+    }
+
+    if (I == B)
+      // The 'and' is below the comparison instruction.
+      return false;
+  }
+
+  // Set the "zero" bit in CPSR.
+  switch (MI->getOpcode()) {
+  default: break;
+  case ARM::ADDri:
+  case ARM::SUBri:
+  case ARM::t2ADDri:
+  case ARM::t2SUBri:
+    MI->RemoveOperand(5);
+    MachineInstrBuilder(MI)
+      .addReg(ARM::CPSR, RegState::Define | RegState::Implicit);
+    CmpInstr->eraseFromParent();
+    return true;
+  }
+
+  return false;
 }

@@ -199,6 +199,7 @@ enum tokens {
 	TOK_FIB,
 	TOK_SETFIB,
 	TOK_LOOKUP,
+	TOK_SOCKARG,
 };
 /*
  * the following macro returns an error message if we run out of

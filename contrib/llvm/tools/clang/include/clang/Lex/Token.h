@@ -231,6 +231,7 @@ public:
   /// newlines in it.
   ///
   bool needsCleaning() const { return (Flags & NeedsCleaning) ? true : false; }
+    
 };
 
 /// PPConditionalInfo - Information about the conditional stack (#if directives)

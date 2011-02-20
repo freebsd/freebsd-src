@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/in_cksum.h>
 
@@ -137,6 +136,7 @@ static void	ale_setlinkspeed(struct ale_softc *);
 static void	ale_setwol(struct ale_softc *);
 static int	ale_shutdown(device_t);
 static void	ale_start(struct ifnet *);
+static void	ale_start_locked(struct ifnet *);
 static void	ale_stats_clear(struct ale_softc *);
 static void	ale_stats_update(struct ale_softc *);
 static void	ale_stop(struct ale_softc *);
@@ -144,7 +144,6 @@ static void	ale_stop_mac(struct ale_softc *);
 static int	ale_suspend(device_t);
 static void	ale_sysctl_node(struct ale_softc *);
 static void	ale_tick(void *);
-static void	ale_tx_task(void *, int);
 static void	ale_txeof(struct ale_softc *);
 static void	ale_watchdog(struct ale_softc *);
 static int	sysctl_int_range(SYSCTL_HANDLER_ARGS, int, int);
@@ -208,9 +207,6 @@ ale_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	if (phy != sc->ale_phyaddr)
-		return (0);
-
 	CSR_WRITE_4(sc, ALE_MDIO, MDIO_OP_EXECUTE | MDIO_OP_READ |
 	    MDIO_SUP_PREAMBLE | MDIO_CLK_25_4 | MDIO_REG_ADDR(reg));
 	for (i = ALE_PHY_TIMEOUT; i > 0; i--) {
@@ -236,9 +232,6 @@ ale_miibus_writereg(device_t dev, int phy, int reg, int val)
 	int i;
 
 	sc = device_get_softc(dev);
-
-	if (phy != sc->ale_phyaddr)
-		return (0);
 
 	CSR_WRITE_4(sc, ALE_MDIO, MDIO_OP_EXECUTE | MDIO_OP_WRITE |
 	    (val & MDIO_DATA_MASK) << MDIO_DATA_SHIFT |
@@ -605,9 +598,11 @@ ale_attach(device_t dev)
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Set up MII bus. */
-	if ((error = mii_phy_probe(dev, &sc->ale_miibus, ale_mediachange,
-	    ale_mediastatus)) != 0) {
-		device_printf(dev, "no PHY found!\n");
+	error = mii_attach(dev, &sc->ale_miibus, ifp, ale_mediachange,
+	    ale_mediastatus, BMSR_DEFCAPMASK, sc->ale_phyaddr, MII_OFFSET_ANY,
+	    0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -630,7 +625,6 @@ ale_attach(device_t dev)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 
 	/* Create local taskq. */
-	TASK_INIT(&sc->ale_tx_task, 1, ale_tx_task, ifp);
 	sc->ale_tq = taskqueue_create_fast("ale_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->ale_tq);
 	if (sc->ale_tq == NULL) {
@@ -681,15 +675,13 @@ ale_detach(device_t dev)
 
 	ifp = sc->ale_ifp;
 	if (device_is_attached(dev)) {
+		ether_ifdetach(ifp);
 		ALE_LOCK(sc);
-		sc->ale_flags |= ALE_FLAG_DETACH;
 		ale_stop(sc);
 		ALE_UNLOCK(sc);
 		callout_drain(&sc->ale_tick_ch);
 		taskqueue_drain(sc->ale_tq, &sc->ale_int_task);
-		taskqueue_drain(sc->ale_tq, &sc->ale_tx_task);
 		taskqueue_drain(taskqueue_swi, &sc->ale_link_task);
-		ether_ifdetach(ifp);
 	}
 
 	if (sc->ale_tq != NULL) {
@@ -736,7 +728,10 @@ ale_detach(device_t dev)
 #define	ALE_SYSCTL_STAT_ADD32(c, h, n, p, d)	\
 	    SYSCTL_ADD_UINT(c, h, OID_AUTO, n, CTLFLAG_RD, p, 0, d)
 
-#if __FreeBSD_version > 800000
+#if __FreeBSD_version >= 900030
+#define	ALE_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
+	    SYSCTL_ADD_UQUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
+#elif __FreeBSD_version > 800000
 #define	ALE_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
 	    SYSCTL_ADD_QUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
 #else
@@ -1677,6 +1672,7 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 				*m_head = NULL;
 				return (ENOBUFS);
 			}
+			ip = (struct ip *)(mtod(m, char *) + ip_off);
 			tcp = (struct tcphdr *)(mtod(m, char *) + poff);
 			m = m_pullup(m, poff + (tcp->th_off << 2));
 			if (m == NULL) {
@@ -1849,16 +1845,18 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 }
 
 static void
-ale_tx_task(void *arg, int pending)
+ale_start(struct ifnet *ifp)
 {
-	struct ifnet *ifp;
+        struct ale_softc *sc;
 
-	ifp = (struct ifnet *)arg;
-	ale_start(ifp);
+	sc = ifp->if_softc;
+	ALE_LOCK(sc);
+	ale_start_locked(ifp);
+	ALE_UNLOCK(sc);
 }
 
 static void
-ale_start(struct ifnet *ifp)
+ale_start_locked(struct ifnet *ifp)
 {
         struct ale_softc *sc;
         struct mbuf *m_head;
@@ -1866,17 +1864,15 @@ ale_start(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
-	ALE_LOCK(sc);
+	ALE_LOCK_ASSERT(sc);
 
 	/* Reclaim transmitted frames. */
 	if (sc->ale_cdata.ale_tx_cnt >= ALE_TX_DESC_HIWAT)
 		ale_txeof(sc);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || (sc->ale_flags & ALE_FLAG_LINK) == 0) {
-		ALE_UNLOCK(sc);
+	    IFF_DRV_RUNNING || (sc->ale_flags & ALE_FLAG_LINK) == 0)
 		return;
-	}
 
 	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd); ) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
@@ -1910,8 +1906,6 @@ ale_start(struct ifnet *ifp)
 		/* Set a timeout in case the chip goes out to lunch. */
 		sc->ale_watchdog_timer = ALE_TX_TIMEOUT;
 	}
-
-	ALE_UNLOCK(sc);
 }
 
 static void
@@ -1937,7 +1931,7 @@ ale_watchdog(struct ale_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ale_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue(sc->ale_tq, &sc->ale_tx_task);
+		ale_start_locked(ifp);
 }
 
 static int
@@ -1975,8 +1969,7 @@ ale_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				    & (IFF_PROMISC | IFF_ALLMULTI)) != 0)
 					ale_rxfilter(sc);
 			} else {
-				if ((sc->ale_flags & ALE_FLAG_DETACH) == 0)
-					ale_init_locked(sc);
+				ale_init_locked(sc);
 			}
 		} else {
 			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
@@ -2287,8 +2280,8 @@ ale_int_task(void *arg, int pending)
 	sc = (struct ale_softc *)arg;
 
 	status = CSR_READ_4(sc, ALE_INTR_STATUS);
-	more = atomic_readandclear_int(&sc->ale_morework);
-	if (more != 0)
+	ALE_LOCK(sc);
+	if (sc->ale_morework != 0)
 		status |= INTR_RX_PKT;
 	if ((status & ALE_INTRS) == 0)
 		goto done;
@@ -2301,9 +2294,8 @@ ale_int_task(void *arg, int pending)
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 		more = ale_rxeof(sc, sc->ale_process_limit);
 		if (more == EAGAIN)
-			atomic_set_int(&sc->ale_morework, 1);
+			sc->ale_morework = 1;
 		else if (more == EIO) {
-			ALE_LOCK(sc);
 			sc->ale_stats.reset_brk_seq++;
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			ale_init_locked(sc);
@@ -2318,23 +2310,25 @@ ale_int_task(void *arg, int pending)
 			if ((status & INTR_DMA_WR_TO_RST) != 0)
 				device_printf(sc->ale_dev,
 				    "DMA write error! -- resetting\n");
-			ALE_LOCK(sc);
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			ale_init_locked(sc);
 			ALE_UNLOCK(sc);
 			return;
 		}
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			taskqueue_enqueue(sc->ale_tq, &sc->ale_tx_task);
+			ale_start_locked(ifp);
 	}
 
 	if (more == EAGAIN ||
 	    (CSR_READ_4(sc, ALE_INTR_STATUS) & ALE_INTRS) != 0) {
+		ALE_UNLOCK(sc);
 		taskqueue_enqueue(sc->ale_tq, &sc->ale_int_task);
 		return;
 	}
 
 done:
+	ALE_UNLOCK(sc);
+
 	/* Re-enable interrupts. */
 	CSR_WRITE_4(sc, ALE_INTR_STATUS, 0x7FFFFFFF);
 }
@@ -2591,7 +2585,9 @@ ale_rxeof(struct ale_softc *sc, int count)
 		}
 
 		/* Pass it to upper layer. */
+		ALE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
+		ALE_LOCK(sc);
 
 		ale_rx_update_page(sc, &rx_page, length, &prod);
 	}
@@ -3005,7 +3001,7 @@ ale_init_rx_pages(struct ale_softc *sc)
 
 	ALE_LOCK_ASSERT(sc);
 
-	atomic_set_int(&sc->ale_morework, 0);
+	sc->ale_morework = 0;
 	sc->ale_cdata.ale_rx_seqno = 0;
 	sc->ale_cdata.ale_rx_curp = 0;
 

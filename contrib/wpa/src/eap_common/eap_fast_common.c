@@ -15,8 +15,8 @@
 #include "includes.h"
 
 #include "common.h"
-#include "sha1.h"
-#include "tls.h"
+#include "crypto/sha1.h"
+#include "crypto/tls.h"
 #include "eap_defs.h"
 #include "eap_tlv_common.h"
 #include "eap_fast_common.h"

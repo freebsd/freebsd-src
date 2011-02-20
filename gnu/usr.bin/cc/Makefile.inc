@@ -22,31 +22,26 @@ CFLAGS+=	-DPREFIX=\"${TOOLS_PREFIX}/usr\"
 #CFLAGS+=	-DWANT_COMPILER_INVARIANTS
 CSTD?=	gnu89
 
-# If building 64-bit longs for the i386, "_LARGE_LONG" should also be defined
-# to get the proper sizes in limits.h
-.if defined(LONG_TYPE_SIZE)
-CFLAGS+=	-DLONG_TYPE_SIZE=${LONG_TYPE_SIZE}
-.endif
-
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
 CFLAGS+=	-DCROSS_COMPILE
 .endif
 
-.if ${TARGET_ARCH} == "mips"
-# XXX This is backwards, MIPS should default to BE.
-.if !defined(TARGET_BIG_ENDIAN)
+.if ${TARGET_ARCH} == "armeb"
+CFLAGS += -DTARGET_ENDIAN_DEFAULT=MASK_BIG_END
+.endif
+
+.if ${TARGET_CPUARCH} == "mips"
+.if ${TARGET_ARCH:Mmips*el} != ""
 CFLAGS += -DTARGET_ENDIAN_DEFAULT=0
 .endif
 
-.if defined(TARGET_ABI) && ${TARGET_ABI} != "o32"
-.if ${TARGET_ABI} == "n32"
-MIPS_ABI_DEFAULT=ABI_N32
-.elif ${TARGET_ABI} == "n64"
+.if ${TARGET_ARCH:Mmips64*} != ""
 MIPS_ABI_DEFAULT=ABI_64
+.elif ${TARGET_ARCH:Mmipsn32*} != ""
+MIPS_ABI_DEFAULT=ABI_N32
+.else
+MIPS_ABI_DEFAULT=ABI_32
 .endif
-.endif
-
-MIPS_ABI_DEFAULT?=ABI_32
 CFLAGS += -DMIPS_ABI_DEFAULT=${MIPS_ABI_DEFAULT}
 
 # If we are compiling for the O32 ABI, we need to default to MIPS-III rather

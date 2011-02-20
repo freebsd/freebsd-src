@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.95 2010/02/27 00:58:56 nicm Exp $ */
+/* $OpenBSD: netcat.c,v 1.98 2010/07/03 04:44:51 guenther Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -93,7 +93,7 @@ int	Iflag;					/* TCP receive buffer size */
 int	Oflag;					/* TCP send buffer size */
 int	Sflag;					/* TCP MD5 signature option */
 int	Tflag = -1;				/* IP Type of Service */
-u_int	rdomain;
+u_int	rtableid;
 
 int timeout = -1;
 int family = AF_UNSPEC;
@@ -139,7 +139,6 @@ main(int argc, char *argv[])
 		{ NULL,		0,		NULL,		0 }
 	};
 
-	rdomain = 0;
 	ret = 1;
 	ipsec_count = 0;
 	s = 0;
@@ -235,10 +234,10 @@ main(int argc, char *argv[])
 		case 'V':
 			if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
 				errx(1, "Multiple FIBS not supported");
-			rdomain = (unsigned int)strtonum(optarg, 0,
+			rtableid = (unsigned int)strtonum(optarg, 0,
 			    numfibs - 1, &errstr);
 			if (errstr)
-				errx(1, "FIB %s: %s", errstr, optarg);
+				errx(1, "rtable %s: %s", errstr, optarg);
 			break;
 		case 'v':
 			vflag = 1;
@@ -371,11 +370,11 @@ main(int argc, char *argv[])
 			 */
 			if (uflag) {
 				int rv, plen;
-				char buf[8192];
+				char buf[16384];
 				struct sockaddr_storage z;
 
 				len = sizeof(z);
-				plen = jflag ? 8192 : 1024;
+				plen = jflag ? 16384 : 2048;
 				rv = recvfrom(s, buf, plen, MSG_PEEK,
 				    (struct sockaddr *)&z, &len);
 				if (rv < 0)
@@ -561,8 +560,8 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
 			add_ipsec_policy(s, ipsec_policy[1]);
 #endif
 
-		if (rdomain) {
-			if (setfib(rdomain) == -1)
+		if (rtableid) {
+			if (setfib(rtableid) == -1)
 				err(1, "setfib");
 		}
 
@@ -634,8 +633,8 @@ local_listen(char *host, char *port, struct addrinfo hints)
 		    res0->ai_protocol)) < 0)
 			continue;
 
-		if (rdomain) {
-			if (setfib(rdomain) == -1)
+		if (rtableid) {
+			if (setfib(rtableid) == -1)
 				err(1, "setfib");
 		}
 
@@ -680,12 +679,12 @@ void
 readwrite(int nfd)
 {
 	struct pollfd pfd[2];
-	unsigned char buf[8192];
+	unsigned char buf[16384];
 	int n, wfd = fileno(stdin);
 	int lfd = fileno(stdout);
 	int plen;
 
-	plen = jflag ? 8192 : 1024;
+	plen = jflag ? 16384 : 2048;
 
 	/* Setup Network FD */
 	pfd[0].fd = nfd;
@@ -827,10 +826,9 @@ build_ports(char *p)
 		hi = strtonum(p, 1, PORT_MAX, &errstr);
 		if (errstr)
 			errx(1, "port number %s: %s", errstr, p);
-		portlist[0] = calloc(1, PORT_MAX_LEN);
+		portlist[0] = strdup(p);
 		if (portlist[0] == NULL)
 			err(1, NULL);
-		portlist[0] = p;
 	}
 }
 
@@ -947,7 +945,7 @@ help(void)
 	\t-t		Answer TELNET negotiation\n\
 	\t-U		Use UNIX domain socket\n\
 	\t-u		UDP mode\n\
-	\t-V fib	Specify alternate routing table (FIB)\n\
+	\t-V rtable	Specify alternate routing table\n\
 	\t-v		Verbose\n\
 	\t-w secs\t	Timeout for connects and final net reads\n\
 	\t-X proto	Proxy protocol: \"4\", \"5\" (SOCKS) or \"connect\"\n\
@@ -992,7 +990,7 @@ usage(int ret)
 	    "usage: nc [-46DdhklnrStUuvz] [-I length] [-i interval] [-O length]\n"
 #endif
 	    "\t  [-P proxy_username] [-p source_port] [-s source_ip_address] [-T ToS]\n"
-	    "\t  [-V fib] [-w timeout] [-X proxy_protocol]\n"
+	    "\t  [-V rtable] [-w timeout] [-X proxy_protocol]\n"
 	    "\t  [-x proxy_address[:port]] [hostname] [port]\n");
 	if (ret)
 		exit(1);

@@ -305,6 +305,8 @@ main(int argc, char *argv[])
 		}
 		cp = ifa->ifa_name;
 
+		if ((ifa->ifa_flags & IFF_CANTCONFIG) != 0)
+			continue;
 		if (downonly && (ifa->ifa_flags & IFF_UP) != 0)
 			continue;
 		if (uponly && (ifa->ifa_flags & IFF_UP) == 0)

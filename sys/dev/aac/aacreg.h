@@ -306,7 +306,9 @@ struct aac_adapter_init {
 	u_int32_t	HostElapsedSeconds;
 	/* ADAPTER_INIT_STRUCT_REVISION_4 begins here */
 	u_int32_t	InitFlags;			/* flags for supported features */
-#define AAC_INITFLAGS_NEW_COMM_SUPPORTED	1
+#define	AAC_INITFLAGS_NEW_COMM_SUPPORTED	1
+#define	AAC_INITFLAGS_DRIVER_USES_UTC_TIME	0x10
+#define	AAC_INITFLAGS_DRIVER_SUPPORTS_PM	0x20
 	u_int32_t	MaxIoCommands;		/* max outstanding commands */
 	u_int32_t	MaxIoSize;			/* largest I/O command */
 	u_int32_t	MaxFibSize;			/* largest FIB to adapter */
@@ -885,6 +887,17 @@ typedef enum {
 	AifEnBatteryNeedsRecond,	/* The battery needs reconditioning */
 	AifEnClusterEvent,		/* Some cluster event */
 	AifEnDiskSetEvent,		/* A disk set event occured. */
+	AifEnContainerScsiEvent,	/* a container event with no. and scsi id */
+	AifEnPicBatteryEvent,	/* An event gen. by pic_battery.c for an ABM */
+	AifEnExpEvent,		/* Exp. Event Type to replace CTPopUp messages */
+	AifEnRAID6RebuildDone,	/* RAID6 rebuild finished */
+	AifEnSensorOverHeat,	/* Heat Sensor indicate overheat */
+	AifEnSensorCoolDown,	/* Heat Sensor ind. cooled down after overheat */
+	AifFeatureKeysModified,	/* notif. of updated feature keys */
+	AifApplicationExpirationEvent,	/* notif. on app. expiration status */
+	AifEnBackgroundConsistencyCheck,/* BCC notif. for NEC - DDTS 94700 */
+	AifEnAddJBOD,		/* A new JBOD type drive was created (30) */
+	AifEnDeleteJBOD,	/* A JBOD type drive was deleted (31) */
 	AifDriverNotifyStart=199,	/* Notifies for host driver go here */
 	/* Host driver notifications start here */
 	AifDenMorphComplete, 		/* A morph operation completed */
@@ -921,6 +934,11 @@ struct aac_AifEnsEnclosureEvent {
 					 * slot id, tempsensor id.  */
 	u_int32_t	eventType;	/* event type */
 } __packed;
+
+typedef enum {
+	AIF_EM_DRIVE_INSERTION=31,
+	AIF_EM_DRIVE_REMOVAL
+} aac_AifEMEventType;
 
 struct aac_AifEnsBatteryEvent {
 	AAC_NVBATT_TRANSITION	transition_type;	/* eg from low to ok */

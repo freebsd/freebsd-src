@@ -100,8 +100,7 @@ public:
   /// it is already legal or we need to expand it into multiple registers of
   /// smaller integer type, or we need to promote it to a larger type.
   LegalizeAction getTypeAction(EVT VT) const {
-    return
-        (LegalizeAction)ValueTypeActions.getTypeAction(*DAG.getContext(), VT);
+    return (LegalizeAction)ValueTypeActions.getTypeAction(VT);
   }
 
   /// isTypeLegal - Return true if this type is legal on this target.
@@ -1314,21 +1313,30 @@ SDValue SelectionDAGLegalize::LegalizeOp(SDValue Op) {
           }
           break;
         case TargetLowering::Expand:
-          // f64 = EXTLOAD f32 should expand to LOAD, FP_EXTEND
-          // f128 = EXTLOAD {f32,f64} too
-          if ((SrcVT == MVT::f32 && (Node->getValueType(0) == MVT::f64 ||
-                                     Node->getValueType(0) == MVT::f128)) ||
-              (SrcVT == MVT::f64 && Node->getValueType(0) == MVT::f128)) {
+          if (!TLI.isLoadExtLegal(ISD::EXTLOAD, SrcVT) && isTypeLegal(SrcVT)) {
             SDValue Load = DAG.getLoad(SrcVT, dl, Tmp1, Tmp2, LD->getSrcValue(),
                                        LD->getSrcValueOffset(),
                                        LD->isVolatile(), LD->isNonTemporal(),
                                        LD->getAlignment());
-            Result = DAG.getNode(ISD::FP_EXTEND, dl,
-                                 Node->getValueType(0), Load);
+            unsigned ExtendOp;
+            switch (ExtType) {
+            case ISD::EXTLOAD:
+              ExtendOp = (SrcVT.isFloatingPoint() ?
+                          ISD::FP_EXTEND : ISD::ANY_EXTEND);
+              break;
+            case ISD::SEXTLOAD: ExtendOp = ISD::SIGN_EXTEND; break;
+            case ISD::ZEXTLOAD: ExtendOp = ISD::ZERO_EXTEND; break;
+            default: llvm_unreachable("Unexpected extend load type!");
+            }
+            Result = DAG.getNode(ExtendOp, dl, Node->getValueType(0), Load);
             Tmp1 = LegalizeOp(Result);  // Relegalize new nodes.
             Tmp2 = LegalizeOp(Load.getValue(1));
             break;
           }
+          // FIXME: This does not work for vectors on most targets.  Sign- and
+          // zero-extend operations are currently folded into extending loads,
+          // whether they are legal or not, and then we end up here without any
+          // support for legalizing them.
           assert(ExtType != ISD::EXTLOAD &&
                  "EXTLOAD should always be supported!");
           // Turn the unsupported load into an EXTLOAD followed by an explicit

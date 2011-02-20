@@ -332,7 +332,7 @@ secpolicy_vnode_owner(struct vnode *vp, cred_t *cred, uid_t owner)
 }
 
 int
-secpolicy_vnode_chown(struct vnode *vp, cred_t *cred, boolean_t check_self)
+secpolicy_vnode_chown(struct vnode *vp, cred_t *cred, uid_t owner)
 {
 
 	if (secpolicy_fs_owner(vp->v_mount, cred) == 0)

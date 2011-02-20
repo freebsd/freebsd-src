@@ -8,6 +8,7 @@ COUNT_IPIS		opt_smp.h
 MAXMEM
 PERFMON
 PMAP_SHPGPERPROC	opt_pmap.h
+MPTABLE_FORCE_HTT
 MP_WATCHDOG
 
 # Options for emulators.  These should only be used at config time, so

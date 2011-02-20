@@ -1,6 +1,6 @@
 /*
- * hostapd / RADIUS client
- * Copyright (c) 2002-2005, Jouni Malinen <j@w1.fi>
+ * RADIUS client
+ * Copyright (c) 2002-2009, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -20,68 +20,217 @@
 #include "eloop.h"
 
 /* Defaults for RADIUS retransmit values (exponential backoff) */
-#define RADIUS_CLIENT_FIRST_WAIT 3 /* seconds */
-#define RADIUS_CLIENT_MAX_WAIT 120 /* seconds */
-#define RADIUS_CLIENT_MAX_RETRIES 10 /* maximum number of retransmit attempts
-				      * before entry is removed from retransmit
-				      * list */
-#define RADIUS_CLIENT_MAX_ENTRIES 30 /* maximum number of entries in retransmit
-				      * list (oldest will be removed, if this
-				      * limit is exceeded) */
-#define RADIUS_CLIENT_NUM_FAILOVER 4 /* try to change RADIUS server after this
-				      * many failed retry attempts */
+
+/**
+ * RADIUS_CLIENT_FIRST_WAIT - RADIUS client timeout for first retry in seconds
+ */
+#define RADIUS_CLIENT_FIRST_WAIT 3
+
+/**
+ * RADIUS_CLIENT_MAX_WAIT - RADIUS client maximum retry timeout in seconds
+ */
+#define RADIUS_CLIENT_MAX_WAIT 120
+
+/**
+ * RADIUS_CLIENT_MAX_RETRIES - RADIUS client maximum retries
+ *
+ * Maximum number of retransmit attempts before the entry is removed from
+ * retransmit list.
+ */
+#define RADIUS_CLIENT_MAX_RETRIES 10
+
+/**
+ * RADIUS_CLIENT_MAX_ENTRIES - RADIUS client maximum pending messages
+ *
+ * Maximum number of entries in retransmit list (oldest entries will be
+ * removed, if this limit is exceeded).
+ */
+#define RADIUS_CLIENT_MAX_ENTRIES 30
+
+/**
+ * RADIUS_CLIENT_NUM_FAILOVER - RADIUS client failover point
+ *
+ * The number of failed retry attempts after which the RADIUS server will be
+ * changed (if one of more backup servers are configured).
+ */
+#define RADIUS_CLIENT_NUM_FAILOVER 4
 
 
+/**
+ * struct radius_rx_handler - RADIUS client RX handler
+ *
+ * This data structure is used internally inside the RADIUS client module to
+ * store registered RX handlers. These handlers are registered by calls to
+ * radius_client_register() and unregistered when the RADIUS client is
+ * deinitialized with a call to radius_client_deinit().
+ */
 struct radius_rx_handler {
+	/**
+	 * handler - Received RADIUS message handler
+	 */
 	RadiusRxResult (*handler)(struct radius_msg *msg,
 				  struct radius_msg *req,
 				  const u8 *shared_secret,
 				  size_t shared_secret_len,
 				  void *data);
+
+	/**
+	 * data - Context data for the handler
+	 */
 	void *data;
 };
 
 
-/* RADIUS message retransmit list */
+/**
+ * struct radius_msg_list - RADIUS client message retransmit list
+ *
+ * This data structure is used internally inside the RADIUS client module to
+ * store pending RADIUS requests that may still need to be retransmitted.
+ */
 struct radius_msg_list {
-	u8 addr[ETH_ALEN]; /* STA/client address; used to find RADIUS messages
-			    * for the same STA. */
+	/**
+	 * addr - STA/client address
+	 *
+	 * This is used to find RADIUS messages for the same STA.
+	 */
+	u8 addr[ETH_ALEN];
+
+	/**
+	 * msg - RADIUS message
+	 */
 	struct radius_msg *msg;
+
+	/**
+	 * msg_type - Message type
+	 */
 	RadiusType msg_type;
+
+	/**
+	 * first_try - Time of the first transmission attempt
+	 */
 	os_time_t first_try;
+
+	/**
+	 * next_try - Time for the next transmission attempt
+	 */
 	os_time_t next_try;
+
+	/**
+	 * attempts - Number of transmission attempts
+	 */
 	int attempts;
+
+	/**
+	 * next_wait - Next retransmission wait time in seconds
+	 */
 	int next_wait;
+
+	/**
+	 * last_attempt - Time of the last transmission attempt
+	 */
 	struct os_time last_attempt;
 
-	u8 *shared_secret;
+	/**
+	 * shared_secret - Shared secret with the target RADIUS server
+	 */
+	const u8 *shared_secret;
+
+	/**
+	 * shared_secret_len - shared_secret length in octets
+	 */
 	size_t shared_secret_len;
 
 	/* TODO: server config with failover to backup server(s) */
 
+	/**
+	 * next - Next message in the list
+	 */
 	struct radius_msg_list *next;
 };
 
 
+/**
+ * struct radius_client_data - Internal RADIUS client data
+ *
+ * This data structure is used internally inside the RADIUS client module.
+ * External users allocate this by calling radius_client_init() and free it by
+ * calling radius_client_deinit(). The pointer to this opaque data is used in
+ * calls to other functions as an identifier for the RADIUS client instance.
+ */
 struct radius_client_data {
+	/**
+	 * ctx - Context pointer for hostapd_logger() callbacks
+	 */
 	void *ctx;
+
+	/**
+	 * conf - RADIUS client configuration (list of RADIUS servers to use)
+	 */
 	struct hostapd_radius_servers *conf;
 
-	int auth_serv_sock; /* socket for authentication RADIUS messages */
-	int acct_serv_sock; /* socket for accounting RADIUS messages */
-	int auth_serv_sock6;
-	int acct_serv_sock6;
-	int auth_sock; /* currently used socket */
-	int acct_sock; /* currently used socket */
+	/**
+	 * auth_serv_sock - IPv4 socket for RADIUS authentication messages
+	 */
+	int auth_serv_sock;
 
+	/**
+	 * acct_serv_sock - IPv4 socket for RADIUS accounting messages
+	 */
+	int acct_serv_sock;
+
+	/**
+	 * auth_serv_sock6 - IPv6 socket for RADIUS authentication messages
+	 */
+	int auth_serv_sock6;
+
+	/**
+	 * acct_serv_sock6 - IPv6 socket for RADIUS accounting messages
+	 */
+	int acct_serv_sock6;
+
+	/**
+	 * auth_sock - Currently used socket for RADIUS authentication server
+	 */
+	int auth_sock;
+
+	/**
+	 * acct_sock - Currently used socket for RADIUS accounting server
+	 */
+	int acct_sock;
+
+	/**
+	 * auth_handlers - Authentication message handlers
+	 */
 	struct radius_rx_handler *auth_handlers;
+
+	/**
+	 * num_auth_handlers - Number of handlers in auth_handlers
+	 */
 	size_t num_auth_handlers;
+
+	/**
+	 * acct_handlers - Accounting message handlers
+	 */
 	struct radius_rx_handler *acct_handlers;
+
+	/**
+	 * num_acct_handlers - Number of handlers in acct_handlers
+	 */
 	size_t num_acct_handlers;
 
+	/**
+	 * msgs - Pending outgoing RADIUS messages
+	 */
 	struct radius_msg_list *msgs;
+
+	/**
+	 * num_msgs - Number of pending messages in the msgs list
+	 */
 	size_t num_msgs;
 
+	/**
+	 * next_radius_identifier - Next RADIUS message identifier to use
+	 */
 	u8 next_radius_identifier;
 };
 
@@ -98,11 +247,26 @@ static int radius_client_init_auth(struct radius_client_data *radius);
 static void radius_client_msg_free(struct radius_msg_list *req)
 {
 	radius_msg_free(req->msg);
-	os_free(req->msg);
 	os_free(req);
 }
 
 
+/**
+ * radius_client_register - Register a RADIUS client RX handler
+ * @radius: RADIUS client context from radius_client_init()
+ * @msg_type: RADIUS client type (RADIUS_AUTH or RADIUS_ACCT)
+ * @handler: Handler for received RADIUS messages
+ * @data: Context pointer for handler callbacks
+ * Returns: 0 on success, -1 on failure
+ *
+ * This function is used to register a handler for processing received RADIUS
+ * authentication and accounting messages. The handler() callback function will
+ * be called whenever a RADIUS message is received from the active server.
+ *
+ * There can be multiple registered RADIUS message handlers. The handlers will
+ * be called in order until one of them indicates that it has processed or
+ * queued the message.
+ */
 int radius_client_register(struct radius_client_data *radius,
 			   RadiusType msg_type,
 			   RadiusRxResult (*handler)(struct radius_msg *msg,
@@ -166,6 +330,7 @@ static int radius_client_retransmit(struct radius_client_data *radius,
 {
 	struct hostapd_radius_servers *conf = radius->conf;
 	int s;
+	struct wpabuf *buf;
 
 	if (entry->msg_type == RADIUS_ACCT ||
 	    entry->msg_type == RADIUS_ACCT_INTERIM) {
@@ -190,10 +355,11 @@ static int radius_client_retransmit(struct radius_client_data *radius,
 	entry->attempts++;
 	hostapd_logger(radius->ctx, entry->addr, HOSTAPD_MODULE_RADIUS,
 		       HOSTAPD_LEVEL_DEBUG, "Resending RADIUS message (id=%d)",
-		       entry->msg->hdr->identifier);
+		       radius_msg_get_hdr(entry->msg)->identifier);
 
 	os_get_time(&entry->last_attempt);
-	if (send(s, entry->msg->buf, entry->msg->buf_used, 0) < 0)
+	buf = radius_msg_get_buf(entry->msg);
+	if (send(s, wpabuf_head(buf), wpabuf_len(buf), 0) < 0)
 		radius_client_handle_send_error(radius, s, entry->msg_type);
 
 	entry->next_try = now + entry->next_wait;
@@ -351,7 +517,8 @@ static void radius_client_update_timeout(struct radius_client_data *radius)
 
 static void radius_client_list_add(struct radius_client_data *radius,
 				   struct radius_msg *msg,
-				   RadiusType msg_type, u8 *shared_secret,
+				   RadiusType msg_type,
+				   const u8 *shared_secret,
 				   size_t shared_secret_len, const u8 *addr)
 {
 	struct radius_msg_list *entry, *prev;
@@ -360,7 +527,6 @@ static void radius_client_list_add(struct radius_client_data *radius,
 		/* No point in adding entries to retransmit queue since event
 		 * loop has already been terminated. */
 		radius_msg_free(msg);
-		os_free(msg);
 		return;
 	}
 
@@ -368,7 +534,6 @@ static void radius_client_list_add(struct radius_client_data *radius,
 	if (entry == NULL) {
 		printf("Failed to add RADIUS packet into retransmit list\n");
 		radius_msg_free(msg);
-		os_free(msg);
 		return;
 	}
 
@@ -437,15 +602,38 @@ static void radius_client_list_del(struct radius_client_data *radius,
 }
 
 
+/**
+ * radius_client_send - Send a RADIUS request
+ * @radius: RADIUS client context from radius_client_init()
+ * @msg: RADIUS message to be sent
+ * @msg_type: Message type (RADIUS_AUTH, RADIUS_ACCT, RADIUS_ACCT_INTERIM)
+ * @addr: MAC address of the device related to this message or %NULL
+ * Returns: 0 on success, -1 on failure
+ *
+ * This function is used to transmit a RADIUS authentication (RADIUS_AUTH) or
+ * accounting request (RADIUS_ACCT or RADIUS_ACCT_INTERIM). The only difference
+ * between accounting and interim accounting messages is that the interim
+ * message will override any pending interim accounting updates while a new
+ * accounting message does not remove any pending messages.
+ *
+ * The message is added on the retransmission queue and will be retransmitted
+ * automatically until a response is received or maximum number of retries
+ * (RADIUS_CLIENT_MAX_RETRIES) is reached.
+ *
+ * The related device MAC address can be used to identify pending messages that
+ * can be removed with radius_client_flush_auth() or with interim accounting
+ * updates.
+ */
 int radius_client_send(struct radius_client_data *radius,
 		       struct radius_msg *msg, RadiusType msg_type,
 		       const u8 *addr)
 {
 	struct hostapd_radius_servers *conf = radius->conf;
-	u8 *shared_secret;
+	const u8 *shared_secret;
 	size_t shared_secret_len;
 	char *name;
 	int s, res;
+	struct wpabuf *buf;
 
 	if (msg_type == RADIUS_ACCT_INTERIM) {
 		/* Remove any pending interim acct update for the same STA. */
@@ -488,7 +676,8 @@ int radius_client_send(struct radius_client_data *radius,
 	if (conf->msg_dumps)
 		radius_msg_dump(msg);
 
-	res = send(s, msg->buf, msg->buf_used, 0);
+	buf = radius_msg_get_buf(msg);
+	res = send(s, wpabuf_head(buf), wpabuf_len(buf), 0);
 	if (res < 0)
 		radius_client_handle_send_error(radius, s, msg_type);
 
@@ -507,6 +696,7 @@ static void radius_client_receive(int sock, void *eloop_ctx, void *sock_ctx)
 	int len, roundtrip;
 	unsigned char buf[3000];
 	struct radius_msg *msg;
+	struct radius_hdr *hdr;
 	struct radius_rx_handler *handlers;
 	size_t num_handlers, i;
 	struct radius_msg_list *req, *prev_req;
@@ -544,13 +734,14 @@ static void radius_client_receive(int sock, void *eloop_ctx, void *sock_ctx)
 		rconf->malformed_responses++;
 		return;
 	}
+	hdr = radius_msg_get_hdr(msg);
 
 	hostapd_logger(radius->ctx, NULL, HOSTAPD_MODULE_RADIUS,
 		       HOSTAPD_LEVEL_DEBUG, "Received RADIUS message");
 	if (conf->msg_dumps)
 		radius_msg_dump(msg);
 
-	switch (msg->hdr->code) {
+	switch (hdr->code) {
 	case RADIUS_CODE_ACCESS_ACCEPT:
 		rconf->access_accepts++;
 		break;
@@ -573,7 +764,8 @@ static void radius_client_receive(int sock, void *eloop_ctx, void *sock_ctx)
 		if ((req->msg_type == msg_type ||
 		     (req->msg_type == RADIUS_ACCT_INTERIM &&
 		      msg_type == RADIUS_ACCT)) &&
-		    req->msg->hdr->identifier == msg->hdr->identifier)
+		    radius_msg_get_hdr(req->msg)->identifier ==
+		    hdr->identifier)
 			break;
 
 		prev_req = req;
@@ -585,7 +777,7 @@ static void radius_client_receive(int sock, void *eloop_ctx, void *sock_ctx)
 			       HOSTAPD_LEVEL_DEBUG,
 			       "No matching RADIUS request found (type=%d "
 			       "id=%d) - dropping packet",
-			       msg_type, msg->hdr->identifier);
+			       msg_type, hdr->identifier);
 		goto fail;
 	}
 
@@ -614,7 +806,6 @@ static void radius_client_receive(int sock, void *eloop_ctx, void *sock_ctx)
 		switch (res) {
 		case RADIUS_RX_PROCESSED:
 			radius_msg_free(msg);
-			os_free(msg);
 			/* continue */
 		case RADIUS_RX_QUEUED:
 			radius_client_msg_free(req);
@@ -635,17 +826,24 @@ static void radius_client_receive(int sock, void *eloop_ctx, void *sock_ctx)
 	hostapd_logger(radius->ctx, req->addr, HOSTAPD_MODULE_RADIUS,
 		       HOSTAPD_LEVEL_DEBUG, "No RADIUS RX handler found "
 		       "(type=%d code=%d id=%d)%s - dropping packet",
-		       msg_type, msg->hdr->code, msg->hdr->identifier,
+		       msg_type, hdr->code, hdr->identifier,
 		       invalid_authenticator ? " [INVALID AUTHENTICATOR]" :
 		       "");
 	radius_client_msg_free(req);
 
  fail:
 	radius_msg_free(msg);
-	os_free(msg);
 }
 
 
+/**
+ * radius_client_get_id - Get an identifier for a new RADIUS message
+ * @radius: RADIUS client context from radius_client_init()
+ * Returns: Allocated identifier
+ *
+ * This function is used to fetch a unique (among pending requests) identifier
+ * for a new RADIUS message.
+ */
 u8 radius_client_get_id(struct radius_client_data *radius)
 {
 	struct radius_msg_list *entry, *prev, *_remove;
@@ -656,7 +854,7 @@ u8 radius_client_get_id(struct radius_client_data *radius)
 	entry = radius->msgs;
 	prev = NULL;
 	while (entry) {
-		if (entry->msg->hdr->identifier == id) {
+		if (radius_msg_get_hdr(entry->msg)->identifier == id) {
 			hostapd_logger(radius->ctx, entry->addr,
 				       HOSTAPD_MODULE_RADIUS,
 				       HOSTAPD_LEVEL_DEBUG,
@@ -681,6 +879,11 @@ u8 radius_client_get_id(struct radius_client_data *radius)
 }
 
 
+/**
+ * radius_client_flush - Flush all pending RADIUS client messages
+ * @radius: RADIUS client context from radius_client_init()
+ * @only_auth: Whether only authentication messages are removed
+ */
 void radius_client_flush(struct radius_client_data *radius, int only_auth)
 {
 	struct radius_msg_list *entry, *prev, *tmp;
@@ -714,7 +917,7 @@ void radius_client_flush(struct radius_client_data *radius, int only_auth)
 
 
 static void radius_client_update_acct_msgs(struct radius_client_data *radius,
-					   u8 *shared_secret,
+					   const u8 *shared_secret,
 					   size_t shared_secret_len)
 {
 	struct radius_msg_list *entry;
@@ -1037,6 +1240,16 @@ static int radius_client_init_acct(struct radius_client_data *radius)
 }
 
 
+/**
+ * radius_client_init - Initialize RADIUS client
+ * @ctx: Callback context to be used in hostapd_logger() calls
+ * @conf: RADIUS client configuration (RADIUS servers)
+ * Returns: Pointer to private RADIUS client context or %NULL on failure
+ *
+ * The caller is responsible for keeping the configuration data available for
+ * the lifetime of the RADIUS client, i.e., until radius_client_deinit() is
+ * called for the returned context pointer.
+ */
 struct radius_client_data *
 radius_client_init(void *ctx, struct hostapd_radius_servers *conf)
 {
@@ -1071,6 +1284,10 @@ radius_client_init(void *ctx, struct hostapd_radius_servers *conf)
 }
 
 
+/**
+ * radius_client_deinit - Deinitialize RADIUS client
+ * @radius: RADIUS client context from radius_client_init()
+ */
 void radius_client_deinit(struct radius_client_data *radius)
 {
 	if (!radius)
@@ -1096,7 +1313,18 @@ void radius_client_deinit(struct radius_client_data *radius)
 }
 
 
-void radius_client_flush_auth(struct radius_client_data *radius, u8 *addr)
+/**
+ * radius_client_flush_auth - Flush pending RADIUS messages for an address
+ * @radius: RADIUS client context from radius_client_init()
+ * @addr: MAC address of the related device
+ *
+ * This function can be used to remove pending RADIUS authentication messages
+ * that are related to a specific device. The addr parameter is matched with
+ * the one used in radius_client_send() call that was used to transmit the
+ * authentication request.
+ */
+void radius_client_flush_auth(struct radius_client_data *radius,
+			      const u8 *addr)
 {
 	struct radius_msg_list *entry, *prev, *tmp;
 
@@ -1224,6 +1452,13 @@ static int radius_client_dump_acct_server(char *buf, size_t buflen,
 }
 
 
+/**
+ * radius_client_get_mib - Get RADIUS client MIB information
+ * @radius: RADIUS client context from radius_client_init()
+ * @buf: Buffer for returning MIB data in text format
+ * @buflen: Maximum buf length in octets
+ * Returns: Number of octets written into the buffer
+ */
 int radius_client_get_mib(struct radius_client_data *radius, char *buf,
 			  size_t buflen)
 {
@@ -1253,49 +1488,4 @@ int radius_client_get_mib(struct radius_client_data *radius, char *buf,
 	}
 
 	return count;
-}
-
-
-static int radius_servers_diff(struct hostapd_radius_server *nserv,
-			       struct hostapd_radius_server *oserv,
-			       int num)
-{
-	int i;
-
-	for (i = 0; i < num; i++) {
-		if (hostapd_ip_diff(&nserv[i].addr, &oserv[i].addr) ||
-		    nserv[i].port != oserv[i].port ||
-		    nserv[i].shared_secret_len != oserv[i].shared_secret_len ||
-		    os_memcmp(nserv[i].shared_secret, oserv[i].shared_secret,
-			      nserv[i].shared_secret_len) != 0)
-			return 1;
-	}
-
-	return 0;
-}
-
-
-struct radius_client_data *
-radius_client_reconfig(struct radius_client_data *old, void *ctx,
-		       struct hostapd_radius_servers *oldconf,
-		       struct hostapd_radius_servers *newconf)
-{
-	radius_client_flush(old, 0);
-
-	if (newconf->retry_primary_interval !=
-	    oldconf->retry_primary_interval ||
-	    newconf->num_auth_servers != oldconf->num_auth_servers ||
-	    newconf->num_acct_servers != oldconf->num_acct_servers ||
-	    radius_servers_diff(newconf->auth_servers, oldconf->auth_servers,
-				newconf->num_auth_servers) ||
-	    radius_servers_diff(newconf->acct_servers, oldconf->acct_servers,
-				newconf->num_acct_servers)) {
-		hostapd_logger(ctx, NULL, HOSTAPD_MODULE_RADIUS,
-			       HOSTAPD_LEVEL_DEBUG,
-			       "Reconfiguring RADIUS client");
-		radius_client_deinit(old);
-		return radius_client_init(ctx, newconf);
-	}
-
-	return old;
 }

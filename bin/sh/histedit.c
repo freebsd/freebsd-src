@@ -68,7 +68,7 @@ EditLine *el;	/* editline cookie */
 int displayhist;
 static FILE *el_in, *el_out, *el_err;
 
-STATIC char *fc_replace(const char *, char *, char *);
+static char *fc_replace(const char *, char *, char *);
 
 /*
  * Set history and editing status.  Called whenever the status may
@@ -232,6 +232,7 @@ histcmd(int argc, char **argv)
 		}
 	argc -= optind, argv += optind;
 
+	savehandler = handler;
 	/*
 	 * If executing...
 	 */
@@ -242,7 +243,6 @@ histcmd(int argc, char **argv)
 		 * Catch interrupts to reset active counter and
 		 * cleanup temp files.
 		 */
-		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
 			active = 0;
 			if (editfile)
@@ -297,7 +297,7 @@ histcmd(int argc, char **argv)
 		laststr = argv[1];
 		break;
 	default:
-		error("too many args");
+		error("too many arguments");
 	}
 	/*
 	 * Turn into event numbers.
@@ -329,7 +329,7 @@ histcmd(int argc, char **argv)
 		editfile = editfilestr;
 		if ((efp = fdopen(fd, "w")) == NULL) {
 			close(fd);
-			error("can't allocate stdio buffer for temp");
+			error("Out of space");
 		}
 	}
 
@@ -399,10 +399,11 @@ histcmd(int argc, char **argv)
 		--active;
 	if (displayhist)
 		displayhist = 0;
+	handler = savehandler;
 	return 0;
 }
 
-STATIC char *
+static char *
 fc_replace(const char *s, char *p, char *r)
 {
 	char *dest;
@@ -411,14 +412,13 @@ fc_replace(const char *s, char *p, char *r)
 	STARTSTACKSTR(dest);
 	while (*s) {
 		if (*s == *p && strncmp(s, p, plen) == 0) {
-			while (*r)
-				STPUTC(*r++, dest);
+			STPUTS(r, dest);
 			s += plen;
 			*p = '\0';	/* so no more matches */
 		} else
 			STPUTC(*s++, dest);
 	}
-	STACKSTRNUL(dest);
+	STPUTC('\0', dest);
 	dest = grabstackstr(dest);
 
 	return (dest);

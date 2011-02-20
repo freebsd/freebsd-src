@@ -930,15 +930,32 @@ startup_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
 {
 	uma_keg_t keg;
 	uma_slab_t tmps;
+	int pages, check_pages;
 
 	keg = zone_first_keg(zone);
+	pages = howmany(bytes, PAGE_SIZE);
+	check_pages = pages - 1;
+	KASSERT(pages > 0, ("startup_alloc can't reserve 0 pages\n"));
 
 	/*
 	 * Check our small startup cache to see if it has pages remaining.
 	 */
 	mtx_lock(&uma_boot_pages_mtx);
-	if ((tmps = LIST_FIRST(&uma_boot_pages)) != NULL) {
-		LIST_REMOVE(tmps, us_link);
+
+	/* First check if we have enough room. */
+	tmps = LIST_FIRST(&uma_boot_pages);
+	while (tmps != NULL && check_pages-- > 0)
+		tmps = LIST_NEXT(tmps, us_link);
+	if (tmps != NULL) {
+		/*
+		 * It's ok to lose tmps references.  The last one will
+		 * have tmps->us_data pointing to the start address of
+		 * "pages" contiguous pages of memory.
+		 */
+		while (pages-- > 0) {
+			tmps = LIST_FIRST(&uma_boot_pages);
+			LIST_REMOVE(tmps, us_link);
+		}
 		mtx_unlock(&uma_boot_pages_mtx);
 		*pflag = tmps->us_flags;
 		return (tmps->us_data);
@@ -950,7 +967,7 @@ startup_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
 	 * Now that we've booted reset these users to their real allocator.
 	 */
 #ifdef UMA_MD_SMALL_ALLOC
-	keg->uk_allocf = uma_small_alloc;
+	keg->uk_allocf = (keg->uk_ppera > 1) ? page_alloc : uma_small_alloc;
 #else
 	keg->uk_allocf = page_alloc;
 #endif
@@ -1177,12 +1194,15 @@ keg_large_init(uma_keg_t keg)
 
 	keg->uk_ppera = pages;
 	keg->uk_ipers = 1;
+	keg->uk_rsize = keg->uk_size;
+
+	/* We can't do OFFPAGE if we're internal, bail out here. */
+	if (keg->uk_flags & UMA_ZFLAG_INTERNAL)
+		return;
 
 	keg->uk_flags |= UMA_ZONE_OFFPAGE;
 	if ((keg->uk_flags & UMA_ZONE_VTOSLAB) == 0)
 		keg->uk_flags |= UMA_ZONE_HASH;
-
-	keg->uk_rsize = keg->uk_size;
 }
 
 static void
@@ -1301,7 +1321,8 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 #endif
 		if (booted == 0)
 			keg->uk_allocf = startup_alloc;
-	}
+	} else if (booted == 0 && (keg->uk_flags & UMA_ZFLAG_INTERNAL))
+		keg->uk_allocf = startup_alloc;
 
 	/*
 	 * Initialize keg's lock (shared among zones).
@@ -1330,7 +1351,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		if (totsize & UMA_ALIGN_PTR)
 			totsize = (totsize & ~UMA_ALIGN_PTR) +
 			    (UMA_ALIGN_PTR + 1);
-		keg->uk_pgoff = UMA_SLAB_SIZE - totsize;
+		keg->uk_pgoff = (UMA_SLAB_SIZE * keg->uk_ppera) - totsize;
 
 		if (keg->uk_flags & UMA_ZONE_REFCNT)
 			totsize = keg->uk_pgoff + sizeof(struct uma_slab_refcnt)
@@ -1346,7 +1367,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		 * mathematically possible for all cases, so we make
 		 * sure here anyway.
 		 */
-		if (totsize > UMA_SLAB_SIZE) {
+		if (totsize > UMA_SLAB_SIZE * keg->uk_ppera) {
 			printf("zone %s ipers %d rsize %d size %d\n",
 			    zone->uz_name, keg->uk_ipers, keg->uk_rsize,
 			    keg->uk_size);
@@ -2517,6 +2538,10 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	CTR2(KTR_UMA, "uma_zfree_arg thread %x zone %s", curthread,
 	    zone->uz_name);
 
+        /* uma_zfree(..., NULL) does nothing, to match free(9). */
+        if (item == NULL)
+                return;
+
 	if (zone->uz_dtor)
 		zone->uz_dtor(item, zone->uz_size, udata);
 
@@ -2782,7 +2807,7 @@ zone_free_item(uma_zone_t zone, void *item, void *udata,
 }
 
 /* See uma.h */
-void
+int
 uma_zone_set_max(uma_zone_t zone, int nitems)
 {
 	uma_keg_t keg;
@@ -2792,8 +2817,10 @@ uma_zone_set_max(uma_zone_t zone, int nitems)
 	keg->uk_maxpages = (nitems / keg->uk_ipers) * keg->uk_ppera;
 	if (keg->uk_maxpages * keg->uk_ipers < nitems)
 		keg->uk_maxpages += keg->uk_ppera;
-
+	nitems = keg->uk_maxpages * keg->uk_ipers;
 	ZONE_UNLOCK(zone);
+
+	return (nitems);
 }
 
 /* See uma.h */
@@ -2805,13 +2832,33 @@ uma_zone_get_max(uma_zone_t zone)
 
 	ZONE_LOCK(zone);
 	keg = zone_first_keg(zone);
-	if (keg->uk_maxpages)
-		nitems = keg->uk_maxpages * keg->uk_ipers;
-	else
-		nitems = 0;
+	nitems = keg->uk_maxpages * keg->uk_ipers;
 	ZONE_UNLOCK(zone);
 
 	return (nitems);
+}
+
+/* See uma.h */
+int
+uma_zone_get_cur(uma_zone_t zone)
+{
+	int64_t nitems;
+	u_int i;
+
+	ZONE_LOCK(zone);
+	nitems = zone->uz_allocs - zone->uz_frees;
+	CPU_FOREACH(i) {
+		/*
+		 * See the comment in sysctl_vm_zone_stats() regarding the
+		 * safety of accessing the per-cpu caches. With the zone lock
+		 * held, it is safe, but can potentially result in stale data.
+		 */
+		nitems += zone->uz_cpu[i].uc_allocs -
+		    zone->uz_cpu[i].uc_frees;
+	}
+	ZONE_UNLOCK(zone);
+
+	return (nitems < 0 ? 0 : nitems);
 }
 
 /* See uma.h */
@@ -3175,36 +3222,19 @@ sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS)
 	uma_keg_t kz;
 	uma_zone_t z;
 	uma_keg_t k;
-	char *buffer;
-	int buflen, count, error, i;
+	int count, error, i;
 
-	mtx_lock(&uma_mtx);
-restart:
-	mtx_assert(&uma_mtx, MA_OWNED);
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+
 	count = 0;
+	mtx_lock(&uma_mtx);
 	LIST_FOREACH(kz, &uma_kegs, uk_link) {
 		LIST_FOREACH(z, &kz->uk_zones, uz_link)
 			count++;
 	}
-	mtx_unlock(&uma_mtx);
-
-	buflen = sizeof(ush) + count * (sizeof(uth) + sizeof(ups) *
-	    (mp_maxid + 1)) + 1;
-	buffer = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
-
-	mtx_lock(&uma_mtx);
-	i = 0;
-	LIST_FOREACH(kz, &uma_kegs, uk_link) {
-		LIST_FOREACH(z, &kz->uk_zones, uz_link)
-			i++;
-	}
-	if (i > count) {
-		free(buffer, M_TEMP);
-		goto restart;
-	}
-	count =  i;
-
-	sbuf_new(&sbuf, buffer, buflen, SBUF_FIXEDLEN);
 
 	/*
 	 * Insert stream header.
@@ -3213,11 +3243,7 @@ restart:
 	ush.ush_version = UMA_STREAM_VERSION;
 	ush.ush_maxcpus = (mp_maxid + 1);
 	ush.ush_count = count;
-	if (sbuf_bcat(&sbuf, &ush, sizeof(ush)) < 0) {
-		mtx_unlock(&uma_mtx);
-		error = ENOMEM;
-		goto out;
-	}
+	(void)sbuf_bcat(&sbuf, &ush, sizeof(ush));
 
 	LIST_FOREACH(kz, &uma_kegs, uk_link) {
 		LIST_FOREACH(z, &kz->uk_zones, uz_link) {
@@ -3250,12 +3276,7 @@ restart:
 			uth.uth_frees = z->uz_frees;
 			uth.uth_fails = z->uz_fails;
 			uth.uth_sleeps = z->uz_sleeps;
-			if (sbuf_bcat(&sbuf, &uth, sizeof(uth)) < 0) {
-				ZONE_UNLOCK(z);
-				mtx_unlock(&uma_mtx);
-				error = ENOMEM;
-				goto out;
-			}
+			(void)sbuf_bcat(&sbuf, &uth, sizeof(uth));
 			/*
 			 * While it is not normally safe to access the cache
 			 * bucket pointers while not on the CPU that owns the
@@ -3280,21 +3301,14 @@ restart:
 				ups.ups_allocs = cache->uc_allocs;
 				ups.ups_frees = cache->uc_frees;
 skip:
-				if (sbuf_bcat(&sbuf, &ups, sizeof(ups)) < 0) {
-					ZONE_UNLOCK(z);
-					mtx_unlock(&uma_mtx);
-					error = ENOMEM;
-					goto out;
-				}
+				(void)sbuf_bcat(&sbuf, &ups, sizeof(ups));
 			}
 			ZONE_UNLOCK(z);
 		}
 	}
 	mtx_unlock(&uma_mtx);
-	sbuf_finish(&sbuf);
-	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
-out:
-	free(buffer, M_TEMP);
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
 	return (error);
 }
 

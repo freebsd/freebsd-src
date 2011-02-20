@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/xen/xen-os.h>
 #include <machine/xen/xenfunc.h>
+#include <machine/xen/xenvar.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 #include <xen/evtchn.h>
@@ -90,8 +91,6 @@ __FBSDID("$FreeBSD$");
 #include "xenbus_if.h"
 
 #define XN_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP | CSUM_TSO)
-
-#define GRANT_INVALID_REF	0
 
 #define NET_TX_RING_SIZE __RING_SIZE((netif_tx_sring_t *)0, PAGE_SIZE)
 #define NET_RX_RING_SIZE __RING_SIZE((netif_rx_sring_t *)0, PAGE_SIZE)
@@ -373,7 +372,8 @@ xennet_get_rx_ref(struct netfront_info *np, RING_IDX ri)
 {
 	int i = xennet_rxidx(ri);
 	grant_ref_t ref = np->grant_rx_ref[i];
-	np->grant_rx_ref[i] = GRANT_INVALID_REF;
+	KASSERT(ref != GRANT_REF_INVALID, ("Invalid grant reference!\n"));
+	np->grant_rx_ref[i] = GRANT_REF_INVALID;
 	return ref;
 }
 
@@ -404,7 +404,7 @@ xen_net_read_mac(device_t dev, uint8_t mac[])
 	int error, i;
 	char *s, *e, *macstr;
 
-	error = xenbus_read(XBT_NIL, xenbus_get_node(dev), "mac", NULL,
+	error = xs_read(XST_NIL, xenbus_get_node(dev), "mac", NULL,
 	    (void **) &macstr);
 	if (error)
 		return (error);
@@ -413,12 +413,12 @@ xen_net_read_mac(device_t dev, uint8_t mac[])
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
 		mac[i] = strtoul(s, &e, 16);
 		if (s == e || (e[0] != ':' && e[0] != 0)) {
-			free(macstr, M_DEVBUF);
+			free(macstr, M_XENBUS);
 			return (ENOENT);
 		}
 		s = &e[1];
 	}
-	free(macstr, M_DEVBUF);
+	free(macstr, M_XENBUS);
 	return (0);
 }
 
@@ -483,7 +483,7 @@ static int
 talk_to_backend(device_t dev, struct netfront_info *info)
 {
 	const char *message;
-	struct xenbus_transaction xbt;
+	struct xs_transaction xst;
 	const char *node = xenbus_get_node(dev);
 	int err;
 
@@ -499,54 +499,54 @@ talk_to_backend(device_t dev, struct netfront_info *info)
 		goto out;
 	
  again:
-	err = xenbus_transaction_start(&xbt);
+	err = xs_transaction_start(&xst);
 	if (err) {
 		xenbus_dev_fatal(dev, err, "starting transaction");
 		goto destroy_ring;
 	}
-	err = xenbus_printf(xbt, node, "tx-ring-ref","%u",
+	err = xs_printf(xst, node, "tx-ring-ref","%u",
 			info->tx_ring_ref);
 	if (err) {
 		message = "writing tx ring-ref";
 		goto abort_transaction;
 	}
-	err = xenbus_printf(xbt, node, "rx-ring-ref","%u",
+	err = xs_printf(xst, node, "rx-ring-ref","%u",
 			info->rx_ring_ref);
 	if (err) {
 		message = "writing rx ring-ref";
 		goto abort_transaction;
 	}
-	err = xenbus_printf(xbt, node,
+	err = xs_printf(xst, node,
 			"event-channel", "%u", irq_to_evtchn_port(info->irq));
 	if (err) {
 		message = "writing event-channel";
 		goto abort_transaction;
 	}
-	err = xenbus_printf(xbt, node, "request-rx-copy", "%u",
+	err = xs_printf(xst, node, "request-rx-copy", "%u",
 			info->copying_receiver);
 	if (err) {
 		message = "writing request-rx-copy";
 		goto abort_transaction;
 	}
-	err = xenbus_printf(xbt, node, "feature-rx-notify", "%d", 1);
+	err = xs_printf(xst, node, "feature-rx-notify", "%d", 1);
 	if (err) {
 		message = "writing feature-rx-notify";
 		goto abort_transaction;
 	}
-	err = xenbus_printf(xbt, node, "feature-sg", "%d", 1);
+	err = xs_printf(xst, node, "feature-sg", "%d", 1);
 	if (err) {
 		message = "writing feature-sg";
 		goto abort_transaction;
 	}
 #if __FreeBSD_version >= 700000
-	err = xenbus_printf(xbt, node, "feature-gso-tcpv4", "%d", 1);
+	err = xs_printf(xst, node, "feature-gso-tcpv4", "%d", 1);
 	if (err) {
 		message = "writing feature-gso-tcpv4";
 		goto abort_transaction;
 	}
 #endif
 
-	err = xenbus_transaction_end(xbt, 0);
+	err = xs_transaction_end(xst, 0);
 	if (err) {
 		if (err == EAGAIN)
 			goto again;
@@ -557,7 +557,7 @@ talk_to_backend(device_t dev, struct netfront_info *info)
 	return 0;
 	
  abort_transaction:
-	xenbus_transaction_end(xbt, 1);
+	xs_transaction_end(xst, 1);
 	xenbus_dev_fatal(dev, err, "%s", message);
  destroy_ring:
 	netif_free(info);
@@ -576,8 +576,8 @@ setup_device(device_t dev, struct netfront_info *info)
 	
 	ifp = info->xn_ifp;
 
-	info->tx_ring_ref = GRANT_INVALID_REF;
-	info->rx_ring_ref = GRANT_INVALID_REF;
+	info->tx_ring_ref = GRANT_REF_INVALID;
+	info->rx_ring_ref = GRANT_REF_INVALID;
 	info->rx.sring = NULL;
 	info->tx.sring = NULL;
 	info->irq = 0;
@@ -750,7 +750,7 @@ netif_release_tx_bufs(struct netfront_info *np)
 		    GNTMAP_readonly);
 		gnttab_release_grant_reference(&np->gref_tx_head,
 		    np->grant_tx_ref[i]);
-		np->grant_tx_ref[i] = GRANT_INVALID_REF;
+		np->grant_tx_ref[i] = GRANT_REF_INVALID;
 		add_id_to_freelist(np->tx_mbufs, i);
 		np->xn_cdata.xn_tx_chain_cnt--;
 		if (np->xn_cdata.xn_tx_chain_cnt < 0) {
@@ -854,7 +854,8 @@ refill:
 		sc->rx_mbufs[id] = m_new;
 
 		ref = gnttab_claim_grant_reference(&sc->gref_rx_head);
-		KASSERT((short)ref >= 0, ("negative ref"));
+		KASSERT(ref != GNTTAB_LIST_END,
+			("reserved grant references exhuasted"));
 		sc->grant_rx_ref[id] = ref;
 
 		vaddr = mtod(m_new, vm_offset_t);
@@ -1135,7 +1136,7 @@ xn_txeof(struct netfront_info *np)
 				np->grant_tx_ref[id]);
 			gnttab_release_grant_reference(
 				&np->gref_tx_head, np->grant_tx_ref[id]);
-			np->grant_tx_ref[id] = GRANT_INVALID_REF;
+			np->grant_tx_ref[id] = GRANT_REF_INVALID;
 			
 			np->tx_mbufs[id] = NULL;
 			add_id_to_freelist(np->tx_mbufs, id);
@@ -1272,7 +1273,6 @@ xennet_get_responses(struct netfront_info *np,
 	struct mbuf *m, *m0, *m_prev;
 	grant_ref_t ref = xennet_get_rx_ref(np, *cons);
 	RING_IDX ref_cons = *cons;
-	int max = 5 /* MAX_TX_REQ_FRAGS + (rx->status <= RX_COPY_THRESHOLD) */;
 	int frags = 1;
 	int err = 0;
 	u_long ret;
@@ -1318,12 +1318,13 @@ xennet_get_responses(struct netfront_info *np,
 		 * the backend driver. In future this should flag the bad
 		 * situation to the system controller to reboot the backed.
 		 */
-		if (ref == GRANT_INVALID_REF) {
+		if (ref == GRANT_REF_INVALID) {
 
 #if 0 				
 			if (net_ratelimit())
 				WPRINTK("Bad rx response id %d.\n", rx->id);
 #endif			
+			printf("%s: Bad rx response id %d.\n", __func__,rx->id);
 			err = EINVAL;
 			goto next;
 		}
@@ -1384,7 +1385,7 @@ next_skip_queue:
 			err = ENOENT;
 			printf("%s: cons %u frags %u rp %u, not enough frags\n",
 			       __func__, *cons, frags, rp);
-				break;
+			break;
 		}
 		/*
 		 * Note that m can be NULL, if rx->status < 0 or if
@@ -1414,20 +1415,10 @@ next_skip_queue:
 		frags++;
 	}
 	*list = m0;
-
-	if (unlikely(frags > max)) {
-		if (net_ratelimit())
-			WPRINTK("Too many frags\n");
-		printf("%s: too many frags %d > max %d\n", __func__, frags,
-		       max);
-		err = E2BIG;
-	}
-
 	*cons += frags;
-
 	*pages_flipped_p = pages_flipped;
 
-	return err;
+	return (err);
 }
 
 static void
@@ -1526,6 +1517,11 @@ xn_assemble_tx_request(struct netfront_info *sc, struct mbuf *m_head)
 	 * tell the TCP stack to generate a shorter chain of packets.
 	 */
 	if (nfrags > MAX_TX_REQ_FRAGS) {
+#ifdef DEBUG
+		printf("%s: nfrags %d > MAX_TX_REQ_FRAGS %d, netback "
+		       "won't be able to handle it, dropping\n",
+		       __func__, nfrags, MAX_TX_REQ_FRAGS);
+#endif
 		m_freem(m_head);
 		return (EMSGSIZE);
 	}
@@ -1881,11 +1877,11 @@ network_connect(struct netfront_info *np)
 	netif_rx_request_t *req;
 	u_int feature_rx_copy, feature_rx_flip;
 
-	error = xenbus_scanf(XBT_NIL, xenbus_get_otherend_path(np->xbdev),
+	error = xs_scanf(XST_NIL, xenbus_get_otherend_path(np->xbdev),
 	    "feature-rx-copy", NULL, "%u", &feature_rx_copy);
 	if (error)
 		feature_rx_copy = 0;
-	error = xenbus_scanf(XBT_NIL, xenbus_get_otherend_path(np->xbdev),
+	error = xs_scanf(XST_NIL, xenbus_get_otherend_path(np->xbdev),
 	    "feature-rx-flip", NULL, "%u", &feature_rx_flip);
 	if (error)
 		feature_rx_flip = 1;
@@ -1999,14 +1995,14 @@ create_netdev(device_t dev)
 	/* Initialise {tx,rx}_skbs to be a free chain containing every entry. */
 	for (i = 0; i <= NET_TX_RING_SIZE; i++) {
 		np->tx_mbufs[i] = (void *) ((u_long) i+1);
-		np->grant_tx_ref[i] = GRANT_INVALID_REF;	
+		np->grant_tx_ref[i] = GRANT_REF_INVALID;	
 	}
 	np->tx_mbufs[NET_TX_RING_SIZE] = (void *)0;
 
 	for (i = 0; i <= NET_RX_RING_SIZE; i++) {
 
 		np->rx_mbufs[i] = NULL;
-		np->grant_rx_ref[i] = GRANT_INVALID_REF;
+		np->grant_rx_ref[i] = GRANT_REF_INVALID;
 	}
 	/* A grant for every tx ring slot */
 	if (gnttab_alloc_grant_references(NET_TX_RING_SIZE,
@@ -2128,8 +2124,8 @@ netif_disconnect_backend(struct netfront_info *info)
 
 	end_access(info->tx_ring_ref, info->tx.sring);
 	end_access(info->rx_ring_ref, info->rx.sring);
-	info->tx_ring_ref = GRANT_INVALID_REF;
-	info->rx_ring_ref = GRANT_INVALID_REF;
+	info->tx_ring_ref = GRANT_REF_INVALID;
+	info->rx_ring_ref = GRANT_REF_INVALID;
 	info->tx.sring = NULL;
 	info->rx.sring = NULL;
 
@@ -2143,7 +2139,7 @@ netif_disconnect_backend(struct netfront_info *info)
 static void
 end_access(int ref, void *page)
 {
-	if (ref != GRANT_INVALID_REF)
+	if (ref != GRANT_REF_INVALID)
 		gnttab_end_foreign_access(ref, page);
 }
 
@@ -2171,7 +2167,7 @@ static device_method_t netfront_methods[] = {
 	DEVMETHOD(device_resume,        netfront_resume), 
  
 	/* Xenbus interface */
-	DEVMETHOD(xenbus_backend_changed, netfront_backend_changed),
+	DEVMETHOD(xenbus_otherend_changed, netfront_backend_changed),
 
 	{ 0, 0 } 
 }; 
@@ -2183,4 +2179,4 @@ static driver_t netfront_driver = {
 }; 
 devclass_t netfront_devclass; 
  
-DRIVER_MODULE(xe, xenbus, netfront_driver, netfront_devclass, 0, 0); 
+DRIVER_MODULE(xe, xenbusb_front, netfront_driver, netfront_devclass, 0, 0); 

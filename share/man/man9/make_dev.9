@@ -24,13 +24,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2010
+.Dd October 24, 2010
 .Dt MAKE_DEV 9
 .Os
 .Sh NAME
 .Nm make_dev ,
 .Nm make_dev_cred ,
 .Nm make_dev_credf ,
+.Nm make_dev_p ,
 .Nm make_dev_alias ,
 .Nm destroy_dev ,
 .Nm destroy_dev_sched ,
@@ -49,6 +50,8 @@ and DEVFS registration for devices
 .Fn make_dev_cred "struct cdevsw *cdevsw" "int unit" "struct ucred *cr" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
 .Ft struct cdev *
 .Fn make_dev_credf "int flags" "struct cdevsw *cdevsw" "int unit" "struct ucred *cr" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
+.Ft int
+.Fn make_dev_p "int flags" "struct cdev **cdev" "struct cdevsw *devsw" "struct ucred *cr" "uid_t uid" "gid_t gid" "int mode" "const char *fmt" ...
 .Ft struct cdev *
 .Fn make_dev_alias "struct cdev *pdev" "const char *fmt" ...
 .Ft void
@@ -128,14 +131,23 @@ member of the initialized
 The
 .Va flags
 argument alters the operation of
-.Fn make_dev_credf .
+.Fn make_dev_credf
+or
+.Fn make_dev_p .
 The following values are currently accepted:
 .Pp
-.Bd -literal -offset indent -compact
-MAKEDEV_REF	reference the created device
-MAKEDEV_NOWAIT	do not sleep, may return NULL
-MAKEDEV_WAITOK	allow the function to sleep to satisfy malloc
-.Ed
+.Bl -tag -width "MAKEDEV_CHECKNAME" -compact -offset indent
+.It MAKEDEV_REF
+reference the created device
+.It MAKEDEV_NOWAIT
+do not sleep, the call may fail
+.It MAKEDEV_WAITOK
+allow the function to sleep to satisfy malloc
+.It MAKEDEV_ETERNAL
+created device will be never destroyed
+.It MAKEDEV_CHECKNAME
+return an error if the device name is invalid or already exists
+.El
 .Pp
 The
 .Dv MAKEDEV_WAITOK
@@ -154,6 +166,21 @@ the device created is destroyed immediately after
 drops his reference to cdev.
 .Pp
 The
+.Dv MAKEDEV_ETERNAL
+flag allows the kernel to not acquire some locks when translating system
+calls into the cdevsw methods calls.
+It is responsibility of the driver author to make sure that
+.Fn destroy_dev
+is never called on the returned cdev.
+For the convenience, use the
+.Dv MAKEDEV_ETERNAL_KLD
+flag for the code that can be compiled into kernel or loaded
+(and unloaded) as loadable module.
+.Pp
+A panic will occur if the MAKEDEV_CHECKNAME flag is not specified
+and the device name is invalid or already exists.
+.Pp
+The
 .Fn make_dev_cred
 function is equivalent to the call
 .Bd -literal -offset indent
@@ -166,6 +193,14 @@ function call is the same as
 .Bd -literal -offset indent
 make_dev_credf(0, cdevsw, unit, NULL, uid, gid, perms, fmt, ...);
 .Ed
+.Pp
+The
+.Fn make_dev_p
+function is similar to
+.Fn make_dev_credf
+but it may return an error number and takes a pointer to the resulting
+.Ft *cdev
+as an argument.
 .Pp
 The
 .Fn make_dev_alias
@@ -236,7 +271,9 @@ After
 .Fn destroy_dev
 is finished, and if the supplied
 .Fa cb
-is not NULL, the callback
+is not
+.Dv NULL ,
+the callback
 .Fa cb
 is called, with argument
 .Fa arg .
@@ -271,6 +308,44 @@ is called for all instantiated devices, but need to postpone module
 unload until
 .Fn destroy_dev
 is actually finished for all of them.
+.Sh RETURN VALUES
+If successful,
+.Fn make_dev_p
+will return 0, otherwise it will return an error.
+If successful,
+.Fn make_dev_credf
+will return a valid
+.Fa cdev
+pointer, otherwise it will return
+.Dv NULL .
+.Sh ERRORS
+The
+.Fn make_dev_p
+call will fail and the device will be not registered if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+The
+.Dv MAKEDEV_NOWAIT
+flag was specified and a memory allocation request could not be satisfied.
+.It Bq Er ENAMETOOLONG
+The
+.Dv MAKEDEV_CHECKNAME
+flag was specified and the provided device name is longer than
+.Dv SPECNAMELEN .
+.It Bq Er EINVAL
+The
+.Dv MAKEDEV_CHECKNAME
+flag was specified and the provided device name is empty, contains a
+.Qq \&.
+or
+.Qq ..
+path component or ends with
+.Ql / .
+.It Bq Er EEXIST
+The
+.Dv MAKEDEV_CHECKNAME
+flag was specified and the provided device name already exists.
+.El
 .Pp
 .Sh SEE ALSO
 .Xr devctl 4 ,
@@ -298,3 +373,7 @@ The functions
 .Fn destroy_dev_sched_cb
 first appeared in
 .Fx 7.0 .
+The function
+.Fn make_dev_p
+first appeared in
+.Fx 8.2 .

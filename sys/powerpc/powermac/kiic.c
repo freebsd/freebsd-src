@@ -250,7 +250,7 @@ static void
 kiic_writereg(struct kiic_softc *sc, u_int reg, u_int val)
 {
 	bus_write_4(sc->sc_reg, sc->sc_regstep * reg, val);
-	DELAY(10); /* register access delay */
+	DELAY(100); /* register access delay */
 }
 
 static u_int

@@ -42,7 +42,7 @@
   OPERATOR(Plus)      OPERATOR(Minus)           \
   OPERATOR(Not)       OPERATOR(LNot)            \
   OPERATOR(Real)      OPERATOR(Imag)            \
-  OPERATOR(Extension) OPERATOR(OffsetOf)
+  OPERATOR(Extension)
 
 // All binary operators (excluding compound assign operators).
 #define BINOP_LIST() \
@@ -123,12 +123,27 @@ namespace clang {
 /// users may override Traverse* and WalkUpFrom* to implement custom
 /// traversal strategies.  Returning false from one of these overridden
 /// functions will abort the entire traversal.
+///
+/// By default, this visitor tries to visit every part of the explicit
+/// source code exactly once.  The default policy towards templates
+/// is to descend into the 'pattern' class or function body, not any
+/// explicit or implicit instantiations.  Explicit specializations
+/// are still visited, and the patterns of partial specializations
+/// are visited separately.  This behavior can be changed by
+/// overriding shouldVisitTemplateInstantiations() in the derived class
+/// to return true, in which case all known implicit and explicit
+/// instantiations will be visited at the same time as the pattern
+/// from which they were produced.
 template<typename Derived>
 class RecursiveASTVisitor {
 public:
   /// \brief Return a reference to the derived class.
   Derived &getDerived() { return *static_cast<Derived*>(this); }
 
+  /// \brief Return whether this visitor should recurse into
+  /// template instantiations.
+  bool shouldVisitTemplateInstantiations() const { return false; }
+  
   /// \brief Recursively visit a statement or expression, by
   /// dispatching to Traverse*() based on the argument's dynamic type.
   ///
@@ -351,8 +366,11 @@ public:
 private:
   // These are helper methods used by more than one Traverse* method.
   bool TraverseTemplateParameterListHelper(TemplateParameterList *TPL);
-  bool TraverseTemplateArgumentLocsHelper(const TemplateArgumentLoc *TAL,
+  bool TraverseClassInstantiations(ClassTemplateDecl* D, Decl *Pattern);
+  bool TraverseFunctionInstantiations(FunctionTemplateDecl* D) ;
+  bool TraverseTemplateArgumentLocsHelper(const TemplateArgumentLoc *TAL, 
                                           unsigned Count);
+  bool TraverseArrayTypeLocHelper(ArrayTypeLoc TL);
   bool TraverseRecordHelper(RecordDecl *D);
   bool TraverseCXXRecordHelper(CXXRecordDecl *D);
   bool TraverseDeclaratorHelper(DeclaratorDecl *D);
@@ -375,14 +393,14 @@ bool RecursiveASTVisitor<Derived>::TraverseStmt(Stmt *S) {
   if (BinaryOperator *BinOp = dyn_cast<BinaryOperator>(S)) {
     switch (BinOp->getOpcode()) {
 #define OPERATOR(NAME) \
-    case BinaryOperator::NAME: DISPATCH(Bin##PtrMemD, BinaryOperator, S);
+    case BO_##NAME: DISPATCH(Bin##PtrMemD, BinaryOperator, S);
 
     BINOP_LIST()
 #undef OPERATOR
 #undef BINOP_LIST
 
 #define OPERATOR(NAME)                                          \
-    case BinaryOperator::NAME##Assign:                          \
+    case BO_##NAME##Assign:                          \
       DISPATCH(Bin##NAME##Assign, CompoundAssignOperator, S);
 
     CAO_LIST()
@@ -392,7 +410,7 @@ bool RecursiveASTVisitor<Derived>::TraverseStmt(Stmt *S) {
   } else if (UnaryOperator *UnOp = dyn_cast<UnaryOperator>(S)) {
     switch (UnOp->getOpcode()) {
 #define OPERATOR(NAME)                                                  \
-    case UnaryOperator::NAME: DISPATCH(Unary##NAME, UnaryOperator, S);
+    case UO_##NAME: DISPATCH(Unary##NAME, UnaryOperator, S);
 
     UNARYOP_LIST()
 #undef OPERATOR
@@ -540,8 +558,11 @@ bool RecursiveASTVisitor<Derived>::TraverseTemplateArgumentLoc(
     return true;
 
   case TemplateArgument::Type: {
-    TypeSourceInfo *TSI = ArgLoc.getTypeSourceInfo();
-    return getDerived().TraverseTypeLoc(TSI->getTypeLoc());
+    // FIXME: how can TSI ever be NULL?
+    if (TypeSourceInfo *TSI = ArgLoc.getTypeSourceInfo())
+      return getDerived().TraverseTypeLoc(TSI->getTypeLoc());
+    else
+      return true;
   }
 
   case TemplateArgument::Template:
@@ -796,23 +817,31 @@ DEF_TRAVERSE_TYPELOC(MemberPointerType, {
     TRY_TO(TraverseTypeLoc(TL.getPointeeLoc()));
   })
 
+template<typename Derived>
+bool RecursiveASTVisitor<Derived>::TraverseArrayTypeLocHelper(ArrayTypeLoc TL) {
+  // This isn't available for ArrayType, but is for the ArrayTypeLoc.
+  TRY_TO(TraverseStmt(TL.getSizeExpr()));
+  return true;
+}
+
 DEF_TRAVERSE_TYPELOC(ConstantArrayType, {
     TRY_TO(TraverseTypeLoc(TL.getElementLoc()));
+    return TraverseArrayTypeLocHelper(TL);
   })
 
 DEF_TRAVERSE_TYPELOC(IncompleteArrayType, {
     TRY_TO(TraverseTypeLoc(TL.getElementLoc()));
+    return TraverseArrayTypeLocHelper(TL);
   })
 
 DEF_TRAVERSE_TYPELOC(VariableArrayType, {
     TRY_TO(TraverseTypeLoc(TL.getElementLoc()));
-    TRY_TO(TraverseStmt(TL.getTypePtr()->getSizeExpr()));
+    return TraverseArrayTypeLocHelper(TL);
   })
 
 DEF_TRAVERSE_TYPELOC(DependentSizedArrayType, {
     TRY_TO(TraverseTypeLoc(TL.getElementLoc()));
-    if (TL.getTypePtr()->getSizeExpr())
-      TRY_TO(TraverseStmt(TL.getTypePtr()->getSizeExpr()));
+    return TraverseArrayTypeLocHelper(TL);
   })
 
 // FIXME: order? why not size expr first?
@@ -1083,19 +1112,124 @@ bool RecursiveASTVisitor<Derived>::TraverseTemplateParameterListHelper(
   return true;
 }
 
+// A helper method for traversing the implicit instantiations of a
+// class.
+template<typename Derived>
+bool RecursiveASTVisitor<Derived>::TraverseClassInstantiations(
+  ClassTemplateDecl* D, Decl *Pattern) {
+  assert(isa<ClassTemplateDecl>(Pattern) ||
+         isa<ClassTemplatePartialSpecializationDecl>(Pattern));
+
+  ClassTemplateDecl::spec_iterator end = D->spec_end();
+  for (ClassTemplateDecl::spec_iterator it = D->spec_begin(); it != end; ++it) {
+    ClassTemplateSpecializationDecl* SD = *it;
+
+    switch (SD->getSpecializationKind()) {
+    // Visit the implicit instantiations with the requested pattern.
+    case TSK_ImplicitInstantiation: {
+      llvm::PointerUnion<ClassTemplateDecl *,
+                         ClassTemplatePartialSpecializationDecl *> U
+        = SD->getInstantiatedFrom();
+
+      bool ShouldVisit;
+      if (U.is<ClassTemplateDecl*>())
+        ShouldVisit = (U.get<ClassTemplateDecl*>() == Pattern);
+      else
+        ShouldVisit
+          = (U.get<ClassTemplatePartialSpecializationDecl*>() == Pattern);
+
+      if (ShouldVisit)
+        TRY_TO(TraverseClassTemplateSpecializationDecl(SD));
+      break;
+    }
+
+    // We don't need to do anything on an explicit instantiation
+    // or explicit specialization because there will be an explicit
+    // node for it elsewhere.
+    case TSK_ExplicitInstantiationDeclaration:
+    case TSK_ExplicitInstantiationDefinition:
+    case TSK_ExplicitSpecialization:
+      break;
+
+    // We don't need to do anything for an uninstantiated
+    // specialization.
+    case TSK_Undeclared:
+      break;
+    }
+  }
+
+  return true;
+}
+
 DEF_TRAVERSE_DECL(ClassTemplateDecl, {
-    TRY_TO(TraverseDecl(D->getTemplatedDecl()));
+    CXXRecordDecl* TempDecl = D->getTemplatedDecl();
+    TRY_TO(TraverseDecl(TempDecl));
     TRY_TO(TraverseTemplateParameterListHelper(D->getTemplateParameters()));
-    // We should not traverse the specializations/partial
-    // specializations.  Those will show up in other contexts.
-    // getInstantiatedFromMemberTemplate() is just a link from a
-    // template instantiation back to the template from which it was
-    // instantiated, and thus should not be traversed either.
+
+    // By default, we do not traverse the instantiations of
+    // class templates since they do not apprear in the user code. The
+    // following code optionally traverses them.
+    if (getDerived().shouldVisitTemplateInstantiations()) {
+      // If this is the definition of the primary template, visit
+      // instantiations which were formed from this pattern.
+      if (D->isThisDeclarationADefinition())
+        TRY_TO(TraverseClassInstantiations(D, D));
+    }
+    
+    // Note that getInstantiatedFromMemberTemplate() is just a link
+    // from a template instantiation back to the template from which
+    // it was instantiated, and thus should not be traversed.
   })
 
+// A helper method for traversing the instantiations of a
+// function while skipping its specializations.
+template<typename Derived>
+bool RecursiveASTVisitor<Derived>::TraverseFunctionInstantiations(
+  FunctionTemplateDecl* D) {
+  FunctionTemplateDecl::spec_iterator end = D->spec_end();
+  for (FunctionTemplateDecl::spec_iterator it = D->spec_begin(); it != end; ++it) {
+    FunctionDecl* FD = *it;
+    switch (FD->getTemplateSpecializationKind()) {
+    case TSK_ImplicitInstantiation:
+      // We don't know what kind of FunctionDecl this is.
+      TRY_TO(TraverseDecl(FD));
+      break;
+
+    // No need to visit explicit instantiations, we'll find the node
+    // eventually.
+    case TSK_ExplicitInstantiationDeclaration:
+    case TSK_ExplicitInstantiationDefinition:
+      break;
+
+    case TSK_Undeclared:           // Declaration of the template definition.
+    case TSK_ExplicitSpecialization:
+      break;
+    default:
+      assert(false && "Unknown specialization kind.");
+    }
+  }
+  
+  return true;
+}
+  
 DEF_TRAVERSE_DECL(FunctionTemplateDecl, {
     TRY_TO(TraverseDecl(D->getTemplatedDecl()));
     TRY_TO(TraverseTemplateParameterListHelper(D->getTemplateParameters()));
+
+    // By default, we do not traverse the instantiations of
+    // function templates since they do not apprear in the user code. The
+    // following code optionally traverses them.
+    if (getDerived().shouldVisitTemplateInstantiations()) {
+      // Explicit function specializations will be traversed from the
+      // context of their declaration. There is therefore no need to
+      // traverse them for here.
+      //
+      // In addition, we only traverse the function instantiations when
+      // the function template is a function template definition.
+      if (D->isThisDeclarationADefinition()) {
+        TRY_TO(TraverseFunctionInstantiations(D));
+      }
+    }
   })
 
 DEF_TRAVERSE_DECL(TemplateTemplateParmDecl, {
@@ -1110,10 +1244,10 @@ DEF_TRAVERSE_DECL(TemplateTemplateParmDecl, {
 
 DEF_TRAVERSE_DECL(TemplateTypeParmDecl, {
     // D is the "T" in something like "template<typename T> class vector;"
-    if (D->hasDefaultArgument())
-      TRY_TO(TraverseTypeLoc(D->getDefaultArgumentInfo()->getTypeLoc()));
     if (D->getTypeForDecl())
       TRY_TO(TraverseType(QualType(D->getTypeForDecl(), 0)));
+    if (D->hasDefaultArgument())
+      TRY_TO(TraverseTypeLoc(D->getDefaultArgumentInfo()->getTypeLoc()));
   })
 
 DEF_TRAVERSE_DECL(TypedefDecl, {
@@ -1166,7 +1300,7 @@ bool RecursiveASTVisitor<Derived>::TraverseCXXRecordHelper(
     for (CXXRecordDecl::base_class_iterator I = D->bases_begin(),
                                             E = D->bases_end();
          I != E; ++I) {
-      TRY_TO(TraverseType(I->getType()));
+      TRY_TO(TraverseTypeLoc(I->getTypeSourceInfo()->getTypeLoc()));
     }
     // We don't traverse the friends or the conversions, as they are
     // already in decls_begin()/decls_end().
@@ -1191,10 +1325,16 @@ DEF_TRAVERSE_DECL(ClassTemplateSpecializationDecl, {
     // ("template set<int>;"), we do need a callback, since this
     // is the only callback that's made for this instantiation.
     // We use getTypeAsWritten() to distinguish.
-    // FIXME: see how we want to handle template specializations.
     if (TypeSourceInfo *TSI = D->getTypeAsWritten())
       TRY_TO(TraverseTypeLoc(TSI->getTypeLoc()));
-    return true;
+
+    if (!getDerived().shouldVisitTemplateInstantiations() &&
+        D->getTemplateSpecializationKind() != TSK_ExplicitSpecialization)
+      // Returning from here skips traversing the
+      // declaration context of the ClassTemplateSpecializationDecl
+      // (embedded in the DEF_TRAVERSE_DECL() macro)
+      // which contains the instantiated members of the class.
+      return true;
   })
 
 template <typename Derived>
@@ -1222,6 +1362,12 @@ DEF_TRAVERSE_DECL(ClassTemplatePartialSpecializationDecl, {
     // though that's our parent class -- we already visit all the
     // template args here.
     TRY_TO(TraverseCXXRecordHelper(D));
+
+    // If we're visiting instantiations, visit the instantiations of
+    // this template now.
+    if (getDerived().shouldVisitTemplateInstantiations() &&
+        D->isThisDeclarationADefinition())
+      TRY_TO(TraverseClassInstantiations(D->getSpecializedTemplate(), D));
   })
 
 DEF_TRAVERSE_DECL(EnumConstantDecl, {
@@ -1304,7 +1450,45 @@ bool RecursiveASTVisitor<Derived>::TraverseFunctionHelper(FunctionDecl *D) {
   }
 
   TRY_TO(TraverseType(D->getResultType()));
-  TRY_TO(TraverseDeclContextHelper(D));  // Parameters.
+
+  // If we're an explicit template specialization, iterate over the
+  // template args that were explicitly specified.
+  if (const FunctionTemplateSpecializationInfo *FTSI =
+      D->getTemplateSpecializationInfo()) {
+    if (FTSI->getTemplateSpecializationKind() != TSK_Undeclared &&
+        FTSI->getTemplateSpecializationKind() != TSK_ImplicitInstantiation) {
+      // A specialization might not have explicit template arguments if it has
+      // a templated return type and concrete arguments.
+      if (const TemplateArgumentListInfo *TALI =
+          FTSI->TemplateArgumentsAsWritten) {
+        TRY_TO(TraverseTemplateArgumentLocsHelper(TALI->getArgumentArray(),
+                                                  TALI->size()));
+      }
+    }
+  }
+
+  for (FunctionDecl::param_iterator I = D->param_begin(), E = D->param_end();
+       I != E; ++I) {
+    TRY_TO(TraverseDecl(*I));
+  }
+
+  if (FunctionProtoType *FuncProto = dyn_cast<FunctionProtoType>(FuncType)) {
+    if (D->isThisDeclarationADefinition()) {
+      // This would be visited if we called TraverseType(D->getType())
+      // above, but we don't (at least, not in the
+      // declaration-is-a-definition case), in order to avoid duplicate
+      // visiting for parameters.  (We need to check parameters here,
+      // rather than letting D->getType() do it, so we visit default
+      // parameter values).  So we need to re-do some of the work the
+      // type would do.
+      for (FunctionProtoType::exception_iterator
+               E = FuncProto->exception_begin(),
+               EEnd = FuncProto->exception_end();
+           E != EEnd; ++E) {
+        TRY_TO(TraverseType(*E));
+      }
+    }
+  }
 
   if (CXXConstructorDecl *Ctor = dyn_cast<CXXConstructorDecl>(D)) {
     // Constructor initializers.
@@ -1356,9 +1540,6 @@ DEF_TRAVERSE_DECL(CXXDestructorDecl, {
 template<typename Derived>
 bool RecursiveASTVisitor<Derived>::TraverseVarHelper(VarDecl *D) {
   TRY_TO(TraverseDeclaratorHelper(D));
-  // FIXME: This often double-counts -- for instance, for all local
-  // vars, though not for global vars -- because the initializer is
-  // also captured when the var-decl is in a DeclStmt.
   TRY_TO(TraverseStmt(D->getInit()));
   return true;
 }
@@ -1373,11 +1554,13 @@ DEF_TRAVERSE_DECL(ImplicitParamDecl, {
 
 DEF_TRAVERSE_DECL(NonTypeTemplateParmDecl, {
     // A non-type template parameter, e.g. "S" in template<int S> class Foo ...
-    TRY_TO(TraverseStmt(D->getDefaultArgument()));
     TRY_TO(TraverseVarHelper(D));
+    TRY_TO(TraverseStmt(D->getDefaultArgument()));
   })
 
 DEF_TRAVERSE_DECL(ParmVarDecl, {
+    TRY_TO(TraverseVarHelper(D));
+
     if (D->hasDefaultArg() &&
         D->hasUninstantiatedDefaultArg() &&
         !D->hasUnparsedDefaultArg())
@@ -1387,8 +1570,6 @@ DEF_TRAVERSE_DECL(ParmVarDecl, {
         !D->hasUninstantiatedDefaultArg() &&
         !D->hasUnparsedDefaultArg())
       TRY_TO(TraverseStmt(D->getDefaultArg()));
-
-    TRY_TO(TraverseVarHelper(D));
   })
 
 #undef DEF_TRAVERSE_DECL
@@ -1431,35 +1612,36 @@ DEF_TRAVERSE_STMT(AsmStmt, {
   })
 
 DEF_TRAVERSE_STMT(CXXCatchStmt, {
-    // We don't traverse S->getCaughtType(), as we are already
-    // traversing the exception object, which has this type.
+    TRY_TO(TraverseDecl(S->getExceptionDecl()));
     // child_begin()/end() iterates over the handler block.
   })
 
-DEF_TRAVERSE_STMT(ForStmt, {
-    TRY_TO(TraverseDecl(S->getConditionVariable()));
-    // child_begin()/end() iterates over init, cond, inc, and body stmts.
+DEF_TRAVERSE_STMT(DeclStmt, {
+    for (DeclStmt::decl_iterator I = S->decl_begin(), E = S->decl_end();
+         I != E; ++I) {
+      TRY_TO(TraverseDecl(*I));
+    }
+    // Suppress the default iteration over child_begin/end by
+    // returning.  Here's why: A DeclStmt looks like 'type var [=
+    // initializer]'.  The decls above already traverse over the
+    // initializers, so we don't have to do it again (which
+    // child_begin/end would do).
+    return true;
   })
 
-DEF_TRAVERSE_STMT(IfStmt, {
-    TRY_TO(TraverseDecl(S->getConditionVariable()));
-    // child_begin()/end() iterates over cond, then, and else stmts.
-  })
-
-DEF_TRAVERSE_STMT(WhileStmt, {
-    TRY_TO(TraverseDecl(S->getConditionVariable()));
-    // child_begin()/end() iterates over cond, then, and else stmts.
-  })
 
 // These non-expr stmts (most of them), do not need any action except
 // iterating over the children.
 DEF_TRAVERSE_STMT(BreakStmt, { })
+DEF_TRAVERSE_STMT(CXXTryStmt, { })
+DEF_TRAVERSE_STMT(CaseStmt, { })
 DEF_TRAVERSE_STMT(CompoundStmt, { })
 DEF_TRAVERSE_STMT(ContinueStmt, { })
-DEF_TRAVERSE_STMT(CXXTryStmt, { })
-DEF_TRAVERSE_STMT(DeclStmt, { })
+DEF_TRAVERSE_STMT(DefaultStmt, { })
 DEF_TRAVERSE_STMT(DoStmt, { })
+DEF_TRAVERSE_STMT(ForStmt, { })
 DEF_TRAVERSE_STMT(GotoStmt, { })
+DEF_TRAVERSE_STMT(IfStmt, { })
 DEF_TRAVERSE_STMT(IndirectGotoStmt, { })
 DEF_TRAVERSE_STMT(LabelStmt, { })
 DEF_TRAVERSE_STMT(NullStmt, { })
@@ -1470,10 +1652,10 @@ DEF_TRAVERSE_STMT(ObjCAtThrowStmt, { })
 DEF_TRAVERSE_STMT(ObjCAtTryStmt, { })
 DEF_TRAVERSE_STMT(ObjCForCollectionStmt, { })
 DEF_TRAVERSE_STMT(ReturnStmt, { })
-DEF_TRAVERSE_STMT(SwitchStmt, { })
 DEF_TRAVERSE_STMT(SwitchCase, { })
-DEF_TRAVERSE_STMT(CaseStmt, { })
-DEF_TRAVERSE_STMT(DefaultStmt, { })
+DEF_TRAVERSE_STMT(SwitchStmt, { })
+DEF_TRAVERSE_STMT(WhileStmt, { })
+
 
 DEF_TRAVERSE_STMT(CXXDependentScopeMemberExpr, {
     if (S->hasExplicitTemplateArgs()) {
@@ -1565,6 +1747,37 @@ DEF_TRAVERSE_STMT(CXXNewExpr, {
     TRY_TO(TraverseType(S->getAllocatedType()));
   })
 
+DEF_TRAVERSE_STMT(OffsetOfExpr, {
+    // The child-iterator will pick up the expression representing
+    // the field.
+    // FIMXE: for code like offsetof(Foo, a.b.c), should we get
+    // making a MemberExpr callbacks for Foo.a, Foo.a.b, and Foo.a.b.c?
+    TRY_TO(TraverseTypeLoc(S->getTypeSourceInfo()->getTypeLoc()));
+  })
+
+DEF_TRAVERSE_STMT(SizeOfAlignOfExpr, {
+    // The child-iterator will pick up the arg if it's an expression,
+    // but not if it's a type.
+    if (S->isArgumentType())
+      TRY_TO(TraverseTypeLoc(S->getArgumentTypeInfo()->getTypeLoc()));
+  })
+
+DEF_TRAVERSE_STMT(CXXTypeidExpr, {
+    // The child-iterator will pick up the arg if it's an expression,
+    // but not if it's a type.
+    if (S->isTypeOperand())
+      TRY_TO(TraverseTypeLoc(S->getTypeOperandSourceInfo()->getTypeLoc()));
+  })
+
+DEF_TRAVERSE_STMT(TypesCompatibleExpr, {
+    TRY_TO(TraverseTypeLoc(S->getArgTInfo1()->getTypeLoc()));
+    TRY_TO(TraverseTypeLoc(S->getArgTInfo2()->getTypeLoc()));
+  })
+
+DEF_TRAVERSE_STMT(UnaryTypeTraitExpr, {
+    TRY_TO(TraverseType(S->getQueriedType()));
+  })
+
 // These exprs (most of them), do not need any action except iterating
 // over the children.
 DEF_TRAVERSE_STMT(AddrLabelExpr, { })
@@ -1573,7 +1786,6 @@ DEF_TRAVERSE_STMT(BlockDeclRefExpr, { })
 DEF_TRAVERSE_STMT(BlockExpr, { })
 DEF_TRAVERSE_STMT(ChooseExpr, { })
 DEF_TRAVERSE_STMT(CompoundLiteralExpr, { })
-DEF_TRAVERSE_STMT(CXXBindReferenceExpr, { })
 DEF_TRAVERSE_STMT(CXXBindTemporaryExpr, { })
 DEF_TRAVERSE_STMT(CXXBoolLiteralExpr, { })
 DEF_TRAVERSE_STMT(CXXDefaultArgExpr, { })
@@ -1583,7 +1795,6 @@ DEF_TRAVERSE_STMT(CXXNullPtrLiteralExpr, { })
 DEF_TRAVERSE_STMT(CXXPseudoDestructorExpr, { })
 DEF_TRAVERSE_STMT(CXXThisExpr, { })
 DEF_TRAVERSE_STMT(CXXThrowExpr, { })
-DEF_TRAVERSE_STMT(CXXTypeidExpr, { })
 DEF_TRAVERSE_STMT(CXXUnresolvedConstructExpr, { })
 DEF_TRAVERSE_STMT(DesignatedInitExpr, { })
 DEF_TRAVERSE_STMT(ExtVectorElementExpr, { })
@@ -1598,18 +1809,17 @@ DEF_TRAVERSE_STMT(ObjCPropertyRefExpr, { })
 DEF_TRAVERSE_STMT(ObjCProtocolExpr, { })
 DEF_TRAVERSE_STMT(ObjCSelectorExpr, { })
 DEF_TRAVERSE_STMT(ObjCSuperExpr, { })
-DEF_TRAVERSE_STMT(OffsetOfExpr, { })
 DEF_TRAVERSE_STMT(ParenExpr, { })
 DEF_TRAVERSE_STMT(ParenListExpr, { })
 DEF_TRAVERSE_STMT(PredefinedExpr, { })
 DEF_TRAVERSE_STMT(ShuffleVectorExpr, { })
-DEF_TRAVERSE_STMT(SizeOfAlignOfExpr, { })
 DEF_TRAVERSE_STMT(StmtExpr, { })
-DEF_TRAVERSE_STMT(TypesCompatibleExpr, { })
-DEF_TRAVERSE_STMT(UnaryTypeTraitExpr, { })
 DEF_TRAVERSE_STMT(UnresolvedLookupExpr, { })
 DEF_TRAVERSE_STMT(UnresolvedMemberExpr, { })
-DEF_TRAVERSE_STMT(VAArgExpr, { })
+DEF_TRAVERSE_STMT(VAArgExpr, {
+    // The child-iterator will pick up the expression argument.
+    TRY_TO(TraverseTypeLoc(S->getWrittenTypeInfo()->getTypeLoc()));
+  })
 DEF_TRAVERSE_STMT(CXXConstructExpr, { })
 
 DEF_TRAVERSE_STMT(CXXTemporaryObjectExpr, {

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 12, 2010
+.Dd November 26, 2010
 .Dt FXP 4
 .Os
 .Sh NAME
@@ -166,9 +166,6 @@ Number of packets that will be bundled, before an interrupt is
 generated.
 This is only effective if the Intel microcode is loaded.
 The accepted range is 1 to 65535, the default is 6.
-.It Va dev.fxp.%d.noflow
-Controls whether flow control should be used or not.
-The default is 1 (no flow control).
 .El
 .Sh SYSCTL VARIABLES
 The following variables are available as

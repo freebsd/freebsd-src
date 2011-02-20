@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
-#include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/lock_profile.h>
 #include <sys/malloc.h>
@@ -170,7 +169,7 @@ SLIST_HEAD(lphead, lock_prof);
 
 /*
  * Array of objects and profs for each type of object for each cpu.  Spinlocks
- * are handled seperately because a thread may be preempted and acquire a
+ * are handled separately because a thread may be preempted and acquire a
  * spinlock while in the lock profiling code of a non-spinlock.  In this way
  * we only need a critical section to protect the per-cpu lists.
  */
@@ -191,8 +190,7 @@ struct lock_prof_cpu *lp_cpu[MAXCPU];
 volatile int lock_prof_enable = 0;
 static volatile int lock_prof_resetting;
 
-/* SWAG: sbuf size = avg stat. line size * number of locks */
-#define LPROF_SBUF_SIZE		256 * 400
+#define LPROF_SBUF_SIZE		256
 
 static int lock_prof_rejected;
 static int lock_prof_skipspin;
@@ -384,8 +382,6 @@ lock_prof_type_stats(struct lock_prof_type *type, struct sbuf *sb, int spin,
 				continue;
 			lock_prof_sum(l, &lp, i, spin, t);
 			lock_prof_output(&lp, sb);
-			if (sbuf_overflowed(sb))
-				return;
 		}
 	}
 }
@@ -393,13 +389,14 @@ lock_prof_type_stats(struct lock_prof_type *type, struct sbuf *sb, int spin,
 static int
 dump_lock_prof_stats(SYSCTL_HANDLER_ARGS)
 {
-	static int multiplier = 1;
 	struct sbuf *sb;
 	int error, cpu, t;
 	int enabled;
 
-retry_sbufops:
-	sb = sbuf_new(NULL, NULL, LPROF_SBUF_SIZE * multiplier, SBUF_FIXEDLEN);
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sb = sbuf_new_for_sysctl(NULL, NULL, LPROF_SBUF_SIZE, req);
 	sbuf_printf(sb, "\n%8s %9s %11s %11s %11s %6s %6s %2s %6s %s\n",
 	    "max", "wait_max", "total", "wait_total", "count", "avg", "wait_avg", "cnt_hold", "cnt_lock", "name");
 	enabled = lock_prof_enable;
@@ -411,16 +408,13 @@ retry_sbufops:
 			continue;
 		lock_prof_type_stats(&lp_cpu[cpu]->lpc_types[0], sb, 0, t);
 		lock_prof_type_stats(&lp_cpu[cpu]->lpc_types[1], sb, 1, t);
-		if (sbuf_overflowed(sb)) {
-			sbuf_delete(sb);
-			multiplier++;
-			goto retry_sbufops;
-		}
 	}
 	lock_prof_enable = enabled;
 
-	sbuf_finish(sb);
-	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
+	error = sbuf_finish(sb);
+	/* Output a trailing NUL. */
+	if (error == 0)
+		error = SYSCTL_OUT(req, "", 1);
 	sbuf_delete(sb);
 	return (error);
 }

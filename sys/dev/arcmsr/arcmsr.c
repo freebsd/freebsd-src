@@ -38,29 +38,32 @@
 ** History
 **
 **        REV#         DATE	            NAME	         DESCRIPTION
-**     1.00.00.00    3/31/2004	       Erich Chen	     First release
-**     1.20.00.02   11/29/2004         Erich Chen        bug fix with arcmsr_bus_reset when PHY error
-**     1.20.00.03    4/19/2005         Erich Chen        add SATA 24 Ports adapter type support
+**     1.00.00.00    3/31/2004		Erich Chen			 First release
+**     1.20.00.02   11/29/2004		Erich Chen			 bug fix with arcmsr_bus_reset when PHY error
+**     1.20.00.03    4/19/2005		Erich Chen			 add SATA 24 Ports adapter type support
 **                                                       clean unused function
-**     1.20.00.12    9/12/2005         Erich Chen        bug fix with abort command handling, 
+**     1.20.00.12    9/12/2005		Erich Chen        	 bug fix with abort command handling, 
 **                                                       firmware version check 
 **                                                       and firmware update notify for hardware bug fix
 **                                                       handling if none zero high part physical address 
 **                                                       of srb resource 
-**     1.20.00.13    8/18/2006         Erich Chen        remove pending srb and report busy
+**     1.20.00.13    8/18/2006		Erich Chen			 remove pending srb and report busy
 **                                                       add iop message xfer 
 **                                                       with scsi pass-through command
 **                                                       add new device id of sas raid adapters 
 **                                                       code fit for SPARC64 & PPC 
-**     1.20.00.14   02/05/2007         Erich Chen        bug fix for incorrect ccb_h.status report
+**     1.20.00.14   02/05/2007		Erich Chen			 bug fix for incorrect ccb_h.status report
 **                                                       and cause g_vfs_done() read write error
-**     1.20.00.15   10/10/2007         Erich Chen        support new RAID adapter type ARC120x
-**     1.20.00.16   10/10/2009         Erich Chen        Bug fix for RAID adapter type ARC120x
+**     1.20.00.15   10/10/2007		Erich Chen			 support new RAID adapter type ARC120x
+**     1.20.00.16   10/10/2009		Erich Chen			 Bug fix for RAID adapter type ARC120x
 **                                                       bus_dmamem_alloc() with BUS_DMA_ZERO
-**     1.20.00.17   07/15/2010         Ching Huang       Added support ARC1880
-**							 report CAM_DEV_NOT_THERE instead of CAM_SEL_TIMEOUT when device failed,
-**							 prevent cam_periph_error removing all LUN devices of one Target id
-**							 for any one LUN device failed
+**     1.20.00.17	07/15/2010		Ching Huang			 Added support ARC1880
+**														 report CAM_DEV_NOT_THERE instead of CAM_SEL_TIMEOUT when device failed,
+**														 prevent cam_periph_error removing all LUN devices of one Target id
+**														 for any one LUN device failed
+**	   1.20.00.18	10/14/2010		Ching Huang			 Fixed "inquiry data fails comparion at DV1 step"
+**	   				10/25/2010		Ching Huang			 Fixed bad range input in bus_alloc_resource for ADAPTER_TYPE_B
+**	   1.20.00.19	11/11/2010		Ching Huang			 Fixed arcmsr driver prevent arcsas support for Areca SAS HBA ARC13x0
 ******************************************************************************************
 * $FreeBSD$
 */
@@ -116,7 +119,7 @@
     #define ARCMSR_LOCK_RELEASE(l)	mtx_unlock(l)
     #define ARCMSR_LOCK_TRY(l)		mtx_trylock(l)
     #define arcmsr_htole32(x)		htole32(x)
-    typedef struct mtx		arcmsr_lock_t;
+    typedef struct mtx				arcmsr_lock_t;
 #else
     #include <sys/select.h>
     #include <pci/pcivar.h>
@@ -134,13 +137,14 @@
 #define	CAM_NEW_TRAN_CODE	1
 #endif
 
+#define ARCMSR_DRIVER_VERSION			"Driver Version 1.20.00.19 2010-11-11"
 #include <dev/arcmsr/arcmsr.h>
 #define ARCMSR_SRBS_POOL_SIZE           ((sizeof(struct CommandControlBlock) * ARCMSR_MAX_FREESRB_NUM))
 /*
 **************************************************************************
 **************************************************************************
 */
-#define CHIP_REG_READ32(s, b, r)	bus_space_read_4(acb->btag[b], acb->bhandle[b], offsetof(struct s, r))
+#define CHIP_REG_READ32(s, b, r)		bus_space_read_4(acb->btag[b], acb->bhandle[b], offsetof(struct s, r))
 #define CHIP_REG_WRITE32(s, b, r, d)	bus_space_write_4(acb->btag[b], acb->bhandle[b], offsetof(struct s, r), d)
 /*
 **************************************************************************
@@ -182,8 +186,8 @@ static void UDELAY(u_int32_t us) { DELAY(us); }
 **************************************************************************
 **************************************************************************
 */
-static bus_dmamap_callback_t arcmsr_map_freesrb;
-static bus_dmamap_callback_t arcmsr_executesrb;
+static bus_dmamap_callback_t arcmsr_map_free_srb;
+static bus_dmamap_callback_t arcmsr_execute_srb;
 /*
 **************************************************************************
 **************************************************************************
@@ -200,7 +204,7 @@ static device_method_t arcmsr_methods[]={
 	DEVMETHOD(device_suspend,	arcmsr_suspend),
 	DEVMETHOD(device_resume,	arcmsr_resume),
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added, 	bus_generic_driver_added),
+	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
 	{ 0, 0 }
 };
 	
@@ -226,29 +230,29 @@ static struct cdevsw arcmsr_cdevsw={
 	#if __FreeBSD_version > 502010
 		.d_version = D_VERSION, 
 	#endif
-	.d_flags   = D_NEEDGIANT, 
-	.d_open    = arcmsr_open, 		/* open     */
-	.d_close   = arcmsr_close, 		/* close    */
-	.d_ioctl   = arcmsr_ioctl, 		/* ioctl    */
-	.d_name    = "arcmsr", 			/* name     */
+		.d_flags   = D_NEEDGIANT, 
+		.d_open    = arcmsr_open, 	/* open     */
+		.d_close   = arcmsr_close, 	/* close    */
+		.d_ioctl   = arcmsr_ioctl, 	/* ioctl    */
+		.d_name    = "arcmsr", 		/* name     */
 	};
 #else
 	#define ARCMSR_CDEV_MAJOR	180
 	
 static struct cdevsw arcmsr_cdevsw = {
-		arcmsr_open, 		        /* open     */
-		arcmsr_close, 		        /* close    */
-		noread, 		        /* read     */
-		nowrite, 		        /* write    */
-		arcmsr_ioctl, 		        /* ioctl    */
-		nopoll, 		        /* poll     */
-		nommap, 		        /* mmap     */
-		nostrategy, 		        /* strategy */
-		"arcmsr", 		        /* name     */
-		ARCMSR_CDEV_MAJOR, 		/* major    */
-		nodump, 			/* dump     */
-		nopsize, 			/* psize    */
-		0				/* flags    */
+		arcmsr_open,				/* open     */
+		arcmsr_close,				/* close    */
+		noread,						/* read     */
+		nowrite,					/* write    */
+		arcmsr_ioctl,				/* ioctl    */
+		nopoll,						/* poll     */
+		nommap,						/* mmap     */
+		nostrategy,					/* strategy */
+		"arcmsr",					/* name     */
+		ARCMSR_CDEV_MAJOR,			/* major    */
+		nodump,						/* dump     */
+		nopsize,					/* psize    */
+		0							/* flags    */
 	};
 #endif
 /*
@@ -259,9 +263,9 @@ static struct cdevsw arcmsr_cdevsw = {
 	static int arcmsr_open(dev_t dev, int flags, int fmt, struct proc *proc)
 #else
 	#if __FreeBSD_version < 503000
-		static int arcmsr_open(dev_t dev, int flags, int fmt, struct thread *proc)
+	static int arcmsr_open(dev_t dev, int flags, int fmt, struct thread *proc)
 	#else
-		static int arcmsr_open(struct cdev *dev, int flags, int fmt, struct thread *proc)
+	static int arcmsr_open(struct cdev *dev, int flags, int fmt, struct thread *proc)
 	#endif 
 #endif
 {
@@ -284,9 +288,9 @@ static struct cdevsw arcmsr_cdevsw = {
 	static int arcmsr_close(dev_t dev, int flags, int fmt, struct proc *proc)
 #else
 	#if __FreeBSD_version < 503000
-		static int arcmsr_close(dev_t dev, int flags, int fmt, struct thread *proc)
+	static int arcmsr_close(dev_t dev, int flags, int fmt, struct thread *proc)
 	#else
-		static int arcmsr_close(struct cdev *dev, int flags, int fmt, struct thread *proc)
+	static int arcmsr_close(struct cdev *dev, int flags, int fmt, struct thread *proc)
 	#endif 
 #endif
 {
@@ -309,9 +313,9 @@ static struct cdevsw arcmsr_cdevsw = {
 	static int arcmsr_ioctl(dev_t dev, u_long ioctl_cmd, caddr_t arg, int flags, struct proc *proc)
 #else
 	#if __FreeBSD_version < 503000
-		static int arcmsr_ioctl(dev_t dev, u_long ioctl_cmd, caddr_t arg, int flags, struct thread *proc)
+	static int arcmsr_ioctl(dev_t dev, u_long ioctl_cmd, caddr_t arg, int flags, struct thread *proc)
 	#else
-		static int arcmsr_ioctl(struct cdev *dev, u_long ioctl_cmd, caddr_t arg, int flags, struct thread *proc)
+	static int arcmsr_ioctl(struct cdev *dev, u_long ioctl_cmd, caddr_t arg, int flags, struct thread *proc)
 	#endif 
 #endif
 {
@@ -345,7 +349,7 @@ static u_int32_t arcmsr_disable_allintr( struct AdapterControlBlock *acb)
 	case ACB_ADAPTER_TYPE_B: {
 			/* disable all outbound interrupt */
 			intmask_org=CHIP_REG_READ32(HBB_DOORBELL, 
-			0, iop2drv_doorbell_mask) & (~ARCMSR_IOP2DRV_MESSAGE_CMD_DONE); /* disable outbound message0 int */
+						0, iop2drv_doorbell_mask) & (~ARCMSR_IOP2DRV_MESSAGE_CMD_DONE); /* disable outbound message0 int */
 			CHIP_REG_WRITE32(HBB_DOORBELL, 0, iop2drv_doorbell_mask, 0); /* disable all interrupt */
 		}
 		break;
@@ -584,42 +588,6 @@ static void arcmsr_async(void *cb_arg, u_int32_t code, struct cam_path *path, vo
 **********************************************************************
 **********************************************************************
 */
-static void arcmsr_srb_complete(struct CommandControlBlock *srb, int stand_flag)
-{
-	struct AdapterControlBlock *acb=srb->acb;
-	union ccb * pccb=srb->pccb;
-	
-	if((pccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		bus_dmasync_op_t op;
-	
-		if((pccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-			op = BUS_DMASYNC_POSTREAD;
-		} else {
-			op = BUS_DMASYNC_POSTWRITE;
-		}
-		bus_dmamap_sync(acb->dm_segs_dmat, srb->dm_segs_dmamap, op);
-		bus_dmamap_unload(acb->dm_segs_dmat, srb->dm_segs_dmamap);
-	}
-	if(stand_flag==1) {
-		atomic_subtract_int(&acb->srboutstandingcount, 1);
-		if((acb->acb_flags & ACB_F_CAM_DEV_QFRZN) && (
-		acb->srboutstandingcount < ARCMSR_RELEASE_SIMQ_LEVEL)) {
-			acb->acb_flags &= ~ACB_F_CAM_DEV_QFRZN;
-			pccb->ccb_h.status |= CAM_RELEASE_SIMQ;
-		}
-	}
-	srb->startdone=ARCMSR_SRB_DONE;
-	srb->srb_flags=0;
-	acb->srbworkingQ[acb->workingsrb_doneindex]=srb;
-	acb->workingsrb_doneindex++;
-	acb->workingsrb_doneindex %= ARCMSR_MAX_FREESRB_NUM;
-	xpt_done(pccb);
-	return;
-}
-/*
-**********************************************************************
-**********************************************************************
-*/
 static void arcmsr_report_sense_info(struct CommandControlBlock *srb)
 {
 	union ccb * pccb=srb->pccb;
@@ -692,6 +660,42 @@ static void arcmsr_abort_allcmd(struct AdapterControlBlock *acb)
 		}
 		break;
 	}
+	return;
+}
+/*
+**********************************************************************
+**********************************************************************
+*/
+static void arcmsr_srb_complete(struct CommandControlBlock *srb, int stand_flag)
+{
+	struct AdapterControlBlock *acb=srb->acb;
+	union ccb * pccb=srb->pccb;
+	
+	if((pccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
+		bus_dmasync_op_t op;
+	
+		if((pccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+			op = BUS_DMASYNC_POSTREAD;
+		} else {
+			op = BUS_DMASYNC_POSTWRITE;
+		}
+		bus_dmamap_sync(acb->dm_segs_dmat, srb->dm_segs_dmamap, op);
+		bus_dmamap_unload(acb->dm_segs_dmat, srb->dm_segs_dmamap);
+	}
+	if(stand_flag==1) {
+		atomic_subtract_int(&acb->srboutstandingcount, 1);
+		if((acb->acb_flags & ACB_F_CAM_DEV_QFRZN) && (
+		acb->srboutstandingcount < ARCMSR_RELEASE_SIMQ_LEVEL)) {
+			acb->acb_flags &= ~ACB_F_CAM_DEV_QFRZN;
+			pccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+		}
+	}
+	srb->startdone=ARCMSR_SRB_DONE;
+	srb->srb_flags=0;
+	acb->srbworkingQ[acb->workingsrb_doneindex]=srb;
+	acb->workingsrb_doneindex++;
+	acb->workingsrb_doneindex %= ARCMSR_MAX_FREESRB_NUM;
+	xpt_done(pccb);
 	return;
 }
 /*
@@ -1009,8 +1013,8 @@ static void arcmsr_post_srb(struct AdapterControlBlock *acb, struct CommandContr
             {
 			    CHIP_REG_WRITE32(HBC_MessageUnit,0,inbound_queueport_low, ccb_post_stamp);
             }
-		}
-		break;
+        }
+        break;
 	}
 	return;
 }
@@ -1595,7 +1599,7 @@ static void arcmsr_hbb_postqueue_isr(struct AdapterControlBlock *acb)
 	u_int32_t flag_srb;
 	int index;
 	u_int16_t error;
-	
+
 	/*
 	*****************************************************************************
 	**               areca cdb command done
@@ -2236,7 +2240,7 @@ message_out:
 *********************************************************************
 *********************************************************************
 */
-static void arcmsr_executesrb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
+static void arcmsr_execute_srb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 {
 	struct CommandControlBlock *srb=(struct CommandControlBlock *)arg;
 	struct AdapterControlBlock *acb=(struct AdapterControlBlock *)srb->acb;
@@ -2386,18 +2390,16 @@ static void arcmsr_handle_virtual_command(struct AdapterControlBlock *acb,
 			xpt_done(pccb);
 			return;
 		}
-		inqdata[0] = T_PROCESSOR;
-		/* Periph Qualifier & Periph Dev Type */
-		inqdata[1] = 0;
-		/* rem media bit & Dev Type Modifier */
-		inqdata[2] = 0;
-		/* ISO, ECMA, & ANSI versions */
-		inqdata[4] = 31;
-		/* length of additional data */
-		strncpy(&inqdata[8], "Areca   ", 8);
-		/* Vendor Identification */
-		strncpy(&inqdata[16], "RAID controller ", 16);
-		/* Product Identification */
+		inqdata[0] = T_PROCESSOR;	/* Periph Qualifier & Periph Dev Type */
+		inqdata[1] = 0;				/* rem media bit & Dev Type Modifier */
+		inqdata[2] = 0;				/* ISO, ECMA, & ANSI versions */
+		inqdata[3] = 0;
+		inqdata[4] = 31;			/* length of additional data */
+		inqdata[5] = 0;
+		inqdata[6] = 0;
+		inqdata[7] = 0;
+		strncpy(&inqdata[8], "Areca   ", 8);	/* Vendor Identification */
+		strncpy(&inqdata[16], "RAID controller ", 16);	/* Product Identification */
 		strncpy(&inqdata[32], "R001", 4); /* Product Revision */
 		memcpy(buffer, inqdata, sizeof(inqdata));
 		xpt_done(pccb);
@@ -2460,15 +2462,23 @@ static void arcmsr_action(struct cam_sim * psim, union ccb * pccb)
 							, srb->dm_segs_dmamap
 							, pccb->csio.data_ptr
 							, pccb->csio.dxfer_len
-							, arcmsr_executesrb, srb, /*flags*/0);
+							, arcmsr_execute_srb, srb, /*flags*/0);
 	         				if(error == EINPROGRESS) {
 							xpt_freeze_simq(acb->psim, 1);
 							pccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 						}
 						splx(s);
-					} else { 
-						/* Buffer is physical */
+					}
+					else {		/* Buffer is physical */
+#ifdef	PAE
 						panic("arcmsr: CAM_DATA_PHYS not supported");
+#else
+						struct bus_dma_segment seg;
+						
+						seg.ds_addr = (bus_addr_t)pccb->csio.data_ptr;
+						seg.ds_len = pccb->csio.dxfer_len;
+						arcmsr_execute_srb(srb, &seg, 1, 0);
+#endif
 					}
 				} else { 
 					/* Scatter/gather list */
@@ -2482,10 +2492,10 @@ static void arcmsr_action(struct cam_sim * psim, union ccb * pccb)
 						return;
 					}
 					segs=(struct bus_dma_segment *)pccb->csio.data_ptr;
-					arcmsr_executesrb(srb, segs, pccb->csio.sglist_cnt, 0);
+					arcmsr_execute_srb(srb, segs, pccb->csio.sglist_cnt, 0);
 				}
 			} else {
-				arcmsr_executesrb(srb, NULL, 0, 0);
+				arcmsr_execute_srb(srb, NULL, 0, 0);
 			}
 			break;
 		}
@@ -3204,7 +3214,7 @@ static u_int32_t arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 				return FALSE;
 			}
 			post_queue_phyaddr = srb_phyaddr + ARCMSR_MAX_FREESRB_NUM*sizeof(struct CommandControlBlock) 
-			+ offsetof(struct HBB_MessageUnit, post_qbuffer);
+								+ offsetof(struct HBB_MessageUnit, post_qbuffer);
 			CHIP_REG_WRITE32(HBB_RWBUFFER, 1, msgcode_rwbuffer[0], ARCMSR_SIGNATURE_SET_CONFIG); /* driver "set config" signature */
 			CHIP_REG_WRITE32(HBB_RWBUFFER, 1, msgcode_rwbuffer[1], srb_phyaddr_hi32); /* normal should be zero */
 			CHIP_REG_WRITE32(HBB_RWBUFFER, 1, msgcode_rwbuffer[2], post_queue_phyaddr); /* postQ size (256+8)*4 */
@@ -3288,7 +3298,7 @@ static void arcmsr_iop_init(struct AdapterControlBlock *acb)
 **********************************************************************
 **********************************************************************
 */
-static void arcmsr_map_freesrb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+static void arcmsr_map_free_srb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	struct AdapterControlBlock *acb=arg;
 	struct CommandControlBlock *srb_tmp;
@@ -3351,6 +3361,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 			max_coherent_size=ARCMSR_SRBS_POOL_SIZE;
 		}
 		break;
+	case PCIDevVenIDARC1200:
 	case PCIDevVenIDARC1201: {
 			acb->adapter_type=ACB_ADAPTER_TYPE_B;
 			max_coherent_size=ARCMSR_SRBS_POOL_SIZE+(sizeof(struct HBB_MessageUnit));
@@ -3364,7 +3375,9 @@ static u_int32_t arcmsr_initialize(device_t dev)
 	case PCIDevVenIDARC1210:
 	case PCIDevVenIDARC1220:
 	case PCIDevVenIDARC1230:
+	case PCIDevVenIDARC1231:
 	case PCIDevVenIDARC1260:
+	case PCIDevVenIDARC1261:
 	case PCIDevVenIDARC1270:
 	case PCIDevVenIDARC1280:
 	case PCIDevVenIDARC1212:
@@ -3383,108 +3396,71 @@ static u_int32_t arcmsr_initialize(device_t dev)
 			return ENOMEM;
 		}
 	}
+	if(bus_dma_tag_create(  /*parent*/		NULL,
+							/*alignemnt*/	1,
+							/*boundary*/	0,
+							/*lowaddr*/		BUS_SPACE_MAXADDR,
+							/*highaddr*/	BUS_SPACE_MAXADDR,
+							/*filter*/		NULL,
+							/*filterarg*/	NULL,
+							/*maxsize*/		BUS_SPACE_MAXSIZE_32BIT,
+							/*nsegments*/	BUS_SPACE_UNRESTRICTED,
+							/*maxsegsz*/	BUS_SPACE_MAXSIZE_32BIT,
+							/*flags*/		0,
 #if __FreeBSD_version >= 502010
-	if(bus_dma_tag_create(  /*parent*/	NULL,
-				/*alignemnt*/	1,
-				/*boundary*/	0,
-				/*lowaddr*/	BUS_SPACE_MAXADDR,
-				/*highaddr*/	BUS_SPACE_MAXADDR,
-				/*filter*/	NULL,
-				/*filterarg*/	NULL,
-				/*maxsize*/	BUS_SPACE_MAXSIZE_32BIT,
-				/*nsegments*/	BUS_SPACE_UNRESTRICTED,
-				/*maxsegsz*/	BUS_SPACE_MAXSIZE_32BIT,
-				/*flags*/	0,
-				/*lockfunc*/	NULL,
-				/*lockarg*/	NULL,
-						&acb->parent_dmat) != 0)
-#else
-	if(bus_dma_tag_create(  /*parent*/	NULL,
-				/*alignemnt*/	1,
-				/*boundary*/	0,
-				/*lowaddr*/	BUS_SPACE_MAXADDR,
-				/*highaddr*/	BUS_SPACE_MAXADDR,
-				/*filter*/	NULL,
-				/*filterarg*/	NULL,
-				/*maxsize*/	BUS_SPACE_MAXSIZE_32BIT,
-				/*nsegments*/	BUS_SPACE_UNRESTRICTED,
-				/*maxsegsz*/	BUS_SPACE_MAXSIZE_32BIT,
-				/*flags*/	0,
-						&acb->parent_dmat) != 0)
+							/*lockfunc*/	NULL,
+							/*lockarg*/		NULL,
 #endif
+						&acb->parent_dmat) != 0)
 	{
 		printf("arcmsr%d: parent_dmat bus_dma_tag_create failure!\n", device_get_unit(dev));
 		return ENOMEM;
 	}
+
 	/* Create a single tag describing a region large enough to hold all of the s/g lists we will need. */
+	if(bus_dma_tag_create(  /*parent_dmat*/	acb->parent_dmat,
+							/*alignment*/	1,
+							/*boundary*/	0,
+							/*lowaddr*/		BUS_SPACE_MAXADDR,
+							/*highaddr*/	BUS_SPACE_MAXADDR,
+							/*filter*/		NULL,
+							/*filterarg*/	NULL,
+							/*maxsize*/		ARCMSR_MAX_SG_ENTRIES * PAGE_SIZE * ARCMSR_MAX_FREESRB_NUM,
+							/*nsegments*/	ARCMSR_MAX_SG_ENTRIES,
+							/*maxsegsz*/	BUS_SPACE_MAXSIZE_32BIT,
+							/*flags*/		0,
 #if __FreeBSD_version >= 502010
-	if(bus_dma_tag_create(  /*parent_dmat*/	acb->parent_dmat,
-				/*alignment*/	1,
-				/*boundary*/	0,
-				/*lowaddr*/	BUS_SPACE_MAXADDR,
-				/*highaddr*/	BUS_SPACE_MAXADDR,
-				/*filter*/	NULL,
-				/*filterarg*/	NULL,
-				/*maxsize*/	MAXBSIZE,
-				/*nsegments*/	ARCMSR_MAX_SG_ENTRIES,
-				/*maxsegsz*/	BUS_SPACE_MAXSIZE_32BIT,
-				/*flags*/	0,
-				/*lockfunc*/	busdma_lock_mutex,
+							/*lockfunc*/	busdma_lock_mutex,
 	#if __FreeBSD_version >= 700025
-				/*lockarg*/	&acb->qbuffer_lock,
+							/*lockarg*/		&acb->qbuffer_lock,
 	#else
-				/*lockarg*/	&Giant,
+							/*lockarg*/		&Giant,
 	#endif
-						&acb->dm_segs_dmat) != 0)
-#else
-	if(bus_dma_tag_create(  /*parent_dmat*/	acb->parent_dmat,
-				/*alignment*/	1,
-				/*boundary*/	0,
-				/*lowaddr*/	BUS_SPACE_MAXADDR,
-				/*highaddr*/	BUS_SPACE_MAXADDR,
-				/*filter*/	NULL,
-				/*filterarg*/	NULL,
-				/*maxsize*/	MAXBSIZE,
-				/*nsegments*/	ARCMSR_MAX_SG_ENTRIES,
-				/*maxsegsz*/	BUS_SPACE_MAXSIZE_32BIT,
-				/*flags*/	0,
-						&acb->dm_segs_dmat) != 0)
 #endif
+						&acb->dm_segs_dmat) != 0)
 	{
 		bus_dma_tag_destroy(acb->parent_dmat);
 		printf("arcmsr%d: dm_segs_dmat bus_dma_tag_create failure!\n", device_get_unit(dev));
 		return ENOMEM;
 	}
+
 	/* DMA tag for our srb structures.... Allocate the freesrb memory */
+	if(bus_dma_tag_create(  /*parent_dmat*/	acb->parent_dmat,
+							/*alignment*/	0x20,
+							/*boundary*/	0,
+							/*lowaddr*/		BUS_SPACE_MAXADDR_32BIT,
+							/*highaddr*/	BUS_SPACE_MAXADDR,
+							/*filter*/		NULL,
+							/*filterarg*/	NULL,
+							/*maxsize*/		max_coherent_size,
+							/*nsegments*/	1,
+							/*maxsegsz*/	BUS_SPACE_MAXSIZE_32BIT,
+							/*flags*/		0,
 #if __FreeBSD_version >= 502010
-	if(bus_dma_tag_create(  /*parent_dmat*/	acb->parent_dmat,
-				/*alignment*/	0x20,
-				/*boundary*/	0,
-				/*lowaddr*/	BUS_SPACE_MAXADDR_32BIT,
-				/*highaddr*/	BUS_SPACE_MAXADDR,
-				/*filter*/	NULL,
-				/*filterarg*/	NULL,
-				/*maxsize*/	max_coherent_size,
-				/*nsegments*/	1,
-				/*maxsegsz*/	BUS_SPACE_MAXSIZE_32BIT,
-				/*flags*/	0,
-				/*lockfunc*/	NULL,
-				/*lockarg*/	NULL,
-						&acb->srb_dmat) != 0)
-#else
-	if(bus_dma_tag_create(  /*parent_dmat*/	acb->parent_dmat,
-				/*alignment*/	0x20,
-				/*boundary*/	0,
-				/*lowaddr*/	BUS_SPACE_MAXADDR_32BIT,
-				/*highaddr*/	BUS_SPACE_MAXADDR,
-				/*filter*/	NULL,
-				/*filterarg*/	NULL,
-				/*maxsize*/	max_coherent_size,
-				/*nsegments*/	1,
-				/*maxsegsz*/	BUS_SPACE_MAXSIZE_32BIT,
-				/*flags*/	0,
-						&acb->srb_dmat) != 0)
+							/*lockfunc*/	NULL,
+							/*lockarg*/		NULL,
 #endif
+						&acb->srb_dmat) != 0)
 	{
 		bus_dma_tag_destroy(acb->dm_segs_dmat);
 		bus_dma_tag_destroy(acb->parent_dmat);
@@ -3500,7 +3476,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 		return ENXIO;
 	}
 	/* And permanently map them */
-	if(bus_dmamap_load(acb->srb_dmat, acb->srb_dmamap, acb->uncacheptr, max_coherent_size, arcmsr_map_freesrb, acb, /*flags*/0)) {
+	if(bus_dmamap_load(acb->srb_dmat, acb->srb_dmamap, acb->uncacheptr, max_coherent_size, arcmsr_map_free_srb, acb, /*flags*/0)) {
 		bus_dma_tag_destroy(acb->srb_dmat);
 		bus_dma_tag_destroy(acb->dm_segs_dmat);
 		bus_dma_tag_destroy(acb->parent_dmat);
@@ -3518,7 +3494,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 	case ACB_ADAPTER_TYPE_A: {
 			u_int32_t rid0=PCIR_BAR(0);
 			vm_offset_t	mem_base0;
-	
+
 			acb->sys_res_arcmsr[0]=bus_alloc_resource(dev,SYS_RES_MEMORY, &rid0, 0ul, ~0ul, 0x1000, RF_ACTIVE);
 			if(acb->sys_res_arcmsr[0] == NULL) {
 				arcmsr_free_resource(acb);
@@ -3549,10 +3525,10 @@ static u_int32_t arcmsr_initialize(device_t dev)
 			for(i=0; i<2; i++) {
 				if(i==0) {
 					acb->sys_res_arcmsr[i]=bus_alloc_resource(dev,SYS_RES_MEMORY, &rid[i],
-											0x20400, 0x20400+sizeof(struct HBB_DOORBELL), sizeof(struct HBB_DOORBELL), RF_ACTIVE);
+											0ul, ~0ul, sizeof(struct HBB_DOORBELL), RF_ACTIVE);
 				} else {
 					acb->sys_res_arcmsr[i]=bus_alloc_resource(dev, SYS_RES_MEMORY, &rid[i],
-											0x0fa00, 0x0fa00+sizeof(struct HBB_RWBUFFER), sizeof(struct HBB_RWBUFFER), RF_ACTIVE);
+											0ul, ~0ul, sizeof(struct HBB_RWBUFFER), RF_ACTIVE);
 				}
 				if(acb->sys_res_arcmsr[i] == NULL) {
 					arcmsr_free_resource(acb);
@@ -3751,6 +3727,7 @@ static int arcmsr_probe(device_t dev)
 {
 	u_int32_t id;
 	static char buf[256];
+	char x_type[]={"X-TYPE"};
 	char *type;
 	int raid6 = 1;
 	
@@ -3759,8 +3736,9 @@ static int arcmsr_probe(device_t dev)
 	}
 	switch(id=pci_get_devid(dev)) {
 	case PCIDevVenIDARC1110:
-	case PCIDevVenIDARC1210:
+	case PCIDevVenIDARC1200:
 	case PCIDevVenIDARC1201:
+	case PCIDevVenIDARC1210:
 		raid6 = 0;
 		/*FALLTHRU*/
 	case PCIDevVenIDARC1120:
@@ -3769,7 +3747,9 @@ static int arcmsr_probe(device_t dev)
 	case PCIDevVenIDARC1170:
 	case PCIDevVenIDARC1220:
 	case PCIDevVenIDARC1230:
+	case PCIDevVenIDARC1231:
 	case PCIDevVenIDARC1260:
+	case PCIDevVenIDARC1261:
 	case PCIDevVenIDARC1270:
 	case PCIDevVenIDARC1280:
 		type = "SATA";
@@ -3786,9 +3766,11 @@ static int arcmsr_probe(device_t dev)
 		type = "SAS 6G";
 		break;
 	default:
-		type = "X-TYPE";
+		type = x_type;
 		break;
 	}
+	if(type == x_type)
+		return(ENXIO);
 	sprintf(buf, "Areca %s Host Adapter RAID Controller %s\n", type, raid6 ? "(RAID6 capable)" : "");
 	device_set_desc_copy(dev, buf);
 	return 0;

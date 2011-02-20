@@ -77,6 +77,7 @@
 /* NS DP83815/6 registers */
 #define NS_IHR			0x1C
 #define NS_CLKRUN		0x3C
+#define	NS_WCSR			0x40
 #define NS_SRR			0x58
 #define NS_BMCR			0x80
 #define NS_BMSR			0x84
@@ -98,6 +99,29 @@
 #define NS_CLKRUN_PMESTS	0x00008000
 #define NS_CLKRUN_PMEENB	0x00000100
 #define NS_CLNRUN_CLKRUN_ENB	0x00000001
+
+#define	NS_WCSR_WAKE_PHYINTR	0x00000001
+#define	NS_WCSR_WAKE_UCAST	0x00000002
+#define	NS_WCSR_WAKE_MCAST	0x00000004
+#define	NS_WCSR_WAKE_BCAST	0x00000008
+#define	NS_WCSR_WAKE_ARP	0x00000010
+#define	NS_WCSR_WAKE_PATTERN0	0x00000020
+#define	NS_WCSR_WAKE_PATTERN1	0x00000040
+#define	NS_WCSR_WAKE_PATTERN2	0x00000080
+#define	NS_WCSR_WAKE_PATTERN3	0x00000100
+#define	NS_WCSR_WAKE_MAGIC	0x00000200
+#define	NS_WCSR_WAKE_MAGIC_SEC	0x00000400
+#define	NS_WCSR_DET_MAGIC_SECH	0x00100000
+#define	NS_WCSR_DET_PHYINTR	0x00400000
+#define	NS_WCSR_DET_UCAST	0x00800000
+#define	NS_WCSR_DET_MCAST	0x01000000
+#define	NS_WCSR_DET_BCAST	0x02000000
+#define	NS_WCSR_DET_ARP		0x04000000
+#define	NS_WCSR_DET_PATTERN0	0x08000000
+#define	NS_WCSR_DET_PATTERN1	0x10000000
+#define	NS_WCSR_DET_PATTERN2	0x20000000
+#define	NS_WCSR_DET_PATTERN3	0x40000000
+#define	NS_WCSR_DET_MAGIC	0x80000000
 
 /* NS silicon revisions */
 #define NS_SRR_15C		0x302
@@ -252,7 +276,7 @@
 	 SIS_TXCFG_FILL(64)|SIS_TXCFG_DRAIN(1536))
 
 #define SIS_RXCFG_DRAIN_THRESH	0x0000003E /* 8-byte units */
-#define SIS_TXCFG_MPII03D	0x00040000 /* "Must be 1" */ 
+#define SIS_TXCFG_MPII03D	0x00040000 /* "Must be 1" */
 #define SIS_RXCFG_DMABURST	0x00700000
 #define SIS_RXCFG_RX_JABBER	0x08000000
 #define SIS_RXCFG_RX_TXPKTS	0x10000000
@@ -303,26 +327,18 @@
 #define NS_FILTADDR_FMEM_LO	0x00000200
 #define NS_FILTADDR_FMEM_HI	0x000003FE
 
+#define	SIS_PWRMAN_WOL_LINK_OFF	0x00000001
+#define	SIS_PWRMAN_WOL_LINK_ON	0x00000002
+#define	SIS_PWRMAN_WOL_MAGIC	0x00000400
+
 /*
- * DMA descriptor structures. The first part of the descriptor
- * is the hardware descriptor format, which is just three longwords.
- * After this, we include some additional structure members for
- * use by the driver. Note that for this structure will be a different
- * size on the alpha, but that's okay as long as it's a multiple of 4
- * bytes in size.
+ * TX/RX DMA descriptor structures.
  */
 struct sis_desc {
 	/* SiS hardware descriptor section */
-	u_int32_t		sis_next;
-	u_int32_t		sis_cmdsts;
-#define sis_rxstat		sis_cmdsts
-#define sis_txstat		sis_cmdsts
-#define sis_ctl			sis_cmdsts
-	u_int32_t		sis_ptr;
-	/* Driver software section */
-	struct mbuf		*sis_mbuf;
-	struct sis_desc		*sis_nextdesc;
-	bus_dmamap_t		sis_map;
+	uint32_t		sis_next;
+	uint32_t		sis_cmdsts;
+	uint32_t		sis_ptr;
 };
 
 #define SIS_CMDSTS_BUFLEN	0x00000FFF
@@ -331,11 +347,6 @@ struct sis_desc {
 #define SIS_CMDSTS_INTR		0x20000000
 #define SIS_CMDSTS_MORE		0x40000000
 #define SIS_CMDSTS_OWN		0x80000000
-
-#define SIS_LASTDESC(x)		(!((x)->sis_ctl & SIS_CMDSTS_MORE))
-#define SIS_OWNDESC(x)		((x)->sis_ctl & SIS_CMDSTS_OWN)
-#define SIS_INC(x, y)		(x) = ((x) == ((y)-1)) ? 0 : (x)+1
-#define SIS_RXBYTES(x)		(((x)->sis_ctl & SIS_CMDSTS_BUFLEN) - ETHER_CRC_LEN)
 
 #define SIS_RXSTAT_COLL		0x00010000
 #define SIS_RXSTAT_LOOPBK	0x00020000
@@ -367,11 +378,24 @@ struct sis_desc {
 #define SIS_TXSTAT_UNDERRUN	0x02000000
 #define SIS_TXSTAT_TX_ABORT	0x04000000
 
+#define	SIS_DESC_ALIGN		16
+#define	SIS_RX_BUF_ALIGN	4
+#define	SIS_MAXTXSEGS		16
 #define SIS_RX_LIST_CNT		64
 #define SIS_TX_LIST_CNT		128
 
 #define SIS_RX_LIST_SZ		SIS_RX_LIST_CNT * sizeof(struct sis_desc)
 #define SIS_TX_LIST_SZ		SIS_TX_LIST_CNT * sizeof(struct sis_desc)
+
+#define	SIS_ADDR_LO(x)		((uint64_t) (x) & 0xffffffff)
+#define	SIS_ADDR_HI(x)		((uint64_t) (x) >> 32)
+
+#define	SIS_RX_RING_ADDR(sc, i)	\
+	((sc)->sis_rx_paddr + sizeof(struct sis_desc) * (i))
+#define	SIS_TX_RING_ADDR(sc, i)	\
+	((sc)->sis_tx_paddr + sizeof(struct sis_desc) * (i))
+
+#define	SIS_INC(x, y)		(x) = (x + 1) % (y)
 
 /*
  * SiS PCI vendor ID.
@@ -407,18 +431,18 @@ struct sis_desc {
 #define NS_DEVICEID_DP83815	0x0020
 
 struct sis_type {
-	u_int16_t		sis_vid;
-	u_int16_t		sis_did;
+	uint16_t		sis_vid;
+	uint16_t		sis_did;
 	char			*sis_name;
 };
 
 struct sis_mii_frame {
-	u_int8_t		mii_stdelim;
-	u_int8_t		mii_opcode;
-	u_int8_t		mii_phyaddr;
-	u_int8_t		mii_regaddr;
-	u_int8_t		mii_turnaround;
-	u_int16_t		mii_data;
+	uint8_t			mii_stdelim;
+	uint8_t			mii_opcode;
+	uint8_t			mii_phyaddr;
+	uint8_t			mii_regaddr;
+	uint8_t			mii_turnaround;
+	uint16_t		mii_data;
 };
 
 /*
@@ -434,37 +458,54 @@ struct sis_mii_frame {
 #define SIS_TYPE_83815	3
 #define SIS_TYPE_83816	4
 
+struct sis_txdesc {
+	struct mbuf		*tx_m;
+	bus_dmamap_t		tx_dmamap;
+};
+
+struct sis_rxdesc {
+	struct mbuf		*rx_m;
+	bus_dmamap_t		rx_dmamap;
+	struct sis_desc		*rx_desc;
+};
+
 struct sis_softc {
 	struct ifnet		*sis_ifp;	/* interface info */
 	struct resource		*sis_res[2];
 	void			*sis_intrhand;
 	device_t		sis_dev;
 	device_t		sis_miibus;
-	u_int8_t		sis_type;
-	u_int8_t		sis_rev;
-	u_int8_t		sis_link;
-	u_int			sis_srr;
+	uint8_t			sis_type;
+	uint8_t			sis_rev;
+	uint32_t		sis_flags;
+#define	SIS_FLAG_MANUAL_PAD	0x0800
+#define	SIS_FLAG_LINK		0x8000
+	int			sis_manual_pad;
+	uint32_t		sis_srr;
 	struct sis_desc		*sis_rx_list;
 	struct sis_desc		*sis_tx_list;
-	bus_dma_tag_t		sis_rx_tag;
-	bus_dmamap_t		sis_rx_dmamap;
-	bus_dma_tag_t		sis_tx_tag;
-	bus_dmamap_t		sis_tx_dmamap;
+	bus_dma_tag_t		sis_rx_list_tag;
+	bus_dmamap_t		sis_rx_list_map;
+	bus_dma_tag_t		sis_tx_list_tag;
+	bus_dmamap_t		sis_tx_list_map;
 	bus_dma_tag_t		sis_parent_tag;
-	bus_dma_tag_t		sis_tag;
-	struct sis_desc		*sis_rx_pdsc;
+	bus_dma_tag_t		sis_rx_tag;
+	bus_dmamap_t		sis_rx_sparemap;
+	bus_dma_tag_t		sis_tx_tag;
+	struct sis_rxdesc	sis_rxdesc[SIS_RX_LIST_CNT];
+	struct sis_txdesc	sis_txdesc[SIS_TX_LIST_CNT];
 	int			sis_tx_prod;
 	int			sis_tx_cons;
 	int			sis_tx_cnt;
-	u_int32_t		sis_rx_paddr;
-	u_int32_t		sis_tx_paddr;
+	int			sis_rx_cons;
+	bus_addr_t		sis_rx_paddr;
+	bus_addr_t		sis_tx_paddr;
 	struct callout		sis_stat_ch;
 	int			sis_watchdog_timer;
-	int			sis_stopped;
+	int			sis_if_flags;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif
-	int			in_tick;
 	struct mtx		sis_mtx;
 };
 

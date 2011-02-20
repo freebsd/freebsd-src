@@ -36,6 +36,7 @@
 #ifndef OUTPUT_INCL
 
 #include <stdarg.h>
+#include <stddef.h>
 
 struct output {
 	char *nextc;
@@ -53,12 +54,14 @@ extern struct output *out1; /* &memout if backquote, otherwise &output */
 extern struct output *out2; /* &memout if backquote with 2>&1, otherwise
 			       &errout */
 
+void outcslow(int, struct output *);
 void out1str(const char *);
 void out1qstr(const char *);
 void out2str(const char *);
 void out2qstr(const char *);
 void outstr(const char *, struct output *);
 void outqstr(const char *, struct output *);
+void outbin(const void *, size_t, struct output *);
 void emptyoutbuf(struct output *);
 void flushall(void);
 void flushout(struct output *);
@@ -72,7 +75,7 @@ int xwrite(int, const char *, int);
 
 #define outc(c, file)	(--(file)->nleft < 0? (emptyoutbuf(file), *(file)->nextc++ = (c)) : (*(file)->nextc++ = (c)))
 #define out1c(c)	outc(c, out1);
-#define out2c(c)	outc(c, out2);
+#define out2c(c)	outcslow(c, out2);
 
 #define OUTPUT_INCL
 #endif

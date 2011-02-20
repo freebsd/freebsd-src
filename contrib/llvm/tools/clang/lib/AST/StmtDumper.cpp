@@ -65,6 +65,13 @@ namespace  {
               OS << '\n';
               DumpSubTree(*CI++);
             }
+            if (const ConditionalOperator *CO = 
+                  dyn_cast<ConditionalOperator>(S)) {
+              if (CO->getSAVE()) {
+                OS << '\n';
+                DumpSubTree(CO->getSAVE());
+              }
+            }
           }
         }
         OS << ')';
@@ -225,7 +232,7 @@ void StmtDumper::DumpDeclarator(Decl *D) {
     OS << "\"";
     // Emit storage class for vardecls.
     if (VarDecl *V = dyn_cast<VarDecl>(VD)) {
-      if (V->getStorageClass() != VarDecl::None)
+      if (V->getStorageClass() != SC_None)
         OS << VarDecl::getStorageClassSpecifierString(V->getStorageClass())
            << " ";
     }
@@ -308,13 +315,13 @@ void StmtDumper::VisitExpr(Expr *Node) {
 }
 
 static void DumpBasePath(llvm::raw_ostream &OS, CastExpr *Node) {
-  if (Node->getBasePath().empty())
+  if (Node->path_empty())
     return;
 
   OS << " (";
   bool First = true;
-  for (CXXBaseSpecifierArray::iterator I = Node->getBasePath().begin(),
-       E = Node->getBasePath().end(); I != E; ++I) {
+  for (CastExpr::path_iterator
+         I = Node->path_begin(), E = Node->path_end(); I != E; ++I) {
     const CXXBaseSpecifier *Base = *I;
     if (!First)
       OS << " -> ";
@@ -340,8 +347,16 @@ void StmtDumper::VisitCastExpr(CastExpr *Node) {
 
 void StmtDumper::VisitImplicitCastExpr(ImplicitCastExpr *Node) {
   VisitCastExpr(Node);
-  if (Node->isLvalueCast())
+  switch (Node->getValueKind()) {
+  case VK_LValue:
     OS << " lvalue";
+    break;
+  case VK_XValue:
+    OS << " xvalue";
+    break;
+  case VK_RValue:
+    break;
+  }
 }
 
 void StmtDumper::VisitDeclRefExpr(DeclRefExpr *Node) {
@@ -421,8 +436,7 @@ void StmtDumper::VisitStringLiteral(StringLiteral *Str) {
   if (Str->isWide())
     OS << "L";
   OS << '"';
-  OS.write_escaped(llvm::StringRef(Str->getStrData(),
-                                   Str->getByteLength()));
+  OS.write_escaped(Str->getString());
   OS << '"';
 }
 
@@ -511,6 +525,8 @@ void StmtDumper::VisitCXXConstructExpr(CXXConstructExpr *Node) {
   DumpType(Ctor->getType());
   if (Node->isElidable())
     OS << " elidable";
+  if (Node->requiresZeroInitialization())
+    OS << " zeroing";
 }
 
 void StmtDumper::VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *Node) {
@@ -623,9 +639,13 @@ void StmtDumper::VisitObjCSuperExpr(ObjCSuperExpr *Node) {
 /// specified node and a few nodes underneath it, but not the whole subtree.
 /// This is useful in a debugger.
 void Stmt::dump(SourceManager &SM) const {
-  StmtDumper P(&SM, llvm::errs(), 4);
+  dump(llvm::errs(), SM);
+}
+
+void Stmt::dump(llvm::raw_ostream &OS, SourceManager &SM) const {
+  StmtDumper P(&SM, OS, 4);
   P.DumpSubTree(const_cast<Stmt*>(this));
-  llvm::errs() << "\n";
+  OS << "\n";
 }
 
 /// dump - This does a local dump of the specified AST fragment.  It dumps the

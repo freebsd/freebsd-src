@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -46,24 +48,40 @@
  *
  * Small helper utilities.
  *
- * <hr>$Revision: 42493 $<hr>
+ * <hr>$Revision: 49448 $<hr>
  */
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include <linux/module.h>
+
+#include <asm/octeon/cvmx.h>
+#include <asm/octeon/cvmx-config.h>
+#include <asm/octeon/cvmx-pip.h>
+#include <asm/octeon/cvmx-ipd.h>
+#include <asm/octeon/cvmx-helper.h>
+#include <asm/octeon/cvmx-gmxx-defs.h>
+#include <asm/octeon/cvmx-pko-defs.h>
+#else
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+#include "executive-config.h"
+#include "cvmx-config.h"
+#endif
 #include "cvmx.h"
 #include "cvmx-bootmem.h"
 #include "cvmx-fpa.h"
 #include "cvmx-pip.h"
 #include "cvmx-pko.h"
 #include "cvmx-ipd.h"
-#include "cvmx-asx.h"
 #include "cvmx-gmx.h"
 #include "cvmx-spi.h"
 #include "cvmx-sysinfo.h"
 #include "cvmx-helper.h"
 #include "cvmx-helper-util.h"
 #include "cvmx-version.h"
+#endif
 
 #ifdef CVMX_ENABLE_HELPER_FUNCTIONS
 
+#ifndef CVMX_BUILD_FOR_LINUX_KERNEL
 /**
  * Get the version of the CVMX libraries.
  *
@@ -74,7 +92,7 @@ const char *cvmx_helper_get_version(void)
 {
     return OCTEON_SDK_VERSION_STRING;
 }
-
+#endif
 
 /**
  * Convert a interface mode into a human readable string
@@ -97,6 +115,7 @@ const char *cvmx_helper_interface_mode_to_string(cvmx_helper_interface_mode_t mo
         case CVMX_HELPER_INTERFACE_MODE_PICMG:      return "PICMG";
         case CVMX_HELPER_INTERFACE_MODE_NPI:        return "NPI";
         case CVMX_HELPER_INTERFACE_MODE_LOOP:       return "LOOP";
+        case CVMX_HELPER_INTERFACE_MODE_SRIO:       return "SRIO";
     }
     return "UNKNOWN";
 }
@@ -204,7 +223,7 @@ int cvmx_helper_dump_packet(cvmx_wqe_t *work)
  */
 int cvmx_helper_setup_red_queue(int queue, int pass_thresh, int drop_thresh)
 {
-    cvmx_ipd_qos_red_marks_t red_marks;
+    cvmx_ipd_qosx_red_marks_t red_marks;
     cvmx_ipd_red_quex_param_t red_param;
 
     /* Set RED to begin dropping packets when there are pass_thresh buffers
@@ -271,8 +290,20 @@ int cvmx_helper_setup_red(int pass_thresh, int drop_thresh)
     red_port_enable.s.prb_dly = 10000;
     cvmx_write_csr(CVMX_IPD_RED_PORT_ENABLE, red_port_enable.u64);
 
+    /* Shutoff the dropping of packets based on RED for SRIO ports */
+    if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+    {
+        cvmx_ipd_red_port_enable2_t red_port_enable2;
+        red_port_enable2.u64 = 0;
+        red_port_enable2.s.prt_enb = 0xf0;
+        cvmx_write_csr(CVMX_IPD_RED_PORT_ENABLE2, red_port_enable2.u64);
+    }
+
     return 0;
 }
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_helper_setup_red);
+#endif
 
 
 /**
@@ -383,7 +414,7 @@ int __cvmx_helper_setup_gmx(int interface, int num_ports)
 
 
 /**
- * Returns the IPD/PKO port number for a port on teh given
+ * Returns the IPD/PKO port number for a port on the given
  * interface.
  *
  * @param interface Interface to use
@@ -399,9 +430,14 @@ int cvmx_helper_get_ipd_port(int interface, int port)
         case 1: return port + 16;
         case 2: return port + 32;
         case 3: return port + 36;
+        case 4: return port + 40;
+        case 5: return port + 42;
     }
     return -1;
 }
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_helper_get_ipd_port);
+#endif
 
 #endif /* CVMX_ENABLE_HELPER_FUNCTIONS */
 
@@ -423,11 +459,18 @@ int cvmx_helper_get_interface_num(int ipd_port)
         return 2;
     else if (ipd_port < 40)
         return 3;
+    else if (ipd_port < 42)
+	return 4;
+    else if (ipd_port < 44)
+	return 5;
     else
         cvmx_dprintf("cvmx_helper_get_interface_num: Illegal IPD port number\n");
 
     return -1;
 }
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_helper_get_interface_num);
+#endif
 
 
 /**
@@ -442,121 +485,15 @@ int cvmx_helper_get_interface_index_num(int ipd_port)
 {
     if (ipd_port < 32)
         return ipd_port & 15;
-    else if (ipd_port < 36)
-        return ipd_port & 3;
     else if (ipd_port < 40)
         return ipd_port & 3;
+    else if (ipd_port < 44)
+	return ipd_port & 1;
     else
         cvmx_dprintf("cvmx_helper_get_interface_index_num: Illegal IPD port number\n");
 
     return -1;
 }
-
-/**
- * Initialize the internal QLM JTAG logic to allow programming
- * of the JTAG chain by the cvmx_helper_qlm_jtag_*() functions.
- * These functions should only be used at the direction of Cavium
- * Networks. Programming incorrect values into the JTAG chain
- * can cause chip damage.
- */
-void cvmx_helper_qlm_jtag_init(void)
-{
-    cvmx_ciu_qlm_jtgc_t jtgc;
-    int clock_div = 0;
-    int divisor = cvmx_sysinfo_get()->cpu_clock_hz / (25 * 1000000);
-    divisor = (divisor-1)>>2;
-    /* Convert the divisor into a power of 2 shift */
-    CVMX_CLZ(clock_div, divisor);
-    clock_div = 32 - clock_div;
-
-    /* Clock divider for QLM JTAG operations.  eclk is divided by 2^(CLK_DIV + 2) */
-    jtgc.u64 = 0;
-    jtgc.s.clk_div = clock_div;
-    jtgc.s.mux_sel = 0;
-    if (OCTEON_IS_MODEL(OCTEON_CN52XX))
-        jtgc.s.bypass = 0x3;
-    else
-        jtgc.s.bypass = 0xf;
-    cvmx_write_csr(CVMX_CIU_QLM_JTGC, jtgc.u64);
-    cvmx_read_csr(CVMX_CIU_QLM_JTGC);
-}
-
-
-/**
- * Write up to 32bits into the QLM jtag chain. Bits are shifted
- * into the MSB and out the LSB, so you should shift in the low
- * order bits followed by the high order bits. The JTAG chain is
- * 4 * 268 bits long, or 1072.
- *
- * @param qlm    QLM to shift value into
- * @param bits   Number of bits to shift in (1-32).
- * @param data   Data to shift in. Bit 0 enters the chain first, followed by
- *               bit 1, etc.
- *
- * @return The low order bits of the JTAG chain that shifted out of the
- *         circle.
- */
-uint32_t cvmx_helper_qlm_jtag_shift(int qlm, int bits, uint32_t data)
-{
-    cvmx_ciu_qlm_jtgd_t jtgd;
-    jtgd.u64 = 0;
-    jtgd.s.shift = 1;
-    jtgd.s.shft_cnt = bits-1;
-    jtgd.s.shft_reg = data;
-    if (!OCTEON_IS_MODEL(OCTEON_CN56XX_PASS1_X))
-        jtgd.s.select = 1 << qlm;
-    cvmx_write_csr(CVMX_CIU_QLM_JTGD, jtgd.u64);
-    do
-    {
-        jtgd.u64 = cvmx_read_csr(CVMX_CIU_QLM_JTGD);
-    } while (jtgd.s.shift);
-    return jtgd.s.shft_reg >> (32-bits);
-}
-
-
-/**
- * Shift long sequences of zeros into the QLM JTAG chain. It is
- * common to need to shift more than 32 bits of zeros into the
- * chain. This function is a convience wrapper around
- * cvmx_helper_qlm_jtag_shift() to shift more than 32 bits of
- * zeros at a time.
- *
- * @param qlm    QLM to shift zeros into
- * @param bits
- */
-void cvmx_helper_qlm_jtag_shift_zeros(int qlm, int bits)
-{
-    while (bits > 0)
-    {
-        int n = bits;
-        if (n > 32)
-            n = 32;
-        cvmx_helper_qlm_jtag_shift(qlm, n, 0);
-        bits -= n;
-    }
-}
-
-
-/**
- * Program the QLM JTAG chain into all lanes of the QLM. You must
- * have already shifted in 268*4, or 1072 bits into the JTAG
- * chain. Updating invalid values can possibly cause chip damage.
- *
- * @param qlm    QLM to program
- */
-void cvmx_helper_qlm_jtag_update(int qlm)
-{
-    cvmx_ciu_qlm_jtgd_t jtgd;
-
-    /* Update the new data */
-    jtgd.u64 = 0;
-    jtgd.s.update = 1;
-    if (!OCTEON_IS_MODEL(OCTEON_CN56XX_PASS1_X))
-        jtgd.s.select = 1 << qlm;
-    cvmx_write_csr(CVMX_CIU_QLM_JTGD, jtgd.u64);
-    do
-    {
-        jtgd.u64 = cvmx_read_csr(CVMX_CIU_QLM_JTGD);
-    } while (jtgd.s.update);
-}
-
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_helper_get_interface_index_num);
+#endif

@@ -23,7 +23,7 @@
 .\" [jkh] Took John's changes back and made some additional extensions for
 .\" better integration with FreeBSD's new ports collection.
 .\"
-.Dd May 30, 2008
+.Dd Oct 12, 2010
 .Dt PKG_CREATE 1
 .Os
 .Sh NAME
@@ -315,7 +315,7 @@ archive is explicitly specified by the recognizable suffix of
 Currently
 .Nm
 recognizes the following suffixes:
-.Pa .tbz , .tgz
+.Pa .tbz , .tgz, .txz
 and
 .Pa .tar .
 .It Fl y
@@ -325,6 +325,20 @@ Compatibility synonym for
 Use
 .Xr gzip 1
 utility to compress package tarball.
+.It Fl J
+Use
+.Xr xz 1
+utility to compress package tarball instead of
+.Xr gzip 1 .
+Please note that this option is a NO-OP if the format of the resulting
+archive is explicitly specified by the recognizable suffix of
+.Ar pkg-filename .
+Currently
+.Nm
+recognizes the following suffixes:
+.Pa .tbz , .tgz, .txz
+and
+.Pa .tar .
 .It Fl b , -backup Ar pkg-name
 Create package file from a locally installed package named
 .Ar pkg-name .

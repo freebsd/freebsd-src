@@ -220,7 +220,7 @@ wpa_driver_bsd_set_ssid(void *priv, const char *ssid,
 
 static int
 wpa_driver_bsd_set_wpa_ie(struct wpa_driver_bsd_data *drv,
-	const char *wpa_ie, size_t wpa_ie_len)
+	const u8 *wpa_ie, size_t wpa_ie_len)
 {
 	struct ieee80211req ireq;
 
@@ -259,14 +259,6 @@ wpa_driver_bsd_set_wpa_internal(void *priv, int wpa, int privacy)
 }
 
 static int
-wpa_driver_bsd_set_wpa(void *priv, int enabled)
-{
-	wpa_printf(MSG_DEBUG, "%s: enabled=%d", __FUNCTION__, enabled);
-
-	return wpa_driver_bsd_set_wpa_internal(priv, enabled ? 3 : 0, enabled);
-}
-
-static int
 wpa_driver_bsd_del_key(struct wpa_driver_bsd_data *drv, int key_idx,
 		       const unsigned char *addr)
 {
@@ -290,7 +282,7 @@ wpa_driver_bsd_del_key(struct wpa_driver_bsd_data *drv, int key_idx,
 }
 
 static int
-wpa_driver_bsd_set_key(void *priv, wpa_alg alg,
+wpa_driver_bsd_set_key(const char *ifname, void *priv, enum wpa_alg alg,
 		       const unsigned char *addr, int key_idx, int set_tx,
 		       const u8 *seq, size_t seq_len,
 		       const u8 *key, size_t key_len)
@@ -393,6 +385,26 @@ wpa_driver_bsd_set_drop_unencrypted(void *priv, int enabled)
 }
 
 static int
+wpa_driver_bsd_set_auth_alg(void *priv, int auth_alg)
+{
+	struct wpa_driver_bsd_data *drv = priv;
+	int authmode;
+
+	if ((auth_alg & WPA_AUTH_ALG_OPEN) &&
+	    (auth_alg & WPA_AUTH_ALG_SHARED))
+		authmode = IEEE80211_AUTH_AUTO;
+	else if (auth_alg & WPA_AUTH_ALG_SHARED)
+		authmode = IEEE80211_AUTH_SHARED;
+	else
+		authmode = IEEE80211_AUTH_OPEN;
+
+	wpa_printf(MSG_DEBUG, "%s alg 0x%x authmode %u",
+		__func__, auth_alg, authmode);
+
+	return set80211param(drv, IEEE80211_IOC_AUTHMODE, authmode);
+}
+
+static int
 wpa_driver_bsd_deauthenticate(void *priv, const u8 *addr, int reason_code)
 {
 	struct wpa_driver_bsd_data *drv = priv;
@@ -452,6 +464,11 @@ wpa_driver_bsd_associate(void *priv, struct wpa_driver_associate_params *params)
 		return -1;
 	}
 
+        if (wpa_driver_bsd_set_drop_unencrypted(drv, params->drop_unencrypted)
+            < 0)
+                return -1;
+	if (wpa_driver_bsd_set_auth_alg(drv, params->auth_alg) < 0)
+		return -1;
 	/* XXX error handling is wrong but unclear what to do... */
 	if (wpa_driver_bsd_set_wpa_ie(drv, params->wpa_ie, params->wpa_ie_len) < 0)
 		return -1;
@@ -485,30 +502,11 @@ wpa_driver_bsd_associate(void *priv, struct wpa_driver_associate_params *params)
 }
 
 static int
-wpa_driver_bsd_set_auth_alg(void *priv, int auth_alg)
-{
-	struct wpa_driver_bsd_data *drv = priv;
-	int authmode;
-
-	if ((auth_alg & AUTH_ALG_OPEN_SYSTEM) &&
-	    (auth_alg & AUTH_ALG_SHARED_KEY))
-		authmode = IEEE80211_AUTH_AUTO;
-	else if (auth_alg & AUTH_ALG_SHARED_KEY)
-		authmode = IEEE80211_AUTH_SHARED;
-	else
-		authmode = IEEE80211_AUTH_OPEN;
-
-	wpa_printf(MSG_DEBUG, "%s alg 0x%x authmode %u",
-		__func__, auth_alg, authmode);
-
-	return set80211param(drv, IEEE80211_IOC_AUTHMODE, authmode);
-}
-
-static int
-wpa_driver_bsd_scan(void *priv, const u8 *ssid, size_t ssid_len)
+wpa_driver_bsd_scan(void *priv, struct wpa_driver_scan_params *params)
 {
 	struct wpa_driver_bsd_data *drv = priv;
 	struct ieee80211_scan_req sr;
+	int i;
 	int flags;
 
 	/* XXX not true but easiest to perpetuate the myth */
@@ -529,30 +527,21 @@ wpa_driver_bsd_scan(void *priv, const u8 *ssid, size_t ssid_len)
 		    | IEEE80211_IOC_SCAN_NOJOIN
 		    ;
 	sr.sr_duration = IEEE80211_IOC_SCAN_FOREVER;
-	if (ssid_len != 0) {
-		/* XXX ssid_len must be <= IEEE80211_NWID_LEN */
-		memcpy(sr.sr_ssid[sr.sr_nssid].ssid, ssid, ssid_len);
-		sr.sr_ssid[sr.sr_nssid].len = ssid_len;
-		sr.sr_nssid++;
-	}
-	if (drv->lastssid_len != 0 &&
-	    (drv->lastssid_len != ssid_len ||
-	     memcmp(drv->lastssid, ssid, ssid_len) != 0)) {
-		/*
-		 * If we are scanning because we received a deauth
-		 * and the scan cache is warm then we'll find the
-		 * ap there and short circuit a full-blown scan.
-		 */
-		memcpy(sr.sr_ssid[sr.sr_nssid].ssid, drv->lastssid,
-		    drv->lastssid_len);
-		sr.sr_ssid[sr.sr_nssid].len = drv->lastssid_len;
-		sr.sr_nssid++;
-		/* NB: clear so we don't retry w/o associating first */
-		drv->lastssid_len = 0;
-	}
-	if (sr.sr_nssid != 0)		/* NB: check scan cache first */
+	if (params->num_ssids > 0) {
+		sr.sr_nssid = params->num_ssids;
+#if 0
+		/* Boundary check is done by upper layer */
+		if (sr.sr_nssid > IEEE80211_IOC_SCAN_MAX_SSID)
+			sr.sr_nssid = IEEE80211_IOC_SCAN_MAX_SSID;
+#endif
+		/* NB: check scan cache first */
 		sr.sr_flags |= IEEE80211_IOC_SCAN_CHECK;
-
+}
+	for (i = 0; i < sr.sr_nssid; i++) {
+		sr.sr_ssid[i].len = params->ssids[i].ssid_len;
+		os_memcpy(sr.sr_ssid[i].ssid, params->ssids[i].ssid,
+			  sr.sr_ssid[i].len);
+	}
 	/* NB: net80211 delivers a scan complete event so no need to poll */
 	return set80211var(drv, IEEE80211_IOC_SCAN_REQ, &sr, sizeof(sr));
 }
@@ -654,40 +643,6 @@ wpa_driver_bsd_event_receive(int sock, void *ctx, void *sock_ctx)
 	}
 }
 
-/* Compare function for sorting scan results. Return >0 if @b is consider
- * better. */
-static int
-wpa_scan_result_compar(const void *a, const void *b)
-{
-	const struct wpa_scan_result *wa = a;
-	const struct wpa_scan_result *wb = b;
-
-	/* WPA/WPA2 support preferred */
-	if ((wb->wpa_ie_len || wb->rsn_ie_len) &&
-	    !(wa->wpa_ie_len || wa->rsn_ie_len))
-		return 1;
-	if (!(wb->wpa_ie_len || wb->rsn_ie_len) &&
-	    (wa->wpa_ie_len || wa->rsn_ie_len))
-		return -1;
-
-	/* privacy support preferred */
-	if ((wa->caps & IEEE80211_CAPINFO_PRIVACY) &&
-	    (wb->caps & IEEE80211_CAPINFO_PRIVACY) == 0)
-		return 1;
-	if ((wa->caps & IEEE80211_CAPINFO_PRIVACY) == 0 &&
-	    (wb->caps & IEEE80211_CAPINFO_PRIVACY))
-		return -1;
-
-	/* best/max rate preferred if signal level close enough XXX */
-	if (wa->maxrate != wb->maxrate && abs(wb->level - wa->level) < 5)
-		return wb->maxrate - wa->maxrate;
-
-	/* use freq for channel preference */
-
-	/* all things being equal, use signal level */
-	return wb->level - wa->level;
-}
-
 static int
 getmaxrate(const uint8_t rates[15], uint8_t nrates)
 {
@@ -715,73 +670,96 @@ iswpaoui(const u_int8_t *frm)
 	return frm[1] > 3 && LE_READ_4(frm+2) == ((WPA_OUI_TYPE<<24)|WPA_OUI);
 }
 
-static int
-wpa_driver_bsd_get_scan_results(void *priv,
-				     struct wpa_scan_result *results,
-				     size_t max_size)
+
+static void
+wpa_driver_bsd_add_scan_entry(struct wpa_scan_results *res,
+                              struct ieee80211req_scan_result *sr)
 {
-#define	min(a,b)	((a)>(b)?(b):(a))
-	struct wpa_driver_bsd_data *drv = priv;
-	uint8_t buf[24*1024];
-	const uint8_t *cp, *vp;
-	const struct ieee80211req_scan_result *sr;
-	struct wpa_scan_result *wsr;
-	int len, ielen;
+        struct wpa_scan_res *result, **tmp;
+        size_t extra_len;
+        u8 *pos;
 
-	memset(results, 0, max_size * sizeof(struct wpa_scan_result));
+        extra_len = 2 + sr->isr_ssid_len;
+        extra_len += 2 + sr->isr_nrates;
+        extra_len += 3; /* ERP IE */
+        extra_len += sr->isr_ie_len;
 
-	len = get80211var(drv, IEEE80211_IOC_SCAN_RESULTS, buf, sizeof(buf));
-	if (len < 0)
-		return -1;
-	cp = buf;
-	wsr = results;
-	while (len >= sizeof(struct ieee80211req_scan_result)) {
-		sr = (const struct ieee80211req_scan_result *) cp;
-		memcpy(wsr->bssid, sr->isr_bssid, IEEE80211_ADDR_LEN);
-		wsr->ssid_len = sr->isr_ssid_len;
-		wsr->freq = sr->isr_freq;
-		wsr->noise = sr->isr_noise;
-		wsr->qual = sr->isr_rssi;
-		wsr->level = 0;		/* XXX? */
-		wsr->caps = sr->isr_capinfo;
-		wsr->maxrate = getmaxrate(sr->isr_rates, sr->isr_nrates);
-		vp = ((u_int8_t *)sr) + sr->isr_ie_off;
-		memcpy(wsr->ssid, vp, sr->isr_ssid_len);
-		if (sr->isr_ie_len > 0) {
-			vp += sr->isr_ssid_len;
-			ielen = sr->isr_ie_len;
-			while (ielen > 0) {
-				switch (vp[0]) {
-				case IEEE80211_ELEMID_VENDOR:
-					if (!iswpaoui(vp))
-						break;
-					wsr->wpa_ie_len =
-					    min(2+vp[1], SSID_MAX_WPA_IE_LEN);
-					memcpy(wsr->wpa_ie, vp, wsr->wpa_ie_len);
-					break;
-				case IEEE80211_ELEMID_RSN:
-					wsr->rsn_ie_len =
-					    min(2+vp[1], SSID_MAX_WPA_IE_LEN);
-					memcpy(wsr->rsn_ie, vp, wsr->rsn_ie_len);
-					break;
-				}
-				ielen -= 2+vp[1];
-				vp += 2+vp[1];
-			}
-		}
+        result = os_zalloc(sizeof(*result) + extra_len);
+        if (result == NULL)
+                return;
+        os_memcpy(result->bssid, sr->isr_bssid, ETH_ALEN);
+        result->freq = sr->isr_freq;
+        result->beacon_int = sr->isr_intval;
+        result->caps = sr->isr_capinfo;
+        result->qual = sr->isr_rssi;
+        result->noise = sr->isr_noise;
 
-		cp += sr->isr_len, len -= sr->isr_len;
-		wsr++;
-	}
-	qsort(results, wsr - results, sizeof(struct wpa_scan_result),
-	      wpa_scan_result_compar);
+        pos = (u8 *)(result + 1);
 
-	wpa_printf(MSG_DEBUG, "Received %d bytes of scan results (%d BSSes)",
-		   len, wsr - results);
+        *pos++ = WLAN_EID_SSID;
+        *pos++ = sr->isr_ssid_len;
+        os_memcpy(pos, sr + 1, sr->isr_ssid_len);
+        pos += sr->isr_ssid_len;
 
-	return wsr - results;
-#undef min
+        /*
+         * Deal all rates as supported rate.
+         * Because net80211 doesn't report extended supported rate or not.
+         */
+        *pos++ = WLAN_EID_SUPP_RATES;
+        *pos++ = sr->isr_nrates;
+        os_memcpy(pos, sr->isr_rates, sr->isr_nrates);
+       pos += sr->isr_nrates;
+
+        *pos++ = WLAN_EID_ERP_INFO;
+        *pos++ = 1;
+        *pos++ = sr->isr_erp;
+
+        os_memcpy(pos, (u8 *)(sr + 1) + sr->isr_ssid_len, sr->isr_ie_len);
+        pos += sr->isr_ie_len;
+
+        result->ie_len = pos - (u8 *)(result + 1);
+
+        tmp = os_realloc(res->res,
+                         (res->num + 1) * sizeof(struct wpa_scan_res *));
+        if (tmp == NULL) {
+                os_free(result);
+                return;
+        }
+        tmp[res->num++] = result;
+        res->res = tmp;
 }
+
+static struct wpa_scan_results *
+wpa_driver_bsd_get_scan_results2(void *priv)
+{
+	struct ieee80211req_scan_result *sr;
+	struct wpa_scan_results *res;
+	int len, rest;
+	uint8_t buf[24*1024], *pos;
+
+	len = get80211var(priv, IEEE80211_IOC_SCAN_RESULTS, buf, 24*1024);
+	if (len < 0)
+		return NULL;
+
+	res = os_zalloc(sizeof(*res));
+	if (res == NULL)
+		return NULL;
+
+	pos = buf;
+	rest = len;
+	while (rest >= sizeof(struct ieee80211req_scan_result)) {
+		sr = (struct ieee80211req_scan_result *)pos;
+		wpa_driver_bsd_add_scan_entry(res, sr);
+		pos += sr->isr_len;
+		rest -= sr->isr_len;
+	}
+
+	wpa_printf(MSG_DEBUG, "Received %d bytes of scan results (%lu BSSes)",
+		len, (unsigned long)res->num);
+
+	return (res);
+}
+
 
 #define	GETPARAM(drv, param, v) \
 	(((v) = get80211param(drv, param)) != -1)
@@ -941,14 +919,11 @@ struct wpa_driver_ops wpa_driver_bsd_ops = {
 	.deinit			= wpa_driver_bsd_deinit,
 	.get_bssid		= wpa_driver_bsd_get_bssid,
 	.get_ssid		= wpa_driver_bsd_get_ssid,
-	.set_wpa		= wpa_driver_bsd_set_wpa,
 	.set_key		= wpa_driver_bsd_set_key,
 	.set_countermeasures	= wpa_driver_bsd_set_countermeasures,
-	.set_drop_unencrypted	= wpa_driver_bsd_set_drop_unencrypted,
-	.scan			= wpa_driver_bsd_scan,
-	.get_scan_results	= wpa_driver_bsd_get_scan_results,
+	.scan2			= wpa_driver_bsd_scan,
+	.get_scan_results2	= wpa_driver_bsd_get_scan_results2,
 	.deauthenticate		= wpa_driver_bsd_deauthenticate,
 	.disassociate		= wpa_driver_bsd_disassociate,
 	.associate		= wpa_driver_bsd_associate,
-	.set_auth_alg		= wpa_driver_bsd_set_auth_alg,
 };

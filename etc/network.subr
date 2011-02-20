@@ -96,32 +96,44 @@ ifconfig_up()
 	# inet6 specific
 	if afexists inet6; then
 		if ipv6if $1; then
-			# Implicitly handles ipv6_gateway_enable
-			_ipv6_opts='-ifdisabled -accept_rtadv'
-
-			if ipv6_autoconfif $1; then
-				_ipv6_opts='-ifdisabled accept_rtadv'
-			fi
-
-			ifconfig $1 inet6 $_ipv6_opts
-
-			# ifconfig_IF_ipv6
-			ifconfig_args=`ifconfig_getargs $1 ipv6`
-
-			if [ -n "$ifconfig_args" ]; then
-				ifconfig $1 $ifconfig_args
-				_cfg=0
+			if checkyesno ipv6_gateway_enable; then
+				_ipv6_opts="-accept_rtadv"
 			fi
 		else
-		# Remove in FreeBSD 10.x
-		# Explicit test is necessary here to avoid nonexistence error
-			case "$ipv6_enable" in
+			if checkyesno ipv6_activate_all_interfaces; then
+				_ipv6_opts="-ifdisabled"
+			else
+				_ipv6_opts="ifdisabled"
+			fi
+
+			# backward compatibility: $ipv6_enable
+			case $ipv6_enable in
 			[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
-			warn "Interface $1 will NOT be configured for IPv6"
+				_ipv6_opts="${_ipv6_opts} accept_rtadv"
 				;;
 			esac
+		fi
 
-			ifconfig $1 inet6 ifdisabled
+		if [ -n "${_ipv6_opts}" ]; then
+			ifconfig $1 inet6 ${_ipv6_opts}
+		fi
+
+		# ifconfig_IF_ipv6
+		ifconfig_args=`ifconfig_getargs $1 ipv6`
+		if [ -n "${ifconfig_args}" ]; then
+			ifconfig $1 inet6 -ifdisabled
+			ifconfig $1 ${ifconfig_args}
+			_cfg=0
+		fi
+
+		# backward compatiblity: $ipv6_ifconfig_IF
+		ifconfig_args=`get_if_var $1 ipv6_ifconfig_IF`
+		if [ -n "${ifconfig_args}" ]; then
+			warn "\$ipv6_ifconfig_$1 is obsolete." \
+			    "  Use ifconfig_$1_ipv6 instead."
+			ifconfig $1 inet6 -ifdisabled
+			ifconfig $1 inet6 ${ifconfig_args}
+			_cfg=0
 		fi
 	fi
 
@@ -207,7 +219,7 @@ get_if_var()
 #	outside this file.
 _ifconfig_getargs()
 {
-	local _ifn _af value
+	local _ifn _af
 	_ifn=$1
 	_af=${2+_$2}
 
@@ -215,18 +227,7 @@ _ifconfig_getargs()
 		return 1
 	fi
 
-	value=`get_if_var $_ifn ifconfig_IF$_af "$ifconfig_DEFAULT"`
-
-	# Remove in FreeBSD 10.x
-	if [ "$_af" = _ipv6 -a -z "$value" ]; then
-		value=`get_if_var $_ifn ipv6_ifconfig_IF "$ifconfig_DEFAULT"`
-		if [ -n "$value" ]; then
-			warn "\$ipv6_ifconfig_$1 is obsolete." \
-			"  Use ifconfig_$1_ipv6 instead."
-		fi
-	fi
-
-	echo $value
+	get_if_var $_ifn ifconfig_IF$_af "$ifconfig_DEFAULT"
 }
 
 # ifconfig_getargs if [af]
@@ -248,8 +249,6 @@ ifconfig_getargs()
 		[Nn][Oo][Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]) ;;
 		[Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]) ;;
 		[Ww][Pp][Aa]) ;;
-		[Rr][Tt][Aa][Dd][Vv]) ;;
-		[Nn][Oo][Rr][Tt][Aa][Dd][Vv]) ;;
 		*)
 			_args="$_args $_arg"
 			;;
@@ -373,47 +372,67 @@ afexists()
 	esac
 }
 
+# noafif if
+#	Returns 0 if the interface has no af configuration and 1 otherwise.
+noafif()
+{
+	local _if
+	_if=$1
+
+	case $_if in
+	pflog[0-9]*|\
+	pfsync[0-9]*|\
+	an[0-9]*|\
+	ath[0-9]*|\
+	ipw[0-9]*|\
+	ipfw[0-9]*|\
+	iwi[0-9]*|\
+	iwn[0-9]*|\
+	ral[0-9]*|\
+	wi[0-9]*|\
+	wl[0-9]*|\
+	wpi[0-9]*)
+		return 0
+		;;
+	esac
+
+	return 1
+}
+
 # ipv6if if
 #	Returns 0 if the interface should be configured for IPv6 and
 #	1 otherwise.
 ipv6if()
 {
+	local _if _tmpargs i
+	_if=$1
+
 	if ! afexists inet6; then
 		return 1
 	fi
 
 	# lo0 is always IPv6-enabled
-	case $1 in
+	case $_if in
 	lo0)
 		return 0
 		;;
 	esac
 
-	local _if _tmpargs i
-	_if=$1
-
-	case "$ipv6_network_interfaces" in
-	''|[Nn][Oo][Nn][Ee])
-		return 1
-		;;
+	case "${ipv6_network_interfaces}" in
 	$_if|"$_if "*|*" $_if"|*" $_if "*|[Aa][Uu][Tt][Oo])
 		# True if $ifconfig_IF_ipv6 is defined.
 		_tmpargs=`_ifconfig_getargs $_if ipv6`
-		# Also true if ipv6_prefix_IF is defined
-		[ -n "$_tmpargs" ] || _tmpargs=`get_if_var $_if ipv6_prefix_IF`
+		if [ -n "${_tmpargs}" ]; then
+			return 0
+		fi
+
+		# backward compatibility: True if $ipv6_ifconfig_IF is defined.
+		_tmpargs=`get_if_var $_if ipv6_ifconfig_IF`
+		if [ -n "${_tmpargs}" ]; then
+			return 0
+		fi
 		;;
 	esac
-
-	if [ -n "$_tmpargs" ]; then
-		# Remove in FreeBSD 10.x
-		# Explicit test is necessary here to avoid nonexistence error
-		case "$ipv6_enable" in
-		[Nn][Oo]|[Ff][Aa][Ll][Ss][Ee]|[Oo][Ff][Ff]|0)
-			;;
-		*)	return 0
-			;;
-		esac
-	fi
 
 	return 1
 }
@@ -423,21 +442,21 @@ ipv6if()
 #	Stateless Address Configuration, 1 otherwise.
 ipv6_autoconfif()
 {
-	case $1 in
+	local _if _tmpargs _arg
+	_if=$1
+
+	case $_if in
 	lo0|\
 	stf[0-9]*|\
 	faith[0-9]*|\
 	lp[0-9]*|\
-	sl[0-9]*|\
-	pflog[0-9]*|\
-	pfsync[0-9]*)
+	sl[0-9]*)
 		return 1
 		;;
 	esac
-
-	local _if _tmpargs _arg
-	_if=$1
-
+	if noafif $_if; then
+		return 1
+	fi
 	if ! ipv6if $_if; then
 		return 1
 	fi
@@ -448,23 +467,31 @@ ipv6_autoconfif()
 	if [ -n "${_tmpargs}" ]; then
 		return 1
 	fi
-	if ! is_wired_interface $_if; then
-		case $_if in
-		wlan[0-9]*)	;;	# Allow test to continue
-		*)	return 1
-			;;
-		esac
-	fi
+	# backward compatibility: $ipv6_enable
+	case $ipv6_enable in
+	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+		return 0
+	;;
+	esac
 
 	_tmpargs=`_ifconfig_getargs $_if ipv6`
-	case "$_tmpargs" in
-	*inet6\ *|*[Nn][Oo][Rr][Tt][Aa][Dd][Vv]*|*-accept_rtadv*)
-		return 1
-		;;
-	*[Rr][Tt][Aa][Dd][Vv]*|*accept_rtadv*)
-		return 0
-		;;
-	esac
+	for _arg in $_tmpargs; do
+		case $_arg in
+		accept_rtadv)
+			return 0
+			;;
+		esac
+	done
+
+	# backward compatibility: $ipv6_ifconfig_IF
+	_tmpargs=`get_if_var $_if ipv6_ifconfig_IF`
+	for _arg in $_tmpargs; do
+		case $_arg in
+		accept_rtadv)
+			return 0
+			;;
+		esac
+	done
 
 	return 1
 }

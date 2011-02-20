@@ -1,4 +1,4 @@
-/*	$OpenBSD: socks.c,v 1.17 2006/09/25 04:51:20 ray Exp $	*/
+/*	$OpenBSD: socks.c,v 1.18 2010/04/20 07:26:35 nicm Exp $	*/
 
 /*
  * Copyright (c) 1999 Niklas Hallqvist.  All rights reserved.
@@ -167,11 +167,11 @@ socks_connect(const char *host, const char *port,
 		buf[2] = SOCKS_NOAUTH;
 		cnt = atomicio(vwrite, proxyfd, buf, 3);
 		if (cnt != 3)
-			err(1, "write failed (%d/3)", cnt);
+			err(1, "write failed (%zu/3)", cnt);
 
 		cnt = atomicio(read, proxyfd, buf, 2);
 		if (cnt != 2)
-			err(1, "read failed (%d/3)", cnt);
+			err(1, "read failed (%zu/3)", cnt);
 
 		if (buf[1] == SOCKS_NOMETHOD)
 			errx(1, "authentication method negotiation failed");
@@ -220,11 +220,11 @@ socks_connect(const char *host, const char *port,
 
 		cnt = atomicio(vwrite, proxyfd, buf, wlen);
 		if (cnt != wlen)
-			err(1, "write failed (%d/%d)", cnt, wlen);
+			err(1, "write failed (%zu/%zu)", cnt, wlen);
 
 		cnt = atomicio(read, proxyfd, buf, 10);
 		if (cnt != 10)
-			err(1, "read failed (%d/10)", cnt);
+			err(1, "read failed (%zu/10)", cnt);
 		if (buf[1] != 0)
 			errx(1, "connection failed, SOCKS error %d", buf[1]);
 	} else if (socksv == 4) {
@@ -242,11 +242,11 @@ socks_connect(const char *host, const char *port,
 
 		cnt = atomicio(vwrite, proxyfd, buf, wlen);
 		if (cnt != wlen)
-			err(1, "write failed (%d/%d)", cnt, wlen);
+			err(1, "write failed (%zu/%zu)", cnt, wlen);
 
 		cnt = atomicio(read, proxyfd, buf, 8);
 		if (cnt != 8)
-			err(1, "read failed (%d/8)", cnt);
+			err(1, "read failed (%zu/8)", cnt);
 		if (buf[1] != 90)
 			errx(1, "connection failed, SOCKS error %d", buf[1]);
 	} else if (socksv == -1) {
@@ -272,7 +272,7 @@ socks_connect(const char *host, const char *port,
 
 		cnt = atomicio(vwrite, proxyfd, buf, r);
 		if (cnt != r)
-			err(1, "write failed (%d/%d)", cnt, r);
+			err(1, "write failed (%zu/%d)", cnt, r);
 
 		if (authretry > 1) {
 			char resp[1024];
@@ -290,7 +290,7 @@ socks_connect(const char *host, const char *port,
 				errx(1, "Proxy auth response too long");
 			r = strlen(buf);
 			if ((cnt = atomicio(vwrite, proxyfd, buf, r)) != r)
-				err(1, "write failed (%d/%d)", cnt, r);
+				err(1, "write failed (%zu/%d)", cnt, r);
 		}
 
 		/* Terminate headers */

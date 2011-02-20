@@ -22,6 +22,140 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110218:
+	IPsec's HMAC_SHA256-512 support has been fixed to be RFC4868
+	compliant, and will now use half of hash for authentication.
+	This will break interoperability with all stacks (including all
+	actual FreeBSD versions) who implement
+	draft-ietf-ipsec-ciph-sha-256-00 (they use 96 bits of hash for
+	authentication).
+	The only workaround with such peers is to use another HMAC
+	algorithm for IPsec ("phase 2") authentication.
+
+20110207:
+	Remove the uio_yield prototype and symbol.  This function has
+	been misnamed since it was introduced and should not be
+	globally exposed with this name.  The equivalent functionality
+	is now available using kern_yield(curthread->td_user_pri).
+	The function remains undocumented.
+
+20110112:
+	A SYSCTL_[ADD_]UQUAD was added for unsigned uint64_t pointers,
+	symmetric with the existing SYSCTL_[ADD_]QUAD.  Type checking
+	for scalar sysctls is defined but disabled.  Code that needs
+	UQUAD to pass the type checking that must compile on older
+	systems where the define is not present can check against
+	__FreeBSD_version >= 900030.
+
+	The system dialog(1) has been replaced with a new version previously
+	in ports as devel/cdialog. dialog(1) is mostly command-line compatible
+	with the previous version, but the libdialog associated with it has
+	a largely incompatible API. As such, the original version of libdialog
+	will be kept temporarily as libodialog, until its base system consumers
+	are replaced or updated. Bump __FreeBSD_version to 900030.
+
+20110103:
+	If you are trying to run make universe on a -stable system, and you get
+	the following warning:
+	"Makefile", line 356: "Target architecture for i386/conf/GENERIC 
+	unknown.  config(8) likely too old."
+	or something similar to it, then you must upgrade your -stable system
+	to 8.2-Release or newer (really, any time after r210146 7/15/2010 in
+	stable/8) or build the config from the latest stable/8 branch and
+	install it on your system.
+
+	Prior to this date, building a current universe on 8-stable system from
+	between 7/15/2010 and 1/2/2011 would result in a weird shell parsing
+	error in the first kernel build phase.  A new config on those old 
+	systems will fix that problem for older versions of -current.
+
+20101228:
+	The TCP stack has been modified to allow Khelp modules to interact with
+	it via helper hook points and store per-connection data in the TCP
+	control block. Bump __FreeBSD_version to 900029. User space tools that
+	rely on the size of struct tcpcb in tcp_var.h (e.g. sockstat) need to
+	be recompiled.
+
+20101114:
+	Generic IEEE 802.3 annex 31B full duplex flow control support has been
+	added to mii(4) and bge(4), bce(4), msk(4), nfe(4) and stge(4) along
+	with brgphy(4), e1000phy(4) as well as ip1000phy() have been converted
+	to take advantage of it instead of using custom implementations.  This
+	means that these drivers now no longer unconditionally advertise
+	support for flow control but only do so if flow control is a selected
+	media option.  This was implemented in the generic support that way in
+	order to allow flow control to be switched on and off via ifconfig(8)
+	with the PHY specific default to typically off in order to protect
+	from unwanted effects.  Consequently, if you used flow control with
+	one of the above mentioned drivers you now need to explicitly enable
+	it, for example via:
+		ifconfig bge0 media auto mediaopt flowcontrol
+
+	Along with the above mentioned changes generic support for setting
+	1000baseT master mode also has been added and brgphy(4), ciphy(4),
+	e1000phy(4) as well as ip1000phy(4) have been converted to take
+	advantage of it.  This means that these drivers now no longer take the
+	link0 parameter for selecting master mode but the master media option
+	has to be used instead, for example like in the following:
+		ifconfig bge0 media 1000baseT mediaopt full-duplex,master
+
+	Selection of master mode now is also available with all other PHY
+	drivers supporting 1000baseT.
+
+20101111:
+	The TCP stack has received a significant update to add support for
+	modularised congestion control and generally improve the clarity of
+	congestion control decisions. Bump __FreeBSD_version to 900025. User
+	space tools that rely on the size of struct tcpcb in tcp_var.h (e.g.
+	sockstat) need to be recompiled.
+
+20101002:
+	The man(1) utility has been replaced by a new version that no longer
+	uses /etc/manpath.config. Please consult man.conf(5) for how to
+	migrate local entries to the new format.
+
+20100928:
+	The copyright strings printed by login(1) and sshd(8) at the time of a
+	new connection have been removed to follow other operating systems and
+	upstream sshd.
+
+20100915:
+	A workaround for a fixed ld bug has been removed in kernel code,
+	so make sure that your system ld is built from sources after
+	revision 210245 from 2010-07-19 (r211583 if building head kernel
+	on stable/8, r211584 for stable/7; both from 2010-08-21).
+	A symptom of incorrect ld version is different addresses for
+	set_pcpu section and __start_set_pcpu symbol in kernel and/or modules.
+
+20100913:
+	The $ipv6_prefer variable in rc.conf(5) has been split into
+	$ip6addrctl_policy and $ipv6_activate_all_interfaces.
+
+	The $ip6addrctl_policy is a variable to choose a pre-defined
+	address selection policy set by ip6addrctl(8).  A value
+	"ipv4_prefer", "ipv6_prefer" or "AUTO" can be specified.  The
+	default is "AUTO".
+
+	The $ipv6_activate_all_interfaces specifies whether IFDISABLED
+	flag (see an entry of 20090926) is set on an interface with no
+	corresponding $ifconfig_IF_ipv6 line.  The default is "NO" for
+	security reason.  If you want IPv6 link-local address on all
+	interfaces by default, set this to "YES".
+
+	The old ipv6_prefer="YES" is equivalent to
+	ipv6_activate_all_interfaces="YES" and
+	ip6addrctl_policy="ipv6_prefer".
+
+20100913:
+	DTrace has grown support for userland tracing. Due to this, DTrace is
+	now i386 and amd64 only.
+	dtruss(1) is now installed by default on those systems and a new
+	kernel module is needed for userland tracing: fasttrap.
+	No changes to your kernel config file are necessary to enable
+	userland tracing, but you might consider adding 'STRIP=' and
+	'CFLAGS+=-fno-omit-frame-pointer' to your make.conf if you want
+	to have informative userland stack traces in DTrace (ustack).
+
 20100725:
 	The acpi_aiboost(4) driver has been removed in favor of the new
 	aibs(4) driver. You should update your kernel configuration file.
@@ -1056,8 +1190,8 @@ COMMON ITEMS:
 	<reboot in single user>				[3]
 	mergemaster -p					[5]
 	make installworld
-	make delete-old
 	mergemaster -i					[4]
+	make delete-old					[6]
 	<reboot>
 
 
@@ -1094,8 +1228,8 @@ COMMON ITEMS:
 	<reboot in single user>				[3]
 	mergemaster -p					[5]
 	make installworld
-	make delete-old
 	mergemaster -i					[4]
+	make delete-old					[6]
 	<reboot>
 
 	Make sure that you've read the UPDATING file to understand the
@@ -1137,6 +1271,10 @@ COMMON ITEMS:
 	install a new mergemaster (cd src/usr.sbin/mergemaster && make
 	install) after the buildworld before this step if you last updated
 	from current before 20020224 or from -stable before 20020408.
+
+	[6] This only deletes old files and directories. Old libraries
+	can be deleted by "make delete-old-libs", but you have to make
+	sure that no program is using those libraries anymore.
 
 	[8] In order to have a kernel that can run the 4.x binaries needed to
 	do an installworld, you must include the COMPAT_FREEBSD4 option in

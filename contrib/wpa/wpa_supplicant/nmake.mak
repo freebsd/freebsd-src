@@ -28,7 +28,6 @@ CFLAGS = $(CFLAGS) /DCONFIG_NDIS_EVENTS_INTEGRATED
 CFLAGS = $(CFLAGS) /DCONFIG_ANSI_C_EXTRA
 CFLAGS = $(CFLAGS) /DCONFIG_WINPCAP
 CFLAGS = $(CFLAGS) /DIEEE8021X_EAPOL
-CFLAGS = $(CFLAGS) /DEAP_TLS_FUNCS
 CFLAGS = $(CFLAGS) /DPKCS12_FUNCS
 CFLAGS = $(CFLAGS) /DEAP_MD5
 CFLAGS = $(CFLAGS) /DEAP_TLS
@@ -48,8 +47,8 @@ CFLAGS = $(CFLAGS) /DPCSC_FUNCS
 CFLAGS = $(CFLAGS) /DCONFIG_CTRL_IFACE
 CFLAGS = $(CFLAGS) /DCONFIG_CTRL_IFACE_NAMED_PIPE
 CFLAGS = $(CFLAGS) /DCONFIG_DRIVER_NDIS
-CFLAGS = $(CFLAGS) /I..\src /I..\src\utils /I..\src\common /I..\src\crypto
-CFLAGS = $(CFLAGS) /I..\src\rsn_supp /I..\src\eapol_supp /I.
+CFLAGS = $(CFLAGS) /I..\src /I..\src\utils
+CFLAGS = $(CFLAGS) /I.
 CFLAGS = $(CFLAGS) /DWIN32
 CFLAGS = $(CFLAGS) /Fo$(OBJDIR)\\ /c
 CFLAGS = $(CFLAGS) /W3
@@ -64,9 +63,16 @@ OBJS = \
 	$(OBJDIR)\os_win32.obj \
 	$(OBJDIR)\eloop_win.obj \
 	$(OBJDIR)\sha1.obj \
+	$(OBJDIR)\sha1-tlsprf.obj \
+	$(OBJDIR)\sha1-pbkdf2.obj \
 	$(OBJDIR)\md5.obj \
-	$(OBJDIR)\rc4.obj \
-	$(OBJDIR)\aes_wrap.obj \
+	$(OBJDIR)\aes-cbc.obj \
+	$(OBJDIR)\aes-ctr.obj \
+	$(OBJDIR)\aes-eax.obj \
+	$(OBJDIR)\aes-encblock.obj \
+	$(OBJDIR)\aes-omac1.obj \
+	$(OBJDIR)\aes-unwrap.obj \
+	$(OBJDIR)\aes-wrap.obj \
 	$(OBJDIR)\common.obj \
 	$(OBJDIR)\wpa_debug.obj \
 	$(OBJDIR)\wpabuf.obj \
@@ -111,12 +117,15 @@ OBJS = \
 	$(OBJDIR)\blacklist.obj \
 	$(OBJDIR)\scan.obj \
 	$(OBJDIR)\wpas_glue.obj \
+	$(OBJDIR)\eap_register.obj \
 	$(OBJDIR)\config.obj \
 	$(OBJDIR)\l2_packet_winpcap.obj \
 	$(OBJDIR)\tls_openssl.obj \
 	$(OBJDIR)\ms_funcs.obj \
 	$(OBJDIR)\crypto_openssl.obj \
+	$(OBJDIR)\fips_prf_openssl.obj \
 	$(OBJDIR)\pcsc_funcs.obj \
+	$(OBJDIR)\notify.obj \
 	$(OBJDIR)\ndis_events.obj
 
 # OBJS = $(OBJS) $(OBJDIR)\eap_fast.obj
@@ -148,9 +157,12 @@ OBJS_c = \
 OBJS_p = \
 	$(OBJDIR)\os_win32.obj \
 	$(OBJDIR)\common.obj \
+	$(OBJDIR)\wpa_debug.obj \
+	$(OBJDIR)\wpabuf.obj \
 	$(OBJDIR)\sha1.obj \
 	$(OBJDIR)\md5.obj \
 	$(OBJDIR)\crypto_openssl.obj \
+	$(OBJDIR)\sha1-pbkdf2.obj \
 	$(OBJDIR)\wpa_passphrase.obj
 
 LIBS = wbemuuid.lib libcmt.lib kernel32.lib uuid.lib ole32.lib oleaut32.lib \

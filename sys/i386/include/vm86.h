@@ -100,7 +100,7 @@ struct vm86frame {
 #define vmf_eflags	eflags.r_ex
 };
 
-#define VM86_PMAPSIZE	8
+#define VM86_PMAPSIZE	24
 #define VMAP_MALLOC	1	/* page was malloced by us */
 
 struct vm86context {

@@ -121,12 +121,12 @@ private:
 
 protected:
   CXXNamedCastExpr(StmtClass SC, QualType ty, CastKind kind, Expr *op,
-                   CXXBaseSpecifierArray BasePath, TypeSourceInfo *writtenTy,
+                   unsigned PathSize, TypeSourceInfo *writtenTy,
                    SourceLocation l)
-    : ExplicitCastExpr(SC, ty, kind, op, BasePath, writtenTy), Loc(l) {}
+    : ExplicitCastExpr(SC, ty, kind, op, PathSize, writtenTy), Loc(l) {}
 
-  explicit CXXNamedCastExpr(StmtClass SC, EmptyShell Shell)
-    : ExplicitCastExpr(SC, Shell) { }
+  explicit CXXNamedCastExpr(StmtClass SC, EmptyShell Shell, unsigned PathSize)
+    : ExplicitCastExpr(SC, Shell, PathSize) { }
 
 public:
   const char *getCastName() const;
@@ -158,14 +158,22 @@ public:
 /// This expression node represents a C++ static cast, e.g.,
 /// @c static_cast<int>(1.0).
 class CXXStaticCastExpr : public CXXNamedCastExpr {
-public:
   CXXStaticCastExpr(QualType ty, CastKind kind, Expr *op, 
-                    CXXBaseSpecifierArray BasePath, TypeSourceInfo *writtenTy,
+                    unsigned pathSize, TypeSourceInfo *writtenTy,
                     SourceLocation l)
-    : CXXNamedCastExpr(CXXStaticCastExprClass, ty, kind, op, BasePath, writtenTy, l) {}
+    : CXXNamedCastExpr(CXXStaticCastExprClass, ty, kind, op, pathSize,
+                       writtenTy, l) {}
 
-  explicit CXXStaticCastExpr(EmptyShell Empty)
-    : CXXNamedCastExpr(CXXStaticCastExprClass, Empty) { }
+  explicit CXXStaticCastExpr(EmptyShell Empty, unsigned PathSize)
+    : CXXNamedCastExpr(CXXStaticCastExprClass, Empty, PathSize) { }
+
+public:
+  static CXXStaticCastExpr *Create(ASTContext &Context, QualType T,
+                                   CastKind K, Expr *Op,
+                                   const CXXCastPath *Path,
+                                   TypeSourceInfo *Written, SourceLocation L);
+  static CXXStaticCastExpr *CreateEmpty(ASTContext &Context,
+                                        unsigned PathSize);
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXStaticCastExprClass;
@@ -180,15 +188,23 @@ public:
 /// This expression node represents a dynamic cast, e.g.,
 /// @c dynamic_cast<Derived*>(BasePtr).
 class CXXDynamicCastExpr : public CXXNamedCastExpr {
-public:
   CXXDynamicCastExpr(QualType ty, CastKind kind, Expr *op, 
-                     CXXBaseSpecifierArray BasePath, TypeSourceInfo *writtenTy,
+                     unsigned pathSize, TypeSourceInfo *writtenTy,
                      SourceLocation l)
-    : CXXNamedCastExpr(CXXDynamicCastExprClass, ty, kind, op, BasePath,
+    : CXXNamedCastExpr(CXXDynamicCastExprClass, ty, kind, op, pathSize,
                        writtenTy, l) {}
 
-  explicit CXXDynamicCastExpr(EmptyShell Empty)
-    : CXXNamedCastExpr(CXXDynamicCastExprClass, Empty) { }
+  explicit CXXDynamicCastExpr(EmptyShell Empty, unsigned pathSize)
+    : CXXNamedCastExpr(CXXDynamicCastExprClass, Empty, pathSize) { }
+
+public:
+  static CXXDynamicCastExpr *Create(ASTContext &Context, QualType T,
+                                    CastKind Kind, Expr *Op,
+                                    const CXXCastPath *Path,
+                                    TypeSourceInfo *Written, SourceLocation L);
+  
+  static CXXDynamicCastExpr *CreateEmpty(ASTContext &Context,
+                                         unsigned pathSize);
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXDynamicCastExprClass;
@@ -203,15 +219,22 @@ public:
 /// This expression node represents a reinterpret cast, e.g.,
 /// @c reinterpret_cast<int>(VoidPtr).
 class CXXReinterpretCastExpr : public CXXNamedCastExpr {
-public:
   CXXReinterpretCastExpr(QualType ty, CastKind kind, Expr *op, 
-                         CXXBaseSpecifierArray BasePath,
+                         unsigned pathSize,
                          TypeSourceInfo *writtenTy, SourceLocation l)
-    : CXXNamedCastExpr(CXXReinterpretCastExprClass, ty, kind, op, BasePath,
+    : CXXNamedCastExpr(CXXReinterpretCastExprClass, ty, kind, op, pathSize,
                        writtenTy, l) {}
 
-  explicit CXXReinterpretCastExpr(EmptyShell Empty)
-    : CXXNamedCastExpr(CXXReinterpretCastExprClass, Empty) { }
+  CXXReinterpretCastExpr(EmptyShell Empty, unsigned pathSize)
+    : CXXNamedCastExpr(CXXReinterpretCastExprClass, Empty, pathSize) { }
+
+public:
+  static CXXReinterpretCastExpr *Create(ASTContext &Context, QualType T,
+                                        CastKind Kind, Expr *Op,
+                                        const CXXCastPath *Path,
+                                 TypeSourceInfo *WrittenTy, SourceLocation L);
+  static CXXReinterpretCastExpr *CreateEmpty(ASTContext &Context,
+                                             unsigned pathSize);
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXReinterpretCastExprClass;
@@ -225,14 +248,18 @@ public:
 /// This expression node represents a const cast, e.g.,
 /// @c const_cast<char*>(PtrToConstChar).
 class CXXConstCastExpr : public CXXNamedCastExpr {
-public:
   CXXConstCastExpr(QualType ty, Expr *op, TypeSourceInfo *writtenTy,
                    SourceLocation l)
     : CXXNamedCastExpr(CXXConstCastExprClass, ty, CK_NoOp, op, 
-                       CXXBaseSpecifierArray(), writtenTy, l) {}
+                       0, writtenTy, l) {}
 
   explicit CXXConstCastExpr(EmptyShell Empty)
-    : CXXNamedCastExpr(CXXConstCastExprClass, Empty) { }
+    : CXXNamedCastExpr(CXXConstCastExprClass, Empty, 0) { }
+
+public:
+  static CXXConstCastExpr *Create(ASTContext &Context, QualType T, Expr *Op,
+                                  TypeSourceInfo *WrittenTy, SourceLocation L);
+  static CXXConstCastExpr *CreateEmpty(ASTContext &Context);
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXConstCastExprClass;
@@ -479,9 +506,6 @@ class CXXDefaultArgExpr : public Expr {
     *reinterpret_cast<Expr **>(this + 1) = SubExpr;
   }
   
-protected:
-  virtual void DoDestroy(ASTContext &C);
-  
 public:
   CXXDefaultArgExpr(EmptyShell Empty) : Expr(CXXDefaultArgExprClass, Empty) {}
 
@@ -535,8 +559,8 @@ public:
   virtual child_iterator child_begin();
   virtual child_iterator child_end();
 
-  friend class PCHStmtReader;
-  friend class PCHStmtWriter;
+  friend class ASTStmtReader;
+  friend class ASTStmtWriter;
 };
 
 /// CXXTemporary - Represents a C++ temporary.
@@ -546,13 +570,10 @@ class CXXTemporary {
 
   CXXTemporary(const CXXDestructorDecl *destructor)
     : Destructor(destructor) { }
-  ~CXXTemporary() { }
 
 public:
   static CXXTemporary *Create(ASTContext &C,
                               const CXXDestructorDecl *Destructor);
-
-  void Destroy(ASTContext &Ctx);
 
   const CXXDestructorDecl *getDestructor() const { return Destructor; }
 };
@@ -579,10 +600,6 @@ class CXXBindTemporaryExpr : public Expr {
   CXXBindTemporaryExpr(CXXTemporary *temp, Expr* subexpr)
    : Expr(CXXBindTemporaryExprClass, subexpr->getType(), false, false),
      Temp(temp), SubExpr(subexpr) { }
-  ~CXXBindTemporaryExpr() { }
-
-protected:
-  virtual void DoDestroy(ASTContext &C);
 
 public:
   CXXBindTemporaryExpr(EmptyShell Empty)
@@ -614,73 +631,6 @@ public:
   virtual child_iterator child_end();
 };
 
-/// CXXBindReferenceExpr - Represents binding an expression to a reference.
-/// In the example:
-///
-/// const int &i = 10;
-///
-/// a bind reference expression is inserted to indicate that 10 is bound to
-/// a reference, and that a temporary needs to be created to hold the
-/// value.
-class CXXBindReferenceExpr : public Expr {
-  // SubExpr - The expression being bound.
-  Stmt *SubExpr;
-  
-  // ExtendsLifetime - Whether binding this reference extends the lifetime of
-  // the expression being bound. FIXME: Add C++ reference.
-  bool ExtendsLifetime;
-
-  /// RequiresTemporaryCopy - Whether binding the subexpression requires a
-  /// temporary copy.
-  bool RequiresTemporaryCopy;
-  
-  CXXBindReferenceExpr(Expr *subexpr, bool ExtendsLifetime, 
-                       bool RequiresTemporaryCopy)
-  : Expr(CXXBindReferenceExprClass, subexpr->getType(), false, false),
-    SubExpr(subexpr), ExtendsLifetime(ExtendsLifetime), 
-    RequiresTemporaryCopy(RequiresTemporaryCopy) { }
-  ~CXXBindReferenceExpr() { }
-
-protected:
-  virtual void DoDestroy(ASTContext &C);
-
-public:
-  static CXXBindReferenceExpr *Create(ASTContext &C, Expr *SubExpr,
-                                      bool ExtendsLifetime, 
-                                      bool RequiresTemporaryCopy);
-  
-  explicit CXXBindReferenceExpr(EmptyShell Empty)
-    : Expr(CXXBindReferenceExprClass, Empty) { }
-
-  const Expr *getSubExpr() const { return cast<Expr>(SubExpr); }
-  Expr *getSubExpr() { return cast<Expr>(SubExpr); }
-  void setSubExpr(Expr *E) { SubExpr = E; }
-
-  virtual SourceRange getSourceRange() const { 
-    return SubExpr->getSourceRange();
-  }
-
-  /// requiresTemporaryCopy - Whether binding the subexpression requires a
-  /// temporary copy.
-  bool requiresTemporaryCopy() const { return RequiresTemporaryCopy; }
-
-  // extendsLifetime - Whether binding this reference extends the lifetime of
-  // the expression being bound. FIXME: Add C++ reference.
-  bool extendsLifetime() const { return ExtendsLifetime; }
-    
-  // Implement isa/cast/dyncast/etc.
-  static bool classof(const Stmt *T) {
-    return T->getStmtClass() == CXXBindReferenceExprClass;
-  }
-  static bool classof(const CXXBindReferenceExpr *) { return true; }
-
-  // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
-  
-  friend class PCHStmtReader;
-};
-
 /// CXXConstructExpr - Represents a call to a C++ constructor.
 class CXXConstructExpr : public Expr {
 public:
@@ -707,14 +657,11 @@ protected:
                    Expr **args, unsigned numargs,
                    bool ZeroInitialization = false,
                    ConstructionKind ConstructKind = CK_Complete);
-  ~CXXConstructExpr() { }
 
   /// \brief Construct an empty C++ construction expression.
   CXXConstructExpr(StmtClass SC, EmptyShell Empty)
     : Expr(SC, Empty), Constructor(0), Elidable(0), ZeroInitialization(0),
       ConstructKind(0), Args(0), NumArgs(0) { }
-
-  virtual void DoDestroy(ASTContext &C);
 
 public:
   /// \brief Construct an empty C++ construction expression.
@@ -796,7 +743,7 @@ public:
   virtual child_iterator child_begin();
   virtual child_iterator child_end();
 
-  friend class PCHStmtReader;
+  friend class ASTStmtReader;
 };
 
 /// CXXFunctionalCastExpr - Represents an explicit C++ type conversion
@@ -805,17 +752,27 @@ public:
 class CXXFunctionalCastExpr : public ExplicitCastExpr {
   SourceLocation TyBeginLoc;
   SourceLocation RParenLoc;
-public:
+
   CXXFunctionalCastExpr(QualType ty, TypeSourceInfo *writtenTy,
                         SourceLocation tyBeginLoc, CastKind kind,
-                        Expr *castExpr, CXXBaseSpecifierArray BasePath,
+                        Expr *castExpr, unsigned pathSize,
                         SourceLocation rParenLoc) 
     : ExplicitCastExpr(CXXFunctionalCastExprClass, ty, kind, castExpr, 
-                       BasePath, writtenTy),
+                       pathSize, writtenTy),
       TyBeginLoc(tyBeginLoc), RParenLoc(rParenLoc) {}
 
-  explicit CXXFunctionalCastExpr(EmptyShell Shell)
-    : ExplicitCastExpr(CXXFunctionalCastExprClass, Shell) { }
+  explicit CXXFunctionalCastExpr(EmptyShell Shell, unsigned PathSize)
+    : ExplicitCastExpr(CXXFunctionalCastExprClass, Shell, PathSize) { }
+
+public:
+  static CXXFunctionalCastExpr *Create(ASTContext &Context, QualType T,
+                                       TypeSourceInfo *Written,
+                                       SourceLocation TyBeginLoc,
+                                       CastKind Kind, Expr *Op,
+                                       const CXXCastPath *Path,
+                                       SourceLocation RPLoc);
+  static CXXFunctionalCastExpr *CreateEmpty(ASTContext &Context,
+                                            unsigned PathSize);
 
   SourceLocation getTypeBeginLoc() const { return TyBeginLoc; }
   void setTypeBeginLoc(SourceLocation L) { TyBeginLoc = L; }
@@ -859,8 +816,6 @@ public:
   explicit CXXTemporaryObjectExpr(EmptyShell Empty)
     : CXXConstructExpr(CXXTemporaryObjectExprClass, Empty) { }
 
-  ~CXXTemporaryObjectExpr() { }
-
   SourceLocation getTypeBeginLoc() const { return TyBeginLoc; }
   SourceLocation getRParenLoc() const { return RParenLoc; }
 
@@ -872,7 +827,7 @@ public:
   }
   static bool classof(const CXXTemporaryObjectExpr *) { return true; }
 
-  friend class PCHStmtReader;
+  friend class ASTStmtReader;
 };
 
 /// CXXScalarValueInitExpr - [C++ 5.2.3p2]
@@ -952,7 +907,7 @@ class CXXNewExpr : public Expr {
   SourceLocation StartLoc;
   SourceLocation EndLoc;
 
-  friend class PCHStmtReader;
+  friend class ASTStmtReader;
 public:
   CXXNewExpr(ASTContext &C, bool globalNew, FunctionDecl *operatorNew,
              Expr **placementArgs, unsigned numPlaceArgs,
@@ -967,8 +922,6 @@ public:
   void AllocateArgsArray(ASTContext &C, bool isArray, unsigned numPlaceArgs,
                          unsigned numConsArgs);
   
-  virtual void DoDestroy(ASTContext &C);
-
   QualType getAllocatedType() const {
     assert(getType()->isPointerType());
     return getType()->getAs<PointerType>()->getPointeeType();
@@ -1381,7 +1334,7 @@ public:
   virtual child_iterator child_begin();
   virtual child_iterator child_end();
 
-  friend class PCHStmtReader;
+  friend class ASTStmtReader;
 };
 
 /// \brief A reference to an overloaded function set, either an
@@ -1395,7 +1348,7 @@ class OverloadExpr : public Expr {
   unsigned NumResults;
 
   /// The common name of these declarations.
-  DeclarationName Name;
+  DeclarationNameInfo NameInfo;
 
   /// The scope specifier, if any.
   NestedNameSpecifier *Qualifier;
@@ -1403,16 +1356,13 @@ class OverloadExpr : public Expr {
   /// The source range of the scope specifier.
   SourceRange QualifierRange;
 
-  /// The location of the name.
-  SourceLocation NameLoc;
-
 protected:
   /// True if the name was a template-id.
   bool HasExplicitTemplateArgs;
 
   OverloadExpr(StmtClass K, ASTContext &C, QualType T, bool Dependent,
                NestedNameSpecifier *Qualifier, SourceRange QRange,
-               DeclarationName Name, SourceLocation NameLoc,
+               const DeclarationNameInfo &NameInfo,
                bool HasTemplateArgs,
                UnresolvedSetIterator Begin, UnresolvedSetIterator End);
 
@@ -1427,19 +1377,38 @@ public:
                                 UnresolvedSetIterator End,
                                 const TemplateArgumentListInfo *Args);
 
+  struct FindResult {
+    OverloadExpr *Expression;
+    bool IsAddressOfOperand;
+    bool HasFormOfMemberPointer;
+  };
+
   /// Finds the overloaded expression in the given expression of
   /// OverloadTy.
   ///
-  /// \return the expression (which must be there) and true if it is
-  /// within an address-of operator.
-  static llvm::PointerIntPair<OverloadExpr*,1> find(Expr *E) {
+  /// \return the expression (which must be there) and true if it has
+  /// the particular form of a member pointer expression
+  static FindResult find(Expr *E) {
     assert(E->getType()->isSpecificBuiltinType(BuiltinType::Overload));
 
-    bool op = false;
+    FindResult Result;
+
     E = E->IgnoreParens();
-    if (isa<UnaryOperator>(E))
-      op = true, E = cast<UnaryOperator>(E)->getSubExpr()->IgnoreParens();
-    return llvm::PointerIntPair<OverloadExpr*,1>(cast<OverloadExpr>(E), op);
+    if (isa<UnaryOperator>(E)) {
+      assert(cast<UnaryOperator>(E)->getOpcode() == UO_AddrOf);
+      E = cast<UnaryOperator>(E)->getSubExpr();
+      OverloadExpr *Ovl = cast<OverloadExpr>(E->IgnoreParens());
+
+      Result.HasFormOfMemberPointer = (E == Ovl && Ovl->getQualifier());
+      Result.IsAddressOfOperand = true;
+      Result.Expression = Ovl;
+    } else {
+      Result.HasFormOfMemberPointer = false;
+      Result.IsAddressOfOperand = false;
+      Result.Expression = cast<OverloadExpr>(E);
+    }
+
+    return Result;
   }
 
   /// Gets the naming class of this lookup, if any.
@@ -1457,13 +1426,17 @@ public:
   /// Gets the number of declarations in the unresolved set.
   unsigned getNumDecls() const { return NumResults; }
 
+  /// Gets the full name info.
+  const DeclarationNameInfo &getNameInfo() const { return NameInfo; }
+  void setNameInfo(const DeclarationNameInfo &N) { NameInfo = N; }
+
   /// Gets the name looked up.
-  DeclarationName getName() const { return Name; }
-  void setName(DeclarationName N) { Name = N; }
+  DeclarationName getName() const { return NameInfo.getName(); }
+  void setName(DeclarationName N) { NameInfo.setName(N); }
 
   /// Gets the location of the name.
-  SourceLocation getNameLoc() const { return NameLoc; }
-  void setNameLoc(SourceLocation Loc) { NameLoc = Loc; }
+  SourceLocation getNameLoc() const { return NameInfo.getLoc(); }
+  void setNameLoc(SourceLocation Loc) { NameInfo.setLoc(Loc); }
 
   /// Fetches the nested-name qualifier, if one was given.
   NestedNameSpecifier *getQualifier() const { return Qualifier; }
@@ -1483,10 +1456,12 @@ public:
     return const_cast<OverloadExpr*>(this)->getExplicitTemplateArgs();
   }
 
-  ExplicitTemplateArgumentList *getOptionalExplicitTemplateArgs() {
-    if (hasExplicitTemplateArgs())
-      return &getExplicitTemplateArgs();
-    return 0;
+  /// \brief Retrieves the optional explicit template arguments.
+  /// This points to the same data as getExplicitTemplateArgs(), but
+  /// returns null if there are no explicit template arguments.
+  const ExplicitTemplateArgumentList *getOptionalExplicitTemplateArgs() {
+    if (!hasExplicitTemplateArgs()) return 0;
+    return &getExplicitTemplateArgs();
   }
 
   static bool classof(const Stmt *T) {
@@ -1526,11 +1501,11 @@ class UnresolvedLookupExpr : public OverloadExpr {
   UnresolvedLookupExpr(ASTContext &C, QualType T, bool Dependent, 
                        CXXRecordDecl *NamingClass,
                        NestedNameSpecifier *Qualifier, SourceRange QRange,
-                       DeclarationName Name, SourceLocation NameLoc,
+                       const DeclarationNameInfo &NameInfo,
                        bool RequiresADL, bool Overloaded, bool HasTemplateArgs,
                        UnresolvedSetIterator Begin, UnresolvedSetIterator End)
     : OverloadExpr(UnresolvedLookupExprClass, C, T, Dependent, Qualifier, 
-                   QRange, Name, NameLoc, HasTemplateArgs, Begin, End),
+                   QRange, NameInfo, HasTemplateArgs, Begin, End),
       RequiresADL(RequiresADL), Overloaded(Overloaded), NamingClass(NamingClass)
   {}
 
@@ -1545,16 +1520,15 @@ public:
                                       CXXRecordDecl *NamingClass,
                                       NestedNameSpecifier *Qualifier,
                                       SourceRange QualifierRange,
-                                      DeclarationName Name,
-                                      SourceLocation NameLoc,
+                                      const DeclarationNameInfo &NameInfo,
                                       bool ADL, bool Overloaded,
                                       UnresolvedSetIterator Begin, 
                                       UnresolvedSetIterator End) {
     return new(C) UnresolvedLookupExpr(C,
                                        Dependent ? C.DependentTy : C.OverloadTy,
                                        Dependent, NamingClass,
-                                       Qualifier, QualifierRange,
-                                       Name, NameLoc, ADL, Overloaded, false,
+                                       Qualifier, QualifierRange, NameInfo,
+                                       ADL, Overloaded, false,
                                        Begin, End);
   }
 
@@ -1563,8 +1537,7 @@ public:
                                       CXXRecordDecl *NamingClass,
                                       NestedNameSpecifier *Qualifier,
                                       SourceRange QualifierRange,
-                                      DeclarationName Name,
-                                      SourceLocation NameLoc,
+                                      const DeclarationNameInfo &NameInfo,
                                       bool ADL,
                                       const TemplateArgumentListInfo &Args,
                                       UnresolvedSetIterator Begin, 
@@ -1603,6 +1576,14 @@ public:
     return *reinterpret_cast<const ExplicitTemplateArgumentList*>(this + 1);
   }
 
+  /// \brief Retrieves the optional explicit template arguments.
+  /// This points to the same data as getExplicitTemplateArgs(), but
+  /// returns null if there are no explicit template arguments.
+  const ExplicitTemplateArgumentList *getOptionalExplicitTemplateArgs() {
+    if (!hasExplicitTemplateArgs()) return 0;
+    return &getExplicitTemplateArgs();
+  }
+
   /// \brief Copies the template arguments (if present) into the given
   /// structure.
   void copyTemplateArgumentsInto(TemplateArgumentListInfo &List) const {
@@ -1626,7 +1607,7 @@ public:
   }
 
   virtual SourceRange getSourceRange() const {
-    SourceRange Range(getNameLoc());
+    SourceRange Range(getNameInfo().getSourceRange());
     if (getQualifier()) Range.setBegin(getQualifierRange().getBegin());
     if (hasExplicitTemplateArgs()) Range.setEnd(getRAngleLoc());
     return Range;
@@ -1657,10 +1638,7 @@ public:
 /// declaration can be found.
 class DependentScopeDeclRefExpr : public Expr {
   /// The name of the entity we will be referencing.
-  DeclarationName Name;
-
-  /// Location of the name of the declaration we're referencing.
-  SourceLocation Loc;
+  DeclarationNameInfo NameInfo;
 
   /// QualifierRange - The source range that covers the
   /// nested-name-specifier.
@@ -1676,12 +1654,10 @@ class DependentScopeDeclRefExpr : public Expr {
   DependentScopeDeclRefExpr(QualType T,
                             NestedNameSpecifier *Qualifier,
                             SourceRange QualifierRange,
-                            DeclarationName Name,
-                            SourceLocation NameLoc,
+                            const DeclarationNameInfo &NameInfo,
                             bool HasExplicitTemplateArgs)
     : Expr(DependentScopeDeclRefExprClass, T, true, true),
-      Name(Name), Loc(NameLoc),
-      QualifierRange(QualifierRange), Qualifier(Qualifier),
+      NameInfo(NameInfo), QualifierRange(QualifierRange), Qualifier(Qualifier),
       HasExplicitTemplateArgs(HasExplicitTemplateArgs)
   {}
 
@@ -1689,20 +1665,23 @@ public:
   static DependentScopeDeclRefExpr *Create(ASTContext &C,
                                            NestedNameSpecifier *Qualifier,
                                            SourceRange QualifierRange,
-                                           DeclarationName Name,
-                                           SourceLocation NameLoc,
+                                           const DeclarationNameInfo &NameInfo,
                               const TemplateArgumentListInfo *TemplateArgs = 0);
 
   static DependentScopeDeclRefExpr *CreateEmpty(ASTContext &C,
                                                 unsigned NumTemplateArgs);
 
   /// \brief Retrieve the name that this expression refers to.
-  DeclarationName getDeclName() const { return Name; }
-  void setDeclName(DeclarationName N) { Name =  N; }
+  const DeclarationNameInfo &getNameInfo() const { return NameInfo; }
+  void setNameInfo(const DeclarationNameInfo &N) { NameInfo =  N; }
+
+  /// \brief Retrieve the name that this expression refers to.
+  DeclarationName getDeclName() const { return NameInfo.getName(); }
+  void setDeclName(DeclarationName N) { NameInfo.setName(N); }
 
   /// \brief Retrieve the location of the name within the expression.
-  SourceLocation getLocation() const { return Loc; }
-  void setLocation(SourceLocation L) { Loc = L; }
+  SourceLocation getLocation() const { return NameInfo.getLoc(); }
+  void setLocation(SourceLocation L) { NameInfo.setLoc(L); }
 
   /// \brief Retrieve the source range of the nested-name-specifier.
   SourceRange getQualifierRange() const { return QualifierRange; }
@@ -1729,6 +1708,14 @@ public:
   const ExplicitTemplateArgumentList &getExplicitTemplateArgs() const {
     assert(hasExplicitTemplateArgs());
     return *reinterpret_cast<const ExplicitTemplateArgumentList*>(this + 1);
+  }
+
+  /// \brief Retrieves the optional explicit template arguments.
+  /// This points to the same data as getExplicitTemplateArgs(), but
+  /// returns null if there are no explicit template arguments.
+  const ExplicitTemplateArgumentList *getOptionalExplicitTemplateArgs() {
+    if (!hasExplicitTemplateArgs()) return 0;
+    return &getExplicitTemplateArgs();
   }
 
   /// \brief Copies the template arguments (if present) into the given
@@ -1777,10 +1764,6 @@ class CXXExprWithTemporaries : public Expr {
 
   CXXExprWithTemporaries(ASTContext &C, Expr *SubExpr, CXXTemporary **Temps,
                          unsigned NumTemps);
-  ~CXXExprWithTemporaries();
-
-protected:
-  virtual void DoDestroy(ASTContext &C);
 
 public:
   CXXExprWithTemporaries(EmptyShell Empty)
@@ -1991,10 +1974,7 @@ class CXXDependentScopeMemberExpr : public Expr {
   /// \brief The member to which this member expression refers, which
   /// can be name, overloaded operator, or destructor.
   /// FIXME: could also be a template-id
-  DeclarationName Member;
-
-  /// \brief The location of the member name.
-  SourceLocation MemberLoc;
+  DeclarationNameInfo MemberNameInfo;
 
   CXXDependentScopeMemberExpr(ASTContext &C,
                           Expr *Base, QualType BaseType, bool IsArrow,
@@ -2002,8 +1982,7 @@ class CXXDependentScopeMemberExpr : public Expr {
                           NestedNameSpecifier *Qualifier,
                           SourceRange QualifierRange,
                           NamedDecl *FirstQualifierFoundInScope,
-                          DeclarationName Member,
-                          SourceLocation MemberLoc,
+                          DeclarationNameInfo MemberNameInfo,
                           const TemplateArgumentListInfo *TemplateArgs);
 
 public:
@@ -2014,14 +1993,13 @@ public:
                           NestedNameSpecifier *Qualifier,
                           SourceRange QualifierRange,
                           NamedDecl *FirstQualifierFoundInScope,
-                          DeclarationName Member,
-                          SourceLocation MemberLoc)
+                          DeclarationNameInfo MemberNameInfo)
   : Expr(CXXDependentScopeMemberExprClass, C.DependentTy, true, true),
     Base(Base), BaseType(BaseType), IsArrow(IsArrow),
     HasExplicitTemplateArgs(false), OperatorLoc(OperatorLoc),
     Qualifier(Qualifier), QualifierRange(QualifierRange),
     FirstQualifierFoundInScope(FirstQualifierFoundInScope),
-    Member(Member), MemberLoc(MemberLoc) { }
+    MemberNameInfo(MemberNameInfo) { }
 
   static CXXDependentScopeMemberExpr *
   Create(ASTContext &C,
@@ -2030,8 +2008,7 @@ public:
          NestedNameSpecifier *Qualifier,
          SourceRange QualifierRange,
          NamedDecl *FirstQualifierFoundInScope,
-         DeclarationName Member,
-         SourceLocation MemberLoc,
+         DeclarationNameInfo MemberNameInfo,
          const TemplateArgumentListInfo *TemplateArgs);
 
   static CXXDependentScopeMemberExpr *
@@ -2092,13 +2069,20 @@ public:
 
   /// \brief Retrieve the name of the member that this expression
   /// refers to.
-  DeclarationName getMember() const { return Member; }
-  void setMember(DeclarationName N) { Member = N; }
+  const DeclarationNameInfo &getMemberNameInfo() const {
+    return MemberNameInfo;
+  }
+  void setMemberNameInfo(const DeclarationNameInfo &N) { MemberNameInfo = N; }
+
+  /// \brief Retrieve the name of the member that this expression
+  /// refers to.
+  DeclarationName getMember() const { return MemberNameInfo.getName(); }
+  void setMember(DeclarationName N) { MemberNameInfo.setName(N); }
 
   // \brief Retrieve the location of the name of the member that this
   // expression refers to.
-  SourceLocation getMemberLoc() const { return MemberLoc; }
-  void setMemberLoc(SourceLocation L) { MemberLoc = L; }
+  SourceLocation getMemberLoc() const { return MemberNameInfo.getLoc(); }
+  void setMemberLoc(SourceLocation L) { MemberNameInfo.setLoc(L); }
 
   /// \brief Determines whether this member expression actually had a C++
   /// template argument list explicitly specified, e.g., x.f<int>.
@@ -2108,57 +2092,59 @@ public:
 
   /// \brief Retrieve the explicit template argument list that followed the
   /// member template name, if any.
-  ExplicitTemplateArgumentList *getExplicitTemplateArgumentList() {
+  ExplicitTemplateArgumentList &getExplicitTemplateArgs() {
     assert(HasExplicitTemplateArgs);
-    return reinterpret_cast<ExplicitTemplateArgumentList *>(this + 1);
+    return *reinterpret_cast<ExplicitTemplateArgumentList *>(this + 1);
   }
 
   /// \brief Retrieve the explicit template argument list that followed the
   /// member template name, if any.
-  const ExplicitTemplateArgumentList *getExplicitTemplateArgumentList() const {
+  const ExplicitTemplateArgumentList &getExplicitTemplateArgs() const {
     return const_cast<CXXDependentScopeMemberExpr *>(this)
-             ->getExplicitTemplateArgumentList();
+             ->getExplicitTemplateArgs();
+  }
+
+  /// \brief Retrieves the optional explicit template arguments.
+  /// This points to the same data as getExplicitTemplateArgs(), but
+  /// returns null if there are no explicit template arguments.
+  const ExplicitTemplateArgumentList *getOptionalExplicitTemplateArgs() {
+    if (!hasExplicitTemplateArgs()) return 0;
+    return &getExplicitTemplateArgs();
   }
 
   /// \brief Copies the template arguments (if present) into the given
   /// structure.
   void copyTemplateArgumentsInto(TemplateArgumentListInfo &List) const {
-    assert(HasExplicitTemplateArgs);
-    getExplicitTemplateArgumentList()->copyInto(List);
+    getExplicitTemplateArgs().copyInto(List);
   }
 
   /// \brief Initializes the template arguments using the given structure.
   void initializeTemplateArgumentsFrom(const TemplateArgumentListInfo &List) {
-    assert(HasExplicitTemplateArgs);
-    getExplicitTemplateArgumentList()->initializeFrom(List);
+    getExplicitTemplateArgs().initializeFrom(List);
   }
 
   /// \brief Retrieve the location of the left angle bracket following the
   /// member name ('<'), if any.
   SourceLocation getLAngleLoc() const {
-    assert(HasExplicitTemplateArgs);
-    return getExplicitTemplateArgumentList()->LAngleLoc;
+    return getExplicitTemplateArgs().LAngleLoc;
   }
 
   /// \brief Retrieve the template arguments provided as part of this
   /// template-id.
   const TemplateArgumentLoc *getTemplateArgs() const {
-    assert(HasExplicitTemplateArgs);
-    return getExplicitTemplateArgumentList()->getTemplateArgs();
+    return getExplicitTemplateArgs().getTemplateArgs();
   }
 
   /// \brief Retrieve the number of template arguments provided as part of this
   /// template-id.
   unsigned getNumTemplateArgs() const {
-    assert(HasExplicitTemplateArgs);
-    return getExplicitTemplateArgumentList()->NumTemplateArgs;
+    return getExplicitTemplateArgs().NumTemplateArgs;
   }
 
   /// \brief Retrieve the location of the right angle bracket following the
   /// template arguments ('>').
   SourceLocation getRAngleLoc() const {
-    assert(HasExplicitTemplateArgs);
-    return getExplicitTemplateArgumentList()->RAngleLoc;
+    return getExplicitTemplateArgs().RAngleLoc;
   }
 
   virtual SourceRange getSourceRange() const {
@@ -2168,12 +2154,12 @@ public:
     else if (getQualifier())
       Range.setBegin(getQualifierRange().getBegin());
     else
-      Range.setBegin(MemberLoc);
+      Range.setBegin(MemberNameInfo.getBeginLoc());
 
     if (hasExplicitTemplateArgs())
       Range.setEnd(getRAngleLoc());
     else
-      Range.setEnd(MemberLoc);
+      Range.setEnd(MemberNameInfo.getEndLoc());
     return Range;
   }
 
@@ -2226,8 +2212,7 @@ class UnresolvedMemberExpr : public OverloadExpr {
                        SourceLocation OperatorLoc,
                        NestedNameSpecifier *Qualifier,
                        SourceRange QualifierRange,
-                       DeclarationName Member,
-                       SourceLocation MemberLoc,
+                       const DeclarationNameInfo &MemberNameInfo,
                        const TemplateArgumentListInfo *TemplateArgs,
                        UnresolvedSetIterator Begin, UnresolvedSetIterator End);
   
@@ -2242,8 +2227,7 @@ public:
          SourceLocation OperatorLoc,
          NestedNameSpecifier *Qualifier,
          SourceRange QualifierRange,
-         DeclarationName Member,
-         SourceLocation MemberLoc,
+         const DeclarationNameInfo &MemberNameInfo,
          const TemplateArgumentListInfo *TemplateArgs,
          UnresolvedSetIterator Begin, UnresolvedSetIterator End);
 
@@ -2287,6 +2271,11 @@ public:
   /// \brief Retrieves the naming class of this lookup.
   CXXRecordDecl *getNamingClass() const;
 
+  /// \brief Retrieve the full name info for the member that this expression
+  /// refers to.
+  const DeclarationNameInfo &getMemberNameInfo() const { return getNameInfo(); }
+  void setMemberNameInfo(const DeclarationNameInfo &N) { setNameInfo(N); }
+
   /// \brief Retrieve the name of the member that this expression
   /// refers to.
   DeclarationName getMemberName() const { return getName(); }
@@ -2309,6 +2298,14 @@ public:
   const ExplicitTemplateArgumentList &getExplicitTemplateArgs() const {
     assert(hasExplicitTemplateArgs());
     return *reinterpret_cast<const ExplicitTemplateArgumentList *>(this + 1);
+  }
+
+  /// \brief Retrieves the optional explicit template arguments.
+  /// This points to the same data as getExplicitTemplateArgs(), but
+  /// returns null if there are no explicit template arguments.
+  const ExplicitTemplateArgumentList *getOptionalExplicitTemplateArgs() {
+    if (!hasExplicitTemplateArgs()) return 0;
+    return &getExplicitTemplateArgs();
   }
 
   /// \brief Copies the template arguments into the given structure.
@@ -2341,18 +2338,14 @@ public:
   }
 
   virtual SourceRange getSourceRange() const {
-    SourceRange Range;
+    SourceRange Range = getMemberNameInfo().getSourceRange();
     if (!isImplicitAccess())
       Range.setBegin(Base->getSourceRange().getBegin());
     else if (getQualifier())
       Range.setBegin(getQualifierRange().getBegin());
-    else
-      Range.setBegin(getMemberLoc());
 
     if (hasExplicitTemplateArgs())
       Range.setEnd(getRAngleLoc());
-    else
-      Range.setEnd(getMemberLoc());
     return Range;
   }
 

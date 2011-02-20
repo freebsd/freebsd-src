@@ -6,7 +6,7 @@ SRCDIR=	lib/Target/Mips/TargetInfo/
 INCDIR=	lib/Target/Mips
 SRCS=	MipsTargetInfo.cpp
 
-TGHDRS= MipsGenRegisterNames \
+TGHDRS=	MipsGenRegisterNames \
 	MipsGenInstrNames
 
 .include "../clang.lib.mk"

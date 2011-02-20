@@ -271,7 +271,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 			swap_pager_freespace(object, nobjsize, delta);
 
 		/* Free the swap accounted for shm */
-		swap_release_by_uid(delta, object->uip);
+		swap_release_by_cred(delta, object->cred);
 		object->charge -= delta;
 
 		/*
@@ -314,7 +314,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 
 		/* Attempt to reserve the swap */
 		delta = ptoa(nobjsize - object->size);
-		if (!swap_reserve_by_uid(delta, object->uip)) {
+		if (!swap_reserve_by_cred(delta, object->cred)) {
 			VM_OBJECT_UNLOCK(object);
 			return (ENOMEM);
 		}

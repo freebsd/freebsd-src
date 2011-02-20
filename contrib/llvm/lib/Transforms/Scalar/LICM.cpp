@@ -26,8 +26,7 @@
 //          pointer.  There are no calls in the loop which mod/ref the pointer.
 //     If these conditions are true, we can promote the loads and stores in the
 //     loop of the pointer to use a temporary alloca'd variable.  We then use
-//     the mem2reg functionality to construct the appropriate SSA form for the
-//     variable.
+//     the SSAUpdater to construct the appropriate SSA form for the value.
 //
 //===----------------------------------------------------------------------===//
 
@@ -37,14 +36,15 @@
 #include "llvm/DerivedTypes.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Instructions.h"
-#include "llvm/Target/TargetData.h"
-#include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/AliasSetTracker.h"
+#include "llvm/Analysis/ConstantFolding.h"
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Transforms/Utils/PromoteMemToReg.h"
+#include "llvm/Transforms/Utils/Local.h"
+#include "llvm/Transforms/Utils/SSAUpdater.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
@@ -66,7 +66,7 @@ DisablePromotion("disable-licm-promotion", cl::Hidden,
 namespace {
   struct LICM : public LoopPass {
     static char ID; // Pass identification, replacement for typeid
-    LICM() : LoopPass(&ID) {}
+    LICM() : LoopPass(ID) {}
 
     virtual bool runOnLoop(Loop *L, LPPassManager &LPM);
 
@@ -75,39 +75,31 @@ namespace {
     ///
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesCFG();
-      AU.addRequiredID(LoopSimplifyID);
-      AU.addRequired<LoopInfo>();
       AU.addRequired<DominatorTree>();
-      AU.addRequired<DominanceFrontier>();  // For scalar promotion (mem2reg)
+      AU.addRequired<LoopInfo>();
+      AU.addRequiredID(LoopSimplifyID);
       AU.addRequired<AliasAnalysis>();
+      AU.addPreserved<AliasAnalysis>();
       AU.addPreserved<ScalarEvolution>();
-      AU.addPreserved<DominanceFrontier>();
       AU.addPreservedID(LoopSimplifyID);
     }
 
     bool doFinalization() {
-      // Free the values stored in the map
-      for (std::map<Loop *, AliasSetTracker *>::iterator
-             I = LoopToAliasMap.begin(), E = LoopToAliasMap.end(); I != E; ++I)
-        delete I->second;
-
-      LoopToAliasMap.clear();
+      assert(LoopToAliasSetMap.empty() && "Didn't free loop alias sets");
       return false;
     }
 
   private:
-    // Various analyses that we use...
     AliasAnalysis *AA;       // Current AliasAnalysis information
     LoopInfo      *LI;       // Current LoopInfo
-    DominatorTree *DT;       // Dominator Tree for the current Loop...
-    DominanceFrontier *DF;   // Current Dominance Frontier
+    DominatorTree *DT;       // Dominator Tree for the current Loop.
 
-    // State that is updated as we process loops
+    // State that is updated as we process loops.
     bool Changed;            // Set to true when we change anything.
     BasicBlock *Preheader;   // The preheader block of the current loop...
     Loop *CurLoop;           // The current loop we are working on...
     AliasSetTracker *CurAST; // AliasSet information for the current loop...
-    std::map<Loop *, AliasSetTracker *> LoopToAliasMap;
+    DenseMap<Loop*, AliasSetTracker*> LoopToAliasSetMap;
 
     /// cloneBasicBlockAnalysis - Simple Analysis hook. Clone alias set info.
     void cloneBasicBlockAnalysis(BasicBlock *From, BasicBlock *To, Loop *L);
@@ -204,25 +196,12 @@ namespace {
     bool isLoopInvariantInst(Instruction &I);
     bool isNotUsedInLoop(Instruction &I);
 
-    /// PromoteValuesInLoop - Look at the stores in the loop and promote as many
-    /// to scalars as we can.
-    ///
-    void PromoteValuesInLoop();
-
-    /// FindPromotableValuesInLoop - Check the current loop for stores to
-    /// definite pointers, which are not loaded and stored through may aliases.
-    /// If these are found, create an alloca for the value, add it to the
-    /// PromotedValues list, and keep track of the mapping from value to
-    /// alloca...
-    ///
-    void FindPromotableValuesInLoop(
-                   std::vector<std::pair<AllocaInst*, Value*> > &PromotedValues,
-                                    std::map<Value*, AllocaInst*> &Val2AlMap);
+    void PromoteAliasSet(AliasSet &AS);
   };
 }
 
 char LICM::ID = 0;
-static RegisterPass<LICM> X("licm", "Loop Invariant Code Motion");
+INITIALIZE_PASS(LICM, "licm", "Loop Invariant Code Motion", false, false);
 
 Pass *llvm::createLICMPass() { return new LICM(); }
 
@@ -236,19 +215,23 @@ bool LICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   // Get our Loop and Alias Analysis information...
   LI = &getAnalysis<LoopInfo>();
   AA = &getAnalysis<AliasAnalysis>();
-  DF = &getAnalysis<DominanceFrontier>();
   DT = &getAnalysis<DominatorTree>();
 
   CurAST = new AliasSetTracker(*AA);
-  // Collect Alias info from subloops
+  // Collect Alias info from subloops.
   for (Loop::iterator LoopItr = L->begin(), LoopItrE = L->end();
        LoopItr != LoopItrE; ++LoopItr) {
     Loop *InnerL = *LoopItr;
-    AliasSetTracker *InnerAST = LoopToAliasMap[InnerL];
-    assert (InnerAST && "Where is my AST?");
+    AliasSetTracker *InnerAST = LoopToAliasSetMap[InnerL];
+    assert(InnerAST && "Where is my AST?");
 
     // What if InnerLoop was modified by other passes ?
     CurAST->add(*InnerAST);
+    
+    // Once we've incorporated the inner loop's AST into ours, we don't need the
+    // subloop's anymore.
+    delete InnerAST;
+    LoopToAliasSetMap.erase(InnerL);
   }
   
   CurLoop = L;
@@ -263,7 +246,7 @@ bool LICM::runOnLoop(Loop *L, LPPassManager &LPM) {
   for (Loop::block_iterator I = L->block_begin(), E = L->block_end();
        I != E; ++I) {
     BasicBlock *BB = *I;
-    if (LI->getLoopFor(BB) == L)        // Ignore blocks in subloops...
+    if (LI->getLoopFor(BB) == L)        // Ignore blocks in subloops.
       CurAST->add(*BB);                 // Incorporate the specified basic block
   }
 
@@ -283,15 +266,24 @@ bool LICM::runOnLoop(Loop *L, LPPassManager &LPM) {
     HoistRegion(DT->getNode(L->getHeader()));
 
   // Now that all loop invariants have been removed from the loop, promote any
-  // memory references to scalars that we can...
-  if (!DisablePromotion && Preheader && L->hasDedicatedExits())
-    PromoteValuesInLoop();
-
+  // memory references to scalars that we can.
+  if (!DisablePromotion && Preheader && L->hasDedicatedExits()) {
+    // Loop over all of the alias sets in the tracker object.
+    for (AliasSetTracker::iterator I = CurAST->begin(), E = CurAST->end();
+         I != E; ++I)
+      PromoteAliasSet(*I);
+  }
+  
   // Clear out loops state information for the next iteration
   CurLoop = 0;
   Preheader = 0;
 
-  LoopToAliasMap[L] = CurAST;
+  // If this loop is nested inside of another one, save the alias information
+  // for when we process the outer loop.
+  if (L->getParentLoop())
+    LoopToAliasSetMap[L] = CurAST;
+  else
+    delete CurAST;
   return Changed;
 }
 
@@ -308,7 +300,7 @@ void LICM::SinkRegion(DomTreeNode *N) {
   // If this subregion is not in the top level loop at all, exit.
   if (!CurLoop->contains(BB)) return;
 
-  // We are processing blocks in reverse dfo, so process children first...
+  // We are processing blocks in reverse dfo, so process children first.
   const std::vector<DomTreeNode*> &Children = N->getChildren();
   for (unsigned i = 0, e = Children.size(); i != e; ++i)
     SinkRegion(Children[i]);
@@ -319,6 +311,17 @@ void LICM::SinkRegion(DomTreeNode *N) {
 
   for (BasicBlock::iterator II = BB->end(); II != BB->begin(); ) {
     Instruction &I = *--II;
+    
+    // If the instruction is dead, we would try to sink it because it isn't used
+    // in the loop, instead, just delete it.
+    if (isInstructionTriviallyDead(&I)) {
+      DEBUG(dbgs() << "LICM deleting dead inst: " << I << '\n');
+      ++II;
+      CurAST->deleteValue(&I);
+      I.eraseFromParent();
+      Changed = true;
+      continue;
+    }
 
     // Check to see if we can sink this instruction to the exit blocks
     // of the loop.  We can do this if the all users of the instruction are
@@ -350,6 +353,18 @@ void LICM::HoistRegion(DomTreeNode *N) {
     for (BasicBlock::iterator II = BB->begin(), E = BB->end(); II != E; ) {
       Instruction &I = *II++;
 
+      // Try constant folding this instruction.  If all the operands are
+      // constants, it is technically hoistable, but it would be better to just
+      // fold it.
+      if (Constant *C = ConstantFoldInstruction(&I)) {
+        DEBUG(dbgs() << "LICM folding inst: " << I << "  --> " << *C << '\n');
+        CurAST->copyValue(&I, C);
+        CurAST->deleteValue(&I);
+        I.replaceAllUsesWith(C);
+        I.eraseFromParent();
+        continue;
+      }
+      
       // Try hoisting the instruction out to the preheader.  We can only do this
       // if all of the operands of the instruction are loop invariant and if it
       // is safe to hoist the instruction.
@@ -357,7 +372,7 @@ void LICM::HoistRegion(DomTreeNode *N) {
       if (isLoopInvariantInst(I) && canSinkOrHoistInst(I) &&
           isSafeToExecuteUnconditionally(I))
         hoist(I);
-      }
+    }
 
   const std::vector<DomTreeNode*> &Children = N->getChildren();
   for (unsigned i = 0, e = Children.size(); i != e; ++i)
@@ -457,10 +472,10 @@ bool LICM::isLoopInvariantInst(Instruction &I) {
 /// position, and may either delete it or move it to outside of the loop.
 ///
 void LICM::sink(Instruction &I) {
-  DEBUG(dbgs() << "LICM sinking instruction: " << I);
+  DEBUG(dbgs() << "LICM sinking instruction: " << I << "\n");
 
   SmallVector<BasicBlock*, 8> ExitBlocks;
-  CurLoop->getExitBlocks(ExitBlocks);
+  CurLoop->getUniqueExitBlocks(ExitBlocks);
 
   if (isa<LoadInst>(I)) ++NumMovedLoads;
   else if (isa<CallInst>(I)) ++NumMovedCalls;
@@ -477,122 +492,101 @@ void LICM::sink(Instruction &I) {
       // If I has users in unreachable blocks, eliminate.
       // If I is not void type then replaceAllUsesWith undef.
       // This allows ValueHandlers and custom metadata to adjust itself.
-      if (!I.getType()->isVoidTy())
+      if (!I.use_empty())
         I.replaceAllUsesWith(UndefValue::get(I.getType()));
       I.eraseFromParent();
     } else {
       // Move the instruction to the start of the exit block, after any PHI
       // nodes in it.
-      I.removeFromParent();
-      BasicBlock::iterator InsertPt = ExitBlocks[0]->getFirstNonPHI();
-      ExitBlocks[0]->getInstList().insert(InsertPt, &I);
+      I.moveBefore(ExitBlocks[0]->getFirstNonPHI());
+
+      // This instruction is no longer in the AST for the current loop, because
+      // we just sunk it out of the loop.  If we just sunk it into an outer
+      // loop, we will rediscover the operation when we process it.
+      CurAST->deleteValue(&I);
     }
-  } else if (ExitBlocks.empty()) {
+    return;
+  }
+  
+  if (ExitBlocks.empty()) {
     // The instruction is actually dead if there ARE NO exit blocks.
     CurAST->deleteValue(&I);
     // If I has users in unreachable blocks, eliminate.
     // If I is not void type then replaceAllUsesWith undef.
     // This allows ValueHandlers and custom metadata to adjust itself.
-    if (!I.getType()->isVoidTy())
+    if (!I.use_empty())
       I.replaceAllUsesWith(UndefValue::get(I.getType()));
     I.eraseFromParent();
-  } else {
-    // Otherwise, if we have multiple exits, use the PromoteMem2Reg function to
-    // do all of the hard work of inserting PHI nodes as necessary.  We convert
-    // the value into a stack object to get it to do this.
-
-    // Firstly, we create a stack object to hold the value...
-    AllocaInst *AI = 0;
-
-    if (!I.getType()->isVoidTy()) {
-      AI = new AllocaInst(I.getType(), 0, I.getName(),
-                          I.getParent()->getParent()->getEntryBlock().begin());
-      CurAST->add(AI);
-    }
-
-    // Secondly, insert load instructions for each use of the instruction
-    // outside of the loop.
-    while (!I.use_empty()) {
-      Instruction *U = cast<Instruction>(I.use_back());
-
-      // If the user is a PHI Node, we actually have to insert load instructions
-      // in all predecessor blocks, not in the PHI block itself!
-      if (PHINode *UPN = dyn_cast<PHINode>(U)) {
-        // Only insert into each predecessor once, so that we don't have
-        // different incoming values from the same block!
-        std::map<BasicBlock*, Value*> InsertedBlocks;
-        for (unsigned i = 0, e = UPN->getNumIncomingValues(); i != e; ++i)
-          if (UPN->getIncomingValue(i) == &I) {
-            BasicBlock *Pred = UPN->getIncomingBlock(i);
-            Value *&PredVal = InsertedBlocks[Pred];
-            if (!PredVal) {
-              // Insert a new load instruction right before the terminator in
-              // the predecessor block.
-              PredVal = new LoadInst(AI, "", Pred->getTerminator());
-              CurAST->add(cast<LoadInst>(PredVal));
-            }
-
-            UPN->setIncomingValue(i, PredVal);
-          }
-
-      } else {
-        LoadInst *L = new LoadInst(AI, "", U);
-        U->replaceUsesOfWith(&I, L);
-        CurAST->add(L);
-      }
-    }
-
-    // Thirdly, insert a copy of the instruction in each exit block of the loop
-    // that is dominated by the instruction, storing the result into the memory
-    // location.  Be careful not to insert the instruction into any particular
-    // basic block more than once.
-    std::set<BasicBlock*> InsertedBlocks;
-    BasicBlock *InstOrigBB = I.getParent();
-
-    for (unsigned i = 0, e = ExitBlocks.size(); i != e; ++i) {
-      BasicBlock *ExitBlock = ExitBlocks[i];
-
-      if (isExitBlockDominatedByBlockInLoop(ExitBlock, InstOrigBB)) {
-        // If we haven't already processed this exit block, do so now.
-        if (InsertedBlocks.insert(ExitBlock).second) {
-          // Insert the code after the last PHI node...
-          BasicBlock::iterator InsertPt = ExitBlock->getFirstNonPHI();
-
-          // If this is the first exit block processed, just move the original
-          // instruction, otherwise clone the original instruction and insert
-          // the copy.
-          Instruction *New;
-          if (InsertedBlocks.size() == 1) {
-            I.removeFromParent();
-            ExitBlock->getInstList().insert(InsertPt, &I);
-            New = &I;
-          } else {
-            New = I.clone();
-            CurAST->copyValue(&I, New);
-            if (!I.getName().empty())
-              New->setName(I.getName()+".le");
-            ExitBlock->getInstList().insert(InsertPt, New);
-          }
-
-          // Now that we have inserted the instruction, store it into the alloca
-          if (AI) new StoreInst(New, AI, InsertPt);
-        }
-      }
-    }
-
-    // If the instruction doesn't dominate any exit blocks, it must be dead.
-    if (InsertedBlocks.empty()) {
-      CurAST->deleteValue(&I);
-      I.eraseFromParent();
-    }
-
-    // Finally, promote the fine value to SSA form.
-    if (AI) {
-      std::vector<AllocaInst*> Allocas;
-      Allocas.push_back(AI);
-      PromoteMemToReg(Allocas, *DT, *DF, CurAST);
-    }
+    return;
   }
+  
+  // Otherwise, if we have multiple exits, use the SSAUpdater to do all of the
+  // hard work of inserting PHI nodes as necessary.
+  SmallVector<PHINode*, 8> NewPHIs;
+  SSAUpdater SSA(&NewPHIs);
+  
+  if (!I.use_empty())
+    SSA.Initialize(I.getType(), I.getName());
+  
+  // Insert a copy of the instruction in each exit block of the loop that is
+  // dominated by the instruction.  Each exit block is known to only be in the
+  // ExitBlocks list once.
+  BasicBlock *InstOrigBB = I.getParent();
+  unsigned NumInserted = 0;
+  
+  for (unsigned i = 0, e = ExitBlocks.size(); i != e; ++i) {
+    BasicBlock *ExitBlock = ExitBlocks[i];
+    
+    if (!isExitBlockDominatedByBlockInLoop(ExitBlock, InstOrigBB))
+      continue;
+    
+    // Insert the code after the last PHI node.
+    BasicBlock::iterator InsertPt = ExitBlock->getFirstNonPHI();
+    
+    // If this is the first exit block processed, just move the original
+    // instruction, otherwise clone the original instruction and insert
+    // the copy.
+    Instruction *New;
+    if (NumInserted++ == 0) {
+      I.moveBefore(InsertPt);
+      New = &I;
+    } else {
+      New = I.clone();
+      if (!I.getName().empty())
+        New->setName(I.getName()+".le");
+      ExitBlock->getInstList().insert(InsertPt, New);
+    }
+    
+    // Now that we have inserted the instruction, inform SSAUpdater.
+    if (!I.use_empty())
+      SSA.AddAvailableValue(ExitBlock, New);
+  }
+  
+  // If the instruction doesn't dominate any exit blocks, it must be dead.
+  if (NumInserted == 0) {
+    CurAST->deleteValue(&I);
+    if (!I.use_empty())
+      I.replaceAllUsesWith(UndefValue::get(I.getType()));
+    I.eraseFromParent();
+    return;
+  }
+  
+  // Next, rewrite uses of the instruction, inserting PHI nodes as needed.
+  for (Value::use_iterator UI = I.use_begin(), UE = I.use_end(); UI != UE; ) {
+    // Grab the use before incrementing the iterator.
+    Use &U = UI.getUse();
+    // Increment the iterator before removing the use from the list.
+    ++UI;
+    SSA.RewriteUseAfterInsertions(U);
+  }
+  
+  // Update CurAST for NewPHIs if I had pointer type.
+  if (I.getType()->isPointerTy())
+    for (unsigned i = 0, e = NewPHIs.size(); i != e; ++i)
+      CurAST->copyValue(&I, NewPHIs[i]);
+  
+  // Finally, remove the instruction from CurAST.  It is no longer in the loop.
+  CurAST->deleteValue(&I);
 }
 
 /// hoist - When an instruction is found to only use loop invariant operands
@@ -602,12 +596,8 @@ void LICM::hoist(Instruction &I) {
   DEBUG(dbgs() << "LICM hoisting to " << Preheader->getName() << ": "
         << I << "\n");
 
-  // Remove the instruction from its current basic block... but don't delete the
-  // instruction.
-  I.removeFromParent();
-
-  // Insert the new node in Preheader, before the terminator.
-  Preheader->getInstList().insert(Preheader->getTerminator(), &I);
+  // Move the new node to the Preheader, before its terminator.
+  I.moveBefore(Preheader->getTerminator());
 
   if (isa<LoadInst>(I)) ++NumMovedLoads;
   else if (isa<CallInst>(I)) ++NumMovedCalls;
@@ -647,223 +637,269 @@ bool LICM::isSafeToExecuteUnconditionally(Instruction &Inst) {
   return true;
 }
 
-
-/// PromoteValuesInLoop - Try to promote memory values to scalars by sinking
+/// PromoteAliasSet - Try to promote memory values to scalars by sinking
 /// stores out of the loop and moving loads to before the loop.  We do this by
 /// looping over the stores in the loop, looking for stores to Must pointers
-/// which are loop invariant.  We promote these memory locations to use allocas
-/// instead.  These allocas can easily be raised to register values by the
-/// PromoteMem2Reg functionality.
+/// which are loop invariant.
 ///
-void LICM::PromoteValuesInLoop() {
-  // PromotedValues - List of values that are promoted out of the loop.  Each
-  // value has an alloca instruction for it, and a canonical version of the
-  // pointer.
-  std::vector<std::pair<AllocaInst*, Value*> > PromotedValues;
-  std::map<Value*, AllocaInst*> ValueToAllocaMap; // Map of ptr to alloca
-
-  FindPromotableValuesInLoop(PromotedValues, ValueToAllocaMap);
-  if (ValueToAllocaMap.empty()) return;   // If there are values to promote.
-
-  Changed = true;
-  NumPromoted += PromotedValues.size();
-
-  std::vector<Value*> PointerValueNumbers;
-
-  // Emit a copy from the value into the alloca'd value in the loop preheader
-  TerminatorInst *LoopPredInst = Preheader->getTerminator();
-  for (unsigned i = 0, e = PromotedValues.size(); i != e; ++i) {
-    Value *Ptr = PromotedValues[i].second;
-
-    // If we are promoting a pointer value, update alias information for the
-    // inserted load.
-    Value *LoadValue = 0;
-    if (cast<PointerType>(Ptr->getType())->getElementType()->isPointerTy()) {
-      // Locate a load or store through the pointer, and assign the same value
-      // to LI as we are loading or storing.  Since we know that the value is
-      // stored in this loop, this will always succeed.
-      for (Value::use_iterator UI = Ptr->use_begin(), E = Ptr->use_end();
-           UI != E; ++UI) {
-        User *U = *UI;
-        if (LoadInst *LI = dyn_cast<LoadInst>(U)) {
-          LoadValue = LI;
-          break;
-        } else if (StoreInst *SI = dyn_cast<StoreInst>(U)) {
-          if (SI->getOperand(1) == Ptr) {
-            LoadValue = SI->getOperand(0);
-            break;
-          }
-        }
-      }
-      assert(LoadValue && "No store through the pointer found!");
-      PointerValueNumbers.push_back(LoadValue);  // Remember this for later.
-    }
-
-    // Load from the memory we are promoting.
-    LoadInst *LI = new LoadInst(Ptr, Ptr->getName()+".promoted", LoopPredInst);
-
-    if (LoadValue) CurAST->copyValue(LoadValue, LI);
-
-    // Store into the temporary alloca.
-    new StoreInst(LI, PromotedValues[i].first, LoopPredInst);
-  }
-
-  // Scan the basic blocks in the loop, replacing uses of our pointers with
-  // uses of the allocas in question.
-  //
-  for (Loop::block_iterator I = CurLoop->block_begin(),
-         E = CurLoop->block_end(); I != E; ++I) {
-    BasicBlock *BB = *I;
-    // Rewrite all loads and stores in the block of the pointer...
-    for (BasicBlock::iterator II = BB->begin(), E = BB->end(); II != E; ++II) {
-      if (LoadInst *L = dyn_cast<LoadInst>(II)) {
-        std::map<Value*, AllocaInst*>::iterator
-          I = ValueToAllocaMap.find(L->getOperand(0));
-        if (I != ValueToAllocaMap.end())
-          L->setOperand(0, I->second);    // Rewrite load instruction...
-      } else if (StoreInst *S = dyn_cast<StoreInst>(II)) {
-        std::map<Value*, AllocaInst*>::iterator
-          I = ValueToAllocaMap.find(S->getOperand(1));
-        if (I != ValueToAllocaMap.end())
-          S->setOperand(1, I->second);    // Rewrite store instruction...
-      }
-    }
-  }
-
-  // Now that the body of the loop uses the allocas instead of the original
-  // memory locations, insert code to copy the alloca value back into the
-  // original memory location on all exits from the loop.  Note that we only
-  // want to insert one copy of the code in each exit block, though the loop may
-  // exit to the same block more than once.
-  //
-  SmallPtrSet<BasicBlock*, 16> ProcessedBlocks;
-
-  SmallVector<BasicBlock*, 8> ExitBlocks;
-  CurLoop->getExitBlocks(ExitBlocks);
-  for (unsigned i = 0, e = ExitBlocks.size(); i != e; ++i) {
-    if (!ProcessedBlocks.insert(ExitBlocks[i]))
-      continue;
+void LICM::PromoteAliasSet(AliasSet &AS) {
+  // We can promote this alias set if it has a store, if it is a "Must" alias
+  // set, if the pointer is loop invariant, and if we are not eliminating any
+  // volatile loads or stores.
+  if (AS.isForwardingAliasSet() || !AS.isMod() || !AS.isMustAlias() ||
+      AS.isVolatile() || !CurLoop->isLoopInvariant(AS.begin()->getValue()))
+    return;
   
-    // Copy all of the allocas into their memory locations.
-    BasicBlock::iterator BI = ExitBlocks[i]->getFirstNonPHI();
-    Instruction *InsertPos = BI;
-    unsigned PVN = 0;
-    for (unsigned i = 0, e = PromotedValues.size(); i != e; ++i) {
-      // Load from the alloca.
-      LoadInst *LI = new LoadInst(PromotedValues[i].first, "", InsertPos);
+  assert(!AS.empty() &&
+         "Must alias set should have at least one pointer element in it!");
+  Value *SomePtr = AS.begin()->getValue();
 
-      // If this is a pointer type, update alias info appropriately.
-      if (LI->getType()->isPointerTy())
-        CurAST->copyValue(PointerValueNumbers[PVN++], LI);
-
-      // Store into the memory we promoted.
-      new StoreInst(LI, PromotedValues[i].second, InsertPos);
-    }
-  }
-
-  // Now that we have done the deed, use the mem2reg functionality to promote
-  // all of the new allocas we just created into real SSA registers.
+  // It isn't safe to promote a load/store from the loop if the load/store is
+  // conditional.  For example, turning:
   //
-  std::vector<AllocaInst*> PromotedAllocas;
-  PromotedAllocas.reserve(PromotedValues.size());
-  for (unsigned i = 0, e = PromotedValues.size(); i != e; ++i)
-    PromotedAllocas.push_back(PromotedValues[i].first);
-  PromoteMemToReg(PromotedAllocas, *DT, *DF, CurAST);
-}
+  //    for () { if (c) *P += 1; }
+  //
+  // into:
+  //
+  //    tmp = *P;  for () { if (c) tmp +=1; } *P = tmp;
+  //
+  // is not safe, because *P may only be valid to access if 'c' is true.
+  // 
+  // It is safe to promote P if all uses are direct load/stores and if at
+  // least one is guaranteed to be executed.
+  bool GuaranteedToExecute = false;
+  
+  SmallVector<Instruction*, 64> LoopUses;
+  SmallPtrSet<Value*, 4> PointerMustAliases;
 
-/// FindPromotableValuesInLoop - Check the current loop for stores to definite
-/// pointers, which are not loaded and stored through may aliases and are safe
-/// for promotion.  If these are found, create an alloca for the value, add it 
-/// to the PromotedValues list, and keep track of the mapping from value to 
-/// alloca. 
-void LICM::FindPromotableValuesInLoop(
-                   std::vector<std::pair<AllocaInst*, Value*> > &PromotedValues,
-                             std::map<Value*, AllocaInst*> &ValueToAllocaMap) {
-  Instruction *FnStart = CurLoop->getHeader()->getParent()->begin()->begin();
-
-  // Loop over all of the alias sets in the tracker object.
-  for (AliasSetTracker::iterator I = CurAST->begin(), E = CurAST->end();
-       I != E; ++I) {
-    AliasSet &AS = *I;
-    // We can promote this alias set if it has a store, if it is a "Must" alias
-    // set, if the pointer is loop invariant, and if we are not eliminating any
-    // volatile loads or stores.
-    if (AS.isForwardingAliasSet() || !AS.isMod() || !AS.isMustAlias() ||
-        AS.isVolatile() || !CurLoop->isLoopInvariant(AS.begin()->getValue()))
-      continue;
+  // Check that all of the pointers in the alias set have the same type.  We
+  // cannot (yet) promote a memory location that is loaded and stored in
+  // different sizes.
+  for (AliasSet::iterator ASI = AS.begin(), E = AS.end(); ASI != E; ++ASI) {
+    Value *ASIV = ASI->getValue();
+    PointerMustAliases.insert(ASIV);
     
-    assert(!AS.empty() &&
-           "Must alias set should have at least one pointer element in it!");
-    Value *V = AS.begin()->getValue();
-
     // Check that all of the pointers in the alias set have the same type.  We
     // cannot (yet) promote a memory location that is loaded and stored in
     // different sizes.
-    {
-      bool PointerOk = true;
-      for (AliasSet::iterator I = AS.begin(), E = AS.end(); I != E; ++I)
-        if (V->getType() != I->getValue()->getType()) {
-          PointerOk = false;
-          break;
-        }
-      if (!PointerOk)
-        continue;
-    }
-
-    // It isn't safe to promote a load/store from the loop if the load/store is
-    // conditional.  For example, turning:
-    //
-    //    for () { if (c) *P += 1; }
-    //
-    // into:
-    //
-    //    tmp = *P;  for () { if (c) tmp +=1; } *P = tmp;
-    //
-    // is not safe, because *P may only be valid to access if 'c' is true.
-    // 
-    // It is safe to promote P if all uses are direct load/stores and if at
-    // least one is guaranteed to be executed.
-    bool GuaranteedToExecute = false;
-    bool InvalidInst = false;
-    for (Value::use_iterator UI = V->use_begin(), UE = V->use_end();
+    if (SomePtr->getType() != ASIV->getType())
+      return;
+    
+    for (Value::use_iterator UI = ASIV->use_begin(), UE = ASIV->use_end();
          UI != UE; ++UI) {
-      // Ignore instructions not in this loop.
+      // Ignore instructions that are outside the loop.
       Instruction *Use = dyn_cast<Instruction>(*UI);
       if (!Use || !CurLoop->contains(Use))
         continue;
-
-      if (!isa<LoadInst>(Use) && !isa<StoreInst>(Use)) {
-        InvalidInst = true;
-        break;
-      }
+      
+      // If there is an non-load/store instruction in the loop, we can't promote
+      // it.
+      if (isa<LoadInst>(Use))
+        assert(!cast<LoadInst>(Use)->isVolatile() && "AST broken");
+      else if (isa<StoreInst>(Use)) {
+        assert(!cast<StoreInst>(Use)->isVolatile() && "AST broken");
+        if (Use->getOperand(0) == ASIV) return;
+      } else
+        return; // Not a load or store.
       
       if (!GuaranteedToExecute)
         GuaranteedToExecute = isSafeToExecuteUnconditionally(*Use);
+      
+      LoopUses.push_back(Use);
+    }
+  }
+  
+  // If there isn't a guaranteed-to-execute instruction, we can't promote.
+  if (!GuaranteedToExecute)
+    return;
+  
+  // Otherwise, this is safe to promote, lets do it!
+  DEBUG(dbgs() << "LICM: Promoting value stored to in loop: " <<*SomePtr<<'\n');  
+  Changed = true;
+  ++NumPromoted;
+
+  // We use the SSAUpdater interface to insert phi nodes as required.
+  SmallVector<PHINode*, 16> NewPHIs;
+  SSAUpdater SSA(&NewPHIs);
+  
+  // It wants to know some value of the same type as what we'll be inserting.
+  Value *SomeValue;
+  if (isa<LoadInst>(LoopUses[0]))
+    SomeValue = LoopUses[0];
+  else
+    SomeValue = cast<StoreInst>(LoopUses[0])->getOperand(0);
+  SSA.Initialize(SomeValue->getType(), SomeValue->getName());
+
+  // First step: bucket up uses of the pointers by the block they occur in.
+  // This is important because we have to handle multiple defs/uses in a block
+  // ourselves: SSAUpdater is purely for cross-block references.
+  // FIXME: Want a TinyVector<Instruction*> since there is usually 0/1 element.
+  DenseMap<BasicBlock*, std::vector<Instruction*> > UsesByBlock;
+  for (unsigned i = 0, e = LoopUses.size(); i != e; ++i) {
+    Instruction *User = LoopUses[i];
+    UsesByBlock[User->getParent()].push_back(User);
+  }
+  
+  // Okay, now we can iterate over all the blocks in the loop with uses,
+  // processing them.  Keep track of which loads are loading a live-in value.
+  SmallVector<LoadInst*, 32> LiveInLoads;
+  DenseMap<Value*, Value*> ReplacedLoads;
+  
+  for (unsigned LoopUse = 0, e = LoopUses.size(); LoopUse != e; ++LoopUse) {
+    Instruction *User = LoopUses[LoopUse];
+    std::vector<Instruction*> &BlockUses = UsesByBlock[User->getParent()];
+    
+    // If this block has already been processed, ignore this repeat use.
+    if (BlockUses.empty()) continue;
+    
+    // Okay, this is the first use in the block.  If this block just has a
+    // single user in it, we can rewrite it trivially.
+    if (BlockUses.size() == 1) {
+      // If it is a store, it is a trivial def of the value in the block.
+      if (isa<StoreInst>(User)) {
+        SSA.AddAvailableValue(User->getParent(),
+                              cast<StoreInst>(User)->getOperand(0));
+      } else {
+        // Otherwise it is a load, queue it to rewrite as a live-in load.
+        LiveInLoads.push_back(cast<LoadInst>(User));
+      }
+      BlockUses.clear();
+      continue;
+    }
+    
+    // Otherwise, check to see if this block is all loads.  If so, we can queue
+    // them all as live in loads.
+    bool HasStore = false;
+    for (unsigned i = 0, e = BlockUses.size(); i != e; ++i) {
+      if (isa<StoreInst>(BlockUses[i])) {
+        HasStore = true;
+        break;
+      }
+    }
+    
+    if (!HasStore) {
+      for (unsigned i = 0, e = BlockUses.size(); i != e; ++i)
+        LiveInLoads.push_back(cast<LoadInst>(BlockUses[i]));
+      BlockUses.clear();
+      continue;
     }
 
-    // If there is an non-load/store instruction in the loop, we can't promote
-    // it.  If there isn't a guaranteed-to-execute instruction, we can't
-    // promote.
-    if (InvalidInst || !GuaranteedToExecute)
-      continue;
+    // Otherwise, we have mixed loads and stores (or just a bunch of stores).
+    // Since SSAUpdater is purely for cross-block values, we need to determine
+    // the order of these instructions in the block.  If the first use in the
+    // block is a load, then it uses the live in value.  The last store defines
+    // the live out value.  We handle this by doing a linear scan of the block.
+    BasicBlock *BB = User->getParent();
+    Value *StoredValue = 0;
+    for (BasicBlock::iterator II = BB->begin(), E = BB->end(); II != E; ++II) {
+      if (LoadInst *L = dyn_cast<LoadInst>(II)) {
+        // If this is a load from an unrelated pointer, ignore it.
+        if (!PointerMustAliases.count(L->getOperand(0))) continue;
+
+        // If we haven't seen a store yet, this is a live in use, otherwise
+        // use the stored value.
+        if (StoredValue) {
+          L->replaceAllUsesWith(StoredValue);
+          ReplacedLoads[L] = StoredValue;
+        } else {
+          LiveInLoads.push_back(L);
+        }
+        continue;
+      }
+      
+      if (StoreInst *S = dyn_cast<StoreInst>(II)) {
+        // If this is a store to an unrelated pointer, ignore it.
+        if (!PointerMustAliases.count(S->getOperand(1))) continue;
+
+        // Remember that this is the active value in the block.
+        StoredValue = S->getOperand(0);
+      }
+    }
     
-    const Type *Ty = cast<PointerType>(V->getType())->getElementType();
-    AllocaInst *AI = new AllocaInst(Ty, 0, V->getName()+".tmp", FnStart);
-    PromotedValues.push_back(std::make_pair(AI, V));
-
-    // Update the AST and alias analysis.
-    CurAST->copyValue(V, AI);
-
-    for (AliasSet::iterator I = AS.begin(), E = AS.end(); I != E; ++I)
-      ValueToAllocaMap.insert(std::make_pair(I->getValue(), AI));
-
-    DEBUG(dbgs() << "LICM: Promoting value: " << *V << "\n");
+    // The last stored value that happened is the live-out for the block.
+    assert(StoredValue && "Already checked that there is a store in block");
+    SSA.AddAvailableValue(BB, StoredValue);
+    BlockUses.clear();
   }
+  
+  // Now that all the intra-loop values are classified, set up the preheader.
+  // It gets a load of the pointer we're promoting, and it is the live-out value
+  // from the preheader.
+  LoadInst *PreheaderLoad = new LoadInst(SomePtr,SomePtr->getName()+".promoted",
+                                         Preheader->getTerminator());
+  SSA.AddAvailableValue(Preheader, PreheaderLoad);
+
+  // Now that the preheader is good to go, set up the exit blocks.  Each exit
+  // block gets a store of the live-out values that feed them.  Since we've
+  // already told the SSA updater about the defs in the loop and the preheader
+  // definition, it is all set and we can start using it.
+  SmallVector<BasicBlock*, 8> ExitBlocks;
+  CurLoop->getUniqueExitBlocks(ExitBlocks);
+  for (unsigned i = 0, e = ExitBlocks.size(); i != e; ++i) {
+    BasicBlock *ExitBlock = ExitBlocks[i];
+    Value *LiveInValue = SSA.GetValueInMiddleOfBlock(ExitBlock);
+    Instruction *InsertPos = ExitBlock->getFirstNonPHI();
+    new StoreInst(LiveInValue, SomePtr, InsertPos);
+  }
+
+  // Okay, now we rewrite all loads that use live-in values in the loop,
+  // inserting PHI nodes as necessary.
+  for (unsigned i = 0, e = LiveInLoads.size(); i != e; ++i) {
+    LoadInst *ALoad = LiveInLoads[i];
+    Value *NewVal = SSA.GetValueInMiddleOfBlock(ALoad->getParent());
+    ALoad->replaceAllUsesWith(NewVal);
+    CurAST->copyValue(ALoad, NewVal);
+    ReplacedLoads[ALoad] = NewVal;
+  }
+  
+  // If the preheader load is itself a pointer, we need to tell alias analysis
+  // about the new pointer we created in the preheader block and about any PHI
+  // nodes that just got inserted.
+  if (PreheaderLoad->getType()->isPointerTy()) {
+    // Copy any value stored to or loaded from a must-alias of the pointer.
+    CurAST->copyValue(SomeValue, PreheaderLoad);
+    
+    for (unsigned i = 0, e = NewPHIs.size(); i != e; ++i)
+      CurAST->copyValue(SomeValue, NewPHIs[i]);
+  }
+  
+  // Now that everything is rewritten, delete the old instructions from the body
+  // of the loop.  They should all be dead now.
+  for (unsigned i = 0, e = LoopUses.size(); i != e; ++i) {
+    Instruction *User = LoopUses[i];
+    
+    // If this is a load that still has uses, then the load must have been added
+    // as a live value in the SSAUpdate data structure for a block (e.g. because
+    // the loaded value was stored later).  In this case, we need to recursively
+    // propagate the updates until we get to the real value.
+    if (!User->use_empty()) {
+      Value *NewVal = ReplacedLoads[User];
+      assert(NewVal && "not a replaced load?");
+      
+      // Propagate down to the ultimate replacee.  The intermediately loads
+      // could theoretically already have been deleted, so we don't want to
+      // dereference the Value*'s.
+      DenseMap<Value*, Value*>::iterator RLI = ReplacedLoads.find(NewVal);
+      while (RLI != ReplacedLoads.end()) {
+        NewVal = RLI->second;
+        RLI = ReplacedLoads.find(NewVal);
+      }
+      
+      User->replaceAllUsesWith(NewVal);
+      CurAST->copyValue(User, NewVal);
+    }
+    
+    CurAST->deleteValue(User);
+    User->eraseFromParent();
+  }
+  
+  // fwew, we're done!
 }
+
 
 /// cloneBasicBlockAnalysis - Simple Analysis hook. Clone alias set info.
 void LICM::cloneBasicBlockAnalysis(BasicBlock *From, BasicBlock *To, Loop *L) {
-  AliasSetTracker *AST = LoopToAliasMap[L];
+  AliasSetTracker *AST = LoopToAliasSetMap.lookup(L);
   if (!AST)
     return;
 
@@ -873,7 +909,7 @@ void LICM::cloneBasicBlockAnalysis(BasicBlock *From, BasicBlock *To, Loop *L) {
 /// deleteAnalysisValue - Simple Analysis hook. Delete value V from alias
 /// set.
 void LICM::deleteAnalysisValue(Value *V, Loop *L) {
-  AliasSetTracker *AST = LoopToAliasMap[L];
+  AliasSetTracker *AST = LoopToAliasSetMap.lookup(L);
   if (!AST)
     return;
 

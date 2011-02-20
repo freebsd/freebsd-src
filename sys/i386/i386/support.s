@@ -423,7 +423,6 @@ ENTRY(casuword)
 	 */
 
 	movl	PCPU(CURPCB),%ecx
-	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	$0,PCB_ONFAULT(%ecx)
 	ret
 END(casuword32)
@@ -789,26 +788,6 @@ ENTRY(longjmp)
 	incl	%eax
 	ret
 END(longjmp)
-
-/*
- * Support for BB-profiling (gcc -a).  The kernbb program will extract
- * the data from the kernel.
- */
-
-	.data
-	ALIGN_DATA
-	.globl bbhead
-bbhead:
-	.long 0
-
-	.text
-NON_GPROF_ENTRY(__bb_init_func)
-	movl	4(%esp),%eax
-	movl	$1,(%eax)
-	movl	bbhead,%edx
-	movl	%edx,16(%eax)
-	movl	%eax,bbhead
-	NON_GPROF_RET
 
 /*
  * Support for reading MSRs in the safe manner.

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/fbio.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -61,6 +62,8 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/x86bios/x86bios.h>
 
+#define	VESA_BIOS_OFFSET	0xc0000
+#define	VESA_PALETTE_SIZE	(256 * 4)
 #define	VESA_VIA_CLE266		"VIA CLE266\r\n"
 
 #ifndef VESA_DEBUG
@@ -83,10 +86,20 @@ static ssize_t vesa_state_buf_size = 0;
 
 static u_char *vesa_palette = NULL;
 static uint32_t vesa_palette_offs = 0;
-#define	VESA_PALETTE_SIZE	(256 * 4)
+
+static void *vesa_bios = NULL;
+static uint32_t vesa_bios_offs = VESA_BIOS_OFFSET;
+static uint32_t vesa_bios_int10 = 0;
+static size_t vesa_bios_size = 0;
 
 /* VESA video adapter */
 static video_adapter_t *vesa_adp = NULL;
+
+SYSCTL_NODE(_debug, OID_AUTO, vesa, CTLFLAG_RD, NULL, "VESA debugging");
+static int vesa_shadow_rom = 0;
+TUNABLE_INT("debug.vesa.shadow_rom", &vesa_shadow_rom);
+SYSCTL_INT(_debug_vesa, OID_AUTO, shadow_rom, CTLFLAG_RDTUN, &vesa_shadow_rom,
+    0, "Enable video BIOS shadow");
 
 /* VESA functions */
 #if 0
@@ -242,7 +255,7 @@ vesa_bios_post(void)
 	device_t dev;
 	int count, i, is_pci;
 
-	if (x86bios_get_orm(0xc0000) == NULL)
+	if (x86bios_get_orm(vesa_bios_offs) == NULL)
 		return (1);
 
 	dev = NULL;
@@ -253,7 +266,7 @@ vesa_bios_post(void)
 	if (dc != NULL && devclass_get_devices(dc, &devs, &count) == 0) {
 		for (i = 0; i < count; i++)
 			if (device_get_flags(devs[i]) != 0 &&
-			    x86bios_match_device(0xc0000, devs[i])) {
+			    x86bios_match_device(vesa_bios_offs, devs[i])) {
 				dev = devs[i];
 				is_pci = 1;
 				break;
@@ -279,7 +292,8 @@ vesa_bios_post(void)
 		    (pci_get_function(dev) & 0x07);
 	}
 	regs.R_DL = 0x80;
-	x86bios_call(&regs, 0xc000, 0x0003);
+	x86bios_call(&regs, X86BIOS_PHYSTOSEG(vesa_bios_offs + 3),
+	    X86BIOS_PHYSTOOFF(vesa_bios_offs + 3));
 
 	if (x86bios_get_intr(0x10) == 0)
 		return (1);
@@ -754,6 +768,7 @@ vesa_bios_init(void)
 	size_t bsize;
 	size_t msize;
 	void *vmbuf;
+	uint8_t *vbios;
 	uint32_t offs;
 	uint16_t vers;
 	int is_via_cle266;
@@ -765,21 +780,47 @@ vesa_bios_init(void)
 
 	has_vesa_bios = FALSE;
 	vesa_adp_info = NULL;
+	vesa_bios_offs = VESA_BIOS_OFFSET;
 	vesa_vmode_max = 0;
 	vesa_vmode[0].vi_mode = EOT;
 
 	/*
 	 * If the VBE real mode interrupt vector is not found, try BIOS POST.
 	 */
-	if (x86bios_get_intr(0x10) == 0) {
+	vesa_bios_int10 = x86bios_get_intr(0x10);
+	if (vesa_bios_int10 == 0) {
 		if (vesa_bios_post() != 0)
 			return (1);
-		if (bootverbose) {
-			offs = x86bios_get_intr(0x10);
-			printf("VESA: interrupt vector installed (0x%x)\n",
-			    BIOS_SADDRTOLADDR(offs));
-		}
+		vesa_bios_int10 = x86bios_get_intr(0x10);
+		if (vesa_bios_int10 == 0)
+			return (1);
 	}
+
+	/*
+	 * Shadow video ROM.
+	 */
+	offs = vesa_bios_int10;
+	if (vesa_shadow_rom) {
+		vbios = x86bios_get_orm(vesa_bios_offs);
+		if (vbios != NULL) {
+			vesa_bios_size = vbios[2] * 512;
+			if (((VESA_BIOS_OFFSET << 12) & 0xffff0000) ==
+			    (vesa_bios_int10 & 0xffff0000) &&
+			    vesa_bios_size > (vesa_bios_int10 & 0xffff)) {
+				vesa_bios = x86bios_alloc(&vesa_bios_offs,
+				    vesa_bios_size, M_WAITOK);
+				memcpy(vesa_bios, vbios, vesa_bios_size);
+				offs = ((vesa_bios_offs << 12) & 0xffff0000) +
+				    (vesa_bios_int10 & 0xffff);
+				x86bios_set_intr(0x10, offs);
+			}
+		}
+		if (vesa_bios == NULL)
+			printf("VESA: failed to shadow video ROM\n");
+	}
+	if (bootverbose)
+		printf("VESA: INT 0x10 vector 0x%04x:0x%04x\n",
+		    (offs >> 16) & 0xffff, offs & 0xffff);
 
 	x86bios_init_regs(&regs);
 	regs.R_AX = 0x4f00;
@@ -1011,6 +1052,12 @@ vesa_bios_init(void)
 	return (0);
 
 fail:
+	if (vesa_bios != NULL) {
+		x86bios_set_intr(0x10, vesa_bios_int10);
+		vesa_bios_offs = VESA_BIOS_OFFSET;
+		x86bios_free(vesa_bios, vesa_bios_size);
+		vesa_bios = NULL;
+	}
 	if (vmbuf != NULL)
 		x86bios_free(vmbuf, sizeof(buf));
 	if (vesa_adp_info != NULL) {
@@ -1862,6 +1909,10 @@ vesa_unload(void)
 		}
 	}
 
+	if (vesa_bios != NULL) {
+		x86bios_set_intr(0x10, vesa_bios_int10);
+		x86bios_free(vesa_bios, vesa_bios_size);
+	}
 	if (vesa_adp_info != NULL)
 		free(vesa_adp_info, M_DEVBUF);
 	if (vesa_oemstr != NULL)

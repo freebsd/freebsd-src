@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <i386/bios/mca_machdep.h>
 #endif
 
+#include <machine/clock.h>
 #include <machine/legacyvar.h>
 #include <machine/resource.h>
 
@@ -65,7 +66,7 @@ struct legacy_device {
 static	int legacy_probe(device_t);
 static	int legacy_attach(device_t);
 static	int legacy_print_child(device_t, device_t);
-static device_t legacy_add_child(device_t bus, int order, const char *name,
+static device_t legacy_add_child(device_t bus, u_int order, const char *name,
 				int unit);
 static	int legacy_read_ivar(device_t, device_t, int, uintptr_t *);
 static	int legacy_write_ivar(device_t, device_t, int, uintptr_t);
@@ -170,7 +171,7 @@ legacy_print_child(device_t bus, device_t child)
 }
 
 static device_t
-legacy_add_child(device_t bus, int order, const char *name, int unit)
+legacy_add_child(device_t bus, u_int order, const char *name, int unit)
 {
 	device_t child;
 	struct legacy_device *atdev;
@@ -234,7 +235,7 @@ legacy_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 static void	cpu_identify(driver_t *driver, device_t parent);
 static int	cpu_read_ivar(device_t dev, device_t child, int index,
 		    uintptr_t *result);
-static device_t cpu_add_child(device_t bus, int order, const char *name,
+static device_t cpu_add_child(device_t bus, u_int order, const char *name,
 		    int unit);
 static struct resource_list *cpu_get_rlist(device_t dev, device_t child);
 
@@ -298,7 +299,7 @@ cpu_identify(driver_t *driver, device_t parent)
 }
 
 static device_t
-cpu_add_child(device_t bus, int order, const char *name, int unit)
+cpu_add_child(device_t bus, u_int order, const char *name, int unit)
 {
 	struct cpu_device *cd;
 	device_t child;
@@ -334,9 +335,19 @@ cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 {
 	struct cpu_device *cpdev;
 
-	if (index != CPU_IVAR_PCPU)
+	switch (index) {
+	case CPU_IVAR_PCPU:
+		cpdev = device_get_ivars(child);
+		*result = (uintptr_t)cpdev->cd_pcpu;
+		break;
+	case CPU_IVAR_NOMINAL_MHZ:
+		if (tsc_is_invariant) {
+			*result = (uintptr_t)(tsc_freq / 1000000);
+			break;
+		}
+		/* FALLTHROUGH */
+	default:
 		return (ENOENT);
-	cpdev = device_get_ivars(child);
-	*result = (uintptr_t)cpdev->cd_pcpu;
+	}
 	return (0);
 }

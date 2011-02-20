@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_kstack_pages.h"
-#include "opt_msgbuf.h"
 
 #include <sys/param.h>
 #include <sys/malloc.h>
@@ -269,9 +268,10 @@ spinlock_enter(void)
 	td = curthread;
 	if (td->td_md.md_spinlock_count == 0) {
 		pil = intr_disable();
+		td->td_md.md_spinlock_count = 1;
 		td->td_md.md_saved_pil = pil;
-	}
-	td->td_md.md_spinlock_count++;
+	} else
+		td->td_md.md_spinlock_count++;
 	critical_enter();
 }
 
@@ -279,14 +279,14 @@ void
 spinlock_exit(void)
 {
 	struct thread *td;
+	register_t pil;
 
 	td = curthread;
 	critical_exit();
+	pil = td->td_md.md_saved_pil;
 	td->td_md.md_spinlock_count--;
-	if (td->td_md.md_spinlock_count == 0) {
-		intr_restore(td->td_md.md_saved_pil);
-	}
-
+	if (td->td_md.md_spinlock_count == 0)
+		intr_restore(pil);
 }
 
 unsigned
@@ -503,7 +503,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 */
 	BVPRINTF("initialize msgbuf\n");
 	dpcpu_init(dpcpu0, 0);
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufinit(msgbufp, msgbufsize);
 
 	BVPRINTF("initialize mutexes\n");
 	mutex_init();

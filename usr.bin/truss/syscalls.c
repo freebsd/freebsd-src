@@ -518,7 +518,7 @@ get_string(pid_t pid, void *offset, int max)
 			buf = realloc(buf, totalsize);
 			size = BLOCKSIZE;
 		} else {
-			buf[totalsize] = '\0';
+			buf[totalsize - 1] = '\0';
 			return (buf);
 		}
 	}

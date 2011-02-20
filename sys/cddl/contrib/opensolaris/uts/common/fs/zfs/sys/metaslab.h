@@ -46,6 +46,7 @@ extern metaslab_t *metaslab_init(metaslab_group_t *mg, space_map_obj_t *smo,
 extern void metaslab_fini(metaslab_t *msp);
 extern void metaslab_sync(metaslab_t *msp, uint64_t txg);
 extern void metaslab_sync_done(metaslab_t *msp, uint64_t txg);
+extern void metaslab_sync_reassess(metaslab_group_t *mg);
 
 #define	METASLAB_HINTBP_FAVOR	0x0
 #define	METASLAB_HINTBP_AVOID	0x1

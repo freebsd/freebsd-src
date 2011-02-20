@@ -419,6 +419,9 @@ cryptof_ioctl(
 		case CRYPTO_AES_CBC:
 			txform = &enc_xform_rijndael128;
 			break;
+		case CRYPTO_AES_XTS:
+			txform = &enc_xform_aes_xts;
+			break;
 		case CRYPTO_NULL_CBC:
 			txform = &enc_xform_null;
 			break;

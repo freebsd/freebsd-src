@@ -49,45 +49,59 @@
  * Requires that r28-r31 be scratch, with r28 initialized to the SLB cache
  */
 
-restoresrs: 
+/*
+ * User SRs are loaded through a pointer to the current pmap.
+ */
+restore_usersrs:
+	GET_CPUINFO(%r28);
+	ld	%r28,PC_USERSLB(%r28);
 	li	%r29, 0			/* Set the counter to zero */
 
 	slbia
 	slbmfee	%r31,%r29		
 	clrrdi	%r31,%r31,28
 	slbie	%r31
-instslb:
-	ld	%r31, 8(%r28);		/* Load SLBE */
+instuserslb:
+	ld	%r31, 0(%r28);		/* Load SLB entry pointer */
+	cmpli	0, %r31, 0;		/* If NULL, stop */
+	beqlr;
 
-	cmpli	0, %r31, 0;		/* If SLBE is not valid, get the next */
-	beq	nslb;
-
-	ld	%r30, 0(%r28)		/* Load SLBV */
+	ld	%r30, 0(%r31)		/* Load SLBV */
+	ld	%r31, 8(%r31)		/* Load SLBE */
+	or	%r31, %r31, %r29	/*  Set SLBE slot */
 	slbmte	%r30, %r31;		/* Install SLB entry */
 
-nslb:
-	addi	%r28, %r28, 16;		/* Advance */
+	addi	%r28, %r28, 8;		/* Advance pointer */
 	addi	%r29, %r29, 1;
 	cmpli	0, %r29, 64;		/* Repeat if we are not at the end */
-	blt instslb;
-
+	blt instuserslb;
 	blr;
 
 /*
- * User SRs are loaded through a pointer to the current pmap.
+ * Kernel SRs are loaded directly from the PCPU fields
  */
-#define RESTORE_USER_SRS() \
-	GET_CPUINFO(%r28); \
-	ld	%r28,PC_USERSLB(%r28); \
-	bl	restoresrs;
+restore_kernsrs:
+	GET_CPUINFO(%r28);
+	addi	%r28,%r28,PC_KERNSLB;
+	li	%r29, 0			/* Set the counter to zero */
 
-/*
- * Kernel SRs are loaded directly from kernel_pmap_
- */
-#define RESTORE_KERN_SRS() \
-	GET_CPUINFO(%r28); \
-	addi	%r28,%r28,PC_KERNSLB; \
-	bl	restoresrs;
+	slbia
+	slbmfee	%r31,%r29		
+	clrrdi	%r31,%r31,28
+	slbie	%r31
+instkernslb:
+	ld	%r31, 8(%r28);		/* Load SLBE */
+
+	cmpli	0, %r31, 0;		/* If SLBE is not valid, stop */
+	beqlr;
+	ld	%r30, 0(%r28)		/* Load SLBV  */
+	slbmte	%r30, %r31;		/* Install SLB entry */
+
+	addi	%r28, %r28, 16;		/* Advance pointer */
+	addi	%r29, %r29, 1;
+	cmpli	0, %r29, USER_SLB_SLOT;	/* Repeat if we are not at the end */
+	blt instkernslb;
+	blr;
 
 /*
  * FRAME_SETUP assumes:
@@ -237,7 +251,7 @@ nslb:
 	std	%r30,(savearea+CPUSAVE_R30)(%r3);			\
 	std	%r31,(savearea+CPUSAVE_R31)(%r3);			\
 	mflr	%r27;			/* preserve LR */		\
-	RESTORE_USER_SRS();		/* uses r28-r31 */		\
+	bl	restore_usersrs;	/* uses r28-r31 */		\
 	mtlr	%r27;							\
 	ld	%r31,(savearea+CPUSAVE_R31)(%r3);			\
 	ld	%r30,(savearea+CPUSAVE_R30)(%r3);			\
@@ -432,7 +446,7 @@ realtrap:
 	ld	%r1,PC_CURPCB(%r1)
 	mr	%r27,%r28		/* Save LR, r29 */
 	mtsprg2	%r29
-	RESTORE_KERN_SRS()		/* enable kernel mapping */
+	bl	restore_kernsrs		/* enable kernel mapping */
 	mfsprg2	%r29
 	mr	%r28,%r27
 	ba s_trap
@@ -482,7 +496,7 @@ u_trap:
 	ld	%r1,PC_CURPCB(%r1)
 	mr	%r27,%r28		/* Save LR, r29 */
 	mtsprg2	%r29
-	RESTORE_KERN_SRS() /* enable kernel mapping */
+	bl	restore_kernsrs		/* enable kernel mapping */
 	mfsprg2	%r29
 	mr	%r28,%r27
 

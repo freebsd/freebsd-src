@@ -39,7 +39,7 @@
 #include "opt_smp.h"
 
 #include <machine/asmacros.h>
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 
 #include "assym.s"
 
@@ -58,17 +58,15 @@ IDTVEC(vec_name) ;							\
 	FAKE_MCOUNT(TF_RIP(%rsp)) ;					\
 	movq	lapic, %rdx ;	/* pointer to local APIC */		\
 	movl	LA_ISR + 16 * (index)(%rdx), %eax ;	/* load ISR */	\
-	bsrl	%eax, %eax ;	/* index of highset set bit in ISR */	\
-	jz	2f ;							\
+	bsrl	%eax, %eax ;	/* index of highest set bit in ISR */	\
+	jz	1f ;							\
 	addl	$(32 * index),%eax ;					\
-1: ;									\
 	movq	%rsp, %rsi	;                                       \
 	movl	%eax, %edi ;	/* pass the IRQ */			\
 	call	lapic_handle_intr ;					\
+1: ;									\
 	MEXITCOUNT ;							\
-	jmp	doreti ;						\
-2:	movl	$-1, %eax ;	/* send a vector of -1 */		\
-	jmp	1b
+	jmp	doreti
 
 /*
  * Handle "spurious INTerrupts".

@@ -58,9 +58,8 @@ static int ata_serverworks_ch_detach(device_t dev);
 static void ata_serverworks_tf_read(struct ata_request *request);
 static void ata_serverworks_tf_write(struct ata_request *request);
 static int ata_serverworks_setmode(device_t dev, int target, int mode);
-#ifdef __powerpc__
+static void ata_serverworks_sata_reset(device_t dev);
 static int ata_serverworks_status(device_t dev);
-#endif
 
 /* misc defines */
 #define SWKS_33		0
@@ -101,7 +100,6 @@ ata_serverworks_probe(device_t dev)
     return (BUS_PROBE_DEFAULT);
 }
 
-#ifdef __powerpc__
 static int
 ata_serverworks_status(device_t dev)
 {
@@ -123,7 +121,6 @@ ata_serverworks_status(device_t dev)
 
     return ata_pci_status(dev);
 }
-#endif
 
 static int
 ata_serverworks_chipinit(device_t dev)
@@ -145,6 +142,7 @@ ata_serverworks_chipinit(device_t dev)
 	ctlr->ch_detach = ata_serverworks_ch_detach;
 	ctlr->setmode = ata_sata_setmode;
 	ctlr->getrev = ata_sata_getrev;
+	ctlr->reset = ata_serverworks_sata_reset;
 	return 0;
     }
     else if (ctlr->chip->cfg1 == SWKS_33) {
@@ -181,8 +179,6 @@ ata_serverworks_ch_attach(device_t dev)
     int ch_offset;
     int i;
 
-    ata_pci_dmainit(dev);
-
     ch_offset = ch->unit * 0x100;
 
     for (i = ATA_DATA; i < ATA_MAX_RES; i++)
@@ -210,30 +206,20 @@ ata_serverworks_ch_attach(device_t dev)
     ch->r_io[ATA_SERROR].offset = ch_offset + 0x44;
     ch->r_io[ATA_SCONTROL].offset = ch_offset + 0x48;
 
-    ch->flags |= ATA_NO_SLAVE;
-    ch->flags |= ATA_SATA;
+    ch->flags |= ATA_NO_SLAVE | ATA_SATA | ATA_KNOWN_PRESENCE;
     ata_pci_hw(dev);
     ch->hw.tf_read = ata_serverworks_tf_read;
     ch->hw.tf_write = ata_serverworks_tf_write;
-#ifdef __powerpc__
-    ch->hw.status = ata_serverworks_status;
-#endif
 
     if (ctlr->chip->chipid == ATA_K2) {
 	/*
-	 * The revision 1 K2 SATA controller has interesting bugs. Patch them.
-	 * These magic numbers regulate interrupt delivery in the first few
-	 * cases and are pure magic in the last case.
-	 *
-	 * Values obtained from the Darwin driver.
+	 * Set SICR registers to turn off waiting for a status message
+	 * before sending FIS. Values obtained from the Darwin driver.
 	 */
 
-	ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, 0x04);
-	ATA_IDX_OUTL(ch, ATA_SERROR, 0xffffffff);
-	ATA_IDX_OUTL(ch, ATA_SCONTROL, 0x00000300);
-	ATA_OUTL(ctlr->r_res2, ch_offset + 0x88, 0);
 	ATA_OUTL(ctlr->r_res2, ch_offset + 0x80,
 	    ATA_INL(ctlr->r_res2, ch_offset + 0x80) & ~0x00040000);
+	ATA_OUTL(ctlr->r_res2, ch_offset + 0x88, 0);
 
 	/*
 	 * Some controllers have a bug where they will send the command
@@ -244,10 +230,20 @@ ata_serverworks_ch_attach(device_t dev)
 	 */
 
 	ch->flags |= ATA_DMA_BEFORE_CMD;
+
+	/*
+	 * The status register must be read as a long to fill the other
+	 * registers.
+	 */
+	
+	ch->hw.status = ata_serverworks_status;
+	ch->flags |= ATA_STATUS_IS_LONG;
     }
 
     /* chip does not reliably do 64K DMA transfers */
     ch->dma.max_iosize = 64 * DEV_BSIZE;
+
+    ata_pci_dmainit(dev);
 
     return 0;
 }
@@ -402,6 +398,17 @@ ata_serverworks_setmode(device_t dev, int target, int mode)
 			  ~(0xff << offset)) |
 			 (piotimings[ata_mode2idx(piomode)] << offset), 4);
 	return (mode);
+}
+
+static void
+ata_serverworks_sata_reset(device_t dev)
+{
+	struct ata_channel *ch = device_get_softc(dev);
+
+	if (ata_sata_phy_reset(dev, -1, 0))
+		ata_generic_reset(dev);
+	else
+		ch->devices = 0;
 }
 
 ATA_DECLARE_DRIVER(ata_serverworks);

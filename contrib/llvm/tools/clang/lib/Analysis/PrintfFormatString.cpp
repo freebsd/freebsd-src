@@ -1,4 +1,4 @@
-//= PrintfFormatStrings.cpp - Analysis of printf format strings --*- C++ -*-==//
+//== PrintfFormatString.cpp - Analysis of printf format strings --*- C++ -*-==//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,141 +12,28 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Analysis/Analyses/PrintfFormatString.h"
-#include "clang/AST/ASTContext.h"
-#include "clang/AST/Type.h"
-#include "llvm/Support/raw_ostream.h"
+#include "clang/Analysis/Analyses/FormatString.h"
+#include "FormatStringParsing.h"
 
-using clang::analyze_printf::ArgTypeResult;
-using clang::analyze_printf::FormatSpecifier;
-using clang::analyze_printf::FormatStringHandler;
-using clang::analyze_printf::OptionalAmount;
-using clang::analyze_printf::PositionContext;
-using clang::analyze_printf::ConversionSpecifier;
-using clang::analyze_printf::LengthModifier;
+using clang::analyze_format_string::ArgTypeResult;
+using clang::analyze_format_string::FormatStringHandler;
+using clang::analyze_format_string::LengthModifier;
+using clang::analyze_format_string::OptionalAmount;
+using clang::analyze_format_string::ConversionSpecifier;
+using clang::analyze_printf::PrintfSpecifier;
 
 using namespace clang;
 
-namespace {
-class FormatSpecifierResult {
-  FormatSpecifier FS;
-  const char *Start;
-  bool Stop;
-public:
-  FormatSpecifierResult(bool stop = false)
-    : Start(0), Stop(stop) {}
-  FormatSpecifierResult(const char *start,
-                        const FormatSpecifier &fs)
-    : FS(fs), Start(start), Stop(false) {}
-
-  const char *getStart() const { return Start; }
-  bool shouldStop() const { return Stop; }
-  bool hasValue() const { return Start != 0; }
-  const FormatSpecifier &getValue() const {
-    assert(hasValue());
-    return FS;
-  }
-  const FormatSpecifier &getValue() { return FS; }
-};
-} // end anonymous namespace
-
-template <typename T>
-class UpdateOnReturn {
-  T &ValueToUpdate;
-  const T &ValueToCopy;
-public:
-  UpdateOnReturn(T &valueToUpdate, const T &valueToCopy)
-    : ValueToUpdate(valueToUpdate), ValueToCopy(valueToCopy) {}
-
-  ~UpdateOnReturn() {
-    ValueToUpdate = ValueToCopy;
-  }
-};
+typedef clang::analyze_format_string::SpecifierResult<PrintfSpecifier>
+        PrintfSpecifierResult;
 
 //===----------------------------------------------------------------------===//
 // Methods for parsing format strings.
 //===----------------------------------------------------------------------===//
 
-static OptionalAmount ParseAmount(const char *&Beg, const char *E) {
-  const char *I = Beg;
-  UpdateOnReturn <const char*> UpdateBeg(Beg, I);
+using analyze_format_string::ParseNonPositionAmount;
 
-  unsigned accumulator = 0;
-  bool hasDigits = false;
-
-  for ( ; I != E; ++I) {
-    char c = *I;
-    if (c >= '0' && c <= '9') {
-      hasDigits = true;
-      accumulator = (accumulator * 10) + (c - '0');
-      continue;
-    }
-
-    if (hasDigits)
-      return OptionalAmount(OptionalAmount::Constant, accumulator, Beg, I - Beg,
-          false);
-
-    break;
-  }
-
-  return OptionalAmount();
-}
-
-static OptionalAmount ParseNonPositionAmount(const char *&Beg, const char *E,
-                                             unsigned &argIndex) {
-  if (*Beg == '*') {
-    ++Beg;
-    return OptionalAmount(OptionalAmount::Arg, argIndex++, Beg, 0, false);
-  }
-
-  return ParseAmount(Beg, E);
-}
-
-static OptionalAmount ParsePositionAmount(FormatStringHandler &H,
-                                          const char *Start,
-                                          const char *&Beg, const char *E,
-                                          PositionContext p) {
-  if (*Beg == '*') {
-    const char *I = Beg + 1;
-    const OptionalAmount &Amt = ParseAmount(I, E);
-
-    if (Amt.getHowSpecified() == OptionalAmount::NotSpecified) {
-      H.HandleInvalidPosition(Beg, I - Beg, p);
-      return OptionalAmount(false);
-    }
-
-    if (I== E) {
-      // No more characters left?
-      H.HandleIncompleteFormatSpecifier(Start, E - Start);
-      return OptionalAmount(false);
-    }
-
-    assert(Amt.getHowSpecified() == OptionalAmount::Constant);
-
-    if (*I == '$') {
-      // Handle positional arguments
-
-      // Special case: '*0$', since this is an easy mistake.
-      if (Amt.getConstantAmount() == 0) {
-        H.HandleZeroPosition(Beg, I - Beg + 1);
-        return OptionalAmount(false);
-      }
-
-      const char *Tmp = Beg;
-      Beg = ++I;
-
-      return OptionalAmount(OptionalAmount::Arg, Amt.getConstantAmount() - 1,
-                            Tmp, 0, true);
-    }
-
-    H.HandleInvalidPosition(Beg, I - Beg, p);
-    return OptionalAmount(false);
-  }
-
-  return ParseAmount(Beg, E);
-}
-
-static bool ParsePrecision(FormatStringHandler &H, FormatSpecifier &FS,
+static bool ParsePrecision(FormatStringHandler &H, PrintfSpecifier &FS,
                            const char *Start, const char *&Beg, const char *E,
                            unsigned *argIndex) {
   if (argIndex) {
@@ -154,7 +41,7 @@ static bool ParsePrecision(FormatStringHandler &H, FormatSpecifier &FS,
   }
   else {
     const OptionalAmount Amt = ParsePositionAmount(H, Start, Beg, E,
-                                                  analyze_printf::PrecisionPos);
+                                           analyze_format_string::PrecisionPos);
     if (Amt.isInvalid())
       return true;
     FS.setPrecision(Amt);
@@ -162,62 +49,13 @@ static bool ParsePrecision(FormatStringHandler &H, FormatSpecifier &FS,
   return false;
 }
 
-static bool ParseFieldWidth(FormatStringHandler &H, FormatSpecifier &FS,
-                            const char *Start, const char *&Beg, const char *E,
-                            unsigned *argIndex) {
-  // FIXME: Support negative field widths.
-  if (argIndex) {
-    FS.setFieldWidth(ParseNonPositionAmount(Beg, E, *argIndex));
-  }
-  else {
-    const OptionalAmount Amt = ParsePositionAmount(H, Start, Beg, E,
-                                                 analyze_printf::FieldWidthPos);
-    if (Amt.isInvalid())
-      return true;
-    FS.setFieldWidth(Amt);
-  }
-  return false;
-}
-
-static bool ParseArgPosition(FormatStringHandler &H,
-                             FormatSpecifier &FS, const char *Start,
-                             const char *&Beg, const char *E) {
-
-  using namespace clang::analyze_printf;
-  const char *I = Beg;
-
-  const OptionalAmount &Amt = ParseAmount(I, E);
-
-  if (I == E) {
-    // No more characters left?
-    H.HandleIncompleteFormatSpecifier(Start, E - Start);
-    return true;
-  }
-
-  if (Amt.getHowSpecified() == OptionalAmount::Constant && *(I++) == '$') {
-    // Special case: '%0$', since this is an easy mistake.
-    if (Amt.getConstantAmount() == 0) {
-      H.HandleZeroPosition(Start, I - Start);
-      return true;
-    }
-
-    FS.setArgIndex(Amt.getConstantAmount() - 1);
-    FS.setUsesPositionalArg();
-    // Update the caller's pointer if we decided to consume
-    // these characters.
-    Beg = I;
-    return false;
-  }
-
-  return false;
-}
-
-static FormatSpecifierResult ParseFormatSpecifier(FormatStringHandler &H,
+static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
                                                   const char *&Beg,
                                                   const char *E,
                                                   unsigned &argIndex,
-						  bool FormatExtensions) {
+                                                  bool FormatExtensions) {
 
+  using namespace clang::analyze_format_string;
   using namespace clang::analyze_printf;
 
   const char *I = Beg;
@@ -244,17 +82,17 @@ static FormatSpecifierResult ParseFormatSpecifier(FormatStringHandler &H,
 
   if (I == E) {
     // No more characters left?
-    H.HandleIncompleteFormatSpecifier(Start, E - Start);
+    H.HandleIncompleteSpecifier(Start, E - Start);
     return true;
   }
 
-  FormatSpecifier FS;
+  PrintfSpecifier FS;
   if (ParseArgPosition(H, FS, Start, I, E))
     return true;
 
   if (I == E) {
     // No more characters left?
-    H.HandleIncompleteFormatSpecifier(Start, E - Start);
+    H.HandleIncompleteSpecifier(Start, E - Start);
     return true;
   }
 
@@ -275,7 +113,7 @@ static FormatSpecifierResult ParseFormatSpecifier(FormatStringHandler &H,
 
   if (I == E) {
     // No more characters left?
-    H.HandleIncompleteFormatSpecifier(Start, E - Start);
+    H.HandleIncompleteSpecifier(Start, E - Start);
     return true;
   }
 
@@ -286,7 +124,7 @@ static FormatSpecifierResult ParseFormatSpecifier(FormatStringHandler &H,
 
   if (I == E) {
     // No more characters left?
-    H.HandleIncompleteFormatSpecifier(Start, E - Start);
+    H.HandleIncompleteSpecifier(Start, E - Start);
     return true;
   }
 
@@ -294,7 +132,7 @@ static FormatSpecifierResult ParseFormatSpecifier(FormatStringHandler &H,
   if (*I == '.') {
     ++I;
     if (I == E) {
-      H.HandleIncompleteFormatSpecifier(Start, E - Start);
+      H.HandleIncompleteSpecifier(Start, E - Start);
       return true;
     }
 
@@ -304,39 +142,15 @@ static FormatSpecifierResult ParseFormatSpecifier(FormatStringHandler &H,
 
     if (I == E) {
       // No more characters left?
-      H.HandleIncompleteFormatSpecifier(Start, E - Start);
+      H.HandleIncompleteSpecifier(Start, E - Start);
       return true;
     }
   }
 
   // Look for the length modifier.
-  LengthModifier::Kind lmKind = LengthModifier::None;
-  const char *lmPosition = I;
-  switch (*I) {
-    default:
-      break;
-    case 'h':
-      ++I;
-      lmKind = (I != E && *I == 'h') ?
-          ++I, LengthModifier::AsChar : LengthModifier::AsShort;
-      break;
-    case 'l':
-      ++I;
-      lmKind = (I != E && *I == 'l') ?
-          ++I, LengthModifier::AsLongLong : LengthModifier::AsLong;
-      break;
-    case 'j': lmKind = LengthModifier::AsIntMax;     ++I; break;
-    case 'z': lmKind = LengthModifier::AsSizeT;      ++I; break;
-    case 't': lmKind = LengthModifier::AsPtrDiff;    ++I; break;
-    case 'L': lmKind = LengthModifier::AsLongDouble; ++I; break;
-    case 'q': lmKind = LengthModifier::AsLongLong;   ++I; break;
-  }
-  LengthModifier lm(lmPosition, lmKind);
-  FS.setLengthModifier(lm);
-
-  if (I == E) {
+  if (ParseLengthModifier(FS, I, E) && I == E) {
     // No more characters left?
-    H.HandleIncompleteFormatSpecifier(Start, E - Start);
+    H.HandleIncompleteSpecifier(Start, E - Start);
     return true;
   }
 
@@ -360,32 +174,32 @@ static FormatSpecifierResult ParseFormatSpecifier(FormatStringHandler &H,
     case 'G': k = ConversionSpecifier::GArg; break;
     case 'X': k = ConversionSpecifier::XArg; break;
     case 'a': k = ConversionSpecifier::aArg; break;
-    case 'c': k = ConversionSpecifier::IntAsCharArg; break;
+    case 'c': k = ConversionSpecifier::cArg; break;
     case 'd': k = ConversionSpecifier::dArg; break;
     case 'e': k = ConversionSpecifier::eArg; break;
     case 'f': k = ConversionSpecifier::fArg; break;
     case 'g': k = ConversionSpecifier::gArg; break;
     case 'i': k = ConversionSpecifier::iArg; break;
-    case 'n': k = ConversionSpecifier::OutIntPtrArg; break;
+    case 'n': k = ConversionSpecifier::nArg; break;
     case 'o': k = ConversionSpecifier::oArg; break;
-    case 'p': k = ConversionSpecifier::VoidPtrArg;   break;
-    case 's': k = ConversionSpecifier::CStrArg;      break;
+    case 'p': k = ConversionSpecifier::pArg;   break;
+    case 's': k = ConversionSpecifier::sArg;      break;
     case 'u': k = ConversionSpecifier::uArg; break;
     case 'x': k = ConversionSpecifier::xArg; break;
     // Mac OS X (unicode) specific
     case 'C': k = ConversionSpecifier::CArg; break;
-    case 'S': k = ConversionSpecifier::UnicodeStrArg; break;
+    case 'S': k = ConversionSpecifier::SArg; break;
     // Objective-C.
     case '@': k = ConversionSpecifier::ObjCObjArg; break;
     // Glibc specific.
     case 'm': k = ConversionSpecifier::PrintErrno; break;
     // FreeBSD format extensions
     case 'b': if (FormatExtensions) k = ConversionSpecifier::bArg; break; /* check for int and then char * */
-    case 'r': if (FormatExtensions) k = ConversionSpecifier::xArg; break;
+    case 'r': if (FormatExtensions) k = ConversionSpecifier::rArg; break;
     case 'y': if (FormatExtensions) k = ConversionSpecifier::iArg; break;
     case 'D': if (FormatExtensions) k = ConversionSpecifier::DArg; break; /* check for u_char * pointer and a char * string */
   }
-  ConversionSpecifier CS(conversionPosition, k);
+  PrintfConversionSpecifier CS(conversionPosition, k);
   FS.setConversionSpecifier(CS);
   if (CS.consumesDataArgument() && !FS.usesPositionalArg())
     FS.setArgIndex(argIndex++);
@@ -395,19 +209,22 @@ static FormatSpecifierResult ParseFormatSpecifier(FormatStringHandler &H,
 
   if (k == ConversionSpecifier::InvalidSpecifier) {
     // Assume the conversion takes one argument.
-    return !H.HandleInvalidConversionSpecifier(FS, Beg, I - Beg);
+    return !H.HandleInvalidPrintfConversionSpecifier(FS, Beg, I - Beg);
   }
-  return FormatSpecifierResult(Start, FS);
+  return PrintfSpecifierResult(Start, FS);
 }
 
-bool clang::analyze_printf::ParseFormatString(FormatStringHandler &H,
-                       const char *I, const char *E, bool FormatExtensions) {
+bool clang::analyze_format_string::ParsePrintfString(FormatStringHandler &H,
+                                                     const char *I,
+                                                     const char *E,
+                                                     bool FormatExtensions) {
 
   unsigned argIndex = 0;
 
   // Keep looking for a format specifier until we have exhausted the string.
   while (I != E) {
-    const FormatSpecifierResult &FSR = ParseFormatSpecifier(H, I, E, argIndex, FormatExtensions);
+    const PrintfSpecifierResult &FSR = ParsePrintfSpecifier(H, I, E, argIndex,
+                                                            FormatExtensions);
     // Did a fail-stop error of any kind occur when parsing the specifier?
     // If so, don't do any more processing.
     if (FSR.shouldStop())
@@ -417,7 +234,7 @@ bool clang::analyze_printf::ParseFormatString(FormatStringHandler &H,
     if (!FSR.hasValue())
       continue;
     // We have a format specifier.  Pass it to the callback.
-    if (!H.HandleFormatSpecifier(FSR.getValue(), FSR.getStart(),
+    if (!H.HandlePrintfSpecifier(FSR.getValue(), FSR.getStart(),
                                  I - FSR.getStart()))
       return true;
   }
@@ -425,135 +242,11 @@ bool clang::analyze_printf::ParseFormatString(FormatStringHandler &H,
   return false;
 }
 
-FormatStringHandler::~FormatStringHandler() {}
-
-//===----------------------------------------------------------------------===//
-// Methods on ArgTypeResult.
-//===----------------------------------------------------------------------===//
-
-bool ArgTypeResult::matchesType(ASTContext &C, QualType argTy) const {
-  switch (K) {
-    case InvalidTy:
-      assert(false && "ArgTypeResult must be valid");
-      return true;
-
-    case UnknownTy:
-      return true;
-
-    case SpecificTy: {
-      argTy = C.getCanonicalType(argTy).getUnqualifiedType();
-      if (T == argTy)
-        return true;
-      if (const BuiltinType *BT = argTy->getAs<BuiltinType>())
-        switch (BT->getKind()) {
-          default:
-            break;
-          case BuiltinType::Char_S:
-          case BuiltinType::SChar:
-            return T == C.UnsignedCharTy;
-          case BuiltinType::Char_U:
-          case BuiltinType::UChar:
-            return T == C.SignedCharTy;
-          case BuiltinType::Short:
-            return T == C.UnsignedShortTy;
-          case BuiltinType::UShort:
-            return T == C.ShortTy;
-          case BuiltinType::Int:
-            return T == C.UnsignedIntTy;
-          case BuiltinType::UInt:
-            return T == C.IntTy;
-          case BuiltinType::Long:
-            return T == C.UnsignedLongTy;
-          case BuiltinType::ULong:
-            return T == C.LongTy;
-          case BuiltinType::LongLong:
-            return T == C.UnsignedLongLongTy;
-          case BuiltinType::ULongLong:
-            return T == C.LongLongTy;
-        }
-      return false;
-    }
-
-    case CStrTy: {
-      const PointerType *PT = argTy->getAs<PointerType>();
-      if (!PT)
-        return false;
-      QualType pointeeTy = PT->getPointeeType();
-      if (const BuiltinType *BT = pointeeTy->getAs<BuiltinType>())
-        switch (BT->getKind()) {
-          case BuiltinType::Void:
-          case BuiltinType::Char_U:
-          case BuiltinType::UChar:
-          case BuiltinType::Char_S:
-          case BuiltinType::SChar:
-            return true;
-          default:
-            break;
-        }
-
-      return false;
-    }
-
-    case WCStrTy: {
-      const PointerType *PT = argTy->getAs<PointerType>();
-      if (!PT)
-        return false;
-      QualType pointeeTy =
-        C.getCanonicalType(PT->getPointeeType()).getUnqualifiedType();
-      return pointeeTy == C.getWCharType();
-    }
-
-    case CPointerTy:
-      return argTy->getAs<PointerType>() != NULL ||
-      	     argTy->getAs<ObjCObjectPointerType>() != NULL;
-
-    case ObjCPointerTy:
-      return argTy->getAs<ObjCObjectPointerType>() != NULL;
-  }
-
-  // FIXME: Should be unreachable, but Clang is currently emitting
-  // a warning.
-  return false;
-}
-
-QualType ArgTypeResult::getRepresentativeType(ASTContext &C) const {
-  switch (K) {
-    case InvalidTy:
-      assert(false && "No representative type for Invalid ArgTypeResult");
-      // Fall-through.
-    case UnknownTy:
-      return QualType();
-    case SpecificTy:
-      return T;
-    case CStrTy:
-      return C.getPointerType(C.CharTy);
-    case WCStrTy:
-      return C.getPointerType(C.getWCharType());
-    case ObjCPointerTy:
-      return C.ObjCBuiltinIdTy;
-    case CPointerTy:
-      return C.VoidPtrTy;
-  }
-
-  // FIXME: Should be unreachable, but Clang is currently emitting
-  // a warning.
-  return QualType();
-}
-
-//===----------------------------------------------------------------------===//
-// Methods on OptionalAmount.
-//===----------------------------------------------------------------------===//
-
-ArgTypeResult OptionalAmount::getArgType(ASTContext &Ctx) const {
-  return Ctx.IntTy;
-}
-
 //===----------------------------------------------------------------------===//
 // Methods on ConversionSpecifier.
 //===----------------------------------------------------------------------===//
 const char *ConversionSpecifier::toString() const {
   switch (kind) {
-  case bArg: return "b";
   case dArg: return "d";
   case iArg: return "i";
   case oArg: return "o";
@@ -568,19 +261,25 @@ const char *ConversionSpecifier::toString() const {
   case GArg: return "G";
   case aArg: return "a";
   case AArg: return "A";
-  case IntAsCharArg:     return "c";
-  case CStrArg:          return "s";
-  case VoidPtrArg:       return "p";
-  case OutIntPtrArg:     return "n";
-  case PercentArg:       return "%";
+  case cArg: return "c";
+  case sArg: return "s";
+  case pArg: return "p";
+  case nArg: return "n";
+  case PercentArg:  return "%";
+  case ScanListArg: return "[";
   case InvalidSpecifier: return NULL;
 
   // MacOS X unicode extensions.
-  case CArg:          return "C";
-  case UnicodeStrArg: return "S";
+  case CArg: return "C";
+  case SArg: return "S";
 
   // Objective-C specific specifiers.
   case ObjCObjArg: return "@";
+
+  // FreeBSD specific specifiers.
+  case bArg: return "b";
+  case DArg: return "D";
+  case rArg: return "r";
 
   // GlibC specific specifiers.
   case PrintErrno: return "m";
@@ -589,66 +288,23 @@ const char *ConversionSpecifier::toString() const {
 }
 
 //===----------------------------------------------------------------------===//
-// Methods on LengthModifier.
+// Methods on PrintfSpecifier.
 //===----------------------------------------------------------------------===//
 
-const char *LengthModifier::toString() const {
-  switch (kind) {
-  case AsChar:
-    return "hh";
-  case AsShort:
-    return "h";
-  case AsLong: // or AsWideChar
-    return "l";
-  case AsLongLong:
-    return "ll";
-  case AsIntMax:
-    return "j";
-  case AsSizeT:
-    return "z";
-  case AsPtrDiff:
-    return "t";
-  case AsLongDouble:
-    return "L";
-  case None:
-    return "";
-  }
-  return NULL;
-}
-
-//===----------------------------------------------------------------------===//
-// Methods on OptionalAmount.
-//===----------------------------------------------------------------------===//
-
-void OptionalAmount::toString(llvm::raw_ostream &os) const {
-  switch (hs) {
-  case Invalid:
-  case NotSpecified:
-    return;
-  case Arg:
-    if (UsesDotPrefix)
-        os << ".";
-    if (usesPositionalArg())
-      os << "*" << getPositionalArgIndex() << "$";
-    else
-      os << "*";
-    break;
-  case Constant:
-    if (UsesDotPrefix)
-        os << ".";
-    os << amt;
-    break;
-  }
-}
-
-//===----------------------------------------------------------------------===//
-// Methods on FormatSpecifier.
-//===----------------------------------------------------------------------===//
-
-ArgTypeResult FormatSpecifier::getArgType(ASTContext &Ctx) const {
+ArgTypeResult PrintfSpecifier::getArgType(ASTContext &Ctx) const {
+  const PrintfConversionSpecifier &CS = getConversionSpecifier();
+  
   if (!CS.consumesDataArgument())
     return ArgTypeResult::Invalid();
 
+  if (CS.getKind() == ConversionSpecifier::cArg)
+    switch (LM.getKind()) {
+      case LengthModifier::None: return Ctx.IntTy;
+      case LengthModifier::AsLong: return ArgTypeResult::WIntTy;
+      default:
+        return ArgTypeResult::Invalid();
+    }
+  
   if (CS.isIntArg())
     switch (LM.getKind()) {
       case LengthModifier::AsLongDouble:
@@ -694,15 +350,15 @@ ArgTypeResult FormatSpecifier::getArgType(ASTContext &Ctx) const {
   }
 
   switch (CS.getKind()) {
-    case ConversionSpecifier::CStrArg:
+    case ConversionSpecifier::sArg:
       return ArgTypeResult(LM.getKind() == LengthModifier::AsWideChar ?
           ArgTypeResult::WCStrTy : ArgTypeResult::CStrTy);
-    case ConversionSpecifier::UnicodeStrArg:
+    case ConversionSpecifier::SArg:
       // FIXME: This appears to be Mac OS X specific.
       return ArgTypeResult::WCStrTy;
     case ConversionSpecifier::CArg:
       return Ctx.WCharTy;
-    case ConversionSpecifier::VoidPtrArg:
+    case ConversionSpecifier::pArg:
       return ArgTypeResult::CPointerTy;
     default:
       break;
@@ -712,10 +368,10 @@ ArgTypeResult FormatSpecifier::getArgType(ASTContext &Ctx) const {
   return ArgTypeResult();
 }
 
-bool FormatSpecifier::fixType(QualType QT) {
+bool PrintfSpecifier::fixType(QualType QT) {
   // Handle strings first (char *, wchar_t *)
   if (QT->isPointerType() && (QT->getPointeeType()->isAnyCharacterType())) {
-    CS.setKind(ConversionSpecifier::CStrArg);
+    CS.setKind(ConversionSpecifier::sArg);
 
     // Disable irrelevant flags
     HasAlternativeForm = 0;
@@ -760,7 +416,7 @@ bool FormatSpecifier::fixType(QualType QT) {
 
   // Set conversion specifier and disable any flags which do not apply to it.
   if (QT->isAnyCharacterType()) {
-    CS.setKind(ConversionSpecifier::IntAsCharArg);
+    CS.setKind(ConversionSpecifier::cArg);
     Precision.setHowSpecified(OptionalAmount::NotSpecified);
     HasAlternativeForm = 0;
     HasLeadingZeroes = 0;
@@ -771,7 +427,7 @@ bool FormatSpecifier::fixType(QualType QT) {
     CS.setKind(ConversionSpecifier::fArg);
   }
   else if (QT->isPointerType()) {
-    CS.setKind(ConversionSpecifier::VoidPtrArg);
+    CS.setKind(ConversionSpecifier::pArg);
     Precision.setHowSpecified(OptionalAmount::NotSpecified);
     HasAlternativeForm = 0;
     HasLeadingZeroes = 0;
@@ -793,9 +449,9 @@ bool FormatSpecifier::fixType(QualType QT) {
   return true;
 }
 
-void FormatSpecifier::toString(llvm::raw_ostream &os) const {
+void PrintfSpecifier::toString(llvm::raw_ostream &os) const {
   // Whilst some features have no defined order, we are using the order
-  // appearing in the C99 standard (ISO/IEC 9899:1999 (E) ¤7.19.6.1)
+  // appearing in the C99 standard (ISO/IEC 9899:1999 (E) Â¤7.19.6.1)
   os << "%";
 
   // Positional args
@@ -820,7 +476,7 @@ void FormatSpecifier::toString(llvm::raw_ostream &os) const {
   os << CS.toString();
 }
 
-bool FormatSpecifier::hasValidPlusPrefix() const {
+bool PrintfSpecifier::hasValidPlusPrefix() const {
   if (!HasPlusPrefix)
     return true;
 
@@ -836,6 +492,7 @@ bool FormatSpecifier::hasValidPlusPrefix() const {
   case ConversionSpecifier::GArg:
   case ConversionSpecifier::aArg:
   case ConversionSpecifier::AArg:
+  case ConversionSpecifier::rArg:
     return true;
 
   default:
@@ -843,7 +500,7 @@ bool FormatSpecifier::hasValidPlusPrefix() const {
   }
 }
 
-bool FormatSpecifier::hasValidAlternativeForm() const {
+bool PrintfSpecifier::hasValidAlternativeForm() const {
   if (!HasAlternativeForm)
     return true;
 
@@ -859,6 +516,7 @@ bool FormatSpecifier::hasValidAlternativeForm() const {
   case ConversionSpecifier::FArg:
   case ConversionSpecifier::gArg:
   case ConversionSpecifier::GArg:
+  case ConversionSpecifier::rArg:
     return true;
 
   default:
@@ -866,7 +524,7 @@ bool FormatSpecifier::hasValidAlternativeForm() const {
   }
 }
 
-bool FormatSpecifier::hasValidLeadingZeros() const {
+bool PrintfSpecifier::hasValidLeadingZeros() const {
   if (!HasLeadingZeroes)
     return true;
 
@@ -893,7 +551,7 @@ bool FormatSpecifier::hasValidLeadingZeros() const {
   }
 }
 
-bool FormatSpecifier::hasValidSpacePrefix() const {
+bool PrintfSpecifier::hasValidSpacePrefix() const {
   if (!HasSpacePrefix)
     return true;
 
@@ -916,13 +574,13 @@ bool FormatSpecifier::hasValidSpacePrefix() const {
   }
 }
 
-bool FormatSpecifier::hasValidLeftJustified() const {
+bool PrintfSpecifier::hasValidLeftJustified() const {
   if (!IsLeftJustified)
     return true;
 
   // The left justified flag is valid for all conversions except n
   switch (CS.getKind()) {
-  case ConversionSpecifier::OutIntPtrArg:
+  case ConversionSpecifier::nArg:
     return false;
 
   default:
@@ -930,75 +588,7 @@ bool FormatSpecifier::hasValidLeftJustified() const {
   }
 }
 
-bool FormatSpecifier::hasValidLengthModifier() const {
-  switch (LM.getKind()) {
-  case LengthModifier::None:
-    return true;
-
-  // Handle most integer flags
-  case LengthModifier::AsChar:
-  case LengthModifier::AsShort:
-  case LengthModifier::AsLongLong:
-  case LengthModifier::AsIntMax:
-  case LengthModifier::AsSizeT:
-  case LengthModifier::AsPtrDiff:
-    switch (CS.getKind()) {
-    case ConversionSpecifier::dArg:
-    case ConversionSpecifier::iArg:
-    case ConversionSpecifier::oArg:
-    case ConversionSpecifier::uArg:
-    case ConversionSpecifier::xArg:
-    case ConversionSpecifier::XArg:
-    case ConversionSpecifier::OutIntPtrArg:
-      return true;
-    default:
-      return false;
-    }
-
-  // Handle 'l' flag
-  case LengthModifier::AsLong:
-    switch (CS.getKind()) {
-    case ConversionSpecifier::dArg:
-    case ConversionSpecifier::iArg:
-    case ConversionSpecifier::oArg:
-    case ConversionSpecifier::uArg:
-    case ConversionSpecifier::xArg:
-    case ConversionSpecifier::XArg:
-    case ConversionSpecifier::aArg:
-    case ConversionSpecifier::AArg:
-    case ConversionSpecifier::fArg:
-    case ConversionSpecifier::FArg:
-    case ConversionSpecifier::eArg:
-    case ConversionSpecifier::EArg:
-    case ConversionSpecifier::gArg:
-    case ConversionSpecifier::GArg:
-    case ConversionSpecifier::OutIntPtrArg:
-    case ConversionSpecifier::IntAsCharArg:
-    case ConversionSpecifier::CStrArg:
-      return true;
-    default:
-      return false;
-    }
-
-  case LengthModifier::AsLongDouble:
-    switch (CS.getKind()) {
-    case ConversionSpecifier::aArg:
-    case ConversionSpecifier::AArg:
-    case ConversionSpecifier::fArg:
-    case ConversionSpecifier::FArg:
-    case ConversionSpecifier::eArg:
-    case ConversionSpecifier::EArg:
-    case ConversionSpecifier::gArg:
-    case ConversionSpecifier::GArg:
-      return true;
-    default:
-      return false;
-    }
-  }
-  return false;
-}
-
-bool FormatSpecifier::hasValidPrecision() const {
+bool PrintfSpecifier::hasValidPrecision() const {
   if (Precision.getHowSpecified() == OptionalAmount::NotSpecified)
     return true;
 
@@ -1018,20 +608,20 @@ bool FormatSpecifier::hasValidPrecision() const {
   case ConversionSpecifier::FArg:
   case ConversionSpecifier::gArg:
   case ConversionSpecifier::GArg:
-  case ConversionSpecifier::CStrArg:
+  case ConversionSpecifier::sArg:
     return true;
 
   default:
     return false;
   }
 }
-bool FormatSpecifier::hasValidFieldWidth() const {
+bool PrintfSpecifier::hasValidFieldWidth() const {
   if (FieldWidth.getHowSpecified() == OptionalAmount::NotSpecified)
       return true;
 
   // The field width is valid for all conversions except n
   switch (CS.getKind()) {
-  case ConversionSpecifier::OutIntPtrArg:
+  case ConversionSpecifier::nArg:
     return false;
 
   default:

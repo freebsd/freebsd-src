@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
+#include <sys/queue.h>
 #include <bsnmp/snmpmod.h>
 
 #include <net/pfvar.h>

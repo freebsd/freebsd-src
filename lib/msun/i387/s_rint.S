@@ -34,11 +34,12 @@
  */
 
 #include <machine/asm.h>
-
-RCSID("$FreeBSD$")
+__FBSDID("$FreeBSD$")
 
 ENTRY(rint)
 	fldl	4(%esp)
 	frndint
 	ret
 END(rint)
+
+	.section .note.GNU-stack,"",%progbits

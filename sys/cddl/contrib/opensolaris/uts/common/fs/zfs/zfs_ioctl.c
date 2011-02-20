@@ -1217,8 +1217,12 @@ zfs_ioc_vdev_add(zfs_cmd_t *zc)
 {
 	spa_t *spa;
 	int error;
+#ifdef sun
 	nvlist_t *config, **l2cache, **spares;
 	uint_t nl2cache = 0, nspares = 0;
+#else
+	nvlist_t *config;
+#endif
 
 	error = spa_open(zc->zc_name, &spa, FTAG);
 	if (error != 0)
@@ -1226,6 +1230,7 @@ zfs_ioc_vdev_add(zfs_cmd_t *zc)
 
 	error = get_nvlist(zc->zc_nvlist_conf, zc->zc_nvlist_conf_size,
 	    &config);
+#ifdef sun
 	(void) nvlist_lookup_nvlist_array(config, ZPOOL_CONFIG_L2CACHE,
 	    &l2cache, &nl2cache);
 
@@ -1246,6 +1251,7 @@ zfs_ioc_vdev_add(zfs_cmd_t *zc)
 		spa_close(spa, FTAG);
 		return (EDOM);
 	}
+#endif
 
 	if (error == 0) {
 		error = spa_vdev_add(spa, config);
@@ -3620,6 +3626,14 @@ zfsdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	zfs_cmd_t *zc = (void *)addr;
 	uint_t vec;
 	int error;
+
+	/*
+	 * Check if we have sufficient kernel memory allocated
+	 * for the zfs_cmd_t request.  Bail out if not so we
+	 * will not access undefined memory region.
+	 */
+	if (IOCPARM_LEN(cmd) < sizeof(zfs_cmd_t))
+		return (EINVAL);
 
 	vec = ZFS_IOC(cmd);
 

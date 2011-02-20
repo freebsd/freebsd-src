@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-agent.c,v 1.165 2010/02/26 20:29:54 djm Exp $ */
+/* $OpenBSD: ssh-agent.c,v 1.166 2010/04/16 01:47:26 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -501,6 +501,7 @@ process_add_identity(SocketEntry *e, int version)
 			buffer_get_bignum2(&e->request, k->dsa->pub_key);
 			buffer_get_bignum2(&e->request, k->dsa->priv_key);
 			break;
+		case KEY_DSA_CERT_V00:
 		case KEY_DSA_CERT:
 			cert = buffer_get_string(&e->request, &len);
 			if ((k = key_from_blob(cert, len)) == NULL)
@@ -521,6 +522,7 @@ process_add_identity(SocketEntry *e, int version)
 			/* Generate additional parameters */
 			rsa_generate_additional_parameters(k->rsa);
 			break;
+		case KEY_RSA_CERT_V00:
 		case KEY_RSA_CERT:
 			cert = buffer_get_string(&e->request, &len);
 			if ((k = key_from_blob(cert, len)) == NULL)
@@ -541,6 +543,7 @@ process_add_identity(SocketEntry *e, int version)
 	/* enable blinding */
 	switch (k->type) {
 	case KEY_RSA:
+	case KEY_RSA_CERT_V00:
 	case KEY_RSA_CERT:
 	case KEY_RSA1:
 		if (RSA_blinding_on(k->rsa, NULL) != 1) {

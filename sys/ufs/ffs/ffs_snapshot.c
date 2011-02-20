@@ -124,6 +124,7 @@ ffs_copyonwrite(devvp, bp)
 }
 
 #else
+FEATURE(ffs_snapshot, "FFS snapshot support");
 
 TAILQ_HEAD(snaphead, inode);
 

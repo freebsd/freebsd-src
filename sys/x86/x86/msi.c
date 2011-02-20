@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sx.h>
 #include <sys/systm.h>
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/frame.h>

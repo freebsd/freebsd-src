@@ -41,3 +41,5 @@
 	 * above branch.
 	 */
 	bl	PIC_PLT(CNAME(abort))	/* abort */
+
+	.section .note.GNU-stack,"",%progbits

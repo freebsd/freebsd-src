@@ -14,7 +14,7 @@
 # Note that some of FreeBSD's defaults differ from OpenBSD's, and
 # FreeBSD has a few additional options.
 
-#VersionAddendum FreeBSD-20100428
+#VersionAddendum FreeBSD-20101111
 
 #Port 22
 #AddressFamily any

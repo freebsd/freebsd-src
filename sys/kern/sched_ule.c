@@ -117,6 +117,21 @@ static struct td_sched td_sched0;
     CPU_ISSET((cpu), &(td)->td_cpuset->cs_mask)
 
 /*
+ * Priority ranges used for interactive and non-interactive timeshare
+ * threads.  The timeshare priorities are split up into four ranges.
+ * The first range handles interactive threads.  The last three ranges
+ * (NHALF, x, and NHALF) handle non-interactive threads with the outer
+ * ranges supporting nice values.
+ */
+#define	PRI_TIMESHARE_RANGE	(PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE + 1)
+#define	PRI_INTERACT_RANGE	((PRI_TIMESHARE_RANGE - SCHED_PRI_NRESV) / 2)
+
+#define	PRI_MIN_INTERACT	PRI_MIN_TIMESHARE
+#define	PRI_MAX_INTERACT	(PRI_MIN_TIMESHARE + PRI_INTERACT_RANGE - 1)
+#define	PRI_MIN_BATCH		(PRI_MIN_TIMESHARE + PRI_INTERACT_RANGE)
+#define	PRI_MAX_BATCH		PRI_MAX_TIMESHARE
+
+/*
  * Cpu percentage computation macros and defines.
  *
  * SCHED_TICK_SECS:	Number of seconds to average the cpu usage across.
@@ -147,9 +162,9 @@ static struct td_sched td_sched0;
  */
 #define	SCHED_PRI_NRESV		(PRIO_MAX - PRIO_MIN)
 #define	SCHED_PRI_NHALF		(SCHED_PRI_NRESV / 2)
-#define	SCHED_PRI_MIN		(PRI_MIN_TIMESHARE + SCHED_PRI_NHALF)
-#define	SCHED_PRI_MAX		(PRI_MAX_TIMESHARE - SCHED_PRI_NHALF)
-#define	SCHED_PRI_RANGE		(SCHED_PRI_MAX - SCHED_PRI_MIN)
+#define	SCHED_PRI_MIN		(PRI_MIN_BATCH + SCHED_PRI_NHALF)
+#define	SCHED_PRI_MAX		(PRI_MAX_BATCH - SCHED_PRI_NHALF)
+#define	SCHED_PRI_RANGE		(SCHED_PRI_MAX - SCHED_PRI_MIN + 1)
 #define	SCHED_PRI_TICKS(ts)						\
     (SCHED_TICK_HZ((ts)) /						\
     (roundup(SCHED_TICK_TOTAL((ts)), SCHED_PRI_RANGE) / SCHED_PRI_RANGE))
@@ -165,7 +180,7 @@ static struct td_sched td_sched0;
  *		before throttling back.
  * SLP_RUN_FORK:	Maximum slp+run time to inherit at fork time.
  * INTERACT_MAX:	Maximum interactivity value.  Smaller is better.
- * INTERACT_THRESH:	Threshhold for placement on the current runq.
+ * INTERACT_THRESH:	Threshold for placement on the current runq.
  */
 #define	SCHED_SLP_RUN_MAX	((hz * 5) << SCHED_TICK_SHIFT)
 #define	SCHED_SLP_RUN_FORK	((hz / 2) << SCHED_TICK_SHIFT)
@@ -194,9 +209,9 @@ static int preempt_thresh = PRI_MIN_KERN;
 #else 
 static int preempt_thresh = 0;
 #endif
-static int static_boost = PRI_MIN_TIMESHARE;
+static int static_boost = PRI_MIN_BATCH;
 static int sched_idlespins = 10000;
-static int sched_idlespinthresh = 4;
+static int sched_idlespinthresh = 16;
 
 /*
  * tdq - per processor runqs and statistics.  All fields are protected by the
@@ -208,6 +223,7 @@ struct tdq {
 	struct mtx	tdq_lock;		/* run queue lock. */
 	struct cpu_group *tdq_cg;		/* Pointer to cpu topology. */
 	volatile int	tdq_load;		/* Aggregate load. */
+	volatile int	tdq_cpu_idle;		/* cpu_idle() is active. */
 	int		tdq_sysload;		/* For loadavg, !ITHD load. */
 	int		tdq_transferable;	/* Transferable thread count. */
 	short		tdq_switchcnt;		/* Switches this tick. */
@@ -392,15 +408,15 @@ sched_shouldpreempt(int pri, int cpri, int remote)
 	if (pri <= preempt_thresh)
 		return (1);
 	/*
-	 * If we're realtime or better and there is timeshare or worse running
-	 * preempt only remote processors.
+	 * If we're interactive or better and there is non-interactive
+	 * or worse running preempt only remote processors.
 	 */
-	if (remote && pri <= PRI_MAX_REALTIME && cpri > PRI_MAX_REALTIME)
+	if (remote && pri <= PRI_MAX_INTERACT && cpri > PRI_MAX_INTERACT)
 		return (1);
 	return (0);
 }
 
-#define	TS_RQ_PPQ	(((PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE) + 1) / RQ_NQS)
+#define	TS_RQ_PPQ	(((PRI_MAX_BATCH - PRI_MIN_BATCH) + 1) / RQ_NQS)
 /*
  * Add a thread to the actual run-queue.  Keeps transferable counts up to
  * date with what is actually on the run-queue.  Selects the correct
@@ -422,18 +438,18 @@ tdq_runq_add(struct tdq *tdq, struct thread *td, int flags)
 		tdq->tdq_transferable++;
 		ts->ts_flags |= TSF_XFERABLE;
 	}
-	if (pri <= PRI_MAX_REALTIME) {
+	if (pri < PRI_MIN_BATCH) {
 		ts->ts_runq = &tdq->tdq_realtime;
-	} else if (pri <= PRI_MAX_TIMESHARE) {
+	} else if (pri <= PRI_MAX_BATCH) {
 		ts->ts_runq = &tdq->tdq_timeshare;
-		KASSERT(pri <= PRI_MAX_TIMESHARE && pri >= PRI_MIN_TIMESHARE,
+		KASSERT(pri <= PRI_MAX_BATCH && pri >= PRI_MIN_BATCH,
 			("Invalid priority %d on timeshare runq", pri));
 		/*
 		 * This queue contains only priorities between MIN and MAX
 		 * realtime.  Use the whole queue to represent these values.
 		 */
 		if ((flags & (SRQ_BORROWING|SRQ_PREEMPTED)) == 0) {
-			pri = (pri - PRI_MIN_TIMESHARE) / TS_RQ_PPQ;
+			pri = (pri - PRI_MIN_BATCH) / TS_RQ_PPQ;
 			pri = (pri + tdq->tdq_idx) % RQ_NQS;
 			/*
 			 * This effectively shortens the queue by one so we
@@ -966,7 +982,7 @@ tdq_notify(struct tdq *tdq, struct thread *td)
 		 * If the MD code has an idle wakeup routine try that before
 		 * falling back to IPI.
 		 */
-		if (cpu_idle_wakeup(cpu))
+		if (!tdq->tdq_cpu_idle || cpu_idle_wakeup(cpu))
 			return;
 	}
 	tdq->tdq_ipipending = 1;
@@ -1204,7 +1220,7 @@ tdq_choose(struct tdq *tdq)
 		return (td);
 	td = runq_choose_from(&tdq->tdq_timeshare, tdq->tdq_ridx);
 	if (td != NULL) {
-		KASSERT(td->td_priority >= PRI_MIN_TIMESHARE,
+		KASSERT(td->td_priority >= PRI_MIN_BATCH,
 		    ("tdq_choose: Invalid priority on timeshare queue %d",
 		    td->td_priority));
 		return (td);
@@ -1387,7 +1403,7 @@ sched_priority(struct thread *td)
 	int score;
 	int pri;
 
-	if (td->td_pri_class != PRI_TIMESHARE)
+	if (PRI_BASE(td->td_pri_class) != PRI_TIMESHARE)
 		return;
 	/*
 	 * If the score is interactive we place the thread in the realtime
@@ -1404,10 +1420,10 @@ sched_priority(struct thread *td)
 	 */
 	score = imax(0, sched_interact_score(td) + td->td_proc->p_nice);
 	if (score < sched_interact) {
-		pri = PRI_MIN_REALTIME;
-		pri += ((PRI_MAX_REALTIME - PRI_MIN_REALTIME) / sched_interact)
-		    * score;
-		KASSERT(pri >= PRI_MIN_REALTIME && pri <= PRI_MAX_REALTIME,
+		pri = PRI_MIN_INTERACT;
+		pri += ((PRI_MAX_INTERACT - PRI_MIN_INTERACT + 1) /
+		    sched_interact) * score;
+		KASSERT(pri >= PRI_MIN_INTERACT && pri <= PRI_MAX_INTERACT,
 		    ("sched_priority: invalid interactive priority %d score %d",
 		    pri, score));
 	} else {
@@ -1415,7 +1431,7 @@ sched_priority(struct thread *td)
 		if (td->td_sched->ts_ticks)
 			pri += SCHED_PRI_TICKS(td->td_sched);
 		pri += SCHED_PRI_NICE(td->td_proc->p_nice);
-		KASSERT(pri >= PRI_MIN_TIMESHARE && pri <= PRI_MAX_TIMESHARE,
+		KASSERT(pri >= PRI_MIN_BATCH && pri <= PRI_MAX_BATCH,
 		    ("sched_priority: invalid priority %d: nice %d, " 
 		    "ticks %d ftick %d ltick %d tick pri %d",
 		    pri, td->td_proc->p_nice, td->td_sched->ts_ticks,
@@ -1674,39 +1690,24 @@ sched_prio(struct thread *td, u_char prio)
 void
 sched_user_prio(struct thread *td, u_char prio)
 {
-	u_char oldprio;
 
 	td->td_base_user_pri = prio;
-	if (td->td_flags & TDF_UBORROWING && td->td_user_pri <= prio)
-                return;
-	oldprio = td->td_user_pri;
+	if (td->td_lend_user_pri <= prio)
+		return;
 	td->td_user_pri = prio;
 }
 
 void
 sched_lend_user_prio(struct thread *td, u_char prio)
 {
-	u_char oldprio;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	td->td_flags |= TDF_UBORROWING;
-	oldprio = td->td_user_pri;
-	td->td_user_pri = prio;
-}
-
-void
-sched_unlend_user_prio(struct thread *td, u_char prio)
-{
-	u_char base_pri;
-
-	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	base_pri = td->td_base_user_pri;
-	if (prio >= base_pri) {
-		td->td_flags &= ~TDF_UBORROWING;
-		sched_user_prio(td, base_pri);
-	} else {
-		sched_lend_user_prio(td, prio);
-	}
+	td->td_lend_user_pri = prio;
+	td->td_user_pri = min(prio, td->td_base_user_pri);
+	if (td->td_priority > td->td_user_pri)
+		sched_prio(td, td->td_user_pri);
+	else if (td->td_priority != td->td_user_pri)
+		td->td_flags |= TDF_NEEDRESCHED;
 }
 
 /*
@@ -1797,10 +1798,18 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		srqflag = (flags & SW_PREEMPT) ?
 		    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
 		    SRQ_OURSELF|SRQ_YIELDING;
+#ifdef SMP
+		if (THREAD_CAN_MIGRATE(td) && !THREAD_CAN_SCHED(td, ts->ts_cpu))
+			ts->ts_cpu = sched_pickcpu(td, 0);
+#endif
 		if (ts->ts_cpu == cpuid)
 			tdq_runq_add(tdq, td, srqflag);
-		else
+		else {
+			KASSERT(THREAD_CAN_MIGRATE(td) ||
+			    (ts->ts_flags & TSF_BOUND) != 0,
+			    ("Thread %p shouldn't migrate", td));
 			mtx = sched_switch_migrate(tdq, td, srqflag);
+		}
 	} else {
 		/* This thread must be going to sleep. */
 		TDQ_LOCK(tdq);
@@ -1890,6 +1899,8 @@ sched_sleep(struct thread *td, int prio)
 	td->td_slptick = ticks;
 	if (TD_IS_SUSPENDED(td) || prio >= PSOCK)
 		td->td_flags |= TDF_CANSWAP;
+	if (PRI_BASE(td->td_pri_class) != PRI_TIMESHARE)
+		return;
 	if (static_boost == 1 && prio)
 		sched_prio(td, prio);
 	else if (static_boost && td->td_priority > static_boost)
@@ -1967,14 +1978,16 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	ts2->ts_cpu = ts->ts_cpu;
 	ts2->ts_flags = 0;
 	/*
-	 * Grab our parents cpu estimation information and priority.
+	 * Grab our parents cpu estimation information.
 	 */
 	ts2->ts_ticks = ts->ts_ticks;
 	ts2->ts_ltick = ts->ts_ltick;
 	ts2->ts_incrtick = ts->ts_incrtick;
 	ts2->ts_ftick = ts->ts_ftick;
-	child->td_user_pri = td->td_user_pri;
-	child->td_base_user_pri = td->td_base_user_pri;
+	/*
+	 * Do not inherit any borrowed priority from the parent.
+	 */
+	child->td_priority = child->td_base_pri;
 	/*
 	 * And update interactivity score.
 	 */
@@ -2128,7 +2141,7 @@ sched_clock(struct thread *td)
 	ts = td->td_sched;
 	if (td->td_pri_class & PRI_FIFO_BIT)
 		return;
-	if (td->td_pri_class == PRI_TIMESHARE) {
+	if (PRI_BASE(td->td_pri_class) == PRI_TIMESHARE) {
 		/*
 		 * We used a tick; charge it to the thread so
 		 * that we can compute our interactivity.
@@ -2154,7 +2167,7 @@ sched_clock(struct thread *td)
  * is easier than trying to scale based on stathz.
  */
 void
-sched_tick(void)
+sched_tick(int cnt)
 {
 	struct td_sched *ts;
 
@@ -2166,11 +2179,11 @@ sched_tick(void)
 	if (ts->ts_incrtick == ticks)
 		return;
 	/* Adjust ticks for pctcpu */
-	ts->ts_ticks += 1 << SCHED_TICK_SHIFT;
+	ts->ts_ticks += cnt << SCHED_TICK_SHIFT;
 	ts->ts_ltick = ticks;
 	ts->ts_incrtick = ticks;
 	/*
-	 * Update if we've exceeded our desired tick threshhold by over one
+	 * Update if we've exceeded our desired tick threshold by over one
 	 * second.
 	 */
 	if (ts->ts_ftick + SCHED_TICK_MAX < ts->ts_ltick)
@@ -2383,7 +2396,6 @@ sched_affinity(struct thread *td)
 {
 #ifdef SMP
 	struct td_sched *ts;
-	int cpu;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	ts = td->td_sched;
@@ -2396,18 +2408,14 @@ sched_affinity(struct thread *td)
 	}
 	if (!TD_IS_RUNNING(td))
 		return;
-	td->td_flags |= TDF_NEEDRESCHED;
-	if (!THREAD_CAN_MIGRATE(td))
-		return;
 	/*
-	 * Assign the new cpu and force a switch before returning to
-	 * userspace.  If the target thread is not running locally send
-	 * an ipi to force the issue.
+	 * Force a switch before returning to userspace.  If the
+	 * target thread is not running locally send an ipi to force
+	 * the issue.
 	 */
-	cpu = ts->ts_cpu;
-	ts->ts_cpu = sched_pickcpu(td, 0);
-	if (cpu != PCPU_GET(cpuid))
-		ipi_cpu(cpu, IPI_PREEMPT);
+	td->td_flags |= TDF_NEEDRESCHED;
+	if (td != curthread)
+		ipi_cpu(ts->ts_cpu, IPI_PREEMPT);
 #endif
 }
 
@@ -2424,6 +2432,7 @@ sched_bind(struct thread *td, int cpu)
 	ts = td->td_sched;
 	if (ts->ts_flags & TSF_BOUND)
 		sched_unbind(td);
+	KASSERT(THREAD_CAN_MIGRATE(td), ("%p must be migratable", td));
 	ts->ts_flags |= TSF_BOUND;
 	sched_pin();
 	if (PCPU_GET(cpuid) == cpu)
@@ -2541,8 +2550,14 @@ sched_idletd(void *dummy)
 			}
 		}
 		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
-		if (tdq->tdq_load == 0)
-			cpu_idle(switchcnt > 1);
+		if (tdq->tdq_load == 0) {
+			tdq->tdq_cpu_idle = 1;
+			if (tdq->tdq_load == 0) {
+				cpu_idle(switchcnt > sched_idlespinthresh * 4);
+				tdq->tdq_switchcnt++;
+			}
+			tdq->tdq_cpu_idle = 0;
+		}
 		if (tdq->tdq_load) {
 			thread_lock(td);
 			mi_switch(SW_VOL | SWT_IDLE, NULL);
@@ -2637,7 +2652,7 @@ sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
 	int i, first;
 
 	sbuf_printf(sb, "%*s<group level=\"%d\" cache-level=\"%d\">\n", indent,
-	    "", indent, cg->cg_level);
+	    "", 1 + indent / 2, cg->cg_level);
 	sbuf_printf(sb, "%*s <cpu count=\"%d\" mask=\"0x%x\">", indent, "",
 	    cg->cg_count, cg->cg_mask);
 	first = TRUE;
@@ -2701,6 +2716,7 @@ sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(topo);
 	return (err);
 }
+
 #endif
 
 SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0, "Scheduler");
@@ -2737,6 +2753,7 @@ SYSCTL_INT(_kern_sched, OID_AUTO, steal_thresh, CTLFLAG_RW, &steal_thresh, 0,
 SYSCTL_PROC(_kern_sched, OID_AUTO, topology_spec, CTLTYPE_STRING |
     CTLFLAG_RD, NULL, 0, sysctl_kern_sched_topology_spec, "A", 
     "XML dump of detected CPU topology");
+
 #endif
 
 /* ps compat.  All cpu percentages from ULE are weighted. */

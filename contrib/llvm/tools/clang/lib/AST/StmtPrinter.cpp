@@ -77,16 +77,21 @@ namespace  {
       return OS;
     }
 
-    bool PrintOffsetOfDesignator(Expr *E);
-    void VisitUnaryOffsetOf(UnaryOperator *Node);
-
     void Visit(Stmt* S) {
       if (Helper && Helper->handledStmt(S,OS))
           return;
       else StmtVisitor<StmtPrinter>::Visit(S);
     }
+    
+    void VisitStmt(Stmt *Node) ATTRIBUTE_UNUSED {
+      Indent() << "<<unknown stmt type>>\n";
+    }
+    void VisitExpr(Expr *Node) ATTRIBUTE_UNUSED {
+      OS << "<<unknown expr type>>";
+    }
+    void VisitCXXNamedCastExpr(CXXNamedCastExpr *Node);
 
-    void VisitStmt(Stmt *Node);
+#define ABSTRACT_STMT(CLASS)
 #define STMT(CLASS, PARENT) \
     void Visit##CLASS(CLASS *Node);
 #include "clang/AST/StmtNodes.inc"
@@ -96,10 +101,6 @@ namespace  {
 //===----------------------------------------------------------------------===//
 //  Stmt printing methods.
 //===----------------------------------------------------------------------===//
-
-void StmtPrinter::VisitStmt(Stmt *Node) {
-  Indent() << "<<unknown stmt type>>\n";
-}
 
 /// PrintRawCompoundStmt - Print a compound stmt without indenting the {, and
 /// with no newline after the }.
@@ -465,15 +466,11 @@ void StmtPrinter::VisitCXXTryStmt(CXXTryStmt *Node) {
 //  Expr printing methods.
 //===----------------------------------------------------------------------===//
 
-void StmtPrinter::VisitExpr(Expr *Node) {
-  OS << "<<unknown expr type>>";
-}
-
 void StmtPrinter::VisitDeclRefExpr(DeclRefExpr *Node) {
   if (NestedNameSpecifier *Qualifier = Node->getQualifier())
     Qualifier->print(OS, Policy);
-  OS << Node->getDecl();
-  if (Node->hasExplicitTemplateArgumentList())
+  OS << Node->getNameInfo();
+  if (Node->hasExplicitTemplateArgs())
     OS << TemplateSpecializationType::PrintTemplateArgumentList(
                                                     Node->getTemplateArgs(),
                                                     Node->getNumTemplateArgs(),
@@ -483,7 +480,7 @@ void StmtPrinter::VisitDeclRefExpr(DeclRefExpr *Node) {
 void StmtPrinter::VisitDependentScopeDeclRefExpr(
                                            DependentScopeDeclRefExpr *Node) {
   Node->getQualifier()->print(OS, Policy);
-  OS << Node->getDeclName().getAsString();
+  OS << Node->getNameInfo();
   if (Node->hasExplicitTemplateArgs())
     OS << TemplateSpecializationType::PrintTemplateArgumentList(
                                                    Node->getTemplateArgs(),
@@ -494,7 +491,7 @@ void StmtPrinter::VisitDependentScopeDeclRefExpr(
 void StmtPrinter::VisitUnresolvedLookupExpr(UnresolvedLookupExpr *Node) {
   if (Node->getQualifier())
     Node->getQualifier()->print(OS, Policy);
-  OS << Node->getName().getAsString();
+  OS << Node->getNameInfo();
   if (Node->hasExplicitTemplateArgs())
     OS << TemplateSpecializationType::PrintTemplateArgumentList(
                                                    Node->getTemplateArgs(),
@@ -515,7 +512,7 @@ void StmtPrinter::VisitObjCPropertyRefExpr(ObjCPropertyRefExpr *Node) {
     PrintExpr(Node->getBase());
     OS << ".";
   }
-  OS << Node->getProperty()->getNameAsCString();
+  OS << Node->getProperty()->getName();
 }
 
 void StmtPrinter::VisitObjCImplicitSetterGetterRefExpr(
@@ -624,8 +621,10 @@ void StmtPrinter::VisitStringLiteral(StringLiteral *Str) {
   OS << '"';
 
   // FIXME: this doesn't print wstrings right.
-  for (unsigned i = 0, e = Str->getByteLength(); i != e; ++i) {
-    unsigned char Char = Str->getStrData()[i];
+  llvm::StringRef StrData = Str->getString();
+  for (llvm::StringRef::iterator I = StrData.begin(), E = StrData.end(); 
+                                                             I != E; ++I) {
+    unsigned char Char = *I;
 
     switch (Char) {
     default:
@@ -661,13 +660,13 @@ void StmtPrinter::VisitUnaryOperator(UnaryOperator *Node) {
     // it might be concatenated incorrectly like '+'.
     switch (Node->getOpcode()) {
     default: break;
-    case UnaryOperator::Real:
-    case UnaryOperator::Imag:
-    case UnaryOperator::Extension:
+    case UO_Real:
+    case UO_Imag:
+    case UO_Extension:
       OS << ' ';
       break;
-    case UnaryOperator::Plus:
-    case UnaryOperator::Minus:
+    case UO_Plus:
+    case UO_Minus:
       if (isa<UnaryOperator>(Node->getSubExpr()))
         OS << ' ';
       break;
@@ -677,31 +676,6 @@ void StmtPrinter::VisitUnaryOperator(UnaryOperator *Node) {
 
   if (Node->isPostfix())
     OS << UnaryOperator::getOpcodeStr(Node->getOpcode());
-}
-
-bool StmtPrinter::PrintOffsetOfDesignator(Expr *E) {
-  if (isa<UnaryOperator>(E)) {
-    // Base case, print the type and comma.
-    OS << E->getType().getAsString(Policy) << ", ";
-    return true;
-  } else if (ArraySubscriptExpr *ASE = dyn_cast<ArraySubscriptExpr>(E)) {
-    PrintOffsetOfDesignator(ASE->getLHS());
-    OS << "[";
-    PrintExpr(ASE->getRHS());
-    OS << "]";
-    return false;
-  } else {
-    MemberExpr *ME = cast<MemberExpr>(E);
-    bool IsFirst = PrintOffsetOfDesignator(ME->getBase());
-    OS << (IsFirst ? "" : ".") << ME->getMemberDecl();
-    return false;
-  }
-}
-
-void StmtPrinter::VisitUnaryOffsetOf(UnaryOperator *Node) {
-  OS << "__builtin_offsetof(";
-  PrintOffsetOfDesignator(Node->getSubExpr());
-  OS << ")";
 }
 
 void StmtPrinter::VisitOffsetOfExpr(OffsetOfExpr *Node) {
@@ -777,9 +751,9 @@ void StmtPrinter::VisitMemberExpr(MemberExpr *Node) {
   if (NestedNameSpecifier *Qualifier = Node->getQualifier())
     Qualifier->print(OS, Policy);
 
-  OS << Node->getMemberDecl();
+  OS << Node->getMemberNameInfo();
 
-  if (Node->hasExplicitTemplateArgumentList())
+  if (Node->hasExplicitTemplateArgs())
     OS << TemplateSpecializationType::PrintTemplateArgumentList(
                                                     Node->getTemplateArgs(),
                                                     Node->getNumTemplateArgs(),
@@ -794,12 +768,6 @@ void StmtPrinter::VisitExtVectorElementExpr(ExtVectorElementExpr *Node) {
   PrintExpr(Node->getBase());
   OS << ".";
   OS << Node->getAccessor().getName();
-}
-void StmtPrinter::VisitCastExpr(CastExpr *) {
-  assert(0 && "CastExpr is an abstract class");
-}
-void StmtPrinter::VisitExplicitCastExpr(ExplicitCastExpr *) {
-  assert(0 && "ExplicitCastExpr is an abstract class");
 }
 void StmtPrinter::VisitCStyleCastExpr(CStyleCastExpr *Node) {
   OS << "(" << Node->getType().getAsString(Policy) << ")";
@@ -1069,10 +1037,6 @@ void StmtPrinter::VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *Node) {
   PrintExpr(Node->getSubExpr());
 }
 
-void StmtPrinter::VisitCXXBindReferenceExpr(CXXBindReferenceExpr *Node) {
-  PrintExpr(Node->getSubExpr());
-}
-
 void StmtPrinter::VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr *Node) {
   OS << Node->getType().getAsString(Policy);
   OS << "(";
@@ -1201,7 +1165,7 @@ void StmtPrinter::VisitCXXDependentScopeMemberExpr(
     // FIXME: Track use of "template" keyword explicitly?
     OS << "template ";
 
-  OS << Node->getMember().getAsString();
+  OS << Node->getMemberNameInfo();
 
   if (Node->hasExplicitTemplateArgs()) {
     OS << TemplateSpecializationType::PrintTemplateArgumentList(
@@ -1221,7 +1185,7 @@ void StmtPrinter::VisitUnresolvedMemberExpr(UnresolvedMemberExpr *Node) {
 
   // FIXME: this might originally have been written with 'template'
 
-  OS << Node->getMemberName().getAsString();
+  OS << Node->getMemberNameInfo();
 
   if (Node->hasExplicitTemplateArgs()) {
     OS << TemplateSpecializationType::PrintTemplateArgumentList(
@@ -1368,7 +1332,7 @@ void Stmt::printPretty(llvm::raw_ostream &OS, ASTContext& Context,
   }
 
   if (Policy.Dump && &Context) {
-    dump(Context.getSourceManager());
+    dump(OS, Context.getSourceManager());
     return;
   }
 

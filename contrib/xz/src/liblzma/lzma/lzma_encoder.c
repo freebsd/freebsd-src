@@ -334,7 +334,7 @@ lzma_lzma_encode(lzma_coder *restrict coder, lzma_mf *restrict mf,
 
 		// With LZMA2 we need to take care that compressed size of
 		// a chunk doesn't get too big.
-		// TODO
+		// FIXME? Check if this could be improved.
 		if (limit != UINT32_MAX
 				&& (mf->read_pos - mf->read_ahead >= limit
 					|| *out_pos + rc_pending(&coder->rc)

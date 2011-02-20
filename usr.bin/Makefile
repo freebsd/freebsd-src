@@ -5,54 +5,35 @@
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
-# XXX Use GNU versions: apropos diff ld man patch whatis
+# XXX Use GNU versions: diff ld patch
 # Moved to secure: bdes
 #
 
 SUBDIR=	alias \
 	apply \
-	${_ar} \
 	asa \
-	${_at} \
-	${_atm} \
 	awk \
 	banner \
 	basename \
-	${_bc} \
-	${_biff} \
-	${_bluetooth} \
 	brandelf \
 	bsdiff \
 	bzip2 \
 	bzip2recover \
-	${_c89} \
-	${_c99} \
-	${_calendar} \
 	cap_mkdb \
-	${_catman} \
 	chat \
-	${_checknr} \
-	${_chkey} \
 	chpass \
 	cksum \
 	${_clang} \
 	cmp \
 	col \
-	${_colcrt} \
 	colldef \
 	colrm \
 	column \
 	comm \
-	${_compile_et} \
 	compress \
-	${_cpio} \
 	cpuset \
 	csplit \
-	${_csup} \
-	${_ctags} \
 	cut \
-	${_dc} \
-	${_dig} \
 	dirname \
 	du \
 	ee \
@@ -64,12 +45,10 @@ SUBDIR=	alias \
 	false \
 	fetch \
 	file \
-	${_file2c} \
 	find \
 	finger \
 	fmt \
 	fold \
-	${_from} \
 	fstat \
 	fsync \
 	ftp \
@@ -78,15 +57,11 @@ SUBDIR=	alias \
 	getconf \
 	getent \
 	getopt \
-	${_gprof} \
 	${_grep} \
 	gzip \
 	head \
-	${_hesinfo} \
 	hexdump \
-	${_host} \
 	id \
-	${_indent} \
 	ipcrm \
 	ipcs \
 	join \
@@ -105,10 +80,8 @@ SUBDIR=	alias \
 	less \
 	lessecho \
 	lesskey \
-	${_lex} \
 	limits \
 	locale \
-	${_locate} \
 	lock \
 	lockf \
 	logger \
@@ -120,33 +93,24 @@ SUBDIR=	alias \
 	lsvfs \
 	lzmainfo \
 	m4 \
-	${_mail} \
-	${_make} \
 	${_makewhatis} \
+	${_man} \
 	mesg \
 	minigzip \
 	ministat \
 	mkdep \
 	mkfifo \
 	mklocale \
-	${_mkstr} \
 	mktemp \
 	mkuzip \
-	${_msgs} \
 	mt \
-	${_nc} \
 	ncal \
-	${_ncplist} \
-	${_ncplogin} \
 	netstat \
 	newgrp \
-	${_newkey} \
 	nfsstat \
 	nice \
 	nl \
 	nohup \
-	${_nslookup} \
-	${_nsupdate} \
 	opieinfo \
 	opiekey \
 	opiepasswd \
@@ -159,26 +123,19 @@ SUBDIR=	alias \
 	printenv \
 	printf \
 	procstat \
-	${_quota} \
 	renice \
 	rev \
 	revoke \
-	${_rlogin} \
-	${_rpcgen} \
 	rpcinfo \
 	rs \
-	${_rsh} \
 	rup \
-	${_ruptime} \
 	rusers \
 	rwall \
-	${_rwho} \
 	script \
 	sed \
 	seq \
 	shar \
 	showmount \
-	${_smbutil} \
 	sockstat \
 	split \
 	stat \
@@ -190,7 +147,6 @@ SUBDIR=	alias \
 	tar \
 	tcopy \
 	tee \
-	${_telnet} \
 	tftp \
 	time \
 	tip \
@@ -200,25 +156,19 @@ SUBDIR=	alias \
 	tr \
 	true \
 	truncate \
-	${_truss} \
+	truss \
 	tset \
 	tsort \
 	tty \
-	${_ul} \
 	uname \
 	unexpand \
-	${_unifdef} \
 	uniq \
 	unzip \
 	units \
 	unvis \
-	${_usbhidaction} \
-	${_usbhidctl} \
 	users \
 	uudecode \
 	uuencode \
-	${_vacation} \
-	${_vgrind} \
 	vi \
 	vis \
 	vmstat \
@@ -244,37 +194,33 @@ SUBDIR=	alias \
 	${_ypmatch} \
 	${_ypwhich}
 
-.if ${MACHINE_ARCH} != "arm"
-_truss=		truss
-.endif
-
 # NB: keep these sorted by MK_* knobs
 
 .if ${MK_AT} != "no"
-_at=		at
+SUBDIR+=	at
 .endif
 
 .if ${MK_ATM} != "no"
-_atm=		atm
+SUBDIR+=	atm
 .endif
 
 .if ${MK_MAN_UTILS} != "no"
-_catman=	catman
+SUBDIR+=	catman
 .endif
 
 .if ${MK_BIND_UTILS} != "no"
-_dig=		dig
-_host=		host
-_nslookup=	nslookup
-_nsupdate=	nsupdate
+SUBDIR+=	dig
+SUBDIR+=	host
+SUBDIR+=	nslookup
+SUBDIR+=	nsupdate
 .endif
 
 .if ${MK_BLUETOOTH} != "no"
-_bluetooth=	bluetooth
+SUBDIR+=	bluetooth
 .endif
 
 .if ${MK_BSD_CPIO} != "no"
-_cpio=		cpio
+SUBDIR+=	cpio
 .endif
 
 .if ${MK_BSD_GREP} != "no"
@@ -282,7 +228,7 @@ _grep=		grep
 .endif
 
 .if ${MK_CALENDAR} != "no"
-_calendar=	calendar
+SUBDIR+=	calendar
 .endif
 
 .if ${MK_CLANG} != "no"
@@ -290,125 +236,102 @@ _clang=		clang
 .endif
 
 .if ${MK_HESIOD} != "no"
-_hesinfo=	hesinfo
+SUBDIR+=	hesinfo
 .endif
 
 .if ${MK_OPENSSL} != "no"
-_bc=		bc
-_chkey=		chkey
-_dc=		dc
-_newkey=	newkey
+SUBDIR+=	bc
+SUBDIR+=	chkey
+SUBDIR+=	dc
+SUBDIR+=	newkey
 .if ${MK_LIBTHR} != "no"
-_csup=		csup
+SUBDIR+=	csup
 .endif
 .endif
 
 .if ${MK_LOCATE} != "no"
-_locate=	locate
+SUBDIR+=	locate
 .endif
 
 # XXX msgs?
 .if ${MK_MAIL} != "no"
-_biff=		biff
-_from=		from
-_mail=		mail
-_msgs=		msgs
+SUBDIR+=	biff
+SUBDIR+=	from
+SUBDIR+=	mail
+SUBDIR+=	msgs
 .endif
 
 .if ${MK_MAKE} != "no"
-_make=		make
+SUBDIR+=	make
 .endif
 
 .if ${MK_MAN_UTILS} != "no"
 _makewhatis=	makewhatis
+_man=		man
 .endif
 
 .if ${MK_NETCAT} != "no"
-_nc=		nc
+SUBDIR+=	nc
 .endif
 
 .if ${MK_NIS} != "no"
-_ypcat=		ypcat
-_ypmatch=	ypmatch
-_ypwhich=	ypwhich
+SUBDIR+=	ypcat
+SUBDIR+=	ypmatch
+SUBDIR+=	ypwhich
 .endif
 
 .if ${MK_QUOTAS} != "no"
-_quota=		quota
+SUBDIR+=	quota
 .endif
 
 .if ${MK_RCMDS} != "no"
-_rlogin=	rlogin
-_rsh=		rsh
-_ruptime=	ruptime
-_rwho=		rwho
+SUBDIR+=	rlogin
+SUBDIR+=	rsh
+SUBDIR+=	ruptime
+SUBDIR+=	rwho
 .endif
 
 .if ${MK_SENDMAIL} != "no"
-_vacation=	vacation
+SUBDIR+=	vacation
 .endif
 
 .if ${MK_TELNET} != "no"
-_telnet=	telnet
+SUBDIR+=	telnet
 .endif
 
 .if ${MK_TEXTPROC} != "no"
-_checknr=	checknr
-_colcrt=	colcrt
-_ul=		ul
+SUBDIR+=	checknr
+SUBDIR+=	colcrt
+SUBDIR+=	ul
 .endif
 
 .if ${MK_TOOLCHAIN} != "no"
-_ar=		ar
-_c89=		c89
-_c99=		c99
-_compile_et=	compile_et
-_ctags=		ctags
-_file2c=	file2c
-_gprof=		gprof
-_indent=	indent
-_lex=		lex
-_mkstr=		mkstr
-_rpcgen=	rpcgen
-_unifdef=	unifdef
-_xlint=		xlint
-_xstr=		xstr
+SUBDIR+=	ar
+SUBDIR+=	c89
+SUBDIR+=	c99
+SUBDIR+=	compile_et
+SUBDIR+=	ctags
+SUBDIR+=	file2c
+SUBDIR+=	gprof
+SUBDIR+=	indent
+SUBDIR+=	lex
+SUBDIR+=	mkstr
+SUBDIR+=	rpcgen
+SUBDIR+=	unifdef
+SUBDIR+=	xlint
+SUBDIR+=	xstr
 # XXX maybe under textproc?
-_vgrind=	vgrind
-_yacc=		yacc
+SUBDIR+=	vgrind
+SUBDIR+=	yacc
 .endif
 
 .if ${MK_USB} != "no"
-_usbhidaction=	usbhidaction
-_usbhidctl=	usbhidctl
+SUBDIR+=	usbhidaction
+SUBDIR+=	usbhidctl
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
-.if ${MK_NCP} != "no"
-_ncplist=	ncplist
-_ncplogin=	ncplogin
-.endif
-_smbutil=	smbutil
-.endif
+.include <bsd.arch.inc.mk>
 
-.if ${MACHINE_ARCH} == "ia64"
-_smbutil=	smbutil
-.endif
-
-.if ${MACHINE_ARCH} == "amd64"
-.if ${MK_NCP} != "no"
-_ncplist=	ncplist
-_ncplogin=	ncplogin
-.endif
-_smbutil=	smbutil
-.endif
-
-.if ${MACHINE_ARCH} == "powerpc"
-_smbutil=	smbutil
-.endif
-
-.if ${MACHINE_ARCH} == "sparc64"
-_smbutil=	smbutil
-.endif
+SUBDIR:=	${SUBDIR:O}
 
 .include <bsd.subdir.mk>

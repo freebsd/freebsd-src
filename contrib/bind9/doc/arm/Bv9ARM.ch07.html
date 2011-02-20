@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch07.html,v 1.178.14.13.2.1 2010/02/25 12:16:47 tbox Exp $ -->
+<!-- $Id: Bv9ARM.ch07.html,v 1.178.14.15 2010-08-20 02:05:39 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -46,10 +46,10 @@
 <p><b>Table of Contents</b></p>
 <dl>
 <dt><span class="sect1"><a href="Bv9ARM.ch07.html#Access_Control_Lists">Access Control Lists</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch07.html#id2599054"><span><strong class="command">Chroot</strong></span> and <span><strong class="command">Setuid</strong></span></a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch07.html#id2599016"><span><strong class="command">Chroot</strong></span> and <span><strong class="command">Setuid</strong></span></a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2599136">The <span><strong class="command">chroot</strong></span> Environment</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2599264">Using the <span><strong class="command">setuid</strong></span> Function</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2599234">The <span><strong class="command">chroot</strong></span> Environment</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2599362">Using the <span><strong class="command">setuid</strong></span> Function</a></span></dt>
 </dl></dd>
 <dt><span class="sect1"><a href="Bv9ARM.ch07.html#dynamic_update_security">Dynamic Update Security</a></span></dt>
 </dl>
@@ -119,7 +119,7 @@ zone "example.com" {
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2599054"></a><span><strong class="command">Chroot</strong></span> and <span><strong class="command">Setuid</strong></span>
+<a name="id2599016"></a><span><strong class="command">Chroot</strong></span> and <span><strong class="command">Setuid</strong></span>
 </h2></div></div></div>
 <p>
           On UNIX servers, it is possible to run <acronym class="acronym">BIND</acronym>
@@ -145,7 +145,7 @@ zone "example.com" {
         </p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2599136"></a>The <span><strong class="command">chroot</strong></span> Environment</h3></div></div></div>
+<a name="id2599234"></a>The <span><strong class="command">chroot</strong></span> Environment</h3></div></div></div>
 <p>
             In order for a <span><strong class="command">chroot</strong></span> environment
             to
@@ -173,7 +173,7 @@ zone "example.com" {
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2599264"></a>Using the <span><strong class="command">setuid</strong></span> Function</h3></div></div></div>
+<a name="id2599362"></a>Using the <span><strong class="command">setuid</strong></span> Function</h3></div></div></div>
 <p>
             Prior to running the <span><strong class="command">named</strong></span> daemon,
             use

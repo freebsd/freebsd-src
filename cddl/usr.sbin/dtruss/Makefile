@@ -3,6 +3,6 @@
 .PATH: ${.CURDIR}/../../../cddl/contrib/dtracetoolkit
 
 SCRIPTS=dtruss
-NO_MAN=
+MAN=dtruss.1
 
 .include <bsd.prog.mk>

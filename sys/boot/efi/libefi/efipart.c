@@ -69,6 +69,7 @@ efipart_init(void)
 	int err;
 
 	sz = 0;
+	hin = NULL;
 	status = BS->LocateHandle(ByProtocol, &blkio_guid, 0, &sz, 0);
 	if (status == EFI_BUFFER_TOO_SMALL) {
 		hin = (EFI_HANDLE *)malloc(sz * 2);

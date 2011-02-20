@@ -88,7 +88,8 @@ struct tw_cli_q_stats {
 #define TW_CLI_BUSY_Q		1	/* q of reqs submitted to fw */
 #define TW_CLI_PENDING_Q	2	/* q of reqs deferred due to 'q full' */
 #define TW_CLI_COMPLETE_Q	3	/* q of reqs completed by fw */
-#define TW_CLI_Q_COUNT		4	/* total number of queues */
+#define TW_CLI_RESET_Q		4	/* q of reqs reset by timeout */
+#define TW_CLI_Q_COUNT		5	/* total number of queues */
 
 
 /* CL's internal request context. */
@@ -133,6 +134,7 @@ struct tw_cli_ctlr_context {
 	TW_UINT8 		interrupts_enabled;	  /* Interrupts on controller enabled. */
 	TW_UINT8 		internal_req_busy;	  /* Data buffer for internal requests in use. */
 	TW_UINT8 		get_more_aens;		  /* More AEN's need to be retrieved. */
+	TW_UINT8 		reset_needed;		  /* Controller needs a soft reset. */
 	TW_UINT8 		reset_in_progress;	  /* Controller is being reset. */
 	TW_UINT8 		reset_phase1_in_progress; /* In 'phase 1' of reset. */
 	TW_UINT32		flags;		/* controller settings */

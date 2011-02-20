@@ -13,8 +13,10 @@
 
 #include "CodeGenModule.h"
 #include "CodeGenFunction.h"
+#include "CGCXXABI.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/RecordLayout.h"
+#include "clang/Frontend/CodeGenOptions.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/Support/Compiler.h"
@@ -2408,12 +2410,12 @@ llvm::Constant *CodeGenModule::GetAddrOfThunk(GlobalDecl GD,
   // Compute the mangled name.
   llvm::SmallString<256> Name;
   if (const CXXDestructorDecl* DD = dyn_cast<CXXDestructorDecl>(MD))
-    getMangleContext().mangleCXXDtorThunk(DD, GD.getDtorType(), Thunk.This,
-                                          Name);
+    getCXXABI().getMangleContext().mangleCXXDtorThunk(DD, GD.getDtorType(),
+                                                      Thunk.This, Name);
   else
-    getMangleContext().mangleThunk(MD, Thunk, Name);
+    getCXXABI().getMangleContext().mangleThunk(MD, Thunk, Name);
   
-  const llvm::Type *Ty = getTypes().GetFunctionTypeForVTable(MD);
+  const llvm::Type *Ty = getTypes().GetFunctionTypeForVTable(GD);
   return GetOrCreateLLVMFunction(Name, Ty, GD);
 }
 
@@ -2460,6 +2462,54 @@ static llvm::Value *PerformTypeAdjustment(CodeGenFunction &CGF,
   return CGF.Builder.CreateBitCast(V, Ptr->getType());
 }
 
+static void setThunkVisibility(CodeGenModule &CGM, const CXXMethodDecl *MD,
+                               const ThunkInfo &Thunk, llvm::Function *Fn) {
+  CGM.setGlobalVisibility(Fn, MD);
+
+  if (!CGM.getCodeGenOpts().HiddenWeakVTables)
+    return;
+
+  // If the thunk has weak/linkonce linkage, but the function must be
+  // emitted in every translation unit that references it, then we can
+  // emit its thunks with hidden visibility, since its thunks must be
+  // emitted when the function is.
+
+  // This follows CodeGenModule::setTypeVisibility; see the comments
+  // there for explanation.
+
+  if ((Fn->getLinkage() != llvm::GlobalVariable::LinkOnceODRLinkage &&
+       Fn->getLinkage() != llvm::GlobalVariable::WeakODRLinkage) ||
+      Fn->getVisibility() != llvm::GlobalVariable::DefaultVisibility)
+    return;
+
+  if (MD->hasAttr<VisibilityAttr>())
+    return;
+
+  switch (MD->getTemplateSpecializationKind()) {
+  case TSK_ExplicitInstantiationDefinition:
+  case TSK_ExplicitInstantiationDeclaration:
+    return;
+
+  case TSK_Undeclared:
+    break;
+
+  case TSK_ExplicitSpecialization:
+  case TSK_ImplicitInstantiation:
+    if (!CGM.getCodeGenOpts().HiddenWeakTemplateVTables)
+      return;
+    break;
+  }
+
+  // If there's an explicit definition, and that definition is
+  // out-of-line, then we can't assume that all users will have a
+  // definition to emit.
+  const FunctionDecl *Def = 0;
+  if (MD->hasBody(Def) && Def->isOutOfLine())
+    return;
+
+  Fn->setVisibility(llvm::GlobalValue::HiddenVisibility);
+}
+
 void CodeGenFunction::GenerateThunk(llvm::Function *Fn, GlobalDecl GD,
                                     const ThunkInfo &Thunk) {
   const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
@@ -2473,13 +2523,8 @@ void CodeGenFunction::GenerateThunk(llvm::Function *Fn, GlobalDecl GD,
   // CodeGenFunction::GenerateCode.
 
   // Create the implicit 'this' parameter declaration.
-  CXXThisDecl = ImplicitParamDecl::Create(getContext(), 0,
-                                          MD->getLocation(),
-                                          &getContext().Idents.get("this"),
-                                          ThisType);
-
-  // Add the 'this' parameter.
-  FunctionArgs.push_back(std::make_pair(CXXThisDecl, CXXThisDecl->getType()));
+  CurGD = GD;
+  CGM.getCXXABI().BuildInstanceFunctionParams(*this, ResultType, FunctionArgs);
 
   // Add the rest of the parameters.
   for (FunctionDecl::param_const_iterator I = MD->param_begin(),
@@ -2490,6 +2535,8 @@ void CodeGenFunction::GenerateThunk(llvm::Function *Fn, GlobalDecl GD,
   }
   
   StartFunction(GlobalDecl(), ResultType, Fn, FunctionArgs, SourceLocation());
+
+  CGM.getCXXABI().EmitInstanceFunctionProlog(*this);
 
   // Adjust the 'this' pointer if necessary.
   llvm::Value *AdjustedThisPtr = 
@@ -2514,7 +2561,7 @@ void CodeGenFunction::GenerateThunk(llvm::Function *Fn, GlobalDecl GD,
 
   // Get our callee.
   const llvm::Type *Ty =
-    CGM.getTypes().GetFunctionType(CGM.getTypes().getFunctionInfo(MD),
+    CGM.getTypes().GetFunctionType(CGM.getTypes().getFunctionInfo(GD),
                                    FPT->isVariadic());
   llvm::Value *Callee = CGM.GetAddrOfFunction(GD, Ty);
 
@@ -2574,24 +2621,20 @@ void CodeGenFunction::GenerateThunk(llvm::Function *Fn, GlobalDecl GD,
   }
 
   if (!ResultType->isVoidType() && Slot.isNull())
-    EmitReturnOfRValue(RV, ResultType);
+    CGM.getCXXABI().EmitReturnFromThunk(CGF, RV, ResultType);
 
   FinishFunction();
 
-  // Destroy the 'this' declaration.
-  CXXThisDecl->Destroy(getContext());
-  
   // Set the right linkage.
   CGM.setFunctionLinkage(MD, Fn);
   
   // Set the right visibility.
-  CGM.setGlobalVisibility(Fn, MD);
+  setThunkVisibility(CGM, MD, Thunk, Fn);
 }
 
 void CodeGenVTables::EmitThunk(GlobalDecl GD, const ThunkInfo &Thunk)
 {
   llvm::Constant *Entry = CGM.GetAddrOfThunk(GD, Thunk);
-  const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
   
   // Strip off a bitcast if we got one back.
   if (llvm::ConstantExpr *CE = dyn_cast<llvm::ConstantExpr>(Entry)) {
@@ -2602,7 +2645,7 @@ void CodeGenVTables::EmitThunk(GlobalDecl GD, const ThunkInfo &Thunk)
   // There's already a declaration with the same name, check if it has the same
   // type or if we need to replace it.
   if (cast<llvm::GlobalValue>(Entry)->getType()->getElementType() != 
-      CGM.getTypes().GetFunctionTypeForVTable(MD)) {
+      CGM.getTypes().GetFunctionTypeForVTable(GD)) {
     llvm::GlobalValue *OldThunkFn = cast<llvm::GlobalValue>(Entry);
     
     // If the types mismatch then we have to rewrite the definition.
@@ -2821,8 +2864,7 @@ CodeGenVTables::CreateVTableInitializer(const CXXRecordDecl *RD,
         
           NextVTableThunkIndex++;
         } else {
-          const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
-          const llvm::Type *Ty = CGM.getTypes().GetFunctionTypeForVTable(MD);
+          const llvm::Type *Ty = CGM.getTypes().GetFunctionTypeForVTable(GD);
         
           Init = CGM.GetAddrOfFunction(GD, Ty);
         }
@@ -2889,7 +2931,7 @@ GetGlobalVariable(llvm::Module &Module, llvm::StringRef Name,
 
 llvm::GlobalVariable *CodeGenVTables::GetAddrOfVTable(const CXXRecordDecl *RD) {
   llvm::SmallString<256> OutName;
-  CGM.getMangleContext().mangleCXXVTable(RD, OutName);
+  CGM.getCXXABI().getMangleContext().mangleCXXVTable(RD, OutName);
   llvm::StringRef Name = OutName.str();
 
   ComputeVTableRelatedInformation(RD, true);
@@ -2928,7 +2970,7 @@ CodeGenVTables::EmitVTableDefinition(llvm::GlobalVariable *VTable,
   VTable->setLinkage(Linkage);
   
   // Set the right visibility.
-  CGM.setGlobalVisibility(VTable, RD);
+  CGM.setTypeVisibility(VTable, RD, /*ForRTTI*/ false);
 }
 
 llvm::GlobalVariable *
@@ -2949,8 +2991,8 @@ CodeGenVTables::GenerateConstructionVTable(const CXXRecordDecl *RD,
 
   // Get the mangled construction vtable name.
   llvm::SmallString<256> OutName;
-  CGM.getMangleContext().mangleCXXCtorVTable(RD, Base.getBaseOffset() / 8, 
-                                             Base.getBase(), OutName);
+  CGM.getCXXABI().getMangleContext().
+    mangleCXXCtorVTable(RD, Base.getBaseOffset() / 8, Base.getBase(), OutName);
   llvm::StringRef Name = OutName.str();
 
   const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGM.getLLVMContext());

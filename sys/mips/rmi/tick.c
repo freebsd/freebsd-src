@@ -62,8 +62,8 @@ struct timecounter *platform_timecounter;
 static DPCPU_DEFINE(uint32_t, cycles_per_tick);
 static uint32_t cycles_per_usec;
 
-static DPCPU_DEFINE(uint32_t, counter_upper);
-static DPCPU_DEFINE(uint32_t, counter_lower_last);
+static DPCPU_DEFINE(volatile uint32_t, counter_upper);
+static DPCPU_DEFINE(volatile uint32_t, counter_lower_last);
 static DPCPU_DEFINE(uint32_t, compare_ticks);
 static DPCPU_DEFINE(uint32_t, lost_ticks);
 
@@ -108,23 +108,32 @@ tick_ticker(void)
 	uint32_t t_lower_last, t_upper;
 
 	/*
-	 * XXX: MIPS64 platforms can read 64-bits of counter directly.
-	 * Also: the tc code is supposed to cope with things wrapping
-	 * from the time counter, so I'm not sure why all these hoops
-	 * are even necessary.
+	 * Disable preemption because we are working with cpu specific data.
 	 */
-	ticktock = mips_rd_count();
 	critical_enter();
-	t_lower_last = DPCPU_GET(counter_lower_last);
-	t_upper = DPCPU_GET(counter_upper);
-	if (ticktock < t_lower_last)
-		t_upper++;
-	t_lower_last = ticktock;
-	DPCPU_SET(counter_upper, t_upper);
-	DPCPU_SET(counter_lower_last, t_lower_last);
+
+	/*
+	 * Note that even though preemption is disabled, interrupts are
+	 * still enabled. In particular there is a race with clock_intr()
+	 * reading the values of 'counter_upper' and 'counter_lower_last'.
+	 *
+	 * XXX this depends on clock_intr() being executed periodically
+	 * so that 'counter_upper' and 'counter_lower_last' are not stale.
+	 */
+	do {
+		t_upper = DPCPU_GET(counter_upper);
+		t_lower_last = DPCPU_GET(counter_lower_last);
+	} while (t_upper != DPCPU_GET(counter_upper));
+
+	ticktock = mips_rd_count();
+
 	critical_exit();
 
-	ret = ((uint64_t)t_upper << 32) | t_lower_last;
+	/* COUNT register wrapped around */
+	if (ticktock < t_lower_last)
+		t_upper++;
+
+	ret = ((uint64_t)t_upper << 32) | ticktock;
 	return (ret);
 }
 
@@ -158,7 +167,7 @@ sysctl_machdep_counter_freq(SYSCTL_HANDLER_ARGS)
 	if (softc == NULL)
 		return (EOPNOTSUPP);
 	freq = counter_freq;
-	error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
+	error = sysctl_handle_64(oidp, &freq, sizeof(freq), req);
 	if (error == 0 && req->newptr != NULL) {
 		counter_freq = freq;
 		softc->et.et_frequency = counter_freq;
@@ -167,8 +176,8 @@ sysctl_machdep_counter_freq(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_machdep, OID_AUTO, counter_freq, CTLTYPE_QUAD | CTLFLAG_RW,
-    0, sizeof(u_int), sysctl_machdep_counter_freq, "IU",
+SYSCTL_PROC(_machdep, OID_AUTO, counter_freq, CTLTYPE_U64 | CTLFLAG_RW,
+    NULL, 0, sysctl_machdep_counter_freq, "QU",
     "Timecounter frequency in Hz");
 
 static unsigned
@@ -268,11 +277,11 @@ clock_intr(void *arg)
 	} else	/* In one-shot mode timer should be stopped after the event. */
 		mips_wr_compare(0xffffffff);
 
-	critical_enter();
+	/* COUNT register wrapped around */
 	if (count < DPCPU_GET(counter_lower_last)) {
 		DPCPU_SET(counter_upper, DPCPU_GET(counter_upper) + 1);
-		DPCPU_SET(counter_lower_last, count);
 	}
+	DPCPU_SET(counter_lower_last, count);
 
 	if (cycles_per_tick > 0) {
 
@@ -302,7 +311,6 @@ clock_intr(void *arg)
 	}
 	if (sc->et.et_active)
 		sc->et.et_event_cb(&sc->et, sc->et.et_arg);
-	critical_exit();
 	return (FILTER_HANDLED);
 }
 

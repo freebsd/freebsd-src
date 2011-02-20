@@ -435,7 +435,7 @@ write_pid(void)
 	FILE *fp = fopen(apmd_pidfile, "w");
 
 	if (fp) {
-		fprintf(fp, "%d\n", getpid());
+		fprintf(fp, "%ld\n", (long)getpid());
 		fclose(fp);
 	}
 }

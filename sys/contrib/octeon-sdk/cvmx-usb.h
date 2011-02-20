@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 /**
  * @file
@@ -566,8 +568,6 @@ typedef enum
                                         plugged a device in. The status parameter contains
                                         CVMX_USB_COMPLETE_SUCCESS. Use cvmx_usb_get_status() to get
                                         the new port status. */
-    CVMX_USB_CALLBACK_DEVICE_SETUP, /**< This is called in device mode when a control channels receives
-                                        a setup header */
     __CVMX_USB_CALLBACK_END         /**< Do not use. Used internally for array bounds */
 } cvmx_usb_callback_t;
 
@@ -616,12 +616,12 @@ typedef enum
                                                             source at USB_XO. USB_XI should be tied to GND.*/
     CVMX_USB_INITIALIZE_FLAGS_CLOCK_AUTO = 0,           /**< Automatically determine clock type based on function
                                                              in cvmx-helper-board.c. */
-    CVMX_USB_INITIALIZE_FLAGS_DEVICE_MODE = 1<<2,       /**< Program the USB port for device mode instead of host mode */
     CVMX_USB_INITIALIZE_FLAGS_CLOCK_MHZ_MASK  = 3<<3,       /**< Mask for clock speed field */
     CVMX_USB_INITIALIZE_FLAGS_CLOCK_12MHZ = 1<<3,       /**< Speed of reference clock or crystal */
     CVMX_USB_INITIALIZE_FLAGS_CLOCK_24MHZ = 2<<3,       /**< Speed of reference clock */
     CVMX_USB_INITIALIZE_FLAGS_CLOCK_48MHZ = 3<<3,       /**< Speed of reference clock */
     /* Bits 3-4 used to encode the clock frequency */
+    CVMX_USB_INITIALIZE_FLAGS_NO_DMA = 1<<5,            /**< Disable DMA and used polled IO for data transfer use for the USB  */
     CVMX_USB_INITIALIZE_FLAGS_DEBUG_TRANSFERS = 1<<16,  /**< Enable extra console output for debugging USB transfers */
     CVMX_USB_INITIALIZE_FLAGS_DEBUG_CALLBACKS = 1<<17,  /**< Enable extra console output for debugging USB callbacks */
     CVMX_USB_INITIALIZE_FLAGS_DEBUG_INFO = 1<<18,       /**< Enable extra console output for USB informational data */
@@ -767,7 +767,7 @@ extern void cvmx_usb_set_status(cvmx_usb_state_t *state, cvmx_usb_port_status_t 
  * @param max_packet The maximum packet length the device can
  *                   transmit/receive (low speed=0-8, full
  *                   speed=0-1023, high speed=0-1024). This value
- *                   comes from the stadnard endpoint descriptor
+ *                   comes from the standard endpoint descriptor
  *                   field wMaxPacketSize bits <10:0>.
  * @param transfer_type
  *                   The type of transfer this pipe is for.
@@ -783,7 +783,7 @@ extern void cvmx_usb_set_status(cvmx_usb_state_t *state, cvmx_usb_port_status_t 
  *                   For high speed devices, this is the maximum
  *                   allowed number of packet per microframe.
  *                   Specify zero for non high speed devices. This
- *                   value comes from the stadnard endpoint descriptor
+ *                   value comes from the standard endpoint descriptor
  *                   field wMaxPacketSize bits <12:11>.
  * @param hub_device_addr
  *                   Hub device address this device is connected
@@ -1077,50 +1077,6 @@ extern int cvmx_usb_get_frame_number(cvmx_usb_state_t *state);
  *         cvmx_usb_status_t.
  */
 extern cvmx_usb_status_t cvmx_usb_poll(cvmx_usb_state_t *state);
-
-/**
- * Enable an endpoint for use in device mode. After this call
- * transactions will be allowed over the endpoint. This must be
- * called after every usb reset.
- *
- * @param state  USB device state populated by
- *               cvmx_usb_initialize().
- * @param endpoint_num
- *               The endpoint number to enable (0-4)
- * @param transfer_type
- *               USB transfer type of this endpoint
- * @param transfer_dir
- *               Direction of transfer relative to Octeon
- * @param max_packet_size
- *               Maximum packet size support by this endpoint
- * @param buffer Buffer to send/receive
- * @param buffer_length
- *               Length of the buffer in bytes
- *
- * @return CVMX_USB_SUCCESS or a negative error code defined in
- *         cvmx_usb_status_t.
- */
-extern cvmx_usb_status_t cvmx_usb_device_enable_endpoint(cvmx_usb_state_t *state,
-                                                  int endpoint_num,
-                                                  cvmx_usb_transfer_t transfer_type,
-                                                  cvmx_usb_direction_t transfer_dir,
-                                                  int max_packet_size,
-                                                  uint64_t buffer,
-                                                  int buffer_length);
-
-/**
- * Disable an endpoint in device mode.
- *
- * @param state  USB device state populated by
- *               cvmx_usb_initialize().
- * @param endpoint_num
- *               The endpoint number to disable (0-4)
- *
- * @return CVMX_USB_SUCCESS or a negative error code defined in
- *         cvmx_usb_status_t.
- */
-extern cvmx_usb_status_t cvmx_usb_device_disable_endpoint(cvmx_usb_state_t *state,
-                                                          int endpoint_num);
 
 /*
  * The FreeBSD host driver uses these functions to manipulate the toggle to deal

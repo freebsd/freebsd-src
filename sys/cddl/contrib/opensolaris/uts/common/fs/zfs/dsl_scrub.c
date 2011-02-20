@@ -351,7 +351,7 @@ traverse_zil_block(zilog_t *zilog, blkptr_t *bp, void *arg, uint64_t claim_txg)
 		return;
 
 	/*
-	 * One block ("stumpy") can be allocated a long time ago; we
+	 * One block ("stubby") can be allocated a long time ago; we
 	 * want to visit that one because it has been allocated
 	 * (on-disk) even if it hasn't been claimed (even though for
 	 * plain scrub there's nothing to do to it).

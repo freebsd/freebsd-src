@@ -875,12 +875,9 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 	}
 	if (laddr.s_addr == INADDR_ANY) {
 		error = in_pcbladdr(inp, &faddr, &laddr, cred);
-		if (error)
-			return (error);
-
 		/*
 		 * If the destination address is multicast and an outgoing
-		 * interface has been set as a multicast option, use the
+		 * interface has been set as a multicast option, prefer the
 		 * address of that interface as our source address.
 		 */
 		if (IN_MULTICAST(ntohl(faddr.s_addr)) &&
@@ -892,19 +889,25 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 			if (imo->imo_multicast_ifp != NULL) {
 				ifp = imo->imo_multicast_ifp;
 				IN_IFADDR_RLOCK();
-				TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link)
-					if (ia->ia_ifp == ifp)
+				TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
+					if ((ia->ia_ifp == ifp) &&
+					    (cred == NULL ||
+					    prison_check_ip4(cred,
+					    &ia->ia_addr.sin_addr) == 0))
 						break;
-				if (ia == NULL) {
-					IN_IFADDR_RUNLOCK();
-					return (EADDRNOTAVAIL);
 				}
-				laddr = ia->ia_addr.sin_addr;
+				if (ia == NULL)
+					error = EADDRNOTAVAIL;
+				else {
+					laddr = ia->ia_addr.sin_addr;
+					error = 0;
+				}
 				IN_IFADDR_RUNLOCK();
 			}
 		}
+		if (error)
+			return (error);
 	}
-
 	oinp = in_pcblookup_hash(inp->inp_pcbinfo, faddr, fport, laddr, lport,
 	    0, NULL);
 	if (oinp != NULL) {
@@ -1077,12 +1080,6 @@ in_pcbfree(struct inpcb *inp)
  * or a RST on the wire, and allows the port binding to be reused while still
  * maintaining the invariant that so_pcb always points to a valid inpcb until
  * in_pcbdetach().
- *
- * XXXRW: An inp_lport of 0 is used to indicate that the inpcb is not on hash
- * lists, but can lead to confusing netstat output, as open sockets with
- * closed TCP connections will no longer appear to have their bound port
- * number.  An explicit flag would be better, as it would allow us to leave
- * the port number intact after the connection is dropped.
  *
  * XXXRW: Possibly in_pcbdrop() should also prevent future notifications by
  * in_pcbnotifyall() and in_pcbpurgeif0()?

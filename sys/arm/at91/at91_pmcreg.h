@@ -58,21 +58,6 @@
 #define PMC_SR		0x68		/* Status Register */
 #define PMC_IMR		0x6c		/* Interrupt Mask Register */
 
-#ifdef AT91SAM9G20
-/* PMC Specific AT91SAM9G20 */
-
-/* PMC System Clock Enable Register */
-/* PMC System Clock Disable Register */
-/* PMC System Clock StatusRegister */
-#define PMC_SCER_UHP	(1UL << 6)	/* UHP: USB Host Port Clock Enable */
-#define PMC_SCER_UDP	(1UL << 7)	/* UDP: USB Device Port Clock Enable */
-#define PMC_SCER_PCK0	(1UL << 8)	/* PCK0: Programmable Clock out en */
-#define PMC_SCER_PCK1	(1UL << 9)	/* PCK1: Programmable Clock out en */
-#define PMC_SCER_PCK2	(1UL << 10)	/* PCK2: Programmable Clock out en */
-#define PMC_SCER_PCK3	(1UL << 11)	/* PCK3: Programmable Clock out en */
-
-#else
-
 /* PMC System Clock Enable Register */
 /* PMC System Clock Disable Register */
 /* PMC System Clock StatusRegister */
@@ -81,11 +66,12 @@
 #define PMC_SCER_MCKUDP	(1UL << 2)	/* MCKUDP: Master disable susp/res */
 #define PMC_SCER_UHP	(1UL << 4)	/* UHP: USB Host Port Clock Enable */
 #define PMC_SCER_PCK0	(1UL << 8)	/* PCK0: Programmable Clock out en */
-#define PMC_SCER_PCK1	(1UL << 10)	/* PCK1: Programmable Clock out en */
-#define PMC_SCER_PCK2	(1UL << 11)	/* PCK2: Programmable Clock out en */
-#define PMC_SCER_PCK3	(1UL << 12)	/* PCK3: Programmable Clock out en */
+#define PMC_SCER_PCK1	(1UL << 9)	/* PCK1: Programmable Clock out en */
+#define PMC_SCER_PCK2	(1UL << 10)	/* PCK2: Programmable Clock out en */
+#define PMC_SCER_PCK3	(1UL << 11)	/* PCK3: Programmable Clock out en */
+#define PMC_SCER_UHP_SAM9 (1UL << 6)	/* UHP: USB Host Port Clock Enable */
+#define PMC_SCER_UDP_SAM9 (1UL << 7)	/* UDP: USB Device Port Clock Enable */
 
-#endif /* AT91SAM9G20 */
 /* PMC Peripheral Clock Enable Register */
 /* PMC Peripheral Clock Disable Register */
 /* PMC Peripheral Clock Status Register */
@@ -99,6 +85,13 @@
 /* PMC Clock Generator Main Clock Frequency Register */
 #define CKGR_MCFR_MAINRDY	(1UL << 16)	/* Main Clock Ready */
 #define CKGR_MCFR_MAINF_MASK	0xfffful	/* Main Clock Frequency */
+
+/* PMC Clock Generator Master Clock Register */
+#define PMC_MCKR_PDIV      (1 << 12)			/* SAM9G20 Only */
+#define PMC_MCKR_PLLADIV2  (1 << 12)			/* SAM9G45 Only */
+#define PMC_MCKR_CSS_MASK  (3 << 0)		
+#define PMC_MCKR_MDIV_MASK (3 << 8)		
+#define PMC_MCKR_PRES_MASK (7 << 2)		
 
 /* PMC Interrupt Enable Register */
 /* PMC Interrupt Disable Register */

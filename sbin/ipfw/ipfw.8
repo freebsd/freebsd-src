@@ -184,7 +184,6 @@ See Section
 for more information on
 .Em sets .
 .Pp
-.Pp
 Rules can be added with the
 .Cm add
 command; deleted individually or in groups with the
@@ -558,28 +557,33 @@ packet delivery.
 Note: this condition is checked before any other condition, including
 ones such as keep-state or check-state which might have side effects.
 .It Cm log Op Cm logamount Ar number
-When a packet matches a rule with the
+Packets matching a rule with the
 .Cm log
-keyword, a message will be
-logged to
+keyword will be made available for logging in two ways:
+if the sysctl variable
+.Va net.inet.ip.fw.verbose
+is set to 0 (default), one can use
+.Xr bpf 4
+attached to the
+.Xr ipfw0
+pseudo interface. There is no overhead if no 
+.Xr bpf
+is attached to the pseudo interface.
+.Pp
+If
+.Va net.inet.ip.fw.verbose
+is set to 1, packets will be logged to
 .Xr syslogd 8
 with a
 .Dv LOG_SECURITY
-facility.
-The logging only occurs if the sysctl variable
-.Va net.inet.ip.fw.verbose
-is set to 1
-(which is the default when the kernel is compiled with
-.Dv IPFIREWALL_VERBOSE )
-and the number of packets logged so far for that
-particular rule does not exceed the
+facility up to a maximum of
 .Cm logamount
-parameter.
+packets.
 If no
 .Cm logamount
 is specified, the limit is taken from the sysctl variable
 .Va net.inet.ip.fw.verbose_limit .
-In both cases, a value of 0 removes the logging limit.
+In both cases, a value of 0 means unlimited logging.
 .Pp
 Once the limit is reached, logging can be re-enabled by
 clearing the logging counter or the packet counter for that entry, see the
@@ -1005,11 +1009,11 @@ The second format
 with multiple addresses) is provided for convenience only and
 its use is discouraged.
 .It Ar addr : Oo Cm not Oc Bro
-.Bl -tag -width indent
 .Cm any | me | me6 |
 .Cm table Ns Pq Ar number Ns Op , Ns Ar value
 .Ar | addr-list | addr-set
 .Brc
+.Bl -tag -width indent
 .It Cm any
 matches any IP address.
 .It Cm me
@@ -1091,7 +1095,6 @@ will match the following IP addresses:
 .It Ar addr6-list : ip6-addr Ns Op Ns , Ns Ar addr6-list
 .It Ar ip6-addr :
 A host or subnet specified one of the following ways:
-.Pp
 .Bl -tag -width indent
 .It Ar numeric-ip | hostname
 Matches a single IPv6 address as allowed by
@@ -1507,6 +1510,17 @@ interface.
 Matches TCP packets that have the SYN bit set but no ACK bit.
 This is the short form of
 .Dq Li tcpflags\ syn,!ack .
+.It Cm sockarg
+Matches packets that are associated to a local socket and
+for which the SO_USER_COOKIE socket option has been set
+to a non-zero value. As a side effect, the value of the
+option is made available as
+.Cm tablearg
+value, which in turn can be used as
+.Cm skipto
+or
+.Cm pipe
+number.
 .It Cm src-ip Ar ip-address
 Matches IPv4 packets whose source IP is one of the address(es)
 specified as an argument.
@@ -2173,7 +2187,6 @@ Finally, the following parameters can be configured for both
 pipes and queues:
 .Pp
 .Bl -tag -width XXXX -compact
-.Pp
 .It Cm buckets Ar hash-table-size
 Specifies the size of the hash table used for storing the
 various queues.
@@ -2303,7 +2316,7 @@ Information necessary to route link-local packets to an
 interface is not available after processing by
 .Nm dummynet
 so those packets are dropped in the output path.
-Care should be taken to insure that link-local packets are not passed to
+Care should be taken to ensure that link-local packets are not passed to
 .Nm dummynet .
 .Sh CHECKLIST
 Here are some important points to consider when designing your

@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -54,8 +50,7 @@ __FBSDID("$FreeBSD$");
  * accomodate all funny formats.
  */
 int
-ishead(linebuf)
-	char linebuf[];
+ishead(char linebuf[])
 {
 	struct headline hl;
 	char parbuf[BUFSIZ];
@@ -77,10 +72,8 @@ ishead(linebuf)
 	return (1);
 }
 
-/*ARGSUSED*/
 void
-fail(linebuf, reason)
-	const char *linebuf, *reason;
+fail(const char *linebuf __unused, const char *reason __unused)
 {
 
 	/*
@@ -97,9 +90,7 @@ fail(linebuf, reason)
  * structure.  Actually, it scans.
  */
 void
-parse(line, hl, pbuf)
-	char line[], pbuf[];
-	struct headline *hl;
+parse(char line[], struct headline *hl, char pbuf[])
 {
 	char *cp, *sp;
 	char word[LINESIZE];
@@ -138,9 +129,7 @@ parse(line, hl, pbuf)
  * the left string into it.
  */
 char *
-copyin(src, space)
-	char *src;
-	char **space;
+copyin(char *src, char **space)
 {
 	char *cp, *top;
 
@@ -187,8 +176,7 @@ static char *date_formats[] = {
 };
 
 int
-isdate(date)
-	char date[];
+isdate(char date[])
 {
 	int i;
 
@@ -204,8 +192,7 @@ isdate(date)
  * Return 1 if they match, 0 if they don't
  */
 int
-cmatch(cp, tp)
-	char *cp, *tp;
+cmatch(char *cp, char *tp)
 {
 
 	while (*cp != '\0' && *tp != '\0')
@@ -260,8 +247,7 @@ cmatch(cp, tp)
  * or NULL if none follow.
  */
 char *
-nextword(wp, wbuf)
-	char *wp, *wbuf;
+nextword(char *wp, char *wbuf)
 {
 	int c;
 

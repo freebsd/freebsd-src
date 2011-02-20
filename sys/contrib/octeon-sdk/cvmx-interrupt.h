@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -46,7 +48,7 @@
  *
  * Interface to the Mips interrupts.
  *
- * <hr>$Revision: 42203 $<hr>
+ * <hr>$Revision: 49448 $<hr>
  */
 #ifndef __CVMX_INTERRUPT_H__
 #define __CVMX_INTERRUPT_H__
@@ -120,16 +122,16 @@ typedef enum
     CVMX_IRQ_RML        = 54,
     CVMX_IRQ_TRACE      = 55,
     CVMX_IRQ_GMX_DRP0   = 56,
-    CVMX_IRQ_GMX_DRP1   = 57,
+    CVMX_IRQ_GMX_DRP1   = 57,   /* Doesn't apply on CN52XX or CN63XX */
     CVMX_IRQ_IPD_DRP    = 58,
-    CVMX_IRQ_KEY_ZERO   = 59,
+    CVMX_IRQ_KEY_ZERO   = 59,   /* Doesn't apply on CN52XX or CN63XX */
     CVMX_IRQ_TIMER0     = 60,
     CVMX_IRQ_TIMER1     = 61,
     CVMX_IRQ_TIMER2     = 62,
     CVMX_IRQ_TIMER3     = 63,
-    CVMX_IRQ_USB        = 64,   /* Doesn't apply on CN38XX or CN58XX */
-    CVMX_IRQ_PCM        = 65,
-    CVMX_IRQ_MPI        = 66,
+    CVMX_IRQ_USB0       = 64,   /* Doesn't apply on CN38XX or CN58XX */
+    CVMX_IRQ_PCM        = 65,   /* Doesn't apply on CN52XX or CN63XX */
+    CVMX_IRQ_MPI        = 66,   /* Doesn't apply on CN52XX or CN63XX */
     CVMX_IRQ_TWSI2      = 67,   /* Added in CN56XX */
     CVMX_IRQ_POWIQ      = 68,   /* Added in CN56XX */
     CVMX_IRQ_IPDPPTHR   = 69,   /* Added in CN56XX */
@@ -152,8 +154,39 @@ typedef enum
     CVMX_IRQ_WDOG12= 84,
     CVMX_IRQ_WDOG13= 85,
     CVMX_IRQ_WDOG14= 86,
-    CVMX_IRQ_WDOG15= 87
-    /* numbers 88 - 135 are reserved */
+    CVMX_IRQ_WDOG15= 87,
+    CVMX_IRQ_UART2 = 88,           /* Added in CN52XX */
+    CVMX_IRQ_USB1  = 89,           /* Added in CN52XX */
+    CVMX_IRQ_MII1  = 90,           /* Added in CN52XX */
+    CVMX_IRQ_NAND  = 91,           /* Added in CN52XX */
+    CVMX_IRQ_MIO   = 92,           /* Added in CN63XX */
+    CVMX_IRQ_IOB   = 93,           /* Added in CN63XX */
+    CVMX_IRQ_FPA   = 94,           /* Added in CN63XX */
+    CVMX_IRQ_POW   = 95,           /* Added in CN63XX */
+    CVMX_IRQ_L2C   = 96,           /* Added in CN63XX */
+    CVMX_IRQ_IPD   = 97,           /* Added in CN63XX */
+    CVMX_IRQ_PIP   = 98,           /* Added in CN63XX */
+    CVMX_IRQ_PKO   = 99,           /* Added in CN63XX */
+    CVMX_IRQ_ZIP   = 100,          /* Added in CN63XX */
+    CVMX_IRQ_TIM   = 101,          /* Added in CN63XX */
+    CVMX_IRQ_RAD   = 102,          /* Added in CN63XX */
+    CVMX_IRQ_KEY   = 103,          /* Added in CN63XX */
+    CVMX_IRQ_DFA   = 104,          /* Added in CN63XX */
+    CVMX_IRQ_USB   = 105,          /* Added in CN63XX */
+    CVMX_IRQ_SLI   = 106,          /* Added in CN63XX */
+    CVMX_IRQ_DPI   = 107,          /* Added in CN63XX */
+    CVMX_IRQ_AGX0  = 108,          /* Added in CN63XX */
+    /* 109 - 117 are reserved */
+    CVMX_IRQ_AGL   = 118,          /* Added in CN63XX */
+    CVMX_IRQ_PTP   = 119,          /* Added in CN63XX */
+    CVMX_IRQ_PEM0  = 120,          /* Added in CN63XX */
+    CVMX_IRQ_PEM1  = 121,          /* Added in CN63XX */
+    CVMX_IRQ_SRIO0 = 122,          /* Added in CN63XX */
+    CVMX_IRQ_SRIO1 = 123,          /* Added in CN63XX */
+    CVMX_IRQ_LMC0  = 124,          /* Added in CN63XX */
+    /* Interrupts 125 - 127 are reserved */
+    CVMX_IRQ_DFM   = 128,          /* Added in CN63XX */
+    /* Interrupts 129 - 135 are reserved */
 } cvmx_irq_t;
 
 /**
@@ -278,19 +311,11 @@ static inline void cvmx_interrupt_restore(uint32_t flags)
     }
 }
 
-/**
- * Utility function to decode Octeon's RSL_INT_BLOCKS interrupts
- * into error messages.
- */
-extern void cvmx_interrupt_rsl_decode(void);
+#define cvmx_local_irq_save(x) ({x = cvmx_interrupt_disable_save();})
+#define cvmx_local_irq_restore(x) cvmx_interrupt_restore(x)
 
 /**
- * Utility function to enable all RSL error interupts
- */
-extern void cvmx_interrupt_rsl_enable(void);
-
-/**
- * Utility function to do interrupt safe printf 
+ * Utility function to do interrupt safe printf
  */
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
 	#define cvmx_safe_printf printk
@@ -298,7 +323,10 @@ extern void cvmx_interrupt_rsl_enable(void);
 	#define cvmx_safe_printf printf
 #else
 	extern void cvmx_safe_printf(const char* format, ... ) __attribute__ ((format(printf, 1, 2)));
-#endif 
+#endif
+
+#define PRINT_ERROR(format, ...) cvmx_safe_printf("ERROR " format, ##__VA_ARGS__)
+
 #ifdef	__cplusplus
 }
 #endif

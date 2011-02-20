@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 19, 2009
+.Dd October 24, 2010
 .Dt ADA 4
 .Os
 .Sh NAME
@@ -118,6 +118,11 @@ This variable determines how long the
 driver will wait before timing out an outstanding command.
 The units for this value are seconds, and the default is currently 30
 seconds.
+.It kern.cam.ada.spindown_shutdown
+.Pp
+This variable determines whether to spin-down disks when shutting down.
+Set to 1 to enable spin-down, 0 to disable.  
+The default is currently enabled.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /dev/ada*" -compact

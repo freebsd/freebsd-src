@@ -46,7 +46,14 @@ public:
                                   /// internal state before optimizations are
                                   /// done.
   unsigned DisableRedZone    : 1; /// Set when -mno-red-zone is enabled.
+  unsigned EmitDeclMetadata  : 1; /// Emit special metadata indicating what Decl*
+                                  /// various IR entities came from.  Only useful
+                                  /// when running CodeGen as a subroutine.
   unsigned FunctionSections  : 1; /// Set when -ffunction-sections is enabled
+  unsigned HiddenWeakTemplateVTables : 1; /// Emit weak vtables and RTTI for
+                                  /// template classes with hidden visibility
+  unsigned HiddenWeakVTables : 1; /// Emit weak vtables, RTTI, and thunks with
+                                  /// hidden visibility
   unsigned InstrumentFunctions : 1; /// Set when -finstrument-functions is enabled
   unsigned MergeAllConstants : 1; /// Merge identical constants.
   unsigned NoCommon          : 1; /// Set when -fno-common or C++ is enabled.
@@ -67,9 +74,6 @@ public:
   unsigned UnwindTables      : 1; /// Emit unwind tables.
   unsigned VerifyModule      : 1; /// Control whether the module should be run
                                   /// through the LLVM Verifier.
-  unsigned EmitDeclMetadata  : 1; /// Emit special metadata indicating what Decl*
-                                  /// various IR entities came from.  Only useful
-                                  /// when running CodeGen as a subroutine.
 
   /// The code model to use (-mcmodel).
   std::string CodeModel;
@@ -108,7 +112,11 @@ public:
     DisableFPElim = 0;
     DisableLLVMOpts = 0;
     DisableRedZone = 0;
+    EmitDeclMetadata = 0;
     FunctionSections = 0;
+    HiddenWeakTemplateVTables = 0;
+    HiddenWeakVTables = 0;
+    InstrumentFunctions = 0;
     MergeAllConstants = 1;
     NoCommon = 0;
     NoImplicitFloat = 0;
@@ -125,7 +133,6 @@ public:
     UnrollLoops = 0;
     UnwindTables = 0;
     VerifyModule = 1;
-    EmitDeclMetadata = 0;
 
     Inlining = NoInlining;
     RelocationModel = "pic";

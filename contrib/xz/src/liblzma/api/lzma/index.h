@@ -136,6 +136,13 @@ typedef struct {
 		 *
 		 * This offset is relative to the beginning of the lzma_index
 		 * (i.e. usually the beginning of the .xz file).
+		 *
+		 * When doing random-access reading, it is possible that
+		 * the target offset is not exactly at Block boundary. One
+		 * will need to compare the target offset against
+		 * uncompressed_file_offset or uncompressed_stream_offset,
+		 * and possibly decode and throw away some amount of data
+		 * before reaching the target offset.
 		 */
 		lzma_vli uncompressed_file_offset;
 
@@ -166,14 +173,8 @@ typedef struct {
 		 * \brief       Uncompressed size of this Block
 		 *
 		 * You should pass this to the Block decoder if you will
-		 * decode this Block.
-		 *
-		 * When doing random-access reading, it is possible that
-		 * the target offset is not exactly at Block boundary. One
-		 * will need to compare the target offset against
-		 * uncompressed_file_offset or uncompressed_stream_offset,
-		 * and possibly decode and throw away some amount of data
-		 * before reaching the target offset.
+		 * decode this Block. It will allow the Block decoder to
+		 * validate the uncompressed size.
 		 */
 		lzma_vli uncompressed_size;
 
@@ -181,7 +182,8 @@ typedef struct {
 		 * \brief       Unpadded size of this Block
 		 *
 		 * You should pass this to the Block decoder if you will
-		 * decode this Block.
+		 * decode this Block. It will allow the Block decoder to
+		 * validate the unpadded size.
 		 */
 		lzma_vli unpadded_size;
 
@@ -368,7 +370,7 @@ extern LZMA_API(lzma_ret) lzma_index_stream_flags(
 /**
  * \brief       Get the types of integrity Checks
  *
- * If lzma_index_stream_padding() is used to set the Stream Flags for
+ * If lzma_index_stream_flags() is used to set the Stream Flags for
  * every Stream, lzma_index_checks() can be used to get a bitmask to
  * indicate which Check types have been used. It can be useful e.g. if
  * showing the Check types to the user.
@@ -562,9 +564,8 @@ extern LZMA_API(lzma_bool) lzma_index_iter_locate(
  *              - LZMA_MEM_ERROR
  *              - LZMA_PROG_ERROR
  */
-extern LZMA_API(lzma_ret) lzma_index_cat(lzma_index *lzma_restrict dest,
-		lzma_index *lzma_restrict src,
-		lzma_allocator *allocator)
+extern LZMA_API(lzma_ret) lzma_index_cat(
+		lzma_index *dest, lzma_index *src, lzma_allocator *allocator)
 		lzma_nothrow lzma_attr_warn_unused_result;
 
 
@@ -584,7 +585,9 @@ extern LZMA_API(lzma_index *) lzma_index_dup(
  * \param       strm        Pointer to properly prepared lzma_stream
  * \param       i           Pointer to lzma_index which should be encoded.
  *
- * The only valid action value for lzma_code() is LZMA_RUN.
+ * The valid `action' values for lzma_code() are LZMA_RUN and LZMA_FINISH.
+ * It is enough to use only one of them (you can choose freely; use LZMA_RUN
+ * to support liblzma versions older than 5.0.0).
  *
  * \return      - LZMA_OK: Initialization succeeded, continue with lzma_code().
  *              - LZMA_MEM_ERROR
@@ -609,7 +612,9 @@ extern LZMA_API(lzma_ret) lzma_index_encoder(
  * \param       memlimit    How much memory the resulting lzma_index is
  *                          allowed to require.
  *
- * The only valid action value for lzma_code() is LZMA_RUN.
+ * The valid `action' values for lzma_code() are LZMA_RUN and LZMA_FINISH.
+ * It is enough to use only one of them (you can choose freely; use LZMA_RUN
+ * to support liblzma versions older than 5.0.0).
  *
  * \return      - LZMA_OK: Initialization succeeded, continue with lzma_code().
  *              - LZMA_MEM_ERROR

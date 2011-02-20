@@ -40,7 +40,7 @@ public:
   // Pinned metadata names, which always have the same value.  This is a
   // compile-time performance optimization, not a correctness optimization.
   enum {
-    MD_dbg = 1   // "dbg" -> 1.
+    MD_dbg = 0   // "dbg"
   };
   
   /// getMDKindID - Return a unique non-zero ID for the specified metadata kind.
@@ -48,8 +48,7 @@ public:
   unsigned getMDKindID(StringRef Name) const;
   
   /// getMDKindNames - Populate client supplied SmallVector with the name for
-  /// custom metadata IDs registered in this LLVMContext.   ID #0 is not used,
-  /// so it is filled in as an empty string.
+  /// custom metadata IDs registered in this LLVMContext.
   void getMDKindNames(SmallVectorImpl<StringRef> &Result) const;
   
   /// setInlineAsmDiagnosticHandler - This method sets a handler that is invoked

@@ -139,6 +139,8 @@ devfs_rules_apply(struct devfs_mount *dm, struct devfs_dirent *de)
 {
 	struct devfs_ruleset *ds;
 
+	sx_assert(&dm->dm_lock, SX_XLOCKED);
+
 	if (dm->dm_ruleset == 0)
 		return;
 	sx_slock(&sx_rules);
@@ -740,6 +742,11 @@ devfs_ruleset_use(devfs_rsnum rsnum, struct devfs_mount *dm)
 		cds = devfs_ruleset_bynum(dm->dm_ruleset);
 		--cds->ds_refcount;
 		devfs_ruleset_reap(cds);
+	}
+
+	if (rsnum == 0) {
+		dm->dm_ruleset = 0;
+		return (0);
 	}
 
 	ds = devfs_ruleset_bynum(rsnum);

@@ -192,7 +192,7 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 
 	ASSERT(length <= DMU_MAX_ACCESS);
 
-	dbuf_flags = DB_RF_CANFAIL | DB_RF_NEVERWAIT;
+	dbuf_flags = DB_RF_CANFAIL | DB_RF_NEVERWAIT | DB_RF_HAVESTRUCT;
 	if (flags & DMU_READ_NO_PREFETCH || length > zfetch_array_rd_sz)
 		dbuf_flags |= DB_RF_NOPREFETCH;
 
@@ -209,6 +209,7 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 			    os_dsl_dataset->ds_object,
 			    (longlong_t)dn->dn_object, dn->dn_datablksz,
 			    (longlong_t)offset, (longlong_t)length);
+			rw_exit(&dn->dn_struct_rwlock);
 			return (EIO);
 		}
 		nblks = 1;
@@ -231,9 +232,7 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 		}
 		/* initiate async i/o */
 		if (read) {
-			rw_exit(&dn->dn_struct_rwlock);
 			(void) dbuf_read(db, zio, dbuf_flags);
-			rw_enter(&dn->dn_struct_rwlock, RW_READER);
 		}
 		dbp[i] = &db->db;
 	}
@@ -540,7 +539,7 @@ dmu_read(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 {
 	dnode_t *dn;
 	dmu_buf_t **dbp;
-	int numbufs, i, err;
+	int numbufs, err;
 
 	err = dnode_hold(os->os, object, FTAG, &dn);
 	if (err)
@@ -551,7 +550,7 @@ dmu_read(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 	 * block.  If we ever do the tail block optimization, we will need to
 	 * handle that here as well.
 	 */
-	if (dn->dn_datablkshift == 0) {
+	if (dn->dn_maxblkid == 0) {
 		int newsz = offset > dn->dn_datablksz ? 0 :
 		    MIN(size, dn->dn_datablksz - offset);
 		bzero((char *)buf + newsz, size - newsz);
@@ -560,6 +559,7 @@ dmu_read(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 
 	while (size > 0) {
 		uint64_t mylen = MIN(size, DMU_MAX_ACCESS / 2);
+		int i;
 
 		/*
 		 * NB: we could do this block-at-a-time, but it's nice

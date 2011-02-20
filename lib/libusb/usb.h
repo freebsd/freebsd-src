@@ -291,6 +291,7 @@ int	usb_set_altinterface(usb_dev_handle * dev, int alternate);
 int	usb_resetep(usb_dev_handle * dev, unsigned int ep);
 int	usb_clear_halt(usb_dev_handle * dev, unsigned int ep);
 int	usb_reset(usb_dev_handle * dev);
+int	usb_check_connected(usb_dev_handle * dev);
 const char *usb_strerror(void);
 void	usb_init(void);
 void	usb_set_debug(int level);

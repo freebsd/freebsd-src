@@ -10,13 +10,6 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-/// \brief      Parser for Subblock options
-///
-/// \return     Pointer to allocated options structure.
-///             Doesn't return on error.
-extern lzma_options_subblock *options_subblock(const char *str);
-
-
 /// \brief      Parser for Delta options
 ///
 /// \return     Pointer to allocated options structure.

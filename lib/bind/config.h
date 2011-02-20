@@ -147,6 +147,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define if threads need PTHREAD_SCOPE_SYSTEM */
 /* #undef NEED_PTHREAD_SCOPE_SYSTEM */
 
+/* Define if building universal (internal helper macro) */
+/* #undef AC_APPLE_UNIVERSAL_BUILD */
+
 /* Define if recvmsg() does not meet all of the BSD socket API specifications.
    */
 /* #undef BROKEN_RECVMSG */
@@ -160,8 +163,20 @@ int sigwait(const unsigned int *set, int *sig);
 /* Solaris hack to get select_large_fdset. */
 /* #undef FD_SETSIZE */
 
+/* Define to nothing if C supports flexible array members, and to 1 if it does
+   not. That way, with a declaration like `struct s { int n; double
+   d[FLEXIBLE_ARRAY_MEMBER]; };', the struct hack can be used with pre-C99
+   compilers. When computing the size of such an object, don't use 'sizeof
+   (struct s)' as it overestimates the size. Use 'offsetof (struct s, d)'
+   instead. Don't use 'offsetof (struct s, d[0])', as this doesn't work with
+   MSVC and with C++ compilers. */
+#define FLEXIBLE_ARRAY_MEMBER /**/
+
 /* Define to 1 if you have the `chroot' function. */
 #define HAVE_CHROOT 1
+
+/* Define to 1 if you have the <devpoll.h> header file. */
+/* #undef HAVE_DEVPOLL_H */
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
@@ -183,6 +198,15 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
+
+/* Define to 1 if you have the <kerberosv5/krb5.h> header file. */
+/* #undef HAVE_KERBEROSV5_KRB5_H */
+
+/* Define to 1 if you have the <krb5.h> header file. */
+/* #undef HAVE_KRB5_H */
+
+/* Define to 1 if you have the <krb5/krb5.h> header file. */
+/* #undef HAVE_KRB5_KRB5_H */
 
 /* Define to 1 if you have the `c' library (-lc). */
 /* #undef HAVE_LIBC */
@@ -306,6 +330,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME ""
 
+/* Define to the home page for this package. */
+#define PACKAGE_URL ""
+
 /* Define to the version of this package. */
 #define PACKAGE_VERSION ""
 
@@ -327,11 +354,15 @@ int sigwait(const unsigned int *set, int *sig);
 /* #undef WITH_IDN */
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
-   significant byte first (like Motorola and SPARC, unlike Intel and VAX). */
-#if defined __BIG_ENDIAN__
-# define WORDS_BIGENDIAN 1
-#elif ! defined __LITTLE_ENDIAN__
-/* # undef WORDS_BIGENDIAN */
+   significant byte first (like Motorola and SPARC, unlike Intel). */
+#if defined AC_APPLE_UNIVERSAL_BUILD
+# if defined __BIG_ENDIAN__
+#  define WORDS_BIGENDIAN 1
+# endif
+#else
+# ifndef WORDS_BIGENDIAN
+/* #  undef WORDS_BIGENDIAN */
+# endif
 #endif
 
 /* Define to empty if `const' does not conform to ANSI C. */

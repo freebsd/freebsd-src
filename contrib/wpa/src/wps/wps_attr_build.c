@@ -15,9 +15,10 @@
 #include "includes.h"
 
 #include "common.h"
-#include "dh_groups.h"
-#include "sha256.h"
-#include "aes_wrap.h"
+#include "crypto/aes_wrap.h"
+#include "crypto/crypto.h"
+#include "crypto/dh_group5.h"
+#include "crypto/sha256.h"
 #include "wps_i.h"
 
 
@@ -26,11 +27,24 @@ int wps_build_public_key(struct wps_data *wps, struct wpabuf *msg)
 	struct wpabuf *pubkey;
 
 	wpa_printf(MSG_DEBUG, "WPS:  * Public Key");
-	pubkey = dh_init(dh_groups_get(WPS_DH_GROUP), &wps->dh_privkey);
-	pubkey = wpabuf_zeropad(pubkey, 192);
-	if (pubkey == NULL) {
+	wpabuf_free(wps->dh_privkey);
+	if (wps->dev_pw_id != DEV_PW_DEFAULT && wps->wps->dh_privkey) {
+		wpa_printf(MSG_DEBUG, "WPS: Using pre-configured DH keys");
+		wps->dh_privkey = wpabuf_dup(wps->wps->dh_privkey);
+		wps->dh_ctx = wps->wps->dh_ctx;
+		wps->wps->dh_ctx = NULL;
+		pubkey = wpabuf_dup(wps->wps->dh_pubkey);
+	} else {
+		wpa_printf(MSG_DEBUG, "WPS: Generate new DH keys");
+		wps->dh_privkey = NULL;
+		dh5_free(wps->dh_ctx);
+		wps->dh_ctx = dh5_init(&wps->dh_privkey, &pubkey);
+		pubkey = wpabuf_zeropad(pubkey, 192);
+	}
+	if (wps->dh_ctx == NULL || wps->dh_privkey == NULL || pubkey == NULL) {
 		wpa_printf(MSG_DEBUG, "WPS: Failed to initialize "
 			   "Diffie-Hellman handshake");
+		wpabuf_free(pubkey);
 		return -1;
 	}
 
@@ -54,6 +68,16 @@ int wps_build_req_type(struct wpabuf *msg, enum wps_request_type type)
 {
 	wpa_printf(MSG_DEBUG, "WPS:  * Request Type");
 	wpabuf_put_be16(msg, ATTR_REQUEST_TYPE);
+	wpabuf_put_be16(msg, 1);
+	wpabuf_put_u8(msg, type);
+	return 0;
+}
+
+
+int wps_build_resp_type(struct wpabuf *msg, enum wps_response_type type)
+{
+	wpa_printf(MSG_DEBUG, "WPS:  * Response Type (%d)", type);
+	wpabuf_put_be16(msg, ATTR_RESPONSE_TYPE);
 	wpabuf_put_be16(msg, 1);
 	wpabuf_put_u8(msg, type);
 	return 0;
@@ -252,3 +276,47 @@ int wps_build_encr_settings(struct wps_data *wps, struct wpabuf *msg,
 
 	return 0;
 }
+
+
+#ifdef CONFIG_WPS_OOB
+int wps_build_oob_dev_password(struct wpabuf *msg, struct wps_context *wps)
+{
+	size_t hash_len;
+	const u8 *addr[1];
+	u8 pubkey_hash[WPS_HASH_LEN];
+	u8 dev_password_bin[WPS_OOB_DEVICE_PASSWORD_LEN];
+
+	wpa_printf(MSG_DEBUG, "WPS:  * OOB Device Password");
+
+	addr[0] = wpabuf_head(wps->dh_pubkey);
+	hash_len = wpabuf_len(wps->dh_pubkey);
+	sha256_vector(1, addr, &hash_len, pubkey_hash);
+
+	if (os_get_random((u8 *) &wps->oob_dev_pw_id, sizeof(u16)) < 0) {
+		wpa_printf(MSG_ERROR, "WPS: device password id "
+			   "generation error");
+		return -1;
+	}
+	wps->oob_dev_pw_id |= 0x0010;
+
+	if (os_get_random(dev_password_bin, WPS_OOB_DEVICE_PASSWORD_LEN) < 0) {
+		wpa_printf(MSG_ERROR, "WPS: OOB device password "
+			   "generation error");
+		return -1;
+	}
+
+	wpabuf_put_be16(msg, ATTR_OOB_DEVICE_PASSWORD);
+	wpabuf_put_be16(msg, WPS_OOB_DEVICE_PASSWORD_ATTR_LEN);
+	wpabuf_put_data(msg, pubkey_hash, WPS_OOB_PUBKEY_HASH_LEN);
+	wpabuf_put_be16(msg, wps->oob_dev_pw_id);
+	wpabuf_put_data(msg, dev_password_bin, WPS_OOB_DEVICE_PASSWORD_LEN);
+
+	wpa_snprintf_hex_uppercase(
+		wpabuf_put(wps->oob_conf.dev_password,
+			   wpabuf_size(wps->oob_conf.dev_password)),
+		wpabuf_size(wps->oob_conf.dev_password),
+		dev_password_bin, WPS_OOB_DEVICE_PASSWORD_LEN);
+
+	return 0;
+}
+#endif /* CONFIG_WPS_OOB */

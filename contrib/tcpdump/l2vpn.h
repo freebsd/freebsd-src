@@ -14,4 +14,4 @@
  * Original code by Hannes Gredler (hannes@juniper.net)
  */
 
-extern struct tok l2vpn_encaps_values[];
+extern const struct tok l2vpn_encaps_values[];

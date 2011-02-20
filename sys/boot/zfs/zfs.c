@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #include "zfsimpl.c"
 
+#define	MAXBDDEV	31
+
 static int	zfs_open(const char *path, struct open_file *f);
 static int	zfs_write(struct open_file *f, void *buf, size_t size, size_t *resid);
 static int	zfs_close(struct open_file *f);
@@ -402,7 +404,7 @@ zfs_dev_init(void)
 	 * diskN, diskNpM or diskNsM.
 	 */
 	zfs_init();
-	for (unit = 0; unit < 32 /* XXX */; unit++) {
+	for (unit = 0; unit < MAXBDDEV; unit++) {
 		sprintf(devname, "disk%d:", unit);
 		fd = open(devname, O_RDONLY);
 		if (fd == -1)

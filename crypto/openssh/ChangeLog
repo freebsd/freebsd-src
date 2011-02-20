@@ -1,3 +1,522 @@
+20100823
+ - (djm) Release OpenSSH-5.6p1
+
+20100816
+ - (dtucker) [configure.ac openbsd-compat/Makefile.in
+   openbsd-compat/openbsd-compat.h openbsd-compat/strptime.c] Add strptime to
+   the compat library which helps on platforms like old IRIX.  Based on work
+   by djm, tested by Tom Christensen.
+ - OpenBSD CVS Sync
+   - djm@cvs.openbsd.org 2010/08/12 21:49:44
+     [ssh.c]
+     close any extra file descriptors inherited from parent at start and
+     reopen stdin/stdout to /dev/null when forking for ControlPersist.
+     
+     prevents tools that fork and run a captive ssh for communication from
+     failing to exit when the ssh completes while they wait for these fds to
+     close. The inherited fds may persist arbitrarily long if a background
+     mux master has been started by ControlPersist. cvs and scp were effected
+     by this.
+     
+     "please commit" markus@
+ - (djm) [regress/README.regress] typo
+
+20100812
+ - (tim) [regress/login-timeout.sh regress/reconfigure.sh regress/reexec.sh
+   regress/test-exec.sh] Under certain conditions when testing with sudo
+   tests would fail because the pidfile could not be read by a regular user.
+   "cat: cannot open ...../regress/pidfile: Permission denied (error 13)"
+   Make sure cat is run by $SUDO.  no objection from me. djm@
+ - (tim) [auth.c] add cast to quiet compiler. Change only affects SVR5 systems.
+
+20100809
+ - (djm) bz#1561: don't bother setting IFF_UP on tun(4) device if it is
+   already set. Makes FreeBSD user openable tunnels useful; patch from
+   richard.burakowski+ossh AT mrburak.net, ok dtucker@
+ - (dtucker) bug #1530: strip trailing ":" from hostname in ssh-copy-id.
+   based in part on a patch from Colin Watson, ok djm@
+
+20100809
+ - OpenBSD CVS Sync
+   - djm@cvs.openbsd.org 2010/08/08 16:26:42
+     [version.h]
+     crank to 5.6
+ - (djm) [README contrib/caldera/openssh.spec contrib/redhat/openssh.spec]
+   [contrib/suse/openssh.spec] Crank version numbers
+
+20100805
+ - OpenBSD CVS Sync
+   - djm@cvs.openbsd.org 2010/08/04 05:37:01
+     [ssh.1 ssh_config.5 sshd.8]
+     Remove mentions of weird "addr/port" alternate address format for IPv6
+     addresses combinations. It hasn't worked for ages and we have supported
+     the more commen "[addr]:port" format for a long time. ok jmc@ markus@
+   - djm@cvs.openbsd.org 2010/08/04 05:40:39
+     [PROTOCOL.certkeys ssh-keygen.c]
+     tighten the rules for certificate encoding by requiring that options
+     appear in lexical order and make our ssh-keygen comply. ok markus@
+   - djm@cvs.openbsd.org 2010/08/04 05:42:47
+     [auth.c auth2-hostbased.c authfile.c authfile.h ssh-keysign.8]
+     [ssh-keysign.c ssh.c]
+     enable certificates for hostbased authentication, from Iain Morgan;
+     "looks ok" markus@
+   - djm@cvs.openbsd.org 2010/08/04 05:49:22
+     [authfile.c]
+     commited the wrong version of the hostbased certificate diff; this
+     version replaces some strlc{py,at} verbosity with xasprintf() at
+     the request of markus@
+   - djm@cvs.openbsd.org 2010/08/04 06:07:11
+     [ssh-keygen.1 ssh-keygen.c]
+     Support CA keys in PKCS#11 tokens; feedback and ok markus@
+   - djm@cvs.openbsd.org 2010/08/04 06:08:40
+     [ssh-keysign.c]
+     clean for -Wuninitialized (Id sync only; portable had this change)
+   - djm@cvs.openbsd.org 2010/08/05 13:08:42
+     [channels.c]
+     Fix a trio of bugs in the local/remote window calculation for datagram
+     data channels (i.e. TunnelForward):
+     
+     Calculate local_consumed correctly in channel_handle_wfd() by measuring
+     the delta to buffer_len(c->output) from when we start to when we finish.
+     The proximal problem here is that the output_filter we use in portable
+     modified the length of the dequeued datagram (to futz with the headers
+     for !OpenBSD).
+     
+     In channel_output_poll(), don't enqueue datagrams that won't fit in the
+     peer's advertised packet size (highly unlikely to ever occur) or which
+     won't fit in the peer's remaining window (more likely).
+     
+     In channel_input_data(), account for the 4-byte string header in
+     datagram packets that we accept from the peer and enqueue in c->output.
+     
+     report, analysis and testing 2/3 cases from wierbows AT us.ibm.com;
+     "looks good" markus@
+
+20100803
+ - (dtucker) [monitor.c] Bug #1795: Initialize the values to be returned from
+   PAM to sane values in case the PAM method doesn't write to them.  Spotted by
+   Bitman Zhou, ok djm@.
+ - OpenBSD CVS Sync
+   - djm@cvs.openbsd.org 2010/07/16 04:45:30
+     [ssh-keygen.c]
+     avoid bogus compiler warning
+   - djm@cvs.openbsd.org 2010/07/16 14:07:35
+     [ssh-rsa.c]
+     more timing paranoia - compare all parts of the expected decrypted
+     data before returning. AFAIK not exploitable in the SSH protocol.
+     "groovy" deraadt@
+   - djm@cvs.openbsd.org 2010/07/19 03:16:33
+     [sftp-client.c]
+     bz#1797: fix swapped args in upload_dir_internal(), breaking recursive
+     upload depth checks and causing verbose printing of transfers to always
+     be turned on; patch from imorgan AT nas.nasa.gov
+   - djm@cvs.openbsd.org 2010/07/19 09:15:12
+     [clientloop.c readconf.c readconf.h ssh.c ssh_config.5]
+     add a "ControlPersist" option that automatically starts a background
+     ssh(1) multiplex master when connecting. This connection can stay alive
+     indefinitely, or can be set to automatically close after a user-specified
+     duration of inactivity. bz#1330 - patch by dwmw2 AT infradead.org, but
+     further hacked on by wmertens AT cisco.com, apb AT cequrux.com,
+     martin-mindrot-bugzilla AT earth.li and myself; "looks ok" markus@
+   - djm@cvs.openbsd.org 2010/07/21 02:10:58
+     [misc.c]
+     sync timingsafe_bcmp() with the one dempsky@ committed to sys/lib/libkern
+   - dtucker@cvs.openbsd.org 2010/07/23 08:49:25
+     [ssh.1]
+     Ciphers is documented in ssh_config(5) these days
+
+20100819
+ - (dtucker) [contrib/ssh-copy-ud.1] Bug #1786: update ssh-copy-id.1 with more
+   details about its behaviour WRT existing directories.  Patch from
+   asguthrie at gmail com, ok djm.
+
+20100716
+ - (djm) OpenBSD CVS Sync
+   - djm@cvs.openbsd.org 2010/07/02 04:32:44
+     [misc.c]
+     unbreak strdelim() skipping past quoted strings, e.g.
+     AllowUsers "blah blah" blah
+     was broken; report and fix in bz#1757 from bitman.zhou AT centrify.com
+     ok dtucker;
+   - djm@cvs.openbsd.org 2010/07/12 22:38:52
+     [ssh.c]
+     Make ExitOnForwardFailure work with fork-after-authentication ("ssh -f")
+     for protocol 2. ok markus@
+   - djm@cvs.openbsd.org 2010/07/12 22:41:13
+     [ssh.c ssh_config.5]
+     expand %h to the hostname in ssh_config Hostname options. While this
+     sounds useless, it is actually handy for working with unqualified
+     hostnames:
+     
+     Host *.*
+        Hostname %h
+     Host *
+        Hostname %h.example.org
+     
+     "I like it" markus@
+   - djm@cvs.openbsd.org 2010/07/13 11:52:06
+     [auth-rsa.c channels.c jpake.c key.c misc.c misc.h monitor.c]
+     [packet.c ssh-rsa.c]
+     implement a timing_safe_cmp() function to compare memory without leaking
+     timing information by short-circuiting like memcmp() and use it for
+     some of the more sensitive comparisons (though nothing high-value was
+     readily attackable anyway); "looks ok" markus@
+   - djm@cvs.openbsd.org 2010/07/13 23:13:16
+     [auth-rsa.c channels.c jpake.c key.c misc.c misc.h monitor.c packet.c]
+     [ssh-rsa.c]
+     s/timing_safe_cmp/timingsafe_bcmp/g
+   - jmc@cvs.openbsd.org 2010/07/14 17:06:58
+     [ssh.1]
+     finally ssh synopsis looks nice again! this commit just removes a ton of
+     hacks we had in place to make it work with old groff;
+   - schwarze@cvs.openbsd.org 2010/07/15 21:20:38
+     [ssh-keygen.1]
+     repair incorrect block nesting, which screwed up indentation;
+     problem reported and fix OK by jmc@
+
+20100714
+ - (tim) [contrib/redhat/openssh.spec] Bug 1796: Test for skip_x11_askpass
+   (line 77) should have been for no_x11_askpass. 
+
+20100702
+ - (djm) OpenBSD CVS Sync
+   - jmc@cvs.openbsd.org 2010/06/26 00:57:07
+     [ssh_config.5]
+     tweak previous;
+   - djm@cvs.openbsd.org 2010/06/26 23:04:04
+     [ssh.c]
+     oops, forgot to #include <canohost.h>; spotted and patch from chl@
+   - djm@cvs.openbsd.org 2010/06/29 23:15:30
+     [ssh-keygen.1 ssh-keygen.c]
+     allow import (-i) and export (-e) of PEM and PKCS#8 encoded keys;
+     bz#1749; ok markus@
+   - djm@cvs.openbsd.org 2010/06/29 23:16:46
+     [auth2-pubkey.c sshd_config.5]
+     allow key options (command="..." and friends) in AuthorizedPrincipals;
+     ok markus@
+   - jmc@cvs.openbsd.org 2010/06/30 07:24:25
+     [ssh-keygen.1]
+     tweak previous;
+   - jmc@cvs.openbsd.org 2010/06/30 07:26:03
+     [ssh-keygen.c]
+     sort usage();
+   - jmc@cvs.openbsd.org 2010/06/30 07:28:34
+     [sshd_config.5]
+     tweak previous;
+   - millert@cvs.openbsd.org 2010/07/01 13:06:59
+     [scp.c]
+     Fix a longstanding problem where if you suspend scp at the
+     password/passphrase prompt the terminal mode is not restored.
+     OK djm@
+   - phessler@cvs.openbsd.org 2010/06/27 19:19:56
+     [regress/Makefile]
+     fix how we run the tests so we can successfully use SUDO='sudo -E'
+     in our env
+   - djm@cvs.openbsd.org 2010/06/29 23:59:54
+     [cert-userkey.sh]
+     regress tests for key options in AuthorizedPrincipals
+
+20100627
+ - (tim) [openbsd-compat/port-uw.c] Reorder includes. auth-options.h now needs
+   key.h.
+
+20100626
+ - (djm) OpenBSD CVS Sync
+   - djm@cvs.openbsd.org 2010/05/21 05:00:36
+     [misc.c]
+     colon() returns char*, so s/return (0)/return NULL/
+   - markus@cvs.openbsd.org 2010/06/08 21:32:19
+     [ssh-pkcs11.c]
+     check length of value returned  C_GetAttributValue for != 0
+     from mdrtbugzilla@codefive.co.uk; bugzilla #1773; ok dtucker@
+   - djm@cvs.openbsd.org 2010/06/17 07:07:30
+     [mux.c]
+     Correct sizing of object to be allocated by calloc(), replacing
+     sizeof(state) with sizeof(*state). This worked by accident since
+     the struct contained a single int at present, but could have broken
+     in the future. patch from hyc AT symas.com
+   - djm@cvs.openbsd.org 2010/06/18 00:58:39
+     [sftp.c]
+     unbreak ls in working directories that contains globbing characters in
+     their pathnames. bz#1655 reported by vgiffin AT apple.com
+   - djm@cvs.openbsd.org 2010/06/18 03:16:03
+     [session.c]
+     Missing check for chroot_director == "none" (we already checked against
+     NULL); bz#1564 from Jan.Pechanec AT Sun.COM
+   - djm@cvs.openbsd.org 2010/06/18 04:43:08
+     [sftp-client.c]
+     fix memory leak in do_realpath() error path; bz#1771, patch from
+     anicka AT suse.cz
+   - djm@cvs.openbsd.org 2010/06/22 04:22:59
+     [servconf.c sshd_config.5]
+     expose some more sshd_config options inside Match blocks:
+       AuthorizedKeysFile AuthorizedPrincipalsFile
+       HostbasedUsesNameFromPacketOnly PermitTunnel
+     bz#1764; feedback from imorgan AT nas.nasa.gov; ok dtucker@
+   - djm@cvs.openbsd.org 2010/06/22 04:32:06
+     [ssh-keygen.c]
+     standardise error messages when attempting to open private key
+     files to include "progname: filename: error reason"
+     bz#1783; ok dtucker@
+   - djm@cvs.openbsd.org 2010/06/22 04:49:47
+     [auth.c]
+     queue auth debug messages for bad ownership or permissions on the user's
+     keyfiles. These messages will be sent after the user has successfully
+     authenticated (where our client will display them with LogLevel=debug).
+     bz#1554; ok dtucker@
+   - djm@cvs.openbsd.org 2010/06/22 04:54:30
+     [ssh-keyscan.c]
+     replace verbose and overflow-prone Linebuf code with read_keyfile_line()
+     based on patch from joachim AT joachimschipper.nl; bz#1565; ok dtucker@
+   - djm@cvs.openbsd.org 2010/06/22 04:59:12
+     [session.c]
+     include the user name on "subsystem request for ..." log messages;
+     bz#1571; ok dtucker@
+   - djm@cvs.openbsd.org 2010/06/23 02:59:02
+     [ssh-keygen.c]
+     fix printing of extensions in v01 certificates that I broke in r1.190
+   - djm@cvs.openbsd.org 2010/06/25 07:14:46
+     [channels.c mux.c readconf.c readconf.h ssh.h]
+     bz#1327: remove hardcoded limit of 100 permitopen clauses and port
+     forwards per direction; ok markus@ stevesk@
+   - djm@cvs.openbsd.org 2010/06/25 07:20:04
+     [channels.c session.c]
+     bz#1750: fix requirement for /dev/null inside ChrootDirectory for
+     internal-sftp accidentally introduced in r1.253 by removing the code
+     that opens and dup /dev/null to stderr and modifying the channels code
+     to read stderr but discard it instead; ok markus@
+   - djm@cvs.openbsd.org 2010/06/25 08:46:17
+     [auth1.c auth2-none.c]
+     skip the initial check for access with an empty password when
+     PermitEmptyPasswords=no; bz#1638; ok markus@
+   - djm@cvs.openbsd.org 2010/06/25 23:10:30
+     [ssh.c]
+     log the hostname and address that we connected to at LogLevel=verbose
+     after authentication is successful to mitigate "phishing" attacks by
+     servers with trusted keys that accept authentication silently and
+     automatically before presenting fake password/passphrase prompts;
+     "nice!" markus@
+   - djm@cvs.openbsd.org 2010/06/25 23:10:30
+     [ssh.c]
+     log the hostname and address that we connected to at LogLevel=verbose
+     after authentication is successful to mitigate "phishing" attacks by
+     servers with trusted keys that accept authentication silently and
+     automatically before presenting fake password/passphrase prompts;
+     "nice!" markus@
+
+20100622
+ - (djm) [loginrec.c] crank LINFO_NAMESIZE (username length) to 512
+   bz#1579; ok dtucker
+
+20100618
+ - (djm) [contrib/ssh-copy-id] Update key file explicitly under ~
+   rather than assuming that $CWD == $HOME. bz#1500, patch from
+   timothy AT gelter.com
+
+20100617
+ - (tim) [contrib/cygwin/README] Remove a reference to the obsolete
+   minires-devel package, and to add the reference to the libedit-devel
+   package since CYgwin now provides libedit. Patch from Corinna Vinschen.
+
+20100521
+ - (djm) OpenBSD CVS Sync
+   - djm@cvs.openbsd.org 2010/05/07 11:31:26
+     [regress/Makefile regress/cert-userkey.sh]
+     regress tests for AuthorizedPrincipalsFile and "principals=" key option.
+     feedback and ok markus@
+   - djm@cvs.openbsd.org 2010/05/11 02:58:04
+     [auth-rsa.c]
+     don't accept certificates marked as "cert-authority" here; ok markus@
+   - djm@cvs.openbsd.org 2010/05/14 00:47:22
+     [ssh-add.c]
+     check that the certificate matches the corresponding private key before
+     grafting it on
+   - djm@cvs.openbsd.org 2010/05/14 23:29:23
+     [channels.c channels.h mux.c ssh.c]
+     Pause the mux channel while waiting for reply from aynch callbacks.
+     Prevents misordering of replies if new requests arrive while waiting.
+     
+     Extend channel open confirm callback to allow signalling failure
+     conditions as well as success. Use this to 1) fix a memory leak, 2)
+     start using the above pause mechanism and 3) delay sending a success/
+     failure message on mux slave session open until we receive a reply from
+     the server.
+     
+     motivated by and with feedback from markus@
+   - markus@cvs.openbsd.org 2010/05/16 12:55:51
+     [PROTOCOL.mux clientloop.h mux.c readconf.c readconf.h ssh.1 ssh.c]
+     mux support for remote forwarding with dynamic port allocation,
+     use with
+        LPORT=`ssh -S muxsocket -R0:localhost:25 -O forward somehost`
+     feedback and ok djm@
+   - djm@cvs.openbsd.org 2010/05/20 11:25:26
+     [auth2-pubkey.c]
+     fix logspam when key options (from="..." especially) deny non-matching
+     keys; reported by henning@ also bz#1765; ok markus@ dtucker@
+   - djm@cvs.openbsd.org 2010/05/20 23:46:02
+     [PROTOCOL.certkeys auth-options.c ssh-keygen.c]
+     Move the permit-* options to the non-critical "extensions" field for v01
+     certificates. The logic is that if another implementation fails to
+     implement them then the connection just loses features rather than fails
+     outright.
+     
+     ok markus@
+
+20100511
+ - (dtucker) [Makefile.in] Bug #1770: Link libopenbsd-compat twice to solve
+   circular dependency problem on old or odd platforms.  From Tom Lane, ok
+   djm@.
+ - (djm) [openbsd-compat/openssl-compat.h] Fix build breakage on older
+   libcrypto by defining OPENSSL_[DR]SA_MAX_MODULUS_BITS if they aren't
+   already. ok dtucker@
+
+20100510
+ - OpenBSD CVS Sync
+   - djm@cvs.openbsd.org 2010/04/23 01:47:41
+     [ssh-keygen.c]
+     bz#1740: display a more helpful error message when $HOME is
+     inaccessible while trying to create .ssh directory. Based on patch
+     from jchadima AT redhat.com; ok dtucker@
+   - djm@cvs.openbsd.org 2010/04/23 22:27:38
+     [mux.c]
+     set "detach_close" flag when registering channel cleanup callbacks.
+     This causes the channel to close normally when its fds close and
+     hangs when terminating a mux slave using ~. bz#1758; ok markus@
+   - djm@cvs.openbsd.org 2010/04/23 22:42:05
+     [session.c]
+     set stderr to /dev/null for subsystems rather than just closing it.
+     avoids hangs if a subsystem or shell initialisation writes to stderr.
+     bz#1750; ok markus@
+   - djm@cvs.openbsd.org 2010/04/23 22:48:31
+     [ssh-keygen.c]
+     refuse to generate keys longer than OPENSSL_[RD]SA_MAX_MODULUS_BITS,
+     since we would refuse to use them anyway. bz#1516; ok dtucker@
+   - djm@cvs.openbsd.org 2010/04/26 22:28:24
+     [sshconnect2.c]
+     bz#1502: authctxt.success is declared as an int, but passed by
+     reference to function that accepts sig_atomic_t*. Convert it to
+     the latter; ok markus@ dtucker@
+   - djm@cvs.openbsd.org 2010/05/01 02:50:50
+     [PROTOCOL.certkeys]
+     typo; jmeltzer@
+   - dtucker@cvs.openbsd.org 2010/05/05 04:22:09
+     [sftp.c]
+     restore mput and mget which got lost in the tab-completion changes.
+     found by Kenneth Whitaker, ok djm@
+   - djm@cvs.openbsd.org 2010/05/07 11:30:30
+     [auth-options.c auth-options.h auth.c auth.h auth2-pubkey.c]
+     [key.c servconf.c servconf.h sshd.8 sshd_config.5]
+     add some optional indirection to matching of principal names listed
+     in certificates. Currently, a certificate must include the a user's name
+     to be accepted for authentication. This change adds the ability to
+     specify a list of certificate principal names that are acceptable.
+     
+     When authenticating using a CA trusted through ~/.ssh/authorized_keys,
+     this adds a new principals="name1[,name2,...]" key option.
+     
+     For CAs listed through sshd_config's TrustedCAKeys option, a new config
+     option "AuthorizedPrincipalsFile" specifies a per-user file containing
+     the list of acceptable names.
+     
+     If either option is absent, the current behaviour of requiring the
+     username to appear in principals continues to apply.
+     
+     These options are useful for role accounts, disjoint account namespaces
+     and "user@realm"-style naming policies in certificates.
+     
+     feedback and ok markus@
+   - jmc@cvs.openbsd.org 2010/05/07 12:49:17
+     [sshd_config.5]
+     tweak previous;
+
+20100423
+ - (dtucker) [configure.ac] Bug #1756: Check for the existence of a lib64 dir
+   in the openssl install directory (some newer openssl versions do this on at
+   least some amd64 platforms).
+
+20100418
+ - OpenBSD CVS Sync
+   - jmc@cvs.openbsd.org 2010/04/16 06:45:01
+     [ssh_config.5]
+     tweak previous; ok djm
+   - jmc@cvs.openbsd.org 2010/04/16 06:47:04
+     [ssh-keygen.1 ssh-keygen.c]
+     tweak previous; ok djm
+   - djm@cvs.openbsd.org 2010/04/16 21:14:27
+     [sshconnect.c]
+     oops, %r => remote username, not %u
+   - djm@cvs.openbsd.org 2010/04/16 01:58:45
+     [regress/cert-hostkey.sh regress/cert-userkey.sh]
+     regression tests for v01 certificate format
+     includes interop tests for v00 certs
+ - (dtucker) [contrib/aix/buildbff.sh] Fix creation of ssh_prng_cmds.default
+   file.
+
+20100416
+ - (djm) Release openssh-5.5p1
+ - OpenBSD CVS Sync
+   - djm@cvs.openbsd.org 2010/03/26 03:13:17
+     [bufaux.c]
+     allow buffer_get_int_ret/buffer_get_int64_ret to take a NULL pointer
+     argument to allow skipping past values in a buffer
+   - jmc@cvs.openbsd.org 2010/03/26 06:54:36
+     [ssh.1]
+     tweak previous;
+   - jmc@cvs.openbsd.org 2010/03/27 14:26:55
+     [ssh_config.5]
+     tweak previous; ok dtucker
+   - djm@cvs.openbsd.org 2010/04/10 00:00:16
+     [ssh.c]
+     bz#1746 - suppress spurious tty warning when using -O and stdin
+     is not a tty; ok dtucker@ markus@
+   - djm@cvs.openbsd.org 2010/04/10 00:04:30
+     [sshconnect.c]
+     fix terminology: we didn't find a certificate in known_hosts, we found
+     a CA key
+   - djm@cvs.openbsd.org 2010/04/10 02:08:44
+     [clientloop.c]
+     bz#1698: kill channel when pty allocation requests fail. Fixed
+     stuck client if the server refuses pty allocation.
+     ok dtucker@ "think so" markus@
+   - djm@cvs.openbsd.org 2010/04/10 02:10:56
+     [sshconnect2.c]
+     show the key type that we are offering in debug(), helps distinguish
+     between certs and plain keys as the path to the private key is usually
+     the same.
+   - djm@cvs.openbsd.org 2010/04/10 05:48:16
+     [mux.c]
+     fix NULL dereference; from matthew.haub AT alumni.adelaide.edu.au
+   - djm@cvs.openbsd.org 2010/04/14 22:27:42
+     [ssh_config.5 sshconnect.c]
+     expand %r => remote username in ssh_config:ProxyCommand;
+     ok deraadt markus
+   - markus@cvs.openbsd.org 2010/04/15 20:32:55
+     [ssh-pkcs11.c]
+     retry lookup for private key if there's no matching key with CKA_SIGN
+     attribute enabled; this fixes fixes MuscleCard support (bugzilla #1736)
+     ok djm@
+   - djm@cvs.openbsd.org 2010/04/16 01:47:26
+     [PROTOCOL.certkeys auth-options.c auth-options.h auth-rsa.c]
+     [auth2-pubkey.c authfd.c key.c key.h myproposal.h ssh-add.c]
+     [ssh-agent.c ssh-dss.c ssh-keygen.1 ssh-keygen.c ssh-rsa.c]
+     [sshconnect.c sshconnect2.c sshd.c]
+     revised certificate format ssh-{dss,rsa}-cert-v01@openssh.com with the
+     following changes:
+     
+     move the nonce field to the beginning of the certificate where it can
+     better protect against chosen-prefix attacks on the signature hash
+     
+     Rename "constraints" field to "critical options"
+     
+     Add a new non-critical "extensions" field
+     
+     Add a serial number
+     
+     The older format is still support for authentication and cert generation
+     (use "ssh-keygen -t v00 -s ca_key ..." to generate a v00 certificate)
+     
+     ok markus@
+
 20100410
  - (dtucker) [configure.ac] Put the check for the existence of getaddrinfo
    back so we disable the IPv6 tests if we don't have it.

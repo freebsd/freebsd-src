@@ -63,7 +63,6 @@ extern struct uart_class uart_oct16550_class;
 
 
 static int uart_octeon_probe(device_t dev);
-static void octeon_uart_identify(driver_t * drv, device_t parent);
 
 extern struct uart_class octeon_uart_class;
 
@@ -72,7 +71,6 @@ static device_method_t uart_octeon_methods[] = {
 	DEVMETHOD(device_probe, uart_octeon_probe),
 	DEVMETHOD(device_attach, uart_bus_attach),
 	DEVMETHOD(device_detach, uart_bus_detach),
-	DEVMETHOD(device_identify, octeon_uart_identify),
 	{0, 0}
 };
 
@@ -105,19 +103,12 @@ uart_octeon_probe(device_t dev)
 	sc->sc_bas.bst = uart_bus_space_mem;
 	/*
 	 * XXX
-	 * RBR isn't really a great base address and it'd be great to not have
-	 * a hard-coded 1024.
+	 * RBR isn't really a great base address.
 	 */
-	if (bus_space_map(sc->sc_bas.bst, CVMX_MIO_UARTX_RBR(0), 1024,
-	    0, &sc->sc_bas.bsh) != 0)
+	if (bus_space_map(sc->sc_bas.bst, CVMX_MIO_UARTX_RBR(0),
+	    uart_getrange(sc->sc_class), 0, &sc->sc_bas.bsh) != 0)
 		return (ENXIO);
 	return (uart_bus_probe(dev, sc->sc_bas.regshft, 0, 0, unit));
-}
-
-static void
-octeon_uart_identify(driver_t * drv, device_t parent)
-{
-	BUS_ADD_CHILD(parent, 0, "uart", 0);
 }
 
 DRIVER_MODULE(uart, obio, uart_octeon_driver, uart_devclass, 0, 0);

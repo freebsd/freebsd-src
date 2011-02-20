@@ -32,6 +32,7 @@ def actions;
 
 def alias_option;
 def switch_option;
+def switch_list_option;
 def parameter_option;
 def parameter_list_option;
 def prefix_option;
@@ -39,7 +40,6 @@ def prefix_list_option;
 
 // Possible option properties.
 
-def extern;
 def help;
 def hidden;
 def init;
@@ -93,17 +93,8 @@ def error;
 def set_option;
 def unset_option;
 
-// Increase/decrease the edge weight.
+// Increase the edge weight.
 def inc_weight;
-def dec_weight;
-
-// Empty DAG marker.
-def empty_dag_marker;
-
-// Used to specify plugin priority.
-class PluginPriority<int p> {
-      int priority = p;
-}
 
 // Option list - a single place to specify options.
 class OptionList<list<dag> l> {
@@ -117,31 +108,17 @@ class OptionPreprocessor<dag d> {
 
 // Map from suffixes to language names
 
-class LangToSuffixes<string str, list<string> lst> {
-      string lang = str;
-      list<string> suffixes = lst;
-}
+def lang_to_suffixes;
 
-class LanguageMap<list<LangToSuffixes> lst> {
-      list<LangToSuffixes> map = lst;
+class LanguageMap<list<dag> l> {
+      list<dag> map = l;
 }
 
 // Compilation graph
 
-class EdgeBase<string t1, string t2, dag d> {
-      string a = t1;
-      string b = t2;
-      dag weight = d;
-}
+def edge;
+def optional_edge;
 
-class Edge<string t1, string t2> : EdgeBase<t1, t2, (empty_dag_marker)>;
-
-// Edge and SimpleEdge are synonyms.
-class SimpleEdge<string t1, string t2> : EdgeBase<t1, t2, (empty_dag_marker)>;
-
-// Optionally enabled edge.
-class OptionalEdge<string t1, string t2, dag props> : EdgeBase<t1, t2, props>;
-
-class CompilationGraph<list<EdgeBase> lst> {
-      list<EdgeBase> edges = lst;
+class CompilationGraph<list<dag> l> {
+      list<dag> edges = l;
 }

@@ -96,13 +96,6 @@ extern const char *uint64_to_nicestr(uint64_t value,
 		bool always_also_bytes, uint32_t slot);
 
 
-/// \brief      Convert double to a string with one decimal place
-///
-/// This is like uint64_to_str() except that this converts a double and
-/// uses exactly one decimal place.
-extern const char *double_to_str(double value);
-
-
 /// \brief      Wrapper for snprintf() to help constructing a string in pieces
 ///
 /// A maximum of *left bytes is written starting from *pos. *pos and *left

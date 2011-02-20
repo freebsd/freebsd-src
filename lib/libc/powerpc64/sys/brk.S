@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
         .globl  CNAME(_end)
 
         .data
+        .align 3
 HIDENAME(minbrk):
         .llong   CNAME(_end)
 
@@ -68,3 +69,5 @@ ENTRY(brk)
 	ld	%r0,16(%r1)
 	mtlr	%r0
 	blr
+
+	.section .note.GNU-stack,"",%progbits

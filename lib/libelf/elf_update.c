@@ -141,7 +141,7 @@ _libelf_compute_section_extents(Elf *e, Elf_Scn *s, off_t *rc)
 
 	/* Compute the section alignment. */
 	STAILQ_FOREACH(d, &s->s_data, d_next)  {
-		if (d->d_type != elftype) {
+		if (d->d_type > ELF_T_LAST) {
 			LIBELF_SET_ERROR(DATA, 0);
 			return (0);
 		}
@@ -149,11 +149,7 @@ _libelf_compute_section_extents(Elf *e, Elf_Scn *s, off_t *rc)
 			LIBELF_SET_ERROR(VERSION, 0);
 			return (0);
 		}
-		if ((d_align = d->d_align) % sh_align) {
-			LIBELF_SET_ERROR(LAYOUT, 0);
-			return (0);
-		}
-		if (d_align == 0 || (d_align & (d_align - 1))) {
+		if ((d_align = d->d_align) == 0 || (d_align & (d_align - 1))) {
 			LIBELF_SET_ERROR(DATA, 0);
 			return (0);
 		}
@@ -168,7 +164,7 @@ _libelf_compute_section_extents(Elf *e, Elf_Scn *s, off_t *rc)
 			if ((uint64_t) d->d_off + d->d_size > scn_size)
 				scn_size = d->d_off + d->d_size;
 		} else {
-			scn_size = roundup2(scn_size, scn_alignment);
+			scn_size = roundup2(scn_size, d->d_align);
 			d->d_off = scn_size;
 			scn_size += d->d_size;
 		}
@@ -560,8 +556,6 @@ _libelf_write_scn(Elf *e, char *nf, Elf_Scn *s, off_t rc)
 	elftype = _libelf_xlate_shtype(sh_type);
 	assert(elftype >= ELF_T_FIRST && elftype <= ELF_T_LAST);
 
-	msz = _libelf_msize(elftype, ec, e->e_version);
-
 	sh_off = s->s_offset;
 	assert(sh_off % _libelf_falign(elftype, ec) == 0);
 
@@ -608,6 +602,8 @@ _libelf_write_scn(Elf *e, char *nf, Elf_Scn *s, off_t rc)
 
 	STAILQ_FOREACH(d, &s->s_data, d_next) {
 
+		msz = _libelf_msize(d->d_type, ec, e->e_version);
+
 		if ((uint64_t) rc < sh_off + d->d_off)
 			(void) memset(nf + rc,
 			    LIBELF_PRIVATE(fillchar), sh_off + d->d_off - rc);
@@ -615,13 +611,12 @@ _libelf_write_scn(Elf *e, char *nf, Elf_Scn *s, off_t rc)
 		rc = sh_off + d->d_off;
 
 		assert(d->d_buf != NULL);
-		assert(d->d_type == (Elf_Type) elftype);
 		assert(d->d_version == e->e_version);
 		assert(d->d_size % msz == 0);
 
 		nobjects = d->d_size / msz;
 
-		fsz = _libelf_fsize(elftype, ec, e->e_version, nobjects);
+		fsz = _libelf_fsize(d->d_type, ec, e->e_version, nobjects);
 
 		dst.d_buf    = nf + rc;
 		dst.d_size   = fsz;

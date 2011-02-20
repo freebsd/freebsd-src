@@ -140,6 +140,8 @@ makefile(void)
 	if (ofp == 0)
 		err(1, "%s", path("Makefile.new"));
 	fprintf(ofp, "KERN_IDENT=%s\n", ident);
+	fprintf(ofp, "MACHINE=%s\n", machinename);
+	fprintf(ofp, "MACHINE_ARCH=%s\n", machinearch);
 	SLIST_FOREACH_SAFE(op, &mkopt, op_next, t) {
 		fprintf(ofp, "%s=%s", op->op_name, op->op_value);
 		while ((op = SLIST_NEXT(op, op_append)) != NULL)
@@ -382,8 +384,8 @@ next:
 		mandatory = 1;
 	} else if (!eq(wd, "optional")) {
 		fprintf(stderr,
-		    "%s: %s must be optional, mandatory or standard\n",
-		    fname, this);
+		    "%s: \"%s\" %s must be optional, mandatory or standard\n",
+		    fname, wd, this);
 		exit(1);
 	}
 nextparam:

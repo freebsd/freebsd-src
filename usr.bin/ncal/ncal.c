@@ -33,6 +33,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <langinfo.h>
+#include <libgen.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -245,9 +246,7 @@ main(int argc, char *argv[])
 	 * Get the filename portion of argv[0] and set flag_backward if
 	 * this program is called "cal".
 	 */
-	cp = strrchr(argv[0], '/');
-	cp = (cp == NULL) ? argv[0] : cp + 1;
-	if (strcmp("cal", cp) == 0)
+	if (strncmp(basename(argv[0]), "cal", strlen("cal")) == 0)
 		flag_backward = 1;
 
 	/* Set the switch date to United Kingdom if backwards compatible */

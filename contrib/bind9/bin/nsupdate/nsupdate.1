@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2009 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2010 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: nsupdate.1,v 1.3.48.3 2009/07/11 01:55:21 tbox Exp $
+.\" $Id: nsupdate.1,v 1.3.48.4 2010-07-10 02:06:17 tbox Exp $
 .\"
 .hy 0
 .ad l
@@ -213,6 +213,28 @@ or
 \fB\-k\fR.
 .RE
 .PP
+\fBgsstsig\fR
+.RS 4
+Use GSS\-TSIG to sign the updated. This is equivalent to specifying
+\fB\-g\fR
+on the commandline.
+.RE
+.PP
+\fBoldgsstsig\fR
+.RS 4
+Use the Windows 2000 version of GSS\-TSIG to sign the updated. This is equivalent to specifying
+\fB\-o\fR
+on the commandline.
+.RE
+.PP
+\fBrealm\fR {[realm_name]}
+.RS 4
+When using GSS\-TSIG use
+\fIrealm_name\fR
+rather than the default realm in
+\fIkrb5.conf\fR. If no realm is specified the saved realm is cleared.
+.RE
+.PP
 \fBprereq nxdomain\fR {domain\-name}
 .RS 4
 Requires that no resource record of any type exists with name
@@ -379,7 +401,7 @@ base\-64 encoding of HMAC\-MD5 key created by
 .PP
 The TSIG key is redundantly stored in two separate files. This is a consequence of nsupdate using the DST library for its cryptographic operations, and may change in future releases.
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2009 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2010 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2003 Internet Software Consortium.
 .br

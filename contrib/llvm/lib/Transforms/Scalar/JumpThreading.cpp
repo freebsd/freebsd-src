@@ -24,6 +24,7 @@
 #include "llvm/Transforms/Utils/SSAUpdater.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -45,7 +46,10 @@ Threshold("jump-threading-threshold",
 
 // Turn on use of LazyValueInfo.
 static cl::opt<bool>
-EnableLVI("enable-jump-threading-lvi", cl::ReallyHidden);
+EnableLVI("enable-jump-threading-lvi",
+          cl::desc("Use LVI for jump threading"),
+          cl::init(true),
+          cl::ReallyHidden);
 
 
 
@@ -74,15 +78,32 @@ namespace {
 #else
     SmallSet<AssertingVH<BasicBlock>, 16> LoopHeaders;
 #endif
+    DenseSet<std::pair<Value*, BasicBlock*> > RecursionSet;
+    
+    // RAII helper for updating the recursion stack.
+    struct RecursionSetRemover {
+      DenseSet<std::pair<Value*, BasicBlock*> > &TheSet;
+      std::pair<Value*, BasicBlock*> ThePair;
+      
+      RecursionSetRemover(DenseSet<std::pair<Value*, BasicBlock*> > &S,
+                          std::pair<Value*, BasicBlock*> P)
+        : TheSet(S), ThePair(P) { }
+      
+      ~RecursionSetRemover() {
+        TheSet.erase(ThePair);
+      }
+    };
   public:
     static char ID; // Pass identification
-    JumpThreading() : FunctionPass(&ID) {}
+    JumpThreading() : FunctionPass(ID) {}
 
     bool runOnFunction(Function &F);
     
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-      if (EnableLVI)
+      if (EnableLVI) {
         AU.addRequired<LazyValueInfo>();
+        AU.addPreserved<LazyValueInfo>();
+      }
     }
     
     void FindLoopHeaders(Function &F);
@@ -111,8 +132,8 @@ namespace {
 }
 
 char JumpThreading::ID = 0;
-static RegisterPass<JumpThreading>
-X("jump-threading", "Jump Threading");
+INITIALIZE_PASS(JumpThreading, "jump-threading",
+                "Jump Threading", false, false);
 
 // Public interface to the Jump Threading pass
 FunctionPass *llvm::createJumpThreadingPass() { return new JumpThreading(); }
@@ -144,6 +165,7 @@ bool JumpThreading::runOnFunction(Function &F) {
         DEBUG(dbgs() << "  JT: Deleting dead block '" << BB->getName()
               << "' with terminator: " << *BB->getTerminator() << '\n');
         LoopHeaders.erase(BB);
+        if (LVI) LVI->eraseBlock(BB);
         DeleteDeadBlock(BB);
         Changed = true;
       } else if (BranchInst *BI = dyn_cast<BranchInst>(BB->getTerminator())) {
@@ -164,6 +186,11 @@ bool JumpThreading::runOnFunction(Function &F) {
             bool ErasedFromLoopHeaders = LoopHeaders.erase(BB);
             BasicBlock *Succ = BI->getSuccessor(0);
             
+            // FIXME: It is always conservatively correct to drop the info
+            // for a block even if it doesn't get erased.  This isn't totally
+            // awesome, but it allows us to use AssertingVH to prevent nasty
+            // dangling pointer issues within LazyValueInfo.
+            if (LVI) LVI->eraseBlock(BB);
             if (TryToSimplifyUncondBranchFromEmptyBlock(BB)) {
               Changed = true;
               // If we deleted BB and BB was the header of a loop, then the
@@ -251,6 +278,17 @@ void JumpThreading::FindLoopHeaders(Function &F) {
     LoopHeaders.insert(const_cast<BasicBlock*>(Edges[i].second));
 }
 
+// Helper method for ComputeValueKnownInPredecessors.  If Value is a
+// ConstantInt, push it.  If it's an undef, push 0.  Otherwise, do nothing.
+static void PushConstantIntOrUndef(SmallVectorImpl<std::pair<ConstantInt*,
+                                                        BasicBlock*> > &Result,
+                              Constant *Value, BasicBlock* BB){
+  if (ConstantInt *FoldedCInt = dyn_cast<ConstantInt>(Value))
+    Result.push_back(std::make_pair(FoldedCInt, BB));
+  else if (isa<UndefValue>(Value))
+    Result.push_back(std::make_pair((ConstantInt*)0, BB));
+}
+
 /// ComputeValueKnownInPredecessors - Given a basic block BB and a value V, see
 /// if we can infer that the value is a known ConstantInt in any of our
 /// predecessors.  If so, return the known list of value and pred BB in the
@@ -260,12 +298,24 @@ void JumpThreading::FindLoopHeaders(Function &F) {
 ///
 bool JumpThreading::
 ComputeValueKnownInPredecessors(Value *V, BasicBlock *BB,PredValueInfo &Result){
+  // This method walks up use-def chains recursively.  Because of this, we could
+  // get into an infinite loop going around loops in the use-def chain.  To
+  // prevent this, keep track of what (value, block) pairs we've already visited
+  // and terminate the search if we loop back to them
+  if (!RecursionSet.insert(std::make_pair(V, BB)).second)
+    return false;
+  
+  // An RAII help to remove this pair from the recursion set once the recursion
+  // stack pops back out again.
+  RecursionSetRemover remover(RecursionSet, std::make_pair(V, BB));
+  
   // If V is a constantint, then it is known in all predecessors.
   if (isa<ConstantInt>(V) || isa<UndefValue>(V)) {
     ConstantInt *CI = dyn_cast<ConstantInt>(V);
     
     for (pred_iterator PI = pred_begin(BB), E = pred_end(BB); PI != E; ++PI)
       Result.push_back(std::make_pair(CI, *PI));
+    
     return true;
   }
   
@@ -313,8 +363,15 @@ ComputeValueKnownInPredecessors(Value *V, BasicBlock *BB,PredValueInfo &Result){
       if (isa<ConstantInt>(InVal) || isa<UndefValue>(InVal)) {
         ConstantInt *CI = dyn_cast<ConstantInt>(InVal);
         Result.push_back(std::make_pair(CI, PN->getIncomingBlock(i)));
+      } else if (LVI) {
+        Constant *CI = LVI->getConstantOnEdge(InVal,
+                                              PN->getIncomingBlock(i), BB);
+        // LVI returns null is no value could be determined.
+        if (!CI) continue;
+        PushConstantIntOrUndef(Result, CI, PN->getIncomingBlock(i));
       }
     }
+    
     return !Result.empty();
   }
   
@@ -338,29 +395,26 @@ ComputeValueKnownInPredecessors(Value *V, BasicBlock *BB,PredValueInfo &Result){
       else
         InterestingVal = ConstantInt::getFalse(I->getContext());
       
+      SmallPtrSet<BasicBlock*, 4> LHSKnownBBs;
+      
       // Scan for the sentinel.  If we find an undef, force it to the
       // interesting value: x|undef -> true and x&undef -> false.
       for (unsigned i = 0, e = LHSVals.size(); i != e; ++i)
         if (LHSVals[i].first == InterestingVal || LHSVals[i].first == 0) {
           Result.push_back(LHSVals[i]);
           Result.back().first = InterestingVal;
+          LHSKnownBBs.insert(LHSVals[i].second);
         }
       for (unsigned i = 0, e = RHSVals.size(); i != e; ++i)
         if (RHSVals[i].first == InterestingVal || RHSVals[i].first == 0) {
           // If we already inferred a value for this block on the LHS, don't
           // re-add it.
-          bool HasValue = false;
-          for (unsigned r = 0, e = Result.size(); r != e; ++r)
-            if (Result[r].second == RHSVals[i].second) {
-              HasValue = true;
-              break;
-            }
-          
-          if (!HasValue) {
+          if (!LHSKnownBBs.count(RHSVals[i].second)) {
             Result.push_back(RHSVals[i]);
             Result.back().first = InterestingVal;
           }
         }
+      
       return !Result.empty();
     }
     
@@ -377,8 +431,27 @@ ComputeValueKnownInPredecessors(Value *V, BasicBlock *BB,PredValueInfo &Result){
         if (Result[i].first)
           Result[i].first =
             cast<ConstantInt>(ConstantExpr::getNot(Result[i].first));
+      
       return true;
     }
+  
+  // Try to simplify some other binary operator values.
+  } else if (BinaryOperator *BO = dyn_cast<BinaryOperator>(I)) {
+    if (ConstantInt *CI = dyn_cast<ConstantInt>(BO->getOperand(1))) {
+      SmallVector<std::pair<ConstantInt*, BasicBlock*>, 8> LHSVals;
+      ComputeValueKnownInPredecessors(BO->getOperand(0), BB, LHSVals);
+    
+      // Try to use constant folding to simplify the binary operator.
+      for (unsigned i = 0, e = LHSVals.size(); i != e; ++i) {
+        Constant *V = LHSVals[i].first ? LHSVals[i].first :
+                                 cast<Constant>(UndefValue::get(BO->getType()));
+        Constant *Folded = ConstantExpr::get(BO->getOpcode(), V, CI);
+        
+        PushConstantIntOrUndef(Result, Folded, LHSVals[i].second);
+      }
+    }
+      
+    return !Result.empty();
   }
   
   // Handle compare with phi operand, where the PHI is defined in this block.
@@ -405,10 +478,8 @@ ComputeValueKnownInPredecessors(Value *V, BasicBlock *BB,PredValueInfo &Result){
           Res = ConstantInt::get(Type::getInt1Ty(LHS->getContext()), ResT);
         }
         
-        if (isa<UndefValue>(Res))
-          Result.push_back(std::make_pair((ConstantInt*)0, PredBB));
-        else if (ConstantInt *CI = dyn_cast<ConstantInt>(Res))
-          Result.push_back(std::make_pair(CI, PredBB));
+        if (Constant *ConstRes = dyn_cast<Constant>(Res))
+          PushConstantIntOrUndef(Result, ConstRes, PredBB);
       }
       
       return !Result.empty();
@@ -418,28 +489,59 @@ ComputeValueKnownInPredecessors(Value *V, BasicBlock *BB,PredValueInfo &Result){
     // If comparing a live-in value against a constant, see if we know the
     // live-in value on any predecessors.
     if (LVI && isa<Constant>(Cmp->getOperand(1)) &&
-        Cmp->getType()->isIntegerTy() && // Not vector compare.
-        (!isa<Instruction>(Cmp->getOperand(0)) ||
-         cast<Instruction>(Cmp->getOperand(0))->getParent() != BB)) {
-      Constant *RHSCst = cast<Constant>(Cmp->getOperand(1));
+        Cmp->getType()->isIntegerTy()) {
+      if (!isa<Instruction>(Cmp->getOperand(0)) ||
+          cast<Instruction>(Cmp->getOperand(0))->getParent() != BB) {
+        Constant *RHSCst = cast<Constant>(Cmp->getOperand(1));
 
-      for (pred_iterator PI = pred_begin(BB), E = pred_end(BB); PI != E; ++PI) {
-        BasicBlock *P = *PI;
-        // If the value is known by LazyValueInfo to be a constant in a
-        // predecessor, use that information to try to thread this block.
-        LazyValueInfo::Tristate
-          Res = LVI->getPredicateOnEdge(Cmp->getPredicate(), Cmp->getOperand(0),
-                                        RHSCst, P, BB);
-        if (Res == LazyValueInfo::Unknown)
-          continue;
+        for (pred_iterator PI = pred_begin(BB), E = pred_end(BB);PI != E; ++PI){
+          BasicBlock *P = *PI;
+          // If the value is known by LazyValueInfo to be a constant in a
+          // predecessor, use that information to try to thread this block.
+          LazyValueInfo::Tristate Res =
+            LVI->getPredicateOnEdge(Cmp->getPredicate(), Cmp->getOperand(0),
+                                    RHSCst, P, BB);
+          if (Res == LazyValueInfo::Unknown)
+            continue;
 
-        Constant *ResC = ConstantInt::get(Cmp->getType(), Res);
-        Result.push_back(std::make_pair(cast<ConstantInt>(ResC), P));
+          Constant *ResC = ConstantInt::get(Cmp->getType(), Res);
+          Result.push_back(std::make_pair(cast<ConstantInt>(ResC), P));
+        }
+
+        return !Result.empty();
       }
-
-      return !Result.empty();
+      
+      // Try to find a constant value for the LHS of a comparison,
+      // and evaluate it statically if we can.
+      if (Constant *CmpConst = dyn_cast<Constant>(Cmp->getOperand(1))) {
+        SmallVector<std::pair<ConstantInt*, BasicBlock*>, 8> LHSVals;
+        ComputeValueKnownInPredecessors(I->getOperand(0), BB, LHSVals);
+        
+        for (unsigned i = 0, e = LHSVals.size(); i != e; ++i) {
+          Constant *V = LHSVals[i].first ? LHSVals[i].first :
+                           cast<Constant>(UndefValue::get(CmpConst->getType()));
+          Constant *Folded = ConstantExpr::getCompare(Cmp->getPredicate(),
+                                                      V, CmpConst);
+          PushConstantIntOrUndef(Result, Folded, LHSVals[i].second);
+        }
+        
+        return !Result.empty();
+      }
     }
   }
+  
+  if (LVI) {
+    // If all else fails, see if LVI can figure out a constant value for us.
+    Constant *CI = LVI->getConstant(V, BB);
+    ConstantInt *CInt = dyn_cast_or_null<ConstantInt>(CI);
+    if (CInt) {
+      for (pred_iterator PI = pred_begin(BB), E = pred_end(BB); PI != E; ++PI)
+        Result.push_back(std::make_pair(CInt, *PI));
+    }
+    
+    return !Result.empty();
+  }
+  
   return false;
 }
 
@@ -490,6 +592,7 @@ bool JumpThreading::ProcessBlock(BasicBlock *BB) {
       // Remember if SinglePred was the entry block of the function.  If so, we
       // will need to move BB back to the entry position.
       bool isEntry = SinglePred == &SinglePred->getParent()->getEntryBlock();
+      if (LVI) LVI->eraseBlock(SinglePred);
       MergeBasicBlockIntoOnlyPred(BB);
       
       if (isEntry && BB != &BB->getParent()->getEntryBlock())
@@ -601,6 +704,44 @@ bool JumpThreading::ProcessBlock(BasicBlock *BB) {
               }
             }
           }
+      }
+    }
+    
+    // For a comparison where the LHS is outside this block, it's possible
+    // that we've branched on it before.  Used LVI to see if we can simplify
+    // the branch based on that.
+    BranchInst *CondBr = dyn_cast<BranchInst>(BB->getTerminator());
+    Constant *CondConst = dyn_cast<Constant>(CondCmp->getOperand(1));
+    pred_iterator PI = pred_begin(BB), PE = pred_end(BB);
+    if (LVI && CondBr && CondConst && CondBr->isConditional() && PI != PE &&
+        (!isa<Instruction>(CondCmp->getOperand(0)) ||
+         cast<Instruction>(CondCmp->getOperand(0))->getParent() != BB)) {
+      // For predecessor edge, determine if the comparison is true or false
+      // on that edge.  If they're all true or all false, we can simplify the
+      // branch.
+      // FIXME: We could handle mixed true/false by duplicating code.
+      LazyValueInfo::Tristate Baseline =      
+        LVI->getPredicateOnEdge(CondCmp->getPredicate(), CondCmp->getOperand(0),
+                                CondConst, *PI, BB);
+      if (Baseline != LazyValueInfo::Unknown) {
+        // Check that all remaining incoming values match the first one.
+        while (++PI != PE) {
+          LazyValueInfo::Tristate Ret = LVI->getPredicateOnEdge(
+                                          CondCmp->getPredicate(),
+                                          CondCmp->getOperand(0),
+                                          CondConst, *PI, BB);
+          if (Ret != Baseline) break;
+        }
+        
+        // If we terminated early, then one of the values didn't match.
+        if (PI == PE) {
+          unsigned ToRemove = Baseline == LazyValueInfo::True ? 1 : 0;
+          unsigned ToKeep = Baseline == LazyValueInfo::True ? 0 : 1;
+          RemovePredecessorAndSimplify(CondBr->getSuccessor(ToRemove), BB, TD);
+          BranchInst::Create(CondBr->getSuccessor(ToKeep), CondBr);
+          CondBr->eraseFromParent();
+          return true;
+        }
       }
     }
   }
@@ -1020,6 +1161,7 @@ bool JumpThreading::ProcessThreadableEdges(Value *Cond, BasicBlock *BB) {
   SmallVector<std::pair<ConstantInt*, BasicBlock*>, 8> PredValues;
   if (!ComputeValueKnownInPredecessors(Cond, BB, PredValues))
     return false;
+  
   assert(!PredValues.empty() &&
          "ComputeValueKnownInPredecessors returned true with no values");
 
@@ -1314,6 +1456,9 @@ bool JumpThreading::ThreadEdge(BasicBlock *BB,
         << ", across block:\n    "
         << *BB << "\n");
   
+  if (LVI)
+    LVI->threadEdge(PredBB, BB, SuccBB);
+  
   // We are going to have to map operands from the original BB block to the new
   // copy of the block 'NewBB'.  If there are PHI nodes in BB, evaluate them to
   // account for entry from PredBB.
@@ -1383,7 +1528,7 @@ bool JumpThreading::ThreadEdge(BasicBlock *BB,
     // We found a use of I outside of BB.  Rename all uses of I that are outside
     // its block to be uses of the appropriate PHI node etc.  See ValuesInBlocks
     // with the two values we know.
-    SSAUpdate.Initialize(I);
+    SSAUpdate.Initialize(I->getType(), I->getName());
     SSAUpdate.AddAvailableValue(BB, I);
     SSAUpdate.AddAvailableValue(NewBB, ValueMapping[I]);
     
@@ -1538,7 +1683,7 @@ bool JumpThreading::DuplicateCondBranchOnPHIIntoPred(BasicBlock *BB,
     // We found a use of I outside of BB.  Rename all uses of I that are outside
     // its block to be uses of the appropriate PHI node etc.  See ValuesInBlocks
     // with the two values we know.
-    SSAUpdate.Initialize(I);
+    SSAUpdate.Initialize(I->getType(), I->getName());
     SSAUpdate.AddAvailableValue(BB, I);
     SSAUpdate.AddAvailableValue(PredBB, ValueMapping[I]);
     

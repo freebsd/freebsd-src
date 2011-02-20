@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.90 2009/10/11 10:41:26 dtucker Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.92 2010/07/19 03:16:33 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -713,7 +713,8 @@ do_realpath(struct sftp_conn *conn, char *path)
 		u_int status = buffer_get_int(&msg);
 
 		error("Couldn't canonicalise: %s", fx2txt(status));
-		return(NULL);
+		buffer_free(&msg);
+		return NULL;
 	} else if (type != SSH2_FXP_NAME)
 		fatal("Expected SSH2_FXP_NAME(%u) packet, got %u",
 		    SSH2_FXP_NAME, type);
@@ -1522,7 +1523,7 @@ upload_dir_internal(struct sftp_conn *conn, char *src, char *dst,
 				continue;
 
 			if (upload_dir_internal(conn, new_src, new_dst,
-			    pflag, depth + 1, printflag) == -1)
+			    pflag, printflag, depth + 1) == -1)
 				ret = -1;
 		} else if (S_ISREG(sb.st_mode)) {
 			if (do_upload(conn, new_src, new_dst, pflag) == -1) {

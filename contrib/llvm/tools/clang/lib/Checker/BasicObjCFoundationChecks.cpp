@@ -73,9 +73,6 @@ class BasicObjCFoundationChecks : public GRSimpleAPICheck {
   bool isNSString(const ObjCInterfaceType *T, llvm::StringRef suffix);
   bool AuditNSString(ExplodedNode* N, const ObjCMessageExpr* ME);
 
-  void Warn(ExplodedNode* N, const Expr* E, const std::string& s);
-  void WarnNilArg(ExplodedNode* N, const Expr* E);
-
   bool CheckNilArg(ExplodedNode* N, unsigned Arg);
 
 public:
@@ -358,7 +355,7 @@ bool AuditCFNumberCreate::Audit(ExplodedNode* N,GRStateManager&){
   if (!R)
     return false;
 
-  QualType T = Ctx.getCanonicalType(R->getValueType(Ctx));
+  QualType T = Ctx.getCanonicalType(R->getValueType());
 
   // FIXME: If the pointee isn't an integer type, should we flag a warning?
   //  People can do weird stuff with pointers.

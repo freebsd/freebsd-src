@@ -796,12 +796,28 @@ struct scsi_vpd_supported_page_list
 {
 	u_int8_t device;
 	u_int8_t page_code;
-#define	SVPD_SUPPORTED_PAGE_LIST 0x00
+#define	SVPD_SUPPORTED_PAGE_LIST	0x00
+#define	SVPD_SUPPORTED_PAGES_HDR_LEN	4
 	u_int8_t reserved;
 	u_int8_t length;	/* number of VPD entries */
 #define	SVPD_SUPPORTED_PAGES_SIZE	251
 	u_int8_t list[SVPD_SUPPORTED_PAGES_SIZE];
 };
+
+/*
+ * This structure is more suited to target operation, because the
+ * number of supported pages is left to the user to allocate.
+ */
+struct scsi_vpd_supported_pages
+{
+	u_int8_t device;
+	u_int8_t page_code;
+	u_int8_t reserved;
+#define	SVPD_SUPPORTED_PAGES	0x00
+	u_int8_t length;
+	u_int8_t page_list[0];
+};
+
 
 struct scsi_vpd_unit_serial_number
 {
@@ -812,6 +828,148 @@ struct scsi_vpd_unit_serial_number
 	u_int8_t length; /* serial number length */
 #define	SVPD_SERIAL_NUM_SIZE 251
 	u_int8_t serial_num[SVPD_SERIAL_NUM_SIZE];
+};
+
+struct scsi_vpd_device_id
+{
+	u_int8_t device;
+	u_int8_t page_code;
+#define	SVPD_DEVICE_ID			0x83
+#define	SVPD_DEVICE_ID_MAX_SIZE		0xffff
+#define	SVPD_DEVICE_ID_HDR_LEN		4
+#define	SVPD_DEVICE_ID_DESC_HDR_LEN	4
+	u_int8_t length[2];
+	u_int8_t desc_list[0];
+};
+
+struct scsi_vpd_id_descriptor
+{
+	u_int8_t	proto_codeset;
+#define	SCSI_PROTO_FC		0x00
+#define	SCSI_PROTO_SPI		0x01
+#define	SCSI_PROTO_SSA		0x02
+#define	SCSI_PROTO_1394		0x03
+#define	SCSI_PROTO_RDMA		0x04
+#define SCSI_PROTO_iSCSI	0x05
+#define	SCSI_PROTO_SAS		0x06
+#define	SVPD_ID_PROTO_SHIFT	4
+#define	SVPD_ID_CODESET_BINARY	0x01
+#define	SVPD_ID_CODESET_ASCII	0x02
+	u_int8_t	id_type;
+#define	SVPD_ID_PIV		0x80
+#define	SVPD_ID_ASSOC_LUN	0x00
+#define	SVPD_ID_ASSOC_PORT	0x10
+#define	SVPD_ID_ASSOC_TARGET	0x20
+#define	SVPD_ID_TYPE_VENDOR	0x00
+#define	SVPD_ID_TYPE_T10	0x01
+#define	SVPD_ID_TYPE_EUI64	0x02
+#define	SVPD_ID_TYPE_NAA	0x03
+#define	SVPD_ID_TYPE_RELTARG	0x04
+#define	SVPD_ID_TYPE_TPORTGRP	0x05
+#define	SVPD_ID_TYPE_LUNGRP	0x06
+#define	SVPD_ID_TYPE_MD5_LUN_ID	0x07
+#define	SVPD_ID_TYPE_SCSI_NAME	0x08
+#define	SVPD_ID_TYPE_MASK	0x0f
+	u_int8_t	reserved;
+	u_int8_t	length;
+	u_int8_t	identifier[0];
+};
+
+struct scsi_vpd_id_t10
+{
+	u_int8_t	vendor[8];
+	u_int8_t	vendor_spec_id[0];
+};
+
+struct scsi_vpd_id_eui64
+{
+	u_int8_t	ieee_company_id[3];
+	u_int8_t	extension_id[5];
+};
+
+struct scsi_vpd_id_naa_basic
+{
+	uint8_t naa;
+	/* big endian, packed:
+	uint8_t	naa : 4;
+	uint8_t naa_desig : 4;
+	*/
+#define	SVPD_ID_NAA_IEEE_EXT		0x02
+#define	SVPD_ID_NAA_LOCAL_REG		0x03
+#define	SVPD_ID_NAA_IEEE_REG		0x05
+#define	SVPD_ID_NAA_IEEE_REG_EXT	0x06
+	uint8_t	naa_data[0];
+};
+
+struct scsi_vpd_id_naa_ieee_extended_id
+{
+	uint8_t naa;
+	uint8_t vendor_specific_id_a;
+	uint8_t ieee_company_id[3];
+	uint8_t vendor_specific_id_b[4];
+};
+
+struct scsi_vpd_id_naa_local_reg
+{
+	uint8_t naa;
+	uint8_t local_value[7];
+};
+
+struct scsi_vpd_id_naa_ieee_reg
+{
+	uint8_t naa;
+	uint8_t reg_value[7];
+	/* big endian, packed:
+	uint8_t naa_basic : 4;
+	uint8_t ieee_company_id_0 : 4;
+	uint8_t ieee_company_id_1[2];
+	uint8_t ieee_company_id_2 : 4;
+	uint8_t vendor_specific_id_0 : 4;
+	uint8_t vendor_specific_id_1[4];
+	*/
+};
+
+struct scsi_vpd_id_naa_ieee_reg_extended
+{
+	uint8_t naa;
+	uint8_t reg_value[15];
+	/* big endian, packed:
+	uint8_t naa_basic : 4;
+	uint8_t ieee_company_id_0 : 4;
+	uint8_t ieee_company_id_1[2];
+	uint8_t ieee_company_id_2 : 4;
+	uint8_t vendor_specific_id_0 : 4;
+	uint8_t vendor_specific_id_1[4];
+	uint8_t vendor_specific_id_ext[8];
+	*/
+};
+
+struct scsi_vpd_id_rel_trgt_port_id
+{
+	uint8_t obsolete[2];
+	uint8_t rel_trgt_port_id[2];
+};
+
+struct scsi_vpd_id_trgt_port_grp_id
+{
+	uint8_t reserved[2];
+	uint8_t trgt_port_grp[2];
+};
+
+struct scsi_vpd_id_lun_grp_id
+{
+	uint8_t reserved[2];
+	uint8_t log_unit_grp[2];
+};
+
+struct scsi_vpd_id_md5_lun_id
+{
+	uint8_t lun_id[16];
+};
+
+struct scsi_vpd_id_scsi_name
+{
+	uint8_t name_string[256];
 };
 
 struct scsi_read_capacity
@@ -1164,7 +1322,8 @@ void		scsi_print_inquiry(struct scsi_inquiry_data *inq_data);
 
 u_int		scsi_calc_syncsrate(u_int period_factor);
 u_int		scsi_calc_syncparam(u_int period);
-	
+uint8_t *	scsi_get_sas_addr(struct scsi_vpd_device_id *id, uint32_t len);
+
 void		scsi_test_unit_ready(struct ccb_scsiio *csio, u_int32_t retries,
 				     void (*cbfcnp)(struct cam_periph *, 
 						    union ccb *),

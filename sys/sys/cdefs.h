@@ -62,8 +62,6 @@
 #define __GNUCLIKE___OFFSETOF 1
 #define __GNUCLIKE___SECTION 1
 
-#define __GNUCLIKE_ATTRIBUTE_MODE_DI 1
-
 #ifndef __INTEL_COMPILER
 # define __GNUCLIKE_CTOR_SECTION_HANDLING 1
 #endif
@@ -306,8 +304,8 @@
 #endif
 
 #if __GNUC_PREREQ__(4, 2)
-#define	__hidden	__attribute((visibility("hidden")))
-#define	__exported	__attribute((visibility("default")))
+#define	__hidden	__attribute__((__visibility__("hidden")))
+#define	__exported	__attribute__((__visibility__("default")))
 #else
 #define	__hidden
 #define	__exported
@@ -400,6 +398,9 @@
 	__asm__(".symver impl, sym@@verid")
 #endif	/* __STDC__ */
 #endif	/* __GNUC__ || __INTEL_COMPILER */
+
+#define	__GLOBL1(sym)	__asm__(".globl " #sym)
+#define	__GLOBL(sym)	__GLOBL1(sym)
 
 #if defined(__GNUC__) || defined(__INTEL_COMPILER)
 #define	__IDSTRING(name,string)	__asm__(".ident\t\"" string "\"")

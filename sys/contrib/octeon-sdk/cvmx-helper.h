@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -46,16 +48,20 @@
  *
  * Helper functions for common, but complicated tasks.
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 49448 $<hr>
  */
 
 #ifndef __CVMX_HELPER_H__
 #define __CVMX_HELPER_H__
 
-#ifndef CVMX_DONT_INCLUDE_CONFIG
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include <asm/octeon/cvmx.h>
+#include <asm/octeon/cvmx-config.h>
+#elif !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 #include "executive-config.h"
 #include "cvmx-config.h"
 #endif
+
 #include "cvmx-fpa.h"
 #include "cvmx-wqe.h"
 
@@ -75,6 +81,7 @@ typedef enum
     CVMX_HELPER_INTERFACE_MODE_PICMG,
     CVMX_HELPER_INTERFACE_MODE_NPI,
     CVMX_HELPER_INTERFACE_MODE_LOOP,
+    CVMX_HELPER_INTERFACE_MODE_SRIO,
 } cvmx_helper_interface_mode_t;
 
 typedef union
@@ -99,6 +106,7 @@ typedef union
 #include "cvmx-helper-rgmii.h"
 #include "cvmx-helper-sgmii.h"
 #include "cvmx-helper-spi.h"
+#include "cvmx-helper-srio.h"
 #include "cvmx-helper-xaui.h"
 
 /**
@@ -149,6 +157,26 @@ extern int cvmx_helper_initialize_packet_io_global(void);
  * @return Zero on success, non-zero on failure
  */
 extern int cvmx_helper_initialize_packet_io_local(void);
+
+/**
+ * Undo the initialization performed in
+ * cvmx_helper_initialize_packet_io_global(). After calling this routine and the
+ * local version on each core, packet IO for Octeon will be disabled and placed
+ * in the initial reset state. It will then be safe to call the initialize
+ * later on. Note that this routine does not empty the FPA pools. It frees all
+ * buffers used by the packet IO hardware to the FPA so a function emptying the
+ * FPA after shutdown should find all packet buffers in the FPA.
+ *
+ * @return Zero on success, negative on failure.
+ */
+extern int cvmx_helper_shutdown_packet_io_global(void);
+
+/**
+ * Does core local shutdown of packet io
+ *
+ * @return Zero on success, non-zero on failure
+ */
+extern int cvmx_helper_shutdown_packet_io_local(void);
 
 /**
  * Returns the number of ports on the given interface.

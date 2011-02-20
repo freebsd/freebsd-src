@@ -34,8 +34,7 @@ using namespace llvm;
 // Handle the Pass registration stuff necessary to use TargetData's.
 
 // Register the default SparcV9 implementation...
-static RegisterPass<TargetData> X("targetdata", "Target Data Layout", false, 
-                                  true);
+INITIALIZE_PASS(TargetData, "targetdata", "Target Data Layout", false, true);
 char TargetData::ID = 0;
 
 //===----------------------------------------------------------------------===//
@@ -98,8 +97,8 @@ unsigned StructLayout::getElementContainingOffset(uint64_t Offset) const {
 //===----------------------------------------------------------------------===//
 
 TargetAlignElem
-TargetAlignElem::get(AlignTypeEnum align_type, unsigned char abi_align,
-                     unsigned char pref_align, uint32_t bit_width) {
+TargetAlignElem::get(AlignTypeEnum align_type, unsigned abi_align,
+                     unsigned pref_align, uint32_t bit_width) {
   assert(abi_align <= pref_align && "Preferred alignment worse than ABI!");
   TargetAlignElem retval;
   retval.AlignType = align_type;
@@ -197,10 +196,10 @@ void TargetData::init(StringRef Desc) {
       }
       unsigned Size = getInt(Specifier.substr(1));
       Split = Token.split(':');
-      unsigned char ABIAlign = getInt(Split.first) / 8;
+      unsigned ABIAlign = getInt(Split.first) / 8;
       
       Split = Split.second.split(':');
-      unsigned char PrefAlign = getInt(Split.first) / 8;
+      unsigned PrefAlign = getInt(Split.first) / 8;
       if (PrefAlign == 0)
         PrefAlign = ABIAlign;
       setAlignment(AlignType, ABIAlign, PrefAlign, Size);
@@ -227,19 +226,19 @@ void TargetData::init(StringRef Desc) {
 ///
 /// @note This has to exist, because this is a pass, but it should never be
 /// used.
-TargetData::TargetData() : ImmutablePass(&ID) {
+TargetData::TargetData() : ImmutablePass(ID) {
   report_fatal_error("Bad TargetData ctor used.  "
                     "Tool did not specify a TargetData to use?");
 }
 
 TargetData::TargetData(const Module *M) 
-  : ImmutablePass(&ID) {
+  : ImmutablePass(ID) {
   init(M->getDataLayout());
 }
 
 void
-TargetData::setAlignment(AlignTypeEnum align_type, unsigned char abi_align,
-                         unsigned char pref_align, uint32_t bit_width) {
+TargetData::setAlignment(AlignTypeEnum align_type, unsigned abi_align,
+                         unsigned pref_align, uint32_t bit_width) {
   assert(abi_align <= pref_align && "Preferred alignment worse than ABI!");
   for (unsigned i = 0, e = Alignments.size(); i != e; ++i) {
     if (Alignments[i].AlignType == align_type &&
@@ -455,15 +454,6 @@ uint64_t TargetData::getTypeSizeInBits(const Type *Ty) const {
   case Type::StructTyID:
     // Get the layout annotation... which is lazily created on demand.
     return getStructLayout(cast<StructType>(Ty))->getSizeInBits();
-  case Type::UnionTyID: {
-    const UnionType *UnTy = cast<UnionType>(Ty);
-    uint64_t Size = 0;
-    for (UnionType::element_iterator i = UnTy->element_begin(),
-             e = UnTy->element_end(); i != e; ++i) {
-      Size = std::max(Size, getTypeSizeInBits(*i));
-    }
-    return Size;
-  }
   case Type::IntegerTyID:
     return cast<IntegerType>(Ty)->getBitWidth();
   case Type::VoidTyID:
@@ -496,7 +486,7 @@ uint64_t TargetData::getTypeSizeInBits(const Type *Ty) const {
   Get the ABI (\a abi_or_pref == true) or preferred alignment (\a abi_or_pref
   == false) for the requested type \a Ty.
  */
-unsigned char TargetData::getAlignment(const Type *Ty, bool abi_or_pref) const {
+unsigned TargetData::getAlignment(const Type *Ty, bool abi_or_pref) const {
   int AlignType = -1;
 
   assert(Ty->isSized() && "Cannot getTypeInfo() on a type that is unsized!");
@@ -518,18 +508,7 @@ unsigned char TargetData::getAlignment(const Type *Ty, bool abi_or_pref) const {
     // Get the layout annotation... which is lazily created on demand.
     const StructLayout *Layout = getStructLayout(cast<StructType>(Ty));
     unsigned Align = getAlignmentInfo(AGGREGATE_ALIGN, 0, abi_or_pref, Ty);
-    return std::max(Align, (unsigned)Layout->getAlignment());
-  }
-  case Type::UnionTyID: {
-    const UnionType *UnTy = cast<UnionType>(Ty);
-    unsigned Align = 1;
-
-    // Unions need the maximum alignment of all their entries
-    for (UnionType::element_iterator i = UnTy->element_begin(), 
-             e = UnTy->element_end(); i != e; ++i) {
-      Align = std::max(Align, (unsigned)getAlignment(*i, abi_or_pref));
-    }
-    return Align;
+    return std::max(Align, Layout->getAlignment());
   }
   case Type::IntegerTyID:
   case Type::VoidTyID:
@@ -556,18 +535,18 @@ unsigned char TargetData::getAlignment(const Type *Ty, bool abi_or_pref) const {
                           abi_or_pref, Ty);
 }
 
-unsigned char TargetData::getABITypeAlignment(const Type *Ty) const {
+unsigned TargetData::getABITypeAlignment(const Type *Ty) const {
   return getAlignment(Ty, true);
 }
 
 /// getABIIntegerTypeAlignment - Return the minimum ABI-required alignment for
 /// an integer type of the specified bitwidth.
-unsigned char TargetData::getABIIntegerTypeAlignment(unsigned BitWidth) const {
+unsigned TargetData::getABIIntegerTypeAlignment(unsigned BitWidth) const {
   return getAlignmentInfo(INTEGER_ALIGN, BitWidth, true, 0);
 }
 
 
-unsigned char TargetData::getCallFrameTypeAlignment(const Type *Ty) const {
+unsigned TargetData::getCallFrameTypeAlignment(const Type *Ty) const {
   for (unsigned i = 0, e = Alignments.size(); i != e; ++i)
     if (Alignments[i].AlignType == STACK_ALIGN)
       return Alignments[i].ABIAlign;
@@ -575,12 +554,12 @@ unsigned char TargetData::getCallFrameTypeAlignment(const Type *Ty) const {
   return getABITypeAlignment(Ty);
 }
 
-unsigned char TargetData::getPrefTypeAlignment(const Type *Ty) const {
+unsigned TargetData::getPrefTypeAlignment(const Type *Ty) const {
   return getAlignment(Ty, false);
 }
 
-unsigned char TargetData::getPreferredTypeAlignmentShift(const Type *Ty) const {
-  unsigned Align = (unsigned) getPrefTypeAlignment(Ty);
+unsigned TargetData::getPreferredTypeAlignmentShift(const Type *Ty) const {
+  unsigned Align = getPrefTypeAlignment(Ty);
   assert(!(Align & (Align-1)) && "Alignment is not a power of two!");
   return Log2_32(Align);
 }
@@ -615,18 +594,13 @@ uint64_t TargetData::getIndexedOffset(const Type *ptrTy, Value* const* Indices,
 
       // Update Ty to refer to current element
       Ty = STy->getElementType(FieldNo);
-    } else if (const UnionType *UnTy = dyn_cast<UnionType>(*TI)) {
-        unsigned FieldNo = cast<ConstantInt>(Indices[CurIDX])->getZExtValue();
-
-        // Offset into union is canonically 0, but type changes
-        Ty = UnTy->getElementType(FieldNo);
     } else {
       // Update Ty to refer to current element
       Ty = cast<SequentialType>(Ty)->getElementType();
 
       // Get the array index and the size of each array element.
       if (int64_t arrayIdx = cast<ConstantInt>(Indices[CurIDX])->getSExtValue())
-        Result += arrayIdx * (int64_t)getTypeAllocSize(Ty);
+        Result += (uint64_t)arrayIdx * getTypeAllocSize(Ty);
     }
   }
 

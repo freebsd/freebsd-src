@@ -46,9 +46,9 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Type.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopPass.h"
-#include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Support/CFG.h"
@@ -65,27 +65,30 @@ STATISTIC(NumNested  , "Number of nested loops split out");
 namespace {
   struct LoopSimplify : public LoopPass {
     static char ID; // Pass identification, replacement for typeid
-    LoopSimplify() : LoopPass(&ID) {}
+    LoopSimplify() : LoopPass(ID) {}
 
     // AA - If we have an alias analysis object to update, this is it, otherwise
     // this is null.
     AliasAnalysis *AA;
     LoopInfo *LI;
     DominatorTree *DT;
+    ScalarEvolution *SE;
     Loop *L;
     virtual bool runOnLoop(Loop *L, LPPassManager &LPM);
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       // We need loop information to identify the loops...
-      AU.addRequiredTransitive<LoopInfo>();
-      AU.addRequiredTransitive<DominatorTree>();
-
-      AU.addPreserved<LoopInfo>();
+      AU.addRequired<DominatorTree>();
       AU.addPreserved<DominatorTree>();
-      AU.addPreserved<DominanceFrontier>();
+
+      AU.addRequired<LoopInfo>();
+      AU.addPreserved<LoopInfo>();
+
       AU.addPreserved<AliasAnalysis>();
       AU.addPreserved<ScalarEvolution>();
       AU.addPreservedID(BreakCriticalEdgesID);  // No critical edges added.
+      AU.addPreserved<DominanceFrontier>();
+      AU.addPreservedID(LCSSAID);
     }
 
     /// verifyAnalysis() - Verify LoopSimplifyForm's guarantees.
@@ -104,11 +107,11 @@ namespace {
 }
 
 char LoopSimplify::ID = 0;
-static RegisterPass<LoopSimplify>
-X("loopsimplify", "Canonicalize natural loops", true);
+INITIALIZE_PASS(LoopSimplify, "loopsimplify",
+                "Canonicalize natural loops", true, false);
 
 // Publically exposed interface to pass...
-const PassInfo *const llvm::LoopSimplifyID = &X;
+char &llvm::LoopSimplifyID = LoopSimplify::ID;
 Pass *llvm::createLoopSimplifyPass() { return new LoopSimplify(); }
 
 /// runOnLoop - Run down all loops in the CFG (recursively, but we could do
@@ -120,6 +123,7 @@ bool LoopSimplify::runOnLoop(Loop *l, LPPassManager &LPM) {
   LI = &getAnalysis<LoopInfo>();
   AA = getAnalysisIfAvailable<AliasAnalysis>();
   DT = &getAnalysis<DominatorTree>();
+  SE = getAnalysisIfAvailable<ScalarEvolution>();
 
   Changed |= ProcessLoop(L, LPM);
 
@@ -141,15 +145,16 @@ ReprocessLoop:
        BB != E; ++BB) {
     if (*BB == L->getHeader()) continue;
 
-    SmallPtrSet<BasicBlock *, 4> BadPreds;
-    for (pred_iterator PI = pred_begin(*BB), PE = pred_end(*BB); PI != PE; ++PI){
+    SmallPtrSet<BasicBlock*, 4> BadPreds;
+    for (pred_iterator PI = pred_begin(*BB),
+         PE = pred_end(*BB); PI != PE; ++PI) {
       BasicBlock *P = *PI;
       if (!L->contains(P))
         BadPreds.insert(P);
     }
 
     // Delete each unique out-of-loop (and thus dead) predecessor.
-    for (SmallPtrSet<BasicBlock *, 4>::iterator I = BadPreds.begin(),
+    for (SmallPtrSet<BasicBlock*, 4>::iterator I = BadPreds.begin(),
          E = BadPreds.end(); I != E; ++I) {
 
       DEBUG(dbgs() << "LoopSimplify: Deleting edge from dead predecessor ";
@@ -530,6 +535,12 @@ Loop *LoopSimplify::SeparateNestedLoop(Loop *L, LPPassManager &LPM) {
 
   DEBUG(dbgs() << "LoopSimplify: Splitting out a new outer loop\n");
 
+  // If ScalarEvolution is around and knows anything about values in
+  // this loop, tell it to forget them, because we're about to
+  // substantially change it.
+  if (SE)
+    SE->forgetLoop(L);
+
   BasicBlock *Header = L->getHeader();
   BasicBlock *NewBB = SplitBlockPredecessors(Header, &OuterLoopPreds[0],
                                              OuterLoopPreds.size(),
@@ -619,6 +630,11 @@ LoopSimplify::InsertUniqueBackedgeBlock(Loop *L, BasicBlock *Preheader) {
   std::vector<BasicBlock*> BackedgeBlocks;
   for (pred_iterator I = pred_begin(Header), E = pred_end(Header); I != E; ++I){
     BasicBlock *P = *I;
+
+    // Indirectbr edges cannot be split, so we must fail if we find one.
+    if (isa<IndirectBrInst>(P->getTerminator()))
+      return 0;
+
     if (P != Preheader) BackedgeBlocks.push_back(P);
   }
 

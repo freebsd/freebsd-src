@@ -33,7 +33,6 @@ L"Microsoft Enhanced RSA and AES Cryptographic Provider (Prototype)"
 #define CALG_HMAC (ALG_CLASS_HASH | ALG_TYPE_ANY | ALG_SID_HMAC)
 #endif
 
-#ifdef CONFIG_TLS_INTERNAL
 #ifdef __MINGW32_VERSION
 /*
  * MinGW does not yet include all the needed definitions for CryptoAPI, so
@@ -83,7 +82,6 @@ static int mingw_load_crypto_func(void)
 }
 
 #endif /* __MINGW32_VERSION */
-#endif /* CONFIG_TLS_INTERNAL */
 
 
 static void cryptoapi_report_error(const char *msg)
@@ -152,9 +150,9 @@ int cryptoapi_hash_vector(ALG_ID alg, size_t hash_len, size_t num_elem,
 }
 
 
-void md4_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
+int md4_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
-	cryptoapi_hash_vector(CALG_MD4, 16, num_elem, addr, len, mac);
+	return cryptoapi_hash_vector(CALG_MD4, 16, num_elem, addr, len, mac);
 }
 
 
@@ -223,16 +221,15 @@ void des_encrypt(const u8 *clear, const u8 *key, u8 *cypher)
 }
 
 
-#ifdef EAP_TLS_FUNCS
-void md5_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
+int md5_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
-	cryptoapi_hash_vector(CALG_MD5, 16, num_elem, addr, len, mac);
+	return cryptoapi_hash_vector(CALG_MD5, 16, num_elem, addr, len, mac);
 }
 
 
-void sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
+int sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
-	cryptoapi_hash_vector(CALG_SHA, 20, num_elem, addr, len, mac);
+	return cryptoapi_hash_vector(CALG_SHA, 20, num_elem, addr, len, mac);
 }
 
 
@@ -349,7 +346,6 @@ void aes_decrypt_deinit(void *ctx)
 	aes_encrypt_deinit(ctx);
 }
 
-#ifdef CONFIG_TLS_INTERNAL
 
 struct crypto_hash {
 	enum crypto_hash_alg alg;
@@ -657,7 +653,8 @@ struct crypto_public_key * crypto_public_key_import(const u8 *key, size_t len)
 
 
 struct crypto_private_key * crypto_private_key_import(const u8 *key,
-						      size_t len)
+						      size_t len,
+						      const char *passwd)
 {
 	/* TODO */
 	return NULL;
@@ -781,6 +778,12 @@ void crypto_global_deinit(void)
 {
 }
 
-#endif /* CONFIG_TLS_INTERNAL */
 
-#endif /* EAP_TLS_FUNCS */
+int crypto_mod_exp(const u8 *base, size_t base_len,
+		   const u8 *power, size_t power_len,
+		   const u8 *modulus, size_t modulus_len,
+		   u8 *result, size_t *result_len)
+{
+	/* TODO */
+	return -1;
+}

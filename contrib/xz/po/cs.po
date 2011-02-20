@@ -1,11 +1,16 @@
+# XZ Utils Czech translation
+# This file is put in the public domain.
+# Marek Černocký <marek@manet.cz>, 2010.
+#
 msgid ""
 msgstr ""
 "Project-Id-Version: xz-utils\n"
 "Report-Msgid-Bugs-To: lasse.collin@tukaani.org\n"
-"POT-Creation-Date: 2009-12-04 16:04+0100\n"
-"PO-Revision-Date: 2009-12-05 13:51+0100\n"
+"POT-Creation-Date: 2010-10-23 17:48+0300\n"
+"PO-Revision-Date: 2010-09-17 18:54+0200\n"
 "Last-Translator: Marek Černocký <marek@manet.cz>\n"
 "Language-Team: Czech <diskuze@lists.l10n.cz>\n"
+"Language: cs\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -13,231 +18,448 @@ msgstr ""
 "X-Poedit-Language: Czech\n"
 "X-Poedit-SourceCharset: utf-8\n"
 
-#: src/xz/args.c:306
+#: src/xz/args.c:333
 #, c-format
 msgid "%s: Unknown file format type"
 msgstr "%s: Neznámý typ formátu souboru"
 
-#: src/xz/args.c:329 src/xz/args.c:337
+#: src/xz/args.c:356 src/xz/args.c:364
 #, c-format
 msgid "%s: Unsupported integrity check type"
 msgstr "%s: Neznámý typ kontroly integrity"
 
-#: src/xz/args.c:355
-msgid "Only one file can be specified with `--files'or `--files0'."
-msgstr ""
-"Můžete zadat pouze jeden soubor spolu s přepínači „--files“ nebo „--files0“"
+#: src/xz/args.c:382
+msgid "Only one file can be specified with `--files' or `--files0'."
+msgstr "Spolu s přepínači „--files“ nebo „--files0“ může být zadán pouze jeden soubor"
 
-#: src/xz/args.c:413
-msgid "The environment variable XZ_OPT contains too many arguments"
-msgstr "Proměnná prostředí XZ_OPT obsahuje příliš mnoho argumentů"
+#: src/xz/args.c:445
+#, c-format
+msgid "The environment variable %s contains too many arguments"
+msgstr "Proměnná prostředí %s obsahuje příliš mnoho argumentů"
 
 #: src/xz/coder.c:95
 msgid "Maximum number of filters is four"
 msgstr "Maximální počet filtrů je čtyři"
 
 #: src/xz/coder.c:108
-#, c-format
-msgid ""
-"Memory usage limit (%<PRIu64> MiB) is too small for the given filter setup (%"
-"<PRIu64> MiB)"
-msgstr ""
-"Omezení použitelné paměti (%<PRIu64> MiB) je příliš malé pro dané nastavení "
-"filtru (%<PRIu64> MiB)"
+msgid "Memory usage limit is too low for the given filter setup."
+msgstr "Omezení použitelné paměti je příliš malé pro dané nastavení filtru."
 
-#: src/xz/coder.c:128
+#: src/xz/coder.c:129
 msgid "Using a preset in raw mode is discouraged."
 msgstr "Použití přednastavení v režimu raw je nevhodné."
 
-#: src/xz/coder.c:130
+#: src/xz/coder.c:131
 msgid "The exact options of the presets may vary between software versions."
-msgstr ""
-"Přesné volby u přednastavení se mohou lišit mezi různými verzemi softwaru."
+msgstr "Přesné volby u přednastavení se mohou lišit mezi různými verzemi softwaru."
 
-#: src/xz/coder.c:158
+#: src/xz/coder.c:157
 msgid "The .lzma format supports only the LZMA1 filter"
 msgstr "Formát .lzma podporuje pouze filtr LZMA1"
 
-#: src/xz/coder.c:166
+#: src/xz/coder.c:165
 msgid "LZMA1 cannot be used with the .xz format"
 msgstr "LZMA1 nelze použít s formátem .xz"
 
-#: src/xz/coder.c:186
-#, c-format
-msgid "%s MiB (%s B) of memory is required per thread, limit is %s MiB (%s B)"
-msgstr ""
-"Je vyžadováno %s MiB (%s B) paměti pro každé vlákno, limit je %s MiB (%s B)"
+#: src/xz/coder.c:182
+msgid "Unsupported filter chain or filter options"
+msgstr "Nepodporovaný omezující filtr nebo volby filtru"
 
-#: src/xz/coder.c:554
+#: src/xz/coder.c:190
 #, c-format
-msgid "Limit was %s MiB, but %s MiB would have been needed"
-msgstr "Limit byl %s MiB, ale bylo by zapotřebí %s MiB"
+msgid "Decompression will need %s MiB of memory."
+msgstr "Dekomprimace bude vyžadovat %s MiB paměti."
 
-#: src/xz/file_io.c:113
+#: src/xz/coder.c:247
 #, c-format
-msgid "%s: File seems to be moved, not removing"
-msgstr "%s: Vypadá to, že soubor byl přesunut, neodstraní se"
+msgid "Adjusted LZMA%c dictionary size from %s MiB to %s MiB to not exceed the memory usage limit of %s MiB"
+msgstr "Přizpůsobit velikost slovníku LZMA%c z %s MiB na %s MiB, tak aby nebylo překročeno omezení použitelné paměti %s MiB"
 
-#: src/xz/file_io.c:120 src/xz/file_io.c:527
+#. TRANSLATORS: When compression or decompression finishes,
+#. and xz is going to remove the source file, xz first checks
+#. if the source file still exists, and if it does, does its
+#. device and inode numbers match what xz saw when it opened
+#. the source file. If these checks fail, this message is
+#. shown, %s being the filename, and the file is not deleted.
+#. The check for device and inode numbers is there, because
+#. it is possible that the user has put a new file in place
+#. of the original file, and in that case it obviously
+#. shouldn't be removed.
+#: src/xz/file_io.c:137
+#, c-format
+msgid "%s: File seems to have been moved, not removing"
+msgstr "%s: Vypadá to, že soubor byl přesunut, proto nebude odstraněn"
+
+#: src/xz/file_io.c:144 src/xz/file_io.c:590
 #, c-format
 msgid "%s: Cannot remove: %s"
 msgstr "%s: Nelze odstranit: %s"
 
-#: src/xz/file_io.c:145
+#: src/xz/file_io.c:169
 #, c-format
 msgid "%s: Cannot set the file owner: %s"
 msgstr "%s: Nelze nastavit vlastníka souboru: %s"
 
-#: src/xz/file_io.c:151
+#: src/xz/file_io.c:175
 #, c-format
 msgid "%s: Cannot set the file group: %s"
 msgstr "%s: Nelze nastavit skupinu souboru: %s"
 
-#: src/xz/file_io.c:170
+#: src/xz/file_io.c:194
 #, c-format
 msgid "%s: Cannot set the file permissions: %s"
 msgstr "%s: Nelze nastavit oprávnění souboru: %s"
 
-#: src/xz/file_io.c:308 src/xz/file_io.c:387
+#: src/xz/file_io.c:337 src/xz/file_io.c:420
 #, c-format
 msgid "%s: Is a symbolic link, skipping"
 msgstr "%s: Jedná se o symbolický odkaz, vynechává se"
 
-#: src/xz/file_io.c:422
+#: src/xz/file_io.c:455
 #, c-format
 msgid "%s: Is a directory, skipping"
 msgstr "%s: Jedná se o složku, vynechává se"
 
-#: src/xz/file_io.c:429
+#: src/xz/file_io.c:462
 #, c-format
 msgid "%s: Not a regular file, skipping"
 msgstr "%s: Nejedná se o běžný soubor, vynechává se"
 
-#: src/xz/file_io.c:446
+#: src/xz/file_io.c:479
 #, c-format
 msgid "%s: File has setuid or setgid bit set, skipping"
 msgstr "%s: Soubor má nastavený bit setuid nebo setgid, vynechává se"
 
-#: src/xz/file_io.c:453
+#: src/xz/file_io.c:486
 #, c-format
 msgid "%s: File has sticky bit set, skipping"
 msgstr "%s: Soubor má nastavený bit sticky, vynechává se"
 
-#: src/xz/file_io.c:460
+#: src/xz/file_io.c:493
 #, c-format
 msgid "%s: Input file has more than one hard link, skipping"
 msgstr "%s: Vstupní soubor má více než jeden pevný odkaz, vynechává se"
 
-#: src/xz/file_io.c:644
+#: src/xz/file_io.c:714
 #, c-format
 msgid "Error restoring the O_APPEND flag to standard output: %s"
 msgstr "Chyba při obnovení příznaku O_APPEND na standardní výstup: %s"
 
-#: src/xz/file_io.c:655
+#: src/xz/file_io.c:726
 #, c-format
 msgid "%s: Closing the file failed: %s"
 msgstr "%s: Selhalo zavření souboru: %s"
 
-#: src/xz/file_io.c:732 src/xz/file_io.c:889
+#: src/xz/file_io.c:762 src/xz/file_io.c:946
 #, c-format
 msgid "%s: Seeking failed when trying to create a sparse file: %s"
-msgstr ""
-"%s: Selhalo nastavení pozice při pokusu o vytvoření záložního souboru: %s"
+msgstr "%s: Selhalo nastavení pozice při pokusu o vytvoření záložního souboru: %s"
 
-#: src/xz/file_io.c:789
+#: src/xz/file_io.c:821
 #, c-format
 msgid "%s: Read error: %s"
 msgstr "%s: Chyba čtení: %s"
 
-#: src/xz/file_io.c:847
+#: src/xz/file_io.c:844
+#, c-format
+msgid "%s: Error seeking the file: %s"
+msgstr "%s: Chyba při posunu v rámci souboru: %s"
+
+#: src/xz/file_io.c:854
+#, c-format
+msgid "%s: Unexpected end of file"
+msgstr "%s: Neočekávaný konec souboru"
+
+#: src/xz/file_io.c:904
 #, c-format
 msgid "%s: Write error: %s"
 msgstr "%s: Chyba zápisu: %s"
 
-#: src/xz/main.c:76
+#: src/xz/hardware.c:100
+msgid "Disabled"
+msgstr "Vypnuto"
+
+#. TRANSLATORS: Test with "xz --info-memory" to see if
+#. the alignment looks nice.
+#: src/xz/hardware.c:119
+msgid "Total amount of physical memory (RAM): "
+msgstr "Celkové množství fyzické paměti (RAM):     "
+
+#: src/xz/hardware.c:121
+msgid "Memory usage limit for compression:    "
+msgstr "Omezení použitelné paměti pro komprimaci:  "
+
+#: src/xz/hardware.c:123
+msgid "Memory usage limit for decompression:  "
+msgstr "Omezení použitelné paměti pro dekomprimaci:"
+
+#. TRANSLATORS: Indicates that there is no integrity check.
+#. This string is used in tables, so the width must not
+#. exceed ten columns with a fixed-width font.
+#: src/xz/list.c:62
+msgid "None"
+msgstr "žádná"
+
+#. TRANSLATORS: Indicates that integrity check name is not known,
+#. but the Check ID is known (here 2). This and other "Unknown-N"
+#. strings are used in tables, so the width must not exceed ten
+#. columns with a fixed-width font. It's OK to omit the dash if
+#. you need space for one extra letter, but don't use spaces.
+#: src/xz/list.c:69
+msgid "Unknown-2"
+msgstr "neznámá-2"
+
+#: src/xz/list.c:70
+msgid "Unknown-3"
+msgstr "neznámá-3"
+
+#: src/xz/list.c:72
+msgid "Unknown-5"
+msgstr "neznámá-5"
+
+#: src/xz/list.c:73
+msgid "Unknown-6"
+msgstr "neznámá-6"
+
+#: src/xz/list.c:74
+msgid "Unknown-7"
+msgstr "neznámá-7"
+
+#: src/xz/list.c:75
+msgid "Unknown-8"
+msgstr "neznámá-8"
+
+#: src/xz/list.c:76
+msgid "Unknown-9"
+msgstr "neznámá-9"
+
+#: src/xz/list.c:78
+msgid "Unknown-11"
+msgstr "neznámá-11"
+
+#: src/xz/list.c:79
+msgid "Unknown-12"
+msgstr "neznámá-12"
+
+#: src/xz/list.c:80
+msgid "Unknown-13"
+msgstr "neznámá-13"
+
+#: src/xz/list.c:81
+msgid "Unknown-14"
+msgstr "neznámá-14"
+
+#: src/xz/list.c:82
+msgid "Unknown-15"
+msgstr "neznámá-15"
+
+#: src/xz/list.c:126
+#, c-format
+msgid "%s: File is empty"
+msgstr "%s: Soubor je prázdný"
+
+#: src/xz/list.c:131
+#, c-format
+msgid "%s: Too small to be a valid .xz file"
+msgstr "%s: Je příliš malý na to, aby to mohl být platný soubor .xz"
+
+#. TRANSLATORS: These are column headings. From Strms (Streams)
+#. to Ratio, the columns are right aligned. Check and Filename
+#. are left aligned. If you need longer words, it's OK to
+#. use two lines here. Test with "xz -l foo.xz".
+#: src/xz/list.c:612
+msgid "Strms  Blocks   Compressed Uncompressed  Ratio  Check   Filename"
+msgstr "Proud   Bloky      Komprim    Nekomprim  Poměr  Kontrl  Název souboru"
+
+#: src/xz/list.c:652
+#, c-format
+msgid "  Streams:            %s\n"
+msgstr "  Proudů:                  %s\n"
+
+#: src/xz/list.c:654
+#, c-format
+msgid "  Blocks:             %s\n"
+msgstr "  Bloků:                   %s\n"
+
+#: src/xz/list.c:656
+#, c-format
+msgid "  Compressed size:    %s\n"
+msgstr "  Komprimovaná velikost:   %s\n"
+
+#: src/xz/list.c:659
+#, c-format
+msgid "  Uncompressed size:  %s\n"
+msgstr "  Nekomprimovaná velikost: %s\n"
+
+#: src/xz/list.c:662
+#, c-format
+msgid "  Ratio:              %s\n"
+msgstr "  Poměr komprimace:        %s\n"
+
+#: src/xz/list.c:664
+#, c-format
+msgid "  Check:              %s\n"
+msgstr "  Typ kontroly:            %s\n"
+
+#: src/xz/list.c:665
+#, c-format
+msgid "  Stream padding:     %s\n"
+msgstr "  Zarovnání proudu:        %s\n"
+
+#. TRANSLATORS: The second line is column headings. All except
+#. Check are right aligned; Check is left aligned. Test with
+#. "xz -lv foo.xz".
+#: src/xz/list.c:693
+msgid ""
+"  Streams:\n"
+"    Stream    Blocks      CompOffset    UncompOffset        CompSize      UncompSize  Ratio  Check      Padding"
+msgstr ""
+"  Proudy:\n"
+"     Proud     Bloky     KomprPozice   NekomprPozice   KomprVelikost NekomprVelikost  Poměr  Kontrola   Zarovnání"
+
+#. TRANSLATORS: The second line is column headings. All
+#. except Check are right aligned; Check is left aligned.
+#: src/xz/list.c:748
+#, c-format
+msgid ""
+"  Blocks:\n"
+"    Stream     Block      CompOffset    UncompOffset       TotalSize      UncompSize  Ratio  Check"
+msgstr ""
+"  Bloky:\n"
+"     Proud      Blok     KomprPozice   NekomprPozice    CelkVelikost NekomprVelikost  Poměr  Kontrola"
+
+#. TRANSLATORS: These are additional column headings
+#. for the most verbose listing mode. CheckVal
+#. (Check value), Flags, and Filters are left aligned.
+#. Header (Block Header Size), CompSize, and MemUsage
+#. are right aligned. %*s is replaced with 0-120
+#. spaces to make the CheckVal column wide enough.
+#. Test with "xz -lvv foo.xz".
+#: src/xz/list.c:760
+#, c-format
+msgid "      CheckVal %*s Header  Flags        CompSize    MemUsage  Filters"
+msgstr "   KontrHod %*s Hlavič  Příznaky     KomprVel    PoužiPam  Filtry"
+
+#: src/xz/list.c:838 src/xz/list.c:1007
+#, c-format
+msgid "  Memory needed:      %s MiB\n"
+msgstr "  Potřebná paměť:          %s MiB\n"
+
+#: src/xz/list.c:840 src/xz/list.c:1009
+#, c-format
+msgid "  Sizes in headers:   %s\n"
+msgstr "  Velikosti v hlavičkách:  %s\n"
+
+#: src/xz/list.c:841 src/xz/list.c:1010
+msgid "Yes"
+msgstr "Ano"
+
+#: src/xz/list.c:841 src/xz/list.c:1010
+msgid "No"
+msgstr "Ne"
+
+#. TRANSLATORS: %s is an integer. Only the plural form of this
+#. message is used (e.g. "2 files"). Test with "xz -l foo.xz bar.xz".
+#: src/xz/list.c:986
+#, c-format
+msgid "%s file\n"
+msgid_plural "%s files\n"
+msgstr[0] "%s soubor\n"
+msgstr[1] "%s soubory\n"
+msgstr[2] "%s souborů\n"
+
+#: src/xz/list.c:999
+msgid "Totals:"
+msgstr "Celkem:"
+
+#: src/xz/list.c:1000
+#, c-format
+msgid "  Number of files:    %s\n"
+msgstr "  Počet souborů:           %s\n"
+
+#: src/xz/list.c:1072
+msgid "--list works only on .xz files (--format=xz or --format=auto)"
+msgstr "--list pracuje pouze se soubory .xz (--format=xz nebo --format=auto)"
+
+#: src/xz/list.c:1078
+msgid "--list does not support reading from standard input"
+msgstr "--list nepodporuje čtení ze standardního vstupu"
+
+#: src/xz/main.c:89
 #, c-format
 msgid "%s: Error reading filenames: %s"
 msgstr "%s: Chyba při čtení názvů souborů: %s"
 
-#: src/xz/main.c:83
+#: src/xz/main.c:96
 #, c-format
 msgid "%s: Unexpected end of input when reading filenames"
 msgstr "%s: Neočekávaný konec vstupu při čtení názvů souborů"
 
-#: src/xz/main.c:107
+#: src/xz/main.c:120
 #, c-format
-msgid ""
-"%s: Null character found when reading filenames; maybe you meant to use `--"
-"files0' instead of `--files'?"
-msgstr ""
-"%s: Byl nalezen nulový znak při čtení názvů souborů; nechtěli jste náhodou "
-"použít „--files0“ místo „--files“?"
+msgid "%s: Null character found when reading filenames; maybe you meant to use `--files0' instead of `--files'?"
+msgstr "%s: Byl nalezen nulový znak při čtení názvů souborů; nechtěli jste náhodou použít „--files0“ místo „--files“?"
 
-#: src/xz/main.c:160
+#: src/xz/main.c:174
 msgid "Compression and decompression with --robot are not supported yet."
 msgstr "Komprimace a dekomprimace s přepínačem --robot není zatím podporovaná."
 
-#: src/xz/main.c:207
-msgid ""
-"Cannot read data from standard input when reading filenames from standard "
-"input"
-msgstr ""
-"Ze standardního vstupu nelze číst data, když se ze standardního vstupu "
-"načítají názvy souborů"
+#: src/xz/main.c:231
+msgid "Cannot read data from standard input when reading filenames from standard input"
+msgstr "Ze standardního vstupu nelze číst data, když se ze standardního vstupu načítají názvy souborů"
 
-#: src/xz/message.c:841 src/xz/message.c:885
+#: src/xz/message.c:792 src/xz/message.c:842
 msgid "Internal error (bug)"
 msgstr "Interní chyba"
 
-#: src/xz/message.c:848
+#: src/xz/message.c:799
 msgid "Cannot establish signal handlers"
 msgstr "Nelze ustanovit ovladač signálu"
 
-#: src/xz/message.c:857
+#: src/xz/message.c:808
 msgid "No integrity check; not verifying file integrity"
 msgstr "Žádná kontrola integrity; integrita souboru se nebude ověřovat"
 
-#: src/xz/message.c:860
+#: src/xz/message.c:811
 msgid "Unsupported type of integrity check; not verifying file integrity"
-msgstr ""
-"Nepodporovaný typ kontroly integrity; integrita souboru se nebude ověřovat"
+msgstr "Nepodporovaný typ kontroly integrity; integrita souboru se nebude ověřovat"
 
-#: src/xz/message.c:867
+#: src/xz/message.c:818
 msgid "Memory usage limit reached"
 msgstr "Dosaženo omezení použitelné paměti"
 
-#: src/xz/message.c:870
+#: src/xz/message.c:821
 msgid "File format not recognized"
 msgstr "Formát souboru nebyl rozpoznán"
 
-#: src/xz/message.c:873
+#: src/xz/message.c:824
 msgid "Unsupported options"
 msgstr "Nepodporovaná volba"
 
-#: src/xz/message.c:876
+#: src/xz/message.c:827
 msgid "Compressed data is corrupt"
 msgstr "Komprimovaná data jsou poškozená"
 
-#: src/xz/message.c:879
+#: src/xz/message.c:830
 msgid "Unexpected end of input"
 msgstr "Neočekávaný konec vstupu"
 
-#: src/xz/message.c:898
+#: src/xz/message.c:881
 #, c-format
-msgid "%s: Filter chain:"
-msgstr "%s: Omezující filtr:"
+msgid "%s MiB of memory is required. The limit is %s."
+msgstr "Je vyžadováno %s MiB paměti. Limit je %s."
 
-#: src/xz/message.c:1009
+#: src/xz/message.c:1048
+#, c-format
+msgid "%s: Filter chain: %s\n"
+msgstr "%s: Omezující filtr: %s\n"
+
+#: src/xz/message.c:1058
 #, c-format
 msgid "Try `%s --help' for more information."
 msgstr "Zkuste „%s --help“ pro více informací"
 
-#: src/xz/message.c:1021
-#, c-format
-msgid "%s MiB (%s bytes)\n"
-msgstr "%s MiB (%s bajtů)\n"
-
-#: src/xz/message.c:1049
+#: src/xz/message.c:1084
 #, c-format
 msgid ""
 "Usage: %s [OPTION]... [FILE]...\n"
@@ -248,30 +470,27 @@ msgstr ""
 "Komprimuje nebo dekomprimuje SOUBORy ve formátu xz.\n"
 "\n"
 
-#: src/xz/message.c:1053
-msgid ""
-"Mandatory arguments to long options are mandatory for short options too.\n"
-msgstr ""
-"Povinné argumenty pro dlouhé přepínače jsou povinné rovněž pro krátké "
-"přepínače.\n"
+#: src/xz/message.c:1091
+msgid "Mandatory arguments to long options are mandatory for short options too.\n"
+msgstr "Povinné argumenty pro dlouhé přepínače jsou povinné rovněž pro krátké přepínače.\n"
 
-#: src/xz/message.c:1057
+#: src/xz/message.c:1095
 msgid " Operation mode:\n"
 msgstr "Operační režim:\n"
 
-#: src/xz/message.c:1060
+#: src/xz/message.c:1098
 msgid ""
 "  -z, --compress      force compression\n"
 "  -d, --decompress    force decompression\n"
 "  -t, --test          test compressed file integrity\n"
-"  -l, --list          list information about files"
+"  -l, --list          list information about .xz files"
 msgstr ""
 " -z, --compress        provést komprimaci\n"
 " -d, --decompress      provést dekomprimaci\n"
 " -t, --test            testovat integritu komprimovaného souboru\n"
-" -l, --list            vypsat informace o souborech"
+" -l, --list            vypsat informace o souborech .xz"
 
-#: src/xz/message.c:1066
+#: src/xz/message.c:1104
 msgid ""
 "\n"
 " Operation modifiers:\n"
@@ -279,39 +498,33 @@ msgstr ""
 "\n"
 "Modifikátory operací:\n"
 
-#: src/xz/message.c:1069
+#: src/xz/message.c:1107
 msgid ""
 "  -k, --keep          keep (don't delete) input files\n"
 "  -f, --force         force overwrite of output file and (de)compress links\n"
 "  -c, --stdout        write to standard output and don't delete input files"
 msgstr ""
 " -k, --keep            zachovat (nemazat) vstupní soubory\n"
-" -f, --force           vynutit přepis výstupního souboru a de/komprimovat "
-"odkazy\n"
-" -c, --stdout          zapisovat na standardní výstup a nemazat vstupní "
-"soubory"
+" -f, --force           vynutit přepis výstupního souboru a de/komprimovat odkazy\n"
+" -c, --stdout          zapisovat na standardní výstup a nemazat vstupní soubory"
 
-#: src/xz/message.c:1075
+#: src/xz/message.c:1113
 msgid ""
 "      --no-sparse     do not create sparse files when decompressing\n"
 "  -S, --suffix=.SUF   use the suffix `.SUF' on compressed files\n"
-"      --files=[FILE]  read filenames to process from FILE; if FILE is\n"
+"      --files[=FILE]  read filenames to process from FILE; if FILE is\n"
 "                      omitted, filenames are read from the standard input;\n"
-"                      filenames must be terminated with the newline "
-"character\n"
-"      --files0=[FILE] like --files but use the null character as terminator"
+"                      filenames must be terminated with the newline character\n"
+"      --files0[=FILE] like --files but use the null character as terminator"
 msgstr ""
 "     --no-sparse       nevytvářet při dekomprimaci záložní soubory\n"
-" -S, --suffix=.SUF     použít u komprimovaných souborů příponu „.SUF“\n"
-"     --files=[SOUBOR]  číst názvy souborů, které se mají zpracovat, ze "
-"SOUBORu;\n"
-"                       pokud není SOUBOR zadán, čte se ze standardního "
-"vstupu;\n"
+" -S, --suffix=.PRIP    použít u komprimovaných souborů příponu „.PRIP“\n"
+"     --files[=SOUBOR]  číst názvy souborů, které se mají zpracovat, ze SOUBORu;\n"
+"                       pokud není SOUBOR zadán, čte se ze standardního vstupu;\n"
 "                       názvy souborů musí být zakončeny znakem nového řádku\n"
-"     --files0=[SOUBOR] stejné jako --files, ale použít k zakončování nulový "
-"znak"
+"     --files0[=SOUBOR] stejné jako --files, ale použít k zakončování nulový znak"
 
-#: src/xz/message.c:1083
+#: src/xz/message.c:1121
 msgid ""
 "\n"
 " Basic file format and compression options:\n"
@@ -319,102 +532,101 @@ msgstr ""
 "\n"
 "Základní přepínače pro formát souboru a komprimaci:\n"
 
-#: src/xz/message.c:1085
+#: src/xz/message.c:1123
 msgid ""
 "  -F, --format=FMT    file format to encode or decode; possible values are\n"
 "                      `auto' (default), `xz', `lzma', and `raw'\n"
-"  -C, --check=CHECK   integrity check type: `crc32', `crc64' (default),\n"
-"                      `sha256', or `none' (use with caution)"
+"  -C, --check=CHECK   integrity check type: `none' (use with caution),\n"
+"                      `crc32', `crc64' (default), or `sha256'"
 msgstr ""
 " -F, --format=FORMÁT   formát souboru k zakódování nebo dekódování; možné\n"
 "                       hodnoty jsou „auto“ (výchozí), „xz“, „lzma“ a „raw“\n"
-" -C, --check=KONTROLA  typ kontroly integrity: „crc32“, „crc64“ (výchozí),\n"
-"                       „sha256“ nebo „none“ (používejte s rozmyslem)"
+" -C, --check=KONTROLA  typ kontroly integrity: „none“ (používejte s rozmyslem),\n"
+"                       „crc32“, „crc64“ (výchozí) nebo „sha256“"
 
-#: src/xz/message.c:1092
+#: src/xz/message.c:1130
 msgid ""
-"  -0 .. -9            compression preset; 0-2 fast compression, 3-5 good\n"
-"                      compression, 6-9 excellent compression; default is 6"
+"  -0 ... -9           compression preset; default is 6; take compressor *and*\n"
+"                      decompressor memory usage into account before using 7-9!"
 msgstr ""
-" -0 .. -9              přednastavení komprimace; 0-2 rychlá komprimace, 3-5\n"
-"                       dobrá komprimace, 6-9 skvělá komprimace; výchozí je 6"
+" -0 .. -9              přednastavení komprimace; výchozí je 6; než použijete\n"
+"                       hodnoty 7 – 9, vezměte do úvahy množství použité paměti"
 
-#: src/xz/message.c:1096
+#: src/xz/message.c:1134
 msgid ""
-"  -e, --extreme       use more CPU time when encoding to increase "
-"compression\n"
-"                      ratio without increasing memory usage of the decoder"
+"  -e, --extreme       try to improve compression ratio by using more CPU time;\n"
+"                      does not affect decompressor memory requirements"
 msgstr ""
-" -e, --extreme         využít více procesorového času pro kódování, čímž se\n"
-"                       zvýší kompresní poměr bez zvýšení paměti použité "
-"kodérem"
+" -e, --extreme         zkusit zlepšit poměr komprimace využitím více času\n"
+"                       procesoru; nemá vliv na paměťové nároky dekomprimace"
 
-#: src/xz/message.c:1101
+#: src/xz/message.c:1139
+#, no-c-format
 msgid ""
-"  -M, --memory=NUM    use roughly NUM bytes of memory at maximum; 0 "
-"indicates\n"
-"                      the default setting, which is 40 % of total RAM"
+"      --memlimit-compress=LIMIT\n"
+"      --memlimit-decompress=LIMIT\n"
+"  -M, --memlimit=LIMIT\n"
+"                      set memory usage limit for compression, decompression,\n"
+"                      or both; LIMIT is in bytes, % of RAM, or 0 for defaults"
 msgstr ""
-" -M, --memory=POČ      použít zhruba POČ bajtů paměti jako maximum; 0 "
-"znamená\n"
-"                       výchozí nastavení, což je 40% celkového množství "
-"paměti"
+"     --memlimit-compress=LIMIT\n"
+"     --memlimit-decompress=LIMIT\n"
+" -M, --memlimit=LIMIT\n"
+"                       nastaví omezení použitelné paměti pro komprimaci,\n"
+"                       dekomprimaci nebo obojí; LIMIT je v bajtech, % z paměti\n"
+"                       RAM nebo 0 pro výchozí"
 
-#: src/xz/message.c:1106
+#: src/xz/message.c:1146
+msgid ""
+"      --no-adjust     if compression settings exceed the memory usage limit,\n"
+"                      give an error instead of adjusting the settings downwards"
+msgstr ""
+"     --no-adjust       pokud nastavení komprimace přesáhne omezení použitelné\n"
+"                       paměti, předat chybu namísto snížení nastavení"
+
+#: src/xz/message.c:1152
 msgid ""
 "\n"
 " Custom filter chain for compression (alternative for using presets):"
 msgstr ""
 "\n"
-"Vlastní omezující filtr pro komprimaci (alternativa k použití "
-"přednastavených):"
+"Vlastní omezující filtr pro komprimaci (alternativa k použití přednastavených):"
 
-#: src/xz/message.c:1111
+#: src/xz/message.c:1161
 msgid ""
 "\n"
-"  --lzma1[=OPTS]      LZMA1 or LZMA2; OPTS is a comma-separated list of zero "
-"or\n"
-"  --lzma2[=OPTS]      more of the following options (valid values; "
-"default):\n"
-"                        preset=NUM reset options to preset number NUM (0-9)\n"
+"  --lzma1[=OPTS]      LZMA1 or LZMA2; OPTS is a comma-separated list of zero or\n"
+"  --lzma2[=OPTS]      more of the following options (valid values; default):\n"
+"                        preset=PRE reset options to a preset (0-9[e])\n"
 "                        dict=NUM   dictionary size (4KiB - 1536MiB; 8MiB)\n"
 "                        lc=NUM     number of literal context bits (0-4; 3)\n"
 "                        lp=NUM     number of literal position bits (0-4; 0)\n"
 "                        pb=NUM     number of position bits (0-4; 2)\n"
 "                        mode=MODE  compression mode (fast, normal; normal)\n"
 "                        nice=NUM   nice length of a match (2-273; 64)\n"
-"                        mf=NAME    match finder (hc3, hc4, bt2, bt3, bt4; "
-"bt4)\n"
-"                        depth=NUM  maximum search depth; 0=automatic "
-"(default)"
+"                        mf=NAME    match finder (hc3, hc4, bt2, bt3, bt4; bt4)\n"
+"                        depth=NUM  maximum search depth; 0=automatic (default)"
 msgstr ""
 "\n"
-" --lzma1[=VOLBY]       LZMA1 nebo LZMA2; VOLBY je čárkou oddělovaný seznam "
-"žádné\n"
-" --lzma2[=VOLBY]       nebo více následujících voleb (platné hodnoty; "
-"výchozí):\n"
-"                         preset=POČ obnovení voleb na přednastavený POČet (0-"
-"9)\n"
-"                         dict=POČ   velikost slovníku (4 KiB - 1536 MiB; 8 "
-"MiB)\n"
-"                         lc=POČ     počet kontextových bitů literálu (0-4; "
-"3)\n"
-"                         lp=POČ     počet pozičních bitů literálu (0-4; 0)\n"
-"                         pb=POČ     počet pozičních bitů (0-4; 2)\n"
+" --lzma1[=VOLBY]       LZMA1 nebo LZMA2; VOLBY je čárkou oddělovaný seznam žádné\n"
+" --lzma2[=VOLBY]       nebo více následujících voleb (platné hodnoty; výchozí):\n"
+"                         preset=PŘE změnit volby na PŘEdnastavené (0 – 9[e])\n"
+"                         dict=POČ   velikost slovníku (4 KiB – 1536 MiB; 8 MiB)\n"
+"                         lc=POČ     počet kontextových bitů literálu (0 – 4; 3)\n"
+"                         lp=POČ     počet pozičních bitů literálu (0 – 4; 0)\n"
+"                         pb=POČ     počet pozičních bitů (0 – 4; 2)\n"
 "                         mode=REŽIM režim komprimace (fast, normal; normal)\n"
-"                         nice=POČ   příznivá délka shody (2-273; 64)\n"
-"                         mf=NÁZEV   vyhledávač shod (hc3, hc4, bt2, bt3, "
-"bt4;\n"
-"                                    bt4)\n"
+"                         nice=NUM   příznivá délka shody (2 – 273; 64)\n"
+"                         mf=NÁZEV   hledání shod (hc3, hc4, bt2, bt3, bt4; bt4)\n"
 "                         depth=POČ  maximální hloubka prohledávání;\n"
-"                                    0=automaticky (výchozí)"
+"                                    0 = automaticky (výchozí)"
 
-#: src/xz/message.c:1126
+#: src/xz/message.c:1176
 msgid ""
 "\n"
-"  --x86[=OPTS]        x86 BCJ filter\n"
+"  --x86[=OPTS]        x86 BCJ filter (32-bit and 64-bit)\n"
 "  --powerpc[=OPTS]    PowerPC BCJ filter (big endian only)\n"
-"  --ia64[=OPTS]       IA64 (Itanium) BCJ filter\n"
+"  --ia64[=OPTS]       IA-64 (Itanium) BCJ filter\n"
 "  --arm[=OPTS]        ARM BCJ filter (little endian only)\n"
 "  --armthumb[=OPTS]   ARM-Thumb BCJ filter (little endian only)\n"
 "  --sparc[=OPTS]      SPARC BCJ filter\n"
@@ -422,7 +634,7 @@ msgid ""
 "                        start=NUM  start offset for conversions (default=0)"
 msgstr ""
 "\n"
-" --x86[=VOLBY]         Filtr x86 BCJ\n"
+" --x86[=VOLBY]         Filtr x86 BCJ (32bitový a 64bitový)\n"
 " --powerpc[=VOLBY]     Filtr PowerPC BCJ (pouze big endian)\n"
 " --ia64[=VOLBY]        Filtr IA64 (Itanium) BCJ\n"
 " --arm[=VOLBY]         Filtr ARM BCJ (pouze little endian)\n"
@@ -431,7 +643,7 @@ msgstr ""
 "                       Platné volby pro všechny filtry BCJ:\n"
 "                         start=POČ  počáteční posun pro převody (výchozí=0)"
 
-#: src/xz/message.c:1138
+#: src/xz/message.c:1188
 msgid ""
 "\n"
 "  --delta[=OPTS]      Delta filter; valid OPTS (valid values; default):\n"
@@ -440,27 +652,10 @@ msgid ""
 msgstr ""
 "\n"
 " --delta[=VOLBY]       Filtr Delta; platné VOLBY (platné hodnoty; výchozí):\n"
-"                         dist=POČ   vzdálenost mezi bajty, které jsou "
-"odečítány\n"
-"                                    jeden od druhého (1-256; 1)"
+"                         dist=POČ   vzdálenost mezi bajty, které jsou odečítány\n"
+"                                    jeden od druhého (1 – 256; 1)"
 
-#: src/xz/message.c:1146
-msgid ""
-"\n"
-"  --subblock[=OPTS]   Subblock filter; valid OPTS (valid values; default):\n"
-"                        size=NUM   number of bytes of data per subblock\n"
-"                                   (1 - 256Mi; 4Ki)\n"
-"                        rle=NUM    run-length encoder chunk size (0-256; 0)"
-msgstr ""
-"\n"
-" --subblock[=VOLBY]    Subblokový filtr; platné VOLBY (platné hodnoty; "
-"výchozí):\n"
-"                         size=POČ   počet bajtů dat na subblok\n"
-"                                    (1 - 256 Mi; 4 Ki)\n"
-"                         rle=POČ    velikost dávky pro kodér run-length (0-"
-"256; 0)"
-
-#: src/xz/message.c:1155
+#: src/xz/message.c:1196
 msgid ""
 "\n"
 " Other options:\n"
@@ -468,88 +663,71 @@ msgstr ""
 "\n"
 " Ostatní přepínače:\n"
 
-#: src/xz/message.c:1158
+#: src/xz/message.c:1199
 msgid ""
-"  -q, --quiet         suppress warnings; specify twice to suppress errors "
-"too\n"
+"  -q, --quiet         suppress warnings; specify twice to suppress errors too\n"
 "  -v, --verbose       be verbose; specify twice for even more verbose"
 msgstr ""
-" -q, --quiet           potlačit varování; zadáním dvakrát, potlačíte i "
-"chyby\n"
+" -q, --quiet           potlačit varování; zadáním dvakrát, potlačíte i chyby\n"
 " -v, --verbose         podrobnější zprávy; zadáním dvakrát, budou ještě\n"
 "                       podrobnější"
 
-#: src/xz/message.c:1163
+#: src/xz/message.c:1204
 msgid "  -Q, --no-warn       make warnings not affect the exit status"
 msgstr " -Q, --no-warn         způsobí, že varování neovlivní stav ukončení"
 
-#: src/xz/message.c:1165
-msgid ""
-"      --robot         use machine-parsable messages (useful for scripts)"
+#: src/xz/message.c:1206
+msgid "      --robot         use machine-parsable messages (useful for scripts)"
 msgstr ""
-"     --robot           použít strojově analyzovatelné zprávy (užitečné pro "
-"skripty)"
+"     --robot           použít strojově analyzovatelné zprávy (užitečné pro\n"
+"                       skripty)"
 
-#: src/xz/message.c:1168
-msgid "      --info-memory   display the memory usage limit and exit"
-msgstr "     --info-memory     zobrazit omezení využití paměti a skončit"
+#: src/xz/message.c:1209
+msgid ""
+"      --info-memory   display the total amount of RAM and the currently active\n"
+"                      memory usage limits, and exit"
+msgstr ""
+"     --info-memory     zobrazit celkové množství paměti RAM a současné aktivní\n"
+"                       omezení použitelné paměti a skončit"
 
-#: src/xz/message.c:1170
+#: src/xz/message.c:1212
 msgid ""
 "  -h, --help          display the short help (lists only the basic options)\n"
 "  -H, --long-help     display this long help and exit"
 msgstr ""
-" -h, --help            zobrazit krátkou nápovědu (vypíše jen základní "
-"přepínače)\n"
+" -h, --help            zobrazit krátkou nápovědu (vypíše jen základní přepínače)\n"
 " -H, --long-help       zobrazit tuto úplnou nápovědu a skončit"
 
-#: src/xz/message.c:1174
+#: src/xz/message.c:1216
 msgid ""
 "  -h, --help          display this short help and exit\n"
 "  -H, --long-help     display the long help (lists also the advanced options)"
 msgstr ""
 " -h, --help            zobrazit tuto zkrácenou nápovědu a skončit\n"
-" -H, --long-help       zobrazit úplnou nápovědu (vypíše i pokročilé "
-"přepínače)"
+" -H, --long-help       zobrazit úplnou nápovědu (vypíše i pokročilé přepínače)"
 
-#: src/xz/message.c:1179
+#: src/xz/message.c:1221
 msgid "  -V, --version       display the version number and exit"
 msgstr " -V, --version         zobrazit číslo verze a skončit"
 
-#: src/xz/message.c:1181
+#: src/xz/message.c:1223
 msgid ""
 "\n"
 "With no FILE, or when FILE is -, read standard input.\n"
 msgstr ""
 "\n"
-"Pokud SOUBOR není zadán nebo pokud je -, bude se číst ze standardního "
-"vstupu.\n"
+"Pokud SOUBOR není zadán nebo pokud je -, bude se číst ze standardního vstupu.\n"
 
-#: src/xz/message.c:1185
-#, c-format
-msgid ""
-"On this system and configuration, this program will use a maximum of "
-"roughly\n"
-"%s MiB RAM and "
-msgstr ""
-"Na tomto systému a s tímto nastavením použije tento program maximum ze "
-"zhruba\n"
-"%s MiB RAM a "
-
-#: src/xz/message.c:1187
-msgid ""
-"one thread.\n"
-"\n"
-msgstr ""
-"jedno vlákno.\n"
-"\n"
-
-#: src/xz/message.c:1192
+#. TRANSLATORS: This message indicates the bug reporting address
+#. for this package. Please add _another line_ saying
+#. "Report translation bugs to <...>\n" with the email or WWW
+#. address for translation bugs. Thanks.
+#: src/xz/message.c:1229
 #, c-format
 msgid "Report bugs to <%s> (in English or Finnish).\n"
 msgstr "Chyby hlaste na <%s> (v angličtině nebo finštině).\n"
 
-#: src/xz/message.c:1194
+#: src/xz/message.c:1231
 #, c-format
 msgid "%s home page: <%s>\n"
 msgstr "Domovská stránka %s: <%s>\n"
@@ -569,27 +747,24 @@ msgstr "%s: Neplatný název volby"
 msgid "%s: Invalid option value"
 msgstr "%s: Neplatná hodnota volby"
 
-#: src/xz/options.c:308
+#: src/xz/options.c:247
 #, c-format
 msgid "Unsupported LZMA1/LZMA2 preset: %s"
 msgstr "Nepodporované přednastavení LZMA1/LZMA2: %s"
 
-#: src/xz/options.c:426
-msgid "The sum of lc and lp must be at maximum of 4"
-msgstr "Součet lc a lp musí být maximálně 4"
+#: src/xz/options.c:355
+msgid "The sum of lc and lp must not exceed 4"
+msgstr "Součet lc a lp nesmí překročit hodnotu 4"
 
-#: src/xz/options.c:431
+#: src/xz/options.c:359
 #, c-format
 msgid "The selected match finder requires at least nice=%<PRIu32>"
 msgstr "Vybraný vyhledávač shod vyžaduje minimálně nice=%<PRIu32>"
 
 #: src/xz/suffix.c:79 src/xz/suffix.c:164
 #, c-format
-msgid ""
-"%s: With --format=raw, --suffix=.SUF is required unless writing to stdout"
-msgstr ""
-"%s: S --format=raw je vyžadováno --sufix=.SUF, vyjma zápisu do standardního "
-"výstupu"
+msgid "%s: With --format=raw, --suffix=.SUF is required unless writing to stdout"
+msgstr "%s: S přepínačem --format=raw je vyžadován --sufix=.PRIP, vyjma zápisu do standardního výstupu"
 
 #: src/xz/suffix.c:99
 #, c-format
@@ -606,31 +781,91 @@ msgstr "%s: Soubor již má příponu „%s“, vynechává se"
 msgid "%s: Invalid filename suffix"
 msgstr "%s: Neplatná přípona názvu souboru"
 
-#: src/xz/util.c:53
+#: src/xz/util.c:61
 #, c-format
 msgid "%s: Value is not a non-negative decimal integer"
 msgstr "%s: Hodnota není nezáporné desítkové číslo"
 
-#: src/xz/util.c:95
+#: src/xz/util.c:103
 #, c-format
-msgid "%s: Invalid multiplier suffix. Valid suffixes:"
-msgstr "%s: Neplatná přípona. Platné přípony jsou:"
+msgid "%s: Invalid multiplier suffix"
+msgstr "%s: Neplatná jednotka s předponou"
 
-#: src/xz/util.c:115
+#: src/xz/util.c:105
+msgid "Valid suffixes are `KiB' (2^10), `MiB' (2^20), and `GiB' (2^30)."
+msgstr "Platné jednotky s předponami jsou „KiB“ (2^10 B), „MiB“ (2^20 B) a „GiB“ (2^30 B)."
+
+#: src/xz/util.c:122
 #, c-format
 msgid "Value of the option `%s' must be in the range [%<PRIu64>, %<PRIu64>]"
 msgstr "Hodnota volby „%s“ musí být v rozsahu [%<PRIu64>, %<PRIu64>]"
 
-#: src/xz/util.c:212
+#: src/xz/util.c:247
 msgid "Empty filename, skipping"
 msgstr "Prázdný název souboru, vynechává se"
 
-#: src/xz/util.c:226
-msgid "Compressed data not read from a terminal unless `--force' is used."
-msgstr ""
-"Komprimovaná data se nečtou z terminálu, vyjma použití volby „--force“."
+#: src/xz/util.c:261
+msgid "Compressed data cannot be read from a terminal"
+msgstr "Z terminálu nelze číst komprimovaná data"
 
-#: src/xz/util.c:239
-msgid "Compressed data not written to a terminal unless `--force' is used."
-msgstr ""
-"Komprimovaná data se nezapisují do terminálu, vyjma použití volby „--force“."
+#: src/xz/util.c:274
+msgid "Compressed data cannot be written to a terminal"
+msgstr "Do terminálu nelze zapisovat komprimovaná data"
+
+#: src/common/tuklib_exit.c:39
+msgid "Writing to standard output failed"
+msgstr "Zápis do standardního výstupu selhal"
+
+#: src/common/tuklib_exit.c:42
+msgid "Unknown error"
+msgstr "Neznámá chyba"
+
+#~ msgid "Limit was %s MiB, but %s MiB would have been needed"
+#~ msgstr "Limit byl %s MiB, ale bylo by zapotřebí %s MiB"
+
+#~ msgid "%s MiB (%s bytes)\n"
+#~ msgstr "%s MiB (%s bajtů)\n"
+
+#~ msgid ""
+#~ "  -e, --extreme       use more CPU time when encoding to increase compression\n"
+#~ "                      ratio without increasing memory usage of the decoder"
+#~ msgstr ""
+#~ " -e, --extreme         využít více procesorového času pro kódování, čímž se\n"
+#~ "                       zvýší kompresní poměr bez zvýšení paměti použité kodérem"
+
+#~ msgid ""
+#~ "  -M, --memory=NUM    use roughly NUM bytes of memory at maximum; 0 indicates\n"
+#~ "                      the default setting, which is 40 % of total RAM"
+#~ msgstr ""
+#~ " -M, --memory=POČ      použít zhruba POČ bajtů paměti jako maximum; 0 znamená\n"
+#~ "                       výchozí nastavení, což je 40% celkového množství paměti"
+
+#~ msgid ""
+#~ "\n"
+#~ "  --subblock[=OPTS]   Subblock filter; valid OPTS (valid values; default):\n"
+#~ "                        size=NUM   number of bytes of data per subblock\n"
+#~ "                                   (1 - 256Mi; 4Ki)\n"
+#~ "                        rle=NUM    run-length encoder chunk size (0-256; 0)"
+#~ msgstr ""
+#~ "\n"
+#~ " --subblock[=VOLBY]    Subblokový filtr; platné VOLBY (platné hodnoty; výchozí):\n"
+#~ "                         size=POČ   počet bajtů dat na subblok\n"
+#~ "                                    (1 - 256 Mi; 4 Ki)\n"
+#~ "                         rle=POČ    velikost dávky pro kodér run-length (0-256; 0)"
+
+#~ msgid ""
+#~ "On this system and configuration, this program will use a maximum of roughly\n"
+#~ "%s MiB RAM and "
+#~ msgstr ""
+#~ "Na tomto systému a s tímto nastavením použije tento program maximum ze zhruba\n"
+#~ "%s MiB RAM a "
+
+#~ msgid ""
+#~ "one thread.\n"
+#~ "\n"
+#~ msgstr ""
+#~ "jedno vlákno.\n"
+#~ "\n"
+
+#~ msgid "%s: Invalid multiplier suffix. Valid suffixes:"
+#~ msgstr "%s: Neplatná přípona. Platné přípony jsou:"

@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* $NetBSD: stack_protector.c,v 1.4 2006/11/22 17:23:25 christos Exp $	*/
 /* $OpenBSD: stack_protector.c,v 1.10 2006/03/31 05:34:44 deraadt Exp $	*/
 /*
@@ -93,7 +92,7 @@ __fail(const char *msg)
 	(void)sigprocmask(SIG_BLOCK, &mask, NULL);
 
 	/* This may fail on a chroot jail... */
-	syslog(LOG_CRIT, msg);
+	syslog(LOG_CRIT, "%s", msg);
 
 	(void)memset(&sa, 0, sizeof(sa));
 	(void)sigemptyset(&sa.sa_mask);
@@ -116,8 +115,6 @@ __chk_fail(void)
 	__fail("buffer overflow detected; terminated");
 }
 
-#ifdef PIC
-__sym_compat(__stack_chk_fail_local, __stack_chk_fail, FBSD_1.0);
-#else
+#ifndef PIC
 __weak_reference(__stack_chk_fail, __stack_chk_fail_local);
 #endif

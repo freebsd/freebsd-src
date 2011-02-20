@@ -924,7 +924,6 @@ linker_debug_search_symbol_name(caddr_t value, char *buf, u_int buflen,
 	return (0);
 }
 
-#ifdef DDB
 /*
  * DDB Helpers.  DDB has to look across multiple files with their own symbol
  * tables and string tables.
@@ -933,12 +932,14 @@ linker_debug_search_symbol_name(caddr_t value, char *buf, u_int buflen,
  * DDB to hang because somebody's got the lock held.  We'll take the chance
  * that the files list is inconsistant instead.
  */
+#ifdef DDB
 int
 linker_ddb_lookup(const char *symstr, c_linker_sym_t *sym)
 {
 
 	return (linker_debug_lookup(symstr, sym));
 }
+#endif
 
 int
 linker_ddb_search_symbol(caddr_t value, c_linker_sym_t *sym, long *diffp)
@@ -961,7 +962,6 @@ linker_ddb_search_symbol_name(caddr_t value, char *buf, u_int buflen,
 
 	return (linker_debug_search_symbol_name(value, buf, buflen, offset));
 }
-#endif
 
 /*
  * stack(9) helper for non-debugging environemnts.  Unlike DDB helpers, we do
@@ -1584,6 +1584,12 @@ restart:
 				modname = mp->md_cval;
 				verinfo = mp->md_data;
 				mod = modlist_lookup2(modname, verinfo);
+				if (mod == NULL) {
+					printf("KLD file %s - cannot find "
+					    "dependency \"%s\"\n",
+					    lf->filename, modname);
+					goto fail;
+				}
 				/* Don't count self-dependencies */
 				if (lf == mod->container)
 					continue;
@@ -1600,11 +1606,9 @@ restart:
 		 */
 		error = LINKER_LINK_PRELOAD_FINISH(lf);
 		if (error) {
-			TAILQ_REMOVE(&depended_files, lf, loaded);
 			printf("KLD file %s - could not finalize loading\n",
 			    lf->filename);
-			linker_file_unload(lf, LINKER_UNLOAD_FORCE);
-			continue;
+			goto fail;
 		}
 		linker_file_register_modules(lf);
 		if (linker_file_lookup_set(lf, "sysinit_set", &si_start,
@@ -1612,6 +1616,10 @@ restart:
 			sysinit_add(si_start, si_stop);
 		linker_file_register_sysctls(lf);
 		lf->flags |= LINKER_FILE_LINKED;
+		continue;
+fail:
+		TAILQ_REMOVE(&depended_files, lf, loaded);
+		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
 	}
 	/* woohoo! we made it! */
 }
@@ -2137,5 +2145,5 @@ sysctl_kern_function_list(SYSCTL_HANDLER_ARGS)
 	return (SYSCTL_OUT(req, "", 1));
 }
 
-SYSCTL_PROC(_kern, OID_AUTO, function_list, CTLFLAG_RD,
+SYSCTL_PROC(_kern, OID_AUTO, function_list, CTLTYPE_OPAQUE | CTLFLAG_RD,
     NULL, 0, sysctl_kern_function_list, "", "kernel function list");

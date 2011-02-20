@@ -32,9 +32,6 @@ LDSCRIPT_NAME?=ldscript.$M
 SYSTEM_LD:= ${SYSTEM_LD:$S/conf/${LDSCRIPT_NAME}=${LDSCRIPT_NAME}}
 SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/${LDSCRIPT_NAME}=${LDSCRIPT_NAME}}
 
-# XXX: Such sweeping assumptions...
-MACHINE=mips
-MACHINE_ARCH=mips
 KERNLOADADDR?=0x80001000
 # This obscure value is defined by CFE for WR160N
 # To be changed later
@@ -48,33 +45,12 @@ ARCH_FLAGS?=-march=mips32
 EXTRA_FLAGS=-fno-pic -mno-abicalls -G0
 
 HACK_EXTRA_FLAGS=-shared
-.if defined(TARGET_BIG_ENDIAN)
-CFLAGS+=-EB
-SYSTEM_LD+=-EB
-EXTRA_FLAGS+=-EB 
-TRAMP_LDFLAGS+=-Wl,-EB 
-HACK_EXTRA_FLAGS+=-EB -Wl,-EB
-.if defined(TARGET_64BIT)
-SYSTEM_LD+=-m elf64btsmip_fbsd
-HACK_EXTRA_FLAGS+=-Wl,-m,elf64btsmip_fbsd
-.endif
-.else
-CFLAGS+=-EL
-SYSTEM_LD+=-EL
-EXTRA_FLAGS+=-EL
-TRAMP_LDFLAGS+=-Wl,-EL
-HACK_EXTRA_FLAGS+=-EL -Wl,-EL
-.if defined(TARGET_64BIT)
-SYSTEM_LD+=-m elf64ltsmip_fbsd
-HACK_EXTRA_FLAGS+=-Wl,-m,elf64ltsmip_fbsd
-.endif
-.endif
-
 
 # We add the -fno-pic flag to kernels because otherwise performance
 # is extremely poor, as well as -mno-abicalls to force no ABI usage.
 CFLAGS+=${EXTRA_FLAGS} $(ARCH_FLAGS)
 HACK_EXTRA_FLAGS+=${EXTRA_FLAGS} $(ARCH_FLAGS)
+TRAMP_EXTRA_FLAGS=${EXTRA_FLAGS} $(ARCH_FLAGS)
 
 # XXX hardcoded kernel entry point
 ASM_CFLAGS+=${CFLAGS} -D_LOCORE -DLOCORE
@@ -84,24 +60,13 @@ trampoline: ${KERNEL_KO}.tramp.bin
 ${KERNEL_KO}.tramp.bin: ${KERNEL_KO} $S/$M/$M/elf_trampoline.c \
 	$S/$M/$M/inckern.S 
 	${OBJCOPY} --strip-symbol '$$d' --strip-symbol '$$a' \
-	-g --strip-symbol '$$t' ${FULLKERNEL} ${KERNEL_KO}.tmp
-	sed s/${KERNLOADADDR}/${TRAMPLOADADDR}/ ${LDSCRIPT_NAME} | \
-		sed s/" + SIZEOF_HEADERS"//  > ${LDSCRIPT_NAME}.tramp.noheader
-	# Generate .S file that setups stack and jumps to trampoline
-	echo "#include <machine/asm.h>" >tmphack.S
-	echo "ENTRY(_start)" >>tmphack.S
-	echo "PTR_LA t0, kernel_end" >>tmphack.S
-	echo "move sp, t0" >>tmphack.S
-	echo "add sp, 0x2000" >>tmphack.S
-	echo "and sp, ~0x7" >>tmphack.S
-	echo "PTR_LA t0, _startC" >>tmphack.S
-	echo "j t0" >>tmphack.S
-	echo "END(_start)" >>tmphack.S
-	echo "#define KERNNAME \"${KERNEL_KO}.tmp\""  >opt_kernname.h 
-	${CC} -O -nostdlib -I. -I$S ${HACK_EXTRA_FLAGS} ${TRAMP_LDFLAGS} -Xlinker \
-		-T -Xlinker ${LDSCRIPT_NAME}.tramp.noheader tmphack.S \
-		$S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S \
-		-o ${KERNEL_KO}.tramp.noheader 
+		-g --strip-symbol '$$t' ${FULLKERNEL} ${KERNEL_KO}.tmp
+	sed -e s/${KERNLOADADDR}/${TRAMPLOADADDR}/ -e s/" + SIZEOF_HEADERS"// \
+		 ${LDSCRIPT_NAME} > ${LDSCRIPT_NAME}.tramp.noheader
+	${CC} -O -nostdlib -I. -I$S ${TRAMP_EXTRA_FLAGS} ${TRAMP_LDFLAGS} -Xlinker \
+		-T -Xlinker ${LDSCRIPT_NAME}.tramp.noheader  \
+		-DKERNNAME="\"${KERNEL_KO}.tmp\"" $S/$M/$M/elf_trampoline.c \
+		$S/$M/$M/inckern.S  -o ${KERNEL_KO}.tramp.noheader 
 	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
 		${KERNEL_KO}.tramp.bin \
 
@@ -121,7 +86,7 @@ CLEAN+=	${LDSCRIPT_NAME} ${LDSCRIPT_NAME}.tramp.noheader \
 	${KERNEL_KO}.tramp.noheader ${KERNEL_KO}.tramp.bin
 
 ${LDSCRIPT_NAME}: $S/conf/${LDSCRIPT_NAME}
-	cat $S/conf/${LDSCRIPT_NAME}|sed s/KERNLOADADDR/${KERNLOADADDR}/g \
+	sed s/KERNLOADADDR/${KERNLOADADDR}/g $S/conf/${LDSCRIPT_NAME} \
 		> ${LDSCRIPT_NAME}
 %RULES
 

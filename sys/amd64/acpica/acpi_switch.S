@@ -76,12 +76,6 @@ ENTRY(acpi_restorecpu)
 	movl	WAKEUP_CTX(efer), %eax
 	wrmsr
 
-	/* Restore PAT. */
-	movl	$MSR_PAT, %ecx
-	movl	WAKEUP_CTX(pat), %eax
-	movl	4 + WAKEUP_CTX(pat), %edx
-	wrmsr
-
 	/* Restore fast syscall stuff. */
 	movl	$MSR_STAR, %ecx
 	movl	WAKEUP_CTX(star), %eax

@@ -1,6 +1,6 @@
 /**
  * \file        lzma/index_hash.h
- * \brief       Validates Index by using a hash function
+ * \brief       Validate Index by using a hash function
  *
  * Hashing makes it possible to use constant amount of memory to validate
  * Index of arbitrary size.

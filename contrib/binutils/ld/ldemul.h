@@ -17,6 +17,9 @@
 #ifndef LDEMUL_H
 #define LDEMUL_H
 
+/* Forward declaration for ldemul_add_options() and others.  */
+struct option;
+
 extern void ldemul_hll
   (char *);
 extern void ldemul_syslib

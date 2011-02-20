@@ -15,6 +15,7 @@
 #ifndef LLVM_CLANG_ANALYSIS_PROGRAM_POINT
 #define LLVM_CLANG_ANALYSIS_PROGRAM_POINT
 
+#include "clang/Analysis/AnalysisContext.h"
 #include "clang/Analysis/CFG.h"
 #include "llvm/System/DataTypes.h"
 #include "llvm/ADT/DenseMap.h"
@@ -26,6 +27,7 @@
 namespace clang {
 
 class LocationContext;
+class AnalysisContext;
 class FunctionDecl;
 
 class ProgramPoint {
@@ -45,7 +47,7 @@ public:
               CallEnterKind,
               CallExitKind,
               MinPostStmtKind = PostStmtKind,
-              MaxPostStmtKind = PostLValueKind };
+              MaxPostStmtKind = CallExitKind };
 
 private:
   std::pair<const void *, const void *> Data;
@@ -107,16 +109,16 @@ public:
                 const void *tag = 0)
     : ProgramPoint(B, BlockEntranceKind, L, tag) {}
 
-  CFGBlock* getBlock() const {
-    return const_cast<CFGBlock*>(reinterpret_cast<const CFGBlock*>(getData1()));
+  const CFGBlock* getBlock() const {
+    return reinterpret_cast<const CFGBlock*>(getData1());
   }
 
-  CFGElement getFirstElement() const {
+  const CFGElement getFirstElement() const {
     const CFGBlock* B = getBlock();
     return B->empty() ? CFGElement() : B->front();
   }
   
-  Stmt *getFirstStmt() const {
+  const Stmt *getFirstStmt() const {
     return getFirstElement().getStmt();
   }
 
@@ -130,16 +132,16 @@ public:
   BlockExit(const CFGBlock* B, const LocationContext *L)
     : ProgramPoint(B, BlockExitKind, L) {}
 
-  CFGBlock* getBlock() const {
-    return const_cast<CFGBlock*>(reinterpret_cast<const CFGBlock*>(getData1()));
+  const CFGBlock* getBlock() const {
+    return reinterpret_cast<const CFGBlock*>(getData1());
   }
 
-  Stmt* getLastStmt() const {
+  const Stmt* getLastStmt() const {
     const CFGBlock* B = getBlock();
     return B->empty() ? CFGElement() : B->back();
   }
 
-  Stmt* getTerminator() const {
+  const Stmt* getTerminator() const {
     return getBlock()->getTerminator();
   }
 
@@ -298,12 +300,12 @@ public:
   BlockEdge(const CFGBlock* B1, const CFGBlock* B2, const LocationContext *L)
     : ProgramPoint(B1, B2, BlockEdgeKind, L) {}
 
-  CFGBlock* getSrc() const {
-    return const_cast<CFGBlock*>(static_cast<const CFGBlock*>(getData1()));
+  const CFGBlock* getSrc() const {
+    return static_cast<const CFGBlock*>(getData1());
   }
 
-  CFGBlock* getDst() const {
-    return const_cast<CFGBlock*>(static_cast<const CFGBlock*>(getData2()));
+  const CFGBlock* getDst() const {
+    return static_cast<const CFGBlock*>(getData2());
   }
 
   static bool classof(const ProgramPoint* Location) {
@@ -313,16 +315,17 @@ public:
 
 class CallEnter : public StmtPoint {
 public:
-  // CallEnter uses the caller's location context.
-  CallEnter(const Stmt *S, const FunctionDecl *fd, const LocationContext *L)
-    : StmtPoint(S, fd, CallEnterKind, L, 0) {}
+  // L is caller's location context. AC is callee's AnalysisContext.
+  CallEnter(const Stmt *S, const AnalysisContext *AC, const LocationContext *L)
+    : StmtPoint(S, AC, CallEnterKind, L, 0) {}
 
   const Stmt *getCallExpr() const {
     return static_cast<const Stmt *>(getData1());
   }
 
-  const FunctionDecl *getCallee() const {
-    return static_cast<const FunctionDecl *>(getData2());
+  AnalysisContext *getCalleeContext() const {
+    return const_cast<AnalysisContext *>(
+                              static_cast<const AnalysisContext *>(getData2()));
   }
 
   static bool classof(const ProgramPoint *Location) {

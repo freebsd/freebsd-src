@@ -192,6 +192,8 @@ static device_method_t obio_methods[] = {
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
+	DEVMETHOD(bus_add_child,	bus_generic_add_child),
+
 	{0, 0},
 };
 

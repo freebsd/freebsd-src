@@ -20,7 +20,7 @@
 #include "eapol_supp/eapol_supp_sm.h"
 #include "wpa_supplicant_i.h"
 #include "ctrl_iface.h"
-#include "wpa_ctrl.h"
+#include "common/wpa_ctrl.h"
 
 #ifdef __MINGW32_VERSION
 /* mingw-w32api v3.1 does not yet include sddl.h, so define needed parts here

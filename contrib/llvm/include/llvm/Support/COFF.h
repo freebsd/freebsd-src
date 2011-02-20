@@ -48,6 +48,11 @@ namespace COFF {
     uint16_t Characteristics;
   };
 
+  enum MachineTypes {
+    IMAGE_FILE_MACHINE_I386 = 0x14C,
+    IMAGE_FILE_MACHINE_AMD64 = 0x8664
+  };
+
   struct symbol {
     char     Name[NameSize];
     uint32_t Value;
@@ -65,6 +70,12 @@ namespace COFF {
     SF_ClassShift = 16,
 
     SF_WeakReference = 0x01000000
+  };
+
+  enum SymbolSectionNumber {
+    IMAGE_SYM_DEBUG     = -2,
+    IMAGE_SYM_ABSOLUTE  = -1,
+    IMAGE_SYM_UNDEFINED = 0
   };
 
   /// Storage class tells where and what the symbol represents
@@ -128,7 +139,7 @@ namespace COFF {
     IMAGE_SYM_DTYPE_ARRAY    = 3, ///< An array of base type.
     
     /// Type is formed as (base + (derived << SCT_COMPLEX_TYPE_SHIFT))
-    SCT_COMPLEX_TYPE_SHIFT   = 4
+    SCT_COMPLEX_TYPE_SHIFT   = 8
   };
 
   struct section {
@@ -199,16 +210,86 @@ namespace COFF {
     IMAGE_REL_I386_SECREL   = 0x000B,
     IMAGE_REL_I386_TOKEN    = 0x000C,
     IMAGE_REL_I386_SECREL7  = 0x000D,
-    IMAGE_REL_I386_REL32    = 0x0014
+    IMAGE_REL_I386_REL32    = 0x0014,
+
+    IMAGE_REL_AMD64_ABSOLUTE  = 0x0000,
+    IMAGE_REL_AMD64_ADDR64    = 0x0001,
+    IMAGE_REL_AMD64_ADDR32    = 0x0002,
+    IMAGE_REL_AMD64_ADDR32NB  = 0x0003,
+    IMAGE_REL_AMD64_REL32     = 0x0004,
+    IMAGE_REL_AMD64_REL32_1   = 0x0005,
+    IMAGE_REL_AMD64_REL32_2   = 0x0006,
+    IMAGE_REL_AMD64_REL32_3   = 0x0007,
+    IMAGE_REL_AMD64_REL32_4   = 0x0008,
+    IMAGE_REL_AMD64_REL32_5   = 0x0009,
+    IMAGE_REL_AMD64_SECTION   = 0x000A,
+    IMAGE_REL_AMD64_SECREL    = 0x000B,
+    IMAGE_REL_AMD64_SECREL7   = 0x000C,
+    IMAGE_REL_AMD64_TOKEN     = 0x000D,
+    IMAGE_REL_AMD64_SREL32    = 0x000E,
+    IMAGE_REL_AMD64_PAIR      = 0x000F,
+    IMAGE_REL_AMD64_SSPAN32   = 0x0010
   };
 
-  enum {
+  enum COMDATType {
     IMAGE_COMDAT_SELECT_NODUPLICATES = 1,
     IMAGE_COMDAT_SELECT_ANY,
     IMAGE_COMDAT_SELECT_SAME_SIZE,
     IMAGE_COMDAT_SELECT_EXACT_MATCH,
     IMAGE_COMDAT_SELECT_ASSOCIATIVE,
     IMAGE_COMDAT_SELECT_LARGEST
+  };
+
+  // Auxiliary Symbol Formats
+  struct AuxiliaryFunctionDefinition {
+    uint32_t TagIndex;
+    uint32_t TotalSize;
+    uint32_t PointerToLinenumber;
+    uint32_t PointerToNextFunction;
+    uint8_t  unused[2];
+  };
+
+  struct AuxiliarybfAndefSymbol {
+    uint8_t  unused1[4];
+    uint16_t Linenumber;
+    uint8_t  unused2[6];
+    uint32_t PointerToNextFunction;
+    uint8_t  unused3[2];
+  };
+
+  struct AuxiliaryWeakExternal {
+    uint32_t TagIndex;
+    uint32_t Characteristics;
+    uint8_t  unused[10];
+  };
+
+  /// These are not documented in the spec, but are located in WinNT.h.
+  enum WeakExternalCharacteristics {
+    IMAGE_WEAK_EXTERN_SEARCH_NOLIBRARY = 1,
+    IMAGE_WEAK_EXTERN_SEARCH_LIBRARY   = 2,
+    IMAGE_WEAK_EXTERN_SEARCH_ALIAS     = 3
+  };
+
+  struct AuxiliaryFile {
+    uint8_t FileName[18];
+  };
+
+  struct AuxiliarySectionDefinition {
+    uint32_t Length;
+    uint16_t NumberOfRelocations;
+    uint16_t NumberOfLinenumbers;
+    uint32_t CheckSum;
+    uint16_t Number;
+    uint8_t  Selection;
+    uint8_t  unused[3];
+  };
+
+  union Auxiliary {
+    AuxiliaryFunctionDefinition FunctionDefinition;
+    AuxiliarybfAndefSymbol      bfAndefSymbol;
+    AuxiliaryWeakExternal       WeakExternal;
+    AuxiliaryFile               File;
+    AuxiliarySectionDefinition  SectionDefinition;
   };
 
 } // End namespace llvm.

@@ -161,12 +161,8 @@ zbuf_sfbuf_get(struct vm_map *map, vm_offset_t uaddr)
 	struct sf_buf *sf;
 	vm_page_t pp;
 
-	if (vm_fault_quick((caddr_t) uaddr, VM_PROT_READ | VM_PROT_WRITE) <
-	    0)
-		return (NULL);
-	pp = pmap_extract_and_hold(map->pmap, uaddr, VM_PROT_READ |
-	    VM_PROT_WRITE);
-	if (pp == NULL)
+	if (vm_fault_quick_hold_pages(map, uaddr, PAGE_SIZE, VM_PROT_READ |
+	    VM_PROT_WRITE, &pp, 1) < 0)
 		return (NULL);
 	vm_page_lock(pp);
 	vm_page_wire(pp);

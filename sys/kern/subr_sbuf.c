@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 #include <sys/ctype.h>
+#include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
@@ -40,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 #else /* _KERNEL */
 #include <ctype.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,7 +58,6 @@ static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 #define	KASSERT(e, m)
 #define	SBMALLOC(size)		malloc(size)
 #define	SBFREE(buf)		free(buf)
-#define	min(x,y)		MIN(x,y)
 #endif /* _KERNEL */
 
 /*
@@ -65,7 +66,6 @@ static MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 #define	SBUF_ISDYNAMIC(s)	((s)->s_flags & SBUF_DYNAMIC)
 #define	SBUF_ISDYNSTRUCT(s)	((s)->s_flags & SBUF_DYNSTRUCT)
 #define	SBUF_ISFINISHED(s)	((s)->s_flags & SBUF_FINISHED)
-#define	SBUF_HASOVERFLOWED(s)	((s)->s_flags & SBUF_OVERFLOWED)
 #define	SBUF_HASROOM(s)		((s)->s_len < (s)->s_size - 1)
 #define	SBUF_FREESPACE(s)	((s)->s_size - (s)->s_len - 1)
 #define	SBUF_CANEXTEND(s)	((s)->s_flags & SBUF_AUTOEXTEND)
@@ -116,18 +116,24 @@ _assert_sbuf_state(const char *fun, struct sbuf *s, int state)
 
 #endif /* _KERNEL && INVARIANTS */
 
+#ifdef CTASSERT
+CTASSERT(powerof2(SBUF_MAXEXTENDSIZE));
+CTASSERT(powerof2(SBUF_MAXEXTENDINCR));
+#endif
+
 static int
 sbuf_extendsize(int size)
 {
 	int newsize;
 
-	newsize = SBUF_MINEXTENDSIZE;
-	while (newsize < size) {
-		if (newsize < (int)SBUF_MAXEXTENDSIZE)
+	if (size < (int)SBUF_MAXEXTENDSIZE) {
+		newsize = SBUF_MINEXTENDSIZE;
+		while (newsize < size)
 			newsize *= 2;
-		else
-			newsize += SBUF_MAXEXTENDINCR;
+	} else {
+		newsize = roundup2(size, SBUF_MAXEXTENDINCR);
 	}
+	KASSERT(newsize >= size, ("%s: %d < %d\n", __func__, newsize, size));
 	return (newsize);
 }
 
@@ -184,11 +190,11 @@ sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 		s->s_flags = flags;
 	}
 	s->s_size = length;
-	if (buf) {
+	if (buf != NULL) {
 		s->s_buf = buf;
 		return (s);
 	}
-	if (flags & SBUF_AUTOEXTEND)
+	if ((flags & SBUF_AUTOEXTEND) != 0)
 		s->s_size = sbuf_extendsize(s->s_size);
 	s->s_buf = SBMALLOC(s->s_size);
 	if (s->s_buf == NULL) {
@@ -240,7 +246,7 @@ sbuf_clear(struct sbuf *s)
 	/* don't care if it's finished or not */
 
 	SBUF_CLEARFLAG(s, SBUF_FINISHED);
-	SBUF_CLEARFLAG(s, SBUF_OVERFLOWED);
+	s->s_error = 0;
 	s->s_len = 0;
 }
 
@@ -267,27 +273,113 @@ sbuf_setpos(struct sbuf *s, int pos)
 }
 
 /*
+ * Set up a drain function and argument on an sbuf to flush data to
+ * when the sbuf buffer overflows.
+ */
+void
+sbuf_set_drain(struct sbuf *s, sbuf_drain_func *func, void *ctx)
+{
+
+	assert_sbuf_state(s, 0);
+	assert_sbuf_integrity(s);
+	KASSERT(func == s->s_drain_func || s->s_len == 0,
+	    ("Cannot change drain to %p on non-empty sbuf %p", func, s));
+	s->s_drain_func = func;
+	s->s_drain_arg = ctx;
+}
+
+/*
+ * Call the drain and process the return.
+ */
+static int
+sbuf_drain(struct sbuf *s)
+{
+	int len;
+
+	KASSERT(s->s_len > 0, ("Shouldn't drain empty sbuf %p", s));
+	KASSERT(s->s_error == 0, ("Called %s with error on %p", __func__, s));
+	len = s->s_drain_func(s->s_drain_arg, s->s_buf, s->s_len);
+	if (len < 0) {
+		s->s_error = -len;
+		return (s->s_error);
+	}
+	KASSERT(len > 0 && len <= s->s_len,
+	    ("Bad drain amount %d for sbuf %p", len, s));
+	s->s_len -= len;
+	/*
+	 * Fast path for the expected case where all the data was
+	 * drained.
+	 */
+	if (s->s_len == 0)
+		return (0);
+	/*
+	 * Move the remaining characters to the beginning of the
+	 * string.
+	 */
+	memmove(s->s_buf, s->s_buf + len, s->s_len);
+	return (0);
+}
+
+/*
+ * Append a byte to an sbuf.  This is the core function for appending
+ * to an sbuf and is the main place that deals with extending the
+ * buffer and marking overflow.
+ */
+static void
+sbuf_put_byte(int c, struct sbuf *s)
+{
+
+	assert_sbuf_integrity(s);
+	assert_sbuf_state(s, 0);
+
+	if (s->s_error != 0)
+		return;
+	if (SBUF_FREESPACE(s) <= 0) {
+		/* 
+		 * If there is a drain, use it, otherwise extend the
+		 * buffer.
+		 */
+		if (s->s_drain_func != NULL)
+			(void)sbuf_drain(s);
+		else if (sbuf_extend(s, 1) < 0)
+			s->s_error = ENOMEM;
+		if (s->s_error != 0)
+			return;
+	}
+	s->s_buf[s->s_len++] = c;
+}
+
+/*
+ * Append a non-NUL character to an sbuf.  This prototype signature is
+ * suitable for use with kvprintf(9).
+ */
+static void
+sbuf_putc_func(int c, void *arg)
+{
+
+	if (c != '\0')
+		sbuf_put_byte(c, arg);
+}
+
+/*
  * Append a byte string to an sbuf.
  */
 int
 sbuf_bcat(struct sbuf *s, const void *buf, size_t len)
 {
 	const char *str = buf;
+	const char *end = str + len;
 
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
-	if (SBUF_HASOVERFLOWED(s))
+	if (s->s_error != 0)
 		return (-1);
-	for (; len; len--) {
-		if (!SBUF_HASROOM(s) && sbuf_extend(s, len) < 0)
-			break;
-		s->s_buf[s->s_len++] = *str++;
-	}
-	if (len) {
-		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
-		return (-1);
-	}
+	for (; str < end; str++) {
+		sbuf_put_byte(*str, s);
+		if (s->s_error != 0)
+			return (-1);
+ 	}
 	return (0);
 }
 
@@ -301,14 +393,17 @@ sbuf_bcopyin(struct sbuf *s, const void *uaddr, size_t len)
 
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
+	KASSERT(s->s_drain_func == NULL,
+	    ("Nonsensical copyin to sbuf %p with a drain", s));
 
-	if (SBUF_HASOVERFLOWED(s))
+	if (s->s_error != 0)
 		return (-1);
 	if (len == 0)
 		return (0);
 	if (len > SBUF_FREESPACE(s)) {
 		sbuf_extend(s, len - SBUF_FREESPACE(s));
-		len = min(len, SBUF_FREESPACE(s));
+		if (SBUF_FREESPACE(s) < len)
+			len = SBUF_FREESPACE(s);
 	}
 	if (copyin(uaddr, s->s_buf + s->s_len, len) != 0)
 		return (-1);
@@ -342,17 +437,13 @@ sbuf_cat(struct sbuf *s, const char *str)
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
-	if (SBUF_HASOVERFLOWED(s))
+	if (s->s_error != 0)
 		return (-1);
 
-	while (*str) {
-		if (!SBUF_HASROOM(s) && sbuf_extend(s, strlen(str)) < 0)
-			break;
-		s->s_buf[s->s_len++] = *str++;
-	}
-	if (*str) {
-		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
-		return (-1);
+	while (*str != '\0') {
+		sbuf_put_byte(*str++, s);
+		if (s->s_error != 0)
+			return (-1);
 	}
 	return (0);
 }
@@ -368,19 +459,22 @@ sbuf_copyin(struct sbuf *s, const void *uaddr, size_t len)
 
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
+	KASSERT(s->s_drain_func == NULL,
+	    ("Nonsensical copyin to sbuf %p with a drain", s));
 
-	if (SBUF_HASOVERFLOWED(s))
+	if (s->s_error != 0)
 		return (-1);
 
 	if (len == 0)
 		len = SBUF_FREESPACE(s);	/* XXX return 0? */
 	if (len > SBUF_FREESPACE(s)) {
 		sbuf_extend(s, len);
-		len = min(len, SBUF_FREESPACE(s));
+		if (SBUF_FREESPACE(s) < len)
+			len = SBUF_FREESPACE(s);
 	}
 	switch (copyinstr(uaddr, s->s_buf + s->s_len, len + 1, &done)) {
 	case ENAMETOOLONG:
-		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
+		s->s_error = ENOMEM;
 		/* fall through */
 	case 0:
 		s->s_len += done - 1;
@@ -410,11 +504,10 @@ sbuf_cpy(struct sbuf *s, const char *str)
 /*
  * Format the given argument list and append the resulting string to an sbuf.
  */
+#ifdef _KERNEL
 int
 sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 {
-	va_list ap_copy;
-	int len;
 
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
@@ -422,16 +515,53 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 	KASSERT(fmt != NULL,
 	    ("%s called with a NULL format string", __func__));
 
-	if (SBUF_HASOVERFLOWED(s))
+	(void)kvprintf(fmt, sbuf_putc_func, s, 10, ap);
+	if (s->s_error != 0)
+		return (-1);
+	return (0);
+}
+#else /* !_KERNEL */
+int
+sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
+{
+	va_list ap_copy;
+	int error, len;
+
+	assert_sbuf_integrity(s);
+	assert_sbuf_state(s, 0);
+
+	KASSERT(fmt != NULL,
+	    ("%s called with a NULL format string", __func__));
+
+	if (s->s_error != 0)
 		return (-1);
 
+	/*
+	 * For the moment, there is no way to get vsnprintf(3) to hand
+	 * back a character at a time, to push everything into
+	 * sbuf_putc_func() as was done for the kernel.
+	 *
+	 * In userspace, while drains are useful, there's generally
+	 * not a problem attempting to malloc(3) on out of space.  So
+	 * expand a userland sbuf if there is not enough room for the
+	 * data produced by sbuf_[v]printf(3).
+	 */
+
+	error = 0;
 	do {
 		va_copy(ap_copy, ap);
 		len = vsnprintf(&s->s_buf[s->s_len], SBUF_FREESPACE(s) + 1,
 		    fmt, ap_copy);
 		va_end(ap_copy);
-	} while (len > SBUF_FREESPACE(s) &&
-	    sbuf_extend(s, len - SBUF_FREESPACE(s)) == 0);
+
+		if (SBUF_FREESPACE(s) >= len)
+			break;
+		/* Cannot print with the current available space. */
+		if (s->s_drain_func != NULL && s->s_len > 0)
+			error = sbuf_drain(s);
+		else
+			error = sbuf_extend(s, len - SBUF_FREESPACE(s));
+	} while (error == 0);
 
 	/*
 	 * s->s_len is the length of the string, without the terminating nul.
@@ -440,19 +570,22 @@ sbuf_vprintf(struct sbuf *s, const char *fmt, va_list ap)
 	 * terminating nul.
 	 *
 	 * vsnprintf() returns the amount that would have been copied,
-	 * given sufficient space, hence the min() calculation below.
+	 * given sufficient space, so don't over-increment s_len.
 	 */
-	s->s_len += min(len, SBUF_FREESPACE(s));
+	if (SBUF_FREESPACE(s) < len)
+		len = SBUF_FREESPACE(s);
+	s->s_len += len;
 	if (!SBUF_HASROOM(s) && !SBUF_CANEXTEND(s))
-		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
+		s->s_error = ENOMEM;
 
 	KASSERT(s->s_len < s->s_size,
 	    ("wrote past end of sbuf (%d >= %d)", s->s_len, s->s_size));
 
-	if (SBUF_HASOVERFLOWED(s))
+	if (s->s_error != 0)
 		return (-1);
 	return (0);
 }
+#endif /* _KERNEL */
 
 /*
  * Format the given arguments and append the resulting string to an sbuf.
@@ -476,17 +609,9 @@ int
 sbuf_putc(struct sbuf *s, int c)
 {
 
-	assert_sbuf_integrity(s);
-	assert_sbuf_state(s, 0);
-
-	if (SBUF_HASOVERFLOWED(s))
+	sbuf_putc_func(c, s);
+	if (s->s_error != 0)
 		return (-1);
-	if (!SBUF_HASROOM(s) && sbuf_extend(s, 1) < 0) {
-		SBUF_SETFLAG(s, SBUF_OVERFLOWED);
-		return (-1);
-	}
-	if (c != '\0')
-	    s->s_buf[s->s_len++] = c;
 	return (0);
 }
 
@@ -499,39 +624,53 @@ sbuf_trim(struct sbuf *s)
 
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
+	KASSERT(s->s_drain_func == NULL,
+	    ("%s makes no sense on sbuf %p with drain", __func__, s));
 
-	if (SBUF_HASOVERFLOWED(s))
+	if (s->s_error != 0)
 		return (-1);
 
-	while (s->s_len && isspace(s->s_buf[s->s_len-1]))
+	while (s->s_len > 0 && isspace(s->s_buf[s->s_len-1]))
 		--s->s_len;
 
 	return (0);
 }
 
 /*
- * Check if an sbuf overflowed
+ * Check if an sbuf has an error.
  */
 int
-sbuf_overflowed(struct sbuf *s)
+sbuf_error(struct sbuf *s)
 {
 
-	return (SBUF_HASOVERFLOWED(s));
+	return (s->s_error);
 }
 
 /*
  * Finish off an sbuf.
  */
-void
+int
 sbuf_finish(struct sbuf *s)
 {
+	int error;
 
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 
+	error = s->s_error;
+	if (s->s_drain_func != NULL) {
+		while (s->s_len > 0 && error == 0)
+			error = sbuf_drain(s);
+	}
 	s->s_buf[s->s_len] = '\0';
-	SBUF_CLEARFLAG(s, SBUF_OVERFLOWED);
+	s->s_error = 0;
 	SBUF_SETFLAG(s, SBUF_FINISHED);
+#ifdef _KERNEL
+	return (error);
+#else
+	errno = error;
+	return (-1);
+#endif
 }
 
 /*
@@ -543,6 +682,8 @@ sbuf_data(struct sbuf *s)
 
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, SBUF_FINISHED);
+	KASSERT(s->s_drain_func == NULL,
+	    ("%s makes no sense on sbuf %p with drain", __func__, s));
 
 	return (s->s_buf);
 }
@@ -556,8 +697,10 @@ sbuf_len(struct sbuf *s)
 
 	assert_sbuf_integrity(s);
 	/* don't care if it's finished or not */
+	KASSERT(s->s_drain_func == NULL,
+	    ("%s makes no sense on sbuf %p with drain", __func__, s));
 
-	if (SBUF_HASOVERFLOWED(s))
+	if (s->s_error != 0)
 		return (-1);
 	return (s->s_len);
 }

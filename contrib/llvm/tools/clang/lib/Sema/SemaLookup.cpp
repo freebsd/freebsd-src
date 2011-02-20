@@ -11,8 +11,13 @@
 //  Objective-C++.
 //
 //===----------------------------------------------------------------------===//
-#include "Sema.h"
-#include "Lookup.h"
+#include "clang/Sema/Sema.h"
+#include "clang/Sema/SemaInternal.h"
+#include "clang/Sema/Lookup.h"
+#include "clang/Sema/DeclSpec.h"
+#include "clang/Sema/Scope.h"
+#include "clang/Sema/ScopeInfo.h"
+#include "clang/Sema/TemplateDeduction.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/Decl.h"
@@ -21,9 +26,9 @@
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
-#include "clang/Parse/DeclSpec.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/LangOptions.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -35,6 +40,7 @@
 #include <algorithm>
 
 using namespace clang;
+using namespace sema;
 
 namespace {
   class UnqualUsingEntry {
@@ -100,7 +106,7 @@ namespace {
                              End = S->using_directives_end();
           
           for (; I != End; ++I)
-            visit(I->getAs<UsingDirectiveDecl>(), InnermostFileDC);
+            visit(*I, InnermostFileDC);
         }
       }
     }
@@ -254,6 +260,12 @@ static inline unsigned getIDNS(Sema::LookupNameKind NameKind,
   case Sema::LookupObjCProtocolName:
     IDNS = Decl::IDNS_ObjCProtocol;
     break;
+      
+  case Sema::LookupAnyName:
+    IDNS = Decl::IDNS_Ordinary | Decl::IDNS_Tag | Decl::IDNS_Member 
+      | Decl::IDNS_Using | Decl::IDNS_Namespace | Decl::IDNS_ObjCProtocol
+      | Decl::IDNS_Type;
+    break;
   }
   return IDNS;
 }
@@ -267,7 +279,7 @@ void LookupResult::configure() {
   // operators, make sure that the implicitly-declared new and delete
   // operators can be found.
   if (!isForRedeclaration()) {
-    switch (Name.getCXXOverloadedOperator()) {
+    switch (NameInfo.getName().getCXXOverloadedOperator()) {
     case OO_New:
     case OO_Delete:
     case OO_Array_New:
@@ -280,6 +292,22 @@ void LookupResult::configure() {
     }
   }
 }
+
+#ifndef NDEBUG
+void LookupResult::sanity() const {
+  assert(ResultKind != NotFound || Decls.size() == 0);
+  assert(ResultKind != Found || Decls.size() == 1);
+  assert(ResultKind != FoundOverloaded || Decls.size() > 1 ||
+         (Decls.size() == 1 &&
+          isa<FunctionTemplateDecl>((*begin())->getUnderlyingDecl())));
+  assert(ResultKind != FoundUnresolvedValue || sanityCheckUnresolved());
+  assert(ResultKind != Ambiguous || Decls.size() > 1 ||
+         (Decls.size() == 1 && Ambiguity == AmbiguousBaseSubobjects));
+  assert((Paths != NULL) == (ResultKind == Ambiguous &&
+                             (Ambiguity == AmbiguousBaseSubobjectTypes ||
+                              Ambiguity == AmbiguousBaseSubobjects)));
+}
+#endif
 
 // Necessary because CXXBasePaths is not complete in Sema.h
 void LookupResult::deletePaths(CXXBasePaths *Paths) {
@@ -311,7 +339,8 @@ void LookupResult::resolveKind() {
   if (ResultKind == Ambiguous) return;
 
   llvm::SmallPtrSet<NamedDecl*, 16> Unique;
-
+  llvm::SmallPtrSet<QualType, 16> UniqueTypes;
+  
   bool Ambiguous = false;
   bool HasTag = false, HasFunction = false, HasNonFunction = false;
   bool HasFunctionTemplate = false, HasUnresolved = false;
@@ -323,32 +352,49 @@ void LookupResult::resolveKind() {
     NamedDecl *D = Decls[I]->getUnderlyingDecl();
     D = cast<NamedDecl>(D->getCanonicalDecl());
 
+    // Redeclarations of types via typedef can occur both within a scope
+    // and, through using declarations and directives, across scopes. There is
+    // no ambiguity if they all refer to the same type, so unique based on the
+    // canonical type.
+    if (TypeDecl *TD = dyn_cast<TypeDecl>(D)) {
+      if (!TD->getDeclContext()->isRecord()) {
+        QualType T = SemaRef.Context.getTypeDeclType(TD);
+        if (!UniqueTypes.insert(SemaRef.Context.getCanonicalType(T))) {
+          // The type is not unique; pull something off the back and continue
+          // at this index.
+          Decls[I] = Decls[--N];
+          continue;
+        }
+      }
+    }
+    
     if (!Unique.insert(D)) {
       // If it's not unique, pull something off the back (and
       // continue at this index).
       Decls[I] = Decls[--N];
-    } else {
-      // Otherwise, do some decl type analysis and then continue.
+      continue;
+    } 
+    
+    // Otherwise, do some decl type analysis and then continue.
 
-      if (isa<UnresolvedUsingValueDecl>(D)) {
-        HasUnresolved = true;
-      } else if (isa<TagDecl>(D)) {
-        if (HasTag)
-          Ambiguous = true;
-        UniqueTagIndex = I;
-        HasTag = true;
-      } else if (isa<FunctionTemplateDecl>(D)) {
-        HasFunction = true;
-        HasFunctionTemplate = true;
-      } else if (isa<FunctionDecl>(D)) {
-        HasFunction = true;
-      } else {
-        if (HasNonFunction)
-          Ambiguous = true;
-        HasNonFunction = true;
-      }
-      I++;
+    if (isa<UnresolvedUsingValueDecl>(D)) {
+      HasUnresolved = true;
+    } else if (isa<TagDecl>(D)) {
+      if (HasTag)
+        Ambiguous = true;
+      UniqueTagIndex = I;
+      HasTag = true;
+    } else if (isa<FunctionTemplateDecl>(D)) {
+      HasFunction = true;
+      HasFunctionTemplate = true;
+    } else if (isa<FunctionDecl>(D)) {
+      HasFunction = true;
+    } else {
+      if (HasNonFunction)
+        Ambiguous = true;
+      HasNonFunction = true;
     }
+    I++;
   }
 
   // C++ [basic.scope.hiding]p2:
@@ -451,6 +497,10 @@ static bool LookupBuiltin(Sema &S, LookupResult &R) {
 /// the class at this point.
 static bool CanDeclareSpecialMemberFunction(ASTContext &Context,
                                             const CXXRecordDecl *Class) {
+  // Don't do it if the class is invalid.
+  if (Class->isInvalidDecl())
+    return false;
+  
   // We need to have a definition for the class.
   if (!Class->getDefinition() || Class->isDependentContext())
     return false;
@@ -608,7 +658,7 @@ static bool LookupDirect(Sema &S, LookupResult &R, const DeclContext *DC) {
     // result), perform template argument deduction and place the 
     // specialization into the result set. We do this to avoid forcing all
     // callers to perform special deduction for conversion functions.
-    Sema::TemplateDeductionInfo Info(R.getSema().Context, R.getNameLoc());
+    TemplateDeductionInfo Info(R.getSema().Context, R.getNameLoc());
     FunctionDecl *Specialization = 0;
     
     const FunctionProtoType *ConvProto        
@@ -783,7 +833,7 @@ bool Sema::CppLookupName(LookupResult &R, Scope *S) {
 
     // Check whether the IdResolver has anything in this scope.
     bool Found = false;
-    for (; I != IEnd && S->isDeclScope(DeclPtrTy::make(*I)); ++I) {
+    for (; I != IEnd && S->isDeclScope(*I); ++I) {
       if (R.isAcceptableDecl(*I)) {
         Found = true;
         R.addDecl(*I);
@@ -881,7 +931,7 @@ bool Sema::CppLookupName(LookupResult &R, Scope *S) {
   for (; S; S = S->getParent()) {
     // Check whether the IdResolver has anything in this scope.
     bool Found = false;
-    for (; I != IEnd && S->isDeclScope(DeclPtrTy::make(*I)); ++I) {
+    for (; I != IEnd && S->isDeclScope(*I); ++I) {
       if (R.isAcceptableDecl(*I)) {
         // We found something.  Look for anything else in our scope
         // with this same name and in an acceptable identifier
@@ -1017,7 +1067,7 @@ bool Sema::LookupName(LookupResult &R, Scope *S, bool AllowBuiltinCreation) {
         if (NameKind == LookupRedeclarationWithLinkage) {
           // Determine whether this (or a previous) declaration is
           // out-of-scope.
-          if (!LeftStartingScope && !S->isDeclScope(DeclPtrTy::make(*I)))
+          if (!LeftStartingScope && !S->isDeclScope(*I))
             LeftStartingScope = true;
 
           // If we found something outside of our starting scope that
@@ -1034,14 +1084,14 @@ bool Sema::LookupName(LookupResult &R, Scope *S, bool AllowBuiltinCreation) {
 
           // Figure out what scope the identifier is in.
           while (!(S->getFlags() & Scope::DeclScope) ||
-                 !S->isDeclScope(DeclPtrTy::make(*I)))
+                 !S->isDeclScope(*I))
             S = S->getParent();
 
           // Find the last declaration in this scope (with the same
           // name, naturally).
           IdentifierResolver::iterator LastI = I;
           for (++LastI; LastI != IEnd; ++LastI) {
-            if (!S->isDeclScope(DeclPtrTy::make(*LastI)))
+            if (!S->isDeclScope(*LastI))
               break;
             R.addDecl(*LastI);
           }
@@ -1177,6 +1227,17 @@ static bool LookupQualifiedNameInUsingDirectives(Sema &S, LookupResult &R,
   return Found;
 }
 
+/// \brief Callback that looks for any member of a class with the given name.
+static bool LookupAnyMember(const CXXBaseSpecifier *Specifier, 
+                            CXXBasePath &Path,
+                            void *Name) {
+  RecordDecl *BaseRecord = Specifier->getType()->getAs<RecordType>()->getDecl();
+  
+  DeclarationName N = DeclarationName::getFromOpaquePtr(Name);
+  Path.Decls = BaseRecord->lookup(N);
+  return Path.Decls.first != Path.Decls.second;
+}
+
 /// \brief Perform qualified name lookup into a given context.
 ///
 /// Qualified name lookup (C++ [basic.lookup.qual]) is used to find
@@ -1272,6 +1333,10 @@ bool Sema::LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx,
       BaseCallback = &CXXRecordDecl::FindTagMember;
       break;
 
+    case LookupAnyName:
+      BaseCallback = &LookupAnyMember;
+      break;
+      
     case LookupUsingDeclName:
       // This lookup is for redeclarations only.
       
@@ -1554,7 +1619,11 @@ static void CollectEnclosingNamespace(Sema::AssociatedNamespaceSet &Namespaces,
   // We don't use DeclContext::getEnclosingNamespaceContext() as this may
   // be a locally scoped record.
 
-  while (Ctx->isRecord() || Ctx->isTransparentContext())
+  // We skip out of inline namespaces. The innermost non-inline namespace
+  // contains all names of all its nested inline namespaces anyway, so we can
+  // replace the entire inline namespace tree with its root.
+  while (Ctx->isRecord() || Ctx->isTransparentContext() ||
+         Ctx->isInlineNamespace())
     Ctx = Ctx->getParent();
 
   if (Ctx->isFileContext())
@@ -1894,7 +1963,7 @@ Sema::FindAssociatedClassesAndNamespaces(Expr **Args, unsigned NumArgs,
     // parameter types and return type.
     Arg = Arg->IgnoreParens();
     if (UnaryOperator *unaryOp = dyn_cast<UnaryOperator>(Arg))
-      if (unaryOp->getOpcode() == UnaryOperator::AddrOf)
+      if (unaryOp->getOpcode() == UO_AddrOf)
         Arg = unaryOp->getSubExpr();
 
     UnresolvedLookupExpr *ULE = dyn_cast<UnresolvedLookupExpr>(Arg);
@@ -2201,6 +2270,10 @@ public:
     return !VisitedContexts.insert(Ctx);
   }
 
+  bool alreadyVisitedContext(DeclContext *Ctx) {
+    return VisitedContexts.count(Ctx);
+  }
+
   /// \brief Determine whether the given declaration is hidden in the
   /// current scope.
   ///
@@ -2354,9 +2427,9 @@ static void LookupVisibleDecls(DeclContext *Ctx, LookupResult &Result,
           Visited.add(ND);
         }
 
-      // Visit transparent contexts inside this context.
+      // Visit transparent contexts and inline namespaces inside this context.
       if (DeclContext *InnerCtx = dyn_cast<DeclContext>(*D)) {
-        if (InnerCtx->isTransparentContext())
+        if (InnerCtx->isTransparentContext() || InnerCtx->isInlineNamespace())
           LookupVisibleDecls(InnerCtx, Result, QualifiedNameLookup, InBaseClass,
                              Consumer, Visited);
       }
@@ -2429,8 +2502,9 @@ static void LookupVisibleDecls(DeclContext *Ctx, LookupResult &Result,
     }
 
     // Traverse protocols.
-    for (ObjCInterfaceDecl::protocol_iterator I = IFace->protocol_begin(),
-         E = IFace->protocol_end(); I != E; ++I) {
+    for (ObjCInterfaceDecl::all_protocol_iterator
+         I = IFace->all_referenced_protocol_begin(),
+         E = IFace->all_referenced_protocol_end(); I != E; ++I) {
       ShadowContextRAII Shadow(Visited);
       LookupVisibleDecls(*I, Result, QualifiedNameLookup, false, Consumer, 
                          Visited);
@@ -2481,12 +2555,14 @@ static void LookupVisibleDecls(Scope *S, LookupResult &Result,
   if (!S)
     return;
 
-  if (!S->getEntity() || !S->getParent() ||
+  if (!S->getEntity() || 
+      (!S->getParent() && 
+       !Visited.alreadyVisitedContext((DeclContext *)S->getEntity())) ||
       ((DeclContext *)S->getEntity())->isFunctionOrMethod()) {
     // Walk through the declarations in this Scope.
     for (Scope::decl_iterator D = S->decl_begin(), DEnd = S->decl_end();
          D != DEnd; ++D) {
-      if (NamedDecl *ND = dyn_cast<NamedDecl>((Decl *)((*D).get())))
+      if (NamedDecl *ND = dyn_cast<NamedDecl>(*D))
         if (Result.isAcceptableDecl(ND)) {
           Consumer.FoundDecl(ND, Visited.checkHidden(ND), false);
           Visited.add(ND);
@@ -2559,7 +2635,8 @@ static void LookupVisibleDecls(Scope *S, LookupResult &Result,
 }
 
 void Sema::LookupVisibleDecls(Scope *S, LookupNameKind Kind,
-                              VisibleDeclConsumer &Consumer) {
+                              VisibleDeclConsumer &Consumer,
+                              bool IncludeGlobalScope) {
   // Determine the set of using directives available during
   // unqualified name lookup.
   Scope *Initial = S;
@@ -2576,14 +2653,19 @@ void Sema::LookupVisibleDecls(Scope *S, LookupNameKind Kind,
   // Look for visible declarations.
   LookupResult Result(*this, DeclarationName(), SourceLocation(), Kind);
   VisibleDeclsRecord Visited;
+  if (!IncludeGlobalScope)
+    Visited.visitedContext(Context.getTranslationUnitDecl());
   ShadowContextRAII Shadow(Visited);
   ::LookupVisibleDecls(Initial, Result, UDirs, Consumer, Visited);
 }
 
 void Sema::LookupVisibleDecls(DeclContext *Ctx, LookupNameKind Kind,
-                              VisibleDeclConsumer &Consumer) {
+                              VisibleDeclConsumer &Consumer,
+                              bool IncludeGlobalScope) {
   LookupResult Result(*this, DeclarationName(), SourceLocation(), Kind);
   VisibleDeclsRecord Visited;
+  if (!IncludeGlobalScope)
+    Visited.visitedContext(Context.getTranslationUnitDecl());
   ShadowContextRAII Shadow(Visited);
   ::LookupVisibleDecls(Ctx, Result, /*QualifiedNameLookup=*/true, 
                        /*InBaseClass=*/false, Consumer, Visited);
@@ -2911,7 +2993,7 @@ DeclarationName Sema::CorrectTypo(LookupResult &Res, Scope *S, CXXScopeSpec *SS,
       if (S && S->getContinueParent())
         Consumer.addKeywordResult(Context, "continue");
       
-      if (!getSwitchStack().empty()) {
+      if (!getCurFunction()->SwitchStack.empty()) {
         Consumer.addKeywordResult(Context, "case");
         Consumer.addKeywordResult(Context, "default");
       }

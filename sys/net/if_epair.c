@@ -78,7 +78,7 @@ SYSCTL_NODE(_net_link, OID_AUTO, epair, CTLFLAG_RW, 0, "epair sysctl");
 
 #ifdef EPAIR_DEBUG
 static int epair_debug = 0;
-SYSCTL_XINT(_net_link_epair, OID_AUTO, epair_debug, CTLFLAG_RW,
+SYSCTL_INT(_net_link_epair, OID_AUTO, epair_debug, CTLFLAG_RW,
     &epair_debug, 0, "if_epair(4) debugging.");
 #define	DPRINTF(fmt, arg...)						\
 	if (epair_debug)						\
@@ -305,7 +305,7 @@ epair_nh_drainedcpu(u_int cpuid)
 
 		if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) != 0) {
 			/* Our "hw"q overflew again. */
-			epair_dpcpu->epair_drv_flags |= IFF_DRV_OACTIVE
+			epair_dpcpu->epair_drv_flags |= IFF_DRV_OACTIVE;
 			DPRINTF("hw queue length overflow at %u\n",
 			    epair_nh.nh_qlimit);
 			break;
@@ -832,6 +832,8 @@ epair_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	/* Tell the world, that we are ready to rock. */
 	sca->ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	scb->ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	if_link_state_change(sca->ifp, LINK_STATE_UP);
+	if_link_state_change(scb->ifp, LINK_STATE_UP);
 
 	return (0);
 }
@@ -859,6 +861,8 @@ epair_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	scb = oifp->if_softc;
 
 	DPRINTF("ifp=%p oifp=%p\n", ifp, oifp);
+	if_link_state_change(ifp, LINK_STATE_DOWN);
+	if_link_state_change(oifp, LINK_STATE_DOWN);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	oifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ether_ifdetach(oifp);
@@ -888,9 +892,9 @@ epair_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	 * we need to switch before freeing them.
 	 */
 	CURVNET_SET_QUIET(oifp->if_vnet);
-	if_free_type(oifp, IFT_ETHER);
+	if_free(oifp);
 	CURVNET_RESTORE();
-	if_free_type(ifp, IFT_ETHER);
+	if_free(ifp);
 	free(scb, M_EPAIR);
 	free(sca, M_EPAIR);
 	ifc_free_unit(ifc, unit);

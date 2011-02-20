@@ -21,7 +21,6 @@ namespace clang {
 class Expr;
 class Stmt;
 class FunctionDecl;
-class AttributeList;
 class RecordDecl;
 class ObjCIvarDecl;
 class ObjCMethodDecl;
@@ -41,12 +40,6 @@ protected:
 
 public:
   ObjCListBase() : List(0), NumElts(0) {}
-  ~ObjCListBase() {
-    assert(List == 0 && "Destroy should have been called before dtor");
-  }
-
-  void Destroy(ASTContext &Ctx);
-
   unsigned size() const { return NumElts; }
   bool empty() const { return NumElts == 0; }
 
@@ -92,7 +85,6 @@ public:
 
   void set(ObjCProtocolDecl* const* InList, unsigned Elts, 
            const SourceLocation *Locs, ASTContext &Ctx);
-  void Destroy(ASTContext &Ctx);
 };
 
 
@@ -128,6 +120,9 @@ private:
 
   // Synthesized declaration method for a property setter/getter
   bool IsSynthesized : 1;
+  
+  // Method has a definition.
+  bool IsDefined : 1;
 
   // NOTE: VC++ treats enums as signed, avoid using ImplementationControl enum
   /// @required/@optional
@@ -171,18 +166,18 @@ private:
                  bool isInstance = true,
                  bool isVariadic = false,
                  bool isSynthesized = false,
+                 bool isDefined = false,
                  ImplementationControl impControl = None,
                  unsigned numSelectorArgs = 0)
   : NamedDecl(ObjCMethod, contextDecl, beginLoc, SelInfo),
     DeclContext(ObjCMethod),
     IsInstance(isInstance), IsVariadic(isVariadic),
     IsSynthesized(isSynthesized),
+    IsDefined(isDefined),
     DeclImplementation(impControl), objcDeclQualifier(OBJC_TQ_None),
     NumSelectorArgs(numSelectorArgs), MethodDeclType(T), 
     ResultTInfo(ResultTInfo),
     EndLoc(endLoc), Body(0), SelfDecl(0), CmdDecl(0) {}
-
-  virtual ~ObjCMethodDecl() {}
 
   /// \brief A definition will return its interface declaration.
   /// An interface declaration will return its definition.
@@ -190,10 +185,6 @@ private:
   virtual ObjCMethodDecl *getNextRedeclaration();
 
 public:
-
-  /// Destroy - Call destructors and release memory.
-  virtual void Destroy(ASTContext& C);
-
   static ObjCMethodDecl *Create(ASTContext &C,
                                 SourceLocation beginLoc,
                                 SourceLocation endLoc, Selector SelInfo,
@@ -203,6 +194,7 @@ public:
                                 bool isInstance = true,
                                 bool isVariadic = false,
                                 bool isSynthesized = false,
+                                bool isDefined = false,
                                 ImplementationControl impControl = None,
                                 unsigned numSelectorArgs = 0);
 
@@ -296,6 +288,9 @@ public:
 
   bool isSynthesized() const { return IsSynthesized; }
   void setSynthesized(bool isSynth) { IsSynthesized = isSynth; }
+  
+  bool isDefined() const { return IsDefined; }
+  void setDefined(bool isDefined) { IsDefined = isDefined; }
 
   // Related to protocols declared in  @protocol
   void setDeclImplementation(ImplementationControl ic) {
@@ -326,21 +321,6 @@ public:
   }
 };
 
-/// ObjCMethodList - a linked list of methods with different signatures.
-struct ObjCMethodList {
-  ObjCMethodDecl *Method;
-  ObjCMethodList *Next;
-
-  ObjCMethodList() {
-    Method = 0;
-    Next = 0;
-  }
-  ObjCMethodList(ObjCMethodDecl *M, ObjCMethodList *C) {
-    Method = M;
-    Next = C;
-  }
-};
-
 /// ObjCContainerDecl - Represents a container for method declarations.
 /// Current sub-classes are ObjCInterfaceDecl, ObjCCategoryDecl,
 /// ObjCProtocolDecl, and ObjCImplDecl.
@@ -354,8 +334,6 @@ public:
   ObjCContainerDecl(Kind DK, DeclContext *DC, SourceLocation L,
                     IdentifierInfo *Id)
     : NamedDecl(DK, DC, L, Id), DeclContext(DK) {}
-
-  virtual ~ObjCContainerDecl() {}
 
   // Iterator access to properties.
   typedef specific_decl_iterator<ObjCPropertyDecl> prop_iterator;
@@ -465,12 +443,19 @@ class ObjCInterfaceDecl : public ObjCContainerDecl {
   /// Class's super class.
   ObjCInterfaceDecl *SuperClass;
 
-  /// Protocols referenced in interface header declaration
+  /// Protocols referenced in the @interface  declaration
   ObjCProtocolList ReferencedProtocols;
+  
+  /// Protocols reference in both the @interface and class extensions.
+  ObjCList<ObjCProtocolDecl> AllReferencedProtocols;
 
   /// List of categories defined for this class.
   /// FIXME: Why is this a linked list??
   ObjCCategoryDecl *CategoryList;
+  
+  /// IvarList - List of all ivars defined by this class; including class
+  /// extensions and implementation. This list is built lazily.
+  ObjCIvarDecl *IvarList;
 
   bool ForwardDecl:1; // declared with @class.
   bool InternalInterface:1; // true - no @interface for @implementation
@@ -482,13 +467,7 @@ class ObjCInterfaceDecl : public ObjCContainerDecl {
   ObjCInterfaceDecl(DeclContext *DC, SourceLocation atLoc, IdentifierInfo *Id,
                     SourceLocation CLoc, bool FD, bool isInternal);
 
-  virtual ~ObjCInterfaceDecl() {}
-
 public:
-
-  /// Destroy - Call destructors and release memory.
-  virtual void Destroy(ASTContext& C);
-
   static ObjCInterfaceDecl *Create(ASTContext &C, DeclContext *DC,
                                    SourceLocation atLoc,
                                    IdentifierInfo *Id,
@@ -513,25 +492,49 @@ public:
   }
 
   typedef ObjCProtocolList::iterator protocol_iterator;
-  protocol_iterator protocol_begin() const {return ReferencedProtocols.begin();}
-  protocol_iterator protocol_end() const { return ReferencedProtocols.end(); }
+  
+  protocol_iterator protocol_begin() const {
+    return ReferencedProtocols.begin();
+  }
+  protocol_iterator protocol_end() const {
+    return ReferencedProtocols.end();
+  }
+
   typedef ObjCProtocolList::loc_iterator protocol_loc_iterator;
+
   protocol_loc_iterator protocol_loc_begin() const { 
     return ReferencedProtocols.loc_begin(); 
   }
+
   protocol_loc_iterator protocol_loc_end() const { 
     return ReferencedProtocols.loc_end(); 
   }
-  unsigned protocol_size() const { return ReferencedProtocols.size(); }
+  
+  typedef ObjCList<ObjCProtocolDecl>::iterator all_protocol_iterator;
+  
+  all_protocol_iterator all_referenced_protocol_begin() const {
+    return AllReferencedProtocols.empty() ? protocol_begin()
+      : AllReferencedProtocols.begin();
+  }
+  all_protocol_iterator all_referenced_protocol_end() const {
+    return AllReferencedProtocols.empty() ? protocol_end() 
+      : AllReferencedProtocols.end();
+  }
 
   typedef specific_decl_iterator<ObjCIvarDecl> ivar_iterator;
+
   ivar_iterator ivar_begin() const { return  ivar_iterator(decls_begin()); }
   ivar_iterator ivar_end() const { return ivar_iterator(decls_end()); }
+
   unsigned ivar_size() const {
     return std::distance(ivar_begin(), ivar_end());
   }
+  
   bool ivar_empty() const { return ivar_begin() == ivar_end(); }
-
+  
+  ObjCIvarDecl  *all_declared_ivar_begin();
+  void setIvarList(ObjCIvarDecl *ivar) { IvarList = ivar; }
+  
   /// setProtocolList - Set the list of protocols that this interface
   /// implements.
   void setProtocolList(ObjCProtocolDecl *const* List, unsigned Num,
@@ -543,7 +546,6 @@ public:
   /// into the protocol list for this class.
   void mergeClassExtensionProtocolList(ObjCProtocolDecl *const* List, 
                                        unsigned Num,
-                                       const SourceLocation *Locs,
                                        ASTContext &C);
 
   bool isForwardDecl() const { return ForwardDecl; }
@@ -625,6 +627,9 @@ public:
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const ObjCInterfaceDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == ObjCInterface; }
+
+  friend class ASTDeclReader;
+  friend class ASTDeclWriter;
 };
 
 /// ObjCIvarDecl - Represents an ObjC instance variable. In general, ObjC
@@ -650,21 +655,26 @@ public:
 
 private:
   ObjCIvarDecl(ObjCContainerDecl *DC, SourceLocation L, IdentifierInfo *Id,
-               QualType T, TypeSourceInfo *TInfo, AccessControl ac, Expr *BW)
+               QualType T, TypeSourceInfo *TInfo, AccessControl ac, Expr *BW,
+               bool synthesized)
     : FieldDecl(ObjCIvar, DC, L, Id, T, TInfo, BW, /*Mutable=*/false),
-      DeclAccess(ac) {}
+      NextIvar(0), DeclAccess(ac),  Synthesized(synthesized) {}
 
 public:
   static ObjCIvarDecl *Create(ASTContext &C, ObjCContainerDecl *DC,
                               SourceLocation L, IdentifierInfo *Id, QualType T,
                               TypeSourceInfo *TInfo,
-                              AccessControl ac, Expr *BW = NULL);
+                              AccessControl ac, Expr *BW = NULL,
+                              bool synthesized=false);
 
   /// \brief Return the class interface that this ivar is logically contained
   /// in; this is either the interface where the ivar was declared, or the
   /// interface the ivar is conceptually a part of in the case of synthesized
   /// ivars.
   const ObjCInterfaceDecl *getContainingInterface() const;
+  
+  ObjCIvarDecl *getNextIvar() { return NextIvar; }
+  void setNextIvar(ObjCIvarDecl *ivar) { NextIvar = ivar; }
 
   void setAccessControl(AccessControl ac) { DeclAccess = ac; }
 
@@ -674,13 +684,21 @@ public:
     return DeclAccess == None ? Protected : AccessControl(DeclAccess);
   }
 
+  void setSynthesize(bool synth) { Synthesized = synth; }
+  bool getSynthesize() const { return Synthesized; }
+  
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const ObjCIvarDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == ObjCIvar; }
 private:
+  /// NextIvar - Next Ivar in the list of ivars declared in class; class's 
+  /// extensions and class's implementation
+  ObjCIvarDecl *NextIvar;
+  
   // NOTE: VC++ treats enums as signed, avoid using the AccessControl enum
   unsigned DeclAccess : 3;
+  unsigned Synthesized : 1;
 };
 
 
@@ -699,8 +717,6 @@ public:
                                      SourceLocation L,
                                      IdentifierInfo *Id, QualType T,
                                      Expr *BW);
-
-  virtual void Destroy(ASTContext& C);
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
@@ -745,14 +761,9 @@ class ObjCProtocolDecl : public ObjCContainerDecl {
       isForwardProtoDecl(true) {
   }
 
-  virtual ~ObjCProtocolDecl() {}
-
 public:
   static ObjCProtocolDecl *Create(ASTContext &C, DeclContext *DC,
                                   SourceLocation L, IdentifierInfo *Id);
-
-  /// Destroy - Call destructors and release memory.
-  virtual void Destroy(ASTContext& C);
 
   const ObjCProtocolList &getReferencedProtocols() const {
     return ReferencedProtocols;
@@ -822,12 +833,7 @@ private:
   ObjCClassDecl(DeclContext *DC, SourceLocation L,
                 ObjCInterfaceDecl *const *Elts, const SourceLocation *Locs,                
                 unsigned nElts, ASTContext &C);
-  virtual ~ObjCClassDecl() {}
 public:
-
-  /// Destroy - Call destructors and release memory.
-  virtual void Destroy(ASTContext& C);
-
   static ObjCClassDecl *Create(ASTContext &C, DeclContext *DC, SourceLocation L,
                                ObjCInterfaceDecl *const *Elts = 0,
                                const SourceLocation *Locs = 0,
@@ -860,7 +866,6 @@ class ObjCForwardProtocolDecl : public Decl {
   ObjCForwardProtocolDecl(DeclContext *DC, SourceLocation L,
                           ObjCProtocolDecl *const *Elts, unsigned nElts,
                           const SourceLocation *Locs, ASTContext &C);
-  virtual ~ObjCForwardProtocolDecl() {}
 
 public:
   static ObjCForwardProtocolDecl *Create(ASTContext &C, DeclContext *DC,
@@ -873,9 +878,6 @@ public:
                                          SourceLocation L) {
     return Create(C, DC, L, 0, 0, 0);
   }
-
-  /// Destroy - Call destructors and release memory.
-  virtual void Destroy(ASTContext& C);
 
   typedef ObjCProtocolList::iterator protocol_iterator;
   protocol_iterator protocol_begin() const {return ReferencedProtocols.begin();}
@@ -928,6 +930,9 @@ class ObjCCategoryDecl : public ObjCContainerDecl {
   /// FIXME: this should not be a singly-linked list.  Move storage elsewhere.
   ObjCCategoryDecl *NextClassCategory;
 
+  /// true of class extension has at least one bitfield ivar.
+  bool HasSynthBitfield : 1;
+  
   /// \brief The location of the '@' in '@interface'
   SourceLocation AtLoc;
 
@@ -938,8 +943,8 @@ class ObjCCategoryDecl : public ObjCContainerDecl {
                    SourceLocation ClassNameLoc, SourceLocation CategoryNameLoc,
                    IdentifierInfo *Id)
     : ObjCContainerDecl(ObjCCategory, DC, ClassNameLoc, Id),
-      ClassInterface(0), NextClassCategory(0), AtLoc(AtLoc), 
-      CategoryNameLoc(CategoryNameLoc) {
+      ClassInterface(0), NextClassCategory(0), HasSynthBitfield(false),
+      AtLoc(AtLoc), CategoryNameLoc(CategoryNameLoc) {
   }
 public:
 
@@ -991,6 +996,9 @@ public:
   bool IsClassExtension() const { return getIdentifier() == 0; }
   const ObjCCategoryDecl *getNextClassExtension() const;
   
+  bool hasSynthBitfield() const { return HasSynthBitfield; }
+  void setHasSynthBitfield (bool val) { HasSynthBitfield = val; }
+  
   typedef specific_decl_iterator<ObjCIvarDecl> ivar_iterator;
   ivar_iterator ivar_begin() const {
     return ivar_iterator(decls_begin());
@@ -1032,8 +1040,6 @@ protected:
       ClassInterface(classInterface) {}
 
 public:
-  virtual ~ObjCImplDecl() {}
-
   const ObjCInterfaceDecl *getClassInterface() const { return ClassInterface; }
   ObjCInterfaceDecl *getClassInterface() { return ClassInterface; }
   void setClassInterface(ObjCInterfaceDecl *IFace);
@@ -1165,11 +1171,15 @@ class ObjCImplementationDecl : public ObjCImplDecl {
   CXXBaseOrMemberInitializer **IvarInitializers;
   unsigned NumIvarInitializers;
   
+  /// true of class extension has at least one bitfield ivar.
+  bool HasSynthBitfield : 1;
+  
   ObjCImplementationDecl(DeclContext *DC, SourceLocation L,
                          ObjCInterfaceDecl *classInterface,
                          ObjCInterfaceDecl *superDecl)
     : ObjCImplDecl(ObjCImplementation, DC, L, classInterface),
-       SuperClass(superDecl), IvarInitializers(0), NumIvarInitializers(0) {}
+       SuperClass(superDecl), IvarInitializers(0), NumIvarInitializers(0),
+       HasSynthBitfield(false) {}
 public:
   static ObjCImplementationDecl *Create(ASTContext &C, DeclContext *DC,
                                         SourceLocation L,
@@ -1207,6 +1217,9 @@ public:
   void setIvarInitializers(ASTContext &C,
                            CXXBaseOrMemberInitializer ** initializers,
                            unsigned numInitializers);
+  
+  bool hasSynthBitfield() const { return HasSynthBitfield; }
+  void setHasSynthBitfield (bool val) { HasSynthBitfield = val; }
     
   /// getIdentifier - Get the identifier that names the class
   /// interface associated with this implementation.
@@ -1262,6 +1275,9 @@ public:
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
   static bool classof(const ObjCImplementationDecl *D) { return true; }
   static bool classofKind(Kind K) { return K == ObjCImplementation; }
+
+  friend class ASTDeclReader;
+  friend class ASTDeclWriter;
 };
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &OS,

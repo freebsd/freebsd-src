@@ -77,8 +77,8 @@ int rootpid;
 int rootshell;
 struct jmploc main_handler;
 
-STATIC void read_profile(const char *);
-STATIC char *find_dot_file(char *);
+static void read_profile(const char *);
+static char *find_dot_file(char *);
 
 /*
  * Main routine.  We initialize things, parse the arguments, execute
@@ -98,19 +98,7 @@ main(int argc, char *argv[])
 	(void) setlocale(LC_ALL, "");
 	state = 0;
 	if (setjmp(main_handler.loc)) {
-		/*
-		 * When a shell procedure is executed, we raise the
-		 * exception EXSHELLPROC to clean up before executing
-		 * the shell procedure.
-		 */
 		switch (exception) {
-		case EXSHELLPROC:
-			rootpid = getpid();
-			rootshell = 1;
-			minusc = NULL;
-			state = 3;
-			break;
-
 		case EXEXEC:
 			exitstatus = exerrno;
 			break;
@@ -123,15 +111,11 @@ main(int argc, char *argv[])
 			break;
 		}
 
-		if (exception != EXSHELLPROC) {
-		    if (state == 0 || iflag == 0 || ! rootshell)
-			    exitshell(exitstatus);
-		}
+		if (state == 0 || iflag == 0 || ! rootshell)
+			exitshell(exitstatus);
 		reset();
-		if (exception == EXINT) {
-			out2c('\n');
-			flushout(&errout);
-		}
+		if (exception == EXINT)
+			out2fmt_flush("\n");
 		popstackmark(&smark);
 		FORCEINTON;				/* enable interrupts */
 		if (state == 1)
@@ -247,7 +231,7 @@ cmdloop(int top)
  * Read /etc/profile or .profile.  Return on error.
  */
 
-STATIC void
+static void
 read_profile(const char *name)
 {
 	int fd;
@@ -291,7 +275,7 @@ readcmdfile(const char *name)
  */
 
 
-STATIC char *
+static char *
 find_dot_file(char *basename)
 {
 	static char localname[FILENAME_MAX+1];
@@ -343,10 +327,7 @@ exitcmd(int argc, char **argv)
 	if (stoppedjobs())
 		return 0;
 	if (argc > 1)
-		exitstatus = number(argv[1]);
+		exitshell(number(argv[1]));
 	else
-		exitstatus = oexitstatus;
-	exitshell(exitstatus);
-	/*NOTREACHED*/
-	return 0;
+		exitshell_savedstatus();
 }

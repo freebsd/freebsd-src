@@ -59,6 +59,8 @@ extern uint8_t __boot_page[];		/* Boot page body */
 extern uint32_t kernload;		/* Kernel physical load address */
 #endif
 
+extern uint32_t *bootinfo;
+
 static int cpu, maxcpu;
 
 static int bare_probe(platform_t);
@@ -70,6 +72,8 @@ static int bare_smp_next_cpu(platform_t, struct cpuref *cpuref);
 static int bare_smp_get_bsp(platform_t, struct cpuref *cpuref);
 static int bare_smp_start_cpu(platform_t, struct pcpu *cpu);
 
+static void e500_reset(platform_t);
+
 static platform_method_t bare_methods[] = {
 	PLATFORMMETHOD(platform_probe, 		bare_probe),
 	PLATFORMMETHOD(platform_mem_regions,	bare_mem_regions),
@@ -79,6 +83,8 @@ static platform_method_t bare_methods[] = {
 	PLATFORMMETHOD(platform_smp_next_cpu,	bare_smp_next_cpu),
 	PLATFORMMETHOD(platform_smp_get_bsp,	bare_smp_get_bsp),
 	PLATFORMMETHOD(platform_smp_start_cpu,	bare_smp_start_cpu),
+
+	PLATFORMMETHOD(platform_reset,		e500_reset),
 
 	{ 0, 0 }
 };
@@ -156,9 +162,12 @@ bare_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
 static u_long
 bare_timebase_freq(platform_t plat, struct cpuref *cpuref)
 {
-	u_long ticks = -1;
+	u_long ticks;
 	phandle_t cpus, child;
 	pcell_t freq;
+
+	/* Backward compatibility. See 8-STABLE. */
+	ticks = bootinfo[3] >> 3;
 
 	if ((cpus = OF_finddevice("/cpus")) == 0)
 		goto out;
@@ -166,14 +175,18 @@ bare_timebase_freq(platform_t plat, struct cpuref *cpuref)
 	if ((child = OF_child(cpus)) == 0)
 		goto out;
 
+	freq = 0;
 	if (OF_getprop(child, "bus-frequency", (void *)&freq,
 	    sizeof(freq)) <= 0)
 		goto out;
+
 	/*
 	 * Time Base and Decrementer are updated every 8 CCB bus clocks.
 	 * HID0[SEL_TBCLK] = 0
 	 */
-	ticks = freq / 8;
+	if (freq != 0)
+		ticks = freq / 8;
+
 out:
 	if (ticks <= 0)
 		panic("Unable to determine timebase frequency!");
@@ -260,3 +273,30 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	return (ENXIO);
 #endif
 }
+
+static void
+e500_reset(platform_t plat)
+{
+	uint32_t ver = SVR_VER(mfspr(SPR_SVR));
+
+	if (ver == SVR_MPC8572E || ver == SVR_MPC8572 ||
+	    ver == SVR_MPC8548E || ver == SVR_MPC8548)
+		/* Systems with dedicated reset register */
+		ccsr_write4(OCP85XX_RSTCR, 2);
+	else {
+		/* Clear DBCR0, disables debug interrupts and events. */
+		mtspr(SPR_DBCR0, 0);
+		__asm __volatile("isync");
+
+		/* Enable Debug Interrupts in MSR. */
+		mtmsr(mfmsr() | PSL_DE);
+
+		/* Enable debug interrupts and issue reset. */
+		mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM |
+		    DBCR0_RST_SYSTEM);
+	}
+
+	printf("Reset failed...\n");
+	while (1);
+}
+

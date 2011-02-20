@@ -29,7 +29,6 @@ class CodeGenOptions;
 class Diagnostic;
 class FileManager;
 class LangOptions;
-class PCHReader;
 class Preprocessor;
 class TargetOptions;
 
@@ -57,14 +56,6 @@ ASTConsumer *CreateASTViewer();
 // DeclContext printer: prints out the DeclContext tree in human-readable form
 // to stderr; this is intended for debugging.
 ASTConsumer *CreateDeclContextPrinter();
-
-// PCH generator: generates a precompiled header file; this file can be used
-// later with the PCHReader (clang -cc1 option -include-pch) to speed up compile
-// times.
-ASTConsumer *CreatePCHGenerator(const Preprocessor &PP,
-                                llvm::raw_ostream *OS,
-                                PCHReader *Chain,
-                                const char *isysroot = 0);
 
 // Inheritance viewer: for C++ code, creates a graph of the inheritance
 // tree for the given class and displays it with "dotty".

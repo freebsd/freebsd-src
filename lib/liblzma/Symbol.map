@@ -107,7 +107,6 @@ XZprivate_1.0 {
 	lzma_check_finish;
 	lzma_check_init;
 	lzma_check_update;
-	lzma_chunk_size;
 	lzma_delta_coder_init;
 	lzma_delta_coder_memusage;
 	lzma_delta_decoder_init;

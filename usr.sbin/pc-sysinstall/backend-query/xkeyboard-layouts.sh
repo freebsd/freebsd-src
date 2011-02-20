@@ -26,6 +26,12 @@
 # $FreeBSD$
 
 FOUND="0"
+TMPLIST="/tmp/.xkeyList.$$"
+XLST="/usr/local/share/X11/xkb/rules/xorg.lst"
+
+if [ ! -e "${XLST}" ] ; then
+  exit 1
+fi
 
 # Lets parse the xorg.list file, and see what layouts are supported
 while read line
@@ -36,9 +42,9 @@ do
     echo $line | grep '! ' >/dev/null 2>/dev/null
     if [ "$?" = "0" ]
     then
-      exit 0
+	break
     else 
-      echo "$line"
+      echo "$line" >> ${TMPLIST}
     fi 
   fi 
 
@@ -51,6 +57,11 @@ do
     fi 
   fi
 
-done < /usr/local/share/X11/xkb/rules/xorg.lst
+done < $XLST
+
+sort -b -d +1 $TMPLIST
+
+# Delete the tmp file
+rm $TMPLIST
 
 exit 0

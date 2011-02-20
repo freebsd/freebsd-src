@@ -63,6 +63,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
@@ -114,7 +115,7 @@ static int	nexus_attach(device_t);
 /*
  * Bus interface
  */
-static device_t nexus_add_child(device_t, int, const char *, int);
+static device_t nexus_add_child(device_t, u_int, const char *, int);
 static void	nexus_probe_nomatch(device_t, device_t);
 static int	nexus_read_ivar(device_t, device_t, int, uintptr_t *);
 static int	nexus_write_ivar(device_t, device_t, int, uintptr_t);
@@ -162,6 +163,7 @@ static device_method_t nexus_methods[] = {
 	/* Bus interface. Resource management is business of the children... */
 	DEVMETHOD(bus_add_child,	nexus_add_child),
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
 	DEVMETHOD(bus_probe_nomatch,	nexus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	nexus_read_ivar),
 	DEVMETHOD(bus_write_ivar,	nexus_write_ivar),
@@ -211,9 +213,6 @@ nexus_attach(device_t dev)
 	struct		nexus_softc *sc;
 	u_long		start, end;
 
-	if ((root = OF_peer(0)) == -1)
-		panic("nexus_probe: OF_peer failed.");
-
 	sc = device_get_softc(dev);
 
 	start = 0;
@@ -227,6 +226,9 @@ nexus_attach(device_t dev)
 	    rman_manage_region(&sc->sc_rman, start, end))
 		panic("nexus_probe IRQ rman");
 
+	if ((root = OF_peer(0)) == 0)
+		return (bus_generic_attach(dev));
+		
 	/*
 	 * Now walk the OFW tree to locate top-level devices
 	 */
@@ -260,7 +262,7 @@ nexus_probe_nomatch(device_t dev, device_t child)
 }
 
 static device_t
-nexus_add_child(device_t dev, int order, const char *name, int unit)
+nexus_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t child;
 	struct nexus_devinfo *dinfo;
@@ -338,7 +340,6 @@ static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filter, driver_intr_t *ihand, void *arg, void **cookiep)
 {
-	driver_t	*driver;
 	int		error;
 
 	/* somebody tried to setup an irq that failed to allocate! */
@@ -348,8 +349,6 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 	*cookiep = 0;
 	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
-
-	driver = device_get_driver(child);
 
 	/*
 	 * We depend here on rman_activate_resource() being idempotent.

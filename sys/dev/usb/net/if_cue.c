@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -173,6 +172,7 @@ DRIVER_MODULE(cue, uhub, cue_driver, cue_devclass, NULL, 0);
 MODULE_DEPEND(cue, uether, 1, 1, 1);
 MODULE_DEPEND(cue, usb, 1, 1, 1);
 MODULE_DEPEND(cue, ether, 1, 1, 1);
+MODULE_VERSION(cue, 1);
 
 static const struct usb_ether_methods cue_ue_methods = {
 	.ue_attach_post = cue_attach_post,

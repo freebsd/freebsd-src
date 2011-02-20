@@ -557,6 +557,10 @@ dt_header_provider(dtrace_hdl_t *dtp, dt_provider_t *pvp, FILE *out)
 	info.dthi_pfname = alloca(strlen(pvp->pv_desc.dtvd_name) + 1 + i);
 	dt_header_fmt_func(info.dthi_pfname, pvp->pv_desc.dtvd_name);
 
+#ifdef __FreeBSD__
+	if (fprintf(out, "#include <sys/sdt.h>\n\n") < 0)
+		return (dt_set_errno(dtp, errno));
+#endif
 	if (fprintf(out, "#if _DTRACE_VERSION\n\n") < 0)
 		return (dt_set_errno(dtp, errno));
 

@@ -35,13 +35,18 @@ class MCSectionELF : public MCSection {
   /// IsExplicit - Indicates that this section comes from globals with an
   /// explicit section specified.
   bool IsExplicit;
+
+  /// EntrySize - The size of each entry in this section. This size only
+  /// makes sense for sections that contain fixed-sized entries. If a
+  /// section does not contain fixed-sized entries 'EntrySize' will be 0.
+  unsigned EntrySize;
   
 private:
   friend class MCContext;
   MCSectionELF(StringRef Section, unsigned type, unsigned flags,
-               SectionKind K, bool isExplicit)
+               SectionKind K, bool isExplicit, unsigned entrySize)
     : MCSection(SV_ELF, K), SectionName(Section), Type(type), Flags(flags),
-      IsExplicit(isExplicit) {}
+      IsExplicit(isExplicit), EntrySize(entrySize) {}
   ~MCSectionELF();
 public:
 
@@ -169,6 +174,7 @@ public:
   StringRef getSectionName() const { return SectionName; }
   unsigned getType() const { return Type; }
   unsigned getFlags() const { return Flags; }
+  unsigned getEntrySize() const { return EntrySize; }
   
   void PrintSwitchToSection(const MCAsmInfo &MAI,
                             raw_ostream &OS) const;

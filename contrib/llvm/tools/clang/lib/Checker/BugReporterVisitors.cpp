@@ -31,7 +31,7 @@ const Stmt *clang::bugreporter::GetDerefExpr(const ExplodedNode *N) {
   const Stmt *S = N->getLocationAs<PostStmt>()->getStmt();
 
   if (const UnaryOperator *U = dyn_cast<UnaryOperator>(S)) {
-    if (U->getOpcode() == UnaryOperator::Deref)
+    if (U->getOpcode() == UO_Deref)
       return U->getSubExpr()->IgnoreParenCasts();
   }
   else if (const MemberExpr *ME = dyn_cast<MemberExpr>(S)) {
@@ -143,10 +143,9 @@ public:
 
         if (isa<loc::ConcreteInt>(V)) {
           bool b = false;
-          ASTContext &C = BRC.getASTContext();
           if (R->isBoundable()) {
             if (const TypedRegion *TR = dyn_cast<TypedRegion>(R)) {
-              if (TR->getValueType(C)->isObjCObjectPointerType()) {
+              if (TR->getValueType()->isObjCObjectPointerType()) {
                 os << "initialized to nil";
                 b = true;
               }
@@ -174,10 +173,9 @@ public:
     if (os.str().empty()) {
       if (isa<loc::ConcreteInt>(V)) {
         bool b = false;
-        ASTContext &C = BRC.getASTContext();
         if (R->isBoundable()) {
           if (const TypedRegion *TR = dyn_cast<TypedRegion>(R)) {
-            if (TR->getValueType(C)->isObjCObjectPointerType()) {
+            if (TR->getValueType()->isObjCObjectPointerType()) {
               os << "nil object reference stored to ";
               b = true;
             }
@@ -209,7 +207,7 @@ public:
     ProgramPoint P = N->getLocation();
 
     if (BlockEdge *BE = dyn_cast<BlockEdge>(&P)) {
-      CFGBlock *BSrc = BE->getSrc();
+      const CFGBlock *BSrc = BE->getSrc();
       S = BSrc->getTerminatorCondition();
     }
     else if (PostStmt *PS = dyn_cast<PostStmt>(&P)) {
@@ -282,7 +280,7 @@ public:
       ProgramPoint P = N->getLocation();
 
       if (BlockEdge *BE = dyn_cast<BlockEdge>(&P)) {
-        CFGBlock *BSrc = BE->getSrc();
+        const CFGBlock *BSrc = BE->getSrc();
         S = BSrc->getTerminatorCondition();
       }
       else if (PostStmt *PS = dyn_cast<PostStmt>(&P)) {
@@ -420,4 +418,41 @@ public:
 
 void clang::bugreporter::registerNilReceiverVisitor(BugReporterContext &BRC) {
   BRC.addVisitor(new NilReceiverVisitor());
+}
+
+// Registers every VarDecl inside a Stmt with a last store vistor.
+void clang::bugreporter::registerVarDeclsLastStore(BugReporterContext &BRC,
+                                                   const void *stmt,
+                                                   const ExplodedNode *N) {
+  const Stmt *S = static_cast<const Stmt *>(stmt);
+
+  std::deque<const Stmt *> WorkList;
+
+  WorkList.push_back(S);
+
+  while (!WorkList.empty()) {
+    const Stmt *Head = WorkList.front();
+    WorkList.pop_front();
+
+    GRStateManager &StateMgr = BRC.getStateManager();
+    const GRState *state = N->getState();
+
+    if (const DeclRefExpr *DR = dyn_cast<DeclRefExpr>(Head)) {
+      if (const VarDecl *VD = dyn_cast<VarDecl>(DR->getDecl())) {
+        const VarRegion *R =
+        StateMgr.getRegionManager().getVarRegion(VD, N->getLocationContext());
+
+        // What did we load?
+        SVal V = state->getSVal(S);
+
+        if (isa<loc::ConcreteInt>(V) || isa<nonloc::ConcreteInt>(V)) {
+          ::registerFindLastStore(BRC, R, V);
+        }
+      }
+    }
+
+    for (Stmt::const_child_iterator I = Head->child_begin();
+        I != Head->child_end(); ++I)
+      WorkList.push_back(*I);
+  }
 }

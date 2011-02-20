@@ -83,7 +83,7 @@ ATOMICITY_H=	${SRCDIR}/config/cpu/${MARCHDIR}/atomicity.h
 ATOMICITY_H=	${SRCDIR}/config/cpu/generic/atomicity_mutex/atomicity.h
 .endif
 
-.if ${MACHINE_CPUARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 .if exists(${SRCDIR}/config/cpu/generic/atomicity_builtins/atomicity.h)
 ATOMICITY_H=	${SRCDIR}/config/cpu/generic/atomicity_builtins/atomicity.h
 .endif

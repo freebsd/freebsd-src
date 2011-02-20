@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -68,6 +70,11 @@
  *
  * Each entry of the trace buffer is read by a CSR read command.  The trace buffer services each read in order,
  * as soon as it has access to the (single-ported) trace buffer.
+ *
+ * On Octeon2, each entry of the trace buffer is read by two CSR memory read operations.  The first read accesses
+ * bits 63:0 of the buffer entry, and the second read accesses bits 68:64 of the buffer entry. The trace buffer
+ * services each read in order, as soon as it has access to the (single-ported) trace buffer.  Buffer's read pointer
+ * increments after two CSR memory read operations.
  *
  *
  * OVERFLOW, UNDERFLOW AND THRESHOLD EVENTS
@@ -125,7 +132,23 @@
  * |sta|                     * or address[35:3]                          | * or length   | src id| dest id |IOBDMA | diff timestamp|
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
+ *
+ * Trace buffer entry format in Octeon2 is different
+ *
+ *                 6                   5                   4                   3                   2                   1                   0
+ * 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |sta|                          address[37:0]                                  |       0           |  src id |  Group 1    | diff timestamp|
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |sta|                          address[37:0]                                  | 0 |  xmd mask     |  src id |  Group 2    | diff timestamp|
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |sta|                          address[37:0]                                  | 0 |s-did| dest id |  src id |  Group 3    | diff timestamp|
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |sta|                         *address[37:3]                            | *Length       | dest id |  src id |  Group 4    | diff timestamp|
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *
  * notes:
+ * - diff timestamp is the difference in time from the previous trace event to this event - 1.  the granularity of the timestamp is programmable
  * - Fields marked as '*' are first filled with '0' at XMC time and may be filled with real data later at XMD time.  Note that the
  * XMD write may be dropped if the shallow FIFO overflows which leaves the '*' fields as '0'.
  * - 2 bits (sta) are used not to trace, but to return global state information with each read, encoded as follows:
@@ -139,8 +162,8 @@
  * 0x3=LDD
  * 0x4=LDI
  * 0x5=LDT
- * 0x6=STC
- * 0x7=STF
+ * 0x6=STF
+ * 0x7=STC
  * 0x8=STP
  * 0x9=STT
  * 0xa=IOBLD8
@@ -149,6 +172,24 @@
  * 0xd=IOBLD64
  * 0xe=IOBST
  * 0xf=IOBDMA
+ * - In Octeon2 the commands are grouped as follows:
+ * Group1:
+ *   XMC_LDT, XMC_LDI, XMC_PL2, XMC_RPL2, XMC_DWB, XMC_WBL2,
+ *   XMC_SET8, XMC_SET16, XMC_SET32, XMC_SET64,
+ *   XMC_CLR8, XMC_CLR16, XMC_CLR32, XMC_CLR64,
+ *   XMC_INCR8, XMC_INCR16, XMC_INCR32, XMC_INCR64,
+ *   XMC_DECR8, XMC_DECR16, XMC_DECR32, XMC_DECR64
+ * Group2:
+ *   XMC_STF, XMC_STT, XMC_STP, XMC_STC,
+ *   XMC_LDD, XMC_PSL1
+ *   XMC_SAA32, XMC_SAA64,
+ *   XMC_FAA32, XMC_FAA64,
+ *   XMC_FAS32, XMC_FAS64
+ * Group3:
+ *   XMC_IOBLD8, XMC_IOBLD16, XMC_IOBLD32, XMC_IOBLD64,
+ *   XMC_IOBST8, XMC_IOBST16, XMC_IOBST32, XMC_IOBST64
+ * Group4:
+ *   XMC_IOBDMA
  * - For non IOB* commands
  * - source id is encoded as follows:
  * 0x00-0x0f=PP[n]
@@ -158,133 +199,234 @@
  * 0x13=IOB(DWB)
  * 0x14-0x1e=illegal
  * 0x1f=IOB(generic)
- * - dest   id is unused (can only be L2c)
+ * - dest id is unused (can only be L2c)
  * - For IOB* commands
  * - source id is encoded as follows:
  * 0x00-0x0f = PP[n]
  * - dest   id is encoded as follows:
- * 0x00-0x0f=PP[n]
- * 0x10=IOB(Packet)
- * 0x11=IOB(PKO)
- * 0x12=IOB(ReqLoad, ReqStore)
- * 0x13=IOB(DWB)
- * 0x14-0x1e=illegal
- * 0x1f=IOB(generic)
- *
- * Source of data for each command
- * command source id    dest id      address                 length/mask
- * -------+------------+------------+-----------------------+----------------------------------------------
- * LDI     xmc_sid[8:3] x            xmc_adr[35:3]           x
- * LDT     xmc_sid[8:3] x            xmc_adr[35:3]           x
- * STF     xmc_sid[8:3] x            xmc_adr[35:3]           16B mask(xmd_[wrval,eow,adr[6:4],wrmsk[15:0]])
- * STC     xmc_sid[8:3] x            xmc_adr[35:3]           16B mask(xmd_[wrval,eow,adr[6:4],wrmsk[15:0]])
- * STP     xmc_sid[8:3] x            xmc_adr[35:3]           16B mask(xmd_[wrval,eow,adr[6:4],wrmsk[15:0]])
- * STT     xmc_sid[8:3] x            xmc_adr[35:3]           16B mask(xmd_[wrval,eow,adr[6:4],wrmsk[15:0]])
- * DWB     xmc_sid[8:3] x            xmc_adr[35:3]           x
- * PL2     xmc_sid[8:3] x            xmc_adr[35:3]           x
- * PSL1    xmc_sid[8:3] x            xmc_adr[35:3]           x
- * IOBLD8  xmc_sid[8:3] xmc_did[8:3] xmc_adr[35:0]           x
- * IOBLD16 xmc_sid[8:3] xmc_did[8:3] xmc_adr[35:1]           x
- * IOBLD32 xmc_sid[8:3] xmc_did[8:3] xmc_adr[35:2]           x
- * IOBLD64 xmc_sid[8:3] xmc_did[8:3] xmc_adr[35:3]           x
- * IOBST   xmc_sid[8:3] xmc_did[8:3] xmc_adr[35:3]           16B mask(xmd_[wrval,eow,adr[6:4],wrmsk[15:0]])
- * IOBDMA  xmc_sid[8:3] xmc_did[8:3] (xmd_[wrval,eow,dat[]]) length(xmd_[wrval,eow,dat[]])
- * IOBRSP  not traced, but monitored to keep XMC and XMD data in sync.
+ * 0   = CIU/GPIO (for CSRs)
+ * 1-2 = illegal
+ * 3   = PCIe (access to RSL-type CSRs)
+ * 4   = KEY (read/write operations)
+ * 5   = FPA (free pool allocate/free operations)
+ * 6   = DFA
+ * 7   = ZIP (doorbell operations)
+ * 8   = RNG (load/IOBDMA operations)
+ * 10  = PKO (doorbell operations)
+ * 11  = illegal
+ * 12  = POW (get work, add work, status/memory/index loads, NULLrd load operations, CSR operations)
+ * 13-31 = illegal
  * @endverbatim
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 49484 $<hr>
  */
 
 #ifndef __CVMX_TRA_H__
 #define __CVMX_TRA_H__
 
 #include "cvmx.h"
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include "cvmx-tra-defs.h"
+#endif
 
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
 
-/* CSR typedefs have been moved to cvmx-csr-*.h */
+/* CSR typedefs have been moved to cvmx-tra-defs.h */
+
+/* The 'saa' filter command is renamed as 'saa64' */
+#define CVMX_TRA_FILT_SAA       CVMX_TRA_FILT_SAA64
+/* The 'iobst' filter command is renamed as 'iobst64' */
+#define CVMX_TRA_FILT_IOBST     CVMX_TRA_FILT_IOBST64
 
 /**
- * Enumeration of the data types stored in cvmx_tra_data_t
+ * Enumeration of the bitmask of all the filter commands. The bit positions
+ * correspond to Octeon2 model.
  */
 typedef enum
 {
-    CVMX_TRA_DATA_DWB       = 0x0,
-    CVMX_TRA_DATA_PL2       = 0x1,
-    CVMX_TRA_DATA_PSL1      = 0x2,
-    CVMX_TRA_DATA_LDD       = 0x3,
-    CVMX_TRA_DATA_LDI       = 0x4,
-    CVMX_TRA_DATA_LDT       = 0x5,
-    CVMX_TRA_DATA_STC       = 0x6,
-    CVMX_TRA_DATA_STF       = 0x7,
-    CVMX_TRA_DATA_STP       = 0x8,
-    CVMX_TRA_DATA_STT       = 0x9,
-    CVMX_TRA_DATA_IOBLD8    = 0xa,
-    CVMX_TRA_DATA_IOBLD16   = 0xb,
-    CVMX_TRA_DATA_IOBLD32   = 0xc,
-    CVMX_TRA_DATA_IOBLD64   = 0xd,
-    CVMX_TRA_DATA_IOBST     = 0xe,
-    CVMX_TRA_DATA_IOBDMA    = 0xf,
-    CVMX_TRA_DATA_SAA       = 0x10,
-} cvmx_tra_data_type_t;
+    CVMX_TRA_FILT_NOP     = 1ull<<0,  /**< none */
+    CVMX_TRA_FILT_LDT     = 1ull<<1,  /**< don't allocate L2 or L1 */
+    CVMX_TRA_FILT_LDI     = 1ull<<2,  /**< don't allocate L1 */
+    CVMX_TRA_FILT_PL2     = 1ull<<3,  /**< pref L2 */
+    CVMX_TRA_FILT_RPL2    = 1ull<<4,  /**< mark for replacement in L2 */
+    CVMX_TRA_FILT_DWB     = 1ull<<5,  /**< clear L2 dirty bit (no writeback) + RPL2 */
+    CVMX_TRA_FILT_LDD     = 1ull<<8,  /**< normal load */
+    CVMX_TRA_FILT_PSL1    = 1ull<<9,  /**< pref L1, bypass L2 */
+    CVMX_TRA_FILT_IOBDMA  = 1ull<<15,  /**< store reflection by IOB for prior load */
+    CVMX_TRA_FILT_STF     = 1ull<<16, /**< full block store to L2, fill 0's */
+    CVMX_TRA_FILT_STT     = 1ull<<17, /**< full block store bypass-L2, fill 0's */
+    CVMX_TRA_FILT_STP     = 1ull<<18, /**< partial store to L2 */
+    CVMX_TRA_FILT_STC     = 1ull<<19, /**< partial store to L2, if duptag valid */
+    CVMX_TRA_FILT_STFIL1  = 1ull<<20, /**< full block store to L2, fill 0's, invalidate L1 */
+    CVMX_TRA_FILT_STTIL1  = 1ull<<21, /**< full block store bypass-L2, fill 0's, invalidate L1 */
+    CVMX_TRA_FILT_FAS32   = 1ull<<22, /**< to load from and write a word of memory atomically */
+    CVMX_TRA_FILT_FAS64   = 1ull<<23, /**< to load from and write a doubleword of memory atomically */
+    CVMX_TRA_FILT_WBIL2I  = 1ull<<24, /**< writeback if dirty, invalidate, clear use bit, by index/way */
+    CVMX_TRA_FILT_LTGL2I  = 1ull<<25, /**< read tag @ index/way into CSR */
+    CVMX_TRA_FILT_STGL2I  = 1ull<<26, /**< write tag @ index/way from CSR */
+    CVMX_TRA_FILT_INVL2   = 1ull<<28, /**< invalidate, clear use bit, by address (dirty data is LOST) */
+    CVMX_TRA_FILT_WBIL2   = 1ull<<29, /**< writeback if dirty, invalidate, clear use bit, by address */
+    CVMX_TRA_FILT_WBL2    = 1ull<<30, /**< writeback if dirty, make clean, clear use bit, by address */
+    CVMX_TRA_FILT_LCKL2   = 1ull<<31, /**< allocate (if miss), set lock bit, set use bit, by address */
+    CVMX_TRA_FILT_IOBLD8  = 1ull<<32, /**< load reflection 8bit */
+    CVMX_TRA_FILT_IOBLD16 = 1ull<<33, /**< load reflection 16bit */
+    CVMX_TRA_FILT_IOBLD32 = 1ull<<34, /**< load reflection 32bit */
+    CVMX_TRA_FILT_IOBLD64 = 1ull<<35, /**< load reflection 64bit */
+    CVMX_TRA_FILT_IOBST8  = 1ull<<36, /**< store reflection 8bit */
+    CVMX_TRA_FILT_IOBST16 = 1ull<<37, /**< store reflection 16bit */
+    CVMX_TRA_FILT_IOBST32 = 1ull<<38, /**< store reflection 32bit */
+    CVMX_TRA_FILT_IOBST64 = 1ull<<39, /**< store reflection 64bit */
+    CVMX_TRA_FILT_SET8    = 1ull<<40, /**< to load from and write 1's to 8bit of memory atomically */
+    CVMX_TRA_FILT_SET16   = 1ull<<41, /**< to load from and write 1's to 16bit of memory atomically */
+    CVMX_TRA_FILT_SET32   = 1ull<<42, /**< to load from and write 1's to 32bit of memory atomically */
+    CVMX_TRA_FILT_SET64   = 1ull<<43, /**< to load from and write 1's to 64bit of memory atomically */
+    CVMX_TRA_FILT_CLR8    = 1ull<<44, /**< to load from and write 0's to 8bit of memory atomically */
+    CVMX_TRA_FILT_CLR16   = 1ull<<45, /**< to load from and write 0's to 16bit of memory atomically */
+    CVMX_TRA_FILT_CLR32   = 1ull<<46, /**< to load from and write 0's to 32bit of memory atomically */
+    CVMX_TRA_FILT_CLR64   = 1ull<<47, /**< to load from and write 0's to 64bit of memory atomically */
+    CVMX_TRA_FILT_INCR8   = 1ull<<48, /**< to load and increment 8bit of memory atomically */
+    CVMX_TRA_FILT_INCR16  = 1ull<<49, /**< to load and increment 16bit of memory atomically */
+    CVMX_TRA_FILT_INCR32  = 1ull<<50, /**< to load and increment 32bit of memory atomically */
+    CVMX_TRA_FILT_INCR64  = 1ull<<51, /**< to load and increment 64bit of memory atomically */
+    CVMX_TRA_FILT_DECR8   = 1ull<<52, /**< to load and decrement 8bit of memory atomically */
+    CVMX_TRA_FILT_DECR16  = 1ull<<53, /**< to load and decrement 16bit of memory atomically */
+    CVMX_TRA_FILT_DECR32  = 1ull<<54, /**< to load and decrement 32bit of memory atomically */
+    CVMX_TRA_FILT_DECR64  = 1ull<<55, /**< to load and decrement 64bit of memory atomically */
+    CVMX_TRA_FILT_FAA32   = 1ull<<58, /**< to load from and add to a word of memory atomically */
+    CVMX_TRA_FILT_FAA64   = 1ull<<59, /**< to load from and add to a doubleword of memory atomically  */
+    CVMX_TRA_FILT_SAA32   = 1ull<<62, /**< to atomically add a word to a memory location */
+    CVMX_TRA_FILT_SAA64   = 1ull<<63, /**< to atomically add a doubleword to a memory location */
+    CVMX_TRA_FILT_ALL     = -1ull     /**< all the above filter commands */
+} cvmx_tra_filt_t;
+
+/*
+ * Enumeration of the bitmask of all source commands.
+ */
+typedef enum
+{
+    CVMX_TRA_SID_PP0      = 1ull<<0,  /**< Enable tracing from PP0 with matching sourceID */
+    CVMX_TRA_SID_PP1      = 1ull<<1,  /**< Enable tracing from PP1 with matching sourceID */
+    CVMX_TRA_SID_PP2      = 1ull<<2,  /**< Enable tracing from PP2 with matching sourceID */
+    CVMX_TRA_SID_PP3      = 1ull<<3,  /**< Enable tracing from PP3 with matching sourceID */
+    CVMX_TRA_SID_PP4      = 1ull<<4,  /**< Enable tracing from PP4 with matching sourceID */
+    CVMX_TRA_SID_PP5      = 1ull<<5,  /**< Enable tracing from PP5 with matching sourceID */
+    CVMX_TRA_SID_PP6      = 1ull<<6,  /**< Enable tracing from PP6 with matching sourceID */
+    CVMX_TRA_SID_PP7      = 1ull<<7,  /**< Enable tracing from PP7 with matching sourceID */
+    CVMX_TRA_SID_PP8      = 1ull<<8,  /**< Enable tracing from PP8 with matching sourceID */
+    CVMX_TRA_SID_PP9      = 1ull<<9,  /**< Enable tracing from PP9 with matching sourceID */
+    CVMX_TRA_SID_PP10     = 1ull<<10, /**< Enable tracing from PP10 with matching sourceID */
+    CVMX_TRA_SID_PP11     = 1ull<<11, /**< Enable tracing from PP11 with matching sourceID */
+    CVMX_TRA_SID_PP12     = 1ull<<12, /**< Enable tracing from PP12 with matching sourceID */
+    CVMX_TRA_SID_PP13     = 1ull<<13, /**< Enable tracing from PP13 with matching sourceID */
+    CVMX_TRA_SID_PP14     = 1ull<<14, /**< Enable tracing from PP14 with matching sourceID */
+    CVMX_TRA_SID_PP15     = 1ull<<15, /**< Enable tracing from PP15 with matching sourceID */
+    CVMX_TRA_SID_PKI      = 1ull<<16, /**< Enable tracing of write requests from PIP/IPD */
+    CVMX_TRA_SID_PKO      = 1ull<<17, /**< Enable tracing of write requests from PKO */
+    CVMX_TRA_SID_IOBREQ   = 1ull<<18, /**< Enable tracing of write requests from FPA,TIM,DFA,PCI,ZIP,POW, and PKO (writes) */
+    CVMX_TRA_SID_DWB      = 1ull<<19, /**< Enable tracing of write requests from IOB DWB engine */
+    CVMX_TRA_SID_ALL      = -1ull     /**< Enable tracing all the above source commands */
+} cvmx_tra_sid_t;
+
+
+#define CVMX_TRA_DID_SLI  CVMX_TRA_DID_PCI /**< Enable tracing of requests to SLI and RSL-type CSRs. */
+/*
+ * Enumeration of the bitmask of all destination commands.
+ */
+typedef enum
+{
+    CVMX_TRA_DID_MIO      = 1ull<<0,  /**< Enable tracing of CIU and GPIO CSR's */
+    CVMX_TRA_DID_PCI      = 1ull<<3,  /**< Enable tracing of requests to PCI and RSL type CSR's */
+    CVMX_TRA_DID_KEY      = 1ull<<4,  /**< Enable tracing of requests to KEY memory */
+    CVMX_TRA_DID_FPA      = 1ull<<5,  /**< Enable tracing of requests to FPA */
+    CVMX_TRA_DID_DFA      = 1ull<<6,  /**< Enable tracing of requests to DFA */
+    CVMX_TRA_DID_ZIP      = 1ull<<7,  /**< Enable tracing of requests to ZIP */
+    CVMX_TRA_DID_RNG      = 1ull<<8,  /**< Enable tracing of requests to RNG */
+    CVMX_TRA_DID_IPD      = 1ull<<9,  /**< Enable tracing of IPD CSR accesses */
+    CVMX_TRA_DID_PKO      = 1ull<<10, /**< Enable tracing of PKO accesses (doorbells) */
+    CVMX_TRA_DID_POW      = 1ull<<12, /**< Enable tracing of requests to RNG */
+    CVMX_TRA_DID_USB0     = 1ull<<13, /**< Enable tracing of USB0 accesses (UAHC0 EHCI and OHCI NCB CSRs) */
+    CVMX_TRA_DID_RAD      = 1ull<<14, /**< Enable tracing of RAD accesses (doorbells) */
+    CVMX_TRA_DID_DPI      = 1ull<<27, /**< Enable tracing of DPI accesses (DPI NCD CSRs) */
+    CVMX_TRA_DID_FAU      = 1ull<<30, /**< Enable tracing FAU accesses */
+    CVMX_TRA_DID_ALL      = -1ull     /**< Enable tracing all the above destination commands */
+} cvmx_tra_did_t;
 
 /**
  * TRA data format definition. Use the type field to
  * determine which union element to use.
+ *
+ * In Octeon 2, the trace buffer is 69 bits,
+ * the first read accesses bits 63:0 of the trace buffer entry, and
+ * the second read accesses bits 68:64 of the trace buffer entry.
  */
 typedef union
 {
-    uint64_t u64;
     struct
     {
 #if __BYTE_ORDER == __BIG_ENDIAN
+        uint64_t  datahi;
+        uint64_t  data;
+#else
+        uint64_t  data;
+        uint64_t  datahi;
+#endif
+    } u128;
+
+    struct
+    {
+#if __BYTE_ORDER == __BIG_ENDIAN
+        uint64_t    reserved3   : 64;
         uint64_t    valid       : 1;
         uint64_t    discontinuity:1;
         uint64_t    address     : 36;
         uint64_t    reserved    : 5;
         uint64_t    source      : 5;
         uint64_t    reserved2   : 3;
-        cvmx_tra_data_type_t type:5;
+        uint64_t    type        : 5;
         uint64_t    timestamp   : 8;
 #else
         uint64_t    timestamp   : 8;
-        cvmx_tra_data_type_t type:5;
+        uint64_t    type        : 5;
         uint64_t    reserved2   : 3;
         uint64_t    source      : 5;
         uint64_t    reserved    : 5;
         uint64_t    address     : 36;
         uint64_t    discontinuity:1;
         uint64_t    valid       : 1;
+        uint64_t    reserved3   : 64;
 #endif
     } cmn; /**< for DWB, PL2, PSL1, LDD, LDI, LDT */
     struct
     {
 #if __BYTE_ORDER == __BIG_ENDIAN
+        uint64_t    reserved3   : 64;
         uint64_t    valid       : 1;
         uint64_t    discontinuity:1;
         uint64_t    address     : 33;
         uint64_t    mask        : 8;
         uint64_t    source      : 5;
         uint64_t    reserved2   : 3;
-        cvmx_tra_data_type_t type:5;
+        uint64_t    type        : 5;
         uint64_t    timestamp   : 8;
 #else
         uint64_t    timestamp   : 8;
-        cvmx_tra_data_type_t type:5;
+        uint64_t    type        : 5;
         uint64_t    reserved2   : 3;
         uint64_t    source      : 5;
         uint64_t    mask        : 8;
         uint64_t    address     : 33;
         uint64_t    discontinuity:1;
         uint64_t    valid       : 1;
+        uint64_t    reserved3   : 64;
 #endif
     } store; /**< STC, STF, STP, STT */
     struct
     {
 #if __BYTE_ORDER == __BIG_ENDIAN
+        uint64_t    reserved3   : 64;
         uint64_t    valid       : 1;
         uint64_t    discontinuity:1;
         uint64_t    address     : 36;
@@ -304,11 +446,13 @@ typedef union
         uint64_t    address     : 36;
         uint64_t    discontinuity:1;
         uint64_t    valid       : 1;
+        uint64_t    reserved3   : 64;
 #endif
     } iobld; /**< for IOBLD8, IOBLD16, IOBLD32, IOBLD64, IOBST, SAA */
     struct
     {
 #if __BYTE_ORDER == __BIG_ENDIAN
+        uint64_t    reserved3   : 64;
         uint64_t    valid       : 1;
         uint64_t    discontinuity:1;
         uint64_t    address     : 33;
@@ -326,8 +470,114 @@ typedef union
         uint64_t    address     : 33;
         uint64_t    discontinuity:1;
         uint64_t    valid       : 1;
+        uint64_t    reserved3   : 64;
 #endif
     } iob; /**< for IOBDMA */
+
+    struct
+    {
+#if __BYTE_ORDER == __BIG_ENDIAN
+        uint64_t    reserved1   : 59;
+        uint64_t    valid       : 1;
+        uint64_t    discontinuity:1;
+        uint64_t    addresshi   : 3;   /* Split the address to fit in upper 64 bits  */
+        uint64_t    addresslo   : 35;  /* and lower 64-bits. */
+        uint64_t    reserved    : 10;
+        uint64_t    source      : 5;
+        uint64_t    type        : 6;
+        uint64_t    timestamp   : 8;
+#else
+        uint64_t    timestamp   : 8;
+        uint64_t    type        : 6;
+        uint64_t    source      : 5;
+        uint64_t    reserved    : 10;
+        uint64_t    addresslo   : 35;
+        uint64_t    addresshi   : 3;
+        uint64_t    discontinuity:1;
+        uint64_t    valid       : 1;
+        uint64_t    reserved1   : 59;
+#endif
+    } cmn2; /**< for LDT, LDI, PL2, RPL2, DWB, WBL2, SET*, CLR*, INCR*, DECR* */
+    struct
+    {
+#if __BYTE_ORDER == __BIG_ENDIAN
+        uint64_t    reserved1   : 59;
+        uint64_t    valid       : 1;
+        uint64_t    discontinuity:1;
+        uint64_t    addresshi   : 3;   /* Split the address to fit in upper 64 bits  */
+        uint64_t    addresslo   : 35;  /* and lower 64-bits */
+        uint64_t    reserved    : 2;
+        uint64_t    mask        : 8;
+        uint64_t    source      : 5;
+        uint64_t    type        : 6;
+        uint64_t    timestamp   : 8;
+#else
+        uint64_t    timestamp   : 8;
+        uint64_t    type        : 6;
+        uint64_t    source      : 5;
+        uint64_t    mask        : 8;
+        uint64_t    reserved    : 2;
+        uint64_t    addresslo   : 35;
+        uint64_t    addresshi   : 3;
+        uint64_t    discontinuity:1;
+        uint64_t    valid       : 1;
+        uint64_t    reserved1   : 59;
+#endif
+    } store2; /**< for STC, STF, STP, STT, LDD, PSL1, SAA32, SAA64, FAA32, FAA64, FAS32, FAS64 */
+    struct
+    {
+#if __BYTE_ORDER == __BIG_ENDIAN
+        uint64_t    reserved1   : 59;
+        uint64_t    valid       : 1;
+        uint64_t    discontinuity:1;
+        uint64_t    addresshi   : 3;   /* Split the address to fit in upper 64 bits  */
+        uint64_t    addresslo   : 35;  /* and lower 64-bits */
+        uint64_t    reserved    : 2;
+        uint64_t    subid       : 3;
+        uint64_t    dest        : 5;
+        uint64_t    source      : 5;
+        uint64_t    type        : 6;
+        uint64_t    timestamp   : 8;
+#else
+        uint64_t    timestamp   : 8;
+        uint64_t    type        : 6;
+        uint64_t    source      : 5;
+        uint64_t    dest        : 5;
+        uint64_t    subid       : 3;
+        uint64_t    reserved    : 2;
+        uint64_t    addresslo   : 35;
+        uint64_t    addresshi   : 3;
+        uint64_t    discontinuity:1;
+        uint64_t    valid       : 1;
+        uint64_t    reserved1   : 59;
+#endif
+    } iobld2; /**< for IOBLD8, IOBLD16, IOBLD32, IOBLD64, IOBST64, IOBST32, IOBST16, IOBST8 */
+    struct
+    {
+#if __BYTE_ORDER == __BIG_ENDIAN
+        uint64_t    reserved1   : 59;
+        uint64_t    valid       : 1;
+        uint64_t    discontinuity:1;
+        uint64_t    addresshi   : 3;   /* Split the address to fit in upper 64 bits  */
+        uint64_t    addresslo   : 32;  /* and lower 64-bits */
+        uint64_t    mask        : 8;
+        uint64_t    dest        : 5;
+        uint64_t    source      : 5;
+        uint64_t    type        : 6;
+        uint64_t    timestamp   : 8;
+#else
+        uint64_t    timestamp   : 8;
+        uint64_t    type        : 6;
+        uint64_t    source      : 5;
+        uint64_t    dest        : 5;
+        uint64_t    mask        : 8;
+        uint64_t    addresslo   : 32;
+	uint64_t    addresshi   : 3;
+        uint64_t    discontinuity:1;
+        uint64_t    valid       : 1;
+        uint64_t    reserved1   : 59;
+#endif
+    } iob2; /**< for IOBDMA */
 } cvmx_tra_data_t;
 
 
@@ -344,8 +594,8 @@ typedef union
  * @param address_mask
  *                Address mask
  */
-extern void cvmx_tra_setup(cvmx_tra_ctl_t control, cvmx_tra_filt_cmd_t filter,
-                           cvmx_tra_filt_sid_t source_filter, cvmx_tra_filt_did_t dest_filter,
+extern void cvmx_tra_setup(cvmx_tra_ctl_t control, cvmx_tra_filt_t filter,
+                           cvmx_tra_sid_t source_filter, cvmx_tra_did_t dest_filter,
                            uint64_t address, uint64_t address_mask);
 
 /**
@@ -362,12 +612,13 @@ extern void cvmx_tra_setup(cvmx_tra_ctl_t control, cvmx_tra_filt_cmd_t filter,
  * @param address_mask
  *                Trigger address mask
  */
-extern void cvmx_tra_trig_setup(uint64_t trigger, cvmx_tra_filt_cmd_t filter,
-                                cvmx_tra_filt_sid_t source_filter, cvmx_tra_trig0_did_t dest_filter,
+extern void cvmx_tra_trig_setup(uint64_t trigger, cvmx_tra_filt_t filter,
+                                cvmx_tra_sid_t source_filter, cvmx_tra_did_t dest_filter,
                                 uint64_t address, uint64_t address_mask);
 
 /**
- * Read an entry from the TRA buffer
+ * Read an entry from the TRA buffer. The trace buffer format is
+ * different in Octeon2, need to read twice from TRA_READ_DAT.
  *
  * @return Value return. High bit will be zero if there wasn't any data
  */

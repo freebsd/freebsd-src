@@ -15,6 +15,7 @@
 #ifndef CLANG_CODEGEN_CGVALUE_H
 #define CLANG_CODEGEN_CGVALUE_H
 
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/Type.h"
 
 namespace llvm {
@@ -136,6 +137,9 @@ class LValue {
   // 'const' is unused here
   Qualifiers Quals;
 
+  /// The alignment to use when accessing this lvalue.
+  unsigned short Alignment;
+
   // objective-c's ivar
   bool Ivar:1;
   
@@ -148,15 +152,20 @@ class LValue {
 
   // Lvalue is a global reference of an objective-c object
   bool GlobalObjCRef : 1;
+  
+  // Lvalue is a thread local reference
+  bool ThreadLocalRef : 1;
 
   Expr *BaseIvarExp;
 private:
-  void SetQualifiers(Qualifiers Quals) {
+  void Initialize(Qualifiers Quals, unsigned Alignment = 0) {
     this->Quals = Quals;
-    
-    // FIXME: Convenient place to set objc flags to 0. This should really be
-    // done in a user-defined constructor instead.
+    this->Alignment = Alignment;
+    assert(this->Alignment == Alignment && "Alignment exceeds allowed max!");
+
+    // Initialize Objective-C flags.
     this->Ivar = this->ObjIsArray = this->NonGC = this->GlobalObjCRef = false;
+    this->ThreadLocalRef = false;
     this->BaseIvarExp = 0;
   }
 
@@ -175,30 +184,36 @@ public:
   }
 
   bool isObjCIvar() const { return Ivar; }
+  void setObjCIvar(bool Value) { Ivar = Value; }
+
   bool isObjCArray() const { return ObjIsArray; }
+  void setObjCArray(bool Value) { ObjIsArray = Value; }
+
   bool isNonGC () const { return NonGC; }
+  void setNonGC(bool Value) { NonGC = Value; }
+
   bool isGlobalObjCRef() const { return GlobalObjCRef; }
-  bool isObjCWeak() const { return Quals.getObjCGCAttr() == Qualifiers::Weak; }
-  bool isObjCStrong() const { return Quals.getObjCGCAttr() == Qualifiers::Strong; }
+  void setGlobalObjCRef(bool Value) { GlobalObjCRef = Value; }
+
+  bool isThreadLocalRef() const { return ThreadLocalRef; }
+  void setThreadLocalRef(bool Value) { ThreadLocalRef = Value;}
+
+  bool isObjCWeak() const {
+    return Quals.getObjCGCAttr() == Qualifiers::Weak;
+  }
+  bool isObjCStrong() const {
+    return Quals.getObjCGCAttr() == Qualifiers::Strong;
+  }
   
   Expr *getBaseIvarExp() const { return BaseIvarExp; }
   void setBaseIvarExp(Expr *V) { BaseIvarExp = V; }
 
+  const Qualifiers &getQuals() const { return Quals; }
+  Qualifiers &getQuals() { return Quals; }
+
   unsigned getAddressSpace() const { return Quals.getAddressSpace(); }
 
-  static void SetObjCIvar(LValue& R, bool iValue) {
-    R.Ivar = iValue;
-  }
-  static void SetObjCArray(LValue& R, bool iValue) {
-    R.ObjIsArray = iValue;
-  }
-  static void SetGlobalObjCRef(LValue& R, bool iValue) {
-    R.GlobalObjCRef = iValue;
-  }
-
-  static void SetObjCNonGC(LValue& R, bool iValue) {
-    R.NonGC = iValue;
-  }
+  unsigned getAlignment() const { return Alignment; }
 
   // simple lvalue
   llvm::Value *getAddress() const { assert(isSimple()); return V; }
@@ -236,11 +251,15 @@ public:
     return KVCRefExpr;
   }
 
-  static LValue MakeAddr(llvm::Value *V, Qualifiers Quals) {
+  static LValue MakeAddr(llvm::Value *V, QualType T, unsigned Alignment,
+                         ASTContext &Context) {
+    Qualifiers Quals = Context.getCanonicalType(T).getQualifiers();
+    Quals.setObjCGCAttr(Context.getObjCGCAttrKind(T));
+
     LValue R;
     R.LVType = Simple;
     R.V = V;
-    R.SetQualifiers(Quals);
+    R.Initialize(Quals, Alignment);
     return R;
   }
 
@@ -250,7 +269,7 @@ public:
     R.LVType = VectorElt;
     R.V = Vec;
     R.VectorIdx = Idx;
-    R.SetQualifiers(Qualifiers::fromCVRMask(CVR));
+    R.Initialize(Qualifiers::fromCVRMask(CVR));
     return R;
   }
 
@@ -260,7 +279,7 @@ public:
     R.LVType = ExtVectorElt;
     R.V = Vec;
     R.VectorElts = Elts;
-    R.SetQualifiers(Qualifiers::fromCVRMask(CVR));
+    R.Initialize(Qualifiers::fromCVRMask(CVR));
     return R;
   }
 
@@ -276,7 +295,7 @@ public:
     R.LVType = BitField;
     R.V = BaseValue;
     R.BitFieldInfo = &Info;
-    R.SetQualifiers(Qualifiers::fromCVRMask(CVR));
+    R.Initialize(Qualifiers::fromCVRMask(CVR));
     return R;
   }
 
@@ -288,7 +307,7 @@ public:
     LValue R;
     R.LVType = PropertyRef;
     R.PropertyRefExpr = E;
-    R.SetQualifiers(Qualifiers::fromCVRMask(CVR));
+    R.Initialize(Qualifiers::fromCVRMask(CVR));
     return R;
   }
 
@@ -297,7 +316,7 @@ public:
     LValue R;
     R.LVType = KVCRef;
     R.KVCRefExpr = E;
-    R.SetQualifiers(Qualifiers::fromCVRMask(CVR));
+    R.Initialize(Qualifiers::fromCVRMask(CVR));
     return R;
   }
 };

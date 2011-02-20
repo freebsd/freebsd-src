@@ -116,7 +116,6 @@ struct tl_softc {
 	struct resource		*tl_irq;
 	struct resource		*tl_res;
 	device_t		tl_miibus;
-	struct tl_type		*tl_dinfo;	/* ThunderLAN adapter info */
 	u_int8_t		tl_eeaddr;
 	struct tl_list_data	*tl_ldata;	/* TX/RX lists and mbufs */
 	struct tl_chain_data	tl_cdata;

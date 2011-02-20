@@ -15,13 +15,11 @@
 #include "includes.h"
 
 #include "common.h"
+#include "pcsc_funcs.h"
+#include "crypto/milenage.h"
 #include "eap_peer/eap_i.h"
 #include "eap_config.h"
-#include "pcsc_funcs.h"
 #include "eap_common/eap_sim_common.h"
-#ifdef CONFIG_SIM_SIMULATOR
-#include "hlr_auc_gw/milenage.h"
-#endif /* CONFIG_SIM_SIMULATOR */
 
 
 struct eap_sim_data {

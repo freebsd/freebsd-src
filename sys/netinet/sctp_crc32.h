@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,11 +38,12 @@ __FBSDID("$FreeBSD$");
 #ifndef __crc32c_h__
 #define __crc32c_h__
 
-#if defined(_KERNEL) || defined(__Userspace__)
-
+#if defined(_KERNEL)
+#if !defined(SCTP_WITH_NO_CSUM)
 uint32_t sctp_calculate_cksum(struct mbuf *, uint32_t);
+
+#endif
 void sctp_delayed_cksum(struct mbuf *, uint32_t offset);
 
 #endif				/* _KERNEL */
-
 #endif				/* __crc32c_h__ */

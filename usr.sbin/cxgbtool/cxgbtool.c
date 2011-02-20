@@ -1014,6 +1014,8 @@ load_fw(int argc, char *argv[], int start_arg, const char *iff_name)
 	op.len = len;
 	if (doit(iff_name, CHELSIO_LOAD_FW, &op) < 0)
 		err(1, "load firmware");
+
+	close(fd);
 	return 0;
 }
 
@@ -1048,6 +1050,7 @@ load_boot(int argc, char *argv[], int start_arg, const char *iff_name)
 	if (doit(iff_name, CHELSIO_LOAD_BOOT, &op) < 0)
 		err(1, "load boot image");
 
+	close(fd);
 	return 0;
 }
 

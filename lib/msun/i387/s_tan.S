@@ -34,8 +34,7 @@
  */
 
 #include <machine/asm.h>
-
-RCSID("$FreeBSD$")
+__FBSDID("$FreeBSD$")
 
 ENTRY(tan)
 	fldl	4(%esp)
@@ -57,3 +56,5 @@ ENTRY(tan)
 	fstp	%st(0)
 	ret
 END(tan)
+
+	.section .note.GNU-stack,"",%progbits

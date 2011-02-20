@@ -151,6 +151,7 @@ struct usb_device {
 
 	uint8_t	address;		/* device addess */
 	uint8_t	device_index;		/* device index in "bus->devices" */
+	uint8_t	controller_slot_id;	/* controller specific value */
 	uint8_t	curr_config_index;	/* current configuration index */
 	uint8_t	curr_config_no;		/* current configuration number */
 	uint8_t	depth;			/* distance from root HUB */
@@ -160,6 +161,7 @@ struct usb_device {
 	uint8_t	hs_port_no;		/* high-speed HUB port number */
 	uint8_t	driver_added_refcount;	/* our driver added generation count */
 	uint8_t	power_mode;		/* see USB_POWER_XXX */
+	uint8_t re_enumerate_wait;	/* set if re-enum. is in progress */
 	uint8_t ifaces_max;		/* number of interfaces present */
 	uint8_t endpoints_max;		/* number of endpoints present */
 
@@ -168,11 +170,12 @@ struct usb_device {
 	struct usb_device_flags flags;
 
 	struct usb_endpoint_descriptor ctrl_ep_desc;	/* for endpoint 0 */
+	struct usb_endpoint_ss_comp_descriptor ctrl_ep_comp_desc;	/* for endpoint 0 */
 	struct usb_device_descriptor ddesc;	/* device descriptor */
 
-	char	*serial;		/* serial number */
-	char	*manufacturer;		/* manufacturer string */
-	char	*product;		/* product string */
+	char	*serial;		/* serial number, can be NULL */
+	char	*manufacturer;		/* manufacturer string, can be NULL */
+	char	*product;		/* product string, can be NULL */
 
 #if USB_HAVE_COMPAT_LINUX
 	/* Linux compat */
@@ -212,8 +215,9 @@ void	usb_free_device(struct usb_device *, uint8_t);
 void	usb_linux_free_device(struct usb_device *dev);
 uint8_t	usb_peer_can_wakeup(struct usb_device *udev);
 struct usb_endpoint *usb_endpoint_foreach(struct usb_device *udev, struct usb_endpoint *ep);
-void	usb_set_device_state(struct usb_device *udev,
-	    enum usb_dev_state state);
+void	usb_set_device_state(struct usb_device *, enum usb_dev_state);
+enum usb_dev_state usb_get_device_state(struct usb_device *);
+
 void	usbd_enum_lock(struct usb_device *);
 void	usbd_enum_unlock(struct usb_device *);
 void	usbd_sr_lock(struct usb_device *);

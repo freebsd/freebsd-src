@@ -478,7 +478,7 @@ static int drm_load(struct drm_device *dev)
 			retcode = ENOMEM;
 			goto error;
 		}
-		if (dev->agp != NULL) {
+		if (dev->agp != NULL && dev->agp->info.ai_aperture_base != 0) {
 			if (drm_mtrr_add(dev->agp->info.ai_aperture_base,
 			    dev->agp->info.ai_aperture_size, DRM_MTRR_WC) == 0)
 				dev->agp->mtrr = 1;

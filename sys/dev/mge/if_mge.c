@@ -629,7 +629,7 @@ mge_attach(device_t dev)
 	struct mii_softc *miisc;
 	struct ifnet *ifp;
 	uint8_t hwaddr[ETHER_ADDR_LEN];
-	int i, error ;
+	int i, error, phy;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -642,7 +642,7 @@ mge_attach(device_t dev)
 	mge_ver_params(sc);
 
 	/* Get phy address from fdt */
-	if (fdt_get_phyaddr(sc->node, &sc->phyaddr) != 0)
+	if (fdt_get_phyaddr(sc->node, &phy) != 0)
 		return (ENXIO);
 
 	/* Initialize mutexes */
@@ -706,10 +706,11 @@ mge_attach(device_t dev)
 	ether_ifattach(ifp, hwaddr);
 	callout_init(&sc->wd_callout, 0);
 
-	/* Probe PHY(s) */
-	error = mii_phy_probe(dev, &sc->miibus, mge_ifmedia_upd, mge_ifmedia_sts);
+	/* Attach PHY(s) */
+	error = mii_attach(dev, &sc->miibus, ifp, mge_ifmedia_upd,
+	    mge_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
 	if (error) {
-		device_printf(dev, "MII failed to find PHY\n");
+		device_printf(dev, "attaching PHYs failed\n");
 		mge_detach(dev);
 		return (error);
 	}
@@ -1293,9 +1294,6 @@ mge_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	if (sc->phyaddr != phy)
-		return (0);
-
 	MGE_WRITE(sc_mge0, MGE_REG_SMI, 0x1fffffff &
 	    (MGE_SMI_READ | (reg << 21) | (phy << 16)));
 
@@ -1316,9 +1314,6 @@ mge_miibus_writereg(device_t dev, int phy, int reg, int value)
 	uint32_t retries;
 
 	sc = device_get_softc(dev);
-
-	if (sc->phyaddr != phy)
-		return (0);
 
 	MGE_WRITE(sc_mge0, MGE_REG_SMI, 0x1fffffff &
 	    (MGE_SMI_WRITE | (reg << 21) | (phy << 16) | (value & 0xffff)));

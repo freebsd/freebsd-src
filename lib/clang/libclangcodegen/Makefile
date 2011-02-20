@@ -38,8 +38,8 @@ SRCS=	BackendUtil.cpp \
 	ModuleBuilder.cpp \
 	TargetInfo.cpp
 
-TGHDRS=	Attrs \
-	AttrList \
+TGHDRS=	AttrList \
+	Attrs \
 	DeclNodes \
 	DiagnosticCommonKinds \
 	DiagnosticFrontendKinds \

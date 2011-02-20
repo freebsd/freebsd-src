@@ -135,6 +135,7 @@ struct usb_endpoint {
 	struct usb_xfer_queue endpoint_q;	/* queue of USB transfers */
 
 	struct usb_endpoint_descriptor *edesc;
+	struct usb_endpoint_ss_comp_descriptor *ecomp;
 	struct usb_pipe_methods *methods;	/* set by HC driver */
 
 	uint16_t isoc_next;
@@ -170,6 +171,7 @@ struct usb_interface {
 	struct usb_host_interface *cur_altsetting;
 	struct usb_device *linux_udev;
 	void   *bsd_priv_sc;		/* device specific information */
+	char   *pnpinfo;		/* additional PnP-info for this interface */
 	uint8_t	num_altsetting;		/* number of alternate settings */
 	uint8_t	bsd_iface_index;
 };
@@ -443,6 +445,8 @@ enum usb_hc_mode usbd_get_mode(struct usb_device *udev);
 enum usb_dev_speed usbd_get_speed(struct usb_device *udev);
 void	device_set_usb_desc(device_t dev);
 void	usb_pause_mtx(struct mtx *mtx, int _ticks);
+usb_error_t	usbd_set_pnpinfo(struct usb_device *udev,
+			uint8_t iface_index, const char *pnpinfo);
 
 const struct usb_device_id *usbd_lookup_id_by_info(
 	    const struct usb_device_id *id, usb_size_t sizeof_id,
@@ -479,6 +483,7 @@ void	usbd_set_parent_iface(struct usb_device *udev, uint8_t iface_index,
 uint8_t	usbd_get_bus_index(struct usb_device *udev);
 uint8_t	usbd_get_device_index(struct usb_device *udev);
 void	usbd_set_power_mode(struct usb_device *udev, uint8_t power_mode);
+uint8_t	usbd_filter_power_mode(struct usb_device *udev, uint8_t power_mode);
 uint8_t	usbd_device_attached(struct usb_device *udev);
 
 void	usbd_xfer_status(struct usb_xfer *xfer, int *actlen, int *sumlen,

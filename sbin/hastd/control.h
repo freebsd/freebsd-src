@@ -34,9 +34,12 @@
 
 #define	HASTCTL_SET_ROLE	1
 #define	HASTCTL_STATUS		2
+#define	HASTCTL_RELOAD		3
 
 struct hastd_config;
 struct hast_resource;
+
+void child_cleanup(struct hast_resource *res);
 
 void control_set_role(struct hast_resource *res, uint8_t role);
 

@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "CGDebugInfo.h"
 #include "CodeGenFunction.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/RecordLayout.h"
@@ -22,13 +23,13 @@ using namespace CodeGen;
 static uint64_t 
 ComputeNonVirtualBaseClassOffset(ASTContext &Context, 
                                  const CXXRecordDecl *DerivedClass,
-                                 CXXBaseSpecifierArray::iterator Start,
-                                 CXXBaseSpecifierArray::iterator End) {
+                                 CastExpr::path_const_iterator Start,
+                                 CastExpr::path_const_iterator End) {
   uint64_t Offset = 0;
   
   const CXXRecordDecl *RD = DerivedClass;
   
-  for (CXXBaseSpecifierArray::iterator I = Start; I != End; ++I) {
+  for (CastExpr::path_const_iterator I = Start; I != End; ++I) {
     const CXXBaseSpecifier *Base = *I;
     assert(!Base->isVirtual() && "Should not see virtual bases here!");
 
@@ -50,12 +51,13 @@ ComputeNonVirtualBaseClassOffset(ASTContext &Context,
 
 llvm::Constant *
 CodeGenModule::GetNonVirtualBaseClassOffset(const CXXRecordDecl *ClassDecl,
-                                        const CXXBaseSpecifierArray &BasePath) {
-  assert(!BasePath.empty() && "Base path should not be empty!");
+                                   CastExpr::path_const_iterator PathBegin,
+                                   CastExpr::path_const_iterator PathEnd) {
+  assert(PathBegin != PathEnd && "Base path should not be empty!");
 
   uint64_t Offset = 
-    ComputeNonVirtualBaseClassOffset(getContext(), ClassDecl, 
-                                     BasePath.begin(), BasePath.end());
+    ComputeNonVirtualBaseClassOffset(getContext(), ClassDecl,
+                                     PathBegin, PathEnd);
   if (!Offset)
     return 0;
   
@@ -131,11 +133,12 @@ ApplyNonVirtualAndVirtualOffset(CodeGenFunction &CGF, llvm::Value *ThisPtr,
 llvm::Value *
 CodeGenFunction::GetAddressOfBaseClass(llvm::Value *Value, 
                                        const CXXRecordDecl *Derived,
-                                       const CXXBaseSpecifierArray &BasePath, 
+                                       CastExpr::path_const_iterator PathBegin,
+                                       CastExpr::path_const_iterator PathEnd,
                                        bool NullCheckValue) {
-  assert(!BasePath.empty() && "Base path should not be empty!");
+  assert(PathBegin != PathEnd && "Base path should not be empty!");
 
-  CXXBaseSpecifierArray::iterator Start = BasePath.begin();
+  CastExpr::path_const_iterator Start = PathBegin;
   const CXXRecordDecl *VBase = 0;
   
   // Get the virtual base.
@@ -147,11 +150,11 @@ CodeGenFunction::GetAddressOfBaseClass(llvm::Value *Value,
   
   uint64_t NonVirtualOffset = 
     ComputeNonVirtualBaseClassOffset(getContext(), VBase ? VBase : Derived,
-                                     Start, BasePath.end());
+                                     Start, PathEnd);
 
   // Get the base pointer type.
   const llvm::Type *BasePtrTy = 
-    ConvertType((BasePath.end()[-1])->getType())->getPointerTo();
+    ConvertType((PathEnd[-1])->getType())->getPointerTo();
   
   if (!NonVirtualOffset && !VBase) {
     // Just cast back.
@@ -206,16 +209,17 @@ CodeGenFunction::GetAddressOfBaseClass(llvm::Value *Value,
 llvm::Value *
 CodeGenFunction::GetAddressOfDerivedClass(llvm::Value *Value,
                                           const CXXRecordDecl *Derived,
-                                          const CXXBaseSpecifierArray &BasePath,
+                                        CastExpr::path_const_iterator PathBegin,
+                                          CastExpr::path_const_iterator PathEnd,
                                           bool NullCheckValue) {
-  assert(!BasePath.empty() && "Base path should not be empty!");
+  assert(PathBegin != PathEnd && "Base path should not be empty!");
 
   QualType DerivedTy =
     getContext().getCanonicalType(getContext().getTagDeclType(Derived));
   const llvm::Type *DerivedPtrTy = ConvertType(DerivedTy)->getPointerTo();
   
   llvm::Value *NonVirtualOffset =
-    CGM.GetNonVirtualBaseClassOffset(Derived, BasePath);
+    CGM.GetNonVirtualBaseClassOffset(Derived, PathBegin, PathEnd);
   
   if (!NonVirtualOffset) {
     // No offset, we can just cast back.
@@ -310,6 +314,28 @@ static llvm::Value *GetVTTParameter(CodeGenFunction &CGF, GlobalDecl GD,
   return VTT;
 }
 
+namespace {
+  /// Call the destructor for a direct base class.
+  struct CallBaseDtor : EHScopeStack::Cleanup {
+    const CXXRecordDecl *BaseClass;
+    bool BaseIsVirtual;
+    CallBaseDtor(const CXXRecordDecl *Base, bool BaseIsVirtual)
+      : BaseClass(Base), BaseIsVirtual(BaseIsVirtual) {}
+
+    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+      const CXXRecordDecl *DerivedClass =
+        cast<CXXMethodDecl>(CGF.CurCodeDecl)->getParent();
+
+      const CXXDestructorDecl *D = BaseClass->getDestructor();
+      llvm::Value *Addr = 
+        CGF.GetAddressOfDirectBaseInCompleteClass(CGF.LoadCXXThis(),
+                                                  DerivedClass, BaseClass,
+                                                  BaseIsVirtual);
+      CGF.EmitCXXDestructorCall(D, Dtor_Base, BaseIsVirtual, Addr);
+    }
+  };
+}
+
 static void EmitBaseInitializer(CodeGenFunction &CGF, 
                                 const CXXRecordDecl *ClassDecl,
                                 CXXBaseOrMemberInitializer *BaseInit,
@@ -333,18 +359,14 @@ static void EmitBaseInitializer(CodeGenFunction &CGF,
   // virtual bases, and we only do virtual bases for complete ctors.
   llvm::Value *V = 
     CGF.GetAddressOfDirectBaseInCompleteClass(ThisPtr, ClassDecl,
-                                              BaseClassDecl, 
-                                              BaseInit->isBaseVirtual());
+                                              BaseClassDecl,
+                                              isBaseVirtual);
 
   CGF.EmitAggExpr(BaseInit->getInit(), V, false, false, true);
   
-  if (CGF.Exceptions && !BaseClassDecl->hasTrivialDestructor()) {
-    // FIXME: Is this OK for C++0x delegating constructors?
-    CodeGenFunction::CleanupBlock Cleanup(CGF, EHCleanup);
-
-    CXXDestructorDecl *DD = BaseClassDecl->getDestructor();
-    CGF.EmitCXXDestructorCall(DD, Dtor_Base, isBaseVirtual, V);
-  }
+  if (CGF.Exceptions && !BaseClassDecl->hasTrivialDestructor())
+    CGF.EHStack.pushCleanup<CallBaseDtor>(EHCleanup, BaseClassDecl,
+                                          isBaseVirtual);
 }
 
 static void EmitAggMemberInitializer(CodeGenFunction &CGF,
@@ -432,6 +454,25 @@ static void EmitAggMemberInitializer(CodeGenFunction &CGF,
   // Emit the fall-through block.
   CGF.EmitBlock(AfterFor, true);
 }
+
+namespace {
+  struct CallMemberDtor : EHScopeStack::Cleanup {
+    FieldDecl *Field;
+    CXXDestructorDecl *Dtor;
+
+    CallMemberDtor(FieldDecl *Field, CXXDestructorDecl *Dtor)
+      : Field(Field), Dtor(Dtor) {}
+
+    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+      // FIXME: Is this OK for C++0x delegating constructors?
+      llvm::Value *ThisPtr = CGF.LoadCXXThis();
+      LValue LHS = CGF.EmitLValueForField(ThisPtr, Field, 0);
+
+      CGF.EmitCXXDestructorCall(Dtor, Dtor_Complete, /*ForVirtualBase=*/false,
+                                LHS.getAddress());
+    }
+  };
+}
   
 static void EmitMemberInitializer(CodeGenFunction &CGF,
                                   const CXXRecordDecl *ClassDecl,
@@ -487,7 +528,7 @@ static void EmitMemberInitializer(CodeGenFunction &CGF,
       BasePtr = llvm::PointerType::getUnqual(BasePtr);
       llvm::Value *BaseAddrPtr = CGF.Builder.CreateBitCast(LHS.getAddress(), 
                                                            BasePtr);
-      LHS = LValue::MakeAddr(BaseAddrPtr, CGF.MakeQualifiers(BaseElementTy));
+      LHS = CGF.MakeAddrLValue(BaseAddrPtr, BaseElementTy);
       
       // Create an array index that will be used to walk over all of the
       // objects we're constructing.
@@ -532,17 +573,9 @@ static void EmitMemberInitializer(CodeGenFunction &CGF,
       return;
     
     CXXRecordDecl *RD = cast<CXXRecordDecl>(RT->getDecl());
-    if (!RD->hasTrivialDestructor()) {
-      // FIXME: Is this OK for C++0x delegating constructors?
-      CodeGenFunction::CleanupBlock Cleanup(CGF, EHCleanup);
-      
-      llvm::Value *ThisPtr = CGF.LoadCXXThis();
-      LValue LHS = CGF.EmitLValueForField(ThisPtr, Field, 0);
-
-      CXXDestructorDecl *DD = RD->getDestructor();
-      CGF.EmitCXXDestructorCall(DD, Dtor_Complete, /*ForVirtualBase=*/false,
-                                LHS.getAddress());
-    }
+    if (!RD->hasTrivialDestructor())
+      CGF.EHStack.pushCleanup<CallMemberDtor>(EHCleanup, Field,
+                                              RD->getDestructor());
   }
 }
 
@@ -598,6 +631,8 @@ void CodeGenFunction::EmitConstructorBody(FunctionArgList &Args) {
   // Before we go any further, try the complete->base constructor
   // delegation optimization.
   if (CtorType == Ctor_Complete && IsConstructorDelegationValid(Ctor)) {
+    if (CGDebugInfo *DI = getDebugInfo()) 
+      DI->EmitStopPoint(Builder);
     EmitDelegateCXXConstructorCall(Ctor, Ctor_Base, Args);
     return;
   }
@@ -663,113 +698,158 @@ void CodeGenFunction::EmitDestructorBody(FunctionArgList &Args) {
   const CXXDestructorDecl *Dtor = cast<CXXDestructorDecl>(CurGD.getDecl());
   CXXDtorType DtorType = CurGD.getDtorType();
 
+  // The call to operator delete in a deleting destructor happens
+  // outside of the function-try-block, which means it's always
+  // possible to delegate the destructor body to the complete
+  // destructor.  Do so.
+  if (DtorType == Dtor_Deleting) {
+    EnterDtorCleanups(Dtor, Dtor_Deleting);
+    EmitCXXDestructorCall(Dtor, Dtor_Complete, /*ForVirtualBase=*/false,
+                          LoadCXXThis());
+    PopCleanupBlock();
+    return;
+  }
+
   Stmt *Body = Dtor->getBody();
 
   // If the body is a function-try-block, enter the try before
-  // anything else --- unless we're in a deleting destructor, in which
-  // case we're just going to call the complete destructor and then
-  // call operator delete() on the way out.
-  bool isTryBody = (DtorType != Dtor_Deleting &&
-                    Body && isa<CXXTryStmt>(Body));
+  // anything else.
+  bool isTryBody = (Body && isa<CXXTryStmt>(Body));
   if (isTryBody)
     EnterCXXTryStmt(*cast<CXXTryStmt>(Body), true);
 
-  // Emit the destructor epilogue now.  If this is a complete
-  // destructor with a function-try-block, perform the base epilogue
-  // as well.
-  //
-  // FIXME: This isn't really right, because an exception in the
-  // non-EH epilogue should jump to the appropriate place in the
-  // EH epilogue.
-  {
-    CleanupBlock Cleanup(*this, NormalCleanup);
-
-    if (isTryBody && DtorType == Dtor_Complete)
-      EmitDtorEpilogue(Dtor, Dtor_Base);
-    EmitDtorEpilogue(Dtor, DtorType);
-
-    if (Exceptions) {
-      Cleanup.beginEHCleanup();
-
-      if (isTryBody && DtorType == Dtor_Complete)
-        EmitDtorEpilogue(Dtor, Dtor_Base);
-      EmitDtorEpilogue(Dtor, DtorType);
-    }
-  }
-
-  bool SkipBody = false; // should get jump-threaded
-
-  // If this is the deleting variant, just invoke the complete
-  // variant, then call the appropriate operator delete() on the way
-  // out.
-  if (DtorType == Dtor_Deleting) {
-    EmitCXXDestructorCall(Dtor, Dtor_Complete, /*ForVirtualBase=*/false,
-                          LoadCXXThis());
-    SkipBody = true;
-
+  // Enter the epilogue cleanups.
+  RunCleanupsScope DtorEpilogue(*this);
+  
   // If this is the complete variant, just invoke the base variant;
   // the epilogue will destruct the virtual bases.  But we can't do
   // this optimization if the body is a function-try-block, because
   // we'd introduce *two* handler blocks.
-  } else if (!isTryBody && DtorType == Dtor_Complete) {
-    EmitCXXDestructorCall(Dtor, Dtor_Base, /*ForVirtualBase=*/false,
-                          LoadCXXThis());
-    SkipBody = true;
+  switch (DtorType) {
+  case Dtor_Deleting: llvm_unreachable("already handled deleting case");
+
+  case Dtor_Complete:
+    // Enter the cleanup scopes for virtual bases.
+    EnterDtorCleanups(Dtor, Dtor_Complete);
+
+    if (!isTryBody) {
+      EmitCXXDestructorCall(Dtor, Dtor_Base, /*ForVirtualBase=*/false,
+                            LoadCXXThis());
+      break;
+    }
+    // Fallthrough: act like we're in the base variant.
       
-  // Otherwise, we're in the base variant, so we need to ensure the
-  // vtable ptrs are right before emitting the body.
-  } else {
+  case Dtor_Base:
+    // Enter the cleanup scopes for fields and non-virtual bases.
+    EnterDtorCleanups(Dtor, Dtor_Base);
+
+    // Initialize the vtable pointers before entering the body.
     InitializeVTablePointers(Dtor->getParent());
+
+    if (isTryBody)
+      EmitStmt(cast<CXXTryStmt>(Body)->getTryBlock());
+    else if (Body)
+      EmitStmt(Body);
+    else {
+      assert(Dtor->isImplicit() && "bodyless dtor not implicit");
+      // nothing to do besides what's in the epilogue
+    }
+    break;
   }
 
-  // Emit the body of the statement.
-  if (SkipBody)
-    (void) 0;
-  else if (isTryBody)
-    EmitStmt(cast<CXXTryStmt>(Body)->getTryBlock());
-  else if (Body)
-    EmitStmt(Body);
-  else {
-    assert(Dtor->isImplicit() && "bodyless dtor not implicit");
-    // nothing to do besides what's in the epilogue
-  }
-
-  // We're done with the epilogue cleanup.
-  PopCleanupBlock();
+  // Jump out through the epilogue cleanups.
+  DtorEpilogue.ForceCleanup();
 
   // Exit the try if applicable.
   if (isTryBody)
     ExitCXXTryStmt(*cast<CXXTryStmt>(Body), true);
 }
 
+namespace {
+  /// Call the operator delete associated with the current destructor.
+  struct CallDtorDelete : EHScopeStack::Cleanup {
+    CallDtorDelete() {}
+
+    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+      const CXXDestructorDecl *Dtor = cast<CXXDestructorDecl>(CGF.CurCodeDecl);
+      const CXXRecordDecl *ClassDecl = Dtor->getParent();
+      CGF.EmitDeleteCall(Dtor->getOperatorDelete(), CGF.LoadCXXThis(),
+                         CGF.getContext().getTagDeclType(ClassDecl));
+    }
+  };
+
+  struct CallArrayFieldDtor : EHScopeStack::Cleanup {
+    const FieldDecl *Field;
+    CallArrayFieldDtor(const FieldDecl *Field) : Field(Field) {}
+
+    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+      QualType FieldType = Field->getType();
+      const ConstantArrayType *Array =
+        CGF.getContext().getAsConstantArrayType(FieldType);
+      
+      QualType BaseType =
+        CGF.getContext().getBaseElementType(Array->getElementType());
+      const CXXRecordDecl *FieldClassDecl = BaseType->getAsCXXRecordDecl();
+
+      llvm::Value *ThisPtr = CGF.LoadCXXThis();
+      LValue LHS = CGF.EmitLValueForField(ThisPtr, Field, 
+                                          // FIXME: Qualifiers?
+                                          /*CVRQualifiers=*/0);
+
+      const llvm::Type *BasePtr = CGF.ConvertType(BaseType)->getPointerTo();
+      llvm::Value *BaseAddrPtr =
+        CGF.Builder.CreateBitCast(LHS.getAddress(), BasePtr);
+      CGF.EmitCXXAggrDestructorCall(FieldClassDecl->getDestructor(),
+                                    Array, BaseAddrPtr);
+    }
+  };
+
+  struct CallFieldDtor : EHScopeStack::Cleanup {
+    const FieldDecl *Field;
+    CallFieldDtor(const FieldDecl *Field) : Field(Field) {}
+
+    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+      const CXXRecordDecl *FieldClassDecl =
+        Field->getType()->getAsCXXRecordDecl();
+
+      llvm::Value *ThisPtr = CGF.LoadCXXThis();
+      LValue LHS = CGF.EmitLValueForField(ThisPtr, Field, 
+                                          // FIXME: Qualifiers?
+                                          /*CVRQualifiers=*/0);
+
+      CGF.EmitCXXDestructorCall(FieldClassDecl->getDestructor(),
+                                Dtor_Complete, /*ForVirtualBase=*/false,
+                                LHS.getAddress());
+    }
+  };
+}
+
 /// EmitDtorEpilogue - Emit all code that comes at the end of class's
 /// destructor. This is to call destructors on members and base classes
 /// in reverse order of their construction.
-void CodeGenFunction::EmitDtorEpilogue(const CXXDestructorDecl *DD,
-                                       CXXDtorType DtorType) {
+void CodeGenFunction::EnterDtorCleanups(const CXXDestructorDecl *DD,
+                                        CXXDtorType DtorType) {
   assert(!DD->isTrivial() &&
          "Should not emit dtor epilogue for trivial dtor!");
 
-  const CXXRecordDecl *ClassDecl = DD->getParent();
-
-  // In a deleting destructor, we've already called the complete
-  // destructor as a subroutine, so we just have to delete the
-  // appropriate value.
+  // The deleting-destructor phase just needs to call the appropriate
+  // operator delete that Sema picked up.
   if (DtorType == Dtor_Deleting) {
     assert(DD->getOperatorDelete() && 
            "operator delete missing - EmitDtorEpilogue");
-    EmitDeleteCall(DD->getOperatorDelete(), LoadCXXThis(),
-                   getContext().getTagDeclType(ClassDecl));
+    EHStack.pushCleanup<CallDtorDelete>(NormalAndEHCleanup);
     return;
   }
 
-  // For complete destructors, we've already called the base
-  // destructor (in GenerateBody), so we just need to destruct all the
-  // virtual bases.
+  const CXXRecordDecl *ClassDecl = DD->getParent();
+
+  // The complete-destructor phase just destructs all the virtual bases.
   if (DtorType == Dtor_Complete) {
-    // Handle virtual bases.
-    for (CXXRecordDecl::reverse_base_class_const_iterator I = 
-           ClassDecl->vbases_rbegin(), E = ClassDecl->vbases_rend();
+
+    // We push them in the forward order so that they'll be popped in
+    // the reverse order.
+    for (CXXRecordDecl::base_class_const_iterator I = 
+           ClassDecl->vbases_begin(), E = ClassDecl->vbases_end();
               I != E; ++I) {
       const CXXBaseSpecifier &Base = *I;
       CXXRecordDecl *BaseClassDecl
@@ -778,26 +858,48 @@ void CodeGenFunction::EmitDtorEpilogue(const CXXDestructorDecl *DD,
       // Ignore trivial destructors.
       if (BaseClassDecl->hasTrivialDestructor())
         continue;
-      const CXXDestructorDecl *D = BaseClassDecl->getDestructor();
-      llvm::Value *V = 
-        GetAddressOfDirectBaseInCompleteClass(LoadCXXThis(),
-                                              ClassDecl, BaseClassDecl,
-                                              /*BaseIsVirtual=*/true);
-      EmitCXXDestructorCall(D, Dtor_Base, /*ForVirtualBase=*/true, V);
+
+      EHStack.pushCleanup<CallBaseDtor>(NormalAndEHCleanup,
+                                        BaseClassDecl,
+                                        /*BaseIsVirtual*/ true);
     }
+
     return;
   }
 
   assert(DtorType == Dtor_Base);
+  
+  // Destroy non-virtual bases.
+  for (CXXRecordDecl::base_class_const_iterator I = 
+        ClassDecl->bases_begin(), E = ClassDecl->bases_end(); I != E; ++I) {
+    const CXXBaseSpecifier &Base = *I;
+    
+    // Ignore virtual bases.
+    if (Base.isVirtual())
+      continue;
+    
+    CXXRecordDecl *BaseClassDecl = Base.getType()->getAsCXXRecordDecl();
+    
+    // Ignore trivial destructors.
+    if (BaseClassDecl->hasTrivialDestructor())
+      continue;
 
-  // Collect the fields.
+    EHStack.pushCleanup<CallBaseDtor>(NormalAndEHCleanup,
+                                      BaseClassDecl,
+                                      /*BaseIsVirtual*/ false);
+  }
+
+  // Destroy direct fields.
   llvm::SmallVector<const FieldDecl *, 16> FieldDecls;
   for (CXXRecordDecl::field_iterator I = ClassDecl->field_begin(),
        E = ClassDecl->field_end(); I != E; ++I) {
     const FieldDecl *Field = *I;
     
     QualType FieldType = getContext().getCanonicalType(Field->getType());
-    FieldType = getContext().getBaseElementType(FieldType);
+    const ConstantArrayType *Array = 
+      getContext().getAsConstantArrayType(FieldType);
+    if (Array)
+      FieldType = getContext().getBaseElementType(Array->getElementType());
     
     const RecordType *RT = FieldType->getAs<RecordType>();
     if (!RT)
@@ -806,64 +908,11 @@ void CodeGenFunction::EmitDtorEpilogue(const CXXDestructorDecl *DD,
     CXXRecordDecl *FieldClassDecl = cast<CXXRecordDecl>(RT->getDecl());
     if (FieldClassDecl->hasTrivialDestructor())
         continue;
-    
-    FieldDecls.push_back(Field);
-  }
-  
-  // Now destroy the fields.
-  for (size_t i = FieldDecls.size(); i > 0; --i) {
-    const FieldDecl *Field = FieldDecls[i - 1];
-    
-    QualType FieldType = Field->getType();
-    const ConstantArrayType *Array = 
-      getContext().getAsConstantArrayType(FieldType);
+
     if (Array)
-      FieldType = getContext().getBaseElementType(FieldType);
-    
-    const RecordType *RT = FieldType->getAs<RecordType>();
-    CXXRecordDecl *FieldClassDecl = cast<CXXRecordDecl>(RT->getDecl());
-
-    llvm::Value *ThisPtr = LoadCXXThis();
-
-    LValue LHS = EmitLValueForField(ThisPtr, Field, 
-                                    // FIXME: Qualifiers?
-                                    /*CVRQualifiers=*/0);
-    if (Array) {
-      const llvm::Type *BasePtr = ConvertType(FieldType);
-      BasePtr = llvm::PointerType::getUnqual(BasePtr);
-      llvm::Value *BaseAddrPtr =
-        Builder.CreateBitCast(LHS.getAddress(), BasePtr);
-      EmitCXXAggrDestructorCall(FieldClassDecl->getDestructor(),
-                                Array, BaseAddrPtr);
-    } else
-      EmitCXXDestructorCall(FieldClassDecl->getDestructor(),
-                            Dtor_Complete, /*ForVirtualBase=*/false,
-                            LHS.getAddress());
-  }
-
-  // Destroy non-virtual bases.
-  for (CXXRecordDecl::reverse_base_class_const_iterator I = 
-        ClassDecl->bases_rbegin(), E = ClassDecl->bases_rend(); I != E; ++I) {
-    const CXXBaseSpecifier &Base = *I;
-    
-    // Ignore virtual bases.
-    if (Base.isVirtual())
-      continue;
-    
-    CXXRecordDecl *BaseClassDecl
-      = cast<CXXRecordDecl>(Base.getType()->getAs<RecordType>()->getDecl());
-    
-    // Ignore trivial destructors.
-    if (BaseClassDecl->hasTrivialDestructor())
-      continue;
-
-    const CXXDestructorDecl *D = BaseClassDecl->getDestructor();    
-    llvm::Value *V = 
-      GetAddressOfDirectBaseInCompleteClass(LoadCXXThis(), ClassDecl, 
-                                            BaseClassDecl, 
-                                            /*BaseIsVirtual=*/false);
-
-    EmitCXXDestructorCall(D, Dtor_Base, /*ForVirtualBase=*/false, V);
+      EHStack.pushCleanup<CallArrayFieldDtor>(NormalAndEHCleanup, Field);
+    else
+      EHStack.pushCleanup<CallFieldDtor>(NormalAndEHCleanup, Field);
   }
 }
 
@@ -873,19 +922,24 @@ void CodeGenFunction::EmitDtorEpilogue(const CXXDestructorDecl *DD,
 /// 'D' is the default constructor for elements of the array, 'ArrayTy' is the
 /// array type and 'ArrayPtr' points to the beginning fo the array.
 /// It is assumed that all relevant checks have been made by the caller.
+///
+/// \param ZeroInitialization True if each element should be zero-initialized
+/// before it is constructed.
 void
 CodeGenFunction::EmitCXXAggrConstructorCall(const CXXConstructorDecl *D,
-                                          const ConstantArrayType *ArrayTy,
-                                          llvm::Value *ArrayPtr,
-                                          CallExpr::const_arg_iterator ArgBeg,
-                                          CallExpr::const_arg_iterator ArgEnd) {
+                                            const ConstantArrayType *ArrayTy,
+                                            llvm::Value *ArrayPtr,
+                                            CallExpr::const_arg_iterator ArgBeg,
+                                            CallExpr::const_arg_iterator ArgEnd,
+                                            bool ZeroInitialization) {
 
   const llvm::Type *SizeTy = ConvertType(getContext().getSizeType());
   llvm::Value * NumElements =
     llvm::ConstantInt::get(SizeTy, 
                            getContext().getConstantArrayElementCount(ArrayTy));
 
-  EmitCXXAggrConstructorCall(D, NumElements, ArrayPtr, ArgBeg, ArgEnd);
+  EmitCXXAggrConstructorCall(D, NumElements, ArrayPtr, ArgBeg, ArgEnd,
+                             ZeroInitialization);
 }
 
 void
@@ -893,7 +947,8 @@ CodeGenFunction::EmitCXXAggrConstructorCall(const CXXConstructorDecl *D,
                                           llvm::Value *NumElements,
                                           llvm::Value *ArrayPtr,
                                           CallExpr::const_arg_iterator ArgBeg,
-                                          CallExpr::const_arg_iterator ArgEnd) {
+                                          CallExpr::const_arg_iterator ArgEnd,
+                                            bool ZeroInitialization) {
   const llvm::Type *SizeTy = ConvertType(getContext().getSizeType());
 
   // Create a temporary for the loop index and initialize it with 0.
@@ -924,6 +979,11 @@ CodeGenFunction::EmitCXXAggrConstructorCall(const CXXConstructorDecl *D,
   llvm::Value *Address = Builder.CreateInBoundsGEP(ArrayPtr, Counter, 
                                                    "arrayidx");
 
+  // Zero initialize the storage, if requested.
+  if (ZeroInitialization)
+    EmitNullInitialization(Address, 
+                           getContext().getTypeDeclType(D->getParent()));
+  
   // C++ [class.temporary]p4: 
   // There are two contexts in which temporaries are destroyed at a different
   // point than the end of the full-expression. The first context is when a
@@ -1109,21 +1169,33 @@ void CodeGenFunction::EmitCXXDestructorCall(const CXXDestructorDecl *DD,
   EmitCXXMemberCall(DD, Callee, ReturnValueSlot(), This, VTT, 0, 0);
 }
 
+namespace {
+  struct CallLocalDtor : EHScopeStack::Cleanup {
+    const CXXDestructorDecl *Dtor;
+    llvm::Value *Addr;
+
+    CallLocalDtor(const CXXDestructorDecl *D, llvm::Value *Addr)
+      : Dtor(D), Addr(Addr) {}
+
+    void Emit(CodeGenFunction &CGF, bool IsForEH) {
+      CGF.EmitCXXDestructorCall(Dtor, Dtor_Complete,
+                                /*ForVirtualBase=*/false, Addr);
+    }
+  };
+}
+
+void CodeGenFunction::PushDestructorCleanup(const CXXDestructorDecl *D,
+                                            llvm::Value *Addr) {
+  EHStack.pushCleanup<CallLocalDtor>(NormalAndEHCleanup, D, Addr);
+}
+
 void CodeGenFunction::PushDestructorCleanup(QualType T, llvm::Value *Addr) {
   CXXRecordDecl *ClassDecl = T->getAsCXXRecordDecl();
   if (!ClassDecl) return;
   if (ClassDecl->hasTrivialDestructor()) return;
 
   const CXXDestructorDecl *D = ClassDecl->getDestructor();
-
-  CleanupBlock Scope(*this, NormalCleanup);
-
-  EmitCXXDestructorCall(D, Dtor_Complete, /*ForVirtualBase=*/false, Addr);
-
-  if (Exceptions) {
-    Scope.beginEHCleanup();
-    EmitCXXDestructorCall(D, Dtor_Complete, /*ForVirtualBase=*/false, Addr);
-  }
+  PushDestructorCleanup(D, Addr);
 }
 
 llvm::Value *

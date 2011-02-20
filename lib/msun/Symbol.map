@@ -222,4 +222,6 @@ FBSD_1.1 {
 /* First added in 9.0-CURRENT */
 FBSD_1.2 {
 	__isnanf;
+	log2;
+	log2f;
 };

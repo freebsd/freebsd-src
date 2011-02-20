@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # sys sources
-.PATH: ${.CURDIR}/${MACHINE_CPUARCH}/sys ${.CURDIR}/sys
+.PATH: ${.CURDIR}/${LIBC_ARCH}/sys ${.CURDIR}/sys
 
 # Include the generated makefile containing the *complete* list
 # of syscall names in MIASM.
@@ -13,16 +13,17 @@
 # MDASM names override the default syscall names in MIASM.
 # NOASM will prevent the default syscall code from being generated.
 #
-.if exists(${.CURDIR}/${MACHINE_CPUARCH}/sys/Makefile.inc)
-.include "${.CURDIR}/${MACHINE_CPUARCH}/sys/Makefile.inc"
-.endif
+.sinclude "${.CURDIR}/${LIBC_ARCH}/sys/Makefile.inc"
 
 # Sources common to both syscall interfaces:
-SRCS+=	stack_protector.c __error.c
+SRCS+=	stack_protector.c stack_protector_compat.c __error.c
 .if !defined(WITHOUT_SYSCALL_COMPAT)
 SRCS+=	fcntl.c ftruncate.c lseek.c mmap.c pread.c pwrite.c truncate.c
 PSEUDO+= _fcntl.o
 .endif
+SRCS+= sigwait.c
+NOASM+= sigwait.o
+PSEUDO+= _sigwait.o
 
 # Add machine dependent asm sources:
 SRCS+=${MDASM}
@@ -52,14 +53,23 @@ SYM_MAPS+=	${.CURDIR}/sys/Symbol.map
 # Generated files
 CLEANFILES+=	${SASM} ${SPSEUDO}
 
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
+    ${MACHINE_CPUARCH} == "powerpc"
+NOTE_GNU_STACK='\t.section .note.GNU-stack,"",%%progbits\n'
+.else
+NOTE_GNU_STACK=''
+.endif
+
 ${SASM}:
 	printf '#include "compat.h"\n' > ${.TARGET}
 	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' >> ${.TARGET}
+	printf  ${NOTE_GNU_STACK} >>${.TARGET}
 
 ${SPSEUDO}:
 	printf '#include "compat.h"\n' > ${.TARGET}
 	printf '#include "SYS.h"\nPSEUDO(${.PREFIX:S/_//})\n' \
 	    >> ${.TARGET}
+	printf ${NOTE_GNU_STACK} >>${.TARGET}
 
 MAN+=	abort2.2 accept.2 access.2 acct.2 adjtime.2 \
 	aio_cancel.2 aio_error.2 aio_read.2 aio_return.2 \

@@ -9218,7 +9218,6 @@ dtrace_difo_init(dtrace_difo_t *dp, dtrace_vstate_t *vstate)
 	dtrace_difo_hold(dp);
 }
 
-#if defined(sun)
 static dtrace_difo_t *
 dtrace_difo_duplicate(dtrace_difo_t *dp, dtrace_vstate_t *vstate)
 {
@@ -9262,7 +9261,6 @@ dtrace_difo_duplicate(dtrace_difo_t *dp, dtrace_vstate_t *vstate)
 	dtrace_difo_init(new, vstate);
 	return (new);
 }
-#endif
 
 static void
 dtrace_difo_destroy(dtrace_difo_t *dp, dtrace_vstate_t *vstate)
@@ -14615,12 +14613,16 @@ dtrace_helpers_create(proc_t *p)
 }
 
 #if defined(sun)
-static void
-dtrace_helpers_destroy(void)
+static
+#endif
+void
+dtrace_helpers_destroy(proc_t *p)
 {
 	dtrace_helpers_t *help;
 	dtrace_vstate_t *vstate;
+#if defined(sun)
 	proc_t *p = curproc;
+#endif
 	int i;
 
 	mutex_enter(&dtrace_lock);
@@ -14707,7 +14709,10 @@ dtrace_helpers_destroy(void)
 	mutex_exit(&dtrace_lock);
 }
 
-static void
+#if defined(sun)
+static
+#endif
+void
 dtrace_helpers_duplicate(proc_t *from, proc_t *to)
 {
 	dtrace_helpers_t *help, *newhelp;
@@ -14788,7 +14793,6 @@ dtrace_helpers_duplicate(proc_t *from, proc_t *to)
 	if (hasprovs)
 		dtrace_helper_provider_register(to, newhelp, NULL);
 }
-#endif
 
 #if defined(sun)
 /*

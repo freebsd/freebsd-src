@@ -134,29 +134,12 @@ static void cvm_oct_rgmii_poll(struct ifnet *ifp)
 		cvmx_write_csr(CVMX_GMXX_RXX_INT_REG(index, interface), gmxx_rxx_int_reg.u64);
 	}
 
-	link_info = cvmx_helper_link_autoconf(priv->port);
-	priv->link_info = link_info.u64;
-	mtx_unlock_spin(&global_register_lock);
-
-	/* Tell Linux */
-	if (link_info.s.link_up) {
-
-		if_link_state_change(ifp, LINK_STATE_UP);
-		if (priv->queue != -1)
-			DEBUGPRINT("%s: %u Mbps %s duplex, port %2d, queue %2d\n",
-				   if_name(ifp), link_info.s.speed,
-				   (link_info.s.full_duplex) ? "Full" : "Half",
-				   priv->port, priv->queue);
-		else
-			DEBUGPRINT("%s: %u Mbps %s duplex, port %2d, POW\n",
-				   if_name(ifp), link_info.s.speed,
-				   (link_info.s.full_duplex) ? "Full" : "Half",
-				   priv->port);
-	} else {
-
-		if_link_state_change(ifp, LINK_STATE_DOWN);
-		DEBUGPRINT("%s: Link down\n", if_name(ifp));
+	if (priv->miibus == NULL) {
+		link_info = cvmx_helper_link_autoconf(priv->port);
+		priv->link_info = link_info.u64;
+		priv->need_link_update = 1;
 	}
+	mtx_unlock_spin(&global_register_lock);
 }
 
 
@@ -225,42 +208,6 @@ static int cvm_oct_rgmii_rml_interrupt(void *dev_id)
 }
 
 
-static int cvm_oct_rgmii_open(struct ifnet *ifp)
-{
-	cvmx_gmxx_prtx_cfg_t gmx_cfg;
-	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
-	int interface = INTERFACE(priv->port);
-	int index = INDEX(priv->port);
-	cvmx_helper_link_info_t link_info;
-
-	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
-	gmx_cfg.s.en = 1;
-	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
-
-        if (!octeon_is_simulation()) {
-             link_info = cvmx_helper_link_get(priv->port);
-             if (!link_info.s.link_up)
-		if_link_state_change(ifp, LINK_STATE_DOWN);
-	     else
-		if_link_state_change(ifp, LINK_STATE_UP);
-        }
-
-	return 0;
-}
-
-static int cvm_oct_rgmii_stop(struct ifnet *ifp)
-{
-	cvmx_gmxx_prtx_cfg_t gmx_cfg;
-	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
-	int interface = INTERFACE(priv->port);
-	int index = INDEX(priv->port);
-
-	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
-	gmx_cfg.s.en = 0;
-	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
-	return 0;
-}
-
 int cvm_oct_rgmii_init(struct ifnet *ifp)
 {
 	struct octebus_softc *sc;
@@ -269,8 +216,8 @@ int cvm_oct_rgmii_init(struct ifnet *ifp)
 	int rid;
 
 	cvm_oct_common_init(ifp);
-	priv->open = cvm_oct_rgmii_open;
-	priv->stop = cvm_oct_rgmii_stop;
+	priv->open = cvm_oct_common_open;
+	priv->stop = cvm_oct_common_stop;
 	priv->stop(ifp);
 
 	/* Due to GMX errata in CN3XXX series chips, it is necessary to take the

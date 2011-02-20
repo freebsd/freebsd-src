@@ -80,7 +80,9 @@ struct drm_file;
 #include <machine/pmap.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
+#if defined(__i386__) || defined(__amd64__)
 #include <machine/specialreg.h>
+#endif
 #include <machine/sysarch.h>
 #include <sys/endian.h>
 #include <sys/mman.h>
@@ -246,20 +248,20 @@ typedef u_int8_t u8;
 	*(volatile u_int8_t *)(((vm_offset_t)(map)->virtual) +		\
 	    (vm_offset_t)(offset))
 #define DRM_READ16(map, offset)						\
-	*(volatile u_int16_t *)(((vm_offset_t)(map)->virtual) +		\
-	    (vm_offset_t)(offset))
+	le16toh(*(volatile u_int16_t *)(((vm_offset_t)(map)->virtual) +	\
+	    (vm_offset_t)(offset)))
 #define DRM_READ32(map, offset)						\
-	*(volatile u_int32_t *)(((vm_offset_t)(map)->virtual) +		\
-	    (vm_offset_t)(offset))
+	le32toh(*(volatile u_int32_t *)(((vm_offset_t)(map)->virtual) +	\
+	    (vm_offset_t)(offset)))
 #define DRM_WRITE8(map, offset, val)					\
 	*(volatile u_int8_t *)(((vm_offset_t)(map)->virtual) +		\
 	    (vm_offset_t)(offset)) = val
 #define DRM_WRITE16(map, offset, val)					\
 	*(volatile u_int16_t *)(((vm_offset_t)(map)->virtual) +		\
-	    (vm_offset_t)(offset)) = val
+	    (vm_offset_t)(offset)) = htole16(val)
 #define DRM_WRITE32(map, offset, val)					\
 	*(volatile u_int32_t *)(((vm_offset_t)(map)->virtual) +		\
-	    (vm_offset_t)(offset)) = val
+	    (vm_offset_t)(offset)) = htole32(val)
 
 #define DRM_VERIFYAREA_READ( uaddr, size )		\
 	(!useracc(__DECONST(caddr_t, uaddr), size, VM_PROT_READ))

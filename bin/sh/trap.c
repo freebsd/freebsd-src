@@ -79,6 +79,10 @@ static volatile sig_atomic_t gotsig[NSIG];
 				/* indicates specified signal received */
 static int ignore_sigchld;	/* Used while handling SIGCHLD traps. */
 volatile sig_atomic_t gotwinch;
+static int last_trapsig;
+
+static int exiting;		/* exitshell() has been called */
+static int exiting_exitstatus;	/* value passed to exitshell() */
 
 static int getsigaction(int, sig_t *);
 
@@ -97,12 +101,12 @@ sigstring_to_signum(char *sig)
 
 		signo = atoi(sig);
 		return ((signo >= 0 && signo < NSIG) ? signo : (-1));
-	} else if (strcasecmp(sig, "exit") == 0) {
+	} else if (strcasecmp(sig, "EXIT") == 0) {
 		return (0);
 	} else {
 		int n;
 
-		if (strncasecmp(sig, "sig", 3) == 0)
+		if (strncasecmp(sig, "SIG", 3) == 0)
 			sig += 3;
 		for (n = 1; n < sys_nsig; n++)
 			if (sys_signame[n] &&
@@ -131,7 +135,7 @@ printsignals(void)
 			outlen += 3;	/* good enough */
 		}
 		++outlen;
-		if (outlen > 70 || n == sys_nsig - 1) {
+		if (outlen > 71 || n == sys_nsig - 1) {
 			out1str("\n");
 			outlen = 0;
 		} else {
@@ -150,14 +154,24 @@ trapcmd(int argc, char **argv)
 	char *action;
 	int signo;
 	int errors = 0;
+	int i;
 
-	if (argc <= 1) {
+	while ((i = nextopt("l")) != '\0') {
+		switch (i) {
+		case 'l':
+			printsignals();
+			return (0);
+		}
+	}
+	argv = argptr;
+
+	if (*argv == NULL) {
 		for (signo = 0 ; signo < sys_nsig ; signo++) {
 			if (signo < NSIG && trap[signo] != NULL) {
 				out1str("trap -- ");
 				out1qstr(trap[signo]);
 				if (signo == 0) {
-					out1str(" exit\n");
+					out1str(" EXIT\n");
 				} else if (sys_signame[signo]) {
 					out1fmt(" %s\n", sys_signame[signo]);
 				} else {
@@ -168,24 +182,17 @@ trapcmd(int argc, char **argv)
 		return 0;
 	}
 	action = NULL;
-	if (*++argv && strcmp(*argv, "--") == 0)
-		argv++;
 	if (*argv && sigstring_to_signum(*argv) == -1) {
-		if ((*argv)[0] != '-') {
+		if (strcmp(*argv, "-") == 0)
+			argv++;
+		else {
 			action = *argv;
 			argv++;
-		} else if ((*argv)[1] == '\0') {
-			argv++;
-		} else if ((*argv)[1] == 'l' && (*argv)[2] == '\0') {
-			printsignals();
-			return 0;
-		} else {
-			error("bad option %s", *argv);
 		}
 	}
 	while (*argv) {
 		if ((signo = sigstring_to_signum(*argv)) == -1) {
-			out2fmt_flush("trap: bad signal %s\n", *argv);
+			warning("bad signal %s", *argv);
 			errors = 1;
 		}
 		INTOFF;
@@ -360,22 +367,6 @@ ignoresig(int signo)
 }
 
 
-#ifdef mkinit
-INCLUDE <signal.h>
-INCLUDE "trap.h"
-
-SHELLPROC {
-	char *sm;
-
-	clear_traps();
-	for (sm = sigmode ; sm < sigmode + NSIG ; sm++) {
-		if (*sm == S_IGN)
-			*sm = S_HARD_IGN;
-	}
-}
-#endif
-
-
 /*
  * Signal handler.
  */
@@ -435,6 +426,7 @@ dotrap(void)
 					 */
 					if (i == SIGCHLD)
 						ignore_sigchld++;
+					last_trapsig = i;
 					savestatus = exitstatus;
 					evalstring(trap[i], 0);
 					exitstatus = savestatus;
@@ -478,10 +470,28 @@ setinteractive(int on)
 void
 exitshell(int status)
 {
+	TRACE(("exitshell(%d) pid=%d\n", status, getpid()));
+	exiting = 1;
+	exiting_exitstatus = status;
+	exitshell_savedstatus();
+}
+
+void
+exitshell_savedstatus(void)
+{
 	struct jmploc loc1, loc2;
 	char *p;
+	int sig = 0;
+	sigset_t sigs;
 
-	TRACE(("exitshell(%d) pid=%d\n", status, getpid()));
+	if (!exiting) {
+		if (in_dotrap && last_trapsig) {
+			sig = last_trapsig;
+			exiting_exitstatus = sig + 128;
+		} else
+			exiting_exitstatus = oexitstatus;
+	}
+	exitstatus = oexitstatus = exiting_exitstatus;
 	if (setjmp(loc1.loc)) {
 		goto l1;
 	}
@@ -498,5 +508,15 @@ l1:   handler = &loc2;			/* probably unnecessary */
 #if JOBS
 	setjobctl(0);
 #endif
-l2:   _exit(status);
+l2:
+	if (sig != 0 && sig != SIGSTOP && sig != SIGTSTP && sig != SIGTTIN &&
+	    sig != SIGTTOU) {
+		signal(sig, SIG_DFL);
+		sigemptyset(&sigs);
+		sigaddset(&sigs, sig);
+		sigprocmask(SIG_UNBLOCK, &sigs, NULL);
+		kill(getpid(), sig);
+		/* If the default action is to ignore, fall back to _exit(). */
+	}
+	_exit(exiting_exitstatus);
 }

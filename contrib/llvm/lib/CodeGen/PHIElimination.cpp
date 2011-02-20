@@ -20,6 +20,7 @@
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Function.h"
@@ -37,16 +38,15 @@ STATISTIC(NumAtomic, "Number of atomic phis lowered");
 STATISTIC(NumReused, "Number of reused lowered phis");
 
 char PHIElimination::ID = 0;
-static RegisterPass<PHIElimination>
-X("phi-node-elimination", "Eliminate PHI nodes for register allocation");
+INITIALIZE_PASS(PHIElimination, "phi-node-elimination",
+                "Eliminate PHI nodes for register allocation", false, false);
 
-const PassInfo *const llvm::PHIEliminationID = &X;
+char &llvm::PHIEliminationID = PHIElimination::ID;
 
 void llvm::PHIElimination::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addPreserved<LiveVariables>();
   AU.addPreserved<MachineDominatorTree>();
-  // rdar://7401784 This would be nice:
-  // AU.addPreservedID(MachineLoopInfoID);
+  AU.addPreserved<MachineLoopInfo>();
   MachineFunctionPass::getAnalysisUsage(AU);
 }
 
@@ -56,9 +56,11 @@ bool llvm::PHIElimination::runOnMachineFunction(MachineFunction &MF) {
   bool Changed = false;
 
   // Split critical edges to help the coalescer
-  if (LiveVariables *LV = getAnalysisIfAvailable<LiveVariables>())
+  if (LiveVariables *LV = getAnalysisIfAvailable<LiveVariables>()) {
+    MachineLoopInfo *MLI = getAnalysisIfAvailable<MachineLoopInfo>();
     for (MachineFunction::iterator I = MF.begin(), E = MF.end(); I != E; ++I)
-      Changed |= SplitPHIEdges(MF, *I, *LV);
+      Changed |= SplitPHIEdges(MF, *I, *LV, MLI);
+  }
 
   // Populate VRegPHIUseCount
   analyzePHINodes(MF);
@@ -179,6 +181,7 @@ void llvm::PHIElimination::LowerAtomicPHINode(
 
   unsigned NumSrcs = (MPhi->getNumOperands() - 1) / 2;
   unsigned DestReg = MPhi->getOperand(0).getReg();
+  assert(MPhi->getOperand(0).getSubReg() == 0 && "Can't handle sub-reg PHIs");
   bool isDead = MPhi->getOperand(0).isDead();
 
   // Create a new register for the incoming PHI arguments.
@@ -265,6 +268,8 @@ void llvm::PHIElimination::LowerAtomicPHINode(
   SmallPtrSet<MachineBasicBlock*, 8> MBBsInsertedInto;
   for (int i = NumSrcs - 1; i >= 0; --i) {
     unsigned SrcReg = MPhi->getOperand(i*2+1).getReg();
+    unsigned SrcSubReg = MPhi->getOperand(i*2+1).getSubReg();
+
     assert(TargetRegisterInfo::isVirtualRegister(SrcReg) &&
            "Machine PHI Operands must all be virtual registers!");
 
@@ -294,7 +299,7 @@ void llvm::PHIElimination::LowerAtomicPHINode(
     // Insert the copy.
     if (!reusedIncoming && IncomingReg)
       BuildMI(opBlock, InsertPos, MPhi->getDebugLoc(),
-              TII->get(TargetOpcode::COPY), IncomingReg).addReg(SrcReg);
+              TII->get(TargetOpcode::COPY), IncomingReg).addReg(SrcReg, 0, SrcSubReg);
 
     // Now update live variable information if we have it.  Otherwise we're done
     if (!LV) continue;
@@ -378,10 +383,12 @@ void llvm::PHIElimination::analyzePHINodes(const MachineFunction& MF) {
 
 bool llvm::PHIElimination::SplitPHIEdges(MachineFunction &MF,
                                          MachineBasicBlock &MBB,
-                                         LiveVariables &LV) {
+                                         LiveVariables &LV,
+                                         MachineLoopInfo *MLI) {
   if (MBB.empty() || !MBB.front().isPHI() || MBB.isLandingPad())
     return false;   // Quick exit for basic blocks without PHIs.
 
+  bool Changed = false;
   for (MachineBasicBlock::const_iterator BBI = MBB.begin(), BBE = MBB.end();
        BBI != BBE && BBI->isPHI(); ++BBI) {
     for (unsigned i = 1, e = BBI->getNumOperands(); i != e; i += 2) {
@@ -390,8 +397,15 @@ bool llvm::PHIElimination::SplitPHIEdges(MachineFunction &MF,
       // We break edges when registers are live out from the predecessor block
       // (not considering PHI nodes). If the register is live in to this block
       // anyway, we would gain nothing from splitting.
-      if (!LV.isLiveIn(Reg, MBB) && LV.isLiveOut(Reg, *PreMBB))
-        PreMBB->SplitCriticalEdge(&MBB, this);
+      // Avoid splitting backedges of loops. It would introduce small
+      // out-of-line blocks into the loop which is very bad for code placement.
+      if (PreMBB != &MBB &&
+          !LV.isLiveIn(Reg, MBB) && LV.isLiveOut(Reg, *PreMBB)) {
+        if (!MLI ||
+            !(MLI->getLoopFor(PreMBB) == MLI->getLoopFor(&MBB) &&
+              MLI->isLoopHeader(&MBB)))
+          Changed |= PreMBB->SplitCriticalEdge(&MBB, this) != 0;
+      }
     }
   }
   return true;

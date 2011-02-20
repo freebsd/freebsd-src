@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 19, 2008
+.Dd October 9, 2010
 .Dt ZONE 9
 .Os
 .Sh NAME
@@ -35,7 +35,9 @@
 .Nm uma_zfree ,
 .Nm uma_zfree_arg ,
 .Nm uma_zdestroy ,
-.Nm uma_zone_set_max
+.Nm uma_zone_set_max,
+.Nm uma_zone_get_max,
+.Nm uma_zone_get_cur
 .Nd zone allocator
 .Sh SYNOPSIS
 .In sys/param.h
@@ -57,8 +59,12 @@
 .Fn uma_zfree_arg "uma_zone_t zone" "void *item" "void *arg"
 .Ft void
 .Fn uma_zdestroy "uma_zone_t zone"
-.Ft void
+.Ft int
 .Fn uma_zone_set_max "uma_zone_t zone" "int nitems"
+.Ft int
+.Fn uma_zone_get_max "uma_zone_t zone"
+.Ft int
+.Fn uma_zone_get_cur "uma_zone_t zone"
 .Sh DESCRIPTION
 The zone allocator provides an efficient interface for managing
 dynamically-sized collections of items of similar size.
@@ -147,6 +153,13 @@ Items are released back to the zone from which they were allocated by
 calling
 .Fn uma_zfree
 with a pointer to the zone and a pointer to the item.
+If
+.Fa item
+is
+.Dv NULL ,
+then
+.Fn uma_zfree
+does nothing.
 .Pp
 The variations
 .Fn uma_zalloc_arg
@@ -170,21 +183,36 @@ must have been freed with
 .Fn uma_zfree
 before.
 .Pp
-The purpose of
+The
 .Fn uma_zone_set_max
-is to limit the maximum amount of memory that the system can dedicated
-toward the zone specified by the
-.Fa zone
-argument.
+function limits the number of items
+.Pq and therefore memory
+that can be allocated to
+.Fa zone .
 The
 .Fa nitems
-argument gives the upper limit of items in the zone.
-This limits the total number of items in the zone which includes:
+argument specifies the requested upper limit number of items.
+The effective limit is returned to the caller, as it may end up being higher
+than requested due to the implementation rounding up to ensure all memory pages
+allocated to the zone are utilised to capacity.
+The limit applies to the total number of items in the zone, which includes
 allocated items, free items and free items in the per-cpu caches.
 On systems with more than one CPU it may not be possible to allocate
 the specified number of items even when there is no shortage of memory,
 because all of the remaining free items may be in the caches of the
 other CPUs when the limit is hit.
+.Pp
+The
+.Fn uma_zone_get_max
+function returns the effective upper limit number of items for a zone.
+.Pp
+The
+.Fn uma_zone_get_cur
+function returns the approximate current occupancy of the zone.
+The returned value is approximate because appropriate synchronisation to
+determine an exact value is not performend by the implementation.
+This ensures low overhead at the expense of potentially stale data being used
+in the calculation.
 .Sh RETURN VALUES
 The
 .Fn uma_zalloc

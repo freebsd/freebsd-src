@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -222,8 +218,8 @@ urihandling(char *URI)
 	char	uri[ARG_MAX];
 	char	*host = NULL;
 	char	*path = NULL;
-	char	*options = NULL;
-	char	*mode = "octet";
+	char	*opts = NULL;
+	const char *tmode = "octet";
 	char	*s;
 	char	line[MAXLINE];
 	int	i;
@@ -241,14 +237,14 @@ urihandling(char *URI)
 
 	if ((s = strchr(path, ';')) != NULL) {
 		*s = '\0';
-		options = s + 1;
+		opts = s + 1;
 
-		if (strncmp(options, "mode=", 5) == 0) {
-			mode = options;
-			mode += 5;
+		if (strncmp(opts, "mode=", 5) == 0) {
+			tmode = opts;
+			tmode += 5;
 
 			for (i = 0; modes[i].m_name != NULL; i++) {
-				if (strcmp(modes[i].m_name, mode) == 0)
+				if (strcmp(modes[i].m_name, tmode) == 0)
 					break;
 			}
 			if (modes[i].m_name == NULL) {
@@ -697,7 +693,7 @@ tail(char *filename)
 }
 
 static const char *
-command_prompt()
+command_prompt(void)
 {
 
 	return ("tftp> ");
@@ -964,27 +960,25 @@ setblocksize(int argc, char *argv[])
 	if (argc != 1) {
 		int size = atoi(argv[1]);
 		size_t max;
-		char maxbuffer[100];
-		int *maxdgram;
+		u_long maxdgram;
 
-		max = sizeof(maxbuffer);
+		max = sizeof(maxdgram);
 		if (sysctlbyname("net.inet.udp.maxdgram",
-			maxbuffer, &max, NULL, 0) < 0) {
+			&maxdgram, &max, NULL, 0) < 0) {
 			perror("sysctl: net.inet.udp.maxdgram");
 			return;
 		}
-		maxdgram = (int *)maxbuffer;
 
 		if (size < BLKSIZE_MIN || size > BLKSIZE_MAX) {
 			printf("Blocksize should be between %d and %d bytes.\n",
 				BLKSIZE_MIN, BLKSIZE_MAX);
 			return;
-		} else if (size > *maxdgram - 4) {
-			printf("Blocksize can't be bigger than %d bytes due "
+		} else if (size > (int)maxdgram - 4) {
+			printf("Blocksize can't be bigger than %ld bytes due "
 			    "to the net.inet.udp.maxdgram sysctl limitation.\n",
-			    *maxdgram - 4);
+			    maxdgram - 4);
 			asprintf(&options[OPT_BLKSIZE].o_request,
-			    "%d", *maxdgram - 4);
+			    "%ld", maxdgram - 4);
 		} else {
 			asprintf(&options[OPT_BLKSIZE].o_request, "%d", size);
 		}
@@ -1005,21 +999,19 @@ setblocksize2(int argc, char *argv[])
 		int size = atoi(argv[1]);
 		int i;
 		size_t max;
-		char maxbuffer[100];
-		int *maxdgram;
+		u_long maxdgram;
 
 		int sizes[] = {
 			8, 16, 32, 64, 128, 256, 512, 1024,
 			2048, 4096, 8192, 16384, 32768, 0
 		};
 
-		max = sizeof(maxbuffer);
+		max = sizeof(maxdgram);
 		if (sysctlbyname("net.inet.udp.maxdgram",
-			maxbuffer, &max, NULL, 0) < 0) {
+			&maxdgram, &max, NULL, 0) < 0) {
 			perror("sysctl: net.inet.udp.maxdgram");
 			return;
 		}
-		maxdgram = (int *)maxbuffer;
 
 		for (i = 0; sizes[i] != 0; i++) {
 			if (sizes[i] == size) break;
@@ -1034,12 +1026,12 @@ setblocksize2(int argc, char *argv[])
 			printf("Blocksize2 should be between "
 			    "%d and %d bytes.\n", BLKSIZE_MIN, BLKSIZE_MAX);
 			return;
-		} else if (size > *maxdgram - 4) {
-			printf("Blocksize2 can't be bigger than %d bytes due "
+		} else if (size > (int)maxdgram - 4) {
+			printf("Blocksize2 can't be bigger than %ld bytes due "
 			    "to the net.inet.udp.maxdgram sysctl limitation.\n",
-			    *maxdgram - 4);
+			    maxdgram - 4);
 			for (i = 0; sizes[i+1] != 0; i++) {
-				if (*maxdgram < sizes[i+1]) break;
+				if ((int)maxdgram < sizes[i+1]) break;
 			}
 			asprintf(&options[OPT_BLKSIZE2].o_request,
 			    "%d", sizes[i]);

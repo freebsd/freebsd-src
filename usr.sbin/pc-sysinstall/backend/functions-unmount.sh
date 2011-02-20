@@ -99,6 +99,7 @@ unmount_all_filesystems()
         case ${PARTFS} in
           UFS) glabel label ${PARTLABEL} /dev/${PART}${EXT} ;;
           UFS+S) glabel label ${PARTLABEL} /dev/${PART}${EXT} ;;
+          UFS+SUJ) glabel label ${PARTLABEL} /dev/${PART}${EXT} ;;
           UFS+J) glabel label ${PARTLABEL} /dev/${PART}${EXT}.journal ;;
           *) ;;
         esac 
@@ -113,6 +114,7 @@ unmount_all_filesystems()
         case ${PARTFS} in
           UFS) ROOTRELABEL="glabel label ${PARTLABEL} /dev/${PART}${EXT}" ;;
           UFS+S) ROOTRELABEL="glabel label ${PARTLABEL} /dev/${PART}${EXT}" ;;
+          UFS+SUJ) ROOTRELABEL="glabel label ${PARTLABEL} /dev/${PART}${EXT}" ;;
           UFS+J) ROOTRELABEL="glabel label ${PARTLABEL} /dev/${PART}${EXT}.journal" ;;
           *) ;;
         esac 

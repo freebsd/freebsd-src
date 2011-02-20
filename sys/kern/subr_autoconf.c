@@ -135,7 +135,7 @@ boot_run_interrupt_driven_config_hooks(void *dummy)
 	warned = 0;
 	while (!TAILQ_EMPTY(&intr_config_hook_list)) {
 		if (msleep(&intr_config_hook_list, &intr_config_hook_lock,
-		    PCONFIG, "conifhk", WARNING_INTERVAL_SECS * hz) ==
+		    0, "conifhk", WARNING_INTERVAL_SECS * hz) ==
 		    EWOULDBLOCK) {
 			mtx_unlock(&intr_config_hook_lock);
 			warned++;

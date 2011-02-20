@@ -86,22 +86,19 @@ struct pmap_md {
 #define	NPMAPS		32768
 #endif /* !defined(NPMAPS) */
 
-struct	slbcontainer;
-
-SPLAY_HEAD(slb_tree, slbcontainer);
+struct	slbtnode;
 
 struct	pmap {
 	struct	mtx	pm_mtx;
 	
     #ifdef __powerpc64__
-	struct slb_tree	pm_slbtree;
-	struct slb	*pm_slb;
+	struct slbtnode	*pm_slb_tree_root;
+	struct slb	**pm_slb;
+	int		pm_slb_len;
     #else
 	register_t	pm_sr[16];
     #endif
 	cpumask_t	pm_active;
-	uint32_t	pm_gen_count;	/* generation count (pmap lock dropped) */
-	u_int		pm_retries;
 
 	struct pmap	*pmap_phys;
 	struct		pmap_statistics	pm_stats;
@@ -122,14 +119,33 @@ struct pvo_entry {
 };
 LIST_HEAD(pvo_head, pvo_entry);
 
+#define	PVO_PTEGIDX_MASK	0x007UL		/* which PTEG slot */
+#define	PVO_PTEGIDX_VALID	0x008UL		/* slot is valid */
+#define	PVO_WIRED		0x010UL		/* PVO entry is wired */
+#define	PVO_MANAGED		0x020UL		/* PVO entry is managed */
+#define	PVO_EXECUTABLE		0x040UL		/* PVO entry is executable */
+#define	PVO_BOOTSTRAP		0x080UL		/* PVO entry allocated during
+						   bootstrap */
+#define PVO_FAKE		0x100UL		/* fictitious phys page */
+#define PVO_LARGE		0x200UL		/* large page */
+#define	PVO_VADDR(pvo)		((pvo)->pvo_vaddr & ~ADDR_POFF)
+#define PVO_ISFAKE(pvo)		((pvo)->pvo_vaddr & PVO_FAKE)
+#define	PVO_PTEGIDX_GET(pvo)	((pvo)->pvo_vaddr & PVO_PTEGIDX_MASK)
+#define	PVO_PTEGIDX_ISSET(pvo)	((pvo)->pvo_vaddr & PVO_PTEGIDX_VALID)
+#define	PVO_PTEGIDX_CLR(pvo)	\
+	((void)((pvo)->pvo_vaddr &= ~(PVO_PTEGIDX_VALID|PVO_PTEGIDX_MASK)))
+#define	PVO_PTEGIDX_SET(pvo, i)	\
+	((void)((pvo)->pvo_vaddr |= (i)|PVO_PTEGIDX_VALID))
+#define	PVO_VSID(pvo)		((pvo)->pvo_vpn >> 16)
+
 struct	md_page {
-	u_int64_t mdpg_attrs;
+	u_int64_t	 mdpg_attrs;
+	vm_memattr_t	 mdpg_cache_attrs;
 	struct	pvo_head mdpg_pvoh;
 };
 
-#define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
+#define	pmap_page_get_memattr(m)	((m)->md.mdpg_cache_attrs)
 #define	pmap_page_is_mapped(m)	(!LIST_EMPTY(&(m)->md.mdpg_pvoh))
-#define	pmap_page_set_memattr(m, ma)	(void)0
 
 /*
  * Return the VSID corresponding to a given virtual address.
@@ -139,14 +155,20 @@ struct	md_page {
  * NB: The PMAP MUST be locked already.
  */
 uint64_t va_to_vsid(pmap_t pm, vm_offset_t va);
-int      va_to_slb_entry(pmap_t pm, vm_offset_t va, struct slb *);
 
-uint64_t allocate_vsid(pmap_t pm, uint64_t esid, int large);
-void     slb_insert(pmap_t pm, struct slb *dst, struct slb *);
-int      vsid_to_esid(pmap_t pm, uint64_t vsid, uint64_t *esid);
-void     free_vsids(pmap_t pm);
-struct slb *slb_alloc_user_cache(void);
-void	slb_free_user_cache(struct slb *);
+/* Lock-free, non-allocating lookup routines */
+uint64_t kernel_va_to_slbv(vm_offset_t va);
+struct slb *user_va_to_slb_entry(pmap_t pm, vm_offset_t va);
+
+uint64_t allocate_user_vsid(pmap_t pm, uint64_t esid, int large);
+void	free_vsid(pmap_t pm, uint64_t esid, int large);
+void	slb_insert_user(pmap_t pm, struct slb *slb);
+void	slb_insert_kernel(uint64_t slbe, uint64_t slbv);
+
+struct slbtnode *slb_alloc_tree(void);
+void     slb_free_tree(pmap_t pm);
+struct slb **slb_alloc_user_cache(void);
+void	slb_free_user_cache(struct slb **);
 
 #else
 
@@ -154,15 +176,10 @@ struct pmap {
 	struct mtx		pm_mtx;		/* pmap mutex */
 	tlbtid_t		pm_tid[MAXCPU];	/* TID to identify this pmap entries in TLB */
 	cpumask_t		pm_active;	/* active on cpus */
-	int			pm_refs;	/* ref count */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 
 	/* Page table directory, array of pointers to page tables. */
 	pte_t			*pm_pdir[PDIR_NENTRIES];
-
-	/* generation count (pmap lock dropped) */
-	uint32_t		pm_gen_count;
-	u_int			pm_retries;
 
 	/* List of allocated ptbl bufs (ptbl kva regions). */
 	TAILQ_HEAD(, ptbl_buf)	pm_ptbl_list;
@@ -182,7 +199,6 @@ struct md_page {
 
 #define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
-#define	pmap_page_set_memattr(m, ma)	(void)0
 
 #endif /* AIM */
 
@@ -204,9 +220,12 @@ extern	struct pmap kernel_pmap_store;
 
 void		pmap_bootstrap(vm_offset_t, vm_offset_t);
 void		pmap_kenter(vm_offset_t va, vm_offset_t pa);
+void		pmap_kenter_attr(vm_offset_t va, vm_offset_t pa, vm_memattr_t);
 void		pmap_kremove(vm_offset_t);
 void		*pmap_mapdev(vm_offset_t, vm_size_t);
+void		*pmap_mapdev_attr(vm_offset_t, vm_size_t, vm_memattr_t);
 void		pmap_unmapdev(vm_offset_t, vm_size_t);
+void		pmap_page_set_memattr(vm_page_t, vm_memattr_t);
 void		pmap_deactivate(struct thread *);
 vm_offset_t	pmap_kextract(vm_offset_t);
 int		pmap_dev_direct_mapped(vm_offset_t, vm_size_t);

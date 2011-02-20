@@ -30,41 +30,67 @@ class CFG;
 class CFGBlock;
 class LiveVariables;
 class ParentMap;
+class PseudoConstantAnalysis;
 class ImplicitParamDecl;
 class LocationContextManager;
 class StackFrameContext;
+
+namespace idx { class TranslationUnit; }
 
 /// AnalysisContext contains the context data for the function or method under
 /// analysis.
 class AnalysisContext {
   const Decl *D;
 
+  // TranslationUnit is NULL if we don't have multiple translation units.
+  idx::TranslationUnit *TU;
+
   // AnalysisContext owns the following data.
-  CFG *cfg;
-  bool builtCFG;
+  CFG *cfg, *completeCFG;
+  bool builtCFG, builtCompleteCFG;
   LiveVariables *liveness;
+  LiveVariables *relaxedLiveness;
   ParentMap *PM;
+  PseudoConstantAnalysis *PCA;
   llvm::DenseMap<const BlockDecl*,void*> *ReferencedBlockVars;
   llvm::BumpPtrAllocator A;
+  bool UseUnoptimizedCFG;  
   bool AddEHEdges;
 public:
-  AnalysisContext(const Decl *d, bool addehedges = false)
-    : D(d), cfg(0), builtCFG(false), liveness(0), PM(0),
-      ReferencedBlockVars(0), AddEHEdges(addehedges) {}
+  AnalysisContext(const Decl *d, idx::TranslationUnit *tu,
+                  bool useUnoptimizedCFG = false,
+                  bool addehedges = false)
+    : D(d), TU(tu), cfg(0), completeCFG(0),
+      builtCFG(false), builtCompleteCFG(false),
+      liveness(0), relaxedLiveness(0), PM(0), PCA(0),
+      ReferencedBlockVars(0), UseUnoptimizedCFG(useUnoptimizedCFG),
+      AddEHEdges(addehedges) {}
 
   ~AnalysisContext();
 
   ASTContext &getASTContext() { return D->getASTContext(); }
-  const Decl *getDecl() { return D; }
+  const Decl *getDecl() const { return D; }
+
+  idx::TranslationUnit *getTranslationUnit() const { return TU; }
+
   /// getAddEHEdges - Return true iff we are adding exceptional edges from
   /// callExprs.  If this is false, then try/catch statements and blocks
   /// reachable from them can appear to be dead in the CFG, analysis passes must
   /// cope with that.
   bool getAddEHEdges() const { return AddEHEdges; }
+  
+  bool getUseUnoptimizedCFG() const { return UseUnoptimizedCFG; }
+
   Stmt *getBody();
   CFG *getCFG();
+  
+  /// Return a version of the CFG without any edges pruned.
+  CFG *getUnoptimizedCFG();
+
   ParentMap &getParentMap();
+  PseudoConstantAnalysis *getPseudoConstantAnalysis();
   LiveVariables *getLiveVariables();
+  LiveVariables *getRelaxedLiveVariables();
 
   typedef const VarDecl * const * referenced_decls_iterator;
 
@@ -79,10 +105,16 @@ public:
 class AnalysisContextManager {
   typedef llvm::DenseMap<const Decl*, AnalysisContext*> ContextMap;
   ContextMap Contexts;
+  bool UseUnoptimizedCFG;
 public:
+  AnalysisContextManager(bool useUnoptimizedCFG = false)
+    : UseUnoptimizedCFG(useUnoptimizedCFG) {}
+  
   ~AnalysisContextManager();
 
-  AnalysisContext *getContext(const Decl *D);
+  AnalysisContext *getContext(const Decl *D, idx::TranslationUnit *TU = 0);
+
+  bool getUseUnoptimizedCFG() const { return UseUnoptimizedCFG; }
 
   // Discard all previously created AnalysisContexts.
   void clear();
@@ -94,7 +126,10 @@ public:
 
 private:
   ContextKind Kind;
+
+  // AnalysisContext can't be const since some methods may modify its member.
   AnalysisContext *Ctx;
+
   const LocationContext *Parent;
 
 protected:
@@ -108,6 +143,10 @@ public:
   ContextKind getKind() const { return Kind; }
 
   AnalysisContext *getAnalysisContext() const { return Ctx; }
+
+  idx::TranslationUnit *getTranslationUnit() const { 
+    return Ctx->getTranslationUnit(); 
+  }
 
   const LocationContext *getParent() const { return Parent; }
 

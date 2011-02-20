@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2010
+.Dd September 10, 2010
 .Dt CPUSET 2
 .Os
 .Sh NAME
@@ -121,6 +121,12 @@ The
 or
 .Fa which
 argument was not a valid value.
+.It Bq Er EINVAL
+The
+.Fa mask
+argument specified when calling
+.Fn cpuset_setaffinity
+was not a valid value.
 .It Bq Er EDEADLK
 The
 .Fn cpuset_setaffinity

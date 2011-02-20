@@ -150,6 +150,7 @@ mv_timer_attach(device_t dev)
 	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
 	irq_mask = read_cpu_ctrl(BRIDGE_IRQ_MASK);
 	irq_mask |= IRQ_TIMER0_MASK;
+	irq_mask &= ~IRQ_TIMER1_MASK;
 	write_cpu_ctrl(BRIDGE_IRQ_MASK, irq_mask);
 
 	sc->et.et_name = "CPUTimer0";
@@ -178,13 +179,13 @@ mv_hardclock(void *arg)
 	struct	mv_timer_softc *sc;
 	uint32_t irq_cause;
 
-	sc = (struct mv_timer_softc *)arg;
-	if (sc->et.et_active)
-		sc->et.et_event_cb(&sc->et, sc->et.et_arg);
-
 	irq_cause = read_cpu_ctrl(BRIDGE_IRQ_CAUSE);
 	irq_cause &= ~(IRQ_TIMER0);
 	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
+
+	sc = (struct mv_timer_softc *)arg;
+	if (sc->et.et_active)
+		sc->et.et_event_cb(&sc->et, sc->et.et_arg);
 
 	return (FILTER_HANDLED);
 }
@@ -229,7 +230,7 @@ DELAY(int usec)
 	if (!timers_initialized) {
 		for (; usec > 0; usec--)
 			for (val = 100; val > 0; val--)
-				;
+				__asm __volatile("nop" ::: "memory");
 		return;
 	}
 
@@ -394,6 +395,8 @@ mv_timer_start(struct eventtimer *et,
 	val |= CPU_TIMER0_EN;
 	if (period != NULL)
 		val |= CPU_TIMER0_AUTO;
+	else
+		val &= ~CPU_TIMER0_AUTO;
 	mv_set_timer_control(val);
 	return (0);
 }

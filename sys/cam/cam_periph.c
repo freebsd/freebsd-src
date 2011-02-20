@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <sys/linker_set.h>
 #include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -648,6 +647,30 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
 		numbufs = 1;
 		break;
+	case XPT_SMP_IO:
+		data_ptrs[0] = &ccb->smpio.smp_request;
+		lengths[0] = ccb->smpio.smp_request_len;
+		dirs[0] = CAM_DIR_OUT;
+		data_ptrs[1] = &ccb->smpio.smp_response;
+		lengths[1] = ccb->smpio.smp_response_len;
+		dirs[1] = CAM_DIR_IN;
+		numbufs = 2;
+		break;
+	case XPT_GDEV_ADVINFO:
+		if (ccb->cgdai.bufsiz == 0)
+			return (0);
+
+		data_ptrs[0] = (uint8_t **)&ccb->cgdai.buf;
+		lengths[0] = ccb->cgdai.bufsiz;
+		dirs[0] = CAM_DIR_IN;
+		numbufs = 1;
+
+		/*
+		 * This request will not go to the hardware, no reason
+		 * to be so strict. vmapbuf() is able to map up to MAXPHYS.
+		 */
+		maxmap = MAXPHYS;
+		break;
 	default:
 		return(EINVAL);
 		break; /* NOTREACHED */
@@ -786,6 +809,15 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	case XPT_ATA_IO:
 		data_ptrs[0] = &ccb->ataio.data_ptr;
 		numbufs = min(mapinfo->num_bufs_used, 1);
+		break;
+	case XPT_SMP_IO:
+		numbufs = min(mapinfo->num_bufs_used, 2);
+		data_ptrs[0] = &ccb->smpio.smp_request;
+		data_ptrs[1] = &ccb->smpio.smp_response;
+		break;
+	case XPT_GDEV_ADVINFO:
+		numbufs = min(mapinfo->num_bufs_used, 1);
+		data_ptrs[0] = (uint8_t **)&ccb->cgdai.buf;
 		break;
 	default:
 		/* allow ourselves to be swapped once again */
@@ -1055,6 +1087,7 @@ camperiphsensedone(struct cam_periph *periph, union ccb *done_ccb)
 			saved_ccb->ccb_h.status |=
 			    CAM_AUTOSENSE_FAIL;
 		}
+		saved_ccb->csio.sense_resid = done_ccb->csio.resid;
 		bcopy(saved_ccb, done_ccb, sizeof(union ccb));
 		xpt_free_ccb(saved_ccb);
 		break;
@@ -1211,7 +1244,7 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 			scsi_request_sense(&done_ccb->csio, /*retries*/1,
 					   camperiphsensedone,
 					   &save_ccb->csio.sense_data,
-					   sizeof(save_ccb->csio.sense_data),
+					   save_ccb->csio.sense_len,
 					   CAM_TAG_ACTION_NONE,
 					   /*sense_len*/SSD_FULL_SIZE,
 					   /*timeout*/5000);
@@ -1602,7 +1635,7 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 			scsi_request_sense(&ccb->csio, /*retries*/1,
 					   camperiphsensedone,
 					   &orig_ccb->csio.sense_data,
-					   sizeof(orig_ccb->csio.sense_data),
+					   orig_ccb->csio.sense_len,
 					   CAM_TAG_ACTION_NONE,
 					   /*sense_len*/SSD_FULL_SIZE,
 					   /*timeout*/5000);

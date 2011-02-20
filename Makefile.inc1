@@ -28,6 +28,17 @@
 # /usr/share/mk.  These include:
 #		obj depend all install clean cleandepend cleanobj
 
+# You are supposed to define both of these when calling Makefile.inc1
+# directly.  However, some old scripts don't.  Cope for the moment, but
+# issue a new warning for a transition period.
+.if defined(TARGET) && !defined(TARGET_ARCH)
+.warning "You must pass both TARGET and TARGET_ARCH to Makefile.inc1.  Setting TARGET_ARCH=${TARGET}."
+TARGET_ARCH=${TARGET}
+.endif
+.if !defined(TARGET) || !defined(TARGET_ARCH)
+.error "Both TARGET and TARGET_ARCH must be defined."
+.endif
+
 .include <bsd.own.mk>
 .include <bsd.arch.inc.mk>
 
@@ -116,18 +127,7 @@ VERSION!=	uname -srp
 VERSION+=	${OSRELDATE}
 .endif
 
-# Guess machine architecture from machine type, and vice versa.
-.if !defined(TARGET_ARCH) && defined(TARGET)
-TARGET_ARCH=	${TARGET:S/pc98/i386/:S/sun4v/sparc64/}
-.elif !defined(TARGET) && defined(TARGET_ARCH) && \
-    ${TARGET_ARCH} != ${MACHINE_ARCH}
-TARGET=		${TARGET_ARCH}
-.endif
-# Otherwise, default to current machine type and architecture.
-TARGET?=	${MACHINE}
-TARGET_ARCH?=	${MACHINE_ARCH}
-
-KNOWN_ARCHES?=	amd64 arm i386 i386/pc98 ia64 mips powerpc powerpc64/powerpc sparc64 sparc64/sun4v
+KNOWN_ARCHES?=	amd64 arm armeb/arm i386 i386/pc98 ia64 mipsel/mips mipseb/mips mips64el/mips mips64eb/mips mipsn32el/mips mipsn32eb/mips powerpc powerpc64/powerpc sparc64 sparc64/sun4v
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else
@@ -161,7 +161,7 @@ BUILD_ARCH!=	uname -p
 .error To cross-build, set TARGET_ARCH.
 .endif
 .endif
-.if ${MACHINE} == ${TARGET} && !defined(CROSS_BUILD_TESTING)
+.if ${MACHINE} == ${TARGET} && ${MACHINE_ARCH} == ${TARGET_ARCH} && !defined(CROSS_BUILD_TESTING)
 OBJTREE=	${MAKEOBJDIRPREFIX}
 .else
 OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}
@@ -307,7 +307,7 @@ LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
 		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO \
-		-DWITHOUT_HTML -DNO_CTF DESTDIR=${LIB32TMP}
+		-DWITHOUT_HTML -DNO_CTF -DNO_LINT DESTDIR=${LIB32TMP}
 LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*} -DNO_INCS
 .endif
 
@@ -1123,7 +1123,7 @@ libraries:
 #
 # static libgcc.a prerequisite for shared libc
 #
-_prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc
+_prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc lib/libcompiler_rt
 
 # These dependencies are not automatically generated:
 #
@@ -1131,16 +1131,15 @@ _prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc
 # all shared libraries for ELF.
 #
 _startup_libs=	gnu/lib/csu
-.if exists(${.CURDIR}/lib/csu/${MACHINE_CPUARCH}-elf)
-_startup_libs+=	lib/csu/${MACHINE_CPUARCH}-elf
-.elif exists(${.CURDIR}/lib/csu/${MACHINE_CPUARCH}-elf)
-_startup_libs+=	lib/csu/${MACHINE_CPUARCH}-elf
+.if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}-elf)
+_startup_libs+=	lib/csu/${MACHINE_ARCH}-elf
 .elif exists(${.CURDIR}/lib/csu/${MACHINE_ARCH})
 _startup_libs+=	lib/csu/${MACHINE_ARCH}
 .else
 _startup_libs+=	lib/csu/${MACHINE_CPUARCH}
 .endif
 _startup_libs+=	gnu/lib/libgcc
+_startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
 
 gnu/lib/libgcc__L: lib/libc__L
@@ -1390,19 +1389,63 @@ check-old: check-old-files check-old-libs check-old-dirs
 showconfig:
 	@${MAKE} -n -f bsd.own.mk -V dummy -dg1 | grep ^MK_ | sort
 
+.if !empty(KRNLOBJDIR) && !empty(KERNCONF)
+DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/
+
+.if !defined(FDT_DTS_FILE) || empty(FDT_DTS_FILE)
+.if exists(${KERNCONFDIR}/${KERNCONF})
+FDT_DTS_FILE!= awk 'BEGIN {FS="="} /^makeoptions[[:space:]]+FDT_DTS_FILE/ {print $$2}' \
+	${KERNCONFDIR}/${KERNCONF}
+.endif
+.endif
+
+.endif
+
+.if !defined(DTBOUTPUTPATH) || !exists(${DTBOUTPUTPATH})
+DTBOUTPUTPATH= ${.CURDIR}
+.endif
+
+#
+# Build 'standalone' Device Tree Blob
+#
+builddtb:
+	@if [ "${FDT_DTS_FILE}" = "" ]; then \
+		echo "ERROR: FDT_DTS_FILE must be specified!"; \
+		exit 1; \
+	fi;	\
+	if [ ! -f ${.CURDIR}/sys/boot/fdt/dts/${FDT_DTS_FILE} ]; then \
+		echo "ERROR: Specified DTS file (${FDT_DTS_FILE}) does not \
+			exist!"; \
+		exit 1;	\
+	fi;	\
+	if [ "${DTBOUTPUTPATH}" = "${.CURDIR}" ]; then	\
+		echo "WARNING: DTB will be placed in the current working \
+			directory"; \
+	fi
+	@PATH=${TMPPATH} \
+	dtc -O dtb -o \
+	    ${DTBOUTPUTPATH}/`echo ${FDT_DTS_FILE} | cut -d. -f1`.dtb -b 0 \
+	    -p 1024 ${.CURDIR}/sys/boot/fdt/dts/${FDT_DTS_FILE}
 
 ###############
 
 .if defined(XDEV) && defined(XDEV_ARCH)
 
+.if ${XDEV} == ${MACHINE} && ${XDEV_ARCH} == ${MACHINE_ARCH}
+XDEV_CPUTYPE?=${CPUTYPE}
+.else
+XDEV_CPUTYPE?=${TARGET_CPUTYPE}
+.endif
+
 NOFUN=-DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
 	-DWITHOUT_MAN -DWITHOUT_NLS -DWITHOUT_PROFILE \
-	-DWITHOUT_KERBEROS -DWITHOUT_RESCUE -DNO_WARNS
+	-DWITHOUT_KERBEROS -DWITHOUT_RESCUE -DNO_WARNS \
+	TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH} \
+	CPUTYPE=${XDEV_CPUTYPE}
 
-XDDIR=${XDEV}-freebsd
+XDDIR=${XDEV_ARCH}-freebsd
 XDTP=/usr/${XDDIR}
-CDBENV=MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${XDDIR} \
-	TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH}
+CDBENV=MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${XDDIR}
 CDENV= ${CDBENV} \
 	_SHLIBDIRPREFIX=${XDTP} \
 	TOOLS_PREFIX=${XDTP}
@@ -1424,7 +1467,7 @@ xdev: xdev-build xdev-install
 xdev-build: _xb-build-tools _xb-cross-tools
 
 _xb-build-tools:
-	${_+_}cd ${.CURDIR}; \
+	${_+_}@cd ${.CURDIR}; \
 	${CDBENV} ${MAKE} -f Makefile.inc1 ${NOFUN} build-tools
 
 _xb-cross-tools:
@@ -1478,41 +1521,3 @@ _xi-links:
 			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
 		done
 .endif
-
-.if !empty(KRNLOBJDIR) && !empty(KERNCONF)
-DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/
-
-.if !defined(FDT_DTS_FILE) || empty(FDT_DTS_FILE)
-.if exists(${KERNCONFDIR}/${KERNCONF})
-FDT_DTS_FILE!= awk 'BEGIN {FS="="} /^makeoptions[[:space:]]+FDT_DTS_FILE/ {print $$2}' \
-	${KERNCONFDIR}/${KERNCONF}
-.endif
-.endif
-
-.endif
-
-.if !defined(DTBOUTPUTPATH) || !exists(${DTBOUTPUTPATH})
-DTBOUTPUTPATH= ${.CURDIR}
-.endif
-
-#
-# Build 'standalone' Device Tree Blob
-#
-builddtb:
-	@if [ "${FDT_DTS_FILE}" = "" ]; then \
-		echo "ERROR: FDT_DTS_FILE must be specified!"; \
-		exit 1; \
-	fi;	\
-	if [ ! -f ${.CURDIR}/sys/boot/fdt/dts/${FDT_DTS_FILE} ]; then \
-		echo "ERROR: Specified DTS file (${FDT_DTS_FILE}) does not \
-			exist!"; \
-		exit 1;	\
-	fi;	\
-	if [ "${DTBOUTPUTPATH}" = "${.CURDIR}" ]; then	\
-		echo "WARNING: DTB will be placed in the current working \
-			directory"; \
-	fi
-	@PATH=${TMPPATH} \
-	dtc -O dtb -o \
-	    ${DTBOUTPUTPATH}/`echo ${FDT_DTS_FILE} | cut -d. -f1`.dtb -b 0 \
-	    -p 1024 ${.CURDIR}/sys/boot/fdt/dts/${FDT_DTS_FILE}

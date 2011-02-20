@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -46,12 +48,26 @@
  *
  * Support library for the hardware Packet Output unit.
  *
- * <hr>$Revision: 42150 $<hr>
+ * <hr>$Revision: 49448 $<hr>
  */
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include <asm/octeon/cvmx.h>
+#include <asm/octeon/cvmx-config.h>
+#include <asm/octeon/cvmx-pko.h>
+#include <asm/octeon/cvmx-helper.h>
+#include <asm/octeon/cvmx-clock.h>
+#else
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+#include "executive-config.h"
+#endif
 #include "cvmx.h"
-#include "cvmx-pko.h"
 #include "cvmx-sysinfo.h"
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+#include "cvmx-config.h"
+#endif
+#include "cvmx-pko.h"
 #include "cvmx-helper.h"
+#endif
 
 /**
  * Internal state of packet output
@@ -69,7 +85,7 @@ void cvmx_pko_initialize_global(void)
 {
     int i;
     uint64_t priority = 8;
-    cvmx_pko_pool_cfg_t config;
+    cvmx_pko_reg_cmd_buf_t config;
 
     /* Set the size of the PKO command buffers to an odd number of 64bit
         words. This allows the normal two word send to stay aligned and never
@@ -84,7 +100,7 @@ void cvmx_pko_initialize_global(void)
         cvmx_pko_config_port(CVMX_PKO_MEM_QUEUE_PTRS_ILLEGAL_PID, i, 1, &priority);
 
     /* If we aren't using all of the queues optimize PKO's internal memory */
-    if (OCTEON_IS_MODEL(OCTEON_CN38XX) || OCTEON_IS_MODEL(OCTEON_CN58XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN52XX))
+    if (OCTEON_IS_MODEL(OCTEON_CN38XX) || OCTEON_IS_MODEL(OCTEON_CN58XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX))
     {
         int num_interfaces = cvmx_helper_get_number_of_interfaces();
         int last_port = cvmx_helper_get_last_ipd_port(num_interfaces-1);
@@ -135,7 +151,7 @@ void cvmx_pko_enable(void)
 
     flags.s.ena_dwb = 1;
     flags.s.ena_pko = 1;
-    flags.s.store_be =1;  /* always enable big endian for 3-word command. Does nothing for 2-word */ 
+    flags.s.store_be =1;  /* always enable big endian for 3-word command. Does nothing for 2-word */
     cvmx_write_csr(CVMX_PKO_REG_FLAGS, flags.u64);
 }
 
@@ -171,7 +187,7 @@ static void __cvmx_pko_reset(void)
  */
 void cvmx_pko_shutdown(void)
 {
-    cvmx_pko_queue_cfg_t config;
+    cvmx_pko_mem_queue_ptrs_t config;
     int queue;
 
     cvmx_pko_disable();
@@ -220,7 +236,7 @@ cvmx_pko_status_t cvmx_pko_config_port(uint64_t port, uint64_t base_queue, uint6
 {
     cvmx_pko_status_t          result_code;
     uint64_t                   queue;
-    cvmx_pko_queue_cfg_t       config;
+    cvmx_pko_mem_queue_ptrs_t  config;
     cvmx_pko_reg_queue_ptrs1_t config1;
     int static_priority_base = -1;
     int static_priority_end = -1;
@@ -292,12 +308,9 @@ cvmx_pko_status_t cvmx_pko_config_port(uint64_t port, uint64_t base_queue, uint6
         config.s.port       = port;
         config.s.queue      = base_queue + queue;
 
-        if (!cvmx_octeon_is_pass1())
-        {
-            config.s.static_p   = static_priority_base >= 0;
-            config.s.static_q   = (int)queue <= static_priority_end;
-            config.s.s_tail     = (int)queue == static_priority_end;
-        }
+        config.s.static_p   = static_priority_base >= 0;
+        config.s.static_q   = (int)queue <= static_priority_end;
+        config.s.s_tail     = (int)queue == static_priority_end;
         /* Convert the priority into an enable bit field. Try to space the bits
             out evenly so the packet don't get grouped up */
         switch ((int)priority[queue])
@@ -312,11 +325,8 @@ cvmx_pko_status_t cvmx_pko_config_port(uint64_t port, uint64_t base_queue, uint6
             case 7: config.s.qos_mask = 0x7f; break;
             case 8: config.s.qos_mask = 0xff; break;
             case CVMX_PKO_QUEUE_STATIC_PRIORITY:
-                if (!cvmx_octeon_is_pass1()) /* Pass 1 will fall through to the error case */
-                {
-                    config.s.qos_mask = 0xff;
-                    break;
-                }
+                config.s.qos_mask = 0xff;
+                break;
             default:
                 cvmx_dprintf("ERROR: cvmx_pko_config_port: Invalid priority %llu\n", (unsigned long long)priority[queue]);
                 config.s.qos_mask = 0xff;
@@ -332,7 +342,7 @@ cvmx_pko_status_t cvmx_pko_config_port(uint64_t port, uint64_t base_queue, uint6
                                                                         CVMX_FPA_OUTPUT_BUFFER_POOL_SIZE - CVMX_PKO_COMMAND_BUFFER_SIZE_ADJUST*8);
             if (cmd_res != CVMX_CMD_QUEUE_SUCCESS)
             {
-	        switch (cmd_res) 
+	        switch (cmd_res)
 		{
 		    case CVMX_CMD_QUEUE_NO_MEMORY:
                         cvmx_dprintf("ERROR: cvmx_pko_config_port: Unable to allocate output buffer.\n");
@@ -410,7 +420,7 @@ int cvmx_pko_rate_limit_packets(int port, int packets_s, int burst)
 
     pko_mem_port_rate0.u64 = 0;
     pko_mem_port_rate0.s.pid = port;
-    pko_mem_port_rate0.s.rate_pkt = cvmx_sysinfo_get()->cpu_clock_hz / packets_s / 16;
+    pko_mem_port_rate0.s.rate_pkt = cvmx_clock_get_rate(CVMX_CLOCK_SCLK) / packets_s / 16;
     /* No cost per word since we are limited by packets/sec, not bits/sec */
     pko_mem_port_rate0.s.rate_word = 0;
 
@@ -439,7 +449,7 @@ int cvmx_pko_rate_limit_bits(int port, uint64_t bits_s, int burst)
 {
     cvmx_pko_mem_port_rate0_t pko_mem_port_rate0;
     cvmx_pko_mem_port_rate1_t pko_mem_port_rate1;
-    uint64_t clock_rate = cvmx_sysinfo_get()->cpu_clock_hz;
+    uint64_t clock_rate = cvmx_clock_get_rate(CVMX_CLOCK_SCLK);
     uint64_t tokens_per_bit = clock_rate*16 / bits_s;
 
     pko_mem_port_rate0.u64 = 0;

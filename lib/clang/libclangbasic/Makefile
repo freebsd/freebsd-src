@@ -15,10 +15,8 @@ SRCS=	Builtins.cpp \
 	TokenKinds.cpp \
 	Version.cpp
 
-TGHDRS=	AttrList \
-	Attrs \
+TGHDRS=	DiagnosticAnalysisKinds \
 	DiagnosticASTKinds \
-	DiagnosticAnalysisKinds \
 	DiagnosticCommonKinds \
 	DiagnosticDriverKinds \
 	DiagnosticFrontendKinds \

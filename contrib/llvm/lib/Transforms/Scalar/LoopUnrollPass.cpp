@@ -17,6 +17,7 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/InlineCost.h"
+#include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -26,7 +27,7 @@
 using namespace llvm;
 
 static cl::opt<unsigned>
-UnrollThreshold("unroll-threshold", cl::init(100), cl::Hidden,
+UnrollThreshold("unroll-threshold", cl::init(200), cl::Hidden,
   cl::desc("The cut-off point for automatic loop unrolling"));
 
 static cl::opt<unsigned>
@@ -42,7 +43,7 @@ namespace {
   class LoopUnroll : public LoopPass {
   public:
     static char ID; // Pass ID, replacement for typeid
-    LoopUnroll() : LoopPass(&ID) {}
+    LoopUnroll() : LoopPass(ID) {}
 
     /// A magic value for use with the Threshold parameter to indicate
     /// that the loop unroll should be performed regardless of how much
@@ -55,23 +56,24 @@ namespace {
     /// loop preheaders be inserted into the CFG...
     ///
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-      AU.addRequiredID(LoopSimplifyID);
-      AU.addRequiredID(LCSSAID);
       AU.addRequired<LoopInfo>();
-      AU.addPreservedID(LCSSAID);
       AU.addPreserved<LoopInfo>();
+      AU.addRequiredID(LoopSimplifyID);
+      AU.addPreservedID(LoopSimplifyID);
+      AU.addRequiredID(LCSSAID);
+      AU.addPreservedID(LCSSAID);
+      AU.addPreserved<ScalarEvolution>();
       // FIXME: Loop unroll requires LCSSA. And LCSSA requires dom info.
       // If loop unroll does not preserve dom info then LCSSA pass on next
       // loop will receive invalid dom info.
       // For now, recreate dom info, if loop is unrolled.
       AU.addPreserved<DominatorTree>();
-      AU.addPreserved<DominanceFrontier>();
     }
   };
 }
 
 char LoopUnroll::ID = 0;
-static RegisterPass<LoopUnroll> X("loop-unroll", "Unroll loops");
+INITIALIZE_PASS(LoopUnroll, "loop-unroll", "Unroll loops", false, false);
 
 Pass *llvm::createLoopUnrollPass() { return new LoopUnroll(); }
 
@@ -145,12 +147,7 @@ bool LoopUnroll::runOnLoop(Loop *L, LPPassManager &LPM) {
     return false;
 
   // FIXME: Reconstruct dom info, because it is not preserved properly.
-  DominatorTree *DT = getAnalysisIfAvailable<DominatorTree>();
-  if (DT) {
+  if (DominatorTree *DT = getAnalysisIfAvailable<DominatorTree>())
     DT->runOnFunction(*F);
-    DominanceFrontier *DF = getAnalysisIfAvailable<DominanceFrontier>();
-    if (DF)
-      DF->runOnFunction(*F);
-  }
   return true;
 }

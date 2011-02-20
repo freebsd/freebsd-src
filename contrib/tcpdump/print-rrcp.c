@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-rrcp.c,v 1.1.2.2 2008-04-11 17:00:00 gianluca Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-rrcp.c,v 1.2 2008-04-11 17:21:34 gianluca Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -44,33 +44,38 @@ static const char rcsid[] _U_ =
 #define ETH_ALEN 6
 #endif
 
-struct rrcp_packet_t
-{
-  u_int16_t rrcp_ethertype;		/* 0x8899 */
-  u_int8_t  rrcp_proto;			/* must be 0x01         */
-  u_int8_t  rrcp_opcode:7;               /* 0x00 = hello, 0x01 = get, 0x02 = set */
-  u_int8_t  rrcp_isreply:1;              /* 0 = request to switch, 1 = reply from switch */
-  u_int16_t rrcp_authkey;		/* 0x2379 by default */
-  u_int16_t rrcp_reg_addr;		/* register address */
-  u_int32_t rrcp_reg_data;		/* register data */
-  u_int32_t cookie1;
-  u_int32_t cookie2;
+#define RRCP_OPCODE_MASK	0x7F	/* 0x00 = hello, 0x01 = get, 0x02 = set */
+#define RRCP_ISREPLY		0x80	/* 0 = request to switch, 0x80 = reply from switch */
+
+#define RRCP_PROTO_OFFSET		0	/* proto - 1 byte, must be 1 */
+#define RRCP_OPCODE_ISREPLY_OFFSET	1	/* opcode and isreply flag - 1 byte */
+#define RRCP_AUTHKEY_OFFSET		2	/* authorization key - 2 bytes, 0x2379 by default */
+
+/* most packets */
+#define RRCP_REG_ADDR_OFFSET		4	/* register address - 2 bytes */
+#define RRCP_REG_DATA_OFFSET		6	/* register data - 4 bytes */
+#define RRCP_COOKIE1_OFFSET		10	/* 4 bytes */
+#define RRCP_COOKIE2_OFFSET		14	/* 4 bytes */
+
+/* hello reply packets */
+#define RRCP_DOWNLINK_PORT_OFFSET	4	/* 1 byte */
+#define RRCP_UPLINK_PORT_OFFSET		5	/* 1 byte */
+#define RRCP_UPLINK_MAC_OFFSET		6	/* 6 byte MAC address */
+#define RRCP_CHIP_ID_OFFSET		12	/* 2 bytes */
+#define RRCP_VENDOR_ID_OFFSET		14	/* 4 bytes */
+
+static const struct tok proto_values[] = {
+	{ 1, "RRCP" },
+	{ 2, "RRCP-REP" },
+	{ 0, NULL }
 };
 
-struct rrcp_helloreply_packet_t
-{
-  u_int16_t rrcp_ethertype;		/* 0x8899 */
-  u_int8_t  rrcp_proto;			/* must be 0x01         */
-  u_int8_t  rrcp_opcode:7;               /* 0x00 = hello, 0x01 = get, 0x02 = set */
-  u_int8_t  rrcp_isreply:1;              /* 0 = request to switch, 1 = reply from switch */
-  u_int16_t rrcp_authkey;		/* 0x2379 by default */
-  u_int8_t  rrcp_downlink_port;		/*  */
-  u_int8_t  rrcp_uplink_port;		/*  */
-  u_int8_t  rrcp_uplink_mac[ETH_ALEN];   /*  */
-  u_int16_t rrcp_chip_id;		/*  */
-  u_int32_t rrcp_vendor_id;		/*  */
+static const struct tok opcode_values[] = {
+	{ 0, "hello" },
+	{ 1, "get" },
+	{ 2, "set" },
+	{ 0, NULL }
 };
-
 
 /*
  * Print RRCP requests
@@ -80,58 +85,59 @@ rrcp_print(netdissect_options *ndo,
 	  register const u_char *cp,
 	  u_int length _U_)
 {
-	const struct rrcp_packet_t *rrcp;
-	const struct rrcp_helloreply_packet_t *rrcp_hello;
+	const u_char *rrcp;
+	u_int8_t rrcp_proto;
+	u_int8_t rrcp_opcode;
 	register const struct ether_header *ep;
 	char proto_str[16];
 	char opcode_str[32];
 
 	ep = (const struct ether_header *)cp;
-	rrcp = (const struct rrcp_packet_t *)(cp+12);
-	rrcp_hello = (const struct rrcp_helloreply_packet_t *)(cp+12);
+	rrcp = cp + ETHER_HDRLEN;
 
-	if (rrcp->rrcp_proto==1){
-	    strcpy(proto_str,"RRCP");
-	}else if ( rrcp->rrcp_proto==2 ){
-	    strcpy(proto_str,"RRCP-REP");
-	}else{
-	    sprintf(proto_str,"RRCP-0x%02d",rrcp->rrcp_proto);
-	}
-	if (rrcp->rrcp_opcode==0){
-	    strcpy(opcode_str,"hello");
-	}else if ( rrcp->rrcp_opcode==1 ){
-	    strcpy(opcode_str,"get");
-	}else if ( rrcp->rrcp_opcode==2 ){
-	    strcpy(opcode_str,"set");
-	}else{
-	    sprintf(opcode_str,"unknown opcode (0x%02d)",rrcp->rrcp_opcode);
-	}
+	ND_TCHECK(*(rrcp + RRCP_PROTO_OFFSET));
+	rrcp_proto = *(rrcp + RRCP_PROTO_OFFSET);
+	ND_TCHECK(*(rrcp + RRCP_OPCODE_ISREPLY_OFFSET));
+	rrcp_opcode = (*(rrcp + RRCP_OPCODE_ISREPLY_OFFSET)) & RRCP_OPCODE_MASK;
         ND_PRINT((ndo, "%s > %s, %s %s",
 		etheraddr_string(ESRC(ep)),
 		etheraddr_string(EDST(ep)),
-		proto_str, rrcp->rrcp_isreply ? "reply" : "query"));
-	if (rrcp->rrcp_proto==1){
-    	    ND_PRINT((ndo, ": %s", opcode_str));
+		tok2strbuf(proto_values,"RRCP-0x%02d",rrcp_proto,proto_str,sizeof(proto_str)),
+		((*(rrcp + RRCP_OPCODE_ISREPLY_OFFSET)) & RRCP_ISREPLY) ? "reply" : "query"));
+	if (rrcp_proto==1){
+    	    ND_PRINT((ndo, ": %s",
+		     tok2strbuf(opcode_values,"unknown opcode (0x%02d)",rrcp_opcode,opcode_str,sizeof(opcode_str))));
 	}
-	if (rrcp->rrcp_opcode==1 || rrcp->rrcp_opcode==2){
-    	    ND_PRINT((ndo, " addr=0x%04x, data=0x%04x",
-		     rrcp->rrcp_reg_addr, rrcp->rrcp_reg_data, rrcp->rrcp_authkey));
+	if (rrcp_opcode==1 || rrcp_opcode==2){
+	    ND_TCHECK2(*(rrcp + RRCP_REG_ADDR_OFFSET), 6);
+    	    ND_PRINT((ndo, " addr=0x%04x, data=0x%08x",
+		     EXTRACT_16BITS(rrcp + RRCP_REG_ADDR_OFFSET),
+		     EXTRACT_32BITS(rrcp + RRCP_REG_DATA_OFFSET)));
 	}
-	if (rrcp->rrcp_proto==1){
+	if (rrcp_proto==1){
+	    ND_TCHECK2(*(rrcp + RRCP_AUTHKEY_OFFSET), 2);
     	    ND_PRINT((ndo, ", auth=0x%04x",
-		  ntohs(rrcp->rrcp_authkey)));
+		  EXTRACT_16BITS(rrcp + RRCP_AUTHKEY_OFFSET)));
 	}
-	if (rrcp->rrcp_proto==1 && rrcp->rrcp_opcode==0 && rrcp->rrcp_isreply){
-    	    ND_PRINT((ndo, " downlink_port=%d, uplink_port=%d, uplink_mac=%s, vendor_id=%08x ,chip_id=%04x ",
-		     rrcp_hello->rrcp_downlink_port,
-		     rrcp_hello->rrcp_uplink_port,
-		     etheraddr_string(rrcp_hello->rrcp_uplink_mac),
-		     rrcp_hello->rrcp_vendor_id,
-		     rrcp_hello->rrcp_chip_id));
-	}else if (rrcp->rrcp_opcode==1 || rrcp->rrcp_opcode==2 || rrcp->rrcp_proto==2){
-    	ND_PRINT((ndo, ", cookie=0x%08x%08x ",
-		    rrcp->cookie2, rrcp->cookie1));
+	if (rrcp_proto==1 && rrcp_opcode==0 &&
+	     ((*(rrcp + RRCP_OPCODE_ISREPLY_OFFSET)) & RRCP_ISREPLY)){
+	    ND_TCHECK2(*(rrcp + RRCP_VENDOR_ID_OFFSET), 4);
+	    ND_PRINT((ndo, " downlink_port=%d, uplink_port=%d, uplink_mac=%s, vendor_id=%08x ,chip_id=%04x ",
+		     *(rrcp + RRCP_DOWNLINK_PORT_OFFSET),
+		     *(rrcp + RRCP_UPLINK_PORT_OFFSET),
+		     etheraddr_string(rrcp + RRCP_UPLINK_MAC_OFFSET),
+		     EXTRACT_32BITS(rrcp + RRCP_VENDOR_ID_OFFSET),
+		     EXTRACT_16BITS(rrcp + RRCP_CHIP_ID_OFFSET)));
+	}else if (rrcp_opcode==1 || rrcp_opcode==2 || rrcp_proto==2){
+	    ND_TCHECK2(*(rrcp + RRCP_COOKIE2_OFFSET), 4);
+	    ND_PRINT((ndo, ", cookie=0x%08x%08x ",
+		    EXTRACT_32BITS(rrcp + RRCP_COOKIE2_OFFSET),
+		    EXTRACT_32BITS(rrcp + RRCP_COOKIE1_OFFSET)));
 	}
         if (!ndo->ndo_vflag)
             return;
+	return;
+
+trunc:
+	ND_PRINT((ndo, "[|rrcp]"));
 }

@@ -191,10 +191,13 @@ enum intr_type {
 	INTR_TYPE_MISC = 16,
 	INTR_TYPE_CLK = 32,
 	INTR_TYPE_AV = 64,
-	INTR_FAST = 128,
 	INTR_EXCL = 256,		/* exclusive interrupt */
 	INTR_MPSAFE = 512,		/* this interrupt is SMP safe */
-	INTR_ENTROPY = 1024		/* this interrupt provides entropy */
+	INTR_ENTROPY = 1024,		/* this interrupt provides entropy */
+	INTR_MD1 = 4096,		/* flag reserved for MD use */
+	INTR_MD2 = 8192,		/* flag reserved for MD use */
+	INTR_MD3 = 16384,		/* flag reserved for MD use */
+	INTR_MD4 = 32768		/* flag reserved for MD use */
 };
 
 enum intr_trigger {
@@ -256,6 +259,7 @@ int	resource_list_add_next(struct resource_list *rl,
 			  u_long start, u_long end, u_long count);
 int	resource_list_busy(struct resource_list *rl,
 			   int type, int rid);
+int	resource_list_reserved(struct resource_list *rl, int type, int rid);
 struct resource_list_entry*
 	resource_list_find(struct resource_list *rl,
 			   int type, int rid);
@@ -298,7 +302,7 @@ void	root_bus_configure(void);
 int	bus_generic_activate_resource(device_t dev, device_t child, int type,
 				      int rid, struct resource *r);
 device_t
-	bus_generic_add_child(device_t dev, int order, const char *name,
+	bus_generic_add_child(device_t dev, u_int order, const char *name,
 			      int unit);
 struct resource *
 	bus_generic_alloc_resource(device_t bus, device_t child, int type,
@@ -410,7 +414,7 @@ bus_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
  * Access functions for device.
  */
 device_t	device_add_child(device_t dev, const char *name, int unit);
-device_t	device_add_child_ordered(device_t dev, int order,
+device_t	device_add_child_ordered(device_t dev, u_int order,
 					 const char *name, int unit);
 void	device_busy(device_t dev);
 int	device_delete_child(device_t dev, device_t child);

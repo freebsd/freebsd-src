@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/CharUnits.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
@@ -21,6 +22,7 @@
 #include "clang/Basic/Specifiers.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include <algorithm>
 using namespace clang;
 
 bool QualType::isConstant(QualType T, ASTContext &Ctx) {
@@ -33,24 +35,32 @@ bool QualType::isConstant(QualType T, ASTContext &Ctx) {
   return false;
 }
 
-void Type::Destroy(ASTContext& C) {
-  this->~Type();
-  C.Deallocate(this);
+Type::~Type() { }
+
+unsigned ConstantArrayType::getNumAddressingBits(ASTContext &Context,
+                                                 QualType ElementType,
+                                               const llvm::APInt &NumElements) {
+  llvm::APSInt SizeExtended(NumElements, true);
+  unsigned SizeTypeBits = Context.getTypeSize(Context.getSizeType());
+  SizeExtended.extend(std::max(SizeTypeBits, SizeExtended.getBitWidth()) * 2);
+
+  uint64_t ElementSize
+    = Context.getTypeSizeInChars(ElementType).getQuantity();
+  llvm::APSInt TotalSize(llvm::APInt(SizeExtended.getBitWidth(), ElementSize));
+  TotalSize *= SizeExtended;  
+  
+  return TotalSize.getActiveBits();
 }
 
-void VariableArrayType::Destroy(ASTContext& C) {
-  if (SizeExpr)
-    SizeExpr->Destroy(C);
-  this->~VariableArrayType();
-  C.Deallocate(this);
-}
-
-void DependentSizedArrayType::Destroy(ASTContext& C) {
-  // FIXME: Resource contention like in ConstantArrayWithExprType ?
-  // May crash, depending on platform or a particular build.
-  // SizeExpr->Destroy(C);
-  this->~DependentSizedArrayType();
-  C.Deallocate(this);
+unsigned ConstantArrayType::getMaxSizeBits(ASTContext &Context) {
+  unsigned Bits = Context.getTypeSize(Context.getSizeType());
+  
+  // GCC appears to only allow 63 bits worth of address space when compiling
+  // for 64-bit, so we do the same.
+  if (Bits == 64)
+    --Bits;
+  
+  return Bits;
 }
 
 void DependentSizedArrayType::Profile(llvm::FoldingSetNodeID &ID,
@@ -71,14 +81,6 @@ DependentSizedExtVectorType::Profile(llvm::FoldingSetNodeID &ID,
                                      QualType ElementType, Expr *SizeExpr) {
   ID.AddPointer(ElementType.getAsOpaquePtr());
   SizeExpr->Profile(ID, Context, true);
-}
-
-void DependentSizedExtVectorType::Destroy(ASTContext& C) {
-  // FIXME: Deallocate size expression, once we're cloning properly.
-//  if (SizeExpr)
-//    SizeExpr->Destroy(C);
-  this->~DependentSizedExtVectorType();
-  C.Deallocate(this);
 }
 
 /// getArrayElementTypeNoTypeQual - If this is an array type, return the
@@ -190,13 +192,6 @@ bool Type::isVoidType() const {
   if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType))
     return BT->getKind() == BuiltinType::Void;
   return false;
-}
-
-bool Type::isObjectType() const {
-  if (isa<FunctionType>(CanonicalType) || isa<ReferenceType>(CanonicalType) ||
-      isa<IncompleteArrayType>(CanonicalType) || isVoidType())
-    return false;
-  return true;
 }
 
 bool Type::isDerivedType() const {
@@ -348,11 +343,6 @@ const RecordType *Type::getAsUnionType() const {
   return 0;
 }
 
-void ObjCInterfaceType::Destroy(ASTContext& C) {
-  this->~ObjCInterfaceType();
-  C.Deallocate(this);
-}
-
 ObjCObjectType::ObjCObjectType(QualType Canonical, QualType Base,
                                ObjCProtocolDecl * const *Protocols,
                                unsigned NumProtocols)
@@ -364,11 +354,6 @@ ObjCObjectType::ObjCObjectType(QualType Canonical, QualType Base,
   if (NumProtocols)
     memcpy(getProtocolStorage(), Protocols,
            NumProtocols * sizeof(ObjCProtocolDecl*));
-}
-
-void ObjCObjectTypeImpl::Destroy(ASTContext& C) {
-  this->~ObjCObjectTypeImpl();
-  C.Deallocate(this);
 }
 
 const ObjCObjectType *Type::getAsObjCQualifiedInterfaceType() const {
@@ -383,11 +368,6 @@ const ObjCObjectType *Type::getAsObjCQualifiedInterfaceType() const {
 
 bool Type::isObjCQualifiedInterfaceType() const {
   return getAsObjCQualifiedInterfaceType() != 0;
-}
-
-void ObjCObjectPointerType::Destroy(ASTContext& C) {
-  this->~ObjCObjectPointerType();
-  C.Deallocate(this);
 }
 
 const ObjCObjectPointerType *Type::getAsObjCQualifiedIdType() const {
@@ -434,9 +414,14 @@ bool Type::isIntegerType() const {
     // FIXME: In C++, enum types are never integer types.
     if (TT->getDecl()->isEnum() && TT->getDecl()->isDefinition())
       return true;
+  return false;
+}
+
+bool Type::hasIntegerRepresentation() const {
   if (const VectorType *VT = dyn_cast<VectorType>(CanonicalType))
     return VT->getElementType()->isIntegerType();
-  return false;
+  else
+    return isIntegerType();
 }
 
 /// \brief Determine whether this type is an integral type.
@@ -475,10 +460,13 @@ bool Type::isIntegralOrEnumerationType() const {
   if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType))
     return BT->getKind() >= BuiltinType::Bool &&
            BT->getKind() <= BuiltinType::Int128;
-  
-  if (isa<EnumType>(CanonicalType))
-    return true;
-  
+
+  // Check for a complete enum type; incomplete enum types are not properly an
+  // enumeration type in the sense required here.
+  if (const TagType *TT = dyn_cast<TagType>(CanonicalType))
+    if (TT->getDecl()->isEnum() && TT->getDecl()->isDefinition())
+      return true;
+
   return false;  
 }
 
@@ -523,8 +511,7 @@ bool Type::isAnyCharacterType() const {
 
 /// isSignedIntegerType - Return true if this is an integer type that is
 /// signed, according to C99 6.2.5p4 [char, signed char, short, int, long..],
-/// an enum decl which has a signed representation, or a vector of signed
-/// integer element type.
+/// an enum decl which has a signed representation
 bool Type::isSignedIntegerType() const {
   if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType)) {
     return BT->getKind() >= BuiltinType::Char_S &&
@@ -534,15 +521,19 @@ bool Type::isSignedIntegerType() const {
   if (const EnumType *ET = dyn_cast<EnumType>(CanonicalType))
     return ET->getDecl()->getIntegerType()->isSignedIntegerType();
 
+  return false;
+}
+
+bool Type::hasSignedIntegerRepresentation() const {
   if (const VectorType *VT = dyn_cast<VectorType>(CanonicalType))
     return VT->getElementType()->isSignedIntegerType();
-  return false;
+  else
+    return isSignedIntegerType();
 }
 
 /// isUnsignedIntegerType - Return true if this is an integer type that is
 /// unsigned, according to C99 6.2.5p6 [which returns true for _Bool], an enum
-/// decl which has an unsigned representation, or a vector of unsigned integer
-/// element type.
+/// decl which has an unsigned representation
 bool Type::isUnsignedIntegerType() const {
   if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType)) {
     return BT->getKind() >= BuiltinType::Bool &&
@@ -552,9 +543,14 @@ bool Type::isUnsignedIntegerType() const {
   if (const EnumType *ET = dyn_cast<EnumType>(CanonicalType))
     return ET->getDecl()->getIntegerType()->isUnsignedIntegerType();
 
+  return false;
+}
+
+bool Type::hasUnsignedIntegerRepresentation() const {
   if (const VectorType *VT = dyn_cast<VectorType>(CanonicalType))
     return VT->getElementType()->isUnsignedIntegerType();
-  return false;
+  else
+    return isUnsignedIntegerType();
 }
 
 bool Type::isFloatingType() const {
@@ -671,10 +667,11 @@ bool Type::isIncompleteType() const {
     // An array of unknown size is an incomplete type (C99 6.2.5p22).
     return true;
   case ObjCObject:
-    return cast<ObjCObjectType>(this)->getBaseType()->isIncompleteType();
+    return cast<ObjCObjectType>(CanonicalType)->getBaseType()
+                                                         ->isIncompleteType();
   case ObjCInterface:
     // ObjC interfaces are incomplete if they are @class, not @interface.
-    return cast<ObjCInterfaceType>(this)->getDecl()->isForwardDecl();
+    return cast<ObjCInterfaceType>(CanonicalType)->getDecl()->isForwardDecl();
   }
 }
 
@@ -894,15 +891,6 @@ ElaboratedType::~ElaboratedType() {}
 DependentNameType::~DependentNameType() {}
 DependentTemplateSpecializationType::~DependentTemplateSpecializationType() {}
 
-void DependentTemplateSpecializationType::Destroy(ASTContext &C) {
-  for (unsigned Arg = 0; Arg < NumArgs; ++Arg) {
-    // FIXME: Not all expressions get cloned, so we can't yet perform
-    // this destruction.
-    //    if (Expr *E = getArg(Arg).getAsExpr())
-    //      E->Destroy(C);
-  }
-}
-
 DependentTemplateSpecializationType::DependentTemplateSpecializationType(
                          ElaboratedTypeKeyword Keyword,
                          NestedNameSpecifier *NNS, const IdentifierInfo *Name,
@@ -1017,6 +1005,7 @@ llvm::StringRef FunctionType::getNameForCallConv(CallingConv CC) {
   case CC_X86StdCall: return "stdcall";
   case CC_X86FastCall: return "fastcall";
   case CC_X86ThisCall: return "thiscall";
+  case CC_X86Pascal: return "pascal";
   }
 }
 
@@ -1108,7 +1097,30 @@ void DependentDecltypeType::Profile(llvm::FoldingSetNodeID &ID,
 
 TagType::TagType(TypeClass TC, const TagDecl *D, QualType can)
   : Type(TC, can, D->isDependentType()),
-    decl(const_cast<TagDecl*>(D), 0) {}
+    decl(const_cast<TagDecl*>(D)) {}
+
+static TagDecl *getInterestingTagDecl(TagDecl *decl) {
+  for (TagDecl::redecl_iterator I = decl->redecls_begin(),
+                                E = decl->redecls_end();
+       I != E; ++I) {
+    if (I->isDefinition() || I->isBeingDefined())
+      return *I;
+  }
+  // If there's no definition (not even in progress), return what we have.
+  return decl;
+}
+
+TagDecl *TagType::getDecl() const {
+  return getInterestingTagDecl(decl);
+}
+
+bool TagType::isBeingDefined() const {
+  return getDecl()->isBeingDefined();
+}
+
+CXXRecordDecl *InjectedClassNameType::getDecl() const {
+  return cast<CXXRecordDecl>(getInterestingTagDecl(Decl));
+}
 
 bool RecordType::classof(const TagType *TT) {
   return isa<RecordDecl>(TT->getDecl());
@@ -1194,15 +1206,6 @@ TemplateSpecializationType(TemplateName T,
     = reinterpret_cast<TemplateArgument *>(this + 1);
   for (unsigned Arg = 0; Arg < NumArgs; ++Arg)
     new (&TemplateArgs[Arg]) TemplateArgument(Args[Arg]);
-}
-
-void TemplateSpecializationType::Destroy(ASTContext& C) {
-  for (unsigned Arg = 0; Arg < NumArgs; ++Arg) {
-    // FIXME: Not all expressions get cloned, so we can't yet perform
-    // this destruction.
-    //    if (Expr *E = getArg(Arg).getAsExpr())
-    //      E->Destroy(C);
-  }
 }
 
 void

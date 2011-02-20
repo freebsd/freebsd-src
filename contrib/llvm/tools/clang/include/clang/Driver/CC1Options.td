@@ -26,6 +26,8 @@ def target_cpu : Separate<"-target-cpu">,
   HelpText<"Target a specific cpu type">;
 def target_feature : Separate<"-target-feature">,
   HelpText<"Target specific attributes">;
+def target_linker_version : Separate<"-target-linker-version">,
+  HelpText<"Target linker version">;
 def triple : Separate<"-triple">,
   HelpText<"Specify target triple (e.g. i686-apple-darwin9)">;
 def triple_EQ : Joined<"-triple=">, Alias<triple>;
@@ -38,6 +40,8 @@ def analysis_CFGDump : Flag<"-cfg-dump">,
   HelpText<"Display Control-Flow Graphs">;
 def analysis_CFGView : Flag<"-cfg-view">,
   HelpText<"View Control-Flow Graphs using GraphViz">;
+def analysis_UnoptimizedCFG : Flag<"-unoptimized-cfg">,
+  HelpText<"Generate unoptimized CFGs for all analyses">;
 def analysis_DisplayLiveVariables : Flag<"-dump-live-variables">,
   HelpText<"Print results of live variable analysis">;
 def analysis_LLVMConventionChecker : Flag<"-analyzer-check-llvm-conventions">,
@@ -58,6 +62,8 @@ def analysis_ObjCMemChecker : Flag<"-analyzer-check-objc-mem">,
   HelpText<"Run the [Core] Foundation reference count checker">;
 def analysis_WarnSizeofPointer : Flag<"-warn-sizeof-pointer">,
   HelpText<"Warn about unintended use of sizeof() on pointer expressions">;
+def analysis_WarnIdempotentOps : Flag<"-analyzer-check-idempotent-operations">,
+  HelpText<"Warn about idempotent operations">;
 
 def analyzer_store : Separate<"-analyzer-store">,
   HelpText<"Source Code Analysis - Abstract Memory Store Models">;
@@ -81,8 +87,6 @@ def analyzer_display_progress : Flag<"-analyzer-display-progress">,
   HelpText<"Emit verbose output about the analyzer's progress">;
 def analyzer_experimental_checks : Flag<"-analyzer-experimental-checks">,
   HelpText<"Use experimental path-sensitive checks">;
-def analyzer_idempotent_operation : Flag<"-analyzer-idempotent-operation">,
-  HelpText<"Use experimental path-sensitive idempotent operation checker">;
 def analyzer_experimental_internal_checks :
   Flag<"-analyzer-experimental-internal-checks">,
   HelpText<"Use new default path-sensitive checks currently in testing">;
@@ -137,6 +141,8 @@ def ffunction_sections : Flag<"-ffunction-sections">,
   HelpText<"Place each function in its own section (ELF Only)">;
 def fdata_sections : Flag<"-fdata-sections">,
   HelpText<"Place each data in its own section (ELF Only)">;
+def funroll_loops : Flag<"-funroll-loops">,
+  HelpText<"Turn on loop unroller">;
 def masm_verbose : Flag<"-masm-verbose">,
   HelpText<"Generate verbose assembly output">;
 def mcode_model : Separate<"-mcode-model">,
@@ -209,6 +215,8 @@ def W : Joined<"-W">;
 
 def fdiagnostics_print_source_range_info : Flag<"-fdiagnostics-print-source-range-info">,
   HelpText<"Print source range spans in numeric form">;
+def fdiagnostics_parseable_fixits : Flag<"-fdiagnostics-parseable-fixits">,
+  HelpText<"Print fix-its in machine parseable form">;
 def fdiagnostics_show_option : Flag<"-fdiagnostics-show-option">,
   HelpText<"Print diagnostic name with mappable diagnostics">;
 def fdiagnostics_show_category : Separate<"-fdiagnostics-show-category">,
@@ -229,7 +237,7 @@ def fcolor_diagnostics : Flag<"-fcolor-diagnostics">,
 def Wno_rewrite_macros : Flag<"-Wno-rewrite-macros">,
   HelpText<"Silence ObjC rewriting warnings">;
 def Wwrite_strings : Flag<"-Wwrite-strings">,
-  HelpText<"Add const qualifier to string literals">;
+  HelpText<"Remove const qualifier from string literals">;
 def verify : Flag<"-verify">,
   HelpText<"Verify emitted diagnostics and warnings">;
 
@@ -258,6 +266,8 @@ def code_completion_macros : Flag<"-code-completion-macros">,
   HelpText<"Include macros in code-completion results">;
 def code_completion_patterns : Flag<"-code-completion-patterns">,
   HelpText<"Include code patterns in code-completion results">;
+def no_code_completion_globals : Flag<"-no-code-completion-globals">,
+  HelpText<"Do not include global declarations in code-completion results.">;
 def disable_free : Flag<"-disable-free">,
   HelpText<"Disable freeing of memory on exit">;
 def help : Flag<"-help">,
@@ -296,16 +306,15 @@ def dump_tokens : Flag<"-dump-tokens">,
   HelpText<"Run preprocessor, dump internal rep of tokens">;
 def init_only : Flag<"-init-only">,
   HelpText<"Only execute frontend initialization">;
-def parse_noop : Flag<"-parse-noop">,
-  HelpText<"Run parser with noop callbacks (for timings)">;
 def fsyntax_only : Flag<"-fsyntax-only">,
   HelpText<"Run parser and perform semantic analysis">;
 def fixit : Flag<"-fixit">,
   HelpText<"Apply fix-it advice to the input source">;
 def fixit_EQ : Joined<"-fixit=">,
   HelpText<"Apply fix-it advice creating a file with the given suffix">;
-def parse_print_callbacks : Flag<"-parse-print-callbacks">,
-  HelpText<"Run parser and print each callback invoked">;
+def print_preamble : Flag<"-print-preamble">,
+  HelpText<"Print the \"preamble\" of a file, which is a candidate for implicit"
+           " precompiled headers.">;
 def emit_html : Flag<"-emit-html">,
   HelpText<"Output input source as HTML">;
 def ast_print : Flag<"-ast-print">,
@@ -343,7 +352,12 @@ def rewrite_objc : Flag<"-rewrite-objc">,
 def rewrite_macros : Flag<"-rewrite-macros">,
   HelpText<"Expand macros without full preprocessing">;
 
+def create_module : Flag<"-create-module">,
+  HelpText<"Create a module definition file">;
 }
+
+def import_module : Separate<"-import-module">,
+  HelpText<"Import a module definition file">;
 
 def relocatable_pch : Flag<"-relocatable-pch">,
   HelpText<"Whether to build a relocatable precompiled header">;
@@ -353,9 +367,10 @@ def print_stats : Flag<"-print-stats">,
   HelpText<"Print performance metrics and statistics">;
 def ftime_report : Flag<"-ftime-report">,
   HelpText<"Print the amount of time each phase of compilation takes">;
-
 def fdump_record_layouts : Flag<"-fdump-record-layouts">,
   HelpText<"Dump record layout information">;
+def fix_what_you_can : Flag<"-fix-what-you-can">,
+  HelpText<"Apply fix-it advice even in the presence of unfixable errors">;
 
 // Generic forwarding to LLVM options. This should only be used for debugging
 // and experimental features.
@@ -397,12 +412,16 @@ def fformat_extensions : Flag<"-fformat-extensions">,
   HelpText<"FreeBSD printf format extensions">;
 def fgnu_runtime : Flag<"-fgnu-runtime">,
   HelpText<"Generate output compatible with the standard GNU Objective-C runtime">;
+def fhidden_weak_vtables : Flag<"-fhidden-weak-vtables">,
+  HelpText<"Generate weak vtables and RTTI with hidden visibility">;
 def std_EQ : Joined<"-std=">,
   HelpText<"Language standard to compile for">;
 def fmath_errno : Flag<"-fmath-errno">,
   HelpText<"Require math functions to indicate errors by setting errno">;
 def fms_extensions : Flag<"-fms-extensions">,
   HelpText<"Accept some non-standard constructs used in Microsoft header files ">;
+def fborland_extensions : Flag<"-fborland-extensions">,
+  HelpText<"Accept non-standard constructs supported by the Borland compiler">;
 def main_file_name : Separate<"-main-file-name">,
   HelpText<"Main file name to use for debug info">;
 def fno_elide_constructors : Flag<"-fno-elide-constructors">,
@@ -446,6 +465,8 @@ def fpascal_strings : Flag<"-fpascal-strings">,
   HelpText<"Recognize and construct Pascal-style string literals">;
 def fno_rtti : Flag<"-fno-rtti">,
   HelpText<"Disable generation of rtti information">;
+def fno_validate_pch : Flag<"-fno-validate-pch">,
+  HelpText<"Disable validation of precompiled headers">;
 def fshort_wchar : Flag<"-fshort-wchar">,
   HelpText<"Force wchar_t to be a short unsigned int">;
 def static_define : Flag<"-static-define">,
@@ -485,6 +506,9 @@ def iquote : JoinedOrSeparate<"-iquote">, MetaVarName<"<directory>">,
   HelpText<"Add directory to QUOTE include search path">;
 def isystem : JoinedOrSeparate<"-isystem">, MetaVarName<"<directory>">,
   HelpText<"Add directory to SYSTEM include search path">;
+def iwithsysroot : JoinedOrSeparate<"-iwithsysroot">,MetaVarName<"<directory>">,
+  HelpText<"Add directory to SYSTEM include search path, "
+           "absolute paths are relative to -isysroot">;
 def iprefix : JoinedOrSeparate<"-iprefix">, MetaVarName<"<prefix>">,
   HelpText<"Set the -iwithprefix/-iwithprefixbefore prefix">;
 def iwithprefix : JoinedOrSeparate<"-iwithprefix">, MetaVarName<"<dir>">,
@@ -510,6 +534,9 @@ def include_pch : Separate<"-include-pch">, MetaVarName<"<file>">,
   HelpText<"Include precompiled header file">;
 def include_pth : Separate<"-include-pth">, MetaVarName<"<file>">,
   HelpText<"Include file before parsing">;
+def preamble_bytes_EQ : Joined<"-preamble-bytes=">,
+  HelpText<"Assume that the precompiled header is a precompiled preamble "
+           "covering the first N bytes of the main file">;
 def token_cache : Separate<"-token-cache">, MetaVarName<"<path>">,
   HelpText<"Use specified token cache file">;
 def U : JoinedOrSeparate<"-U">, MetaVarName<"<macro>">,
@@ -533,3 +560,5 @@ def dM : Flag<"-dM">,
   HelpText<"Print macro definitions in -E mode instead of normal output">;
 def dD : Flag<"-dD">,
   HelpText<"Print macro definitions in -E mode in addition to normal output">;
+def H : Flag<"-H">,
+  HelpText<"Show header includes and nesting depth">;

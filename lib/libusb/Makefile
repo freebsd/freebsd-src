@@ -30,5 +30,9 @@ SRCS+=		libusb10.c
 SRCS+=		libusb10_desc.c
 SRCS+=		libusb10_io.c
 
+.if defined(COMPAT_32BIT)
+CFLAGS+=	-DCOMPAT_32BIT
+.endif
+
 .include <bsd.lib.mk>
 

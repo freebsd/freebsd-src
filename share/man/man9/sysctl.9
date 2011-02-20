@@ -39,8 +39,6 @@
 .Nm SYSCTL_STRUCT ,
 .Nm SYSCTL_UINT ,
 .Nm SYSCTL_ULONG ,
-.Nm SYSCTL_XINT ,
-.Nm SYSCTL_XLONG ,
 .Nm SYSCTL_QUAD
 .Nd Static sysctl declaration functions
 .Sh SYNOPSIS
@@ -56,8 +54,6 @@
 .Fn SYSCTL_STRUCT parent nbr name access ptr type descr
 .Fn SYSCTL_UINT parent nbr name access ptr val descr
 .Fn SYSCTL_ULONG parent nbr name access ptr val descr
-.Fn SYSCTL_XINT parent nbr name access ptr val descr
-.Fn SYSCTL_XLONG parent nbr name access ptr val descr
 .Fn SYSCTL_QUAD parent nbr name access ptr val descr
 .Sh DESCRIPTION
 The
@@ -84,8 +80,6 @@ New nodes are declared using one of
 .Fn SYSCTL_STRUCT ,
 .Fn SYSCTL_UINT ,
 .Fn SYSCTL_ULONG ,
-.Fn SYSCTL_XINT ,
-.Fn SYSCTL_XLONG ,
 and
 .Fn SYSCTL_QUAD .
 Each macro accepts a parent name, as declared using
@@ -107,7 +101,7 @@ This is a node intended to be a parent for other nodes.
 This is a signed integer.
 .It Dv CTLTYPE_STRING
 This is a nul-terminated string stored in a character array.
-.It Dv CTLTYPE_QUAD
+.It Dv CTLTYPE_S64
 This is a 64-bit signed integer.
 .It Dv CTLTYPE_OPAQUE
 This is an opaque data structure.
@@ -120,6 +114,8 @@ This is an unsigned integer.
 This is a signed long.
 .It Dv CTLTYPE_ULONG
 This is an unsigned long.
+.It Dv CTLTYPE_U64
+This is a 64-bit unsigned integer.
 .El
 .Pp
 All sysctl types except for new node declarations require one or more flags
@@ -206,7 +202,6 @@ Examples of integer, opaque, string, and procedure sysctls follow:
  * Example of a constant integer value.  Notice that the control
  * flags are CTLFLAG_RD, the variable pointer is NULL, and the
  * value is declared.
- * If sysctl(8) should print this value in hex, use 'SYSCTL_XINT'.
  */
 SYSCTL_INT(_debug_sizeof, OID_AUTO, bio, CTLFLAG_RD, NULL,
     sizeof(struct bio), "sizeof(struct bio)");

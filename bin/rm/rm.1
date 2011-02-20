@@ -32,7 +32,7 @@
 .\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2006
+.Dd October 31, 2010
 .Dt RM 1
 .Os
 .Sh NAME
@@ -88,14 +88,23 @@ yet provides almost the same level of protection against mistakes.
 Overwrite regular files before deleting them.
 Files are overwritten three times, first with the byte pattern 0xff,
 then 0x00, and then 0xff again, before they are deleted.
-Files with multiple links will not be overwritten nor deleted unless
+Files with multiple links will not be overwritten nor deleted
+and a warning will be issued.
+If the
 .Fl f
-is specified, a warning is generated instead.
+option is specified, files with multiple links will also be overwritten
+and deleted.
+No warning will be issued.
 .Pp
 Specifying this flag for a read only file will cause
 .Nm
 to generate an error message and exit.
 The file will not be removed or overwritten.
+.Pp
+N.B.: The
+.Fl P
+flag is not considered a security feature
+.Pq see Sx BUGS .
 .It Fl R
 Attempt to remove the file hierarchy rooted in each
 .Ar file
@@ -225,8 +234,12 @@ command appeared in
 .Sh BUGS
 The
 .Fl P
-option assumes that the underlying file system is a fixed-block file
-system.
-UFS is a fixed-block file system, LFS is not.
-In addition, only regular files are overwritten, other types of files
-are not.
+option assumes that the underlying storage overwrites file blocks
+when data is written to an existing offset.
+Several factors including the file system and its backing store could defeat
+this assumption.
+This includes, but is not limited to file systems that use a
+Copy-On-Write strategy (e.g. ZFS or UFS when snapshots are being used), Flash
+media that are using a wear leveling algorithm, or when the backing datastore
+does journaling, etc.
+In addition, only regular files are overwritten, other types of files are not.

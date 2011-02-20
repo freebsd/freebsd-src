@@ -866,10 +866,10 @@ sf_attach(device_t dev)
 	}
 
 	/* Do MII setup. */
-	if (mii_phy_probe(dev, &sc->sf_miibus, sf_ifmedia_upd,
-	    sf_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->sf_miibus, ifp, sf_ifmedia_upd,
+	    sf_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -1826,7 +1826,10 @@ sf_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 			else if ((status & SF_ISR_DMAERR) != 0) {
 				device_printf(sc->sf_dev,
 				    "DMA error, resetting\n");
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				sf_init_locked(sc);
+				SF_UNLOCK(sc);
+				return (rx_npkts);
 			} else if ((status & SF_ISR_NO_TX_CSUM) != 0) {
 				sc->sf_statistics.sf_tx_gfp_stall++;
 #ifdef	SF_GFP_DEBUG
@@ -1894,8 +1897,10 @@ sf_intr(void *arg)
 			else if ((status & SF_ISR_DMAERR) != 0) {
 				device_printf(sc->sf_dev,
 				    "DMA error, resetting\n");
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				sf_init_locked(sc);
-				break;
+				SF_UNLOCK(sc);
+				return;
 			} else if ((status & SF_ISR_NO_TX_CSUM) != 0) {
 				sc->sf_statistics.sf_tx_gfp_stall++;
 #ifdef	SF_GFP_DEBUG
@@ -1984,6 +1989,8 @@ sf_init_locked(struct sf_softc *sc)
 
 	SF_LOCK_ASSERT(sc);
 	ifp = sc->sf_ifp;
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 	mii = device_get_softc(sc->sf_miibus);
 
 	sf_stop(sc);
@@ -2547,6 +2554,7 @@ sf_watchdog(struct sf_softc *sc)
 		if_printf(ifp, "watchdog timeout, %d Tx descs are active\n",
 		    sc->sf_cdata.sf_tx_cnt);
 
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	sf_init_locked(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))

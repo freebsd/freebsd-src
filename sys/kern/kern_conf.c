@@ -682,26 +682,92 @@ prep_cdevsw(struct cdevsw *devsw, int flags)
 }
 
 static int
+prep_devname(struct cdev *dev, const char *fmt, va_list ap)
+{
+	int len;
+	char *from, *q, *s, *to;
+
+	mtx_assert(&devmtx, MA_OWNED);
+
+	len = vsnrprintf(dev->__si_namebuf, sizeof(dev->__si_namebuf), 32,
+	    fmt, ap);
+	if (len > sizeof(dev->__si_namebuf) - 1)
+		return (ENAMETOOLONG);
+
+	/* Strip leading slashes. */
+	for (from = dev->__si_namebuf; *from == '/'; from++)
+		;
+
+	for (to = dev->__si_namebuf; *from != '\0'; from++, to++) {
+		/* Treat multiple sequential slashes as single. */
+		while (from[0] == '/' && from[1] == '/')
+			from++;
+		/* Trailing slash is considered invalid. */
+		if (from[0] == '/' && from[1] == '\0')
+			return (EINVAL);
+		*to = *from;
+	}
+	*to = '\0';
+
+	if (dev->__si_namebuf[0] == '\0')
+		return (EINVAL);
+
+	/* Disallow "." and ".." components. */
+	for (s = dev->__si_namebuf;;) {
+		for (q = s; *q != '/' && *q != '\0'; q++)
+			;
+		if (q - s == 1 && s[0] == '.')
+			return (EINVAL);
+		if (q - s == 2 && s[0] == '.' && s[1] == '.')
+			return (EINVAL);
+		if (*q != '/')
+			break;
+		s = q + 1;
+	}
+
+	if (devfs_dev_exists(dev->__si_namebuf) != 0)
+		return (EEXIST);
+
+	return (0);
+}
+
+static int
 make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw, int unit,
     struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
     va_list ap)
 {
-	struct cdev *dev;
-	int i, res;
+	struct cdev *dev, *dev_new;
+	int res;
 
 	KASSERT((flags & MAKEDEV_WAITOK) == 0 || (flags & MAKEDEV_NOWAIT) == 0,
 	    ("make_dev_credv: both WAITOK and NOWAIT specified"));
-	dev = devfs_alloc(flags);
-	if (dev == NULL)
+	dev_new = devfs_alloc(flags);
+	if (dev_new == NULL)
 		return (ENOMEM);
 	dev_lock();
 	res = prep_cdevsw(devsw, flags);
 	if (res != 0) {
 		dev_unlock();
-		devfs_free(dev);
+		devfs_free(dev_new);
 		return (res);
 	}
-	dev = newdev(devsw, unit, dev);
+	dev = newdev(devsw, unit, dev_new);
+	if ((dev->si_flags & SI_NAMED) == 0) {
+		res = prep_devname(dev, fmt, ap);
+		if (res != 0) {
+			if ((flags & MAKEDEV_CHECKNAME) == 0) {
+				panic(
+			"make_dev_credv: bad si_name (error=%d, si_name=%s)",
+				    res, dev->si_name);
+			}
+			if (dev == dev_new) {
+				LIST_REMOVE(dev, si_list);
+				dev_unlock();
+				devfs_free(dev);
+			}
+			return (res);
+		}
+	}
 	if (flags & MAKEDEV_REF)
 		dev_refl(dev);
 	if (flags & MAKEDEV_ETERNAL)
@@ -720,13 +786,6 @@ make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw, int unit,
 	KASSERT(!(dev->si_flags & SI_NAMED),
 	    ("make_dev() by driver %s on pre-existing device (min=%x, name=%s)",
 	    devsw->d_name, dev2unit(dev), devtoname(dev)));
-
-	i = vsnrprintf(dev->__si_namebuf, sizeof dev->__si_namebuf, 32, fmt, ap);
-	if (i > (sizeof dev->__si_namebuf - 1)) {
-		printf("WARNING: Device name truncated! (%s)\n", 
-		    dev->__si_namebuf);
-	}
-		
 	dev->si_flags |= SI_NAMED;
 	if (cr != NULL)
 		dev->si_cred = crhold(cr);
@@ -756,7 +815,8 @@ make_dev(struct cdevsw *devsw, int unit, uid_t uid, gid_t gid, int mode,
 	res = make_dev_credv(0, &dev, devsw, unit, NULL, uid, gid, mode, fmt,
 	    ap);
 	va_end(ap);
-	KASSERT(res == 0 && dev != NULL, ("make_dev: failed make_dev_credv"));
+	KASSERT(res == 0 && dev != NULL,
+	    ("make_dev: failed make_dev_credv (error=%d)", res));
 	return (dev);
 }
 
@@ -773,7 +833,7 @@ make_dev_cred(struct cdevsw *devsw, int unit, struct ucred *cr, uid_t uid,
 	va_end(ap);
 
 	KASSERT(res == 0 && dev != NULL,
-	    ("make_dev_cred: failed make_dev_credv"));
+	    ("make_dev_cred: failed make_dev_credv (error=%d)", res));
 	return (dev);
 }
 
@@ -790,8 +850,9 @@ make_dev_credf(int flags, struct cdevsw *devsw, int unit, struct ucred *cr,
 	    fmt, ap);
 	va_end(ap);
 
-	KASSERT((flags & MAKEDEV_NOWAIT) != 0 || res == 0,
-	    ("make_dev_credf: failed make_dev_credv"));
+	KASSERT(((flags & MAKEDEV_NOWAIT) != 0 && res == ENOMEM) ||
+	    ((flags & MAKEDEV_CHECKNAME) != 0 && res != ENOMEM) || res == 0,
+	    ("make_dev_credf: failed make_dev_credv (error=%d)", res));
 	return (res == 0 ? dev : NULL);
 }
 
@@ -807,8 +868,9 @@ make_dev_p(int flags, struct cdev **cdev, struct cdevsw *devsw,
 	    fmt, ap);
 	va_end(ap);
 
-	KASSERT((flags & MAKEDEV_NOWAIT) != 0 || res == 0,
-	    ("make_dev_p: failed make_dev_credv"));
+	KASSERT(((flags & MAKEDEV_NOWAIT) != 0 && res == ENOMEM) ||
+	    ((flags & MAKEDEV_CHECKNAME) != 0 && res != ENOMEM) || res == 0,
+	    ("make_dev_p: failed make_dev_credv (error=%d)", res));
 	return (res);
 }
 
@@ -836,21 +898,20 @@ make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 {
 	struct cdev *dev;
 	va_list ap;
-	int i;
+	int error;
 
 	KASSERT(pdev != NULL, ("NULL pdev"));
 	dev = devfs_alloc(MAKEDEV_WAITOK);
 	dev_lock();
 	dev->si_flags |= SI_ALIAS;
-	dev->si_flags |= SI_NAMED;
 	va_start(ap, fmt);
-	i = vsnrprintf(dev->__si_namebuf, sizeof dev->__si_namebuf, 32, fmt, ap);
-	if (i > (sizeof dev->__si_namebuf - 1)) {
-		printf("WARNING: Device name truncated! (%s)\n", 
-		    dev->__si_namebuf);
-	}
+	error = prep_devname(dev, fmt, ap);
 	va_end(ap);
-
+	if (error != 0) {
+		panic("make_dev_alias: bad si_name (error=%d, si_name=%s)",
+		    error, dev->si_name);
+	}
+	dev->si_flags |= SI_NAMED;
 	devfs_create(dev);
 	dev_dependsl(pdev, dev);
 	clean_unrhdrl(devfs_inos);
@@ -865,7 +926,7 @@ static void
 destroy_devl(struct cdev *dev)
 {
 	struct cdevsw *csw;
-	struct cdev_privdata *p, *p1;
+	struct cdev_privdata *p;
 
 	mtx_assert(&devmtx, MA_OWNED);
 	KASSERT(dev->si_flags & SI_NAMED,
@@ -913,7 +974,7 @@ destroy_devl(struct cdev *dev)
 	dev_unlock();
 	notify_destroy(dev);
 	mtx_lock(&cdevpriv_mtx);
-	LIST_FOREACH_SAFE(p, &cdev2priv(dev)->cdp_fdpriv, cdpd_list, p1) {
+	while ((p = LIST_FIRST(&cdev2priv(dev)->cdp_fdpriv)) != NULL) {
 		devfs_destroy_cdevpriv(p);
 		mtx_lock(&cdevpriv_mtx);
 	}

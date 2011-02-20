@@ -40,12 +40,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 
+#include <machine/cpu.h>
+#include <machine/md_var.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 #include <machine/smp.h>
@@ -61,11 +64,45 @@ static char plat_name[64] = "";
 SYSCTL_STRING(_hw, OID_AUTO, platform, CTLFLAG_RD | CTLFLAG_TUN,
     plat_name, 0, "Platform currently in use");
 
+static struct mem_region *pregions = NULL;
+static struct mem_region *aregions = NULL;
+static int npregions, naregions;
+
 void
 mem_regions(struct mem_region **phys, int *physsz, struct mem_region **avail,
     int *availsz)
 {
-	PLATFORM_MEM_REGIONS(plat_obj, phys, physsz, avail, availsz);
+	if (pregions == NULL)
+		PLATFORM_MEM_REGIONS(plat_obj, &pregions, &npregions,
+		    &aregions, &naregions);
+
+	*phys = pregions;
+	*avail = aregions;
+	*physsz = npregions;
+	*availsz = naregions;
+}
+
+int
+mem_valid(vm_offset_t addr, int len)
+{
+	int i;
+
+	if (pregions == NULL)
+		PLATFORM_MEM_REGIONS(plat_obj, &pregions, &npregions,
+		    &aregions, &naregions);
+
+	for (i = 0; i < npregions; i++)
+		if ((addr >= pregions[i].mr_start) 
+		   && (addr + len < pregions[i].mr_start + pregions[i].mr_size))
+			return (0);
+
+	return (EFAULT);
+}
+
+vm_offset_t
+platform_real_maxaddr(void)
+{
+	return (PLATFORM_REAL_MAXADDR(plat_obj));
 }
 
 const char *
@@ -102,6 +139,23 @@ int
 platform_smp_start_cpu(struct pcpu *cpu)
 {
 	return (PLATFORM_SMP_START_CPU(plat_obj, cpu));
+}
+
+#ifdef SMP
+struct cpu_group *
+cpu_topo(void)
+{
+        return (PLATFORM_SMP_TOPO(plat_obj));
+}
+#endif
+
+/*
+ * Reset back to firmware.
+ */
+void
+cpu_reset()
+{
+        PLATFORM_RESET(plat_obj);
 }
 
 /*
@@ -154,9 +208,10 @@ platform_probe_and_attach()
 		}
 
 		/*
-		 * We can't free the KOBJ, since it is static. Luckily,
-		 * this has no ill effects since it gets reset every time.
+		 * We can't free the KOBJ, since it is static. Reset the ops
+		 * member of this class so that we can come back later.
 		 */
+		platp->ops = NULL;
 	}
 
 	if (plat_def_impl == NULL)

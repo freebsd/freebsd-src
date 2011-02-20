@@ -1427,5 +1427,5 @@ printconfig(FILE *of, char *comment)
 	if (*comment != '\0')
 	    fprintf(of, "# Current configuration:\n");
 
-	fprintf(of, buf);
+	fprintf(of, "%s", buf);
 }

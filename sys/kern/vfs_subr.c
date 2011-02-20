@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/reboot.h>
+#include <sys/sched.h>
 #include <sys/sleepqueue.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
@@ -121,7 +122,8 @@ static void	destroy_vpollinfo(struct vpollinfo *vi);
  */
 static unsigned long	numvnodes;
 
-SYSCTL_LONG(_vfs, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0, "");
+SYSCTL_ULONG(_vfs, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0,
+    "Number of vnodes in existence");
 
 /*
  * Conversion tables for conversion from vnode types to inode formats
@@ -147,10 +149,11 @@ static TAILQ_HEAD(freelst, vnode) vnode_free_list;
  * should be kept to avoid recreation costs.
  */
 static u_long wantfreevnodes;
-SYSCTL_LONG(_vfs, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "");
+SYSCTL_ULONG(_vfs, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "");
 /* Number of vnodes in the free list. */
 static u_long freevnodes;
-SYSCTL_LONG(_vfs, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
+SYSCTL_ULONG(_vfs, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0,
+    "Number of vnodes in the free list");
 
 static int vlru_allow_cache_src;
 SYSCTL_INT(_vfs, OID_AUTO, vlru_allow_cache_src, CTLFLAG_RW,
@@ -162,7 +165,8 @@ SYSCTL_INT(_vfs, OID_AUTO, vlru_allow_cache_src, CTLFLAG_RW,
  * XXX these are probably of (very) limited utility now.
  */
 static int reassignbufcalls;
-SYSCTL_INT(_vfs, OID_AUTO, reassignbufcalls, CTLFLAG_RW, &reassignbufcalls, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, reassignbufcalls, CTLFLAG_RW, &reassignbufcalls, 0,
+    "Number of calls to reassignbuf");
 
 /*
  * Cache for the mount type id assigned to NFS.  This is used for
@@ -187,9 +191,6 @@ struct nfs_public nfs_pub;
 /* Zone for allocation of new vnodes - used exclusively by getnewvnode() */
 static uma_zone_t vnode_zone;
 static uma_zone_t vnodepoll_zone;
-
-/* Set to 1 to print out reclaim of active vnodes */
-int	prtactive;
 
 /*
  * The workitem queue.
@@ -237,14 +238,18 @@ static struct cv sync_wakeup;
 static int syncer_maxdelay = SYNCER_MAXDELAY;	/* maximum delay time */
 static int syncdelay = 30;		/* max time to delay syncing data */
 static int filedelay = 30;		/* time to delay syncing files */
-SYSCTL_INT(_kern, OID_AUTO, filedelay, CTLFLAG_RW, &filedelay, 0, "");
+SYSCTL_INT(_kern, OID_AUTO, filedelay, CTLFLAG_RW, &filedelay, 0,
+    "Time to delay syncing files (in seconds)");
 static int dirdelay = 29;		/* time to delay syncing directories */
-SYSCTL_INT(_kern, OID_AUTO, dirdelay, CTLFLAG_RW, &dirdelay, 0, "");
+SYSCTL_INT(_kern, OID_AUTO, dirdelay, CTLFLAG_RW, &dirdelay, 0,
+    "Time to delay syncing directories (in seconds)");
 static int metadelay = 28;		/* time to delay syncing metadata */
-SYSCTL_INT(_kern, OID_AUTO, metadelay, CTLFLAG_RW, &metadelay, 0, "");
+SYSCTL_INT(_kern, OID_AUTO, metadelay, CTLFLAG_RW, &metadelay, 0,
+    "Time to delay syncing metadata (in seconds)");
 static int rushjob;		/* number of slots to run ASAP */
 static int stat_rush_requests;	/* number of times I/O speeded up */
-SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &stat_rush_requests, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &stat_rush_requests, 0,
+    "Number of times I/O speeded up (rush requests)");
 
 /*
  * When shutting down the syncer, run it at four times normal speed.
@@ -265,7 +270,7 @@ static enum { SYNCER_RUNNING, SYNCER_SHUTTING_DOWN, SYNCER_FINAL_DELAY }
 int desiredvnodes;
 SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW,
     &desiredvnodes, 0, "Maximum number of vnodes");
-SYSCTL_INT(_kern, OID_AUTO, minvnodes, CTLFLAG_RW,
+SYSCTL_ULONG(_kern, OID_AUTO, minvnodes, CTLFLAG_RW,
     &wantfreevnodes, 0, "Minimum number of vnodes (legacy)");
 static int vnlru_nowhere;
 SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW,
@@ -544,7 +549,9 @@ enum { TSP_SEC, TSP_HZ, TSP_USEC, TSP_NSEC };
 
 static int timestamp_precision = TSP_SEC;
 SYSCTL_INT(_vfs, OID_AUTO, timestamp_precision, CTLFLAG_RW,
-    &timestamp_precision, 0, "");
+    &timestamp_precision, 0, "File timestamp precision (0: seconds, "
+    "1: sec + ns accurate to 1/HZ, 2: sec + ns truncated to ms, "
+    "3+: sec + ns (max. precision))");
 
 /*
  * Get a current timestamp.
@@ -700,15 +707,15 @@ vlrureclaim(struct mount *mp)
 		vdropl(vp);
 		done++;
 next_iter_mntunlocked:
-		if ((count % 256) != 0)
+		if (!should_yield())
 			goto relock_mnt;
 		goto yield;
 next_iter:
-		if ((count % 256) != 0)
+		if (!should_yield())
 			continue;
 		MNT_IUNLOCK(mp);
 yield:
-		uio_yield();
+		kern_yield(-1);
 relock_mnt:
 		MNT_ILOCK(mp);
 	}
@@ -821,7 +828,7 @@ vnlru_proc(void)
 			vnlru_nowhere++;
 			tsleep(vnlruproc, PPAUSE, "vlrup", hz * 3);
 		} else
-			uio_yield();
+			kern_yield(-1);
 	}
 }
 
@@ -1330,13 +1337,14 @@ restart:
 			brelse(bp);
 			anyfreed = 1;
 
+			BO_LOCK(bo);
 			if (nbp != NULL &&
 			    (((nbp->b_xflags & BX_VNCLEAN) == 0) ||
 			    (nbp->b_vp != vp) ||
 			    (nbp->b_flags & B_DELWRI))) {
+				BO_UNLOCK(bo);
 				goto restart;
 			}
-			BO_LOCK(bo);
 		}
 
 		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
@@ -1353,13 +1361,15 @@ restart:
 			bp->b_flags &= ~B_ASYNC;
 			brelse(bp);
 			anyfreed = 1;
+
+			BO_LOCK(bo);
 			if (nbp != NULL &&
 			    (((nbp->b_xflags & BX_VNDIRTY) == 0) ||
 			    (nbp->b_vp != vp) ||
 			    (nbp->b_flags & B_DELWRI) == 0)) {
+				BO_UNLOCK(bo);
 				goto restart;
 			}
-			BO_LOCK(bo);
 		}
 	}
 
@@ -1874,6 +1884,12 @@ sched_sync(void)
 		 * matter as we are just trying to generally pace the
 		 * filesystem activity.
 		 */
+		if (syncer_state != SYNCER_RUNNING ||
+		    time_uptime == starttime) {
+			thread_lock(td);
+			sched_prio(td, PPAUSE);
+			thread_unlock(td);
+		}
 		if (syncer_state != SYNCER_RUNNING)
 			cv_timedwait(&sync_wakeup, &sync_mtx,
 			    hz / SYNCER_SHUTDOWN_SPEEDUP);
@@ -2180,7 +2196,7 @@ vputx(struct vnode *vp, int func)
 
 	KASSERT(vp != NULL, ("vputx: null vp"));
 	if (func == VPUTX_VUNREF)
-		ASSERT_VOP_ELOCKED(vp, "vunref");
+		ASSERT_VOP_LOCKED(vp, "vunref");
 	else if (func == VPUTX_VPUT)
 		ASSERT_VOP_LOCKED(vp, "vput");
 	else
@@ -2203,9 +2219,7 @@ vputx(struct vnode *vp, int func)
 	}
 
 	if (vp->v_usecount != 1) {
-#ifdef DIAGNOSTIC
 		vprint("vputx: negative ref count", vp);
-#endif
 		panic("vputx: negative ref cnt");
 	}
 	CTR2(KTR_VFS, "%s: return vnode %p to the freelist", __func__, vp);
@@ -2220,12 +2234,22 @@ vputx(struct vnode *vp, int func)
 	 * as VI_DOINGINACT to avoid recursion.
 	 */
 	vp->v_iflag |= VI_OWEINACT;
-	if (func == VPUTX_VRELE) {
+	switch (func) {
+	case VPUTX_VRELE:
 		error = vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK);
 		VI_LOCK(vp);
-	} else if (func == VPUTX_VPUT && VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
-		error = VOP_LOCK(vp, LK_UPGRADE | LK_INTERLOCK | LK_NOWAIT);
-		VI_LOCK(vp);
+		break;
+	case VPUTX_VPUT:
+		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
+			error = VOP_LOCK(vp, LK_UPGRADE | LK_INTERLOCK |
+			    LK_NOWAIT);
+			VI_LOCK(vp);
+		}
+		break;
+	case VPUTX_VUNREF:
+		if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
+			error = EBUSY;
+		break;
 	}
 	if (vp->v_usecount > 0)
 		vp->v_iflag &= ~VI_OWEINACT;
@@ -2378,7 +2402,7 @@ vinactive(struct vnode *vp, struct thread *td)
  */
 #ifdef DIAGNOSTIC
 static int busyprt = 0;		/* print out busy vnodes */
-SYSCTL_INT(_debug, OID_AUTO, busyprt, CTLFLAG_RW, &busyprt, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, busyprt, CTLFLAG_RW, &busyprt, 0, "Print out busy vnodes");
 #endif
 
 int
@@ -2863,6 +2887,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_KERN_FLAG(MNTK_REFEXPIRE);
 	MNT_KERN_FLAG(MNTK_EXTENDED_SHARED);
 	MNT_KERN_FLAG(MNTK_SHARED_WRITES);
+	MNT_KERN_FLAG(MNTK_SUJ);
 	MNT_KERN_FLAG(MNTK_UNMOUNT);
 	MNT_KERN_FLAG(MNTK_MWAIT);
 	MNT_KERN_FLAG(MNTK_SUSPEND);
@@ -2976,7 +3001,8 @@ sysctl_vfs_conflist(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_vfs, OID_AUTO, conflist, CTLFLAG_RD, NULL, 0, sysctl_vfs_conflist,
+SYSCTL_PROC(_vfs, OID_AUTO, conflist, CTLTYPE_OPAQUE | CTLFLAG_RD,
+    NULL, 0, sysctl_vfs_conflist,
     "S,xvfsconf", "List of all configured filesystems");
 
 #ifndef BURN_BRIDGES
@@ -3020,7 +3046,7 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 }
 
 static SYSCTL_NODE(_vfs, VFS_GENERIC, generic, CTLFLAG_RD | CTLFLAG_SKIP,
-	vfs_sysctl, "Generic filesystem");
+    vfs_sysctl, "Generic filesystem");
 
 #if 1 || defined(COMPAT_PRELITE2)
 
@@ -3141,7 +3167,7 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	0, 0, sysctl_vnode, "S,xvnode", "");
+    0, 0, sysctl_vnode, "S,xvnode", "");
 #endif
 
 /*
@@ -3365,7 +3391,7 @@ static struct vop_vector sync_vnodeops = {
 /*
  * Create a new filesystem syncer vnode for the specified mount point.
  */
-int
+void
 vfs_allocate_syncvnode(struct mount *mp)
 {
 	struct vnode *vp;
@@ -3374,16 +3400,15 @@ vfs_allocate_syncvnode(struct mount *mp)
 	int error;
 
 	/* Allocate a new vnode */
-	if ((error = getnewvnode("syncer", mp, &sync_vnodeops, &vp)) != 0) {
-		mp->mnt_syncer = NULL;
-		return (error);
-	}
+	error = getnewvnode("syncer", mp, &sync_vnodeops, &vp);
+	if (error != 0)
+		panic("vfs_allocate_syncvnode: getnewvnode() failed");
 	vp->v_type = VNON;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vp->v_vflag |= VV_FORCEINSMQ;
 	error = insmntque(vp, mp);
 	if (error != 0)
-		panic("vfs_allocate_syncvnode: insmntque failed");
+		panic("vfs_allocate_syncvnode: insmntque() failed");
 	vp->v_vflag &= ~VV_FORCEINSMQ;
 	VOP_UNLOCK(vp, 0);
 	/*
@@ -3408,10 +3433,31 @@ vfs_allocate_syncvnode(struct mount *mp)
 	/* XXX - vn_syncer_add_to_worklist() also grabs and drops sync_mtx. */
 	mtx_lock(&sync_mtx);
 	sync_vnode_count++;
+	if (mp->mnt_syncer == NULL) {
+		mp->mnt_syncer = vp;
+		vp = NULL;
+	}
 	mtx_unlock(&sync_mtx);
 	BO_UNLOCK(bo);
-	mp->mnt_syncer = vp;
-	return (0);
+	if (vp != NULL) {
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		vgone(vp);
+		vput(vp);
+	}
+}
+
+void
+vfs_deallocate_syncvnode(struct mount *mp)
+{
+	struct vnode *vp;
+
+	mtx_lock(&sync_mtx);
+	vp = mp->mnt_syncer;
+	if (vp != NULL)
+		mp->mnt_syncer = NULL;
+	mtx_unlock(&sync_mtx);
+	if (vp != NULL)
+		vrele(vp);
 }
 
 /*
@@ -3492,15 +3538,16 @@ sync_reclaim(struct vop_reclaim_args *ap)
 
 	bo = &vp->v_bufobj;
 	BO_LOCK(bo);
-	vp->v_mount->mnt_syncer = NULL;
+	mtx_lock(&sync_mtx);
+	if (vp->v_mount->mnt_syncer == vp)
+		vp->v_mount->mnt_syncer = NULL;
 	if (bo->bo_flag & BO_ONWORKLST) {
-		mtx_lock(&sync_mtx);
 		LIST_REMOVE(bo, bo_synclist);
 		syncer_worklist_len--;
 		sync_vnode_count--;
-		mtx_unlock(&sync_mtx);
 		bo->bo_flag &= ~BO_ONWORKLST;
 	}
+	mtx_unlock(&sync_mtx);
 	BO_UNLOCK(bo);
 
 	return (0);
@@ -3621,7 +3668,13 @@ privcheck:
 		    !priv_check_cred(cred, PRIV_VFS_LOOKUP, 0))
 			priv_granted |= VEXEC;
 	} else {
+		/*
+		 * Ensure that at least one execute bit is on. Otherwise,
+		 * a privileged user will always succeed, and we don't want
+		 * this to happen unless the file really is executable.
+		 */
 		if ((accmode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
+		    (file_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0 &&
 		    !priv_check_cred(cred, PRIV_VFS_EXEC, 0))
 			priv_granted |= VEXEC;
 	}
@@ -3687,17 +3740,21 @@ extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
 	(vp)->v_type == VCHR ||	(vp)->v_type == VBAD)
 
 int vfs_badlock_ddb = 1;	/* Drop into debugger on violation. */
-SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_ddb, CTLFLAG_RW, &vfs_badlock_ddb, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_ddb, CTLFLAG_RW, &vfs_badlock_ddb, 0,
+    "Drop into debugger on lock violation");
 
 int vfs_badlock_mutex = 1;	/* Check for interlock across VOPs. */
-SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_mutex, CTLFLAG_RW, &vfs_badlock_mutex, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_mutex, CTLFLAG_RW, &vfs_badlock_mutex,
+    0, "Check for interlock across VOPs");
 
 int vfs_badlock_print = 1;	/* Print lock violations. */
-SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_print, CTLFLAG_RW, &vfs_badlock_print, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_print, CTLFLAG_RW, &vfs_badlock_print,
+    0, "Print lock violations");
 
 #ifdef KDB
 int vfs_badlock_backtrace = 1;	/* Print backtrace at lock violations. */
-SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_backtrace, CTLFLAG_RW, &vfs_badlock_backtrace, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_backtrace, CTLFLAG_RW,
+    &vfs_badlock_backtrace, 0, "Print backtrace at lock violations");
 #endif
 
 static void
@@ -4107,7 +4164,8 @@ sysctl_vfs_ctl(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_vfs, OID_AUTO, ctl, CTLFLAG_WR, NULL, 0, sysctl_vfs_ctl, "",
+SYSCTL_PROC(_vfs, OID_AUTO, ctl, CTLTYPE_OPAQUE | CTLFLAG_WR,
+    NULL, 0, sysctl_vfs_ctl, "",
     "Sysctl by fsid");
 
 /*

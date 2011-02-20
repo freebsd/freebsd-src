@@ -187,20 +187,30 @@ struct {
 static uma_zone_t mt_zone;
 
 u_long vm_kmem_size;
-SYSCTL_ULONG(_vm, OID_AUTO, kmem_size, CTLFLAG_RD, &vm_kmem_size, 0,
+SYSCTL_ULONG(_vm, OID_AUTO, kmem_size, CTLFLAG_RDTUN, &vm_kmem_size, 0,
     "Size of kernel memory");
 
 static u_long vm_kmem_size_min;
-SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_min, CTLFLAG_RD, &vm_kmem_size_min, 0,
+SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_min, CTLFLAG_RDTUN, &vm_kmem_size_min, 0,
     "Minimum size of kernel memory");
 
 static u_long vm_kmem_size_max;
-SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_max, CTLFLAG_RD, &vm_kmem_size_max, 0,
+SYSCTL_ULONG(_vm, OID_AUTO, kmem_size_max, CTLFLAG_RDTUN, &vm_kmem_size_max, 0,
     "Maximum size of kernel memory");
 
 static u_int vm_kmem_size_scale;
-SYSCTL_UINT(_vm, OID_AUTO, kmem_size_scale, CTLFLAG_RD, &vm_kmem_size_scale, 0,
+SYSCTL_UINT(_vm, OID_AUTO, kmem_size_scale, CTLFLAG_RDTUN, &vm_kmem_size_scale, 0,
     "Scale factor for kernel memory size");
+
+static int sysctl_kmem_map_size(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vm, OID_AUTO, kmem_map_size,
+    CTLFLAG_RD | CTLTYPE_ULONG | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_kmem_map_size, "LU", "Current kmem_map allocation size");
+
+static int sysctl_kmem_map_free(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vm, OID_AUTO, kmem_map_free,
+    CTLFLAG_RD | CTLTYPE_ULONG | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_kmem_map_free, "LU", "Largest contiguous free range in kmem_map");
 
 /*
  * The malloc_mtx protects the kmemstatistics linked list.
@@ -239,6 +249,27 @@ TUNABLE_INT("debug.malloc.failure_rate", &malloc_failure_rate);
 SYSCTL_INT(_debug_malloc, OID_AUTO, failure_count, CTLFLAG_RD,
     &malloc_failure_count, 0, "Number of imposed M_NOWAIT malloc failures");
 #endif
+
+static int
+sysctl_kmem_map_size(SYSCTL_HANDLER_ARGS)
+{
+	u_long size;
+
+	size = kmem_map->size;
+	return (sysctl_handle_long(oidp, &size, 0, req));
+}
+
+static int
+sysctl_kmem_map_free(SYSCTL_HANDLER_ARGS)
+{
+	u_long size;
+
+	vm_map_lock_read(kmem_map);
+	size = kmem_map->root != NULL ?
+	    kmem_map->root->max_free : kmem_map->size;
+	vm_map_unlock_read(kmem_map);
+	return (sysctl_handle_long(oidp, &size, 0, req));
+}
 
 /*
  * malloc(9) uma zone separation -- sub-page buffer overruns in one
@@ -566,11 +597,8 @@ realloc(void *addr, unsigned long size, struct malloc_type *mtp, int flags)
 	 */
 
 #ifdef DEBUG_MEMGUARD
-	if (is_memguard_addr(addr)) {
-		slab = NULL;
-		alloc = size;
-		goto remalloc;
-	}
+	if (is_memguard_addr(addr))
+		return (memguard_realloc(addr, size, mtp, flags));
 #endif
 
 #ifdef DEBUG_REDZONE
@@ -594,10 +622,6 @@ realloc(void *addr, unsigned long size, struct malloc_type *mtp, int flags)
 	    && (size > (alloc >> REALLOC_FRACTION) || alloc == MINALLOCSIZE))
 		return (addr);
 #endif /* !DEBUG_REDZONE */
-
-#ifdef DEBUG_MEMGUARD
-remalloc:
-#endif
 
 	/* Allocate a new, bigger (or smaller) block */
 	if ((newaddr = malloc(size, mtp, flags)) == NULL)
@@ -835,25 +859,14 @@ sysctl_kern_malloc_stats(SYSCTL_HANDLER_ARGS)
 	struct malloc_type_internal *mtip;
 	struct malloc_type_header mth;
 	struct malloc_type *mtp;
-	int buflen, count, error, i;
+	int error, i;
 	struct sbuf sbuf;
-	char *buffer;
 
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
 	mtx_lock(&malloc_mtx);
-restart:
-	mtx_assert(&malloc_mtx, MA_OWNED);
-	count = kmemcount;
-	mtx_unlock(&malloc_mtx);
-	buflen = sizeof(mtsh) + count * (sizeof(mth) +
-	    sizeof(struct malloc_type_stats) * MAXCPU) + 1;
-	buffer = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
-	mtx_lock(&malloc_mtx);
-	if (count < kmemcount) {
-		free(buffer, M_TEMP);
-		goto restart;
-	}
-
-	sbuf_new(&sbuf, buffer, buflen, SBUF_FIXEDLEN);
 
 	/*
 	 * Insert stream header.
@@ -862,11 +875,7 @@ restart:
 	mtsh.mtsh_version = MALLOC_TYPE_STREAM_VERSION;
 	mtsh.mtsh_maxcpus = MAXCPU;
 	mtsh.mtsh_count = kmemcount;
-	if (sbuf_bcat(&sbuf, &mtsh, sizeof(mtsh)) < 0) {
-		mtx_unlock(&malloc_mtx);
-		error = ENOMEM;
-		goto out;
-	}
+	(void)sbuf_bcat(&sbuf, &mtsh, sizeof(mtsh));
 
 	/*
 	 * Insert alternating sequence of type headers and type statistics.
@@ -879,30 +888,19 @@ restart:
 		 */
 		bzero(&mth, sizeof(mth));
 		strlcpy(mth.mth_name, mtp->ks_shortdesc, MALLOC_MAX_NAME);
-		if (sbuf_bcat(&sbuf, &mth, sizeof(mth)) < 0) {
-			mtx_unlock(&malloc_mtx);
-			error = ENOMEM;
-			goto out;
-		}
+		(void)sbuf_bcat(&sbuf, &mth, sizeof(mth));
 
 		/*
 		 * Insert type statistics for each CPU.
 		 */
 		for (i = 0; i < MAXCPU; i++) {
-			if (sbuf_bcat(&sbuf, &mtip->mti_stats[i],
-			    sizeof(mtip->mti_stats[i])) < 0) {
-				mtx_unlock(&malloc_mtx);
-				error = ENOMEM;
-				goto out;
-			}
+			(void)sbuf_bcat(&sbuf, &mtip->mti_stats[i],
+			    sizeof(mtip->mti_stats[i]));
 		}
 	}
 	mtx_unlock(&malloc_mtx);
-	sbuf_finish(&sbuf);
-	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
-out:
+	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);
-	free(buffer, M_TEMP);
 	return (error);
 }
 
@@ -1012,26 +1010,22 @@ DB_SHOW_COMMAND(multizone_matches, db_show_multizone_matches)
 static int
 sysctl_kern_mprof(SYSCTL_HANDLER_ARGS)
 {
-	int linesize = 64;
 	struct sbuf sbuf;
 	uint64_t count;
 	uint64_t waste;
 	uint64_t mem;
-	int bufsize;
 	int error;
-	char *buf;
 	int rsize;
 	int size;
 	int i;
 
-	bufsize = linesize * (KMEM_ZSIZE + 1);
-	bufsize += 128; 	/* For the stats line */
-	bufsize += 128; 	/* For the banner line */
 	waste = 0;
 	mem = 0;
 
-	buf = malloc(bufsize, M_TEMP, M_WAITOK|M_ZERO);
-	sbuf_new(&sbuf, buf, bufsize, SBUF_FIXEDLEN);
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
 	sbuf_printf(&sbuf, 
 	    "\n  Size                    Requests  Real Size\n");
 	for (i = 0; i < KMEM_ZSIZE; i++) {
@@ -1049,12 +1043,8 @@ sysctl_kern_mprof(SYSCTL_HANDLER_ARGS)
 	sbuf_printf(&sbuf,
 	    "\nTotal memory used:\t%30llu\nTotal Memory wasted:\t%30llu\n",
 	    (unsigned long long)mem, (unsigned long long)waste);
-	sbuf_finish(&sbuf);
-
-	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
-
+	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);
-	free(buf, M_TEMP);
 	return (error);
 }
 

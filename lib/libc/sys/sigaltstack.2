@@ -104,7 +104,7 @@ if ((sigstk.ss_sp = malloc(SIGSTKSZ)) == NULL)
 	/* error return */
 sigstk.ss_size = SIGSTKSZ;
 sigstk.ss_flags = 0;
-if (sigaltstack(&sigstk,0) < 0)
+if (sigaltstack(&sigstk, NULL) < 0)
 	perror("sigaltstack");
 .Ed
 An alternative approach is provided for programs with signal handlers

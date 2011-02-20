@@ -472,15 +472,18 @@ cpu_ipi_preempt(struct trapframe *tf)
 void
 cpu_ipi_hardclock(struct trapframe *tf)
 {
+	struct trapframe *oldframe;
+	struct thread *td;
 
-	hardclockintr(tf);
-}
-
-void
-cpu_ipi_statclock(struct trapframe *tf)
-{
-
-	statclockintr(tf);
+	critical_enter();
+	td = curthread;
+	td->td_intr_nesting_level++;
+	oldframe = td->td_intr_frame;
+	td->td_intr_frame = tf;
+	hardclockintr();
+	td->td_intr_frame = oldframe;
+	td->td_intr_nesting_level--;
+	critical_exit();
 }
 
 void
@@ -536,7 +539,7 @@ retry:
 }
 
 void
-ipi_selected(u_int icpus, u_int ipi)
+ipi_selected(cpumask_t icpus, u_int ipi)
 {
 	int i, cpu_count;
 	uint16_t *cpulist;

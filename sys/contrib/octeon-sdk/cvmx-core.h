@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -46,7 +48,7 @@
  *
  * Module to support operations on core such as TLB config, etc.
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 49448 $<hr>
  *
  */
 
@@ -117,6 +119,10 @@ typedef enum
     CVMX_CORE_PERF_SYNC      = 56,   /**< Number of SYNC stall cycles (may need to set CvmCtl[DISCE] for accurate counts) */
     CVMX_CORE_PERF_SYNCIOB   = 57,   /**< Number of SYNCIOBDMA stall cycles (may need to set CvmCtl[DISCE] for accurate counts) */
     CVMX_CORE_PERF_SYNCW     = 58,   /**< Number of SYNCWs */
+    /* Added in CN63XX */
+    CVMX_CORE_PERF_ERETMIS   = 64,   /**< D/eret mispredicts */
+    CVMX_CORE_PERF_LIKMIS    = 65,   /**< Branch likely mispredicts */
+    CVMX_CORE_PERF_HAZTR     = 66,   /**< Hazard traps due to *MTC0 to CvmCtl, Perf counter control, EntryHi, or CvmMemCtl registers */
     CVMX_CORE_PERF_MAX               /**< This not a counter, just a marker for the highest number */
 } cvmx_core_perf_t;
 
@@ -128,15 +134,27 @@ typedef union
     uint32_t u32;
     struct
     {
+#if __BYTE_ORDER == __BIG_ENDIAN
         uint32_t m              : 1; /**< Set to 1 for sel 0 and 0 for sel 2, indicating there are two performance counters */
         uint32_t w              : 1; /**< Set to 1 indicating coutners are 64 bit */
-        uint32_t reserved_11_29 :19;
-        cvmx_core_perf_t event  : 6; /**< Selects the event to be counted by the corresponding Counter Register */
+        uint32_t reserved_11_29 :15;
+        cvmx_core_perf_t event  :10; /**< Selects the event to be counted by the corresponding Counter Register */
         uint32_t ie             : 1; /**< Count in interrupt context */
         uint32_t u              : 1; /**< Count in user mode */
         uint32_t s              : 1; /**< Count in supervisor mode */
         uint32_t k              : 1; /**< Count in kernel mode */
         uint32_t ex             : 1; /**< Count in exception context */
+#else
+	uint32_t ex             : 1;
+        uint32_t k              : 1;
+        uint32_t s              : 1;
+        uint32_t u              : 1;
+        uint32_t ie             : 1;
+        uint32_t event          :10;
+        uint32_t reserved_11_29 :15;
+        uint32_t w              : 1;
+        uint32_t m              : 1;
+#endif
     } s;
 } cvmx_core_perf_control_t;
 
@@ -159,6 +177,10 @@ int cvmx_core_add_wired_tlb_entry(uint64_t hi, uint64_t lo0, uint64_t lo1, cvmx_
 int cvmx_core_add_fixed_tlb_mapping(uint64_t vaddr, uint64_t page0_addr, uint64_t page1_addr, cvmx_tlb_pagemask_t page_mask);
 int cvmx_core_add_fixed_tlb_mapping_bits(uint64_t vaddr, uint64_t page0_addr, uint64_t page1_addr, cvmx_tlb_pagemask_t page_mask);
 
+/**
+ * Return number of TLB entries.
+ */
+int cvmx_core_get_tlb_entries(void);
 #ifdef	__cplusplus
 }
 #endif

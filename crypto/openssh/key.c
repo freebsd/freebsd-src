@@ -1,4 +1,4 @@
-/* $OpenBSD: key.c,v 1.86 2010/03/15 19:40:02 stevesk Exp $ */
+/* $OpenBSD: key.c,v 1.90 2010/07/13 23:13:16 djm Exp $ */
 /*
  * read_bignum():
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -52,6 +52,7 @@
 #include "uuencode.h"
 #include "buffer.h"
 #include "log.h"
+#include "misc.h"
 #include "ssh2.h"
 
 static struct KeyCert *
@@ -61,7 +62,8 @@ cert_new(void)
 
 	cert = xcalloc(1, sizeof(*cert));
 	buffer_init(&cert->certblob);
-	buffer_init(&cert->constraints);
+	buffer_init(&cert->critical);
+	buffer_init(&cert->extensions);
 	cert->key_id = NULL;
 	cert->principals = NULL;
 	cert->signature_key = NULL;
@@ -82,6 +84,7 @@ key_new(int type)
 	switch (k->type) {
 	case KEY_RSA1:
 	case KEY_RSA:
+	case KEY_RSA_CERT_V00:
 	case KEY_RSA_CERT:
 		if ((rsa = RSA_new()) == NULL)
 			fatal("key_new: RSA_new failed");
@@ -92,6 +95,7 @@ key_new(int type)
 		k->rsa = rsa;
 		break;
 	case KEY_DSA:
+	case KEY_DSA_CERT_V00:
 	case KEY_DSA_CERT:
 		if ((dsa = DSA_new()) == NULL)
 			fatal("key_new: DSA_new failed");
@@ -124,6 +128,7 @@ key_add_private(Key *k)
 	switch (k->type) {
 	case KEY_RSA1:
 	case KEY_RSA:
+	case KEY_RSA_CERT_V00:
 	case KEY_RSA_CERT:
 		if ((k->rsa->d = BN_new()) == NULL)
 			fatal("key_new_private: BN_new failed");
@@ -139,6 +144,7 @@ key_add_private(Key *k)
 			fatal("key_new_private: BN_new failed");
 		break;
 	case KEY_DSA:
+	case KEY_DSA_CERT_V00:
 	case KEY_DSA_CERT:
 		if ((k->dsa->priv_key = BN_new()) == NULL)
 			fatal("key_new_private: BN_new failed");
@@ -165,7 +171,8 @@ cert_free(struct KeyCert *cert)
 	u_int i;
 
 	buffer_free(&cert->certblob);
-	buffer_free(&cert->constraints);
+	buffer_free(&cert->critical);
+	buffer_free(&cert->extensions);
 	if (cert->key_id != NULL)
 		xfree(cert->key_id);
 	for (i = 0; i < cert->nprincipals; i++)
@@ -184,12 +191,14 @@ key_free(Key *k)
 	switch (k->type) {
 	case KEY_RSA1:
 	case KEY_RSA:
+	case KEY_RSA_CERT_V00:
 	case KEY_RSA_CERT:
 		if (k->rsa != NULL)
 			RSA_free(k->rsa);
 		k->rsa = NULL;
 		break;
 	case KEY_DSA:
+	case KEY_DSA_CERT_V00:
 	case KEY_DSA_CERT:
 		if (k->dsa != NULL)
 			DSA_free(k->dsa);
@@ -219,7 +228,7 @@ cert_compare(struct KeyCert *a, struct KeyCert *b)
 		return 0;
 	if (buffer_len(&a->certblob) != buffer_len(&b->certblob))
 		return 0;
-	if (memcmp(buffer_ptr(&a->certblob), buffer_ptr(&b->certblob),
+	if (timingsafe_bcmp(buffer_ptr(&a->certblob), buffer_ptr(&b->certblob),
 	    buffer_len(&a->certblob)) != 0)
 		return 0;
 	return 1;
@@ -238,11 +247,13 @@ key_equal_public(const Key *a, const Key *b)
 
 	switch (a->type) {
 	case KEY_RSA1:
+	case KEY_RSA_CERT_V00:
 	case KEY_RSA_CERT:
 	case KEY_RSA:
 		return a->rsa != NULL && b->rsa != NULL &&
 		    BN_cmp(a->rsa->e, b->rsa->e) == 0 &&
 		    BN_cmp(a->rsa->n, b->rsa->n) == 0;
+	case KEY_DSA_CERT_V00:
 	case KEY_DSA_CERT:
 	case KEY_DSA:
 		return a->dsa != NULL && b->dsa != NULL &&
@@ -304,6 +315,8 @@ key_fingerprint_raw(Key *k, enum fp_type dgst_type, u_int *dgst_raw_length)
 	case KEY_RSA:
 		key_to_blob(k, &blob, &len);
 		break;
+	case KEY_DSA_CERT_V00:
+	case KEY_RSA_CERT_V00:
 	case KEY_DSA_CERT:
 	case KEY_RSA_CERT:
 		/* We want a fingerprint of the _key_ not of the cert */
@@ -631,6 +644,8 @@ key_read(Key *ret, char **cpp)
 	case KEY_UNSPEC:
 	case KEY_RSA:
 	case KEY_DSA:
+	case KEY_DSA_CERT_V00:
+	case KEY_RSA_CERT_V00:
 	case KEY_DSA_CERT:
 	case KEY_RSA_CERT:
 		space = strchr(cp, ' ');
@@ -757,11 +772,13 @@ key_write(const Key *key, FILE *f)
 		error("key_write: failed for RSA key");
 		return 0;
 	case KEY_DSA:
+	case KEY_DSA_CERT_V00:
 	case KEY_DSA_CERT:
 		if (key->dsa == NULL)
 			return 0;
 		break;
 	case KEY_RSA:
+	case KEY_RSA_CERT_V00:
 	case KEY_RSA_CERT:
 		if (key->rsa == NULL)
 			return 0;
@@ -793,6 +810,10 @@ key_type(const Key *k)
 		return "RSA";
 	case KEY_DSA:
 		return "DSA";
+	case KEY_RSA_CERT_V00:
+		return "RSA-CERT-V00";
+	case KEY_DSA_CERT_V00:
+		return "DSA-CERT-V00";
 	case KEY_RSA_CERT:
 		return "RSA-CERT";
 	case KEY_DSA_CERT:
@@ -822,10 +843,14 @@ key_ssh_name(const Key *k)
 		return "ssh-rsa";
 	case KEY_DSA:
 		return "ssh-dss";
-	case KEY_RSA_CERT:
+	case KEY_RSA_CERT_V00:
 		return "ssh-rsa-cert-v00@openssh.com";
-	case KEY_DSA_CERT:
+	case KEY_DSA_CERT_V00:
 		return "ssh-dss-cert-v00@openssh.com";
+	case KEY_RSA_CERT:
+		return "ssh-rsa-cert-v01@openssh.com";
+	case KEY_DSA_CERT:
+		return "ssh-dss-cert-v01@openssh.com";
 	}
 	return "ssh-unknown";
 }
@@ -836,9 +861,11 @@ key_size(const Key *k)
 	switch (k->type) {
 	case KEY_RSA1:
 	case KEY_RSA:
+	case KEY_RSA_CERT_V00:
 	case KEY_RSA_CERT:
 		return BN_num_bits(k->rsa->n);
 	case KEY_DSA:
+	case KEY_DSA_CERT_V00:
 	case KEY_DSA_CERT:
 		return BN_num_bits(k->dsa->p);
 	}
@@ -882,6 +909,8 @@ key_generate(int type, u_int bits)
 	case KEY_RSA1:
 		k->rsa = rsa_generate_private_key(bits);
 		break;
+	case KEY_RSA_CERT_V00:
+	case KEY_DSA_CERT_V00:
 	case KEY_RSA_CERT:
 	case KEY_DSA_CERT:
 		fatal("key_generate: cert keys cannot be generated directly");
@@ -912,9 +941,12 @@ key_cert_copy(const Key *from_key, struct Key *to_key)
 	buffer_append(&to->certblob, buffer_ptr(&from->certblob),
 	    buffer_len(&from->certblob));
 
-	buffer_append(&to->constraints, buffer_ptr(&from->constraints),
-	    buffer_len(&from->constraints));
+	buffer_append(&to->critical,
+	    buffer_ptr(&from->critical), buffer_len(&from->critical));
+	buffer_append(&to->extensions,
+	    buffer_ptr(&from->extensions), buffer_len(&from->extensions));
 
+	to->serial = from->serial;
 	to->type = from->type;
 	to->key_id = from->key_id == NULL ? NULL : xstrdup(from->key_id);
 	to->valid_after = from->valid_after;
@@ -940,6 +972,7 @@ key_from_private(const Key *k)
 	Key *n = NULL;
 	switch (k->type) {
 	case KEY_DSA:
+	case KEY_DSA_CERT_V00:
 	case KEY_DSA_CERT:
 		n = key_new(k->type);
 		if ((BN_copy(n->dsa->p, k->dsa->p) == NULL) ||
@@ -950,6 +983,7 @@ key_from_private(const Key *k)
 		break;
 	case KEY_RSA:
 	case KEY_RSA1:
+	case KEY_RSA_CERT_V00:
 	case KEY_RSA_CERT:
 		n = key_new(k->type);
 		if ((BN_copy(n->rsa->n, k->rsa->n) == NULL) ||
@@ -979,8 +1013,12 @@ key_type_from_name(char *name)
 	} else if (strcmp(name, "ssh-dss") == 0) {
 		return KEY_DSA;
 	} else if (strcmp(name, "ssh-rsa-cert-v00@openssh.com") == 0) {
-		return KEY_RSA_CERT;
+		return KEY_RSA_CERT_V00;
 	} else if (strcmp(name, "ssh-dss-cert-v00@openssh.com") == 0) {
+		return KEY_DSA_CERT_V00;
+	} else if (strcmp(name, "ssh-rsa-cert-v01@openssh.com") == 0) {
+		return KEY_RSA_CERT;
+	} else if (strcmp(name, "ssh-dss-cert-v01@openssh.com") == 0) {
 		return KEY_DSA_CERT;
 	}
 	debug2("key_type_from_name: unknown key type '%s'", name);
@@ -1012,26 +1050,31 @@ key_names_valid2(const char *names)
 static int
 cert_parse(Buffer *b, Key *key, const u_char *blob, u_int blen)
 {
-	u_char *principals, *constraints, *sig_key, *sig;
-	u_int signed_len, plen, clen, sklen, slen, kidlen;
+	u_char *principals, *critical, *exts, *sig_key, *sig;
+	u_int signed_len, plen, clen, sklen, slen, kidlen, elen;
 	Buffer tmp;
 	char *principal;
 	int ret = -1;
+	int v00 = key->type == KEY_DSA_CERT_V00 ||
+	    key->type == KEY_RSA_CERT_V00;
 
 	buffer_init(&tmp);
 
 	/* Copy the entire key blob for verification and later serialisation */
 	buffer_append(&key->cert->certblob, blob, blen);
 
-	principals = constraints = sig_key = sig = NULL;
-	if (buffer_get_int_ret(&key->cert->type, b) != 0 ||
+	elen = 0; /* Not touched for v00 certs */
+	principals = exts = critical = sig_key = sig = NULL;
+	if ((!v00 && buffer_get_int64_ret(&key->cert->serial, b) != 0) ||
+	    buffer_get_int_ret(&key->cert->type, b) != 0 ||
 	    (key->cert->key_id = buffer_get_string_ret(b, &kidlen)) == NULL ||
 	    (principals = buffer_get_string_ret(b, &plen)) == NULL ||
 	    buffer_get_int64_ret(&key->cert->valid_after, b) != 0 ||
 	    buffer_get_int64_ret(&key->cert->valid_before, b) != 0 ||
-	    (constraints = buffer_get_string_ret(b, &clen)) == NULL ||
-	    /* skip nonce */ buffer_get_string_ptr_ret(b, NULL) == NULL ||
-	    /* skip reserved */ buffer_get_string_ptr_ret(b, NULL) == NULL ||
+	    (critical = buffer_get_string_ret(b, &clen)) == NULL ||
+	    (!v00 && (exts = buffer_get_string_ret(b, &elen)) == NULL) ||
+	    (v00 && buffer_get_string_ptr_ret(b, NULL) == NULL) || /* nonce */
+	    buffer_get_string_ptr_ret(b, NULL) == NULL || /* reserved */
 	    (sig_key = buffer_get_string_ret(b, &sklen)) == NULL) {
 		error("%s: parse error", __func__);
 		goto out;
@@ -1078,13 +1121,25 @@ cert_parse(Buffer *b, Key *key, const u_char *blob, u_int blen)
 
 	buffer_clear(&tmp);
 
-	buffer_append(&key->cert->constraints, constraints, clen);
-	buffer_append(&tmp, constraints, clen);
+	buffer_append(&key->cert->critical, critical, clen);
+	buffer_append(&tmp, critical, clen);
 	/* validate structure */
 	while (buffer_len(&tmp) != 0) {
 		if (buffer_get_string_ptr_ret(&tmp, NULL) == NULL ||
 		    buffer_get_string_ptr_ret(&tmp, NULL) == NULL) {
-			error("%s: Constraints data invalid", __func__);
+			error("%s: critical option data invalid", __func__);
+			goto out;
+		}
+	}
+	buffer_clear(&tmp);
+
+	buffer_append(&key->cert->extensions, exts, elen);
+	buffer_append(&tmp, exts, elen);
+	/* validate structure */
+	while (buffer_len(&tmp) != 0) {
+		if (buffer_get_string_ptr_ret(&tmp, NULL) == NULL ||
+		    buffer_get_string_ptr_ret(&tmp, NULL) == NULL) {
+			error("%s: extension data invalid", __func__);
 			goto out;
 		}
 	}
@@ -1121,8 +1176,10 @@ cert_parse(Buffer *b, Key *key, const u_char *blob, u_int blen)
 	buffer_free(&tmp);
 	if (principals != NULL)
 		xfree(principals);
-	if (constraints != NULL)
-		xfree(constraints);
+	if (critical != NULL)
+		xfree(critical);
+	if (exts != NULL)
+		xfree(exts);
 	if (sig_key != NULL)
 		xfree(sig_key);
 	if (sig != NULL)
@@ -1151,8 +1208,11 @@ key_from_blob(const u_char *blob, u_int blen)
 	type = key_type_from_name(ktype);
 
 	switch (type) {
-	case KEY_RSA:
 	case KEY_RSA_CERT:
+		(void)buffer_get_string_ptr_ret(&b, NULL); /* Skip nonce */
+		/* FALLTHROUGH */
+	case KEY_RSA:
+	case KEY_RSA_CERT_V00:
 		key = key_new(type);
 		if (buffer_get_bignum2_ret(&b, key->rsa->e) == -1 ||
 		    buffer_get_bignum2_ret(&b, key->rsa->n) == -1) {
@@ -1166,8 +1226,11 @@ key_from_blob(const u_char *blob, u_int blen)
 		RSA_print_fp(stderr, key->rsa, 8);
 #endif
 		break;
-	case KEY_DSA:
 	case KEY_DSA_CERT:
+		(void)buffer_get_string_ptr_ret(&b, NULL); /* Skip nonce */
+		/* FALLTHROUGH */
+	case KEY_DSA:
+	case KEY_DSA_CERT_V00:
 		key = key_new(type);
 		if (buffer_get_bignum2_ret(&b, key->dsa->p) == -1 ||
 		    buffer_get_bignum2_ret(&b, key->dsa->q) == -1 ||
@@ -1213,6 +1276,8 @@ key_to_blob(const Key *key, u_char **blobp, u_int *lenp)
 	}
 	buffer_init(&b);
 	switch (key->type) {
+	case KEY_DSA_CERT_V00:
+	case KEY_RSA_CERT_V00:
 	case KEY_DSA_CERT:
 	case KEY_RSA_CERT:
 		/* Use the existing blob */
@@ -1255,9 +1320,11 @@ key_sign(
     const u_char *data, u_int datalen)
 {
 	switch (key->type) {
+	case KEY_DSA_CERT_V00:
 	case KEY_DSA_CERT:
 	case KEY_DSA:
 		return ssh_dss_sign(key, sigp, lenp, data, datalen);
+	case KEY_RSA_CERT_V00:
 	case KEY_RSA_CERT:
 	case KEY_RSA:
 		return ssh_rsa_sign(key, sigp, lenp, data, datalen);
@@ -1281,9 +1348,11 @@ key_verify(
 		return -1;
 
 	switch (key->type) {
+	case KEY_DSA_CERT_V00:
 	case KEY_DSA_CERT:
 	case KEY_DSA:
 		return ssh_dss_verify(key, signature, signaturelen, data, datalen);
+	case KEY_RSA_CERT_V00:
 	case KEY_RSA_CERT:
 	case KEY_RSA:
 		return ssh_rsa_verify(key, signature, signaturelen, data, datalen);
@@ -1306,6 +1375,7 @@ key_demote(const Key *k)
 	pk->rsa = NULL;
 
 	switch (k->type) {
+	case KEY_RSA_CERT_V00:
 	case KEY_RSA_CERT:
 		key_cert_copy(k, pk);
 		/* FALLTHROUGH */
@@ -1318,6 +1388,7 @@ key_demote(const Key *k)
 		if ((pk->rsa->n = BN_dup(k->rsa->n)) == NULL)
 			fatal("key_demote: BN_dup failed");
 		break;
+	case KEY_DSA_CERT_V00:
 	case KEY_DSA_CERT:
 		key_cert_copy(k, pk);
 		/* FALLTHROUGH */
@@ -1344,8 +1415,17 @@ key_demote(const Key *k)
 int
 key_is_cert(const Key *k)
 {
-	return k != NULL &&
-	    (k->type == KEY_RSA_CERT || k->type == KEY_DSA_CERT);
+	if (k == NULL)
+		return 0;
+	switch (k->type) {
+	case KEY_RSA_CERT_V00:
+	case KEY_DSA_CERT_V00:
+	case KEY_RSA_CERT:
+	case KEY_DSA_CERT:
+		return 1;
+	default:
+		return 0;
+	}
 }
 
 /* Return the cert-less equivalent to a certified key type */
@@ -1353,8 +1433,10 @@ int
 key_type_plain(int type)
 {
 	switch (type) {
+	case KEY_RSA_CERT_V00:
 	case KEY_RSA_CERT:
 		return KEY_RSA;
+	case KEY_DSA_CERT_V00:
 	case KEY_DSA_CERT:
 		return KEY_DSA;
 	default:
@@ -1364,16 +1446,16 @@ key_type_plain(int type)
 
 /* Convert a KEY_RSA or KEY_DSA to their _CERT equivalent */
 int
-key_to_certified(Key *k)
+key_to_certified(Key *k, int legacy)
 {
 	switch (k->type) {
 	case KEY_RSA:
 		k->cert = cert_new();
-		k->type = KEY_RSA_CERT;
+		k->type = legacy ? KEY_RSA_CERT_V00 : KEY_RSA_CERT;
 		return 0;
 	case KEY_DSA:
 		k->cert = cert_new();
-		k->type = KEY_DSA_CERT;
+		k->type = legacy ? KEY_DSA_CERT_V00 : KEY_DSA_CERT;
 		return 0;
 	default:
 		error("%s: key has incorrect type %s", __func__, key_type(k));
@@ -1386,10 +1468,12 @@ int
 key_drop_cert(Key *k)
 {
 	switch (k->type) {
+	case KEY_RSA_CERT_V00:
 	case KEY_RSA_CERT:
 		cert_free(k->cert);
 		k->type = KEY_RSA;
 		return 0;
+	case KEY_DSA_CERT_V00:
 	case KEY_DSA_CERT:
 		cert_free(k->cert);
 		k->type = KEY_DSA;
@@ -1430,13 +1514,21 @@ key_certify(Key *k, Key *ca)
 	buffer_clear(&k->cert->certblob);
 	buffer_put_cstring(&k->cert->certblob, key_ssh_name(k));
 
+	/* -v01 certs put nonce first */
+	if (k->type == KEY_DSA_CERT || k->type == KEY_RSA_CERT) {
+		arc4random_buf(&nonce, sizeof(nonce));
+		buffer_put_string(&k->cert->certblob, nonce, sizeof(nonce));
+	}
+
 	switch (k->type) {
+	case KEY_DSA_CERT_V00:
 	case KEY_DSA_CERT:
 		buffer_put_bignum2(&k->cert->certblob, k->dsa->p);
 		buffer_put_bignum2(&k->cert->certblob, k->dsa->q);
 		buffer_put_bignum2(&k->cert->certblob, k->dsa->g);
 		buffer_put_bignum2(&k->cert->certblob, k->dsa->pub_key);
 		break;
+	case KEY_RSA_CERT_V00:
 	case KEY_RSA_CERT:
 		buffer_put_bignum2(&k->cert->certblob, k->rsa->e);
 		buffer_put_bignum2(&k->cert->certblob, k->rsa->n);
@@ -1447,6 +1539,10 @@ key_certify(Key *k, Key *ca)
 		xfree(ca_blob);
 		return -1;
 	}
+
+	/* -v01 certs have a serial number next */
+	if (k->type == KEY_DSA_CERT || k->type == KEY_RSA_CERT)
+		buffer_put_int64(&k->cert->certblob, k->cert->serial);
 
 	buffer_put_int(&k->cert->certblob, k->cert->type);
 	buffer_put_cstring(&k->cert->certblob, k->cert->key_id);
@@ -1461,11 +1557,19 @@ key_certify(Key *k, Key *ca)
 	buffer_put_int64(&k->cert->certblob, k->cert->valid_after);
 	buffer_put_int64(&k->cert->certblob, k->cert->valid_before);
 	buffer_put_string(&k->cert->certblob,
-	    buffer_ptr(&k->cert->constraints),
-	    buffer_len(&k->cert->constraints));
+	    buffer_ptr(&k->cert->critical), buffer_len(&k->cert->critical));
 
-	arc4random_buf(&nonce, sizeof(nonce));
-	buffer_put_string(&k->cert->certblob, nonce, sizeof(nonce));
+	/* -v01 certs have non-critical options here */
+	if (k->type == KEY_DSA_CERT || k->type == KEY_RSA_CERT) {
+		buffer_put_string(&k->cert->certblob,
+		    buffer_ptr(&k->cert->extensions),
+		    buffer_len(&k->cert->extensions));
+	}
+
+	/* -v00 certs put the nonce at the end */
+	if (k->type == KEY_DSA_CERT_V00 || k->type == KEY_RSA_CERT_V00)
+		buffer_put_string(&k->cert->certblob, nonce, sizeof(nonce));
+
 	buffer_put_string(&k->cert->certblob, NULL, 0); /* reserved */
 	buffer_put_string(&k->cert->certblob, ca_blob, ca_len);
 	xfree(ca_blob);
@@ -1520,7 +1624,7 @@ key_cert_check_authority(const Key *k, int want_host, int require_principal,
 			*reason = "Certificate lacks principal list";
 			return -1;
 		}
-	} else {
+	} else if (name != NULL) {
 		principal_matches = 0;
 		for (i = 0; i < k->cert->nprincipals; i++) {
 			if (strcmp(name, k->cert->principals[i]) == 0) {
@@ -1535,4 +1639,16 @@ key_cert_check_authority(const Key *k, int want_host, int require_principal,
 		}
 	}
 	return 0;
+}
+
+int
+key_cert_is_legacy(Key *k)
+{
+	switch (k->type) {
+	case KEY_DSA_CERT_V00:
+	case KEY_RSA_CERT_V00:
+		return 1;
+	default:
+		return 0;
+	}
 }

@@ -388,7 +388,7 @@ requests include both L1D demand RFO misses as well as L1D RFO prefetches.
 .It Li L2_RQSTS.RFOS
 .Pq Event 24H , Umask 0CH
 Counts all L2 store RFO requests. L2 RFO requests include both L1D demand
-RFO misses as well as L1D RFO prefetches..
+RFO misses as well as L1D RFO prefetches.
 .It Li L2_RQSTS.IFETCH_HIT
 .Pq Event 24H , Umask 10H
 Counts number of instruction fetches that hit the L2 cache. L2 instruction
@@ -474,13 +474,13 @@ This is a demand RFO request
 .It Li L2_WRITE.RFO.S_STATE
 .Pq Event 27H , Umask 02H
 Counts number of L2 store RFO requests where the cache line to be loaded is
-in the S (shared) state. The L1D prefetcher does not issue a RFO prefetch,.
-This is a demand RFO request
+in the S (shared) state. The L1D prefetcher does not issue a RFO prefetch.
+This is a demand RFO request.
 .It Li L2_WRITE.RFO.M_STATE
 .Pq Event 27H , Umask 08H
 Counts number of L2 store RFO requests where the cache line to be loaded is
 in the M (modified) state. The L1D prefetcher does not issue a RFO prefetch.
-This is a demand RFO request
+This is a demand RFO request.
 .It Li L2_WRITE.RFO.HIT
 .Pq Event 27H , Umask 0EH
 Counts number of L2 store RFO requests where the cache line to be loaded is
@@ -491,7 +491,7 @@ This is a demand RFO request
 .Pq Event 27H , Umask 0FH
 Counts all L2 store RFO requests.The L1D prefetcher does not issue a RFO
 prefetch.
-This is a demand RFO request
+This is a demand RFO request.
 .It Li L2_WRITE.LOCK.I_STATE
 .Pq Event 27H , Umask 10H
 Counts number of L2 demand lock RFO requests where the cache line to be
@@ -539,13 +539,13 @@ Counts all L1 writebacks to the L2.
 Counts uncore Last Level Cache references. Because cache hierarchy, cache
 sizes and other implementation-specific characteristics; value comparison to
 estimate performance differences is not recommended.
-see Table A-1
+See Table A-1.
 .It Li L3_LAT_CACHE.MISS
 .Pq Event 2EH , Umask 01H
 Counts uncore Last Level Cache misses. Because cache hierarchy, cache sizes
 and other implementation-specific characteristics; value comparison to
 estimate performance differences is not recommended.
-see Table A-1
+See Table A-1.
 .It Li CPU_CLK_UNHALTED.THREAD_P
 .Pq Event 3CH , Umask 00H
 Counts the number of thread cycles while the thread is not in a halt state.
@@ -601,16 +601,16 @@ Counts Extended Page walk cycles.
 .It Li L1D.REPL
 .Pq Event 51H , Umask 01H
 Counts the number of lines brought into the L1 data cache.
-Counter 0, 1 only
+Counter 0, 1 only.
 .It Li L1D.M_REPL
 .Pq Event 51H , Umask 02H
 Counts the number of modified lines brought into the L1 data cache.
-Counter 0, 1 only
+Counter 0, 1 only.
 .It Li L1D.M_EVICT
 .Pq Event 51H , Umask 04H
 Counts the number of modified lines evicted from the L1 data cache due to
 replacement.
-Counter 0, 1 only
+Counter 0, 1 only.
 .It Li L1D.M_SNOOP_EVICT
 .Pq Event 51H , Umask 08H
 Counts the number of modified lines evicted from the L1 data cache due to
@@ -628,22 +628,22 @@ accepted into the fill buffer.
 .Pq Event 60H , Umask 01H
 Counts weighted cycles of offcore demand data read requests. Does not
 include L2 prefetch requests.
-counter 0
+Counter 0.
 .It Li OFFCORE_REQUESTS_OUTSTANDING.DEMAND.READ_CODE
 .Pq Event 60H , Umask 02H
 Counts weighted cycles of offcore demand code read requests. Does not
 include L2 prefetch requests.
-counter 0
+Counter 0.
 .It Li OFFCORE_REQUESTS_OUTSTANDING.DEMAND.RFO
 .Pq Event 60H , Umask 04H
 Counts weighted cycles of offcore demand RFO requests. Does not include L2
 prefetch requests.
-counter 0
+Counter 0.
 .It Li OFFCORE_REQUESTS_OUTSTANDING.ANY.READ
 .Pq Event 60H , Umask 08H
 Counts weighted cycles of offcore read requests of any kind. Include L2
 prefetch requests.
-counter 0
+Ccounter 0.
 .It Li CACHE_LOCK_CYCLES.L1D_L2
 .Pq Event 63H , Umask 01H
 Cycle count during which the L1D and L2 are locked. A lock is asserted when
@@ -915,7 +915,7 @@ ports. This is a core count only and can not be collected per thread.
 .It Li UOPS_EXECUTED.PORT015
 .Pq Event B1H , Umask 40H
 Counts number of Uops executed that where issued on port 0, 1, or 5.
-use cmask=1, invert=1 to count stall cycles
+Use cmask=1, invert=1 to count stall cycles.
 .It Li UOPS_EXECUTED.PORT234
 .Pq Event B1H , Umask 80H
 Counts number of Uops executed that where issued on port 2, 3, or 4.
@@ -928,18 +928,18 @@ Counts weighted cycles of snoopq requests for data. Counter 0 only
 Use cmask=1 to count cycles not empty.
 .It Li SNOOPQ_REQUESTS_OUTSTANDING.INVALIDATE
 .Pq Event B3H , Umask 02H
-Counts weighted cycles of snoopq invalidate requests. Counter 0 only
+Counts weighted cycles of snoopq invalidate requests. Counter 0 only.
 Use cmask=1 to count cycles not empty.
 .It Li SNOOPQ_REQUESTS_OUTSTANDING.CODE
 .Pq Event B3H , Umask 04H
-Counts weighted cycles of snoopq requests for code. Counter 0 only
+Counts weighted cycles of snoopq requests for code. Counter 0 only.
 Use cmask=1 to count cycles not empty.
 .It Li SNOOPQ_REQUESTS.CODE
 .Pq Event B4H , Umask 01H
-Counts the number of snoop code requests
+Counts the number of snoop code requests.
 .It Li SNOOPQ_REQUESTS.DATA
 .Pq Event B4H , Umask 02H
-Counts the number of snoop data requests
+Counts the number of snoop data requests.
 .It Li SNOOPQ_REQUESTS.INVALIDATE
 .Pq Event B4H , Umask 04H
 Counts the number of snoop invalidate requests
@@ -947,7 +947,7 @@ Counts the number of snoop invalidate requests
 .Pq Event B7H , Umask 01H
 see Section 30.6.1.3, Off-core Response Performance Monitoring in the
 Processor Core.
-Requires programming MSR 01A6H
+Requires programming MSR 01A6H.
 .It Li SNOOP_RESPONSE.HIT
 .Pq Event B8H , Umask 01H
 Counts HIT snoop response sent by this thread in response to a snoop
@@ -963,8 +963,8 @@ request.
 .It Li OFF_CORE_RESPONSE_1
 .Pq Event BBH , Umask 01H
 see Section 30.6.1.3, Off-core Response Performance Monitoring in the
-Processor Core
-Use MSR 01A7H
+Processor Core.
+Use MSR 01A7H.
 .It Li INST_RETIRED.ANY_P
 .Pq Event C0H , Umask 01H
 See Table A-1
@@ -1007,21 +1007,21 @@ Counts the number of machine clears due to memory order conflicts.
 Counts the number of times that a program writes to a code section.
 Self-modifying code causes a sever penalty in all Intel 64 and IA-32
 processors. The modified cache line is written back to the L2 and L3caches.
-.It Li BR_INST_RETIRED.ALL_BRANCHES
+.It Li BR_INST_RETIRED.ANY_P
 .Pq Event C4H , Umask 00H
-See Table A-1
+See Table A-1.
 .It Li BR_INST_RETIRED.CONDITIONAL
 .Pq Event C4H , Umask 01H
 Counts the number of conditional branch instructions retired.
 .It Li BR_INST_RETIRED.NEAR_CALL
 .Pq Event C4H , Umask 02H
-Counts the number of direct & indirect near unconditional calls retired
+Counts the number of direct & indirect near unconditional calls retired.
 .It Li BR_INST_RETIRED.ALL_BRANCHES
 .Pq Event C4H , Umask 04H
-Counts the number of branch instructions retired
-.It Li BR_MISP_RETIRED.ALL_BRANCHES
+Counts the number of branch instructions retired.
+.It Li BR_MISP_RETIRED.ANY_P
 .Pq Event C5H , Umask 00H
-See Table A-1
+See Table A-1.
 .It Li BR_MISP_RETIRED.CONDITIONAL
 .Pq Event C5H , Umask 01H
 Counts mispredicted conditional retired calls.

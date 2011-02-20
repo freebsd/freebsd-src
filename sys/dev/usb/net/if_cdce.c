@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -110,10 +109,13 @@ static uint32_t	cdce_m_crc32(struct mbuf *, uint32_t, uint32_t);
 
 #ifdef USB_DEBUG
 static int cdce_debug = 0;
+static int cdce_tx_interval = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, cdce, CTLFLAG_RW, 0, "USB CDC-Ethernet");
 SYSCTL_INT(_hw_usb_cdce, OID_AUTO, debug, CTLFLAG_RW, &cdce_debug, 0,
     "Debug level");
+SYSCTL_INT(_hw_usb_cdce, OID_AUTO, interval, CTLFLAG_RW, &cdce_tx_interval, 0,
+    "NCM transmit interval in ms");
 #endif
 
 static const struct usb_config cdce_config[CDCE_N_TRANSFER] = {
@@ -192,7 +194,7 @@ static const struct usb_config cdce_ncm_config[CDCE_N_TRANSFER] = {
 		.if_index = 0,
 		.frames = CDCE_NCM_TX_FRAMES_MAX,
 		.bufsize = (CDCE_NCM_TX_FRAMES_MAX * CDCE_NCM_TX_MAXLEN),
-		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.flags = {.pipe_bof = 1,},
 		.callback = cdce_ncm_bulk_write_callback,
 		.timeout = 10000,	/* 10 seconds */
 		.usb_mode = USB_MODE_DUAL,	/* both modes */
@@ -294,8 +296,21 @@ cdce_ncm_init(struct cdce_softc *sc)
 {
 	struct usb_ncm_parameters temp;
 	struct usb_device_request req;
-	uDWord value;
+	struct usb_ncm_func_descriptor *ufd;
+	uint8_t value[8];
 	int err;
+
+	ufd = usbd_find_descriptor(sc->sc_ue.ue_udev, NULL,
+	    sc->sc_ifaces_index[1], UDESC_CS_INTERFACE, 0 - 1,
+	    UCDC_NCM_FUNC_DESC_SUBTYPE, 0 - 1);
+
+	/* verify length of NCM functional descriptor */
+	if (ufd != NULL) {
+		if (ufd->bLength < sizeof(*ufd))
+			ufd = NULL;
+		else
+			DPRINTFN(1, "Found NCM functional descriptor.\n");
+	}
 
 	req.bmRequestType = UT_READ_CLASS_INTERFACE;
 	req.bRequest = UCDC_NCM_GET_NTB_PARAMETERS;
@@ -312,22 +327,24 @@ cdce_ncm_init(struct cdce_softc *sc)
 	/* Read correct set of parameters according to device mode */
 
 	if (usbd_get_mode(sc->sc_ue.ue_udev) == USB_MODE_HOST) {
-		sc->sc_ncm.rx_max = UGETW(temp.dwNtbInMaxSize);
-		sc->sc_ncm.tx_max = UGETW(temp.dwNtbOutMaxSize);
+		sc->sc_ncm.rx_max = UGETDW(temp.dwNtbInMaxSize);
+		sc->sc_ncm.tx_max = UGETDW(temp.dwNtbOutMaxSize);
 		sc->sc_ncm.tx_remainder = UGETW(temp.wNdpOutPayloadRemainder);
 		sc->sc_ncm.tx_modulus = UGETW(temp.wNdpOutDivisor);
 		sc->sc_ncm.tx_struct_align = UGETW(temp.wNdpOutAlignment);
+		sc->sc_ncm.tx_nframe = UGETW(temp.wNtbOutMaxDatagrams);
 	} else {
-		sc->sc_ncm.rx_max = UGETW(temp.dwNtbOutMaxSize);
-		sc->sc_ncm.tx_max = UGETW(temp.dwNtbInMaxSize);
+		sc->sc_ncm.rx_max = UGETDW(temp.dwNtbOutMaxSize);
+		sc->sc_ncm.tx_max = UGETDW(temp.dwNtbInMaxSize);
 		sc->sc_ncm.tx_remainder = UGETW(temp.wNdpInPayloadRemainder);
 		sc->sc_ncm.tx_modulus = UGETW(temp.wNdpInDivisor);
 		sc->sc_ncm.tx_struct_align = UGETW(temp.wNdpInAlignment);
+		sc->sc_ncm.tx_nframe = UGETW(temp.wNtbOutMaxDatagrams);
 	}
 
 	/* Verify maximum receive length */
 
-	if (err || (sc->sc_ncm.rx_max < 32) || 
+	if ((sc->sc_ncm.rx_max < 32) || 
 	    (sc->sc_ncm.rx_max > CDCE_NCM_RX_MAXLEN)) {
 		DPRINTFN(1, "Using default maximum receive length\n");
 		sc->sc_ncm.rx_max = CDCE_NCM_RX_MAXLEN;
@@ -335,7 +352,7 @@ cdce_ncm_init(struct cdce_softc *sc)
 
 	/* Verify maximum transmit length */
 
-	if (err || (sc->sc_ncm.tx_max < 32) ||
+	if ((sc->sc_ncm.tx_max < 32) ||
 	    (sc->sc_ncm.tx_max > CDCE_NCM_TX_MAXLEN)) {
 		DPRINTFN(1, "Using default maximum transmit length\n");
 		sc->sc_ncm.tx_max = CDCE_NCM_TX_MAXLEN;
@@ -347,7 +364,7 @@ cdce_ncm_init(struct cdce_softc *sc)
 	 * - not greater than the maximum transmit length
 	 * - not less than four bytes
 	 */
-	if (err || (sc->sc_ncm.tx_struct_align < 4) ||
+	if ((sc->sc_ncm.tx_struct_align < 4) ||
 	    (sc->sc_ncm.tx_struct_align != 
 	     ((-sc->sc_ncm.tx_struct_align) & sc->sc_ncm.tx_struct_align)) ||
 	    (sc->sc_ncm.tx_struct_align >= sc->sc_ncm.tx_max)) {
@@ -361,7 +378,7 @@ cdce_ncm_init(struct cdce_softc *sc)
 	 * - not greater than the maximum transmit length
 	 * - not less than four bytes
 	 */
-	if (err || (sc->sc_ncm.tx_modulus < 4) ||
+	if ((sc->sc_ncm.tx_modulus < 4) ||
 	    (sc->sc_ncm.tx_modulus !=
 	     ((-sc->sc_ncm.tx_modulus) & sc->sc_ncm.tx_modulus)) ||
 	    (sc->sc_ncm.tx_modulus >= sc->sc_ncm.tx_max)) {
@@ -371,9 +388,28 @@ cdce_ncm_init(struct cdce_softc *sc)
 
 	/* Verify that the payload remainder */
 
-	if (err || (sc->sc_ncm.tx_remainder >= sc->sc_ncm.tx_modulus)) {
+	if ((sc->sc_ncm.tx_remainder >= sc->sc_ncm.tx_modulus)) {
 		DPRINTFN(1, "Using default transmit remainder: 0 bytes\n");
 		sc->sc_ncm.tx_remainder = 0;
+	}
+
+	/*
+	 * Offset the TX remainder so that IP packet payload starts at
+	 * the tx_modulus. This is not too clear in the specification.
+	 */
+
+	sc->sc_ncm.tx_remainder = 
+	    (sc->sc_ncm.tx_remainder - ETHER_HDR_LEN) &
+	    (sc->sc_ncm.tx_modulus - 1);
+
+	/* Verify max datagrams */
+
+	if (sc->sc_ncm.tx_nframe == 0 ||
+	    sc->sc_ncm.tx_nframe > (CDCE_NCM_SUBFRAMES_MAX - 1)) {
+		DPRINTFN(1, "Using default max "
+		    "subframes: %u units\n", CDCE_NCM_SUBFRAMES_MAX - 1);
+		/* need to reserve one entry for zero padding */
+		sc->sc_ncm.tx_nframe = (CDCE_NCM_SUBFRAMES_MAX - 1);
 	}
 
 	/* Additional configuration, will fail in device side mode, which is OK. */
@@ -383,8 +419,17 @@ cdce_ncm_init(struct cdce_softc *sc)
 	USETW(req.wValue, 0);
 	req.wIndex[0] = sc->sc_ifaces_index[1];
 	req.wIndex[1] = 0;
-	USETW(req.wLength, 4);
-	USETDW(value, sc->sc_ncm.rx_max);
+
+	if (ufd != NULL &&
+	    (ufd->bmNetworkCapabilities & UCDC_NCM_CAP_MAX_DGRAM)) {
+		USETW(req.wLength, 8);
+		USETDW(value, sc->sc_ncm.rx_max);
+		USETW(value + 4, (CDCE_NCM_SUBFRAMES_MAX - 1));
+		USETW(value + 6, 0);
+	} else {
+		USETW(req.wLength, 4);
+		USETDW(value, sc->sc_ncm.rx_max);
+ 	}
 
 	err = usbd_do_request_flags(sc->sc_ue.ue_udev, NULL, &req,
 	    &value, 0, NULL, 1000 /* ms */);
@@ -567,7 +612,7 @@ alloc_transfers:
 
 	} else {
 
-		bzero(sc->sc_ue.ue_eaddr, sizeof(sc->sc_ue.ue_eaddr));
+		memset(sc->sc_ue.ue_eaddr, 0, sizeof(sc->sc_ue.ue_eaddr));
 
 		for (i = 0; i != (ETHER_ADDR_LEN * 2); i++) {
 
@@ -983,6 +1028,18 @@ cdce_handle_request(device_t dev,
 }
 
 #if CDCE_HAVE_NCM
+static void
+cdce_ncm_tx_zero(struct usb_page_cache *pc,
+    uint32_t start, uint32_t end)
+{
+	if (start >= CDCE_NCM_TX_MAXLEN)
+		return;
+	if (end > CDCE_NCM_TX_MAXLEN)
+		end = CDCE_NCM_TX_MAXLEN;
+
+	usbd_frame_zero(pc, start, end - start);
+}
+
 static uint8_t
 cdce_ncm_fill_tx_frames(struct usb_xfer *xfer, uint8_t index)
 {
@@ -993,7 +1050,8 @@ cdce_ncm_fill_tx_frames(struct usb_xfer *xfer, uint8_t index)
 	uint32_t rem;
 	uint32_t offset;
 	uint32_t last_offset;
-	uint32_t n;
+	uint16_t n;
+	uint8_t retval;
 
 	usbd_xfer_set_frame_offset(xfer, index * CDCE_NCM_TX_MAXLEN, index);
 
@@ -1003,11 +1061,17 @@ cdce_ncm_fill_tx_frames(struct usb_xfer *xfer, uint8_t index)
 	/* Store last valid offset before alignment */
 	last_offset = offset;
 
-	/* Align offset correctly */
-	offset = sc->sc_ncm.tx_remainder -
-	    ((0UL - offset) & (0UL - sc->sc_ncm.tx_modulus));
+	/* Align offset */
+	offset = CDCE_NCM_ALIGN(sc->sc_ncm.tx_remainder,
+	    offset, sc->sc_ncm.tx_modulus);
 
-	for (n = 0; n != CDCE_NCM_SUBFRAMES_MAX; n++) {
+	/* Zero pad */
+	cdce_ncm_tx_zero(pc, last_offset, offset);
+
+	/* buffer full */
+	retval = 2;
+
+	for (n = 0; n != sc->sc_ncm.tx_nframe; n++) {
 
 		/* check if end of transmit buffer is reached */
 
@@ -1020,8 +1084,11 @@ cdce_ncm_fill_tx_frames(struct usb_xfer *xfer, uint8_t index)
 
 		IFQ_DRV_DEQUEUE(&(ifp->if_snd), m);
 
-		if (m == NULL)
+		if (m == NULL) {
+			/* buffer not full */
+			retval = 1;
 			break;
+		}
 
 		if (m->m_pkthdr.len > rem) {
 			if (n == 0) {
@@ -1047,9 +1114,12 @@ cdce_ncm_fill_tx_frames(struct usb_xfer *xfer, uint8_t index)
 		/* Store last valid offset before alignment */
 		last_offset = offset;
 
-		/* Align offset correctly */
-		offset = sc->sc_ncm.tx_remainder - 
-		    ((0UL - offset) & (0UL - sc->sc_ncm.tx_modulus));
+		/* Align offset */
+		offset = CDCE_NCM_ALIGN(sc->sc_ncm.tx_remainder,
+		    offset, sc->sc_ncm.tx_modulus);
+
+		/* Zero pad */
+		cdce_ncm_tx_zero(pc, last_offset, offset);
 
 		/*
 		 * If there's a BPF listener, bounce a copy
@@ -1067,7 +1137,7 @@ cdce_ncm_fill_tx_frames(struct usb_xfer *xfer, uint8_t index)
 	}
 
 	if (n == 0)
-		return (1);
+		return (0);
 
 	rem = (sizeof(sc->sc_ncm.dpt) + (4 * n) + 4);
 
@@ -1079,8 +1149,22 @@ cdce_ncm_fill_tx_frames(struct usb_xfer *xfer, uint8_t index)
 		USETW(sc->sc_ncm.dp[n].wFrameIndex, 0);
 	}
 
+	offset = last_offset;
+
+	/* Align offset */
+	offset = CDCE_NCM_ALIGN(0, offset, CDCE_NCM_TX_MINLEN);
+
+	/* Optimise, save bandwidth and force short termination */
+	if (offset >= sc->sc_ncm.tx_max)
+		offset = sc->sc_ncm.tx_max;
+	else
+		offset ++;
+
+	/* Zero pad */
+	cdce_ncm_tx_zero(pc, last_offset, offset);
+
 	/* set frame length */
-	usbd_xfer_set_frame_len(xfer, index, last_offset);
+	usbd_xfer_set_frame_len(xfer, index, offset);
 
 	/* Fill out 16-bit header */
 	sc->sc_ncm.hdr.dwSignature[0] = 'N';
@@ -1088,7 +1172,7 @@ cdce_ncm_fill_tx_frames(struct usb_xfer *xfer, uint8_t index)
 	sc->sc_ncm.hdr.dwSignature[2] = 'M';
 	sc->sc_ncm.hdr.dwSignature[3] = 'H';
 	USETW(sc->sc_ncm.hdr.wHeaderLength, sizeof(sc->sc_ncm.hdr));
-	USETW(sc->sc_ncm.hdr.wBlockLength, last_offset);
+	USETW(sc->sc_ncm.hdr.wBlockLength, offset);
 	USETW(sc->sc_ncm.hdr.wSequence, sc->sc_ncm.tx_seq);
 	USETW(sc->sc_ncm.hdr.wDptIndex, sizeof(sc->sc_ncm.hdr));
 
@@ -1106,7 +1190,7 @@ cdce_ncm_fill_tx_frames(struct usb_xfer *xfer, uint8_t index)
 	    sizeof(sc->sc_ncm.dpt));
 	usbd_copy_in(pc, sizeof(sc->sc_ncm.hdr) + sizeof(sc->sc_ncm.dpt),
 	    &(sc->sc_ncm.dp), sizeof(sc->sc_ncm.dp));
-	return (0);
+	return (retval);
 }
 
 static void
@@ -1115,6 +1199,7 @@ cdce_ncm_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct cdce_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = uether_getifp(&sc->sc_ue);
 	uint16_t x;
+	uint8_t temp;
 	int actlen;
 	int aframes;
 
@@ -1128,11 +1213,19 @@ cdce_ncm_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	case USB_ST_SETUP:
 		for (x = 0; x != CDCE_NCM_TX_FRAMES_MAX; x++) {
-			if (cdce_ncm_fill_tx_frames(xfer, x))
+			temp = cdce_ncm_fill_tx_frames(xfer, x);
+			if (temp == 0)
 				break;
+			if (temp == 1) {
+				x++;
+				break;
+			}
 		}
 
 		if (x != 0) {
+#ifdef USB_DEBUG
+			usbd_xfer_set_interval(xfer, cdce_tx_interval);
+#endif
 			usbd_xfer_set_frames(xfer, x);
 			usbd_transfer_submit(xfer);
 		}

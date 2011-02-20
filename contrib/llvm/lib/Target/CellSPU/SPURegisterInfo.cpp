@@ -270,9 +270,8 @@ SPURegisterInfo::eliminateCallFramePseudoInstr(MachineFunction &MF,
   MBB.erase(I);
 }
 
-unsigned
+void
 SPURegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
-                                     FrameIndexValue *Value,
                                      RegScavenger *RS) const
 {
   unsigned i = 0;
@@ -328,7 +327,6 @@ SPURegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
   } else {
     MO.ChangeToImmediate(Offset);
   }
-  return 0;
 }
 
 /// determineFrameLayout - Determine the size of the frame and maximum call
@@ -417,7 +415,7 @@ void SPURegisterInfo::emitPrologue(MachineFunction &MF) const
     if (hasDebugInfo) {
       // Mark effective beginning of when frame pointer becomes valid.
       FrameLabel = MMI.getContext().CreateTempSymbol();
-      BuildMI(MBB, MBBI, dl, TII.get(SPU::DBG_LABEL)).addSym(FrameLabel);
+      BuildMI(MBB, MBBI, dl, TII.get(SPU::PROLOG_LABEL)).addSym(FrameLabel);
     }
 
     // Adjust stack pointer, spilling $lr -> 16($sp) and $sp -> -FrameSize($sp)
@@ -476,7 +474,7 @@ void SPURegisterInfo::emitPrologue(MachineFunction &MF) const
 
       // Mark effective beginning of when frame pointer is ready.
       MCSymbol *ReadyLabel = MMI.getContext().CreateTempSymbol();
-      BuildMI(MBB, MBBI, dl, TII.get(SPU::DBG_LABEL)).addSym(ReadyLabel);
+      BuildMI(MBB, MBBI, dl, TII.get(SPU::PROLOG_LABEL)).addSym(ReadyLabel);
 
       MachineLocation FPDst(SPU::R1);
       MachineLocation FPSrc(MachineLocation::VirtualFP);
@@ -491,7 +489,7 @@ void SPURegisterInfo::emitPrologue(MachineFunction &MF) const
       dl = MBBI->getDebugLoc();
 
       // Insert terminator label
-      BuildMI(MBB, MBBI, dl, TII.get(SPU::DBG_LABEL))
+      BuildMI(MBB, MBBI, dl, TII.get(SPU::PROLOG_LABEL))
         .addSym(MMI.getContext().CreateTempSymbol());
     }
   }
@@ -587,6 +585,7 @@ SPURegisterInfo::convertDFormToXForm(int dFormOpcode) const
     case SPU::LQDr32:    return SPU::LQXr32;
     case SPU::LQDr128:   return SPU::LQXr128;
     case SPU::LQDv16i8:  return SPU::LQXv16i8;
+    case SPU::LQDv4i32:  return SPU::LQXv4i32;
     case SPU::LQDv4f32:  return SPU::LQXv4f32;
     case SPU::STQDr32:   return SPU::STQXr32;
     case SPU::STQDr128:  return SPU::STQXr128;

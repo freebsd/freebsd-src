@@ -46,11 +46,16 @@ __FBSDID("$FreeBSD$");
 #include <frame-unwind.h>
 #include <mips-tdep.h>
 
+#ifndef	CROSS_DEBUGGER
+#include <machine/pcb.h>
+#endif
+
 #include "kgdb.h"
 
 void
 kgdb_trgt_fetch_registers(int regno __unused)
 {
+#ifndef	CROSS_DEBUGGER
 	struct kthr *kt;
 	struct pcb pcb;
 
@@ -61,24 +66,27 @@ kgdb_trgt_fetch_registers(int regno __unused)
 		warnx("kvm_read: %s", kvm_geterr(kvm));
 		memset(&pcb, 0, sizeof(pcb));
 	}
-	supply_register(MIPS_S0_REGNUM, (char *)&pcb.pcb_context[0]);
-	supply_register(MIPS_S1_REGNUM, (char *)&pcb.pcb_context[1]);
-	supply_register(MIPS_S2_REGNUM, (char *)&pcb.pcb_context[2]);
-	supply_register(MIPS_S3_REGNUM, (char *)&pcb.pcb_context[3]);
-	supply_register(MIPS_S4_REGNUM, (char *)&pcb.pcb_context[4]);
-	supply_register(MIPS_S5_REGNUM, (char *)&pcb.pcb_context[5]);
-	supply_register(MIPS_S6_REGNUM, (char *)&pcb.pcb_context[6]);
-	supply_register(MIPS_S7_REGNUM, (char *)&pcb.pcb_context[7]);
-	supply_register(MIPS_SP_REGNUM, (char *)&pcb.pcb_context[8]);
-	supply_register(MIPS_FP_REGNUM, (char *)&pcb.pcb_context[9]);
-	supply_register(MIPS_RA_REGNUM, (char *)&pcb.pcb_context[10]);
+
+	supply_register(MIPS_S0_REGNUM, (char *)&pcb.pcb_context[PCB_REG_S0]);
+	supply_register(MIPS_S1_REGNUM, (char *)&pcb.pcb_context[PCB_REG_S1]);
+	supply_register(MIPS_S2_REGNUM, (char *)&pcb.pcb_context[PCB_REG_S2]);
+	supply_register(MIPS_S3_REGNUM, (char *)&pcb.pcb_context[PCB_REG_S3]);
+	supply_register(MIPS_S4_REGNUM, (char *)&pcb.pcb_context[PCB_REG_S4]);
+	supply_register(MIPS_S5_REGNUM, (char *)&pcb.pcb_context[PCB_REG_S5]);
+	supply_register(MIPS_S6_REGNUM, (char *)&pcb.pcb_context[PCB_REG_S6]);
+	supply_register(MIPS_S7_REGNUM, (char *)&pcb.pcb_context[PCB_REG_S7]);
+	supply_register(MIPS_SP_REGNUM, (char *)&pcb.pcb_context[PCB_REG_SP]);
+	supply_register(MIPS_FP_REGNUM, (char *)&pcb.pcb_context[PCB_REG_GP]);
+	supply_register(MIPS_RA_REGNUM, (char *)&pcb.pcb_context[PCB_REG_RA]);
+	supply_register(MIPS_EMBED_PC_REGNUM, (char *)&pcb.pcb_context[PCB_REG_PC]);
+#endif
 }
 
 void
 kgdb_trgt_store_registers(int regno __unused)
 {
 
-	fprintf_unfiltered(gdb_stderr, "XXX: %s\n", __func__);
+	fprintf_unfiltered(gdb_stderr, "Unimplemented function: %s\n", __func__);
 }
 
 void
@@ -86,6 +94,7 @@ kgdb_trgt_new_objfile(struct objfile *objfile)
 {
 }
 
+#ifndef CROSS_DEBUGGER
 struct kgdb_frame_cache {
 	CORE_ADDR	pc;
 	CORE_ADDR	sp;
@@ -127,7 +136,7 @@ static int kgdb_trgt_frame_offset[] = {
 };
 
 static struct kgdb_frame_cache *
-kgdb_trgt_frame_cache(struct frame_info *next_frame __unused, void **this_cache __unused)
+kgdb_trgt_frame_cache(struct frame_info *next_frame, void **this_cache)
 {
 	char buf[MAX_REGISTER_SIZE];
 	struct kgdb_frame_cache *cache;
@@ -190,10 +199,12 @@ static const struct frame_unwind kgdb_trgt_trapframe_unwind = {
 	&kgdb_trgt_trapframe_this_id,
 	&kgdb_trgt_trapframe_prev_register
 };
+#endif
 
 const struct frame_unwind *
-kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame __unused)
+kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame)
 {
+#ifndef CROSS_DEBUGGER
 	char *pname;
 	CORE_ADDR pc;
 
@@ -207,6 +218,6 @@ kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame __unused)
 	    (strcmp(pname, "MipsUserIntr") == 0) ||
 	    (strcmp(pname, "MipsUserGenException") == 0))
 		return (&kgdb_trgt_trapframe_unwind);
-	/* printf("%s: %llx =%s\n", __func__, pc, pname); */
+#endif
 	return (NULL);
 }

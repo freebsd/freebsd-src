@@ -150,34 +150,33 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
 	fontwidth = info.vi_cwidth;
     if (fontsize <= 0)
 	fontsize = info.vi_cheight;
-    if (fontsize < 14) {
+    if (fontsize < 14)
 	fontsize = 8;
-#ifndef SC_NO_FONT_LOADING
-	if (!(scp->sc->fonts_loaded & FONT_8))
-	    return EINVAL;
-	font = scp->sc->font_8;
-#else
-	font = NULL;
-#endif
-    } else if (fontsize >= 16) {
+    else if (fontsize >= 16)
 	fontsize = 16;
-#ifndef SC_NO_FONT_LOADING
-	if (!(scp->sc->fonts_loaded & FONT_16))
-	    return EINVAL;
-	font = scp->sc->font_16;
-#else
-	font = NULL;
-#endif
-    } else {
+    else
 	fontsize = 14;
 #ifndef SC_NO_FONT_LOADING
-	if (!(scp->sc->fonts_loaded & FONT_14))
-	    return EINVAL;
+    switch (fontsize) {
+    case 8:
+	if ((scp->sc->fonts_loaded & FONT_8) == 0)
+	    return (EINVAL);
+	font = scp->sc->font_8;
+	break;
+    case 14:
+	if ((scp->sc->fonts_loaded & FONT_14) == 0)
+	    return (EINVAL);
 	font = scp->sc->font_14;
-#else
-	font = NULL;
-#endif
+	break;
+    case 16:
+	if ((scp->sc->fonts_loaded & FONT_16) == 0)
+	    return (EINVAL);
+	font = scp->sc->font_16;
+	break;
     }
+#else
+    font = NULL;
+#endif
     if ((xsize <= 0) || (xsize > info.vi_width))
 	xsize = info.vi_width;
     if ((ysize <= 0) || (ysize > info.vi_height))
@@ -333,34 +332,33 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     /* adjust argument values */
     if (fontsize <= 0)
 	fontsize = info.vi_cheight;
-    if (fontsize < 14) {
+    if (fontsize < 14)
 	fontsize = 8;
-#ifndef SC_NO_FONT_LOADING
-	if (!(scp->sc->fonts_loaded & FONT_8))
-	    return EINVAL;
-	font = scp->sc->font_8;
-#else
-	font = NULL;
-#endif
-    } else if (fontsize >= 16) {
+    else if (fontsize >= 16)
 	fontsize = 16;
-#ifndef SC_NO_FONT_LOADING
-	if (!(scp->sc->fonts_loaded & FONT_16))
-	    return EINVAL;
-	font = scp->sc->font_16;
-#else
-	font = NULL;
-#endif
-    } else {
+    else
 	fontsize = 14;
 #ifndef SC_NO_FONT_LOADING
-	if (!(scp->sc->fonts_loaded & FONT_14))
-	    return EINVAL;
+    switch (fontsize) {
+    case 8:
+	if ((scp->sc->fonts_loaded & FONT_8) == 0)
+	    return (EINVAL);
+	font = scp->sc->font_8;
+	break;
+    case 14:
+	if ((scp->sc->fonts_loaded & FONT_14) == 0)
+	    return (EINVAL);
 	font = scp->sc->font_14;
-#else
-	font = NULL;
-#endif
+	break;
+    case 16:
+	if ((scp->sc->fonts_loaded & FONT_16) == 0)
+	    return (EINVAL);
+	font = scp->sc->font_16;
+	break;
     }
+#else
+    font = NULL;
+#endif
     if (xsize <= 0)
 	xsize = info.vi_width/8;
     if (ysize <= 0)

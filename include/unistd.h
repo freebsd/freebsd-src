@@ -288,6 +288,7 @@ typedef	__useconds_t	useconds_t;
 #if __BSD_VISIBLE
 #define	_SC_NPROCESSORS_CONF	57
 #define	_SC_NPROCESSORS_ONLN	58
+#define	_SC_CPUSET_SIZE		122
 #endif
 
 /* Extensions found in Solaris and Linux. */
@@ -528,6 +529,7 @@ char	*mktemp(char *);
 #define	_MKTEMP_DECLARED
 #endif
 int	 nfssvc(int, void *);
+int	 nlm_syscall(int, int, int, char **);
 int	 profil(char *, size_t, vm_offset_t, int);
 int	 rcmd(char **, int, const char *, const char *, const char *, int *);
 int	 rcmd_af(char **, int, const char *,

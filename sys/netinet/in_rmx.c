@@ -121,12 +121,13 @@ in_matroute(void *v_arg, struct radix_node_head *head)
 	struct radix_node *rn = rn_match(v_arg, head);
 	struct rtentry *rt = (struct rtentry *)rn;
 
-	/*XXX locking? */
-	if (rt && rt->rt_refcnt == 0) {		/* this is first reference */
+	if (rt) {
+		RT_LOCK(rt);
 		if (rt->rt_flags & RTPRF_OURS) {
 			rt->rt_flags &= ~RTPRF_OURS;
 			rt->rt_rmx.rmx_expire = 0;
 		}
+		RT_UNLOCK(rt);
 	}
 	return rn;
 }

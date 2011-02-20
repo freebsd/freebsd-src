@@ -46,6 +46,7 @@ struct metaslab_group {
 	kmutex_t		mg_lock;
 	avl_tree_t		mg_metaslab_tree;
 	uint64_t		mg_aliquot;
+	uint64_t		mg_bonus_area;
 	int64_t			mg_bias;
 	metaslab_class_t	*mg_class;
 	vdev_t			*mg_vd;

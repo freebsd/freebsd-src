@@ -69,14 +69,12 @@ aesni_identify(driver_t *drv, device_t parent)
 static int
 aesni_probe(device_t dev)
 {
-	char capp[32];
 
 	if ((cpu_feature2 & CPUID2_AESNI) == 0) {
 		device_printf(dev, "No AESNI support.\n");
 		return (EINVAL);
 	}
-	strlcpy(capp, "AES-CBC", sizeof(capp));
-	device_set_desc_copy(dev, capp);
+	device_set_desc_copy(dev, "AES-CBC,AES-XTS");
 	return (0);
 }
 
@@ -96,6 +94,7 @@ aesni_attach(device_t dev)
 
 	rw_init(&sc->lock, "aesni_lock");
 	crypto_register(sc->cid, CRYPTO_AES_CBC, 0, 0);
+	crypto_register(sc->cid, CRYPTO_AES_XTS, 0, 0);
 	return (0);
 }
 
@@ -142,6 +141,7 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	for (; cri != NULL; cri = cri->cri_next) {
 		switch (cri->cri_alg) {
 		case CRYPTO_AES_CBC:
+		case CRYPTO_AES_XTS:
 			if (encini != NULL)
 				return (EINVAL);
 			encini = cri;
@@ -174,6 +174,7 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	ses->used = 1;
 	TAILQ_INSERT_TAIL(&sc->sessions, ses, next);
 	rw_wunlock(&sc->lock);
+	ses->algo = encini->cri_alg;
 
 	error = aesni_cipher_setup(ses, encini);
 	if (error != 0) {
@@ -245,6 +246,7 @@ aesni_process(device_t dev, struct cryptop *crp, int hint __unused)
 	for (crd = crp->crp_desc; crd != NULL; crd = crd->crd_next) {
 		switch (crd->crd_alg) {
 		case CRYPTO_AES_CBC:
+		case CRYPTO_AES_XTS:
 			if (enccrd != NULL) {
 				error = EINVAL;
 				goto out;

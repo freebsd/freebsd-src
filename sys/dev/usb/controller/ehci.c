@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -145,7 +144,6 @@ struct ehci_std_temp {
 	uint8_t	auto_data_toggle;
 	uint8_t	setup_alt_next;
 	uint8_t	last_frame;
-	uint8_t can_use_next;
 };
 
 void
@@ -156,6 +154,9 @@ ehci_iterate_hw_softc(struct usb_bus *bus, usb_bus_mem_sub_cb_t *cb)
 
 	cb(bus, &sc->sc_hw.pframes_pc, &sc->sc_hw.pframes_pg,
 	    sizeof(uint32_t) * EHCI_FRAMELIST_COUNT, EHCI_FRAMELIST_ALIGN);
+
+	cb(bus, &sc->sc_hw.terminate_pc, &sc->sc_hw.terminate_pg,
+	    sizeof(struct ehci_qh_sub), EHCI_QH_ALIGN);
 
 	cb(bus, &sc->sc_hw.async_start_pc, &sc->sc_hw.async_start_pg,
 	    sizeof(ehci_qh_t), EHCI_QH_ALIGN);
@@ -268,9 +269,9 @@ ehci_init(ehci_softc_t *sc)
 	}
 #endif
 
-	sc->sc_offs = EREAD1(sc, EHCI_CAPLENGTH);
+	sc->sc_offs = EHCI_CAPLENGTH(EREAD4(sc, EHCI_CAPLEN_HCIVERSION));
 
-	version = EREAD2(sc, EHCI_HCIVERSION);
+	version = EHCI_HCIVERSION(EREAD4(sc, EHCI_CAPLEN_HCIVERSION));
 	device_printf(sc->sc_bus.bdev, "EHCI version %x.%x\n",
 	    version >> 8, version & 0xff);
 
@@ -309,6 +310,24 @@ ehci_init(ehci_softc_t *sc)
 	sc->sc_bus.methods = &ehci_bus_methods;
 
 	sc->sc_eintrs = EHCI_NORMAL_INTRS;
+
+	if (1) {
+		struct ehci_qh_sub *qh;
+
+		usbd_get_page(&sc->sc_hw.terminate_pc, 0, &buf_res);
+
+		qh = buf_res.buffer;
+
+		sc->sc_terminate_self = htohc32(sc, buf_res.physaddr);
+
+		/* init terminate TD */
+		qh->qtd_next =
+		    htohc32(sc, EHCI_LINK_TERMINATE);
+		qh->qtd_altnext =
+		    htohc32(sc, EHCI_LINK_TERMINATE);
+		qh->qtd_status =
+		    htohc32(sc, EHCI_QTD_HALTED);
+	}
 
 	for (i = 0; i < EHCI_VIRTUAL_FRAMELIST_COUNT; i++) {
 		ehci_qh_t *qh;
@@ -1416,15 +1435,7 @@ ehci_check_transfer(struct usb_xfer *xfer)
 			 */
 			if (status & EHCI_QTD_ACTIVE) {
 				/* update cache */
-				if (xfer->td_transfer_cache != td) {
-					xfer->td_transfer_cache = td;
-					if (qh->qh_qtd.qtd_next & 
-					    htohc32(sc, EHCI_LINK_TERMINATE)) {
-						/* XXX - manually advance to next frame */
-						qh->qh_qtd.qtd_next = td->qtd_self;
-						usb_pc_cpu_flush(td->page_cache);
-					}
-				}
+				xfer->td_transfer_cache = td;
 				goto done;
 			}
 			/*
@@ -1634,10 +1645,12 @@ ehci_setup_standard_chain_sub(struct ehci_std_temp *temp)
 	uint32_t average;
 	uint32_t len_old;
 	uint32_t terminate;
+	uint32_t qtd_altnext;
 	uint8_t shortpkt_old;
 	uint8_t precompute;
 
-	terminate = htohc32(temp->sc, EHCI_LINK_TERMINATE);
+	terminate = temp->sc->sc_terminate_self;
+	qtd_altnext = temp->sc->sc_terminate_self;
 	td_alt_next = NULL;
 	buf_offset = 0;
 	shortpkt_old = temp->shortpkt;
@@ -1771,23 +1784,11 @@ restart:
 			td->qtd_buffer_hi[x] = 0;
 		}
 
-		if (temp->can_use_next) {
-			if (td_next) {
-				/* link the current TD with the next one */
-				td->qtd_next = td_next->qtd_self;
-			}
-		} else {
-			/*
-			 * BUG WARNING: The EHCI HW can use the
-			 * qtd_next field instead of qtd_altnext when
-			 * a short packet is received! We work this
-			 * around in software by not queueing more
-			 * than one job/TD at a time!
-			 */
-			td->qtd_next = terminate;
+		if (td_next) {
+			/* link the current TD with the next one */
+			td->qtd_next = td_next->qtd_self;
 		}
-
-		td->qtd_altnext = terminate;
+		td->qtd_altnext = qtd_altnext;
 		td->alt_next = td_alt_next;
 
 		usb_pc_cpu_flush(td->page_cache);
@@ -1799,9 +1800,15 @@ restart:
 		/* setup alt next pointer, if any */
 		if (temp->last_frame) {
 			td_alt_next = NULL;
+			qtd_altnext = terminate;
 		} else {
 			/* we use this field internally */
 			td_alt_next = td_next;
+			if (temp->setup_alt_next) {
+				qtd_altnext = td_next->qtd_self;
+			} else {
+				qtd_altnext = terminate;
+			}
 		}
 
 		/* restore */
@@ -1846,8 +1853,6 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 	temp.qtd_status = 0;
 	temp.last_frame = 0;
 	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
-	temp.can_use_next = (xfer->flags_int.control_xfr ||
-	    (UE_GET_DIR(xfer->endpointno) == UE_DIR_OUT));
 
 	if (xfer->flags_int.control_xfr) {
 		if (xfer->endpoint->toggle_next) {
@@ -1860,7 +1865,8 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 		temp.auto_data_toggle = 1;
 	}
 
-	if (usbd_get_speed(xfer->xroot->udev) != USB_SPEED_HIGH) {
+	if ((xfer->xroot->udev->parent_hs_hub != NULL) ||
+	    (xfer->xroot->udev->address != 0)) {
 		/* max 3 retries */
 		temp.qtd_status |=
 		    htohc32(temp.sc, EHCI_QTD_SET_CERR(3));
@@ -3063,8 +3069,7 @@ static const struct ehci_config_desc ehci_confd = {
 		.bNumEndpoints = 1,
 		.bInterfaceClass = UICLASS_HUB,
 		.bInterfaceSubClass = UISUBCLASS_HUB,
-		.bInterfaceProtocol = UIPROTO_HSHUBSTT,
-		0
+		.bInterfaceProtocol = 0,
 	},
 	.endpd = {
 		.bLength = sizeof(struct usb_endpoint_descriptor),
@@ -3114,7 +3119,6 @@ ehci_roothub_exec(struct usb_device *udev,
 	uint16_t i;
 	uint16_t value;
 	uint16_t index;
-	uint8_t l;
 	usb_error_t err;
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
@@ -3318,20 +3322,23 @@ ehci_roothub_exec(struct usb_device *udev,
 			err = USB_ERR_IOERROR;
 			goto done;
 		}
-		v = EOREAD4(sc, EHCI_HCSPARAMS);
+		v = EREAD4(sc, EHCI_HCSPARAMS);
 
 		sc->sc_hub_desc.hubd = ehci_hubd;
 		sc->sc_hub_desc.hubd.bNbrPorts = sc->sc_noport;
-		USETW(sc->sc_hub_desc.hubd.wHubCharacteristics,
-		    (EHCI_HCS_PPC(v) ? UHD_PWR_INDIVIDUAL : UHD_PWR_NO_SWITCH) |
-		    (EHCI_HCS_P_INDICATOR(EREAD4(sc, EHCI_HCSPARAMS)) ?
-		    UHD_PORT_IND : 0));
+
+		if (EHCI_HCS_PPC(v))
+			i = UHD_PWR_INDIVIDUAL;
+		else
+			i = UHD_PWR_NO_SWITCH;
+
+		if (EHCI_HCS_P_INDICATOR(v))
+			i |= UHD_PORT_IND;
+
+		USETW(sc->sc_hub_desc.hubd.wHubCharacteristics, i);
 		/* XXX can't find out? */
 		sc->sc_hub_desc.hubd.bPwrOn2PwrGood = 200;
-		for (l = 0; l < sc->sc_noport; l++) {
-			/* XXX can't find out? */
-			sc->sc_hub_desc.hubd.DeviceRemovable[l / 8] &= ~(1 << (l % 8));
-		}
+		/* XXX don't know if ports are removable or not */
 		sc->sc_hub_desc.hubd.bDescLength =
 		    8 + ((sc->sc_noport + 7) / 8);
 		len = sc->sc_hub_desc.hubd.bDescLength;
@@ -3804,7 +3811,7 @@ done:
 }
 
 static void
-ehci_get_dma_delay(struct usb_bus *bus, uint32_t *pus)
+ehci_get_dma_delay(struct usb_device *udev, uint32_t *pus)
 {
 	/*
 	 * Wait until the hardware has finished any possible use of

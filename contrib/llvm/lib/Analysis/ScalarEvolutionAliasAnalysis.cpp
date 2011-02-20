@@ -34,14 +34,14 @@ namespace {
 
   public:
     static char ID; // Class identification, replacement for typeinfo
-    ScalarEvolutionAliasAnalysis() : FunctionPass(&ID), SE(0) {}
+    ScalarEvolutionAliasAnalysis() : FunctionPass(ID), SE(0) {}
 
     /// getAdjustedAnalysisPointer - This method is used when a pass implements
     /// an analysis interface through multiple inheritance.  If needed, it
     /// should override this to adjust the this pointer as needed for the
     /// specified pass info.
-    virtual void *getAdjustedAnalysisPointer(const PassInfo *PI) {
-      if (PI->isPassID(&AliasAnalysis::ID))
+    virtual void *getAdjustedAnalysisPointer(AnalysisID PI) {
+      if (PI == &AliasAnalysis::ID)
         return (AliasAnalysis*)this;
       return this;
     }
@@ -58,11 +58,8 @@ namespace {
 
 // Register this pass...
 char ScalarEvolutionAliasAnalysis::ID = 0;
-static RegisterPass<ScalarEvolutionAliasAnalysis>
-X("scev-aa", "ScalarEvolution-based Alias Analysis", false, true);
-
-// Declare that we implement the AliasAnalysis interface
-static RegisterAnalysisGroup<AliasAnalysis> Y(X);
+INITIALIZE_AG_PASS(ScalarEvolutionAliasAnalysis, AliasAnalysis, "scev-aa",
+                   "ScalarEvolution-based Alias Analysis", false, true, false);
 
 FunctionPass *llvm::createScalarEvolutionAliasAnalysisPass() {
   return new ScalarEvolutionAliasAnalysis();
@@ -158,8 +155,8 @@ ScalarEvolutionAliasAnalysis::alias(const Value *A, unsigned ASize,
   Value *AO = GetBaseValue(AS);
   Value *BO = GetBaseValue(BS);
   if ((AO && AO != A) || (BO && BO != B))
-    if (alias(AO ? AO : A, AO ? ~0u : ASize,
-              BO ? BO : B, BO ? ~0u : BSize) == NoAlias)
+    if (alias(AO ? AO : A, AO ? UnknownSize : ASize,
+              BO ? BO : B, BO ? UnknownSize : BSize) == NoAlias)
       return NoAlias;
 
   // Forward the query to the next analysis.

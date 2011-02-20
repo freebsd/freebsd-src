@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2006-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -123,6 +125,7 @@ MALLOC_DECLARE(SCTP_M_TIMW);
 MALLOC_DECLARE(SCTP_M_MVRF);
 MALLOC_DECLARE(SCTP_M_ITER);
 MALLOC_DECLARE(SCTP_M_SOCKOPT);
+MALLOC_DECLARE(SCTP_M_MCORE);
 
 #if defined(SCTP_LOCAL_TRACE_BUF)
 
@@ -316,7 +319,7 @@ typedef struct callout sctp_os_timer_t;
                                   }
 
 /* We make it so if you have up to 4 threads
- * writting based on the default size of
+ * writing based on the default size of
  * the packet log 65 k, that would be
  * 4 16k packets before we would hit
  * a problem.
@@ -353,7 +356,7 @@ typedef struct callout sctp_os_timer_t;
 
 /* For BSD this just accesses the M_PKTHDR length
  * so it operates on an mbuf with hdr flag. Other
- * O/S's may have seperate packet header and mbuf
+ * O/S's may have separate packet header and mbuf
  * chain pointers.. thus the macro.
  */
 #define SCTP_HEADER_TO_CHAIN(m) (m)
@@ -433,20 +436,21 @@ typedef struct rtentry sctp_rtentry_t;
  */
 #define SCTP_IP_OUTPUT(result, o_pak, ro, stcb, vrf_id) \
 { \
-	int o_flgs = 0; \
-	if (stcb && stcb->sctp_ep && stcb->sctp_ep->sctp_socket) { \
-		o_flgs = IP_RAWOUTPUT | (stcb->sctp_ep->sctp_socket->so_options & SO_DONTROUTE); \
-	} else { \
-		o_flgs = IP_RAWOUTPUT; \
-	} \
+	int o_flgs = IP_RAWOUTPUT; \
+	struct sctp_tcb *local_stcb = stcb; \
+	if (local_stcb && \
+	    local_stcb->sctp_ep && \
+	    local_stcb->sctp_ep->sctp_socket) \
+		o_flgs |= local_stcb->sctp_ep->sctp_socket->so_options & SO_DONTROUTE; \
 	result = ip_output(o_pak, NULL, ro, o_flgs, 0, NULL); \
 }
 
 #define SCTP_IP6_OUTPUT(result, o_pak, ro, ifp, stcb, vrf_id) \
 { \
- 	if (stcb && stcb->sctp_ep) \
+	struct sctp_tcb *local_stcb = stcb; \
+	if (local_stcb && local_stcb->sctp_ep) \
 		result = ip6_output(o_pak, \
-				    ((struct in6pcb *)(stcb->sctp_ep))->in6p_outputopts, \
+				    ((struct in6pcb *)(local_stcb->sctp_ep))->in6p_outputopts, \
 				    (ro), 0, 0, ifp, NULL); \
 	else \
 		result = ip6_output(o_pak, NULL, (ro), 0, 0, ifp, NULL); \

@@ -563,7 +563,6 @@ inside the jail; others apply both for constraining a particular application
 or for running a virtual server.
 .Pp
 Start a shell in the jail:
-.Pp
 .Bd -literal -offset indent
 jail -c path=/data/jail/192.0.2.100 host.hostname=testhostname \\
 	ip4.addr=192.0.2.100 command=/bin/sh
@@ -691,7 +690,6 @@ cannot be used successfully within the jail.
 To kill all processes in a
 jail, you may log into the jail and, as root, use one of the following
 commands, depending on what you want to accomplish:
-.Pp
 .Bd -literal -offset indent
 kill -TERM -1
 kill -KILL -1

@@ -106,11 +106,11 @@ ixpiic_getscl(device_t dev)
 	struct ixpiic_softc *sc = ixpiic_sc;
 	uint32_t reg;
 
-	mtx_lock(&Giant);
+	IXP4XX_GPIO_LOCK();
 	GPIO_CONF_SET(sc, IXP425_GPIO_GPOER, GPIO_I2C_SCL_BIT);
 
 	reg = GPIO_CONF_READ_4(sc, IXP425_GPIO_GPINR);
-	mtx_unlock(&Giant);
+	IXP4XX_GPIO_UNLOCK();
 	return (reg & GPIO_I2C_SCL_BIT);
 }
 
@@ -120,11 +120,11 @@ ixpiic_getsda(device_t dev)
 	struct ixpiic_softc *sc = ixpiic_sc;
 	uint32_t reg;
 
-	mtx_lock(&Giant);
+	IXP4XX_GPIO_LOCK();
 	GPIO_CONF_SET(sc, IXP425_GPIO_GPOER, GPIO_I2C_SDA_BIT);
 
 	reg = GPIO_CONF_READ_4(sc, IXP425_GPIO_GPINR);
-	mtx_unlock(&Giant);
+	IXP4XX_GPIO_UNLOCK();
 	return (reg & GPIO_I2C_SDA_BIT);
 }
 
@@ -133,13 +133,13 @@ ixpiic_setsda(device_t dev, int val)
 {
 	struct ixpiic_softc *sc = ixpiic_sc;
 
-	mtx_lock(&Giant);
+	IXP4XX_GPIO_LOCK();
 	GPIO_CONF_CLR(sc, IXP425_GPIO_GPOUTR, GPIO_I2C_SDA_BIT);
 	if (val)
 		GPIO_CONF_SET(sc, IXP425_GPIO_GPOER, GPIO_I2C_SDA_BIT);
 	else
 		GPIO_CONF_CLR(sc, IXP425_GPIO_GPOER, GPIO_I2C_SDA_BIT);
-	mtx_unlock(&Giant);
+	IXP4XX_GPIO_UNLOCK();
 	DELAY(I2C_DELAY);
 }
 
@@ -148,13 +148,13 @@ ixpiic_setscl(device_t dev, int val)
 {
 	struct ixpiic_softc *sc = ixpiic_sc;
 
-	mtx_lock(&Giant);
+	IXP4XX_GPIO_LOCK();
 	GPIO_CONF_CLR(sc, IXP425_GPIO_GPOUTR, GPIO_I2C_SCL_BIT);
 	if (val)
 		GPIO_CONF_SET(sc, IXP425_GPIO_GPOER, GPIO_I2C_SCL_BIT);
 	else
 		GPIO_CONF_CLR(sc, IXP425_GPIO_GPOER, GPIO_I2C_SCL_BIT);
-	mtx_unlock(&Giant);
+	IXP4XX_GPIO_UNLOCK();
 	DELAY(I2C_DELAY);
 }
 

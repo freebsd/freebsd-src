@@ -66,6 +66,7 @@ public:
   unsigned AnalyzerDisplayProgress : 1;
   unsigned AnalyzeNestedBlocks : 1;
   unsigned EagerlyAssume : 1;
+  unsigned IdempotentOps : 1;
   unsigned PurgeDead : 1;
   unsigned TrimGraph : 1;
   unsigned VisualizeEGDot : 1;
@@ -74,6 +75,7 @@ public:
   unsigned EnableExperimentalInternalChecks : 1;
   unsigned EnableIdempotentOperationChecker : 1;
   unsigned InlineCall : 1;
+  unsigned UnoptimizedCFG : 1;
 
 public:
   AnalyzerOptions() {
@@ -90,6 +92,7 @@ public:
     VisualizeEGUbi = 0;
     EnableExperimentalChecks = 0;
     EnableExperimentalInternalChecks = 0;
+    UnoptimizedCFG = 0;
   }
 };
 

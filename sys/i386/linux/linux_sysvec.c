@@ -64,8 +64,8 @@ __FBSDID("$FreeBSD$");
 
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
-#include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_emul.h>
+#include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_signal.h>
@@ -1179,4 +1179,4 @@ static moduledata_t linux_elf_mod = {
 	0
 };
 
-DECLARE_MODULE(linuxelf, linux_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);
+DECLARE_MODULE_TIED(linuxelf, linux_elf_mod, SI_SUB_EXEC, SI_ORDER_ANY);

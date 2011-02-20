@@ -184,9 +184,10 @@ memguard_fudge(unsigned long km_size, unsigned long km_max)
 	memguard_mapsize = km_max / vm_memguard_divisor;
 	/* size must be multiple of PAGE_SIZE */
 	memguard_mapsize = round_page(memguard_mapsize);
-	if (memguard_mapsize / (2 * PAGE_SIZE) > mem_pgs)
+	if (memguard_mapsize == 0 ||
+	    memguard_mapsize / (2 * PAGE_SIZE) > mem_pgs)
 		memguard_mapsize = mem_pgs * 2 * PAGE_SIZE;
-	if (km_size + memguard_mapsize > km_max)
+	if (km_max > 0 && km_size + memguard_mapsize > km_max)
 		return (km_max);
 	return (km_size + memguard_mapsize);
 }
@@ -247,9 +248,13 @@ SYSINIT(memguard, SI_SUB_KLD, SI_ORDER_ANY, memguard_sysinit, NULL);
 static u_long *
 v2sizep(vm_offset_t va)
 {
+	vm_paddr_t pa;
 	struct vm_page *p;
 
-	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
+	pa = pmap_kextract(va);
+	if (pa == 0)
+		panic("MemGuard detected double-free of %p", (void *)va);
+	p = PHYS_TO_VM_PAGE(pa);
 	KASSERT(p->wire_count != 0 && p->queue == PQ_NONE,
 	    ("MEMGUARD: Expected wired page %p in vtomgfifo!", p));
 	return ((u_long *)&p->pageq.tqe_next);
@@ -397,6 +402,31 @@ memguard_free(void *ptr)
 		memguard_wasted -= (PAGE_SIZE - req_size);
 	(void)vm_map_delete(memguard_map, addr, addr + size);
 	vm_map_unlock(memguard_map);
+}
+
+/*
+ * Re-allocate an allocation that was originally guarded.
+ */
+void *
+memguard_realloc(void *addr, unsigned long size, struct malloc_type *mtp,
+    int flags)
+{
+	void *newaddr;
+	u_long old_size;
+
+	/*
+	 * Allocate the new block.  Force the allocation to be guarded
+	 * as the original may have been guarded through random
+	 * chance, and that should be preserved.
+	 */
+	if ((newaddr = memguard_alloc(size, flags)) == NULL)
+		return (NULL);
+
+	/* Copy over original contents. */
+	old_size = *v2sizep(trunc_page((uintptr_t)addr));
+	bcopy(addr, newaddr, min(size, old_size));
+	memguard_free(addr);
+	return (newaddr);
 }
 
 int

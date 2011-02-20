@@ -30,8 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
- * @(#) $Header: /tcpdump/master/libpcap/pcap-int.h,v 1.85.2.9 2008-09-16 00:21:08 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/pcap-int.h,v 1.94 2008-09-16 00:20:23 guy Exp $ (LBL)
  */
 
 #ifndef pcap_int_h
@@ -49,11 +48,16 @@ extern "C" {
 
 #ifdef WIN32
 #include <Packet32.h>
+extern CRITICAL_SECTION g_PcapCompileCriticalSection;
 #endif /* WIN32 */
 
 #ifdef MSDOS
 #include <fcntl.h>
 #include <io.h>
+#endif
+
+#ifdef HAVE_SNF_API
+#include <snf.h>
 #endif
 
 #if (defined(_MSC_VER) && (_MSC_VER <= 1200)) /* we are compiling with Visual Studio 6, that doesn't support the LL suffix*/
@@ -102,12 +106,16 @@ typedef enum {
  */
 struct pcap_sf {
 	FILE *rfile;
+	int (*next_packet_op)(pcap_t *, struct pcap_pkthdr *, u_char **);
 	int swapped;
 	size_t hdrsize;
 	swapped_type_t lengths_swapped;
 	int version_major;
 	int version_minor;
-	u_char *base;
+	bpf_u_int32 ifcount;	/* number of interfaces seen in this capture */
+	u_int tsresol;		/* time stamp resolution */
+	u_int tsscale;		/* scaling factor for resolution -> microseconds */
+	u_int64_t tsoffset;	/* time stamp offset */
 };
 
 /*
@@ -124,7 +132,7 @@ struct pcap_md {
 	long	OrigMissed;	/* missed by i/f before this run */
 	char	*device;	/* device name */
 	int	timeout;	/* timeout for buffering */
-	int	must_clear;	/* stuff we must clear when we close */
+	int	must_do_on_close; /* stuff we must do when we close */
 	struct pcap *next;	/* list of open pcaps that need stuff cleared on close */
 #ifdef linux
 	int	sock_packet;	/* using Linux 2.0 compatible interface */
@@ -133,8 +141,13 @@ struct pcap_md {
 	int	lo_ifindex;	/* interface index of the loopback device */
 	u_int	packets_read;	/* count of packets read with recvfrom() */
 	bpf_u_int32 oldmode;	/* mode to restore when turning monitor mode off */
+	char	*mondevice;	/* mac80211 monitor device we created */
+	u_char	*mmapbuf;	/* memory-mapped region pointer */
+	size_t	mmapbuflen;	/* size of region */
 	u_int	tp_version;	/* version of tpacket_hdr for mmaped ring */
 	u_int	tp_hdrlen;	/* hdrlen of tpacket_hdr for mmaped ring */
+	u_char	*oneshot_buffer; /* buffer for copy of packet */
+	long	proc_dropped; /* packets reported dropped by /proc/net/dev */
 #endif /* linux */
 
 #ifdef HAVE_DAG_API
@@ -153,6 +166,13 @@ struct pcap_md {
 				 * Same as in linux above, introduce
 				 * generally? */
 #endif /* HAVE_DAG_API */
+#ifdef HAVE_SNF_API
+	snf_handle_t snf_handle; /* opaque device handle */
+	snf_ring_t   snf_ring;   /* opaque device ring handle */
+        int          snf_timeout;
+        int          snf_boardnum;
+#endif /*HAVE_SNF_API*/
+
 #ifdef HAVE_ZEROCOPY_BPF
        /*
         * Zero-copy read buffer -- for zero-copy BPF.  'buffer' above will
@@ -178,10 +198,11 @@ struct pcap_md {
 };
 
 /*
- * Stuff to clear when we close.
+ * Stuff to do when we close.
  */
-#define MUST_CLEAR_PROMISC	0x00000001	/* promiscuous mode */
-#define MUST_CLEAR_RFMON	0x00000002	/* rfmon (monitor) mode */
+#define MUST_CLEAR_PROMISC	0x00000001	/* clear promiscuous mode */
+#define MUST_CLEAR_RFMON	0x00000002	/* clear rfmon (monitor) mode */
+#define MUST_DELETE_MONIF	0x00000004	/* delete monitor-mode interface */
 
 struct pcap_opt {
 	int	buffer_size;
@@ -257,36 +278,12 @@ struct pcap {
 	struct pcap_opt opt;
 
 	/*
-	 * Read buffer -- for file descriptor read buffer model.
+	 * Read buffer.
 	 */
 	int bufsize;
 	u_char *buffer;
 	u_char *bp;
 	int cc;
-	int to_ms;
-
-	/*
-	 * Zero-copy read buffer -- for zero-copy BPF.  'buffer' above will
-	 * alternative between these two actual mmap'd buffers as required.
-	 * As there is a header on the front size of the mmap'd buffer, only
-	 * some of the buffer is exposed to libpcap as a whole via bufsize;
-	 * zbufsize is the true size.  zbuffer tracks the current zbuf
-	 * assocated with buffer so that it can be used to decide which the
-	 * next buffer to read will be.
-	 */
-	u_char *zbuf1, *zbuf2, *zbuffer;
-	u_int zbufsize;
-	u_int timeout;
-	u_int zerocopy;
-	u_int interrupted;
-	struct timespec firstsel;
-
-	/*
-	 * If there's currently a buffer being actively processed, then it is
-	 * referenced here; 'buffer' is also pointed at it, but offset by the
-	 * size of the header.
-	 */
-	struct bpf_zbuf_header *bzh;
 
 	/*
 	 * Place holder for pcap_next().
@@ -309,6 +306,11 @@ struct pcap {
 	getnonblock_op_t getnonblock_op;
 	setnonblock_op_t setnonblock_op;
 	stats_op_t stats_op;
+
+	/*
+	 * Routine to use as callback for pcap_next()/pcap_next_ex().
+	 */
+	pcap_handler oneshot_callback;
 
 #ifdef WIN32
 	/*
@@ -402,6 +404,16 @@ struct pcap_sf_patched_pkthdr {
     unsigned char pkt_type;
 };
 
+/*
+ * User data structure for the one-shot callback used for pcap_next()
+ * and pcap_next_ex().
+ */
+struct oneshot_userdata {
+	struct pcap_pkthdr *hdr;
+	const u_char **pkt;
+	pcap_t *pd;
+};
+
 int	yylex(void);
 
 #ifndef min
@@ -420,6 +432,16 @@ int	pcap_read(pcap_t *, int cnt, pcap_handler, u_char *);
 #endif
 
 #include <stdarg.h>
+
+#if !defined(HAVE_SNPRINTF)
+#define snprintf pcap_snprintf
+extern int snprintf (char *, size_t, const char *, ...);
+#endif
+
+#if !defined(HAVE_VSNPRINTF)
+#define vsnprintf pcap_vsnprintf
+extern int vsnprintf (char *, size_t, const char *, va_list ap);
+#endif
 
 /*
  * Routines that most pcap implementations can use for non-blocking mode.

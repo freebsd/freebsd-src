@@ -594,10 +594,15 @@ msdosfs_deget_dotdot(struct vnode *vp, u_long cluster, int blkoff,
 	vfs_unbusy(mp);
 	if (error == 0)
 		*rvp = DETOV(rdp);
-	vn_lock(vp, ltype | LK_RETRY);
+	if (*rvp != vp)
+		vn_lock(vp, ltype | LK_RETRY);
 	if (vp->v_iflag & VI_DOOMED) {
-		if (error == 0)
-			vput(*rvp);
+		if (error == 0) {
+			if (*rvp == vp)
+				vunref(*rvp);
+			else
+				vput(*rvp);
+		}
 		error = ENOENT;
 	}
 	return (error);

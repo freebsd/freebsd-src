@@ -273,6 +273,9 @@ public:
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(bool, isArrayType)
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(bool, hasPointerRepresentation)
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(bool, hasObjCPointerRepresentation)
+  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(bool, hasIntegerRepresentation)
+  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(bool, hasSignedIntegerRepresentation)
+  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(bool, hasUnsignedIntegerRepresentation)
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(bool, hasFloatingRepresentation)
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(bool, isPromotableIntegerType)
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(bool, isSignedIntegerType)
@@ -700,9 +703,9 @@ inline CanQual<Type> CanQual<T>::getNonReferenceType() const {
 template<typename T>
 CanQual<T> CanQual<T>::getFromOpaquePtr(void *Ptr) {
   CanQual<T> Result;
-  Result.Stored.setFromOpaqueValue(Ptr);
-  assert((!Result || Result.Stored.isCanonical())
-         && "Type is not canonical!");
+  Result.Stored = QualType::getFromOpaquePtr(Ptr);
+  assert((!Result || Result.Stored.getAsOpaquePtr() == (void*)-1 ||
+          Result.Stored.isCanonical()) && "Type is not canonical!");
   return Result;
 }
 

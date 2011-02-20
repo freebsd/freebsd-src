@@ -26,7 +26,7 @@ class GlobalValue;
 class ARMSubtarget : public TargetSubtarget {
 protected:
   enum ARMArchEnum {
-    V4, V4T, V5T, V5TE, V6, V6T2, V7A, V7M
+    V4, V4T, V5T, V5TE, V6, V6M, V6T2, V7A, V7M
   };
 
   enum ARMFPEnum {
@@ -63,6 +63,9 @@ protected:
   /// ThumbMode - Indicates supported Thumb version.
   ThumbTypeEnum ThumbMode;
 
+  /// NoARM - True if subtarget does not support ARM mode execution.
+  bool NoARM;
+
   /// PostRAScheduler - True if using post-register-allocation scheduler.
   bool PostRAScheduler;
 
@@ -83,6 +86,18 @@ protected:
   /// HasT2ExtractPack - True if subtarget supports thumb2 extract/pack
   /// instructions.
   bool HasT2ExtractPack;
+
+  /// HasDataBarrier - True if the subtarget supports DMB / DSB data barrier
+  /// instructions.
+  bool HasDataBarrier;
+
+  /// Pref32BitThumb - If true, codegen would prefer 32-bit Thumb instructions
+  /// over 16-bit ones.
+  bool Pref32BitThumb;
+
+  /// FPOnlySP - If true, the floating point unit only supports single
+  /// precision.
+  bool FPOnlySP;
 
   /// stackAlignment - The minimum alignment known to hold of the stack frame on
   /// entry to the function and which must be maintained by every function.
@@ -128,6 +143,8 @@ protected:
   bool hasV6T2Ops() const { return ARMArchVersion >= V6T2; }
   bool hasV7Ops()   const { return ARMArchVersion >= V7A;  }
 
+  bool hasARMOps() const { return !NoARM; }
+
   bool hasVFP2() const { return ARMFPUType >= VFPv2; }
   bool hasVFP3() const { return ARMFPUType >= VFPv3; }
   bool hasNEON() const { return ARMFPUType >= NEON;  }
@@ -135,8 +152,11 @@ protected:
     return hasNEON() && UseNEONForSinglePrecisionFP; }
   bool hasDivide() const { return HasHardwareDivide; }
   bool hasT2ExtractPack() const { return HasT2ExtractPack; }
+  bool hasDataBarrier() const { return HasDataBarrier; }
   bool useVMLx() const {return hasVFP2() && !SlowVMLx; }
   bool isFPBrccSlow() const { return SlowFPBrcc; }
+  bool isFPOnlySP() const { return FPOnlySP; }
+  bool prefers32BitThumb() const { return Pref32BitThumb; }
 
   bool hasFP16() const { return HasFP16; }
 

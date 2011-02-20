@@ -132,7 +132,7 @@ static struct dsk {
 } dsk;
 static char cmd[512], cmddup[512];
 static char kname[1024];
-static uint32_t opts;
+static uint16_t opts;
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
@@ -233,7 +233,7 @@ putc(int c)
 int
 main(void)
 {
-    int autoboot;
+    uint8_t autoboot;
     ino_t ino;
 
     dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
@@ -320,7 +320,8 @@ load(void)
     caddr_t p;
     ino_t ino;
     uint32_t addr, x;
-    int fmt, i, j;
+    int i, j;
+    uint8_t fmt;
 
     if (!(ino = lookup(kname))) {
 	if (!ls)
@@ -346,23 +347,6 @@ load(void)
 	p += roundup2(hdr.ex.a_text, PAGE_SIZE);
 	if (xfsread(ino, p, hdr.ex.a_data))
 	    return;
-	p += hdr.ex.a_data + roundup2(hdr.ex.a_bss, PAGE_SIZE);
-	bootinfo.bi_symtab = VTOP(p);
-	memcpy(p, &hdr.ex.a_syms, sizeof(hdr.ex.a_syms));
-	p += sizeof(hdr.ex.a_syms);
-	if (hdr.ex.a_syms) {
-	    if (xfsread(ino, p, hdr.ex.a_syms))
-		return;
-	    p += hdr.ex.a_syms;
-	    if (xfsread(ino, p, sizeof(int)))
-		return;
-	    x = *(uint32_t *)p;
-	    p += sizeof(int);
-	    x -= sizeof(int);
-	    if (xfsread(ino, p, x))
-		return;
-	    p += x;
-	}
     } else {
 	fs_off = hdr.eh.e_phoff;
 	for (j = i = 0; i < hdr.eh.e_phnum && j < 2; i++) {
@@ -385,7 +369,7 @@ load(void)
 	    if (xfsread(ino, &es, sizeof(es)))
 		return;
 	    for (i = 0; i < 2; i++) {
-		memcpy(p, &es[i].sh_size, sizeof(es[i].sh_size));
+		*(Elf32_Word *)p = es[i].sh_size;
 		p += sizeof(es[i].sh_size);
 		fs_off = es[i].sh_offset;
 		if (xfsread(ino, p, es[i].sh_size))
@@ -394,8 +378,8 @@ load(void)
 	    }
 	}
 	addr = hdr.eh.e_entry & 0xffffff;
+	bootinfo.bi_esymtab = VTOP(p);
     }
-    bootinfo.bi_esymtab = VTOP(p);
     bootinfo.bi_kernelname = VTOP(kname);
     bootinfo.bi_bios_dev = dsk.drive;
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),

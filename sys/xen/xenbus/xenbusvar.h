@@ -1,8 +1,4 @@
 /******************************************************************************
- * xenbus.h
- *
- * Talks to Xen Store to figure out what devices we have.
- *
  * Copyright (C) 2005 Rusty Russell, IBM Corporation
  * Copyright (C) 2005 XenSource Ltd.
  * 
@@ -30,46 +26,64 @@
  * $FreeBSD$
  */
 
+/**
+ * \file xenbusvar.h
+ *
+ * \brief Datastructures and function declarations for usedby device
+ *        drivers operating on the XenBus.
+ */
+
 #ifndef _XEN_XENBUS_XENBUSVAR_H
 #define _XEN_XENBUS_XENBUSVAR_H
 
 #include <sys/queue.h>
 #include <sys/bus.h>
 #include <sys/eventhandler.h>
+#include <sys/malloc.h>
+#include <sys/sbuf.h>
+
+#include <machine/stdarg.h>
 #include <machine/xen/xen-os.h>
+
+#include <xen/interface/grant_table.h>
 #include <xen/interface/io/xenbus.h>
 #include <xen/interface/io/xs_wire.h>
 
+#include <xen/xenstore/xenstorevar.h>
+
 #include "xenbus_if.h"
 
+/* XenBus allocations including XenStore data returned to clients. */
+MALLOC_DECLARE(M_XENBUS);
+
 enum {
-	/*
+	/**
 	 * Path of this device node.
 	 */
 	XENBUS_IVAR_NODE,
 
-	/*
+	/**
 	 * The device type (e.g. vif, vbd).
 	 */
 	XENBUS_IVAR_TYPE,
 
-	/*
+	/**
 	 * The state of this device (not the otherend's state).
 	 */
 	XENBUS_IVAR_STATE,
 
-	/*
+	/**
 	 * Domain ID of the other end device.
 	 */
 	XENBUS_IVAR_OTHEREND_ID,
 
-	/*
+	/**
 	 * Path of the other end device.
 	 */
 	XENBUS_IVAR_OTHEREND_PATH
 };
 
-/*
+/**
  * Simplified accessors for xenbus devices
  */
 #define	XENBUS_ACCESSOR(var, ivar, type) \
@@ -81,179 +95,184 @@ XENBUS_ACCESSOR(state,		STATE,			enum xenbus_state)
 XENBUS_ACCESSOR(otherend_id,	OTHEREND_ID,		int)
 XENBUS_ACCESSOR(otherend_path,	OTHEREND_PATH,		const char *)
 
-/* Register callback to watch this node. */
-struct xenbus_watch
-{
-	LIST_ENTRY(xenbus_watch) list;
-
-	/* Path being watched. */
-	char *node;
-
-	/* Callback (executed in a process context with no locks held). */
-	void (*callback)(struct xenbus_watch *,
-			 const char **vec, unsigned int len);
-};
-
-typedef int (*xenstore_event_handler_t)(void *);
-
-struct xenbus_transaction
-{
-		uint32_t id;
-};
-
-#define XBT_NIL ((struct xenbus_transaction) { 0 })
-
-int xenbus_directory(struct xenbus_transaction t, const char *dir,
-    const char *node, unsigned int *num, char ***result);
-int xenbus_read(struct xenbus_transaction t, const char *dir,
-    const char *node, unsigned int *len, void **result);
-int xenbus_write(struct xenbus_transaction t, const char *dir,
-    const char *node, const char *string);
-int xenbus_mkdir(struct xenbus_transaction t, const char *dir,
-    const char *node);
-int xenbus_exists(struct xenbus_transaction t, const char *dir,
-    const char *node);
-int xenbus_rm(struct xenbus_transaction t, const char *dir, const char *node);
-int xenbus_transaction_start(struct xenbus_transaction *t);
-int xenbus_transaction_end(struct xenbus_transaction t, int abort);
-
-/*
- * Single read and scanf: returns errno or zero. If scancountp is
- * non-null, then number of items scanned is returned in *scanncountp.
- */
-int xenbus_scanf(struct xenbus_transaction t,
-    const char *dir, const char *node, int *scancountp, const char *fmt, ...)
-	__attribute__((format(scanf, 5, 6)));
-
-/* Single printf and write: returns errno or 0. */
-int xenbus_printf(struct xenbus_transaction t,
-		  const char *dir, const char *node, const char *fmt, ...)
-	__attribute__((format(printf, 4, 5)));
-
-/*
- * Generic read function: NULL-terminated triples of name,
- * sprintf-style type string, and pointer. Returns 0 or errno.
- */
-int xenbus_gather(struct xenbus_transaction t, const char *dir, ...);
-
-/* notifer routines for when the xenstore comes up */
-int register_xenstore_notifier(xenstore_event_handler_t func, void *arg, int priority);
-#if 0
-void unregister_xenstore_notifier();
-#endif
-int register_xenbus_watch(struct xenbus_watch *watch);
-void unregister_xenbus_watch(struct xenbus_watch *watch);
-void xs_suspend(void);
-void xs_resume(void);
-
-/* Used by xenbus_dev to borrow kernel's store connection. */
-int xenbus_dev_request_and_reply(struct xsd_sockmsg *msg, void **result);
-
-#if 0
-
-#define XENBUS_IS_ERR_READ(str) ({			\
-	if (!IS_ERR(str) && strlen(str) == 0) {		\
-		free(str, M_DEVBUF);				\
-		str = ERR_PTR(-ERANGE);			\
-	}						\
-	IS_ERR(str);					\
-})
-
-#endif
-
-#define XENBUS_EXIST_ERR(err) ((err) == ENOENT || (err) == ERANGE)
-
-
 /**
- * Register a watch on the given path, using the given xenbus_watch structure
- * for storage, and the given callback function as the callback.  Return 0 on
- * success, or errno on error.  On success, the given path will be saved as
- * watch->node, and remains the caller's to free.  On error, watch->node will
- * be NULL, the device will switch to XenbusStateClosing, and the error will
- * be saved in the store.
- */
-int xenbus_watch_path(device_t dev, char *path,
-		      struct xenbus_watch *watch, 
-		      void (*callback)(struct xenbus_watch *,
-				       const char **, unsigned int));
-
-
-/**
- * Register a watch on the given path/path2, using the given xenbus_watch
- * structure for storage, and the given callback function as the callback.
- * Return 0 on success, or errno on error.  On success, the watched path
- * (path/path2) will be saved as watch->node, and becomes the caller's to
- * kfree().  On error, watch->node will be NULL, so the caller has nothing to
- * free, the device will switch to XenbusStateClosing, and the error will be
- * saved in the store.
- */
-int xenbus_watch_path2(device_t dev, const char *path,
-		       const char *path2, struct xenbus_watch *watch, 
-		       void (*callback)(struct xenbus_watch *,
-					const char **, unsigned int));
-
-
-/**
- * Advertise in the store a change of the given driver to the given new_state.
- * which case this is performed inside its own transaction.  Return 0 on
- * success, or errno on error.  On error, the device will switch to
- * XenbusStateClosing, and the error will be saved in the store.
- */
-int xenbus_switch_state(device_t dev,
-			XenbusState new_state);
-
-
-/**
- * Grant access to the given ring_mfn to the peer of the given device.
- * Return 0 on success, or errno on error.  On error, the device will
- * switch to XenbusStateClosing, and the error will be saved in the
- * store. The grant ring reference is returned in *refp.
- */
-int xenbus_grant_ring(device_t dev, unsigned long ring_mfn, int *refp);
-
-
-/**
- * Allocate an event channel for the given xenbus_device, assigning the newly
- * created local port to *port.  Return 0 on success, or errno on error.  On
- * error, the device will switch to XenbusStateClosing, and the error will be
- * saved in the store.
- */
-int xenbus_alloc_evtchn(device_t dev, int *port);
-
-
-/**
- * Free an existing event channel. Returns 0 on success or errno on error.
- */
-int xenbus_free_evtchn(device_t dev, int port);
-
-
-/**
- * Return the state of the driver rooted at the given store path, or
- * XenbusStateClosed if no state can be read.
+ * Return the state of a XenBus device.
+ *
+ * \param path  The root XenStore path for the device.
+ *
+ * \return  The current state of the device or XenbusStateClosed if no
+ *	    state can be read.
  */
 XenbusState xenbus_read_driver_state(const char *path);
 
-
-/***
- * Report the given negative errno into the store, along with the given
- * formatted message.
+/**
+ * Initialize and register a watch on the given path (client suplied storage).
+ *
+ * \param dev       The XenBus device requesting the watch service.
+ * \param path      The XenStore path of the object to be watched.  The
+ *                  storage for this string must be stable for the lifetime
+ *                  of the watch.
+ * \param watch     The watch object to use for this request.  This object
+ *                  must be stable for the lifetime of the watch.
+ * \param callback  The function to call when XenStore objects at or below
+ *                  path are modified.
+ *
+ * \return  On success, 0. Otherwise an errno value indicating the
+ *          type of failure.
+ *
+ * \note  On error, the device 'dev' will be switched to the XenbusStateClosing
+ *        state and the returned error is saved in the per-device error node
+ *        for dev in the XenStore.
  */
-void xenbus_dev_error(device_t dev, int err, const char *fmt,
-		      ...);
+int xenbus_watch_path(device_t dev, char *path,
+		      struct xs_watch *watch, 
+		      xs_watch_cb_t *callback);
 
-
-/***
- * Equivalent to xenbus_dev_error(dev, err, fmt, args), followed by
- * xenbus_switch_state(dev, NULL, XenbusStateClosing) to schedule an orderly
- * closedown of this driver and its peer.
+/**
+ * Initialize and register a watch at path/path2 in the XenStore.
+ *
+ * \param dev       The XenBus device requesting the watch service.
+ * \param path      The base XenStore path of the object to be watched.
+ * \param path2     The tail XenStore path of the object to be watched.
+ * \param watch     The watch object to use for this request.  This object
+ *                  must be stable for the lifetime of the watch.
+ * \param callback  The function to call when XenStore objects at or below
+ *                  path are modified.
+ *
+ * \return  On success, 0. Otherwise an errno value indicating the
+ *          type of failure.
+ *
+ * \note  On error, \a dev will be switched to the XenbusStateClosing
+ *        state and the returned error is saved in the per-device error node
+ *        for \a dev in the XenStore.
+ *
+ * Similar to xenbus_watch_path, however the storage for the path to the
+ * watched object is allocated from the heap and filled with "path '/' path2".
+ * Should a call to this function succeed, it is the callers responsibility
+ * to free watch->node using the M_XENBUS malloc type.
  */
-void xenbus_dev_fatal(device_t dev, int err, const char *fmt,
-		      ...);
+int xenbus_watch_path2(device_t dev, const char *path,
+		       const char *path2, struct xs_watch *watch, 
+		       xs_watch_cb_t *callback);
 
-int xenbus_dev_init(void);
+/**
+ * Grant access to the given ring_mfn to the peer of the given device.
+ *
+ * \param dev        The device granting access to the ring page.
+ * \param ring_mfn   The guest machine page number of the page to grant
+ *                   peer access rights.
+ * \param refp[out]  The grant reference for the page.
+ *
+ * \return  On success, 0. Otherwise an errno value indicating the
+ *          type of failure.
+ *
+ * A successful call to xenbus_grant_ring should be paired with a call
+ * to gnttab_end_foreign_access() when foregn access to this page is no
+ * longer requried.
+ * 
+ * \note  On error, \a dev will be switched to the XenbusStateClosing
+ *        state and the returned error is saved in the per-device error node
+ *        for \a dev in the XenStore.
+ */
+int xenbus_grant_ring(device_t dev, unsigned long ring_mfn, grant_ref_t *refp);
 
+/**
+ * Allocate an event channel for the given XenBus device.
+ *
+ * \param dev        The device for which to allocate the event channel.
+ * \param port[out]  The port identifier for the allocated event channel.
+ *
+ * \return  On success, 0. Otherwise an errno value indicating the
+ *          type of failure.
+ *
+ * A successfully allocated event channel should be free'd using
+ * xenbus_free_evtchn().
+ *
+ * \note  On error, \a dev will be switched to the XenbusStateClosing
+ *        state and the returned error is saved in the per-device error node
+ *        for \a dev in the XenStore.
+ */
+int xenbus_alloc_evtchn(device_t dev, evtchn_port_t *port);
+
+/**
+ * Free an existing event channel.
+ *
+ * \param dev   The device which allocated this event channel.
+ * \param port  The port identifier for the event channel to free.
+ *
+ * \return  On success, 0. Otherwise an errno value indicating the
+ *          type of failure.
+ *
+ * \note  On error, \a dev will be switched to the XenbusStateClosing
+ *        state and the returned error is saved in the per-device error node
+ *        for \a dev in the XenStore.
+ */
+int xenbus_free_evtchn(device_t dev, evtchn_port_t port);
+
+/**
+ * Record the given errno, along with the given, printf-style, formatted
+ * message in dev's device specific error node in the XenStore.
+ *
+ * \param dev  The device which encountered the error.
+ * \param err  The errno value corresponding to the error.
+ * \param fmt  Printf format string followed by a variable number of
+ *             printf arguments.
+ */
+void xenbus_dev_error(device_t dev, int err, const char *fmt, ...)
+	__attribute__((format(printf, 3, 4)));
+
+/**
+ * va_list version of xenbus_dev_error().
+ *
+ * \param dev  The device which encountered the error.
+ * \param err  The errno value corresponding to the error.
+ * \param fmt  Printf format string.
+ * \param ap   Va_list of printf arguments.
+ */
+void xenbus_dev_verror(device_t dev, int err, const char *fmt, va_list ap)
+	__attribute__((format(printf, 3, 0)));
+
+/**
+ * Equivalent to xenbus_dev_error(), followed by
+ * xenbus_set_state(dev, XenbusStateClosing).
+ *
+ * \param dev  The device which encountered the error.
+ * \param err  The errno value corresponding to the error.
+ * \param fmt  Printf format string followed by a variable number of
+ *             printf arguments.
+ */
+void xenbus_dev_fatal(device_t dev, int err, const char *fmt, ...)
+	__attribute__((format(printf, 3, 4)));
+
+/**
+ * va_list version of xenbus_dev_fatal().
+ *
+ * \param dev  The device which encountered the error.
+ * \param err  The errno value corresponding to the error.
+ * \param fmt  Printf format string.
+ * \param ap   Va_list of printf arguments.
+ */
+void xenbus_dev_vfatal(device_t dev, int err, const char *fmt, va_list)
+	__attribute__((format(printf, 3, 0)));
+
+/**
+ * Convert a member of the xenbus_state enum into an ASCII string.
+ *
+ * /param state  The XenBus state to lookup.
+ *
+ * /return  A string representing state or, for unrecognized states,
+ *	    the string "Unknown".
+ */
 const char *xenbus_strstate(enum xenbus_state state);
+
+/**
+ * Return the value of a XenBus device's "online" node within the XenStore.
+ *
+ * \param dev  The XenBus device to query.
+ *
+ * \return  The value of the "online" node for the device.  If the node
+ *          does not exist, 0 (offline) is returned.
+ */
 int xenbus_dev_is_online(device_t dev);
-int xenbus_frontend_closed(device_t dev);
 
 #endif /* _XEN_XENBUS_XENBUSVAR_H */

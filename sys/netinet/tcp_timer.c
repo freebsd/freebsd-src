@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/vnet.h>
 
+#include <netinet/cc.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
@@ -58,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_pcb.h>
 #endif
 #include <netinet/ip_var.h>
-#include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
@@ -486,15 +486,15 @@ tcp_timer_rexmt(void * xtp)
 		tp->t_rxtshift = TCP_MAXRXTSHIFT;
 		TCPSTAT_INC(tcps_timeoutdrop);
 		in_pcbref(inp);
- 		INP_INFO_RUNLOCK(&V_tcbinfo);
- 		INP_WUNLOCK(inp);
- 		INP_INFO_WLOCK(&V_tcbinfo);
- 		INP_WLOCK(inp);
- 		if (in_pcbrele(inp)) {
- 			INP_INFO_WUNLOCK(&V_tcbinfo);
- 			CURVNET_RESTORE();
- 			return;
- 		}
+		INP_INFO_RUNLOCK(&V_tcbinfo);
+		INP_WUNLOCK(inp);
+		INP_INFO_WLOCK(&V_tcbinfo);
+		INP_WLOCK(inp);
+		if (in_pcbrele(inp)) {
+			INP_INFO_WUNLOCK(&V_tcbinfo);
+			CURVNET_RESTORE();
+			return;
+		}
 		tp = tcp_drop(tp, tp->t_softerror ?
 			      tp->t_softerror : ETIMEDOUT);
 		headlocked = 1;
@@ -515,10 +515,14 @@ tcp_timer_rexmt(void * xtp)
 		tp->snd_cwnd_prev = tp->snd_cwnd;
 		tp->snd_ssthresh_prev = tp->snd_ssthresh;
 		tp->snd_recover_prev = tp->snd_recover;
-		if (IN_FASTRECOVERY(tp))
-		  tp->t_flags |= TF_WASFRECOVERY;
+		if (IN_FASTRECOVERY(tp->t_flags))
+			tp->t_flags |= TF_WASFRECOVERY;
 		else
-		  tp->t_flags &= ~TF_WASFRECOVERY;
+			tp->t_flags &= ~TF_WASFRECOVERY;
+		if (IN_CONGRECOVERY(tp->t_flags))
+			tp->t_flags |= TF_WASCRECOVERY;
+		else
+			tp->t_flags &= ~TF_WASCRECOVERY;
 		tp->t_badrxtwin = ticks + (tp->t_srtt >> (TCP_RTT_SHIFT + 1));
 	}
 	TCPSTAT_INC(tcps_rexmttimeo);
@@ -529,7 +533,7 @@ tcp_timer_rexmt(void * xtp)
 	TCPT_RANGESET(tp->t_rxtcur, rexmt,
 		      tp->t_rttmin, TCPTV_REXMTMAX);
 	/*
-	 * Disable rfc1323 if we havn't got any response to
+	 * Disable rfc1323 if we haven't got any response to
 	 * our third SYN to work-around some broken terminal servers
 	 * (most of which have hopefully been retired) that have bad VJ
 	 * header compression code which trashes TCP segments containing
@@ -562,40 +566,9 @@ tcp_timer_rexmt(void * xtp)
 	 * If timing a segment in this window, stop the timer.
 	 */
 	tp->t_rtttime = 0;
-	/*
-	 * Close the congestion window down to one segment
-	 * (we'll open it by one segment for each ack we get).
-	 * Since we probably have a window's worth of unacked
-	 * data accumulated, this "slow start" keeps us from
-	 * dumping all that data as back-to-back packets (which
-	 * might overwhelm an intermediate gateway).
-	 *
-	 * There are two phases to the opening: Initially we
-	 * open by one mss on each ack.  This makes the window
-	 * size increase exponentially with time.  If the
-	 * window is larger than the path can handle, this
-	 * exponential growth results in dropped packet(s)
-	 * almost immediately.  To get more time between
-	 * drops but still "push" the network to take advantage
-	 * of improving conditions, we switch from exponential
-	 * to linear window opening at some threshhold size.
-	 * For a threshhold, we use half the current window
-	 * size, truncated to a multiple of the mss.
-	 *
-	 * (the minimum cwnd that will give us exponential
-	 * growth is 2 mss.  We don't allow the threshhold
-	 * to go below this.)
-	 */
-	{
-		u_int win = min(tp->snd_wnd, tp->snd_cwnd) / 2 / tp->t_maxseg;
-		if (win < 2)
-			win = 2;
-		tp->snd_cwnd = tp->t_maxseg;
-		tp->snd_ssthresh = win * tp->t_maxseg;
-		tp->t_dupacks = 0;
-	}
-	EXIT_FASTRECOVERY(tp);
-	tp->t_bytes_acked = 0;
+
+	cc_cong_signal(tp, NULL, CC_RTO);
+
 	(void) tcp_output(tp);
 
 out:

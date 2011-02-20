@@ -111,10 +111,6 @@ extern struct netbuf *__rpc_uaddr2taddr_af(int, const char *);
 extern int __rpc_seman2socktype(int);
 extern int __rpc_socktype2seman(int);
 extern int __rpc_sockisbound(struct socket*);
-extern const char *__rpc_inet_ntop(int af, const void * __restrict src,
-    char * __restrict dst, socklen_t size);
-extern int __rpc_inet_pton(int af, const char * __restrict src,
-    void * __restrict dst);
 extern int bindresvport(struct socket *so, struct sockaddr *sa);
 
 struct xucred;

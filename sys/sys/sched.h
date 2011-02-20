@@ -99,7 +99,6 @@ void	sched_sleep(struct thread *td, int prio);
 void	sched_switch(struct thread *td, struct thread *newtd, int flags);
 void	sched_throw(struct thread *td);
 void	sched_unlend_prio(struct thread *td, u_char prio);
-void	sched_unlend_user_prio(struct thread *td, u_char pri);
 void	sched_user_prio(struct thread *td, u_char prio);
 void	sched_userret(struct thread *td);
 void	sched_wakeup(struct thread *td);
@@ -111,7 +110,7 @@ void	sched_preempt(struct thread *td);
 void	sched_add(struct thread *td, int flags);
 void	sched_clock(struct thread *td);
 void	sched_rem(struct thread *td);
-void	sched_tick(void);
+void	sched_tick(int cnt);
 void	sched_relinquish(struct thread *td);
 struct thread *sched_choose(void);
 void	sched_idletd(void *);
@@ -173,7 +172,7 @@ static void name ## _add_proc(void *dummy __unused)			\
 	    #name, CTLTYPE_LONG|CTLFLAG_RD|CTLFLAG_MPSAFE,		\
 	    ptr, 0, sysctl_dpcpu_long, "LU", descr);			\
 }									\
-SYSINIT(name, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY, name ## _add_proc, NULL);
+SYSINIT(name, SI_SUB_RUN_SCHEDULER, SI_ORDER_MIDDLE, name ## _add_proc, NULL);
 
 #define	SCHED_STAT_DEFINE(name, descr)					\
     DPCPU_DEFINE(unsigned long, name);					\

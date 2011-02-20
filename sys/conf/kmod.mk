@@ -81,6 +81,13 @@ OBJCOPY?=	objcopy
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
+# amd64 and mips use direct linking for kmod, all others use shared binaries
+.if ${MACHINE_CPUARCH} != amd64 && ${MACHINE_CPUARCH} != mips
+__KLD_SHARED=yes
+.else
+__KLD_SHARED=no
+.endif
+
 .if ${CC:T:Micc} == "icc"
 CFLAGS:=	${CFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
 .else
@@ -128,15 +135,15 @@ CFLAGS+=	-fno-common
 LDFLAGS+=	-d -warn-common
 
 CFLAGS+=	${DEBUG_FLAGS}
-.if ${MACHINE_ARCH} == amd64
+.if ${MACHINE_CPUARCH} == amd64
 CFLAGS+=	-fno-omit-frame-pointer
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
+.if ${MACHINE_CPUARCH} == powerpc
 CFLAGS+=	-mlongcall -fno-omit-frame-pointer
 .endif
 
-.if ${MACHINE_ARCH} == "mips"
+.if ${MACHINE_CPUARCH} == mips
 CFLAGS+=	-G0 -fno-pic -mno-abicalls -mlong-calls
 .endif
 
@@ -190,7 +197,7 @@ ${PROG}.symbols: ${FULLPROG}
 	${OBJCOPY} --only-keep-debug ${FULLPROG} ${.TARGET}
 .endif
 
-.if ${MACHINE_ARCH} != amd64 && ${MACHINE_ARCH} != mips
+.if ${__KLD_SHARED} == yes
 ${FULLPROG}: ${KMOD}.kld
 	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
 .if !defined(DEBUG_FLAGS)
@@ -203,7 +210,7 @@ EXPORT_SYMS?=	NO
 CLEANFILES+=	export_syms
 .endif
 
-.if ${MACHINE_ARCH} != amd64 && ${MACHINE_ARCH} != mips
+.if ${__KLD_SHARED} == yes
 ${KMOD}.kld: ${OBJS}
 .else
 ${FULLPROG}: ${OBJS}
@@ -223,14 +230,16 @@ ${FULLPROG}: ${OBJS}
 	    export_syms | xargs -J% ${OBJCOPY} % ${.TARGET}
 .endif
 .endif
-.if !defined(DEBUG_FLAGS) && \
-    (${MACHINE_ARCH} == amd64 || ${MACHINE_ARCH} == mips)
+.if !defined(DEBUG_FLAGS) && ${__KLD_SHARED} == no
 	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
 
 _ILINKS=@ machine
 .if ${MACHINE} != ${MACHINE_CPUARCH}
 _ILINKS+=${MACHINE_CPUARCH}
+.endif
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+_ILINKS+=x86
 .endif
 
 all: objwarn ${PROG}
@@ -257,12 +266,12 @@ SYSDIR=	${_dir}
 
 ${_ILINKS}:
 	@case ${.TARGET} in \
-	${MACHINE_CPUARCH}) \
-		path=${SYSDIR}/${MACHINE_CPUARCH}/include ;; \
 	machine) \
 		path=${SYSDIR}/${MACHINE}/include ;; \
 	@) \
 		path=${SYSDIR} ;; \
+	*) \
+		path=${SYSDIR}/${.TARGET}/include ;; \
 	esac ; \
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET} "->" $$path ; \

@@ -107,6 +107,10 @@ static struct setlist cpuset_ids;
 static struct unrhdr *cpuset_unr;
 static struct cpuset *cpuset_zero;
 
+/* Return the size of cpuset_t at the kernel level */
+SYSCTL_INT(_kern_sched, OID_AUTO, cpusetsize, CTLFLAG_RD,
+	0, sizeof(cpuset_t), "sizeof(cpuset_t)");
+
 cpuset_t *cpuset_root;
 
 /*
@@ -416,19 +420,10 @@ cpuset_which(cpuwhich_t which, id_t id, struct proc **pp, struct thread **tdp,
 			td = curthread;
 			break;
 		}
-		sx_slock(&allproc_lock);
-		FOREACH_PROC_IN_SYSTEM(p) {
-			PROC_LOCK(p);
-			FOREACH_THREAD_IN_PROC(p, td)
-				if (td->td_tid == id)
-					break;
-			if (td != NULL)
-				break;
-			PROC_UNLOCK(p);
-		}
-		sx_sunlock(&allproc_lock);
+		td = tdfind(id, -1);
 		if (td == NULL)
 			return (ESRCH);
+		p = td->td_proc;
 		break;
 	case CPU_WHICH_CPUSET:
 		if (id == -1) {

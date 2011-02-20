@@ -61,8 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/acl.h>
 
-#include <machine/mutex.h>
-
 #include <security/mac/mac_framework.h>
 
 #include <sys/file.h>		/* XXX */
@@ -84,7 +82,19 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifdef UFS_GJOURNAL
 #include <ufs/ufs/gjournal.h>
+FEATURE(ufs_gjournal, "Journaling support through GEOM for UFS");
 #endif
+
+#ifdef QUOTA
+FEATURE(ufs_quota, "UFS disk quotas support");
+FEATURE(ufs_quota64, "64bit UFS disk quotas support");
+#endif
+
+#ifdef SUIDDIR
+FEATURE(suiddir,
+    "Give all new files in directory the same ownership as the directory");
+#endif
+
 
 #include <ufs/ffs/ffs_extern.h>
 
@@ -1499,7 +1509,9 @@ relock:
 			/* Don't go to bad here as the new link exists. */
 			if (error)
 				goto unlockout;
-		}
+		} else if (DOINGSUJ(tdvp))
+			/* Journal must account for each new link. */
+			softdep_setup_dotdot_link(tdp, fip);
 		fip->i_offset = mastertemplate.dot_reclen;
 		ufs_dirrewrite(fip, fdp, newparent, DT_DIR, 0);
 		cache_purge(fdvp);

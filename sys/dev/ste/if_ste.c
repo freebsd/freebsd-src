@@ -369,10 +369,6 @@ ste_miibus_readreg(device_t dev, int phy, int reg)
 	struct ste_mii_frame frame;
 
 	sc = device_get_softc(dev);
-
-	if ((sc->ste_flags & STE_FLAG_ONE_PHY) != 0 && phy != 0)
-		return (0);
-
 	bzero((char *)&frame, sizeof(frame));
 
 	frame.mii_phyaddr = phy;
@@ -1059,7 +1055,7 @@ ste_attach(device_t dev)
 	struct ste_softc *sc;
 	struct ifnet *ifp;
 	uint16_t eaddr[ETHER_ADDR_LEN / 2];
-	int error = 0, pmc, prefer_iomap, rid;
+	int error = 0, phy, pmc, prefer_iomap, rid;
 
 	sc = device_get_softc(dev);
 	sc->ste_dev = dev;
@@ -1148,10 +1144,13 @@ ste_attach(device_t dev)
 	}
 
 	/* Do MII setup. */
-	if (mii_phy_probe(dev, &sc->ste_miibus,
-	    ste_ifmedia_upd, ste_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
+	phy = MII_PHY_ANY;
+	if ((sc->ste_flags & STE_FLAG_ONE_PHY) != 0)
+		phy = 0;
+	error = mii_attach(dev, &sc->ste_miibus, ifp, ste_ifmedia_upd,
+		ste_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -2181,7 +2180,7 @@ ste_resume(device_t dev)
 #define	STE_SYSCTL_STAT_ADD32(c, h, n, p, d)	\
 	    SYSCTL_ADD_UINT(c, h, OID_AUTO, n, CTLFLAG_RD, p, 0, d)
 #define	STE_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
-	    SYSCTL_ADD_QUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
+	    SYSCTL_ADD_UQUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
 
 static void
 ste_sysctl_node(struct ste_softc *sc)

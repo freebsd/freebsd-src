@@ -30,31 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
- * @(#) $Header: /tcpdump/master/libpcap/pcap.h,v 1.59 2006/10/04 18:09:22 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/pcap.h,v 1.59 2006-10-04 18:09:22 guy Exp $ (LBL)
  */
-
-#ifndef lib_pcap_h
-#define lib_pcap_h
-
-#if defined(WIN32)
-  #include <pcap-stdinc.h>
-#elif defined(MSDOS)
-  #include <sys/types.h>
-  #include <sys/socket.h>  /* u_int, u_char etc. */
-#else /* UN*X */
-  #include <sys/types.h>
-  #include <sys/time.h>
-#endif /* WIN32/MSDOS/UN*X */
-
-#include <net/bpf.h>
-
-#include <stdio.h>
-
-#define PCAP_VERSION_MAJOR 2
-#define PCAP_VERSION_MINOR 4
-
-#define PCAP_ERRBUF_SIZE 256
 
 /*
  * For backwards compatibility.
@@ -66,4 +43,3 @@
  * leaving behind a <pcap.h> file.
  */
 #include <pcap/pcap.h>
-#endif

@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 
+#include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
 
@@ -53,8 +54,6 @@ __FBSDID("$FreeBSD$");
     #define GET_MBUF_QOS(m) 0
 #endif
 
-extern int pow_send_group;
-
 
 /**
  * Packet transmit
@@ -67,8 +66,6 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 {
 	cvmx_pko_command_word0_t    pko_command;
 	cvmx_buf_ptr_t              hw_buffer;
-	uint64_t                    old_scratch;
-	uint64_t                    old_scratch2;
 	int                         dropped;
 	int                         qos;
 	cvm_oct_private_t          *priv = (cvm_oct_private_t *)ifp->if_softc;
@@ -95,18 +92,6 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 			qos = 0;
 	} else
 		qos = 0;
-
-	if (USE_ASYNC_IOBDMA) {
-		/* Save scratch in case userspace is using it */
-		CVMX_SYNCIOBDMA;
-		old_scratch = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
-		old_scratch2 = cvmx_scratch_read64(CVMX_SCR_SCRATCH+8);
-
-		/* Assume we're going to be able t osend this packet. Fetch and increment
-		   the number of pending packets for output */
-		cvmx_fau_async_fetch_and_add32(CVMX_SCR_SCRATCH+8, FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
-		cvmx_fau_async_fetch_and_add32(CVMX_SCR_SCRATCH, priv->fau+qos*4, 1);
-	}
 
 	/* The CN3XXX series of parts has an errata (GMX-401) which causes the
 	   GMX block to hang if a collision occurs towards the end of a
@@ -144,6 +129,7 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 		/* Build the PKO command */
 		pko_command.u64 = 0;
 		pko_command.s.segs = 1;
+		pko_command.s.dontfree = 1; /* Do not put this buffer into the FPA.  */
 
 		work = NULL;
 	} else {
@@ -156,15 +142,21 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 		 * in memory we borrow from the WQE pool.
 		 */
 		work = cvmx_fpa_alloc(CVMX_FPA_WQE_POOL);
-		gp = (uint64_t *)work;
+		if (work == NULL) {
+			m_freem(m);
+			ifp->if_oerrors++;
+			return 1;
+		}
 
 		segs = 0;
+		gp = (uint64_t *)work;
 		for (n = m; n != NULL; n = n->m_next) {
 			if (segs == CVMX_FPA_WQE_POOL_SIZE / sizeof (uint64_t))
 				panic("%s: too many segments in packet; call m_collapse().", __func__);
 
 			/* Build the PKO buffer pointer */
 			hw_buffer.u64 = 0;
+			hw_buffer.s.i = 1; /* Do not put this buffer into the FPA.  */
 			hw_buffer.s.addr = cvmx_ptr_to_phys(n->m_data);
 			hw_buffer.s.pool = 0;
 			hw_buffer.s.size = n->m_len;
@@ -183,35 +175,31 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 		pko_command.u64 = 0;
 		pko_command.s.segs = segs;
 		pko_command.s.gather = 1;
+		pko_command.s.dontfree = 0; /* Put the WQE above back into the FPA.  */
 	}
 
 	/* Finish building the PKO command */
 	pko_command.s.n2 = 1; /* Don't pollute L2 with the outgoing packet */
-	pko_command.s.dontfree = 1;
-	pko_command.s.reg0 = priv->fau+qos*4;
 	pko_command.s.reg0 = priv->fau+qos*4;
 	pko_command.s.total_bytes = m->m_pkthdr.len;
 	pko_command.s.size0 = CVMX_FAU_OP_SIZE_32;
 	pko_command.s.subone0 = 1;
 
 	/* Check if we can use the hardware checksumming */
-	if (USE_HW_TCPUDP_CHECKSUM &&
-	    (m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP)) != 0) {
+	if ((m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP)) != 0) {
 		/* Use hardware checksum calc */
 		pko_command.s.ipoffp1 = ETHER_HDR_LEN + 1;
 	}
 
+	/*
+	 * XXX
+	 * Could use a different free queue (and different FAU address) per
+	 * core instead of per QoS, to reduce contention here.
+	 */
 	IF_LOCK(&priv->tx_free_queue[qos]);
-	if (USE_ASYNC_IOBDMA) {
-		/* Get the number of mbufs in use by the hardware */
-		CVMX_SYNCIOBDMA;
-		in_use = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
-		buffers_to_free = cvmx_scratch_read64(CVMX_SCR_SCRATCH+8);
-	} else {
-		/* Get the number of mbufs in use by the hardware */
-		in_use = cvmx_fau_fetch_and_add32(priv->fau+qos*4, 1);
-		buffers_to_free = cvmx_fau_fetch_and_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
-	}
+	/* Get the number of mbufs in use by the hardware */
+	in_use = cvmx_fau_fetch_and_add32(priv->fau+qos*4, 1);
+	buffers_to_free = cvmx_fau_fetch_and_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
 
 	cvmx_pko_send_packet_prepare(priv->port, priv->queue + qos, CVMX_PKO_LOCK_CMD_QUEUE);
 
@@ -226,12 +214,6 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 		dropped = 1;
 	}
 
-	if (USE_ASYNC_IOBDMA) {
-		/* Restore the scratch area */
-		cvmx_scratch_write64(CVMX_SCR_SCRATCH, old_scratch);
-		cvmx_scratch_write64(CVMX_SCR_SCRATCH+8, old_scratch2);
-	}
-
 	if (__predict_false(dropped)) {
 		m_freem(m);
 		cvmx_fau_atomic_add32(priv->fau+qos*4, -1);
@@ -239,9 +221,13 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 	} else {
 		/* Put this packet on the queue to be freed later */
 		_IF_ENQUEUE(&priv->tx_free_queue[qos], m);
+
+		/* Pass it to any BPF listeners.  */
+		ETHER_BPF_MTAP(ifp, m);
+
+		ifp->if_opackets++;
+		ifp->if_obytes += m->m_pkthdr.len;
 	}
-	if (work != NULL)
-		cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, DONT_WRITEBACK(1));
 
 	/* Free mbufs not in use by the hardware */
 	if (_IF_QLEN(&priv->tx_free_queue[qos]) > in_use) {
@@ -253,132 +239,6 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 	IF_UNLOCK(&priv->tx_free_queue[qos]);
 
 	return dropped;
-}
-
-
-/**
- * Packet transmit to the POW
- *
- * @param m    Packet to send
- * @param dev    Device info structure
- * @return Always returns zero
- */
-int cvm_oct_xmit_pow(struct mbuf *m, struct ifnet *ifp)
-{
-	cvm_oct_private_t  *priv = (cvm_oct_private_t *)ifp->if_softc;
-	char               *packet_buffer;
-	char               *copy_location;
-
-	/* Get a work queue entry */
-	cvmx_wqe_t *work = cvmx_fpa_alloc(CVMX_FPA_WQE_POOL);
-	if (__predict_false(work == NULL)) {
-		DEBUGPRINT("%s: Failed to allocate a work queue entry\n", if_name(ifp));
-		ifp->if_oerrors++;
-		m_freem(m);
-		return 0;
-	}
-
-	/* Get a packet buffer */
-	packet_buffer = cvmx_fpa_alloc(CVMX_FPA_PACKET_POOL);
-	if (__predict_false(packet_buffer == NULL)) {
-		DEBUGPRINT("%s: Failed to allocate a packet buffer\n",
-			   if_name(ifp));
-		cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, DONT_WRITEBACK(1));
-		ifp->if_oerrors++;
-		m_freem(m);
-		return 0;
-	}
-
-	/* Calculate where we need to copy the data to. We need to leave 8 bytes
-	   for a next pointer (unused). We also need to include any configure
-	   skip. Then we need to align the IP packet src and dest into the same
-	   64bit word. The below calculation may add a little extra, but that
-	   doesn't hurt */
-	copy_location = packet_buffer + sizeof(uint64_t);
-	copy_location += ((CVMX_HELPER_FIRST_MBUFF_SKIP+7)&0xfff8) + 6;
-
-	/* We have to copy the packet since whoever processes this packet
-	   will free it to a hardware pool. We can't use the trick of
-	   counting outstanding packets like in cvm_oct_xmit */
-	m_copydata(m, 0, m->m_pkthdr.len, copy_location);
-
-	/* Fill in some of the work queue fields. We may need to add more
-	   if the software at the other end needs them */
-#if 0
-	work->hw_chksum     = m->csum;
-#endif
-	work->len           = m->m_pkthdr.len;
-	work->ipprt         = priv->port;
-	work->qos           = priv->port & 0x7;
-	work->grp           = pow_send_group;
-	work->tag_type      = CVMX_HELPER_INPUT_TAG_TYPE;
-	work->tag           = pow_send_group; /* FIXME */
-	work->word2.u64     = 0;    /* Default to zero. Sets of zero later are commented out */
-	work->word2.s.bufs  = 1;
-	work->packet_ptr.u64 = 0;
-	work->packet_ptr.s.addr = cvmx_ptr_to_phys(copy_location);
-	work->packet_ptr.s.pool = CVMX_FPA_PACKET_POOL;
-	work->packet_ptr.s.size = CVMX_FPA_PACKET_POOL_SIZE;
-	work->packet_ptr.s.back = (copy_location - packet_buffer)>>7;
-
-	panic("%s: POW transmit not quite implemented yet.", __func__);
-#if 0
-	if (m->protocol == htons(ETH_P_IP)) {
-		work->word2.s.ip_offset     = 14;
-		#if 0
-		work->word2.s.vlan_valid  = 0; /* FIXME */
-		work->word2.s.vlan_cfi    = 0; /* FIXME */
-		work->word2.s.vlan_id     = 0; /* FIXME */
-		work->word2.s.dec_ipcomp  = 0; /* FIXME */
-		#endif
-		work->word2.s.tcp_or_udp    = (ip_hdr(m)->protocol == IP_PROTOCOL_TCP) || (ip_hdr(m)->protocol == IP_PROTOCOL_UDP);
-		#if 0
-		work->word2.s.dec_ipsec   = 0; /* FIXME */
-		work->word2.s.is_v6       = 0; /* We only support IPv4 right now */
-		work->word2.s.software    = 0; /* Hardware would set to zero */
-		work->word2.s.L4_error    = 0; /* No error, packet is internal */
-		#endif
-		work->word2.s.is_frag       = !((ip_hdr(m)->frag_off == 0) || (ip_hdr(m)->frag_off == 1<<14));
-		#if 0
-		work->word2.s.IP_exc      = 0;  /* Assume Linux is sending a good packet */
-		#endif
-		work->word2.s.is_bcast      = (m->pkt_type == PACKET_BROADCAST);
-		work->word2.s.is_mcast      = (m->pkt_type == PACKET_MULTICAST);
-		#if 0
-		work->word2.s.not_IP      = 0; /* This is an IP packet */
-		work->word2.s.rcv_error   = 0; /* No error, packet is internal */
-		work->word2.s.err_code    = 0; /* No error, packet is internal */
-		#endif
-
-		/* When copying the data, include 4 bytes of the ethernet header to
-		   align the same way hardware does */
-		memcpy(work->packet_data, m->data + 10, sizeof(work->packet_data));
-	} else {
-		#if 0
-		work->word2.snoip.vlan_valid  = 0; /* FIXME */
-		work->word2.snoip.vlan_cfi    = 0; /* FIXME */
-		work->word2.snoip.vlan_id     = 0; /* FIXME */
-		work->word2.snoip.software    = 0; /* Hardware would set to zero */
-		#endif
-		work->word2.snoip.is_rarp       = m->protocol == htons(ETH_P_RARP);
-		work->word2.snoip.is_arp        = m->protocol == htons(ETH_P_ARP);
-		work->word2.snoip.is_bcast      = (m->pkt_type == PACKET_BROADCAST);
-		work->word2.snoip.is_mcast      = (m->pkt_type == PACKET_MULTICAST);
-		work->word2.snoip.not_IP        = 1; /* IP was done up above */
-		#if 0
-		work->word2.snoip.rcv_error   = 0; /* No error, packet is internal */
-		work->word2.snoip.err_code    = 0; /* No error, packet is internal */
-		#endif
-		memcpy(work->packet_data, m->data, sizeof(work->packet_data));
-	}
-#endif
-
-	/* Submit the packet to the POW */
-	cvmx_pow_work_submit(work, work->tag, work->tag_type, work->qos, work->grp);
-	ifp->if_opackets++;
-	ifp->if_obytes += m->m_pkthdr.len;
-	m_freem(m);
-	return 0;
 }
 
 

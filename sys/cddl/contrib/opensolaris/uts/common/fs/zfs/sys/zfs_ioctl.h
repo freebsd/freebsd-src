@@ -118,7 +118,7 @@ typedef struct zinject_record {
 	uint32_t	zi_error;
 	uint64_t	zi_type;
 	uint32_t	zi_freq;
-	uint32_t	zi_pad;	/* pad out to 64 bit alignment */
+	uint32_t	zi_failfast;
 } zinject_record_t;
 
 #define	ZINJECT_NULL		0x1

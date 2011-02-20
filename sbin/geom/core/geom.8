@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 5, 2008
+.Dd September 1, 2010
 .Dt GEOM 8
 .Os
 .Sh NAME
@@ -120,6 +120,8 @@ LABEL
 .It
 MIRROR
 .It
+MOUNTVER
+.It
 MULTIPATH
 .It
 NOP
@@ -127,6 +129,8 @@ NOP
 PART
 .It
 RAID3
+.It
+SCHED
 .It
 SHSEC
 .It
@@ -177,6 +181,7 @@ geom md unload
 .Xr gnop 8 ,
 .Xr gpart 8 ,
 .Xr graid3 8 ,
+.Xr gsched 8 ,
 .Xr gshsec 8 ,
 .Xr gstripe 8 ,
 .Xr gvirstor 8

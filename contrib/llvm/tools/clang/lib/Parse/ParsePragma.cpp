@@ -13,10 +13,62 @@
 
 #include "ParsePragma.h"
 #include "clang/Parse/ParseDiagnostic.h"
-#include "clang/Lex/Preprocessor.h"
-#include "clang/Parse/Action.h"
 #include "clang/Parse/Parser.h"
+#include "clang/Lex/Preprocessor.h"
 using namespace clang;
+
+
+// #pragma GCC visibility comes in two variants:
+//   'push' '(' [visibility] ')'
+//   'pop'
+void PragmaGCCVisibilityHandler::HandlePragma(Preprocessor &PP, Token &VisTok) {
+  SourceLocation VisLoc = VisTok.getLocation();
+
+  Token Tok;
+  PP.Lex(Tok);
+
+  const IdentifierInfo *PushPop = Tok.getIdentifierInfo();
+
+  bool IsPush;
+  const IdentifierInfo *VisType;
+  if (PushPop && PushPop->isStr("pop")) {
+    IsPush = false;
+    VisType = 0;
+  } else if (PushPop && PushPop->isStr("push")) {
+    IsPush = true;
+    PP.Lex(Tok);
+    if (Tok.isNot(tok::l_paren)) {
+      PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_lparen)
+        << "visibility";
+      return;
+    }
+    PP.Lex(Tok);
+    VisType = Tok.getIdentifierInfo();
+    if (!VisType) {
+      PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_identifier)
+        << "visibility";
+      return;
+    }
+    PP.Lex(Tok);
+    if (Tok.isNot(tok::r_paren)) {
+      PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_rparen)
+        << "visibility";
+      return;
+    }
+  } else {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_identifier)
+      << "visibility";
+    return;
+  }
+  PP.Lex(Tok);
+  if (Tok.isNot(tok::eom)) {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
+      << "visibility";
+    return;
+  }
+
+  Actions.ActOnPragmaVisibility(IsPush, VisType, VisLoc);
+}
 
 // #pragma pack(...) comes in the following delicious flavors:
 //   pack '(' [integer] ')'
@@ -32,9 +84,9 @@ void PragmaPackHandler::HandlePragma(Preprocessor &PP, Token &PackTok) {
     return;
   }
 
-  Action::PragmaPackKind Kind = Action::PPK_Default;
+  Sema::PragmaPackKind Kind = Sema::PPK_Default;
   IdentifierInfo *Name = 0;
-  Action::OwningExprResult Alignment(Actions);
+  ExprResult Alignment;
   SourceLocation LParenLoc = Tok.getLocation();
   PP.Lex(Tok);
   if (Tok.is(tok::numeric_constant)) {
@@ -46,13 +98,13 @@ void PragmaPackHandler::HandlePragma(Preprocessor &PP, Token &PackTok) {
   } else if (Tok.is(tok::identifier)) {
     const IdentifierInfo *II = Tok.getIdentifierInfo();
     if (II->isStr("show")) {
-      Kind = Action::PPK_Show;
+      Kind = Sema::PPK_Show;
       PP.Lex(Tok);
     } else {
       if (II->isStr("push")) {
-        Kind = Action::PPK_Push;
+        Kind = Sema::PPK_Push;
       } else if (II->isStr("pop")) {
-        Kind = Action::PPK_Pop;
+        Kind = Sema::PPK_Pop;
       } else {
         PP.Diag(Tok.getLocation(), diag::warn_pragma_pack_invalid_action);
         return;
@@ -110,46 +162,52 @@ void PragmaPackHandler::HandlePragma(Preprocessor &PP, Token &PackTok) {
                           LParenLoc, RParenLoc);
 }
 
-// #pragma 'options' 'align' '=' {'native','natural','mac68k','power','reset'}
-void PragmaOptionsHandler::HandlePragma(Preprocessor &PP, Token &OptionsTok) {
-  SourceLocation OptionsLoc = OptionsTok.getLocation();
-
+// #pragma 'align' '=' {'native','natural','mac68k','power','reset'}
+// #pragma 'options 'align' '=' {'native','natural','mac68k','power','reset'}
+static void ParseAlignPragma(Sema &Actions, Preprocessor &PP, Token &FirstTok,
+                             bool IsOptions) {
   Token Tok;
-  PP.Lex(Tok);
-  if (Tok.isNot(tok::identifier) || !Tok.getIdentifierInfo()->isStr("align")) {
-    PP.Diag(Tok.getLocation(), diag::warn_pragma_options_expected_align);
-    return;
+
+  if (IsOptions) {
+    PP.Lex(Tok);
+    if (Tok.isNot(tok::identifier) ||
+        !Tok.getIdentifierInfo()->isStr("align")) {
+      PP.Diag(Tok.getLocation(), diag::warn_pragma_options_expected_align);
+      return;
+    }
   }
 
   PP.Lex(Tok);
   if (Tok.isNot(tok::equal)) {
-    PP.Diag(Tok.getLocation(), diag::warn_pragma_options_expected_equal);
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_align_expected_equal)
+      << IsOptions;
     return;
   }
 
   PP.Lex(Tok);
   if (Tok.isNot(tok::identifier)) {
     PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_identifier)
-      << "options";
+      << (IsOptions ? "options" : "align");
     return;
   }
 
-  Action::PragmaOptionsAlignKind Kind = Action::POAK_Natural;
+  Sema::PragmaOptionsAlignKind Kind = Sema::POAK_Natural;
   const IdentifierInfo *II = Tok.getIdentifierInfo();
   if (II->isStr("native"))
-    Kind = Action::POAK_Native;
+    Kind = Sema::POAK_Native;
   else if (II->isStr("natural"))
-    Kind = Action::POAK_Natural;
+    Kind = Sema::POAK_Natural;
   else if (II->isStr("packed"))
-    Kind = Action::POAK_Packed;
+    Kind = Sema::POAK_Packed;
   else if (II->isStr("power"))
-    Kind = Action::POAK_Power;
+    Kind = Sema::POAK_Power;
   else if (II->isStr("mac68k"))
-    Kind = Action::POAK_Mac68k;
+    Kind = Sema::POAK_Mac68k;
   else if (II->isStr("reset"))
-    Kind = Action::POAK_Reset;
+    Kind = Sema::POAK_Reset;
   else {
-    PP.Diag(Tok.getLocation(), diag::warn_pragma_options_invalid_option);
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_align_invalid_option)
+      << IsOptions;
     return;
   }
 
@@ -157,11 +215,19 @@ void PragmaOptionsHandler::HandlePragma(Preprocessor &PP, Token &OptionsTok) {
   PP.Lex(Tok);
   if (Tok.isNot(tok::eom)) {
     PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
-      << "options";
+      << (IsOptions ? "options" : "align");
     return;
   }
 
-  Actions.ActOnPragmaOptionsAlign(Kind, OptionsLoc, KindLoc);
+  Actions.ActOnPragmaOptionsAlign(Kind, FirstTok.getLocation(), KindLoc);
+}
+
+void PragmaAlignHandler::HandlePragma(Preprocessor &PP, Token &AlignTok) {
+  ParseAlignPragma(Actions, PP, AlignTok, /*IsOptions=*/false);
+}
+
+void PragmaOptionsHandler::HandlePragma(Preprocessor &PP, Token &OptionsTok) {
+  ParseAlignPragma(Actions, PP, OptionsTok, /*IsOptions=*/true);
 }
 
 // #pragma unused(identifier)

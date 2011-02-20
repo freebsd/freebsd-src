@@ -334,12 +334,6 @@ Some options may require a value,
 while others define behavior just by being set.
 Both types of builtin variables are described below.
 .Bl -tag -width bootfile
-.It Va acpi_load
-Unset this to disable automatic loading of the ACPI module.
-See also
-.Va hint.acpi.0.disabled
-in
-.Xr device.hints 5 .
 .It Va autoboot_delay
 Number of seconds
 .Ic autoboot
@@ -615,6 +609,14 @@ Note that
 the NBUF parameter will override this limit.
 Modifies
 .Dv VM_BCACHE_SIZE_MAX .
+.It Va kern.msgbufsize
+Sets the size of the kernel message buffer.
+The default limit of 64KB is usually sufficient unless
+large amounts of trace data need to be collected
+between opportunities to examine the buffer or
+dump it to a file.
+Overrides kernel option
+.Dv MSGBUF_SIZE .
 .It Va machdep.disable_mtrrs
 Disable the use of i686 MTRRs (x86 only).
 .It Va net.inet.tcp.tcbhashsize
@@ -643,7 +645,6 @@ by it as arguments, and it is processed by a special parser which
 is not used for regular Forth commands.
 .Pp
 This special parser applies the following rules to the parsed text:
-.Pp
 .Bl -enum
 .It
 All backslash characters are preprocessed.

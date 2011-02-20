@@ -267,10 +267,10 @@ Number of responses to code or data read snoops to a remote home that the L3
 has the referenced line cached in the M state.
 .It Li SNP_RESP_TO_REMOTE_HOME.HITM
 .Pq Event 07H , Umask 24H
-Number of HITM snoop responses to a remote home
+Number of HITM snoop responses to a remote home.
 .It Li L3_HITS.READ
 .Pq Event 08H , Umask 01H
-Number of code read, data read and RFO requests that hit in the L3
+Number of code read, data read and RFO requests that hit in the L3.
 .It Li L3_HITS.WRITE
 .Pq Event 08H , Umask 02H
 Number of writeback requests that hit in the L3. Writebacks from the cores
@@ -715,7 +715,7 @@ qualified by mask value written to MSR 396H. The following mask values are
 supported:
 0: NONE 40000000_00000000H:RSPFWDI 40001A00_00000000H:RSPFWDS
 40001D00_00000000H:RSPIWB
-Match opcode/address by writing MSR 396H with mask supported mask value
+Match opcode/address by writing MSR 396H with mask supported mask value.
 .It Li ADDR_OPCODE_MATCH.REMOTE
 .Pq Event 35H , Umask 02H
 Counts number of requests from the remote socket, address/opcode of request
@@ -723,7 +723,7 @@ is qualified by mask value written to MSR 396H. The following mask values
 are supported:
 0: NONE 40000000_00000000H:RSPFWDI 40001A00_00000000H:RSPFWDS
 40001D00_00000000H:RSPIWB
-Match opcode/address by writing MSR 396H with mask supported mask value
+Match opcode/address by writing MSR 396H with mask supported mask value.
 .It Li ADDR_OPCODE_MATCH.LOCAL
 .Pq Event 35H , Umask 04H
 Counts number of requests from the local socket, address/opcode of request
@@ -731,7 +731,7 @@ is qualified by mask value written to MSR 396H. The following mask values
 are supported:
 0: NONE 40000000_00000000H:RSPFWDI 40001A00_00000000H:RSPFWDS
 40001D00_00000000H:RSPIWB
-Match opcode/address by writing MSR 396H with mask supported mask value
+Match opcode/address by writing MSR 396H with mask supported mask value.
 .It Li QPI_TX_STALLED_SINGLE_FLIT.HOME.LINK_0
 .Pq Event 40H , Umask 01H
 Counts cycles the Quickpath outbound link 0 HOME virtual channel is stalled

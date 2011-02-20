@@ -29,19 +29,18 @@ using namespace llvm;
 
 namespace {
   /// LowerSwitch Pass - Replace all SwitchInst instructions with chained branch
-  /// instructions.  Note that this cannot be a BasicBlock pass because it
-  /// modifies the CFG!
+  /// instructions.
   class LowerSwitch : public FunctionPass {
   public:
     static char ID; // Pass identification, replacement for typeid
-    LowerSwitch() : FunctionPass(&ID) {} 
+    LowerSwitch() : FunctionPass(ID) {} 
 
     virtual bool runOnFunction(Function &F);
     
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       // This is a cluster of orthogonal Transforms
       AU.addPreserved<UnifyFunctionExitNodes>();
-      AU.addPreservedID(PromoteMemoryToRegisterID);
+      AU.addPreserved("mem2reg");
       AU.addPreservedID(LowerInvokePassID);
     }
 
@@ -50,8 +49,7 @@ namespace {
       Constant* High;
       BasicBlock* BB;
 
-      CaseRange() : Low(0), High(0), BB(0) { }
-      CaseRange(Constant* low, Constant* high, BasicBlock* bb) :
+      CaseRange(Constant *low = 0, Constant *high = 0, BasicBlock *bb = 0) :
         Low(low), High(high), BB(bb) { }
     };
 
@@ -81,11 +79,11 @@ namespace {
 }
 
 char LowerSwitch::ID = 0;
-static RegisterPass<LowerSwitch>
-X("lowerswitch", "Lower SwitchInst's to branches");
+INITIALIZE_PASS(LowerSwitch, "lowerswitch",
+                "Lower SwitchInst's to branches", false, false);
 
 // Publically exposed interface to pass...
-const PassInfo *const llvm::LowerSwitchID = &X;
+char &llvm::LowerSwitchID = LowerSwitch::ID;
 // createLowerSwitchPass - Interface to this file...
 FunctionPass *llvm::createLowerSwitchPass() {
   return new LowerSwitch();

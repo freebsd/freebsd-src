@@ -38,12 +38,6 @@ namespace {
 
 /// DarwinHostInfo - Darwin host information implementation.
 class DarwinHostInfo : public HostInfo {
-  /// Darwin version of host.
-  unsigned DarwinVersion[3];
-
-  /// GCC version to use on this host.
-  unsigned GCCVersion[3];
-
   /// Cache of tool chains we have created.
   mutable llvm::DenseMap<unsigned, ToolChain*> ToolChains;
 
@@ -53,37 +47,12 @@ public:
 
   virtual bool useDriverDriver() const;
 
-  virtual types::ID lookupTypeForExtension(const char *Ext) const {
-    types::ID Ty = types::lookupTypeForExtension(Ext);
-
-    // Darwin always preprocesses assembly files (unless -x is used
-    // explicitly).
-    if (Ty == types::TY_PP_Asm)
-      return types::TY_Asm;
-
-    return Ty;
-  }
-
   virtual ToolChain *CreateToolChain(const ArgList &Args,
                                      const char *ArchName) const;
 };
 
 DarwinHostInfo::DarwinHostInfo(const Driver &D, const llvm::Triple& Triple)
   : HostInfo(D, Triple) {
-
-  assert(Triple.getArch() != llvm::Triple::UnknownArch && "Invalid arch!");
-  assert(memcmp(&getOSName()[0], "darwin", 6) == 0 &&
-         "Unknown Darwin platform.");
-  bool HadExtra;
-  if (!Driver::GetReleaseVersion(&getOSName()[6],
-                                 DarwinVersion[0], DarwinVersion[1],
-                                 DarwinVersion[2], HadExtra))
-    D.Diag(clang::diag::err_drv_invalid_darwin_version) << getOSName();
-
-  // We can only call 4.2.1 for now.
-  GCCVersion[0] = 4;
-  GCCVersion[1] = 2;
-  GCCVersion[2] = 1;
 }
 
 DarwinHostInfo::~DarwinHostInfo() {
@@ -147,11 +116,10 @@ ToolChain *DarwinHostInfo::CreateToolChain(const ArgList &Args,
     const char *UseNewToolChain = ::getenv("CCC_ENABLE_NEW_DARWIN_TOOLCHAIN");
     if (UseNewToolChain || 
         Arch == llvm::Triple::arm || Arch == llvm::Triple::thumb) {
-      TC = new toolchains::DarwinClang(*this, TCTriple, DarwinVersion);
+      TC = new toolchains::DarwinClang(*this, TCTriple);
     } else if (Arch == llvm::Triple::x86 || Arch == llvm::Triple::x86_64) {
       // We still use the legacy DarwinGCC toolchain on X86.
-      TC = new toolchains::DarwinGCC(*this, TCTriple, DarwinVersion,
-                                     GCCVersion);
+      TC = new toolchains::DarwinGCC(*this, TCTriple);
     } else
       TC = new toolchains::Darwin_Generic_GCC(*this, TCTriple);
   }
@@ -169,15 +137,6 @@ public:
   ~TCEHostInfo() {}
 
   virtual bool useDriverDriver() const;
-
-  virtual types::ID lookupTypeForExtension(const char *Ext) const {
-    types::ID Ty = types::lookupTypeForExtension(Ext);
-
-    if (Ty == types::TY_PP_Asm)
-      return types::TY_Asm;
-
-    return Ty;
-  }
 
   virtual ToolChain *CreateToolChain(const ArgList &Args, 
                                      const char *ArchName) const;
@@ -211,10 +170,6 @@ public:
   ~UnknownHostInfo();
 
   virtual bool useDriverDriver() const;
-
-  virtual types::ID lookupTypeForExtension(const char *Ext) const {
-    return types::lookupTypeForExtension(Ext);
-  }
 
   virtual ToolChain *CreateToolChain(const ArgList &Args,
                                      const char *ArchName) const;
@@ -279,10 +234,6 @@ public:
 
   virtual bool useDriverDriver() const;
 
-  virtual types::ID lookupTypeForExtension(const char *Ext) const {
-    return types::lookupTypeForExtension(Ext);
-  }
-
   virtual ToolChain *CreateToolChain(const ArgList &Args,
                                      const char *ArchName) const;
 };
@@ -330,10 +281,6 @@ public:
 
   virtual bool useDriverDriver() const;
 
-  virtual types::ID lookupTypeForExtension(const char *Ext) const {
-    return types::lookupTypeForExtension(Ext);
-  }
-
   virtual ToolChain *CreateToolChain(const ArgList &Args,
                                      const char *ArchName) const;
 };
@@ -379,10 +326,6 @@ public:
 
   virtual bool useDriverDriver() const;
 
-  virtual types::ID lookupTypeForExtension(const char *Ext) const {
-    return types::lookupTypeForExtension(Ext);
-  }
-
   virtual ToolChain *CreateToolChain(const ArgList &Args,
                                      const char *ArchName) const;
 };
@@ -399,19 +342,22 @@ bool FreeBSDHostInfo::useDriverDriver() const {
 
 ToolChain *FreeBSDHostInfo::CreateToolChain(const ArgList &Args,
                                             const char *ArchName) const {
-  bool Lib32 = false;
-
   assert(!ArchName &&
          "Unexpected arch name on platform without driver driver support.");
 
-  // On x86_64 we need to be able to compile 32-bits binaries as well.
-  // Compiling 64-bit binaries on i386 is not supported. We don't have a
-  // lib64.
+  // Automatically handle some instances of -m32/-m64 we know about.
   std::string Arch = getArchName();
   ArchName = Arch.c_str();
-  if (Args.hasArg(options::OPT_m32) && getArchName() == "x86_64") {
-    ArchName = "i386";
-    Lib32 = true;
+  if (Arg *A = Args.getLastArg(options::OPT_m32, options::OPT_m64)) {
+    if (Triple.getArch() == llvm::Triple::x86 ||
+        Triple.getArch() == llvm::Triple::x86_64) {
+      ArchName =
+        (A->getOption().matches(options::OPT_m32)) ? "i386" : "x86_64";
+    } else if (Triple.getArch() == llvm::Triple::ppc ||
+               Triple.getArch() == llvm::Triple::ppc64) {
+      ArchName =
+        (A->getOption().matches(options::OPT_m32)) ? "powerpc" : "powerpc64";
+    }
   }
 
   ToolChain *&TC = ToolChains[ArchName];
@@ -419,7 +365,7 @@ ToolChain *FreeBSDHostInfo::CreateToolChain(const ArgList &Args,
     llvm::Triple TCTriple(getTriple());
     TCTriple.setArchName(ArchName);
 
-    TC = new toolchains::FreeBSD(*this, TCTriple, Lib32);
+    TC = new toolchains::FreeBSD(*this, TCTriple);
   }
 
   return TC;
@@ -438,10 +384,6 @@ public:
   ~MinixHostInfo();
 
   virtual bool useDriverDriver() const;
-
-  virtual types::ID lookupTypeForExtension(const char *Ext) const {
-    return types::lookupTypeForExtension(Ext);
-  }
 
   virtual ToolChain *CreateToolChain(const ArgList &Args,
                                      const char *ArchName) const;
@@ -491,10 +433,6 @@ public:
 
   virtual bool useDriverDriver() const;
 
-  virtual types::ID lookupTypeForExtension(const char *Ext) const {
-    return types::lookupTypeForExtension(Ext);
-  }
-
   virtual ToolChain *CreateToolChain(const ArgList &Args,
                                      const char *ArchName) const;
 };
@@ -539,10 +477,6 @@ public:
   ~LinuxHostInfo();
 
   virtual bool useDriverDriver() const;
-
-  virtual types::ID lookupTypeForExtension(const char *Ext) const {
-    return types::lookupTypeForExtension(Ext);
-  }
 
   virtual ToolChain *CreateToolChain(const ArgList &Args,
                                      const char *ArchName) const;
@@ -591,7 +525,78 @@ ToolChain *LinuxHostInfo::CreateToolChain(const ArgList &Args,
   return TC;
 }
 
+// Windows Host Info
+
+/// WindowsHostInfo - Host information to use on Microsoft Windows.
+class WindowsHostInfo : public HostInfo {
+  /// Cache of tool chains we have created.
+  mutable llvm::StringMap<ToolChain*> ToolChains;
+
+public:
+  WindowsHostInfo(const Driver &D, const llvm::Triple& Triple);
+  ~WindowsHostInfo();
+
+  virtual bool useDriverDriver() const;
+
+  virtual types::ID lookupTypeForExtension(const char *Ext) const {
+    return types::lookupTypeForExtension(Ext);
+  }
+
+  virtual ToolChain *CreateToolChain(const ArgList &Args,
+                                     const char *ArchName) const;
+};
+
+WindowsHostInfo::WindowsHostInfo(const Driver &D, const llvm::Triple& Triple)
+  : HostInfo(D, Triple) {
 }
+
+WindowsHostInfo::~WindowsHostInfo() {
+  for (llvm::StringMap<ToolChain*>::iterator
+         it = ToolChains.begin(), ie = ToolChains.end(); it != ie; ++it)
+    delete it->second;
+}
+
+bool WindowsHostInfo::useDriverDriver() const {
+  return false;
+}
+
+ToolChain *WindowsHostInfo::CreateToolChain(const ArgList &Args,
+                                            const char *ArchName) const {
+  assert(!ArchName &&
+         "Unexpected arch name on platform without driver driver support.");
+
+  // Automatically handle some instances of -m32/-m64 we know about.
+  std::string Arch = getArchName();
+  ArchName = Arch.c_str();
+  if (Arg *A = Args.getLastArg(options::OPT_m32, options::OPT_m64)) {
+    if (Triple.getArch() == llvm::Triple::x86 ||
+        Triple.getArch() == llvm::Triple::x86_64) {
+      ArchName =
+        (A->getOption().matches(options::OPT_m32)) ? "i386" : "x86_64";
+    }
+  }
+
+  ToolChain *&TC = ToolChains[ArchName];
+  if (!TC) {
+    llvm::Triple TCTriple(getTriple());
+    TCTriple.setArchName(ArchName);
+
+    TC = new toolchains::Windows(*this, TCTriple);
+  }
+
+  return TC;
+}
+
+// FIXME: This is a placeholder.
+class MinGWHostInfo : public UnknownHostInfo {
+public:
+  MinGWHostInfo(const Driver &D, const llvm::Triple& Triple);
+};
+
+MinGWHostInfo::MinGWHostInfo(const Driver &D, const llvm::Triple& Triple)
+  : UnknownHostInfo(D, Triple) {}
+
+} // end anon namespace
 
 const HostInfo *
 clang::driver::createAuroraUXHostInfo(const Driver &D,
@@ -639,6 +644,18 @@ const HostInfo *
 clang::driver::createTCEHostInfo(const Driver &D,
                                    const llvm::Triple& Triple) {
   return new TCEHostInfo(D, Triple);
+}
+
+const HostInfo *
+clang::driver::createWindowsHostInfo(const Driver &D,
+                                     const llvm::Triple& Triple) {
+  return new WindowsHostInfo(D, Triple);
+}
+
+const HostInfo *
+clang::driver::createMinGWHostInfo(const Driver &D,
+                                   const llvm::Triple& Triple) {
+  return new MinGWHostInfo(D, Triple);
 }
 
 const HostInfo *

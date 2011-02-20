@@ -175,18 +175,18 @@ unin_chip_add_intr(phandle_t devnode, struct unin_chip_devinfo *dinfo)
 		icells = 1;
 
 	for (i = 0; i < nintr; i+=icells) {
+		u_int irq = MAP_IRQ(iparent, intr[i]);
+
 		resource_list_add(&dinfo->udi_resources, SYS_RES_IRQ,
-		    dinfo->udi_ninterrupts, INTR_VEC(iparent, intr[i]),
-		    INTR_VEC(iparent, intr[i]), 1);
+		    dinfo->udi_ninterrupts, irq, irq, 1);
 
 		if (icells > 1) {
-			powerpc_config_intr(INTR_VEC(iparent, intr[i]),
+			powerpc_config_intr(irq,
 			    (intr[i+1] & 1) ? INTR_TRIGGER_LEVEL :
 			    INTR_TRIGGER_EDGE, INTR_POLARITY_LOW);
 		}
 
-		dinfo->udi_interrupts[dinfo->udi_ninterrupts] =
-		    INTR_VEC(iparent, intr[i]);
+		dinfo->udi_interrupts[dinfo->udi_ninterrupts] = irq;
 		dinfo->udi_ninterrupts++;
 	}
 }
@@ -530,10 +530,7 @@ static int
 unin_chip_activate_resource(device_t bus, device_t child, int type, int rid,
 			    struct resource *res)
 {
-	struct unin_chip_softc *sc;
 	void    *p;
-
-	sc = device_get_softc(bus);
 
 	if (type == SYS_RES_IRQ)
                 return (bus_activate_resource(bus, type, rid, res));

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Code paths:
  * BIO_READ:
- *	g_eli_start -> g_io_request -> g_eli_read_done -> g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver
+ *	g_eli_start -> g_eli_crypto_read -> g_io_request -> g_eli_read_done -> g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver
  * BIO_WRITE:
  *	g_eli_start -> g_eli_crypto_run -> g_eli_crypto_write_done -> g_io_request -> g_eli_write_done -> g_io_deliver
  */
@@ -63,11 +63,12 @@ MALLOC_DECLARE(M_ELI);
 /*
  * The function is called after we read and decrypt data.
  *
- * g_eli_start -> g_io_request -> g_eli_read_done -> g_eli_crypto_run -> G_ELI_CRYPTO_READ_DONE -> g_io_deliver
+ * g_eli_start -> g_eli_crypto_read -> g_io_request -> g_eli_read_done -> g_eli_crypto_run -> G_ELI_CRYPTO_READ_DONE -> g_io_deliver
  */
 static int
 g_eli_crypto_read_done(struct cryptop *crp)
 {
+	struct g_eli_softc *sc;
 	struct bio *bp;
 
 	if (crp->crp_etype == EAGAIN) {
@@ -101,7 +102,9 @@ g_eli_crypto_read_done(struct cryptop *crp)
 	/*
 	 * Read is finished, send it up.
 	 */
+	sc = bp->bio_to->geom->softc;
 	g_io_deliver(bp, bp->bio_error);
+	atomic_subtract_int(&sc->sc_inflight, 1);
 	return (0);
 }
 
@@ -113,6 +116,7 @@ g_eli_crypto_read_done(struct cryptop *crp)
 static int
 g_eli_crypto_write_done(struct cryptop *crp)
 {
+	struct g_eli_softc *sc;
 	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct bio *bp, *cbp;
@@ -141,18 +145,20 @@ g_eli_crypto_write_done(struct cryptop *crp)
 	bp->bio_children = 1;
 	cbp = bp->bio_driver1;
 	bp->bio_driver1 = NULL;
+	gp = bp->bio_to->geom;
 	if (bp->bio_error != 0) {
 		G_ELI_LOGREQ(0, bp, "Crypto WRITE request failed (error=%d).",
 		    bp->bio_error);
 		free(bp->bio_driver2, M_ELI);
 		bp->bio_driver2 = NULL;
 		g_destroy_bio(cbp);
+		sc = gp->softc;
 		g_io_deliver(bp, bp->bio_error);
+		atomic_subtract_int(&sc->sc_inflight, 1);
 		return (0);
 	}
 	cbp->bio_data = bp->bio_driver2;
 	cbp->bio_done = g_eli_write_done;
-	gp = bp->bio_to->geom;
 	cp = LIST_FIRST(&gp->consumer);
 	cbp->bio_to = cp->provider;
 	G_ELI_LOGREQ(2, cbp, "Sending request.");
@@ -164,8 +170,57 @@ g_eli_crypto_write_done(struct cryptop *crp)
 }
 
 /*
+ * The function is called to read encrypted data.
+ *
+ * g_eli_start -> G_ELI_CRYPTO_READ -> g_io_request -> g_eli_read_done -> g_eli_crypto_run -> g_eli_crypto_read_done -> g_io_deliver
+ */
+void
+g_eli_crypto_read(struct g_eli_softc *sc, struct bio *bp, boolean_t fromworker)
+{
+	struct g_consumer *cp;
+	struct bio *cbp;
+
+	if (!fromworker) {
+		/*
+		 * We are not called from the worker thread, so check if
+		 * device is suspended.
+		 */
+		mtx_lock(&sc->sc_queue_mtx);
+		if (sc->sc_flags & G_ELI_FLAG_SUSPEND) {
+			/*
+			 * If device is suspended, we place the request onto
+			 * the queue, so it can be handled after resume.
+			 */
+			G_ELI_DEBUG(0, "device suspended, move onto queue");
+			bioq_insert_tail(&sc->sc_queue, bp);
+			mtx_unlock(&sc->sc_queue_mtx);
+			wakeup(sc);
+			return;
+		}
+		atomic_add_int(&sc->sc_inflight, 1);
+		mtx_unlock(&sc->sc_queue_mtx);
+	}
+	bp->bio_pflags = 0;
+	bp->bio_driver2 = NULL;
+	cbp = bp->bio_driver1;
+	cbp->bio_done = g_eli_read_done;
+	cp = LIST_FIRST(&sc->sc_geom->consumer);
+	cbp->bio_to = cp->provider;
+	G_ELI_LOGREQ(2, cbp, "Sending request.");
+	/*
+	 * Read encrypted data from provider.
+	 */
+	g_io_request(cbp, cp);
+}
+
+/*
  * This is the main function responsible for cryptography (ie. communication
  * with crypto(9) subsystem).
+ *
+ * BIO_READ:
+ *	g_eli_start -> g_eli_crypto_read -> g_io_request -> g_eli_read_done -> G_ELI_CRYPTO_RUN -> g_eli_crypto_read_done -> g_io_deliver
+ * BIO_WRITE:
+ *	g_eli_start -> G_ELI_CRYPTO_RUN -> g_eli_crypto_write_done -> g_io_request -> g_eli_write_done -> g_io_deliver
  */
 void
 g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
@@ -175,8 +230,9 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 	struct cryptodesc *crd;
 	struct uio *uio;
 	struct iovec *iov;
-	u_int i, nsec, add, secsize;
+	u_int i, nsec, secsize;
 	int err, error;
+	off_t dstoff;
 	size_t size;
 	u_char *p, *data;
 
@@ -219,7 +275,7 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 	}
 
 	error = 0;
-	for (i = 0, add = 0; i < nsec; i++, add += secsize) {
+	for (i = 0, dstoff = bp->bio_offset; i < nsec; i++, dstoff += secsize) {
 		crp = (struct cryptop *)p;	p += sizeof(*crp);
 		crd = (struct cryptodesc *)p;	p += sizeof(*crd);
 		uio = (struct uio *)p;		p += sizeof(*uio);
@@ -251,12 +307,16 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 		crd->crd_skip = 0;
 		crd->crd_len = secsize;
 		crd->crd_flags = CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
+		if (sc->sc_nekeys > 1)
+			crd->crd_flags |= CRD_F_KEY_EXPLICIT;
 		if (bp->bio_cmd == BIO_WRITE)
 			crd->crd_flags |= CRD_F_ENCRYPT;
 		crd->crd_alg = sc->sc_ealgo;
-		crd->crd_key = sc->sc_ekey;
+		crd->crd_key = g_eli_crypto_key(sc, dstoff, secsize);
 		crd->crd_klen = sc->sc_ekeylen;
-		g_eli_crypto_ivgen(sc, bp->bio_offset + add, crd->crd_iv,
+		if (sc->sc_ealgo == CRYPTO_AES_XTS)
+			crd->crd_klen <<= 1;
+		g_eli_crypto_ivgen(sc, dstoff, crd->crd_iv,
 		    sizeof(crd->crd_iv));
 		crd->crd_next = NULL;
 

@@ -34,6 +34,7 @@ SUBDIR_ORDERED=	${_csu} \
 	libbsm \
 	libauditd \
 	libcom_err \
+	libcompiler_rt \
 	libcrypt \
 	libelf \
 	libkvm \
@@ -53,6 +54,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libarchive \
 	${_libatm} \
 	libbegemot \
+	libblocksruntime \
 	${_libbluetooth} \
 	${_libbsnmp} \
 	libbz2 \
@@ -112,8 +114,10 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_bind} \
 	${_clang}
 
-.if exists(${.CURDIR}/csu/${MACHINE_CPUARCH}-elf)
-_csu=csu/${MACHINE_CPUARCH}-elf
+.if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
+_csu=csu/${MACHINE_ARCH}-elf
+.elif exists(${.CURDIR}/csu/${MACHINE_ARCH})
+_csu=csu/${MACHINE_ARCH}
 .elif exists(${.CURDIR}/csu/${MACHINE_CPUARCH}/Makefile)
 _csu=csu/${MACHINE_CPUARCH}
 .else

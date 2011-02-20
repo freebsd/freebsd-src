@@ -33,6 +33,7 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/Support/CallSite.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
 #include "llvm/Support/PatternMatch.h"
@@ -40,6 +41,11 @@
 #include "llvm/Support/IRBuilder.h"
 using namespace llvm;
 using namespace llvm::PatternMatch;
+
+static cl::opt<bool>
+CriticalEdgeSplit("cgp-critical-edge-splitting",
+                  cl::desc("Split critical edges during codegen prepare"),
+                  cl::init(true), cl::Hidden);
 
 namespace {
   class CodeGenPrepare : public FunctionPass {
@@ -54,7 +60,7 @@ namespace {
   public:
     static char ID; // Pass identification, replacement for typeid
     explicit CodeGenPrepare(const TargetLowering *tli = 0)
-      : FunctionPass(&ID), TLI(tli) {}
+      : FunctionPass(ID), TLI(tli) {}
     bool runOnFunction(Function &F);
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
@@ -82,8 +88,8 @@ namespace {
 }
 
 char CodeGenPrepare::ID = 0;
-static RegisterPass<CodeGenPrepare> X("codegenprepare",
-                                      "Optimize for code generation");
+INITIALIZE_PASS(CodeGenPrepare, "codegenprepare",
+                "Optimize for code generation", false, false);
 
 FunctionPass *llvm::createCodeGenPreparePass(const TargetLowering *TLI) {
   return new CodeGenPrepare(TLI);
@@ -427,9 +433,9 @@ static bool OptimizeNoopCopyExpression(CastInst *CI, const TargetLowering &TLI){
   // If these values will be promoted, find out what they will be promoted
   // to.  This helps us consider truncates on PPC as noop copies when they
   // are.
-  if (TLI.getTypeAction(CI->getContext(), SrcVT) == TargetLowering::Promote)
+  if (TLI.getTypeAction(SrcVT) == TargetLowering::Promote)
     SrcVT = TLI.getTypeToTransformTo(CI->getContext(), SrcVT);
-  if (TLI.getTypeAction(CI->getContext(), DstVT) == TargetLowering::Promote)
+  if (TLI.getTypeAction(DstVT) == TargetLowering::Promote)
     DstVT = TLI.getTypeToTransformTo(CI->getContext(), DstVT);
 
   // If, after promotion, these are the same types, this is a noop copy.
@@ -548,9 +554,9 @@ protected:
     CI->eraseFromParent();
   }
   bool isFoldable(unsigned SizeCIOp, unsigned, bool) const {
-      if (ConstantInt *SizeCI = dyn_cast<ConstantInt>(CI->getArgOperand(SizeCIOp
-                                                        - CallInst::ArgOffset)))
-      return SizeCI->isAllOnesValue();
+      if (ConstantInt *SizeCI =
+                             dyn_cast<ConstantInt>(CI->getArgOperand(SizeCIOp)))
+        return SizeCI->isAllOnesValue();
     return false;
   }
 };
@@ -891,12 +897,14 @@ bool CodeGenPrepare::OptimizeBlock(BasicBlock &BB) {
   bool MadeChange = false;
 
   // Split all critical edges where the dest block has a PHI.
-  TerminatorInst *BBTI = BB.getTerminator();
-  if (BBTI->getNumSuccessors() > 1 && !isa<IndirectBrInst>(BBTI)) {
-    for (unsigned i = 0, e = BBTI->getNumSuccessors(); i != e; ++i) {
-      BasicBlock *SuccBB = BBTI->getSuccessor(i);
-      if (isa<PHINode>(SuccBB->begin()) && isCriticalEdge(BBTI, i, true))
-        SplitEdgeNicely(BBTI, i, BackEdges, this);
+  if (CriticalEdgeSplit) {
+    TerminatorInst *BBTI = BB.getTerminator();
+    if (BBTI->getNumSuccessors() > 1 && !isa<IndirectBrInst>(BBTI)) {
+      for (unsigned i = 0, e = BBTI->getNumSuccessors(); i != e; ++i) {
+        BasicBlock *SuccBB = BBTI->getSuccessor(i);
+        if (isa<PHINode>(SuccBB->begin()) && isCriticalEdge(BBTI, i, true))
+          SplitEdgeNicely(BBTI, i, BackEdges, this);
+      }
     }
   }
 

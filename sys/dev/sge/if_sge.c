@@ -627,10 +627,10 @@ sge_attach(device_t dev)
 	/*
 	 * Do MII setup.
 	 */
-	if (mii_phy_probe(dev, &sc->sge_miibus, sge_ifmedia_upd,
-	    sge_ifmedia_sts)) {
-		device_printf(dev, "no PHY found!\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->sge_miibus, ifp, sge_ifmedia_upd,
+	    sge_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -1457,7 +1457,9 @@ sge_encap(struct sge_softc *sc, struct mbuf **m_head)
 		 * Reset IP checksum and recompute TCP pseudo
 		 * checksum that NDIS specification requires.
 		 */
+		ip = (struct ip *)(mtod(m, char *) + ip_off);
 		ip->ip_sum = 0;
+		tcp = (struct tcphdr *)(mtod(m, char *) + poff);
 		tcp->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
 		    htons(IPPROTO_TCP));
 		*m_head = m;

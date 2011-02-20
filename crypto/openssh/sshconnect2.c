@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect2.c,v 1.180 2010/02/26 20:29:54 djm Exp $ */
+/* $OpenBSD: sshconnect2.c,v 1.183 2010/04/26 22:28:24 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
@@ -195,7 +195,7 @@ struct Authctxt {
 	const char *host;
 	const char *service;
 	Authmethod *method;
-	int success;
+	sig_atomic_t success;
 	char *authlist;
 	/* pubkey */
 	Idlist keys;
@@ -1140,8 +1140,11 @@ sign_and_send_pubkey(Authctxt *authctxt, Identity *id)
 	u_int skip = 0;
 	int ret = -1;
 	int have_sig = 1;
+	char *fp;
 
-	debug3("sign_and_send_pubkey");
+	fp = key_fingerprint(id->key, SSH_FP_MD5, SSH_FP_HEX);
+	debug3("sign_and_send_pubkey: %s %s", key_type(id->key), fp);
+	xfree(fp);
 
 	if (key_to_blob(id->key, &blob, &bloblen) == 0) {
 		/* we cannot handle this key */
@@ -1398,7 +1401,8 @@ userauth_pubkey(Authctxt *authctxt)
 		 * private key instead
 		 */
 		if (id->key && id->key->type != KEY_RSA1) {
-			debug("Offering public key: %s", id->filename);
+			debug("Offering %s public key: %s", key_type(id->key),
+			    id->filename);
 			sent = send_pubkey_test(authctxt, id);
 		} else if (id->key == NULL) {
 			debug("Trying private key: %s", id->filename);

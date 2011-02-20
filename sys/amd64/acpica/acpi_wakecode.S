@@ -274,8 +274,6 @@ wakeup_gdt:
 	ALIGN_DATA
 wakeup_efer:
 	.quad	0
-wakeup_pat:
-	.quad	0
 wakeup_star:
 	.quad	0
 wakeup_lstar:

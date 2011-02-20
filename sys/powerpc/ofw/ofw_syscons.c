@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/sc_machdep.h>
+#include <machine/vm.h>
 
 #include <sys/rman.h>
 
@@ -280,7 +281,7 @@ ofwfb_configure(int flags)
 	OF_getprop(node, "address", &fb_phys, sizeof(fb_phys));
 
 	bus_space_map(&bs_be_tag, fb_phys, sc->sc_height * sc->sc_stride,
-	    0, &sc->sc_addr);
+	    BUS_SPACE_MAP_PREFETCHABLE, &sc->sc_addr);
 
 	/*
 	 * Get the PCI addresses of the adapter. The node may be the
@@ -632,8 +633,25 @@ ofwfb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
 
 	sc = (struct ofwfb_softc *)adp;
 
-	if (sc->sc_num_pciaddrs == 0)
-		return (ENOMEM);
+	/*
+	 * Make sure the requested address lies within the PCI device's
+	 * assigned addrs
+	 */
+	for (i = 0; i < sc->sc_num_pciaddrs; i++)
+	  if (offset >= sc->sc_pciaddrs[i].phys_lo &&
+	    offset < (sc->sc_pciaddrs[i].phys_lo + sc->sc_pciaddrs[i].size_lo))
+		{
+			/*
+			 * If this is a prefetchable BAR, we can (and should)
+			 * enable write-combining.
+			 */
+			if (sc->sc_pciaddrs[i].phys_hi &
+			    OFW_PCI_PHYS_HI_PREFETCHABLE)
+				*memattr = VM_MEMATTR_WRITE_COMBINING;
+
+			*paddr = offset;
+			return (0);
+		}
 
 	/*
 	 * Hack for Radeon...
@@ -644,16 +662,6 @@ ofwfb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
 	}
 
 	/*
-	 * Make sure the requested address lies within the PCI device's assigned addrs
-	 */
-	for (i = 0; i < sc->sc_num_pciaddrs; i++)
-		if (offset >= sc->sc_pciaddrs[i].phys_lo &&
-		    offset < (sc->sc_pciaddrs[i].phys_lo + sc->sc_pciaddrs[i].size_lo)) {
-			*paddr = offset;
-			return (0);
-		}
-
-	/*
 	 * This might be a legacy VGA mem request: if so, just point it at the
 	 * framebuffer, since it shouldn't be touched
 	 */
@@ -661,6 +669,12 @@ ofwfb_mmap(video_adapter_t *adp, vm_ooffset_t offset, vm_paddr_t *paddr,
 		*paddr = sc->sc_addr + offset;
 		return (0);
 	}
+
+	/*
+	 * Error if we didn't have a better idea.
+	 */
+	if (sc->sc_num_pciaddrs == 0)
+		return (ENOMEM);
 
 	return (EINVAL);
 }

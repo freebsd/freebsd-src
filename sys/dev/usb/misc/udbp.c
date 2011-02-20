@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -261,6 +260,7 @@ static driver_t udbp_driver = {
 DRIVER_MODULE(udbp, uhub, udbp_driver, udbp_devclass, udbp_modload, 0);
 MODULE_DEPEND(udbp, netgraph, NG_ABI_VERSION, NG_ABI_VERSION, NG_ABI_VERSION);
 MODULE_DEPEND(udbp, usb, 1, 1, 1);
+MODULE_VERSION(udbp, 1);
 
 static int
 udbp_modload(module_t mod, int event, void *data)

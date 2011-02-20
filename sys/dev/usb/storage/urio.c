@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -197,6 +196,7 @@ static driver_t urio_driver = {
 
 DRIVER_MODULE(urio, uhub, urio_driver, urio_devclass, NULL, 0);
 MODULE_DEPEND(urio, usb, 1, 1, 1);
+MODULE_VERSION(urio, 1);
 
 static int
 urio_probe(device_t dev)

@@ -96,6 +96,7 @@ struct smu_softc {
 
 	struct resource	*sc_memr;
 	int		sc_memrid;
+	int		sc_u3;
 
 	bus_dma_tag_t	sc_dmatag;
 	bus_space_tag_t	sc_bt;
@@ -165,6 +166,7 @@ static void	smu_manage_fans(device_t smu);
 static void	smu_set_sleepled(void *xdev, int onoff);
 static int	smu_server_mode(SYSCTL_HANDLER_ARGS);
 static void	smu_doorbell_intr(void *xdev);
+static void	smu_shutdown(void *xdev, int howto);
 
 /* where to find the doorbell GPIO */
 
@@ -273,6 +275,10 @@ smu_attach(device_t dev)
 	mtx_init(&sc->sc_mtx, "smu", NULL, MTX_DEF);
 	sc->sc_cur_cmd = NULL;
 	sc->sc_doorbellirqid = -1;
+
+	sc->sc_u3 = 0;
+	if (OF_finddevice("/u3") != -1)
+		sc->sc_u3 = 1;
 
 	/*
 	 * Map the mailbox area. This should be determined from firmware,
@@ -391,6 +397,12 @@ smu_attach(device_t dev)
 	 */
 	clock_register(dev, 1000);
 
+	/*
+	 * Learn about shutdown events
+	 */
+	EVENTHANDLER_REGISTER(shutdown_final, smu_shutdown, dev,
+	    SHUTDOWN_PRI_LAST);
+
 	return (bus_generic_attach(dev));
 }
 
@@ -410,7 +422,9 @@ smu_send_cmd(device_t dev, struct smu_cmd *cmd)
 
 	mtx_assert(&sc->sc_mtx, MA_OWNED);
 
-	powerpc_pow_enabled = 0;	/* SMU cannot work if we go to NAP */
+	if (sc->sc_u3)
+		powerpc_pow_enabled = 0; /* SMU cannot work if we go to NAP */
+
 	sc->sc_cur_cmd = cmd;
 
 	/* Copy the command to the mailbox */
@@ -457,7 +471,8 @@ smu_doorbell_intr(void *xdev)
 	    sizeof(sc->sc_cmd->data));
 	wakeup(sc->sc_cur_cmd);
 	sc->sc_cur_cmd = NULL;
-	powerpc_pow_enabled = 1;
+	if (sc->sc_u3)
+		powerpc_pow_enabled = 1;
 
     done:
 	/* Queue next command if one is pending */
@@ -1113,6 +1128,25 @@ smu_server_mode(SYSCTL_HANDLER_ARGS)
 	cmd.data[2] = SMU_WAKEUP_AC_INSERT;
 
 	return (smu_run_cmd(smu, &cmd, 1));
+}
+
+static void
+smu_shutdown(void *xdev, int howto)
+{
+	device_t smu = xdev;
+	struct smu_cmd cmd;
+
+	cmd.cmd = SMU_POWER;
+	if (howto & RB_HALT)
+		strcpy(cmd.data, "SHUTDOWN");
+	else
+		strcpy(cmd.data, "RESTART");
+
+	cmd.len = strlen(cmd.data);
+
+	smu_run_cmd(smu, &cmd, 1);
+
+	for (;;);
 }
 
 static int

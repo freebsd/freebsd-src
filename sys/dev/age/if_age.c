@@ -118,8 +118,8 @@ static void age_setwol(struct age_softc *);
 static int age_suspend(device_t);
 static int age_resume(device_t);
 static int age_encap(struct age_softc *, struct mbuf **);
-static void age_tx_task(void *, int);
 static void age_start(struct ifnet *);
+static void age_start_locked(struct ifnet *);
 static void age_watchdog(struct age_softc *);
 static int age_ioctl(struct ifnet *, u_long, caddr_t);
 static void age_mac_config(struct age_softc *);
@@ -210,8 +210,6 @@ age_miibus_readreg(device_t dev, int phy, int reg)
 	int i;
 
 	sc = device_get_softc(dev);
-	if (phy != sc->age_phyaddr)
-		return (0);
 
 	CSR_WRITE_4(sc, AGE_MDIO, MDIO_OP_EXECUTE | MDIO_OP_READ |
 	    MDIO_SUP_PREAMBLE | MDIO_CLK_25_4 | MDIO_REG_ADDR(reg));
@@ -241,8 +239,6 @@ age_miibus_writereg(device_t dev, int phy, int reg, int val)
 	int i;
 
 	sc = device_get_softc(dev);
-	if (phy != sc->age_phyaddr)
-		return (0);
 
 	CSR_WRITE_4(sc, AGE_MDIO, MDIO_OP_EXECUTE | MDIO_OP_WRITE |
 	    (val & MDIO_DATA_MASK) << MDIO_DATA_SHIFT |
@@ -621,9 +617,11 @@ age_attach(device_t dev)
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Set up MII bus. */
-	if ((error = mii_phy_probe(dev, &sc->age_miibus, age_mediachange,
-	    age_mediastatus)) != 0) {
-		device_printf(dev, "no PHY found!\n");
+	error = mii_attach(dev, &sc->age_miibus, ifp, age_mediachange,
+	    age_mediastatus, BMSR_DEFCAPMASK, sc->age_phyaddr, MII_OFFSET_ANY,
+	    0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -638,7 +636,6 @@ age_attach(device_t dev)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 
 	/* Create local taskq. */
-	TASK_INIT(&sc->age_tx_task, 1, age_tx_task, ifp);
 	sc->age_tq = taskqueue_create_fast("age_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->age_tq);
 	if (sc->age_tq == NULL) {
@@ -695,7 +692,6 @@ age_detach(device_t dev)
 		AGE_UNLOCK(sc);
 		callout_drain(&sc->age_tick_ch);
 		taskqueue_drain(sc->age_tq, &sc->age_int_task);
-		taskqueue_drain(sc->age_tq, &sc->age_tx_task);
 		taskqueue_drain(taskqueue_swi, &sc->age_link_task);
 		ether_ifdetach(ifp);
 	}
@@ -1565,6 +1561,7 @@ age_encap(struct age_softc *sc, struct mbuf **m_head)
 				*m_head = NULL;
 				return (ENOBUFS);
 			}
+			ip = (struct ip *)(mtod(m, char *) + ip_off);
 			tcp = (struct tcphdr *)(mtod(m, char *) + poff);
 			/*
 			 * L1 requires IP/TCP header size and offset as
@@ -1707,16 +1704,18 @@ age_encap(struct age_softc *sc, struct mbuf **m_head)
 }
 
 static void
-age_tx_task(void *arg, int pending)
+age_start(struct ifnet *ifp)
 {
-	struct ifnet *ifp;
+        struct age_softc *sc;
 
-	ifp = (struct ifnet *)arg;
-	age_start(ifp);
+	sc = ifp->if_softc;
+	AGE_LOCK(sc);
+	age_start_locked(ifp);
+	AGE_UNLOCK(sc);
 }
 
 static void
-age_start(struct ifnet *ifp)
+age_start_locked(struct ifnet *ifp)
 {
         struct age_softc *sc;
         struct mbuf *m_head;
@@ -1724,13 +1723,11 @@ age_start(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
-	AGE_LOCK(sc);
+	AGE_LOCK_ASSERT(sc);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || (sc->age_flags & AGE_FLAG_LINK) == 0) {
-		AGE_UNLOCK(sc);
+	    IFF_DRV_RUNNING || (sc->age_flags & AGE_FLAG_LINK) == 0)
 		return;
-	}
 
 	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd); ) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
@@ -1763,8 +1760,6 @@ age_start(struct ifnet *ifp)
 		/* Set a timeout in case the chip goes out to lunch. */
 		sc->age_watchdog_timer = AGE_TX_TIMEOUT;
 	}
-
-	AGE_UNLOCK(sc);
 }
 
 static void
@@ -1781,6 +1776,7 @@ age_watchdog(struct age_softc *sc)
 	if ((sc->age_flags & AGE_FLAG_LINK) == 0) {
 		if_printf(sc->age_ifp, "watchdog timeout (missed link)\n");
 		ifp->if_oerrors++;
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		age_init_locked(sc);
 		return;
 	}
@@ -1788,14 +1784,15 @@ age_watchdog(struct age_softc *sc)
 		if_printf(sc->age_ifp,
 		    "watchdog timeout (missed Tx interrupts) -- recovering\n");
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			taskqueue_enqueue(sc->age_tq, &sc->age_tx_task);
+			age_start_locked(ifp);
 		return;
 	}
 	if_printf(sc->age_ifp, "watchdog timeout\n");
 	ifp->if_oerrors++;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	age_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue(sc->age_tq, &sc->age_tx_task);
+		age_start_locked(ifp);
 }
 
 static int
@@ -1817,8 +1814,10 @@ age_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		else if (ifp->if_mtu != ifr->ifr_mtu) {
 			AGE_LOCK(sc);
 			ifp->if_mtu = ifr->ifr_mtu;
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				age_init_locked(sc);
+			}
 			AGE_UNLOCK(sc);
 		}
 		break;
@@ -2165,10 +2164,11 @@ age_int_task(void *arg, int pending)
 			if ((status & INTR_DMA_WR_TO_RST) != 0)
 				device_printf(sc->age_dev,
 				    "DMA write error! -- resetting\n");
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			age_init_locked(sc);
 		}
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			taskqueue_enqueue(sc->age_tq, &sc->age_tx_task);
+			age_start_locked(ifp);
 		if ((status & INTR_SMB) != 0)
 			age_stats_update(sc);
 	}
@@ -2528,6 +2528,9 @@ age_init_locked(struct age_softc *sc)
 
 	ifp = sc->age_ifp;
 	mii = device_get_softc(sc->age_miibus);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 
 	/*
 	 * Cancel any pending I/O.

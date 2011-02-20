@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2010
+.Dd November 3, 2010
 .Dt LOCKING 9
 .Os
 .Sh NAME
@@ -301,7 +301,7 @@ one of the synchronization primitives discussed:
 .It mutex     Ta \&ok Ta \&ok-1 Ta \&no Ta \&ok Ta \&ok Ta \&no-3
 .It sx        Ta \&ok Ta \&ok Ta \&ok-2 Ta \&ok Ta \&ok Ta \&ok-4
 .It rwlock    Ta \&ok Ta \&ok Ta \&no Ta \&ok-2 Ta \&ok Ta \&no-3
-.It rmlock    Ta \&ok Ta \&ok Ta \&no Ta \&ok Ta \&ok-2 Ta \&no
+.It rmlock    Ta \&ok Ta \&ok Ta \&ok-5 Ta \&ok Ta \&ok-2 Ta \&ok-5
 .El
 .Pp
 .Em *1
@@ -326,6 +326,13 @@ Though one can sleep holding an sx lock, one can also use
 .Fn sx_sleep
 which will atomically release this primitive when going to sleep and
 reacquire it on wakeup.
+.Pp
+.Em *5
+.Em Read-mostly
+locks can be initialized to support sleeping while holding a write lock.
+See
+.Xr rmlock 9
+for details.
 .Ss Context mode table
 The next table shows what can be used in different contexts.
 At this time this is a rather easy to remember table.
@@ -334,7 +341,7 @@ At this time this is a rather easy to remember table.
 .Em "Context:"  Ta spin mtx Ta mutex Ta sx Ta rwlock Ta rmlock Ta sleep
 .Xc
 .It interrupt filter:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no Ta \&no 
-.It ithread:    Ta \&ok Ta \&ok Ta \&no Ta \&ok Ta \&ok Ta \&no 
+.It interrupt thread:  Ta \&ok Ta \&ok Ta \&no Ta \&ok Ta \&ok Ta \&no 
 .It callout:    Ta \&ok Ta \&ok Ta \&no Ta \&ok Ta \&no Ta \&no 
 .It syscall:    Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok Ta \&ok 
 .El
@@ -349,6 +356,7 @@ At this time this is a rather easy to remember table.
 .Xr sema 9 ,
 .Xr sleep 9 ,
 .Xr sx 9 ,
+.Xr BUS_SETUP_INTR 9 ,
 .Xr LOCK_PROFILING 9
 .Sh HISTORY
 These

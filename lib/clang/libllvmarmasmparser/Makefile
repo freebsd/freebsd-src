@@ -4,10 +4,11 @@ LIB=	llvmarmasmparser
 
 SRCDIR=	lib/Target/ARM/AsmParser
 INCDIR=	lib/Target/ARM
-SRCS=	ARMAsmParser.cpp \
-	ARMAsmLexer.cpp
+SRCS=	ARMAsmLexer.cpp \
+	ARMAsmParser.cpp
 
-TGHDRS= ARMGenInstrNames \
+TGHDRS=	ARMGenAsmMatcher \
+	ARMGenInstrNames \
 	ARMGenRegisterInfo.h \
 	ARMGenRegisterNames
 

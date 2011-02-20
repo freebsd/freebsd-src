@@ -79,7 +79,7 @@ _thr_list_init(void)
 
 	_gc_count = 0;
 	total_threads = 1;
-	_thr_umutex_init(&_thr_list_lock);
+	_thr_urwlock_init(&_thr_list_lock);
 	TAILQ_INIT(&_thread_list);
 	TAILQ_INIT(&free_threadq);
 	_thr_umutex_init(&free_thread_lock);
@@ -98,7 +98,7 @@ _thr_gc(struct pthread *curthread)
 	TAILQ_HEAD(, pthread) worklist;
 
 	TAILQ_INIT(&worklist);
-	THREAD_LIST_LOCK(curthread);
+	THREAD_LIST_WRLOCK(curthread);
 
 	/* Check the threads waiting for GC. */
 	TAILQ_FOREACH_SAFE(td, &_thread_gc_list, gcle, td_next) {
@@ -107,17 +107,8 @@ _thr_gc(struct pthread *curthread)
 			continue;
 		}
 		_thr_stack_free(&td->attr);
-		if (((td->tlflags & TLFLAGS_DETACHED) != 0) &&
-		    (td->refcount == 0)) {
-			THR_GCLIST_REMOVE(td);
-			/*
-			 * The thread has detached and is no longer
-			 * referenced.  It is safe to remove all
-			 * remnants of the thread.
-			 */
-			THR_LIST_REMOVE(td);
-			TAILQ_INSERT_HEAD(&worklist, td, gcle);
-		}
+		THR_GCLIST_REMOVE(td);
+		TAILQ_INSERT_HEAD(&worklist, td, gcle);
 	}
 	THREAD_LIST_UNLOCK(curthread);
 
@@ -174,6 +165,8 @@ _thr_alloc(struct pthread *curthread)
 	if (tcb != NULL) {
 		memset(thread, 0, sizeof(*thread));
 		thread->tcb = tcb;
+		thread->sleepqueue = _sleepq_alloc();
+		thread->wake_addr = _thr_alloc_wake_addr();
 	} else {
 		thr_destroy(curthread, thread);
 		atomic_fetchadd_int(&total_threads, -1);
@@ -201,6 +194,8 @@ _thr_free(struct pthread *curthread, struct pthread *thread)
 	}
 	thread->tcb = NULL;
 	if ((curthread == NULL) || (free_thread_count >= MAX_CACHED_THREADS)) {
+		_sleepq_free(thread->sleepqueue);
+		_thr_release_wake_addr(thread->wake_addr);
 		thr_destroy(curthread, thread);
 		atomic_fetchadd_int(&total_threads, -1);
 	} else {
@@ -228,10 +223,10 @@ thr_destroy(struct pthread *curthread __unused, struct pthread *thread)
 void
 _thr_link(struct pthread *curthread, struct pthread *thread)
 {
-	THREAD_LIST_LOCK(curthread);
+	THREAD_LIST_WRLOCK(curthread);
 	THR_LIST_ADD(thread);
-	_thread_active_threads++;
 	THREAD_LIST_UNLOCK(curthread);
+	atomic_add_int(&_thread_active_threads, 1);
 }
 
 /*
@@ -240,10 +235,10 @@ _thr_link(struct pthread *curthread, struct pthread *thread)
 void
 _thr_unlink(struct pthread *curthread, struct pthread *thread)
 {
-	THREAD_LIST_LOCK(curthread);
+	THREAD_LIST_WRLOCK(curthread);
 	THR_LIST_REMOVE(thread);
-	_thread_active_threads--;
 	THREAD_LIST_UNLOCK(curthread);
+	atomic_add_int(&_thread_active_threads, -1);
 }
 
 void
@@ -290,12 +285,11 @@ _thr_ref_add(struct pthread *curthread, struct pthread *thread,
 		/* Invalid thread: */
 		return (EINVAL);
 
-	THREAD_LIST_LOCK(curthread);
 	if ((ret = _thr_find_thread(curthread, thread, include_dead)) == 0) {
 		thread->refcount++;
 		THR_CRITICAL_ENTER(curthread);
+		THR_THREAD_UNLOCK(curthread, thread);
 	}
-	THREAD_LIST_UNLOCK(curthread);
 
 	/* Return zero if the thread exists: */
 	return (ret);
@@ -304,41 +298,56 @@ _thr_ref_add(struct pthread *curthread, struct pthread *thread,
 void
 _thr_ref_delete(struct pthread *curthread, struct pthread *thread)
 {
-	THREAD_LIST_LOCK(curthread);
-	_thr_ref_delete_unlocked(curthread, thread);
-	THREAD_LIST_UNLOCK(curthread);
+	THR_THREAD_LOCK(curthread, thread);
+	thread->refcount--;
+	_thr_try_gc(curthread, thread);
+	THR_CRITICAL_LEAVE(curthread);
 }
 
+/* entered with thread lock held, exit with thread lock released */
 void
-_thr_ref_delete_unlocked(struct pthread *curthread,
-	struct pthread *thread)
+_thr_try_gc(struct pthread *curthread, struct pthread *thread)
 {
-	if (thread != NULL) {
-		thread->refcount--;
-		if ((thread->refcount == 0) && thread->state == PS_DEAD &&
-		    (thread->tlflags & TLFLAGS_DETACHED) != 0)
+	if (THR_SHOULD_GC(thread)) {
+		THR_REF_ADD(curthread, thread);
+		THR_THREAD_UNLOCK(curthread, thread);
+		THREAD_LIST_WRLOCK(curthread);
+		THR_THREAD_LOCK(curthread, thread);
+		THR_REF_DEL(curthread, thread);
+		if (THR_SHOULD_GC(thread)) {
+			THR_LIST_REMOVE(thread);
 			THR_GCLIST_ADD(thread);
-		THR_CRITICAL_LEAVE(curthread);
+		}
+		THR_THREAD_UNLOCK(curthread, thread);
+		THREAD_LIST_UNLOCK(curthread);
+	} else {
+		THR_THREAD_UNLOCK(curthread, thread);
 	}
 }
 
+/* return with thread lock held if thread is found */
 int
-_thr_find_thread(struct pthread *curthread __unused, struct pthread *thread,
+_thr_find_thread(struct pthread *curthread, struct pthread *thread,
     int include_dead)
 {
 	struct pthread *pthread;
+	int ret;
 
 	if (thread == NULL)
-		/* Invalid thread: */
 		return (EINVAL);
 
+	ret = 0;
+	THREAD_LIST_RDLOCK(curthread);
 	pthread = _thr_hash_find(thread);
 	if (pthread) {
+		THR_THREAD_LOCK(curthread, pthread);
 		if (include_dead == 0 && pthread->state == PS_DEAD) {
-			pthread = NULL;
-		}	
+			THR_THREAD_UNLOCK(curthread, pthread);
+			ret = ESRCH;
+		}
+	} else {
+		ret = ESRCH;
 	}
-
-	/* Return zero if the thread exists: */
-	return ((pthread != NULL) ? 0 : ESRCH);
+	THREAD_LIST_UNLOCK(curthread);
+	return (ret);
 }

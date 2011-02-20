@@ -19,6 +19,10 @@ extra_commands="status prefer_ipv6 prefer_ipv4"
 status_cmd="ip6addrctl"
 prefer_ipv6_cmd="ip6addrctl_prefer_ipv6"
 prefer_ipv4_cmd="ip6addrctl_prefer_ipv4"
+config_file="/etc/ip6addrctl.conf"
+
+set_rcvar_obsolete ipv6_enable ipv6_activate_all_interfaces
+set_rcvar_obsolete ipv6_prefer ip6addrctl_policy
 
 ip6addrctl_prefer_ipv6()
 {
@@ -51,17 +55,40 @@ ip6addrctl_start()
 	afexists inet6 || return 0
 
 	# install the policy of the address selection algorithm.
-	if [ -f /etc/ip6addrctl.conf ]; then
-		ip6addrctl flush >/dev/null 2>&1
-		ip6addrctl install /etc/ip6addrctl.conf
-		checkyesno ip6addrctl_verbose && ip6addrctl
-	else
-		if checkyesno ipv6_prefer; then
-			ip6addrctl_prefer_ipv6
+	case "${ip6addrctl_policy}" in
+	[Aa][Uu][Tt][Oo])
+		if [ -r "${config_file}" -a -s "${config_file}" ]; then
+			ip6addrctl flush >/dev/null 2>&1
+			ip6addrctl install "${config_file}"
+			checkyesno ip6addrctl_verbose && ip6addrctl
 		else
-			ip6addrctl_prefer_ipv4
+			if checkyesno ipv6_activate_all_interfaces; then
+				ip6addrctl_prefer_ipv6
+			else
+				ip6addrctl_prefer_ipv4
+			fi
 		fi
-	fi
+	;;
+	ipv4_prefer)
+		ip6addrctl_prefer_ipv4
+	;;
+	ipv6_prefer)
+		ip6addrctl_prefer_ipv6
+	;;
+	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+		# Backward compatibility when ipv6_prefer=YES
+		ip6addrctl_prefer_ipv6
+	;;
+	[Nn][Oo]|[Ff][Aa][Ll][Ss][Ee]|[Oo][Ff][Ff]|0)
+		# Backward compatibility when ipv6_prefer=NO
+		ip6addrctl_prefer_ipv4
+	;;
+	*)
+		warn "\$ip6addrctl_policy is invalid: ${ip6addrctl_policy}. " \
+		    " \"ipv4_prefer\" is used instead."
+		ip6addrctl_prefer_ipv4
+	;;
+	esac
 }
 
 ip6addrctl_stop()

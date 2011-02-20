@@ -55,7 +55,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -252,6 +251,7 @@ static driver_t uvisor_driver = {
 DRIVER_MODULE(uvisor, uhub, uvisor_driver, uvisor_devclass, NULL, 0);
 MODULE_DEPEND(uvisor, ucom, 1, 1, 1);
 MODULE_DEPEND(uvisor, usb, 1, 1, 1);
+MODULE_VERSION(uvisor, 1);
 
 static const struct usb_device_id uvisor_devs[] = {
 #define	UVISOR_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
@@ -346,6 +346,8 @@ uvisor_attach(device_t dev)
 		DPRINTF("ucom_attach failed\n");
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	return (0);
 
 detach:
@@ -360,7 +362,7 @@ uvisor_detach(device_t dev)
 
 	DPRINTF("sc=%p\n", sc);
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UVISOR_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 

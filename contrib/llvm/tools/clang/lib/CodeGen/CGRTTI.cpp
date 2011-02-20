@@ -11,9 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/AST/Type.h"
-#include "clang/AST/RecordLayout.h"
 #include "CodeGenModule.h"
+#include "CGCXXABI.h"
+#include "clang/AST/RecordLayout.h"
+#include "clang/AST/Type.h"
+#include "clang/Frontend/CodeGenOptions.h"
+
 using namespace clang;
 using namespace CodeGen;
 
@@ -45,7 +48,11 @@ class RTTIBuilder {
   
   /// BuildPointerTypeInfo - Build an abi::__pointer_type_info struct, used
   /// for pointer types.
-  void BuildPointerTypeInfo(const PointerType *Ty);
+  void BuildPointerTypeInfo(QualType PointeeTy);
+
+  /// BuildObjCObjectTypeInfo - Build the appropriate kind of
+  /// type_info for an object type.
+  void BuildObjCObjectTypeInfo(const ObjCObjectType *Ty);
   
   /// BuildPointerToMemberTypeInfo - Build an abi::__pointer_to_member_type_info 
   /// struct, used for member pointer types.
@@ -59,7 +66,7 @@ public:
   llvm::Constant *BuildName(QualType Ty, bool Hidden, 
                             llvm::GlobalVariable::LinkageTypes Linkage) {
     llvm::SmallString<256> OutName;
-    CGM.getMangleContext().mangleCXXRTTIName(Ty, OutName);
+    CGM.getCXXABI().getMangleContext().mangleCXXRTTIName(Ty, OutName);
     llvm::StringRef Name = OutName.str();
 
     llvm::GlobalVariable *OGV = CGM.getModule().getNamedGlobal(Name);
@@ -158,7 +165,7 @@ public:
 llvm::Constant *RTTIBuilder::GetAddrOfExternalRTTIDescriptor(QualType Ty) {
   // Mangle the RTTI name.
   llvm::SmallString<256> OutName;
-  CGM.getMangleContext().mangleCXXRTTI(Ty, OutName);
+  CGM.getCXXABI().getMangleContext().mangleCXXRTTI(Ty, OutName);
   llvm::StringRef Name = OutName.str();
 
   // Look for an existing global.
@@ -244,11 +251,9 @@ static bool TypeInfoIsInStandardLibrary(const PointerType *PointerTy) {
   return TypeInfoIsInStandardLibrary(BuiltinTy);
 }
 
-/// ShouldUseExternalRTTIDescriptor - Returns whether the type information for
-/// the given type exists somewhere else, and that we should not emit the type
-/// information in this translation unit.
-static bool ShouldUseExternalRTTIDescriptor(ASTContext &Context,
-                                            QualType Ty) {
+/// IsStandardLibraryRTTIDescriptor - Returns whether the type
+/// information for the given type exists in the standard library.
+static bool IsStandardLibraryRTTIDescriptor(QualType Ty) {
   // Type info for builtin types is defined in the standard library.
   if (const BuiltinType *BuiltinTy = dyn_cast<BuiltinType>(Ty))
     return TypeInfoIsInStandardLibrary(BuiltinTy);
@@ -258,6 +263,15 @@ static bool ShouldUseExternalRTTIDescriptor(ASTContext &Context,
   if (const PointerType *PointerTy = dyn_cast<PointerType>(Ty))
     return TypeInfoIsInStandardLibrary(PointerTy);
 
+  return false;
+}
+
+/// ShouldUseExternalRTTIDescriptor - Returns whether the type information for
+/// the given type exists somewhere else, and that we should not emit the type
+/// information in this translation unit.  Assumes that it is not a
+/// standard-library type.
+static bool ShouldUseExternalRTTIDescriptor(ASTContext &Context,
+                                            QualType Ty) {
   // If RTTI is disabled, don't consider key functions.
   if (!Context.getLangOptions().RTTI) return false;
 
@@ -270,7 +284,7 @@ static bool ShouldUseExternalRTTIDescriptor(ASTContext &Context,
       return false;
 
     // Get the key function.
-    const CXXMethodDecl *KeyFunction = RD->getASTContext().getKeyFunction(RD);
+    const CXXMethodDecl *KeyFunction = Context.getKeyFunction(RD);
     if (KeyFunction && !KeyFunction->hasBody()) {
       // The class has a key function, but it is not defined in this translation
       // unit, so we should use the external descriptor for it.
@@ -383,21 +397,45 @@ static bool CanUseSingleInheritance(const CXXRecordDecl *RD) {
 }
 
 void RTTIBuilder::BuildVTablePointer(const Type *Ty) {
-  const char *VTableName;
+  // abi::__class_type_info.
+  static const char * const ClassTypeInfo =
+    "_ZTVN10__cxxabiv117__class_type_infoE";
+  // abi::__si_class_type_info.
+  static const char * const SIClassTypeInfo =
+    "_ZTVN10__cxxabiv120__si_class_type_infoE";
+  // abi::__vmi_class_type_info.
+  static const char * const VMIClassTypeInfo =
+    "_ZTVN10__cxxabiv121__vmi_class_type_infoE";
+
+  const char *VTableName = 0;
 
   switch (Ty->getTypeClass()) {
-  default: assert(0 && "Unhandled type!");
+#define TYPE(Class, Base)
+#define ABSTRACT_TYPE(Class, Base)
+#define NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Class, Base) case Type::Class:
+#define NON_CANONICAL_TYPE(Class, Base) case Type::Class:
+#define DEPENDENT_TYPE(Class, Base) case Type::Class:
+#include "clang/AST/TypeNodes.def"
+    assert(false && "Non-canonical and dependent types shouldn't get here");
+
+  case Type::LValueReference:
+  case Type::RValueReference:
+    assert(false && "References shouldn't get here");
 
   case Type::Builtin:
-  // GCC treats vector types as fundamental types.
+  // GCC treats vector and complex types as fundamental types.
   case Type::Vector:
   case Type::ExtVector:
+  case Type::Complex:
+  // FIXME: GCC treats block pointers as fundamental types?!
+  case Type::BlockPointer:
     // abi::__fundamental_type_info.
     VTableName = "_ZTVN10__cxxabiv123__fundamental_type_infoE";
     break;
 
   case Type::ConstantArray:
   case Type::IncompleteArray:
+  case Type::VariableArray:
     // abi::__array_type_info.
     VTableName = "_ZTVN10__cxxabiv117__array_type_infoE";
     break;
@@ -412,25 +450,44 @@ void RTTIBuilder::BuildVTablePointer(const Type *Ty) {
     // abi::__enum_type_info.
     VTableName = "_ZTVN10__cxxabiv116__enum_type_infoE";
     break;
-      
+
   case Type::Record: {
     const CXXRecordDecl *RD = 
       cast<CXXRecordDecl>(cast<RecordType>(Ty)->getDecl());
     
     if (!RD->hasDefinition() || !RD->getNumBases()) {
-      // abi::__class_type_info.
-      VTableName = "_ZTVN10__cxxabiv117__class_type_infoE";
+      VTableName = ClassTypeInfo;
     } else if (CanUseSingleInheritance(RD)) {
-      // abi::__si_class_type_info.
-      VTableName = "_ZTVN10__cxxabiv120__si_class_type_infoE";
+      VTableName = SIClassTypeInfo;
     } else {
-      // abi::__vmi_class_type_info.
-      VTableName = "_ZTVN10__cxxabiv121__vmi_class_type_infoE";
+      VTableName = VMIClassTypeInfo;
     }
     
     break;
   }
 
+  case Type::ObjCObject:
+    // Ignore protocol qualifiers.
+    Ty = cast<ObjCObjectType>(Ty)->getBaseType().getTypePtr();
+
+    // Handle id and Class.
+    if (isa<BuiltinType>(Ty)) {
+      VTableName = ClassTypeInfo;
+      break;
+    }
+
+    assert(isa<ObjCInterfaceType>(Ty));
+    // Fall through.
+
+  case Type::ObjCInterface:
+    if (cast<ObjCInterfaceType>(Ty)->getDecl()->getSuperClass()) {
+      VTableName = SIClassTypeInfo;
+    } else {
+      VTableName = ClassTypeInfo;
+    }
+    break;
+
+  case Type::ObjCObjectPointer:
   case Type::Pointer:
     // abi::__pointer_type_info.
     VTableName = "_ZTVN10__cxxabiv119__pointer_type_infoE";
@@ -456,45 +513,64 @@ void RTTIBuilder::BuildVTablePointer(const Type *Ty) {
   Fields.push_back(VTable);
 }
 
-llvm::Constant *RTTIBuilder::BuildTypeInfo(QualType Ty,
-                                           bool Force) {
+llvm::Constant *RTTIBuilder::BuildTypeInfo(QualType Ty, bool Force) {
   // We want to operate on the canonical type.
   Ty = CGM.getContext().getCanonicalType(Ty);
 
   // Check if we've already emitted an RTTI descriptor for this type.
   llvm::SmallString<256> OutName;
-  CGM.getMangleContext().mangleCXXRTTI(Ty, OutName);
+  CGM.getCXXABI().getMangleContext().mangleCXXRTTI(Ty, OutName);
   llvm::StringRef Name = OutName.str();
   
   llvm::GlobalVariable *OldGV = CGM.getModule().getNamedGlobal(Name);
   if (OldGV && !OldGV->isDeclaration())
     return llvm::ConstantExpr::getBitCast(OldGV, Int8PtrTy);
-  
+
   // Check if there is already an external RTTI descriptor for this type.
-  if (!Force && ShouldUseExternalRTTIDescriptor(CGM.getContext(), Ty))
+  bool IsStdLib = IsStandardLibraryRTTIDescriptor(Ty);
+  if (!Force &&
+      (IsStdLib || ShouldUseExternalRTTIDescriptor(CGM.getContext(), Ty)))
     return GetAddrOfExternalRTTIDescriptor(Ty);
 
-  llvm::GlobalVariable::LinkageTypes Linkage = getTypeInfoLinkage(Ty);
+  // Emit the standard library with external linkage.
+  llvm::GlobalVariable::LinkageTypes Linkage;
+  if (IsStdLib)
+    Linkage = llvm::GlobalValue::ExternalLinkage;
+  else
+    Linkage = getTypeInfoLinkage(Ty);
 
   // Add the vtable pointer.
   BuildVTablePointer(cast<Type>(Ty));
   
   // And the name.
   Fields.push_back(BuildName(Ty, DecideHidden(Ty), Linkage));
-  
+
   switch (Ty->getTypeClass()) {
-  default: assert(false && "Unhandled type class!");
+#define TYPE(Class, Base)
+#define ABSTRACT_TYPE(Class, Base)
+#define NON_CANONICAL_UNLESS_DEPENDENT_TYPE(Class, Base) case Type::Class:
+#define NON_CANONICAL_TYPE(Class, Base) case Type::Class:
+#define DEPENDENT_TYPE(Class, Base) case Type::Class:
+#include "clang/AST/TypeNodes.def"
+    assert(false && "Non-canonical and dependent types shouldn't get here");
 
   // GCC treats vector types as fundamental types.
   case Type::Builtin:
   case Type::Vector:
   case Type::ExtVector:
+  case Type::Complex:
+  case Type::BlockPointer:
     // Itanium C++ ABI 2.9.5p4:
     // abi::__fundamental_type_info adds no data members to std::type_info.
     break;
-      
+
+  case Type::LValueReference:
+  case Type::RValueReference:
+    assert(false && "References shouldn't get here");
+
   case Type::ConstantArray:
   case Type::IncompleteArray:
+  case Type::VariableArray:
     // Itanium C++ ABI 2.9.5p5:
     // abi::__array_type_info adds no data members to std::type_info.
     break;
@@ -525,11 +601,20 @@ llvm::Constant *RTTIBuilder::BuildTypeInfo(QualType Ty,
 
     break;
   }
+
+  case Type::ObjCObject:
+  case Type::ObjCInterface:
+    BuildObjCObjectTypeInfo(cast<ObjCObjectType>(Ty));
+    break;
+
+  case Type::ObjCObjectPointer:
+    BuildPointerTypeInfo(cast<ObjCObjectPointerType>(Ty)->getPointeeType());
+    break; 
       
   case Type::Pointer:
-    BuildPointerTypeInfo(cast<PointerType>(Ty));
+    BuildPointerTypeInfo(cast<PointerType>(Ty)->getPointeeType());
     break;
-  
+
   case Type::MemberPointer:
     BuildPointerToMemberTypeInfo(cast<MemberPointerType>(Ty));
     break;
@@ -551,7 +636,18 @@ llvm::Constant *RTTIBuilder::BuildTypeInfo(QualType Ty,
     OldGV->replaceAllUsesWith(NewPtr);
     OldGV->eraseFromParent();
   }
-    
+
+  // GCC only relies on the uniqueness of the type names, not the
+  // type_infos themselves, so we can emit these as hidden symbols.
+  // But don't do this if we're worried about strict visibility
+  // compatibility.
+  if (const RecordType *RT = dyn_cast<RecordType>(Ty))
+    CGM.setTypeVisibility(GV, cast<CXXRecordDecl>(RT->getDecl()),
+                          /*ForRTTI*/ true);
+  else if (CGM.getCodeGenOpts().HiddenWeakVTables &&
+           Linkage == llvm::GlobalValue::WeakODRLinkage)
+    GV->setVisibility(llvm::GlobalValue::HiddenVisibility);
+  
   return llvm::ConstantExpr::getBitCast(GV, Int8PtrTy);
 }
 
@@ -568,6 +664,30 @@ static unsigned ComputeQualifierFlags(Qualifiers Quals) {
     Flags |= RTTIBuilder::PTI_Restrict;
 
   return Flags;
+}
+
+/// BuildObjCObjectTypeInfo - Build the appropriate kind of type_info
+/// for the given Objective-C object type.
+void RTTIBuilder::BuildObjCObjectTypeInfo(const ObjCObjectType *OT) {
+  // Drop qualifiers.
+  const Type *T = OT->getBaseType().getTypePtr();
+  assert(isa<BuiltinType>(T) || isa<ObjCInterfaceType>(T));
+
+  // The builtin types are abi::__class_type_infos and don't require
+  // extra fields.
+  if (isa<BuiltinType>(T)) return;
+
+  ObjCInterfaceDecl *Class = cast<ObjCInterfaceType>(T)->getDecl();
+  ObjCInterfaceDecl *Super = Class->getSuperClass();
+
+  // Root classes are also __class_type_info.
+  if (!Super) return;
+
+  QualType SuperTy = CGM.getContext().getObjCInterfaceType(Super);
+
+  // Everything else is single inheritance.
+  llvm::Constant *BaseTypeInfo = RTTIBuilder(CGM).BuildTypeInfo(SuperTy);
+  Fields.push_back(BaseTypeInfo);
 }
 
 /// BuildSIClassTypeInfo - Build an abi::__si_class_type_info, used for single
@@ -677,7 +797,7 @@ void RTTIBuilder::BuildVMIClassTypeInfo(const CXXRecordDecl *RD) {
   //   direct proper base. Each description is of the type:
   //
   //   struct abi::__base_class_type_info {
-	//   public:
+  //   public:
   //     const __class_type_info *__base_type;
   //     long __offset_flags;
   //
@@ -725,9 +845,7 @@ void RTTIBuilder::BuildVMIClassTypeInfo(const CXXRecordDecl *RD) {
 
 /// BuildPointerTypeInfo - Build an abi::__pointer_type_info struct,
 /// used for pointer types.
-void RTTIBuilder::BuildPointerTypeInfo(const PointerType *Ty) {
-  QualType PointeeTy = Ty->getPointeeType();
-  
+void RTTIBuilder::BuildPointerTypeInfo(QualType PointeeTy) {  
   Qualifiers Quals;
   QualType UnqualifiedPointeeTy = 
     CGM.getContext().getUnqualifiedArrayType(PointeeTy, Quals);

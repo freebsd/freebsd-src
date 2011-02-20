@@ -34,9 +34,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.303 2010/03/26 00:26:58 djm Exp $
+.\" $OpenBSD: ssh.1,v 1.308 2010/08/04 05:37:01 djm Exp $
 .\" $FreeBSD$
-.Dd March 26, 2010
+.Dd August 4 2010
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -44,46 +44,28 @@
 .Nd OpenSSH SSH client (remote login program)
 .Sh SYNOPSIS
 .Nm ssh
+.Bk -words
 .Op Fl 1246AaCfgKkMNnqsTtVvXxYy
 .Op Fl b Ar bind_address
 .Op Fl c Ar cipher_spec
-.Oo Fl D\ \&
-.Sm off
-.Oo Ar bind_address : Oc
-.Ar port
-.Sm on
-.Oc
+.Op Fl D Oo Ar bind_address : Oc Ns Ar port
 .Op Fl e Ar escape_char
 .Op Fl F Ar configfile
 .Op Fl I Ar pkcs11
-.Bk -words
 .Op Fl i Ar identity_file
-.Ek
-.Oo Fl L\ \&
-.Sm off
-.Oo Ar bind_address : Oc
-.Ar port : host : hostport
-.Sm on
-.Oc
-.Bk -words
+.Op Fl L Oo Ar bind_address : Oc Ns Ar port : Ns Ar host : Ns Ar hostport
 .Op Fl l Ar login_name
-.Ek
 .Op Fl m Ar mac_spec
 .Op Fl O Ar ctl_cmd
 .Op Fl o Ar option
 .Op Fl p Ar port
-.Oo Fl R\ \&
-.Sm off
-.Oo Ar bind_address : Oc
-.Ar port : host : hostport
-.Sm on
-.Oc
+.Op Fl R Oo Ar bind_address : Oc Ns Ar port : Ns Ar host : Ns Ar hostport
 .Op Fl S Ar ctl_path
 .Op Fl W Ar host : Ns Ar port
-.Oo Fl w Ar local_tun Ns
-.Op : Ns Ar remote_tun Oc
+.Op Fl w Ar local_tun Ns Op : Ns Ar remote_tun
 .Oo Ar user Ns @ Oc Ns Ar hostname
 .Op Ar command
+.Ek
 .Sh DESCRIPTION
 .Nm
 (SSH client) is a program for logging into a remote machine and for
@@ -195,7 +177,9 @@ is a comma-separated list of ciphers
 listed in order of preference.
 See the
 .Cm Ciphers
-keyword for more information.
+keyword in
+.Xr ssh_config 5
+for more information.
 .It Fl D Xo
 .Sm off
 .Oo Ar bind_address : Oc
@@ -219,14 +203,7 @@ will act as a SOCKS server.
 Only root can forward privileged ports.
 Dynamic port forwardings can also be specified in the configuration file.
 .Pp
-IPv6 addresses can be specified with an alternative syntax:
-.Sm off
-.Xo
-.Op Ar bind_address No /
-.Ar port
-.Xc
-.Sm on
-or by enclosing the address in square brackets.
+IPv6 addresses can be specified by enclosing the address in square brackets.
 Only the superuser can forward privileged ports.
 By default, the local port is bound in accordance with the
 .Cm GatewayPorts
@@ -337,15 +314,7 @@ port
 .Ar hostport
 from the remote machine.
 Port forwardings can also be specified in the configuration file.
-IPv6 addresses can be specified with an alternative syntax:
-.Sm off
-.Xo
-.Op Ar bind_address No /
-.Ar port No / Ar host No /
-.Ar hostport
-.Xc
-.Sm on
-or by enclosing the address in square brackets.
+IPv6 addresses can be specified by enclosing the address in square brackets.
 Only the superuser can forward privileged ports.
 By default, the local port is bound in accordance with the
 .Cm GatewayPorts
@@ -422,7 +391,9 @@ option is specified, the
 argument is interpreted and passed to the master process.
 Valid commands are:
 .Dq check
-(check that the master process is running) and
+(check that the master process is running),
+.Dq forward
+(request forwardings without command execution) and
 .Dq exit
 (request the master to exit).
 .It Fl o Ar option
@@ -527,15 +498,7 @@ from the local machine.
 Port forwardings can also be specified in the configuration file.
 Privileged ports can be forwarded only when
 logging in as root on the remote machine.
-IPv6 addresses can be specified by enclosing the address in square braces or
-using an alternative syntax:
-.Sm off
-.Xo
-.Op Ar bind_address No /
-.Ar host No / Ar port No /
-.Ar hostport
-.Xc .
-.Sm on
+IPv6 addresses can be specified by enclosing the address in square braces.
 .Pp
 By default, the listening socket on the server will be bound to the loopback
 interface only.
@@ -559,8 +522,11 @@ argument is
 .Ql 0 ,
 the listen port will be dynamically allocated on the server and reported
 to the client at run time.
+When used together with
+.Ic -O forward
+the allocated port will be printed to the standard output.
 .It Fl S Ar ctl_path
-Specifies the location of a control socket for connection sharing
+Specifies the location of a control socket for connection sharing,
 or the string
 .Dq none
 to disable connection sharing.

@@ -980,14 +980,189 @@ max_width(zpool_handle_t *zhp, nvlist_t *nv, int depth, int max)
 	return (max);
 }
 
+typedef struct spare_cbdata {
+	uint64_t	cb_guid;
+	zpool_handle_t	*cb_zhp;
+} spare_cbdata_t;
+
+static boolean_t
+find_vdev(nvlist_t *nv, uint64_t search)
+{
+	uint64_t guid;
+	nvlist_t **child;
+	uint_t c, children;
+
+	if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_GUID, &guid) == 0 &&
+	    search == guid)
+		return (B_TRUE);
+
+	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
+	    &child, &children) == 0) {
+		for (c = 0; c < children; c++)
+			if (find_vdev(child[c], search))
+				return (B_TRUE);
+	}
+
+	return (B_FALSE);
+}
+
+static int
+find_spare(zpool_handle_t *zhp, void *data)
+{
+	spare_cbdata_t *cbp = data;
+	nvlist_t *config, *nvroot;
+
+	config = zpool_get_config(zhp, NULL);
+	verify(nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE,
+	    &nvroot) == 0);
+
+	if (find_vdev(nvroot, cbp->cb_guid)) {
+		cbp->cb_zhp = zhp;
+		return (1);
+	}
+
+	zpool_close(zhp);
+	return (0);
+}
+
+/*
+ * Print out configuration state as requested by status_callback.
+ */
+void
+print_status_config(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
+    int namewidth, int depth, boolean_t isspare)
+{
+	nvlist_t **child;
+	uint_t c, children;
+	vdev_stat_t *vs;
+	char rbuf[6], wbuf[6], cbuf[6], repaired[7];
+	char *vname;
+	uint64_t notpresent;
+	spare_cbdata_t cb;
+	char *state;
+
+	verify(nvlist_lookup_uint64_array(nv, ZPOOL_CONFIG_STATS,
+	    (uint64_t **)&vs, &c) == 0);
+
+	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
+	    &child, &children) != 0)
+		children = 0;
+
+	state = zpool_state_to_name(vs->vs_state, vs->vs_aux);
+	if (isspare) {
+		/*
+		 * For hot spares, we use the terms 'INUSE' and 'AVAILABLE' for
+		 * online drives.
+		 */
+		if (vs->vs_aux == VDEV_AUX_SPARED)
+			state = "INUSE";
+		else if (vs->vs_state == VDEV_STATE_HEALTHY)
+			state = "AVAIL";
+	}
+
+	(void) printf("\t%*s%-*s  %-8s", depth, "", namewidth - depth,
+	    name, state);
+
+	if (!isspare) {
+		zfs_nicenum(vs->vs_read_errors, rbuf, sizeof (rbuf));
+		zfs_nicenum(vs->vs_write_errors, wbuf, sizeof (wbuf));
+		zfs_nicenum(vs->vs_checksum_errors, cbuf, sizeof (cbuf));
+		(void) printf(" %5s %5s %5s", rbuf, wbuf, cbuf);
+	}
+
+	if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_NOT_PRESENT,
+	    &notpresent) == 0) {
+		char *path;
+		verify(nvlist_lookup_string(nv, ZPOOL_CONFIG_PATH, &path) == 0);
+		(void) printf("  was %s", path);
+	} else if (vs->vs_aux != 0) {
+		(void) printf("  ");
+
+		switch (vs->vs_aux) {
+		case VDEV_AUX_OPEN_FAILED:
+			(void) printf(gettext("cannot open"));
+			break;
+
+		case VDEV_AUX_BAD_GUID_SUM:
+			(void) printf(gettext("missing device"));
+			break;
+
+		case VDEV_AUX_NO_REPLICAS:
+			(void) printf(gettext("insufficient replicas"));
+			break;
+
+		case VDEV_AUX_VERSION_NEWER:
+			(void) printf(gettext("newer version"));
+			break;
+
+		case VDEV_AUX_SPARED:
+			verify(nvlist_lookup_uint64(nv, ZPOOL_CONFIG_GUID,
+			    &cb.cb_guid) == 0);
+			if (zpool_iter(g_zfs, find_spare, &cb) == 1) {
+				if (strcmp(zpool_get_name(cb.cb_zhp),
+				    zpool_get_name(zhp)) == 0)
+					(void) printf(gettext("currently in "
+					    "use"));
+				else
+					(void) printf(gettext("in use by "
+					    "pool '%s'"),
+					    zpool_get_name(cb.cb_zhp));
+				zpool_close(cb.cb_zhp);
+			} else {
+				(void) printf(gettext("currently in use"));
+			}
+			break;
+
+		case VDEV_AUX_ERR_EXCEEDED:
+			(void) printf(gettext("too many errors"));
+			break;
+
+		case VDEV_AUX_IO_FAILURE:
+			(void) printf(gettext("experienced I/O failures"));
+			break;
+
+		case VDEV_AUX_BAD_LOG:
+			(void) printf(gettext("bad intent log"));
+			break;
+
+		default:
+			(void) printf(gettext("corrupted data"));
+			break;
+		}
+	} else if (vs->vs_scrub_repaired != 0 && children == 0) {
+		/*
+		 * Report bytes resilvered/repaired on leaf devices.
+		 */
+		zfs_nicenum(vs->vs_scrub_repaired, repaired, sizeof (repaired));
+		(void) printf(gettext("  %s %s"), repaired,
+		    (vs->vs_scrub_type == POOL_SCRUB_RESILVER) ?
+		    "resilvered" : "repaired");
+	}
+
+	(void) printf("\n");
+
+	for (c = 0; c < children; c++) {
+		uint64_t is_log = B_FALSE;
+
+		/* Don't print logs here */
+		(void) nvlist_lookup_uint64(child[c], ZPOOL_CONFIG_IS_LOG,
+		    &is_log);
+		if (is_log)
+			continue;
+		vname = zpool_vdev_name(g_zfs, zhp, child[c]);
+		print_status_config(zhp, vname, child[c],
+		    namewidth, depth + 2, isspare);
+		free(vname);
+	}
+}
+
 
 /*
  * Print the configuration of an exported pool.  Iterate over all vdevs in the
  * pool, printing out the name and status for each one.
  */
 void
-print_import_config(const char *name, nvlist_t *nv, int namewidth, int depth,
-    boolean_t print_logs)
+print_import_config(const char *name, nvlist_t *nv, int namewidth, int depth)
 {
 	nvlist_t **child;
 	uint_t c, children;
@@ -1044,12 +1219,11 @@ print_import_config(const char *name, nvlist_t *nv, int namewidth, int depth,
 
 		(void) nvlist_lookup_uint64(child[c], ZPOOL_CONFIG_IS_LOG,
 		    &is_log);
-		if ((is_log && !print_logs) || (!is_log && print_logs))
+		if (is_log)
 			continue;
 
 		vname = zpool_vdev_name(g_zfs, NULL, child[c]);
-		print_import_config(vname, child[c],
-		    namewidth, depth + 2, B_FALSE);
+		print_import_config(vname, child[c], namewidth, depth + 2);
 		free(vname);
 	}
 
@@ -1074,6 +1248,43 @@ print_import_config(const char *name, nvlist_t *nv, int namewidth, int depth,
 	}
 }
 
+/*
+ * Print log vdevs.
+ * Logs are recorded as top level vdevs in the main pool child array
+ * but with "is_log" set to 1. We use either print_status_config() or
+ * print_import_config() to print the top level logs then any log
+ * children (eg mirrored slogs) are printed recursively - which
+ * works because only the top level vdev is marked "is_log"
+ */
+static void
+print_logs(zpool_handle_t *zhp, nvlist_t *nv, int namewidth, boolean_t verbose)
+{
+	uint_t c, children;
+	nvlist_t **child;
+
+	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN, &child,
+	    &children) != 0)
+		return;
+
+	(void) printf(gettext("\tlogs\n"));
+
+	for (c = 0; c < children; c++) {
+		uint64_t is_log = B_FALSE;
+		char *name;
+
+		(void) nvlist_lookup_uint64(child[c], ZPOOL_CONFIG_IS_LOG,
+		    &is_log);
+		if (!is_log)
+			continue;
+		name = zpool_vdev_name(g_zfs, zhp, child[c]);
+		if (verbose)
+			print_status_config(zhp, name, child[c], namewidth,
+			    2, B_FALSE);
+		else
+			print_import_config(name, child[c], namewidth, 2);
+		free(name);
+	}
+}
 /*
  * Display the status for the given pool.
  */
@@ -1242,11 +1453,9 @@ show_import(nvlist_t *config)
 	if (namewidth < 10)
 		namewidth = 10;
 
-	print_import_config(name, nvroot, namewidth, 0, B_FALSE);
-	if (num_logs(nvroot) > 0) {
-		(void) printf(gettext("\tlogs\n"));
-		print_import_config(name, nvroot, namewidth, 0, B_TRUE);
-	}
+	print_import_config(name, nvroot, namewidth, 0);
+	if (num_logs(nvroot) > 0)
+		print_logs(NULL, nvroot, namewidth, B_FALSE);
 
 	if (reason == ZPOOL_STATUS_BAD_GUID_SUM) {
 		(void) printf(gettext("\n\tAdditional devices are known to "
@@ -2717,182 +2926,6 @@ print_scrub_status(nvlist_t *nvroot)
 	    (u_longlong_t)(minutes_left / 60), (uint_t)(minutes_left % 60));
 }
 
-typedef struct spare_cbdata {
-	uint64_t	cb_guid;
-	zpool_handle_t	*cb_zhp;
-} spare_cbdata_t;
-
-static boolean_t
-find_vdev(nvlist_t *nv, uint64_t search)
-{
-	uint64_t guid;
-	nvlist_t **child;
-	uint_t c, children;
-
-	if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_GUID, &guid) == 0 &&
-	    search == guid)
-		return (B_TRUE);
-
-	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
-	    &child, &children) == 0) {
-		for (c = 0; c < children; c++)
-			if (find_vdev(child[c], search))
-				return (B_TRUE);
-	}
-
-	return (B_FALSE);
-}
-
-static int
-find_spare(zpool_handle_t *zhp, void *data)
-{
-	spare_cbdata_t *cbp = data;
-	nvlist_t *config, *nvroot;
-
-	config = zpool_get_config(zhp, NULL);
-	verify(nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE,
-	    &nvroot) == 0);
-
-	if (find_vdev(nvroot, cbp->cb_guid)) {
-		cbp->cb_zhp = zhp;
-		return (1);
-	}
-
-	zpool_close(zhp);
-	return (0);
-}
-
-/*
- * Print out configuration state as requested by status_callback.
- */
-void
-print_status_config(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
-    int namewidth, int depth, boolean_t isspare)
-{
-	nvlist_t **child;
-	uint_t c, children;
-	vdev_stat_t *vs;
-	char rbuf[6], wbuf[6], cbuf[6], repaired[7];
-	char *vname;
-	uint64_t notpresent;
-	spare_cbdata_t cb;
-	char *state;
-
-	verify(nvlist_lookup_uint64_array(nv, ZPOOL_CONFIG_STATS,
-	    (uint64_t **)&vs, &c) == 0);
-
-	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
-	    &child, &children) != 0)
-		children = 0;
-
-	state = zpool_state_to_name(vs->vs_state, vs->vs_aux);
-	if (isspare) {
-		/*
-		 * For hot spares, we use the terms 'INUSE' and 'AVAILABLE' for
-		 * online drives.
-		 */
-		if (vs->vs_aux == VDEV_AUX_SPARED)
-			state = "INUSE";
-		else if (vs->vs_state == VDEV_STATE_HEALTHY)
-			state = "AVAIL";
-	}
-
-	(void) printf("\t%*s%-*s  %-8s", depth, "", namewidth - depth,
-	    name, state);
-
-	if (!isspare) {
-		zfs_nicenum(vs->vs_read_errors, rbuf, sizeof (rbuf));
-		zfs_nicenum(vs->vs_write_errors, wbuf, sizeof (wbuf));
-		zfs_nicenum(vs->vs_checksum_errors, cbuf, sizeof (cbuf));
-		(void) printf(" %5s %5s %5s", rbuf, wbuf, cbuf);
-	}
-
-	if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_NOT_PRESENT,
-	    &notpresent) == 0) {
-		char *path;
-		verify(nvlist_lookup_string(nv, ZPOOL_CONFIG_PATH, &path) == 0);
-		(void) printf("  was %s", path);
-	} else if (vs->vs_aux != 0) {
-		(void) printf("  ");
-
-		switch (vs->vs_aux) {
-		case VDEV_AUX_OPEN_FAILED:
-			(void) printf(gettext("cannot open"));
-			break;
-
-		case VDEV_AUX_BAD_GUID_SUM:
-			(void) printf(gettext("missing device"));
-			break;
-
-		case VDEV_AUX_NO_REPLICAS:
-			(void) printf(gettext("insufficient replicas"));
-			break;
-
-		case VDEV_AUX_VERSION_NEWER:
-			(void) printf(gettext("newer version"));
-			break;
-
-		case VDEV_AUX_SPARED:
-			verify(nvlist_lookup_uint64(nv, ZPOOL_CONFIG_GUID,
-			    &cb.cb_guid) == 0);
-			if (zpool_iter(g_zfs, find_spare, &cb) == 1) {
-				if (strcmp(zpool_get_name(cb.cb_zhp),
-				    zpool_get_name(zhp)) == 0)
-					(void) printf(gettext("currently in "
-					    "use"));
-				else
-					(void) printf(gettext("in use by "
-					    "pool '%s'"),
-					    zpool_get_name(cb.cb_zhp));
-				zpool_close(cb.cb_zhp);
-			} else {
-				(void) printf(gettext("currently in use"));
-			}
-			break;
-
-		case VDEV_AUX_ERR_EXCEEDED:
-			(void) printf(gettext("too many errors"));
-			break;
-
-		case VDEV_AUX_IO_FAILURE:
-			(void) printf(gettext("experienced I/O failures"));
-			break;
-
-		case VDEV_AUX_BAD_LOG:
-			(void) printf(gettext("bad intent log"));
-			break;
-
-		default:
-			(void) printf(gettext("corrupted data"));
-			break;
-		}
-	} else if (vs->vs_scrub_repaired != 0 && children == 0) {
-		/*
-		 * Report bytes resilvered/repaired on leaf devices.
-		 */
-		zfs_nicenum(vs->vs_scrub_repaired, repaired, sizeof (repaired));
-		(void) printf(gettext("  %s %s"), repaired,
-		    (vs->vs_scrub_type == POOL_SCRUB_RESILVER) ?
-		    "resilvered" : "repaired");
-	}
-
-	(void) printf("\n");
-
-	for (c = 0; c < children; c++) {
-		uint64_t is_log = B_FALSE;
-
-		/* Don't print logs here */
-		(void) nvlist_lookup_uint64(child[c], ZPOOL_CONFIG_IS_LOG,
-		    &is_log);
-		if (is_log)
-			continue;
-		vname = zpool_vdev_name(g_zfs, zhp, child[c]);
-		print_status_config(zhp, vname, child[c],
-		    namewidth, depth + 2, isspare);
-		free(vname);
-	}
-}
-
 static void
 print_error_log(zpool_handle_t *zhp)
 {
@@ -2964,39 +2997,6 @@ print_l2cache(zpool_handle_t *zhp, nvlist_t **l2cache, uint_t nl2cache,
 		name = zpool_vdev_name(g_zfs, zhp, l2cache[i]);
 		print_status_config(zhp, name, l2cache[i],
 		    namewidth, 2, B_FALSE);
-		free(name);
-	}
-}
-
-/*
- * Print log vdevs.
- * Logs are recorded as top level vdevs in the main pool child array but with
- * "is_log" set to 1. We use print_status_config() to print the top level logs
- * then any log children (eg mirrored slogs) are printed recursively - which
- * works because only the top level vdev is marked "is_log"
- */
-static void
-print_logs(zpool_handle_t *zhp, nvlist_t *nv, int namewidth)
-{
-	uint_t c, children;
-	nvlist_t **child;
-
-	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN, &child,
-	    &children) != 0)
-		return;
-
-	(void) printf(gettext("\tlogs\n"));
-
-	for (c = 0; c < children; c++) {
-		uint64_t is_log = B_FALSE;
-		char *name;
-
-		(void) nvlist_lookup_uint64(child[c], ZPOOL_CONFIG_IS_LOG,
-		    &is_log);
-		if (!is_log)
-			continue;
-		name = zpool_vdev_name(g_zfs, zhp, child[c]);
-		print_status_config(zhp, name, child[c], namewidth, 2, B_FALSE);
 		free(name);
 	}
 }
@@ -3229,7 +3229,7 @@ status_callback(zpool_handle_t *zhp, void *data)
 		    namewidth, 0, B_FALSE);
 
 		if (num_logs(nvroot) > 0)
-			print_logs(zhp, nvroot, namewidth);
+			print_logs(zhp, nvroot, namewidth, B_TRUE);
 		if (nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_L2CACHE,
 		    &l2cache, &nl2cache) == 0)
 			print_l2cache(zhp, l2cache, nl2cache, namewidth);
@@ -3333,10 +3333,36 @@ typedef struct upgrade_cbdata {
 	int	cb_all;
 	int	cb_first;
 	int	cb_newer;
+	char	cb_poolname[ZPOOL_MAXNAMELEN];
 	int	cb_argc;
 	uint64_t cb_version;
 	char	**cb_argv;
 } upgrade_cbdata_t;
+
+static int
+is_root_pool(zpool_handle_t *zhp)
+{
+	static struct statfs sfs;
+	static char *poolname = NULL;
+	static boolean_t stated = B_FALSE;
+	char *slash;
+
+	if (!stated) {
+		stated = B_TRUE;
+		if (statfs("/", &sfs) == -1) {
+			(void) fprintf(stderr,
+			    "Unable to stat root file system: %s.\n",
+			    strerror(errno));
+			return (0);
+		}
+		if (strcmp(sfs.f_fstypename, "zfs") != 0)
+			return (0);
+		poolname = sfs.f_mntfromname;
+		if ((slash = strchr(poolname, '/')) != NULL)
+			*slash = '\0';
+	}
+	return (poolname != NULL && strcmp(poolname, zpool_get_name(zhp)) == 0);
+}
 
 static int
 upgrade_cb(zpool_handle_t *zhp, void *arg)
@@ -3371,6 +3397,12 @@ upgrade_cb(zpool_handle_t *zhp, void *arg)
 			if (!ret) {
 				(void) printf(gettext("Successfully upgraded "
 				    "'%s'\n\n"), zpool_get_name(zhp));
+				if (cbp->cb_poolname[0] == '\0' &&
+				    is_root_pool(zhp)) {
+					(void) strlcpy(cbp->cb_poolname,
+					    zpool_get_name(zhp),
+					    sizeof(cbp->cb_poolname));
+				}
 			}
 		}
 	} else if (cbp->cb_newer && version > SPA_VERSION) {
@@ -3428,6 +3460,10 @@ upgrade_one(zpool_handle_t *zhp, void *data)
 		    "from version %llu to version %llu\n\n"),
 		    zpool_get_name(zhp), (u_longlong_t)cur_version,
 		    (u_longlong_t)cbp->cb_version);
+		if (cbp->cb_poolname[0] == '\0' && is_root_pool(zhp)) {
+			(void) strlcpy(cbp->cb_poolname, zpool_get_name(zhp),
+			    sizeof(cbp->cb_poolname));
+		}
 	}
 
 	return (ret != 0);
@@ -3567,6 +3603,16 @@ zpool_do_upgrade(int argc, char **argv)
 	} else {
 		ret = for_each_pool(argc, argv, B_FALSE, NULL,
 		    upgrade_one, &cb);
+	}
+
+	if (cb.cb_poolname[0] != '\0') {
+		(void) printf(
+		    "If you boot from pool '%s', don't forget to update boot code.\n"
+		    "Assuming you use GPT partitioning and da0 is your boot disk\n"
+		    "the following command will do it:\n"
+		    "\n"
+		    "\tgpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 da0\n\n",
+		    cb.cb_poolname);
 	}
 
 	return (ret);

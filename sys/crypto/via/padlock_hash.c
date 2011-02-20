@@ -366,17 +366,24 @@ padlock_hash_process(struct padlock_session *ses, struct cryptodesc *maccrd,
     struct cryptop *crp)
 {
 	struct thread *td;
-	int error;
+	int error, saved_ctx;
 
 	td = curthread;
-	error = fpu_kern_enter(td, &ses->ses_fpu_ctx, FPU_KERN_NORMAL);
+	if (!is_fpu_kern_thread(0)) {
+		error = fpu_kern_enter(td, &ses->ses_fpu_ctx, FPU_KERN_NORMAL);
+		saved_ctx = 1;
+	} else {
+		error = 0;
+		saved_ctx = 0;
+	}
 	if (error != 0)
 		return (error);
 	if ((maccrd->crd_flags & CRD_F_KEY_EXPLICIT) != 0)
 		padlock_hash_key_setup(ses, maccrd->crd_key, maccrd->crd_klen);
 
 	error = padlock_authcompute(ses, maccrd, crp->crp_buf, crp->crp_flags);
-	fpu_kern_leave(td, &ses->ses_fpu_ctx);
+	if (saved_ctx)
+		fpu_kern_leave(td, &ses->ses_fpu_ctx);
 	return (error);
 }
 

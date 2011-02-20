@@ -94,6 +94,7 @@ enum {
 	AR_EEP_RXMASK,		/* uint8_t* */
 	AR_EEP_RXGAIN_TYPE,	/* uint8_t* */
 	AR_EEP_TXGAIN_TYPE,	/* uint8_t* */
+	AR_EEP_DAC_HPWR_5G,	/* uint8_t* */
 	AR_EEP_OL_PWRCTRL,	/* use ath_hal_eepromGetFlag */
 	AR_EEP_FSTCLK_5G,	/* use ath_hal_eepromGetFlag */
 	AR_EEP_ANTGAINMAX_5,	/* int8_t* */

@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -52,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <ctype.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -130,14 +127,17 @@ getfile(void)
 	char *p;
 	char *endp;
 	char **ep;
+	int c;
 	int multisep = (flags & ONEISEPONLY ? 0 : 1);
 	int nullpad = flags & NULLPAD;
 	char **padto;
 
 	while (skip--) {
-		getline();
+		c = getline();
 		if (flags & SKIPPRINT)
 			puts(curline);
+		if (c == EOF)
+			return;
 	}
 	getline();
 	if (flags & NOARGS && curlen < owidth)
@@ -329,8 +329,8 @@ prepfile(void)
 		warnx("%d is colwidths, nelem %d", colwidths[i], nelem);*/
 }
 
-#define	BSIZE	2048
-char	ibuf[BSIZE];		/* two screenfuls should do */
+#define	BSIZE	(LINE_MAX * 2)
+char	ibuf[BSIZE];
 
 int
 getline(void)	/* get line; maintain curline, curlen; manage storage */
@@ -351,7 +351,7 @@ getline(void)	/* get line; maintain curline, curlen; manage storage */
 			curline = ibuf;
 		}
 	}
-	if (!putlength && endblock - curline < BUFSIZ) {   /* need storage */
+	if (!putlength && endblock - curline < LINE_MAX + 1) { /* need storage */
 		/*ww = endblock-curline; tt += ww;*/
 		/*printf("#wasted %d total %d\n",ww,tt);*/
 		if (!(curline = (char *) malloc(BSIZE)))
@@ -359,11 +359,16 @@ getline(void)	/* get line; maintain curline, curlen; manage storage */
 		endblock = curline + BSIZE;
 		/*printf("#endb %d curline %d\n",endblock,curline);*/
 	}
-	for (p = curline, i = 1; i < BUFSIZ; *p++ = c, i++)
-		if ((c = getchar()) == EOF || c == '\n')
+	for (p = curline, i = 0;; *p++ = c, i++) {
+		if ((c = getchar()) == EOF)
 			break;
+		if (i >= LINE_MAX)
+			errx(1, "maximum line length (%d) exceeded", LINE_MAX);
+		if (c == '\n')
+			break;
+	}
 	*p = '\0';
-	curlen = i - 1;
+	curlen = i;
 	return(c);
 }
 

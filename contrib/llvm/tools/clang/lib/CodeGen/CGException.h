@@ -27,17 +27,43 @@ namespace llvm {
 namespace clang {
 namespace CodeGen {
 
+/// The exceptions personality for a function.  When 
+class EHPersonality {
+  const char *PersonalityFn;
+
+  // If this is non-null, this personality requires a non-standard
+  // function for rethrowing an exception after a catchall cleanup.
+  // This function must have prototype void(void*).
+  const char *CatchallRethrowFn;
+
+  EHPersonality(const char *PersonalityFn,
+                const char *CatchallRethrowFn = 0)
+    : PersonalityFn(PersonalityFn),
+      CatchallRethrowFn(CatchallRethrowFn) {}
+
+public:
+  static const EHPersonality &get(const LangOptions &Lang);
+  static const EHPersonality GNU_C;
+  static const EHPersonality GNU_ObjC;
+  static const EHPersonality NeXT_ObjC;
+  static const EHPersonality GNU_CPlusPlus;
+  static const EHPersonality GNU_CPlusPlus_SJLJ;
+
+  const char *getPersonalityFnName() const { return PersonalityFn; }
+  const char *getCatchallRethrowFnName() const { return CatchallRethrowFn; }
+};
+
 /// A protected scope for zero-cost EH handling.
 class EHScope {
   llvm::BasicBlock *CachedLandingPad;
 
-  unsigned K : 3;
+  unsigned K : 2;
 
 protected:
-  enum { BitsRemaining = 29 };
+  enum { BitsRemaining = 30 };
 
 public:
-  enum Kind { Cleanup, LazyCleanup, Catch, Terminate, Filter };
+  enum Kind { Cleanup, Catch, Terminate, Filter };
 
   EHScope(Kind K) : CachedLandingPad(0), K(K) {}
 
@@ -74,15 +100,13 @@ public:
     /// The catch handler for this type.
     llvm::BasicBlock *Block;
 
-    static Handler make(llvm::Value *Type, llvm::BasicBlock *Block) {
-      Handler Temp;
-      Temp.Type = Type;
-      Temp.Block = Block;
-      return Temp;
-    }
+    /// The unwind destination index for this handler.
+    unsigned Index;
   };
 
 private:
+  friend class EHScopeStack;
+
   Handler *getHandlers() {
     return reinterpret_cast<Handler*>(this+1);
   }
@@ -110,7 +134,8 @@ public:
 
   void setHandler(unsigned I, llvm::Value *Type, llvm::BasicBlock *Block) {
     assert(I < getNumHandlers());
-    getHandlers()[I] = Handler::make(Type, Block);
+    getHandlers()[I].Type = Type;
+    getHandlers()[I].Block = Block;
   }
 
   const Handler &getHandler(unsigned I) const {
@@ -128,21 +153,27 @@ public:
 };
 
 /// A cleanup scope which generates the cleanup blocks lazily.
-class EHLazyCleanupScope : public EHScope {
+class EHCleanupScope : public EHScope {
   /// Whether this cleanup needs to be run along normal edges.
   bool IsNormalCleanup : 1;
 
   /// Whether this cleanup needs to be run along exception edges.
   bool IsEHCleanup : 1;
 
-  /// The amount of extra storage needed by the LazyCleanup.
+  /// Whether this cleanup was activated before all normal uses.
+  bool ActivatedBeforeNormalUse : 1;
+
+  /// Whether this cleanup was activated before all EH uses.
+  bool ActivatedBeforeEHUse : 1;
+
+  /// The amount of extra storage needed by the Cleanup.
   /// Always a multiple of the scope-stack alignment.
   unsigned CleanupSize : 12;
 
   /// The number of fixups required by enclosing scopes (not including
   /// this one).  If this is the top cleanup scope, all the fixups
   /// from this index onwards belong to this scope.
-  unsigned FixupDepth : BitsRemaining - 14;
+  unsigned FixupDepth : BitsRemaining - 16;
 
   /// The nearest normal cleanup scope enclosing this one.
   EHScopeStack::stable_iterator EnclosingNormal;
@@ -158,27 +189,78 @@ class EHLazyCleanupScope : public EHScope {
   /// created if needed before the cleanup is popped.
   llvm::BasicBlock *EHBlock;
 
+  /// An optional i1 variable indicating whether this cleanup has been
+  /// activated yet.  This has one of three states:
+  ///   - it is null if the cleanup is inactive
+  ///   - it is activeSentinel() if the cleanup is active and was not
+  ///     required before activation
+  ///   - it points to a valid variable
+  llvm::AllocaInst *ActiveVar;
+
+  /// Extra information required for cleanups that have resolved
+  /// branches through them.  This has to be allocated on the side
+  /// because everything on the cleanup stack has be trivially
+  /// movable.
+  struct ExtInfo {
+    /// The destinations of normal branch-afters and branch-throughs.
+    llvm::SmallPtrSet<llvm::BasicBlock*, 4> Branches;
+
+    /// Normal branch-afters.
+    llvm::SmallVector<std::pair<llvm::BasicBlock*,llvm::ConstantInt*>, 4>
+      BranchAfters;
+
+    /// The destinations of EH branch-afters and branch-throughs.
+    /// TODO: optimize for the extremely common case of a single
+    /// branch-through.
+    llvm::SmallPtrSet<llvm::BasicBlock*, 4> EHBranches;
+
+    /// EH branch-afters.
+    llvm::SmallVector<std::pair<llvm::BasicBlock*,llvm::ConstantInt*>, 4>
+    EHBranchAfters;
+  };
+  mutable struct ExtInfo *ExtInfo;
+
+  struct ExtInfo &getExtInfo() {
+    if (!ExtInfo) ExtInfo = new struct ExtInfo();
+    return *ExtInfo;
+  }
+
+  const struct ExtInfo &getExtInfo() const {
+    if (!ExtInfo) ExtInfo = new struct ExtInfo();
+    return *ExtInfo;
+  }
+
 public:
   /// Gets the size required for a lazy cleanup scope with the given
   /// cleanup-data requirements.
   static size_t getSizeForCleanupSize(size_t Size) {
-    return sizeof(EHLazyCleanupScope) + Size;
+    return sizeof(EHCleanupScope) + Size;
   }
 
   size_t getAllocatedSize() const {
-    return sizeof(EHLazyCleanupScope) + CleanupSize;
+    return sizeof(EHCleanupScope) + CleanupSize;
   }
 
-  EHLazyCleanupScope(bool IsNormal, bool IsEH, unsigned CleanupSize,
-                     unsigned FixupDepth,
-                     EHScopeStack::stable_iterator EnclosingNormal,
-                     EHScopeStack::stable_iterator EnclosingEH)
-    : EHScope(EHScope::LazyCleanup),
+  EHCleanupScope(bool IsNormal, bool IsEH, bool IsActive,
+                 unsigned CleanupSize, unsigned FixupDepth,
+                 EHScopeStack::stable_iterator EnclosingNormal,
+                 EHScopeStack::stable_iterator EnclosingEH)
+    : EHScope(EHScope::Cleanup),
       IsNormalCleanup(IsNormal), IsEHCleanup(IsEH),
+      ActivatedBeforeNormalUse(IsActive),
+      ActivatedBeforeEHUse(IsActive),
       CleanupSize(CleanupSize), FixupDepth(FixupDepth),
       EnclosingNormal(EnclosingNormal), EnclosingEH(EnclosingEH),
-      NormalBlock(0), EHBlock(0)
-  {}
+      NormalBlock(0), EHBlock(0),
+      ActiveVar(IsActive ? activeSentinel() : 0),
+      ExtInfo(0)
+  {
+    assert(this->CleanupSize == CleanupSize && "cleanup size overflow");
+  }
+
+  ~EHCleanupScope() {
+    delete ExtInfo;
+  }
 
   bool isNormalCleanup() const { return IsNormalCleanup; }
   llvm::BasicBlock *getNormalBlock() const { return NormalBlock; }
@@ -187,6 +269,20 @@ public:
   bool isEHCleanup() const { return IsEHCleanup; }
   llvm::BasicBlock *getEHBlock() const { return EHBlock; }
   void setEHBlock(llvm::BasicBlock *BB) { EHBlock = BB; }
+
+  static llvm::AllocaInst *activeSentinel() {
+    return reinterpret_cast<llvm::AllocaInst*>(1);
+  }
+
+  bool isActive() const { return ActiveVar != 0; }
+  llvm::AllocaInst *getActiveVar() const { return ActiveVar; }
+  void setActiveVar(llvm::AllocaInst *Var) { ActiveVar = Var; }
+
+  bool wasActivatedBeforeNormalUse() const { return ActivatedBeforeNormalUse; }
+  void setActivatedBeforeNormalUse(bool B) { ActivatedBeforeNormalUse = B; }
+
+  bool wasActivatedBeforeEHUse() const { return ActivatedBeforeEHUse; }
+  void setActivatedBeforeEHUse(bool B) { ActivatedBeforeEHUse = B; }
 
   unsigned getFixupDepth() const { return FixupDepth; }
   EHScopeStack::stable_iterator getEnclosingNormalCleanup() const {
@@ -199,67 +295,108 @@ public:
   size_t getCleanupSize() const { return CleanupSize; }
   void *getCleanupBuffer() { return this + 1; }
 
-  EHScopeStack::LazyCleanup *getCleanup() {
-    return reinterpret_cast<EHScopeStack::LazyCleanup*>(getCleanupBuffer());
+  EHScopeStack::Cleanup *getCleanup() {
+    return reinterpret_cast<EHScopeStack::Cleanup*>(getCleanupBuffer());
+  }
+
+  /// True if this cleanup scope has any branch-afters or branch-throughs.
+  bool hasBranches() const { return ExtInfo && !ExtInfo->Branches.empty(); }
+
+  /// Add a branch-after to this cleanup scope.  A branch-after is a
+  /// branch from a point protected by this (normal) cleanup to a
+  /// point in the normal cleanup scope immediately containing it.
+  /// For example,
+  ///   for (;;) { A a; break; }
+  /// contains a branch-after.
+  ///
+  /// Branch-afters each have their own destination out of the
+  /// cleanup, guaranteed distinct from anything else threaded through
+  /// it.  Therefore branch-afters usually force a switch after the
+  /// cleanup.
+  void addBranchAfter(llvm::ConstantInt *Index,
+                      llvm::BasicBlock *Block) {
+    struct ExtInfo &ExtInfo = getExtInfo();
+    if (ExtInfo.Branches.insert(Block))
+      ExtInfo.BranchAfters.push_back(std::make_pair(Block, Index));
+  }
+
+  /// Return the number of unique branch-afters on this scope.
+  unsigned getNumBranchAfters() const {
+    return ExtInfo ? ExtInfo->BranchAfters.size() : 0;
+  }
+
+  llvm::BasicBlock *getBranchAfterBlock(unsigned I) const {
+    assert(I < getNumBranchAfters());
+    return ExtInfo->BranchAfters[I].first;
+  }
+
+  llvm::ConstantInt *getBranchAfterIndex(unsigned I) const {
+    assert(I < getNumBranchAfters());
+    return ExtInfo->BranchAfters[I].second;
+  }
+
+  /// Add a branch-through to this cleanup scope.  A branch-through is
+  /// a branch from a scope protected by this (normal) cleanup to an
+  /// enclosing scope other than the immediately-enclosing normal
+  /// cleanup scope.
+  ///
+  /// In the following example, the branch through B's scope is a
+  /// branch-through, while the branch through A's scope is a
+  /// branch-after:
+  ///   for (;;) { A a; B b; break; }
+  ///
+  /// All branch-throughs have a common destination out of the
+  /// cleanup, one possibly shared with the fall-through.  Therefore
+  /// branch-throughs usually don't force a switch after the cleanup.
+  ///
+  /// \return true if the branch-through was new to this scope
+  bool addBranchThrough(llvm::BasicBlock *Block) {
+    return getExtInfo().Branches.insert(Block);
+  }
+
+  /// Determines if this cleanup scope has any branch throughs.
+  bool hasBranchThroughs() const {
+    if (!ExtInfo) return false;
+    return (ExtInfo->BranchAfters.size() != ExtInfo->Branches.size());
+  }
+
+  // Same stuff, only for EH branches instead of normal branches.
+  // It's quite possible that we could find a better representation
+  // for this.
+
+  bool hasEHBranches() const { return ExtInfo && !ExtInfo->EHBranches.empty(); }
+  void addEHBranchAfter(llvm::ConstantInt *Index,
+                        llvm::BasicBlock *Block) {
+    struct ExtInfo &ExtInfo = getExtInfo();
+    if (ExtInfo.EHBranches.insert(Block))
+      ExtInfo.EHBranchAfters.push_back(std::make_pair(Block, Index));
+  }
+
+  unsigned getNumEHBranchAfters() const {
+    return ExtInfo ? ExtInfo->EHBranchAfters.size() : 0;
+  }
+
+  llvm::BasicBlock *getEHBranchAfterBlock(unsigned I) const {
+    assert(I < getNumEHBranchAfters());
+    return ExtInfo->EHBranchAfters[I].first;
+  }
+
+  llvm::ConstantInt *getEHBranchAfterIndex(unsigned I) const {
+    assert(I < getNumEHBranchAfters());
+    return ExtInfo->EHBranchAfters[I].second;
+  }
+
+  bool addEHBranchThrough(llvm::BasicBlock *Block) {
+    return getExtInfo().EHBranches.insert(Block);
+  }
+
+  bool hasEHBranchThroughs() const {
+    if (!ExtInfo) return false;
+    return (ExtInfo->EHBranchAfters.size() != ExtInfo->EHBranches.size());
   }
 
   static bool classof(const EHScope *Scope) {
-    return (Scope->getKind() == LazyCleanup);
-  }
-};
-
-/// A scope which needs to execute some code if we try to unwind ---
-/// either normally, via the EH mechanism, or both --- through it.
-class EHCleanupScope : public EHScope {
-  /// The number of fixups required by enclosing scopes (not including
-  /// this one).  If this is the top cleanup scope, all the fixups
-  /// from this index onwards belong to this scope.
-  unsigned FixupDepth : BitsRemaining;
-
-  /// The nearest normal cleanup scope enclosing this one.
-  EHScopeStack::stable_iterator EnclosingNormal;
-
-  /// The nearest EH cleanup scope enclosing this one.
-  EHScopeStack::stable_iterator EnclosingEH;
-
-  llvm::BasicBlock *NormalEntry;
-  llvm::BasicBlock *NormalExit;
-  llvm::BasicBlock *EHEntry;
-  llvm::BasicBlock *EHExit;
-
-public:
-  static size_t getSize() { return sizeof(EHCleanupScope); }
-
-  EHCleanupScope(unsigned FixupDepth,
-                 EHScopeStack::stable_iterator EnclosingNormal,
-                 EHScopeStack::stable_iterator EnclosingEH,
-                 llvm::BasicBlock *NormalEntry, llvm::BasicBlock *NormalExit,
-                 llvm::BasicBlock *EHEntry, llvm::BasicBlock *EHExit)
-    : EHScope(Cleanup), FixupDepth(FixupDepth),
-      EnclosingNormal(EnclosingNormal), EnclosingEH(EnclosingEH),
-      NormalEntry(NormalEntry), NormalExit(NormalExit),
-      EHEntry(EHEntry), EHExit(EHExit) {
-    assert((NormalEntry != 0) == (NormalExit != 0));
-    assert((EHEntry != 0) == (EHExit != 0));
-  }
-
-  bool isNormalCleanup() const { return NormalEntry != 0; }
-  bool isEHCleanup() const { return EHEntry != 0; }
-
-  llvm::BasicBlock *getNormalEntry() const { return NormalEntry; }
-  llvm::BasicBlock *getNormalExit() const { return NormalExit; }
-  llvm::BasicBlock *getEHEntry() const { return EHEntry; }
-  llvm::BasicBlock *getEHExit() const { return EHExit; }
-  unsigned getFixupDepth() const { return FixupDepth; }
-  EHScopeStack::stable_iterator getEnclosingNormalCleanup() const {
-    return EnclosingNormal;
-  }
-  EHScopeStack::stable_iterator getEnclosingEHCleanup() const {
-    return EnclosingEH;
-  }
-
-  static bool classof(const EHScope *Scope) {
-    return Scope->getKind() == Cleanup;
+    return (Scope->getKind() == Cleanup);
   }
 };
 
@@ -310,9 +447,12 @@ public:
 /// An exceptions scope which calls std::terminate if any exception
 /// reaches it.
 class EHTerminateScope : public EHScope {
+  unsigned DestIndex : BitsRemaining;
 public:
-  EHTerminateScope() : EHScope(Terminate) {}
+  EHTerminateScope(unsigned Index) : EHScope(Terminate), DestIndex(Index) {}
   static size_t getSize() { return sizeof(EHTerminateScope); }
+
+  unsigned getDestIndex() const { return DestIndex; }
 
   static bool classof(const EHScope *Scope) {
     return Scope->getKind() == Terminate;
@@ -348,13 +488,9 @@ public:
           static_cast<const EHFilterScope*>(get())->getNumFilters());
       break;
 
-    case EHScope::LazyCleanup:
-      Ptr += static_cast<const EHLazyCleanupScope*>(get())
-        ->getAllocatedSize();
-      break;
-
     case EHScope::Cleanup:
-      Ptr += EHCleanupScope::getSize();
+      Ptr += static_cast<const EHCleanupScope*>(get())
+        ->getAllocatedSize();
       break;
 
     case EHScope::Terminate:
@@ -377,6 +513,9 @@ public:
     return copy;
   }
 
+  bool encloses(iterator other) const { return Ptr >= other.Ptr; }
+  bool strictlyEncloses(iterator other) const { return Ptr > other.Ptr; }
+
   bool operator==(iterator other) const { return Ptr == other.Ptr; }
   bool operator!=(iterator other) const { return Ptr != other.Ptr; }
 };
@@ -396,6 +535,8 @@ inline void EHScopeStack::popCatch() {
   StartOfData += EHCatchScope::getSizeForNumHandlers(
                           cast<EHCatchScope>(*begin()).getNumHandlers());
 
+  if (empty()) NextEHDestIndex = FirstEHDestIndex;
+
   assert(CatchDepth > 0 && "mismatched catch/terminate push/pop");
   CatchDepth--;
 }
@@ -405,6 +546,8 @@ inline void EHScopeStack::popTerminate() {
 
   assert(isa<EHTerminateScope>(*begin()));
   StartOfData += EHTerminateScope::getSize();
+
+  if (empty()) NextEHDestIndex = FirstEHDestIndex;
 
   assert(CatchDepth > 0 && "mismatched catch/terminate push/pop");
   CatchDepth--;
@@ -420,6 +563,28 @@ inline EHScopeStack::stable_iterator
 EHScopeStack::stabilize(iterator ir) const {
   assert(StartOfData <= ir.Ptr && ir.Ptr <= EndOfBuffer);
   return stable_iterator(EndOfBuffer - ir.Ptr);
+}
+
+inline EHScopeStack::stable_iterator
+EHScopeStack::getInnermostActiveNormalCleanup() const {
+  for (EHScopeStack::stable_iterator
+         I = getInnermostNormalCleanup(), E = stable_end(); I != E; ) {
+    EHCleanupScope &S = cast<EHCleanupScope>(*find(I));
+    if (S.isActive()) return I;
+    I = S.getEnclosingNormalCleanup();
+  }
+  return stable_end();
+}
+
+inline EHScopeStack::stable_iterator
+EHScopeStack::getInnermostActiveEHCleanup() const {
+  for (EHScopeStack::stable_iterator
+         I = getInnermostEHCleanup(), E = stable_end(); I != E; ) {
+    EHCleanupScope &S = cast<EHCleanupScope>(*find(I));
+    if (S.isActive()) return I;
+    I = S.getEnclosingEHCleanup();
+  }
+  return stable_end();
 }
 
 }

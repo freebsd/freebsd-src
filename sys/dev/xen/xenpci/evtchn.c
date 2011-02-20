@@ -51,13 +51,19 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/xen/xenpci/xenpcivar.h>
 
+#if defined(__i386__)
+#define	__ffs(word)	ffs(word)
+#elif defined(__amd64__)
 static inline unsigned long __ffs(unsigned long word)
 {
         __asm__("bsfq %1,%0"
                 :"=r" (word)
-                :"rm" (word));
+                :"rm" (word));	/* XXXRW: why no "cc"? */
         return word;
 }
+#else
+#error "evtchn: unsupported architecture"
+#endif
 
 #define is_valid_evtchn(x)	((x) != 0)
 #define evtchn_from_irq(x)	(irq_evtchn[irq].evtchn)
@@ -180,6 +186,49 @@ bind_listening_port_to_irqhandler(unsigned int remote_domain,
 		*irqp = irq;
 	return (0);
 }
+
+int 
+bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
+    unsigned int remote_port, const char *devname, driver_intr_t handler,
+    void *arg, unsigned long irqflags, unsigned int *irqp)
+{
+	struct evtchn_bind_interdomain bind_interdomain;
+	unsigned int irq;
+	int error;
+
+	irq = alloc_xen_irq();
+	if (irq < 0)
+		return irq;
+
+	mtx_lock(&irq_evtchn[irq].lock);
+
+	bind_interdomain.remote_dom  = remote_domain;
+	bind_interdomain.remote_port = remote_port;
+	error = HYPERVISOR_event_channel_op(EVTCHNOP_bind_interdomain,
+					    &bind_interdomain);
+	if (error) {
+		mtx_unlock(&irq_evtchn[irq].lock);
+		free_xen_irq(irq);
+		return (-error);
+	}
+
+	irq_evtchn[irq].handler = handler;
+	irq_evtchn[irq].arg     = arg;
+	irq_evtchn[irq].evtchn  = bind_interdomain.local_port;
+	irq_evtchn[irq].close   = 1;
+	irq_evtchn[irq].mpsafe  = (irqflags & INTR_MPSAFE) != 0;
+
+	evtchn_to_irq[bind_interdomain.local_port] = irq;
+
+	unmask_evtchn(bind_interdomain.local_port);
+
+	mtx_unlock(&irq_evtchn[irq].lock);
+
+	if (irqp)
+		*irqp = irq;
+	return (0);
+}
+
 
 int
 bind_caller_port_to_irqhandler(unsigned int caller_port,

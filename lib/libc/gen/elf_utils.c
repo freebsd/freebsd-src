@@ -26,7 +26,12 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/resource.h>
+#include <sys/sysctl.h>
 #include <link.h>
+#include <stddef.h>
 
 int
 __elf_phdr_match_addr(struct dl_phdr_info *phdr_info, void *addr)
@@ -45,3 +50,25 @@ __elf_phdr_match_addr(struct dl_phdr_info *phdr_info, void *addr)
 	}
 	return (i != phdr_info->dlpi_phnum);
 }
+
+#pragma weak __pthread_map_stacks_exec
+void
+__pthread_map_stacks_exec(void)
+{
+	int mib[2];
+	struct rlimit rlim;
+	u_long usrstack;
+	size_t len;
+	
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_USRSTACK;
+	len = sizeof(usrstack);
+	if (sysctl(mib, sizeof(mib) / sizeof(mib[0]), &usrstack, &len, NULL, 0)
+	    == -1)
+		return;
+	if (getrlimit(RLIMIT_STACK, &rlim) == -1)
+		return;
+	mprotect((void *)(uintptr_t)(usrstack - rlim.rlim_cur),
+	    rlim.rlim_cur, _rtld_get_stack_prot());
+}
+

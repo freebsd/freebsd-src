@@ -455,7 +455,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	}
 	if (*vaddr == NULL)
 		return (ENOMEM);
-	else if ((uintptr_t)*vaddr & (dmat->alignment - 1))
+	else if (vtophys(*vaddr) & (dmat->alignment - 1))
 		printf("bus_dmamem_alloc failed to align memory properly.\n");
 	return (0);
 }

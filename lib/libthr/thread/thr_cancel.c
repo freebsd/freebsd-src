@@ -60,18 +60,16 @@ _pthread_cancel(pthread_t pthread)
 
 	/*
 	 * POSIX says _pthread_cancel should be async cancellation safe.
-	 * _thr_ref_add and _thr_ref_delete will enter and leave critical
+	 * _thr_find_thread and THR_THREAD_UNLOCK will enter and leave critical
 	 * region automatically.
 	 */
-	if ((ret = _thr_ref_add(curthread, pthread, 0)) == 0) {
-		THR_THREAD_LOCK(curthread, pthread);
+	if ((ret = _thr_find_thread(curthread, pthread, 0)) == 0) {
 		if (!pthread->cancel_pending) {
 			pthread->cancel_pending = 1;
-			if (pthread->cancel_enable)
+			if (pthread->state != PS_DEAD)
 				_thr_send_sig(pthread, SIGCANCEL);
 		}
 		THR_THREAD_UNLOCK(curthread, pthread);
-		_thr_ref_delete(curthread, pthread);
 	}
 	return (ret);
 }
@@ -85,14 +83,11 @@ _pthread_setcancelstate(int state, int *oldstate)
 	oldval = curthread->cancel_enable;
 	switch (state) {
 	case PTHREAD_CANCEL_DISABLE:
-		THR_LOCK(curthread);
 		curthread->cancel_enable = 0;
-		THR_UNLOCK(curthread);
 		break;
 	case PTHREAD_CANCEL_ENABLE:
-		THR_LOCK(curthread);
 		curthread->cancel_enable = 1;
-		THR_UNLOCK(curthread);
+		testcancel(curthread);
 		break;
 	default:
 		return (EINVAL);
@@ -136,23 +131,20 @@ _pthread_testcancel(void)
 {
 	struct pthread *curthread = _get_curthread();
 
-	_thr_cancel_enter(curthread);
-	_thr_cancel_leave(curthread);
+	testcancel(curthread);
 }
 
 void
 _thr_cancel_enter(struct pthread *curthread)
 {
-	curthread->cancel_point++;
-	if (curthread->cancel_enable)
-		testcancel(curthread);
+	curthread->cancel_point = 1;
+	testcancel(curthread);
 }
 
 void
-_thr_cancel_enter_defer(struct pthread *curthread, int maycancel)
+_thr_cancel_enter2(struct pthread *curthread, int maycancel)
 {
-	curthread->cancel_defer++;
-	curthread->cancel_point++;
+	curthread->cancel_point = 1;
 	if (__predict_false(SHOULD_CANCEL(curthread) &&
 	    !THR_IN_CRITICAL(curthread))) {
 		if (!maycancel)
@@ -163,24 +155,22 @@ _thr_cancel_enter_defer(struct pthread *curthread, int maycancel)
 }
 
 void
-_thr_cancel_leave(struct pthread *curthread)
+_thr_cancel_leave(struct pthread *curthread, int maycancel)
 {
-	curthread->cancel_point--;
+	curthread->cancel_point = 0;
+	if (__predict_false(SHOULD_CANCEL(curthread) &&
+	    !THR_IN_CRITICAL(curthread) && maycancel))
+		_pthread_exit(PTHREAD_CANCELED);
 }
 
 void
-_thr_cancel_leave2(struct pthread *curthread, int maycancel)
+_pthread_cancel_enter(int maycancel)
 {
-	if (curthread->cancel_enable && maycancel)
-		testcancel(curthread);
-	curthread->cancel_point--;
+	_thr_cancel_enter2(_get_curthread(), maycancel);
 }
 
 void
-_thr_cancel_leave_defer(struct pthread *curthread, int maycancel)
+_pthread_cancel_leave(int maycancel)
 {
-	if (curthread->cancel_enable && maycancel)
-		testcancel(curthread);
-	curthread->cancel_point--;
-	curthread->cancel_defer--;
+	_thr_cancel_leave(_get_curthread(), maycancel);
 }

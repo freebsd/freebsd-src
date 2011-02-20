@@ -37,7 +37,6 @@ namespace driver {
   class InputInfo;
   class JobAction;
   class OptTable;
-  class PipedJob;
   class ToolChain;
 
 /// Driver - Encapsulate logic for constructing compilation processes
@@ -64,6 +63,9 @@ public:
 
   /// The original path to the clang executable.
   std::string ClangExecutable;
+
+  /// The path to the installed clang directory, if any.
+  std::string InstalledDir;
 
   /// The path to the compiler resource directory.
   std::string ResourceDir;
@@ -145,7 +147,7 @@ private:
   DerivedArgList *TranslateInputArgs(const InputArgList &Args) const;
 
 public:
-  Driver(llvm::StringRef _Name, llvm::StringRef _Dir,
+  Driver(llvm::StringRef _ClangExecutable,
          llvm::StringRef _DefaultHostTriple,
          llvm::StringRef _DefaultImageName,
          bool IsProduction, bool CXXIsProduction,
@@ -167,8 +169,18 @@ public:
   void setTitle(std::string Value) { DriverTitle = Value; }
 
   /// \brief Get the path to the main clang executable.
-  std::string getClangProgramPath() const {
-    return ClangExecutable;
+  const char *getClangProgramPath() const {
+    return ClangExecutable.c_str();
+  }
+
+  /// \brief Get the path to where the clang executable was installed.
+  const char *getInstalledDir() const {
+    if (!InstalledDir.empty())
+      return InstalledDir.c_str();
+    return Dir.c_str();
+  }
+  void setInstalledDir(llvm::StringRef Value) {
+    InstalledDir = Value;
   }
 
   /// @}
@@ -194,16 +206,20 @@ public:
   /// BuildActions - Construct the list of actions to perform for the
   /// given arguments, which are only done for a single architecture.
   ///
+  /// \param TC - The default host tool chain.
   /// \param Args - The input arguments.
   /// \param Actions - The list to store the resulting actions onto.
-  void BuildActions(const ArgList &Args, ActionList &Actions) const;
+  void BuildActions(const ToolChain &TC, const ArgList &Args,
+                    ActionList &Actions) const;
 
   /// BuildUniversalActions - Construct the list of actions to perform
   /// for the given arguments, which may require a universal build.
   ///
+  /// \param TC - The default host tool chain.
   /// \param Args - The input arguments.
   /// \param Actions - The list to store the resulting actions onto.
-  void BuildUniversalActions(const ArgList &Args, ActionList &Actions) const;
+  void BuildUniversalActions(const ToolChain &TC, const ArgList &Args,
+                             ActionList &Actions) const;
 
   /// BuildJobs - Bind actions to concrete tools and translate
   /// arguments to form the list of jobs to run.
@@ -278,7 +294,6 @@ public:
                           const Action *A,
                           const ToolChain *TC,
                           const char *BoundArch,
-                          bool CanAcceptPipe,
                           bool AtTopLevel,
                           const char *LinkingOutput,
                           InputInfo &Result) const;

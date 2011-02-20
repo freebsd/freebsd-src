@@ -188,9 +188,9 @@ TUNABLE_QUAD("vfs.zfs.arc_min", &zfs_arc_min);
 TUNABLE_QUAD("vfs.zfs.arc_meta_limit", &zfs_arc_meta_limit);
 TUNABLE_INT("vfs.zfs.mdcomp_disable", &zfs_mdcomp_disable);
 SYSCTL_DECL(_vfs_zfs);
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, arc_max, CTLFLAG_RDTUN, &zfs_arc_max, 0,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_max, CTLFLAG_RDTUN, &zfs_arc_max, 0,
     "Maximum ARC size");
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, arc_min, CTLFLAG_RDTUN, &zfs_arc_min, 0,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_min, CTLFLAG_RDTUN, &zfs_arc_min, 0,
     "Minimum ARC size");
 SYSCTL_INT(_vfs_zfs, OID_AUTO, mdcomp_disable, CTLFLAG_RDTUN,
     &zfs_mdcomp_disable, 0, "Disable metadata compression");
@@ -466,9 +466,9 @@ static uint64_t		arc_loaned_bytes;
 static uint64_t		arc_meta_used;
 static uint64_t		arc_meta_limit;
 static uint64_t		arc_meta_max = 0;
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, arc_meta_used, CTLFLAG_RDTUN,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_meta_used, CTLFLAG_RDTUN,
     &arc_meta_used, 0, "ARC metadata used");
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, arc_meta_limit, CTLFLAG_RDTUN,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_meta_limit, CTLFLAG_RDTUN,
     &arc_meta_limit, 0, "ARC metadata limit");
 
 typedef struct l2arc_buf_hdr l2arc_buf_hdr_t;
@@ -638,15 +638,15 @@ boolean_t l2arc_noprefetch = B_FALSE;		/* don't cache prefetch bufs */
 boolean_t l2arc_feed_again = B_TRUE;		/* turbo warmup */
 boolean_t l2arc_norw = B_TRUE;			/* no reads during writes */
 
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, l2arc_write_max, CTLFLAG_RW,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2arc_write_max, CTLFLAG_RW,
     &l2arc_write_max, 0, "max write size");
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, l2arc_write_boost, CTLFLAG_RW,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2arc_write_boost, CTLFLAG_RW,
     &l2arc_write_boost, 0, "extra write during warmup");
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, l2arc_headroom, CTLFLAG_RW,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2arc_headroom, CTLFLAG_RW,
     &l2arc_headroom, 0, "number of dev writes");
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, l2arc_feed_secs, CTLFLAG_RW,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2arc_feed_secs, CTLFLAG_RW,
     &l2arc_feed_secs, 0, "interval seconds");
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, l2arc_feed_min_ms, CTLFLAG_RW,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2arc_feed_min_ms, CTLFLAG_RW,
     &l2arc_feed_min_ms, 0, "min interval milliseconds");
 
 SYSCTL_INT(_vfs_zfs, OID_AUTO, l2arc_noprefetch, CTLFLAG_RW,
@@ -656,46 +656,46 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, l2arc_feed_again, CTLFLAG_RW,
 SYSCTL_INT(_vfs_zfs, OID_AUTO, l2arc_norw, CTLFLAG_RW,
     &l2arc_norw, 0, "no reads during writes");
 
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, anon_size, CTLFLAG_RD,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, anon_size, CTLFLAG_RD,
     &ARC_anon.arcs_size, 0, "size of anonymous state");
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, anon_metadata_lsize, CTLFLAG_RD,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, anon_metadata_lsize, CTLFLAG_RD,
     &ARC_anon.arcs_lsize[ARC_BUFC_METADATA], 0, "size of anonymous state");
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, anon_data_lsize, CTLFLAG_RD,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, anon_data_lsize, CTLFLAG_RD,
     &ARC_anon.arcs_lsize[ARC_BUFC_DATA], 0, "size of anonymous state");
 
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, mru_size, CTLFLAG_RD,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mru_size, CTLFLAG_RD,
     &ARC_mru.arcs_size, 0, "size of mru state");
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, mru_metadata_lsize, CTLFLAG_RD,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mru_metadata_lsize, CTLFLAG_RD,
     &ARC_mru.arcs_lsize[ARC_BUFC_METADATA], 0, "size of metadata in mru state");
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, mru_data_lsize, CTLFLAG_RD,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mru_data_lsize, CTLFLAG_RD,
     &ARC_mru.arcs_lsize[ARC_BUFC_DATA], 0, "size of data in mru state");
 
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, mru_ghost_size, CTLFLAG_RD,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mru_ghost_size, CTLFLAG_RD,
     &ARC_mru_ghost.arcs_size, 0, "size of mru ghost state");
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, mru_ghost_metadata_lsize, CTLFLAG_RD,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mru_ghost_metadata_lsize, CTLFLAG_RD,
     &ARC_mru_ghost.arcs_lsize[ARC_BUFC_METADATA], 0,
     "size of metadata in mru ghost state");
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, mru_ghost_data_lsize, CTLFLAG_RD,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mru_ghost_data_lsize, CTLFLAG_RD,
     &ARC_mru_ghost.arcs_lsize[ARC_BUFC_DATA], 0,
     "size of data in mru ghost state");
 
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, mfu_size, CTLFLAG_RD,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mfu_size, CTLFLAG_RD,
     &ARC_mfu.arcs_size, 0, "size of mfu state");
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, mfu_metadata_lsize, CTLFLAG_RD,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mfu_metadata_lsize, CTLFLAG_RD,
     &ARC_mfu.arcs_lsize[ARC_BUFC_METADATA], 0, "size of metadata in mfu state");
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, mfu_data_lsize, CTLFLAG_RD,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mfu_data_lsize, CTLFLAG_RD,
     &ARC_mfu.arcs_lsize[ARC_BUFC_DATA], 0, "size of data in mfu state");
 
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, mfu_ghost_size, CTLFLAG_RD,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mfu_ghost_size, CTLFLAG_RD,
     &ARC_mfu_ghost.arcs_size, 0, "size of mfu ghost state");
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, mfu_ghost_metadata_lsize, CTLFLAG_RD,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mfu_ghost_metadata_lsize, CTLFLAG_RD,
     &ARC_mfu_ghost.arcs_lsize[ARC_BUFC_METADATA], 0,
     "size of metadata in mfu ghost state");
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, mfu_ghost_data_lsize, CTLFLAG_RD,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, mfu_ghost_data_lsize, CTLFLAG_RD,
     &ARC_mfu_ghost.arcs_lsize[ARC_BUFC_DATA], 0,
     "size of data in mfu ghost state");
 
-SYSCTL_QUAD(_vfs_zfs, OID_AUTO, l2c_only_size, CTLFLAG_RD,
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2c_only_size, CTLFLAG_RD,
     &ARC_l2c_only.arcs_size, 0, "size of mru state");
 
 /*
@@ -2155,16 +2155,12 @@ arc_reclaim_needed(void)
 #ifdef _KERNEL
 	if (needfree)
 		return (1);
-	if (arc_size > arc_c_max)
-		return (1);
-	if (arc_size <= arc_c_min)
-		return (0);
 
 	/*
-	 * If pages are needed or we're within 2048 pages
-	 * of needing to page need to reclaim
+	 * Cooperate with pagedaemon when it's time for it to scan
+	 * and reclaim some pages.
 	 */
-	if (vm_pages_needed || (vm_paging_target() > -2048))
+	if (vm_paging_needed())
 		return (1);
 
 #if 0
@@ -2317,12 +2313,12 @@ arc_reclaim_thread(void *dummy __unused)
 		if (arc_eviction_list != NULL)
 			arc_do_user_evicts();
 
-		if (arc_reclaim_needed()) {
-			needfree = 0;
 #ifdef _KERNEL
+		if (needfree) {
+			needfree = 0;
 			wakeup(&needfree);
-#endif
 		}
+#endif
 
 		/* block until needed, or one second, whichever is shorter */
 		CALLB_CPR_SAFE_BEGIN(&cpr);

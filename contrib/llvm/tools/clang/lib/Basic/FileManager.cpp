@@ -19,6 +19,7 @@
 
 #include "clang/Basic/FileManager.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/System/Path.h"
 #include "llvm/Config/config.h"
@@ -83,6 +84,9 @@ class FileManager::UniqueFileContainer {
 public:
   FileEntry &getFile(const char *Name, struct stat &StatBuf) {
     std::string FullPath(GetFullPath(Name));
+    
+    // LowercaseString because Windows filesystem is case insensitive.
+    FullPath = llvm::LowercaseString(FullPath);
     return UniqueFiles.GetOrCreateValue(
                                FullPath.c_str(),
                                FullPath.c_str() + FullPath.size()
@@ -365,6 +369,18 @@ FileManager::getVirtualFile(llvm::StringRef Filename, off_t Size,
   UFE->ModTime = ModificationTime;
   UFE->Dir     = DirInfo;
   UFE->UID     = NextFileUID++;
+  
+  // If this virtual file resolves to a file, also map that file to the 
+  // newly-created file entry.
+  const char *InterndFileName = NamedFileEnt.getKeyData();
+  struct stat StatBuf;
+  if (!stat_cached(InterndFileName, &StatBuf) &&
+      !S_ISDIR(StatBuf.st_mode)) {
+    llvm::sys::Path FilePath(InterndFileName);
+    FilePath.makeAbsolute();
+    FileEntries[FilePath.str()] = UFE;
+  }
+  
   return UFE;
 }
 

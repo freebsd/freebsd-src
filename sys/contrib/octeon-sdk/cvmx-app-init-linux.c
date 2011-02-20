@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -59,7 +61,7 @@
  * -# Most hardware can only be initialized once. Unless you're very careful,
  *      this also means you Linux application can only run once.
  *
- * <hr>$Revision: 41757 $<hr>
+ * <hr>$Revision: 49448 $<hr>
  *
  */
 #define _GNU_SOURCE
@@ -107,11 +109,6 @@ extern uint64_t linux_mem32_max;
 extern uint64_t linux_mem32_wired;
 extern uint64_t linux_mem32_offset;
 
-#define MIPS_CAVIUM_XKPHYS_READ	   2010	/* XKPHYS */
-#define MIPS_CAVIUM_XKPHYS_WRITE	   2011	/* XKPHYS */
-
-static CVMX_SHARED int32_t warn_count;
-
 /**
  * This function performs some default initialization of the Octeon executive.  It initializes
  * the cvmx_bootmem memory allocator with the list of physical memory shared by the bootloader.
@@ -134,17 +131,17 @@ int cvmx_user_app_init(void)
  * library printf for output. It also makes sure that two
  * calls to simprintf provide atomic output.
  *
- * @param fmt    Format string in the same format as printf.
+ * @param format  Format string in the same format as printf.
  */
-void simprintf(const char *fmt, ...)
+void simprintf(const char *format, ...)
 {
     CVMX_SHARED static cvmx_spinlock_t simprintf_lock = CVMX_SPINLOCK_UNLOCKED_INITIALIZER;
     va_list ap;
 
     cvmx_spinlock_lock(&simprintf_lock);
     printf("SIMPRINTF(%d): ", (int)cvmx_get_core_num());
-    va_start(ap, fmt);
-    vprintf(fmt, ap);
+    va_start(ap, format);
+    vprintf(format, ap);
     va_end(ap);
     cvmx_spinlock_unlock(&simprintf_lock);
 }
@@ -325,7 +322,10 @@ int main(int argc, const char *argv[])
     CVMX_SHARED static int32_t pending_fork;
     unsigned long cpumask;
     unsigned long cpu;
-    int lastcpu = 0;
+    int firstcpu = 0;
+    int firstcore = 0;
+
+    cvmx_linux_enable_xkphys_access(0);
 
     cvmx_sysinfo_linux_userspace_initialize();
 
@@ -344,7 +344,7 @@ int main(int argc, const char *argv[])
     }
 
     setup_cvmx_shared();
-    cvmx_bootmem_init(cvmx_sysinfo_get()->phy_mem_desc_ptr);
+    cvmx_bootmem_init(cvmx_sysinfo_get()->phy_mem_desc_addr);
 
     /* Check to make sure the Chip version matches the configured version */
     octeon_model_version_check(cvmx_get_proc_id());
@@ -359,37 +359,40 @@ int main(int argc, const char *argv[])
     cvmx_sysinfo_t *system_info = cvmx_sysinfo_get();
 
     cvmx_atomic_set32(&pending_fork, 1);
-    for (cpu=0; cpu<16; cpu++)
+
+    /* Get the lowest logical cpu */
+    firstcore = ffsl(cpumask) - 1;
+    cpumask ^= (1<<(firstcore));
+    while (1)
     {
-        if (cpumask & (1<<cpu))
+        if (cpumask == 0)
         {
-            /* Turn off the bit for this CPU number. We've counted him */
-            cpumask ^= (1<<cpu);
-            /* If this is the last CPU to run on, use this process instead of forking another one */
-            if (cpumask == 0)
-            {
-                lastcpu = 1;
-                break;
-            }
-            /* Increment the number of CPUs running this app */
-            cvmx_atomic_add32(&pending_fork, 1);
-            /* Flush all IO streams before the fork. Otherwise any buffered
-                data in the C library will be duplicated. This results in
-                duplicate output from a single print */
-            fflush(NULL);
-            /* Fork a process for the new CPU */
-            int pid = fork();
-            if (pid == 0)
-            {
-                break;
-            }
-            else if (pid == -1)
-            {
-                perror("Fork failed");
-                exit(errno);
-            }
+            cpu = firstcore;
+            firstcpu = 1;
+            break;
         }
-    }
+        cpu = ffsl(cpumask) - 1;
+        /* Turn off the bit for this CPU number. We've counted him */
+        cpumask ^= (1<<cpu);
+        /* Increment the number of CPUs running this app */
+         cvmx_atomic_add32(&pending_fork, 1);
+        /* Flush all IO streams before the fork. Otherwise any buffered
+           data in the C library will be duplicated. This results in
+           duplicate output from a single print */
+        fflush(NULL);
+        /* Fork a process for the new CPU */
+        int pid = fork();
+        if (pid == 0)
+        {
+            break;
+        }
+        else if (pid == -1)
+        {
+            perror("Fork failed");
+            exit(errno);
+        }
+     }
+
 
     /* Set affinity to lock me to the correct CPU */
     cpumask = (1<<cpu);
@@ -404,7 +407,7 @@ int main(int argc, const char *argv[])
     cvmx_atomic_add32(&pending_fork, -1);
     if (cvmx_atomic_get32(&pending_fork) == 0)
         cvmx_dprintf("Active coremask = 0x%x\n", system_info->core_mask);
-    if (lastcpu)
+    if (firstcpu)
         system_info->init_core = cvmx_get_core_num();
     cvmx_spinlock_unlock(&mask_lock);
 
@@ -413,27 +416,7 @@ int main(int argc, const char *argv[])
 
     cvmx_coremask_barrier_sync(system_info->core_mask);
 
-    int ret = sysmips(MIPS_CAVIUM_XKPHYS_WRITE, getpid(), 3, 0);
-    if (ret != 0) {
-	 int32_t w = cvmx_atomic_fetch_and_add32(&warn_count, 1);
-	 if (!w) {
-	      switch(errno) {
-	      case EINVAL:
-		   perror("sysmips(MIPS_CAVIUM_XKPHYS_WRITE) failed.\n"
-			  "  Did you configure your kernel with both:\n"
-			  "     CONFIG_CAVIUM_OCTEON_USER_MEM_PER_PROCESS *and*\n"
-			  "     CONFIG_CAVIUM_OCTEON_USER_IO_PER_PROCESS?");
-		   break;
-	      case EPERM:
-		   perror("sysmips(MIPS_CAVIUM_XKPHYS_WRITE) failed.\n"
-			  "  Are you running as root?");
-		   break;
-	      default:
-		   perror("sysmips(MIPS_CAVIUM_XKPHYS_WRITE) failed");
-		   break;
-	      }
-	 }
-    }
+    cvmx_linux_enable_xkphys_access(1);
 
     int result = appmain(argc, argv);
 

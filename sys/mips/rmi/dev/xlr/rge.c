@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/taskqueue.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -63,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 
 #include <net/bpf.h>
-
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 
@@ -87,26 +87,23 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuregs.h>
 #include <machine/bus.h>	/* */
 #include <machine/resource.h>
-#include <mips/rmi/interrupt.h>
-#include <mips/rmi/msgring.h>
-#include <mips/rmi/iomap.h>
-#include <mips/rmi/debug.h>
-#include <mips/rmi/pic.h>
-#include <mips/rmi/xlrconfig.h>
-#include <mips/rmi/shared_structs.h>
-#include <mips/rmi/board.h>
-
-#include <mips/rmi/dev/xlr/atx_cpld.h>
-#include <mips/rmi/dev/xlr/xgmac_mdio.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 #include <dev/mii/brgphyreg.h>
 
-#include <sys/sysctl.h>
-#include <mips/rmi/dev/xlr/rge.h>
+#include <mips/rmi/interrupt.h>
+#include <mips/rmi/msgring.h>
+#include <mips/rmi/iomap.h>
+#include <mips/rmi/pic.h>
+#include <mips/rmi/rmi_mips_exts.h>
+#include <mips/rmi/rmi_boot_info.h>
+#include <mips/rmi/board.h>
 
-/* #include "opt_rge.h" */
+#include <mips/rmi/dev/xlr/debug.h>
+#include <mips/rmi/dev/xlr/atx_cpld.h>
+#include <mips/rmi/dev/xlr/xgmac_mdio.h>
+#include <mips/rmi/dev/xlr/rge.h>
 
 #include "miibus_if.h"
 
@@ -173,10 +170,8 @@ extern uint32_t cpu_ltop_map[32];
 static int port_counters[4][8] __aligned(XLR_CACHELINE_SIZE);
 
 #define port_inc_counter(port, counter) 	atomic_add_int(&port_counters[port][(counter)], 1)
-#define port_set_counter(port, counter, value) 	atomic_set_int(&port_counters[port][(counter)], (value))
 #else
 #define port_inc_counter(port, counter)	/* Nothing */
-#define port_set_counter(port, counter, value)	/* Nothing */
 #endif
 
 int xlr_rge_tx_prepend[MAXCPU];
@@ -187,35 +182,8 @@ int xlr_rge_tx_ok_done[MAXCPU];
 int xlr_rge_rx_done[MAXCPU];
 int xlr_rge_repl_done[MAXCPU];
 
-static __inline__ unsigned int
-ldadd_wu(unsigned int value, unsigned long *addr)
-{
-	__asm__ __volatile__(".set push\n"
-	            ".set noreorder\n"
-	            "move $8, %2\n"
-	            "move $9, %3\n"
-	/* "ldaddwu $8, $9\n" */
-	            ".word 0x71280011\n"
-	            "move %0, $8\n"
-	            ".set pop\n"
-	    :       "=&r"(value), "+m"(*addr)
-	    :       "0"(value), "r"((unsigned long)addr)
-	    :       "$8", "$9");
-
-	return value;
-}
-
-static __inline__ uint32_t 
-xlr_enable_kx(void)
-{
-	uint32_t sr = mips_rd_status();
-
-	mips_wr_status((sr & ~MIPS_SR_INT_IE) | MIPS_SR_KX);
-	return sr;
-}
-
 /* #define mac_stats_add(x, val) ({(x) += (val);}) */
-#define mac_stats_add(x, val) ldadd_wu(val, &x)
+#define mac_stats_add(x, val) xlr_ldaddwu(val, &x)
 
 #define XLR_MAX_CORE 8
 #define RGE_LOCK_INIT(_sc, _name) \
@@ -614,25 +582,16 @@ static void
 free_buf(vm_paddr_t paddr)
 {
 	struct mbuf *m;
-	uint32_t mag;
-#ifdef __mips_n64
-	uint64_t *vaddr;
-
-	vaddr = (uint64_t *)MIPS_PHYS_TO_XKPHYS_CACHED(paddr);
-	m = (struct mbuf *)vaddr[0];
-	mag = (uint32_t)vaddr[1];
-#else
+	uint64_t mag;
 	uint32_t sr;
 
 	sr = xlr_enable_kx();
-	m = (struct mbuf *)(intptr_t)xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + sizeof(uint32_t));
-	mag = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + 3 * sizeof(uint32_t));
-	mips_wr_status(sr);
-#endif
-
+	m = (struct mbuf *)(intptr_t)xlr_paddr_ld(paddr - XLR_CACHELINE_SIZE);
+	mag = xlr_paddr_ld(paddr - XLR_CACHELINE_SIZE + sizeof(uint64_t));
+	xlr_restore_kx(sr);
 	if (mag != 0xf00bad) {
-		printf("Something is wrong kseg:%lx found mag:%x not 0xf00bad\n",
-		    (u_long)paddr, mag);
+		printf("Something is wrong kseg:%lx found mag:%lx not 0xf00bad\n",
+		    (u_long)paddr, (u_long)mag);
 		return;
 	}
 	if (m != NULL)
@@ -714,21 +673,30 @@ static __inline__ int
 xlr_mac_send_fr(struct driver_data *priv,
     vm_paddr_t addr, int len)
 {
-	int stid = priv->rfrbucket;
 	struct msgrng_msg msg;
-	int vcpu = xlr_cpu_id();
+	int stid = priv->rfrbucket;
+	int code, ret;
+	uint32_t msgrng_flags;
+#ifdef INVARIANTS
+	int i = 0;
+#endif
 
 	mac_make_desc_rfr(&msg, addr);
 
 	/* Send the packet to MAC */
 	dbg_msg("mac_%d: Sending free packet %lx to stid %d\n",
 	    priv->instance, (u_long)addr, stid);
-	if (priv->type == XLR_XGMAC) {
-		while (message_send(1, MSGRNG_CODE_XGMAC, stid, &msg));
-	} else {
-		while (message_send(1, MSGRNG_CODE_MAC, stid, &msg));
-		xlr_rge_repl_done[vcpu]++;
-	}
+	if (priv->type == XLR_XGMAC)
+		code = MSGRNG_CODE_XGMAC;        /* WHY? */
+	else
+		code = MSGRNG_CODE_MAC;
+
+	do {
+		msgrng_flags = msgrng_access_enable();
+		ret = message_send(1, code, stid, &msg);
+		msgrng_restore(msgrng_flags);
+		KASSERT(i++ < 100000, ("Too many credit fails\n"));
+	} while (ret != 0);
 
 	return 0;
 }
@@ -1001,7 +969,7 @@ rmi_xlr_config_pde(struct driver_data *priv)
 		if (cpumask & (1 << i)) {
 			cpu = i;
 			bucket = ((cpu >> 2) << 3);
-			bucket_map |= (1ULL << bucket);
+			bucket_map |= (3ULL << bucket);
 		}
 	}
 	printf("rmi_xlr_config_pde: bucket_map=%jx\n", (uintmax_t)bucket_map);
@@ -1442,37 +1410,16 @@ rmi_xlr_mac_set_duplex(struct driver_data *s,
 #define MAC_TX_PASS 0
 #define MAC_TX_RETRY 1
 
-static __inline__ void
-message_send_block(unsigned int size, unsigned int code,
-    unsigned int stid, struct msgrng_msg *msg)
-{
-	unsigned int dest = 0;
-	unsigned long long status = 0;
-
-	msgrng_load_tx_msg0(msg->msg0);
-	msgrng_load_tx_msg1(msg->msg1);
-	msgrng_load_tx_msg2(msg->msg2);
-	msgrng_load_tx_msg3(msg->msg3);
-
-	dest = ((size - 1) << 16) | (code << 8) | (stid);
-
-	do {
-		msgrng_send(dest);
-		status = msgrng_read_status();
-	} while (status & 0x6);
-
-}
-
 int xlr_dev_queue_xmit_hack = 0;
 
 static int
 mac_xmit(struct mbuf *m, struct rge_softc *sc,
     struct driver_data *priv, int len, struct p2d_tx_desc *tx_desc)
 {
-	struct msgrng_msg msg;
+	struct msgrng_msg msg = {0,0,0,0};
 	int stid = priv->txbucket;
 	uint32_t tx_cycles = 0;
-	unsigned long mflags = 0;
+	uint32_t mflags;
 	int vcpu = xlr_cpu_id();
 	int rv;
 
@@ -1482,17 +1429,17 @@ mac_xmit(struct mbuf *m, struct rge_softc *sc,
 		return MAC_TX_FAIL;
 
 	else {
-		msgrng_access_enable(mflags);
-		if ((rv = message_send_retry(1, MSGRNG_CODE_MAC, stid, &msg)) != 0) {
+		mflags = msgrng_access_enable();
+		if ((rv = message_send(1, MSGRNG_CODE_MAC, stid, &msg)) != 0) {
 			msg_snd_failed++;
-			msgrng_access_disable(mflags);
+			msgrng_restore(mflags);
 			release_tx_desc(&msg, 0);
 			xlr_rge_msg_snd_failed[vcpu]++;
 			dbg_msg("Failed packet to cpu %d, rv = %d, stid %d, msg0=%jx\n",
 			    vcpu, rv, stid, (uintmax_t)msg.msg0);
 			return MAC_TX_FAIL;
 		}
-		msgrng_access_disable(mflags);
+		msgrng_restore(mflags);
 		port_inc_counter(priv->instance, PORT_TX);
 	}
 
@@ -1562,7 +1509,6 @@ mac_frin_replenish(void *args /* ignored */ )
 
 		for (i = 0; i < XLR_MAX_MACS; i++) {
 			/* int offset = 0; */
-			unsigned long msgrng_flags;
 			void *m;
 			uint32_t cycles;
 			struct rge_softc *sc;
@@ -1595,14 +1541,11 @@ mac_frin_replenish(void *args /* ignored */ )
 				}
 			}
 			xlr_inc_counter(REPLENISH_FRIN);
-			msgrng_access_enable(msgrng_flags);
 			if (xlr_mac_send_fr(priv, vtophys(m), MAX_FRAME_SIZE)) {
 				free_buf(vtophys(m));
 				printf("[%s]: rx free message_send failed!\n", __FUNCTION__);
-				msgrng_access_disable(msgrng_flags);
 				break;
 			}
-			msgrng_access_disable(msgrng_flags);
 			xlr_set_counter(REPLENISH_CYCLES,
 			    (read_c0_count() - cycles));
 			atomic_subtract_int((&priv->frin_to_be_sent[cpu]), 1);
@@ -1898,7 +1841,7 @@ rge_attach(device_t dev)
 	 */
 	sc->rge_irq.__r_i = (struct resource_i *)(intptr_t)sc->irq;
 
-	ret = bus_setup_intr(dev, &sc->rge_irq, INTR_FAST | INTR_TYPE_NET | INTR_MPSAFE,
+	ret = bus_setup_intr(dev, &sc->rge_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, rge_intr, sc, &sc->rge_intrhand);
 
 	if (ret) {
@@ -2041,15 +1984,8 @@ static void
 rge_rx(struct rge_softc *sc, vm_paddr_t paddr, int len)
 {
 	struct mbuf *m;
-	uint32_t mag;
 	struct ifnet *ifp = sc->rge_ifp;
-#ifdef __mips_n64
-	uint64_t *vaddr;
-
-	vaddr =(uint64_t *)MIPS_PHYS_TO_XKPHYS_CACHED(paddr - XLR_CACHELINE_SIZE);
-	m = (struct mbuf *)vaddr[0];
-	mag = (uint32_t)vaddr[1];
-#else
+	uint64_t mag;
 	uint32_t sr;
 	/*
 	 * On 32 bit machines we use XKPHYS to get the values stores with
@@ -2057,10 +1993,9 @@ rge_rx(struct rge_softc *sc, vm_paddr_t paddr, int len)
 	 * KX is enabled to prevent this setting leaking to other code.
 	 */
 	sr = xlr_enable_kx();
-	m = (struct mbuf *)(intptr_t)xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + sizeof(uint32_t));
-	mag = xlr_paddr_lw(paddr - XLR_CACHELINE_SIZE + 3 * sizeof(uint32_t));
-	mips_wr_status(sr);
-#endif
+	m = (struct mbuf *)(intptr_t)xlr_paddr_ld(paddr - XLR_CACHELINE_SIZE);
+	mag = xlr_paddr_ld(paddr - XLR_CACHELINE_SIZE + sizeof(uint64_t));
+	xlr_restore_kx(sr);
 	if (mag != 0xf00bad) {
 		/* somebody else packet Error - FIXME in intialization */
 		printf("cpu %d: *ERROR* Not my packet paddr %p\n",
@@ -2344,7 +2279,7 @@ rmi_xlr_mac_open(struct rge_softc *sc)
 	mtx_unlock_spin(&priv->lock);
 
 	for (i = 0; i < 8; i++) {
-		atomic_set_int(&(priv->frin_to_be_sent[i]), 0);
+		priv->frin_to_be_sent[i] = 0;
 	}
 
 	return 0;
@@ -2430,7 +2365,6 @@ static int
 rmi_xlr_mac_fill_rxfr(struct rge_softc *sc)
 {
 	struct driver_data *priv = &(sc->priv);
-	unsigned long msgrng_flags;
 	int i;
 	int ret = 0;
 	void *ptr;
@@ -2448,9 +2382,7 @@ rmi_xlr_mac_fill_rxfr(struct rge_softc *sc)
 			break;
 		}
 		/* Send the free Rx desc to the MAC */
-		msgrng_access_enable(msgrng_flags);
 		xlr_mac_send_fr(priv, vtophys(ptr), MAX_FRAME_SIZE);
-		msgrng_access_disable(msgrng_flags);
 	}
 
 	return ret;
@@ -2605,17 +2537,20 @@ mac_common_init(void)
 	init_tx_ring();
 
 	if (xlr_board_info.is_xls) {
-		if (register_msgring_handler(TX_STN_GMAC0,
-		    rmi_xlr_mac_msgring_handler, NULL)) {
+		if (register_msgring_handler(MSGRNG_STNID_GMAC,
+		   MSGRNG_STNID_GMAC + 1, rmi_xlr_mac_msgring_handler,
+		   NULL)) {
 			panic("Couldn't register msgring handler\n");
 		}
-		if (register_msgring_handler(TX_STN_GMAC1,
-		    rmi_xlr_mac_msgring_handler, NULL)) {
+		if (register_msgring_handler(MSGRNG_STNID_GMAC1,
+		    MSGRNG_STNID_GMAC1 + 1, rmi_xlr_mac_msgring_handler,
+		    NULL)) {
 			panic("Couldn't register msgring handler\n");
 		}
 	} else {
-		if (register_msgring_handler(TX_STN_GMAC,
-		    rmi_xlr_mac_msgring_handler, NULL)) {
+		if (register_msgring_handler(MSGRNG_STNID_GMAC,
+		   MSGRNG_STNID_GMAC + 1, rmi_xlr_mac_msgring_handler,
+		   NULL)) {
 			panic("Couldn't register msgring handler\n");
 		}
 	}

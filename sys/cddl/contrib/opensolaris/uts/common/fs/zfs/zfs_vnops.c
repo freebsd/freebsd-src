@@ -19,8 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 /* Portions Copyright 2007 Jeremy Teo */
@@ -68,6 +67,7 @@
 #include <sys/sf_buf.h>
 #include <sys/sched.h>
 #include <sys/acl.h>
+#include <vm/vm_pageout.h>
 
 /*
  * Programming rules.
@@ -323,12 +323,19 @@ page_lookup(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 	for (;;) {
 		if ((pp = vm_page_lookup(obj, OFF_TO_IDX(start))) != NULL &&
 		    vm_page_is_valid(pp, (vm_offset_t)off, nbytes)) {
-			if (vm_page_sleep_if_busy(pp, FALSE, "zfsmwb"))
+			if ((pp->oflags & VPO_BUSY) != 0) {
+				/*
+				 * Reference the page before unlocking and
+				 * sleeping so that the page daemon is less
+				 * likely to reclaim it.
+				 */
+				vm_page_lock_queues();
+				vm_page_flag_set(pp, PG_REFERENCED);
+				vm_page_sleep(pp, "zfsmwb");
 				continue;
+			}
 			vm_page_busy(pp);
-			vm_page_lock_queues();
 			vm_page_undirty(pp);
-			vm_page_unlock_queues();
 		} else {
 			if (__predict_false(obj->cache != NULL)) {
 				vm_page_cache_free(obj, OFF_TO_IDX(start),
@@ -352,8 +359,7 @@ static caddr_t
 zfs_map_page(vm_page_t pp, struct sf_buf **sfp)
 {
 
-	sched_pin();
-	*sfp = sf_buf_alloc(pp, SFB_CPUPRIVATE);
+	*sfp = sf_buf_alloc(pp, 0);
 	return ((caddr_t)sf_buf_kva(*sfp));
 }
 
@@ -362,7 +368,6 @@ zfs_unmap_page(struct sf_buf *sf)
 {
 
 	sf_buf_free(sf);
-	sched_unpin();
 }
 
 
@@ -380,7 +385,7 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 {
 	vm_object_t obj;
 	struct sf_buf *sf;
-	int64_t off;
+	int off;
 
 	ASSERT(vp->v_mount != NULL);
 	obj = vp->v_object;
@@ -390,7 +395,7 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 	VM_OBJECT_LOCK(obj);
 	for (start &= PAGEMASK; len > 0; start += PAGESIZE) {
 		vm_page_t pp;
-		uint64_t nbytes = MIN(PAGESIZE - off, len);
+		int nbytes = MIN(PAGESIZE - off, len);
 
 		if ((pp = page_lookup(vp, start, off, nbytes)) != NULL) {
 			caddr_t va;
@@ -402,12 +407,11 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 				    va+off, tx);
 			} else {
 				(void) dmu_read(os, oid, start+off, nbytes,
-				    va+off, DMU_READ_PREFETCH);;
+				    va+off, DMU_READ_PREFETCH);
 			}
 			zfs_unmap_page(sf);
 			VM_OBJECT_LOCK(obj);
 			page_unlock(pp);
-
 		}
 		len -= nbytes;
 		off = 0;
@@ -433,9 +437,10 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 	vm_object_t obj;
 	vm_page_t m;
 	struct sf_buf *sf;
-	int64_t start, off;
+	int64_t start;
 	caddr_t va;
 	int len = nbytes;
+	int off;
 	int error = 0;
 	uint64_t dirbytes;
 
@@ -448,13 +453,23 @@ mappedread(vnode_t *vp, int nbytes, uio_t *uio)
 	dirbytes = 0;
 	VM_OBJECT_LOCK(obj);
 	for (start &= PAGEMASK; len > 0; start += PAGESIZE) {
-		uint64_t bytes = MIN(PAGESIZE - off, len);
+		int bytes = MIN(PAGESIZE - off, len);
 
 again:
 		if ((m = vm_page_lookup(obj, OFF_TO_IDX(start))) != NULL &&
-		    vm_page_is_valid(m, (vm_offset_t)off, bytes)) {
-			if (vm_page_sleep_if_busy(m, FALSE, "zfsmrb"))
+		    vm_page_is_valid(m, off, bytes)) {
+			if ((m->oflags & VPO_BUSY) != 0) {
+				/*
+				 * Reference the page before unlocking and
+				 * sleeping so that the page daemon is less
+				 * likely to reclaim it.
+				 */
+				vm_page_lock_queues();
+				vm_page_flag_set(m, PG_REFERENCED);
+				vm_page_sleep(m, "zfsmrb");
 				goto again;
+			}
+
 			vm_page_busy(m);
 			VM_OBJECT_UNLOCK(obj);
 			if (dirbytes > 0) {
@@ -462,17 +477,11 @@ again:
 				    dirbytes);
 				dirbytes = 0;
 			}
-			if (error == 0) {
-				sched_pin();
-				sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
-				va = (caddr_t)sf_buf_kva(sf);
-				error = uiomove(va + off, bytes, UIO_READ, uio);
-				sf_buf_free(sf);
-				sched_unpin();
-			}
+			if (error == 0)
+				uiomove_fromphys(&m, off, bytes, uio);
 			VM_OBJECT_LOCK(obj);
 			vm_page_wakeup(m);
-		} else if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
+		} else if (uio->uio_segflg == UIO_NOCOPY) {
 			/*
 			 * The code below is here to make sendfile(2) work
 			 * correctly with ZFS. As pointed out by ups@
@@ -480,9 +489,29 @@ again:
 			 * but it pessimize performance of sendfile/UFS, that's
 			 * why I handle this special case in ZFS code.
 			 */
-			if (vm_page_sleep_if_busy(m, FALSE, "zfsmrb"))
+			KASSERT(off == 0,
+			    ("unexpected offset in mappedread for sendfile"));
+			if (m != NULL && (m->oflags & VPO_BUSY) != 0) {
+				/*
+				 * Reference the page before unlocking and
+				 * sleeping so that the page daemon is less
+				 * likely to reclaim it.
+				 */
+				vm_page_lock_queues();
+				vm_page_flag_set(m, PG_REFERENCED);
+				vm_page_sleep(m, "zfsmrb");
 				goto again;
-			vm_page_busy(m);
+			} else if (m == NULL) {
+				m = vm_page_alloc(obj, OFF_TO_IDX(start),
+				    VM_ALLOC_NOBUSY | VM_ALLOC_NORMAL);
+				if (m == NULL) {
+					VM_OBJECT_UNLOCK(obj);
+					VM_WAIT;
+					VM_OBJECT_LOCK(obj);
+					goto again;
+				}
+			}
+			vm_page_io_start(m);
 			VM_OBJECT_UNLOCK(obj);
 			if (dirbytes > 0) {
 				error = dmu_read_uio(os, zp->z_id, uio,
@@ -490,19 +519,27 @@ again:
 				dirbytes = 0;
 			}
 			if (error == 0) {
-				sched_pin();
-				sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
-				va = (caddr_t)sf_buf_kva(sf);
-				error = dmu_read(os, zp->z_id, start + off,
-				    bytes, (void *)(va + off),
+				va = zfs_map_page(m, &sf);
+				error = dmu_read(os, zp->z_id, start, bytes, va,
 				    DMU_READ_PREFETCH);
-				sf_buf_free(sf);
-				sched_unpin();
+				if (bytes != PAGE_SIZE)
+					bzero(va + bytes, PAGE_SIZE - bytes);
+				zfs_unmap_page(sf);
 			}
 			VM_OBJECT_LOCK(obj);
-			vm_page_wakeup(m);
-			if (error == 0)
+			vm_page_io_finish(m);
+			vm_page_lock(m);
+			if (error == 0) {
+				m->valid = VM_PAGE_BITS_ALL;
+				vm_page_activate(m);
+			} else
+				vm_page_free(m);
+			vm_page_unlock(m);
+
+			if (error == 0) {
 				uio->uio_resid -= bytes;
+				uio->uio_offset += bytes;
+			}
 		} else {
 			dirbytes += bytes;
 		}
@@ -686,7 +723,7 @@ zfs_prefault_write(ssize_t n, struct uio *uio)
  *	IN:	vp	- vnode of file to be written to.
  *		uio	- structure supplying write location, range info,
  *			  and data buffer.
- *		ioflag	- IO_APPEND flag set if in append mode.
+ *		ioflag	- FAPPEND flag set if in append mode.
  *		cr	- credentials of caller.
  *		ct	- caller context (NFS/CIFS fem monitor only)
  *
@@ -753,7 +790,7 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 	/*
 	 * If in append mode, set the io offset pointer to eof.
 	 */
-	if (ioflag & IO_APPEND) {
+	if (ioflag & FAPPEND) {
 		/*
 		 * Range lock for a file append:
 		 * The value for the start of range will be determined by
@@ -910,17 +947,7 @@ again:
 			uioskip(uio, tx_bytes);
 		}
 
-		/*
-		 * XXXPJD: There are some cases (triggered by fsx) where
-		 *         vn_has_cached_data(vp) returns false when it should
-		 *         return true. This should be investigated.
-		 */
-#if 0
-		if (tx_bytes && vn_has_cached_data(vp))
-#else
-		if (tx_bytes && vp->v_object != NULL)
-#endif
-		{
+		if (tx_bytes && vn_has_cached_data(vp)) {
 			update_pages(vp, woff, tx_bytes, zfsvfs->z_os,
 			    zp->z_id, uio->uio_segflg, tx);
 		}
@@ -1019,6 +1046,10 @@ zfs_get_done(dmu_buf_t *db, void *vzgd)
 	VFS_UNLOCK_GIANT(vfslocked);
 }
 
+#ifdef DEBUG
+static int zil_fault_io = 0;
+#endif
+
 /*
  * Get data to generate a TX_WRITE intent log record.
  */
@@ -1100,7 +1131,21 @@ zfs_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 		zgd->zgd_rl = rl;
 		zgd->zgd_zilog = zfsvfs->z_log;
 		zgd->zgd_bp = &lr->lr_blkptr;
-		VERIFY(0 == dmu_buf_hold(os, lr->lr_foid, boff, zgd, &db));
+#ifdef DEBUG
+		if (zil_fault_io) {
+			error = EIO;
+			zil_fault_io = 0;
+		} else {
+			error = dmu_buf_hold(os, lr->lr_foid, boff, zgd, &db);
+		}
+#else
+		error = dmu_buf_hold(os, lr->lr_foid, boff, zgd, &db);
+#endif
+		if (error != 0) {
+			kmem_free(zgd, sizeof (zgd_t));
+			goto out;
+		}
+
 		ASSERT(boff == db->db_offset);
 		lr->lr_blkoff = off - boff;
 		error = dmu_sync(zio, db, &lr->lr_blkptr,
@@ -1164,6 +1209,27 @@ zfs_access(vnode_t *vp, int mode, int flag, cred_t *cr,
 }
 
 /*
+ * If vnode is for a device return a specfs vnode instead.
+ */
+static int
+specvp_check(vnode_t **vpp, cred_t *cr)
+{
+	int error = 0;
+
+	if (IS_DEVVP(*vpp)) {
+		struct vnode *svp;
+
+		svp = specvp(*vpp, (*vpp)->v_rdev, (*vpp)->v_type, cr);
+		VN_RELE(*vpp);
+		if (svp == NULL)
+			error = ENOSYS;
+		*vpp = svp;
+	}
+	return (error);
+}
+
+
+/*
  * Lookup an entry in a directory, or an extended attribute directory.
  * If it exists, return a held vnode reference for it.
  *
@@ -1192,9 +1258,48 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 {
 	znode_t *zdp = VTOZ(dvp);
 	zfsvfs_t *zfsvfs = zdp->z_zfsvfs;
-	int	error;
+	int	error = 0;
 	int *direntflags = NULL;
 	void *realpnp = NULL;
+
+	/* fast path */
+	if (!(flags & (LOOKUP_XATTR | FIGNORECASE))) {
+
+		if (dvp->v_type != VDIR) {
+			return (ENOTDIR);
+		} else if (zdp->z_dbuf == NULL) {
+			return (EIO);
+		}
+
+		if (nm[0] == 0 || (nm[0] == '.' && nm[1] == '\0')) {
+			error = zfs_fastaccesschk_execute(zdp, cr);
+			if (!error) {
+				*vpp = dvp;
+				VN_HOLD(*vpp);
+				return (0);
+			}
+			return (error);
+		} else {
+			vnode_t *tvp = dnlc_lookup(dvp, nm);
+
+			if (tvp) {
+				error = zfs_fastaccesschk_execute(zdp, cr);
+				if (error) {
+					VN_RELE(tvp);
+					return (error);
+				}
+				if (tvp == DNLC_NO_VNODE) {
+					VN_RELE(tvp);
+					return (ENOENT);
+				} else {
+					*vpp = tvp;
+					return (specvp_check(vpp, cr));
+				}
+			}
+		}
+	}
+
+	DTRACE_PROBE2(zfs__fastpath__lookup__miss, vnode_t *, dvp, char *, nm);
 
 	ZFS_ENTER(zfsvfs);
 	ZFS_VERIFY_ZP(zdp);
@@ -1261,21 +1366,8 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 	}
 
 	error = zfs_dirlook(zdp, nm, vpp, flags, direntflags, realpnp);
-	if (error == 0) {
-		/*
-		 * Convert device special files
-		 */
-		if (IS_DEVVP(*vpp)) {
-			vnode_t	*svp;
-
-			svp = specvp(*vpp, (*vpp)->v_rdev, (*vpp)->v_type, cr);
-			VN_RELE(*vpp);
-			if (svp == NULL)
-				error = ENOSYS;
-			else
-				*vpp = svp;
-		}
-	}
+	if (error == 0)
+		error = specvp_check(vpp, cr);
 
 	/* Translate errors and add SAVENAME when needed. */
 	if (cnp->cn_flags & ISLASTCN) {
@@ -1468,6 +1560,7 @@ top:
 		    &acl_ids)) != 0)
 			goto out;
 		if (zfs_acl_ids_overquota(zfsvfs, &acl_ids)) {
+			zfs_acl_ids_free(&acl_ids);
 			error = EDQUOT;
 			goto out;
 		}
@@ -1564,19 +1657,7 @@ out:
 			VN_RELE(ZTOV(zp));
 	} else {
 		*vpp = ZTOV(zp);
-		/*
-		 * If vnode is for a device return a specfs vnode instead.
-		 */
-		if (IS_DEVVP(*vpp)) {
-			struct vnode *svp;
-
-			svp = specvp(*vpp, (*vpp)->v_rdev, (*vpp)->v_type, cr);
-			VN_RELE(*vpp);
-			if (svp == NULL) {
-				error = ENOSYS;
-			}
-			*vpp = svp;
-		}
+		error = specvp_check(vpp, cr);
 	}
 
 	ZFS_EXIT(zfsvfs);
@@ -1883,6 +1964,7 @@ top:
 		return (error);
 	}
 	if (zfs_acl_ids_overquota(zfsvfs, &acl_ids)) {
+		zfs_acl_ids_free(&acl_ids);
 		zfs_dirent_unlock(dl);
 		ZFS_EXIT(zfsvfs);
 		return (EDQUOT);
@@ -2274,6 +2356,21 @@ zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp, int *ncookies, u_lon
 			}
 		}
 
+		if (flags & V_RDDIR_ACCFILTER) {
+			/*
+			 * If we have no access at all, don't include
+			 * this entry in the returned information
+			 */
+			znode_t	*ezp;
+			if (zfs_zget(zp->z_zfsvfs, objnum, &ezp) != 0)
+				goto skip_entry;
+			if (!zfs_has_access(ezp, cr)) {
+				VN_RELE(ZTOV(ezp));
+				goto skip_entry;
+			}
+			VN_RELE(ZTOV(ezp));
+		}
+
 		if (flags & V_RDDIR_ENTFLAGS)
 			reclen = EDIRENT_RECLEN(strlen(zap.za_name));
 		else
@@ -2324,6 +2421,7 @@ zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp, int *ncookies, u_lon
 		if (prefetch)
 			dmu_prefetch(os, objnum, 0, 0);
 
+	skip_entry:
 		/*
 		 * Move to the next entry, fill in the previous offset.
 		 */
@@ -2712,6 +2810,7 @@ zfs_setattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 top:
 	attrzp = NULL;
 
+	/* Can this be moved to before the top label? */
 	if (zfsvfs->z_vfs->vfs_flag & VFS_RDONLY) {
 		ZFS_EXIT(zfsvfs);
 		return (EROFS);
@@ -3036,6 +3135,8 @@ top:
 		zp->z_phys->zp_mode = new_mode;
 		err = zfs_aclset_common(zp, aclp, cr, tx);
 		ASSERT3U(err, ==, 0);
+		zp->z_acl_cached = aclp;
+		aclp = NULL;
 		mutex_exit(&zp->z_acl_lock);
 	}
 
@@ -3127,10 +3228,8 @@ out:
 	if (attrzp)
 		VN_RELE(ZTOV(attrzp));
 
-	if (aclp) {
+	if (aclp)
 		zfs_acl_free(aclp);
-		aclp = NULL;
-	}
 
 	if (fuidp) {
 		zfs_fuid_info_free(fuidp);
@@ -3290,7 +3389,7 @@ zfs_rename(vnode_t *sdvp, char *snm, vnode_t *tdvp, char *tnm, cred_t *cr,
 	if (VOP_REALVP(tdvp, &realvp, ct) == 0)
 		tdvp = realvp;
 
-	if (tdvp->v_vfsp != sdvp->v_vfsp) {
+	if (tdvp->v_vfsp != sdvp->v_vfsp || zfsctl_is_node(tdvp)) {
 		ZFS_EXIT(zfsvfs);
 		return (EXDEV);
 	}
@@ -3808,6 +3907,7 @@ zfs_link(vnode_t *tdvp, vnode_t *svp, char *name, cred_t *cr,
 	vnode_t		*realvp;
 	int		error;
 	int		zf = ZNEW;
+	uint64_t	parent;
 	uid_t		owner;
 
 	ASSERT(tdvp->v_type == VDIR);
@@ -3819,12 +3919,29 @@ zfs_link(vnode_t *tdvp, vnode_t *svp, char *name, cred_t *cr,
 	if (VOP_REALVP(svp, &realvp, ct) == 0)
 		svp = realvp;
 
-	if (svp->v_vfsp != tdvp->v_vfsp) {
+	/*
+	 * POSIX dictates that we return EPERM here.
+	 * Better choices include ENOTSUP or EISDIR.
+	 */
+	if (svp->v_type == VDIR) {
+		ZFS_EXIT(zfsvfs);
+		return (EPERM);
+	}
+
+	if (svp->v_vfsp != tdvp->v_vfsp || zfsctl_is_node(svp)) {
 		ZFS_EXIT(zfsvfs);
 		return (EXDEV);
 	}
+
 	szp = VTOZ(svp);
 	ZFS_VERIFY_ZP(szp);
+
+	/* Prevent links to .zfs/shares files */
+
+	if (szp->z_phys->zp_parent == zfsvfs->z_shares_dir) {
+		ZFS_EXIT(zfsvfs);
+		return (EPERM);
+	}
 
 	if (zfsvfs->z_utf8 && u8_validate(name,
 	    strlen(name), NULL, U8_VALIDATE_ENTIRE, &error) < 0) {
@@ -3834,7 +3951,6 @@ zfs_link(vnode_t *tdvp, vnode_t *svp, char *name, cred_t *cr,
 	if (flags & FIGNORECASE)
 		zf |= ZCILOOK;
 
-top:
 	/*
 	 * We do not support links between attributes and non-attributes
 	 * because of the potential security risk of creating links
@@ -3847,14 +3963,6 @@ top:
 		return (EINVAL);
 	}
 
-	/*
-	 * POSIX dictates that we return EPERM here.
-	 * Better choices include ENOTSUP or EISDIR.
-	 */
-	if (svp->v_type == VDIR) {
-		ZFS_EXIT(zfsvfs);
-		return (EPERM);
-	}
 
 	owner = zfs_fuid_map_id(zfsvfs, szp->z_phys->zp_uid, cr, ZFS_OWNER);
 	if (owner != crgetuid(cr) &&
@@ -3868,6 +3976,7 @@ top:
 		return (error);
 	}
 
+top:
 	/*
 	 * Attempt to lock directory; fail if entry already exists.
 	 */
@@ -4108,6 +4217,111 @@ zfs_setsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr,
 }
 
 static int
+ioflags(int ioflags)
+{
+	int flags = 0;
+
+	if (ioflags & IO_APPEND)
+		flags |= FAPPEND;
+	if (ioflags & IO_NDELAY)
+        	flags |= FNONBLOCK;
+	if (ioflags & IO_SYNC)
+		flags |= (FSYNC | FDSYNC | FRSYNC);
+
+	return (flags);
+}
+
+static int
+zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int reqpage)
+{
+	znode_t *zp = VTOZ(vp);
+	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
+	objset_t *os = zp->z_zfsvfs->z_os;
+	vm_page_t mreq;
+	vm_object_t object;
+	caddr_t va;
+	struct sf_buf *sf;
+	int i, error;
+	int pcount, size;
+
+	ZFS_ENTER(zfsvfs);
+	ZFS_VERIFY_ZP(zp);
+
+	pcount = round_page(count) / PAGE_SIZE;
+	mreq = m[reqpage];
+	object = mreq->object;
+	error = 0;
+
+	KASSERT(vp->v_object == object, ("mismatching object"));
+
+	VM_OBJECT_LOCK(object);
+
+	for (i = 0; i < pcount; i++) {
+		if (i != reqpage) {
+			vm_page_lock(m[i]);
+			vm_page_free(m[i]);
+			vm_page_unlock(m[i]);
+		}
+	}
+
+	if (mreq->valid) {
+		if (mreq->valid != VM_PAGE_BITS_ALL)
+			vm_page_zero_invalid(mreq, TRUE);
+		VM_OBJECT_UNLOCK(object);
+		ZFS_EXIT(zfsvfs);
+		return (VM_PAGER_OK);
+	}
+
+	PCPU_INC(cnt.v_vnodein);
+	PCPU_INC(cnt.v_vnodepgsin);
+
+	if (IDX_TO_OFF(mreq->pindex) >= object->un_pager.vnp.vnp_size) {
+		VM_OBJECT_UNLOCK(object);
+		ZFS_EXIT(zfsvfs);
+		return (VM_PAGER_BAD);
+	}
+
+	size = PAGE_SIZE;
+	if (IDX_TO_OFF(mreq->pindex) + size > object->un_pager.vnp.vnp_size)
+		size = object->un_pager.vnp.vnp_size - IDX_TO_OFF(mreq->pindex);
+
+	VM_OBJECT_UNLOCK(object);
+
+	va = zfs_map_page(mreq, &sf);
+	error = dmu_read(os, zp->z_id, IDX_TO_OFF(mreq->pindex),
+	    size, va, DMU_READ_PREFETCH);
+	if (size != PAGE_SIZE)
+		bzero(va + size, PAGE_SIZE - size);
+	zfs_unmap_page(sf);
+
+	VM_OBJECT_LOCK(object);
+
+	if (!error)
+		mreq->valid = VM_PAGE_BITS_ALL;
+	KASSERT(mreq->dirty == 0, ("zfs_getpages: page %p is dirty", mreq));
+
+	VM_OBJECT_UNLOCK(object);
+
+	ZFS_ACCESSTIME_STAMP(zfsvfs, zp);
+	ZFS_EXIT(zfsvfs);
+	return (error ? VM_PAGER_ERROR : VM_PAGER_OK);
+}
+
+static int
+zfs_freebsd_getpages(ap)
+	struct vop_getpages_args /* {
+		struct vnode *a_vp;
+		vm_page_t *a_m;
+		int a_count;
+		int a_reqpage;
+		vm_ooffset_t a_offset;
+	} */ *ap;
+{
+
+	return (zfs_getpages(ap->a_vp, ap->a_m, ap->a_count, ap->a_reqpage));
+}
+
+static int
 zfs_freebsd_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -4165,7 +4379,8 @@ zfs_freebsd_read(ap)
 	} */ *ap;
 {
 
-	return (zfs_read(ap->a_vp, ap->a_uio, ap->a_ioflag, ap->a_cred, NULL));
+	return (zfs_read(ap->a_vp, ap->a_uio, ioflags(ap->a_ioflag),
+	    ap->a_cred, NULL));
 }
 
 static int
@@ -4181,7 +4396,8 @@ zfs_freebsd_write(ap)
 	if (vn_rlimit_fsize(ap->a_vp, ap->a_uio, ap->a_uio->uio_td))
 		return (EFBIG);
 
-	return (zfs_write(ap->a_vp, ap->a_uio, ap->a_ioflag, ap->a_cred, NULL));
+	return (zfs_write(ap->a_vp, ap->a_uio, ioflags(ap->a_ioflag),
+	    ap->a_cred, NULL));
 }
 
 static int
@@ -4193,6 +4409,9 @@ zfs_freebsd_access(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
+	vnode_t *vp = ap->a_vp;
+	znode_t *zp = VTOZ(vp);
+	znode_phys_t *zphys = zp->z_phys;
 	accmode_t accmode;
 	int error = 0;
 
@@ -4209,15 +4428,19 @@ zfs_freebsd_access(ap)
 	if (error == 0) {
 		accmode = ap->a_accmode & ~(VREAD|VWRITE|VEXEC|VAPPEND);
 		if (accmode != 0) {
-			vnode_t *vp = ap->a_vp;
-			znode_t *zp = VTOZ(vp);
-			znode_phys_t *zphys = zp->z_phys;
-
 			error = vaccess(vp->v_type, zphys->zp_mode,
 			    zphys->zp_uid, zphys->zp_gid, accmode, ap->a_cred,
 			    NULL);
 		}
 	}
+
+	/*
+	 * For VEXEC, ensure that at least one execute bit is set for
+	 * non-directories.
+	 */
+	if (error == 0 && (ap->a_accmode & VEXEC) != 0 && vp->v_type != VDIR &&
+	    (zphys->zp_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) == 0)
+		error = EACCES;
 
 	return (error);
 }
@@ -5214,6 +5437,7 @@ struct vop_vector zfs_vnodeops = {
 	.vop_getacl =		zfs_freebsd_getacl,
 	.vop_setacl =		zfs_freebsd_setacl,
 	.vop_aclcheck =		zfs_freebsd_aclcheck,
+	.vop_getpages =		zfs_freebsd_getpages,
 };
 
 struct vop_vector zfs_fifoops = {

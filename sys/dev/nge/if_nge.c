@@ -1079,10 +1079,10 @@ nge_attach(device_t dev)
 	/*
 	 * Do MII setup.
 	 */
-	error = mii_phy_probe(dev, &sc->nge_miibus, nge_mediachange,
-	    nge_mediastatus);
+	error = mii_attach(dev, &sc->nge_miibus, ifp, nge_mediachange,
+	    nge_mediastatus, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
 	if (error != 0) {
-		device_printf(dev, "no PHY found!\n");
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 

@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2006
+.Dd October 8, 2010
 .Dt MAILER.CONF 5
 .Os
 .Sh NAME
@@ -99,8 +99,9 @@ mailq		/usr/libexec/sendmail/sendmail
 newaliases	/usr/libexec/sendmail/sendmail
 .Ed
 .Pp
-This example shows how to invoke a sendmail-workalike like Postfix in
-place of
+This example shows how to invoke a sendmail-workalike like
+.Nm Postfix
+in place of
 .Xr sendmail 8 :
 .Bd -literal -offset indent
 # Emulate sendmail using postfix
@@ -108,6 +109,22 @@ sendmail	/usr/local/sbin/sendmail
 send-mail	/usr/local/sbin/sendmail
 mailq		/usr/local/sbin/sendmail
 newaliases	/usr/local/sbin/sendmail
+.Ed
+.Pp
+This example shows
+how to invoke
+a sendmail-workalike with
+.Nm Exim
+(from ports)
+in place of
+.Xr sendmail 8 :
+.Bd -literal -offset indent
+# Emulate sendmail using exim
+sendmail	/usr/local/sbin/exim
+send-mail	/usr/local/sbin/exim
+mailq		/usr/local/sbin/exim -bp
+newaliases	/usr/bin/true
+rmail		/usr/local/sbin/exim -i -oee
 .Ed
 .Pp
 This example shows the use of the

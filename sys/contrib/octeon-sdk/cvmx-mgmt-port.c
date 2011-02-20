@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -46,7 +48,7 @@
  *
  * Support functions for managing the MII management port
  *
- * <hr>$Revision: 42151 $<hr>
+ * <hr>$Revision: 49628 $<hr>
  */
 #include "cvmx.h"
 #include "cvmx-bootmem.h"
@@ -54,6 +56,17 @@
 #include "cvmx-mdio.h"
 #include "cvmx-mgmt-port.h"
 #include "cvmx-sysinfo.h"
+#include "cvmx-error.h"
+
+/**
+ * Enum of MIX interface modes
+ */
+typedef enum
+{
+    CVMX_MGMT_PORT_NONE = 0,
+    CVMX_MGMT_PORT_MII_MODE,
+    CVMX_MGMT_PORT_RGMII_MODE,
+} cvmx_mgmt_port_mode_t;
 
 /**
  * Format of the TX/RX ring buffer entries
@@ -65,7 +78,8 @@ typedef union
     {
         uint64_t    reserved_62_63  : 2;
         uint64_t    len             : 14;   /* Length of the buffer/packet in bytes */
-        uint64_t    code            : 8;    /* The RX error code */
+        uint64_t    tstamp          : 1;    /* For TX, signals that the packet should be timestamped */
+        uint64_t    code            : 7;    /* The RX error code */
         uint64_t    addr            : 40;   /* Physical address of the buffer */
     } s;
 } cvmx_mgmt_port_ring_entry_t;
@@ -78,12 +92,13 @@ typedef struct
     cvmx_spinlock_t             lock;           /* Used for exclusive access to this structure */
     int                         tx_write_index; /* Where the next TX will write in the tx_ring and tx_buffers */
     int                         rx_read_index;  /* Where the next RX will be in the rx_ring and rx_buffers */
-    int                         phy_id;         /* The SMI/MDIO PHY address */
+    int                         port;           /* Port to use.  (This is the 'fake' IPD port number */
     uint64_t                    mac;            /* Our MAC address */
     cvmx_mgmt_port_ring_entry_t tx_ring[CVMX_MGMT_PORT_NUM_TX_BUFFERS];
     cvmx_mgmt_port_ring_entry_t rx_ring[CVMX_MGMT_PORT_NUM_RX_BUFFERS];
     char                        tx_buffers[CVMX_MGMT_PORT_NUM_TX_BUFFERS][CVMX_MGMT_PORT_TX_BUFFER_SIZE];
     char                        rx_buffers[CVMX_MGMT_PORT_NUM_RX_BUFFERS][CVMX_MGMT_PORT_RX_BUFFER_SIZE];
+    cvmx_mgmt_port_mode_t       mode;          /* Mode of the interface */
 } cvmx_mgmt_port_state_t;
 
 /**
@@ -97,11 +112,11 @@ CVMX_SHARED cvmx_mgmt_port_state_t *cvmx_mgmt_port_state_ptr = NULL;
  *
  * @return Number of ports
  */
-int __cvmx_mgmt_port_num_ports(void)
+static int __cvmx_mgmt_port_num_ports(void)
 {
     if (OCTEON_IS_MODEL(OCTEON_CN56XX))
         return 1;
-    else if (OCTEON_IS_MODEL(OCTEON_CN52XX))
+    else if (OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX))
         return 2;
     else
         return 0;
@@ -110,7 +125,7 @@ int __cvmx_mgmt_port_num_ports(void)
 
 /**
  * Called to initialize a management port for use. Multiple calls
- * to this function accross applications is safe.
+ * to this function across applications is safe.
  *
  * @param port   Port to initialize
  *
@@ -132,12 +147,12 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_initialize(int port)
     }
     else
     {
-        cvmx_bootmem_named_block_desc_t *block_desc = cvmx_bootmem_find_named_block(alloc_name);
+        const cvmx_bootmem_named_block_desc_t *block_desc = cvmx_bootmem_find_named_block(alloc_name);
         if (block_desc)
             cvmx_mgmt_port_state_ptr = cvmx_phys_to_ptr(block_desc->base_addr);
         else
         {
-            cvmx_dprintf("ERROR: cvmx_mgmt_port_initialize: Unable to get named block %s.\n", alloc_name);
+            cvmx_dprintf("ERROR: cvmx_mgmt_port_initialize: Unable to get named block %s on MIX%d.\n", alloc_name, port);
             return CVMX_MGMT_PORT_NO_MEMORY;
         }
     }
@@ -164,7 +179,6 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_initialize(int port)
         }
     }
 
-
     if (cvmx_mgmt_port_state_ptr[port].tx_ring[0].u64 == 0)
     {
         cvmx_mgmt_port_state_t *state = cvmx_mgmt_port_state_ptr + port;
@@ -174,15 +188,16 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_initialize(int port)
         cvmx_mixx_oring1_t oring1;
         cvmx_mixx_iring1_t iring1;
         cvmx_mixx_ctl_t mix_ctl;
+        cvmx_agl_prtx_ctl_t agl_prtx_ctl;
 
         /* Make sure BIST passed */
         mix_bist.u64 = cvmx_read_csr(CVMX_MIXX_BIST(port));
         if (mix_bist.u64)
-            cvmx_dprintf("WARNING: cvmx_mgmt_port_initialize: Managment port MIX failed BIST (0x%016llx)\n", CAST64(mix_bist.u64));
+            cvmx_dprintf("WARNING: cvmx_mgmt_port_initialize: Managment port MIX failed BIST (0x%016llx) on MIX%d\n", CAST64(mix_bist.u64), port);
 
         agl_gmx_bist.u64 = cvmx_read_csr(CVMX_AGL_GMX_BIST);
         if (agl_gmx_bist.u64)
-            cvmx_dprintf("WARNING: cvmx_mgmt_port_initialize: Managment port AGL failed BIST (0x%016llx)\n", CAST64(agl_gmx_bist.u64));
+            cvmx_dprintf("WARNING: cvmx_mgmt_port_initialize: Managment port AGL failed BIST (0x%016llx) on MIX%d\n", CAST64(agl_gmx_bist.u64), port);
 
         /* Clear all state information */
         memset(state, 0, sizeof(*state));
@@ -192,11 +207,57 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_initialize(int port)
         mix_ctl.s.reset = 0;
         cvmx_write_csr(CVMX_MIXX_CTL(port), mix_ctl.u64);
 
-        /* Set the PHY address */
+        /* Read until reset == 0.  Timeout should never happen... */
+        if (CVMX_WAIT_FOR_FIELD64(CVMX_MIXX_CTL(port), cvmx_mixx_ctl_t, reset, ==, 0, 300000000))
+        {
+            cvmx_dprintf("ERROR: cvmx_mgmt_port_initialize: Timeout waiting for MIX(%d) reset.\n", port);
+            return CVMX_MGMT_PORT_INIT_ERROR;
+        }
+
+        /* Set the PHY address and mode of the interface (RGMII/MII mode). */
         if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
-            state->phy_id = -1;
+        {
+            state->port = -1;
+            state->mode = CVMX_MGMT_PORT_MII_MODE;
+        }
         else
-            state->phy_id = port;  /* Will need to be change to match the board */
+        {
+            int port_num = CVMX_HELPER_BOARD_MGMT_IPD_PORT + port;
+            int phy_addr = cvmx_helper_board_get_mii_address(port_num);
+            if (phy_addr != -1)
+            {
+                cvmx_mdio_phy_reg_status_t phy_status;
+                /* Read PHY status register to find the mode of the interface. */
+                phy_status.u16 = cvmx_mdio_read(phy_addr >> 8, phy_addr & 0xff, CVMX_MDIO_PHY_REG_STATUS);
+                if (phy_status.s.capable_extended_status == 0) // MII mode
+                    state->mode = CVMX_MGMT_PORT_MII_MODE;
+                else if (OCTEON_IS_MODEL(OCTEON_CN6XXX)
+                         && phy_status.s.capable_extended_status) // RGMII mode
+                    state->mode = CVMX_MGMT_PORT_RGMII_MODE;
+                else
+                    state->mode = CVMX_MGMT_PORT_NONE;
+            }
+            else
+            {
+                cvmx_dprintf("ERROR: cvmx_mgmt_port_initialize: Not able to read the PHY on MIX%d\n", port);
+                return CVMX_MGMT_PORT_INVALID_PARAM;
+            }
+            state->port = port_num;
+        }
+
+        /* All interfaces should be configured in same mode */
+        for (i = 0; i < __cvmx_mgmt_port_num_ports(); i++)
+        {
+            if (i != port
+                && cvmx_mgmt_port_state_ptr[i].mode != CVMX_MGMT_PORT_NONE
+                && cvmx_mgmt_port_state_ptr[i].mode != state->mode)
+            {
+                cvmx_dprintf("ERROR: cvmx_mgmt_port_initialize: All ports in MIX interface are not configured in same mode.\n \
+	Port %d is configured as %d\n \
+	And Port %d is configured as %d\n", port, state->mode, i, cvmx_mgmt_port_state_ptr[i].mode);
+                return CVMX_MGMT_PORT_INVALID_PARAM;
+            }
+        }
 
         /* Create a default MAC address */
         state->mac = 0x000000dead000000ull;
@@ -249,7 +310,64 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_initialize(int port)
         mix_ctl.s.mrq_hwm = 1;      /* MII CB-request FIFO programmable high watermark */
         cvmx_write_csr(CVMX_MIXX_CTL(port), mix_ctl.u64);
 
-        if (OCTEON_IS_MODEL(OCTEON_CN56XX_PASS1_X) || OCTEON_IS_MODEL(OCTEON_CN52XX_PASS1_X))
+        /* Select the mode of operation for the interface. */
+        if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+        {
+            agl_prtx_ctl.u64 = cvmx_read_csr(CVMX_AGL_PRTX_CTL(port));
+
+            if (state->mode == CVMX_MGMT_PORT_RGMII_MODE)
+                agl_prtx_ctl.s.mode = 0;
+            else if (state->mode == CVMX_MGMT_PORT_MII_MODE)
+                agl_prtx_ctl.s.mode = 1;
+            else
+            {
+                cvmx_dprintf("ERROR: cvmx_mgmt_port_initialize: Invalid mode for MIX(%d)\n", port);
+                return CVMX_MGMT_PORT_INVALID_PARAM;
+            }
+
+            cvmx_write_csr(CVMX_AGL_PRTX_CTL(port), agl_prtx_ctl.u64);
+	}
+
+        /* Initialize the physical layer. */
+        if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+        {
+            /* MII clocks counts are based on the 125Mhz reference, so our
+                delays need to be scaled to match the core clock rate. The
+                "+1" is to make sure rounding always waits a little too
+                long. */
+            uint64_t clock_scale = cvmx_clock_get_rate(CVMX_CLOCK_CORE) / 125000000 + 1;
+
+            /* Take the DLL and clock tree out of reset */
+            agl_prtx_ctl.u64 = cvmx_read_csr(CVMX_AGL_PRTX_CTL(port));
+            agl_prtx_ctl.s.clkrst = 0;
+            if (state->mode == CVMX_MGMT_PORT_RGMII_MODE) // RGMII Initialization
+            {
+                agl_prtx_ctl.s.dllrst = 0;
+                agl_prtx_ctl.s.clktx_byp = 0;
+            }
+            cvmx_write_csr(CVMX_AGL_PRTX_CTL(port), agl_prtx_ctl.u64);
+            cvmx_read_csr(CVMX_AGL_PRTX_CTL(port));  /* Force write out before wait */
+
+            /* Wait for the DLL to lock.  External 125 MHz reference clock must be stable at this point. */
+            cvmx_wait(256 * clock_scale);
+
+            /* The rest of the config is common between RGMII/MII */
+
+            /* Enable the interface */
+            agl_prtx_ctl.u64 = cvmx_read_csr(CVMX_AGL_PRTX_CTL(port));
+            agl_prtx_ctl.s.enable = 1;
+            cvmx_write_csr(CVMX_AGL_PRTX_CTL(port), agl_prtx_ctl.u64);
+
+            /* Read the value back to force the previous write */
+            agl_prtx_ctl.u64 = cvmx_read_csr(CVMX_AGL_PRTX_CTL(port));
+
+            /* Enable the componsation controller */
+            agl_prtx_ctl.s.comp = 1;
+            cvmx_write_csr(CVMX_AGL_PRTX_CTL(port), agl_prtx_ctl.u64);
+            cvmx_read_csr(CVMX_AGL_PRTX_CTL(port));  /* Force write out before wait */
+            cvmx_wait(1024 * clock_scale); // for componsation state to lock.
+        }
+        else if (OCTEON_IS_MODEL(OCTEON_CN56XX_PASS1_X) || OCTEON_IS_MODEL(OCTEON_CN52XX_PASS1_X))
         {
             /* Force compensation values, as they are not determined properly by HW */
             cvmx_agl_gmx_drv_ctl_t drv_ctl;
@@ -270,6 +388,7 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_initialize(int port)
             cvmx_write_csr(CVMX_AGL_GMX_DRV_CTL, drv_ctl.u64);
         }
     }
+    cvmx_error_enable_group(CVMX_ERROR_GROUP_MGMT_PORT, port);
     return CVMX_MGMT_PORT_SUCCESS;
 }
 
@@ -287,6 +406,8 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_shutdown(int port)
 {
     if ((port < 0) || (port >= __cvmx_mgmt_port_num_ports()))
         return CVMX_MGMT_PORT_INVALID_PARAM;
+
+    cvmx_error_disable_group(CVMX_ERROR_GROUP_MGMT_PORT, port);
 
     /* Stop packets from comming in */
     cvmx_mgmt_port_disable(port);
@@ -306,7 +427,6 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_shutdown(int port)
 cvmx_mgmt_port_result_t cvmx_mgmt_port_enable(int port)
 {
     cvmx_mgmt_port_state_t *state;
-    cvmx_agl_gmx_prtx_cfg_t agl_gmx_prtx;
     cvmx_agl_gmx_inf_mode_t agl_gmx_inf_mode;
     cvmx_agl_gmx_rxx_frm_ctl_t rxx_frm_ctl;
 
@@ -331,20 +451,15 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_enable(int port)
     cvmx_write_csr(CVMX_AGL_GMX_RXX_FRM_CTL(port), rxx_frm_ctl.u64);
 
     /* Enable the AGL block */
-    agl_gmx_inf_mode.u64 = 0;
-    agl_gmx_inf_mode.s.en = 1;
-    cvmx_write_csr(CVMX_AGL_GMX_INF_MODE, agl_gmx_inf_mode.u64);
+    if (OCTEON_IS_MODEL(OCTEON_CN5XXX))
+    {
+        agl_gmx_inf_mode.u64 = 0;
+        agl_gmx_inf_mode.s.en = 1;
+        cvmx_write_csr(CVMX_AGL_GMX_INF_MODE, agl_gmx_inf_mode.u64);
+    }
 
     /* Configure the port duplex and enables */
-    agl_gmx_prtx.u64 = cvmx_read_csr(CVMX_AGL_GMX_PRTX_CFG(port));
-    agl_gmx_prtx.s.tx_en = 1;
-    agl_gmx_prtx.s.rx_en = 1;
-    if (cvmx_mgmt_port_get_link(port) < 0)
-        agl_gmx_prtx.s.duplex = 0;
-    else
-        agl_gmx_prtx.s.duplex = 1;
-    agl_gmx_prtx.s.en = 1;
-    cvmx_write_csr(CVMX_AGL_GMX_PRTX_CFG(port), agl_gmx_prtx.u64);
+    cvmx_mgmt_port_link_set(port, cvmx_mgmt_port_link_get(port));
 
     cvmx_spinlock_unlock(&state->lock);
     return CVMX_MGMT_PORT_SUCCESS;
@@ -423,9 +538,11 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_send(int port, int packet_len, void *buff
         memcpy(state->tx_buffers[state->tx_write_index] + 6, ((char*)&state->mac) + 2, 6);
         /* Update the TX ring buffer entry size */
         state->tx_ring[state->tx_write_index].s.len = packet_len;
+        /* This code doesn't support TX timestamps */
+        state->tx_ring[state->tx_write_index].s.tstamp = 0;
         /* Increment our TX index */
         state->tx_write_index = (state->tx_write_index + 1) % CVMX_MGMT_PORT_NUM_TX_BUFFERS;
-        /* Ring the doorbell, send ing the packet */
+        /* Ring the doorbell, sending the packet */
         CVMX_SYNCWS;
         cvmx_write_csr(CVMX_MIXX_ORING2(port), 1);
         if (cvmx_read_csr(CVMX_MIXX_ORCNT(port)))
@@ -435,6 +552,62 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_send(int port, int packet_len, void *buff
         return CVMX_MGMT_PORT_SUCCESS;
     }
 }
+
+
+#if defined(__FreeBSD__)
+/**
+ * Send a packet out the management port. The packet is copied so
+ * the input mbuf isn't used after this call.
+ *
+ * @param port       Management port
+ * @param m          Packet mbuf (with pkthdr)
+ *
+ * @return CVMX_MGMT_PORT_SUCCESS or an error code
+ */
+cvmx_mgmt_port_result_t cvmx_mgmt_port_sendm(int port, const struct mbuf *m)
+{
+    cvmx_mgmt_port_state_t *state;
+    cvmx_mixx_oring2_t mix_oring2;
+
+    if ((port < 0) || (port >= __cvmx_mgmt_port_num_ports()))
+        return CVMX_MGMT_PORT_INVALID_PARAM;
+
+    /* Max sure the packet size is valid */
+    if ((m->m_pkthdr.len < 1) || (m->m_pkthdr.len > CVMX_MGMT_PORT_TX_BUFFER_SIZE))
+        return CVMX_MGMT_PORT_INVALID_PARAM;
+
+    state = cvmx_mgmt_port_state_ptr + port;
+
+    cvmx_spinlock_lock(&state->lock);
+
+    mix_oring2.u64 = cvmx_read_csr(CVMX_MIXX_ORING2(port));
+    if (mix_oring2.s.odbell >= CVMX_MGMT_PORT_NUM_TX_BUFFERS - 1)
+    {
+        /* No room for another packet */
+        cvmx_spinlock_unlock(&state->lock);
+        return CVMX_MGMT_PORT_NO_MEMORY;
+    }
+    else
+    {
+        /* Copy the packet into the output buffer */
+	m_copydata(m, 0, m->m_pkthdr.len, state->tx_buffers[state->tx_write_index]);
+        /* Update the TX ring buffer entry size */
+        state->tx_ring[state->tx_write_index].s.len = m->m_pkthdr.len;
+        /* This code doesn't support TX timestamps */
+        state->tx_ring[state->tx_write_index].s.tstamp = 0;
+        /* Increment our TX index */
+        state->tx_write_index = (state->tx_write_index + 1) % CVMX_MGMT_PORT_NUM_TX_BUFFERS;
+        /* Ring the doorbell, sending the packet */
+        CVMX_SYNCWS;
+        cvmx_write_csr(CVMX_MIXX_ORING2(port), 1);
+        if (cvmx_read_csr(CVMX_MIXX_ORCNT(port)))
+            cvmx_write_csr(CVMX_MIXX_ORCNT(port), cvmx_read_csr(CVMX_MIXX_ORCNT(port)));
+
+        cvmx_spinlock_unlock(&state->lock);
+        return CVMX_MGMT_PORT_SUCCESS;
+    }
+}
+#endif
 
 
 /**
@@ -447,7 +620,7 @@ cvmx_mgmt_port_result_t cvmx_mgmt_port_send(int port, int packet_len, void *buff
  * @return The size of the packet, or a negative erorr code on failure. Zero
  *         means that no packets were available.
  */
-int cvmx_mgmt_port_receive(int port, int buffer_len, void *buffer)
+int cvmx_mgmt_port_receive(int port, int buffer_len, uint8_t *buffer)
 {
     cvmx_mixx_ircnt_t mix_ircnt;
     cvmx_mgmt_port_state_t *state;
@@ -471,13 +644,13 @@ int cvmx_mgmt_port_receive(int port, int buffer_len, void *buffer)
     mix_ircnt.u64 = cvmx_read_csr(CVMX_MIXX_IRCNT(port));
     if (mix_ircnt.s.ircnt)
     {
-        void *source = state->rx_buffers[state->rx_read_index];
-        uint64_t *zero_check = source;
+        uint64_t *source = (void *)state->rx_buffers[state->rx_read_index];
+	uint64_t *zero_check = source;
         /* CN56XX pass 1 has an errata where packets might start 8 bytes
             into the buffer instead of at their correct lcoation. If the
             first 8 bytes is zero we assume this has happened */
         if (OCTEON_IS_MODEL(OCTEON_CN56XX_PASS1_X) && (*zero_check == 0))
-            source += 8;
+            source++;
         /* Start off with zero bytes received */
         result = 0;
         /* While the completion code signals more data, copy the buffers
@@ -504,7 +677,7 @@ int cvmx_mgmt_port_receive(int port, int buffer_len, void *buffer)
             CVMX_SYNCWS;
             /* Increment the number of RX buffers */
             cvmx_write_csr(CVMX_MIXX_IRING2(port), 1);
-            source = state->rx_buffers[state->rx_read_index];
+            source = (void *)state->rx_buffers[state->rx_read_index];
             zero_check = source;
         }
 
@@ -526,19 +699,13 @@ int cvmx_mgmt_port_receive(int port, int buffer_len, void *buffer)
         }
         else
         {
-            cvmx_agl_gmx_prtx_cfg_t agl_gmx_prtx;
             cvmx_dprintf("ERROR: cvmx_mgmt_port_receive: Receive error code %d. Packet dropped(Len %d), \n",
                          state->rx_ring[state->rx_read_index].s.code, state->rx_ring[state->rx_read_index].s.len + result);
             result = -state->rx_ring[state->rx_read_index].s.code;
 
 
             /* Check to see if we need to change the duplex. */
-            agl_gmx_prtx.u64 = cvmx_read_csr(CVMX_AGL_GMX_PRTX_CFG(port));
-            if (cvmx_mgmt_port_get_link(port) < 0)
-                agl_gmx_prtx.s.duplex = 0;
-            else
-                agl_gmx_prtx.s.duplex = 1;
-            cvmx_write_csr(CVMX_AGL_GMX_PRTX_CFG(port), agl_gmx_prtx.u64);
+            cvmx_mgmt_port_link_set(port, cvmx_mgmt_port_link_get(port));
         }
 
         /* Clean out the ring buffer entry. This size is -8 due to an errata
@@ -562,73 +729,6 @@ int cvmx_mgmt_port_receive(int port, int buffer_len, void *buffer)
     cvmx_spinlock_unlock(&state->lock);
     return result;
 }
-
-
-/**
- * Get the management port link status:
- * 100 = 100Mbps, full duplex
- * 10 = 10Mbps, full duplex
- * 0 = Link down
- * -10 = 10Mpbs, half duplex
- * -100 = 100Mbps, half duplex
- *
- * @param port   Management port
- *
- * @return
- */
-int cvmx_mgmt_port_get_link(int port)
-{
-    cvmx_mgmt_port_state_t *state;
-    int phy_status;
-
-    if ((port < 0) || (port >= __cvmx_mgmt_port_num_ports()))
-        return CVMX_MGMT_PORT_INVALID_PARAM;
-
-    state = cvmx_mgmt_port_state_ptr + port;
-
-    /* Assume 100Mbps if we don't know the PHY address */
-    if (state->phy_id == -1)
-        return 100;
-
-
-    /* read BCM phy MDIO aux status summary register */
-    phy_status = cvmx_mdio_read(state->phy_id >> 8, state->phy_id & 0xff,
-				    0x19);
-    /* check the link status first */
-    if ((phy_status & 0x8000) == 0)
-      return 0;
-
-    switch ((phy_status >> 8) & 0x7)
-      {
-      case 0:
-	/* link down */
-	return 0;
-      case 1:
-	/* 10 half */
-	return -10;
-      case 2:
-	/* 10 full */
-	return 10;
-      case 3:
-	/* 100 half */
-	return -100;
-      case 4:
-	/* 100 T4 */
-	return 100;
-      case 5:
-	/* 100 full */
-	return 100;
-      case 6:
-	/* 1000 half */
-	return -1000;
-      case 7:
-	/* 1000 full */
-	return 1000;
-      }
-    /* something's amiss if we get here... */
-    return 0;
-}
-
 
 /**
  * Set the MAC address for a management port
@@ -707,7 +807,7 @@ void cvmx_mgmt_port_set_multicast_list(int port, int flags)
     cvmx_spinlock_lock(&state->lock);
 
     agl_gmx_rxx_adr_ctl.u64 = cvmx_read_csr(CVMX_AGL_GMX_RXX_ADR_CTL(port));
-    
+
     /* Allow broadcast MAC addresses */
     if (!agl_gmx_rxx_adr_ctl.s.bcst)
 	agl_gmx_rxx_adr_ctl.s.bcst = 1;
@@ -728,7 +828,7 @@ void cvmx_mgmt_port_set_multicast_list(int port, int flags)
 	cvmx_write_csr(CVMX_AGL_GMX_RXX_ADR_CAM_EN(port), 0);
     else
 	cvmx_write_csr(CVMX_AGL_GMX_RXX_ADR_CAM_EN(port), 1);
-    
+
     cvmx_spinlock_unlock(&state->lock);
 }
 
@@ -757,3 +857,151 @@ void cvmx_mgmt_port_set_max_packet_size(int port, int size_without_fcs)
     cvmx_spinlock_unlock(&state->lock);
 }
 
+/**
+ * Return the link state of an RGMII/MII port as returned by
+ * auto negotiation. The result of this function may not match
+ * Octeon's link config if auto negotiation has changed since
+ * the last call to cvmx_mgmt_port_link_set().
+ *
+ * @param port     The RGMII/MII interface port to query
+ *
+ * @return Link state
+ */
+cvmx_helper_link_info_t cvmx_mgmt_port_link_get(int port)
+{
+    cvmx_mgmt_port_state_t *state;
+    cvmx_helper_link_info_t result;
+
+    state = cvmx_mgmt_port_state_ptr + port;
+    result.u64 = 0;
+
+    if (port > __cvmx_mgmt_port_num_ports())
+    {
+        cvmx_dprintf("WARNING: Invalid port %d\n", port);
+        return result;
+    }
+
+    if (state->port != -1)
+        return __cvmx_helper_board_link_get(state->port);
+    else // Simulator does not have PHY, use some defaults.
+    {
+        result.s.full_duplex = 1;
+        result.s.link_up = 1;
+        result.s.speed = 100;
+        return result;
+    }
+    return result;
+}
+
+/**
+ * Configure RGMII/MII port for the specified link state. This
+ * function does not influence auto negotiation at the PHY level.
+ *
+ * @param port      RGMII/MII interface port
+ * @param link_info The new link state
+ *
+ * @return Zero on success, negative on failure
+ */
+int cvmx_mgmt_port_link_set(int port, cvmx_helper_link_info_t link_info)
+{
+    cvmx_agl_gmx_prtx_cfg_t agl_gmx_prtx;
+
+    /* Disable GMX before we make any changes. */
+    agl_gmx_prtx.u64 = cvmx_read_csr(CVMX_AGL_GMX_PRTX_CFG(port));
+    agl_gmx_prtx.s.en = 0;
+    agl_gmx_prtx.s.tx_en = 0;
+    agl_gmx_prtx.s.rx_en = 0;
+    cvmx_write_csr(CVMX_AGL_GMX_PRTX_CFG(port), agl_gmx_prtx.u64);
+
+    if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+    {
+        uint64_t one_second = cvmx_clock_get_rate(CVMX_CLOCK_CORE);
+        /* Wait for GMX to be idle */
+        if (CVMX_WAIT_FOR_FIELD64(CVMX_AGL_GMX_PRTX_CFG(port), cvmx_agl_gmx_prtx_cfg_t, rx_idle, ==, 1, one_second)
+            || CVMX_WAIT_FOR_FIELD64(CVMX_AGL_GMX_PRTX_CFG(port), cvmx_agl_gmx_prtx_cfg_t, tx_idle, ==, 1, one_second))
+        {
+            cvmx_dprintf("MIX%d: Timeout waiting for GMX to be idle\n", port);
+            return -1;
+        }
+    }
+
+    agl_gmx_prtx.u64 = cvmx_read_csr(CVMX_AGL_GMX_PRTX_CFG(port));
+
+    /* Set duplex mode */
+    if (!link_info.s.link_up)
+        agl_gmx_prtx.s.duplex = 1;   /* Force full duplex on down links */
+    else
+        agl_gmx_prtx.s.duplex = link_info.s.full_duplex;
+
+   switch(link_info.s.speed)
+    {
+        case 10:
+            agl_gmx_prtx.s.speed = 0;
+            agl_gmx_prtx.s.slottime = 0;
+            if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+            {
+                agl_gmx_prtx.s.speed_msb = 1;
+                agl_gmx_prtx.s.burst = 1;
+            }
+         break;
+
+        case 100:
+            agl_gmx_prtx.s.speed = 0;
+            agl_gmx_prtx.s.slottime = 0;
+            if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+            {
+                agl_gmx_prtx.s.speed_msb = 0;
+                agl_gmx_prtx.s.burst = 1;
+            }
+            break;
+
+        case 1000:
+            /* 1000 MBits is only supported on 6XXX chips */
+            if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+            {
+                agl_gmx_prtx.s.speed_msb = 0;
+                agl_gmx_prtx.s.speed = 1;
+                agl_gmx_prtx.s.slottime = 1;  /* Only matters for half-duplex */
+                agl_gmx_prtx.s.burst = agl_gmx_prtx.s.duplex;
+            }
+            break;
+
+        /* No link */
+        case 0:
+        default:
+            break;
+    }
+
+    /* Write the new GMX setting with the port still disabled. */
+    cvmx_write_csr(CVMX_AGL_GMX_PRTX_CFG(port), agl_gmx_prtx.u64);
+
+    /* Read GMX CFG again to make sure the config is completed. */
+    agl_gmx_prtx.u64 = cvmx_read_csr(CVMX_AGL_GMX_PRTX_CFG(port));
+
+
+    if (OCTEON_IS_MODEL(OCTEON_CN6XXX))
+    {
+        cvmx_mgmt_port_state_t *state = cvmx_mgmt_port_state_ptr + port;
+        cvmx_agl_gmx_txx_clk_t agl_clk;
+        agl_clk.u64 = cvmx_read_csr(CVMX_AGL_GMX_TXX_CLK(port));
+        agl_clk.s.clk_cnt = 1;    /* MII (both speeds) and RGMII 1000 setting */
+        if (state->mode == CVMX_MGMT_PORT_RGMII_MODE)
+        {
+            if (link_info.s.speed == 10)
+                agl_clk.s.clk_cnt = 50;
+            else if (link_info.s.speed == 100)
+                agl_clk.s.clk_cnt = 5;
+        }
+        cvmx_write_csr(CVMX_AGL_GMX_TXX_CLK(port), agl_clk.u64);
+    }
+
+    /* Enable transmit and receive ports */
+    agl_gmx_prtx.s.tx_en = 1;
+    agl_gmx_prtx.s.rx_en = 1;
+    cvmx_write_csr(CVMX_AGL_GMX_PRTX_CFG(port), agl_gmx_prtx.u64);
+
+    /* Enable the link. */
+    agl_gmx_prtx.s.en = 1;
+    cvmx_write_csr(CVMX_AGL_GMX_PRTX_CFG(port), agl_gmx_prtx.u64);
+    return 0;
+}

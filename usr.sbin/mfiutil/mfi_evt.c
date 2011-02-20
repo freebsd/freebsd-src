@@ -32,7 +32,6 @@
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <err.h>
-//#include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -67,7 +66,7 @@ static int
 show_logstate(int ac, char **av)
 {
 	struct mfi_evt_log_state info;
-	int fd;
+	int error, fd;
 
 	if (ac != 1) {
 		warnx("show logstate: extra arguments");
@@ -76,13 +75,15 @@ show_logstate(int ac, char **av)
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_event_get_info(fd, &info, NULL) < 0) {
+		error = errno;
 		warn("Failed to get event log info");
-		return (errno);
+		return (error);
 	}
 
 	printf("mfi%d Event Log Sequence Numbers:\n", mfi_unit);
@@ -536,18 +537,20 @@ show_events(int ac, char **av)
 	ssize_t size;
 	uint32_t seq, start, stop;
 	uint8_t status;
-	int ch, fd, num_events, verbose;
+	int ch, error, fd, num_events, verbose;
 	u_int i;
 
 	fd = mfi_open(mfi_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mfi_open");
-		return (errno);
+		return (error);
 	}
 
 	if (mfi_event_get_info(fd, &info, NULL) < 0) {
+		error = errno;
 		warn("Failed to get event log info");
-		return (errno);
+		return (error);
 	}
 
 	/* Default settings. */
@@ -565,14 +568,16 @@ show_events(int ac, char **av)
 		switch (ch) {
 		case 'c':
 			if (parse_class(optarg, &filter.members.class) < 0) {
+				error = errno;
 				warn("Error parsing event class");
-				return (errno);
+				return (error);
 			}
 			break;
 		case 'l':
 			if (parse_locale(optarg, &filter.members.locale) < 0) {
+				error = errno;
 				warn("Error parsing event locale");
-				return (errno);
+				return (error);
 			}
 			break;
 		case 'n':
@@ -608,20 +613,27 @@ show_events(int ac, char **av)
 		return (EINVAL);
 	}
 	if (ac > 0 && parse_seq(&info, av[0], &start) < 0) {
+		error = errno;
 		warn("Error parsing starting sequence number");
-		return (errno);
+		return (error);
 	}
 	if (ac > 1 && parse_seq(&info, av[1], &stop) < 0) {
+		error = errno;
 		warn("Error parsing ending sequence number");
-		return (errno);
+		return (error);
 	}
 
 	list = malloc(size);
+	if (list == NULL) {
+		warnx("malloc failed");
+		return (ENOMEM);
+	}
 	for (seq = start;;) {
 		if (mfi_get_events(fd, list, num_events, filter, seq,
 		    &status) < 0) {
+			error = errno;
 			warn("Failed to fetch events");
-			return (errno);
+			return (error);
 		}
 		if (status == MFI_STAT_NOT_FOUND) {
 			if (seq == start)

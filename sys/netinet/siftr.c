@@ -1,7 +1,6 @@
 /*-
- * Copyright (c) 2007-2009, Centre for Advanced Internet Architectures
- * Swinburne University of Technology, Melbourne, Australia
- * (CRICOS number 00111D).
+ * Copyright (c) 2007-2009
+ * 	Swinburne University of Technology, Melbourne, Australia.
  * Copyright (c) 2009-2010, The FreeBSD Foundation
  * All rights reserved.
  *
@@ -55,7 +54,7 @@
  * SIFTR should be directed to him via email: lastewart@swin.edu.au
  *
  * Initial release date: June 2007
- * Most recent update: June 2010
+ * Most recent update: September 2010
  ******************************************************/
 
 #include <sys/cdefs.h>
@@ -105,7 +104,7 @@ __FBSDID("$FreeBSD$");
  */
 #define V_MAJOR		1
 #define V_BACKBREAK	2
-#define V_BACKCOMPAT	3
+#define V_BACKCOMPAT	4
 #define MODVERSION	__CONCAT(V_MAJOR, __CONCAT(V_BACKBREAK, V_BACKCOMPAT))
 #define MODVERSION_STR	__XSTRING(V_MAJOR) "." __XSTRING(V_BACKBREAK) "." \
     __XSTRING(V_BACKCOMPAT)
@@ -193,7 +192,7 @@ struct pkt_node {
 	u_long			snd_wnd;
 	/* Receive Window (bytes). */
 	u_long			rcv_wnd;
-	/* Bandwidth Controlled Window (bytes). */
+	/* Unused (was: Bandwidth Controlled Window (bytes)). */
 	u_long			snd_bwnd;
 	/* Slow Start Threshold (bytes). */
 	u_long			snd_ssthresh;
@@ -226,6 +225,8 @@ struct pkt_node {
 	u_int			rcv_buf_cc;
 	/* Number of bytes inflight that we are waiting on ACKs for. */
 	u_int			sent_inflight_bytes;
+	/* Number of segments currently in the reassembly queue. */
+	int			t_segqlen;
 	/* Link to next pkt_node in the list. */
 	STAILQ_ENTRY(pkt_node)	nodes;
 };
@@ -442,7 +443,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		    MAX_LOG_MSG_LEN,
 		    "%c,0x%08x,%zd.%06ld,%x:%x:%x:%x:%x:%x:%x:%x,%u,%x:%x:%x:"
 		    "%x:%x:%x:%x:%x,%u,%ld,%ld,%ld,%ld,%ld,%u,%u,%u,%u,%u,%u,"
-		    "%u,%d,%u,%u,%u,%u,%u\n",
+		    "%u,%d,%u,%u,%u,%u,%u,%u\n",
 		    direction[pkt_node->direction],
 		    pkt_node->hash,
 		    pkt_node->tval.tv_sec,
@@ -482,7 +483,8 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		    pkt_node->snd_buf_cc,
 		    pkt_node->rcv_buf_hiwater,
 		    pkt_node->rcv_buf_cc,
-		    pkt_node->sent_inflight_bytes);
+		    pkt_node->sent_inflight_bytes,
+		    pkt_node->t_segqlen);
 	} else { /* IPv4 packet */
 		pkt_node->ip_laddr[0] = FIRST_OCTET(pkt_node->ip_laddr[3]);
 		pkt_node->ip_laddr[1] = SECOND_OCTET(pkt_node->ip_laddr[3]);
@@ -498,7 +500,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		log_buf->ae_bytesused = snprintf(log_buf->ae_data,
 		    MAX_LOG_MSG_LEN,
 		    "%c,0x%08x,%jd.%06ld,%u.%u.%u.%u,%u,%u.%u.%u.%u,%u,%ld,%ld,"
-		    "%ld,%ld,%ld,%u,%u,%u,%u,%u,%u,%u,%d,%u,%u,%u,%u,%u\n",
+		    "%ld,%ld,%ld,%u,%u,%u,%u,%u,%u,%u,%d,%u,%u,%u,%u,%u,%u\n",
 		    direction[pkt_node->direction],
 		    pkt_node->hash,
 		    (intmax_t)pkt_node->tval.tv_sec,
@@ -530,7 +532,8 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 		    pkt_node->snd_buf_cc,
 		    pkt_node->rcv_buf_hiwater,
 		    pkt_node->rcv_buf_cc,
-		    pkt_node->sent_inflight_bytes);
+		    pkt_node->sent_inflight_bytes,
+		    pkt_node->t_segqlen);
 #ifdef SIFTR_IPV6
 	}
 #endif
@@ -733,14 +736,12 @@ siftr_findinpcb(int ipver, struct ip *ip, struct mbuf *m, uint16_t sport,
 			ss->nskip_in_inpcb++;
 		else
 			ss->nskip_out_inpcb++;
-
-		INP_INFO_RUNLOCK(&V_tcbinfo);
 	} else {
 		/* Acquire the inpcb lock. */
 		INP_UNLOCK_ASSERT(inp);
 		INP_RLOCK(inp);
-		INP_INFO_RUNLOCK(&V_tcbinfo);
 	}
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 
 	return (inp);
 }
@@ -775,7 +776,7 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	pn->snd_cwnd = tp->snd_cwnd;
 	pn->snd_wnd = tp->snd_wnd;
 	pn->rcv_wnd = tp->rcv_wnd;
-	pn->snd_bwnd = tp->snd_bwnd;
+	pn->snd_bwnd = 0;		/* Unused, kept for compat. */
 	pn->snd_ssthresh = tp->snd_ssthresh;
 	pn->snd_scale = tp->snd_scale;
 	pn->rcv_scale = tp->rcv_scale;
@@ -790,6 +791,7 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	pn->rcv_buf_hiwater = inp->inp_socket->so_rcv.sb_hiwat;
 	pn->rcv_buf_cc = inp->inp_socket->so_rcv.sb_cc;
 	pn->sent_inflight_bytes = tp->snd_max - tp->snd_una;
+	pn->t_segqlen = tp->t_segqlen;
 
 	/* We've finished accessing the tcb so release the lock. */
 	if (inp_locally_locked)
@@ -1105,26 +1107,38 @@ ret6:
 static int
 siftr_pfil(int action)
 {
-	struct pfil_head *pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
+	struct pfil_head *pfh_inet;
 #ifdef SIFTR_IPV6
-	struct pfil_head *pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
+	struct pfil_head *pfh_inet6;
+#endif
+	VNET_ITERATOR_DECL(vnet_iter);
+
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
+#ifdef SIFTR_IPV6
+		pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
 #endif
 
-	if (action == HOOK) {
-		pfil_add_hook(siftr_chkpkt, NULL,
-		    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet);
+		if (action == HOOK) {
+			pfil_add_hook(siftr_chkpkt, NULL,
+			    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet);
 #ifdef SIFTR_IPV6
-		pfil_add_hook(siftr_chkpkt6, NULL,
-		    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet6);
+			pfil_add_hook(siftr_chkpkt6, NULL,
+			    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet6);
 #endif
-	} else if (action == UNHOOK) {
-		pfil_remove_hook(siftr_chkpkt, NULL,
-		    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet);
+		} else if (action == UNHOOK) {
+			pfil_remove_hook(siftr_chkpkt, NULL,
+			    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet);
 #ifdef SIFTR_IPV6
-		pfil_remove_hook(siftr_chkpkt6, NULL,
-		    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet6);
+			pfil_remove_hook(siftr_chkpkt6, NULL,
+			    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet6);
 #endif
+		}
+		CURVNET_RESTORE();
 	}
+	VNET_LIST_RUNLOCK();
 
 	return (0);
 }

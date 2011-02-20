@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -58,9 +59,24 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
+#define	MAX_LD		8192
+
 int max_ldt_segment = 1024;
-#define LD_PER_PAGE 512
-#define	NULL_LDT_BASE	((caddr_t)NULL)
+SYSCTL_INT(_machdep, OID_AUTO, max_ldt_segment, CTLFLAG_RDTUN,
+    &max_ldt_segment, 0,
+    "Maximum number of allowed LDT segments in the single address space");
+
+static void
+max_ldt_segment_init(void *arg __unused)
+{
+
+	TUNABLE_INT_FETCH("machdep.max_ldt_segment", &max_ldt_segment);
+	if (max_ldt_segment <= 0)
+		max_ldt_segment = 1;
+	if (max_ldt_segment > MAX_LD)
+		max_ldt_segment = MAX_LD;
+}
+SYSINIT(maxldt, SI_SUB_VM_CONF, SI_ORDER_ANY, max_ldt_segment_init, NULL);
 
 #ifdef notyet
 #ifdef SMP
@@ -95,29 +111,23 @@ sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space)
 		largs = &la;
 	} else
 		largs = (struct i386_ldt_args *)uap->parms;
-	if (largs->num > max_ldt_segment || largs->num <= 0)
-		return (EINVAL);
 
 	switch (uap->op) {
 	case I386_GET_LDT:
 		error = amd64_get_ldt(td, largs);
 		break;
 	case I386_SET_LDT:
-		td->td_pcb->pcb_full_iret = 1;
+		if (largs->descs != NULL && largs->num > max_ldt_segment)
+			return (EINVAL);
+		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 		if (largs->descs != NULL) {
-			lp = (struct user_segment_descriptor *)
-			    kmem_alloc(kernel_map, largs->num *
-			    sizeof(struct user_segment_descriptor));
-			if (lp == NULL) {
-				error = ENOMEM;
-				break;
-			}
+			lp = malloc(largs->num * sizeof(struct
+			    user_segment_descriptor), M_TEMP, M_WAITOK);
 			error = copyin(largs->descs, lp, largs->num *
 			    sizeof(struct user_segment_descriptor));
 			if (error == 0)
 				error = amd64_set_ldt(td, largs, lp);
-			kmem_free(kernel_map, (vm_offset_t)lp, largs->num *
-			    sizeof(struct user_segment_descriptor));
+			free(lp, M_TEMP);
 		} else {
 			error = amd64_set_ldt(td, largs, NULL);
 		}
@@ -133,7 +143,7 @@ update_gdt_gsbase(struct thread *td, uint32_t base)
 
 	if (td != curthread)
 		return;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	critical_enter();
 	sd = PCPU_GET(gs32p);
 	sd->sd_lobase = base & 0xffffff;
@@ -148,7 +158,7 @@ update_gdt_fsbase(struct thread *td, uint32_t base)
 
 	if (td != curthread)
 		return;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	critical_enter();
 	sd = PCPU_GET(fs32p);
 	sd->sd_lobase = base & 0xffffff;
@@ -204,7 +214,7 @@ sysarch(td, uap)
 		if (!error) {
 			pcb->pcb_fsbase = i386base;
 			td->td_frame->tf_fs = _ufssel;
-			pcb->pcb_full_iret = 1;
+			set_pcb_flags(pcb, PCB_FULL_IRET);
 			update_gdt_fsbase(td, i386base);
 		}
 		break;
@@ -216,7 +226,7 @@ sysarch(td, uap)
 		error = copyin(uap->parms, &i386base, sizeof(i386base));
 		if (!error) {
 			pcb->pcb_gsbase = i386base;
-			pcb->pcb_full_iret = 1;
+			set_pcb_flags(pcb, PCB_FULL_IRET);
 			td->td_frame->tf_gs = _ugssel;
 			update_gdt_gsbase(td, i386base);
 		}
@@ -230,7 +240,7 @@ sysarch(td, uap)
 		if (!error) {
 			if (a64base < VM_MAXUSER_ADDRESS) {
 				pcb->pcb_fsbase = a64base;
-				pcb->pcb_full_iret = 1;
+				set_pcb_flags(pcb, PCB_FULL_IRET);
 				td->td_frame->tf_fs = _ufssel;
 			} else
 				error = EINVAL;
@@ -246,7 +256,7 @@ sysarch(td, uap)
 		if (!error) {
 			if (a64base < VM_MAXUSER_ADDRESS) {
 				pcb->pcb_gsbase = a64base;
-				pcb->pcb_full_iret = 1;
+				set_pcb_flags(pcb, PCB_FULL_IRET);
 				td->td_frame->tf_gs = _ugssel;
 			} else
 				error = EINVAL;
@@ -533,13 +543,13 @@ amd64_set_ldt(td, uap, descs)
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	p = td->td_proc;
 	if (descs == NULL) {
 		/* Free descriptors */
 		if (uap->start == 0 && uap->num == 0)
 			uap->num = max_ldt_segment;
-		if (uap->num <= 0)
+		if (uap->num == 0)
 			return (EINVAL);
 		if ((pldt = mdp->md_ldt) == NULL ||
 		    uap->start >= max_ldt_segment)
@@ -559,7 +569,7 @@ amd64_set_ldt(td, uap, descs)
 		/* verify range of descriptors to modify */
 		largest_ld = uap->start + uap->num;
 		if (uap->start >= max_ldt_segment ||
-		    uap->num < 0 || largest_ld > max_ldt_segment)
+		    largest_ld > max_ldt_segment)
 			return (EINVAL);
 	}
 

@@ -263,7 +263,7 @@ struct ip6_frag {
 /*
  * IP6_EXTHDR_CHECK ensures that region between the IP6 header and the
  * target header (including IPv6 itself, extension headers and
- * TCP/UDP/ICMP6 headers) are continuous. KAME requires drivers
+ * TCP/UDP/ICMP6 headers) are contiguous. KAME requires drivers
  * to store incoming data into one internal mbuf or one or more external
  * mbufs(never into two or more internal mbufs). Thus, the third case is
  * supposed to never be matched but is prepared just in case.

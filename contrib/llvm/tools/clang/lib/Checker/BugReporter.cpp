@@ -94,8 +94,8 @@ static const Stmt* GetNextStmt(const ExplodedNode* N) {
         case Stmt::ChooseExprClass:
         case Stmt::ConditionalOperatorClass: continue;
         case Stmt::BinaryOperatorClass: {
-          BinaryOperator::Opcode Op = cast<BinaryOperator>(S)->getOpcode();
-          if (Op == BinaryOperator::LAnd || Op == BinaryOperator::LOr)
+          BinaryOperatorKind Op = cast<BinaryOperator>(S)->getOpcode();
+          if (Op == BO_LAnd || Op == BO_LOr)
             continue;
           break;
         }
@@ -177,17 +177,8 @@ public:
   }
 
   virtual NodeMapClosure& getNodeResolver() { return NMC; }
-  BugReport& getReport() { return *R; }
 
   PathDiagnosticLocation getEnclosingStmtLocation(const Stmt *S);
-
-  PathDiagnosticLocation
-  getEnclosingStmtLocation(const PathDiagnosticLocation &L) {
-    if (const Stmt *S = L.asStmt())
-      return getEnclosingStmtLocation(S);
-
-    return L;
-  }
 
   PathDiagnosticClient::PathGenerationScheme getGenerationScheme() const {
     return PDC ? PDC->getGenerationScheme() : PathDiagnosticClient::Extensive;
@@ -541,9 +532,9 @@ static void GenerateMinimalPathDiagnostic(PathDiagnostic& PD,
     ProgramPoint P = N->getLocation();
 
     if (const BlockEdge* BE = dyn_cast<BlockEdge>(&P)) {
-      CFGBlock* Src = BE->getSrc();
-      CFGBlock* Dst = BE->getDst();
-      Stmt* T = Src->getTerminator();
+      const CFGBlock* Src = BE->getSrc();
+      const CFGBlock* Dst = BE->getDst();
+      const Stmt* T = Src->getTerminator();
 
       if (!T)
         continue;
@@ -577,7 +568,7 @@ static void GenerateMinimalPathDiagnostic(PathDiagnostic& PD,
           std::string sbuf;
           llvm::raw_string_ostream os(sbuf);
 
-          if (Stmt* S = Dst->getLabel()) {
+          if (const Stmt* S = Dst->getLabel()) {
             PathDiagnosticLocation End(S, SMgr);
 
             switch (S->getStmtClass()) {
@@ -593,17 +584,17 @@ static void GenerateMinimalPathDiagnostic(PathDiagnostic& PD,
 
               case Stmt::CaseStmtClass: {
                 os << "Control jumps to 'case ";
-                CaseStmt* Case = cast<CaseStmt>(S);
-                Expr* LHS = Case->getLHS()->IgnoreParenCasts();
+                const CaseStmt* Case = cast<CaseStmt>(S);
+                const Expr* LHS = Case->getLHS()->IgnoreParenCasts();
 
                 // Determine if it is an enum.
                 bool GetRawInt = true;
 
-                if (DeclRefExpr* DR = dyn_cast<DeclRefExpr>(LHS)) {
+                if (const DeclRefExpr* DR = dyn_cast<DeclRefExpr>(LHS)) {
                   // FIXME: Maybe this should be an assertion.  Are there cases
                   // were it is not an EnumConstantDecl?
-                  EnumConstantDecl* D =
-                  dyn_cast<EnumConstantDecl>(DR->getDecl());
+                  const EnumConstantDecl* D =
+                    dyn_cast<EnumConstantDecl>(DR->getDecl());
 
                   if (D) {
                     GetRawInt = false;
@@ -668,12 +659,12 @@ static void GenerateMinimalPathDiagnostic(PathDiagnostic& PD,
           if (!PDB.supportsLogicalOpControlFlow())
             break;
 
-          BinaryOperator *B = cast<BinaryOperator>(T);
+          const BinaryOperator *B = cast<BinaryOperator>(T);
           std::string sbuf;
           llvm::raw_string_ostream os(sbuf);
           os << "Left side of '";
 
-          if (B->getOpcode() == BinaryOperator::LAnd) {
+          if (B->getOpcode() == BO_LAnd) {
             os << "&&" << "' is ";
 
             if (*(Src->succ_begin()+1) == Dst) {
@@ -692,7 +683,7 @@ static void GenerateMinimalPathDiagnostic(PathDiagnostic& PD,
             }
           }
           else {
-            assert(B->getOpcode() == BinaryOperator::LOr);
+            assert(B->getOpcode() == BO_LOr);
             os << "||" << "' is ";
 
             if (*(Src->succ_begin()+1) == Dst) {
@@ -902,8 +893,6 @@ class EdgeBuilder {
     CLocs.pop_back();
   }
 
-  PathDiagnosticLocation IgnoreParens(const PathDiagnosticLocation &L);
-
 public:
   EdgeBuilder(PathDiagnostic &pd, PathDiagnosticBuilder &pdb)
     : PD(pd), PDB(pdb) {
@@ -934,10 +923,6 @@ public:
   }
 
   void addEdge(PathDiagnosticLocation NewLoc, bool alwaysAdd = false);
-
-  void addEdge(const Stmt *S, bool alwaysAdd = false) {
-    addEdge(PathDiagnosticLocation(S, PDB.getSourceManager()), alwaysAdd);
-  }
 
   void rawAddEdge(PathDiagnosticLocation NewLoc);
 
@@ -1004,14 +989,6 @@ bool EdgeBuilder::containsLocation(const PathDiagnosticLocation &Container,
           (ContainerEndLine != ContaineeEndLine ||
            SM.getInstantiationColumnNumber(ContainerREnd) >=
            SM.getInstantiationColumnNumber(ContainerREnd)));
-}
-
-PathDiagnosticLocation
-EdgeBuilder::IgnoreParens(const PathDiagnosticLocation &L) {
-  if (const Expr* E = dyn_cast_or_null<Expr>(L.asStmt()))
-      return PathDiagnosticLocation(E->IgnoreParenCasts(),
-                                    PDB.getSourceManager());
-  return L;
 }
 
 void EdgeBuilder::rawAddEdge(PathDiagnosticLocation NewLoc) {

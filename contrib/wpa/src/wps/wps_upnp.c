@@ -280,49 +280,14 @@ static void subscr_addr_delete(struct subscr_addr *a)
 }
 
 
-/* subscr_addr_unlink -- unlink subscriber address from linked list */
-static void subscr_addr_unlink(struct subscription *s, struct subscr_addr *a)
-{
-	struct subscr_addr **listp = &s->addr_list;
-	s->n_addr--;
-	a->next->prev = a->prev;
-	a->prev->next = a->next;
-	if (*listp == a) {
-		if (a == a->next) {
-			/* last in queue */
-			*listp = NULL;
-			assert(s->n_addr == 0);
-		} else {
-			*listp = a->next;
-		}
-	}
-}
-
-
 /* subscr_addr_free_all -- unlink and delete list of subscriber addresses. */
 static void subscr_addr_free_all(struct subscription *s)
 {
-	struct subscr_addr **listp = &s->addr_list;
-	struct subscr_addr *a;
-	while ((a = *listp) != NULL) {
-		subscr_addr_unlink(s, a);
+	struct subscr_addr *a, *tmp;
+	dl_list_for_each_safe(a, tmp, &s->addr_list, struct subscr_addr, list)
+	{
+		dl_list_del(&a->list);
 		subscr_addr_delete(a);
-	}
-}
-
-
-/* subscr_addr_link -- add subscriber address to list of addresses */
-static void subscr_addr_link(struct subscription *s, struct subscr_addr *a)
-{
-	struct subscr_addr **listp = &s->addr_list;
-	s->n_addr++;
-	if (*listp == NULL) {
-		*listp = a->next = a->prev = a;
-	} else {
-		a->next = *listp;
-		a->prev = (*listp)->prev;
-		a->prev->next = a;
-		a->next->prev = a;
 	}
 }
 
@@ -403,7 +368,7 @@ static void subscr_addr_add_url(struct subscription *s, const char *url)
 	}
 	for (rp = result; rp; rp = rp->ai_next) {
 		/* Limit no. of address to avoid denial of service attack */
-		if (s->n_addr >= MAX_ADDR_PER_SUBSCRIPTION) {
+		if (dl_list_len(&s->addr_list) >= MAX_ADDR_PER_SUBSCRIPTION) {
 			wpa_printf(MSG_INFO, "WPS UPnP: subscr_addr_add_url: "
 				   "Ignoring excessive addresses");
 			break;
@@ -412,7 +377,6 @@ static void subscr_addr_add_url(struct subscription *s, const char *url)
 		a = os_zalloc(sizeof(*a) + alloc_len);
 		if (a == NULL)
 			continue;
-		a->s = s;
 		mem = (void *) (a + 1);
 		a->domain_and_port = mem;
 		strcpy(mem, domain_and_port);
@@ -425,7 +389,7 @@ static void subscr_addr_add_url(struct subscription *s, const char *url)
 		os_memcpy(&a->saddr, rp->ai_addr, sizeof(a->saddr));
 		a->saddr.sin_port = htons(port);
 
-		subscr_addr_link(s, a);
+		dl_list_add(&s->addr_list, &a->list);
 		a = NULL;       /* don't free it below */
 	}
 
@@ -502,14 +466,14 @@ static void upnp_wps_device_send_event(struct upnp_wps_device_sm *sm)
 	/* Enqueue event message for all subscribers */
 	struct wpabuf *buf; /* holds event message */
 	int buf_size = 0;
-	struct subscription *s;
+	struct subscription *s, *tmp;
 	/* Actually, utf-8 is the default, but it doesn't hurt to specify it */
 	const char *format_head =
 		"<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
 		"<e:propertyset xmlns:e=\"urn:schemas-upnp-org:event-1-0\">\n";
 	const char *format_tail = "</e:propertyset>\n";
 
-	if (sm->subscriptions == NULL) {
+	if (dl_list_empty(&sm->subscriptions)) {
 		/* optimize */
 		return;
 	}
@@ -531,19 +495,15 @@ static void upnp_wps_device_send_event(struct upnp_wps_device_sm *sm)
 	wpa_printf(MSG_MSGDUMP, "WPS UPnP: WLANEvent message:\n%s",
 		   (char *) wpabuf_head(buf));
 
-	s = sm->subscriptions;
-	do {
+	dl_list_for_each_safe(s, tmp, &sm->subscriptions, struct subscription,
+			      list) {
 		if (event_add(s, buf)) {
-			struct subscription *s_old = s;
 			wpa_printf(MSG_INFO, "WPS UPnP: Dropping "
 				   "subscriber due to event backlog");
-			s = s_old->next;
-			subscription_unlink(s_old);
-			subscription_destroy(s_old);
-		} else {
-			s = s->next;
+			dl_list_del(&s->list);
+			subscription_destroy(s);
 		}
-	} while (s != sm->subscriptions);
+	}
 
 	wpabuf_free(buf);
 }
@@ -555,52 +515,15 @@ static void upnp_wps_device_send_event(struct upnp_wps_device_sm *sm)
  * This is the result of an incoming HTTP over TCP SUBSCRIBE request.
  */
 
-/* subscription_unlink -- remove from the active list */
-void subscription_unlink(struct subscription *s)
-{
-	struct upnp_wps_device_sm *sm = s->sm;
-
-	if (s->next == s) {
-		/* only one? */
-		sm->subscriptions = NULL;
-	} else  {
-		if (sm->subscriptions == s)
-			sm->subscriptions = s->next;
-		s->next->prev = s->prev;
-		s->prev->next = s->next;
-	}
-	sm->n_subscriptions--;
-}
-
-
-/* subscription_link_to_end -- link to end of active list
- * (should have high expiry time!)
- */
-static void subscription_link_to_end(struct subscription *s)
-{
-	struct upnp_wps_device_sm *sm = s->sm;
-
-	if (sm->subscriptions) {
-		s->next = sm->subscriptions;
-		s->prev = s->next->prev;
-		s->prev->next = s;
-		s->next->prev = s;
-	} else {
-		sm->subscriptions = s->next = s->prev = s;
-	}
-	sm->n_subscriptions++;
-}
-
-
 /* subscription_destroy -- destroy an unlinked subscription
  * Be sure to unlink first if necessary.
  */
 void subscription_destroy(struct subscription *s)
 {
 	wpa_printf(MSG_DEBUG, "WPS UPnP: Destroy subscription %p", s);
-	if (s->addr_list)
-		subscr_addr_free_all(s);
+	subscr_addr_free_all(s);
 	event_delete_all(s);
+	upnp_er_remove_notification(s);
 	os_free(s);
 }
 
@@ -608,10 +531,13 @@ void subscription_destroy(struct subscription *s)
 /* subscription_list_age -- remove expired subscriptions */
 static void subscription_list_age(struct upnp_wps_device_sm *sm, time_t now)
 {
-	struct subscription *s;
-	while ((s = sm->subscriptions) != NULL && s->timeout_time < now) {
+	struct subscription *s, *tmp;
+	dl_list_for_each_safe(s, tmp, &sm->subscriptions,
+			      struct subscription, list) {
+		if (s->timeout_time > now)
+			break;
 		wpa_printf(MSG_DEBUG, "WPS UPnP: Removing aged subscription");
-		subscription_unlink(s);
+		dl_list_del(&s->list);
 		subscription_destroy(s);
 	}
 }
@@ -623,17 +549,11 @@ static void subscription_list_age(struct upnp_wps_device_sm *sm, time_t now)
 struct subscription * subscription_find(struct upnp_wps_device_sm *sm,
 					const u8 uuid[UUID_LEN])
 {
-	struct subscription *s0 = sm->subscriptions;
-	struct subscription *s = s0;
-
-	if (s0 == NULL)
-		return NULL;
-	do {
+	struct subscription *s;
+	dl_list_for_each(s, &sm->subscriptions, struct subscription, list) {
 		if (os_memcmp(s->uuid, uuid, UUID_LEN) == 0)
 			return s; /* Found match */
-		s = s->next;
-	} while (s != s0);
-
+	}
 	return NULL;
 }
 
@@ -645,8 +565,11 @@ static struct wpabuf * build_fake_wsc_ack(void)
 		return NULL;
 	wpabuf_put_u8(msg, UPNP_WPS_WLANEVENT_TYPE_EAP);
 	wpabuf_put_str(msg, "00:00:00:00:00:00");
-	wps_build_version(msg);
-	wps_build_msg_type(msg, WPS_WSC_ACK);
+	if (wps_build_version(msg) ||
+	    wps_build_msg_type(msg, WPS_WSC_ACK)) {
+		wpabuf_free(msg);
+		return NULL;
+	}
 	/* Enrollee Nonce */
 	wpabuf_put_be16(msg, ATTR_ENROLLEE_NONCE);
 	wpabuf_put_be16(msg, WPS_NONCE_LEN);
@@ -750,31 +673,34 @@ struct subscription * subscription_start(struct upnp_wps_device_sm *sm,
 	subscription_list_age(sm, now);
 
 	/* If too many subscriptions, remove oldest */
-	if (sm->n_subscriptions >= MAX_SUBSCRIPTIONS) {
-		s = sm->subscriptions;
+	if (dl_list_len(&sm->subscriptions) >= MAX_SUBSCRIPTIONS) {
+		s = dl_list_first(&sm->subscriptions, struct subscription,
+				  list);
 		wpa_printf(MSG_INFO, "WPS UPnP: Too many subscriptions, "
 			   "trashing oldest");
-		subscription_unlink(s);
+		dl_list_del(&s->list);
 		subscription_destroy(s);
 	}
 
 	s = os_zalloc(sizeof(*s));
 	if (s == NULL)
 		return NULL;
+	dl_list_init(&s->addr_list);
+	dl_list_init(&s->event_queue);
 
 	s->sm = sm;
 	s->timeout_time = expire;
 	uuid_make(s->uuid);
 	subscr_addr_list_create(s, callback_urls);
 	/* Add to end of list, since it has the highest expiration time */
-	subscription_link_to_end(s);
+	dl_list_add_tail(&sm->subscriptions, &s->list);
 	/* Queue up immediate event message (our last event)
 	 * as required by UPnP spec.
 	 */
 	if (subscription_first_event(s)) {
 		wpa_printf(MSG_INFO, "WPS UPnP: Dropping subscriber due to "
 			   "event backlog");
-		subscription_unlink(s);
+		dl_list_del(&s->list);
 		subscription_destroy(s);
 		return NULL;
 	}
@@ -796,10 +722,10 @@ struct subscription * subscription_renew(struct upnp_wps_device_sm *sm,
 	if (s == NULL)
 		return NULL;
 	wpa_printf(MSG_DEBUG, "WPS UPnP: Subscription renewed");
-	subscription_unlink(s);
+	dl_list_del(&s->list);
 	s->timeout_time = expire;
 	/* add back to end of list, since it now has highest expiry */
-	subscription_link_to_end(s);
+	dl_list_add_tail(&sm->subscriptions, &s->list);
 	return s;
 }
 
@@ -871,7 +797,7 @@ fail:
 }
 
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include <sys/sysctl.h>
 #include <net/route.h>
 #include <net/if_dl.h>
@@ -921,12 +847,10 @@ static int eth_get(const char *device, u8 ea[ETH_ALEN])
  * @ip_addr: Buffer for returning IP address in network byte order
  * @ip_addr_text: Buffer for returning a pointer to allocated IP address text
  * @mac: Buffer for returning MAC address
- * @mac_addr_text: Buffer for returning allocated MAC address text
  * Returns: 0 on success, -1 on failure
  */
-static int get_netif_info(const char *net_if, unsigned *ip_addr,
-			  char **ip_addr_text, u8 mac[ETH_ALEN],
-			  char **mac_addr_text)
+int get_netif_info(const char *net_if, unsigned *ip_addr, char **ip_addr_text,
+		   u8 mac[ETH_ALEN])
 {
 	struct ifreq req;
 	int sock = -1;
@@ -934,8 +858,7 @@ static int get_netif_info(const char *net_if, unsigned *ip_addr,
 	struct in_addr in_addr;
 
 	*ip_addr_text = os_zalloc(16);
-	*mac_addr_text = os_zalloc(18);
-	if (*ip_addr_text == NULL || *mac_addr_text == NULL)
+	if (*ip_addr_text == NULL)
 		goto fail;
 
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -961,7 +884,7 @@ static int get_netif_info(const char *net_if, unsigned *ip_addr,
 		goto fail;
 	}
 	os_memcpy(mac, req.ifr_addr.sa_data, 6);
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 	if (eth_get(net_if, mac) < 0) {
 		wpa_printf(MSG_ERROR, "WPS UPnP: Failed to get MAC address");
 		goto fail;
@@ -969,7 +892,6 @@ static int get_netif_info(const char *net_if, unsigned *ip_addr,
 #else
 #error MAC address fetch not implemented
 #endif
-	os_snprintf(*mac_addr_text, 18, MACSTR, MAC2STR(req.ifr_addr.sa_data));
 
 	close(sock);
 	return 0;
@@ -979,9 +901,26 @@ fail:
 		close(sock);
 	os_free(*ip_addr_text);
 	*ip_addr_text = NULL;
-	os_free(*mac_addr_text);
-	*mac_addr_text = NULL;
 	return -1;
+}
+
+
+static void upnp_wps_free_msearchreply(struct dl_list *head)
+{
+	struct advertisement_state_machine *a, *tmp;
+	dl_list_for_each_safe(a, tmp, head, struct advertisement_state_machine,
+			      list)
+		msearchreply_state_machine_stop(a);
+}
+
+
+static void upnp_wps_free_subscriptions(struct dl_list *head)
+{
+	struct subscription *s, *tmp;
+	dl_list_for_each_safe(s, tmp, head, struct subscription, list) {
+		dl_list_del(&s->list);
+		subscription_destroy(s);
+	}
 }
 
 
@@ -996,25 +935,14 @@ void upnp_wps_device_stop(struct upnp_wps_device_sm *sm)
 
 	wpa_printf(MSG_DEBUG, "WPS UPnP: Stop device");
 	web_listener_stop(sm);
-	while (sm->web_connections)
-		web_connection_stop(sm->web_connections);
-	while (sm->msearch_replies)
-		msearchreply_state_machine_stop(sm->msearch_replies);
-	while (sm->subscriptions)  {
-		struct subscription *s = sm->subscriptions;
-		subscription_unlink(s);
-		subscription_destroy(s);
-	}
+	upnp_wps_free_msearchreply(&sm->msearch_replies);
+	upnp_wps_free_subscriptions(&sm->subscriptions);
 
 	advertisement_state_machine_stop(sm, 1);
 
 	event_send_stop_all(sm);
 	os_free(sm->wlanevent);
 	sm->wlanevent = NULL;
-	os_free(sm->net_if);
-	sm->net_if = NULL;
-	os_free(sm->mac_addr_text);
-	sm->mac_addr_text = NULL;
 	os_free(sm->ip_addr_text);
 	sm->ip_addr_text = NULL;
 	if (sm->multicast_sd >= 0)
@@ -1040,7 +968,6 @@ int upnp_wps_device_start(struct upnp_wps_device_sm *sm, char *net_if)
 	if (sm->started)
 		upnp_wps_device_stop(sm);
 
-	sm->net_if = strdup(net_if);
 	sm->multicast_sd = -1;
 	sm->ssdp_sd = -1;
 	sm->started = 1;
@@ -1051,9 +978,8 @@ int upnp_wps_device_start(struct upnp_wps_device_sm *sm, char *net_if)
 		goto fail;
 
 	/* Determine which IP and mac address we're using */
-	if (get_netif_info(net_if,
-			   &sm->ip_addr, &sm->ip_addr_text,
-			   sm->mac_addr, &sm->mac_addr_text)) {
+	if (get_netif_info(net_if, &sm->ip_addr, &sm->ip_addr_text,
+			   sm->mac_addr)) {
 		wpa_printf(MSG_INFO, "WPS UPnP: Could not get IP/MAC address "
 			   "for %s. Does it have IP address?", net_if);
 		goto fail;
@@ -1104,6 +1030,7 @@ void upnp_wps_device_deinit(struct upnp_wps_device_sm *sm)
 		wps_deinit(sm->peer.wps);
 	os_free(sm->root_dir);
 	os_free(sm->desc_url);
+	os_free(sm->ctx->ap_pin);
 	os_free(sm->ctx);
 	os_free(sm);
 }
@@ -1131,6 +1058,8 @@ upnp_wps_device_init(struct upnp_wps_device_ctx *ctx, struct wps_context *wps,
 	sm->ctx = ctx;
 	sm->wps = wps;
 	sm->priv = priv;
+	dl_list_init(&sm->msearch_replies);
+	dl_list_init(&sm->subscriptions);
 
 	return sm;
 }
@@ -1143,5 +1072,22 @@ upnp_wps_device_init(struct upnp_wps_device_ctx *ctx, struct wps_context *wps,
  */
 int upnp_wps_subscribers(struct upnp_wps_device_sm *sm)
 {
-	return sm->subscriptions != NULL;
+	return !dl_list_empty(&sm->subscriptions);
+}
+
+
+int upnp_wps_set_ap_pin(struct upnp_wps_device_sm *sm, const char *ap_pin)
+{
+	if (sm == NULL)
+		return 0;
+
+	os_free(sm->ctx->ap_pin);
+	if (ap_pin) {
+		sm->ctx->ap_pin = os_strdup(ap_pin);
+		if (sm->ctx->ap_pin == NULL)
+			return -1;
+	} else
+		sm->ctx->ap_pin = NULL;
+
+	return 0;
 }

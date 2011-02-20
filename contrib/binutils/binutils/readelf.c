@@ -9939,6 +9939,7 @@ get_note_type (unsigned e_type)
     case NT_PSTATUS:	return _("NT_PSTATUS (pstatus structure)");
     case NT_FPREGS:	return _("NT_FPREGS (floating point registers)");
     case NT_PSINFO:	return _("NT_PSINFO (psinfo structure)");
+    case NT_THRMISC:	return _("NT_THRMISC (thrmisc structure)");
     case NT_LWPSTATUS:	return _("NT_LWPSTATUS (lwpstatus_t structure)");
     case NT_LWPSINFO:	return _("NT_LWPSINFO (lwpsinfo_t structure)");
     case NT_WIN32PSTATUS: return _("NT_WIN32PSTATUS (win32_pstatus structure)");

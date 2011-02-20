@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -46,13 +48,21 @@
  *
  * This module provides system/board/application information obtained by the bootloader.
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 52004 $<hr>
  *
  */
 
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include <linux/module.h>
+
+#include <asm/octeon/cvmx.h>
+#include <asm/octeon/cvmx-spinlock.h>
+#include <asm/octeon/cvmx-sysinfo.h>
+#else
 #include "cvmx.h"
 #include "cvmx-spinlock.h"
 #include "cvmx-sysinfo.h"
+#endif
 
 
 /**
@@ -75,7 +85,7 @@ static struct {
 #else
 CVMX_SHARED static struct {
 
-    cvmx_sysinfo_t   sysinfo;      /**< system information */
+    struct cvmx_sysinfo   sysinfo;      /**< system information */
     cvmx_spinlock_t  lock;         /**< mutex spinlock */
 
 } state = {
@@ -103,10 +113,13 @@ uint64_t linux_mem32_offset = 0;
  * @return  Pointer to the boot information structure
  *
  */
-cvmx_sysinfo_t * cvmx_sysinfo_get(void)
+struct cvmx_sysinfo *cvmx_sysinfo_get(void)
 {
     return &(state.sysinfo);
 }
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_sysinfo_get);
+#endif
 
 
 /**
@@ -117,8 +130,9 @@ cvmx_sysinfo_t * cvmx_sysinfo_get(void)
  * Locking (if required) must be handled outside of this
  * function
  *
- * @param phy_mem_desc_ptr
- *                   Pointer to global physical memory descriptor (bootmem descriptor)
+ * @param phy_mem_desc_addr
+ *                   Address of the global physical memory descriptor (bootmem
+ *                   descriptor)
  * @param board_type Octeon board type enumeration
  *
  * @param board_rev_major
@@ -131,13 +145,13 @@ cvmx_sysinfo_t * cvmx_sysinfo_get(void)
  * @return 0: Failure
  *         1: success
  */
-int cvmx_sysinfo_minimal_initialize(void *phy_mem_desc_ptr, uint16_t board_type, uint8_t board_rev_major,
+int cvmx_sysinfo_minimal_initialize(uint64_t phy_mem_desc_addr, uint16_t board_type, uint8_t board_rev_major,
                                     uint8_t board_rev_minor, uint32_t cpu_clock_hz)
 {
 
 
     memset(&(state.sysinfo), 0x0, sizeof(state.sysinfo));
-    state.sysinfo.phy_mem_desc_ptr = phy_mem_desc_ptr;
+    state.sysinfo.phy_mem_desc_addr = phy_mem_desc_addr;
     state.sysinfo.board_type = board_type;
     state.sysinfo.board_rev_major = board_rev_major;
     state.sysinfo.board_rev_minor = board_rev_minor;
@@ -183,7 +197,7 @@ void cvmx_sysinfo_linux_userspace_initialize(void)
             if (strcmp(field, "dram_size:") == 0)
                 system_info->system_dram_size = value;
             else if (strcmp(field, "phy_mem_desc_addr:") == 0)
-                system_info->phy_mem_desc_ptr = cvmx_phys_to_ptr(value);
+                system_info->phy_mem_desc_addr = value;
             else if (strcmp(field, "eclock_hz:") == 0)
                 system_info->cpu_clock_hz = value;
             else if (strcmp(field, "dclock_hz:") == 0)
@@ -216,5 +230,7 @@ void cvmx_sysinfo_linux_userspace_initialize(void)
                 linux_mem32_wired = value;
         }
     }
+
+    system_info->cpu_clock_hz = cvmx_clock_get_rate(CVMX_CLOCK_CORE);
 }
 #endif

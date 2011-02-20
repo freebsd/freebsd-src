@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #define	NSFBUFS		(512 + maxusers * 16)
 #endif
 
+#ifndef __mips_n64
 static void	sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
 
@@ -95,6 +96,7 @@ static struct {
 } sf_freelist;
 
 static u_int	sf_buf_alloc_want;
+#endif
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -121,8 +123,8 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	/* Copy p1's pcb, note that in this case
 	 * our pcb also includes the td_frame being copied
 	 * too. The older mips2 code did an additional copy
-	 * of the td_frame, for us thats not needed any
-	 * longer (this copy does them both 
+	 * of the td_frame, for us that's not needed any
+	 * longer (this copy does them both) 
 	 */
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
@@ -312,7 +314,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
  * Initialize machine state (pcb and trap frame) for a new thread about to
  * upcall. Put enough state in the new thread's PCB to get it to go back
  * userret(), where we can intercept it again to set the return (upcall)
- * Address and stack, along with those from upcals that are from other sources
+ * Address and stack, along with those from upcalls that are from other sources
  * such as those generated in thread_userret() itself.
  */
 void
@@ -334,7 +336,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * at this time (see the matching comment below for
 	 * more analysis) (need a good safe default).
 	 * In MIPS, the trapframe is the first element of the PCB
-	 * and gets copied when we copy the PCB. No seperate copy
+	 * and gets copied when we copy the PCB. No separate copy
 	 * is needed.
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
@@ -458,6 +460,7 @@ kvtop(void *addr)
 /*
  * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
  */
+#ifndef __mips_n64
 static void
 sf_buf_init(void *arg)
 {
@@ -479,6 +482,7 @@ sf_buf_init(void *arg)
 	}
 	sf_buf_alloc_want = 0;
 }
+#endif
 
 /*
  * Get an sf_buf from the freelist.  Will block if none are available.
@@ -486,6 +490,7 @@ sf_buf_init(void *arg)
 struct sf_buf *
 sf_buf_alloc(struct vm_page *m, int flags)
 {
+#ifndef __mips_n64
 	struct sf_buf *sf;
 	int error;
 
@@ -514,6 +519,9 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	}
 	mtx_unlock(&sf_freelist.sf_lock);
 	return (sf);
+#else
+	return ((struct sf_buf *)m);
+#endif
 }
 
 /*
@@ -522,14 +530,15 @@ sf_buf_alloc(struct vm_page *m, int flags)
 void
 sf_buf_free(struct sf_buf *sf)
 {
-
+#ifndef __mips_n64
 	pmap_qremove(sf->kva, 1);
 	mtx_lock(&sf_freelist.sf_lock);
 	SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf, free_list);
 	nsfbufsused--;
 	if (sf_buf_alloc_want > 0)
-		wakeup_one(&sf_freelist);
+		wakeup(&sf_freelist);
 	mtx_unlock(&sf_freelist.sf_lock);
+#endif
 }
 
 /*
@@ -538,6 +547,9 @@ sf_buf_free(struct sf_buf *sf)
 void
 swi_vm(void *dummy)
 {
+
+	if (busdma_swi_pending)
+		busdma_swi();
 }
 
 int

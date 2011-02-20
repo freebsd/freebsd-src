@@ -502,7 +502,7 @@ public:
               // is therefore only safe to use `m' in an asm statement
               // if that asm statement accesses the operand exactly once.
               // The asm statement must also use `%U<opno>' as a
-              // placeholder for the “update” flag in the corresponding
+              // placeholder for the "update" flag in the corresponding
               // load or store instruction. For example: 
               // asm ("st%U0 %1,%0" : "=m" (mem) : "r" (val));
               // is correct but: 
@@ -512,7 +512,7 @@ public:
     case 'e': 
       if (Name[1] != 's')
           return false;
-              // es: A “stable” memory operand; that is, one which does not
+              // es: A "stable" memory operand; that is, one which does not
               // include any automodification of the base register. Unlike
               // `m', this constraint can be used in asm statements that
               // might access the operand several times, or that might not
@@ -912,11 +912,12 @@ class X86TargetInfo : public TargetInfo {
   } AMD3DNowLevel;
 
   bool HasAES;
-  
+  bool HasAVX;
+
 public:
   X86TargetInfo(const std::string& triple)
     : TargetInfo(triple), SSELevel(NoMMXSSE), AMD3DNowLevel(NoAMD3DNow),
-      HasAES(false) {
+      HasAES(false), HasAVX(false) {
     LongDoubleFormat = &llvm::APFloat::x87DoubleExtended;
   }
   virtual void getTargetBuiltins(const Builtin::Info *&Records,
@@ -963,6 +964,7 @@ void X86TargetInfo::getDefaultFeatures(const std::string &CPU,
   Features["sse41"] = false;
   Features["sse42"] = false;
   Features["aes"] = false;
+  Features["avx"] = false;
 
   // LLVM does not currently recognize this.
   // Features["sse4a"] = false;
@@ -1046,6 +1048,8 @@ bool X86TargetInfo::setFeatureEnabled(llvm::StringMap<bool> &Features,
       Features["3dnow"] = Features["3dnowa"] = true;
     else if (Name == "aes")
       Features["aes"] = true;
+    else if (Name == "avx")
+      Features["avx"] = true;
   } else {
     if (Name == "mmx")
       Features["mmx"] = Features["sse"] = Features["sse2"] = Features["sse3"] =
@@ -1073,6 +1077,8 @@ bool X86TargetInfo::setFeatureEnabled(llvm::StringMap<bool> &Features,
       Features["3dnowa"] = false;
     else if (Name == "aes")
       Features["aes"] = false;
+    else if (Name == "avx")
+      Features["avx"] = false;
   }
 
   return true;
@@ -1089,6 +1095,13 @@ void X86TargetInfo::HandleTargetFeatures(std::vector<std::string> &Features) {
 
     if (Features[i].substr(1) == "aes") {
       HasAES = true;
+      continue;
+    }
+
+    // FIXME: Not sure yet how to treat AVX in regard to SSE levels.
+    // For now let it be enabled together with other SSE levels.
+    if (Features[i].substr(1) == "avx") {
+      HasAVX = true;
       continue;
     }
 
@@ -1132,6 +1145,9 @@ void X86TargetInfo::getTargetDefines(const LangOptions &Opts,
 
   if (HasAES)
     Builder.defineMacro("__AES__");
+
+  if (HasAVX)
+    Builder.defineMacro("__AVX__");
 
   // Target properties.
   Builder.defineMacro("__LITTLE_ENDIAN__");
@@ -1186,6 +1202,15 @@ X86TargetInfo::validateAsmConstraint(const char *&Name,
                                      TargetInfo::ConstraintInfo &Info) const {
   switch (*Name) {
   default: return false;
+  case 'Y': // first letter of a pair:
+    switch (*(Name+1)) {
+    default: return false;
+    case '0':  // First SSE register.
+    case 't':  // Any SSE register, when SSE2 is enabled.
+    case 'i':  // Any SSE register, when SSE2 and inter-unit moves enabled.
+    case 'm':  // any MMX register, when inter-unit moves enabled.
+      break;   // falls through to setAllowsRegister.
+  }
   case 'a': // eax.
   case 'b': // ebx.
   case 'c': // ecx.
@@ -1193,22 +1218,27 @@ X86TargetInfo::validateAsmConstraint(const char *&Name,
   case 'S': // esi.
   case 'D': // edi.
   case 'A': // edx:eax.
+  case 'f': // any x87 floating point stack register.
   case 't': // top of floating point stack.
   case 'u': // second from top of floating point stack.
   case 'q': // Any register accessible as [r]l: a, b, c, and d.
   case 'y': // Any MMX register.
   case 'x': // Any SSE register.
   case 'Q': // Any register accessible as [r]h: a, b, c, and d.
+  case 'R': // "Legacy" registers: ax, bx, cx, dx, di, si, sp, bp.
+  case 'l': // "Index" registers: any general register that can be used as an
+            // index in a base+index memory access.
+    Info.setAllowsRegister();
+    return true;
+  case 'C': // SSE floating point constant.
+  case 'G': // x87 floating point constant.
   case 'e': // 32-bit signed integer constant for use with zero-extending
             // x86_64 instructions.
   case 'Z': // 32-bit unsigned integer constant for use with zero-extending
             // x86_64 instructions.
-  case 'N': // unsigned 8-bit integer constant for use with in and out
-            // instructions.
-  case 'R': // "legacy" registers: ax, bx, cx, dx, di, si, sp, bp.
-    Info.setAllowsRegister();
     return true;
   }
+  return false;
 }
 
 std::string
@@ -1333,6 +1363,8 @@ public:
     // 300=386, 400=486, 500=Pentium, 600=Blend (default)
     // We lost the original triple, so we use the default.
     Builder.defineMacro("_M_IX86", "600");
+    Builder.defineMacro("_INTEGRAL_MAX_BITS", "64");
+    Builder.defineMacro("_STDCALL_SUPPORTED");
   }
 };
 } // end anonymous namespace
@@ -1388,7 +1420,7 @@ public:
     SizeType = UnsignedLong;
     IntPtrType = SignedLong;
     PtrDiffType = SignedLong;
-  }                                       	
+  }
   virtual void getTargetDefines(const LangOptions &Opts,
                                 MacroBuilder &Builder) const {
     X86_32TargetInfo::getTargetDefines(Opts, Builder);
@@ -1447,7 +1479,10 @@ public:
     TLSSupported = false;
     WCharType = UnsignedShort;
     LongWidth = LongAlign = 32;
-    DoubleAlign = LongLongAlign = 64;
+    DoubleAlign = LongLongAlign = 64;      
+    IntMaxType = SignedLongLong;
+    UIntMaxType = UnsignedLongLong;
+    Int64Type = SignedLongLong;
   }
   virtual void getTargetDefines(const LangOptions &Opts,
                                 MacroBuilder &Builder) const {
@@ -1469,9 +1504,10 @@ public:
                                 MacroBuilder &Builder) const {
     WindowsX86_64TargetInfo::getTargetDefines(Opts, Builder);
     Builder.defineMacro("_M_X64");
+    Builder.defineMacro("_INTEGRAL_MAX_BITS", "64");
   }
   virtual const char *getVAListDeclaration() const {
-    return "typedef char* va_list;";
+    return "typedef char* __builtin_va_list;";
   }
 };
 } // end anonymous namespace
@@ -1566,6 +1602,9 @@ public:
                            "i64:64:64-f32:32:32-f64:64:64-"
                            "v64:64:64-v128:128:128-a0:0:64-n32");
     }
+
+    // ARM targets default to using the ARM C++ ABI.
+    CXXABI = CXXABI_ARM;
   }
   virtual const char *getABI() const { return ABI.c_str(); }
   virtual bool setABI(const std::string &Name) {
@@ -1769,18 +1808,27 @@ public:
 };
 
 const char * const ARMTargetInfo::GCCRegNames[] = {
+  // Integer registers
   "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
-  "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
+  "r8", "r9", "r10", "r11", "r12", "sp", "lr", "pc",
+
+  // Float registers
+  "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
+  "s8", "s9", "s10", "s11", "s12", "s13", "s14", "s15",
+  "s16", "s17", "s18", "s19", "s20", "s21", "s22", "s23",
+  "s24", "s25", "s26", "s27", "s28", "s29", "s30", "s31"
+
+  // FIXME: Need double and NEON registers, but we need support for aliasing
+  // multiple registers for that.
 };
 
 void ARMTargetInfo::getGCCRegNames(const char * const *&Names,
-                                       unsigned &NumNames) const {
+                                   unsigned &NumNames) const {
   Names = GCCRegNames;
   NumNames = llvm::array_lengthof(GCCRegNames);
 }
 
 const TargetInfo::GCCRegAlias ARMTargetInfo::GCCRegAliases[] = {
-
   { { "a1" }, "r0" },
   { { "a2" }, "r1" },
   { { "a3" }, "r2" },
@@ -1794,9 +1842,9 @@ const TargetInfo::GCCRegAlias ARMTargetInfo::GCCRegAliases[] = {
   { { "sl" }, "r10" },
   { { "fp" }, "r11" },
   { { "ip" }, "r12" },
-  { { "sp" }, "r13" },
-  { { "lr" }, "r14" },
-  { { "pc" }, "r15" },
+  { { "r13" }, "sp" },
+  { { "r14" }, "lr" },
+  { { "r15" }, "pc" },
 };
 
 void ARMTargetInfo::getGCCRegAliases(const GCCRegAlias *&Aliases,
@@ -2603,7 +2651,7 @@ TargetInfo *TargetInfo::CreateTargetInfo(Diagnostic &Diags,
   }
 
   // Set the target C++ ABI.
-  if (!Target->setCXXABI(Opts.CXXABI)) {
+  if (!Opts.CXXABI.empty() && !Target->setCXXABI(Opts.CXXABI)) {
     Diags.Report(diag::err_target_unknown_cxxabi) << Opts.CXXABI;
     return 0;
   }

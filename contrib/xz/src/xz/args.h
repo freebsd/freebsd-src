@@ -37,6 +37,6 @@ extern bool opt_keep_original;
 // extern bool opt_recursive;
 extern bool opt_robot;
 
-extern const char *stdin_filename;
+extern const char stdin_filename[];
 
 extern void args_parse(args_info *args, int argc, char **argv);

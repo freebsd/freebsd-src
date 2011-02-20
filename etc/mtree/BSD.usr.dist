@@ -32,6 +32,8 @@
         ..
     ..
     libexec
+	bsdinstall
+	..
         lpr
             ru
             ..
@@ -201,8 +203,6 @@
             ..
             cvsup
             ..
-            dialog
-            ..
             diskless
             ..
             drivers
@@ -227,6 +227,8 @@
             ..
             iscsi
             ..
+            jails
+            ..
             kld
                 cdev
                     module
@@ -248,8 +250,6 @@
                     test
                     ..
                 ..
-            ..
-            libdialog
             ..
             libvgl
             ..

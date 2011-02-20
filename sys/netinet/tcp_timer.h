@@ -86,9 +86,6 @@
 #define	TCPTV_KEEPINTVL	( 75*hz)		/* default probe interval */
 #define	TCPTV_KEEPCNT	8			/* max probes before drop */
 
-#define	TCPTV_INFLIGHT_RTTTHRESH (10*hz/1000)	/* below which inflight
-						   disengages, in msec */
-
 #define TCPTV_FINWAIT2_TIMEOUT (60*hz)         /* FIN_WAIT_2 timeout if no receiver */
 
 /*

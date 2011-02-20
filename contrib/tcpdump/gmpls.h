@@ -23,12 +23,12 @@
 #define GMPLS_LSC  150
 #define GMPLS_FSC  200
 
-extern struct tok gmpls_link_prot_values[];
-extern struct tok gmpls_switch_cap_values[];
-extern struct tok gmpls_switch_cap_tsc_indication_values[];
-extern struct tok gmpls_encoding_values[];
-extern struct tok gmpls_payload_values[];
-extern struct tok diffserv_te_bc_values[];
-extern struct tok lmp_sd_service_config_cpsa_link_type_values[];
-extern struct tok lmp_sd_service_config_cpsa_signal_type_sdh_values[];
-extern struct tok lmp_sd_service_config_cpsa_signal_type_sonet_values[];
+extern const struct tok gmpls_link_prot_values[];
+extern const struct tok gmpls_switch_cap_values[];
+extern const struct tok gmpls_switch_cap_tsc_indication_values[];
+extern const struct tok gmpls_encoding_values[];
+extern const struct tok gmpls_payload_values[];
+extern const struct tok diffserv_te_bc_values[];
+extern const struct tok lmp_sd_service_config_cpsa_link_type_values[];
+extern const struct tok lmp_sd_service_config_cpsa_signal_type_sdh_values[];
+extern const struct tok lmp_sd_service_config_cpsa_signal_type_sonet_values[];

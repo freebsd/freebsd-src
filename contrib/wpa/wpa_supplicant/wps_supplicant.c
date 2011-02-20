@@ -1,6 +1,6 @@
 /*
  * wpa_supplicant / WPS integration
- * Copyright (c) 2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2008-2010, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,18 +15,23 @@
 #include "includes.h"
 
 #include "common.h"
-#include "ieee802_11_defs.h"
-#include "wpa_common.h"
-#include "config.h"
-#include "eap_peer/eap.h"
-#include "wpa_supplicant_i.h"
 #include "eloop.h"
 #include "uuid.h"
-#include "wpa_ctrl.h"
-#include "ctrl_iface_dbus.h"
+#include "crypto/dh_group5.h"
+#include "common/ieee802_11_defs.h"
+#include "common/ieee802_11_common.h"
+#include "common/wpa_common.h"
+#include "common/wpa_ctrl.h"
 #include "eap_common/eap_wsc_common.h"
+#include "eap_peer/eap.h"
+#include "rsn_supp/wpa.h"
+#include "config.h"
+#include "wpa_supplicant_i.h"
+#include "driver_i.h"
+#include "notify.h"
 #include "blacklist.h"
-#include "wpa.h"
+#include "bss.h"
+#include "scan.h"
 #include "wps_supplicant.h"
 
 
@@ -67,6 +72,8 @@ int wpas_wps_eapol_cb(struct wpa_supplicant *wpa_s)
 			   "try to associate with the received credential");
 		wpa_supplicant_deauthenticate(wpa_s,
 					      WLAN_REASON_DEAUTH_LEAVING);
+		wpa_s->after_wps = 5;
+		wpa_s->wps_freq = wpa_s->assoc_freq;
 		wpa_s->reassociate = 1;
 		wpa_supplicant_req_scan(wpa_s, 0, 0);
 		return 1;
@@ -90,8 +97,7 @@ static void wpas_wps_security_workaround(struct wpa_supplicant *wpa_s,
 					 const struct wps_credential *cred)
 {
 	struct wpa_driver_capa capa;
-	size_t i;
-	struct wpa_scan_res *bss;
+	struct wpa_bss *bss;
 	const u8 *ie;
 	struct wpa_ie_data adv;
 	int wpa2 = 0, ccmp = 0;
@@ -107,38 +113,22 @@ static void wpas_wps_security_workaround(struct wpa_supplicant *wpa_s,
 	if (wpa_drv_get_capa(wpa_s, &capa))
 		return; /* Unknown what driver supports */
 
-	if (wpa_supplicant_get_scan_results(wpa_s) || wpa_s->scan_res == NULL)
-		return; /* Could not get scan results for checking advertised
-			 * parameters */
-
-	for (i = 0; i < wpa_s->scan_res->num; i++) {
-		bss = wpa_s->scan_res->res[i];
-		if (os_memcmp(bss->bssid, cred->mac_addr, ETH_ALEN) != 0)
-			continue;
-		ie = wpa_scan_get_ie(bss, WLAN_EID_SSID);
-		if (ie == NULL)
-			continue;
-		if (ie[1] != ssid->ssid_len || ssid->ssid == NULL ||
-		    os_memcmp(ie + 2, ssid->ssid, ssid->ssid_len) != 0)
-			continue;
-
-		wpa_printf(MSG_DEBUG, "WPS: AP found from scan results");
-		break;
-	}
-
-	if (i == wpa_s->scan_res->num) {
-		wpa_printf(MSG_DEBUG, "WPS: The AP was not found from scan "
-			   "results - use credential as-is");
+	bss = wpa_bss_get(wpa_s, cred->mac_addr, ssid->ssid, ssid->ssid_len);
+	if (bss == NULL) {
+		wpa_printf(MSG_DEBUG, "WPS: The AP was not found from BSS "
+			   "table - use credential as-is");
 		return;
 	}
 
-	ie = wpa_scan_get_ie(bss, WLAN_EID_RSN);
+	wpa_printf(MSG_DEBUG, "WPS: AP found from BSS table");
+
+	ie = wpa_bss_get_ie(bss, WLAN_EID_RSN);
 	if (ie && wpa_parse_wpa_ie(ie, 2 + ie[1], &adv) == 0) {
 		wpa2 = 1;
 		if (adv.pairwise_cipher & WPA_CIPHER_CCMP)
 			ccmp = 1;
 	} else {
-		ie = wpa_scan_get_vendor_ie(bss, WPA_IE_VENDOR_TYPE);
+		ie = wpa_bss_get_vendor_ie(bss, WPA_IE_VENDOR_TYPE);
 		if (ie && wpa_parse_wpa_ie(ie, 2 + ie[1], &adv) == 0 &&
 		    adv.pairwise_cipher & WPA_CIPHER_CCMP)
 			ccmp = 1;
@@ -200,7 +190,8 @@ static int wpa_supplicant_wps_cred(void *ctx,
 				WPS_EVENT_CRED_RECEIVED, buf);
 			os_free(buf);
 		}
-		wpa_supplicant_dbus_notify_wps_cred(wpa_s, cred);
+
+		wpas_notify_wps_credential(wpa_s, cred);
 	} else
 		wpa_msg(wpa_s, MSG_INFO, WPS_EVENT_CRED_RECEIVED);
 
@@ -253,6 +244,7 @@ static int wpa_supplicant_wps_cred(void *ctx,
 		ssid = wpa_config_add_network(wpa_s->conf);
 		if (ssid == NULL)
 			return -1;
+		wpas_notify_network_added(wpa_s, ssid);
 	}
 
 	wpa_config_set_network_defaults(ssid);
@@ -385,6 +377,7 @@ static void wpa_supplicant_wps_event_m2d(struct wpa_supplicant *wpa_s,
 	wpa_msg(wpa_s, MSG_INFO, WPS_EVENT_M2D
 		"dev_password_id=%d config_error=%d",
 		m2d->dev_password_id, m2d->config_error);
+	wpas_notify_wps_event_m2d(wpa_s, m2d);
 }
 
 
@@ -393,6 +386,7 @@ static void wpa_supplicant_wps_event_fail(struct wpa_supplicant *wpa_s,
 {
 	wpa_msg(wpa_s, MSG_INFO, WPS_EVENT_FAIL "msg=%d", fail->msg);
 	wpas_clear_wps(wpa_s);
+	wpas_notify_wps_event_fail(wpa_s, fail);
 }
 
 
@@ -400,6 +394,77 @@ static void wpa_supplicant_wps_event_success(struct wpa_supplicant *wpa_s)
 {
 	wpa_msg(wpa_s, MSG_INFO, WPS_EVENT_SUCCESS);
 	wpa_s->wps_success = 1;
+	wpas_notify_wps_event_success(wpa_s);
+}
+
+
+static void wpa_supplicant_wps_event_er_ap_add(struct wpa_supplicant *wpa_s,
+					       struct wps_event_er_ap *ap)
+{
+	char uuid_str[100];
+	char dev_type[WPS_DEV_TYPE_BUFSIZE];
+
+	uuid_bin2str(ap->uuid, uuid_str, sizeof(uuid_str));
+	if (ap->pri_dev_type)
+		wps_dev_type_bin2str(ap->pri_dev_type, dev_type,
+				     sizeof(dev_type));
+	else
+		dev_type[0] = '\0';
+
+	wpa_msg(wpa_s, MSG_INFO, WPS_EVENT_ER_AP_ADD "%s " MACSTR
+		" pri_dev_type=%s wps_state=%d |%s|%s|%s|%s|%s|%s|",
+		uuid_str, MAC2STR(ap->mac_addr), dev_type, ap->wps_state,
+		ap->friendly_name ? ap->friendly_name : "",
+		ap->manufacturer ? ap->manufacturer : "",
+		ap->model_description ? ap->model_description : "",
+		ap->model_name ? ap->model_name : "",
+		ap->manufacturer_url ? ap->manufacturer_url : "",
+		ap->model_url ? ap->model_url : "");
+}
+
+
+static void wpa_supplicant_wps_event_er_ap_remove(struct wpa_supplicant *wpa_s,
+						  struct wps_event_er_ap *ap)
+{
+	char uuid_str[100];
+	uuid_bin2str(ap->uuid, uuid_str, sizeof(uuid_str));
+	wpa_msg(wpa_s, MSG_INFO, WPS_EVENT_ER_AP_REMOVE "%s", uuid_str);
+}
+
+
+static void wpa_supplicant_wps_event_er_enrollee_add(
+	struct wpa_supplicant *wpa_s, struct wps_event_er_enrollee *enrollee)
+{
+	char uuid_str[100];
+	char dev_type[WPS_DEV_TYPE_BUFSIZE];
+
+	uuid_bin2str(enrollee->uuid, uuid_str, sizeof(uuid_str));
+	if (enrollee->pri_dev_type)
+		wps_dev_type_bin2str(enrollee->pri_dev_type, dev_type,
+				     sizeof(dev_type));
+	else
+		dev_type[0] = '\0';
+
+	wpa_msg(wpa_s, MSG_INFO, WPS_EVENT_ER_ENROLLEE_ADD "%s " MACSTR
+		" M1=%d config_methods=0x%x dev_passwd_id=%d pri_dev_type=%s "
+		"|%s|%s|%s|%s|%s|",
+		uuid_str, MAC2STR(enrollee->mac_addr), enrollee->m1_received,
+		enrollee->config_methods, enrollee->dev_passwd_id, dev_type,
+		enrollee->dev_name ? enrollee->dev_name : "",
+		enrollee->manufacturer ? enrollee->manufacturer : "",
+		enrollee->model_name ? enrollee->model_name : "",
+		enrollee->model_number ? enrollee->model_number : "",
+		enrollee->serial_number ? enrollee->serial_number : "");
+}
+
+
+static void wpa_supplicant_wps_event_er_enrollee_remove(
+	struct wpa_supplicant *wpa_s, struct wps_event_er_enrollee *enrollee)
+{
+	char uuid_str[100];
+	uuid_bin2str(enrollee->uuid, uuid_str, sizeof(uuid_str));
+	wpa_msg(wpa_s, MSG_INFO, WPS_EVENT_ER_ENROLLEE_REMOVE "%s " MACSTR,
+		uuid_str, MAC2STR(enrollee->mac_addr));
 }
 
 
@@ -423,6 +488,20 @@ static void wpa_supplicant_wps_event(void *ctx, enum wps_event event,
 		break;
 	case WPS_EV_PBC_TIMEOUT:
 		break;
+	case WPS_EV_ER_AP_ADD:
+		wpa_supplicant_wps_event_er_ap_add(wpa_s, &data->ap);
+		break;
+	case WPS_EV_ER_AP_REMOVE:
+		wpa_supplicant_wps_event_er_ap_remove(wpa_s, &data->ap);
+		break;
+	case WPS_EV_ER_ENROLLEE_ADD:
+		wpa_supplicant_wps_event_er_enrollee_add(wpa_s,
+							 &data->enrollee);
+		break;
+	case WPS_EV_ER_ENROLLEE_REMOVE:
+		wpa_supplicant_wps_event_er_enrollee_remove(wpa_s,
+							    &data->enrollee);
+		break;
 	}
 }
 
@@ -440,7 +519,7 @@ enum wps_request_type wpas_wps_get_req_type(struct wpa_ssid *ssid)
 static void wpas_clear_wps(struct wpa_supplicant *wpa_s)
 {
 	int id;
-	struct wpa_ssid *ssid;
+	struct wpa_ssid *ssid, *remove_ssid = NULL;
 
 	eloop_cancel_timeout(wpas_wps_timeout, wpa_s, NULL);
 
@@ -448,14 +527,20 @@ static void wpas_clear_wps(struct wpa_supplicant *wpa_s)
 	ssid = wpa_s->conf->ssid;
 	while (ssid) {
 		if (ssid->key_mgmt & WPA_KEY_MGMT_WPS) {
-			if (ssid == wpa_s->current_ssid)
+			if (ssid == wpa_s->current_ssid) {
 				wpa_s->current_ssid = NULL;
+				if (ssid != NULL)
+					wpas_notify_network_changed(wpa_s);
+			}
 			id = ssid->id;
+			remove_ssid = ssid;
 		} else
 			id = -1;
 		ssid = ssid->next;
-		if (id >= 0)
+		if (id >= 0) {
+			wpas_notify_network_removed(wpa_s, remove_ssid);
 			wpa_config_remove_network(wpa_s->conf, id);
+		}
 	}
 }
 
@@ -477,45 +562,35 @@ static struct wpa_ssid * wpas_wps_add_network(struct wpa_supplicant *wpa_s,
 	ssid = wpa_config_add_network(wpa_s->conf);
 	if (ssid == NULL)
 		return NULL;
+	wpas_notify_network_added(wpa_s, ssid);
 	wpa_config_set_network_defaults(ssid);
 	if (wpa_config_set(ssid, "key_mgmt", "WPS", 0) < 0 ||
 	    wpa_config_set(ssid, "eap", "WSC", 0) < 0 ||
 	    wpa_config_set(ssid, "identity", registrar ?
 			   "\"" WSC_ID_REGISTRAR "\"" :
 			   "\"" WSC_ID_ENROLLEE "\"", 0) < 0) {
+		wpas_notify_network_removed(wpa_s, ssid);
 		wpa_config_remove_network(wpa_s->conf, ssid->id);
 		return NULL;
 	}
 
 	if (bssid) {
-		size_t i;
+		struct wpa_bss *bss;
 		int count = 0;
 
 		os_memcpy(ssid->bssid, bssid, ETH_ALEN);
 		ssid->bssid_set = 1;
 
-		/* Try to get SSID from scan results */
-		if (wpa_s->scan_res == NULL &&
-		    wpa_supplicant_get_scan_results(wpa_s) < 0)
-			return ssid; /* Could not find any scan results */
-
-		for (i = 0; i < wpa_s->scan_res->num; i++) {
-			const u8 *ie;
-			struct wpa_scan_res *res;
-
-			res = wpa_s->scan_res->res[i];
-			if (os_memcmp(bssid, res->bssid, ETH_ALEN) != 0)
+		dl_list_for_each(bss, &wpa_s->bss, struct wpa_bss, list) {
+			if (os_memcmp(bssid, bss->bssid, ETH_ALEN) != 0)
 				continue;
 
-			ie = wpa_scan_get_ie(res, WLAN_EID_SSID);
-			if (ie == NULL)
-				break;
 			os_free(ssid->ssid);
-			ssid->ssid = os_malloc(ie[1]);
+			ssid->ssid = os_malloc(bss->ssid_len);
 			if (ssid->ssid == NULL)
 				break;
-			os_memcpy(ssid->ssid, ie + 2, ie[1]);
-			ssid->ssid_len = ie[1];
+			os_memcpy(ssid->ssid, bss->ssid, bss->ssid_len);
+			ssid->ssid_len = bss->ssid_len;
 			wpa_hexdump_ascii(MSG_DEBUG, "WPS: Picked SSID from "
 					  "scan results",
 					  ssid->ssid, ssid->ssid_len);
@@ -543,7 +618,10 @@ static void wpas_wps_reassoc(struct wpa_supplicant *wpa_s,
 	/* Mark all other networks disabled and trigger reassociation */
 	ssid = wpa_s->conf->ssid;
 	while (ssid) {
+		int was_disabled = ssid->disabled;
 		ssid->disabled = ssid != selected;
+		if (was_disabled != ssid->disabled)
+			wpas_notify_network_enabled_changed(wpa_s, ssid);
 		ssid = ssid->next;
 	}
 	wpa_s->disconnected = 0;
@@ -574,7 +652,7 @@ int wpas_wps_start_pin(struct wpa_supplicant *wpa_s, const u8 *bssid,
 		       const char *pin)
 {
 	struct wpa_ssid *ssid;
-	char val[30];
+	char val[128];
 	unsigned int rpin = 0;
 
 	wpas_clear_wps(wpa_s);
@@ -595,11 +673,63 @@ int wpas_wps_start_pin(struct wpa_supplicant *wpa_s, const u8 *bssid,
 }
 
 
+#ifdef CONFIG_WPS_OOB
+int wpas_wps_start_oob(struct wpa_supplicant *wpa_s, char *device_type,
+		       char *path, char *method, char *name)
+{
+	struct wps_context *wps = wpa_s->wps;
+	struct oob_device_data *oob_dev;
+
+	oob_dev = wps_get_oob_device(device_type);
+	if (oob_dev == NULL)
+		return -1;
+	oob_dev->device_path = path;
+	oob_dev->device_name = name;
+	wps->oob_conf.oob_method = wps_get_oob_method(method);
+
+	if (wps->oob_conf.oob_method == OOB_METHOD_DEV_PWD_E) {
+		/*
+		 * Use pre-configured DH keys in order to be able to write the
+		 * key hash into the OOB file.
+		 */
+		wpabuf_free(wps->dh_pubkey);
+		wpabuf_free(wps->dh_privkey);
+		wps->dh_privkey = NULL;
+		wps->dh_pubkey = NULL;
+		dh5_free(wps->dh_ctx);
+		wps->dh_ctx = dh5_init(&wps->dh_privkey, &wps->dh_pubkey);
+		wps->dh_pubkey = wpabuf_zeropad(wps->dh_pubkey, 192);
+		if (wps->dh_ctx == NULL || wps->dh_pubkey == NULL) {
+			wpa_printf(MSG_ERROR, "WPS: Failed to initialize "
+				   "Diffie-Hellman handshake");
+			return -1;
+		}
+	}
+
+	if (wps->oob_conf.oob_method == OOB_METHOD_CRED)
+		wpas_clear_wps(wpa_s);
+
+	if (wps_process_oob(wps, oob_dev, 0) < 0)
+		return -1;
+
+	if ((wps->oob_conf.oob_method == OOB_METHOD_DEV_PWD_E ||
+	     wps->oob_conf.oob_method == OOB_METHOD_DEV_PWD_R) &&
+	    wpas_wps_start_pin(wpa_s, NULL,
+			       wpabuf_head(wps->oob_conf.dev_password)) < 0)
+			return -1;
+
+	return 0;
+}
+#endif /* CONFIG_WPS_OOB */
+
+
 int wpas_wps_start_reg(struct wpa_supplicant *wpa_s, const u8 *bssid,
-		       const char *pin)
+		       const char *pin, struct wps_new_ap_settings *settings)
 {
 	struct wpa_ssid *ssid;
-	char val[30];
+	char val[200];
+	char *pos, *end;
+	int res;
 
 	if (!pin)
 		return -1;
@@ -607,7 +737,24 @@ int wpas_wps_start_reg(struct wpa_supplicant *wpa_s, const u8 *bssid,
 	ssid = wpas_wps_add_network(wpa_s, 1, bssid);
 	if (ssid == NULL)
 		return -1;
-	os_snprintf(val, sizeof(val), "\"pin=%s\"", pin);
+	pos = val;
+	end = pos + sizeof(val);
+	res = os_snprintf(pos, end - pos, "\"pin=%s", pin);
+	if (res < 0 || res >= end - pos)
+		return -1;
+	pos += res;
+	if (settings) {
+		res = os_snprintf(pos, end - pos, " new_ssid=%s new_auth=%s "
+				  "new_encr=%s new_key=%s",
+				  settings->ssid_hex, settings->auth,
+				  settings->encr, settings->key_hex);
+		if (res < 0 || res >= end - pos)
+			return -1;
+		pos += res;
+	}
+	res = os_snprintf(pos, end - pos, "\"");
+	if (res < 0 || res >= end - pos)
+		return -1;
 	wpa_config_set(ssid, "phase1", val, 0);
 	eloop_register_timeout(WPS_PBC_WALK_TIME, 0, wpas_wps_timeout,
 			       wpa_s, NULL);
@@ -634,17 +781,33 @@ static void wpas_wps_pin_needed_cb(void *ctx, const u8 *uuid_e,
 {
 	char uuid[40], txt[400];
 	int len;
+	char devtype[WPS_DEV_TYPE_BUFSIZE];
 	if (uuid_bin2str(uuid_e, uuid, sizeof(uuid)))
 		return;
 	wpa_printf(MSG_DEBUG, "WPS: PIN needed for UUID-E %s", uuid);
 	len = os_snprintf(txt, sizeof(txt), "WPS-EVENT-PIN-NEEDED %s " MACSTR
-			  " [%s|%s|%s|%s|%s|%d-%08X-%d]",
+			  " [%s|%s|%s|%s|%s|%s]",
 			  uuid, MAC2STR(dev->mac_addr), dev->device_name,
 			  dev->manufacturer, dev->model_name,
 			  dev->model_number, dev->serial_number,
-			  dev->categ, dev->oui, dev->sub_categ);
+			  wps_dev_type_bin2str(dev->pri_dev_type, devtype,
+					       sizeof(devtype)));
 	if (len > 0 && len < (int) sizeof(txt))
 		wpa_printf(MSG_INFO, "%s", txt);
+}
+
+
+static void wpas_wps_set_sel_reg_cb(void *ctx, int sel_reg, u16 dev_passwd_id,
+				    u16 sel_reg_config_methods)
+{
+#ifdef CONFIG_WPS_ER
+	struct wpa_supplicant *wpa_s = ctx;
+
+	if (wpa_s->wps_er == NULL)
+		return;
+	wps_er_set_sel_reg(wpa_s->wps_er, sel_reg, dev_passwd_id,
+			   sel_reg_config_methods);
+#endif /* CONFIG_WPS_ER */
 }
 
 
@@ -666,32 +829,14 @@ int wpas_wps_init(struct wpa_supplicant *wpa_s)
 	wps->dev.model_name = wpa_s->conf->model_name;
 	wps->dev.model_number = wpa_s->conf->model_number;
 	wps->dev.serial_number = wpa_s->conf->serial_number;
-	if (wpa_s->conf->device_type) {
-		char *pos;
-		u8 oui[4];
-		/* <categ>-<OUI>-<subcateg> */
-		wps->dev.categ = atoi(wpa_s->conf->device_type);
-		pos = os_strchr(wpa_s->conf->device_type, '-');
-		if (pos == NULL) {
-			wpa_printf(MSG_ERROR, "WPS: Invalid device_type");
-			os_free(wps);
-			return -1;
-		}
-		pos++;
-		if (hexstr2bin(pos, oui, 4)) {
-			wpa_printf(MSG_ERROR, "WPS: Invalid device_type OUI");
-			os_free(wps);
-			return -1;
-		}
-		wps->dev.oui = WPA_GET_BE32(oui);
-		pos = os_strchr(pos, '-');
-		if (pos == NULL) {
-			wpa_printf(MSG_ERROR, "WPS: Invalid device_type");
-			os_free(wps);
-			return -1;
-		}
-		pos++;
-		wps->dev.sub_categ = atoi(pos);
+	wps->config_methods =
+		wps_config_methods_str2bin(wpa_s->conf->config_methods);
+	if (wpa_s->conf->device_type &&
+	    wps_dev_type_str2bin(wpa_s->conf->device_type,
+				 wps->dev.pri_dev_type) < 0) {
+		wpa_printf(MSG_ERROR, "WPS: Invalid device_type");
+		os_free(wps);
+		return -1;
 	}
 	wps->dev.os_version = WPA_GET_BE32(wpa_s->conf->os_version);
 	wps->dev.rf_bands = WPS_RF_24GHZ | WPS_RF_50GHZ; /* TODO: config */
@@ -709,6 +854,7 @@ int wpas_wps_init(struct wpa_supplicant *wpa_s)
 	os_memset(&rcfg, 0, sizeof(rcfg));
 	rcfg.new_psk_cb = wpas_wps_new_psk_cb;
 	rcfg.pin_needed_cb = wpas_wps_pin_needed_cb;
+	rcfg.set_sel_reg_cb = wpas_wps_set_sel_reg_cb;
 	rcfg.cb_ctx = wpa_s;
 
 	wps->registrar = wps_registrar_init(wps, &rcfg);
@@ -731,7 +877,16 @@ void wpas_wps_deinit(struct wpa_supplicant *wpa_s)
 	if (wpa_s->wps == NULL)
 		return;
 
+#ifdef CONFIG_WPS_ER
+	wps_er_deinit(wpa_s->wps_er, NULL, NULL);
+	wpa_s->wps_er = NULL;
+#endif /* CONFIG_WPS_ER */
+
 	wps_registrar_deinit(wpa_s->wps->registrar);
+	wpabuf_free(wpa_s->wps->dh_pubkey);
+	wpabuf_free(wpa_s->wps->dh_privkey);
+	wpabuf_free(wpa_s->wps->oob_conf.pubkey_hash);
+	wpabuf_free(wpa_s->wps->oob_conf.dev_password);
 	os_free(wpa_s->wps->network_key);
 	os_free(wpa_s->wps);
 	wpa_s->wps = NULL;
@@ -841,30 +996,28 @@ int wpas_wps_ssid_wildcard_ok(struct wpa_supplicant *wpa_s,
 
 
 int wpas_wps_scan_pbc_overlap(struct wpa_supplicant *wpa_s,
-			      struct wpa_scan_res *selected,
-			      struct wpa_ssid *ssid)
+			      struct wpa_bss *selected, struct wpa_ssid *ssid)
 {
 	const u8 *sel_uuid, *uuid;
-	size_t i;
 	struct wpabuf *wps_ie;
 	int ret = 0;
+	struct wpa_bss *bss;
 
 	if (!eap_is_wps_pbc_enrollee(&ssid->eap))
 		return 0;
 
 	/* Make sure that only one AP is in active PBC mode */
-	wps_ie = wpa_scan_get_vendor_ie_multi(selected, WPS_IE_VENDOR_TYPE);
+	wps_ie = wpa_bss_get_vendor_ie_multi(selected, WPS_IE_VENDOR_TYPE);
 	if (wps_ie)
 		sel_uuid = wps_get_uuid_e(wps_ie);
 	else
 		sel_uuid = NULL;
 
-	for (i = 0; i < wpa_s->scan_res->num; i++) {
-		struct wpa_scan_res *bss = wpa_s->scan_res->res[i];
+	dl_list_for_each(bss, &wpa_s->bss, struct wpa_bss, list) {
 		struct wpabuf *ie;
 		if (bss == selected)
 			continue;
-		ie = wpa_scan_get_vendor_ie_multi(bss, WPS_IE_VENDOR_TYPE);
+		ie = wpa_bss_get_vendor_ie_multi(bss, WPS_IE_VENDOR_TYPE);
 		if (!ie)
 			continue;
 		if (!wps_is_selected_pbc_registrar(ie)) {
@@ -892,23 +1045,25 @@ int wpas_wps_scan_pbc_overlap(struct wpa_supplicant *wpa_s,
 
 void wpas_wps_notify_scan_results(struct wpa_supplicant *wpa_s)
 {
-	size_t i;
+	struct wpa_bss *bss;
 
 	if (wpa_s->disconnected || wpa_s->wpa_state >= WPA_ASSOCIATED)
 		return;
 
-	for (i = 0; i < wpa_s->scan_res->num; i++) {
-		struct wpa_scan_res *bss = wpa_s->scan_res->res[i];
+	dl_list_for_each(bss, &wpa_s->bss, struct wpa_bss, list) {
 		struct wpabuf *ie;
-		ie = wpa_scan_get_vendor_ie_multi(bss, WPS_IE_VENDOR_TYPE);
+		ie = wpa_bss_get_vendor_ie_multi(bss, WPS_IE_VENDOR_TYPE);
 		if (!ie)
 			continue;
 		if (wps_is_selected_pbc_registrar(ie))
-			wpa_msg(wpa_s, MSG_INFO, WPS_EVENT_AP_AVAILABLE_PBC);
+			wpa_msg_ctrl(wpa_s, MSG_INFO,
+				     WPS_EVENT_AP_AVAILABLE_PBC);
 		else if (wps_is_selected_pin_registrar(ie))
-			wpa_msg(wpa_s, MSG_INFO, WPS_EVENT_AP_AVAILABLE_PIN);
+			wpa_msg_ctrl(wpa_s, MSG_INFO,
+				     WPS_EVENT_AP_AVAILABLE_PIN);
 		else
-			wpa_msg(wpa_s, MSG_INFO, WPS_EVENT_AP_AVAILABLE);
+			wpa_msg_ctrl(wpa_s, MSG_INFO,
+				     WPS_EVENT_AP_AVAILABLE);
 		wpabuf_free(ie);
 		break;
 	}
@@ -924,5 +1079,107 @@ int wpas_wps_searching(struct wpa_supplicant *wpa_s)
 			return 1;
 	}
 
+	return 0;
+}
+
+
+int wpas_wps_scan_result_text(const u8 *ies, size_t ies_len, char *buf,
+			      char *end)
+{
+	struct wpabuf *wps_ie;
+	int ret;
+
+	wps_ie = ieee802_11_vendor_ie_concat(ies, ies_len, WPS_DEV_OUI_WFA);
+	if (wps_ie == NULL)
+		return 0;
+
+	ret = wps_attr_text(wps_ie, buf, end);
+	wpabuf_free(wps_ie);
+	return ret;
+}
+
+
+int wpas_wps_er_start(struct wpa_supplicant *wpa_s)
+{
+#ifdef CONFIG_WPS_ER
+	if (wpa_s->wps_er) {
+		wps_er_refresh(wpa_s->wps_er);
+		return 0;
+	}
+	wpa_s->wps_er = wps_er_init(wpa_s->wps, wpa_s->ifname);
+	if (wpa_s->wps_er == NULL)
+		return -1;
+	return 0;
+#else /* CONFIG_WPS_ER */
+	return 0;
+#endif /* CONFIG_WPS_ER */
+}
+
+
+int wpas_wps_er_stop(struct wpa_supplicant *wpa_s)
+{
+#ifdef CONFIG_WPS_ER
+	wps_er_deinit(wpa_s->wps_er, NULL, NULL);
+	wpa_s->wps_er = NULL;
+#endif /* CONFIG_WPS_ER */
+	return 0;
+}
+
+
+#ifdef CONFIG_WPS_ER
+int wpas_wps_er_add_pin(struct wpa_supplicant *wpa_s, const char *uuid,
+			const char *pin)
+{
+	u8 u[UUID_LEN];
+	int any = 0;
+
+	if (os_strcmp(uuid, "any") == 0)
+		any = 1;
+	else if (uuid_str2bin(uuid, u))
+		return -1;
+	return wps_registrar_add_pin(wpa_s->wps->registrar, any ? NULL : u,
+				     (const u8 *) pin, os_strlen(pin), 300);
+}
+
+
+int wpas_wps_er_pbc(struct wpa_supplicant *wpa_s, const char *uuid)
+{
+	u8 u[UUID_LEN];
+
+	if (uuid_str2bin(uuid, u))
+		return -1;
+	return wps_er_pbc(wpa_s->wps_er, u);
+}
+
+
+int wpas_wps_er_learn(struct wpa_supplicant *wpa_s, const char *uuid,
+		      const char *pin)
+{
+	u8 u[UUID_LEN];
+
+	if (uuid_str2bin(uuid, u))
+		return -1;
+	return wps_er_learn(wpa_s->wps_er, u, (const u8 *) pin,
+			    os_strlen(pin));
+}
+
+
+static void wpas_wps_terminate_cb(void *ctx)
+{
+	wpa_printf(MSG_DEBUG, "WPS ER: Terminated");
+	eloop_terminate();
+}
+#endif /* CONFIG_WPS_ER */
+
+
+int wpas_wps_terminate_pending(struct wpa_supplicant *wpa_s)
+{
+#ifdef CONFIG_WPS_ER
+	if (wpa_s->wps_er) {
+		wps_er_deinit(wpa_s->wps_er, wpas_wps_terminate_cb, wpa_s);
+		wpa_s->wps_er = NULL;
+		return 1;
+	}
+#endif /* CONFIG_WPS_ER */
 	return 0;
 }

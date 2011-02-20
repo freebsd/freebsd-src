@@ -111,7 +111,6 @@ typedef struct ae_softc	{
 
 	struct mtx		mtx;
 
-	int			phyaddr;
 	uint8_t			eaddr[ETHER_ADDR_LEN];
 	uint8_t			flags;
 	int			if_flags;
@@ -120,7 +119,6 @@ typedef struct ae_softc	{
 
 	/* Tasks. */
 	struct task		int_task;
-	struct task		tx_task;
 	struct task		link_task;
 	struct taskqueue	*tq;
 	

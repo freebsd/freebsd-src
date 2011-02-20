@@ -187,6 +187,8 @@ static VAR var[] = {
 		UINT, UIDFMT, 0},
 	{"svuid", "SVUID", NULL, 0, kvar, NULL, UIDLEN, KOFF(ki_svuid),
 		UINT, UIDFMT, 0},
+	{"tdaddr", "TDADDR", NULL, 0, kvar, NULL, sizeof(void *) * 2,
+		KOFF(ki_tdaddr), KPTR, "lx", 0},
 	{"tdev", "TDEV", NULL, 0, tdev, NULL, 5, 0, CHAR, NULL, 0},
 	{"tdnam", "TDNAM", NULL, LJUST, tdnam, NULL, COMMLEN, 0, CHAR, NULL, 0},
 	{"time", "TIME", NULL, USER, cputime, NULL, 9, 0, CHAR, NULL, 0},

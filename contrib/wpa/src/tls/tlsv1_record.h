@@ -15,7 +15,7 @@
 #ifndef TLSV1_RECORD_H
 #define TLSV1_RECORD_H
 
-#include "crypto.h"
+#include "crypto/crypto.h"
 
 #define TLS_MAX_WRITE_MAC_SECRET_LEN 20
 #define TLS_MAX_WRITE_KEY_LEN 32

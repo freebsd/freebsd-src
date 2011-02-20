@@ -2365,7 +2365,8 @@ freebsd32_nmount(struct thread *td,
 	 * Filter out MNT_ROOTFS.  We do not want clients of nmount() in
 	 * userspace to set this flag, but we must filter it out if we want
 	 * MNT_UPDATE on the root file system to work.
-	 * MNT_ROOTFS should only be set in the kernel in vfs_mountroot_try().
+	 * MNT_ROOTFS should only be set by the kernel when mounting its
+	 * root file system.
 	 */
 	uap->flags &= ~MNT_ROOTFS;
 
@@ -2545,7 +2546,10 @@ freebsd32_copyout_strings(struct image_params *imgp)
 		execpath_len = 0;
 	arginfo = (struct freebsd32_ps_strings *)curproc->p_sysent->
 	    sv_psstrings;
-	szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
+	if (imgp->proc->p_sysent->sv_sigcode_base == 0)
+		szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
+	else
+		szsigcode = 0;
 	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
 	    roundup(execpath_len, sizeof(char *)) -
 	    roundup(sizeof(canary), sizeof(char *)) -
@@ -2555,7 +2559,7 @@ freebsd32_copyout_strings(struct image_params *imgp)
 	/*
 	 * install sigcode
 	 */
-	if (szsigcode)
+	if (szsigcode != 0)
 		copyout(imgp->proc->p_sysent->sv_sigcode,
 			((caddr_t)arginfo - szsigcode), szsigcode);
 

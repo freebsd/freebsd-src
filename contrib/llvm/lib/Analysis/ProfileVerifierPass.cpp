@@ -59,10 +59,10 @@ namespace llvm {
   public:
     static char ID; // Class identification, replacement for typeinfo
 
-    explicit ProfileVerifierPassT () : FunctionPass(&ID) {
+    explicit ProfileVerifierPassT () : FunctionPass(ID) {
       DisableAssertions = ProfileVerifierDisableAssertions;
     }
-    explicit ProfileVerifierPassT (bool da) : FunctionPass(&ID), 
+    explicit ProfileVerifierPassT (bool da) : FunctionPass(ID), 
                                               DisableAssertions(da) {
     }
 
@@ -366,8 +366,8 @@ namespace llvm {
   char ProfileVerifierPassT<FType, BType>::ID = 0;
 }
 
-static RegisterPass<ProfileVerifierPass>
-X("profile-verifier", "Verify profiling information", false, true);
+INITIALIZE_PASS(ProfileVerifierPass, "profile-verifier",
+                "Verify profiling information", false, true);
 
 namespace llvm {
   FunctionPass *createProfileVerifierPass() {

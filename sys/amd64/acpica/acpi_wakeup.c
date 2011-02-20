@@ -41,13 +41,13 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/intr_machdep.h>
-#include <machine/mca.h>
+#include <x86/mca.h>
 #include <machine/pcb.h>
 #include <machine/pmap.h>
 #include <machine/specialreg.h>
 
 #ifdef SMP
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 #include <machine/smp.h>
 #include <machine/vmparam.h>
 #endif
@@ -278,6 +278,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		for (;;)
 			ia32_pause();
 	} else {
+		pmap_init_pat();
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
 #ifdef SMP
@@ -372,7 +373,6 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	WAKECODE_FIXUP(wakeup_ctx, vm_offset_t,
 	    WAKECODE_VADDR(sc) + wakeup_ctx);
 	WAKECODE_FIXUP(wakeup_efer, uint64_t, rdmsr(MSR_EFER));
-	WAKECODE_FIXUP(wakeup_pat, uint64_t, rdmsr(MSR_PAT));
 	WAKECODE_FIXUP(wakeup_star, uint64_t, rdmsr(MSR_STAR));
 	WAKECODE_FIXUP(wakeup_lstar, uint64_t, rdmsr(MSR_LSTAR));
 	WAKECODE_FIXUP(wakeup_cstar, uint64_t, rdmsr(MSR_CSTAR));

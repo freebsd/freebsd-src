@@ -3,7 +3,7 @@
 .include <bsd.own.mk>
 
 # XXX: clang can compile the boot code just fine, but boot2 gets too big
-CC:=${CC:C/^cc|^clang/gcc/}
+CC:=${CC:C/^(.*\/)?clang$/gcc/1}
 
 FILES=		boot boot1 boot2
 
@@ -31,7 +31,6 @@ CFLAGS=	-Os \
 	-fno-unit-at-a-time \
 	-mno-align-long-strings \
 	-mrtd \
-	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 \
 	-D${BOOT2_UFS} \
 	-DFLAGS=${BOOT_BOOT1_FLAGS} \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \

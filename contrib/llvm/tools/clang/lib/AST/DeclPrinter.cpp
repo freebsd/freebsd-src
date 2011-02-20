@@ -198,6 +198,12 @@ void DeclPrinter::VisitDeclContext(DeclContext *DC, bool Indent) {
   llvm::SmallVector<Decl*, 2> Decls;
   for (DeclContext::decl_iterator D = DC->decls_begin(), DEnd = DC->decls_end();
        D != DEnd; ++D) {
+
+    // Don't print ObjCIvarDecls, as they are printed when visiting the
+    // containing ObjCInterfaceDecl.
+    if (isa<ObjCIvarDecl>(*D))
+      continue;
+
     if (!Policy.Dump) {
       // Skip over implicit declarations in pretty-printing mode.
       if (D->isImplicit()) continue;
@@ -329,10 +335,11 @@ void DeclPrinter::VisitEnumConstantDecl(EnumConstantDecl *D) {
 void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
   if (!Policy.SuppressSpecifiers) {
     switch (D->getStorageClass()) {
-    case FunctionDecl::None: break;
-    case FunctionDecl::Extern: Out << "extern "; break;
-    case FunctionDecl::Static: Out << "static "; break;
-    case FunctionDecl::PrivateExtern: Out << "__private_extern__ "; break;
+    case SC_None: break;
+    case SC_Extern: Out << "extern "; break;
+    case SC_Static: Out << "static "; break;
+    case SC_PrivateExtern: Out << "__private_extern__ "; break;
+    case SC_Auto: case SC_Register: llvm_unreachable("invalid for functions");
     }
 
     if (D->isInlineSpecified())           Out << "inline ";
@@ -341,7 +348,7 @@ void DeclPrinter::VisitFunctionDecl(FunctionDecl *D) {
 
   PrintingPolicy SubPolicy(Policy);
   SubPolicy.SuppressSpecifiers = false;
-  std::string Proto = D->getNameAsString();
+  std::string Proto = D->getNameInfo().getAsString();
   if (isa<FunctionType>(D->getType().getTypePtr())) {
     const FunctionType *AFT = D->getType()->getAs<FunctionType>();
 
@@ -499,7 +506,7 @@ void DeclPrinter::VisitFieldDecl(FieldDecl *D) {
 }
 
 void DeclPrinter::VisitVarDecl(VarDecl *D) {
-  if (!Policy.SuppressSpecifiers && D->getStorageClass() != VarDecl::None)
+  if (!Policy.SuppressSpecifiers && D->getStorageClass() != SC_None)
     Out << VarDecl::getStorageClassSpecifierString(D->getStorageClass()) << " ";
 
   if (!Policy.SuppressSpecifiers && D->isThreadSpecified())

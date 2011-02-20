@@ -30,8 +30,11 @@
 #define	_MACHINE_PTE_H_
 
 #ifndef _LOCORE
-/* pt_entry_t is 32 bit for now, has to be made 64 bit for n64 */
+#if defined(__mips_n64) || defined(__mips_n32) /*  PHYSADDR_64_BIT */
+typedef	uint64_t pt_entry_t;
+#else
 typedef	uint32_t pt_entry_t;
+#endif
 typedef	pt_entry_t *pd_entry_t;
 #endif
 
@@ -61,10 +64,15 @@ typedef	pt_entry_t *pd_entry_t;
  * written as anything, but otherwise they have as much meaning as
  * other 0 fields.
  */
+#if defined(__mips_n64) || defined(__mips_n32) /*  PHYSADDR_64_BIT */
+#define	TLBLO_SWBITS_SHIFT	(34)
+#define	TLBLO_PFN_MASK		0x3FFFFFFC0ULL
+#else
 #define	TLBLO_SWBITS_SHIFT	(30)
-#define	TLBLO_SWBITS_MASK	(0x3U << TLBLO_SWBITS_SHIFT)
-#define	TLBLO_PFN_SHIFT		(6)
 #define	TLBLO_PFN_MASK		(0x3FFFFFC0)
+#endif
+#define	TLBLO_PFN_SHIFT		(6)
+#define	TLBLO_SWBITS_MASK	((pt_entry_t)0x3 << TLBLO_SWBITS_SHIFT)
 #define	TLBLO_PA_TO_PFN(pa)	((((pa) >> TLB_PAGE_SHIFT) << TLBLO_PFN_SHIFT) & TLBLO_PFN_MASK)
 #define	TLBLO_PFN_TO_PA(pfn)	((vm_paddr_t)((pfn) >> TLBLO_PFN_SHIFT) << TLB_PAGE_SHIFT)
 #define	TLBLO_PTE_TO_PFN(pte)	((pte) & TLBLO_PFN_MASK)
@@ -96,10 +104,10 @@ typedef	pt_entry_t *pd_entry_t;
 #define	TLBHI_ENTRY(va, asid)	((TLBHI_VA_R((va))) /* Region. */ | \
 				 (TLBHI_VA_TO_VPN2((va))) /* VPN2. */ | \
 				 ((asid) & TLBHI_ASID_MASK))
-#else
+#else /* !defined(__mips_n64) */
 #define	TLBHI_PAGE_MASK		(2 * PAGE_SIZE - 1)
 #define	TLBHI_ENTRY(va, asid)	(((va) & ~TLBHI_PAGE_MASK) | ((asid) & TLBHI_ASID_MASK))
-#endif
+#endif /* defined(__mips_n64) */
 
 /*
  * TLB flags managed in hardware:
@@ -112,12 +120,12 @@ typedef	pt_entry_t *pd_entry_t;
  * 		in EVERY address space, and to ignore the ASID when
  * 		it is matched.
  */
-#define	PTE_C(attr)	((attr & 0x07) << 3)
-#define	PTE_C_UNCACHED	(PTE_C(MIPS_CCA_UNCACHED))
-#define	PTE_C_CACHE	(PTE_C(MIPS_CCA_CACHED))
-#define	PTE_D		0x04
-#define	PTE_V		0x02
-#define	PTE_G		0x01
+#define	PTE_C(attr)		((attr & 0x07) << 3)
+#define	PTE_C_UNCACHED		(PTE_C(MIPS_CCA_UNCACHED))
+#define	PTE_C_CACHE		(PTE_C(MIPS_CCA_CACHED))
+#define	PTE_D			0x04
+#define	PTE_V			0x02
+#define	PTE_G			0x01
 
 /*
  * VM flags managed in software:
@@ -125,17 +133,43 @@ typedef	pt_entry_t *pd_entry_t;
  * 		listen to requests to write to it.
  * 	W:	Wired.  ???
  */
-#define	PTE_RO	(0x01 << TLBLO_SWBITS_SHIFT)
-#define	PTE_W	(0x02 << TLBLO_SWBITS_SHIFT)
+#define	PTE_RO			((pt_entry_t)0x01 << TLBLO_SWBITS_SHIFT)
+#define	PTE_W			((pt_entry_t)0x02 << TLBLO_SWBITS_SHIFT)
 
 /*
  * PTE management functions for bits defined above.
- *
- * XXX Can make these atomics, but some users of them are using PTEs in local
- * registers and such and don't need the overhead.
  */
 #define	pte_clear(pte, bit)	(*(pte) &= ~(bit))
 #define	pte_set(pte, bit)	(*(pte) |= (bit))
 #define	pte_test(pte, bit)	((*(pte) & (bit)) == (bit))
 
+/* Assembly support for PTE access*/
+#ifdef LOCORE
+#if defined(__mips_n64) || defined(__mips_n32) /*  PHYSADDR_64_BIT */
+#define	PTESHIFT		3
+#define	PTE2MASK		0xff0	/* for the 2-page lo0/lo1 */
+#define	PTEMASK			0xff8
+#define	PTESIZE			8
+#define	PTE_L			ld
+#define	PTE_MTC0		dmtc0
+#define	CLEAR_PTE_SWBITS(pr)
+#else
+#define	PTESHIFT		2
+#define	PTE2MASK		0xff8	/* for the 2-page lo0/lo1 */
+#define	PTEMASK			0xffc
+#define	PTESIZE			4
+#define	PTE_L			lw
+#define	PTE_MTC0		mtc0
+#define	CLEAR_PTE_SWBITS(r)	sll r, 2; srl r, 2 /* remove 2 high bits */
+#endif /* defined(__mips_n64) || defined(__mips_n32) */
+
+#if defined(__mips_n64)
+#define	PTRSHIFT		3
+#define	PDEPTRMASK		0xff8
+#else
+#define	PTRSHIFT		2
+#define	PDEPTRMASK		0xffc
+#endif
+
+#endif /* LOCORE */
 #endif /* !_MACHINE_PTE_H_ */

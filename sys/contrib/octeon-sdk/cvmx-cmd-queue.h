@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -60,7 +62,7 @@
  * commands.
  *
  * Even though most software will never directly interact with
- * cvmx-cmd-queue, knowledge of its internal working can help
+ * cvmx-cmd-queue, knowledge of its internal workings can help
  * in diagnosing performance problems and help with debugging.
  *
  * Command queue pointers are stored in a global named block
@@ -86,16 +88,17 @@
  * internal cycle counter to completely eliminate any causes of
  * bus traffic.
  *
- * <hr> $Revision: 42150 $ <hr>
+ * <hr> $Revision: 50049 $ <hr>
  */
 
 #ifndef __CVMX_CMD_QUEUE_H__
 #define __CVMX_CMD_QUEUE_H__
 
-#ifndef CVMX_DONT_INCLUDE_CONFIG
+#if !defined(CVMX_BUILD_FOR_LINUX_KERNEL) && !defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 #include "executive-config.h"
 #include "cvmx-config.h"
 #endif
+
 #include "cvmx-fpa.h"
 
 #ifdef	__cplusplus
@@ -130,7 +133,7 @@ typedef enum
 } cvmx_cmd_queue_id_t;
 
 /**
- * Command write operations can fail if the comamnd queue needs
+ * Command write operations can fail if the command queue needs
  * a new buffer and the associated FPA pool is empty. It can also
  * fail if the number of queued command words reaches the maximum
  * set at initialization.
@@ -153,14 +156,14 @@ typedef struct
     uint64_t base_ptr_div128: 29;   /**< Top of command buffer pointer shifted 7 */
     uint64_t unused2        : 6;
     uint64_t pool_size_m1   : 13;   /**< FPA buffer size in 64bit words minus 1 */
-    uint64_t index          : 13;   /**< Number of comamnds already used in buffer */
+    uint64_t index          : 13;   /**< Number of commands already used in buffer */
 } __cvmx_cmd_queue_state_t;
 
 /**
- * This structure contains the global state of all comamnd queues.
+ * This structure contains the global state of all command queues.
  * It is stored in a bootmem named block and shared by all
- * applications running on Octeon. Tickets are stored in a differnet
- * cahce line that queue information to reduce the contention on the
+ * applications running on Octeon. Tickets are stored in a different
+ * cache line that queue information to reduce the contention on the
  * ll/sc used to get a ticket. If this is not the case, the update
  * of queue state causes the ll/sc to fail quite often.
  */
@@ -209,7 +212,7 @@ int cvmx_cmd_queue_length(cvmx_cmd_queue_id_t queue_id);
 
 /**
  * Return the command buffer to be written to. The purpose of this
- * function is to allow CVMX routine access t othe low level buffer
+ * function is to allow CVMX routine access to the low level buffer
  * for initial hardware setup. User applications should not call this
  * function directly.
  *
@@ -292,8 +295,12 @@ static inline void __cvmx_cmd_queue_lock(cvmx_cmd_queue_id_t queue_id, __cvmx_cm
  */
 static inline void __cvmx_cmd_queue_unlock(__cvmx_cmd_queue_state_t *qptr)
 {
-    qptr->now_serving++;
-    CVMX_SYNCWS;
+    uint8_t ns;
+
+    ns = qptr->now_serving + 1;
+    CVMX_SYNCWS; /* Order queue manipulation with respect to the unlock.  */
+    qptr->now_serving = ns;
+    CVMX_SYNCWS; /* nudge out the unlock. */
 }
 
 
@@ -320,7 +327,7 @@ static inline __cvmx_cmd_queue_state_t *__cvmx_cmd_queue_get_state(cvmx_cmd_queu
 
 /**
  * Write an arbitrary number of command words to a command queue.
- * This is a generic function; the fixed number of comamnd word
+ * This is a generic function; the fixed number of command word
  * functions yield higher performance.
  *
  * @param queue_id  Hardware command queue to write to
@@ -329,7 +336,7 @@ static inline __cvmx_cmd_queue_state_t *__cvmx_cmd_queue_get_state(cvmx_cmd_queu
  *                  updates. If you don't use this locking you must ensure
  *                  exclusivity some other way. Locking is strongly recommended.
  * @param cmd_count Number of command words to write
- * @param cmds      Array of comamnds to write
+ * @param cmds      Array of commands to write
  *
  * @return CVMX_CMD_QUEUE_SUCCESS or a failure code
  */
@@ -377,7 +384,7 @@ static inline cvmx_cmd_queue_result_t cvmx_cmd_queue_write(cvmx_cmd_queue_id_t q
     {
         uint64_t *ptr;
         int count;
-        /* We need a new comamnd buffer. Fail if there isn't one available */
+        /* We need a new command buffer. Fail if there isn't one available */
         uint64_t *new_buffer = (uint64_t *)cvmx_fpa_alloc(qptr->fpa_pool);
         if (cvmx_unlikely(new_buffer == NULL))
         {
@@ -466,7 +473,7 @@ static inline cvmx_cmd_queue_result_t cvmx_cmd_queue_write2(cvmx_cmd_queue_id_t 
         /* Figure out how many command words will fit in this buffer. One
             location will be needed for the next buffer pointer */
         int count = qptr->pool_size_m1 - qptr->index;
-        /* We need a new comamnd buffer. Fail if there isn't one available */
+        /* We need a new command buffer. Fail if there isn't one available */
         uint64_t *new_buffer = (uint64_t *)cvmx_fpa_alloc(qptr->fpa_pool);
         if (cvmx_unlikely(new_buffer == NULL))
         {
@@ -557,7 +564,7 @@ static inline cvmx_cmd_queue_result_t cvmx_cmd_queue_write3(cvmx_cmd_queue_id_t 
         /* Figure out how many command words will fit in this buffer. One
             location will be needed for the next buffer pointer */
         int count = qptr->pool_size_m1 - qptr->index;
-        /* We need a new comamnd buffer. Fail if there isn't one available */
+        /* We need a new command buffer. Fail if there isn't one available */
         uint64_t *new_buffer = (uint64_t *)cvmx_fpa_alloc(qptr->fpa_pool);
         if (cvmx_unlikely(new_buffer == NULL))
         {

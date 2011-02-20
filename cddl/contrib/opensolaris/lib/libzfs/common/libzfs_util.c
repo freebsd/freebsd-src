@@ -210,6 +210,9 @@ libzfs_error_description(libzfs_handle_t *hdl)
 	case EZFS_ACTIVE_SPARE:
 		return (dgettext(TEXT_DOMAIN, "pool has active shared spare "
 		    "device"));
+	case EZFS_UNPLAYED_LOGS:
+		return (dgettext(TEXT_DOMAIN, "log device has unplayed intent "
+		    "logs"));
 	case EZFS_UNKNOWN:
 		return (dgettext(TEXT_DOMAIN, "unknown error"));
 	default:

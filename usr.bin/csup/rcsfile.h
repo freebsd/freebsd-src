@@ -42,7 +42,8 @@ struct delta;
 struct stream;
 
 /* Fetching, sending and writing an RCS file. */
-struct rcsfile	*rcsfile_frompath(char *, char *, char *, char *, int);
+struct rcsfile	*rcsfile_frompath(const char *, const char *, const char *,
+		    const char *, int);
 int		 rcsfile_send_details(struct rcsfile *, struct stream *);
 int		 rcsfile_write(struct rcsfile *, struct stream *);
 void		 rcsfile_print(struct rcsfile *);

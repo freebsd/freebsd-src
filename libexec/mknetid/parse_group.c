@@ -126,7 +126,7 @@ grscan(int search, int gid)
 		if (_gr_group.gr_name[0] == '+')
 			continue;
 		if ((_gr_group.gr_passwd = strsep(&bp, ":\n")) == NULL)
-			break;;
+			break;
 		if (!(cp = strsep(&bp, ":\n")))
 			continue;
 		_gr_group.gr_gid = atoi(cp);

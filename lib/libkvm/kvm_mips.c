@@ -49,29 +49,59 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <kvm.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "kvm_private.h"
+
+/* minidump must be the first item! */
+struct vmstate {
+	int minidump;		/* 1 = minidump mode */
+	void *mmapbase;
+	size_t mmapsize;
+};
 
 void
 _kvm_freevtop(kvm_t *kd)
 {
-
-	_kvm_err(kd, 0, "Unimplemented function");
+	if (kd->vmst != 0) {
+		if (kd->vmst->minidump)
+			return (_kvm_minidump_freevtop(kd));
+		if (kd->vmst->mmapbase != NULL)
+			munmap(kd->vmst->mmapbase, kd->vmst->mmapsize);
+		free(kd->vmst);
+		kd->vmst = NULL;
+	}
 }
 
 int
 _kvm_initvtop(kvm_t *kd)
 {
+	char minihdr[8];
 
-	_kvm_err(kd, 0, "Unimplemented function");
-	return (0);
+	if (!kd->rawdump) {
+		if (pread(kd->pmfd, &minihdr, 8, 0) == 8) {
+			if (memcmp(&minihdr, "minidump", 8) == 0)
+				return (_kvm_minidump_initvtop(kd));
+		} else {
+			_kvm_err(kd, kd->program, "cannot read header");
+			return (-1);
+		}
+	}
+
+	_kvm_err(kd, 0, "_kvm_initvtop: Unsupported image type");
+	return (-1);
 }
 
 int
-_kvm_kvatop(kvm_t *kd, u_long va __unused, off_t *pa __unused)
+_kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 {
 
-	_kvm_err(kd, 0, "Unimplemented function");
+	if (kd->vmst->minidump)
+		return _kvm_minidump_kvatop(kd, va, pa);
+
+
+	_kvm_err(kd, 0, "_kvm_kvatop: Unsupported image type");
 	return (0);
 }
 
@@ -80,11 +110,11 @@ _kvm_kvatop(kvm_t *kd, u_long va __unused, off_t *pa __unused)
  * not just those for a kernel crash dump.  Some architectures
  * have to deal with these NOT being constants!  (i.e. m68k)
  */
+#ifdef FBSD_NOT_YET
 int
-_kvm_mdopen(kd)
-	kvm_t	*kd;
+_kvm_mdopen(kvm_t *kd __unused)
 {
 
-	_kvm_err(kd, 0, "Unimplemented function");
 	return (0);
 }
+#endif

@@ -60,8 +60,7 @@ namespace llvm {
     MemoryBuffer *F = MemoryBuffer::getFileOrSTDIN(Filename.c_str(), &ErrMsg);
     if (F == 0) {
       Err = SMDiagnostic(Filename, 
-                         "Could not open input file "
-                         "'" + Filename + "': " + ErrMsg);
+                         "Could not open input file: " + ErrMsg);
       return 0;
     }
 
@@ -79,10 +78,10 @@ namespace llvm {
                   (const unsigned char *)Buffer->getBufferEnd())) {
       std::string ErrMsg;
       Module *M = ParseBitcodeFile(Buffer, Context, &ErrMsg);
-      // ParseBitcodeFile does not take ownership of the Buffer.
-      delete Buffer;
       if (M == 0)
         Err = SMDiagnostic(Buffer->getBufferIdentifier(), ErrMsg);
+      // ParseBitcodeFile does not take ownership of the Buffer.
+      delete Buffer;
       return M;
     }
 
@@ -99,8 +98,7 @@ namespace llvm {
     MemoryBuffer *F = MemoryBuffer::getFileOrSTDIN(Filename.c_str(), &ErrMsg);
     if (F == 0) {
       Err = SMDiagnostic(Filename, 
-                         "Could not open input file "
-                         "'" + Filename + "': " + ErrMsg);
+                         "Could not open input file: " + ErrMsg);
       return 0;
     }
 

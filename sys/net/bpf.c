@@ -1392,7 +1392,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		break;
 
 	/*
-	 * Set packet timestamp format and resolution.
+	 * Get packet timestamp format and resolution.
 	 */
 	case BIOCGTSTAMP:
 		*(u_int *)addr = d->bd_tstamp;

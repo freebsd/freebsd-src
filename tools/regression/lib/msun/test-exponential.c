@@ -89,7 +89,7 @@ __FBSDID("$FreeBSD$");
 int
 fpequal(long double x, long double y)
 {
-	return ((x == y && signbit(x) == signbit(y)) || isnan(x) && isnan(y));
+	return ((x == y && !signbit(x) == !signbit(y)) || isnan(x) && isnan(y));
 }
 
 void

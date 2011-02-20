@@ -10,7 +10,12 @@ SRCS=		rtld_start.S \
 MAN=		rtld.1
 CSTD?=		gnu99
 CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD
-CFLAGS+=	-I${.CURDIR}/${MACHINE_CPUARCH} -I${.CURDIR}
+.if exists(${.CURDIR}/${MACHINE_ARCH})
+RTLD_ARCH=	${MACHINE_ARCH}
+.else
+RTLD_ARCH=	${MACHINE_CPUARCH}
+.endif
+CFLAGS+=	-I${.CURDIR}/${RTLD_ARCH} -I${.CURDIR}
 .if ${MACHINE_ARCH} == "powerpc64"
 LDFLAGS+=	-nostdlib -e _rtld_start
 .else
@@ -24,12 +29,16 @@ SYMLINKS=	${BINDIR}/${PROG} /usr/libexec/${PROG}
 MLINKS=		rtld.1 ld-elf.so.1.1 \
 		rtld.1 ld.so.1
 
-CFLAGS+=	-fpic -DPIC
+.if ${MACHINE_CPUARCH} == "sparc64"
+CFLAGS+=	-fPIC
+.else
+CFLAGS+=	-fpic
+.endif
+CFLAGS+=	-DPIC $(DEBUG)
 LDFLAGS+=	-shared -Wl,-Bsymbolic
 DPADD=		${LIBC_PIC}
 LDADD=		-lc_pic -lssp_nonshared
 
-.if ${MACHINE_CPUARCH} != "ia64"
 .if ${MK_SYMVER} == "yes"
 LIBCDIR=	${.CURDIR}/../../lib/libc
 VERSION_DEF=	${LIBCDIR}/Versions.def
@@ -39,15 +48,12 @@ LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
 
 ${PROG}:	${VERSION_MAP}
 
-.if exists(${.CURDIR}/${MACHINE_CPUARCH}/Symbol.map)
-SYMBOL_MAPS+=	${.CURDIR}/${MACHINE_CPUARCH}/Symbol.map
-.endif
+.if exists(${.CURDIR}/${RTLD_ARCH}/Symbol.map)
+SYMBOL_MAPS+=	${.CURDIR}/${RTLD_ARCH}/Symbol.map
 .endif
 .endif
 
-.if exists(${.CURDIR}/${MACHINE_CPUARCH}/Makefile.inc)
-.include "${.CURDIR}/${MACHINE_CPUARCH}/Makefile.inc"
-.endif
+.sinclude "${.CURDIR}/${RTLD_ARCH}/Makefile.inc"
 
 # Since moving rtld-elf to /libexec, we need to create a symlink.
 # Fixup the existing binary that's there so we can symlink over it.
@@ -56,7 +62,7 @@ beforeinstall:
 	-chflags noschg ${DESTDIR}/usr/libexec/${PROG}
 .endif
 
-.PATH: ${.CURDIR}/${MACHINE_CPUARCH}
+.PATH: ${.CURDIR}/${RTLD_ARCH}
 
 .include <bsd.symver.mk>
 .include <bsd.prog.mk>

@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -108,7 +110,7 @@ struct sctp_paramhdr {
 #define SCTP_MAX_BURST			0x00000019	/* rw */
 /* assoc level context */
 #define SCTP_CONTEXT                    0x0000001a	/* rw */
-/* explict EOR signalling */
+/* explicit EOR signalling */
 #define SCTP_EXPLICIT_EOR               0x0000001b
 #define SCTP_REUSE_PORT                 0x0000001c	/* rw */
 #define SCTP_AUTH_DEACTIVATE_KEY	0x0000001d
@@ -123,6 +125,7 @@ struct sctp_paramhdr {
 #define SCTP_LOCAL_AUTH_CHUNKS 		0x00000103
 #define SCTP_GET_ASSOC_NUMBER           0x00000104	/* ro */
 #define SCTP_GET_ASSOC_ID_LIST          0x00000105	/* ro */
+#define SCTP_TIMEOUTS                   0x00000106
 
 /*
  * user socket options: BSD implementation specific
@@ -131,9 +134,9 @@ struct sctp_paramhdr {
  * Blocking I/O is enabled on any TCP type socket by default. For the UDP
  * model if this is turned on then the socket buffer is shared for send
  * resources amongst all associations.  The default for the UDP model is that
- * is SS_NBIO is set.  Which means all associations have a seperate send
+ * is SS_NBIO is set.  Which means all associations have a separate send
  * limit BUT they will NOT ever BLOCK instead you will get an error back
- * EAGAIN if you try to send to much. If you want the blocking symantics you
+ * EAGAIN if you try to send too much. If you want the blocking semantics you
  * set this option at the cost of sharing one socket send buffer size amongst
  * all associations. Peeled off sockets turn this option off and block. But
  * since both TCP and peeled off sockets have only one assoc per socket this
@@ -141,7 +144,7 @@ struct sctp_paramhdr {
  * model OR peeled off UDP model, but we do allow you to do so. You just use
  * the normal syscall to toggle SS_NBIO the way you want.
  *
- * Blocking I/O is controled by the SS_NBIO flag on the socket state so_state
+ * Blocking I/O is controlled by the SS_NBIO flag on the socket state so_state
  * field.
  */
 
@@ -155,10 +158,11 @@ struct sctp_paramhdr {
 /* CMT ON/OFF socket option */
 #define SCTP_CMT_ON_OFF                 0x00001200
 #define SCTP_CMT_USE_DAC                0x00001201
-/* EY - NR_SACK on/off socket option */
-#define SCTP_NR_SACK_ON_OFF                 0x00001300
 /* JRS - Pluggable Congestion Control Socket option */
-#define SCTP_PLUGGABLE_CC				0x00001202
+#define SCTP_PLUGGABLE_CC               0x00001202
+/* RS - Pluggable Stream Scheduling Socket option */
+#define SCTP_PLUGGABLE_SS				0x00001203
+#define SCTP_SS_VALUE					0x00001204
 
 /* read only */
 #define SCTP_GET_SNDBUF_USE		0x00001101
@@ -168,7 +172,7 @@ struct sctp_paramhdr {
 
 
 /* Special hook for dynamically setting primary for all assoc's,
- * this is a write only option that requires root privledge.
+ * this is a write only option that requires root privilege.
  */
 #define SCTP_SET_DYNAMIC_PRIMARY        0x00002001
 
@@ -183,7 +187,7 @@ struct sctp_paramhdr {
  * to. The endpoint, before binding, may select
  * the "default" VRF it is in by using a set socket
  * option with SCTP_VRF_ID. This will also
- * get propegated to the default VRF. Once the
+ * get propagated to the default VRF. Once the
  * endpoint binds an address then it CANNOT add
  * additional VRF's to become a Multi-VRF endpoint.
  *
@@ -254,6 +258,22 @@ struct sctp_paramhdr {
 /* HTCP Congestion Control */
 #define SCTP_CC_HTCP		0x00000002
 
+/* RS - Supported stream scheduling modules for pluggable
+ * stream scheduling
+ */
+/* Default simple round-robin */
+#define SCTP_SS_DEFAULT			0x00000000
+/* Real round-robin */
+#define SCTP_SS_ROUND_ROBIN		0x00000001
+/* Real round-robin per packet */
+#define SCTP_SS_ROUND_ROBIN_PACKET	0x00000002
+/* Priority */
+#define SCTP_SS_PRIORITY		0x00000003
+/* Fair Bandwidth */
+#define SCTP_SS_FAIR_BANDWITH		0x00000004
+/* First-come, first-serve */
+#define SCTP_SS_FIRST_COME		0x00000005
+
 
 /* fragment interleave constants
  * setting must be one of these or
@@ -310,7 +330,7 @@ struct sctp_paramhdr {
 #define SCTP_CAUSE_UNSUPPORTED_HMACID	0x0105
 
 /*
- * error cause parameters (user visisble)
+ * error cause parameters (user visible)
  */
 struct sctp_error_cause {
 	uint16_t code;
@@ -398,6 +418,10 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_FROM_MIDDLE_BOX	SCTP_HAD_NO_TCB
 #define SCTP_BADCRC		0x02
 #define SCTP_PACKET_TRUNCATED	0x04
+
+/* Flag for ECN -CWR */
+#define SCTP_CWR_REDUCE_OVERRIDE 0x01
+#define SCTP_CWR_IN_SAME_WINDOW  0x02
 
 #define SCTP_SAT_NETWORK_MIN	400	/* min ms for RTT to set satellite
 					 * time */

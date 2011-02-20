@@ -83,8 +83,8 @@ struct eventtimer {
 };
 
 extern struct mtx	et_eventtimers_mtx;
-#define	ET_LOCK()	mtx_lock_spin(&et_eventtimers_mtx)
-#define	ET_UNLOCK()	mtx_unlock_spin(&et_eventtimers_mtx)
+#define	ET_LOCK()	mtx_lock(&et_eventtimers_mtx)
+#define	ET_UNLOCK()	mtx_unlock(&et_eventtimers_mtx)
 
 /* Driver API */
 int	et_register(struct eventtimer *et);

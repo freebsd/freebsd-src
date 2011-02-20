@@ -91,7 +91,7 @@ static unsigned getGVAlignmentLog2(const GlobalValue *GV, const TargetData &TD,
 
 
 AsmPrinter::AsmPrinter(TargetMachine &tm, MCStreamer &Streamer)
-  : MachineFunctionPass(&ID),
+  : MachineFunctionPass(ID),
     TM(tm), MAI(tm.getMCAsmInfo()),
     OutContext(Streamer.getContext()),
     OutStreamer(Streamer),
@@ -200,11 +200,17 @@ void AsmPrinter::EmitLinkage(unsigned Linkage, MCSymbol *GVSym) const {
   case GlobalValue::WeakAnyLinkage:
   case GlobalValue::WeakODRLinkage:
   case GlobalValue::LinkerPrivateWeakLinkage:
+  case GlobalValue::LinkerPrivateWeakDefAutoLinkage:
     if (MAI->getWeakDefDirective() != 0) {
       // .globl _foo
       OutStreamer.EmitSymbolAttribute(GVSym, MCSA_Global);
-      // .weak_definition _foo
-      OutStreamer.EmitSymbolAttribute(GVSym, MCSA_WeakDefinition);
+
+      if ((GlobalValue::LinkageTypes)Linkage !=
+          GlobalValue::LinkerPrivateWeakDefAutoLinkage)
+        // .weak_definition _foo
+        OutStreamer.EmitSymbolAttribute(GVSym, MCSA_WeakDefinition);
+      else
+        OutStreamer.EmitSymbolAttribute(GVSym, MCSA_WeakDefAutoPrivate);
     } else if (MAI->getLinkOnceDirective() != 0) {
       // .globl _foo
       OutStreamer.EmitSymbolAttribute(GVSym, MCSA_Global);
@@ -510,12 +516,8 @@ static void EmitComments(const MachineInstr &MI, raw_ostream &CommentOS) {
   }
   
   // Check for spill-induced copies
-  unsigned SrcReg, DstReg, SrcSubIdx, DstSubIdx;
-  if (TM.getInstrInfo()->isMoveInstr(MI, SrcReg, DstReg,
-                                     SrcSubIdx, DstSubIdx)) {
-    if (MI.getAsmPrinterFlag(MachineInstr::ReloadReuse))
-      CommentOS << " Reload Reuse\n";
-  }
+  if (MI.getAsmPrinterFlag(MachineInstr::ReloadReuse))
+    CommentOS << " Reload Reuse\n";
 }
 
 /// EmitImplicitDef - This method emits the specified machine instruction
@@ -603,12 +605,15 @@ void AsmPrinter::EmitFunctionBody() {
   
   // Print out code for the function.
   bool HasAnyRealCode = false;
+  const MachineInstr *LastMI = 0;
   for (MachineFunction::const_iterator I = MF->begin(), E = MF->end();
        I != E; ++I) {
     // Print a label for the basic block.
     EmitBasicBlockStart(I);
     for (MachineBasicBlock::const_iterator II = I->begin(), IE = I->end();
          II != IE; ++II) {
+      LastMI = II;
+
       // Print the assembly for the instruction.
       if (!II->isLabel() && !II->isImplicitDef() && !II->isKill() &&
           !II->isDebugValue()) {
@@ -625,7 +630,7 @@ void AsmPrinter::EmitFunctionBody() {
         EmitComments(*II, OutStreamer.GetCommentOS());
 
       switch (II->getOpcode()) {
-      case TargetOpcode::DBG_LABEL:
+      case TargetOpcode::PROLOG_LABEL:
       case TargetOpcode::EH_LABEL:
       case TargetOpcode::GC_LABEL:
         OutStreamer.EmitLabel(II->getOperand(0).getMCSymbol());
@@ -656,11 +661,18 @@ void AsmPrinter::EmitFunctionBody() {
       }
     }
   }
-  
+
+  // If the last instruction was a prolog label, then we have a situation where
+  // we emitted a prolog but no function body. This results in the ending prolog
+  // label equaling the end of function label and an invalid "row" in the
+  // FDE. We need to emit a noop in this situation so that the FDE's rows are
+  // valid.
+  bool RequiresNoop = LastMI && LastMI->isPrologLabel();
+
   // If the function is empty and the object file uses .subsections_via_symbols,
   // then we need to emit *something* to the function body to prevent the
   // labels from collapsing together.  Just emit a noop.
-  if (MAI->hasSubsectionsViaSymbols() && !HasAnyRealCode) {
+  if ((MAI->hasSubsectionsViaSymbols() && !HasAnyRealCode) || RequiresNoop) {
     MCInst Noop;
     TM.getInstrInfo()->getNoopForMachoTarget(Noop);
     if (Noop.getOpcode()) {
@@ -1206,6 +1218,22 @@ void AsmPrinter::EmitLabelOffsetDifference(const MCSymbol *Hi, uint64_t Offset,
     OutStreamer.EmitSymbolValue(SetLabel, 4, 0/*AddrSpace*/);
   }
 }
+
+/// EmitLabelPlusOffset - Emit something like ".long Label+Offset" 
+/// where the size in bytes of the directive is specified by Size and Label
+/// specifies the label.  This implicitly uses .set if it is available.
+void AsmPrinter::EmitLabelPlusOffset(const MCSymbol *Label, uint64_t Offset,
+                                      unsigned Size) 
+  const {
+  
+  // Emit Label+Offset
+  const MCExpr *Plus =
+    MCBinaryExpr::CreateAdd(MCSymbolRefExpr::Create(Label, OutContext), 
+                            MCConstantExpr::Create(Offset, OutContext),
+                            OutContext);
+  
+  OutStreamer.EmitValue(Plus, 4, 0/*AddrSpace*/);
+}
     
 
 //===----------------------------------------------------------------------===//
@@ -1244,6 +1272,7 @@ static const MCExpr *LowerConstant(const Constant *CV, AsmPrinter &AP) {
   
   if (const GlobalValue *GV = dyn_cast<GlobalValue>(CV))
     return MCSymbolRefExpr::Create(AP.Mang->getSymbol(GV), Ctx);
+
   if (const BlockAddress *BA = dyn_cast<BlockAddress>(CV))
     return MCSymbolRefExpr::Create(AP.GetBlockAddressSymbol(BA), Ctx);
   
@@ -1262,10 +1291,17 @@ static const MCExpr *LowerConstant(const Constant *CV, AsmPrinter &AP) {
           ConstantFoldConstantExpression(CE, AP.TM.getTargetData()))
       if (C != CE)
         return LowerConstant(C, AP);
-#ifndef NDEBUG
-    CE->dump();
-#endif
-    llvm_unreachable("FIXME: Don't support this constant expr");
+
+    // Otherwise report the problem to the user.
+    {
+      std::string S;
+      raw_string_ostream OS(S);
+      OS << "Unsupported expression in static initializer: ";
+      WriteAsOperand(OS, CE, /*PrintType=*/false,
+                     !AP.MF ? 0 : AP.MF->getFunction()->getParent());
+      report_fatal_error(OS.str());
+    }
+    return MCConstantExpr::Create(0, Ctx);
   case Instruction::GetElementPtr: {
     const TargetData &TD = *AP.TM.getTargetData();
     // Generate a symbolic expression for the byte address
@@ -1413,21 +1449,6 @@ static void EmitGlobalConstantStruct(const ConstantStruct *CS,
          "Layout of constant struct may be incorrect!");
 }
 
-static void EmitGlobalConstantUnion(const ConstantUnion *CU, 
-                                    unsigned AddrSpace, AsmPrinter &AP) {
-  const TargetData *TD = AP.TM.getTargetData();
-  unsigned Size = TD->getTypeAllocSize(CU->getType());
-
-  const Constant *Contents = CU->getOperand(0);
-  unsigned FilledSize = TD->getTypeAllocSize(Contents->getType());
-    
-  // Print the actually filled part
-  EmitGlobalConstantImpl(Contents, AddrSpace, AP);
-
-  // And pad with enough zeroes
-  AP.OutStreamer.EmitZeros(Size-FilledSize, AddrSpace);
-}
-
 static void EmitGlobalConstantFP(const ConstantFP *CFP, unsigned AddrSpace,
                                  AsmPrinter &AP) {
   // FP Constants are printed as integer constants to avoid losing
@@ -1530,7 +1551,7 @@ static void EmitGlobalConstantImpl(const Constant *CV, unsigned AddrSpace,
     case 8:
       if (AP.isVerbose())
         AP.OutStreamer.GetCommentOS() << format("0x%llx\n", CI->getZExtValue());
-        AP.OutStreamer.EmitIntValue(CI->getZExtValue(), Size, AddrSpace);
+      AP.OutStreamer.EmitIntValue(CI->getZExtValue(), Size, AddrSpace);
       return;
     default:
       EmitGlobalConstantLargeInt(CI, AddrSpace, AP);
@@ -1552,9 +1573,6 @@ static void EmitGlobalConstantImpl(const Constant *CV, unsigned AddrSpace,
     AP.OutStreamer.EmitIntValue(0, Size, AddrSpace);
     return;
   }
-  
-  if (const ConstantUnion *CVU = dyn_cast<ConstantUnion>(CV))
-    return EmitGlobalConstantUnion(CVU, AddrSpace, AP);
   
   if (const ConstantVector *V = dyn_cast<ConstantVector>(CV))
     return EmitGlobalConstantVector(V, AddrSpace, AP);

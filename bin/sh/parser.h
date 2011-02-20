@@ -43,6 +43,7 @@
 #define	CTLARI	'\206'
 #define	CTLENDARI '\207'
 #define	CTLQUOTEMARK '\210'
+#define	CTLQUOTEEND '\211' /* only for ${v+-...} */
 
 /* variable substitution byte (follows CTLVAR) */
 #define VSTYPE		0x0f	/* type of variable substitution */

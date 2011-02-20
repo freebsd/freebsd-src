@@ -86,7 +86,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/intr_machdep.h>
-#include <machine/mca.h>
+#include <x86/mca.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #ifdef SMP
@@ -118,6 +118,13 @@ dtrace_doubletrap_func_t	dtrace_doubletrap_func;
  * implementation opaque. 
  */
 systrace_probe_func_t	systrace_probe_func;
+
+/*
+ * These hooks are necessary for the pid, usdt and fasttrap providers.
+ */
+dtrace_fasttrap_probe_ptr_t	dtrace_fasttrap_probe_ptr;
+dtrace_pid_probe_ptr_t		dtrace_pid_probe_ptr;
+dtrace_return_probe_ptr_t	dtrace_return_probe_ptr;
 #endif
 
 extern void trap(struct trapframe *frame);
@@ -260,6 +267,24 @@ trap(struct trapframe *frame)
 	    dtrace_trap_func != NULL)
 		if ((*dtrace_trap_func)(frame, type))
 			goto out;
+	if (type == T_DTRACE_PROBE || type == T_DTRACE_RET ||
+	    type == T_BPTFLT) {
+		struct reg regs;
+
+		fill_frame_regs(frame, &regs);
+		if (type == T_DTRACE_PROBE &&
+		    dtrace_fasttrap_probe_ptr != NULL &&
+		    dtrace_fasttrap_probe_ptr(&regs) == 0)
+			goto out;
+		if (type == T_BPTFLT &&
+		    dtrace_pid_probe_ptr != NULL &&
+		    dtrace_pid_probe_ptr(&regs) == 0)
+			goto out;
+		if (type == T_DTRACE_RET &&
+		    dtrace_return_probe_ptr != NULL &&
+		    dtrace_return_probe_ptr(&regs) == 0)
+			goto out;
+	}
 #endif
 
 	if ((frame->tf_eflags & PSL_I) == 0) {
@@ -422,9 +447,8 @@ trap(struct trapframe *frame)
 					 * This check also covers the images
 					 * without the ABI-tag ELF note.
 					 */
-					if (SV_CURPROC_ABI() ==
-					    SV_ABI_FREEBSD &&
-					    p->p_osrel >= 700004) {
+					if (SV_CURPROC_ABI() == SV_ABI_FREEBSD
+					    && p->p_osrel >= P_OSREL_SIGSEGV) {
 						i = SIGSEGV;
 						ucode = SEGV_ACCERR;
 					} else {

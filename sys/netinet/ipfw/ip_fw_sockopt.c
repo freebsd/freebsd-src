@@ -572,6 +572,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IPTOS:
 		case O_IPPRECEDENCE:
 		case O_IPVER:
+		case O_SOCKARG:
 		case O_TCPWIN:
 		case O_TCPFLAGS:
 		case O_TCPOPTS:

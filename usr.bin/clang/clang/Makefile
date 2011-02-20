@@ -8,7 +8,6 @@ SRCDIR=	tools/clang/tools/driver
 SRCS=	cc1_main.cpp \
 	cc1as_main.cpp \
 	driver.cpp
-MAN=
 
 LINKS=	${BINDIR}/clang ${BINDIR}/clang++
 
@@ -20,15 +19,18 @@ TGHDRS=	CC1AsOptions \
 	DiagnosticLexKinds \
 	DiagnosticSemaKinds \
 	Options
-LIBDEPS=clangfrontend \
+LIBDEPS=clangfrontendtool \
+	clangfrontend \
 	clangdriver \
+	clangserialization \
 	clangcodegen \
+	clangparse \
 	clangsema \
 	clangchecker \
 	clanganalysis \
+	clangindex \
 	clangrewrite \
 	clangast \
-	clangparse \
 	clanglex \
 	clangbasic \
 	llvminstcombine \
@@ -39,15 +41,16 @@ LIBDEPS=clangfrontend \
 	llvmpowerpcasmprinter \
 	llvmpowerpcinfo \
 	llvmx86asmparser \
-	llvmx86asmprinter \
+	llvmx86disassembler \
 	llvmx86codegen \
+	llvmx86asmprinter \
 	llvmx86info \
 	llvmmipsasmprinter \
 	llvmmipscodegen \
 	llvmmipsinfo \
 	llvmarmasmparser \
-	llvmarmasmprinter \
 	llvmarmcodegen \
+	llvmarmasmprinter \
 	llvmasmparser \
 	llvmselectiondag \
 	llvmasmprinter \

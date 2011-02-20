@@ -323,6 +323,9 @@ again:
 	} else {
 		mtu = ifp->if_mtu;
 	}
+	/* Catch a possible divide by zero later. */
+	KASSERT(mtu > 0, ("%s: mtu %d <= 0, rte=%p (rt_flags=0x%08x) ifp=%p",
+	    __func__, mtu, rte, (rte != NULL) ? rte->rt_flags : 0, ifp));
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		m->m_flags |= M_MCAST;
 		/*
@@ -1121,6 +1124,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FAITH:
 		case IP_ONESBCAST:
 		case IP_DONTFRAG:
+		case IP_BINDANY:
 			switch (sopt->sopt_name) {
 
 			case IP_TOS:
@@ -1175,6 +1179,9 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				break;
 			case IP_DONTFRAG:
 				optval = OPTBIT(INP_DONTFRAG);
+				break;
+			case IP_BINDANY:
+				optval = OPTBIT(INP_BINDANY);
 				break;
 			}
 			error = sooptcopyout(sopt, &optval, sizeof optval);

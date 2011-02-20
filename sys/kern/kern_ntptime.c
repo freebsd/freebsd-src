@@ -299,7 +299,8 @@ SYSCTL_PROC(_kern_ntp_pll, OID_AUTO, gettime, CTLTYPE_OPAQUE|CTLFLAG_RD,
 #ifdef PPS_SYNC
 SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shiftmax, CTLFLAG_RW, &pps_shiftmax, 0, "");
 SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shift, CTLFLAG_RW, &pps_shift, 0, "");
-SYSCTL_INT(_kern_ntp_pll, OID_AUTO, time_monitor, CTLFLAG_RD, &time_monitor, 0, "");
+SYSCTL_LONG(_kern_ntp_pll, OID_AUTO, time_monitor, CTLFLAG_RD,
+    &time_monitor, 0, "");
 
 SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, pps_freq, CTLFLAG_RD, &pps_freq, sizeof(pps_freq), "I", "");
 SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, time_freq, CTLFLAG_RD, &time_freq, sizeof(time_freq), "I", "");
@@ -1035,5 +1036,5 @@ start_periodic_resettodr(void *arg __unused)
 	    periodic_resettodr, NULL);
 }
 
-SYSINIT(periodic_resettodr, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY - 1,
+SYSINIT(periodic_resettodr, SI_SUB_RUN_SCHEDULER, SI_ORDER_MIDDLE,
 	start_periodic_resettodr, NULL);

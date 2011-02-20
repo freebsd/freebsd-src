@@ -34,7 +34,6 @@ AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR W
 #include <contrib/octeon-sdk/cvmx.h>
 #include <contrib/octeon-sdk/cvmx-version.h>
 #include <contrib/octeon-sdk/cvmx-atomic.h>
-#include <contrib/octeon-sdk/cvmx-ciu.h>
 #include <contrib/octeon-sdk/cvmx-pip.h>
 #include <contrib/octeon-sdk/cvmx-ipd.h>
 #include <contrib/octeon-sdk/cvmx-pko.h>

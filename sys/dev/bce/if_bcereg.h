@@ -302,18 +302,18 @@
 #define BCE_CP_INTR		0x00000008
 #define BCE_CP_UNLOAD		0x00000010
 #define BCE_CP_RESET		0x00000020
-#define BCE_CP_PHY		0x00000040
+#define BCE_CP_PHY			0x00000040
 #define BCE_CP_NVRAM		0x00000080
-#define BCE_CP_FIRMWARE		0x00000100
-#define BCE_CP_CTX		0x00000200
-#define BCE_CP_REG		0x00000400
+#define BCE_CP_FIRMWARE	0x00000100
+#define BCE_CP_CTX			0x00000200
+#define BCE_CP_REG			0x00000400
 #define BCE_CP_MISC		0x00400000
 #define BCE_CP_SPECIAL		0x00800000
-#define BCE_CP_ALL		0x00FFFFFF
+#define BCE_CP_ALL			0x00FFFFFF
 
 #define BCE_CP_MASK		0x00FFFFFF
 
-#define BCE_LEVEL_FATAL		0x00000000
+#define BCE_LEVEL_FATAL	0x00000000
 #define BCE_LEVEL_WARN		0x01000000
 #define BCE_LEVEL_INFO		0x02000000
 #define BCE_LEVEL_VERBOSE	0x03000000
@@ -326,28 +326,28 @@
 #define BCE_INFO_LOAD		(BCE_CP_LOAD | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_LOAD	(BCE_CP_LOAD | BCE_LEVEL_VERBOSE)
 #define BCE_EXTREME_LOAD	(BCE_CP_LOAD | BCE_LEVEL_EXTREME)
-#define BCE_INSANE_LOAD		(BCE_CP_LOAD | BCE_LEVEL_INSANE)
+#define BCE_INSANE_LOAD	(BCE_CP_LOAD | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_SEND		(BCE_CP_SEND | BCE_LEVEL_WARN)
 #define BCE_INFO_SEND		(BCE_CP_SEND | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_SEND	(BCE_CP_SEND | BCE_LEVEL_VERBOSE)
 #define BCE_EXTREME_SEND	(BCE_CP_SEND | BCE_LEVEL_EXTREME)
-#define BCE_INSANE_SEND		(BCE_CP_SEND | BCE_LEVEL_INSANE)
+#define BCE_INSANE_SEND	(BCE_CP_SEND | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_RECV		(BCE_CP_RECV | BCE_LEVEL_WARN)
 #define BCE_INFO_RECV		(BCE_CP_RECV | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_RECV	(BCE_CP_RECV | BCE_LEVEL_VERBOSE)
 #define BCE_EXTREME_RECV	(BCE_CP_RECV | BCE_LEVEL_EXTREME)
-#define BCE_INSANE_RECV		(BCE_CP_RECV | BCE_LEVEL_INSANE)
+#define BCE_INSANE_RECV	(BCE_CP_RECV | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_INTR		(BCE_CP_INTR | BCE_LEVEL_WARN)
 #define BCE_INFO_INTR		(BCE_CP_INTR | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_INTR	(BCE_CP_INTR | BCE_LEVEL_VERBOSE)
 #define BCE_EXTREME_INTR	(BCE_CP_INTR | BCE_LEVEL_EXTREME)
-#define BCE_INSANE_INTR		(BCE_CP_INTR | BCE_LEVEL_INSANE)
+#define BCE_INSANE_INTR	(BCE_CP_INTR | BCE_LEVEL_INSANE)
 
-#define BCE_WARN_UNLOAD		(BCE_CP_UNLOAD | BCE_LEVEL_WARN)
-#define BCE_INFO_UNLOAD		(BCE_CP_UNLOAD | BCE_LEVEL_INFO)
+#define BCE_WARN_UNLOAD	(BCE_CP_UNLOAD | BCE_LEVEL_WARN)
+#define BCE_INFO_UNLOAD	(BCE_CP_UNLOAD | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_UNLOAD	(BCE_CP_UNLOAD | BCE_LEVEL_VERBOSE)
 #define BCE_EXTREME_UNLOAD	(BCE_CP_UNLOAD | BCE_LEVEL_EXTREME)
 #define BCE_INSANE_UNLOAD	(BCE_CP_UNLOAD | BCE_LEVEL_INSANE)
@@ -360,8 +360,8 @@
 
 #define BCE_WARN_PHY		(BCE_CP_PHY | BCE_LEVEL_WARN)
 #define BCE_INFO_PHY		(BCE_CP_PHY | BCE_LEVEL_INFO)
-#define BCE_VERBOSE_PHY		(BCE_CP_PHY | BCE_LEVEL_VERBOSE)
-#define BCE_EXTREME_PHY		(BCE_CP_PHY | BCE_LEVEL_EXTREME)
+#define BCE_VERBOSE_PHY	(BCE_CP_PHY | BCE_LEVEL_VERBOSE)
+#define BCE_EXTREME_PHY	(BCE_CP_PHY | BCE_LEVEL_EXTREME)
 #define BCE_INSANE_PHY		(BCE_CP_PHY | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_NVRAM		(BCE_CP_NVRAM | BCE_LEVEL_WARN)
@@ -372,40 +372,40 @@
 
 #define BCE_WARN_FIRMWARE	(BCE_CP_FIRMWARE | BCE_LEVEL_WARN)
 #define BCE_INFO_FIRMWARE	(BCE_CP_FIRMWARE | BCE_LEVEL_INFO)
-#define BCE_VERBOSE_FIRMWARE	(BCE_CP_FIRMWARE | BCE_LEVEL_VERBOSE)
-#define BCE_EXTREME_FIRMWARE	(BCE_CP_FIRMWARE | BCE_LEVEL_EXTREME)
-#define BCE_INSANE_FIRMWARE	(BCE_CP_FIRMWARE | BCE_LEVEL_INSANE)
+#define BCE_VERBOSE_FIRMWARE (BCE_CP_FIRMWARE | BCE_LEVEL_VERBOSE)
+#define BCE_EXTREME_FIRMWARE (BCE_CP_FIRMWARE | BCE_LEVEL_EXTREME)
+#define BCE_INSANE_FIRMWARE (BCE_CP_FIRMWARE | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_CTX		(BCE_CP_CTX | BCE_LEVEL_WARN)
 #define BCE_INFO_CTX		(BCE_CP_CTX | BCE_LEVEL_INFO)
-#define BCE_VERBOSE_CTX		(BCE_CP_CTX | BCE_LEVEL_VERBOSE)
-#define BCE_EXTREME_CTX		(BCE_CP_CTX | BCE_LEVEL_EXTREME)
+#define BCE_VERBOSE_CTX	(BCE_CP_CTX | BCE_LEVEL_VERBOSE)
+#define BCE_EXTREME_CTX	(BCE_CP_CTX | BCE_LEVEL_EXTREME)
 #define BCE_INSANE_CTX		(BCE_CP_CTX | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_REG		(BCE_CP_REG | BCE_LEVEL_WARN)
 #define BCE_INFO_REG		(BCE_CP_REG | BCE_LEVEL_INFO)
-#define BCE_VERBOSE_REG		(BCE_CP_REG | BCE_LEVEL_VERBOSE)
-#define BCE_EXTREME_REG		(BCE_CP_REG | BCE_LEVEL_EXTREME)
+#define BCE_VERBOSE_REG	(BCE_CP_REG | BCE_LEVEL_VERBOSE)
+#define BCE_EXTREME_REG	(BCE_CP_REG | BCE_LEVEL_EXTREME)
 #define BCE_INSANE_REG		(BCE_CP_REG | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_MISC		(BCE_CP_MISC | BCE_LEVEL_WARN)
 #define BCE_INFO_MISC		(BCE_CP_MISC | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_MISC	(BCE_CP_MISC | BCE_LEVEL_VERBOSE)
 #define BCE_EXTREME_MISC	(BCE_CP_MISC | BCE_LEVEL_EXTREME)
-#define BCE_INSANE_MISC		(BCE_CP_MISC | BCE_LEVEL_INSANE)
+#define BCE_INSANE_MISC	(BCE_CP_MISC | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_SPECIAL	(BCE_CP_SPECIAL | BCE_LEVEL_WARN)
 #define BCE_INFO_SPECIAL	(BCE_CP_SPECIAL | BCE_LEVEL_INFO)
-#define BCE_VERBOSE_SPECIAL	(BCE_CP_SPECIAL | BCE_LEVEL_VERBOSE)
-#define BCE_EXTREME_SPECIAL	(BCE_CP_SPECIAL | BCE_LEVEL_EXTREME)
+#define BCE_VERBOSE_SPECIAL (BCE_CP_SPECIAL | BCE_LEVEL_VERBOSE)
+#define BCE_EXTREME_SPECIAL (BCE_CP_SPECIAL | BCE_LEVEL_EXTREME)
 #define BCE_INSANE_SPECIAL	(BCE_CP_SPECIAL | BCE_LEVEL_INSANE)
 
-#define BCE_FATAL		(BCE_CP_ALL | BCE_LEVEL_FATAL)
-#define BCE_WARN		(BCE_CP_ALL | BCE_LEVEL_WARN)
-#define BCE_INFO		(BCE_CP_ALL | BCE_LEVEL_INFO)
+#define BCE_FATAL			(BCE_CP_ALL | BCE_LEVEL_FATAL)
+#define BCE_WARN			(BCE_CP_ALL | BCE_LEVEL_WARN)
+#define BCE_INFO			(BCE_CP_ALL | BCE_LEVEL_INFO)
 #define BCE_VERBOSE		(BCE_CP_ALL | BCE_LEVEL_VERBOSE)
 #define BCE_EXTREME		(BCE_CP_ALL | BCE_LEVEL_EXTREME)
-#define BCE_INSANE		(BCE_CP_ALL | BCE_LEVEL_INSANE)
+#define BCE_INSANE			(BCE_CP_ALL | BCE_LEVEL_INSANE)
 
 #define BCE_CODE_PATH(cp)	((cp & BCE_CP_MASK) & bce_debug)
 #define BCE_MSG_LEVEL(lv)	\
@@ -1155,20 +1155,19 @@ struct tx_bd {
 	u32 tx_bd_haddr_lo;
 	u32 tx_bd_mss_nbytes;
 	u16 tx_bd_flags;
+#define TX_BD_FLAGS_CONN_FAULT		(1<<0)
+#define TX_BD_FLAGS_TCP_UDP_CKSUM	(1<<1)
+#define TX_BD_FLAGS_IP_CKSUM		(1<<2)
+#define TX_BD_FLAGS_VLAN_TAG		(1<<3)
+#define TX_BD_FLAGS_COAL_NOW		(1<<4)
+#define TX_BD_FLAGS_DONT_GEN_CRC	(1<<5)
+#define TX_BD_FLAGS_END			(1<<6)
+#define TX_BD_FLAGS_START			(1<<7)
+#define TX_BD_FLAGS_SW_OPTION_WORD	(0x1f<<8)
+#define TX_BD_FLAGS_SW_FLAGS		(1<<13)
+#define TX_BD_FLAGS_SW_SNAP		(1<<14)
+#define TX_BD_FLAGS_SW_LSO			(1<<15)
 	u16 tx_bd_vlan_tag;
-		#define TX_BD_FLAGS_CONN_FAULT		(1<<0)
-		#define TX_BD_FLAGS_TCP_UDP_CKSUM	(1<<1)
-		#define TX_BD_FLAGS_IP_CKSUM		(1<<2)
-		#define TX_BD_FLAGS_VLAN_TAG		(1<<3)
-		#define TX_BD_FLAGS_COAL_NOW		(1<<4)
-		#define TX_BD_FLAGS_DONT_GEN_CRC	(1<<5)
-		#define TX_BD_FLAGS_END			(1<<6)
-		#define TX_BD_FLAGS_START		(1<<7)
-		#define TX_BD_FLAGS_SW_OPTION_WORD	(0x1f<<8)
-		#define TX_BD_FLAGS_SW_FLAGS		(1<<13)
-		#define TX_BD_FLAGS_SW_SNAP		(1<<14)
-		#define TX_BD_FLAGS_SW_LSO		(1<<15)
-
 };
 
 
@@ -1180,11 +1179,10 @@ struct rx_bd {
 	u32 rx_bd_haddr_lo;
 	u32 rx_bd_len;
 	u32 rx_bd_flags;
-		#define RX_BD_FLAGS_NOPUSH		(1<<0)
-		#define RX_BD_FLAGS_DUMMY		(1<<1)
-		#define RX_BD_FLAGS_END			(1<<2)
-		#define RX_BD_FLAGS_START		(1<<3)
-
+#define RX_BD_FLAGS_NOPUSH		(1<<0)
+#define RX_BD_FLAGS_DUMMY		(1<<1)
+#define RX_BD_FLAGS_END		(1<<2)
+#define RX_BD_FLAGS_START		(1<<3)
 };
 
 
@@ -1387,6 +1385,7 @@ struct l2_fhdr {
 		#define L2_FHDR_ERRORS_ALIGNMENT	(1<<19)
 		#define L2_FHDR_ERRORS_TOO_SHORT	(1<<20)
 		#define L2_FHDR_ERRORS_GIANT_FRAME	(1<<21)
+		#define L2_FHDR_ERRORS_IPV4_BAD_LEN	(1<<22)
 		#define L2_FHDR_ERRORS_TCP_XSUM		(1<<28)
 		#define L2_FHDR_ERRORS_UDP_XSUM		(1<<31)
 
@@ -1405,36 +1404,39 @@ struct l2_fhdr {
 };
 
 #define BCE_L2FHDR_PRINTFB	\
-	"\20"			\
+	"\20"				\
 	"\40UDP_XSUM_ERR"	\
-	"\37b30"		\
-	"\36b29"		\
+	"\37b30"			\
+	"\36b29"			\
 	"\35TCP_XSUM_ERR"	\
-	"\34b27"		\
-	"\33b26"		\
-	"\32b25"		\
-	"\31b24"		\
-	"\30b23"		\
-	"\27b22"		\
+	"\34b27"			\
+	"\33b26"			\
+	"\32b25"			\
+	"\31b24"			\
+	"\30b23"			\
+	"\27IPv4_BAL_LEN"	\
 	"\26GIANT_ERR"		\
 	"\25SHORT_ERR"		\
 	"\24ALIGN_ERR"		\
 	"\23PHY_ERR"		\
 	"\22CRC_ERR"		\
-	"\21SPLIT"		\
-	"\20UDP"		\
-	"\17TCP"		\
-	"\16IP"			\
-	"\15b12"		\
-	"\14b11"		\
-	"\13b10"		\
-	"\12b09"		\
-	"\11RSS"		\
-	"\10SNAP"		\
-	"\07VLAN"		\
-	"\06P4"			\
-	"\05P3"			\
-	"\04P2"
+	"\21SPLIT"			\
+	"\20UDP"			\
+	"\17TCP"			\
+	"\16IP"				\
+	"\15SORT_b3"		\
+	"\14SORT_b2"		\
+	"\13SORT_b1"		\
+	"\12SORT_b0"		\
+	"\11RSS"			\
+	"\10SNAP"			\
+	"\07VLAN"			\
+	"\06P4"				\
+	"\05P3"				\
+	"\04P2"				\
+	"\03RULE_b2"		\
+	"\02RULE_b1"		\
+	"\01RULE_b0"
 
 
 /*
@@ -6150,18 +6152,20 @@ struct l2_fhdr {
  * Page count must remain a power of 2 for all
  * of the math to work correctly.
  */
-#define TX_PAGES	2
-#define TOTAL_TX_BD_PER_PAGE  (BCM_PAGE_SIZE / sizeof(struct tx_bd))
-#define USABLE_TX_BD_PER_PAGE (TOTAL_TX_BD_PER_PAGE - 1)
-#define TOTAL_TX_BD (TOTAL_TX_BD_PER_PAGE * TX_PAGES)
-#define USABLE_TX_BD (USABLE_TX_BD_PER_PAGE * TX_PAGES)
-#define MAX_TX_BD (TOTAL_TX_BD - 1)
+#define DEFAULT_TX_PAGES		2
+#define MAX_TX_PAGES			8
+#define TOTAL_TX_BD_PER_PAGE	(BCM_PAGE_SIZE / sizeof(struct tx_bd))
+#define USABLE_TX_BD_PER_PAGE	(TOTAL_TX_BD_PER_PAGE - 1)
+#define MAX_TX_BD_AVAIL		(MAX_TX_PAGES * TOTAL_TX_BD_PER_PAGE)
+#define TOTAL_TX_BD_ALLOC		(TOTAL_TX_BD_PER_PAGE * sc->tx_pages)
+#define USABLE_TX_BD_ALLOC		(USABLE_TX_BD_PER_PAGE * sc->tx_pages)
+#define MAX_TX_BD_ALLOC		(TOTAL_TX_BD_ALLOC - 1)
 
 /* Advance to the next tx_bd, skipping any next page pointers. */
 #define NEXT_TX_BD(x) (((x) & USABLE_TX_BD_PER_PAGE) ==	\
     (USABLE_TX_BD_PER_PAGE - 1)) ? (x) + 2 : (x) + 1
 
-#define TX_CHAIN_IDX(x) ((x) & MAX_TX_BD)
+#define TX_CHAIN_IDX(x) ((x) & MAX_TX_BD_ALLOC)
 
 #define TX_PAGE(x) (((x) & ~USABLE_TX_BD_PER_PAGE) >> (BCM_PAGE_BITS - 4))
 #define TX_IDX(x) ((x) & USABLE_TX_BD_PER_PAGE)
@@ -6170,44 +6174,45 @@ struct l2_fhdr {
  * Page count must remain a power of 2 for all
  * of the math to work correctly.
  */
-#define RX_PAGES	2
-#define TOTAL_RX_BD_PER_PAGE  (BCM_PAGE_SIZE / sizeof(struct rx_bd))
-#define USABLE_RX_BD_PER_PAGE (TOTAL_RX_BD_PER_PAGE - 1)
-#define TOTAL_RX_BD (TOTAL_RX_BD_PER_PAGE * RX_PAGES)
-#define USABLE_RX_BD (USABLE_RX_BD_PER_PAGE * RX_PAGES)
-#define MAX_RX_BD (TOTAL_RX_BD - 1)
+#define DEFAULT_RX_PAGES		2
+#define MAX_RX_PAGES			8
+#define TOTAL_RX_BD_PER_PAGE	(BCM_PAGE_SIZE / sizeof(struct rx_bd))
+#define USABLE_RX_BD_PER_PAGE	(TOTAL_RX_BD_PER_PAGE - 1)
+#define MAX_RX_BD_AVAIL		(MAX_RX_PAGES * TOTAL_RX_BD_PER_PAGE)
+#define TOTAL_RX_BD_ALLOC		(TOTAL_RX_BD_PER_PAGE * sc->rx_pages)
+#define USABLE_RX_BD_ALLOC		(USABLE_RX_BD_PER_PAGE * sc->rx_pages)
+#define MAX_RX_BD_ALLOC		(TOTAL_RX_BD_ALLOC - 1)
 
 /* Advance to the next rx_bd, skipping any next page pointers. */
 #define NEXT_RX_BD(x) (((x) & USABLE_RX_BD_PER_PAGE) ==	\
     (USABLE_RX_BD_PER_PAGE - 1)) ? (x) + 2 : (x) + 1
 
-#define RX_CHAIN_IDX(x) ((x) & MAX_RX_BD)
+#define RX_CHAIN_IDX(x) ((x) & MAX_RX_BD_ALLOC)
 
 #define RX_PAGE(x) (((x) & ~USABLE_RX_BD_PER_PAGE) >> (BCM_PAGE_BITS - 4))
 #define RX_IDX(x) ((x) & USABLE_RX_BD_PER_PAGE)
 
-#ifdef BCE_JUMBO_HDRSPLIT
 /*
  * To accomodate jumbo frames, the page chain should
  * be 4 times larger than the receive chain.
  */
-#define PG_PAGES	(RX_PAGES * 4)
-#define TOTAL_PG_BD_PER_PAGE  (BCM_PAGE_SIZE / sizeof(struct rx_bd))
-#define USABLE_PG_BD_PER_PAGE (TOTAL_PG_BD_PER_PAGE - 1)
-#define TOTAL_PG_BD (TOTAL_PG_BD_PER_PAGE * PG_PAGES)
-#define USABLE_PG_BD (USABLE_PG_BD_PER_PAGE * PG_PAGES)
-#define MAX_PG_BD (TOTAL_PG_BD - 1)
+#define DEFAULT_PG_PAGES		(DEFAULT_RX_PAGES * 4)
+#define MAX_PG_PAGES			(MAX_RX_PAGES * 4)
+#define TOTAL_PG_BD_PER_PAGE	(BCM_PAGE_SIZE / sizeof(struct rx_bd))
+#define USABLE_PG_BD_PER_PAGE	(TOTAL_PG_BD_PER_PAGE - 1)
+#define MAX_PG_BD_AVAIL		(MAX_PG_PAGES * TOTAL_PG_BD_PER_PAGE)
+#define TOTAL_PG_BD_ALLOC		(TOTAL_PG_BD_PER_PAGE * sc->pg_pages)
+#define USABLE_PG_BD_ALLOC		(USABLE_PG_BD_PER_PAGE * sc->pg_pages)
+#define MAX_PG_BD_ALLOC		(TOTAL_PG_BD_ALLOC - 1)
 
 /* Advance to the next pg_bd, skipping any next page pointers. */
 #define NEXT_PG_BD(x) (((x) & USABLE_PG_BD_PER_PAGE) ==	\
     (USABLE_PG_BD_PER_PAGE - 1)) ? (x) + 2 : (x) + 1
 
-#define PG_CHAIN_IDX(x) ((x) & MAX_PG_BD)
+#define PG_CHAIN_IDX(x) ((x) & MAX_PG_BD_ALLOC)
 
 #define PG_PAGE(x) (((x) & ~USABLE_PG_BD_PER_PAGE) >> (BCM_PAGE_BITS - 4))
 #define PG_IDX(x) ((x) & USABLE_PG_BD_PER_PAGE)
-
-#endif /* BCE_JUMBO_HDRSPLIT */
 
 #define CTX_INIT_RETRY_COUNT        10
 
@@ -6235,6 +6240,15 @@ struct l2_fhdr {
 
 #define TX_CID			16
 #define RX_CID			0
+
+#define DEFAULT_TX_QUICK_CONS_TRIP_INT	20
+#define DEFAULT_TX_QUICK_CONS_TRIP		20
+#define DEFAULT_TX_TICKS_INT			80
+#define DEFAULT_TX_TICKS				80
+#define DEFAULT_RX_QUICK_CONS_TRIP_INT	6
+#define DEFAULT_RX_QUICK_CONS_TRIP		6
+#define DEFAULT_RX_TICKS_INT			18
+#define DEFAULT_RX_TICKS				18
 
 /****************************************************************************/
 /* BCE Processor Firmwware Load Definitions                                 */
@@ -6530,26 +6544,27 @@ struct bce_softc
 	/* The device handle for the MII bus child device. */
 	device_t		bce_miibus;
 
-	/* Driver maintained TX chain pointers and byte counter. */
+	/* Driver maintained RX chain pointers and byte counter. */
 	u16			rx_prod;
 	u16			rx_cons;
 
 	/* Counts the bytes used in the RX chain. */
 	u32			rx_prod_bseq;
+
+	/* Driver maintained TX chain pointers and byte counter. */
 	u16			tx_prod;
 	u16			tx_cons;
 
 	/* Counts the bytes used in the TX chain. */
 	u32			tx_prod_bseq;
 
-#ifdef BCE_JUMBO_HDRSPLIT
+	/* Driver maintained PG chain pointers. */
 	u16			pg_prod;
 	u16			pg_cons;
-#endif
 
 	int			bce_link_up;
-	struct			callout bce_tick_callout;
-	struct			callout bce_pulse_callout;
+	struct		callout bce_tick_callout;
+	struct		callout bce_pulse_callout;
 
 	/* Ticks until chip reset */
 	int			watchdog_timer;
@@ -6559,10 +6574,7 @@ struct bce_softc
 	int			rx_bd_mbuf_alloc_size;
 	int			rx_bd_mbuf_data_len;
 	int			rx_bd_mbuf_align_pad;
-
-#ifdef BCE_JUMBO_HDRSPLIT
 	int			pg_bd_mbuf_alloc_size;
-#endif
 
 	/* Receive mode settings (i.e promiscuous, multicast, etc.). */
 	u32			rx_mode;
@@ -6571,30 +6583,31 @@ struct bce_softc
 	bus_dma_tag_t		parent_tag;
 
 	/* H/W maintained TX buffer descriptor chain structure. */
+	int					tx_pages;
 	bus_dma_tag_t		tx_bd_chain_tag;
-	bus_dmamap_t		tx_bd_chain_map[TX_PAGES];
-	struct tx_bd		*tx_bd_chain[TX_PAGES];
-	bus_addr_t		tx_bd_chain_paddr[TX_PAGES];
+	bus_dmamap_t		tx_bd_chain_map[MAX_TX_PAGES];
+	struct tx_bd		*tx_bd_chain[MAX_TX_PAGES];
+	bus_addr_t			tx_bd_chain_paddr[MAX_TX_PAGES];
 
 	/* H/W maintained RX buffer descriptor chain structure. */
+	int					rx_pages;
 	bus_dma_tag_t		rx_bd_chain_tag;
-	bus_dmamap_t		rx_bd_chain_map[RX_PAGES];
-	struct rx_bd		*rx_bd_chain[RX_PAGES];
-	bus_addr_t		rx_bd_chain_paddr[RX_PAGES];
+	bus_dmamap_t		rx_bd_chain_map[MAX_RX_PAGES];
+	struct rx_bd		*rx_bd_chain[MAX_RX_PAGES];
+	bus_addr_t			rx_bd_chain_paddr[MAX_RX_PAGES];
 
-#ifdef BCE_JUMBO_HDRSPLIT
 	/* H/W maintained page buffer descriptor chain structure. */
+	int					pg_pages;
 	bus_dma_tag_t		pg_bd_chain_tag;
-	bus_dmamap_t		pg_bd_chain_map[PG_PAGES];
-	struct rx_bd		*pg_bd_chain[PG_PAGES];
-	bus_addr_t		pg_bd_chain_paddr[PG_PAGES];
-#endif
+	bus_dmamap_t		pg_bd_chain_map[MAX_PG_PAGES];
+	struct rx_bd		*pg_bd_chain[MAX_PG_PAGES];
+	bus_addr_t			pg_bd_chain_paddr[MAX_PG_PAGES];
 
 	/* H/W maintained status block. */
 	bus_dma_tag_t		status_tag;
 	bus_dmamap_t		status_map;
 	struct status_block	*status_block;
-	bus_addr_t		status_block_paddr;
+	bus_addr_t			status_block_paddr;
 
 	/* Driver maintained status block values. */
 	u16			last_status_idx;
@@ -6605,49 +6618,41 @@ struct bce_softc
 	bus_dma_tag_t		stats_tag;
 	bus_dmamap_t		stats_map;
 	struct statistics_block *stats_block;
-	bus_addr_t		stats_block_paddr;
+	bus_addr_t			stats_block_paddr;
 
 	/* H/W maintained context block. */
-	int			ctx_pages;
+	int					ctx_pages;
 	bus_dma_tag_t		ctx_tag;
 
 	/* BCM5709/16 use host memory for context. */
 	bus_dmamap_t		ctx_map[BCE_MAX_CONTEXT];
-	void			*ctx_block[BCE_MAX_CONTEXT];
-	bus_addr_t		ctx_paddr[BCE_MAX_CONTEXT];
+	void				*ctx_block[BCE_MAX_CONTEXT];
+	bus_addr_t			ctx_paddr[BCE_MAX_CONTEXT];
 
 	/* Bus tag for RX/TX mbufs. */
 	bus_dma_tag_t		rx_mbuf_tag;
 	bus_dma_tag_t		tx_mbuf_tag;
-
-#ifdef BCE_JUMBO_HDRSPLIT
 	bus_dma_tag_t		pg_mbuf_tag;
-#endif
 
 	/* S/W maintained mbuf TX chain structure. */
-	bus_dmamap_t		tx_mbuf_map[TOTAL_TX_BD];
-	struct mbuf		*tx_mbuf_ptr[TOTAL_TX_BD];
+	bus_dmamap_t		tx_mbuf_map[MAX_TX_BD_AVAIL];
+	struct mbuf			*tx_mbuf_ptr[MAX_TX_BD_AVAIL];
 
 	/* S/W maintained mbuf RX chain structure. */
-	bus_dmamap_t		rx_mbuf_map[TOTAL_RX_BD];
-	struct mbuf		*rx_mbuf_ptr[TOTAL_RX_BD];
+	bus_dmamap_t		rx_mbuf_map[MAX_RX_BD_AVAIL];
+	struct mbuf			*rx_mbuf_ptr[MAX_RX_BD_AVAIL];
 
-#ifdef BCE_JUMBO_HDRSPLIT
 	/* S/W maintained mbuf page chain structure. */
-	bus_dmamap_t		pg_mbuf_map[TOTAL_PG_BD];
-	struct mbuf		*pg_mbuf_ptr[TOTAL_PG_BD];
-#endif
+	bus_dmamap_t		pg_mbuf_map[MAX_PG_BD_AVAIL];
+	struct mbuf			*pg_mbuf_ptr[MAX_PG_BD_AVAIL];
 
 	/* Track the number of buffer descriptors in use. */
 	u16			free_rx_bd;
 	u16			max_rx_bd;
 	u16			used_tx_bd;
 	u16			max_tx_bd;
-
-#ifdef BCE_JUMBO_HDRSPLIT
 	u16			free_pg_bd;
 	u16			max_pg_bd;
-#endif
 
 	/* Provides access to hardware statistics through sysctl. */
 	u64			stat_IfHCInOctets;
@@ -6733,63 +6738,63 @@ struct bce_softc
 	/* Track the number of enqueued mbufs. */
 	int			debug_tx_mbuf_alloc;
 	int			debug_rx_mbuf_alloc;
-
-#ifdef BCE_JUMBO_HDRSPLIT
 	int			debug_pg_mbuf_alloc;
-#endif
 
 	/* Track how many and what type of interrupts are generated. */
-	u32			interrupts_generated;
-	u32			interrupts_handled;
-	u32			interrupts_rx;
-	u32			interrupts_tx;
-	u32			phy_interrupts;
-
-	/* Track interrupt time (25MHz clock). */
-	u64			rx_intr_time;
-	u64			tx_intr_time;
+	u64			interrupts_generated;
+	u64			interrupts_handled;
+	u64			interrupts_rx;
+	u64			interrupts_tx;
+	u64			phy_interrupts;
 
 	/* Lowest number of rx_bd's free. */
-	u32			rx_low_watermark;
+	u16			rx_low_watermark;
 
 	/* Number of times the RX chain was empty. */
-	u32			rx_empty_count;
+	u64			rx_empty_count;
 
-#ifdef BCE_JUMBO_HDRSPLIT
 	/* Lowest number of pages free. */
-	u32			pg_low_watermark;
+	u16			pg_low_watermark;
 
 	/* Number of times the page chain was empty. */
-	u32			pg_empty_count;
-#endif
+	u64			pg_empty_count;
 
 	/* Greatest number of tx_bd's used. */
-	u32			tx_hi_watermark;
+	u16			tx_hi_watermark;
 
 	/* Number of times the TX chain was full. */
-	u32			tx_full_count;
+	u64			tx_full_count;
 
 	/* Number of TSO frames requested. */
-	u32			tso_frames_requested;
+	u64			tso_frames_requested;
 
 	/* Number of TSO frames completed. */
-	u32			tso_frames_completed;
+	u64			tso_frames_completed;
 
 	/* Number of TSO frames failed. */
-	u32			tso_frames_failed;
+	u64			tso_frames_failed;
 
 	/* Number of IP checksum offload frames.*/
-	u32			csum_offload_ip;
+	u64			csum_offload_ip;
 
 	/* Number of TCP/UDP checksum offload frames.*/
-	u32			csum_offload_tcp_udp;
+	u64			csum_offload_tcp_udp;
 
 	/* Number of VLAN tagged frames received. */
-	u32			vlan_tagged_frames_rcvd;
+	u64			vlan_tagged_frames_rcvd;
 
 	/* Number of VLAN tagged frames stripped. */
-	u32			vlan_tagged_frames_stripped;
-#endif
+	u64			vlan_tagged_frames_stripped;
+
+	/* Number of split header frames received. */
+	u64			split_header_frames_rcvd;
+
+	/* Number of split header TCP frames received. */
+	u64			split_header_tcp_frames_rcvd;
+
+	/* Buffer with NVRAM contents for the NIC. */
+	u8			*nvram_buf;
+#endif /* BCE_DEBUG */
 };
 
 #endif /* __BCEREG_H_DEFINED */

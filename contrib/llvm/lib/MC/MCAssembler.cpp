@@ -178,8 +178,12 @@ uint64_t MCAsmLayout::getSectionSize(const MCSectionData *SD) const {
 MCFragment::MCFragment() : Kind(FragmentType(~0)) {
 }
 
+MCFragment::~MCFragment() {
+}
+
 MCFragment::MCFragment(FragmentType _Kind, MCSectionData *_Parent)
-  : Kind(_Kind), Parent(_Parent), Atom(0), EffectiveSize(~UINT64_C(0))
+  : Kind(_Kind), Parent(_Parent), Atom(0), Offset(~UINT64_C(0)),
+    EffectiveSize(~UINT64_C(0))
 {
   if (Parent)
     Parent->getFragmentList().push_back(this);
@@ -207,7 +211,8 @@ MCSymbolData::MCSymbolData(const MCSymbol &_Symbol, MCFragment *_Fragment,
                            uint64_t _Offset, MCAssembler *A)
   : Symbol(&_Symbol), Fragment(_Fragment), Offset(_Offset),
     IsExternal(false), IsPrivateExtern(false),
-    CommonSize(0), CommonAlign(0), Flags(0), Index(0)
+    CommonSize(0), SymbolSize(0), CommonAlign(0),
+    Flags(0), Index(0)
 {
   if (A)
     A->getSymbolList().push_back(this);
@@ -623,8 +628,23 @@ void MCAssembler::WriteSectionData(const MCSectionData *SD,
       switch (it->getKind()) {
       default:
         assert(0 && "Invalid fragment in virtual section!");
+      case MCFragment::FT_Data: {
+        // Check that we aren't trying to write a non-zero contents (or fixups)
+        // into a virtual section. This is to support clients which use standard
+        // directives to fill the contents of virtual sections.
+        MCDataFragment &DF = cast<MCDataFragment>(*it);
+        assert(DF.fixup_begin() == DF.fixup_end() &&
+               "Cannot have fixups in virtual section!");
+        for (unsigned i = 0, e = DF.getContents().size(); i != e; ++i)
+          assert(DF.getContents()[i] == 0 &&
+                 "Invalid data value for virtual section!");
+        break;
+      }
       case MCFragment::FT_Align:
-        assert(!cast<MCAlignFragment>(it)->getValueSize() &&
+        // Check that we aren't trying to write a non-zero value into a virtual
+        // section.
+        assert((!cast<MCAlignFragment>(it)->getValueSize() ||
+                !cast<MCAlignFragment>(it)->getValue()) &&
                "Invalid align in virtual section!");
         break;
       case MCFragment::FT_Fill:
@@ -647,7 +667,41 @@ void MCAssembler::WriteSectionData(const MCSectionData *SD,
   assert(OW->getStream().tell() - Start == Layout.getSectionFileSize(SD));
 }
 
-void MCAssembler::Finish() {
+void MCAssembler::AddSectionToTheEnd(MCSectionData &SD, MCAsmLayout &Layout) {
+  // Create dummy fragments and assign section ordinals.
+  unsigned SectionIndex = 0;
+  for (MCAssembler::iterator it = begin(), ie = end(); it != ie; ++it)
+    SectionIndex++;
+
+  SD.setOrdinal(SectionIndex);
+
+  // Assign layout order indices to sections and fragments.
+  unsigned FragmentIndex = 0;
+  unsigned i = 0;
+  for (unsigned e = Layout.getSectionOrder().size(); i != e; ++i) {
+    MCSectionData *SD = Layout.getSectionOrder()[i];
+
+    for (MCSectionData::iterator it2 = SD->begin(),
+           ie2 = SD->end(); it2 != ie2; ++it2)
+      FragmentIndex++;
+  }
+
+  SD.setLayoutOrder(i);
+  for (MCSectionData::iterator it2 = SD.begin(),
+         ie2 = SD.end(); it2 != ie2; ++it2) {
+    it2->setLayoutOrder(FragmentIndex++);
+  }
+  Layout.getSectionOrder().push_back(&SD);
+
+  Layout.LayoutSection(&SD);
+
+  // Layout until everything fits.
+  while (LayoutOnce(Layout))
+    continue;
+
+}
+
+void MCAssembler::Finish(MCObjectWriter *Writer) {
   DEBUG_WITH_TYPE("mc-dump", {
       llvm::errs() << "assembler backend - pre-layout\n--\n";
       dump(); });
@@ -717,9 +771,15 @@ void MCAssembler::Finish() {
       dump(); });
 
   uint64_t StartOffset = OS.tell();
-  llvm::OwningPtr<MCObjectWriter> Writer(getBackend().createObjectWriter(OS));
-  if (!Writer)
-    report_fatal_error("unable to create object writer!");
+
+  llvm::OwningPtr<MCObjectWriter> OwnWriter(0);
+  if (Writer == 0) {
+    //no custom Writer_ : create the default one life-managed by OwningPtr
+    OwnWriter.reset(getBackend().createObjectWriter(OS));
+    Writer = OwnWriter.get();
+    if (!Writer)
+      report_fatal_error("unable to create object writer!");
+  }
 
   // Allow the object writer a chance to perform post-layout binding (for
   // example, to set the index fields in the symbol data).

@@ -29,6 +29,5 @@ AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR W
 /* $FreeBSD$ */
 
 int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp);
-int cvm_oct_xmit_pow(struct mbuf *m, struct ifnet *ifp);
 void cvm_oct_tx_shutdown(struct ifnet *ifp);
 

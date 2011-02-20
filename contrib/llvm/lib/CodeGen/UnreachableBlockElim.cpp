@@ -43,7 +43,7 @@ namespace {
     virtual bool runOnFunction(Function &F);
   public:
     static char ID; // Pass identification, replacement for typeid
-    UnreachableBlockElim() : FunctionPass(&ID) {}
+    UnreachableBlockElim() : FunctionPass(ID) {}
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addPreserved<ProfileInfo>();
@@ -51,8 +51,8 @@ namespace {
   };
 }
 char UnreachableBlockElim::ID = 0;
-static RegisterPass<UnreachableBlockElim>
-X("unreachableblockelim", "Remove unreachable blocks from the CFG");
+INITIALIZE_PASS(UnreachableBlockElim, "unreachableblockelim",
+                "Remove unreachable blocks from the CFG", false, false);
 
 FunctionPass *llvm::createUnreachableBlockEliminationPass() {
   return new UnreachableBlockElim();
@@ -100,16 +100,15 @@ namespace {
     MachineModuleInfo *MMI;
   public:
     static char ID; // Pass identification, replacement for typeid
-    UnreachableMachineBlockElim() : MachineFunctionPass(&ID) {}
+    UnreachableMachineBlockElim() : MachineFunctionPass(ID) {}
   };
 }
 char UnreachableMachineBlockElim::ID = 0;
 
-static RegisterPass<UnreachableMachineBlockElim>
-Y("unreachable-mbb-elimination",
-  "Remove unreachable machine basic blocks");
+INITIALIZE_PASS(UnreachableMachineBlockElim, "unreachable-mbb-elimination",
+  "Remove unreachable machine basic blocks", false, false);
 
-const PassInfo *const llvm::UnreachableMachineBlockElimID = &Y;
+char &llvm::UnreachableMachineBlockElimID = UnreachableMachineBlockElim::ID;
 
 void UnreachableMachineBlockElim::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addPreserved<MachineLoopInfo>();

@@ -52,6 +52,7 @@ namespace CodeGen {
   class Selector;
   class ObjCIvarDecl;
   class ObjCStringLiteral;
+  class BlockDeclRefExpr;
 
 namespace CodeGen {
   class CodeGenModule;
@@ -102,6 +103,12 @@ public:
   /// Get a typed selector.
   virtual llvm::Value *GetSelector(CGBuilderTy &Builder,
                                    const ObjCMethodDecl *Method) = 0;
+
+  /// Get the type constant to catch for the given ObjC pointer type.
+  /// This is used externally to implement catching ObjC types in C++.
+  /// Runtimes which don't support this should add the appropriate
+  /// error to Sema.
+  virtual llvm::Constant *GetEHType(QualType T) = 0;
 
   /// Generate a constant string object.
   virtual llvm::Constant *GenerateConstantString(const StringLiteral *) = 0;
@@ -192,7 +199,8 @@ public:
   virtual void EmitObjCWeakAssign(CodeGen::CodeGenFunction &CGF,
                                   llvm::Value *src, llvm::Value *dest) = 0;
   virtual void EmitObjCGlobalAssign(CodeGen::CodeGenFunction &CGF,
-                                    llvm::Value *src, llvm::Value *dest) = 0;
+                                    llvm::Value *src, llvm::Value *dest,
+                                    bool threadlocal=false) = 0;
   virtual void EmitObjCIvarAssign(CodeGen::CodeGenFunction &CGF,
                                   llvm::Value *src, llvm::Value *dest,
                                   llvm::Value *ivarOffset) = 0;
@@ -211,6 +219,9 @@ public:
                                         llvm::Value *DestPtr,
                                         llvm::Value *SrcPtr,
                                         llvm::Value *Size) = 0;
+  virtual llvm::Constant *GCBlockLayout(CodeGen::CodeGenFunction &CGF,
+                  const llvm::SmallVectorImpl<const BlockDeclRefExpr *> &) = 0;
+                                        
 };
 
 /// Creates an instance of an Objective-C runtime class.

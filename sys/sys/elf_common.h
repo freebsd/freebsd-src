@@ -325,6 +325,7 @@ typedef struct {
 #define	PT_LOOS		0x60000000	/* First OS-specific. */
 #define	PT_SUNW_UNWIND	0x6464e550	/* amd64 UNWIND program header */
 #define	PT_GNU_EH_FRAME	0x6474e550
+#define	PT_GNU_STACK	0x6474e551
 #define	PT_LOSUNW	0x6ffffffa
 #define	PT_SUNWBSS	0x6ffffffa	/* Sun Specific segment */
 #define	PT_SUNWSTACK	0x6ffffffb	/* describes the stack segment */
@@ -388,7 +389,7 @@ typedef struct {
 #define	DT_ENCODING	32	/* Values greater than or equal to DT_ENCODING
 				   and less than DT_LOOS follow the rules for
 				   the interpretation of the d_un union
-				   as follows: even == 'd_ptr', even == 'd_val'
+				   as follows: even == 'd_ptr', odd == 'd_val'
 				   or none */
 #define	DT_PREINIT_ARRAY 32	/* Address of the array of pointers to
 				   pre-initialization functions. */
@@ -471,6 +472,7 @@ typedef struct {
 #define	DF_1_BIND_NOW	0x00000001	/* Same as DF_BIND_NOW */
 #define	DF_1_GLOBAL	0x00000002	/* Set the RTLD_GLOBAL for object */
 #define	DF_1_NODELETE	0x00000008	/* Set the RTLD_NODELETE for object */
+#define	DF_1_LOADFLTR	0x00000010	/* Immediate loading of filtees */
 #define	DF_1_NOOPEN     0x00000040	/* Do not allow loading on dlopen() */
 #define	DF_1_ORIGIN	0x00000080	/* Process $ORIGIN */
 
@@ -478,6 +480,7 @@ typedef struct {
 #define	NT_PRSTATUS	1	/* Process status. */
 #define	NT_FPREGSET	2	/* Floating point registers. */
 #define	NT_PRPSINFO	3	/* Process state info. */
+#define	NT_THRMISC	7	/* Thread miscellaneous info. */
 
 /* Symbol Binding - ELFNN_ST_BIND - st_info */
 #define	STB_LOCAL	0	/* Local symbol */

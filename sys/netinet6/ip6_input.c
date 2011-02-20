@@ -227,6 +227,64 @@ ip6_init(void)
 	netisr_register(&ip6_nh);
 }
 
+/*
+ * The protocol to be inserted into ip6_protox[] must be already registered
+ * in inet6sw[], either statically or through pf_proto_register().
+ */
+int
+ip6proto_register(short ip6proto)
+{
+	struct ip6protosw *pr;
+
+	/* Sanity checks. */
+	if (ip6proto <= 0 || ip6proto >= IPPROTO_MAX)
+		return (EPROTONOSUPPORT);
+
+	/*
+	 * The protocol slot must not be occupied by another protocol
+	 * already.  An index pointing to IPPROTO_RAW is unused.
+	 */
+	pr = (struct ip6protosw *)pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
+	if (pr == NULL)
+		return (EPFNOSUPPORT);
+	if (ip6_protox[ip6proto] != pr - inet6sw)	/* IPPROTO_RAW */
+		return (EEXIST);
+
+	/*
+	 * Find the protocol position in inet6sw[] and set the index.
+	 */
+	for (pr = (struct ip6protosw *)inet6domain.dom_protosw;
+	    pr < (struct ip6protosw *)inet6domain.dom_protoswNPROTOSW; pr++) {
+		if (pr->pr_domain->dom_family == PF_INET6 &&
+		    pr->pr_protocol && pr->pr_protocol == ip6proto) {
+			ip6_protox[pr->pr_protocol] = pr - inet6sw;
+			return (0);
+		}
+	}
+	return (EPROTONOSUPPORT);
+}
+
+int
+ip6proto_unregister(short ip6proto)
+{
+	struct ip6protosw *pr;
+
+	/* Sanity checks. */
+	if (ip6proto <= 0 || ip6proto >= IPPROTO_MAX)
+		return (EPROTONOSUPPORT);
+
+	/* Check if the protocol was indeed registered. */
+	pr = (struct ip6protosw *)pffindproto(PF_INET6, IPPROTO_RAW, SOCK_RAW);
+	if (pr == NULL)
+		return (EPFNOSUPPORT);
+	if (ip6_protox[ip6proto] == pr - inet6sw)	/* IPPROTO_RAW */
+		return (ENOENT);
+
+	/* Reset the protocol slot to IPPROTO_RAW. */
+	ip6_protox[ip6proto] = pr - inet6sw;
+	return (0);
+}
+
 #ifdef VIMAGE
 void
 ip6_destroy()
@@ -1000,7 +1058,7 @@ ip6_hopopts_input(u_int32_t *plenp, u_int32_t *rtalertp,
  *
  * The function assumes that hbh header is located right after the IPv6 header
  * (RFC2460 p7), opthead is pointer into data content in m, and opthead to
- * opthead + hbhlen is located in continuous memory region.
+ * opthead + hbhlen is located in contiguous memory region.
  */
 int
 ip6_process_hopopts(struct mbuf *m, u_int8_t *opthead, int hbhlen,
@@ -1133,7 +1191,7 @@ ip6_process_hopopts(struct mbuf *m, u_int8_t *opthead, int hbhlen,
  * Unknown option processing.
  * The third argument `off' is the offset from the IPv6 header to the option,
  * which is necessary if the IPv6 header the and option header and IPv6 header
- * is not continuous in order to return an ICMPv6 error.
+ * is not contiguous in order to return an ICMPv6 error.
  */
 int
 ip6_unknown_opt(u_int8_t *optp, struct mbuf *m, int off)

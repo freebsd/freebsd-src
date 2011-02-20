@@ -34,8 +34,9 @@ class DiagnosticClient;
 class ExternalASTSource;
 class FileManager;
 class FrontendAction;
-class PCHReader;
+class ASTReader;
 class Preprocessor;
+class Sema;
 class SourceManager;
 class TargetInfo;
 
@@ -67,9 +68,6 @@ class CompilerInstance {
   /// The diagnostics engine instance.
   llvm::IntrusiveRefCntPtr<Diagnostic> Diagnostics;
 
-  /// The diagnostics client instance.
-  llvm::OwningPtr<DiagnosticClient> DiagClient;
-
   /// The target being compiled for.
   llvm::OwningPtr<TargetInfo> Target;
 
@@ -91,14 +89,14 @@ class CompilerInstance {
   /// The code completion consumer.
   llvm::OwningPtr<CodeCompleteConsumer> CompletionConsumer;
 
+  /// \brief The semantic analysis object.
+  llvm::OwningPtr<Sema> TheSema;
+  
   /// The frontend timer
   llvm::OwningPtr<llvm::Timer> FrontendTimer;
 
   /// The list of active output files.
   std::list< std::pair<std::string, llvm::raw_ostream*> > OutputFiles;
-
-  /// The PCH reader. Not owned; the ASTContext owns this.
-  PCHReader *Reader;
 
   void operator=(const CompilerInstance &);  // DO NOT IMPLEMENT
   CompilerInstance(const CompilerInstance&); // DO NOT IMPLEMENT
@@ -265,17 +263,10 @@ public:
   void setDiagnostics(Diagnostic *Value);
 
   DiagnosticClient &getDiagnosticClient() const {
-    assert(DiagClient && "Compiler instance has no diagnostic client!");
-    return *DiagClient;
+    assert(Diagnostics && Diagnostics->getClient() && 
+           "Compiler instance has no diagnostic client!");
+    return *Diagnostics->getClient();
   }
-
-  /// takeDiagnosticClient - Remove the current diagnostics client and give
-  /// ownership to the caller.
-  DiagnosticClient *takeDiagnosticClient() { return DiagClient.take(); }
-
-  /// setDiagnosticClient - Replace the current diagnostics client; the compiler
-  /// instance takes ownership of \arg Value.
-  void setDiagnosticClient(DiagnosticClient *Value);
 
   /// }
   /// @name Target Info
@@ -372,6 +363,10 @@ public:
   /// takes ownership of \arg Value.
   void setASTContext(ASTContext *Value);
 
+  /// \brief Replace the current Sema; the compiler instance takes ownership
+  /// of S.
+  void setSema(Sema *S);
+  
   /// }
   /// @name ASTConsumer
   /// {
@@ -391,6 +386,18 @@ public:
   /// takes ownership of \arg Value.
   void setASTConsumer(ASTConsumer *Value);
 
+  /// }
+  /// @name Semantic analysis
+  /// {
+  bool hasSema() const { return TheSema != 0; }
+  
+  Sema &getSema() const { 
+    assert(TheSema && "Compiler instance has no Sema object!");
+    return *TheSema;
+  }
+  
+  Sema *takeSema() { return TheSema.take(); }
+  
   /// }
   /// @name Code Completion
   /// {
@@ -502,17 +509,18 @@ public:
 
   /// Create an external AST source to read a PCH file and attach it to the AST
   /// context.
-  void createPCHExternalASTSource(llvm::StringRef Path);
+  void createPCHExternalASTSource(llvm::StringRef Path,
+                                  bool DisablePCHValidation,
+                                  void *DeserializationListener);
 
   /// Create an external AST source to read a PCH file.
   ///
   /// \return - The new object on success, or null on failure.
   static ExternalASTSource *
   createPCHExternalASTSource(llvm::StringRef Path, const std::string &Sysroot,
-                             Preprocessor &PP, ASTContext &Context);
-
-  /// Get the PCH reader, if any.
-  PCHReader *getPCHReader() { return Reader; }
+                             bool DisablePCHValidation,
+                             Preprocessor &PP, ASTContext &Context,
+                             void *DeserializationListener);
 
   /// Create a code completion consumer using the invocation; note that this
   /// will cause the source manager to truncate the input source file at the
@@ -526,8 +534,13 @@ public:
   createCodeCompletionConsumer(Preprocessor &PP, const std::string &Filename,
                                unsigned Line, unsigned Column,
                                bool UseDebugPrinter, bool ShowMacros,
-                               bool ShowCodePatterns, llvm::raw_ostream &OS);
+                               bool ShowCodePatterns, bool ShowGlobals,
+                               llvm::raw_ostream &OS);
 
+  /// \brief Create the Sema object to be used for parsing.
+  void createSema(bool CompleteTranslationUnit,
+                  CodeCompleteConsumer *CompletionConsumer);
+  
   /// Create the frontend timer and replace any existing one with it.
   void createFrontendTimer();
 

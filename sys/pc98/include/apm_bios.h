@@ -32,7 +32,7 @@
  * PC98 machines implement APM bios in nearly the same was as i386 machines,
  * so include the i386 version and note the changes here.
  */
-#include <i386/apm_bios.h>
+#include <x86/apm_bios.h>
 
 /*
  * APM BIOS and interrupt are different on pc98

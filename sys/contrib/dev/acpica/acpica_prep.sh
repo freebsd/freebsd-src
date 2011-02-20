@@ -19,11 +19,12 @@ fulldirs="common compiler debugger disassembler dispatcher events	\
 	tools utilities"
 
 # files to remove
-stripdirs="acpisrc acpixtract examples generate os_specific tests"
+stripdirs="acpinames acpisrc acpixtract examples generate os_specific	\
+	tests"
 stripfiles="Makefile README acintel.h aclinux.h acmsvc.h acnetbsd.h	\
 	acos2.h accygwin.h acefi.h acwin.h acwin64.h aeexec.c		\
-	aehandlers.c aemain.c aetables.c osunixdir.c readme.txt		\
-	utclib.c"
+	aehandlers.c aemain.c aetables.c aetables.h osunixdir.c		\
+	readme.txt utclib.c"
 
 # include files to canonify
 src_headers="acapps.h accommon.h acconfig.h acdebug.h acdisasm.h	\
@@ -33,8 +34,8 @@ src_headers="acapps.h accommon.h acconfig.h acdebug.h acdisasm.h	\
 	acresrc.h acrestyp.h acstruct.h actables.h actbl.h actbl1.h	\
 	actbl2.h actypes.h acutils.h amlcode.h amlresrc.h		\
 	platform/acenv.h platform/acfreebsd.h platform/acgcc.h"
-comp_headers="aslcompiler.h asldefine.h aslglobal.h asltypes.h		\
-	dtcompiler.h dttemplate.h"
+comp_headers="aslcompiler.h asldefine.h aslglobal.h aslmessages.h	\
+	asltypes.h dtcompiler.h dttemplate.h"
 platform_headers="acfreebsd.h acgcc.h"
 
 # pre-clean

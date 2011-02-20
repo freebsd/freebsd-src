@@ -98,6 +98,7 @@ static const struct mii_phydesc rlintphys[] = {
 
 static const struct mii_phydesc rlphys[] = {
 	MII_PHY_DESC(REALTEK, RTL8201L),
+	MII_PHY_DESC(xxREALTEK, RTL8201E),
 	MII_PHY_DESC(ICPLUS, IP101),
 	MII_PHY_END
 };
@@ -129,7 +130,7 @@ rlphy_attach(device_t dev)
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
 	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
+	mii = ma->mii_data;
 
         /*
          * Check whether we're the RTL8201L PHY and remember so the status
@@ -139,23 +140,17 @@ rlphy_attach(device_t dev)
 	if (mii_phy_dev_probe(dev, rlphys, 0) == 0)
 		rsc->sc_is_RTL8201L++;
 	
-	/*
-	 * The RealTek PHY can never be isolated, so never allow non-zero
-	 * instances!
-	 */
-	if (mii->mii_instance != 0) {
-		device_printf(dev, "ignoring this PHY, non-zero instance\n");
-		return (ENXIO);
-	}
-
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
+	sc->mii_flags = miibus_get_flags(dev);
+	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = rlphy_service;
 	sc->mii_pdata = mii;
-	mii->mii_instance++;
 
+	/*
+	 * The RealTek PHY can never be isolated.
+	 */
 	sc->mii_flags |= MIIF_NOISOLATE;
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
@@ -165,8 +160,7 @@ rlphy_attach(device_t dev)
 
 	mii_phy_reset(sc);
 
-	sc->mii_capabilities =
-	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
+	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
 	mii_phy_add_media(sc);
 	printf("\n");
@@ -178,13 +172,6 @@ rlphy_attach(device_t dev)
 static int
 rlphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-
-	/*
-	 * We can't isolate the RealTek PHY, so it has to be the only one!
-	 */
-	if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-		panic("rlphy_service: can't isolate RealTek PHY");
 
 	switch (cmd) {
 	case MII_POLLSTAT:
@@ -264,13 +251,13 @@ rlphy_status(struct mii_softc *phy)
 			if (anlpar & ANLPAR_TX_FD)
 				mii->mii_media_active |= IFM_100_TX|IFM_FDX;
 			else if (anlpar & ANLPAR_T4)
-				mii->mii_media_active |= IFM_100_T4;
+				mii->mii_media_active |= IFM_100_T4|IFM_HDX;
 			else if (anlpar & ANLPAR_TX)
-				mii->mii_media_active |= IFM_100_TX;
+				mii->mii_media_active |= IFM_100_TX|IFM_HDX;
 			else if (anlpar & ANLPAR_10_FD)
 				mii->mii_media_active |= IFM_10_T|IFM_FDX;
 			else if (anlpar & ANLPAR_10)
-				mii->mii_media_active |= IFM_10_T;
+				mii->mii_media_active |= IFM_10_T|IFM_HDX;
 			else
 				mii->mii_media_active |= IFM_NONE;
 			return;
@@ -314,6 +301,7 @@ rlphy_status(struct mii_softc *phy)
 			else
 				mii->mii_media_active |= IFM_100_TX;
 		}
+		mii->mii_media_active |= IFM_HDX;
 	} else
 		mii->mii_media_active = ife->ifm_media;
 }

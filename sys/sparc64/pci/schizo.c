@@ -158,7 +158,8 @@ static devclass_t schizo_devclass;
 
 DEFINE_CLASS_0(pcib, schizo_driver, schizo_methods,
     sizeof(struct schizo_softc));
-DRIVER_MODULE(schizo, nexus, schizo_driver, schizo_devclass, 0, 0);
+EARLY_DRIVER_MODULE(schizo, nexus, schizo_driver, schizo_devclass, 0, 0,
+    BUS_PASS_BUS);
 
 static SLIST_HEAD(, schizo_softc) schizo_softcs =
     SLIST_HEAD_INITIALIZER(schizo_softcs);
@@ -744,7 +745,7 @@ schizo_set_intr(struct schizo_softc *sc, u_int index, u_int ino,
 	    INTIGN(vec) != sc->sc_ign ||
 	    intr_vectors[vec].iv_ic != &schizo_ic ||
 	    bus_setup_intr(sc->sc_dev, sc->sc_irq_res[index],
-	    INTR_TYPE_MISC | INTR_FAST, handler, NULL, sc,
+	    INTR_TYPE_MISC | INTR_BRIDGE, handler, NULL, sc,
 	    &sc->sc_ihand[index]) != 0)
 		panic("%s: failed to set up interrupt %d", __func__, index);
 }
@@ -849,7 +850,7 @@ schizo_pci_bus(void *arg)
 		fatal = 1;
 	if ((status & (PCIM_STATUS_PERR | PCIM_STATUS_SERR |
 	    PCIM_STATUS_RMABORT | PCIM_STATUS_RTABORT |
-	    PCIM_STATUS_PERRREPORT)) != 0 ||
+	    PCIM_STATUS_MDPERR)) != 0 ||
 	    (csr & (SCZ_PCI_CTRL_BUS_UNUS | TOM_PCI_CTRL_DTO_ERR |
 	    STX_PCI_CTRL_TTO_ERR | STX_PCI_CTRL_RTRY_ERR |
 	    SCZ_PCI_CTRL_SBH_ERR | STX_PCI_CTRL_SERR)) != 0 ||

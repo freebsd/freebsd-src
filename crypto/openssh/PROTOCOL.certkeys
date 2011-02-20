@@ -16,7 +16,7 @@ These protocol extensions build on the simple public key authentication
 system already in SSH to allow certificate-based authentication.
 The certificates used are not traditional X.509 certificates, with
 numerous options and complex encoding rules, but something rather
-more minimal: a key, some identity information and usage constraints
+more minimal: a key, some identity information and usage options
 that have been signed with some other trusted key.
 
 A sshd server may be configured to allow authentication via certified
@@ -27,7 +27,7 @@ of acceptance of certified host keys, by adding a similar ability
 to specify CA keys in ~/.ssh/known_hosts.
 
 Certified keys are represented using two new key types:
-ssh-rsa-cert-v00@openssh.com and ssh-dss-cert-v00@openssh.com that
+ssh-rsa-cert-v01@openssh.com and ssh-dss-cert-v01@openssh.com that
 include certification information along with the public key that is used
 to sign challenges. ssh-keygen performs the CA signing operation.
 
@@ -47,7 +47,7 @@ in RFC4252 section 7.
 New public key formats
 ----------------------
 
-The ssh-rsa-cert-v00@openssh.com and ssh-dss-cert-v00@openssh.com key
+The ssh-rsa-cert-v01@openssh.com and ssh-dss-cert-v01@openssh.com key
 types take a similar high-level format (note: data types and
 encoding are as per RFC4251 section 5). The serialised wire encoding of
 these certificates is also used for storing them on disk.
@@ -57,41 +57,54 @@ these certificates is also used for storing them on disk.
 
 RSA certificate
 
-    string    "ssh-rsa-cert-v00@openssh.com"
+    string    "ssh-rsa-cert-v01@openssh.com"
+    string    nonce
     mpint     e
     mpint     n
+    uint64    serial
     uint32    type
     string    key id
     string    valid principals
     uint64    valid after
     uint64    valid before
-    string    constraints
-    string    nonce
+    string    critical options
+    string    extensions
     string    reserved
     string    signature key
     string    signature
 
 DSA certificate
 
-    string    "ssh-dss-cert-v00@openssh.com"
+    string    "ssh-dss-cert-v01@openssh.com"
+    string    nonce
     mpint     p
     mpint     q
     mpint     g
     mpint     y
+    uint64    serial
     uint32    type
     string    key id
     string    valid principals
     uint64    valid after
     uint64    valid before
-    string    constraints
-    string    nonce
+    string    critical options
+    string    extensions
     string    reserved
     string    signature key
     string    signature
 
+The nonce field is a CA-provided random bitstring of arbitrary length
+(but typically 16 or 32 bytes) included to make attacks that depend on
+inducing collisions in the signature hash infeasible.
+
 e and n are the RSA exponent and public modulus respectively.
 
 p, q, g, y are the DSA parameters as described in FIPS-186-2.
+
+serial is an optional certificate serial number set by the CA to
+provide an abbreviated way to refer to certificates from that CA.
+If a CA does not wish to number its certificates it must set this
+field to zero.
 
 type specifies whether this certificate is for identification of a user
 or a host using a SSH_CERT_TYPE_... value.
@@ -112,13 +125,15 @@ certificate. Each represents a time in seconds since 1970-01-01
 00:00:00. A certificate is considered valid if:
 	 valid after <= current time < valid before
 
-constraints is a set of zero or more key constraints encoded as below.
+criticial options is a set of zero or more key options encoded as
+below. All such options are "critical" in the sense that an implementation
+must refuse to authorise a key that has an unrecognised option.
 
-The nonce field is a CA-provided random bitstring of arbitrary length
-(but typically 16 or 32 bytes) included to make attacks that depend on
-inducing collisions in the signature hash infeasible.
+extensions is a set of zero or more optional extensions. These extensions
+are not critical, and an implementation that encounters one that it does
+not recognise may safely ignore it.
 
-The reserved field is current unused and is ignored in this version of
+The reserved field is currently unused and is ignored in this version of
 the protocol.
 
 signature key contains the CA key used to sign the certificate.
@@ -132,22 +147,25 @@ up to, and including the signature key. Signatures are computed and
 encoded according to the rules defined for the CA's public key algorithm
 (RFC4253 section 6.6 for ssh-rsa and ssh-dss).
 
-Constraints
------------
+Critical options
+----------------
 
-The constraints section of the certificate specifies zero or more
-constraints on the certificates validity. The format of this field
+The critical options section of the certificate specifies zero or more
+options on the certificates validity. The format of this field
 is a sequence of zero or more tuples:
 
     string       name
     string       data
 
-The name field identifies the constraint and the data field encodes
-constraint-specific information (see below). All constraints are
-"critical", if an implementation does not recognise a constraint
+Options must be lexically ordered by "name" if they appear in the
+sequence.
+
+The name field identifies the option and the data field encodes
+option-specific information (see below). All options are
+"critical", if an implementation does not recognise a option
 then the validating party should refuse to accept the certificate.
 
-The supported constraints and the contents and structure of their
+The supported options and the contents and structure of their
 data fields are:
 
 Name                    Format        Description
@@ -157,37 +175,51 @@ force-command           string        Specifies a command that is executed
                                       ssh command-line) whenever this key is
                                       used for authentication.
 
-permit-X11-forwarding   empty         Flag indicating that X11 forwarding
-                                      should be permitted. X11 forwarding will
-                                      be refused if this constraint is absent.
-
-permit-agent-forwarding empty         Flag indicating that agent forwarding
-                                      should be allowed. Agent forwarding
-                                      must not be permitted unless this
-                                      constraint is present.
-
-permit-port-forwarding  empty         Flag indicating that port-forwarding
-                                      should be allowed. If this constraint is
-                                      not present then no port forwarding will
-                                      be allowed.
-
-permit-pty              empty         Flag indicating that PTY allocation
-                                      should be permitted. In the absence of
-                                      this constraint PTY allocation will be
-                                      disabled.
-
-permit-user-rc          empty         Flag indicating that execution of
-                                      ~/.ssh/rc should be permitted. Execution
-                                      of this script will not be permitted if
-                                      this constraint is not present.
-
 source-address          string        Comma-separated list of source addresses
                                       from which this certificate is accepted
                                       for authentication. Addresses are
                                       specified in CIDR format (nn.nn.nn.nn/nn
                                       or hhhh::hhhh/nn).
-                                      If this constraint is not present then
+                                      If this option is not present then
                                       certificates may be presented from any
                                       source address.
 
-$OpenBSD: PROTOCOL.certkeys,v 1.3 2010/03/03 22:50:40 djm Exp $
+Extensions
+----------
+
+The extensions section of the certificate specifies zero or more
+non-critical certificate extensions. The encoding and ordering of
+extensions in this field is identical to that of the critical options.
+If an implementation does not recognise an extension, then it should
+ignore it.
+
+The supported extensions and the contents and structure of their data
+fields are:
+
+Name                    Format        Description
+-----------------------------------------------------------------------------
+permit-X11-forwarding   empty         Flag indicating that X11 forwarding
+                                      should be permitted. X11 forwarding will
+                                      be refused if this option is absent.
+
+permit-agent-forwarding empty         Flag indicating that agent forwarding
+                                      should be allowed. Agent forwarding
+                                      must not be permitted unless this
+                                      option is present.
+
+permit-port-forwarding  empty         Flag indicating that port-forwarding
+                                      should be allowed. If this option is
+                                      not present then no port forwarding will
+                                      be allowed.
+
+permit-pty              empty         Flag indicating that PTY allocation
+                                      should be permitted. In the absence of
+                                      this option PTY allocation will be
+                                      disabled.
+
+permit-user-rc          empty         Flag indicating that execution of
+                                      ~/.ssh/rc should be permitted. Execution
+                                      of this script will not be permitted if
+                                      this option is not present.
+
+$OpenBSD: PROTOCOL.certkeys,v 1.7 2010/08/04 05:40:39 djm Exp $

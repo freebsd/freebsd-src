@@ -30,7 +30,7 @@ static const char copyright[] _U_ =
     "@(#) Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000\n\
 The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/tcpdump.c,v 1.271.2.11 2008-09-25 21:50:04 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/tcpdump.c,v 1.283 2008-09-25 21:45:50 guy Exp $ (LBL)";
 #endif
 
 /* $FreeBSD$ */
@@ -92,9 +92,9 @@ extern int SIZE_BUF;
 netdissect_options Gndo;
 netdissect_options *gndo = &Gndo;
 
-int dflag;			/* print filter code */
-int Lflag;			/* list available data link types and exit */
-char *zflag = NULL;		/* compress each savefile using a specified command (like gzip or bzip2) */
+static int dflag;			/* print filter code */
+static int Lflag;			/* list available data link types and exit */
+static char *zflag = NULL;		/* compress each savefile using a specified command (like gzip or bzip2) */
 
 static int infodelay;
 static int infoprint;
@@ -107,7 +107,7 @@ int32_t thiszone;		/* seconds offset from gmt to local time */
 static RETSIGTYPE cleanup(int);
 static RETSIGTYPE child_cleanup(int);
 static void usage(void) __attribute__((noreturn));
-static void show_dlts_and_exit(pcap_t *pd) __attribute__((noreturn));
+static void show_dlts_and_exit(const char *device, pcap_t *pd) __attribute__((noreturn));
 
 static void print_packet(u_char *, const struct pcap_pkthdr *, const u_char *);
 static void ndo_default_print(netdissect_options *, const u_char *, u_int);
@@ -133,11 +133,20 @@ static void info(int);
 static u_int packets_captured;
 
 typedef u_int (*if_printer)(const struct pcap_pkthdr *, const u_char *);
+typedef u_int (*if_ndo_printer)(struct netdissect_options *ndo,
+                                const struct pcap_pkthdr *, const u_char *);
 
 struct printer {
-	if_printer f;
+        if_printer f;
 	int type;
 };
+
+
+struct ndo_printer {
+        if_ndo_printer f;
+	int type;
+};
+
 
 static struct printer printers[] = {
 	{ arcnet_if_print,	DLT_ARCNET },
@@ -153,7 +162,7 @@ static struct printer printers[] = {
 	{ cip_if_print,         DLT_CIP },
 #endif
 #ifdef DLT_ATM_CLIP
-	{ cip_if_print,         DLT_ATM_CLIP },
+	{ cip_if_print,		DLT_ATM_CLIP },
 #endif
 	{ sl_if_print,		DLT_SLIP },
 #ifdef DLT_SLIP_BSDOS
@@ -180,7 +189,7 @@ static struct printer printers[] = {
 	{ chdlc_if_print,	DLT_HDLC },
 #endif
 #ifdef DLT_PPP_SERIAL
-	{ ppp_hdlc_if_print,    DLT_PPP_SERIAL },
+	{ ppp_hdlc_if_print,	DLT_PPP_SERIAL },
 #endif
 #ifdef DLT_PPP_ETHER
 	{ pppoe_if_print,	DLT_PPP_ETHER },
@@ -195,7 +204,7 @@ static struct printer printers[] = {
 	{ ltalk_if_print,	DLT_LTALK },
 #endif
 #if defined(DLT_PFLOG) && defined(HAVE_NET_PFVAR_H)
-	{ pflog_if_print, 	DLT_PFLOG },
+	{ pflog_if_print,	DLT_PFLOG },
 #endif
 #ifdef DLT_FR
 	{ fr_if_print,		DLT_FR },
@@ -216,10 +225,10 @@ static struct printer printers[] = {
 	{ ieee802_11_radio_if_print,	DLT_IEEE802_11_RADIO },
 #endif
 #ifdef DLT_ENC
-	{ enc_if_print, 	DLT_ENC },
+	{ enc_if_print,		DLT_ENC },
 #endif
 #ifdef DLT_SYMANTEC_FIREWALL
-	{ symantec_if_print, 	DLT_SYMANTEC_FIREWALL },
+	{ symantec_if_print,	DLT_SYMANTEC_FIREWALL },
 #endif
 #ifdef DLT_APPLE_IP_OVER_IEEE1394
 	{ ap1394_if_print,	DLT_APPLE_IP_OVER_IEEE1394 },
@@ -261,22 +270,43 @@ static struct printer printers[] = {
 	{ juniper_services_print, DLT_JUNIPER_SERVICES },
 #endif
 #ifdef DLT_JUNIPER_ETHER
-	{ juniper_ether_print, DLT_JUNIPER_ETHER },
+	{ juniper_ether_print,	DLT_JUNIPER_ETHER },
 #endif
 #ifdef DLT_JUNIPER_PPP
-	{ juniper_ppp_print, DLT_JUNIPER_PPP },
+	{ juniper_ppp_print,	DLT_JUNIPER_PPP },
 #endif
 #ifdef DLT_JUNIPER_FRELAY
-	{ juniper_frelay_print, DLT_JUNIPER_FRELAY },
+	{ juniper_frelay_print,	DLT_JUNIPER_FRELAY },
 #endif
 #ifdef DLT_JUNIPER_CHDLC
-	{ juniper_chdlc_print, DLT_JUNIPER_CHDLC },
+	{ juniper_chdlc_print,	DLT_JUNIPER_CHDLC },
 #endif
 #ifdef DLT_MFR
-	{ mfr_if_print, DLT_MFR },
+	{ mfr_if_print,		DLT_MFR },
 #endif
 #if defined(DLT_BLUETOOTH_HCI_H4_WITH_PHDR) && defined(HAVE_PCAP_BLUETOOTH_H)
-	{ bt_if_print, DLT_BLUETOOTH_HCI_H4_WITH_PHDR},
+	{ bt_if_print,		DLT_BLUETOOTH_HCI_H4_WITH_PHDR},
+#endif
+#ifdef HAVE_PCAP_USB_H
+#ifdef DLT_USB_LINUX
+	{ usb_linux_48_byte_print, DLT_USB_LINUX},
+#endif /* DLT_USB_LINUX */
+#ifdef DLT_USB_LINUX_MMAPPED
+	{ usb_linux_64_byte_print, DLT_USB_LINUX_MMAPPED},
+#endif /* DLT_USB_LINUX_MMAPPED */
+#endif /* HAVE_PCAP_USB_H */
+#ifdef DLT_IPV4
+	{ raw_if_print,		DLT_IPV4 },
+#endif
+#ifdef DLT_IPV6
+	{ raw_if_print,		DLT_IPV6 },
+#endif
+	{ NULL,			0 },
+};
+
+static struct ndo_printer ndo_printers[] = {
+#ifdef DLT_IPNET
+	{ ipnet_if_print,	DLT_IPNET },
 #endif
 	{ NULL,			0 },
 };
@@ -294,14 +324,34 @@ lookup_printer(int type)
 	/* NOTREACHED */
 }
 
+static if_ndo_printer
+lookup_ndo_printer(int type)
+{
+	struct ndo_printer *p;
+
+	for (p = ndo_printers; p->f; ++p)
+		if (type == p->type)
+			return p->f;
+
+	return NULL;
+	/* NOTREACHED */
+}
+
 static pcap_t *pd;
+
+static int supports_monitor_mode;
 
 extern int optind;
 extern int opterr;
 extern char *optarg;
 
 struct print_info {
-	if_printer printer;
+        netdissect_options *ndo;
+        union {
+                if_printer     printer;
+                if_ndo_printer ndo_printer;
+        } p;
+        int ndo_type;
 };
 
 struct dump_info {
@@ -312,7 +362,7 @@ struct dump_info {
 };
 
 static void
-show_dlts_and_exit(pcap_t *pd)
+show_dlts_and_exit(const char *device, pcap_t *pd)
 {
 	int n_dlts;
 	int *dlts = 0;
@@ -324,7 +374,21 @@ show_dlts_and_exit(pcap_t *pd)
 	else if (n_dlts == 0 || !dlts)
 		error("No data link types.");
 
-	(void) fprintf(stderr, "Data link types (use option -y to set):\n");
+	/*
+	 * If the interface is known to support monitor mode, indicate
+	 * whether these are the data link types available when not in
+	 * monitor mode, if -I wasn't specified, or when in monitor mode,
+	 * when -I was specified (the link-layer types available in
+	 * monitor mode might be different from the ones available when
+	 * not in monitor mode).
+	 */
+	if (supports_monitor_mode)
+		(void) fprintf(stderr, "Data link types for %s %s (use option -y to set):\n",
+		    device,
+		    Iflag ? "when in monitor mode" : "when not in monitor mode");
+	else
+		(void) fprintf(stderr, "Data link types for %s (use option -y to set):\n",
+		    device);
 
 	while (--n_dlts >= 0) {
 		dlt_name = pcap_datalink_val_to_name(dlts[n_dlts]);
@@ -335,7 +399,8 @@ show_dlts_and_exit(pcap_t *pd)
 			/*
 			 * OK, does tcpdump handle that type?
 			 */
-			if (lookup_printer(dlts[n_dlts]) == NULL)
+			if (lookup_printer(dlts[n_dlts]) == NULL
+                            && lookup_ndo_printer(dlts[n_dlts]) == NULL)
 				(void) fprintf(stderr, " (printing not supported)");
 			putchar('\n');
 		} else {
@@ -537,7 +602,7 @@ main(int argc, char **argv)
 
 	opterr = 0;
 	while (
-	    (op = getopt(argc, argv, "aA" B_FLAG "c:C:d" D_FLAG "eE:fF:G:i:" I_FLAG "KlLm:M:nNOpqr:Rs:StT:u" U_FLAG "vw:W:xXy:Yz:Z:")) != -1)
+	    (op = getopt(argc, argv, "aAb" B_FLAG "c:C:d" D_FLAG "eE:fF:G:i:" I_FLAG "KlLm:M:nNOpqr:Rs:StT:u" U_FLAG "vw:W:xXy:Yz:Z:")) != -1)
 		switch (op) {
 
 		case 'a':
@@ -546,6 +611,10 @@ main(int argc, char **argv)
 
 		case 'A':
 			++Aflag;
+			break;
+
+		case 'b':
+			++bflag;
 			break;
 
 #if defined(HAVE_PCAP_CREATE) || defined(WIN32)
@@ -648,11 +717,17 @@ main(int argc, char **argv)
 				if (pcap_findalldevs(&devpointer, ebuf) < 0)
 					error("%s", ebuf);
 				else {
-					for (i = 0; i < devnum-1; i++){
-						devpointer = devpointer->next;
-						if (devpointer == NULL)
-							error("Invalid adapter index");
-					}
+					/*
+					 * Look for the devnum-th entry
+					 * in the list of devices
+					 * (1-based).
+					 */
+					for (i = 0;
+					    i < devnum-1 && devpointer != NULL;
+					    i++, devpointer = devpointer->next)
+						;
+					if (devpointer == NULL)
+						error("Invalid adapter index");
 				}
 				device = devpointer->name;
 				break;
@@ -710,7 +785,7 @@ main(int argc, char **argv)
 #ifndef HAVE_LIBCRYPTO
 			warning("crypto code not compiled in");
 #endif
-			tcpmd5secret = optarg;
+			sigsecret = optarg;
 			break;
 
 		case 'n':
@@ -747,10 +822,10 @@ main(int argc, char **argv)
 
 			snaplen = strtol(optarg, &end, 0);
 			if (optarg == end || *end != '\0'
-			    || snaplen < 0 || snaplen > 65535)
+			    || snaplen < 0 || snaplen > MAXIMUM_SNAPLEN)
 				error("invalid snaplen %s", optarg);
 			else if (snaplen == 0)
-				snaplen = 65535;
+				snaplen = MAXIMUM_SNAPLEN;
 			break;
 		}
 
@@ -959,6 +1034,13 @@ main(int argc, char **argv)
 		pd = pcap_create(device, ebuf);
 		if (pd == NULL)
 			error("%s", ebuf);
+		/*
+		 * Is this an interface that supports monitor mode?
+		 */
+		if (pcap_can_set_rfmon(pd) == 1)
+			supports_monitor_mode = 1;
+		else
+			supports_monitor_mode = 0;
 		status = pcap_set_snaplen(pd, snaplen);
 		if (status != 0)
 			error("%s: pcap_set_snaplen failed: %s",
@@ -1037,7 +1119,7 @@ main(int argc, char **argv)
 			}
 #endif /* !defined(HAVE_PCAP_CREATE) && defined(WIN32) */
 		if (Lflag)
-			show_dlts_and_exit(pd);
+			show_dlts_and_exit(device, pd);
 		if (gndo->ndo_dlt >= 0) {
 #ifdef HAVE_PCAP_SET_DATALINK
 			if (pcap_set_datalink(pd, gndo->ndo_dlt) < 0)
@@ -1075,6 +1157,7 @@ main(int argc, char **argv)
 
 	if (pcap_compile(pd, &fcode, cmdbuf, Oflag, netmask) < 0)
 		error("%s", pcap_geterr(pd));
+	free(cmdbuf);
 	if (dflag) {
 		bpf_dump(&fcode, dflag);
 		pcap_close(pd);
@@ -1126,15 +1209,21 @@ main(int argc, char **argv)
 		}
 	} else {
 		type = pcap_datalink(pd);
-		printinfo.printer = lookup_printer(type);
-		if (printinfo.printer == NULL) {
-			gndo->ndo_dltname = pcap_datalink_val_to_name(type);
-			if (gndo->ndo_dltname != NULL)
-				error("unsupported data link type %s",
-				      gndo->ndo_dltname);
-			else
-				error("unsupported data link type %d", type);
-		}
+                printinfo.ndo_type = 1;
+                printinfo.ndo = gndo;
+		printinfo.p.ndo_printer = lookup_ndo_printer(type);
+                if (printinfo.p.ndo_printer == NULL) {
+                        printinfo.p.printer = lookup_printer(type);
+                        printinfo.ndo_type = 0;
+                        if (printinfo.p.printer == NULL) {
+                                gndo->ndo_dltname = pcap_datalink_val_to_name(type);
+                                if (gndo->ndo_dltname != NULL)
+                                        error("packet printing is not supported for link type %s: use -w",
+                                              gndo->ndo_dltname);
+                                else
+                                        error("packet printing is not supported for link type %d: use -w", type);
+                        }
+                }
 		callback = print_packet;
 		pcap_userdata = (u_char *)&printinfo;
 	}
@@ -1289,6 +1378,11 @@ info(register int verbose)
 {
 	struct pcap_stat stat;
 
+	/*
+	 * Older versions of libpcap didn't set ps_ifdrop on some
+	 * platforms; initialize it to 0 to handle that.
+	 */
+	stat.ps_ifdrop = 0;
 	if (pcap_stats(pd, &stat) < 0) {
 		(void)fprintf(stderr, "pcap_stats: %s\n", pcap_geterr(pd));
 		infoprint = 0;
@@ -1303,12 +1397,21 @@ info(register int verbose)
 		fputs(", ", stderr);
 	else
 		putc('\n', stderr);
-	(void)fprintf(stderr, "%d packets received by filter", stat.ps_recv);
+	(void)fprintf(stderr, "%u packets received by filter", stat.ps_recv);
 	if (!verbose)
 		fputs(", ", stderr);
 	else
 		putc('\n', stderr);
-	(void)fprintf(stderr, "%d packets dropped by kernel\n", stat.ps_drop);
+	(void)fprintf(stderr, "%u packets dropped by kernel", stat.ps_drop);
+	if (stat.ps_ifdrop != 0) {
+		if (!verbose)
+			fputs(", ", stderr);
+		else
+			putc('\n', stderr);
+		(void)fprintf(stderr, "%u packets dropped by interface\n",
+		    stat.ps_ifdrop);
+	} else
+		putc('\n', stderr);
 	infoprint = 0;
 }
 
@@ -1326,7 +1429,7 @@ compress_savefile(const char *filename)
 #else
 	setpriority(PRIO_PROCESS, 0, 19);
 #endif
-	if (execlp(zflag, zflag, filename, NULL) == -1)
+	if (execlp(zflag, zflag, filename, (char *)NULL) == -1)
 		fprintf(stderr,
 			"compress_savefile:execlp(%s, %s): %s\n",
 			zflag,
@@ -1504,7 +1607,12 @@ print_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 	 */
 	snapend = sp + h->caplen;
 
-	hdrlen = (*print_info->printer)(h, sp);
+        if(print_info->ndo_type) {
+                hdrlen = (*print_info->p.ndo_printer)(print_info->ndo, h, sp);
+        } else {
+                hdrlen = (*print_info->p.printer)(h, sp);
+        }
+                
 	if (Xflag) {
 		/*
 		 * Print the raw packet data in hex and ASCII.
@@ -1674,7 +1782,7 @@ usage(void)
 #endif /* WIN32 */
 #endif /* HAVE_PCAP_LIB_VERSION */
 	(void)fprintf(stderr,
-"Usage: %s [-aAd" D_FLAG "ef" I_FLAG "KlLnNOpqRStu" U_FLAG "vxX]" B_FLAG_USAGE " [ -c count ]\n", program_name);
+"Usage: %s [-aAbd" D_FLAG "ef" I_FLAG "KlLnNOpqRStu" U_FLAG "vxX]" B_FLAG_USAGE " [ -c count ]\n", program_name);
 	(void)fprintf(stderr,
 "\t\t[ -C file_size ] [ -E algo:secret ] [ -F file ] [ -G seconds ]\n");
 	(void)fprintf(stderr,

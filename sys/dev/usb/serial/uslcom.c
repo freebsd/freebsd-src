@@ -27,7 +27,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -186,6 +185,7 @@ static const struct usb_device_id uslcom_devs[] = {
     USLCOM_DEV(DYNASTREAM, ANT2USB),
     USLCOM_DEV(ELV, USBI2C),
     USLCOM_DEV(FOXCONN, PIRELLI_DP_L10),
+    USLCOM_DEV(FOXCONN, TCOM_TC_300),
     USLCOM_DEV(GEMALTO, PROXPU),
     USLCOM_DEV(JABLOTRON, PC60B),
     USLCOM_DEV(MEI, CASHFLOW_SC),
@@ -194,6 +194,7 @@ static const struct usb_device_id uslcom_devs[] = {
     USLCOM_DEV(OWEN, AC4),
     USLCOM_DEV(PHILIPS, ACE1001),
     USLCOM_DEV(PLX, CA42),
+    USLCOM_DEV(RENESAS, RX610),
     USLCOM_DEV(SILABS, AEROCOMM),
     USLCOM_DEV(SILABS, AMBER_AMB2560),
     USLCOM_DEV(SILABS, ARGUSISP),
@@ -201,6 +202,8 @@ static const struct usb_device_id uslcom_devs[] = {
     USLCOM_DEV(SILABS, ARKHAM_DS101_M),
     USLCOM_DEV(SILABS, ARYGON_MIFARE),
     USLCOM_DEV(SILABS, AVIT_USB_TTL),
+    USLCOM_DEV(SILABS, B_G_H3000),
+    USLCOM_DEV(SILABS, BALLUFF_RFID),
     USLCOM_DEV(SILABS, BEI_VCP),
     USLCOM_DEV(SILABS, BSM7DUSB),
     USLCOM_DEV(SILABS, BURNSIDE),
@@ -248,7 +251,12 @@ static const struct usb_device_id uslcom_devs[] = {
     USLCOM_DEV(SYNTECH, CYPHERLAB100),
     USLCOM_DEV(USI, MC60),
     USLCOM_DEV(VAISALA, CABLE),
+    USLCOM_DEV(WAGO, SERVICECABLE),
     USLCOM_DEV(WAVESENSE, JAZZ),
+    USLCOM_DEV(WIENERPLEINBAUS, PL512),
+    USLCOM_DEV(WIENERPLEINBAUS, RCM),
+    USLCOM_DEV(WIENERPLEINBAUS, MPOD),
+    USLCOM_DEV(WIENERPLEINBAUS, CML),
 #undef USLCOM_DEV
 };
 
@@ -324,6 +332,8 @@ uslcom_attach(device_t dev)
 	if (error) {
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	return (0);
 
 detach:
@@ -338,7 +348,7 @@ uslcom_detach(device_t dev)
 
 	DPRINTF("sc=%p\n", sc);
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, USLCOM_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 

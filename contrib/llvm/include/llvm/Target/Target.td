@@ -198,6 +198,7 @@ class Instruction {
   bit isReturn     = 0;     // Is this instruction a return instruction?
   bit isBranch     = 0;     // Is this instruction a branch instruction?
   bit isIndirectBranch = 0; // Is this instruction an indirect branch?
+  bit isCompare    = 0;     // Is this instruction a comparison instruction?
   bit isBarrier    = 0;     // Can control flow fall through this instruction?
   bit isCall       = 0;     // Is this instruction a call instruction?
   bit canFoldAsLoad = 0;    // Can this be folded as a simple memory operand?
@@ -409,7 +410,7 @@ def INLINEASM : Instruction {
   let InOperandList = (ins variable_ops);
   let AsmString = "";
 }
-def DBG_LABEL : Instruction {
+def PROLOG_LABEL : Instruction {
   let OutOperandList = (outs);
   let InOperandList = (ins i32imm:$id);
   let AsmString = "";
@@ -509,10 +510,6 @@ class AsmParser {
   // AsmParser class to call on every matched instruction. This can be used to
   // perform target specific instruction post-processing.
   string AsmParserInstCleanup  = "";
-
-  // MatchInstructionName - The name of the instruction matching function to
-  // generate.
-  string MatchInstructionName  = "MatchInstruction";
 
   // Variant - AsmParsers can be of multiple different variants.  Variants are
   // used to support targets that need to parser multiple formats for the

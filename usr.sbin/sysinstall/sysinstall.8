@@ -187,7 +187,6 @@ When and where a function depends on the settings of one or more variables
 will be noted in the following table:
 .Pp
 .Sy "Function Glossary" :
-.Pp
 .Bl -tag -width indent
 .It configAnonFTP
 Invoke the Anonymous FTP configuration menu.
@@ -218,10 +217,10 @@ Configure host as a user of the Network Time Protocol.
 .Pp
 .Sy Variables :
 .Bl -tag -width indent
-.It ntpdate_flags
-The flags to
-.Xr ntpdate 8 ,
-that is to say the name of the server to sync from.
+.It ntpdate_hosts
+Whitespace-separated list of
+.Xr ntpdate 8
+servers to sync from.
 .El
 .It configPCNFSD
 Configure host to support PC NFS.
@@ -428,7 +427,7 @@ Dictionary information (for tools like spell).
 .It Li info
 GNU info files and other extra docs.
 .It Li lib32
-(amd64 only)
+(amd64 and powerpc64 only)
 32-bit runtime compatibility libraries.
 .It Li ports
 The ports collection.
@@ -745,8 +744,7 @@ Default: user@host
 .Sy Variables :
 .Bl -tag -width indent
 .It cpioVerbose
-Can be used to set the verbosity of cpio extractions to low, medium or
-high.
+Can be used to set the verbosity of cpio extractions to low or high.
 .El
 .It mediaGetType
 Interactively get the user to specify some type of media.

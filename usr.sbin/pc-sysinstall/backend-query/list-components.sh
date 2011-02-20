@@ -32,23 +32,24 @@
 
 echo "Available Components:"
 
-cd ${COMPDIR}
-for i in `ls -d *`
-do
-  if [ -e "${i}/component.cfg" -a -e "${i}/install.sh" -a -e "${i}/distfiles" ]
-  then
-    NAME="`grep 'name:' ${i}/component.cfg | cut -d ':' -f 2`"
-    DESC="`grep 'description:' ${i}/component.cfg | cut -d ':' -f 2`"
-    TYPE="`grep 'type:' ${i}/component.cfg | cut -d ':' -f 2`"
-    echo " "
-    echo "name: ${i}"
-    echo "desc:${DESC}"
-    echo "type:${TYPE}"
-    if [ -e "${i}/component.png" ]
+if [ -d "${COMPDIR}" ]
+then
+  cd ${COMPDIR}
+  for i in `ls -d *`
+  do
+    if [ -e "${i}/component.cfg" -a -e "${i}/install.sh" -a -e "${i}/distfiles" ]
     then
-      echo "icon: ${COMPDIR}/${i}/component.png"
+      NAME="`grep 'name:' ${i}/component.cfg | cut -d ':' -f 2`"
+      DESC="`grep 'description:' ${i}/component.cfg | cut -d ':' -f 2`"
+      TYPE="`grep 'type:' ${i}/component.cfg | cut -d ':' -f 2`"
+      echo " "
+      echo "name: ${i}"
+      echo "desc:${DESC}"
+      echo "type:${TYPE}"
+      if [ -e "${i}/component.png" ]
+      then
+        echo "icon: ${COMPDIR}/${i}/component.png"
+      fi
     fi
-  fi
-
-done
-
+  done
+fi

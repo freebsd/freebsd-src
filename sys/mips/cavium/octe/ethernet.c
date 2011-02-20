@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/module.h>
 #include <sys/smp.h>
+#include <sys/taskqueue.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -73,43 +74,6 @@ TUNABLE_INT("hw.octe.pow_receive_group", &pow_receive_group);
 		 "\t\tgroup. Also any other software can submit packets to this\n"
 		 "\t\tgroup for the kernel to process." */
 
-int pow_send_group = -1; /* XXX Should be a sysctl.  */
-TUNABLE_INT("hw.octe.pow_send_group", &pow_send_group);
-/*
-		 "\t\tPOW group to send packets to other software on. This\n"
-		 "\t\tcontrols the creation of the virtual device pow0.\n"
-		 "\t\talways_use_pow also depends on this value." */
-
-int always_use_pow;
-TUNABLE_INT("hw.octe.always_use_pow", &always_use_pow);
-/*
-		 "\t\tWhen set, always send to the pow group. This will cause\n"
-		 "\t\tpackets sent to real ethernet devices to be sent to the\n"
-		 "\t\tPOW group instead of the hardware. Unless some other\n"
-		 "\t\tapplication changes the config, packets will still be\n"
-		 "\t\treceived from the low level hardware. Use this option\n"
-		 "\t\tto allow a CVMX app to intercept all packets from the\n"
-		 "\t\tlinux kernel. You must specify pow_send_group along with\n"
-		 "\t\tthis option." */
-
-char pow_send_list[128] = "";
-TUNABLE_STR("hw.octe.pow_send_list", pow_send_list, sizeof pow_send_list);
-/*
-		 "\t\tComma separated list of ethernet devices that should use the\n"
-		 "\t\tPOW for transmit instead of the actual ethernet hardware. This\n"
-		 "\t\tis a per port version of always_use_pow. always_use_pow takes\n"
-		 "\t\tprecedence over this list. For example, setting this to\n"
-		 "\t\t\"eth2,spi3,spi7\" would cause these three devices to transmit\n"
-		 "\t\tusing the pow_send_group." */
-
-
-static int disable_core_queueing = 1;
-TUNABLE_INT("hw.octe.disable_core_queueing", &disable_core_queueing);
-/*
-		"\t\tWhen set the networking core's tx_queue_len is set to zero.  This\n"
-		"\t\tallows packets to be sent without lock contention in the packet scheduler\n"
-		"\t\tresulting in some cases in improved throughput.\n" */
-
 extern int octeon_is_simulation(void);
 
 /**
@@ -129,6 +93,34 @@ static struct callout cvm_oct_poll_timer;
  */
 struct ifnet *cvm_oct_device[TOTAL_NUMBER_OF_PORTS];
 
+/**
+ * Task to handle link status changes.
+ */
+static struct taskqueue *cvm_oct_link_taskq;
+
+/**
+ * Function to update link status.
+ */
+static void cvm_oct_update_link(void *context, int pending)
+{
+	cvm_oct_private_t *priv = (cvm_oct_private_t *)context;
+	struct ifnet *ifp = priv->ifp;
+	cvmx_helper_link_info_t link_info;
+
+	link_info.u64 = priv->link_info;
+
+	if (link_info.s.link_up) {
+		if_link_state_change(ifp, LINK_STATE_UP);
+		DEBUGPRINT("%s: %u Mbps %s duplex, port %2d, queue %2d\n",
+			   if_name(ifp), link_info.s.speed,
+			   (link_info.s.full_duplex) ? "Full" : "Half",
+			   priv->port, priv->queue);
+	} else {
+		if_link_state_change(ifp, LINK_STATE_DOWN);
+		DEBUGPRINT("%s: Link down\n", if_name(ifp));
+	}
+	priv->need_link_update = 0;
+}
 
 /**
  * Periodic timer tick for slow management operations
@@ -138,18 +130,17 @@ struct ifnet *cvm_oct_device[TOTAL_NUMBER_OF_PORTS];
 static void cvm_do_timer(void *arg)
 {
 	static int port;
+	static int updated;
 	if (port < CVMX_PIP_NUM_INPUT_PORTS) {
 		if (cvm_oct_device[port]) {
 			int queues_per_port;
 			int qos;
 			cvm_oct_private_t *priv = (cvm_oct_private_t *)cvm_oct_device[port]->if_softc;
-			if (priv->poll) 
-			{
-				/* skip polling if we don't get the lock */
-				if (MDIO_TRYLOCK()) {
-					priv->poll(cvm_oct_device[port]);
-					MDIO_UNLOCK();
-				}
+
+			cvm_oct_common_poll(priv->ifp);
+			if (priv->need_link_update) {
+				updated++;
+				taskqueue_enqueue(cvm_oct_link_taskq, &priv->link_task);
 			}
 
 			queues_per_port = cvmx_pko_get_num_queues(port);
@@ -171,9 +162,6 @@ static void cvm_do_timer(void *arg)
 					priv->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 				}
 			}
-#if 0
-			cvm_oct_device[port]->get_stats(cvm_oct_device[port]);
-#endif
 		}
 		port++;
 		/* Poll the next port in a 50th of a second.
@@ -181,9 +169,19 @@ static void cvm_do_timer(void *arg)
 		callout_reset(&cvm_oct_poll_timer, hz / 50, cvm_do_timer, NULL);
 	} else {
 		port = 0;
-		/* All ports have been polled. Start the next iteration through
-		   the ports in one second */
-		callout_reset(&cvm_oct_poll_timer, hz, cvm_do_timer, NULL);
+		/* If any updates were made in this run, continue iterating at
+		 * 1/50th of a second, so that if a link has merely gone down
+		 * temporarily (e.g. because of interface reinitialization) it
+		 * will not be forced to stay down for an entire second.
+		 */
+		if (updated > 0) {
+			updated = 0;
+			callout_reset(&cvm_oct_poll_timer, hz / 50, cvm_do_timer, NULL);
+		} else {
+			/* All ports have been polled. Start the next iteration through
+			   the ports in one second */
+			callout_reset(&cvm_oct_poll_timer, hz, cvm_do_timer, NULL);
+		}
 	}
 }
 
@@ -234,21 +232,18 @@ static void cvm_oct_configure_common_hw(device_t bus)
 
 
 #ifdef SMP
-	if (USE_MULTICORE_RECEIVE) {
-		critical_enter();
-		{
-			int cpu;
-			for (cpu = 0; cpu < mp_maxid; cpu++) {
-				if (!CPU_ABSENT(cpu) &&
-				   (cpu != PCPU_GET(cpuid))) {
-					cvmx_ciu_intx0_t en;
-					en.u64 = cvmx_read_csr(CVMX_CIU_INTX_EN0(cpu*2));
-					en.s.workq |= (1<<pow_receive_group);
-					cvmx_write_csr(CVMX_CIU_INTX_EN0(cpu*2), en.u64);
-				}
-			}
+	{
+		cvmx_ciu_intx0_t en;
+		int core;
+
+		CPU_FOREACH(core) {
+			if (core == PCPU_GET(cpuid))
+				continue;
+
+			en.u64 = cvmx_read_csr(CVMX_CIU_INTX_EN0(core*2));
+			en.s.workq |= (1<<pow_receive_group);
+			cvmx_write_csr(CVMX_CIU_INTX_EN0(core*2), en.u64);
 		}
-		critical_exit();
 	}
 #endif
 }
@@ -297,9 +292,6 @@ int cvm_oct_init_module(device_t bus)
 
 	printf("cavium-ethernet: %s\n", OCTEON_SDK_VERSION_STRING);
 
-#if 0
-	cvm_oct_proc_initialize();
-#endif
 	cvm_oct_rx_initialize();
 	cvm_oct_configure_common_hw(bus);
 
@@ -323,45 +315,13 @@ int cvm_oct_init_module(device_t bus)
 
 	memset(cvm_oct_device, 0, sizeof(cvm_oct_device));
 
+	cvm_oct_link_taskq = taskqueue_create("octe link", M_NOWAIT,
+	    taskqueue_thread_enqueue, &cvm_oct_link_taskq);
+	taskqueue_start_threads(&cvm_oct_link_taskq, 1, PI_NET,
+	    "octe link taskq");
+
 	/* Initialize the FAU used for counting packet buffers that need to be freed */
 	cvmx_fau_atomic_write32(FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
-
-	if ((pow_send_group != -1)) {
-		struct ifnet *ifp;
-
-		printf("\tConfiguring device for POW only access\n");
-		dev = BUS_ADD_CHILD(bus, 0, "pow", 0);
-		if (dev != NULL)
-			ifp = if_alloc(IFT_ETHER);
-		if (dev != NULL && ifp != NULL) {
-			/* Initialize the device private structure. */
-			cvm_oct_private_t *priv;
-
-			device_probe(dev);
-			priv = device_get_softc(dev);
-			priv->dev = dev;
-			priv->ifp = ifp;
-			priv->init = cvm_oct_common_init;
-			priv->imode = CVMX_HELPER_INTERFACE_MODE_DISABLED;
-			priv->port = CVMX_PIP_NUM_INPUT_PORTS;
-			priv->queue = -1;
-
-			device_set_desc(dev, "Cavium Octeon POW Ethernet\n");
-
-			ifp->if_softc = priv;
-
-			if (priv->init(ifp) < 0) {
-				printf("\t\tFailed to register ethernet device for POW\n");
-				panic("%s: need to free ifp.", __func__);
-			} else {
-				cvm_oct_device[CVMX_PIP_NUM_INPUT_PORTS] = ifp;
-				printf("\t\t%s: POW send group %d, receive group %d\n",
-				if_name(ifp), pow_send_group, pow_receive_group);
-			}
-		} else {
-			printf("\t\tFailed to allocate ethernet device for POW\n");
-		}
-	}
 
 	ifnum = 0;
 	num_interfaces = cvmx_helper_get_number_of_interfaces();
@@ -381,11 +341,6 @@ int cvm_oct_init_module(device_t bus)
 				printf("\t\tFailed to allocate ethernet device for port %d\n", port);
 				continue;
 			}
-			/* XXX/juli set max send q len.  */
-#if 0
-			if (disable_core_queueing)
-				ifp->tx_queue_len = 0;
-#endif
 
 			/* Initialize the device private structure. */
 			device_probe(dev);
@@ -398,6 +353,7 @@ int cvm_oct_init_module(device_t bus)
 			priv->fau = fau - cvmx_pko_get_num_queues(port) * 4;
 			for (qos = 0; qos < cvmx_pko_get_num_queues(port); qos++)
 				cvmx_fau_atomic_write32(priv->fau+qos*4, 0);
+			TASK_INIT(&priv->link_task, 0, cvm_oct_update_link, priv);
 
 			switch (priv->imode) {
 
@@ -415,7 +371,7 @@ int cvm_oct_init_module(device_t bus)
 
 			case CVMX_HELPER_INTERFACE_MODE_XAUI:
 				priv->init = cvm_oct_xaui_init;
-				priv->uninit = cvm_oct_xaui_uninit;
+				priv->uninit = cvm_oct_common_uninit;
 				device_set_desc(dev, "Cavium Octeon XAUI Ethernet");
 				break;
 
@@ -427,7 +383,7 @@ int cvm_oct_init_module(device_t bus)
 
 			case CVMX_HELPER_INTERFACE_MODE_SGMII:
 				priv->init = cvm_oct_sgmii_init;
-				priv->uninit = cvm_oct_sgmii_uninit;
+				priv->uninit = cvm_oct_common_uninit;
 				device_set_desc(dev, "Cavium Octeon SGMII Ethernet");
 				break;
 
@@ -496,8 +452,6 @@ void cvm_oct_cleanup_module(void)
 	/* Disable POW interrupt */
 	cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), 0);
 
-	cvmx_ipd_disable();
-
 #if 0
 	/* Free the interrupt handler */
 	free_irq(8 + pow_receive_group, cvm_oct_device);
@@ -505,7 +459,8 @@ void cvm_oct_cleanup_module(void)
 
 	callout_stop(&cvm_oct_poll_timer);
 	cvm_oct_rx_shutdown();
-	cvmx_pko_disable();
+
+	cvmx_helper_shutdown_packet_io_global();
 
 	/* Free the ethernet devices */
 	for (port = 0; port < TOTAL_NUMBER_OF_PORTS; port++) {
@@ -520,17 +475,4 @@ void cvm_oct_cleanup_module(void)
 			cvm_oct_device[port] = NULL;
 		}
 	}
-
-	cvmx_pko_shutdown();
-#if 0
-	cvm_oct_proc_shutdown();
-#endif
-
-	cvmx_ipd_free_ptr();
-
-	/* Free the HW pools */
-	cvm_oct_mem_empty_fpa(CVMX_FPA_PACKET_POOL, CVMX_FPA_PACKET_POOL_SIZE, num_packet_buffers);
-	cvm_oct_mem_empty_fpa(CVMX_FPA_WQE_POOL, CVMX_FPA_WQE_POOL_SIZE, num_packet_buffers);
-	if (CVMX_FPA_OUTPUT_BUFFER_POOL != CVMX_FPA_PACKET_POOL)
-		cvm_oct_mem_empty_fpa(CVMX_FPA_OUTPUT_BUFFER_POOL, CVMX_FPA_OUTPUT_BUFFER_POOL_SIZE, 128);
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Juniper Networks, Inc.
+ * Copyright (c) 2010-2011 Juniper Networks, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert N. M. Watson under contract
@@ -436,20 +436,14 @@ static void
 netisr_print_workstream(struct sysctl_netisr_workstream *snwsp)
 {
 	struct sysctl_netisr_work *snwp;
-	int first;
 	u_int i;
 
-	first = 1;
 	for (i = 0; i < work_array_len; i++) {
 		snwp = &work_array[i];
 		if (snwp->snw_wsid != snwsp->snws_wsid)
 			continue;
-		if (first) {
-			printf("%4u", snwsp->snws_wsid);
-			printf(" %3u", snwsp->snws_cpu);
-			first = 0;
-		} else
-			printf("%4s %3s", "", "");
+		printf("%4u ", snwsp->snws_wsid);
+		printf("%3u ", snwsp->snws_cpu);
 		printf("%2s", "");
 		printf("%-6s", netisr_proto2name(snwp->snw_proto));
 		printf(" %5u", snwp->snw_len);

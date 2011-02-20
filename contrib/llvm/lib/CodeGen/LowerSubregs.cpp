@@ -36,7 +36,7 @@ namespace {
 
   public:
     static char ID; // Pass identification, replacement for typeid
-    LowerSubregsInstructionPass() : MachineFunctionPass(&ID) {}
+    LowerSubregsInstructionPass() : MachineFunctionPass(ID) {}
     
     const char *getPassName() const {
       return "Subregister lowering instruction pass";
@@ -58,9 +58,6 @@ namespace {
 
     void TransferDeadFlag(MachineInstr *MI, unsigned DstReg,
                           const TargetRegisterInfo *TRI);
-    void TransferKillFlag(MachineInstr *MI, unsigned SrcReg,
-                          const TargetRegisterInfo *TRI,
-                          bool AddIfNotFound = false);
     void TransferImplicitDefs(MachineInstr *MI);
   };
 
@@ -84,23 +81,6 @@ LowerSubregsInstructionPass::TransferDeadFlag(MachineInstr *MI,
       break;
     assert(MII != MI->getParent()->begin() &&
            "copyPhysReg output doesn't reference destination register!");
-  }
-}
-
-/// TransferKillFlag - MI is a pseudo-instruction with SrcReg killed,
-/// and the lowered replacement instructions immediately precede it.
-/// Mark the replacement instructions with the kill flag.
-void
-LowerSubregsInstructionPass::TransferKillFlag(MachineInstr *MI,
-                                              unsigned SrcReg,
-                                              const TargetRegisterInfo *TRI,
-                                              bool AddIfNotFound) {
-  for (MachineBasicBlock::iterator MII =
-        prior(MachineBasicBlock::iterator(MI)); ; --MII) {
-    if (MII->addRegisterKilled(SrcReg, TRI, AddIfNotFound))
-      break;
-    assert(MII != MI->getParent()->begin() &&
-           "copyPhysReg output doesn't reference source register!");
   }
 }
 

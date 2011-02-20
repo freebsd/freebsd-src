@@ -666,11 +666,11 @@ sndbuf_dispose(struct snd_dbuf *b, u_int8_t *to, unsigned int count)
 
 #ifdef SND_DIAGNOSTIC
 static uint32_t snd_feeder_maxfeed = 0;
-SYSCTL_INT(_hw_snd, OID_AUTO, feeder_maxfeed, CTLFLAG_RD,
+SYSCTL_UINT(_hw_snd, OID_AUTO, feeder_maxfeed, CTLFLAG_RD,
     &snd_feeder_maxfeed, 0, "maximum feeder count request");
 
 static uint32_t snd_feeder_maxcycle = 0;
-SYSCTL_INT(_hw_snd, OID_AUTO, feeder_maxcycle, CTLFLAG_RD,
+SYSCTL_UINT(_hw_snd, OID_AUTO, feeder_maxcycle, CTLFLAG_RD,
     &snd_feeder_maxcycle, 0, "maximum feeder cycle");
 #endif
 

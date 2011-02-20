@@ -101,6 +101,7 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 	char buf[1024];
 	struct sbuf sb;
 	struct timespec ts;
+	int error;
 
 	/*
 	 * If we are doing a spa_tryimport(), ignore errors.
@@ -131,6 +132,15 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 		 * expected result.
 		 */
 		if (zio->io_flags & ZIO_FLAG_SPECULATIVE)
+			return;
+
+		/*
+		 * If this I/O is not a retry I/O, don't post an ereport.
+		 * Otherwise, we risk making bad diagnoses based on B_FAILFAST
+		 * I/Os.
+		 */
+		if (zio->io_error == EIO &&
+		    !(zio->io_flags & ZIO_FLAG_IO_RETRY))
 			return;
 
 		if (vd != NULL) {
@@ -315,9 +325,9 @@ zfs_ereport_post(const char *subclass, spa_t *spa, vdev_t *vd, zio_t *zio,
 	}
 	mutex_exit(&spa->spa_errlist_lock);
 
-	sbuf_finish(&sb);
+	error = sbuf_finish(&sb);
 	devctl_notify("ZFS", spa->spa_name, subclass, sbuf_data(&sb));
-	if (sbuf_overflowed(&sb))
+	if (error != 0)
 		printf("ZFS WARNING: sbuf overflowed\n");
 	sbuf_delete(&sb);
 #endif
@@ -331,6 +341,7 @@ zfs_post_common(spa_t *spa, vdev_t *vd, const char *name)
 	char class[64];
 	struct sbuf sb;
 	struct timespec ts;
+	int error;
 
 	nanotime(&ts);
 
@@ -339,17 +350,17 @@ zfs_post_common(spa_t *spa, vdev_t *vd, const char *name)
 
 	snprintf(class, sizeof(class), "%s.%s.%s", FM_RSRC_RESOURCE,
 	    ZFS_ERROR_CLASS, name);
-	sbuf_printf(&sb, " %s=%hhu", FM_VERSION, FM_RSRC_VERSION);
+	sbuf_printf(&sb, " %s=%d", FM_VERSION, FM_RSRC_VERSION);
 	sbuf_printf(&sb, " %s=%s", FM_CLASS, class);
 	sbuf_printf(&sb, " %s=%ju", FM_EREPORT_PAYLOAD_ZFS_POOL_GUID,
 	    spa_guid(spa));
 	if (vd)
 		sbuf_printf(&sb, " %s=%ju", FM_EREPORT_PAYLOAD_ZFS_VDEV_GUID,
 		    vd->vdev_guid);
-	sbuf_finish(&sb);
+	error = sbuf_finish(&sb);
 	ZFS_LOG(1, "%s", sbuf_data(&sb));
 	devctl_notify("ZFS", spa->spa_name, class, sbuf_data(&sb));
-	if (sbuf_overflowed(&sb))
+	if (error != 0)
 		printf("ZFS WARNING: sbuf overflowed\n");
 	sbuf_delete(&sb);
 #endif

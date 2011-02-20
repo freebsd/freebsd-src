@@ -3,9 +3,8 @@
 LIB=	llvmbitreader
 
 SRCDIR=	lib/Bitcode/Reader
-SRCS=	BitReader.cpp \
-	BitcodeReader.cpp
+SRCS=	BitcodeReader.cpp
 
-TGHDRS= Intrinsics
+TGHDRS=	Intrinsics
 
 .include "../clang.lib.mk"

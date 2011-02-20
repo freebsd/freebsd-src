@@ -72,7 +72,7 @@ SVal ValueManager::convertToArrayIndex(SVal V) {
 
 DefinedOrUnknownSVal 
 ValueManager::getRegionValueSymbolVal(const TypedRegion* R) {
-  QualType T = R->getValueType(SymMgr.getContext());
+  QualType T = R->getValueType();
 
   if (!SymbolManager::canSymbolicate(T))
     return UnknownVal();
@@ -117,11 +117,24 @@ DefinedOrUnknownSVal ValueManager::getConjuredSymbolVal(const void *SymbolTag,
   return nonloc::SymbolVal(sym);
 }
 
+DefinedSVal ValueManager::getMetadataSymbolVal(const void *SymbolTag,
+                                               const MemRegion *MR,
+                                               const Expr *E, QualType T,
+                                               unsigned Count) {
+  assert(SymbolManager::canSymbolicate(T) && "Invalid metadata symbol type");
+
+  SymbolRef sym = SymMgr.getMetadataSymbol(MR, E, T, Count, SymbolTag);
+
+  if (Loc::IsLocType(T))
+    return loc::MemRegionVal(MemMgr.getSymbolicRegion(sym));
+
+  return nonloc::SymbolVal(sym);
+}
 
 DefinedOrUnknownSVal
 ValueManager::getDerivedRegionValueSymbolVal(SymbolRef parentSymbol,
                                              const TypedRegion *R) {
-  QualType T = R->getValueType(R->getContext());
+  QualType T = R->getValueType();
 
   if (!SymbolManager::canSymbolicate(T))
     return UnknownVal();

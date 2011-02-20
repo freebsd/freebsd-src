@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2010
+.Dd September 5, 2010
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -589,6 +589,12 @@ header file.
 Show brief information about the TTY subsystem.
 .\"
 .Pp
+.It Ic show Cm cdev
+Without argument, show the list of all created cdev's, consisting of devfs
+node name and struct cdev address.
+When address of cdev is supplied, show some internal devfs state of the cdev.
+.\"
+.Pp
 .It Ic show Cm conifhk
 Lists hooks currently waiting for completion in
 run_interrupt_driven_config_hooks().
@@ -796,7 +802,6 @@ Displays short info about all currently mounted file systems.
 .Pp
 .It Ic show Cm mount Ar addr
 Displays details about the given mount point.
-.Pp
 .\"
 .Pp
 .It Ic show Cm object Ns Oo Li / Ns Cm f Oc Ar addr

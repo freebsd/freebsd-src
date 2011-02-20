@@ -15,12 +15,9 @@
 #include "includes.h"
 
 #include "common.h"
+#include "crypto/aes_wrap.h"
+#include "crypto/sha256.h"
 #include "eap_defs.h"
-#include "aes_wrap.h"
-#include "crypto.h"
-#ifdef EAP_GPSK_SHA256
-#include "sha256.h"
-#endif /* EAP_GPSK_SHA256 */
 #include "eap_gpsk_common.h"
 
 
