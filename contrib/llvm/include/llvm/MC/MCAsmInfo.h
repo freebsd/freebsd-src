@@ -22,10 +22,12 @@
 namespace llvm {
   class MCSection;
   class MCContext;
-  
+
   /// MCAsmInfo - This class is intended to be used as a base class for asm
   /// properties and features specific to the target.
-  namespace ExceptionHandling { enum ExceptionsType { None, Dwarf, SjLj }; }
+  namespace ExceptionHandling {
+    enum ExceptionsType { None, DwarfTable, DwarfCFI, SjLj };
+  }
 
   class MCAsmInfo {
   protected:
@@ -36,25 +38,30 @@ namespace llvm {
     /// HasSubsectionsViaSymbols - True if this target has the MachO
     /// .subsections_via_symbols directive.
     bool HasSubsectionsViaSymbols;           // Default is false.
-    
+
     /// HasMachoZeroFillDirective - True if this is a MachO target that supports
     /// the macho-specific .zerofill directive for emitting BSS Symbols.
     bool HasMachoZeroFillDirective;               // Default is false.
-    
+
     /// HasMachoTBSSDirective - True if this is a MachO target that supports
     /// the macho-specific .tbss directive for emitting thread local BSS Symbols
     bool HasMachoTBSSDirective;                 // Default is false.
-    
+
     /// HasStaticCtorDtorReferenceInStaticMode - True if the compiler should
     /// emit a ".reference .constructors_used" or ".reference .destructors_used"
     /// directive after the a static ctor/dtor list.  This directive is only
     /// emitted in Static relocation model.
     bool HasStaticCtorDtorReferenceInStaticMode;  // Default is false.
-    
+
+    /// LinkerRequiresNonEmptyDwarfLines - True if the linker has a bug and
+    /// requires that the debug_line section be of a minimum size. In practice
+    /// such a linker requires a non empty line sequence if a file is present.
+    bool LinkerRequiresNonEmptyDwarfLines; // Default to false.
+
     /// MaxInstLength - This is the maximum possible length of an instruction,
     /// which is needed to compute the size of an inline asm.
     unsigned MaxInstLength;                  // Defaults to 4.
-    
+
     /// PCSymbol - The symbol used to represent the current PC.  Used in PC
     /// relative expressions.
     const char *PCSymbol;                    // Defaults to "$".
@@ -72,6 +79,9 @@ namespace llvm {
     /// assembler.
     const char *CommentString;               // Defaults to "#"
 
+    /// LabelSuffix - This is appended to emitted labels.
+    const char *LabelSuffix;                 // Defaults to ":"
+
     /// GlobalPrefix - If this is set to a non-empty string, it is prepended
     /// onto all global symbols.  This is often used for "_" or ".".
     const char *GlobalPrefix;                // Defaults to ""
@@ -80,12 +90,12 @@ namespace llvm {
     /// pool entries that are completely private to the .s file and should not
     /// have names in the .o file.  This is often "." or "L".
     const char *PrivateGlobalPrefix;         // Defaults to "."
-    
+
     /// LinkerPrivateGlobalPrefix - This prefix is used for symbols that should
     /// be passed through the assembler but be removed by the linker.  This
     /// is "l" on Darwin, currently used for some ObjC metadata.
     const char *LinkerPrivateGlobalPrefix;   // Defaults to ""
-    
+
     /// InlineAsmStart/End - If these are nonempty, they contain a directive to
     /// emit before and after an inline assembly statement.
     const char *InlineAsmStart;              // Defaults to "#APP\n"
@@ -117,7 +127,7 @@ namespace llvm {
     /// AsciiDirective - This directive allows emission of an ascii string with
     /// the standard C escape characters embedded into it.
     const char *AsciiDirective;              // Defaults to "\t.ascii\t"
-    
+
     /// AscizDirective - If not null, this allows for special handling of
     /// zero terminated strings on this target.  This is commonly supported as
     /// ".asciz".  If a target doesn't support this, it can be set to null.
@@ -135,7 +145,7 @@ namespace llvm {
     /// which should be relocated as a 32-bit GP-relative offset, e.g. .gpword
     /// on Mips or .gprel32 on Alpha.
     const char *GPRel32Directive;            // Defaults to NULL.
-    
+
     /// getDataASDirective - Return the directive that should be used to emit
     /// data of the specified size to the specified numeric address space.
     virtual const char *getDataASDirective(unsigned Size, unsigned AS) const {
@@ -149,15 +159,15 @@ namespace llvm {
     bool SunStyleELFSectionSwitchSyntax;     // Defaults to false.
 
     /// UsesELFSectionDirectiveForBSS - This is true if this target uses ELF
-    /// '.section' directive before the '.bss' one. It's used for PPC/Linux 
+    /// '.section' directive before the '.bss' one. It's used for PPC/Linux
     /// which doesn't support the '.bss' directive only.
     bool UsesELFSectionDirectiveForBSS;      // Defaults to false.
-    
+
     /// HasMicrosoftFastStdCallMangling - True if this target uses microsoft
     /// style mangling for functions with X86_StdCall/X86_FastCall calling
     /// convention.
     bool HasMicrosoftFastStdCallMangling;    // Defaults to false.
-    
+
     //===--- Alignment Information ----------------------------------------===//
 
     /// AlignDirective - The directive used to emit round up to an alignment
@@ -176,27 +186,34 @@ namespace llvm {
     unsigned TextAlignFillValue;             // Defaults to 0
 
     //===--- Global Variable Emission Directives --------------------------===//
-    
+
     /// GlobalDirective - This is the directive used to declare a global entity.
     ///
     const char *GlobalDirective;             // Defaults to NULL.
 
-    /// ExternDirective - This is the directive used to declare external 
+    /// ExternDirective - This is the directive used to declare external
     /// globals.
     ///
     const char *ExternDirective;             // Defaults to NULL.
-    
+
     /// HasSetDirective - True if the assembler supports the .set directive.
     bool HasSetDirective;                    // Defaults to true.
-    
+
+    /// HasAggressiveSymbolFolding - False if the assembler requires that we use
+    /// Lc = a - b
+    /// .long Lc
+    /// instead of
+    /// .long a - b
+    bool HasAggressiveSymbolFolding;           // Defaults to true.
+
     /// HasLCOMMDirective - This is true if the target supports the .lcomm
     /// directive.
     bool HasLCOMMDirective;                  // Defaults to false.
-    
+
     /// COMMDirectiveAlignmentIsInBytes - True is COMMDirective's optional
     /// alignment is to be specified in bytes instead of log2(n).
     bool COMMDirectiveAlignmentIsInBytes;    // Defaults to true;
-    
+
     /// HasDotTypeDotSizeDirective - True if the target has .type and .size
     /// directives, this is true for most ELF targets.
     bool HasDotTypeDotSizeDirective;         // Defaults to true.
@@ -209,10 +226,14 @@ namespace llvm {
     /// directive.
     bool HasNoDeadStrip;                     // Defaults to false.
 
+    /// HasSymbolResolver - True if this target supports the MachO
+    /// .symbol_resolver directive.
+    bool HasSymbolResolver;                     // Defaults to false.
+
     /// WeakRefDirective - This directive, if non-null, is used to declare a
     /// global as being a weak undefined symbol.
     const char *WeakRefDirective;            // Defaults to NULL.
-    
+
     /// WeakDefDirective - This directive, if non-null, is used to declare a
     /// global as being a weak defined symbol.
     const char *WeakDefDirective;            // Defaults to NULL.
@@ -220,7 +241,7 @@ namespace llvm {
     /// LinkOnceDirective - This directive, if non-null is used to declare a
     /// global as being a weak defined symbol.  This is used on cygwin/mingw.
     const char *LinkOnceDirective;           // Defaults to NULL.
-    
+
     /// HiddenVisibilityAttr - This attribute, if not MCSA_Invalid, is used to
     /// declare a symbol as having hidden visibility.
     MCSymbolAttr HiddenVisibilityAttr;       // Defaults to MCSA_Hidden.
@@ -233,10 +254,6 @@ namespace llvm {
 
     /// HasLEB128 - True if target asm supports leb128 directives.
     bool HasLEB128;                          // Defaults to false.
-
-    /// hasDotLocAndDotFile - True if target asm supports .loc and .file
-    /// directives for emitting debugging information.
-    bool HasDotLocAndDotFile;                // Defaults to false.
 
     /// SupportsDebugInformation - True if target supports emission of debugging
     /// information.
@@ -254,8 +271,8 @@ namespace llvm {
 
     /// DwarfSectionOffsetDirective - Special section offset directive.
     const char* DwarfSectionOffsetDirective; // Defaults to NULL
-    
-    /// DwarfUsesAbsoluteLabelForStmtList - True if DW_AT_stmt_list needs 
+
+    /// DwarfUsesAbsoluteLabelForStmtList - True if DW_AT_stmt_list needs
     /// absolute label instead of offset.
     bool DwarfUsesAbsoluteLabelForStmtList;  // Defaults to true;
 
@@ -276,7 +293,7 @@ namespace llvm {
     static unsigned getULEB128Size(unsigned Value);
 
     bool hasSubsectionsViaSymbols() const { return HasSubsectionsViaSymbols; }
-    
+
     // Data directive accessors.
     //
     const char *getData8bitsDirective(unsigned AS = 0) const {
@@ -299,11 +316,11 @@ namespace llvm {
     virtual const MCSection *getNonexecutableStackSection(MCContext &Ctx) const{
       return 0;
     }
-    
+
     bool usesSunStyleELFSectionSwitchSyntax() const {
       return SunStyleELFSectionSwitchSyntax;
     }
-    
+
     bool usesELFSectionDirectiveForBSS() const {
       return UsesELFSectionDirectiveForBSS;
     }
@@ -311,13 +328,16 @@ namespace llvm {
     bool hasMicrosoftFastStdCallMangling() const {
       return HasMicrosoftFastStdCallMangling;
     }
-    
+
     // Accessors.
     //
     bool hasMachoZeroFillDirective() const { return HasMachoZeroFillDirective; }
     bool hasMachoTBSSDirective() const { return HasMachoTBSSDirective; }
     bool hasStaticCtorDtorReferenceInStaticMode() const {
       return HasStaticCtorDtorReferenceInStaticMode;
+    }
+    bool getLinkerRequiresNonEmptyDwarfLines() const {
+      return LinkerRequiresNonEmptyDwarfLines;
     }
     unsigned getMaxInstLength() const {
       return MaxInstLength;
@@ -333,6 +353,9 @@ namespace llvm {
     }
     const char *getCommentString() const {
       return CommentString;
+    }
+    const char *getLabelSuffix() const {
+      return LabelSuffix;
     }
     const char *getGlobalPrefix() const {
       return GlobalPrefix;
@@ -386,6 +409,9 @@ namespace llvm {
       return ExternDirective;
     }
     bool hasSetDirective() const { return HasSetDirective; }
+    bool hasAggressiveSymbolFolding() const {
+      return HasAggressiveSymbolFolding;
+    }
     bool hasLCOMMDirective() const { return HasLCOMMDirective; }
     bool hasDotTypeDotSizeDirective() const {return HasDotTypeDotSizeDirective;}
     bool getCOMMDirectiveAlignmentIsInBytes() const {
@@ -393,19 +419,17 @@ namespace llvm {
     }
     bool hasSingleParameterDotFile() const { return HasSingleParameterDotFile; }
     bool hasNoDeadStrip() const { return HasNoDeadStrip; }
+    bool hasSymbolResolver() const { return HasSymbolResolver; }
     const char *getWeakRefDirective() const { return WeakRefDirective; }
     const char *getWeakDefDirective() const { return WeakDefDirective; }
     const char *getLinkOnceDirective() const { return LinkOnceDirective; }
-    
+
     MCSymbolAttr getHiddenVisibilityAttr() const { return HiddenVisibilityAttr;}
     MCSymbolAttr getProtectedVisibilityAttr() const {
       return ProtectedVisibilityAttr;
     }
     bool hasLEB128() const {
       return HasLEB128;
-    }
-    bool hasDotLocAndDotFile() const {
-      return HasDotLocAndDotFile;
     }
     bool doesSupportDebugInformation() const {
       return SupportsDebugInformation;
@@ -416,6 +440,12 @@ namespace llvm {
     ExceptionHandling::ExceptionsType getExceptionHandlingType() const {
       return ExceptionsType;
     }
+    bool isExceptionHandlingDwarf() const {
+      return
+        (ExceptionsType == ExceptionHandling::DwarfTable ||
+         ExceptionsType == ExceptionHandling::DwarfCFI);
+    }
+
     bool doesDwarfRequireFrameSection() const {
       return DwarfRequiresFrameSection;
     }

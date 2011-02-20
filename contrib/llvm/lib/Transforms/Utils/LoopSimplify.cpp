@@ -37,7 +37,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "loopsimplify"
+#define DEBUG_TYPE "loop-simplify"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Constants.h"
 #include "llvm/Instructions.h"
@@ -46,9 +46,10 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Type.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/Dominators.h"
+#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopPass.h"
+#include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Support/CFG.h"
@@ -65,7 +66,9 @@ STATISTIC(NumNested  , "Number of nested loops split out");
 namespace {
   struct LoopSimplify : public LoopPass {
     static char ID; // Pass identification, replacement for typeid
-    LoopSimplify() : LoopPass(ID) {}
+    LoopSimplify() : LoopPass(ID) {
+      initializeLoopSimplifyPass(*PassRegistry::getPassRegistry());
+    }
 
     // AA - If we have an alias analysis object to update, this is it, otherwise
     // this is null.
@@ -87,8 +90,6 @@ namespace {
       AU.addPreserved<AliasAnalysis>();
       AU.addPreserved<ScalarEvolution>();
       AU.addPreservedID(BreakCriticalEdgesID);  // No critical edges added.
-      AU.addPreserved<DominanceFrontier>();
-      AU.addPreservedID(LCSSAID);
     }
 
     /// verifyAnalysis() - Verify LoopSimplifyForm's guarantees.
@@ -107,8 +108,12 @@ namespace {
 }
 
 char LoopSimplify::ID = 0;
-INITIALIZE_PASS(LoopSimplify, "loopsimplify",
-                "Canonicalize natural loops", true, false);
+INITIALIZE_PASS_BEGIN(LoopSimplify, "loop-simplify",
+                "Canonicalize natural loops", true, false)
+INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+INITIALIZE_PASS_DEPENDENCY(LoopInfo)
+INITIALIZE_PASS_END(LoopSimplify, "loop-simplify",
+                "Canonicalize natural loops", true, false)
 
 // Publically exposed interface to pass...
 char &llvm::LoopSimplifyID = LoopSimplify::ID;
@@ -157,9 +162,8 @@ ReprocessLoop:
     for (SmallPtrSet<BasicBlock*, 4>::iterator I = BadPreds.begin(),
          E = BadPreds.end(); I != E; ++I) {
 
-      DEBUG(dbgs() << "LoopSimplify: Deleting edge from dead predecessor ";
-            WriteAsOperand(dbgs(), *I, false);
-            dbgs() << "\n");
+      DEBUG(dbgs() << "LoopSimplify: Deleting edge from dead predecessor "
+                   << (*I)->getName() << "\n");
 
       // Inform each successor of each dead pred.
       for (succ_iterator SI = succ_begin(*I), SE = succ_end(*I); SI != SE; ++SI)
@@ -184,9 +188,8 @@ ReprocessLoop:
       if (BI->isConditional()) {
         if (UndefValue *Cond = dyn_cast<UndefValue>(BI->getCondition())) {
 
-          DEBUG(dbgs() << "LoopSimplify: Resolving \"br i1 undef\" to exit in ";
-                WriteAsOperand(dbgs(), *I, false);
-                dbgs() << "\n");
+          DEBUG(dbgs() << "LoopSimplify: Resolving \"br i1 undef\" to exit in "
+                       << (*I)->getName() << "\n");
 
           BI->setCondition(ConstantInt::get(Cond->getType(),
                                             !L->contains(BI->getSuccessor(0))));
@@ -262,8 +265,9 @@ ReprocessLoop:
   PHINode *PN;
   for (BasicBlock::iterator I = L->getHeader()->begin();
        (PN = dyn_cast<PHINode>(I++)); )
-    if (Value *V = PN->hasConstantValue(DT)) {
+    if (Value *V = SimplifyInstruction(PN, 0, DT)) {
       if (AA) AA->deleteValue(PN);
+      if (SE) SE->forgetValue(PN);
       PN->replaceAllUsesWith(V);
       PN->eraseFromParent();
     }
@@ -317,29 +321,22 @@ ReprocessLoop:
       if (!FoldBranchToCommonDest(BI)) continue;
 
       // Success. The block is now dead, so remove it from the loop,
-      // update the dominator tree and dominance frontier, and delete it.
-
-      DEBUG(dbgs() << "LoopSimplify: Eliminating exiting block ";
-            WriteAsOperand(dbgs(), ExitingBlock, false);
-            dbgs() << "\n");
+      // update the dominator tree and delete it.
+      DEBUG(dbgs() << "LoopSimplify: Eliminating exiting block "
+                   << ExitingBlock->getName() << "\n");
 
       assert(pred_begin(ExitingBlock) == pred_end(ExitingBlock));
       Changed = true;
       LI->removeBlock(ExitingBlock);
 
-      DominanceFrontier *DF = getAnalysisIfAvailable<DominanceFrontier>();
       DomTreeNode *Node = DT->getNode(ExitingBlock);
       const std::vector<DomTreeNodeBase<BasicBlock> *> &Children =
         Node->getChildren();
       while (!Children.empty()) {
         DomTreeNode *Child = Children.front();
         DT->changeImmediateDominator(Child, Node->getIDom());
-        if (DF) DF->changeImmediateDominator(Child->getBlock(),
-                                             Node->getIDom()->getBlock(),
-                                             DT);
       }
       DT->eraseNode(ExitingBlock);
-      if (DF) DF->removeBlock(ExitingBlock);
 
       BI->getSuccessor(0)->removePredecessor(ExitingBlock);
       BI->getSuccessor(1)->removePredecessor(ExitingBlock);
@@ -378,9 +375,8 @@ BasicBlock *LoopSimplify::InsertPreheaderForLoop(Loop *L) {
     SplitBlockPredecessors(Header, &OutsideBlocks[0], OutsideBlocks.size(),
                            ".preheader", this);
 
-  DEBUG(dbgs() << "LoopSimplify: Creating pre-header ";
-        WriteAsOperand(dbgs(), NewBB, false);
-        dbgs() << "\n");
+  DEBUG(dbgs() << "LoopSimplify: Creating pre-header " << NewBB->getName()
+               << "\n");
 
   // Make sure that NewBB is put someplace intelligent, which doesn't mess up
   // code layout too horribly.
@@ -409,10 +405,8 @@ BasicBlock *LoopSimplify::RewriteLoopExitBlock(Loop *L, BasicBlock *Exit) {
                                              LoopBlocks.size(), ".loopexit",
                                              this);
 
-  DEBUG(dbgs() << "LoopSimplify: Creating dedicated exit block ";
-        WriteAsOperand(dbgs(), NewBB, false);
-        dbgs() << "\n");
-
+  DEBUG(dbgs() << "LoopSimplify: Creating dedicated exit block "
+               << NewBB->getName() << "\n");
   return NewBB;
 }
 
@@ -438,11 +432,11 @@ static void AddBlockAndPredsToSet(BasicBlock *InputBB, BasicBlock *StopBlock,
 /// FindPHIToPartitionLoops - The first part of loop-nestification is to find a
 /// PHI node that tells us how to partition the loops.
 static PHINode *FindPHIToPartitionLoops(Loop *L, DominatorTree *DT,
-                                        AliasAnalysis *AA) {
+                                        AliasAnalysis *AA, LoopInfo *LI) {
   for (BasicBlock::iterator I = L->getHeader()->begin(); isa<PHINode>(I); ) {
     PHINode *PN = cast<PHINode>(I);
     ++I;
-    if (Value *V = PN->hasConstantValue(DT)) {
+    if (Value *V = SimplifyInstruction(PN, 0, DT)) {
       // This is a degenerate PHI already, don't modify it!
       PN->replaceAllUsesWith(V);
       if (AA) AA->deleteValue(PN);
@@ -516,7 +510,7 @@ void LoopSimplify::PlaceSplitBlockCarefully(BasicBlock *NewBB,
 /// created.
 ///
 Loop *LoopSimplify::SeparateNestedLoop(Loop *L, LPPassManager &LPM) {
-  PHINode *PN = FindPHIToPartitionLoops(L, DT, AA);
+  PHINode *PN = FindPHIToPartitionLoops(L, DT, AA, LI);
   if (PN == 0) return 0;  // No known way to partition.
 
   // Pull out all predecessors that have varying values in the loop.  This
@@ -643,9 +637,8 @@ LoopSimplify::InsertUniqueBackedgeBlock(Loop *L, BasicBlock *Preheader) {
                                            Header->getName()+".backedge", F);
   BranchInst *BETerminator = BranchInst::Create(Header, BEBlock);
 
-  DEBUG(dbgs() << "LoopSimplify: Inserting unique backedge block ";
-        WriteAsOperand(dbgs(), BEBlock, false);
-        dbgs() << "\n");
+  DEBUG(dbgs() << "LoopSimplify: Inserting unique backedge block "
+               << BEBlock->getName() << "\n");
 
   // Move the new backedge block to right after the last backedge block.
   Function::iterator InsertPos = BackedgeBlocks.back(); ++InsertPos;
@@ -721,8 +714,6 @@ LoopSimplify::InsertUniqueBackedgeBlock(Loop *L, BasicBlock *Preheader) {
 
   // Update dominator information
   DT->splitBlock(BEBlock);
-  if (DominanceFrontier *DF = getAnalysisIfAvailable<DominanceFrontier>())
-    DF->splitBlock(BEBlock);
 
   return BEBlock;
 }

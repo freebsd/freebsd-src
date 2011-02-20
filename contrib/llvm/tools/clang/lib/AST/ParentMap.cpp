@@ -21,7 +21,7 @@ using namespace clang;
 typedef llvm::DenseMap<Stmt*, Stmt*> MapTy;
 
 static void BuildParentMap(MapTy& M, Stmt* S) {
-  for (Stmt::child_iterator I=S->child_begin(), E=S->child_end(); I!=E; ++I)
+  for (Stmt::child_range I = S->children(); I; ++I)
     if (*I) {
       M[*I] = S;
       BuildParentMap(M, *I);
@@ -40,6 +40,12 @@ ParentMap::~ParentMap() {
   delete (MapTy*) Impl;
 }
 
+void ParentMap::addStmt(Stmt* S) {
+  if (S) {
+    BuildParentMap(*(MapTy*) Impl, S);
+  }
+}
+
 Stmt* ParentMap::getParent(Stmt* S) const {
   MapTy* M = (MapTy*) Impl;
   MapTy::iterator I = M->find(S);
@@ -49,6 +55,15 @@ Stmt* ParentMap::getParent(Stmt* S) const {
 Stmt *ParentMap::getParentIgnoreParens(Stmt *S) const {
   do { S = getParent(S); } while (S && isa<ParenExpr>(S));
   return S;
+}
+
+Stmt *ParentMap::getParentIgnoreParenCasts(Stmt *S) const {
+  do {
+    S = getParent(S);
+  }
+  while (S && (isa<ParenExpr>(S) || isa<CastExpr>(S)));
+
+  return S;  
 }
 
 bool ParentMap::isConsumedExpr(Expr* E) const {

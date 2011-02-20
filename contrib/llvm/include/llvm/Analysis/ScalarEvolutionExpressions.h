@@ -42,29 +42,7 @@ namespace llvm {
   public:
     ConstantInt *getValue() const { return V; }
 
-    virtual bool isLoopInvariant(const Loop *L) const {
-      return true;
-    }
-
-    virtual bool hasComputableLoopEvolution(const Loop *L) const {
-      return false;  // Not loop variant
-    }
-
-    virtual const Type *getType() const;
-
-    virtual bool hasOperand(const SCEV *) const {
-      return false;
-    }
-
-    bool dominates(BasicBlock *BB, DominatorTree *DT) const {
-      return true;
-    }
-
-    bool properlyDominates(BasicBlock *BB, DominatorTree *DT) const {
-      return true;
-    }
-
-    virtual void print(raw_ostream &OS) const;
+    const Type *getType() const { return V->getType(); }
 
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const SCEVConstant *S) { return true; }
@@ -86,23 +64,7 @@ namespace llvm {
 
   public:
     const SCEV *getOperand() const { return Op; }
-    virtual const Type *getType() const { return Ty; }
-
-    virtual bool isLoopInvariant(const Loop *L) const {
-      return Op->isLoopInvariant(L);
-    }
-
-    virtual bool hasComputableLoopEvolution(const Loop *L) const {
-      return Op->hasComputableLoopEvolution(L);
-    }
-
-    virtual bool hasOperand(const SCEV *O) const {
-      return Op == O || Op->hasOperand(O);
-    }
-
-    virtual bool dominates(BasicBlock *BB, DominatorTree *DT) const;
-
-    virtual bool properlyDominates(BasicBlock *BB, DominatorTree *DT) const;
+    const Type *getType() const { return Ty; }
 
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const SCEVCastExpr *S) { return true; }
@@ -124,8 +86,6 @@ namespace llvm {
                      const SCEV *op, const Type *ty);
 
   public:
-    virtual void print(raw_ostream &OS) const;
-
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const SCEVTruncateExpr *S) { return true; }
     static inline bool classof(const SCEV *S) {
@@ -144,8 +104,6 @@ namespace llvm {
                        const SCEV *op, const Type *ty);
 
   public:
-    virtual void print(raw_ostream &OS) const;
-
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const SCEVZeroExtendExpr *S) { return true; }
     static inline bool classof(const SCEV *S) {
@@ -164,8 +122,6 @@ namespace llvm {
                        const SCEV *op, const Type *ty);
 
   public:
-    virtual void print(raw_ostream &OS) const;
-
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const SCEVSignExtendExpr *S) { return true; }
     static inline bool classof(const SCEV *S) {
@@ -202,20 +158,7 @@ namespace llvm {
     op_iterator op_begin() const { return Operands; }
     op_iterator op_end() const { return Operands + NumOperands; }
 
-    virtual bool isLoopInvariant(const Loop *L) const;
-
-    // hasComputableLoopEvolution - N-ary expressions have computable loop
-    // evolutions iff they have at least one operand that varies with the loop,
-    // but that all varying operands are computable.
-    virtual bool hasComputableLoopEvolution(const Loop *L) const;
-
-    virtual bool hasOperand(const SCEV *O) const;
-
-    bool dominates(BasicBlock *BB, DominatorTree *DT) const;
-
-    bool properlyDominates(BasicBlock *BB, DominatorTree *DT) const;
-
-    virtual const Type *getType() const { return getOperand(0)->getType(); }
+    const Type *getType() const { return getOperand(0)->getType(); }
 
     bool hasNoUnsignedWrap() const { return SubclassData & (1 << 0); }
     void setHasNoUnsignedWrap(bool B) {
@@ -248,10 +191,6 @@ namespace llvm {
       : SCEVNAryExpr(ID, T, O, N) {}
 
   public:
-    virtual const char *getOperationStr() const = 0;
-
-    virtual void print(raw_ostream &OS) const;
-
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const SCEVCommutativeExpr *S) { return true; }
     static inline bool classof(const SCEV *S) {
@@ -275,9 +214,7 @@ namespace llvm {
     }
 
   public:
-    virtual const char *getOperationStr() const { return " + "; }
-
-    virtual const Type *getType() const {
+    const Type *getType() const {
       // Use the type of the last operand, which is likely to be a pointer
       // type, if there is one. This doesn't usually matter, but it can help
       // reduce casts when the expressions are expanded.
@@ -303,8 +240,6 @@ namespace llvm {
     }
 
   public:
-    virtual const char *getOperationStr() const { return " * "; }
-
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const SCEVMulExpr *S) { return true; }
     static inline bool classof(const SCEV *S) {
@@ -328,26 +263,14 @@ namespace llvm {
     const SCEV *getLHS() const { return LHS; }
     const SCEV *getRHS() const { return RHS; }
 
-    virtual bool isLoopInvariant(const Loop *L) const {
-      return LHS->isLoopInvariant(L) && RHS->isLoopInvariant(L);
+    const Type *getType() const {
+      // In most cases the types of LHS and RHS will be the same, but in some
+      // crazy cases one or the other may be a pointer. ScalarEvolution doesn't
+      // depend on the type for correctness, but handling types carefully can
+      // avoid extra casts in the SCEVExpander. The LHS is more likely to be
+      // a pointer type than the RHS, so use the RHS' type here.
+      return getRHS()->getType();
     }
-
-    virtual bool hasComputableLoopEvolution(const Loop *L) const {
-      return LHS->hasComputableLoopEvolution(L) &&
-             RHS->hasComputableLoopEvolution(L);
-    }
-
-    virtual bool hasOperand(const SCEV *O) const {
-      return O == LHS || O == RHS || LHS->hasOperand(O) || RHS->hasOperand(O);
-    }
-
-    bool dominates(BasicBlock *BB, DominatorTree *DT) const;
-
-    bool properlyDominates(BasicBlock *BB, DominatorTree *DT) const;
-
-    virtual const Type *getType() const;
-
-    void print(raw_ostream &OS) const;
 
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const SCEVUDivExpr *S) { return true; }
@@ -373,11 +296,7 @@ namespace llvm {
 
     SCEVAddRecExpr(const FoldingSetNodeIDRef ID,
                    const SCEV *const *O, size_t N, const Loop *l)
-      : SCEVNAryExpr(ID, scAddRecExpr, O, N), L(l) {
-      for (size_t i = 0, e = NumOperands; i != e; ++i)
-        assert(Operands[i]->isLoopInvariant(l) &&
-               "Operands of AddRec must be loop-invariant!");
-    }
+      : SCEVNAryExpr(ID, scAddRecExpr, O, N), L(l) {}
 
   public:
     const SCEV *getStart() const { return Operands[0]; }
@@ -392,16 +311,6 @@ namespace llvm {
                                                            op_end()),
                               getLoop());
     }
-
-    virtual bool hasComputableLoopEvolution(const Loop *QL) const {
-      return L == QL;
-    }
-
-    virtual bool isLoopInvariant(const Loop *QueryLoop) const;
-
-    bool dominates(BasicBlock *BB, DominatorTree *DT) const;
-
-    bool properlyDominates(BasicBlock *BB, DominatorTree *DT) const;
 
     /// isAffine - Return true if this is an affine AddRec (i.e., it represents
     /// an expressions A+B*x where A and B are loop invariant values.
@@ -437,8 +346,6 @@ namespace llvm {
       return cast<SCEVAddRecExpr>(SE.getAddExpr(this, getStepRecurrence(SE)));
     }
 
-    virtual void print(raw_ostream &OS) const;
-
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const SCEVAddRecExpr *S) { return true; }
     static inline bool classof(const SCEV *S) {
@@ -462,8 +369,6 @@ namespace llvm {
     }
 
   public:
-    virtual const char *getOperationStr() const { return " smax "; }
-
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const SCEVSMaxExpr *S) { return true; }
     static inline bool classof(const SCEV *S) {
@@ -487,8 +392,6 @@ namespace llvm {
     }
 
   public:
-    virtual const char *getOperationStr() const { return " umax "; }
-
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const SCEVUMaxExpr *S) { return true; }
     static inline bool classof(const SCEV *S) {
@@ -534,22 +437,7 @@ namespace llvm {
     bool isAlignOf(const Type *&AllocTy) const;
     bool isOffsetOf(const Type *&STy, Constant *&FieldNo) const;
 
-    virtual bool isLoopInvariant(const Loop *L) const;
-    virtual bool hasComputableLoopEvolution(const Loop *QL) const {
-      return false; // not computable
-    }
-
-    virtual bool hasOperand(const SCEV *) const {
-      return false;
-    }
-
-    bool dominates(BasicBlock *BB, DominatorTree *DT) const;
-
-    bool properlyDominates(BasicBlock *BB, DominatorTree *DT) const;
-
-    virtual const Type *getType() const;
-
-    virtual void print(raw_ostream &OS) const;
+    const Type *getType() const { return getValPtr()->getType(); }
 
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const SCEVUnknown *S) { return true; }

@@ -12,7 +12,8 @@
 // global). Such a transformation can significantly reduce the register pressure
 // when many globals are involved.
 //
-// For example, consider the code which touches several global variables at once:
+// For example, consider the code which touches several global variables at 
+// once:
 //
 // static int foo[N], bar[N], baz[N];
 //
@@ -48,7 +49,7 @@
 //  str     r0, [r5], #4
 //
 //  note that we saved 2 registers here almostly "for free".
-// ===----------------------------------------------------------------------===//
+// ===---------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "arm-global-merge"
 #include "ARM.h"
@@ -64,16 +65,17 @@
 #include "llvm/Pass.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLowering.h"
+#include "llvm/Target/TargetLoweringObjectFile.h"
 using namespace llvm;
 
 namespace {
-  class LLVM_LIBRARY_VISIBILITY ARMGlobalMerge : public FunctionPass {
+  class ARMGlobalMerge : public FunctionPass {
     /// TLI - Keep a pointer of a TargetLowering to consult for determining
     /// target type sizes.
     const TargetLowering *TLI;
 
     bool doMerge(SmallVectorImpl<GlobalVariable*> &Globals,
-                 Module &M, bool) const;
+                 Module &M, bool isConst) const;
 
   public:
     static char ID;             // Pass identification, replacement for typeid.
@@ -81,7 +83,7 @@ namespace {
       : FunctionPass(ID), TLI(tli) {}
 
     virtual bool doInitialization(Module &M);
-    virtual bool runOnFunction(Function& F);
+    virtual bool runOnFunction(Function &F);
 
     const char *getPassName() const {
       return "Merge internal globals";
@@ -95,13 +97,11 @@ namespace {
     struct GlobalCmp {
       const TargetData *TD;
 
-      GlobalCmp(const TargetData *td):
-        TD(td) { }
+      GlobalCmp(const TargetData *td) : TD(td) { }
 
-      bool operator() (const GlobalVariable* GV1,
-                       const GlobalVariable* GV2) {
-        const Type* Ty1 = cast<PointerType>(GV1->getType())->getElementType();
-        const Type* Ty2 = cast<PointerType>(GV2->getType())->getElementType();
+      bool operator()(const GlobalVariable *GV1, const GlobalVariable *GV2) {
+        const Type *Ty1 = cast<PointerType>(GV1->getType())->getElementType();
+        const Type *Ty2 = cast<PointerType>(GV2->getType())->getElementType();
 
         return (TD->getTypeAllocSize(Ty1) < TD->getTypeAllocSize(Ty2));
       }
@@ -130,27 +130,27 @@ bool ARMGlobalMerge::doMerge(SmallVectorImpl<GlobalVariable*> &Globals,
     uint64_t MergedSize = 0;
     std::vector<const Type*> Tys;
     std::vector<Constant*> Inits;
-    for (j = i; MergedSize < MaxOffset && j != e; ++j) {
-      const Type* Ty = Globals[j]->getType()->getElementType();
+    for (j = i; j != e; ++j) {
+      const Type *Ty = Globals[j]->getType()->getElementType();
+      MergedSize += TD->getTypeAllocSize(Ty);
+      if (MergedSize > MaxOffset) {
+        break;
+      }
       Tys.push_back(Ty);
       Inits.push_back(Globals[j]->getInitializer());
-      MergedSize += TD->getTypeAllocSize(Ty);
     }
 
-    StructType* MergedTy = StructType::get(M.getContext(), Tys);
-    Constant* MergedInit = ConstantStruct::get(MergedTy, Inits);
-    GlobalVariable* MergedGV = new GlobalVariable(M, MergedTy, isConst,
+    StructType *MergedTy = StructType::get(M.getContext(), Tys);
+    Constant *MergedInit = ConstantStruct::get(MergedTy, Inits);
+    GlobalVariable *MergedGV = new GlobalVariable(M, MergedTy, isConst,
                                                   GlobalValue::InternalLinkage,
-                                                  MergedInit, "merged");
+                                                  MergedInit, "_MergedGlobals");
     for (size_t k = i; k < j; ++k) {
-      SmallVector<Constant*, 2> Idx;
-      Idx.push_back(ConstantInt::get(Int32Ty, 0));
-      Idx.push_back(ConstantInt::get(Int32Ty, k-i));
-
-      Constant* GEP =
-        ConstantExpr::getInBoundsGetElementPtr(MergedGV,
-                                               &Idx[0], Idx.size());
-
+      Constant *Idx[2] = {
+        ConstantInt::get(Int32Ty, 0),
+        ConstantInt::get(Int32Ty, k-i)
+      };
+      Constant *GEP = ConstantExpr::getInBoundsGetElementPtr(MergedGV, Idx, 2);
       Globals[k]->replaceAllUsesWith(GEP);
       Globals[k]->eraseFromParent();
     }
@@ -161,8 +161,8 @@ bool ARMGlobalMerge::doMerge(SmallVectorImpl<GlobalVariable*> &Globals,
 }
 
 
-bool ARMGlobalMerge::doInitialization(Module& M) {
-  SmallVector<GlobalVariable*, 16> Globals, ConstGlobals;
+bool ARMGlobalMerge::doInitialization(Module &M) {
+  SmallVector<GlobalVariable*, 16> Globals, ConstGlobals, BSSGlobals;
   const TargetData *TD = TLI->getTargetData();
   unsigned MaxOffset = TLI->getMaximalGlobalOffset();
   bool Changed = false;
@@ -183,8 +183,11 @@ bool ARMGlobalMerge::doInitialization(Module& M) {
         I->getName().startswith(".llvm."))
       continue;
 
-    if (TD->getTypeAllocSize(I->getType()) < MaxOffset) {
-      if (I->isConstant())
+    if (TD->getTypeAllocSize(I->getType()->getElementType()) < MaxOffset) {
+      const TargetLoweringObjectFile &TLOF = TLI->getObjFileLowering();
+      if (TLOF.getKindForGlobal(I, TLI->getTargetMachine()).isBSSLocal())
+        BSSGlobals.push_back(I);
+      else if (I->isConstant())
         ConstGlobals.push_back(I);
       else
         Globals.push_back(I);
@@ -193,17 +196,19 @@ bool ARMGlobalMerge::doInitialization(Module& M) {
 
   if (Globals.size() > 1)
     Changed |= doMerge(Globals, M, false);
+  if (BSSGlobals.size() > 1)
+    Changed |= doMerge(BSSGlobals, M, false);
+
   // FIXME: This currently breaks the EH processing due to way how the 
   // typeinfo detection works. We might want to detect the TIs and ignore 
   // them in the future.
-  
   // if (ConstGlobals.size() > 1)
   //  Changed |= doMerge(ConstGlobals, M, true);
 
   return Changed;
 }
 
-bool ARMGlobalMerge::runOnFunction(Function& F) {
+bool ARMGlobalMerge::runOnFunction(Function &F) {
   return false;
 }
 

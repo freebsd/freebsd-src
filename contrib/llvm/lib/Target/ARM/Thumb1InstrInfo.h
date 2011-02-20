@@ -37,28 +37,19 @@ public:
   ///
   const Thumb1RegisterInfo &getRegisterInfo() const { return RI; }
 
-  bool spillCalleeSavedRegisters(MachineBasicBlock &MBB,
-                                 MachineBasicBlock::iterator MI,
-                                 const std::vector<CalleeSavedInfo> &CSI,
-                                 const TargetRegisterInfo *TRI) const;
-  bool restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
-                                   MachineBasicBlock::iterator MI,
-                                   const std::vector<CalleeSavedInfo> &CSI,
-                                   const TargetRegisterInfo *TRI) const;
-
   void copyPhysReg(MachineBasicBlock &MBB,
                    MachineBasicBlock::iterator I, DebugLoc DL,
                    unsigned DestReg, unsigned SrcReg,
                    bool KillSrc) const;
   void storeRegToStackSlot(MachineBasicBlock &MBB,
-                                   MachineBasicBlock::iterator MBBI,
-                                   unsigned SrcReg, bool isKill, int FrameIndex,
+                           MachineBasicBlock::iterator MBBI,
+                           unsigned SrcReg, bool isKill, int FrameIndex,
                            const TargetRegisterClass *RC,
                            const TargetRegisterInfo *TRI) const;
 
   void loadRegFromStackSlot(MachineBasicBlock &MBB,
-                                    MachineBasicBlock::iterator MBBI,
-                                    unsigned DestReg, int FrameIndex,
+                            MachineBasicBlock::iterator MBBI,
+                            unsigned DestReg, int FrameIndex,
                             const TargetRegisterClass *RC,
                             const TargetRegisterInfo *TRI) const;
 

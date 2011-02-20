@@ -14,6 +14,8 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	DwarfEHPrepare.cpp \
 	ELFCodeEmitter.cpp \
 	ELFWriter.cpp \
+	EdgeBundles.cpp \
+	ExpandISelPseudos.cpp \
 	GCMetadata.cpp \
 	GCStrategy.cpp \
 	IfConversion.cpp \
@@ -21,10 +23,13 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	IntrinsicLowering.cpp \
 	LLVMTargetMachine.cpp \
 	LatencyPriorityQueue.cpp \
+	LiveDebugVariables.cpp \
 	LiveInterval.cpp \
 	LiveIntervalAnalysis.cpp \
+	LiveIntervalUnion.cpp \
 	LiveStackAnalysis.cpp \
 	LiveVariables.cpp \
+	LiveRangeEdit.cpp \
 	LocalStackSlotAllocation.cpp \
 	LowerSubregs.cpp \
 	MachineBasicBlock.cpp \
@@ -48,14 +53,15 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	OcamlGC.cpp \
 	OptimizePHIs.cpp \
 	PHIElimination.cpp \
+	PHIEliminationUtils.cpp \
 	Passes.cpp \
 	PeepholeOptimizer.cpp \
-	PostRAHazardRecognizer.cpp \
 	PostRASchedulerList.cpp \
 	PreAllocSplitting.cpp \
 	ProcessImplicitDefs.cpp \
 	PrologEpilogInserter.cpp \
 	PseudoSourceValue.cpp \
+	RegAllocBasic.cpp \
 	RegAllocFast.cpp \
 	RegAllocLinearScan.cpp \
 	RegAllocPBQP.cpp \
@@ -66,6 +72,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	ScheduleDAGEmit.cpp \
 	ScheduleDAGInstrs.cpp \
 	ScheduleDAGPrinter.cpp \
+	ScoreboardHazardRecognizer.cpp \
 	ShadowStackGC.cpp \
 	ShrinkWrapping.cpp \
 	SimpleRegisterCoalescing.cpp \

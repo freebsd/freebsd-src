@@ -16,8 +16,8 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Signals.h"
-#include "llvm/System/Threading.h"
+#include "llvm/Support/Signals.h"
+#include "llvm/Support/Threading.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Config/config.h"
 #include <cassert>
@@ -58,6 +58,10 @@ void llvm::report_fatal_error(const std::string &Reason) {
   report_fatal_error(Twine(Reason));
 }
 
+void llvm::report_fatal_error(StringRef Reason) {
+  report_fatal_error(Twine(Reason));
+}
+
 void llvm::report_fatal_error(const Twine &Reason) {
   if (ErrorHandler) {
     ErrorHandler(ErrorHandlerUserData, Reason.str());
@@ -69,7 +73,8 @@ void llvm::report_fatal_error(const Twine &Reason) {
     raw_svector_ostream OS(Buffer);
     OS << "LLVM ERROR: " << Reason << "\n";
     StringRef MessageStr = OS.str();
-    (void)::write(2, MessageStr.data(), MessageStr.size());
+    ssize_t written = ::write(2, MessageStr.data(), MessageStr.size());
+    (void)written; // If something went wrong, we deliberately just give up.
   }
 
   // If we reached here, we are failing ungracefully. Run the interrupt handlers

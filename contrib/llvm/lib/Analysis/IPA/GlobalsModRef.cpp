@@ -24,6 +24,7 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
+#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/InstIterator.h"
 #include "llvm/ADT/Statistic.h"
@@ -88,7 +89,9 @@ namespace {
 
   public:
     static char ID;
-    GlobalsModRef() : ModulePass(ID) {}
+    GlobalsModRef() : ModulePass(ID) {
+      initializeGlobalsModRefPass(*PassRegistry::getPassRegistry());
+    }
 
     bool runOnModule(Module &M) {
       InitializeAliasAnalysis(this);                 // set up super class
@@ -106,10 +109,9 @@ namespace {
     //------------------------------------------------
     // Implement the AliasAnalysis API
     //
-    AliasResult alias(const Value *V1, unsigned V1Size,
-                      const Value *V2, unsigned V2Size);
+    AliasResult alias(const Location &LocA, const Location &LocB);
     ModRefResult getModRefInfo(ImmutableCallSite CS,
-                               const Value *P, unsigned Size);
+                               const Location &Loc);
     ModRefResult getModRefInfo(ImmutableCallSite CS1,
                                ImmutableCallSite CS2) {
       return AliasAnalysis::getModRefInfo(CS1, CS2);
@@ -119,32 +121,38 @@ namespace {
     /// called from the specified call site.  The call site may be null in which
     /// case the most generic behavior of this function should be returned.
     ModRefBehavior getModRefBehavior(const Function *F) {
+      ModRefBehavior Min = UnknownModRefBehavior;
+
       if (FunctionRecord *FR = getFunctionInfo(F)) {
         if (FR->FunctionEffect == 0)
-          return DoesNotAccessMemory;
+          Min = DoesNotAccessMemory;
         else if ((FR->FunctionEffect & Mod) == 0)
-          return OnlyReadsMemory;
+          Min = OnlyReadsMemory;
       }
-      return AliasAnalysis::getModRefBehavior(F);
+
+      return ModRefBehavior(AliasAnalysis::getModRefBehavior(F) & Min);
     }
     
     /// getModRefBehavior - Return the behavior of the specified function if
     /// called from the specified call site.  The call site may be null in which
     /// case the most generic behavior of this function should be returned.
     ModRefBehavior getModRefBehavior(ImmutableCallSite CS) {
-      const Function* F = CS.getCalledFunction();
-      if (!F) return AliasAnalysis::getModRefBehavior(CS);
-      if (FunctionRecord *FR = getFunctionInfo(F)) {
-        if (FR->FunctionEffect == 0)
-          return DoesNotAccessMemory;
-        else if ((FR->FunctionEffect & Mod) == 0)
-          return OnlyReadsMemory;
-      }
-      return AliasAnalysis::getModRefBehavior(CS);
+      ModRefBehavior Min = UnknownModRefBehavior;
+
+      if (const Function* F = CS.getCalledFunction())
+        if (FunctionRecord *FR = getFunctionInfo(F)) {
+          if (FR->FunctionEffect == 0)
+            Min = DoesNotAccessMemory;
+          else if ((FR->FunctionEffect & Mod) == 0)
+            Min = OnlyReadsMemory;
+        }
+
+      return ModRefBehavior(AliasAnalysis::getModRefBehavior(CS) & Min);
     }
 
     virtual void deleteValue(Value *V);
     virtual void copyValue(Value *From, Value *To);
+    virtual void addEscapingUse(Use &U);
 
     /// getAdjustedAnalysisPointer - This method is used when a pass implements
     /// an analysis interface through multiple inheritance.  If needed, it
@@ -177,9 +185,13 @@ namespace {
 }
 
 char GlobalsModRef::ID = 0;
-INITIALIZE_AG_PASS(GlobalsModRef, AliasAnalysis,
+INITIALIZE_AG_PASS_BEGIN(GlobalsModRef, AliasAnalysis,
                 "globalsmodref-aa", "Simple mod/ref analysis for globals",    
-                false, true, false);
+                false, true, false)
+INITIALIZE_AG_DEPENDENCY(CallGraph)
+INITIALIZE_AG_PASS_END(GlobalsModRef, AliasAnalysis,
+                "globalsmodref-aa", "Simple mod/ref analysis for globals",    
+                false, true, false)
 
 Pass *llvm::createGlobalsModRefPass() { return new GlobalsModRef(); }
 
@@ -314,7 +326,7 @@ bool GlobalsModRef::AnalyzeIndirectGlobalMemory(GlobalValue *GV) {
         continue;
 
       // Check the value being stored.
-      Value *Ptr = SI->getOperand(0)->getUnderlyingObject();
+      Value *Ptr = GetUnderlyingObject(SI->getOperand(0));
 
       if (isMalloc(Ptr)) {
         // Okay, easy case.
@@ -476,11 +488,11 @@ void GlobalsModRef::AnalyzeCallGraph(CallGraph &CG, Module &M) {
 /// other is some random pointer, we know there cannot be an alias, because the
 /// address of the global isn't taken.
 AliasAnalysis::AliasResult
-GlobalsModRef::alias(const Value *V1, unsigned V1Size,
-                     const Value *V2, unsigned V2Size) {
+GlobalsModRef::alias(const Location &LocA,
+                     const Location &LocB) {
   // Get the base object these pointers point to.
-  const Value *UV1 = V1->getUnderlyingObject();
-  const Value *UV2 = V2->getUnderlyingObject();
+  const Value *UV1 = GetUnderlyingObject(LocA.Ptr);
+  const Value *UV2 = GetUnderlyingObject(LocB.Ptr);
 
   // If either of the underlying values is a global, they may be non-addr-taken
   // globals, which we can answer queries about.
@@ -528,17 +540,18 @@ GlobalsModRef::alias(const Value *V1, unsigned V1Size,
   if ((GV1 || GV2) && GV1 != GV2)
     return NoAlias;
 
-  return AliasAnalysis::alias(V1, V1Size, V2, V2Size);
+  return AliasAnalysis::alias(LocA, LocB);
 }
 
 AliasAnalysis::ModRefResult
 GlobalsModRef::getModRefInfo(ImmutableCallSite CS,
-                             const Value *P, unsigned Size) {
+                             const Location &Loc) {
   unsigned Known = ModRef;
 
   // If we are asking for mod/ref info of a direct call with a pointer to a
   // global we are tracking, return information if we have it.
-  if (const GlobalValue *GV = dyn_cast<GlobalValue>(P->getUnderlyingObject()))
+  if (const GlobalValue *GV =
+        dyn_cast<GlobalValue>(GetUnderlyingObject(Loc.Ptr)))
     if (GV->hasLocalLinkage())
       if (const Function *F = CS.getCalledFunction())
         if (NonAddressTakenGlobals.count(GV))
@@ -547,7 +560,7 @@ GlobalsModRef::getModRefInfo(ImmutableCallSite CS,
 
   if (Known == NoModRef)
     return NoModRef; // No need to query other mod/ref analyses
-  return ModRefResult(Known & AliasAnalysis::getModRefInfo(CS, P, Size));
+  return ModRefResult(Known & AliasAnalysis::getModRefInfo(CS, Loc));
 }
 
 
@@ -583,4 +596,14 @@ void GlobalsModRef::deleteValue(Value *V) {
 
 void GlobalsModRef::copyValue(Value *From, Value *To) {
   AliasAnalysis::copyValue(From, To);
+}
+
+void GlobalsModRef::addEscapingUse(Use &U) {
+  // For the purposes of this analysis, it is conservatively correct to treat
+  // a newly escaping value equivalently to a deleted one.  We could perhaps
+  // be more precise by processing the new use and attempting to update our
+  // saved analysis results to accomodate it.
+  deleteValue(U);
+  
+  AliasAnalysis::addEscapingUse(U);
 }

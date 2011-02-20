@@ -608,15 +608,22 @@ static const Loop *PickMostRelevantLoop(const Loop *A, const Loop *B,
   return A; // Arbitrarily break the tie.
 }
 
-/// GetRelevantLoop - Get the most relevant loop associated with the given
+/// getRelevantLoop - Get the most relevant loop associated with the given
 /// expression, according to PickMostRelevantLoop.
-static const Loop *GetRelevantLoop(const SCEV *S, LoopInfo &LI,
-                                   DominatorTree &DT) {
+const Loop *SCEVExpander::getRelevantLoop(const SCEV *S) {
+  // Test whether we've already computed the most relevant loop for this SCEV.
+  std::pair<DenseMap<const SCEV *, const Loop *>::iterator, bool> Pair =
+    RelevantLoops.insert(std::make_pair(S, static_cast<const Loop *>(0)));
+  if (!Pair.second)
+    return Pair.first->second;
+
   if (isa<SCEVConstant>(S))
+    // A constant has no relevant loops.
     return 0;
   if (const SCEVUnknown *U = dyn_cast<SCEVUnknown>(S)) {
     if (const Instruction *I = dyn_cast<Instruction>(U->getValue()))
-      return LI.getLoopFor(I->getParent());
+      return Pair.first->second = SE.LI->getLoopFor(I->getParent());
+    // A non-instruction has no relevant loops.
     return 0;
   }
   if (const SCEVNAryExpr *N = dyn_cast<SCEVNAryExpr>(S)) {
@@ -625,16 +632,22 @@ static const Loop *GetRelevantLoop(const SCEV *S, LoopInfo &LI,
       L = AR->getLoop();
     for (SCEVNAryExpr::op_iterator I = N->op_begin(), E = N->op_end();
          I != E; ++I)
-      L = PickMostRelevantLoop(L, GetRelevantLoop(*I, LI, DT), DT);
-    return L;
+      L = PickMostRelevantLoop(L, getRelevantLoop(*I), *SE.DT);
+    return RelevantLoops[N] = L;
   }
-  if (const SCEVCastExpr *C = dyn_cast<SCEVCastExpr>(S))
-    return GetRelevantLoop(C->getOperand(), LI, DT);
-  if (const SCEVUDivExpr *D = dyn_cast<SCEVUDivExpr>(S))
-    return PickMostRelevantLoop(GetRelevantLoop(D->getLHS(), LI, DT),
-                                GetRelevantLoop(D->getRHS(), LI, DT),
-                                DT);
+  if (const SCEVCastExpr *C = dyn_cast<SCEVCastExpr>(S)) {
+    const Loop *Result = getRelevantLoop(C->getOperand());
+    return RelevantLoops[C] = Result;
+  }
+  if (const SCEVUDivExpr *D = dyn_cast<SCEVUDivExpr>(S)) {
+    const Loop *Result =
+      PickMostRelevantLoop(getRelevantLoop(D->getLHS()),
+                           getRelevantLoop(D->getRHS()),
+                           *SE.DT);
+    return RelevantLoops[D] = Result;
+  }
   llvm_unreachable("Unexpected SCEV type!");
+  return 0;
 }
 
 namespace {
@@ -682,8 +695,7 @@ Value *SCEVExpander::visitAddExpr(const SCEVAddExpr *S) {
   SmallVector<std::pair<const Loop *, const SCEV *>, 8> OpsAndLoops;
   for (std::reverse_iterator<SCEVAddExpr::op_iterator> I(S->op_end()),
        E(S->op_begin()); I != E; ++I)
-    OpsAndLoops.push_back(std::make_pair(GetRelevantLoop(*I, *SE.LI, *SE.DT),
-                                         *I));
+    OpsAndLoops.push_back(std::make_pair(getRelevantLoop(*I), *I));
 
   // Sort by loop. Use a stable sort so that constants follow non-constants and
   // pointer operands precede non-pointer operands.
@@ -752,8 +764,7 @@ Value *SCEVExpander::visitMulExpr(const SCEVMulExpr *S) {
   SmallVector<std::pair<const Loop *, const SCEV *>, 8> OpsAndLoops;
   for (std::reverse_iterator<SCEVMulExpr::op_iterator> I(S->op_end()),
        E(S->op_begin()); I != E; ++I)
-    OpsAndLoops.push_back(std::make_pair(GetRelevantLoop(*I, *SE.LI, *SE.DT),
-                                         *I));
+    OpsAndLoops.push_back(std::make_pair(getRelevantLoop(*I), *I));
 
   // Sort by loop. Use a stable sort so that constants follow non-constants.
   std::stable_sort(OpsAndLoops.begin(), OpsAndLoops.end(), LoopCompare(*SE.DT));
@@ -990,7 +1001,7 @@ Value *SCEVExpander::expandAddRecExprLiterally(const SCEVAddRecExpr *S) {
   // Strip off any non-loop-dominating component from the addrec start.
   const SCEV *Start = Normalized->getStart();
   const SCEV *PostLoopOffset = 0;
-  if (!Start->properlyDominates(L->getHeader(), SE.DT)) {
+  if (!SE.properlyDominates(Start, L->getHeader())) {
     PostLoopOffset = Start;
     Start = SE.getConstant(Normalized->getType(), 0);
     Normalized =
@@ -1002,7 +1013,7 @@ Value *SCEVExpander::expandAddRecExprLiterally(const SCEVAddRecExpr *S) {
   // Strip off any non-loop-dominating component from the addrec step.
   const SCEV *Step = Normalized->getStepRecurrence(SE);
   const SCEV *PostLoopScale = 0;
-  if (!Step->dominates(L->getHeader(), SE.DT)) {
+  if (!SE.dominates(Step, L->getHeader())) {
     PostLoopScale = Step;
     Step = SE.getConstant(Normalized->getType(), 1);
     Normalized =
@@ -1278,7 +1289,7 @@ Value *SCEVExpander::expand(const SCEV *S) {
   Instruction *InsertPt = Builder.GetInsertPoint();
   for (Loop *L = SE.LI->getLoopFor(Builder.GetInsertBlock()); ;
        L = L->getParentLoop())
-    if (S->isLoopInvariant(L)) {
+    if (SE.isLoopInvariant(S, L)) {
       if (!L) break;
       if (BasicBlock *Preheader = L->getLoopPreheader())
         InsertPt = Preheader->getTerminator();
@@ -1286,7 +1297,7 @@ Value *SCEVExpander::expand(const SCEV *S) {
       // If the SCEV is computable at this level, insert it into the header
       // after the PHIs (and after any other instructions that we've inserted
       // there) so that it is guaranteed to dominate any user inside the loop.
-      if (L && S->hasComputableLoopEvolution(L) && !PostIncLoops.count(L))
+      if (L && SE.hasComputableLoopEvolution(S, L) && !PostIncLoops.count(L))
         InsertPt = L->getHeader()->getFirstNonPHI();
       while (isInsertedInstruction(InsertPt) || isa<DbgInfoIntrinsic>(InsertPt))
         InsertPt = llvm::next(BasicBlock::iterator(InsertPt));

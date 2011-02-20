@@ -14,8 +14,10 @@
 #ifndef LLVM_MC_MCSTREAMER_H
 #define LLVM_MC_MCSTREAMER_H
 
-#include "llvm/System/DataTypes.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/DataTypes.h"
 #include "llvm/MC/MCDirectives.h"
+#include "llvm/MC/MCDwarf.h"
 
 namespace llvm {
   class MCAsmInfo;
@@ -28,6 +30,7 @@ namespace llvm {
   class MCSymbol;
   class StringRef;
   class TargetAsmBackend;
+  class TargetLoweringObjectFile;
   class Twine;
   class raw_ostream;
   class formatted_raw_ostream;
@@ -47,29 +50,44 @@ namespace llvm {
     MCStreamer(const MCStreamer&); // DO NOT IMPLEMENT
     MCStreamer &operator=(const MCStreamer&); // DO NOT IMPLEMENT
 
+    void EmitSymbolValue(const MCSymbol *Sym, unsigned Size,
+                         bool isPCRel, unsigned AddrSpace);
+
+    std::vector<MCDwarfFrameInfo> FrameInfos;
+    MCDwarfFrameInfo *getCurrentFrameInfo();
+    void EnsureValidFrame();
+
+    /// CurSectionStack - This is stack of CurSection values saved by
+    /// PushSection.
+    SmallVector<const MCSection *, 4> CurSectionStack;
+
+    /// PrevSectionStack - This is stack of PrevSection values saved by
+    /// PushSection.
+    SmallVector<const MCSection *, 4> PrevSectionStack;
+
   protected:
     MCStreamer(MCContext &Ctx);
-
-    /// CurSection - This is the current section code is being emitted to, it is
-    /// kept up to date by SwitchSection.
-    const MCSection *CurSection;
-
-    /// PrevSection - This is the previous section code is being emitted to, it is
-    /// kept up to date by SwitchSection.
-    const MCSection *PrevSection;
 
   public:
     virtual ~MCStreamer();
 
     MCContext &getContext() const { return Context; }
 
+    unsigned getNumFrameInfos() {
+      return FrameInfos.size();
+    }
+
+    const MCDwarfFrameInfo &getFrameInfo(unsigned i) {
+      return FrameInfos[i];
+    }
+
     /// @name Assembly File Formatting.
     /// @{
-    
+
     /// isVerboseAsm - Return true if this streamer supports verbose assembly
     /// and if it is enabled.
     virtual bool isVerboseAsm() const { return false; }
-    
+
     /// hasRawTextSupport - Return true if this asm streamer supports emitting
     /// unformatted text to the .s file with EmitRawText.
     virtual bool hasRawTextSupport() const { return false; }
@@ -82,34 +100,83 @@ namespace llvm {
     /// If the comment includes embedded \n's, they will each get the comment
     /// prefix as appropriate.  The added comment should not end with a \n.
     virtual void AddComment(const Twine &T) {}
-    
+
     /// GetCommentOS - Return a raw_ostream that comments can be written to.
     /// Unlike AddComment, you are required to terminate comments with \n if you
     /// use this method.
     virtual raw_ostream &GetCommentOS();
-    
+
     /// AddBlankLine - Emit a blank line to a .s file to pretty it up.
     virtual void AddBlankLine() {}
-    
+
     /// @}
-    
+
     /// @name Symbol & Section Management
     /// @{
-    
+
     /// getCurrentSection - Return the current section that the streamer is
     /// emitting code to.
-    const MCSection *getCurrentSection() const { return CurSection; }
+    const MCSection *getCurrentSection() const {
+      if (!CurSectionStack.empty())
+        return CurSectionStack.back();
+      return NULL;
+    }
 
     /// getPreviousSection - Return the previous section that the streamer is
     /// emitting code to.
-    const MCSection *getPreviousSection() const { return PrevSection; }
+    const MCSection *getPreviousSection() const {
+      if (!PrevSectionStack.empty())
+        return PrevSectionStack.back();
+      return NULL;
+    }
+
+    /// ChangeSection - Update streamer for a new active section.
+    ///
+    /// This is called by PopSection and SwitchSection, if the current
+    /// section changes.
+    virtual void ChangeSection(const MCSection *) = 0;
+
+    /// pushSection - Save the current and previous section on the
+    /// section stack.
+    void PushSection() {
+      PrevSectionStack.push_back(getPreviousSection());
+      CurSectionStack.push_back(getCurrentSection());
+    }
+
+    /// popSection - Restore the current and previous section from
+    /// the section stack.  Calls ChangeSection as needed.
+    ///
+    /// Returns false if the stack was empty.
+    bool PopSection() {
+      if (PrevSectionStack.size() <= 1)
+        return false;
+      assert(CurSectionStack.size() > 1);
+      PrevSectionStack.pop_back();
+      const MCSection *oldSection = CurSectionStack.pop_back_val();
+      const MCSection *curSection = CurSectionStack.back();
+
+      if (oldSection != curSection)
+        ChangeSection(curSection);
+      return true;
+    }
 
     /// SwitchSection - Set the current section where code is being emitted to
     /// @p Section.  This is required to update CurSection.
     ///
     /// This corresponds to assembler directives like .section, .text, etc.
-    virtual void SwitchSection(const MCSection *Section) = 0;
-    
+    void SwitchSection(const MCSection *Section) {
+      assert(Section && "Cannot switch to a null section!");
+      const MCSection *curSection = CurSectionStack.back();
+      PrevSectionStack.back() = curSection;
+      if (Section != curSection) {
+        CurSectionStack.back() = Section;
+        ChangeSection(Section);
+      }
+    }
+
+    /// InitSections - Create the default sections and set the initial one.
+    virtual void InitSections() = 0;
+
     /// EmitLabel - Emit a label for @p Symbol into the current section.
     ///
     /// This corresponds to an assembler statement such as:
@@ -123,6 +190,10 @@ namespace llvm {
     /// EmitAssemblerFlag - Note in the output the specified @p Flag
     virtual void EmitAssemblerFlag(MCAssemblerFlag Flag) = 0;
 
+    /// EmitThumbFunc - Note in the output that the specified @p Func is
+    /// a Thumb mode function (ARM target only).
+    virtual void EmitThumbFunc(MCSymbol *Func) = 0;
+
     /// EmitAssignment - Emit an assignment of @p Value to @p Symbol.
     ///
     /// This corresponds to an assembler statement such as:
@@ -135,6 +206,15 @@ namespace llvm {
     /// @param Symbol - The symbol being assigned to.
     /// @param Value - The value for the symbol.
     virtual void EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) = 0;
+
+    /// EmitWeakReference - Emit an weak reference from @p Alias to @p Symbol.
+    ///
+    /// This corresponds to an assembler statement such as:
+    ///  .weakref alias, symbol
+    ///
+    /// @param Alias - The alias that is being created.
+    /// @param Symbol - The symbol being aliased.
+    virtual void EmitWeakReference(MCSymbol *Alias, const MCSymbol *Symbol) = 0;
 
     /// EmitSymbolAttribute - Add the given @p Attribute to @p Symbol.
     virtual void EmitSymbolAttribute(MCSymbol *Symbol,
@@ -170,7 +250,7 @@ namespace llvm {
     ///  .size symbol, expression
     ///
     virtual void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) = 0;
-    
+
     /// EmitCommonSymbol - Emit a common symbol.
     ///
     /// @param Symbol - The common symbol to emit.
@@ -185,7 +265,7 @@ namespace llvm {
     /// @param Symbol - The common symbol to emit.
     /// @param Size - The size of the common symbol.
     virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size) = 0;
-    
+
     /// EmitZerofill - Emit the zerofill section and an optional symbol.
     ///
     /// @param Section - The zerofill section to create and or to put the symbol
@@ -204,7 +284,7 @@ namespace llvm {
     /// @param ByteAlignment - The alignment of the thread local common symbol
     /// if non-zero.  This must be a power of 2 on some targets.
     virtual void EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
-                                uint64_t Size, unsigned ByteAlignment = 0) = 0;                                
+                                uint64_t Size, unsigned ByteAlignment = 0) = 0;
     /// @}
     /// @name Generating Data
     /// @{
@@ -224,38 +304,67 @@ namespace llvm {
     /// @param Value - The value to emit.
     /// @param Size - The size of the integer (in bytes) to emit. This must
     /// match a native machine width.
-    virtual void EmitValue(const MCExpr *Value, unsigned Size,
-                           unsigned AddrSpace = 0) = 0;
+    virtual void EmitValueImpl(const MCExpr *Value, unsigned Size,
+                               bool isPCRel, unsigned AddrSpace) = 0;
+
+    void EmitValue(const MCExpr *Value, unsigned Size, unsigned AddrSpace = 0);
+
+    void EmitPCRelValue(const MCExpr *Value, unsigned Size,
+                        unsigned AddrSpace = 0);
 
     /// EmitIntValue - Special case of EmitValue that avoids the client having
     /// to pass in a MCExpr for constant integers.
     virtual void EmitIntValue(uint64_t Value, unsigned Size,
                               unsigned AddrSpace = 0);
-    
+
+    /// EmitAbsValue - Emit the Value, but try to avoid relocations. On MachO
+    /// this is done by producing
+    /// foo = value
+    /// .long foo
+    void EmitAbsValue(const MCExpr *Value, unsigned Size,
+                      unsigned AddrSpace = 0);
+
+    virtual void EmitULEB128Value(const MCExpr *Value,
+                                  unsigned AddrSpace = 0) = 0;
+
+    virtual void EmitSLEB128Value(const MCExpr *Value,
+                                  unsigned AddrSpace = 0) = 0;
+
+    /// EmitULEB128Value - Special case of EmitULEB128Value that avoids the
+    /// client having to pass in a MCExpr for constant integers.
+    void EmitULEB128IntValue(uint64_t Value, unsigned AddrSpace = 0);
+
+    /// EmitSLEB128Value - Special case of EmitSLEB128Value that avoids the
+    /// client having to pass in a MCExpr for constant integers.
+    void EmitSLEB128IntValue(int64_t Value, unsigned AddrSpace = 0);
+
     /// EmitSymbolValue - Special case of EmitValue that avoids the client
     /// having to pass in a MCExpr for MCSymbols.
-    virtual void EmitSymbolValue(const MCSymbol *Sym, unsigned Size,
-                                 unsigned AddrSpace);
-    
+    void EmitSymbolValue(const MCSymbol *Sym, unsigned Size,
+                         unsigned AddrSpace = 0);
+
+    void EmitPCRelSymbolValue(const MCSymbol *Sym, unsigned Size,
+                              unsigned AddrSpace = 0);
+
     /// EmitGPRel32Value - Emit the expression @p Value into the output as a
     /// gprel32 (32-bit GP relative) value.
     ///
     /// This is used to implement assembler directives such as .gprel32 on
     /// targets that support them.
-    virtual void EmitGPRel32Value(const MCExpr *Value) = 0;
-    
+    virtual void EmitGPRel32Value(const MCExpr *Value);
+
     /// EmitFill - Emit NumBytes bytes worth of the value specified by
     /// FillValue.  This implements directives such as '.space'.
     virtual void EmitFill(uint64_t NumBytes, uint8_t FillValue,
                           unsigned AddrSpace);
-    
+
     /// EmitZeros - Emit NumBytes worth of zeros.  This is a convenience
     /// function that just wraps EmitFill.
     void EmitZeros(uint64_t NumBytes, unsigned AddrSpace) {
       EmitFill(NumBytes, 0, AddrSpace);
     }
 
-    
+
     /// EmitValueToAlignment - Emit some number of copies of @p Value until
     /// the byte alignment @p ByteAlignment is reached.
     ///
@@ -301,17 +410,47 @@ namespace llvm {
     /// @param Value - The value to use when filling bytes.
     virtual void EmitValueToOffset(const MCExpr *Offset,
                                    unsigned char Value = 0) = 0;
-    
+
     /// @}
-    
+
     /// EmitFileDirective - Switch to a new logical file.  This is used to
     /// implement the '.file "foo.c"' assembler directive.
     virtual void EmitFileDirective(StringRef Filename) = 0;
-    
+
     /// EmitDwarfFileDirective - Associate a filename with a specified logical
     /// file number.  This implements the DWARF2 '.file 4 "foo.c"' assembler
     /// directive.
-    virtual void EmitDwarfFileDirective(unsigned FileNo,StringRef Filename) = 0;
+    virtual bool EmitDwarfFileDirective(unsigned FileNo,StringRef Filename);
+
+    /// EmitDwarfLocDirective - This implements the DWARF2
+    // '.loc fileno lineno ...' assembler directive.
+    virtual void EmitDwarfLocDirective(unsigned FileNo, unsigned Line,
+                                       unsigned Column, unsigned Flags,
+                                       unsigned Isa,
+                                       unsigned Discriminator);
+
+    virtual void EmitDwarfAdvanceLineAddr(int64_t LineDelta,
+                                          const MCSymbol *LastLabel,
+                                          const MCSymbol *Label) = 0;
+
+    virtual void EmitDwarfAdvanceFrameAddr(const MCSymbol *LastLabel,
+                                           const MCSymbol *Label) {
+    }
+
+    void EmitDwarfSetLineAddr(int64_t LineDelta, const MCSymbol *Label,
+                              int PointerSize);
+
+    virtual bool EmitCFIStartProc();
+    virtual bool EmitCFIEndProc();
+    virtual bool EmitCFIDefCfa(int64_t Register, int64_t Offset);
+    virtual bool EmitCFIDefCfaOffset(int64_t Offset);
+    virtual bool EmitCFIDefCfaRegister(int64_t Register);
+    virtual bool EmitCFIOffset(int64_t Register, int64_t Offset);
+    virtual bool EmitCFIPersonality(const MCSymbol *Sym,
+                                    unsigned Encoding);
+    virtual bool EmitCFILsda(const MCSymbol *Sym, unsigned Encoding);
+    virtual bool EmitCFIRememberState();
+    virtual bool EmitCFIRestoreState();
 
     /// EmitInstruction - Emit the given @p Instruction into the current
     /// section.
@@ -322,7 +461,7 @@ namespace llvm {
     /// indicated by the hasRawTextSupport() predicate.  By default this aborts.
     virtual void EmitRawText(StringRef String);
     void EmitRawText(const Twine &String);
-    
+
     /// Finish - Finish emission of machine code.
     virtual void Finish() = 0;
   };
@@ -342,12 +481,18 @@ namespace llvm {
   /// \param CE - If given, a code emitter to use to show the instruction
   /// encoding inline with the assembly. This method takes ownership of \arg CE.
   ///
+  /// \param TAB - If given, a target asm backend to use to show the fixup
+  /// information in conjunction with encoding information. This method takes
+  /// ownership of \arg TAB.
+  ///
   /// \param ShowInst - Whether to show the MCInst representation inline with
   /// the assembly.
   MCStreamer *createAsmStreamer(MCContext &Ctx, formatted_raw_ostream &OS,
-                                bool isLittleEndian, bool isVerboseAsm,
+                                bool isVerboseAsm,
+                                bool useLoc,
                                 MCInstPrinter *InstPrint = 0,
                                 MCCodeEmitter *CE = 0,
+                                TargetAsmBackend *TAB = 0,
                                 bool ShowInst = false);
 
   /// createMachOStreamer - Create a machine code streamer which will generate
@@ -371,13 +516,20 @@ namespace llvm {
   /// ELF format object files.
   MCStreamer *createELFStreamer(MCContext &Ctx, TargetAsmBackend &TAB,
 				raw_ostream &OS, MCCodeEmitter *CE,
-				bool RelaxAll = false);
+				bool RelaxAll, bool NoExecStack);
 
   /// createLoggingStreamer - Create a machine code streamer which just logs the
   /// API calls and then dispatches to another streamer.
   ///
   /// The new streamer takes ownership of the \arg Child.
   MCStreamer *createLoggingStreamer(MCStreamer *Child, raw_ostream &OS);
+
+  /// createPureStreamer - Create a machine code streamer which will generate
+  /// "pure" MC object files, for use with MC-JIT and testing tools.
+  ///
+  /// Takes ownership of \arg TAB and \arg CE.
+  MCStreamer *createPureStreamer(MCContext &Ctx, TargetAsmBackend &TAB,
+                                 raw_ostream &OS, MCCodeEmitter *CE);
 
 } // end namespace llvm
 

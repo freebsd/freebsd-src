@@ -172,13 +172,10 @@ void SubtargetEmitter::CPUKeyValues(raw_ostream &OS) {
 // CollectAllItinClasses - Gathers and enumerates all the itinerary classes.
 // Returns itinerary class count.
 //
-unsigned SubtargetEmitter::CollectAllItinClasses(raw_ostream &OS,
-                              std::map<std::string, unsigned> &ItinClassesMap) {
-  // Gather and sort all itinerary classes
-  std::vector<Record*> ItinClassList =
-                            Records.getAllDerivedDefinitions("InstrItinClass");
-  std::sort(ItinClassList.begin(), ItinClassList.end(), LessRecord());
-
+unsigned SubtargetEmitter::
+CollectAllItinClasses(raw_ostream &OS,
+                      std::map<std::string, unsigned> &ItinClassesMap,
+                      std::vector<Record*> &ItinClassList) {
   // For each itinerary class
   unsigned N = ItinClassList.size();
   for (unsigned i = 0; i < N; i++) {
@@ -265,13 +262,32 @@ void SubtargetEmitter::FormItineraryOperandCycleString(Record *ItinData,
   }
 }
 
+void SubtargetEmitter::FormItineraryBypassString(const std::string &Name,
+                                                 Record *ItinData,
+                                                 std::string &ItinString,
+                                                 unsigned NOperandCycles) {
+  const std::vector<Record*> &BypassList =
+    ItinData->getValueAsListOfDefs("Bypasses");
+  unsigned N = BypassList.size();
+  unsigned i = 0;
+  for (; i < N;) {
+    ItinString += Name + "Bypass::" + BypassList[i]->getName();
+    if (++i < NOperandCycles) ItinString += ", ";
+  }
+  for (; i < NOperandCycles;) {
+    ItinString += " 0";
+    if (++i < NOperandCycles) ItinString += ", ";
+  }
+}
+
 //
 // EmitStageAndOperandCycleData - Generate unique itinerary stages and
 // operand cycle tables.  Record itineraries for processors.
 //
 void SubtargetEmitter::EmitStageAndOperandCycleData(raw_ostream &OS,
        unsigned NItinClasses,
-       std::map<std::string, unsigned> &ItinClassesMap, 
+       std::map<std::string, unsigned> &ItinClassesMap,
+       std::vector<Record*> &ItinClassList,
        std::vector<std::vector<InstrItinerary> > &ProcList) {
   // Gather processor iteraries
   std::vector<Record*> ProcItinList =
@@ -298,6 +314,19 @@ void SubtargetEmitter::EmitStageAndOperandCycleData(raw_ostream &OS,
          << " = 1 << " << j << ";\n";
 
     OS << "}\n";
+
+    std::vector<Record*> BPs = Proc->getValueAsListOfDefs("BP");
+    if (BPs.size()) {
+      OS << "\n// Pipeline forwarding pathes for itineraries \"" << Name
+         << "\"\n" << "namespace " << Name << "Bypass {\n";
+
+      OS << "  const unsigned NoBypass = 0;\n";
+      for (unsigned j = 0, BPN = BPs.size(); j < BPN; ++j)
+        OS << "  const unsigned " << BPs[j]->getName()
+           << " = 1 << " << j << ";\n";
+
+      OS << "}\n";
+    }
   }
 
   // Begin stages table
@@ -307,10 +336,14 @@ void SubtargetEmitter::EmitStageAndOperandCycleData(raw_ostream &OS,
   // Begin operand cycle table
   std::string OperandCycleTable = "static const unsigned OperandCycles[] = {\n";
   OperandCycleTable += "  0, // No itinerary\n";
+
+  // Begin pipeline bypass table
+  std::string BypassTable = "static const unsigned ForwardingPathes[] = {\n";
+  BypassTable += "  0, // No itinerary\n";
         
   unsigned StageCount = 1, OperandCycleCount = 1;
   unsigned ItinStageEnum = 1, ItinOperandCycleEnum = 1;
-  std::map<std::string, unsigned> ItinStageMap, ItinOperandCycleMap;
+  std::map<std::string, unsigned> ItinStageMap, ItinOperandMap;
   for (unsigned i = 0, N = ProcItinList.size(); i < N; i++) {
     // Next record
     Record *Proc = ProcItinList[i];
@@ -344,6 +377,10 @@ void SubtargetEmitter::EmitStageAndOperandCycleData(raw_ostream &OS,
       FormItineraryOperandCycleString(ItinData, ItinOperandCycleString,
                                       NOperandCycles);
 
+      std::string ItinBypassString;
+      FormItineraryBypassString(Name, ItinData, ItinBypassString,
+                                NOperandCycles);
+
       // Check to see if stage already exists and create if it doesn't
       unsigned FindStage = 0;
       if (NStages > 0) {
@@ -361,27 +398,35 @@ void SubtargetEmitter::EmitStageAndOperandCycleData(raw_ostream &OS,
       // Check to see if operand cycle already exists and create if it doesn't
       unsigned FindOperandCycle = 0;
       if (NOperandCycles > 0) {
-        FindOperandCycle = ItinOperandCycleMap[ItinOperandCycleString];
+        std::string ItinOperandString = ItinOperandCycleString+ItinBypassString;
+        FindOperandCycle = ItinOperandMap[ItinOperandString];
         if (FindOperandCycle == 0) {
           // Emit as  cycle, // index
           OperandCycleTable += ItinOperandCycleString + ", // " + 
             itostr(ItinOperandCycleEnum) + "\n";
           // Record Itin class number.
-          ItinOperandCycleMap[ItinOperandCycleString] = 
+          ItinOperandMap[ItinOperandCycleString] = 
             FindOperandCycle = OperandCycleCount;
+
+          // Emit as bypass, // index
+          BypassTable += ItinBypassString + ", // " + 
+            itostr(ItinOperandCycleEnum) + "\n";
+
           OperandCycleCount += NOperandCycles;
           ItinOperandCycleEnum++;
         }
       }
       
-      // Set up itinerary as location and location + stage count
-      InstrItinerary Intinerary = { FindStage, FindStage + NStages,
-                                    FindOperandCycle, FindOperandCycle + NOperandCycles};
-
       // Locate where to inject into processor itinerary table
       const std::string &Name = ItinData->getValueAsDef("TheClass")->getName();
       unsigned Find = ItinClassesMap[Name];
       
+      // Set up itinerary as location and location + stage count
+      unsigned NumUOps = ItinClassList[Find]->getValueAsInt("NumMicroOps");
+      InstrItinerary Intinerary = { NumUOps, FindStage, FindStage + NStages,
+                                    FindOperandCycle,
+                                    FindOperandCycle + NOperandCycles};
+
       // Inject - empty slots will be 0, 0
       ItinList[Find] = Intinerary;
     }
@@ -389,7 +434,7 @@ void SubtargetEmitter::EmitStageAndOperandCycleData(raw_ostream &OS,
     // Add process itinerary to list
     ProcList.push_back(ItinList);
   }
-  
+
   // Closing stage
   StageTable += "  { 0, 0, 0, llvm::InstrStage::Required } // End itinerary\n";
   StageTable += "};\n";
@@ -398,9 +443,13 @@ void SubtargetEmitter::EmitStageAndOperandCycleData(raw_ostream &OS,
   OperandCycleTable += "  0 // End itinerary\n";
   OperandCycleTable += "};\n";
 
+  BypassTable += "  0 // End itinerary\n";
+  BypassTable += "};\n";
+
   // Emit tables.
   OS << StageTable;
   OS << OperandCycleTable;
+  OS << BypassTable;
   
   // Emit size of tables
   OS<<"\nenum {\n";
@@ -443,9 +492,11 @@ void SubtargetEmitter::EmitProcessorData(raw_ostream &OS,
       // Emit in the form of 
       // { firstStage, lastStage, firstCycle, lastCycle } // index
       if (Intinerary.FirstStage == 0) {
-        OS << "  { 0, 0, 0, 0 }";
+        OS << "  { 1, 0, 0, 0, 0 }";
       } else {
-        OS << "  { " << Intinerary.FirstStage << ", " << 
+        OS << "  { " <<
+          Intinerary.NumMicroOps << ", " <<
+          Intinerary.FirstStage << ", " << 
           Intinerary.LastStage << ", " << 
           Intinerary.FirstOperandCycle << ", " << 
           Intinerary.LastOperandCycle << " }";
@@ -455,7 +506,7 @@ void SubtargetEmitter::EmitProcessorData(raw_ostream &OS,
     }
     
     // End processor itinerary table
-    OS << "  { ~0U, ~0U, ~0U, ~0U } // end marker\n";
+    OS << "  { 1, ~0U, ~0U, ~0U, ~0U } // end marker\n";
     OS << "};\n";
   }
 }
@@ -511,16 +562,22 @@ void SubtargetEmitter::EmitProcessorLookup(raw_ostream &OS) {
 //
 void SubtargetEmitter::EmitData(raw_ostream &OS) {
   std::map<std::string, unsigned> ItinClassesMap;
-  std::vector<std::vector<InstrItinerary> > ProcList;
+  // Gather and sort all itinerary classes
+  std::vector<Record*> ItinClassList =
+    Records.getAllDerivedDefinitions("InstrItinClass");
+  std::sort(ItinClassList.begin(), ItinClassList.end(), LessRecord());
   
   // Enumerate all the itinerary classes
-  unsigned NItinClasses = CollectAllItinClasses(OS, ItinClassesMap);
+  unsigned NItinClasses = CollectAllItinClasses(OS, ItinClassesMap,
+                                                ItinClassList);
   // Make sure the rest is worth the effort
   HasItineraries = NItinClasses != 1;   // Ignore NoItinerary.
   
   if (HasItineraries) {
+    std::vector<std::vector<InstrItinerary> > ProcList;
     // Emit the stage data
-    EmitStageAndOperandCycleData(OS, NItinClasses, ItinClassesMap, ProcList);
+    EmitStageAndOperandCycleData(OS, NItinClasses, ItinClassesMap,
+                                 ItinClassList, ProcList);
     // Emit the processor itinerary data
     EmitProcessorData(OS, ProcList);
     // Emit the processor lookup data
@@ -569,7 +626,8 @@ void SubtargetEmitter::ParseFeaturesFunction(raw_ostream &OS) {
     OS << "\n"
        << "  InstrItinerary *Itinerary = (InstrItinerary *)"
        <<              "Features.getInfo(ProcItinKV, ProcItinKVSize);\n"
-       << "  InstrItins = InstrItineraryData(Stages, OperandCycles, Itinerary);\n";
+       << "  InstrItins = InstrItineraryData(Stages, OperandCycles, "
+       << "ForwardingPathes, Itinerary);\n";
   }
 
   OS << "  return Features.getCPU();\n"
@@ -580,7 +638,7 @@ void SubtargetEmitter::ParseFeaturesFunction(raw_ostream &OS) {
 // SubtargetEmitter::run - Main subtarget enumeration emitter.
 //
 void SubtargetEmitter::run(raw_ostream &OS) {
-  Target = CodeGenTarget().getName();
+  Target = CodeGenTarget(Records).getName();
 
   EmitSourceFileHeader("Subtarget Enumeration Source Fragment", OS);
 

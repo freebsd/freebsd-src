@@ -32,18 +32,20 @@ namespace clang {
   class CXXMethodDecl;
   class CXXRecordDecl;
   class FieldDecl;
+  class MangleContext;
 
 namespace CodeGen {
   class CodeGenFunction;
   class CodeGenModule;
-  class MangleContext;
 
 /// Implements C++ ABI-specific code generation functions.
 class CGCXXABI {
 protected:
   CodeGenModule &CGM;
+  llvm::OwningPtr<MangleContext> MangleCtx;
 
-  CGCXXABI(CodeGenModule &CGM) : CGM(CGM) {}
+  CGCXXABI(CodeGenModule &CGM)
+    : CGM(CGM), MangleCtx(CGM.getContext().createMangleContext()) {}
 
 protected:
   ImplicitParamDecl *&getThisDecl(CodeGenFunction &CGF) {
@@ -74,7 +76,9 @@ public:
   virtual ~CGCXXABI();
 
   /// Gets the mangle context.
-  virtual MangleContext &getMangleContext() = 0;
+  MangleContext &getMangleContext() {
+    return *MangleCtx;
+  }
 
   /// Find the LLVM type used to represent the given member pointer
   /// type.
@@ -118,7 +122,8 @@ public:
   virtual llvm::Constant *EmitMemberPointer(const CXXMethodDecl *MD);
 
   /// Create a member pointer for the given field.
-  virtual llvm::Constant *EmitMemberPointer(const FieldDecl *FD);
+  virtual llvm::Constant *EmitMemberDataPointer(const MemberPointerType *MPT,
+                                                CharUnits offset);
 
   /// Emit a comparison between two member pointers.  Returns an i1.
   virtual llvm::Value *
@@ -185,7 +190,7 @@ public:
   ///
   /// \param ElementType - the allocated type of the expression,
   ///   i.e. the pointee type of the expression result type
-  virtual CharUnits GetArrayCookieSize(QualType ElementType);
+  virtual CharUnits GetArrayCookieSize(const CXXNewExpr *expr);
 
   /// Initialize the array cookie for the given allocation.
   ///
@@ -198,6 +203,7 @@ public:
   virtual llvm::Value *InitializeArrayCookie(CodeGenFunction &CGF,
                                              llvm::Value *NewPtr,
                                              llvm::Value *NumElements,
+                                             const CXXNewExpr *expr,
                                              QualType ElementType);
 
   /// Reads the array cookie associated with the given pointer,
@@ -214,8 +220,20 @@ public:
   /// \param CookieSize - an out parameter which will be initialized
   ///   with the size of the cookie, or zero if there is no cookie
   virtual void ReadArrayCookie(CodeGenFunction &CGF, llvm::Value *Ptr,
+                               const CXXDeleteExpr *expr,
                                QualType ElementType, llvm::Value *&NumElements,
                                llvm::Value *&AllocPtr, CharUnits &CookieSize);
+
+  /*************************** Static local guards ****************************/
+
+  /// Emits the guarded initializer and destructor setup for the given
+  /// variable, given that it couldn't be emitted as a constant.
+  ///
+  /// The variable may be:
+  ///   - a static local variable
+  ///   - a static data member of a class template instantiation
+  virtual void EmitGuardedInit(CodeGenFunction &CGF, const VarDecl &D,
+                               llvm::GlobalVariable *DeclPtr);
 
 };
 

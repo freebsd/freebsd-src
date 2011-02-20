@@ -16,7 +16,7 @@
 
 #include "llvm/ADT/SmallVector.h"
 //#include "llvm/ADT/IndexedMap.h"
-#include "llvm/System/DataTypes.h"
+#include "llvm/Support/DataTypes.h"
 #include <cassert>
 #include <vector>
 
@@ -27,7 +27,7 @@ class TargetRegisterClass;
 class Type;
 class MachineFunction;
 class MachineBasicBlock;
-class TargetFrameInfo;
+class TargetFrameLowering;
 class BitVector;
 
 /// The CalleeSavedInfo class tracks the information need to locate where a
@@ -192,13 +192,9 @@ class MachineFrameInfo {
   /// CSIValid - Has CSInfo been set yet?
   bool CSIValid;
 
-  /// SpillObjects - A vector indicating which frame indices refer to
-  /// spill slots.
-  SmallVector<bool, 8> SpillObjects;
-
-  /// TargetFrameInfo - Target information about frame layout.
+  /// TargetFrameLowering - Target information about frame layout.
   ///
-  const TargetFrameInfo &TFI;
+  const TargetFrameLowering &TFI;
 
   /// LocalFrameObjects - References to frame indices which are mapped
   /// into the local frame allocation block. <FrameIdx, LocalOffset>
@@ -217,7 +213,7 @@ class MachineFrameInfo {
   bool UseLocalStackAllocationBlock;
 
 public:
-    explicit MachineFrameInfo(const TargetFrameInfo &tfi) : TFI(tfi) {
+    explicit MachineFrameInfo(const TargetFrameLowering &tfi) : TFI(tfi) {
     StackSize = NumFixedObjects = OffsetAdjustment = MaxAlignment = 0;
     HasVarSizedObjects = false;
     FrameAddressTaken = false;

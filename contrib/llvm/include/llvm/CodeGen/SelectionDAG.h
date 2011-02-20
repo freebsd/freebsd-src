@@ -171,9 +171,6 @@ class SelectionDAG {
   /// DbgInfo - Tracks dbg_value information through SDISel.
   SDDbgInfo *DbgInfo;
 
-  /// VerifyNode - Sanity check the given node.  Aborts if it is invalid.
-  void VerifyNode(SDNode *N);
-
   /// setGraphColorHelper - Implementation of setSubgraphColor.
   /// Return whether we had to truncate the search.
   ///
@@ -401,21 +398,21 @@ public:
   }
 
   // This version of the getCopyToReg method takes an extra operand, which
-  // indicates that there is potentially an incoming flag value (if Flag is not
-  // null) and that there should be a flag result.
+  // indicates that there is potentially an incoming glue value (if Glue is not
+  // null) and that there should be a glue result.
   SDValue getCopyToReg(SDValue Chain, DebugLoc dl, unsigned Reg, SDValue N,
-                       SDValue Flag) {
-    SDVTList VTs = getVTList(MVT::Other, MVT::Flag);
-    SDValue Ops[] = { Chain, getRegister(Reg, N.getValueType()), N, Flag };
-    return getNode(ISD::CopyToReg, dl, VTs, Ops, Flag.getNode() ? 4 : 3);
+                       SDValue Glue) {
+    SDVTList VTs = getVTList(MVT::Other, MVT::Glue);
+    SDValue Ops[] = { Chain, getRegister(Reg, N.getValueType()), N, Glue };
+    return getNode(ISD::CopyToReg, dl, VTs, Ops, Glue.getNode() ? 4 : 3);
   }
 
   // Similar to last getCopyToReg() except parameter Reg is a SDValue
   SDValue getCopyToReg(SDValue Chain, DebugLoc dl, SDValue Reg, SDValue N,
-                         SDValue Flag) {
-    SDVTList VTs = getVTList(MVT::Other, MVT::Flag);
-    SDValue Ops[] = { Chain, Reg, N, Flag };
-    return getNode(ISD::CopyToReg, dl, VTs, Ops, Flag.getNode() ? 4 : 3);
+                         SDValue Glue) {
+    SDVTList VTs = getVTList(MVT::Other, MVT::Glue);
+    SDValue Ops[] = { Chain, Reg, N, Glue };
+    return getNode(ISD::CopyToReg, dl, VTs, Ops, Glue.getNode() ? 4 : 3);
   }
 
   SDValue getCopyFromReg(SDValue Chain, DebugLoc dl, unsigned Reg, EVT VT) {
@@ -425,13 +422,13 @@ public:
   }
 
   // This version of the getCopyFromReg method takes an extra operand, which
-  // indicates that there is potentially an incoming flag value (if Flag is not
-  // null) and that there should be a flag result.
+  // indicates that there is potentially an incoming glue value (if Glue is not
+  // null) and that there should be a glue result.
   SDValue getCopyFromReg(SDValue Chain, DebugLoc dl, unsigned Reg, EVT VT,
-                           SDValue Flag) {
-    SDVTList VTs = getVTList(VT, MVT::Other, MVT::Flag);
-    SDValue Ops[] = { Chain, getRegister(Reg, VT), Flag };
-    return getNode(ISD::CopyFromReg, dl, VTs, Ops, Flag.getNode() ? 3 : 2);
+                           SDValue Glue) {
+    SDVTList VTs = getVTList(VT, MVT::Other, MVT::Glue);
+    SDValue Ops[] = { Chain, getRegister(Reg, VT), Glue };
+    return getNode(ISD::CopyFromReg, dl, VTs, Ops, Glue.getNode() ? 3 : 2);
   }
 
   SDValue getCondCode(ISD::CondCode Cond);
@@ -465,27 +462,27 @@ public:
   SDValue getNOT(DebugLoc DL, SDValue Val, EVT VT);
 
   /// getCALLSEQ_START - Return a new CALLSEQ_START node, which always must have
-  /// a flag result (to ensure it's not CSE'd).  CALLSEQ_START does not have a
+  /// a glue result (to ensure it's not CSE'd).  CALLSEQ_START does not have a
   /// useful DebugLoc.
   SDValue getCALLSEQ_START(SDValue Chain, SDValue Op) {
-    SDVTList VTs = getVTList(MVT::Other, MVT::Flag);
+    SDVTList VTs = getVTList(MVT::Other, MVT::Glue);
     SDValue Ops[] = { Chain,  Op };
     return getNode(ISD::CALLSEQ_START, DebugLoc(), VTs, Ops, 2);
   }
 
   /// getCALLSEQ_END - Return a new CALLSEQ_END node, which always must have a
-  /// flag result (to ensure it's not CSE'd).  CALLSEQ_END does not have
+  /// glue result (to ensure it's not CSE'd).  CALLSEQ_END does not have
   /// a useful DebugLoc.
   SDValue getCALLSEQ_END(SDValue Chain, SDValue Op1, SDValue Op2,
-                           SDValue InFlag) {
-    SDVTList NodeTys = getVTList(MVT::Other, MVT::Flag);
+                           SDValue InGlue) {
+    SDVTList NodeTys = getVTList(MVT::Other, MVT::Glue);
     SmallVector<SDValue, 4> Ops;
     Ops.push_back(Chain);
     Ops.push_back(Op1);
     Ops.push_back(Op2);
-    Ops.push_back(InFlag);
+    Ops.push_back(InGlue);
     return getNode(ISD::CALLSEQ_END, DebugLoc(), NodeTys, &Ops[0],
-                   (unsigned)Ops.size() - (InFlag.getNode() == 0 ? 1 : 0));
+                   (unsigned)Ops.size() - (InGlue.getNode() == 0 ? 1 : 0));
   }
 
   /// getUNDEF - Return an UNDEF node.  UNDEF does not have a useful DebugLoc.
@@ -542,17 +539,17 @@ public:
 
   SDValue getMemcpy(SDValue Chain, DebugLoc dl, SDValue Dst, SDValue Src,
                     SDValue Size, unsigned Align, bool isVol, bool AlwaysInline,
-                    const Value *DstSV, uint64_t DstSVOff,
-                    const Value *SrcSV, uint64_t SrcSVOff);
+                    MachinePointerInfo DstPtrInfo,
+                    MachinePointerInfo SrcPtrInfo);
 
   SDValue getMemmove(SDValue Chain, DebugLoc dl, SDValue Dst, SDValue Src,
                      SDValue Size, unsigned Align, bool isVol,
-                     const Value *DstSV, uint64_t DstOSVff,
-                     const Value *SrcSV, uint64_t SrcSVOff);
+                     MachinePointerInfo DstPtrInfo,
+                     MachinePointerInfo SrcPtrInfo);
 
   SDValue getMemset(SDValue Chain, DebugLoc dl, SDValue Dst, SDValue Src,
                     SDValue Size, unsigned Align, bool isVol,
-                    const Value *DstSV, uint64_t DstSVOff);
+                    MachinePointerInfo DstPtrInfo);
 
   /// getSetCC - Helper function to make it easier to build SetCC's if you just
   /// have an ISD::CondCode instead of an SDValue.
@@ -587,8 +584,8 @@ public:
   /// getAtomic - Gets a node for an atomic op, produces result and chain and
   /// takes 3 operands
   SDValue getAtomic(unsigned Opcode, DebugLoc dl, EVT MemVT, SDValue Chain,
-                    SDValue Ptr, SDValue Cmp, SDValue Swp, const Value* PtrVal,
-                    unsigned Alignment=0);
+                    SDValue Ptr, SDValue Cmp, SDValue Swp,
+                    MachinePointerInfo PtrInfo, unsigned Alignment=0);
   SDValue getAtomic(unsigned Opcode, DebugLoc dl, EVT MemVT, SDValue Chain,
                     SDValue Ptr, SDValue Cmp, SDValue Swp,
                     MachineMemOperand *MMO);
@@ -609,13 +606,13 @@ public:
   SDValue getMemIntrinsicNode(unsigned Opcode, DebugLoc dl,
                               const EVT *VTs, unsigned NumVTs,
                               const SDValue *Ops, unsigned NumOps,
-                              EVT MemVT, const Value *srcValue, int SVOff,
+                              EVT MemVT, MachinePointerInfo PtrInfo,
                               unsigned Align = 0, bool Vol = false,
                               bool ReadMem = true, bool WriteMem = true);
 
   SDValue getMemIntrinsicNode(unsigned Opcode, DebugLoc dl, SDVTList VTList,
                               const SDValue *Ops, unsigned NumOps,
-                              EVT MemVT, const Value *srcValue, int SVOff,
+                              EVT MemVT, MachinePointerInfo PtrInfo,
                               unsigned Align = 0, bool Vol = false,
                               bool ReadMem = true, bool WriteMem = true);
 
@@ -630,19 +627,22 @@ public:
   /// determined by their operands, and they produce a value AND a token chain.
   ///
   SDValue getLoad(EVT VT, DebugLoc dl, SDValue Chain, SDValue Ptr,
-                  const Value *SV, int SVOffset, bool isVolatile,
-                  bool isNonTemporal, unsigned Alignment);
-  SDValue getExtLoad(ISD::LoadExtType ExtType, EVT VT, DebugLoc dl,
-                     SDValue Chain, SDValue Ptr, const Value *SV,
-                     int SVOffset, EVT MemVT, bool isVolatile,
-                     bool isNonTemporal, unsigned Alignment);
+                  MachinePointerInfo PtrInfo, bool isVolatile,
+                  bool isNonTemporal, unsigned Alignment,
+                  const MDNode *TBAAInfo = 0);
+  SDValue getExtLoad(ISD::LoadExtType ExtType, DebugLoc dl, EVT VT,
+                     SDValue Chain, SDValue Ptr, MachinePointerInfo PtrInfo,
+                     EVT MemVT, bool isVolatile,
+                     bool isNonTemporal, unsigned Alignment,
+                     const MDNode *TBAAInfo = 0);
   SDValue getIndexedLoad(SDValue OrigLoad, DebugLoc dl, SDValue Base,
                          SDValue Offset, ISD::MemIndexedMode AM);
   SDValue getLoad(ISD::MemIndexedMode AM, ISD::LoadExtType ExtType,
                   EVT VT, DebugLoc dl,
                   SDValue Chain, SDValue Ptr, SDValue Offset,
-                  const Value *SV, int SVOffset, EVT MemVT,
-                  bool isVolatile, bool isNonTemporal, unsigned Alignment);
+                  MachinePointerInfo PtrInfo, EVT MemVT,
+                  bool isVolatile, bool isNonTemporal, unsigned Alignment,
+                  const MDNode *TBAAInfo = 0);
   SDValue getLoad(ISD::MemIndexedMode AM, ISD::LoadExtType ExtType,
                   EVT VT, DebugLoc dl,
                   SDValue Chain, SDValue Ptr, SDValue Offset,
@@ -651,14 +651,16 @@ public:
   /// getStore - Helper function to build ISD::STORE nodes.
   ///
   SDValue getStore(SDValue Chain, DebugLoc dl, SDValue Val, SDValue Ptr,
-                   const Value *SV, int SVOffset, bool isVolatile,
-                   bool isNonTemporal, unsigned Alignment);
+                   MachinePointerInfo PtrInfo, bool isVolatile,
+                   bool isNonTemporal, unsigned Alignment,
+                   const MDNode *TBAAInfo = 0);
   SDValue getStore(SDValue Chain, DebugLoc dl, SDValue Val, SDValue Ptr,
                    MachineMemOperand *MMO);
   SDValue getTruncStore(SDValue Chain, DebugLoc dl, SDValue Val, SDValue Ptr,
-                        const Value *SV, int SVOffset, EVT TVT,
+                        MachinePointerInfo PtrInfo, EVT TVT,
                         bool isNonTemporal, bool isVolatile,
-                        unsigned Alignment);
+                        unsigned Alignment,
+                        const MDNode *TBAAInfo = 0);
   SDValue getTruncStore(SDValue Chain, DebugLoc dl, SDValue Val, SDValue Ptr,
                         EVT TVT, MachineMemOperand *MMO);
   SDValue getIndexedStore(SDValue OrigStoe, DebugLoc dl, SDValue Base,
@@ -899,6 +901,9 @@ public:
   SmallVector<SDDbgValue*,2> &GetDbgValues(const SDNode* SD) {
     return DbgInfo->getSDDbgValues(SD);
   }
+  
+  /// TransferDbgValues - Transfer SDDbgValues.
+  void TransferDbgValues(SDValue From, SDValue To);
 
   /// hasDebugValues - Return true if there are any SDDbgValue nodes associated
   /// with this SelectionDAG.
@@ -961,6 +966,13 @@ public:
   /// class to allow target nodes to be understood.
   unsigned ComputeNumSignBits(SDValue Op, unsigned Depth = 0) const;
 
+  /// isBaseWithConstantOffset - Return true if the specified operand is an
+  /// ISD::ADD with a ConstantSDNode on the right-hand side, or if it is an
+  /// ISD::OR with a ConstantSDNode that is guaranteed to have the same
+  /// semantics as an ADD.  This handles the equivalence:
+  ///     X|Cst == X+Cst iff X&Cst = 0.
+  bool isBaseWithConstantOffset(SDValue Op) const;
+  
   /// isKnownNeverNan - Test whether the given SDValue is known to never be NaN.
   bool isKnownNeverNaN(SDValue Op) const;
 

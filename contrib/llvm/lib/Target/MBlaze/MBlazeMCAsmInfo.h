@@ -19,10 +19,10 @@
 
 namespace llvm {
   class Target;
-  
+
   class MBlazeMCAsmInfo : public MCAsmInfo {
   public:
-    explicit MBlazeMCAsmInfo(const Target &T, StringRef TT);
+    explicit MBlazeMCAsmInfo();
   };
 
 } // namespace llvm

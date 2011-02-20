@@ -13,6 +13,7 @@
 
 #include "clang/Parse/Parser.h"
 #include "clang/Parse/ParseDiagnostic.h"
+#include "RAIIObjectsForParser.h"
 #include "clang/Sema/Designator.h"
 #include "clang/Sema/Scope.h"
 #include "llvm/ADT/SmallString.h"
@@ -136,6 +137,8 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
     //   [foo ... bar]     -> array designator
     //   [4][foo bar]      -> obsolete GNU designation with objc message send.
     //
+    InMessageExpressionRAIIObject InMessage(*this, true);
+    
     SourceLocation StartLoc = ConsumeBracket();
     ExprResult Idx;
 
@@ -146,7 +149,8 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
     if  (getLang().ObjC1 && getLang().CPlusPlus) {
       // Send to 'super'.
       if (Tok.is(tok::identifier) && Tok.getIdentifierInfo() == Ident_super &&
-          NextToken().isNot(tok::period) && getCurScope()->isInObjcMethodScope()) {
+          NextToken().isNot(tok::period) && 
+          getCurScope()->isInObjcMethodScope()) {
         CheckArrayDesignatorSyntax(*this, StartLoc, Desig);
         return ParseAssignmentExprWithObjCMessageExprStart(StartLoc,
                                                            ConsumeToken(),
@@ -306,10 +310,12 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
 /// [GNU]   '{' '}'
 ///
 ///       initializer-list:
-///         designation[opt] initializer
-///         initializer-list ',' designation[opt] initializer
+///         designation[opt] initializer ...[opt]
+///         initializer-list ',' designation[opt] initializer ...[opt]
 ///
 ExprResult Parser::ParseBraceInitializer() {
+  InMessageExpressionRAIIObject InMessage(*this, false);
+  
   SourceLocation LBraceLoc = ConsumeBrace();
 
   /// InitExprs - This is the actual list of expressions contained in the
@@ -338,6 +344,9 @@ ExprResult Parser::ParseBraceInitializer() {
     else
       SubElt = ParseInitializer();
 
+    if (Tok.is(tok::ellipsis))
+      SubElt = Actions.ActOnPackExpansion(SubElt.get(), ConsumeToken());
+    
     // If we couldn't parse the subelement, bail out.
     if (!SubElt.isInvalid()) {
       InitExprs.push_back(SubElt.release());

@@ -19,7 +19,6 @@
 #include "llvm/Instructions.h"
 #include "llvm/Module.h"
 #include "llvm/Operator.h"
-#include "llvm/Analysis/Dominators.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/ConstantRange.h"
@@ -97,8 +96,7 @@ PHINode::PHINode(const PHINode &PN)
 }
 
 PHINode::~PHINode() {
-  if (OperandList)
-    dropHungoffUses(OperandList);
+  dropHungoffUses();
 }
 
 // removeIncomingValue - Remove an incoming value.  This is useful if a
@@ -159,66 +157,18 @@ void PHINode::resizeOperands(unsigned NumOps) {
   Use *NewOps = allocHungoffUses(NumOps);
   std::copy(OldOps, OldOps + e, NewOps);
   OperandList = NewOps;
-  if (OldOps) Use::zap(OldOps, OldOps + e, true);
+  Use::zap(OldOps, OldOps + e, true);
 }
 
 /// hasConstantValue - If the specified PHI node always merges together the same
 /// value, return the value, otherwise return null.
-///
-/// If the PHI has undef operands, but all the rest of the operands are
-/// some unique value, return that value if it can be proved that the
-/// value dominates the PHI. If DT is null, use a conservative check,
-/// otherwise use DT to test for dominance.
-///
-Value *PHINode::hasConstantValue(DominatorTree *DT) const {
-  // If the PHI node only has one incoming value, eliminate the PHI node.
-  if (getNumIncomingValues() == 1) {
-    if (getIncomingValue(0) != this)   // not  X = phi X
-      return getIncomingValue(0);
-    return UndefValue::get(getType());  // Self cycle is dead.
-  }
-      
-  // Otherwise if all of the incoming values are the same for the PHI, replace
-  // the PHI node with the incoming value.
-  //
-  Value *InVal = 0;
-  bool HasUndefInput = false;
-  for (unsigned i = 0, e = getNumIncomingValues(); i != e; ++i)
-    if (isa<UndefValue>(getIncomingValue(i))) {
-      HasUndefInput = true;
-    } else if (getIncomingValue(i) != this) { // Not the PHI node itself...
-      if (InVal && getIncomingValue(i) != InVal)
-        return 0;  // Not the same, bail out.
-      InVal = getIncomingValue(i);
-    }
-  
-  // The only case that could cause InVal to be null is if we have a PHI node
-  // that only has entries for itself.  In this case, there is no entry into the
-  // loop, so kill the PHI.
-  //
-  if (InVal == 0) InVal = UndefValue::get(getType());
-  
-  // If we have a PHI node like phi(X, undef, X), where X is defined by some
-  // instruction, we cannot always return X as the result of the PHI node.  Only
-  // do this if X is not an instruction (thus it must dominate the PHI block),
-  // or if the client is prepared to deal with this possibility.
-  if (!HasUndefInput || !isa<Instruction>(InVal))
-    return InVal;
-  
-  Instruction *IV = cast<Instruction>(InVal);
-  if (DT) {
-    // We have a DominatorTree. Do a precise test.
-    if (!DT->dominates(IV, this))
-      return 0;
-  } else {
-    // If it is in the entry block, it obviously dominates everything.
-    if (IV->getParent() != &IV->getParent()->getParent()->getEntryBlock() ||
-        isa<InvokeInst>(IV))
-      return 0;   // Cannot guarantee that InVal dominates this PHINode.
-  }
-
-  // All of the incoming values are the same, return the value now.
-  return InVal;
+Value *PHINode::hasConstantValue() const {
+  // Exploit the fact that phi nodes always have at least one entry.
+  Value *ConstantValue = getIncomingValue(0);
+  for (unsigned i = 1, e = getNumIncomingValues(); i != e; ++i)
+    if (getIncomingValue(i) != ConstantValue)
+      return 0; // Incoming values not all the same.
+  return ConstantValue;
 }
 
 
@@ -235,7 +185,7 @@ void CallInst::init(Value *Func, Value* const *Params, unsigned NumParams) {
 
   const FunctionType *FTy =
     cast<FunctionType>(cast<PointerType>(Func->getType())->getElementType());
-  FTy = FTy;  // silence warning.
+  (void)FTy;  // silence warning.
 
   assert((NumParams == FTy->getNumParams() ||
           (FTy->isVarArg() && NumParams > FTy->getNumParams())) &&
@@ -256,7 +206,7 @@ void CallInst::init(Value *Func, Value *Actual1, Value *Actual2) {
 
   const FunctionType *FTy =
     cast<FunctionType>(cast<PointerType>(Func->getType())->getElementType());
-  FTy = FTy;  // silence warning.
+  (void)FTy;  // silence warning.
 
   assert((FTy->getNumParams() == 2 ||
           (FTy->isVarArg() && FTy->getNumParams() < 2)) &&
@@ -276,7 +226,7 @@ void CallInst::init(Value *Func, Value *Actual) {
 
   const FunctionType *FTy =
     cast<FunctionType>(cast<PointerType>(Func->getType())->getElementType());
-  FTy = FTy;  // silence warning.
+  (void)FTy;  // silence warning.
 
   assert((FTy->getNumParams() == 1 ||
           (FTy->isVarArg() && FTy->getNumParams() == 0)) &&
@@ -292,7 +242,7 @@ void CallInst::init(Value *Func) {
 
   const FunctionType *FTy =
     cast<FunctionType>(cast<PointerType>(Func->getType())->getElementType());
-  FTy = FTy;  // silence warning.
+  (void)FTy;  // silence warning.
 
   assert(FTy->getNumParams() == 0 && "Calling a function with bad signature");
 }
@@ -549,7 +499,7 @@ void InvokeInst::init(Value *Fn, BasicBlock *IfNormal, BasicBlock *IfException,
   Op<-1>() = IfException;
   const FunctionType *FTy =
     cast<FunctionType>(cast<PointerType>(Fn->getType())->getElementType());
-  FTy = FTy;  // silence warning.
+  (void)FTy;  // silence warning.
 
   assert(((NumArgs == FTy->getNumParams()) ||
           (FTy->isVarArg() && NumArgs > FTy->getNumParams())) &&
@@ -779,31 +729,6 @@ BranchInst::BranchInst(const BranchInst &BI) :
   SubclassOptionalData = BI.SubclassOptionalData;
 }
 
-
-Use* Use::getPrefix() {
-  PointerIntPair<Use**, 2, PrevPtrTag> &PotentialPrefix(this[-1].Prev);
-  if (PotentialPrefix.getOpaqueValue())
-    return 0;
-
-  return reinterpret_cast<Use*>((char*)&PotentialPrefix + 1);
-}
-
-BranchInst::~BranchInst() {
-  if (NumOperands == 1) {
-    if (Use *Prefix = OperandList->getPrefix()) {
-      Op<-1>() = 0;
-      //
-      // mark OperandList to have a special value for scrutiny
-      // by baseclass destructors and operator delete
-      OperandList = Prefix;
-    } else {
-      NumOperands = 3;
-      OperandList = op_begin();
-    }
-  }
-}
-
-
 BasicBlock *BranchInst::getSuccessorV(unsigned idx) const {
   return getSuccessor(idx);
 }
@@ -899,7 +824,7 @@ void AllocaInst::setAlignment(unsigned Align) {
 
 bool AllocaInst::isArrayAllocation() const {
   if (ConstantInt *CI = dyn_cast<ConstantInt>(getOperand(0)))
-    return CI->getZExtValue() != 1;
+    return !CI->isOne();
   return true;
 }
 
@@ -1248,6 +1173,12 @@ const Type* GetElementPtrInst::getIndexedType(const Type *Ptr,
 }
 
 const Type* GetElementPtrInst::getIndexedType(const Type *Ptr,
+                                              Constant* const *Idxs,
+                                              unsigned NumIdx) {
+  return getIndexedTypeInternal(Ptr, Idxs, NumIdx);
+}
+
+const Type* GetElementPtrInst::getIndexedType(const Type *Ptr,
                                               uint64_t const *Idxs,
                                               unsigned NumIdx) {
   return getIndexedTypeInternal(Ptr, Idxs, NumIdx);
@@ -1473,6 +1404,8 @@ int ShuffleVectorInst::getMaskValue(unsigned i) const {
 void InsertValueInst::init(Value *Agg, Value *Val, const unsigned *Idx, 
                            unsigned NumIdx, const Twine &Name) {
   assert(NumOperands == 2 && "NumOperands not initialized?");
+  assert(ExtractValueInst::getIndexedType(Agg->getType(), Idx, Idx + NumIdx) ==
+         Val->getType() && "Inserted value must match indexed type!");
   Op<0>() = Agg;
   Op<1>() = Val;
 
@@ -1483,6 +1416,8 @@ void InsertValueInst::init(Value *Agg, Value *Val, const unsigned *Idx,
 void InsertValueInst::init(Value *Agg, Value *Val, unsigned Idx, 
                            const Twine &Name) {
   assert(NumOperands == 2 && "NumOperands not initialized?");
+  assert(ExtractValueInst::getIndexedType(Agg->getType(), Idx) == Val->getType()
+         && "Inserted value must match indexed type!");
   Op<0>() = Agg;
   Op<1>() = Val;
 
@@ -1555,13 +1490,26 @@ ExtractValueInst::ExtractValueInst(const ExtractValueInst &EVI)
 const Type* ExtractValueInst::getIndexedType(const Type *Agg,
                                              const unsigned *Idxs,
                                              unsigned NumIdx) {
-  unsigned CurIdx = 0;
-  for (; CurIdx != NumIdx; ++CurIdx) {
-    const CompositeType *CT = dyn_cast<CompositeType>(Agg);
-    if (!CT || CT->isPointerTy() || CT->isVectorTy()) return 0;
+  for (unsigned CurIdx = 0; CurIdx != NumIdx; ++CurIdx) {
     unsigned Index = Idxs[CurIdx];
-    if (!CT->indexValid(Index)) return 0;
-    Agg = CT->getTypeAtIndex(Index);
+    // We can't use CompositeType::indexValid(Index) here.
+    // indexValid() always returns true for arrays because getelementptr allows
+    // out-of-bounds indices. Since we don't allow those for extractvalue and
+    // insertvalue we need to check array indexing manually.
+    // Since the only other types we can index into are struct types it's just
+    // as easy to check those manually as well.
+    if (const ArrayType *AT = dyn_cast<ArrayType>(Agg)) {
+      if (Index >= AT->getNumElements())
+        return 0;
+    } else if (const StructType *ST = dyn_cast<StructType>(Agg)) {
+      if (Index >= ST->getNumElements())
+        return 0;
+    } else {
+      // Not a valid type to index into.
+      return 0;
+    }
+
+    Agg = cast<CompositeType>(Agg)->getTypeAtIndex(Index);
 
     // If the new type forwards to another type, then it is in the middle
     // of being refined to another type (and hence, may have dropped all
@@ -1570,7 +1518,7 @@ const Type* ExtractValueInst::getIndexedType(const Type *Agg,
     if (const Type *Ty = Agg->getForwardedType())
       Agg = Ty;
   }
-  return CurIdx == NumIdx ? Agg : 0;
+  return Agg;
 }
 
 const Type* ExtractValueInst::getIndexedType(const Type *Agg,
@@ -1611,7 +1559,7 @@ BinaryOperator::BinaryOperator(BinaryOps iType, Value *S1, Value *S2,
 
 void BinaryOperator::init(BinaryOps iType) {
   Value *LHS = getOperand(0), *RHS = getOperand(1);
-  LHS = LHS; RHS = RHS; // Silence warnings.
+  (void)LHS; (void)RHS; // Silence warnings.
   assert(LHS->getType() == RHS->getType() &&
          "Binary operator operand types must match!");
 #ifndef NDEBUG
@@ -1874,7 +1822,7 @@ void BinaryOperator::setHasNoSignedWrap(bool b) {
 }
 
 void BinaryOperator::setIsExact(bool b) {
-  cast<SDivOperator>(this)->setIsExact(b);
+  cast<PossiblyExactOperator>(this)->setIsExact(b);
 }
 
 bool BinaryOperator::hasNoUnsignedWrap() const {
@@ -1886,7 +1834,7 @@ bool BinaryOperator::hasNoSignedWrap() const {
 }
 
 bool BinaryOperator::isExact() const {
-  return cast<SDivOperator>(this)->isExact();
+  return cast<PossiblyExactOperator>(this)->isExact();
 }
 
 //===----------------------------------------------------------------------===//
@@ -2360,6 +2308,8 @@ bool CastInst::isCastable(const Type *SrcTy, const Type *DestTy) {
     } else {                                    // Casting from something else
       return false;
     }
+  } else if (DestTy->isX86_MMXTy()) {     
+    return SrcBits == 64;
   } else {                                      // Casting to something else
     return false;
   }
@@ -2441,6 +2391,10 @@ CastInst::getCastOpcode(
       return BitCast;                             // vector -> vector
     } else if (DestPTy->getBitWidth() == SrcBits) {
       return BitCast;                               // float/int -> vector
+    } else if (SrcTy->isX86_MMXTy()) {
+      assert(DestPTy->getBitWidth()==64 &&
+             "Casting X86_MMX to vector of wrong width");
+      return BitCast;                             // MMX to 64-bit vector
     } else {
       assert(!"Illegal cast to vector (wrong type or size)");
     }
@@ -2451,6 +2405,14 @@ CastInst::getCastOpcode(
       return IntToPtr;                              // int -> ptr
     } else {
       assert(!"Casting pointer to other than pointer or int");
+    }
+  } else if (DestTy->isX86_MMXTy()) {
+    if (isa<VectorType>(SrcTy)) {
+      assert(cast<VectorType>(SrcTy)->getBitWidth() == 64 &&
+             "Casting vector of wrong width to X86_MMX");
+      return BitCast;                               // 64-bit vector to MMX
+    } else {
+      assert(!"Illegal cast to X86_MMX");
     }
   } else {
     assert(!"Casting to type that is not first-class");
@@ -2754,14 +2716,14 @@ void CmpInst::swapOperands() {
     cast<FCmpInst>(this)->swapOperands();
 }
 
-bool CmpInst::isCommutative() {
-  if (ICmpInst *IC = dyn_cast<ICmpInst>(this))
+bool CmpInst::isCommutative() const {
+  if (const ICmpInst *IC = dyn_cast<ICmpInst>(this))
     return IC->isCommutative();
   return cast<FCmpInst>(this)->isCommutative();
 }
 
-bool CmpInst::isEquality() {
-  if (ICmpInst *IC = dyn_cast<ICmpInst>(this))
+bool CmpInst::isEquality() const {
+  if (const ICmpInst *IC = dyn_cast<ICmpInst>(this))
     return IC->isEquality();
   return cast<FCmpInst>(this)->isEquality();
 }
@@ -2974,9 +2936,9 @@ bool CmpInst::isFalseWhenEqual(unsigned short predicate) {
 //                        SwitchInst Implementation
 //===----------------------------------------------------------------------===//
 
-void SwitchInst::init(Value *Value, BasicBlock *Default, unsigned NumCases) {
-  assert(Value && Default);
-  ReservedSpace = 2+NumCases*2;
+void SwitchInst::init(Value *Value, BasicBlock *Default, unsigned NumReserved) {
+  assert(Value && Default && NumReserved);
+  ReservedSpace = NumReserved;
   NumOperands = 2;
   OperandList = allocHungoffUses(ReservedSpace);
 
@@ -2992,7 +2954,7 @@ SwitchInst::SwitchInst(Value *Value, BasicBlock *Default, unsigned NumCases,
                        Instruction *InsertBefore)
   : TerminatorInst(Type::getVoidTy(Value->getContext()), Instruction::Switch,
                    0, 0, InsertBefore) {
-  init(Value, Default, NumCases);
+  init(Value, Default, 2+NumCases*2);
 }
 
 /// SwitchInst ctor - Create a new switch instruction, specifying a value to
@@ -3003,14 +2965,15 @@ SwitchInst::SwitchInst(Value *Value, BasicBlock *Default, unsigned NumCases,
                        BasicBlock *InsertAtEnd)
   : TerminatorInst(Type::getVoidTy(Value->getContext()), Instruction::Switch,
                    0, 0, InsertAtEnd) {
-  init(Value, Default, NumCases);
+  init(Value, Default, 2+NumCases*2);
 }
 
 SwitchInst::SwitchInst(const SwitchInst &SI)
-  : TerminatorInst(Type::getVoidTy(SI.getContext()), Instruction::Switch,
-                   allocHungoffUses(SI.getNumOperands()), SI.getNumOperands()) {
+  : TerminatorInst(SI.getType(), Instruction::Switch, 0, 0) {
+  init(SI.getCondition(), SI.getDefaultDest(), SI.getNumOperands());
+  NumOperands = SI.getNumOperands();
   Use *OL = OperandList, *InOL = SI.OperandList;
-  for (unsigned i = 0, E = SI.getNumOperands(); i != E; i+=2) {
+  for (unsigned i = 2, E = SI.getNumOperands(); i != E; i += 2) {
     OL[i] = InOL[i];
     OL[i+1] = InOL[i+1];
   }
@@ -3018,7 +2981,7 @@ SwitchInst::SwitchInst(const SwitchInst &SI)
 }
 
 SwitchInst::~SwitchInst() {
-  dropHungoffUses(OperandList);
+  dropHungoffUses();
 }
 
 
@@ -3046,14 +3009,10 @@ void SwitchInst::removeCase(unsigned idx) {
   unsigned NumOps = getNumOperands();
   Use *OL = OperandList;
 
-  // Move everything after this operand down.
-  //
-  // FIXME: we could just swap with the end of the list, then erase.  However,
-  // client might not expect this to happen.  The code as it is thrashes the
-  // use/def lists, which is kinda lame.
-  for (unsigned i = (idx+1)*2; i != NumOps; i += 2) {
-    OL[i-2] = OL[i];
-    OL[i-2+1] = OL[i+1];
+  // Overwrite this case with the end of the list.
+  if ((idx + 1) * 2 != NumOps) {
+    OL[idx * 2] = OL[NumOps - 2];
+    OL[idx * 2 + 1] = OL[NumOps - 1];
   }
 
   // Nuke the last value.
@@ -3089,7 +3048,7 @@ void SwitchInst::resizeOperands(unsigned NumOps) {
       NewOps[i] = OldOps[i];
   }
   OperandList = NewOps;
-  if (OldOps) Use::zap(OldOps, OldOps + e, true);
+  Use::zap(OldOps, OldOps + e, true);
 }
 
 
@@ -3104,7 +3063,7 @@ void SwitchInst::setSuccessorV(unsigned idx, BasicBlock *B) {
 }
 
 //===----------------------------------------------------------------------===//
-//                        SwitchInst Implementation
+//                        IndirectBrInst Implementation
 //===----------------------------------------------------------------------===//
 
 void IndirectBrInst::init(Value *Address, unsigned NumDests) {
@@ -3144,7 +3103,7 @@ void IndirectBrInst::resizeOperands(unsigned NumOps) {
   for (unsigned i = 0; i != e; ++i)
     NewOps[i] = OldOps[i];
   OperandList = NewOps;
-  if (OldOps) Use::zap(OldOps, OldOps + e, true);
+  Use::zap(OldOps, OldOps + e, true);
 }
 
 IndirectBrInst::IndirectBrInst(Value *Address, unsigned NumCases,
@@ -3172,7 +3131,7 @@ IndirectBrInst::IndirectBrInst(const IndirectBrInst &IBI)
 }
 
 IndirectBrInst::~IndirectBrInst() {
-  dropHungoffUses(OperandList);
+  dropHungoffUses();
 }
 
 /// addDestination - Add a destination.
@@ -3346,8 +3305,7 @@ ReturnInst *ReturnInst::clone_impl() const {
 }
 
 BranchInst *BranchInst::clone_impl() const {
-  unsigned Ops(getNumOperands());
-  return new(Ops, Ops == 1) BranchInst(*this);
+  return new(getNumOperands()) BranchInst(*this);
 }
 
 SwitchInst *SwitchInst::clone_impl() const {

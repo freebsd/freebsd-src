@@ -49,7 +49,7 @@ static bool AreEquivalentAddressValues(const Value *A, const Value *B) {
 /// getUnderlyingObjectWithOffset - Strip off up to MaxLookup GEPs and
 /// bitcasts to get back to the underlying object being addressed, keeping
 /// track of the offset in bytes from the GEPs relative to the result.
-/// This is closely related to Value::getUnderlyingObject but is located
+/// This is closely related to GetUnderlyingObject but is located
 /// here to avoid making VMCore depend on TargetData.
 static Value *getUnderlyingObjectWithOffset(Value *V, const TargetData *TD,
                                             uint64_t &ByteOffset,
@@ -166,7 +166,7 @@ Value *llvm::FindAvailableLoadedValue(Value *Ptr, BasicBlock *ScanBB,
   if (MaxInstsToScan == 0) MaxInstsToScan = ~0U;
 
   // If we're using alias analysis to disambiguate get the size of *Ptr.
-  unsigned AccessSize = 0;
+  uint64_t AccessSize = 0;
   if (AA) {
     const Type *AccessTy = cast<PointerType>(Ptr->getType())->getElementType();
     AccessSize = AA->getTypeStoreSize(AccessTy);

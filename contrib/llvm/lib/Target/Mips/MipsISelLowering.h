@@ -40,9 +40,6 @@ namespace llvm {
       // Handle gp_rel (small data/bss sections) relocation.
       GPRel,
 
-      // Conditional Move
-      CMov,
-
       // Select CC Pseudo Instruction
       SelectCC,
 
@@ -59,7 +56,13 @@ namespace llvm {
       FPRound,
 
       // Return 
-      Ret
+      Ret,
+
+      // MAdd/Sub nodes
+      MAdd,
+      MAddu,
+      MSub,
+      MSubu
     };
   }
 
@@ -83,6 +86,8 @@ namespace llvm {
 
     /// getFunctionAlignment - Return the Log2 alignment of this function.
     virtual unsigned getFunctionAlignment(const Function *F) const;
+
+    virtual SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const; 
   private:
     // Subtarget Info
     const MipsSubtarget *Subtarget;
@@ -138,6 +143,11 @@ namespace llvm {
 
     // Inline asm support
     ConstraintType getConstraintType(const std::string &Constraint) const;
+
+    /// Examine constraint string and operand type and determine a weight value.
+    /// The operand object must already have been set up with the operand type.
+    ConstraintWeight getSingleConstraintMatchWeight(
+      AsmOperandInfo &info, const char *constraint) const;
 
     std::pair<unsigned, const TargetRegisterClass*> 
               getRegForInlineAsmConstraint(const std::string &Constraint,

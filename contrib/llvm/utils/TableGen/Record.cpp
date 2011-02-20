@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "Record.h"
-#include "llvm/System/DataTypes.h"
+#include "llvm/Support/DataTypes.h"
 #include "llvm/Support/Format.h"
 #include "llvm/ADT/StringExtras.h"
 
@@ -59,25 +59,33 @@ Init *BitsRecTy::convertValue(UnsetInit *UI) {
 }
 
 Init *BitsRecTy::convertValue(BitInit *UI) {
-  if (Size != 1) return 0;  // Can only convert single bit...
+  if (Size != 1) return 0;  // Can only convert single bit.
   BitsInit *Ret = new BitsInit(1);
   Ret->setBit(0, UI);
   return Ret;
 }
 
-// convertValue from Int initializer to bits type: Split the integer up into the
-// appropriate bits...
-//
+/// canFitInBitfield - Return true if the number of bits is large enough to hold
+/// the integer value.
+static bool canFitInBitfield(int64_t Value, unsigned NumBits) {
+  if (Value >= 0) {
+    if (Value & ~((1LL << NumBits) - 1))
+      return false;
+  } else if ((Value >> NumBits) != -1 || (Value & (1LL << (NumBits-1))) == 0) {
+    return false;
+  }
+
+  return true;
+}
+
+/// convertValue from Int initializer to bits type: Split the integer up into the
+/// appropriate bits.
+///
 Init *BitsRecTy::convertValue(IntInit *II) {
   int64_t Value = II->getValue();
-  // Make sure this bitfield is large enough to hold the integer value...
-  if (Value >= 0) {
-    if (Value & ~((1LL << Size)-1))
-      return 0;
-  } else {
-    if ((Value >> Size) != -1 || ((Value & (1LL << (Size-1))) == 0))
-      return 0;
-  }
+  // Make sure this bitfield is large enough to hold the integer value.
+  if (!canFitInBitfield(Value, Size))
+    return 0;
 
   BitsInit *Ret = new BitsInit(Size);
   for (unsigned i = 0; i != Size; ++i)
@@ -88,7 +96,7 @@ Init *BitsRecTy::convertValue(IntInit *II) {
 
 Init *BitsRecTy::convertValue(BitsInit *BI) {
   // If the number of bits is right, return it.  Otherwise we need to expand or
-  // truncate...
+  // truncate.
   if (BI->getNumBits() == Size) return BI;
   return 0;
 }
@@ -101,10 +109,54 @@ Init *BitsRecTy::convertValue(TypedInit *VI) {
         Ret->setBit(i, new VarBitInit(VI, i));
       return Ret;
     }
+
   if (Size == 1 && dynamic_cast<BitRecTy*>(VI->getType())) {
     BitsInit *Ret = new BitsInit(1);
     Ret->setBit(0, VI);
     return Ret;
+  }
+
+  if (TernOpInit *Tern = dynamic_cast<TernOpInit*>(VI)) {
+    if (Tern->getOpcode() == TernOpInit::IF) {
+      Init *LHS = Tern->getLHS();
+      Init *MHS = Tern->getMHS();
+      Init *RHS = Tern->getRHS();
+
+      IntInit *MHSi = dynamic_cast<IntInit*>(MHS);
+      IntInit *RHSi = dynamic_cast<IntInit*>(RHS);
+
+      if (MHSi && RHSi) {
+        int64_t MHSVal = MHSi->getValue();
+        int64_t RHSVal = RHSi->getValue();
+
+        if (canFitInBitfield(MHSVal, Size) && canFitInBitfield(RHSVal, Size)) {
+          BitsInit *Ret = new BitsInit(Size);
+
+          for (unsigned i = 0; i != Size; ++i)
+            Ret->setBit(i, new TernOpInit(TernOpInit::IF, LHS,
+                                          new IntInit((MHSVal & (1LL << i)) ? 1 : 0),
+                                          new IntInit((RHSVal & (1LL << i)) ? 1 : 0),
+                                          VI->getType()));
+
+          return Ret;
+        }
+      } else {
+        BitsInit *MHSbs = dynamic_cast<BitsInit*>(MHS);
+        BitsInit *RHSbs = dynamic_cast<BitsInit*>(RHS);
+
+        if (MHSbs && RHSbs) {
+          BitsInit *Ret = new BitsInit(Size);
+
+          for (unsigned i = 0; i != Size; ++i)
+            Ret->setBit(i, new TernOpInit(TernOpInit::IF, LHS,
+                                          MHSbs->getBit(i),
+                                          RHSbs->getBit(i),
+                                          VI->getType()));
+
+          return Ret;
+        }
+      }
+    }
   }
 
   return 0;
@@ -151,16 +203,6 @@ Init *StringRecTy::convertValue(BinOpInit *BO) {
     if (L != BO->getLHS() || R != BO->getRHS())
       return new BinOpInit(BinOpInit::STRCONCAT, L, R, new StringRecTy);
     return BO;
-  }
-  if (BO->getOpcode() == BinOpInit::NAMECONCAT) {
-    if (BO->getType()->getAsString() == getAsString()) {
-      Init *L = BO->getLHS()->convertInitializerTo(this);
-      Init *R = BO->getRHS()->convertInitializerTo(this);
-      if (L == 0 || R == 0) return 0;
-      if (L != BO->getLHS() || R != BO->getRHS())
-        return new BinOpInit(BinOpInit::NAMECONCAT, L, R, new StringRecTy);
-      return BO;
-    }
   }
 
   return convertValue((TypedInit*)BO);
@@ -235,16 +277,6 @@ Init *DagRecTy::convertValue(BinOpInit *BO) {
     if (L != BO->getLHS() || R != BO->getRHS())
       return new BinOpInit(BinOpInit::CONCAT, L, R, new DagRecTy);
     return BO;
-  }
-  if (BO->getOpcode() == BinOpInit::NAMECONCAT) {
-    if (BO->getType()->getAsString() == getAsString()) {
-      Init *L = BO->getLHS()->convertInitializerTo(this);
-      Init *R = BO->getRHS()->convertInitializerTo(this);
-      if (L == 0 || R == 0) return 0;
-      if (L != BO->getLHS() || R != BO->getRHS())
-        return new BinOpInit(BinOpInit::CONCAT, L, R, new DagRecTy);
-      return BO;
-    }
   }
   return 0;
 }
@@ -518,9 +550,8 @@ Init *UnOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) {
         // From TGParser::ParseIDValue
         if (CurRec) {
           if (const RecordVal *RV = CurRec->getValue(Name)) {
-            if (RV->getType() != getType()) {
-              throw "type mismatch in nameconcat";
-            }
+            if (RV->getType() != getType())
+              throw "type mismatch in cast";
             return new VarInit(Name, RV->getType());
           }
 
@@ -529,9 +560,8 @@ Init *UnOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) {
             const RecordVal *RV = CurRec->getValue(TemplateArgName);
             assert(RV && "Template arg doesn't exist??");
 
-            if (RV->getType() != getType()) {
-              throw "type mismatch in nameconcat";
-            }
+            if (RV->getType() != getType())
+              throw "type mismatch in cast";
 
             return new VarInit(TemplateArgName, RV->getType());
           }
@@ -543,15 +573,14 @@ Init *UnOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) {
             const RecordVal *RV = CurMultiClass->Rec.getValue(MCName);
             assert(RV && "Template arg doesn't exist??");
 
-            if (RV->getType() != getType()) {
-              throw "type mismatch in nameconcat";
-            }
+            if (RV->getType() != getType())
+              throw "type mismatch in cast";
 
             return new VarInit(MCName, RV->getType());
           }
         }
 
-        if (Record *D = Records.getDef(Name))
+        if (Record *D = (CurRec->getRecords()).getDef(Name))
           return new DefInit(D);
 
         errs() << "Variable not defined: '" + Name + "'\n";
@@ -561,7 +590,7 @@ Init *UnOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) {
     }
     break;
   }
-  case CAR: {
+  case HEAD: {
     ListInit *LHSl = dynamic_cast<ListInit*>(LHS);
     if (LHSl) {
       if (LHSl->getSize() == 0) {
@@ -572,7 +601,7 @@ Init *UnOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) {
     }
     break;
   }
-  case CDR: {
+  case TAIL: {
     ListInit *LHSl = dynamic_cast<ListInit*>(LHS);
     if (LHSl) {
       if (LHSl->getSize() == 0) {
@@ -585,7 +614,7 @@ Init *UnOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) {
     }
     break;
   }
-  case LNULL: {
+  case EMPTY: {
     ListInit *LHSl = dynamic_cast<ListInit*>(LHS);
     if (LHSl) {
       if (LHSl->getSize() == 0) {
@@ -621,9 +650,9 @@ std::string UnOpInit::getAsString() const {
   std::string Result;
   switch (Opc) {
   case CAST: Result = "!cast<" + getType()->getAsString() + ">"; break;
-  case CAR: Result = "!car"; break;
-  case CDR: Result = "!cdr"; break;
-  case LNULL: Result = "!null"; break;
+  case HEAD: Result = "!head"; break;
+  case TAIL: Result = "!tail"; break;
+  case EMPTY: Result = "!empty"; break;
   }
   return Result + "(" + LHS->getAsString() + ")";
 }
@@ -658,57 +687,6 @@ Init *BinOpInit::Fold(Record *CurRec, MultiClass *CurMultiClass) {
     StringInit *RHSs = dynamic_cast<StringInit*>(RHS);
     if (LHSs && RHSs)
       return new StringInit(LHSs->getValue() + RHSs->getValue());
-    break;
-  }
-  case NAMECONCAT: {
-    StringInit *LHSs = dynamic_cast<StringInit*>(LHS);
-    StringInit *RHSs = dynamic_cast<StringInit*>(RHS);
-    if (LHSs && RHSs) {
-      std::string Name(LHSs->getValue() + RHSs->getValue());
-
-      // From TGParser::ParseIDValue
-      if (CurRec) {
-        if (const RecordVal *RV = CurRec->getValue(Name)) {
-          if (RV->getType() != getType()) {
-            throw "type mismatch in nameconcat";
-          }
-          return new VarInit(Name, RV->getType());
-        }
-
-        std::string TemplateArgName = CurRec->getName()+":"+Name;
-        if (CurRec->isTemplateArg(TemplateArgName)) {
-          const RecordVal *RV = CurRec->getValue(TemplateArgName);
-          assert(RV && "Template arg doesn't exist??");
-
-          if (RV->getType() != getType()) {
-            throw "type mismatch in nameconcat";
-          }
-
-          return new VarInit(TemplateArgName, RV->getType());
-        }
-      }
-
-      if (CurMultiClass) {
-        std::string MCName = CurMultiClass->Rec.getName()+"::"+Name;
-        if (CurMultiClass->Rec.isTemplateArg(MCName)) {
-          const RecordVal *RV = CurMultiClass->Rec.getValue(MCName);
-          assert(RV && "Template arg doesn't exist??");
-
-          if (RV->getType() != getType()) {
-            throw "type mismatch in nameconcat";
-          }
-
-          return new VarInit(MCName, RV->getType());
-        }
-      }
-
-      if (Record *D = Records.getDef(Name))
-        return new DefInit(D);
-
-      errs() << "Variable not defined in !nameconcat: '" + Name + "'\n";
-      assert(0 && "Variable not found in !nameconcat");
-      return 0;
-    }
     break;
   }
   case EQ: {
@@ -771,8 +749,6 @@ std::string BinOpInit::getAsString() const {
   case SRL: Result = "!srl"; break;
   case EQ: Result = "!eq"; break;
   case STRCONCAT: Result = "!strconcat"; break;
-  case NAMECONCAT:
-    Result = "!nameconcat<" + getType()->getAsString() + ">"; break;
   }
   return Result + "(" + LHS->getAsString() + ", " + RHS->getAsString() + ")";
 }
@@ -1042,7 +1018,7 @@ RecTy *TypedInit::getFieldType(const std::string &FieldName) const {
 
 Init *TypedInit::convertInitializerBitRange(const std::vector<unsigned> &Bits) {
   BitsRecTy *T = dynamic_cast<BitsRecTy*>(getType());
-  if (T == 0) return 0;  // Cannot subscript a non-bits variable...
+  if (T == 0) return 0;  // Cannot subscript a non-bits variable.
   unsigned NumBits = T->getNumBits();
 
   BitsInit *BI = new BitsInit(Bits.size());
@@ -1058,7 +1034,7 @@ Init *TypedInit::convertInitializerBitRange(const std::vector<unsigned> &Bits) {
 
 Init *TypedInit::convertInitListSlice(const std::vector<unsigned> &Elements) {
   ListRecTy *T = dynamic_cast<ListRecTy*>(getType());
-  if (T == 0) return 0;  // Cannot subscript a non-list variable...
+  if (T == 0) return 0;  // Cannot subscript a non-list variable.
 
   if (Elements.size() == 1)
     return new VarListElementInit(this, Elements[0]);
@@ -1211,7 +1187,7 @@ Init *FieldInit::resolveBitReference(Record &R, const RecordVal *RV,
       assert(Bit < BI->getNumBits() && "Bit reference out of range!");
       Init *B = BI->getBit(Bit);
 
-      if (dynamic_cast<BitInit*>(B))  // If the bit is set...
+      if (dynamic_cast<BitInit*>(B))  // If the bit is set.
         return B;                     // Replace the VarBitInit with it.
     }
   return 0;
@@ -1303,14 +1279,14 @@ void RecordVal::print(raw_ostream &OS, bool PrintSem) const {
 unsigned Record::LastID = 0;
 
 void Record::setName(const std::string &Name) {
-  if (Records.getDef(getName()) == this) {
-    Records.removeDef(getName());
+  if (TrackedRecords.getDef(getName()) == this) {
+    TrackedRecords.removeDef(getName());
     this->Name = Name;
-    Records.addDef(this);
+    TrackedRecords.addDef(this);
   } else {
-    Records.removeClass(getName());
+    TrackedRecords.removeClass(getName());
     this->Name = Name;
-    Records.addClass(this);
+    TrackedRecords.addClass(this);
   }
 }
 
@@ -1573,7 +1549,7 @@ raw_ostream &llvm::operator<<(raw_ostream &OS, const RecordKeeper &RK) {
 /// name does not exist, an error is printed and true is returned.
 std::vector<Record*>
 RecordKeeper::getAllDerivedDefinitions(const std::string &ClassName) const {
-  Record *Class = Records.getClass(ClassName);
+  Record *Class = getClass(ClassName);
   if (!Class)
     throw "ERROR: Couldn't find the `" + ClassName + "' class!\n";
 

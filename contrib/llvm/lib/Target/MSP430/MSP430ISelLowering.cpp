@@ -366,7 +366,7 @@ MSP430TargetLowering::LowerCCCArguments(SDValue Chain,
       unsigned ObjSize = VA.getLocVT().getSizeInBits()/8;
       if (ObjSize > 2) {
         errs() << "LowerFormalArguments Unhandled argument type: "
-             << VA.getLocVT().getSimpleVT().SimpleTy
+             << EVT(VA.getLocVT()).getEVTString()
              << "\n";
       }
       // Create the frame index object for this incoming parameter...
@@ -376,7 +376,7 @@ MSP430TargetLowering::LowerCCCArguments(SDValue Chain,
       //from this parameter
       SDValue FIN = DAG.getFrameIndex(FI, MVT::i16);
       InVals.push_back(DAG.getLoad(VA.getLocVT(), dl, Chain, FIN,
-                                   PseudoSourceValue::getFixedStack(FI), 0,
+                                   MachinePointerInfo::getFixedStack(FI),
                                    false, false, 0));
     }
   }
@@ -507,8 +507,7 @@ MSP430TargetLowering::LowerCCCCallTo(SDValue Chain, SDValue Callee,
 
 
       MemOpChains.push_back(DAG.getStore(Chain, dl, Arg, PtrOff,
-                                         PseudoSourceValue::getStack(),
-                                         VA.getLocMemOffset(), false, false, 0));
+                                         MachinePointerInfo(),false, false, 0));
     }
   }
 
@@ -537,7 +536,7 @@ MSP430TargetLowering::LowerCCCCallTo(SDValue Chain, SDValue Callee,
     Callee = DAG.getTargetExternalSymbol(E->getSymbol(), MVT::i16);
 
   // Returns a chain & a flag for retval copy to use.
-  SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Flag);
+  SDVTList NodeTys = DAG.getVTList(MVT::Other, MVT::Glue);
   SmallVector<SDValue, 8> Ops;
   Ops.push_back(Chain);
   Ops.push_back(Callee);
@@ -748,7 +747,7 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, SDValue &TargetCC,
   }
 
   TargetCC = DAG.getConstant(TCC, MVT::i8);
-  return DAG.getNode(MSP430ISD::CMP, dl, MVT::Flag, LHS, RHS);
+  return DAG.getNode(MSP430ISD::CMP, dl, MVT::Glue, LHS, RHS);
 }
 
 
@@ -837,7 +836,7 @@ SDValue MSP430TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) const {
     return SR;
   } else {
     SDValue Zero = DAG.getConstant(0, VT);
-    SDVTList VTs = DAG.getVTList(Op.getValueType(), MVT::Flag);
+    SDVTList VTs = DAG.getVTList(Op.getValueType(), MVT::Glue);
     SmallVector<SDValue, 4> Ops;
     Ops.push_back(One);
     Ops.push_back(Zero);
@@ -859,7 +858,7 @@ SDValue MSP430TargetLowering::LowerSELECT_CC(SDValue Op,
   SDValue TargetCC;
   SDValue Flag = EmitCMP(LHS, RHS, TargetCC, CC, dl, DAG);
 
-  SDVTList VTs = DAG.getVTList(Op.getValueType(), MVT::Flag);
+  SDVTList VTs = DAG.getVTList(Op.getValueType(), MVT::Glue);
   SmallVector<SDValue, 4> Ops;
   Ops.push_back(TrueV);
   Ops.push_back(FalseV);
@@ -914,13 +913,13 @@ SDValue MSP430TargetLowering::LowerRETURNADDR(SDValue Op,
     return DAG.getLoad(getPointerTy(), dl, DAG.getEntryNode(),
                        DAG.getNode(ISD::ADD, dl, getPointerTy(),
                                    FrameAddr, Offset),
-                       NULL, 0, false, false, 0);
+                       MachinePointerInfo(), false, false, 0);
   }
 
   // Just load the return address.
   SDValue RetAddrFI = getReturnAddressFrameIndex(DAG);
   return DAG.getLoad(getPointerTy(), dl, DAG.getEntryNode(),
-                     RetAddrFI, NULL, 0, false, false, 0);
+                     RetAddrFI, MachinePointerInfo(), false, false, 0);
 }
 
 SDValue MSP430TargetLowering::LowerFRAMEADDR(SDValue Op,
@@ -934,7 +933,8 @@ SDValue MSP430TargetLowering::LowerFRAMEADDR(SDValue Op,
   SDValue FrameAddr = DAG.getCopyFromReg(DAG.getEntryNode(), dl,
                                          MSP430::FPW, VT);
   while (Depth--)
-    FrameAddr = DAG.getLoad(VT, dl, DAG.getEntryNode(), FrameAddr, NULL, 0,
+    FrameAddr = DAG.getLoad(VT, dl, DAG.getEntryNode(), FrameAddr,
+                            MachinePointerInfo(),
                             false, false, 0);
   return FrameAddr;
 }

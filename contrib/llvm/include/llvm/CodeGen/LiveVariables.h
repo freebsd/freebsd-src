@@ -32,8 +32,10 @@
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/IndexedMap.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/SparseBitVector.h"
@@ -46,7 +48,9 @@ class TargetRegisterInfo;
 class LiveVariables : public MachineFunctionPass {
 public:
   static char ID; // Pass identification, replacement for typeid
-  LiveVariables() : MachineFunctionPass(ID) {}
+  LiveVariables() : MachineFunctionPass(ID) {
+    initializeLiveVariablesPass(*PassRegistry::getPassRegistry());
+  }
 
   /// VarInfo - This represents the regions where a virtual register is live in
   /// the program.  We represent this with three different pieces of
@@ -119,10 +123,9 @@ public:
 
 private:
   /// VirtRegInfo - This list is a mapping from virtual register number to
-  /// variable information.  FirstVirtualRegister is subtracted from the virtual
-  /// register number before indexing into this list.
+  /// variable information.
   ///
-  std::vector<VarInfo> VirtRegInfo;
+  IndexedMap<VarInfo, VirtReg2IndexFunctor> VirtRegInfo;
 
   /// PHIJoins - list of virtual registers that are PHI joins. These registers
   /// may have multiple definitions, and they require special handling when

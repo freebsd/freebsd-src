@@ -24,8 +24,14 @@ public:
   ParentMap(Stmt* ASTRoot);
   ~ParentMap();
 
+  /// \brief Adds and/or updates the parent/child-relations of the complete
+  /// stmt tree of S. All children of S including indirect descendants are
+  /// visited and updated or inserted but not the parents of S.
+  void addStmt(Stmt* S);
+
   Stmt *getParent(Stmt*) const;
   Stmt *getParentIgnoreParens(Stmt *) const;
+  Stmt *getParentIgnoreParenCasts(Stmt *) const;
 
   const Stmt *getParent(const Stmt* S) const {
     return getParent(const_cast<Stmt*>(S));
@@ -33,6 +39,10 @@ public:
 
   const Stmt *getParentIgnoreParens(const Stmt *S) const {
     return getParentIgnoreParens(const_cast<Stmt*>(S));
+  }
+
+  const Stmt *getParentIgnoreParenCasts(const Stmt *S) const {
+    return getParentIgnoreParenCasts(const_cast<Stmt*>(S));
   }
 
   bool hasParent(Stmt* S) const {

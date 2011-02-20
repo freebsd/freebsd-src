@@ -88,6 +88,10 @@ private:
     /// the VarDecl, ParmVarDecl, or FieldDecl, respectively.
     DeclaratorDecl *VariableOrMember;
     
+    /// \brief When Kind == EK_Temporary, the type source information for
+    /// the temporary.
+    TypeSourceInfo *TypeInfo;
+    
     struct {
       /// \brief When Kind == EK_Result, EK_Exception, or EK_New, the
       /// location of the 'return', 'throw', or 'new' keyword,
@@ -114,12 +118,12 @@ private:
   /// \brief Create the initialization entity for a variable.
   InitializedEntity(VarDecl *Var)
     : Kind(EK_Variable), Parent(0), Type(Var->getType()),
-      VariableOrMember(reinterpret_cast<DeclaratorDecl*>(Var)) { }
+      VariableOrMember(Var) { }
   
   /// \brief Create the initialization entity for a parameter.
   InitializedEntity(ParmVarDecl *Parm)
     : Kind(EK_Parameter), Parent(0), Type(Parm->getType().getUnqualifiedType()),
-      VariableOrMember(reinterpret_cast<DeclaratorDecl*>(Parm)) { }
+      VariableOrMember(Parm) { }
   
   /// \brief Create the initialization entity for the result of a
   /// function, throwing an object, performing an explicit cast, or
@@ -135,7 +139,7 @@ private:
   /// \brief Create the initialization entity for a member subobject.
   InitializedEntity(FieldDecl *Member, const InitializedEntity *Parent) 
     : Kind(EK_Member), Parent(Parent), Type(Member->getType()),
-      VariableOrMember(reinterpret_cast<DeclaratorDecl*>(Member)) { }
+      VariableOrMember(Member) { }
   
   /// \brief Create the initialization entity for an array element.
   InitializedEntity(ASTContext &Context, unsigned Index, 
@@ -148,16 +152,20 @@ public:
   }
   
   /// \brief Create the initialization entity for a parameter.
-  static InitializedEntity InitializeParameter(ParmVarDecl *Parm) {
-    return InitializedEntity(Parm);
+  static InitializedEntity InitializeParameter(ASTContext &Context,
+                                               ParmVarDecl *Parm) {
+    InitializedEntity Res(Parm);
+    Res.Type = Context.getVariableArrayDecayedType(Res.Type);
+    return Res;
   }
 
   /// \brief Create the initialization entity for a parameter that is
   /// only known by its type.
-  static InitializedEntity InitializeParameter(QualType Type) {
+  static InitializedEntity InitializeParameter(ASTContext &Context,
+                                               QualType Type) {
     InitializedEntity Entity;
     Entity.Kind = EK_Parameter;
-    Entity.Type = Type;
+    Entity.Type = Context.getVariableArrayDecayedType(Type);
     Entity.Parent = 0;
     Entity.VariableOrMember = 0;
     return Entity;
@@ -189,7 +197,15 @@ public:
   static InitializedEntity InitializeTemporary(QualType Type) {
     return InitializedEntity(EK_Temporary, SourceLocation(), Type);
   }
-  
+
+  /// \brief Create the initialization entity for a temporary.
+  static InitializedEntity InitializeTemporary(TypeSourceInfo *TypeInfo) {
+    InitializedEntity Result(EK_Temporary, SourceLocation(), 
+                             TypeInfo->getType());
+    Result.TypeInfo = TypeInfo;
+    return Result;
+  }
+
   /// \brief Create the initialization entity for a base class subobject.
   static InitializedEntity InitializeBase(ASTContext &Context,
                                           CXXBaseSpecifier *Base,
@@ -201,6 +217,12 @@ public:
     return InitializedEntity(Member, Parent);
   }
   
+  /// \brief Create the initialization entity for a member subobject.
+  static InitializedEntity InitializeMember(IndirectFieldDecl *Member,
+                                      const InitializedEntity *Parent = 0) {
+    return InitializedEntity(Member->getAnonField(), Parent);
+  }
+
   /// \brief Create the initialization entity for an array element.
   static InitializedEntity InitializeElement(ASTContext &Context, 
                                              unsigned Index, 
@@ -218,6 +240,15 @@ public:
 
   /// \brief Retrieve type being initialized.
   QualType getType() const { return Type; }
+  
+  /// \brief Retrieve complete type-source information for the object being 
+  /// constructed, if known.
+  TypeSourceInfo *getTypeSourceInfo() const {
+    if (Kind == EK_Temporary)
+      return TypeInfo;
+    
+    return 0;
+  }
   
   /// \brief Retrieve the name of the entity being initialized.
   DeclarationName getName() const;
@@ -760,12 +791,18 @@ public:
     return FailedCandidateSet;
   }
 
+  /// brief Get the overloading result, for when the initialization
+  /// sequence failed due to a bad overload.
+  OverloadingResult getFailedOverloadResult() const {
+    return FailedOverloadResult;
+  }
+
   /// \brief Determine why initialization failed.
   FailureKind getFailureKind() const {
     assert(getKind() == FailedSequence && "Not an initialization failure!");
     return Failure;
   }
-  
+
   /// \brief Dump a representation of this initialization sequence to 
   /// the given stream, for debugging purposes.
   void dump(llvm::raw_ostream &OS) const;

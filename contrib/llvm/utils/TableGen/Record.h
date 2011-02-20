@@ -16,7 +16,7 @@
 #define RECORD_H
 
 #include "llvm/Support/SourceMgr.h"
-#include "llvm/System/DataTypes.h"
+#include "llvm/Support/DataTypes.h"
 #include "llvm/Support/raw_ostream.h"
 #include <map>
 
@@ -57,6 +57,7 @@ class VarListElementInit;
 class Record;
 class RecordVal;
 struct MultiClass;
+class RecordKeeper;
 
 //===----------------------------------------------------------------------===//
 //  Type Classes
@@ -810,7 +811,7 @@ public:
 ///
 class UnOpInit : public OpInit {
 public:
-  enum UnaryOp { CAST, CAR, CDR, LNULL };
+  enum UnaryOp { CAST, HEAD, TAIL, EMPTY };
 private:
   UnaryOp Opc;
   Init *LHS;
@@ -848,7 +849,7 @@ public:
 ///
 class BinOpInit : public OpInit {
 public:
-  enum BinaryOp { SHL, SRA, SRL, STRCONCAT, CONCAT, NAMECONCAT, EQ };
+  enum BinaryOp { SHL, SRA, SRL, STRCONCAT, CONCAT, EQ };
 private:
   BinaryOp Opc;
   Init *LHS, *RHS;
@@ -929,6 +930,8 @@ public:
   // Fold - If possible, fold this to a simpler init.  Return this if not
   // possible to fold.
   Init *Fold(Record *CurRec, MultiClass *CurMultiClass);
+
+  virtual bool isComplete() const { return false; }
 
   virtual Init *resolveReferences(Record &R, const RecordVal *RV);
 
@@ -1227,16 +1230,21 @@ class Record {
   std::vector<std::string> TemplateArgs;
   std::vector<RecordVal> Values;
   std::vector<Record*> SuperClasses;
+
+  // Tracks Record instances. Not owned by Record.
+  RecordKeeper &TrackedRecords;
+
 public:
 
-  explicit Record(const std::string &N, SMLoc loc) :
-    ID(LastID++), Name(N), Loc(loc) {}
+  // Constructs a record.
+  explicit Record(const std::string &N, SMLoc loc, RecordKeeper &records) :
+    ID(LastID++), Name(N), Loc(loc), TrackedRecords(records) {}
   ~Record() {}
 
-  
+
   static unsigned getNewUID() { return LastID++; }
-    
-    
+
+
   unsigned getID() const { return ID; }
 
   const std::string &getName() const { return Name; }
@@ -1315,6 +1323,10 @@ public:
   /// possible references.
   void resolveReferencesTo(const RecordVal *RV);
 
+  RecordKeeper &getRecords() const {
+    return TrackedRecords;
+  }
+
   void dump() const;
 
   //===--------------------------------------------------------------------===//
@@ -1350,9 +1362,9 @@ public:
   ///
   std::vector<Record*> getValueAsListOfDefs(StringRef FieldName) const;
 
-  /// getValueAsListOfInts - This method looks up the specified field and returns
-  /// its value as a vector of integers, throwing an exception if the field does
-  /// not exist or if the value is not the right type.
+  /// getValueAsListOfInts - This method looks up the specified field and
+  /// returns its value as a vector of integers, throwing an exception if the
+  /// field does not exist or if the value is not the right type.
   ///
   std::vector<int64_t> getValueAsListOfInts(StringRef FieldName) const;
 
@@ -1396,7 +1408,8 @@ struct MultiClass {
 
   void dump() const;
 
-  MultiClass(const std::string &Name, SMLoc Loc) : Rec(Name, Loc) {}
+  MultiClass(const std::string &Name, SMLoc Loc, RecordKeeper &Records) : 
+    Rec(Name, Loc, Records) {}
 };
 
 class RecordKeeper {
@@ -1453,7 +1466,6 @@ public:
   std::vector<Record*>
   getAllDerivedDefinitions(const std::string &ClassName) const;
 
-
   void dump() const;
 };
 
@@ -1488,9 +1500,7 @@ public:
 
 raw_ostream &operator<<(raw_ostream &OS, const RecordKeeper &RK);
 
-extern RecordKeeper Records;
-
-void PrintError(SMLoc ErrorLoc, const std::string &Msg);
+void PrintError(SMLoc ErrorLoc, const Twine &Msg);
 
 } // End llvm namespace
 

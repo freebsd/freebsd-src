@@ -27,7 +27,7 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Threading.h"
+#include "llvm/Support/Threading.h"
 #include <algorithm>
 #include <cstdarg>
 using namespace llvm;
@@ -109,6 +109,7 @@ const Type *Type::getPrimitiveType(LLVMContext &C, TypeID IDNumber) {
   case PPC_FP128TyID : return getPPC_FP128Ty(C);
   case LabelTyID     : return getLabelTy(C);
   case MetadataTyID  : return getMetadataTy(C);
+  case X86_MMXTyID   : return getX86_MMXTy(C);
   default:
     return 0;
   }
@@ -172,10 +173,20 @@ bool Type::canLosslesslyBitCastTo(const Type *Ty) const {
     return false;
 
   // Vector -> Vector conversions are always lossless if the two vector types
-  // have the same size, otherwise not.
-  if (const VectorType *thisPTy = dyn_cast<VectorType>(this))
+  // have the same size, otherwise not.  Also, 64-bit vector types can be
+  // converted to x86mmx.
+  if (const VectorType *thisPTy = dyn_cast<VectorType>(this)) {
     if (const VectorType *thatPTy = dyn_cast<VectorType>(Ty))
       return thisPTy->getBitWidth() == thatPTy->getBitWidth();
+    if (Ty->getTypeID() == Type::X86_MMXTyID &&
+        thisPTy->getBitWidth() == 64)
+      return true;
+  }
+
+  if (this->getTypeID() == Type::X86_MMXTyID)
+    if (const VectorType *thatPTy = dyn_cast<VectorType>(Ty))
+      if (thatPTy->getBitWidth() == 64)
+        return true;
 
   // At this point we have only various mismatches of the first class types
   // remaining and ptr->ptr. Just select the lossless conversions. Everything
@@ -192,6 +203,7 @@ unsigned Type::getPrimitiveSizeInBits() const {
   case Type::X86_FP80TyID: return 80;
   case Type::FP128TyID: return 128;
   case Type::PPC_FP128TyID: return 128;
+  case Type::X86_MMXTyID: return 64;
   case Type::IntegerTyID: return cast<IntegerType>(this)->getBitWidth();
   case Type::VectorTyID:  return cast<VectorType>(this)->getBitWidth();
   default: return 0;
@@ -354,6 +366,10 @@ const Type *Type::getPPC_FP128Ty(LLVMContext &C) {
   return &C.pImpl->PPC_FP128Ty;
 }
 
+const Type *Type::getX86_MMXTy(LLVMContext &C) {
+  return &C.pImpl->X86_MMXTy;
+}
+
 const IntegerType *Type::getIntNTy(LLVMContext &C, unsigned N) {
   return IntegerType::get(C, N);
 }
@@ -396,6 +412,10 @@ const PointerType *Type::getFP128PtrTy(LLVMContext &C, unsigned AS) {
 
 const PointerType *Type::getPPC_FP128PtrTy(LLVMContext &C, unsigned AS) {
   return getPPC_FP128Ty(C)->getPointerTo(AS);
+}
+
+const PointerType *Type::getX86_MMXPtrTy(LLVMContext &C, unsigned AS) {
+  return getX86_MMXTy(C)->getPointerTo(AS);
 }
 
 const PointerType *Type::getIntNPtrTy(LLVMContext &C, unsigned N, unsigned AS) {
@@ -1083,7 +1103,7 @@ void DerivedType::refineAbstractTypeTo(const Type *NewType) {
   while (!AbstractTypeUsers.empty() && NewTy != this) {
     AbstractTypeUser *User = AbstractTypeUsers.back();
 
-    unsigned OldSize = AbstractTypeUsers.size(); OldSize=OldSize;
+    unsigned OldSize = AbstractTypeUsers.size(); (void)OldSize;
 #ifdef DEBUG_MERGE_TYPES
     DEBUG(dbgs() << " REFINING user " << OldSize-1 << "[" << (void*)User
                  << "] of abstract type [" << (void*)this << " "
@@ -1110,7 +1130,7 @@ void DerivedType::notifyUsesThatTypeBecameConcrete() {
   DEBUG(dbgs() << "typeIsREFINED type: " << (void*)this << " " << *this <<"\n");
 #endif
 
-  unsigned OldSize = AbstractTypeUsers.size(); OldSize=OldSize;
+  unsigned OldSize = AbstractTypeUsers.size(); (void)OldSize;
   while (!AbstractTypeUsers.empty()) {
     AbstractTypeUser *ATU = AbstractTypeUsers.back();
     ATU->typeBecameConcrete(this);

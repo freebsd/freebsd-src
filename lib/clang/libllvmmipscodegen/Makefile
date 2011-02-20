@@ -3,7 +3,9 @@
 LIB=	llvmmipscodegen
 
 SRCDIR=	lib/Target/Mips
-SRCS=	MipsDelaySlotFiller.cpp \
+SRCS=	MipsAsmPrinter.cpp \
+	MipsDelaySlotFiller.cpp \
+	MipsFrameLowering.cpp \
 	MipsISelDAGToDAG.cpp \
 	MipsISelLowering.cpp \
 	MipsInstrInfo.cpp \
@@ -15,6 +17,7 @@ SRCS=	MipsDelaySlotFiller.cpp \
 	MipsTargetObjectFile.cpp
 
 TGHDRS=	Intrinsics \
+	MipsGenAsmWriter \
 	MipsGenCallingConv \
 	MipsGenDAGISel \
 	MipsGenInstrInfo \

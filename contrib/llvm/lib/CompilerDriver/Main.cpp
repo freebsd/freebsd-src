@@ -16,8 +16,9 @@
 #include "llvm/CompilerDriver/CompilationGraph.h"
 #include "llvm/CompilerDriver/Error.h"
 
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Path.h"
+#include "llvm/Support/Path.h"
 
 #include <sstream>
 #include <string>
@@ -43,15 +44,15 @@ namespace {
       return 0;
     }
     else if (SaveTemps == SaveTempsEnum::Obj && !OutputFilename.empty()) {
-      tempDir = OutputFilename;
-      tempDir = tempDir.getDirname();
+      tempDir = sys::path::parent_path(OutputFilename);
     }
     else {
       // SaveTemps == Cwd --> use current dir (leave tempDir empty).
       return 0;
     }
 
-    if (!tempDir.exists()) {
+    bool Exists;
+    if (llvm::sys::fs::exists(tempDir.str(), Exists) || !Exists) {
       std::string ErrMsg;
       if (tempDir.createDirectoryOnDisk(true, &ErrMsg)) {
         PrintError(ErrMsg);

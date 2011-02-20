@@ -19,14 +19,17 @@ SRCS=	APValue.cpp \
 	DeclPrinter.cpp \
 	DeclTemplate.cpp \
 	DeclarationName.cpp \
+	DumpXML.cpp \
 	Expr.cpp \
 	ExprCXX.cpp \
 	ExprClassification.cpp \
 	ExprConstant.cpp \
-	FullExpr.cpp \
 	InheritViz.cpp \
 	ItaniumCXXABI.cpp \
+	ItaniumMangle.cpp \
+	Mangle.cpp \
 	MicrosoftCXXABI.cpp \
+	MicrosoftMangle.cpp \
 	NestedNameSpecifier.cpp \
 	ParentMap.cpp \
 	RecordLayout.cpp \
@@ -49,6 +52,7 @@ TGHDRS=	AttrImpl \
 	DeclNodes \
 	DiagnosticASTKinds \
 	DiagnosticCommonKinds \
+	DiagnosticSemaKinds \
 	StmtNodes
 
 .include "../clang.lib.mk"

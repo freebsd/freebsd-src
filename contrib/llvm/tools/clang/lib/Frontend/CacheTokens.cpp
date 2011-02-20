@@ -13,18 +13,20 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Frontend/Utils.h"
-#include "clang/Basic/FileManager.h"
-#include "clang/Basic/SourceManager.h"
-#include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/FileManager.h"
+#include "clang/Basic/FileSystemStatCache.h"
+#include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/OnDiskHashTable.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Path.h"
+#include "llvm/Support/Path.h"
 
 // FIXME: put this somewhere else?
 #ifndef S_ISDIR
@@ -189,8 +191,6 @@ class PTHWriter {
 
   void Emit16(uint32_t V) { ::Emit16(Out, V); }
 
-  void Emit24(uint32_t V) { ::Emit24(Out, V); }
-
   void Emit32(uint32_t V) { ::Emit32(Out, V); }
 
   void EmitBuf(const char *Ptr, unsigned NumBytes) {
@@ -300,7 +300,7 @@ PTHEntry PTHWriter::LexTokens(Lexer& L) {
       ParsingPreprocessorDirective = false;
     }
 
-    if (Tok.is(tok::identifier)) {
+    if (Tok.is(tok::raw_identifier)) {
       PP.LookUpIdentifierInfo(Tok);
       EmitToken(Tok);
       continue;
@@ -320,13 +320,13 @@ PTHEntry PTHWriter::LexTokens(Lexer& L) {
       // this case, discard both tokens.
       if (NextTok.isAtStartOfLine())
         goto NextToken;
-      
+
       // The token is the start of a directive.  Emit it.
       EmitToken(Tok);
       Tok = NextTok;
 
       // Did we see 'include'/'import'/'include_next'?
-      if (Tok.isNot(tok::identifier)) {
+      if (Tok.isNot(tok::raw_identifier)) {
         EmitToken(Tok);
         continue;
       }
@@ -353,7 +353,7 @@ PTHEntry PTHWriter::LexTokens(Lexer& L) {
         L.LexIncludeFilename(Tok);
         L.setParsingPreprocessorDirective(false);
         assert(!Tok.isAtStartOfLine());
-        if (Tok.is(tok::identifier))
+        if (Tok.is(tok::raw_identifier))
           PP.LookUpIdentifierInfo(Tok);
 
         break;
@@ -476,8 +476,7 @@ void PTHWriter::GeneratePTH(const std::string &MainFile) {
     const FileEntry *FE = C.Entry;
 
     // FIXME: Handle files with non-absolute paths.
-    llvm::sys::Path P(FE->getName());
-    if (!P.isAbsolute())
+    if (llvm::sys::path::is_relative(FE->getName()))
       continue;
 
     const llvm::MemoryBuffer *B = C.getBuffer(PP.getDiagnostics(), SM);
@@ -512,26 +511,27 @@ namespace {
 /// as input to PTH generation.  StatListener populates the PTHWriter's
 /// file map with stat information for directories as well as negative stats.
 /// Stat information for files are populated elsewhere.
-class StatListener : public StatSysCallCache {
+class StatListener : public FileSystemStatCache {
   PTHMap &PM;
 public:
   StatListener(PTHMap &pm) : PM(pm) {}
   ~StatListener() {}
 
-  int stat(const char *path, struct stat *buf) {
-    int result = StatSysCallCache::stat(path, buf);
+  LookupResult getStat(const char *Path, struct stat &StatBuf,
+                       int *FileDescriptor) {
+    LookupResult Result = statChained(Path, StatBuf, FileDescriptor);
 
-    if (result != 0) // Failed 'stat'.
-      PM.insert(PTHEntryKeyVariant(path), PTHEntry());
-    else if (S_ISDIR(buf->st_mode)) {
+    if (Result == CacheMissing) // Failed 'stat'.
+      PM.insert(PTHEntryKeyVariant(Path), PTHEntry());
+    else if (S_ISDIR(StatBuf.st_mode)) {
       // Only cache directories with absolute paths.
-      if (!llvm::sys::Path(path).isAbsolute())
-        return result;
+      if (llvm::sys::path::is_relative(Path))
+        return Result;
 
-      PM.insert(PTHEntryKeyVariant(buf, path), PTHEntry());
+      PM.insert(PTHEntryKeyVariant(&StatBuf, Path), PTHEntry());
     }
 
-    return result;
+    return Result;
   }
 };
 } // end anonymous namespace
@@ -541,9 +541,9 @@ void clang::CacheTokens(Preprocessor &PP, llvm::raw_fd_ostream* OS) {
   // Get the name of the main file.
   const SourceManager &SrcMgr = PP.getSourceManager();
   const FileEntry *MainFile = SrcMgr.getFileEntryForID(SrcMgr.getMainFileID());
-  llvm::sys::Path MainFilePath(MainFile->getName());
+  llvm::SmallString<128> MainFilePath(MainFile->getName());
 
-  MainFilePath.makeAbsolute();
+  llvm::sys::fs::make_absolute(MainFilePath);
 
   // Create the PTHWriter.
   PTHWriter PW(*OS, PP);

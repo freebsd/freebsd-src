@@ -145,7 +145,7 @@ Instruction *InstCombiner::visitLoadInst(LoadInst &LI) {
   // Attempt to improve the alignment.
   if (TD) {
     unsigned KnownAlign =
-      GetOrEnforceKnownAlignment(Op, TD->getPrefTypeAlignment(LI.getType()));
+      getOrEnforceKnownAlignment(Op, TD->getPrefTypeAlignment(LI.getType()),TD);
     unsigned LoadAlign = LI.getAlignment();
     unsigned EffectiveLoadAlign = LoadAlign != 0 ? LoadAlign :
       TD->getABITypeAlignment(LI.getType());
@@ -165,7 +165,7 @@ Instruction *InstCombiner::visitLoadInst(LoadInst &LI) {
   if (LI.isVolatile()) return 0;
   
   // Do really simple store-to-load forwarding and load CSE, to catch cases
-  // where there are several consequtive memory accesses to the same location,
+  // where there are several consecutive memory accesses to the same location,
   // separated by a few arithmetic operations.
   BasicBlock::iterator BBI = &LI;
   if (Value *AvailableVal = FindAvailableLoadedValue(Op, LI.getParent(), BBI,6))
@@ -330,7 +330,9 @@ static Instruction *InstCombineStoreToCast(InstCombiner &IC, StoreInst &SI) {
   
   NewCast = IC.Builder->CreateCast(opcode, SIOp0, CastDstTy,
                                    SIOp0->getName()+".c");
-  return new StoreInst(NewCast, CastOp);
+  SI.setOperand(0, NewCast);
+  SI.setOperand(1, CastOp);
+  return &SI;
 }
 
 /// equivalentAddressValues - Test if A and B will obviously have the same
@@ -414,7 +416,8 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
   // Attempt to improve the alignment.
   if (TD) {
     unsigned KnownAlign =
-      GetOrEnforceKnownAlignment(Ptr, TD->getPrefTypeAlignment(Val->getType()));
+      getOrEnforceKnownAlignment(Ptr, TD->getPrefTypeAlignment(Val->getType()),
+                                 TD);
     unsigned StoreAlign = SI.getAlignment();
     unsigned EffectiveStoreAlign = StoreAlign != 0 ? StoreAlign :
       TD->getABITypeAlignment(Val->getType());

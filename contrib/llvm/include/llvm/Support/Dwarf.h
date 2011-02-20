@@ -22,7 +22,8 @@ namespace llvm {
 // Debug info constants.
 
 enum {
-  LLVMDebugVersion = (8 << 16),         // Current version of debug information.
+  LLVMDebugVersion = (9 << 16),         // Current version of debug information.
+  LLVMDebugVersion8 = (8 << 16),         // Cconstant for version 8.
   LLVMDebugVersion7 = (7 << 16),        // Constant for version 7.
   LLVMDebugVersion6 = (6 << 16),        // Constant for version 6.
   LLVMDebugVersion5 = (5 << 16),        // Constant for version 5.
@@ -44,11 +45,9 @@ enum llvm_dwarf_constants {
   // llvm mock tags
   DW_TAG_invalid = ~0U,                 // Tag for invalid results.
 
-  DW_TAG_anchor = 0,                    // Tag for descriptor anchors.
   DW_TAG_auto_variable = 0x100,         // Tag for local (auto) variables.
   DW_TAG_arg_variable = 0x101,          // Tag for argument variables.
   DW_TAG_return_variable = 0x102,       // Tag for return variables.
-
   DW_TAG_vector_type = 0x103,           // Tag for vector types.
 
   DW_TAG_user_base = 0x1000,            // Recommended base for user tags.
@@ -118,6 +117,7 @@ enum dwarf_constants {
   DW_TAG_imported_unit = 0x3d,
   DW_TAG_condition = 0x3f,
   DW_TAG_shared_type = 0x40,
+  DW_TAG_rvalue_reference_type = 0x41,
   DW_TAG_lo_user = 0x4080,
   DW_TAG_hi_user = 0xffff,
 
@@ -509,6 +509,7 @@ enum dwarf_constants {
   DW_DSC_range = 0x01,
 
   // Line Number Standard Opcode Encodings
+  DW_LNS_extended_op = 0x00,
   DW_LNS_copy = 0x01,
   DW_LNS_advance_pc = 0x02,
   DW_LNS_advance_line = 0x03,

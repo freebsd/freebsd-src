@@ -109,7 +109,9 @@ namespace {
     bool IsTransformableFunction(StringRef Name);
   public:
     static char ID; // Pass identification, replacement for typeid
-    LowerSetJmp() : ModulePass(ID) {}
+    LowerSetJmp() : ModulePass(ID) {
+      initializeLowerSetJmpPass(*PassRegistry::getPassRegistry());
+    }
 
     void visitCallInst(CallInst& CI);
     void visitInvokeInst(InvokeInst& II);
@@ -122,7 +124,7 @@ namespace {
 } // end anonymous namespace
 
 char LowerSetJmp::ID = 0;
-INITIALIZE_PASS(LowerSetJmp, "lowersetjmp", "Lower Set Jump", false, false);
+INITIALIZE_PASS(LowerSetJmp, "lowersetjmp", "Lower Set Jump", false, false)
 
 // run - Run the transformation on the program. We grab the function
 // prototypes for longjmp and setjmp. If they are used in the program,
