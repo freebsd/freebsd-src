@@ -30,12 +30,13 @@ namespace {
   public:
     explicit TypePrinter(const PrintingPolicy &Policy) : Policy(Policy) { }
 
-    void Print(QualType T, std::string &S);
+    void print(const Type *ty, Qualifiers qs, std::string &buffer);
+    void print(QualType T, std::string &S);
     void AppendScope(DeclContext *DC, std::string &S);
-    void PrintTag(TagDecl *T, std::string &S);
+    void printTag(TagDecl *T, std::string &S);
 #define ABSTRACT_TYPE(CLASS, PARENT)
 #define TYPE(CLASS, PARENT) \
-  void Print##CLASS(const CLASS##Type *T, std::string &S);
+    void print##CLASS(const CLASS##Type *T, std::string &S);
 #include "clang/AST/TypeNodes.def"
   };
 }
@@ -55,9 +56,14 @@ static void AppendTypeQualList(std::string &S, unsigned TypeQuals) {
   }
 }
 
-void TypePrinter::Print(QualType T, std::string &S) {
-  if (T.isNull()) {
-    S += "NULL TYPE";
+void TypePrinter::print(QualType t, std::string &buffer) {
+  SplitQualType split = t.split();
+  print(split.first, split.second, buffer);
+}
+
+void TypePrinter::print(const Type *T, Qualifiers Quals, std::string &buffer) {
+  if (!T) {
+    buffer += "NULL TYPE";
     return;
   }
   
@@ -65,28 +71,104 @@ void TypePrinter::Print(QualType T, std::string &S) {
     return;
   
   // Print qualifiers as appropriate.
-  Qualifiers Quals = T.getLocalQualifiers();
-  if (!Quals.empty()) {
-    std::string TQS;
-    Quals.getAsStringInternal(TQS, Policy);
+  
+  // CanPrefixQualifiers - We prefer to print type qualifiers before the type,
+  // so that we get "const int" instead of "int const", but we can't do this if
+  // the type is complex.  For example if the type is "int*", we *must* print
+  // "int * const", printing "const int *" is different.  Only do this when the
+  // type expands to a simple string.
+  bool CanPrefixQualifiers = false;
+  
+  Type::TypeClass TC = T->getTypeClass();
+  if (const AutoType *AT = dyn_cast<AutoType>(T))
+    TC = AT->desugar()->getTypeClass();
+  if (const SubstTemplateTypeParmType *Subst
+                                      = dyn_cast<SubstTemplateTypeParmType>(T))
+    TC = Subst->getReplacementType()->getTypeClass();
+  
+  switch (TC) {
+    case Type::Builtin:
+    case Type::Complex:
+    case Type::UnresolvedUsing:
+    case Type::Typedef:
+    case Type::TypeOfExpr:
+    case Type::TypeOf:
+    case Type::Decltype:
+    case Type::Record:
+    case Type::Enum:
+    case Type::Elaborated:
+    case Type::TemplateTypeParm:
+    case Type::SubstTemplateTypeParmPack:
+    case Type::TemplateSpecialization:
+    case Type::InjectedClassName:
+    case Type::DependentName:
+    case Type::DependentTemplateSpecialization:
+    case Type::ObjCObject:
+    case Type::ObjCInterface:
+      CanPrefixQualifiers = true;
+      break;
+      
+    case Type::ObjCObjectPointer:
+      CanPrefixQualifiers = T->isObjCIdType() || T->isObjCClassType() ||
+        T->isObjCQualifiedIdType() || T->isObjCQualifiedClassType();
+      break;
+      
+    case Type::Pointer:
+    case Type::BlockPointer:
+    case Type::LValueReference:
+    case Type::RValueReference:
+    case Type::MemberPointer:
+    case Type::ConstantArray:
+    case Type::IncompleteArray:
+    case Type::VariableArray:
+    case Type::DependentSizedArray:
+    case Type::DependentSizedExtVector:
+    case Type::Vector:
+    case Type::ExtVector:
+    case Type::FunctionProto:
+    case Type::FunctionNoProto:
+    case Type::Paren:
+    case Type::Attributed:
+    case Type::PackExpansion:
+    case Type::SubstTemplateTypeParm:
+    case Type::Auto:
+      CanPrefixQualifiers = false;
+      break;
+  }
+  
+  if (!CanPrefixQualifiers && !Quals.empty()) {
+    std::string qualsBuffer;
+    Quals.getAsStringInternal(qualsBuffer, Policy);
     
-    if (!S.empty()) {
-      TQS += ' ';
-      TQS += S;
+    if (!buffer.empty()) {
+      qualsBuffer += ' ';
+      qualsBuffer += buffer;
     }
-    std::swap(S, TQS);
+    std::swap(buffer, qualsBuffer);
   }
   
   switch (T->getTypeClass()) {
 #define ABSTRACT_TYPE(CLASS, PARENT)
-#define TYPE(CLASS, PARENT) case Type::CLASS:                \
-    Print##CLASS(cast<CLASS##Type>(T.getTypePtr()), S);      \
+#define TYPE(CLASS, PARENT) case Type::CLASS: \
+    print##CLASS(cast<CLASS##Type>(T), buffer); \
     break;
 #include "clang/AST/TypeNodes.def"
   }
+  
+  // If we're adding the qualifiers as a prefix, do it now.
+  if (CanPrefixQualifiers && !Quals.empty()) {
+    std::string qualsBuffer;
+    Quals.getAsStringInternal(qualsBuffer, Policy);
+    
+    if (!buffer.empty()) {
+      qualsBuffer += ' ';
+      qualsBuffer += buffer;
+    }
+    std::swap(buffer, qualsBuffer);
+  }
 }
 
-void TypePrinter::PrintBuiltin(const BuiltinType *T, std::string &S) {
+void TypePrinter::printBuiltin(const BuiltinType *T, std::string &S) {
   if (S.empty()) {
     S = T->getName(Policy.LangOpts);
   } else {
@@ -96,12 +178,12 @@ void TypePrinter::PrintBuiltin(const BuiltinType *T, std::string &S) {
   }
 }
 
-void TypePrinter::PrintComplex(const ComplexType *T, std::string &S) {
-  Print(T->getElementType(), S);
+void TypePrinter::printComplex(const ComplexType *T, std::string &S) {
+  print(T->getElementType(), S);
   S = "_Complex " + S;
 }
 
-void TypePrinter::PrintPointer(const PointerType *T, std::string &S) { 
+void TypePrinter::printPointer(const PointerType *T, std::string &S) { 
   S = '*' + S;
   
   // Handle things like 'int (*A)[4];' correctly.
@@ -109,15 +191,15 @@ void TypePrinter::PrintPointer(const PointerType *T, std::string &S) {
   if (isa<ArrayType>(T->getPointeeType()))
     S = '(' + S + ')';
   
-  Print(T->getPointeeType(), S);
+  print(T->getPointeeType(), S);
 }
 
-void TypePrinter::PrintBlockPointer(const BlockPointerType *T, std::string &S) {
+void TypePrinter::printBlockPointer(const BlockPointerType *T, std::string &S) {
   S = '^' + S;
-  Print(T->getPointeeType(), S);
+  print(T->getPointeeType(), S);
 }
 
-void TypePrinter::PrintLValueReference(const LValueReferenceType *T, 
+void TypePrinter::printLValueReference(const LValueReferenceType *T, 
                                        std::string &S) { 
   S = '&' + S;
   
@@ -126,10 +208,10 @@ void TypePrinter::PrintLValueReference(const LValueReferenceType *T,
   if (isa<ArrayType>(T->getPointeeTypeAsWritten()))
     S = '(' + S + ')';
   
-  Print(T->getPointeeTypeAsWritten(), S);
+  print(T->getPointeeTypeAsWritten(), S);
 }
 
-void TypePrinter::PrintRValueReference(const RValueReferenceType *T, 
+void TypePrinter::printRValueReference(const RValueReferenceType *T, 
                                        std::string &S) { 
   S = "&&" + S;
   
@@ -138,13 +220,13 @@ void TypePrinter::PrintRValueReference(const RValueReferenceType *T,
   if (isa<ArrayType>(T->getPointeeTypeAsWritten()))
     S = '(' + S + ')';
   
-  Print(T->getPointeeTypeAsWritten(), S);
+  print(T->getPointeeTypeAsWritten(), S);
 }
 
-void TypePrinter::PrintMemberPointer(const MemberPointerType *T, 
+void TypePrinter::printMemberPointer(const MemberPointerType *T, 
                                      std::string &S) { 
   std::string C;
-  Print(QualType(T->getClass(), 0), C);
+  print(QualType(T->getClass(), 0), C);
   C += "::*";
   S = C + S;
   
@@ -153,25 +235,25 @@ void TypePrinter::PrintMemberPointer(const MemberPointerType *T,
   if (isa<ArrayType>(T->getPointeeType()))
     S = '(' + S + ')';
   
-  Print(T->getPointeeType(), S);
+  print(T->getPointeeType(), S);
 }
 
-void TypePrinter::PrintConstantArray(const ConstantArrayType *T, 
+void TypePrinter::printConstantArray(const ConstantArrayType *T, 
                                      std::string &S) {
   S += '[';
   S += llvm::utostr(T->getSize().getZExtValue());
   S += ']';
   
-  Print(T->getElementType(), S);
+  print(T->getElementType(), S);
 }
 
-void TypePrinter::PrintIncompleteArray(const IncompleteArrayType *T, 
+void TypePrinter::printIncompleteArray(const IncompleteArrayType *T, 
                                        std::string &S) {
   S += "[]";
-  Print(T->getElementType(), S);
+  print(T->getElementType(), S);
 }
 
-void TypePrinter::PrintVariableArray(const VariableArrayType *T, 
+void TypePrinter::printVariableArray(const VariableArrayType *T, 
                                      std::string &S) { 
   S += '[';
   
@@ -193,10 +275,10 @@ void TypePrinter::PrintVariableArray(const VariableArrayType *T,
   }
   S += ']';
   
-  Print(T->getElementType(), S);
+  print(T->getElementType(), S);
 }
 
-void TypePrinter::PrintDependentSizedArray(const DependentSizedArrayType *T, 
+void TypePrinter::printDependentSizedArray(const DependentSizedArrayType *T, 
                                            std::string &S) {  
   S += '[';
   
@@ -208,13 +290,13 @@ void TypePrinter::PrintDependentSizedArray(const DependentSizedArrayType *T,
   }
   S += ']';
   
-  Print(T->getElementType(), S);
+  print(T->getElementType(), S);
 }
 
-void TypePrinter::PrintDependentSizedExtVector(
+void TypePrinter::printDependentSizedExtVector(
                                           const DependentSizedExtVectorType *T, 
                                                std::string &S) { 
-  Print(T->getElementType(), S);
+  print(T->getElementType(), S);
   
   S += " __attribute__((ext_vector_type(";
   if (T->getSizeExpr()) {
@@ -226,36 +308,52 @@ void TypePrinter::PrintDependentSizedExtVector(
   S += ")))";  
 }
 
-void TypePrinter::PrintVector(const VectorType *T, std::string &S) { 
-  if (T->getAltiVecSpecific() != VectorType::NotAltiVec) {
-    if (T->getAltiVecSpecific() == VectorType::Pixel)
-      S = "__vector __pixel " + S;
-    else {
-      Print(T->getElementType(), S);
-      S = ((T->getAltiVecSpecific() == VectorType::Bool)
-           ? "__vector __bool " : "__vector ") + S;
-    }
-  } else {
+void TypePrinter::printVector(const VectorType *T, std::string &S) { 
+  switch (T->getVectorKind()) {
+  case VectorType::AltiVecPixel:
+    S = "__vector __pixel " + S;
+    break;
+  case VectorType::AltiVecBool:
+    print(T->getElementType(), S);
+    S = "__vector __bool " + S;
+    break;
+  case VectorType::AltiVecVector:
+    print(T->getElementType(), S);
+    S = "__vector " + S;
+    break;
+  case VectorType::NeonVector:
+    print(T->getElementType(), S);
+    S = ("__attribute__((neon_vector_type(" +
+         llvm::utostr_32(T->getNumElements()) + "))) " + S);
+    break;
+  case VectorType::NeonPolyVector:
+    print(T->getElementType(), S);
+    S = ("__attribute__((neon_polyvector_type(" +
+         llvm::utostr_32(T->getNumElements()) + "))) " + S);
+    break;
+  case VectorType::GenericVector: {
     // FIXME: We prefer to print the size directly here, but have no way
     // to get the size of the type.
-    Print(T->getElementType(), S);
+    print(T->getElementType(), S);
     std::string V = "__attribute__((__vector_size__(";
     V += llvm::utostr_32(T->getNumElements()); // convert back to bytes.
     std::string ET;
-    Print(T->getElementType(), ET);
+    print(T->getElementType(), ET);
     V += " * sizeof(" + ET + ")))) ";
     S = V + S;
+    break;
+  }
   }
 }
 
-void TypePrinter::PrintExtVector(const ExtVectorType *T, std::string &S) { 
+void TypePrinter::printExtVector(const ExtVectorType *T, std::string &S) { 
   S += " __attribute__((ext_vector_type(";
   S += llvm::utostr_32(T->getNumElements());
   S += ")))";
-  Print(T->getElementType(), S);
+  print(T->getElementType(), S);
 }
 
-void TypePrinter::PrintFunctionProto(const FunctionProtoType *T, 
+void TypePrinter::printFunctionProto(const FunctionProtoType *T, 
                                      std::string &S) { 
   // If needed for precedence reasons, wrap the inner part in grouping parens.
   if (!S.empty())
@@ -267,7 +365,7 @@ void TypePrinter::PrintFunctionProto(const FunctionProtoType *T,
   ParamPolicy.SuppressSpecifiers = false;
   for (unsigned i = 0, e = T->getNumArgs(); i != e; ++i) {
     if (i) S += ", ";
-    Print(T->getArgType(i), Tmp);
+    print(T->getArgType(i), Tmp);
     S += Tmp;
     Tmp.clear();
   }
@@ -309,6 +407,21 @@ void TypePrinter::PrintFunctionProto(const FunctionProtoType *T,
     S += " __attribute__((regparm (" +
         llvm::utostr_32(Info.getRegParm()) + ")))";
   
+  AppendTypeQualList(S, T->getTypeQuals());
+
+  switch (T->getRefQualifier()) {
+  case RQ_None:
+    break;
+    
+  case RQ_LValue:
+    S += " &";
+    break;
+    
+  case RQ_RValue:
+    S += " &&";
+    break;
+  }
+  
   if (T->hasExceptionSpec()) {
     S += " throw(";
     if (T->hasAnyExceptionSpec())
@@ -319,18 +432,16 @@ void TypePrinter::PrintFunctionProto(const FunctionProtoType *T,
           S += ", ";
 
         std::string ExceptionType;
-        Print(T->getExceptionType(I), ExceptionType);
+        print(T->getExceptionType(I), ExceptionType);
         S += ExceptionType;
       }
     S += ")";
   }
 
-  AppendTypeQualList(S, T->getTypeQuals());
-  
-  Print(T->getResultType(), S);
+  print(T->getResultType(), S);
 }
 
-void TypePrinter::PrintFunctionNoProto(const FunctionNoProtoType *T, 
+void TypePrinter::printFunctionNoProto(const FunctionNoProtoType *T, 
                                        std::string &S) { 
   // If needed for precedence reasons, wrap the inner part in grouping parens.
   if (!S.empty())
@@ -339,10 +450,10 @@ void TypePrinter::PrintFunctionNoProto(const FunctionNoProtoType *T,
   S += "()";
   if (T->getNoReturnAttr())
     S += " __attribute__((noreturn))";
-  Print(T->getResultType(), S);
+  print(T->getResultType(), S);
 }
 
-static void PrintTypeSpec(const NamedDecl *D, std::string &S) {
+static void printTypeSpec(const NamedDecl *D, std::string &S) {
   IdentifierInfo *II = D->getIdentifier();
   if (S.empty())
     S = II->getName().str();
@@ -350,16 +461,16 @@ static void PrintTypeSpec(const NamedDecl *D, std::string &S) {
     S = II->getName().str() + ' ' + S;
 }
 
-void TypePrinter::PrintUnresolvedUsing(const UnresolvedUsingType *T,
+void TypePrinter::printUnresolvedUsing(const UnresolvedUsingType *T,
                                        std::string &S) {
-  PrintTypeSpec(T->getDecl(), S);
+  printTypeSpec(T->getDecl(), S);
 }
 
-void TypePrinter::PrintTypedef(const TypedefType *T, std::string &S) { 
-  PrintTypeSpec(T->getDecl(), S);
+void TypePrinter::printTypedef(const TypedefType *T, std::string &S) { 
+  printTypeSpec(T->getDecl(), S);
 }
 
-void TypePrinter::PrintTypeOfExpr(const TypeOfExprType *T, std::string &S) {
+void TypePrinter::printTypeOfExpr(const TypeOfExprType *T, std::string &S) {
   if (!S.empty())    // Prefix the basic type, e.g. 'typeof(e) X'.
     S = ' ' + S;
   std::string Str;
@@ -368,21 +479,32 @@ void TypePrinter::PrintTypeOfExpr(const TypeOfExprType *T, std::string &S) {
   S = "typeof " + s.str() + S;
 }
 
-void TypePrinter::PrintTypeOf(const TypeOfType *T, std::string &S) { 
+void TypePrinter::printTypeOf(const TypeOfType *T, std::string &S) { 
   if (!S.empty())    // Prefix the basic type, e.g. 'typeof(t) X'.
     S = ' ' + S;
   std::string Tmp;
-  Print(T->getUnderlyingType(), Tmp);
+  print(T->getUnderlyingType(), Tmp);
   S = "typeof(" + Tmp + ")" + S;
 }
 
-void TypePrinter::PrintDecltype(const DecltypeType *T, std::string &S) { 
+void TypePrinter::printDecltype(const DecltypeType *T, std::string &S) { 
   if (!S.empty())    // Prefix the basic type, e.g. 'decltype(t) X'.
     S = ' ' + S;
   std::string Str;
   llvm::raw_string_ostream s(Str);
   T->getUnderlyingExpr()->printPretty(s, 0, Policy);
   S = "decltype(" + s.str() + ")" + S;
+}
+
+void TypePrinter::printAuto(const AutoType *T, std::string &S) { 
+  // If the type has been deduced, do not print 'auto'.
+  if (T->isDeduced()) {
+    print(T->getDeducedType(), S);
+  } else {
+    if (!S.empty())    // Prefix the basic type, e.g. 'auto X'.
+      S = ' ' + S;
+    S = "auto" + S;
+  }
 }
 
 /// Appends the given scope to the end of a string.
@@ -402,8 +524,8 @@ void TypePrinter::AppendScope(DeclContext *DC, std::string &Buffer) {
     const TemplateArgumentList &TemplateArgs = Spec->getTemplateArgs();
     std::string TemplateArgsStr
       = TemplateSpecializationType::PrintTemplateArgumentList(
-                                            TemplateArgs.getFlatArgumentList(),
-                                            TemplateArgs.flat_size(),
+                                            TemplateArgs.data(),
+                                            TemplateArgs.size(),
                                             Policy);
     Buffer += Spec->getIdentifier()->getName();
     Buffer += TemplateArgsStr;
@@ -418,7 +540,7 @@ void TypePrinter::AppendScope(DeclContext *DC, std::string &Buffer) {
     Buffer += "::";
 }
 
-void TypePrinter::PrintTag(TagDecl *D, std::string &InnerString) {
+void TypePrinter::printTag(TagDecl *D, std::string &InnerString) {
   if (Policy.SuppressTag)
     return;
 
@@ -457,9 +579,9 @@ void TypePrinter::PrintTag(TagDecl *D, std::string &InnerString) {
       if (!HasKindDecoration)
         OS << " " << D->getKindName();
 
-      if (D->getLocation().isValid()) {
-        PresumedLoc PLoc = D->getASTContext().getSourceManager().getPresumedLoc(
+      PresumedLoc PLoc = D->getASTContext().getSourceManager().getPresumedLoc(
           D->getLocation());
+      if (PLoc.isValid()) {
         OS << " at " << PLoc.getFilename()
            << ':' << PLoc.getLine()
            << ':' << PLoc.getColumn();
@@ -482,8 +604,8 @@ void TypePrinter::PrintTag(TagDecl *D, std::string &InnerString) {
       NumArgs = TST->getNumArgs();
     } else {
       const TemplateArgumentList &TemplateArgs = Spec->getTemplateArgs();
-      Args = TemplateArgs.getFlatArgumentList();
-      NumArgs = TemplateArgs.flat_size();
+      Args = TemplateArgs.data();
+      NumArgs = TemplateArgs.size();
     }
     Buffer += TemplateSpecializationType::PrintTemplateArgumentList(Args,
                                                                     NumArgs,
@@ -498,15 +620,15 @@ void TypePrinter::PrintTag(TagDecl *D, std::string &InnerString) {
   std::swap(Buffer, InnerString);
 }
 
-void TypePrinter::PrintRecord(const RecordType *T, std::string &S) {
-  PrintTag(T->getDecl(), S);
+void TypePrinter::printRecord(const RecordType *T, std::string &S) {
+  printTag(T->getDecl(), S);
 }
 
-void TypePrinter::PrintEnum(const EnumType *T, std::string &S) { 
-  PrintTag(T->getDecl(), S);
+void TypePrinter::printEnum(const EnumType *T, std::string &S) { 
+  printTag(T->getDecl(), S);
 }
 
-void TypePrinter::PrintTemplateTypeParm(const TemplateTypeParmType *T, 
+void TypePrinter::printTemplateTypeParm(const TemplateTypeParmType *T, 
                                         std::string &S) { 
   if (!S.empty())    // Prefix the basic type, e.g. 'parmname X'.
     S = ' ' + S;
@@ -518,12 +640,18 @@ void TypePrinter::PrintTemplateTypeParm(const TemplateTypeParmType *T,
     S = T->getName()->getName().str() + S;  
 }
 
-void TypePrinter::PrintSubstTemplateTypeParm(const SubstTemplateTypeParmType *T, 
+void TypePrinter::printSubstTemplateTypeParm(const SubstTemplateTypeParmType *T, 
                                              std::string &S) { 
-  Print(T->getReplacementType(), S);
+  print(T->getReplacementType(), S);
 }
 
-void TypePrinter::PrintTemplateSpecialization(
+void TypePrinter::printSubstTemplateTypeParmPack(
+                                        const SubstTemplateTypeParmPackType *T, 
+                                             std::string &S) { 
+  printTemplateTypeParm(T->getReplacedParameter(), S);
+}
+
+void TypePrinter::printTemplateSpecialization(
                                             const TemplateSpecializationType *T, 
                                               std::string &S) { 
   std::string SpecString;
@@ -543,12 +671,12 @@ void TypePrinter::PrintTemplateSpecialization(
     S = SpecString + ' ' + S;
 }
 
-void TypePrinter::PrintInjectedClassName(const InjectedClassNameType *T,
+void TypePrinter::printInjectedClassName(const InjectedClassNameType *T,
                                          std::string &S) {
-  PrintTemplateSpecialization(T->getInjectedTST(), S);
+  printTemplateSpecialization(T->getInjectedTST(), S);
 }
 
-void TypePrinter::PrintElaborated(const ElaboratedType *T, std::string &S) {
+void TypePrinter::printElaborated(const ElaboratedType *T, std::string &S) {
   std::string MyString;
   
   {
@@ -564,7 +692,7 @@ void TypePrinter::PrintElaborated(const ElaboratedType *T, std::string &S) {
   std::string TypeStr;
   PrintingPolicy InnerPolicy(Policy);
   InnerPolicy.SuppressScope = true;
-  TypePrinter(InnerPolicy).Print(T->getNamedType(), TypeStr);
+  TypePrinter(InnerPolicy).print(T->getNamedType(), TypeStr);
   
   MyString += TypeStr;
   if (S.empty())
@@ -573,7 +701,13 @@ void TypePrinter::PrintElaborated(const ElaboratedType *T, std::string &S) {
     S = MyString + ' ' + S;  
 }
 
-void TypePrinter::PrintDependentName(const DependentNameType *T, std::string &S) { 
+void TypePrinter::printParen(const ParenType *T, std::string &S) {
+  if (!S.empty() && !isa<FunctionType>(T->getInnerType()))
+    S = '(' + S + ')';
+  print(T->getInnerType(), S);
+}
+
+void TypePrinter::printDependentName(const DependentNameType *T, std::string &S) { 
   std::string MyString;
   
   {
@@ -593,7 +727,7 @@ void TypePrinter::PrintDependentName(const DependentNameType *T, std::string &S)
     S = MyString + ' ' + S;
 }
 
-void TypePrinter::PrintDependentTemplateSpecialization(
+void TypePrinter::printDependentTemplateSpecialization(
         const DependentTemplateSpecializationType *T, std::string &S) { 
   std::string MyString;
   {
@@ -617,7 +751,91 @@ void TypePrinter::PrintDependentTemplateSpecialization(
     S = MyString + ' ' + S;
 }
 
-void TypePrinter::PrintObjCInterface(const ObjCInterfaceType *T, 
+void TypePrinter::printPackExpansion(const PackExpansionType *T, 
+                                     std::string &S) {
+  print(T->getPattern(), S);
+  S += "...";
+}
+
+void TypePrinter::printAttributed(const AttributedType *T,
+                                  std::string &S) {
+  print(T->getModifiedType(), S);
+
+  // TODO: not all attributes are GCC-style attributes.
+  S += "__attribute__((";
+  switch (T->getAttrKind()) {
+  case AttributedType::attr_address_space:
+    S += "address_space(";
+    S += T->getEquivalentType().getAddressSpace();
+    S += ")";
+    break;
+
+  case AttributedType::attr_vector_size: {
+    S += "__vector_size__(";
+    if (const VectorType *vector =T->getEquivalentType()->getAs<VectorType>()) {
+      S += vector->getNumElements();
+      S += " * sizeof(";
+
+      std::string tmp;
+      print(vector->getElementType(), tmp);
+      S += tmp;
+      S += ")";
+    }
+    S += ")";
+    break;
+  }
+
+  case AttributedType::attr_neon_vector_type:
+  case AttributedType::attr_neon_polyvector_type: {
+    if (T->getAttrKind() == AttributedType::attr_neon_vector_type)
+      S += "neon_vector_type(";
+    else
+      S += "neon_polyvector_type(";
+    const VectorType *vector = T->getEquivalentType()->getAs<VectorType>();
+    S += llvm::utostr_32(vector->getNumElements());
+    S += ")";
+    break;
+  }
+
+  case AttributedType::attr_regparm: {
+    S += "regparm(";
+    QualType t = T->getEquivalentType();
+    while (!t->isFunctionType())
+      t = t->getPointeeType();
+    S += t->getAs<FunctionType>()->getRegParmType();
+    S += ")";
+    break;
+  }
+
+  case AttributedType::attr_objc_gc: {
+    S += "objc_gc(";
+
+    QualType tmp = T->getEquivalentType();
+    while (tmp.getObjCGCAttr() == Qualifiers::GCNone) {
+      QualType next = tmp->getPointeeType();
+      if (next == tmp) break;
+      tmp = next;
+    }
+
+    if (tmp.isObjCGCWeak())
+      S += "weak";
+    else
+      S += "strong";
+    S += ")";
+    break;
+  }
+
+  case AttributedType::attr_noreturn: S += "noreturn"; break;
+  case AttributedType::attr_cdecl: S += "cdecl"; break;
+  case AttributedType::attr_fastcall: S += "fastcall"; break;
+  case AttributedType::attr_stdcall: S += "stdcall"; break;
+  case AttributedType::attr_thiscall: S += "thiscall"; break;
+  case AttributedType::attr_pascal: S += "pascal"; break;
+  }
+  S += "))";
+}
+
+void TypePrinter::printObjCInterface(const ObjCInterfaceType *T, 
                                      std::string &S) { 
   if (!S.empty())    // Prefix the basic type, e.g. 'typedefname X'.
     S = ' ' + S;
@@ -626,13 +844,13 @@ void TypePrinter::PrintObjCInterface(const ObjCInterfaceType *T,
   S = ObjCQIString + S;
 }
 
-void TypePrinter::PrintObjCObject(const ObjCObjectType *T,
+void TypePrinter::printObjCObject(const ObjCObjectType *T,
                                   std::string &S) {
   if (T->qual_empty())
-    return Print(T->getBaseType(), S);
+    return print(T->getBaseType(), S);
 
   std::string tmp;
-  Print(T->getBaseType(), tmp);
+  print(T->getBaseType(), tmp);
   tmp += '<';
   bool isFirst = true;
   for (ObjCObjectType::qual_iterator
@@ -652,18 +870,23 @@ void TypePrinter::PrintObjCObject(const ObjCObjectType *T,
   std::swap(tmp, S);
 }
 
-void TypePrinter::PrintObjCObjectPointer(const ObjCObjectPointerType *T, 
+void TypePrinter::printObjCObjectPointer(const ObjCObjectPointerType *T, 
                                          std::string &S) { 
   std::string ObjCQIString;
   
+  T->getPointeeType().getLocalQualifiers().getAsStringInternal(ObjCQIString, 
+                                                               Policy);
+  if (!ObjCQIString.empty())
+    ObjCQIString += ' ';
+    
   if (T->isObjCIdType() || T->isObjCQualifiedIdType())
-    ObjCQIString = "id";
+    ObjCQIString += "id";
   else if (T->isObjCClassType() || T->isObjCQualifiedClassType())
-    ObjCQIString = "Class";
+    ObjCQIString += "Class";
   else if (T->isObjCSelType())
-    ObjCQIString = "SEL";
+    ObjCQIString += "SEL";
   else
-    ObjCQIString = T->getInterfaceDecl()->getNameAsString();
+    ObjCQIString += T->getInterfaceDecl()->getNameAsString();
   
   if (!T->qual_empty()) {
     ObjCQIString += '<';
@@ -677,53 +900,12 @@ void TypePrinter::PrintObjCObjectPointer(const ObjCObjectPointerType *T,
     ObjCQIString += '>';
   }
   
-  T->getPointeeType().getLocalQualifiers().getAsStringInternal(ObjCQIString, 
-                                                               Policy);
-  
   if (!T->isObjCIdType() && !T->isObjCQualifiedIdType())
     ObjCQIString += " *"; // Don't forget the implicit pointer.
   else if (!S.empty()) // Prefix the basic type, e.g. 'typedefname X'.
     S = ' ' + S;
   
   S = ObjCQIString + S;  
-}
-
-static void PrintTemplateArgument(std::string &Buffer,
-                                  const TemplateArgument &Arg,
-                                  const PrintingPolicy &Policy) {
-  switch (Arg.getKind()) {
-    case TemplateArgument::Null:
-      assert(false && "Null template argument");
-      break;
-      
-    case TemplateArgument::Type:
-      Arg.getAsType().getAsStringInternal(Buffer, Policy);
-      break;
-      
-    case TemplateArgument::Declaration:
-      Buffer = cast<NamedDecl>(Arg.getAsDecl())->getNameAsString();
-      break;
-      
-    case TemplateArgument::Template: {
-      llvm::raw_string_ostream s(Buffer);
-      Arg.getAsTemplate().print(s, Policy);
-      break;
-    }
-      
-    case TemplateArgument::Integral:
-      Buffer = Arg.getAsIntegral()->toString(10, true);
-      break;
-      
-    case TemplateArgument::Expression: {
-      llvm::raw_string_ostream s(Buffer);
-      Arg.getAsExpr()->printPretty(s, 0, Policy);
-      break;
-    }
-      
-    case TemplateArgument::Pack:
-      assert(0 && "FIXME: Implement!");
-      break;
-  }
 }
 
 std::string TemplateSpecializationType::
@@ -738,17 +920,27 @@ std::string
 TemplateSpecializationType::PrintTemplateArgumentList(
                                                 const TemplateArgument *Args,
                                                 unsigned NumArgs,
-                                                const PrintingPolicy &Policy) {
+                                                  const PrintingPolicy &Policy,
+                                                      bool SkipBrackets) {
   std::string SpecString;
-  SpecString += '<';
+  if (!SkipBrackets)
+    SpecString += '<';
+  
   for (unsigned Arg = 0; Arg < NumArgs; ++Arg) {
-    if (Arg)
+    if (SpecString.size() > !SkipBrackets)
       SpecString += ", ";
     
     // Print the argument into a string.
     std::string ArgString;
-    PrintTemplateArgument(ArgString, Args[Arg], Policy);
-    
+    if (Args[Arg].getKind() == TemplateArgument::Pack) {
+      ArgString = PrintTemplateArgumentList(Args[Arg].pack_begin(), 
+                                            Args[Arg].pack_size(), 
+                                            Policy, true);
+    } else {
+      llvm::raw_string_ostream ArgOut(ArgString);
+      Args[Arg].print(Policy, ArgOut);
+    }
+   
     // If this is the first argument and its string representation
     // begins with the global scope specifier ('::foo'), add a space
     // to avoid printing the diagraph '<:'.
@@ -761,10 +953,11 @@ TemplateSpecializationType::PrintTemplateArgumentList(
   // If the last character of our string is '>', add another space to
   // keep the two '>''s separate tokens. We don't *have* to do this in
   // C++0x, but it's still good hygiene.
-  if (SpecString[SpecString.size() - 1] == '>')
+  if (!SpecString.empty() && SpecString[SpecString.size() - 1] == '>')
     SpecString += ' ';
   
-  SpecString += '>';
+  if (!SkipBrackets)
+    SpecString += '>';
   
   return SpecString;
 }
@@ -776,12 +969,20 @@ PrintTemplateArgumentList(const TemplateArgumentLoc *Args, unsigned NumArgs,
   std::string SpecString;
   SpecString += '<';
   for (unsigned Arg = 0; Arg < NumArgs; ++Arg) {
-    if (Arg)
+    if (SpecString.size() > 1)
       SpecString += ", ";
     
     // Print the argument into a string.
     std::string ArgString;
-    PrintTemplateArgument(ArgString, Args[Arg].getArgument(), Policy);
+    if (Args[Arg].getArgument().getKind() == TemplateArgument::Pack) {
+      ArgString = PrintTemplateArgumentList(
+                                           Args[Arg].getArgument().pack_begin(), 
+                                            Args[Arg].getArgument().pack_size(), 
+                                            Policy, true);
+    } else {
+      llvm::raw_string_ostream ArgOut(ArgString);
+      Args[Arg].getArgument().print(Policy, ArgOut);
+    }
     
     // If this is the first argument and its string representation
     // begins with the global scope specifier ('::foo'), add a space
@@ -847,15 +1048,15 @@ void Qualifiers::getAsStringInternal(std::string &S,
   }
 }
 
-std::string QualType::getAsString() const {
-  std::string S;
-  LangOptions LO;
-  getAsStringInternal(S, PrintingPolicy(LO));
-  return S;
+std::string QualType::getAsString(const Type *ty, Qualifiers qs) {
+  std::string buffer;
+  LangOptions options;
+  getAsStringInternal(ty, qs, buffer, PrintingPolicy(options));
+  return buffer;
 }
 
-void QualType::getAsStringInternal(std::string &S,
-                                   const PrintingPolicy &Policy) const {
-  TypePrinter Printer(Policy);
-  Printer.Print(*this, S);
+void QualType::getAsStringInternal(const Type *ty, Qualifiers qs,
+                                   std::string &buffer,
+                                   const PrintingPolicy &policy) {
+  TypePrinter(policy).print(ty, qs, buffer);
 }

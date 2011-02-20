@@ -98,7 +98,8 @@ NODE_XML(BuiltinType, "FundamentalType")
 	  ENUM_XML(BuiltinType::Float, "float");
 	  ENUM_XML(BuiltinType::Double, "double");
 	  ENUM_XML(BuiltinType::LongDouble, "long double");
-	  ENUM_XML(BuiltinType::WChar, "wchar_t");
+	  ENUM_XML(BuiltinType::WChar_U, "wchar_t");
+	  ENUM_XML(BuiltinType::WChar_S, "wchar_t");
 	  ENUM_XML(BuiltinType::Char16, "char16_t");
 	  ENUM_XML(BuiltinType::Char32, "char32_t");
 	  ENUM_XML(BuiltinType::NullPtr, "nullptr_t");        // This is the type of C++0x 'nullptr'.
@@ -130,6 +131,13 @@ NODE_XML(FunctionProtoType, "FunctionType")
   ID_ATTRIBUTE_XML
   ATTRIBUTE_XML(getResultType(), "result_type")
   ATTRIBUTE_OPT_XML(isVariadic(), "variadic")
+  ATTRIBUTE_ENUM_XML(getCallConv(), "call_conv")
+	  ENUM_XML(CC_Default, "")
+	  ENUM_XML(CC_C, "C")
+	  ENUM_XML(CC_X86StdCall, "X86StdCall")
+	  ENUM_XML(CC_X86FastCall, "X86FastCall")
+	  ENUM_XML(CC_X86ThisCall, "X86ThisCall")
+  END_ENUM_XML
 END_NODE_XML
 
 NODE_XML(TypedefType, "Typedef")

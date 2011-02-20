@@ -24,7 +24,7 @@
 #include "llvm/Pass.h"
 #include "llvm/Instructions.h"
 #include "llvm/Function.h"
-#include "llvm/System/DataTypes.h"
+#include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/ConstantRange.h"
@@ -70,27 +70,16 @@ namespace llvm {
   private:
     SCEV(const SCEV &);            // DO NOT IMPLEMENT
     void operator=(const SCEV &);  // DO NOT IMPLEMENT
-  protected:
-    virtual ~SCEV();
+
   public:
     explicit SCEV(const FoldingSetNodeIDRef ID, unsigned SCEVTy) :
       FastID(ID), SCEVType(SCEVTy), SubclassData(0) {}
 
     unsigned getSCEVType() const { return SCEVType; }
 
-    /// isLoopInvariant - Return true if the value of this SCEV is unchanging in
-    /// the specified loop.
-    virtual bool isLoopInvariant(const Loop *L) const = 0;
-
-    /// hasComputableLoopEvolution - Return true if this SCEV changes value in a
-    /// known way in the specified loop.  This property being true implies that
-    /// the value is variant in the loop AND that we can emit an expression to
-    /// compute the value of the expression at any particular loop iteration.
-    virtual bool hasComputableLoopEvolution(const Loop *L) const = 0;
-
     /// getType - Return the LLVM type of this SCEV expression.
     ///
-    virtual const Type *getType() const = 0;
+    const Type *getType() const;
 
     /// isZero - Return true if the expression is a constant zero.
     ///
@@ -105,22 +94,10 @@ namespace llvm {
     ///
     bool isAllOnesValue() const;
 
-    /// hasOperand - Test whether this SCEV has Op as a direct or
-    /// indirect operand.
-    virtual bool hasOperand(const SCEV *Op) const = 0;
-
-    /// dominates - Return true if elements that makes up this SCEV dominates
-    /// the specified basic block.
-    virtual bool dominates(BasicBlock *BB, DominatorTree *DT) const = 0;
-
-    /// properlyDominates - Return true if elements that makes up this SCEV
-    /// properly dominate the specified basic block.
-    virtual bool properlyDominates(BasicBlock *BB, DominatorTree *DT) const = 0;
-
     /// print - Print out the internal representation of this scalar to the
     /// specified stream.  This should really only be used for debugging
     /// purposes.
-    virtual void print(raw_ostream &OS) const = 0;
+    void print(raw_ostream &OS) const;
 
     /// dump - This method is used for debugging.
     ///
@@ -155,21 +132,6 @@ namespace llvm {
   struct SCEVCouldNotCompute : public SCEV {
     SCEVCouldNotCompute();
 
-    // None of these methods are valid for this object.
-    virtual bool isLoopInvariant(const Loop *L) const;
-    virtual const Type *getType() const;
-    virtual bool hasComputableLoopEvolution(const Loop *L) const;
-    virtual void print(raw_ostream &OS) const;
-    virtual bool hasOperand(const SCEV *Op) const;
-
-    virtual bool dominates(BasicBlock *BB, DominatorTree *DT) const {
-      return true;
-    }
-
-    virtual bool properlyDominates(BasicBlock *BB, DominatorTree *DT) const {
-      return true;
-    }
-
     /// Methods for support type inquiry through isa, cast, and dyn_cast:
     static inline bool classof(const SCEVCouldNotCompute *S) { return true; }
     static bool classof(const SCEV *S);
@@ -180,6 +142,24 @@ namespace llvm {
   /// they must ask this class for services.
   ///
   class ScalarEvolution : public FunctionPass {
+  public:
+    /// LoopDisposition - An enum describing the relationship between a
+    /// SCEV and a loop.
+    enum LoopDisposition {
+      LoopVariant,    ///< The SCEV is loop-variant (unknown).
+      LoopInvariant,  ///< The SCEV is loop-invariant.
+      LoopComputable  ///< The SCEV varies predictably with the loop.
+    };
+
+    /// BlockDisposition - An enum describing the relationship between a
+    /// SCEV and a basic block.
+    enum BlockDisposition {
+      DoesNotDominateBlock,  ///< The SCEV does not dominate the block.
+      DominatesBlock,        ///< The SCEV dominates the block.
+      ProperlyDominatesBlock ///< The SCEV properly dominates the block.
+    };
+
+  private:
     /// SCEVCallbackVH - A CallbackVH to arrange for ScalarEvolution to be
     /// notified whenever a Value is deleted.
     class SCEVCallbackVH : public CallbackVH {
@@ -266,6 +246,46 @@ namespace llvm {
     /// be expensive in extreme cases.
     std::map<const SCEV *,
              std::map<const Loop *, const SCEV *> > ValuesAtScopes;
+
+    /// LoopDispositions - Memoized computeLoopDisposition results.
+    std::map<const SCEV *,
+             std::map<const Loop *, LoopDisposition> > LoopDispositions;
+
+    /// computeLoopDisposition - Compute a LoopDisposition value.
+    LoopDisposition computeLoopDisposition(const SCEV *S, const Loop *L);
+
+    /// BlockDispositions - Memoized computeBlockDisposition results.
+    std::map<const SCEV *,
+             std::map<const BasicBlock *, BlockDisposition> > BlockDispositions;
+
+    /// computeBlockDisposition - Compute a BlockDisposition value.
+    BlockDisposition computeBlockDisposition(const SCEV *S, const BasicBlock *BB);
+
+    /// UnsignedRanges - Memoized results from getUnsignedRange
+    DenseMap<const SCEV *, ConstantRange> UnsignedRanges;
+
+    /// SignedRanges - Memoized results from getSignedRange
+    DenseMap<const SCEV *, ConstantRange> SignedRanges;
+
+    /// setUnsignedRange - Set the memoized unsigned range for the given SCEV.
+    const ConstantRange &setUnsignedRange(const SCEV *S,
+                                          const ConstantRange &CR) {
+      std::pair<DenseMap<const SCEV *, ConstantRange>::iterator, bool> Pair =
+        UnsignedRanges.insert(std::make_pair(S, CR));
+      if (!Pair.second)
+        Pair.first->second = CR;
+      return Pair.first->second;
+    }
+
+    /// setUnsignedRange - Set the memoized signed range for the given SCEV.
+    const ConstantRange &setSignedRange(const SCEV *S,
+                                        const ConstantRange &CR) {
+      std::pair<DenseMap<const SCEV *, ConstantRange>::iterator, bool> Pair =
+        SignedRanges.insert(std::make_pair(S, CR));
+      if (!Pair.second)
+        Pair.first->second = CR;
+      return Pair.first->second;
+    }
 
     /// createSCEV - We know that there is no SCEV for the specified value.
     /// Analyze the expression.
@@ -408,6 +428,9 @@ namespace llvm {
     bool isKnownPredicateWithRanges(ICmpInst::Predicate Pred,
                                     const SCEV *LHS, const SCEV *RHS);
 
+    /// forgetMemoizedResults - Drop memoized information computed for S.
+    void forgetMemoizedResults(const SCEV *S);
+
   public:
     static char ID; // Pass identification, replacement for typeid
     ScalarEvolution();
@@ -514,10 +537,11 @@ namespace llvm {
     ///
     const SCEV *getNotSCEV(const SCEV *V);
 
-    /// getMinusSCEV - Return LHS-RHS.
-    ///
-    const SCEV *getMinusSCEV(const SCEV *LHS,
-                             const SCEV *RHS);
+    /// getMinusSCEV - Return LHS-RHS.  Minus is represented in SCEV as A+B*-1,
+    /// and thus the HasNUW and HasNSW bits apply to the resultant add, not
+    /// whether the sub would have overflowed.
+    const SCEV *getMinusSCEV(const SCEV *LHS, const SCEV *RHS,
+                             bool HasNUW = false, bool HasNSW = false);
 
     /// getTruncateOrZeroExtend - Return a SCEV corresponding to a conversion
     /// of the input value to the specified type.  If the type must be
@@ -674,6 +698,36 @@ namespace llvm {
     bool SimplifyICmpOperands(ICmpInst::Predicate &Pred,
                               const SCEV *&LHS,
                               const SCEV *&RHS);
+
+    /// getLoopDisposition - Return the "disposition" of the given SCEV with
+    /// respect to the given loop.
+    LoopDisposition getLoopDisposition(const SCEV *S, const Loop *L);
+
+    /// isLoopInvariant - Return true if the value of the given SCEV is
+    /// unchanging in the specified loop.
+    bool isLoopInvariant(const SCEV *S, const Loop *L);
+
+    /// hasComputableLoopEvolution - Return true if the given SCEV changes value
+    /// in a known way in the specified loop.  This property being true implies
+    /// that the value is variant in the loop AND that we can emit an expression
+    /// to compute the value of the expression at any particular loop iteration.
+    bool hasComputableLoopEvolution(const SCEV *S, const Loop *L);
+
+    /// getLoopDisposition - Return the "disposition" of the given SCEV with
+    /// respect to the given block.
+    BlockDisposition getBlockDisposition(const SCEV *S, const BasicBlock *BB);
+
+    /// dominates - Return true if elements that makes up the given SCEV
+    /// dominate the specified basic block.
+    bool dominates(const SCEV *S, const BasicBlock *BB);
+
+    /// properlyDominates - Return true if elements that makes up the given SCEV
+    /// properly dominate the specified basic block.
+    bool properlyDominates(const SCEV *S, const BasicBlock *BB);
+
+    /// hasOperand - Test whether the given SCEV has Op as a direct or
+    /// indirect operand.
+    bool hasOperand(const SCEV *S, const SCEV *Op) const;
 
     virtual bool runOnFunction(Function &F);
     virtual void releaseMemory();

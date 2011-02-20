@@ -26,6 +26,7 @@
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/Specifiers.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/ErrorHandling.h"
 
 namespace clang {
   class LangOptions;
@@ -169,32 +170,32 @@ private:
 
   // storage-class-specifier
   /*SCS*/unsigned StorageClassSpec : 3;
-  bool SCS_thread_specified : 1;
-  bool SCS_extern_in_linkage_spec : 1;
+  unsigned SCS_thread_specified : 1;
+  unsigned SCS_extern_in_linkage_spec : 1;
 
   // type-specifier
   /*TSW*/unsigned TypeSpecWidth : 2;
   /*TSC*/unsigned TypeSpecComplex : 2;
   /*TSS*/unsigned TypeSpecSign : 2;
   /*TST*/unsigned TypeSpecType : 5;
-  bool TypeAltiVecVector : 1;
-  bool TypeAltiVecPixel : 1;
-  bool TypeAltiVecBool : 1;
-  bool TypeSpecOwned : 1;
+  unsigned TypeAltiVecVector : 1;
+  unsigned TypeAltiVecPixel : 1;
+  unsigned TypeAltiVecBool : 1;
+  unsigned TypeSpecOwned : 1;
 
   // type-qualifiers
   unsigned TypeQualifiers : 3;  // Bitwise OR of TQ.
 
   // function-specifier
-  bool FS_inline_specified : 1;
-  bool FS_virtual_specified : 1;
-  bool FS_explicit_specified : 1;
+  unsigned FS_inline_specified : 1;
+  unsigned FS_virtual_specified : 1;
+  unsigned FS_explicit_specified : 1;
 
   // friend-specifier
-  bool Friend_specified : 1;
+  unsigned Friend_specified : 1;
 
   // constexpr-specifier
-  bool Constexpr_specified : 1;
+  unsigned Constexpr_specified : 1;
 
   /*SCS*/unsigned StorageClassSpecAsWritten : 3;
 
@@ -205,7 +206,7 @@ private:
   };
 
   // attributes.
-  AttributeList *AttrList;
+  ParsedAttributes Attrs;
 
   // Scope specifier for the type spec, if applicable.
   CXXScopeSpec TypeScope;
@@ -267,14 +268,12 @@ public:
       Friend_specified(false),
       Constexpr_specified(false),
       StorageClassSpecAsWritten(SCS_unspecified),
-      AttrList(0),
       ProtocolQualifiers(0),
       NumProtocolQualifiers(0),
       ProtocolLocs(0),
       writtenBS() {
   }
   ~DeclSpec() {
-    delete AttrList;
     delete [] ProtocolQualifiers;
     delete [] ProtocolLocs;
   }
@@ -404,7 +403,7 @@ public:
   /// TODO: use a more general approach that still allows these
   /// diagnostics to be ignored when desired.
   bool SetStorageClassSpec(SCS S, SourceLocation Loc, const char *&PrevSpec,
-                           unsigned &DiagID);
+                           unsigned &DiagID, const LangOptions &Lang);
   bool SetStorageClassSpecThread(SourceLocation Loc, const char *&PrevSpec,
                                  unsigned &DiagID);
   bool SetTypeSpecWidth(TSW W, SourceLocation Loc, const char *&PrevSpec,
@@ -473,19 +472,29 @@ public:
   /// short __attribute__((unused)) __attribute__((deprecated))
   /// int __attribute__((may_alias)) __attribute__((aligned(16))) var;
   ///
-  void AddAttributes(AttributeList *alist) {
-    AttrList = addAttributeLists(AttrList, alist);
+  void addAttributes(AttributeList *AL) {
+    Attrs.append(AL);
   }
-  void SetAttributes(AttributeList *AL) { AttrList = AL; }
-  const AttributeList *getAttributes() const { return AttrList; }
-  AttributeList *getAttributes() { return AttrList; }
+  void aetAttributes(AttributeList *AL) {
+    Attrs.set(AL);
+  }
+
+  bool hasAttributes() const { return !Attrs.empty(); }
+
+  ParsedAttributes &getAttributes() { return Attrs; }
+  const ParsedAttributes &getAttributes() const { return Attrs; }
 
   /// TakeAttributes - Return the current attribute list and remove them from
   /// the DeclSpec so that it doesn't own them.
-  AttributeList *TakeAttributes() {
-    AttributeList *AL = AttrList;
-    AttrList = 0;
-    return AL;
+  ParsedAttributes takeAttributes() {
+    ParsedAttributes saved = Attrs;
+    Attrs.clear();
+    return saved;
+  }
+
+  void takeAttributesFrom(ParsedAttributes &attrs) {
+    Attrs.append(attrs.getList());
+    attrs.clear();
   }
 
   typedef Decl * const *ProtocolQualifierListTy;
@@ -539,7 +548,8 @@ public:
     DQ_PR_retain = 0x10,
     DQ_PR_copy = 0x20,
     DQ_PR_nonatomic = 0x40,
-    DQ_PR_setter = 0x80
+    DQ_PR_setter = 0x80,
+    DQ_PR_atomic = 0x100
   };
 
 
@@ -573,7 +583,7 @@ private:
   ObjCDeclQualifier objcDeclQualifier : 6;
 
   // NOTE: VC++ treats enums as signed, avoid using ObjCPropertyAttributeKind
-  unsigned PropertyAttributes : 8;
+  unsigned PropertyAttributes : 9;
   IdentifierInfo *GetterName;    // getter name of NULL if no getter
   IdentifierInfo *SetterName;    // setter name of NULL if no setter
 };
@@ -800,7 +810,7 @@ typedef llvm::SmallVector<Token, 4> CachedTokens;
 /// This is intended to be a small value object.
 struct DeclaratorChunk {
   enum {
-    Pointer, Reference, Array, Function, BlockPointer, MemberPointer
+    Pointer, Reference, Array, Function, BlockPointer, MemberPointer, Paren
   } Kind;
 
   /// Loc - The place where this type was defined.
@@ -808,27 +818,27 @@ struct DeclaratorChunk {
   /// EndLoc - If valid, the place where this chunck ends.
   SourceLocation EndLoc;
 
-  struct PointerTypeInfo {
+  struct TypeInfoCommon {
+    AttributeList *AttrList;
+  };
+
+  struct PointerTypeInfo : TypeInfoCommon {
     /// The type qualifiers: const/volatile/restrict.
     unsigned TypeQuals : 3;
-    AttributeList *AttrList;
     void destroy() {
-      delete AttrList;
     }
   };
 
-  struct ReferenceTypeInfo {
+  struct ReferenceTypeInfo : TypeInfoCommon {
     /// The type qualifier: restrict. [GNU] C++ extension
     bool HasRestrict : 1;
     /// True if this is an lvalue reference, false if it's an rvalue reference.
     bool LValueRef : 1;
-    AttributeList *AttrList;
     void destroy() {
-      delete AttrList;
     }
   };
 
-  struct ArrayTypeInfo {
+  struct ArrayTypeInfo : TypeInfoCommon {
     /// The type qualifiers for the array: const/volatile/restrict.
     unsigned TypeQuals : 3;
 
@@ -842,6 +852,7 @@ struct DeclaratorChunk {
     /// Since the parser is multi-purpose, and we don't want to impose a root
     /// expression class on all clients, NumElts is untyped.
     Expr *NumElts;
+
     void destroy() {}
   };
 
@@ -876,29 +887,33 @@ struct DeclaratorChunk {
     SourceRange Range;
   };
 
-  struct FunctionTypeInfo {
+  struct FunctionTypeInfo : TypeInfoCommon {
     /// hasPrototype - This is true if the function had at least one typed
     /// argument.  If the function is () or (a,b,c), then it has no prototype,
     /// and is treated as a K&R-style function.
-    bool hasPrototype : 1;
+    unsigned hasPrototype : 1;
 
     /// isVariadic - If this function has a prototype, and if that
     /// proto ends with ',...)', this is true. When true, EllipsisLoc
     /// contains the location of the ellipsis.
-    bool isVariadic : 1;
+    unsigned isVariadic : 1;
 
+    /// \brief Whether the ref-qualifier (if any) is an lvalue reference.
+    /// Otherwise, it's an rvalue reference.
+    unsigned RefQualifierIsLValueRef : 1;
+    
     /// The type qualifiers: const/volatile/restrict.
     /// The qualifier bitmask values are the same as in QualType.
     unsigned TypeQuals : 3;
 
     /// hasExceptionSpec - True if the function has an exception specification.
-    bool hasExceptionSpec : 1;
+    unsigned hasExceptionSpec : 1;
 
     /// hasAnyExceptionSpec - True if the function has a throw(...) specifier.
-    bool hasAnyExceptionSpec : 1;
+    unsigned hasAnyExceptionSpec : 1;
 
     /// DeleteArgInfo - If this is true, we need to delete[] ArgInfo.
-    bool DeleteArgInfo : 1;
+    unsigned DeleteArgInfo : 1;
 
     /// When isVariadic is true, the location of the ellipsis in the source.
     unsigned EllipsisLoc;
@@ -911,6 +926,11 @@ struct DeclaratorChunk {
     /// the function has one.
     unsigned NumExceptions;
 
+    /// \brief The location of the ref-qualifier, if any.
+    ///
+    /// If this is an invalid location, there is no ref-qualifier.
+    unsigned RefQualifierLoc;
+    
     /// ThrowLoc - When hasExceptionSpec is true, the location of the throw
     /// keyword introducing the spec.
     unsigned ThrowLoc;
@@ -924,6 +944,11 @@ struct DeclaratorChunk {
     /// objects that contain the types in the function's exception
     /// specification and their locations.
     TypeAndRange *Exceptions;
+
+    /// TrailingReturnType - If this isn't null, it's the trailing return type
+    /// specified. This is actually a ParsedType, but stored as void* to
+    /// allow union storage.
+    void *TrailingReturnType;
 
     /// freeArgs - reset the argument list to having zero arguments.  This is
     /// used in various places for error recovery.
@@ -954,22 +979,29 @@ struct DeclaratorChunk {
     SourceLocation getThrowLoc() const {
       return SourceLocation::getFromRawEncoding(ThrowLoc);
     }
+    
+    /// \brief Retrieve the location of the ref-qualifier, if any.
+    SourceLocation getRefQualifierLoc() const {
+      return SourceLocation::getFromRawEncoding(RefQualifierLoc);
+    }
+    
+    /// \brief Determine whether this function declaration contains a 
+    /// ref-qualifier.
+    bool hasRefQualifier() const { return getRefQualifierLoc().isValid(); }
   };
 
-  struct BlockPointerTypeInfo {
+  struct BlockPointerTypeInfo : TypeInfoCommon {
     /// For now, sema will catch these as invalid.
     /// The type qualifiers: const/volatile/restrict.
     unsigned TypeQuals : 3;
-    AttributeList *AttrList;
+
     void destroy() {
-      delete AttrList;
     }
   };
 
-  struct MemberPointerTypeInfo {
+  struct MemberPointerTypeInfo : TypeInfoCommon {
     /// The type qualifiers: const/volatile/restrict.
     unsigned TypeQuals : 3;
-    AttributeList *AttrList;
     // CXXScopeSpec has a constructor, so it can't be a direct member.
     // So we need some pointer-aligned storage and a bit of trickery.
     union {
@@ -983,12 +1015,12 @@ struct DeclaratorChunk {
       return *reinterpret_cast<const CXXScopeSpec*>(ScopeMem.Mem);
     }
     void destroy() {
-      delete AttrList;
       Scope().~CXXScopeSpec();
     }
   };
 
   union {
+    TypeInfoCommon        Common;
     PointerTypeInfo       Ptr;
     ReferenceTypeInfo     Ref;
     ArrayTypeInfo         Arr;
@@ -1006,58 +1038,57 @@ struct DeclaratorChunk {
     case DeclaratorChunk::Reference:     return Ref.destroy();
     case DeclaratorChunk::Array:         return Arr.destroy();
     case DeclaratorChunk::MemberPointer: return Mem.destroy();
+    case DeclaratorChunk::Paren:         return;
     }
   }
 
   /// getAttrs - If there are attributes applied to this declaratorchunk, return
   /// them.
   const AttributeList *getAttrs() const {
-    switch (Kind) {
-    default: assert(0 && "Unknown declarator kind!");
-    case Pointer:       return Ptr.AttrList;
-    case Reference:     return Ref.AttrList;
-    case MemberPointer: return Mem.AttrList;
-    case Array:         return 0;
-    case Function:      return 0;
-    case BlockPointer:  return Cls.AttrList;
-    }
+    return Common.AttrList;
   }
 
+  AttributeList *&getAttrListRef() {
+    return Common.AttrList;
+  }
 
   /// getPointer - Return a DeclaratorChunk for a pointer.
   ///
   static DeclaratorChunk getPointer(unsigned TypeQuals, SourceLocation Loc,
-                                    AttributeList *AL) {
+                                    const ParsedAttributes &attrs) {
     DeclaratorChunk I;
     I.Kind          = Pointer;
     I.Loc           = Loc;
     I.Ptr.TypeQuals = TypeQuals;
-    I.Ptr.AttrList  = AL;
+    I.Ptr.AttrList  = attrs.getList();
     return I;
   }
 
   /// getReference - Return a DeclaratorChunk for a reference.
   ///
   static DeclaratorChunk getReference(unsigned TypeQuals, SourceLocation Loc,
-                                      AttributeList *AL, bool lvalue) {
+                                      const ParsedAttributes &attrs,
+                                      bool lvalue) {
     DeclaratorChunk I;
     I.Kind            = Reference;
     I.Loc             = Loc;
     I.Ref.HasRestrict = (TypeQuals & DeclSpec::TQ_restrict) != 0;
     I.Ref.LValueRef   = lvalue;
-    I.Ref.AttrList  = AL;
+    I.Ref.AttrList    = attrs.getList();
     return I;
   }
 
   /// getArray - Return a DeclaratorChunk for an array.
   ///
-  static DeclaratorChunk getArray(unsigned TypeQuals, bool isStatic,
-                                  bool isStar, Expr *NumElts,
+  static DeclaratorChunk getArray(unsigned TypeQuals,
+                                  const ParsedAttributes &attrs,
+                                  bool isStatic, bool isStar, Expr *NumElts,
                                   SourceLocation LBLoc, SourceLocation RBLoc) {
     DeclaratorChunk I;
     I.Kind          = Array;
     I.Loc           = LBLoc;
     I.EndLoc        = RBLoc;
+    I.Arr.AttrList  = attrs.getList();
     I.Arr.TypeQuals = TypeQuals;
     I.Arr.hasStatic = isStatic;
     I.Arr.isStar    = isStar;
@@ -1067,42 +1098,60 @@ struct DeclaratorChunk {
 
   /// DeclaratorChunk::getFunction - Return a DeclaratorChunk for a function.
   /// "TheDeclarator" is the declarator that this will be added to.
-  static DeclaratorChunk getFunction(bool hasProto, bool isVariadic,
+  static DeclaratorChunk getFunction(const ParsedAttributes &attrs,
+                                     bool hasProto, bool isVariadic,
                                      SourceLocation EllipsisLoc,
                                      ParamInfo *ArgInfo, unsigned NumArgs,
-                                     unsigned TypeQuals, bool hasExceptionSpec,
+                                     unsigned TypeQuals, 
+                                     bool RefQualifierIsLvalueRef,
+                                     SourceLocation RefQualifierLoc,
+                                     bool hasExceptionSpec,
                                      SourceLocation ThrowLoc,
                                      bool hasAnyExceptionSpec,
                                      ParsedType *Exceptions,
                                      SourceRange *ExceptionRanges,
                                      unsigned NumExceptions,
                                      SourceLocation LPLoc, SourceLocation RPLoc,
-                                     Declarator &TheDeclarator);
+                                     Declarator &TheDeclarator,
+                                     ParsedType TrailingReturnType = ParsedType());
 
   /// getBlockPointer - Return a DeclaratorChunk for a block.
   ///
   static DeclaratorChunk getBlockPointer(unsigned TypeQuals, SourceLocation Loc,
-                                         AttributeList *AL) {
+                                         const ParsedAttributes &attrs) {
     DeclaratorChunk I;
     I.Kind          = BlockPointer;
     I.Loc           = Loc;
     I.Cls.TypeQuals = TypeQuals;
-    I.Cls.AttrList  = AL;
+    I.Cls.AttrList  = attrs.getList();
     return I;
   }
 
   static DeclaratorChunk getMemberPointer(const CXXScopeSpec &SS,
                                           unsigned TypeQuals,
                                           SourceLocation Loc,
-                                          AttributeList *AL) {
+                                          const ParsedAttributes &attrs) {
     DeclaratorChunk I;
     I.Kind          = MemberPointer;
     I.Loc           = Loc;
     I.Mem.TypeQuals = TypeQuals;
-    I.Mem.AttrList  = AL;
+    I.Mem.AttrList  = attrs.getList();
     new (I.Mem.ScopeMem.Mem) CXXScopeSpec(SS);
     return I;
   }
+
+  /// getParen - Return a DeclaratorChunk for a paren.
+  ///
+  static DeclaratorChunk getParen(SourceLocation LParenLoc,
+                                  SourceLocation RParenLoc) {
+    DeclaratorChunk I;
+    I.Kind          = Paren;
+    I.Loc           = LParenLoc;
+    I.EndLoc        = RParenLoc;
+    I.Common.AttrList = 0;
+    return I;
+  }
+
 };
 
 /// Declarator - Information about one declarator, including the parsed type
@@ -1128,7 +1177,8 @@ public:
     ConditionContext,    // Condition declaration in a C++ if/switch/while/for.
     TemplateParamContext,// Within a template parameter list.
     CXXCatchContext,     // C++ catch exception-declaration
-    BlockLiteralContext  // Block literal declarator.
+    BlockLiteralContext,  // Block literal declarator.
+    TemplateTypeArgContext // Template type argument.
   };
 
 private:
@@ -1168,6 +1218,10 @@ private:
   /// Extension - true if the declaration is preceded by __extension__.
   bool Extension : 1;
 
+  /// \brief If provided, the source location of the ellipsis used to describe
+  /// this declarator as a parameter pack.
+  SourceLocation EllipsisLoc;
+  
   friend struct DeclaratorChunk;
 
 public:
@@ -1238,7 +1292,6 @@ public:
     for (unsigned i = 0, e = DeclTypeInfo.size(); i != e; ++i)
       DeclTypeInfo[i].destroy();
     DeclTypeInfo.clear();
-    delete AttrList;
     AttrList = 0;
     AsmLabel = 0;
     InlineParamsUsed = false;
@@ -1250,14 +1303,15 @@ public:
   bool mayOmitIdentifier() const {
     return Context == TypeNameContext || Context == PrototypeContext ||
            Context == TemplateParamContext || Context == CXXCatchContext ||
-           Context == BlockLiteralContext;
+           Context == BlockLiteralContext || Context == TemplateTypeArgContext;
   }
 
   /// mayHaveIdentifier - Return true if the identifier is either optional or
   /// required.  This is true for normal declarators and prototypes, but not
   /// typenames.
   bool mayHaveIdentifier() const {
-    return Context != TypeNameContext && Context != BlockLiteralContext;
+    return Context != TypeNameContext && Context != BlockLiteralContext &&
+           Context != TemplateTypeArgContext;
   }
 
   /// mayBeFollowedByCXXDirectInit - Return true if the declarator can be
@@ -1301,6 +1355,11 @@ public:
       SetRangeEnd(EndLoc);
   }
 
+  /// AddInnermostTypeInfo - Add a new innermost chunk to this declarator.
+  void AddInnermostTypeInfo(const DeclaratorChunk &TI) {
+    DeclTypeInfo.insert(DeclTypeInfo.begin(), TI);
+  }
+
   /// getNumTypeObjects() - Return the number of types applied to this
   /// declarator.
   unsigned getNumTypeObjects() const { return DeclTypeInfo.size(); }
@@ -1323,11 +1382,52 @@ public:
     DeclTypeInfo.erase(DeclTypeInfo.begin());
   }
 
+  /// isFunctionDeclarator - This method returns true if the declarator
+  /// is a function declarator (looking through parentheses).
+  /// If true is returned, then the reference type parameter idx is
+  /// assigned with the index of the declaration chunk.
+  bool isFunctionDeclarator(unsigned& idx) const {
+    for (unsigned i = 0, i_end = DeclTypeInfo.size(); i < i_end; ++i) {
+      switch (DeclTypeInfo[i].Kind) {
+      case DeclaratorChunk::Function:
+        idx = i;
+        return true;
+      case DeclaratorChunk::Paren:
+        continue;
+      case DeclaratorChunk::Pointer:
+      case DeclaratorChunk::Reference:
+      case DeclaratorChunk::Array:
+      case DeclaratorChunk::BlockPointer:
+      case DeclaratorChunk::MemberPointer:
+        return false;
+      }
+      llvm_unreachable("Invalid type chunk");
+      return false;
+    }
+    return false;
+  }
+
   /// isFunctionDeclarator - Once this declarator is fully parsed and formed,
-  /// this method returns true if the identifier is a function declarator.
+  /// this method returns true if the identifier is a function declarator
+  /// (looking through parentheses).
   bool isFunctionDeclarator() const {
-    return !DeclTypeInfo.empty() &&
-           DeclTypeInfo[0].Kind == DeclaratorChunk::Function;
+    unsigned index;
+    return isFunctionDeclarator(index);
+  }
+
+  /// getFunctionTypeInfo - Retrieves the function type info object
+  /// (looking through parentheses).
+  DeclaratorChunk::FunctionTypeInfo &getFunctionTypeInfo() {
+    assert(isFunctionDeclarator() && "Not a function declarator!");
+    unsigned index = 0;
+    isFunctionDeclarator(index);
+    return DeclTypeInfo[index].Fun;
+  }
+
+  /// getFunctionTypeInfo - Retrieves the function type info object
+  /// (looking through parentheses).
+  const DeclaratorChunk::FunctionTypeInfo &getFunctionTypeInfo() const {
+    return const_cast<Declarator*>(this)->getFunctionTypeInfo();
   }
 
   /// AddAttributes - simply adds the attribute list to the Declarator.
@@ -1337,19 +1437,25 @@ public:
   ///                                 __attribute__((common,deprecated));
   ///
   /// Also extends the range of the declarator.
-  void AddAttributes(AttributeList *alist, SourceLocation LastLoc) {
+  void addAttributes(AttributeList *alist, SourceLocation LastLoc) {
     AttrList = addAttributeLists(AttrList, alist);
 
     if (!LastLoc.isInvalid())
       SetRangeEnd(LastLoc);
   }
 
+  void addAttributes(const ParsedAttributes &attrs) {
+    addAttributes(attrs.getList(), SourceLocation());
+  }
+
   const AttributeList *getAttributes() const { return AttrList; }
   AttributeList *getAttributes() { return AttrList; }
 
+  AttributeList *&getAttrListRef() { return AttrList; }
+
   /// hasAttributes - do we contain any attributes?
   bool hasAttributes() const {
-    if (getAttributes() || getDeclSpec().getAttributes()) return true;
+    if (getAttributes() || getDeclSpec().hasAttributes()) return true;
     for (unsigned i = 0, e = getNumTypeObjects(); i != e; ++i)
       if (getTypeObject(i).getAttrs())
         return true;
@@ -1369,6 +1475,10 @@ public:
 
   void setGroupingParens(bool flag) { GroupingParens = flag; }
   bool hasGroupingParens() const { return GroupingParens; }
+  
+  bool hasEllipsis() const { return EllipsisLoc.isValid(); }
+  SourceLocation getEllipsisLoc() const { return EllipsisLoc; }
+  void setEllipsisLoc(SourceLocation EL) { EllipsisLoc = EL; }
 };
 
 /// FieldDeclarator - This little struct is used to capture information about
@@ -1380,7 +1490,69 @@ struct FieldDeclarator {
     BitfieldSize = 0;
   }
 };
-  
+
+/// VirtSpecifiers - Represents a C++0x virt-specifier-seq.
+class VirtSpecifiers {
+public:
+  enum Specifier {
+    VS_None = 0,
+    VS_Override = 1,
+    VS_Final = 2,
+    VS_New = 4
+  };
+
+  VirtSpecifiers() : Specifiers(0) { }
+
+  bool SetSpecifier(Specifier VS, SourceLocation Loc,
+                    const char *&PrevSpec);
+
+  bool isOverrideSpecified() const { return Specifiers & VS_Override; }
+  SourceLocation getOverrideLoc() const { return VS_overrideLoc; }
+
+  bool isFinalSpecified() const { return Specifiers & VS_Final; }
+  SourceLocation getFinalLoc() const { return VS_finalLoc; }
+
+  bool isNewSpecified() const { return Specifiers & VS_New; }
+  SourceLocation getNewLoc() const { return VS_newLoc; }
+
+  void clear() { Specifiers = 0; }
+
+  static const char *getSpecifierName(Specifier VS);
+
+private:
+  unsigned Specifiers;
+
+  SourceLocation VS_overrideLoc, VS_finalLoc, VS_newLoc;
+};
+
+/// ClassVirtSpecifiers - Represents a C++0x class-virt-specifier-seq.
+class ClassVirtSpecifiers {
+public:
+  enum Specifier {
+    CVS_None = 0,
+    CVS_Final = 1,
+    CVS_Explicit = 2
+  };
+
+  ClassVirtSpecifiers() : Specifiers(0) { }
+
+  bool SetSpecifier(Specifier CVS, SourceLocation Loc,
+                    const char *&PrevSpec);
+
+  bool isFinalSpecified() const { return Specifiers & CVS_Final; }
+  SourceLocation getFinalLoc() const { return CVS_finalLoc; }
+
+  bool isExplicitSpecified() const { return Specifiers & CVS_Explicit; }
+  SourceLocation getExplicitLoc() const { return CVS_explicitLoc; }
+
+  static const char *getSpecifierName(Specifier CVS);
+
+private:
+  unsigned Specifiers;
+
+  SourceLocation CVS_finalLoc, CVS_explicitLoc;
+};
+
 } // end namespace clang
 
 #endif

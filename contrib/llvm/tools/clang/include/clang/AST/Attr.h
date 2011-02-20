@@ -36,19 +36,19 @@ namespace clang {
 }
 
 // Defined in ASTContext.h
-void *operator new(size_t Bytes, clang::ASTContext &C,
+void *operator new(size_t Bytes, const clang::ASTContext &C,
                    size_t Alignment = 16) throw ();
 // FIXME: Being forced to not have a default argument here due to redeclaration
 //        rules on default arguments sucks
-void *operator new[](size_t Bytes, clang::ASTContext &C,
+void *operator new[](size_t Bytes, const clang::ASTContext &C,
                      size_t Alignment) throw ();
 
 // It is good practice to pair new/delete operators.  Also, MSVC gives many
 // warnings if a matching delete overload is not declared, even though the
 // throw() spec guarantees it will not be implicitly called.
-void operator delete(void *Ptr, clang::ASTContext &C, size_t)
+void operator delete(void *Ptr, const clang::ASTContext &C, size_t)
               throw ();
-void operator delete[](void *Ptr, clang::ASTContext &C, size_t)
+void operator delete[](void *Ptr, const clang::ASTContext &C, size_t)
               throw ();
 
 namespace clang {
@@ -58,9 +58,10 @@ class Attr {
 private:
   SourceLocation Loc;
   unsigned AttrKind : 16;
-  bool Inherited : 1;
 
 protected:
+  bool Inherited : 1;
+
   virtual ~Attr();
   
   void* operator new(size_t bytes) throw() {
@@ -88,10 +89,6 @@ protected:
 
 public:
 
-  /// \brief Whether this attribute should be merged to new
-  /// declarations.
-  virtual bool isMerged() const { return true; }
-
   attr::Kind getKind() const {
     return static_cast<attr::Kind>(AttrKind);
   }
@@ -100,13 +97,27 @@ public:
   void setLocation(SourceLocation L) { Loc = L; }
 
   bool isInherited() const { return Inherited; }
-  void setInherited(bool I) { Inherited = I; }
 
   // Clone this attribute.
   virtual Attr* clone(ASTContext &C) const = 0;
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Attr *) { return true; }
+};
+
+class InheritableAttr : public Attr {
+protected:
+  InheritableAttr(attr::Kind AK, SourceLocation L)
+    : Attr(AK, L) {}
+
+public:
+  void setInherited(bool I) { Inherited = I; }
+
+  // Implement isa/cast/dyncast/etc.
+  static bool classof(const Attr *A) {
+    return A->getKind() <= attr::LAST_INHERITABLE;
+  }
+  static bool classof(const InheritableAttr *) { return true; }
 };
 
 #include "clang/AST/Attrs.inc"

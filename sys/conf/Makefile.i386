@@ -34,6 +34,12 @@ MACHINE=i386
 
 MKMODULESENV+=	MACHINE=${MACHINE}
 
+.if ${CC:T:Mclang} == "clang"
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+ASM_CFLAGS+=	${.IMPSRC:T:Macpi_wakecode.S:C/^.+$/-no-integrated-as/}
+ASM_CFLAGS+=	${.IMPSRC:T:Mmpboot.s:C/^.+$/-no-integrated-as/}
+.endif
+
 %BEFORE_DEPEND
 
 %OBJS

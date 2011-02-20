@@ -20,7 +20,6 @@
 #include "clang/AST/PrettyPrinter.h"
 #include "clang/AST/StmtIterator.h"
 #include "clang/AST/DeclGroup.h"
-#include "clang/AST/FullExpr.h"
 #include "llvm/ADT/SmallVector.h"
 #include "clang/AST/ASTContext.h"
 #include <string>
@@ -104,13 +103,7 @@ public:
         first##BASE##Constant=FIRST##Class, last##BASE##Constant=LAST##Class
 #define ABSTRACT_STMT(STMT)
 #include "clang/AST/StmtNodes.inc"
-};
-private:
-  /// \brief The statement class.
-  const unsigned sClass : 8;
-
-  /// \brief The reference count for this statement.
-  unsigned RefCount : 24;
+  };
 
   // Make vanilla 'new' and 'delete' illegal for Stmts.
 protected:
@@ -121,6 +114,77 @@ protected:
   void operator delete(void* data) throw() {
     assert(0 && "Stmts cannot be released with regular 'delete'.");
   }
+
+  class StmtBitfields {
+    friend class Stmt;
+
+    /// \brief The statement class.
+    unsigned sClass : 8;
+  };
+  enum { NumStmtBits = 8 };
+
+  class CompoundStmtBitfields {
+    friend class CompoundStmt;
+    unsigned : NumStmtBits;
+
+    unsigned NumStmts : 32 - NumStmtBits;
+  };
+
+  class ExprBitfields {
+    friend class Expr;
+    friend class DeclRefExpr; // computeDependence
+    friend class InitListExpr; // ctor
+    friend class DesignatedInitExpr; // ctor
+    friend class BlockDeclRefExpr; // ctor
+    friend class ASTStmtReader; // deserialization
+    friend class CXXNewExpr; // ctor
+    friend class DependentScopeDeclRefExpr; // ctor
+    friend class CXXConstructExpr; // ctor
+    friend class CallExpr; // ctor
+    friend class OffsetOfExpr; // ctor
+    friend class ObjCMessageExpr; // ctor
+    friend class ShuffleVectorExpr; // ctor
+    friend class ParenListExpr; // ctor
+    friend class CXXUnresolvedConstructExpr; // ctor
+    friend class CXXDependentScopeMemberExpr; // ctor
+    friend class OverloadExpr; // ctor
+    unsigned : NumStmtBits;
+
+    unsigned ValueKind : 2;
+    unsigned ObjectKind : 2;
+    unsigned TypeDependent : 1;
+    unsigned ValueDependent : 1;
+    unsigned ContainsUnexpandedParameterPack : 1;
+  };
+  enum { NumExprBits = 15 };
+
+  class CastExprBitfields {
+    friend class CastExpr;
+    unsigned : NumExprBits;
+
+    unsigned Kind : 6;
+    unsigned BasePathSize : 32 - 6 - NumExprBits;
+  };
+
+  class CallExprBitfields {
+    friend class CallExpr;
+    unsigned : NumExprBits;
+
+    unsigned NumPreArgs : 1;
+  };
+
+  union {
+    // FIXME: this is wasteful on 64-bit platforms.
+    void *Aligner;
+
+    StmtBitfields StmtBits;
+    CompoundStmtBitfields CompoundStmtBits;
+    ExprBitfields ExprBits;
+    CastExprBitfields CastExprBits;
+    CallExprBitfields CallExprBits;
+  };
+
+  friend class ASTStmtReader;
 
 public:
   // Only allow allocation of Stmts using the allocator in ASTContext
@@ -152,44 +216,27 @@ public:
 
 protected:
   /// \brief Construct an empty statement.
-  explicit Stmt(StmtClass SC, EmptyShell) : sClass(SC), RefCount(1) {
+  explicit Stmt(StmtClass SC, EmptyShell) {
+    StmtBits.sClass = SC;
     if (Stmt::CollectingStats()) Stmt::addStmtClass(SC);
   }
 
 public:
-  Stmt(StmtClass SC) : sClass(SC), RefCount(1) {
+  Stmt(StmtClass SC) {
+    StmtBits.sClass = SC;
     if (Stmt::CollectingStats()) Stmt::addStmtClass(SC);
-  }
-  virtual ~Stmt() {}
-
-#ifndef NDEBUG
-  /// \brief True if this statement's refcount is in a valid state.
-  /// Should be used only in assertions.
-  bool isRetained() const {
-    return (RefCount >= 1);
-  }
-#endif
-
-  /// \brief Increases the reference count for this statement.
-  ///
-  /// Invoke the Retain() operation when this statement or expression
-  /// is being shared by another owner.
-  Stmt *Retain() {
-    assert(RefCount >= 1);
-    ++RefCount;
-    return this;
   }
 
   StmtClass getStmtClass() const { 
-    assert(RefCount >= 1 && "Referencing already-destroyed statement!");
-    return (StmtClass)sClass; 
+    return static_cast<StmtClass>(StmtBits.sClass);
   }
   const char *getStmtClassName() const;
 
   /// SourceLocation tokens are not useful in isolation - they are low level
   /// value objects created/interpreted by SourceManager. We assume AST
   /// clients will have a pointer to the respective SourceManager.
-  virtual SourceRange getSourceRange() const = 0;
+  SourceRange getSourceRange() const;
+
   SourceLocation getLocStart() const { return getSourceRange().getBegin(); }
   SourceLocation getLocEnd() const { return getSourceRange().getEnd(); }
 
@@ -236,22 +283,25 @@ public:
   ///  within CFGs.
   bool hasImplicitControlFlow() const;
 
-  /// Child Iterators: All subclasses must implement child_begin and child_end
-  ///  to permit easy iteration over the substatements/subexpessions of an
-  ///  AST node.  This permits easy iteration over all nodes in the AST.
+  /// Child Iterators: All subclasses must implement 'children'
+  /// to permit easy iteration over the substatements/subexpessions of an
+  /// AST node.  This permits easy iteration over all nodes in the AST.
   typedef StmtIterator       child_iterator;
   typedef ConstStmtIterator  const_child_iterator;
 
-  virtual child_iterator child_begin() = 0;
-  virtual child_iterator child_end()   = 0;
+  typedef StmtRange          child_range;
+  typedef ConstStmtRange     const_child_range;
 
-  const_child_iterator child_begin() const {
-    return const_child_iterator(const_cast<Stmt*>(this)->child_begin());
+  child_range children();
+  const_child_range children() const {
+    return const_cast<Stmt*>(this)->children();
   }
 
-  const_child_iterator child_end() const {
-    return const_child_iterator(const_cast<Stmt*>(this)->child_end());
-  }
+  child_iterator child_begin() { return children().first; }
+  child_iterator child_end() { return children().second; }
+
+  const_child_iterator child_begin() const { return children().first; }
+  const_child_iterator child_end() const { return children().second; }
 
   /// \brief Produce a unique representation of the given statement.
   ///
@@ -265,7 +315,7 @@ public:
   /// parameters are identified by index/level rather than their
   /// declaration pointers) or the exact representation of the statement as
   /// written in the source.
-  void Profile(llvm::FoldingSetNodeID &ID, ASTContext &Context,
+  void Profile(llvm::FoldingSetNodeID &ID, const ASTContext &Context,
                bool Canonical);
 };
 
@@ -314,8 +364,10 @@ public:
   static bool classof(const DeclStmt *) { return true; }
 
   // Iterators over subexpressions.
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
+  child_range children() {
+    return child_range(child_iterator(DG.begin(), DG.end()),
+                       child_iterator(DG.end(), DG.end()));
+  }
 
   typedef DeclGroupRef::iterator decl_iterator;
   typedef DeclGroupRef::const_iterator const_decl_iterator;
@@ -330,8 +382,16 @@ public:
 ///
 class NullStmt : public Stmt {
   SourceLocation SemiLoc;
+
+  /// \brief Whether the null statement was preceded by an empty macro, e.g:
+  /// @code
+  ///   #define CALL(x)
+  ///   CALL(0);
+  /// @endcode
+  bool LeadingEmptyMacro;
 public:
-  NullStmt(SourceLocation L) : Stmt(NullStmtClass), SemiLoc(L) {}
+  NullStmt(SourceLocation L, bool LeadingEmptyMacro = false)
+    : Stmt(NullStmtClass), SemiLoc(L), LeadingEmptyMacro(LeadingEmptyMacro) {}
 
   /// \brief Build an empty null statement.
   explicit NullStmt(EmptyShell Empty) : Stmt(NullStmtClass, Empty) { }
@@ -339,55 +399,66 @@ public:
   SourceLocation getSemiLoc() const { return SemiLoc; }
   void setSemiLoc(SourceLocation L) { SemiLoc = L; }
 
-  virtual SourceRange getSourceRange() const { return SourceRange(SemiLoc); }
+  bool hasLeadingEmptyMacro() const { return LeadingEmptyMacro; }
+
+  SourceRange getSourceRange() const { return SourceRange(SemiLoc); }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == NullStmtClass;
   }
   static bool classof(const NullStmt *) { return true; }
 
-  // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
+  child_range children() { return child_range(); }
+
+  friend class ASTStmtReader;
+  friend class ASTStmtWriter;
 };
 
 /// CompoundStmt - This represents a group of statements like { stmt stmt }.
 ///
 class CompoundStmt : public Stmt {
   Stmt** Body;
-  unsigned NumStmts;
   SourceLocation LBracLoc, RBracLoc;
 public:
-  CompoundStmt(ASTContext& C, Stmt **StmtStart, unsigned numStmts,
-                             SourceLocation LB, SourceLocation RB)
-  : Stmt(CompoundStmtClass), NumStmts(numStmts), LBracLoc(LB), RBracLoc(RB) {
+  CompoundStmt(ASTContext& C, Stmt **StmtStart, unsigned NumStmts,
+               SourceLocation LB, SourceLocation RB)
+  : Stmt(CompoundStmtClass), LBracLoc(LB), RBracLoc(RB) {
+    CompoundStmtBits.NumStmts = NumStmts;
+
     if (NumStmts == 0) {
       Body = 0;
       return;
     }
 
     Body = new (C) Stmt*[NumStmts];
-    memcpy(Body, StmtStart, numStmts * sizeof(*Body));
+    memcpy(Body, StmtStart, NumStmts * sizeof(*Body));
   }
 
   // \brief Build an empty compound statement.
   explicit CompoundStmt(EmptyShell Empty)
-    : Stmt(CompoundStmtClass, Empty), Body(0), NumStmts(0) { }
+    : Stmt(CompoundStmtClass, Empty), Body(0) {
+    CompoundStmtBits.NumStmts = 0;
+  }
 
   void setStmts(ASTContext &C, Stmt **Stmts, unsigned NumStmts);
 
-  bool body_empty() const { return NumStmts == 0; }
-  unsigned size() const { return NumStmts; }
+  bool body_empty() const { return CompoundStmtBits.NumStmts == 0; }
+  unsigned size() const { return CompoundStmtBits.NumStmts; }
 
   typedef Stmt** body_iterator;
   body_iterator body_begin() { return Body; }
-  body_iterator body_end() { return Body + NumStmts; }
-  Stmt *body_back() { return NumStmts ? Body[NumStmts-1] : 0; }
+  body_iterator body_end() { return Body + size(); }
+  Stmt *body_back() { return !body_empty() ? Body[size()-1] : 0; }
+  
+  void setLastStmt(Stmt *S) {
+    assert(!body_empty() && "setLastStmt");
+    Body[size()-1] = S;
+  }
 
   typedef Stmt* const * const_body_iterator;
   const_body_iterator body_begin() const { return Body; }
-  const_body_iterator body_end() const { return Body + NumStmts; }
-  const Stmt *body_back() const { return NumStmts ? Body[NumStmts-1] : 0; }
+  const_body_iterator body_end() const { return Body + size(); }
+  const Stmt *body_back() const { return !body_empty() ? Body[size()-1] : 0; }
 
   typedef std::reverse_iterator<body_iterator> reverse_body_iterator;
   reverse_body_iterator body_rbegin() {
@@ -408,7 +479,7 @@ public:
     return const_reverse_body_iterator(body_begin());
   }
 
-  virtual SourceRange getSourceRange() const {
+  SourceRange getSourceRange() const {
     return SourceRange(LBracLoc, RBracLoc);
   }
 
@@ -423,8 +494,9 @@ public:
   static bool classof(const CompoundStmt *) { return true; }
 
   // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
+  child_range children() {
+    return child_range(&Body[0], &Body[0]+CompoundStmtBits.NumStmts);
+  }
 };
 
 // SwitchCase is the base class for CaseStmt and DefaultStmt,
@@ -443,17 +515,15 @@ public:
 
   void setNextSwitchCase(SwitchCase *SC) { NextSwitchCase = SC; }
 
-  Stmt *getSubStmt() { return v_getSubStmt(); }
+  Stmt *getSubStmt();
 
-  virtual SourceRange getSourceRange() const { return SourceRange(); }
+  SourceRange getSourceRange() const { return SourceRange(); }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CaseStmtClass ||
-    T->getStmtClass() == DefaultStmtClass;
+           T->getStmtClass() == DefaultStmtClass;
   }
   static bool classof(const SwitchCase *) { return true; }
-protected:
-  virtual Stmt* v_getSubStmt() = 0;
 };
 
 class CaseStmt : public SwitchCase {
@@ -463,8 +533,6 @@ class CaseStmt : public SwitchCase {
   SourceLocation CaseLoc;
   SourceLocation EllipsisLoc;
   SourceLocation ColonLoc;
-
-  virtual Stmt* v_getSubStmt() { return getSubStmt(); }
 public:
   CaseStmt(Expr *lhs, Expr *rhs, SourceLocation caseLoc,
            SourceLocation ellipsisLoc, SourceLocation colonLoc)
@@ -504,7 +572,7 @@ public:
   void setRHS(Expr *Val) { SubExprs[RHS] = reinterpret_cast<Stmt*>(Val); }
 
 
-  virtual SourceRange getSourceRange() const {
+  SourceRange getSourceRange() const {
     // Handle deeply nested case statements with iteration instead of recursion.
     const CaseStmt *CS = this;
     while (const CaseStmt *CS2 = dyn_cast<CaseStmt>(CS->getSubStmt()))
@@ -518,15 +586,15 @@ public:
   static bool classof(const CaseStmt *) { return true; }
 
   // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
+  child_range children() {
+    return child_range(&SubExprs[0], &SubExprs[END_EXPR]);
+  }
 };
 
 class DefaultStmt : public SwitchCase {
   Stmt* SubStmt;
   SourceLocation DefaultLoc;
   SourceLocation ColonLoc;
-  virtual Stmt* v_getSubStmt() { return getSubStmt(); }
 public:
   DefaultStmt(SourceLocation DL, SourceLocation CL, Stmt *substmt) :
     SwitchCase(DefaultStmtClass), SubStmt(substmt), DefaultLoc(DL),
@@ -544,7 +612,7 @@ public:
   SourceLocation getColonLoc() const { return ColonLoc; }
   void setColonLoc(SourceLocation L) { ColonLoc = L; }
 
-  virtual SourceRange getSourceRange() const {
+  SourceRange getSourceRange() const {
     return SourceRange(DefaultLoc, SubStmt->getLocEnd());
   }
   static bool classof(const Stmt *T) {
@@ -553,42 +621,43 @@ public:
   static bool classof(const DefaultStmt *) { return true; }
 
   // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
+  child_range children() { return child_range(&SubStmt, &SubStmt+1); }
 };
 
+  
+/// LabelStmt - Represents a label, which has a substatement.  For example:
+///    foo: return;
+///
 class LabelStmt : public Stmt {
-  IdentifierInfo *Label;
+  LabelDecl *TheDecl;
   Stmt *SubStmt;
   SourceLocation IdentLoc;
 public:
-  LabelStmt(SourceLocation IL, IdentifierInfo *label, Stmt *substmt)
-    : Stmt(LabelStmtClass), Label(label),
-      SubStmt(substmt), IdentLoc(IL) {}
+  LabelStmt(SourceLocation IL, LabelDecl *D, Stmt *substmt)
+    : Stmt(LabelStmtClass), TheDecl(D), SubStmt(substmt), IdentLoc(IL) {
+  }
 
   // \brief Build an empty label statement.
   explicit LabelStmt(EmptyShell Empty) : Stmt(LabelStmtClass, Empty) { }
 
   SourceLocation getIdentLoc() const { return IdentLoc; }
-  IdentifierInfo *getID() const { return Label; }
-  void setID(IdentifierInfo *II) { Label = II; }
+  LabelDecl *getDecl() const { return TheDecl; }
+  void setDecl(LabelDecl *D) { TheDecl = D; }
   const char *getName() const;
   Stmt *getSubStmt() { return SubStmt; }
   const Stmt *getSubStmt() const { return SubStmt; }
   void setIdentLoc(SourceLocation L) { IdentLoc = L; }
   void setSubStmt(Stmt *SS) { SubStmt = SS; }
 
-  virtual SourceRange getSourceRange() const {
+  SourceRange getSourceRange() const {
     return SourceRange(IdentLoc, SubStmt->getLocEnd());
   }
+  child_range children() { return child_range(&SubStmt, &SubStmt+1); }
+
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == LabelStmtClass;
   }
   static bool classof(const LabelStmt *) { return true; }
-
-  // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
 };
 
 
@@ -635,22 +704,23 @@ public:
   SourceLocation getElseLoc() const { return ElseLoc; }
   void setElseLoc(SourceLocation L) { ElseLoc = L; }
 
-  virtual SourceRange getSourceRange() const {
+  SourceRange getSourceRange() const {
     if (SubExprs[ELSE])
       return SourceRange(IfLoc, SubExprs[ELSE]->getLocEnd());
     else
       return SourceRange(IfLoc, SubExprs[THEN]->getLocEnd());
   }
 
+  // Iterators over subexpressions.  The iterators will include iterating
+  // over the initialization expression referenced by the condition variable.
+  child_range children() {
+    return child_range(&SubExprs[0], &SubExprs[0]+END_EXPR);
+  }
+
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == IfStmtClass;
   }
   static bool classof(const IfStmt *) { return true; }
-
-  // Iterators over subexpressions.  The iterators will include iterating
-  // over the initialization expression referenced by the condition variable.
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
 };
 
 /// SwitchStmt - This represents a 'switch' stmt.
@@ -661,6 +731,11 @@ class SwitchStmt : public Stmt {
   // This points to a linked list of case and default statements.
   SwitchCase *FirstCase;
   SourceLocation SwitchLoc;
+
+  /// If the SwitchStmt is a switch on an enum value, this records whether
+  /// all the enum values were covered by CaseStmts.  This value is meant to
+  /// be a hint for possible clients.
+  unsigned AllEnumCasesCovered : 1;
 
 public:
   SwitchStmt(ASTContext &C, VarDecl *Var, Expr *cond);
@@ -705,21 +780,34 @@ public:
   }
   void addSwitchCase(SwitchCase *SC) {
     assert(!SC->getNextSwitchCase() && "case/default already added to a switch");
-    SC->Retain();
     SC->setNextSwitchCase(FirstCase);
     FirstCase = SC;
   }
-  virtual SourceRange getSourceRange() const {
+
+  /// Set a flag in the SwitchStmt indicating that if the 'switch (X)' is a
+  /// switch over an enum value then all cases have been explicitly covered.
+  void setAllEnumCasesCovered() {
+    AllEnumCasesCovered = 1;
+  }
+
+  /// Returns true if the SwitchStmt is a switch of an enum value and all cases
+  /// have been explicitly covered.
+  bool isAllEnumCasesCovered() const {
+    return (bool) AllEnumCasesCovered;
+  }
+
+  SourceRange getSourceRange() const {
     return SourceRange(SwitchLoc, SubExprs[BODY]->getLocEnd());
   }
+  // Iterators
+  child_range children() {
+    return child_range(&SubExprs[0], &SubExprs[0]+END_EXPR);
+  }
+
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == SwitchStmtClass;
   }
   static bool classof(const SwitchStmt *) { return true; }
-
-  // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
 };
 
 
@@ -757,7 +845,7 @@ public:
   SourceLocation getWhileLoc() const { return WhileLoc; }
   void setWhileLoc(SourceLocation L) { WhileLoc = L; }
 
-  virtual SourceRange getSourceRange() const {
+  SourceRange getSourceRange() const {
     return SourceRange(WhileLoc, SubExprs[BODY]->getLocEnd());
   }
   static bool classof(const Stmt *T) {
@@ -766,14 +854,15 @@ public:
   static bool classof(const WhileStmt *) { return true; }
 
   // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
+  child_range children() {
+    return child_range(&SubExprs[0], &SubExprs[0]+END_EXPR);
+  }
 };
 
 /// DoStmt - This represents a 'do/while' stmt.
 ///
 class DoStmt : public Stmt {
-  enum { COND, BODY, END_EXPR };
+  enum { BODY, COND, END_EXPR };
   Stmt* SubExprs[END_EXPR];
   SourceLocation DoLoc;
   SourceLocation WhileLoc;
@@ -805,7 +894,7 @@ public:
   SourceLocation getRParenLoc() const { return RParenLoc; }
   void setRParenLoc(SourceLocation L) { RParenLoc = L; }
 
-  virtual SourceRange getSourceRange() const {
+  SourceRange getSourceRange() const {
     return SourceRange(DoLoc, RParenLoc);
   }
   static bool classof(const Stmt *T) {
@@ -814,8 +903,9 @@ public:
   static bool classof(const DoStmt *) { return true; }
 
   // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
+  child_range children() {
+    return child_range(&SubExprs[0], &SubExprs[0]+END_EXPR);
+  }
 };
 
 
@@ -870,7 +960,7 @@ public:
   SourceLocation getRParenLoc() const { return RParenLoc; }
   void setRParenLoc(SourceLocation L) { RParenLoc = L; }
 
-  virtual SourceRange getSourceRange() const {
+  SourceRange getSourceRange() const {
     return SourceRange(ForLoc, SubExprs[BODY]->getLocEnd());
   }
   static bool classof(const Stmt *T) {
@@ -879,32 +969,33 @@ public:
   static bool classof(const ForStmt *) { return true; }
 
   // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
+  child_range children() {
+    return child_range(&SubExprs[0], &SubExprs[0]+END_EXPR);
+  }
 };
 
 /// GotoStmt - This represents a direct goto.
 ///
 class GotoStmt : public Stmt {
-  LabelStmt *Label;
+  LabelDecl *Label;
   SourceLocation GotoLoc;
   SourceLocation LabelLoc;
 public:
-  GotoStmt(LabelStmt *label, SourceLocation GL, SourceLocation LL)
+  GotoStmt(LabelDecl *label, SourceLocation GL, SourceLocation LL)
     : Stmt(GotoStmtClass), Label(label), GotoLoc(GL), LabelLoc(LL) {}
 
   /// \brief Build an empty goto statement.
   explicit GotoStmt(EmptyShell Empty) : Stmt(GotoStmtClass, Empty) { }
 
-  LabelStmt *getLabel() const { return Label; }
-  void setLabel(LabelStmt *S) { Label = S; }
+  LabelDecl *getLabel() const { return Label; }
+  void setLabel(LabelDecl *D) { Label = D; }
 
   SourceLocation getGotoLoc() const { return GotoLoc; }
   void setGotoLoc(SourceLocation L) { GotoLoc = L; }
   SourceLocation getLabelLoc() const { return LabelLoc; }
   void setLabelLoc(SourceLocation L) { LabelLoc = L; }
 
-  virtual SourceRange getSourceRange() const {
+  SourceRange getSourceRange() const {
     return SourceRange(GotoLoc, LabelLoc);
   }
   static bool classof(const Stmt *T) {
@@ -913,8 +1004,7 @@ public:
   static bool classof(const GotoStmt *) { return true; }
 
   // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
+  child_range children() { return child_range(); }
 };
 
 /// IndirectGotoStmt - This represents an indirect goto.
@@ -938,11 +1028,18 @@ public:
   void setStarLoc(SourceLocation L) { StarLoc = L; }
   SourceLocation getStarLoc() const { return StarLoc; }
 
-  Expr *getTarget();
-  const Expr *getTarget() const;
+  Expr *getTarget() { return reinterpret_cast<Expr*>(Target); }
+  const Expr *getTarget() const {return reinterpret_cast<const Expr*>(Target);}
   void setTarget(Expr *E) { Target = reinterpret_cast<Stmt*>(E); }
 
-  virtual SourceRange getSourceRange() const {
+  /// getConstantTarget - Returns the fixed target of this indirect
+  /// goto, if one exists.
+  LabelDecl *getConstantTarget();
+  const LabelDecl *getConstantTarget() const {
+    return const_cast<IndirectGotoStmt*>(this)->getConstantTarget();
+  }
+
+  SourceRange getSourceRange() const {
     return SourceRange(GotoLoc, Target->getLocEnd());
   }
 
@@ -952,8 +1049,7 @@ public:
   static bool classof(const IndirectGotoStmt *) { return true; }
 
   // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
+  child_range children() { return child_range(&Target, &Target+1); }
 };
 
 
@@ -970,7 +1066,7 @@ public:
   SourceLocation getContinueLoc() const { return ContinueLoc; }
   void setContinueLoc(SourceLocation L) { ContinueLoc = L; }
 
-  virtual SourceRange getSourceRange() const {
+  SourceRange getSourceRange() const {
     return SourceRange(ContinueLoc);
   }
 
@@ -980,8 +1076,7 @@ public:
   static bool classof(const ContinueStmt *) { return true; }
 
   // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
+  child_range children() { return child_range(); }
 };
 
 /// BreakStmt - This represents a break.
@@ -997,7 +1092,7 @@ public:
   SourceLocation getBreakLoc() const { return BreakLoc; }
   void setBreakLoc(SourceLocation L) { BreakLoc = L; }
 
-  virtual SourceRange getSourceRange() const { return SourceRange(BreakLoc); }
+  SourceRange getSourceRange() const { return SourceRange(BreakLoc); }
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == BreakStmtClass;
@@ -1005,8 +1100,7 @@ public:
   static bool classof(const BreakStmt *) { return true; }
 
   // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
+  child_range children() { return child_range(); }
 };
 
 
@@ -1050,7 +1144,7 @@ public:
   const VarDecl *getNRVOCandidate() const { return NRVOCandidate; }
   void setNRVOCandidate(const VarDecl *Var) { NRVOCandidate = Var; }
   
-  virtual SourceRange getSourceRange() const;
+  SourceRange getSourceRange() const;
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ReturnStmtClass;
@@ -1058,8 +1152,10 @@ public:
   static bool classof(const ReturnStmt *) { return true; }
 
   // Iterators
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
+  child_range children() {
+    if (RetExpr) return child_range(&RetExpr, &RetExpr+1);
+    return child_range();
+  }
 };
 
 /// AsmStmt - This represents a GNU inline-assembly statement extension.
@@ -1257,7 +1353,7 @@ public:
   StringLiteral *getClobber(unsigned i) { return Clobbers[i]; }
   const StringLiteral *getClobber(unsigned i) const { return Clobbers[i]; }
 
-  virtual SourceRange getSourceRange() const {
+  SourceRange getSourceRange() const {
     return SourceRange(AsmLoc, RParenLoc);
   }
 
@@ -1304,10 +1400,9 @@ public:
     return &Exprs[0] + NumOutputs;
   }
 
-  // Child iterators
-
-  virtual child_iterator child_begin();
-  virtual child_iterator child_end();
+  child_range children() {
+    return child_range(&Exprs[0], &Exprs[0] + NumOutputs + NumInputs);
+  }
 };
 
 }  // end namespace clang

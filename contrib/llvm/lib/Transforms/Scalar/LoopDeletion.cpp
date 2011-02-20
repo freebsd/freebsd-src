@@ -17,6 +17,7 @@
 #define DEBUG_TYPE "loop-delete"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Analysis/LoopPass.h"
+#include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/SmallVector.h"
@@ -28,7 +29,9 @@ namespace {
   class LoopDeletion : public LoopPass {
   public:
     static char ID; // Pass ID, replacement for typeid
-    LoopDeletion() : LoopPass(ID) {}
+    LoopDeletion() : LoopPass(ID) {
+      initializeLoopDeletionPass(*PassRegistry::getPassRegistry());
+    }
     
     // Possibly eliminate loop L if it is dead.
     bool runOnLoop(Loop* L, LPPassManager& LPM);
@@ -49,14 +52,20 @@ namespace {
       AU.addPreserved<LoopInfo>();
       AU.addPreservedID(LoopSimplifyID);
       AU.addPreservedID(LCSSAID);
-      AU.addPreserved<DominanceFrontier>();
     }
   };
 }
   
 char LoopDeletion::ID = 0;
-INITIALIZE_PASS(LoopDeletion, "loop-deletion",
-                "Delete dead loops", false, false);
+INITIALIZE_PASS_BEGIN(LoopDeletion, "loop-deletion",
+                "Delete dead loops", false, false)
+INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+INITIALIZE_PASS_DEPENDENCY(LoopInfo)
+INITIALIZE_PASS_DEPENDENCY(ScalarEvolution)
+INITIALIZE_PASS_DEPENDENCY(LoopSimplify)
+INITIALIZE_PASS_DEPENDENCY(LCSSA)
+INITIALIZE_PASS_END(LoopDeletion, "loop-deletion",
+                "Delete dead loops", false, false)
 
 Pass* llvm::createLoopDeletionPass() {
   return new LoopDeletion();
@@ -183,22 +192,19 @@ bool LoopDeletion::runOnLoop(Loop* L, LPPassManager& LPM) {
   // Update the dominator tree and remove the instructions and blocks that will
   // be deleted from the reference counting scheme.
   DominatorTree& DT = getAnalysis<DominatorTree>();
-  DominanceFrontier* DF = getAnalysisIfAvailable<DominanceFrontier>();
-  SmallPtrSet<DomTreeNode*, 8> ChildNodes;
+  SmallVector<DomTreeNode*, 8> ChildNodes;
   for (Loop::block_iterator LI = L->block_begin(), LE = L->block_end();
        LI != LE; ++LI) {
     // Move all of the block's children to be children of the preheader, which
     // allows us to remove the domtree entry for the block.
-    ChildNodes.insert(DT[*LI]->begin(), DT[*LI]->end());
-    for (SmallPtrSet<DomTreeNode*, 8>::iterator DI = ChildNodes.begin(),
+    ChildNodes.insert(ChildNodes.begin(), DT[*LI]->begin(), DT[*LI]->end());
+    for (SmallVector<DomTreeNode*, 8>::iterator DI = ChildNodes.begin(),
          DE = ChildNodes.end(); DI != DE; ++DI) {
       DT.changeImmediateDominator(*DI, DT[preheader]);
-      if (DF) DF->changeImmediateDominator((*DI)->getBlock(), preheader, &DT);
     }
     
     ChildNodes.clear();
     DT.eraseNode(*LI);
-    if (DF) DF->removeBlock(*LI);
 
     // Remove the block from the reference counting scheme, so that we can
     // delete it freely later.

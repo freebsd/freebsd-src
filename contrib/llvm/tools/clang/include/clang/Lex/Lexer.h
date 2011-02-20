@@ -211,6 +211,32 @@ public:
   /// and " characters.  This does not add surrounding ""'s to the string.
   static void Stringify(llvm::SmallVectorImpl<char> &Str);
 
+  
+  /// getSpelling - This method is used to get the spelling of a token into a
+  /// preallocated buffer, instead of as an std::string.  The caller is required
+  /// to allocate enough space for the token, which is guaranteed to be at least
+  /// Tok.getLength() bytes long.  The length of the actual result is returned.
+  ///
+  /// Note that this method may do two possible things: it may either fill in
+  /// the buffer specified with characters, or it may *change the input pointer*
+  /// to point to a constant buffer with the data already in it (avoiding a
+  /// copy).  The caller is not allowed to modify the returned buffer pointer
+  /// if an internal buffer is returned.
+  static unsigned getSpelling(const Token &Tok, const char *&Buffer, 
+                              const SourceManager &SourceMgr,
+                              const LangOptions &Features,
+                              bool *Invalid = 0);
+  
+  /// getSpelling() - Return the 'spelling' of the Tok token.  The spelling of a
+  /// token is the characters used to represent the token in the source file
+  /// after trigraph expansion and escaped-newline folding.  In particular, this
+  /// wants to get the true, uncanonicalized, spelling of things like digraphs
+  /// UCNs, etc.
+  static std::string getSpelling(const Token &Tok,
+                                 const SourceManager &SourceMgr,
+                                 const LangOptions &Features, 
+                                 bool *Invalid = 0);
+  
   /// MeasureTokenLength - Relex the token at the specified location and return
   /// its length in bytes in the input file.  If the token needs cleaning (e.g.
   /// includes a trigraph or an escaped newline) then this count includes bytes
@@ -228,6 +254,33 @@ public:
                                             const SourceManager &SM,
                                             const LangOptions &LangOpts);
   
+  /// AdvanceToTokenCharacter - If the current SourceLocation specifies a
+  /// location at the start of a token, return a new location that specifies a
+  /// character within the token.  This handles trigraphs and escaped newlines.
+  static SourceLocation AdvanceToTokenCharacter(SourceLocation TokStart,
+                                                unsigned Character,
+                                                const SourceManager &SM,
+                                                const LangOptions &Features);
+  
+  /// \brief Computes the source location just past the end of the
+  /// token at this source location.
+  ///
+  /// This routine can be used to produce a source location that
+  /// points just past the end of the token referenced by \p Loc, and
+  /// is generally used when a diagnostic needs to point just after a
+  /// token where it expected something different that it received. If
+  /// the returned source location would not be meaningful (e.g., if
+  /// it points into a macro), this routine returns an invalid
+  /// source location.
+  ///
+  /// \param Offset an offset from the end of the token, where the source
+  /// location should refer to. The default offset (0) produces a source
+  /// location pointing just past the end of the token; an offset of 1 produces
+  /// a source location pointing to the last character in the token, etc.
+  static SourceLocation getLocForEndOfToken(SourceLocation Loc, unsigned Offset,
+                                            const SourceManager &SM,
+                                            const LangOptions &Features);
+    
   /// \brief Compute the preamble of the given file.
   ///
   /// The preamble of a file contains the initial comments, include directives,

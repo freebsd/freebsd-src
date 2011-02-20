@@ -12,6 +12,7 @@
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/Support/Dwarf.h"
+#include "llvm/Support/ELF.h"
 #include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 using namespace dwarf;
@@ -26,14 +27,20 @@ void ARMElfTargetObjectFile::Initialize(MCContext &Ctx,
 
   if (TM.getSubtarget<ARMSubtarget>().isAAPCS_ABI()) {
     StaticCtorSection =
-      getContext().getELFSection(".init_array", MCSectionELF::SHT_INIT_ARRAY,
-                                 MCSectionELF::SHF_WRITE |
-                                 MCSectionELF::SHF_ALLOC,
+      getContext().getELFSection(".init_array", ELF::SHT_INIT_ARRAY,
+                                 ELF::SHF_WRITE |
+                                 ELF::SHF_ALLOC,
                                  SectionKind::getDataRel());
     StaticDtorSection =
-      getContext().getELFSection(".fini_array", MCSectionELF::SHT_FINI_ARRAY,
-                                 MCSectionELF::SHF_WRITE |
-                                 MCSectionELF::SHF_ALLOC,
+      getContext().getELFSection(".fini_array", ELF::SHT_FINI_ARRAY,
+                                 ELF::SHF_WRITE |
+                                 ELF::SHF_ALLOC,
                                  SectionKind::getDataRel());
   }
+  
+  AttributesSection =
+    getContext().getELFSection(".ARM.attributes",
+                               ELF::SHT_ARM_ATTRIBUTES,
+                               0,
+                               SectionKind::getMetadata());
 }

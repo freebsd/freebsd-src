@@ -39,7 +39,8 @@ using namespace llvm;
 
 STATISTIC(NumArgumentsEliminated, "Number of unread args removed");
 STATISTIC(NumRetValsEliminated  , "Number of unused return values removed");
-
+STATISTIC(NumArgumentsReplacedWithUndef, 
+          "Number of unread args replaced with undef");
 namespace {
   /// DAE - The dead argument elimination pass.
   ///
@@ -126,7 +127,9 @@ namespace {
 
   public:
     static char ID; // Pass identification, replacement for typeid
-    DAE() : ModulePass(ID) {}
+    DAE() : ModulePass(ID) {
+      initializeDAEPass(*PassRegistry::getPassRegistry());
+    }
 
     bool runOnModule(Module &M);
 
@@ -146,12 +149,13 @@ namespace {
     void PropagateLiveness(const RetOrArg &RA);
     bool RemoveDeadStuffFromFunction(Function *F);
     bool DeleteDeadVarargs(Function &Fn);
+    bool RemoveDeadArgumentsFromCallers(Function &Fn);
   };
 }
 
 
 char DAE::ID = 0;
-INITIALIZE_PASS(DAE, "deadargelim", "Dead Argument Elimination", false, false);
+INITIALIZE_PASS(DAE, "deadargelim", "Dead Argument Elimination", false, false)
 
 namespace {
   /// DAH - DeadArgumentHacking pass - Same as dead argument elimination, but
@@ -168,7 +172,7 @@ namespace {
 char DAH::ID = 0;
 INITIALIZE_PASS(DAH, "deadarghaX0r", 
                 "Dead Argument Hacking (BUGPOINT USE ONLY; DO NOT USE)",
-                false, false);
+                false, false)
 
 /// createDeadArgEliminationPass - This pass removes arguments from functions
 /// which are not used by the body of the function.
@@ -283,6 +287,55 @@ bool DAE::DeleteDeadVarargs(Function &Fn) {
   // Finally, nuke the old function.
   Fn.eraseFromParent();
   return true;
+}
+
+/// RemoveDeadArgumentsFromCallers - Checks if the given function has any 
+/// arguments that are unused, and changes the caller parameters to be undefined
+/// instead.
+bool DAE::RemoveDeadArgumentsFromCallers(Function &Fn)
+{
+  if (Fn.isDeclaration())
+    return false;
+
+  // Functions with local linkage should already have been handled.
+  if (Fn.hasLocalLinkage())
+    return false;
+
+  if (Fn.use_empty())
+    return false;
+
+  llvm::SmallVector<unsigned, 8> UnusedArgs;
+  for (Function::arg_iterator I = Fn.arg_begin(), E = Fn.arg_end(); 
+       I != E; ++I) {
+    Argument *Arg = I;
+
+    if (Arg->use_empty() && !Arg->hasByValAttr())
+      UnusedArgs.push_back(Arg->getArgNo());
+  }
+
+  if (UnusedArgs.empty())
+    return false;
+
+  bool Changed = false;
+
+  for (Function::use_iterator I = Fn.use_begin(), E = Fn.use_end(); 
+       I != E; ++I) {
+    CallSite CS(*I);
+    if (!CS || !CS.isCallee(I))
+      continue;
+
+    // Now go through all unused args and replace them with "undef".
+    for (unsigned I = 0, E = UnusedArgs.size(); I != E; ++I) {
+      unsigned ArgNo = UnusedArgs[I];
+
+      Value *Arg = CS.getArgument(ArgNo);
+      CS.setArgument(ArgNo, UndefValue::get(Arg->getType()));
+      ++NumArgumentsReplacedWithUndef;
+      Changed = true;
+    }
+  }
+
+  return Changed;
 }
 
 /// Convenience function that returns the number of return values. It returns 0
@@ -791,7 +844,8 @@ bool DAE::RemoveDeadStuffFromFunction(Function *F) {
       } else if (New->getType()->isVoidTy()) {
         // Our return value has uses, but they will get removed later on.
         // Replace by null for now.
-        Call->replaceAllUsesWith(Constant::getNullValue(Call->getType()));
+        if (!Call->getType()->isX86_MMXTy())
+          Call->replaceAllUsesWith(Constant::getNullValue(Call->getType()));
       } else {
         assert(RetTy->isStructTy() &&
                "Return type changed, but not into a void. The old return type"
@@ -854,7 +908,8 @@ bool DAE::RemoveDeadStuffFromFunction(Function *F) {
     } else {
       // If this argument is dead, replace any uses of it with null constants
       // (these are guaranteed to become unused later on).
-      I->replaceAllUsesWith(Constant::getNullValue(I->getType()));
+      if (!I->getType()->isX86_MMXTy())
+        I->replaceAllUsesWith(Constant::getNullValue(I->getType()));
     }
 
   // If we change the return value of the function we must rewrite any return
@@ -935,5 +990,14 @@ bool DAE::runOnModule(Module &M) {
     Function *F = I++;
     Changed |= RemoveDeadStuffFromFunction(F);
   }
+
+  // Finally, look for any unused parameters in functions with non-local
+  // linkage and replace the passed in parameters with undef.
+  for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
+    Function& F = *I;
+
+    Changed |= RemoveDeadArgumentsFromCallers(F);
+  }
+
   return Changed;
 }

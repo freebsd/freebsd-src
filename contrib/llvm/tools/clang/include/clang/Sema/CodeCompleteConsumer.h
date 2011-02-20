@@ -17,12 +17,13 @@
 #include "clang/AST/CanonicalType.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Allocator.h"
 #include "clang-c/Index.h"
-#include <memory>
 #include <string>
 
 namespace llvm {
   class raw_ostream;
+  class Twine;
 }
 
 namespace clang {
@@ -35,31 +36,37 @@ enum {
   /// \brief Priority for the next initialization in a constructor initializer
   /// list.
   CCP_NextInitializer = 7,
+  /// \brief Priority for an enumeration constant inside a switch whose 
+  /// condition is of the enumeration type.
+  CCP_EnumInCase = 7,
   /// \brief Priority for a send-to-super completion.
-  CCP_SuperCompletion = 8,
+  CCP_SuperCompletion = 20,
   /// \brief Priority for a declaration that is in the local scope.
-  CCP_LocalDeclaration = 8,
+  CCP_LocalDeclaration = 34,
   /// \brief Priority for a member declaration found from the current
   /// method or member function.
-  CCP_MemberDeclaration = 20,
+  CCP_MemberDeclaration = 35,
   /// \brief Priority for a language keyword (that isn't any of the other
   /// categories).
-  CCP_Keyword = 30,
+  CCP_Keyword = 40,
   /// \brief Priority for a code pattern.
-  CCP_CodePattern = 30,
+  CCP_CodePattern = 40,
   /// \brief Priority for a non-type declaration.
   CCP_Declaration = 50,
-  /// \brief Priority for a constant value (e.g., enumerator).
-  CCP_Constant = 60,
   /// \brief Priority for a type.
-  CCP_Type = 65,
+  CCP_Type = CCP_Declaration,
+  /// \brief Priority for a constant value (e.g., enumerator).
+  CCP_Constant = 65,
   /// \brief Priority for a preprocessor macro.
   CCP_Macro = 70,
   /// \brief Priority for a nested-name-specifier.
   CCP_NestedNameSpecifier = 75,
   /// \brief Priority for a result that isn't likely to be what the user wants,
   /// but is included for completeness.
-  CCP_Unlikely = 80
+  CCP_Unlikely = 80,
+  
+  /// \brief Priority for the Objective-C "_cmd" implicit parameter.
+  CCP_ObjC_cmd = CCP_Unlikely
 };
 
 /// \brief Priority value deltas that are added to code-completion results
@@ -67,18 +74,21 @@ enum {
 enum {
   /// \brief The result is in a base class.
   CCD_InBaseClass = 2,
-  /// \brief The result is a type match against void.
-  ///
-  /// Since everything converts to "void", we don't give as drastic an 
-  /// adjustment for matching void.
-  CCD_VoidMatch = -5,
   /// \brief The result is a C++ non-static member function whose qualifiers
   /// exactly match the object type on which the member function can be called.
   CCD_ObjectQualifierMatch = -1,
   /// \brief The selector of the given message exactly matches the selector
   /// of the current method, which might imply that some kind of delegation
   /// is occurring.
-  CCD_SelectorMatch = -3
+  CCD_SelectorMatch = -3,
+  
+  /// \brief Adjustment to the "bool" type in Objective-C, where the typedef
+  /// "BOOL" is preferred.
+  CCD_bool_in_ObjC = 1,
+  
+  /// \brief Adjustment for KVC code pattern priorities when it doesn't look
+  /// like the
+  CCD_ProbablyNotObjCCollection = 15
 };
 
 /// \brief Priority value factors by which we will divide or multiply the
@@ -119,9 +129,12 @@ QualType getDeclUsageType(ASTContext &C, NamedDecl *ND);
 ///
 /// \param MacroName The name of the macro.
 ///
+/// \param LangOpts Options describing the current language dialect.
+///
 /// \param PreferredTypeIsPointer Whether the preferred type for the context
 /// of this macro is a pointer type.
 unsigned getMacroUsagePriority(llvm::StringRef MacroName, 
+                               const LangOptions &LangOpts,
                                bool PreferredTypeIsPointer = false);
 
 /// \brief Determine the libclang cursor kind associated with the given
@@ -143,6 +156,9 @@ public:
   enum Kind {
     /// \brief An unspecified code-completion context.
     CCC_Other,
+    /// \brief An unspecified code-completion context where we should also add
+    /// macro completions.
+    CCC_OtherWithMacros,
     /// \brief Code completion occurred within a "top-level" completion context,
     /// e.g., at namespace or global scope.
     CCC_TopLevel,
@@ -212,7 +228,13 @@ public:
     /// \brief Code completion for a selector, as in an @selector expression.
     CCC_SelectorName,
     /// \brief Code completion within a type-qualifier list.
-    CCC_TypeQualifiers
+    CCC_TypeQualifiers,
+    /// \brief Code completion in a parenthesized expression, which means that
+    /// we may also have types here in C and Objective-C (as well as in C++).
+    CCC_ParenthesizedExpression,
+    /// \brief An unknown context, in which we are recovering from a parsing 
+    /// error and don't know which completions we should give.
+    CCC_Recovery
   };
 
 private:
@@ -248,6 +270,10 @@ public:
   /// \brief Retrieve the type of the base object in a member-access 
   /// expression.
   QualType getBaseType() const { return BaseType; }
+
+  /// \brief Determines whether we want C++ constructors as results within this
+  /// context.
+  bool wantConstructorResults() const;
 };
 
 
@@ -339,127 +365,163 @@ public:
     
     Chunk() : Kind(CK_Text), Text(0) { }
     
-    Chunk(ChunkKind Kind, llvm::StringRef Text = "");
+    Chunk(ChunkKind Kind, const char *Text = "");
     
     /// \brief Create a new text chunk.
-    static Chunk CreateText(llvm::StringRef Text);
+    static Chunk CreateText(const char *Text);
 
     /// \brief Create a new optional chunk.
-    static Chunk CreateOptional(std::auto_ptr<CodeCompletionString> Optional);
+    static Chunk CreateOptional(CodeCompletionString *Optional);
 
     /// \brief Create a new placeholder chunk.
-    static Chunk CreatePlaceholder(llvm::StringRef Placeholder);
+    static Chunk CreatePlaceholder(const char *Placeholder);
 
     /// \brief Create a new informative chunk.
-    static Chunk CreateInformative(llvm::StringRef Informative);
+    static Chunk CreateInformative(const char *Informative);
 
     /// \brief Create a new result type chunk.
-    static Chunk CreateResultType(llvm::StringRef ResultType);
+    static Chunk CreateResultType(const char *ResultType);
 
     /// \brief Create a new current-parameter chunk.
-    static Chunk CreateCurrentParameter(llvm::StringRef CurrentParameter);
-
-    /// \brief Clone the given chunk.
-    Chunk Clone() const;
-    
-    /// \brief Destroy this chunk, deallocating any memory it owns.
-    void Destroy();
+    static Chunk CreateCurrentParameter(const char *CurrentParameter);
   };
   
 private:
-  /// \brief The chunks stored in this string.
-  llvm::SmallVector<Chunk, 4> Chunks;
+  /// \brief The number of chunks stored in this string.
+  unsigned NumChunks;
+  
+  /// \brief The priority of this code-completion string.
+  unsigned Priority : 30;
+  
+  /// \brief The availability of this code-completion result.
+  unsigned Availability : 2;
   
   CodeCompletionString(const CodeCompletionString &); // DO NOT IMPLEMENT
   CodeCompletionString &operator=(const CodeCompletionString &); // DITTO
   
+  CodeCompletionString(const Chunk *Chunks, unsigned NumChunks,
+                       unsigned Priority, CXAvailabilityKind Availability);
+  ~CodeCompletionString() { }
+  
+  friend class CodeCompletionBuilder;
+  friend class CodeCompletionResult;
+  
 public:
-  CodeCompletionString() { }
-  ~CodeCompletionString() { clear(); }
+  typedef const Chunk *iterator;
+  iterator begin() const { return reinterpret_cast<const Chunk *>(this + 1); }
+  iterator end() const { return begin() + NumChunks; }
+  bool empty() const { return NumChunks == 0; }
+  unsigned size() const { return NumChunks; }
   
-  typedef llvm::SmallVector<Chunk, 4>::const_iterator iterator;
-  iterator begin() const { return Chunks.begin(); }
-  iterator end() const { return Chunks.end(); }
-  bool empty() const { return Chunks.empty(); }
-  unsigned size() const { return Chunks.size(); }
-  void clear();
-  
-  Chunk &operator[](unsigned I) {
-    assert(I < size() && "Chunk index out-of-range");
-    return Chunks[I];
-  }
-
   const Chunk &operator[](unsigned I) const {
     assert(I < size() && "Chunk index out-of-range");
-    return Chunks[I];
+    return begin()[I];
   }
   
+  /// \brief Returns the text in the TypedText chunk.
+  const char *getTypedText() const;
+
+  /// \brief Retrieve the priority of this code completion result.
+  unsigned getPriority() const { return Priority; }
+  
+  /// \brief Reteirve the availability of this code completion result.
+  unsigned getAvailability() const { return Availability; }
+  
+  /// \brief Retrieve a string representation of the code completion string,
+  /// which is mainly useful for debugging.
+  std::string getAsString() const;   
+};
+
+/// \brief An allocator used specifically for the purpose of code completion.
+class CodeCompletionAllocator : public llvm::BumpPtrAllocator { 
+public:
+  /// \brief Copy the given string into this allocator.
+  const char *CopyString(llvm::StringRef String);
+
+  /// \brief Copy the given string into this allocator.
+  const char *CopyString(llvm::Twine String);
+  
+  // \brief Copy the given string into this allocator.
+  const char *CopyString(const char *String) {
+    return CopyString(llvm::StringRef(String));
+  }
+  
+  /// \brief Copy the given string into this allocator.
+  const char *CopyString(const std::string &String) {
+    return CopyString(llvm::StringRef(String));
+  }
+};
+  
+/// \brief A builder class used to construct new code-completion strings.
+class CodeCompletionBuilder {
+public:  
+  typedef CodeCompletionString::Chunk Chunk;
+  
+private:
+  CodeCompletionAllocator &Allocator;
+  unsigned Priority;
+  CXAvailabilityKind Availability;
+  
+  /// \brief The chunks stored in this string.
+  llvm::SmallVector<Chunk, 4> Chunks;
+  
+public:
+  CodeCompletionBuilder(CodeCompletionAllocator &Allocator) 
+    : Allocator(Allocator), Priority(0), Availability(CXAvailability_Available){
+  }
+  
+  CodeCompletionBuilder(CodeCompletionAllocator &Allocator,
+                        unsigned Priority, CXAvailabilityKind Availability) 
+    : Allocator(Allocator), Priority(Priority), Availability(Availability) { }
+
+  /// \brief Retrieve the allocator into which the code completion
+  /// strings should be allocated.
+  CodeCompletionAllocator &getAllocator() const { return Allocator; }
+  
+  /// \brief Take the resulting completion string. 
+  ///
+  /// This operation can only be performed once.
+  CodeCompletionString *TakeString();
+  
   /// \brief Add a new typed-text chunk.
-  /// The text string will be copied.
-  void AddTypedTextChunk(llvm::StringRef Text) { 
-    Chunks.push_back(Chunk(CK_TypedText, Text));
+  void AddTypedTextChunk(const char *Text) { 
+    Chunks.push_back(Chunk(CodeCompletionString::CK_TypedText, Text));
   }
   
   /// \brief Add a new text chunk.
-  /// The text string will be copied.
-  void AddTextChunk(llvm::StringRef Text) { 
+  void AddTextChunk(const char *Text) { 
     Chunks.push_back(Chunk::CreateText(Text)); 
   }
-  
+
   /// \brief Add a new optional chunk.
-  void AddOptionalChunk(std::auto_ptr<CodeCompletionString> Optional) {
+  void AddOptionalChunk(CodeCompletionString *Optional) {
     Chunks.push_back(Chunk::CreateOptional(Optional));
   }
   
   /// \brief Add a new placeholder chunk.
-  /// The placeholder text will be copied.
-  void AddPlaceholderChunk(llvm::StringRef Placeholder) {
+  void AddPlaceholderChunk(const char *Placeholder) {
     Chunks.push_back(Chunk::CreatePlaceholder(Placeholder));
   }
-
+  
   /// \brief Add a new informative chunk.
-  /// The text will be copied.
-  void AddInformativeChunk(llvm::StringRef Text) {
+  void AddInformativeChunk(const char *Text) {
     Chunks.push_back(Chunk::CreateInformative(Text));
   }
-
+  
   /// \brief Add a new result-type chunk.
-  /// The text will be copied.
-  void AddResultTypeChunk(llvm::StringRef ResultType) {
+  void AddResultTypeChunk(const char *ResultType) {
     Chunks.push_back(Chunk::CreateResultType(ResultType));
   }
   
   /// \brief Add a new current-parameter chunk.
-  /// The text will be copied.
-  void AddCurrentParameterChunk(llvm::StringRef CurrentParameter) {
+  void AddCurrentParameterChunk(const char *CurrentParameter) {
     Chunks.push_back(Chunk::CreateCurrentParameter(CurrentParameter));
   }
   
   /// \brief Add a new chunk.
   void AddChunk(Chunk C) { Chunks.push_back(C); }
-  
-  /// \brief Returns the text in the TypedText chunk.
-  const char *getTypedText() const;
-
-  /// \brief Retrieve a string representation of the code completion string,
-  /// which is mainly useful for debugging.
-  std::string getAsString() const; 
-  
-  /// \brief Clone this code-completion string.
-  ///
-  /// \param Result If non-NULL, points to an empty code-completion
-  /// result that will be given a cloned copy of
-  CodeCompletionString *Clone(CodeCompletionString *Result = 0) const;
-  
-  /// \brief Serialize this code-completion string to the given stream.
-  void Serialize(llvm::raw_ostream &OS) const;
-  
-  /// \brief Deserialize a code-completion string from the given string.
-  ///
-  /// \returns true if successful, false otherwise.
-  bool Deserialize(const char *&Str, const char *StrEnd);
 };
-
+  
 /// \brief Captures a result of code completion.
 class CodeCompletionResult {
 public:
@@ -590,15 +652,12 @@ public:
   ///
   /// \param S The semantic analysis that created the result.
   ///
-  /// \param Result If non-NULL, the already-allocated, empty
-  /// code-completion string that will be populated with the
-  /// appropriate code completion string for this result.
+  /// \param Allocator The allocator that will be used to allocate the
+  /// string itself.
   CodeCompletionString *CreateCodeCompletionString(Sema &S,
-                                           CodeCompletionString *Result = 0);
+                                           CodeCompletionAllocator &Allocator);
     
-  void Destroy();
-    
-  /// brief Determine a base priority for the given declaration.
+  /// \brief Determine a base priority for the given declaration.
   static unsigned getPriorityFromDecl(NamedDecl *ND);
     
 private:
@@ -682,7 +741,7 @@ public:
       : Kind(CK_Function), Function(Function) { }
 
     OverloadCandidate(FunctionTemplateDecl *FunctionTemplateDecl)
-      : Kind(CK_FunctionTemplate), FunctionTemplate(FunctionTemplate) { }
+      : Kind(CK_FunctionTemplate), FunctionTemplate(FunctionTemplateDecl) { }
 
     OverloadCandidate(const FunctionType *Type)
       : Kind(CK_FunctionType), Type(Type) { }
@@ -707,7 +766,8 @@ public:
     /// \brief Create a new code-completion string that describes the function
     /// signature of this overload candidate.
     CodeCompletionString *CreateSignatureString(unsigned CurrentArg, 
-                                                Sema &S) const;    
+                                                Sema &S,
+                                      CodeCompletionAllocator &Allocator) const;
   };
   
   CodeCompleteConsumer() : IncludeMacros(false), IncludeCodePatterns(false),
@@ -753,6 +813,10 @@ public:
                                          OverloadCandidate *Candidates,
                                          unsigned NumCandidates) { }
   //@}
+  
+  /// \brief Retrieve the allocator that will be used to allocate
+  /// code completion strings.
+  virtual CodeCompletionAllocator &getAllocator() = 0;
 };
 
 /// \brief A simple code-completion consumer that prints the results it 
@@ -761,6 +825,8 @@ class PrintingCodeCompleteConsumer : public CodeCompleteConsumer {
   /// \brief The raw output stream.
   llvm::raw_ostream &OS;
     
+  CodeCompletionAllocator Allocator;
+  
 public:
   /// \brief Create a new printing code-completion consumer that prints its
   /// results to the given raw output stream.
@@ -779,34 +845,10 @@ public:
   virtual void ProcessOverloadCandidates(Sema &S, unsigned CurrentArg,
                                          OverloadCandidate *Candidates,
                                          unsigned NumCandidates);  
+  
+  virtual CodeCompletionAllocator &getAllocator() { return Allocator; }
 };
   
-/// \brief A code-completion consumer that prints the results it receives
-/// in a format that is parsable by the CIndex library.
-class CIndexCodeCompleteConsumer : public CodeCompleteConsumer {
-  /// \brief The raw output stream.
-  llvm::raw_ostream &OS;
-  
-public:
-  /// \brief Create a new CIndex code-completion consumer that prints its
-  /// results to the given raw output stream in a format readable to the CIndex
-  /// library.
-  CIndexCodeCompleteConsumer(bool IncludeMacros, bool IncludeCodePatterns,
-                             bool IncludeGlobals, llvm::raw_ostream &OS)
-    : CodeCompleteConsumer(IncludeMacros, IncludeCodePatterns, IncludeGlobals,
-                           true), OS(OS) {}
-  
-  /// \brief Prints the finalized code-completion results.
-  virtual void ProcessCodeCompleteResults(Sema &S, 
-                                          CodeCompletionContext Context,
-                                          CodeCompletionResult *Results,
-                                          unsigned NumResults);
-  
-  virtual void ProcessOverloadCandidates(Sema &S, unsigned CurrentArg,
-                                         OverloadCandidate *Candidates,
-                                         unsigned NumCandidates);  
-};
-
 } // end namespace clang
 
 #endif // LLVM_CLANG_SEMA_CODECOMPLETECONSUMER_H

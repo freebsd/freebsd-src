@@ -16,6 +16,7 @@
 #include "SPUInstrBuilder.h"
 #include "SPUTargetMachine.h"
 #include "SPUGenInstrInfo.inc"
+#include "SPUHazardRecognizers.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -53,6 +54,16 @@ SPUInstrInfo::SPUInstrInfo(SPUTargetMachine &tm)
     TM(tm),
     RI(*TM.getSubtargetImpl(), *this)
 { /* NOP */ }
+
+/// CreateTargetHazardRecognizer - Return the hazard recognizer to use for
+/// this target when scheduling the DAG.
+ScheduleHazardRecognizer *SPUInstrInfo::CreateTargetHazardRecognizer(
+  const TargetMachine *TM,
+  const ScheduleDAG *DAG) const {
+  const TargetInstrInfo *TII = TM->getInstrInfo();
+  assert(TII && "No InstrInfo?");
+  return new SPUHazardRecognizer(*TII);
+}
 
 unsigned
 SPUInstrInfo::isLoadFromStackSlot(const MachineInstr *MI,
@@ -129,7 +140,7 @@ SPUInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                   const TargetRegisterInfo *TRI) const
 {
   unsigned opc;
-  bool isValidFrameIdx = (FrameIdx < SPUFrameInfo::maxFrameOffset());
+  bool isValidFrameIdx = (FrameIdx < SPUFrameLowering::maxFrameOffset());
   if (RC == SPU::GPRCRegisterClass) {
     opc = (isValidFrameIdx ? SPU::STQDr128 : SPU::STQXr128);
   } else if (RC == SPU::R64CRegisterClass) {
@@ -164,7 +175,7 @@ SPUInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                    const TargetRegisterInfo *TRI) const
 {
   unsigned opc;
-  bool isValidFrameIdx = (FrameIdx < SPUFrameInfo::maxFrameOffset());
+  bool isValidFrameIdx = (FrameIdx < SPUFrameLowering::maxFrameOffset());
   if (RC == SPU::GPRCRegisterClass) {
     opc = (isValidFrameIdx ? SPU::LQDr128 : SPU::LQXr128);
   } else if (RC == SPU::R64CRegisterClass) {

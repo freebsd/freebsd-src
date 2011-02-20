@@ -39,7 +39,9 @@ namespace {
     
   public:
     static char ID; // Class identification, replacement for typeinfo
-    AliasDebugger() : ModulePass(ID) {}
+    AliasDebugger() : ModulePass(ID) {
+      initializeAliasDebuggerPass(*PassRegistry::getPassRegistry());
+    }
 
     bool runOnModule(Module &M) {
       InitializeAliasAnalysis(this);                 // set up super class
@@ -92,17 +94,18 @@ namespace {
     //------------------------------------------------
     // Implement the AliasAnalysis API
     //
-    AliasResult alias(const Value *V1, unsigned V1Size,
-                      const Value *V2, unsigned V2Size) {
-      assert(Vals.find(V1) != Vals.end() && "Never seen value in AA before");
-      assert(Vals.find(V2) != Vals.end() && "Never seen value in AA before");    
-      return AliasAnalysis::alias(V1, V1Size, V2, V2Size);
+    AliasResult alias(const Location &LocA, const Location &LocB) {
+      assert(Vals.find(LocA.Ptr) != Vals.end() &&
+             "Never seen value in AA before");
+      assert(Vals.find(LocB.Ptr) != Vals.end() &&
+             "Never seen value in AA before");
+      return AliasAnalysis::alias(LocA, LocB);
     }
 
     ModRefResult getModRefInfo(ImmutableCallSite CS,
-                               const Value *P, unsigned Size) {
-      assert(Vals.find(P) != Vals.end() && "Never seen value in AA before");
-      return AliasAnalysis::getModRefInfo(CS, P, Size);
+                               const Location &Loc) {
+      assert(Vals.find(Loc.Ptr) != Vals.end() && "Never seen value in AA before");
+      return AliasAnalysis::getModRefInfo(CS, Loc);
     }
 
     ModRefResult getModRefInfo(ImmutableCallSite CS1,
@@ -110,9 +113,9 @@ namespace {
       return AliasAnalysis::getModRefInfo(CS1,CS2);
     }
     
-    bool pointsToConstantMemory(const Value *P) {
-      assert(Vals.find(P) != Vals.end() && "Never seen value in AA before");
-      return AliasAnalysis::pointsToConstantMemory(P);
+    bool pointsToConstantMemory(const Location &Loc, bool OrLocal) {
+      assert(Vals.find(Loc.Ptr) != Vals.end() && "Never seen value in AA before");
+      return AliasAnalysis::pointsToConstantMemory(Loc, OrLocal);
     }
 
     virtual void deleteValue(Value *V) {
@@ -129,7 +132,7 @@ namespace {
 
 char AliasDebugger::ID = 0;
 INITIALIZE_AG_PASS(AliasDebugger, AliasAnalysis, "debug-aa",
-                   "AA use debugger", false, true, false);
+                   "AA use debugger", false, true, false)
 
 Pass *llvm::createAliasDebugger() { return new AliasDebugger(); }
 

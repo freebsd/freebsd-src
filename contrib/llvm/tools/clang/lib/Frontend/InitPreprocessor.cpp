@@ -22,8 +22,9 @@
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/APFloat.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/System/Path.h"
+#include "llvm/Support/Path.h"
 using namespace clang;
 
 // Append a #define line to Buf for Macro.  Macro should be of the form XXX,
@@ -55,9 +56,10 @@ std::string clang::NormalizeDashIncludePath(llvm::StringRef File) {
   // it has not file entry. For now, workaround this by using an
   // absolute path if we find the file here, and otherwise letting
   // header search handle it.
-  llvm::sys::Path Path(File);
-  Path.makeAbsolute();
-  if (!Path.exists())
+  llvm::SmallString<128> Path(File);
+  llvm::sys::fs::make_absolute(Path);
+  bool exists;
+  if (llvm::sys::fs::exists(Path.str(), exists) || !exists)
     Path = File;
 
   return Lexer::Stringify(Path.str());
@@ -342,6 +344,10 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
       Builder.defineMacro("_NATIVE_WCHAR_T_DEFINED");
       Builder.append("class type_info;");
     }
+
+    if (LangOpts.CPlusPlus0x) {
+      Builder.defineMacro("_HAS_CHAR16_T_LANGUAGE_SUPPORT", "1");
+    }
   }
 
   if (LangOpts.Optimize)
@@ -465,6 +471,9 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   if (FEOpts.ProgramAction == frontend::RunAnalysis)
     Builder.defineMacro("__clang_analyzer__");
 
+  if (LangOpts.FastRelaxedMath)
+    Builder.defineMacro("__FAST_RELAXED_MATH__");
+
   // Get other target #defines.
   TI.getTargetDefines(LangOpts, Builder);
 }
@@ -515,8 +524,7 @@ static void InitializeFileRemapping(Diagnostic &Diags,
     
     // Create the file entry for the file that we're mapping from.
     const FileEntry *FromFile = FileMgr.getVirtualFile(Remap->first,
-                                                       ToFile->getSize(),
-                                                       0);
+                                                       ToFile->getSize(), 0);
     if (!FromFile) {
       Diags.Report(diag::err_fe_remap_missing_from_file)
       << Remap->first;
@@ -526,7 +534,7 @@ static void InitializeFileRemapping(Diagnostic &Diags,
     // Load the contents of the file we're mapping to.
     std::string ErrorStr;
     const llvm::MemoryBuffer *Buffer
-    = llvm::MemoryBuffer::getFile(ToFile->getName(), &ErrorStr);
+      = FileMgr.getBufferForFile(ToFile->getName(), &ErrorStr);
     if (!Buffer) {
       Diags.Report(diag::err_fe_error_opening)
         << Remap->second << ErrorStr;

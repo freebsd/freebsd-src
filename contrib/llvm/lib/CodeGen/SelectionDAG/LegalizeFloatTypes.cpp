@@ -55,7 +55,7 @@ void DAGTypeLegalizer::SoftenFloatResult(SDNode *N, unsigned ResNo) {
 #endif
     llvm_unreachable("Do not know how to soften the result of this operator!");
 
-    case ISD::BIT_CONVERT: R = SoftenFloatRes_BIT_CONVERT(N); break;
+    case ISD::BITCAST:     R = SoftenFloatRes_BITCAST(N); break;
     case ISD::BUILD_PAIR:  R = SoftenFloatRes_BUILD_PAIR(N); break;
     case ISD::ConstantFP:
       R = SoftenFloatRes_ConstantFP(cast<ConstantFPSDNode>(N));
@@ -102,7 +102,7 @@ void DAGTypeLegalizer::SoftenFloatResult(SDNode *N, unsigned ResNo) {
     SetSoftenedFloat(SDValue(N, ResNo), R);
 }
 
-SDValue DAGTypeLegalizer::SoftenFloatRes_BIT_CONVERT(SDNode *N) {
+SDValue DAGTypeLegalizer::SoftenFloatRes_BITCAST(SDNode *N) {
   return BitConvertToInteger(N->getOperand(0));
 }
 
@@ -133,8 +133,9 @@ SDValue DAGTypeLegalizer::SoftenFloatRes_FABS(SDNode *N) {
   unsigned Size = NVT.getSizeInBits();
 
   // Mask = ~(1 << (Size-1))
-  SDValue Mask = DAG.getConstant(APInt::getAllOnesValue(Size).clear(Size-1),
-                                 NVT);
+  APInt API = APInt::getAllOnesValue(Size);
+  API.clearBit(Size-1);
+  SDValue Mask = DAG.getConstant(API, NVT);
   SDValue Op = GetSoftenedFloat(N->getOperand(0));
   return DAG.getNode(ISD::AND, N->getDebugLoc(), NVT, Op, Mask);
 }
@@ -455,7 +456,7 @@ SDValue DAGTypeLegalizer::SoftenFloatRes_LOAD(SDNode *N) {
   if (L->getExtensionType() == ISD::NON_EXTLOAD) {
     NewL = DAG.getLoad(L->getAddressingMode(), L->getExtensionType(),
                        NVT, dl, L->getChain(), L->getBasePtr(), L->getOffset(),
-                       L->getSrcValue(), L->getSrcValueOffset(), NVT,
+                       L->getPointerInfo(), NVT,
                        L->isVolatile(), L->isNonTemporal(), L->getAlignment());
     // Legalized the chain result - switch anything that used the old chain to
     // use the new one.
@@ -466,8 +467,7 @@ SDValue DAGTypeLegalizer::SoftenFloatRes_LOAD(SDNode *N) {
   // Do a non-extending load followed by FP_EXTEND.
   NewL = DAG.getLoad(L->getAddressingMode(), ISD::NON_EXTLOAD,
                      L->getMemoryVT(), dl, L->getChain(),
-                     L->getBasePtr(), L->getOffset(),
-                     L->getSrcValue(), L->getSrcValueOffset(),
+                     L->getBasePtr(), L->getOffset(), L->getPointerInfo(),
                      L->getMemoryVT(), L->isVolatile(),
                      L->isNonTemporal(), L->getAlignment());
   // Legalized the chain result - switch anything that used the old chain to
@@ -558,7 +558,7 @@ bool DAGTypeLegalizer::SoftenFloatOperand(SDNode *N, unsigned OpNo) {
 #endif
     llvm_unreachable("Do not know how to soften this operator's operand!");
 
-  case ISD::BIT_CONVERT: Res = SoftenFloatOp_BIT_CONVERT(N); break;
+  case ISD::BITCAST:     Res = SoftenFloatOp_BITCAST(N); break;
   case ISD::BR_CC:       Res = SoftenFloatOp_BR_CC(N); break;
   case ISD::FP_ROUND:    Res = SoftenFloatOp_FP_ROUND(N); break;
   case ISD::FP_TO_SINT:  Res = SoftenFloatOp_FP_TO_SINT(N); break;
@@ -670,8 +670,8 @@ void DAGTypeLegalizer::SoftenSetCCOperands(SDValue &NewLHS, SDValue &NewRHS,
   }
 }
 
-SDValue DAGTypeLegalizer::SoftenFloatOp_BIT_CONVERT(SDNode *N) {
-  return DAG.getNode(ISD::BIT_CONVERT, N->getDebugLoc(), N->getValueType(0),
+SDValue DAGTypeLegalizer::SoftenFloatOp_BITCAST(SDNode *N) {
+  return DAG.getNode(ISD::BITCAST, N->getDebugLoc(), N->getValueType(0),
                      GetSoftenedFloat(N->getOperand(0)));
 }
 
@@ -780,7 +780,7 @@ SDValue DAGTypeLegalizer::SoftenFloatOp_STORE(SDNode *N, unsigned OpNo) {
     Val = GetSoftenedFloat(Val);
 
   return DAG.getStore(ST->getChain(), dl, Val, ST->getBasePtr(),
-                      ST->getSrcValue(), ST->getSrcValueOffset(),
+                      ST->getPointerInfo(),
                       ST->isVolatile(), ST->isNonTemporal(),
                       ST->getAlignment());
 }
@@ -816,7 +816,7 @@ void DAGTypeLegalizer::ExpandFloatResult(SDNode *N, unsigned ResNo) {
   case ISD::SELECT:       SplitRes_SELECT(N, Lo, Hi); break;
   case ISD::SELECT_CC:    SplitRes_SELECT_CC(N, Lo, Hi); break;
 
-  case ISD::BIT_CONVERT:        ExpandRes_BIT_CONVERT(N, Lo, Hi); break;
+  case ISD::BITCAST:            ExpandRes_BITCAST(N, Lo, Hi); break;
   case ISD::BUILD_PAIR:         ExpandRes_BUILD_PAIR(N, Lo, Hi); break;
   case ISD::EXTRACT_ELEMENT:    ExpandRes_EXTRACT_ELEMENT(N, Lo, Hi); break;
   case ISD::EXTRACT_VECTOR_ELT: ExpandRes_EXTRACT_VECTOR_ELT(N, Lo, Hi); break;
@@ -1110,9 +1110,8 @@ void DAGTypeLegalizer::ExpandFloatRes_LOAD(SDNode *N, SDValue &Lo,
   assert(NVT.isByteSized() && "Expanded type not byte sized!");
   assert(LD->getMemoryVT().bitsLE(NVT) && "Float type not round?");
 
-  Hi = DAG.getExtLoad(LD->getExtensionType(), NVT, dl, Chain, Ptr,
-                      LD->getSrcValue(), LD->getSrcValueOffset(),
-                      LD->getMemoryVT(), LD->isVolatile(),
+  Hi = DAG.getExtLoad(LD->getExtensionType(), dl, NVT, Chain, Ptr,
+                      LD->getPointerInfo(), LD->getMemoryVT(), LD->isVolatile(),
                       LD->isNonTemporal(), LD->getAlignment());
 
   // Remember the chain.
@@ -1222,7 +1221,7 @@ bool DAGTypeLegalizer::ExpandFloatOperand(SDNode *N, unsigned OpNo) {
   #endif
       llvm_unreachable("Do not know how to expand this operator's operand!");
 
-    case ISD::BIT_CONVERT:     Res = ExpandOp_BIT_CONVERT(N); break;
+    case ISD::BITCAST:         Res = ExpandOp_BITCAST(N); break;
     case ISD::BUILD_VECTOR:    Res = ExpandOp_BUILD_VECTOR(N); break;
     case ISD::EXTRACT_ELEMENT: Res = ExpandOp_EXTRACT_ELEMENT(N); break;
 
@@ -1421,7 +1420,7 @@ SDValue DAGTypeLegalizer::ExpandFloatOp_STORE(SDNode *N, unsigned OpNo) {
   GetExpandedOp(ST->getValue(), Lo, Hi);
 
   return DAG.getTruncStore(Chain, N->getDebugLoc(), Hi, Ptr,
-                           ST->getSrcValue(), ST->getSrcValueOffset(),
+                           ST->getPointerInfo(),
                            ST->getMemoryVT(), ST->isVolatile(),
                            ST->isNonTemporal(), ST->getAlignment());
 }

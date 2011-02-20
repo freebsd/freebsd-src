@@ -43,7 +43,7 @@ public:
 
   /// HeaderMap::Create - This attempts to load the specified file as a header
   /// map.  If it doesn't look like a HeaderMap, it gives up and returns null.
-  static const HeaderMap *Create(const FileEntry *FE);
+  static const HeaderMap *Create(const FileEntry *FE, FileManager &FM);
 
   /// LookupFile - Check to see if the specified relative filename is located in
   /// this HeaderMap.  If so, open it and return its FileEntry.

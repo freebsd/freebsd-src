@@ -6,7 +6,9 @@ SRCDIR=	tools/clang/lib/Basic
 SRCS=	Builtins.cpp \
 	ConvertUTF.c \
 	Diagnostic.cpp \
+	DiagnosticIDs.cpp \
 	FileManager.cpp \
+	FileSystemStatCache.cpp \
 	IdentifierTable.cpp \
 	SourceLocation.cpp \
 	SourceManager.cpp \

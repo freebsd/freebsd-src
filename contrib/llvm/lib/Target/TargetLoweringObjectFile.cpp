@@ -43,8 +43,8 @@ TargetLoweringObjectFile::TargetLoweringObjectFile() : Ctx(0) {
   StaticCtorSection = 0;
   StaticDtorSection = 0;
   LSDASection = 0;
-  EHFrameSection = 0;
 
+  CommDirectiveSupportsAlignment = true;
   DwarfAbbrevSection = 0;
   DwarfInfoSection = 0;
   DwarfLineSection = 0;
@@ -168,6 +168,12 @@ SectionKind TargetLoweringObjectFile::getKindForGlobal(const GlobalValue *GV,
     switch (C->getRelocationInfo()) {
     default: assert(0 && "unknown relocation info kind");
     case Constant::NoRelocation:
+      // If the global is required to have a unique address, it can't be put
+      // into a mergable section: just drop it into the general read-only
+      // section instead.
+      if (!GVar->hasUnnamedAddr())
+        return SectionKind::getReadOnly();
+        
       // If initializer is a null-terminated string, put it in a "cstring"
       // section of the right width.
       if (const ArrayType *ATy = dyn_cast<ArrayType>(C->getType())) {

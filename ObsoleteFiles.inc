@@ -38,6 +38,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110220: new clang import which bumps version from 2.8 to 2.9
+OLD_FILES+=usr/include/clang/2.8/emmintrin.h
+OLD_FILES+=usr/include/clang/2.8/mm_malloc.h
+OLD_FILES+=usr/include/clang/2.8/mmintrin.h
+OLD_FILES+=usr/include/clang/2.8/pmmintrin.h
+OLD_FILES+=usr/include/clang/2.8/tmmintrin.h
+OLD_FILES+=usr/include/clang/2.8/xmmintrin.h
+OLD_DIRS+=usr/include/clang/2.8
 # 20110119: Remove SYSCTL_*X* sysctl additions.
 OLD_FILES+=usr/share/man/man9/SYSCTL_XINT.9.gz \
     usr/share/man/man9/SYSCTL_XLONG.9.gz

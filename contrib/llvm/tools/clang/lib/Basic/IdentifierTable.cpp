@@ -44,7 +44,23 @@ IdentifierInfo::IdentifierInfo() {
 // IdentifierTable Implementation
 //===----------------------------------------------------------------------===//
 
+IdentifierIterator::~IdentifierIterator() { }
+
 IdentifierInfoLookup::~IdentifierInfoLookup() {}
+
+namespace {
+  /// \brief A simple identifier lookup iterator that represents an
+  /// empty sequence of identifiers.
+  class EmptyLookupIterator : public IdentifierIterator
+  {
+  public:
+    virtual llvm::StringRef Next() { return llvm::StringRef(); }
+  };
+}
+
+IdentifierIterator *IdentifierInfoLookup::getIdentifiers() const {
+  return new EmptyLookupIterator();
+}
 
 ExternalIdentifierLookup::~ExternalIdentifierLookup() {}
 
@@ -73,8 +89,9 @@ namespace {
     KEYMS = 32,
     BOOLSUPPORT = 64,
     KEYALTIVEC = 128,
-    KEYNOMS = 256,
-    KEYBORLAND = 512
+    KEYNOCXX = 256,
+    KEYBORLAND = 512,
+    KEYOPENCL = 1024
   };
 }
 
@@ -99,7 +116,8 @@ static void AddKeyword(llvm::StringRef Keyword,
   else if (LangOpts.Borland && (Flags & KEYBORLAND)) AddResult = 1;
   else if (LangOpts.Bool && (Flags & BOOLSUPPORT)) AddResult = 2;
   else if (LangOpts.AltiVec && (Flags & KEYALTIVEC)) AddResult = 2;
-  else if (!LangOpts.Microsoft && (Flags & KEYNOMS)) AddResult = 2;
+  else if (LangOpts.OpenCL && (Flags & KEYOPENCL)) AddResult = 2;
+  else if (!LangOpts.CPlusPlus && (Flags & KEYNOCXX)) AddResult = 2;
 
   // Don't add this keyword if disabled in this language.
   if (AddResult == 0) return;
@@ -308,6 +326,11 @@ IdentifierInfo *Selector::getIdentifierInfoForSlot(unsigned argIndex) const {
   return SI->getIdentifierInfoForSlot(argIndex);
 }
 
+llvm::StringRef Selector::getNameForSlot(unsigned int argIndex) const {
+  IdentifierInfo *II = getIdentifierInfoForSlot(argIndex);
+  return II? II->getName() : llvm::StringRef();
+}
+
 std::string MultiKeywordSelector::getName() const {
   llvm::SmallString<256> Str;
   llvm::raw_svector_ostream OS(Str);
@@ -374,7 +397,7 @@ Selector SelectorTable::getSelector(unsigned nKeys, IdentifierInfo **IIV) {
   unsigned Size = sizeof(MultiKeywordSelector) + nKeys*sizeof(IdentifierInfo *);
   MultiKeywordSelector *SI =
     (MultiKeywordSelector*)SelTabImpl.Allocator.Allocate(Size,
-                                         llvm::alignof<MultiKeywordSelector>());
+                                         llvm::alignOf<MultiKeywordSelector>());
   new (SI) MultiKeywordSelector(nKeys, IIV);
   SelTabImpl.Table.InsertNode(SI, InsertPos);
   return Selector(SI);

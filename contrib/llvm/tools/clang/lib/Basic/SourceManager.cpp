@@ -15,13 +15,16 @@
 #include "clang/Basic/SourceManagerInternals.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/FileManager.h"
+#include "llvm/ADT/StringSwitch.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Path.h"
+#include "llvm/Support/Path.h"
 #include <algorithm>
 #include <string>
 #include <cstring>
+#include <sys/stat.h>
 
 using namespace clang;
 using namespace SrcMgr;
@@ -66,100 +69,86 @@ const llvm::MemoryBuffer *ContentCache::getBuffer(Diagnostic &Diag,
                                                   const SourceManager &SM,
                                                   SourceLocation Loc,
                                                   bool *Invalid) const {
-  if (Invalid)
-    *Invalid = false;
-      
-  // Lazily create the Buffer for ContentCaches that wrap files.
-  if (!Buffer.getPointer() && Entry) {
-    std::string ErrorStr;
-    struct stat FileInfo;
-    Buffer.setPointer(MemoryBuffer::getFile(Entry->getName(), &ErrorStr,
-                                            Entry->getSize(), &FileInfo));
+  // Lazily create the Buffer for ContentCaches that wrap files.  If we already
+  // computed it, jsut return what we have.
+  if (Buffer.getPointer() || Entry == 0) {
+    if (Invalid)
+      *Invalid = isBufferInvalid();
     
-    // If we were unable to open the file, then we are in an inconsistent
-    // situation where the content cache referenced a file which no longer
-    // exists. Most likely, we were using a stat cache with an invalid entry but
-    // the file could also have been removed during processing. Since we can't
-    // really deal with this situation, just create an empty buffer.
-    //
-    // FIXME: This is definitely not ideal, but our immediate clients can't
-    // currently handle returning a null entry here. Ideally we should detect
-    // that we are in an inconsistent situation and error out as quickly as
-    // possible.
-    if (!Buffer.getPointer()) {
-      const llvm::StringRef FillStr("<<<MISSING SOURCE FILE>>>\n");
-      Buffer.setPointer(MemoryBuffer::getNewMemBuffer(Entry->getSize(), 
-                                                      "<invalid>"));
-      char *Ptr = const_cast<char*>(Buffer.getPointer()->getBufferStart());
-      for (unsigned i = 0, e = Entry->getSize(); i != e; ++i)
-        Ptr[i] = FillStr[i % FillStr.size()];
+    return Buffer.getPointer();
+  }    
 
-      if (Diag.isDiagnosticInFlight())
-        Diag.SetDelayedDiagnostic(diag::err_cannot_open_file, 
-                                  Entry->getName(), ErrorStr);
-      else 
-        Diag.Report(FullSourceLoc(Loc, SM), diag::err_cannot_open_file)
-          << Entry->getName() << ErrorStr;
+  std::string ErrorStr;
+  Buffer.setPointer(SM.getFileManager().getBufferForFile(Entry, &ErrorStr));
 
-      Buffer.setInt(Buffer.getInt() | InvalidFlag);
+  // If we were unable to open the file, then we are in an inconsistent
+  // situation where the content cache referenced a file which no longer
+  // exists. Most likely, we were using a stat cache with an invalid entry but
+  // the file could also have been removed during processing. Since we can't
+  // really deal with this situation, just create an empty buffer.
+  //
+  // FIXME: This is definitely not ideal, but our immediate clients can't
+  // currently handle returning a null entry here. Ideally we should detect
+  // that we are in an inconsistent situation and error out as quickly as
+  // possible.
+  if (!Buffer.getPointer()) {
+    const llvm::StringRef FillStr("<<<MISSING SOURCE FILE>>>\n");
+    Buffer.setPointer(MemoryBuffer::getNewMemBuffer(Entry->getSize(), 
+                                                    "<invalid>"));
+    char *Ptr = const_cast<char*>(Buffer.getPointer()->getBufferStart());
+    for (unsigned i = 0, e = Entry->getSize(); i != e; ++i)
+      Ptr[i] = FillStr[i % FillStr.size()];
 
-    // FIXME: This conditionalization is horrible, but we see spurious failures
-    // in the test suite due to this warning and no one has had time to hunt it
-    // down. So for now, we just don't emit this diagnostic on Win32, and hope
-    // nothing bad happens.
-    //
-    // PR6812.
-#if !defined(LLVM_ON_WIN32)
-    } else if (FileInfo.st_size != Entry->getSize() ||
-               FileInfo.st_mtime != Entry->getModificationTime()) {
-      // Check that the file's size and modification time are the same
-      // as in the file entry (which may have come from a stat cache).
-      if (Diag.isDiagnosticInFlight())
-        Diag.SetDelayedDiagnostic(diag::err_file_modified,
-                                  Entry->getName());
-      else
-        Diag.Report(FullSourceLoc(Loc, SM), diag::err_file_modified)
-          << Entry->getName();
+    if (Diag.isDiagnosticInFlight())
+      Diag.SetDelayedDiagnostic(diag::err_cannot_open_file, 
+                                Entry->getName(), ErrorStr);
+    else 
+      Diag.Report(Loc, diag::err_cannot_open_file)
+        << Entry->getName() << ErrorStr;
 
-      Buffer.setInt(Buffer.getInt() | InvalidFlag);
-#endif
-    }
+    Buffer.setInt(Buffer.getInt() | InvalidFlag);
     
-    // If the buffer is valid, check to see if it has a UTF Byte Order Mark
-    // (BOM).  We only support UTF-8 without a BOM right now.  See
-    // http://en.wikipedia.org/wiki/Byte_order_mark for more information.
-    if (!isBufferInvalid()) {
-      llvm::StringRef BufStr = Buffer.getPointer()->getBuffer();
-      const char *BOM = 0;
-      if (BufStr.startswith("\xFE\xBB\xBF"))
-        BOM = "UTF-8";
-      else if (BufStr.startswith("\xFE\xFF"))
-        BOM = "UTF-16 (BE)";
-      else if (BufStr.startswith("\xFF\xFE"))
-        BOM = "UTF-16 (LE)";
-      else if (BufStr.startswith(llvm::StringRef("\x00\x00\xFE\xFF", 4)))
-        BOM = "UTF-32 (BE)";
-      else if (BufStr.startswith(llvm::StringRef("\xFF\xFE\x00\x00", 4)))
-        BOM = "UTF-32 (LE)";
-      else if (BufStr.startswith("\x2B\x2F\x76"))
-        BOM = "UTF-7";
-      else if (BufStr.startswith("\xF7\x64\x4C"))
-        BOM = "UTF-1";
-      else if (BufStr.startswith("\xDD\x73\x66\x73"))
-        BOM = "UTF-EBCDIC";
-      else if (BufStr.startswith("\x0E\xFE\xFF"))
-        BOM = "SDSU";
-      else if (BufStr.startswith("\xFB\xEE\x28"))
-        BOM = "BOCU-1";
-      else if (BufStr.startswith("\x84\x31\x95\x33"))
-        BOM = "BOCU-1";
-      
-      if (BOM) {
-        Diag.Report(FullSourceLoc(Loc, SM), diag::err_unsupported_bom)
-          << BOM << Entry->getName();
-        Buffer.setInt(1);
-      }
-    }
+    if (Invalid) *Invalid = true;
+    return Buffer.getPointer();
+  }
+  
+  // Check that the file's size is the same as in the file entry (which may
+  // have come from a stat cache).
+  if (getRawBuffer()->getBufferSize() != (size_t)Entry->getSize()) {
+    if (Diag.isDiagnosticInFlight())
+      Diag.SetDelayedDiagnostic(diag::err_file_modified,
+                                Entry->getName());
+    else
+      Diag.Report(Loc, diag::err_file_modified)
+        << Entry->getName();
+
+    Buffer.setInt(Buffer.getInt() | InvalidFlag);
+    if (Invalid) *Invalid = true;
+    return Buffer.getPointer();
+  }
+  
+  // If the buffer is valid, check to see if it has a UTF Byte Order Mark
+  // (BOM).  We only support UTF-8 without a BOM right now.  See
+  // http://en.wikipedia.org/wiki/Byte_order_mark for more information.
+  llvm::StringRef BufStr = Buffer.getPointer()->getBuffer();
+  const char *BOM = llvm::StringSwitch<const char *>(BufStr)
+    .StartsWith("\xEF\xBB\xBF", "UTF-8")
+    .StartsWith("\xFE\xFF", "UTF-16 (BE)")
+    .StartsWith("\xFF\xFE", "UTF-16 (LE)")
+    .StartsWith("\x00\x00\xFE\xFF", "UTF-32 (BE)")
+    .StartsWith("\xFF\xFE\x00\x00", "UTF-32 (LE)")
+    .StartsWith("\x2B\x2F\x76", "UTF-7")
+    .StartsWith("\xF7\x64\x4C", "UTF-1")
+    .StartsWith("\xDD\x73\x66\x73", "UTF-EBCDIC")
+    .StartsWith("\x0E\xFE\xFF", "SDSU")
+    .StartsWith("\xFB\xEE\x28", "BOCU-1")
+    .StartsWith("\x84\x31\x95\x33", "GB-18030")
+    .Default(0);
+
+  if (BOM) {
+    Diag.Report(Loc, diag::err_unsupported_bom)
+      << BOM << Entry->getName();
+    Buffer.setInt(Buffer.getInt() | InvalidFlag);
   }
   
   if (Invalid)
@@ -350,6 +339,14 @@ LineTableInfo &SourceManager::getLineTable() {
 // Private 'Create' methods.
 //===----------------------------------------------------------------------===//
 
+SourceManager::SourceManager(Diagnostic &Diag, FileManager &FileMgr)
+  : Diag(Diag), FileMgr(FileMgr),
+    ExternalSLocEntries(0), LineTable(0), NumLinearScans(0),
+    NumBinaryProbes(0) {
+  clearIDTables();
+  Diag.setSourceManager(this);
+}
+
 SourceManager::~SourceManager() {
   delete LineTable;
 
@@ -525,25 +522,32 @@ SourceManager::getMemoryBufferForFile(const FileEntry *File,
   return IR->getBuffer(Diag, *this, SourceLocation(), Invalid);
 }
 
-bool SourceManager::overrideFileContents(const FileEntry *SourceFile,
+void SourceManager::overrideFileContents(const FileEntry *SourceFile,
                                          const llvm::MemoryBuffer *Buffer,
                                          bool DoNotFree) {
   const SrcMgr::ContentCache *IR = getOrCreateContentCache(SourceFile);
-  if (IR == 0)
-    return true;
+  assert(IR && "getOrCreateContentCache() cannot return NULL");
 
   const_cast<SrcMgr::ContentCache *>(IR)->replaceBuffer(Buffer, DoNotFree);
-  return false;
 }
 
 llvm::StringRef SourceManager::getBufferData(FileID FID, bool *Invalid) const {
   bool MyInvalid = false;
-  const llvm::MemoryBuffer *Buf = getBuffer(FID, &MyInvalid);
+  const SLocEntry &SLoc = getSLocEntry(FID.ID);
+  if (!SLoc.isFile()) {
+    if (Invalid) 
+      *Invalid = true;
+    return "<<<<<INVALID SOURCE LOCATION>>>>>";
+  }
+  
+  const llvm::MemoryBuffer *Buf
+    = SLoc.getFile().getContentCache()->getBuffer(Diag, *this, SourceLocation(), 
+                                                  &MyInvalid);
   if (Invalid)
     *Invalid = MyInvalid;
 
   if (MyInvalid)
-    return "";
+    return "<<<<<INVALID SOURCE LOCATION>>>>>";
   
   return Buf->getBuffer();
 }
@@ -796,21 +800,30 @@ unsigned SourceManager::getColumnNumber(FileID FID, unsigned FilePos,
   return FilePos-LineStart+1;
 }
 
+// isInvalid - Return the result of calling loc.isInvalid(), and
+// if Invalid is not null, set its value to same.
+static bool isInvalid(SourceLocation Loc, bool *Invalid) {
+  bool MyInvalid = Loc.isInvalid();
+  if (Invalid)
+    *Invalid = MyInvalid;
+  return MyInvalid;
+}
+
 unsigned SourceManager::getSpellingColumnNumber(SourceLocation Loc,
                                                 bool *Invalid) const {
-  if (Loc.isInvalid()) return 0;
+  if (isInvalid(Loc, Invalid)) return 0;
   std::pair<FileID, unsigned> LocInfo = getDecomposedSpellingLoc(Loc);
   return getColumnNumber(LocInfo.first, LocInfo.second, Invalid);
 }
 
 unsigned SourceManager::getInstantiationColumnNumber(SourceLocation Loc,
                                                      bool *Invalid) const {
-  if (Loc.isInvalid()) return 0;
+  if (isInvalid(Loc, Invalid)) return 0;
   std::pair<FileID, unsigned> LocInfo = getDecomposedInstantiationLoc(Loc);
   return getColumnNumber(LocInfo.first, LocInfo.second, Invalid);
 }
 
-static DISABLE_INLINE void
+static LLVM_ATTRIBUTE_NOINLINE void
 ComputeLineNumbers(Diagnostic &Diag, ContentCache *FI,
                    llvm::BumpPtrAllocator &Alloc,
                    const SourceManager &SM, bool &Invalid);
@@ -974,13 +987,13 @@ unsigned SourceManager::getLineNumber(FileID FID, unsigned FilePos,
 
 unsigned SourceManager::getInstantiationLineNumber(SourceLocation Loc, 
                                                    bool *Invalid) const {
-  if (Loc.isInvalid()) return 0;
+  if (isInvalid(Loc, Invalid)) return 0;
   std::pair<FileID, unsigned> LocInfo = getDecomposedInstantiationLoc(Loc);
   return getLineNumber(LocInfo.first, LocInfo.second);
 }
 unsigned SourceManager::getSpellingLineNumber(SourceLocation Loc, 
                                               bool *Invalid) const {
-  if (Loc.isInvalid()) return 0;
+  if (isInvalid(Loc, Invalid)) return 0;
   std::pair<FileID, unsigned> LocInfo = getDecomposedSpellingLoc(Loc);
   return getLineNumber(LocInfo.first, LocInfo.second);
 }
@@ -1021,7 +1034,7 @@ SourceManager::getFileCharacteristic(SourceLocation Loc) const {
 /// for normal clients.
 const char *SourceManager::getBufferName(SourceLocation Loc, 
                                          bool *Invalid) const {
-  if (Loc.isInvalid()) return "<invalid loc>";
+  if (isInvalid(Loc, Invalid)) return "<invalid loc>";
 
   return getBuffer(getFileID(Loc), Invalid)->getBufferIdentifier();
 }
@@ -1051,8 +1064,14 @@ PresumedLoc SourceManager::getPresumedLoc(SourceLocation Loc) const {
     Filename = C->Entry->getName();
   else
     Filename = C->getBuffer(Diag, *this)->getBufferIdentifier();
-  unsigned LineNo = getLineNumber(LocInfo.first, LocInfo.second);
-  unsigned ColNo  = getColumnNumber(LocInfo.first, LocInfo.second);
+  bool Invalid = false;
+  unsigned LineNo = getLineNumber(LocInfo.first, LocInfo.second, &Invalid);
+  if (Invalid)
+    return PresumedLoc();
+  unsigned ColNo  = getColumnNumber(LocInfo.first, LocInfo.second, &Invalid);
+  if (Invalid)
+    return PresumedLoc();
+  
   SourceLocation IncludeLoc = FI.getIncludeLoc();
 
   // If we have #line directives in this file, update and overwrite the physical
@@ -1090,20 +1109,120 @@ PresumedLoc SourceManager::getPresumedLoc(SourceLocation Loc) const {
 // Other miscellaneous methods.
 //===----------------------------------------------------------------------===//
 
+/// \brief Retrieve the inode for the given file entry, if possible.
+///
+/// This routine involves a system call, and therefore should only be used
+/// in non-performance-critical code.
+static llvm::Optional<ino_t> getActualFileInode(const FileEntry *File) {
+  if (!File)
+    return llvm::Optional<ino_t>();
+  
+  struct stat StatBuf;
+  if (::stat(File->getName(), &StatBuf))
+    return llvm::Optional<ino_t>();
+    
+  return StatBuf.st_ino;
+}
+
 /// \brief Get the source location for the given file:line:col triplet.
 ///
 /// If the source file is included multiple times, the source location will
 /// be based upon the first inclusion.
 SourceLocation SourceManager::getLocation(const FileEntry *SourceFile,
-                                          unsigned Line, unsigned Col) const {
+                                          unsigned Line, unsigned Col) {
   assert(SourceFile && "Null source file!");
   assert(Line && Col && "Line and column should start from 1!");
 
-  fileinfo_iterator FI = FileInfos.find(SourceFile);
-  if (FI == FileInfos.end())
-    return SourceLocation();
-  ContentCache *Content = FI->second;
+  // Find the first file ID that corresponds to the given file.
+  FileID FirstFID;
 
+  // First, check the main file ID, since it is common to look for a
+  // location in the main file.
+  llvm::Optional<ino_t> SourceFileInode;
+  llvm::Optional<llvm::StringRef> SourceFileName;
+  if (!MainFileID.isInvalid()) {
+    const SLocEntry &MainSLoc = getSLocEntry(MainFileID);
+    if (MainSLoc.isFile()) {
+      const ContentCache *MainContentCache
+        = MainSLoc.getFile().getContentCache();
+      if (!MainContentCache) {
+        // Can't do anything
+      } else if (MainContentCache->Entry == SourceFile) {
+        FirstFID = MainFileID;
+      } else {
+        // Fall back: check whether we have the same base name and inode
+        // as the main file.
+        const FileEntry *MainFile = MainContentCache->Entry;
+        SourceFileName = llvm::sys::path::filename(SourceFile->getName());
+        if (*SourceFileName == llvm::sys::path::filename(MainFile->getName())) {
+          SourceFileInode = getActualFileInode(SourceFile);
+          if (SourceFileInode) {
+            if (llvm::Optional<ino_t> MainFileInode 
+                                               = getActualFileInode(MainFile)) {
+              if (*SourceFileInode == *MainFileInode) {
+                FirstFID = MainFileID;
+                SourceFile = MainFile;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (FirstFID.isInvalid()) {
+    // The location we're looking for isn't in the main file; look
+    // through all of the source locations.
+    for (unsigned I = 0, N = sloc_entry_size(); I != N; ++I) {
+      const SLocEntry &SLoc = getSLocEntry(I);
+      if (SLoc.isFile() && 
+          SLoc.getFile().getContentCache() &&
+          SLoc.getFile().getContentCache()->Entry == SourceFile) {
+        FirstFID = FileID::get(I);
+        break;
+      }
+    }
+  }
+
+  // If we haven't found what we want yet, try again, but this time stat()
+  // each of the files in case the files have changed since we originally 
+  // parsed the file. 
+  if (FirstFID.isInvalid() &&
+      (SourceFileName || 
+       (SourceFileName = llvm::sys::path::filename(SourceFile->getName()))) &&
+      (SourceFileInode ||
+       (SourceFileInode = getActualFileInode(SourceFile)))) {
+    for (unsigned I = 0, N = sloc_entry_size(); I != N; ++I) {
+      const SLocEntry &SLoc = getSLocEntry(I);
+      if (SLoc.isFile()) { 
+        const ContentCache *FileContentCache 
+          = SLoc.getFile().getContentCache();
+        const FileEntry *Entry =FileContentCache? FileContentCache->Entry : 0;
+        if (Entry && 
+            *SourceFileName == llvm::sys::path::filename(Entry->getName())) {
+          if (llvm::Optional<ino_t> EntryInode = getActualFileInode(Entry)) {
+            if (*SourceFileInode == *EntryInode) {
+              FirstFID = FileID::get(I);
+              SourceFile = Entry;
+              break;
+            }
+          }
+        }
+      }
+    }      
+  }
+    
+  if (FirstFID.isInvalid())
+    return SourceLocation();
+
+  if (Line == 1 && Col == 1)
+    return getLocForStartOfFile(FirstFID);
+
+  ContentCache *Content
+    = const_cast<ContentCache *>(getOrCreateContentCache(SourceFile));
+  if (!Content)
+    return SourceLocation();
+    
   // If this is the first use of line information for this buffer, compute the
   /// SourceLineCache for it on demand.
   if (Content->SourceLineCache == 0) {
@@ -1112,32 +1231,6 @@ SourceLocation SourceManager::getLocation(const FileEntry *SourceFile,
     if (MyInvalid)
       return SourceLocation();
   }
-
-  // Find the first file ID that corresponds to the given file.
-  FileID FirstFID;
-
-  // First, check the main file ID, since it is common to look for a
-  // location in the main file.
-  if (!MainFileID.isInvalid()) {
-    const SLocEntry &MainSLoc = getSLocEntry(MainFileID);
-    if (MainSLoc.isFile() && MainSLoc.getFile().getContentCache() == Content)
-      FirstFID = MainFileID;
-  }
-
-  if (FirstFID.isInvalid()) {
-    // The location we're looking for isn't in the main file; look
-    // through all of the source locations.
-    for (unsigned I = 0, N = sloc_entry_size(); I != N; ++I) {
-      const SLocEntry &SLoc = getSLocEntry(I);
-      if (SLoc.isFile() && SLoc.getFile().getContentCache() == Content) {
-        FirstFID = FileID::get(I);
-        break;
-      }
-    }
-  }
-    
-  if (FirstFID.isInvalid())
-    return SourceLocation();
 
   if (Line > Content->NumLines) {
     unsigned Size = Content->getBuffer(Diag, *this)->getBufferSize();
@@ -1189,6 +1282,13 @@ bool SourceManager::isBeforeInTranslationUnit(SourceLocation LHS,
   assert(LHS.isValid() && RHS.isValid() && "Passed invalid source location!");
   if (LHS == RHS)
     return false;
+
+  // If both locations are macro instantiations, the order of their offsets
+  // reflect the order that the tokens, pointed to by these locations, were
+  // instantiated (during parsing each token that is instantiated by a macro,
+  // expands the SLocEntries).
+  if (LHS.isMacroID() && RHS.isMacroID())
+    return LHS.getOffset() < RHS.getOffset();
 
   std::pair<FileID, unsigned> LOffs = getDecomposedLoc(LHS);
   std::pair<FileID, unsigned> ROffs = getDecomposedLoc(RHS);

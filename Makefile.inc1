@@ -974,7 +974,6 @@ _crunchgen=	usr.sbin/crunch/crunchgen
 # with different per-architecture default values. Always build tblgen.
 _clang_tblgen= \
 	lib/clang/libllvmsupport \
-	lib/clang/libllvmsystem \
 	usr.bin/clang/tblgen
 
 .if ${MK_CDDL} != "no"

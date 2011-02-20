@@ -39,7 +39,6 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/CallGraph.h"
-#include "llvm/Target/TargetData.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
@@ -67,7 +66,9 @@ namespace {
     virtual bool runOnSCC(CallGraphSCC &SCC);
     static char ID; // Pass identification, replacement for typeid
     explicit ArgPromotion(unsigned maxElements = 3)
-      : CallGraphSCCPass(ID), maxElements(maxElements) {}
+        : CallGraphSCCPass(ID), maxElements(maxElements) {
+      initializeArgPromotionPass(*PassRegistry::getPassRegistry());
+    }
 
     /// A vector used to hold the indices of a single GEP instruction
     typedef std::vector<uint64_t> IndicesVector;
@@ -84,8 +85,12 @@ namespace {
 }
 
 char ArgPromotion::ID = 0;
-INITIALIZE_PASS(ArgPromotion, "argpromotion",
-                "Promote 'by reference' arguments to scalars", false, false);
+INITIALIZE_PASS_BEGIN(ArgPromotion, "argpromotion",
+                "Promote 'by reference' arguments to scalars", false, false)
+INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
+INITIALIZE_AG_DEPENDENCY(CallGraph)
+INITIALIZE_PASS_END(ArgPromotion, "argpromotion",
+                "Promote 'by reference' arguments to scalars", false, false)
 
 Pass *llvm::createArgumentPromotionPass(unsigned maxElements) {
   return new ArgPromotion(maxElements);
@@ -130,47 +135,74 @@ CallGraphNode *ArgPromotion::PromoteArguments(CallGraphNode *CGN) {
   if (PointerArgs.empty()) return 0;
 
   // Second check: make sure that all callers are direct callers.  We can't
-  // transform functions that have indirect callers.
-  if (F->hasAddressTaken())
-    return 0;
-
+  // transform functions that have indirect callers.  Also see if the function
+  // is self-recursive.
+  bool isSelfRecursive = false;
+  for (Value::use_iterator UI = F->use_begin(), E = F->use_end();
+       UI != E; ++UI) {
+    CallSite CS(*UI);
+    // Must be a direct call.
+    if (CS.getInstruction() == 0 || !CS.isCallee(UI)) return 0;
+    
+    if (CS.getInstruction()->getParent()->getParent() == F)
+      isSelfRecursive = true;
+  }
+  
   // Check to see which arguments are promotable.  If an argument is promotable,
   // add it to ArgsToPromote.
   SmallPtrSet<Argument*, 8> ArgsToPromote;
   SmallPtrSet<Argument*, 8> ByValArgsToTransform;
   for (unsigned i = 0; i != PointerArgs.size(); ++i) {
     bool isByVal = F->paramHasAttr(PointerArgs[i].second+1, Attribute::ByVal);
+    Argument *PtrArg = PointerArgs[i].first;
+    const Type *AgTy = cast<PointerType>(PtrArg->getType())->getElementType();
 
     // If this is a byval argument, and if the aggregate type is small, just
     // pass the elements, which is always safe.
-    Argument *PtrArg = PointerArgs[i].first;
     if (isByVal) {
-      const Type *AgTy = cast<PointerType>(PtrArg->getType())->getElementType();
       if (const StructType *STy = dyn_cast<StructType>(AgTy)) {
         if (maxElements > 0 && STy->getNumElements() > maxElements) {
           DEBUG(dbgs() << "argpromotion disable promoting argument '"
                 << PtrArg->getName() << "' because it would require adding more"
                 << " than " << maxElements << " arguments to the function.\n");
-        } else {
-          // If all the elements are single-value types, we can promote it.
-          bool AllSimple = true;
-          for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i)
-            if (!STy->getElementType(i)->isSingleValueType()) {
-              AllSimple = false;
-              break;
-            }
-
-          // Safe to transform, don't even bother trying to "promote" it.
-          // Passing the elements as a scalar will allow scalarrepl to hack on
-          // the new alloca we introduce.
-          if (AllSimple) {
-            ByValArgsToTransform.insert(PtrArg);
-            continue;
+          continue;
+        }
+        
+        // If all the elements are single-value types, we can promote it.
+        bool AllSimple = true;
+        for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i) {
+          if (!STy->getElementType(i)->isSingleValueType()) {
+            AllSimple = false;
+            break;
           }
+        }
+
+        // Safe to transform, don't even bother trying to "promote" it.
+        // Passing the elements as a scalar will allow scalarrepl to hack on
+        // the new alloca we introduce.
+        if (AllSimple) {
+          ByValArgsToTransform.insert(PtrArg);
+          continue;
         }
       }
     }
 
+    // If the argument is a recursive type and we're in a recursive
+    // function, we could end up infinitely peeling the function argument.
+    if (isSelfRecursive) {
+      if (const StructType *STy = dyn_cast<StructType>(AgTy)) {
+        bool RecursiveType = false;
+        for (unsigned i = 0, e = STy->getNumElements(); i != e; ++i) {
+          if (STy->getElementType(i) == PtrArg->getType()) {
+            RecursiveType = true;
+            break;
+          }
+        }
+        if (RecursiveType)
+          continue;
+      }
+    }
+    
     // Otherwise, see if we can promote the pointer to its value.
     if (isSafeToPromoteArgument(PtrArg, isByVal))
       ArgsToPromote.insert(PtrArg);
@@ -183,22 +215,9 @@ CallGraphNode *ArgPromotion::PromoteArguments(CallGraphNode *CGN) {
   return DoPromotion(F, ArgsToPromote, ByValArgsToTransform);
 }
 
-/// IsAlwaysValidPointer - Return true if the specified pointer is always legal
-/// to load.
-static bool IsAlwaysValidPointer(Value *V) {
-  if (isa<AllocaInst>(V) || isa<GlobalVariable>(V)) return true;
-  if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(V))
-    return IsAlwaysValidPointer(GEP->getOperand(0));
-  if (ConstantExpr *CE = dyn_cast<ConstantExpr>(V))
-    if (CE->getOpcode() == Instruction::GetElementPtr)
-      return IsAlwaysValidPointer(CE->getOperand(0));
-
-  return false;
-}
-
-/// AllCalleesPassInValidPointerForArgument - Return true if we can prove that
+/// AllCallersPassInValidPointerForArgument - Return true if we can prove that
 /// all callees pass in a valid pointer for the specified function argument.
-static bool AllCalleesPassInValidPointerForArgument(Argument *Arg) {
+static bool AllCallersPassInValidPointerForArgument(Argument *Arg) {
   Function *Callee = Arg->getParent();
 
   unsigned ArgNo = std::distance(Callee->arg_begin(),
@@ -211,7 +230,7 @@ static bool AllCalleesPassInValidPointerForArgument(Argument *Arg) {
     CallSite CS(*UI);
     assert(CS && "Should only have direct calls!");
 
-    if (!IsAlwaysValidPointer(CS.getArgument(ArgNo)))
+    if (!CS.getArgument(ArgNo)->isDereferenceablePointer())
       return false;
   }
   return true;
@@ -318,7 +337,7 @@ bool ArgPromotion::isSafeToPromoteArgument(Argument *Arg, bool isByVal) const {
   GEPIndicesSet ToPromote;
 
   // If the pointer is always valid, any load with first index 0 is valid.
-  if (isByVal || AllCalleesPassInValidPointerForArgument(Arg))
+  if (isByVal || AllCallersPassInValidPointerForArgument(Arg))
     SafeToUnconditionallyLoad.insert(IndicesVector(1, 0));
 
   // First, iterate the entry block and mark loads of (geps of) arguments as
@@ -434,8 +453,6 @@ bool ArgPromotion::isSafeToPromoteArgument(Argument *Arg, bool isByVal) const {
   SmallPtrSet<BasicBlock*, 16> TranspBlocks;
 
   AliasAnalysis &AA = getAnalysis<AliasAnalysis>();
-  TargetData *TD = getAnalysisIfAvailable<TargetData>();
-  if (!TD) return false; // Without TargetData, assume the worst.
 
   for (unsigned i = 0, e = Loads.size(); i != e; ++i) {
     // Check to see if the load is invalidated from the start of the block to
@@ -443,11 +460,8 @@ bool ArgPromotion::isSafeToPromoteArgument(Argument *Arg, bool isByVal) const {
     LoadInst *Load = Loads[i];
     BasicBlock *BB = Load->getParent();
 
-    const PointerType *LoadTy =
-      cast<PointerType>(Load->getPointerOperand()->getType());
-    unsigned LoadSize =(unsigned)TD->getTypeStoreSize(LoadTy->getElementType());
-
-    if (AA.canInstructionRangeModify(BB->front(), *Load, Arg, LoadSize))
+    AliasAnalysis::Location Loc = AA.getLocation(Load);
+    if (AA.canInstructionRangeModify(BB->front(), *Load, Loc))
       return false;  // Pointer is invalidated!
 
     // Now check every path from the entry block to the load for transparency.
@@ -458,7 +472,7 @@ bool ArgPromotion::isSafeToPromoteArgument(Argument *Arg, bool isByVal) const {
       for (idf_ext_iterator<BasicBlock*, SmallPtrSet<BasicBlock*, 16> >
              I = idf_ext_begin(P, TranspBlocks),
              E = idf_ext_end(P, TranspBlocks); I != E; ++I)
-        if (AA.canBasicBlockModify(**I, Arg, LoadSize))
+        if (AA.canBasicBlockModify(**I, Loc))
           return false;
     }
   }
@@ -694,6 +708,9 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
           // of the previous load.
           LoadInst *newLoad = new LoadInst(V, V->getName()+".val", Call);
           newLoad->setAlignment(OrigLoad->getAlignment());
+          // Transfer the TBAA info too.
+          newLoad->setMetadata(LLVMContext::MD_tbaa,
+                               OrigLoad->getMetadata(LLVMContext::MD_tbaa));
           Args.push_back(newLoad);
           AA.copyValue(OrigLoad, Args.back());
         }

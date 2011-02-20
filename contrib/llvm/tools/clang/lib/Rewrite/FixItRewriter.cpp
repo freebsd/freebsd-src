@@ -19,7 +19,7 @@
 #include "clang/Basic/SourceManager.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Path.h"
+#include "llvm/Support/Path.h"
 #include "llvm/ADT/OwningPtr.h"
 #include <cstdio>
 
@@ -80,6 +80,9 @@ bool FixItRewriter::IncludeInDiagnosticCounts() const {
 
 void FixItRewriter::HandleDiagnostic(Diagnostic::Level DiagLevel,
                                      const DiagnosticInfo &Info) {
+  // Default implementation (Warnings/errors count).
+  DiagnosticClient::HandleDiagnostic(DiagLevel, Info);
+
   Client->HandleDiagnostic(DiagLevel, Info);
 
   // Skip over any diagnostics that are ignored or notes.
@@ -141,7 +144,7 @@ void FixItRewriter::HandleDiagnostic(Diagnostic::Level DiagLevel,
 }
 
 /// \brief Emit a diagnostic via the adapted diagnostic client.
-void FixItRewriter::Diag(FullSourceLoc Loc, unsigned DiagID) {
+void FixItRewriter::Diag(SourceLocation Loc, unsigned DiagID) {
   // When producing this diagnostic, we temporarily bypass ourselves,
   // clear out any current diagnostic, and let the downstream client
   // format the diagnostic.
