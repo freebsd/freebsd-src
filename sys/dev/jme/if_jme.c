@@ -126,8 +126,8 @@ static void jme_setwol(struct jme_softc *);
 static int jme_suspend(device_t);
 static int jme_resume(device_t);
 static int jme_encap(struct jme_softc *, struct mbuf **);
-static void jme_tx_task(void *, int);
 static void jme_start(struct ifnet *);
+static void jme_start_locked(struct ifnet *);
 static void jme_watchdog(struct jme_softc *);
 static int jme_ioctl(struct ifnet *, u_long, caddr_t);
 static void jme_mac_config(struct jme_softc *);
@@ -890,7 +890,6 @@ jme_attach(device_t dev)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 
 	/* Create local taskq. */
-	TASK_INIT(&sc->jme_tx_task, 1, jme_tx_task, ifp);
 	sc->jme_tq = taskqueue_create_fast("jme_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->jme_tq);
 	if (sc->jme_tq == NULL) {
@@ -942,7 +941,6 @@ jme_detach(device_t dev)
 		JME_UNLOCK(sc);
 		callout_drain(&sc->jme_tick_ch);
 		taskqueue_drain(sc->jme_tq, &sc->jme_int_task);
-		taskqueue_drain(sc->jme_tq, &sc->jme_tx_task);
 		taskqueue_drain(taskqueue_swi, &sc->jme_link_task);
 		/* Restore possibly modified station address. */
 		if ((sc->jme_flags & JME_FLAG_EFUSE) != 0)
@@ -1880,16 +1878,18 @@ jme_encap(struct jme_softc *sc, struct mbuf **m_head)
 }
 
 static void
-jme_tx_task(void *arg, int pending)
+jme_start(struct ifnet *ifp)
 {
-	struct ifnet *ifp;
+        struct jme_softc *sc;
 
-	ifp = (struct ifnet *)arg;
-	jme_start(ifp);
+	sc = ifp->if_softc;
+	JME_LOCK(sc);
+	jme_start_locked(ifp);
+	JME_UNLOCK(sc);
 }
 
 static void
-jme_start(struct ifnet *ifp)
+jme_start_locked(struct ifnet *ifp)
 {
         struct jme_softc *sc;
         struct mbuf *m_head;
@@ -1897,16 +1897,14 @@ jme_start(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
-	JME_LOCK(sc);
+	JME_LOCK_ASSERT(sc);
 
 	if (sc->jme_cdata.jme_tx_cnt >= JME_TX_DESC_HIWAT)
 		jme_txeof(sc);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || (sc->jme_flags & JME_FLAG_LINK) == 0) {
-		JME_UNLOCK(sc);
+	    IFF_DRV_RUNNING || (sc->jme_flags & JME_FLAG_LINK) == 0)
 		return;
-	}
 
 	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd); ) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
@@ -1945,8 +1943,6 @@ jme_start(struct ifnet *ifp)
 		/* Set a timeout in case the chip goes out to lunch. */
 		sc->jme_watchdog_timer = JME_TX_TIMEOUT;
 	}
-
-	JME_UNLOCK(sc);
 }
 
 static void
@@ -1972,7 +1968,7 @@ jme_watchdog(struct jme_softc *sc)
 		if_printf(sc->jme_ifp,
 		    "watchdog timeout (missed Tx interrupts) -- recovering\n");
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			taskqueue_enqueue(sc->jme_tq, &sc->jme_tx_task);
+			jme_start_locked(ifp);
 		return;
 	}
 
@@ -1981,7 +1977,7 @@ jme_watchdog(struct jme_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	jme_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue(sc->jme_tq, &sc->jme_tx_task);
+		jme_start_locked(ifp);
 }
 
 static int
@@ -2275,10 +2271,8 @@ jme_link_task(void *arg, int pending)
 	/* XXX Drain all queued tasks. */
 	JME_UNLOCK(sc);
 	taskqueue_drain(sc->jme_tq, &sc->jme_int_task);
-	taskqueue_drain(sc->jme_tq, &sc->jme_tx_task);
 	JME_LOCK(sc);
 
-	jme_rxintr(sc, JME_RX_RING_CNT);
 	if (sc->jme_cdata.jme_rxhead != NULL)
 		m_freem(sc->jme_cdata.jme_rxhead);
 	JME_RXCHAIN_RESET(sc);
@@ -2305,7 +2299,7 @@ jme_link_task(void *arg, int pending)
 
 	/*
 	 * Reuse configured Rx descriptors and reset
-	 * procuder/consumer index.
+	 * producer/consumer index.
 	 */
 	sc->jme_cdata.jme_rx_cons = 0;
 	sc->jme_morework = 0;
@@ -2384,6 +2378,7 @@ jme_int_task(void *arg, int pending)
 	sc = (struct jme_softc *)arg;
 	ifp = sc->jme_ifp;
 
+	JME_LOCK(sc);
 	status = CSR_READ_4(sc, JME_INTR_STATUS);
 	if (sc->jme_morework != 0) {
 		sc->jme_morework = 0;
@@ -2418,19 +2413,18 @@ jme_int_task(void *arg, int pending)
 			CSR_WRITE_4(sc, JME_RXCSR, sc->jme_rxcsr |
 			    RXCSR_RX_ENB | RXCSR_RXQ_START);
 		}
-		/*
-		 * Reclaiming Tx buffers are deferred to make jme(4) run
-		 * without locks held.
-		 */
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			taskqueue_enqueue(sc->jme_tq, &sc->jme_tx_task);
+			jme_start_locked(ifp);
 	}
 
 	if (more != 0 || (CSR_READ_4(sc, JME_INTR_STATUS) & JME_INTRS) != 0) {
 		taskqueue_enqueue(sc->jme_tq, &sc->jme_int_task);
+		JME_UNLOCK(sc);
 		return;
 	}
 done:
+	JME_UNLOCK(sc);
+
 	/* Reenable interrupts. */
 	CSR_WRITE_4(sc, JME_INTR_MASK_SET, JME_INTRS);
 }
@@ -2531,6 +2525,8 @@ jme_rxeof(struct jme_softc *sc)
 	struct mbuf *mp, *m;
 	uint32_t flags, status;
 	int cons, count, nsegs;
+
+	JME_LOCK_ASSERT(sc);
 
 	ifp = sc->jme_ifp;
 
@@ -2643,7 +2639,9 @@ jme_rxeof(struct jme_softc *sc)
 
 			ifp->if_ipackets++;
 			/* Pass it on. */
+			JME_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);
+			JME_LOCK(sc);
 
 			/* Reset mbuf chains. */
 			JME_RXCHAIN_RESET(sc);
