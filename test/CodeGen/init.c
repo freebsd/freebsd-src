@@ -46,3 +46,72 @@ void f6() {
   int x;
   long ids[] = { (long) &x };  
 }
+
+
+
+
+// CHECK: @test7 = global{{.*}}{ i32 0, [4 x i8] c"bar\00" }
+// PR8217
+struct a7 {
+  int  b;
+  char v[];
+};
+
+struct a7 test7 = { .b = 0, .v = "bar" };
+
+
+// PR279 comment #3
+char test8(int X) {
+  char str[100000] = "abc"; // tail should be memset.
+  return str[X];
+// CHECK: @test8(
+// CHECK: call void @llvm.memset
+// CHECK: store i8 97
+// CHECK: store i8 98
+// CHECK: store i8 99
+}
+
+void bar(void*);
+
+// PR279
+int test9(int X) {
+  int Arr[100] = { X };     // Should use memset
+  bar(Arr);
+// CHECK: @test9
+// CHECK: call void @llvm.memset
+// CHECK-NOT: store i32 0
+// CHECK: call void @bar
+}
+
+struct a {
+  int a, b, c, d, e, f, g, h, i, j, k, *p;
+};
+
+struct b {
+  struct a a,b,c,d,e,f,g;
+};
+
+int test10(int X) {
+  struct b S = { .a.a = X, .d.e = X, .f.e = 0, .f.f = 0, .f.p = 0 };
+  bar(&S);
+
+  // CHECK: @test10
+  // CHECK: call void @llvm.memset
+  // CHECK-NOT: store i32 0
+  // CHECK: call void @bar
+}
+
+
+// PR9257
+struct test11S {
+  int A[10];
+};
+void test11(struct test11S *P) {
+  *P = (struct test11S) { .A = { [0 ... 3] = 4 } };
+  // CHECK: @test11
+  // CHECK: store i32 4
+  // CHECK: store i32 4
+  // CHECK: store i32 4
+  // CHECK: store i32 4
+  // CHECK: ret void
+}

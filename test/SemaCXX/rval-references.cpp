@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -std=c++0x %s
+// RUN: %clang_cc1 -fexceptions -fsyntax-only -verify -std=c++0x %s
 
 typedef int&& irr;
 typedef irr& ilr_c1; // Collapses to int&
@@ -6,7 +6,7 @@ typedef int& ilr;
 typedef ilr&& ilr_c2; // Collapses to int&
 
 irr ret_irr() {
-  return 0;
+  return 0; // expected-warning {{returning reference to local temporary}}
 }
 
 struct not_int {};
@@ -28,9 +28,9 @@ fun_type &&make_fun();
 void f() {
   int &&virr1; // expected-error {{declaration of reference variable 'virr1' requires an initializer}}
   int &&virr2 = 0;
-  int &&virr3 = virr2; // expected-error {{rvalue reference cannot bind to lvalue}}
+  int &&virr3 = virr2; // expected-error {{rvalue reference to type 'int' cannot bind to lvalue of type 'int'}}
   int i1 = 0;
-  int &&virr4 = i1; // expected-error {{rvalue reference cannot bind to lvalue}}
+  int &&virr4 = i1; // expected-error {{rvalue reference to type 'int' cannot bind to lvalue of type 'int'}}
   int &&virr5 = ret_irr();
   int &&virr6 = static_cast<int&&>(i1);
   (void)static_cast<not_int&&>(i1); // expected-error {{types are not compatible}}
@@ -47,7 +47,7 @@ void f() {
   ilr_c2 vilr2 = i1;
 
   conv_to_not_int_rvalue cnir;
-  not_int &&ni4 = cnir; // expected-error {{rvalue reference cannot bind to lvalue}}
+  not_int &&ni4 = cnir;
   not_int &ni5 = cnir; // expected-error{{non-const lvalue reference to type 'not_int' cannot bind to a value of unrelated type 'conv_to_not_int_rvalue'}}
   not_int &&ni6 = conv_to_not_int_rvalue();
 

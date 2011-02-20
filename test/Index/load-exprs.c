@@ -20,6 +20,17 @@ int test_blocks(int x) {
   return y;
 }
 
+struct Y {
+  struct X array[3];
+};
+
+enum { StartIndex = 1 };
+
+void test_members(int aval, int bval) {
+  struct Y y0 = { .array[StartIndex].b = bval, .array[StartIndex].a = aval };
+  __builtin_offsetof(struct Y, array[StartIndex].b);
+}
+
 // RUN: c-index-test -test-load-source all %s -fblocks | FileCheck %s
 
 // CHECK: load-exprs.c:1:13: TypedefDecl=T:1:13 (Definition) Extent=[1:13 - 1:14]
@@ -45,11 +56,26 @@ int test_blocks(int x) {
 // CHECK: load-exprs.c:11:19: DeclRefExpr=x:10:21 Extent=[11:19 - 11:20]
 // CHECK: load-exprs.c:12:3: CallExpr= Extent=[12:3 - 19:7]
 // CHECK: load-exprs.c:13:17: VarDecl=z:13:17 (Definition) Extent=[13:13 - 13:22]
-// CHECK: load-exprs.c:14:6: DeclRefExpr= Extent=[14:6 - 14:7]
+// CHECK: load-exprs.c:14:6: DeclRefExpr=y:11:15 Extent=[14:6 - 14:7]
 // CHECK: load-exprs.c:14:13: DeclRefExpr=z:13:17 Extent=[14:13 - 14:14]
-// CHECK: load-exprs.c:14:18: DeclRefExpr= Extent=[14:18 - 14:19]
+// CHECK: load-exprs.c:14:18: DeclRefExpr=x:10:21 Extent=[14:18 - 14:19]
 // CHECK: load-exprs.c:15:6: CallExpr= Extent=[15:6 - 18:9]
 // CHECK: load-exprs.c:16:10: DeclRefExpr=z:13:17 Extent=[16:10 - 16:11]
-// CHECK: load-exprs.c:17:10: DeclRefExpr= Extent=[17:10 - 17:11]
+// CHECK: load-exprs.c:17:10: DeclRefExpr=y:11:15 Extent=[17:10 - 17:11]
 // CHECK: load-exprs.c:20:10: DeclRefExpr=y:11:15 Extent=[20:10 - 20:11]
+// CHECK: load-exprs.c:29:6: FunctionDecl=test_members:29:6 (Definition)
+// CHECK: load-exprs.c:30:12: VarDecl=y0:30:12 (Definition) Extent=[30:10 - 30:77]
+// CHECK: load-exprs.c:30:10: TypeRef=struct Y:23:8 Extent=[30:10 - 30:11]
+// CHECK: load-exprs.c:30:20: MemberRef=array:24:12 Extent=[30:20 - 30:25]
+// CHECK: load-exprs.c:30:26: DeclRefExpr=StartIndex:27:8 Extent=[30:26 - 30:36]
+// CHECK: load-exprs.c:30:38: MemberRef=b:2:19 Extent=[30:38 - 30:39]
+// CHECK: load-exprs.c:30:42: DeclRefExpr=bval:29:33 Extent=[30:42 - 30:46]
+// CHECK: load-exprs.c:30:49: MemberRef=array:24:12 Extent=[30:49 - 30:54]
+// CHECK: load-exprs.c:30:55: DeclRefExpr=StartIndex:27:8 Extent=[30:55 - 30:65]
+// CHECK: load-exprs.c:30:67: MemberRef=a:2:16 Extent=[30:67 - 30:68]
+// CHECK: load-exprs.c:30:71: DeclRefExpr=aval:29:23 Extent=[30:71 - 30:75]
+// CHECK: load-exprs.c:31:29: TypeRef=struct Y:23:8 Extent=[31:29 - 31:30]
+// CHECK: load-exprs.c:31:32: MemberRef=array:24:12 Extent=[31:32 - 31:37]
+// CHECK: load-exprs.c:31:38: DeclRefExpr=StartIndex:27:8 Extent=[31:38 - 31:48]
+// CHECK: load-exprs.c:31:50: MemberRef=b:2:19 Extent=[31:50 - 31:51]
 

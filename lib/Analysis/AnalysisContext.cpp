@@ -59,7 +59,11 @@ CFG *AnalysisContext::getCFG() {
     return getUnoptimizedCFG();
 
   if (!builtCFG) {
-    cfg = CFG::buildCFG(D, getBody(), &D->getASTContext(), true, AddEHEdges);
+    CFG::BuildOptions B;
+    B.AddEHEdges = AddEHEdges;
+    B.AddImplicitDtors = AddImplicitDtors;
+    B.AddInitializers = AddInitializers;
+    cfg = CFG::buildCFG(D, getBody(), &D->getASTContext(), B);
     // Even when the cfg is not successfully built, we don't
     // want to try building it again.
     builtCFG = true;
@@ -69,13 +73,21 @@ CFG *AnalysisContext::getCFG() {
 
 CFG *AnalysisContext::getUnoptimizedCFG() {
   if (!builtCompleteCFG) {
-    completeCFG = CFG::buildCFG(D, getBody(), &D->getASTContext(),
-                                false, AddEHEdges);
+    CFG::BuildOptions B;
+    B.PruneTriviallyFalseEdges = false;
+    B.AddEHEdges = AddEHEdges;
+    B.AddImplicitDtors = AddImplicitDtors;
+    B.AddInitializers = AddInitializers;
+    completeCFG = CFG::buildCFG(D, getBody(), &D->getASTContext(), B);
     // Even when the cfg is not successfully built, we don't
     // want to try building it again.
     builtCompleteCFG = true;
   }
   return completeCFG;
+}
+
+void AnalysisContext::dumpCFG() {
+    getCFG()->dump(getASTContext().getLangOptions());
 }
 
 ParentMap &AnalysisContext::getParentMap() {
@@ -122,7 +134,8 @@ AnalysisContext *AnalysisContextManager::getContext(const Decl *D,
                                                     idx::TranslationUnit *TU) {
   AnalysisContext *&AC = Contexts[D];
   if (!AC)
-    AC = new AnalysisContext(D, TU, UseUnoptimizedCFG);
+    AC = new AnalysisContext(D, TU, UseUnoptimizedCFG, false,
+        AddImplicitDtors, AddInitializers);
 
   return AC;
 }
@@ -179,8 +192,8 @@ LocationContextManager::getLocationContext(AnalysisContext *ctx,
 const StackFrameContext*
 LocationContextManager::getStackFrame(AnalysisContext *ctx,
                                       const LocationContext *parent,
-                                      const Stmt *s, const CFGBlock *blk,
-                                      unsigned idx) {
+                                      const Stmt *s,
+                                      const CFGBlock *blk, unsigned idx) {
   llvm::FoldingSetNodeID ID;
   StackFrameContext::Profile(ID, ctx, parent, s, blk, idx);
   void *InsertPos;
@@ -260,7 +273,7 @@ public:
   }
 
   void VisitStmt(Stmt *S) {
-    for (Stmt::child_iterator I = S->child_begin(), E = S->child_end();I!=E;++I)
+    for (Stmt::child_range I = S->children(); I; ++I)
       if (Stmt *child = *I)
         Visit(child);
   }

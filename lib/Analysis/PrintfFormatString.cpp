@@ -100,6 +100,10 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
   for ( ; I != E; ++I) {
     switch (*I) {
       default: hasMore = false; break;
+      case '\'':
+        // FIXME: POSIX specific.  Always accept?
+        FS.setHasThousandsGrouping(I);
+        break;
       case '-': FS.setIsLeftJustified(I); break;
       case '+': FS.setHasPlusPrefix(I); break;
       case ' ': FS.setHasSpacePrefix(I); break;
@@ -185,7 +189,7 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
     case 's': k = ConversionSpecifier::sArg;      break;
     case 'u': k = ConversionSpecifier::uArg; break;
     case 'x': k = ConversionSpecifier::xArg; break;
-    // Mac OS X (unicode) specific
+    // POSIX specific.
     case 'C': k = ConversionSpecifier::CArg; break;
     case 'S': k = ConversionSpecifier::SArg; break;
     // Objective-C.
@@ -200,7 +204,7 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
 
   if (k == ConversionSpecifier::InvalidSpecifier) {
     // Assume the conversion takes one argument.
-    return !H.HandleInvalidPrintfConversionSpecifier(FS, Beg, I - Beg);
+    return !H.HandleInvalidPrintfConversionSpecifier(FS, Start, I - Start);
   }
   return PrintfSpecifierResult(Start, FS);
 }
@@ -277,7 +281,7 @@ const char *ConversionSpecifier::toString() const {
 
 ArgTypeResult PrintfSpecifier::getArgType(ASTContext &Ctx) const {
   const PrintfConversionSpecifier &CS = getConversionSpecifier();
-  
+
   if (!CS.consumesDataArgument())
     return ArgTypeResult::Invalid();
 
@@ -288,7 +292,7 @@ ArgTypeResult PrintfSpecifier::getArgType(ASTContext &Ctx) const {
       default:
         return ArgTypeResult::Invalid();
     }
-  
+
   if (CS.isIntArg())
     switch (LM.getKind()) {
       case LengthModifier::AsLongDouble:
@@ -382,7 +386,20 @@ bool PrintfSpecifier::fixType(QualType QT) {
     LM.setKind(LengthModifier::None);
     break;
 
-  case BuiltinType::WChar:
+  case BuiltinType::Char_U:
+  case BuiltinType::UChar:
+  case BuiltinType::Char_S:
+  case BuiltinType::SChar:
+    LM.setKind(LengthModifier::AsChar);
+    break;
+
+  case BuiltinType::Short:
+  case BuiltinType::UShort:
+    LM.setKind(LengthModifier::AsShort);
+    break;
+
+  case BuiltinType::WChar_S:
+  case BuiltinType::WChar_U:
   case BuiltinType::Long:
   case BuiltinType::ULong:
     LM.setKind(LengthModifier::AsLong);
@@ -399,8 +416,10 @@ bool PrintfSpecifier::fixType(QualType QT) {
   }
 
   // Set conversion specifier and disable any flags which do not apply to it.
-  if (QT->isAnyCharacterType()) {
+  // Let typedefs to char fall through to int, as %c is silly for uint8_t.
+  if (isa<TypedefType>(QT) && QT->isAnyCharacterType()) {
     CS.setKind(ConversionSpecifier::cArg);
+    LM.setKind(LengthModifier::None);
     Precision.setHowSpecified(OptionalAmount::NotSpecified);
     HasAlternativeForm = 0;
     HasLeadingZeroes = 0;
@@ -435,7 +454,7 @@ bool PrintfSpecifier::fixType(QualType QT) {
 
 void PrintfSpecifier::toString(llvm::raw_ostream &os) const {
   // Whilst some features have no defined order, we are using the order
-  // appearing in the C99 standard (ISO/IEC 9899:1999 (E) ¤7.19.6.1)
+  // appearing in the C99 standard (ISO/IEC 9899:1999 (E) 7.19.6.1)
   os << "%";
 
   // Positional args
@@ -487,10 +506,11 @@ bool PrintfSpecifier::hasValidAlternativeForm() const {
   if (!HasAlternativeForm)
     return true;
 
-  // Alternate form flag only valid with the oxaAeEfFgG conversions
+  // Alternate form flag only valid with the oxXaAeEfFgG conversions
   switch (CS.getKind()) {
   case ConversionSpecifier::oArg:
   case ConversionSpecifier::xArg:
+  case ConversionSpecifier::XArg:
   case ConversionSpecifier::aArg:
   case ConversionSpecifier::AArg:
   case ConversionSpecifier::eArg:
@@ -567,6 +587,24 @@ bool PrintfSpecifier::hasValidLeftJustified() const {
 
   default:
     return true;
+  }
+}
+
+bool PrintfSpecifier::hasValidThousandsGroupingPrefix() const {
+  if (!HasThousandsGrouping)
+    return true;
+
+  switch (CS.getKind()) {
+    case ConversionSpecifier::dArg:
+    case ConversionSpecifier::iArg:
+    case ConversionSpecifier::uArg:
+    case ConversionSpecifier::fArg:
+    case ConversionSpecifier::FArg:
+    case ConversionSpecifier::gArg:
+    case ConversionSpecifier::GArg:
+      return true;
+    default:
+      return false;
   }
 }
 

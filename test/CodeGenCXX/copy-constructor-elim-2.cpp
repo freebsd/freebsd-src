@@ -21,7 +21,7 @@ namespace no_elide_base {
     Derived(const Other &O);
   };
 
-  // CHECK: define void @_ZN13no_elide_base7DerivedC1ERKNS_5OtherE
+  // CHECK: define void @_ZN13no_elide_base7DerivedC1ERKNS_5OtherE(%"struct.no_elide_base::Derived"* %this, %"struct.PR8683::A"* %O) unnamed_addr
   Derived::Derived(const Other &O) 
     // CHECK: call void @_ZNK13no_elide_base5OthercvNS_4BaseEEv
     // CHECK: call void @_ZN13no_elide_base4BaseC2ERKS0_
@@ -30,4 +30,26 @@ namespace no_elide_base {
   {
     // CHECK: ret void
   }
+}
+
+// PR8683.
+
+namespace PR8683 {
+
+struct A {
+  A();
+  A(const A&);
+  A& operator=(const A&);
+};
+
+struct B {
+  A a;
+};
+
+void f() {
+  // Verify that we don't mark the copy constructor in this expression as elidable.
+  // CHECK: call void @_ZN6PR86831AC1ERKS0_
+  A a = (B().a);
+}
+
 }

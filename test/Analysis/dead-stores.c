@@ -1,8 +1,8 @@
-// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-check-dead-stores -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
-// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=basic -analyzer-check-dead-stores -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
-// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=range -analyzer-check-dead-stores -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
-// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=basic -analyzer-check-dead-stores -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
-// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=range -analyzer-check-dead-stores -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-checker=core.experimental.IdempotentOps -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-checker=core.DeadStores -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-checker=core.experimental.IdempotentOps -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=basic -analyzer-checker=core.DeadStores -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-checker=core.experimental.IdempotentOps -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=range -analyzer-checker=core.DeadStores -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-checker=core.experimental.IdempotentOps -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=basic -analyzer-checker=core.DeadStores -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
+// RUN: %clang_cc1 -Wunused-variable -analyze -analyzer-checker=core.experimental.IdempotentOps -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=range -analyzer-checker=core.DeadStores -fblocks -verify -Wno-unreachable-code -analyzer-opt-analyze-nested-blocks %s
 
 void f1() {
   int k, y; // expected-warning{{unused variable 'k'}} expected-warning{{unused variable 'y'}}
@@ -13,7 +13,7 @@ void f1() {
 void f2(void *b) {
  char *c = (char*)b; // no-warning
  char *d = b+1; // expected-warning {{never read}} expected-warning{{unused variable 'd'}}
- printf("%s", c); // expected-warning{{implicitly declaring C library function 'printf' with type 'int (char const *, ...)'}} \
+ printf("%s", c); // expected-warning{{implicitly declaring C library function 'printf' with type 'int (const char *, ...)'}} \
  // expected-note{{please include the header <stdio.h> or explicitly provide a declaration for 'printf'}}
 }
 
@@ -44,10 +44,11 @@ void f5() {
 
 }
 
+//
 int f6() {
   
   int x = 4;
-  ++x; // expected-warning{{never read}}
+  ++x; // no-warning
   return 1;
 }
 
@@ -75,9 +76,11 @@ int f7d(int *p) {
   return 1;
 }
 
+// Don't warn for dead stores in nested expressions.  We have yet
+// to see a real bug in this scenario.
 int f8(int *p) {
   extern int *baz();
-  if ((p = baz())) // expected-warning{{Although the value}}
+  if ((p = baz())) // no-warning
     return 1;
   return 0;
 }
@@ -148,9 +151,11 @@ void f15(unsigned x, unsigned y) {
   int z[count]; // expected-warning{{unused variable 'z'}}
 }
 
+// Don't warn for dead stores in nested expressions.  We have yet
+// to see a real bug in this scenario.
 int f16(int x) {
   x = x * 2;
-  x = sizeof(int [x = (x || x + 1) * 2]) // expected-warning{{Although the value stored to 'x' is used}} expected-warning{{The left operand to '*' is always 1}}
+  x = sizeof(int [x = (x || x + 1) * 2]) // expected-warning{{The left operand to '+' is always 0}} expected-warning{{The left operand to '*' is always 1}}
       ? 5 : 8;
   return x;
 }
@@ -171,11 +176,35 @@ int f18() {
       x = 10;  // expected-warning{{Value stored to 'x' is never read}}
    while (1)
       x = 10;  // expected-warning{{Value stored to 'x' is never read}}
+   // unreachable.
    do
-      x = 10;   // expected-warning{{Value stored to 'x' is never read}}
+      x = 10;   // no-warning
    while (1);
+   return (x = 10); // no-warning
+}
 
-   return (x = 10); // expected-warning{{Although the value stored to 'x' is used in the enclosing expression, the value is never actually read from 'x'}}
+int f18_a() {
+   int x = 0; // no-warning
+   return (x = 10); // no-warning
+}
+
+void f18_b() {
+   int x = 0; // no-warning
+   if (1)
+      x = 10;  // expected-warning{{Value stored to 'x' is never read}}
+}
+
+void f18_c() {
+  int x = 0;
+  while (1)
+     x = 10;  // expected-warning{{Value stored to 'x' is never read}}
+}
+
+void f18_d() {
+  int x = 0; // no-warning
+  do
+     x = 10;   // expected-warning{{Value stored to 'x' is never read}}
+  while (1);
 }
 
 // PR 3514: false positive `dead initialization` warning for init to global
@@ -203,7 +232,7 @@ void halt() __attribute__((noreturn));
 int f21() {
   int x = 4;
   
-  ++x; // expected-warning{{never read}}
+  x = x + 1; // expected-warning{{never read}}
   if (1) {
     halt();
     (void)x;
@@ -235,7 +264,7 @@ void f22() {
   int y19 = 4;
   int y20 = 4;
 
-  ++x; // expected-warning{{never read}}
+  x = x + 1; // expected-warning{{never read}}
   ++y1;
   ++y2;
   ++y3;
@@ -484,5 +513,18 @@ void rdar8320674(s_rdar8320674 *z, unsigned y, s2_rdar8320674 *st, int m)
         ++z2;
         ++z;
     }while (--m);
+}
+
+// Avoid dead stores resulting from an assignment (and use) being unreachable.
+void rdar8405222_aux(int i);
+void rdar8405222() {
+  const int show = 0;
+  int i = 0;
+    
+  if (show)
+      i = 5; // no-warning
+
+  if (show)
+    rdar8405222_aux(i);
 }
 

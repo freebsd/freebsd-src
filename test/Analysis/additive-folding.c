@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -analyze -analyzer-check-objc-mem -analyzer-experimental-checks -verify -analyzer-constraints=basic %s
-// RUN: %clang_cc1 -analyze -analyzer-check-objc-mem -analyzer-experimental-checks -verify -analyzer-constraints=range %s
+// RUN: %clang_cc1 -analyze -analyzer-check-objc-mem -analyzer-experimental-checks -analyzer-checker=core.experimental.UnreachableCode -verify -analyzer-constraints=basic %s
+// RUN: %clang_cc1 -analyze -analyzer-check-objc-mem -analyzer-experimental-checks -analyzer-checker=core.experimental.UnreachableCode -verify -analyzer-constraints=range %s
 
 // These are used to trigger warnings.
 typedef typeof(sizeof(int)) size_t;
@@ -183,14 +183,14 @@ void tautologyGT (unsigned a) {
 
 void tautologyGE (unsigned a) {
   char* b = malloc(1);
-  if (a >= 0)
+  if (a >= 0) // expected-warning{{always true}}
     free(b);
   return; // no-warning
 }
 
 void tautologyLT (unsigned a) {
   char* b = malloc(1);
-  if (a < 0)
+  if (a < 0) // expected-warning{{always false}}
     return; // expected-warning{{never executed}}
   free(b);
 }

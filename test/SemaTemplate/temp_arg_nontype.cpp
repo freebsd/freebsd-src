@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -std=c++98 -verify %s
+// RUN: %clang_cc1 -fsyntax-only -std=c++98 -Wconversion -verify %s
 template<int N> struct A; // expected-note 5{{template parameter is declared here}}
 
 A<0> *a0;
@@ -58,7 +58,7 @@ template<X const &AnX> struct A4; // expected-note 2{{template parameter is decl
 X an_X;
 A4<an_X> *a15_1; // okay
 A4<*X_volatile_ptr> *a15_2; // expected-error{{non-type template argument does not refer to any declaration}}
-A4<y> *15_3; //  expected-error{{non-type template parameter of reference type 'X const &' cannot bind to template argument of type 'struct Y'}} \
+A4<y> *15_3; //  expected-error{{non-type template parameter of reference type 'const X &' cannot bind to template argument of type 'struct Y'}} \
             // FIXME: expected-error{{expected unqualified-id}}
 
 template<int (&fr)(int)> struct A5; // expected-note{{template parameter is declared here}}
@@ -87,7 +87,7 @@ template<int Z::*pm> struct A7c;
 A7<&Z::int_member> *a18_1;
 A7c<&Z::int_member> *a18_2;
 A7<&Z::float_member> *a18_3; // expected-error{{non-type template argument of type 'float Z::*' cannot be converted to a value of type 'int Z::*'}}
-A7c<(&Z::int_member)> *a18_3; // expected-error{{non-type template argument cannot be surrounded by parentheses}}
+A7c<(&Z::int_member)> *a18_4; // expected-warning{{address non-type template argument cannot be surrounded by parentheses}}
 
 template<unsigned char C> struct Overflow; // expected-note{{template parameter is declared here}}
 
@@ -169,7 +169,8 @@ namespace pr6249 {
 }
 
 namespace PR6723 {
-  template<unsigned char C> void f(int (&a)[C]); // expected-note 2{{candidate template ignored}}
+  template<unsigned char C> void f(int (&a)[C]); // expected-note {{candidate template ignored}} \
+  // expected-note{{candidate function [with C = '\x00'] not viable: no known conversion from 'int [512]' to 'int (&)[0]' for 1st argument}}
   void g() {
     int arr512[512];
     f(arr512); // expected-error{{no matching function for call}}
@@ -242,4 +243,23 @@ namespace test8 {
   void test3() {
     B<&c03> b03;
   }
+}
+
+namespace PR8372 {
+  template <int I> void foo() { } // expected-note{{template parameter is declared here}}
+  void bar() { foo <0x80000000> (); } // expected-warning{{non-type template argument value '2147483648' truncated to '-2147483648' for template parameter of type 'int'}}
+}
+
+namespace PR9227 {
+  template <bool B> struct enable_if_bool { };
+  template <> struct enable_if_bool<true> { typedef int type; };
+  void test_bool() { enable_if_bool<false>::type i; } // expected-error{{enable_if_bool<false>}}
+
+  template <char C> struct enable_if_char { };
+  template <> struct enable_if_char<'a'> { typedef int type; };
+  void test_char_0() { enable_if_char<0>::type i; } // expected-error{{enable_if_char<'\x00'>}}
+  void test_char_b() { enable_if_char<'b'>::type i; } // expected-error{{enable_if_char<'b'>}}
+  void test_char_possibly_negative() { enable_if_char<'\x02'>::type i; } // expected-error{{enable_if_char<'\x02'>}}
+  void test_char_single_quote() { enable_if_char<'\''>::type i; } // expected-error{{enable_if_char<'\''>}}
+  void test_char_backslash() { enable_if_char<'\\'>::type i; } // expected-error{{enable_if_char<'\\'>}}
 }

@@ -27,3 +27,8 @@ void test2() {
     "sdjflksdjf lksdjf skldfjsdkljflksdjf kldsjflkdsj fldks jflsdkjfds"
     "sdjflksdjf lksdjf skldfjsdkljflksdjf kldsjflkdsj fldks jflsdkjfds";
 }
+
+void test3() {
+  (void)L"\u1234";  // expected-error {{unicode escape sequences are only valid in C99 or C++}}
+  (void)L'\u1234';  // expected-error {{unicode escape sequences are only valid in C99 or C++}}
+}

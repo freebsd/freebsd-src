@@ -23,6 +23,8 @@ td {
 <li><a href="#has_include">Include File Checking Macros</a></li>
 <li><a href="#builtinmacros">Builtin Macros</a></li>
 <li><a href="#vectors">Vectors and Extended Vectors</a></li>
+<li><a href="#deprecated">Messages on <tt>deprecated</tt> and <tt>unavailable</tt> attributes</a></li>
+<li><a href="#attributes-on-enumerators">Attributes on enumerators</a></li>
 <li><a href="#checking_language_features">Checks for Standard Language Features</a></li>
   <ul>
   <li><a href="#cxx_exceptions">C++ exceptions</a></li>
@@ -32,23 +34,27 @@ td {
   <ul>
   <li><a href="#cxx_attributes">C++0x attributes</a></li>
   <li><a href="#cxx_decltype">C++0x <tt>decltype()</tt></a></li>
+  <li><a href="#cxx_default_function_template_args">C++0x default template arguments in function templates</a></li>
   <li><a href="#cxx_deleted_functions">C++0x deleted functions</a></li>
-  <li><a href="#cxx_concepts">C++ TR concepts</a></li>
   <li><a href="#cxx_lambdas">C++0x lambdas</a></li>
   <li><a href="#cxx_nullptr">C++0x nullptr</a></li>
   <li><a href="#cxx_rvalue_references">C++0x rvalue references</a></li>
+  <li><a href="#cxx_reference_qualified_functions">C++0x reference-qualified functions</a></li>
   <li><a href="#cxx_static_assert">C++0x <tt>static_assert()</tt></a></li>
   <li><a href="#cxx_auto_type">C++0x type inference</a></li>
   <li><a href="#cxx_variadic_templates">C++0x variadic templates</a></li>
   <li><a href="#cxx_inline_namespaces">C++0x inline namespaces</a></li>
+  <li><a href="#cxx_strong_enums">C++0x strongly-typed enumerations</a></li>
+  <li><a href="#cxx_trailing_return">C++0x trailing return type</a></li>
   </ul>
+<li><a href="#checking_type_traits">Checks for Type Traits</a></li>
 <li><a href="#blocks">Blocks</a></li>
 <li><a href="#overloading-in-c">Function Overloading in C</a></li>
 <li><a href="#builtins">Builtin Functions</a>
   <ul>
   <li><a href="#__builtin_shufflevector">__builtin_shufflevector</a></li>
   <li><a href="#__builtin_unreachable">__builtin_unreachable</a></li>
-  </ul>
+ </ul>
 </li>
 <li><a href="#targetspecific">Target-Specific Extensions</a>
   <ul>
@@ -131,6 +137,30 @@ can be used like this:</p>
 </blockquote>
 
 <p>The feature tag is described along with the language feature below.</p>
+
+<!-- ======================================================================= -->
+<h3 id="__has_attribute">__has_attribute</h3>
+<!-- ======================================================================= -->
+
+<p>This function-like macro takes a single identifier argument that is the name
+of an attribute.  It evaluates to 1 if the attribute is supported or 0 if not.  It
+can be used like this:</p>
+
+<blockquote>
+<pre>
+#ifndef __has_attribute         // Optional of course.
+  #define __has_attribute(x) 0  // Compatibility with non-clang compilers.
+#endif
+
+...
+#if __has_attribute(always_inline)
+#define ALWAYS_INLINE __attribute__((always_inline))
+#else
+#define ALWAYS_INLINE
+#endif
+...
+</pre>
+</blockquote>
 
 <!-- ======================================================================= -->
 <h2 id="has_include">Include File Checking Macros</h2>
@@ -259,11 +289,59 @@ float4 foo(float2 a, float2 b) {
   c.yw = b;
   return c;
 }
+</pre>
 </blockquote>
 
 <p>Query for this feature with __has_feature(attribute_ext_vector_type).</p>
 
 <p>See also <a href="#__builtin_shufflevector">__builtin_shufflevector</a>.</p>
+
+<!-- ======================================================================= -->
+<h2 id="deprecated">Messages on <tt>deprecated</tt> and <tt>unavailable</tt> Attributes</h2>
+<!-- ======================================================================= -->
+
+<p>An optional string message can be added to the <tt>deprecated</tt>
+and <tt>unavailable</tt> attributes.  For example:</p>
+
+<blockquote>
+<pre>void explode(void) __attribute__((deprecated("extremely unsafe, use 'combust' instead!!!")));</pre>
+</blockquote>
+
+<p>If the deprecated or unavailable declaration is used, the message
+will be incorporated into the appropriate diagnostic:</p>
+
+<blockquote>
+<pre>harmless.c:4:3: warning: 'explode' is deprecated: extremely unsafe, use 'combust' instead!!! [-Wdeprecated-declarations]
+  explode();
+  ^</pre>
+</blockquote>
+
+<p>Query for this feature
+with <tt>__has_feature(attribute_deprecated_with_message)</tt>
+and <tt>__has_feature(attribute_unavailable_with_message)</tt>.</p>
+
+<!-- ======================================================================= -->
+<h2 id="attributes-on-enumerators">Attributes on Enumerators</h2>
+<!-- ======================================================================= -->
+
+<p>Clang allows attributes to be written on individual enumerators.
+This allows enumerators to be deprecated, made unavailable, etc.  The
+attribute must appear after the enumerator name and before any
+initializer, like so:</p>
+
+<blockquote>
+<pre>enum OperationMode {
+  OM_Invalid,
+  OM_Normal,
+  OM_Terrified __attribute__((deprecated)),
+  OM_AbortOnError __attribute__((deprecated)) = 4
+};</pre>
+</blockquote>
+
+<p>Attributes on the <tt>enum</tt> declaration do not apply to
+individual enumerators.</p>
+
+<p>Query for this feature with <tt>__has_feature(enumerator_attributes)</tt>.</p>
 
 <!-- ======================================================================= -->
 <h2 id="checking_language_features">Checks for Standard Language Features</h2>
@@ -304,15 +382,14 @@ not yet implemented will be noted.</p>
 <p>Use <tt>__has_feature(cxx_attributes)</tt> to determine if support for
 attribute parsing with C++0x's square bracket notation is enabled.</p>
 
+<h3 id="cxx_default_function_template_args">C++0x default template arguments in function templates</h3>
+
+<p>Use <tt>__has_feature(cxx_default_function_template_args)</tt> to determine if support for default template arguments in function templates is enabled.</p>
+
 <h3 id="cxx_deleted_functions">C++0x deleted functions</tt></h3>
 
 <p>Use <tt>__has_feature(cxx_deleted_functions)</tt> to determine if support for
 deleted function definitions (with <tt>= delete</tt>) is enabled.</p>
-
-<h3 id="cxx_concepts">C++ TR concepts</h3>
-
-<p>Use <tt>__has_feature(cxx_concepts)</tt> to determine if support for
-concepts is enabled. clang does not currently implement this feature.</p>
 
 <h3 id="cxx_lambdas">C++0x lambdas</h3>
 
@@ -325,11 +402,13 @@ lambdas is enabled. clang does not currently implement this feature.</p>
 <tt>nullptr</tt> is enabled. clang does not yet fully implement this
 feature.</p>
 
+<h3 id="cxx_reference_qualified_functions">C++0x reference-qualified functions</h3>
+<p>Use <tt>__has_feature(cxx_reference_qualified_functions)</tt> to determine if support for reference-qualified functions (e.g., member functions with <code>&amp;</code> or <code>&amp;&amp;</code> applied to <code>*this</code>) is enabled.</p>
+
 <h3 id="cxx_rvalue_references">C++0x rvalue references</tt></h3>
 
 <p>Use <tt>__has_feature(cxx_rvalue_references)</tt> to determine if support for
-rvalue references is enabled. clang does not yet fully implement this
-feature.</p>
+rvalue references is enabled. </p>
 
 <h3 id="cxx_static_assert">C++0x <tt>static_assert()</tt></h3>
 
@@ -340,18 +419,68 @@ compile-time assertions using <tt>static_assert</tt> is enabled.</p>
 
 <p>Use <tt>__has_feature(cxx_auto_type)</tt> to determine C++0x type inference
 is supported using the <tt>auto</tt> specifier. If this is disabled,
-<tt>auto</tt> will instead be a storage class specifier, as in C or C++98.</p>
+<tt>auto</tt> will instead be a storage class specifier, as in C or C++98.
+Clang does not currently implement this feature.</p>
 
 <h3 id="cxx_variadic_templates">C++0x variadic templates</h3>
 
 <p>Use <tt>__has_feature(cxx_variadic_templates)</tt> to determine if support
-for templates taking any number of arguments with the ellipsis notation is
-enabled. clang does not yet fully implement this feature.</p>
+for variadic templates is enabled.</p>
 
 <h3 id="cxx_inline_namespaces">C++0x inline namespaces</h3>
 
 <p>Use <tt>__has_feature(cxx_inline_namespaces)</tt> to determine if support for
 inline namespaces is enabled.</p>
+
+<h3 id="cxx_trailing_return">C++0x trailing return type</h3>
+
+<p>Use <tt>__has_feature(cxx_trailing_return)</tt> to determine if support for
+the alternate function declaration syntax with trailing return type is enabled.</p>
+
+<h3 id="cxx_strong_enums">C++0x strongly typed enumerations</h3>
+
+<p>Use <tt>__has_feature(cxx_strong_enums)</tt> to determine if support for
+strongly typed, scoped enumerations is enabled.</p>
+
+<!-- ======================================================================= -->
+<h2 id="checking_type_traits">Checks for Type Traits</h2>
+<!-- ======================================================================= -->
+
+<p>Clang supports the <a hef="http://gcc.gnu.org/onlinedocs/gcc/Type-Traits.html">GNU C++ type traits</a> and a subset of the <a href="http://msdn.microsoft.com/en-us/library/ms177194(v=VS.100).aspx">Microsoft Visual C++ Type traits</a>. For each supported type trait <code>__X</code>, <code>__has_feature(X)</code> indicates the presence of the type trait. For example:
+<blockquote>
+<pre>
+#if __has_feature(is_convertible_to)
+template&lt;typename From, typename To&gt;
+struct is_convertible_to {
+  static const bool value = __is_convertible_to(From, To);
+};
+#else
+// Emulate type trait
+#endif
+</pre>
+</blockquote>
+
+<p>The following type traits are supported by Clang:</p>
+<ul>
+  <li><code>__has_nothrow_assign</code> (GNU, Microsoft)</li>
+  <li><code>__has_nothrow_copy</code> (GNU, Microsoft)</li>
+  <li><code>__has_nothrow_constructor</code> (GNU, Microsoft)</li>
+  <li><code>__has_trivial_assign</code> (GNU, Microsoft)</li>
+  <li><code>__has_trivial_copy</code> (GNU, Microsoft)</li>
+  <li><code>__has_trivial_constructor</code> (GNU, Microsoft)</li>
+  <li><code>__has_trivial_destructor</code> (GNU, Microsoft)</li>
+  <li><code>__has_virtual_destructor</code> (GNU, Microsoft)</li>
+  <li><code>__is_abstract</code> (GNU, Microsoft)</li>
+  <li><code>__is_base_of</code> (GNU, Microsoft)</li>
+  <li><code>__is_class</code> (GNU, Microsoft)</li>
+  <li><code>__is_convertible_to</code> (Microsoft)</li>
+  <li><code>__is_empty</code> (GNU, Microsoft)</li>
+  <li><code>__is_enum</code> (GNU, Microsoft)</li>
+  <li><code>__is_pod</code> (GNU, Microsoft)</li>
+  <li><code>__is_polymorphic</code> (GNU, Microsoft)</li>
+  <li><code>__is_union</code> (GNU, Microsoft)</li>
+  <li><code>__is_literal(type)</code>: Determines whether the given type is a literal type</li>
+</ul>
 
 <!-- ======================================================================= -->
 <h2 id="blocks">Blocks</h2>
@@ -445,7 +574,7 @@ void honeypot(...) __attribute__((overloadable, unavailable)); <i>// calling me 
 their names mangled according to the same rules as C++ function
 names. For example, the three <tt>tgsin</tt> functions in our
 motivating example get the mangled names <tt>_Z5tgsinf</tt>,
-<tt>_Z5tgsind</tt>, and <tt>Z5tgsine</tt>, respectively. There are two
+<tt>_Z5tgsind</tt>, and <tt>_Z5tgsine</tt>, respectively. There are two
 caveats to this use of name mangling:</p>
 
 <ul>
@@ -660,6 +789,51 @@ placed at the end of function prototypes:</p>
 
 <p>Query for this feature with __has_feature(attribute_analyzer_noreturn).</p>
 
+<h4 id="attr_retain_release">Objective-C retaining behavior attributes</h4>
+
+<p>In Objective-C, functions and methods are generally assumed to take
+and return objects with +0 retain counts, with some exceptions for
+special methods like <tt>+alloc</tt> and <tt>init</tt>.  However,
+there are exceptions, and so Clang provides attributes to allow these
+exceptions to be documented, which helps the analyzer find leaks (and
+ignore non-leaks).</p>
+
+<p><b>Usage</b>: The <tt>ns_returns_retained</tt>, <tt>ns_returns_not_retained</tt>,
+<tt>ns_returns_autoreleased</tt>, <tt>cf_returns_retained</tt>,
+and <tt>cf_returns_not_retained</tt> attributes can be placed on
+methods and functions that return Objective-C or CoreFoundation
+objects.  They are commonly placed at the end of a function prototype
+or method declaration:</p>
+
+<pre>
+  id foo() <b>__attribute__((ns_returns_retained))</b>;
+
+  - (NSString*) bar: (int) x <b>__attribute__((ns_returns_retained))</b>;
+</pre>
+
+<p>The <tt>*_returns_retained</tt> attributes specify that the
+returned object has a +1 retain count.
+The <tt>*_returns_not_retained</tt> attributes specify that the return
+object has a +0 retain count, even if the normal convention for its
+selector would be +1.  <tt>ns_returns_autoreleased</tt> specifies that the
+returned object is +0, but is guaranteed to live at least as long as the
+next flush of an autorelease pool.</p>
+
+<p><b>Usage</b>: The <tt>ns_consumed</tt> and <tt>cf_consumed</tt>
+attributes can be placed on an parameter declaration; they specify
+that the argument is expected to have a +1 retain count, which will be
+balanced in some way by the function or method.
+The <tt>ns_consumes_self</tt> attribute can only be placed on an
+Objective-C method; it specifies that the method expects
+its <tt>self</tt> parameter to have a +1 retain count, which it will
+balance in some way.</p>
+
+<pre>
+  void <b>foo(__attribute__((ns_consumed))</b> NSString *string);
+
+  - (void) bar <b>__attribute__((ns_consumes_self))</b>;
+  - (void) baz: (id) <b>__attribute__((ns_consumed))</b> x;
+</pre>
 
 </div>
 </body>

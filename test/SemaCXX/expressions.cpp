@@ -14,3 +14,21 @@ void f0() {
   register int x;
   f0_1(&x);
 }
+
+namespace test1 {
+  template <class T> void bar(T &x) { T::fail(); }
+  template <class T> void bar(volatile T &x) {}
+
+  void test_ints() {
+    volatile int x;
+    bar(x = 5);
+    bar(x += 5);
+  }
+
+  enum E { E_zero };
+  void test_enums() {
+    volatile E x;
+    bar(x = E_zero);
+    bar(x += E_zero); // expected-error {{incompatible type}}
+  }
+}

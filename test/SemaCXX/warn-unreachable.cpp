@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -fsyntax-only -verify -fblocks -Wunreachable-code -Wno-unused-value
+// RUN: %clang_cc1 %s -fexceptions -fsyntax-only -verify -fblocks -Wunreachable-code -Wno-unused-value
 
 int &halt() __attribute__((noreturn));
 int &live();
@@ -39,8 +39,10 @@ void test2() {
 void test3() {
   halt()
     --;         // expected-warning {{will never be executed}}
-  halt()
-    ?           // expected-warning {{will never be executed}}
+  // FIXME: The unreachable part is just the '?', but really all of this
+  // code is unreachable and shouldn't be separately reported.
+  halt()        // expected-warning {{will never be executed}}
+    ? 
     dead() : dead();
   live(),
     float       // expected-warning {{will never be executed}}

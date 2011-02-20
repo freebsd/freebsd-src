@@ -16,6 +16,7 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/GlobalVariable.h"
+#include "clang/Basic/ABI.h"
 #include "GlobalDecl.h"
 
 namespace clang {
@@ -23,94 +24,6 @@ namespace clang {
 
 namespace CodeGen {
   class CodeGenModule;
-
-/// ReturnAdjustment - A return adjustment.
-struct ReturnAdjustment {
-  /// NonVirtual - The non-virtual adjustment from the derived object to its
-  /// nearest virtual base.
-  int64_t NonVirtual;
-  
-  /// VBaseOffsetOffset - The offset (in bytes), relative to the address point 
-  /// of the virtual base class offset.
-  int64_t VBaseOffsetOffset;
-  
-  ReturnAdjustment() : NonVirtual(0), VBaseOffsetOffset(0) { }
-  
-  bool isEmpty() const { return !NonVirtual && !VBaseOffsetOffset; }
-
-  friend bool operator==(const ReturnAdjustment &LHS, 
-                         const ReturnAdjustment &RHS) {
-    return LHS.NonVirtual == RHS.NonVirtual && 
-      LHS.VBaseOffsetOffset == RHS.VBaseOffsetOffset;
-  }
-
-  friend bool operator<(const ReturnAdjustment &LHS,
-                        const ReturnAdjustment &RHS) {
-    if (LHS.NonVirtual < RHS.NonVirtual)
-      return true;
-    
-    return LHS.NonVirtual == RHS.NonVirtual && 
-      LHS.VBaseOffsetOffset < RHS.VBaseOffsetOffset;
-  }
-};
-  
-/// ThisAdjustment - A 'this' pointer adjustment.
-struct ThisAdjustment {
-  /// NonVirtual - The non-virtual adjustment from the derived object to its
-  /// nearest virtual base.
-  int64_t NonVirtual;
-
-  /// VCallOffsetOffset - The offset (in bytes), relative to the address point,
-  /// of the virtual call offset.
-  int64_t VCallOffsetOffset;
-  
-  ThisAdjustment() : NonVirtual(0), VCallOffsetOffset(0) { }
-
-  bool isEmpty() const { return !NonVirtual && !VCallOffsetOffset; }
-
-  friend bool operator==(const ThisAdjustment &LHS, 
-                         const ThisAdjustment &RHS) {
-    return LHS.NonVirtual == RHS.NonVirtual && 
-      LHS.VCallOffsetOffset == RHS.VCallOffsetOffset;
-  }
-  
-  friend bool operator<(const ThisAdjustment &LHS,
-                        const ThisAdjustment &RHS) {
-    if (LHS.NonVirtual < RHS.NonVirtual)
-      return true;
-    
-    return LHS.NonVirtual == RHS.NonVirtual && 
-      LHS.VCallOffsetOffset < RHS.VCallOffsetOffset;
-  }
-};
-
-/// ThunkInfo - The 'this' pointer adjustment as well as an optional return
-/// adjustment for a thunk.
-struct ThunkInfo {
-  /// This - The 'this' pointer adjustment.
-  ThisAdjustment This;
-    
-  /// Return - The return adjustment.
-  ReturnAdjustment Return;
-
-  ThunkInfo() { }
-
-  ThunkInfo(const ThisAdjustment &This, const ReturnAdjustment &Return)
-    : This(This), Return(Return) { }
-
-  friend bool operator==(const ThunkInfo &LHS, const ThunkInfo &RHS) {
-    return LHS.This == RHS.This && LHS.Return == RHS.Return;
-  }
-
-  friend bool operator<(const ThunkInfo &LHS, const ThunkInfo &RHS) {
-    if (LHS.This < RHS.This)
-      return true;
-      
-    return LHS.This == RHS.This && LHS.Return < RHS.Return;
-  }
-
-  bool isEmpty() const { return This.isEmpty() && Return.isEmpty(); }
-};  
 
 // BaseSubobject - Uniquely identifies a direct or indirect base class. 
 // Stores both the base class decl and the offset from the most derived class to
@@ -269,13 +182,16 @@ class CodeGenVTables {
   
   void ComputeMethodVTableIndices(const CXXRecordDecl *RD);
 
-  llvm::GlobalVariable *GenerateVTT(llvm::GlobalVariable::LinkageTypes Linkage,
-                                    bool GenerateDefinition,
-                                    const CXXRecordDecl *RD);
-
   /// EmitThunk - Emit a single thunk.
-  void EmitThunk(GlobalDecl GD, const ThunkInfo &Thunk);
-  
+  void EmitThunk(GlobalDecl GD, const ThunkInfo &Thunk, 
+                 bool UseAvailableExternallyLinkage);
+
+  /// MaybeEmitThunkAvailableExternally - Try to emit the given thunk with
+  /// available_externally linkage to allow for inlining of thunks.
+  /// This will be done iff optimizations are enabled and the member function
+  /// doesn't contain any incomplete types.
+  void MaybeEmitThunkAvailableExternally(GlobalDecl GD, const ThunkInfo &Thunk);
+
   /// ComputeVTableRelatedInformation - Compute and store all vtable related
   /// information (vtable layout, vbase offset offsets, thunks etc) for the
   /// given record decl.
@@ -295,14 +211,9 @@ public:
   CodeGenVTables(CodeGenModule &CGM)
     : CGM(CGM) { }
 
-  // isKeyFunctionInAnotherTU - True if this record has a key function and it is
-  // in another translation unit.
-  static bool isKeyFunctionInAnotherTU(ASTContext &Context,
-				       const CXXRecordDecl *RD) {
-    assert (RD->isDynamicClass() && "Non dynamic classes have no key.");
-    const CXXMethodDecl *KeyFunction = Context.getKeyFunction(RD);
-    return KeyFunction && !KeyFunction->hasBody();
-  }
+  /// \brief True if the VTable of this record must be emitted in the
+  /// translation unit.
+  bool ShouldEmitVTableInThisTU(const CXXRecordDecl *RD);
 
   /// needsVTTParameter - Return whether the given global decl needs a VTT
   /// parameter, which it does if it's a base constructor or destructor with
@@ -349,8 +260,15 @@ public:
   GenerateConstructionVTable(const CXXRecordDecl *RD, const BaseSubobject &Base, 
                              bool BaseIsVirtual, 
                              VTableAddressPointsMapTy& AddressPoints);
-  
-  llvm::GlobalVariable *getVTT(const CXXRecordDecl *RD);
+
+    
+  /// GetAddrOfVTable - Get the address of the VTT for the given record decl.
+  llvm::GlobalVariable *GetAddrOfVTT(const CXXRecordDecl *RD);
+
+  /// EmitVTTDefinition - Emit the definition of the given vtable.
+  void EmitVTTDefinition(llvm::GlobalVariable *VTT,
+                         llvm::GlobalVariable::LinkageTypes Linkage,
+                         const CXXRecordDecl *RD);
 
   /// EmitThunks - Emit the associated thunks for the given global decl.
   void EmitThunks(GlobalDecl GD);

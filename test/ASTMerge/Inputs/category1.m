@@ -23,3 +23,26 @@
 @interface I2 ()
 - (int)method3;
 @end
+
+// Category with implementation
+@interface I2 (Cat3)
+@end
+
+@implementation I2 (Cat3)
+@end
+
+// Category with implementation
+@interface I2 (Cat4)
+@end
+
+@implementation I2 (Cat4)
+@end
+
+// Category with mismatched implementation
+@interface I2 (Cat6)
+@end
+
+@implementation I2 (Cat6)
+- (float)blah { return 0; }
+@end
+

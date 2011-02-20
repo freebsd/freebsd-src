@@ -12,7 +12,9 @@
 \*===----------------------------------------------------------------------===*/
 #include "CIndexDiagnostic.h"
 #include "CIndexer.h"
+#include "CXTranslationUnit.h"
 #include "CXSourceLocation.h"
+#include "CXString.h"
 
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
@@ -32,12 +34,12 @@ using namespace llvm;
 extern "C" {
 
 unsigned clang_getNumDiagnostics(CXTranslationUnit Unit) {
-  ASTUnit *CXXUnit = static_cast<ASTUnit *>(Unit);
+  ASTUnit *CXXUnit = static_cast<ASTUnit *>(Unit->TUData);
   return CXXUnit? CXXUnit->stored_diag_size() : 0;
 }
 
 CXDiagnostic clang_getDiagnostic(CXTranslationUnit Unit, unsigned Index) {
-  ASTUnit *CXXUnit = static_cast<ASTUnit *>(Unit);
+  ASTUnit *CXXUnit = static_cast<ASTUnit *>(Unit->TUData);
   if (!CXXUnit || Index >= CXXUnit->stored_diag_size())
     return 0;
 
@@ -56,10 +58,6 @@ CXString clang_formatDiagnostic(CXDiagnostic Diagnostic, unsigned Options) {
 
   CXDiagnosticSeverity Severity = clang_getDiagnosticSeverity(Diagnostic);
 
-  // Ignore diagnostics that should be ignored.
-  if (Severity == CXDiagnostic_Ignored)
-    return createCXString("");
-
   llvm::SmallString<256> Str;
   llvm::raw_svector_ostream Out(Str);
   
@@ -68,8 +66,8 @@ CXString clang_formatDiagnostic(CXDiagnostic Diagnostic, unsigned Options) {
     // and source ranges.
     CXFile File;
     unsigned Line, Column;
-    clang_getInstantiationLocation(clang_getDiagnosticLocation(Diagnostic),
-                                   &File, &Line, &Column, 0);
+    clang_getSpellingLocation(clang_getDiagnosticLocation(Diagnostic),
+                              &File, &Line, &Column, 0);
     if (File) {
       CXString FName = clang_getFileName(File);
       Out << clang_getCString(FName) << ":" << Line << ":";
@@ -85,11 +83,11 @@ CXString clang_formatDiagnostic(CXDiagnostic Diagnostic, unsigned Options) {
           CXSourceRange Range = clang_getDiagnosticRange(Diagnostic, I);
           
           unsigned StartLine, StartColumn, EndLine, EndColumn;
-          clang_getInstantiationLocation(clang_getRangeStart(Range),
-                                         &StartFile, &StartLine, &StartColumn,
-                                         0);
-          clang_getInstantiationLocation(clang_getRangeEnd(Range),
-                                         &EndFile, &EndLine, &EndColumn, 0);
+          clang_getSpellingLocation(clang_getRangeStart(Range),
+                                    &StartFile, &StartLine, &StartColumn,
+                                    0);
+          clang_getSpellingLocation(clang_getRangeEnd(Range),
+                                    &EndFile, &EndLine, &EndColumn, 0);
           
           if (StartFile != EndFile || StartFile != File)
             continue;
@@ -101,9 +99,9 @@ CXString clang_formatDiagnostic(CXDiagnostic Diagnostic, unsigned Options) {
         if (PrintedRange)
           Out << ":";
       }
+      
+      Out << " ";
     }
-
-    Out << " ";
   }
 
   /* Print warning/error/etc. */
@@ -121,11 +119,61 @@ CXString clang_formatDiagnostic(CXDiagnostic Diagnostic, unsigned Options) {
   else
     Out << "<no diagnostic text>";
   clang_disposeString(Text);
+  
+  if (Options & (CXDiagnostic_DisplayOption | CXDiagnostic_DisplayCategoryId |
+                 CXDiagnostic_DisplayCategoryName)) {
+    bool NeedBracket = true;
+    bool NeedComma = false;
+
+    if (Options & CXDiagnostic_DisplayOption) {
+      CXString OptionName = clang_getDiagnosticOption(Diagnostic, 0);
+      if (const char *OptionText = clang_getCString(OptionName)) {
+        if (OptionText[0]) {
+          Out << " [" << OptionText;
+          NeedBracket = false;
+          NeedComma = true;
+        }
+      }
+      clang_disposeString(OptionName);
+    }
+    
+    if (Options & (CXDiagnostic_DisplayCategoryId | 
+                   CXDiagnostic_DisplayCategoryName)) {
+      if (unsigned CategoryID = clang_getDiagnosticCategory(Diagnostic)) {
+        if (Options & CXDiagnostic_DisplayCategoryId) {
+          if (NeedBracket)
+            Out << " [";
+          if (NeedComma)
+            Out << ", ";
+          Out << CategoryID;
+          NeedBracket = false;
+          NeedComma = true;
+        }
+        
+        if (Options & CXDiagnostic_DisplayCategoryName) {
+          CXString CategoryName = clang_getDiagnosticCategoryName(CategoryID);
+          if (NeedBracket)
+            Out << " [";
+          if (NeedComma)
+            Out << ", ";
+          Out << clang_getCString(CategoryName);
+          NeedBracket = false;
+          NeedComma = true;
+          clang_disposeString(CategoryName);
+        }
+      }
+    }
+    
+    if (!NeedBracket)
+      Out << "]";
+  }
+  
   return createCXString(Out.str(), true);
 }
 
 unsigned clang_defaultDiagnosticDisplayOptions() {
-  return CXDiagnostic_DisplaySourceLocation | CXDiagnostic_DisplayColumn;
+  return CXDiagnostic_DisplaySourceLocation | CXDiagnostic_DisplayColumn |
+         CXDiagnostic_DisplayOption;
 }
 
 enum CXDiagnosticSeverity clang_getDiagnosticSeverity(CXDiagnostic Diag) {
@@ -163,6 +211,47 @@ CXString clang_getDiagnosticSpelling(CXDiagnostic Diag) {
   return createCXString(StoredDiag->Diag.getMessage(), false);
 }
 
+CXString clang_getDiagnosticOption(CXDiagnostic Diag, CXString *Disable) {
+  if (Disable)
+    *Disable = createCXString("");
+  
+  CXStoredDiagnostic *StoredDiag = static_cast<CXStoredDiagnostic *>(Diag);
+  if (!StoredDiag)
+    return createCXString("");
+  
+  unsigned ID = StoredDiag->Diag.getID();
+  if (const char *Option = DiagnosticIDs::getWarningOptionForDiag(ID)) {
+    if (Disable)
+      *Disable = createCXString((llvm::Twine("-Wno-") + Option).str());
+    return createCXString((llvm::Twine("-W") + Option).str());
+  }
+  
+  if (ID == diag::fatal_too_many_errors) {
+    if (Disable)
+      *Disable = createCXString("-ferror-limit=0");
+    return createCXString("-ferror-limit=");
+  }
+  
+  bool EnabledByDefault;
+  if (DiagnosticIDs::isBuiltinExtensionDiag(ID, EnabledByDefault) &&
+      !EnabledByDefault)
+    return createCXString("-pedantic");
+
+  return createCXString("");
+}
+
+unsigned clang_getDiagnosticCategory(CXDiagnostic Diag) {
+  CXStoredDiagnostic *StoredDiag = static_cast<CXStoredDiagnostic *>(Diag);
+  if (!StoredDiag)
+    return 0;
+
+  return DiagnosticIDs::getCategoryNumberForDiag(StoredDiag->Diag.getID());
+}
+  
+CXString clang_getDiagnosticCategoryName(unsigned Category) {
+  return createCXString(DiagnosticIDs::getCategoryNameFromID(Category));
+}
+  
 unsigned clang_getDiagnosticNumRanges(CXDiagnostic Diag) {
   CXStoredDiagnostic *StoredDiag = static_cast<CXStoredDiagnostic *>(Diag);
   if (!StoredDiag || StoredDiag->Diag.getLocation().isInvalid())
@@ -217,56 +306,3 @@ CXString clang_getDiagnosticFixIt(CXDiagnostic Diagnostic, unsigned FixIt,
 }
 
 } // end extern "C"
-
-void clang::LoadSerializedDiagnostics(const llvm::sys::Path &DiagnosticsPath,
-                                      unsigned num_unsaved_files,
-                                      struct CXUnsavedFile *unsaved_files,
-                                      FileManager &FileMgr,
-                                      SourceManager &SourceMgr,
-                                     SmallVectorImpl<StoredDiagnostic> &Diags) {
-  using llvm::MemoryBuffer;
-  using llvm::StringRef;
-  MemoryBuffer *F = MemoryBuffer::getFile(DiagnosticsPath.c_str());
-  if (!F)
-    return;
-
-  // Enter the unsaved files into the file manager.
-  for (unsigned I = 0; I != num_unsaved_files; ++I) {
-    const FileEntry *File = FileMgr.getVirtualFile(unsaved_files[I].Filename,
-                                                   unsaved_files[I].Length,
-                                                   0);
-    if (!File) {
-      // FIXME: Hard to localize when we have no diagnostics engine!
-      Diags.push_back(StoredDiagnostic(Diagnostic::Fatal,
-                            (Twine("could not remap from missing file ") +
-                                   unsaved_files[I].Filename).str()));
-      delete F;
-      return;
-    }
-
-    MemoryBuffer *Buffer
-      = MemoryBuffer::getMemBuffer(unsaved_files[I].Contents,
-                           unsaved_files[I].Contents + unsaved_files[I].Length);
-    if (!Buffer) {
-      delete F;
-      return;
-    }
-    
-    SourceMgr.overrideFileContents(File, Buffer);
-    SourceMgr.createFileID(File, SourceLocation(), SrcMgr::C_User);
-  }
-
-  // Parse the diagnostics, emitting them one by one until we've
-  // exhausted the data.
-  StringRef Buffer = F->getBuffer();
-  const char *Memory = Buffer.data(), *MemoryEnd = Memory + Buffer.size();
-  while (Memory != MemoryEnd) {
-    StoredDiagnostic Stored = StoredDiagnostic::Deserialize(FileMgr, SourceMgr,
-                                                            Memory, MemoryEnd);
-    if (!Stored)
-      break;
-
-    Diags.push_back(Stored);
-  }
-  delete F;
-}

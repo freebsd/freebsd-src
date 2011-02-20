@@ -58,3 +58,33 @@ typedef void (^void_block_t)(void);
 
 @end
 
+// rdar: //8608902
+@protocol CoreDAVAccountInfoProvider;
+@protocol CodeProvider;
+typedef void (^BDVDiscoveryCompletionHandler)(int success, id<CoreDAVAccountInfoProvider> discoveredInfo);
+typedef void (^BDVDiscoveryCompletion)(id<CodeProvider> codeInfo, int success, id<CoreDAVAccountInfoProvider> discoveredInfo);
+typedef void (^BDVDiscovery)(int success);
+typedef void (^BDVDisc)(id<CoreDAVAccountInfoProvider> discoveredInfo, id<CodeProvider> codeInfo, 
+                        int success, id<CoreDAVAccountInfoProvider, CodeProvider> Info);
+typedef void (^BLOCK)(id, id<CoreDAVAccountInfoProvider>, id<CodeProvider> codeInfo);
+typedef void (^EMPTY_BLOCK)();
+typedef void (^  BDVDiscoveryCompletion1  )(id<CodeProvider> codeInfo, int success, id<CoreDAVAccountInfoProvider> discoveredInfo);
+
+void (^BL)(void(^arg1)(), int i1, void(^arg)(int));
+
+typedef void (^iscoveryCompletionHandler)(void(^arg1)(), id<CoreDAVAccountInfoProvider> discoveredInfo);
+
+typedef void (^DVDisc)(id<CoreDAVAccountInfoProvider> discoveredInfo, id<CodeProvider> codeInfo,
+			void(^arg1)(), int i1, void(^arg)(id<CoreDAVAccountInfoProvider>),
+                        int success, id<CoreDAVAccountInfoProvider, CodeProvider> Info);
+
+
+@interface I @end
+@interface INTF @end
+void (^BLINT)(I<CoreDAVAccountInfoProvider>* ARG, INTF<CodeProvider, CoreDAVAccountInfoProvider>* ARG1);
+
+void  test8608902() {
+  BDVDiscoveryCompletionHandler ppp;
+  ppp(1, 0);
+}
+

@@ -2,7 +2,7 @@
 // RUN: %clang_cc1 -E %s -o - | FileCheck --check-prefix=CHECK-NO-0X %s
 
 #if __has_feature(cxx_lambdas)
-int lambdas();
+int has_lambdas();
 #else
 int no_lambdas();
 #endif
@@ -21,16 +21,6 @@ int no_nullptr();
 // CHECK-NO-0X: no_nullptr
 
 
-#if __has_feature(cxx_concepts)
-int concepts();
-#else
-int no_concepts();
-#endif
-
-// CHECK-0X: no_concepts
-// CHECK-NO-0X: no_concepts
-
-
 #if __has_feature(cxx_decltype)
 int has_decltype();
 #else
@@ -42,22 +32,22 @@ int no_decltype();
 
 
 #if __has_feature(cxx_auto_type)
-int auto_type();
+int has_auto_type();
 #else
 int no_auto_type();
 #endif
 
-// CHECK-0X: auto_type
+// CHECK-0X: has_auto_type
 // CHECK-NO-0X: no_auto_type
 
 
 #if __has_feature(cxx_attributes)
-int attributes();
+int has_attributes();
 #else
 int no_attributes();
 #endif
 
-// CHECK-0X: attributes
+// CHECK-0X: has_attributes
 // CHECK-NO-0X: no_attributes
 
 
@@ -70,42 +60,60 @@ int no_static_assert();
 // CHECK-0X: has_static_assert
 // CHECK-NO-0X: no_static_assert
 
-
 #if __has_feature(cxx_deleted_functions)
-int deleted_functions();
+int has_deleted_functions();
 #else
 int no_deleted_functions();
 #endif
 
-// CHECK-0X: deleted_functions
+// CHECK-0X: has_deleted_functions
 // CHECK-NO-0X: no_deleted_functions
 
 
 #if __has_feature(cxx_rvalue_references)
-int rvalue_references();
+int has_rvalue_references();
 #else
 int no_rvalue_references();
 #endif
 
-// CHECK-0X: no_rvalue_references
+// CHECK-0X: has_rvalue_references
 // CHECK-NO-0X: no_rvalue_references
 
 
 #if __has_feature(cxx_variadic_templates)
-int variadic_templates();
+int has_variadic_templates();
 #else
 int no_variadic_templates();
 #endif
 
-// CHECK-0X: no_variadic_templates
+// CHECK-0X: has_variadic_templates
 // CHECK-NO-0X: no_variadic_templates
 
 
 #if __has_feature(cxx_inline_namespaces)
-int inline_namespaces();
+int has_inline_namespaces();
 #else
 int no_inline_namespaces();
 #endif
 
-// CHECK-0X: inline_namespaces
-// CHECK-NO-0X: inline_namespaces
+// CHECK-0X: has_inline_namespaces
+// CHECK-NO-0X: no_inline_namespaces
+
+#if __has_feature(cxx_reference_qualified_functions)
+int has_reference_qualified_functions();
+#else
+int no_reference_qualified_functions();
+#endif
+
+// CHECK-0X: has_reference_qualified_functions
+// CHECK-NO-0X: no_reference_qualified_functions
+
+#if __has_feature(cxx_default_function_template_args)
+int has_default_function_template_args();
+#else
+int no_default_function_template_args();
+#endif
+
+// CHECK-0X: has_default_function_template_args
+// CHECK-NO-0X: no_default_function_template_args
+

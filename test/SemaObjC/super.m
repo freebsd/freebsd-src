@@ -55,7 +55,7 @@ void f0(int super) {
                 expected-warning {{method '-m' not found (return type defaults to 'id')}}
 }
 void f1(id puper) {  // expected-note {{'puper' declared here}}
-  [super m]; // expected-error{{use of undeclared identifier 'super'; did you mean 'puper'?}}
+  [super m]; // expected-error{{use of undeclared identifier 'super'}}
 }
 
 // radar 7400691

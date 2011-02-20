@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple i386-mingw32 -fsyntax-only -verify -fms-extensions -Wno-missing-declarations -x objective-c++ %s
+// RUN: %clang_cc1 -triple i386-mingw32 -fsyntax-only -verify -fms-extensions  -Wno-missing-declarations -x objective-c++ %s
 __stdcall int func0();
 int __stdcall func();
 typedef int (__cdecl *tptr)();
@@ -21,6 +21,7 @@ void __forceinline InterlockedBitTestAndSet (long *Base, long Bit)
     setc al
   };
 }
+_inline int foo99() { return 99; }
 
 void *_alloca(int);
 
@@ -30,9 +31,34 @@ void foo() {
 
 typedef bool (__stdcall __stdcall *blarg)(int);
 
+void local_callconv()
+{
+  bool (__stdcall *p)(int);
+}
 
 // Charify extension.
 #define FOO(x) #@x
 char x = FOO(a);
 
 typedef enum E { e1 };
+
+
+
+
+
+
+/* Microsoft attribute tests */
+[repeatable][source_annotation_attribute( Parameter|ReturnValue )]
+struct SA_Post{ SA_Post(); int attr; };
+
+[returnvalue:SA_Post( attr=1)] 
+int foo1([SA_Post(attr=1)] void *param);
+
+
+
+void ms_intrinsics(int a)
+{
+  __noop();
+  __assume(a);
+
+}

@@ -1,4 +1,4 @@
-//===- CIndexer.h - Clang-C Source Indexing Library -----------------------===//
+//===- CIndexer.h - Clang-C Source Indexing Library -------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -17,27 +17,22 @@
 
 #include "clang-c/Index.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/System/Path.h"
+#include "llvm/Support/Path.h"
 #include <vector>
 
-namespace clang {
-namespace cxstring {
-  CXString createCXString(const char *String, bool DupString = false);
-  CXString createCXString(llvm::StringRef String, bool DupString = true);  
-}
+namespace llvm {
+  class CrashRecoveryContext;
 }
 
 class CIndexer {
-  bool UseExternalASTGeneration;
   bool OnlyLocalDecls;
   bool DisplayDiagnostics;
 
-  llvm::sys::Path ClangPath;
-  
+  llvm::sys::Path ResourcesPath;
+  std::string WorkingDir;
+
 public:
- CIndexer() 
-   : UseExternalASTGeneration(false), OnlyLocalDecls(false),
-     DisplayDiagnostics(false) { }
+ CIndexer() : OnlyLocalDecls(false), DisplayDiagnostics(false) { }
   
   /// \brief Whether we only want to see "local" declarations (that did not
   /// come from a previous precompiled header). If false, we want to see all
@@ -50,16 +45,11 @@ public:
     DisplayDiagnostics = Display;
   }
 
-  bool getUseExternalASTGeneration() const { return UseExternalASTGeneration; }
-  void setUseExternalASTGeneration(bool Value) {
-    UseExternalASTGeneration = Value;
-  }
-  
-  /// \brief Get the path of the clang binary.
-  const llvm::sys::Path& getClangPath();
-  
   /// \brief Get the path of the clang resource files.
   std::string getClangResourcesPath();
+
+  const std::string &getWorkingDirectory() const { return WorkingDir; }
+  void setWorkingDirectory(const std::string &Dir) { WorkingDir = Dir; }
 };
 
 namespace clang {
@@ -73,6 +63,20 @@ namespace clang {
                   struct CXUnsavedFile *unsaved_files,
                   std::vector<std::string> &RemapArgs,
                   std::vector<llvm::sys::Path> &TemporaryFiles);
+
+  /// \brief Return the current size to request for "safety".
+  unsigned GetSafetyThreadStackSize();
+
+  /// \brief Set the current size to request for "safety" (or 0, if safety
+  /// threads should not be used).
+  void SetSafetyThreadStackSize(unsigned Value);
+
+  /// \brief Execution the given code "safely", using crash recovery or safety
+  /// threads when possible.
+  ///
+  /// \return False if a crash was detected.
+  bool RunSafely(llvm::CrashRecoveryContext &CRC,
+                 void (*Fn)(void*), void *UserData, unsigned Size = 0);
 }
 
 #endif

@@ -1,4 +1,18 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -emit-llvm -o - %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -emit-llvm -o - %s | FileCheck %s
+
+// rdar://8818236
+namespace rdar8818236 {
+struct S {
+  char c2;
+  union {
+    char c;
+    int i;
+  };
+};
+
+// CHECK: @_ZN11rdar88182363fooE = global i64 4
+char S::*foo  = &S::c;
+}
 
 struct A {
   union {
@@ -67,7 +81,7 @@ namespace test3 {
   };
 
   A::A() : callback(0), callback_value(0) {}
-  // CHECK: define void @ZN5test31AC2Ev(
+  // CHECK: define void @_ZN5test31AC2Ev(
   // CHECK: [[THIS:%.*]] = load
   // CHECK-NEXT: [[UNION:%.*]] = getelementptr inbounds {{.*}} [[THIS]], i32 0, i32 0
   // CHECK-NEXT: [[STRUCT:%.*]] = getelementptr inbounds {{.*}} [[UNION]], i32 0, i32 0
@@ -75,8 +89,8 @@ namespace test3 {
   // CHECK-NEXT: store void (i8*)* null, void (i8*)** [[CALLBACK]]
   // CHECK-NEXT: [[UNION:%.*]] = getelementptr inbounds {{.*}} [[THIS]], i32 0, i32 0
   // CHECK-NEXT: [[STRUCT:%.*]] = getelementptr inbounds {{.*}} [[UNION]], i32 0, i32 0
-  // CHECK-NEXT: [[CVALUE:%.*]] = getelementptr inbounds {{.*}} [[STRUCT]], i32 0, i32 0
-  // CHECK-NEXT: store i8* null, void i8** [[CVALUE]]
+  // CHECK-NEXT: [[CVALUE:%.*]] = getelementptr inbounds {{.*}} [[STRUCT]], i32 0, i32 1
+  // CHECK-NEXT: store i8* null, i8** [[CVALUE]]
 }
 
 struct S {
@@ -90,3 +104,16 @@ struct S {
     };
   };
 } s;
+
+
+ //PR8760 
+ template <typename T>
+  struct Foo {
+    Foo() : ptr(__nullptr) {}
+    union {
+      T *ptr;
+   };
+  };
+  Foo<int> f;
+  
+  

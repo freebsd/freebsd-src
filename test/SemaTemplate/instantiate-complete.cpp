@@ -11,8 +11,7 @@ struct X {
        // expected-error{{data member instantiated with function type 'int (int)'}} \
        // expected-error{{data member instantiated with function type 'char (char)'}} \
        // expected-error{{data member instantiated with function type 'short (short)'}} \
-       // expected-error{{data member instantiated with function type 'float (float)'}} \
-       // expected-error{{data member instantiated with function type 'long (long)'}}
+       // expected-error{{data member instantiated with function type 'float (float)'}}
 };
 
 X<int> f() { return 0; }
@@ -44,7 +43,6 @@ void test_memptr(X<long> *p1, long X<long>::*pm1,
                  X<long(long)> *p2, 
                  long (X<long(long)>::*pm2)(long)) {
   (void)(p1->*pm1);
-  (void)((p2->*pm2)(0)); // expected-note{{in instantiation of template class 'X<long (long)>' requested here}}
 }
 
 // Reference binding to a base
@@ -128,3 +126,23 @@ namespace pr7199 {
 
   template class B<int>; // expected-note {{in instantiation}}
 }
+
+namespace PR8425 {
+  template <typename T>
+  class BaseT {};
+
+  template <typename T>
+  class DerivedT : public BaseT<T> {};
+
+  template <typename T>
+  class FromT {
+  public:
+    operator DerivedT<T>() const { return DerivedT<T>(); }
+  };
+
+  void test() {
+    FromT<int> ft;
+    BaseT<int> bt(ft);
+  }
+}
+

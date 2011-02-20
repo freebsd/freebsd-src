@@ -1,7 +1,7 @@
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-experimental-internal-checks -std=gnu99 -analyzer-check-objc-mem -verify %s -analyzer-constraints=basic -analyzer-store=basic -Wreturn-type 
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-experimental-internal-checks -std=gnu99 -analyzer-check-objc-mem -verify %s -analyzer-constraints=range -analyzer-store=basic -Wreturn-type 
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-experimental-internal-checks -std=gnu99 -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=range -analyzer-no-purge-dead -verify %s -Wreturn-type 
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-experimental-internal-checks -std=gnu99 -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=range -verify %s -Wreturn-type 
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core.experimental.IdempotentOps -analyzer-experimental-internal-checks -std=gnu99 -analyzer-check-objc-mem -verify %s -analyzer-constraints=basic -analyzer-store=basic -Wreturn-type 
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core.experimental.IdempotentOps -analyzer-experimental-internal-checks -std=gnu99 -analyzer-check-objc-mem -verify %s -analyzer-constraints=range -analyzer-store=basic -Wreturn-type 
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core.experimental.IdempotentOps -analyzer-experimental-internal-checks -std=gnu99 -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=range -analyzer-no-purge-dead -verify %s -Wreturn-type 
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core.experimental.IdempotentOps -analyzer-experimental-internal-checks -std=gnu99 -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=range -verify %s -Wreturn-type 
 
 typedef unsigned uintptr_t;
 
@@ -26,7 +26,7 @@ int f2(struct foo_struct* p) {
   if (p)
     p->x = 1;
     
-  return p->x++; // expected-warning{{Field access results in a dereference of a null pointer (loaded from variable 'p')}}
+  return p->x++; // expected-warning{{Access to field 'x' results in a dereference of a null pointer (loaded from variable 'p')}}
 }
 
 int f3(char* x) {
@@ -36,7 +36,7 @@ int f3(char* x) {
   if (x)
     return x[i - 1];
   
-  return x[i+1]; // expected-warning{{Dereference of null pointer}}
+  return x[i+1]; // expected-warning{{Array access (from variable 'x') results in a null pointer dereference}}
 }
 
 int f3_b(char* x) {
@@ -46,7 +46,7 @@ int f3_b(char* x) {
   if (x)
     return x[i - 1];
   
-  return x[i+1]++; // expected-warning{{Dereference of null pointer}}
+  return x[i+1]++; // expected-warning{{Array access (from variable 'x') results in a null pointer dereference}}
 }
 
 int f4(int *p) {
@@ -237,7 +237,7 @@ int* f10(int* p, signed char x, int y) {
 // Test case from <rdar://problem/6407949>
 void f11(unsigned i) {
   int *x = 0;
-  if (i >= 0) {
+  if (i >= 0) { // expected-warning{{always true}}
     // always true
   } else {
     *x = 42; // no-warning
@@ -288,7 +288,7 @@ void pr4759_aux(int *p) __attribute__((nonnull));
 
 void pr4759() {
   int *p;
-  pr4759_aux(p); // expected-warning{{undefined}}
+  pr4759_aux(p); // expected-warning{{Function call argument is an uninitialized value}}
 }
 
 

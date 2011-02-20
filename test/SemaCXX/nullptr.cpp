@@ -1,8 +1,7 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -std=c++0x %s
+// RUN: %clang_cc1 -fexceptions -fsyntax-only -verify -std=c++0x -ffreestanding %s
 #include <stdint.h>
 
-// Don't have decltype yet.
-typedef __typeof__(nullptr) nullptr_t;
+typedef decltype(nullptr) nullptr_t;
 
 struct A {};
 
@@ -38,11 +37,17 @@ nullptr_t f(nullptr_t null)
   (void)((void*)0 == nullptr);
   (void)(null <= (void*)0);
   (void)((void*)0 <= nullptr);
+  (void)(0 == nullptr);
+  (void)(nullptr == 0);
+  (void)(nullptr <= 0);
+  (void)(0 <= nullptr);
   (void)(1 > nullptr); // expected-error {{invalid operands to binary expression}}
   (void)(1 != nullptr); // expected-error {{invalid operands to binary expression}}
   (void)(1 + nullptr); // expected-error {{invalid operands to binary expression}}
-  (void)(0 ? nullptr : 0); // expected-error {{incompatible operand types}}
+  (void)(0 ? nullptr : 0); // expected-error {{non-pointer operand type 'int' incompatible with nullptr}}
   (void)(0 ? nullptr : (void*)0);
+  (void)(0 ? nullptr : A()); // expected-error {{non-pointer operand type 'A' incompatible with nullptr}}
+  (void)(0 ? A() : nullptr); // expected-error {{non-pointer operand type 'A' incompatible with nullptr}}
 
   // Overloading
   int t = o1(nullptr);
@@ -65,3 +70,37 @@ template <int *PI, void (*PF)(), int A::*PM, void (A::*PMF)()>
 struct T {};
 
 typedef T<nullptr, nullptr, nullptr, nullptr> NT;
+
+namespace test1 { 
+template<typename T, typename U> struct is_same {
+  static const bool value = false;
+};
+
+template<typename T> struct is_same<T, T> {
+  static const bool value = true;
+};
+
+void *g(void*);
+bool g(bool);
+
+// Test that we prefer g(void*) over g(bool).
+static_assert(is_same<decltype(g(nullptr)), void*>::value, "");
+}
+
+namespace test2 {
+  void f(int, ...) __attribute__((sentinel));
+
+  void g() {
+    // nullptr can be used as the sentinel value.
+    f(10, nullptr);
+  }
+}
+
+namespace test3 {
+  void f(const char*, ...) __attribute__((format(printf, 1, 2)));
+
+  void g() {
+    // Don't warn when using nullptr with %p.
+    f("%p", nullptr);
+  }
+}

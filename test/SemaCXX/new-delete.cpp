@@ -62,8 +62,8 @@ struct abstract {
 void bad_news(int *ip)
 {
   int i = 1;
-  (void)new; // expected-error {{missing type specifier}}
-  (void)new 4; // expected-error {{missing type specifier}}
+  (void)new; // expected-error {{expected a type}}
+  (void)new 4; // expected-error {{expected a type}}
   (void)new () int; // expected-error {{expected expression}}
   (void)new int[1.1]; // expected-error {{array size expression must have integral or enumerated type, not 'double'}}
   (void)new int[1][i]; // expected-error {{only the first dimension}}
@@ -73,7 +73,7 @@ void bad_news(int *ip)
   (void)new int(1, 2); // expected-error {{excess elements in scalar initializer}}
   (void)new S(1); // expected-error {{no matching constructor}}
   (void)new S(1, 1); // expected-error {{call to constructor of 'S' is ambiguous}}
-  (void)new const int; // expected-error {{default initialization of an object of const type 'int const'}}
+  (void)new const int; // expected-error {{default initialization of an object of const type 'const int'}}
   (void)new float*(ip); // expected-error {{cannot initialize a new value of type 'float *' with an lvalue of type 'int *'}}
   // Undefined, but clang should reject it directly.
   (void)new int[-1]; // expected-error {{array size is negative}}
@@ -234,6 +234,17 @@ void f(X14 *x14a, X14 *x14b) {
   delete x14a;
 }
 
+class X15 {
+private:
+  X15(); // expected-note {{declared private here}}
+  ~X15(); // expected-note {{declared private here}}
+};
+
+void f(X15* x) {
+  new X15(); // expected-error {{calling a private constructor}}
+  delete x; // expected-error {{calling a private destructor}}
+}
+
 namespace PR5918 { // Look for template operator new overloads.
   struct S { template<typename T> static void* operator new(size_t, T); };
   void test() {
@@ -353,4 +364,28 @@ namespace DeleteParam {
   struct Y {
     void operator delete(void* const);
   };
+}
+
+// <rdar://problem/8427878>
+// Test that the correct 'operator delete' is selected to pair with
+// the unexpected placement 'operator new'.
+namespace PairedDelete {
+  template <class T> struct A {
+    A();
+    void *operator new(size_t s, double d = 0);
+    void operator delete(void *p, double d);
+    void operator delete(void *p) {
+      T::dealloc(p);
+    }
+  };
+
+  A<int> *test() {
+    return new A<int>();
+  }
+}
+
+namespace PR7702 {
+  void test1() {
+    new DoesNotExist; // expected-error {{expected a type}}
+  }
 }

@@ -45,3 +45,29 @@ namespace PR7724 {
   template<typename OT> int myMethod()
   { return 2 && sizeof(OT); }
 }
+
+namespace test4 {
+  template <typename T> T *addressof(T &v) {
+    return reinterpret_cast<T*>(
+             &const_cast<char&>(reinterpret_cast<const volatile char &>(v)));
+  }
+}
+
+namespace test5 {
+  template <typename T> class chained_map {
+    int k;
+    void lookup() const {
+      int &v = (int &)k;
+    }
+  };
+}
+
+namespace PR8795 {
+  template <class _CharT> int test(_CharT t)
+  {
+    int data [] = {
+      sizeof(_CharT) > sizeof(char)
+    };
+    return data[0];
+  }
+}

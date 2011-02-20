@@ -1,7 +1,10 @@
 // RUN: %clang_cc1 -fsyntax-only -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -DNON_FIXITS -verify %s
-// RUN: %clang -E -P %s -o %t
-// RUN: %clang_cc1 -x objective-c -fsyntax-only -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -fixit %t  || true
-// RUN: %clang_cc1 -x objective-c -fsyntax-only -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -pedantic -Werror %t
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -x objective-c -E -P %s -o %t
+// RUN: %clang_cc1 -x objective-c -fsyntax-only -fobjc-nonfragile-abi -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -fixit %t  || true
+// RUN: %clang_cc1 -x objective-c -fsyntax-only -fobjc-nonfragile-abi -triple x86_64-apple-darwin10 -fobjc-nonfragile-abi -pedantic -Werror %t
+// RUN: false
+// XFAIL: *
+
 
 @interface NSString // expected-note{{'NSString' declared here}}
 + (int)method:(int)x;
@@ -10,7 +13,8 @@
 #ifdef NON_FIXITS
 void test() {
   // FIXME: not providing fix-its
-  NSstring *str = @"A string"; // expected-error{{use of undeclared identifier 'NSstring'; did you mean 'NSString'?}}
+  NSstring *str = @"A string"; // expected-error{{use of undeclared identifier 'NSstring'; did you mean 'NSString'?}} \
+  // expected-error{{use of undeclared identifier 'str'}}
 }
 #endif
 
@@ -101,6 +105,7 @@ void test2(Collide *a) {
 @interface Super
 - (int)method; // expected-note{{using}}
 - (int)method2;
+- (int)method3:(id)x;
 @end
 
 @interface Sub : Super
@@ -154,3 +159,15 @@ void f(A *a) {
   [A methodA] // expected-error{{expected ';' after expression}}
 }
 
+#ifdef NON_FIXITS
+@interface Sub3 : Super
+- (int)method3;
+@end
+
+@implementation Sub3
+- (int)method3 {
+  int x = super; // expected-note{{use of undeclared identifier 'super'}}
+  return 0;
+}
+@end
+#endif

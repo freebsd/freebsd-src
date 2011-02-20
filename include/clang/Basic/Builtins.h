@@ -30,7 +30,15 @@ namespace clang {
   class IdentifierTable;
   class ASTContext;
   class QualType;
-
+  class LangOptions;
+  
+  enum LanguageID {
+    C_LANG = 0x1,     // builtin for c only.
+    CXX_LANG = 0x2,   // builtin for cplusplus only.
+    OBJC_LANG = 0x4,  // builtin for objective-c and objective-c++
+    ALL_LANGUAGES = (C_LANG|CXX_LANG|OBJC_LANG) //builtin is for all languages.
+  };
+  
 namespace Builtin {
 enum ID {
   NotBuiltin  = 0,      // This is not a builtin function.
@@ -41,6 +49,7 @@ enum ID {
 
 struct Info {
   const char *Name, *Type, *Attributes, *HeaderName;
+  LanguageID builtin_lang;
   bool Suppressed;
 
   bool operator==(const Info &RHS) const {
@@ -62,7 +71,7 @@ public:
   /// InitializeBuiltins - Mark the identifiers for all the builtins with their
   /// appropriate builtin ID # and mark any non-portable builtin identifiers as
   /// such.
-  void InitializeBuiltins(IdentifierTable &Table, bool NoBuiltins = false);
+  void InitializeBuiltins(IdentifierTable &Table, const LangOptions& LangOpts);
 
   /// \brief Popular the vector with the names of all of the builtins.
   void GetBuiltinNames(llvm::SmallVectorImpl<const char *> &Names,
@@ -108,6 +117,10 @@ public:
     return strchr(GetRecord(ID).Attributes, 'f') != 0;
   }
 
+  /// \brief Completely forget that the given ID was ever considered a builtin,
+  /// e.g., because the user provided a conflicting signature.
+  void ForgetBuiltin(unsigned ID, IdentifierTable &Table);
+  
   /// \brief If this is a library function that comes from a specific
   /// header, retrieve that header name.
   const char *getHeaderName(unsigned ID) const {
@@ -123,12 +136,6 @@ public:
   /// formatting rules and, if so, set the index to the format string
   /// argument and whether this function as a va_list argument.
   bool isScanfLike(unsigned ID, unsigned &FormatIdx, bool &HasVAListArg);
-
-  /// hasVAListUse - Return true of the specified builtin uses __builtin_va_list
-  /// as an operand or return type.
-  bool hasVAListUse(unsigned ID) const {
-    return strpbrk(GetRecord(ID).Type, "Aa") != 0;
-  }
 
   /// isConstWithoutErrno - Return true if this function has no side
   /// effects and doesn't read memory, except for possibly errno. Such

@@ -24,9 +24,6 @@
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
 
-#include <vector>
-#include <map>
-
 #include "CGBuilder.h"
 #include "CGCall.h"
 #include "CGValue.h"
@@ -46,157 +43,153 @@ namespace llvm {
 namespace clang {
 
 namespace CodeGen {
-class CodeGenModule;
 
-class BlockBase {
+class CodeGenModule;
+class CGBlockInfo;
+
+enum BlockFlag_t {
+  BLOCK_HAS_COPY_DISPOSE =  (1 << 25),
+  BLOCK_HAS_CXX_OBJ =       (1 << 26),
+  BLOCK_IS_GLOBAL =         (1 << 28),
+  BLOCK_USE_STRET =         (1 << 29),
+  BLOCK_HAS_SIGNATURE  =    (1 << 30)
+};
+class BlockFlags {
+  uint32_t flags;
+
+  BlockFlags(uint32_t flags) : flags(flags) {}
 public:
-    enum {
-        BLOCK_HAS_COPY_DISPOSE =  (1 << 25),
-        BLOCK_HAS_CXX_OBJ =       (1 << 26),
-        BLOCK_IS_GLOBAL =         (1 << 28),
-        BLOCK_USE_STRET =         (1 << 29),
-        BLOCK_HAS_SIGNATURE  =    (1 << 30)
-    };
+  BlockFlags() : flags(0) {}
+  BlockFlags(BlockFlag_t flag) : flags(flag) {}
+
+  uint32_t getBitMask() const { return flags; }
+  bool empty() const { return flags == 0; }
+
+  friend BlockFlags operator|(BlockFlags l, BlockFlags r) {
+    return BlockFlags(l.flags | r.flags);
+  }
+  friend BlockFlags &operator|=(BlockFlags &l, BlockFlags r) {
+    l.flags |= r.flags;
+    return l;
+  }
+  friend bool operator&(BlockFlags l, BlockFlags r) {
+    return (l.flags & r.flags);
+  }
+};
+inline BlockFlags operator|(BlockFlag_t l, BlockFlag_t r) {
+  return BlockFlags(l) | BlockFlags(r);
+}
+
+enum BlockFieldFlag_t {
+  BLOCK_FIELD_IS_OBJECT   = 0x03,  /* id, NSObject, __attribute__((NSObject)),
+                                    block, ... */
+  BLOCK_FIELD_IS_BLOCK    = 0x07,  /* a block variable */
+
+  BLOCK_FIELD_IS_BYREF    = 0x08,  /* the on stack structure holding the __block
+                                    variable */
+  BLOCK_FIELD_IS_WEAK     = 0x10,  /* declared __weak, only used in byref copy
+                                    helpers */
+
+  BLOCK_BYREF_CALLER      = 128,   /* called from __block (byref) copy/dispose
+                                      support routines */
+  BLOCK_BYREF_CURRENT_MAX = 256
 };
 
+class BlockFieldFlags {
+  uint32_t flags;
 
-class BlockModule : public BlockBase {
-  ASTContext &Context;
-  llvm::Module &TheModule;
-  const llvm::TargetData &TheTargetData;
-  CodeGenTypes &Types;
-  CodeGenModule &CGM;
-  llvm::LLVMContext &VMContext;
-
-  ASTContext &getContext() const { return Context; }
-  llvm::Module &getModule() const { return TheModule; }
-  CodeGenTypes &getTypes() { return Types; }
-  const llvm::TargetData &getTargetData() const { return TheTargetData; }
+  BlockFieldFlags(uint32_t flags) : flags(flags) {}
 public:
-  int getGlobalUniqueCount() { return ++Block.GlobalUniqueCount; }
-  const llvm::Type *getBlockDescriptorType();
+  BlockFieldFlags() : flags(0) {}
+  BlockFieldFlags(BlockFieldFlag_t flag) : flags(flag) {}
 
-  const llvm::Type *getGenericBlockLiteralType();
+  uint32_t getBitMask() const { return flags; }
+  bool empty() const { return flags == 0; }
 
-  llvm::Constant *GetAddrOfGlobalBlock(const BlockExpr *BE, const char *);
+  /// Answers whether the flags indicate that this field is an object
+  /// or block pointer that requires _Block_object_assign/dispose.
+  bool isSpecialPointer() const { return flags & BLOCK_FIELD_IS_OBJECT; }
 
-  const llvm::Type *BlockDescriptorType;
-  const llvm::Type *GenericBlockLiteralType;
+  friend BlockFieldFlags operator|(BlockFieldFlags l, BlockFieldFlags r) {
+    return BlockFieldFlags(l.flags | r.flags);
+  }
+  friend BlockFieldFlags &operator|=(BlockFieldFlags &l, BlockFieldFlags r) {
+    l.flags |= r.flags;
+    return l;
+  }
+  friend bool operator&(BlockFieldFlags l, BlockFieldFlags r) {
+    return (l.flags & r.flags);
+  }
+};
+inline BlockFieldFlags operator|(BlockFieldFlag_t l, BlockFieldFlag_t r) {
+  return BlockFieldFlags(l) | BlockFieldFlags(r);
+}
 
-  struct {
-    int GlobalUniqueCount;
-  } Block;
+/// CGBlockInfo - Information to generate a block literal.
+class CGBlockInfo {
+public:
+  /// Name - The name of the block, kindof.
+  const char *Name;
 
-  const llvm::PointerType *PtrToInt8Ty;
+  /// The field index of 'this' within the block, if there is one.
+  unsigned CXXThisIndex;
 
-  std::map<uint64_t, llvm::Constant *> AssignCache;
-  std::map<uint64_t, llvm::Constant *> DestroyCache;
+  class Capture {
+    uintptr_t Data;
 
-  BlockModule(ASTContext &C, llvm::Module &M, const llvm::TargetData &TD,
-              CodeGenTypes &T, CodeGenModule &CodeGen)
-    : Context(C), TheModule(M), TheTargetData(TD), Types(T),
-      CGM(CodeGen), VMContext(M.getContext()),
-      BlockDescriptorType(0), GenericBlockLiteralType(0) {
-    Block.GlobalUniqueCount = 0;
-    PtrToInt8Ty = llvm::Type::getInt8PtrTy(M.getContext());
+  public:
+    bool isIndex() const { return (Data & 1) != 0; }
+    bool isConstant() const { return !isIndex(); }
+    unsigned getIndex() const { assert(isIndex()); return Data >> 1; }
+    llvm::Value *getConstant() const {
+      assert(isConstant());
+      return reinterpret_cast<llvm::Value*>(Data);
+    }
+
+    static Capture makeIndex(unsigned index) {
+      Capture v;
+      v.Data = (index << 1) | 1;
+      return v;
+    }
+
+    static Capture makeConstant(llvm::Value *value) {
+      Capture v;
+      v.Data = reinterpret_cast<uintptr_t>(value);
+      return v;
+    }    
+  };
+
+  /// The mapping of allocated indexes within the block.
+  llvm::DenseMap<const VarDecl*, Capture> Captures;  
+
+  /// CanBeGlobal - True if the block can be global, i.e. it has
+  /// no non-constant captures.
+  bool CanBeGlobal : 1;
+
+  /// True if the block needs a custom copy or dispose function.
+  bool NeedsCopyDispose : 1;
+
+  /// HasCXXObject - True if the block's custom copy/dispose functions
+  /// need to be run even in GC mode.
+  bool HasCXXObject : 1;
+
+  const llvm::StructType *StructureType;
+  const BlockExpr *Block;
+  CharUnits BlockSize;
+  CharUnits BlockAlign;
+  llvm::SmallVector<const Expr*, 8> BlockLayout;
+
+  const Capture &getCapture(const VarDecl *var) const {
+    llvm::DenseMap<const VarDecl*, Capture>::const_iterator
+      it = Captures.find(var);
+    assert(it != Captures.end() && "no entry for variable!");
+    return it->second;
   }
 
-  bool BlockRequiresCopying(QualType Ty)
-    { return getContext().BlockRequiresCopying(Ty); }
-};
+  const BlockDecl *getBlockDecl() const { return Block->getBlockDecl(); }
+  const BlockExpr *getBlockExpr() const { return Block; }
 
-class BlockFunction : public BlockBase {
-  CodeGenModule &CGM;
-  ASTContext &getContext() const;
-
-protected:
-  llvm::LLVMContext &VMContext;
-
-public:
-  CodeGenFunction &CGF;
-
-  const llvm::PointerType *PtrToInt8Ty;
-  struct HelperInfo {
-    int index;
-    int flag;
-    bool RequiresCopying;
-  };
-
-  enum {
-    BLOCK_FIELD_IS_OBJECT   =  3,  /* id, NSObject, __attribute__((NSObject)),
-                                      block, ... */
-    BLOCK_FIELD_IS_BLOCK    =  7,  /* a block variable */
-    BLOCK_FIELD_IS_BYREF    =  8,  /* the on stack structure holding the __block
-                                      variable */
-    BLOCK_FIELD_IS_WEAK     = 16,  /* declared __weak, only used in byref copy
-                                      helpers */
-    BLOCK_BYREF_CALLER      = 128,  /* called from __block (byref) copy/dispose
-                                      support routines */
-    BLOCK_BYREF_CURRENT_MAX = 256
-  };
-
-  CGBuilderTy &Builder;
-
-  BlockFunction(CodeGenModule &cgm, CodeGenFunction &cgf, CGBuilderTy &B);
-
-  /// BlockOffset - The offset in bytes for the next allocation of an
-  /// imported block variable.
-  CharUnits BlockOffset;
-  /// BlockAlign - Maximal alignment needed for the Block expressed in 
-  /// characters.
-  CharUnits BlockAlign;
-
-  /// getBlockOffset - Allocate a location within the block's storage
-  /// for a value with the given size and alignment requirements.
-  CharUnits getBlockOffset(CharUnits Size, CharUnits Align);
-
-  /// BlockHasCopyDispose - True iff the block uses copy/dispose.
-  bool BlockHasCopyDispose;
-
-  /// BlockLayout - The layout of the block's storage, represented as
-  /// a sequence of expressions which require such storage.  The
-  /// expressions can be:
-  /// - a BlockDeclRefExpr, indicating that the given declaration
-  ///   from an enclosing scope is needed by the block;
-  /// - a DeclRefExpr, which always wraps an anonymous VarDecl with
-  ///   array type, used to insert padding into the block; or
-  /// - a CXXThisExpr, indicating that the C++ 'this' value should
-  ///   propagate from the parent to the block.
-  /// This is a really silly representation.
-  llvm::SmallVector<const Expr *, 8> BlockLayout;
-
-  /// BlockDecls - Offsets for all Decls in BlockDeclRefExprs.
-  llvm::DenseMap<const Decl*, CharUnits> BlockDecls;
-  
-  /// BlockCXXThisOffset - The offset of the C++ 'this' value within
-  /// the block structure.
-  CharUnits BlockCXXThisOffset;
-
-  ImplicitParamDecl *BlockStructDecl;
-  ImplicitParamDecl *getBlockStructDecl() { return BlockStructDecl; }
-
-  llvm::Constant *GenerateCopyHelperFunction(bool, const llvm::StructType *,
-                                             std::vector<HelperInfo> *);
-  llvm::Constant *GenerateDestroyHelperFunction(bool, const llvm::StructType *,
-                                                std::vector<HelperInfo> *);
-
-  llvm::Constant *BuildCopyHelper(const llvm::StructType *,
-                                  std::vector<HelperInfo> *);
-  llvm::Constant *BuildDestroyHelper(const llvm::StructType *,
-                                     std::vector<HelperInfo> *);
-
-  llvm::Constant *GeneratebyrefCopyHelperFunction(const llvm::Type *, int flag);
-  llvm::Constant *GeneratebyrefDestroyHelperFunction(const llvm::Type *T, int);
-
-  llvm::Constant *BuildbyrefCopyHelper(const llvm::Type *T, int flag,
-                                       unsigned Align);
-  llvm::Constant *BuildbyrefDestroyHelper(const llvm::Type *T, int flag,
-                                          unsigned Align);
-
-  void BuildBlockRelease(llvm::Value *DeclPtr, int flag = BLOCK_FIELD_IS_BYREF);
-
-  bool BlockRequiresCopying(QualType Ty)
-    { return getContext().BlockRequiresCopying(Ty); }
+  CGBlockInfo(const BlockExpr *blockExpr, const char *Name);
 };
 
 }  // end namespace CodeGen

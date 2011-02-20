@@ -244,3 +244,22 @@ namespace PR7133 {
     return false;
   }
 }
+
+class CLASS {
+  void CLASS::foo2(); // expected-warning {{extra qualification on member 'foo2'}}
+};
+
+namespace PR8159 {
+  class B { };
+
+  class A {
+    int A::a; // expected-warning{{extra qualification on member 'a'}}
+    static int A::b; // expected-warning{{extra qualification on member 'b'}}
+    int ::c; // expected-error{{non-friend class member 'c' cannot have a qualified name}}
+  };
+}
+
+namespace rdar7980179 {
+  class A { void f0(); }; // expected-note {{previous}}
+  int A::f0() {} // expected-error {{out-of-line definition of 'rdar7980179::A::f0' differ from the declaration in the return type}}
+}

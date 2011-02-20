@@ -1,13 +1,20 @@
 // RUN: %clang_cc1 -fsyntax-only -pedantic -verify %s
 struct one {
   int a;
-  int values[]; // expected-note 3{{initialized flexible array member 'values' is here}}
+  int values[]; // expected-note 4{{initialized flexible array member 'values' is here}}
 } x = {5, {1, 2, 3}}; // expected-warning{{flexible array initialization is a GNU extension}}
 
 struct one x2 = { 5, 1, 2, 3 }; // expected-warning{{flexible array initialization is a GNU extension}}
 
 void test() {
-  struct one x3 = {5, {1, 2, 3}}; // expected-warning{{flexible array initialization is a GNU extension}}
+  struct one x3 = {5, {1, 2, 3}}; // \
+   // expected-warning{{flexible array initialization is a GNU extension}} \
+   // expected-error {{non-static initialization of a variable with flexible array member}}
+  struct one x3a = { 5 };
+  struct one x3b = { .a = 5 };
+  struct one x3c = { 5, {} }; // expected-warning{{use of GNU empty initializer extension}} \
+  // expected-warning{{flexible array initialization is a GNU extension}} \
+  // expected-warning{{zero size arrays are an extension}}
 }
 
 struct foo { 
@@ -56,3 +63,18 @@ struct Y {
   int e;
   struct X xs[]; // expected-warning{{'struct X' may not be used as an array element due to flexible array member}}
 };
+
+
+// PR8217
+struct PR8217a {
+  int  i;
+  char v[];
+};
+
+void PR8217() {
+  struct PR8217a foo1 = { .i = 0, .v = "foo" }; // expected-error {{non-static initialization of a variable with flexible array member}}
+  struct PR8217a foo2 = { .i = 0 };
+  struct PR8217a foo3 = { .i = 0, .v = { 'b', 'a', 'r', '\0' } }; // expected-error {{non-static initialization of a variable with flexible array member}}
+  struct PR8217a bar;
+}
+

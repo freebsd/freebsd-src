@@ -90,5 +90,38 @@ struct MutableString : public String { };
 
 void test_I5(I5 *i5, String s) {
   [i5 method:"hello" other:s];
-  [i5 method:s other:"world"]; // expected-error{{non-const lvalue reference to type 'String' cannot bind to a value of unrelated type 'char const [6]'}}
+  [i5 method:s other:"world"]; // expected-error{{non-const lvalue reference to type 'String' cannot bind to a value of unrelated type 'const char [6]'}}
+}
+
+// <rdar://problem/8483253>
+@interface A
+
+struct X { };
+
++ (A *)create:(void (*)(void *x, X r, void *data))callback
+	      callbackData:(void *)callback_data;
+
+@end
+
+
+void foo(void)
+{
+  void *fun;
+  void *ptr;
+  X r;
+  A *im = [A create:(void (*)(void *cgl_ctx, X r, void *data)) fun
+             callbackData:ptr];
+}
+
+// <rdar://problem/8807070>
+template<typename T> struct X1; // expected-note{{template is declared here}}
+
+@interface B
++ (X1<int>)blah;
++ (X1<float>&)blarg;
+@end
+
+void f() {
+  [B blah]; // expected-error{{implicit instantiation of undefined template 'X1<int>'}}
+  [B blarg];
 }

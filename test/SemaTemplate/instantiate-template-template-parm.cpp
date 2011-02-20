@@ -44,3 +44,54 @@ template<long V> struct X3l { }; // expected-note{{different type 'long'}}
 
 X2<int, X3i> x2okay;
 X2<long, X3l> x2bad; // expected-note{{instantiation}}
+
+template <typename T, template <T, T> class TT, class R = TT<1, 2> >
+struct Comp {
+  typedef R r1;
+  template <T x, T y> struct gt {
+    static const bool result = x > y;
+  };
+  typedef gt<2, 1> r2;
+};
+
+template <int x, int y> struct lt {
+  static const bool result = x < y;
+};
+
+Comp<int, lt> c0;
+
+namespace PR8629 {
+  template<template<int> class TT> struct X0
+  {
+    static void apply();
+  };
+  template<int> struct Type { };
+
+  template<class T> struct X1
+  {
+    template<class U> struct Inner;
+
+    template<class U> void g()
+    {
+      typedef Inner<U> Init;
+      X0<Init::template VeryInner>::apply();
+    }
+    template<int N> void f ()
+    {
+      g<Type<N> >();
+    }
+  };
+  template<class T> template<class U> struct X1<T>::Inner
+  {
+    template<int> struct VeryInner {
+    };
+  };
+  struct X1Container
+  {
+    X1Container()
+    {
+      simplex_.f<0>();
+    }
+    X1<double> simplex_;
+  };
+}

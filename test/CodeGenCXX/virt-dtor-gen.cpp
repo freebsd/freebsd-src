@@ -7,4 +7,4 @@ class Foo {
 };
 Foo::~Foo() {}
 
-// CHECK: define void @_ZN3FooD0Ev
+// CHECK: define void @_ZN3FooD0Ev(%class.Foo* %this) unnamed_addr

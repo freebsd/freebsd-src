@@ -3,6 +3,7 @@
 struct A {
   int foo();
   friend A operator+(const A&, const A&);
+  A operator|=(const A&);
   operator bool();
 };
 
@@ -95,4 +96,32 @@ void test() {
                 // expected-note{{use '==' to turn this assignment into an equality comparison}} \
   // expected-note{{place parentheses around the assignment to silence this warning}}
   for (; (a = b + b); ) {}
+
+  // Compound assignments.
+  if (x |= 2) {} // expected-warning {{using the result of an assignment as a condition without parentheses}} \
+                // expected-note{{use '!=' to turn this compound assignment into an inequality comparison}} \
+  // expected-note{{place parentheses around the assignment to silence this warning}}
+
+  if (a |= b) {} // expected-warning {{using the result of an assignment as a condition without parentheses}} \
+                // expected-note{{use '!=' to turn this compound assignment into an inequality comparison}} \
+  // expected-note{{place parentheses around the assignment to silence this warning}}
+
+  if ((x == 5)) {} // expected-warning {{equality comparison with extraneous parentheses}} \
+                   // expected-note {{use '=' to turn this equality comparison into an assignment}} \
+                   // expected-note {{remove extraneous parentheses around the comparison to silence this warning}}
+  if ((5 == x)) {}
+
+#define EQ(x,y) ((x) == (y))
+  if (EQ(x, 5)) {}
+#undef EQ
 }
+
+void (*fn)();
+
+void test2() {
+    if ((fn == test2)) {} // expected-warning {{equality comparison with extraneous parentheses}} \
+                          // expected-note {{use '=' to turn this equality comparison into an assignment}} \
+                          // expected-note {{remove extraneous parentheses around the comparison to silence this warning}}
+    if ((test2 == fn)) {}
+}
+

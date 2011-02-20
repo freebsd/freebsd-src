@@ -17,7 +17,7 @@
 #include "CGObjCRuntime.h"
 #include "CodeGenModule.h"
 #include "CodeGenFunction.h"
-#include "CGException.h"
+#include "CGCleanup.h"
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
@@ -62,7 +62,10 @@ private:
   const llvm::IntegerType *IntTy;
   const llvm::PointerType *PtrTy;
   const llvm::IntegerType *LongTy;
+  const llvm::IntegerType *SizeTy;
+  const llvm::IntegerType *PtrDiffTy;
   const llvm::PointerType *PtrToIntTy;
+  const llvm::Type *BoolTy;
   llvm::GlobalAlias *ClassPtrAlias;
   llvm::GlobalAlias *MetaClassPtrAlias;
   std::vector<llvm::Constant*> Classes;
@@ -179,7 +182,8 @@ public:
   virtual llvm::Function *ModuleInitFunction();
   virtual llvm::Function *GetPropertyGetFunction();
   virtual llvm::Function *GetPropertySetFunction();
-  virtual llvm::Function *GetCopyStructFunction();
+  virtual llvm::Function *GetSetStructFunction();
+  virtual llvm::Function *GetGetStructFunction();
   virtual llvm::Constant *EnumerationMutationFunction();
 
   virtual void EmitTryStmt(CodeGen::CodeGenFunction &CGF,
@@ -212,8 +216,8 @@ public:
   virtual llvm::Value *EmitIvarOffset(CodeGen::CodeGenFunction &CGF,
                                       const ObjCInterfaceDecl *Interface,
                                       const ObjCIvarDecl *Ivar);
-  virtual llvm::Constant *GCBlockLayout(CodeGen::CodeGenFunction &CGF,
-              const llvm::SmallVectorImpl<const BlockDeclRefExpr *> &) {
+  virtual llvm::Constant *BuildGCBlockLayout(CodeGen::CodeGenModule &CGM,
+                                             const CGBlockInfo &blockInfo) {
     return NULLPtr;
   }
 };
@@ -273,6 +277,11 @@ CGObjCGNU::CGObjCGNU(CodeGen::CodeGenModule &cgm)
       CGM.getTypes().ConvertType(CGM.getContext().IntTy));
   LongTy = cast<llvm::IntegerType>(
       CGM.getTypes().ConvertType(CGM.getContext().LongTy));
+  SizeTy = cast<llvm::IntegerType>(
+      CGM.getTypes().ConvertType(CGM.getContext().getSizeType()));
+  PtrDiffTy = cast<llvm::IntegerType>(
+      CGM.getTypes().ConvertType(CGM.getContext().getPointerDiffType()));
+  BoolTy = CGM.getTypes().ConvertType(CGM.getContext().BoolTy);
 
   Int8Ty = llvm::Type::getInt8Ty(VMContext);
   // C string type.  Used in lots of places.
@@ -318,8 +327,7 @@ CGObjCGNU::CGObjCGNU(CodeGen::CodeGenModule &cgm)
     // id objc_assign_ivar(id, id, ptrdiff_t);
     std::vector<const llvm::Type*> Args(1, IdTy);
     Args.push_back(PtrToIdTy);
-    // FIXME: ptrdiff_t
-    Args.push_back(LongTy);
+    Args.push_back(PtrDiffTy);
     llvm::FunctionType *FTy = llvm::FunctionType::get(IdTy, Args, false);
     IvarAssignFn = CGM.CreateRuntimeFunction(FTy, "objc_assign_ivar");
     // id objc_assign_strongCast (id, id*)
@@ -342,8 +350,7 @@ CGObjCGNU::CGObjCGNU(CodeGen::CodeGenModule &cgm)
     Args.clear();
     Args.push_back(PtrToInt8Ty);
     Args.push_back(PtrToInt8Ty);
-    // FIXME: size_t
-    Args.push_back(LongTy);
+    Args.push_back(SizeTy);
     FTy = llvm::FunctionType::get(IdTy, Args, false);
     MemMoveFn = CGM.CreateRuntimeFunction(FTy, "objc_memmove_collectable");
   }
@@ -435,7 +442,7 @@ llvm::Constant *CGObjCGNU::MakeGlobal(const llvm::StructType *Ty,
     llvm::GlobalValue::LinkageTypes linkage) {
   llvm::Constant *C = llvm::ConstantStruct::get(Ty, V);
   return new llvm::GlobalVariable(TheModule, Ty, false,
-      llvm::GlobalValue::InternalLinkage, C, Name);
+      linkage, C, Name);
 }
 
 llvm::Constant *CGObjCGNU::MakeGlobal(const llvm::ArrayType *Ty,
@@ -443,7 +450,7 @@ llvm::Constant *CGObjCGNU::MakeGlobal(const llvm::ArrayType *Ty,
     llvm::GlobalValue::LinkageTypes linkage) {
   llvm::Constant *C = llvm::ConstantArray::get(Ty, V);
   return new llvm::GlobalVariable(TheModule, Ty, false,
-                                  llvm::GlobalValue::InternalLinkage, C, Name);
+                                  linkage, C, Name);
 }
 
 /// Generate an NSConstantString object.
@@ -995,7 +1002,7 @@ llvm::Constant *CGObjCGNU::GenerateProtocolList(
       Protocols.size());
   llvm::StructType *ProtocolListTy = llvm::StructType::get(VMContext,
       PtrTy, //Should be a recurisve pointer, but it's always NULL here.
-      LongTy,//FIXME: Should be size_t
+      SizeTy,
       ProtocolArrayTy,
       NULL);
   std::vector<llvm::Constant*> Elements;
@@ -1250,7 +1257,7 @@ void CGObjCGNU::GenerateProtocolHolderCategory(void) {
       ExistingProtocols.size());
   llvm::StructType *ProtocolListTy = llvm::StructType::get(VMContext,
       PtrTy, //Should be a recurisve pointer, but it's always NULL here.
-      LongTy,//FIXME: Should be size_t
+      SizeTy,
       ProtocolArrayTy,
       NULL);
   std::vector<llvm::Constant*> ProtocolElements;
@@ -1430,7 +1437,8 @@ void CGObjCGNU::GenerateClass(const ObjCImplementationDecl *OID) {
   }
 
   // Get the size of instances.
-  int instanceSize = Context.getASTObjCImplementationLayout(OID).getSize() / 8;
+  int instanceSize = 
+    Context.getASTObjCImplementationLayout(OID).getSize().getQuantity();
 
   // Collect information about instance variables.
   llvm::SmallVector<llvm::Constant*, 16> IvarNames;
@@ -1440,7 +1448,7 @@ void CGObjCGNU::GenerateClass(const ObjCImplementationDecl *OID) {
   std::vector<llvm::Constant*> IvarOffsetValues;
 
   int superInstanceSize = !SuperClassDecl ? 0 :
-    Context.getASTObjCInterfaceLayout(SuperClassDecl).getSize() / 8;
+    Context.getASTObjCInterfaceLayout(SuperClassDecl).getSize().getQuantity();
   // For non-fragile ivars, set the instance size to 0 - {the size of just this
   // class}.  The runtime will then set this to the correct value on load.
   if (CGM.getContext().getLangOptions().ObjCNonFragileABI) {
@@ -1469,7 +1477,7 @@ void CGObjCGNU::GenerateClass(const ObjCImplementationDecl *OID) {
           llvm::ConstantInt::get(llvm::Type::getInt32Ty(VMContext), Offset));
       IvarOffsetValues.push_back(new llvm::GlobalVariable(TheModule, IntTy,
           false, llvm::GlobalValue::ExternalLinkage,
-          llvm::ConstantInt::get(IntTy, BaseOffset),
+          llvm::ConstantInt::get(IntTy, Offset),
           "__objc_ivar_offset_value_" + ClassName +"." +
           IVD->getNameAsString()));
   }
@@ -1538,7 +1546,7 @@ void CGObjCGNU::GenerateClass(const ObjCImplementationDecl *OID) {
   // allows code compiled for the non-Fragile ABI to inherit from code compiled
   // for the legacy ABI, without causing problems.  The converse is also
   // possible, but causes all ivar accesses to be fragile.
-  int i = 0;
+
   // Offset pointer for getting at the correct field in the ivar list when
   // setting up the alias.  These are: The base address for the global, the
   // ivar array (second field), the ivar in this list (set for each ivar), and
@@ -1548,15 +1556,16 @@ void CGObjCGNU::GenerateClass(const ObjCImplementationDecl *OID) {
       llvm::ConstantInt::get(IndexTy, 1), 0,
       llvm::ConstantInt::get(IndexTy, 2) };
 
-  for (ObjCInterfaceDecl::ivar_iterator iter = ClassDecl->ivar_begin(),
-      endIter = ClassDecl->ivar_end() ; iter != endIter ; iter++) {
+
+  for (unsigned i = 0, e = OIvars.size(); i != e; ++i) {
+      ObjCIvarDecl *IVD = OIvars[i];
       const std::string Name = "__objc_ivar_offset_" + ClassName + '.'
-          +(*iter)->getNameAsString();
-      offsetPointerIndexes[2] = llvm::ConstantInt::get(IndexTy, i++);
+          + IVD->getNameAsString();
+      offsetPointerIndexes[2] = llvm::ConstantInt::get(IndexTy, i);
       // Get the correct ivar field
       llvm::Constant *offsetValue = llvm::ConstantExpr::getGetElementPtr(
               IvarList, offsetPointerIndexes, 4);
-      // Get the existing alias, if one exists.
+      // Get the existing variable, if one exists.
       llvm::GlobalVariable *offset = TheModule.getNamedGlobal(Name);
       if (offset) {
           offset->setInitializer(offsetValue);
@@ -1585,13 +1594,15 @@ void CGObjCGNU::GenerateClass(const ObjCImplementationDecl *OID) {
 
   // Resolve the class aliases, if they exist.
   if (ClassPtrAlias) {
-    ClassPtrAlias->setAliasee(
+    ClassPtrAlias->replaceAllUsesWith(
         llvm::ConstantExpr::getBitCast(ClassStruct, IdTy));
+    ClassPtrAlias->eraseFromParent();
     ClassPtrAlias = 0;
   }
   if (MetaClassPtrAlias) {
-    MetaClassPtrAlias->setAliasee(
+    MetaClassPtrAlias->replaceAllUsesWith(
         llvm::ConstantExpr::getBitCast(MetaClassStruct, IdTy));
+    MetaClassPtrAlias->eraseFromParent();
     MetaClassPtrAlias = 0;
   }
 
@@ -1818,8 +1829,6 @@ llvm::Function *CGObjCGNU::GenerateMethod(const ObjCMethodDecl *OMD,
 
 llvm::Function *CGObjCGNU::GetPropertyGetFunction() {
   std::vector<const llvm::Type*> Params;
-  const llvm::Type *BoolTy =
-    CGM.getTypes().ConvertType(CGM.getContext().BoolTy);
   Params.push_back(IdTy);
   Params.push_back(SelectorTy);
   Params.push_back(IntTy);
@@ -1833,8 +1842,6 @@ llvm::Function *CGObjCGNU::GetPropertyGetFunction() {
 
 llvm::Function *CGObjCGNU::GetPropertySetFunction() {
   std::vector<const llvm::Type*> Params;
-  const llvm::Type *BoolTy =
-    CGM.getTypes().ConvertType(CGM.getContext().BoolTy);
   Params.push_back(IdTy);
   Params.push_back(SelectorTy);
   Params.push_back(IntTy);
@@ -1848,9 +1855,31 @@ llvm::Function *CGObjCGNU::GetPropertySetFunction() {
                                                         "objc_setProperty"));
 }
 
-// FIXME. Implement this.
-llvm::Function *CGObjCGNU::GetCopyStructFunction() {
-  return 0;
+llvm::Function *CGObjCGNU::GetGetStructFunction() {
+  std::vector<const llvm::Type*> Params;
+  Params.push_back(PtrTy);
+  Params.push_back(PtrTy);
+  Params.push_back(PtrDiffTy);
+  Params.push_back(BoolTy);
+  Params.push_back(BoolTy);
+  // objc_setPropertyStruct (void*, void*, ptrdiff_t, BOOL, BOOL)
+  const llvm::FunctionType *FTy =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(VMContext), Params, false);
+  return cast<llvm::Function>(CGM.CreateRuntimeFunction(FTy, 
+                                                    "objc_getPropertyStruct"));
+}
+llvm::Function *CGObjCGNU::GetSetStructFunction() {
+  std::vector<const llvm::Type*> Params;
+  Params.push_back(PtrTy);
+  Params.push_back(PtrTy);
+  Params.push_back(PtrDiffTy);
+  Params.push_back(BoolTy);
+  Params.push_back(BoolTy);
+  // objc_setPropertyStruct (void*, void*, ptrdiff_t, BOOL, BOOL)
+  const llvm::FunctionType *FTy =
+    llvm::FunctionType::get(llvm::Type::getVoidTy(VMContext), Params, false);
+  return cast<llvm::Function>(CGM.CreateRuntimeFunction(FTy, 
+                                                    "objc_setPropertyStruct"));
 }
 
 llvm::Constant *CGObjCGNU::EnumerationMutationFunction() {
@@ -2008,7 +2037,7 @@ void CGObjCGNU::EmitTryStmt(CodeGen::CodeGenFunction &CGF,
       const llvm::Type *CatchType = CGF.ConvertType(CatchParam->getType());
       Exn = CGF.Builder.CreateBitCast(Exn, CatchType);
 
-      CGF.EmitLocalBlockVarDecl(*CatchParam);
+      CGF.EmitAutoVarDecl(*CatchParam);
       CGF.Builder.CreateStore(Exn, CGF.GetAddrOfLocalVar(CatchParam));
     }
 
@@ -2142,12 +2171,18 @@ llvm::GlobalVariable *CGObjCGNU::ObjCIvarOffsetVariable(
   // when linked against code which isn't (most of the time).
   llvm::GlobalVariable *IvarOffsetPointer = TheModule.getNamedGlobal(Name);
   if (!IvarOffsetPointer) {
-    uint64_t Offset;
-    if (ObjCImplementationDecl *OID =
-            CGM.getContext().getObjCImplementation(
+    // This will cause a run-time crash if we accidentally use it.  A value of
+    // 0 would seem more sensible, but will silently overwrite the isa pointer
+    // causing a great deal of confusion.
+    uint64_t Offset = -1;
+    // We can't call ComputeIvarBaseOffset() here if we have the
+    // implementation, because it will create an invalid ASTRecordLayout object
+    // that we are then stuck with forever, so we only initialize the ivar
+    // offset variable with a guess if we only have the interface.  The
+    // initializer will be reset later anyway, when we are generating the class
+    // description.
+    if (!CGM.getContext().getObjCImplementation(
               const_cast<ObjCInterfaceDecl *>(ID)))
-      Offset = ComputeIvarBaseOffset(CGM, OID, Ivar);
-    else
       Offset = ComputeIvarBaseOffset(CGM, ID, Ivar);
 
     llvm::ConstantInt *OffsetGuess =

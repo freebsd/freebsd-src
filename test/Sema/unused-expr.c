@@ -95,7 +95,7 @@ int t6() {
   return 0;
 }
 
-int t7 __attribute__ ((warn_unused_result)); // expected-warning {{'warn_unused_result' attribute only applies to function types}}
+int t7 __attribute__ ((warn_unused_result)); // expected-warning {{'warn_unused_result' attribute only applies to functions}}
 
 // PR4010
 int (*fn4)(void) __attribute__ ((warn_unused_result));
@@ -118,3 +118,6 @@ void f(int i, ...) {
     __builtin_va_arg(ap, int);
     __builtin_va_end(ap);
 }
+
+// PR8371
+int fn5() __attribute__ ((__const));

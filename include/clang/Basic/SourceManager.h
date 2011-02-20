@@ -16,7 +16,7 @@
 
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/Support/Allocator.h"
-#include "llvm/System/DataTypes.h"
+#include "llvm/Support/DataTypes.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/DenseMap.h"
@@ -369,7 +369,9 @@ public:
 class SourceManager {
   /// \brief Diagnostic object.
   Diagnostic &Diag;
-  
+
+  FileManager &FileMgr;
+
   mutable llvm::BumpPtrAllocator ContentCacheAlloc;
 
   /// FileInfos - Memoized information about all of the files tracked by this
@@ -427,14 +429,14 @@ class SourceManager {
   explicit SourceManager(const SourceManager&);
   void operator=(const SourceManager&);
 public:
-  SourceManager(Diagnostic &Diag)
-    : Diag(Diag), ExternalSLocEntries(0), LineTable(0), NumLinearScans(0),
-      NumBinaryProbes(0) {
-    clearIDTables();
-  }
+  SourceManager(Diagnostic &Diag, FileManager &FileMgr);
   ~SourceManager();
 
   void clearIDTables();
+
+  Diagnostic &getDiagnostics() const { return Diag; }
+
+  FileManager &getFileManager() const { return FileMgr; }
 
   //===--------------------------------------------------------------------===//
   // MainFileID creation and querying methods.
@@ -450,6 +452,13 @@ public:
     return MainFileID;
   }
 
+  /// \brief Set the file ID for the precompiled preamble, which is also the
+  /// main file.
+  void SetPreambleFileID(FileID Preamble) {
+    assert(MainFileID.isInvalid() && "MainFileID already set!");
+    MainFileID = Preamble;
+  }
+  
   //===--------------------------------------------------------------------===//
   // Methods to create new FileID's and instantiations.
   //===--------------------------------------------------------------------===//
@@ -464,7 +473,7 @@ public:
                       unsigned PreallocatedID = 0,
                       unsigned Offset = 0) {
     const SrcMgr::ContentCache *IR = getOrCreateContentCache(SourceFile);
-    if (IR == 0) return FileID();    // Error opening file?
+    assert(IR && "getOrCreateContentCache() cannot return NULL");
     return createFileID(IR, IncludePos, FileCharacter, PreallocatedID, Offset);
   }
 
@@ -514,9 +523,7 @@ public:
   ///
   /// \param DoNotFree If true, then the buffer will not be freed when the
   /// source manager is destroyed.
-  ///
-  /// \returns true if an error occurred, false otherwise.
-  bool overrideFileContents(const FileEntry *SourceFile,
+  void overrideFileContents(const FileEntry *SourceFile,
                             const llvm::MemoryBuffer *Buffer,
                             bool DoNotFree = false);
 
@@ -715,6 +722,11 @@ public:
   ///
   /// Note that a presumed location is always given as the instantiation point
   /// of an instantiation location, not at the spelling location.
+  ///
+  /// \returns The presumed location of the specified SourceLocation. If the
+  /// presumed location cannot be calculate (e.g., because \p Loc is invalid
+  /// or the file containing \p Loc has changed on disk), returns an invalid
+  /// presumed location.
   PresumedLoc getPresumedLoc(SourceLocation Loc) const;
 
   /// isFromSameFile - Returns true if both SourceLocations correspond to
@@ -771,7 +783,7 @@ public:
   /// If the source file is included multiple times, the source location will
   /// be based upon the first inclusion.
   SourceLocation getLocation(const FileEntry *SourceFile,
-                             unsigned Line, unsigned Col) const;
+                             unsigned Line, unsigned Col);
 
   /// \brief Determines the order of 2 source locations in the translation unit.
   ///

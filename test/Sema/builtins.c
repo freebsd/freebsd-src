@@ -26,7 +26,7 @@ int test6(float a, long double b) {
 #define CFSTR __builtin___CFStringMakeConstantString
 void test7() {
   const void *X;
-  X = CFSTR("\242");
+  X = CFSTR("\242"); // expected-warning {{input conversion stopped}}
   X = CFSTR("\0"); // expected-warning {{ CFString literal contains NUL character }}
   X = CFSTR(242); // expected-error {{ CFString literal is not a string constant }} expected-warning {{incompatible integer to pointer conversion}}
   X = CFSTR("foo", "bar"); // expected-error {{too many arguments to function call}}
@@ -37,7 +37,7 @@ void test7() {
 
 void test9(short v) {
   unsigned i, old;
-  
+
   old = __sync_fetch_and_add();  // expected-error {{too few arguments to function call}}
   old = __sync_fetch_and_add(&old);  // expected-error {{too few arguments to function call}}
   old = __sync_fetch_and_add((unsigned*)0, 42i); // expected-warning {{imaginary constants are an extension}}
@@ -56,14 +56,14 @@ void test9(short v) {
 void test10(void) __attribute__((noreturn));
 
 void test10(void) {
-  __asm__("int3");  
+  __asm__("int3");
   __builtin_unreachable();
- 
+
   // No warning about falling off the end of a noreturn function.
 }
 
 void test11(int X) {
-  switch (X) {  
+  switch (X) {
   case __builtin_eh_return_data_regno(0):  // constant foldable.
     break;
   }
@@ -95,3 +95,10 @@ void test14() {
 void test15(const char *s) {
   __builtin_printf("string is %s\n", s);
 }
+
+// PR7885
+int test16() {
+  return __builtin_constant_p() + // expected-error{{too few arguments}}
+         __builtin_constant_p(1, 2); // expected-error {{too many arguments}}
+}
+

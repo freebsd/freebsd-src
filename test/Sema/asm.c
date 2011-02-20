@@ -36,7 +36,7 @@ void test3() {
 // <rdar://problem/6156893>
 void test4(const volatile void *addr)
 {
-    asm ("nop" : : "r"(*addr)); // expected-error {{invalid type 'void const volatile' in asm input for constraint 'r'}}
+    asm ("nop" : : "r"(*addr)); // expected-error {{invalid type 'const volatile void' in asm input for constraint 'r'}}
     asm ("nop" : : "m"(*addr));
 
     asm ("nop" : : "r"(test4(addr))); // expected-error {{invalid type 'void' in asm input for constraint 'r'}}
@@ -79,3 +79,29 @@ int test7(unsigned long long b) {
 
 // <rdar://problem/7574870>
 asm volatile (""); // expected-warning {{meaningless 'volatile' on asm outside function}}
+
+// PR3904
+void test8(int i) {
+  // A number in an input constraint can't point to a read-write constraint.
+  asm("" : "+r" (i), "=r"(i) :  "0" (i)); // expected-error{{invalid input constraint '0' in asm}}
+}
+
+// PR3905
+void test9(int i) {
+  asm("" : [foo] "=r" (i), "=r"(i) : "1[foo]"(i)); // expected-error{{invalid input constraint '1[foo]' in asm}}
+  asm("" : [foo] "=r" (i), "=r"(i) : "[foo]1"(i)); // expected-error{{invalid input constraint '[foo]1' in asm}}
+}
+
+register int g asm("dx"); // expected-error{{global register variables are not supported}}
+
+void test10(void){
+  static int g asm ("g_asm") = 0;
+  extern int gg asm ("gg_asm");
+  __private_extern__ int ggg asm ("ggg_asm");
+
+  int a asm ("a_asm"); // expected-warning{{ignored asm label 'a_asm' on automatic variable}}
+  auto int aa asm ("aa_asm"); // expected-warning{{ignored asm label 'aa_asm' on automatic variable}}
+
+  register int r asm ("cx");
+  register int rr asm ("rr_asm"); // expected-error{{unknown register name 'rr_asm' in asm}}
+}

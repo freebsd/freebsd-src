@@ -22,3 +22,14 @@ T f(T x) {
   h(1); // expected-error{{use of undeclared identifier 'h'}}
   return 0;
 }
+
+// This one entered into an infinite loop.
+template <unsigned long N>
+void rdar8520617() {
+  if (N > 1) { }
+}
+
+int f2() {
+  rdar8520617<0>();
+}
+

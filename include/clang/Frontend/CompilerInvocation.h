@@ -12,12 +12,14 @@
 
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/TargetOptions.h"
+#include "clang/Basic/FileSystemOptions.h"
 #include "clang/Frontend/AnalyzerOptions.h"
 #include "clang/Frontend/CodeGenOptions.h"
 #include "clang/Frontend/DependencyOutputOptions.h"
 #include "clang/Frontend/DiagnosticOptions.h"
 #include "clang/Frontend/FrontendOptions.h"
 #include "clang/Frontend/HeaderSearchOptions.h"
+#include "clang/Frontend/LangStandard.h"
 #include "clang/Frontend/PreprocessorOptions.h"
 #include "clang/Frontend/PreprocessorOutputOptions.h"
 #include "llvm/ADT/StringRef.h"
@@ -52,6 +54,9 @@ class CompilerInvocation {
   /// Options controlling the diagnostic engine.
   DiagnosticOptions DiagnosticOpts;
 
+  /// Options controlling file system operations.
+  FileSystemOptions FileSystemOpts;
+
   /// Options controlling the frontend itself.
   FrontendOptions FrontendOpts;
 
@@ -83,8 +88,10 @@ public:
   /// \param ArgBegin - The first element in the argument vector.
   /// \param ArgEnd - The last element in the argument vector.
   /// \param Diags - The diagnostic engine to use for errors.
-  static void CreateFromArgs(CompilerInvocation &Res, const char **ArgBegin,
-                             const char **ArgEnd, Diagnostic &Diags);
+  static void CreateFromArgs(CompilerInvocation &Res,
+                             const char* const *ArgBegin,
+                             const char* const *ArgEnd,
+                             Diagnostic &Diags);
 
   /// GetBuiltinIncludePath - Get the directory where the compiler headers
   /// reside, relative to the compiler binary (found by the passed in
@@ -100,6 +107,25 @@ public:
   /// passing to CreateFromArgs.
   void toArgs(std::vector<std::string> &Res);
 
+  /// setLangDefaults - Set language defaults for the given input language and
+  /// language standard in this CompilerInvocation.
+  ///
+  /// \param IK - The input language.
+  /// \param LangStd - The input language standard.
+  void setLangDefaults(InputKind IK,
+                  LangStandard::Kind LangStd = LangStandard::lang_unspecified) {
+    setLangDefaults(LangOpts, IK, LangStd);
+  }
+
+  /// setLangDefaults - Set language defaults for the given input language and
+  /// language standard in the given LangOptions object.
+  ///
+  /// \param LangOpts - The LangOptions object to set up.
+  /// \param IK - The input language.
+  /// \param LangStd - The input language standard.
+  static void setLangDefaults(LangOptions &Opts, InputKind IK,
+                   LangStandard::Kind LangStd = LangStandard::lang_unspecified);
+  
   /// @}
   /// @name Option Subgroups
   /// @{
@@ -123,6 +149,11 @@ public:
 
   DiagnosticOptions &getDiagnosticOpts() { return DiagnosticOpts; }
   const DiagnosticOptions &getDiagnosticOpts() const { return DiagnosticOpts; }
+
+  FileSystemOptions &getFileSystemOpts() { return FileSystemOpts; }
+  const FileSystemOptions &getFileSystemOpts() const {
+    return FileSystemOpts;
+  }
 
   HeaderSearchOptions &getHeaderSearchOpts() { return HeaderSearchOpts; }
   const HeaderSearchOptions &getHeaderSearchOpts() const {

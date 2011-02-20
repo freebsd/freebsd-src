@@ -1,4 +1,4 @@
-//===--- Types.cpp - Driver input & temporary type information ----------*-===//
+//===--- Types.cpp - Driver input & temporary type information ------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -78,6 +78,7 @@ bool types::isAcceptedByClang(ID Id) {
   case TY_Asm:
   case TY_C: case TY_PP_C:
   case TY_CL:
+  case TY_CUDA:
   case TY_ObjC: case TY_PP_ObjC:
   case TY_CXX: case TY_PP_CXX:
   case TY_ObjCXX: case TY_PP_ObjCXX:
@@ -151,6 +152,7 @@ types::ID types::lookupTypeForExtension(const char *Ext) {
            .Case("CC", TY_CXX)
            .Case("cl", TY_CL)
            .Case("cp", TY_CXX)
+           .Case("cu", TY_CUDA)
            .Case("hh", TY_CXXHeader)
            .Case("ll", TY_LLVM_IR)
            .Case("hpp", TY_CXXHeader)

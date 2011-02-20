@@ -36,7 +36,7 @@ pfunc xx(int f[](void)) { // expected-error {{'f' declared as array of functions
 void check_size() {
   float f;
   int size_not_int[f]; // expected-error {{size of array has non-integer type 'float'}}
-  int negative_size[1-2]; // expected-error{{array size is negative}}
+  int negative_size[1-2]; // expected-error{{array with a negative size}}
   int zero_size[0]; // expected-warning{{zero size arrays are an extension}}
 }
 
@@ -46,7 +46,7 @@ typedef int TA[I]; // expected-error {{variable length array declaration not all
 void strFunc(char *); // expected-note{{passing argument to parameter here}}
 const char staticAry[] = "test";
 void checkStaticAry() { 
-  strFunc(staticAry); // expected-warning{{passing 'char const [5]' to parameter of type 'char *' discards qualifiers}}
+  strFunc(staticAry); // expected-warning{{passing 'const char [5]' to parameter of type 'char *' discards qualifiers}}
 }
 
 

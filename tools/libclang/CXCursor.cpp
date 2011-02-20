@@ -13,15 +13,20 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "CXTranslationUnit.h"
 #include "CXCursor.h"
+#include "CXString.h"
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ExprCXX.h"
+#include "clang-c/Index.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace clang;
+using namespace cxcursor;
 
 CXCursor cxcursor::MakeCXCursorInvalid(CXCursorKind K) {
   assert(K >= CXCursor_FirstInvalid && K <= CXCursor_LastInvalid);
@@ -41,19 +46,24 @@ static CXCursorKind GetCursorKind(const Attr *A) {
   return CXCursor_UnexposedAttr;
 }
 
-CXCursor cxcursor::MakeCXCursor(const Attr *A, Decl *Parent, ASTUnit *TU) {
+CXCursor cxcursor::MakeCXCursor(const Attr *A, Decl *Parent,
+                                CXTranslationUnit TU) {
   assert(A && Parent && TU && "Invalid arguments!");
   CXCursor C = { GetCursorKind(A), { Parent, (void*)A, TU } };
   return C;
 }
 
-CXCursor cxcursor::MakeCXCursor(Decl *D, ASTUnit *TU) {
+CXCursor cxcursor::MakeCXCursor(Decl *D, CXTranslationUnit TU,
+                                bool FirstInDeclGroup) {
   assert(D && TU && "Invalid arguments!");
-  CXCursor C = { getCursorKindForDecl(D), { D, 0, TU } };
+  CXCursor C = { getCursorKindForDecl(D),
+                 { D, (void*)(intptr_t) (FirstInDeclGroup ? 1 : 0), TU }
+               };
   return C;
 }
 
-CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent, ASTUnit *TU) {
+CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent,
+                                CXTranslationUnit TU) {
   assert(S && TU && "Invalid arguments!");
   CXCursorKind K = CXCursor_NotImplemented;
   
@@ -65,7 +75,6 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent, ASTUnit *TU) {
   case Stmt::CompoundStmtClass:
   case Stmt::CaseStmtClass:
   case Stmt::DefaultStmtClass:
-  case Stmt::LabelStmtClass:       
   case Stmt::IfStmtClass:          
   case Stmt::SwitchStmtClass:      
   case Stmt::WhileStmtClass:       
@@ -77,7 +86,6 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent, ASTUnit *TU) {
   case Stmt::BreakStmtClass:       
   case Stmt::ReturnStmtClass:      
   case Stmt::DeclStmtClass:        
-  case Stmt::SwitchCaseClass:      
   case Stmt::AsmStmtClass:         
   case Stmt::ObjCAtTryStmtClass:        
   case Stmt::ObjCAtCatchStmtClass:      
@@ -88,6 +96,10 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent, ASTUnit *TU) {
   case Stmt::CXXCatchStmtClass:
   case Stmt::CXXTryStmtClass:  
     K = CXCursor_UnexposedStmt;
+    break;
+      
+  case Stmt::LabelStmtClass:       
+    K = CXCursor_LabelStmt;
     break;
       
   case Stmt::PredefinedExprClass:        
@@ -104,6 +116,7 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent, ASTUnit *TU) {
   case Stmt::BinaryOperatorClass:        
   case Stmt::CompoundAssignOperatorClass:
   case Stmt::ConditionalOperatorClass:   
+  case Stmt::BinaryConditionalOperatorClass:
   case Stmt::ImplicitCastExprClass:
   case Stmt::CStyleCastExprClass:
   case Stmt::CompoundLiteralExprClass:   
@@ -115,7 +128,6 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent, ASTUnit *TU) {
   case Stmt::VAArgExprClass:             
   case Stmt::AddrLabelExprClass:        
   case Stmt::StmtExprClass:             
-  case Stmt::TypesCompatibleExprClass:  
   case Stmt::ChooseExprClass:           
   case Stmt::GNUNullExprClass:          
   case Stmt::CXXStaticCastExprClass:      
@@ -124,6 +136,7 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent, ASTUnit *TU) {
   case Stmt::CXXConstCastExprClass:       
   case Stmt::CXXFunctionalCastExprClass:
   case Stmt::CXXTypeidExprClass:          
+  case Stmt::CXXUuidofExprClass:          
   case Stmt::CXXBoolLiteralExprClass:     
   case Stmt::CXXNullPtrLiteralExprClass:  
   case Stmt::CXXThisExprClass:            
@@ -135,25 +148,30 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent, ASTUnit *TU) {
   case Stmt::CXXPseudoDestructorExprClass:
   case Stmt::UnresolvedLookupExprClass:   
   case Stmt::UnaryTypeTraitExprClass:     
+  case Stmt::BinaryTypeTraitExprClass:     
   case Stmt::DependentScopeDeclRefExprClass:  
   case Stmt::CXXBindTemporaryExprClass:   
-  case Stmt::CXXExprWithTemporariesClass: 
+  case Stmt::ExprWithCleanupsClass: 
   case Stmt::CXXUnresolvedConstructExprClass:
   case Stmt::CXXDependentScopeMemberExprClass:
   case Stmt::UnresolvedMemberExprClass:   
+  case Stmt::CXXNoexceptExprClass:
   case Stmt::ObjCStringLiteralClass:    
   case Stmt::ObjCEncodeExprClass:       
   case Stmt::ObjCSelectorExprClass:   
   case Stmt::ObjCProtocolExprClass:   
-  case Stmt::ObjCImplicitSetterGetterRefExprClass: 
-  case Stmt::ObjCSuperExprClass:     
   case Stmt::ObjCIsaExprClass:       
   case Stmt::ShuffleVectorExprClass: 
   case Stmt::BlockExprClass:  
+  case Stmt::OpaqueValueExprClass:
+  case Stmt::PackExpansionExprClass:
+  case Stmt::SizeOfPackExprClass:
     K = CXCursor_UnexposedExpr;
     break;
+      
   case Stmt::DeclRefExprClass:           
   case Stmt::BlockDeclRefExprClass:
+  case Stmt::SubstNonTypeTemplateParmPackExprClass:
     // FIXME: UnresolvedLookupExpr?
     // FIXME: DependentScopeDeclRefExpr?
     K = CXCursor_DeclRefExpr;
@@ -170,10 +188,10 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent, ASTUnit *TU) {
   case Stmt::CallExprClass:              
   case Stmt::CXXOperatorCallExprClass:
   case Stmt::CXXMemberCallExprClass:
+  case Stmt::CUDAKernelCallExprClass:
   case Stmt::CXXConstructExprClass:  
   case Stmt::CXXTemporaryObjectExprClass:
     // FIXME: CXXUnresolvedConstructExpr
-    // FIXME: ObjCImplicitSetterGetterRefExpr?
     K = CXCursor_CallExpr;
     break;
       
@@ -188,7 +206,7 @@ CXCursor cxcursor::MakeCXCursor(Stmt *S, Decl *Parent, ASTUnit *TU) {
 
 CXCursor cxcursor::MakeCursorObjCSuperClassRef(ObjCInterfaceDecl *Super, 
                                                SourceLocation Loc, 
-                                               ASTUnit *TU) {
+                                               CXTranslationUnit TU) {
   assert(Super && TU && "Invalid arguments!");
   void *RawLoc = reinterpret_cast<void *>(Loc.getRawEncoding());
   CXCursor C = { CXCursor_ObjCSuperClassRef, { Super, RawLoc, TU } };
@@ -205,7 +223,7 @@ cxcursor::getCursorObjCSuperClassRef(CXCursor C) {
 
 CXCursor cxcursor::MakeCursorObjCProtocolRef(ObjCProtocolDecl *Super, 
                                              SourceLocation Loc, 
-                                             ASTUnit *TU) {
+                                             CXTranslationUnit TU) {
   assert(Super && TU && "Invalid arguments!");
   void *RawLoc = reinterpret_cast<void *>(Loc.getRawEncoding());
   CXCursor C = { CXCursor_ObjCProtocolRef, { Super, RawLoc, TU } };
@@ -222,7 +240,7 @@ cxcursor::getCursorObjCProtocolRef(CXCursor C) {
 
 CXCursor cxcursor::MakeCursorObjCClassRef(ObjCInterfaceDecl *Class, 
                                           SourceLocation Loc, 
-                                          ASTUnit *TU) {
+                                          CXTranslationUnit TU) {
   // 'Class' can be null for invalid code.
   if (!Class)
     return MakeCXCursorInvalid(CXCursor_InvalidCode);
@@ -241,7 +259,7 @@ cxcursor::getCursorObjCClassRef(CXCursor C) {
 }
 
 CXCursor cxcursor::MakeCursorTypeRef(TypeDecl *Type, SourceLocation Loc, 
-                                     ASTUnit *TU) {
+                                     CXTranslationUnit TU) {
   assert(Type && TU && "Invalid arguments!");
   void *RawLoc = reinterpret_cast<void *>(Loc.getRawEncoding());
   CXCursor C = { CXCursor_TypeRef, { Type, RawLoc, TU } };
@@ -257,7 +275,8 @@ cxcursor::getCursorTypeRef(CXCursor C) {
 }
 
 CXCursor cxcursor::MakeCursorTemplateRef(TemplateDecl *Template, 
-                                         SourceLocation Loc, ASTUnit *TU) {
+                                         SourceLocation Loc,
+                                         CXTranslationUnit TU) {
   assert(Template && TU && "Invalid arguments!");
   void *RawLoc = reinterpret_cast<void *>(Loc.getRawEncoding());
   CXCursor C = { CXCursor_TemplateRef, { Template, RawLoc, TU } };
@@ -273,7 +292,7 @@ cxcursor::getCursorTemplateRef(CXCursor C) {
 }
 
 CXCursor cxcursor::MakeCursorNamespaceRef(NamedDecl *NS, SourceLocation Loc, 
-                                          ASTUnit *TU) {
+                                          CXTranslationUnit TU) {
   
   assert(NS && (isa<NamespaceDecl>(NS) || isa<NamespaceAliasDecl>(NS)) && TU &&
          "Invalid arguments!");
@@ -290,7 +309,25 @@ cxcursor::getCursorNamespaceRef(CXCursor C) {
                                        reinterpret_cast<uintptr_t>(C.data[1])));  
 }
 
-CXCursor cxcursor::MakeCursorCXXBaseSpecifier(CXXBaseSpecifier *B, ASTUnit *TU){
+CXCursor cxcursor::MakeCursorMemberRef(FieldDecl *Field, SourceLocation Loc, 
+                                       CXTranslationUnit TU) {
+  
+  assert(Field && TU && "Invalid arguments!");
+  void *RawLoc = reinterpret_cast<void *>(Loc.getRawEncoding());
+  CXCursor C = { CXCursor_MemberRef, { Field, RawLoc, TU } };
+  return C;    
+}
+
+std::pair<FieldDecl *, SourceLocation> 
+cxcursor::getCursorMemberRef(CXCursor C) {
+  assert(C.kind == CXCursor_MemberRef);
+  return std::make_pair(static_cast<FieldDecl *>(C.data[0]),
+                        SourceLocation::getFromRawEncoding(
+                                       reinterpret_cast<uintptr_t>(C.data[1])));  
+}
+
+CXCursor cxcursor::MakeCursorCXXBaseSpecifier(CXXBaseSpecifier *B,
+                                              CXTranslationUnit TU){
   CXCursor C = { CXCursor_CXXBaseSpecifier, { B, 0, TU } };
   return C;  
 }
@@ -301,7 +338,7 @@ CXXBaseSpecifier *cxcursor::getCursorCXXBaseSpecifier(CXCursor C) {
 }
 
 CXCursor cxcursor::MakePreprocessingDirectiveCursor(SourceRange Range, 
-                                                    ASTUnit *TU) {
+                                                    CXTranslationUnit TU) {
   CXCursor C = { CXCursor_PreprocessingDirective, 
                  { reinterpret_cast<void *>(Range.getBegin().getRawEncoding()),
                    reinterpret_cast<void *>(Range.getEnd().getRawEncoding()),
@@ -318,7 +355,8 @@ SourceRange cxcursor::getCursorPreprocessingDirective(CXCursor C) {
                                       reinterpret_cast<uintptr_t> (C.data[1])));
 }
 
-CXCursor cxcursor::MakeMacroDefinitionCursor(MacroDefinition *MI, ASTUnit *TU) {
+CXCursor cxcursor::MakeMacroDefinitionCursor(MacroDefinition *MI,
+                                             CXTranslationUnit TU) {
   CXCursor C = { CXCursor_MacroDefinition, { MI, 0, TU } };
   return C;
 }
@@ -329,7 +367,7 @@ MacroDefinition *cxcursor::getCursorMacroDefinition(CXCursor C) {
 }
 
 CXCursor cxcursor::MakeMacroInstantiationCursor(MacroInstantiation *MI, 
-                                                ASTUnit *TU) {
+                                                CXTranslationUnit TU) {
   CXCursor C = { CXCursor_MacroInstantiation, { MI, 0, TU } };
   return C;
 }
@@ -337,6 +375,80 @@ CXCursor cxcursor::MakeMacroInstantiationCursor(MacroInstantiation *MI,
 MacroInstantiation *cxcursor::getCursorMacroInstantiation(CXCursor C) {
   assert(C.kind == CXCursor_MacroInstantiation);
   return static_cast<MacroInstantiation *>(C.data[0]);
+}
+
+CXCursor cxcursor::MakeInclusionDirectiveCursor(InclusionDirective *ID, 
+                                                CXTranslationUnit TU) {
+  CXCursor C = { CXCursor_InclusionDirective, { ID, 0, TU } };
+  return C;
+}
+
+InclusionDirective *cxcursor::getCursorInclusionDirective(CXCursor C) {
+  assert(C.kind == CXCursor_InclusionDirective);
+  return static_cast<InclusionDirective *>(C.data[0]);  
+}
+
+CXCursor cxcursor::MakeCursorLabelRef(LabelStmt *Label, SourceLocation Loc, 
+                                      CXTranslationUnit TU) {
+  
+  assert(Label && TU && "Invalid arguments!");
+  void *RawLoc = reinterpret_cast<void *>(Loc.getRawEncoding());
+  CXCursor C = { CXCursor_LabelRef, { Label, RawLoc, TU } };
+  return C;    
+}
+
+std::pair<LabelStmt*, SourceLocation> 
+cxcursor::getCursorLabelRef(CXCursor C) {
+  assert(C.kind == CXCursor_LabelRef);
+  return std::make_pair(static_cast<LabelStmt *>(C.data[0]),
+                        SourceLocation::getFromRawEncoding(
+                                       reinterpret_cast<uintptr_t>(C.data[1])));  
+}
+
+CXCursor cxcursor::MakeCursorOverloadedDeclRef(OverloadExpr *E, 
+                                               CXTranslationUnit TU) {
+  assert(E && TU && "Invalid arguments!");
+  OverloadedDeclRefStorage Storage(E);
+  void *RawLoc = reinterpret_cast<void *>(E->getNameLoc().getRawEncoding());
+  CXCursor C = { 
+                 CXCursor_OverloadedDeclRef, 
+                 { Storage.getOpaqueValue(), RawLoc, TU } 
+               };
+  return C;    
+}
+
+CXCursor cxcursor::MakeCursorOverloadedDeclRef(Decl *D, 
+                                               SourceLocation Loc,
+                                               CXTranslationUnit TU) {
+  assert(D && TU && "Invalid arguments!");
+  void *RawLoc = reinterpret_cast<void *>(Loc.getRawEncoding());
+  OverloadedDeclRefStorage Storage(D);
+  CXCursor C = { 
+    CXCursor_OverloadedDeclRef, 
+    { Storage.getOpaqueValue(), RawLoc, TU }
+  };
+  return C;    
+}
+
+CXCursor cxcursor::MakeCursorOverloadedDeclRef(TemplateName Name, 
+                                               SourceLocation Loc,
+                                               CXTranslationUnit TU) {
+  assert(Name.getAsOverloadedTemplate() && TU && "Invalid arguments!");
+  void *RawLoc = reinterpret_cast<void *>(Loc.getRawEncoding());
+  OverloadedDeclRefStorage Storage(Name.getAsOverloadedTemplate());
+  CXCursor C = { 
+    CXCursor_OverloadedDeclRef, 
+    { Storage.getOpaqueValue(), RawLoc, TU } 
+  };
+  return C;    
+}
+
+std::pair<cxcursor::OverloadedDeclRefStorage, SourceLocation>
+cxcursor::getCursorOverloadedDeclRef(CXCursor C) {
+  assert(C.kind == CXCursor_OverloadedDeclRef);
+  return std::make_pair(OverloadedDeclRefStorage::getFromOpaqueValue(C.data[0]),
+                        SourceLocation::getFromRawEncoding(
+                                       reinterpret_cast<uintptr_t>(C.data[1])));
 }
 
 Decl *cxcursor::getCursorDecl(CXCursor Cursor) {
@@ -365,10 +477,87 @@ ASTContext &cxcursor::getCursorContext(CXCursor Cursor) {
 }
 
 ASTUnit *cxcursor::getCursorASTUnit(CXCursor Cursor) {
-  return static_cast<ASTUnit *>(Cursor.data[2]);
+  return static_cast<ASTUnit *>(static_cast<CXTranslationUnit>(Cursor.data[2])
+                                  ->TUData);
+}
+
+CXTranslationUnit cxcursor::getCursorTU(CXCursor Cursor) {
+  return static_cast<CXTranslationUnit>(Cursor.data[2]);
 }
 
 bool cxcursor::operator==(CXCursor X, CXCursor Y) {
   return X.kind == Y.kind && X.data[0] == Y.data[0] && X.data[1] == Y.data[1] &&
          X.data[2] == Y.data[2];
 }
+
+// FIXME: Remove once we can model DeclGroups and their appropriate ranges
+// properly in the ASTs.
+bool cxcursor::isFirstInDeclGroup(CXCursor C) {
+  assert(clang_isDeclaration(C.kind));
+  return ((uintptr_t) (C.data[1])) != 0;
+}
+
+//===----------------------------------------------------------------------===//
+// CXCursorSet.
+//===----------------------------------------------------------------------===//
+
+typedef llvm::DenseMap<CXCursor, unsigned> CXCursorSet_Impl;
+
+static inline CXCursorSet packCXCursorSet(CXCursorSet_Impl *setImpl) {
+  return (CXCursorSet) setImpl;
+}
+static inline CXCursorSet_Impl *unpackCXCursorSet(CXCursorSet set) {
+  return (CXCursorSet_Impl*) set;
+}
+namespace llvm {
+template<> struct DenseMapInfo<CXCursor> {
+public:
+  static inline CXCursor getEmptyKey() {
+    return MakeCXCursorInvalid(CXCursor_InvalidFile);
+  }
+  static inline CXCursor getTombstoneKey() {
+    return MakeCXCursorInvalid(CXCursor_NoDeclFound);
+  }
+  static inline unsigned getHashValue(const CXCursor &cursor) {
+    return llvm::DenseMapInfo<std::pair<void*,void*> >
+      ::getHashValue(std::make_pair(cursor.data[0], cursor.data[1]));
+  }
+  static inline bool isEqual(const CXCursor &x, const CXCursor &y) {
+    return x.kind == y.kind &&
+           x.data[0] == y.data[0] &&
+           x.data[1] == y.data[1];
+  }
+};
+}
+
+extern "C" {
+CXCursorSet clang_createCXCursorSet() {
+  return packCXCursorSet(new CXCursorSet_Impl());
+}
+
+void clang_disposeCXCursorSet(CXCursorSet set) {
+  delete unpackCXCursorSet(set);
+}
+
+unsigned clang_CXCursorSet_contains(CXCursorSet set, CXCursor cursor) {
+  CXCursorSet_Impl *setImpl = unpackCXCursorSet(set);
+  if (!setImpl)
+    return 0;
+  return setImpl->find(cursor) == setImpl->end();
+}
+
+unsigned clang_CXCursorSet_insert(CXCursorSet set, CXCursor cursor) {
+  // Do not insert invalid cursors into the set.
+  if (cursor.kind >= CXCursor_FirstInvalid &&
+      cursor.kind <= CXCursor_LastInvalid)
+    return 1;
+
+  CXCursorSet_Impl *setImpl = unpackCXCursorSet(set);
+  if (!setImpl)
+    return 1;
+  unsigned &entry = (*setImpl)[cursor];
+  unsigned flag = entry == 0 ? 1 : 0;
+  entry = 1;
+  return flag;
+}
+} // end: extern "C"

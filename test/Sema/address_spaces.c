@@ -36,7 +36,11 @@ struct _st {
 // rdar://6774906
 __attribute__((address_space(256))) void * * const base = 0;
 void * get_0(void) {
-  return base[0];  // expected-error {{illegal implicit conversion between two pointers with different address spaces}} \
-                      expected-warning {{returning 'void __attribute__((address_space(256))) *' from a function with result type 'void *' discards qualifiers}}
+  return base[0];  // expected-error {{returning '__attribute__((address_space(256))) void *' from a function with result type 'void *' changes address space of pointer}}
 }
 
+__attribute__((address_space(1))) char test3_array[10];
+void test3(void) {
+  extern void test3_helper(char *p); // expected-note {{passing argument to parameter 'p' here}}
+  test3_helper(test3_array); // expected-error {{changes address space of pointer}}
+}

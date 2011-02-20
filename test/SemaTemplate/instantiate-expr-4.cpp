@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fexceptions -fsyntax-only -verify %s
 
 // ---------------------------------------------------------------------
 // C++ Functional Casts
@@ -46,8 +46,8 @@ template struct Temporaries0<5, 7>;
 // Ensure that both the constructor and the destructor are instantiated by
 // checking for parse errors from each.
 template<int N> struct BadX {
-  BadX() { int a[-N]; } // expected-error {{array size is negative}}
-  ~BadX() { int a[-N]; } // expected-error {{array size is negative}}
+  BadX() { int a[-N]; } // expected-error {{array with a negative size}}
+  ~BadX() { int a[-N]; } // expected-error {{array with a negative size}}
 };
 
 template<int N>
@@ -319,7 +319,7 @@ template struct NonDepMemberCall0<float&>; // expected-note{{instantiation}}
 template<typename T>
 struct QualifiedDeclRef0 {
   T f() {
-    return is_pod<X>::value; // expected-error{{non-const lvalue reference to type 'int' cannot bind to a value of unrelated type 'bool const'}}
+    return is_pod<X>::value; // expected-error{{non-const lvalue reference to type 'int' cannot bind to a value of unrelated type 'const bool'}}
   }
 };
 

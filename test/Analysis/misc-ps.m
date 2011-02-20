@@ -1,12 +1,12 @@
 // NOTE: Use '-fobjc-gc' to test the analysis being run twice, and multiple reports are not issued.
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -fobjc-gc -analyzer-constraints=basic -verify -fblocks -Wno-unreachable-code %s
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=range -verify -fblocks -Wno-unreachable-code %s
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=basic -verify -fblocks -Wno-unreachable-code %s
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=range -verify -fblocks -Wno-unreachable-code %s
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -fobjc-gc -analyzer-constraints=basic -verify -fblocks -Wno-unreachable-code %s
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=basic -analyzer-constraints=range -verify -fblocks -Wno-unreachable-code %s
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=basic -verify -fblocks -Wno-unreachable-code %s
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-store=region -analyzer-constraints=range -verify -fblocks -Wno-unreachable-code %s
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-checker=core.experimental.IdempotentOps -analyzer-checker=core.experimental.CastToStruct -analyzer-checker=cocoa.AtSync -analyzer-store=basic -fobjc-gc -analyzer-constraints=basic -verify -fblocks -Wno-unreachable-code %s
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-checker=core.experimental.IdempotentOps -analyzer-checker=core.experimental.CastToStruct -analyzer-checker=cocoa.AtSync -analyzer-store=basic -analyzer-constraints=range -verify -fblocks -Wno-unreachable-code %s
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-checker=core.experimental.IdempotentOps -analyzer-checker=core.experimental.CastToStruct -analyzer-checker=cocoa.AtSync -analyzer-store=region -analyzer-constraints=basic -verify -fblocks -Wno-unreachable-code %s
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-checker=core.experimental.IdempotentOps -analyzer-checker=core.experimental.CastToStruct -analyzer-checker=cocoa.AtSync -analyzer-store=region -analyzer-constraints=range -verify -fblocks -Wno-unreachable-code %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-checker=core.experimental.IdempotentOps -analyzer-checker=core.experimental.CastToStruct -analyzer-checker=cocoa.AtSync -analyzer-store=basic -fobjc-gc -analyzer-constraints=basic -verify -fblocks -Wno-unreachable-code %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-checker=core.experimental.IdempotentOps -analyzer-checker=core.experimental.CastToStruct -analyzer-checker=cocoa.AtSync -analyzer-store=basic -analyzer-constraints=range -verify -fblocks -Wno-unreachable-code %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-checker=core.experimental.IdempotentOps -analyzer-checker=core.experimental.CastToStruct -analyzer-checker=cocoa.AtSync -analyzer-store=region -analyzer-constraints=basic -verify -fblocks -Wno-unreachable-code %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-experimental-internal-checks -analyzer-check-objc-mem -analyzer-checker=core.experimental.IdempotentOps -analyzer-checker=core.experimental.CastToStruct -analyzer-checker=cocoa.AtSync -analyzer-store=region -analyzer-constraints=range -verify -fblocks -Wno-unreachable-code %s
 
 #ifndef __clang_analyzer__
 #error __clang__analyzer__ not defined
@@ -794,7 +794,7 @@ int test_uninit_branch_c(void) {
 void test_bad_call_aux(int x);
 void test_bad_call(void) {
   int y;
-  test_bad_call_aux(y); // expected-warning{{Pass-by-value argument in function call is undefined}}
+  test_bad_call_aux(y); // expected-warning{{Function call argument is an uninitialized value}}
 }
 
 @interface TestBadArg {}
@@ -803,7 +803,7 @@ void test_bad_call(void) {
 
 void test_bad_msg(TestBadArg *p) {
   int y;
-  [p testBadArg:y]; // expected-warning{{Pass-by-value argument in message expression is undefined}}
+  [p testBadArg:y]; // expected-warning{{Argument in message expression is an uninitialized value}}
 }
 
 //===----------------------------------------------------------------------===//
@@ -822,7 +822,7 @@ struct trie {
 
 struct kwset {
   struct trie *trie;
-  unsigned char delta[10];
+  unsigned char y[10];
   struct trie* next[10];
   int d;
 };
@@ -837,9 +837,9 @@ void f(kwset_t *kws, char const *p, char const *q) {
   register char const *end = p;
   register char const *lim = q;
   register int d = 1;
-  register unsigned char const *delta = kws->delta;
+  register unsigned char const *y = kws->y;
 
-  d = delta[c = (end+=d)[-1]]; // no-warning
+  d = y[c = (end+=d)[-1]]; // no-warning
   trie = next[c];
 }
 
@@ -1068,3 +1068,168 @@ void pr8050(struct PR8050 **arg)
     *arg = malloc(1);
 }
 
+// <rdar://problem/5880430> Switch on enum should not consider default case live
+//  if all enum values are covered
+enum Cases { C1, C2, C3, C4 };
+void test_enum_cases(enum Cases C) {
+  switch (C) {
+  case C1:
+  case C2:
+  case C4:
+  case C3:
+    return;
+  }
+  int *p = 0;
+  *p = 0xDEADBEEF; // no-warning
+}
+
+void test_enum_cases_positive(enum Cases C) {
+  switch (C) { // expected-warning{{enumeration value 'C4' not handled in switch}}
+  case C1:
+  case C2:
+  case C3:
+    return;
+  }
+  int *p = 0;
+  *p = 0xDEADBEEF; // expected-warning{{Dereference of null pointer}}
+}
+
+// <rdar://problem/6351970> rule request: warn if synchronization mutex can be nil
+void rdar6351970() {
+  id x = 0;
+  @synchronized(x) {} // expected-warning{{Nil value used as mutex for @synchronized() (no synchronization will occur)}}
+}
+
+void rdar6351970_b(id x) {
+  if (!x)
+    @synchronized(x) {} // expected-warning{{Nil value used as mutex for @synchronized() (no synchronization will occur)}}
+}
+
+void rdar6351970_c() {
+  id x;
+  @synchronized(x) {} // expected-warning{{Uninitialized value used as mutex for @synchronized}}
+}
+
+@interface Rdar8578650
+- (id) foo8578650;
+@end
+
+void rdar8578650(id x) {
+  @synchronized (x) {
+    [x foo8578650];
+  }
+  // At this point we should assume that 'x' is not nil, not
+  // the inverse.
+  @synchronized (x) { // no-warning
+  }
+}
+
+// <rdar://problem/6352035> rule request: direct structure member access null pointer dereference
+@interface RDar6352035 {
+  int c;
+}
+- (void)foo;
+- (void)bar;
+@end
+
+@implementation RDar6352035
+- (void)foo {
+  RDar6352035 *friend = 0;
+  friend->c = 7; // expected-warning{{Instance variable access (via 'friend') results in a null pointer dereference}}
+}
+- (void)bar {
+  self = 0;
+  c = 7; // expected-warning{{Instance variable access (via 'self') results in a null pointer dereference}}
+}
+@end
+
+// PR 8149 - GNU statement expression in condition of ForStmt.
+// This previously triggered an assertion failure in CFGBuilder.
+void pr8149(void) {
+  for (; ({ do { } while (0); 0; });) { }
+}
+
+// PR 8458 - Make sure @synchronized doesn't crash with properties.
+@interface PR8458 {}
+@property(readonly) id lock;
+@end
+
+static
+void __PR8458(PR8458 *x) {
+  @synchronized(x.lock) {} // no-warning
+}
+
+// PR 8440 - False null dereference during store to array-in-field-in-global.
+// This test case previously resulted in a bogus null deref warning from
+// incorrect lazy symbolication logic in RegionStore.
+static struct {
+  int num;
+  char **data;
+} saved_pr8440;
+
+char *foo_pr8440();
+char **bar_pr8440();
+void baz_pr8440(int n)
+{
+   saved_pr8440.num = n;
+   if (saved_pr8440.data) 
+     return;
+   saved_pr8440.data = bar_pr8440();
+   for (int i = 0 ; i < n ; i ++)
+     saved_pr8440.data[i] = foo_pr8440(); // no-warning
+}
+
+// Support direct accesses to non-null memory.  Reported in:
+//  PR 5272
+//  <rdar://problem/6839683>
+int test_direct_address_load() {
+  int *p = (int*) 0x4000;
+  return *p; // no-warning
+}
+
+void pr5272_test() {
+  struct pr5272 { int var2; };
+  (*(struct pr5272*)0xBC000000).var2 = 0; // no-warning
+  (*(struct pr5272*)0xBC000000).var2 += 2; // no-warning
+}
+
+// Support casting the return value of function to another different type
+// This previously caused a crash, although we likely need more precise
+// reasoning here. <rdar://problem/8663544>
+void* rdar8663544();
+typedef struct {} Val8663544;
+Val8663544 bazR8663544() {
+  Val8663544(*func) () = (Val8663544(*) ()) rdar8663544;
+  return func();
+}
+
+// PR 8619 - Handle ternary expressions with a call to a noreturn function.
+// This previously resulted in a crash.
+void pr8619_noreturn(int x) __attribute__((noreturn));
+
+void pr8619(int a, int b, int c) {
+  a ?: pr8619_noreturn(b || c);
+}
+
+
+// PR 8646 - crash in the analyzer when handling unions.
+union pr8648_union {
+        signed long long pr8648_union_field;
+};
+void pr8648() {
+  long long y;
+  union pr8648_union x = { .pr8648_union_field = 0LL };
+  y = x.pr8648_union_field;
+  
+  union pr8648_union z;
+  z = (union pr8648_union) { .pr8648_union_field = 0LL };
+
+  union pr8648_union w;
+  w = ({ (union pr8648_union) { .pr8648_union_field = 0LL }; }); 
+
+  // crash, no assignment
+  (void) ({ (union pr8648_union) { .pr8648_union_field = 0LL }; }).pr8648_union_field;
+
+  // crash with assignment
+  y = ({ (union pr8648_union) { .pr8648_union_field = 0LL }; }).pr8648_union_field;
+}

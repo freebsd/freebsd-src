@@ -32,7 +32,7 @@ struct a { };
 struct b : private a { }; // expected-note{{declared private here}}
   
 class A {
-  virtual a* f(); // expected-note{{overridden virtual function is here}}
+  virtual a* f(); // FIXME: desired-note{{overridden virtual function is here}}
 };
 
 class B : A {
@@ -86,7 +86,7 @@ class A {
 
 class B : A {
   virtual a* f(); 
-  virtual const a* g(); // expected-error{{return type of virtual function 'g' is not covariant with the return type of the function it overrides (class type 'T6::a const *' is more qualified than class type 'T6::a *'}}
+  virtual const a* g(); // expected-error{{return type of virtual function 'g' is not covariant with the return type of the function it overrides (class type 'const T6::a *' is more qualified than class type 'T6::a *'}}
 };
 
 }
@@ -121,7 +121,7 @@ namespace T9 {
   struct a { };
   
   template<typename T> struct b : a {
-    int a[sizeof(T) ? -1 : -1]; // expected-error {{array size is negative}}
+    int a[sizeof(T) ? -1 : -1]; // expected-error {{array with a negative size}}
   };
   
   class A {
@@ -167,7 +167,7 @@ void test2() {
 };
 
 struct Foo3 {
-  virtual void f(int) = 0; // expected-note{{pure virtual function}}
+  virtual void f(int) = 0; // expected-note{{unimplemented pure virtual method}}
 };
 
 template<typename T>
@@ -276,3 +276,15 @@ namespace T12 {
     virtual B& f(); // expected-error {{virtual function 'f' has a different return type ('T12::B &') than the function it overrides (which has return type 'T12::A &&')}}
   };
 };
+
+namespace PR8168 {
+  class A {
+  public:
+    virtual void foo() {} // expected-note{{overridden virtual function is here}}
+  };
+
+  class B : public A {
+  public:
+    static void foo() {} // expected-error{{'static' member function 'foo' overrides a virtual function}}
+  };
+}

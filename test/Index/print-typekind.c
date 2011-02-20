@@ -1,9 +1,10 @@
 typedef int FooType;
 int *p;
 int *f(int *p, char *x, FooType z) {
-  FooType w = z;
+  const FooType w = z;
   return p + z;
 }
+typedef double OtherType;
 
 // RUN: c-index-test -test-print-typekind %s | FileCheck %s
 // CHECK: TypedefDecl=FooType:1:13 (Definition) typekind=Typedef [canonical=Int] [isPOD=1]
@@ -12,14 +13,15 @@ int *f(int *p, char *x, FooType z) {
 // CHECK: ParmDecl=p:3:13 (Definition) typekind=Pointer [isPOD=1]
 // CHECK: ParmDecl=x:3:22 (Definition) typekind=Pointer [isPOD=1]
 // CHECK: ParmDecl=z:3:33 (Definition) typekind=Typedef [canonical=Int] [isPOD=1]
-// CHECK: TypeRef=FooType:1:13 typekind=Invalid [isPOD=0]
+// CHECK: TypeRef=FooType:1:13 typekind=Typedef [canonical=Int] [isPOD=1]
 // CHECK: UnexposedStmt= typekind=Invalid [isPOD=0]
 // CHECK: UnexposedStmt= typekind=Invalid [isPOD=0]
-// CHECK: VarDecl=w:4:11 (Definition) typekind=Typedef [canonical=Int] [isPOD=1]
-// CHECK: TypeRef=FooType:1:13 typekind=Invalid [isPOD=0]
+// CHECK: VarDecl=w:4:17 (Definition) typekind=Typedef const [canonical=Int] [isPOD=1]
+// CHECK: TypeRef=FooType:1:13 typekind=Typedef [canonical=Int] [isPOD=1]
 // CHECK: DeclRefExpr=z:3:33 typekind=Typedef [canonical=Int] [isPOD=1]
 // CHECK: UnexposedStmt= typekind=Invalid [isPOD=0]
 // CHECK: UnexposedExpr= typekind=Pointer [isPOD=1]
 // CHECK: DeclRefExpr=p:3:13 typekind=Pointer [isPOD=1]
 // CHECK: DeclRefExpr=z:3:33 typekind=Typedef [canonical=Int] [isPOD=1]
+// CHECK: TypedefDecl=OtherType:7:16 (Definition) typekind=Typedef [canonical=Double] [isPOD=1]
 

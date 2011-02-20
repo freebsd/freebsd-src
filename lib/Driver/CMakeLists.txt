@@ -1,4 +1,4 @@
-set(LLVM_NO_RTTI 1)
+set(LLVM_USED_LIBS clangBasic clangAST clangParse)
 
 add_clang_library(clangDriver
   Action.cpp

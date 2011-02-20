@@ -103,6 +103,7 @@ TOK(comment)             // Comment (only in -E -C[C] mode)
 
 // C99 6.4.2: Identifiers.
 TOK(identifier)          // abcde123
+TOK(raw_identifier)      // Used only in raw lexing mode.
 
 // C99 6.4.4.1: Integer Constants
 // C99 6.4.4.2: Floating Constants
@@ -175,6 +176,10 @@ PUNCTUATOR(coloncolon,          "::")
 // Objective C support.
 PUNCTUATOR(at,                  "@")
 
+// CUDA support.
+PUNCTUATOR(lesslessless,          "<<<")
+PUNCTUATOR(greatergreatergreater, ">>>")
+
 // C99 6.4.1: Keywords.  These turn into kw_* tokens.
 // Flags allowed:
 //   KEYALL   - This is a keyword in all variants of C and C++, or it
@@ -183,9 +188,12 @@ PUNCTUATOR(at,                  "@")
 //   KEYC99   - This is a keyword introduced to C in C99
 //   KEYCXX   - This is a C++ keyword, or a C++-specific keyword in the
 //              implementation namespace
+//   KEYNOCXX - This is a keyword in every non-C++ dialect.
 //   KEYCXX0X - This is a C++ keyword introduced to C++ in C++0x
 //   KEYGNU   - This is a keyword if GNU extensions are enabled
 //   KEYMS    - This is a keyword if Microsoft extensions are enabled
+//   KEYOPENCL  - This is a keyword in OpenCL
+//   KEYALTIVEC - This is a keyword in AltiVec
 //   KEYBORLAND - This is a keyword if Borland extensions are enabled
 //
 KEYWORD(auto                        , KEYALL)
@@ -222,7 +230,7 @@ KEYWORD(unsigned                    , KEYALL)
 KEYWORD(void                        , KEYALL)
 KEYWORD(volatile                    , KEYALL)
 KEYWORD(while                       , KEYALL)
-KEYWORD(_Bool                       , KEYNOMS)
+KEYWORD(_Bool                       , KEYNOCXX)
 KEYWORD(_Complex                    , KEYALL)
 KEYWORD(_Imaginary                  , KEYALL)
 KEYWORD(__func__                    , KEYALL)
@@ -278,6 +286,7 @@ KEYWORD(char16_t                    , KEYCXX0X)
 KEYWORD(char32_t                    , KEYCXX0X)
 KEYWORD(constexpr                   , KEYCXX0X)
 KEYWORD(decltype                    , KEYCXX0X)
+KEYWORD(noexcept                    , KEYCXX0X)
 KEYWORD(nullptr                     , KEYCXX0X)
 KEYWORD(static_assert               , KEYCXX0X)
 KEYWORD(thread_local                , KEYCXX0X)
@@ -316,6 +325,7 @@ KEYWORD(__has_virtual_destructor    , KEYCXX)
 KEYWORD(__is_abstract               , KEYCXX)
 KEYWORD(__is_base_of                , KEYCXX)
 KEYWORD(__is_class                  , KEYCXX)
+KEYWORD(__is_convertible_to         , KEYCXX)
 KEYWORD(__is_empty                  , KEYCXX)
 KEYWORD(__is_enum                   , KEYCXX)
 KEYWORD(__is_pod                    , KEYCXX)
@@ -323,7 +333,6 @@ KEYWORD(__is_polymorphic            , KEYCXX)
 KEYWORD(__is_union                  , KEYCXX)
 // Tentative name - there's no implementation of std::is_literal_type yet.
 KEYWORD(__is_literal                , KEYCXX)
-// FIXME: Add MS's traits, too.
 
 // Apple Extension.
 KEYWORD(__private_extern__          , KEYALL)
@@ -336,7 +345,11 @@ KEYWORD(__fastcall                  , KEYALL)
 KEYWORD(__thiscall                  , KEYALL)
 KEYWORD(__forceinline               , KEYALL)
 
-// Borland Extension.
+// OpenCL-specific keywords (see OpenCL 1.1 [6.1.9])
+KEYWORD(__kernel                    , KEYOPENCL)
+ALIAS("kernel", __kernel            , KEYOPENCL)
+
+// Borland Extensions.
 KEYWORD(__pascal                    , KEYALL)
 
 // Altivec Extension.
@@ -356,6 +369,7 @@ ALIAS("__complex__"  , _Complex   , KEYALL)
 ALIAS("__imag__"     , __imag     , KEYALL)
 ALIAS("__inline"     , inline     , KEYALL)
 ALIAS("__inline__"   , inline     , KEYALL)
+ALIAS("__nullptr"    , nullptr      , KEYCXX)
 ALIAS("__real__"     , __real     , KEYALL)
 ALIAS("__restrict"   , restrict   , KEYALL)
 ALIAS("__restrict__" , restrict   , KEYALL)
@@ -369,14 +383,22 @@ ALIAS("__volatile__" , volatile   , KEYALL)
 // Microsoft extensions which should be disabled in strict conformance mode
 KEYWORD(__ptr64                   , KEYMS)
 KEYWORD(__w64                     , KEYMS)
+KEYWORD(__uuidof                  , KEYMS | KEYBORLAND)
 ALIAS("_asm"         , asm        , KEYMS)
-ALIAS("_cdecl"       , __cdecl    , KEYMS)
-ALIAS("_fastcall"    , __fastcall , KEYMS)
-ALIAS("_stdcall"     , __stdcall  , KEYMS)
+ALIAS("_cdecl"       , __cdecl    , KEYMS | KEYBORLAND)
+ALIAS("_fastcall"    , __fastcall , KEYMS | KEYBORLAND)
+ALIAS("_stdcall"     , __stdcall  , KEYMS | KEYBORLAND)
 ALIAS("_thiscall"    , __thiscall , KEYMS)
+ALIAS("_uuidof"      , __uuidof   , KEYMS | KEYBORLAND)
+ALIAS("_inline"      , inline     , KEYMS)
 
 // Borland Extensions which should be disabled in strict conformance mode.
 ALIAS("_pascal"      , __pascal   , KEYBORLAND)
+
+// Clang Extensions.
+ALIAS("__char16_t"   , char16_t   , KEYCXX)
+ALIAS("__char32_t"   , char32_t   , KEYCXX)
+
 
 //===----------------------------------------------------------------------===//
 // Objective-C @-preceeded keywords.
@@ -421,6 +443,12 @@ ANNOTATION(typename)     // annotation for a C typedef name, a C++ (possibly
 ANNOTATION(template_id)  // annotation for a C++ template-id that names a
                          // function template specialization (not a type),
                          // e.g., "std::swap<int>"
+
+// Annotation for #pragma unused(...)
+// For each argument inside the parentheses the pragma handler will produce
+// one 'pragma_unused' annotation token followed by the argument token.
+ANNOTATION(pragma_unused)
+
 #undef ANNOTATION
 #undef OBJC2_AT_KEYWORD
 #undef OBJC1_AT_KEYWORD

@@ -133,8 +133,21 @@ namespace zeroinit {
     X3<int>().f();
   }
 
-  // CHECK: define linkonce_odr void @_ZN8zeroinit2X3IiEC2Ev
+  // CHECK: define linkonce_odr void @_ZN8zeroinit2X3IiEC2Ev(%struct.B* %this) unnamed_addr
   // CHECK: call void @llvm.memset.p0i8.i64
   // CHECK-NEXT: call void @_ZN8zeroinit2X2IiEC2Ev
   // CHECK-NEXT: ret void
+}
+
+namespace PR8726 {
+class C;
+struct S {
+  const C &c1;
+  int i;
+  const C &c2;
+};
+void f(const C& c) {
+  S s = {c, 42, c};
+}
+
 }

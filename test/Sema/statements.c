@@ -51,3 +51,52 @@ int test12(enum Numbers num) {
     break;
   }
 }
+
+
+enum x { a, b, c, d, e, f, g };
+
+void foo(enum x X) {
+  switch (X) { // expected-warning {{enumeration value 'g' not handled in switch}}
+  case a:
+  case b:
+  case c:
+  case d:
+  case e:
+  case f:
+    break;
+  }
+
+  switch (X) { // expected-warning {{enumeration values 'f' and 'g' not handled in switch}}
+  case a:
+  case b:
+  case c:
+  case d:
+  case e:
+    break;
+  }
+
+  switch (X) {  // expected-warning {{enumeration values 'e', 'f', and 'g' not handled in switch}}
+    case a:
+    case b:
+    case c:
+    case d:
+      break;
+  }
+
+  switch (X) { // expected-warning {{5 enumeration values not handled in switch: 'c', 'd', 'e'...}}
+  case a:
+  case b:
+    break;
+  }
+}
+
+// PR 8880
+// FIXME: Clang should reject this, since GCC does.  Previously this
+// was causing a crash in the CFG builder.
+int test_pr8880() {
+  int first = 1;
+  for ( ; ({ if (first) { first = 0; continue; } 0; }); )
+    return 0;
+  return 1;
+}
+

@@ -37,6 +37,7 @@ enum InputKind {
   IK_PreprocessedObjC,
   IK_PreprocessedObjCXX,
   IK_OpenCL,
+  IK_CUDA,
   IK_AST,
   IK_LLVM_IR
 };
@@ -50,6 +51,10 @@ class FrontendAction {
   llvm::OwningPtr<ASTUnit> CurrentASTUnit;
   CompilerInstance *Instance;
   friend class ASTMergeAction;
+
+private:
+  ASTConsumer* CreateWrappedASTConsumer(CompilerInstance &CI,
+                                        llvm::StringRef InFile);
 
 protected:
   /// @name Implementation Action Interface
@@ -130,7 +135,7 @@ public:
   }
 
   ASTUnit &getCurrentASTUnit() const {
-    assert(!CurrentASTUnit && "No current AST unit!");
+    assert(CurrentASTUnit && "No current AST unit!");
     return *CurrentASTUnit;
   }
 

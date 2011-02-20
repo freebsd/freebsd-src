@@ -147,8 +147,30 @@ double f13(double X) {
 }
 
 // Check operations on incomplete types.
-struct s14;
-void f14(struct s13 *a) {
+void f14(struct s14 *a) {
   (void) &*a;
 }
 
+// CHECK: define void @f15
+void f15() {
+  extern void f15_start(void);
+  f15_start();
+  // CHECK: call void @f15_start()
+
+  extern void *f15_v(void);
+  extern const void *f15_cv(void);
+  extern volatile void *f15_vv(void);
+  *f15_v(); *f15_v(), *f15_v(); f15_v() ? *f15_v() : *f15_v();
+  *f15_cv(); *f15_cv(), *f15_cv(); f15_cv() ? *f15_cv() : *f15_cv();
+  *f15_vv(); *f15_vv(), *f15_vv(); f15_vv() ? *f15_vv() : *f15_vv();
+  // CHECK-NOT: load
+  // CHECK: ret void
+}
+
+// PR8967: this was crashing
+// CHECK: define void @f16()
+void f16() {
+  __extension__({ goto lbl; });
+ lbl:
+  ;
+}

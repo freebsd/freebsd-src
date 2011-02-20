@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -Wunused-value %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wunused-value -Wunused-label %s
 // RUN: %clang_cc1 -fsyntax-only -verify -Wunused %s
 // RUN: %clang_cc1 -fsyntax-only -verify -Wall %s
 
@@ -52,6 +52,9 @@ void pr4806() {
   volatile int* pj = &j;
   *pi;              // expected-warning {{expression result unused}}
   *pj;
+
+  foo_label:        // expected-warning {{unused label}}
+  i;                // expected-warning {{expression result unused}}
 }
 
 // Don't warn about unused '||', '&&' expressions that contain assignments.

@@ -69,3 +69,24 @@ int f7() {
   // CHECK: _ZZ2f7vE1a
   return a.b;
 }
+
+// This used to cause an assert because the typedef-for-anonymous-tag
+// code was trying to claim the enum for the template.
+enum { T8 };
+template <class T> struct Test8 {
+  typedef T type;
+  Test8(type t) {} // tested later
+};
+template <class T> void make_test8(T value) { Test8<T> t(value); }
+void test8() { make_test8(T8); }
+
+// CHECK: define internal void @"_ZNV3$_35test9Ev"(
+typedef volatile struct {
+  void test9() volatile {}
+} Test9;
+void test9() {
+  Test9 a;
+  a.test9();
+}
+
+// CHECK: define internal void @"_ZN5Test8I3$_2EC1ES0_"(

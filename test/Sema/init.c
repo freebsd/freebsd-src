@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -verify -fsyntax-only
+// RUN: %clang_cc1 %s -verify -fsyntax-only -ffreestanding
 
 #include <stddef.h>
 #include <stdint.h>
@@ -143,3 +143,4 @@ int PR4386_a = ((void *) PR4386_bar) != 0;
 int PR4386_b = ((void *) PR4386_foo) != 0; // expected-error{{initializer element is not a compile-time constant}}
 int PR4386_c = ((void *) PR4386_zed) != 0;
 int PR4386_zed() __attribute((weak));
+

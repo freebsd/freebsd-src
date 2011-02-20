@@ -25,4 +25,15 @@ void bitwise_rel(unsigned i) {
   // Eager logical op
   (void)(i == 1 | i == 2 | i == 3);
   (void)(i != 1 & i != 2 & i != 3);
+
+  (void)(i || i && i); // expected-warning {{'&&' within '||'}} \
+                       // expected-note {{place parentheses around the '&&' expression to silence this warning}}
+  (void)(i || i && "w00t"); // no warning.
+  (void)("w00t" && i || i); // no warning.
+  (void)(i || i && "w00t" || i); // expected-warning {{'&&' within '||'}} \
+                                 // expected-note {{place parentheses around the '&&' expression to silence this warning}}
+  (void)(i || "w00t" && i || i); // expected-warning {{'&&' within '||'}} \
+                                 // expected-note {{place parentheses around the '&&' expression to silence this warning}}
+  (void)(i && i || 0); // no warning.
+  (void)(0 || i && i); // no warning.
 }
