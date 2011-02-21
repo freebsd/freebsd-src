@@ -43,6 +43,7 @@ MAN=	accept_filter.9 \
 	BUS_SETUP_INTR.9 \
 	bus_space.9 \
 	byteorder.9 \
+	cc.9 \
 	cd.9 \
 	condvar.9 \
 	config_intrhook.9 \
@@ -122,6 +123,7 @@ MAN=	accept_filter.9 \
 	hash.9 \
 	hashinit.9 \
 	hexdump.9 \
+	hhook.9 \
 	ieee80211.9 \
 	ieee80211_amrr.9 \
 	ieee80211_beacon.9 \
@@ -144,6 +146,7 @@ MAN=	accept_filter.9 \
 	KASSERT.9 \
 	kernacc.9 \
 	kernel_mount.9 \
+	khelp.9 \
 	kobj.9 \
 	kproc.9 \
 	kqueue.9 \
