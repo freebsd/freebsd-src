@@ -75,8 +75,7 @@ format_track(int fd, int cyl, int secs, int head, int rate,
 		f.fd_formb_secno(i) = il[i+1];
 		f.fd_formb_secsize(i) = secsize;
 	}
-	if(ioctl(fd, FD_FORM, (caddr_t)&f) < 0)
-		err(EX_OSERR, "ioctl(FD_FORM)");
+	(void)ioctl(fd, FD_FORM, (caddr_t)&f);
 }
 
 static int
