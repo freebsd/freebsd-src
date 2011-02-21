@@ -959,7 +959,7 @@ numvar:
 
 
 /*
- * Record the the fact that we have to scan this region of the
+ * Record the fact that we have to scan this region of the
  * string for IFS characters.
  */
 

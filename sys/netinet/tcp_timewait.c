@@ -397,7 +397,7 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	}
 
 	/*
-	 * Drop the the segment if it does not contain an ACK.
+	 * Drop the segment if it does not contain an ACK.
 	 */
 	if ((thflags & TH_ACK) == 0)
 		goto drop;

@@ -110,7 +110,7 @@ zbpci_attach(device_t dev)
 		panic("%s: port_rman", __func__);
 
 	/*
-	 * Reserve the the physical memory that is used to read/write to the
+	 * Reserve the physical memory that is used to read/write to the
 	 * pci config space but don't activate it. We are using a page worth
 	 * of KVA as a window over this region.
 	 */
