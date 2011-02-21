@@ -677,7 +677,6 @@ ieee80211_parse_action(struct ieee80211_node *ni, struct mbuf *m)
 	IEEE80211_NODE_STAT(ni, rx_action);
 
 	/* verify frame payloads but defer processing */
-	/* XXX maybe push this to method */
 	switch (ia->ia_category) {
 	case IEEE80211_ACTION_CAT_BA:
 		switch (ia->ia_action) {

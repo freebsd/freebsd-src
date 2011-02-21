@@ -64,7 +64,7 @@ const char *ieee80211_mgt_subtype_name[] = {
 	"assoc_req",	"assoc_resp",	"reassoc_req",	"reassoc_resp",
 	"probe_req",	"probe_resp",	"reserved#6",	"reserved#7",
 	"beacon",	"atim",		"disassoc",	"auth",
-	"deauth",	"action",	"reserved#14",	"reserved#15"
+	"deauth",	"action",	"action_noack",	"reserved#15"
 };
 const char *ieee80211_ctl_subtype_name[] = {
 	"reserved#0",	"reserved#1",	"reserved#2",	"reserved#3",
