@@ -56,7 +56,7 @@
  *
  * It is assumed that individuals deploying TOE will want connections
  * to be offloaded without software changes so all connections on an
- * interface providing TOE are offloaded unless the the SO_NO_OFFLOAD 
+ * interface providing TOE are offloaded unless the SO_NO_OFFLOAD 
  * flag is set on the socket.
  *
  *

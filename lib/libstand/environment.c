@@ -59,7 +59,7 @@ env_getenv(const char *name)
  * Some notes:
  *
  * If the EV_VOLATILE flag is set, a copy of the variable is made.
- * If EV_DYNAMIC is set, the the variable has been allocated with
+ * If EV_DYNAMIC is set, the variable has been allocated with
  * malloc and ownership transferred to the environment.
  * If (value) is NULL, the variable is set but has no value.
  */

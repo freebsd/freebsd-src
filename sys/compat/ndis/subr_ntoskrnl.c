@@ -3355,7 +3355,7 @@ KeSetEvent(nt_kevent *kevent, uint32_t increment, uint8_t kwait)
 		 * setting the state to signalled since we're supposed
 		 * to automatically clear synchronization events anyway).
 		 *
-		 * If it's a notification event, or the the first
+		 * If it's a notification event, or the first
 		 * waiter is doing a WAITTYPE_ALL wait, go through
 		 * the full wait satisfaction process.
 		 */

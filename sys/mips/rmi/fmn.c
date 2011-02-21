@@ -99,7 +99,7 @@ static int	msgring_maxthreads = 3;
 TUNABLE_INT("hw.fmn.maxthreads", &msgring_maxthreads);
 
 /* 
- * The device drivers can register a handler for the the messages sent
+ * The device drivers can register a handler for the messages sent
  * from a station (corresponding to the device). 
  */
 struct tx_stn_handler {
@@ -148,7 +148,7 @@ xlr_msgring_cpu_init(void)
 	 * For sending FMN messages, we need credits on the destination
 	 * bucket.  Program the credits this core has on the 128 possible
 	 * destination buckets.
-	 * We cannot use a loop here, because the the first argument has
+	 * We cannot use a loop here, because the first argument has
 	 * to be a constant integer value.
 	 */
 	MSGRNG_CC_INIT_CPU_DEST(0,  cc_config->counters);

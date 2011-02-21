@@ -1929,7 +1929,7 @@ UP_process(struct libalias *la, int direction, struct sctp_nat_assoc *assoc, str
  * @brief Process SCTP message while association is in the process of closing
  *
  * This function waits for a SHUT-COMP to close the association. Depending on
- * the the setting of sysctl_holddown_timer it may not remove the association
+ * the setting of sysctl_holddown_timer it may not remove the association
  * immediately, but leave it up until SN_X_T(la). Only SHUT-COMP, SHUT-ACK, and
  * ABORT packets are permitted in this state. All other packets are dropped.
  *
