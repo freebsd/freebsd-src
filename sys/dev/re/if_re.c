@@ -1259,11 +1259,6 @@ re_attach(device_t dev)
 		CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 	}
 
-	/* Reset the adapter. */
-	RL_LOCK(sc);
-	re_reset(sc);
-	RL_UNLOCK(sc);
-
 	hw_rev = re_hwrevs;
 	hwrev = CSR_READ_4(sc, RL_TXCFG);
 	switch (hwrev & 0x70000000) {
@@ -1366,6 +1361,11 @@ re_attach(device_t dev)
 	default:
 		break;
 	}
+
+	/* Reset the adapter. */
+	RL_LOCK(sc);
+	re_reset(sc);
+	RL_UNLOCK(sc);
 
 	/* Enable PME. */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
@@ -1662,15 +1662,19 @@ re_detach(device_t dev)
 	/* Destroy all the RX and TX buffer maps */
 
 	if (sc->rl_ldata.rl_tx_mtag) {
-		for (i = 0; i < sc->rl_ldata.rl_tx_desc_cnt; i++)
-			bus_dmamap_destroy(sc->rl_ldata.rl_tx_mtag,
-			    sc->rl_ldata.rl_tx_desc[i].tx_dmamap);
+		for (i = 0; i < sc->rl_ldata.rl_tx_desc_cnt; i++) {
+			if (sc->rl_ldata.rl_tx_desc[i].tx_dmamap)
+				bus_dmamap_destroy(sc->rl_ldata.rl_tx_mtag,
+				    sc->rl_ldata.rl_tx_desc[i].tx_dmamap);
+		}
 		bus_dma_tag_destroy(sc->rl_ldata.rl_tx_mtag);
 	}
 	if (sc->rl_ldata.rl_rx_mtag) {
-		for (i = 0; i < sc->rl_ldata.rl_rx_desc_cnt; i++)
-			bus_dmamap_destroy(sc->rl_ldata.rl_rx_mtag,
-			    sc->rl_ldata.rl_rx_desc[i].rx_dmamap);
+		for (i = 0; i < sc->rl_ldata.rl_rx_desc_cnt; i++) {
+			if (sc->rl_ldata.rl_rx_desc[i].rx_dmamap)
+				bus_dmamap_destroy(sc->rl_ldata.rl_rx_mtag,
+				    sc->rl_ldata.rl_rx_desc[i].rx_dmamap);
+		}
 		if (sc->rl_ldata.rl_rx_sparemap)
 			bus_dmamap_destroy(sc->rl_ldata.rl_rx_mtag,
 			    sc->rl_ldata.rl_rx_sparemap);
@@ -2610,6 +2614,16 @@ re_init_locked(struct rl_softc *sc)
 	re_reset(sc);
 
 	/*
+	 * For C+ mode, initialize the RX descriptors and mbufs.
+	 */
+	if (re_rx_list_init(sc) != 0) {
+		device_printf(sc->rl_dev, "no memory for RX buffers\n");
+		re_stop(sc);
+		return;
+	}
+	re_tx_list_init(sc);
+
+	/*
 	 * Enable C+ RX and TX mode, as well as VLAN stripping and
 	 * RX checksum offload. We must configure the C+ register
 	 * before all others.
@@ -2659,12 +2673,6 @@ re_init_locked(struct rl_softc *sc)
 	CSR_WRITE_4(sc, RL_IDR4,
 	    htole32(*(u_int32_t *)(&eaddr.eaddr[4])));
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
-
-	/*
-	 * For C+ mode, initialize the RX descriptors and mbufs.
-	 */
-	re_rx_list_init(sc);
-	re_tx_list_init(sc);
 
 	/*
 	 * Load the addresses of the RX and TX lists into the chip.
@@ -2915,12 +2923,18 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 		}
 #endif /* DEVICE_POLLING */
-		if (mask & IFCAP_HWCSUM) {
-			ifp->if_capenable ^= IFCAP_HWCSUM;
-			if (ifp->if_capenable & IFCAP_TXCSUM)
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
 				ifp->if_hwassist |= RE_CSUM_FEATURES;
 			else
 				ifp->if_hwassist &= ~RE_CSUM_FEATURES;
+			reinit = 1;
+		}
+		if ((mask & IFCAP_RXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_RXCSUM;
 			reinit = 1;
 		}
 		if ((mask & IFCAP_TSO4) != 0 &&
@@ -3275,6 +3289,10 @@ re_sysctl_stats(SYSCTL_HANDLER_ARGS)
 	if (result == 1) {
 		sc = (struct rl_softc *)arg1;
 		RL_LOCK(sc);
+		if ((sc->rl_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+			RL_UNLOCK(sc);
+			goto done;
+		}
 		bus_dmamap_sync(sc->rl_ldata.rl_stag,
 		    sc->rl_ldata.rl_smap, BUS_DMASYNC_PREREAD);
 		CSR_WRITE_4(sc, RL_DUMPSTATS_HI,
@@ -3298,6 +3316,7 @@ re_sysctl_stats(SYSCTL_HANDLER_ARGS)
 			    "DUMP statistics request timedout\n");
 			return (ETIMEDOUT);
 		}
+done:
 		stats = sc->rl_ldata.rl_stats;
 		printf("%s statistics:\n", device_get_nameunit(sc->rl_dev));
 		printf("Tx frames : %ju\n",
