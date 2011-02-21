@@ -103,7 +103,6 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	HAL_BOOL shortPreamble = AH_FALSE;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	int i;
-	uint8_t txrate;
 
 	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
 	    (ni->ni_capinfo & IEEE80211_CAPINFO_SHORT_PREAMBLE))
@@ -111,7 +110,6 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	memset(series, 0, sizeof(HAL_11N_RATE_SERIES) * 4);
 	for (i = 0; i < 4;  i++) {
-		txrate = rt->info[rix[i]].rateCode;
 		series[i].Tries = try[i];
 		series[i].ChSel = sc->sc_txchainmask;
 		if (ic->ic_protmode == IEEE80211_PROT_RTSCTS ||
@@ -128,14 +126,16 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
 			series[i].RateFlags |= HAL_RATESERIES_HALFGI;
 
-		/* XXX should this check the short preamble value should be set for legacy rates? -adrian */
-		series[i].Rate = txrate;
+		series[i].Rate = rt->info[rix[i]].rateCode;
+		/* the short preamble field is only applicable for non-MCS rates */
+		if (shortPreamble && ! (series[i].Rate & IEEE80211_RATE_MCS))
+			series[i].Rate |= rt->info[rix[i]].shortPreamble;
 
 		/* PktDuration doesn't include slot, ACK, RTS, etc timing - it's just the packet duration */
-		if (txrate & IEEE80211_RATE_MCS) {
+		if (series[i].Rate & IEEE80211_RATE_MCS) {
 			series[i].PktDuration =
 			    ath_computedur_ht(pktlen
-				, txrate
+				, series[i].Rate
 				, ic->ic_txstream
 				, (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40)
 				, series[i].RateFlags & HAL_RATESERIES_HALFGI);
