@@ -898,6 +898,7 @@ mps_attach(struct mps_softc *sc)
 	TAILQ_INIT(&sc->req_list);
 	TAILQ_INIT(&sc->chain_list);
 	TAILQ_INIT(&sc->tm_list);
+	TAILQ_INIT(&sc->io_list);
 
 	if (((error = mps_alloc_queues(sc)) != 0) ||
 	    ((error = mps_alloc_replies(sc)) != 0) ||
