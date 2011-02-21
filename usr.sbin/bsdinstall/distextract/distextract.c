@@ -46,11 +46,30 @@ main(void)
 	ndists++; /* Last one */
 
 	dists = calloc(ndists, sizeof(const char *));
+	if (dists == NULL) {
+		fprintf(stderr, "Out of memory!\n");
+		return (1);
+	}
+
 	for (i = 0; i < ndists; i++)
 		dists[i] = strsep(&diststring, " \t");
 
-	chdir(getenv("BSDINSTALL_CHROOT"));
+	init_dialog(stdin, stdout);
+	dialog_vars.backtitle = __DECONST(char *, "FreeBSD Installer");
+	dlg_put_backtitle();
+
+	if (chdir(getenv("BSDINSTALL_CHROOT")) != 0) {
+		char error[512];
+		sprintf(error, "Could could change to directory %s: %s\n",
+		    getenv("BSDINSTALL_DISTDIR"), strerror(errno));
+		dialog_msgbox("Error", error, 0, 0, TRUE);
+		end_dialog();
+		return (1);
+	}
+
 	retval = extract_files(ndists, dists);
+
+	end_dialog();
 
 	free(diststring);
 	free(dists);
@@ -84,9 +103,6 @@ extract_files(int nfiles, const char **files)
 		items[i*2 + 1] = "Pending";
 	}
 
-	init_dialog(stdin, stdout);
-	dialog_vars.backtitle = __DECONST(char *, "FreeBSD Installer");
-	dlg_put_backtitle();
 	dialog_msgbox("",
 	    "Checking distribution archives.\nPlease wait...", 0, 0, FALSE);
 
@@ -105,7 +121,7 @@ extract_files(int nfiles, const char **files)
 			items[i*2 + 1] = "Failed";
 			dialog_msgbox("Extract Error", errormsg, 0, 0,
 			    TRUE);
-			goto exit;
+			return (err);
 		}
 		archive_files[i] = 0;
 		while (archive_read_next_header(archive, &entry) == ARCHIVE_OK)
@@ -162,15 +178,11 @@ extract_files(int nfiles, const char **files)
 			items[i*2 + 1] = "Failed";
 			dialog_msgbox("Extract Error", errormsg, 0, 0,
 			    TRUE);
-			goto exit;
+			return (err);
 		}
 
 		archive_read_free(archive);
 	}
 
-	err = 0;
-exit:
-	end_dialog();
-
-	return (err);
+	return (0);
 }
