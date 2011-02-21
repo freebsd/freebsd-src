@@ -69,6 +69,13 @@ MAN=	aac.4 \
 	cardbus.4 \
 	carp.4 \
 	cas.4 \
+	cc.4 \
+	cc_chd.4 \
+	cc_cubic.4 \
+	cc_hd.4 \
+	cc_htcp.4 \
+	cc_newreno.4 \
+	cc_vegas.4 \
 	ccd.4 \
 	cd.4 \
 	cdce.4 \
@@ -131,6 +138,7 @@ MAN=	aac.4 \
 	gif.4 \
 	gpib.4 \
 	gre.4 \
+	h_ertt.4 \
 	harp.4 \
 	hatm.4 \
 	hfa.4 \
