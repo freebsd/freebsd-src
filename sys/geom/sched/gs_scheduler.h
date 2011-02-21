@@ -144,7 +144,7 @@ struct g_sched_class {
 
 /*
  * Manipulate the classifier's data.  g_sched_get_class() gets a reference
- * to the the class corresponding to bp in gp, allocating and initializing
+ * to the class corresponding to bp in gp, allocating and initializing
  * it if necessary.  g_sched_put_class() releases the reference.
  * The returned value points to the private data for the class.
  */

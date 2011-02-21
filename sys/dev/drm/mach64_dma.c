@@ -173,7 +173,7 @@ static int mach64_ring_idle(drm_mach64_private_t *dev_priv)
 }
 
 /**
- * Reset the the ring buffer descriptors.
+ * Reset the ring buffer descriptors.
  *
  * \sa mach64_do_engine_reset()
  */

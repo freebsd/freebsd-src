@@ -291,7 +291,7 @@ int	mwl_hal_setradio(struct mwl_hal *mh, int onoff, MWL_HAL_PREAMBLE preamble);
 /*
  * Set Antenna Configuration (legacy operation).
  *
- * The RX antenna can be selected using the the bitmask
+ * The RX antenna can be selected using the bitmask
  * ant (bit 0 = antenna 1, bit 1 = antenna 2, etc.)
  * (diversity?XXX)
  */

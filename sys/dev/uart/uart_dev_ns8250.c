@@ -693,7 +693,7 @@ ns8250_bus_probe(struct uart_softc *sc)
 	/*
 	 * We should have a sufficiently clean "pipe" to determine the
 	 * size of the FIFOs. We send as much characters as is reasonable
-	 * and wait for the the overflow bit in the LSR register to be
+	 * and wait for the overflow bit in the LSR register to be
 	 * asserted, counting the characters as we send them. Based on
 	 * that count we know the FIFO size.
 	 */

@@ -252,7 +252,7 @@ static const struct SYM_FWA_SCR SYM_FWA_SCR = {
 	 *  The below GETJOB_BEGIN to GETJOB_END section of SCRIPTS 
 	 *  is a critical path. If it is partially executed, it then 
 	 *  may happen that the job address is not yet in the DSA 
-	 *  and the the next queue position points to the next JOB.
+	 *  and the next queue position points to the next JOB.
 	 */
 	SCR_LOAD_ABS (dsa, 4),
 		PADDR_B (startpos),
