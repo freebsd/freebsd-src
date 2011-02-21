@@ -318,6 +318,11 @@ ath_hal_computetxtime(struct ath_hal *ah,
 	uint32_t bitsPerSymbol, numBits, numSymbols, phyTime, txTime;
 	uint32_t kbps;
 
+	/* Warn if this function is called for 11n rates; it should not be! */
+	if (IS_HT_RATE(rates->info[rateix].rateCode))
+		ath_hal_printf(ah, "%s: MCS rate? (index %d; hwrate 0x%x)\n",
+		    __func__, rateix, rates->info[rateix].rateCode);
+
 	kbps = rates->info[rateix].rateKbps;
 	/*
 	 * index can be invalid duting dynamic Turbo transitions. 
