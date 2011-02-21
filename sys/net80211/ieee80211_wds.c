@@ -756,31 +756,46 @@ wds_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	frm = (u_int8_t *)&wh[1];
 	efrm = mtod(m0, u_int8_t *) + m0->m_len;
 	switch (subtype) {
-	case IEEE80211_FC0_SUBTYPE_DEAUTH:
-	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
-	case IEEE80211_FC0_SUBTYPE_BEACON:
-	case IEEE80211_FC0_SUBTYPE_PROBE_REQ:
-	case IEEE80211_FC0_SUBTYPE_AUTH:
-	case IEEE80211_FC0_SUBTYPE_ASSOC_REQ:
-	case IEEE80211_FC0_SUBTYPE_REASSOC_REQ:
-	case IEEE80211_FC0_SUBTYPE_ASSOC_RESP:
-	case IEEE80211_FC0_SUBTYPE_REASSOC_RESP:
-	case IEEE80211_FC0_SUBTYPE_DISASSOC:
-		vap->iv_stats.is_rx_mgtdiscard++;
-		break;
 	case IEEE80211_FC0_SUBTYPE_ACTION:
-		if (vap->iv_state != IEEE80211_S_RUN ||
-		    IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+	case IEEE80211_FC0_SUBTYPE_ACTION_NOACK:
+		if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_MESH,
+			    wh, NULL, "%s", "not directed to us");
 			vap->iv_stats.is_rx_mgtdiscard++;
 			break;
+		} else
+			ni->ni_inact = ni->ni_inact_reload;
+
+		if (vap->iv_state == IEEE80211_S_RUN) {
+			if (ieee80211_parse_action(ni, m0) == 0)
+				(void)ic->ic_recv_action(ni, wh, frm, efrm);
+		} else {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+			    wh, NULL, "wrong state %s",
+			    ieee80211_state_name[vap->iv_state]);
+			vap->iv_stats.is_rx_mgtdiscard++;
 		}
-		ni->ni_inact = ni->ni_inact_reload;
-		if (ieee80211_parse_action(ni, m0) == 0)
-			ic->ic_recv_action(ni, wh, frm, efrm);
 		break;
+
+	case IEEE80211_FC0_SUBTYPE_ASSOC_REQ:
+	case IEEE80211_FC0_SUBTYPE_ASSOC_RESP:
+	case IEEE80211_FC0_SUBTYPE_REASSOC_REQ:
+	case IEEE80211_FC0_SUBTYPE_REASSOC_RESP:
+	case IEEE80211_FC0_SUBTYPE_PROBE_REQ:
+	case IEEE80211_FC0_SUBTYPE_PROBE_RESP:
+	case IEEE80211_FC0_SUBTYPE_BEACON:
+	case IEEE80211_FC0_SUBTYPE_ATIM:
+	case IEEE80211_FC0_SUBTYPE_DISASSOC:
+	case IEEE80211_FC0_SUBTYPE_AUTH:
+	case IEEE80211_FC0_SUBTYPE_DEAUTH:
+		IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+		    wh, NULL, "%s", "not handled");
+		vap->iv_stats.is_rx_mgtdiscard++;
+		break;
+
 	default:
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_ANY,
-		     wh, "mgt", "subtype 0x%x not handled", subtype);
+		    wh, "mgt", "subtype 0x%x not handled", subtype);
 		vap->iv_stats.is_rx_badsubtype++;
 		break;
 	}
