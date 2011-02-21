@@ -94,7 +94,7 @@ cbrt(double x)
      * 2 23-bit ulps larger).  With rounding towards zero, the error bound
      * would be ~5/6 instead of ~4/6.  With a maximum error of 2 23-bit ulps
      * in the rounded t, the infinite-precision error in the Newton
-     * approximation barely affects third digit in the the final error
+     * approximation barely affects third digit in the final error
      * 0.667; the error in the rounded t can be up to about 3 23-bit ulps
      * before the final error is larger than 0.667 ulps.
      */

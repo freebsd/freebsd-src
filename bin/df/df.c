@@ -125,7 +125,7 @@ main(int argc, char *argv[])
 				/* FALLTHROUGH */
 		case 'P':
 			/*
-			 * POSIX specifically discusses the the behavior of
+			 * POSIX specifically discusses the behavior of
 			 * both -k and -P. It states that the blocksize should
 			 * be set to 1024. Thus, if this occurs, simply break
 			 * rather than clobbering the old blocksize.

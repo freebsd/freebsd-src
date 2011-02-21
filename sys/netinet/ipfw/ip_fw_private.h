@@ -90,7 +90,7 @@ struct ip_fw_args {
 	/*
 	 * On return, it points to the matching rule.
 	 * On entry, rule.slot > 0 means the info is valid and
-	 * contains the the starting rule for an ipfw search.
+	 * contains the starting rule for an ipfw search.
 	 * If chain_id == chain->id && slot >0 then jump to that slot.
 	 * Otherwise, we locate the first rule >= rulenum:rule_id
 	 */

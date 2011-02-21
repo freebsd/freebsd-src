@@ -183,7 +183,7 @@ PRAGMA_PACK_PUSH
 #define	   I2O_VERSION_OFFSET_SGL_TRL_OFFSET_MASK      0xF0
 
 /*   Defines for the Message Flags Field. */
-/*   Please Note the the FAIL bit is only set in the Transport Fail Message. */
+/*   Please Note the FAIL bit is only set in the Transport Fail Message. */
 #define	   I2O_MESSAGE_FLAGS_STATIC		       0x01
 #define	   I2O_MESSAGE_FLAGS_64BIT_CONTEXT	       0x02
 #define	   I2O_MESSAGE_FLAGS_MULTIPLE		       0x10

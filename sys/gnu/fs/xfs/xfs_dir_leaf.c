@@ -2153,7 +2153,7 @@ xfs_dir_leaf_getdents_int(
 }
 
 /*
- * Format a dirent64 structure and copy it out the the user's buffer.
+ * Format a dirent64 structure and copy it out the user's buffer.
  */
 int
 xfs_dir_put_dirent64_direct(xfs_dir_put_args_t *pa)
@@ -2185,7 +2185,7 @@ xfs_dir_put_dirent64_direct(xfs_dir_put_args_t *pa)
 }
 
 /*
- * Format a dirent64 structure and copy it out the the user's buffer.
+ * Format a dirent64 structure and copy it out the user's buffer.
  */
 int
 xfs_dir_put_dirent64_uio(xfs_dir_put_args_t *pa)

@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * rpcinfo: ping a particular rpc program
- * 	or dump the the registered programs on the remote machine.
+ * 	or dump the registered programs on the remote machine.
  */
 
 /*
