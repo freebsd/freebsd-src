@@ -1,5 +1,11 @@
 .\" Copyright (c) 1983, 1991, 1993
-.\"	The Regents of the University of California.  All rights reserved.
+.\"	The Regents of the University of California.
+.\" Copyright (c) 2010-2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" Portions of this documentation were written at the Centre for Advanced
+.\" Internet Architectures, Swinburne University of Technology, Melbourne,
+.\" Australia by David Hayes under sponsorship from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -32,7 +38,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2011
+.Dd February 15, 2011
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -116,7 +122,7 @@ supports a number of socket options which can be set with
 .Xr setsockopt 2
 and tested with
 .Xr getsockopt 2 :
-.Bl -tag -width ".Dv TCP_NODELAY"
+.Bl -tag -width ".Dv TCP_CONGESTION"
 .It Dv TCP_INFO
 Information about a socket's underlying TCP session may be retrieved
 by passing the read-only option
@@ -134,6 +140,12 @@ send window size,
 receive window size,
 and
 bandwidth-controlled window space.
+.It Dv TCP_CONGESTION
+Select or query the congestion control algorithm that TCP will use for the
+connection.
+See
+.Xr cc 4
+for details.
 .It Dv TCP_NODELAY
 Under most circumstances,
 .Tn TCP
@@ -231,6 +243,14 @@ see
 .Xr ip 4 .
 Incoming connection requests that are source-routed are noted,
 and the reverse source route is used in responding.
+.Pp
+The default congestion control algorithm for
+.Tn TCP
+is
+.Xr cc_newreno 4 .
+Other congestion control algorithms can be made available using the
+.Xr cc 4
+framework.
 .Ss MIB Variables
 The
 .Tn TCP
@@ -322,11 +342,6 @@ See
 Delay ACK to try and piggyback it onto a data packet.
 .It Va delacktime
 Maximum amount of time, in milliseconds, before a delayed ACK is sent.
-.It Va newreno
-Enable
-.Tn TCP
-NewReno Fast Recovery algorithm,
-as described in RFC 2582.
 .It Va path_mtu_discovery
 Enable Path MTU Discovery.
 .It Va tcbhashsize
@@ -495,6 +510,7 @@ address.
 .Xr socket 2 ,
 .Xr sysctl 3 ,
 .Xr blackhole 4 ,
+.Xr cc 4 ,
 .Xr inet 4 ,
 .Xr intro 4 ,
 .Xr ip 4 ,
