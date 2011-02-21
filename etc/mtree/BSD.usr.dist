@@ -244,6 +244,8 @@
                     fwimage
                     ..
                 ..
+                khelp
+                ..
                 syscall
                     module
                     ..

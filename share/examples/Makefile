@@ -100,6 +100,9 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	kld/firmware/fwconsumer/fw_consumer.c \
 	kld/firmware/fwimage/Makefile \
 	kld/firmware/fwimage/firmware.img \
+	kld/khelp/Makefile \
+	kld/khelp/README \
+	kld/khelp/h_example.c \
 	kld/syscall/Makefile \
 	kld/syscall/module/Makefile \
 	kld/syscall/module/syscall.c \
