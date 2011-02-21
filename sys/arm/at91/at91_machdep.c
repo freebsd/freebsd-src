@@ -256,6 +256,9 @@ initarm(void *arg, void *arg2)
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
+	/* Do basic tuning, hz etc */
+	init_param1();
+
 	freemempos = (lastaddr + PAGE_MASK) & ~PAGE_MASK;
 	/* Define a macro to simplify memory allocation */
 #define valloc_pages(var, np)                   \
@@ -302,8 +305,6 @@ initarm(void *arg, void *arg2)
 	valloc_pages(kernelstack, KSTACK_PAGES);
 	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 
-	/* Do basic tuning, hz etc */
-	init_param1();
 	/*
 	 * Now we start construction of the L1 page table
 	 * We start by mapping the L2 page tables into the L1.
