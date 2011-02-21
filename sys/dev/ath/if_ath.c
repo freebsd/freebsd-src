@@ -6604,6 +6604,8 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_post_crc_err", CTLFLAG_RD, &sc->sc_stats.ast_rx_post_crc_err, 0, "");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_decrypt_busy_err", CTLFLAG_RD, &sc->sc_stats.ast_rx_decrypt_busy_err, 0, "");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_hi_rx_chain", CTLFLAG_RD, &sc->sc_stats.ast_rx_hi_rx_chain, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_htprotect", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_htprotect, 0, "HT tx frames with protection");
 
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);

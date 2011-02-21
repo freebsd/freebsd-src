@@ -127,7 +127,8 @@ struct ath_stats {
 	u_int32_t	ast_rx_post_crc_err;
 	u_int32_t	ast_rx_decrypt_busy_err;
 	u_int32_t	ast_rx_hi_rx_chain;
-	u_int32_t	ast_pad[4];
+	u_int32_t	ast_tx_htprotect;	/* HT tx frames with protection */
+	u_int32_t	ast_pad[3];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
