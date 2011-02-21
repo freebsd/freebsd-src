@@ -6598,12 +6598,18 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_agg", CTLFLAG_RD,
 	    &sc->sc_stats.ast_rx_agg, 0, "number of aggregate frames received");
 
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_halfgi", CTLFLAG_RD, &sc->sc_stats.ast_rx_halfgi, 0, "");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_2040", CTLFLAG_RD, &sc->sc_stats.ast_rx_2040, 0, "");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_pre_crc_err", CTLFLAG_RD, &sc->sc_stats.ast_rx_pre_crc_err, 0, "");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_post_crc_err", CTLFLAG_RD, &sc->sc_stats.ast_rx_post_crc_err, 0, "");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_decrypt_busy_err", CTLFLAG_RD, &sc->sc_stats.ast_rx_decrypt_busy_err, 0, "");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_hi_rx_chain", CTLFLAG_RD, &sc->sc_stats.ast_rx_hi_rx_chain, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_halfgi", CTLFLAG_RD,
+	    &sc->sc_stats.ast_rx_halfgi, 0, "number of frames received with half-GI");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_2040", CTLFLAG_RD,
+	    &sc->sc_stats.ast_rx_2040, 0, "number of HT/40 frames received");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_pre_crc_err", CTLFLAG_RD,
+	    &sc->sc_stats.ast_rx_pre_crc_err, 0, "number of delimeter-CRC errors detected");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_post_crc_err", CTLFLAG_RD,
+	    &sc->sc_stats.ast_rx_post_crc_err, 0, "number of post-delimiter CRC errors detected");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_decrypt_busy_err", CTLFLAG_RD,
+	    &sc->sc_stats.ast_rx_decrypt_busy_err, 0, "number of frames received w/ busy decrypt engine");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_hi_rx_chain", CTLFLAG_RD,
+	    &sc->sc_stats.ast_rx_hi_rx_chain, 0, "");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_htprotect", CTLFLAG_RD,
 	    &sc->sc_stats.ast_tx_htprotect, 0, "HT tx frames with protection");
 
