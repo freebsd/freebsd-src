@@ -1461,8 +1461,8 @@ re_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = re_ioctl;
 	ifp->if_start = re_start;
-	ifp->if_hwassist = RE_CSUM_FEATURES;
-	ifp->if_capabilities = IFCAP_HWCSUM;
+	ifp->if_hwassist = RE_CSUM_FEATURES | CSUM_TSO;
+	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_TSO4;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_init = re_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, RL_IFQ_MAXLEN);
@@ -1471,16 +1471,6 @@ re_attach(device_t dev)
 
 	TASK_INIT(&sc->rl_txtask, 1, re_tx_task, ifp);
 	TASK_INIT(&sc->rl_inttask, 0, re_int_task, sc);
-
-	/*
-	 * XXX
-	 * Still have no idea how to make TSO work on 8168C, 8168CP,
-	 * 8111C and 8111CP.
-	 */
-	if ((sc->rl_flags & RL_FLAG_DESCV2) == 0) {
-		ifp->if_hwassist |= CSUM_TSO;
-		ifp->if_capabilities |= IFCAP_TSO4 | IFCAP_VLAN_HWTSO;
-	}
 
 	/*
 	 * Call MI attach routine.
@@ -1496,9 +1486,9 @@ re_attach(device_t dev)
 		ifp->if_capabilities |= IFCAP_WOL;
 	ifp->if_capenable = ifp->if_capabilities;
 	/*
-	 * Don't enable TSO by default. Under certain
-	 * circumtances the controller generated corrupted
-	 * packets in TSO size.
+	 * Don't enable TSO by default.  It is known to generate
+	 * corrupted TCP segments(bad TCP options) under certain
+	 * circumtances.
 	 */
 	ifp->if_hwassist &= ~CSUM_TSO;
 	ifp->if_capenable &= ~(IFCAP_TSO4 | IFCAP_VLAN_HWTSO);
@@ -2407,11 +2397,17 @@ re_encap(struct rl_softc *sc, struct mbuf **m_head)
 	 */
 	vlanctl = 0;
 	csum_flags = 0;
-	if (((*m_head)->m_pkthdr.csum_flags & CSUM_TSO) != 0)
-		csum_flags = RL_TDESC_CMD_LGSEND |
-		    ((uint32_t)(*m_head)->m_pkthdr.tso_segsz <<
-		    RL_TDESC_CMD_MSSVAL_SHIFT);
-	else {
+	if (((*m_head)->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
+		if ((sc->rl_flags & RL_FLAG_DESCV2) != 0) {
+			csum_flags |= RL_TDESC_CMD_LGSEND;
+			vlanctl |= ((uint32_t)(*m_head)->m_pkthdr.tso_segsz <<
+			    RL_TDESC_CMD_MSSVALV2_SHIFT);
+		} else {
+			csum_flags |= RL_TDESC_CMD_LGSEND |
+			    ((uint32_t)(*m_head)->m_pkthdr.tso_segsz <<
+			    RL_TDESC_CMD_MSSVAL_SHIFT);
+		}
+	} else {
 		/*
 		 * Unconditionally enable IP checksum if TCP or UDP
 		 * checksum is required. Otherwise, TCP/UDP checksum

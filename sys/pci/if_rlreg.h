@@ -657,6 +657,8 @@ struct rl_desc {
 #define	RL_TDESC_CMD_UDPCSUMV2	0x80000000
 #define	RL_TDESC_CMD_TCPCSUMV2	0x40000000
 #define	RL_TDESC_CMD_IPCSUMV2	0x20000000
+#define	RL_TDESC_CMD_MSSVALV2	0x1FFC0000
+#define	RL_TDESC_CMD_MSSVALV2_SHIFT	18
 
 /*
  * Error bits are valid only on the last descriptor of a frame
