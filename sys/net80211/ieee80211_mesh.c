@@ -1492,35 +1492,23 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 
 	case IEEE80211_FC0_SUBTYPE_ACTION:
 	case IEEE80211_FC0_SUBTYPE_ACTION_NOACK:
-		/*
-		 * We received an action for an unknown neighbor.
-		 * XXX: wait for it to beacon or create ieee80211_node?
-		 */
 		if (ni == vap->iv_bss) {
-			IEEE80211_DISCARD(vap, IEEE80211_MSG_MESH,
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
 			    wh, NULL, "%s", "unknown node");
 			vap->iv_stats.is_rx_mgtdiscard++;
-			break;
-		}
-		/*
-		 * Discard if not for us.
-		 * XXX: if from us too?
-		 */
-		if (!IEEE80211_ADDR_EQ(vap->iv_myaddr, wh->i_addr1) &&
+		} else if (!IEEE80211_ADDR_EQ(vap->iv_myaddr, wh->i_addr1) &&
 		    !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-			IEEE80211_DISCARD(vap, IEEE80211_MSG_MESH,
-			    wh, NULL, "%s", "not for me");
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+			    wh, NULL, "%s", "not for us");
 			vap->iv_stats.is_rx_mgtdiscard++;
-			break;
-		}
-		if (vap->iv_state == IEEE80211_S_RUN) {
-			if (ieee80211_parse_action(ni, m0) == 0)
-				(void)ic->ic_recv_action(ni, wh, frm, efrm);
-		} else {
+		} else if (vap->iv_state != IEEE80211_S_RUN) {
 			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
 			    wh, NULL, "wrong state %s",
 			    ieee80211_state_name[vap->iv_state]);
 			vap->iv_stats.is_rx_mgtdiscard++;
+		} else {
+			if (ieee80211_parse_action(ni, m0) == 0)
+				(void)ic->ic_recv_action(ni, wh, frm, efrm);
 		}
 		break;
 
