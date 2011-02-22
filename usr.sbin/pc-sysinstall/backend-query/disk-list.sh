@@ -74,7 +74,7 @@ do
   fi
 
   # Check the dmesg output for some more info about this device
-  NEWLINE=$(dmesg | sed -n "s/^$DEV: .*<\(.*\)>.*$/ <\1>/p" | head -n 1)
+  NEWLINE=$(camcontrol identify $DEV | grep "device model" | tr -s ' ' | sed 's |device model ||g')
   if [ -z "$NEWLINE" ]; then
     NEWLINE=" <Unknown Device>"
   fi
