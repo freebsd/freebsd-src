@@ -42,20 +42,6 @@ TARGET_ARCH=${TARGET}
 .include <bsd.own.mk>
 .include <bsd.arch.inc.mk>
 
-# Clang is a special case.  We have to use it to bootstrap the target, not
-# where we're building from.
-.if ${TARGET_ARCH} == i386 || ${TARGET_ARCH} == amd64 || \
-    ${TARGET_ARCH} == arm || ${TARGET_ARCH} == powerpc64 || \
-    ${TARGET_ARCH} == powerpc
-.if !defined(WITHOUT_CLANG)
-MK_CLANG=yes
-.endif
-.else
-.if !defined(WITH_CLANG)
-MK_CLANG=no
-.endif
-.endif
-
 # We must do share/info early so that installation of info `dir'
 # entries works correctly.  Do it first since it is less likely to
 # grow dependencies on include and lib than vice versa.
@@ -984,11 +970,11 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 _crunchgen=	usr.sbin/crunch/crunchgen
 .endif
 
-.if ${MK_CLANG} != "no"
+# XXX: There is no way to specify bootstrap tools depending on MK-flags
+# with different per-architecture default values. Always build tblgen.
 _clang_tblgen= \
 	lib/clang/libllvmsupport \
 	usr.bin/clang/tblgen
-.endif
 
 .if ${MK_CDDL} != "no"
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
