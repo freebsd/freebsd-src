@@ -270,19 +270,12 @@ tmpfs_close(struct vop_close_args *v)
 {
 	struct vnode *vp = v->a_vp;
 
-	struct tmpfs_node *node;
-
 	MPASS(VOP_ISLOCKED(vp));
 
-	node = VP_TO_TMPFS_NODE(vp);
+	/* Update node times. */
+	tmpfs_update(vp);
 
-	if (node->tn_links > 0) {
-		/* Update node times.  No need to do it if the node has
-		 * been deleted, because it will vanish after we return. */
-		tmpfs_update(vp);
-	}
-
-	return 0;
+	return (0);
 }
 
 /* --------------------------------------------------------------------- */
@@ -852,8 +845,7 @@ tmpfs_remove(struct vop_remove_args *v)
 	 * reclaimed. */
 	tmpfs_free_dirent(tmp, de, TRUE);
 
-	if (node->tn_links > 0)
-		node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED;
+	node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED;
 	error = 0;
 
 out:
