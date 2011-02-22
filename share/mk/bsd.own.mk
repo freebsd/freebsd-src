@@ -282,6 +282,18 @@ WITH_IDEA=
 .endif
 
 #
+# Default behaviour of MK_CLANG depends on the architecture.
+#
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || \
+    ${MACHINE_ARCH} == "powerpc"
+_clang_yes=CLANG
+_clang_no=
+.else
+_clang_yes=
+_clang_no=CLANG
+.endif
+
+#
 # MK_* options which default to "yes".
 #
 .for var in \
@@ -301,6 +313,7 @@ WITH_IDEA=
     BIND_MTREE \
     BIND_NAMED \
     BIND_UTILS \
+    BINUTILS \
     BLUETOOTH \
     BOOT \
     BSD_CPIO \
@@ -308,7 +321,7 @@ WITH_IDEA=
     BZIP2 \
     CALENDAR \
     CDDL \
-    CLANG \
+    ${_clang_yes} \
     CPP \
     CRYPT \
     CTM \
@@ -323,6 +336,7 @@ WITH_IDEA=
     FP_LIBC \
     FREEBSD_UPDATE \
     GAMES \
+    GCC \
     GCOV \
     GDB \
     GNU \
@@ -412,6 +426,7 @@ MK_${var}:=	yes
     BIND_SIGCHASE \
     BIND_XML \
     BSD_GREP \
+    ${_clang_no} \
     GPIO \
     HESIOD \
     IDEA
