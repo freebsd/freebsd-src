@@ -96,7 +96,7 @@ __FBSDID("$FreeBSD$");
 static void
 ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
     HAL_11N_RATE_SERIES *series, unsigned int pktlen, uint8_t *rix,
-    uint8_t *try)
+    uint8_t *try, int flags)
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ath_hal *ah = sc->sc_ah;
@@ -125,12 +125,7 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		 */
 		series[i].ChSel = sc->sc_txchainmask;
 
-		/*
-		 * This merely enables RTS or RTS/CTS for the given scenario;
-		 * it needs to be enabled elsewhere.
-		 */
-		if (ic->ic_protmode == IEEE80211_PROT_RTSCTS ||
-		    ic->ic_protmode == IEEE80211_PROT_CTSONLY)
+		if (flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))
 			series[i].RateFlags |= HAL_RATESERIES_RTS_CTS;
 
 		if (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40)
@@ -201,7 +196,7 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf
 	/* Setup rate scenario */
 	memset(&series, 0, sizeof(series));
 
-	ath_rateseries_setup(sc, ni, series, pktlen, rix, try);
+	ath_rateseries_setup(sc, ni, series, pktlen, rix, try, flags);
 
 	/* Enforce AR5416 aggregate limit - can't do RTS w/ an agg frame > 8k */
 
@@ -209,6 +204,11 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf
 
 	/* Get a pointer to the last tx descriptor in the list */
 	lastds = &bf->bf_desc[bf->bf_nseg - 1];
+
+#if 0
+	printf("pktlen: %d; flags 0x%x\n", pktlen, flags);
+	ath_rateseries_print(series);
+#endif
 
 	/* Set rate scenario */
 	ath_hal_set11nratescenario(ah, ds,
