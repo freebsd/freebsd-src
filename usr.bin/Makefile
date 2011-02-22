@@ -239,6 +239,10 @@ _clang=		clang
 SUBDIR+=	hesinfo
 .endif
 
+.if ${MK_GROFF} != "no"
+SUBDIR+=	vgrind
+.endif
+
 .if ${MK_OPENSSL} != "no"
 SUBDIR+=	bc
 SUBDIR+=	chkey
@@ -320,8 +324,6 @@ SUBDIR+=	rpcgen
 SUBDIR+=	unifdef
 SUBDIR+=	xlint
 SUBDIR+=	xstr
-# XXX maybe under textproc?
-SUBDIR+=	vgrind
 SUBDIR+=	yacc
 .endif
 
