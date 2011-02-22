@@ -110,11 +110,29 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	memset(series, 0, sizeof(HAL_11N_RATE_SERIES) * 4);
 	for (i = 0; i < 4;  i++) {
+		/* Only set flags for actual TX attempts */
+		if (try[i] == 0)
+			continue;
+
 		series[i].Tries = try[i];
+
+		/*
+		 * XXX this isn't strictly correct - sc_txchainmask
+		 * XXX isn't the currently active chainmask;
+		 * XXX it's the interface chainmask at startup.
+		 * XXX It's overridden in the HAL rate scenario function
+		 * XXX for now.
+		 */
 		series[i].ChSel = sc->sc_txchainmask;
+
+		/*
+		 * This merely enables RTS or RTS/CTS for the given scenario;
+		 * it needs to be enabled elsewhere.
+		 */
 		if (ic->ic_protmode == IEEE80211_PROT_RTSCTS ||
 		    ic->ic_protmode == IEEE80211_PROT_CTSONLY)
 			series[i].RateFlags |= HAL_RATESERIES_RTS_CTS;
+
 		if (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40)
 			series[i].RateFlags |= HAL_RATESERIES_2040;
 
