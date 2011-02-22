@@ -310,36 +310,6 @@
             fortune
             ..
         ..
-        groff_font
-            devX100
-            ..
-            devX100-12
-            ..
-            devX75
-            ..
-            devX75-12
-            ..
-            devascii
-            ..
-            devcp1047
-            ..
-            devdvi
-            ..
-            devhtml
-            ..
-            devkoi8-r
-            ..
-            devlatin1
-            ..
-            devlbp
-            ..
-            devlj4
-            ..
-            devps
-            ..
-            devutf8
-            ..
-        ..
         info
         ..
         locale
@@ -890,8 +860,6 @@
             man9
             ..
         ..
-        me
-        ..
         misc
             fonts
             ..
@@ -1265,12 +1233,6 @@
             ..
         ..
         tabset
-        ..
-        tmac
-            mdoc
-            ..
-            mm
-            ..
         ..
         vi
             catalog
