@@ -1674,6 +1674,8 @@ diskLabelNonInteractive(Device *dev)
 			pi = tmp->private_data = new_part(PART_FILESYSTEM, mpoint, TRUE);
 			tmp->private_free = safe_free;
 			pi->newfs_data.newfs_ufs.softupdates = soft;
+			if (!strcmp(typ, "ufs1"))
+				pi->newfs_data.newfs_ufs.ufs1 = TRUE;
 		    }
 		}
 	    }
