@@ -1450,6 +1450,7 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 	const char *cdir;
 	struct tm tm;
 	DIR *dirp;
+	int c;
 
 	oldlogs = malloc(MAX_OLDLOGS * sizeof(struct oldlog_entry));
 	max_logcnt = MAX_OLDLOGS;
@@ -1514,7 +1515,7 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 			continue;
 		}
 
-		for (int c = 0; c < COMPRESS_TYPES; c++)
+		for (c = 0; c < COMPRESS_TYPES; c++)
 			if (strcmp(s, compress_type[c].suffix) == 0)
 				valid = 1;
 		if (valid != 1) {
@@ -1629,8 +1630,9 @@ get_logfile_suffix(const char *logfile)
 {
 	struct stat st;
 	char zfile[MAXPATHLEN];
+	int c;
 
-	for (int c = 0; c < COMPRESS_TYPES; c++) {
+	for (c = 0; c < COMPRESS_TYPES; c++) {
 		(void) strlcpy(zfile, logfile, MAXPATHLEN);
 		(void) strlcat(zfile, compress_type[c].suffix, MAXPATHLEN);
 		if (lstat(zfile, &st) == 0)
@@ -1653,6 +1655,7 @@ do_rotate(const struct conf_entry *ent)
 	struct stat st;
 	struct tm tm;
 	time_t now;
+	int c;
 
 	flags = ent->flags;
 	free_or_keep = FREE_ENT;
@@ -1703,7 +1706,7 @@ do_rotate(const struct conf_entry *ent)
 		delete_oldest_timelog(ent, dirpart);
 	else {
 		/* name of oldest log */
-		for (int c = 0; c < COMPRESS_TYPES; c++) {
+		for (c = 0; c < COMPRESS_TYPES; c++) {
 			(void) snprintf(zfile1, sizeof(zfile1), "%s%s", file1,
 			    compress_type[c].suffix);
 			if (noaction)
@@ -1889,12 +1892,13 @@ do_zipwork(struct zipwork_entry *zwork)
 	int errsav, fcount, zstatus;
 	pid_t pidzip, wpid;
 	char zresult[MAXPATHLEN];
+	int c;
 
 	pgm_path = NULL;
 	strlcpy(zresult, zwork->zw_fname, sizeof(zresult));
 	if (zwork != NULL && zwork->zw_conf != NULL &&
 	    zwork->zw_conf->compress > COMPRESS_NONE)
-		for (int c = 1; c < COMPRESS_TYPES; c++) {
+		for (c = 1; c < COMPRESS_TYPES; c++) {
 			if (zwork->zw_conf->compress == c) {
 				pgm_path = compress_type[c].path;
 				(void) strlcat(zresult,
