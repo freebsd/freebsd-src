@@ -29,7 +29,8 @@
 echo "Begun Installation at $(date)" > $BSDINSTALL_LOG
 
 export BSDINSTALL_CHROOT=$1
-export DISTRIBUTIONS="`echo $DISTRIBUTIONS | sed 's/kernel\.[^ ]* //g'`"
+export DISTRIBUTIONS="kernel.txz base.txz doc.txz games.txz"
+[ `uname -p` = amd64 -o `uname -p` = powerpc64 ] && export DISTRIBUTIONS="$DISTRIBUTIONS lib32.txz"
 
 error() {
 	dialog --backtitle "FreeBSD Installer" --title "Abort" \

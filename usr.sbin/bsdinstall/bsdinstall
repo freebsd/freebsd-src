@@ -26,7 +26,6 @@
 #
 # $FreeBSD$
 
-: ${DISTRIBUTIONS="kernel.tgz world.tgz"}; export DISTRIBUTIONS
 : ${BSDINSTALL_LOG="/tmp/bsdinstall_log"}; export BSDINSTALL_LOG
 : ${BSDINSTALL_TMPETC="/tmp/bsdinstall_etc"}; export BSDINSTALL_TMPETC
 : ${PATH_FSTAB="$BSDINSTALL_TMPETC/fstab"}; export PATH_FSTAB
