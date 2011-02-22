@@ -2195,14 +2195,23 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 
 	case IEEE80211_FC0_SUBTYPE_ACTION:
 	case IEEE80211_FC0_SUBTYPE_ACTION_NOACK:
-		if (vap->iv_state == IEEE80211_S_RUN) {
-			if (ieee80211_parse_action(ni, m0) == 0)
-				(void)ic->ic_recv_action(ni, wh, frm, efrm);
-		} else {
+		if (ni == vap->iv_bss) {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+			    wh, NULL, "%s", "unknown node");
+			vap->iv_stats.is_rx_mgtdiscard++;
+		} else if (!IEEE80211_ADDR_EQ(vap->iv_myaddr, wh->i_addr1) &&
+		    !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+			    wh, NULL, "%s", "not for us");
+			vap->iv_stats.is_rx_mgtdiscard++;
+		} else if (vap->iv_state != IEEE80211_S_RUN) {
 			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
 			    wh, NULL, "wrong state %s",
 			    ieee80211_state_name[vap->iv_state]);
 			vap->iv_stats.is_rx_mgtdiscard++;
+		} else {
+			if (ieee80211_parse_action(ni, m0) == 0)
+				(void)ic->ic_recv_action(ni, wh, frm, efrm);
 		}
 		break;
 
