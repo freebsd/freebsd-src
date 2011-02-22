@@ -50,6 +50,27 @@ bsdinstall keymap
 trap error SIGINT	# Catch cntrl-C here
 bsdinstall hostname || error
 
+LIB32=""
+[ `uname -p` = amd64 -o `uname -p` = powerpc64 ] && \
+    LIB32="lib32 \"32-bit compatibility\" on"
+
+DISTMENU="doc	\"Additional documentation\" on \
+	games	\"Games (fortune, etc.)\" on \
+	$LIB32 \
+	ports	\"Ports tree\" on \
+	src	\"System source code\" off"
+
+exec 3>&1
+EXTRA_DISTS=$(echo $DISTMENU | xargs dialog --backtitle "FreeBSD Installer" \
+    --title "Distribution Select" --nocancel --separate-output \
+    --checklist "Choose optional system components to install:" \
+    0 0 0 \
+2>&1 1>&3)
+DISTRIBUTIONS="base.txz kernel.txz"
+for dist in $EXTRA_DISTS; do
+	export DISTRIBUTIONS="$DISTRIBUTIONS $dist.txz"
+done
+
 FETCH_DISTRIBUTIONS=""
 for dist in $DISTRIBUTIONS; do
 	if [ ! -f $BSDINSTALL_DISTDIR/$dist ]; then
