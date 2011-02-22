@@ -213,12 +213,14 @@ BOOTSTRAPPING?=	0
 CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
-		CPUTYPE=${TARGET_CPUTYPE} \
-		GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
-		GROFF_FONT_PATH=${WORLDTMP}/legacy/usr/share/groff_font \
-		GROFF_TMAC_PATH=${WORLDTMP}/legacy/usr/share/tmac
+		CPUTYPE=${TARGET_CPUTYPE}
 .if ${OSRELDATE} < 700044
 CROSSENV+=	AR=gnu-ar RANLIB=gnu-ranlib
+.endif
+.if ${MK_GROFF} != "no"
+CROSSENV+=	GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
+		GROFF_FONT_PATH=${WORLDTMP}/legacy/usr/share/groff_font \
+		GROFF_TMAC_PATH=${WORLDTMP}/legacy/usr/share/tmac
 .endif
 
 # bootstrap-tools stage
@@ -364,6 +366,10 @@ _worldtmp:
 .endfor
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${WORLDTMP}/legacy/usr >/dev/null
+.if ${MK_GROFF} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.groff.dist \
+	    -p ${WORLDTMP}/legacy/usr >/dev/null
+.endif
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${WORLDTMP}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
@@ -937,11 +943,10 @@ _strfile=	games/fortune/strfile
 
 .if ${MK_CXX} != "no"
 _gperf=		gnu/usr.bin/gperf
-.if ${BOOTSTRAPPING} < 700004
-_groff=		gnu/usr.bin/groff
-.else
-_groff=		gnu/usr.bin/groff/tmac
 .endif
+
+.if ${MK_GROFF} != "no"
+_groff=		gnu/usr.bin/groff
 .endif
 
 .if ${BOOTSTRAPPING} >= 700044 && ${BOOTSTRAPPING} < 800022
