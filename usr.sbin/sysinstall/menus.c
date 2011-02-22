@@ -1287,8 +1287,6 @@ DMenu MenuStartup = {
       { " SVR4",	"This host wants to be able to run SVR4 binaries.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "svr4_enable=YES" },
 #endif
-      { " quotas",	"This host wishes to check quotas on startup.",
-	dmenuVarCheck, dmenuToggleVariable, NULL, "check_quotas=YES" },
       { NULL } },
 };
 
