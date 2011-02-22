@@ -441,7 +441,6 @@ struct pmap {
 						   table */
 #endif
 	vm_page_t		pm_root;	/* spare page table pages */
-
 };
 
 typedef struct pmap	*pmap_t;
