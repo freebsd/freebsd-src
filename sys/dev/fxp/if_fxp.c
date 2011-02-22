@@ -2816,8 +2816,10 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		FXP_LOCK(sc);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
-			fxp_init(sc);
+			fxp_init_body(sc, 0);
+		FXP_UNLOCK(sc);
 		break;
 
 	case SIOCSIFMEDIA:
