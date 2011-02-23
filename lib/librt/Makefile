@@ -6,7 +6,7 @@ CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}
 .ifndef NO_THREAD_STACK_UNWIND
 CFLAGS+=-fexceptions
 .endif
-CFLAGS+=-Winline -Wall -g
+CFLAGS+=-Winline -Wall
 DPADD=	${LIBPTHREAD}
 LDADD=	-lpthread
 
