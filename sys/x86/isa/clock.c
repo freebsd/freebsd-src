@@ -475,7 +475,7 @@ sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
 
 	/*
 	 * Use `i8254' instead of `timer' in external names because `timer'
-	 * is is too generic.  Should use it everywhere.
+	 * is too generic.  Should use it everywhere.
 	 */
 	freq = i8254_freq;
 	error = sysctl_handle_int(oidp, &freq, 0, req);
