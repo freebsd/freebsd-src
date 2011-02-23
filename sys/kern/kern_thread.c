@@ -65,16 +65,6 @@ __FBSDID("$FreeBSD$");
  */
 static uma_zone_t thread_zone;
 
-SYSCTL_NODE(_kern, OID_AUTO, threads, CTLFLAG_RW, 0, "thread allocation");
-
-int max_threads_per_proc = 1500;
-SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_per_proc, CTLFLAG_RW,
-	&max_threads_per_proc, 0, "Limit on threads per proc");
-
-int max_threads_hits;
-SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_hits, CTLFLAG_RD,
-	&max_threads_hits, 0, "");
-
 TAILQ_HEAD(, thread) zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
 static struct mtx zombie_lock;
 MTX_SYSINIT(zombie_lock, &zombie_lock, "zombie lock", MTX_SPIN);
