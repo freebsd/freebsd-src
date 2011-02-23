@@ -2420,23 +2420,24 @@ SYSCTL_NODE(_vm, OID_AUTO, swap_info, CTLFLAG_RD, sysctl_vm_swap_info,
  *	if the VM object has any swap use at all the associated map entries
  *	count for at least 1 swap page.
  */
-int
+vm_offset_t
 vmspace_swap_count(struct vmspace *vmspace)
 {
-	vm_map_t map = &vmspace->vm_map;
+	vm_map_t map;
 	vm_map_entry_t cur;
-	int count = 0;
+	vm_object_t object;
+	vm_offset_t count, n;
+
+	map = &vmspace->vm_map;
+	count = 0;
 
 	for (cur = map->header.next; cur != &map->header; cur = cur->next) {
-		vm_object_t object;
-
 		if ((cur->eflags & MAP_ENTRY_IS_SUB_MAP) == 0 &&
 		    (object = cur->object.vm_object) != NULL) {
 			VM_OBJECT_LOCK(object);
 			if (object->type == OBJT_SWAP &&
 			    object->un_pager.swp.swp_bcount != 0) {
-				int n = (cur->end - cur->start) / PAGE_SIZE;
-
+				n = (cur->end - cur->start) / PAGE_SIZE;
 				count += object->un_pager.swp.swp_bcount *
 				    SWAP_META_PAGES * n / object->size + 1;
 			}
