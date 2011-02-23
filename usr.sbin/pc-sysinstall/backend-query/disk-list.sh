@@ -73,10 +73,15 @@ do
     esac
   fi
 
-  # Check the dmesg output for some more info about this device
-  NEWLINE=$(camcontrol identify $DEV | grep "device model" | tr -s ' ' | sed 's |device model ||g')
+  # Try and find some identification information with camcontrol or atacontrol
+  NEWLINE=$(camcontrol identify $DEV | sed -ne 's/^device model *//p')
   if [ -z "$NEWLINE" ]; then
-    NEWLINE=" <Unknown Device>"
+	# Now try atacontrol
+  	NEWLINE=$(atacontrol list | sed -n "s|^.*$DEV <\(.*\)>.*|\1|p")
+	
+  	if [ -z "$NEWLINE" ]; then
+    		NEWLINE=" <Unknown Device>"
+	fi
   fi
 
   if [ -n "${FLAGS_MD}" ] && echo "${DEV}" | grep -E '^md[0-9]+' >/dev/null 2>/dev/null
