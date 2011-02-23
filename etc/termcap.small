@@ -171,7 +171,7 @@ cons60l1|cons60-iso8859-1:\
 cons60l1-m|cons60-iso8859-1-mono:\
 	:li#60:tc=cons25l1-m:
 # 132x25 ISO 8859-1 FreeBSD console
-cons25l1-w|:cons25w-iso8859-1:\
+cons25l1-w|cons25w-iso8859-1:\
 	:co#132:tc=cons25l1:
 cons30l1-w|cons30w-iso8859-1:\
 	:co#132:tc=cons30l1:
