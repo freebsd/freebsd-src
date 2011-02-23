@@ -171,8 +171,59 @@ umtx_wake(u_long *p, int nr_wakeup)
 
 #else
 
+/*
+ * The umtx_key structure is used by both the Linux futex code and the
+ * umtx implementation to map userland addresses to unique keys.
+ */
+
+enum {
+	TYPE_SIMPLE_WAIT,
+	TYPE_CV,
+	TYPE_SEM,
+	TYPE_SIMPLE_LOCK,
+	TYPE_NORMAL_UMUTEX,
+	TYPE_PI_UMUTEX,
+	TYPE_PP_UMUTEX,
+	TYPE_RWLOCK,
+};
+
+/* Key to represent a unique userland synchronous object */
+struct umtx_key {
+	int	hash;
+	int	type;
+	int	shared;
+	union {
+		struct {
+			struct vm_object *object;
+			uintptr_t	offset;
+		} shared;
+		struct {
+			struct vmspace	*vs;
+			uintptr_t	addr;
+		} private;
+		struct {
+			void		*a;
+			uintptr_t	b;
+		} both;
+	} info;
+};
+
+#define THREAD_SHARE		0
+#define PROCESS_SHARE		1
+#define AUTO_SHARE		2
+
 struct thread;
 
+static inline int
+umtx_key_match(const struct umtx_key *k1, const struct umtx_key *k2)
+{
+	return (k1->type == k2->type &&
+		k1->info.both.a == k2->info.both.a &&
+	        k1->info.both.b == k2->info.both.b);
+}
+
+int umtx_key_get(void *, int, int, struct umtx_key *);
+void umtx_key_release(struct umtx_key *);
 struct umtx_q *umtxq_alloc(void);
 void umtxq_free(struct umtx_q *);
 int kern_umtx_wake(struct thread *, void *, int, int);
