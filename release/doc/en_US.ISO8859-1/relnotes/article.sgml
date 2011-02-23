@@ -1181,7 +1181,7 @@
 
 	<para>A periodic script which can be used to find installed
 	  ports' files with mismatched checksum has been added. For more
-	  details, see &man.periodic.conf.5;</para>
+	  details, see the &man.periodic.conf.5; manual page.</para>
       </sect3>
     </sect2>
 
