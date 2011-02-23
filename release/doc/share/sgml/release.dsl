@@ -209,6 +209,7 @@
 					  (normalize "footnote")))
 	      (tgroup (have-ancestor? (normalize "tgroup")))
 	      (arch (attribute-string (normalize "arch")))
+	      (rev (attribute-string (normalize "revision")))
 	      (role (attribute-string (normalize "role")))
 	      (arch-string (entity-text "arch"))
 	      (merged-string (entity-text "merged")))
@@ -219,28 +220,46 @@
 				   (list (list "ALIGN" %default-quadding%))
 				   '()))
 		  (make sequence
-		    (cond
-		     ;; If arch= not specified, then print unconditionally.  This clause
-		     ;; handles the majority of cases.
-		     ((or (equal? arch #f)
-			  (equal? arch "")
-			  (equal? arch "all"))
-			(process-children))
-		     (else
-		      (sosofo-append
-		       (make sequence
-			 (literal "[")
-			 (let loop ((prev (car (split-string-to-list arch)))
-				    (rest (cdr (split-string-to-list arch))))
-			   (make sequence
-			     (literal prev)
-			     (if (not (null? rest))
-				 (make sequence
-				   (literal ", ")
-				   (loop (car rest) (cdr rest)))
-				 (empty-sosofo))))
-			 (literal "] ")
-			 (process-children)))))
+		    (sosofo-append
+		     (if (and (not (equal? arch #f))
+			      (not (equal? arch ""))
+			      (not (equal? arch "all")))
+			 (make sequence
+			   (literal "[")
+			   (let loop ((prev (car (split-string-to-list arch)))
+				      (rest (cdr (split-string-to-list arch))))
+			     (make sequence
+			       (literal prev)
+			       (if (not (null? rest))
+				   (make sequence
+				     (literal ", ")
+				     (loop (car rest) (cdr rest)))
+				   (empty-sosofo))))
+			   (literal "] "))
+			 (empty-sosofo))
+		     (process-children)
+		     (if (and (not (equal? rev #f))
+			      (not (equal? rev "")))
+			 (make sequence
+			   (literal "[")
+			   (let loop ((prev (car (split-string-to-list rev)))
+				      (rest (cdr (split-string-to-list rev))))
+			     (make sequence
+			       (make element gi: "A"
+				     attributes: (list
+						  (list "HREF" (string-append
+								"http://svn.freebsd.org/viewvc/base?view=revision&#38;revision="
+								prev))
+						  (list "TARGET" "_top"))
+				     (literal "r")
+				     (literal prev))
+			       (if (not (null? rest))
+				   (make sequence
+				     (literal ", ")
+				     (loop (car rest) (cdr rest)))
+				   (empty-sosofo))))
+			   (literal "] "))
+			 (empty-sosofo)))
 		    (if (and (not (null? role)) (equal? role "merged"))
 			(literal " [" merged-string "]")
 			(empty-sosofo))
