@@ -185,6 +185,7 @@ enum {
 	TYPE_PI_UMUTEX,
 	TYPE_PP_UMUTEX,
 	TYPE_RWLOCK,
+	TYPE_FUTEX
 };
 
 /* Key to represent a unique userland synchronous object */
