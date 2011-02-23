@@ -71,7 +71,7 @@ manual page.
 .I "The Highest Layer:"
 .IX RPC "The Highest Layer"
 The highest layer is totally transparent to the operating system,
-machine and network upon which is is run.  It's probably best to
+machine and network upon which is run.  It's probably best to
 think of this level as a way of
 .I using
 RPC, rather than as
