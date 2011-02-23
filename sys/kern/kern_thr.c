@@ -153,7 +153,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	p = td->td_proc;
 
 	/* Have race condition but it is cheap. */
-	if (p->p_numthreads >= max_threads_per_proc) {
+	if (p->p_numthreads > max_threads_per_proc) {
 		++max_threads_hits;
 		return (EPROCLIM);
 	}
