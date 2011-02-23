@@ -401,7 +401,7 @@
 	    RSS/TSS.</para>
 
 	  <para revision="211367">A bug in the &man.bge.4; driver which
-	    prevented TSO in BCM57780 from working has been
+	    prevented TSO from working in BCM57780 has been
 	    fixed.</para>
 
 	  <para revision="214700">A bug in the &man.bge.4; driver that
@@ -554,9 +554,9 @@
 
 	  <para>Note that the default value is <literal>1</literal>.</para>
 
-	  <para revision="214407">The &man.rl.4; driver has been
-	    improved on interrupt handling.  It now has better TX
-	    performance under high RX load.</para>
+	  <para revision="214407">The &man.rl.4; driver has improved
+	    interrupt handling.  It now has better TX performance
+	    under high RX load.</para>
 
 	  <para revision="215216">A bug in the &man.sk.4; driver has
 	    been fixed.  It did not program the station address for
@@ -586,15 +586,17 @@
 	    0xff though RFC 1042 specifies it should be 0x00.  The
 	    tunable is disabled by default, which means padding with
 	    0xff is used because padding with 0x00 by software needs
-	    extra CPU cycles.  Setting a non-zero value enables the
-	    software padding.</para>
+	    extra CPU cycles.  Enabling <varname>manual_pad</varname>,
+	    by setting this &man.sysctl.8; variable to a non-zero
+	    value, forces the use of software padding.</para>
 
-	  <para revision="211357">The &man.ste.4; driver now supports a
-	    device hint to change a way of register access.  Although
-	    it uses memory-mapped register access by default, some old
-	    IC Plus Corp (formerly Sundace) controllers are found
-	    unstable.  The following device hint makes the driver use
-	    I/O mapping for register access:</para>
+	  <para revision="211357">The &man.ste.4; driver now supports
+	    a device hint to change the device register access mode.
+	    The driver uses memory-mapped register access by default,
+	    but this caused stability problems with some old IC Plus
+	    Corp (formerly Sundace) controllers.  The following device
+	    hint makes the driver use I/O mapping for register
+	    access:</para>
 
 	  <programlisting>hint.ste.<replaceable>N</replaceable>.prefer_iomap="1"</programlisting>
 
@@ -620,7 +622,7 @@
 	  The default value for this parameter is
 	  <varname>50</varname>.</para>
 
-	<para revision="212742">A <literal>ngtee</literal> action in
+	<para revision="212742">The <literal>ngtee</literal> action in
 	  the &man.ipfw.4; packet filter subsystem has been changed.
 	  It no longer accepts a packet.</para>
 
@@ -630,13 +632,13 @@
 	<para revision="209691">IPsec flow distribution has been
 	  improved for more parallel processing.</para>
 
-	<para revision="209277">A bug in &os; IPv4 stack that a proxy
-	  ARP entry cannot be added over &man.netgraph.4; interfaces
-	  has been fixed.</para>
+	<para revision="209277">A bug in the &os; IPv4 stack that
+	  prevented adding a proxy ARP entry over &man.netgraph.4;
+	  interfaces has been fixed.</para>
 
-	<para revision="211435">A bug in &os; IPv6 stack that prevented
-	  an <option>-I</option> in the &man.ping6.8; utility from
-	  working with
+	<para revision="211435">A bug in the &os; IPv6 stack that
+	  prevented an <option>-I</option> in the &man.ping6.8;
+	  utility from working with
 	  <varname>net.inet6.ip6.use_defaultzone=1</varname> has been
 	  fixed.</para>
 
@@ -653,7 +655,7 @@
 	<para revision="212320">The &man.ng.ether.4; &man.netgraph.4;
 	  node now supports interface transfer between multiple virtual
 	  network stacks by &man.ifconfig.8; <command>vnet</command>
-	  command.  A &man.ng.ether.4; node associated with an network
+	  command.  A &man.ng.ether.4; node associated with a network
 	  interface is now destroyed and recreated when the network
 	  interface is moved to another vnet.</para>
 
@@ -667,8 +669,8 @@
 	  &man.pf.4; packet filter subsystem when TSO support is
 	  enabled has been fixed.</para>
 
-	<para revision="211538">A TCP bandwidth delay product window
-	  limiting algorithm by a &man.sysctl.8; variable
+	<para revision="211538">The TCP bandwidth delay product window
+	  limiting algorithm controlled by the &man.sysctl.8; variable
 	  <varname>net.inet.tcp.inflight.enable</varname> is now
 	  disabled by default.  It has been found that this algorithm
 	  is inefficient on a fast network with smaller RTT than 10ms.
@@ -740,7 +742,7 @@
 	  >.mode</varname> or
 	  <varname>hint.<replaceable>devname</replaceable>.<replaceable>unit</replaceable>.mode</varname>.
 	  The valid values are the same as ones supported in the
-	  &man.atacontrol.8; and &man.camcontrol.8;.</para>
+	  &man.atacontrol.8; and &man.camcontrol.8; utilities.</para>
 
 	<para revision="210204">The &man.ata.4; driver now disables
 	  cable status check on both controller and device side
@@ -750,7 +752,7 @@
 	  performed regardless of this loader tunable.</para>
 
 	<para revision="215777">The &man.ata.4; driver now reports
-	  SATA power management capabilities to &man.CAM.4; layer when
+	  SATA power management capabilities to the &man.CAM.4; layer when
 	  <option>ATA_CAM</option> is enabled.  This allows a device
 	  to initiate transitions if controller configured to accept
 	  it.  This makes
@@ -887,7 +889,7 @@
 	It now runs faster even when a single interface has a number
 	of aliases.</para>
 
-      <para revision="214729">A bug in the &man.b64decode.1; that
+      <para revision="214729">A bug in the &man.b64decode.1; utility that
 	prevented an <option>-r</option> option from handling arbitrary
 	breaks in a base64 encoded string has been fixed.</para>
 
@@ -908,8 +910,8 @@
 	software itself and its correlation with the kernel, thus
 	allowing a much better picture of what exactly is going on
 	behind the scenes.  The &man.dtruss.1; utility has been added
-	and <filename>libproc</filename> has been updated to support
-	the facility.</para>
+	and the <filename>libproc</filename> library has been updated
+	to support the facility.</para>
 
       <para revision="209362">The &man.du.1; utility now supports a
 	<option>-t <replaceable>threshold</replaceable></option>
@@ -928,7 +930,7 @@
 
       <para revision="214405">The &man.geli.8; utility now supports
 	<command>resize</command> subcommand to resize encrypted file
-	systems prior to growing it.</para>
+	systems after growing it.</para>
 
       <para revision="214405">The &man.geli.8; utility now supports
 	<command>suspend</command> and <command>resume</command>
@@ -947,7 +949,7 @@
 
       <para revision="214405">The &man.geli.8; utility now supports
 	<option>-J <replaceable>newpassfile</replaceable></option> and
-	<option>-j <replaceable>passfile</replaceable></option>
+	<option>-j <replaceable>oldpassfile</replaceable></option>
 	options for loading passphrase from a file.</para>
 
       <para revision="211938">The <function>gethost*()</function>,
@@ -957,7 +959,7 @@
 	with <literal>NS_RETURN</literal> when the result buffer size
 	is too small.</para>
 
-      <para revision="209497">The &man.gpart.8; utility now supports
+      <para revision="209497">The &man.gpart.8; utility now supports a
 	<command>resize</command> command to resize partitions for all
 	schemes but EBR.</para>
 
@@ -971,9 +973,10 @@
 	<filename>/dev/</filename> prefix.</para>
 
       <para revision="213684">The &man.gpart.8; utility now supports
-	an <option>-F</option> option for <command>force</command>
-	subcommand.  This option force destroying of the partition
-	table even if it is not empty.</para>
+	an <option>-F</option> option for the
+	<command>destroy</command> subcommand.  This option forces
+	destroying of the partition table even if it is not
+	empty.</para>
 
       <para revision="213684">The &man.gpart.8; utility now supports a
 	<command>recover</command> subcommand for GPT partition
@@ -994,9 +997,9 @@
 	</listitem>
       </itemizedlist>
 
-      <para>Any changes to the corrupted GPT table are not allowed
-	except for <command>destroy</command> and
-	<command>recover</command> subcommands.</para>
+      <para>Changes to the corrupted GPT table are not allowed except
+	for <command>destroy</command> and <command>recover</command>
+	subcommands.</para>
 
       <para revision="213994">The &man.gpart.8; utility now supports
 	<literal>GPT_ENT_ATTR_BOOTME</literal>,
@@ -1009,12 +1012,12 @@
       <para revision="215728">An issue in the &man.newfs.8; utility
 	has been fixed.  A UFS1 file system created with 64KB
 	blocksize was incorrectly recognized as one with a broken
-	superblock.  This is because &os; kernel checks UFS2
-	superblock at 64KB offset in the partition first, and UFS1
-	with 64KB blocksize has an alternative superblock at the same
-	location.  For example, a file system created by
-	<command>newfs -U -O 1 -b 65536 -f 8192</command> could lead
-	to this symptom.</para>
+	superblock.  This is because the &os; kernel checks a
+	partition first for a UFS2 superblock at 64KB offset while it
+	is possible that a UFS1 file systems with 64KB blocksize has
+	an alternative superblock at the same location.  For example,
+	a file system created by <command>newfs -U -O 1 -b 65536 -f
+	8192</command> could lead to this symptom.</para>
 
       <para revision="213049">The &man.hastd.8; utility now supports
 	<literal>SIGHUP</literal> for reloading the configuration
@@ -1035,9 +1038,9 @@
 	sequences and reverse ranges in the &man.jot.1; utility have
 	been fixed.</para>
 
-      <para revision="213667">The <filename>libarchive</filename> and
-	&man.tar.1; utility now support LZMA (Lempel-Ziv-Markov
-	chain-Algorithm) compression format.</para>
+      <para revision="213667">The <filename>libarchive</filename>
+	library and &man.tar.1; utility now support LZMA
+	(Lempel-Ziv-Markov chain-Algorithm) compression format.</para>
 
       <para revision="215229">The &man.tar.1; utility now supports a
 	blocksize which is up to <literal>8192</literal> (4MB) in the
@@ -1049,8 +1052,8 @@
 	has been fixed.</para>
 
       <para revision="213978">The <option>-p</option> option in the
-	&man.mount.8; utility now displays <literal>rw</literal> mount
-	option correctly as in the &man.fstab.5; format.</para>
+	&man.mount.8; utility now displays the <literal>rw</literal>
+	mount option correctly as in the &man.fstab.5; format.</para>
 
       <para revision="213889">The &man.ncal.1; utility has been
 	updated.  The option <option>-b</option> has been replaced
@@ -1073,7 +1076,7 @@
 	<literal>&lt;include&gt;</literal> for processing file
 	inclusion.  Globbing in the file name and circular dependency
 	detection are supported.  For more details, see
-	&man.newsyslog.conf.5; manual page.</para>
+	the &man.newsyslog.conf.5; manual page.</para>
 
       <para revision="213980">The &man.ntpd.8; utility is now compiled
 	with shared memory reference clock driver.  For example, GPS
@@ -1136,7 +1139,7 @@
       <screen>&prompt.user; &lt; /dev/null &amp;</screen>
 
       <para revision="211536">The &man.sleep.1; utility now supports
-	<literal>SIGINFO</literal> signal and reports the specified
+	the <literal>SIGINFO</literal> signal and reports the specified
 	sleep time and the remaining time.</para>
 
       <para revision="213036,213038">The &man.tftp.1; and &man.tftpd.8;
@@ -1159,11 +1162,11 @@
 	<literal>^C</literal> in insert mode when reading an ex
 	command.</para>
 
-      <para revision="214345">The &man.watchdogd.8; program now set
-        <literal>MADV_PROTECT</literal> memory flag onto themselves to
-        protect from being terminated by the &os; kernel when
-        available memory becomes short.  This kind of process
-        termination happens in a swap-intensive workload.</para>
+      <para revision="214345">The &man.watchdogd.8; program now uses
+        <literal>MADV_PROTECT</literal> memory flag to protect itself
+        from being terminated by the &os; kernel when available memory
+        becomes short.  This kind of process termination happens in a
+        swap-intensive workload.</para>
 
       <para revision="209870">The <command>set sharenfs</command>
 	command in the &man.zfs.8; utility now supports
@@ -1227,7 +1230,7 @@
 
       <para revision="211009">The &man.sysinstall.8; utility now
 	attempts to enable &man.getty.8; on a serial port when no VGA
-	card on the system.</para>
+	card is detected on the system.</para>
 
       <para>The supported version of
 	the <application>GNOME</application> desktop environment
