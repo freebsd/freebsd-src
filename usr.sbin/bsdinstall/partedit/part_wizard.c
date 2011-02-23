@@ -127,7 +127,8 @@ boot_disk(struct gmesh *mesh)
 				else if (strncmp(pp->lg_name, "cd", 2) == 0) {
 					n--;
 					continue;
-				}
+				} else
+					strcat(diskdesc, " Hard Disk");
 				disks[n-1].text = strdup(diskdesc);
 				disks[n-1].help = NULL;
 				disks[n-1].state = 0;
