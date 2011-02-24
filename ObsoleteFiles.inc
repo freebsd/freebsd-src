@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110224: sticky.8 -> sticky.7
+OLD_FILES+=usr/share/man/man8/sticky.8.gz
 # 20110220: new clang import which bumps version from 2.8 to 2.9
 OLD_FILES+=usr/include/clang/2.8/emmintrin.h
 OLD_FILES+=usr/include/clang/2.8/mm_malloc.h
