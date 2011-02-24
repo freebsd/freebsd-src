@@ -815,16 +815,12 @@ ext2_nodealloccg(struct inode *ip, int cg, daddr_t ipref, int mode)
 		}
 	} 
 	i = start + len - loc;
-	map = ibp[i];
-	ipref = i * NBBY;
-	for (i = 1; i < (1 << NBBY); i <<= 1, ipref++) {
-		if ((map & i) == 0) {
-			goto gotit;
-		}
+	map = ibp[i] ^ 0xff;
+	if (map == 0) {
+		printf("fs = %s\n", fs->e2fs_fsmnt);
+		panic("ext2fs_nodealloccg: block not in map");
 	}
-	printf("fs = %s\n", fs->e2fs_fsmnt);
-	panic("ext2fs_nodealloccg: block not in map");
-	/* NOTREACHED */
+	ipref = i * NBBY + ffs(map) - 1;
 gotit:
 	setbit(ibp, ipref);
 	EXT2_LOCK(ump);
@@ -952,7 +948,6 @@ ext2_vfree(pvp, ino, mode)
 static daddr_t
 ext2_mapsearch(struct m_ext2fs *fs, char *bbp, daddr_t bpref)
 {
-	daddr_t bno;
 	int start, len, loc, i, map;
 
 	/*
@@ -977,15 +972,12 @@ ext2_mapsearch(struct m_ext2fs *fs, char *bbp, daddr_t bpref)
 		}
 	}
 	i = start + len - loc;
-	map = bbp[i];
-	bno = i * NBBY;
-	for (i = 1; i < (1 << NBBY); i <<= 1, bno++) {
-		if ((map & i) == 0)
-			return (bno);
+	map = bbp[i] ^ 0xff;
+	if (map == 0) {
+		printf("fs = %s\n", fs->e2fs_fsmnt);
+		panic("ext2fs_mapsearch: block not in map");
 	}
-	printf("fs = %s\n", fs->e2fs_fsmnt);
-	panic("ext2fs_mapsearch: block not in map");
-	/* NOTREACHED */
+	return (i * NBBY + ffs(map) - 1);
 }
 
 /*
