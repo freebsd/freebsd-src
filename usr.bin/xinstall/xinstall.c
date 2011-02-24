@@ -497,7 +497,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	 * flags, except for the dump flag.
 	 * NFS does not support flags.  Ignore EOPNOTSUPP flags if we're just
 	 * trying to turn off UF_NODUMP.  If we're trying to set real flags,
-	 * then warn if the the fs doesn't support it, otherwise fail.
+	 * then warn if the fs doesn't support it, otherwise fail.
 	 */
 	if (!devnull && (flags & SETFLAGS ||
 	    (from_sb.st_flags & ~UF_NODUMP) != to_sb.st_flags) &&

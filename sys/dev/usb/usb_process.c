@@ -463,7 +463,7 @@ usb_proc_drain(struct usb_process *up)
 /*------------------------------------------------------------------------*
  *	usb_proc_rewakeup
  *
- * This function is called to re-wakeup the the given USB
+ * This function is called to re-wakeup the given USB
  * process. This usually happens after that the USB system has been in
  * polling mode, like during a panic. This function must be called
  * having "up->up_mtx" locked.
