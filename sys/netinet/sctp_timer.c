@@ -61,24 +61,24 @@ sctp_early_fr_timer(struct sctp_inpcb *inp,
 {
 	struct sctp_tmit_chunk *chk, *pchk;
 	struct timeval now, min_wait, tv;
-	unsigned int cur_rtt, cnt = 0, cnt_resend = 0;
+	unsigned int cur_rto, cnt = 0, cnt_resend = 0;
 
 	/* an early FR is occuring. */
 	(void)SCTP_GETTIME_TIMEVAL(&now);
 	/* get cur rto in micro-seconds */
 	if (net->lastsa == 0) {
 		/* Hmm no rtt estimate yet? */
-		cur_rtt = stcb->asoc.initial_rto >> 2;
+		cur_rto = stcb->asoc.initial_rto >> 2;
 	} else {
 
-		cur_rtt = ((net->lastsa >> 2) + net->lastsv) >> 1;
+		cur_rto = (net->lastsa >> SCTP_RTT_SHIFT) + net->lastsv;
 	}
-	if (cur_rtt < SCTP_BASE_SYSCTL(sctp_early_fr_msec)) {
-		cur_rtt = SCTP_BASE_SYSCTL(sctp_early_fr_msec);
+	if (cur_rto < SCTP_BASE_SYSCTL(sctp_early_fr_msec)) {
+		cur_rto = SCTP_BASE_SYSCTL(sctp_early_fr_msec);
 	}
-	cur_rtt *= 1000;
-	tv.tv_sec = cur_rtt / 1000000;
-	tv.tv_usec = cur_rtt % 1000000;
+	cur_rto *= 1000;
+	tv.tv_sec = cur_rto / 1000000;
+	tv.tv_usec = cur_rto % 1000000;
 	min_wait = now;
 	timevalsub(&min_wait, &tv);
 	if (min_wait.tv_sec < 0 || min_wait.tv_usec < 0) {
@@ -626,7 +626,7 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	struct sctp_tmit_chunk *chk, *nchk;
 	struct sctp_nets *lnets;
 	struct timeval now, min_wait, tv;
-	int cur_rtt;
+	int cur_rto;
 	int cnt_abandoned;
 	int audit_tf, num_mk, fir;
 	unsigned int cnt_mk;
@@ -644,10 +644,10 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	 */
 	(void)SCTP_GETTIME_TIMEVAL(&now);
 	/* get cur rto in micro-seconds */
-	cur_rtt = (((net->lastsa >> 2) + net->lastsv) >> 1);
-	cur_rtt *= 1000;
+	cur_rto = (net->lastsa >> SCTP_RTT_SHIFT) + net->lastsv;
+	cur_rto *= 1000;
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & (SCTP_EARLYFR_LOGGING_ENABLE | SCTP_FR_LOGGING_ENABLE)) {
-		sctp_log_fr(cur_rtt,
+		sctp_log_fr(cur_rto,
 		    stcb->asoc.peers_rwnd,
 		    window_probe,
 		    SCTP_FR_T3_MARK_TIME);
@@ -657,8 +657,8 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 		    SCTP_FR_CWND_REPORT);
 		sctp_log_fr(net->flight_size, net->cwnd, stcb->asoc.total_flight, SCTP_FR_CWND_REPORT);
 	}
-	tv.tv_sec = cur_rtt / 1000000;
-	tv.tv_usec = cur_rtt % 1000000;
+	tv.tv_sec = cur_rto / 1000000;
+	tv.tv_usec = cur_rto % 1000000;
 	min_wait = now;
 	timevalsub(&min_wait, &tv);
 	if (min_wait.tv_sec < 0 || min_wait.tv_usec < 0) {
@@ -671,7 +671,7 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 		min_wait.tv_sec = min_wait.tv_usec = 0;
 	}
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & (SCTP_EARLYFR_LOGGING_ENABLE | SCTP_FR_LOGGING_ENABLE)) {
-		sctp_log_fr(cur_rtt, now.tv_sec, now.tv_usec, SCTP_FR_T3_MARK_TIME);
+		sctp_log_fr(cur_rto, now.tv_sec, now.tv_usec, SCTP_FR_T3_MARK_TIME);
 		sctp_log_fr(0, min_wait.tv_sec, min_wait.tv_usec, SCTP_FR_T3_MARK_TIME);
 	}
 	/*
