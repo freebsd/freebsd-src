@@ -28,7 +28,7 @@
 .\"	@(#)nice.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd February 24, 2011
 .Dt NICE 1
 .Os
 .Sh NAME
@@ -50,6 +50,11 @@ value by the specified
 .Ar increment ,
 or a default value of 10.
 The lower the nice value of a process, the higher its scheduling priority.
+.Ar increment .
+The priority can be adjusted over a range of -20 (the higest) to 20 (the
+lowest).
+A priority of 19 or 20 will prevent a process from taking any cycles from
+others at nice 0 or better.
 .Pp
 The superuser may specify a negative increment in order to run a utility
 with a higher scheduling priority.
@@ -107,6 +112,7 @@ option has been deprecated but is still supported.
 .Xr rtprio 1 ,
 .Xr getpriority 2 ,
 .Xr setpriority 2 ,
+.Xr nice 3,
 .Xr renice 8
 .Sh STANDARDS
 The
