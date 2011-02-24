@@ -509,6 +509,7 @@ MAN=	aac.4 \
 	${_wpi.4} \
 	xe.4 \
 	${_xen.4} \
+	xhci.4 \
 	xl.4 \
 	xpt.4 \
 	zero.4 \
