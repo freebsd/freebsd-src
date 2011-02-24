@@ -412,6 +412,9 @@ typedef struct {
  *
  * This function is available only if LZMA1 or LZMA2 encoder has been enabled
  * when building liblzma.
+ *
+ * \return      On success, false is returned. If the preset is not
+ *              supported, true is returned.
  */
 extern LZMA_API(lzma_bool) lzma_lzma_preset(
 		lzma_options_lzma *options, uint32_t preset) lzma_nothrow;
