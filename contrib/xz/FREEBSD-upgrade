@@ -4,7 +4,7 @@ xz
 
 The source code is pulled with git:
 
-	git clone git://ctrl.tukaani.org/xz.git xz
+	git clone http://git.tukaani.org/xz.git xz
 
 ChangeLog is generated with:
 	
