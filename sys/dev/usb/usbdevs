@@ -2782,9 +2782,23 @@ product RICOH VGPVCC8		0x183b	VGP-VCC8 Camera
 product REINERSCT CYBERJACK_ECOM	0x0100	e-com cyberJack
 
 /* Roland products */
+product ROLAND UA100		0x0000	UA-100 Audio I/F
+product ROLAND UM4		0x0002	UM-4 MIDI I/F
+product ROLAND SC8850		0x0003	SC-8850 MIDI Synth
+product ROLAND U8		0x0004	U-8 Audio I/F
+product ROLAND UM2		0x0005	UM-2 MIDI I/F
+product ROLAND SC8820		0x0007	SC-8820 MIDI Synth
+product ROLAND PC300		0x0008	PC-300 MIDI Keyboard
 product ROLAND UM1		0x0009	UM-1 MIDI I/F
+product ROLAND SK500		0x000b	SK-500 MIDI Keyboard
+product ROLAND SCD70		0x000c	SC-D70 MIDI Synth
 product ROLAND UM880N		0x0014	EDIROL UM-880 MIDI I/F (native)
 product ROLAND UM880G		0x0015	EDIROL UM-880 MIDI I/F (generic)
+product ROLAND SD90		0x0016	SD-90 MIDI Synth
+product ROLAND UM550		0x0023	UM-550 MIDI I/F
+product ROLAND SD20		0x0027	SD-20 MIDI Synth
+product ROLAND SD80		0x0029	SD-80 MIDI Synth
+product ROLAND UA700		0x002b	UA-700 Audio I/F
 
 /* Rockfire products */
 product ROCKFIRE GAMEPAD	0x2033	gamepad 203USB
@@ -3394,10 +3408,11 @@ product XYRATEX PRISM_GT_2	0x2002	PrismGT USB 2.0 WLAN
 /* Yamaha products */
 product YAMAHA UX256		0x1000	UX256 MIDI I/F
 product YAMAHA UX96		0x1008	UX96 MIDI I/F
+product YAMAHA RPU200		0x3104	RP-U200
 product YAMAHA RTA54I		0x4000	NetVolante RTA54i Broadband&ISDN Router
-product YAMAHA RTA55I		0x4004	NetVolante RTA55i Broadband VoIP Router
 product YAMAHA RTW65B		0x4001	NetVolante RTW65b Broadband Wireless Router
 product YAMAHA RTW65I		0x4002	NetVolante RTW65i Broadband&ISDN Wireless Router
+product YAMAHA RTA55I		0x4004	NetVolante RTA55i Broadband VoIP Router
 
 /* Yano products */
 product YANO U640MO		0x0101	U640MO-03
