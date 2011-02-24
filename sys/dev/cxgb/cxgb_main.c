@@ -1952,7 +1952,7 @@ cxgb_uninit_synchronized(struct port_info *pi)
 	/*
 	 * Clear this port's bit from the open device map, and then drain all
 	 * the tasks that can access/manipulate this port's port_info or ifp.
-	 * We disable this port's interrupts here and so the the slow/ext
+	 * We disable this port's interrupts here and so the slow/ext
 	 * interrupt tasks won't be enqueued.  The tick task will continue to
 	 * be enqueued every second but the runs after this drain will not see
 	 * this port in the open device map.
@@ -2915,7 +2915,7 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		u64 buf[32];
 
 		/*
-		 * Use these to avoid modifying len/addr in the the return
+		 * Use these to avoid modifying len/addr in the return
 		 * struct
 		 */
 		uint32_t len = t->len, addr = t->addr;

@@ -906,7 +906,7 @@ found:
 	 * segment.  If it provides all of our data, drop us, otherwise
 	 * stick new segment in the proper place.
 	 *
-	 * If some of the data is dropped from the the preceding
+	 * If some of the data is dropped from the preceding
 	 * segment, then it's checksum is invalidated.
 	 */
 	if (p) {

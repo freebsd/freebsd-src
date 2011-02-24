@@ -99,7 +99,7 @@ Lst_Append(Lst *list, LstNode *ln, void *d)
  *		LST_CONCLINK if should just be relinked
  *
  * Side Effects:
- *	New elements are created and appended the the first list.
+ *	New elements are created and appended the first list.
  */
 void
 Lst_Concat(Lst *list1, Lst *list2, int flags)

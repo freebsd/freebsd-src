@@ -918,7 +918,7 @@ reply:
 
 			/*
 			 * Also check that the node which sent the ARP packet
-			 * is on the the interface we expect it to be on. This
+			 * is on the interface we expect it to be on. This
 			 * avoids ARP chaos if an interface is connected to the
 			 * wrong network.
 			 */

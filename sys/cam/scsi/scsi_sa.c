@@ -2660,7 +2660,7 @@ retry:
 			struct scsi_dev_conf_page *cp = &ntcs->dconf;
 			/*
 			 * We don't really know whether this device supports
-			 * Data Compression if the the algorithm field is
+			 * Data Compression if the algorithm field is
 			 * zero. Just say we do.
 			 */
 			*comp_supported = TRUE;
