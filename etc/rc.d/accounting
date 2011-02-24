@@ -58,6 +58,7 @@ accounting_rotate_log()
 
 	if checkyesno accounting_enable; then
 		_file=`mktemp newacct-XXXXX`
+		chmod 644 $_file
 		${accounting_command} ${_dir}/${_file}
 	fi
 
