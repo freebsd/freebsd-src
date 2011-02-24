@@ -3206,7 +3206,12 @@ void freebsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
   }
 
   Args.AddAllArgs(CmdArgs, options::OPT_L);
-  CmdArgs.push_back("-L/usr/lib");
+  
+  const ToolChain::path_list Paths = getToolChain().getFilePaths();
+  for (ToolChain::path_list::const_iterator i = Paths.begin(), e = Paths.end();
+       i != e; ++i)
+    CmdArgs.push_back(Args.MakeArgString(llvm::StringRef("-L") + *i));
+
   Args.AddAllArgs(CmdArgs, options::OPT_T_Group);
   Args.AddAllArgs(CmdArgs, options::OPT_e);
   Args.AddAllArgs(CmdArgs, options::OPT_s);
@@ -3568,13 +3573,9 @@ void linuxtools::Link::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddAllArgs(CmdArgs, options::OPT_L);
 
   const ToolChain::path_list Paths = ToolChain.getFilePaths();
-
-  for (ToolChain::path_list::const_iterator i = Paths.begin(),
-         e = Paths.end();
-       i != e; ++i) {
-    const std::string &s = *i;
-    CmdArgs.push_back(Args.MakeArgString(std::string("-L") + s));
-  }
+  for (ToolChain::path_list::const_iterator i = Paths.begin(), e = Paths.end();
+       i != e; ++i)
+    CmdArgs.push_back(Args.MakeArgString(llvm::StringRef("-L") + *i));
 
   AddLinkerInputs(ToolChain, Inputs, Args, CmdArgs);
 
