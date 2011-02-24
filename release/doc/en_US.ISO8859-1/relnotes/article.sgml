@@ -334,7 +334,7 @@
 
 	  <para>The &man.re.4; driver now supports hardware interrupt
 	    moderation of TX completion interrupts on RTL8169/RTL8168
-	    controllers.</parabolist>
+	    controllers.</para>
 
 	  <para>The &man.rl.4; driver now supports WoL (Wake on LAN)
             on RTL8139B or newer controllers.</para>
