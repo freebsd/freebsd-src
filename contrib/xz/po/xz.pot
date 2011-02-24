@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: lasse.collin@tukaani.org\n"
-"POT-Creation-Date: 2010-10-23 17:48+0300\n"
+"POT-Creation-Date: 2011-01-28 20:01+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -89,7 +89,7 @@ msgstr ""
 msgid "%s: File seems to have been moved, not removing"
 msgstr ""
 
-#: src/xz/file_io.c:144 src/xz/file_io.c:590
+#: src/xz/file_io.c:144 src/xz/file_io.c:589
 #, c-format
 msgid "%s: Cannot remove: %s"
 msgstr ""
@@ -119,57 +119,57 @@ msgstr ""
 msgid "%s: Is a directory, skipping"
 msgstr ""
 
-#: src/xz/file_io.c:462
+#: src/xz/file_io.c:461
 #, c-format
 msgid "%s: Not a regular file, skipping"
 msgstr ""
 
-#: src/xz/file_io.c:479
+#: src/xz/file_io.c:478
 #, c-format
 msgid "%s: File has setuid or setgid bit set, skipping"
 msgstr ""
 
-#: src/xz/file_io.c:486
+#: src/xz/file_io.c:485
 #, c-format
 msgid "%s: File has sticky bit set, skipping"
 msgstr ""
 
-#: src/xz/file_io.c:493
+#: src/xz/file_io.c:492
 #, c-format
 msgid "%s: Input file has more than one hard link, skipping"
 msgstr ""
 
-#: src/xz/file_io.c:714
+#: src/xz/file_io.c:713
 #, c-format
 msgid "Error restoring the O_APPEND flag to standard output: %s"
 msgstr ""
 
-#: src/xz/file_io.c:726
+#: src/xz/file_io.c:725
 #, c-format
 msgid "%s: Closing the file failed: %s"
 msgstr ""
 
-#: src/xz/file_io.c:762 src/xz/file_io.c:946
+#: src/xz/file_io.c:761 src/xz/file_io.c:945
 #, c-format
 msgid "%s: Seeking failed when trying to create a sparse file: %s"
 msgstr ""
 
-#: src/xz/file_io.c:821
+#: src/xz/file_io.c:820
 #, c-format
 msgid "%s: Read error: %s"
 msgstr ""
 
-#: src/xz/file_io.c:844
+#: src/xz/file_io.c:843
 #, c-format
 msgid "%s: Error seeking the file: %s"
 msgstr ""
 
-#: src/xz/file_io.c:854
+#: src/xz/file_io.c:853
 #, c-format
 msgid "%s: Unexpected end of file"
 msgstr ""
 
-#: src/xz/file_io.c:904
+#: src/xz/file_io.c:903
 #, c-format
 msgid "%s: Write error: %s"
 msgstr ""
@@ -676,22 +676,22 @@ msgstr ""
 msgid "The selected match finder requires at least nice=%<PRIu32>"
 msgstr ""
 
-#: src/xz/suffix.c:79 src/xz/suffix.c:164
+#: src/xz/suffix.c:104 src/xz/suffix.c:189
 #, c-format
 msgid "%s: With --format=raw, --suffix=.SUF is required unless writing to stdout"
 msgstr ""
 
-#: src/xz/suffix.c:99
+#: src/xz/suffix.c:124
 #, c-format
 msgid "%s: Filename has an unknown suffix, skipping"
 msgstr ""
 
-#: src/xz/suffix.c:154
+#: src/xz/suffix.c:179
 #, c-format
 msgid "%s: File already has `%s' suffix, skipping"
 msgstr ""
 
-#: src/xz/suffix.c:205
+#: src/xz/suffix.c:230
 #, c-format
 msgid "%s: Invalid filename suffix"
 msgstr ""
