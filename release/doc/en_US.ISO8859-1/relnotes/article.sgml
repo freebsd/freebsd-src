@@ -610,6 +610,12 @@
       <sect3 id="net-proto">
 	<title>Network Protocols</title>
 
+	<para revision="213505">An issue in the &man.carp.4; pseudo
+	  interface and linkstate changes of the underlying interfaces
+	  has been fixed.  This happened when a &man.carp.4; interface
+	  was created before the underlying interface and its
+	  linkstate became <literal>UP</literal>.</para>
+
 	<para revision="212738,216348">A bug in the &man.ipfw.4;
 	  packet filter subsystem has been fixed.  The &man.sysctl.8;
 	  variable <varname>net.inet.ip.fw.one_pass</varname> did not
