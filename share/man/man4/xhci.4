@@ -1,10 +1,5 @@
-.\" $NetBSD: ehci.4,v 1.8 2001/11/21 17:22:56 augustss Exp $
 .\"
-.\" Copyright (c) 2001 The NetBSD Foundation, Inc.
-.\" All rights reserved.
-.\"
-.\" This code is derived from software contributed to The NetBSD Foundation
-.\" by Lennart Augustsson.
+.\" Copyright (c) 2011 Hans Petter Selasky. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -30,47 +25,32 @@
 .\" $FreeBSD$
 .\"
 .Dd February 24, 2011
-.Dt EHCI 4
+.Dt XHCI 4
 .Os
 .Sh NAME
-.Nm ehci
-.Nd USB Enhanced Host Controller driver
+.Nm xhci
+.Nd USB eXtensible Host Controller driver
 .Sh SYNOPSIS
-.Cd "device ehci"
+.Cd "device xhci"
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for the
 .Tn USB
-Enhanced Host Controller Interface,
-which is used by
+eXtensible Host Controller Interface,
+which allows use of
 .Tn USB
-2.0 controllers.
+1.0, 2.0 and 3.0 devices on the same
+.Tn USB
+port.
 .Pp
-.Tn EHCI
-controllers are peculiar in that they can only handle the
+The
+.Tn XHCI
+controller supports
 .Tn USB
-2.0 protocol.
-This means that they normally have one or more companion controllers
-(i.e.,
-.Xr ohci 4
-or
-.Xr uhci 4 )
-handling USB 1.x devices.
-Consequently each
-.Tn USB
-connector is electrically connected to two
-.Tn USB
-controllers.
-The handling of this is totally automatic,
-but can be noticed since
-.Tn USB
-1.x and
-.Tn USB
-2.0 devices plugged in to the same
-connector appear to connect to different USB busses.
+connection speeds up to 4.8Gbps when using a USB 3.0 compliant device.
 .Sh SEE ALSO
-.Xr xhci 4 ,
+.Xr ehci 4 ,
 .Xr ohci 4 ,
 .Xr uhci 4 ,
 .Xr usb 4
@@ -78,20 +58,4 @@ connector appear to connect to different USB busses.
 The
 .Nm
 device driver first appeared in
-.Fx 5.1 .
-.Sh LOADER TUNABLES
-Tunables can be set at the
-.Xr loader 8
-prompt before booting the kernel or stored in
-.Xr loader.conf 5 .
-.Bl -tag -width "xxxxxx"
-.It Va hw.usb.ehci.lostintrbug
-This tunable enables the lost interrupt quirk.
-The default value is 0 (off).
-.It Va hw.usb.ehci.iaadbug
-This tunable enables the EHCI doorbell quirk.
-The default value is 0 (off).
-.It Va hw.usb.ehci.no_hs
-This tunable disables USB devices to attach like HIGH-speed ones and will force all attached devices to attach to the FULL- or LOW-speed companion controller.
-The default value is 0 (off).
-.El
+.Fx 8.2 .
