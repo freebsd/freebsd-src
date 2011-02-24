@@ -555,7 +555,7 @@ eschan1370_setspeed(kobj_t obj, void *data, uint32_t speed)
 		/*
 		 * DAC1 does not support continuous rate settings.
 		 * Pick the nearest and use it since FEEDER_RATE will
-		 * do the the proper conversion for us.
+		 * do the proper conversion for us.
 		 */
 		es->ctrl &= ~CTRL_WTSRSEL;
 		if (speed < 8268) {

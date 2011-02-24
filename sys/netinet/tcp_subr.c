@@ -1232,7 +1232,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 						mtu = tcp_minmss
 						 + sizeof(struct tcpiphdr);
 					    /*
-					     * Only cache the the MTU if it
+					     * Only cache the MTU if it
 					     * is smaller than the interface
 					     * or route MTU.  tcp_mtudisc()
 					     * will do right thing by itself.
