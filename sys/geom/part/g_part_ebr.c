@@ -585,7 +585,7 @@ g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 	while (baseentry != NULL && baseentry->gpe_deleted)
 		baseentry = LIST_NEXT(baseentry, gpe_entry);
 
-	/* Wipe-out the the first EBR when there are no slices. */
+	/* Wipe-out the first EBR when there are no slices. */
 	if (baseentry == NULL) {
 		error = g_write_data(cp, 0, buf, pp->sectorsize);
 		goto out;

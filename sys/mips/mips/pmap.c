@@ -2021,7 +2021,7 @@ validate:
 	pmap_update_page(pmap, va, newpte);
 
 	/*
-	 * Sync I & D caches for executable pages.  Do this only if the the
+	 * Sync I & D caches for executable pages.  Do this only if the
 	 * target pmap belongs to the current process.  Otherwise, an
 	 * unresolvable TLB miss may occur.
 	 */
@@ -2155,7 +2155,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	else {
 		*pte |= PTE_RO;
 		/*
-		 * Sync I & D caches.  Do this only if the the target pmap
+		 * Sync I & D caches.  Do this only if the target pmap
 		 * belongs to the current process.  Otherwise, an
 		 * unresolvable TLB miss may occur. */
 		if (pmap == &curproc->p_vmspace->vm_pmap) {
