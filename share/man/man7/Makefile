@@ -25,6 +25,7 @@ MAN=	adding_user.7 \
 	security.7 \
 	sprog.7 \
 	stdint.7 \
+	sticky.7 \
 	tuning.7
 
 MLINKS=	intro.7 miscellaneous.7
