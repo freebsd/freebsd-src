@@ -6,7 +6,7 @@
 PROG=   ibstat
 SRCS=   ibstat.c
 LDADD=	-libumad -libcommon
-CFLAGS+= -I${DIAGPATH}/include -I/usr/include/infiniband
+CFLAGS+= -I${DIAGPATH}/include
 MAN=	ibstat.8
 
 WARNS?= 1

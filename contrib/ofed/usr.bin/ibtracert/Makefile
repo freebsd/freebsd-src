@@ -6,8 +6,7 @@
 PROG=   ibtracert
 SRCS=   ibtracert.c ibdiag_common.c
 LDADD=	-libumad -libcommon -libmad -losmcomp
-CFLAGS+= -I${DIAGPATH}/include -I/usr/include/infiniband
-CFLAGS+= -pthread
+CFLAGS+= -pthread -I${DIAGPATH}/include
 MAN=	ibtracert.8
 
 WARNS?= 1

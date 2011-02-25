@@ -3,8 +3,8 @@
 SHLIBDIR?=	/usr/lib
 
 .include <bsd.own.mk>
+.include "../Makefile.inc"
 
-UMADDIR=	${.CURDIR}/../../management/libibumad
 IBSRCDIR=	${UMADDIR}/src
 
 .PATH: ${IBSRCDIR}
@@ -16,7 +16,6 @@ NO_PROFILE=
 SRCS=	umad.c
 
 CFLAGS+= -DHAVE_CONFIG_H
-CFLAGS+= -I${.CURDIR} -I/usr/include/infiniband
 
 VERSION_MAP= ${IBSRCDIR}/libibumad.map
 

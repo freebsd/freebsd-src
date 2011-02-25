@@ -3,8 +3,8 @@
 SHLIBDIR?=	/usr/lib
 
 .include <bsd.own.mk>
+.include "../Makefile.inc"
 
-IBVERBSDIR= 	${.CURDIR}/../../libibverbs
 IBSRCDIR=	${IBVERBSDIR}/src
 IBMANDIR=	${IBVERBSDIR}/man
 
@@ -33,7 +33,6 @@ MAN=	ibv_alloc_pd.3 ibv_asyncwatch.1 ibv_attach_mcast.3 ibv_create_ah.3 \
 
 
 CFLAGS+= -DHAVE_CONFIG_H -DIBV_CONFIG_DIR=\"/etc/ibverbs/\"
-CFLAGS+= -I${.CURDIR} -I${IBSRCDIR} -I${IBVERBSDIR}/include 
 
 VERSION_MAP= ${IBSRCDIR}/libibverbs.map
 

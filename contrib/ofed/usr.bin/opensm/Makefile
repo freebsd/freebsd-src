@@ -30,7 +30,6 @@ SRCS+=	osm_dump.c osm_ucast_cache.c osm_qos_parser_y.y osm_qos_parser_l.l
 SRCS+=	osm_qos_policy.c
 
 LDADD=	-lopensm -losmvendor -losmcomp -libmad -libumad -libcommon
-CFLAGS+= -I/usr/include/infiniband
 CFLAGS+= -pthread
 CFLAGS+= -DVENDOR_RMPP_SUPPORT -DDUAL_SIDED_RMPP
 
