@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mac.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
 #include <sys/vnode.h>
@@ -71,6 +72,8 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_policy.h>
 
 #ifdef MAC
+
+FEATURE(mac, "Mandatory Access Control Framework support");
 
 int
 __mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)

@@ -51,6 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <cam/cam_queue.h>
 #include <cam/cam_xpt.h>
+
+FEATURE(scbus, "SCSI devices support");
+
 #endif
 
 static int	camstatusentrycomp(const void *key, const void *member);

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
@@ -57,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
 
+FEATURE(zero_copy_sockets, "Zero copy sockets support");
 
 struct netsend_cow_stats {
 	int attempted;

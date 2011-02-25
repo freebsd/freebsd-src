@@ -78,6 +78,8 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfsm_subs.h>
 #include <nfsclient/nfsdiskless.h>
 
+FEATURE(nfsclient, "NFS client");
+
 MALLOC_DEFINE(M_NFSREQ, "nfsclient_req", "NFS request header");
 MALLOC_DEFINE(M_NFSBIGFH, "nfsclient_bigfh", "NFS version 3 file handle");
 MALLOC_DEFINE(M_NFSDIROFF, "nfsclient_diroff", "NFS directory offset data");
