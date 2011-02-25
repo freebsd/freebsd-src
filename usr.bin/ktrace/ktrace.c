@@ -159,6 +159,8 @@ main(int argc, char *argv[])
 	(void)umask(omask);
 	(void)close(fd);
 
+	trpoints |= PROC_ABI_POINTS;
+
 	if (*argv) { 
 		if (ktrace(tracefile, ops, trpoints, getpid()) < 0)
 			err(1, "%s", tracefile);
