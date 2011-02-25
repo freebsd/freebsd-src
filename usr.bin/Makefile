@@ -61,6 +61,7 @@ SUBDIR=	alias \
 	gzip \
 	head \
 	hexdump \
+	${_iconv} \
 	id \
 	ipcrm \
 	ipcs \
@@ -98,7 +99,9 @@ SUBDIR=	alias \
 	mesg \
 	minigzip \
 	ministat \
+	${_mkcsmapper} \
 	mkdep \
+	${_mkesdb} \
 	mkfifo \
 	mklocale \
 	mktemp \
@@ -237,6 +240,12 @@ _clang=		clang
 
 .if ${MK_HESIOD} != "no"
 SUBDIR+=	hesinfo
+.endif
+
+.if ${MK_ICONV} != "no"
+_iconv=		iconv
+_mkcsmapper=	mkcsmapper
+_mkesdb=	mkesdb
 .endif
 
 .if ${MK_GROFF} != "no"
