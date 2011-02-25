@@ -66,7 +66,7 @@ fifo_zfree(voidpf opaque __unused, voidpf address)
  * Return value is NULL for success or a error description string to
  * be augmented by errno if non-zero.
  *
- * The second function is just an error-handling wrapper around the 
+ * The second function is just an error-handling wrapper around the
  * first which, does the actual work.
  */
 
@@ -88,7 +88,7 @@ fifolog_int_open_i(struct fifolog_file *f, const char *fname, int mode)
 
 	if (i != 0) {
 		i = fstat(f->fd, &st);
-		if (!S_ISREG(st.st_mode)) 
+		if (!S_ISREG(st.st_mode))
 			return ("Neither disk nor regular file");
 		f->recsize = 512;
 		f->logsize = st.st_size;
