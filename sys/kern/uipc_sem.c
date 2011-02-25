@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-FEATURE(p1003_1b_semaphores, "POSIX1003.1B semaphores support");
+FEATURE(p1003_1b_semaphores, "POSIX P1003.1B semaphores support");
 /*
  * TODO
  *
