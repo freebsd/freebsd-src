@@ -685,7 +685,6 @@ void ipoib_cm_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	unsigned int wr_id = wc->wr_id & ~IPOIB_OP_CM;
 	struct ifnet *dev = priv->dev;
 	struct ipoib_tx_buf *tx_req;
-	unsigned long flags;
 
 	ipoib_dbg_data(priv, "cm send completion: id %d, status: %d\n",
 		       wr_id, wc->status);
@@ -710,7 +709,7 @@ void ipoib_cm_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	if (unlikely(--priv->tx_outstanding == ipoib_sendq_size >> 1) &&
 	    (dev->if_drv_flags & IFF_DRV_OACTIVE) != 0 &&
 	    test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
-		dev->if_drv_flags |= IFF_DRV_OACTIVE;
+		dev->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	if (wc->status != IB_WC_SUCCESS &&
 	    wc->status != IB_WC_WR_FLUSH_ERR) {
@@ -720,12 +719,10 @@ void ipoib_cm_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 			   "(status=%d, wrid=%d vend_err %x)\n",
 			   wc->status, wr_id, wc->vendor_err);
 
-		spin_lock_irqsave(&priv->lock, flags);
 		path = tx->path;
 
 		if (path) {
 			path->cm = NULL;
-			tx->path = NULL;
 			rb_erase(&path->rb_node, &priv->path_tree);
 			list_del(&path->list);
 		}
@@ -736,10 +733,6 @@ void ipoib_cm_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 		}
 
 		clear_bit(IPOIB_FLAG_OPER_UP, &tx->flags);
-
-		spin_unlock_irqrestore(&priv->lock, flags);
-		if (path)
-			ipoib_path_free(priv, path);
 	}
 
 }
@@ -1080,6 +1073,9 @@ static void ipoib_cm_tx_destroy(struct ipoib_cm_tx *p)
 	ipoib_dbg(priv, "Destroy active connection 0x%x head 0x%x tail 0x%x\n",
 		  p->qp ? p->qp->qp_num : 0, p->tx_head, p->tx_tail);
 
+	if (p->path)
+		ipoib_path_free(priv, p->path);
+
 	if (p->id)
 		ib_destroy_cm_id(p->id);
 
@@ -1107,7 +1103,7 @@ timeout:
 		if (unlikely(--priv->tx_outstanding == ipoib_sendq_size >> 1) &&
 		    (dev->if_drv_flags & IFF_DRV_OACTIVE) != 0 &&
 		    test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
-			dev->if_drv_flags |= IFF_DRV_OACTIVE;
+			dev->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
 
 	if (p->qp)
