@@ -76,7 +76,7 @@ main(int argc, char * const *argv)
 	}
 	argc -= optind;
 	argv += optind;
-	if (argc != 1) 
+	if (argc != 1)
 		usage();
 
 	if (z_opt > 9)

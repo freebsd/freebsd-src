@@ -48,7 +48,7 @@ struct fifolog_reader {
 #define FIFOLOG_READER_MAGIC	0x1036d139
 	struct fifolog_file	*ff;
 	unsigned		olen;
-	unsigned char   	*obuf;
+	unsigned char		*obuf;
 	time_t			now;
 };
 
@@ -75,7 +75,7 @@ fifolog_reader_open(const char *fname)
 	i = inflateInit(fr->ff->zs);
 	assert(i == Z_OK);
 
-	fr->magic = FIFOLOG_READER_MAGIC;	
+	fr->magic = FIFOLOG_READER_MAGIC;
 	return (fr);
 }
 
@@ -144,7 +144,7 @@ fifolog_reader_seek(const struct fifolog_reader *fr, time_t t0)
 	e = fifolog_reader_findsync(fr->ff, &o);
 	if (e == 0)
 		return (0);			/* empty fifolog */
-	assert(e == 1); 
+	assert(e == 1);
 
 	assert(fr->ff->recbuf[4] & FIFOLOG_FLG_SYNC);
 	seq = be32dec(fr->ff->recbuf);
@@ -297,7 +297,7 @@ fifolog_reader_process(struct fifolog_reader *fr, off_t from, fifolog_reader_ren
 				    zs->avail_out, fr->olen);
 				exit (250);
 #else
-					
+
 				i = Z_OK;
 #endif
 			}
@@ -312,7 +312,7 @@ fifolog_reader_process(struct fifolog_reader *fr, off_t from, fifolog_reader_ren
 			if (zs->avail_out != fr->olen) {
 				q = fr->obuf + (fr->olen - zs->avail_out);
 				p = fifolog_reader_chop(fr, func, priv);
-				if (p < q) 
+				if (p < q)
 					(void)memmove(fr->obuf, p, q - p);
 				zs->avail_out = fr->olen - (q - p);
 				zs->next_out = fr->obuf + (q - p);

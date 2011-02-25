@@ -52,12 +52,12 @@
 
 
 const char *fifolog_write_statnames[] = {
-[FIFOLOG_PT_BYTES_PRE] =	"Bytes before compression",
-[FIFOLOG_PT_BYTES_POST] =	"Bytes after compression",
-[FIFOLOG_PT_WRITES] =		"Writes",
-[FIFOLOG_PT_FLUSH] =		"Flushes",
-[FIFOLOG_PT_SYNC] =		"Syncs",
-[FIFOLOG_PT_RUNTIME] =		"Runtime"
+	[FIFOLOG_PT_BYTES_PRE] =	"Bytes before compression",
+	[FIFOLOG_PT_BYTES_POST] =	"Bytes after compression",
+	[FIFOLOG_PT_WRITES] =		"Writes",
+	[FIFOLOG_PT_FLUSH] =		"Flushes",
+	[FIFOLOG_PT_SYNC] =		"Syncs",
+	[FIFOLOG_PT_RUNTIME] =		"Runtime"
 };
 
 /*
@@ -182,7 +182,7 @@ fifolog_write_output(struct fifolog_writer *f, int fl, time_t now)
 		return (0);
 
 
-	if (h + l < (long)f->ff->recsize && fl == Z_NO_FLUSH) 
+	if (h + l < (long)f->ff->recsize && fl == Z_NO_FLUSH)
 		return (0);
 
 	w = f->ff->recsize - l;
@@ -258,7 +258,7 @@ fprintf(stderr, "Z len %3d fin %d now %ld fl %d ai %u ao %u\n",
 
 #ifdef DBG
 if (i || f->ff->zs->avail_in)
-fprintf(stderr, "fl = %d, i = %d ai = %u ao = %u fx=%02x\n", fl, i, 
+fprintf(stderr, "fl = %d, i = %d ai = %u ao = %u fx=%02x\n", fl, i,
     f->ff->zs->avail_in,
     f->ff->zs->avail_out, f->flag);
 #endif
@@ -321,7 +321,7 @@ fifolog_write_bytes(struct fifolog_writer *f, uint32_t id, time_t now, const voi
 	if (now != f->last) {
 		id |= FIFOLOG_TIMESTAMP;
 		f->last = now;
-	} 
+	}
 
 	/* Emit instance+flag */
 	be32enc(buf, id);

@@ -26,11 +26,11 @@
  * $FreeBSD$
  */
 
-#define ALLOC_OBJ(to, type_magic) 					\
+#define ALLOC_OBJ(to, type_magic)					\
 	do {								\
 		(to) = calloc(sizeof *(to), 1);				\
-		assert((to) != NULL);					\
-		(to)->magic = (type_magic);				\
+		if ((to) != NULL)					\
+			(to)->magic = (type_magic);			\
 	} while (0)
 
 #define FREE_OBJ(to)							\
@@ -38,6 +38,9 @@
 		(to)->magic = (0);					\
 		free(to);						\
 	} while (0)
+
+#define VALID_OBJ(ptr, type_magic)					\
+	((ptr) != NULL && (ptr)->magic == (type_magic))
 
 #define CHECK_OBJ(ptr, type_magic)					\
 	do {								\
@@ -50,6 +53,12 @@
 		assert((ptr)->magic == type_magic);			\
 	} while (0)
 
+#define CHECK_OBJ_ORNULL(ptr, type_magic)				\
+	do {								\
+		if ((ptr) != NULL)					\
+			assert((ptr)->magic == type_magic);		\
+	} while (0)
+
 #define CAST_OBJ(to, from, type_magic)					\
 	do {								\
 		(to) = (from);						\
@@ -57,10 +66,9 @@
 			CHECK_OBJ((to), (type_magic));			\
 	} while (0)
 
-#define CAST_OBJ_NOTNULL(to, from, type_magic)					\
+#define CAST_OBJ_NOTNULL(to, from, type_magic)				\
 	do {								\
 		(to) = (from);						\
 		assert((to) != NULL);					\
 		CHECK_OBJ((to), (type_magic));				\
 	} while (0)
-
