@@ -156,7 +156,7 @@ main(int argc, char * const *argv)
 		errx(1, "Begin time not before End time");
 
 	fl = fifolog_reader_open(argv[0]);
-	
+
 	if (!strcmp(opt_o, "-"))
 		fo = stdout;
 	else {
