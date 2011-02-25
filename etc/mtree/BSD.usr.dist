@@ -22,6 +22,14 @@
         ..
         engines
         ..
+	i18n
+	..
+    ..
+    lib32
+	dtrace
+	..
+	i18n
+	..
     ..
     libdata
         gcc
@@ -311,6 +319,78 @@
             ..
         ..
         info
+	..
+	i18n
+	    csmapper
+		APPLE
+		..
+		AST
+		..
+		BIG5
+		..
+		CNS
+		..
+		CP
+		..
+		EBCDIC
+		..
+		GB
+		..
+		GEORGIAN
+		..
+		ISO-8859
+		..
+		ISO646
+		..
+		JIS
+		..
+		KAZAKH
+		..
+		KOI
+		..
+		KS
+		..
+		MISC
+		..
+		TCVN
+		..
+	    ..
+	    esdb
+		APPLE
+		..
+		AST
+		..
+		BIG5
+		..
+		CP
+		..
+		DEC
+		..
+		EBCDIC
+		..
+		EUC
+		..
+		GB
+		..
+		GEORGIAN
+		..
+		ISO-2022
+		..
+		ISO-8859
+		..
+		ISO646
+		..
+		KAZAKH
+		..
+		KOI
+		..
+		MISC
+		..
+		TCVN
+		..
+		UTF
+		..
+	    ..
         ..
         locale
             UTF-8

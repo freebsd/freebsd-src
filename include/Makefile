@@ -68,6 +68,10 @@ _dev_ieee488=	dev/ieee488
 INCS+=	hesiod.h
 .endif
 
+.if ${MK_ICONV} != "no"
+INCS+=	iconv.h
+.endif
+
 .if ${MK_BLUETOOTH} != "no"
 LSUBSUBDIRS+=	netgraph/bluetooth/include
 .endif
