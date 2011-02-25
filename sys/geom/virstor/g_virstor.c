@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <geom/virstor/g_virstor.h>
 #include <geom/virstor/g_virstor_md.h>
 
+FEATURE(g_virstor, "GEOM virtual storage support");
+
 /* Declare malloc(9) label */
 static MALLOC_DEFINE(M_GVIRSTOR, "gvirstor", "GEOM_VIRSTOR Data");
 
