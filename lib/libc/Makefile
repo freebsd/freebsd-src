@@ -57,6 +57,9 @@ NOASM=
 .include "${.CURDIR}/gdtoa/Makefile.inc"
 .include "${.CURDIR}/gen/Makefile.inc"
 .include "${.CURDIR}/gmon/Makefile.inc"
+.if ${MK_ICONV} != "no"
+.include "${.CURDIR}/iconv/Makefile.inc"
+.endif
 .include "${.CURDIR}/inet/Makefile.inc"
 .include "${.CURDIR}/isc/Makefile.inc"
 .include "${.CURDIR}/locale/Makefile.inc"
