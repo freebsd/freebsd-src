@@ -91,7 +91,7 @@ fifolog_create(const char *fn, off_t size, unsigned recsize)
 	if (size == 0 && S_ISREG(st.st_mode))
 		size = st.st_size;
 
-	if (size == 0) 
+	if (size == 0)
 		size = recsize * (off_t)(24*60*60);
 
 	if (S_ISREG(st.st_mode) && ftruncate(fd, size) < 0)
