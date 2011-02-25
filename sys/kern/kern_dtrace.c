@@ -37,9 +37,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/dtrace_bsd.h>
+#include <sys/sysctl.h>
 
 #define KDTRACE_PROC_SIZE	64
 #define	KDTRACE_THREAD_SIZE	256
+
+FEATURE(kdtrace_hooks,
+    "Kernel DTrace hooks which are required to load DTrace kernel modules");
 
 MALLOC_DEFINE(M_KDTRACE, "kdtrace", "DTrace hooks");
 
