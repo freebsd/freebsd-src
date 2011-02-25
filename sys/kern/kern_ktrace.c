@@ -133,7 +133,7 @@ static struct sx ktrace_sx;
 
 static void ktrace_init(void *dummy);
 static int sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS);
-static u_int ktrace_resize_pool(u_int newsize);
+static u_int ktrace_resize_pool(u_int oldsize, u_int newsize);
 static struct ktr_request *ktr_getrequest(int type);
 static void ktr_submitrequest(struct thread *td, struct ktr_request *req);
 static void ktr_freeproc(struct proc *p, struct ucred **uc,
@@ -199,9 +199,7 @@ sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS)
 
 	/* Handle easy read-only case first to avoid warnings from GCC. */
 	if (!req->newptr) {
-		mtx_lock(&ktrace_mtx);
 		oldsize = ktr_requestpool;
-		mtx_unlock(&ktrace_mtx);
 		return (SYSCTL_OUT(req, &oldsize, sizeof(u_int)));
 	}
 
@@ -210,10 +208,8 @@ sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS)
 		return (error);
 	td = curthread;
 	ktrace_enter(td);
-	mtx_lock(&ktrace_mtx);
 	oldsize = ktr_requestpool;
-	newsize = ktrace_resize_pool(wantsize);
-	mtx_unlock(&ktrace_mtx);
+	newsize = ktrace_resize_pool(oldsize, wantsize);
 	ktrace_exit(td);
 	error = SYSCTL_OUT(req, &oldsize, sizeof(u_int));
 	if (error)
@@ -227,38 +223,40 @@ SYSCTL_PROC(_kern_ktrace, OID_AUTO, request_pool, CTLTYPE_UINT|CTLFLAG_RW,
     "Pool buffer size for ktrace(1)");
 
 static u_int
-ktrace_resize_pool(u_int newsize)
+ktrace_resize_pool(u_int oldsize, u_int newsize)
 {
+	STAILQ_HEAD(, ktr_request) ktr_new;
 	struct ktr_request *req;
 	int bound;
 
-	mtx_assert(&ktrace_mtx, MA_OWNED);
 	print_message = 1;
-	bound = newsize - ktr_requestpool;
+	bound = newsize - oldsize;
 	if (bound == 0)
 		return (ktr_requestpool);
-	if (bound < 0)
+	if (bound < 0) {
+		mtx_lock(&ktrace_mtx);
 		/* Shrink pool down to newsize if possible. */
 		while (bound++ < 0) {
 			req = STAILQ_FIRST(&ktr_free);
 			if (req == NULL)
-				return (ktr_requestpool);
+				break;
 			STAILQ_REMOVE_HEAD(&ktr_free, ktr_list);
 			ktr_requestpool--;
-			mtx_unlock(&ktrace_mtx);
 			free(req, M_KTRACE);
-			mtx_lock(&ktrace_mtx);
 		}
-	else
+	} else {
 		/* Grow pool up to newsize. */
+		STAILQ_INIT(&ktr_new);
 		while (bound-- > 0) {
-			mtx_unlock(&ktrace_mtx);
 			req = malloc(sizeof(struct ktr_request), M_KTRACE,
 			    M_WAITOK);
-			mtx_lock(&ktrace_mtx);
-			STAILQ_INSERT_HEAD(&ktr_free, req, ktr_list);
-			ktr_requestpool++;
+			STAILQ_INSERT_HEAD(&ktr_new, req, ktr_list);
 		}
+		mtx_lock(&ktrace_mtx);
+		STAILQ_CONCAT(&ktr_free, &ktr_new);
+		ktr_requestpool += (newsize - oldsize);
+	}
+	mtx_unlock(&ktrace_mtx);
 	return (ktr_requestpool);
 }
 
