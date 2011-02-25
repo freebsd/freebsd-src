@@ -36,10 +36,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/malloc.h>
 #include <sys/libkern.h>
+#include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
 #include <geom/label/g_label.h>
 
+FEATURE(geom_label, "GEOM labeling support");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, label, CTLFLAG_RW, 0, "GEOM_LABEL stuff");

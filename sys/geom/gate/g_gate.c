@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 #include <geom/gate/g_gate.h>
 
+FEATURE(geom_gate, "GEOM Gate module");
+
 static MALLOC_DEFINE(M_GATE, "gg_data", "GEOM Gate Data");
 
 SYSCTL_DECL(_kern_geom);

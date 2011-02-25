@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 #include <geom/cache/g_cache.h>
 
+FEATURE(geom_cache, "GEOM cache module");
+
 static MALLOC_DEFINE(M_GCACHE, "gcache_data", "GEOM_CACHE Data");
 
 SYSCTL_DECL(_kern_geom);
