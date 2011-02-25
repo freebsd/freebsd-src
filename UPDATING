@@ -988,8 +988,8 @@ COMMON ITEMS:
 	<reboot in single user>				[3]
 	mergemaster -p					[5]
 	make installworld
-	make delete-old
 	mergemaster					[4]
+	make delete-old					[6]
 	<reboot>
 
 
@@ -1026,8 +1026,8 @@ COMMON ITEMS:
 	<reboot in single user>				[3]
 	mergemaster -p					[5]
 	make installworld
-	make delete-old
 	mergemaster -i					[4]
+	make delete-old					[6]
 	<reboot>
 
 	Make sure that you've read the UPDATING file to understand the
@@ -1068,6 +1068,10 @@ COMMON ITEMS:
 	install a new mergemaster (cd src/usr.sbin/mergemaster && make
 	install) after the buildworld before this step if you last updated
 	from current before 20020224 or from -stable before 20020408.
+
+	[6] This only deletes old files and directories. Old libraries
+	can be deleted by "make delete-old-libs", but you have to make
+	sure that no program is using those libraries anymore.
 
 	[8] In order to have a kernel that can run the 4.x binaries
 	needed to do an installworld, you must include the COMPAT_FREEBSD4
