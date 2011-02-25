@@ -42,10 +42,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
+
+FEATURE(geom_part_ebr,
+    "GEOM partitioning class for extended boot records support");
+#if defined(GEOM_PART_EBR_COMPAT)
+FEATURE(geom_part_ebr_compat,
+    "GEOM EBR partitioning class: backward-compatible partition names");
+#endif
 
 #define	EBRSIZE		512
 

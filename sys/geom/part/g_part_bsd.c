@@ -40,10 +40,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
+
+FEATURE(geom_part_bsd, "GEOM partitioning class for BSD disklabels");
 
 struct g_part_bsd_table {
 	struct g_part_table	base;
