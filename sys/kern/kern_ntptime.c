@@ -51,6 +51,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 
+#ifdef PPS_SYNC
+FEATURE(pps_sync, "Support usage of external PPS signal by kernel PLL");
+#endif
+
 /*
  * Single-precision macros for 64-bit machines
  */

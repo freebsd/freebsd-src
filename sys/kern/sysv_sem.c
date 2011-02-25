@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+FEATURE(sysv_sem, "System V semaphores support");
+
 static MALLOC_DEFINE(M_SEM, "sem", "SVID compatible semaphores");
 
 #ifdef SEM_DEBUG

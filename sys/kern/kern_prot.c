@@ -69,6 +69,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 
+#ifdef REGRESSION
+FEATURE(regression,
+    "Kernel support for interfaces nessesary for regression testing (SECURITY RISK!)");
+#endif
+
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>

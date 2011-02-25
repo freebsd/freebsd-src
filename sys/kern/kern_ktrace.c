@@ -83,6 +83,8 @@ static MALLOC_DEFINE(M_KTRACE, "KTRACE", "KTRACE");
 
 #ifdef KTRACE
 
+FEATURE(ktrace, "Kernel support for system-call tracing");
+
 #ifndef KTRACE_REQUEST_POOL
 #define	KTRACE_REQUEST_POOL	100
 #endif
