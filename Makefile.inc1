@@ -452,7 +452,7 @@ build32:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 5.1: building 32 bit shim libraries"
 	@echo "--------------------------------------------------------------"
-	mkdir -p ${LIB32TMP}/usr/lib32
+	mkdir -p ${LIB32TMP}/usr/include
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${LIB32TMP}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
@@ -496,13 +496,6 @@ build32:
 .endfor
 
 distribute32 install32:
-.if make(distribute32)
-	mkdir -p ${DISTDIR}/${DISTRIBUTION}/usr/lib32	# XXX add to mtree
-	mkdir -p ${DISTDIR}/${DISTRIBUTION}/usr/lib32/dtrace	# XXX add to mtree
-.else
-	mkdir -p ${DESTDIR}/usr/lib32			# XXX add to mtree
-	mkdir -p ${DESTDIR}/usr/lib32/dtrace		# XXX add to mtree
-.endif
 	cd ${.CURDIR}/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
 .if ${MK_CDDL} != "no"
 	cd ${.CURDIR}/cddl/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
@@ -1048,7 +1041,9 @@ build-tools:
     ${_aicasm} \
     usr.bin/awk \
     lib/libmagic \
-    usr.sbin/sysinstall
+    usr.sbin/sysinstall \
+    usr.bin/mkesdb_static \
+    usr.bin/mkcsmapper_static
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,build-tools)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
