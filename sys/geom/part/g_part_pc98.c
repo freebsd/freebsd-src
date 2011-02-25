@@ -40,10 +40,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
+
+FEATURE(geom_part_pc98, "GEOM partitioning class for PC-9800 disk partitions");
 
 #define	SECSIZE		512
 #define	MENUSIZE	7168
