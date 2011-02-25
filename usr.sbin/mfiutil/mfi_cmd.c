@@ -316,7 +316,7 @@ mfi_display_progress(const char *label, struct mfi_progress *prog)
 
 	printf("%s: %.2f%% complete, after %ds", label,
 	    (float)prog->progress * 100 / 0xffff, prog->elapsed_seconds);
-	if (prog->elapsed_seconds > 10) {
+	if (prog->progress != 0 && prog->elapsed_seconds > 10) {
 		printf(" finished in ");
 		seconds = (0x10000 * (uint32_t)prog->elapsed_seconds) /
 		    prog->progress - prog->elapsed_seconds;
