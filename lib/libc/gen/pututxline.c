@@ -43,8 +43,8 @@ __FBSDID("$FreeBSD$");
 static FILE *
 futx_open(const char *file)
 {
-	struct stat sb;
 	FILE *fp;
+	struct stat sb;
 	int fd;
 
 	fd = _open(file, O_CREAT|O_RDWR|O_EXLOCK, 0644);
@@ -69,10 +69,13 @@ futx_open(const char *file)
 static int
 utx_active_add(const struct futx *fu)
 {
-	struct futx fe;
 	FILE *fp;
-	off_t partial = -1;
+	struct futx fe;
+	off_t partial;
 	int error, ret;
+
+	partial = -1;
+	ret = 0;
 
 	/*
 	 * Register user login sessions.  Overwrite entries of sessions
@@ -132,8 +135,8 @@ exact:
 static int
 utx_active_remove(struct futx *fu)
 {
-	struct futx fe;
 	FILE *fp;
+	struct futx fe;
 	int error, ret;
 
 	/*
@@ -266,7 +269,9 @@ struct utmpx *
 pututxline(const struct utmpx *utmpx)
 {
 	struct futx fu;
-	int bad = 0;
+	int bad;
+
+	bad = 0;
 
 	utx_to_futx(utmpx, &fu);
 
