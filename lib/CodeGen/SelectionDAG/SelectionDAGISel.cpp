@@ -49,6 +49,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/Statistic.h"
 #include <algorithm>
 using namespace llvm;
@@ -479,16 +480,7 @@ void SelectionDAGISel::ComputeLiveOutVRegInfo() {
     unsigned NumSignBits = CurDAG->ComputeNumSignBits(Src);
     Mask = APInt::getAllOnesValue(SrcVT.getSizeInBits());
     CurDAG->ComputeMaskedBits(Src, Mask, KnownZero, KnownOne);
-
-    // Only install this information if it tells us something.
-    if (NumSignBits != 1 || KnownZero != 0 || KnownOne != 0) {
-      FuncInfo->LiveOutRegInfo.grow(DestReg);
-      FunctionLoweringInfo::LiveOutInfo &LOI =
-        FuncInfo->LiveOutRegInfo[DestReg];
-      LOI.NumSignBits = NumSignBits;
-      LOI.KnownOne = KnownOne;
-      LOI.KnownZero = KnownZero;
-    }
+    FuncInfo->AddLiveOutRegInfo(DestReg, NumSignBits, KnownZero, KnownOne);
   } while (!Worklist.empty());
 }
 
@@ -832,11 +824,39 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
     FastIS = TLI.createFastISel(*FuncInfo);
 
   // Iterate over all basic blocks in the function.
-  for (Function::const_iterator I = Fn.begin(), E = Fn.end(); I != E; ++I) {
-    const BasicBlock *LLVMBB = &*I;
+  ReversePostOrderTraversal<const Function*> RPOT(&Fn);
+  for (ReversePostOrderTraversal<const Function*>::rpo_iterator
+       I = RPOT.begin(), E = RPOT.end(); I != E; ++I) {
+    const BasicBlock *LLVMBB = *I;
 #ifndef NDEBUG
     CheckLineNumbers(LLVMBB);
 #endif
+
+    if (OptLevel != CodeGenOpt::None) {
+      bool AllPredsVisited = true;
+      for (const_pred_iterator PI = pred_begin(LLVMBB), PE = pred_end(LLVMBB);
+           PI != PE; ++PI) {
+        if (!FuncInfo->VisitedBBs.count(*PI)) {
+          AllPredsVisited = false;
+          break;
+        }
+      }
+
+      if (AllPredsVisited) {
+        for (BasicBlock::const_iterator I = LLVMBB->begin(), E = LLVMBB->end();
+             I != E && isa<PHINode>(I); ++I) {
+          FuncInfo->ComputePHILiveOutRegInfo(cast<PHINode>(I));
+        }
+      } else {
+        for (BasicBlock::const_iterator I = LLVMBB->begin(), E = LLVMBB->end();
+             I != E && isa<PHINode>(I); ++I) {
+          FuncInfo->InvalidatePHILiveOutRegInfo(cast<PHINode>(I));
+        }
+      }
+
+      FuncInfo->VisitedBBs.insert(LLVMBB);
+    }
+
     FuncInfo->MBB = FuncInfo->MBBMap[LLVMBB];
     FuncInfo->InsertPt = FuncInfo->MBB->getFirstNonPHI();
 
@@ -851,17 +871,8 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
       PrepareEHLandingPad();
 
     // Lower any arguments needed in this block if this is the entry block.
-    if (LLVMBB == &Fn.getEntryBlock()) {
-      for (BasicBlock::const_iterator DBI = LLVMBB->begin(), DBE = LLVMBB->end();
-           DBI != DBE; ++DBI) {
-        if (const DbgInfoIntrinsic *DI = dyn_cast<DbgInfoIntrinsic>(DBI)) {
-          const DebugLoc DL = DI->getDebugLoc();
-          SDB->setCurDebugLoc(DL);
-          break;
-        }
-      }
+    if (LLVMBB == &Fn.getEntryBlock())
       LowerArguments(LLVMBB);
-    }
 
     // Before doing SelectionDAG ISel, see if FastISel has been requested.
     if (FastIS) {

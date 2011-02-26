@@ -167,6 +167,20 @@ void SplitAnalysis::calcLiveBlockInfo() {
   }
 }
 
+bool SplitAnalysis::isOriginalEndpoint(SlotIndex Idx) const {
+  unsigned OrigReg = VRM.getOriginal(CurLI->reg);
+  const LiveInterval &Orig = LIS.getInterval(OrigReg);
+  assert(!Orig.empty() && "Splitting empty interval?");
+  LiveInterval::const_iterator I = Orig.find(Idx);
+
+  // Range containing Idx should begin at Idx.
+  if (I != Orig.end() && I->start <= Idx)
+    return I->start == Idx;
+
+  // Range does not contain Idx, previous must end at Idx.
+  return I != Orig.begin() && (--I)->end == Idx;
+}
+
 void SplitAnalysis::print(const BlockPtrSet &B, raw_ostream &OS) const {
   for (BlockPtrSet::const_iterator I = B.begin(), E = B.end(); I != E; ++I) {
     unsigned count = UsingBlocks.lookup(*I);
@@ -947,10 +961,10 @@ void SplitEditor::splitSingleBlocks(const SplitAnalysis::BlockPtrSet &Blocks) {
 
     openIntv();
     SlotIndex SegStart = enterIntvBefore(BI.FirstUse);
-    if (BI.LastUse < BI.LastSplitPoint) {
+    if (!BI.LiveOut || BI.LastUse < BI.LastSplitPoint) {
       useIntv(SegStart, leaveIntvAfter(BI.LastUse));
     } else {
-      // THe last use os after tha last valid split point.
+      // The last use is after the last valid split point.
       SlotIndex SegStop = leaveIntvBefore(BI.LastSplitPoint);
       useIntv(SegStart, SegStop);
       overlapIntv(SegStop, BI.LastUse);

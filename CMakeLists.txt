@@ -12,6 +12,8 @@ set(CMAKE_MODULE_PATH
 
 set(PACKAGE_VERSION "2.9")
 
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 include(VersionFromVCS)
 
 option(LLVM_APPEND_VC_REV
@@ -238,7 +240,6 @@ endif()
 
 option(LLVM_BUILD_TESTS
   "Build LLVM unit tests. If OFF, just generate build targes." OFF)
-option(LLVM_INCLUDE_TESTS "Generate build targets for the LLVM unit tests." ON)
 if( LLVM_INCLUDE_TESTS )
   add_subdirectory(test)
   add_subdirectory(utils/unittest)

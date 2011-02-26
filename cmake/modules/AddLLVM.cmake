@@ -5,7 +5,6 @@ macro(add_llvm_library name)
   llvm_process_sources( ALL_FILES ${ARGN} )
   add_library( ${name} ${ALL_FILES} )
   set_property( GLOBAL APPEND PROPERTY LLVM_LIBS ${name} )
-  set_property( GLOBAL APPEND PROPERTY LLVM_LIB_TARGETS ${name} )
   if( LLVM_COMMON_DEPENDS )
     add_dependencies( ${name} ${LLVM_COMMON_DEPENDS} )
   endif( LLVM_COMMON_DEPENDS )
@@ -25,6 +24,7 @@ macro(add_llvm_library name)
   if( CURRENT_LLVM_TARGET )
     add_dependencies(${name} ${CURRENT_LLVM_TARGET})
   endif()
+  set_target_properties(${name} PROPERTIES FOLDER "Libraries")
 endmacro(add_llvm_library name)
 
 
@@ -55,6 +55,8 @@ ${name} ignored.")
       LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX}
       ARCHIVE DESTINATION lib${LLVM_LIBDIR_SUFFIX})
   endif()
+
+  set_target_properties(${name} PROPERTIES FOLDER "Loadable modules")
 endmacro(add_llvm_loadable_module name)
 
 
@@ -95,6 +97,7 @@ macro(add_llvm_tool name)
   if( LLVM_BUILD_TOOLS )
     install(TARGETS ${name} RUNTIME DESTINATION bin)
   endif()
+  set_target_properties(${name} PROPERTIES FOLDER "Tools")
 endmacro(add_llvm_tool name)
 
 
@@ -107,7 +110,14 @@ macro(add_llvm_example name)
   if( LLVM_BUILD_EXAMPLES )
     install(TARGETS ${name} RUNTIME DESTINATION examples)
   endif()
+  set_target_properties(${name} PROPERTIES FOLDER "Examples")
 endmacro(add_llvm_example name)
+
+
+macro(add_llvm_utility name)
+  add_llvm_executable(${name} ${ARGN})
+  set_target_properties(${name} PROPERTIES FOLDER "Utils")
+endmacro(add_llvm_utility name)
 
 
 macro(add_llvm_target target_name)
@@ -120,6 +130,7 @@ macro(add_llvm_target target_name)
   add_llvm_library(LLVM${target_name} ${ARGN} ${TABLEGEN_OUTPUT})
   if ( TABLEGEN_OUTPUT )
     add_dependencies(LLVM${target_name} ${target_name}Table_gen)
+    set_target_properties(${target_name}Table_gen PROPERTIES FOLDER "Tablegenning")
   endif (TABLEGEN_OUTPUT)
   set( CURRENT_LLVM_TARGET LLVM${target_name} )
 endmacro(add_llvm_target)

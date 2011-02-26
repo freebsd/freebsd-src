@@ -4,13 +4,13 @@ set(LLVM_PACKAGE_VERSION @PACKAGE_VERSION@)
 
 set(LLVM_COMMON_DEPENDS @LLVM_COMMON_DEPENDS@)
 
-set(llvm_libs @llvm_libs@)
-
-set(llvm_lib_targets @llvm_lib_targets@)
+set_property( GLOBAL PROPERTY LLVM_LIBS "@llvm_libs@")
 
 set(LLVM_ALL_TARGETS @LLVM_ALL_TARGETS@)
 
 set(LLVM_TARGETS_TO_BUILD @LLVM_TARGETS_TO_BUILD@)
+
+set(TARGET_TRIPLE "@TARGET_TRIPLE@")
 
 set(LLVM_TOOLS_BINARY_DIR @LLVM_TOOLS_BINARY_DIR@)
 
