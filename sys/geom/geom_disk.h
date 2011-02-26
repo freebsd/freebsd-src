@@ -85,6 +85,7 @@ struct disk {
 	u_int			d_stripeoffset;
 	u_int			d_stripesize;
 	char			d_ident[DISK_IDENT_SIZE];
+	char			d_descr[DISK_IDENT_SIZE];
 	uint16_t		d_hba_vendor;
 	uint16_t		d_hba_device;
 	uint16_t		d_hba_subvendor;
