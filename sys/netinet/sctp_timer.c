@@ -1015,7 +1015,10 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 
 	/* CMT FR loss recovery ended with the T3 */
 	net->fast_retran_loss_recovery = 0;
-
+	if ((stcb->asoc.cc_functions.sctp_cwnd_new_transmission_begins) &&
+	    (net->flight_size == 0)) {
+		(*stcb->asoc.cc_functions.sctp_cwnd_new_transmission_begins) (stcb, net);
+	}
 	/*
 	 * setup the sat loss recovery that prevents satellite cwnd advance.
 	 */

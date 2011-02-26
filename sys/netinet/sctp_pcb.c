@@ -3953,7 +3953,8 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		stcb->asoc.smallest_mtu = net->mtu;
 	}
 	/* JRS - Use the congestion control given in the CC module */
-	stcb->asoc.cc_functions.sctp_set_initial_cc_param(stcb, net);
+	if (stcb->asoc.cc_functions.sctp_set_initial_cc_param != NULL)
+		(*stcb->asoc.cc_functions.sctp_set_initial_cc_param) (stcb, net);
 
 	/*
 	 * CMT: CUC algo - set find_pseudo_cumack to TRUE (1) at beginning
