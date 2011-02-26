@@ -78,28 +78,34 @@ static struct ib_send_wr ipoib_cm_rx_drain_wr = {
 static int ipoib_cm_tx_handler(struct ib_cm_id *cm_id,
 			       struct ib_cm_event *event);
 
-static void ipoib_cm_dma_unmap_rx(struct ipoib_dev_priv *priv,
-				  u64 mapping[IPOIB_CM_RX_SG])
+static void ipoib_cm_dma_unmap_rx(struct ipoib_dev_priv *priv, struct ipoib_cm_rx_buf *rx_req)
 {
 
-	ib_dma_unmap_single(priv->ca, mapping[0], priv->cm.max_cm_mtu, DMA_FROM_DEVICE);
+	ipoib_dma_unmap_rx(priv, (struct ipoib_rx_buf *)rx_req);
 
 }
 
 static int ipoib_cm_post_receive_srq(struct ipoib_dev_priv *priv, int id)
 {
 	struct ib_recv_wr *bad_wr;
+	struct ipoib_rx_buf *rx_req;
+	struct mbuf *m;
 	int ret;
+	int i;
 
+	rx_req = (struct ipoib_rx_buf *)&priv->cm.srq_ring[id];
+	for (m = rx_req->mb, i = 0; m != NULL; m = m->m_next, i++) {
+		priv->cm.rx_sge[i].addr = rx_req->mapping[i];
+		priv->cm.rx_sge[i].length = m->m_len;
+	}
+
+	priv->cm.rx_wr.num_sge = i;
 	priv->cm.rx_wr.wr_id = id | IPOIB_OP_CM | IPOIB_OP_RECV;
-
-	priv->cm.rx_sge[0].addr = priv->cm.srq_ring[id].mapping[0];
-	priv->cm.rx_sge[0].length = priv->cm.max_cm_mtu;
 
 	ret = ib_post_srq_recv(priv->cm.srq, &priv->cm.rx_wr, &bad_wr);
 	if (unlikely(ret)) {
 		ipoib_warn(priv, "post srq failed for buf %d (%d)\n", id, ret);
-		ipoib_cm_dma_unmap_rx(priv, priv->cm.srq_ring[id].mapping);
+		ipoib_dma_unmap_rx(priv, rx_req);
 		m_freem(priv->cm.srq_ring[id].mb);
 		priv->cm.srq_ring[id].mb = NULL;
 	}
@@ -112,18 +118,25 @@ static int ipoib_cm_post_receive_nonsrq(struct ipoib_dev_priv *priv,
 					struct ib_recv_wr *wr,
 					struct ib_sge *sge, int id)
 {
+	struct ipoib_rx_buf *rx_req;
 	struct ib_recv_wr *bad_wr;
+	struct mbuf *m;
 	int ret;
+	int i;
 
+	rx_req = (struct ipoib_rx_buf *)&rx->rx_ring[id];
+	for (m = rx_req->mb, i = 0; m != NULL; m = m->m_next, i++) {
+		sge[i].addr = rx_req->mapping[i];
+		sge[i].length = m->m_len;
+	}
+
+	wr->num_sge = i;
 	wr->wr_id = id | IPOIB_OP_CM | IPOIB_OP_RECV;
-
-	sge[0].addr = rx->rx_ring[id].mapping[0];
-	priv->cm.rx_sge[0].length = priv->cm.max_cm_mtu;
 
 	ret = ib_post_recv(rx->qp, wr, &bad_wr);
 	if (unlikely(ret)) {
 		ipoib_warn(priv, "post recv failed for buf %d (%d)\n", id, ret);
-		ipoib_cm_dma_unmap_rx(priv, rx->rx_ring[id].mapping);
+		ipoib_dma_unmap_rx(priv, rx_req);
 		m_freem(rx->rx_ring[id].mb);
 		rx->rx_ring[id].mb = NULL;
 	}
@@ -131,37 +144,11 @@ static int ipoib_cm_post_receive_nonsrq(struct ipoib_dev_priv *priv,
 	return ret;
 }
 
-static struct mbuf *ipoib_cm_alloc_rx_mb(struct ipoib_dev_priv *priv,
-					     struct ipoib_cm_rx_buf *rx_ring,
-					     int id,
-					     u64 mapping[IPOIB_CM_RX_SG])
+static struct mbuf *
+ipoib_cm_alloc_rx_mb(struct ipoib_dev_priv *priv, struct ipoib_cm_rx_buf *rx_req)
 {
-	struct mbuf *mb;
-	int buf_size;
-
-	buf_size = priv->cm.max_cm_mtu;
-	if (buf_size <= MCLBYTES)
-		buf_size = MCLBYTES;
-	else if (buf_size <= MJUMPAGESIZE)
-		buf_size = MJUMPAGESIZE;
-	else if (buf_size <= MJUM9BYTES)
-		buf_size = MJUM9BYTES;
-	else if (buf_size < MJUM16BYTES)
-		buf_size = MJUM16BYTES;
-
-	mb = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, buf_size);
-	if (unlikely(!mb))
-		return NULL;
-
-	mapping[0] = ib_dma_map_single(priv->ca, mtod(mb, void *),
-				       buf_size, DMA_FROM_DEVICE);
-	if (unlikely(ib_dma_mapping_error(priv->ca, mapping[0]))) {
-		m_freem(mb);
-		return NULL;
-	}
-
-	rx_ring[id].mb = mb;
-	return mb;
+	return ipoib_alloc_map_mb(priv, (struct ipoib_rx_buf *)rx_req,
+	    priv->cm.max_cm_mtu);
 }
 
 static void ipoib_cm_free_rx_ring(struct ipoib_dev_priv *priv,
@@ -171,7 +158,7 @@ static void ipoib_cm_free_rx_ring(struct ipoib_dev_priv *priv,
 
 	for (i = 0; i < ipoib_recvq_size; ++i)
 		if (rx_ring[i].mb) {
-			ipoib_cm_dma_unmap_rx(priv, rx_ring[i].mapping);
+			ipoib_cm_dma_unmap_rx(priv, &rx_ring[i]);
 			m_freem(rx_ring[i].mb);
 		}
 
@@ -225,7 +212,7 @@ static struct ib_qp *ipoib_cm_create_rx_qp(struct ipoib_dev_priv *priv,
 		.recv_cq = priv->recv_cq,
 		.srq = priv->cm.srq,
 		.cap.max_send_wr = 1, /* For drain WR */
-		.cap.max_send_sge = 1, /* FIXME: 0 Seems not to work */
+		.cap.max_send_sge = 1,
 		.sq_sig_type = IB_SIGNAL_ALL_WR,
 		.qp_type = IB_QPT_RC,
 		.qp_context = p,
@@ -233,7 +220,7 @@ static struct ib_qp *ipoib_cm_create_rx_qp(struct ipoib_dev_priv *priv,
 
 	if (!ipoib_cm_has_srq(priv)) {
 		attr.cap.max_recv_wr  = ipoib_recvq_size;
-		attr.cap.max_recv_sge = IPOIB_CM_RX_SG;
+		attr.cap.max_recv_sge = priv->cm.num_frags;
 	}
 
 	return ib_create_qp(priv->pd, &attr);
@@ -297,9 +284,10 @@ static void ipoib_cm_init_rx_wr(struct ipoib_dev_priv *priv,
 				struct ib_recv_wr *wr,
 				struct ib_sge *sge)
 {
+	int i;
 
-	sge[0].length = priv->cm.max_cm_mtu;
-	sge[0].lkey = priv->mr->lkey;
+	for (i = 0; i < IPOIB_CM_RX_SG; i++)
+		sge[i].lkey = priv->mr->lkey;
 
 	wr->next    = NULL;
 	wr->sg_list = sge;
@@ -346,8 +334,7 @@ static int ipoib_cm_nonsrq_init_rx(struct ipoib_dev_priv *priv,
 	spin_unlock_irq(&priv->lock);
 
 	for (i = 0; i < ipoib_recvq_size; ++i) {
-		if (!ipoib_cm_alloc_rx_mb(priv, rx->rx_ring, i,
-					   rx->rx_ring[i].mapping)) {
+		if (!ipoib_cm_alloc_rx_mb(priv, &rx->rx_ring[i])) {
 			ipoib_warn(priv, "failed to allocate receive buffer %d\n", i);
 				ret = -ENOMEM;
 				goto err_count;
@@ -482,23 +469,15 @@ static int ipoib_cm_rx_handler(struct ib_cm_id *cm_id,
 		return 0;
 	}
 }
-/* Adjust length of mb with fragments to match received data */
-static void mb_put_frags(struct mbuf *mb,
-			  unsigned int length, struct mbuf *tomb)
-{
-
-	mb->m_pkthdr.len = length;
-	mb->m_len = length;
-}
 
 void ipoib_cm_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 {
+	struct ipoib_cm_rx_buf saverx;
 	struct ipoib_cm_rx_buf *rx_ring;
 	unsigned int wr_id = wc->wr_id & ~(IPOIB_OP_CM | IPOIB_OP_RECV);
 	struct ifnet *dev = priv->dev;
 	struct mbuf *mb, *newmb;
 	struct ipoib_cm_rx *p;
-	u64 mapping[IPOIB_CM_RX_SG];
 	int has_srq;
 	u_short proto;
 
@@ -555,7 +534,8 @@ void ipoib_cm_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 		}
 	}
 
-	newmb = ipoib_cm_alloc_rx_mb(priv, rx_ring, wr_id, mapping);
+	memcpy(&saverx, &rx_ring[wr_id], sizeof(saverx));
+	newmb = ipoib_cm_alloc_rx_mb(priv, &rx_ring[wr_id]);
 	if (unlikely(!newmb)) {
 		/*
 		 * If we can't allocate a new RX buffer, dump
@@ -563,16 +543,16 @@ void ipoib_cm_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 		 */
 		ipoib_dbg(priv, "failed to allocate receive buffer %d\n", wr_id);
 		++dev->if_ierrors;
+		memcpy(&rx_ring[wr_id], &saverx, sizeof(saverx));
 		goto repost;
 	}
 
-	ipoib_cm_dma_unmap_rx(priv, rx_ring[wr_id].mapping);
-	memcpy(rx_ring[wr_id].mapping, mapping, sizeof *mapping);
+	ipoib_cm_dma_unmap_rx(priv, &saverx);
 
 	ipoib_dbg_data(priv, "received %d bytes, SLID 0x%04x\n",
 		       wc->byte_len, wc->slid);
 
-	mb_put_frags(mb, wc->byte_len, newmb);
+	ipoib_dma_mb(priv, mb, wc->byte_len);
 
 	++dev->if_opackets;
 	dev->if_obytes += mb->m_pkthdr.len;
@@ -603,7 +583,7 @@ repost:
 
 static inline int post_send(struct ipoib_dev_priv *priv,
 			    struct ipoib_cm_tx *tx,
-			    struct ipoib_tx_buf *tx_req,
+			    struct ipoib_cm_tx_buf *tx_req,
 			    unsigned int wr_id)
 {
 	struct ib_send_wr *bad_wr;
@@ -625,7 +605,7 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 
 void ipoib_cm_send(struct ipoib_dev_priv *priv, struct mbuf *mb, struct ipoib_cm_tx *tx)
 {
-	struct ipoib_tx_buf *tx_req;
+	struct ipoib_cm_tx_buf *tx_req;
 	struct ifnet *dev = priv->dev;
 
 	if (unlikely(priv->tx_outstanding > MAX_SEND_CQE))
@@ -653,7 +633,8 @@ void ipoib_cm_send(struct ipoib_dev_priv *priv, struct mbuf *mb, struct ipoib_cm
 	 */
 	tx_req = &tx->tx_ring[tx->tx_head & (ipoib_sendq_size - 1)];
 	tx_req->mb = mb;
-	if (unlikely(ipoib_dma_map_tx(priv->ca, tx_req))) {
+	if (unlikely(ipoib_dma_map_tx(priv->ca, (struct ipoib_tx_buf *)tx_req,
+	    priv->cm.num_frags))) {
 		++dev->if_oerrors;
 		if (tx_req->mb)
 			m_freem(tx_req->mb);
@@ -663,7 +644,7 @@ void ipoib_cm_send(struct ipoib_dev_priv *priv, struct mbuf *mb, struct ipoib_cm
 	if (unlikely(post_send(priv, tx, tx_req, tx->tx_head & (ipoib_sendq_size - 1)))) {
 		ipoib_warn(priv, "post_send failed\n");
 		++dev->if_oerrors;
-		ipoib_dma_unmap_tx(priv->ca, tx_req);
+		ipoib_dma_unmap_tx(priv->ca, (struct ipoib_tx_buf *)tx_req);
 		m_freem(mb);
 	} else {
 		++tx->tx_head;
@@ -684,7 +665,7 @@ void ipoib_cm_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	struct ipoib_cm_tx *tx = wc->qp->qp_context;
 	unsigned int wr_id = wc->wr_id & ~IPOIB_OP_CM;
 	struct ifnet *dev = priv->dev;
-	struct ipoib_tx_buf *tx_req;
+	struct ipoib_cm_tx_buf *tx_req;
 
 	ipoib_dbg_data(priv, "cm send completion: id %d, status: %d\n",
 		       wr_id, wc->status);
@@ -697,7 +678,7 @@ void ipoib_cm_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 
 	tx_req = &tx->tx_ring[wr_id];
 
-	ipoib_dma_unmap_tx(priv->ca, tx_req);
+	ipoib_dma_unmap_tx(priv->ca, (struct ipoib_tx_buf *)tx_req);
 
 	/* FIXME: is this right? Shouldn't we only increment on success? */
 	++dev->if_opackets;
@@ -934,7 +915,7 @@ static struct ib_qp *ipoib_cm_create_tx_qp(struct ipoib_dev_priv *priv,
 		.recv_cq		= priv->recv_cq,
 		.srq			= priv->cm.srq,
 		.cap.max_send_wr	= ipoib_sendq_size,
-		.cap.max_send_sge	= MAX_MB_FRAGS,
+		.cap.max_send_sge	= priv->cm.num_frags,
 		.sq_sig_type		= IB_SIGNAL_ALL_WR,
 		.qp_type		= IB_QPT_RC,
 		.qp_context		= tx
@@ -1067,7 +1048,7 @@ static void ipoib_cm_tx_destroy(struct ipoib_cm_tx *p)
 {
 	struct ipoib_dev_priv *priv = p->priv;
 	struct ifnet *dev = priv->dev;
-	struct ipoib_tx_buf *tx_req;
+	struct ipoib_cm_tx_buf *tx_req;
 	unsigned long begin;
 
 	ipoib_dbg(priv, "Destroy active connection 0x%x head 0x%x tail 0x%x\n",
@@ -1097,7 +1078,7 @@ timeout:
 
 	while ((int) p->tx_tail - (int) p->tx_head < 0) {
 		tx_req = &p->tx_ring[p->tx_tail & (ipoib_sendq_size - 1)];
-		ipoib_dma_unmap_tx(priv->ca, tx_req);
+		ipoib_dma_unmap_tx(priv->ca, (struct ipoib_tx_buf *)tx_req);
 		m_freem(tx_req->mb);
 		++p->tx_tail;
 		if (unlikely(--priv->tx_outstanding == ipoib_sendq_size >> 1) &&
@@ -1404,7 +1385,7 @@ int ipoib_cm_dev_init(struct ipoib_dev_priv *priv)
 	attr.max_srq_sge = min_t(int, IPOIB_CM_RX_SG, attr.max_srq_sge);
 	ipoib_cm_create_srq(priv, attr.max_srq_sge);
 	if (ipoib_cm_has_srq(priv)) {
-		priv->cm.max_cm_mtu = attr.max_srq_sge * MJUM16BYTES;
+		priv->cm.max_cm_mtu = attr.max_srq_sge * MJUMPAGESIZE;
 		priv->cm.num_frags  = attr.max_srq_sge;
 		ipoib_dbg(priv, "max_cm_mtu = 0x%x, num_frags=%d\n",
 			  priv->cm.max_cm_mtu, priv->cm.num_frags);
@@ -1417,8 +1398,7 @@ int ipoib_cm_dev_init(struct ipoib_dev_priv *priv)
 
 	if (ipoib_cm_has_srq(priv)) {
 		for (i = 0; i < ipoib_recvq_size; ++i) {
-			if (!ipoib_cm_alloc_rx_mb(priv, priv->cm.srq_ring, i,
-						   priv->cm.srq_ring[i].mapping)) {
+			if (!ipoib_cm_alloc_rx_mb(priv, &priv->cm.srq_ring[i])) {
 				ipoib_warn(priv, "failed to allocate "
 					   "receive buffer %d\n", i);
 				ipoib_cm_dev_cleanup(priv);

@@ -992,6 +992,8 @@ ipoib_add_port(const char *format, struct ib_device *hca, u8 port)
 		       hca->name, port, result);
 		goto device_init_failed;
 	}
+	if (ipoib_cm_admin_enabled(priv))
+		priv->dev->if_mtu = IPOIB_CM_MTU(ipoib_cm_max_mtu(priv));
 
 	INIT_IB_EVENT_HANDLER(&priv->event_handler,
 			      priv->ca, ipoib_event);

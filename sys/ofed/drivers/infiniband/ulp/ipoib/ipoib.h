@@ -91,7 +91,6 @@
 /* constants */
 
 #define	INFINIBAND_ALEN		20	/* Octets in IPoIB HW addr */
-#define	MAX_MB_FRAGS		((8192 / MCLBYTES) + 2)
 
 #ifdef IPOIB_CM
 #define	CONFIG_INFINIBAND_IPOIB_CM
@@ -111,12 +110,16 @@ enum ipoib_flush_level {
 enum {
 	IPOIB_ENCAP_LEN		  = 4,
 	IPOIB_HEADER_LEN	  = IPOIB_ENCAP_LEN + INFINIBAND_ALEN,
-	IPOIB_UD_RX_SG		  = 1, /* max buffer needed for 4K mtu */
-
-	IPOIB_CM_MAX_MTU	  = MJUM16BYTES,
-	IPOIB_CM_RX_SG		  = 1,	/* We only allocate a single mbuf. */
+	IPOIB_UD_MAX_MTU	  = 4 * 1024,
+	IPOIB_UD_RX_SG		  = (IPOIB_UD_MAX_MTU / MJUMPAGESIZE),
+	IPOIB_UD_TX_SG		  = (IPOIB_UD_MAX_MTU / MCLBYTES) + 2,
+	IPOIB_CM_MAX_MTU	  = (64 * 1024),
+	IPOIB_CM_TX_SG		  = (IPOIB_CM_MAX_MTU / MCLBYTES) + 2,
+	IPOIB_CM_RX_SG		  = (IPOIB_CM_MAX_MTU / MJUMPAGESIZE),
 	IPOIB_RX_RING_SIZE	  = 256,
 	IPOIB_TX_RING_SIZE	  = 128,
+	IPOIB_MAX_RX_SG		  = MAX(IPOIB_CM_RX_SG, IPOIB_UD_RX_SG),
+	IPOIB_MAX_TX_SG		  = MAX(IPOIB_CM_TX_SG, IPOIB_UD_TX_SG),
 	IPOIB_MAX_QUEUE_SIZE	  = 8192,
 	IPOIB_MIN_QUEUE_SIZE	  = 2,
 	IPOIB_CM_MAX_CONN_QP	  = 4096,
@@ -190,6 +193,16 @@ struct ipoib_mcast {
 	struct ipoib_dev_priv *priv;
 };
 
+struct ipoib_cm_rx_buf {
+	struct mbuf *mb;
+	u64		mapping[IPOIB_CM_RX_SG];
+};
+
+struct ipoib_cm_tx_buf {
+	struct mbuf *mb;
+	u64		mapping[IPOIB_CM_TX_SG];
+};
+
 struct ipoib_rx_buf {
 	struct mbuf *mb;
 	u64		mapping[IPOIB_UD_RX_SG];
@@ -197,7 +210,7 @@ struct ipoib_rx_buf {
 
 struct ipoib_tx_buf {
 	struct mbuf *mb;
-	u64		mapping[MAX_MB_FRAGS];
+	u64		mapping[IPOIB_UD_TX_SG];
 };
 
 struct ib_cm_id;
@@ -257,16 +270,11 @@ struct ipoib_cm_tx {
 	struct list_head     list;
 	struct ipoib_dev_priv *priv;
 	struct ipoib_path   *path;
-	struct ipoib_tx_buf *tx_ring;
+	struct ipoib_cm_tx_buf *tx_ring;
 	unsigned	     tx_head;
 	unsigned	     tx_tail;
 	unsigned long	     flags;
 	u32		     mtu;	/* remote specified mtu, with grh. */
-};
-
-struct ipoib_cm_rx_buf {
-	struct mbuf *mb;
-	u64 mapping[IPOIB_CM_RX_SG];
 };
 
 struct ipoib_cm_dev_priv {
@@ -287,7 +295,7 @@ struct ipoib_cm_dev_priv {
 	struct list_head	start_list;
 	struct list_head	reap_list;
 	struct ib_sge		rx_sge[IPOIB_CM_RX_SG];
-	struct ib_recv_wr       rx_wr;
+	struct ib_recv_wr	rx_wr;
 	int			nonsrq_conn_qp;
 	int			max_cm_mtu;	/* Actual buf size. */
 	int			num_frags;
@@ -353,13 +361,13 @@ struct ipoib_dev_priv {
 	struct ipoib_tx_buf *tx_ring;
 	unsigned	     tx_head;
 	unsigned	     tx_tail;
-	struct ib_sge	     tx_sge[MAX_MB_FRAGS];
+	struct ib_sge	     tx_sge[IPOIB_MAX_TX_SG];
 	struct ib_send_wr    tx_wr;
 	unsigned	     tx_outstanding;
 	struct ib_wc	     send_wc[MAX_SEND_CQE];
 
 	struct ib_recv_wr    rx_wr;
-	struct ib_sge	     rx_sge[IPOIB_UD_RX_SG];
+	struct ib_sge	     rx_sge[IPOIB_MAX_RX_SG];
 
 	struct ib_wc ibwc[IPOIB_NUM_WC];
 
@@ -414,7 +422,7 @@ struct ipoib_path {
 
 /* UD Only transmits encap len but we want the two sizes to be symmetrical. */
 #define IPOIB_UD_MTU(ib_mtu)		(ib_mtu - IPOIB_ENCAP_LEN)
-#define	IPOIB_CM_MTU(ib_mtu)		(ib_mtu - IPOIB_ENCAP_LEN)
+#define	IPOIB_CM_MTU(ib_mtu)		(ib_mtu - 0x10)
 
 #define	IPOIB_IS_MULTICAST(addr)	((addr)[4] == 0xff)
 
@@ -516,9 +524,13 @@ void ipoib_pkey_poll(struct work_struct *work);
 int ipoib_pkey_dev_delay_open(struct ipoib_dev_priv *priv);
 void ipoib_drain_cq(struct ipoib_dev_priv *priv);
 
-int ipoib_dma_map_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req);
+int ipoib_dma_map_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req, int max);
 void ipoib_dma_unmap_tx(struct ib_device *ca, struct ipoib_tx_buf *tx_req);
 int ipoib_poll_tx(struct ipoib_dev_priv *priv);
+
+void ipoib_dma_unmap_rx(struct ipoib_dev_priv *priv, struct ipoib_rx_buf *rx_req);
+void ipoib_dma_mb(struct ipoib_dev_priv *priv, struct mbuf *mb, unsigned int length);
+struct mbuf *ipoib_alloc_map_mb(struct ipoib_dev_priv *priv, struct ipoib_rx_buf *rx_req, int size);
 
 
 void ipoib_set_ethtool_ops(struct ifnet *dev);

@@ -202,7 +202,7 @@ int ipoib_transport_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca)
 	if (priv->hca_caps & IB_DEVICE_BLOCK_MULTICAST_LOOPBACK)
 		init_attr.create_flags |= IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK;
 
-	init_attr.cap.max_send_sge = MAX_MB_FRAGS;
+	init_attr.cap.max_send_sge = IPOIB_UD_TX_SG;
 
 	priv->qp = ib_create_qp(priv->pd, &init_attr);
 	if (IS_ERR(priv->qp)) {
@@ -214,15 +214,15 @@ int ipoib_transport_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca)
 	IF_LLADDR(priv->dev)[2] = (priv->qp->qp_num >>  8) & 0xff;
 	IF_LLADDR(priv->dev)[3] = (priv->qp->qp_num      ) & 0xff;
 
-	for (i = 0; i < MAX_MB_FRAGS + 1; ++i)
+	for (i = 0; i < IPOIB_MAX_TX_SG; ++i)
 		priv->tx_sge[i].lkey = priv->mr->lkey;
 
 	priv->tx_wr.opcode	= IB_WR_SEND;
 	priv->tx_wr.sg_list	= priv->tx_sge;
 	priv->tx_wr.send_flags	= IB_SEND_SIGNALED;
 
-	priv->rx_sge[0].lkey = priv->mr->lkey;
-	priv->rx_wr.num_sge = 1;
+	for (i = 0; i < IPOIB_UD_RX_SG; ++i)
+		priv->rx_sge[i].lkey = priv->mr->lkey;
 	priv->rx_wr.next = NULL;
 	priv->rx_wr.sg_list = priv->rx_sge;
 
