@@ -254,6 +254,20 @@ unsigned long reverse(unsigned v) {
 
 //===---------------------------------------------------------------------===//
 
+[LOOP DELETION]
+
+We don't delete this output free loop, because trip count analysis doesn't
+realize that it is finite (if it were infinite, it would be undefined).  Not
+having this blocks Loop Idiom from matching strlen and friends.  
+
+void foo(char *C) {
+  int x = 0;
+  while (*C)
+    ++x,++C;
+}
+
+//===---------------------------------------------------------------------===//
+
 [LOOP RECOGNITION]
 
 These idioms should be recognized as popcount (see PR1488):
@@ -285,6 +299,16 @@ unsigned int popcount(unsigned int input) {
   for (unsigned int i =  0; i < 4 * 8; i++)
     count += (input >> i) & i;
   return count;
+}
+
+This should be recognized as CLZ:  rdar://8459039
+
+unsigned clz_a(unsigned a) {
+  int i;
+  for (i=0;i<32;i++)
+    if (a & (1<<(31-i)))
+      return i;
+  return 32;
 }
 
 This sort of thing should be added to the loop idiom pass.

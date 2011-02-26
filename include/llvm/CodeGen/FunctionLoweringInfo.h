@@ -101,13 +101,16 @@ public:
 #endif
 
   struct LiveOutInfo {
-    unsigned NumSignBits;
+    unsigned NumSignBits : 31;
+    bool IsValid : 1;
     APInt KnownOne, KnownZero;
-    LiveOutInfo() : NumSignBits(0), KnownOne(1, 0), KnownZero(1, 0) {}
+    LiveOutInfo() : NumSignBits(0), IsValid(true), KnownOne(1, 0),
+                    KnownZero(1, 0) {}
   };
-  
-  /// LiveOutRegInfo - Information about live out vregs.
-  IndexedMap<LiveOutInfo, VirtReg2IndexFunctor> LiveOutRegInfo;
+
+  /// VisitedBBs - The set of basic blocks visited thus far by instruction
+  /// selection.
+  DenseSet<const BasicBlock*> VisitedBBs;
 
   /// PHINodesToUpdate - A list of phi instructions whose operand list will
   /// be updated after processing the current basic block.
@@ -143,12 +146,62 @@ public:
     return R = CreateRegs(V->getType());
   }
 
+  /// GetLiveOutRegInfo - Gets LiveOutInfo for a register, returning NULL if the
+  /// register is a PHI destination and the PHI's LiveOutInfo is not valid.
+  const LiveOutInfo *GetLiveOutRegInfo(unsigned Reg) {
+    if (!LiveOutRegInfo.inBounds(Reg))
+      return NULL;
+
+    const LiveOutInfo *LOI = &LiveOutRegInfo[Reg];
+    if (!LOI->IsValid)
+      return NULL;
+
+    return LOI;
+  }
+
+  /// GetLiveOutRegInfo - Gets LiveOutInfo for a register, returning NULL if the
+  /// register is a PHI destination and the PHI's LiveOutInfo is not valid. If
+  /// the register's LiveOutInfo is for a smaller bit width, it is extended to
+  /// the larger bit width by zero extension. The bit width must be no smaller
+  /// than the LiveOutInfo's existing bit width.
+  const LiveOutInfo *GetLiveOutRegInfo(unsigned Reg, unsigned BitWidth);
+
+  /// AddLiveOutRegInfo - Adds LiveOutInfo for a register.
+  void AddLiveOutRegInfo(unsigned Reg, unsigned NumSignBits,
+                         const APInt &KnownZero, const APInt &KnownOne) {
+    // Only install this information if it tells us something.
+    if (NumSignBits == 1 && KnownZero == 0 && KnownOne == 0)
+      return;
+
+    LiveOutRegInfo.grow(Reg);
+    LiveOutInfo &LOI = LiveOutRegInfo[Reg];
+    LOI.NumSignBits = NumSignBits;
+    LOI.KnownOne = KnownOne;
+    LOI.KnownZero = KnownZero;
+  }
+
+  /// ComputePHILiveOutRegInfo - Compute LiveOutInfo for a PHI's destination
+  /// register based on the LiveOutInfo of its operands.
+  void ComputePHILiveOutRegInfo(const PHINode*);
+
+  /// InvalidatePHILiveOutRegInfo - Invalidates a PHI's LiveOutInfo, to be
+  /// called when a block is visited before all of its predecessors.
+  void InvalidatePHILiveOutRegInfo(const PHINode *PN) {
+    unsigned Reg = ValueMap[PN];
+    LiveOutRegInfo.grow(Reg);
+    LiveOutRegInfo[Reg].IsValid = false;
+  }
+
   /// setByValArgumentFrameIndex - Record frame index for the byval
   /// argument.
   void setByValArgumentFrameIndex(const Argument *A, int FI);
   
   /// getByValArgumentFrameIndex - Get frame index for the byval argument.
   int getByValArgumentFrameIndex(const Argument *A);
+
+private:
+  /// LiveOutRegInfo - Information about live out vregs.
+  IndexedMap<LiveOutInfo, VirtReg2IndexFunctor> LiveOutRegInfo;
 };
 
 /// AddCatchInfo - Extract the personality and type infos from an eh.selector

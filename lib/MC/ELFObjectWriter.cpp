@@ -833,7 +833,11 @@ static bool isInSymtab(const MCAssembler &Asm, const MCSymbolData &Data,
     return true;
 
   const MCSymbol &A = Symbol.AliasedSymbol();
-  if (!A.isVariable() && A.isUndefined() && !Data.isCommon())
+  if (Symbol.isVariable() && !A.isVariable() && A.isUndefined())
+    return false;
+
+  bool IsGlobal = GetBinding(Data) == ELF::STB_GLOBAL;
+  if (!Symbol.isVariable() && Symbol.isUndefined() && !IsGlobal)
     return false;
 
   if (!Asm.isSymbolLinkerVisible(Symbol) && !Symbol.isUndefined())
@@ -1731,6 +1735,10 @@ unsigned X86ELFObjectWriter::GetRelocType(const MCValue &Target,
       case FK_PCRel_2:
         assert(Modifier == MCSymbolRefExpr::VK_None);
         Type = ELF::R_X86_64_PC16;
+        break;
+      case FK_PCRel_1:
+        assert(Modifier == MCSymbolRefExpr::VK_None);
+        Type = ELF::R_X86_64_PC8;
         break;
       }
     } else {
