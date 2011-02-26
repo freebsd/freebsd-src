@@ -219,7 +219,6 @@ struct htcp {
 	uint32_t lasttime;
 };
 
-
 struct sctp_nets {
 	TAILQ_ENTRY(sctp_nets) sctp_next;	/* next link */
 
@@ -254,10 +253,9 @@ struct sctp_nets {
 
 	/* last time in seconds I sent to it */
 	struct timeval last_sent_time;
-
-	/* JRS - struct used in HTCP algorithm */
-	struct htcp htcp_ca;
-
+	union cc_control_data {
+		struct htcp htcp_ca;	/* JRS - struct used in HTCP algorithm */
+	}               cc_mod;
 	int ref_count;
 
 	/* Congestion stats per destination */
@@ -648,6 +646,15 @@ struct sctp_cc_functions {
 	         struct sctp_nets *net, int burst_limit);
 	void (*sctp_cwnd_update_after_fr_timer) (struct sctp_inpcb *inp,
 	         struct sctp_tcb *stcb, struct sctp_nets *net);
+	void (*sctp_cwnd_update_packet_transmitted) (struct sctp_tcb *stcb,
+	         struct sctp_nets *net);
+	void (*sctp_cwnd_update_tsn_acknowledged) (struct sctp_nets *net,
+	         struct sctp_tmit_chunk *);
+	void (*sctp_cwnd_new_transmission_begins) (struct sctp_tcb *stcb,
+	         struct sctp_nets *net);
+	void (*sctp_cwnd_prepare_net_for_sack) (struct sctp_tcb *stcb,
+	         struct sctp_nets *net);
+	int (*sctp_cwnd_socket_option) (struct sctp_tcb *stcb, int set, struct sctp_cc_option *);
 };
 
 /*
@@ -1166,6 +1173,7 @@ struct sctp_association {
 	uint8_t sctp_nr_sack_on_off;
 	/* JRS 5/21/07 - CMT PF variable */
 	uint8_t sctp_cmt_pf;
+	uint8_t use_precise_time;
 	/*
 	 * The mapping array is used to track out of order sequences above
 	 * last_acked_seq. 0 indicates packet missing 1 indicates packet

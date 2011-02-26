@@ -2939,6 +2939,10 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 							    tp1->rec.data.TSN_seq);
 						}
 						sctp_flight_size_decrease(tp1);
+						if (stcb->asoc.cc_functions.sctp_cwnd_update_tsn_acknowledged) {
+							(*stcb->asoc.cc_functions.sctp_cwnd_update_tsn_acknowledged) (tp1->whoTo,
+							    tp1);
+						}
 						sctp_total_flight_decrease(stcb, tp1);
 
 						tp1->whoTo->net_ack += tp1->send_size;
@@ -3442,6 +3446,10 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			if (tp1->whoTo) {
 				tp1->whoTo->net_ack++;
 				sctp_flight_size_decrease(tp1);
+				if (stcb->asoc.cc_functions.sctp_cwnd_update_tsn_acknowledged) {
+					(*stcb->asoc.cc_functions.sctp_cwnd_update_tsn_acknowledged) (tp1->whoTo,
+					    tp1);
+				}
 			}
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_RWND_ENABLE) {
 				sctp_log_rwnd(SCTP_INCREASE_PEER_RWND,
@@ -3737,6 +3745,10 @@ sctp_window_probe_recovery(struct sctp_tcb *stcb,
 		return;
 	}
 	/* First setup this by shrinking flight */
+	if (stcb->asoc.cc_functions.sctp_cwnd_update_tsn_acknowledged) {
+		(*stcb->asoc.cc_functions.sctp_cwnd_update_tsn_acknowledged) (tp1->whoTo,
+		    tp1);
+	}
 	sctp_flight_size_decrease(tp1);
 	sctp_total_flight_decrease(stcb, tp1);
 	/* Now mark for resend */
@@ -3810,6 +3822,9 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 		 */
 		net->new_pseudo_cumack = 0;
 		net->will_exit_fast_recovery = 0;
+		if (stcb->asoc.cc_functions.sctp_cwnd_prepare_net_for_sack) {
+			(*stcb->asoc.cc_functions.sctp_cwnd_prepare_net_for_sack) (stcb, net);
+		}
 	}
 	if (SCTP_BASE_SYSCTL(sctp_strict_sacks)) {
 		uint32_t send_s;
@@ -3883,6 +3898,10 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 							    tp1->rec.data.TSN_seq);
 						}
 						sctp_flight_size_decrease(tp1);
+						if (stcb->asoc.cc_functions.sctp_cwnd_update_tsn_acknowledged) {
+							(*stcb->asoc.cc_functions.sctp_cwnd_update_tsn_acknowledged) (tp1->whoTo,
+							    tp1);
+						}
 						/* sa_ignore NO_NULL_CHK */
 						sctp_total_flight_decrease(stcb, tp1);
 					}
@@ -4447,6 +4466,9 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 		 */
 		net->new_pseudo_cumack = 0;
 		net->will_exit_fast_recovery = 0;
+		if (stcb->asoc.cc_functions.sctp_cwnd_prepare_net_for_sack) {
+			(*stcb->asoc.cc_functions.sctp_cwnd_prepare_net_for_sack) (stcb, net);
+		}
 	}
 	/* process the new consecutive TSN first */
 	TAILQ_FOREACH(tp1, &asoc->sent_queue, sctp_next) {
@@ -4483,6 +4505,10 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 						}
 						sctp_flight_size_decrease(tp1);
 						sctp_total_flight_decrease(stcb, tp1);
+						if (stcb->asoc.cc_functions.sctp_cwnd_update_tsn_acknowledged) {
+							(*stcb->asoc.cc_functions.sctp_cwnd_update_tsn_acknowledged) (tp1->whoTo,
+							    tp1);
+						}
 					}
 					tp1->whoTo->net_ack += tp1->send_size;
 
