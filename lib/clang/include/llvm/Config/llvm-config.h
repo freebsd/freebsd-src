@@ -18,8 +18,38 @@
 /* TODO: This is a bit of a hack.  */
 #ifndef CONFIG_H
 
+/* Installation directory for binary executables */
+/* #undef LLVM_BINDIR */
+
+/* Time at which LLVM was configured */
+/* #undef LLVM_CONFIGTIME */
+
+/* Installation directory for data files */
+/* #undef LLVM_DATADIR */
+
+/* Installation directory for documentation */
+/* #undef LLVM_DOCSDIR */
+
+/* Installation directory for config files */
+/* #undef LLVM_ETCDIR */
+
+/* Host triple we were built on */
+/* #undef LLVM_HOSTTRIPLE */
+
+/* Installation directory for include files */
+/* #undef LLVM_INCLUDEDIR */
+
+/* Installation directory for .info files */
+/* #undef LLVM_INFODIR */
+
+/* Installation directory for libraries */
+/* #undef LLVM_LIBDIR */
+
+/* Installation directory for man pages */
+/* #undef LLVM_MANDIR */
+
 /* Build multithreading support into LLVM */
-/* #undef LLVM_MULTITHREADED */
+#define LLVM_MULTITHREADED 0
 
 /* LLVM architecture name for the native architecture, if available */
 #define LLVM_NATIVE_ARCH X86
@@ -64,6 +94,6 @@
 /* #undef LLVM_PATH_TWOPI */
 
 /* Installation prefix directory */
-#define LLVM_PREFIX "/usr"
+/* #undef LLVM_PREFIX */
 
 #endif
