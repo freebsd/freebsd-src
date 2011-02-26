@@ -316,6 +316,7 @@ vm_init2(void)
 static inline void
 vmspace_dofree(struct vmspace *vm)
 {
+
 	CTR1(KTR_VM, "vmspace_free: %p", vm);
 
 	/*
@@ -332,12 +333,8 @@ vmspace_dofree(struct vmspace *vm)
 	(void)vm_map_remove(&vm->vm_map, vm->vm_map.min_offset,
 	    vm->vm_map.max_offset);
 
-	/*
-	 * XXX Comment out the pmap_release call for now. The
-	 * vmspace_zone is marked as UMA_ZONE_NOFREE, and bugs cause
-	 * pmap.resident_count to be != 0 on exit sometimes.
-	 */
-/* 	pmap_release(vmspace_pmap(vm)); */
+	pmap_release(vmspace_pmap(vm));
+	vm->vm_map.pmap = NULL;
 	uma_zfree(vmspace_zone, vm);
 }
 
