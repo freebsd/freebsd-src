@@ -724,6 +724,12 @@ cdregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_strategy = cdstrategy;
 	softc->disk->d_ioctl = cdioctl;
 	softc->disk->d_name = "cd";
+	cam_strvis(softc->disk->d_descr, cgd->inq_data.vendor,
+	    sizeof(cgd->inq_data.vendor), sizeof(softc->disk->d_descr));
+	strlcat(softc->disk->d_descr, " ", sizeof(softc->disk->d_descr));
+	cam_strvis(&softc->disk->d_descr[strlen(softc->disk->d_descr)],
+	    cgd->inq_data.product, sizeof(cgd->inq_data.product),
+	    sizeof(softc->disk->d_descr) - strlen(softc->disk->d_descr));
 	softc->disk->d_unit = periph->unit_number;
 	softc->disk->d_drv1 = periph;
 	if (cpi.maxio == 0)
