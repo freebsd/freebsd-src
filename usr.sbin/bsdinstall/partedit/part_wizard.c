@@ -89,7 +89,7 @@ boot_disk(struct gmesh *mesh)
 	struct ggeom *gp;
 	struct gprovider *pp;
 	DIALOG_LISTITEM *disks = NULL;
-	const char *type;
+	const char *type, *desc;
 	char diskdesc[512];
 	char *chosen;
 	int i, err, selected, n = 0;
@@ -104,14 +104,19 @@ boot_disk(struct gmesh *mesh)
 				continue;
 
 			LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
-				type = NULL;
-				LIST_FOREACH(gc, &pp->lg_config, lg_config) 
+				desc = type = NULL;
+				LIST_FOREACH(gc, &pp->lg_config, lg_config) {
 					if (strcmp(gc->lg_name, "type") == 0) 
 						type = gc->lg_val;
+					if (strcmp(gc->lg_name, "descr") == 0) 
+						desc = gc->lg_val;
+				}
 
-				/* Skip swap-backed md devices */
+				/* Skip swap-backed md and WORM devices */
 				if (strcmp(classp->lg_name, "MD") == 0 &&
 				    type != NULL && strcmp(type, "swap") == 0)
+					continue;
+				if (strncmp(pp->lg_name, "cd", 2) == 0)
 					continue;
 
 				disks = realloc(disks, (++n)*sizeof(disks[0]));
@@ -120,15 +125,15 @@ boot_disk(struct gmesh *mesh)
 				    "B", HN_AUTOSCALE, HN_DECIMAL);
 				if (strncmp(pp->lg_name, "ad", 2) == 0)
 					strcat(diskdesc, " ATA Hard Disk");
-				else if (strncmp(pp->lg_name, "da", 2) == 0)
-					strcat(diskdesc, " SCSI Hard Disk");
 				else if (strncmp(pp->lg_name, "md", 2) == 0)
 					strcat(diskdesc, " Memory Disk");
-				else if (strncmp(pp->lg_name, "cd", 2) == 0) {
-					n--;
-					continue;
-				} else
-					strcat(diskdesc, " Hard Disk");
+				else
+					strcat(diskdesc, " Disk");
+
+				if (desc != NULL)
+					snprintf(diskdesc, sizeof(diskdesc),
+					    "%s <%s>", diskdesc, desc);
+
 				disks[n-1].text = strdup(diskdesc);
 				disks[n-1].help = NULL;
 				disks[n-1].state = 0;
