@@ -203,7 +203,7 @@ efipart_readwrite(EFI_BLOCK_IO *blkio, int rw, daddr_t blk, daddr_t nblks,
 	}
 
 	if (EFI_ERROR(status))
-		printf("%s: rw=%d, status=%lu\n", __func__, rw, status);
+		printf("%s: rw=%d, status=%u\n", __func__, rw, status);
 	return (efi_status_to_errno(status));
 }
 
