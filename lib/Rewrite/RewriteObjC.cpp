@@ -298,6 +298,7 @@ namespace {
     Stmt *RewriteObjCThrowStmt(ObjCAtThrowStmt *S);
     Stmt *RewriteObjCForCollectionStmt(ObjCForCollectionStmt *S,
                                        SourceLocation OrigEnd);
+    bool IsDeclStmtInForeachHeader(DeclStmt *DS);
     CallExpr *SynthesizeCallToFunctionDecl(FunctionDecl *FD,
                                       Expr **args, unsigned nargs,
                                       SourceLocation StartLoc=SourceLocation(),
@@ -1348,13 +1349,13 @@ Stmt *RewriteObjC::RewritePropertyOrImplicitGetter(Expr *PropOrGetterRefExpr) {
     MsgExpr = ObjCMessageExpr::Create(*Context, 
                                       Ty.getNonReferenceType(),
                                       Expr::getValueKindForType(Ty),
-                                      /*FIXME?*/SourceLocation(),
+                                      PropOrGetterRefExpr->getLocStart(),
                                       SuperLocation,
                                       /*IsInstanceSuper=*/true,
                                       SuperTy,
                                       Sel, SelectorLoc, OMD,
                                       0, 0, 
-                                      /*FIXME:*/SourceLocation());
+                                      PropOrGetterRefExpr->getLocEnd());
   else {
     assert (Receiver && "RewritePropertyOrImplicitGetter - Receiver is null");
     if (Expr *Exp = dyn_cast<Expr>(Receiver))
@@ -1364,14 +1365,15 @@ Stmt *RewriteObjC::RewritePropertyOrImplicitGetter(Expr *PropOrGetterRefExpr) {
     MsgExpr = ObjCMessageExpr::Create(*Context, 
                                       Ty.getNonReferenceType(),
                                       Expr::getValueKindForType(Ty),
-                                      /*FIXME:*/SourceLocation(),
+                                      PropOrGetterRefExpr->getLocStart(),
                                       cast<Expr>(Receiver),
                                       Sel, SelectorLoc, OMD,
                                       0, 0, 
-                                      /*FIXME:*/SourceLocation());
+                                      PropOrGetterRefExpr->getLocEnd());
   }
 
-  Stmt *ReplacingStmt = SynthMessageExpr(MsgExpr);
+  Stmt *ReplacingStmt = SynthMessageExpr(MsgExpr, MsgExpr->getLocStart(),
+                                         MsgExpr->getLocEnd());
 
   if (!PropParentMap)
     PropParentMap = new ParentMap(CurrentBody);
@@ -2986,9 +2988,9 @@ Stmt *RewriteObjC::SynthMessageExpr(ObjCMessageExpr *Exp,
     // Make all implicit casts explicit...ICE comes in handy:-)
     if (ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(userExpr)) {
       // Reuse the ICE type, it is exactly what the doctor ordered.
-      QualType type = ICE->getType()->isObjCQualifiedIdType()
-                                ? Context->getObjCIdType()
-                                : ICE->getType();
+      QualType type = ICE->getType();
+      if (needToScanForQualifiers(type))
+        type = Context->getObjCIdType();
       // Make sure we convert "type (^)(...)" to "type (*)(...)".
       (void)convertBlockPointerToFunctionPointer(type);
       userExpr = NoTypeInfoCStyleCastExpr(Context, type, CK_BitCast,
@@ -5459,6 +5461,13 @@ Stmt *RewriteObjC::SynthBlockInitExpr(BlockExpr *Exp,
   return NewRep;
 }
 
+bool RewriteObjC::IsDeclStmtInForeachHeader(DeclStmt *DS) {
+  if (const ObjCForCollectionStmt * CS = 
+      dyn_cast<ObjCForCollectionStmt>(Stmts.back()))
+        return CS->getElement() == DS;
+  return false;
+}
+
 //===----------------------------------------------------------------------===//
 // Function Body / Expression rewriting
 //===----------------------------------------------------------------------===//
@@ -5681,7 +5690,7 @@ Stmt *RewriteObjC::RewriteFunctionBodyOrGlobalInitializer(Stmt *S) {
     //   for (id <FooProtocol> index in someArray) ;
     // This is because RewriteObjCForCollectionStmt() does textual rewriting 
     // and it depends on the original text locations/positions.
-    if (Stmts.empty() || !isa<ObjCForCollectionStmt>(Stmts.back()))
+    if (Stmts.empty() || !IsDeclStmtInForeachHeader(DS))
       RewriteObjCQualifiedInterfaceTypes(*DS->decl_begin());
 
     // Blocks rewrite rules.

@@ -1,4 +1,4 @@
-//=== StackAddrLeakChecker.cpp ------------------------------------*- C++ -*--//
+//=== StackAddrEscapeChecker.cpp ----------------------------------*- C++ -*--//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,9 +13,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/CheckerV2.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerVisitor.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/GRState.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/SmallString.h"
@@ -23,34 +24,23 @@ using namespace clang;
 using namespace ento;
 
 namespace {
-class StackAddrLeakChecker : public CheckerVisitor<StackAddrLeakChecker> {
-  BuiltinBug *BT_stackleak;
-  BuiltinBug *BT_returnstack;
+class StackAddrEscapeChecker : public CheckerV2< check::PreStmt<ReturnStmt>,
+                                               check::EndPath > {
+  mutable llvm::OwningPtr<BuiltinBug> BT_stackleak;
+  mutable llvm::OwningPtr<BuiltinBug> BT_returnstack;
 
 public:
-  StackAddrLeakChecker() : BT_stackleak(0), BT_returnstack(0) {}
-  static void *getTag() {
-    static int x;
-    return &x;
-  }
-  void PreVisitReturnStmt(CheckerContext &C, const ReturnStmt *RS);
-  void evalEndPath(EndOfFunctionNodeBuilder &B, void *tag, ExprEngine &Eng);
+  void checkPreStmt(const ReturnStmt *RS, CheckerContext &C) const;
+  void checkEndPath(EndOfFunctionNodeBuilder &B, ExprEngine &Eng) const;
 private:
-  void EmitStackError(CheckerContext &C, const MemRegion *R, const Expr *RetE);
-  SourceRange GenName(llvm::raw_ostream &os, const MemRegion *R,
-                      SourceManager &SM);
+  void EmitStackError(CheckerContext &C, const MemRegion *R,
+                      const Expr *RetE) const;
+  static SourceRange GenName(llvm::raw_ostream &os, const MemRegion *R,
+                             SourceManager &SM);
 };
 }
 
-static void RegisterStackAddrLeakChecker(ExprEngine &Eng) {
-  Eng.registerCheck(new StackAddrLeakChecker());
-}
-
-void ento::registerStackAddrLeakChecker(CheckerManager &mgr) {
-  mgr.addCheckerRegisterFunction(RegisterStackAddrLeakChecker);
-}
-
-SourceRange StackAddrLeakChecker::GenName(llvm::raw_ostream &os,
+SourceRange StackAddrEscapeChecker::GenName(llvm::raw_ostream &os,
                                           const MemRegion *R,
                                           SourceManager &SM) {
     // Get the base region, stripping away fields and elements.
@@ -93,15 +83,16 @@ SourceRange StackAddrLeakChecker::GenName(llvm::raw_ostream &os,
   return range;
 }
 
-void StackAddrLeakChecker::EmitStackError(CheckerContext &C, const MemRegion *R,
-                                          const Expr *RetE) {
+void StackAddrEscapeChecker::EmitStackError(CheckerContext &C, const MemRegion *R,
+                                          const Expr *RetE) const {
   ExplodedNode *N = C.generateSink();
 
   if (!N)
     return;
 
   if (!BT_returnstack)
-   BT_returnstack=new BuiltinBug("Return of address to stack-allocated memory");
+   BT_returnstack.reset(
+                 new BuiltinBug("Return of address to stack-allocated memory"));
 
   // Generate a report for this bug.
   llvm::SmallString<512> buf;
@@ -116,8 +107,8 @@ void StackAddrLeakChecker::EmitStackError(CheckerContext &C, const MemRegion *R,
   C.EmitReport(report);
 }
 
-void StackAddrLeakChecker::PreVisitReturnStmt(CheckerContext &C,
-                                              const ReturnStmt *RS) {
+void StackAddrEscapeChecker::checkPreStmt(const ReturnStmt *RS,
+                                        CheckerContext &C) const {
   
   const Expr *RetE = RS->getRetValue();
   if (!RetE)
@@ -135,8 +126,8 @@ void StackAddrLeakChecker::PreVisitReturnStmt(CheckerContext &C,
   }
 }
 
-void StackAddrLeakChecker::evalEndPath(EndOfFunctionNodeBuilder &B, void *tag,
-                                       ExprEngine &Eng) {
+void StackAddrEscapeChecker::checkEndPath(EndOfFunctionNodeBuilder &B,
+                                        ExprEngine &Eng) const {
 
   const GRState *state = B.getState();
 
@@ -180,16 +171,16 @@ void StackAddrLeakChecker::evalEndPath(EndOfFunctionNodeBuilder &B, void *tag,
     return;
 
   // Generate an error node.
-  ExplodedNode *N = B.generateNode(state, tag, B.getPredecessor());
+  ExplodedNode *N = B.generateNode(state);
   if (!N)
     return;
 
   if (!BT_stackleak)
-    BT_stackleak =
+    BT_stackleak.reset(
       new BuiltinBug("Stack address stored into global variable",
                      "Stack address was saved into a global variable. "
                      "This is dangerous because the address will become "
-                     "invalid after returning from the function");
+                     "invalid after returning from the function"));
   
   for (unsigned i = 0, e = cb.V.size(); i != e; ++i) {
     // Generate a report for this bug.
@@ -207,4 +198,8 @@ void StackAddrLeakChecker::evalEndPath(EndOfFunctionNodeBuilder &B, void *tag,
 
     Eng.getBugReporter().EmitReport(report);
   }
+}
+
+void ento::registerStackAddrEscapeChecker(CheckerManager &mgr) {
+  mgr.registerChecker<StackAddrEscapeChecker>();
 }

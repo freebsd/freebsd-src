@@ -76,12 +76,10 @@ bool Sema::DiagnoseUseOfDecl(NamedDecl *D, SourceLocation Loc,
   }
 
   // See if this is an auto-typed variable whose initializer we are parsing.
-  if (const VarDecl *VD = dyn_cast<VarDecl>(D)) {
-    if (VD->isParsingAutoInit()) {
-      Diag(Loc, diag::err_auto_variable_cannot_appear_in_own_initializer)
-        << D->getDeclName();
-      return true;
-    }
+  if (ParsingInitForAutoVars.count(D)) {
+    Diag(Loc, diag::err_auto_variable_cannot_appear_in_own_initializer)
+      << D->getDeclName();
+    return true;
   }
 
   // See if the decl is deprecated.
@@ -389,13 +387,13 @@ bool Sema::DefaultVariadicArgumentPromotion(Expr *&Expr, VariadicCallType CT,
     return false;
   
   if (Expr->getType()->isObjCObjectType() &&
-      DiagRuntimeBehavior(Expr->getLocStart(),
+      DiagRuntimeBehavior(Expr->getLocStart(), 0,
         PDiag(diag::err_cannot_pass_objc_interface_to_vararg)
           << Expr->getType() << CT))
     return true;
 
   if (!Expr->getType()->isPODType() &&
-      DiagRuntimeBehavior(Expr->getLocStart(),
+      DiagRuntimeBehavior(Expr->getLocStart(), 0,
                           PDiag(diag::warn_cannot_pass_non_pod_arg_to_vararg)
                             << Expr->getType() << CT))
     return true;
@@ -1674,20 +1672,6 @@ ExprResult Sema::ActOnIdExpression(Scope *S,
 
   // This is guaranteed from this point on.
   assert(!R.empty() || ADL);
-
-  if (VarDecl *Var = R.getAsSingle<VarDecl>()) {
-    if (getLangOptions().ObjCNonFragileABI && IvarLookupFollowUp &&
-        !(getLangOptions().ObjCDefaultSynthProperties && 
-          getLangOptions().ObjCNonFragileABI2) &&
-        Var->isFileVarDecl()) {
-      ObjCPropertyDecl *Property = canSynthesizeProvisionalIvar(II);
-      if (Property) {
-        Diag(NameLoc, diag::warn_ivar_variable_conflict) << Var->getDeclName();
-        Diag(Property->getLocation(), diag::note_property_declare);
-        Diag(Var->getLocation(), diag::note_global_declared_at);
-      }
-    }
-  }
 
   // Check whether this might be a C++ implicit instance member access.
   // C++ [class.mfct.non-static]p3:
@@ -3996,129 +3980,128 @@ Sema::LookupMemberExpr(LookupResult &R, Expr *&BaseExpr,
   // Failure cases.
  fail:
 
-  // There's a possible road to recovery for function types.
-  const FunctionType *Fun = 0;
-  SourceLocation ParenInsertionLoc =
-      PP.getLocForEndOfToken(BaseExpr->getLocEnd());
-
+  // Recover from dot accesses to pointers, e.g.:
+  //   type *foo;
+  //   foo.bar
+  // This is actually well-formed in two cases:
+  //   - 'type' is an Objective C type
+  //   - 'bar' is a pseudo-destructor name which happens to refer to
+  //     the appropriate pointer type
   if (const PointerType *Ptr = BaseType->getAs<PointerType>()) {
-    if ((Fun = Ptr->getPointeeType()->getAs<FunctionType>())) {
-      // fall out, handled below.
-
-    // Recover from dot accesses to pointers, e.g.:
-    //   type *foo;
-    //   foo.bar
-    // This is actually well-formed in two cases:
-    //   - 'type' is an Objective C type
-    //   - 'bar' is a pseudo-destructor name which happens to refer to
-    //     the appropriate pointer type
-    } else if (!IsArrow && Ptr->getPointeeType()->isRecordType() &&
-               MemberName.getNameKind() != DeclarationName::CXXDestructorName) {
+    if (!IsArrow && Ptr->getPointeeType()->isRecordType() &&
+        MemberName.getNameKind() != DeclarationName::CXXDestructorName) {
       Diag(OpLoc, diag::err_typecheck_member_reference_suggestion)
-        << BaseType << int(IsArrow) << BaseExpr->getSourceRange()
-        << FixItHint::CreateReplacement(OpLoc, "->");
+          << BaseType << int(IsArrow) << BaseExpr->getSourceRange()
+          << FixItHint::CreateReplacement(OpLoc, "->");
 
       // Recurse as an -> access.
       IsArrow = true;
       return LookupMemberExpr(R, BaseExpr, IsArrow, OpLoc, SS,
                               ObjCImpDecl, HasTemplateArgs);
     }
-  } else {
-    Fun = BaseType->getAs<FunctionType>();
   }
 
-  // If the user is trying to apply -> or . to a function pointer
-  // type, it's probably because they forgot parentheses to call that
-  // function. Suggest the addition of those parentheses, build the
-  // call, and continue on.
-  if (Fun || BaseType == Context.OverloadTy) {
-    bool TryCall;
-    if (BaseType == Context.OverloadTy) {
-      // Plunder the overload set for something that would make the member
-      // expression valid.
-      const OverloadExpr *Overloads = cast<OverloadExpr>(BaseExpr);
-      UnresolvedSet<4> CandidateOverloads;
-      bool HasZeroArgCandidateOverload = false;
-      for (OverloadExpr::decls_iterator it = Overloads->decls_begin(),
-           DeclsEnd = Overloads->decls_end(); it != DeclsEnd; ++it) {
-        const FunctionDecl *OverloadDecl = cast<FunctionDecl>(*it);
-        QualType ResultTy = OverloadDecl->getResultType();
-        if ((!IsArrow && ResultTy->isRecordType()) ||
-            (IsArrow && ResultTy->isPointerType() &&
-             ResultTy->getPointeeType()->isRecordType())) {
-          CandidateOverloads.addDecl(*it);
-          if (OverloadDecl->getNumParams() == 0) {
-            HasZeroArgCandidateOverload = true;
-          }
-        }
-      }
-      if (HasZeroArgCandidateOverload && CandidateOverloads.size() == 1) {
-        // We have one reasonable overload, and there's only one way to call it,
-        // so emit a fixit and try to recover
-        Diag(ParenInsertionLoc, diag::err_member_reference_needs_call)
-            << 1
-            << BaseExpr->getSourceRange()
-            << FixItHint::CreateInsertion(ParenInsertionLoc, "()");
-        TryCall = true;
-      } else {
-        Diag(BaseExpr->getExprLoc(), diag::err_member_reference_needs_call)
-            << 0
-            << BaseExpr->getSourceRange();
-        int CandidateOverloadCount = CandidateOverloads.size();
-        int I;
-        for (I = 0; I < CandidateOverloadCount; ++I) {
-          // FIXME: Magic number for max shown overloads stolen from
-          // OverloadCandidateSet::NoteCandidates.
-          if (I >= 4 && Diags.getShowOverloads() == Diagnostic::Ovl_Best) {
-            break;
-          }
-          Diag(CandidateOverloads[I].getDecl()->getSourceRange().getBegin(),
-               diag::note_member_ref_possible_intended_overload);
-        }
-        if (I != CandidateOverloadCount) {
-          Diag(BaseExpr->getExprLoc(), diag::note_ovl_too_many_candidates)
-              << int(CandidateOverloadCount - I);
-        }
-        return ExprError();
-      }
-    } else {
-      if (const FunctionProtoType *FPT = dyn_cast<FunctionProtoType>(Fun)) {
-        TryCall = (FPT->getNumArgs() == 0);
-      } else {
-        TryCall = true;
-      }
+  // If the user is trying to apply -> or . to a function name, it's probably
+  // because they forgot parentheses to call that function.
+  bool TryCall = false;
+  bool Overloaded = false;
+  UnresolvedSet<8> AllOverloads;
+  if (const OverloadExpr *Overloads = dyn_cast<OverloadExpr>(BaseExpr)) {
+    AllOverloads.append(Overloads->decls_begin(), Overloads->decls_end());
+    TryCall = true;
+    Overloaded = true;
+  } else if (DeclRefExpr *DeclRef = dyn_cast<DeclRefExpr>(BaseExpr)) {
+    if (FunctionDecl* Fun = dyn_cast<FunctionDecl>(DeclRef->getDecl())) {
+      AllOverloads.addDecl(Fun);
+      TryCall = true;
+    }
+  }
 
-      if (TryCall) {
-        QualType ResultTy = Fun->getResultType();
-        TryCall = (!IsArrow && ResultTy->isRecordType()) ||
-                  (IsArrow && ResultTy->isPointerType() &&
-                   ResultTy->getAs<PointerType>()->getPointeeType()->isRecordType());
+  if (TryCall) {
+    // Plunder the overload set for something that would make the member
+    // expression valid.
+    UnresolvedSet<4> ViableOverloads;
+    bool HasViableZeroArgOverload = false;
+    for (OverloadExpr::decls_iterator it = AllOverloads.begin(),
+         DeclsEnd = AllOverloads.end(); it != DeclsEnd; ++it) {
+      const FunctionDecl *OverloadDecl = cast<FunctionDecl>(*it);
+      QualType ResultTy = OverloadDecl->getResultType();
+      if ((!IsArrow && ResultTy->isRecordType()) ||
+          (IsArrow && ResultTy->isPointerType() &&
+           ResultTy->getPointeeType()->isRecordType())) {
+        ViableOverloads.addDecl(*it);
+        if (OverloadDecl->getMinRequiredArguments() == 0) {
+          HasViableZeroArgOverload = true;
+        }
       }
     }
 
+    if (!HasViableZeroArgOverload || ViableOverloads.size() != 1) {
+      Diag(BaseExpr->getExprLoc(), diag::err_member_reference_needs_call)
+          << 1 << 0
+          << BaseExpr->getSourceRange();
+      int ViableOverloadCount = ViableOverloads.size();
+      int I;
+      for (I = 0; I < ViableOverloadCount; ++I) {
+        // FIXME: Magic number for max shown overloads stolen from
+        // OverloadCandidateSet::NoteCandidates.
+        if (I >= 4 && Diags.getShowOverloads() == Diagnostic::Ovl_Best) {
+          break;
+        }
+        Diag(ViableOverloads[I].getDecl()->getSourceRange().getBegin(),
+             diag::note_member_ref_possible_intended_overload);
+      }
+      if (I != ViableOverloadCount) {
+        Diag(BaseExpr->getExprLoc(), diag::note_ovl_too_many_candidates)
+            << int(ViableOverloadCount - I);
+      }
+      return ExprError();
+    }
+  } else {
+    // We don't have an expression that's convenient to get a Decl from, but we
+    // can at least check if the type is "function of 0 arguments which returns
+    // an acceptable type".
+    const FunctionType *Fun = NULL;
+    if (const PointerType *Ptr = BaseType->getAs<PointerType>()) {
+      if ((Fun = Ptr->getPointeeType()->getAs<FunctionType>())) {
+        TryCall = true;
+      }
+    } else if ((Fun = BaseType->getAs<FunctionType>())) {
+      TryCall = true;
+    }
 
     if (TryCall) {
-      if (Fun) {
-        Diag(BaseExpr->getExprLoc(),
-             diag::err_member_reference_needs_call_zero_arg)
-          << QualType(Fun, 0)
-          << FixItHint::CreateInsertion(ParenInsertionLoc, "()");
+      if (const FunctionProtoType *FPT = dyn_cast<FunctionProtoType>(Fun)) {
+        if (FPT->getNumArgs() == 0) {
+          QualType ResultTy = Fun->getResultType();
+          TryCall = (!IsArrow && ResultTy->isRecordType()) ||
+              (IsArrow && ResultTy->isPointerType() &&
+               ResultTy->getPointeeType()->isRecordType());
+        }
       }
-
-      ExprResult NewBase
-        = ActOnCallExpr(0, BaseExpr, ParenInsertionLoc,
-                        MultiExprArg(*this, 0, 0), ParenInsertionLoc);
-      if (NewBase.isInvalid())
-        return ExprError();
-      BaseExpr = NewBase.takeAs<Expr>();
-
-
-      DefaultFunctionArrayConversion(BaseExpr);
-      BaseType = BaseExpr->getType();
-
-      return LookupMemberExpr(R, BaseExpr, IsArrow, OpLoc, SS,
-                              ObjCImpDecl, HasTemplateArgs);
     }
+  }
+
+  if (TryCall) {
+    // At this point, we know BaseExpr looks like it's potentially callable with
+    // 0 arguments, and that it returns something of a reasonable type, so we
+    // can emit a fixit and carry on pretending that BaseExpr was actually a
+    // CallExpr.
+    SourceLocation ParenInsertionLoc =
+        PP.getLocForEndOfToken(BaseExpr->getLocEnd());
+    Diag(BaseExpr->getExprLoc(), diag::err_member_reference_needs_call)
+        << int(Overloaded) << 1
+        << BaseExpr->getSourceRange()
+        << FixItHint::CreateInsertion(ParenInsertionLoc, "()");
+    ExprResult NewBase = ActOnCallExpr(0, BaseExpr, ParenInsertionLoc,
+                                       MultiExprArg(*this, 0, 0),
+                                       ParenInsertionLoc);
+    if (NewBase.isInvalid())
+      return ExprError();
+    BaseExpr = NewBase.takeAs<Expr>();
+    DefaultFunctionArrayConversion(BaseExpr);
+    return LookupMemberExpr(R, BaseExpr, IsArrow, OpLoc, SS,
+                            ObjCImpDecl, HasTemplateArgs);
   }
 
   Diag(MemberLoc, diag::err_typecheck_member_reference_struct_union)
@@ -4298,6 +4281,13 @@ Sema::ConvertArgumentsForCall(CallExpr *Call, Expr *Fn,
                               const FunctionProtoType *Proto,
                               Expr **Args, unsigned NumArgs,
                               SourceLocation RParenLoc) {
+  // Bail out early if calling a builtin with custom typechecking.
+  // We don't need to do this in the 
+  if (FDecl)
+    if (unsigned ID = FDecl->getBuiltinID())
+      if (Context.BuiltinInfo.hasCustomTypechecking(ID))
+        return false;
+
   // C99 6.5.2.2p7 - the arguments are implicitly converted, as if by
   // assignment, to the types of the corresponding parameter, ...
   unsigned NumArgsInProto = Proto->getNumArgs();
@@ -4625,22 +4615,41 @@ Sema::BuildResolvedCallExpr(Expr *Fn, NamedDecl *NDecl,
                                      RParenLoc);
   }
 
+  unsigned BuiltinID = (FDecl ? FDecl->getBuiltinID() : 0);
+
+  // Bail out early if calling a builtin with custom typechecking.
+  if (BuiltinID && Context.BuiltinInfo.hasCustomTypechecking(BuiltinID))
+    return CheckBuiltinFunctionCall(BuiltinID, TheCall);
+
   const FunctionType *FuncT;
-  if (!Fn->getType()->isBlockPointerType()) {
+  if (const PointerType *PT = Fn->getType()->getAs<PointerType>()) {
     // C99 6.5.2.2p1 - "The expression that denotes the called function shall
     // have type pointer to function".
-    const PointerType *PT = Fn->getType()->getAs<PointerType>();
-    if (PT == 0)
-      return ExprError(Diag(LParenLoc, diag::err_typecheck_call_not_function)
-        << Fn->getType() << Fn->getSourceRange());
     FuncT = PT->getPointeeType()->getAs<FunctionType>();
-  } else { // This is a block call.
-    FuncT = Fn->getType()->getAs<BlockPointerType>()->getPointeeType()->
-                getAs<FunctionType>();
-  }
-  if (FuncT == 0)
+    if (FuncT == 0)
+      return ExprError(Diag(LParenLoc, diag::err_typecheck_call_not_function)
+                         << Fn->getType() << Fn->getSourceRange());
+  } else if (const BlockPointerType *BPT =
+               Fn->getType()->getAs<BlockPointerType>()) {
+    FuncT = BPT->getPointeeType()->castAs<FunctionType>();
+  } else {
     return ExprError(Diag(LParenLoc, diag::err_typecheck_call_not_function)
       << Fn->getType() << Fn->getSourceRange());
+  }
+
+  if (getLangOptions().CUDA) {
+    if (Config) {
+      // CUDA: Kernel calls must be to global functions
+      if (FDecl && !FDecl->hasAttr<CUDAGlobalAttr>())
+        return ExprError(Diag(LParenLoc,diag::err_kern_call_not_global_function)
+            << FDecl->getName() << Fn->getSourceRange());
+
+      // CUDA: Kernel function must have 'void' return type
+      if (!FuncT->getResultType()->isVoidType())
+        return ExprError(Diag(LParenLoc, diag::err_kern_type_not_void_return)
+            << Fn->getType() << Fn->getSourceRange());
+    }
+  }
 
   // Check for a valid return type
   if (CheckCallReturnType(FuncT->getResultType(),
@@ -4721,7 +4730,7 @@ Sema::BuildResolvedCallExpr(Expr *Fn, NamedDecl *NDecl,
     if (CheckFunctionCall(FDecl, TheCall))
       return ExprError();
 
-    if (unsigned BuiltinID = FDecl->getBuiltinID())
+    if (BuiltinID)
       return CheckBuiltinFunctionCall(BuiltinID, TheCall);
   } else if (NDecl) {
     if (CheckBlockCall(NDecl, TheCall))
@@ -6372,8 +6381,8 @@ QualType Sema::CheckMultiplyDivideOperands(
   // Check for division by zero.
   if (isDiv &&
       rex->isNullPointerConstant(Context, Expr::NPC_ValueDependentIsNotNull))
-    DiagRuntimeBehavior(Loc, PDiag(diag::warn_division_by_zero)
-                                     << rex->getSourceRange());
+    DiagRuntimeBehavior(Loc, rex, PDiag(diag::warn_division_by_zero)
+                                      << rex->getSourceRange());
 
   return compType;
 }
@@ -6394,8 +6403,8 @@ QualType Sema::CheckRemainderOperands(
 
   // Check for remainder by zero.
   if (rex->isNullPointerConstant(Context, Expr::NPC_ValueDependentIsNotNull))
-    DiagRuntimeBehavior(Loc, PDiag(diag::warn_remainder_by_zero)
-                                 << rex->getSourceRange());
+    DiagRuntimeBehavior(Loc, rex, PDiag(diag::warn_remainder_by_zero)
+                                  << rex->getSourceRange());
 
   return compType;
 }
@@ -6629,9 +6638,61 @@ static bool isScopedEnumerationType(QualType T) {
   return false;
 }
 
+static void DiagnoseBadShiftValues(Sema& S, Expr *&lex, Expr *&rex,
+                                   SourceLocation Loc, unsigned Opc,
+                                   QualType LHSTy) {
+  llvm::APSInt Right;
+  // Check right/shifter operand
+  if (rex->isValueDependent() || !rex->isIntegerConstantExpr(Right, S.Context))
+    return;
+
+  if (Right.isNegative()) {
+    S.Diag(Loc, diag::warn_shift_negative) << rex->getSourceRange();
+    return;
+  }
+  llvm::APInt LeftBits(Right.getBitWidth(),
+                       S.Context.getTypeSize(lex->getType()));
+  if (Right.uge(LeftBits)) {
+    S.Diag(Loc, diag::warn_shift_gt_typewidth) << rex->getSourceRange();
+    return;
+  }
+  if (Opc != BO_Shl)
+    return;
+
+  // When left shifting an ICE which is signed, we can check for overflow which
+  // according to C++ has undefined behavior ([expr.shift] 5.8/2). Unsigned
+  // integers have defined behavior modulo one more than the maximum value
+  // representable in the result type, so never warn for those.
+  llvm::APSInt Left;
+  if (lex->isValueDependent() || !lex->isIntegerConstantExpr(Left, S.Context) ||
+      LHSTy->hasUnsignedIntegerRepresentation())
+    return;
+  llvm::APInt ResultBits =
+      static_cast<llvm::APInt&>(Right) + Left.getMinSignedBits();
+  if (LeftBits.uge(ResultBits))
+    return;
+  llvm::APSInt Result = Left.extend(ResultBits.getLimitedValue());
+  Result = Result.shl(Right);
+
+  // If we are only missing a sign bit, this is less likely to result in actual
+  // bugs -- if the result is cast back to an unsigned type, it will have the
+  // expected value. Thus we place this behind a different warning that can be
+  // turned off separately if needed.
+  if (LeftBits == ResultBits - 1) {
+    S.Diag(Loc, diag::warn_shift_result_overrides_sign_bit)
+        << Result.toString(10) << LHSTy
+        << lex->getSourceRange() << rex->getSourceRange();
+    return;
+  }
+
+  S.Diag(Loc, diag::warn_shift_result_gt_typewidth)
+    << Result.toString(10) << Result.getMinSignedBits() << LHSTy
+    << Left.getBitWidth() << lex->getSourceRange() << rex->getSourceRange();
+}
+
 // C99 6.5.7
 QualType Sema::CheckShiftOperands(Expr *&lex, Expr *&rex, SourceLocation Loc,
-                                  bool isCompAssign) {
+                                  unsigned Opc, bool isCompAssign) {
   // C99 6.5.7p2: Each of the operands shall have integer type.
   if (!lex->getType()->hasIntegerRepresentation() || 
       !rex->getType()->hasIntegerRepresentation())
@@ -6662,19 +6723,7 @@ QualType Sema::CheckShiftOperands(Expr *&lex, Expr *&rex, SourceLocation Loc,
   UsualUnaryConversions(rex);
 
   // Sanity-check shift operands
-  llvm::APSInt Right;
-  // Check right/shifter operand
-  if (!rex->isValueDependent() &&
-      rex->isIntegerConstantExpr(Right, Context)) {
-    if (Right.isNegative())
-      Diag(Loc, diag::warn_shift_negative) << rex->getSourceRange();
-    else {
-      llvm::APInt LeftBits(Right.getBitWidth(),
-                          Context.getTypeSize(lex->getType()));
-      if (Right.uge(LeftBits))
-        Diag(Loc, diag::warn_shift_gt_typewidth) << rex->getSourceRange();
-    }
-  }
+  DiagnoseBadShiftValues(*this, lex, rex, Loc, Opc, LHSTy);
 
   // "The type of the result is that of the promoted left operand."
   return LHSTy;
@@ -6738,7 +6787,7 @@ QualType Sema::CheckCompareOperands(Expr *&lex, Expr *&rex, SourceLocation Loc,
       if (DeclRefExpr* DRR = dyn_cast<DeclRefExpr>(RHSStripped)) {
         if (DRL->getDecl() == DRR->getDecl() &&
             !IsWithinTemplateSpecialization(DRL->getDecl())) {
-          DiagRuntimeBehavior(Loc, PDiag(diag::warn_comparison_always)
+          DiagRuntimeBehavior(Loc, 0, PDiag(diag::warn_comparison_always)
                               << 0 // self-
                               << (Opc == BO_EQ
                                   || Opc == BO_LE
@@ -6760,7 +6809,7 @@ QualType Sema::CheckCompareOperands(Expr *&lex, Expr *&rex, SourceLocation Loc,
               always_evals_to = 2; // e.g. array1 <= array2
               break;
             }
-            DiagRuntimeBehavior(Loc, PDiag(diag::warn_comparison_always)
+            DiagRuntimeBehavior(Loc, 0, PDiag(diag::warn_comparison_always)
                                 << 1 // array
                                 << always_evals_to);
         }
@@ -6801,7 +6850,7 @@ QualType Sema::CheckCompareOperands(Expr *&lex, Expr *&rex, SourceLocation Loc,
       default: assert(false && "Invalid comparison operator");
       }
 
-      DiagRuntimeBehavior(Loc,
+      DiagRuntimeBehavior(Loc, 0,
         PDiag(diag::warn_stringcompare)
           << isa<ObjCEncodeExpr>(literalStringStripped)
           << literalString->getSourceRange());
@@ -7111,7 +7160,7 @@ QualType Sema::CheckVectorCompareOperands(Expr *&lex, Expr *&rex,
     if (DeclRefExpr* DRL = dyn_cast<DeclRefExpr>(lex->IgnoreParens()))
       if (DeclRefExpr* DRR = dyn_cast<DeclRefExpr>(rex->IgnoreParens()))
         if (DRL->getDecl() == DRR->getDecl())
-          DiagRuntimeBehavior(Loc,
+          DiagRuntimeBehavior(Loc, 0,
                               PDiag(diag::warn_comparison_always)
                                 << 0 // self-
                                 << 2 // "a constant"
@@ -7372,9 +7421,11 @@ QualType Sema::CheckAssignmentOperands(Expr *LHS, Expr *&RHS,
         UO->getSubExpr()->IgnoreParenCasts()->
           isNullPointerConstant(Context, Expr::NPC_ValueDependentIsNotNull) &&
         !UO->getType().isVolatileQualified()) {
-    Diag(UO->getOperatorLoc(), diag::warn_indirection_through_null)
-        << UO->getSubExpr()->getSourceRange();
-    Diag(UO->getOperatorLoc(), diag::note_indirection_through_null);
+    DiagRuntimeBehavior(UO->getOperatorLoc(), UO,
+                        PDiag(diag::warn_indirection_through_null)
+                          << UO->getSubExpr()->getSourceRange());
+    DiagRuntimeBehavior(UO->getOperatorLoc(), UO,
+                        PDiag(diag::note_indirection_through_null));
   }
   
   // Check for trivial buffer overflows.
@@ -7959,7 +8010,7 @@ ExprResult Sema::CreateBuiltinBinOp(SourceLocation OpLoc,
     break;
   case BO_Shl:
   case BO_Shr:
-    ResultTy = CheckShiftOperands(lhs, rhs, OpLoc);
+    ResultTy = CheckShiftOperands(lhs, rhs, OpLoc, Opc);
     break;
   case BO_LE:
   case BO_LT:
@@ -8006,7 +8057,7 @@ ExprResult Sema::CreateBuiltinBinOp(SourceLocation OpLoc,
     break;
   case BO_ShlAssign:
   case BO_ShrAssign:
-    CompResultTy = CheckShiftOperands(lhs, rhs, OpLoc, true);
+    CompResultTy = CheckShiftOperands(lhs, rhs, OpLoc, Opc, true);
     CompLHSTy = CompResultTy;
     if (!CompResultTy.isNull())
       ResultTy = CheckAssignmentOperands(lhs, rhs, OpLoc, CompResultTy);
@@ -8563,7 +8614,7 @@ ExprResult Sema::BuildBuiltinOffsetOf(SourceLocation BuiltinLoc,
     //   (clause 9).
     if (CXXRecordDecl *CRD = dyn_cast<CXXRecordDecl>(RD)) {
       if (!CRD->isPOD() && !DidWarnAboutNonPOD &&
-          DiagRuntimeBehavior(BuiltinLoc,
+          DiagRuntimeBehavior(BuiltinLoc, 0,
                               PDiag(diag::warn_offsetof_non_pod_type)
                               << SourceRange(CompPtr[0].LocStart, OC.LocEnd)
                               << CurrentType))
@@ -8907,12 +8958,8 @@ ExprResult Sema::ActOnBlockStmtExpr(SourceLocation CaretLoc,
 
   BlockExpr *Result = new (Context) BlockExpr(BSI->TheDecl, BlockTy);
 
-  // Issue any analysis-based warnings.
-  const sema::AnalysisBasedWarnings::Policy &WP =
-    AnalysisWarnings.getDefaultPolicy();
-  AnalysisWarnings.IssueWarnings(WP, Result);
-
-  PopFunctionOrBlockScope();
+  const AnalysisBasedWarnings::Policy &WP = AnalysisWarnings.getDefaultPolicy();
+  PopFunctionOrBlockScope(&WP, Result->getBlockDecl(), Result);
   return Owned(Result);
 }
 
@@ -9350,9 +9397,12 @@ void Sema::MarkDeclarationReferenced(SourceLocation Loc, Decl *D) {
       }
     }
 
-    // Keep track of used but undefined variables.
+    // Keep track of used but undefined variables.  We make a hole in
+    // the warning for static const data members with in-line
+    // initializers.
     if (Var->hasDefinition() == VarDecl::DeclarationOnly
-        && Var->getLinkage() != ExternalLinkage) {
+        && Var->getLinkage() != ExternalLinkage
+        && !(Var->isStaticDataMember() && Var->hasInit())) {
       SourceLocation &old = UndefinedInternals[Var->getCanonicalDecl()];
       if (old.isInvalid()) old = Loc;
     }
@@ -9484,7 +9534,7 @@ void Sema::MarkDeclarationsReferencedInExpr(Expr *E) {
 /// behavior of a program, such as passing a non-POD value through an ellipsis.
 /// Failure to do so will likely result in spurious diagnostics or failures
 /// during overload resolution or within sizeof/alignof/typeof/typeid.
-bool Sema::DiagRuntimeBehavior(SourceLocation Loc,
+bool Sema::DiagRuntimeBehavior(SourceLocation Loc, const Stmt *stmt,
                                const PartialDiagnostic &PD) {
   switch (ExprEvalContexts.back().Context ) {
   case Unevaluated:
@@ -9493,7 +9543,13 @@ bool Sema::DiagRuntimeBehavior(SourceLocation Loc,
 
   case PotentiallyEvaluated:
   case PotentiallyEvaluatedIfUsed:
-    Diag(Loc, PD);
+    if (stmt && getCurFunctionOrMethodDecl()) {
+      FunctionScopes.back()->PossiblyUnreachableDiags.
+        push_back(sema::PossiblyUnreachableDiag(PD, Loc, stmt));
+    }
+    else
+      Diag(Loc, PD);
+      
     return true;
 
   case PotentiallyPotentiallyEvaluated:

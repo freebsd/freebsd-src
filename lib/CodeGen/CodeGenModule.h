@@ -120,8 +120,11 @@ namespace CodeGen {
       const llvm::PointerType *Int8PtrPtrTy;
     };
 
-    /// The width of an address-zero pointer.
+    /// The width of a pointer into the generic address space.
     unsigned char PointerWidthInBits;
+
+    /// The alignment of a pointer into the generic address space.
+    unsigned char PointerAlignInBytes;
   };
   
 /// CodeGenModule - This class organizes the cross-function state that is used
@@ -292,6 +295,8 @@ public:
   const TargetCodeGenInfo &getTargetCodeGenInfo();
   bool isTargetDarwin() const;
 
+  bool shouldUseTBAA() const { return TBAA != 0; }
+
   llvm::MDNode *getTBAAInfo(QualType QTy);
 
   static void DecorateInstruction(llvm::Instruction *Inst,
@@ -386,8 +391,8 @@ public:
                                           unsigned Align,
                                           const VarDecl *variable);
 
-  /// getGlobalUniqueCount - Fetches the global unique block count.
-  int getGlobalUniqueCount() { return ++Block.GlobalUniqueCount; }
+  /// getUniqueBlockCount - Fetches the global unique block count.
+  int getUniqueBlockCount() { return ++Block.GlobalUniqueCount; }
 
   /// getBlockDescriptorType - Fetches the type of a generic block
   /// descriptor.

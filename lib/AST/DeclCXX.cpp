@@ -1267,15 +1267,14 @@ LinkageSpecDecl *LinkageSpecDecl::Create(ASTContext &C,
 UsingDirectiveDecl *UsingDirectiveDecl::Create(ASTContext &C, DeclContext *DC,
                                                SourceLocation L,
                                                SourceLocation NamespaceLoc,
-                                               SourceRange QualifierRange,
-                                               NestedNameSpecifier *Qualifier,
+                                           NestedNameSpecifierLoc QualifierLoc,
                                                SourceLocation IdentLoc,
                                                NamedDecl *Used,
                                                DeclContext *CommonAncestor) {
   if (NamespaceDecl *NS = dyn_cast_or_null<NamespaceDecl>(Used))
     Used = NS->getOriginalNamespace();
-  return new (C) UsingDirectiveDecl(DC, L, NamespaceLoc, QualifierRange,
-                                    Qualifier, IdentLoc, Used, CommonAncestor);
+  return new (C) UsingDirectiveDecl(DC, L, NamespaceLoc, QualifierLoc,
+                                    IdentLoc, Used, CommonAncestor);
 }
 
 NamespaceDecl *UsingDirectiveDecl::getNominatedNamespace() {
@@ -1289,14 +1288,13 @@ NamespaceAliasDecl *NamespaceAliasDecl::Create(ASTContext &C, DeclContext *DC,
                                                SourceLocation UsingLoc,
                                                SourceLocation AliasLoc,
                                                IdentifierInfo *Alias,
-                                               SourceRange QualifierRange,
-                                               NestedNameSpecifier *Qualifier,
+                                           NestedNameSpecifierLoc QualifierLoc,
                                                SourceLocation IdentLoc,
                                                NamedDecl *Namespace) {
   if (NamespaceDecl *NS = dyn_cast_or_null<NamespaceDecl>(Namespace))
     Namespace = NS->getOriginalNamespace();
-  return new (C) NamespaceAliasDecl(DC, UsingLoc, AliasLoc, Alias, QualifierRange,
-                                    Qualifier, IdentLoc, Namespace);
+  return new (C) NamespaceAliasDecl(DC, UsingLoc, AliasLoc, Alias, 
+                                    QualifierLoc, IdentLoc, Namespace);
 }
 
 UsingDecl *UsingShadowDecl::getUsingDecl() const {
@@ -1337,35 +1335,31 @@ void UsingDecl::removeShadowDecl(UsingShadowDecl *S) {
   S->UsingOrNextShadow = this;
 }
 
-UsingDecl *UsingDecl::Create(ASTContext &C, DeclContext *DC,
-                             SourceRange NNR, SourceLocation UL,
-                             NestedNameSpecifier* TargetNNS,
+UsingDecl *UsingDecl::Create(ASTContext &C, DeclContext *DC, SourceLocation UL,
+                             NestedNameSpecifierLoc QualifierLoc,
                              const DeclarationNameInfo &NameInfo,
                              bool IsTypeNameArg) {
-  return new (C) UsingDecl(DC, NNR, UL, TargetNNS, NameInfo, IsTypeNameArg);
+  return new (C) UsingDecl(DC, UL, QualifierLoc, NameInfo, IsTypeNameArg);
 }
 
 UnresolvedUsingValueDecl *
 UnresolvedUsingValueDecl::Create(ASTContext &C, DeclContext *DC,
                                  SourceLocation UsingLoc,
-                                 SourceRange TargetNNR,
-                                 NestedNameSpecifier *TargetNNS,
+                                 NestedNameSpecifierLoc QualifierLoc,
                                  const DeclarationNameInfo &NameInfo) {
   return new (C) UnresolvedUsingValueDecl(DC, C.DependentTy, UsingLoc,
-                                          TargetNNR, TargetNNS, NameInfo);
+                                          QualifierLoc, NameInfo);
 }
 
 UnresolvedUsingTypenameDecl *
 UnresolvedUsingTypenameDecl::Create(ASTContext &C, DeclContext *DC,
                                     SourceLocation UsingLoc,
                                     SourceLocation TypenameLoc,
-                                    SourceRange TargetNNR,
-                                    NestedNameSpecifier *TargetNNS,
+                                    NestedNameSpecifierLoc QualifierLoc,
                                     SourceLocation TargetNameLoc,
                                     DeclarationName TargetName) {
   return new (C) UnresolvedUsingTypenameDecl(DC, UsingLoc, TypenameLoc,
-                                             TargetNNR, TargetNNS,
-                                             TargetNameLoc,
+                                             QualifierLoc, TargetNameLoc,
                                              TargetName.getAsIdentifierInfo());
 }
 

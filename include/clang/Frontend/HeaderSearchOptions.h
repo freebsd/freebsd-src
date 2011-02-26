@@ -22,6 +22,7 @@ namespace frontend {
     Quoted = 0,     ///< `#include ""` paths. Thing `gcc -iquote`.
     Angled,         ///< Paths for both `#include ""` and `#include <>`. (`-I`)
     System,         ///< Like Angled, but marks system directories.
+    CXXSystem,      ///< Like System, but only used for C++.
     After           ///< Like System, but searched after the system directories.
   };
 }
@@ -53,9 +54,6 @@ public:
 
   /// User specified include entries.
   std::vector<Entry> UserEntries;
-
-  /// If non-empty, the list of C++ standard include paths to use.
-  std::vector<std::string> CXXSystemIncludes;
 
   /// A (system-path) delimited list of include paths to be added from the
   /// environment following the user specified includes (but prior to builtin
