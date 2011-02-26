@@ -672,7 +672,7 @@ null_unlock(struct vop_unlock_args *ap)
  * as soon as possible.
  *
  * Note, we can't release any resources nor remove vnode from hash before 
- * appropriate VXLOCK stuff is is done because other process can find this
+ * appropriate VXLOCK stuff is done because other process can find this
  * vnode in hash during inactivation and may be sitting in vget() and waiting
  * for null_inactive to unlock vnode. Thus we will do all those in VOP_RECLAIM.
  */
