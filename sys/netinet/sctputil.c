@@ -2495,7 +2495,11 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	/* 1. calculate new RTT */
 	/************************/
 	/* get the current time */
-	(void)SCTP_GETTIME_TIMEVAL(&now);
+	if (stcb->asoc.use_precise_time) {
+		(void)SCTP_GETPTIME_TIMEVAL(&now);
+	} else {
+		(void)SCTP_GETTIME_TIMEVAL(&now);
+	}
 	timevalsub(&now, old);
 	/* store the current RTT in us */
 	net->rtt = (uint64_t) 10000000 *(uint64_t) now.tv_sec +
