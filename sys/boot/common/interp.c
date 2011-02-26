@@ -246,6 +246,17 @@ include(const char *filename)
 	if (*cp == '\0')
 		continue;	/* ignore empty line, save memory */
 	sp = malloc(sizeof(struct includeline) + strlen(cp) + 1);
+	/* On malloc failure (it happens!), free as much as possible and exit */
+	if (sp == NULL) {
+		while (script != NULL) {
+			se = script;
+			script = script->next;
+			free(se);
+		}
+		sprintf(command_errbuf, "file '%s' line %d: memory allocation "
+		    "failure - aborting\n", filename, line);
+		return (CMD_ERROR);
+	}
 	strcpy(sp->text, cp);
 #ifndef BOOT_FORTH
 	sp->flags = flags;
