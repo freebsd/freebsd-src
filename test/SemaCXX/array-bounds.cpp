@@ -63,11 +63,11 @@ void test() {
 }
 
 template <int I> struct S {
-  char arr[I]; // expected-note 3 {{declared here}}
+  char arr[I]; // expected-note 2 {{declared here}}
 };
 template <int I> void f() {
   S<3> s;
-  s.arr[4] = 0; // expected-warning 2 {{array index of '4' indexes past the end of an array (that contains 3 elements)}}
+  s.arr[4] = 0; // expected-warning {{array index of '4' indexes past the end of an array (that contains 3 elements)}}
   s.arr[I] = 0; // expected-warning {{array index of '5' indexes past the end of an array (that contains 3 elements)}}
 }
 
@@ -79,9 +79,8 @@ void test_templates() {
 #define ARR_IN_MACRO(flag, arr, idx) flag ? arr[idx] : 1
 
 int test_no_warn_macro_unreachable() {
-  int arr[SIZE]; // expected-note 2 {{array 'arr' declared here}}
-  // FIXME: We don't want to warn for the first case.
-  return ARR_IN_MACRO(0, arr, SIZE) + // expected-warning{{array index of '10' indexes past the end of an array (that contains 10 elements)}}
+  int arr[SIZE]; // expected-note {{array 'arr' declared here}}
+  return ARR_IN_MACRO(0, arr, SIZE) + // no-warning
          ARR_IN_MACRO(1, arr, SIZE); // expected-warning{{array index of '10' indexes past the end of an array (that contains 10 elements)}}
 }
 
@@ -89,5 +88,35 @@ int test_no_warn_macro_unreachable() {
 int test_pr9240() {
   short array[100]; // expected-note {{array 'array' declared here}}
   return array[(unsigned long long) 100]; // expected-warning {{array index of '100' indexes past the end of an array (that contains 100 elements)}}
+}
+
+// PR 9284 - a template parameter can cause an array bounds access to be
+// infeasible.
+template <bool extendArray>
+void pr9284() {
+    int arr[3 + (extendArray ? 1 : 0)];
+
+    if (extendArray)
+        arr[3] = 42; // no-warning
+}
+
+template <bool extendArray>
+void pr9284b() {
+    int arr[3 + (extendArray ? 1 : 0)]; // expected-note {{array 'arr' declared here}}
+
+    if (!extendArray)
+        arr[3] = 42; // expected-warning{{array index of '3' indexes past the end of an array (that contains 3 elements)}}
+}
+
+void test_pr9284() {
+    pr9284<true>();
+    pr9284<false>();
+    pr9284b<true>();
+    pr9284b<false>(); // expected-note{{in instantiation of function template specialization 'pr9284b<false>' requested here}}
+}
+
+int test_pr9296() {
+    int array[2];
+    return array[true]; // no-warning
 }
 

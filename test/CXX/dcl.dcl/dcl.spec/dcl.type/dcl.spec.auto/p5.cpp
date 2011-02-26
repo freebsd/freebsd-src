@@ -14,6 +14,11 @@ struct S {
   operator auto(); // expected-error{{'auto' not allowed here}}
 };
 
+// PR 9278: auto is not allowed in typedefs, except with a trailing return type.
+typedef auto *AutoPtr; // expected-error{{'auto' not allowed in typedef}}
+typedef auto (*PFun)(int a); // expected-error{{'auto' not allowed in typedef}}
+typedef auto Fun(int a) -> decltype(a + a);
+
 void g(auto a) { // expected-error{{'auto' not allowed in function prototype}}
   try { }
   catch (auto &a) { } // expected-error{{'auto' not allowed in exception declaration}}
@@ -60,13 +65,5 @@ template<typename T = auto> struct G { }; // expected-error{{'auto' not allowed 
 
 using A = auto; // expected-error{{expected ';'}} expected-error{{requires a qualified name}}
 
-// Whether this is illegal depends on the interpretation of [decl.spec.auto]p2 and p3,
-// and in particular the "Otherwise, ..." at the start of p3.
-namespace TrailingReturnType {
-  // FIXME: don't issue the second diagnostic for this error.
-  auto f() -> auto; // expected-error{{'auto' not allowed here}} unexpected-error{{without trailing return type}}
-  int g();
-  auto (*h)() -> auto = &g; // expected-error{{'auto' not allowed here}}
-  auto (*i)() = &g; // ok; auto deduced as int.
-  auto (*j)() -> int = i; // ok; no deduction.
-}
+// FIXME: don't issue the second diagnostic for this error.
+auto k() -> auto; // expected-error{{'auto' not allowed here}} unexpected-error{{without trailing return type}}

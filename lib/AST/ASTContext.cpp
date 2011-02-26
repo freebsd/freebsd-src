@@ -205,7 +205,7 @@ ASTContext::ASTContext(const LangOptions& LOpts, SourceManager &SM,
   DeclarationNames(*this),
   ExternalSource(0), Listener(0), PrintingPolicy(LOpts),
   LastSDM(0, 0),
-  UniqueBlockByRefTypeID(0), UniqueBlockParmTypeID(0) {
+  UniqueBlockByRefTypeID(0) {
   ObjCIdRedefinitionType = QualType();
   ObjCClassRedefinitionType = QualType();
   ObjCSelRedefinitionType = QualType();    
@@ -874,7 +874,7 @@ ASTContext::getTypeInfo(const Type *T) const {
   case Type::Auto: {
     const AutoType *A = cast<AutoType>(T);
     assert(A->isDeduced() && "Cannot request the size of a dependent type");
-    return getTypeInfo(cast<AutoType>(T)->getDeducedType().getTypePtr());
+    return getTypeInfo(A->getDeducedType().getTypePtr());
   }
 
   case Type::Paren:
@@ -2683,12 +2683,22 @@ QualType ASTContext::getDecltypeType(Expr *e) const {
   return QualType(dt, 0);
 }
 
-/// getAutoType - Unlike many "get<Type>" functions, we don't unique
-/// AutoType AST's.
+/// getAutoType - We only unique auto types after they've been deduced.
 QualType ASTContext::getAutoType(QualType DeducedType) const {
-  AutoType *at = new (*this, TypeAlignment) AutoType(DeducedType);
-  Types.push_back(at);
-  return QualType(at, 0);
+  void *InsertPos = 0;
+  if (!DeducedType.isNull()) {
+    // Look in the folding set for an existing type.
+    llvm::FoldingSetNodeID ID;
+    AutoType::Profile(ID, DeducedType);
+    if (AutoType *AT = AutoTypes.FindNodeOrInsertPos(ID, InsertPos))
+      return QualType(AT, 0);
+  }
+
+  AutoType *AT = new (*this, TypeAlignment) AutoType(DeducedType);
+  Types.push_back(AT);
+  if (InsertPos)
+    AutoTypes.InsertNode(AT, InsertPos);
+  return QualType(AT, 0);
 }
 
 /// getTagDeclType - Return the unique reference to the type for the
@@ -2971,7 +2981,15 @@ ASTContext::getCanonicalNestedNameSpecifier(NestedNameSpecifier *NNS) const {
   case NestedNameSpecifier::Namespace:
     // A namespace is canonical; build a nested-name-specifier with
     // this namespace and no prefix.
-    return NestedNameSpecifier::Create(*this, 0, NNS->getAsNamespace());
+    return NestedNameSpecifier::Create(*this, 0, 
+                                 NNS->getAsNamespace()->getOriginalNamespace());
+
+  case NestedNameSpecifier::NamespaceAlias:
+    // A namespace is canonical; build a nested-name-specifier with
+    // this namespace and no prefix.
+    return NestedNameSpecifier::Create(*this, 0, 
+                                    NNS->getAsNamespaceAlias()->getNamespace()
+                                                      ->getOriginalNamespace());
 
   case NestedNameSpecifier::TypeSpec:
   case NestedNameSpecifier::TypeSpecWithTemplate: {
@@ -3599,78 +3617,6 @@ ASTContext::BuildByRefType(llvm::StringRef DeclName, QualType Ty) const {
     FieldDecl *Field = FieldDecl::Create(*this, T, SourceLocation(),
                                          &Idents.get(FieldNames[i]),
                                          FieldTypes[i], /*TInfo=*/0,
-                                         /*BitWidth=*/0, /*Mutable=*/false);
-    Field->setAccess(AS_public);
-    T->addDecl(Field);
-  }
-
-  T->completeDefinition();
-
-  return getPointerType(getTagDeclType(T));
-}
-
-
-QualType ASTContext::getBlockParmType(
-  bool BlockHasCopyDispose,
-  llvm::SmallVectorImpl<const Expr *> &Layout) const {
-
-  // FIXME: Move up
-  llvm::SmallString<36> Name;
-  llvm::raw_svector_ostream(Name) << "__block_literal_"
-                                  << ++UniqueBlockParmTypeID;
-  RecordDecl *T;
-  T = CreateRecordDecl(*this, TTK_Struct, TUDecl, SourceLocation(),
-                       &Idents.get(Name.str()));
-  T->startDefinition();
-  QualType FieldTypes[] = {
-    getPointerType(VoidPtrTy),
-    IntTy,
-    IntTy,
-    getPointerType(VoidPtrTy),
-    (BlockHasCopyDispose ?
-     getPointerType(getBlockDescriptorExtendedType()) :
-     getPointerType(getBlockDescriptorType()))
-  };
-
-  const char *FieldNames[] = {
-    "__isa",
-    "__flags",
-    "__reserved",
-    "__FuncPtr",
-    "__descriptor"
-  };
-
-  for (size_t i = 0; i < 5; ++i) {
-    FieldDecl *Field = FieldDecl::Create(*this, T, SourceLocation(),
-                                         &Idents.get(FieldNames[i]),
-                                         FieldTypes[i], /*TInfo=*/0,
-                                         /*BitWidth=*/0, /*Mutable=*/false);
-    Field->setAccess(AS_public);
-    T->addDecl(Field);
-  }
-
-  for (unsigned i = 0; i < Layout.size(); ++i) {
-    const Expr *E = Layout[i];
-
-    QualType FieldType = E->getType();
-    IdentifierInfo *FieldName = 0;
-    if (isa<CXXThisExpr>(E)) {
-      FieldName = &Idents.get("this");
-    } else if (const BlockDeclRefExpr *BDRE = dyn_cast<BlockDeclRefExpr>(E)) {
-      const ValueDecl *D = BDRE->getDecl();
-      FieldName = D->getIdentifier();
-      if (BDRE->isByRef())
-        FieldType = BuildByRefType(D->getName(), FieldType);
-    } else {
-      // Padding.
-      assert(isa<ConstantArrayType>(FieldType) &&
-             isa<DeclRefExpr>(E) &&
-             !cast<DeclRefExpr>(E)->getDecl()->getDeclName() &&
-             "doesn't match characteristics of padding decl");
-    }
-
-    FieldDecl *Field = FieldDecl::Create(*this, T, SourceLocation(),
-                                         FieldName, FieldType, /*TInfo=*/0,
                                          /*BitWidth=*/0, /*Mutable=*/false);
     Field->setAccess(AS_public);
     T->addDecl(Field);

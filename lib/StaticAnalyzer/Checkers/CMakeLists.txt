@@ -1,9 +1,7 @@
-set(LLVM_TARGET_DEFINITIONS Checkers.td)
-tablegen(Checkers.inc
-         -gen-clang-sa-checkers
-         -I ${CMAKE_CURRENT_SOURCE_DIR}/../../../include)
-add_custom_target(ClangSACheckers
-  DEPENDS Checkers.inc)
+clang_tablegen(Checkers.inc -gen-clang-sa-checkers
+  -I ${CMAKE_CURRENT_SOURCE_DIR}/../../../include
+  SOURCE Checkers.td
+  TARGET ClangSACheckers)
 
 set(LLVM_USED_LIBS clangBasic clangAST)
 
@@ -29,8 +27,8 @@ add_clang_library(clangStaticAnalyzerCheckers
   DebugCheckers.cpp
   DereferenceChecker.cpp
   DivZeroChecker.cpp
-  ExprEngine.cpp
   ExperimentalChecks.cpp
+  ExprEngine.cpp
   FixedAddressChecker.cpp
   IdempotentOperationChecker.cpp
   LLVMConventionsChecker.cpp
@@ -48,7 +46,7 @@ add_clang_library(clangStaticAnalyzerCheckers
   PthreadLockChecker.cpp
   ReturnPointerRangeChecker.cpp
   ReturnUndefChecker.cpp
-  StackAddrLeakChecker.cpp
+  StackAddrEscapeChecker.cpp
   StreamChecker.cpp
   UndefBranchChecker.cpp
   UndefCapturedBlockVarChecker.cpp

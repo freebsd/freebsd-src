@@ -31,10 +31,8 @@ using namespace clang;
 // Sema Initialization Checking
 //===----------------------------------------------------------------------===//
 
-static Expr *IsStringInit(Expr *Init, QualType DeclType, ASTContext &Context) {
-  const ArrayType *AT = Context.getAsArrayType(DeclType);
-  if (!AT) return 0;
-
+static Expr *IsStringInit(Expr *Init, const ArrayType *AT,
+                          ASTContext &Context) {
   if (!isa<ConstantArrayType>(AT) && !isa<IncompleteArrayType>(AT))
     return 0;
 
@@ -66,13 +64,20 @@ static Expr *IsStringInit(Expr *Init, QualType DeclType, ASTContext &Context) {
   return 0;
 }
 
-static void CheckStringInit(Expr *Str, QualType &DeclT, Sema &S) {
+static Expr *IsStringInit(Expr *init, QualType declType, ASTContext &Context) {
+  const ArrayType *arrayType = Context.getAsArrayType(declType);
+  if (!arrayType) return 0;
+
+  return IsStringInit(init, arrayType, Context);
+}
+
+static void CheckStringInit(Expr *Str, QualType &DeclT, const ArrayType *AT,
+                            Sema &S) {
   // Get the length of the string as parsed.
   uint64_t StrLength =
     cast<ConstantArrayType>(Str->getType())->getSize().getZExtValue();
 
 
-  const ArrayType *AT = S.Context.getAsArrayType(DeclT);
   if (const IncompleteArrayType *IAT = dyn_cast<IncompleteArrayType>(AT)) {
     // C99 6.7.8p14. We have an array of character type with unknown size
     // being initialized to a string literal.
@@ -651,82 +656,93 @@ void InitListChecker::CheckSubElementType(const InitializedEntity &Entity,
                           newStructuredList, newStructuredIndex);
     ++StructuredIndex;
     ++Index;
-  } else if (Expr *Str = IsStringInit(expr, ElemType, SemaRef.Context)) {
-    CheckStringInit(Str, ElemType, SemaRef);
-    UpdateStructuredListElement(StructuredList, StructuredIndex, Str);
-    ++Index;
+    return;
   } else if (ElemType->isScalarType()) {
-    CheckScalarType(Entity, IList, ElemType, Index,
-                    StructuredList, StructuredIndex);
+    return CheckScalarType(Entity, IList, ElemType, Index,
+                           StructuredList, StructuredIndex);
   } else if (ElemType->isReferenceType()) {
-    CheckReferenceType(Entity, IList, ElemType, Index,
-                       StructuredList, StructuredIndex);
-  } else {
-    if (SemaRef.getLangOptions().CPlusPlus) {
-      // C++ [dcl.init.aggr]p12:
-      //   All implicit type conversions (clause 4) are considered when
-      //   initializing the aggregate member with an ini- tializer from
-      //   an initializer-list. If the initializer can initialize a
-      //   member, the member is initialized. [...]
+    return CheckReferenceType(Entity, IList, ElemType, Index,
+                              StructuredList, StructuredIndex);
+  }
 
-      // FIXME: Better EqualLoc?
-      InitializationKind Kind =
-        InitializationKind::CreateCopy(expr->getLocStart(), SourceLocation());
-      InitializationSequence Seq(SemaRef, Entity, Kind, &expr, 1);
+  if (const ArrayType *arrayType = SemaRef.Context.getAsArrayType(ElemType)) {
+    // arrayType can be incomplete if we're initializing a flexible
+    // array member.  There's nothing we can do with the completed
+    // type here, though.
 
-      if (Seq) {
-        ExprResult Result =
-          Seq.Perform(SemaRef, Entity, Kind, MultiExprArg(&expr, 1));
-        if (Result.isInvalid())
-          hadError = true;
-
-        UpdateStructuredListElement(StructuredList, StructuredIndex,
-                                    Result.takeAs<Expr>());
-        ++Index;
-        return;
-      }
-
-      // Fall through for subaggregate initialization
-    } else {
-      // C99 6.7.8p13:
-      //
-      //   The initializer for a structure or union object that has
-      //   automatic storage duration shall be either an initializer
-      //   list as described below, or a single expression that has
-      //   compatible structure or union type. In the latter case, the
-      //   initial value of the object, including unnamed members, is
-      //   that of the expression.
-      if ((ElemType->isRecordType() || ElemType->isVectorType()) &&
-          SemaRef.CheckSingleAssignmentConstraints(ElemType, expr)
-              == Sema::Compatible) {
-        SemaRef.DefaultFunctionArrayLvalueConversion(expr);
-        UpdateStructuredListElement(StructuredList, StructuredIndex, expr);
-        ++Index;
-        return;
-      }
-
-      // Fall through for subaggregate initialization
-    }
-
-    // C++ [dcl.init.aggr]p12:
-    //
-    //   [...] Otherwise, if the member is itself a non-empty
-    //   subaggregate, brace elision is assumed and the initializer is
-    //   considered for the initialization of the first member of
-    //   the subaggregate.
-    if (ElemType->isAggregateType() || ElemType->isVectorType()) {
-      CheckImplicitInitList(Entity, IList, ElemType, Index, StructuredList,
-                            StructuredIndex);
-      ++StructuredIndex;
-    } else {
-      // We cannot initialize this element, so let
-      // PerformCopyInitialization produce the appropriate diagnostic.
-      SemaRef.PerformCopyInitialization(Entity, SourceLocation(),
-                                        SemaRef.Owned(expr));
-      hadError = true;
+    if (Expr *Str = IsStringInit(expr, arrayType, SemaRef.Context)) {
+      CheckStringInit(Str, ElemType, arrayType, SemaRef);
+      UpdateStructuredListElement(StructuredList, StructuredIndex, Str);
       ++Index;
-      ++StructuredIndex;
+      return;
     }
+
+    // Fall through for subaggregate initialization.
+
+  } else if (SemaRef.getLangOptions().CPlusPlus) {
+    // C++ [dcl.init.aggr]p12:
+    //   All implicit type conversions (clause 4) are considered when
+    //   initializing the aggregate member with an ini- tializer from
+    //   an initializer-list. If the initializer can initialize a
+    //   member, the member is initialized. [...]
+
+    // FIXME: Better EqualLoc?
+    InitializationKind Kind =
+      InitializationKind::CreateCopy(expr->getLocStart(), SourceLocation());
+    InitializationSequence Seq(SemaRef, Entity, Kind, &expr, 1);
+
+    if (Seq) {
+      ExprResult Result =
+        Seq.Perform(SemaRef, Entity, Kind, MultiExprArg(&expr, 1));
+      if (Result.isInvalid())
+        hadError = true;
+
+      UpdateStructuredListElement(StructuredList, StructuredIndex,
+                                  Result.takeAs<Expr>());
+      ++Index;
+      return;
+    }
+
+    // Fall through for subaggregate initialization
+  } else {
+    // C99 6.7.8p13:
+    //
+    //   The initializer for a structure or union object that has
+    //   automatic storage duration shall be either an initializer
+    //   list as described below, or a single expression that has
+    //   compatible structure or union type. In the latter case, the
+    //   initial value of the object, including unnamed members, is
+    //   that of the expression.
+    if ((ElemType->isRecordType() || ElemType->isVectorType()) &&
+        SemaRef.CheckSingleAssignmentConstraints(ElemType, expr)
+          == Sema::Compatible) {
+      SemaRef.DefaultFunctionArrayLvalueConversion(expr);
+      UpdateStructuredListElement(StructuredList, StructuredIndex, expr);
+      ++Index;
+      return;
+    }
+
+    // Fall through for subaggregate initialization
+  }
+
+  // C++ [dcl.init.aggr]p12:
+  //
+  //   [...] Otherwise, if the member is itself a non-empty
+  //   subaggregate, brace elision is assumed and the initializer is
+  //   considered for the initialization of the first member of
+  //   the subaggregate.
+  if (ElemType->isAggregateType() || ElemType->isVectorType()) {
+    CheckImplicitInitList(Entity, IList, ElemType, Index, StructuredList,
+                          StructuredIndex);
+    ++StructuredIndex;
+  } else {
+    // We cannot initialize this element, so let
+    // PerformCopyInitialization produce the appropriate diagnostic.
+    SemaRef.PerformCopyInitialization(Entity, SourceLocation(),
+                                      SemaRef.Owned(expr));
+    hadError = true;
+    ++Index;
+    ++StructuredIndex;
   }
 }
 
@@ -936,11 +952,13 @@ void InitListChecker::CheckArrayType(const InitializedEntity &Entity,
                                      unsigned &Index,
                                      InitListExpr *StructuredList,
                                      unsigned &StructuredIndex) {
+  const ArrayType *arrayType = SemaRef.Context.getAsArrayType(DeclType);
+
   // Check for the special-case of initializing an array with a string.
   if (Index < IList->getNumInits()) {
-    if (Expr *Str = IsStringInit(IList->getInit(Index), DeclType,
+    if (Expr *Str = IsStringInit(IList->getInit(Index), arrayType,
                                  SemaRef.Context)) {
-      CheckStringInit(Str, DeclType, SemaRef);
+      CheckStringInit(Str, DeclType, arrayType, SemaRef);
       // We place the string literal directly into the resulting
       // initializer list. This is the only place where the structure
       // of the structured initializer list doesn't match exactly,
@@ -952,8 +970,7 @@ void InitListChecker::CheckArrayType(const InitializedEntity &Entity,
       return;
     }
   }
-  if (const VariableArrayType *VAT =
-        SemaRef.Context.getAsVariableArrayType(DeclType)) {
+  if (const VariableArrayType *VAT = dyn_cast<VariableArrayType>(arrayType)) {
     // Check for VLAs; in standard C it would be possible to check this
     // earlier, but I don't know where clang accepts VLAs (gcc accepts
     // them in all sorts of strange places).
@@ -970,16 +987,14 @@ void InitListChecker::CheckArrayType(const InitializedEntity &Entity,
   llvm::APSInt maxElements(elementIndex.getBitWidth(),
                            elementIndex.isUnsigned());
   bool maxElementsKnown = false;
-  if (const ConstantArrayType *CAT =
-        SemaRef.Context.getAsConstantArrayType(DeclType)) {
+  if (const ConstantArrayType *CAT = dyn_cast<ConstantArrayType>(arrayType)) {
     maxElements = CAT->getSize();
     elementIndex = elementIndex.extOrTrunc(maxElements.getBitWidth());
     elementIndex.setIsUnsigned(maxElements.isUnsigned());
     maxElementsKnown = true;
   }
 
-  QualType elementType = SemaRef.Context.getAsArrayType(DeclType)
-                             ->getElementType();
+  QualType elementType = arrayType->getElementType();
   while (Index < IList->getNumInits()) {
     Expr *Init = IList->getInit(Index);
     if (DesignatedInitExpr *DIE = dyn_cast<DesignatedInitExpr>(Init)) {
@@ -2059,6 +2074,7 @@ void InitializationSequence::Step::Destroy() {
   case SK_CAssignment:
   case SK_StringInit:
   case SK_ObjCObjectConversion:
+  case SK_ArrayInit:
     break;
 
   case SK_ConversionSequence:
@@ -2090,6 +2106,8 @@ bool InitializationSequence::isAmbiguous() const {
   case FK_InitListBadDestinationType:
   case FK_DefaultInitOfConst:
   case FK_Incomplete:
+  case FK_ArrayTypeMismatch:
+  case FK_NonConstantArrayInit:
     return false;
 
   case FK_ReferenceInitOverloadFailed:
@@ -2228,6 +2246,13 @@ void InitializationSequence::AddStringInitStep(QualType T) {
 void InitializationSequence::AddObjCObjectConversionStep(QualType T) {
   Step S;
   S.Kind = SK_ObjCObjectConversion;
+  S.Type = T;
+  Steps.push_back(S);
+}
+
+void InitializationSequence::AddArrayInitStep(QualType T) {
+  Step S;
+  S.Kind = SK_ArrayInit;
   S.Type = T;
   Steps.push_back(S);
 }
@@ -2415,6 +2440,10 @@ static OverloadingResult TryRefInitWithConversionFunction(Sema &S,
     return Result;
 
   FunctionDecl *Function = Best->Function;
+
+  // This is the overload that will actually be used for the initialization, so
+  // mark it as used.
+  S.MarkDeclarationReferenced(DeclLoc, Function);
 
   // Compute the returned type of the conversion.
   if (isa<CXXConversionDecl>(Function))
@@ -3020,6 +3049,7 @@ static void TryUserDefinedConversion(Sema &S,
   }
 
   FunctionDecl *Function = Best->Function;
+  S.MarkDeclarationReferenced(DeclLoc, Function);
 
   if (isa<CXXConstructorDecl>(Function)) {
     // Add the user-defined conversion step. Any cv-qualification conversion is
@@ -3052,6 +3082,25 @@ static void TryUserDefinedConversion(Sema &S,
     ICS.Standard = Best->FinalConversion;
     Sequence.AddConversionSequenceStep(ICS, DestType);
   }
+}
+
+/// \brief Determine whether we have compatible array types for the
+/// purposes of GNU by-copy array initialization.
+static bool hasCompatibleArrayTypes(ASTContext &Context,
+                                    const ArrayType *Dest, 
+                                    const ArrayType *Source) {
+  // If the source and destination array types are equivalent, we're
+  // done.
+  if (Context.hasSameType(QualType(Dest, 0), QualType(Source, 0)))
+    return true;
+
+  // Make sure that the element types are the same.
+  if (!Context.hasSameType(Dest->getElementType(), Source->getElementType()))
+    return false;
+
+  // The only mismatch we allow is when the destination is an
+  // incomplete array type and the source is a constant array type.
+  return Source->isConstantArrayType() && Dest->isIncompleteArrayType();
 }
 
 InitializationSequence::InitializationSequence(Sema &S,
@@ -3109,14 +3158,6 @@ InitializationSequence::InitializationSequence(Sema &S,
     return;
   }
 
-  //     - If the destination type is an array of characters, an array of
-  //       char16_t, an array of char32_t, or an array of wchar_t, and the
-  //       initializer is a string literal, see 8.5.2.
-  if (Initializer && IsStringInit(Initializer, DestType, Context)) {
-    TryStringLiteralInitialization(S, Entity, Kind, Initializer, *this);
-    return;
-  }
-
   //     - If the initializer is (), the object is value-initialized.
   if (Kind.getKind() == InitializationKind::IK_Value ||
       (Kind.getKind() == InitializationKind::IK_Direct && NumArgs == 0)) {
@@ -3130,10 +3171,34 @@ InitializationSequence::InitializationSequence(Sema &S,
     return;
   }
 
+  //     - If the destination type is an array of characters, an array of
+  //       char16_t, an array of char32_t, or an array of wchar_t, and the
+  //       initializer is a string literal, see 8.5.2.
   //     - Otherwise, if the destination type is an array, the program is
   //       ill-formed.
-  if (const ArrayType *AT = Context.getAsArrayType(DestType)) {
-    if (AT->getElementType()->isAnyCharacterType())
+  if (const ArrayType *DestAT = Context.getAsArrayType(DestType)) {
+    if (Initializer && IsStringInit(Initializer, DestAT, Context)) {
+      TryStringLiteralInitialization(S, Entity, Kind, Initializer, *this);
+      return;
+    }
+
+    // Note: as an GNU C extension, we allow initialization of an
+    // array from a compound literal that creates an array of the same
+    // type, so long as the initializer has no side effects.
+    if (!S.getLangOptions().CPlusPlus && Initializer &&
+        isa<CompoundLiteralExpr>(Initializer->IgnoreParens()) &&
+        Initializer->getType()->isArrayType()) {
+      const ArrayType *SourceAT
+        = Context.getAsArrayType(Initializer->getType());
+      if (!hasCompatibleArrayTypes(S.Context, DestAT, SourceAT))
+        SetFailed(FK_ArrayTypeMismatch);
+      else if (Initializer->HasSideEffects(S.Context))
+        SetFailed(FK_NonConstantArrayInit);
+      else {
+        setSequenceKind(ArrayInit);
+        AddArrayInitStep(DestType);
+      }
+    } else if (DestAT->getElementType()->isAnyCharacterType())
       SetFailed(FK_ArrayNeedsInitListOrStringLiteral);
     else
       SetFailed(FK_ArrayNeedsInitList);
@@ -3482,6 +3547,8 @@ static ExprResult CopyObject(Sema &S,
     return S.Owned(CurInitExpr);
   }
 
+  S.MarkDeclarationReferenced(Loc, Constructor);
+
   // Determine the arguments required to actually perform the
   // constructor call (we might have derived-to-base conversions, or
   // the copy constructor may have default arguments).
@@ -3616,7 +3683,8 @@ InitializationSequence::Perform(Sema &S,
   case SK_ListInitialization:
   case SK_CAssignment:
   case SK_StringInit:
-  case SK_ObjCObjectConversion: {
+  case SK_ObjCObjectConversion:
+  case SK_ArrayInit: {
     assert(Args.size() == 1);
     Expr *CurInitExpr = Args.get()[0];
     if (!CurInitExpr) return ExprError();
@@ -4029,7 +4097,8 @@ InitializationSequence::Perform(Sema &S,
 
     case SK_StringInit: {
       QualType Ty = Step->Type;
-      CheckStringInit(CurInitExpr, ResultType ? *ResultType : Ty, S);
+      CheckStringInit(CurInitExpr, ResultType ? *ResultType : Ty,
+                      S.Context.getAsArrayType(Ty), S);
       break;
     }
 
@@ -4039,6 +4108,30 @@ InitializationSequence::Perform(Sema &S,
                           S.CastCategory(CurInitExpr));
       CurInit.release();
       CurInit = S.Owned(CurInitExpr);
+      break;
+
+    case SK_ArrayInit:
+      // Okay: we checked everything before creating this step. Note that
+      // this is a GNU extension.
+      S.Diag(Kind.getLocation(), diag::ext_array_init_copy)
+        << Step->Type << CurInitExpr->getType()
+        << CurInitExpr->getSourceRange();
+
+      // If the destination type is an incomplete array type, update the
+      // type accordingly.
+      if (ResultType) {
+        if (const IncompleteArrayType *IncompleteDest
+                           = S.Context.getAsIncompleteArrayType(Step->Type)) {
+          if (const ConstantArrayType *ConstantSource
+                 = S.Context.getAsConstantArrayType(CurInitExpr->getType())) {
+            *ResultType = S.Context.getConstantArrayType(
+                                             IncompleteDest->getElementType(),
+                                             ConstantSource->getSize(),
+                                             ArrayType::Normal, 0);
+          }
+        }
+      }
+
       break;
     }
   }
@@ -4079,6 +4172,17 @@ bool InitializationSequence::Diagnose(Sema &S,
   case FK_ArrayNeedsInitListOrStringLiteral:
     S.Diag(Kind.getLocation(), diag::err_array_init_not_init_list)
       << (Failure == FK_ArrayNeedsInitListOrStringLiteral);
+    break;
+
+  case FK_ArrayTypeMismatch:
+  case FK_NonConstantArrayInit:
+    S.Diag(Kind.getLocation(), 
+           (Failure == FK_ArrayTypeMismatch
+              ? diag::err_array_init_different_type
+              : diag::err_array_init_non_constant_array))
+      << DestType.getNonReferenceType()
+      << Args[0]->getType()
+      << Args[0]->getSourceRange();
     break;
 
   case FK_AddressOfOverloadFailed: {
@@ -4338,6 +4442,14 @@ void InitializationSequence::dump(llvm::raw_ostream &OS) const {
       OS << "array requires initializer list or string literal";
       break;
 
+    case FK_ArrayTypeMismatch:
+      OS << "array type mismatch";
+      break;
+
+    case FK_NonConstantArrayInit:
+      OS << "non-constant array initializer";
+      break;
+
     case FK_AddressOfOverloadFailed:
       OS << "address of overloaded function failed";
       break;
@@ -4441,6 +4553,10 @@ void InitializationSequence::dump(llvm::raw_ostream &OS) const {
   case StringInit:
     OS << "String initialization: ";
     break;
+
+  case ArrayInit:
+    OS << "Array initialization: ";
+    break;
   }
 
   for (step_iterator S = step_begin(), SEnd = step_end(); S != SEnd; ++S) {
@@ -4519,6 +4635,10 @@ void InitializationSequence::dump(llvm::raw_ostream &OS) const {
 
     case SK_ObjCObjectConversion:
       OS << "Objective-C object conversion";
+      break;
+
+    case SK_ArrayInit:
+      OS << "array initialization";
       break;
     }
   }

@@ -51,9 +51,6 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   set( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
   set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib )
 
-  add_definitions( -D__STDC_LIMIT_MACROS )
-  add_definitions( -D__STDC_CONSTANT_MACROS )
-
   set( CLANG_BUILT_STANDALONE 1 )
 endif()
 
@@ -121,6 +118,37 @@ configure_file(
   ${CLANG_SOURCE_DIR}/include/clang/Config/config.h.cmake
   ${CLANG_BINARY_DIR}/include/clang/Config/config.h)
 
+include(LLVMParseArguments)
+
+function(clang_tablegen)
+  # Syntax:
+  # clang_tablegen output-file [tablegen-arg ...] SOURCE source-file
+  # [[TARGET cmake-target-name] [DEPENDS extra-dependency ...]]
+  #
+  # Generates a custom command for invoking tblgen as
+  #
+  # tblgen source-file -o=output-file tablegen-arg ...
+  #
+  # and, if cmake-target-name is provided, creates a custom target for
+  # executing the custom command depending on output-file. It is
+  # possible to list more files to depend after DEPENDS.
+
+  parse_arguments( CTG "SOURCE;TARGET;DEPENDS" "" ${ARGN} )
+
+  if( NOT CTG_SOURCE )
+    message(FATAL_ERROR "SOURCE source-file required by clang_tablegen")
+  endif()
+
+  set( LLVM_TARGET_DEFINITIONS ${CTG_SOURCE} )
+  tablegen( ${CTG_DEFAULT_ARGS} )
+
+  list( GET CTG_DEFAULT_ARGS 0 output_file )
+  if( CTG_TARGET )
+    add_custom_target( ${CTG_TARGET} DEPENDS ${output_file} ${CTG_DEPENDS} )
+    set_target_properties( ${CTG_TARGET} PROPERTIES FOLDER "Clang tablegenning")
+  endif()
+endfunction(clang_tablegen)
+
 macro(add_clang_library name)
   llvm_process_sources(srcs ${ARGN})
   if(MSVC_IDE OR XCODE)
@@ -175,10 +203,12 @@ macro(add_clang_library name)
   install(TARGETS ${name}
     LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX}
     ARCHIVE DESTINATION lib${LLVM_LIBDIR_SUFFIX})
+  set_target_properties(${name} PROPERTIES FOLDER "Clang libraries")
 endmacro(add_clang_library)
 
 macro(add_clang_executable name)
   add_llvm_executable( ${name} ${ARGN} )
+  set_target_properties(${name} PROPERTIES FOLDER "Clang executables")
 endmacro(add_clang_executable)
 
 include_directories(
@@ -204,6 +234,16 @@ install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/
 
 add_definitions( -D_GNU_SOURCE -DHAVE_CLANG_CONFIG_H )
 
+# Clang version information
+set(CLANG_EXECUTABLE_VERSION
+     "${CLANG_VERSION_MAJOR}.${CLANG_VERSION_MINOR}" CACHE STRING
+    "Version number that will be placed into the clang executable, in the form XX.YY")
+set(LIBCLANG_LIBRARY_VERSION
+     "${CLANG_VERSION_MAJOR}.${CLANG_VERSION_MINOR}" CACHE STRING
+    "Version number that will be placed into the libclang library , in the form XX.YY")
+mark_as_advanced(CLANG_EXECUTABLE_VERSION LIBCLANG_LIBRARY_VERSION)
+
+
 option(CLANG_BUILD_EXAMPLES "Build CLANG example programs." OFF)
 if(CLANG_BUILD_EXAMPLES)
   add_subdirectory(examples)
@@ -215,13 +255,12 @@ add_subdirectory(tools)
 add_subdirectory(runtime)
 
 # TODO: docs.
-if( LLVM_INCLUDE_TESTS )
 add_subdirectory(test)
-endif()
 
-# FIXME: unittests require gtest.
-if( NOT CLANG_BUILT_STANDALONE )
-  add_subdirectory(unittests)
+if( LLVM_INCLUDE_TESTS )
+  if( NOT CLANG_BUILT_STANDALONE )
+    add_subdirectory(unittests)
+  endif()
 endif()
 
 # Workaround for MSVS10 to avoid the Dialog Hell

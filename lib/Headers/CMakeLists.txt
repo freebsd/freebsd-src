@@ -28,8 +28,8 @@ if(MSVC_IDE OR XCODE)
 endif()
 
 # Generate arm_neon.h
-set(LLVM_TARGET_DEFINITIONS ${CLANG_SOURCE_DIR}/include/clang/Basic/arm_neon.td)
-tablegen(arm_neon.h.inc -gen-arm-neon)
+clang_tablegen(arm_neon.h.inc -gen-arm-neon
+  SOURCE ${CLANG_SOURCE_DIR}/include/clang/Basic/arm_neon.td)
 
 set(out_files)
 foreach( f ${files} )
@@ -67,6 +67,7 @@ if (other_output_dir)
 endif ()
 
 add_custom_target(clang-headers ALL DEPENDS ${out_files})
+set_target_properties(clang-headers PROPERTIES FOLDER "Misc")
 
 install(FILES ${files} ${output_dir}/arm_neon.h
   PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ

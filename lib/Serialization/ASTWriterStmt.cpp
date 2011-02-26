@@ -1150,8 +1150,7 @@ void ASTStmtWriter::VisitCXXPseudoDestructorExpr(CXXPseudoDestructorExpr *E) {
   Writer.AddStmt(E->getBase());
   Record.push_back(E->isArrow());
   Writer.AddSourceLocation(E->getOperatorLoc(), Record);
-  Writer.AddNestedNameSpecifier(E->getQualifier(), Record);
-  Writer.AddSourceRange(E->getQualifierRange(), Record);
+  Writer.AddNestedNameSpecifierLoc(E->getQualifierLoc(), Record);
   Writer.AddTypeSourceInfo(E->getScopeTypeInfo(), Record);
   Writer.AddSourceLocation(E->getColonColonLoc(), Record);
   Writer.AddSourceLocation(E->getTildeLoc(), Record);
@@ -1217,9 +1216,8 @@ ASTStmtWriter::VisitDependentScopeDeclRefExpr(DependentScopeDeclRefExpr *E) {
     AddExplicitTemplateArgumentList(Args);
   }
 
+  Writer.AddNestedNameSpecifierLoc(E->getQualifierLoc(), Record);
   Writer.AddDeclarationNameInfo(E->NameInfo, Record);
-  Writer.AddSourceRange(E->getQualifierRange(), Record);
-  Writer.AddNestedNameSpecifier(E->getQualifier(), Record);
   Code = serialization::EXPR_CXX_DEPENDENT_SCOPE_DECL_REF;
 }
 

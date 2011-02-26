@@ -73,9 +73,6 @@ def analyzer_display_progress : Flag<"-analyzer-display-progress">,
   HelpText<"Emit verbose output about the analyzer's progress">;
 def analyzer_experimental_checks : Flag<"-analyzer-experimental-checks">,
   HelpText<"Use experimental path-sensitive checks">;
-def analyzer_experimental_internal_checks :
-  Flag<"-analyzer-experimental-internal-checks">,
-  HelpText<"Use new default path-sensitive checks currently in testing">;
 def analyze_function : Separate<"-analyze-function">,
   HelpText<"Run analysis on specific function">;
 def analyze_function_EQ : Joined<"-analyze-function=">, Alias<analyze_function>;
@@ -107,6 +104,9 @@ def analyzer_disable_checker : Separate<"-analyzer-disable-checker">,
   HelpText<"Choose analyzer checkers to disable">;
 def analyzer_disable_checker_EQ : Joined<"-analyzer-disable-checker=">,
   Alias<analyzer_disable_checker>;
+
+def analyzer_checker_help : Flag<"-analyzer-checker-help">,
+  HelpText<"Display the list of analyzer checkers that are available">;
 
 //===----------------------------------------------------------------------===//
 // CodeGen Options
@@ -418,10 +418,12 @@ def fblocks : Flag<"-fblocks">,
 def fheinous_gnu_extensions : Flag<"-fheinous-gnu-extensions">;
 def fexceptions : Flag<"-fexceptions">,
   HelpText<"Enable support for exception handling">;
+def fobjc_exceptions : Flag<"-fobjc-exceptions">,
+  HelpText<"Enable Objective-C exceptions">;
+def fcxx_exceptions : Flag<"-fcxx-exceptions">,
+  HelpText<"Enable C++ exceptions">;
 def fsjlj_exceptions : Flag<"-fsjlj-exceptions">,
   HelpText<"Use SjLj style exceptions">;
-def fno_objc_exceptions : Flag<"-fno-objc-exceptions">,
-  HelpText<"Disable Objective-C exceptions">;
 def ffreestanding : Flag<"-ffreestanding">,
   HelpText<"Assert that the compilation takes place in a freestanding environment">;
 def fgnu_runtime : Flag<"-fgnu-runtime">,
@@ -536,6 +538,8 @@ def idirafter : JoinedOrSeparate<"-idirafter">, MetaVarName<"<directory>">,
   HelpText<"Add directory to AFTER include search path">;
 def iquote : JoinedOrSeparate<"-iquote">, MetaVarName<"<directory>">,
   HelpText<"Add directory to QUOTE include search path">;
+def cxx_isystem : JoinedOrSeparate<"-cxx-isystem">, MetaVarName<"<directory>">,
+  HelpText<"Add directory to the C++ SYSTEM include search path">;
 def isystem : JoinedOrSeparate<"-isystem">, MetaVarName<"<directory>">,
   HelpText<"Add directory to SYSTEM include search path">;
 def iwithsysroot : JoinedOrSeparate<"-iwithsysroot">,MetaVarName<"<directory>">,
@@ -550,8 +554,6 @@ def iwithprefixbefore : JoinedOrSeparate<"-iwithprefixbefore">,
   HelpText<"Set directory to include search path with prefix">;
 def isysroot : JoinedOrSeparate<"-isysroot">, MetaVarName<"<dir>">,
   HelpText<"Set the system root directory (usually /)">;
-def cxx_system_include : Separate<"-cxx-system-include">,
-  HelpText<"Add a system #include directory for the C++ standard library">;
 def v : Flag<"-v">, HelpText<"Enable verbose output">;
 
 //===----------------------------------------------------------------------===//
