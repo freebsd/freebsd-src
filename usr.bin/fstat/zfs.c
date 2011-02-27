@@ -43,6 +43,7 @@
 #include <sys/zap.h>
 #include <sys/fs/zfs.h>
 #include <sys/zfs_znode.h>
+#include <sys/zfs_sa.h>
 
 #include <err.h>
 #include <kvm.h>

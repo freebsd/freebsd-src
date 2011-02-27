@@ -19,14 +19,11 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 #ifndef	_SYS_NVPAIR_H
 #define	_SYS_NVPAIR_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -160,6 +157,8 @@ int nvlist_unpack(char *, size_t, nvlist_t **, int);
 int nvlist_dup(nvlist_t *, nvlist_t **, int);
 int nvlist_merge(nvlist_t *, nvlist_t *, int);
 
+uint_t nvlist_nvflag(nvlist_t *);
+
 int nvlist_xalloc(nvlist_t **, uint_t, nv_alloc_t *);
 int nvlist_xpack(nvlist_t *, char **, size_t *, int, nv_alloc_t *);
 int nvlist_xunpack(char *, size_t, nvlist_t **, nv_alloc_t *);
@@ -199,6 +198,7 @@ int nvlist_add_double(nvlist_t *, const char *, double);
 
 int nvlist_remove(nvlist_t *, const char *, data_type_t);
 int nvlist_remove_all(nvlist_t *, const char *);
+int nvlist_remove_nvpair(nvlist_t *, nvpair_t *);
 
 int nvlist_lookup_boolean(nvlist_t *, const char *);
 int nvlist_lookup_boolean_value(nvlist_t *, const char *, boolean_t *);
@@ -237,9 +237,11 @@ int nvlist_lookup_nvpair(nvlist_t *, const char *, nvpair_t **);
 int nvlist_lookup_nvpair_embedded_index(nvlist_t *, const char *, nvpair_t **,
     int *, char **);
 boolean_t nvlist_exists(nvlist_t *, const char *);
+boolean_t nvlist_empty(nvlist_t *);
 
 /* processing nvpair */
 nvpair_t *nvlist_next_nvpair(nvlist_t *, nvpair_t *);
+nvpair_t *nvlist_prev_nvpair(nvlist_t *, nvpair_t *);
 char *nvpair_name(nvpair_t *);
 data_type_t nvpair_type(nvpair_t *);
 int nvpair_type_is_array(nvpair_t *);
