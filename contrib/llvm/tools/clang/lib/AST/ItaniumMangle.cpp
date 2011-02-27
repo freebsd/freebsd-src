@@ -606,6 +606,9 @@ void CXXNameMangler::mangleUnresolvedScope(NestedNameSpecifier *Qualifier) {
   case NestedNameSpecifier::Namespace:
     mangleName(Qualifier->getAsNamespace());
     break;
+  case NestedNameSpecifier::NamespaceAlias:
+    mangleName(Qualifier->getAsNamespaceAlias()->getNamespace());
+    break;
   case NestedNameSpecifier::TypeSpec:
   case NestedNameSpecifier::TypeSpecWithTemplate: {
     const Type *QTy = Qualifier->getAsType();
@@ -1647,8 +1650,11 @@ void CXXNameMangler::mangleType(const DecltypeType *T) {
 
 void CXXNameMangler::mangleType(const AutoType *T) {
   QualType D = T->getDeducedType();
-  assert(!D.isNull() && "can't mangle undeduced auto type");
-  mangleType(D);
+  // <builtin-type> ::= Da  # dependent auto
+  if (D.isNull())
+    Out << "Da";
+  else
+    mangleType(D);
 }
 
 void CXXNameMangler::mangleIntegerLiteral(QualType T,

@@ -25,10 +25,12 @@ namespace llvm {
 namespace clang {
 
 class ASTContext;
+class NamespaceAliasDecl;
 class NamespaceDecl;
 class IdentifierInfo;
 struct PrintingPolicy;
 class Type;
+class TypeLoc;
 class LangOptions;
 
 /// \brief Represents a C++ nested name specifier, such as
@@ -41,13 +43,22 @@ class LangOptions;
 /// (for dependent names), or the global specifier ('::', must be the
 /// first specifier).
 class NestedNameSpecifier : public llvm::FoldingSetNode {
+
+  /// \brief Enumeration describing
+  enum StoredSpecifierKind {
+    StoredIdentifier = 0,
+    StoredNamespaceOrAlias = 1,
+    StoredTypeSpec = 2,
+    StoredTypeSpecWithTemplate = 3
+  };
+
   /// \brief The nested name specifier that precedes this nested name
   /// specifier.
   ///
   /// The pointer is the nested-name-specifier that precedes this
   /// one. The integer stores one of the first four values of type
   /// SpecifierKind.
-  llvm::PointerIntPair<NestedNameSpecifier *, 2> Prefix;
+  llvm::PointerIntPair<NestedNameSpecifier *, 2, StoredSpecifierKind> Prefix;
 
   /// \brief The last component in the nested name specifier, which
   /// can be an identifier, a declaration, or a type.
@@ -63,21 +74,23 @@ public:
   /// specifier.
   enum SpecifierKind {
     /// \brief An identifier, stored as an IdentifierInfo*.
-    Identifier = 0,
-    /// \brief A namespace, stored as a Namespace*.
-    Namespace = 1,
+    Identifier,
+    /// \brief A namespace, stored as a NamespaceDecl*.
+    Namespace,
+    /// \brief A namespace alias, stored as a NamespaceAliasDecl*.
+    NamespaceAlias,
     /// \brief A type, stored as a Type*.
-    TypeSpec = 2,
+    TypeSpec,
     /// \brief A type that was preceded by the 'template' keyword,
     /// stored as a Type*.
-    TypeSpecWithTemplate = 3,
+    TypeSpecWithTemplate,
     /// \brief The global specifier '::'. There is no stored value.
-    Global = 4
+    Global
   };
 
 private:
   /// \brief Builds the global specifier.
-  NestedNameSpecifier() : Prefix(0, 0), Specifier(0) { }
+  NestedNameSpecifier() : Prefix(0, StoredIdentifier), Specifier(0) { }
 
   /// \brief Copy constructor used internally to clone nested name
   /// specifiers.
@@ -108,6 +121,11 @@ public:
                                      NestedNameSpecifier *Prefix,
                                      NamespaceDecl *NS);
 
+  /// \brief Builds a nested name specifier that names a namespace alias.
+  static NestedNameSpecifier *Create(const ASTContext &Context,
+                                     NestedNameSpecifier *Prefix,
+                                     NamespaceAliasDecl *Alias);
+
   /// \brief Builds a nested name specifier that names a type.
   static NestedNameSpecifier *Create(const ASTContext &Context,
                                      NestedNameSpecifier *Prefix,
@@ -136,16 +154,12 @@ public:
   NestedNameSpecifier *getPrefix() const { return Prefix.getPointer(); }
 
   /// \brief Determine what kind of nested name specifier is stored.
-  SpecifierKind getKind() const {
-    if (Specifier == 0)
-      return Global;
-    return (SpecifierKind)Prefix.getInt();
-  }
+  SpecifierKind getKind() const;
 
   /// \brief Retrieve the identifier stored in this nested name
   /// specifier.
   IdentifierInfo *getAsIdentifier() const {
-    if (Prefix.getInt() == Identifier)
+    if (Prefix.getInt() == StoredIdentifier)
       return (IdentifierInfo *)Specifier;
 
     return 0;
@@ -153,17 +167,16 @@ public:
 
   /// \brief Retrieve the namespace stored in this nested name
   /// specifier.
-  NamespaceDecl *getAsNamespace() const {
-    if (Prefix.getInt() == Namespace)
-      return (NamespaceDecl *)Specifier;
+  NamespaceDecl *getAsNamespace() const;
 
-    return 0;
-  }
+  /// \brief Retrieve the namespace alias stored in this nested name
+  /// specifier.
+  NamespaceAliasDecl *getAsNamespaceAlias() const;
 
   /// \brief Retrieve the type stored in this nested name specifier.
   const Type *getAsType() const {
-    if (Prefix.getInt() == TypeSpec ||
-        Prefix.getInt() == TypeSpecWithTemplate)
+    if (Prefix.getInt() == StoredTypeSpec ||
+        Prefix.getInt() == StoredTypeSpecWithTemplate)
       return (const Type *)Specifier;
 
     return 0;
@@ -189,6 +202,114 @@ public:
   /// \brief Dump the nested name specifier to standard output to aid
   /// in debugging.
   void dump(const LangOptions &LO);
+};
+
+/// \brief A C++ nested-name-specifier augmented with source location
+/// information.
+class NestedNameSpecifierLoc {
+  NestedNameSpecifier *Qualifier;
+  void *Data;
+
+  /// \brief Determines the data length for the last component in the
+  /// given nested-name-specifier.
+  static unsigned getLocalDataLength(NestedNameSpecifier *Qualifier);
+
+  /// \brief Determines the data length for the entire
+  /// nested-name-specifier.
+  static unsigned getDataLength(NestedNameSpecifier *Qualifier);
+
+public:
+  /// \brief Construct an empty nested-name-specifier.
+  NestedNameSpecifierLoc() : Qualifier(0), Data(0) { }
+  
+  /// \brief Construct a nested-name-specifier with source location information
+  /// from 
+  NestedNameSpecifierLoc(NestedNameSpecifier *Qualifier, void *Data)
+    : Qualifier(Qualifier), Data(Data) { }
+  
+  /// \brief Evalutes true when this nested-name-specifier location is
+  /// non-empty.
+  operator bool() const { return Qualifier; }
+
+  /// \brief Retrieve the nested-name-specifier to which this instance
+  /// refers.
+  NestedNameSpecifier *getNestedNameSpecifier() const {
+    return Qualifier;
+  }
+
+  /// \brief Retrieve the opaque pointer that refers to source-location data.
+  void *getOpaqueData() const { return Data; }
+  
+  /// \brief Retrieve the source range covering the entirety of this
+  /// nested-name-specifier.
+  ///
+  /// For example, if this instance refers to a nested-name-specifier
+  /// \c ::std::vector<int>::, the returned source range would cover
+  /// from the initial '::' to the last '::'.
+  SourceRange getSourceRange() const;
+
+  /// \brief Retrieve the source range covering just the last part of
+  /// this nested-name-specifier, not including the prefix.
+  ///
+  /// For example, if this instance refers to a nested-name-specifier
+  /// \c ::std::vector<int>::, the returned source range would cover
+  /// from "vector" to the last '::'.
+  SourceRange getLocalSourceRange() const;
+
+  /// \brief Retrieve the location of the beginning of this
+  /// nested-name-specifier.
+  SourceLocation getBeginLoc() const { 
+    return getSourceRange().getBegin();
+  }
+
+  /// \brief Retrieve the location of the end of this
+  /// nested-name-specifier.
+  SourceLocation getEndLoc() const { 
+    return getSourceRange().getEnd();
+  }
+
+  /// \brief Retrieve the location of the beginning of this
+  /// component of the nested-name-specifier.
+  SourceLocation getLocalBeginLoc() const { 
+    return getLocalSourceRange().getBegin();
+  }
+  
+  /// \brief Retrieve the location of the end of this component of the
+  /// nested-name-specifier.
+  SourceLocation getLocalEndLoc() const { 
+    return getLocalSourceRange().getEnd();
+  }
+
+  /// \brief Return the prefix of this nested-name-specifier.
+  ///
+  /// For example, if this instance refers to a nested-name-specifier
+  /// \c ::std::vector<int>::, the prefix is \c ::std::. Note that the
+  /// returned prefix may be empty, if this is the first component of
+  /// the nested-name-specifier.
+  NestedNameSpecifierLoc getPrefix() const {
+    if (!Qualifier)
+      return *this;
+
+    return NestedNameSpecifierLoc(Qualifier->getPrefix(), Data);
+  }
+
+  /// \brief For a nested-name-specifier that refers to a type,
+  /// retrieve the type with source-location information.
+  TypeLoc getTypeLoc() const;
+
+  /// \brief Determines the data length for the entire
+  /// nested-name-specifier.
+  unsigned getDataLength() const { return getDataLength(Qualifier); }
+  
+  friend bool operator==(NestedNameSpecifierLoc X, 
+                         NestedNameSpecifierLoc Y) {
+    return X.Qualifier == Y.Qualifier && X.Data == Y.Data;
+  }
+
+  friend bool operator!=(NestedNameSpecifierLoc X, 
+                         NestedNameSpecifierLoc Y) {
+    return !(X == Y);
+  }
 };
 
 /// Insertion operator for diagnostics.  This allows sending NestedNameSpecifiers

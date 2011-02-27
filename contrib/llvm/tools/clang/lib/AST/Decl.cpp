@@ -266,8 +266,12 @@ static LinkageInfo getLVForNamespaceScopeDecl(const NamedDecl *D, LVFlags F) {
       return LinkageInfo::internal();
   }
 
-  if (D->isInAnonymousNamespace())
-    return LinkageInfo::uniqueExternal();
+  if (D->isInAnonymousNamespace()) {
+    const VarDecl *Var = dyn_cast<VarDecl>(D);
+    const FunctionDecl *Func = dyn_cast<FunctionDecl>(D);
+    if ((!Var || !Var->isExternC()) && (!Func || !Func->isExternC()))
+      return LinkageInfo::uniqueExternal();
+  }
 
   // Set up the defaults.
 
@@ -704,7 +708,7 @@ static LinkageInfo getLVForDecl(const NamedDecl *D, LVFlags Flags) {
   //   external linkage.
   if (D->getLexicalDeclContext()->isFunctionOrMethod()) {
     if (const FunctionDecl *Function = dyn_cast<FunctionDecl>(D)) {
-      if (Function->isInAnonymousNamespace())
+      if (Function->isInAnonymousNamespace() && !Function->isExternC())
         return LinkageInfo::uniqueExternal();
 
       LinkageInfo LV;
@@ -725,7 +729,7 @@ static LinkageInfo getLVForDecl(const NamedDecl *D, LVFlags Flags) {
     if (const VarDecl *Var = dyn_cast<VarDecl>(D))
       if (Var->getStorageClass() == SC_Extern ||
           Var->getStorageClass() == SC_PrivateExtern) {
-        if (Var->isInAnonymousNamespace())
+        if (Var->isInAnonymousNamespace() && !Var->isExternC())
           return LinkageInfo::uniqueExternal();
 
         LinkageInfo LV;
@@ -837,8 +841,10 @@ bool NamedDecl::declarationReplaces(NamedDecl *OldD) const {
   // UsingDirectiveDecl's are not really NamedDecl's, and all have same name.
   // We want to keep it, unless it nominates same namespace.
   if (getKind() == Decl::UsingDirective) {
-    return cast<UsingDirectiveDecl>(this)->getNominatedNamespace() ==
-           cast<UsingDirectiveDecl>(OldD)->getNominatedNamespace();
+    return cast<UsingDirectiveDecl>(this)->getNominatedNamespace()
+             ->getOriginalNamespace() ==
+           cast<UsingDirectiveDecl>(OldD)->getNominatedNamespace()
+             ->getOriginalNamespace();
   }
 
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(this))
@@ -864,9 +870,13 @@ bool NamedDecl::declarationReplaces(NamedDecl *OldD) const {
     return cast<UsingShadowDecl>(this)->getTargetDecl() ==
            cast<UsingShadowDecl>(OldD)->getTargetDecl();
 
-  if (isa<UsingDecl>(this) && isa<UsingDecl>(OldD))
-    return cast<UsingDecl>(this)->getTargetNestedNameDecl() ==
-           cast<UsingDecl>(OldD)->getTargetNestedNameDecl();
+  if (isa<UsingDecl>(this) && isa<UsingDecl>(OldD)) {
+    ASTContext &Context = getASTContext();
+    return Context.getCanonicalNestedNameSpecifier(
+                                     cast<UsingDecl>(this)->getQualifier()) ==
+           Context.getCanonicalNestedNameSpecifier(
+                                        cast<UsingDecl>(OldD)->getQualifier());
+  }
 
   // For non-function declarations, if the declarations are of the
   // same kind then this must be a redeclaration, or semantic analysis
@@ -927,9 +937,8 @@ SourceLocation DeclaratorDecl::getTypeSpecStartLoc() const {
   return SourceLocation();
 }
 
-void DeclaratorDecl::setQualifierInfo(NestedNameSpecifier *Qualifier,
-                                      SourceRange QualifierRange) {
-  if (Qualifier) {
+void DeclaratorDecl::setQualifierInfo(NestedNameSpecifierLoc QualifierLoc) {
+  if (QualifierLoc) {
     // Make sure the extended decl info is allocated.
     if (!hasExtInfo()) {
       // Save (non-extended) type source info pointer.
@@ -940,12 +949,10 @@ void DeclaratorDecl::setQualifierInfo(NestedNameSpecifier *Qualifier,
       getExtInfo()->TInfo = savedTInfo;
     }
     // Set qualifier info.
-    getExtInfo()->NNS = Qualifier;
-    getExtInfo()->NNSRange = QualifierRange;
+    getExtInfo()->QualifierLoc = QualifierLoc;
   }
   else {
     // Here Qualifier == 0, i.e., we are removing the qualifier (if any).
-    assert(QualifierRange.isInvalid());
     if (hasExtInfo()) {
       // Save type source info pointer.
       TypeSourceInfo *savedTInfo = getExtInfo()->TInfo;
@@ -967,7 +974,7 @@ QualifierInfo::setTemplateParameterListsInfo(ASTContext &Context,
                                              TemplateParameterList **TPLists) {
   assert((NumTPLists == 0 || TPLists != 0) &&
          "Empty array of template parameters with positive size!");
-  assert((NumTPLists == 0 || NNS) &&
+  assert((NumTPLists == 0 || QualifierLoc) &&
          "Nonempty array of template parameters with no qualifier!");
 
   // Free previous template parameters (if any).
@@ -1037,8 +1044,11 @@ bool VarDecl::isExternC() const {
             getStorageClass() != SC_Static) ||
       (getDeclContext()->isFunctionOrMethod() && hasExternalStorage());
 
-  for (const DeclContext *DC = getDeclContext(); !DC->isTranslationUnit();
-       DC = DC->getParent()) {
+  const DeclContext *DC = getDeclContext();
+  if (DC->isFunctionOrMethod())
+    return false;
+
+  for (; !DC->isTranslationUnit(); DC = DC->getParent()) {
     if (const LinkageSpecDecl *Linkage = dyn_cast<LinkageSpecDecl>(DC))  {
       if (Linkage->getLanguage() == LinkageSpecDecl::lang_c)
         return getStorageClass() != SC_Static;
@@ -1046,8 +1056,6 @@ bool VarDecl::isExternC() const {
       break;
     }
 
-    if (DC->isFunctionOrMethod())
-      return false;
   }
 
   return false;
@@ -1363,8 +1371,11 @@ bool FunctionDecl::isExternC() const {
   if (!Context.getLangOptions().CPlusPlus)
     return getStorageClass() != SC_Static && !getAttr<OverloadableAttr>();
 
-  for (const DeclContext *DC = getDeclContext(); !DC->isTranslationUnit();
-       DC = DC->getParent()) {
+  const DeclContext *DC = getDeclContext();
+  if (DC->isRecord())
+    return false;
+
+  for (; !DC->isTranslationUnit(); DC = DC->getParent()) {
     if (const LinkageSpecDecl *Linkage = dyn_cast<LinkageSpecDecl>(DC))  {
       if (Linkage->getLanguage() == LinkageSpecDecl::lang_c)
         return getStorageClass() != SC_Static &&
@@ -1372,9 +1383,6 @@ bool FunctionDecl::isExternC() const {
 
       break;
     }
-    
-    if (DC->isRecord())
-      break;
   }
 
   return isMain();
@@ -2018,19 +2026,16 @@ TagDecl* TagDecl::getDefinition() const {
   return 0;
 }
 
-void TagDecl::setQualifierInfo(NestedNameSpecifier *Qualifier,
-                               SourceRange QualifierRange) {
-  if (Qualifier) {
+void TagDecl::setQualifierInfo(NestedNameSpecifierLoc QualifierLoc) {
+  if (QualifierLoc) {
     // Make sure the extended qualifier info is allocated.
     if (!hasExtInfo())
       TypedefDeclOrQualifier = new (getASTContext()) ExtInfo;
     // Set qualifier info.
-    getExtInfo()->NNS = Qualifier;
-    getExtInfo()->NNSRange = QualifierRange;
+    getExtInfo()->QualifierLoc = QualifierLoc;
   }
   else {
     // Here Qualifier == 0, i.e., we are removing the qualifier (if any).
-    assert(QualifierRange.isInvalid());
     if (hasExtInfo()) {
       getASTContext().Deallocate(getExtInfo());
       TypedefDeclOrQualifier = (TypedefDecl*) 0;
@@ -2211,8 +2216,10 @@ NamespaceDecl *NamespaceDecl::getNextNamespace() {
 }
 
 ImplicitParamDecl *ImplicitParamDecl::Create(ASTContext &C, DeclContext *DC,
-    SourceLocation L, IdentifierInfo *Id, QualType T) {
-  return new (C) ImplicitParamDecl(ImplicitParam, DC, L, Id, T);
+                                             SourceLocation loc,
+                                             IdentifierInfo *name,
+                                             QualType type) {
+  return new (C) ImplicitParamDecl(DC, loc, name, type);
 }
 
 FunctionDecl *FunctionDecl::Create(ASTContext &C, DeclContext *DC,

@@ -78,6 +78,8 @@ static void AnalyzerOptsToArgs(const AnalyzerOptions &Opts,
                                std::vector<std::string> &Res) {
   for (unsigned i = 0, e = Opts.AnalysisList.size(); i != e; ++i)
     Res.push_back(getAnalysisName(Opts.AnalysisList[i]));
+  if (Opts.ShowCheckerHelp)
+    Res.push_back("-analyzer-checker-help");
   if (Opts.AnalysisStoreOpt != BasicStoreModel) {
     Res.push_back("-analyzer-store");
     Res.push_back(getAnalysisStoreName(Opts.AnalysisStoreOpt));
@@ -114,8 +116,6 @@ static void AnalyzerOptsToArgs(const AnalyzerOptions &Opts,
     Res.push_back("-analyzer-viz-egraph-ubigraph");
   if (Opts.EnableExperimentalChecks)
     Res.push_back("-analyzer-experimental-checks");
-  if (Opts.EnableExperimentalInternalChecks)
-    Res.push_back("-analyzer-experimental-internal-checks");
   if (Opts.BufferOverflows)
     Res.push_back("-analyzer-check-buffer-overflows");
 
@@ -473,11 +473,6 @@ static void HeaderSearchOptsToArgs(const HeaderSearchOptions &Opts,
     Res.push_back(Opts.Sysroot);
   }
 
-  for (unsigned i = 0, e = Opts.CXXSystemIncludes.size(); i != e; ++i) {
-    Res.push_back("-cxx-system-include");
-    Res.push_back(Opts.CXXSystemIncludes[i]);
-  }
-
   /// User specified include entries.
   for (unsigned i = 0, e = Opts.UserEntries.size(); i != e; ++i) {
     const HeaderSearchOptions::Entry &E = Opts.UserEntries[i];
@@ -490,6 +485,8 @@ static void HeaderSearchOptsToArgs(const HeaderSearchOptions &Opts,
         Res.push_back("-iquote");
       } else if (E.Group == frontend::System) {
         Res.push_back("-isystem");
+      } else if (E.Group == frontend::CXXSystem) {
+        Res.push_back("-cxx-isystem");
       } else {
         assert(E.Group == frontend::Angled && "Invalid group!");
         Res.push_back(E.IsFramework ? "-F" : "-I");
@@ -588,10 +585,12 @@ static void LangOptsToArgs(const LangOptions &Opts,
     Res.push_back("-faltivec");
   if (Opts.Exceptions)
     Res.push_back("-fexceptions");
+  if (Opts.ObjCExceptions)
+    Res.push_back("-fobjc-exceptions");
+  if (Opts.CXXExceptions)
+    Res.push_back("-fcxx-exceptions");
   if (Opts.SjLjExceptions)
     Res.push_back("-fsjlj-exceptions");
-  if (!Opts.ObjCExceptions)
-    Res.push_back("-fno-objc-exceptions");
   if (!Opts.RTTI)
     Res.push_back("-fno-rtti");
   if (Opts.MSBitfields)
@@ -864,6 +863,7 @@ static void ParseAnalyzerArgs(AnalyzerOptions &Opts, ArgList &Args,
       Opts.AnalysisDiagOpt = Value;
   }
 
+  Opts.ShowCheckerHelp = Args.hasArg(OPT_analyzer_checker_help);
   Opts.VisualizeEGDot = Args.hasArg(OPT_analyzer_viz_egraph_graphviz);
   Opts.VisualizeEGUbi = Args.hasArg(OPT_analyzer_viz_egraph_ubigraph);
   Opts.AnalyzeAll = Args.hasArg(OPT_analyzer_opt_analyze_headers);
@@ -878,8 +878,6 @@ static void ParseAnalyzerArgs(AnalyzerOptions &Opts, ArgList &Args,
   Opts.CFGAddImplicitDtors = Args.hasArg(OPT_analysis_CFGAddImplicitDtors);
   Opts.CFGAddInitializers = Args.hasArg(OPT_analysis_CFGAddInitializers);
   Opts.EnableExperimentalChecks = Args.hasArg(OPT_analyzer_experimental_checks);
-  Opts.EnableExperimentalInternalChecks =
-    Args.hasArg(OPT_analyzer_experimental_internal_checks);
   Opts.TrimGraph = Args.hasArg(OPT_trim_egraph);
   Opts.MaxNodes = Args.getLastArgIntValue(OPT_analyzer_max_nodes, 150000,Diags);
   Opts.MaxLoop = Args.getLastArgIntValue(OPT_analyzer_max_loop, 4, Diags);
@@ -894,8 +892,13 @@ static void ParseAnalyzerArgs(AnalyzerOptions &Opts, ArgList &Args,
     const Arg *A = *it;
     A->claim();
     bool enable = (A->getOption().getID() == OPT_analyzer_checker);
-    Opts.CheckersControlList.push_back(std::make_pair(A->getValue(Args),
-                                                      enable));
+    // We can have a list of comma separated checker names, e.g:
+    // '-analyzer-checker=cocoa,unix'
+    llvm::StringRef checkerList = A->getValue(Args);
+    llvm::SmallVector<llvm::StringRef, 4> checkers;
+    checkerList.split(checkers, ",");
+    for (unsigned i = 0, e = checkers.size(); i != e; ++i)
+      Opts.CheckersControlList.push_back(std::make_pair(checkers[i], enable));
   }
 }
 
@@ -1238,7 +1241,6 @@ std::string CompilerInvocation::GetResourcesPath(const char *Argv0,
 
 static void ParseHeaderSearchArgs(HeaderSearchOptions &Opts, ArgList &Args) {
   using namespace cc1options;
-  Opts.CXXSystemIncludes = Args.getAllArgValues(OPT_cxx_system_include);
   Opts.Sysroot = Args.getLastArgValue(OPT_isysroot, "/");
   Opts.Verbose = Args.hasArg(OPT_v);
   Opts.UseBuiltinIncludes = !Args.hasArg(OPT_nobuiltininc);
@@ -1274,10 +1276,12 @@ static void ParseHeaderSearchArgs(HeaderSearchOptions &Opts, ArgList &Args) {
   for (arg_iterator it = Args.filtered_begin(OPT_iquote),
          ie = Args.filtered_end(); it != ie; ++it)
     Opts.AddPath((*it)->getValue(Args), frontend::Quoted, true, false, true);
-  for (arg_iterator it = Args.filtered_begin(OPT_isystem, OPT_iwithsysroot),
-         ie = Args.filtered_end(); it != ie; ++it)
-    Opts.AddPath((*it)->getValue(Args), frontend::System, true, false,
-                 (*it)->getOption().matches(OPT_iwithsysroot));
+  for (arg_iterator it = Args.filtered_begin(OPT_cxx_isystem, OPT_isystem,
+         OPT_iwithsysroot), ie = Args.filtered_end(); it != ie; ++it)
+    Opts.AddPath((*it)->getValue(Args),
+                 ((*it)->getOption().matches(OPT_cxx_isystem) ?
+                   frontend::CXXSystem : frontend::System),
+                 true, false, (*it)->getOption().matches(OPT_iwithsysroot));
 
   // FIXME: Need options for the various environment variables!
 }
@@ -1459,7 +1463,10 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   if (Args.hasArg(OPT_fno_threadsafe_statics))
     Opts.ThreadsafeStatics = 0;
   Opts.Exceptions = Args.hasArg(OPT_fexceptions);
-  Opts.ObjCExceptions = !Args.hasArg(OPT_fno_objc_exceptions);
+  Opts.ObjCExceptions = Args.hasArg(OPT_fobjc_exceptions);
+  Opts.CXXExceptions = Args.hasArg(OPT_fcxx_exceptions);
+  Opts.SjLjExceptions = Args.hasArg(OPT_fsjlj_exceptions);
+
   Opts.RTTI = !Args.hasArg(OPT_fno_rtti);
   Opts.Blocks = Args.hasArg(OPT_fblocks);
   Opts.CharIsSigned = !Args.hasArg(OPT_fno_signed_char);
@@ -1489,8 +1496,6 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   Opts.CatchUndefined = Args.hasArg(OPT_fcatch_undefined_behavior);
   Opts.EmitAllDecls = Args.hasArg(OPT_femit_all_decls);
   Opts.PICLevel = Args.getLastArgIntValue(OPT_pic_level, 0, Diags);
-  Opts.SjLjExceptions = Args.hasArg(OPT_fsjlj_exceptions);
-  Opts.ObjCExceptions = !Args.hasArg(OPT_fno_objc_exceptions);
   Opts.Static = Args.hasArg(OPT_static_define);
   Opts.DumpRecordLayouts = Args.hasArg(OPT_fdump_record_layouts);
   Opts.DumpVTableLayouts = Args.hasArg(OPT_fdump_vtable_layouts);
@@ -1661,8 +1666,11 @@ void CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
   InputKind DashX = ParseFrontendArgs(Res.getFrontendOpts(), *Args, Diags);
   ParseCodeGenArgs(Res.getCodeGenOpts(), *Args, DashX, Diags);
   ParseHeaderSearchArgs(Res.getHeaderSearchOpts(), *Args);
-  if (DashX != IK_AST && DashX != IK_LLVM_IR)
+  if (DashX != IK_AST && DashX != IK_LLVM_IR) {
     ParseLangArgs(Res.getLangOpts(), *Args, DashX, Diags);
+    if (Res.getFrontendOpts().ProgramAction == frontend::RewriteObjC)
+      Res.getLangOpts().ObjCExceptions = 1;
+  }
   // FIXME: ParsePreprocessorArgs uses the FileManager to read the contents of
   // PCH file and find the original header name. Remove the need to do that in
   // ParsePreprocessorArgs and remove the FileManager 

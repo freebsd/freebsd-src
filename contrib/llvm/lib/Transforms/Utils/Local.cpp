@@ -262,12 +262,13 @@ bool llvm::RecursivelyDeleteTriviallyDeadInstructions(Value *V) {
 
 /// areAllUsesEqual - Check whether the uses of a value are all the same.
 /// This is similar to Instruction::hasOneUse() except this will also return
-/// true when there are multiple uses that all refer to the same value.
+/// true when there are no uses or multiple uses that all refer to the same
+/// value.
 static bool areAllUsesEqual(Instruction *I) {
   Value::use_iterator UI = I->use_begin();
   Value::use_iterator UE = I->use_end();
   if (UI == UE)
-    return false;
+    return true;
 
   User *TheUse = *UI;
   for (++UI; UI != UE; ++UI) {
@@ -281,31 +282,24 @@ static bool areAllUsesEqual(Instruction *I) {
 /// dead PHI node, due to being a def-use chain of single-use nodes that
 /// either forms a cycle or is terminated by a trivially dead instruction,
 /// delete it.  If that makes any of its operands trivially dead, delete them
-/// too, recursively.  Return true if the PHI node is actually deleted.
+/// too, recursively.  Return true if a change was made.
 bool llvm::RecursivelyDeleteDeadPHINode(PHINode *PN) {
-  // We can remove a PHI if it is on a cycle in the def-use graph
-  // where each node in the cycle has degree one, i.e. only one use,
-  // and is an instruction with no side effects.
-  if (!areAllUsesEqual(PN))
-    return false;
+  SmallPtrSet<Instruction*, 4> Visited;
+  for (Instruction *I = PN; areAllUsesEqual(I) && !I->mayHaveSideEffects();
+       I = cast<Instruction>(*I->use_begin())) {
+    if (I->use_empty())
+      return RecursivelyDeleteTriviallyDeadInstructions(I);
 
-  bool Changed = false;
-  SmallPtrSet<PHINode *, 4> PHIs;
-  PHIs.insert(PN);
-  for (Instruction *J = cast<Instruction>(*PN->use_begin());
-       areAllUsesEqual(J) && !J->mayHaveSideEffects();
-       J = cast<Instruction>(*J->use_begin()))
-    // If we find a PHI more than once, we're on a cycle that
+    // If we find an instruction more than once, we're on a cycle that
     // won't prove fruitful.
-    if (PHINode *JP = dyn_cast<PHINode>(J))
-      if (!PHIs.insert(JP)) {
-        // Break the cycle and delete the PHI and its operands.
-        JP->replaceAllUsesWith(UndefValue::get(JP->getType()));
-        (void)RecursivelyDeleteTriviallyDeadInstructions(JP);
-        Changed = true;
-        break;
-      }
-  return Changed;
+    if (!Visited.insert(I)) {
+      // Break the cycle and delete the instruction and its operands.
+      I->replaceAllUsesWith(UndefValue::get(I->getType()));
+      (void)RecursivelyDeleteTriviallyDeadInstructions(I);
+      return true;
+    }
+  }
+  return false;
 }
 
 /// SimplifyInstructionsInBlock - Scan the specified basic block and try to

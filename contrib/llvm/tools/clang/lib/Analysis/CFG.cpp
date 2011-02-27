@@ -17,6 +17,7 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/AST/PrettyPrinter.h"
+#include "clang/AST/CharUnits.h"
 #include "llvm/Support/GraphWriter.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Format.h"
@@ -413,9 +414,16 @@ private:
 
     Expr::EvalResult Result;
     if (!S->isTypeDependent() && !S->isValueDependent() &&
-        S->Evaluate(Result, *Context) && Result.Val.isInt())
-      return Result.Val.getInt().getBoolValue();
-
+        S->Evaluate(Result, *Context)) {      
+      if (Result.Val.isInt())
+        return Result.Val.getInt().getBoolValue();
+      if (Result.Val.isLValue()) {
+        Expr *e = Result.Val.getLValueBase();
+        const CharUnits &c = Result.Val.getLValueOffset();        
+        if (!e && c.isZero())
+          return false;        
+      }
+    }
     return TryResult();
   }
 };
@@ -928,11 +936,13 @@ CFGBlock *CFGBuilder::VisitStmt(Stmt *S, AddStmtChoice asc) {
 
 /// VisitChildren - Visit the children of a Stmt.
 CFGBlock *CFGBuilder::VisitChildren(Stmt* Terminator) {
-  CFGBlock *B = Block;
-  for (Stmt::child_range I = Terminator->children(); I; ++I) {
-    if (*I) B = Visit(*I);
-  }
-  return B;
+  CFGBlock *lastBlock = Block;  
+  for (Stmt::child_range I = Terminator->children(); I; ++I)
+    if (Stmt *child = *I)
+      if (CFGBlock *b = Visit(child))
+        lastBlock = b;
+
+  return lastBlock;
 }
 
 CFGBlock *CFGBuilder::VisitAddrLabelExpr(AddrLabelExpr *A,
@@ -1207,6 +1217,8 @@ CFGBlock *CFGBuilder::VisitConditionalOperator(AbstractConditionalOperator *C,
       return 0;
     Block = NULL;
   }
+  else
+    LHSBlock = ConfluenceBlock;
 
   // Create the block for the RHS expression.
   Succ = ConfluenceBlock;
@@ -1219,23 +1231,23 @@ CFGBlock *CFGBuilder::VisitConditionalOperator(AbstractConditionalOperator *C,
 
   // See if this is a known constant.
   const TryResult& KnownVal = tryEvaluateBool(C->getCond());
-  if (LHSBlock)
-    addSuccessor(Block, KnownVal.isFalse() ? NULL : LHSBlock);
+  addSuccessor(Block, KnownVal.isFalse() ? NULL : LHSBlock);
   addSuccessor(Block, KnownVal.isTrue() ? NULL : RHSBlock);
   Block->setTerminator(C);
   Expr *condExpr = C->getCond();
 
-  CFGBlock *result = 0;
+  if (opaqueValue) {
+    // Run the condition expression if it's not trivially expressed in
+    // terms of the opaque value (or if there is no opaque value).
+    if (condExpr != opaqueValue)
+      addStmt(condExpr);
 
-  // Run the condition expression if it's not trivially expressed in
-  // terms of the opaque value (or if there is no opaque value).
-  if (condExpr != opaqueValue) result = addStmt(condExpr);
-
-  // Before that, run the common subexpression if there was one.
-  // At least one of this or the above will be run.
-  if (opaqueValue) result = addStmt(BCO->getCommon());
-
-  return result;
+    // Before that, run the common subexpression if there was one.
+    // At least one of this or the above will be run.
+    return addStmt(BCO->getCommon());
+  }
+  
+  return addStmt(condExpr);
 }
 
 CFGBlock *CFGBuilder::VisitDeclStmt(DeclStmt *DS) {
@@ -1819,6 +1831,7 @@ CFGBlock* CFGBuilder::VisitWhileStmt(WhileStmt* W) {
     if (badCFG)
       return 0;
     LoopSuccessor = Block;
+    Block = 0;
   } else
     LoopSuccessor = Succ;
 

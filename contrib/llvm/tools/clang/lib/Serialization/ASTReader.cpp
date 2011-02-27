@@ -97,8 +97,9 @@ PCHValidator::ReadLanguageOptions(const LangOptions &LangOpts) {
                           diag::warn_pch_lax_vector_conversions);
   PARSE_LANGOPT_IMPORTANT(AltiVec, diag::warn_pch_altivec);
   PARSE_LANGOPT_IMPORTANT(Exceptions, diag::warn_pch_exceptions);
-  PARSE_LANGOPT_IMPORTANT(SjLjExceptions, diag::warn_pch_sjlj_exceptions);
   PARSE_LANGOPT_IMPORTANT(ObjCExceptions, diag::warn_pch_objc_exceptions);
+  PARSE_LANGOPT_IMPORTANT(CXXExceptions, diag::warn_pch_cxx_exceptions);
+  PARSE_LANGOPT_IMPORTANT(SjLjExceptions, diag::warn_pch_sjlj_exceptions);
   PARSE_LANGOPT_IMPORTANT(MSBitfields, diag::warn_pch_ms_bitfields);
   PARSE_LANGOPT_IMPORTANT(NeXTRuntime, diag::warn_pch_objc_runtime);
   PARSE_LANGOPT_IMPORTANT(Freestanding, diag::warn_pch_freestanding);
@@ -243,14 +244,15 @@ FindMacro(const PCHPredefinesBlocks &Buffers, llvm::StringRef MacroDef) {
 
 bool PCHValidator::ReadPredefinesBuffer(const PCHPredefinesBlocks &Buffers,
                                         llvm::StringRef OriginalFileName,
-                                        std::string &SuggestedPredefines) {
+                                        std::string &SuggestedPredefines,
+                                        FileManager &FileMgr) {
   // We are in the context of an implicit include, so the predefines buffer will
   // have a #include entry for the PCH file itself (as normalized by the
   // preprocessor initialization). Find it and skip over it in the checking
   // below.
   llvm::SmallString<256> PCHInclude;
   PCHInclude += "#include \"";
-  PCHInclude += NormalizeDashIncludePath(OriginalFileName);
+  PCHInclude += NormalizeDashIncludePath(OriginalFileName, FileMgr);
   PCHInclude += "\"\n";
   std::pair<llvm::StringRef,llvm::StringRef> Split =
     llvm::StringRef(PP.getPredefines()).split(PCHInclude.str());
@@ -960,7 +962,8 @@ bool ASTReader::CheckPredefinesBuffers() {
   if (Listener)
     return Listener->ReadPredefinesBuffer(PCHPredefinesBuffers,
                                           ActualOriginalFileName,
-                                          SuggestedPredefines);
+                                          SuggestedPredefines,
+                                          FileMgr);
   return false;
 }
 
@@ -2799,8 +2802,9 @@ bool ASTReader::ParseLanguageOptions(
     PARSE_LANGOPT(LaxVectorConversions);
     PARSE_LANGOPT(AltiVec);
     PARSE_LANGOPT(Exceptions);
-    PARSE_LANGOPT(SjLjExceptions);
     PARSE_LANGOPT(ObjCExceptions);
+    PARSE_LANGOPT(CXXExceptions);
+    PARSE_LANGOPT(SjLjExceptions);
     PARSE_LANGOPT(MSBitfields);
     PARSE_LANGOPT(NeXTRuntime);
     PARSE_LANGOPT(Freestanding);
@@ -4476,8 +4480,7 @@ void ASTReader::ReadDeclarationNameInfo(PerFileData &F,
 
 void ASTReader::ReadQualifierInfo(PerFileData &F, QualifierInfo &Info,
                                   const RecordData &Record, unsigned &Idx) {
-  Info.NNS = ReadNestedNameSpecifier(Record, Idx);
-  Info.NNSRange = ReadSourceRange(F, Record, Idx);
+  Info.QualifierLoc = ReadNestedNameSpecifierLoc(F, Record, Idx);
   unsigned NumTPLists = Record[Idx++];
   Info.NumTemplParamLists = NumTPLists;
   if (NumTPLists) {
@@ -4726,6 +4729,13 @@ ASTReader::ReadNestedNameSpecifier(const RecordData &Record, unsigned &Idx) {
       break;
     }
 
+    case NestedNameSpecifier::NamespaceAlias: {
+      NamespaceAliasDecl *Alias
+        = cast<NamespaceAliasDecl>(GetDecl(Record[Idx++]));
+      NNS = NestedNameSpecifier::Create(*Context, Prev, Alias);
+      break;
+    }
+
     case NestedNameSpecifier::TypeSpec:
     case NestedNameSpecifier::TypeSpecWithTemplate: {
       const Type *T = GetType(Record[Idx++]).getTypePtrOrNull();
@@ -4746,6 +4756,109 @@ ASTReader::ReadNestedNameSpecifier(const RecordData &Record, unsigned &Idx) {
     Prev = NNS;
   }
   return NNS;
+}
+
+NestedNameSpecifierLoc
+ASTReader::ReadNestedNameSpecifierLoc(PerFileData &F, const RecordData &Record, 
+                                      unsigned &Idx) {
+  unsigned N = Record[Idx++];
+  NestedNameSpecifier *NNS = 0, *Prev = 0;
+  llvm::SmallVector<char, 32> LocationData;
+  for (unsigned I = 0; I != N; ++I) {
+    NestedNameSpecifier::SpecifierKind Kind
+      = (NestedNameSpecifier::SpecifierKind)Record[Idx++];
+    switch (Kind) {
+    case NestedNameSpecifier::Identifier: {
+      // Nested-name-specifier
+      IdentifierInfo *II = GetIdentifierInfo(Record, Idx);
+      NNS = NestedNameSpecifier::Create(*Context, Prev, II);
+      
+      // Location information
+      SourceRange Range = ReadSourceRange(F, Record, Idx);
+      unsigned RawStart = Range.getBegin().getRawEncoding();
+      unsigned RawEnd = Range.getEnd().getRawEncoding();
+      LocationData.append(reinterpret_cast<char*>(&RawStart),
+                          reinterpret_cast<char*>(&RawStart) +sizeof(unsigned));
+      LocationData.append(reinterpret_cast<char*>(&RawEnd),
+                          reinterpret_cast<char*>(&RawEnd) + sizeof(unsigned));
+      break;
+    }
+
+    case NestedNameSpecifier::Namespace: {
+      // Nested-name-specifier
+      NamespaceDecl *NS = cast<NamespaceDecl>(GetDecl(Record[Idx++]));
+      NNS = NestedNameSpecifier::Create(*Context, Prev, NS);
+
+      // Location information
+      SourceRange Range = ReadSourceRange(F, Record, Idx);
+      unsigned RawStart = Range.getBegin().getRawEncoding();
+      unsigned RawEnd = Range.getEnd().getRawEncoding();
+      LocationData.append(reinterpret_cast<char*>(&RawStart),
+                          reinterpret_cast<char*>(&RawStart) +sizeof(unsigned));
+      LocationData.append(reinterpret_cast<char*>(&RawEnd),
+                          reinterpret_cast<char*>(&RawEnd) + sizeof(unsigned));
+      break;
+    }
+
+    case NestedNameSpecifier::NamespaceAlias: {
+      // Nested-name-specifier
+      NamespaceAliasDecl *Alias
+        = cast<NamespaceAliasDecl>(GetDecl(Record[Idx++]));
+      NNS = NestedNameSpecifier::Create(*Context, Prev, Alias);
+      
+      // Location information
+      SourceRange Range = ReadSourceRange(F, Record, Idx);
+      unsigned RawStart = Range.getBegin().getRawEncoding();
+      unsigned RawEnd = Range.getEnd().getRawEncoding();
+      LocationData.append(reinterpret_cast<char*>(&RawStart),
+                          reinterpret_cast<char*>(&RawStart) +sizeof(unsigned));
+      LocationData.append(reinterpret_cast<char*>(&RawEnd),
+                          reinterpret_cast<char*>(&RawEnd) + sizeof(unsigned));
+
+      break;
+    }
+
+    case NestedNameSpecifier::TypeSpec:
+    case NestedNameSpecifier::TypeSpecWithTemplate: {
+      // Nested-name-specifier
+      bool Template = Record[Idx++];
+      TypeSourceInfo *T = GetTypeSourceInfo(F, Record, Idx);
+      if (!T)
+        return NestedNameSpecifierLoc();
+      NNS = NestedNameSpecifier::Create(*Context, Prev, Template, 
+                                        T->getType().getTypePtr());
+
+      // Location information.
+      SourceLocation ColonColonLoc = ReadSourceLocation(F, Record, Idx);
+      unsigned RawLocation = ColonColonLoc.getRawEncoding();
+      void *OpaqueTypeData = T->getTypeLoc().getOpaqueData();
+      LocationData.append(reinterpret_cast<char*>(&OpaqueTypeData),
+                          (reinterpret_cast<char*>(&OpaqueTypeData) 
+                             + sizeof(void *)));
+      LocationData.append(reinterpret_cast<char*>(&RawLocation),
+                          (reinterpret_cast<char*>(&RawLocation) +
+                             sizeof(unsigned)));
+      break;
+    }
+
+    case NestedNameSpecifier::Global: {
+      // Nested-name-specifier
+      NNS = NestedNameSpecifier::GlobalSpecifier(*Context);
+
+      SourceLocation ColonColonLoc = ReadSourceLocation(F, Record, Idx);
+      unsigned RawLocation = ColonColonLoc.getRawEncoding();
+      LocationData.append(reinterpret_cast<char*>(&RawLocation),
+                          (reinterpret_cast<char*>(&RawLocation) +
+                             sizeof(unsigned)));
+      break;
+    }
+    }
+    Prev = NNS;
+  }
+  
+  void *Mem = Context->Allocate(LocationData.size(), llvm::alignOf<void*>());
+  memcpy(Mem, LocationData.data(), LocationData.size());
+  return NestedNameSpecifierLoc(NNS, Mem);
 }
 
 SourceRange
@@ -4932,4 +5045,3 @@ ASTReader::PerFileData::~PerFileData() {
   delete static_cast<HeaderFileInfoLookupTable *>(HeaderFileInfoTable);
   delete static_cast<ASTSelectorLookupTable *>(SelectorLookupTable);
 }
-

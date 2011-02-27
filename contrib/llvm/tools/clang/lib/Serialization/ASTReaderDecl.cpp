@@ -744,17 +744,15 @@ void ASTDeclReader::VisitNamespaceDecl(NamespaceDecl *D) {
 void ASTDeclReader::VisitNamespaceAliasDecl(NamespaceAliasDecl *D) {
   VisitNamedDecl(D);
   D->NamespaceLoc = ReadSourceLocation(Record, Idx);
-  D->setQualifierRange(ReadSourceRange(Record, Idx));
-  D->setQualifier(Reader.ReadNestedNameSpecifier(Record, Idx));
   D->IdentLoc = ReadSourceLocation(Record, Idx);
+  D->QualifierLoc = Reader.ReadNestedNameSpecifierLoc(F, Record, Idx);
   D->Namespace = cast<NamedDecl>(Reader.GetDecl(Record[Idx++]));
 }
 
 void ASTDeclReader::VisitUsingDecl(UsingDecl *D) {
   VisitNamedDecl(D);
   D->setUsingLocation(ReadSourceLocation(Record, Idx));
-  D->setNestedNameRange(ReadSourceRange(Record, Idx));
-  D->setTargetNestedNameDecl(Reader.ReadNestedNameSpecifier(Record, Idx));
+  D->QualifierLoc = Reader.ReadNestedNameSpecifierLoc(F, Record, Idx);
   ReadDeclarationNameLoc(D->DNLoc, D->getDeclName(), Record, Idx);
   D->FirstUsingShadow = cast_or_null<UsingShadowDecl>(Reader.GetDecl(Record[Idx++]));
   D->setTypeName(Record[Idx++]);
@@ -777,27 +775,24 @@ void ASTDeclReader::VisitUsingDirectiveDecl(UsingDirectiveDecl *D) {
   VisitNamedDecl(D);
   D->UsingLoc = ReadSourceLocation(Record, Idx);
   D->NamespaceLoc = ReadSourceLocation(Record, Idx);
-  D->QualifierRange = ReadSourceRange(Record, Idx);
-  D->Qualifier = Reader.ReadNestedNameSpecifier(Record, Idx);
+  D->QualifierLoc = Reader.ReadNestedNameSpecifierLoc(F, Record, Idx);
   D->NominatedNamespace = cast<NamedDecl>(Reader.GetDecl(Record[Idx++]));
   D->CommonAncestor = cast_or_null<DeclContext>(Reader.GetDecl(Record[Idx++]));
 }
 
 void ASTDeclReader::VisitUnresolvedUsingValueDecl(UnresolvedUsingValueDecl *D) {
   VisitValueDecl(D);
-  D->setTargetNestedNameRange(ReadSourceRange(Record, Idx));
   D->setUsingLoc(ReadSourceLocation(Record, Idx));
-  D->setTargetNestedNameSpecifier(Reader.ReadNestedNameSpecifier(Record, Idx));
+  D->QualifierLoc = Reader.ReadNestedNameSpecifierLoc(F, Record, Idx);
   ReadDeclarationNameLoc(D->DNLoc, D->getDeclName(), Record, Idx);
 }
 
 void ASTDeclReader::VisitUnresolvedUsingTypenameDecl(
                                                UnresolvedUsingTypenameDecl *D) {
   VisitTypeDecl(D);
-  D->TargetNestedNameRange = ReadSourceRange(Record, Idx);
   D->UsingLocation = ReadSourceLocation(Record, Idx);
   D->TypenameLocation = ReadSourceLocation(Record, Idx);
-  D->TargetNestedNameSpecifier = Reader.ReadNestedNameSpecifier(Record, Idx);
+  D->QualifierLoc = Reader.ReadNestedNameSpecifierLoc(F, Record, Idx);
 }
 
 void ASTDeclReader::ReadCXXDefinitionData(
@@ -1432,30 +1427,33 @@ Decl *ASTReader::ReadDeclRecord(unsigned Index, DeclID ID) {
     break;
   case DECL_NAMESPACE_ALIAS:
     D = NamespaceAliasDecl::Create(*Context, 0, SourceLocation(),
-                                   SourceLocation(), 0, SourceRange(), 0,
+                                   SourceLocation(), 0, 
+                                   NestedNameSpecifierLoc(),
                                    SourceLocation(), 0);
     break;
   case DECL_USING:
-    D = UsingDecl::Create(*Context, 0, SourceRange(), SourceLocation(),
-                          0, DeclarationNameInfo(), false);
+    D = UsingDecl::Create(*Context, 0, SourceLocation(),
+                          NestedNameSpecifierLoc(), DeclarationNameInfo(), 
+                          false);
     break;
   case DECL_USING_SHADOW:
     D = UsingShadowDecl::Create(*Context, 0, SourceLocation(), 0, 0);
     break;
   case DECL_USING_DIRECTIVE:
     D = UsingDirectiveDecl::Create(*Context, 0, SourceLocation(),
-                                   SourceLocation(), SourceRange(), 0,
+                                   SourceLocation(), NestedNameSpecifierLoc(),
                                    SourceLocation(), 0, 0);
     break;
   case DECL_UNRESOLVED_USING_VALUE:
     D = UnresolvedUsingValueDecl::Create(*Context, 0, SourceLocation(),
-                                         SourceRange(), 0,
+                                         NestedNameSpecifierLoc(), 
                                          DeclarationNameInfo());
     break;
   case DECL_UNRESOLVED_USING_TYPENAME:
     D = UnresolvedUsingTypenameDecl::Create(*Context, 0, SourceLocation(),
-                                            SourceLocation(), SourceRange(),
-                                            0, SourceLocation(),
+                                            SourceLocation(), 
+                                            NestedNameSpecifierLoc(),
+                                            SourceLocation(),
                                             DeclarationName());
     break;
   case DECL_CXX_RECORD:

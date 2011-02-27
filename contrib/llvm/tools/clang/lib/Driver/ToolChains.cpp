@@ -46,7 +46,7 @@ Darwin::Darwin(const HostInfo &Host, const llvm::Triple& Triple)
   // Compute the initial Darwin version based on the host.
   bool HadExtra;
   std::string OSName = Triple.getOSName();
-  if (!Driver::GetReleaseVersion(&OSName[6],
+  if (!Driver::GetReleaseVersion(&OSName.c_str()[6],
                                  DarwinVersion[0], DarwinVersion[1],
                                  DarwinVersion[2], HadExtra))
     getDriver().Diag(clang::diag::err_drv_invalid_darwin_version) << OSName;
@@ -1271,6 +1271,7 @@ Tool &AuroraUX::SelectTool(const Compilation &C, const JobAction &JA) const {
 /// Linux toolchain (very bare-bones at the moment).
 
 enum LinuxDistro {
+  ArchLinux,
   DebianLenny,
   DebianSqueeze,
   Exherbo,
@@ -1367,6 +1368,9 @@ static LinuxDistro DetectLinuxDistro(llvm::Triple::ArchType Arch) {
   if (!llvm::sys::fs::exists("/etc/exherbo-release", Exists) && Exists)
     return Exherbo;
 
+  if (!llvm::sys::fs::exists("/etc/arch-release", Exists) && Exists)
+    return ArchLinux;
+
   return UnknownDistro;
 }
 
@@ -1436,8 +1440,9 @@ Linux::Linux(const HostInfo &Host, const llvm::Triple &Triple)
       GccTriple = "i586-suse-linux";
   }
 
-  const char* GccVersions[] = {"4.5.1", "4.5", "4.4.5", "4.4.4", "4.4.3", "4.4",
-                               "4.3.4", "4.3.3", "4.3.2"};
+  const char* GccVersions[] = {"4.5.2", "4.5.1", "4.5", "4.4.5", "4.4.4",
+                               "4.4.3", "4.4", "4.3.4", "4.3.3", "4.3.2",
+                               "4.3"};
   std::string Base = "";
   for (unsigned i = 0; i < sizeof(GccVersions)/sizeof(char*); ++i) {
     std::string Suffix = GccTriple + "/" + GccVersions[i];
@@ -1497,6 +1502,9 @@ Linux::Linux(const HostInfo &Host, const llvm::Triple &Triple)
       IsFedora(Distro) || Distro == UbuntuLucid || Distro == UbuntuMaverick ||
       Distro == UbuntuKarmic)
     ExtraOpts.push_back("--build-id");
+
+  if (Distro == ArchLinux)
+    Lib = "lib";
 
   Paths.push_back(Base + Suffix);
   if (HasMultilib(Arch, Distro)) {
