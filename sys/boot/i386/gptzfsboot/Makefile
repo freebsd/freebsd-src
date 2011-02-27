@@ -41,8 +41,6 @@ CFLAGS=	-DBOOTPROG=\"gptzfsboot\" \
 .if ${CC:T:Mclang} == "clang"
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 CFLAGS+=	${.IMPSRC:T:Mgptldr.S:C/^.+$/-no-integrated-as/}
-# XXX: clang integrated-as doesn't grok some 16-bit instructions yet
-CFLAGS+=	${.IMPSRC:T:Msio.S:C/^.+$/-no-integrated-as/}
 .endif
 
 LDFLAGS=-static -N --gc-sections
