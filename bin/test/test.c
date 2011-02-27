@@ -144,6 +144,7 @@ struct t_op {
 	{"-L",	FILSYM,	UNOP},
 	{"-S",	FILSOCK,UNOP},
 	{"=",	STREQ,	BINOP},
+	{"==",	STREQ,	BINOP},
 	{"!=",	STRNE,	BINOP},
 	{"<",	STRLT,	BINOP},
 	{">",	STRGT,	BINOP},
