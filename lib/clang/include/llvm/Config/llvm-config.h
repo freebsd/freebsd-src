@@ -49,7 +49,7 @@
 /* #undef LLVM_MANDIR */
 
 /* Build multithreading support into LLVM */
-#define LLVM_MULTITHREADED 0
+/* #undef LLVM_MULTITHREADED */
 
 /* LLVM architecture name for the native architecture, if available */
 #define LLVM_NATIVE_ARCH X86
