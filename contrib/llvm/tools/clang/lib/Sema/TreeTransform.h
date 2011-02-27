@@ -385,6 +385,17 @@ public:
                                               QualType ObjectType = QualType(),
                                           NamedDecl *FirstQualifierInScope = 0);
 
+  /// \brief Transform the given nested-name-specifier with source-location
+  /// information.
+  ///
+  /// By default, transforms all of the types and declarations within the
+  /// nested-name-specifier. Subclasses may override this function to provide
+  /// alternate behavior.
+  NestedNameSpecifierLoc TransformNestedNameSpecifierLoc(
+                                                    NestedNameSpecifierLoc NNS,
+                                          QualType ObjectType = QualType(),
+                                          NamedDecl *FirstQualifierInScope = 0);
+
   /// \brief Transform the given declaration name.
   ///
   /// By default, transforms the types of conversion function, constructor,
@@ -759,8 +770,7 @@ public:
                                     SourceRange NNSRange,
                                     SourceLocation IdLoc) {
     CXXScopeSpec SS;
-    SS.setScopeRep(NNS);
-    SS.setRange(NNSRange);
+    SS.MakeTrivial(SemaRef.Context, NNS, NNSRange);
 
     if (NNS->isDependent()) {
       // If the name is still dependent, just build a new dependent name type.
@@ -876,6 +886,16 @@ public:
   NestedNameSpecifier *RebuildNestedNameSpecifier(NestedNameSpecifier *Prefix,
                                                   SourceRange Range,
                                                   NamespaceDecl *NS);
+
+  /// \brief Build a new nested-name-specifier given the prefix and the
+  /// namespace alias named in the next step in the nested-name-specifier.
+  ///
+  /// By default, performs semantic analysis when building the new
+  /// nested-name-specifier. Subclasses may override this routine to provide
+  /// different behavior.
+  NestedNameSpecifier *RebuildNestedNameSpecifier(NestedNameSpecifier *Prefix,
+                                                  SourceRange Range,
+                                                  NamespaceAliasDecl *Alias);
 
   /// \brief Build a new nested-name-specifier given the prefix and the
   /// type named in the next step in the nested-name-specifier.
@@ -1083,11 +1103,8 @@ public:
   StmtResult RebuildDeclStmt(Decl **Decls, unsigned NumDecls,
                                    SourceLocation StartLoc,
                                    SourceLocation EndLoc) {
-    return getSema().Owned(
-             new (getSema().Context) DeclStmt(
-                                        DeclGroupRef::Create(getSema().Context,
-                                                             Decls, NumDecls),
-                                              StartLoc, EndLoc));
+    Sema::DeclGroupPtrTy DG = getSema().BuildDeclaratorGroup(Decls, NumDecls);
+    return getSema().ActOnDeclStmt(DG, StartLoc, EndLoc);
   }
 
   /// \brief Build a new inline asm statement.
@@ -1246,8 +1263,7 @@ public:
                                 const DeclarationNameInfo &NameInfo,
                                 TemplateArgumentListInfo *TemplateArgs) {
     CXXScopeSpec SS;
-    SS.setScopeRep(Qualifier);
-    SS.setRange(QualifierRange);
+    SS.MakeTrivial(SemaRef.Context, Qualifier, QualifierRange);
 
     // FIXME: loses template args.
 
@@ -1268,13 +1284,12 @@ public:
   /// By default, performs semantic analysis to build the new expression.
   /// Subclasses may override this routine to provide different behavior.
   ExprResult RebuildCXXPseudoDestructorExpr(Expr *Base,
-                                                  SourceLocation OperatorLoc,
-                                                  bool isArrow,
-                                                NestedNameSpecifier *Qualifier,
-                                                  SourceRange QualifierRange,
-                                                  TypeSourceInfo *ScopeType,
-                                                  SourceLocation CCLoc,
-                                                  SourceLocation TildeLoc,
+                                            SourceLocation OperatorLoc,
+                                            bool isArrow,
+                                            CXXScopeSpec &SS,
+                                            TypeSourceInfo *ScopeType,
+                                            SourceLocation CCLoc,
+                                            SourceLocation TildeLoc,
                                         PseudoDestructorTypeStorage Destroyed);
 
   /// \brief Build a new unary operator expression.
@@ -1386,8 +1401,7 @@ public:
 
     CXXScopeSpec SS;
     if (Qualifier) {
-      SS.setRange(QualifierRange);
-      SS.setScopeRep(Qualifier);
+      SS.MakeTrivial(SemaRef.Context, Qualifier, QualifierRange);
     }
 
     getSema().DefaultFunctionArrayConversion(Base);
@@ -1873,13 +1887,12 @@ public:
   ///
   /// By default, performs semantic analysis to build the new expression.
   /// Subclasses may override this routine to provide different behavior.
-  ExprResult RebuildDependentScopeDeclRefExpr(NestedNameSpecifier *NNS,
-                                                SourceRange QualifierRange,
+  ExprResult RebuildDependentScopeDeclRefExpr(
+                                          NestedNameSpecifierLoc QualifierLoc,
                                        const DeclarationNameInfo &NameInfo,
                               const TemplateArgumentListInfo *TemplateArgs) {
     CXXScopeSpec SS;
-    SS.setRange(QualifierRange);
-    SS.setScopeRep(NNS);
+    SS.Adopt(QualifierLoc);
 
     if (TemplateArgs)
       return getSema().BuildQualifiedTemplateIdExpr(SS, NameInfo,
@@ -1964,8 +1977,7 @@ public:
                                    const DeclarationNameInfo &MemberNameInfo,
                               const TemplateArgumentListInfo *TemplateArgs) {
     CXXScopeSpec SS;
-    SS.setRange(QualifierRange);
-    SS.setScopeRep(Qualifier);
+    SS.MakeTrivial(SemaRef.Context, Qualifier, QualifierRange);
 
     return SemaRef.BuildMemberReferenceExpr(BaseE, BaseType,
                                             OperatorLoc, IsArrow,
@@ -1988,8 +2000,7 @@ public:
                                                LookupResult &R,
                                 const TemplateArgumentListInfo *TemplateArgs) {
     CXXScopeSpec SS;
-    SS.setRange(QualifierRange);
-    SS.setScopeRep(Qualifier);
+    SS.MakeTrivial(SemaRef.Context, Qualifier, QualifierRange);
 
     return SemaRef.BuildMemberReferenceExpr(BaseE, BaseType,
                                             OperatorLoc, IsArrow,
@@ -2263,6 +2274,11 @@ private:
                                              QualType ObjectType,
                                              NamedDecl *FirstQualifierInScope,
                                              NestedNameSpecifier *Prefix);
+  
+  TypeLoc TransformTypeInObjectScope(TypeLoc TL,
+                                     QualType ObjectType,
+                                     NamedDecl *FirstQualifierInScope,
+                                     CXXScopeSpec &SS);
 };
 
 template<typename Derived>
@@ -2459,6 +2475,19 @@ TreeTransform<Derived>::TransformNestedNameSpecifier(NestedNameSpecifier *NNS,
     return getDerived().RebuildNestedNameSpecifier(Prefix, Range, NS);
   }
 
+  case NestedNameSpecifier::NamespaceAlias: {
+    NamespaceAliasDecl *Alias
+      = cast_or_null<NamespaceAliasDecl>(
+                                    getDerived().TransformDecl(Range.getBegin(),
+                                                    NNS->getAsNamespaceAlias()));
+    if (!getDerived().AlwaysRebuild() &&
+        Prefix == NNS->getPrefix() &&
+        Alias == NNS->getAsNamespaceAlias())
+      return NNS;
+
+    return getDerived().RebuildNestedNameSpecifier(Prefix, Range, Alias);
+  }
+
   case NestedNameSpecifier::Global:
     // There is no meaningful transformation that one could perform on the
     // global scope.
@@ -2487,6 +2516,103 @@ TreeTransform<Derived>::TransformNestedNameSpecifier(NestedNameSpecifier *NNS,
 
   // Required to silence a GCC warning
   return 0;
+}
+
+template<typename Derived>
+NestedNameSpecifierLoc
+TreeTransform<Derived>::TransformNestedNameSpecifierLoc(
+                                                    NestedNameSpecifierLoc NNS,
+                                                     QualType ObjectType,
+                                             NamedDecl *FirstQualifierInScope) {
+  llvm::SmallVector<NestedNameSpecifierLoc, 4> Qualifiers;
+  for (NestedNameSpecifierLoc Qualifier = NNS; Qualifier; 
+       Qualifier = Qualifier.getPrefix())
+    Qualifiers.push_back(Qualifier);
+
+  CXXScopeSpec SS;
+  while (!Qualifiers.empty()) {
+    NestedNameSpecifierLoc Q = Qualifiers.pop_back_val();
+    NestedNameSpecifier *QNNS = Q.getNestedNameSpecifier();
+    
+    switch (QNNS->getKind()) {
+    case NestedNameSpecifier::Identifier:
+      if (SemaRef.BuildCXXNestedNameSpecifier(/*Scope=*/0, 
+                                              *QNNS->getAsIdentifier(),
+                                              Q.getLocalBeginLoc(), 
+                                              Q.getLocalEndLoc(),
+                                              ObjectType, false, SS, 
+                                              FirstQualifierInScope, false))
+        return NestedNameSpecifierLoc();
+        
+      break;
+      
+    case NestedNameSpecifier::Namespace: {
+      NamespaceDecl *NS
+        = cast_or_null<NamespaceDecl>(
+                                    getDerived().TransformDecl(
+                                                          Q.getLocalBeginLoc(),
+                                                       QNNS->getAsNamespace()));
+      SS.Extend(SemaRef.Context, NS, Q.getLocalBeginLoc(), Q.getLocalEndLoc());
+      break;
+    }
+      
+    case NestedNameSpecifier::NamespaceAlias: {
+      NamespaceAliasDecl *Alias
+        = cast_or_null<NamespaceAliasDecl>(
+                      getDerived().TransformDecl(Q.getLocalBeginLoc(),
+                                                 QNNS->getAsNamespaceAlias()));
+      SS.Extend(SemaRef.Context, Alias, Q.getLocalBeginLoc(), 
+                Q.getLocalEndLoc());
+      break;
+    }
+      
+    case NestedNameSpecifier::Global:
+      // There is no meaningful transformation that one could perform on the
+      // global scope.
+      SS.MakeGlobal(SemaRef.Context, Q.getBeginLoc());
+      break;
+      
+    case NestedNameSpecifier::TypeSpecWithTemplate:
+    case NestedNameSpecifier::TypeSpec: {
+      TypeLoc TL = TransformTypeInObjectScope(Q.getTypeLoc(), ObjectType,
+                                              FirstQualifierInScope, SS);
+      
+      if (!TL)
+        return NestedNameSpecifierLoc();
+      
+      if (TL.getType()->isDependentType() || TL.getType()->isRecordType() ||
+          (SemaRef.getLangOptions().CPlusPlus0x && 
+           TL.getType()->isEnumeralType())) {
+        assert(!TL.getType().hasLocalQualifiers() && 
+               "Can't get cv-qualifiers here");
+        SS.Extend(SemaRef.Context, /*FIXME:*/SourceLocation(), TL,
+                  Q.getLocalEndLoc());
+        break;
+      }
+      
+      SemaRef.Diag(TL.getBeginLoc(), diag::err_nested_name_spec_non_tag) 
+        << TL.getType() << SS.getRange();
+      return NestedNameSpecifierLoc();
+    }
+  }
+    
+    // The qualifier-in-scope only applies to the leftmost entity.
+    FirstQualifierInScope = 0;
+  }
+  
+  // Don't rebuild the nested-name-specifier if we don't have to.
+  if (SS.getScopeRep() == NNS.getNestedNameSpecifier() && 
+      !getDerived().AlwaysRebuild())
+    return NNS;
+  
+  // If we can re-use the source-location data from the original 
+  // nested-name-specifier, do so.
+  if (SS.location_size() == NNS.getDataLength() &&
+      memcmp(SS.location_data(), NNS.getOpaqueData(), SS.location_size()) == 0)
+    return NestedNameSpecifierLoc(SS.getScopeRep(), NNS.getOpaqueData());
+
+  // Allocate new nested-name-specifier location information.
+  return SS.getWithLocInContext(SemaRef.Context);
 }
 
 template<typename Derived>
@@ -3085,7 +3211,7 @@ TreeTransform<Derived>::TransformTypeInObjectScope(TypeSourceInfo *TSI,
                                                    QualType ObjectType,
                                                    NamedDecl *UnqualLookup,
                                                   NestedNameSpecifier *Prefix) {
-  // TODO: in some cases, we might be some verification to do here.
+  // TODO: in some cases, we might have some verification to do here.
   if (ObjectType.isNull())
     return getDerived().TransformType(TSI);
 
@@ -3120,6 +3246,62 @@ TreeTransform<Derived>::TransformTypeInObjectScope(TypeSourceInfo *TSI,
 
   if (Result.isNull()) return 0;
   return TLB.getTypeSourceInfo(SemaRef.Context, Result);
+}
+
+template<typename Derived>
+TypeLoc
+TreeTransform<Derived>::TransformTypeInObjectScope(TypeLoc TL,
+                                                   QualType ObjectType,
+                                                   NamedDecl *UnqualLookup,
+                                                   CXXScopeSpec &SS) {
+  // FIXME: Painfully copy-paste from the above!
+  
+  // TODO: in some cases, we might have some verification to do here.
+  if (ObjectType.isNull()) {
+    TypeLocBuilder TLB;
+    TLB.reserve(TL.getFullDataSize());
+    QualType Result = getDerived().TransformType(TLB, TL);
+    if (Result.isNull())
+      return TypeLoc();
+    
+    return TLB.getTypeSourceInfo(SemaRef.Context, Result)->getTypeLoc();
+  }
+  
+  QualType T = TL.getType();
+  if (getDerived().AlreadyTransformed(T))
+    return TL;
+  
+  TypeLocBuilder TLB;
+  QualType Result;
+  
+  if (isa<TemplateSpecializationType>(T)) {
+    TemplateSpecializationTypeLoc SpecTL
+      = cast<TemplateSpecializationTypeLoc>(TL);
+    
+    TemplateName Template =
+      getDerived().TransformTemplateName(SpecTL.getTypePtr()->getTemplateName(),
+                                         ObjectType, UnqualLookup);
+    if (Template.isNull()) 
+      return TypeLoc();
+    
+    Result = getDerived().TransformTemplateSpecializationType(TLB, SpecTL, 
+                                                              Template);
+  } else if (isa<DependentTemplateSpecializationType>(T)) {
+    DependentTemplateSpecializationTypeLoc SpecTL
+      = cast<DependentTemplateSpecializationTypeLoc>(TL);
+    
+    Result = getDerived().TransformDependentTemplateSpecializationType(TLB, 
+                                                                       SpecTL, 
+                                                             SS.getScopeRep());
+  } else {
+    // Nothing special needs to be done for these.
+    Result = getDerived().TransformType(TLB, TL);
+  }
+  
+  if (Result.isNull()) 
+    return TypeLoc();
+  
+  return TLB.getTypeSourceInfo(SemaRef.Context, Result)->getTypeLoc();
 }
 
 template <class TyLoc> static inline
@@ -4337,7 +4519,8 @@ QualType TreeTransform<Derived>::
   TemplateArgumentListInfo NewTemplateArgs;
   NewTemplateArgs.setLAngleLoc(TL.getLAngleLoc());
   NewTemplateArgs.setRAngleLoc(TL.getRAngleLoc());
-            
+      
+  // FIXME: Nested-name-specifier source location info!
   typedef TemplateArgumentLocContainerIterator<
                             DependentTemplateSpecializationTypeLoc> ArgIterator;
   if (getDerived().TransformTemplateArguments(ArgIterator(TL, 0),
@@ -6426,21 +6609,22 @@ TreeTransform<Derived>::TransformCXXPseudoDestructorExpr(
     return ExprError();
                                               
   QualType ObjectType = ObjectTypePtr.get();
-  NestedNameSpecifier *Qualifier = E->getQualifier();
-  if (Qualifier) {
-    Qualifier
-      = getDerived().TransformNestedNameSpecifier(E->getQualifier(),
-                                                  E->getQualifierRange(),
-                                                  ObjectType);
-    if (!Qualifier)
+  NestedNameSpecifierLoc QualifierLoc = E->getQualifierLoc();
+  if (QualifierLoc) {
+    QualifierLoc
+      = getDerived().TransformNestedNameSpecifierLoc(QualifierLoc, ObjectType);
+    if (!QualifierLoc)
       return ExprError();
   }
+  CXXScopeSpec SS;
+  SS.Adopt(QualifierLoc);
 
   PseudoDestructorTypeStorage Destroyed;
   if (E->getDestroyedTypeInfo()) {
     TypeSourceInfo *DestroyedTypeInfo
       = getDerived().TransformTypeInObjectScope(E->getDestroyedTypeInfo(),
-                                                ObjectType, 0, Qualifier);
+                                                ObjectType, 0, 
+                                        QualifierLoc.getNestedNameSpecifier());
     if (!DestroyedTypeInfo)
       return ExprError();
     Destroyed = DestroyedTypeInfo;
@@ -6451,12 +6635,6 @@ TreeTransform<Derived>::TransformCXXPseudoDestructorExpr(
                                             E->getDestroyedTypeLoc());
   } else {
     // Look for a destructor known with the given name.
-    CXXScopeSpec SS;
-    if (Qualifier) {
-      SS.setScopeRep(Qualifier);
-      SS.setRange(E->getQualifierRange());
-    }
-    
     ParsedType T = SemaRef.getDestructorName(E->getTildeLoc(),
                                               *E->getDestroyedTypeIdentifier(),
                                                 E->getDestroyedTypeLoc(),
@@ -6481,8 +6659,7 @@ TreeTransform<Derived>::TransformCXXPseudoDestructorExpr(
   return getDerived().RebuildCXXPseudoDestructorExpr(Base.get(),
                                                      E->getOperatorLoc(),
                                                      E->isArrow(),
-                                                     Qualifier,
-                                                     E->getQualifierRange(),
+                                                     SS,
                                                      ScopeTypeInfo,
                                                      E->getColonColonLoc(),
                                                      E->getTildeLoc(),
@@ -6538,8 +6715,7 @@ TreeTransform<Derived>::TransformUnresolvedLookupExpr(
     if (!Qualifier)
       return ExprError();
     
-    SS.setScopeRep(Qualifier);
-    SS.setRange(Old->getQualifierRange());
+    SS.MakeTrivial(SemaRef.Context, Qualifier, Old->getQualifierRange());
   } 
   
   if (Old->getNamingClass()) {
@@ -6611,10 +6787,9 @@ template<typename Derived>
 ExprResult
 TreeTransform<Derived>::TransformDependentScopeDeclRefExpr(
                                                DependentScopeDeclRefExpr *E) {
-  NestedNameSpecifier *NNS
-    = getDerived().TransformNestedNameSpecifier(E->getQualifier(),
-                                                E->getQualifierRange());
-  if (!NNS)
+  NestedNameSpecifierLoc QualifierLoc
+  = getDerived().TransformNestedNameSpecifierLoc(E->getQualifierLoc());
+  if (!QualifierLoc)
     return ExprError();
 
   // TODO: If this is a conversion-function-id, verify that the
@@ -6628,14 +6803,13 @@ TreeTransform<Derived>::TransformDependentScopeDeclRefExpr(
 
   if (!E->hasExplicitTemplateArgs()) {
     if (!getDerived().AlwaysRebuild() &&
-        NNS == E->getQualifier() &&
+        QualifierLoc == E->getQualifierLoc() &&
         // Note: it is sufficient to compare the Name component of NameInfo:
         // if name has not changed, DNLoc has not changed either.
         NameInfo.getName() == E->getDeclName())
       return SemaRef.Owned(E);
 
-    return getDerived().RebuildDependentScopeDeclRefExpr(NNS,
-                                                         E->getQualifierRange(),
+    return getDerived().RebuildDependentScopeDeclRefExpr(QualifierLoc,
                                                          NameInfo,
                                                          /*TemplateArgs*/ 0);
   }
@@ -6646,8 +6820,7 @@ TreeTransform<Derived>::TransformDependentScopeDeclRefExpr(
                                               TransArgs))
     return ExprError();
 
-  return getDerived().RebuildDependentScopeDeclRefExpr(NNS,
-                                                       E->getQualifierRange(),
+  return getDerived().RebuildDependentScopeDeclRefExpr(QualifierLoc,
                                                        NameInfo,
                                                        &TransArgs);
 }
@@ -7560,14 +7733,15 @@ TreeTransform<Derived>::RebuildNestedNameSpecifier(NestedNameSpecifier *Prefix,
                                                    NamedDecl *FirstQualifierInScope) {
   CXXScopeSpec SS;
   // FIXME: The source location information is all wrong.
-  SS.setRange(Range);
-  SS.setScopeRep(Prefix);
-  return static_cast<NestedNameSpecifier *>(
-                    SemaRef.BuildCXXNestedNameSpecifier(0, SS, Range.getEnd(),
-                                                        Range.getEnd(), II,
-                                                        ObjectType,
-                                                        FirstQualifierInScope,
-                                                        false, false));
+  SS.MakeTrivial(SemaRef.Context, Prefix, Range);
+  if (SemaRef.BuildCXXNestedNameSpecifier(0, II, /*FIXME:*/Range.getBegin(),
+                                          /*FIXME:*/Range.getEnd(),
+                                          ObjectType, false,
+                                          SS, FirstQualifierInScope,
+                                          false))
+    return 0;
+  
+  return SS.getScopeRep();
 }
 
 template<typename Derived>
@@ -7576,6 +7750,14 @@ TreeTransform<Derived>::RebuildNestedNameSpecifier(NestedNameSpecifier *Prefix,
                                                    SourceRange Range,
                                                    NamespaceDecl *NS) {
   return NestedNameSpecifier::Create(SemaRef.Context, Prefix, NS);
+}
+
+template<typename Derived>
+NestedNameSpecifier *
+TreeTransform<Derived>::RebuildNestedNameSpecifier(NestedNameSpecifier *Prefix,
+                                                   SourceRange Range,
+                                                   NamespaceAliasDecl *Alias) {
+  return NestedNameSpecifier::Create(SemaRef.Context, Prefix, Alias);
 }
 
 template<typename Derived>
@@ -7612,8 +7794,7 @@ TreeTransform<Derived>::RebuildTemplateName(NestedNameSpecifier *Qualifier,
                                             QualType ObjectType,
                                             NamedDecl *FirstQualifierInScope) {
   CXXScopeSpec SS;
-  SS.setRange(QualifierRange);
-  SS.setScopeRep(Qualifier);
+  SS.MakeTrivial(SemaRef.Context, Qualifier, QualifierRange);
   UnqualifiedId Name;
   Name.setIdentifier(&II, /*FIXME:*/getDerived().getBaseLocation());
   Sema::TemplateTy Template;
@@ -7633,8 +7814,7 @@ TreeTransform<Derived>::RebuildTemplateName(NestedNameSpecifier *Qualifier,
                                             OverloadedOperatorKind Operator,
                                             QualType ObjectType) {
   CXXScopeSpec SS;
-  SS.setRange(SourceRange(getDerived().getBaseLocation()));
-  SS.setScopeRep(Qualifier);
+  SS.MakeTrivial(SemaRef.Context, Qualifier, SourceRange(getDerived().getBaseLocation()));
   UnqualifiedId Name;
   SourceLocation SymbolLocations[3]; // FIXME: Bogus location information.
   Name.setOperatorFunctionId(/*FIXME:*/getDerived().getBaseLocation(),
@@ -7740,18 +7920,11 @@ ExprResult
 TreeTransform<Derived>::RebuildCXXPseudoDestructorExpr(Expr *Base,
                                                      SourceLocation OperatorLoc,
                                                        bool isArrow,
-                                                 NestedNameSpecifier *Qualifier,
-                                                     SourceRange QualifierRange,
+                                                       CXXScopeSpec &SS,
                                                      TypeSourceInfo *ScopeType,
                                                        SourceLocation CCLoc,
                                                        SourceLocation TildeLoc,
                                         PseudoDestructorTypeStorage Destroyed) {
-  CXXScopeSpec SS;
-  if (Qualifier) {
-    SS.setRange(QualifierRange);
-    SS.setScopeRep(Qualifier);
-  }
-
   QualType BaseType = Base->getType();
   if (Base->isTypeDependent() || Destroyed.getIdentifier() ||
       (!isArrow && !BaseType->getAs<RecordType>()) ||

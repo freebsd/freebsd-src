@@ -66,6 +66,26 @@ bool Sema::CheckablePrintfAttr(const FormatAttr *Format, CallExpr *TheCall) {
   return false;
 }
 
+/// Checks that a call expression's argument count is the desired number.
+/// This is useful when doing custom type-checking.  Returns true on error.
+static bool checkArgCount(Sema &S, CallExpr *call, unsigned desiredArgCount) {
+  unsigned argCount = call->getNumArgs();
+  if (argCount == desiredArgCount) return false;
+
+  if (argCount < desiredArgCount)
+    return S.Diag(call->getLocEnd(), diag::err_typecheck_call_too_few_args)
+        << 0 /*function call*/ << desiredArgCount << argCount
+        << call->getSourceRange();
+
+  // Highlight all the excess arguments.
+  SourceRange range(call->getArg(desiredArgCount)->getLocStart(),
+                    call->getArg(argCount - 1)->getLocEnd());
+    
+  return S.Diag(range.getBegin(), diag::err_typecheck_call_too_many_args)
+    << 0 /*function call*/ << desiredArgCount << argCount
+    << call->getArg(1)->getSourceRange();
+}
+
 ExprResult
 Sema::CheckBuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall) {
   ExprResult TheCallResult(Owned(TheCall));
@@ -137,15 +157,14 @@ Sema::CheckBuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall) {
     if (SemaBuiltinLongjmp(TheCall))
       return ExprError();
     break;
+
+  case Builtin::BI__builtin_classify_type:
+    if (checkArgCount(*this, TheCall, 1)) return true;
+    TheCall->setType(Context.IntTy);
+    break;
   case Builtin::BI__builtin_constant_p:
-    if (TheCall->getNumArgs() == 0)
-      return Diag(TheCall->getLocEnd(), diag::err_typecheck_call_too_few_args)
-        << 0 /*function call*/ << 1 << 0 << TheCall->getSourceRange();
-    if (TheCall->getNumArgs() > 1)
-      return Diag(TheCall->getArg(1)->getLocStart(),
-                  diag::err_typecheck_call_too_many_args)
-        << 0 /*function call*/ << 1 << TheCall->getNumArgs()
-        << TheCall->getArg(1)->getSourceRange();
+    if (checkArgCount(*this, TheCall, 1)) return true;
+    TheCall->setType(Context.IntTy);
     break;
   case Builtin::BI__sync_fetch_and_add:
   case Builtin::BI__sync_fetch_and_sub:
@@ -875,7 +894,7 @@ bool Sema::SemaBuiltinLongjmp(CallExpr *TheCall) {
   return false;
 }
 
-// Handle i > 1 ? "x" : "y", recursivelly
+// Handle i > 1 ? "x" : "y", recursively.
 bool Sema::SemaCheckStringLiteral(const Expr *E, const CallExpr *TheCall,
                                   bool HasVAListArg,
                                   unsigned format_idx, unsigned firstDataArg,
@@ -918,6 +937,12 @@ bool Sema::SemaCheckStringLiteral(const Expr *E, const CallExpr *TheCall,
     }
     return false;
 
+  case Stmt::PredefinedExprClass:
+    // While __func__, etc., are technically not string literals, they
+    // cannot contain format specifiers and thus are not a security
+    // liability.
+    return true;
+      
   case Stmt::DeclRefExprClass: {
     const DeclRefExpr *DR = cast<DeclRefExpr>(E);
 
@@ -2896,6 +2921,17 @@ void CheckImplicitConversion(Sema &S, Expr *E, QualType T,
     return DiagnoseImpCast(S, E, T, CC, DiagID);
   }
 
+  // Diagnose conversions between different enumeration types.
+  if (const EnumType *SourceEnum = Source->getAs<EnumType>())
+    if (const EnumType *TargetEnum = Target->getAs<EnumType>())
+      if ((SourceEnum->getDecl()->getIdentifier() || 
+           SourceEnum->getDecl()->getTypedefForAnonDecl()) &&
+          (TargetEnum->getDecl()->getIdentifier() ||
+           TargetEnum->getDecl()->getTypedefForAnonDecl()) &&
+          SourceEnum != TargetEnum)
+        return DiagnoseImpCast(S, E, T, CC, 
+                               diag::warn_impcast_different_enum_types);
+  
   return;
 }
 
@@ -3147,7 +3183,7 @@ void Sema::CheckArrayAccess(const clang::ArraySubscriptExpr *E) {
   if (!IndexExpr->isIntegerConstantExpr(index, Context))
     return;
 
-  if (!index.isNegative()) {
+  if (index.isUnsigned() || !index.isNegative()) {
     llvm::APInt size = ArrayTy->getSize();
     if (!size.isStrictlyPositive())
       return;
@@ -3159,12 +3195,15 @@ void Sema::CheckArrayAccess(const clang::ArraySubscriptExpr *E) {
     if (index.slt(size))
       return;
 
-    Diag(E->getBase()->getLocStart(), diag::warn_array_index_exceeds_bounds)
-      << index.toString(10, true) << size.toString(10, true)
-      << IndexExpr->getSourceRange();
+    DiagRuntimeBehavior(E->getBase()->getLocStart(), BaseExpr,
+                        PDiag(diag::warn_array_index_exceeds_bounds)
+                        << index.toString(10, true) << size.toString(10, true)
+                        << IndexExpr->getSourceRange());
   } else {
-    Diag(E->getBase()->getLocStart(), diag::warn_array_index_precedes_bounds)
-      << index.toString(10, true) << IndexExpr->getSourceRange();
+    DiagRuntimeBehavior(E->getBase()->getLocStart(), BaseExpr,
+                        PDiag(diag::warn_array_index_precedes_bounds)
+                          << index.toString(10, true)
+                          << IndexExpr->getSourceRange());
   }
 
   const NamedDecl *ND = NULL;
@@ -3173,7 +3212,8 @@ void Sema::CheckArrayAccess(const clang::ArraySubscriptExpr *E) {
   if (const MemberExpr *ME = dyn_cast<MemberExpr>(BaseExpr))
     ND = dyn_cast<NamedDecl>(ME->getMemberDecl());
   if (ND)
-    Diag(ND->getLocStart(), diag::note_array_index_out_of_bounds)
-      << ND->getDeclName();
+    DiagRuntimeBehavior(ND->getLocStart(), BaseExpr,
+                        PDiag(diag::note_array_index_out_of_bounds)
+                          << ND->getDeclName());
 }
 

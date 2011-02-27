@@ -65,8 +65,9 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
          "Call sites of this function should be guarded by checking for C++");
 
   if (Tok.is(tok::annot_cxxscope)) {
-    SS.setScopeRep(static_cast<NestedNameSpecifier*>(Tok.getAnnotationValue()));
-    SS.setRange(Tok.getAnnotationRange());
+    Actions.RestoreNestedNameSpecifierAnnotation(Tok.getAnnotationValue(),
+                                                 Tok.getAnnotationRange(),
+                                                 SS);
     ConsumeToken();
     return false;
   }
@@ -80,10 +81,9 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
       return false;
 
     // '::' - Global scope qualifier.
-    SourceLocation CCLoc = ConsumeToken();
-    SS.setBeginLoc(CCLoc);
-    SS.setScopeRep(Actions.ActOnCXXGlobalScopeSpecifier(getCurScope(), CCLoc));
-    SS.setEndLoc(CCLoc);
+    if (Actions.ActOnCXXGlobalScopeSpecifier(getCurScope(), ConsumeToken(), SS))
+      return true;
+    
     HasScopeSpecifier = true;
   }
 
@@ -208,20 +208,20 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
         assert(Tok.is(tok::coloncolon) && "NextToken() not working properly!");
         SourceLocation CCLoc = ConsumeToken();
 
-        if (!HasScopeSpecifier) {
-          SS.setBeginLoc(TypeToken.getLocation());
+        if (!HasScopeSpecifier)
           HasScopeSpecifier = true;
-        }
 
         if (ParsedType T = getTypeAnnotation(TypeToken)) {
-          CXXScopeTy *Scope =
-            Actions.ActOnCXXNestedNameSpecifier(getCurScope(), SS, T,
-                                                TypeToken.getAnnotationRange(),
-                                                CCLoc);
-          SS.setScopeRep(Scope);
-        } else
-          SS.setScopeRep(0);
-        SS.setEndLoc(CCLoc);
+          if (Actions.ActOnCXXNestedNameSpecifier(getCurScope(), T, CCLoc, SS))
+            SS.SetInvalid(SourceRange(SS.getBeginLoc(), CCLoc));
+          
+          continue;
+        } else {
+          SourceLocation Start = SS.getBeginLoc().isValid()? SS.getBeginLoc() 
+                                                           : CCLoc;
+          SS.SetInvalid(SourceRange(Start, CCLoc));
+        }
+        
         continue;
       }
 
@@ -245,7 +245,9 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
     // If we get foo:bar, this is almost certainly a typo for foo::bar.  Recover
     // and emit a fixit hint for it.
     if (Next.is(tok::colon) && !ColonIsSacred) {
-      if (Actions.IsInvalidUnlessNestedName(getCurScope(), SS, II, ObjectType, 
+      if (Actions.IsInvalidUnlessNestedName(getCurScope(), SS, II, 
+                                            Tok.getLocation(), 
+                                            Next.getLocation(), ObjectType,
                                             EnteringContext) &&
           // If the token after the colon isn't an identifier, it's still an
           // error, but they probably meant something else strange so don't
@@ -274,16 +276,11 @@ bool Parser::ParseOptionalCXXScopeSpecifier(CXXScopeSpec &SS,
              "NextToken() not working properly!");
       SourceLocation CCLoc = ConsumeToken();
 
-      if (!HasScopeSpecifier) {
-        SS.setBeginLoc(IdLoc);
-        HasScopeSpecifier = true;
-      }
-
-      if (!SS.isInvalid())
-        SS.setScopeRep(
-            Actions.ActOnCXXNestedNameSpecifier(getCurScope(), SS, IdLoc, CCLoc, II,
-                                                ObjectType, EnteringContext));
-      SS.setEndLoc(CCLoc);
+      HasScopeSpecifier = true;
+      if (Actions.ActOnCXXNestedNameSpecifier(getCurScope(), II, IdLoc, CCLoc,
+                                              ObjectType, EnteringContext, SS))
+        SS.SetInvalid(SourceRange(IdLoc, CCLoc));
+      
       continue;
     }
 
@@ -836,6 +833,8 @@ bool Parser::ParseCXXCondition(ExprResult &ExprOut,
   
   // FIXME: Build a reference to this declaration? Convert it to bool?
   // (This is currently handled by Sema).
+
+  Actions.FinalizeDeclaration(DeclOut);
   
   return false;
 }

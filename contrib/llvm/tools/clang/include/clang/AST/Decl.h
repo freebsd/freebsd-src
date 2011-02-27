@@ -119,6 +119,14 @@ public:
     return getIdentifier() ? getIdentifier()->getName() : "";
   }
 
+  llvm::StringRef getMessageUnavailableAttr(bool unavailable) const {
+    if (!unavailable)
+      return "";
+    if (const UnavailableAttr *UA = getAttr<UnavailableAttr>())
+      return UA->getMessage();
+    return "";
+  }
+
   /// getNameAsString - Get a human-readable name for the declaration, even if
   /// it is one of the special kinds of names (C++ constructor, Objective-C
   /// selector, etc).  Creating this name requires expensive string
@@ -475,10 +483,7 @@ public:
 /// QualifierInfo - A struct with extended info about a syntactic
 /// name qualifier, to be used for the case of out-of-line declarations.
 struct QualifierInfo {
-  /// NNS - The syntactic name qualifier.
-  NestedNameSpecifier *NNS;
-  /// NNSRange - The source range for the qualifier.
-  SourceRange NNSRange;
+  NestedNameSpecifierLoc QualifierLoc;
   /// NumTemplParamLists - The number of template parameter lists
   /// that were matched against the template-ids occurring into the NNS.
   unsigned NumTemplParamLists;
@@ -487,8 +492,7 @@ struct QualifierInfo {
   TemplateParameterList** TemplParamLists;
 
   /// Default constructor.
-  QualifierInfo()
-    : NNS(0), NNSRange(), NumTemplParamLists(0), TemplParamLists(0) {}
+  QualifierInfo() : QualifierLoc(), NumTemplParamLists(0), TemplParamLists(0) {}
   /// setTemplateParameterListsInfo - Sets info about matched template
   /// parameter lists.
   void setTemplateParameterListsInfo(ASTContext &Context,
@@ -545,14 +549,22 @@ public:
     return SourceRange(getOuterLocStart(), getLocation());
   }
 
+  /// \brief Retrieve the nested-name-specifier that qualifies the name of this
+  /// declaration, if it was present in the source.
   NestedNameSpecifier *getQualifier() const {
-    return hasExtInfo() ? getExtInfo()->NNS : 0;
+    return hasExtInfo() ? getExtInfo()->QualifierLoc.getNestedNameSpecifier()
+                        : 0;
   }
-  SourceRange getQualifierRange() const {
-    return hasExtInfo() ? getExtInfo()->NNSRange : SourceRange();
+  
+  /// \brief Retrieve the nested-name-specifier (with source-location 
+  /// information) that qualifies the name of this declaration, if it was 
+  /// present in the source.
+  NestedNameSpecifierLoc getQualifierLoc() const {
+    return hasExtInfo() ? getExtInfo()->QualifierLoc
+                        : NestedNameSpecifierLoc();
   }
-  void setQualifierInfo(NestedNameSpecifier *Qualifier,
-                        SourceRange QualifierRange);
+  
+  void setQualifierInfo(NestedNameSpecifierLoc QualifierLoc);
 
   unsigned getNumTemplateParameterLists() const {
     return hasExtInfo() ? getExtInfo()->NumTemplParamLists : 0;
@@ -652,10 +664,6 @@ private:
   /// slot of its function, enabling the named return value optimization (NRVO).
   bool NRVOVariable : 1;
 
-  /// \brief Whether this variable has a deduced C++0x auto type for which we're
-  /// currently parsing the initializer.
-  bool ParsingAutoInit : 1;
-  
   friend class StmtIteratorBase;
   friend class ASTDeclReader;
   
@@ -665,7 +673,7 @@ protected:
           StorageClass SCAsWritten)
     : DeclaratorDecl(DK, DC, L, Id, T, TInfo), Init(),
       ThreadSpecified(false), HasCXXDirectInit(false),
-      ExceptionVar(false), NRVOVariable(false), ParsingAutoInit(false) {
+      ExceptionVar(false), NRVOVariable(false) {
     SClass = SC;
     SClassAsWritten = SCAsWritten;
   }
@@ -889,18 +897,6 @@ public:
 
   void setInit(Expr *I);
 
-  /// \brief Check whether we are in the process of parsing an initializer
-  /// needed to deduce the type of this variable.
-  bool isParsingAutoInit() const {
-    return ParsingAutoInit;
-  }
-
-  /// \brief Note whether we are currently parsing an initializer needed to
-  /// deduce the type of this variable.
-  void setParsingAutoInit(bool P) {
-    ParsingAutoInit = P;
-  }
-
   EvaluatedStmt *EnsureEvaluatedStmt() const {
     EvaluatedStmt *Eval = Init.dyn_cast<EvaluatedStmt *>();
     if (!Eval) {
@@ -1050,16 +1046,18 @@ public:
 };
 
 class ImplicitParamDecl : public VarDecl {
-protected:
-  ImplicitParamDecl(Kind DK, DeclContext *DC, SourceLocation L,
-                    IdentifierInfo *Id, QualType Tw)
-    : VarDecl(DK, DC, L, Id, Tw, /*TInfo=*/0, SC_None, SC_None) {
-    setImplicit();
-  }
 public:
   static ImplicitParamDecl *Create(ASTContext &C, DeclContext *DC,
                                    SourceLocation L, IdentifierInfo *Id,
                                    QualType T);
+
+  ImplicitParamDecl(DeclContext *DC, SourceLocation loc,
+                    IdentifierInfo *name, QualType type)
+    : VarDecl(ImplicitParam, DC, loc, name, type,
+              /*tinfo*/ 0, SC_None, SC_None) {
+    setImplicit();
+  }
+
   // Implement isa/cast/dyncast/etc.
   static bool classof(const ImplicitParamDecl *D) { return true; }
   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
@@ -2154,14 +2152,22 @@ public:
 
   void setTypedefForAnonDecl(TypedefDecl *TDD);
 
+  /// \brief Retrieve the nested-name-specifier that qualifies the name of this
+  /// declaration, if it was present in the source.
   NestedNameSpecifier *getQualifier() const {
-    return hasExtInfo() ? getExtInfo()->NNS : 0;
+    return hasExtInfo() ? getExtInfo()->QualifierLoc.getNestedNameSpecifier()
+                        : 0;
   }
-  SourceRange getQualifierRange() const {
-    return hasExtInfo() ? getExtInfo()->NNSRange : SourceRange();
+  
+  /// \brief Retrieve the nested-name-specifier (with source-location 
+  /// information) that qualifies the name of this declaration, if it was 
+  /// present in the source.
+  NestedNameSpecifierLoc getQualifierLoc() const {
+    return hasExtInfo() ? getExtInfo()->QualifierLoc
+                        : NestedNameSpecifierLoc();
   }
-  void setQualifierInfo(NestedNameSpecifier *Qualifier,
-                        SourceRange QualifierRange);
+    
+  void setQualifierInfo(NestedNameSpecifierLoc QualifierLoc);
 
   unsigned getNumTemplateParameterLists() const {
     return hasExtInfo() ? getExtInfo()->NumTemplParamLists : 0;

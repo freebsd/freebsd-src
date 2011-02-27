@@ -71,16 +71,16 @@ def ObjCUnusedIvarsChecker : Checker<"UnusedIvars">,
   HelpText<"Warn about private ivars that are never used">,
   DescFile<"ObjCUnusedIVarsChecker.cpp">;
 
-}
+} // end "cocoa"
 
-def StackAddrLeakChecker : Checker<"StackAddrLeak">,
+def StackAddrEscapeChecker : Checker<"StackAddrEscape">,
   InPackage<Core>,
-  HelpText<"Check that addresses to stack memory are not leaked outside the function">,
-  DescFile<"StackAddrLeakChecker.cpp">;
+  HelpText<"Check that addresses to stack memory do not escape the function">,
+  DescFile<"StackAddrEscapeChecker.cpp">;
 
 def DeadStoresChecker : Checker<"DeadStores">,
   InPackage<Core>,
-  HelpText<"Check for stores to dead variables">,
+  HelpText<"Check for values stored to a variables that are never read afterwards">,
   DescFile<"DeadStoresChecker.cpp">;
 
 def UnixAPIChecker : Checker<"API">,
@@ -90,12 +90,12 @@ def UnixAPIChecker : Checker<"API">,
 
 def MacOSXAPIChecker : Checker<"API">,
   InPackage<MacOSX>,
-  HelpText<"Check calls to various MacOSXAPIChecker">,
+  HelpText<"Check for proper uses of various Mac OS X APIs">,
   DescFile<"MacOSXAPIChecker.cpp">;
 
 def CFNumberCreateChecker : Checker<"CFNumber">,
   InPackage<MacOSX>,
-  HelpText<"Check for CFNumberCreate">,
+  HelpText<"Check for proper uses of CFNumberCreate">,
   DescFile<"BasicObjCFoundationChecks.cpp">;
 
 def CFRetainReleaseChecker : Checker<"CFRetainRelease">,
@@ -137,7 +137,8 @@ def CStringChecker : Checker<"CString">,
 def UnreachableCodeChecker : Checker<"UnreachableCode">,
   InPackage<CoreExperimental>,
   HelpText<"Check unreachable code">,
-  DescFile<"UnreachableCodeChecker.cpp">;
+  DescFile<"UnreachableCodeChecker.cpp">,
+  Hidden; // Must be specified explicitly in order to run.
 
 def IdempotentOperationChecker : Checker<"IdempotentOps">,
   InPackage<CoreExperimental>,
@@ -173,6 +174,21 @@ def SecuritySyntaxChecker : Checker<"SecuritySyntactic">,
   InPackage<CoreExperimental>,
   HelpText<"Perform quick security checks that require no data flow">,
   DescFile<"CheckSecuritySyntaxOnly.cpp">;
+
+def ReturnPointerRangeChecker : Checker<"ReturnPtrRange">,
+  InPackage<CoreExperimental>,
+  HelpText<"Check for an out-of-bound pointer being returned to callers">,
+  DescFile<"ReturnPointerRangeChecker.cpp">;
+
+def ArrayBoundChecker : Checker<"ArrayBound">,
+  InPackage<CoreExperimental>,
+  HelpText<"Check for an out-of-bound pointer being returned to callers">,
+  DescFile<"ArrayBoundChecker.cpp">;
+
+def CastSizeChecker : Checker<"CastSize">,
+  InPackage<CoreExperimental>,
+  HelpText<"Check when casting a malloc'ed type T, whether the size is a multiple of the size of T">,
+  DescFile<"CastSizeChecker.cpp">;
 
 def ObjCDeallocChecker : Checker<"Dealloc">,
   InPackage<CocoaExperimental>,

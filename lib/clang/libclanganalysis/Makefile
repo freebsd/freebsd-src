@@ -5,6 +5,7 @@ LIB=	clanganalysis
 SRCDIR=	tools/clang/lib/Analysis
 SRCS=	AnalysisContext.cpp \
 	CFG.cpp \
+	CFGReachabilityAnalysis.cpp \
 	CFGStmtMap.cpp \
 	CocoaConventions.cpp \
 	FormatString.cpp \

@@ -667,6 +667,8 @@ Decl *Parser::ParseDeclarationAfterDeclarator(Declarator &D,
     Actions.ActOnUninitializedDecl(ThisDecl, TypeContainsAuto);
   }
 
+  Actions.FinalizeDeclaration(ThisDecl);
+
   return ThisDecl;
 }
 
@@ -954,8 +956,9 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
         goto DoneWithDeclSpec;
 
       CXXScopeSpec SS;
-      SS.setScopeRep((NestedNameSpecifier*) Tok.getAnnotationValue());
-      SS.setRange(Tok.getAnnotationRange());
+      Actions.RestoreNestedNameSpecifierAnnotation(Tok.getAnnotationValue(),
+                                                   Tok.getAnnotationRange(),
+                                                   SS);
 
       // We are looking for a qualified typename.
       Token Next = NextToken();
@@ -1244,9 +1247,18 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
                                          DiagID, getLang());
       break;
     case tok::kw_auto:
-      if (getLang().CPlusPlus0x)
-        isInvalid = DS.SetTypeSpecType(DeclSpec::TST_auto, Loc, PrevSpec,
-                                       DiagID);
+      if (getLang().CPlusPlus0x || getLang().ObjC2) {
+        if (isKnownToBeTypeSpecifier(GetLookAheadToken(1))) {
+          isInvalid = DS.SetStorageClassSpec(DeclSpec::SCS_auto, Loc, PrevSpec,
+                                           DiagID, getLang());
+          if (!isInvalid)
+            Diag(Tok, diag::auto_storage_class)
+              << FixItHint::CreateRemoval(DS.getStorageClassSpecLoc());
+        }
+        else
+          isInvalid = DS.SetTypeSpecType(DeclSpec::TST_auto, Loc, PrevSpec,
+                                         DiagID);
+      }
       else
         isInvalid = DS.SetStorageClassSpec(DeclSpec::SCS_auto, Loc, PrevSpec,
                                            DiagID, getLang());
@@ -1459,6 +1471,7 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
       else
         Diag(Tok, DiagID) << PrevSpec;
     }
+
     DS.SetRangeEnd(Tok.getLocation());
     ConsumeToken();
   }
@@ -1973,6 +1986,7 @@ void Parser::ParseEnumSpecifier(SourceLocation StartLoc, DeclSpec &DS,
     }
   }
 
+  bool AllowFixedUnderlyingType = getLang().CPlusPlus0x || getLang().Microsoft;
   bool IsScopedEnum = false;
   bool IsScopedUsingClassTag = false;
 
@@ -1984,7 +1998,8 @@ void Parser::ParseEnumSpecifier(SourceLocation StartLoc, DeclSpec &DS,
   }
 
   // Must have either 'enum name' or 'enum {...}'.
-  if (Tok.isNot(tok::identifier) && Tok.isNot(tok::l_brace)) {
+  if (Tok.isNot(tok::identifier) && Tok.isNot(tok::l_brace) &&
+      (AllowFixedUnderlyingType && Tok.isNot(tok::colon))) {
     Diag(Tok, diag::err_expected_ident_lbrace);
 
     // Skip the rest of this declarator, up until the comma or semicolon.
@@ -2011,7 +2026,7 @@ void Parser::ParseEnumSpecifier(SourceLocation StartLoc, DeclSpec &DS,
   TypeResult BaseType;
 
   // Parse the fixed underlying type.
-  if (getLang().CPlusPlus0x && Tok.is(tok::colon)) {
+  if (AllowFixedUnderlyingType && Tok.is(tok::colon)) {
     bool PossibleBitfield = false;
     if (getCurScope()->getFlags() & Scope::ClassScope) {
       // If we're in class scope, this can either be an enum declaration with
@@ -2043,7 +2058,9 @@ void Parser::ParseEnumSpecifier(SourceLocation StartLoc, DeclSpec &DS,
         // Consume the ':'.
         ConsumeToken();
       
-        if (isCXXDeclarationSpecifier() != TPResult::True()) {
+        if ((getLang().CPlusPlus && 
+             isCXXDeclarationSpecifier() != TPResult::True()) ||
+            (!getLang().CPlusPlus && !isDeclarationSpecifier(true))) {
           // We'll parse this as a bitfield later.
           PossibleBitfield = true;
           TPA.Revert();
@@ -2060,6 +2077,10 @@ void Parser::ParseEnumSpecifier(SourceLocation StartLoc, DeclSpec &DS,
     if (!PossibleBitfield) {
       SourceRange Range;
       BaseType = ParseTypeName(&Range);
+      
+      if (!getLang().CPlusPlus0x)
+        Diag(StartLoc, diag::ext_ms_enum_fixed_underlying_type)
+          << Range;
     }
   }
 
@@ -2090,6 +2111,14 @@ void Parser::ParseEnumSpecifier(SourceLocation StartLoc, DeclSpec &DS,
     return;      
   }
   
+  if (!Name && TUK != Sema::TUK_Definition) {
+    Diag(Tok, diag::err_enumerator_unnamed_no_def);
+    
+    // Skip the rest of this declarator, up until the comma or semicolon.
+    SkipUntil(tok::comma, true);
+    return;
+  }
+      
   bool Owned = false;
   bool IsDependent = false;
   SourceLocation TSTLoc = NameLoc.isValid()? NameLoc : StartLoc;
@@ -2734,6 +2763,9 @@ void Parser::ParseDeclaratorInternal(Declarator &D,
     if (Kind == tok::star)
       // Remember that we parsed a pointer type, and remember the type-quals.
       D.AddTypeInfo(DeclaratorChunk::getPointer(DS.getTypeQualifiers(), Loc,
+                                                DS.getConstSpecLoc(),
+                                                DS.getVolatileSpecLoc(),
+                                                DS.getRestrictSpecLoc(),
                                                 DS.takeAttributes()),
                     SourceLocation());
     else
@@ -3730,4 +3762,3 @@ bool Parser::TryAltiVecTokenOutOfLine(DeclSpec &DS, SourceLocation Loc,
   }
   return false;
 }
-  

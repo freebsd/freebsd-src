@@ -45,7 +45,6 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/VectorExtras.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -55,10 +54,6 @@ using namespace llvm;
 using namespace dwarf;
 
 STATISTIC(NumTailCalls, "Number of tail calls");
-
-static cl::opt<bool>
-Disable256Bit("disable-256bit", cl::Hidden,
-              cl::desc("Disable use of 256-bit vectors"));
 
 // Forward declarations.
 static SDValue getMOVL(SelectionDAG &DAG, DebugLoc dl, EVT VT, SDValue V1,
@@ -225,7 +220,6 @@ X86TargetLowering::X86TargetLowering(X86TargetMachine &TM)
   static MVT IntVTs[] = { MVT::i8, MVT::i16, MVT::i32, MVT::i64 };
 
   // X86 is weird, it always uses i8 for shift amounts and setcc results.
-  setShiftAmountType(MVT::i8);
   setBooleanContents(ZeroOrOneBooleanContent);
   setSchedulingPreference(Sched::RegPressure);
   setStackPointerRegisterToSaveRestore(X86StackPtr);
@@ -1713,7 +1707,7 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
       else
         llvm_unreachable("Unknown argument type!");
 
-      unsigned Reg = MF.addLiveIn(VA.getLocReg(), RC, dl);
+      unsigned Reg = MF.addLiveIn(VA.getLocReg(), RC);
       ArgValue = DAG.getCopyFromReg(Chain, dl, Reg, RegVT);
 
       // If this is an 8 or 16-bit value, it is really passed promoted to 32
@@ -1845,7 +1839,7 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
         SDValue FIN = DAG.getNode(ISD::ADD, dl, getPointerTy(), RSFIN,
                                   DAG.getIntPtrConstant(Offset));
         unsigned VReg = MF.addLiveIn(GPR64ArgRegs[NumIntRegs],
-                                     X86::GR64RegisterClass, dl);
+                                     X86::GR64RegisterClass);
         SDValue Val = DAG.getCopyFromReg(Chain, dl, VReg, MVT::i64);
         SDValue Store =
           DAG.getStore(Val.getValue(1), dl, Val, FIN,
@@ -1861,7 +1855,7 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
         SmallVector<SDValue, 11> SaveXMMOps;
         SaveXMMOps.push_back(Chain);
 
-        unsigned AL = MF.addLiveIn(X86::AL, X86::GR8RegisterClass, dl);
+        unsigned AL = MF.addLiveIn(X86::AL, X86::GR8RegisterClass);
         SDValue ALVal = DAG.getCopyFromReg(DAG.getEntryNode(), dl, AL, MVT::i8);
         SaveXMMOps.push_back(ALVal);
 
@@ -1872,7 +1866,7 @@ X86TargetLowering::LowerFormalArguments(SDValue Chain,
 
         for (; NumXMMRegs != TotalNumXMMRegs; ++NumXMMRegs) {
           unsigned VReg = MF.addLiveIn(XMMArgRegs64Bit[NumXMMRegs],
-                                       X86::VR128RegisterClass, dl);
+                                       X86::VR128RegisterClass);
           SDValue Val = DAG.getCopyFromReg(Chain, dl, VReg, MVT::v4f32);
           SaveXMMOps.push_back(Val);
         }
@@ -2693,6 +2687,10 @@ static bool isTargetShuffle(unsigned Opcode) {
   case X86ISD::MOVSD:
   case X86ISD::UNPCKLPS:
   case X86ISD::UNPCKLPD:
+  case X86ISD::VUNPCKLPS:
+  case X86ISD::VUNPCKLPD:
+  case X86ISD::VUNPCKLPSY:
+  case X86ISD::VUNPCKLPDY:
   case X86ISD::PUNPCKLWD:
   case X86ISD::PUNPCKLBW:
   case X86ISD::PUNPCKLDQ:
@@ -2760,6 +2758,10 @@ static SDValue getTargetShuffleNode(unsigned Opc, DebugLoc dl, EVT VT,
   case X86ISD::MOVSD:
   case X86ISD::UNPCKLPS:
   case X86ISD::UNPCKLPD:
+  case X86ISD::VUNPCKLPS:
+  case X86ISD::VUNPCKLPD:
+  case X86ISD::VUNPCKLPSY:
+  case X86ISD::VUNPCKLPDY:
   case X86ISD::PUNPCKLWD:
   case X86ISD::PUNPCKLBW:
   case X86ISD::PUNPCKLDQ:
@@ -4178,7 +4180,8 @@ static SDValue getVShift(bool isLeft, EVT VT, SDValue SrcOp,
   SrcOp = DAG.getNode(ISD::BITCAST, dl, ShVT, SrcOp);
   return DAG.getNode(ISD::BITCAST, dl, VT,
                      DAG.getNode(Opc, dl, ShVT, SrcOp,
-                             DAG.getConstant(NumBits, TLI.getShiftAmountTy())));
+                             DAG.getConstant(NumBits,
+                                  TLI.getShiftAmountTy(SrcOp.getValueType()))));
 }
 
 SDValue
@@ -4327,16 +4330,15 @@ X86TargetLowering::LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const {
 
   // For AVX-length vectors, build the individual 128-bit pieces and
   // use shuffles to put them in place.
-  if (VT.getSizeInBits() > 256 && 
-      Subtarget->hasAVX() && 
-      !Disable256Bit &&
+  if (VT.getSizeInBits() > 256 &&
+      Subtarget->hasAVX() &&
       !ISD::isBuildVectorAllZeros(Op.getNode())) {
     SmallVector<SDValue, 8> V;
     V.resize(NumElems);
     for (unsigned i = 0; i < NumElems; ++i) {
       V[i] = Op.getOperand(i);
     }
- 
+
     EVT HVT = EVT::getVectorVT(*DAG.getContext(), ExtVT, NumElems/2);
 
     // Build the lower subvector.
@@ -5044,7 +5046,8 @@ SDValue LowerVECTOR_SHUFFLEv16i8(ShuffleVectorSDNode *SVOp,
                            DAG.getIntPtrConstant(Elt1 / 2));
       if ((Elt1 & 1) == 0)
         InsElt = DAG.getNode(ISD::SHL, dl, MVT::i16, InsElt,
-                             DAG.getConstant(8, TLI.getShiftAmountTy()));
+                             DAG.getConstant(8,
+                                  TLI.getShiftAmountTy(InsElt.getValueType())));
       else if (Elt0 >= 0)
         InsElt = DAG.getNode(ISD::AND, dl, MVT::i16, InsElt,
                              DAG.getConstant(0xFF00, MVT::i16));
@@ -5058,7 +5061,8 @@ SDValue LowerVECTOR_SHUFFLEv16i8(ShuffleVectorSDNode *SVOp,
                                     Elt0Src, DAG.getIntPtrConstant(Elt0 / 2));
       if ((Elt0 & 1) != 0)
         InsElt0 = DAG.getNode(ISD::SRL, dl, MVT::i16, InsElt0,
-                              DAG.getConstant(8, TLI.getShiftAmountTy()));
+                              DAG.getConstant(8,
+                                 TLI.getShiftAmountTy(InsElt0.getValueType())));
       else if (Elt1 >= 0)
         InsElt0 = DAG.getNode(ISD::AND, dl, MVT::i16, InsElt0,
                              DAG.getConstant(0x00FF, MVT::i16));
@@ -5475,7 +5479,7 @@ SDValue getMOVLP(SDValue &Op, DebugLoc &dl, SelectionDAG &DAG, bool HasSSE2) {
   // Both of them can't be memory operations though.
   if (MayFoldVectorLoad(V1) && MayFoldVectorLoad(V2))
     CanFoldLoad = false;
-  
+
   if (CanFoldLoad) {
     if (HasSSE2 && NumElems == 2)
       return getTargetShuffleNode(X86ISD::MOVLPD, dl, VT, V1, V2, DAG);
@@ -6088,7 +6092,7 @@ X86TargetLowering::LowerINSERT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const {
     SDValue ScaledN2 = N2;
     if (Upper)
       ScaledN2 = DAG.getNode(ISD::SUB, dl, N2.getValueType(), N2,
-                             DAG.getConstant(NumElems / 
+                             DAG.getConstant(NumElems /
                                              (VT.getSizeInBits() / 128),
                                              N2.getValueType()));
     Op = DAG.getNode(ISD::INSERT_VECTOR_ELT, dl, SubN0.getValueType(), SubN0,
@@ -9327,6 +9331,10 @@ const char *X86TargetLowering::getTargetNodeName(unsigned Opcode) const {
   case X86ISD::MOVSS:              return "X86ISD::MOVSS";
   case X86ISD::UNPCKLPS:           return "X86ISD::UNPCKLPS";
   case X86ISD::UNPCKLPD:           return "X86ISD::UNPCKLPD";
+  case X86ISD::VUNPCKLPS:          return "X86ISD::VUNPCKLPS";
+  case X86ISD::VUNPCKLPD:          return "X86ISD::VUNPCKLPD";
+  case X86ISD::VUNPCKLPSY:         return "X86ISD::VUNPCKLPSY";
+  case X86ISD::VUNPCKLPDY:         return "X86ISD::VUNPCKLPDY";
   case X86ISD::UNPCKHPS:           return "X86ISD::UNPCKHPS";
   case X86ISD::UNPCKHPD:           return "X86ISD::UNPCKHPD";
   case X86ISD::PUNPCKLBW:          return "X86ISD::PUNPCKLBW";
@@ -11984,6 +11992,10 @@ SDValue X86TargetLowering::PerformDAGCombine(SDNode *N,
   case X86ISD::PUNPCKLQDQ:
   case X86ISD::UNPCKLPS:
   case X86ISD::UNPCKLPD:
+  case X86ISD::VUNPCKLPS:
+  case X86ISD::VUNPCKLPD:
+  case X86ISD::VUNPCKLPSY:
+  case X86ISD::VUNPCKLPDY:
   case X86ISD::MOVHLPS:
   case X86ISD::MOVLHPS:
   case X86ISD::PSHUFD:

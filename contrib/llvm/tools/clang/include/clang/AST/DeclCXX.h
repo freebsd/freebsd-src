@@ -1741,13 +1741,8 @@ class UsingDirectiveDecl : public NamedDecl {
   /// SourceLocation - Location of 'namespace' token.
   SourceLocation NamespaceLoc;
 
-  /// \brief The source range that covers the nested-name-specifier
-  /// preceding the namespace name.
-  SourceRange QualifierRange;
-
-  /// \brief The nested-name-specifier that precedes the namespace
-  /// name, if any.
-  NestedNameSpecifier *Qualifier;
+  /// \brief The nested-name-specifier that precedes the namespace.
+  NestedNameSpecifierLoc QualifierLoc;
 
   /// NominatedNamespace - Namespace nominated by using-directive.
   NamedDecl *NominatedNamespace;
@@ -1765,25 +1760,24 @@ class UsingDirectiveDecl : public NamedDecl {
 
   UsingDirectiveDecl(DeclContext *DC, SourceLocation UsingLoc,
                      SourceLocation NamespcLoc,
-                     SourceRange QualifierRange,
-                     NestedNameSpecifier *Qualifier,
+                     NestedNameSpecifierLoc QualifierLoc,
                      SourceLocation IdentLoc,
                      NamedDecl *Nominated,
                      DeclContext *CommonAncestor)
     : NamedDecl(UsingDirective, DC, IdentLoc, getName()), UsingLoc(UsingLoc),
-      NamespaceLoc(NamespcLoc), QualifierRange(QualifierRange),
-      Qualifier(Qualifier), NominatedNamespace(Nominated),
-      CommonAncestor(CommonAncestor) {
-  }
+      NamespaceLoc(NamespcLoc), QualifierLoc(QualifierLoc),
+      NominatedNamespace(Nominated), CommonAncestor(CommonAncestor) { }
 
 public:
-  /// \brief Retrieve the source range of the nested-name-specifier
-  /// that qualifies the namespace name.
-  SourceRange getQualifierRange() const { return QualifierRange; }
-
+  /// \brief Retrieve the nested-name-specifier that qualifies the
+  /// name of the namespace, with source-location information.
+  NestedNameSpecifierLoc getQualifierLoc() const { return QualifierLoc; }
+  
   /// \brief Retrieve the nested-name-specifier that qualifies the
   /// name of the namespace.
-  NestedNameSpecifier *getQualifier() const { return Qualifier; }
+  NestedNameSpecifier *getQualifier() const { 
+    return QualifierLoc.getNestedNameSpecifier(); 
+  }
 
   NamedDecl *getNominatedNamespaceAsWritten() { return NominatedNamespace; }
   const NamedDecl *getNominatedNamespaceAsWritten() const {
@@ -1815,8 +1809,7 @@ public:
   static UsingDirectiveDecl *Create(ASTContext &C, DeclContext *DC,
                                     SourceLocation UsingLoc,
                                     SourceLocation NamespaceLoc,
-                                    SourceRange QualifierRange,
-                                    NestedNameSpecifier *Qualifier,
+                                    NestedNameSpecifierLoc QualifierLoc,
                                     SourceLocation IdentLoc,
                                     NamedDecl *Nominated,
                                     DeclContext *CommonAncestor);
@@ -1844,49 +1837,37 @@ class NamespaceAliasDecl : public NamedDecl {
   /// \brief The location of the "namespace" keyword.
   SourceLocation NamespaceLoc;
 
-  /// \brief The source range that covers the nested-name-specifier
-  /// preceding the namespace name.
-  SourceRange QualifierRange;
-
-  /// \brief The nested-name-specifier that precedes the namespace
-  /// name, if any.
-  NestedNameSpecifier *Qualifier;
-
   /// IdentLoc - Location of namespace identifier. Accessed by TargetNameLoc.
   SourceLocation IdentLoc;
-
+  
+  /// \brief The nested-name-specifier that precedes the namespace.
+  NestedNameSpecifierLoc QualifierLoc;
+  
   /// Namespace - The Decl that this alias points to. Can either be a
   /// NamespaceDecl or a NamespaceAliasDecl.
   NamedDecl *Namespace;
 
   NamespaceAliasDecl(DeclContext *DC, SourceLocation NamespaceLoc,
                      SourceLocation AliasLoc, IdentifierInfo *Alias,
-                     SourceRange QualifierRange,
-                     NestedNameSpecifier *Qualifier,
+                     NestedNameSpecifierLoc QualifierLoc,
                      SourceLocation IdentLoc, NamedDecl *Namespace)
     : NamedDecl(NamespaceAlias, DC, AliasLoc, Alias), 
-      NamespaceLoc(NamespaceLoc), QualifierRange(QualifierRange), 
-      Qualifier(Qualifier), IdentLoc(IdentLoc), Namespace(Namespace) { }
+      NamespaceLoc(NamespaceLoc), IdentLoc(IdentLoc),
+      QualifierLoc(QualifierLoc), Namespace(Namespace) { }
 
   friend class ASTDeclReader;
   
 public:
-  /// \brief Retrieve the source range of the nested-name-specifier
-  /// that qualifiers the namespace name.
-  SourceRange getQualifierRange() const { return QualifierRange; }
-
-  /// \brief Set the source range of the nested-name-specifier that qualifies
-  /// the namespace name.
-  void setQualifierRange(SourceRange R) { QualifierRange = R; }
-
+  /// \brief Retrieve the nested-name-specifier that qualifies the
+  /// name of the namespace, with source-location information.
+  NestedNameSpecifierLoc getQualifierLoc() const { return QualifierLoc; }
+  
   /// \brief Retrieve the nested-name-specifier that qualifies the
   /// name of the namespace.
-  NestedNameSpecifier *getQualifier() const { return Qualifier; }
-
-  /// \brief Set the nested-name-specifier that qualifies the name of the
-  /// namespace.
-  void setQualifier(NestedNameSpecifier *NNS) { Qualifier = NNS; }
-
+  NestedNameSpecifier *getQualifier() const { 
+    return QualifierLoc.getNestedNameSpecifier(); 
+  }
+  
   /// \brief Retrieve the namespace declaration aliased by this directive.
   NamespaceDecl *getNamespace() {
     if (NamespaceAliasDecl *AD = dyn_cast<NamespaceAliasDecl>(Namespace))
@@ -1917,8 +1898,7 @@ public:
                                     SourceLocation NamespaceLoc, 
                                     SourceLocation AliasLoc,
                                     IdentifierInfo *Alias,
-                                    SourceRange QualifierRange,
-                                    NestedNameSpecifier *Qualifier,
+                                    NestedNameSpecifierLoc QualifierLoc,
                                     SourceLocation IdentLoc,
                                     NamedDecl *Namespace);
 
@@ -2002,15 +1982,11 @@ public:
 /// UsingDecl - Represents a C++ using-declaration. For example:
 ///    using someNameSpace::someIdentifier;
 class UsingDecl : public NamedDecl {
-  /// \brief The source range that covers the nested-name-specifier
-  /// preceding the declaration name.
-  SourceRange NestedNameRange;
-
   /// \brief The source location of the "using" location itself.
   SourceLocation UsingLocation;
 
-  /// \brief Target nested name specifier.
-  NestedNameSpecifier* TargetNestedName;
+  /// \brief The nested-name-specifier that precedes the name.
+  NestedNameSpecifierLoc QualifierLoc;
 
   /// DNLoc - Provides source/type location info for the
   /// declaration name embedded in the ValueDecl base class.
@@ -2023,37 +1999,34 @@ class UsingDecl : public NamedDecl {
   // \brief Has 'typename' keyword.
   bool IsTypeName;
 
-  UsingDecl(DeclContext *DC, SourceRange NNR,
-            SourceLocation UL, NestedNameSpecifier* TargetNNS,
+  UsingDecl(DeclContext *DC, SourceLocation UL, 
+            NestedNameSpecifierLoc QualifierLoc,
             const DeclarationNameInfo &NameInfo, bool IsTypeNameArg)
     : NamedDecl(Using, DC, NameInfo.getLoc(), NameInfo.getName()),
-      NestedNameRange(NNR), UsingLocation(UL), TargetNestedName(TargetNNS),
+      UsingLocation(UL), QualifierLoc(QualifierLoc),
       DNLoc(NameInfo.getInfo()), FirstUsingShadow(0),IsTypeName(IsTypeNameArg) {
   }
 
 public:
-  /// \brief Returns the source range that covers the nested-name-specifier
-  /// preceding the namespace name.
-  SourceRange getNestedNameRange() const { return NestedNameRange; }
-
-  /// \brief Set the source range of the nested-name-specifier.
-  void setNestedNameRange(SourceRange R) { NestedNameRange = R; }
-
-  // FIXME: Naming is inconsistent with other get*Loc functions.
   /// \brief Returns the source location of the "using" keyword.
   SourceLocation getUsingLocation() const { return UsingLocation; }
 
   /// \brief Set the source location of the 'using' keyword.
   void setUsingLocation(SourceLocation L) { UsingLocation = L; }
 
-  /// \brief Get the target nested name declaration.
-  NestedNameSpecifier* getTargetNestedNameDecl() const {
-    return TargetNestedName;
+  /// \brief Retrieve the nested-name-specifier that qualifies the name,
+  /// with source-location information.
+  NestedNameSpecifierLoc getQualifierLoc() const { return QualifierLoc; }
+
+  /// \brief Retrieve the nested-name-specifier that qualifies the name.
+  NestedNameSpecifier *getQualifier() const { 
+    return QualifierLoc.getNestedNameSpecifier(); 
   }
 
-  /// \brief Set the target nested name declaration.
-  void setTargetNestedNameDecl(NestedNameSpecifier *NNS) {
-    TargetNestedName = NNS;
+  /// \brief Retrieve the source range of the nested-name-specifier
+  /// that qualifies the name.
+  SourceRange getQualifierRange() const { 
+    return QualifierLoc.getSourceRange();
   }
 
   DeclarationNameInfo getNameInfo() const {
@@ -2119,8 +2092,8 @@ public:
   void removeShadowDecl(UsingShadowDecl *S);
 
   static UsingDecl *Create(ASTContext &C, DeclContext *DC,
-                           SourceRange NNR, SourceLocation UsingL,
-                           NestedNameSpecifier* TargetNNS,
+                           SourceLocation UsingL,
+                           NestedNameSpecifierLoc QualifierLoc,
                            const DeclarationNameInfo &NameInfo,
                            bool IsTypeNameArg);
 
@@ -2145,53 +2118,47 @@ public:
 ///   using Base<T>::foo;
 /// };
 class UnresolvedUsingValueDecl : public ValueDecl {
-  /// \brief The source range that covers the nested-name-specifier
-  /// preceding the declaration name.
-  SourceRange TargetNestedNameRange;
-
   /// \brief The source location of the 'using' keyword
   SourceLocation UsingLocation;
 
-  NestedNameSpecifier *TargetNestedNameSpecifier;
+  /// \brief The nested-name-specifier that precedes the name.
+  NestedNameSpecifierLoc QualifierLoc;
 
   /// DNLoc - Provides source/type location info for the
   /// declaration name embedded in the ValueDecl base class.
   DeclarationNameLoc DNLoc;
 
   UnresolvedUsingValueDecl(DeclContext *DC, QualType Ty,
-                           SourceLocation UsingLoc, SourceRange TargetNNR,
-                           NestedNameSpecifier *TargetNNS,
+                           SourceLocation UsingLoc, 
+                           NestedNameSpecifierLoc QualifierLoc,
                            const DeclarationNameInfo &NameInfo)
     : ValueDecl(UnresolvedUsingValue, DC,
                 NameInfo.getLoc(), NameInfo.getName(), Ty),
-      TargetNestedNameRange(TargetNNR), UsingLocation(UsingLoc),
-      TargetNestedNameSpecifier(TargetNNS), DNLoc(NameInfo.getInfo())
+      UsingLocation(UsingLoc), QualifierLoc(QualifierLoc),
+      DNLoc(NameInfo.getInfo())
   { }
 
 public:
-  /// \brief Returns the source range that covers the nested-name-specifier
-  /// preceding the namespace name.
-  SourceRange getTargetNestedNameRange() const { return TargetNestedNameRange; }
-
-  /// \brief Set the source range coverting the nested-name-specifier preceding
-  /// the namespace name.
-  void setTargetNestedNameRange(SourceRange R) { TargetNestedNameRange = R; }
-
-  /// \brief Get target nested name declaration.
-  NestedNameSpecifier* getTargetNestedNameSpecifier() const {
-    return TargetNestedNameSpecifier;
-  }
-
-  /// \brief Set the nested name declaration.
-  void setTargetNestedNameSpecifier(NestedNameSpecifier* NNS) {
-    TargetNestedNameSpecifier = NNS;
-  }
-
   /// \brief Returns the source location of the 'using' keyword.
   SourceLocation getUsingLoc() const { return UsingLocation; }
 
   /// \brief Set the source location of the 'using' keyword.
   void setUsingLoc(SourceLocation L) { UsingLocation = L; }
+
+  /// \brief Retrieve the nested-name-specifier that qualifies the name,
+  /// with source-location information.
+  NestedNameSpecifierLoc getQualifierLoc() const { return QualifierLoc; }
+
+  /// \brief Retrieve the nested-name-specifier that qualifies the name.
+  NestedNameSpecifier *getQualifier() const { 
+    return QualifierLoc.getNestedNameSpecifier(); 
+  }
+  
+  /// \brief Retrieve the source range of the nested-name-specifier
+  /// that qualifies the name.
+  SourceRange getQualifierRange() const { 
+    return QualifierLoc.getSourceRange();
+  }
 
   DeclarationNameInfo getNameInfo() const {
     return DeclarationNameInfo(getDeclName(), getLocation(), DNLoc);
@@ -2199,7 +2166,7 @@ public:
 
   static UnresolvedUsingValueDecl *
     Create(ASTContext &C, DeclContext *DC, SourceLocation UsingLoc,
-           SourceRange TargetNNR, NestedNameSpecifier *TargetNNS,
+           NestedNameSpecifierLoc QualifierLoc, 
            const DeclarationNameInfo &NameInfo);
 
   SourceRange getSourceRange() const {
@@ -2224,49 +2191,52 @@ public:
 /// The type associated with a unresolved using typename decl is
 /// currently always a typename type.
 class UnresolvedUsingTypenameDecl : public TypeDecl {
-  /// \brief The source range that covers the nested-name-specifier
-  /// preceding the declaration name.
-  SourceRange TargetNestedNameRange;
-
   /// \brief The source location of the 'using' keyword
   SourceLocation UsingLocation;
 
   /// \brief The source location of the 'typename' keyword
   SourceLocation TypenameLocation;
 
-  NestedNameSpecifier *TargetNestedNameSpecifier;
+  /// \brief The nested-name-specifier that precedes the name.
+  NestedNameSpecifierLoc QualifierLoc;
 
   UnresolvedUsingTypenameDecl(DeclContext *DC, SourceLocation UsingLoc,
-                    SourceLocation TypenameLoc,
-                    SourceRange TargetNNR, NestedNameSpecifier *TargetNNS,
-                    SourceLocation TargetNameLoc, IdentifierInfo *TargetName)
+                              SourceLocation TypenameLoc,
+                              NestedNameSpecifierLoc QualifierLoc,
+                              SourceLocation TargetNameLoc, 
+                              IdentifierInfo *TargetName)
   : TypeDecl(UnresolvedUsingTypename, DC, TargetNameLoc, TargetName),
-    TargetNestedNameRange(TargetNNR), UsingLocation(UsingLoc),
-    TypenameLocation(TypenameLoc), TargetNestedNameSpecifier(TargetNNS)
-  { }
+    UsingLocation(UsingLoc), TypenameLocation(TypenameLoc), 
+    QualifierLoc(QualifierLoc) { }
 
   friend class ASTDeclReader;
   
 public:
-  /// \brief Returns the source range that covers the nested-name-specifier
-  /// preceding the namespace name.
-  SourceRange getTargetNestedNameRange() const { return TargetNestedNameRange; }
-
-  /// \brief Get target nested name declaration.
-  NestedNameSpecifier* getTargetNestedNameSpecifier() {
-    return TargetNestedNameSpecifier;
-  }
-
   /// \brief Returns the source location of the 'using' keyword.
   SourceLocation getUsingLoc() const { return UsingLocation; }
 
   /// \brief Returns the source location of the 'typename' keyword.
   SourceLocation getTypenameLoc() const { return TypenameLocation; }
 
+  /// \brief Retrieve the nested-name-specifier that qualifies the name,
+  /// with source-location information.
+  NestedNameSpecifierLoc getQualifierLoc() const { return QualifierLoc; }
+
+  /// \brief Retrieve the nested-name-specifier that qualifies the name.
+  NestedNameSpecifier *getQualifier() const { 
+    return QualifierLoc.getNestedNameSpecifier(); 
+  }
+
+  /// \brief Retrieve the source range of the nested-name-specifier
+  /// that qualifies the name.
+  SourceRange getQualifierRange() const { 
+    return QualifierLoc.getSourceRange();
+  }
+
+  // FIXME: DeclarationNameInfo
   static UnresolvedUsingTypenameDecl *
     Create(ASTContext &C, DeclContext *DC, SourceLocation UsingLoc,
-           SourceLocation TypenameLoc,
-           SourceRange TargetNNR, NestedNameSpecifier *TargetNNS,
+           SourceLocation TypenameLoc, NestedNameSpecifierLoc QualifierLoc,
            SourceLocation TargetNameLoc, DeclarationName TargetName);
 
   SourceRange getSourceRange() const {

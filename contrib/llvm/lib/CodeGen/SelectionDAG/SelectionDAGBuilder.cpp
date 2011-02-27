@@ -641,16 +641,17 @@ SDValue RegsForValue::getCopyFromRegs(SelectionDAG &DAG,
       // If the source register was virtual and if we know something about it,
       // add an assert node.
       if (!TargetRegisterInfo::isVirtualRegister(Regs[Part+i]) ||
-          !RegisterVT.isInteger() || RegisterVT.isVector() ||
-          !FuncInfo.LiveOutRegInfo.inBounds(Regs[Part+i]))
+          !RegisterVT.isInteger() || RegisterVT.isVector())
         continue;
-      
-      const FunctionLoweringInfo::LiveOutInfo &LOI =
-        FuncInfo.LiveOutRegInfo[Regs[Part+i]];
+
+      const FunctionLoweringInfo::LiveOutInfo *LOI =
+        FuncInfo.GetLiveOutRegInfo(Regs[Part+i]);
+      if (!LOI)
+        continue;
 
       unsigned RegSize = RegisterVT.getSizeInBits();
-      unsigned NumSignBits = LOI.NumSignBits;
-      unsigned NumZeroBits = LOI.KnownZero.countLeadingOnes();
+      unsigned NumSignBits = LOI->NumSignBits;
+      unsigned NumZeroBits = LOI->KnownZero.countLeadingOnes();
 
       // FIXME: We capture more information than the dag can represent.  For
       // now, just use the tightest assertzext/assertsext possible.
@@ -908,7 +909,7 @@ void SelectionDAGBuilder::resolveDanglingDebugInfo(const Value *V,
                               Val.getResNo(), Offset, dl, DbgSDNodeOrder);
         DAG.AddDbgValue(SDV, Val.getNode(), false);
       }
-    } else 
+    } else
       DEBUG(dbgs() << "Dropping debug info for " << DI);
     DanglingDebugInfoMap[V] = DanglingDebugInfo();
   }
@@ -1417,7 +1418,7 @@ void SelectionDAGBuilder::visitBr(const BranchInst &I) {
   //     jle foo
   //
   if (const BinaryOperator *BOp = dyn_cast<BinaryOperator>(CondVal)) {
-    if (!TLI.isJumpExpensive() && 
+    if (!TLI.isJumpExpensive() &&
         BOp->hasOneUse() &&
         (BOp->getOpcode() == Instruction::And ||
          BOp->getOpcode() == Instruction::Or)) {
@@ -1915,7 +1916,7 @@ bool SelectionDAGBuilder::handleJTSwitchCase(CaseRec& CR,
   DEBUG(dbgs() << "Lowering jump table\n"
                << "First entry: " << First << ". Last entry: " << Last << '\n'
                << "Range: " << Range
-               << "Size: " << TSize << ". Density: " << Density << "\n\n");
+               << ". Size: " << TSize << ". Density: " << Density << "\n\n");
 
   // Get the MachineFunction which holds the current MBB.  This is used when
   // inserting any additional MBBs necessary to represent the switch.
@@ -2408,19 +2409,19 @@ void SelectionDAGBuilder::visitBinary(const User &I, unsigned OpCode) {
 void SelectionDAGBuilder::visitShift(const User &I, unsigned Opcode) {
   SDValue Op1 = getValue(I.getOperand(0));
   SDValue Op2 = getValue(I.getOperand(1));
-  
-  MVT ShiftTy = TLI.getShiftAmountTy();
-  
+
+  MVT ShiftTy = TLI.getShiftAmountTy(Op2.getValueType());
+
   // Coerce the shift amount to the right type if we can.
   if (!I.getType()->isVectorTy() && Op2.getValueType() != ShiftTy) {
     unsigned ShiftSize = ShiftTy.getSizeInBits();
     unsigned Op2Size = Op2.getValueType().getSizeInBits();
     DebugLoc DL = getCurDebugLoc();
-    
+
     // If the operand is smaller than the shift count type, promote it.
     if (ShiftSize > Op2Size)
       Op2 = DAG.getNode(ISD::ZERO_EXTEND, DL, ShiftTy, Op2);
-    
+
     // If the operand is larger than the shift count type but the shift
     // count type has enough bits to represent any shift value, truncate
     // it now. This is a common case and it exposes the truncate to
