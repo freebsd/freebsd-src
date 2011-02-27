@@ -116,7 +116,8 @@ public:
   /// \returns true to indicate the predefines are invalid or false otherwise.
   virtual bool ReadPredefinesBuffer(const PCHPredefinesBlocks &Buffers,
                                     llvm::StringRef OriginalFileName,
-                                    std::string &SuggestedPredefines) {
+                                    std::string &SuggestedPredefines,
+                                    FileManager &FileMgr) {
     return false;
   }
 
@@ -143,7 +144,8 @@ public:
   virtual bool ReadTargetTriple(llvm::StringRef Triple);
   virtual bool ReadPredefinesBuffer(const PCHPredefinesBlocks &Buffers,
                                     llvm::StringRef OriginalFileName,
-                                    std::string &SuggestedPredefines);
+                                    std::string &SuggestedPredefines,
+                                    FileManager &FileMgr);
   virtual void ReadHeaderFileInfo(const HeaderFileInfo &HFI, unsigned ID);
   virtual void ReadCounter(unsigned Value);
 
@@ -1130,6 +1132,10 @@ public:
 
   NestedNameSpecifier *ReadNestedNameSpecifier(const RecordData &Record,
                                                unsigned &Idx);
+
+  NestedNameSpecifierLoc ReadNestedNameSpecifierLoc(PerFileData &F, 
+                                                    const RecordData &Record,
+                                                    unsigned &Idx);
 
   /// \brief Read a template name.
   TemplateName ReadTemplateName(PerFileData &F, const RecordData &Record, 

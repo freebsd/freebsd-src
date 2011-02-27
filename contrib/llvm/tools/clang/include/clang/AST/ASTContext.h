@@ -115,6 +115,7 @@ class ASTContext {
   llvm::FoldingSet<PackExpansionType> PackExpansionTypes;
   mutable llvm::FoldingSet<ObjCObjectTypeImpl> ObjCObjectTypes;
   mutable llvm::FoldingSet<ObjCObjectPointerType> ObjCObjectPointerTypes;
+  mutable llvm::FoldingSet<AutoType> AutoTypes;
   llvm::FoldingSet<AttributedType> AttributedTypes;
 
   mutable llvm::FoldingSet<QualifiedTemplateName> QualifiedTemplateNames;
@@ -550,11 +551,6 @@ public:
   FunctionDecl *getcudaConfigureCallDecl() {
     return cudaConfigureCallDecl;
   }
-
-  /// This gets the struct used to keep track of pointer to blocks, complete
-  /// with captured variables.
-  QualType getBlockParmType(bool BlockHasCopyDispose,
-                            llvm::SmallVectorImpl<const Expr *> &Layout) const;
 
   /// This builds the struct used for __block variables.
   QualType BuildByRefType(llvm::StringRef DeclName, QualType Ty) const;
@@ -1525,7 +1521,6 @@ private:
 
   /// \brief A counter used to uniquely identify "blocks".
   mutable unsigned int UniqueBlockByRefTypeID;
-  mutable unsigned int UniqueBlockParmTypeID;
   
   friend class DeclContext;
   friend class DeclarationNameTable;

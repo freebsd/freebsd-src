@@ -43,7 +43,7 @@ SRCS=	AdjustedReturnValueChecker.cpp \
 	PthreadLockChecker.cpp \
 	ReturnPointerRangeChecker.cpp \
 	ReturnUndefChecker.cpp \
-	StackAddrLeakChecker.cpp \
+	StackAddrEscapeChecker.cpp \
 	StreamChecker.cpp \
 	UndefBranchChecker.cpp \
 	UndefCapturedBlockVarChecker.cpp \

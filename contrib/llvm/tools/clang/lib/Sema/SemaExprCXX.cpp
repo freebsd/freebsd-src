@@ -107,7 +107,7 @@ ParsedType Sema::getDestructorName(SourceLocation TildeLoc,
       // Nothing left to do.
     } else if (LookAtPrefix && (Prefix = NNS->getPrefix())) {
       CXXScopeSpec PrefixSS;
-      PrefixSS.setScopeRep(Prefix);
+      PrefixSS.Adopt(NestedNameSpecifierLoc(Prefix, SS.location_data()));
       LookupCtx = computeDeclContext(PrefixSS, EnteringContext);
       isDependent = isDependentScopeSpecifier(PrefixSS);
     } else if (ObjectTypePtr) {
@@ -476,7 +476,9 @@ Sema::ActOnCXXNullPtrLiteral(SourceLocation Loc) {
 /// ActOnCXXThrow - Parse throw expressions.
 ExprResult
 Sema::ActOnCXXThrow(SourceLocation OpLoc, Expr *Ex) {
-  if (!getLangOptions().Exceptions)
+  // Don't report an error if 'throw' is used in system headers.
+  if (!getLangOptions().Exceptions &&
+      !getSourceManager().isInSystemHeader(OpLoc))
     Diag(OpLoc, diag::err_exceptions_disabled) << "throw";
 
   if (Ex && !Ex->isTypeDependent() && CheckCXXThrowOperand(OpLoc, Ex))
@@ -1347,6 +1349,7 @@ bool Sema::FindAllocationOverload(SourceLocation StartLoc, SourceRange Range,
   case OR_Success: {
     // Got one!
     FunctionDecl *FnDecl = Best->Function;
+    MarkDeclarationReferenced(StartLoc, FnDecl);
     // The first argument is size_t, and the first parameter must be size_t,
     // too. This is checked on declaration and can be assumed. (It can't be
     // asserted on, though, since invalid decls are left in there.)
@@ -1384,7 +1387,10 @@ bool Sema::FindAllocationOverload(SourceLocation StartLoc, SourceRange Range,
   case OR_Deleted:
     Diag(StartLoc, diag::err_ovl_deleted_call)
       << Best->Function->isDeleted()
-      << Name << Range;
+      << Name 
+      << Best->Function->getMessageUnavailableAttr(
+             !Best->Function->isDeleted())
+      << Range;
     Candidates.NoteCandidates(*this, OCD_AllCandidates, Args, NumArgs);
     return true;
   }
@@ -2920,6 +2926,8 @@ static bool FindConditionalOverload(Sema &Self, Expr *&LHS, Expr *&RHS,
           Self.PerformImplicitConversion(RHS, Best->BuiltinTypes.ParamTypes[1],
                                          Best->Conversions[1], Sema::AA_Converting))
         break;
+      if (Best->Function)
+        Self.MarkDeclarationReferenced(QuestionLoc, Best->Function);
       return false;
 
     case OR_No_Viable_Function:
@@ -3580,14 +3588,14 @@ ExprResult Sema::DiagnoseDtorReference(SourceLocation NameLoc,
 }
 
 ExprResult Sema::BuildPseudoDestructorExpr(Expr *Base,
-                                                       SourceLocation OpLoc,
-                                                       tok::TokenKind OpKind,
-                                                       const CXXScopeSpec &SS,
-                                                 TypeSourceInfo *ScopeTypeInfo,
-                                                       SourceLocation CCLoc,
-                                                       SourceLocation TildeLoc,
+                                           SourceLocation OpLoc,
+                                           tok::TokenKind OpKind,
+                                           const CXXScopeSpec &SS,
+                                           TypeSourceInfo *ScopeTypeInfo,
+                                           SourceLocation CCLoc,
+                                           SourceLocation TildeLoc,
                                          PseudoDestructorTypeStorage Destructed,
-                                                       bool HasTrailingLParen) {
+                                           bool HasTrailingLParen) {
   TypeSourceInfo *DestructedTypeInfo = Destructed.getTypeSourceInfo();
 
   // C++ [expr.pseudo]p2:
@@ -3662,7 +3670,7 @@ ExprResult Sema::BuildPseudoDestructorExpr(Expr *Base,
   Expr *Result
     = new (Context) CXXPseudoDestructorExpr(Context, Base,
                                             OpKind == tok::arrow, OpLoc,
-                                            SS.getScopeRep(), SS.getRange(),
+                                            SS.getWithLocInContext(Context),
                                             ScopeTypeInfo,
                                             CCLoc,
                                             TildeLoc,
@@ -3675,14 +3683,14 @@ ExprResult Sema::BuildPseudoDestructorExpr(Expr *Base,
 }
 
 ExprResult Sema::ActOnPseudoDestructorExpr(Scope *S, Expr *Base,
-                                                       SourceLocation OpLoc,
-                                                       tok::TokenKind OpKind,
-                                                       CXXScopeSpec &SS,
-                                                  UnqualifiedId &FirstTypeName,
-                                                       SourceLocation CCLoc,
-                                                       SourceLocation TildeLoc,
-                                                 UnqualifiedId &SecondTypeName,
-                                                       bool HasTrailingLParen) {
+                                           SourceLocation OpLoc,
+                                           tok::TokenKind OpKind,
+                                           CXXScopeSpec &SS,
+                                           UnqualifiedId &FirstTypeName,
+                                           SourceLocation CCLoc,
+                                           SourceLocation TildeLoc,
+                                           UnqualifiedId &SecondTypeName,
+                                           bool HasTrailingLParen) {
   assert((FirstTypeName.getKind() == UnqualifiedId::IK_TemplateId ||
           FirstTypeName.getKind() == UnqualifiedId::IK_Identifier) &&
          "Invalid first type name in pseudo-destructor");
@@ -3714,8 +3722,8 @@ ExprResult Sema::ActOnPseudoDestructorExpr(Scope *S, Expr *Base,
   // record types and dependent types matter.
   ParsedType ObjectTypePtrForLookup;
   if (!SS.isSet()) {
-    if (const Type *T = ObjectType->getAs<RecordType>())
-      ObjectTypePtrForLookup = ParsedType::make(QualType(T, 0));
+    if (ObjectType->isRecordType())
+      ObjectTypePtrForLookup = ParsedType::make(ObjectType);
     else if (ObjectType->isDependentType())
       ObjectTypePtrForLookup = ParsedType::make(Context.DependentTy);
   }
@@ -3784,7 +3792,7 @@ ExprResult Sema::ActOnPseudoDestructorExpr(Scope *S, Expr *Base,
     if (FirstTypeName.getKind() == UnqualifiedId::IK_Identifier) {
       ParsedType T = getTypeName(*FirstTypeName.Identifier,
                                  FirstTypeName.StartLocation,
-                                 S, &SS, false, false, ObjectTypePtrForLookup);
+                                 S, &SS, true, false, ObjectTypePtrForLookup);
       if (!T) {
         Diag(FirstTypeName.StartLocation,
              diag::err_pseudo_dtor_destructor_non_type)

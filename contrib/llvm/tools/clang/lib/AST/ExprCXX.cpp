@@ -128,10 +128,10 @@ PseudoDestructorTypeStorage::PseudoDestructorTypeStorage(TypeSourceInfo *Info)
 }
 
 CXXPseudoDestructorExpr::CXXPseudoDestructorExpr(ASTContext &Context,
-    Expr *Base, bool isArrow, SourceLocation OperatorLoc,
-    NestedNameSpecifier *Qualifier, SourceRange QualifierRange,
-    TypeSourceInfo *ScopeType, SourceLocation ColonColonLoc,
-    SourceLocation TildeLoc, PseudoDestructorTypeStorage DestroyedType)
+                Expr *Base, bool isArrow, SourceLocation OperatorLoc,
+                NestedNameSpecifierLoc QualifierLoc, TypeSourceInfo *ScopeType, 
+                SourceLocation ColonColonLoc, SourceLocation TildeLoc, 
+                PseudoDestructorTypeStorage DestroyedType)
   : Expr(CXXPseudoDestructorExprClass,
          Context.getPointerType(Context.getFunctionType(Context.VoidTy, 0, 0,
                                          FunctionProtoType::ExtProtoInfo())),
@@ -142,15 +142,16 @@ CXXPseudoDestructorExpr::CXXPseudoDestructorExpr(ASTContext &Context,
          /*isValueDependent=*/Base->isValueDependent(),
          // ContainsUnexpandedParameterPack
          (Base->containsUnexpandedParameterPack() ||
-          (Qualifier && Qualifier->containsUnexpandedParameterPack()) ||
+          (QualifierLoc && 
+           QualifierLoc.getNestedNameSpecifier()
+                                        ->containsUnexpandedParameterPack()) ||
           (ScopeType && 
            ScopeType->getType()->containsUnexpandedParameterPack()) ||
           (DestroyedType.getTypeSourceInfo() &&
            DestroyedType.getTypeSourceInfo()->getType()
                                    ->containsUnexpandedParameterPack()))),
     Base(static_cast<Stmt *>(Base)), IsArrow(isArrow),
-    OperatorLoc(OperatorLoc), Qualifier(Qualifier),
-    QualifierRange(QualifierRange), 
+    OperatorLoc(OperatorLoc), QualifierLoc(QualifierLoc),
     ScopeType(ScopeType), ColonColonLoc(ColonColonLoc), TildeLoc(TildeLoc),
     DestroyedType(DestroyedType) { }
 
@@ -282,15 +283,16 @@ CXXRecordDecl *OverloadExpr::getNamingClass() const {
 
 // DependentScopeDeclRefExpr
 DependentScopeDeclRefExpr::DependentScopeDeclRefExpr(QualType T,
-                            NestedNameSpecifier *Qualifier,
-                            SourceRange QualifierRange,
+                            NestedNameSpecifierLoc QualifierLoc,
                             const DeclarationNameInfo &NameInfo,
                             const TemplateArgumentListInfo *Args)
   : Expr(DependentScopeDeclRefExprClass, T, VK_LValue, OK_Ordinary,
          true, true,
          (NameInfo.containsUnexpandedParameterPack() ||
-          (Qualifier && Qualifier->containsUnexpandedParameterPack()))),
-    NameInfo(NameInfo), QualifierRange(QualifierRange), Qualifier(Qualifier),
+          (QualifierLoc && 
+           QualifierLoc.getNestedNameSpecifier()
+                            ->containsUnexpandedParameterPack()))),
+    QualifierLoc(QualifierLoc), NameInfo(NameInfo), 
     HasExplicitTemplateArgs(Args != 0)
 {
   if (Args) {
@@ -306,16 +308,14 @@ DependentScopeDeclRefExpr::DependentScopeDeclRefExpr(QualType T,
 
 DependentScopeDeclRefExpr *
 DependentScopeDeclRefExpr::Create(ASTContext &C,
-                                  NestedNameSpecifier *Qualifier,
-                                  SourceRange QualifierRange,
+                                  NestedNameSpecifierLoc QualifierLoc,
                                   const DeclarationNameInfo &NameInfo,
                                   const TemplateArgumentListInfo *Args) {
   std::size_t size = sizeof(DependentScopeDeclRefExpr);
   if (Args)
     size += ExplicitTemplateArgumentList::sizeFor(*Args);
   void *Mem = C.Allocate(size);
-  return new (Mem) DependentScopeDeclRefExpr(C.DependentTy,
-                                             Qualifier, QualifierRange,
+  return new (Mem) DependentScopeDeclRefExpr(C.DependentTy, QualifierLoc, 
                                              NameInfo, Args);
 }
 
@@ -328,13 +328,16 @@ DependentScopeDeclRefExpr::CreateEmpty(ASTContext &C,
     size += ExplicitTemplateArgumentList::sizeFor(NumTemplateArgs);
   void *Mem = C.Allocate(size);
   DependentScopeDeclRefExpr *E 
-    = new (Mem) DependentScopeDeclRefExpr(QualType(), 0, SourceRange(),
+    = new (Mem) DependentScopeDeclRefExpr(QualType(), NestedNameSpecifierLoc(),
                                           DeclarationNameInfo(), 0);
   E->HasExplicitTemplateArgs = HasExplicitTemplateArgs;
   return E;
 }
 
 SourceRange CXXConstructExpr::getSourceRange() const {
+  if (isa<CXXTemporaryObjectExpr>(this))
+    return cast<CXXTemporaryObjectExpr>(this)->getSourceRange();
+
   if (ParenRange.isValid())
     return SourceRange(Loc, ParenRange.getEnd());
 
@@ -395,13 +398,6 @@ CXXRecordDecl *CXXMemberCallExpr::getRecordDecl() {
     return ThisArg->getType()->getPointeeType()->getAsCXXRecordDecl();
 
   return ThisArg->getType()->getAsCXXRecordDecl();
-}
-
-SourceRange CXXMemberCallExpr::getSourceRange() const {
-  SourceLocation LocStart = getCallee()->getLocStart();
-  if (LocStart.isInvalid() && getNumArgs() > 0)
-    LocStart = getArg(0)->getLocStart();
-  return SourceRange(LocStart, getRParenLoc());
 }
 
 

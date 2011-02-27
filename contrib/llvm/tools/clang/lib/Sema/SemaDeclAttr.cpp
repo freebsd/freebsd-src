@@ -1014,54 +1014,48 @@ static void HandleDestructorAttr(Decl *d, const AttributeList &Attr, Sema &S) {
 }
 
 static void HandleDeprecatedAttr(Decl *d, const AttributeList &Attr, Sema &S) {
-  // check the attribute arguments.
-  int noArgs = Attr.getNumArgs();
-  if (noArgs > 1) {
+  unsigned NumArgs = Attr.getNumArgs();
+  if (NumArgs > 1) {
     S.Diag(Attr.getLoc(), 
            diag::err_attribute_wrong_number_arguments) << "0 or 1";
     return;
   }
+  
   // Handle the case where deprecated attribute has a text message.
-  StringLiteral *SE;
-  if (noArgs == 1) {
-    Expr *ArgExpr = Attr.getArg(0);
-    SE = dyn_cast<StringLiteral>(ArgExpr);
+  llvm::StringRef Str;
+  if (NumArgs == 1) {
+    StringLiteral *SE = dyn_cast<StringLiteral>(Attr.getArg(0));
     if (!SE) {
-      S.Diag(ArgExpr->getLocStart(), 
-             diag::err_attribute_not_string) << "deprecated";
+      S.Diag(Attr.getArg(0)->getLocStart(), diag::err_attribute_not_string)
+        << "deprecated";
       return;
     }
+    Str = SE->getString();
   }
-  else
-    SE = StringLiteral::CreateEmpty(S.Context, 1);
 
-  d->addAttr(::new (S.Context) DeprecatedAttr(Attr.getLoc(), S.Context,
-                                              SE->getString()));
+  d->addAttr(::new (S.Context) DeprecatedAttr(Attr.getLoc(), S.Context, Str));
 }
 
 static void HandleUnavailableAttr(Decl *d, const AttributeList &Attr, Sema &S) {
-  // check the attribute arguments.
-  int noArgs = Attr.getNumArgs();
-  if (noArgs > 1) {
+  unsigned NumArgs = Attr.getNumArgs();
+  if (NumArgs > 1) {
     S.Diag(Attr.getLoc(),
            diag::err_attribute_wrong_number_arguments) << "0 or 1";
     return;
   }
+  
   // Handle the case where unavailable attribute has a text message.
-  StringLiteral *SE;
-  if (noArgs == 1) {
-    Expr *ArgExpr = Attr.getArg(0);
-    SE = dyn_cast<StringLiteral>(ArgExpr);
+  llvm::StringRef Str;
+  if (NumArgs == 1) {
+    StringLiteral *SE = dyn_cast<StringLiteral>(Attr.getArg(0));
     if (!SE) {
-      S.Diag(ArgExpr->getLocStart(), 
+      S.Diag(Attr.getArg(0)->getLocStart(), 
              diag::err_attribute_not_string) << "unavailable";
       return;
     }
+    Str = SE->getString();
   }
-  else
-    SE = StringLiteral::CreateEmpty(S.Context, 1);
-  d->addAttr(::new (S.Context) UnavailableAttr(Attr.getLoc(), S.Context,
-                                               SE->getString()));
+  d->addAttr(::new (S.Context) UnavailableAttr(Attr.getLoc(), S.Context, Str));
 }
 
 static void HandleVisibilityAttr(Decl *d, const AttributeList &Attr, Sema &S) {
@@ -2847,7 +2841,7 @@ NamedDecl * Sema::DeclClonePragmaWeak(NamedDecl *ND, IdentifierInfo *II) {
                                 FD->getType(), FD->getTypeSourceInfo());
     if (FD->getQualifier()) {
       FunctionDecl *NewFD = cast<FunctionDecl>(NewD);
-      NewFD->setQualifierInfo(FD->getQualifier(), FD->getQualifierRange());
+      NewFD->setQualifierInfo(FD->getQualifierLoc());
     }
   } else if (VarDecl *VD = dyn_cast<VarDecl>(ND)) {
     NewD = VarDecl::Create(VD->getASTContext(), VD->getDeclContext(),
@@ -2857,7 +2851,7 @@ NamedDecl * Sema::DeclClonePragmaWeak(NamedDecl *ND, IdentifierInfo *II) {
                            VD->getStorageClassAsWritten());
     if (VD->getQualifier()) {
       VarDecl *NewVD = cast<VarDecl>(NewD);
-      NewVD->setQualifierInfo(VD->getQualifier(), VD->getQualifierRange());
+      NewVD->setQualifierInfo(VD->getQualifierLoc());
     }
   }
   return NewD;

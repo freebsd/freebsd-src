@@ -23,16 +23,13 @@ class ExprEngine;
 
 // Foundational checks that handle basic semantics.
 void RegisterAdjustedReturnValueChecker(ExprEngine &Eng);
-void RegisterArrayBoundChecker(ExprEngine &Eng);
 void RegisterArrayBoundCheckerV2(ExprEngine &Eng);
 void RegisterAttrNonNullChecker(ExprEngine &Eng);
 void RegisterBuiltinFunctionChecker(ExprEngine &Eng);
 void RegisterCallAndMessageChecker(ExprEngine &Eng);
-void RegisterCastSizeChecker(ExprEngine &Eng);
 void RegisterDereferenceChecker(ExprEngine &Eng);
 void RegisterDivZeroChecker(ExprEngine &Eng);
 void RegisterNoReturnFunctionChecker(ExprEngine &Eng);
-void RegisterReturnPointerRangeChecker(ExprEngine &Eng);
 void RegisterReturnUndefChecker(ExprEngine &Eng);
 void RegisterUndefBranchChecker(ExprEngine &Eng);
 void RegisterUndefCapturedBlockVarChecker(ExprEngine &Eng);

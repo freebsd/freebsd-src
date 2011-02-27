@@ -949,7 +949,12 @@ llvm::Constant *CGObjCGNU::GenerateClassStructure(
   Elements.push_back(MakeConstantString(Name, ".class_name"));
   Elements.push_back(Zero);
   Elements.push_back(llvm::ConstantInt::get(LongTy, info));
-  Elements.push_back(InstanceSize);
+  if (isMeta) {
+    llvm::TargetData td(&TheModule);
+    Elements.push_back(llvm::ConstantInt::get(LongTy,
+                     td.getTypeSizeInBits(ClassTy)/8));
+  } else
+    Elements.push_back(InstanceSize);
   Elements.push_back(IVars);
   Elements.push_back(Methods);
   Elements.push_back(NULLPtr);
@@ -1831,9 +1836,9 @@ llvm::Function *CGObjCGNU::GetPropertyGetFunction() {
   std::vector<const llvm::Type*> Params;
   Params.push_back(IdTy);
   Params.push_back(SelectorTy);
-  Params.push_back(IntTy);
+  Params.push_back(SizeTy);
   Params.push_back(BoolTy);
-  // void objc_getProperty (id, SEL, int, bool)
+  // void objc_getProperty (id, SEL, ptrdiff_t, bool)
   const llvm::FunctionType *FTy =
     llvm::FunctionType::get(IdTy, Params, false);
   return cast<llvm::Function>(CGM.CreateRuntimeFunction(FTy,
@@ -1844,11 +1849,11 @@ llvm::Function *CGObjCGNU::GetPropertySetFunction() {
   std::vector<const llvm::Type*> Params;
   Params.push_back(IdTy);
   Params.push_back(SelectorTy);
-  Params.push_back(IntTy);
+  Params.push_back(SizeTy);
   Params.push_back(IdTy);
   Params.push_back(BoolTy);
   Params.push_back(BoolTy);
-  // void objc_setProperty (id, SEL, int, id, bool, bool)
+  // void objc_setProperty (id, SEL, ptrdiff_t, id, bool, bool)
   const llvm::FunctionType *FTy =
     llvm::FunctionType::get(llvm::Type::getVoidTy(VMContext), Params, false);
   return cast<llvm::Function>(CGM.CreateRuntimeFunction(FTy,
