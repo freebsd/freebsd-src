@@ -19,8 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -77,7 +76,11 @@ dnode_increase_indirection(dnode_t *dn, dmu_tx_t *tx)
 
 		if (child == NULL)
 			continue;
-		ASSERT3P(child->db_dnode, ==, dn);
+#ifdef	DEBUG
+		DB_DNODE_ENTER(child);
+		ASSERT3P(DB_DNODE(child), ==, dn);
+		DB_DNODE_EXIT(child);
+#endif	/* DEBUG */
 		if (child->db_parent && child->db_parent != dn->dn_dbuf) {
 			ASSERT(child->db_parent->db_level == db->db_level);
 			ASSERT(child->db_blkptr !=
@@ -120,7 +123,7 @@ free_blocks(dnode_t *dn, blkptr_t *bp, int num, dmu_tx_t *tx)
 		if (BP_IS_HOLE(bp))
 			continue;
 
-		bytesfreed += dsl_dataset_block_kill(ds, bp, dn->dn_zio, tx);
+		bytesfreed += dsl_dataset_block_kill(ds, bp, tx, B_FALSE);
 		ASSERT3U(bytesfreed, <=, DN_USED_BYTES(dn->dn_phys));
 		bzero(bp, sizeof (blkptr_t));
 		blocks_freed += 1;
@@ -136,15 +139,18 @@ free_verify(dmu_buf_impl_t *db, uint64_t start, uint64_t end, dmu_tx_t *tx)
 	int off, num;
 	int i, err, epbs;
 	uint64_t txg = tx->tx_txg;
+	dnode_t *dn;
 
-	epbs = db->db_dnode->dn_phys->dn_indblkshift - SPA_BLKPTRSHIFT;
+	DB_DNODE_ENTER(db);
+	dn = DB_DNODE(db);
+	epbs = dn->dn_phys->dn_indblkshift - SPA_BLKPTRSHIFT;
 	off = start - (db->db_blkid * 1<<epbs);
 	num = end - start + 1;
 
 	ASSERT3U(off, >=, 0);
 	ASSERT3U(num, >=, 0);
 	ASSERT3U(db->db_level, >, 0);
-	ASSERT3U(db->db.db_size, ==, 1<<db->db_dnode->dn_phys->dn_indblkshift);
+	ASSERT3U(db->db.db_size, ==, 1 << dn->dn_phys->dn_indblkshift);
 	ASSERT3U(off+num, <=, db->db.db_size >> SPA_BLKPTRSHIFT);
 	ASSERT(db->db_blkptr != NULL);
 
@@ -156,10 +162,10 @@ free_verify(dmu_buf_impl_t *db, uint64_t start, uint64_t end, dmu_tx_t *tx)
 
 		ASSERT(db->db_level == 1);
 
-		rw_enter(&db->db_dnode->dn_struct_rwlock, RW_READER);
-		err = dbuf_hold_impl(db->db_dnode, db->db_level-1,
+		rw_enter(&dn->dn_struct_rwlock, RW_READER);
+		err = dbuf_hold_impl(dn, db->db_level-1,
 		    (db->db_blkid << epbs) + i, TRUE, FTAG, &child);
-		rw_exit(&db->db_dnode->dn_struct_rwlock);
+		rw_exit(&dn->dn_struct_rwlock);
 		if (err == ENOENT)
 			continue;
 		ASSERT(err == 0);
@@ -201,6 +207,7 @@ free_verify(dmu_buf_impl_t *db, uint64_t start, uint64_t end, dmu_tx_t *tx)
 
 		dbuf_rele(child, FTAG);
 	}
+	DB_DNODE_EXIT(db);
 }
 #endif
 
@@ -210,7 +217,7 @@ static int
 free_children(dmu_buf_impl_t *db, uint64_t blkid, uint64_t nblks, int trunc,
     dmu_tx_t *tx)
 {
-	dnode_t *dn = db->db_dnode;
+	dnode_t *dn;
 	blkptr_t *bp;
 	dmu_buf_impl_t *subdb;
 	uint64_t start, end, dbstart, dbend, i;
@@ -228,10 +235,12 @@ free_children(dmu_buf_impl_t *db, uint64_t blkid, uint64_t nblks, int trunc,
 	if (db->db_state != DB_CACHED)
 		(void) dbuf_read(db, NULL, DB_RF_MUST_SUCCEED);
 
-	arc_release(db->db_buf, db);
+	dbuf_release_bp(db);
 	bp = (blkptr_t *)db->db.db_data;
 
-	epbs = db->db_dnode->dn_phys->dn_indblkshift - SPA_BLKPTRSHIFT;
+	DB_DNODE_ENTER(db);
+	dn = DB_DNODE(db);
+	epbs = dn->dn_phys->dn_indblkshift - SPA_BLKPTRSHIFT;
 	shift = (db->db_level - 1) * epbs;
 	dbstart = db->db_blkid << epbs;
 	start = blkid >> shift;
@@ -254,6 +263,7 @@ free_children(dmu_buf_impl_t *db, uint64_t blkid, uint64_t nblks, int trunc,
 		blocks_freed = free_blocks(dn, bp, end-start+1, tx);
 		arc_buf_freeze(db->db_buf);
 		ASSERT(all || blocks_freed == 0 || db->db_last_dirty);
+		DB_DNODE_EXIT(db);
 		return (all ? ALL : blocks_freed);
 	}
 
@@ -273,6 +283,7 @@ free_children(dmu_buf_impl_t *db, uint64_t blkid, uint64_t nblks, int trunc,
 		}
 		dbuf_rele(subdb, FTAG);
 	}
+	DB_DNODE_EXIT(db);
 	arc_buf_freeze(db->db_buf);
 #ifdef ZFS_DEBUG
 	bp -= (end-start)+1;
@@ -376,7 +387,11 @@ dnode_evict_dbufs(dnode_t *dn)
 		for (; db != &marker; db = list_head(&dn->dn_dbufs)) {
 			list_remove(&dn->dn_dbufs, db);
 			list_insert_tail(&dn->dn_dbufs, db);
-			ASSERT3P(db->db_dnode, ==, dn);
+#ifdef	DEBUG
+			DB_DNODE_ENTER(db);
+			ASSERT3P(DB_DNODE(db), ==, dn);
+			DB_DNODE_EXIT(db);
+#endif	/* DEBUG */
 
 			mutex_enter(&db->db_mtx);
 			if (db->db_state == DB_EVICTING) {
@@ -424,6 +439,9 @@ dnode_undirty_dbufs(list_t *list)
 		dmu_buf_impl_t *db = dr->dr_dbuf;
 		uint64_t txg = dr->dr_txg;
 
+		if (db->db_level != 0)
+			dnode_undirty_dbufs(&dr->dt.di.dr_children);
+
 		mutex_enter(&db->db_mtx);
 		/* XXX - use dbuf_undirty()? */
 		list_remove(list, dr);
@@ -431,18 +449,15 @@ dnode_undirty_dbufs(list_t *list)
 		db->db_last_dirty = NULL;
 		db->db_dirtycnt -= 1;
 		if (db->db_level == 0) {
-			ASSERT(db->db_blkid == DB_BONUS_BLKID ||
+			ASSERT(db->db_blkid == DMU_BONUS_BLKID ||
 			    dr->dt.dl.dr_data == db->db_buf);
 			dbuf_unoverride(dr);
-			mutex_exit(&db->db_mtx);
 		} else {
-			mutex_exit(&db->db_mtx);
-			dnode_undirty_dbufs(&dr->dt.di.dr_children);
 			list_destroy(&dr->dt.di.dr_children);
 			mutex_destroy(&dr->dt.di.dr_mtx);
 		}
 		kmem_free(dr, sizeof (dbuf_dirty_record_t));
-		dbuf_rele(db, (void *)(uintptr_t)txg);
+		dbuf_rele_and_unlock(db, (void *)(uintptr_t)txg);
 	}
 }
 
@@ -493,6 +508,7 @@ dnode_sync_free(dnode_t *dn, dmu_tx_t *tx)
 	dn->dn_maxblkid = 0;
 	dn->dn_allocated_txg = 0;
 	dn->dn_free_txg = 0;
+	dn->dn_have_spill = B_FALSE;
 	mutex_exit(&dn->dn_mtx);
 
 	ASSERT(dn->dn_object != DMU_META_DNODE_OBJECT);
@@ -515,6 +531,7 @@ dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 	int txgoff = tx->tx_txg & TXG_MASK;
 	list_t *list = &dn->dn_dirty_records[txgoff];
 	static const dnode_phys_t zerodn = { 0 };
+	boolean_t kill_spill = B_FALSE;
 
 	ASSERT(dmu_tx_is_syncing(tx));
 	ASSERT(dnp->dn_type != DMU_OT_NONE || dn->dn_allocated_txg);
@@ -526,10 +543,12 @@ dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 
 	if (dmu_objset_userused_enabled(dn->dn_objset) &&
 	    !DMU_OBJECT_IS_SPECIAL(dn->dn_object)) {
-		ASSERT(dn->dn_oldphys == NULL);
-		dn->dn_oldphys = zio_buf_alloc(sizeof (dnode_phys_t));
-		*dn->dn_oldphys = *dn->dn_phys; /* struct assignment */
+		mutex_enter(&dn->dn_mtx);
+		dn->dn_oldused = DN_USED_BYTES(dn->dn_phys);
+		dn->dn_oldflags = dn->dn_phys->dn_flags;
 		dn->dn_phys->dn_flags |= DNODE_FLAG_USERUSED_ACCOUNTED;
+		mutex_exit(&dn->dn_mtx);
+		dmu_objset_userquota_get_ids(dn, B_FALSE, tx);
 	} else {
 		/* Once we account for it, we should always account for it. */
 		ASSERT(!(dn->dn_phys->dn_flags &
@@ -560,6 +579,7 @@ dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 		    SPA_MINBLOCKSIZE) == 0);
 		ASSERT(BP_IS_HOLE(&dnp->dn_blkptr[0]) ||
 		    dn->dn_maxblkid == 0 || list_head(list) != NULL ||
+		    avl_last(&dn->dn_ranges[txgoff]) ||
 		    dn->dn_next_blksz[txgoff] >> SPA_MINBLOCKSHIFT ==
 		    dnp->dn_datablkszsec);
 		dnp->dn_datablkszsec =
@@ -574,6 +594,24 @@ dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 			dnp->dn_bonuslen = dn->dn_next_bonuslen[txgoff];
 		ASSERT(dnp->dn_bonuslen <= DN_MAX_BONUSLEN);
 		dn->dn_next_bonuslen[txgoff] = 0;
+	}
+
+	if (dn->dn_next_bonustype[txgoff]) {
+		ASSERT(dn->dn_next_bonustype[txgoff] < DMU_OT_NUMTYPES);
+		dnp->dn_bonustype = dn->dn_next_bonustype[txgoff];
+		dn->dn_next_bonustype[txgoff] = 0;
+	}
+
+	/*
+	 * We will either remove a spill block when a file is being removed
+	 * or we have been asked to remove it.
+	 */
+	if (dn->dn_rm_spillblk[txgoff] ||
+	    ((dnp->dn_flags & DNODE_FLAG_SPILL_BLKPTR) &&
+	    dn->dn_free_txg > 0 && dn->dn_free_txg <= tx->tx_txg)) {
+		if ((dnp->dn_flags & DNODE_FLAG_SPILL_BLKPTR))
+			kill_spill = B_TRUE;
+		dn->dn_rm_spillblk[txgoff] = 0;
 	}
 
 	if (dn->dn_next_indblkshift[txgoff]) {
@@ -591,6 +629,13 @@ dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 	dnp->dn_compress = dn->dn_compress;
 
 	mutex_exit(&dn->dn_mtx);
+
+	if (kill_spill) {
+		(void) free_blocks(dn, &dn->dn_phys->dn_spill, 1, tx);
+		mutex_enter(&dn->dn_mtx);
+		dnp->dn_flags &= ~DNODE_FLAG_SPILL_BLKPTR;
+		mutex_exit(&dn->dn_mtx);
+	}
 
 	/* process all the "freed" ranges in the file */
 	while (rp = avl_last(&dn->dn_ranges[txgoff])) {

@@ -20,8 +20,7 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 1989, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 #ifndef _SYS_CPUVAR_H
@@ -168,7 +167,7 @@ typedef struct cpu {
 
 	ftrace_data_t	cpu_ftrace;		/* per cpu ftrace data */
 
-	clock_t		cpu_deadman_lbolt;	/* used by deadman() */
+	clock_t		cpu_deadman_counter;	/* used by deadman() */
 	uint_t		cpu_deadman_countdown;	/* used by deadman() */
 
 	kmutex_t	cpu_cpc_ctxlock; /* protects context for idle thread */
@@ -211,11 +210,26 @@ typedef struct cpu {
 	uint64_t	cpu_curr_clock;		/* current clock freq in Hz */
 	char		*cpu_supp_freqs;	/* supported freqs in Hz */
 
+	uintptr_t	cpu_cpcprofile_pc;	/* kernel PC in cpc interrupt */
+	uintptr_t	cpu_cpcprofile_upc;	/* user PC in cpc interrupt */
+
 	/*
 	 * Interrupt load factor used by dispatcher & softcall
 	 */
 	hrtime_t	cpu_intrlast;   /* total interrupt time (nsec) */
 	int		cpu_intrload;   /* interrupt load factor (0-99%) */
+
+	uint_t		cpu_rotor;	/* for cheap pseudo-random numbers */
+
+	struct cu_cpu_info	*cpu_cu_info;	/* capacity & util. info */
+
+	/*
+	 * cpu_generation is updated whenever CPU goes on-line or off-line.
+	 * Updates to cpu_generation are protected by cpu_lock.
+	 *
+	 * See CPU_NEW_GENERATION() macro below.
+	 */
+	volatile uint_t		cpu_generation;	/* tracking on/off-line */
 
 	/*
 	 * New members must be added /before/ this member, as the CTF tools
@@ -238,12 +252,13 @@ typedef struct cpu {
  * is up to the platform to assure that this is performed properly.  Note that
  * the structure is sized to avoid false sharing.
  */
-#define	CPUC_SIZE		(sizeof (uint16_t) + sizeof (uintptr_t) + \
-				sizeof (kmutex_t))
+#define	CPUC_SIZE		(sizeof (uint16_t) + sizeof (uint8_t) + \
+				sizeof (uintptr_t) + sizeof (kmutex_t))
 #define	CPUC_PADSIZE		CPU_CACHE_COHERENCE_SIZE - CPUC_SIZE
 
 typedef struct cpu_core {
 	uint16_t	cpuc_dtrace_flags;	/* DTrace flags */
+	uint8_t		cpuc_dcpc_intr_state;	/* DCPC provider intr state */
 	uint8_t		cpuc_pad[CPUC_PADSIZE];	/* padding */
 	uintptr_t	cpuc_dtrace_illval;	/* DTrace illegal value */
 	kmutex_t	cpuc_pid_lock;		/* DTrace pid provider lock */
@@ -260,6 +275,28 @@ extern cpu_core_t cpu_core[];
  * getpil() should be used instead to check for PIL levels.
  */
 #define	CPU_ON_INTR(cpup) ((cpup)->cpu_intr_actv >> (LOCK_LEVEL + 1))
+
+/*
+ * Check to see if an interrupt thread might be active at a given ipl.
+ * If so return true.
+ * We must be conservative--it is ok to give a false yes, but a false no
+ * will cause disaster.  (But if the situation changes after we check it is
+ * ok--the caller is trying to ensure that an interrupt routine has been
+ * exited).
+ * This is used when trying to remove an interrupt handler from an autovector
+ * list in avintr.c.
+ */
+#define	INTR_ACTIVE(cpup, level)	\
+	((level) <= LOCK_LEVEL ? 	\
+	((cpup)->cpu_intr_actv & (1 << (level))) : (CPU_ON_INTR(cpup)))
+
+/*
+ * CPU_PSEUDO_RANDOM() returns a per CPU value that changes each time one
+ * looks at it. It's meant as a cheap mechanism to be incorporated in routines
+ * wanting to avoid biasing, but where true randomness isn't needed (just
+ * something that changes).
+ */
+#define	CPU_PSEUDO_RANDOM() (CPU->cpu_rotor++)
 
 #if defined(_KERNEL) || defined(_KMEMUSER)
 
@@ -351,7 +388,6 @@ extern cpu_core_t cpu_core[];
  */
 #define	CPU_DISP_DONTSTEAL	0x01	/* CPU undergoing context swtch */
 #define	CPU_DISP_HALTED		0x02	/* CPU halted waiting for interrupt */
-
 
 #endif /* _KERNEL || _KMEMUSER */
 
@@ -516,6 +552,7 @@ extern cpuset_t cpu_seqid_inuse;
 #if defined(_KERNEL) || defined(_KMEMUSER)
 
 extern struct cpu	*cpu[];		/* indexed by CPU number */
+extern struct cpu	**cpu_seq;	/* indexed by sequential CPU id */
 extern cpu_t		*cpu_list;	/* list of CPUs */
 extern cpu_t		*cpu_active;	/* list of active CPUs */
 extern int		ncpus;		/* number of CPUs present */
@@ -526,6 +563,7 @@ extern int		boot_ncpus;	/* # cpus present @ boot */
 extern processorid_t	max_cpuid;	/* maximum CPU number */
 extern struct cpu	*cpu_inmotion;	/* offline or partition move target */
 extern cpu_t		*clock_cpu_list;
+extern processorid_t	max_cpu_seqid_ever;	/* maximum seqid ever given */
 
 #if defined(__i386) || defined(__amd64)
 extern struct cpu *curcpup(void);
@@ -568,6 +606,13 @@ extern struct cpu *curcpup(void);
 
 #define	CPU_STATS(cp, stat)                                       \
 	((cp)->cpu_stats.stat)
+
+/*
+ * Increment CPU generation value.
+ * This macro should be called whenever CPU goes on-line or off-line.
+ * Updates to cpu_generation should be protected by cpu_lock.
+ */
+#define	CPU_NEW_GENERATION(cp)	((cp)->cpu_generation++)
 
 #endif /* _KERNEL || _KMEMUSER */
 
@@ -658,6 +703,7 @@ int	cpu_get_state(cpu_t *);		/* get current cpu state */
 const char *cpu_get_state_str(cpu_t *);	/* get current cpu state as string */
 
 
+void	cpu_set_curr_clock(uint64_t);	/* indicate the current CPU's freq */
 void	cpu_set_supp_freqs(cpu_t *, const char *); /* set the CPU supported */
 						/* frequencies */
 
@@ -697,6 +743,49 @@ void	cpu_enable_intr(struct cpu *cp); /* start issuing interrupts to cpu */
  */
 extern kmutex_t	cpu_lock;	/* lock protecting CPU data */
 
+/*
+ * CPU state change events
+ *
+ * Various subsystems need to know when CPUs change their state. They get this
+ * information by registering  CPU state change callbacks using
+ * register_cpu_setup_func(). Whenever any CPU changes its state, the callback
+ * function is called. The callback function is passed three arguments:
+ *
+ *   Event, described by cpu_setup_t
+ *   CPU ID
+ *   Transparent pointer passed when registering the callback
+ *
+ * The callback function is called with cpu_lock held. The return value from the
+ * callback function is usually ignored, except for CPU_CONFIG and CPU_UNCONFIG
+ * events. For these two events, non-zero return value indicates a failure and
+ * prevents successful completion of the operation.
+ *
+ * New events may be added in the future. Callback functions should ignore any
+ * events that they do not understand.
+ *
+ * The following events provide notification callbacks:
+ *
+ *  CPU_INIT	A new CPU is started and added to the list of active CPUs
+ *		  This event is only used during boot
+ *
+ *  CPU_CONFIG	A newly inserted CPU is prepared for starting running code
+ *		  This event is called by DR code
+ *
+ *  CPU_UNCONFIG CPU has been powered off and needs cleanup
+ *		  This event is called by DR code
+ *
+ *  CPU_ON	CPU is enabled but does not run anything yet
+ *
+ *  CPU_INTR_ON	CPU is enabled and has interrupts enabled
+ *
+ *  CPU_OFF	CPU is going offline but can still run threads
+ *
+ *  CPU_CPUPART_OUT	CPU is going to move out of its partition
+ *
+ *  CPU_CPUPART_IN	CPU is going to move to a new partition
+ *
+ *  CPU_SETUP	CPU is set up during boot and can run threads
+ */
 typedef enum {
 	CPU_INIT,
 	CPU_CONFIG,
@@ -704,7 +793,9 @@ typedef enum {
 	CPU_ON,
 	CPU_OFF,
 	CPU_CPUPART_IN,
-	CPU_CPUPART_OUT
+	CPU_CPUPART_OUT,
+	CPU_SETUP,
+	CPU_INTR_ON
 } cpu_setup_t;
 
 typedef int cpu_setup_func_t(cpu_setup_t, int, void *);
@@ -716,6 +807,13 @@ typedef int cpu_setup_func_t(cpu_setup_t, int, void *);
 extern void register_cpu_setup_func(cpu_setup_func_t *, void *);
 extern void unregister_cpu_setup_func(cpu_setup_func_t *, void *);
 extern void cpu_state_change_notify(int, cpu_setup_t);
+
+/*
+ * Call specified function on the given CPU
+ */
+typedef void (*cpu_call_func_t)(uintptr_t, uintptr_t);
+extern void cpu_call(cpu_t *, cpu_call_func_t, uintptr_t, uintptr_t);
+
 
 /*
  * Create various strings that describe the given CPU for the

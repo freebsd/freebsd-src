@@ -57,6 +57,13 @@ extern int zone_dataset_detach(struct ucred *, const char *, int);
  */
 extern int zone_dataset_visible(const char *, int *);
 
+/*
+ * Safely get the hostid of the specified zone (defaults to machine's hostid
+ * if the specified zone doesn't emulate a hostid).  Passing NULL retrieves
+ * the global zone's (i.e., physical system's) hostid.
+ */
+extern uint32_t zone_get_hostid(void *);
+
 #else	/* !_KERNEL */
 
 #define	GLOBAL_ZONEID	0

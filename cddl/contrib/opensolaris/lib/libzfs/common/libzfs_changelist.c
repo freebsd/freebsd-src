@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  *
  * Portions Copyright 2007 Ramprakash Jelari
@@ -116,32 +116,7 @@ changelist_prefix(prop_changelist_t *clp)
 		if (getzoneid() == GLOBAL_ZONEID && cn->cn_zoned)
 			continue;
 
-		if (ZFS_IS_VOLUME(cn->cn_handle)) {
-			switch (clp->cl_realprop) {
-			case ZFS_PROP_NAME:
-				/*
-				 * If this was a rename, unshare the zvol, and
-				 * remove the /dev/zvol links.
-				 */
-				(void) zfs_unshare_iscsi(cn->cn_handle);
-
-				if (zvol_remove_link(cn->cn_handle->zfs_hdl,
-				    cn->cn_handle->zfs_name) != 0) {
-					ret = -1;
-					cn->cn_needpost = B_FALSE;
-					(void) zfs_share_iscsi(cn->cn_handle);
-				}
-				break;
-
-			case ZFS_PROP_VOLSIZE:
-				/*
-				 * If this was a change to the volume size, we
-				 * need to unshare and reshare the volume.
-				 */
-				(void) zfs_unshare_iscsi(cn->cn_handle);
-				break;
-			}
-		} else {
+		if (!ZFS_IS_VOLUME(cn->cn_handle)) {
 			/*
 			 * Do the property specific processing.
 			 */
@@ -234,32 +209,8 @@ changelist_postfix(prop_changelist_t *clp)
 
 		zfs_refresh_properties(cn->cn_handle);
 
-		if (ZFS_IS_VOLUME(cn->cn_handle)) {
-			/*
-			 * If we're doing a rename, recreate the /dev/zvol
-			 * links.
-			 */
-			if (clp->cl_realprop == ZFS_PROP_NAME &&
-			    zvol_create_link(cn->cn_handle->zfs_hdl,
-			    cn->cn_handle->zfs_name) != 0) {
-				errors++;
-			} else if (cn->cn_shared ||
-			    clp->cl_prop == ZFS_PROP_SHAREISCSI) {
-				if (zfs_prop_get(cn->cn_handle,
-				    ZFS_PROP_SHAREISCSI, shareopts,
-				    sizeof (shareopts), NULL, NULL, 0,
-				    B_FALSE) == 0 &&
-				    strcmp(shareopts, "off") == 0) {
-					errors +=
-					    zfs_unshare_iscsi(cn->cn_handle);
-				} else {
-					errors +=
-					    zfs_share_iscsi(cn->cn_handle);
-				}
-			}
-
+		if (ZFS_IS_VOLUME(cn->cn_handle))
 			continue;
-		}
 
 		/*
 		 * Remount if previously mounted or mountpoint was legacy,
@@ -508,6 +459,14 @@ change_one(zfs_handle_t *zhp, void *data)
 			    &idx);
 			uu_list_insert(clp->cl_list, cn, idx);
 		} else {
+			/*
+			 * Add this child to beginning of the list. Children
+			 * below this one in the hierarchy will get added above
+			 * this one in the list. This produces a list in
+			 * reverse dataset name order.
+			 * This is necessary when the original mountpoint
+			 * is legacy or none.
+			 */
 			ASSERT(!clp->cl_alldependents);
 			verify(uu_list_insert_before(clp->cl_list,
 			    uu_list_first(clp->cl_list), cn) == 0);
@@ -574,6 +533,7 @@ changelist_gather(zfs_handle_t *zhp, zfs_prop_t prop, int gather_flags,
 	zfs_handle_t *temp;
 	char property[ZFS_MAXPROPLEN];
 	uu_compare_fn_t *compare = NULL;
+	boolean_t legacy = B_FALSE;
 
 	if ((clp = zfs_alloc(zhp->zfs_hdl, sizeof (prop_changelist_t))) == NULL)
 		return (NULL);
@@ -586,8 +546,19 @@ changelist_gather(zfs_handle_t *zhp, zfs_prop_t prop, int gather_flags,
 	if (prop == ZFS_PROP_NAME || prop == ZFS_PROP_ZONED ||
 	    prop == ZFS_PROP_MOUNTPOINT || prop == ZFS_PROP_SHARENFS ||
 	    prop == ZFS_PROP_SHARESMB) {
-		compare = compare_mountpoints;
-		clp->cl_sorted = B_TRUE;
+
+		if (zfs_prop_get(zhp, ZFS_PROP_MOUNTPOINT,
+		    property, sizeof (property),
+		    NULL, NULL, 0, B_FALSE) == 0 &&
+		    (strcmp(property, "legacy") == 0 ||
+		    strcmp(property, "none") == 0)) {
+
+			legacy = B_TRUE;
+		}
+		if (!legacy) {
+			compare = compare_mountpoints;
+			clp->cl_sorted = B_TRUE;
+		}
 	}
 
 	clp->cl_pool = uu_list_pool_create("changelist_pool",
@@ -638,8 +609,7 @@ changelist_gather(zfs_handle_t *zhp, zfs_prop_t prop, int gather_flags,
 
 	if (clp->cl_prop != ZFS_PROP_MOUNTPOINT &&
 	    clp->cl_prop != ZFS_PROP_SHARENFS &&
-	    clp->cl_prop != ZFS_PROP_SHARESMB &&
-	    clp->cl_prop != ZFS_PROP_SHAREISCSI)
+	    clp->cl_prop != ZFS_PROP_SHARESMB)
 		return (clp);
 
 	/*
@@ -695,6 +665,12 @@ changelist_gather(zfs_handle_t *zhp, zfs_prop_t prop, int gather_flags,
 		(void) uu_list_find(clp->cl_list, cn, NULL, &idx);
 		uu_list_insert(clp->cl_list, cn, idx);
 	} else {
+		/*
+		 * Add the target dataset to the end of the list.
+		 * The list is not really unsorted. The list will be
+		 * in reverse dataset name order. This is necessary
+		 * when the original mountpoint is legacy or none.
+		 */
 		verify(uu_list_insert_after(clp->cl_list,
 		    uu_list_last(clp->cl_list), cn) == 0);
 	}
@@ -703,11 +679,7 @@ changelist_gather(zfs_handle_t *zhp, zfs_prop_t prop, int gather_flags,
 	 * If the mountpoint property was previously 'legacy', or 'none',
 	 * record it as the behavior of changelist_postfix() will be different.
 	 */
-	if ((clp->cl_prop == ZFS_PROP_MOUNTPOINT) &&
-	    (zfs_prop_get(zhp, prop, property, sizeof (property),
-	    NULL, NULL, 0, B_FALSE) == 0 &&
-	    (strcmp(property, "legacy") == 0 ||
-	    strcmp(property, "none") == 0))) {
+	if ((clp->cl_prop == ZFS_PROP_MOUNTPOINT) && legacy) {
 		/*
 		 * do not automatically mount ex-legacy datasets if
 		 * we specifically set canmount to noauto
