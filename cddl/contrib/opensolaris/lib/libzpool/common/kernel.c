@@ -19,8 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 #include <assert.h>
@@ -36,19 +35,23 @@
 #include <sys/zfs_context.h>
 #include <sys/zmod.h>
 #include <sys/utsname.h>
+#include <sys/systeminfo.h>
 
 /*
  * Emulation of kernel services in userland.
  */
 
-int hz = 119;	/* frequency when using gethrtime() >> 23 for lbolt */
+int aok;
 uint64_t physmem;
 vnode_t *rootdir = (vnode_t *)0xabcd1234;
-char hw_serial[11];
+char hw_serial[HW_HOSTID_LEN];
 
 struct utsname utsname = {
 	"userland", "libzpool", "1", "1", "na"
 };
+
+/* this only exists to have its address taken */
+struct proc p0;
 
 /*
  * =========================================================================
@@ -137,7 +140,7 @@ mutex_tryenter(kmutex_t *mp)
 {
 	ASSERT(mp->initialized == B_TRUE);
 	ASSERT(mp->m_owner != (void *)-1UL);
-	if (mutex_trylock(&mp->m_lock) == 0) {
+	if (0 == mutex_trylock(&mp->m_lock)) {
 		ASSERT(mp->m_owner == NULL);
 		mp->m_owner = curthread;
 		return (1);
@@ -150,7 +153,7 @@ void
 mutex_exit(kmutex_t *mp)
 {
 	ASSERT(mp->initialized == B_TRUE);
-	ASSERT(mp->m_owner == curthread);
+	ASSERT(mutex_owner(mp) == curthread);
 	mp->m_owner = NULL;
 	VERIFY(mutex_unlock(&mp->m_lock) == 0);
 }
@@ -308,9 +311,9 @@ cv_timedwait(kcondvar_t *cv, kmutex_t *mp, clock_t abstime)
 	struct timeval tv;
 	clock_t delta;
 
-	abstime += lbolt;
+	abstime += ddi_get_lbolt();
 top:
-	delta = abstime - lbolt;
+	delta = abstime - ddi_get_lbolt();
 	if (delta <= 0)
 		return (-1);
 
@@ -432,10 +435,7 @@ vn_open(char *path, int x1, int flags, int mode, vnode_t **vpp, int x2, int x3)
 	*vpp = vp = umem_zalloc(sizeof (vnode_t), UMEM_NOFAIL);
 
 	vp->v_fd = fd;
-	if (S_ISCHR(st.st_mode))
-		ioctl(fd, DIOCGMEDIASIZE, &vp->v_size);
-	else
-		vp->v_size = st.st_size;
+	vp->v_size = st.st_size;
 	vp->v_path = spa_strdup(path);
 
 	return (0);
@@ -495,6 +495,24 @@ vn_close(vnode_t *vp, int openflag, cred_t *cr, kthread_t *td)
 	close(vp->v_fd);
 	spa_strfree(vp->v_path);
 	umem_free(vp, sizeof (vnode_t));
+}
+
+/*
+ * At a minimum we need to update the size since vdev_reopen()
+ * will no longer call vn_openat().
+ */
+int
+fop_getattr(vnode_t *vp, vattr_t *vap)
+{
+	struct stat64 st;
+
+	if (fstat64(vp->v_fd, &st) == -1) {
+		close(vp->v_fd);
+		return (errno);
+	}
+
+	vap->va_size = st.st_size;
+	return (0);
 }
 
 #ifdef ZFS_DEBUG
@@ -811,6 +829,17 @@ ddi_strtoul(const char *hw_serial, char **nptr, int base, unsigned long *result)
 	return (0);
 }
 
+int
+ddi_strtoull(const char *str, char **nptr, int base, u_longlong_t *result)
+{
+	char *end;
+
+	*result = strtoull(str, &end, base);
+	if (*result == 0)
+		return (errno);
+	return (0);
+}
+
 /*
  * =========================================================================
  * kernel emulation setup & teardown
@@ -836,8 +865,8 @@ kernel_init(int mode)
 	dprintf("physmem = %llu pages (%.2f GB)\n", physmem,
 	    (double)physmem * sysconf(_SC_PAGE_SIZE) / (1ULL << 30));
 
-	snprintf(hw_serial, sizeof (hw_serial), "%lu",
-	    (unsigned long)gethostid());
+	(void) snprintf(hw_serial, sizeof (hw_serial), "%lu",
+	    (mode & FWRITE) ? (unsigned long)gethostid() : 0);
 
 	VERIFY((random_fd = open("/dev/random", O_RDONLY)) != -1);
 	VERIFY((urandom_fd = open("/dev/urandom", O_RDONLY)) != -1);
@@ -851,6 +880,8 @@ void
 kernel_fini(void)
 {
 	spa_fini();
+
+	system_taskq_fini();
 
 	close(random_fd);
 	close(urandom_fd);
@@ -942,3 +973,72 @@ ksiddomain_rele(ksiddomain_t *ksid)
 	spa_strfree(ksid->kd_name);
 	umem_free(ksid, sizeof (ksiddomain_t));
 }
+
+/*
+ * Do not change the length of the returned string; it must be freed
+ * with strfree().
+ */
+char *
+kmem_asprintf(const char *fmt, ...)
+{
+	int size;
+	va_list adx;
+	char *buf;
+
+	va_start(adx, fmt);
+	size = vsnprintf(NULL, 0, fmt, adx) + 1;
+	va_end(adx);
+
+	buf = kmem_alloc(size, KM_SLEEP);
+
+	va_start(adx, fmt);
+	size = vsnprintf(buf, size, fmt, adx);
+	va_end(adx);
+
+	return (buf);
+}
+
+/* ARGSUSED */
+int
+zfs_onexit_fd_hold(int fd, minor_t *minorp)
+{
+	*minorp = 0;
+	return (0);
+}
+
+/* ARGSUSED */
+void
+zfs_onexit_fd_rele(int fd)
+{
+}
+
+/* ARGSUSED */
+int
+zfs_onexit_add_cb(minor_t minor, void (*func)(void *), void *data,
+    uint64_t *action_handle)
+{
+	return (0);
+}
+
+/* ARGSUSED */
+int
+zfs_onexit_del_cb(minor_t minor, uint64_t action_handle, boolean_t fire)
+{
+	return (0);
+}
+
+/* ARGSUSED */
+int
+zfs_onexit_cb_data(minor_t minor, uint64_t action_handle, void **data)
+{
+	return (0);
+}
+
+#ifdef __FreeBSD__
+/* ARGSUSED */
+int
+zvol_create_minors(const char *name)
+{
+	return (0);
+}
+#endif

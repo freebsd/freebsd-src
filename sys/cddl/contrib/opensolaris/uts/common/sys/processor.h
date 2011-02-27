@@ -32,8 +32,6 @@
 #ifndef _SYS_PROCESSOR_H
 #define	_SYS_PROCESSOR_H
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <sys/types.h>
 #include <sys/procset.h>
 
@@ -140,6 +138,7 @@ extern lgrpid_t gethomelgroup();
  * Internal interface prototypes
  */
 extern int	p_online_internal(processorid_t, int, int *);
+extern int	p_online_internal_locked(processorid_t, int, int *);
 
 #endif /* !_KERNEL */
 
