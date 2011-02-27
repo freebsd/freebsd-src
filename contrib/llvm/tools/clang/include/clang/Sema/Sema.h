@@ -267,6 +267,10 @@ public:
   /// same list more than once.
   llvm::OwningPtr<RecordDeclSetTy> PureVirtualClassDiagSet;
 
+  /// ParsingInitForAutoVars - a set of declarations with auto types for which
+  /// we are currently parsing the initializer.
+  llvm::SmallPtrSet<const Decl*, 4> ParsingInitForAutoVars;
+
   /// \brief A mapping from external names to the most recent
   /// locally-scoped external declaration with that name.
   ///
@@ -684,7 +688,8 @@ public:
 
   void PushFunctionScope();
   void PushBlockScope(Scope *BlockScope, BlockDecl *Block);
-  void PopFunctionOrBlockScope();
+  void PopFunctionOrBlockScope(const sema::AnalysisBasedWarnings::Policy *WP =0,
+                               const Decl *D = 0, const BlockExpr *blkExpr = 0);
 
   sema::FunctionScopeInfo *getCurFunction() const {
     return FunctionScopes.back();
@@ -856,9 +861,12 @@ public:
   void ActOnUninitializedDecl(Decl *dcl, bool TypeMayContainAuto);
   void ActOnInitializerError(Decl *Dcl);
   void SetDeclDeleted(Decl *dcl, SourceLocation DelLoc);
+  void FinalizeDeclaration(Decl *D);
   DeclGroupPtrTy FinalizeDeclaratorGroup(Scope *S, const DeclSpec &DS,
                                          Decl **Group,
                                          unsigned NumDecls);
+  DeclGroupPtrTy BuildDeclaratorGroup(Decl **Group, unsigned NumDecls,
+                                      bool TypeMayContainAuto = true);
   void ActOnFinishKNRParamDeclarations(Scope *S, Declarator &D,
                                        SourceLocation LocAfterDecls);
   Decl *ActOnStartOfFunctionDef(Scope *S, Declarator &D);
@@ -1518,7 +1526,8 @@ public:
   void WarnUndefinedMethod(SourceLocation ImpLoc, ObjCMethodDecl *method,
                            bool &IncompleteImpl, unsigned DiagID);
   void WarnConflictingTypedMethods(ObjCMethodDecl *ImpMethod,
-                                   ObjCMethodDecl *IntfMethod);
+                                   ObjCMethodDecl *MethodDecl,
+                                   bool IsProtocolMethodDecl);
 
   bool isPropertyReadonly(ObjCPropertyDecl *PropertyDecl,
                           ObjCInterfaceDecl *IDecl);
@@ -1883,7 +1892,16 @@ public:
   void MarkDeclarationReferenced(SourceLocation Loc, Decl *D);
   void MarkDeclarationsReferencedInType(SourceLocation Loc, QualType T);
   void MarkDeclarationsReferencedInExpr(Expr *E);
-  bool DiagRuntimeBehavior(SourceLocation Loc, const PartialDiagnostic &PD);
+  
+  /// \brief Conditionally issue a diagnostic based on the current
+  /// evaluation context.
+  ///
+  /// \param stmt - If stmt is non-null, delay reporting the diagnostic until
+  ///  the function body is parsed, and then do a basic reachability analysis to
+  ///  determine if the statement is reachable.  If it is unreachable, the
+  ///  diagnostic will not be emitted.
+  bool DiagRuntimeBehavior(SourceLocation Loc, const Stmt *stmt,
+                           const PartialDiagnostic &PD);
 
   // Primary Expressions.
   SourceRange getExprRange(Expr *E) const;
@@ -2573,11 +2591,19 @@ public:
   CXXRecordDecl *getCurrentInstantiationOf(NestedNameSpecifier *NNS);
   bool isUnknownSpecialization(const CXXScopeSpec &SS);
 
-  /// ActOnCXXGlobalScopeSpecifier - Return the object that represents the
-  /// global scope ('::').
-  NestedNameSpecifier *
-  ActOnCXXGlobalScopeSpecifier(Scope *S, SourceLocation CCLoc);
-
+  /// \brief The parser has parsed a global nested-name-specifier '::'.
+  ///
+  /// \param S The scope in which this nested-name-specifier occurs.
+  ///
+  /// \param CCLoc The location of the '::'.
+  ///
+  /// \param SS The nested-name-specifier, which will be updated in-place
+  /// to reflect the parsed nested-name-specifier.
+  ///
+  /// \returns true if an error occurred, false otherwise.
+  bool ActOnCXXGlobalScopeSpecifier(Scope *S, SourceLocation CCLoc,
+                                    CXXScopeSpec &SS);
+  
   bool isAcceptableNestedNameSpecifier(NamedDecl *SD);
   NamedDecl *FindFirstQualifierInScope(Scope *S, NestedNameSpecifier *NNS);
 
@@ -2586,43 +2612,97 @@ public:
                                     IdentifierInfo &II,
                                     ParsedType ObjectType);
 
-  NestedNameSpecifier *BuildCXXNestedNameSpecifier(Scope *S,
-                                                   CXXScopeSpec &SS,
-                                                   SourceLocation IdLoc,
-                                                   SourceLocation CCLoc,
-                                                   IdentifierInfo &II,
-                                                   QualType ObjectType,
-                                                   NamedDecl *ScopeLookupResult,
-                                                   bool EnteringContext,
-                                                   bool ErrorRecoveryLookup);
+  bool BuildCXXNestedNameSpecifier(Scope *S,
+                                   IdentifierInfo &Identifier,
+                                   SourceLocation IdentifierLoc,
+                                   SourceLocation CCLoc,
+                                   QualType ObjectType,
+                                   bool EnteringContext,
+                                   CXXScopeSpec &SS,
+                                   NamedDecl *ScopeLookupResult,
+                                   bool ErrorRecoveryLookup);
 
-  NestedNameSpecifier *ActOnCXXNestedNameSpecifier(Scope *S,
-                                                   CXXScopeSpec &SS,
-                                                   SourceLocation IdLoc,
-                                                   SourceLocation CCLoc,
-                                                   IdentifierInfo &II,
-                                                   ParsedType ObjectType,
-                                                   bool EnteringContext);
+  /// \brief The parser has parsed a nested-name-specifier 'identifier::'.
+  ///
+  /// \param S The scope in which this nested-name-specifier occurs.
+  ///
+  /// \param Identifier The identifier preceding the '::'.
+  ///
+  /// \param IdentifierLoc The location of the identifier.
+  ///
+  /// \param CCLoc The location of the '::'.
+  ///
+  /// \param ObjectType The type of the object, if we're parsing 
+  /// nested-name-specifier in a member access expression.
+  ///
+  /// \param EnteringContext Whether we're entering the context nominated by
+  /// this nested-name-specifier.
+  ///
+  /// \param SS The nested-name-specifier, which is both an input
+  /// parameter (the nested-name-specifier before this type) and an
+  /// output parameter (containing the full nested-name-specifier,
+  /// including this new type).
+  ///
+  /// \returns true if an error occurred, false otherwise.
+  bool ActOnCXXNestedNameSpecifier(Scope *S,
+                                   IdentifierInfo &Identifier,
+                                   SourceLocation IdentifierLoc,
+                                   SourceLocation CCLoc,
+                                   ParsedType ObjectType,
+                                   bool EnteringContext,
+                                   CXXScopeSpec &SS);
 
   bool IsInvalidUnlessNestedName(Scope *S, CXXScopeSpec &SS,
-                                 IdentifierInfo &II,
+                                 IdentifierInfo &Identifier,
+                                 SourceLocation IdentifierLoc,
+                                 SourceLocation ColonLoc,
                                  ParsedType ObjectType,
                                  bool EnteringContext);
 
-  /// ActOnCXXNestedNameSpecifier - Called during parsing of a
-  /// nested-name-specifier that involves a template-id, e.g.,
-  /// "foo::bar<int, float>::", and now we need to build a scope
-  /// specifier. \p SS is empty or the previously parsed nested-name
-  /// part ("foo::"), \p Type is the already-parsed class template
-  /// specialization (or other template-id that names a type), \p
-  /// TypeRange is the source range where the type is located, and \p
-  /// CCLoc is the location of the trailing '::'.
-  CXXScopeTy *ActOnCXXNestedNameSpecifier(Scope *S,
-                                          const CXXScopeSpec &SS,
-                                          ParsedType Type,
-                                          SourceRange TypeRange,
-                                          SourceLocation CCLoc);
+  /// \brief The parser has parsed a nested-name-specifier 'type::'.
+  ///
+  /// \param S The scope in which this nested-name-specifier occurs.
+  ///
+  /// \param Type The type, which will be a template specialization
+  /// type, preceding the '::'.
+  ///
+  /// \param CCLoc The location of the '::'.
+  ///
+  /// \param SS The nested-name-specifier, which is both an input
+  /// parameter (the nested-name-specifier before this type) and an
+  /// output parameter (containing the full nested-name-specifier,
+  /// including this new type).
+  ///
+  /// \returns true if an error occurred, false otherwise.
+  bool ActOnCXXNestedNameSpecifier(Scope *S,
+                                   ParsedType Type,
+                                   SourceLocation CCLoc,
+                                   CXXScopeSpec &SS);
 
+  /// \brief Given a C++ nested-name-specifier, produce an annotation value
+  /// that the parser can use later to reconstruct the given 
+  /// nested-name-specifier.
+  ///
+  /// \param SS A nested-name-specifier.
+  ///
+  /// \returns A pointer containing all of the information in the 
+  /// nested-name-specifier \p SS.
+  void *SaveNestedNameSpecifierAnnotation(CXXScopeSpec &SS);
+  
+  /// \brief Given an annotation pointer for a nested-name-specifier, restore 
+  /// the nested-name-specifier structure.
+  ///
+  /// \param Annotation The annotation pointer, produced by 
+  /// \c SaveNestedNameSpecifierAnnotation().
+  ///
+  /// \param AnnotationRange The source range corresponding to the annotation.
+  ///
+  /// \param SS The nested-name-specifier that will be updated with the contents
+  /// of the annotation pointer.
+  void RestoreNestedNameSpecifierAnnotation(void *Annotation, 
+                                            SourceRange AnnotationRange,
+                                            CXXScopeSpec &SS);
+  
   bool ShouldEnterDeclaratorScope(Scope *S, const CXXScopeSpec &SS);
 
   /// ActOnCXXEnterDeclaratorScope - Called when a C++ scope specifier (global
@@ -4213,6 +4293,11 @@ public:
   SubstNestedNameSpecifier(NestedNameSpecifier *NNS,
                            SourceRange Range,
                            const MultiLevelTemplateArgumentList &TemplateArgs);
+
+  NestedNameSpecifierLoc
+  SubstNestedNameSpecifierLoc(NestedNameSpecifierLoc NNS,
+                           const MultiLevelTemplateArgumentList &TemplateArgs);
+
   DeclarationNameInfo
   SubstDeclarationNameInfo(const DeclarationNameInfo &NameInfo,
                            const MultiLevelTemplateArgumentList &TemplateArgs);
@@ -4772,7 +4857,8 @@ public:
   QualType CheckSubtractionOperands( // C99 6.5.6
     Expr *&lex, Expr *&rex, SourceLocation OpLoc, QualType* CompLHSTy = 0);
   QualType CheckShiftOperands( // C99 6.5.7
-    Expr *&lex, Expr *&rex, SourceLocation OpLoc, bool isCompAssign = false);
+    Expr *&lex, Expr *&rex, SourceLocation OpLoc, unsigned Opc,
+    bool isCompAssign = false);
   QualType CheckCompareOperands( // C99 6.5.8/9
     Expr *&lex, Expr *&rex, SourceLocation OpLoc, unsigned Opc,
                                 bool isRelational);

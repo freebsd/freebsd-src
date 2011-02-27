@@ -48,6 +48,7 @@ void FunctionScopeInfo::Clear() {
   SwitchStack.clear();
   Returns.clear();
   ErrorTrap.reset();
+  PossiblyUnreachableDiags.clear();
 }
 
 BlockScopeInfo::~BlockScopeInfo() { }
@@ -466,6 +467,12 @@ void Sema::ActOnEndOfTranslationUnit() {
     checkUndefinedInternals(*this);
   }
 
+  // Check we've noticed that we're no longer parsing the initializer for every
+  // variable. If we miss cases, then at best we have a performance issue and
+  // at worst a rejects-valid bug.
+  assert(ParsingInitForAutoVars.empty() &&
+         "Didn't unmark var as having its initializer parsed");
+
   TUScope = 0;
 }
 
@@ -625,11 +632,27 @@ void Sema::PushBlockScope(Scope *BlockScope, BlockDecl *Block) {
                                               BlockScope, Block));
 }
 
-void Sema::PopFunctionOrBlockScope() {
-  FunctionScopeInfo *Scope = FunctionScopes.pop_back_val();
+void Sema::PopFunctionOrBlockScope(const AnalysisBasedWarnings::Policy *WP,
+                                   const Decl *D, const BlockExpr *blkExpr) {
+  FunctionScopeInfo *Scope = FunctionScopes.pop_back_val();  
   assert(!FunctionScopes.empty() && "mismatched push/pop!");
-  if (FunctionScopes.back() != Scope)
+  
+  // Issue any analysis-based warnings.
+  if (WP && D)
+    AnalysisWarnings.IssueWarnings(*WP, Scope, D, blkExpr);
+  else {
+    for (llvm::SmallVectorImpl<sema::PossiblyUnreachableDiag>::iterator
+         i = Scope->PossiblyUnreachableDiags.begin(),
+         e = Scope->PossiblyUnreachableDiags.end();
+         i != e; ++i) {
+      const sema::PossiblyUnreachableDiag &D = *i;
+      Diag(D.Loc, D.PD);
+    }
+  }
+
+  if (FunctionScopes.back() != Scope) {
     delete Scope;
+  }
 }
 
 /// \brief Determine whether any errors occurred within this function/method/

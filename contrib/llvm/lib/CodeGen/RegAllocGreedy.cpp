@@ -43,6 +43,8 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Timer.h"
 
+#include <queue>
+
 using namespace llvm;
 
 STATISTIC(NumGlobalSplits, "Number of split global live ranges");
@@ -71,6 +73,8 @@ class RAGreedy : public MachineFunctionPass, public RegAllocBase {
   // state
   std::auto_ptr<Spiller> SpillerInstance;
   std::auto_ptr<SplitAnalysis> SA;
+  std::priority_queue<std::pair<unsigned, unsigned> > Queue;
+  IndexedMap<unsigned, VirtReg2IndexFunctor> Generation;
 
   // splitting state.
 
@@ -91,13 +95,10 @@ public:
 
   /// RAGreedy analysis usage.
   virtual void getAnalysisUsage(AnalysisUsage &AU) const;
-
   virtual void releaseMemory();
-
   virtual Spiller &spiller() { return *SpillerInstance; }
-
-  virtual float getPriority(LiveInterval *LI);
-
+  virtual void enqueue(LiveInterval *LI);
+  virtual LiveInterval *dequeue();
   virtual unsigned selectOrSplit(LiveInterval&,
                                  SmallVectorImpl<LiveInterval*>&);
 
@@ -119,9 +120,12 @@ private:
   SlotIndex getPrevMappedIndex(const MachineInstr*);
   void calcPrevSlots();
   unsigned nextSplitPoint(unsigned);
+  bool canEvictInterference(LiveInterval&, unsigned, unsigned, float&);
 
-  unsigned tryReassignOrEvict(LiveInterval&, AllocationOrder&,
+  unsigned tryReassign(LiveInterval&, AllocationOrder&,
                               SmallVectorImpl<LiveInterval*>&);
+  unsigned tryEvict(LiveInterval&, AllocationOrder&,
+                    SmallVectorImpl<LiveInterval*>&);
   unsigned tryRegionSplit(LiveInterval&, AllocationOrder&,
                           SmallVectorImpl<LiveInterval*>&);
   unsigned tryLocalSplit(LiveInterval&, AllocationOrder&,
@@ -183,25 +187,42 @@ void RAGreedy::getAnalysisUsage(AnalysisUsage &AU) const {
 
 void RAGreedy::releaseMemory() {
   SpillerInstance.reset(0);
+  Generation.clear();
   RegAllocBase::releaseMemory();
 }
 
-float RAGreedy::getPriority(LiveInterval *LI) {
-  float Priority = LI->weight;
+void RAGreedy::enqueue(LiveInterval *LI) {
+  // Prioritize live ranges by size, assigning larger ranges first.
+  // The queue holds (size, reg) pairs.
+  const unsigned Size = LI->getSize();
+  const unsigned Reg = LI->reg;
+  assert(TargetRegisterInfo::isVirtualRegister(Reg) &&
+         "Can only enqueue virtual registers");
+  const unsigned Hint = VRM->getRegAllocPref(Reg);
+  unsigned Prio;
 
-  // Prioritize hinted registers so they are allocated first.
-  std::pair<unsigned, unsigned> Hint;
-  if (Hint.first || Hint.second) {
-    // The hint can be target specific, a virtual register, or a physreg.
-    Priority *= 2;
+  Generation.grow(Reg);
+  if (++Generation[Reg] == 1)
+    // 1st generation ranges are handled first, long -> short.
+    Prio = (1u << 31) + Size;
+  else
+    // Repeat offenders are handled second, short -> long
+    Prio = (1u << 30) - Size;
 
-    // Prefer physreg hints above anything else.
-    if (Hint.first == 0 && TargetRegisterInfo::isPhysicalRegister(Hint.second))
-      Priority *= 2;
-  }
-  return Priority;
+  // Boost ranges that have a physical register hint.
+  if (TargetRegisterInfo::isPhysicalRegister(Hint))
+    Prio |= (1u << 30);
+
+  Queue.push(std::make_pair(Prio, Reg));
 }
 
+LiveInterval *RAGreedy::dequeue() {
+  if (Queue.empty())
+    return 0;
+  LiveInterval *LI = &LIS->getInterval(Queue.top().second);
+  Queue.pop();
+  return LI;
+}
 
 //===----------------------------------------------------------------------===//
 //                         Register Reassignment
@@ -230,8 +251,7 @@ LiveInterval *RAGreedy::getSingleInterference(LiveInterval &VirtReg,
     if (Q.checkInterference()) {
       if (Interference)
         return 0;
-      Q.collectInterferingVRegs(1);
-      if (!Q.seenAllInterferences())
+      if (Q.collectInterferingVRegs(2) > 1)
         return 0;
       Interference = Q.interferingVRegs().front();
     }
@@ -276,20 +296,13 @@ bool RAGreedy::reassignVReg(LiveInterval &InterferingVReg,
   return false;
 }
 
-/// tryReassignOrEvict - Try to reassign a single interferences to a different
-/// physreg, or evict a single interference with a lower spill weight.
+/// tryReassign - Try to reassign a single interference to a different physreg.
 /// @param  VirtReg Currently unassigned virtual register.
 /// @param  Order   Physregs to try.
 /// @return         Physreg to assign VirtReg, or 0.
-unsigned RAGreedy::tryReassignOrEvict(LiveInterval &VirtReg,
-                                      AllocationOrder &Order,
-                                      SmallVectorImpl<LiveInterval*> &NewVRegs){
+unsigned RAGreedy::tryReassign(LiveInterval &VirtReg, AllocationOrder &Order,
+                               SmallVectorImpl<LiveInterval*> &NewVRegs){
   NamedRegionTimer T("Reassign", TimerGroupName, TimePassesIsEnabled);
-
-  // Keep track of the lightest single interference seen so far.
-  float BestWeight = VirtReg.weight;
-  LiveInterval *BestVirt = 0;
-  unsigned BestPhys = 0;
 
   Order.rewind();
   while (unsigned PhysReg = Order.next()) {
@@ -300,25 +313,92 @@ unsigned RAGreedy::tryReassignOrEvict(LiveInterval &VirtReg,
       continue;
     if (reassignVReg(*InterferingVReg, PhysReg))
       return PhysReg;
+  }
+  return 0;
+}
 
-    // Cannot reassign, is this an eviction candidate?
-    if (InterferingVReg->weight < BestWeight) {
-      BestVirt = InterferingVReg;
-      BestPhys = PhysReg;
-      BestWeight = InterferingVReg->weight;
+
+//===----------------------------------------------------------------------===//
+//                         Interference eviction
+//===----------------------------------------------------------------------===//
+
+/// canEvict - Return true if all interferences between VirtReg and PhysReg can
+/// be evicted. Set maxWeight to the maximal spill weight of an interference.
+bool RAGreedy::canEvictInterference(LiveInterval &VirtReg, unsigned PhysReg,
+                                    unsigned Size, float &MaxWeight) {
+  float Weight = 0;
+  for (const unsigned *AliasI = TRI->getOverlaps(PhysReg); *AliasI; ++AliasI) {
+    LiveIntervalUnion::Query &Q = query(VirtReg, *AliasI);
+    // If there is 10 or more interferences, chances are one is smaller.
+    if (Q.collectInterferingVRegs(10) >= 10)
+      return false;
+
+    // CHeck if any interfering live range is shorter than VirtReg.
+    for (unsigned i = 0, e = Q.interferingVRegs().size(); i != e; ++i) {
+      LiveInterval *Intf = Q.interferingVRegs()[i];
+      if (TargetRegisterInfo::isPhysicalRegister(Intf->reg))
+        return false;
+      if (Intf->getSize() <= Size)
+        return false;
+      Weight = std::max(Weight, Intf->weight);
     }
   }
+  MaxWeight = Weight;
+  return true;
+}
 
-  // Nothing reassigned, can we evict a lighter single interference?
-  if (BestVirt) {
-    DEBUG(dbgs() << "evicting lighter " << *BestVirt << '\n');
-    unassign(*BestVirt, VRM->getPhys(BestVirt->reg));
-    ++NumEvicted;
-    NewVRegs.push_back(BestVirt);
-    return BestPhys;
+/// tryEvict - Try to evict all interferences for a physreg.
+/// @param  VirtReg Currently unassigned virtual register.
+/// @param  Order   Physregs to try.
+/// @return         Physreg to assign VirtReg, or 0.
+unsigned RAGreedy::tryEvict(LiveInterval &VirtReg,
+                            AllocationOrder &Order,
+                            SmallVectorImpl<LiveInterval*> &NewVRegs){
+  NamedRegionTimer T("Evict", TimerGroupName, TimePassesIsEnabled);
+
+  // We can only evict interference if all interfering registers are virtual and
+  // longer than VirtReg.
+  const unsigned Size = VirtReg.getSize();
+
+  // Keep track of the lightest single interference seen so far.
+  float BestWeight = 0;
+  unsigned BestPhys = 0;
+
+  Order.rewind();
+  while (unsigned PhysReg = Order.next()) {
+    float Weight = 0;
+    if (!canEvictInterference(VirtReg, PhysReg, Size, Weight))
+      continue;
+
+    // This is an eviction candidate.
+    DEBUG(dbgs() << "max " << PrintReg(PhysReg, TRI) << " interference = "
+                 << Weight << '\n');
+    if (BestPhys && Weight >= BestWeight)
+      continue;
+
+    // Best so far.
+    BestPhys = PhysReg;
+    BestWeight = Weight;
+    // Stop if the hint can be used.
+    if (Order.isHint(PhysReg))
+      break;
   }
 
-  return 0;
+  if (!BestPhys)
+    return 0;
+
+  DEBUG(dbgs() << "evicting " << PrintReg(BestPhys, TRI) << " interference\n");
+  for (const unsigned *AliasI = TRI->getOverlaps(BestPhys); *AliasI; ++AliasI) {
+    LiveIntervalUnion::Query &Q = query(VirtReg, *AliasI);
+    assert(Q.seenAllInterferences() && "Didn't check all interfererences.");
+    for (unsigned i = 0, e = Q.interferingVRegs().size(); i != e; ++i) {
+      LiveInterval *Intf = Q.interferingVRegs()[i];
+      unassign(*Intf, VRM->getPhys(Intf->reg));
+      ++NumEvicted;
+      NewVRegs.push_back(Intf);
+    }
+  }
+  return BestPhys;
 }
 
 
@@ -426,8 +506,13 @@ float RAGreedy::calcInterferenceInfo(LiveInterval &VirtReg, unsigned PhysReg) {
         if (!IntI.valid())
           break;
         // Not live in, but before the first use.
-        if (IntI.start() < BI.FirstUse)
+        if (IntI.start() < BI.FirstUse) {
           BC.Entry = SpillPlacement::PrefSpill;
+          // If the block contains a kill from an earlier split, never split
+          // again in the same block.
+          if (!BI.LiveThrough && !SA->isOriginalEndpoint(BI.Kill))
+            BC.Entry = SpillPlacement::MustSpill;
+        }
       }
 
       // Does interference overlap the uses in the entry segment
@@ -458,8 +543,12 @@ float RAGreedy::calcInterferenceInfo(LiveInterval &VirtReg, unsigned PhysReg) {
           IntI.advanceTo(BI.LastUse);
           if (!IntI.valid())
             break;
-          if (IntI.start() < Stop)
+          if (IntI.start() < Stop) {
             BC.Exit = SpillPlacement::PrefSpill;
+            // Avoid splitting twice in the same block.
+            if (!BI.LiveThrough && !SA->isOriginalEndpoint(BI.Def))
+              BC.Exit = SpillPlacement::MustSpill;
+          }
         }
       }
     }
@@ -1221,11 +1310,21 @@ unsigned RAGreedy::selectOrSplit(LiveInterval &VirtReg,
       return PhysReg;
   }
 
-  // Try to reassign interferences.
-  if (unsigned PhysReg = tryReassignOrEvict(VirtReg, Order, NewVRegs))
+  if (unsigned PhysReg = tryReassign(VirtReg, Order, NewVRegs))
+    return PhysReg;
+
+  if (unsigned PhysReg = tryEvict(VirtReg, Order, NewVRegs))
     return PhysReg;
 
   assert(NewVRegs.empty() && "Cannot append to existing NewVRegs");
+
+  // The first time we see a live range, don't try to split or spill.
+  // Wait until the second time, when all smaller ranges have been allocated.
+  // This gives a better picture of the interference to split around.
+  if (Generation[VirtReg.reg] == 1) {
+    NewVRegs.push_back(&VirtReg);
+    return 0;
+  }
 
   // Try splitting VirtReg or interferences.
   unsigned PhysReg = trySplit(VirtReg, Order, NewVRegs);

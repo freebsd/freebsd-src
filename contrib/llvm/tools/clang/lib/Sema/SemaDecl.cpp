@@ -2895,8 +2895,7 @@ isOutOfScopePreviousDeclaration(NamedDecl *PrevDecl, DeclContext *DC,
 static void SetNestedNameSpecifier(DeclaratorDecl *DD, Declarator &D) {
   CXXScopeSpec &SS = D.getCXXScopeSpec();
   if (!SS.isSet()) return;
-  DD->setQualifierInfo(static_cast<NestedNameSpecifier*>(SS.getScopeRep()),
-                       SS.getRange());
+  DD->setQualifierInfo(SS.getWithLocInContext(DD->getASTContext()));
 }
 
 NamedDecl*
@@ -3026,11 +3025,11 @@ Sema::ActOnVariableDeclarator(Scope *S, Declarator &D, DeclContext *DC,
     NewVD = VarDecl::Create(Context, DC, D.getIdentifierLoc(),
                             II, R, TInfo, SC, SCAsWritten);
 
-    // If this decl has an auto type in need of deduction, mark the VarDecl so
-    // we can diagnose uses of it in its own initializer.
-    if (D.getDeclSpec().getTypeSpecType() == DeclSpec::TST_auto) {
-      NewVD->setParsingAutoInit(R->getContainedAutoType());
-    }
+    // If this decl has an auto type in need of deduction, make a note of the
+    // Decl so we can diagnose uses of it in its own initializer.
+    if (D.getDeclSpec().getTypeSpecType() == DeclSpec::TST_auto &&
+        R->getContainedAutoType())
+      ParsingInitForAutoVars.insert(NewVD);
 
     if (D.isInvalidType() || Invalid)
       NewVD->setInvalidDecl();
@@ -4534,8 +4533,6 @@ void Sema::AddInitializerToDecl(Decl *RealDecl, Expr *Init,
 
   // C++0x [decl.spec.auto]p6. Deduce the type which 'auto' stands in for.
   if (TypeMayContainAuto && VDecl->getType()->getContainedAutoType()) {
-    VDecl->setParsingAutoInit(false);
-
     QualType DeducedType;
     if (!DeduceAutoType(VDecl->getType(), Init, DeducedType)) {
       Diag(VDecl->getLocation(), diag::err_auto_var_deduction_failure)
@@ -4800,9 +4797,8 @@ void Sema::ActOnInitializerError(Decl *D) {
   if (!VD) return;
 
   // Auto types are meaningless if we can't make sense of the initializer.
-  if (VD->isParsingAutoInit()) {
-    VD->setParsingAutoInit(false);
-    VD->setInvalidDecl();
+  if (ParsingInitForAutoVars.count(D)) {
+    D->setInvalidDecl();
     return;
   }
 
@@ -4840,8 +4836,6 @@ void Sema::ActOnUninitializedDecl(Decl *RealDecl,
 
     // C++0x [dcl.spec.auto]p3
     if (TypeMayContainAuto && Type->getContainedAutoType()) {
-      Var->setParsingAutoInit(false);
-
       Diag(Var->getLocation(), diag::err_auto_var_requires_init)
         << Var->getDeclName() << Type;
       Var->setInvalidDecl();
@@ -5044,6 +5038,14 @@ void Sema::CheckCompleteVariableDeclaration(VarDecl *var) {
     FinalizeVarWithDestructor(var, recordType);
 }
 
+/// FinalizeDeclaration - called by ParseDeclarationAfterDeclarator to perform
+/// any semantic actions necessary after any initializer has been attached.
+void
+Sema::FinalizeDeclaration(Decl *ThisDecl) {
+  // Note that we are no longer parsing the initializer for this declaration.
+  ParsingInitForAutoVars.erase(ThisDecl);
+}
+
 Sema::DeclGroupPtrTy
 Sema::FinalizeDeclaratorGroup(Scope *S, const DeclSpec &DS,
                               Decl **Group, unsigned NumDecls) {
@@ -5052,6 +5054,19 @@ Sema::FinalizeDeclaratorGroup(Scope *S, const DeclSpec &DS,
   if (DS.isTypeSpecOwned())
     Decls.push_back(DS.getRepAsDecl());
 
+  for (unsigned i = 0; i != NumDecls; ++i)
+    if (Decl *D = Group[i])
+      Decls.push_back(D);
+
+  return BuildDeclaratorGroup(Decls.data(), Decls.size(), 
+                              DS.getTypeSpecType() == DeclSpec::TST_auto);
+}
+
+/// BuildDeclaratorGroup - convert a list of declarations into a declaration
+/// group, performing any necessary semantic checking.
+Sema::DeclGroupPtrTy
+Sema::BuildDeclaratorGroup(Decl **Group, unsigned NumDecls,
+                           bool TypeMayContainAuto) {
   // C++0x [dcl.spec.auto]p7:
   //   If the type deduced for the template parameter U is not the same in each
   //   deduction, the program is ill-formed.
@@ -5059,14 +5074,16 @@ Sema::FinalizeDeclaratorGroup(Scope *S, const DeclSpec &DS,
   // between the deduced type U and the deduced type which 'auto' stands for.
   //   auto a = 0, b = { 1, 2, 3 };
   // is legal because the deduced type U is 'int' in both cases.
-  bool TypeContainsAuto = DS.getTypeSpecType() == DeclSpec::TST_auto;
-  if (TypeContainsAuto && NumDecls > 1) {
+  if (TypeMayContainAuto && NumDecls > 1) {
     QualType Deduced;
     CanQualType DeducedCanon;
     VarDecl *DeducedDecl = 0;
     for (unsigned i = 0; i != NumDecls; ++i) {
       if (VarDecl *D = dyn_cast<VarDecl>(Group[i])) {
         AutoType *AT = D->getType()->getContainedAutoType();
+        // Don't reissue diagnostics when instantiating a template.
+        if (AT && D->isInvalidDecl())
+          break;
         if (AT && AT->isDeduced()) {
           QualType U = AT->getDeducedType();
           CanQualType UCanon = Context.getCanonicalType(U);
@@ -5075,11 +5092,13 @@ Sema::FinalizeDeclaratorGroup(Scope *S, const DeclSpec &DS,
             DeducedCanon = UCanon;
             DeducedDecl = D;
           } else if (DeducedCanon != UCanon) {
-            Diag(DS.getTypeSpecTypeLoc(), diag::err_auto_different_deductions)
+            Diag(D->getTypeSourceInfo()->getTypeLoc().getBeginLoc(),
+                 diag::err_auto_different_deductions)
               << Deduced << DeducedDecl->getDeclName()
               << U << D->getDeclName()
               << DeducedDecl->getInit()->getSourceRange()
               << D->getInit()->getSourceRange();
+            D->setInvalidDecl();
             break;
           }
         }
@@ -5087,12 +5106,7 @@ Sema::FinalizeDeclaratorGroup(Scope *S, const DeclSpec &DS,
     }
   }
 
-  for (unsigned i = 0; i != NumDecls; ++i)
-    if (Decl *D = Group[i])
-      Decls.push_back(D);
-
-  return DeclGroupPtrTy::make(DeclGroupRef::Create(Context,
-                                                   Decls.data(), Decls.size()));
+  return DeclGroupPtrTy::make(DeclGroupRef::Create(Context, Group, NumDecls));
 }
 
 
@@ -5537,6 +5551,7 @@ Decl *Sema::ActOnFinishFunctionBody(Decl *dcl, Stmt *Body,
     FD = dyn_cast_or_null<FunctionDecl>(dcl);
 
   sema::AnalysisBasedWarnings::Policy WP = AnalysisWarnings.getDefaultPolicy();
+  sema::AnalysisBasedWarnings::Policy *ActivePolicy = 0;
 
   if (FD) {
     FD->setBody(Body);
@@ -5605,13 +5620,7 @@ Decl *Sema::ActOnFinishFunctionBody(Decl *dcl, Stmt *Body,
     else if (!isa<FunctionTemplateDecl>(dcl)) {
       // Since the body is valid, issue any analysis-based warnings that are
       // enabled.
-      QualType ResultType;
-      if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(dcl)) {
-        AnalysisWarnings.IssueWarnings(WP, FD);
-      } else {
-        ObjCMethodDecl *MD = cast<ObjCMethodDecl>(dcl);
-        AnalysisWarnings.IssueWarnings(WP, MD);
-      }
+      ActivePolicy = &WP;
     }
 
     assert(ExprTemporaries.empty() && "Leftover temporaries in function");
@@ -5620,7 +5629,7 @@ Decl *Sema::ActOnFinishFunctionBody(Decl *dcl, Stmt *Body,
   if (!IsInstantiation)
     PopDeclContext();
 
-  PopFunctionOrBlockScope();
+  PopFunctionOrBlockScope(ActivePolicy, dcl);
   
   // If any errors have occurred, clear out any temporaries that may have
   // been leftover. This ensures that these temporaries won't be picked up for
@@ -6435,9 +6444,7 @@ CreateNewDecl:
   // Maybe add qualifier info.
   if (SS.isNotEmpty()) {
     if (SS.isSet()) {
-      NestedNameSpecifier *NNS
-        = static_cast<NestedNameSpecifier*>(SS.getScopeRep());
-      New->setQualifierInfo(NNS, SS.getRange());
+      New->setQualifierInfo(SS.getWithLocInContext(Context));
       if (NumMatchedTemplateParamLists > 0) {
         New->setTemplateParameterListsInfo(Context,
                                            NumMatchedTemplateParamLists,

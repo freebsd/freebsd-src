@@ -92,12 +92,13 @@ void ExprEngine::CheckerVisit(const Stmt *S, ExplodedNodeSet &Dst,
   }
   
   if (CO->empty()) {
-    // If there are no checkers, return early without doing any
-    // more work.
-    Dst.insert(Src);
+    // If there are no checkers, just delegate to the checker manager.
+    getCheckerManager().runCheckersForStmt(Kind == PreVisitStmtCallback,
+                                           Dst, Src, S, *this);
     return;
   }
 
+  ExplodedNodeSet CheckersV1Dst;
   ExplodedNodeSet Tmp;
   ExplodedNodeSet *PrevSet = &Src;
   unsigned checkersEvaluated = 0;
@@ -108,7 +109,7 @@ void ExprEngine::CheckerVisit(const Stmt *S, ExplodedNodeSet &Dst,
       break;
     ExplodedNodeSet *CurrSet = 0;
     if (I+1 == E)
-      CurrSet = &Dst;
+      CurrSet = &CheckersV1Dst;
     else {
       CurrSet = (PrevSet == &Tmp) ? &Src : &Tmp;
       CurrSet->clear();
@@ -144,6 +145,9 @@ void ExprEngine::CheckerVisit(const Stmt *S, ExplodedNodeSet &Dst,
 
   // Don't autotransition.  The CheckerContext objects should do this
   // automatically.
+
+  getCheckerManager().runCheckersForStmt(Kind == PreVisitStmtCallback,
+                                         Dst, CheckersV1Dst, S, *this);
 }
 
 void ExprEngine::CheckerVisitObjCMessage(const ObjCMessage &msg,
@@ -152,10 +156,12 @@ void ExprEngine::CheckerVisitObjCMessage(const ObjCMessage &msg,
                                          bool isPrevisit) {
 
   if (Checkers.empty()) {
-    Dst.insert(Src);
+    getCheckerManager().runCheckersForObjCMessage(isPrevisit, Dst, Src, msg,
+                                                  *this);
     return;
   }
 
+  ExplodedNodeSet CheckersV1Dst;
   ExplodedNodeSet Tmp;
   ExplodedNodeSet *PrevSet = &Src;
 
@@ -163,7 +169,7 @@ void ExprEngine::CheckerVisitObjCMessage(const ObjCMessage &msg,
   {
     ExplodedNodeSet *CurrSet = 0;
     if (I+1 == E)
-      CurrSet = &Dst;
+      CurrSet = &CheckersV1Dst;
     else {
       CurrSet = (PrevSet == &Tmp) ? &Src : &Tmp;
       CurrSet->clear();
@@ -181,8 +187,8 @@ void ExprEngine::CheckerVisitObjCMessage(const ObjCMessage &msg,
     PrevSet = CurrSet;
   }
 
-  // Don't autotransition.  The CheckerContext objects should do this
-  // automatically.
+  getCheckerManager().runCheckersForObjCMessage(isPrevisit, Dst, CheckersV1Dst,
+                                                msg, *this);
 }
 
 void ExprEngine::CheckerEvalNilReceiver(const ObjCMessage &msg,
@@ -232,11 +238,25 @@ bool ExprEngine::CheckerEvalCall(const CallExpr *CE,
       DstTmp.clear();
   }
 
-  if (evaluated)
+  if (evaluated) {
     Dst.insert(DstTmp);
-  else
-    Dst.insert(Pred);
+    return evaluated;
+  }
 
+  class DefaultEval : public GraphExpander {
+    bool &Evaluated;
+  public:
+    DefaultEval(bool &evaluated) : Evaluated(evaluated) { }
+    virtual void expandGraph(ExplodedNodeSet &Dst, ExplodedNode *Pred) {
+      Evaluated = false;
+      Dst.insert(Pred);
+    }
+  };
+
+  evaluated = true;
+  DefaultEval defaultEval(evaluated);
+  getCheckerManager().runCheckersForEvalCall(Dst, Pred, CE, *this,
+                                             &defaultEval);
   return evaluated;
 }
 
@@ -335,8 +355,6 @@ ExprEngine::ExprEngine(AnalysisManager &mgr, TransferFuncs *tf)
   // FIXME: Eventually remove the TF object entirely.
   TF->RegisterChecks(*this);
   TF->RegisterPrinters(getStateManager().Printers);
-
-  mgr.getCheckerManager()->registerCheckersToEngine(*this);
   
   if (mgr.shouldEagerlyTrimExplodedGraph()) {
     // Enable eager node reclaimation when constructing the ExplodedGraph.  
@@ -495,7 +513,7 @@ bool ExprEngine::wantsRegionChangeUpdate(const GRState* state) {
       return true;
   }
 
-  return false;
+  return getCheckerManager().wantsRegionChangeUpdate(state);
 }
 
 const GRState *
@@ -523,9 +541,9 @@ ExprEngine::processRegionChanges(const GRState *state,
     CO = CO_Ref;
   }
 
-  // If there are no checkers, just return the state as is.
+  // If there are no checkers, just delegate to the checker manager.
   if (CO->empty())
-    return state;
+    return getCheckerManager().runCheckersForRegionChanges(state, Begin, End);
 
   for (CheckersOrdered::iterator I = CO->begin(), E = CO->end(); I != E; ++I) {
     // If any checker declares the state infeasible (or if it starts that way),
@@ -548,7 +566,7 @@ ExprEngine::processRegionChanges(const GRState *state,
   if (NewCO.get())
     CO_Ref = NewCO.take();
 
-  return state;
+  return getCheckerManager().runCheckersForRegionChanges(state, Begin, End);
 }
 
 void ExprEngine::processEndWorklist(bool hasWorkRemaining) {
@@ -556,6 +574,7 @@ void ExprEngine::processEndWorklist(bool hasWorkRemaining) {
        I != E; ++I) {
     I->second->VisitEndAnalysis(G, BR, *this);
   }
+  getCheckerManager().runCheckersForEndAnalysis(G, BR, *this);
 }
 
 void ExprEngine::processCFGElement(const CFGElement E, 
@@ -603,6 +622,8 @@ void ExprEngine::ProcessStmt(const CFGStmt S, StmtNodeBuilder& builder) {
       checker->MarkLiveSymbols(St, SymReaper);
     }
 
+    getCheckerManager().runCheckersForLiveSymbols(St, SymReaper);
+
     const StackFrameContext *SFC = LC->getCurrentStackFrame();
     CleanedState = StateMgr.removeDeadBindings(St, SFC, SymReaper);
   } else {
@@ -626,8 +647,9 @@ void ExprEngine::ProcessStmt(const CFGStmt S, StmtNodeBuilder& builder) {
     getTF().evalDeadSymbols(Tmp2, *this, *Builder, EntryNode,
                             CleanedState, SymReaper);
 
+    ExplodedNodeSet checkersV1Tmp;
     if (Checkers.empty())
-      Tmp.insert(Tmp2);
+      checkersV1Tmp.insert(Tmp2);
     else {
       ExplodedNodeSet Tmp3;
       ExplodedNodeSet *SrcSet = &Tmp2;
@@ -635,7 +657,7 @@ void ExprEngine::ProcessStmt(const CFGStmt S, StmtNodeBuilder& builder) {
            I != E; ++I) {
         ExplodedNodeSet *DstSet = 0;
         if (I+1 == E)
-          DstSet = &Tmp;
+          DstSet = &checkersV1Tmp;
         else {
           DstSet = (SrcSet == &Tmp2) ? &Tmp3 : &Tmp2;
           DstSet->clear();
@@ -650,6 +672,9 @@ void ExprEngine::ProcessStmt(const CFGStmt S, StmtNodeBuilder& builder) {
         SrcSet = DstSet;
       }
     }
+
+    getCheckerManager().runCheckersForDeadSymbols(Tmp, checkersV1Tmp,
+                                                 SymReaper, currentStmt, *this);
 
     if (!Builder->BuildSinks && !Builder->hasGeneratedNode)
       Tmp.Add(EntryNode);
@@ -1419,8 +1444,10 @@ void ExprEngine::processEndOfFunction(EndOfFunctionNodeBuilder& builder) {
   for (CheckersOrdered::iterator I=Checkers.begin(),E=Checkers.end(); I!=E;++I){
     void *tag = I->first;
     Checker *checker = I->second;
-    checker->evalEndPath(builder, tag, *this);
+    EndOfFunctionNodeBuilder B = builder.withCheckerTag(tag);
+    checker->evalEndPath(B, tag, *this);
   }
+  getCheckerManager().runCheckersForEndPath(builder, *this);
 }
 
 /// ProcessSwitch - Called by CoreEngine.  Used to generate successor
@@ -1923,20 +1950,35 @@ void ExprEngine::evalLocation(ExplodedNodeSet &Dst, const Stmt *S,
                                 const GRState* state, SVal location,
                                 const void *tag, bool isLoad) {
   // Early checks for performance reason.
-  if (location.isUnknown() || Checkers.empty()) {
+  if (location.isUnknown()) {
     Dst.Add(Pred);
     return;
   }
 
-  ExplodedNodeSet Src, Tmp;
+  if (Checkers.empty()) {
+    ExplodedNodeSet Src;
+    if (Builder->GetState(Pred) == state) {
+      Src.Add(Pred);
+    } else {
+      // Associate this new state with an ExplodedNode.
+      Src.Add(Builder->generateNode(S, state, Pred));
+    }
+    getCheckerManager().runCheckersForLocation(Dst, Src, location, isLoad, S,
+                                               *this);
+    return;
+  }
+
+  ExplodedNodeSet Src;
   Src.Add(Pred);
+  ExplodedNodeSet CheckersV1Dst;
+  ExplodedNodeSet Tmp;
   ExplodedNodeSet *PrevSet = &Src;
 
   for (CheckersOrdered::iterator I=Checkers.begin(),E=Checkers.end(); I!=E; ++I)
   {
     ExplodedNodeSet *CurrSet = 0;
     if (I+1 == E)
-      CurrSet = &Dst;
+      CurrSet = &CheckersV1Dst;
     else {
       CurrSet = (PrevSet == &Tmp) ? &Src : &Tmp;
       CurrSet->clear();
@@ -1957,6 +1999,9 @@ void ExprEngine::evalLocation(ExplodedNodeSet &Dst, const Stmt *S,
     // Update which NodeSet is the current one.
     PrevSet = CurrSet;
   }
+
+  getCheckerManager().runCheckersForLocation(Dst, CheckersV1Dst, location,
+                                             isLoad, S, *this);
 }
 
 bool ExprEngine::InlineCall(ExplodedNodeSet &Dst, const CallExpr *CE, 
@@ -3613,14 +3658,12 @@ void ExprEngine::ViewGraph(bool trim) {
       const_cast<BugType*>(*I)->FlushReports(BR);
 
     // Iterate through the reports and get their nodes.
-    for (BugReporter::iterator I=BR.begin(), E=BR.end(); I!=E; ++I) {
-      for (BugType::const_iterator I2=(*I)->begin(), E2=(*I)->end();
-           I2!=E2; ++I2) {
-        const BugReportEquivClass& EQ = *I2;
-        const BugReport &R = **EQ.begin();
-        ExplodedNode *N = const_cast<ExplodedNode*>(R.getErrorNode());
-        if (N) Src.push_back(N);
-      }
+    for (BugReporter::EQClasses_iterator
+           EI = BR.EQClasses_begin(), EE = BR.EQClasses_end(); EI != EE; ++EI) {
+      BugReportEquivClass& EQ = *EI;
+      const BugReport &R = **EQ.begin();
+      ExplodedNode *N = const_cast<ExplodedNode*>(R.getErrorNode());
+      if (N) Src.push_back(N);
     }
 
     ViewGraph(&Src[0], &Src[0]+Src.size());

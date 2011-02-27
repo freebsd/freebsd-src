@@ -175,7 +175,8 @@ public:
 
   virtual void Initialize(ASTContext &Context) {
     Ctx = &Context;
-    checkerMgr.reset(registerCheckers(Opts, PP.getDiagnostics()));
+    checkerMgr.reset(registerCheckers(Opts, PP.getLangOptions(),
+                                      PP.getDiagnostics()));
     Mgr.reset(new AnalysisManager(*Ctx, PP.getDiagnostics(),
                                   PP.getLangOptions(), PD,
                                   CreateStoreMgr, CreateConstraintMgr,
@@ -338,9 +339,6 @@ static void ActionExprEngine(AnalysisConsumer &C, AnalysisManager& mgr,
   if (!mgr.getLiveVariables(D))
     return;
   ExprEngine Eng(mgr, TF.take());
-
-  if (C.Opts.EnableExperimentalInternalChecks)
-    RegisterExperimentalInternalChecks(Eng);
 
   RegisterNSErrorChecks(Eng.getBugReporter(), Eng, *D);
 

@@ -64,6 +64,7 @@ public:
   std::string AnalyzeSpecificFunction;
   unsigned MaxNodes;
   unsigned MaxLoop;
+  unsigned ShowCheckerHelp : 1;
   unsigned AnalyzeAll : 1;
   unsigned AnalyzerDisplayProgress : 1;
   unsigned AnalyzeNestedBlocks : 1;
@@ -75,7 +76,6 @@ public:
   unsigned VisualizeEGDot : 1;
   unsigned VisualizeEGUbi : 1;
   unsigned EnableExperimentalChecks : 1;
-  unsigned EnableExperimentalInternalChecks : 1;
   unsigned InlineCall : 1;
   unsigned UnoptimizedCFG : 1;
   unsigned CFGAddImplicitDtors : 1;
@@ -87,6 +87,7 @@ public:
     AnalysisStoreOpt = BasicStoreModel;
     AnalysisConstraintsOpt = RangeConstraintsModel;
     AnalysisDiagOpt = PD_HTML;
+    ShowCheckerHelp = 0;
     AnalyzeAll = 0;
     AnalyzerDisplayProgress = 0;
     AnalyzeNestedBlocks = 0;
@@ -98,7 +99,6 @@ public:
     VisualizeEGDot = 0;
     VisualizeEGUbi = 0;
     EnableExperimentalChecks = 0;
-    EnableExperimentalInternalChecks = 0;
     InlineCall = 0;
     UnoptimizedCFG = 0;
     CFGAddImplicitDtors = 0;

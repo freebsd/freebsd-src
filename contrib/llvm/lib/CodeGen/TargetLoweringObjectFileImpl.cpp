@@ -178,6 +178,10 @@ const MCSection *TargetLoweringObjectFileELF::getEHFrameSection() const {
 
 static SectionKind
 getELFKindForNamedSection(StringRef Name, SectionKind K) {
+  // FIXME: Why is this here? Codegen is should not be in the business
+  // of figuring section flags. If the user wrote section(".eh_frame"),
+  // we should just pass that to MC which will defer to the assembly
+  // or use its default if producing an object file.
   if (Name.empty() || Name[0] != '.') return K;
 
   // Some lame default implementation based on some magic section names.
@@ -202,6 +206,9 @@ getELFKindForNamedSection(StringRef Name, SectionKind K) {
       Name.startswith(".gnu.linkonce.tb.") ||
       Name.startswith(".llvm.linkonce.tb."))
     return SectionKind::getThreadBSS();
+
+  if (Name == ".eh_frame")
+    return SectionKind::getDataRel();
 
   return K;
 }
@@ -441,11 +448,15 @@ void TargetLoweringObjectFileMachO::Initialize(MCContext &Ctx,
 
   Triple T(((LLVMTargetMachine&)TM).getTargetTriple());
   if (T.getOS() == Triple::Darwin) {
-    unsigned MajNum = T.getDarwinMajorNumber();
-    if (MajNum == 7 || MajNum == 8) // 10.3 Panther, 10.4 Tiger
+    switch (T.getDarwinMajorNumber()) {
+    case 7:  // 10.3 Panther.
+    case 8:  // 10.4 Tiger.
       CommDirectiveSupportsAlignment = false;
-    if (MajNum > 9)                 // 10.6 SnowLeopard
-      IsFunctionEHSymbolGlobal = false;
+      break;
+    case 9:   // 10.5 Leopard.
+    case 10:  // 10.6 SnowLeopard.
+      break;
+    }
   }
 
   TargetLoweringObjectFile::Initialize(Ctx, TM);
@@ -630,7 +641,7 @@ getExplicitSectionGlobal(const GlobalValue *GV, SectionKind Kind,
                          Mangler *Mang, const TargetMachine &TM) const {
   // Parse the section specifier and create it if valid.
   StringRef Segment, Section;
-  unsigned TAA, StubSize;
+  unsigned TAA = (unsigned)MCSectionMachO::SECTION_ATTRIBUTES, StubSize = 0;
   std::string ErrorCode =
     MCSectionMachO::ParseSectionSpecifier(GV->getSection(), Segment, Section,
                                           TAA, StubSize);
@@ -643,9 +654,18 @@ getExplicitSectionGlobal(const GlobalValue *GV, SectionKind Kind,
     return DataSection;
   }
 
+  bool TAAWasSet = (TAA != MCSectionMachO::SECTION_ATTRIBUTES);
+  if (!TAAWasSet)
+    TAA = 0;      // Sensible default if this is a new section.
+    
   // Get the section.
   const MCSectionMachO *S =
     getContext().getMachOSection(Segment, Section, TAA, StubSize, Kind);
+
+  // If TAA wasn't set by ParseSectionSpecifier() above,
+  // use the value returned by getMachOSection() as a default.
+  if (!TAAWasSet)
+    TAA = S->getTypeAndAttributes();
 
   // Okay, now that we got the section, verify that the TAA & StubSize agree.
   // If the user declared multiple globals with different section flags, we need

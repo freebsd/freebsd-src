@@ -31,6 +31,7 @@
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Analysis/DebugInfo.h"
+#include "llvm/Analysis/DIBuilder.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringExtras.h"
@@ -644,12 +645,12 @@ void DwarfDebug::addComplexAddress(DbgVariable *&DV, DIE *Die,
   for (unsigned i = 0, N = DV->getNumAddrElements(); i < N; ++i) {
     uint64_t Element = DV->getAddrElement(i);
 
-    if (Element == DIFactory::OpPlus) {
+    if (Element == DIBuilder::OpPlus) {
       addUInt(Block, 0, dwarf::DW_FORM_data1, dwarf::DW_OP_plus_uconst);
       addUInt(Block, 0, dwarf::DW_FORM_udata, DV->getAddrElement(++i));
-    } else if (Element == DIFactory::OpDeref) {
+    } else if (Element == DIBuilder::OpDeref) {
       addUInt(Block, 0, dwarf::DW_FORM_data1, dwarf::DW_OP_deref);
-    } else llvm_unreachable("unknown DIFactory Opcode");
+    } else llvm_unreachable("unknown DIBuilder Opcode");
   }
 
   // Now attach the location information to the DIE.
@@ -1894,7 +1895,7 @@ void DwarfDebug::constructCompileUnit(const MDNode *N) {
   DIE *Die = new DIE(dwarf::DW_TAG_compile_unit);
   addString(Die, dwarf::DW_AT_producer, dwarf::DW_FORM_string,
             DIUnit.getProducer());
-  addUInt(Die, dwarf::DW_AT_language, dwarf::DW_FORM_data1,
+  addUInt(Die, dwarf::DW_AT_language, dwarf::DW_FORM_data2,
           DIUnit.getLanguage());
   addString(Die, dwarf::DW_AT_name, dwarf::DW_FORM_string, FN);
   // Use DW_AT_entry_pc instead of DW_AT_low_pc/DW_AT_high_pc pair. This

@@ -296,6 +296,10 @@ bool Parser::SkipUntil(const tok::TokenKind *Toks, unsigned NumToks,
     case tok::wide_string_literal:
       ConsumeStringToken();
       break;
+        
+    case tok::at:
+      return false;
+      
     case tok::semi:
       if (StopAtSemi)
         return false;
@@ -1159,7 +1163,7 @@ bool Parser::TryAnnotateTypeOrScopeToken(bool EnteringContext) {
   else
     PP.EnterToken(Tok);
   Tok.setKind(tok::annot_cxxscope);
-  Tok.setAnnotationValue(SS.getScopeRep());
+  Tok.setAnnotationValue(Actions.SaveNestedNameSpecifierAnnotation(SS));
   Tok.setAnnotationRange(SS.getRange());
 
   // In case the tokens were cached, have Preprocessor replace them
@@ -1196,7 +1200,7 @@ bool Parser::TryAnnotateCXXScopeToken(bool EnteringContext) {
   else
     PP.EnterToken(Tok);
   Tok.setKind(tok::annot_cxxscope);
-  Tok.setAnnotationValue(SS.getScopeRep());
+  Tok.setAnnotationValue(Actions.SaveNestedNameSpecifierAnnotation(SS));
   Tok.setAnnotationRange(SS.getRange());
 
   // In case the tokens were cached, have Preprocessor replace them with the

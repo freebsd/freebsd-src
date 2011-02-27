@@ -603,6 +603,8 @@ bool AsmParser::ParsePrimaryExpr(const MCExpr *&Res, SMLoc &EndLoc) {
     Lex(); // Eat the '('.
     return ParseParenExpr(Res, EndLoc);
   case AsmToken::LBrac:
+    if (!PlatformParser->HasBracketExpressions())
+      return TokError("brackets expression not supported on this target");
     Lex(); // Eat the '['.
     return ParseBracketExpr(Res, EndLoc);
   case AsmToken::Minus:

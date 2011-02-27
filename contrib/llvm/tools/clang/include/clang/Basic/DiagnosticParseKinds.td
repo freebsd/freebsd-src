@@ -28,6 +28,10 @@ def ext_extra_struct_semi : Extension<
 def ext_extra_ivar_semi : Extension<
   "extra ';' inside instance variable list">;
 
+def auto_storage_class : ExtWarn<
+  "'auto' storage class specifier is redundant and will be "
+  "removed in future releases">;
+
 def ext_duplicate_declspec : Extension<"duplicate '%0' declaration specifier">;
 def ext_plain_complex : ExtWarn<
   "plain '_Complex' requires a type specifier; assuming '_Complex double'">;
@@ -57,6 +61,11 @@ def ext_enumerator_list_comma : Extension<
   "feature">;
 def err_enumerator_list_missing_comma : Error<
   "missing ',' between enumerators">;
+def err_enumerator_unnamed_no_def : Error<
+  "unnamed enumeration must be a definition">;
+def ext_ms_enum_fixed_underlying_type : Extension<
+  "enumeration types with a fixed underlying type are a Microsoft extension">, 
+  InGroup<Microsoft>;
 
 def ext_gnu_indirect_goto : Extension<
   "use of GNU indirect-goto extension">, InGroup<GNU>;

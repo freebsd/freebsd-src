@@ -351,12 +351,18 @@ def note_required_for_protocol_at :
 
 def warn_conflicting_ret_types : Warning<
   "conflicting return type in implementation of %0: %1 vs %2">;
+def warn_conflicting_ret_type_modifiers : Warning<
+  "conflicting distributed object modifiers on return type "
+  "in implementation of %0">;
 def warn_non_covariant_ret_types : Warning<
   "conflicting return type in implementation of %0: %1 vs %2">,
   InGroup<DiagGroup<"method-signatures">>, DefaultIgnore;
 
 def warn_conflicting_param_types : Warning<
   "conflicting parameter types in implementation of %0: %1 vs %2">;
+def warn_conflicting_param_modifiers : Warning<
+  "conflicting distributed object modifiers on parameter type "
+  "in implementation of %0">;
 def warn_non_contravariant_param_types : Warning<
   "conflicting parameter types in implementation of %0: %1 vs %2">,
   InGroup<DiagGroup<"method-signatures">>, DefaultIgnore;
@@ -898,7 +904,8 @@ def err_new_array_of_auto : Error<
 def err_auto_not_allowed : Error<
   "'auto' not allowed %select{in function prototype|in struct member"
   "|in union member|in class member|in exception declaration"
-  "|in template parameter|in block literal|in template argument|here}0">;
+  "|in template parameter|in block literal|in template argument"
+  "|in typedef|in function return type|here}0">;
 def err_auto_var_requires_init : Error<
   "declaration of variable %0 with type %1 requires an initializer">;
 def err_auto_new_requires_ctor_arg : Error<
@@ -911,6 +918,8 @@ def err_auto_missing_trailing_return : Error<
   "'auto' return without trailing return type">;
 def err_trailing_return_without_auto : Error<
   "function with trailing return type must specify return type 'auto', not %0">;
+def err_trailing_return_in_parens : Error<
+  "trailing return type may not be nested within parentheses">;
 def err_auto_var_deduction_failure : Error<
   "variable %0 with type %1 has incompatible initializer of type %2">;
 def err_auto_new_deduction_failure : Error<
@@ -1145,6 +1154,9 @@ def warn_impcast_literal_float_to_integer : Warning<
   "implicit conversion turns literal floating-point number into integer: "
   "%0 to %1">,
   InGroup<DiagGroup<"literal-conversion">>, DefaultIgnore;
+def warn_impcast_different_enum_types : Warning<
+  "implicit conversion from enumeration type %0 to different enumeration type "
+  "%1">, InGroup<DiagGroup<"conversion">>;
 
 def warn_cast_align : Warning<
   "cast from %0 to %1 increases required alignment from %2 to %3">,
@@ -1299,11 +1311,11 @@ def err_ovl_no_viable_member_function_in_call : Error<
 def err_ovl_ambiguous_call : Error<
   "call to %0 is ambiguous">;
 def err_ovl_deleted_call : Error<
-  "call to %select{unavailable|deleted}0 function %1">;
+  "call to %select{unavailable|deleted}0 function %1 %2">;
 def err_ovl_ambiguous_member_call : Error<
   "call to member function %0 is ambiguous">;
 def err_ovl_deleted_member_call : Error<
-  "call to %select{unavailable|deleted}0 member function %1">;
+  "call to %select{unavailable|deleted}0 member function %1 %2">;
 def note_ovl_too_many_candidates : Note<
     "remaining %0 candidate%s0 omitted; "
     "pass -fshow-overloads=all to show them">;
@@ -1455,7 +1467,7 @@ def err_ovl_ambiguous_oper_binary : Error<
   "use of overloaded operator '%0' is ambiguous (with operand types %1 and %2)">;
 def err_ovl_no_viable_oper : Error<"no viable overloaded '%0'">;
 def err_ovl_deleted_oper : Error<
-  "overload resolution selected %select{unavailable|deleted}0 operator '%1'">;
+  "overload resolution selected %select{unavailable|deleted}0 operator '%1' %2">;
 def err_ovl_no_viable_subscript :
     Error<"no viable overloaded operator[] for type %0">;
 def err_ovl_no_oper :
@@ -1469,7 +1481,7 @@ def err_ovl_no_viable_object_call : Error<
 def err_ovl_ambiguous_object_call : Error<
   "call to object of type %0 is ambiguous">;
 def err_ovl_deleted_object_call : Error<
-  "call to %select{unavailable|deleted}0 function call operator in type %1">;
+  "call to %select{unavailable|deleted}0 function call operator in type %1 %2">;
 def note_ovl_surrogate_cand : Note<"conversion candidate of type %0">;
 def err_member_call_without_object : Error<
   "call to non-static member function without an object argument">;
@@ -2015,9 +2027,10 @@ def err_redefinition_extern_inline : Error<
 
 // This should eventually be an error.
 def warn_undefined_internal : Warning<
-  "%select{function|variable}0 %q1 has internal linkage but is not defined">;
+  "%select{function|variable}0 %q1 has internal linkage but is not defined">,
+  DiagGroup<"undefined-internal">;
 def note_used_here : Note<"used here">;
-  
+
 def warn_redefinition_of_typedef : Warning<
   "redefinition of typedef %0 is invalid in C">,
   InGroup<DiagGroup<"typedef-redefinition"> >, DefaultError;
@@ -2328,6 +2341,13 @@ def warn_division_by_zero : Warning<"division by zero is undefined">;
 def warn_remainder_by_zero : Warning<"remainder by zero is undefined">;
 def warn_shift_negative : Warning<"shift count is negative">;
 def warn_shift_gt_typewidth : Warning<"shift count >= width of type">;
+def warn_shift_result_gt_typewidth : Warning<
+  "shift result (%0) requires %1 bits to represent, but %2 only has %3 bits">,
+   InGroup<DiagGroup<"shift-overflow">>;
+def warn_shift_result_overrides_sign_bit : Warning<
+  "shift result (%0) overrides the sign bit of the shift expression's type "
+  "(%1) and becomes negative">,
+  InGroup<DiagGroup<"shift-sign-overflow">>, DefaultIgnore;
 
 def warn_precedence_bitwise_rel : Warning<
   "%0 has lower precedence than %1; %1 will be evaluated first">,
@@ -2387,13 +2407,10 @@ def err_typecheck_member_reference_type : Error<
 def err_typecheck_member_reference_unknown : Error<
   "cannot refer to member %0 in %1 with '%select{.|->}2'">;
 def err_member_reference_needs_call : Error<
-  "base of member reference is an overloaded function; perhaps you meant "
-  "to call %select{it|the 0-argument overload}0?">;
+  "base of member reference is %select{a function|an overloaded function}0; "
+  "perhaps you meant to call it%select{| with no arguments}1?">;
 def note_member_ref_possible_intended_overload : Note<
   "possibly valid overload here">;
-def err_member_reference_needs_call_zero_arg : Error<
-  "base of member reference has function type %0; perhaps you meant to call "
-  "this function with '()'?">;
 def warn_subscript_is_char : Warning<"array subscript is of type 'char'">,
   InGroup<CharSubscript>, DefaultIgnore;
 
@@ -2452,6 +2469,13 @@ def err_typecheck_incomplete_array_needs_initializer : Error<
 def err_array_init_not_init_list : Error<
   "array initializer must be an initializer "
   "list%select{| or string literal}0">;
+def err_array_init_different_type : Error<
+  "cannot initialize array of type %0 with array of type %1">;
+def err_array_init_non_constant_array : Error<
+  "cannot initialize array of type %0 with non-constant array of type %1">;
+def ext_array_init_copy : Extension<
+  "initialization of an array of type %0 from a compound literal of type %1 is "
+  "a GNU extension">;
 def warn_deprecated_string_literal_conversion : Warning<
   "conversion from string literal to %0 is deprecated">, InGroup<DeprecatedWritableStr>;
 def err_realimag_invalid_type : Error<"invalid type %0 to %1 operator">;
@@ -2950,10 +2974,7 @@ def note_equality_comparison_silence : Note<
 def warn_synthesized_ivar_access : Warning<
   "direct access of synthesized ivar by using property access %0">,
   InGroup<NonfragileAbi2>, DefaultIgnore;
-def warn_ivar_variable_conflict : Warning<
-  "when default property synthesis is on, "
-  "%0 lookup will access property ivar instead of global variable">, 
-  InGroup<NonfragileAbi2>;
+
 def note_global_declared_at : Note<"global variable declared here">;
 
 // assignment related diagnostics (also for argument passing, returning, etc).
@@ -3108,6 +3129,8 @@ def err_kern_type_not_void_return : Error<
   "kernel function type %0 must have void return type">;
 def err_config_scalar_return : Error<
   "CUDA special function 'cudaConfigureCall' must have scalar return type">;
+def err_kern_call_not_global_function : Error<
+  "kernel call to non-global function %0">;
 
 
 def err_cannot_pass_objc_interface_to_vararg : Error<
