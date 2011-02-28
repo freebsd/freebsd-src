@@ -261,6 +261,16 @@ The actual buffer size can be greater than
 and is returned by
 .Fn libusb20_tr_get_max_total_length .
 .
+If
+.Fa max_frame_count
+is OR'ed with LIBUSB20_MAX_FRAME_PRE_SCALE the remaining part of the
+argument is converted from milliseconds into the actual number of
+frames rounded up, when this function returns.
+This flag is only valid for ISOCHRONOUS transfers and has no effect
+for other transfer types.
+The actual number of frames setup is found by calling
+.Fn libusb20_tr_get_max_frames .
+.
 This function returns zero upon success.
 .
 Non-zero return values indicate a LIBUSB20_ERROR value.

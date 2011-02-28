@@ -1397,6 +1397,7 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 	uint8_t iface_index;
 	uint8_t isread;
 	uint8_t ep_index;
+	uint8_t pre_scale;
 
 	u.addr = addr;
 
@@ -1448,6 +1449,12 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		if (u.popen->max_bufsize > USB_FS_MAX_BUFSIZE) {
 			u.popen->max_bufsize = USB_FS_MAX_BUFSIZE;
 		}
+		if (u.popen->max_frames & USB_FS_MAX_FRAMES_PRE_SCALE) {
+			pre_scale = 1;
+			u.popen->max_frames &= ~USB_FS_MAX_FRAMES_PRE_SCALE;
+		} else {
+			pre_scale = 0;
+		}
 		if (u.popen->max_frames > USB_FS_MAX_FRAMES) {
 			u.popen->max_frames = USB_FS_MAX_FRAMES;
 			break;
@@ -1468,13 +1475,15 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		}
 		iface_index = ep->iface_index;
 
-		bzero(usb_config, sizeof(usb_config));
+		memset(usb_config, 0, sizeof(usb_config));
 
 		usb_config[0].type = ed->bmAttributes & UE_XFERTYPE;
 		usb_config[0].endpoint = ed->bEndpointAddress & UE_ADDR;
 		usb_config[0].direction = ed->bEndpointAddress & (UE_DIR_OUT | UE_DIR_IN);
 		usb_config[0].interval = USB_DEFAULT_INTERVAL;
 		usb_config[0].flags.proxy_buffer = 1;
+		if (pre_scale != 0)
+			usb_config[0].flags.pre_scale_frames = 1;
 		usb_config[0].callback = &ugen_ctrl_fs_callback;
 		usb_config[0].timeout = 0;	/* no timeout */
 		usb_config[0].frames = u.popen->max_frames;
@@ -1516,6 +1525,10 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 			    f->fs_xfer[u.popen->ep_index]->max_frame_size;
 			u.popen->max_bufsize =
 			    f->fs_xfer[u.popen->ep_index]->max_data_length;
+			/* update number of frames */
+			u.popen->max_frames =
+			    f->fs_xfer[u.popen->ep_index]->nframes;
+			/* store index of endpoint */
 			f->fs_xfer[u.popen->ep_index]->priv_fifo =
 			    ((uint8_t *)0) + u.popen->ep_index;
 		} else {
