@@ -136,7 +136,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Read in various integral values.  The source pointer could be
- * unaligned.  Values are read in native byte order.  The source
+ * unaligned.  Values are read in in native byte order.  The source
  * pointer is incremented appropriately.
  */
 

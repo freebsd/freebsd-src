@@ -79,7 +79,7 @@ struct stkstr {
 	int opno;	/* number of opening bracket */
 	int pl;		/* '+', '-', ' ' for \s, 1 for \f, 0 for .ft */
 	int parm;	/* parm to size, font, etc */
-	int lno;	/* line number the thing came in */
+	int lno;	/* line number the thing came in in */
 } stk[MAXSTK];
 int stktop;
 
