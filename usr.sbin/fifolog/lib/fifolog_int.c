@@ -56,7 +56,7 @@ static const char *
 fifolog_int_open_i(struct fifolog_file *f, const char *fname, int mode)
 {
 	struct stat st;
-	unsigned u;
+	ssize_t u;
 	int i;
 
 	f->fd = open(fname, mode ? O_RDWR : O_RDONLY);
