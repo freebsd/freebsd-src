@@ -42,7 +42,8 @@
 static void
 usage(void)
 {
-	fprintf(stderr, "Usage: fifolog_writer [-w write-rate] [-s sync-rate] "
+	fprintf(stderr,
+	    "Usage: fifolog_writer [-w write-rate] [-s sync-rate] "
 	    "[-z compression] file\n");
 	exit(EX_USAGE);
 }
@@ -105,10 +106,10 @@ main(int argc, char * const *argv)
 				p--;
 			*p = '\0';
 			if (*buf != '\0')
-				fifolog_write_bytes_poll(f, 0, 0, buf, 0);
+				fifolog_write_record_poll(f, 0, 0, buf, 0);
 		} else if (i == 0)
-			(void)fifolog_write_poll(f, 0);
+			fifolog_write_poll(f, 0);
 	}
-	(void)fifolog_write_flush(f);
+	fifolog_write_close(f);
 	return (0);
 }
