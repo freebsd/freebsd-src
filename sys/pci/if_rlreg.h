@@ -893,7 +893,6 @@ struct rl_softc {
 	int			rxcycles;
 #endif
 
-	struct task		rl_txtask;
 	struct task		rl_inttask;
 
 	int			rl_txstart;
