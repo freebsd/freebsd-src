@@ -387,11 +387,10 @@ pmap_pte(pmap_t pmap, vm_offset_t va)
 vm_offset_t
 pmap_steal_memory(vm_size_t size)
 {
-	vm_size_t bank_size;
-	vm_offset_t pa, va;
+	vm_paddr_t bank_size, pa;
+	vm_offset_t va;
 
 	size = round_page(size);
-
 	bank_size = phys_avail[1] - phys_avail[0];
 	while (size > bank_size) {
 		int i;
@@ -540,7 +539,7 @@ again:
 			    (uintmax_t) phys_avail[i + 1] - 1,
 			    (uintmax_t) size, (uintmax_t) size / PAGE_SIZE);
 		}
-		printf("Maxmem is 0x%0lx\n", ptoa(Maxmem));
+		printf("Maxmem is 0x%0jx\n", ptoa((uintmax_t)Maxmem));
 	}
 	/*
 	 * Steal the message buffer from the beginning of memory.
