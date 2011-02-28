@@ -159,6 +159,8 @@ MODULE_DEPEND(re, miibus, 1, 1, 1);
 /* Tunables. */
 static int msi_disable = 0;
 TUNABLE_INT("hw.re.msi_disable", &msi_disable);
+static int msix_disable = 0;
+TUNABLE_INT("hw.re.msix_disable", &msix_disable);
 static int prefer_iomap = 0;
 TUNABLE_INT("hw.re.prefer_iomap", &prefer_iomap);
 
@@ -1177,7 +1179,7 @@ re_attach(device_t dev)
 	int			hwrev;
 	u_int16_t		devid, re_did = 0;
 	int			error = 0, i, phy, rid;
-	int			msic, reg;
+	int			msic, msixc, reg;
 	uint8_t			cfg;
 
 	sc = device_get_softc(dev);
@@ -1227,18 +1229,51 @@ re_attach(device_t dev)
 	sc->rl_btag = rman_get_bustag(sc->rl_res);
 	sc->rl_bhandle = rman_get_bushandle(sc->rl_res);
 
-	msic = 0;
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	msic = pci_msi_count(dev);
+	msixc = pci_msix_count(dev);
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0)
 		sc->rl_flags |= RL_FLAG_PCIE;
-		msic = pci_msi_count(dev);
-		if (bootverbose)
-			device_printf(dev, "MSI count : %d\n", msic);
+	if (bootverbose) {
+		device_printf(dev, "MSI count : %d\n", msic);
+		device_printf(dev, "MSI-X count : %d\n", msixc);
 	}
-	if (msic > 0 && msi_disable == 0) {
+	if (msix_disable > 0)
+		msixc = 0;
+	if (msi_disable > 0)
+		msic = 0;
+	/* Prefer MSI-X to MSI. */
+	if (msixc > 0) {
+		msixc = 1;
+		rid = PCIR_BAR(4);
+		sc->rl_res_pba = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		    &rid, RF_ACTIVE);
+		if (sc->rl_res_pba == NULL) {
+			device_printf(sc->rl_dev,
+			    "could not allocate MSI-X PBA resource\n");
+		}
+		if (sc->rl_res_pba != NULL &&
+		    pci_alloc_msix(dev, &msixc) == 0) {
+			if (msixc == 1) {
+				device_printf(dev, "Using %d MSI-X message\n",
+				    msixc);
+				sc->rl_flags |= RL_FLAG_MSIX;
+			} else
+				pci_release_msi(dev);
+		}
+		if ((sc->rl_flags & RL_FLAG_MSIX) == 0) {
+			if (sc->rl_res_pba != NULL)
+				bus_release_resource(dev, SYS_RES_MEMORY, rid,
+				    sc->rl_res_pba);
+			sc->rl_res_pba = NULL;
+			msixc = 0;
+		}
+	}
+	/* Prefer MSI to INTx. */
+	if (msixc == 0 && msic > 0) {
 		msic = 1;
 		if (pci_alloc_msi(dev, &msic) == 0) {
 			if (msic == RL_MSI_MESSAGES) {
-				device_printf(dev, "Using %d MSI messages\n",
+				device_printf(dev, "Using %d MSI message\n",
 				    msic);
 				sc->rl_flags |= RL_FLAG_MSI;
 				/* Explicitly set MSI enable bit. */
@@ -1250,10 +1285,12 @@ re_attach(device_t dev)
 			} else
 				pci_release_msi(dev);
 		}
+		if ((sc->rl_flags & RL_FLAG_MSI) == 0)
+			msic = 0;
 	}
 
 	/* Allocate interrupt */
-	if ((sc->rl_flags & RL_FLAG_MSI) == 0) {
+	if ((sc->rl_flags & (RL_FLAG_MSI | RL_FLAG_MSIX)) == 0) {
 		rid = 0;
 		sc->rl_irq[0] = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 		    RF_SHAREABLE | RF_ACTIVE);
@@ -1540,7 +1577,7 @@ re_attach(device_t dev)
 #endif
 
 	/* Hook interrupt last to avoid having to lock softc */
-	if ((sc->rl_flags & RL_FLAG_MSI) == 0)
+	if ((sc->rl_flags & (RL_FLAG_MSI | RL_FLAG_MSIX)) == 0)
 		error = bus_setup_intr(dev, sc->rl_irq[0],
 		    INTR_TYPE_NET | INTR_MPSAFE, re_intr, NULL, sc,
 		    &sc->rl_intrhand[0]);
@@ -1632,7 +1669,7 @@ re_detach(device_t dev)
 	}
 	if (ifp != NULL)
 		if_free(ifp);
-	if ((sc->rl_flags & RL_FLAG_MSI) == 0) {
+	if ((sc->rl_flags & (RL_FLAG_MSI | RL_FLAG_MSIX)) == 0) {
 		if (sc->rl_irq[0] != NULL) {
 			bus_release_resource(dev, SYS_RES_IRQ, 0,
 			    sc->rl_irq[0]);
@@ -1647,6 +1684,10 @@ re_detach(device_t dev)
 			}
 		}
 		pci_release_msi(dev);
+	}
+	if (sc->rl_res_pba) {
+		rid = PCIR_BAR(4);
+		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->rl_res_pba);
 	}
 	if (sc->rl_res)
 		bus_release_resource(dev, sc->rl_res_type, sc->rl_res_id,
