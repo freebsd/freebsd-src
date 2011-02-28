@@ -84,7 +84,7 @@ dtrace_fork_func_t	dtrace_fasttrap_fork;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE(proc, kernel, , create);
+SDT_PROBE_DEFINE(proc, kernel, , create, create);
 SDT_PROBE_ARGTYPE(proc, kernel, , create, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, , create, 1, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, , create, 2, "int");
@@ -662,15 +662,6 @@ again:
 		p2->p_pfsflags = p1->p_pfsflags;
 	}
 
-#ifdef KDTRACE_HOOKS
-	/*
-	 * Tell the DTrace fasttrap provider about the new process
-	 * if it has registered an interest.
-	 */
-	if (dtrace_fasttrap_fork)
-		dtrace_fasttrap_fork(p1, p2);
-#endif
-
 	/*
 	 * This begins the section where we must prevent the parent
 	 * from being swapped.
@@ -735,6 +726,21 @@ again:
 	PROC_SLOCK(p2);
 	p2->p_state = PRS_NORMAL;
 	PROC_SUNLOCK(p2);
+#ifdef KDTRACE_HOOKS
+	/*
+	 * Tell the DTrace fasttrap provider about the new process
+	 * if it has registered an interest. We have to do this only after
+	 * p_state is PRS_NORMAL since the fasttrap module will use pfind()
+	 * later on.
+	 */
+	if (dtrace_fasttrap_fork) {
+		PROC_LOCK(p1);
+		PROC_LOCK(p2);
+		dtrace_fasttrap_fork(p1, p2);
+		PROC_UNLOCK(p2);
+		PROC_UNLOCK(p1);
+	}
+#endif
 
 	PROC_LOCK(p1);
 	if ((p1->p_flag & (P_TRACED | P_FOLLOWFORK)) == (P_TRACED |

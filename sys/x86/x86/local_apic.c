@@ -93,6 +93,7 @@ CTASSERT(IPI_STOP < APIC_SPURIOUS_INT);
 /* Magic IRQ values for the timer and syscalls. */
 #define	IRQ_TIMER	(NUM_IO_INTS + 1)
 #define	IRQ_SYSCALL	(NUM_IO_INTS + 2)
+#define	IRQ_DTRACE_RET	(NUM_IO_INTS + 3)
 
 /*
  * Support for local APICs.  Local APICs manage interrupts on each
@@ -278,6 +279,10 @@ lapic_create(u_int apic_id, int boot_cpu)
 	lapics[apic_id].la_ioint_irqs[IDT_SYSCALL - APIC_IO_INTS] = IRQ_SYSCALL;
 	lapics[apic_id].la_ioint_irqs[APIC_TIMER_INT - APIC_IO_INTS] =
 	    IRQ_TIMER;
+#ifdef KDTRACE_HOOKS
+	lapics[apic_id].la_ioint_irqs[IDT_DTRACE_RET - APIC_IO_INTS] = IRQ_DTRACE_RET;
+#endif
+
 
 #ifdef SMP
 	cpu_add(apic_id, boot_cpu);
@@ -1033,6 +1038,10 @@ apic_enable_vector(u_int apic_id, u_int vector)
 	KASSERT(vector != IDT_SYSCALL, ("Attempt to overwrite syscall entry"));
 	KASSERT(ioint_handlers[vector / 32] != NULL,
 	    ("No ISR handler for vector %u", vector));
+#ifdef KDTRACE_HOOKS
+	KASSERT(vector != IDT_DTRACE_RET,
+	    ("Attempt to overwrite DTrace entry"));
+#endif
 	setidt(vector, ioint_handlers[vector / 32], SDT_APIC, SEL_KPL,
 	    GSEL_APIC);
 }
@@ -1042,6 +1051,10 @@ apic_disable_vector(u_int apic_id, u_int vector)
 {
 
 	KASSERT(vector != IDT_SYSCALL, ("Attempt to overwrite syscall entry"));
+#ifdef KDTRACE_HOOKS
+	KASSERT(vector != IDT_DTRACE_RET,
+	    ("Attempt to overwrite DTrace entry"));
+#endif
 	KASSERT(ioint_handlers[vector / 32] != NULL,
 	    ("No ISR handler for vector %u", vector));
 #ifdef notyet
@@ -1065,6 +1078,10 @@ apic_free_vector(u_int apic_id, u_int vector, u_int irq)
 	KASSERT(irq < NUM_IO_INTS, ("Invalid IRQ %u", irq));
 	KASSERT(lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS] ==
 	    irq, ("IRQ mismatch"));
+#ifdef KDTRACE_HOOKS
+	KASSERT(vector != IDT_DTRACE_RET,
+	    ("Attempt to overwrite DTrace entry"));
+#endif
 
 	/*
 	 * Bind us to the cpu that owned the vector before freeing it so
@@ -1097,6 +1114,10 @@ apic_idt_to_irq(u_int apic_id, u_int vector)
 	KASSERT(vector >= APIC_IO_INTS && vector != IDT_SYSCALL &&
 	    vector <= APIC_IO_INTS + APIC_NUM_IOINTS,
 	    ("Vector %u does not map to an IRQ line", vector));
+#ifdef KDTRACE_HOOKS
+	KASSERT(vector != IDT_DTRACE_RET,
+	    ("Attempt to overwrite DTrace entry"));
+#endif
 	irq = lapics[apic_id].la_ioint_irqs[vector - APIC_IO_INTS];
 	if (irq < 0)
 		irq = 0;
@@ -1128,6 +1149,10 @@ DB_SHOW_COMMAND(apic, db_show_apic)
 			irq = lapics[apic_id].la_ioint_irqs[i];
 			if (irq == -1 || irq == IRQ_SYSCALL)
 				continue;
+#ifdef KDTRACE_HOOKS
+			if (irq == IRQ_DTRACE_RET)
+				continue;
+#endif
 			db_printf("vec 0x%2x -> ", i + APIC_IO_INTS);
 			if (irq == IRQ_TIMER)
 				db_printf("lapic timer\n");

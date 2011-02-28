@@ -113,6 +113,13 @@ dtrace_doubletrap_func_t	dtrace_doubletrap_func;
  * implementation opaque. 
  */
 systrace_probe_func_t	systrace_probe_func;
+
+/*
+ * These hooks are necessary for the pid, usdt and fasttrap providers.
+ */
+dtrace_fasttrap_probe_ptr_t	dtrace_fasttrap_probe_ptr;
+dtrace_pid_probe_ptr_t		dtrace_pid_probe_ptr;
+dtrace_return_probe_ptr_t	dtrace_return_probe_ptr;
 #endif
 
 extern void trap(struct trapframe *frame);
@@ -243,6 +250,55 @@ trap(struct trapframe *frame)
 	if (dtrace_trap_func != NULL)
 		if ((*dtrace_trap_func)(frame, type))
 			goto out;
+	if (type == T_DTRACE_PROBE || type == T_DTRACE_RET ||
+	    type == T_BPTFLT) {
+		struct reg regs;
+
+		regs.r_r15 = frame->tf_r15;
+		regs.r_r14 = frame->tf_r14;
+		regs.r_r13 = frame->tf_r13;
+		regs.r_r12 = frame->tf_r12;
+		regs.r_r11 = frame->tf_r11;
+		regs.r_r10 = frame->tf_r10;
+		regs.r_r9  = frame->tf_r9;
+		regs.r_r8  = frame->tf_r8;
+		regs.r_rdi = frame->tf_rdi;
+		regs.r_rsi = frame->tf_rsi;
+		regs.r_rbp = frame->tf_rbp;
+		regs.r_rbx = frame->tf_rbx;
+		regs.r_rdx = frame->tf_rdx;
+		regs.r_rcx = frame->tf_rcx;
+		regs.r_rax = frame->tf_rax;
+		regs.r_rip = frame->tf_rip;
+		regs.r_cs = frame->tf_cs;
+		regs.r_rflags = frame->tf_rflags;
+		regs.r_rsp = frame->tf_rsp;
+		regs.r_ss = frame->tf_ss;
+		if (frame->tf_flags & TF_HASSEGS) {
+			regs.r_ds = frame->tf_ds;
+			regs.r_es = frame->tf_es;
+			regs.r_fs = frame->tf_fs;
+			regs.r_gs = frame->tf_gs;
+		} else {
+			regs.r_ds = 0;
+			regs.r_es = 0;
+			regs.r_fs = 0;
+			regs.r_gs = 0;
+		}
+		if (type == T_DTRACE_PROBE &&
+		    dtrace_fasttrap_probe_ptr != NULL &&
+		    dtrace_fasttrap_probe_ptr(&regs) == 0)
+				goto out;
+		if (type == T_BPTFLT &&
+		    dtrace_pid_probe_ptr != NULL &&
+		    dtrace_pid_probe_ptr(&regs) == 0)
+				goto out;
+		if (type == T_DTRACE_RET &&
+		    dtrace_return_probe_ptr != NULL &&
+		    dtrace_return_probe_ptr(&regs) == 0)
+			goto out;
+
+	}
 #endif
 
 	if ((frame->tf_rflags & PSL_I) == 0) {

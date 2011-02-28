@@ -33,12 +33,16 @@
 #include <sys/stack.h>
 #include <sys/pcpu.h>
 
+#include <machine/frame.h>
 #include <machine/md_var.h>
+#include <machine/pcb.h>
 #include <machine/stack.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+
+#include "regset.h"
 
 extern uintptr_t kernbase;
 uintptr_t kernelbase = (uintptr_t) &kernbase;
@@ -100,21 +104,22 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 	}
 }
 
-#ifdef notyet
 static int
 dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
     uintptr_t sp)
 {
-	klwp_t *lwp = ttolwp(curthread);
+#ifdef notyet
 	proc_t *p = curproc;
-	uintptr_t oldcontext = lwp->lwp_oldcontext;
+	uintptr_t oldcontext = lwp->lwp_oldcontext; /* XXX signal stack. */
+	size_t s1, s2;
+#endif
 	volatile uint16_t *flags =
 	    (volatile uint16_t *)&cpu_core[curcpu].cpuc_dtrace_flags;
-	size_t s1, s2;
 	int ret = 0;
 
 	ASSERT(pcstack == NULL || pcstack_limit > 0);
 
+#ifdef notyet /* XXX signal stack. */
 	if (p->p_model == DATAMODEL_NATIVE) {
 		s1 = sizeof (struct frame) + 2 * sizeof (long);
 		s2 = s1 + sizeof (siginfo_t);
@@ -122,8 +127,9 @@ dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
 		s1 = sizeof (struct frame32) + 3 * sizeof (int);
 		s2 = s1 + sizeof (siginfo32_t);
 	}
+#endif
 
-	while (pc != 0 && sp != 0) {
+	while (pc != 0) {
 		ret++;
 		if (pcstack != NULL) {
 			*pcstack++ = (uint64_t)pc;
@@ -132,6 +138,10 @@ dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
 				break;
 		}
 
+		if (sp == 0)
+			break;
+
+#ifdef notyet /* XXX signal stack. */ 
 		if (oldcontext == sp + s1 || oldcontext == sp + s2) {
 			if (p->p_model == DATAMODEL_NATIVE) {
 				ucontext_t *ucp = (ucontext_t *)oldcontext;
@@ -163,6 +173,11 @@ dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
 				sp = dtrace_fuword32(&fr->fr_savfp);
 			}
 		}
+#else
+		pc = dtrace_fuword32((void *)(sp +
+			offsetof(struct i386_frame, f_retaddr)));
+		sp = dtrace_fuword32((void *)sp);
+#endif /* ! notyet */
 
 		/*
 		 * This is totally bogus:  if we faulted, we're going to clear
@@ -181,10 +196,9 @@ dtrace_getustack_common(uint64_t *pcstack, int pcstack_limit, uintptr_t pc,
 void
 dtrace_getupcstack(uint64_t *pcstack, int pcstack_limit)
 {
-	klwp_t *lwp = ttolwp(curthread);
 	proc_t *p = curproc;
-	struct regs *rp;
-	uintptr_t pc, sp;
+	struct trapframe *tf;
+	uintptr_t pc, sp, fp;
 	volatile uint16_t *flags =
 	    (volatile uint16_t *)&cpu_core[curcpu].cpuc_dtrace_flags;
 	int n;
@@ -198,7 +212,7 @@ dtrace_getupcstack(uint64_t *pcstack, int pcstack_limit)
 	/*
 	 * If there's no user context we still need to zero the stack.
 	 */
-	if (lwp == NULL || p == NULL || (rp = lwp->lwp_regs) == NULL)
+	if (p == NULL || (tf = curthread->td_frame) == NULL)
 		goto zero;
 
 	*pcstack++ = (uint64_t)p->p_pid;
@@ -207,19 +221,26 @@ dtrace_getupcstack(uint64_t *pcstack, int pcstack_limit)
 	if (pcstack_limit <= 0)
 		return;
 
-	pc = rp->r_pc;
-	sp = rp->r_fp;
+	pc = tf->tf_eip;
+	fp = tf->tf_ebp;
+	sp = tf->tf_esp;
 
 	if (DTRACE_CPUFLAG_ISSET(CPU_DTRACE_ENTRY)) {
+		/*
+		 * In an entry probe.  The frame pointer has not yet been
+		 * pushed (that happens in the function prologue).  The
+		 * best approach is to add the current pc as a missing top
+		 * of stack and back the pc up to the caller, which is stored
+		 * at the current stack pointer address since the call 
+		 * instruction puts it there right before the branch.
+		 */
+
 		*pcstack++ = (uint64_t)pc;
 		pcstack_limit--;
 		if (pcstack_limit <= 0)
 			return;
 
-		if (p->p_model == DATAMODEL_NATIVE)
-			pc = dtrace_fulword((void *)rp->r_sp);
-		else
-			pc = dtrace_fuword32((void *)rp->r_sp);
+		pc = dtrace_fuword32((void *) sp);
 	}
 
 	n = dtrace_getustack_common(pcstack, pcstack_limit, pc, sp);
@@ -231,24 +252,58 @@ dtrace_getupcstack(uint64_t *pcstack, int pcstack_limit)
 
 zero:
 	while (pcstack_limit-- > 0)
-		*pcstack++ = NULL;
+		*pcstack++ = 0;
 }
 
 int
 dtrace_getustackdepth(void)
 {
+	proc_t *p = curproc;
+	struct trapframe *tf;
+	uintptr_t pc, fp, sp;
+	int n = 0;
+
+	if (p == NULL || (tf = curthread->td_frame) == NULL)
+		return (0);
+
+	if (DTRACE_CPUFLAG_ISSET(CPU_DTRACE_FAULT))
+		return (-1);
+
+	pc = tf->tf_eip;
+	fp = tf->tf_ebp;
+	sp = tf->tf_esp;
+
+	if (DTRACE_CPUFLAG_ISSET(CPU_DTRACE_ENTRY)) {
+		/*
+		 * In an entry probe.  The frame pointer has not yet been
+		 * pushed (that happens in the function prologue).  The
+		 * best approach is to add the current pc as a missing top
+		 * of stack and back the pc up to the caller, which is stored
+		 * at the current stack pointer address since the call 
+		 * instruction puts it there right before the branch.
+		 */
+
+		pc = dtrace_fuword32((void *) sp);
+		n++;
+	}
+
+	n += dtrace_getustack_common(NULL, 0, pc, fp);
+
+	return (n);
 }
 
 void
 dtrace_getufpstack(uint64_t *pcstack, uint64_t *fpstack, int pcstack_limit)
 {
-	klwp_t *lwp = ttolwp(curthread);
 	proc_t *p = curproc;
-	struct regs *rp;
-	uintptr_t pc, sp, oldcontext;
+	struct trapframe *tf;
+	uintptr_t pc, sp, fp;
 	volatile uint16_t *flags =
 	    (volatile uint16_t *)&cpu_core[curcpu].cpuc_dtrace_flags;
+#ifdef notyet /* XXX signal stack */
+	uintptr_t oldcontext;
 	size_t s1, s2;
+#endif
 
 	if (*flags & CPU_DTRACE_FAULT)
 		return;
@@ -259,7 +314,7 @@ dtrace_getufpstack(uint64_t *pcstack, uint64_t *fpstack, int pcstack_limit)
 	/*
 	 * If there's no user context we still need to zero the stack.
 	 */
-	if (lwp == NULL || p == NULL || (rp = lwp->lwp_regs) == NULL)
+	if (p == NULL || (tf = curthread->td_frame) == NULL)
 		goto zero;
 
 	*pcstack++ = (uint64_t)p->p_pid;
@@ -268,8 +323,11 @@ dtrace_getufpstack(uint64_t *pcstack, uint64_t *fpstack, int pcstack_limit)
 	if (pcstack_limit <= 0)
 		return;
 
-	pc = rp->r_pc;
-	sp = rp->r_fp;
+	pc = tf->tf_eip;
+	fp = tf->tf_ebp;
+	sp = tf->tf_esp;
+
+#ifdef notyet /* XXX signal stack */
 	oldcontext = lwp->lwp_oldcontext;
 
 	if (p->p_model == DATAMODEL_NATIVE) {
@@ -279,6 +337,7 @@ dtrace_getufpstack(uint64_t *pcstack, uint64_t *fpstack, int pcstack_limit)
 		s1 = sizeof (struct frame32) + 3 * sizeof (int);
 		s2 = s1 + sizeof (siginfo32_t);
 	}
+#endif
 
 	if (DTRACE_CPUFLAG_ISSET(CPU_DTRACE_ENTRY)) {
 		*pcstack++ = (uint64_t)pc;
@@ -287,19 +346,20 @@ dtrace_getufpstack(uint64_t *pcstack, uint64_t *fpstack, int pcstack_limit)
 		if (pcstack_limit <= 0)
 			return;
 
-		if (p->p_model == DATAMODEL_NATIVE)
-			pc = dtrace_fulword((void *)rp->r_sp);
-		else
-			pc = dtrace_fuword32((void *)rp->r_sp);
+		pc = dtrace_fuword32((void *)sp);
 	}
 
-	while (pc != 0 && sp != 0) {
+	while (pc != 0) {
 		*pcstack++ = (uint64_t)pc;
-		*fpstack++ = sp;
+		*fpstack++ = fp;
 		pcstack_limit--;
 		if (pcstack_limit <= 0)
 			break;
 
+		if (fp == 0)
+			break;
+
+#ifdef notyet /* XXX signal stack */
 		if (oldcontext == sp + s1 || oldcontext == sp + s2) {
 			if (p->p_model == DATAMODEL_NATIVE) {
 				ucontext_t *ucp = (ucontext_t *)oldcontext;
@@ -318,18 +378,12 @@ dtrace_getufpstack(uint64_t *pcstack, uint64_t *fpstack, int pcstack_limit)
 
 				oldcontext = dtrace_fuword32(&ucp->uc_link);
 			}
-		} else {
-			if (p->p_model == DATAMODEL_NATIVE) {
-				struct frame *fr = (struct frame *)sp;
-
-				pc = dtrace_fulword(&fr->fr_savpc);
-				sp = dtrace_fulword(&fr->fr_savfp);
-			} else {
-				struct frame32 *fr = (struct frame32 *)sp;
-
-				pc = dtrace_fuword32(&fr->fr_savpc);
-				sp = dtrace_fuword32(&fr->fr_savfp);
-			}
+		} else
+#endif /* XXX */
+		{
+			pc = dtrace_fuword32((void *)(fp +
+				offsetof(struct i386_frame, f_retaddr)));
+			fp = dtrace_fuword32((void *)fp);
 		}
 
 		/*
@@ -345,9 +399,8 @@ dtrace_getufpstack(uint64_t *pcstack, uint64_t *fpstack, int pcstack_limit)
 
 zero:
 	while (pcstack_limit-- > 0)
-		*pcstack++ = NULL;
+		*pcstack++ = 0;
 }
-#endif
 
 uint64_t
 dtrace_getarg(int arg, int aframes)
@@ -424,112 +477,92 @@ dtrace_getstackdepth(int aframes)
 		return depth - aframes;
 }
 
-#ifdef notyet
 ulong_t
-dtrace_getreg(struct regs *rp, uint_t reg)
+dtrace_getreg(struct trapframe *rp, uint_t reg)
 {
-#if defined(__amd64)
-	int regmap[] = {
-		REG_GS,		/* GS */
-		REG_FS,		/* FS */
-		REG_ES,		/* ES */
-		REG_DS,		/* DS */
-		REG_RDI,	/* EDI */
-		REG_RSI,	/* ESI */
-		REG_RBP,	/* EBP */
-		REG_RSP,	/* ESP */
-		REG_RBX,	/* EBX */
-		REG_RDX,	/* EDX */
-		REG_RCX,	/* ECX */
-		REG_RAX,	/* EAX */
-		REG_TRAPNO,	/* TRAPNO */
-		REG_ERR,	/* ERR */
-		REG_RIP,	/* EIP */
-		REG_CS,		/* CS */
-		REG_RFL,	/* EFL */
-		REG_RSP,	/* UESP */
-		REG_SS		/* SS */
+	struct pcb *pcb;
+	int regmap[] = {  /* Order is dependent on reg.d */
+		REG_GS,		/* 0  GS */
+		REG_FS,		/* 1  FS */
+		REG_ES,		/* 2  ES */
+		REG_DS,		/* 3  DS */
+		REG_RDI,	/* 4  EDI */
+		REG_RSI,	/* 5  ESI */
+		REG_RBP,	/* 6  EBP, REG_FP */
+		REG_RSP,	/* 7  ESP */
+		REG_RBX,	/* 8  EBX */
+		REG_RDX,	/* 9  EDX, REG_R1 */
+		REG_RCX,	/* 10 ECX */
+		REG_RAX,	/* 11 EAX, REG_R0 */
+		REG_TRAPNO,	/* 12 TRAPNO */
+		REG_ERR,	/* 13 ERR */
+		REG_RIP,	/* 14 EIP, REG_PC */
+		REG_CS,		/* 15 CS */
+		REG_RFL,	/* 16 EFL, REG_PS */
+		REG_RSP,	/* 17 UESP, REG_SP */
+		REG_SS		/* 18 SS */
 	};
 
-	if (reg <= SS) {
-		if (reg >= sizeof (regmap) / sizeof (int)) {
-			DTRACE_CPUFLAG_SET(CPU_DTRACE_ILLOP);
-			return (0);
-		}
-
-		reg = regmap[reg];
-	} else {
-		reg -= SS + 1;
-	}
-
-	switch (reg) {
-	case REG_RDI:
-		return (rp->r_rdi);
-	case REG_RSI:
-		return (rp->r_rsi);
-	case REG_RDX:
-		return (rp->r_rdx);
-	case REG_RCX:
-		return (rp->r_rcx);
-	case REG_R8:
-		return (rp->r_r8);
-	case REG_R9:
-		return (rp->r_r9);
-	case REG_RAX:
-		return (rp->r_rax);
-	case REG_RBX:
-		return (rp->r_rbx);
-	case REG_RBP:
-		return (rp->r_rbp);
-	case REG_R10:
-		return (rp->r_r10);
-	case REG_R11:
-		return (rp->r_r11);
-	case REG_R12:
-		return (rp->r_r12);
-	case REG_R13:
-		return (rp->r_r13);
-	case REG_R14:
-		return (rp->r_r14);
-	case REG_R15:
-		return (rp->r_r15);
-	case REG_DS:
-		return (rp->r_ds);
-	case REG_ES:
-		return (rp->r_es);
-	case REG_FS:
-		return (rp->r_fs);
-	case REG_GS:
-		return (rp->r_gs);
-	case REG_TRAPNO:
-		return (rp->r_trapno);
-	case REG_ERR:
-		return (rp->r_err);
-	case REG_RIP:
-		return (rp->r_rip);
-	case REG_CS:
-		return (rp->r_cs);
-	case REG_SS:
-		return (rp->r_ss);
-	case REG_RFL:
-		return (rp->r_rfl);
-	case REG_RSP:
-		return (rp->r_rsp);
-	default:
-		DTRACE_CPUFLAG_SET(CPU_DTRACE_ILLOP);
-		return (0);
-	}
-
-#else
 	if (reg > SS) {
 		DTRACE_CPUFLAG_SET(CPU_DTRACE_ILLOP);
 		return (0);
 	}
 
-	return ((&rp->r_gs)[reg]);
+	if (reg >= sizeof (regmap) / sizeof (int)) {
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_ILLOP);
+		return (0);
+	}
+
+	reg = regmap[reg];
+
+	switch(reg) {
+	case REG_GS:
+		if ((pcb = curthread->td_pcb) == NULL) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_ILLOP);
+			return (0);
+		}
+		return (pcb->pcb_gs);
+	case REG_FS:
+		return (rp->tf_fs);
+	case REG_ES:
+		return (rp->tf_es);
+	case REG_DS:
+		return (rp->tf_ds);
+	case REG_RDI:
+		return (rp->tf_edi);
+	case REG_RSI:
+		return (rp->tf_esi);
+	case REG_RBP:
+		return (rp->tf_ebp);
+	case REG_RSP:
+		return (rp->tf_isp);
+	case REG_RBX:
+		return (rp->tf_ebx);
+	case REG_RCX:
+		return (rp->tf_ecx);
+	case REG_RAX:
+		return (rp->tf_eax);
+	case REG_TRAPNO:
+		return (rp->tf_trapno);
+	case REG_ERR:
+		return (rp->tf_err);
+	case REG_RIP:
+		return (rp->tf_eip);
+	case REG_CS:
+		return (rp->tf_cs);
+	case REG_RFL:
+		return (rp->tf_eflags);
+#if 0
+	case REG_RSP:
+		return (rp->tf_esp);
 #endif
+	case REG_SS:
+		return (rp->tf_ss);
+	default:
+		DTRACE_CPUFLAG_SET(CPU_DTRACE_ILLOP);
+		return (0);
+	}
 }
-#endif
 
 static int
 dtrace_copycheck(uintptr_t uaddr, uintptr_t kaddr, size_t size)
