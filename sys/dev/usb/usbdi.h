@@ -195,6 +195,16 @@ struct usb_xfer_flags {
 	uint8_t	stall_pipe:1;		/* set if the endpoint belonging to
 					 * this USB transfer should be stalled
 					 * before starting this transfer! */
+	uint8_t pre_scale_frames:1;	/* "usb_config->frames" is
+					 * assumed to give the
+					 * buffering time in
+					 * milliseconds and is
+					 * converted into the nearest
+					 * number of frames when the
+					 * USB transfer is setup. This
+					 * option only has effect for
+					 * ISOCHRONOUS transfers.
+					 */
 };
 
 /*
