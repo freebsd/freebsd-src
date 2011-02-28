@@ -90,7 +90,7 @@ dtrace_execexit_func_t	dtrace_fasttrap_exit;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE(proc, kernel, , exit);
+SDT_PROBE_DEFINE(proc, kernel, , exit, exit);
 SDT_PROBE_ARGTYPE(proc, kernel, , exit, 0, "int");
 
 /* Required to be non-static for SysVR4 emulator */

@@ -85,10 +85,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 SDT_PROVIDER_DEFINE(vfs);
-SDT_PROBE_DEFINE(vfs, , stat, mode);
+SDT_PROBE_DEFINE(vfs, , stat, mode, mode);
 SDT_PROBE_ARGTYPE(vfs, , stat, mode, 0, "char *");
 SDT_PROBE_ARGTYPE(vfs, , stat, mode, 1, "int");
-SDT_PROBE_DEFINE(vfs, , stat, reg);
+SDT_PROBE_DEFINE(vfs, , stat, reg, reg);
 SDT_PROBE_ARGTYPE(vfs, , stat, reg, 0, "char *");
 SDT_PROBE_ARGTYPE(vfs, , stat, reg, 1, "int");
 

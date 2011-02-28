@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_npx.h"
 #include "opt_perfmon.h"
 #include "opt_xbox.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -1888,7 +1889,11 @@ extern inthand_t
 	IDTVEC(bnd), IDTVEC(ill), IDTVEC(dna), IDTVEC(fpusegm),
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
-	IDTVEC(xmm), IDTVEC(lcall_syscall), IDTVEC(int0x80_syscall);
+	IDTVEC(xmm),
+#ifdef KDTRACE_HOOKS
+	IDTVEC(dtrace_ret),
+#endif
+	IDTVEC(lcall_syscall), IDTVEC(int0x80_syscall);
 
 #ifdef DDB
 /*
@@ -2843,6 +2848,10 @@ init386(first)
 	    GSEL(GCODE_SEL, SEL_KPL));
  	setidt(IDT_SYSCALL, &IDTVEC(int0x80_syscall), SDT_SYS386TGT, SEL_UPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
+#ifdef KDTRACE_HOOKS
+	setidt(IDT_DTRACE_RET, &IDTVEC(dtrace_ret), SDT_SYS386TGT, SEL_UPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+#endif
 
 	r_idt.rd_limit = sizeof(idt0) - 1;
 	r_idt.rd_base = (int) idt;

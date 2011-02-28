@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_msgbuf.h"
 #include "opt_perfmon.h"
 #include "opt_sched.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -1094,6 +1095,9 @@ extern inthand_t
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
 	IDTVEC(xmm), IDTVEC(dblfault),
+#ifdef KDTRACE_HOOKS
+	IDTVEC(dtrace_ret),
+#endif
 	IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
 
 #ifdef DDB
@@ -1624,6 +1628,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	setidt(IDT_AC, &IDTVEC(align), SDT_SYSIGT, SEL_KPL, 0);
 	setidt(IDT_MC, &IDTVEC(mchk),  SDT_SYSIGT, SEL_KPL, 0);
 	setidt(IDT_XF, &IDTVEC(xmm), SDT_SYSIGT, SEL_KPL, 0);
+#ifdef KDTRACE_HOOKS
+	setidt(IDT_DTRACE_RET, &IDTVEC(dtrace_ret), SDT_SYSIGT, SEL_UPL, 0);
+#endif
 
 	r_idt.rd_limit = sizeof(idt0) - 1;
 	r_idt.rd_base = (long) idt;

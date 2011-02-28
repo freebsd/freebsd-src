@@ -85,14 +85,14 @@ __FBSDID("$FreeBSD$");
 #define	ONSIG	32		/* NSIG for osig* syscalls.  XXX. */
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE(proc, kernel, , signal_send);
+SDT_PROBE_DEFINE(proc, kernel, , signal_send, signal-send);
 SDT_PROBE_ARGTYPE(proc, kernel, , signal_send, 0, "struct thread *");
 SDT_PROBE_ARGTYPE(proc, kernel, , signal_send, 1, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, , signal_send, 2, "int");
-SDT_PROBE_DEFINE(proc, kernel, , signal_clear);
+SDT_PROBE_DEFINE(proc, kernel, , signal_clear, signal-clear);
 SDT_PROBE_ARGTYPE(proc, kernel, , signal_clear, 0, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, , signal_clear, 1, "ksiginfo_t *");
-SDT_PROBE_DEFINE(proc, kernel, , signal_discard);
+SDT_PROBE_DEFINE(proc, kernel, , signal_discard, signal-discard);
 SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 0, "struct thread *");
 SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 1, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 2, "int");

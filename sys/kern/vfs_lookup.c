@@ -68,9 +68,9 @@ __FBSDID("$FreeBSD$");
 #undef NAMEI_DIAGNOSTIC
 
 SDT_PROVIDER_DECLARE(vfs);
-SDT_PROBE_DEFINE3(vfs, namei, lookup, entry, "struct vnode *", "char *",
+SDT_PROBE_DEFINE3(vfs, namei, lookup, entry, entry, "struct vnode *", "char *",
     "unsigned long");
-SDT_PROBE_DEFINE2(vfs, namei, lookup, return, "int", "struct vnode *");
+SDT_PROBE_DEFINE2(vfs, namei, lookup, return, return, "int", "struct vnode *");
 
 /*
  * Allocation zone for namei

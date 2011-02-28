@@ -46,6 +46,7 @@
 #ifdef _KERNEL
 struct opensolaris_utsname {
 	char *nodename;
+	char *sysname;
 };
 
 extern char hw_serial[11];

@@ -37,9 +37,14 @@
 extern "C" {
 #endif
 
+#if defined(sun)
 #define	FASTTRAPIOC		(('m' << 24) | ('r' << 16) | ('f' << 8))
 #define	FASTTRAPIOC_MAKEPROBE	(FASTTRAPIOC | 1)
 #define	FASTTRAPIOC_GETINSTR	(FASTTRAPIOC | 2)
+#else
+#define	FASTTRAPIOC_MAKEPROBE	_IOW('f', 1, fasttrap_probe_spec_t)
+#define	FASTTRAPIOC_GETINSTR	_IOWR('f', 2, uint8_t)
+#endif
 
 typedef enum fasttrap_probe_type {
 	DTFTP_NONE = 0,
