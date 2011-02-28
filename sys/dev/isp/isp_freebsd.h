@@ -325,6 +325,8 @@ struct isposinfo {
 #define	ISP_DELAY		DELAY
 #define	ISP_SLEEP(isp, x)	DELAY(x)
 
+#define	ISP_MIN			imin
+
 #ifndef	DIAGNOSTIC
 #define	ISP_INLINE		__inline
 #else
