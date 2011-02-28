@@ -183,8 +183,9 @@ struct usb_fs_uninit {
 struct usb_fs_open {
 #define	USB_FS_MAX_BUFSIZE (1 << 18)
 	uint32_t max_bufsize;
-#define	USB_FS_MAX_FRAMES (1 << 12)
-	uint32_t max_frames;
+#define	USB_FS_MAX_FRAMES		(1U << 12)
+#define	USB_FS_MAX_FRAMES_PRE_SCALE	(1U << 31)	/* for ISOCHRONOUS transfers */
+	uint32_t max_frames;		/* read and write */
 	uint16_t max_packet_length;	/* read only */
 	uint8_t	dev_index;		/* currently unused */
 	uint8_t	ep_index;

@@ -471,6 +471,8 @@ usbd_transfer_setup_sub(struct usb_setup_params *parm)
 				xfer->fps_shift--;
 			if (xfer->fps_shift > 3)
 				xfer->fps_shift = 3;
+			if (xfer->flags.pre_scale_frames != 0)
+				xfer->nframes <<= (3 - xfer->fps_shift);
 			break;
 		}
 
