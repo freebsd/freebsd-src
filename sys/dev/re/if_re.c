@@ -254,9 +254,9 @@ static void re_poll_locked	(struct ifnet *, enum poll_cmd, int);
 #endif
 static int re_intr		(void *);
 static void re_tick		(void *);
-static void re_tx_task		(void *, int);
 static void re_int_task		(void *, int);
 static void re_start		(struct ifnet *);
+static void re_start_locked	(struct ifnet *);
 static int re_ioctl		(struct ifnet *, u_long, caddr_t);
 static void re_init		(void *);
 static void re_init_locked	(struct rl_softc *);
@@ -1525,7 +1525,6 @@ re_attach(device_t dev)
 	ifp->if_snd.ifq_drv_maxlen = RL_IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
 
-	TASK_INIT(&sc->rl_txtask, 1, re_tx_task, ifp);
 	TASK_INIT(&sc->rl_inttask, 0, re_int_task, sc);
 
 	/*
@@ -1635,7 +1634,6 @@ re_detach(device_t dev)
 		RL_UNLOCK(sc);
 		callout_drain(&sc->rl_stat_callout);
 		taskqueue_drain(taskqueue_fast, &sc->rl_inttask);
-		taskqueue_drain(taskqueue_fast, &sc->rl_txtask);
 		/*
 		 * Force off the IFF_UP flag here, in case someone
 		 * still had a BPF descriptor attached to this
@@ -2360,7 +2358,7 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	re_txeof(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
+		re_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
 		u_int16_t       status;
@@ -2462,7 +2460,7 @@ re_int_task(void *arg, int npending)
 	}
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
+		re_start_locked(ifp);
 
 	RL_UNLOCK(sc);
 
@@ -2667,19 +2665,21 @@ re_encap(struct rl_softc *sc, struct mbuf **m_head)
 }
 
 static void
-re_tx_task(void *arg, int npending)
+re_start(struct ifnet *ifp)
 {
-	struct ifnet		*ifp;
+	struct rl_softc		*sc;
 
-	ifp = arg;
-	re_start(ifp);
+	sc = ifp->if_softc;
+	RL_LOCK(sc);
+	re_start_locked(ifp);
+	RL_UNLOCK(sc);
 }
 
 /*
  * Main transmit routine for C+ and gigE NICs.
  */
 static void
-re_start(struct ifnet *ifp)
+re_start_locked(struct ifnet *ifp)
 {
 	struct rl_softc		*sc;
 	struct mbuf		*m_head;
@@ -2687,13 +2687,9 @@ re_start(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 
-	RL_LOCK(sc);
-
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || (sc->rl_flags & RL_FLAG_LINK) == 0) {
-		RL_UNLOCK(sc);
+	    IFF_DRV_RUNNING || (sc->rl_flags & RL_FLAG_LINK) == 0)
 		return;
-	}
 
 	for (queued = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
 	    sc->rl_ldata.rl_tx_free > 1;) {
@@ -2723,7 +2719,6 @@ re_start(struct ifnet *ifp)
 		if (sc->rl_ldata.rl_tx_free != sc->rl_ldata.rl_tx_desc_cnt)
 			CSR_WRITE_4(sc, RL_TIMERCNT, 1);
 #endif
-		RL_UNLOCK(sc);
 		return;
 	}
 
@@ -2751,8 +2746,6 @@ re_start(struct ifnet *ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	sc->rl_watchdog_timer = 5;
-
-	RL_UNLOCK(sc);
 }
 
 static void
@@ -3272,7 +3265,7 @@ re_watchdog(struct rl_softc *sc)
 		if_printf(ifp, "watchdog timeout (missed Tx interrupts) "
 		    "-- recovering\n");
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
+			re_start_locked(ifp);
 		return;
 	}
 
@@ -3283,7 +3276,7 @@ re_watchdog(struct rl_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	re_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
+		re_start_locked(ifp);
 }
 
 /*
