@@ -1865,7 +1865,7 @@ isp_handle_platform_atio(ispsoftc_t *isp, at_entry_t *aep)
 	}
 
 	if (status & QLTM_SVALID) {
-		size_t amt = imin(QLTM_SENSELEN, sizeof (atiop->sense_data));
+		size_t amt = ISP_MIN(QLTM_SENSELEN, sizeof (atiop->sense_data));
 		atiop->sense_len = amt;
 		ISP_MEMCPY(&atiop->sense_data, aep->at_sense, amt);
 	} else {
