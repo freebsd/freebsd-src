@@ -50,16 +50,26 @@ struct fifolog_writer {
 
 	uint32_t			seq;
 	off_t				recno;
-	int				flag;
+	uint8_t				flag;
 	time_t				last;
 
-	u_int				obufsize;
+	ssize_t				obufsize;
 	u_char				*obuf;
 
-	u_int				ibufsize;
+	ssize_t				ibufsize;
+	ssize_t				ibufptr;
 	u_char				*ibuf;
 
 	time_t				starttime;
 	time_t				lastwrite;
 	time_t				lastsync;
 };
+
+struct fifolog_writer *fifolog_write_new(void);
+const char *fifolog_write_open(struct fifolog_writer *f, const char *fn, unsigned writerate, unsigned syncrate, unsigned compression);
+int fifolog_write_record(struct fifolog_writer *f, uint32_t id, time_t now, const void *ptr, ssize_t len);
+int fifolog_write_poll(struct fifolog_writer *f, time_t now);
+int fifolog_write_record_poll(struct fifolog_writer *f, uint32_t id, time_t now, const void *ptr, ssize_t len);
+void fifolog_write_close(struct fifolog_writer *f);
+void fifolog_write_destroy(struct fifolog_writer *f);
+extern const char *fifolog_write_statnames[];
