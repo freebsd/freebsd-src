@@ -43,24 +43,6 @@
 #include "libfifolog_int.h"
 
 /*
- * Memory handling for zlib
- */
-
-static voidpf
-fifo_zalloc(voidpf opaque __unused, uInt items, uInt size)
-{
-
-	return calloc(items,size);
-}
-
-static void
-fifo_zfree(voidpf opaque __unused, voidpf address)
-{
-
-	free(address);
-}
-
-/*
  * Open a fifolog file or partition for reading or writing.
  *
  * Return value is NULL for success or a error description string to
@@ -88,6 +70,7 @@ fifolog_int_open_i(struct fifolog_file *f, const char *fname, int mode)
 
 	if (i != 0) {
 		i = fstat(f->fd, &st);
+		assert(i == 0);
 		if (!S_ISREG(st.st_mode))
 			return ("Neither disk nor regular file");
 		f->recsize = 512;
@@ -145,8 +128,6 @@ fifolog_int_open_i(struct fifolog_file *f, const char *fname, int mode)
 	f->zs = calloc(sizeof *f->zs, 1);
 	if (f->zs == NULL)
 		return ("cannot malloc");
-	f->zs->zalloc = fifo_zalloc;
-	f->zs->zfree = fifo_zfree;
 
 	return (NULL);
 }
