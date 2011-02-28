@@ -94,7 +94,7 @@ ddi_get_soft_state_locked(struct ddi_soft_state *ss, int item)
 {
 	struct ddi_soft_state_item *itemp;
 
-	ASSERT(MUTEX_HELD(&zfsdev_state_lock));
+	ASSERT(MUTEX_HELD(&ss->ss_lock));
 
 	LIST_FOREACH(itemp, &ss->ss_list, ssi_next) {
 		if (itemp->ssi_item == item)
@@ -142,7 +142,7 @@ ddi_soft_state_free_locked(struct ddi_soft_state *ss, int item)
 {
 	struct ddi_soft_state_item *itemp;
 
-	ASSERT(MUTEX_HELD(&zfsdev_state_lock));
+	ASSERT(MUTEX_HELD(&ss->ss_lock));
 
 	LIST_FOREACH(itemp, &ss->ss_list, ssi_next) {
 		if (itemp->ssi_item == item)
