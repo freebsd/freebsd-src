@@ -1542,8 +1542,8 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		if ((sassc->flags & MPSSAS_QUEUE_FROZEN) == 0) {
 			xpt_freeze_simq(sassc->sim, 1);
 			sassc->flags |= MPSSAS_QUEUE_FROZEN;
-			mps_printf(sc, "Error sending command, freezing "
-				   "SIM queue\n");
+			mps_dprint(sc, MPS_INFO, "Error sending command, "
+				   "freezing SIM queue\n");
 		}
 	}
 
@@ -1556,7 +1556,8 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 			if (sassc->flags & MPSSAS_QUEUE_FROZEN) {
 				ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 				sassc->flags &= ~MPSSAS_QUEUE_FROZEN;
-				mps_printf(sc, "Unfreezing SIM queue\n");
+				mps_dprint(sc, MPS_INFO,
+					   "Unfreezing SIM queue\n");
 			}
 		} else {
 			ccb->ccb_h.status |= CAM_DEV_QFRZN;
