@@ -415,7 +415,7 @@ lookup_path:	push %si			# Save file name pointer
 lookup_found:					# Found a loader file
 #
 # Load the binary into the buffer.  Due to real mode addressing limitations
-# we have to read it in 64k chunks.
+# we have to read it in in 64k chunks.
 #
 		mov %es:DIR_SIZE(%bx),%eax	# Read file length
 		add $SECTOR_SIZE-1,%eax		# Convert length to sectors
