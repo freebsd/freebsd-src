@@ -965,10 +965,9 @@ __FBSDID("$FreeBSD$");
  * local lan type rtt's
  */
  /*
-  * We allow 500us for the rtt and another 500us for the cookie processing
-  * since we measure this on the first rtt.
+  * We allow 900us for the rtt.
   */
-#define SCTP_LOCAL_LAN_RTT 1100
+#define SCTP_LOCAL_LAN_RTT 900
 #define SCTP_LAN_UNKNOWN  0
 #define SCTP_LAN_LOCAL    1
 #define SCTP_LAN_INTERNET 2
