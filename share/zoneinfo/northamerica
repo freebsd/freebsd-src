@@ -1,5 +1,5 @@
 # <pre>
-# %W%
+# @(#)northamerica	8.40
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -344,6 +344,27 @@ Zone America/North_Dakota/Center -6:45:12 - LMT	1883 Nov 18 12:14:48
 # See <http://www.epa.gov/fedrgstr/EPA-IMPACT/2003/October/Day-28/i27056.htm>.
 Zone America/North_Dakota/New_Salem -6:45:39 - LMT 1883 Nov 18 12:14:21
 			-7:00	US	M%sT	2003 Oct 26 02:00
+			-6:00	US	C%sT
+
+# From Josh Findley (2011-01-21):
+# ...it appears that Mercer County, North Dakota, changed from the
+# mountain time zone to the central time zone at the last transition from
+# daylight-saving to standard time (on Nov. 7, 2010):
+# <a href="http://www.gpo.gov/fdsys/pkg/FR-2010-09-29/html/2010-24376.htm">
+# http://www.gpo.gov/fdsys/pkg/FR-2010-09-29/html/2010-24376.htm
+# </a>
+# <a href="http://www.bismarcktribune.com/news/local/article_1eb1b588-c758-11df-b472-001cc4c03286.html">
+# http://www.bismarcktribune.com/news/local/article_1eb1b588-c758-11df-b472-001cc4c03286.html
+# </a>
+
+# From Andy Lipscomb (2011-01-24):
+# ...according to the Census Bureau, the largest city is Beulah (although
+# it's commonly referred to as Beulah-Hazen, with Hazen being the next
+# largest city in Mercer County).  Google Maps places Beulah's city hall
+# at 4715'51" north, 10146'40" west, which yields an offset of 6h47'07".
+
+Zone America/North_Dakota/Beulah -6:47:07 - LMT 1883 Nov 18 12:12:53
+			-7:00	US	M%sT	2010 Nov  7 2:00
 			-6:00	US	C%sT
 
 # US mountain time, represented by Denver
