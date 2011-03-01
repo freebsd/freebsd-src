@@ -36,8 +36,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capabilities.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/proc.h>
 #include <sys/sysproto.h>
 #include <sys/syscall.h>
@@ -103,6 +106,24 @@ sysarch(td, uap)
 	register struct sysarch_args *uap;
 {
 	int error;
+
+#ifdef CAPABILITIES
+	/*
+	 * Whitelist of operations which are safe enough for capability mode.
+	 */
+	if (IN_CAPABILITY_MODE(td)) {
+		switch (uap->op) {
+			case ARM_SYNC_ICACHE:
+			case ARM_DRAIN_WRITEBUF:
+			case ARM_SET_TP:
+			case ARM_GET_TP:
+				break;
+
+			default:
+				return (ECAPMODE);
+		}
+	}
+#endif
 
 	switch (uap->op) {
 	case ARM_SYNC_ICACHE : 
