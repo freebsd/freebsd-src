@@ -93,7 +93,7 @@ void ktrnamei(char *, int);
 void hexdump(char *, int, int);
 void visdump(char *, int, int);
 void ktrgenio(struct ktr_genio *, int);
-void ktrpsig(struct ktr_psig *, u_int);
+void ktrpsig(struct ktr_psig *);
 void ktrcsw(struct ktr_csw *);
 void ktruser(int, unsigned char *);
 void ktrsockaddr(struct sockaddr *);
@@ -110,6 +110,41 @@ struct ktr_header ktr_header;
 
 #define TIME_FORMAT	"%b %e %T %Y"
 #define eqs(s1, s2)	(strcmp((s1), (s2)) == 0)
+
+#define print_number(i,n,c) do {		\
+	if (decimal)				\
+		printf("%c%ld", c, (long)*i);	\
+	else					\
+		printf("%c%#lx", c, (long)*i);	\
+	i++;					\
+	n--;					\
+	c = ',';				\
+	} while (0);
+
+#if defined(__amd64__) || defined(__i386__)
+
+void linux_ktrsyscall(struct ktr_syscall *);
+void linux_ktrsysret(struct ktr_sysret *);
+extern char *linux_syscallnames[];
+extern int nlinux_syscalls;
+
+/*
+ * from linux.h
+ * Linux syscalls return negative errno's, we do positive and map them
+ */
+static int bsd_to_linux_errno[ELAST + 1] = {
+	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
+	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
+	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
+	-30, -31, -32, -33, -34, -11,-115,-114, -88, -89,
+	-90, -91, -92, -93, -94, -95, -96, -97, -98, -99,
+	-100,-101,-102,-103,-104,-105,-106,-107,-108,-109,
+	-110,-111, -40, -36,-112,-113, -39, -11, -87,-122,
+	-116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
+	-6,  -6, -43, -42, -75,-125, -84, -95, -16, -74,
+	-72, -67, -71
+};
+#endif
 
 struct proc_info
 {
@@ -233,10 +268,20 @@ main(int argc, char *argv[])
 		drop_logged = 0;
 		switch (ktr_header.ktr_type) {
 		case KTR_SYSCALL:
-			ktrsyscall((struct ktr_syscall *)m, sv_flags);
+#if defined(__amd64__) || defined(__i386__)
+			if ((sv_flags & SV_ABI_MASK) == SV_ABI_LINUX)
+				linux_ktrsyscall((struct ktr_syscall *)m);
+			else
+#endif
+				ktrsyscall((struct ktr_syscall *)m, sv_flags);
 			break;
 		case KTR_SYSRET:
-			ktrsysret((struct ktr_sysret *)m, sv_flags);
+#if defined(__amd64__) || defined(__i386__)
+			if ((sv_flags & SV_ABI_MASK) == SV_ABI_LINUX)
+				linux_ktrsysret((struct ktr_sysret *)m);
+			else
+#endif
+				ktrsysret((struct ktr_sysret *)m, sv_flags);
 			break;
 		case KTR_NAMEI:
 		case KTR_SYSCTL:
@@ -246,7 +291,7 @@ main(int argc, char *argv[])
 			ktrgenio((struct ktr_genio *)m, ktrlen);
 			break;
 		case KTR_PSIG:
-			ktrpsig((struct ktr_psig *)m, sv_flags);
+			ktrpsig((struct ktr_psig *)m);
 			break;
 		case KTR_CSW:
 			ktrcsw((struct ktr_csw *)m);
@@ -455,17 +500,6 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 		char c = '(';
 		if (fancy &&
 		    (flags == 0 || (flags & SV_ABI_MASK) == SV_ABI_FREEBSD)) {
-
-#define print_number(i,n,c) do {                      \
-	if (decimal)                                  \
-		(void)printf("%c%ld", c, (long)*i);   \
-	else                                          \
-		(void)printf("%c%#lx", c, (long)*i);  \
-	i++;                                          \
-	n--;                                          \
-	c = ',';                                      \
-	} while (0);
-
 			if (ktr->ktr_code == SYS_ioctl) {
 				const char *cp;
 				print_number(ip,narg,c);
@@ -1093,10 +1127,9 @@ const char *signames[] = {
 };
 
 void
-ktrpsig(struct ktr_psig *psig, u_int flags)
+ktrpsig(struct ktr_psig *psig)
 {
-	if ((flags & SV_ABI_MASK) == SV_ABI_FREEBSD &&
-	    psig->signo > 0 && psig->signo < NSIG)
+	if (psig->signo > 0 && psig->signo < NSIG)
 		(void)printf("SIG%s ", signames[psig->signo]);
 	else
 		(void)printf("SIG %d ", psig->signo);
@@ -1470,6 +1503,67 @@ ktrstruct(char *buf, size_t buflen)
 invalid:
 	printf("invalid record\n");
 }
+
+#if defined(__amd64__) || defined(__i386__)
+void
+linux_ktrsyscall(struct ktr_syscall *ktr)
+{
+	int narg = ktr->ktr_narg;
+	register_t *ip;
+
+	if (ktr->ktr_code >= nlinux_syscalls || ktr->ktr_code < 0)
+		printf("[%d]", ktr->ktr_code);
+	else
+		printf("%s", linux_syscallnames[ktr->ktr_code]);
+	ip = &ktr->ktr_args[0];
+	if (narg) {
+		char c = '(';
+		while (narg > 0)
+			print_number(ip, narg, c);
+		putchar(')');
+	}
+	putchar('\n');
+}
+
+void
+linux_ktrsysret(struct ktr_sysret *ktr)
+{
+	register_t ret = ktr->ktr_retval;
+	int error = ktr->ktr_error;
+	int code = ktr->ktr_code;
+
+	if (code >= nlinux_syscalls || code < 0)
+		printf("[%d] ", code);
+	else
+		printf("%s ", linux_syscallnames[code]);
+
+	if (error == 0) {
+		if (fancy) {
+			printf("%ld", (long)ret);
+			if (ret < 0 || ret > 9)
+				printf("/%#lx", (long)ret);
+		} else {
+			if (decimal)
+				printf("%ld", (long)ret);
+			else
+				printf("%#lx", (long)ret);
+		}
+	} else if (error == ERESTART)
+		printf("RESTART");
+	else if (error == EJUSTRETURN)
+		printf("JUSTRETURN");
+	else {
+		if (ktr->ktr_error <= ELAST + 1)
+			error = abs(bsd_to_linux_errno[ktr->ktr_error]);
+		else
+			error = 999;
+		printf("-1 errno %d", error);
+		if (fancy)
+			printf(" %s", strerror(ktr->ktr_error));
+	}
+	putchar('\n');
+}
+#endif
 
 void
 usage(void)
