@@ -463,36 +463,38 @@ build32:
 .for _t in obj depend all
 	cd ${.CURDIR}/kerberos5/tools; \
 	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} SSP_CFLAGS= DESTDIR= \
-	    ${_t}
+	    DIRPRFX=kerberos5/tools/ ${_t}
 .endfor
 .endif
 .for _t in obj includes
-	cd ${.CURDIR}/include; ${LIB32WMAKE} ${_t}
-	cd ${.CURDIR}/lib; ${LIB32WMAKE} ${_t}
+	cd ${.CURDIR}/include; ${LIB32WMAKE} DIRPRFX=include/ ${_t}
+	cd ${.CURDIR}/lib; ${LIB32WMAKE} DIRPRFX=lib/ ${_t}
 .if ${MK_CDDL} != "no"
-	cd ${.CURDIR}/cddl/lib; ${LIB32WMAKE} ${_t}
+	cd ${.CURDIR}/cddl/lib; ${LIB32WMAKE} DIRPRFX=cddl/lib/ ${_t}
 .endif
-	cd ${.CURDIR}/gnu/lib; ${LIB32WMAKE} ${_t}
+	cd ${.CURDIR}/gnu/lib; ${LIB32WMAKE} DIRPRFX=gnu/lib/ ${_t}
 .if ${MK_CRYPT} != "no"
-	cd ${.CURDIR}/secure/lib; ${LIB32WMAKE} ${_t}
+	cd ${.CURDIR}/secure/lib; ${LIB32WMAKE} DIRPRFX=secure/lib/ ${_t}
 .endif
 .if ${MK_KERBEROS} != "no"
-	cd ${.CURDIR}/kerberos5/lib; ${LIB32WMAKE} ${_t}
+	cd ${.CURDIR}/kerberos5/lib; ${LIB32WMAKE} DIRPRFX=kerberos5/lib ${_t}
 .endif
 .endfor
 .for _dir in usr.bin/lex/lib
-	cd ${.CURDIR}/${_dir}; ${LIB32WMAKE} obj
+	cd ${.CURDIR}/${_dir}; ${LIB32WMAKE} DIRPRFX=${_dir}/ obj
 .endfor
 .for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic
 	cd ${.CURDIR}/${_dir}; \
 	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} SSP_CFLAGS= DESTDIR= \
-	    build-tools
+	    DIRPRFX=${_dir}/ build-tools
 .endfor
 	cd ${.CURDIR}; \
 	    ${LIB32WMAKE} -f Makefile.inc1 libraries
 .for _t in obj depend all
-	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32WMAKE} ${_t}
-	cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32WMAKE} ${_t}
+	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32WMAKE} \
+	    DIRPRFX=libexec/rtld-elf/ ${_t}
+	cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32WMAKE} \
+	    DIRPRFX=usr.bin/ldd ${_t}
 .endfor
 
 distribute32 install32:
