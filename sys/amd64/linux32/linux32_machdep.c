@@ -60,10 +60,9 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 
+#include <compat/freebsd32/freebsd32_util.h>
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_proto.h>
 #include <compat/linux/linux_ipc.h>
@@ -107,105 +106,6 @@ bsd_to_linux_sigaltstack(int bsa)
 	return (lsa);
 }
 
-/*
- * Custom version of exec_copyin_args() so that we can translate
- * the pointers.
- */
-static int
-linux_exec_copyin_args(struct image_args *args, char *fname,
-    enum uio_seg segflg, char **argv, char **envv)
-{
-	char *argp, *envp;
-	u_int32_t *p32, arg;
-	size_t length;
-	int error;
-
-	bzero(args, sizeof(*args));
-	if (argv == NULL)
-		return (EFAULT);
-
-	/*
-	 * Allocate temporary demand zeroed space for argument and
-	 *	environment strings
-	 */
-	args->buf = (char *)kmem_alloc_wait(exec_map,
-	    PATH_MAX + ARG_MAX + MAXSHELLCMDLEN);
-	if (args->buf == NULL)
-		return (ENOMEM);
-	args->begin_argv = args->buf;
-	args->endp = args->begin_argv;
-	args->stringspace = ARG_MAX;
-
-	args->fname = args->buf + ARG_MAX;
-
-	/*
-	 * Copy the file name.
-	 */
-	error = (segflg == UIO_SYSSPACE) ?
-	    copystr(fname, args->fname, PATH_MAX, &length) :
-	    copyinstr(fname, args->fname, PATH_MAX, &length);
-	if (error != 0)
-		goto err_exit;
-
-	/*
-	 * extract arguments first
-	 */
-	p32 = (u_int32_t *)argv;
-	for (;;) {
-		error = copyin(p32++, &arg, sizeof(arg));
-		if (error)
-			goto err_exit;
-		if (arg == 0)
-			break;
-		argp = PTRIN(arg);
-		error = copyinstr(argp, args->endp, args->stringspace, &length);
-		if (error) {
-			if (error == ENAMETOOLONG)
-				error = E2BIG;
-
-			goto err_exit;
-		}
-		args->stringspace -= length;
-		args->endp += length;
-		args->argc++;
-	}
-
-	args->begin_envv = args->endp;
-
-	/*
-	 * extract environment strings
-	 */
-	if (envv) {
-		p32 = (u_int32_t *)envv;
-		for (;;) {
-			error = copyin(p32++, &arg, sizeof(arg));
-			if (error)
-				goto err_exit;
-			if (arg == 0)
-				break;
-			envp = PTRIN(arg);
-			error = copyinstr(envp, args->endp, args->stringspace,
-			    &length);
-			if (error) {
-				if (error == ENAMETOOLONG)
-					error = E2BIG;
-				goto err_exit;
-			}
-			args->stringspace -= length;
-			args->endp += length;
-			args->envc++;
-		}
-	}
-
-	return (0);
-
-err_exit:
-	kmem_free_wakeup(exec_map, (vm_offset_t)args->buf,
-	    PATH_MAX + ARG_MAX + MAXSHELLCMDLEN);
-	args->buf = NULL;
-	return (error);
-}
-
 int
 linux_execve(struct thread *td, struct linux_execve_args *args)
 {
@@ -220,8 +120,8 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 		printf(ARGS(execve, "%s"), path);
 #endif
 
-	error = linux_exec_copyin_args(&eargs, path, UIO_SYSSPACE, args->argp,
-	    args->envp);
+	error = freebsd32_exec_copyin_args(&eargs, path, UIO_SYSSPACE,
+	    args->argp, args->envp);
 	free(path, M_TEMP);
 	if (error == 0)
 		error = kern_execve(td, &eargs, NULL);
