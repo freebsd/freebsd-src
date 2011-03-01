@@ -336,6 +336,7 @@ MAKE_JUST_WORLDS=	YES
 .else
 UNIVERSE_TARGET?=	buildworld
 .endif
+KERNSRCDIR?=		${.CURDIR}/sys
 
 targets:
 	@echo "Supported TARGET/TARGET_ARCH pairs for world and kernel targets"
@@ -383,8 +384,8 @@ universe_${target}_${target_arch}: universe_${target}_prologue
 .endfor
 .endif
 .if !defined(MAKE_JUST_WORLDS)
-.if exists(${.CURDIR}/sys/${target}/conf/NOTES)
-	@(cd ${.CURDIR}/sys/${target}/conf && env __MAKE_CONF=/dev/null \
+.if exists(${KERNSRCDIR}/${target}/conf/NOTES)
+	@(cd ${KERNSRCDIR}/${target}/conf && env __MAKE_CONF=/dev/null \
 	    ${MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
 	    (echo "${target} 'make LINT' failed," \
 	    "check _.${target}.makeLINT for details"| ${MAKEFAIL}))
@@ -398,13 +399,13 @@ universe_kernels: universe_kernconfs
 .if !defined(TARGET)
 TARGET!=	uname -m
 .endif
-KERNCONFS!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
+KERNCONFS!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 		find [A-Z0-9]*[A-Z0-9] -type f -maxdepth 0 \
 		! -name DEFAULTS ! -name NOTES
 universe_kernconfs:
 .for kernel in ${KERNCONFS}
-TARGET_ARCH_${kernel}!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
-	config -m ${.CURDIR}/sys/${TARGET}/conf/${kernel} 2> /dev/null | \
+TARGET_ARCH_${kernel}!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
+	config -m ${KERNSRCDIR}/${TARGET}/conf/${kernel} 2> /dev/null | \
 	grep -v WARNING: | cut -f 2
 .if empty(TARGET_ARCH_${kernel})
 .error "Target architecture for ${TARGET}/conf/${kernel} unknown.  config(8) likely too old."
