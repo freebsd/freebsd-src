@@ -927,7 +927,7 @@ do {									\
 
 #ifdef COMPAT_FREEBSD32
 	env_vector32 = NULL;
-	if ((p->p_sysent->sv_flags & SV_ILP32) != 0) {
+	if (SV_PROC_FLAG(p, SV_ILP32) != 0) {
 		env_vector32 = malloc(sizeof(*env_vector32) * MAX_ARGV_STR,
 		    M_TEMP, M_WAITOK);
 		elm_len = sizeof(int32_t);
