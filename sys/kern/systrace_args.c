@@ -3096,6 +3096,18 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* cap_enter */
+	case 516: {
+		*n_args = 0;
+		break;
+	}
+	/* cap_getmode */
+	case 517: {
+		struct cap_getmode_args *p = params;
+		uarg[0] = (intptr_t) p->modep; /* u_int * */
+		*n_args = 1;
+		break;
+	}
 	/* pselect */
 	case 522: {
 		struct pselect_args *p = params;
@@ -8235,6 +8247,19 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 1:
 			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* cap_enter */
+	case 516:
+		break;
+	/* cap_getmode */
+	case 517:
+		switch(ndx) {
+		case 0:
+			p = "u_int *";
 			break;
 		default:
 			break;
