@@ -1158,7 +1158,7 @@ options 	MAC_STUB
 options 	MAC_TEST
 
 # Support for Capsicum
-options 	CAPABILIITES
+options 	CAPABILITIES
 
 
 #####################################################################
