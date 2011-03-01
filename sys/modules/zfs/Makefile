@@ -85,7 +85,7 @@ CFLAGS+=-I${SUNW}/common
 CFLAGS+=-I${.CURDIR}/../../../include
 CFLAGS+=-DBUILDING_ZFS
 
-.if ${TARGET_ARCH} == "powerpc64"
+.if ${MACHINE_ARCH} == "powerpc64"
 CFLAGS+=-mminimal-toc
 .endif
 
