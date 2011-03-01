@@ -146,8 +146,8 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 		 * linux_proc_init, this leads to a panic on KASSERT
 		 * because such process has p->p_emuldata == NULL
 		 */
-	   	if (td->td_proc->p_sysent == &elf_linux_sysvec)
-   		   	error = linux_proc_init(td, 0, 0);
+		if (SV_PROC_ABI(td->td_proc) == SV_ABI_LINUX)
+   			error = linux_proc_init(td, 0, 0);
 	return (error);
 }
 
