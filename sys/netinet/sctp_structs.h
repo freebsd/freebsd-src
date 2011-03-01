@@ -219,6 +219,21 @@ struct htcp {
 	uint32_t lasttime;
 };
 
+struct rtcc_cc {
+	struct timeval tls;	/* The time we started the sending  */
+	uint64_t lbw;		/* Our last estimated bw */
+	uint64_t lbw_rtt;	/* RTT at bw estimate */
+	uint64_t bw_bytes;	/* The total bytes since this sending began */
+	uint64_t bw_tot_time;	/* The total time since sending began */
+	uint64_t new_tot_time;	/* temp holding the new value */
+	uint32_t cwnd_at_bw_set;
+	uint8_t ret_from_eq;
+	uint8_t use_dccc_ecn;
+	uint8_t tls_needs_set;	/* Flag to indicate we need to set tls 0 or 1
+				 * means set at send 2 not */
+};
+
+
 struct sctp_nets {
 	TAILQ_ENTRY(sctp_nets) sctp_next;	/* next link */
 
@@ -255,6 +270,7 @@ struct sctp_nets {
 	struct timeval last_sent_time;
 	union cc_control_data {
 		struct htcp htcp_ca;	/* JRS - struct used in HTCP algorithm */
+		struct rtcc_cc rtcc;	/* rtcc module cc stuff  */
 	}               cc_mod;
 	int ref_count;
 
