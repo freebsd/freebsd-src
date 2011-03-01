@@ -1777,6 +1777,7 @@ flags_out:
 				SCTP_TCB_UNLOCK(stcb);
 			}
 		}
+		break;
 		/* RS - Get socket option for pluggable stream scheduling */
 	case SCTP_PLUGGABLE_SS:
 		{
@@ -2957,6 +2958,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				case SCTP_CC_RFC2581:
 				case SCTP_CC_HSTCP:
 				case SCTP_CC_HTCP:
+				case SCTP_CC_RTCC:
 					stcb->asoc.cc_functions = sctp_cc_functions[av->assoc_value];
 					stcb->asoc.congestion_control_module = av->assoc_value;
 					if (stcb->asoc.cc_functions.sctp_set_initial_cc_param != NULL) {
@@ -2976,6 +2978,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				case SCTP_CC_RFC2581:
 				case SCTP_CC_HSTCP:
 				case SCTP_CC_HTCP:
+				case SCTP_CC_RTCC:
 					SCTP_INP_WLOCK(inp);
 					inp->sctp_ep.sctp_default_cc_module = av->assoc_value;
 					SCTP_INP_WUNLOCK(inp);
@@ -2987,6 +2990,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				}
 			}
 		}
+		break;
 	case SCTP_CC_OPTION:
 		{
 			struct sctp_cc_option *cc_opt;
