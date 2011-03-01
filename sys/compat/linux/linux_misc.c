@@ -886,7 +886,7 @@ linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 		return copyout(&tmpstat, args->status, sizeof(int));
 	}
 
-	return 0;
+	return (0);
 }
 
 int
