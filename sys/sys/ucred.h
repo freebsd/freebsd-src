@@ -70,6 +70,11 @@ struct ucred {
 #define	XU_NGROUPS	16
 
 /*
+ * Flags for cr_flags.
+ */
+#define	CRED_FLAG_CAPMODE	0x00000001	/* In capability mode. */
+
+/*
  * This is the external representation of struct ucred.
  */
 struct xucred {

@@ -101,9 +101,11 @@
 #define KI_NGROUPS	16		/* number of groups in ki_groups */
 #define	LOGNAMELEN	17		/* size of returned ki_login */
 
+/* Flags for the process credential. */
+#define	KI_CRF_CAPABILITY_MODE	0x00000001
 /*
- * Steal a bit from ki_cr_flags (cr_flags is never used) to indicate
- * that the cred had more than KI_NGROUPS groups.
+ * Steal a bit from ki_cr_flags to indicate that the cred had more than
+ * KI_NGROUPS groups.
  */
 #define KI_CRF_GRP_OVERFLOW	0x80000000
 

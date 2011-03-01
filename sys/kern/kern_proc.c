@@ -725,7 +725,9 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 		kp->ki_uid = cred->cr_uid;
 		kp->ki_ruid = cred->cr_ruid;
 		kp->ki_svuid = cred->cr_svuid;
-		kp->ki_cr_flags = cred->cr_flags;
+		kp->ki_cr_flags = 0;
+		if (cred->cr_flags & CRED_FLAG_CAPMODE)
+			kp->ki_cr_flags |= KI_CRF_CAPABILITY_MODE;
 		/* XXX bde doesn't like KI_NGROUPS */
 		if (cred->cr_ngroups > KI_NGROUPS) {
 			kp->ki_ngroups = KI_NGROUPS;
