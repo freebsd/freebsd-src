@@ -318,7 +318,7 @@ fifolog_write_record(struct fifolog_writer *f, uint32_t id, time_t now,
 {
 	const unsigned char *p;
 	uint8_t buf[9];
-	unsigned bufl;
+	ssize_t bufl;
 
 	fifolog_write_assert(f);
 	assert(!(id & (FIFOLOG_TIMESTAMP|FIFOLOG_LENGTH)));

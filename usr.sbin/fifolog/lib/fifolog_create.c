@@ -44,7 +44,7 @@ const char *
 fifolog_create(const char *fn, off_t size, ssize_t recsize)
 {
 	int i, fd;
-	unsigned u;
+	ssize_t u;
 	off_t ms;
 	struct stat st;
 	char *buf;
