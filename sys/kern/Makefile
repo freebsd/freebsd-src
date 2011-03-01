@@ -10,7 +10,8 @@ sysent: init_sysent.c syscalls.c ../sys/syscall.h ../sys/syscall.mk \
 ../sys/sysproto.h
 
 init_sysent.c syscalls.c systrace_args.c ../sys/syscall.h \
-../sys/syscall.mk ../sys/sysproto.h: makesyscalls.sh syscalls.master
+../sys/syscall.mk ../sys/sysproto.h: makesyscalls.sh syscalls.master \
+capabilities.conf
 	-mv -f init_sysent.c init_sysent.c.bak
 	-mv -f syscalls.c syscalls.c.bak
 	-mv -f systrace_args.c systrace_args.c.bak
