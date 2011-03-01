@@ -2420,13 +2420,13 @@ SYSCTL_NODE(_vm, OID_AUTO, swap_info, CTLFLAG_RD, sysctl_vm_swap_info,
  *	if the VM object has any swap use at all the associated map entries
  *	count for at least 1 swap page.
  */
-vm_offset_t
+long
 vmspace_swap_count(struct vmspace *vmspace)
 {
 	vm_map_t map;
 	vm_map_entry_t cur;
 	vm_object_t object;
-	vm_offset_t count, n;
+	long count, n;
 
 	map = &vmspace->vm_map;
 	count = 0;
