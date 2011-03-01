@@ -33,8 +33,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capabilities.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -176,6 +179,32 @@ sysarch(td, uap)
 	uint32_t i386base;
 	uint64_t a64base;
 	struct i386_ioperm_args iargs;
+
+#ifdef CAPABILITIES
+	/*
+	 * Whitelist of operations which are safe enough for capability mode.
+	 */
+	if (IN_CAPABILITY_MODE(td)) {
+		switch (uap->op) {
+			case I386_GET_LDT:
+			case I386_SET_LDT:
+			case I386_GET_IOPERM:
+			case I386_GET_FSBASE:
+			case I386_SET_FSBASE:
+			case I386_GET_GSBASE:
+			case I386_SET_GSBASE:
+			case AMD64_GET_FSBASE:
+			case AMD64_SET_FSBASE:
+			case AMD64_GET_GSBASE:
+			case AMD64_SET_GSBASE:
+				break;
+
+			case I386_SET_IOPERM:
+			default:
+				return (ECAPMODE);
+		}
+	}
+#endif
 
 	if (uap->op == I386_GET_LDT || uap->op == I386_SET_LDT)
 		return (sysarch_ldt(td, uap, UIO_USERSPACE));
