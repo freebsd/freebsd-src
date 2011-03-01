@@ -175,10 +175,11 @@ __END_DECLS
 
 #ifndef _POSIX_SOURCE
 #define	ENOTCAPABLE	93		/* Capabilities insufficient */
+#define	ECAPMODE		94		/* Not permitted in capability mode */
 #endif /* _POSIX_SOURCE */
 
 #ifndef _POSIX_SOURCE
-#define	ELAST		93		/* Must be equal largest errno */
+#define	ELAST		94		/* Must be equal largest errno */
 #endif /* _POSIX_SOURCE */
 
 #ifdef _KERNEL
