@@ -1,0 +1,53 @@
+# $FreeBSD$
+
+WORLDDIR?=	${.CURDIR}/..
+DISTDIR?=	${DESTDIR}/usr/freebsd-dist
+PORTSDIR?=	/usr/ports
+
+TARGET_ARCH?=	${MACHINE_ARCH}
+.if ${TARGET_ARCH} == ${MACHINE_ARCH}
+TARGET?=	${MACHINE}
+.else
+TARGET?=	${TARGET_ARCH}
+.endif
+IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
+
+packagesystem:
+	-mkdir -p ${DISTDIR}
+	cd ${WORLDDIR} && ${IMAKE} distributeworld distributekernel DISTDIR=${DISTDIR}
+# Set up mergemaster root database
+	sh ${.CURDIR}/scripts/mm-mtree.sh -F "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" -D "${DISTDIR}/base"
+	cd ${WORLDDIR} && ${IMAKE} packageworld packagekernel DISTDIR=${DISTDIR}
+	-mkdir -p ${DISTDIR}/usr
+# Package up src and ports trees
+	ln -fs ${WORLDDIR} ${DISTDIR}/usr/src
+	ln -fs ${PORTSDIR} ${DISTDIR}/usr/ports
+.if !defined(NOPORTS)
+	cd ${DISTDIR} && tar cLvJf ${DISTDIR}/ports.txz --exclude usr/ports/distfiles --exclude usr/ports/packages --exclude 'usr/ports/INDEX*' usr/ports
+.endif
+.if !defined(NOSRC)
+	cd ${DISTDIR} && tar cLvJf ${DISTDIR}/src.txz --exclude .svn --exclude CVS usr/src
+.endif
+
+system:
+# Install system
+	-mkdir ${DISTDIR}/release
+	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution DESTDIR=${DISTDIR}/release
+	-rm ${DISTDIR}/release/boot/kernel/*.symbols
+# Copy distfiles
+	mkdir ${DISTDIR}/release/usr/freebsd-dist
+	cp ${DISTDIR}/*.txz ${DISTDIR}/release/usr/freebsd-dist
+# Set up installation environment
+	ln -s /tmp/bsdinstall_etc/resolv.conf ${DISTDIR}/release/etc/resolv.conf
+	echo sendmail_enable=\"NONE\" > ${DISTDIR}/release/etc/rc.conf
+	echo hostid_enable=\"NO\" >> ${DISTDIR}/release/etc/rc.conf
+	touch ${DISTDIR}/release/etc/fstab
+	cp rc.local ${DISTDIR}/release/etc
+
+cdrom:
+	echo kernel_options=\"-C\" > ${DISTDIR}/release/boot/loader.conf
+	sh /usr/src/release/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${DISTDIR}/release.iso ${DISTDIR}/release
+	rm ${DISTDIR}/release/boot/loader.conf
+
+release: packagesystem system cdrom
+	
