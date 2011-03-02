@@ -131,11 +131,11 @@ static struct dsk {
     int init;
 } dsk;
 static char cmd[512], cmddup[512];
-static char kname[1024];
+static const char *kname = NULL;
 static uint32_t opts;
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
-static uint8_t ioctrl = IO_KEYBOARD;
+static unsigned ioctrl = IO_KEYBOARD;
 
 void exit(int);
 static void load(void);
@@ -144,7 +144,6 @@ static int xfsread(ino_t, void *, size_t);
 static int dskread(void *, unsigned, unsigned);
 static void printf(const char *,...);
 static void putchar(int);
-static uint32_t memsize(void);
 static int drvread(void *, unsigned, unsigned);
 static int keyhit(unsigned);
 static int xputc(int);
@@ -180,15 +179,6 @@ xfsread(ino_t inode, void *buf, size_t nbyte)
 	return -1;
     }
     return 0;
-}
-
-static inline uint32_t
-memsize(void)
-{
-    v86.addr = MEM_EXT;
-    v86.eax = 0x8800;
-    v86int();
-    return v86.eax;
 }
 
 static inline void
@@ -245,9 +235,6 @@ main(void)
     dsk.slice = *(uint8_t *)PTOV(ARGS + 1) + 1;
     bootinfo.bi_version = BOOTINFO_VERSION;
     bootinfo.bi_size = sizeof(bootinfo);
-    bootinfo.bi_basemem = 0;	/* XXX will be filled by loader or kernel */
-    bootinfo.bi_extmem = memsize();
-    bootinfo.bi_memsizes_valid++;
 
     /* Process configuration file */
 
@@ -271,11 +258,11 @@ main(void)
      * or in case of failure, try to load a kernel directly instead.
      */
 
-    if (autoboot && !*kname) {
-	memcpy(kname, PATH_BOOT3, sizeof(PATH_BOOT3));
+    if (autoboot && !kname) {
+	kname = PATH_BOOT3;
 	if (!keyhit(3*SECOND)) {
 	    load();
-	    memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
+	    kname = PATH_KERNEL;
 	}
     }
 
@@ -290,7 +277,7 @@ main(void)
 		   'a' + dsk.part, kname);
 	if (ioctrl & IO_SERIAL)
 	    sio_flush();
-	if (!autoboot || keyhit(5*SECOND))
+	if (!autoboot || keyhit(3*SECOND))
 	    getstr();
 	else if (!autoboot || !OPT_CHECK(RBX_QUIET))
 	    putchar('\n');
@@ -474,11 +461,7 @@ parse()
 			     ? DRV_HARD : 0) + drv;
 		dsk_meta = 0;
 	    }
-	    if ((i = ep - arg)) {
-		if ((size_t)i >= sizeof(kname))
-		    return -1;
-		memcpy(kname, arg, i + 1);
-	    }
+            kname = arg;
 	}
 	arg = p;
     }
@@ -630,7 +613,7 @@ keyhit(unsigned ticks)
 	t1 = *(uint32_t *)PTOV(0x46c);
 	if (!t0)
 	    t0 = t1;
-	if (t1 < t0 || t1 >= t0 + ticks)
+	if ((uint32_t)(t1 - t0) >= ticks)
 	    return 0;
     }
 }
