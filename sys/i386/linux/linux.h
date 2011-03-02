@@ -880,4 +880,6 @@ struct linux_robust_list_head {
 	struct linux_robust_list	*pending_list;
 };
 
+int linux_set_upcall_kse(struct thread *td, register_t stack);
+
 #endif /* !_I386_LINUX_H_ */

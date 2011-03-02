@@ -559,7 +559,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	 * this is what normal fork() does so we just keep the tf_esp arg intact
 	 */
 	if (args->stack)
-   	   	td2->td_frame->tf_esp = (unsigned int)args->stack;
+		linux_set_upcall_kse(td2, PTROUT(args->stack));
 
 	if (args->flags & LINUX_CLONE_SETTLS)
 		linux_set_cloned_tls(td2, args->tls);
@@ -593,6 +593,15 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 			cv_wait(&p2->p_pwait, &p2->p_mtx);
 		PROC_UNLOCK(p2);
 	}
+
+	return (0);
+}
+
+int
+linux_set_upcall_kse(struct thread *td, register_t stack)
+{
+
+	td->td_frame->tf_esp = stack;
 
 	return (0);
 }
