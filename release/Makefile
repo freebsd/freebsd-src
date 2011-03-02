@@ -194,8 +194,8 @@ DIST_DOCS_ARCH_DEP=
 # Things which without too much trouble can be considered variables
 # BASE_DISTS are special in that they get full /etc installation sets.
 #
-OTHER_DISTS?=	catpages manpages games proflibs dict info doc ${ARCH_DISTS}
-BASE_DISTS?=	base
+OTHER_DISTS?=	catpages manpages proflibs dict info
+BASE_DISTS?=	base doc games ${ARCH_DISTS}
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 ARCH_DISTS?=	lib32
 .endif
@@ -647,9 +647,7 @@ release.1:
 		mtree -deU -f ${MTREEFILES}/BSD.usr.dist \
 		    -p ${RD}/trees/$$i/usr > /dev/null && \
 		mtree -deU -f ${MTREEFILES}/BSD.include.dist \
-		    -p ${RD}/trees/$$i/usr/include > /dev/null && \
-		mtree -deU -f ${MTREEFILES}/BSD.var.dist \
-		    -p ${RD}/trees/$$i/var > /dev/null ; \
+		    -p ${RD}/trees/$$i/usr/include > /dev/null; \
 	done
 	mkdir ${RD}/kernels
 	for i in ${KERNELS_BASE} ${KERNELS}; do \

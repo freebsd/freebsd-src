@@ -89,9 +89,11 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	check-old check-old-dirs check-old-files check-old-libs \
 	checkdpadd clean cleandepend cleandir \
 	delete-old delete-old-dirs delete-old-files delete-old-libs \
-	depend distribute distributeworld distrib-dirs distribution doxygen \
+	depend distribute distributekernel distributekernel.debug \
+	distributeworld distrib-dirs distribution doxygen \
 	everything hierarchy install installcheck installkernel \
-	installkernel.debug reinstallkernel reinstallkernel.debug \
+	installkernel.debug packagekernel packageworld \
+	reinstallkernel reinstallkernel.debug \
 	installworld kernel-toolchain libraries lint maninstall \
 	obj objlink regress rerelease showconfig tags toolchain update \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
