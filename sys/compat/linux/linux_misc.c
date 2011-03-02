@@ -847,13 +847,35 @@ linux_futimesat(struct thread *td, struct linux_futimesat_args *args)
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
-#define __WCLONE 0x80000000
+int
+linux_common_wait(struct thread *td, int pid, int *status,
+    int options, struct rusage *ru)
+{
+	int error, tmpstat;
+
+	error = kern_wait(td, pid, &tmpstat, options, ru);
+	if (error)
+		return (error);
+
+	if (status) {
+		tmpstat &= 0xffff;
+		if (WIFSIGNALED(tmpstat))
+			tmpstat = (tmpstat & 0xffffff80) |
+			    BSD_TO_LINUX_SIGNAL(WTERMSIG(tmpstat));
+		else if (WIFSTOPPED(tmpstat))
+			tmpstat = (tmpstat & 0xffff00ff) |
+			    (BSD_TO_LINUX_SIGNAL(WSTOPSIG(tmpstat)) << 8);
+		error = copyout(&tmpstat, status, sizeof(int));
+	}
+
+	return (error);
+}
 
 int
 linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 {
-	int error, options, tmpstat;
-
+	int options;
+ 
 #ifdef DEBUG
 	if (ldebug(waitpid))
 		printf(ARGS(waitpid, "%d, %p, %d"),
@@ -865,77 +887,15 @@ linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 	 */
 	if (args->options & ~(WUNTRACED | WNOHANG | WCONTINUED | __WCLONE))
 		return (EINVAL);
-
+   
 	options = (args->options & (WNOHANG | WUNTRACED));
 	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
 	if (args->options & __WCLONE)
 		options |= WLINUXCLONE;
 
-	error = kern_wait(td, args->pid, &tmpstat, options, NULL);
-	if (error)
-		return error;
-
-	if (args->status) {
-		tmpstat &= 0xffff;
-		if (WIFSIGNALED(tmpstat))
-			tmpstat = (tmpstat & 0xffffff80) |
-			    BSD_TO_LINUX_SIGNAL(WTERMSIG(tmpstat));
-		else if (WIFSTOPPED(tmpstat))
-			tmpstat = (tmpstat & 0xffff00ff) |
-			    (BSD_TO_LINUX_SIGNAL(WSTOPSIG(tmpstat)) << 8);
-		return copyout(&tmpstat, args->status, sizeof(int));
-	}
-
-	return (0);
+	return (linux_common_wait(td, args->pid, args->status, options, NULL));
 }
 
-int
-linux_wait4(struct thread *td, struct linux_wait4_args *args)
-{
-	int error, options, tmpstat;
-	struct rusage ru, *rup;
-	struct proc *p;
-
-#ifdef DEBUG
-	if (ldebug(wait4))
-		printf(ARGS(wait4, "%d, %p, %d, %p"),
-		    args->pid, (void *)args->status, args->options,
-		    (void *)args->rusage);
-#endif
-
-	options = (args->options & (WNOHANG | WUNTRACED));
-	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
-	if (args->options & __WCLONE)
-		options |= WLINUXCLONE;
-
-	if (args->rusage != NULL)
-		rup = &ru;
-	else
-		rup = NULL;
-	error = kern_wait(td, args->pid, &tmpstat, options, rup);
-	if (error)
-		return error;
-
-	p = td->td_proc;
-	PROC_LOCK(p);
-	sigqueue_delete(&p->p_sigqueue, SIGCHLD);
-	PROC_UNLOCK(p);
-
-	if (args->status) {
-		tmpstat &= 0xffff;
-		if (WIFSIGNALED(tmpstat))
-			tmpstat = (tmpstat & 0xffffff80) |
-			    BSD_TO_LINUX_SIGNAL(WTERMSIG(tmpstat));
-		else if (WIFSTOPPED(tmpstat))
-			tmpstat = (tmpstat & 0xffff00ff) |
-			    (BSD_TO_LINUX_SIGNAL(WSTOPSIG(tmpstat)) << 8);
-		error = copyout(&tmpstat, args->status, sizeof(int));
-	}
-	if (args->rusage != NULL && error == 0)
-		error = copyout(&ru, args->rusage, sizeof(ru));
-
-	return (error);
-}
 
 int
 linux_mknod(struct thread *td, struct linux_mknod_args *args)
