@@ -616,6 +616,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if (args->flags & LINUX_CLONE_SETTLS) {
 		struct user_segment_descriptor sd;
 		struct l_user_desc info;
+		struct pcb *pcb;
 		int a[2];
 
 		error = copyin((void *)td->td_frame->tf_rsi, &info,
@@ -645,10 +646,11 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 				    sd.sd_type, sd.sd_dpl, sd.sd_p, sd.sd_xx,
 				    sd.sd_long, sd.sd_def32, sd.sd_gran);
 #endif
-			td2->td_pcb->pcb_gsbase = (register_t)info.base_addr;
-/* XXXKIB		td2->td_pcb->pcb_gs32sd = sd; */
+			pcb = td2->td_pcb;
+			pcb->pcb_gsbase = (register_t)info.base_addr;
+/* XXXKIB		pcb->pcb_gs32sd = sd; */
 			td2->td_frame->tf_gs = GSEL(GUGS32_SEL, SEL_UPL);
-			td2->td_pcb->pcb_flags |= PCB_GS32BIT | PCB_32BIT;
+			set_pcb_flags(pcb, PCB_GS32BIT | PCB_32BIT);
 		}
 	}
 
@@ -1178,6 +1180,7 @@ linux_set_thread_area(struct thread *td,
 {
 	struct l_user_desc info;
 	struct user_segment_descriptor sd;
+	struct pcb *pcb;
 	int a[2];
 	int error;
 
@@ -1266,8 +1269,9 @@ linux_set_thread_area(struct thread *td,
 		    sd.sd_gran);
 #endif
 
-	td->td_pcb->pcb_gsbase = (register_t)info.base_addr;
-	td->td_pcb->pcb_flags |= PCB_32BIT | PCB_GS32BIT;
+	pcb = td->td_pcb;
+	pcb->pcb_gsbase = (register_t)info.base_addr;
+	set_pcb_flags(pcb, PCB_32BIT | PCB_GS32BIT);
 	update_gdt_gsbase(td, info.base_addr);
 
 	return (0);
