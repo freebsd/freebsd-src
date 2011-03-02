@@ -88,7 +88,7 @@ struct futex_list futex_list;
 
 #define FUTEX_LOCK(f)		sx_xlock(&(f)->f_lck)
 #define FUTEX_UNLOCK(f)		sx_xunlock(&(f)->f_lck)
-#define FUTEX_INIT(f)		sx_init_flags(&(f)->f_lck, "ftlk", 0)
+#define FUTEX_INIT(f)		sx_init_flags(&(f)->f_lck, "ftlk", SX_DUPOK)
 #define FUTEX_DESTROY(f)	sx_destroy(&(f)->f_lck)
 #define FUTEX_ASSERT_LOCKED(f)	sx_assert(&(f)->f_lck, SA_XLOCKED)
 
@@ -565,8 +565,7 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 
 		/*
 		 * To avoid deadlocks return EINVAL if second futex
-		 * exists at this time. Otherwise create the new futex
-		 * and ignore false positive LOR which thus happens.
+		 * exists at this time.
 		 *
 		 * Glibc fall back to FUTEX_WAKE in case of any error
 		 * returned by FUTEX_CMP_REQUEUE.
