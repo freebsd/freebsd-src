@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2010-2011 Alexander V. Chernikov <melifaro@ipfw.ru>
  * Copyright (c) 2004-2005 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 2001-2003 Roman V. Palagin <romanp@unshadow.net>
  * All rights reserved.
@@ -30,6 +31,8 @@
 static const char rcs_id[] =
     "@(#) $FreeBSD$";
 
+#include "opt_inet6.h"
+#include "opt_route.h"
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
@@ -37,14 +40,18 @@ static const char rcs_id[] =
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
+#include <sys/endian.h>
 
 #include <machine/atomic.h>
+#include <machine/stdarg.h>
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/ethernet.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 
@@ -52,6 +59,7 @@ static const char rcs_id[] =
 #include <netgraph/netgraph.h>
 
 #include <netgraph/netflow/netflow.h>
+#include <netgraph/netflow/netflow_v9.h>
 #include <netgraph/netflow/ng_netflow.h>
 
 #define	NBUCKETS	(65536)		/* must be power of 2 */
@@ -83,25 +91,28 @@ static const char rcs_id[] =
  */
 #define	SMALL(fle)	(fle->f.packets <= 4)
 
-/*
- * Cisco uses milliseconds for uptime. Bad idea, since it overflows
- * every 48+ days. But we will do same to keep compatibility. This macro
- * does overflowable multiplication to 1000.
- */
-#define	MILLIUPTIME(t)	(((t) << 9) +	/* 512 */	\
-			 ((t) << 8) +	/* 256 */	\
-			 ((t) << 7) +	/* 128 */	\
-			 ((t) << 6) +	/* 64  */	\
-			 ((t) << 5) +	/* 32  */	\
-			 ((t) << 3))	/* 8   */
 
 MALLOC_DECLARE(M_NETFLOW_HASH);
 MALLOC_DEFINE(M_NETFLOW_HASH, "netflow_hash", "NetFlow hash");
 
 static int export_add(item_p, struct flow_entry *);
-static int export_send(priv_p, item_p, int flags);
+static int export_send(priv_p, fib_export_p, item_p, int);
 
-/* Generate hash for a given flow record. */
+static int hash_insert(priv_p, struct flow_hash_entry *, struct flow_rec *, int, uint8_t);
+static int hash6_insert(priv_p, struct flow6_hash_entry *, struct flow6_rec *, int, uint8_t);
+
+static __inline void expire_flow(priv_p, fib_export_p, struct flow_entry *, int);
+
+/*
+ * Generate hash for a given flow record.
+ *
+ * FIB is not used here, because:
+ * most VRFS will carry public IPv4 addresses which are unique even
+ * without FIB private addresses can overlap, but this is worked out
+ * via flow_rec bcmp() containing fib id. In IPv6 world addresses are
+ * all globally unique (it's not fully true, there is FC00::/7 for example,
+ * but chances of address overlap are MUCH smaller)
+ */
 static __inline uint32_t
 ip_hash(struct flow_rec *r)
 {
@@ -114,6 +125,24 @@ ip_hash(struct flow_rec *r)
 		return ADDR_HASH(r->r_src.s_addr, r->r_dst.s_addr);
 	}
 }
+
+#ifdef INET6
+/* Generate hash for a given flow6 record. Use lower 4 octets from v6 addresses */
+static __inline uint32_t
+ip6_hash(struct flow6_rec *r)
+{
+	switch (r->r_ip_p) {
+	case IPPROTO_TCP:
+	case IPPROTO_UDP:
+		return FULL_HASH(r->src.r_src6.__u6_addr.__u6_addr32[3],
+		    r->dst.r_dst6.__u6_addr.__u6_addr32[3], r->r_sport,
+		    r->r_dport);
+	default:
+		return ADDR_HASH(r->src.r_src6.__u6_addr.__u6_addr32[3],
+		    r->dst.r_dst6.__u6_addr.__u6_addr32[3]);
+ 	}
+}
+#endif
 
 /* This is callback from uma(9), called on alloc. */
 static int
@@ -138,21 +167,46 @@ uma_dtor_flow(void *mem, int size, void *arg)
 	atomic_subtract_32(&priv->info.nfinfo_used, 1);
 }
 
+#ifdef INET6
+/* This is callback from uma(9), called on alloc. */
+static int
+uma_ctor_flow6(void *mem, int size, void *arg, int how)
+{
+	priv_p priv = (priv_p )arg;
+
+	if (atomic_load_acq_32(&priv->info.nfinfo_used6) >= CACHESIZE)
+		return (ENOMEM);
+
+	atomic_add_32(&priv->info.nfinfo_used6, 1);
+
+	return (0);
+}
+
+/* This is callback from uma(9), called on free. */
+static void
+uma_dtor_flow6(void *mem, int size, void *arg)
+{
+	priv_p priv = (priv_p )arg;
+
+	atomic_subtract_32(&priv->info.nfinfo_used6, 1);
+}
+#endif
+
 /*
  * Detach export datagram from priv, if there is any.
  * If there is no, allocate a new one.
  */
 static item_p
-get_export_dgram(priv_p priv)
+get_export_dgram(priv_p priv, fib_export_p fe)
 {
 	item_p	item = NULL;
 
-	mtx_lock(&priv->export_mtx);
-	if (priv->export_item != NULL) {
-		item = priv->export_item;
-		priv->export_item = NULL;
+	mtx_lock(&fe->export_mtx);
+	if (fe->exp.item != NULL) {
+		item = fe->exp.item;
+		fe->exp.item = NULL;
 	}
-	mtx_unlock(&priv->export_mtx);
+	mtx_unlock(&fe->export_mtx);
 
 	if (item == NULL) {
 		struct netflow_v5_export_dgram *dgram;
@@ -178,20 +232,20 @@ get_export_dgram(priv_p priv)
  * Re-attach incomplete datagram back to priv.
  * If there is already another one, then send incomplete. */
 static void
-return_export_dgram(priv_p priv, item_p item, int flags)
+return_export_dgram(priv_p priv, fib_export_p fe, item_p item, int flags)
 {
 	/*
 	 * It may happen on SMP, that some thread has already
 	 * put its item there, in this case we bail out and
 	 * send what we have to collector.
 	 */
-	mtx_lock(&priv->export_mtx);
-	if (priv->export_item == NULL) {
-		priv->export_item = item;
-		mtx_unlock(&priv->export_mtx);
+	mtx_lock(&fe->export_mtx);
+	if (fe->exp.item == NULL) {
+		fe->exp.item = item;
+		mtx_unlock(&fe->export_mtx);
 	} else {
-		mtx_unlock(&priv->export_mtx);
-		export_send(priv, item, flags);
+		mtx_unlock(&fe->export_mtx);
+		export_send(priv, fe, item, flags);
 	}
 }
 
@@ -200,20 +254,51 @@ return_export_dgram(priv_p priv, item_p item, int flags)
  * full, then call export_send().
  */
 static __inline void
-expire_flow(priv_p priv, item_p *item, struct flow_entry *fle, int flags)
+expire_flow(priv_p priv, fib_export_p fe, struct flow_entry *fle, int flags)
 {
-	if (*item == NULL)
-		*item = get_export_dgram(priv);
-	if (*item == NULL) {
-		atomic_add_32(&priv->info.nfinfo_export_failed, 1);
+	struct netflow_export_item exp;
+	uint16_t version = fle->f.version;
+
+	if ((priv->export != NULL) && (version == IPVERSION)) {
+		exp.item = get_export_dgram(priv, fe);
+		if (exp.item == NULL) {
+			atomic_add_32(&priv->info.nfinfo_export_failed, 1);
+			if (priv->export9 != NULL)
+				atomic_add_32(&priv->info.nfinfo_export9_failed, 1);
+			/* fle definitely contains IPv4 flow */
+			uma_zfree_arg(priv->zone, fle, priv);
+			return;
+		}
+
+		if (export_add(exp.item, fle) > 0)
+			export_send(priv, fe, exp.item, flags);
+		else
+			return_export_dgram(priv, fe, exp.item, NG_QUEUE);
+	}
+
+	if (priv->export9 != NULL) {
+		exp.item9 = get_export9_dgram(priv, fe, &exp.item9_opt);
+		if (exp.item9 == NULL) {
+			atomic_add_32(&priv->info.nfinfo_export9_failed, 1);
+			if (version == IPVERSION)
+				uma_zfree_arg(priv->zone, fle, priv);
+			else if (version == IP6VERSION)
+				uma_zfree_arg(priv->zone6, fle, priv);
+			else
+				panic("ng_netflow: Unknown IP proto: %d", version);
+			return;
+		}
+
+		if (export9_add(exp.item9, exp.item9_opt, fle) > 0)
+			export9_send(priv, fe, exp.item9, exp.item9_opt, flags);
+		else
+			return_export9_dgram(priv, fe, exp.item9, exp.item9_opt, NG_QUEUE);
+	}
+
+	if (version == IPVERSION)
 		uma_zfree_arg(priv->zone, fle, priv);
-		return;
-	}
-	if (export_add(*item, fle) > 0) {
-		export_send(priv, *item, flags);
-		*item = NULL;
-	}
-	uma_zfree_arg(priv->zone, fle, priv);
+	else if (version == IP6VERSION)
+		uma_zfree_arg(priv->zone6, fle, priv);
 }
 
 /* Get a snapshot of node statistics */
@@ -235,7 +320,7 @@ ng_netflow_copyinfo(priv_p priv, struct ng_netflow_info *i)
  * to be sure.
  */
 static __inline int
-hash_insert(priv_p priv, struct flow_hash_entry  *hsh, struct flow_rec *r,
+hash_insert(priv_p priv, struct flow_hash_entry *hsh, struct flow_rec *r,
 	int plen, uint8_t tcp_flags)
 {
 	struct flow_entry *fle;
@@ -255,6 +340,7 @@ hash_insert(priv_p priv, struct flow_hash_entry  *hsh, struct flow_rec *r,
 	 * we can safely edit it.
 	 */
 
+	fle->f.version = IPVERSION;
 	bcopy(r, &fle->f.r, sizeof(struct flow_rec));
 	fle->f.bytes = plen;
 	fle->f.packets = 1;
@@ -270,8 +356,7 @@ hash_insert(priv_p priv, struct flow_hash_entry  *hsh, struct flow_rec *r,
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
 	sin.sin_addr = fle->f.r.r_dst;
-	/* XXX MRT 0 as a default.. need the m here to get fib */
-	rt = rtalloc1_fib((struct sockaddr *)&sin, 0, 0, 0);
+	rt = rtalloc1_fib((struct sockaddr *)&sin, 0, 0, r->fib);
 	if (rt != NULL) {
 		fle->f.fle_o_ifx = rt->rt_ifp->if_index;
 
@@ -295,8 +380,7 @@ hash_insert(priv_p priv, struct flow_hash_entry  *hsh, struct flow_rec *r,
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
 	sin.sin_addr = fle->f.r.r_src;
-	/* XXX MRT 0 as a default  revisit.  need the mbuf for fib*/
-	rt = rtalloc1_fib((struct sockaddr *)&sin, 0, 0, 0);
+	rt = rtalloc1_fib((struct sockaddr *)&sin, 0, 0, r->fib);
 	if (rt != NULL) {
 		if (rt_mask(rt))
 			fle->f.src_mask = bitcount32(((struct sockaddr_in *)
@@ -314,6 +398,99 @@ hash_insert(priv_p priv, struct flow_hash_entry  *hsh, struct flow_rec *r,
 	return (0);
 }
 
+#ifdef INET6
+/* XXX: make normal function, instead of.. */
+#define ipv6_masklen(x)		bitcount32((x).__u6_addr.__u6_addr32[0]) + \
+				bitcount32((x).__u6_addr.__u6_addr32[1]) + \
+				bitcount32((x).__u6_addr.__u6_addr32[2]) + \
+				bitcount32((x).__u6_addr.__u6_addr32[3])
+/* XXX: Do we need inline here ? */
+static __inline int
+hash6_insert(priv_p priv, struct flow6_hash_entry *hsh6, struct flow6_rec *r,
+	int plen, uint8_t tcp_flags)
+{
+	struct flow6_entry *fle6;
+	struct sockaddr_in6 *src, *dst;
+	struct rtentry *rt;
+	struct route_in6 rin6;
+
+	mtx_assert(&hsh6->mtx, MA_OWNED);
+
+	fle6 = uma_zalloc_arg(priv->zone6, priv, M_NOWAIT);
+	if (fle6 == NULL) {
+		atomic_add_32(&priv->info.nfinfo_alloc_failed, 1);
+		return (ENOMEM);
+	}
+
+	/*
+	 * Now fle is totally ours. It is detached from all lists,
+	 * we can safely edit it.
+	 */
+
+	fle6->f.version = IP6VERSION;
+	bcopy(r, &fle6->f.r, sizeof(struct flow6_rec));
+	fle6->f.bytes = plen;
+	fle6->f.packets = 1;
+	fle6->f.tcp_flags = tcp_flags;
+
+	fle6->f.first = fle6->f.last = time_uptime;
+
+	/*
+	 * First we do route table lookup on destination address. So we can
+	 * fill in out_ifx, dst_mask, nexthop, and dst_as in future releases.
+	 */
+	bzero(&rin6, sizeof(struct route_in6));
+	dst = (struct sockaddr_in6 *)&rin6.ro_dst;
+	dst->sin6_len = sizeof(struct sockaddr_in6);
+	dst->sin6_family = AF_INET6;
+	dst->sin6_addr = r->dst.r_dst6;
+
+	rin6.ro_rt = rtalloc1_fib((struct sockaddr *)dst, 0, 0, r->fib);
+
+	if (rin6.ro_rt != NULL) {
+		rt = rin6.ro_rt;
+		fle6->f.fle_o_ifx = rt->rt_ifp->if_index;
+
+		if (rt->rt_flags & RTF_GATEWAY &&
+		    rt->rt_gateway->sa_family == AF_INET6)
+			fle6->f.n.next_hop6 =
+			    ((struct sockaddr_in6 *)(rt->rt_gateway))->sin6_addr;
+
+		if (rt_mask(rt))
+			fle6->f.dst_mask = ipv6_masklen(((struct sockaddr_in6 *)rt_mask(rt))->sin6_addr);
+		else 
+			fle6->f.dst_mask = 128;
+
+		RTFREE_LOCKED(rt);
+	}
+
+	/* Do route lookup on source address, to fill in src_mask. */
+	bzero(&rin6, sizeof(struct route_in6));
+	src = (struct sockaddr_in6 *)&rin6.ro_dst;
+	src->sin6_len = sizeof(struct sockaddr_in6);
+	src->sin6_family = AF_INET6;
+	src->sin6_addr = r->src.r_src6;
+
+	rin6.ro_rt = rtalloc1_fib((struct sockaddr *)src, 0, 0, r->fib);
+
+	if (rin6.ro_rt != NULL) {
+		rt = rin6.ro_rt;
+
+		if (rt_mask(rt))
+			fle6->f.src_mask = ipv6_masklen(((struct sockaddr_in6 *)rt_mask(rt))->sin6_addr);
+		else 
+			fle6->f.src_mask = 128;
+
+		RTFREE_LOCKED(rt);
+	}
+
+	/* Push new flow at the and of hash. */
+	TAILQ_INSERT_TAIL(&hsh6->head, fle6, fle6_hash);
+
+	return (0);
+}
+#endif
+
 
 /*
  * Non-static functions called from ng_netflow.c
@@ -323,22 +500,25 @@ hash_insert(priv_p priv, struct flow_hash_entry  *hsh, struct flow_rec *r,
 int
 ng_netflow_cache_init(priv_p priv)
 {
-	struct flow_hash_entry	*hsh;
+	struct flow_hash_entry *hsh;
+#ifdef INET6	
+	struct flow6_hash_entry *hsh6;
+#endif
 	int i;
 
 	/* Initialize cache UMA zone. */
-	priv->zone = uma_zcreate("NetFlow cache", sizeof(struct flow_entry),
+	priv->zone = uma_zcreate("NetFlow IPv4 cache", sizeof(struct flow_entry),
 	    uma_ctor_flow, uma_dtor_flow, NULL, NULL, UMA_ALIGN_CACHE, 0);
 	uma_zone_set_max(priv->zone, CACHESIZE);
+#ifdef INET6	
+	priv->zone6 = uma_zcreate("NetFlow IPv6 cache", sizeof(struct flow6_entry),
+	    uma_ctor_flow6, uma_dtor_flow6, NULL, NULL, UMA_ALIGN_CACHE, 0);
+	uma_zone_set_max(priv->zone6, CACHESIZE);
+#endif	
 
 	/* Allocate hash. */
 	priv->hash = malloc(NBUCKETS * sizeof(struct flow_hash_entry),
 	    M_NETFLOW_HASH, M_WAITOK | M_ZERO);
-
-	if (priv->hash == NULL) {
-		uma_zdestroy(priv->zone);
-		return (ENOMEM);
-	}
 
 	/* Initialize hash. */
 	for (i = 0, hsh = priv->hash; i < NBUCKETS; i++, hsh++) {
@@ -346,8 +526,55 @@ ng_netflow_cache_init(priv_p priv)
 		TAILQ_INIT(&hsh->head);
 	}
 
-	mtx_init(&priv->export_mtx, "export dgram lock", NULL, MTX_DEF);
+#ifdef INET6
+	/* Allocate hash. */
+	priv->hash6 = malloc(NBUCKETS * sizeof(struct flow6_hash_entry),
+	    M_NETFLOW_HASH, M_WAITOK | M_ZERO);
 
+	/* Initialize hash. */
+	for (i = 0, hsh6 = priv->hash6; i < NBUCKETS; i++, hsh6++) {
+		mtx_init(&hsh6->mtx, "hash mutex", NULL, MTX_DEF);
+		TAILQ_INIT(&hsh6->head);
+	}
+#endif
+
+	ng_netflow_v9_cache_init(priv);
+	CTR0(KTR_NET, "ng_netflow startup()");
+
+	return (0);
+}
+
+/* Initialize new FIB table for v5 and v9 */
+int
+ng_netflow_fib_init(priv_p priv, int fib)
+{
+	fib_export_p	fe = priv_to_fib(priv, fib);
+
+	CTR1(KTR_NET, "ng_netflow(): fib init: %d", fib);
+
+	if (fe != NULL)
+		return (0);
+
+	if ((fe = malloc(sizeof(struct fib_export), M_NETGRAPH, M_NOWAIT | M_ZERO)) == NULL)
+		return (1);
+
+	mtx_init(&fe->export_mtx, "export dgram lock", NULL, MTX_DEF);
+	mtx_init(&fe->export9_mtx, "export9 dgram lock", NULL, MTX_DEF);
+	fe->fib = fib;
+	fe->domain_id = fib;
+
+	if (atomic_cmpset_ptr((volatile uintptr_t *)&priv->fib_data[fib], (uintptr_t)NULL, (uintptr_t)fe) == 0) {
+		/* FIB already set up by other ISR */
+		CTR3(KTR_NET, "ng_netflow(): fib init: %d setup %p but got %p", fib, fe, priv_to_fib(priv, fib));
+		mtx_destroy(&fe->export_mtx);
+		mtx_destroy(&fe->export9_mtx);
+		free(fe, M_NETGRAPH);
+	} else {
+		/* Increase counter for statistics */
+		CTR3(KTR_NET, "ng_netflow(): fib %d setup to %p (%p)", fib, fe, priv_to_fib(priv, fib));
+		atomic_fetchadd_32(&priv->info.nfinfo_alloc_fibs, 1);
+	}
+	
 	return (0);
 }
 
@@ -357,8 +584,15 @@ ng_netflow_cache_flush(priv_p priv)
 {
 	struct flow_entry	*fle, *fle1;
 	struct flow_hash_entry	*hsh;
-	item_p			item = NULL;
+#ifdef INET6
+	struct flow6_entry	*fle6, *fle61;
+	struct flow6_hash_entry	*hsh6;
+#endif
+	struct netflow_export_item exp;
+	fib_export_p fe;
 	int i;
+
+	bzero(&exp, sizeof(exp));
 
 	/*
 	 * We are going to free probably billable data.
@@ -368,36 +602,67 @@ ng_netflow_cache_flush(priv_p priv)
 	for (hsh = priv->hash, i = 0; i < NBUCKETS; hsh++, i++)
 		TAILQ_FOREACH_SAFE(fle, &hsh->head, fle_hash, fle1) {
 			TAILQ_REMOVE(&hsh->head, fle, fle_hash);
-			expire_flow(priv, &item, fle, NG_QUEUE);
+			fe = priv_to_fib(priv, fle->f.r.fib);
+			expire_flow(priv, fe, fle, NG_QUEUE);
 		}
-
-	if (item != NULL)
-		export_send(priv, item, NG_QUEUE);
+#ifdef INET6
+	for (hsh6 = priv->hash6, i = 0; i < NBUCKETS; hsh6++, i++)
+		TAILQ_FOREACH_SAFE(fle6, &hsh6->head, fle6_hash, fle61) {
+			TAILQ_REMOVE(&hsh6->head, fle6, fle6_hash);
+			fe = priv_to_fib(priv, fle6->f.r.fib);
+			expire_flow(priv, fe, (struct flow_entry *)fle6, NG_QUEUE);
+		}
+#endif
 
 	uma_zdestroy(priv->zone);
-
 	/* Destroy hash mutexes. */
 	for (i = 0, hsh = priv->hash; i < NBUCKETS; i++, hsh++)
 		mtx_destroy(&hsh->mtx);
 
 	/* Free hash memory. */
-	if (priv->hash)
+	if (priv->hash != NULL)
 		free(priv->hash, M_NETFLOW_HASH);
+#ifdef INET6
+	uma_zdestroy(priv->zone6);
+	/* Destroy hash mutexes. */
+	for (i = 0, hsh6 = priv->hash6; i < NBUCKETS; i++, hsh6++)
+		mtx_destroy(&hsh6->mtx);
 
-	mtx_destroy(&priv->export_mtx);
+	/* Free hash memory. */
+	if (priv->hash6 != NULL)
+		free(priv->hash6, M_NETFLOW_HASH);
+#endif
+
+	for (i = 0; i < RT_NUMFIBS; i++) {
+		if ((fe = priv_to_fib(priv, i)) == NULL)
+			continue;
+
+		if (fe->exp.item != NULL)
+			export_send(priv, fe, fe->exp.item, NG_QUEUE);
+
+		if (fe->exp.item9 != NULL)
+			export9_send(priv, fe, fe->exp.item9, fe->exp.item9_opt, NG_QUEUE);
+
+		mtx_destroy(&fe->export_mtx);
+		mtx_destroy(&fe->export9_mtx);
+		free(fe, M_NETGRAPH);
+	}
+
+	ng_netflow_v9_cache_flush(priv);
 }
 
 /* Insert packet from into flow cache. */
 int
-ng_netflow_flow_add(priv_p priv, struct ip *ip, unsigned int src_if_index)
+ng_netflow_flow_add(priv_p priv, fib_export_p fe, struct ip *ip, caddr_t upper_ptr, uint8_t upper_proto, 
+		uint8_t is_frag, unsigned int src_if_index)
 {
 	register struct flow_entry	*fle, *fle1;
-	struct flow_hash_entry		*hsh;
+	struct flow_hash_entry	*hsh;
 	struct flow_rec		r;
-	item_p			item = NULL;
 	int			hlen, plen;
 	int			error = 0;
 	uint8_t			tcp_flags = 0;
+	uint16_t		eproto;
 
 	/* Try to fill flow_rec r */
 	bzero(&r, sizeof(r));
@@ -411,8 +676,13 @@ ng_netflow_flow_add(priv_p priv, struct ip *ip, unsigned int src_if_index)
 	if (hlen < sizeof(struct ip))
 		return (EINVAL);
 
+	eproto = ETHERTYPE_IP;
+	/* Assume L4 template by default */
+	r.flow_type = NETFLOW_V9_FLOW_V4_L4;
+
 	r.r_src = ip->ip_src;
 	r.r_dst = ip->ip_dst;
+	r.fib = fe->fib;
 
 	/* save packet length */
 	plen = ntohs(ip->ip_len);
@@ -448,8 +718,8 @@ ng_netflow_flow_add(priv_p priv, struct ip *ip, unsigned int src_if_index)
 			break;
 		}
 
-	/* Update node statistics. XXX: race... */
-	priv->info.nfinfo_packets ++;
+	atomic_fetchadd_32(&priv->info.nfinfo_packets, 1);
+	/* XXX: atomic */
 	priv->info.nfinfo_bytes += plen;
 
 	/* Find hash slot. */
@@ -468,7 +738,7 @@ ng_netflow_flow_add(priv_p priv, struct ip *ip, unsigned int src_if_index)
 			break;
 		if ((INACTIVE(fle) && SMALL(fle)) || AGED(fle)) {
 			TAILQ_REMOVE(&hsh->head, fle, fle_hash);
-			expire_flow(priv, &item, fle, NG_QUEUE);
+			expire_flow(priv, priv_to_fib(priv, fle->f.r.fib), fle, NG_QUEUE);
 			atomic_add_32(&priv->info.nfinfo_act_exp, 1);
 		}
 	}
@@ -487,9 +757,9 @@ ng_netflow_flow_add(priv_p priv, struct ip *ip, unsigned int src_if_index)
 		 * - it is going to overflow counter
 		 */
 		if (tcp_flags & TH_FIN || tcp_flags & TH_RST || AGED(fle) ||
-		    (fle->f.bytes >= (UINT_MAX - IF_MAXMTU)) ) {
+		    (fle->f.bytes >= (CNTR_MAX - IF_MAXMTU)) ) {
 			TAILQ_REMOVE(&hsh->head, fle, fle_hash);
-			expire_flow(priv, &item, fle, NG_QUEUE);
+			expire_flow(priv, priv_to_fib(priv, fle->f.r.fib), fle, NG_QUEUE);
 			atomic_add_32(&priv->info.nfinfo_act_exp, 1);
 		} else {
 			/*
@@ -507,24 +777,144 @@ ng_netflow_flow_add(priv_p priv, struct ip *ip, unsigned int src_if_index)
 
 	mtx_unlock(&hsh->mtx);
 
-	if (item != NULL)
-		return_export_dgram(priv, item, NG_QUEUE);
+	return (error);
+}
+
+#ifdef INET6
+/* Insert IPv6 packet from into flow cache. */
+int
+ng_netflow_flow6_add(priv_p priv, fib_export_p fe, struct ip6_hdr *ip6, caddr_t upper_ptr, uint8_t upper_proto, 
+		uint8_t is_frag, unsigned int src_if_index)
+{
+	register struct flow6_entry	*fle6 = NULL, *fle61;
+	struct flow6_hash_entry		*hsh6;
+	struct flow6_rec		r;
+	int			plen;
+	int			error = 0;
+	uint8_t			tcp_flags = 0;
+
+	/* check version */
+	if ((ip6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION)
+		return (EINVAL);
+
+	bzero(&r, sizeof(r));
+
+	r.src.r_src6 = ip6->ip6_src;
+	r.dst.r_dst6 = ip6->ip6_dst;
+	r.fib = fe->fib;
+
+	/* Assume L4 template by default */
+	r.flow_type = NETFLOW_V9_FLOW_V6_L4;
+
+	/* save packet length */
+	plen = ntohs(ip6->ip6_plen) + sizeof(struct ip6_hdr);
+
+	/* XXX: set DSCP/CoS value */
+#if 0
+	r.r_tos = ip->ip_tos;
+#endif
+	if (is_frag == 0) {
+		switch(upper_proto) {
+		case IPPROTO_TCP:
+		{
+			register struct tcphdr *tcp;
+
+			tcp = (struct tcphdr *)upper_ptr;
+			r.r_ports = *(uint32_t *)upper_ptr;
+			tcp_flags = tcp->th_flags;
+			break;
+		}
+ 		case IPPROTO_UDP:
+		case IPPROTO_SCTP:
+		{
+			r.r_ports = *(uint32_t *)upper_ptr;
+			break;
+		}
+
+		}
+	}	
+
+	r.r_ip_p = upper_proto;
+	r.r_i_ifx = src_if_index;
+ 
+	atomic_fetchadd_32(&priv->info.nfinfo_packets6, 1);
+	/* XXX: atomic */
+	priv->info.nfinfo_bytes6 += plen;
+
+	/* Find hash slot. */
+	hsh6 = &priv->hash6[ip6_hash(&r)];
+
+	mtx_lock(&hsh6->mtx);
+
+	/*
+	 * Go through hash and find our entry. If we encounter an
+	 * entry, that should be expired, purge it. We do a reverse
+	 * search since most active entries are first, and most
+	 * searches are done on most active entries.
+	 */
+	TAILQ_FOREACH_REVERSE_SAFE(fle6, &hsh6->head, f6head, fle6_hash, fle61) {
+		if (fle6->f.version != IP6VERSION)
+			continue;
+		if (bcmp(&r, &fle6->f.r, sizeof(struct flow6_rec)) == 0)
+			break;
+		if ((INACTIVE(fle6) && SMALL(fle6)) || AGED(fle6)) {
+			TAILQ_REMOVE(&hsh6->head, fle6, fle6_hash);
+			expire_flow(priv, priv_to_fib(priv, fle6->f.r.fib), (struct flow_entry *)fle6, NG_QUEUE);
+			atomic_add_32(&priv->info.nfinfo_act_exp, 1);
+		}
+	}
+
+	if (fle6 != NULL) {			/* An existent entry. */
+
+		fle6->f.bytes += plen;
+		fle6->f.packets ++;
+		fle6->f.tcp_flags |= tcp_flags;
+		fle6->f.last = time_uptime;
+
+		/*
+		 * We have the following reasons to expire flow in active way:
+		 * - it hit active timeout
+		 * - a TCP connection closed
+		 * - it is going to overflow counter
+		 */
+		if (tcp_flags & TH_FIN || tcp_flags & TH_RST || AGED(fle6) ||
+		    (fle6->f.bytes >= (CNTR_MAX - IF_MAXMTU)) ) {
+			TAILQ_REMOVE(&hsh6->head, fle6, fle6_hash);
+			expire_flow(priv, priv_to_fib(priv, fle6->f.r.fib), (struct flow_entry *)fle6, NG_QUEUE);
+			atomic_add_32(&priv->info.nfinfo_act_exp, 1);
+		} else {
+			/*
+			 * It is the newest, move it to the tail,
+			 * if it isn't there already. Next search will
+			 * locate it quicker.
+			 */
+			if (fle6 != TAILQ_LAST(&hsh6->head, f6head)) {
+				TAILQ_REMOVE(&hsh6->head, fle6, fle6_hash);
+				TAILQ_INSERT_TAIL(&hsh6->head, fle6, fle6_hash);
+			}
+		}
+	} else				/* A new flow entry. */
+		error = hash6_insert(priv, hsh6, &r, plen, tcp_flags);
+
+	mtx_unlock(&hsh6->mtx);
 
 	return (error);
 }
+#endif
 
 /*
  * Return records from cache to userland.
  *
  * TODO: matching particular IP should be done in kernel, here.
+ * XXX: IPv6 flows will return random data
  */
 int
 ng_netflow_flow_show(priv_p priv, uint32_t last, struct ng_mesg *resp)
 {
-	struct flow_hash_entry *hsh;
-	struct flow_entry *fle;
-	struct ngnf_flows *data;
-	int i;
+	struct flow_hash_entry	*hsh;
+	struct flow_entry	*fle;
+	struct ngnf_flows	*data;
+	int	i;
 
 	data = (struct ngnf_flows *)resp->data;
 	data->last = 0;
@@ -579,7 +969,7 @@ ng_netflow_flow_show(priv_p priv, uint32_t last, struct ng_mesg *resp)
 
 /* We have full datagram in privdata. Send it to export hook. */
 static int
-export_send(priv_p priv, item_p item, int flags)
+export_send(priv_p priv, fib_export_p fe, item_p item, int flags)
 {
 	struct mbuf *m = NGI_M(item);
 	struct netflow_v5_export_dgram *dgram = mtod(m,
@@ -598,9 +988,9 @@ export_send(priv_p priv, item_p item, int flags)
 	header->unix_secs  = htonl(ts.tv_sec);
 	header->unix_nsecs = htonl(ts.tv_nsec);
 	header->engine_type = 0;
-	header->engine_id = 0;
+	header->engine_id = fe->domain_id;
 	header->pad = 0;
-	header->flow_seq = htonl(atomic_fetchadd_32(&priv->flow_seq,
+	header->flow_seq = htonl(atomic_fetchadd_32(&fe->flow_seq,
 	    header->count));
 	header->count = htons(header->count);
 
@@ -663,8 +1053,11 @@ ng_netflow_expire(void *arg)
 {
 	struct flow_entry	*fle, *fle1;
 	struct flow_hash_entry	*hsh;
+#ifdef INET6	
+	struct flow6_entry	*fle6, *fle61;
+	struct flow6_hash_entry	*hsh6;
+#endif	
 	priv_p			priv = (priv_p )arg;
-	item_p			item = NULL;
 	uint32_t		used;
 	int			i;
 
@@ -697,7 +1090,7 @@ ng_netflow_expire(void *arg)
 			if ((INACTIVE(fle) && (SMALL(fle) ||
 			    (used > (NBUCKETS*2)))) || AGED(fle)) {
 				TAILQ_REMOVE(&hsh->head, fle, fle_hash);
-				expire_flow(priv, &item, fle, NG_NOFLAGS);
+				expire_flow(priv, priv_to_fib(priv, fle->f.r.fib), fle, NG_NOFLAGS);
 				used--;
 				atomic_add_32(&priv->info.nfinfo_inact_exp, 1);
 			}
@@ -705,8 +1098,41 @@ ng_netflow_expire(void *arg)
 		mtx_unlock(&hsh->mtx);
 	}
 
-	if (item != NULL)
-		return_export_dgram(priv, item, NG_NOFLAGS);
+#ifdef INET6
+	for (hsh6 = priv->hash6, i = 0; i < NBUCKETS; hsh6++, i++) {
+		/*
+		 * Skip entries, that are already being worked on.
+		 */
+		if (mtx_trylock(&hsh6->mtx) == 0)
+			continue;
+
+		used = atomic_load_acq_32(&priv->info.nfinfo_used6);
+		TAILQ_FOREACH_SAFE(fle6, &hsh6->head, fle6_hash, fle61) {
+			/*
+			 * Interrupt thread wants this entry!
+			 * Quick! Quick! Bail out!
+			 */
+			if (hsh6->mtx.mtx_lock & MTX_CONTESTED)
+				break;
+
+			/*
+			 * Don't expire aggressively while hash collision
+			 * ratio is predicted small.
+			 */
+			if (used <= (NBUCKETS*2) && !INACTIVE(fle6))
+				break;
+
+			if ((INACTIVE(fle6) && (SMALL(fle6) ||
+			    (used > (NBUCKETS*2)))) || AGED(fle6)) {
+				TAILQ_REMOVE(&hsh6->head, fle6, fle6_hash);
+				expire_flow(priv, priv_to_fib(priv, fle6->f.r.fib), (struct flow_entry *)fle6, NG_NOFLAGS);
+				used--;
+				atomic_add_32(&priv->info.nfinfo_inact_exp, 1);
+			}
+		}
+		mtx_unlock(&hsh6->mtx);
+	}
+#endif
 
 	/* Schedule next expire. */
 	callout_reset(&priv->exp_callout, (1*hz), &ng_netflow_expire,
