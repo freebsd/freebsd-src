@@ -129,8 +129,10 @@ ia32_set_fpcontext(struct thread *td, const struct ia32_mcontext *mcp)
 static int
 ia32_get_mcontext(struct thread *td, struct ia32_mcontext *mcp, int flags)
 {
+	struct pcb *pcb;
 	struct trapframe *tp;
 
+	pcb = td->td_pcb;
 	tp = td->td_frame;
 
 	PROC_LOCK(curthread->td_proc);
@@ -162,11 +164,11 @@ ia32_get_mcontext(struct thread *td, struct ia32_mcontext *mcp, int flags)
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
 	ia32_get_fpcontext(td, mcp);
-	mcp->mc_fsbase = td->td_pcb->pcb_fsbase;
-	mcp->mc_gsbase = td->td_pcb->pcb_gsbase;
+	mcp->mc_fsbase = pcb->pcb_fsbase;
+	mcp->mc_gsbase = pcb->pcb_gsbase;
 	bzero(mcp->mc_spare1, sizeof(mcp->mc_spare1));
 	bzero(mcp->mc_spare2, sizeof(mcp->mc_spare2));
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(pcb, PCB_FULL_IRET);
 	return (0);
 }
 
@@ -208,7 +210,7 @@ ia32_set_mcontext(struct thread *td, const struct ia32_mcontext *mcp)
 	tp->tf_rflags = rflags;
 	tp->tf_rsp = mcp->mc_esp;
 	tp->tf_ss = mcp->mc_ss;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	return (0);
 }
 
@@ -405,7 +407,7 @@ freebsd4_ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_ss = _udatasel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	/* leave user %fs and %gs untouched */
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
@@ -528,7 +530,7 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	regs->tf_ss = _udatasel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	/* XXXKIB leave user %fs and %gs untouched */
 	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
@@ -623,7 +625,7 @@ freebsd4_freebsd32_sigreturn(td, uap)
 	regs->tf_gs = ucp->uc_mcontext.mc_gs;
 
 	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	return (EJUSTRETURN);
 }
 #endif	/* COMPAT_FREEBSD4 */
@@ -712,7 +714,7 @@ freebsd32_sigreturn(td, uap)
 	regs->tf_flags = TF_HASSEGS;
 
 	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	return (EJUSTRETURN);
 }
 
@@ -755,8 +757,7 @@ ia32_setregs(td, entry, stack, ps_strings)
 	fpstate_drop(td);
 
 	/* Return via doreti so that we can change to a different %cs */
-	pcb->pcb_flags |= PCB_32BIT;
-	pcb->pcb_flags &= ~PCB_GS32BIT;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(pcb, PCB_32BIT | PCB_FULL_IRET);
+	clear_pcb_flags(pcb, PCB_GS32BIT);
 	td->td_retval[1] = 0;
 }

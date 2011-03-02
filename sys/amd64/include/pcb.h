@@ -66,7 +66,13 @@ struct pcb {
 	register_t	pcb_dr6;
 	register_t	pcb_dr7;
 
-	u_long		pcb_flags;
+	struct region_descriptor pcb_gdt;
+	struct region_descriptor pcb_idt;
+	struct region_descriptor pcb_ldt;
+	uint16_t	pcb_tr;
+
+	u_int		pcb_flags;
+#define	PCB_FULL_IRET	0x01	/* full iret is required */
 #define	PCB_DBREGS	0x02	/* process using debug registers */
 #define	PCB_KERNFPU	0x04	/* kernel uses fpu */
 #define	PCB_FPUINITDONE	0x08	/* fpu state is initialized */
@@ -76,25 +82,51 @@ struct pcb {
 
 	uint16_t	pcb_initial_fpucw;
 
-	caddr_t		pcb_onfault; /* copyin/out fault recovery */
+	/* copyin/out fault recovery */
+	caddr_t		pcb_onfault;
 
 	/* 32-bit segment descriptor */
 	struct user_segment_descriptor pcb_gs32sd;
+
 	/* local tss, with i/o bitmap; NULL for common */
 	struct amd64tss *pcb_tssp;
-	struct	savefpu	*pcb_save;
-	char		pcb_full_iret;
 
-	struct region_descriptor pcb_gdt;
-	struct region_descriptor pcb_idt;
-	struct region_descriptor pcb_ldt;
-	uint16_t	pcb_tr;
-
-	struct	savefpu pcb_user_save;
+	struct savefpu	*pcb_save;
+	struct savefpu	pcb_user_save;
 };
 
 #ifdef _KERNEL
 struct trapframe;
+
+/*
+ * The pcb_flags is only modified by current thread, or by other threads
+ * when current thread is stopped.  However, current thread may change it
+ * from the interrupt context in cpu_switch(), or in the trap handler.
+ * When we read-modify-write pcb_flags from C sources, compiler may generate
+ * code that is not atomic regarding the interrupt handler.  If a trap or
+ * interrupt happens and any flag is modified from the handler, it can be
+ * clobbered with the cached value later.  Therefore, we implement setting
+ * and clearing flags with single-instruction functions, which do not race
+ * with possible modification of the flags from the trap or interrupt context,
+ * because traps and interrupts are executed only on instruction boundary.
+ */
+static __inline void
+set_pcb_flags(struct pcb *pcb, const u_int flags)
+{
+
+	__asm __volatile("orl %1,%0"
+	    : "=m" (pcb->pcb_flags) : "ir" (flags), "m" (pcb->pcb_flags)
+	    : "cc");
+}
+
+static __inline void
+clear_pcb_flags(struct pcb *pcb, const u_int flags)
+{
+
+	__asm __volatile("andl %1,%0"
+	    : "=m" (pcb->pcb_flags) : "ir" (~flags), "m" (pcb->pcb_flags)
+	    : "cc");
+}
 
 void	makectx(struct trapframe *, struct pcb *);
 int	savectx(struct pcb *);
