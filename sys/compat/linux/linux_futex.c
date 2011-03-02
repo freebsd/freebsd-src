@@ -448,8 +448,8 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 	int clockrt, nrwake, op_ret, ret, val;
 	struct linux_emuldata *em;
 	struct waiting_proc *wp;
-	struct futex *f, *f2 = NULL;
-	int error = 0;
+	struct futex *f, *f2;
+	int error;
 
 	/*
 	 * Our implementation provides only privates futexes. Most of the apps
@@ -471,6 +471,9 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 	if (clockrt && args->op != LINUX_FUTEX_WAIT_BITSET &&
 		args->op != LINUX_FUTEX_WAIT_REQUEUE_PI)
 		return (ENOSYS);
+
+	error = 0;
+	f = f2 = NULL;
 
 	switch (args->op) {
 	case LINUX_FUTEX_WAIT:
