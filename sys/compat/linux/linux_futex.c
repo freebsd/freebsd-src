@@ -691,11 +691,11 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		 * FUTEX_REQUEUE returned EINVAL.
 		 */
 		em = em_find(td->td_proc, EMUL_DONTLOCK);
-		if (em->used_requeue == 0) {
+		if ((em->flags & LINUX_XDEPR_REQUEUEOP) == 0) {
 			linux_msg(td,
 				  "linux_sys_futex: "
 				  "unsupported futex_requeue op\n");
-			em->used_requeue = 1;
+			em->flags |= LINUX_XDEPR_REQUEUEOP;
 		}
 		return (EINVAL);
 
