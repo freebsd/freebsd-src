@@ -2556,6 +2556,7 @@ netgraph/bluetooth/socket/ng_btsocket_l2cap_raw.c optional netgraph_bluetooth_so
 netgraph/bluetooth/socket/ng_btsocket_rfcomm.c optional netgraph_bluetooth_socket
 netgraph/bluetooth/socket/ng_btsocket_sco.c optional netgraph_bluetooth_socket
 netgraph/netflow/netflow.c	optional netgraph_netflow
+netgraph/netflow/netflow_v9.c	optional netgraph_netflow
 netgraph/netflow/ng_netflow.c	optional netgraph_netflow
 netgraph/ng_UI.c		optional netgraph_UI
 netgraph/ng_async.c		optional netgraph_async
