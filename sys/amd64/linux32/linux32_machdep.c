@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/unistd.h>
+#include <sys/wait.h>
 
 #include <machine/frame.h>
 #include <machine/pcb.h>
@@ -66,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <amd64/linux32/linux.h>
 #include <amd64/linux32/linux32_proto.h>
 #include <compat/linux/linux_ipc.h>
+#include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_emul.h>
@@ -1267,4 +1269,45 @@ linux_set_thread_area(struct thread *td,
 	update_gdt_gsbase(td, info.base_addr);
 
 	return (0);
+}
+
+int
+linux_wait4(struct thread *td, struct linux_wait4_args *args)
+{
+	int error, options;
+	struct rusage ru, *rup;
+	struct l_rusage lru;
+	struct proc *p;
+
+#ifdef DEBUG
+	if (ldebug(wait4))
+		printf(ARGS(wait4, "%d, %p, %d, %p"),
+		    args->pid, (void *)args->status, args->options,
+		    (void *)args->rusage);
+#endif
+
+	options = (args->options & (WNOHANG | WUNTRACED));
+	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
+	if (args->options & __WCLONE)
+		options |= WLINUXCLONE;
+
+	if (args->rusage != NULL)
+		rup = &ru;
+	else
+		rup = NULL;
+	error = linux_common_wait(td, args->pid, args->status, options, rup);
+	if (error)
+		return (error);
+
+	p = td->td_proc;
+	PROC_LOCK(p);
+	sigqueue_delete(&p->p_sigqueue, SIGCHLD);
+	PROC_UNLOCK(p);
+
+	if (args->rusage != NULL) {
+		bsd_to_linux_rusage(rup, &lru);
+		error = copyout(&lru, args->rusage, sizeof(lru));
+	}
+
+	return (error);
 }
