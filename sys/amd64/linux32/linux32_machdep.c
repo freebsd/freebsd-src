@@ -1279,7 +1279,6 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 	int error, options;
 	struct rusage ru, *rup;
 	struct l_rusage lru;
-	struct proc *p;
 
 #ifdef DEBUG
 	if (ldebug(wait4))
@@ -1300,12 +1299,6 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 	error = linux_common_wait(td, args->pid, args->status, options, rup);
 	if (error)
 		return (error);
-
-	p = td->td_proc;
-	PROC_LOCK(p);
-	sigqueue_delete(&p->p_sigqueue, SIGCHLD);
-	PROC_UNLOCK(p);
-
 	if (args->rusage != NULL) {
 		bsd_to_linux_rusage(rup, &lru);
 		error = copyout(&lru, args->rusage, sizeof(lru));
