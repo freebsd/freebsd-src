@@ -106,6 +106,28 @@ bsd_to_linux_sigaltstack(int bsa)
 	return (lsa);
 }
 
+static void bsd_to_linux_rusage(struct rusage *ru, struct l_rusage *lru)
+{
+	lru->ru_utime.tv_sec = ru->ru_utime.tv_sec;
+	lru->ru_utime.tv_usec = ru->ru_utime.tv_usec;
+	lru->ru_stime.tv_sec = ru->ru_stime.tv_sec;
+	lru->ru_stime.tv_usec = ru->ru_stime.tv_usec;
+	lru->ru_maxrss = ru->ru_maxrss;
+	lru->ru_ixrss = ru->ru_ixrss;
+	lru->ru_idrss = ru->ru_idrss;
+	lru->ru_isrss = ru->ru_isrss;
+	lru->ru_minflt = ru->ru_minflt;
+	lru->ru_majflt = ru->ru_majflt;
+	lru->ru_nswap = ru->ru_nswap;
+	lru->ru_inblock = ru->ru_inblock;
+	lru->ru_oublock = ru->ru_oublock;
+	lru->ru_msgsnd = ru->ru_msgsnd;
+	lru->ru_msgrcv = ru->ru_msgrcv;
+	lru->ru_nsignals = ru->ru_nsignals;
+	lru->ru_nvcsw = ru->ru_nvcsw;
+	lru->ru_nivcsw = ru->ru_nivcsw;
+}
+
 int
 linux_execve(struct thread *td, struct linux_execve_args *args)
 {
@@ -1124,24 +1146,7 @@ linux_getrusage(struct thread *td, struct linux_getrusage_args *uap)
 	if (error != 0)
 		return (error);
 	if (uap->rusage != NULL) {
-		s32.ru_utime.tv_sec = s.ru_utime.tv_sec;
-		s32.ru_utime.tv_usec = s.ru_utime.tv_usec;
-		s32.ru_stime.tv_sec = s.ru_stime.tv_sec;
-		s32.ru_stime.tv_usec = s.ru_stime.tv_usec;
-		s32.ru_maxrss = s.ru_maxrss;
-		s32.ru_ixrss = s.ru_ixrss;
-		s32.ru_idrss = s.ru_idrss;
-		s32.ru_isrss = s.ru_isrss;
-		s32.ru_minflt = s.ru_minflt;
-		s32.ru_majflt = s.ru_majflt;
-		s32.ru_nswap = s.ru_nswap;
-		s32.ru_inblock = s.ru_inblock;
-		s32.ru_oublock = s.ru_oublock;
-		s32.ru_msgsnd = s.ru_msgsnd;
-		s32.ru_msgrcv = s.ru_msgrcv;
-		s32.ru_nsignals = s.ru_nsignals;
-		s32.ru_nvcsw = s.ru_nvcsw;
-		s32.ru_nivcsw = s.ru_nivcsw;
+		bsd_to_linux_rusage(&s, &s32);
 		error = copyout(&s32, uap->rusage, sizeof(s32));
 	}
 	return (error);
