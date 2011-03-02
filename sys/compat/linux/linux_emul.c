@@ -155,7 +155,7 @@ void
 linux_proc_exit(void *arg __unused, struct proc *p)
 {
 	struct linux_emuldata *em;
-	int error;
+	int error, shared_flags, shared_xstat;
 	struct thread *td = FIRST_THREAD_IN_PROC(p);
 	int *child_clear_tid;
 	struct proc *q, *nq;
@@ -187,6 +187,8 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 	}
 
 	EMUL_SHARED_WLOCK(&emul_shared_lock);
+	shared_flags = em->shared->flags;
+	shared_xstat = em->shared->xstat;
 	LIST_REMOVE(em, threads);
 
 	em->shared->refs--;
@@ -195,6 +197,9 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 		free(em->shared, M_LINUX);
 	} else	
 		EMUL_SHARED_WUNLOCK(&emul_shared_lock);
+
+	if ((shared_flags & EMUL_SHARED_HASXSTAT) != 0)
+		p->p_xstat = shared_xstat;
 
 	if (child_clear_tid != NULL) {
 		struct linux_sys_futex_args cup;
@@ -257,6 +262,10 @@ linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
 	if (__predict_false(imgp->sysent == &elf_linux_sysvec
 	    && p->p_sysent != &elf_linux_sysvec))
 		linux_proc_init(FIRST_THREAD_IN_PROC(p), p->p_pid, 0);
+	if (__predict_false((p->p_sysent->sv_flags & SV_ABI_MASK) ==
+	    SV_ABI_LINUX))
+		/* Kill threads regardless of imgp->sysent value */
+		linux_kill_threads(FIRST_THREAD_IN_PROC(p), SIGKILL);
 	if (__predict_false(imgp->sysent != &elf_linux_sysvec
 	    && p->p_sysent == &elf_linux_sysvec)) {
 		struct linux_emuldata *em;
@@ -333,4 +342,30 @@ linux_set_tid_address(struct thread *td, struct linux_set_tid_address_args *args
 
 	EMUL_UNLOCK(&emul_lock);
 	return 0;
+}
+
+void
+linux_kill_threads(struct thread *td, int sig)
+{
+	struct linux_emuldata *em, *td_em, *tmp_em;
+	struct proc *sp;
+
+	td_em = em_find(td->td_proc, EMUL_DONTLOCK);
+
+	KASSERT(td_em != NULL, ("linux_kill_threads: emuldata not found.\n"));
+
+	EMUL_SHARED_RLOCK(&emul_shared_lock);
+	LIST_FOREACH_SAFE(em, &td_em->shared->threads, threads, tmp_em) {
+		if (em->pid == td_em->pid)
+			continue;
+
+		sp = pfind(em->pid);
+		if ((sp->p_flag & P_WEXIT) == 0)
+			psignal(sp, sig);
+		PROC_UNLOCK(sp);
+#ifdef DEBUG
+		printf(LMSG("linux_kill_threads: kill PID %d\n"), em->pid);
+#endif
+	}
+	EMUL_SHARED_RUNLOCK(&emul_shared_lock);
 }
