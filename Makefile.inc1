@@ -631,6 +631,13 @@ ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 #
 # Installs everything compiled by a 'buildworld'.
 #
+
+# Non-base distributions produced by the base system
+EXTRA_DISTRIBUTIONS=	doc games
+.if defined(LIB32TMP) && ${MK_LIB32} != "no"
+EXTRA_DISTRIBUTIONS+=	lib32
+.endif
+
 distributeworld installworld: installcheck
 	mkdir -p ${INSTALLTMP}
 	progs=$$(for prog in ${ITOOLS}; do \
@@ -653,8 +660,33 @@ distributeworld installworld: installcheck
 	    done); \
 	cp $$libs $$progs ${INSTALLTMP}
 	cp -R $${PATH_LOCALE:-"/usr/share/locale"} ${INSTALLTMP}/locale
+.if make(distributeworld)
+.for dist in ${EXTRA_DISTRIBUTIONS}
+	-mkdir ${DESTDIR}/${DISTDIR}/${dist}
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.root.dist \
+	    -p ${DESTDIR}/${DISTDIR}/${dist} >/dev/null
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/include >/dev/null
+.endfor
+	-mkdir ${DESTDIR}/${DISTDIR}/base
+	${_+_}cd ${.CURDIR}; ${IMAKE} distrib-dirs \
+	    DESTDIR=${DESTDIR}/${DISTDIR}/base
+.endif
 	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}; \
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
+.if make(distributeworld)
+.for dist in ${EXTRA_DISTRIBUTIONS}
+	find ${DESTDIR}/${DISTDIR}/${dist} -empty -delete
+.endfor
+.endif
+
+packageworld:
+.for dist in base ${EXTRA_DISTRIBUTIONS}
+	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz .
+.endfor
 
 #
 # reinstall
@@ -839,6 +871,20 @@ reinstallkernel reinstallkernel.debug: installcheck
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
 	    ${MAKE} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
+
+distributekernel distributekernel.debug:
+.if empty(INSTALLKERNEL)
+	@echo "ERROR: No kernel \"${KERNCONF}\" to install."; \
+	false
+.endif
+	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
+	    ${CROSSENV} PATH=${TMPPATH} ${MAKE} KERNEL=${INSTKERNNAME} \
+	    DESTDIR=${DESTDIR}/${DISTDIR}/kernel \
+	    ${.TARGET:S/distributekernel/install/}
+
+packagekernel:
+	${_+_}cd ${DESTDIR}/${DISTDIR}/kernel; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.txz .
 
 #
 # doxygen
