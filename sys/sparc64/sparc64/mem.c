@@ -188,9 +188,3 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 		kmem_free_wakeup(kernel_map, ova, PAGE_SIZE * colors);
 	return (error);
 }
-
-void
-dev_mem_md_init(void)
-{
-
-}

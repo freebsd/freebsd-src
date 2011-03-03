@@ -5,10 +5,7 @@
 .PATH: ${.CURDIR}/../../${MACHINE_ARCH}/${MACHINE_ARCH}
 
 KMOD=	mem
-SRCS=	memdev.c mem.c
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
-SRCS+=	memutil.c
-.endif
+SRCS=	memdev.c mem.c memutil.c
 .if ${MACHINE_ARCH} == "i386"
 SRCS+=	i686_mem.c k6_mem.c
 .endif
