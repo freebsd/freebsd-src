@@ -467,6 +467,8 @@ A device or socket encountered an unrecoverable protocol error.
 .It Er 93 ENOTCAPABLE Em "Capabilities insufficient" .
 An operation on a capability file descriptor requires greater privilege than
 the capability allows.
+.It Er 94 ECAPMODE Em "Not permitted in capability mode" .
+The system call or operation is not permitted for capability mode processes.
 .El
 .Sh DEFINITIONS
 .Bl -tag -width Ds
