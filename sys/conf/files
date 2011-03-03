@@ -1878,7 +1878,7 @@ dev/usb/serial/uvisor.c		optional uvisor
 dev/usb/serial/uvscom.c		optional uvscom
 dev/usb/serial/usb_serial.c 	optional ucom | u3g | uark | ubsa | ubser | \
 					 uchcom | ucycom | ufoma | uftdi | \
-					 ugensa | uipaq | ulpt | umct | \
+					 ugensa | uipaq | umct | \
 					 umodem | umoscom | uplcom | uslcom | \
 					 uvisor | uvscom
 #
