@@ -687,8 +687,8 @@ turnstile_wait(struct turnstile *ts, struct thread *owner, int queue)
 	 * turnstile already in use by this lock.
 	 */
 	tc = TC_LOOKUP(ts->ts_lockobj);
-	if (ts == td->td_turnstile) {
 	mtx_assert(&tc->tc_lock, MA_OWNED);
+	if (ts == td->td_turnstile) {
 #ifdef TURNSTILE_PROFILING
 		tc->tc_depth++;
 		if (tc->tc_depth > tc->tc_max_depth) {
@@ -697,7 +697,6 @@ turnstile_wait(struct turnstile *ts, struct thread *owner, int queue)
 				turnstile_max_depth = tc->tc_max_depth;
 		}
 #endif
-		tc = TC_LOOKUP(ts->ts_lockobj);
 		LIST_INSERT_HEAD(&tc->tc_turnstiles, ts, ts_hash);
 		KASSERT(TAILQ_EMPTY(&ts->ts_pending),
 		    ("thread's turnstile has pending threads"));
