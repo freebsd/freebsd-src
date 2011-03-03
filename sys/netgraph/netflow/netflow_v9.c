@@ -256,7 +256,9 @@ export9_add(item_p item, struct netflow_v9_packet_opt *t, struct flow_entry *fle
 
 	/* Prepare flow record */
 	fed = (struct flow_entry_data *)&fle->f;
+#ifdef INET6
 	fed6 = (struct flow6_entry_data *)&fle->f;
+#endif
 	/* We can use flow_type field since fle6 offset is equal to fle */
 	flow_type = fed->r.flow_type;
 

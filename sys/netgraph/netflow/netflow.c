@@ -99,7 +99,9 @@ static int export_add(item_p, struct flow_entry *);
 static int export_send(priv_p, fib_export_p, item_p, int);
 
 static int hash_insert(priv_p, struct flow_hash_entry *, struct flow_rec *, int, uint8_t);
+#ifdef INET6
 static int hash6_insert(priv_p, struct flow6_hash_entry *, struct flow6_rec *, int, uint8_t);
+#endif
 
 static __inline void expire_flow(priv_p, fib_export_p, struct flow_entry *, int);
 
@@ -282,8 +284,10 @@ expire_flow(priv_p priv, fib_export_p fe, struct flow_entry *fle, int flags)
 			atomic_add_32(&priv->info.nfinfo_export9_failed, 1);
 			if (version == IPVERSION)
 				uma_zfree_arg(priv->zone, fle, priv);
+#ifdef INET6
 			else if (version == IP6VERSION)
 				uma_zfree_arg(priv->zone6, fle, priv);
+#endif
 			else
 				panic("ng_netflow: Unknown IP proto: %d", version);
 			return;
@@ -297,8 +301,10 @@ expire_flow(priv_p priv, fib_export_p fe, struct flow_entry *fle, int flags)
 
 	if (version == IPVERSION)
 		uma_zfree_arg(priv->zone, fle, priv);
+#ifdef INET6
 	else if (version == IP6VERSION)
 		uma_zfree_arg(priv->zone6, fle, priv);
+#endif
 }
 
 /* Get a snapshot of node statistics */
