@@ -330,6 +330,8 @@ FBSD_1.0 {
 
 FBSD_1.1 {
 	__semctl;
+	cap_enter;
+	cap_getmode;
 	closefrom;
 	cpuset;
 	cpuset_getid;
