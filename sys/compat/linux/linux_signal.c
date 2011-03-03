@@ -586,7 +586,7 @@ linux_do_tkill(struct thread *td, l_int tgid, l_int pid, l_int signum)
 	ksi.ksi_pid = proc->p_pid;
 	ksi.ksi_uid = proc->p_ucred->cr_ruid;
 
-	error = pksignal(p, ksi.ksi_signo, &ksi);
+	error = tdsignal(p, NULL, ksi.ksi_signo, &ksi);
 
 out:
 	PROC_UNLOCK(p);
