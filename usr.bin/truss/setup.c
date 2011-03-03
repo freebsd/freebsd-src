@@ -83,7 +83,7 @@ setup_and_wait(char *command[])
 	}
 	
 	/* Only in the parent here */
-	if (waitpid(pid, &waitval, 0) < -1) {
+	if (waitpid(pid, &waitval, 0) < 0) {
 		err(1, "unexpect stop in waitpid");
 		return 0;
 	}
@@ -114,7 +114,7 @@ start_tracing(int pid)
 		err(1, "can not attach to target process");
 
 	child_pid = pid;	
-	if (waitpid(pid, &waitval, 0) < -1) 
+	if (waitpid(pid, &waitval, 0) < 0) 
 		err(1, "Unexpect stop in waitpid");
 
 	return (0);
@@ -133,7 +133,7 @@ restore_proc(int signo __unused)
 
 	/* stop the child so that we can detach */	
 	kill(child_pid, SIGSTOP);
-	if (waitpid(child_pid, &waitval, 0) < -1)
+	if (waitpid(child_pid, &waitval, 0) < 0)
 		err(1, "Unexpected stop in waitpid");
 
 	if (ptrace(PT_DETACH, child_pid, (caddr_t)1, 0) < 0)
@@ -183,7 +183,7 @@ waitevent(struct trussinfo *info)
 	ptrace(PT_SYSCALL, info->pid, (caddr_t)1, pending_signal);
 	pending_signal = 0;
 
-	if (waitpid(info->pid, &waitval, 0) < -1) {
+	if (waitpid(info->pid, &waitval, 0) < 0) {
 		err(1, "Unexpected stop in waitpid");
 	}
 	
