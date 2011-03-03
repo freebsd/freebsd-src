@@ -128,6 +128,7 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		if (flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))
 			series[i].RateFlags |= HAL_RATESERIES_RTS_CTS;
 
+#if 0
 		if (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40)
 			series[i].RateFlags |= HAL_RATESERIES_2040;
 
@@ -138,6 +139,7 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		 */
 		if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
 			series[i].RateFlags |= HAL_RATESERIES_HALFGI;
+#endif
 
 		series[i].Rate = rt->info[rix[i]].rateCode;
 		/* the short preamble field is only applicable for non-MCS rates */
@@ -150,7 +152,7 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 			    ath_computedur_ht(pktlen
 				, series[i].Rate
 				, ic->ic_txstream
-				, (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40)
+				, 0 /* disable 20/40 for now */
 				, series[i].RateFlags & HAL_RATESERIES_HALFGI);
 		} else {
 			series[i].PktDuration = ath_hal_computetxtime(ah,
