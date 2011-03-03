@@ -137,16 +137,16 @@ futex_put(struct futex *f, struct waiting_proc *wp)
 		FUTEXES_UNLOCK;
 		FUTEX_UNLOCK(f);
 
-		LINUX_CTR2(sys_futex, "futex_put destroy uaddr %p ref %d",
-		    f->f_uaddr, f->f_refcount);
+		LINUX_CTR3(sys_futex, "futex_put destroy uaddr %p ref %d "
+		    "shared %d", f->f_uaddr, f->f_refcount, f->f_key.shared);
 		umtx_key_release(&f->f_key);
 		FUTEX_DESTROY(f);
 		free(f, M_FUTEX);
 		return;
 	}
 
-	LINUX_CTR2(sys_futex, "futex_put uaddr %p ref %d",
-	    f->f_uaddr, f->f_refcount);
+	LINUX_CTR3(sys_futex, "futex_put uaddr %p ref %d shared %d",
+	    f->f_uaddr, f->f_refcount, f->f_key.shared);
 	FUTEXES_UNLOCK;
 	FUTEX_UNLOCK(f);
 }
@@ -189,8 +189,8 @@ retry:
 
 			FUTEX_LOCK(f);
 			*newf = f;
-			LINUX_CTR2(sys_futex, "futex_get uaddr %p ref %d",
-			    uaddr, f->f_refcount);
+			LINUX_CTR3(sys_futex, "futex_get uaddr %p ref %d shared %d",
+			    uaddr, f->f_refcount, f->f_key.shared);
 			return (0);
 		}
 	}
@@ -223,8 +223,8 @@ retry:
 	LIST_INSERT_HEAD(&futex_list, tmpf, f_list);
 	FUTEXES_UNLOCK;
 
-	LINUX_CTR2(sys_futex, "futex_get uaddr %p ref %d new",
-	    uaddr, tmpf->f_refcount);
+	LINUX_CTR3(sys_futex, "futex_get uaddr %p ref %d shared %d new",
+	    uaddr, tmpf->f_refcount, tmpf->f_key.shared);
 	*newf = tmpf;
 	return (0);
 }
