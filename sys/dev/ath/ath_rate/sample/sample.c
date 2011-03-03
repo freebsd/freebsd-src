@@ -273,6 +273,7 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 		goto done;
 	}
 
+	/* XXX TODO: this doesn't know about 11gn vs 11g protection; teach it */
 	mrr = sc->sc_mrretry && !(ic->ic_flags & IEEE80211_F_USEPROT);
 
 	best_rix = pick_best_rate(sn, rt, size_bin, !mrr);
