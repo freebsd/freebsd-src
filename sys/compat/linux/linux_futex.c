@@ -161,7 +161,7 @@ futex_get0(uint32_t *uaddr, struct futex **newf, uint32_t flags)
 	*newf = tmpf = NULL;
 
 	error = umtx_key_get(uaddr, TYPE_FUTEX, (flags & FUTEX_SHARED) ?
-	    PROCESS_SHARE : THREAD_SHARE, &key);
+	    AUTO_SHARE : THREAD_SHARE, &key);
 	if (error)
 		return (error);
 retry:
