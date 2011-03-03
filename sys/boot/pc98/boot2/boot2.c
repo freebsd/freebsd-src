@@ -133,11 +133,11 @@ static struct dsk {
     unsigned start;
 } dsk;
 static char cmd[512], cmddup[512];
-static char kname[1024];
+static const char *kname = NULL;
 static uint32_t opts;
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
-static uint8_t ioctrl = IO_KEYBOARD;
+static unsigned ioctrl = IO_KEYBOARD;
 
 void exit(int);
 static void load(void);
@@ -146,7 +146,6 @@ static int xfsread(ino_t, void *, size_t);
 static int dskread(void *, unsigned, unsigned);
 static void printf(const char *,...);
 static void putchar(int);
-static uint32_t memsize(void);
 static int drvread(void *, unsigned);
 static int keyhit(unsigned);
 static int xputc(int);
@@ -182,13 +181,6 @@ xfsread(ino_t inode, void *buf, size_t nbyte)
 	return -1;
     }
     return 0;
-}
-
-static inline uint32_t
-memsize(void)
-{
-    return (*(u_char *)PTOV(0x401) * 128 * 1024 +
-	*(uint16_t *)PTOV(0x594) * 1024 * 1024);
 }
 
 static inline void
@@ -382,9 +374,6 @@ main(void)
 #endif
     bootinfo.bi_version = BOOTINFO_VERSION;
     bootinfo.bi_size = sizeof(bootinfo);
-    bootinfo.bi_basemem = 0;	/* XXX will be filled by loader or kernel */
-    bootinfo.bi_extmem = memsize();
-    bootinfo.bi_memsizes_valid++;
 
     /* Process configuration file */
 
@@ -408,11 +397,11 @@ main(void)
      * or in case of failure, try to load a kernel directly instead.
      */
 
-    if (autoboot && !*kname) {
-	memcpy(kname, PATH_BOOT3, sizeof(PATH_BOOT3));
+    if (autoboot && !kname) {
+	kname = PATH_BOOT3;
 	if (!keyhit(3*SECOND)) {
 	    load();
-	    memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
+	    kname = PATH_KERNEL;
 	}
     }
 
@@ -427,7 +416,7 @@ main(void)
 		   'a' + dsk.part, kname);
 	if (ioctrl & IO_SERIAL)
 	    sio_flush();
-	if (!autoboot || keyhit(5*SECOND))
+	if (!autoboot || keyhit(3*SECOND))
 	    getstr();
 	else if (!autoboot || !OPT_CHECK(RBX_QUIET))
 	    putchar('\n');
@@ -611,11 +600,7 @@ parse()
 		dsk.daua = dsk.disk | dsk.unit;
 		dsk_meta = 0;
 	    }
-	    if ((i = ep - arg)) {
-		if ((size_t)i >= sizeof(kname))
-		    return -1;
-		memcpy(kname, arg, i + 1);
-	    }
+            kname = arg;
 	}
 	arg = p;
     }
