@@ -151,5 +151,6 @@ const char *const sys_errlist[] = {
 	"Link has been severed",		/* 91 - ENOLINK */
 	"Protocol error",			/* 92 - EPROTO */
 	"Capabilities insufficient",		/* 93 - ENOTCAPABLE */
+	"Not permitted in capability mode",	/* 94 - ECAPMODE */
 };
 const int sys_nerr = sizeof(sys_errlist) / sizeof(sys_errlist[0]);
