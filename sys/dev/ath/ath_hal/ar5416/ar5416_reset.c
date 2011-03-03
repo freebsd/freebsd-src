@@ -45,6 +45,7 @@ static void ar5416InitIMR(struct ath_hal *ah, HAL_OPMODE opmode);
 static void ar5416InitQoS(struct ath_hal *ah);
 static void ar5416InitUserSettings(struct ath_hal *ah);
 static void ar5416UpdateChainMasks(struct ath_hal *ah, HAL_BOOL is_ht);
+static void ar5416OverrideIni(struct ath_hal *ah, const struct ieee80211_channel *);
 
 #if 0
 static HAL_BOOL	ar5416ChannelChange(struct ath_hal *, const struct ieee80211_channel *);
@@ -182,6 +183,9 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	}
 
 	AH5416(ah)->ah_writeIni(ah, chan);
+
+	/* Override ini values (that can be overriden in this fashion) */
+	ar5416OverrideIni(ah, chan);
 
 	/* Setup 11n MAC/Phy mode registers */
 	ar5416Set11nRegs(ah, chan);	
@@ -2321,5 +2325,59 @@ ar5416GetChannelCenters(struct ath_hal *ah,
 		    centers->synth_center - HT40_CHANNEL_CENTER_SHIFT;
 	} else {
 		centers->ext_center = freq;
+	}
+}
+
+/*
+ * Override the INI vals being programmed.
+ */
+static void
+ar5416OverrideIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
+{
+	uint32_t val;
+
+	/*
+	 * Set the RX_ABORT and RX_DIS and clear if off only after
+	 * RXE is set for MAC. This prevents frames with corrupted
+	 * descriptor status.
+	 */
+	OS_REG_SET_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
+
+        if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
+                val = OS_REG_READ(ah, AR_PCU_MISC_MODE2);
+
+                if (!AR_SREV_9271(ah))
+                        val &= ~AR_PCU_MISC_MODE2_HWWAR1;
+
+                if (AR_SREV_9287_11_OR_LATER(ah))
+                        val = val & (~AR_PCU_MISC_MODE2_HWWAR2);
+
+                OS_REG_WRITE(ah, AR_PCU_MISC_MODE2, val);
+        }
+
+	/*
+	 * The AR5416 initvals have this already set to 0x11; AR9160 has
+	 * the register set to 0x0. Figure out whether AR9100/AR9160 needs
+	 * this before moving forward with it.
+	 */
+#if 0
+	/* Disable BB clock gating for AR5416v2, AR9100, AR9160 */
+        if (AR_SREV_OWL_20_OR_LATER(ah) || AR_SREV_9100(ah) || AR_SREV_SOWL(ah)) {
+		/*
+		 * Disable BB clock gating
+		 * Necessary to avoid issues on AR5416 2.0
+		 */
+		OS_REG_WRITE(ah, 0x9800 + (651 << 2), 0x11);
+	}
+#endif
+
+	/*
+	 * Disable RIFS search on some chips to avoid baseband
+	 * hang issues.
+	 */
+	if (AR_SREV_9100(ah) || AR_SREV_SOWL(ah)) {
+		val = OS_REG_READ(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS);
+		val &= ~AR_PHY_RIFS_INIT_DELAY;
+		OS_REG_WRITE(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS, val);
 	}
 }
