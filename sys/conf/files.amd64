@@ -212,7 +212,6 @@ dev/hwpmc/hwpmc_x86.c		optional	hwpmc
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd
 dev/lindev/full.c		optional	lindev
 dev/lindev/lindev.c		optional	lindev
-dev/mem/memutil.c		optional	mem
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/nve/if_nve.c		optional	nve pci
 dev/nvram/nvram.c		optional	nvram isa
@@ -266,6 +265,7 @@ amd64/linux32/linux32_sysent.c	optional	compat_linux32
 amd64/linux32/linux32_sysvec.c	optional	compat_linux32
 compat/linux/linux_emul.c	optional	compat_linux32
 compat/linux/linux_file.c	optional	compat_linux32
+compat/linux/linux_fork.c	optional	compat_linux32
 compat/linux/linux_futex.c	optional	compat_linux32
 compat/linux/linux_getcwd.c	optional	compat_linux32
 compat/linux/linux_ioctl.c	optional	compat_linux32

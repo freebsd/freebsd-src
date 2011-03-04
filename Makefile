@@ -25,6 +25,7 @@
 # delete-old-dirs     - Delete obsolete directories.
 # delete-old-files    - Delete obsolete files.
 # delete-old-libs     - Delete obsolete libraries.
+# toolchains          - Build a toolchain for all world and kernel targets.
 #
 # This makefile is simple by design. The FreeBSD make automatically reads
 # the /usr/share/mk/sys.mk unless the -m argument is specified on the
@@ -268,8 +269,10 @@ make: .PHONY
 		${MMAKE} install DESTDIR=${MAKEPATH} BINDIR=
 
 tinderbox:
-	cd ${.CURDIR} && \
-		DOING_TINDERBOX=YES ${MAKE} ${JFLAG} universe
+	@cd ${.CURDIR} && ${MAKE} DOING_TINDERBOX=YES universe
+
+toolchains:
+	@cd ${.CURDIR} && ${MAKE} UNIVERSE_TARGET=toolchain universe
 
 #
 # universe
@@ -280,6 +283,12 @@ tinderbox:
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox)
 TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64 sun4v
+
+.if defined(UNIVERSE_TARGET)
+MAKE_JUST_WORLDS=	YES
+.else
+UNIVERSE_TARGET?=	buildworld
+.endif
 
 .if defined(DOING_TINDERBOX)
 FAILFILE=tinderbox.failed
@@ -294,21 +303,22 @@ universe_prologue:
 	@echo ">>> make universe started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
 .if defined(DOING_TINDERBOX)
-	rm -f ${FAILFILE}
+	@rm -f ${FAILFILE}
 .endif
 .for target in ${TARGETS}
 universe: universe_${target}
 .ORDER: universe_prologue universe_${target} universe_epilogue
 universe_${target}:
-.if !defined(MAKE_JUST_KERNELS)
 	@echo ">> ${target} started on `LC_ALL=C date`"
+.if !defined(MAKE_JUST_KERNELS)
+	@echo ">> ${target} ${UNIVERSE_TARGET} started on `LC_ALL=C date`"
 	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
-	    ${MAKE} ${JFLAG} buildworld \
+	    ${MAKE} ${JFLAG} ${UNIVERSE_TARGET} \
 	    TARGET=${target} \
-	    > _.${target}.buildworld 2>&1 || \
-	    (echo "${target} world failed," \
-	    "check _.${target}.buildworld for details" | ${MAKEFAIL}))
-	@echo ">> ${target} buildworld completed on `LC_ALL=C date`"
+	    > _.${target}.${UNIVERSE_TARGET} 2>&1 || \
+	    (echo "${target} ${UNIVERSE_TARGET} failed," \
+	    "check _.${target}.${UNIVERSE_TARGET} for details" | ${MAKEFAIL}))
+	@echo ">> ${target} ${UNIVERSE_TARGET} completed on `LC_ALL=C date`"
 .endif
 .if !defined(MAKE_JUST_WORLDS)
 .if exists(${.CURDIR}/sys/${target}/conf/NOTES)

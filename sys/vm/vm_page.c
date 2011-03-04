@@ -220,7 +220,6 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_paddr_t new_end;
 	int i;
 	vm_paddr_t pa;
-	int nblocks;
 	vm_paddr_t last_pa;
 	char *list;
 
@@ -232,7 +231,6 @@ vm_page_startup(vm_offset_t vaddr)
 
 	biggestsize = 0;
 	biggestone = 0;
-	nblocks = 0;
 	vaddr = round_page(vaddr);
 
 	for (i = 0; phys_avail[i + 1]; i += 2) {
@@ -254,7 +252,6 @@ vm_page_startup(vm_offset_t vaddr)
 			low_water = phys_avail[i];
 		if (phys_avail[i + 1] > high_water)
 			high_water = phys_avail[i + 1];
-		++nblocks;
 	}
 
 #ifdef XEN
@@ -305,7 +302,11 @@ vm_page_startup(vm_offset_t vaddr)
 	 * minidump code.  In theory, they are not needed on i386, but are
 	 * included should the sf_buf code decide to use them.
 	 */
-	page_range = phys_avail[(nblocks - 1) * 2 + 1] / PAGE_SIZE;
+	last_pa = 0;
+	for (i = 0; dump_avail[i + 1] != 0; i += 2)
+		if (dump_avail[i + 1] > last_pa)
+			last_pa = dump_avail[i + 1];
+	page_range = last_pa / PAGE_SIZE;
 	vm_page_dump_size = round_page(roundup2(page_range, NBBY) / NBBY);
 	new_end -= vm_page_dump_size;
 	vm_page_dump = (void *)(uintptr_t)pmap_map(&vaddr, new_end,
@@ -1101,23 +1102,19 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	vm_page_t m;
 	int flags, page_req;
 
-	page_req = req & VM_ALLOC_CLASS_MASK;
-	KASSERT(curthread->td_intr_nesting_level == 0 ||
-	    page_req == VM_ALLOC_INTERRUPT,
-	    ("vm_page_alloc(NORMAL|SYSTEM) in interrupt context"));
-
 	if ((req & VM_ALLOC_NOOBJ) == 0) {
 		KASSERT(object != NULL,
 		    ("vm_page_alloc: NULL object."));
 		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	}
 
+	page_req = req & VM_ALLOC_CLASS_MASK;
+
 	/*
 	 * The pager is allowed to eat deeper into the free page list.
 	 */
-	if ((curproc == pageproc) && (page_req != VM_ALLOC_INTERRUPT)) {
+	if ((curproc == pageproc) && (page_req != VM_ALLOC_INTERRUPT))
 		page_req = VM_ALLOC_SYSTEM;
-	};
 
 	mtx_lock(&vm_page_queue_free_mtx);
 	if (cnt.v_free_count + cnt.v_cache_count > cnt.v_free_reserved ||

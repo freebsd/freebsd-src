@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/priv.h>
 #include <sys/reboot.h>
+#include <sys/sched.h>
 #include <sys/sleepqueue.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
@@ -1339,13 +1340,14 @@ restart:
 			brelse(bp);
 			anyfreed = 1;
 
+			BO_LOCK(bo);
 			if (nbp != NULL &&
 			    (((nbp->b_xflags & BX_VNCLEAN) == 0) ||
 			    (nbp->b_vp != vp) ||
 			    (nbp->b_flags & B_DELWRI))) {
+				BO_UNLOCK(bo);
 				goto restart;
 			}
-			BO_LOCK(bo);
 		}
 
 		TAILQ_FOREACH_SAFE(bp, &bo->bo_dirty.bv_hd, b_bobufs, nbp) {
@@ -1362,13 +1364,15 @@ restart:
 			bp->b_flags &= ~B_ASYNC;
 			brelse(bp);
 			anyfreed = 1;
+
+			BO_LOCK(bo);
 			if (nbp != NULL &&
 			    (((nbp->b_xflags & BX_VNDIRTY) == 0) ||
 			    (nbp->b_vp != vp) ||
 			    (nbp->b_flags & B_DELWRI) == 0)) {
+				BO_UNLOCK(bo);
 				goto restart;
 			}
-			BO_LOCK(bo);
 		}
 	}
 
@@ -1883,6 +1887,12 @@ sched_sync(void)
 		 * matter as we are just trying to generally pace the
 		 * filesystem activity.
 		 */
+		if (syncer_state != SYNCER_RUNNING ||
+		    time_uptime == starttime) {
+			thread_lock(td);
+			sched_prio(td, PPAUSE);
+			thread_unlock(td);
+		}
 		if (syncer_state != SYNCER_RUNNING)
 			cv_timedwait(&sync_wakeup, &sync_mtx,
 			    hz / SYNCER_SHUTDOWN_SPEEDUP);

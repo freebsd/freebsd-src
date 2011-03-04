@@ -67,4 +67,9 @@ extern const char *linux_platform;
 
 extern int stclohz;
 
+#define __WCLONE 0x80000000
+
+int linux_common_wait(struct thread *td, int pid, int *status,
+			int options, struct rusage *ru);
+
 #endif	/* _LINUX_MISC_H_ */

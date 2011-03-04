@@ -107,7 +107,7 @@ static int load_needed_objects(Obj_Entry *, int);
 static int load_preload_objects(void);
 static Obj_Entry *load_object(const char *, const Obj_Entry *, int);
 static Obj_Entry *obj_from_addr(const void *);
-static void objlist_call_fini(Objlist *, bool, int *);
+static void objlist_call_fini(Objlist *, Obj_Entry *, int *);
 static void objlist_call_init(Objlist *, int *);
 static void objlist_clear(Objlist *);
 static Objlist_Entry *objlist_find(Objlist *, const Obj_Entry *);
@@ -1328,7 +1328,7 @@ init_rtld(caddr_t mapbase)
 	digest_dynamic(&objtmp, 1);
 	assert(objtmp.needed == NULL);
 #if !defined(__mips__)
-	/* MIPS and SH{3,5} have a bogus DT_TEXTREL. */
+	/* MIPS has a bogus DT_TEXTREL. */
 	assert(!objtmp.textrel);
 #endif
 
@@ -1616,36 +1616,56 @@ obj_from_addr(const void *addr)
 
 /*
  * Call the finalization functions for each of the objects in "list"
- * which are unreferenced.  All of the objects are expected to have
- * non-NULL fini functions.
+ * belonging to the DAG of "root" and referenced once. If NULL "root"
+ * is specified, every finalization function will be called regardless
+ * of the reference count and the list elements won't be freed. All of
+ * the objects are expected to have non-NULL fini functions.
  */
 static void
-objlist_call_fini(Objlist *list, bool force, int *lockstate)
+objlist_call_fini(Objlist *list, Obj_Entry *root, int *lockstate)
 {
-    Objlist_Entry *elm, *elm_tmp;
+    Objlist_Entry *elm;
     char *saved_msg;
+
+    assert(root == NULL || root->refcount == 1);
 
     /*
      * Preserve the current error message since a fini function might
      * call into the dynamic linker and overwrite it.
      */
     saved_msg = errmsg_save();
-    STAILQ_FOREACH_SAFE(elm, list, link, elm_tmp) {
-	if (elm->obj->refcount == 0 || force) {
+    do {
+	STAILQ_FOREACH(elm, list, link) {
+	    if (root != NULL && (elm->obj->refcount != 1 ||
+	      objlist_find(&root->dagmembers, elm->obj) == NULL))
+		continue;
 	    dbg("calling fini function for %s at %p", elm->obj->path,
 	        (void *)elm->obj->fini);
 	    LD_UTRACE(UTRACE_FINI_CALL, elm->obj, (void *)elm->obj->fini, 0, 0,
 		elm->obj->path);
 	    /* Remove object from fini list to prevent recursive invocation. */
 	    STAILQ_REMOVE(list, elm, Struct_Objlist_Entry, link);
+	    /*
+	     * XXX: If a dlopen() call references an object while the
+	     * fini function is in progress, we might end up trying to
+	     * unload the referenced object in dlclose() or the object
+	     * won't be unloaded although its fini function has been
+	     * called.
+	     */
 	    wlock_release(rtld_bind_lock, *lockstate);
 	    call_initfini_pointer(elm->obj, elm->obj->fini);
 	    *lockstate = wlock_acquire(rtld_bind_lock);
 	    /* No need to free anything if process is going down. */
-	    if (!force)
+	    if (root != NULL)
 	    	free(elm);
+	    /*
+	     * We must restart the list traversal after every fini call
+	     * because a dlclose() call from the fini function or from
+	     * another thread might have modified the reference counts.
+	     */
+	    break;
 	}
-    }
+    } while (elm != NULL);
     errmsg_restore(saved_msg);
 }
 
@@ -1833,7 +1853,7 @@ rtld_exit(void)
 
     lockstate = wlock_acquire(rtld_bind_lock);
     dbg("rtld_exit()");
-    objlist_call_fini(&list_fini, true, &lockstate);
+    objlist_call_fini(&list_fini, NULL, &lockstate);
     /* No need to remove the items from the list, since we are exiting. */
     if (!libmap_disable)
         lm_fini();
@@ -1946,20 +1966,22 @@ dlclose(void *handle)
     /* Unreference the object and its dependencies. */
     root->dl_refcount--;
 
-    unref_dag(root);
-
-    if (root->refcount == 0) {
+    if (root->refcount == 1) {
 	/*
-	 * The object is no longer referenced, so we must unload it.
+	 * The object will be no longer referenced, so we must unload it.
 	 * First, call the fini functions.
 	 */
-	objlist_call_fini(&list_fini, false, &lockstate);
+	objlist_call_fini(&list_fini, root, &lockstate);
+
+	unref_dag(root);
 
 	/* Finish cleaning up the newly-unreferenced objects. */
 	GDB_STATE(RT_DELETE,&root->linkmap);
 	unload_object(root);
 	GDB_STATE(RT_CONSISTENT,NULL);
-    }
+    } else
+	unref_dag(root);
+
     LD_UTRACE(UTRACE_DLCLOSE_STOP, handle, NULL, 0, 0, NULL);
     wlock_release(rtld_bind_lock, lockstate);
     return 0;
@@ -3448,10 +3470,17 @@ locate_dependency(const Obj_Entry *obj, const char *name)
     }
 
     for (needed = obj->needed;  needed != NULL;  needed = needed->next) {
-	if (needed->obj == NULL)
-	    continue;
-	if (object_match_name(needed->obj, name))
-	    return needed->obj;
+	if (strcmp(obj->strtab + needed->name, name) == 0 ||
+	  (needed->obj != NULL && object_match_name(needed->obj, name))) {
+	    /*
+	     * If there is DT_NEEDED for the name we are looking for,
+	     * we are all set.  Note that object might not be found if
+	     * dependency was not loaded yet, so the function can
+	     * return NULL here.  This is expected and handled
+	     * properly by the caller.
+	     */
+	    return (needed->obj);
+	}
     }
     _rtld_error("%s: Unexpected inconsistency: dependency %s not found",
 	obj->path, name);
@@ -3577,6 +3606,8 @@ rtld_verify_object_versions(Obj_Entry *obj)
     vn = obj->verneed;
     while (vn != NULL) {
 	depobj = locate_dependency(obj, obj->strtab + vn->vn_file);
+	if (depobj == NULL)
+	    return (-1);
 	vna = (const Elf_Vernaux *) ((char *)vn + vn->vn_aux);
 	for (;;) {
 	    if (check_object_provided_version(obj, depobj, vna))

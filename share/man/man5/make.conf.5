@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 5, 2006
+.Dd December 15, 2009
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -318,6 +318,14 @@ Set this to use
 .Xr cvsup 1
 to update your ports with
 .Dq Li "make update" .
+.It Va WWWSUPFILE
+.Pq Vt str
+The www
+.Ar supfile
+to use when doing a
+.Dq Li "make update"
+This defaults to
+.Pa /usr/share/examples/cvsup/www\-supfile .
 .El
 .Ss "BUILDING THE KERNEL"
 The following list provides a name and short description for variables
@@ -361,6 +369,12 @@ It defaults to
 .It Va MODULES_OVERRIDE
 .Pq Vt str
 Set to a list of modules to build instead of all of them.
+.It Va NO_KERNELCLEAN
+.Pq Vt bool
+Set this to skip running
+.Dq Li "${MAKE} clean"
+during
+.Dq Li "${MAKE} buildkernel" .
 .It Va NO_KERNELCONFIG
 .Pq Vt bool
 Set this to skip running
@@ -371,6 +385,12 @@ during
 .Pq Vt bool
 Set this to skip running
 .Dq Li "${MAKE} depend"
+during
+.Dq Li "${MAKE} buildkernel" .
+.It Va NO_KERNELOBJ
+.Pq Vt bool
+Set this to skip running
+.Dq Li "${MAKE} obj"
 during
 .Dq Li "${MAKE} buildkernel" .
 .It Va NO_MODULES

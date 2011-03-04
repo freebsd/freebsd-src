@@ -122,6 +122,13 @@ dtrace_doubletrap_func_t	dtrace_doubletrap_func;
  * implementation opaque. 
  */
 systrace_probe_func_t	systrace_probe_func;
+
+/*
+ * These hooks are necessary for the pid, usdt and fasttrap providers.
+ */
+dtrace_fasttrap_probe_ptr_t	dtrace_fasttrap_probe_ptr;
+dtrace_pid_probe_ptr_t		dtrace_pid_probe_ptr;
+dtrace_return_probe_ptr_t	dtrace_return_probe_ptr;
 #endif
 
 extern void trap(struct trapframe *frame);
@@ -252,7 +259,7 @@ trap(struct trapframe *frame)
 	 * A trap can occur while DTrace executes a probe. Before
 	 * executing the probe, DTrace blocks re-scheduling and sets
 	 * a flag in it's per-cpu flags to indicate that it doesn't
-	 * want to fault. On returning from the the probe, the no-fault
+	 * want to fault. On returning from the probe, the no-fault
 	 * flag is cleared and finally re-scheduling is enabled.
 	 *
 	 * If the DTrace kernel module has registered a trap handler,
@@ -264,6 +271,24 @@ trap(struct trapframe *frame)
 	    dtrace_trap_func != NULL)
 		if ((*dtrace_trap_func)(frame, type))
 			goto out;
+	if (type == T_DTRACE_PROBE || type == T_DTRACE_RET ||
+	    type == T_BPTFLT) {
+		struct reg regs;
+
+		fill_frame_regs(frame, &regs);
+		if (type == T_DTRACE_PROBE &&
+		    dtrace_fasttrap_probe_ptr != NULL &&
+		    dtrace_fasttrap_probe_ptr(&regs) == 0)
+			goto out;
+		if (type == T_BPTFLT &&
+		    dtrace_pid_probe_ptr != NULL &&
+		    dtrace_pid_probe_ptr(&regs) == 0)
+			goto out;
+		if (type == T_DTRACE_RET &&
+		    dtrace_return_probe_ptr != NULL &&
+		    dtrace_return_probe_ptr(&regs) == 0)
+			goto out;
+	}
 #endif
 
 	if ((frame->tf_eflags & PSL_I) == 0) {

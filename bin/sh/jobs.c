@@ -1005,6 +1005,7 @@ dowait(int block, struct job *job)
 				out1c('\n');
 			} else
 				showjob(thisjob, pid, SHOWJOBS_DEFAULT);
+			flushout(out1);
 		}
 	} else {
 		TRACE(("Not printing status, rootshell=%d, job=%p\n", rootshell, job));

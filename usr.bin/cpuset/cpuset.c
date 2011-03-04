@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <string.h>
 
+int Cflag;
 int cflag;
 int gflag;
 int iflag;
@@ -72,6 +73,12 @@ parselist(char *list, cpuset_t *mask)
 	int curnum;
 	char *l;
 
+	if (strcasecmp(list, "all") == 0) {
+		if (cpuset_getaffinity(CPU_LEVEL_ROOT, CPU_WHICH_PID, -1,
+		    sizeof(*mask), mask) != 0)
+			err(EXIT_FAILURE, "getaffinity");
+		return;
+	}
 	state = NONE;
 	curnum = lastnum = 0;
 	for (l = list; *l != '\0';) {
@@ -199,8 +206,11 @@ main(int argc, char *argv[])
 	level = CPU_LEVEL_WHICH;
 	which = CPU_WHICH_PID;
 	id = pid = tid = setid = -1;
-	while ((ch = getopt(argc, argv, "cgij:l:p:rs:t:x:")) != -1) {
+	while ((ch = getopt(argc, argv, "Ccgij:l:p:rs:t:x:")) != -1) {
 		switch (ch) {
+		case 'C':
+			Cflag = 1;
+			break;
 		case 'c':
 			if (rflag)
 				usage();
@@ -255,7 +265,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 	if (gflag) {
-		if (argc || lflag)
+		if (argc || Cflag || lflag)
 			usage();
 		/* Only one identity specifier. */
 		if (jflag + xflag + sflag + pflag + tflag > 1)
@@ -272,7 +282,7 @@ main(int argc, char *argv[])
 	 * The user wants to run a command with a set and possibly cpumask.
 	 */
 	if (argc) {
-		if (pflag | rflag | tflag | xflag | jflag)
+		if (Cflag | pflag | rflag | tflag | xflag | jflag)
 			usage();
 		if (sflag) {
 			if (cpuset_setid(CPU_WHICH_PID, -1, setid))
@@ -293,9 +303,11 @@ main(int argc, char *argv[])
 	/*
 	 * We're modifying something that presently exists.
 	 */
+	if (Cflag && (sflag || rflag || !pflag || tflag || xflag || jflag))
+		usage();
 	if (!lflag && (cflag || rflag))
 		usage();
-	if (!lflag && !sflag)
+	if (!lflag && !(Cflag || sflag))
 		usage();
 	/* You can only set a mask on a thread. */
 	if (tflag && (sflag | pflag | xflag | jflag))
@@ -303,6 +315,15 @@ main(int argc, char *argv[])
 	/* You can only set a mask on an irq. */
 	if (xflag && (jflag | pflag | sflag | tflag))
 		usage();
+	if (Cflag) {
+		/*
+		 * Create a new cpuset and move the specified process
+		 * into the set.
+		 */
+		if (cpuset(&setid) < 0)
+			err(EXIT_FAILURE, "newid");
+		sflag = 1;
+	}
 	if (pflag && sflag) {
 		if (cpuset_setid(CPU_WHICH_PID, pid, setid))
 			err(EXIT_FAILURE, "setid");
@@ -330,6 +351,8 @@ usage(void)
 	    "usage: cpuset [-l cpu-list] [-s setid] cmd ...\n");
 	fprintf(stderr,
 	    "       cpuset [-l cpu-list] [-s setid] -p pid\n");
+	fprintf(stderr,
+	    "       cpuset [-c] [-l cpu-list] -C -p pid\n");
 	fprintf(stderr,
 	    "       cpuset [-cr] [-l cpu-list] [-j jailid | -p pid | -t tid | -s setid | -x irq]\n");
 	fprintf(stderr,

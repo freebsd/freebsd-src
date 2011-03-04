@@ -34,6 +34,12 @@
  */
 
 #include <sys/stdint.h>
+
+#ifdef _KERNEL
+typedef	int64_t		clock_t;
+#define	_CLOCK_T_DECLARED
+#endif
+
 #include_next <sys/types.h>
 
 #define	MAXNAMELEN	256

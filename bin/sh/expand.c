@@ -470,8 +470,6 @@ expbackq(union node *cmd, int quoted, int flag)
 		}
 		lastc = *p++;
 		if (lastc != '\0') {
-			if (quotes && syntax[(int)lastc] == CCTL)
-				STPUTC(CTLESC, dest);
 			if (lastc == '\n') {
 				nnl++;
 			} else {
@@ -479,6 +477,8 @@ expbackq(union node *cmd, int quoted, int flag)
 					nnl--;
 					STPUTC('\n', dest);
 				}
+				if (quotes && syntax[(int)lastc] == CCTL)
+					STPUTC(CTLESC, dest);
 				STPUTC(lastc, dest);
 			}
 		}
@@ -944,7 +944,7 @@ numvar:
 
 
 /*
- * Record the the fact that we have to scan this region of the
+ * Record the fact that we have to scan this region of the
  * string for IFS characters.
  */
 

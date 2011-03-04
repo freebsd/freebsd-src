@@ -475,6 +475,7 @@ MAN=	aac.4 \
 	vlan.4 \
 	vpo.4 \
 	vr.4 \
+	vte.4 \
 	watchdog.4 \
 	wb.4 \
 	wi.4 \

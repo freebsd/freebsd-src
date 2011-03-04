@@ -28,7 +28,7 @@
 .\"     @(#)tunefs.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2007
+.Dd December 9, 2010
 .Dt TUNEFS 8
 .Os
 .Sh NAME
@@ -49,6 +49,7 @@
 .Op Fl o Cm space | time
 .Op Fl p
 .Op Fl s Ar avgfpdir
+.Op Fl t Cm enable | disable
 .Ar special | filesystem
 .Sh DESCRIPTION
 The
@@ -136,6 +137,14 @@ obtained from the
 utility.
 .It Fl s Ar avgfpdir
 Specify the expected number of files per directory.
+.It Fl t Cm enable | disable
+Turn on/off the TRIM enable flag.
+If enabled, and if the underlying device supports the BIO_DELETE
+command, the file system will send a delete request to the underlying
+device for each freed block.
+The trim enable flag is typically set when the underlying device
+uses flash-memory as the device can use the delete command to
+pre-zero or at least avoid copying blocks that have been deleted.
 .El
 .Pp
 At least one of the above flags is required.

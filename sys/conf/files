@@ -924,7 +924,7 @@ dev/e1000/e1000_82543.c		optional em | igb \
 dev/e1000/e1000_82571.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_82575.c		optional em | igb \
-	 compile-with "${NORMAL_C} -I$S/dev/igb"
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_ich8lan.c	optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_api.c		optional em | igb \
@@ -1204,7 +1204,7 @@ iwn6050.fw			optional iwn6050fw | iwnfw		\
 	dependency	".PHONY"					\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6050-9.201.4.1.fw.uu" \
 	no-obj no-implicit-rule						\
-	clean		"iwn6000.fw"
+	clean		"iwn6050.fw"
 dev/ixgb/if_ixgb.c		optional ixgb
 dev/ixgb/ixgb_ee.c		optional ixgb
 dev/ixgb/ixgb_hw.c		optional ixgb
@@ -1248,6 +1248,7 @@ dev/mcd/mcd.c			optional mcd isa nowerror
 dev/mcd/mcd_isa.c		optional mcd isa nowerror
 dev/md/md.c			optional md
 dev/mem/memdev.c		optional mem
+dev/mem/memutil.c		optional mem
 dev/mfi/mfi.c			optional mfi
 dev/mfi/mfi_debug.c		optional mfi
 dev/mfi/mfi_pci.c		optional mfi pci
@@ -1280,6 +1281,7 @@ dev/mii/nsphy.c			optional miibus | nsphy
 dev/mii/nsphyter.c		optional miibus | nsphyter
 dev/mii/pnaphy.c		optional miibus | pnaphy
 dev/mii/qsphy.c			optional miibus | qsphy
+dev/mii/rdcphy.c		optional miibus | rdcphy
 dev/mii/rgephy.c		optional miibus | rgephy
 dev/mii/rlphy.c			optional miibus | rlphy
 dev/mii/rlswitch.c		optional rlswitch
@@ -1302,6 +1304,11 @@ dev/mmc/mmcbr_if.m		standard
 dev/mmc/mmcbus_if.m		standard
 dev/mmc/mmcsd.c			optional mmcsd
 dev/mn/if_mn.c			optional mn pci
+dev/mps/mps.c			optional mps
+dev/mps/mps_pci.c		optional mps pci
+dev/mps/mps_sas.c		optional mps
+dev/mps/mps_table.c		optional mps
+dev/mps/mps_user.c		optional mps
 dev/mpt/mpt.c			optional mpt
 dev/mpt/mpt_cam.c		optional mpt
 dev/mpt/mpt_debug.c		optional mpt
@@ -1823,6 +1830,7 @@ dev/utopia/utopia.c		optional utopia
 dev/vge/if_vge.c		optional vge
 dev/vkbd/vkbd.c			optional vkbd
 dev/vr/if_vr.c			optional vr pci
+dev/vte/if_vte.c		optional vte pci
 dev/vx/if_vx.c			optional vx
 dev/vx/if_vx_eisa.c		optional vx eisa
 dev/vx/if_vx_pci.c		optional vx pci

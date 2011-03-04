@@ -116,14 +116,15 @@ kproc_create(void (*func)(void *), void *arg,
 
 	/* call the processes' main()... */
 	cpu_set_fork_handler(td, func, arg);
+	thread_lock(td);
 	TD_SET_CAN_RUN(td);
+	sched_prio(td, PVM);
+	sched_user_prio(td, PUSER);
 
 	/* Delay putting it on the run queue until now. */
-	if (!(flags & RFSTOPPED)) {
-		thread_lock(td);
+	if (!(flags & RFSTOPPED))
 		sched_add(td, SRQ_BORING); 
-		thread_unlock(td);
-	}
+	thread_unlock(td);
 
 	return 0;
 }
@@ -264,6 +265,7 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	bzero(&newtd->td_rux, sizeof(newtd->td_rux));
 	newtd->td_map_def_user = NULL;
+	newtd->td_dbg_forked = 0;
 /* XXX check if we should zero. */
 	bcopy(&oldtd->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));

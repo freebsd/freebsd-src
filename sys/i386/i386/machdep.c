@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_npx.h"
 #include "opt_perfmon.h"
 #include "opt_xbox.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -73,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/memrange.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
@@ -238,8 +238,6 @@ struct pcpu __pcpu[MAXCPU];
 
 struct mtx icu_lock;
 
-struct mem_range_softc mem_range_softc;
-
 static void
 cpu_startup(dummy)
 	void *dummy;
@@ -379,12 +377,14 @@ osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
 	sf.sf_scp = (register_t)&fp->sf_siginfo.si_sc;
+	bzero(&sf.sf_siginfo, sizeof(sf.sf_siginfo));
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		sf.sf_arg2 = (register_t)&fp->sf_siginfo;
 		sf.sf_siginfo.si_signo = sig;
 		sf.sf_siginfo.si_code = ksi->ksi_code;
 		sf.sf_ahu.sf_action = (__osiginfohandler_t *)catcher;
+		sf.sf_addr = 0;
 	} else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_arg2 = ksi->ksi_code;
@@ -498,6 +498,11 @@ freebsd4_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(*regs));
+	bzero(sf.sf_uc.uc_mcontext.mc_fpregs,
+	    sizeof(sf.sf_uc.uc_mcontext.mc_fpregs));
+	bzero(sf.sf_uc.uc_mcontext.__spare__,
+	    sizeof(sf.sf_uc.uc_mcontext.__spare__));
+	bzero(sf.sf_uc.__spare__, sizeof(sf.sf_uc.__spare__));
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -517,6 +522,7 @@ freebsd4_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
 	sf.sf_ucontext = (register_t)&sfp->sf_uc;
+	bzero(&sf.sf_si, sizeof(sf.sf_si));
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		sf.sf_siginfo = (register_t)&sfp->sf_si;
@@ -643,6 +649,11 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sdp = &td->td_pcb->pcb_gsd;
 	sf.sf_uc.uc_mcontext.mc_gsbase = sdp->sd_hibase << 24 |
 	    sdp->sd_lobase;
+	bzero(sf.sf_uc.uc_mcontext.mc_spare1,
+	    sizeof(sf.sf_uc.uc_mcontext.mc_spare1));
+	bzero(sf.sf_uc.uc_mcontext.mc_spare2,
+	    sizeof(sf.sf_uc.uc_mcontext.mc_spare2));
+	bzero(sf.sf_uc.__spare__, sizeof(sf.sf_uc.__spare__));
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -664,6 +675,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
 	sf.sf_ucontext = (register_t)&sfp->sf_uc;
+	bzero(&sf.sf_si, sizeof(sf.sf_si));
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		sf.sf_siginfo = (register_t)&sfp->sf_si;
@@ -1874,7 +1886,11 @@ extern inthand_t
 	IDTVEC(bnd), IDTVEC(ill), IDTVEC(dna), IDTVEC(fpusegm),
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
-	IDTVEC(xmm), IDTVEC(lcall_syscall), IDTVEC(int0x80_syscall);
+	IDTVEC(xmm),
+#ifdef KDTRACE_HOOKS
+	IDTVEC(dtrace_ret),
+#endif
+	IDTVEC(lcall_syscall), IDTVEC(int0x80_syscall);
 
 #ifdef DDB
 /*
@@ -2829,6 +2845,10 @@ init386(first)
 	    GSEL(GCODE_SEL, SEL_KPL));
  	setidt(IDT_SYSCALL, &IDTVEC(int0x80_syscall), SDT_SYS386TGT, SEL_UPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
+#ifdef KDTRACE_HOOKS
+	setidt(IDT_DTRACE_RET, &IDTVEC(dtrace_ret), SDT_SYS386TGT, SEL_UPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+#endif
 
 	r_idt.rd_limit = sizeof(idt0) - 1;
 	r_idt.rd_base = (int) idt;
@@ -3090,6 +3110,13 @@ fill_regs(struct thread *td, struct reg *regs)
 
 	tp = td->td_frame;
 	pcb = td->td_pcb;
+	regs->r_gs = pcb->pcb_gs;
+	return (fill_frame_regs(tp, regs));
+}
+
+int
+fill_frame_regs(struct trapframe *tp, struct reg *regs)
+{
 	regs->r_fs = tp->tf_fs;
 	regs->r_es = tp->tf_es;
 	regs->r_ds = tp->tf_ds;
@@ -3105,7 +3132,6 @@ fill_regs(struct thread *td, struct reg *regs)
 	regs->r_eflags = tp->tf_eflags;
 	regs->r_esp = tp->tf_esp;
 	regs->r_ss = tp->tf_ss;
-	regs->r_gs = pcb->pcb_gs;
 	return (0);
 }
 
@@ -3197,7 +3223,11 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 
 	KASSERT(td == curthread || TD_IS_SUSPENDED(td),
 	    ("not suspended thread %p", td));
+#ifdef DEV_NPX
 	npxgetregs(td);
+#else
+	bzero(fpregs, sizeof(*fpregs));
+#endif
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr)
 		fill_fpregs_xmm(&td->td_pcb->pcb_user_save.sv_xmm,
@@ -3221,7 +3251,9 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 #endif /* CPU_ENABLE_SSE */
 		bcopy(fpregs, &td->td_pcb->pcb_user_save.sv_87,
 		    sizeof(*fpregs));
+#ifdef DEV_NPX
 	npxuserinited(td);
+#endif
 	return (0);
 }
 
@@ -3268,7 +3300,8 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_fsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
 	sdp = &td->td_pcb->pcb_gsd;
 	mcp->mc_gsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
-
+	bzero(mcp->mc_spare1, sizeof(mcp->mc_spare1));
+	bzero(mcp->mc_spare2, sizeof(mcp->mc_spare2));
 	return (0);
 }
 
@@ -3317,6 +3350,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 #ifndef DEV_NPX
 	mcp->mc_fpformat = _MC_FPFMT_NODEV;
 	mcp->mc_ownedfp = _MC_FPOWNED_NONE;
+	bzero(mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
 #else
 	mcp->mc_ownedfp = npxgetregs(td);
 	bcopy(&td->td_pcb->pcb_user_save, &mcp->mc_fpstate,

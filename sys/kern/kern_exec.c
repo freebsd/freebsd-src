@@ -91,11 +91,11 @@ dtrace_execexit_func_t	dtrace_fasttrap_exec;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE(proc, kernel, , exec);
+SDT_PROBE_DEFINE(proc, kernel, , exec, exec);
 SDT_PROBE_ARGTYPE(proc, kernel, , exec, 0, "char *");
-SDT_PROBE_DEFINE(proc, kernel, , exec_failure);
+SDT_PROBE_DEFINE(proc, kernel, , exec_failure, exec-failure);
 SDT_PROBE_ARGTYPE(proc, kernel, , exec_failure, 0, "int");
-SDT_PROBE_DEFINE(proc, kernel, , exec_success);
+SDT_PROBE_DEFINE(proc, kernel, , exec_success, exec-success);
 SDT_PROBE_ARGTYPE(proc, kernel, , exec_success, 0, "char *");
 
 MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");

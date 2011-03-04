@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.308.12.12 2010/01/31 23:47:31 tbox Exp $ */
+/* $Id: socket.c,v 1.308.12.17 2010-12-22 03:28:13 marka Exp $ */
 
 /*! \file */
 
@@ -67,7 +67,11 @@
 #include <sys/epoll.h>
 #endif
 #ifdef ISC_PLATFORM_HAVEDEVPOLL
+#if defined(HAVE_SYS_DEVPOLL_H)
 #include <sys/devpoll.h>
+#elif defined(HAVE_DEVPOLL_H)
+#include <devpoll.h>
+#endif
 #endif
 
 #include "errno2result.h"
@@ -652,6 +656,7 @@ watch_fd(isc_socketmgr_t *manager, int fd, int msg) {
 		event.events = EPOLLIN;
 	else
 		event.events = EPOLLOUT;
+	memset(&event.data, 0, sizeof(event.data));
 	event.data.fd = fd;
 	if (epoll_ctl(manager->epoll_fd, EPOLL_CTL_ADD, fd, &event) == -1 &&
 	    errno != EEXIST) {
@@ -719,6 +724,7 @@ unwatch_fd(isc_socketmgr_t *manager, int fd, int msg) {
 		event.events = EPOLLIN;
 	else
 		event.events = EPOLLOUT;
+	memset(&event.data, 0, sizeof(event.data));
 	event.data.fd = fd;
 	if (epoll_ctl(manager->epoll_fd, EPOLL_CTL_DEL, fd, &event) == -1 &&
 	    errno != ENOENT) {
@@ -2230,6 +2236,26 @@ opensocket(isc_socketmgr_t *manager, isc_socket_t *sock) {
 			(void)setsockopt(sock->fd, IPPROTO_IPV6,
 					 IPV6_USE_MIN_MTU,
 					 (void *)&on, sizeof(on));
+		}
+#endif
+#if defined(IPV6_MTU)
+		/*
+		 * Use minimum MTU on IPv6 sockets.
+		 */
+		if (sock->pf == AF_INET6) {
+			int mtu = 1280;
+			(void)setsockopt(sock->fd, IPPROTO_IPV6, IPV6_MTU,
+					 &mtu, sizeof(mtu));
+		}
+#endif
+#if defined(IPV6_MTU_DISCOVER) && defined(IPV6_PMTUDISC_DONT)
+		/*
+		 * Turn off Path MTU discovery on IPv6/UDP sockets.
+		 */
+		if (sock->pf == AF_INET6) {
+			int action = IPV6_PMTUDISC_DONT;
+			(void)setsockopt(sock->fd, IPPROTO_IPV6, IPV6_MTU_DISCOVER,
+					 &action, sizeof(action));
 		}
 #endif
 #endif /* ISC_PLATFORM_HAVEIPV6 */
@@ -4712,9 +4738,16 @@ isc_socket_bind(isc_socket_t *sock, isc_sockaddr_t *sockaddr,
 	return (ISC_R_SUCCESS);
 }
 
+/*
+ * Enable this only for specific OS versions, and only when they have repaired
+ * their problems with it.  Until then, this is is broken and needs to be
+ * diabled by default.  See RT22589 for details.
+ */
+#undef ENABLE_ACCEPTFILTER
+
 isc_result_t
 isc_socket_filter(isc_socket_t *sock, const char *filter) {
-#ifdef SO_ACCEPTFILTER
+#if defined(SO_ACCEPTFILTER) && defined(ENABLE_ACCEPTFILTER)
 	char strbuf[ISC_STRERRORSIZE];
 	struct accept_filter_arg afa;
 #else
@@ -4724,7 +4757,7 @@ isc_socket_filter(isc_socket_t *sock, const char *filter) {
 
 	REQUIRE(VALID_SOCKET(sock));
 
-#ifdef SO_ACCEPTFILTER
+#if defined(SO_ACCEPTFILTER) && defined(ENABLE_ACCEPTFILTER)
 	bzero(&afa, sizeof(afa));
 	strncpy(afa.af_name, filter, sizeof(afa.af_name));
 	if (setsockopt(sock->fd, SOL_SOCKET, SO_ACCEPTFILTER,
@@ -4829,6 +4862,12 @@ isc_socket_accept(isc_socket_t *sock,
 	 * Attach to socket and to task.
 	 */
 	isc_task_attach(task, &ntask);
+	if (isc_task_exiting(ntask)) {
+		isc_task_detach(&ntask);
+		isc_event_free(ISC_EVENT_PTR(&dev));
+		UNLOCK(&sock->lock);
+		return (ISC_R_SHUTTINGDOWN);
+	}
 	nsock->references++;
 	nsock->statsindex = sock->statsindex;
 

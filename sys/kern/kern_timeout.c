@@ -57,10 +57,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 
 SDT_PROVIDER_DEFINE(callout_execute);
-SDT_PROBE_DEFINE(callout_execute, kernel, , callout_start);
+SDT_PROBE_DEFINE(callout_execute, kernel, , callout_start, callout-start);
 SDT_PROBE_ARGTYPE(callout_execute, kernel, , callout_start, 0,
     "struct callout *");
-SDT_PROBE_DEFINE(callout_execute, kernel, , callout_end); 
+SDT_PROBE_DEFINE(callout_execute, kernel, , callout_end, callout-end); 
 SDT_PROBE_ARGTYPE(callout_execute, kernel, , callout_end, 0,
     "struct callout *");
 

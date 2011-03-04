@@ -3,6 +3,7 @@
 .include <bsd.own.mk>
 
 FILES=	100.chksetuid \
+	110.neggrpperm \
 	200.chkmounts \
 	300.chkuid0 \
 	400.passwdless \

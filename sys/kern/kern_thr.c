@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
+#include <sys/sysctl.h>
 #include <sys/ucontext.h>
 #include <sys/thr.h>
 #include <sys/rtprio.h>
@@ -54,6 +55,16 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 
 #include <security/audit/audit.h>
+
+SYSCTL_NODE(_kern, OID_AUTO, threads, CTLFLAG_RW, 0, "thread allocation");
+
+static int max_threads_per_proc = 1500;
+SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_per_proc, CTLFLAG_RW,
+	&max_threads_per_proc, 0, "Limit on threads per proc");
+
+static int max_threads_hits;
+SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_hits, CTLFLAG_RD,
+	&max_threads_hits, 0, "");
 
 #ifdef COMPAT_FREEBSD32
 
@@ -72,9 +83,6 @@ suword_lwpid(void *addr, lwpid_t lwpid)
 #else
 #define suword_lwpid	suword
 #endif
-
-extern int max_threads_per_proc;
-extern int max_threads_hits;
 
 static int create_thread(struct thread *td, mcontext_t *ctx,
 			 void (*start_func)(void *), void *arg,
@@ -201,6 +209,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	    __rangeof(struct thread, td_startzero, td_endzero));
 	bzero(&newtd->td_rux, sizeof(newtd->td_rux));
 	newtd->td_map_def_user = NULL;
+	newtd->td_dbg_forked = 0;
 	bcopy(&td->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 	newtd->td_proc = td->td_proc;

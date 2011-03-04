@@ -1922,7 +1922,7 @@ tryagain:
 		 */
 		new_stp->ls_seq = new_stp->ls_opentolockseq;
 		nfsrvd_refcache(new_stp->ls_op);
-		stateidp->seqid = new_stp->ls_stateid.seqid = 0;
+		stateidp->seqid = new_stp->ls_stateid.seqid = 1;
 		stateidp->other[0] = new_stp->ls_stateid.other[0] =
 		    clp->lc_clientid.lval[0];
 		stateidp->other[1] = new_stp->ls_stateid.other[1] =

@@ -104,7 +104,8 @@ uintptr_t _kvm_vnet_validaddr(kvm_t *, uintptr_t);
 int	 _kvm_dpcpu_initialized(kvm_t *, int);
 uintptr_t _kvm_dpcpu_validaddr(kvm_t *, uintptr_t);
 
-#if defined(__amd64__) || defined(__i386__) || defined(__arm__)
+#if defined(__amd64__) || defined(__i386__) || defined(__arm__) || \
+    defined(__mips__)
 void	 _kvm_minidump_freevtop(kvm_t *);
 int	 _kvm_minidump_initvtop(kvm_t *);
 int	 _kvm_minidump_kvatop(kvm_t *, u_long, off_t *);

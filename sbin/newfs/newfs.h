@@ -85,6 +85,7 @@ extern int	Xflag;		/* exit in middle of newfs for testing */
 extern int	Jflag;		/* enable gjournal for file system */
 extern int	lflag;		/* enable multilabel MAC for file system */
 extern int	nflag;		/* do not create .snap directory */
+extern int	tflag;		/* enable TRIM */
 extern intmax_t	fssize;		/* file system size */
 extern int	sectorsize;	/* bytes/sector */
 extern int	realsectorsize;	/* bytes/sector in hardware*/

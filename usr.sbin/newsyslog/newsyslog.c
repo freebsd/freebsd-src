@@ -57,12 +57,6 @@
 __FBSDID("$FreeBSD$");
 
 #define	OSF
-#ifndef COMPRESS_POSTFIX
-#define	COMPRESS_POSTFIX ".gz"
-#endif
-#ifndef	BZCOMPRESS_POSTFIX
-#define	BZCOMPRESS_POSTFIX ".bz2"
-#endif
 
 #include <sys/param.h>
 #include <sys/queue.h>
@@ -92,10 +86,35 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 /*
+ * Compression suffixes
+ */
+#ifndef	COMPRESS_SUFFIX_GZ
+#define	COMPRESS_SUFFIX_GZ	".gz"
+#endif
+
+#ifndef	COMPRESS_SUFFIX_BZ2
+#define	COMPRESS_SUFFIX_BZ2	".bz2"
+#endif
+
+#ifndef	COMPRESS_SUFFIX_XZ
+#define	COMPRESS_SUFFIX_XZ	".xz"
+#endif
+
+#define	COMPRESS_SUFFIX_MAXLEN	MAX(MAX(sizeof(COMPRESS_SUFFIX_GZ),sizeof(COMPRESS_SUFFIX_BZ2)),sizeof(COMPRESS_SUFFIX_XZ))
+
+/*
+ * Compression types
+ */
+#define	COMPRESS_TYPES  4	/* Number of supported compression types */
+
+#define	COMPRESS_NONE	0
+#define	COMPRESS_GZIP	1
+#define	COMPRESS_BZIP2	2
+#define	COMPRESS_XZ	3
+
+/*
  * Bit-values for the 'flags' parsed from a config-file entry.
  */
-#define	CE_COMPACT	0x0001	/* Compact the archived log files with gzip. */
-#define	CE_BZCOMPACT	0x0002	/* Compact the archived log files with bzip2. */
 #define	CE_BINARY	0x0008	/* Logfile is in binary, do not add status */
 				/*    messages to logfile(s) when rotating. */
 #define	CE_NOSIGNAL	0x0010	/* There is no process to signal when */
@@ -119,6 +138,19 @@ __FBSDID("$FreeBSD$");
 
 #define	MAX_OLDLOGS 65536	/* Default maximum number of old logfiles */
 
+struct compress_types {
+	const char *flag;	/* Flag in configuration file */
+	const char *suffix;	/* Compression suffix */
+	const char *path;	/* Path to compression program */
+};
+
+const struct compress_types compress_type[COMPRESS_TYPES] = {
+	{ "", "", "" },					/* no compression */
+	{ "Z", COMPRESS_SUFFIX_GZ, _PATH_GZIP },	/* gzip compression */
+	{ "J", COMPRESS_SUFFIX_BZ2, _PATH_BZIP2 },	/* bzip2 compression */
+	{ "X", COMPRESS_SUFFIX_XZ, _PATH_XZ }		/* xz compression */
+};
+
 struct conf_entry {
 	STAILQ_ENTRY(conf_entry) cf_nextp;
 	char *log;		/* Name of the log */
@@ -134,7 +166,8 @@ struct conf_entry {
 	int hours;		/* Hours between log trimming */
 	struct ptime_data *trim_at;	/* Specific time to do trimming */
 	unsigned int permissions;	/* File permissions on the log */
-	int flags;		/* CE_COMPACT, CE_BZCOMPACT, CE_BINARY */
+	int flags;		/* CE_BINARY */
+	int compress;		/* Compression */
 	int sig;		/* Signal to send */
 	int def_cfg;		/* Using the <default> rule for this file */
 };
@@ -218,6 +251,7 @@ static int isnumberstr(const char *);
 static int isglobstr(const char *);
 static char *missing_field(char *p, char *errline);
 static void	 change_attrs(const char *, const struct conf_entry *);
+static const char *get_logfile_suffix(const char *logfile);
 static fk_entry	 do_entry(struct conf_entry *);
 static fk_entry	 do_rotate(const struct conf_entry *);
 static void	 do_sigwork(struct sigwork_entry *);
@@ -367,6 +401,7 @@ init_entry(const char *fname, struct conf_entry *src_entry)
 			tempwork->trim_at = ptime_init(src_entry->trim_at);
 		tempwork->permissions = src_entry->permissions;
 		tempwork->flags = src_entry->flags;
+		tempwork->compress = src_entry->compress;
 		tempwork->sig = src_entry->sig;
 		tempwork->def_cfg = src_entry->def_cfg;
 	} else {
@@ -384,6 +419,7 @@ init_entry(const char *fname, struct conf_entry *src_entry)
 		tempwork->trim_at = NULL;
 		tempwork->permissions = 0;
 		tempwork->flags = 0;
+		tempwork->compress = COMPRESS_NONE;
 		tempwork->sig = SIGHUP;
 		tempwork->def_cfg = 0;
 	}
@@ -448,14 +484,9 @@ do_entry(struct conf_entry * ent)
 	char temp_reason[REASON_MAX];
 
 	free_or_keep = FREE_ENT;
-	if (verbose) {
-		if (ent->flags & CE_COMPACT)
-			printf("%s <%dZ>: ", ent->log, ent->numlogs);
-		else if (ent->flags & CE_BZCOMPACT)
-			printf("%s <%dJ>: ", ent->log, ent->numlogs);
-		else
-			printf("%s <%d>: ", ent->log, ent->numlogs);
-	}
+	if (verbose)
+		printf("%s <%d%s>: ", ent->log, ent->numlogs,
+		    compress_type[ent->compress].flag);
 	ent->fsize = sizefile(ent->log);
 	modtime = age_old_log(ent->log);
 	ent->rotate = 0;
@@ -560,17 +591,10 @@ do_entry(struct conf_entry * ent)
 				ent->r_reason = strdup(temp_reason);
 			if (verbose)
 				printf("--> trimming log....\n");
-			if (noaction && !verbose) {
-				if (ent->flags & CE_COMPACT)
-					printf("%s <%dZ>: trimming\n",
-					    ent->log, ent->numlogs);
-				else if (ent->flags & CE_BZCOMPACT)
-					printf("%s <%dJ>: trimming\n",
-					    ent->log, ent->numlogs);
-				else
-					printf("%s <%d>: trimming\n",
-					    ent->log, ent->numlogs);
-			}
+			if (noaction && !verbose)
+				printf("%s <%d%s>: trimming\n", ent->log,
+				    ent->numlogs,
+				    compress_type[ent->compress].flag);
 			free_or_keep = do_rotate(ent);
 		} else {
 			if (verbose)
@@ -1183,6 +1207,7 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 		}
 
 		working->flags = 0;
+		working->compress = COMPRESS_NONE;
 		q = parse = missing_field(sob(++parse), errline);
 		parse = son(parse);
 		eol = !*parse;
@@ -1261,7 +1286,7 @@ no_trimat:
 				working->flags |= CE_GLOB;
 				break;
 			case 'j':
-				working->flags |= CE_BZCOMPACT;
+				working->compress = COMPRESS_BZIP2;
 				break;
 			case 'n':
 				working->flags |= CE_NOSIGNAL;
@@ -1272,8 +1297,11 @@ no_trimat:
 			case 'w':
 				/* Depreciated flag - keep for compatibility purposes */
 				break;
+			case 'x':
+				working->compress = COMPRESS_XZ;
+				break;
 			case 'z':
-				working->flags |= CE_COMPACT;
+				working->compress = COMPRESS_GZIP;
 				break;
 			case '-':
 				break;
@@ -1415,7 +1443,7 @@ static void
 delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 {
 	char *logfname, *s, *dir, errbuf[80];
-	int logcnt, max_logcnt, dirfd, i;
+	int dirfd, i, logcnt, max_logcnt, valid;
 	struct oldlog_entry *oldlogs;
 	size_t logfname_len;
 	struct dirent *dp;
@@ -1485,9 +1513,12 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 				    "match time format\n", dp->d_name);
 			continue;
 		}
-		if (*s != '\0' && !(strcmp(s, BZCOMPRESS_POSTFIX) == 0 ||
-			strcmp(s, COMPRESS_POSTFIX) == 0))  {
-			    if (verbose)
+
+		for (int c = 0; c < COMPRESS_TYPES; c++)
+			if (strcmp(s, compress_type[c].suffix) == 0)
+				valid = 1;
+		if (valid != 1) {
+			if (verbose)
 				printf("Ignoring %s which has unexpected "
 				    "extension '%s'\n", dp->d_name, s);
 			continue;
@@ -1586,13 +1617,35 @@ add_to_queue(const char *fname, struct ilist *inclist)
 	STAILQ_INSERT_TAIL(inclist, inc, inc_nextp);
 }
 
+/*
+ * Search for logfile and return its compression suffix (if supported)
+ * The suffix detection is first-match in the order of compress_types
+ *
+ * Note: if logfile without suffix exists (uncompressed, COMPRESS_NONE)
+ * a zero-length string is returned
+ */
+static const char *
+get_logfile_suffix(const char *logfile)
+{
+	struct stat st;
+	char zfile[MAXPATHLEN];
+
+	for (int c = 0; c < COMPRESS_TYPES; c++) {
+		(void) strlcpy(zfile, logfile, MAXPATHLEN);
+		(void) strlcat(zfile, compress_type[c].suffix, MAXPATHLEN);
+		if (lstat(zfile, &st) == 0)
+			return (compress_type[c].suffix);
+	}
+	return (NULL);
+}
+
 static fk_entry
 do_rotate(const struct conf_entry *ent)
 {
 	char dirpart[MAXPATHLEN], namepart[MAXPATHLEN];
 	char file1[MAXPATHLEN], file2[MAXPATHLEN];
 	char zfile1[MAXPATHLEN], zfile2[MAXPATHLEN];
-	char jfile1[MAXPATHLEN];
+	const char *logfile_suffix;
 	char datetimestr[30];
 	int flags, numlogs_c;
 	fk_entry free_or_keep;
@@ -1650,19 +1703,13 @@ do_rotate(const struct conf_entry *ent)
 		delete_oldest_timelog(ent, dirpart);
 	else {
 		/* name of oldest log */
-		(void) snprintf(zfile1, sizeof(zfile1), "%s%s", file1,
-		    COMPRESS_POSTFIX);
-		snprintf(jfile1, sizeof(jfile1), "%s%s", file1,
-		    BZCOMPRESS_POSTFIX);
-
-		if (noaction) {
-			printf("\trm -f %s\n", file1);
-			printf("\trm -f %s\n", zfile1);
-			printf("\trm -f %s\n", jfile1);
-		} else {
-			(void) unlink(file1);
-			(void) unlink(zfile1);
-			(void) unlink(jfile1);
+		for (int c = 0; c < COMPRESS_TYPES; c++) {
+			(void) snprintf(zfile1, sizeof(zfile1), "%s%s", file1,
+			    compress_type[c].suffix);
+			if (noaction)
+				printf("\trm -f %s\n", zfile1);
+			else
+				(void) unlink(zfile1);
 		}
 	}
 
@@ -1697,24 +1744,14 @@ do_rotate(const struct conf_entry *ent)
 			(void) snprintf(file1, sizeof(file1), "%s.%d",
 			    ent->log, numlogs_c);
 
-		(void) strlcpy(zfile1, file1, sizeof(zfile1));
-		(void) strlcpy(zfile2, file2, sizeof(zfile2));
-		if (lstat(file1, &st)) {
-			(void) strlcat(zfile1, COMPRESS_POSTFIX,
-			    sizeof(zfile1));
-			(void) strlcat(zfile2, COMPRESS_POSTFIX,
-			    sizeof(zfile2));
-			if (lstat(zfile1, &st)) {
-				strlcpy(zfile1, file1, sizeof(zfile1));
-				strlcpy(zfile2, file2, sizeof(zfile2));
-				strlcat(zfile1, BZCOMPRESS_POSTFIX,
-				    sizeof(zfile1));
-				strlcat(zfile2, BZCOMPRESS_POSTFIX,
-				    sizeof(zfile2));
-				if (lstat(zfile1, &st))
-					continue;
-			}
-		}
+		logfile_suffix = get_logfile_suffix(file1);
+		if (logfile_suffix == NULL)
+			continue;
+		(void) strlcpy(zfile1, file1, MAXPATHLEN);
+		(void) strlcpy(zfile2, file2, MAXPATHLEN);
+		(void) strlcat(zfile1, logfile_suffix, MAXPATHLEN);
+		(void) strlcat(zfile2, logfile_suffix, MAXPATHLEN);
+
 		if (noaction)
 			printf("\tmv %s %s\n", zfile1, zfile2);
 		else {
@@ -1760,7 +1797,7 @@ do_rotate(const struct conf_entry *ent)
 	swork = NULL;
 	if (ent->pid_file != NULL)
 		swork = save_sigwork(ent);
-	if (ent->numlogs > 0 && (flags & (CE_COMPACT | CE_BZCOMPACT))) {
+	if (ent->numlogs > 0 && ent->compress > COMPRESS_NONE) {
 		/*
 		 * The zipwork_entry will include a pointer to this
 		 * conf_entry, so the conf_entry should not be freed.
@@ -1855,15 +1892,16 @@ do_zipwork(struct zipwork_entry *zwork)
 
 	pgm_path = NULL;
 	strlcpy(zresult, zwork->zw_fname, sizeof(zresult));
-	if (zwork != NULL && zwork->zw_conf != NULL) {
-		if (zwork->zw_conf->flags & CE_COMPACT) {
-			pgm_path = _PATH_GZIP;
-			strlcat(zresult, COMPRESS_POSTFIX, sizeof(zresult));
-		} else if (zwork->zw_conf->flags & CE_BZCOMPACT) {
-			pgm_path = _PATH_BZIP2;
-			strlcat(zresult, BZCOMPRESS_POSTFIX, sizeof(zresult));
+	if (zwork != NULL && zwork->zw_conf != NULL &&
+	    zwork->zw_conf->compress > COMPRESS_NONE)
+		for (int c = 1; c < COMPRESS_TYPES; c++) {
+			if (zwork->zw_conf->compress == c) {
+				pgm_path = compress_type[c].path;
+				(void) strlcat(zresult,
+				    compress_type[c].suffix, sizeof(zresult));
+				break;
+			}
 		}
-	}
 	if (pgm_path == NULL) {
 		warnx("invalid entry for %s in do_zipwork", zwork->zw_fname);
 		return;
@@ -2141,9 +2179,8 @@ static int
 age_old_log(char *file)
 {
 	struct stat sb;
-	char *endp;
-	char tmp[MAXPATHLEN + sizeof(".0") + sizeof(COMPRESS_POSTFIX) +
-		sizeof(BZCOMPRESS_POSTFIX) + 1];
+	const char *logfile_suffix;
+	char tmp[MAXPATHLEN + sizeof(".0") + COMPRESS_SUFFIX_MAXLEN + 1];
 
 	if (archtodir) {
 		char *p;
@@ -2173,21 +2210,12 @@ age_old_log(char *file)
 	}
 
 	strlcat(tmp, ".0", sizeof(tmp));
-	if (stat(tmp, &sb) < 0) {
-		/*
-		 * A plain '.0' file does not exist.  Try again, first
-		 * with the added suffix of '.gz', then with an added
-		 * suffix of '.bz2' instead of '.gz'.
-		 */
-		endp = strchr(tmp, '\0');
-		strlcat(tmp, COMPRESS_POSTFIX, sizeof(tmp));
-		if (stat(tmp, &sb) < 0) {
-			*endp = '\0';		/* Remove .gz */
-			strlcat(tmp, BZCOMPRESS_POSTFIX, sizeof(tmp));
-			if (stat(tmp, &sb) < 0)
-				return (-1);
-		}
-	}
+	logfile_suffix = get_logfile_suffix(tmp);
+	if (logfile_suffix == NULL)
+		return (-1);
+	(void) strlcat(tmp, logfile_suffix, sizeof(tmp));
+	if (stat(tmp, &sb) < 0)
+		return (-1);
 	return ((int)(ptimeget_secs(timenow) - sb.st_mtime + 1800) / 3600);
 }
 

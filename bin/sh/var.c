@@ -523,9 +523,8 @@ var_compare(const void *a, const void *b)
 
 
 /*
- * Command to list all variables which are set.  Currently this command
- * is invoked from the set command when the set command is called without
- * any variables.
+ * Command to list all variables which are set.  This is invoked from the
+ * set command when it is called without any options or operands.
  */
 
 int
@@ -759,9 +758,7 @@ setvarcmd(int argc, char **argv)
 
 
 /*
- * The unset builtin command.  We unset the function before we unset the
- * variable to allow a function to be unset when there is a readonly variable
- * with the same name.
+ * The unset builtin command.
  */
 
 int

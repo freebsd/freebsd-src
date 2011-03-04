@@ -135,7 +135,7 @@ __FBSDID("$FreeBSD$");
 #define	WITNESS_COUNT 		1024
 #define	WITNESS_CHILDCOUNT 	(WITNESS_COUNT * 4)
 #define	WITNESS_HASH_SIZE	251	/* Prime, gives load factor < 2 */
-#define	WITNESS_PENDLIST	512
+#define	WITNESS_PENDLIST	768
 
 /* Allocate 256 KB of stack data space */
 #define	WITNESS_LO_DATA_COUNT	2048
@@ -1173,7 +1173,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	mtx_assert(&w_mtx, MA_OWNED);
 
 	/*
-	 * If we know that the the lock we are acquiring comes after
+	 * If we know that the lock we are acquiring comes after
 	 * the lock we most recently acquired in the lock order tree,
 	 * then there is no need for any further checks.
 	 */

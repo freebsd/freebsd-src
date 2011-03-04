@@ -426,6 +426,8 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 			continue;
 		if (part.p_offset < table->offset)
 			continue;
+		if (part.p_offset - table->offset > basetable->gpt_last)
+			goto invalid_label;
 		baseentry = g_part_new_entry(basetable, index + 1,
 		    part.p_offset - table->offset,
 		    part.p_offset - table->offset + part.p_size - 1);
@@ -440,6 +442,7 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
  invalid_label:
 	printf("GEOM: %s: invalid disklabel.\n", pp->name);
 	g_free(table->bbarea);
+	table->bbarea = NULL;
 	return (EINVAL);
 }
 

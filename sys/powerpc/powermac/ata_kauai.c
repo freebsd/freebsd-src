@@ -244,8 +244,11 @@ ata_kauai_probe(device_t dev)
         ch->r_io[ATA_CONTROL].offset = ATA_KAUAI_ALTOFFSET;
 	ata_default_registers(dev);
 
-        ch->unit = 0;
-        ch->flags |= ATA_USE_16BIT;
+	ch->unit = 0;
+	ch->flags |= ATA_USE_16BIT;
+	
+	/* XXX: ATAPI DMA is unreliable. We should find out why. */
+	ch->flags |= ATA_NO_ATAPI_DMA;
 	ata_generic_hw(dev);
 
         return (ata_probe(dev));

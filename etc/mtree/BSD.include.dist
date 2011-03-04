@@ -102,6 +102,8 @@
         ..
         iicbus
         ..
+        io
+        ..
         lmc
         ..
 	mfi

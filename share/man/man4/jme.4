@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 6, 2008
+.Dd December 20, 2010
 .Dt JME 4
 .Os
 .Sh NAME
@@ -48,8 +48,8 @@ if_jme_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-device driver provides support for JMicron JMC250 PCI Express
-Gigabit Ethernet controllers and JMicron JMC260 PCI Express Fast
+device driver provides support for JMicron JMC25x PCI Express
+Gigabit Ethernet controllers and JMicron JMC26x PCI Express Fast
 Ethernet controllers.
 .Pp
 All LOMs supported by the
@@ -59,7 +59,7 @@ TCP segmentation offload (TSO), hardware VLAN tag stripping/insertion
 features, Wake On Lan (WOL) and an interrupt coalescing/moderation
 mechanism as well as a 64-bit multicast hash filter.
 .Pp
-The JMC250 also supports Jumbo Frames (up to 9216 bytes), which can be
+The JMC25x also supports Jumbo Frames (up to 9216 bytes), which can be
 configured via the interface MTU setting.
 Selecting an MTU larger than 1500 bytes with the
 .Xr ifconfig 8
@@ -103,7 +103,11 @@ device driver provides support for the following Ethernet controllers:
 .It
 JMicron JMC250 PCI Express Gigabit Ethernet controller
 .It
+JMicron JMC251 PCI Express Gigabit Ethernet with Card Read Host controller
+.It
 JMicron JMC260 PCI Express Fast Ethernet controller
+.It
+JMicron JMC261 PCI Express Gigabit Ethernet with Card Read Host controller
 .El
 .Sh LOADER TUNABLES
 Tunables can be set at the
@@ -162,3 +166,15 @@ driver was written by
 .Aq yongari@FreeBSD.org .
 It first appeared in
 .Fx 7.1 .
+.Sh CAVEATS
+The
+.Nm
+driver tries to avoid unnecessary station address reprogramming for
+controllers that use eFuse to store station address.
+The number of times that eFuse can be safely reprogrammed is 16 at
+most.
+In addition, there is no way to restore factory default station
+address once station address is reprogrammed via eFuse.
+It is highly recommended not to reprogram station address and
+it is responsibility of administrator to store original station
+address into a safe place when station address should be changed.

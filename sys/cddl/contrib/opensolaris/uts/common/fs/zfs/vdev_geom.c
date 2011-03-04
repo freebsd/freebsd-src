@@ -392,7 +392,8 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 	if (pp != NULL) {
 		ZFS_LOG(1, "Found provider by name %s.", vd->vdev_path);
 		cp = vdev_geom_attach(pp);
-		if (cp != NULL && check_guid) {
+		if (cp != NULL && check_guid && ISP2(pp->sectorsize) &&
+		    pp->sectorsize <= VDEV_PAD_SIZE) {
 			g_topology_unlock();
 			guid = vdev_geom_read_guid(cp);
 			g_topology_lock();
@@ -456,6 +457,17 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	if (cp == NULL) {
 		ZFS_LOG(1, "Provider %s not found.", vd->vdev_path);
 		error = ENOENT;
+	} else if (cp->provider->sectorsize > VDEV_PAD_SIZE ||
+	    !ISP2(cp->provider->sectorsize)) {
+		ZFS_LOG(1, "Provider %s has unsupported sectorsize.",
+		    vd->vdev_path);
+
+		g_topology_lock();
+		vdev_geom_detach(cp, 0);
+		g_topology_unlock();
+
+		error = EINVAL;
+		cp = NULL;
 	} else if (cp->acw == 0 && (spa_mode(vd->vdev_spa) & FWRITE) != 0) {
 		int i;
 

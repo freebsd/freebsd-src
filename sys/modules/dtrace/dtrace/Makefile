@@ -15,6 +15,7 @@ SRCS=		dtrace.c \
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 SRCS+=		dis_tables.c \
 		instr_size.c
+CFLAGS+=	-I${.CURDIR}/../../../cddl/contrib/opensolaris/uts/intel
 .endif
 
 SRCS+=		bus_if.h device_if.h vnode_if.h

@@ -16,7 +16,7 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "8.1-RELEASE">
+<!ENTITY release.bugfix "8.2-RELEASE">
 ]>
 
 <article>
@@ -40,7 +40,7 @@
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2010</year>
+      <year>2011</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -131,7 +131,7 @@
       For more information, consult the individual advisories available from
       <ulink url="http://security.FreeBSD.org/"></ulink>.</para>
 
-    <informaltable frame="none" pgwide="0">
+    <informaltable frame="none" pgwide="1">
       <tgroup cols="3">
 	<colspec colwidth="1*">
 	<colspec colwidth="1*">
@@ -160,23 +160,19 @@
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
-    <para>No open issues.</para>
+    <para>No open issue.</para>
   </sect1>
 
   <sect1 id="late-news">
     <title>Late-Breaking News and Corrections</title>
 
-    <para>A deadlock can occur in UFS with the QUOTA enabled due to a
-      lock order reversal.  This problem has been fixed in <ulink
-	url="http://svn.freebsd.org/changeset/base/209367">r209367
-	(HEAD)</ulink>. An Errata Notice for &release.bugfix; is
-      planned.</para>
-
-    <para>A legacy device detection in the &man.ata.4; can fail in
-      some cases.  Specifically, Marvell 88SX6141 controllers can
-      cause attach failure or panic.  This problem has been fixed in
-      <ulink url="http://svn.freebsd.org/changeset/base/210168">r210168
-	(HEAD)</ulink>. An Errata Notice for &release.bugfix; is
-      planned.</para>
+    <para>A bug in <application>OpenSSL</application> that could cause
+      it to parse past the end of the message was found at the late
+      stage of &release.bugfix; release process.  The &release.bugfix;
+      includes a fix for this issue by importing relevant parts from
+      the OpenSSL CVS.  This could be triggered by an incorrectly
+      formatted ClientHello SSL/TLS handshake messages.  The details
+      can be found at <ulink
+      url="http://www.openssl.org/news/secadv_20110208.txt"></ulink>.</para>
   </sect1>
 </article>

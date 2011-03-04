@@ -1,15 +1,16 @@
 # $FreeBSD$
 set -e
 
+L=$(getconf PATH_MAX / 2>/dev/null) || L=4096
+[ "$L" -lt 100000 ] 2>/dev/null || L=4096
+L=$((L+100))
 T=$(mktemp -d ${TMPDIR:-/tmp}/sh-test.XXXXXX)
+trap 'rm -rf ${T}' 0
 cd $T
 D=$T
-for i in 0 1 2 3 4 5 6 7 8 9; do
-	for j in 0 1 2 3 4 5 6 7 8 9; do
-		mkdir veryverylongdirectoryname
-		cd veryverylongdirectoryname
-		D=$D/veryverylongdirectoryname
-	done
+while [ ${#D} -lt $L ]; do
+	mkdir veryverylongdirectoryname
+	cd veryverylongdirectoryname
+	D=$D/veryverylongdirectoryname
 done
 [ $(pwd | wc -c) -eq $((${#D} + 1)) ] # +\n
-rm -rf ${T}

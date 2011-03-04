@@ -63,6 +63,9 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <libutil.h>
+#ifdef INET6
+#include <netdb.h>
+#endif
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -79,7 +82,7 @@ static void sidewaysintpr(int, u_long);
 static void catchalarm(int);
 
 #ifdef INET6
-static char ntop_buf[INET6_ADDRSTRLEN];		/* for inet_ntop() */
+static char addr_buf[NI_MAXHOST];		/* for getnameinfo() */
 #endif
 
 /*
@@ -347,13 +350,14 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 #ifdef INET6
 			case AF_INET6:
 				sockin6 = (struct sockaddr_in6 *)sa;
+				in6_fillscopeid(&ifaddr.in6.ia_addr);
 				printf("%-13.13s ",
 				       netname6(&ifaddr.in6.ia_addr,
 						&ifaddr.in6.ia_prefixmask.sin6_addr));
-				printf("%-17.17s ",
-				    inet_ntop(AF_INET6,
-					&sockin6->sin6_addr,
-					ntop_buf, sizeof(ntop_buf)));
+				in6_fillscopeid(sockin6);
+				getnameinfo(sa, sa->sa_len, addr_buf,
+				    sizeof(addr_buf), 0, 0, NI_NUMERICHOST);
+				printf("%-17.17s ", addr_buf);
 
 				network_layer = 1;
 				break;
@@ -475,13 +479,13 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 					break;
 #ifdef INET6
 				case AF_INET6:
+					in6_fillscopeid(&msa.in6);
+					getnameinfo(&msa.sa, msa.sa.sa_len,
+					    addr_buf, sizeof(addr_buf), 0, 0,
+					    NI_NUMERICHOST);
 					printf("%*s %-19.19s(refs: %d)\n",
 					       Wflag ? 27 : 25, "",
-					       inet_ntop(AF_INET6,
-							 &msa.in6.sin6_addr,
-							 ntop_buf,
-							 sizeof(ntop_buf)),
-					       ifma.ifma_refcount);
+					       addr_buf, ifma.ifma_refcount);
 					break;
 #endif /* INET6 */
 				case AF_LINK:

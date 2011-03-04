@@ -82,30 +82,30 @@ __FBSDID("$FreeBSD$");
 #endif
 
 SDT_PROVIDER_DEFINE(proc);
-SDT_PROBE_DEFINE(proc, kernel, ctor, entry);
+SDT_PROBE_DEFINE(proc, kernel, ctor, entry, entry);
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 2, "void *");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 3, "int");
-SDT_PROBE_DEFINE(proc, kernel, ctor, return);
+SDT_PROBE_DEFINE(proc, kernel, ctor, return, return);
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 2, "void *");
 SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 3, "int");
-SDT_PROBE_DEFINE(proc, kernel, dtor, entry);
+SDT_PROBE_DEFINE(proc, kernel, dtor, entry, entry);
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 2, "void *");
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 3, "struct thread *");
-SDT_PROBE_DEFINE(proc, kernel, dtor, return);
+SDT_PROBE_DEFINE(proc, kernel, dtor, return, return);
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 2, "void *");
-SDT_PROBE_DEFINE(proc, kernel, init, entry);
+SDT_PROBE_DEFINE(proc, kernel, init, entry, entry);
 SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 2, "int");
-SDT_PROBE_DEFINE(proc, kernel, init, return);
+SDT_PROBE_DEFINE(proc, kernel, init, return, return);
 SDT_PROBE_ARGTYPE(proc, kernel, init, return, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, init, return, 1, "int");
 SDT_PROBE_ARGTYPE(proc, kernel, init, return, 2, "int");
@@ -230,6 +230,7 @@ proc_init(void *mem, int size, int flags)
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
 	mtx_init(&p->p_slock, "process slock", NULL, MTX_SPIN | MTX_RECURSE);
 	cv_init(&p->p_pwait, "ppwait");
+	cv_init(&p->p_dbgwait, "dbgwait");
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
 	EVENTHANDLER_INVOKE(process_init, p);
 	p->p_stats = pstats_alloc();

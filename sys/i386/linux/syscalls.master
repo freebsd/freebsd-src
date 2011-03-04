@@ -214,9 +214,8 @@
 118	AUE_FSYNC	NOPROTO	{ int fsync(int fd); }
 119	AUE_SIGRETURN	STD	{ int linux_sigreturn( \
 				    struct l_sigframe *sfp); }
-; linux uses some strange calling convention here so we have to use the dummy arg
 120	AUE_RFORK	STD	{ int linux_clone(l_int flags, void *stack, \
-				    void *parent_tidptr, int dummy, void * child_tidptr); }
+				    void *parent_tidptr, void *tls, void * child_tidptr); }
 121	AUE_SYSCTL	STD	{ int linux_setdomainname(char *name, \
 				    int len); }
 122	AUE_NULL	STD	{ int linux_newuname( \
@@ -407,8 +406,8 @@
 237	AUE_NULL	STD	{ int linux_fremovexattr(void); }
 238	AUE_NULL	STD	{ int linux_tkill(int tid, int sig); }
 239	AUE_SENDFILE	UNIMPL	linux_sendfile64
-240	AUE_NULL	STD	{ int linux_sys_futex(void *uaddr, int op, int val, \
-					struct l_timespec *timeout, void *uaddr2, int val3); }
+240	AUE_NULL	STD	{ int linux_sys_futex(void *uaddr, int op, uint32_t val, \
+					struct l_timespec *timeout, uint32_t *uaddr2, uint32_t val3); }
 241	AUE_NULL	STD	{ int linux_sched_setaffinity(l_pid_t pid, l_uint len, \
 					l_ulong *user_mask_ptr); }
 242	AUE_NULL	STD	{ int linux_sched_getaffinity(l_pid_t pid, l_uint len, \

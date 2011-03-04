@@ -119,7 +119,7 @@ sysarch_ldt(struct thread *td, struct sysarch_args *uap, int uap_space)
 		error = amd64_get_ldt(td, largs);
 		break;
 	case I386_SET_LDT:
-		td->td_pcb->pcb_full_iret = 1;
+		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 		if (largs->descs != NULL) {
 			lp = malloc(largs->num * sizeof(struct
 			    user_segment_descriptor), M_TEMP, M_WAITOK);
@@ -143,7 +143,7 @@ update_gdt_gsbase(struct thread *td, uint32_t base)
 
 	if (td != curthread)
 		return;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	critical_enter();
 	sd = PCPU_GET(gs32p);
 	sd->sd_lobase = base & 0xffffff;
@@ -158,7 +158,7 @@ update_gdt_fsbase(struct thread *td, uint32_t base)
 
 	if (td != curthread)
 		return;
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	critical_enter();
 	sd = PCPU_GET(fs32p);
 	sd->sd_lobase = base & 0xffffff;
@@ -214,7 +214,7 @@ sysarch(td, uap)
 		if (!error) {
 			pcb->pcb_fsbase = i386base;
 			td->td_frame->tf_fs = _ufssel;
-			pcb->pcb_full_iret = 1;
+			set_pcb_flags(pcb, PCB_FULL_IRET);
 			update_gdt_fsbase(td, i386base);
 		}
 		break;
@@ -226,7 +226,7 @@ sysarch(td, uap)
 		error = copyin(uap->parms, &i386base, sizeof(i386base));
 		if (!error) {
 			pcb->pcb_gsbase = i386base;
-			pcb->pcb_full_iret = 1;
+			set_pcb_flags(pcb, PCB_FULL_IRET);
 			td->td_frame->tf_gs = _ugssel;
 			update_gdt_gsbase(td, i386base);
 		}
@@ -240,7 +240,7 @@ sysarch(td, uap)
 		if (!error) {
 			if (a64base < VM_MAXUSER_ADDRESS) {
 				pcb->pcb_fsbase = a64base;
-				pcb->pcb_full_iret = 1;
+				set_pcb_flags(pcb, PCB_FULL_IRET);
 				td->td_frame->tf_fs = _ufssel;
 			} else
 				error = EINVAL;
@@ -256,7 +256,7 @@ sysarch(td, uap)
 		if (!error) {
 			if (a64base < VM_MAXUSER_ADDRESS) {
 				pcb->pcb_gsbase = a64base;
-				pcb->pcb_full_iret = 1;
+				set_pcb_flags(pcb, PCB_FULL_IRET);
 				td->td_frame->tf_gs = _ugssel;
 			} else
 				error = EINVAL;
@@ -543,7 +543,7 @@ amd64_set_ldt(td, uap, descs)
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
 
-	td->td_pcb->pcb_full_iret = 1;
+	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	p = td->td_proc;
 	if (descs == NULL) {
 		/* Free descriptors */

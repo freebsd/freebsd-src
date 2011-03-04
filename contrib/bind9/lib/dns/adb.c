@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.243.42.4.24.2 2010/08/12 23:46:24 tbox Exp $ */
+/* $Id: adb.c,v 1.243.42.6 2010-08-11 23:45:49 tbox Exp $ */
 
 /*! \file
  *

@@ -727,9 +727,8 @@ nfsrc_freecache(struct nfsrvcache *rp)
 	newnfsstats.srvcache_size--;
 }
 
-#ifdef notdef
 /*
- * Clean out the cache. Called when the last nfsd terminates.
+ * Clean out the cache. Called when nfsserver module is unloaded.
  */
 APPLESTATIC void
 nfsrvd_cleancache(void)
@@ -752,7 +751,6 @@ nfsrvd_cleancache(void)
 	nfsrc_tcpsavedreplies = 0;
 	NFSUNLOCKCACHE();
 }
-#endif	/* notdef */
 
 /*
  * The basic rule is to get rid of entries that are expired.

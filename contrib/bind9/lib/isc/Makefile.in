@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.96.50.3 2009/02/16 01:02:58 marka Exp $
+# $Id: Makefile.in,v 1.96.50.6 2010-06-09 01:52:54 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -42,8 +42,9 @@ UNIXOBJS =	@ISC_ISCIPV6_O@ \
 
 NLSOBJS =	nls/msgcat.@O@
 
-THREADOBJS =	@ISC_THREAD_DIR@/condition.@O@ @ISC_THREAD_DIR@/mutex.@O@ \
-		@ISC_THREAD_DIR@/thread.@O@
+THREADOPTOBJS = @ISC_THREAD_DIR@/condition.@O@ @ISC_THREAD_DIR@/mutex.@O@
+
+THREADOBJS =	@THREADOPTOBJS@ @ISC_THREAD_DIR@/thread.@O@
 
 WIN32OBJS = 	win32/condition.@O@ win32/dir.@O@ win32/file.@O@ \
 		win32/fsaccess.@O@ win32/once.@O@ win32/stdtime.@O@ \
@@ -80,6 +81,10 @@ SRCS =		@ISC_EXTRA_SRCS@ \
 
 LIBS =		@LIBS@
 
+# Note: the order of SUBDIRS is important.
+# Attempt to disable parallel processing.
+.NOTPARALLEL:
+.NO_PARALLEL:
 SUBDIRS =	include unix nls @ISC_THREAD_DIR@ @ISC_ARCH_DIR@
 TARGETS =	timestamp
 

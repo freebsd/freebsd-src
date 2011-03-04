@@ -411,6 +411,7 @@ CTASSERT(sizeof(struct fs) == 1376);
 #define FS_GJOURNAL	0x0040	/* gjournaled file system */
 #define FS_FLAGS_UPDATED 0x0080	/* flags have been moved to new location */
 #define FS_NFS4ACLS	0x0100	/* file system has NFSv4 ACLs enabled */
+#define	FS_TRIM		0x0400	/* issue BIO_DELETE for deleted blocks */
 
 /*
  * Macros to access bits in the fs_active array.

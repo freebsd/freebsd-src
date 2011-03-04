@@ -355,8 +355,8 @@ while ((getline < srcfile) > 0) {
 		printc("};");
 
 		printc("\n");
-		printc("SDT_PROBE_DEFINE2(vfs, vop, " name ", entry, \"struct vnode *\", \"struct " name "_args *\");\n");
-		printc("SDT_PROBE_DEFINE3(vfs, vop, " name ", return, \"struct vnode *\", \"struct " name "_args *\", \"int\");\n");
+		printc("SDT_PROBE_DEFINE2(vfs, vop, " name ", entry, entry, \"struct vnode *\", \"struct " name "_args *\");\n");
+		printc("SDT_PROBE_DEFINE3(vfs, vop, " name ", return, return, \"struct vnode *\", \"struct " name "_args *\", \"int\");\n");
 
 		# Print out function.
 		printc("\nint\n" uname "_AP(struct " name "_args *a)");

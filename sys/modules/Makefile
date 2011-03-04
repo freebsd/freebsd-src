@@ -186,6 +186,7 @@ SUBDIR=	${_3dfx} \
 	mmc \
 	mmcsd \
 	${_mpt} \
+	mps \
 	mqueue \
 	msdosfs \
 	msdosfs_iconv \
@@ -301,6 +302,7 @@ SUBDIR=	${_3dfx} \
 	vkbd \
 	${_vpo} \
 	vr \
+	vte \
 	vx \
 	wb \
 	${_wi} \
