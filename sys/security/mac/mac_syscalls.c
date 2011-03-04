@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef MAC
 
-FEATURE(mac, "Mandatory Access Control Framework support");
+FEATURE(security_mac, "Mandatory Access Control Framework support");
 
 int
 __mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
