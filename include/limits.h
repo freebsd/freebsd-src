@@ -116,18 +116,21 @@
 #define	_POSIX_RE_DUP_MAX	_POSIX2_RE_DUP_MAX
 #endif
 
+#if __XSI_VISIBLE || __POSIX_VISIBLE >= 200809
+#define	NL_ARGMAX		99	/* max # of position args for printf */
+#define	NL_MSGMAX		32767
+#define	NL_SETMAX		255
+#define	NL_TEXTMAX		2048
+#endif
+
 #if __XSI_VISIBLE
 #define	_XOPEN_IOV_MAX		16
 #define	_XOPEN_NAME_MAX		255
 #define	_XOPEN_PATH_MAX		1024
 #define	PASS_MAX		128	/* _PASSWORD_LEN from <pwd.h> */
 
-#define	NL_ARGMAX		99	/* max # of position args for printf */
 #define	NL_LANGMAX		31	/* max LANG name length */
-#define	NL_MSGMAX		32767
 #define	NL_NMAX			1
-#define	NL_SETMAX		255
-#define	NL_TEXTMAX		2048
 #endif
 
 #define	MB_LEN_MAX		6	/* 31-bit UTF-8 */
