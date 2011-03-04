@@ -55,12 +55,12 @@ void		acl_nfs4_trivial_from_mode(struct acl *aclp, mode_t mode);
 
 #endif /* !_KERNEL */
 
-static int	acl_nfs4_old_semantics = 1;
+static int	acl_nfs4_old_semantics = 0;
 
 #ifdef _KERNEL
 
 SYSCTL_INT(_vfs, OID_AUTO, acl_nfs4_old_semantics, CTLFLAG_RW,
-    &acl_nfs4_old_semantics, 1, "Use pre-PSARC/2010/029 NFSv4 ACL semantics");
+    &acl_nfs4_old_semantics, 0, "Use pre-PSARC/2010/029 NFSv4 ACL semantics");
 
 static struct {
 	accmode_t accmode;
