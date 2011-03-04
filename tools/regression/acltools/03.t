@@ -41,7 +41,7 @@ if [ `whoami` != "root" ]; then
 	exit 1
 fi
 
-TESTDIR=`dirname $0`
+TESTDIR=$(dirname $(realpath $0))
 MNTROOT=`mktemp -dt acltools`
 
 # Set up the test filesystems.
