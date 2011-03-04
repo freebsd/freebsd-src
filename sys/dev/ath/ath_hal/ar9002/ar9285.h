@@ -31,6 +31,9 @@ struct ath_hal_9285 {
 #define	AR9285_DEFAULT_RXCHAINMASK	1
 #define	AR9285_DEFAULT_TXCHAINMASK	1
 
+#define	AR_PHY_CCA_NOM_VAL_9285_2GHZ		-118
+#define	AR_PHY_CCA_MIN_GOOD_VAL_9285_2GHZ	-127
+#define	AR_PHY_CCA_MAX_GOOD_VAL_9285_2GHZ	-108
 
 HAL_BOOL ar9285SetAntennaSwitch(struct ath_hal *, HAL_ANT_SETTING);
 HAL_BOOL ar9285RfAttach(struct ath_hal *, HAL_STATUS *);

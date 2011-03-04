@@ -74,16 +74,6 @@
  */
 #define	MTX_DESTROYED	(MTX_CONTESTED | MTX_UNOWNED)
 
-#endif	/* _KERNEL */
-
-/*
- * XXX: Friendly reminder to fix things in MP code that is presently being
- * XXX: worked on.
- */
-#define mp_fixme(string)
-
-#ifdef _KERNEL
-
 /*
  * Prototypes
  *

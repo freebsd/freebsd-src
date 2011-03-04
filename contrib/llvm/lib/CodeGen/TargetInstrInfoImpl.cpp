@@ -22,12 +22,17 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/PostRAHazardRecognizer.h"
+#include "llvm/CodeGen/ScoreboardHazardRecognizer.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
+
+static cl::opt<bool> DisableHazardRecognizer(
+  "disable-sched-hazard", cl::Hidden, cl::init(false),
+  cl::desc("Disable hazard detection during preRA scheduling"));
 
 /// ReplaceTailWithBranchTo - Delete the instruction OldInst and everything
 /// after it, replacing it with an unconditional branch to NewDest.
@@ -135,7 +140,7 @@ bool TargetInstrInfoImpl::PredicateInstruction(MachineInstr *MI,
   const TargetInstrDesc &TID = MI->getDesc();
   if (!TID.isPredicable())
     return false;
-  
+
   for (unsigned j = 0, i = 0, e = MI->getNumOperands(); i != e; ++i) {
     if (TID.OpInfo[i].isPredicate()) {
       MachineOperand &MO = MI->getOperand(i);
@@ -166,8 +171,10 @@ void TargetInstrInfoImpl::reMaterialize(MachineBasicBlock &MBB,
   MBB.insert(I, MI);
 }
 
-bool TargetInstrInfoImpl::produceSameValue(const MachineInstr *MI0,
-                                           const MachineInstr *MI1) const {
+bool
+TargetInstrInfoImpl::produceSameValue(const MachineInstr *MI0,
+                                      const MachineInstr *MI1,
+                                      const MachineRegisterInfo *MRI) const {
   return MI0->isIdenticalTo(MI1, MachineInstr::IgnoreVRegDefs);
 }
 
@@ -252,9 +259,9 @@ TargetInstrInfo::foldMemoryOperand(MachineBasicBlock::iterator MI,
     const MachineFrameInfo &MFI = *MF.getFrameInfo();
     assert(MFI.getObjectOffset(FI) != -1);
     MachineMemOperand *MMO =
-      MF.getMachineMemOperand(PseudoSourceValue::getFixedStack(FI),
-                              Flags, /*Offset=*/0,
-                              MFI.getObjectSize(FI),
+      MF.getMachineMemOperand(
+                    MachinePointerInfo(PseudoSourceValue::getFixedStack(FI)),
+                              Flags, MFI.getObjectSize(FI),
                               MFI.getObjectAlignment(FI));
     NewMI->addMemOperand(MF, MMO);
 
@@ -329,8 +336,13 @@ isReallyTriviallyReMaterializableGeneric(const MachineInstr *MI,
   const TargetInstrDesc &TID = MI->getDesc();
 
   // Avoid instructions obviously unsafe for remat.
-  if (TID.hasUnmodeledSideEffects() || TID.isNotDuplicable() ||
-      TID.mayStore())
+  if (TID.isNotDuplicable() || TID.mayStore() ||
+      MI->hasUnmodeledSideEffects())
+    return false;
+
+  // Don't remat inline asm. We have no idea how expensive it is
+  // even if it's side effect free.
+  if (MI->isInlineAsm())
     return false;
 
   // Avoid instructions which load from potentially varying memory.
@@ -414,8 +426,24 @@ bool TargetInstrInfoImpl::isSchedulingBoundary(const MachineInstr *MI,
   return false;
 }
 
+// Provide a global flag for disabling the PreRA hazard recognizer that targets
+// may choose to honor.
+bool TargetInstrInfoImpl::usePreRAHazardRecognizer() const {
+  return !DisableHazardRecognizer;
+}
+
+// Default implementation of CreateTargetRAHazardRecognizer.
+ScheduleHazardRecognizer *TargetInstrInfoImpl::
+CreateTargetHazardRecognizer(const TargetMachine *TM,
+                             const ScheduleDAG *DAG) const {
+  // Dummy hazard recognizer allows all instructions to issue.
+  return new ScheduleHazardRecognizer();
+}
+
 // Default implementation of CreateTargetPostRAHazardRecognizer.
 ScheduleHazardRecognizer *TargetInstrInfoImpl::
-CreateTargetPostRAHazardRecognizer(const InstrItineraryData &II) const {
-  return (ScheduleHazardRecognizer *)new PostRAHazardRecognizer(II);
+CreateTargetPostRAHazardRecognizer(const InstrItineraryData *II,
+                                   const ScheduleDAG *DAG) const {
+  return (ScheduleHazardRecognizer *)
+    new ScoreboardHazardRecognizer(II, DAG, "post-RA-sched");
 }

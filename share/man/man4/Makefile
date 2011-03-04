@@ -69,6 +69,13 @@ MAN=	aac.4 \
 	cardbus.4 \
 	carp.4 \
 	cas.4 \
+	cc.4 \
+	cc_chd.4 \
+	cc_cubic.4 \
+	cc_hd.4 \
+	cc_htcp.4 \
+	cc_newreno.4 \
+	cc_vegas.4 \
 	ccd.4 \
 	cd.4 \
 	cdce.4 \
@@ -83,6 +90,7 @@ MAN=	aac.4 \
 	crypto.4 \
 	cue.4 \
 	cxgb.4 \
+	cxgbe.4 \
 	cy.4 \
 	da.4 \
 	dc.4 \
@@ -130,6 +138,7 @@ MAN=	aac.4 \
 	gif.4 \
 	gpib.4 \
 	gre.4 \
+	h_ertt.4 \
 	harp.4 \
 	hatm.4 \
 	hfa.4 \
@@ -221,6 +230,7 @@ MAN=	aac.4 \
 	mmc.4 \
 	mmcsd.4 \
 	mn.4 \
+	mos.4 \
 	mouse.4 \
 	mps.4 \
 	mpt.4 \
@@ -499,6 +509,7 @@ MAN=	aac.4 \
 	${_wpi.4} \
 	xe.4 \
 	${_xen.4} \
+	xhci.4 \
 	xl.4 \
 	xpt.4 \
 	zero.4 \

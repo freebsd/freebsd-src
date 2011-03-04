@@ -218,12 +218,12 @@ macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 		panic("Interrupt but no interrupt parent!\n");
 
 	for (i = 0; i < nintr; i+=icells) {
-		resource_list_add(&dinfo->mdi_resources, SYS_RES_IRQ,
-		    dinfo->mdi_ninterrupts, INTR_VEC(iparent, intr[i]),
-		    INTR_VEC(iparent, intr[i]), 1);
+		u_int irq = MAP_IRQ(iparent, intr[i]);
 
-		dinfo->mdi_interrupts[dinfo->mdi_ninterrupts] =
-		    INTR_VEC(iparent, intr[i]);
+		resource_list_add(&dinfo->mdi_resources, SYS_RES_IRQ,
+		    dinfo->mdi_ninterrupts, irq, irq, 1);
+
+		dinfo->mdi_interrupts[dinfo->mdi_ninterrupts] = irq;
 		dinfo->mdi_ninterrupts++;
 	}
 }

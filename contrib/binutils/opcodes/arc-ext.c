@@ -1,5 +1,6 @@
 /* ARC target-dependent stuff. Extension structure access functions
-   Copyright 1995, 1997, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1995, 1997, 2000, 2001, 2004, 2005
+   Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -15,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "sysdep.h"
 #include <stdlib.h>
@@ -58,7 +59,7 @@ arcExtMap_coreRegName(int value)
 {
   if (value < 32)
     return 0;
-  return (const char *) arc_extension_map.coreRegisters[value-32];
+  return arc_extension_map.coreRegisters[value-32];
 }
 
 /* Get the name of an extension condition code.  */
@@ -68,7 +69,7 @@ arcExtMap_condCodeName(int value)
 {
   if (value < 16)
     return 0;
-  return (const char *) arc_extension_map.condCodes[value-16];
+  return arc_extension_map.condCodes[value-16];
 }
 
 /* Get the name of an extension aux register.  */
@@ -187,7 +188,7 @@ arcExtMap_add(void *base, unsigned long length)
 	    else
 	      opcode -= 0x10;
 	    insn -> flags = (char) *(p+4);
-	    strcpy(insn_name, (p+5));
+	    strcpy (insn_name, (char *) (p+5));
 	    insn -> name = insn_name;
 	    arc_extension_map.instructions[(int) opcode] = insn;
 	  }
@@ -197,7 +198,7 @@ arcExtMap_add(void *base, unsigned long length)
 	  {
 	    char * core_name = (char *) xmalloc(((int)*p-3) * sizeof(char));
 
-	    strcpy(core_name, (p+3));
+	    strcpy(core_name, (char *) (p+3));
 	    arc_extension_map.coreRegisters[p[2]-32] = core_name;
 	  }
 	  break;
@@ -205,7 +206,7 @@ arcExtMap_add(void *base, unsigned long length)
 	case EXT_COND_CODE:
 	  {
 	    char * cc_name = (char *) xmalloc( ((int)*p-3) * sizeof(char));
-	    strcpy(cc_name, (p+3));
+	    strcpy(cc_name, (char *) (p+3));
 	    arc_extension_map.condCodes[p[2]-16] = cc_name;
 	  }
 	  break;
@@ -217,7 +218,7 @@ arcExtMap_add(void *base, unsigned long length)
 	      (struct ExtAuxRegister *)malloc(sizeof(struct ExtAuxRegister));
 	    char * aux_name = (char *) xmalloc ( ((int)*p-6) * sizeof(char));
 
-	    strcpy (aux_name, (p+6));
+	    strcpy (aux_name, (char *) (p+6));
 	    newAuxRegister->name = aux_name;
 	    newAuxRegister->address = p[2]<<24 | p[3]<<16 | p[4]<<8  | p[5];
 	    newAuxRegister->next = arc_extension_map.auxRegisters;
@@ -248,7 +249,7 @@ build_ARC_extmap (text_bfd)
   for (p = text_bfd->sections; p != NULL; p = p->next)
     if (!strcmp (p->name, ".arcextmap"))
       {
-        count = p->_raw_size;
+        count = bfd_get_section_size (p);
         arcExtMap = (char *) xmalloc (count);
         if (bfd_get_section_contents (text_bfd, p, (PTR) arcExtMap, 0, count))
           {

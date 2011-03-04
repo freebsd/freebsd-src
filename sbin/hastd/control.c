@@ -62,6 +62,10 @@ child_cleanup(struct hast_resource *res)
 		proto_close(res->hr_event);
 		res->hr_event = NULL;
 	}
+	if (res->hr_conn != NULL) {
+		proto_close(res->hr_conn);
+		res->hr_conn = NULL;
+	}
 	res->hr_workerpid = 0;
 }
 
@@ -278,6 +282,7 @@ control_handle(struct hastd_config *cfg)
 		return;
 	}
 
+	cfg->hc_controlin = conn;
 	nvin = nvout = NULL;
 	role = HAST_ROLE_UNDEF;
 
@@ -384,6 +389,7 @@ close:
 	if (nvout != NULL)
 		nv_free(nvout);
 	proto_close(conn);
+	cfg->hc_controlin = NULL;
 }
 
 /*

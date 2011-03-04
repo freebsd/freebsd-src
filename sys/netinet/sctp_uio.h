@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -531,6 +533,11 @@ struct sctp_assoc_value {
 	uint32_t assoc_value;
 };
 
+struct sctp_cc_option {
+	int option;
+	struct sctp_assoc_value aid_value;
+};
+
 struct sctp_stream_value {
 	sctp_assoc_t assoc_id;
 	uint16_t stream_id;
@@ -946,8 +953,9 @@ struct sctpstat {
 					 * max burst inflight to net */
 	uint32_t sctps_fwdtsn_map_over;	/* number of map array over-runs via
 					 * fwd-tsn's */
-
-	uint32_t sctps_reserved[32];	/* Future ABI compat - remove int's
+	uint32_t sctps_queue_upd_ecne;	/* Number of times we queued or
+					 * updated an ECN chunk on send queue */
+	uint32_t sctps_reserved[31];	/* Future ABI compat - remove int's
 					 * from here when adding new */
 };
 

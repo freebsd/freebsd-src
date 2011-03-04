@@ -54,7 +54,6 @@ static void	ps3pic_eoi(device_t, u_int);
 static void	ps3pic_ipi(device_t, u_int);
 static void	ps3pic_mask(device_t, u_int);
 static void	ps3pic_unmask(device_t, u_int);
-static uint32_t ps3pic_id(device_t dev);
 
 struct ps3pic_softc {
 	uint64_t	*bitmap_thread0;
@@ -76,7 +75,6 @@ static device_method_t  ps3pic_methods[] = {
 	DEVMETHOD(pic_dispatch,		ps3pic_dispatch),
 	DEVMETHOD(pic_enable,		ps3pic_enable),
 	DEVMETHOD(pic_eoi,		ps3pic_eoi),
-	DEVMETHOD(pic_id,		ps3pic_id),
 	DEVMETHOD(pic_ipi,		ps3pic_ipi),
 	DEVMETHOD(pic_mask,		ps3pic_mask),
 	DEVMETHOD(pic_unmask,		ps3pic_unmask),
@@ -146,9 +144,7 @@ ps3pic_attach(device_t dev)
 	    sc->sc_ipi_outlet[1], 0);
 #endif
 
-	powerpc_register_pic(dev, sc->sc_ipi_outlet[0]);
-	root_pic = dev; /* PS3s have only one PIC */
-
+	powerpc_register_pic(dev, 0, sc->sc_ipi_outlet[0], 1, FALSE);
 	return (0);
 }
 
@@ -245,10 +241,3 @@ ps3pic_unmask(device_t dev, u_int irq)
 	lv1_did_update_interrupt_mask(ppe, 0);
 	lv1_did_update_interrupt_mask(ppe, 1);
 }
-
-static uint32_t
-ps3pic_id(device_t dev)
-{
-	return (0);
-}
-

@@ -22,7 +22,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Memory.h"
+#include "llvm/Support/Memory.h"
 #include <cstdlib>
 using namespace llvm;
 
@@ -43,7 +43,7 @@ static TargetJITInfo::JITCompilerFn JITCompilerFunction;
 #define ASMPREFIX GETASMPREFIX(__USER_LABEL_PREFIX__)
 
 // CompilationCallback stub - We can't use a C function with inline assembly in
-// it, because we the prolog/epilog inserted by GCC won't work for us (we need
+// it, because the prolog/epilog inserted by GCC won't work for us. (We need
 // to preserve more context and manipulate the stack directly).  Instead,
 // write our own wrapper, which does things our way, so we have complete
 // control over register saving and restoring.
@@ -97,9 +97,10 @@ extern "C" {
     "str  r0, [sp,#16]\n"
     // Return to the (newly modified) stub to invoke the real function.
     // The above twiddling of the saved return addresses allows us to
-    // deallocate everything, including the LR the stub saved, all in one
-    // pop instruction.
-    "ldmia  sp!, {r0, r1, r2, r3, lr, pc}\n"
+    // deallocate everything, including the LR the stub saved, with two
+    // updating load instructions.
+    "ldmia  sp!, {r0, r1, r2, r3, lr}\n"
+    "ldr    pc, [sp], #4\n"
       );
 #else  // Not an ARM host
   void ARMCompilationCallback() {
@@ -290,7 +291,7 @@ void ARMJITInfo::relocate(void *Function, MachineRelocation *MR,
       *((intptr_t*)RelocPos) |= ResultPtr;
       // Set register Rn to PC.
       *((intptr_t*)RelocPos) |=
-        ARMRegisterInfo::getRegisterNumbering(ARM::PC) << ARMII::RegRnShift;
+        getARMRegisterNumbering(ARM::PC) << ARMII::RegRnShift;
       break;
     }
     case ARM::reloc_arm_pic_jt:

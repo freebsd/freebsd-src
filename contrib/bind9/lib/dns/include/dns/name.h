@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: name.h,v 1.126.332.3 2009/12/24 00:34:59 each Exp $ */
+/* $Id: name.h,v 1.126.332.5 2010-07-09 23:45:55 tbox Exp $ */
 
 #ifndef DNS_NAME_H
 #define DNS_NAME_H 1
@@ -796,15 +796,30 @@ dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
  *\li	#ISC_R_UNEXPECTEDEND
  */
 
+#define DNS_NAME_OMITFINALDOT	0x01U
+#define DNS_NAME_MASTERFILE	0x02U	/* escape $ and @ */
+
+isc_result_t
+dns_name_toprincipal(dns_name_t *name, isc_buffer_t *target);
+
 isc_result_t
 dns_name_totext(dns_name_t *name, isc_boolean_t omit_final_dot,
 		isc_buffer_t *target);
+
+isc_result_t
+dns_name_totext2(dns_name_t *name, unsigned int options, isc_buffer_t *target);
 /*%<
  * Convert 'name' into text format, storing the result in 'target'.
  *
  * Notes:
  *\li	If 'omit_final_dot' is true, then the final '.' in absolute
  *	names other than the root name will be omitted.
+ *
+ *\li	If DNS_NAME_OMITFINALDOT is set in options, then the final '.'
+ *	in absolute names other than the root name will be omitted.
+ *
+ *\li	If DNS_NAME_MASTERFILE is set in options, '$' and '@' will also
+ *	be escaped.
  *
  *\li	If dns_name_countlabels == 0, the name will be "@", representing the
  *	current origin as described by RFC1035.

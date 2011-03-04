@@ -392,6 +392,13 @@ AslLocalAllocate (unsigned int Size);
 %token <i> PARSEOP_XOR
 %token <i> PARSEOP_ZERO
 
+/*
+ * Special functions. These should probably stay at the end of this
+ * table.
+ */
+%token <i> PARSEOP___DATE__
+%token <i> PARSEOP___FILE__
+%token <i> PARSEOP___LINE__
 
 /*
  * Production names
@@ -694,7 +701,6 @@ AslLocalAllocate (unsigned int Size);
 %type <n> OptionalParameterTypesPackage
 %type <n> OptionalReference
 %type <n> OptionalAccessSize
-
 
 %type <n> TermArgItem
 %type <n> NameStringItem
@@ -2317,6 +2323,9 @@ ConstExprTerm
     : PARSEOP_ZERO                  {$$ = TrCreateValuedLeafNode (PARSEOP_ZERO, 0);}
     | PARSEOP_ONE                   {$$ = TrCreateValuedLeafNode (PARSEOP_ONE, 1);}
     | PARSEOP_ONES                  {$$ = TrCreateValuedLeafNode (PARSEOP_ONES, ACPI_UINT64_MAX);}
+    | PARSEOP___DATE__              {$$ = TrCreateConstantLeafNode (PARSEOP___DATE__);}
+    | PARSEOP___FILE__              {$$ = TrCreateConstantLeafNode (PARSEOP___FILE__);}
+    | PARSEOP___LINE__              {$$ = TrCreateConstantLeafNode (PARSEOP___LINE__);}
     ;
 
 /* OptionalCount must appear before ByteList or an incorrect reduction will result */
@@ -3069,7 +3078,6 @@ NameStringItem
     : ',' NameString                {$$ = $2;}
     | ',' error                     {$$ = AslDoError (); yyclearin;}
     ;
-
 
 %%
 

@@ -33,8 +33,12 @@ namespace {
     SmallPtrSet<const Function*, 16> NeverInline; 
     InlineCostAnalyzer CA;
   public:
-    SimpleInliner() : Inliner(ID) {}
-    SimpleInliner(int Threshold) : Inliner(ID, Threshold) {}
+    SimpleInliner() : Inliner(ID) {
+      initializeSimpleInlinerPass(*PassRegistry::getPassRegistry());
+    }
+    SimpleInliner(int Threshold) : Inliner(ID, Threshold) {
+      initializeSimpleInlinerPass(*PassRegistry::getPassRegistry());
+    }
     static char ID; // Pass identification, replacement for typeid
     InlineCost getInlineCost(CallSite CS) {
       return CA.getInlineCost(CS, NeverInline);
@@ -56,8 +60,11 @@ namespace {
 }
 
 char SimpleInliner::ID = 0;
-INITIALIZE_PASS(SimpleInliner, "inline",
-                "Function Integration/Inlining", false, false);
+INITIALIZE_PASS_BEGIN(SimpleInliner, "inline",
+                "Function Integration/Inlining", false, false)
+INITIALIZE_AG_DEPENDENCY(CallGraph)
+INITIALIZE_PASS_END(SimpleInliner, "inline",
+                "Function Integration/Inlining", false, false)
 
 Pass *llvm::createFunctionInliningPass() { return new SimpleInliner(); }
 

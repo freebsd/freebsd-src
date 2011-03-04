@@ -23,7 +23,7 @@ using namespace clang;
 VerifyDiagnosticsClient::VerifyDiagnosticsClient(Diagnostic &_Diags,
                                                  DiagnosticClient *_Primary)
   : Diags(_Diags), PrimaryClient(_Primary),
-    Buffer(new TextDiagnosticBuffer()), CurrentPreprocessor(0), NumErrors(0) {
+    Buffer(new TextDiagnosticBuffer()), CurrentPreprocessor(0) {
 }
 
 VerifyDiagnosticsClient::~VerifyDiagnosticsClient() {
@@ -55,14 +55,6 @@ void VerifyDiagnosticsClient::HandleDiagnostic(Diagnostic::Level DiagLevel,
   // Send the diagnostic to the buffer, we will check it once we reach the end
   // of the source file (or are destructed).
   Buffer->HandleDiagnostic(DiagLevel, Info);
-}
-
-// FIXME: It would be nice to just get this from the primary diagnostic client
-// or something.
-bool VerifyDiagnosticsClient::HadErrors() {
-  CheckDiagnostics();
-
-  return NumErrors != 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -377,7 +369,7 @@ static unsigned PrintProblem(Diagnostic &Diags, SourceManager *SourceMgr,
     if (I->first.isInvalid() || !SourceMgr)
       OS << "\n  (frontend)";
     else
-      OS << "\n  Line " << SourceMgr->getInstantiationLineNumber(I->first);
+      OS << "\n  Line " << SourceMgr->getPresumedLineNumber(I->first);
     OS << ": " << I->second;
   }
 
@@ -399,7 +391,7 @@ static unsigned PrintProblem(Diagnostic &Diags, SourceManager *SourceMgr,
     if (D.Location.isInvalid() || !SourceMgr)
       OS << "\n  (frontend)";
     else
-      OS << "\n  Line " << SourceMgr->getInstantiationLineNumber(D.Location);
+      OS << "\n  Line " << SourceMgr->getPresumedLineNumber(D.Location);
     OS << ": " << D.Text;
   }
 
@@ -421,12 +413,12 @@ static unsigned CheckLists(Diagnostic &Diags, SourceManager &SourceMgr,
 
   for (DirectiveList::iterator I = Left.begin(), E = Left.end(); I != E; ++I) {
     Directive& D = **I;
-    unsigned LineNo1 = SourceMgr.getInstantiationLineNumber(D.Location);
+    unsigned LineNo1 = SourceMgr.getPresumedLineNumber(D.Location);
 
     for (unsigned i = 0; i < D.Count; ++i) {
       DiagList::iterator II, IE;
       for (II = Right.begin(), IE = Right.end(); II != IE; ++II) {
-        unsigned LineNo2 = SourceMgr.getInstantiationLineNumber(II->first);
+        unsigned LineNo2 = SourceMgr.getPresumedLineNumber(II->first);
         if (LineNo1 != LineNo2)
           continue;
 

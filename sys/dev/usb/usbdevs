@@ -536,6 +536,7 @@ vendor SPEEDDRAGON	0x0e55	Speed Dragon Multimedia
 vendor HAWKING		0x0e66	Hawking
 vendor FOSSIL		0x0e67	Fossil, Inc
 vendor GMATE		0x0e7e	G.Mate, Inc
+vendor MEDIATEK		0x0e8d	MediaTek, Inc.
 vendor OTI		0x0ea0	Ours Technology
 vendor YISO		0x0eab	Yiso Wireless Co.
 vendor PILOTECH		0x0eaf	Pilotech
@@ -550,6 +551,7 @@ vendor VTECH		0x0f88	VTech
 vendor FALCOM		0x0f94	Falcom Wireless Communications GmbH
 vendor RIM		0x0fca	Research In Motion
 vendor DYNASTREAM	0x0fcf	Dynastream Innovations
+vendor KONTRON		0x0fe6	Kontron AG
 vendor QUALCOMM		0x1004	Qualcomm
 vendor APACER		0x1005	Apacer
 vendor MOTOROLA4	0x100d	Motorola
@@ -1308,6 +1310,7 @@ product CTX EX1300		0x9999	Ex1300 hub
 product CURITEL HX550C		0x1101	CDMA 2000 1xRTT USB modem (HX-550C)
 product CURITEL HX57XB		0x2101	CDMA 2000 1xRTT USB modem (HX-570/575B/PR-600)
 product CURITEL PC5740		0x3701	Broadband Wireless modem
+product CURITEL UM150		0x3711	EVDO modem
 product CURITEL UM175		0x3714	EVDO modem
 
 /* CyberPower products */
@@ -2006,6 +2009,9 @@ product KODAK DC290		0x0112	Digital Science DC290
 product KODAK DC240		0x0120	Digital Science DC240
 product KODAK DC280		0x0130	Digital Science DC280
 
+/* Kontron AG products */
+product KONTRON DM9601		0x8101	USB Ethernet
+
 /* Konica Corp. Products */
 product KONICA CAMERA		0x0720	Digital Color Camera
 
@@ -2120,6 +2126,9 @@ product MCT DU_H3SP_USB232	0x0200	D-Link DU-H3SP USB BAY Hub
 product MCT USB232		0x0210	USB-232 Interface
 product MCT SITECOM_USB232	0x0230	Sitecom USB-232 Products
 
+/* MediaTek, Inc. */
+product MEDIATEK MTK3329	0x3329	MTK II GPS Receiver
+
 /* Meizu Electronics */
 product MEIZU M6_SL		0x0140	MiniPlayer M6 (SL)
 
@@ -2148,6 +2157,7 @@ product MELCO WLIUCG		0x0137	WLI-UC-G
 product MELCO RT2870_1		0x0148	RT2870
 product MELCO RT2870_2		0x0150	RT2870
 product MELCO WLIUCGN		0x015d	WLI-UC-GN
+product MELCO WLIUCG301N	0x016f	WLI-UC-G301N
 
 /* Merlin products */
 product MERLIN V620             0x1110  Merlin V620
@@ -2259,6 +2269,7 @@ product MOBILITY EASIDOCK	0x0304	EasiDock Ethernet
 
 /* MosChip products */
 product MOSCHIP MCS7703		0x7703	MCS7703 Serial Port Adapter
+product MOSCHIP MCS7730		0x7730  MCS7730 Ethernet
 product MOSCHIP MCS7830		0x7830	MCS7830 Ethernet
 
 /* Motorola products */
@@ -2387,6 +2398,7 @@ product NOVATEL ZEROCD2		0x5030	Novatel ZeroCD
 product NOVATEL U727_2		0x5100	Merlin U727 CDMA
 product NOVATEL U760		0x6000	Novatel U760
 product NOVATEL MC760		0x6002	Novatel MC760
+product NOVATEL MC547		0x7042	Novatel MC547
 product NOVATEL2 FLEXPACKGPS	0x0100	NovAtel FlexPack GPS receiver
 
 /* Merlin products */
@@ -2771,9 +2783,23 @@ product RICOH VGPVCC8		0x183b	VGP-VCC8 Camera
 product REINERSCT CYBERJACK_ECOM	0x0100	e-com cyberJack
 
 /* Roland products */
+product ROLAND UA100		0x0000	UA-100 Audio I/F
+product ROLAND UM4		0x0002	UM-4 MIDI I/F
+product ROLAND SC8850		0x0003	SC-8850 MIDI Synth
+product ROLAND U8		0x0004	U-8 Audio I/F
+product ROLAND UM2		0x0005	UM-2 MIDI I/F
+product ROLAND SC8820		0x0007	SC-8820 MIDI Synth
+product ROLAND PC300		0x0008	PC-300 MIDI Keyboard
 product ROLAND UM1		0x0009	UM-1 MIDI I/F
+product ROLAND SK500		0x000b	SK-500 MIDI Keyboard
+product ROLAND SCD70		0x000c	SC-D70 MIDI Synth
 product ROLAND UM880N		0x0014	EDIROL UM-880 MIDI I/F (native)
 product ROLAND UM880G		0x0015	EDIROL UM-880 MIDI I/F (generic)
+product ROLAND SD90		0x0016	SD-90 MIDI Synth
+product ROLAND UM550		0x0023	UM-550 MIDI I/F
+product ROLAND SD20		0x0027	SD-20 MIDI Synth
+product ROLAND SD80		0x0029	SD-80 MIDI Synth
+product ROLAND UA700		0x002b	UA-700 Audio I/F
 
 /* Rockfire products */
 product ROCKFIRE GAMEPAD	0x2033	gamepad 203USB
@@ -2836,6 +2862,7 @@ product SENAO RT3072_5		0x9801	RT3072
 /* ShanTou products */
 product SHANTOU ST268		0x0268	ST268
 product SHANTOU DM9601		0x9601	DM 9601
+product SHANTOU ADM8515		0x8515	ADM8515
 
 /* Shark products */
 product SHARK PA		0x0400	Pocket Adapter
@@ -3024,6 +3051,7 @@ product SITECOM2 WL022		0x182d	WL-022
 /* Sitecom Europe products */
 product SITECOMEU RT2870_1	0x0017	RT2870
 product SITECOMEU WL168V1	0x000d	WL-168 v1
+product SITECOMEU LN030  	0x0021	MCS7830
 product SITECOMEU WL168V4	0x0028	WL-168 v4
 product SITECOMEU RT2870_2	0x002b	RT2870
 product SITECOMEU RT2870_3	0x002c	RT2870
@@ -3381,10 +3409,11 @@ product XYRATEX PRISM_GT_2	0x2002	PrismGT USB 2.0 WLAN
 /* Yamaha products */
 product YAMAHA UX256		0x1000	UX256 MIDI I/F
 product YAMAHA UX96		0x1008	UX96 MIDI I/F
+product YAMAHA RPU200		0x3104	RP-U200
 product YAMAHA RTA54I		0x4000	NetVolante RTA54i Broadband&ISDN Router
-product YAMAHA RTA55I		0x4004	NetVolante RTA55i Broadband VoIP Router
 product YAMAHA RTW65B		0x4001	NetVolante RTW65b Broadband Wireless Router
 product YAMAHA RTW65I		0x4002	NetVolante RTW65i Broadband&ISDN Wireless Router
+product YAMAHA RTA55I		0x4004	NetVolante RTA55i Broadband VoIP Router
 
 /* Yano products */
 product YANO U640MO		0x0101	U640MO-03

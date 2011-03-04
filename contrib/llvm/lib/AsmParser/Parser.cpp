@@ -18,6 +18,7 @@
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/system_error.h"
 #include <cstring>
 using namespace llvm;
 
@@ -41,15 +42,14 @@ Module *llvm::ParseAssembly(MemoryBuffer *F,
 
 Module *llvm::ParseAssemblyFile(const std::string &Filename, SMDiagnostic &Err,
                                 LLVMContext &Context) {
-  std::string ErrorStr;
-  MemoryBuffer *F = MemoryBuffer::getFileOrSTDIN(Filename.c_str(), &ErrorStr);
-  if (F == 0) {
+  OwningPtr<MemoryBuffer> File;
+  if (error_code ec = MemoryBuffer::getFileOrSTDIN(Filename.c_str(), File)) {
     Err = SMDiagnostic(Filename,
-                       "Could not open input file: " + ErrorStr);
+                       "Could not open input file: " + ec.message());
     return 0;
   }
 
-  return ParseAssembly(F, 0, Err, Context);
+  return ParseAssembly(File.take(), 0, Err, Context);
 }
 
 Module *llvm::ParseAssemblyString(const char *AsmString, Module *M,

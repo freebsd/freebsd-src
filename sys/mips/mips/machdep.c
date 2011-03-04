@@ -184,8 +184,8 @@ cpu_startup(void *dummy)
 	if (boothowto & RB_VERBOSE)
 		bootverbose++;
 
-	printf("real memory  = %lu (%luK bytes)\n", ptoa(realmem),
-	    ptoa(realmem) / 1024);
+	printf("real memory  = %ju (%juK bytes)\n", ptoa((uintmax_t)realmem),
+	    ptoa((uintmax_t)realmem) / 1024);
 
 	/*
 	 * Display any holes after the first chunk of extended memory.
@@ -195,13 +195,13 @@ cpu_startup(void *dummy)
 
 		printf("Physical memory chunk(s):\n");
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
-			uintptr_t size1 = phys_avail[indx + 1] - phys_avail[indx];
+			vm_paddr_t size1 = phys_avail[indx + 1] - phys_avail[indx];
 
-			printf("0x%08llx - 0x%08llx, %llu bytes (%llu pages)\n",
-			    (unsigned long long)phys_avail[indx],
-			    (unsigned long long)phys_avail[indx + 1] - 1,
-			    (unsigned long long)size1,
-			    (unsigned long long)size1 / PAGE_SIZE);
+			printf("0x%08jx - 0x%08jx, %ju bytes (%ju pages)\n",
+			    (uintmax_t)phys_avail[indx],
+			    (uintmax_t)phys_avail[indx + 1] - 1,
+			    (uintmax_t)size1,
+			    (uintmax_t)size1 / PAGE_SIZE);
 		}
 	}
 

@@ -1293,17 +1293,13 @@ charged:
 	vm_map_entry_link(map, prev_entry, new_entry);
 	map->size += new_entry->end - new_entry->start;
 
-#if 0
 	/*
-	 * Temporarily removed to avoid MAP_STACK panic, due to
-	 * MAP_STACK being a huge hack.  Will be added back in
-	 * when MAP_STACK (and the user stack mapping) is fixed.
+	 * It may be possible to merge the new entry with the next and/or
+	 * previous entries.  However, due to MAP_STACK_* being a hack, a
+	 * panic can result from merging such entries.
 	 */
-	/*
-	 * It may be possible to simplify the entry
-	 */
-	vm_map_simplify_entry(map, new_entry);
-#endif
+	if ((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) == 0)
+		vm_map_simplify_entry(map, new_entry);
 
 	if (cow & (MAP_PREFAULT|MAP_PREFAULT_PARTIAL)) {
 		vm_map_pmap_enter(map, start, prot,
@@ -3081,8 +3077,8 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			vm_object_reference(object);
 			if (old_entry->eflags & MAP_ENTRY_NEEDS_COPY) {
 				vm_object_shadow(&old_entry->object.vm_object,
-					&old_entry->offset,
-					atop(old_entry->end - old_entry->start));
+				    &old_entry->offset,
+				    old_entry->end - old_entry->start);
 				old_entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 				/* Transfer the second reference too. */
 				vm_object_reference(
@@ -3593,8 +3589,8 @@ vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 	vm_prot_t prot;
 	vm_prot_t fault_type = fault_typea;
 	vm_object_t eobject;
+	vm_size_t size;
 	struct ucred *cred;
-	vm_ooffset_t size;
 
 RetryLookup:;
 
@@ -3681,10 +3677,8 @@ RetryLookup:;
 				}
 				entry->cred = cred;
 			}
-			vm_object_shadow(
-			    &entry->object.vm_object,
-			    &entry->offset,
-			    atop(size));
+			vm_object_shadow(&entry->object.vm_object,
+			    &entry->offset, size);
 			entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 			eobject = entry->object.vm_object;
 			if (eobject->cred != NULL) {

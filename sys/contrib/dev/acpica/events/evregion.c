@@ -262,6 +262,8 @@ AcpiEvInitializeOpRegions (
         }
     }
 
+    AcpiGbl_RegMethodsExecuted = TRUE;
+
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
     return_ACPI_STATUS (Status);
 }

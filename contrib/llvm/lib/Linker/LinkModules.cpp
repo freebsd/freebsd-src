@@ -28,7 +28,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Path.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include "llvm/ADT/DenseMap.h"
 using namespace llvm;
@@ -434,8 +434,10 @@ static bool GetLinkageResult(GlobalValue *Dest, const GlobalValue *Src,
   }
 
   // Check visibility
-  if (Dest && Src->getVisibility() != Dest->getVisibility())
-    if (!Src->isDeclaration() && !Dest->isDeclaration())
+  if (Dest && Src->getVisibility() != Dest->getVisibility() &&
+      !Src->isDeclaration() && !Dest->isDeclaration() &&
+      !Src->hasAvailableExternallyLinkage() &&
+      !Dest->hasAvailableExternallyLinkage())
       return Error(Err, "Linking globals named '" + Src->getName() +
                    "': symbols have different visibilities!");
   return false;
@@ -449,10 +451,9 @@ static void LinkNamedMDNodes(Module *Dest, Module *Src,
     const NamedMDNode *SrcNMD = I;
     NamedMDNode *DestNMD = Dest->getOrInsertNamedMetadata(SrcNMD->getName());
     // Add Src elements into Dest node.
-    for (unsigned i = 0, e = SrcNMD->getNumOperands(); i != e; ++i) 
+    for (unsigned i = 0, e = SrcNMD->getNumOperands(); i != e; ++i)
       DestNMD->addOperand(cast<MDNode>(MapValue(SrcNMD->getOperand(i),
-                                                ValueMap,
-                                                true)));
+                                                ValueMap)));
   }
 }
 
@@ -520,6 +521,8 @@ static bool LinkGlobals(Module *Dest, const Module *Src,
       continue;
     }
 
+    bool HasUnnamedAddr = SGV->hasUnnamedAddr() && DGV->hasUnnamedAddr();
+
     // If the visibilities of the symbols disagree and the destination is a
     // prototype, take the visibility of its input.
     if (DGV->isDeclaration())
@@ -559,14 +562,17 @@ static bool LinkGlobals(Module *Dest, const Module *Src,
       // we are replacing may be a function (if a prototype, weak, etc) or a
       // global variable.
       GlobalVariable *NewDGV =
-        new GlobalVariable(*Dest, SGV->getType()->getElementType(), 
-                           SGV->isConstant(), NewLinkage, /*init*/0, 
+        new GlobalVariable(*Dest, SGV->getType()->getElementType(),
+                           SGV->isConstant(), NewLinkage, /*init*/0,
                            DGV->getName(), 0, false,
                            SGV->getType()->getAddressSpace());
 
+      // Set the unnamed_addr.
+      NewDGV->setUnnamedAddr(HasUnnamedAddr);
+
       // Propagate alignment, section, and visibility info.
       CopyGVAttributes(NewDGV, SGV);
-      DGV->replaceAllUsesWith(ConstantExpr::getBitCast(NewDGV, 
+      DGV->replaceAllUsesWith(ConstantExpr::getBitCast(NewDGV,
                                                               DGV->getType()));
 
       // DGV will conflict with NewDGV because they both had the same
@@ -608,8 +614,9 @@ static bool LinkGlobals(Module *Dest, const Module *Src,
                      "': symbol multiple defined");
     }
 
-    // Set calculated linkage
+    // Set calculated linkage and unnamed_addr
     DGV->setLinkage(NewLinkage);
+    DGV->setUnnamedAddr(HasUnnamedAddr);
 
     // Make sure to remember this mapping...
     ValueMap[SGV] = ConstantExpr::getBitCast(DGV, SGV->getType());
@@ -668,6 +675,13 @@ static bool LinkAlias(Module *Dest, const Module *Src,
     GlobalValue* DAliasee = cast<GlobalValue>(VMI->second);
     GlobalValue* DGV = NULL;
 
+    // Fixup aliases to bitcasts.  Note that aliases to GEPs are still broken
+    // by this, but aliases to GEPs are broken to a lot of other things, so
+    // it's less important.
+    Constant *DAliaseeConst = DAliasee;
+    if (SGA->getType() != DAliasee->getType())
+      DAliaseeConst = ConstantExpr::getBitCast(DAliasee, SGA->getType());
+
     // Try to find something 'similar' to SGA in destination module.
     if (!DGV && !SGA->hasLocalLinkage()) {
       DGV = Dest->getNamedAlias(SGA->getName());
@@ -721,7 +735,7 @@ static bool LinkAlias(Module *Dest, const Module *Src,
                        "': aliasee is not global variable");
 
         NewGA = new GlobalAlias(SGA->getType(), SGA->getLinkage(),
-                                SGA->getName(), DAliasee, Dest);
+                                SGA->getName(), DAliaseeConst, Dest);
         CopyGVAttributes(NewGA, SGA);
 
         // Any uses of DGV need to change to NewGA, with cast, if needed.
@@ -750,7 +764,7 @@ static bool LinkAlias(Module *Dest, const Module *Src,
                        "': aliasee is not function");
 
         NewGA = new GlobalAlias(SGA->getType(), SGA->getLinkage(),
-                                SGA->getName(), DAliasee, Dest);
+                                SGA->getName(), DAliaseeConst, Dest);
         CopyGVAttributes(NewGA, SGA);
 
         // Any uses of DF need to change to NewGA, with cast, if needed.
@@ -772,14 +786,8 @@ static bool LinkAlias(Module *Dest, const Module *Src,
     } else {
       // No linking to be performed, simply create an identical version of the
       // alias over in the dest module...
-      Constant *Aliasee = DAliasee;
-      // Fixup aliases to bitcasts.  Note that aliases to GEPs are still broken
-      // by this, but aliases to GEPs are broken to a lot of other things, so
-      // it's less important.
-      if (SGA->getType() != DAliasee->getType())
-        Aliasee = ConstantExpr::getBitCast(DAliasee, SGA->getType());
       NewGA = new GlobalAlias(SGA->getType(), SGA->getLinkage(),
-                              SGA->getName(), Aliasee, Dest);
+                              SGA->getName(), DAliaseeConst, Dest);
       CopyGVAttributes(NewGA, SGA);
 
       // Proceed to 'common' steps
@@ -813,9 +821,9 @@ static bool LinkGlobalInits(Module *Dest, const Module *Src,
     const GlobalVariable *SGV = I;
 
     if (SGV->hasInitializer()) {      // Only process initialized GV's
-      // Figure out what the initializer looks like in the dest module...
+      // Figure out what the initializer looks like in the dest module.
       Constant *SInit =
-        cast<Constant>(MapValue(SGV->getInitializer(), ValueMap, true));
+        cast<Constant>(MapValue(SGV->getInitializer(), ValueMap));
       // Grab destination global variable or alias.
       GlobalValue *DGV = cast<GlobalValue>(ValueMap[SGV]->stripPointerCasts());
 
@@ -927,7 +935,7 @@ static bool LinkFunctionProtos(Module *Dest, const Module *Src,
       CopyGVAttributes(NewDF, SF);
 
       // Any uses of DF need to change to NewDF, with cast
-      DGV->replaceAllUsesWith(ConstantExpr::getBitCast(NewDF, 
+      DGV->replaceAllUsesWith(ConstantExpr::getBitCast(NewDF,
                                                               DGV->getType()));
 
       // DF will conflict with NewDF because they both had the same. We must
@@ -995,32 +1003,10 @@ static bool LinkFunctionBody(Function *Dest, Function *Src,
   // At this point, all of the instructions and values of the function are now
   // copied over.  The only problem is that they are still referencing values in
   // the Source function as operands.  Loop through all of the operands of the
-  // functions and patch them up to point to the local versions...
-  //
-  // This is the same as RemapInstruction, except that it avoids remapping
-  // instruction and basic block operands.
-  //
+  // functions and patch them up to point to the local versions.
   for (Function::iterator BB = Dest->begin(), BE = Dest->end(); BB != BE; ++BB)
-    for (BasicBlock::iterator I = BB->begin(), E = BB->end(); I != E; ++I) {
-      // Remap operands.
-      for (Instruction::op_iterator OI = I->op_begin(), OE = I->op_end();
-           OI != OE; ++OI)
-        if (!isa<Instruction>(*OI) && !isa<BasicBlock>(*OI))
-          *OI = MapValue(*OI, ValueMap, true);
-
-      // Remap attached metadata.
-      SmallVector<std::pair<unsigned, MDNode *>, 4> MDs;
-      I->getAllMetadata(MDs);
-      for (SmallVectorImpl<std::pair<unsigned, MDNode *> >::iterator
-           MI = MDs.begin(), ME = MDs.end(); MI != ME; ++MI) {
-        Value *Old = MI->second;
-        if (!isa<Instruction>(Old) && !isa<BasicBlock>(Old)) {
-          Value *New = MapValue(Old, ValueMap, true);
-          if (New != Old) 
-            I->setMetadata(MI->first, cast<MDNode>(New));
-        }
-      }
-    }
+    for (BasicBlock::iterator I = BB->begin(), E = BB->end(); I != E; ++I)
+      RemapInstruction(I, ValueMap, RF_IgnoreMissingEntries);
 
   // There is no need to map the arguments anymore.
   for (Function::arg_iterator I = Src->arg_begin(), E = Src->arg_end();
@@ -1099,7 +1085,7 @@ static bool LinkAppendingVars(Module *M,
          "Appending variables with different section name need to be linked!");
 
       unsigned NewSize = T1->getNumElements() + T2->getNumElements();
-      ArrayType *NewType = ArrayType::get(T1->getElementType(), 
+      ArrayType *NewType = ArrayType::get(T1->getElementType(),
                                                          NewSize);
 
       G1->setName("");   // Clear G1's name in case of a conflict!
@@ -1143,7 +1129,7 @@ static bool LinkAppendingVars(Module *M,
       // getelementptr instructions to not use the Cast!
       G1->replaceAllUsesWith(ConstantExpr::getBitCast(NG,
                              G1->getType()));
-      G2->replaceAllUsesWith(ConstantExpr::getBitCast(NG, 
+      G2->replaceAllUsesWith(ConstantExpr::getBitCast(NG,
                              G2->getType()));
 
       // Remove the two globals from the module now...
@@ -1217,8 +1203,13 @@ Linker::LinkModules(Module *Dest, Module *Src, std::string *ErrorMsg) {
       Src->getDataLayout() != Dest->getDataLayout())
     errs() << "WARNING: Linking two modules of different data layouts!\n";
   if (!Src->getTargetTriple().empty() &&
-      Dest->getTargetTriple() != Src->getTargetTriple())
-    errs() << "WARNING: Linking two modules of different target triples!\n";
+      Dest->getTargetTriple() != Src->getTargetTriple()) {
+    errs() << "WARNING: Linking two modules of different target triples: ";
+    if (!Src->getModuleIdentifier().empty())
+      errs() << Src->getModuleIdentifier() << ": ";
+    errs() << "'" << Src->getTargetTriple() << "' and '" 
+           << Dest->getTargetTriple() << "'\n";
+  }
 
   // Append the module inline asm string.
   if (!Src->getModuleInlineAsm().empty()) {
@@ -1300,10 +1291,9 @@ Linker::LinkModules(Module *Dest, Module *Src, std::string *ErrorMsg) {
 
   // If the source library's module id is in the dependent library list of the
   // destination library, remove it since that module is now linked in.
-  sys::Path modId;
-  modId.set(Src->getModuleIdentifier());
-  if (!modId.isEmpty())
-    Dest->removeLibrary(modId.getBasename());
+  const std::string &modId = Src->getModuleIdentifier();
+  if (!modId.empty())
+    Dest->removeLibrary(sys::path::stem(modId));
 
   return false;
 }

@@ -58,7 +58,7 @@
 #define	__INT_MAX	0x7fffffff	/* max value for an int */
 #define	__INT_MIN	(-0x7fffffff - 1)	/* min value for an int */
 
-#ifdef __LP64__
+#ifdef __mips_n64
 #define	__ULONG_MAX	0xffffffffffffffff
 #define	__LONG_MAX	0x7fffffffffffffff
 #define	__LONG_MIN	(-0x7fffffffffffffff - 1)

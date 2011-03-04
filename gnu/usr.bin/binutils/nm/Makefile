@@ -6,7 +6,6 @@
 
 PROG=	nm
 SRCS=	nm.c
-WARNS?=	2
 CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils
 CFLAGS+= -I${SRCDIR}/bfd

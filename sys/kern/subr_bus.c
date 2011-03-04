@@ -987,10 +987,12 @@ devclass_find(const char *classname)
  * is called by devclass_add_driver to accomplish the recursive
  * notification of all the children classes of dc, as well as dc.
  * Each layer will have BUS_DRIVER_ADDED() called for all instances of
- * the devclass.  We do a full search here of the devclass list at
- * each iteration level to save storing children-lists in the devclass
- * structure.  If we ever move beyond a few dozen devices doing this,
- * we may need to reevaluate...
+ * the devclass.
+ *
+ * We do a full search here of the devclass list at each iteration
+ * level to save storing children-lists in the devclass structure.  If
+ * we ever move beyond a few dozen devices doing this, we may need to
+ * reevaluate...
  *
  * @param dc		the devclass to edit
  * @param driver	the driver that was just added
@@ -1085,46 +1087,30 @@ devclass_add_driver(devclass_t dc, driver_t *driver, int pass, devclass_t *dcp)
 }
 
 /**
- * @brief Delete a device driver from a device class
+ * @brief Register that a device driver has been deleted from a devclass
  *
- * Delete a device driver from a devclass. This is normally called
- * automatically by DRIVER_MODULE().
+ * Register that a device driver has been removed from a devclass.
+ * This is called by devclass_delete_driver to accomplish the
+ * recursive notification of all the children classes of busclass, as
+ * well as busclass.  Each layer will attempt to detach the driver
+ * from any devices that are children of the bus's devclass.  The function
+ * will return an error if a device fails to detach.
+ * 
+ * We do a full search here of the devclass list at each iteration
+ * level to save storing children-lists in the devclass structure.  If
+ * we ever move beyond a few dozen devices doing this, we may need to
+ * reevaluate...
  *
- * If the driver is currently attached to any devices,
- * devclass_delete_driver() will first attempt to detach from each
- * device. If one of the detach calls fails, the driver will not be
- * deleted.
- *
- * @param dc		the devclass to edit
- * @param driver	the driver to unregister
+ * @param busclass	the devclass of the parent bus
+ * @param dc		the devclass of the driver being deleted
+ * @param driver	the driver being deleted
  */
 static int
-devclass_delete_driver(devclass_t busclass, driver_t *driver)
+devclass_driver_deleted(devclass_t busclass, devclass_t dc, driver_t *driver)
 {
-	devclass_t dc = devclass_find(driver->name);
-	driverlink_t dl;
+	devclass_t parent;
 	device_t dev;
-	int i;
-	int error;
-
-	PDEBUG(("%s from devclass %s", driver->name, DEVCLANAME(busclass)));
-
-	if (!dc)
-		return (0);
-
-	/*
-	 * Find the link structure in the bus' list of drivers.
-	 */
-	TAILQ_FOREACH(dl, &busclass->drivers, link) {
-		if (dl->driver == driver)
-			break;
-	}
-
-	if (!dl) {
-		PDEBUG(("%s not found in %s list", driver->name,
-		    busclass->name));
-		return (ENOENT);
-	}
+	int error, i;
 
 	/*
 	 * Disassociate from any devices.  We iterate through all the
@@ -1150,6 +1136,71 @@ devclass_delete_driver(devclass_t busclass, driver_t *driver)
 			}
 		}
 	}
+
+	/*
+	 * Walk through the children classes.  Since we only keep a
+	 * single parent pointer around, we walk the entire list of
+	 * devclasses looking for children.  We set the
+	 * DC_HAS_CHILDREN flag when a child devclass is created on
+	 * the parent, so we only walk the list for those devclasses
+	 * that have children.
+	 */
+	if (!(busclass->flags & DC_HAS_CHILDREN))
+		return (0);
+	parent = busclass;
+	TAILQ_FOREACH(busclass, &devclasses, link) {
+		if (busclass->parent == parent) {
+			error = devclass_driver_deleted(busclass, dc, driver);
+			if (error)
+				return (error);
+		}
+	}
+	return (0);
+}
+
+/**
+ * @brief Delete a device driver from a device class
+ *
+ * Delete a device driver from a devclass. This is normally called
+ * automatically by DRIVER_MODULE().
+ *
+ * If the driver is currently attached to any devices,
+ * devclass_delete_driver() will first attempt to detach from each
+ * device. If one of the detach calls fails, the driver will not be
+ * deleted.
+ *
+ * @param dc		the devclass to edit
+ * @param driver	the driver to unregister
+ */
+static int
+devclass_delete_driver(devclass_t busclass, driver_t *driver)
+{
+	devclass_t dc = devclass_find(driver->name);
+	driverlink_t dl;
+	int error;
+
+	PDEBUG(("%s from devclass %s", driver->name, DEVCLANAME(busclass)));
+
+	if (!dc)
+		return (0);
+
+	/*
+	 * Find the link structure in the bus' list of drivers.
+	 */
+	TAILQ_FOREACH(dl, &busclass->drivers, link) {
+		if (dl->driver == driver)
+			break;
+	}
+
+	if (!dl) {
+		PDEBUG(("%s not found in %s list", driver->name,
+		    busclass->name));
+		return (ENOENT);
+	}
+
+	error = devclass_driver_deleted(busclass, dc, driver);
+	if (error != 0)
+		return (error);
 
 	TAILQ_REMOVE(&busclass->drivers, dl, link);
 	free(dl, M_BUS);

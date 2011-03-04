@@ -68,8 +68,34 @@ static void ar9280WriteIni(struct ath_hal *ah,
 static void
 ar9280AniSetup(struct ath_hal *ah)
 {
-	/* NB: disable ANI for reliable RIFS rx */
-	ar5212AniAttach(ah, AH_NULL, AH_NULL, AH_FALSE);
+	/*
+	 * These are the parameters from the AR5416 ANI code;
+	 * they likely need quite a bit of adjustment for the
+	 * AR9280.
+	 */
+        static const struct ar5212AniParams aniparams = {
+                .maxNoiseImmunityLevel  = 4,    /* levels 0..4 */
+                .totalSizeDesired       = { -55, -55, -55, -55, -62 },
+                .coarseHigh             = { -14, -14, -14, -14, -12 },
+                .coarseLow              = { -64, -64, -64, -64, -70 },
+                .firpwr                 = { -78, -78, -78, -78, -80 },
+                .maxSpurImmunityLevel   = 2,
+                .cycPwrThr1             = { 2, 4, 6 },
+                .maxFirstepLevel        = 2,    /* levels 0..2 */
+                .firstep                = { 0, 4, 8 },
+                .ofdmTrigHigh           = 500,
+                .ofdmTrigLow            = 200,
+                .cckTrigHigh            = 200,
+                .cckTrigLow             = 100,
+                .rssiThrHigh            = 40,
+                .rssiThrLow             = 7,
+                .period                 = 100,
+        };
+	/* NB: disable ANI noise immmunity for reliable RIFS rx */
+	AH5416(ah)->ah_ani_function &= ~ HAL_ANI_NOISE_IMMUNITY_LEVEL;
+
+        /* NB: ANI is not enabled yet */
+        ar5416AniAttach(ah, &aniparams, &aniparams, AH_FALSE);
 }
 
 /*
@@ -280,6 +306,15 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
 
 	ar9280AniSetup(ah);			/* Anti Noise Immunity */
+
+	/* Setup noise floor min/max/nominal values */
+	AH5416(ah)->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9280_2GHZ;
+	AH5416(ah)->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9280_2GHZ;
+	AH5416(ah)->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9280_2GHZ;
+	AH5416(ah)->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_9280_5GHZ;
+	AH5416(ah)->nf_5g.min = AR_PHY_CCA_MIN_GOOD_VAL_9280_5GHZ;
+	AH5416(ah)->nf_5g.nominal = AR_PHY_CCA_NOM_VAL_9280_5GHZ;
+
 	ar5416InitNfHistBuff(AH5416(ah)->ah_cal.nfCalHist);
 
 	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s: return\n", __func__);
@@ -675,6 +710,10 @@ ar9280FillCapabilityInfo(struct ath_hal *ah)
 #if 0
 	pCap->halWowMatchPatternDword = AH_TRUE;
 #endif
+	/* AR9280 is a 2x2 stream device */
+	pCap->halTxStreams = 2;
+	pCap->halRxStreams = 2;
+
 	pCap->halCSTSupport = AH_TRUE;
 	pCap->halRifsRxSupport = AH_TRUE;
 	pCap->halRifsTxSupport = AH_TRUE;
@@ -685,20 +724,25 @@ ar9280FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halBtCoexSupport = AH_TRUE;
 #endif
 	pCap->halAutoSleepSupport = AH_FALSE;	/* XXX? */
-#if 0
 	pCap->hal4kbSplitTransSupport = AH_FALSE;
-#endif
 	pCap->halRxStbcSupport = 1;
 	pCap->halTxStbcSupport = 1;
 
 	return AH_TRUE;
 }
 
+/*
+ * This has been disabled - having the HAL flip chainmasks on/off
+ * when attempting to implement 11n disrupts things. For now, just
+ * leave this flipped off and worry about implementing TX diversity
+ * for legacy and MCS0-7 when 11n is fully functioning.
+ */
 HAL_BOOL
 ar9280SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 {
 #define ANTENNA0_CHAINMASK    0x1
 #define ANTENNA1_CHAINMASK    0x2
+#if 0
 	struct ath_hal_5416 *ahp = AH5416(ah);
 
 	/* Antenna selection is done by setting the tx/rx chainmasks approp. */
@@ -725,6 +769,7 @@ ar9280SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 	HALDEBUG(ah, HAL_DEBUG_ANY, "%s: settings=%d, tx/rx chainmask=%d/%d\n",
 	    __func__, settings, ahp->ah_tx_chainmask, ahp->ah_rx_chainmask);
 
+#endif
 	return AH_TRUE;
 #undef ANTENNA0_CHAINMASK
 #undef ANTENNA1_CHAINMASK

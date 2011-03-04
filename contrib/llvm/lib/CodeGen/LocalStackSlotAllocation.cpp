@@ -9,7 +9,7 @@
 //
 // This pass assigns local frame indices to stack slots relative to one another
 // and allocates additional base registers to access them when the target
-// estimates the are likely to be out of range of stack pointer and frame
+// estimates they are likely to be out of range of stack pointer and frame
 // pointer relative addressing.
 //
 //===----------------------------------------------------------------------===//
@@ -34,7 +34,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetFrameInfo.h"
+#include "llvm/Target/TargetFrameLowering.h"
 
 using namespace llvm;
 
@@ -152,9 +152,9 @@ void LocalStackSlotPass::AdjustStackOffset(MachineFrameInfo *MFI,
 void LocalStackSlotPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
   // Loop over all of the stack objects, assigning sequential addresses...
   MachineFrameInfo *MFI = Fn.getFrameInfo();
-  const TargetFrameInfo &TFI = *Fn.getTarget().getFrameInfo();
+  const TargetFrameLowering &TFI = *Fn.getTarget().getFrameLowering();
   bool StackGrowsDown =
-    TFI.getStackGrowthDirection() == TargetFrameInfo::StackGrowsDown;
+    TFI.getStackGrowthDirection() == TargetFrameLowering::StackGrowsDown;
   int64_t Offset = 0;
   unsigned MaxAlign = 0;
 
@@ -227,27 +227,28 @@ bool LocalStackSlotPass::insertFrameReferenceRegisters(MachineFunction &Fn) {
 
   MachineFrameInfo *MFI = Fn.getFrameInfo();
   const TargetRegisterInfo *TRI = Fn.getTarget().getRegisterInfo();
-  const TargetFrameInfo &TFI = *Fn.getTarget().getFrameInfo();
+  const TargetFrameLowering &TFI = *Fn.getTarget().getFrameLowering();
   bool StackGrowsDown =
-    TFI.getStackGrowthDirection() == TargetFrameInfo::StackGrowsDown;
-  MachineBasicBlock::iterator InsertionPt = Fn.begin()->begin();
+    TFI.getStackGrowthDirection() == TargetFrameLowering::StackGrowsDown;
 
   // Collect all of the instructions in the block that reference
   // a frame index. Also store the frame index referenced to ease later
   // lookup. (For any insn that has more than one FI reference, we arbitrarily
   // choose the first one).
   SmallVector<FrameRef, 64> FrameReferenceInsns;
-  // A base register definition is a register+offset pair.
-  SmallVector<std::pair<unsigned, int64_t>, 8> BaseRegisters;
 
+  // A base register definition is a register + offset pair.
+  SmallVector<std::pair<unsigned, int64_t>, 8> BaseRegisters;
 
   for (MachineFunction::iterator BB = Fn.begin(), E = Fn.end(); BB != E; ++BB) {
     for (MachineBasicBlock::iterator I = BB->begin(); I != BB->end(); ++I) {
       MachineInstr *MI = I;
+
       // Debug value instructions can't be out of range, so they don't need
       // any updates.
       if (MI->isDebugValue())
         continue;
+
       // For now, allocate the base register(s) within the basic block
       // where they're used, and don't try to keep them around outside
       // of that. It may be beneficial to try sharing them more broadly
@@ -268,11 +269,13 @@ bool LocalStackSlotPass::insertFrameReferenceRegisters(MachineFunction &Fn) {
       }
     }
   }
+
   // Sort the frame references by local offset
   array_pod_sort(FrameReferenceInsns.begin(), FrameReferenceInsns.end());
 
+  MachineBasicBlock *Entry = Fn.begin();
 
-  // Loop throught the frame references and allocate for them as necessary
+  // Loop through the frame references and allocate for them as necessary.
   for (int ref = 0, e = FrameReferenceInsns.size(); ref < e ; ++ref) {
     MachineBasicBlock::iterator I =
       FrameReferenceInsns[ref].getMachineInstr();
@@ -321,10 +324,12 @@ bool LocalStackSlotPass::insertFrameReferenceRegisters(MachineFunction &Fn) {
             DEBUG(dbgs() << "  Materializing base register " << BaseReg <<
                   " at frame local offset " <<
                   LocalOffsets[FrameIdx] + InstrOffset << "\n");
+
             // Tell the target to insert the instruction to initialize
             // the base register.
-            TRI->materializeFrameBaseRegister(InsertionPt, BaseReg,
-                                              FrameIdx, InstrOffset);
+            //            MachineBasicBlock::iterator InsertionPt = Entry->begin();
+            TRI->materializeFrameBaseRegister(Entry, BaseReg, FrameIdx,
+                                              InstrOffset);
 
             // The base register already includes any offset specified
             // by the instruction, so account for that so it doesn't get

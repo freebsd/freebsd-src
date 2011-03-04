@@ -31,7 +31,8 @@ options 	COMPAT_FREEBSD7	# Compatible with FreeBSD7
 options 	DDB		# Support DDB
 options 	DEADLKRES	# Enable the deadlock resolver
 options 	FFS		# Berkeley Fast Filesystem
-options 	FLOWTABLE	# per-cpu routing cache
+#options 	FLOWTABLE	# per-cpu routing cache (removed due to
+				# misaligned access -- see kern/148018)
 options 	GDB		# Support remote GDB
 options 	GEOM_LABEL	# Provides labelization
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel

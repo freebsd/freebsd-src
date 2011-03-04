@@ -23,16 +23,19 @@
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Regex.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Host.h"
-#include "llvm/System/Path.h"
-#include "llvm/System/Program.h"
-#include "llvm/System/Signals.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/Program.h"
+#include "llvm/Support/Signals.h"
+#include "llvm/Support/system_error.h"
+#include <cctype>
 using namespace clang;
 using namespace clang::driver;
 
@@ -181,8 +184,8 @@ static void ExpandArgsFromBuf(const char *Arg,
                               llvm::SmallVectorImpl<const char*> &ArgVector,
                               std::set<std::string> &SavedStrings) {
   const char *FName = Arg + 1;
-  llvm::MemoryBuffer *MemBuf = llvm::MemoryBuffer::getFile(FName);
-  if (!MemBuf) {
+  llvm::OwningPtr<llvm::MemoryBuffer> MemBuf;
+  if (llvm::MemoryBuffer::getFile(FName, MemBuf)) {
     ArgVector.push_back(SaveStringInSet(SavedStrings, Arg));
     return;
   }
@@ -233,7 +236,6 @@ static void ExpandArgsFromBuf(const char *Arg,
     }
     CurArg.push_back(*P);
   }
-  delete MemBuf;
 }
 
 static void ExpandArgv(int argc, const char **argv,
@@ -287,8 +289,9 @@ int main(int argc_, const char **argv_) {
 
   TextDiagnosticPrinter *DiagClient
     = new TextDiagnosticPrinter(llvm::errs(), DiagnosticOptions());
-  DiagClient->setPrefix(Path.getBasename());
-  Diagnostic Diags(DiagClient);
+  DiagClient->setPrefix(llvm::sys::path::stem(Path.str()));
+  llvm::IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
+  Diagnostic Diags(DiagID, DiagClient);
 
 #ifdef CLANG_IS_PRODUCTION
   const bool IsProduction = true;
@@ -308,19 +311,22 @@ int main(int argc_, const char **argv_) {
   // Attempt to find the original path used to invoke the driver, to determine
   // the installed path. We do this manually, because we want to support that
   // path being a symlink.
-  llvm::sys::Path InstalledPath(argv[0]);
+  {
+    llvm::SmallString<128> InstalledPath(argv[0]);
 
-  // Do a PATH lookup, if there are no directory components.
-  if (InstalledPath.getLast() == InstalledPath.str()) {
-    llvm::sys::Path Tmp =
-      llvm::sys::Program::FindProgramByName(InstalledPath.getLast());
-    if (!Tmp.empty())
-      InstalledPath = Tmp;
+    // Do a PATH lookup, if there are no directory components.
+    if (llvm::sys::path::filename(InstalledPath) == InstalledPath) {
+      llvm::sys::Path Tmp = llvm::sys::Program::FindProgramByName(
+        llvm::sys::path::filename(InstalledPath.str()));
+      if (!Tmp.empty())
+        InstalledPath = Tmp.str();
+    }
+    llvm::sys::fs::make_absolute(InstalledPath);
+    InstalledPath = llvm::sys::path::parent_path(InstalledPath);
+    bool exists;
+    if (!llvm::sys::fs::exists(InstalledPath.str(), exists) && exists)
+      TheDriver.setInstalledDir(InstalledPath);
   }
-  InstalledPath.makeAbsolute();
-  InstalledPath.eraseComponent();
-  if (InstalledPath.exists())
-    TheDriver.setInstalledDir(InstalledPath.str());
 
   // Check for ".*++" or ".*++-[^-]*" to determine if we are a C++
   // compiler. This matches things like "c++", "clang++", and "clang++-1.1".
@@ -330,17 +336,21 @@ int main(int argc_, const char **argv_) {
   //
   // We use *argv instead of argv[0] to work around a bogus g++ warning.
   const char *progname = argv_[0];
-  std::string ProgName(llvm::sys::Path(progname).getBasename());
+  std::string ProgName(llvm::sys::path::stem(progname));
   if (llvm::StringRef(ProgName).endswith("++") ||
       llvm::StringRef(ProgName).rsplit('-').first.endswith("++")) {
     TheDriver.CCCIsCXX = true;
-    TheDriver.CCCGenericGCCName = "g++";
   }
 
   // Handle CC_PRINT_OPTIONS and CC_PRINT_OPTIONS_FILE.
   TheDriver.CCPrintOptions = !!::getenv("CC_PRINT_OPTIONS");
   if (TheDriver.CCPrintOptions)
     TheDriver.CCPrintOptionsFilename = ::getenv("CC_PRINT_OPTIONS_FILE");
+
+  // Handle CC_PRINT_HEADERS and CC_PRINT_HEADERS_FILE.
+  TheDriver.CCPrintHeaders = !!::getenv("CC_PRINT_HEADERS");
+  if (TheDriver.CCPrintHeaders)
+    TheDriver.CCPrintHeadersFilename = ::getenv("CC_PRINT_HEADERS_FILE");
 
   // Handle QA_OVERRIDE_GCC3_OPTIONS and CCC_ADD_ARGS, used for editing a
   // command line behind the scenes.

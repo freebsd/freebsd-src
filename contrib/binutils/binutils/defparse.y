@@ -1,25 +1,27 @@
 %{ /* defparse.y - parser for .def files */
 
-/*   Copyright 1995, 1997, 1998, 1999 Free Software Foundation, Inc.
+/*  Copyright 1995, 1997, 1998, 1999, 2001, 2004, 2007
+    Free Software Foundation, Inc.
 
-This file is part of GNU Binutils.
+    This file is part of GNU Binutils.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
+#include "sysdep.h"
 #include "bfd.h"
-#include "bucomm.h"
+#include "libiberty.h"
 #include "dlltool.h"
 %}
 
@@ -28,13 +30,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
   int number;
 };
 
-%token NAME, LIBRARY, DESCRIPTION, STACKSIZE, HEAPSIZE, CODE, DATA
-%token SECTIONS, EXPORTS, IMPORTS, VERSIONK, BASE, CONSTANT
-%token READ WRITE EXECUTE SHARED NONSHARED NONAME
+%token NAME LIBRARY DESCRIPTION STACKSIZE HEAPSIZE CODE DATA
+%token SECTIONS EXPORTS IMPORTS VERSIONK BASE CONSTANT
+%token READ WRITE EXECUTE SHARED NONSHARED NONAME PRIVATE
 %token SINGLE MULTIPLE INITINSTANCE INITGLOBAL TERMINSTANCE TERMGLOBAL
 %token <id> ID
 %token <number> NUMBER
-%type  <number> opt_base opt_ordinal opt_NONAME opt_CONSTANT opt_DATA
+%type  <number> opt_base opt_ordinal opt_NONAME opt_CONSTANT opt_DATA opt_PRIVATE
 %type  <number> attr attr_list opt_number
 %type  <id> opt_name opt_equal_name 
 
@@ -66,8 +68,8 @@ explist:
 	;
 
 expline:
-		ID opt_equal_name opt_ordinal opt_NONAME opt_CONSTANT opt_DATA
-			{ def_exports ($1, $2, $3, $4, $5, $6);}
+		ID opt_equal_name opt_ordinal opt_NONAME opt_CONSTANT opt_DATA opt_PRIVATE
+			{ def_exports ($1, $2, $3, $4, $5, $6, $7);}
 	;
 implist:	
 		implist impline
@@ -130,6 +132,11 @@ opt_NONAME:
 opt_DATA:
 		DATA { $$ = 1; }
 	|	     { $$ = 0; }
+	;
+
+opt_PRIVATE:
+		PRIVATE { $$ = 1; }
+	|		{ $$ = 0; }
 	;
 
 opt_name: ID		{ $$ =$1; }

@@ -73,16 +73,41 @@ START_RELOC_NUMBERS (elf_mips_reloc_type)
   RELOC_NUMBER (R_MIPS_PJUMP, 35)
   RELOC_NUMBER (R_MIPS_RELGOT, 36)
   RELOC_NUMBER (R_MIPS_JALR, 37)
-  RELOC_NUMBER (R_MIPS_max, 38)
+  /* TLS relocations.  */
+  RELOC_NUMBER (R_MIPS_TLS_DTPMOD32, 38)
+  RELOC_NUMBER (R_MIPS_TLS_DTPREL32, 39)
+  RELOC_NUMBER (R_MIPS_TLS_DTPMOD64, 40)
+  RELOC_NUMBER (R_MIPS_TLS_DTPREL64, 41)
+  RELOC_NUMBER (R_MIPS_TLS_GD, 42)
+  RELOC_NUMBER (R_MIPS_TLS_LDM, 43)
+  RELOC_NUMBER (R_MIPS_TLS_DTPREL_HI16, 44)
+  RELOC_NUMBER (R_MIPS_TLS_DTPREL_LO16, 45)
+  RELOC_NUMBER (R_MIPS_TLS_GOTTPREL, 46)
+  RELOC_NUMBER (R_MIPS_TLS_TPREL32, 47)
+  RELOC_NUMBER (R_MIPS_TLS_TPREL64, 48)
+  RELOC_NUMBER (R_MIPS_TLS_TPREL_HI16, 49)
+  RELOC_NUMBER (R_MIPS_TLS_TPREL_LO16, 50)
+  RELOC_NUMBER (R_MIPS_GLOB_DAT, 51)
+  FAKE_RELOC (R_MIPS_max, 52)
   /* These relocs are used for the mips16.  */
+  FAKE_RELOC (R_MIPS16_min, 100)
   RELOC_NUMBER (R_MIPS16_26, 100)
   RELOC_NUMBER (R_MIPS16_GPREL, 101)
-  /* These are GNU extensions to handle embedded-pic.  */
+  RELOC_NUMBER (R_MIPS16_GOT16, 102)
+  RELOC_NUMBER (R_MIPS16_CALL16, 103)
+  RELOC_NUMBER (R_MIPS16_HI16, 104)
+  RELOC_NUMBER (R_MIPS16_LO16, 105)
+  FAKE_RELOC (R_MIPS16_max, 106)
+  /* These relocations are specific to VxWorks.  */
+  RELOC_NUMBER (R_MIPS_COPY, 126)
+  RELOC_NUMBER (R_MIPS_JUMP_SLOT, 127)
+  /* This was a GNU extension used by embedded-PIC.  It was co-opted by
+     mips-linux for exception-handling data.  It is no longer used, but
+     should continue to be supported by the linker for backward
+     compatibility.  (GCC stopped using it in May, 2004.)  */
   RELOC_NUMBER (R_MIPS_PC32, 248)
-  RELOC_NUMBER (R_MIPS_PC64, 249)
+  /* FIXME: this relocation is used internally by gas.  */
   RELOC_NUMBER (R_MIPS_GNU_REL16_S2, 250)
-  RELOC_NUMBER (R_MIPS_GNU_REL_LO16, 251)
-  RELOC_NUMBER (R_MIPS_GNU_REL_HI16, 252)
   /* These are GNU extensions to enable C++ vtable garbage collection.  */
   RELOC_NUMBER (R_MIPS_GNU_VTINHERIT, 253)
   RELOC_NUMBER (R_MIPS_GNU_VTENTRY, 254)
@@ -698,6 +723,13 @@ extern void bfd_mips_elf32_swap_reginfo_out
 
 /* This value is used for a mips16 .text symbol.  */
 #define STO_MIPS16		0xf0
+
+/* This bit is used on Irix to indicate a symbol whose definition
+   is optional - if, at final link time, it cannot be found, no
+   error message should be produced.  */
+#define STO_OPTIONAL		(1 << 2)
+/* A macro to examine the STO_OPTIONAL bit.  */
+#define ELF_MIPS_IS_OPTIONAL(other)	((other) & STO_OPTIONAL)
 
 /* The 64-bit MIPS ELF ABI uses an unusual reloc format.  Each
    relocation entry specifies up to three actual relocations, all at
@@ -974,5 +1006,16 @@ extern void bfd_mips_elf64_swap_reginfo_out
 #define OHWA0_R4KEOP_CHECKED	0x00000001
 #define OHWA0_R4KEOP_CLEAN	0x00000002
 
+
+/* Object attribute tags.  */
+enum
+{
+  /* 0-3 are generic.  */
+  Tag_GNU_MIPS_ABI_FP = 4, /* Value 1 for hard-float -mdouble-float, 2
+			      for hard-float -msingle-float, 3 for
+			      soft-float; 0 for not tagged or not
+			      using any ABIs affected by the
+			      differences.  */
+};
 
 #endif /* _ELF_MIPS_H */

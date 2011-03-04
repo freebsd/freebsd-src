@@ -44,12 +44,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capabilities.h"
 #include "opt_ktrace.h"
 #include "opt_kdtrace.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/capability.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -73,6 +75,10 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 
 #include <machine/cpu.h>
+
+#ifdef VIMAGE
+#include <net/vnet.h>
+#endif
 
 #ifdef XEN
 #include <vm/vm.h>
@@ -126,6 +132,13 @@ userret(struct thread *td, struct trapframe *frame)
 	sched_userret(td);
 	KASSERT(td->td_locks == 0,
 	    ("userret: Returning with %d locks held.", td->td_locks));
+#ifdef VIMAGE
+	/* Unfortunately td_vnet_lpush needs VNET_DEBUG. */
+	VNET_ASSERT(curvnet == NULL,
+	    ("%s: Returning on td %p (pid %d, %s) with vnet %p set in %s",
+	    __func__, td, p->p_pid, td->td_name, curvnet,
+	    (td->td_vnet_lpush != NULL) ? td->td_vnet_lpush : "N/A"));
+#endif
 #ifdef XEN
 	PT_UPDATES_FLUSH();
 #endif
@@ -299,6 +312,19 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 			if (error != 0)
 				goto retval;
 		}
+
+#ifdef CAPABILITIES
+		/*
+		 * In capability mode, we only allow access to system calls
+		 * flagged with SYF_CAPENABLED.
+		 */
+		if (IN_CAPABILITY_MODE(td) &&
+		    !(sa->callp->sy_flags & SYF_CAPENABLED)) {
+			error = ECAPMODE;
+			goto retval;
+		}
+#endif
+
 		error = syscall_thread_enter(td, sa->callp);
 		if (error != 0)
 			goto retval;

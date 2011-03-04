@@ -32,9 +32,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capabilities.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -108,6 +110,29 @@ sysarch(td, uap)
 	struct segment_descriptor sd, *sdp;
 
 	AUDIT_ARG_CMD(uap->op);
+
+#ifdef CAPABILITIES
+	/*
+	 * Whitelist of operations which are safe enough for capability mode.
+	 */
+	if (IN_CAPABILITY_MODE(td)) {
+		switch (uap->op) {
+			case I386_GET_LDT:
+			case I386_SET_LDT:
+			case I386_GET_IOPERM:
+			case I386_GET_FSBASE:
+			case I386_SET_FSBASE:
+			case I386_GET_GSBASE:
+			case I386_SET_GSBASE:
+				break;
+
+			case I386_SET_IOPERM:
+			default:
+				return (ECAPMODE);
+		}
+	}
+#endif
+
 	switch (uap->op) {
 	case I386_GET_IOPERM:
 	case I386_SET_IOPERM:

@@ -39,7 +39,7 @@ ENTRY(exect)
 	mflr	%r0
 	std	%r0,16(%r1)
 	stdu	%r1,-48(%r1)
-	bl	PIC_PLT(HIDENAME(cerror))
+	bl	HIDENAME(cerror)
 	nop
 	ld	%r1,0(%r1)
 	ld	%r0,16(%r1)

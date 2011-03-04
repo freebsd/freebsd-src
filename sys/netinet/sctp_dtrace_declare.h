@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2010, by Randall Stewart & Michael Tuexen,
- * All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -55,6 +55,8 @@ SDT_PROBE_DECLARE(sctp, cwnd, net, bl);
 SDT_PROBE_DECLARE(sctp, cwnd, net, ecn);
 /* update at a Packet-Drop -- decrease */
 SDT_PROBE_DECLARE(sctp, cwnd, net, pd);
+/* Rttvar probe declaration */
+SDT_PROBE_DECLARE(sctp, cwnd, net, rttvar);
 
 /* One to track an associations rwnd */
 SDT_PROBE_DECLARE(sctp, rwnd, assoc, val);

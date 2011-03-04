@@ -35,7 +35,8 @@ __FBSDID("$FreeBSD$");
  * Preloaded module support
  */
 
-caddr_t	preload_metadata;
+vm_offset_t preload_addr_relocate = 0;
+caddr_t preload_metadata;
 
 /*
  * Search for the preloaded module (name)
@@ -228,6 +229,28 @@ preload_delete_name(const char *name)
 	    curp += next;
 	}
     }
+}
+
+void *
+preload_fetch_addr(caddr_t mod)
+{
+	caddr_t *mdp;
+
+	mdp = (caddr_t *)preload_search_info(mod, MODINFO_ADDR);
+	if (mdp == NULL)
+		return (NULL);
+	return (*mdp + preload_addr_relocate);
+}
+
+size_t
+preload_fetch_size(caddr_t mod)
+{
+	size_t *mdp;
+
+	mdp = (size_t *)preload_search_info(mod, MODINFO_SIZE);
+	if (mdp == NULL)
+		return (0);
+	return (*mdp);
 }
 
 /* Called from locore on i386.  Convert physical pointers to kvm. Sigh. */

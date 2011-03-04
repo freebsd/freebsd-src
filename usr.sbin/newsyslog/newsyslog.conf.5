@@ -21,7 +21,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd July 23, 2010
+.Dd January 31, 2011
 .Dt NEWSYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -292,6 +292,12 @@ indicates that
 should attempt to save disk space by compressing the rotated
 log file using
 .Xr bzip2 1 .
+.It Cm X
+indicates that
+.Xr newsyslog 8
+should attempt to save disk space by compressing the rotated
+log file using
+.Xr xz 1 .
 .It Cm N
 indicates that there is no process which needs to be signaled
 when this log file is rotated.
@@ -346,6 +352,7 @@ signal will be sent.
 .Sh SEE ALSO
 .Xr bzip2 1 ,
 .Xr gzip 1 ,
+.Xr xz 1 ,
 .Xr syslog 3 ,
 .Xr chown 8 ,
 .Xr newsyslog 8 ,

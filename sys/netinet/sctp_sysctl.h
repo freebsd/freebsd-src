@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,7 +45,7 @@ struct sctp_sysctl {
 	uint32_t sctp_auto_asconf;
 	uint32_t sctp_multiple_asconfs;
 	uint32_t sctp_ecn_enable;
-	uint32_t sctp_ecn_nonce;
+	uint32_t sctp_fr_max_burst_default;
 	uint32_t sctp_strict_sacks;
 #if !defined(SCTP_WITH_NO_CSUM)
 	uint32_t sctp_no_csum_on_loopback;
@@ -102,6 +104,9 @@ struct sctp_sysctl {
 	uint32_t sctp_mobility_base;
 	uint32_t sctp_mobility_fasthandoff;
 	uint32_t sctp_inits_include_nat_friendly;
+	uint32_t sctp_rttvar_bw;
+	uint32_t sctp_rttvar_rtt;
+	uint32_t sctp_rttvar_eqret;
 #if defined(SCTP_LOCAL_TRACE_BUF)
 	struct sctp_log sctp_log;
 #endif
@@ -152,12 +157,6 @@ struct sctp_sysctl {
 #define SCTPCTL_ECN_ENABLE_MAX		1
 #define SCTPCTL_ECN_ENABLE_DEFAULT	1
 
-/* ecn_nonce: Enable SCTP ECN Nonce */
-#define SCTPCTL_ECN_NONCE_DESC		"Enable SCTP ECN Nonce"
-#define SCTPCTL_ECN_NONCE_MIN		0
-#define SCTPCTL_ECN_NONCE_MAX		1
-#define SCTPCTL_ECN_NONCE_DEFAULT	0
-
 /* strict_sacks: Enable SCTP Strict SACK checking */
 #define SCTPCTL_STRICT_SACKS_DESC	"Enable SCTP Strict SACK checking"
 #define SCTPCTL_STRICT_SACKS_MIN	0
@@ -188,19 +187,26 @@ struct sctp_sysctl {
 #define SCTPCTL_MAXBURST_MAX		0xFFFFFFFF
 #define SCTPCTL_MAXBURST_DEFAULT	SCTP_DEF_MAX_BURST
 
+/* fr_maxburst: Default max burst for sctp endpoints when fast retransmitting */
+#define SCTPCTL_FRMAXBURST_DESC		"Default fr max burst for sctp endpoints"
+#define SCTPCTL_FRMAXBURST_MIN		0
+#define SCTPCTL_FRMAXBURST_MAX		0xFFFFFFFF
+#define SCTPCTL_FRMAXBURST_DEFAULT	SCTP_DEF_FRMAX_BURST
+
+
 /* maxchunks: Default max chunks on queue per asoc */
 #define SCTPCTL_MAXCHUNKS_DESC		"Default max chunks on queue per asoc"
 #define SCTPCTL_MAXCHUNKS_MIN		0
 #define SCTPCTL_MAXCHUNKS_MAX		0xFFFFFFFF
 #define SCTPCTL_MAXCHUNKS_DEFAULT	SCTP_ASOC_MAX_CHUNKS_ON_QUEUE
 
-/* tcbhashsize: Tuneable for Hash table sizes */
+/* tcbhashsize: Tunable for Hash table sizes */
 #define SCTPCTL_TCBHASHSIZE_DESC	"Tunable for TCB hash table sizes"
 #define SCTPCTL_TCBHASHSIZE_MIN		1
 #define SCTPCTL_TCBHASHSIZE_MAX		0xFFFFFFFF
 #define SCTPCTL_TCBHASHSIZE_DEFAULT	SCTP_TCBHASHSIZE
 
-/* pcbhashsize: Tuneable for PCB Hash table sizes */
+/* pcbhashsize: Tunable for PCB Hash table sizes */
 #define SCTPCTL_PCBHASHSIZE_DESC	"Tunable for PCB hash table sizes"
 #define SCTPCTL_PCBHASHSIZE_MIN		1
 #define SCTPCTL_PCBHASHSIZE_MAX		0xFFFFFFFF
@@ -212,8 +218,8 @@ struct sctp_sysctl {
 #define SCTPCTL_MIN_SPLIT_POINT_MAX	0xFFFFFFFF
 #define SCTPCTL_MIN_SPLIT_POINT_DEFAULT	SCTP_DEFAULT_SPLIT_POINT_MIN
 
-/* chunkscale: Tuneable for Scaling of number of chunks and messages */
-#define SCTPCTL_CHUNKSCALE_DESC		"Tuneable for Scaling of number of chunks and messages"
+/* chunkscale: Tunable for Scaling of number of chunks and messages */
+#define SCTPCTL_CHUNKSCALE_DESC		"Tunable for Scaling of number of chunks and messages"
 #define SCTPCTL_CHUNKSCALE_MIN		1
 #define SCTPCTL_CHUNKSCALE_MAX		0xFFFFFFFF
 #define SCTPCTL_CHUNKSCALE_DEFAULT	SCTP_CHUNKQUEUE_SCALE
@@ -408,7 +414,7 @@ struct sctp_sysctl {
 #define SCTPCTL_HB_MAX_BURST_DESC	"Confirmation Heartbeat max burst"
 #define SCTPCTL_HB_MAX_BURST_MIN	1
 #define SCTPCTL_HB_MAX_BURST_MAX	0xFFFFFFFF
-#define SCTPCTL_HB_MAX_BURST_DEFAULT	SCTP_DEF_MAX_BURST
+#define SCTPCTL_HB_MAX_BURST_DEFAULT	SCTP_DEF_HBMAX_BURST
 
 /* abort_at_limit: When one-2-one hits qlimit abort */
 #define SCTPCTL_ABORT_AT_LIMIT_DESC	"When one-2-one hits qlimit abort"
@@ -511,6 +517,23 @@ struct sctp_sysctl {
 #define SCTPCTL_INITIAL_CWND_MIN	0
 #define SCTPCTL_INITIAL_CWND_MAX	0xffffffff
 #define SCTPCTL_INITIAL_CWND_DEFAULT	3
+
+/* rttvar smooth avg for bw calc  */
+#define SCTPCTL_RTTVAR_BW_DESC	"Shift amount for bw smothing on rtt calc"
+#define SCTPCTL_RTTVAR_BW_MIN	0
+#define SCTPCTL_RTTVAR_BW_MAX	32
+#define SCTPCTL_RTTVAR_BW_DEFAULT	4
+
+/* rttvar smooth avg for bw calc  */
+#define SCTPCTL_RTTVAR_RTT_DESC	"Shift amount for rtt smothing on rtt calc"
+#define SCTPCTL_RTTVAR_RTT_MIN	0
+#define SCTPCTL_RTTVAR_RTT_MAX	32
+#define SCTPCTL_RTTVAR_RTT_DEFAULT	5
+
+#define SCTPCTL_RTTVAR_EQRET_DESC	"When rtt and bw are unchanged return what"
+#define SCTPCTL_RTTVAR_EQRET_MIN	0
+#define SCTPCTL_RTTVAR_EQRET_MAX	1
+#define SCTPCTL_RTTVAR_EQRET_DEFAULT	0
 
 #if defined(SCTP_DEBUG)
 /* debug: Configure debug output */

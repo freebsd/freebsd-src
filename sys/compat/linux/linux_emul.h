@@ -55,7 +55,7 @@ struct linux_emuldata {
 	struct linux_emuldata_shared *shared;
 
 	int	pdeath_signal;		/* parent death signal */
-	int	used_requeue;		/* uses deprecated futex op */
+	int	flags;			/* different emuldata flags */
 
 	struct	linux_robust_list_head	*robust_futexes;
 
@@ -75,6 +75,10 @@ struct linux_emuldata	*em_find(struct proc *, int locked);
 /* for em_find use */
 #define	EMUL_DOLOCK		1
 #define	EMUL_DONTLOCK		0
+
+/* emuldata flags */
+#define	LINUX_XDEPR_REQUEUEOP	0x00000001	/* uses deprecated
+						   futex REQUEUE op*/
 
 int	linux_proc_init(struct thread *, pid_t, int);
 void	linux_proc_exit(void *, struct proc *);

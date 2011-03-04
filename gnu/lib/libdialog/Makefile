@@ -12,7 +12,7 @@ SRCS=		arrows.c buttons.c calendar.c checklist.c columns.c dlg_keys.c \
 INCS=		dialog.h dlg_colors.h dlg_config.h dlg_keys.h
 MAN=		dialog.3
 
-CFLAGS+= 	-I${.CURDIR} -I${DIALOG}
+CFLAGS+= 	-I${.CURDIR} -I${DIALOG} -D_XOPEN_SOURCE_EXTENDED
 .PATH:		${DIALOG}
 WARNS?=		3
 

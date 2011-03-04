@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <nlm/nlm_prot.h>
 #include <nlm/nlm.h>
 
+FEATURE(nfsd, "NFSv4 server");
+
 extern u_int32_t newnfs_true, newnfs_false, newnfs_xdrneg1;
 extern int nfsrv_useacl;
 extern int newnfs_numnfsd;
@@ -1225,7 +1227,8 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
 		if (vp->v_object &&
 		   (vp->v_object->flags & OBJ_MIGHTBEDIRTY)) {
 			VM_OBJECT_LOCK(vp->v_object);
-			vm_object_page_clean(vp->v_object, off / PAGE_SIZE, (cnt + PAGE_MASK) / PAGE_SIZE, OBJPC_SYNC);
+			vm_object_page_clean(vp->v_object, off, off + cnt,
+			    OBJPC_SYNC);
 			VM_OBJECT_UNLOCK(vp->v_object);
 		}
 

@@ -451,7 +451,7 @@ ar5212SetSifsTime(struct ath_hal *ah, u_int us)
 	} else {
 		/* convert to system clocks */
 		OS_REG_WRITE(ah, AR_D_GBL_IFS_SIFS, ath_hal_mac_clks(ah, us-2));
-		ahp->ah_slottime = us;
+		ahp->ah_sifstime = us;
 		return AH_TRUE;
 	}
 }

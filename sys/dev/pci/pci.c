@@ -2549,13 +2549,13 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 			return (barlen);
 	}
 
-	count = 1 << mapsize;
+	count = (pci_addr_t)1 << mapsize;
 	if (basezero || base == pci_mapbase(testval)) {
 		start = 0;	/* Let the parent decide. */
 		end = ~0ULL;
 	} else {
 		start = base;
-		end = base + (1 << mapsize) - 1;
+		end = base + count - 1;
 	}
 	resource_list_add(rl, type, reg, start, end, count);
 
@@ -3056,15 +3056,20 @@ pci_resume(device_t dev)
 static void
 pci_load_vendor_data(void)
 {
-	caddr_t vendordata, info;
+	caddr_t data;
+	void *ptr;
+	size_t sz;
 
-	if ((vendordata = preload_search_by_type("pci_vendor_data")) != NULL) {
-		info = preload_search_info(vendordata, MODINFO_ADDR);
-		pci_vendordata = *(char **)info;
-		info = preload_search_info(vendordata, MODINFO_SIZE);
-		pci_vendordata_size = *(size_t *)info;
-		/* terminate the database */
-		pci_vendordata[pci_vendordata_size] = '\n';
+	data = preload_search_by_type("pci_vendor_data");
+	if (data != NULL) {
+		ptr = preload_fetch_addr(data);
+		sz = preload_fetch_size(data);
+		if (ptr != NULL && sz != 0) {
+			pci_vendordata = ptr;
+			pci_vendordata_size = sz;
+			/* terminate the database */
+			pci_vendordata[pci_vendordata_size] = '\n';
+		}
 	}
 }
 
@@ -3759,7 +3764,7 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	 * situation where we might allocate the excess to
 	 * another driver, which won't work.
 	 */
-	count = 1UL << mapsize;
+	count = (pci_addr_t)1 << mapsize;
 	if (RF_ALIGNMENT(flags) < mapsize)
 		flags = (flags & ~RF_ALIGNMENT_MASK) | RF_ALIGNMENT_LOG2(mapsize);
 	if (PCI_BAR_MEM(testval) && (testval & PCIM_BAR_MEM_PREFETCH))

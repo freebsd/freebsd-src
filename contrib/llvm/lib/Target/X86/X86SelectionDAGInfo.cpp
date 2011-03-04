@@ -32,10 +32,13 @@ X86SelectionDAGInfo::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
                                              SDValue Dst, SDValue Src,
                                              SDValue Size, unsigned Align,
                                              bool isVolatile,
-                                             const Value *DstSV,
-                                             uint64_t DstSVOff) const {
+                                         MachinePointerInfo DstPtrInfo) const {
   ConstantSDNode *ConstantSize = dyn_cast<ConstantSDNode>(Size);
 
+  // If to a segment-relative address space, use the default lowering.
+  if (DstPtrInfo.getAddrSpace() >= 256)
+    return SDValue();
+  
   // If not DWORD aligned or size is more than the threshold, call the library.
   // The libc version is likely to be faster for these cases. It can use the
   // address value and run time information about the CPU.
@@ -133,7 +136,7 @@ X86SelectionDAGInfo::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
                             Dst, InFlag);
   InFlag = Chain.getValue(1);
 
-  SDVTList Tys = DAG.getVTList(MVT::Other, MVT::Flag);
+  SDVTList Tys = DAG.getVTList(MVT::Other, MVT::Glue);
   SDValue Ops[] = { Chain, DAG.getValueType(AVT), InFlag };
   Chain = DAG.getNode(X86ISD::REP_STOS, dl, Tys, Ops, array_lengthof(Ops));
 
@@ -147,7 +150,7 @@ X86SelectionDAGInfo::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
                                                              X86::ECX,
                               Left, InFlag);
     InFlag = Chain.getValue(1);
-    Tys = DAG.getVTList(MVT::Other, MVT::Flag);
+    Tys = DAG.getVTList(MVT::Other, MVT::Glue);
     SDValue Ops[] = { Chain, DAG.getValueType(MVT::i8), InFlag };
     Chain = DAG.getNode(X86ISD::REP_STOS, dl, Tys, Ops, array_lengthof(Ops));
   } else if (BytesLeft) {
@@ -161,7 +164,7 @@ X86SelectionDAGInfo::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
                                       DAG.getConstant(Offset, AddrVT)),
                           Src,
                           DAG.getConstant(BytesLeft, SizeVT),
-                          Align, isVolatile, DstSV, DstSVOff + Offset);
+                          Align, isVolatile, DstPtrInfo.getWithOffset(Offset));
   }
 
   // TODO: Use a Tokenfactor, as in memcpy, instead of a single chain.
@@ -173,10 +176,8 @@ X86SelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
                                         SDValue Chain, SDValue Dst, SDValue Src,
                                         SDValue Size, unsigned Align,
                                         bool isVolatile, bool AlwaysInline,
-                                        const Value *DstSV,
-                                        uint64_t DstSVOff,
-                                        const Value *SrcSV,
-                                        uint64_t SrcSVOff) const {
+                                         MachinePointerInfo DstPtrInfo,
+                                         MachinePointerInfo SrcPtrInfo) const {
   // This requires the copy size to be a constant, preferrably
   // within a subtarget-specific limit.
   ConstantSDNode *ConstantSize = dyn_cast<ConstantSDNode>(Size);
@@ -186,14 +187,29 @@ X86SelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
   if (!AlwaysInline && SizeVal > Subtarget->getMaxInlineSizeThreshold())
     return SDValue();
 
-  /// If not DWORD aligned, call the library.
-  if ((Align & 3) != 0)
+  /// If not DWORD aligned, it is more efficient to call the library.  However
+  /// if calling the library is not allowed (AlwaysInline), then soldier on as
+  /// the code generated here is better than the long load-store sequence we
+  /// would otherwise get.
+  if (!AlwaysInline && (Align & 3) != 0)
     return SDValue();
 
-  // DWORD aligned
-  EVT AVT = MVT::i32;
-  if (Subtarget->is64Bit() && ((Align & 0x7) == 0))  // QWORD aligned
-    AVT = MVT::i64;
+  // If to a segment-relative address space, use the default lowering.
+  if (DstPtrInfo.getAddrSpace() >= 256 ||
+      SrcPtrInfo.getAddrSpace() >= 256)
+    return SDValue();
+
+  MVT AVT;
+  if (Align & 1)
+    AVT = MVT::i8;
+  else if (Align & 2)
+    AVT = MVT::i16;
+  else if (Align & 4)
+    // DWORD aligned
+    AVT = MVT::i32;
+  else
+    // QWORD aligned
+    AVT = Subtarget->is64Bit() ? MVT::i64 : MVT::i32;
 
   unsigned UBytes = AVT.getSizeInBits() / 8;
   unsigned CountVal = SizeVal / UBytes;
@@ -214,7 +230,7 @@ X86SelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
                             Src, InFlag);
   InFlag = Chain.getValue(1);
 
-  SDVTList Tys = DAG.getVTList(MVT::Other, MVT::Flag);
+  SDVTList Tys = DAG.getVTList(MVT::Other, MVT::Glue);
   SDValue Ops[] = { Chain, DAG.getValueType(AVT), InFlag };
   SDValue RepMovs = DAG.getNode(X86ISD::REP_MOVS, dl, Tys, Ops,
                                 array_lengthof(Ops));
@@ -234,8 +250,8 @@ X86SelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
                                                 DAG.getConstant(Offset, SrcVT)),
                                     DAG.getConstant(BytesLeft, SizeVT),
                                     Align, isVolatile, AlwaysInline,
-                                    DstSV, DstSVOff + Offset,
-                                    SrcSV, SrcSVOff + Offset));
+                                    DstPtrInfo.getWithOffset(Offset),
+                                    SrcPtrInfo.getWithOffset(Offset)));
   }
 
   return DAG.getNode(ISD::TokenFactor, dl, MVT::Other,

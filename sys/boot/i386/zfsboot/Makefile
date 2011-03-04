@@ -40,6 +40,11 @@ CFLAGS=	-DBOOTPROG=\"zfsboot\" \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline --param max-inline-insns-single=100
 
+.if ${CC:T:Mclang} == "clang"
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS+=	${.IMPSRC:T:Mzfsldr.S:C/^.+$/-no-integrated-as/}
+.endif
+
 LDFLAGS=-static -N --gc-sections
 
 # Pick up ../Makefile.inc early.
@@ -64,7 +69,7 @@ CLEANFILES+=	zfsboot2 zfsboot.ld zfsboot.ldr zfsboot.bin zfsboot.out \
 # We currently allow 32768 bytes for zfsboot - in practice it could be
 # any size up to 3.5Mb but keeping it fixed size simplifies zfsldr.
 # 
-BOOT2SIZE=	32768
+BOOT2SIZE=	65536
 
 zfsboot2: zfsboot.ld
 	@set -- `ls -l zfsboot.ld`; x=$$((${BOOT2SIZE}-$$5)); \

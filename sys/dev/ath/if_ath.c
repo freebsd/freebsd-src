@@ -89,6 +89,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_hal/ah_devid.h>		/* XXX for softled */
 #include <dev/ath/ath_hal/ah_diagcodes.h>
 
+#include <dev/ath/if_ath_debug.h>
+#include <dev/ath/if_ath_misc.h>
+#include <dev/ath/if_ath_tx.h>
+#include <dev/ath/if_ath_sysctl.h>
+#include <dev/ath/if_ath_keycache.h>
+
 #ifdef ATH_TX99_DIAG
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
@@ -109,15 +115,6 @@ __FBSDID("$FreeBSD$");
  */
 CTASSERT(ATH_BCBUF <= 8);
 
-/* unaligned little endian access */
-#define LE_READ_2(p)							\
-	((u_int16_t)							\
-	 ((((u_int8_t *)(p))[0]      ) | (((u_int8_t *)(p))[1] <<  8)))
-#define LE_READ_4(p)							\
-	((u_int32_t)							\
-	 ((((u_int8_t *)(p))[0]      ) | (((u_int8_t *)(p))[1] <<  8) |	\
-	  (((u_int8_t *)(p))[2] << 16) | (((u_int8_t *)(p))[3] << 24)))
-
 static struct ieee80211vap *ath_vap_create(struct ieee80211com *,
 		    const char name[IFNAMSIZ], int unit, int opmode,
 		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
@@ -127,7 +124,6 @@ static void	ath_init(void *);
 static void	ath_stop_locked(struct ifnet *);
 static void	ath_stop(struct ifnet *);
 static void	ath_start(struct ifnet *);
-static int	ath_reset(struct ifnet *);
 static int	ath_reset_vap(struct ieee80211vap *, u_long);
 static int	ath_media_change(struct ifnet *);
 static void	ath_watchdog(void *);
@@ -135,15 +131,6 @@ static int	ath_ioctl(struct ifnet *, u_long, caddr_t);
 static void	ath_fatal_proc(void *, int);
 static void	ath_bmiss_vap(struct ieee80211vap *);
 static void	ath_bmiss_proc(void *, int);
-static int	ath_keyset(struct ath_softc *, const struct ieee80211_key *,
-			struct ieee80211_node *);
-static int	ath_key_alloc(struct ieee80211vap *,
-			struct ieee80211_key *,
-			ieee80211_keyix *, ieee80211_keyix *);
-static int	ath_key_delete(struct ieee80211vap *,
-			const struct ieee80211_key *);
-static int	ath_key_set(struct ieee80211vap *, const struct ieee80211_key *,
-			const u_int8_t mac[IEEE80211_ADDR_LEN]);
 static void	ath_key_update_begin(struct ieee80211vap *);
 static void	ath_key_update_end(struct ieee80211vap *);
 static void	ath_update_mcast(struct ifnet *);
@@ -182,9 +169,6 @@ static int	ath_tx_setup(struct ath_softc *, int, int);
 static int	ath_wme_update(struct ieee80211com *);
 static void	ath_tx_cleanupq(struct ath_softc *, struct ath_txq *);
 static void	ath_tx_cleanup(struct ath_softc *);
-static void	ath_freetx(struct mbuf *);
-static int	ath_tx_start(struct ath_softc *, struct ieee80211_node *,
-			     struct ath_buf *, struct mbuf *);
 static void	ath_tx_proc_q0(void *, int);
 static void	ath_tx_proc_q0123(void *, int);
 static void	ath_tx_proc(void *, int);
@@ -212,11 +196,7 @@ static void	ath_led_event(struct ath_softc *, int);
 static int	ath_rate_setup(struct ath_softc *, u_int mode);
 static void	ath_setcurmode(struct ath_softc *, enum ieee80211_phymode);
 
-static void	ath_sysctlattach(struct ath_softc *);
-static int	ath_raw_xmit(struct ieee80211_node *,
-			struct mbuf *, const struct ieee80211_bpf_params *);
 static void	ath_announce(struct ath_softc *);
-static void	ath_sysctl_stats_attach(struct ath_softc *sc);
 
 #ifdef IEEE80211_SUPPORT_TDMA
 static void	ath_tdma_settimers(struct ath_softc *sc, u_int32_t nexttbtt,
@@ -291,67 +271,12 @@ static	int ath_bstuck_threshold = 4;		/* max missed beacons */
 SYSCTL_INT(_hw_ath, OID_AUTO, bstuck, CTLFLAG_RW, &ath_bstuck_threshold,
 	    0, "max missed beacon xmits before chip reset");
 
-#ifdef ATH_DEBUG
-enum {
-	ATH_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
-	ATH_DEBUG_XMIT_DESC	= 0x00000002,	/* xmit descriptors */
-	ATH_DEBUG_RECV		= 0x00000004,	/* basic recv operation */
-	ATH_DEBUG_RECV_DESC	= 0x00000008,	/* recv descriptors */
-	ATH_DEBUG_RATE		= 0x00000010,	/* rate control */
-	ATH_DEBUG_RESET		= 0x00000020,	/* reset processing */
-	ATH_DEBUG_MODE		= 0x00000040,	/* mode init/setup */
-	ATH_DEBUG_BEACON 	= 0x00000080,	/* beacon handling */
-	ATH_DEBUG_WATCHDOG 	= 0x00000100,	/* watchdog timeout */
-	ATH_DEBUG_INTR		= 0x00001000,	/* ISR */
-	ATH_DEBUG_TX_PROC	= 0x00002000,	/* tx ISR proc */
-	ATH_DEBUG_RX_PROC	= 0x00004000,	/* rx ISR proc */
-	ATH_DEBUG_BEACON_PROC	= 0x00008000,	/* beacon ISR proc */
-	ATH_DEBUG_CALIBRATE	= 0x00010000,	/* periodic calibration */
-	ATH_DEBUG_KEYCACHE	= 0x00020000,	/* key cache management */
-	ATH_DEBUG_STATE		= 0x00040000,	/* 802.11 state transitions */
-	ATH_DEBUG_NODE		= 0x00080000,	/* node management */
-	ATH_DEBUG_LED		= 0x00100000,	/* led management */
-	ATH_DEBUG_FF		= 0x00200000,	/* fast frames */
-	ATH_DEBUG_DFS		= 0x00400000,	/* DFS processing */
-	ATH_DEBUG_TDMA		= 0x00800000,	/* TDMA processing */
-	ATH_DEBUG_TDMA_TIMER	= 0x01000000,	/* TDMA timer processing */
-	ATH_DEBUG_REGDOMAIN	= 0x02000000,	/* regulatory processing */
-	ATH_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
-	ATH_DEBUG_ANY		= 0xffffffff
-};
-static	int ath_debug = 0;
-SYSCTL_INT(_hw_ath, OID_AUTO, debug, CTLFLAG_RW, &ath_debug,
-	    0, "control debugging printfs");
-TUNABLE_INT("hw.ath.debug", &ath_debug);
-
-#define	IFF_DUMPPKTS(sc, m) \
-	((sc->sc_debug & (m)) || \
-	    (sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
-#define	DPRINTF(sc, m, fmt, ...) do {				\
-	if (sc->sc_debug & (m))					\
-		device_printf(sc->sc_dev, fmt, __VA_ARGS__);		\
-} while (0)
-#define	KEYPRINTF(sc, ix, hk, mac) do {				\
-	if (sc->sc_debug & ATH_DEBUG_KEYCACHE)			\
-		ath_keyprint(sc, __func__, ix, hk, mac);	\
-} while (0)
-static	void ath_printrxbuf(struct ath_softc *, const struct ath_buf *bf,
-	u_int ix, int);
-static	void ath_printtxbuf(struct ath_softc *, const struct ath_buf *bf,
-	u_int qnum, u_int ix, int done);
-#else
-#define	IFF_DUMPPKTS(sc, m) \
-	((sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
-#define	DPRINTF(sc, m, fmt, ...) do {				\
-	(void) sc;						\
-} while (0)
-#define	KEYPRINTF(sc, k, ix, mac) do {				\
-	(void) sc;						\
-} while (0)
-#endif
-
 MALLOC_DEFINE(M_ATHDEV, "athdev", "ath driver dma buffers");
 
+#define	HAL_MODE_HT20 (HAL_MODE_11NG_HT20 | HAL_MODE_11NA_HT20)
+#define	HAL_MODE_HT40 \
+	(HAL_MODE_11NG_HT40PLUS | HAL_MODE_11NG_HT40MINUS | \
+	HAL_MODE_11NA_HT40PLUS | HAL_MODE_11NA_HT40MINUS)
 int
 ath_attach(u_int16_t devid, struct ath_softc *sc)
 {
@@ -680,6 +605,55 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		ic->ic_tdma_update = ath_tdma_update;
 	}
 #endif
+
+	/*
+	 * The if_ath 11n support is completely not ready for normal use.
+	 * Enabling this option will likely break everything and everything.
+	 * Don't think of doing that unless you know what you're doing.
+	 */
+
+#ifdef	DO_ATH_11N
+	/*
+	 * Query HT capabilities
+	 */
+	if (ath_hal_getcapability(ah, HAL_CAP_HT, 0, NULL) == HAL_OK &&
+	    (wmodes & (HAL_MODE_HT20 | HAL_MODE_HT40))) {
+		int rxs, txs;
+
+		device_printf(sc->sc_dev, "[HT] enabling HT modes\n");
+		ic->ic_htcaps = IEEE80211_HTC_HT		/* HT operation */
+			    | IEEE80211_HTC_AMPDU		/* A-MPDU tx/rx */
+			    | IEEE80211_HTC_AMSDU		/* A-MSDU tx/rx */
+			    | IEEE80211_HTCAP_MAXAMSDU_3839	/* max A-MSDU length */
+		/* At the present time, the hardware doesn't support short-GI in 20mhz mode */
+#if 0
+			    | IEEE80211_HTCAP_SHORTGI20		/* short GI in 20MHz */
+#endif
+			    | IEEE80211_HTCAP_SMPS_OFF;		/* SM power save off */
+			;
+
+		if (wmodes & HAL_MODE_HT40)
+			ic->ic_htcaps |= IEEE80211_HTCAP_CHWIDTH40
+			    |  IEEE80211_HTCAP_SHORTGI40;
+
+		/*
+		 * rx/tx stream is not currently used anywhere; it needs to be taken
+		 * into account when negotiating which MCS rates it'll receive and
+		 * what MCS rates are available for TX.
+		 */
+		(void) ath_hal_getcapability(ah, HAL_CAP_STREAMS, 0, &rxs);
+		(void) ath_hal_getcapability(ah, HAL_CAP_STREAMS, 1, &txs);
+
+		ath_hal_getrxchainmask(ah, &sc->sc_rxchainmask);
+		ath_hal_gettxchainmask(ah, &sc->sc_txchainmask);
+
+		ic->ic_txstream = txs;
+		ic->ic_rxstream = rxs;
+
+		device_printf(sc->sc_dev, "[HT] %d RX streams; %d TX streams\n", rxs, txs);
+	}
+#endif
+
 	/*
 	 * Indicate we need the 802.11 header padded to a
 	 * 32-bit boundary for 4-address and QoS frames.
@@ -1666,7 +1640,7 @@ ath_stop(struct ifnet *ifp)
  * operational state.  Used to recover from various errors and
  * to reset or reload hardware state.
  */
-static int
+int
 ath_reset(struct ifnet *ifp)
 {
 	struct ath_softc *sc = ifp->if_softc;
@@ -1727,7 +1701,7 @@ ath_reset_vap(struct ieee80211vap *vap, u_long cmd)
 	return ath_reset(ifp);
 }
 
-static struct ath_buf *
+struct ath_buf *
 _ath_getbuf_locked(struct ath_softc *sc)
 {
 	struct ath_buf *bf;
@@ -1747,7 +1721,7 @@ _ath_getbuf_locked(struct ath_softc *sc)
 	return bf;
 }
 
-static struct ath_buf *
+struct ath_buf *
 ath_getbuf(struct ath_softc *sc)
 {
 	struct ath_buf *bf;
@@ -1763,54 +1737,6 @@ ath_getbuf(struct ath_softc *sc)
 	}
 	ATH_TXBUF_UNLOCK(sc);
 	return bf;
-}
-
-/*
- * Cleanup driver resources when we run out of buffers
- * while processing fragments; return the tx buffers
- * allocated and drop node references.
- */
-static void
-ath_txfrag_cleanup(struct ath_softc *sc,
-	ath_bufhead *frags, struct ieee80211_node *ni)
-{
-	struct ath_buf *bf, *next;
-
-	ATH_TXBUF_LOCK_ASSERT(sc);
-
-	STAILQ_FOREACH_SAFE(bf, frags, bf_list, next) {
-		/* NB: bf assumed clean */
-		STAILQ_REMOVE_HEAD(frags, bf_list);
-		STAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
-		ieee80211_node_decref(ni);
-	}
-}
-
-/*
- * Setup xmit of a fragmented frame.  Allocate a buffer
- * for each frag and bump the node reference count to
- * reflect the held reference to be setup by ath_tx_start.
- */
-static int
-ath_txfrag_setup(struct ath_softc *sc, ath_bufhead *frags,
-	struct mbuf *m0, struct ieee80211_node *ni)
-{
-	struct mbuf *m;
-	struct ath_buf *bf;
-
-	ATH_TXBUF_LOCK(sc);
-	for (m = m0->m_nextpkt; m != NULL; m = m->m_nextpkt) {
-		bf = _ath_getbuf_locked(sc);
-		if (bf == NULL) {	/* out of buffers, cleanup */
-			ath_txfrag_cleanup(sc, frags, ni);
-			break;
-		}
-		ieee80211_node_incref(ni);
-		STAILQ_INSERT_TAIL(frags, bf, bf_list);
-	}
-	ATH_TXBUF_UNLOCK(sc);
-
-	return !STAILQ_EMPTY(frags);
 }
 
 static void
@@ -1917,424 +1843,6 @@ ath_media_change(struct ifnet *ifp)
 	return (error == ENETRESET ? 0 : error);
 }
 
-#ifdef ATH_DEBUG
-static void
-ath_keyprint(struct ath_softc *sc, const char *tag, u_int ix,
-	const HAL_KEYVAL *hk, const u_int8_t mac[IEEE80211_ADDR_LEN])
-{
-	static const char *ciphers[] = {
-		"WEP",
-		"AES-OCB",
-		"AES-CCM",
-		"CKIP",
-		"TKIP",
-		"CLR",
-	};
-	int i, n;
-
-	printf("%s: [%02u] %-7s ", tag, ix, ciphers[hk->kv_type]);
-	for (i = 0, n = hk->kv_len; i < n; i++)
-		printf("%02x", hk->kv_val[i]);
-	printf(" mac %s", ether_sprintf(mac));
-	if (hk->kv_type == HAL_CIPHER_TKIP) {
-		printf(" %s ", sc->sc_splitmic ? "mic" : "rxmic");
-		for (i = 0; i < sizeof(hk->kv_mic); i++)
-			printf("%02x", hk->kv_mic[i]);
-		if (!sc->sc_splitmic) {
-			printf(" txmic ");
-			for (i = 0; i < sizeof(hk->kv_txmic); i++)
-				printf("%02x", hk->kv_txmic[i]);
-		}
-	}
-	printf("\n");
-}
-#endif
-
-/*
- * Set a TKIP key into the hardware.  This handles the
- * potential distribution of key state to multiple key
- * cache slots for TKIP.
- */
-static int
-ath_keyset_tkip(struct ath_softc *sc, const struct ieee80211_key *k,
-	HAL_KEYVAL *hk, const u_int8_t mac[IEEE80211_ADDR_LEN])
-{
-#define	IEEE80211_KEY_XR	(IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV)
-	static const u_int8_t zerobssid[IEEE80211_ADDR_LEN];
-	struct ath_hal *ah = sc->sc_ah;
-
-	KASSERT(k->wk_cipher->ic_cipher == IEEE80211_CIPHER_TKIP,
-		("got a non-TKIP key, cipher %u", k->wk_cipher->ic_cipher));
-	if ((k->wk_flags & IEEE80211_KEY_XR) == IEEE80211_KEY_XR) {
-		if (sc->sc_splitmic) {
-			/*
-			 * TX key goes at first index, RX key at the rx index.
-			 * The hal handles the MIC keys at index+64.
-			 */
-			memcpy(hk->kv_mic, k->wk_txmic, sizeof(hk->kv_mic));
-			KEYPRINTF(sc, k->wk_keyix, hk, zerobssid);
-			if (!ath_hal_keyset(ah, k->wk_keyix, hk, zerobssid))
-				return 0;
-
-			memcpy(hk->kv_mic, k->wk_rxmic, sizeof(hk->kv_mic));
-			KEYPRINTF(sc, k->wk_keyix+32, hk, mac);
-			/* XXX delete tx key on failure? */
-			return ath_hal_keyset(ah, k->wk_keyix+32, hk, mac);
-		} else {
-			/*
-			 * Room for both TX+RX MIC keys in one key cache
-			 * slot, just set key at the first index; the hal
-			 * will handle the rest.
-			 */
-			memcpy(hk->kv_mic, k->wk_rxmic, sizeof(hk->kv_mic));
-			memcpy(hk->kv_txmic, k->wk_txmic, sizeof(hk->kv_txmic));
-			KEYPRINTF(sc, k->wk_keyix, hk, mac);
-			return ath_hal_keyset(ah, k->wk_keyix, hk, mac);
-		}
-	} else if (k->wk_flags & IEEE80211_KEY_XMIT) {
-		if (sc->sc_splitmic) {
-			/*
-			 * NB: must pass MIC key in expected location when
-			 * the keycache only holds one MIC key per entry.
-			 */
-			memcpy(hk->kv_mic, k->wk_txmic, sizeof(hk->kv_txmic));
-		} else
-			memcpy(hk->kv_txmic, k->wk_txmic, sizeof(hk->kv_txmic));
-		KEYPRINTF(sc, k->wk_keyix, hk, mac);
-		return ath_hal_keyset(ah, k->wk_keyix, hk, mac);
-	} else if (k->wk_flags & IEEE80211_KEY_RECV) {
-		memcpy(hk->kv_mic, k->wk_rxmic, sizeof(hk->kv_mic));
-		KEYPRINTF(sc, k->wk_keyix, hk, mac);
-		return ath_hal_keyset(ah, k->wk_keyix, hk, mac);
-	}
-	return 0;
-#undef IEEE80211_KEY_XR
-}
-
-/*
- * Set a net80211 key into the hardware.  This handles the
- * potential distribution of key state to multiple key
- * cache slots for TKIP with hardware MIC support.
- */
-static int
-ath_keyset(struct ath_softc *sc, const struct ieee80211_key *k,
-	struct ieee80211_node *bss)
-{
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
-	static const u_int8_t ciphermap[] = {
-		HAL_CIPHER_WEP,		/* IEEE80211_CIPHER_WEP */
-		HAL_CIPHER_TKIP,	/* IEEE80211_CIPHER_TKIP */
-		HAL_CIPHER_AES_OCB,	/* IEEE80211_CIPHER_AES_OCB */
-		HAL_CIPHER_AES_CCM,	/* IEEE80211_CIPHER_AES_CCM */
-		(u_int8_t) -1,		/* 4 is not allocated */
-		HAL_CIPHER_CKIP,	/* IEEE80211_CIPHER_CKIP */
-		HAL_CIPHER_CLR,		/* IEEE80211_CIPHER_NONE */
-	};
-	struct ath_hal *ah = sc->sc_ah;
-	const struct ieee80211_cipher *cip = k->wk_cipher;
-	u_int8_t gmac[IEEE80211_ADDR_LEN];
-	const u_int8_t *mac;
-	HAL_KEYVAL hk;
-
-	memset(&hk, 0, sizeof(hk));
-	/*
-	 * Software crypto uses a "clear key" so non-crypto
-	 * state kept in the key cache are maintained and
-	 * so that rx frames have an entry to match.
-	 */
-	if ((k->wk_flags & IEEE80211_KEY_SWCRYPT) == 0) {
-		KASSERT(cip->ic_cipher < N(ciphermap),
-			("invalid cipher type %u", cip->ic_cipher));
-		hk.kv_type = ciphermap[cip->ic_cipher];
-		hk.kv_len = k->wk_keylen;
-		memcpy(hk.kv_val, k->wk_key, k->wk_keylen);
-	} else
-		hk.kv_type = HAL_CIPHER_CLR;
-
-	if ((k->wk_flags & IEEE80211_KEY_GROUP) && sc->sc_mcastkey) {
-		/*
-		 * Group keys on hardware that supports multicast frame
-		 * key search use a MAC that is the sender's address with
-		 * the high bit set instead of the app-specified address.
-		 */
-		IEEE80211_ADDR_COPY(gmac, bss->ni_macaddr);
-		gmac[0] |= 0x80;
-		mac = gmac;
-	} else
-		mac = k->wk_macaddr;
-
-	if (hk.kv_type == HAL_CIPHER_TKIP &&
-	    (k->wk_flags & IEEE80211_KEY_SWMIC) == 0) {
-		return ath_keyset_tkip(sc, k, &hk, mac);
-	} else {
-		KEYPRINTF(sc, k->wk_keyix, &hk, mac);
-		return ath_hal_keyset(ah, k->wk_keyix, &hk, mac);
-	}
-#undef N
-}
-
-/*
- * Allocate tx/rx key slots for TKIP.  We allocate two slots for
- * each key, one for decrypt/encrypt and the other for the MIC.
- */
-static u_int16_t
-key_alloc_2pair(struct ath_softc *sc,
-	ieee80211_keyix *txkeyix, ieee80211_keyix *rxkeyix)
-{
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
-	u_int i, keyix;
-
-	KASSERT(sc->sc_splitmic, ("key cache !split"));
-	/* XXX could optimize */
-	for (i = 0; i < N(sc->sc_keymap)/4; i++) {
-		u_int8_t b = sc->sc_keymap[i];
-		if (b != 0xff) {
-			/*
-			 * One or more slots in this byte are free.
-			 */
-			keyix = i*NBBY;
-			while (b & 1) {
-		again:
-				keyix++;
-				b >>= 1;
-			}
-			/* XXX IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV */
-			if (isset(sc->sc_keymap, keyix+32) ||
-			    isset(sc->sc_keymap, keyix+64) ||
-			    isset(sc->sc_keymap, keyix+32+64)) {
-				/* full pair unavailable */
-				/* XXX statistic */
-				if (keyix == (i+1)*NBBY) {
-					/* no slots were appropriate, advance */
-					continue;
-				}
-				goto again;
-			}
-			setbit(sc->sc_keymap, keyix);
-			setbit(sc->sc_keymap, keyix+64);
-			setbit(sc->sc_keymap, keyix+32);
-			setbit(sc->sc_keymap, keyix+32+64);
-			DPRINTF(sc, ATH_DEBUG_KEYCACHE,
-				"%s: key pair %u,%u %u,%u\n",
-				__func__, keyix, keyix+64,
-				keyix+32, keyix+32+64);
-			*txkeyix = keyix;
-			*rxkeyix = keyix+32;
-			return 1;
-		}
-	}
-	DPRINTF(sc, ATH_DEBUG_KEYCACHE, "%s: out of pair space\n", __func__);
-	return 0;
-#undef N
-}
-
-/*
- * Allocate tx/rx key slots for TKIP.  We allocate two slots for
- * each key, one for decrypt/encrypt and the other for the MIC.
- */
-static u_int16_t
-key_alloc_pair(struct ath_softc *sc,
-	ieee80211_keyix *txkeyix, ieee80211_keyix *rxkeyix)
-{
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
-	u_int i, keyix;
-
-	KASSERT(!sc->sc_splitmic, ("key cache split"));
-	/* XXX could optimize */
-	for (i = 0; i < N(sc->sc_keymap)/4; i++) {
-		u_int8_t b = sc->sc_keymap[i];
-		if (b != 0xff) {
-			/*
-			 * One or more slots in this byte are free.
-			 */
-			keyix = i*NBBY;
-			while (b & 1) {
-		again:
-				keyix++;
-				b >>= 1;
-			}
-			if (isset(sc->sc_keymap, keyix+64)) {
-				/* full pair unavailable */
-				/* XXX statistic */
-				if (keyix == (i+1)*NBBY) {
-					/* no slots were appropriate, advance */
-					continue;
-				}
-				goto again;
-			}
-			setbit(sc->sc_keymap, keyix);
-			setbit(sc->sc_keymap, keyix+64);
-			DPRINTF(sc, ATH_DEBUG_KEYCACHE,
-				"%s: key pair %u,%u\n",
-				__func__, keyix, keyix+64);
-			*txkeyix = *rxkeyix = keyix;
-			return 1;
-		}
-	}
-	DPRINTF(sc, ATH_DEBUG_KEYCACHE, "%s: out of pair space\n", __func__);
-	return 0;
-#undef N
-}
-
-/*
- * Allocate a single key cache slot.
- */
-static int
-key_alloc_single(struct ath_softc *sc,
-	ieee80211_keyix *txkeyix, ieee80211_keyix *rxkeyix)
-{
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
-	u_int i, keyix;
-
-	/* XXX try i,i+32,i+64,i+32+64 to minimize key pair conflicts */
-	for (i = 0; i < N(sc->sc_keymap); i++) {
-		u_int8_t b = sc->sc_keymap[i];
-		if (b != 0xff) {
-			/*
-			 * One or more slots are free.
-			 */
-			keyix = i*NBBY;
-			while (b & 1)
-				keyix++, b >>= 1;
-			setbit(sc->sc_keymap, keyix);
-			DPRINTF(sc, ATH_DEBUG_KEYCACHE, "%s: key %u\n",
-				__func__, keyix);
-			*txkeyix = *rxkeyix = keyix;
-			return 1;
-		}
-	}
-	DPRINTF(sc, ATH_DEBUG_KEYCACHE, "%s: out of space\n", __func__);
-	return 0;
-#undef N
-}
-
-/*
- * Allocate one or more key cache slots for a uniacst key.  The
- * key itself is needed only to identify the cipher.  For hardware
- * TKIP with split cipher+MIC keys we allocate two key cache slot
- * pairs so that we can setup separate TX and RX MIC keys.  Note
- * that the MIC key for a TKIP key at slot i is assumed by the
- * hardware to be at slot i+64.  This limits TKIP keys to the first
- * 64 entries.
- */
-static int
-ath_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
-	ieee80211_keyix *keyix, ieee80211_keyix *rxkeyix)
-{
-	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
-
-	/*
-	 * Group key allocation must be handled specially for
-	 * parts that do not support multicast key cache search
-	 * functionality.  For those parts the key id must match
-	 * the h/w key index so lookups find the right key.  On
-	 * parts w/ the key search facility we install the sender's
-	 * mac address (with the high bit set) and let the hardware
-	 * find the key w/o using the key id.  This is preferred as
-	 * it permits us to support multiple users for adhoc and/or
-	 * multi-station operation.
-	 */
-	if (k->wk_keyix != IEEE80211_KEYIX_NONE) {
-		/*
-		 * Only global keys should have key index assigned.
-		 */
-		if (!(&vap->iv_nw_keys[0] <= k &&
-		      k < &vap->iv_nw_keys[IEEE80211_WEP_NKID])) {
-			/* should not happen */
-			DPRINTF(sc, ATH_DEBUG_KEYCACHE,
-				"%s: bogus group key\n", __func__);
-			return 0;
-		}
-		if (vap->iv_opmode != IEEE80211_M_HOSTAP ||
-		    !(k->wk_flags & IEEE80211_KEY_GROUP) ||
-		    !sc->sc_mcastkey) {
-			/*
-			 * XXX we pre-allocate the global keys so
-			 * have no way to check if they've already
-			 * been allocated.
-			 */
-			*keyix = *rxkeyix = k - vap->iv_nw_keys;
-			return 1;
-		}
-		/*
-		 * Group key and device supports multicast key search.
-		 */
-		k->wk_keyix = IEEE80211_KEYIX_NONE;
-	}
-
-	/*
-	 * We allocate two pair for TKIP when using the h/w to do
-	 * the MIC.  For everything else, including software crypto,
-	 * we allocate a single entry.  Note that s/w crypto requires
-	 * a pass-through slot on the 5211 and 5212.  The 5210 does
-	 * not support pass-through cache entries and we map all
-	 * those requests to slot 0.
-	 */
-	if (k->wk_flags & IEEE80211_KEY_SWCRYPT) {
-		return key_alloc_single(sc, keyix, rxkeyix);
-	} else if (k->wk_cipher->ic_cipher == IEEE80211_CIPHER_TKIP &&
-	    (k->wk_flags & IEEE80211_KEY_SWMIC) == 0) {
-		if (sc->sc_splitmic)
-			return key_alloc_2pair(sc, keyix, rxkeyix);
-		else
-			return key_alloc_pair(sc, keyix, rxkeyix);
-	} else {
-		return key_alloc_single(sc, keyix, rxkeyix);
-	}
-}
-
-/*
- * Delete an entry in the key cache allocated by ath_key_alloc.
- */
-static int
-ath_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
-{
-	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
-	struct ath_hal *ah = sc->sc_ah;
-	const struct ieee80211_cipher *cip = k->wk_cipher;
-	u_int keyix = k->wk_keyix;
-
-	DPRINTF(sc, ATH_DEBUG_KEYCACHE, "%s: delete key %u\n", __func__, keyix);
-
-	ath_hal_keyreset(ah, keyix);
-	/*
-	 * Handle split tx/rx keying required for TKIP with h/w MIC.
-	 */
-	if (cip->ic_cipher == IEEE80211_CIPHER_TKIP &&
-	    (k->wk_flags & IEEE80211_KEY_SWMIC) == 0 && sc->sc_splitmic)
-		ath_hal_keyreset(ah, keyix+32);		/* RX key */
-	if (keyix >= IEEE80211_WEP_NKID) {
-		/*
-		 * Don't touch keymap entries for global keys so
-		 * they are never considered for dynamic allocation.
-		 */
-		clrbit(sc->sc_keymap, keyix);
-		if (cip->ic_cipher == IEEE80211_CIPHER_TKIP &&
-		    (k->wk_flags & IEEE80211_KEY_SWMIC) == 0) {
-			clrbit(sc->sc_keymap, keyix+64);	/* TX key MIC */
-			if (sc->sc_splitmic) {
-				/* +32 for RX key, +32+64 for RX key MIC */
-				clrbit(sc->sc_keymap, keyix+32);
-				clrbit(sc->sc_keymap, keyix+32+64);
-			}
-		}
-	}
-	return 1;
-}
-
-/*
- * Set the key cache contents for the specified key.  Key cache
- * slot(s) must already have been allocated by ath_key_alloc.
- */
-static int
-ath_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k,
-	const u_int8_t mac[IEEE80211_ADDR_LEN])
-{
-	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
-
-	return ath_keyset(sc, k, vap->iv_bss);
-}
-
 /*
  * Block/unblock tx+rx processing while a key change is done.
  * We assume the caller serializes key management operations
@@ -2390,7 +1898,6 @@ ath_key_update_end(struct ieee80211vap *vap)
  *   - when operating in mesh mode to detect neighbors
  * o accept control frames:
  *   - when in monitor mode
- * XXX BAR frames for 11n
  * XXX HT protection for 11n
  */
 static u_int32_t
@@ -2429,6 +1936,8 @@ ath_calcrxfilter(struct ath_softc *sc)
 	}
 	if (ic->ic_opmode == IEEE80211_M_MONITOR)
 		rfilt |= HAL_RX_FILTER_CONTROL;
+	if (IEEE80211_IS_CHAN_HT(ic->ic_curchan))
+		rfilt |= HAL_RX_FILTER_COMPBAR;
 	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x, %s if_flags 0x%x\n",
 	    __func__, rfilt, ieee80211_opmode_name[ic->ic_opmode], ifp->if_flags);
 	return rfilt;
@@ -3781,7 +3290,6 @@ ath_rx_proc(void *arg, int npending)
 	struct mbuf *m;
 	struct ieee80211_node *ni;
 	int len, type, ngood;
-	u_int phyerr;
 	HAL_STATUS status;
 	int16_t nf;
 	u_int64_t tsf;
@@ -3835,6 +3343,21 @@ ath_rx_proc(void *arg, int npending)
 		if (status == HAL_EINPROGRESS)
 			break;
 		STAILQ_REMOVE_HEAD(&sc->sc_rxbuf, bf_list);
+
+		/* These aren't specifically errors */
+		if (rs->rs_flags & HAL_RX_GI)
+			sc->sc_stats.ast_rx_halfgi++;
+		if (rs->rs_flags & HAL_RX_2040)
+			sc->sc_stats.ast_rx_2040++;
+		if (rs->rs_flags & HAL_RX_DELIM_CRC_PRE)
+			sc->sc_stats.ast_rx_pre_crc_err++;
+		if (rs->rs_flags & HAL_RX_DELIM_CRC_POST)
+			sc->sc_stats.ast_rx_post_crc_err++;
+		if (rs->rs_flags & HAL_RX_DECRYPT_BUSY)
+			sc->sc_stats.ast_rx_decrypt_busy_err++;
+		if (rs->rs_flags & HAL_RX_HI_RX_CHAIN)
+			sc->sc_stats.ast_rx_hi_rx_chain++;
+
 		if (rs->rs_status != 0) {
 			if (rs->rs_status & HAL_RXERR_CRC)
 				sc->sc_stats.ast_rx_crcerr++;
@@ -3842,8 +3365,9 @@ ath_rx_proc(void *arg, int npending)
 				sc->sc_stats.ast_rx_fifoerr++;
 			if (rs->rs_status & HAL_RXERR_PHY) {
 				sc->sc_stats.ast_rx_phyerr++;
-				phyerr = rs->rs_phyerr & 0x1f;
-				sc->sc_stats.ast_rx_phy[phyerr]++;
+				/* Be suitably paranoid about receiving phy errors out of the stats array bounds */
+				if (rs->rs_phyerr < 64)
+					sc->sc_stats.ast_rx_phy[rs->rs_phyerr]++;
 				goto rx_error;	/* NB: don't count in ierrors */
 			}
 			if (rs->rs_status & HAL_RXERR_DECRYPT) {
@@ -4007,7 +3531,28 @@ rx_accept:
 			rs->rs_keyix == HAL_RXKEYIX_INVALID ?
 				IEEE80211_KEYIX_NONE : rs->rs_keyix);
 		sc->sc_lastrs = rs;
+		/* tag AMPDU aggregates for reorder processing */
+#if 0
+		/*
+		 * Just make sure all frames are tagged for AMPDU reorder checking.
+		 * As there seems to be some situations where single frames aren't
+		 * matching a node but bump the seqno. This needs to be investigated.
+		 */
+		m->m_flags |= M_AMPDU;
+#endif
+
+		/* Keep statistics on the number of aggregate packets received */
+		if (rs->rs_isaggr)
+			sc->sc_stats.ast_rx_agg++;
+
 		if (ni != NULL) {
+			/*
+ 			 * Only punt packets for ampdu reorder processing for 11n nodes;
+ 			 * net80211 enforces that M_AMPDU is only set for 11n nodes.
+ 			 */
+			if (ni->ni_flags & IEEE80211_NODE_HT)
+				m->m_flags |= M_AMPDU;
+
 			/*
 			 * Sending station is known, dispatch directly.
 			 */
@@ -4284,629 +3829,12 @@ ath_tx_cleanup(struct ath_softc *sc)
  * Return h/w rate index for an IEEE rate (w/o basic rate bit)
  * using the current rates in sc_rixmap.
  */
-static __inline int
+int
 ath_tx_findrix(const struct ath_softc *sc, uint8_t rate)
 {
 	int rix = sc->sc_rixmap[rate];
 	/* NB: return lowest rix for invalid rate */
 	return (rix == 0xff ? 0 : rix);
-}
-
-/*
- * Reclaim mbuf resources.  For fragmented frames we
- * need to claim each frag chained with m_nextpkt.
- */
-static void
-ath_freetx(struct mbuf *m)
-{
-	struct mbuf *next;
-
-	do {
-		next = m->m_nextpkt;
-		m->m_nextpkt = NULL;
-		m_freem(m);
-	} while ((m = next) != NULL);
-}
-
-static int
-ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
-{
-	struct mbuf *m;
-	int error;
-
-	/*
-	 * Load the DMA map so any coalescing is done.  This
-	 * also calculates the number of descriptors we need.
-	 */
-	error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m0,
-				     bf->bf_segs, &bf->bf_nseg,
-				     BUS_DMA_NOWAIT);
-	if (error == EFBIG) {
-		/* XXX packet requires too many descriptors */
-		bf->bf_nseg = ATH_TXDESC+1;
-	} else if (error != 0) {
-		sc->sc_stats.ast_tx_busdma++;
-		ath_freetx(m0);
-		return error;
-	}
-	/*
-	 * Discard null packets and check for packets that
-	 * require too many TX descriptors.  We try to convert
-	 * the latter to a cluster.
-	 */
-	if (bf->bf_nseg > ATH_TXDESC) {		/* too many desc's, linearize */
-		sc->sc_stats.ast_tx_linear++;
-		m = m_collapse(m0, M_DONTWAIT, ATH_TXDESC);
-		if (m == NULL) {
-			ath_freetx(m0);
-			sc->sc_stats.ast_tx_nombuf++;
-			return ENOMEM;
-		}
-		m0 = m;
-		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m0,
-					     bf->bf_segs, &bf->bf_nseg,
-					     BUS_DMA_NOWAIT);
-		if (error != 0) {
-			sc->sc_stats.ast_tx_busdma++;
-			ath_freetx(m0);
-			return error;
-		}
-		KASSERT(bf->bf_nseg <= ATH_TXDESC,
-		    ("too many segments after defrag; nseg %u", bf->bf_nseg));
-	} else if (bf->bf_nseg == 0) {		/* null packet, discard */
-		sc->sc_stats.ast_tx_nodata++;
-		ath_freetx(m0);
-		return EIO;
-	}
-	DPRINTF(sc, ATH_DEBUG_XMIT, "%s: m %p len %u\n",
-		__func__, m0, m0->m_pkthdr.len);
-	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREWRITE);
-	bf->bf_m = m0;
-
-	return 0;
-}
-
-static void
-ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	struct ath_desc *ds, *ds0;
-	int i;
-
-	/*
-	 * Fillin the remainder of the descriptor info.
-	 */
-	ds0 = ds = bf->bf_desc;
-	for (i = 0; i < bf->bf_nseg; i++, ds++) {
-		ds->ds_data = bf->bf_segs[i].ds_addr;
-		if (i == bf->bf_nseg - 1)
-			ds->ds_link = 0;
-		else
-			ds->ds_link = bf->bf_daddr + sizeof(*ds) * (i + 1);
-		ath_hal_filltxdesc(ah, ds
-			, bf->bf_segs[i].ds_len	/* segment length */
-			, i == 0		/* first segment */
-			, i == bf->bf_nseg - 1	/* last segment */
-			, ds0			/* first descriptor */
-		);
-		DPRINTF(sc, ATH_DEBUG_XMIT,
-			"%s: %d: %08x %08x %08x %08x %08x %08x\n",
-			__func__, i, ds->ds_link, ds->ds_data,
-			ds->ds_ctl0, ds->ds_ctl1, ds->ds_hw[0], ds->ds_hw[1]);
-	}
-	/*
-	 * Insert the frame on the outbound list and pass it on
-	 * to the hardware.  Multicast frames buffered for power
-	 * save stations and transmit from the CAB queue are stored
-	 * on a s/w only queue and loaded on to the CAB queue in
-	 * the SWBA handler since frames only go out on DTIM and
-	 * to avoid possible races.
-	 */
-	ATH_TXQ_LOCK(txq);
-	KASSERT((bf->bf_flags & ATH_BUF_BUSY) == 0,
-	     ("busy status 0x%x", bf->bf_flags));
-	if (txq->axq_qnum != ATH_TXQ_SWQ) {
-#ifdef IEEE80211_SUPPORT_TDMA
-		int qbusy;
-
-		ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-		qbusy = ath_hal_txqenabled(ah, txq->axq_qnum);
-		if (txq->axq_link == NULL) {
-			/*
-			 * Be careful writing the address to TXDP.  If
-			 * the tx q is enabled then this write will be
-			 * ignored.  Normally this is not an issue but
-			 * when tdma is in use and the q is beacon gated
-			 * this race can occur.  If the q is busy then
-			 * defer the work to later--either when another
-			 * packet comes along or when we prepare a beacon
-			 * frame at SWBA.
-			 */
-			if (!qbusy) {
-				ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
-				txq->axq_flags &= ~ATH_TXQ_PUTPENDING;
-				DPRINTF(sc, ATH_DEBUG_XMIT,
-				    "%s: TXDP[%u] = %p (%p) depth %d\n",
-				    __func__, txq->axq_qnum,
-				    (caddr_t)bf->bf_daddr, bf->bf_desc,
-				    txq->axq_depth);
-			} else {
-				txq->axq_flags |= ATH_TXQ_PUTPENDING;
-				DPRINTF(sc, ATH_DEBUG_TDMA | ATH_DEBUG_XMIT,
-				    "%s: Q%u busy, defer enable\n", __func__,
-				    txq->axq_qnum);
-			}
-		} else {
-			*txq->axq_link = bf->bf_daddr;
-			DPRINTF(sc, ATH_DEBUG_XMIT,
-			    "%s: link[%u](%p)=%p (%p) depth %d\n", __func__,
-			    txq->axq_qnum, txq->axq_link,
-			    (caddr_t)bf->bf_daddr, bf->bf_desc, txq->axq_depth);
-			if ((txq->axq_flags & ATH_TXQ_PUTPENDING) && !qbusy) {
-				/*
-				 * The q was busy when we previously tried
-				 * to write the address of the first buffer
-				 * in the chain.  Since it's not busy now
-				 * handle this chore.  We are certain the
-				 * buffer at the front is the right one since
-				 * axq_link is NULL only when the buffer list
-				 * is/was empty.
-				 */
-				ath_hal_puttxbuf(ah, txq->axq_qnum,
-					STAILQ_FIRST(&txq->axq_q)->bf_daddr);
-				txq->axq_flags &= ~ATH_TXQ_PUTPENDING;
-				DPRINTF(sc, ATH_DEBUG_TDMA | ATH_DEBUG_XMIT,
-				    "%s: Q%u restarted\n", __func__,
-				    txq->axq_qnum);
-			}
-		}
-#else
-		ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-		if (txq->axq_link == NULL) {
-			ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
-			DPRINTF(sc, ATH_DEBUG_XMIT,
-			    "%s: TXDP[%u] = %p (%p) depth %d\n",
-			    __func__, txq->axq_qnum,
-			    (caddr_t)bf->bf_daddr, bf->bf_desc,
-			    txq->axq_depth);
-		} else {
-			*txq->axq_link = bf->bf_daddr;
-			DPRINTF(sc, ATH_DEBUG_XMIT,
-			    "%s: link[%u](%p)=%p (%p) depth %d\n", __func__,
-			    txq->axq_qnum, txq->axq_link,
-			    (caddr_t)bf->bf_daddr, bf->bf_desc, txq->axq_depth);
-		}
-#endif /* IEEE80211_SUPPORT_TDMA */
-		txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
-		ath_hal_txstart(ah, txq->axq_qnum);
-	} else {
-		if (txq->axq_link != NULL) {
-			struct ath_buf *last = ATH_TXQ_LAST(txq);
-			struct ieee80211_frame *wh;
-
-			/* mark previous frame */
-			wh = mtod(last->bf_m, struct ieee80211_frame *);
-			wh->i_fc[1] |= IEEE80211_FC1_MORE_DATA;
-			bus_dmamap_sync(sc->sc_dmat, last->bf_dmamap,
-			    BUS_DMASYNC_PREWRITE);
-
-			/* link descriptor */
-			*txq->axq_link = bf->bf_daddr;
-		}
-		ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-		txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
-	}
-	ATH_TXQ_UNLOCK(txq);
-}
-
-static int
-ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
-    struct mbuf *m0)
-{
-	struct ieee80211vap *vap = ni->ni_vap;
-	struct ath_vap *avp = ATH_VAP(vap);
-	struct ath_hal *ah = sc->sc_ah;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	const struct chanAccParams *cap = &ic->ic_wme.wme_chanParams;
-	int error, iswep, ismcast, isfrag, ismrr;
-	int keyix, hdrlen, pktlen, try0;
-	u_int8_t rix, txrate, ctsrate;
-	u_int8_t cix = 0xff;		/* NB: silence compiler */
-	struct ath_desc *ds;
-	struct ath_txq *txq;
-	struct ieee80211_frame *wh;
-	u_int subtype, flags, ctsduration;
-	HAL_PKT_TYPE atype;
-	const HAL_RATE_TABLE *rt;
-	HAL_BOOL shortPreamble;
-	struct ath_node *an;
-	u_int pri;
-
-	wh = mtod(m0, struct ieee80211_frame *);
-	iswep = wh->i_fc[1] & IEEE80211_FC1_WEP;
-	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
-	isfrag = m0->m_flags & M_FRAG;
-	hdrlen = ieee80211_anyhdrsize(wh);
-	/*
-	 * Packet length must not include any
-	 * pad bytes; deduct them here.
-	 */
-	pktlen = m0->m_pkthdr.len - (hdrlen & 3);
-
-	if (iswep) {
-		const struct ieee80211_cipher *cip;
-		struct ieee80211_key *k;
-
-		/*
-		 * Construct the 802.11 header+trailer for an encrypted
-		 * frame. The only reason this can fail is because of an
-		 * unknown or unsupported cipher/key type.
-		 */
-		k = ieee80211_crypto_encap(ni, m0);
-		if (k == NULL) {
-			/*
-			 * This can happen when the key is yanked after the
-			 * frame was queued.  Just discard the frame; the
-			 * 802.11 layer counts failures and provides
-			 * debugging/diagnostics.
-			 */
-			ath_freetx(m0);
-			return EIO;
-		}
-		/*
-		 * Adjust the packet + header lengths for the crypto
-		 * additions and calculate the h/w key index.  When
-		 * a s/w mic is done the frame will have had any mic
-		 * added to it prior to entry so m0->m_pkthdr.len will
-		 * account for it. Otherwise we need to add it to the
-		 * packet length.
-		 */
-		cip = k->wk_cipher;
-		hdrlen += cip->ic_header;
-		pktlen += cip->ic_header + cip->ic_trailer;
-		/* NB: frags always have any TKIP MIC done in s/w */
-		if ((k->wk_flags & IEEE80211_KEY_SWMIC) == 0 && !isfrag)
-			pktlen += cip->ic_miclen;
-		keyix = k->wk_keyix;
-
-		/* packet header may have moved, reset our local pointer */
-		wh = mtod(m0, struct ieee80211_frame *);
-	} else if (ni->ni_ucastkey.wk_cipher == &ieee80211_cipher_none) {
-		/*
-		 * Use station key cache slot, if assigned.
-		 */
-		keyix = ni->ni_ucastkey.wk_keyix;
-		if (keyix == IEEE80211_KEYIX_NONE)
-			keyix = HAL_TXKEYIX_INVALID;
-	} else
-		keyix = HAL_TXKEYIX_INVALID;
-
-	pktlen += IEEE80211_CRC_LEN;
-
-	/*
-	 * Load the DMA map so any coalescing is done.  This
-	 * also calculates the number of descriptors we need.
-	 */
-	error = ath_tx_dmasetup(sc, bf, m0);
-	if (error != 0)
-		return error;
-	bf->bf_node = ni;			/* NB: held reference */
-	m0 = bf->bf_m;				/* NB: may have changed */
-	wh = mtod(m0, struct ieee80211_frame *);
-
-	/* setup descriptors */
-	ds = bf->bf_desc;
-	rt = sc->sc_currates;
-	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
-
-	/*
-	 * NB: the 802.11 layer marks whether or not we should
-	 * use short preamble based on the current mode and
-	 * negotiated parameters.
-	 */
-	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
-	    (ni->ni_capinfo & IEEE80211_CAPINFO_SHORT_PREAMBLE)) {
-		shortPreamble = AH_TRUE;
-		sc->sc_stats.ast_tx_shortpre++;
-	} else {
-		shortPreamble = AH_FALSE;
-	}
-
-	an = ATH_NODE(ni);
-	flags = HAL_TXDESC_CLRDMASK;		/* XXX needed for crypto errs */
-	ismrr = 0;				/* default no multi-rate retry*/
-	pri = M_WME_GETAC(m0);			/* honor classification */
-	/* XXX use txparams instead of fixed values */
-	/*
-	 * Calculate Atheros packet type from IEEE80211 packet header,
-	 * setup for rate calculations, and select h/w transmit queue.
-	 */
-	switch (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) {
-	case IEEE80211_FC0_TYPE_MGT:
-		subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
-		if (subtype == IEEE80211_FC0_SUBTYPE_BEACON)
-			atype = HAL_PKT_TYPE_BEACON;
-		else if (subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)
-			atype = HAL_PKT_TYPE_PROBE_RESP;
-		else if (subtype == IEEE80211_FC0_SUBTYPE_ATIM)
-			atype = HAL_PKT_TYPE_ATIM;
-		else
-			atype = HAL_PKT_TYPE_NORMAL;	/* XXX */
-		rix = an->an_mgmtrix;
-		txrate = rt->info[rix].rateCode;
-		if (shortPreamble)
-			txrate |= rt->info[rix].shortPreamble;
-		try0 = ATH_TXMGTTRY;
-		flags |= HAL_TXDESC_INTREQ;	/* force interrupt */
-		break;
-	case IEEE80211_FC0_TYPE_CTL:
-		atype = HAL_PKT_TYPE_PSPOLL;	/* stop setting of duration */
-		rix = an->an_mgmtrix;
-		txrate = rt->info[rix].rateCode;
-		if (shortPreamble)
-			txrate |= rt->info[rix].shortPreamble;
-		try0 = ATH_TXMGTTRY;
-		flags |= HAL_TXDESC_INTREQ;	/* force interrupt */
-		break;
-	case IEEE80211_FC0_TYPE_DATA:
-		atype = HAL_PKT_TYPE_NORMAL;		/* default */
-		/*
-		 * Data frames: multicast frames go out at a fixed rate,
-		 * EAPOL frames use the mgmt frame rate; otherwise consult
-		 * the rate control module for the rate to use.
-		 */
-		if (ismcast) {
-			rix = an->an_mcastrix;
-			txrate = rt->info[rix].rateCode;
-			if (shortPreamble)
-				txrate |= rt->info[rix].shortPreamble;
-			try0 = 1;
-		} else if (m0->m_flags & M_EAPOL) {
-			/* XXX? maybe always use long preamble? */
-			rix = an->an_mgmtrix;
-			txrate = rt->info[rix].rateCode;
-			if (shortPreamble)
-				txrate |= rt->info[rix].shortPreamble;
-			try0 = ATH_TXMAXTRY;	/* XXX?too many? */
-		} else {
-			ath_rate_findrate(sc, an, shortPreamble, pktlen,
-				&rix, &try0, &txrate);
-			sc->sc_txrix = rix;		/* for LED blinking */
-			sc->sc_lastdatarix = rix;	/* for fast frames */
-			if (try0 != ATH_TXMAXTRY)
-				ismrr = 1;
-		}
-		if (cap->cap_wmeParams[pri].wmep_noackPolicy)
-			flags |= HAL_TXDESC_NOACK;
-		break;
-	default:
-		if_printf(ifp, "bogus frame type 0x%x (%s)\n",
-			wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK, __func__);
-		/* XXX statistic */
-		ath_freetx(m0);
-		return EIO;
-	}
-	txq = sc->sc_ac2q[pri];
-
-	/*
-	 * When servicing one or more stations in power-save mode
-	 * (or) if there is some mcast data waiting on the mcast
-	 * queue (to prevent out of order delivery) multicast
-	 * frames must be buffered until after the beacon.
-	 */
-	if (ismcast && (vap->iv_ps_sta || avp->av_mcastq.axq_depth))
-		txq = &avp->av_mcastq;
-
-	/*
-	 * Calculate miscellaneous flags.
-	 */
-	if (ismcast) {
-		flags |= HAL_TXDESC_NOACK;	/* no ack on broad/multicast */
-	} else if (pktlen > vap->iv_rtsthreshold &&
-	    (ni->ni_ath_flags & IEEE80211_NODE_FF) == 0) {
-		flags |= HAL_TXDESC_RTSENA;	/* RTS based on frame length */
-		cix = rt->info[rix].controlRate;
-		sc->sc_stats.ast_tx_rts++;
-	}
-	if (flags & HAL_TXDESC_NOACK)		/* NB: avoid double counting */
-		sc->sc_stats.ast_tx_noack++;
-#ifdef IEEE80211_SUPPORT_TDMA
-	if (sc->sc_tdma && (flags & HAL_TXDESC_NOACK) == 0) {
-		DPRINTF(sc, ATH_DEBUG_TDMA,
-		    "%s: discard frame, ACK required w/ TDMA\n", __func__);
-		sc->sc_stats.ast_tdma_ack++;
-		ath_freetx(m0);
-		return EIO;
-	}
-#endif
-
-	/*
-	 * If 802.11g protection is enabled, determine whether
-	 * to use RTS/CTS or just CTS.  Note that this is only
-	 * done for OFDM unicast frames.
-	 */
-	if ((ic->ic_flags & IEEE80211_F_USEPROT) &&
-	    rt->info[rix].phy == IEEE80211_T_OFDM &&
-	    (flags & HAL_TXDESC_NOACK) == 0) {
-		/* XXX fragments must use CCK rates w/ protection */
-		if (ic->ic_protmode == IEEE80211_PROT_RTSCTS)
-			flags |= HAL_TXDESC_RTSENA;
-		else if (ic->ic_protmode == IEEE80211_PROT_CTSONLY)
-			flags |= HAL_TXDESC_CTSENA;
-		if (isfrag) {
-			/*
-			 * For frags it would be desirable to use the
-			 * highest CCK rate for RTS/CTS.  But stations
-			 * farther away may detect it at a lower CCK rate
-			 * so use the configured protection rate instead
-			 * (for now).
-			 */
-			cix = rt->info[sc->sc_protrix].controlRate;
-		} else
-			cix = rt->info[sc->sc_protrix].controlRate;
-		sc->sc_stats.ast_tx_protect++;
-	}
-
-	/*
-	 * Calculate duration.  This logically belongs in the 802.11
-	 * layer but it lacks sufficient information to calculate it.
-	 */
-	if ((flags & HAL_TXDESC_NOACK) == 0 &&
-	    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) != IEEE80211_FC0_TYPE_CTL) {
-		u_int16_t dur;
-		if (shortPreamble)
-			dur = rt->info[rix].spAckDuration;
-		else
-			dur = rt->info[rix].lpAckDuration;
-		if (wh->i_fc[1] & IEEE80211_FC1_MORE_FRAG) {
-			dur += dur;		/* additional SIFS+ACK */
-			KASSERT(m0->m_nextpkt != NULL, ("no fragment"));
-			/*
-			 * Include the size of next fragment so NAV is
-			 * updated properly.  The last fragment uses only
-			 * the ACK duration
-			 */
-			dur += ath_hal_computetxtime(ah, rt,
-					m0->m_nextpkt->m_pkthdr.len,
-					rix, shortPreamble);
-		}
-		if (isfrag) {
-			/*
-			 * Force hardware to use computed duration for next
-			 * fragment by disabling multi-rate retry which updates
-			 * duration based on the multi-rate duration table.
-			 */
-			ismrr = 0;
-			try0 = ATH_TXMGTTRY;	/* XXX? */
-		}
-		*(u_int16_t *)wh->i_dur = htole16(dur);
-	}
-
-	/*
-	 * Calculate RTS/CTS rate and duration if needed.
-	 */
-	ctsduration = 0;
-	if (flags & (HAL_TXDESC_RTSENA|HAL_TXDESC_CTSENA)) {
-		/*
-		 * CTS transmit rate is derived from the transmit rate
-		 * by looking in the h/w rate table.  We must also factor
-		 * in whether or not a short preamble is to be used.
-		 */
-		/* NB: cix is set above where RTS/CTS is enabled */
-		KASSERT(cix != 0xff, ("cix not setup"));
-		ctsrate = rt->info[cix].rateCode;
-		/*
-		 * Compute the transmit duration based on the frame
-		 * size and the size of an ACK frame.  We call into the
-		 * HAL to do the computation since it depends on the
-		 * characteristics of the actual PHY being used.
-		 *
-		 * NB: CTS is assumed the same size as an ACK so we can
-		 *     use the precalculated ACK durations.
-		 */
-		if (shortPreamble) {
-			ctsrate |= rt->info[cix].shortPreamble;
-			if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
-				ctsduration += rt->info[cix].spAckDuration;
-			ctsduration += ath_hal_computetxtime(ah,
-				rt, pktlen, rix, AH_TRUE);
-			if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
-				ctsduration += rt->info[rix].spAckDuration;
-		} else {
-			if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
-				ctsduration += rt->info[cix].lpAckDuration;
-			ctsduration += ath_hal_computetxtime(ah,
-				rt, pktlen, rix, AH_FALSE);
-			if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
-				ctsduration += rt->info[rix].lpAckDuration;
-		}
-		/*
-		 * Must disable multi-rate retry when using RTS/CTS.
-		 */
-		ismrr = 0;
-		try0 = ATH_TXMGTTRY;		/* XXX */
-	} else
-		ctsrate = 0;
-
-	/*
-	 * At this point we are committed to sending the frame
-	 * and we don't need to look at m_nextpkt; clear it in
-	 * case this frame is part of frag chain.
-	 */
-	m0->m_nextpkt = NULL;
-
-	if (IFF_DUMPPKTS(sc, ATH_DEBUG_XMIT))
-		ieee80211_dump_pkt(ic, mtod(m0, const uint8_t *), m0->m_len,
-		    sc->sc_hwmap[rix].ieeerate, -1);
-
-	if (ieee80211_radiotap_active_vap(vap)) {
-		u_int64_t tsf = ath_hal_gettsf64(ah);
-
-		sc->sc_tx_th.wt_tsf = htole64(tsf);
-		sc->sc_tx_th.wt_flags = sc->sc_hwmap[rix].txflags;
-		if (iswep)
-			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
-		if (isfrag)
-			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_FRAG;
-		sc->sc_tx_th.wt_rate = sc->sc_hwmap[rix].ieeerate;
-		sc->sc_tx_th.wt_txpower = ni->ni_txpower;
-		sc->sc_tx_th.wt_antenna = sc->sc_txantenna;
-
-		ieee80211_radiotap_tx(vap, m0);
-	}
-
-	/*
-	 * Determine if a tx interrupt should be generated for
-	 * this descriptor.  We take a tx interrupt to reap
-	 * descriptors when the h/w hits an EOL condition or
-	 * when the descriptor is specifically marked to generate
-	 * an interrupt.  We periodically mark descriptors in this
-	 * way to insure timely replenishing of the supply needed
-	 * for sending frames.  Defering interrupts reduces system
-	 * load and potentially allows more concurrent work to be
-	 * done but if done to aggressively can cause senders to
-	 * backup.
-	 *
-	 * NB: use >= to deal with sc_txintrperiod changing
-	 *     dynamically through sysctl.
-	 */
-	if (flags & HAL_TXDESC_INTREQ) {
-		txq->axq_intrcnt = 0;
-	} else if (++txq->axq_intrcnt >= sc->sc_txintrperiod) {
-		flags |= HAL_TXDESC_INTREQ;
-		txq->axq_intrcnt = 0;
-	}
-
-	/*
-	 * Formulate first tx descriptor with tx controls.
-	 */
-	/* XXX check return value? */
-	ath_hal_setuptxdesc(ah, ds
-		, pktlen		/* packet length */
-		, hdrlen		/* header length */
-		, atype			/* Atheros packet type */
-		, ni->ni_txpower	/* txpower */
-		, txrate, try0		/* series 0 rate/tries */
-		, keyix			/* key cache index */
-		, sc->sc_txantenna	/* antenna mode */
-		, flags			/* flags */
-		, ctsrate		/* rts/cts rate */
-		, ctsduration		/* rts/cts duration */
-	);
-	bf->bf_txflags = flags;
-	/*
-	 * Setup the multi-rate retry state only when we're
-	 * going to use it.  This assumes ath_hal_setuptxdesc
-	 * initializes the descriptors (so we don't have to)
-	 * when the hardware supports multi-rate retry and
-	 * we don't use it.
-	 */
-	if (ismrr)
-		ath_rate_setupxtxdesc(sc, an, ds, shortPreamble, rix);
-
-	ath_tx_handoff(sc, txq, bf);
-	return 0;
 }
 
 /*
@@ -6089,65 +5017,6 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 #undef N
 }
 
-#ifdef ATH_DEBUG
-static void
-ath_printrxbuf(struct ath_softc *sc, const struct ath_buf *bf,
-	u_int ix, int done)
-{
-	const struct ath_rx_status *rs = &bf->bf_status.ds_rxstat;
-	struct ath_hal *ah = sc->sc_ah;
-	const struct ath_desc *ds;
-	int i;
-
-	for (i = 0, ds = bf->bf_desc; i < bf->bf_nseg; i++, ds++) {
-		printf("R[%2u] (DS.V:%p DS.P:%p) L:%08x D:%08x%s\n"
-		       "      %08x %08x %08x %08x\n",
-		    ix, ds, (const struct ath_desc *)bf->bf_daddr + i,
-		    ds->ds_link, ds->ds_data,
-		    !done ? "" : (rs->rs_status == 0) ? " *" : " !",
-		    ds->ds_ctl0, ds->ds_ctl1,
-		    ds->ds_hw[0], ds->ds_hw[1]);
-		if (ah->ah_magic == 0x20065416) {
-			printf("        %08x %08x %08x %08x %08x %08x %08x\n",
-			    ds->ds_hw[2], ds->ds_hw[3], ds->ds_hw[4],
-			    ds->ds_hw[5], ds->ds_hw[6], ds->ds_hw[7],
-			    ds->ds_hw[8]);
-		}
-	}
-}
-
-static void
-ath_printtxbuf(struct ath_softc *sc, const struct ath_buf *bf,
-	u_int qnum, u_int ix, int done)
-{
-	const struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
-	struct ath_hal *ah = sc->sc_ah;
-	const struct ath_desc *ds;
-	int i;
-
-	printf("Q%u[%3u]", qnum, ix);
-	for (i = 0, ds = bf->bf_desc; i < bf->bf_nseg; i++, ds++) {
-		printf(" (DS.V:%p DS.P:%p) L:%08x D:%08x F:04%x%s\n"
-		       "        %08x %08x %08x %08x %08x %08x\n",
-		    ds, (const struct ath_desc *)bf->bf_daddr + i,
-		    ds->ds_link, ds->ds_data, bf->bf_txflags,
-		    !done ? "" : (ts->ts_status == 0) ? " *" : " !",
-		    ds->ds_ctl0, ds->ds_ctl1,
-		    ds->ds_hw[0], ds->ds_hw[1], ds->ds_hw[2], ds->ds_hw[3]);
-		if (ah->ah_magic == 0x20065416) {
-			printf("        %08x %08x %08x %08x %08x %08x %08x %08x\n",
-			    ds->ds_hw[4], ds->ds_hw[5], ds->ds_hw[6],
-			    ds->ds_hw[7], ds->ds_hw[8], ds->ds_hw[9],
-			    ds->ds_hw[10],ds->ds_hw[11]);
-			printf("        %08x %08x %08x %08x %08x %08x %08x %08x\n",
-			    ds->ds_hw[12],ds->ds_hw[13],ds->ds_hw[14],
-			    ds->ds_hw[15],ds->ds_hw[16],ds->ds_hw[17],
-			    ds->ds_hw[18], ds->ds_hw[19]);
-		}
-	}
-}
-#endif /* ATH_DEBUG */
-
 static void
 ath_watchdog(void *arg)
 {
@@ -6315,661 +5184,6 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 	return error;
 #undef IS_RUNNING
-}
-
-static int
-ath_sysctl_slottime(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	u_int slottime = ath_hal_getslottime(sc->sc_ah);
-	int error;
-
-	error = sysctl_handle_int(oidp, &slottime, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return !ath_hal_setslottime(sc->sc_ah, slottime) ? EINVAL : 0;
-}
-
-static int
-ath_sysctl_acktimeout(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	u_int acktimeout = ath_hal_getacktimeout(sc->sc_ah);
-	int error;
-
-	error = sysctl_handle_int(oidp, &acktimeout, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return !ath_hal_setacktimeout(sc->sc_ah, acktimeout) ? EINVAL : 0;
-}
-
-static int
-ath_sysctl_ctstimeout(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	u_int ctstimeout = ath_hal_getctstimeout(sc->sc_ah);
-	int error;
-
-	error = sysctl_handle_int(oidp, &ctstimeout, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return !ath_hal_setctstimeout(sc->sc_ah, ctstimeout) ? EINVAL : 0;
-}
-
-static int
-ath_sysctl_softled(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	int softled = sc->sc_softled;
-	int error;
-
-	error = sysctl_handle_int(oidp, &softled, 0, req);
-	if (error || !req->newptr)
-		return error;
-	softled = (softled != 0);
-	if (softled != sc->sc_softled) {
-		if (softled) {
-			/* NB: handle any sc_ledpin change */
-			ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_ledpin,
-			    HAL_GPIO_MUX_MAC_NETWORK_LED);
-			ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin,
-				!sc->sc_ledon);
-		}
-		sc->sc_softled = softled;
-	}
-	return 0;
-}
-
-static int
-ath_sysctl_ledpin(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	int ledpin = sc->sc_ledpin;
-	int error;
-
-	error = sysctl_handle_int(oidp, &ledpin, 0, req);
-	if (error || !req->newptr)
-		return error;
-	if (ledpin != sc->sc_ledpin) {
-		sc->sc_ledpin = ledpin;
-		if (sc->sc_softled) {
-			ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_ledpin,
-			    HAL_GPIO_MUX_MAC_NETWORK_LED);
-			ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin,
-				!sc->sc_ledon);
-		}
-	}
-	return 0;
-}
-
-static int
-ath_sysctl_txantenna(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	u_int txantenna = ath_hal_getantennaswitch(sc->sc_ah);
-	int error;
-
-	error = sysctl_handle_int(oidp, &txantenna, 0, req);
-	if (!error && req->newptr) {
-		/* XXX assumes 2 antenna ports */
-		if (txantenna < HAL_ANT_VARIABLE || txantenna > HAL_ANT_FIXED_B)
-			return EINVAL;
-		ath_hal_setantennaswitch(sc->sc_ah, txantenna);
-		/*
-		 * NB: with the switch locked this isn't meaningful,
-		 *     but set it anyway so things like radiotap get
-		 *     consistent info in their data.
-		 */
-		sc->sc_txantenna = txantenna;
-	}
-	return error;
-}
-
-static int
-ath_sysctl_rxantenna(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	u_int defantenna = ath_hal_getdefantenna(sc->sc_ah);
-	int error;
-
-	error = sysctl_handle_int(oidp, &defantenna, 0, req);
-	if (!error && req->newptr)
-		ath_hal_setdefantenna(sc->sc_ah, defantenna);
-	return error;
-}
-
-static int
-ath_sysctl_diversity(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	u_int diversity = ath_hal_getdiversity(sc->sc_ah);
-	int error;
-
-	error = sysctl_handle_int(oidp, &diversity, 0, req);
-	if (error || !req->newptr)
-		return error;
-	if (!ath_hal_setdiversity(sc->sc_ah, diversity))
-		return EINVAL;
-	sc->sc_diversity = diversity;
-	return 0;
-}
-
-static int
-ath_sysctl_diag(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	u_int32_t diag;
-	int error;
-
-	if (!ath_hal_getdiag(sc->sc_ah, &diag))
-		return EINVAL;
-	error = sysctl_handle_int(oidp, &diag, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return !ath_hal_setdiag(sc->sc_ah, diag) ? EINVAL : 0;
-}
-
-static int
-ath_sysctl_tpscale(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	struct ifnet *ifp = sc->sc_ifp;
-	u_int32_t scale;
-	int error;
-
-	(void) ath_hal_gettpscale(sc->sc_ah, &scale);
-	error = sysctl_handle_int(oidp, &scale, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return !ath_hal_settpscale(sc->sc_ah, scale) ? EINVAL :
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) ? ath_reset(ifp) : 0;
-}
-
-static int
-ath_sysctl_tpc(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	u_int tpc = ath_hal_gettpc(sc->sc_ah);
-	int error;
-
-	error = sysctl_handle_int(oidp, &tpc, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return !ath_hal_settpc(sc->sc_ah, tpc) ? EINVAL : 0;
-}
-
-static int
-ath_sysctl_rfkill(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ath_hal *ah = sc->sc_ah;
-	u_int rfkill = ath_hal_getrfkill(ah);
-	int error;
-
-	error = sysctl_handle_int(oidp, &rfkill, 0, req);
-	if (error || !req->newptr)
-		return error;
-	if (rfkill == ath_hal_getrfkill(ah))	/* unchanged */
-		return 0;
-	if (!ath_hal_setrfkill(ah, rfkill))
-		return EINVAL;
-	return (ifp->if_drv_flags & IFF_DRV_RUNNING) ? ath_reset(ifp) : 0;
-}
-
-static int
-ath_sysctl_rfsilent(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	u_int rfsilent;
-	int error;
-
-	(void) ath_hal_getrfsilent(sc->sc_ah, &rfsilent);
-	error = sysctl_handle_int(oidp, &rfsilent, 0, req);
-	if (error || !req->newptr)
-		return error;
-	if (!ath_hal_setrfsilent(sc->sc_ah, rfsilent))
-		return EINVAL;
-	sc->sc_rfsilentpin = rfsilent & 0x1c;
-	sc->sc_rfsilentpol = (rfsilent & 0x2) != 0;
-	return 0;
-}
-
-static int
-ath_sysctl_tpack(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	u_int32_t tpack;
-	int error;
-
-	(void) ath_hal_gettpack(sc->sc_ah, &tpack);
-	error = sysctl_handle_int(oidp, &tpack, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return !ath_hal_settpack(sc->sc_ah, tpack) ? EINVAL : 0;
-}
-
-static int
-ath_sysctl_tpcts(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	u_int32_t tpcts;
-	int error;
-
-	(void) ath_hal_gettpcts(sc->sc_ah, &tpcts);
-	error = sysctl_handle_int(oidp, &tpcts, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return !ath_hal_settpcts(sc->sc_ah, tpcts) ? EINVAL : 0;
-}
-
-static int
-ath_sysctl_intmit(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	int intmit, error;
-
-	intmit = ath_hal_getintmit(sc->sc_ah);
-	error = sysctl_handle_int(oidp, &intmit, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return !ath_hal_setintmit(sc->sc_ah, intmit) ? EINVAL : 0;
-}
-
-#ifdef IEEE80211_SUPPORT_TDMA
-static int
-ath_sysctl_setcca(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	int setcca, error;
-
-	setcca = sc->sc_setcca;
-	error = sysctl_handle_int(oidp, &setcca, 0, req);
-	if (error || !req->newptr)
-		return error;
-	sc->sc_setcca = (setcca != 0);
-	return 0;
-}
-#endif /* IEEE80211_SUPPORT_TDMA */
-
-static void
-ath_sysctlattach(struct ath_softc *sc)
-{
-	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
-	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
-	struct ath_hal *ah = sc->sc_ah;
-
-	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"countrycode", CTLFLAG_RD, &sc->sc_eecc, 0,
-		"EEPROM country code");
-	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"regdomain", CTLFLAG_RD, &sc->sc_eerd, 0,
-		"EEPROM regdomain code");
-#ifdef	ATH_DEBUG
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"debug", CTLFLAG_RW, &sc->sc_debug, 0,
-		"control debugging printfs");
-#endif
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"slottime", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_slottime, "I", "802.11 slot time (us)");
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"acktimeout", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_acktimeout, "I", "802.11 ACK timeout (us)");
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"ctstimeout", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_ctstimeout, "I", "802.11 CTS timeout (us)");
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"softled", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_softled, "I", "enable/disable software LED support");
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"ledpin", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_ledpin, "I", "GPIO pin connected to LED");
-	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"ledon", CTLFLAG_RW, &sc->sc_ledon, 0,
-		"setting to turn LED on");
-	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"ledidle", CTLFLAG_RW, &sc->sc_ledidle, 0,
-		"idle time for inactivity LED (ticks)");
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"txantenna", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_txantenna, "I", "antenna switch");
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"rxantenna", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_rxantenna, "I", "default/rx antenna");
-	if (ath_hal_hasdiversity(ah))
-		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"diversity", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			ath_sysctl_diversity, "I", "antenna diversity");
-	sc->sc_txintrperiod = ATH_TXINTR_PERIOD;
-	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"txintrperiod", CTLFLAG_RW, &sc->sc_txintrperiod, 0,
-		"tx descriptor batching");
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"diag", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_diag, "I", "h/w diagnostic control");
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"tpscale", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		ath_sysctl_tpscale, "I", "tx power scaling");
-	if (ath_hal_hastpc(ah)) {
-		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"tpc", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			ath_sysctl_tpc, "I", "enable/disable per-packet TPC");
-		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"tpack", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			ath_sysctl_tpack, "I", "tx power for ack frames");
-		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"tpcts", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			ath_sysctl_tpcts, "I", "tx power for cts frames");
-	}
-	if (ath_hal_hasrfsilent(ah)) {
-		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"rfsilent", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			ath_sysctl_rfsilent, "I", "h/w RF silent config");
-		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"rfkill", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			ath_sysctl_rfkill, "I", "enable/disable RF kill switch");
-	}
-	if (ath_hal_hasintmit(ah)) {
-		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"intmit", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			ath_sysctl_intmit, "I", "interference mitigation");
-	}
-	sc->sc_monpass = HAL_RXERR_DECRYPT | HAL_RXERR_MIC;
-	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"monpass", CTLFLAG_RW, &sc->sc_monpass, 0,
-		"mask of error frames to pass when monitoring");
-#ifdef IEEE80211_SUPPORT_TDMA
-	if (ath_hal_macversion(ah) > 0x78) {
-		sc->sc_tdmadbaprep = 2;
-		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"dbaprep", CTLFLAG_RW, &sc->sc_tdmadbaprep, 0,
-			"TDMA DBA preparation time");
-		sc->sc_tdmaswbaprep = 10;
-		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"swbaprep", CTLFLAG_RW, &sc->sc_tdmaswbaprep, 0,
-			"TDMA SWBA preparation time");
-		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"guardtime", CTLFLAG_RW, &sc->sc_tdmaguard, 0,
-			"TDMA slot guard time");
-		SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"superframe", CTLFLAG_RD, &sc->sc_tdmabintval, 0,
-			"TDMA calculated super frame");
-		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-			"setcca", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-			ath_sysctl_setcca, "I", "enable CCA control");
-	}
-#endif
-}
-
-static int
-ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
-	struct ath_buf *bf, struct mbuf *m0,
-	const struct ieee80211_bpf_params *params)
-{
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ath_hal *ah = sc->sc_ah;
-	struct ieee80211vap *vap = ni->ni_vap;
-	int error, ismcast, ismrr;
-	int keyix, hdrlen, pktlen, try0, txantenna;
-	u_int8_t rix, cix, txrate, ctsrate, rate1, rate2, rate3;
-	struct ieee80211_frame *wh;
-	u_int flags, ctsduration;
-	HAL_PKT_TYPE atype;
-	const HAL_RATE_TABLE *rt;
-	struct ath_desc *ds;
-	u_int pri;
-
-	wh = mtod(m0, struct ieee80211_frame *);
-	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
-	hdrlen = ieee80211_anyhdrsize(wh);
-	/*
-	 * Packet length must not include any
-	 * pad bytes; deduct them here.
-	 */
-	/* XXX honor IEEE80211_BPF_DATAPAD */
-	pktlen = m0->m_pkthdr.len - (hdrlen & 3) + IEEE80211_CRC_LEN;
-
-	if (params->ibp_flags & IEEE80211_BPF_CRYPTO) {
-		const struct ieee80211_cipher *cip;
-		struct ieee80211_key *k;
-
-		/*
-		 * Construct the 802.11 header+trailer for an encrypted
-		 * frame. The only reason this can fail is because of an
-		 * unknown or unsupported cipher/key type.
-		 */
-		k = ieee80211_crypto_encap(ni, m0);
-		if (k == NULL) {
-			/*
-			 * This can happen when the key is yanked after the
-			 * frame was queued.  Just discard the frame; the
-			 * 802.11 layer counts failures and provides
-			 * debugging/diagnostics.
-			 */
-			ath_freetx(m0);
-			return EIO;
-		}
-		/*
-		 * Adjust the packet + header lengths for the crypto
-		 * additions and calculate the h/w key index.  When
-		 * a s/w mic is done the frame will have had any mic
-		 * added to it prior to entry so m0->m_pkthdr.len will
-		 * account for it. Otherwise we need to add it to the
-		 * packet length.
-		 */
-		cip = k->wk_cipher;
-		hdrlen += cip->ic_header;
-		pktlen += cip->ic_header + cip->ic_trailer;
-		/* NB: frags always have any TKIP MIC done in s/w */
-		if ((k->wk_flags & IEEE80211_KEY_SWMIC) == 0)
-			pktlen += cip->ic_miclen;
-		keyix = k->wk_keyix;
-
-		/* packet header may have moved, reset our local pointer */
-		wh = mtod(m0, struct ieee80211_frame *);
-	} else if (ni->ni_ucastkey.wk_cipher == &ieee80211_cipher_none) {
-		/*
-		 * Use station key cache slot, if assigned.
-		 */
-		keyix = ni->ni_ucastkey.wk_keyix;
-		if (keyix == IEEE80211_KEYIX_NONE)
-			keyix = HAL_TXKEYIX_INVALID;
-	} else
-		keyix = HAL_TXKEYIX_INVALID;
-
-	error = ath_tx_dmasetup(sc, bf, m0);
-	if (error != 0)
-		return error;
-	m0 = bf->bf_m;				/* NB: may have changed */
-	wh = mtod(m0, struct ieee80211_frame *);
-	bf->bf_node = ni;			/* NB: held reference */
-
-	flags = HAL_TXDESC_CLRDMASK;		/* XXX needed for crypto errs */
-	flags |= HAL_TXDESC_INTREQ;		/* force interrupt */
-	if (params->ibp_flags & IEEE80211_BPF_RTS)
-		flags |= HAL_TXDESC_RTSENA;
-	else if (params->ibp_flags & IEEE80211_BPF_CTS)
-		flags |= HAL_TXDESC_CTSENA;
-	/* XXX leave ismcast to injector? */
-	if ((params->ibp_flags & IEEE80211_BPF_NOACK) || ismcast)
-		flags |= HAL_TXDESC_NOACK;
-
-	rt = sc->sc_currates;
-	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
-	rix = ath_tx_findrix(sc, params->ibp_rate0);
-	txrate = rt->info[rix].rateCode;
-	if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
-		txrate |= rt->info[rix].shortPreamble;
-	sc->sc_txrix = rix;
-	try0 = params->ibp_try0;
-	ismrr = (params->ibp_try1 != 0);
-	txantenna = params->ibp_pri >> 2;
-	if (txantenna == 0)			/* XXX? */
-		txantenna = sc->sc_txantenna;
-	ctsduration = 0;
-	if (flags & (HAL_TXDESC_CTSENA | HAL_TXDESC_RTSENA)) {
-		cix = ath_tx_findrix(sc, params->ibp_ctsrate);
-		ctsrate = rt->info[cix].rateCode;
-		if (params->ibp_flags & IEEE80211_BPF_SHORTPRE) {
-			ctsrate |= rt->info[cix].shortPreamble;
-			if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
-				ctsduration += rt->info[cix].spAckDuration;
-			ctsduration += ath_hal_computetxtime(ah,
-				rt, pktlen, rix, AH_TRUE);
-			if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
-				ctsduration += rt->info[rix].spAckDuration;
-		} else {
-			if (flags & HAL_TXDESC_RTSENA)		/* SIFS + CTS */
-				ctsduration += rt->info[cix].lpAckDuration;
-			ctsduration += ath_hal_computetxtime(ah,
-				rt, pktlen, rix, AH_FALSE);
-			if ((flags & HAL_TXDESC_NOACK) == 0)	/* SIFS + ACK */
-				ctsduration += rt->info[rix].lpAckDuration;
-		}
-		ismrr = 0;			/* XXX */
-	} else
-		ctsrate = 0;
-	pri = params->ibp_pri & 3;
-	/*
-	 * NB: we mark all packets as type PSPOLL so the h/w won't
-	 * set the sequence number, duration, etc.
-	 */
-	atype = HAL_PKT_TYPE_PSPOLL;
-
-	if (IFF_DUMPPKTS(sc, ATH_DEBUG_XMIT))
-		ieee80211_dump_pkt(ic, mtod(m0, caddr_t), m0->m_len,
-		    sc->sc_hwmap[rix].ieeerate, -1);
-
-	if (ieee80211_radiotap_active_vap(vap)) {
-		u_int64_t tsf = ath_hal_gettsf64(ah);
-
-		sc->sc_tx_th.wt_tsf = htole64(tsf);
-		sc->sc_tx_th.wt_flags = sc->sc_hwmap[rix].txflags;
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
-			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
-		if (m0->m_flags & M_FRAG)
-			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_FRAG;
-		sc->sc_tx_th.wt_rate = sc->sc_hwmap[rix].ieeerate;
-		sc->sc_tx_th.wt_txpower = ni->ni_txpower;
-		sc->sc_tx_th.wt_antenna = sc->sc_txantenna;
-
-		ieee80211_radiotap_tx(vap, m0);
-	}
-
-	/*
-	 * Formulate first tx descriptor with tx controls.
-	 */
-	ds = bf->bf_desc;
-	/* XXX check return value? */
-	ath_hal_setuptxdesc(ah, ds
-		, pktlen		/* packet length */
-		, hdrlen		/* header length */
-		, atype			/* Atheros packet type */
-		, params->ibp_power	/* txpower */
-		, txrate, try0		/* series 0 rate/tries */
-		, keyix			/* key cache index */
-		, txantenna		/* antenna mode */
-		, flags			/* flags */
-		, ctsrate		/* rts/cts rate */
-		, ctsduration		/* rts/cts duration */
-	);
-	bf->bf_txflags = flags;
-
-	if (ismrr) {
-		rix = ath_tx_findrix(sc, params->ibp_rate1);
-		rate1 = rt->info[rix].rateCode;
-		if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
-			rate1 |= rt->info[rix].shortPreamble;
-		if (params->ibp_try2) {
-			rix = ath_tx_findrix(sc, params->ibp_rate2);
-			rate2 = rt->info[rix].rateCode;
-			if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
-				rate2 |= rt->info[rix].shortPreamble;
-		} else
-			rate2 = 0;
-		if (params->ibp_try3) {
-			rix = ath_tx_findrix(sc, params->ibp_rate3);
-			rate3 = rt->info[rix].rateCode;
-			if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
-				rate3 |= rt->info[rix].shortPreamble;
-		} else
-			rate3 = 0;
-		ath_hal_setupxtxdesc(ah, ds
-			, rate1, params->ibp_try1	/* series 1 */
-			, rate2, params->ibp_try2	/* series 2 */
-			, rate3, params->ibp_try3	/* series 3 */
-		);
-	}
-
-	/* NB: no buffered multicast in power save support */
-	ath_tx_handoff(sc, sc->sc_ac2q[pri], bf);
-	return 0;
-}
-
-static int
-ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
-	const struct ieee80211_bpf_params *params)
-{
-	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = ic->ic_ifp;
-	struct ath_softc *sc = ifp->if_softc;
-	struct ath_buf *bf;
-	int error;
-
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid) {
-		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: discard frame, %s", __func__,
-		    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ?
-			"!running" : "invalid");
-		m_freem(m);
-		error = ENETDOWN;
-		goto bad;
-	}
-	/*
-	 * Grab a TX buffer and associated resources.
-	 */
-	bf = ath_getbuf(sc);
-	if (bf == NULL) {
-		sc->sc_stats.ast_tx_nobuf++;
-		m_freem(m);
-		error = ENOBUFS;
-		goto bad;
-	}
-
-	if (params == NULL) {
-		/*
-		 * Legacy path; interpret frame contents to decide
-		 * precisely how to send the frame.
-		 */
-		if (ath_tx_start(sc, ni, bf, m)) {
-			error = EIO;		/* XXX */
-			goto bad2;
-		}
-	} else {
-		/*
-		 * Caller supplied explicit parameters to use in
-		 * sending the frame.
-		 */
-		if (ath_tx_raw_start(sc, ni, bf, m, params)) {
-			error = EIO;		/* XXX */
-			goto bad2;
-		}
-	}
-	sc->sc_wd_timer = 5;
-	ifp->if_opackets++;
-	sc->sc_stats.ast_tx_raw++;
-
-	return 0;
-bad2:
-	ATH_TXBUF_LOCK(sc);
-	STAILQ_INSERT_HEAD(&sc->sc_txbuf, bf, bf_list);
-	ATH_TXBUF_UNLOCK(sc);
-bad:
-	ifp->if_oerrors++;
-	sc->sc_stats.ast_tx_raw_fail++;
-	ieee80211_free_node(ni);
-	return error;
 }
 
 /*
@@ -7365,190 +5579,3 @@ ath_tdma_beacon_send(struct ath_softc *sc, struct ieee80211vap *vap)
 }
 #endif /* IEEE80211_SUPPORT_TDMA */
 
-static int
-ath_sysctl_clearstats(SYSCTL_HANDLER_ARGS)
-{
-	struct ath_softc *sc = arg1;
-	int val = 0;
-	int error;
-
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
-		return error;
-	if (val == 0)
-		return 0;       /* Not clearing the stats is still valid */
-	memset(&sc->sc_stats, 0, sizeof(sc->sc_stats));
-	val = 0;
-	return 0;
-}
-
-static void
-ath_sysctl_stats_attach(struct ath_softc *sc)
-{
-	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
-	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
-	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
- 
-	/* Create "clear" node */
-	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "clear_stats", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-	    ath_sysctl_clearstats, "I", "clear stats");
-
-	/* Create stats node */
-	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
-	    NULL, "Statistics");
-	child = SYSCTL_CHILDREN(tree);
-
-	/* This was generated from if_athioctl.h */
-
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_watchdog", CTLFLAG_RD,
-	    &sc->sc_stats.ast_watchdog, 0, "device reset by watchdog");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_hardware", CTLFLAG_RD,
-	    &sc->sc_stats.ast_hardware, 0, "fatal hardware error interrupts");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_bmiss", CTLFLAG_RD,
-	    &sc->sc_stats.ast_bmiss, 0, "beacon miss interrupts");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_bmiss_phantom", CTLFLAG_RD,
-	    &sc->sc_stats.ast_bmiss_phantom, 0, "beacon miss interrupts");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_bstuck", CTLFLAG_RD,
-	    &sc->sc_stats.ast_bstuck, 0, "beacon stuck interrupts");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rxorn", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rxorn, 0, "rx overrun interrupts");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rxeol", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rxeol, 0, "rx eol interrupts");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_txurn", CTLFLAG_RD,
-	    &sc->sc_stats.ast_txurn, 0, "tx underrun interrupts");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_mib", CTLFLAG_RD,
-	    &sc->sc_stats.ast_mib, 0, "mib interrupts");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_intrcoal", CTLFLAG_RD,
-	    &sc->sc_stats.ast_intrcoal, 0, "interrupts coalesced");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_packets", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_packets, 0, "packet sent on the interface");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_mgmt", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_mgmt, 0, "management frames transmitted");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_discard", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_discard, 0, "frames discarded prior to assoc");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_qstop", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_qstop, 0, "output stopped 'cuz no buffer");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_encap", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_encap, 0, "tx encapsulation failed");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_nonode", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_nonode, 0, "tx failed 'cuz no node");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_nombuf", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_nombuf, 0, "tx failed 'cuz no mbuf");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_nomcl", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_nomcl, 0, "tx failed 'cuz no cluster");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_linear", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_linear, 0, "tx linearized to cluster");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_nodata", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_nodata, 0, "tx discarded empty frame");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_busdma", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_busdma, 0, "tx failed for dma resrcs");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_xretries", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_xretries, 0, "tx failed 'cuz too many retries");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_fifoerr", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_fifoerr, 0, "tx failed 'cuz FIFO underrun");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_filtered", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_filtered, 0, "tx failed 'cuz xmit filtered");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_shortretry", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_shortretry, 0, "tx on-chip retries (short)");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_longretry", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_longretry, 0, "tx on-chip retries (long)");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_badrate", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_badrate, 0, "tx failed 'cuz bogus xmit rate");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_noack", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_noack, 0, "tx frames with no ack marked");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_rts", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_rts, 0, "tx frames with rts enabled");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_cts", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_cts, 0, "tx frames with cts enabled");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_shortpre", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_shortpre, 0, "tx frames with short preamble");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_altrate", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_altrate, 0, "tx frames with alternate rate");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_protect", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_protect, 0, "tx frames with protection");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_ctsburst", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_ctsburst, 0, "tx frames with cts and bursting");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_ctsext", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_ctsext, 0, "tx frames with cts extension");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_nombuf", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rx_nombuf, 0, "rx setup failed 'cuz no mbuf");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_busdma", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rx_busdma, 0, "rx setup failed for dma resrcs");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_orn", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rx_orn, 0, "rx failed 'cuz of desc overrun");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_crcerr", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rx_crcerr, 0, "rx failed 'cuz of bad CRC");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_fifoerr", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rx_fifoerr, 0, "rx failed 'cuz of FIFO overrun");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_badcrypt", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rx_badcrypt, 0, "rx failed 'cuz decryption");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_badmic", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rx_badmic, 0, "rx failed 'cuz MIC failure");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_phyerr", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rx_phyerr, 0, "rx failed 'cuz of PHY err");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_tooshort", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rx_tooshort, 0, "rx discarded 'cuz frame too short");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_toobig", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rx_toobig, 0, "rx discarded 'cuz frame too large");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_packets", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rx_packets, 0, "packet recv on the interface");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_mgt", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rx_mgt, 0, "management frames received");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_ctl", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rx_ctl, 0, "rx discarded 'cuz ctl frame");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_be_xmit", CTLFLAG_RD,
-	    &sc->sc_stats.ast_be_xmit, 0, "beacons transmitted");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_be_nombuf", CTLFLAG_RD,
-	    &sc->sc_stats.ast_be_nombuf, 0, "beacon setup failed 'cuz no mbuf");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_per_cal", CTLFLAG_RD,
-	    &sc->sc_stats.ast_per_cal, 0, "periodic calibration calls");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_per_calfail", CTLFLAG_RD,
-	    &sc->sc_stats.ast_per_calfail, 0, "periodic calibration failed");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_per_rfgain", CTLFLAG_RD,
-	    &sc->sc_stats.ast_per_rfgain, 0, "periodic calibration rfgain reset");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rate_calls", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rate_calls, 0, "rate control checks");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rate_raise", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rate_raise, 0, "rate control raised xmit rate");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rate_drop", CTLFLAG_RD,
-	    &sc->sc_stats.ast_rate_drop, 0, "rate control dropped xmit rate");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_ant_defswitch", CTLFLAG_RD,
-	    &sc->sc_stats.ast_ant_defswitch, 0, "rx/default antenna switches");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_ant_txswitch", CTLFLAG_RD,
-	    &sc->sc_stats.ast_ant_txswitch, 0, "tx antenna switches");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_cabq_xmit", CTLFLAG_RD,
-	    &sc->sc_stats.ast_cabq_xmit, 0, "cabq frames transmitted");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_cabq_busy", CTLFLAG_RD,
-	    &sc->sc_stats.ast_cabq_busy, 0, "cabq found busy");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_raw", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_raw, 0, "tx frames through raw api");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_ff_txok", CTLFLAG_RD,
-	    &sc->sc_stats.ast_ff_txok, 0, "fast frames tx'd successfully");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_ff_txerr", CTLFLAG_RD,
-	    &sc->sc_stats.ast_ff_txerr, 0, "fast frames tx'd w/ error");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_ff_rx", CTLFLAG_RD,
-	    &sc->sc_stats.ast_ff_rx, 0, "fast frames rx'd");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_ff_flush", CTLFLAG_RD,
-	    &sc->sc_stats.ast_ff_flush, 0, "fast frames flushed from staging q");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_qfull", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_qfull, 0, "tx dropped 'cuz of queue limit");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_nobuf", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_nobuf, 0, "tx dropped 'cuz no ath buffer");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tdma_update", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tdma_update, 0, "TDMA slot timing updates");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tdma_timers", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tdma_timers, 0, "TDMA slot update set beacon timers");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tdma_tsf", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tdma_tsf, 0, "TDMA slot update set TSF");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tdma_ack", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tdma_ack, 0, "TDMA tx failed 'cuz ACK required");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_raw_fail", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_raw_fail, 0, "raw tx failed 'cuz h/w down");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_nofrag", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_nofrag, 0, "tx dropped 'cuz no ath frag buffer");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_be_missed", CTLFLAG_RD,
-	    &sc->sc_stats.ast_be_missed, 0, "number of -missed- beacons");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_ani_cal", CTLFLAG_RD,
-	    &sc->sc_stats.ast_ani_cal, 0, "number of ANI polls");
-}

@@ -1,5 +1,6 @@
 /* ELF strtab with GC and suffix merging support.
-   Copyright 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 2001, 2002, 2003, 2005, 2006, 2007
+   Free Software Foundation, Inc.
    Written by Jakub Jelinek <jakub@redhat.com>.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -16,10 +17,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "hashtab.h"
@@ -99,7 +100,8 @@ _bfd_elf_strtab_init (void)
   if (table == NULL)
     return NULL;
 
-  if (! bfd_hash_table_init (&table->table, elf_strtab_hash_newfunc))
+  if (!bfd_hash_table_init (&table->table, elf_strtab_hash_newfunc,
+			    sizeof (struct elf_strtab_hash_entry)))
     {
       free (table);
       return NULL;
@@ -263,8 +265,8 @@ strrevcmp (const void *a, const void *b)
   struct elf_strtab_hash_entry *B = *(struct elf_strtab_hash_entry **) b;
   unsigned int lenA = A->len;
   unsigned int lenB = B->len;
-  const unsigned char *s = A->root.string + lenA - 1;
-  const unsigned char *t = B->root.string + lenB - 1;
+  const unsigned char *s = (const unsigned char *) A->root.string + lenA - 1;
+  const unsigned char *t = (const unsigned char *) B->root.string + lenB - 1;
   int l = lenA < lenB ? lenA : lenB;
 
   while (l)

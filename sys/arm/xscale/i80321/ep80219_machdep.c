@@ -210,6 +210,9 @@ initarm(void *arg, void *arg2)
 	(var) = freemempos;		\
 	memset((char *)(var), 0, ((np) * PAGE_SIZE));
 
+	/* Do basic tuning, hz etc */
+	init_param1();
+
 	while (((freemempos - L1_TABLE_SIZE) & (L1_TABLE_SIZE - 1)) != 0)
 		freemempos -= PAGE_SIZE;
 	valloc_pages(kernel_l1pt, L1_TABLE_SIZE / PAGE_SIZE);
@@ -411,8 +414,6 @@ initarm(void *arg, void *arg2)
 	phys_avail[i++] = 0;
 	phys_avail[i] = 0;
 	
-	/* Do basic tuning, hz etc */
-	init_param1();
 	init_param2(physmem);
 	kdb_init();
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: query.c,v 1.313.20.16.10.3 2010/09/29 00:03:32 marka Exp $ */
+/* $Id: query.c,v 1.313.20.24 2010-09-24 08:09:07 marka Exp $ */
 
 /*! \file */
 
@@ -2796,7 +2796,7 @@ query_addds(ns_client_t *client, dns_db_t *db, dns_dbnode_t *node,
 static void
 query_addwildcardproof(ns_client_t *client, dns_db_t *db,
 		       dns_dbversion_t *version, dns_name_t *name,
-		       isc_boolean_t ispositive)
+		       isc_boolean_t ispositive, isc_boolean_t nodata)
 {
 	isc_buffer_t *dbuf, b;
 	dns_name_t *fname;
@@ -2984,7 +2984,7 @@ query_addwildcardproof(ns_client_t *client, dns_db_t *db,
 			goto cleanup;
 
 		query_findclosestnsec3(wname, db, NULL, client, rdataset,
-				       sigrdataset, fname, ISC_FALSE, NULL);
+				       sigrdataset, fname, nodata, NULL);
 		if (!dns_rdataset_isassociated(rdataset))
 			goto cleanup;
 		query_addrrset(client, &fname, &rdataset, &sigrdataset,
@@ -3087,7 +3087,7 @@ query_addnxrrsetnsec(ns_client_t *client, dns_db_t *db,
 
 	/* XXX */
 	query_addwildcardproof(client, db, version, client->query.qname,
-			       ISC_TRUE);
+			       ISC_TRUE, ISC_FALSE);
 
 	/*
 	 * We'll need some resources...
@@ -4307,7 +4307,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				query_releasename(client, &fname);
 				query_addwildcardproof(client, db, version,
 						       client->query.qname,
-						       ISC_FALSE);
+						       ISC_FALSE, ISC_TRUE);
 			}
 		}
 		if (dns_rdataset_isassociated(rdataset)) {
@@ -4396,7 +4396,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 					       &sigrdataset,
 					       NULL, DNS_SECTION_AUTHORITY);
 			query_addwildcardproof(client, db, version,
-					       client->query.qname, ISC_FALSE);
+					       client->query.qname, ISC_FALSE,
+					       ISC_FALSE);
 		}
 
 		/*
@@ -4715,7 +4716,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 			/*
 			 * We didn't match any rdatasets.
 			 */
-			if (qtype == dns_rdatatype_rrsig &&
+			if ((qtype == dns_rdatatype_rrsig ||
+			     qtype == dns_rdatatype_sig) &&
 			    result == ISC_R_NOMORE) {
 				/*
 				 * XXXRTH  If this is a secure zone and we
@@ -4724,6 +4726,18 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 				 * glue.  Ugh.
 				 */
 				if (!is_zone) {
+					/*
+					 * Note: this is dead code because
+					 * is_zone is always true due to the
+					 * condition above.  But naive
+					 * recursion would cause infinite
+					 * attempts of recursion because
+					 * the answer to (RR)SIG queries
+					 * won't be cached.  Until we figure
+					 * out what we should do and implement
+					 * it we intentionally keep this code
+					 * dead.
+					 */
 					authoritative = ISC_FALSE;
 					dns_rdatasetiter_destroy(&rdsiter);
 					if (RECURSIONOK(client)) {
@@ -4822,7 +4836,7 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 	if (need_wildcardproof && dns_db_issecure(db))
 		query_addwildcardproof(client, db, version,
 				       dns_fixedname_name(&wildcardname),
-				       ISC_TRUE);
+				       ISC_TRUE, ISC_FALSE);
  cleanup:
 	CTRACE("query_find: cleanup");
 	/*
@@ -5189,8 +5203,12 @@ ns_query_start(ns_client_t *client) {
 	/*
 	 * Assume authoritative response until it is known to be
 	 * otherwise.
+	 *
+	 * If "-T noaa" has been set on the command line don't set
+	 * AA on authoritative answers.
 	 */
-	message->flags |= DNS_MESSAGEFLAG_AA;
+	if (!ns_g_noaa)
+		message->flags |= DNS_MESSAGEFLAG_AA;
 
 	/*
 	 * Set AD.  We must clear it if we add non-validated data to a

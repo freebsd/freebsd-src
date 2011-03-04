@@ -1,5 +1,6 @@
 /* ldemul.c -- clearing house for ld emulation states
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000, 2002, 2003
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+   2001, 2002, 2003, 2005, 2007
    Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
@@ -16,12 +17,13 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GLD; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "getopt.h"
+#include "bfdlink.h"
 
 #include "ld.h"
 #include "ldmisc.h"
@@ -32,7 +34,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "ldmain.h"
 #include "ldemul-list.h"
 
-ld_emulation_xfer_type *ld_emulation;
+static ld_emulation_xfer_type *ld_emulation;
 
 void
 ldemul_hll (char *name)
@@ -73,8 +75,7 @@ ldemul_after_allocation (void)
 void
 ldemul_before_allocation (void)
 {
-  if (ld_emulation->before_allocation)
-    ld_emulation->before_allocation ();
+  ld_emulation->before_allocation ();
 }
 
 void
@@ -86,8 +87,7 @@ ldemul_set_output_arch (void)
 void
 ldemul_finish (void)
 {
-  if (ld_emulation->finish)
-    ld_emulation->finish ();
+  ld_emulation->finish ();
 }
 
 void
@@ -120,10 +120,10 @@ ldemul_open_dynamic_archive (const char *arch, search_dirs_type *search,
 }
 
 bfd_boolean
-ldemul_place_orphan (lang_input_statement_type *file, asection *s)
+ldemul_place_orphan (asection *s)
 {
   if (ld_emulation->place_orphan)
-    return (*ld_emulation->place_orphan) (file, s);
+    return (*ld_emulation->place_orphan) (s);
   return FALSE;
 }
 
@@ -210,6 +210,15 @@ after_allocation_default (void)
 void
 before_allocation_default (void)
 {
+  if (!link_info.relocatable)
+    strip_excluded_output_sections ();
+}
+
+void
+finish_default (void)
+{
+  if (!link_info.relocatable)
+    _bfd_fix_excluded_sec_syms (output_bfd, &link_info);
 }
 
 void

@@ -6,7 +6,8 @@ KMOD=		opensolaris
 SRCS=		opensolaris.c		\
 		opensolaris_cmn_err.c	\
 		opensolaris_kmem.c	\
-		opensolaris_misc.c
+		opensolaris_misc.c	\
+		opensolaris_sunddi.c
 
 _A=${.CURDIR}/../../cddl/contrib/opensolaris/common/atomic
 .if exists(${_A}/${MACHINE_CPUARCH}/opensolaris_atomic.S)

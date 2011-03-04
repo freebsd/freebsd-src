@@ -71,7 +71,7 @@ static void
 ar9285AniSetup(struct ath_hal *ah)
 {
 	/* NB: disable ANI for reliable RIFS rx */
-	ar5212AniAttach(ah, AH_NULL, AH_NULL, AH_FALSE);
+	ar5416AniAttach(ah, AH_NULL, AH_NULL, AH_FALSE);
 }
 
 /*
@@ -221,15 +221,27 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 
 	HAL_INI_INIT(&ahp9285->ah_ini_rxgain, ar9280Modes_original_rxgain_v2,
 	    6);
+
+	if (AR_SREV_9285E_20(ah))
+		ath_hal_printf(ah, "[ath] AR9285E_20 detected; using XE TX gain tables\n");
+
 	/* setup txgain table */
 	switch (ath_hal_eepromGet(ah, AR_EEP_TXGAIN_TYPE, AH_NULL)) {
 	case AR5416_EEP_TXGAIN_HIGH_POWER:
-		HAL_INI_INIT(&ahp9285->ah_ini_txgain,
-		    ar9285Modes_high_power_tx_gain_v2, 6);
+		if (AR_SREV_9285E_20(ah))
+			HAL_INI_INIT(&ahp9285->ah_ini_txgain,
+			    ar9285Modes_XE2_0_high_power, 6);
+		else
+			HAL_INI_INIT(&ahp9285->ah_ini_txgain,
+			    ar9285Modes_high_power_tx_gain_v2, 6);
 		break;
 	case AR5416_EEP_TXGAIN_ORIG:
-		HAL_INI_INIT(&ahp9285->ah_ini_txgain,
-		    ar9285Modes_original_tx_gain_v2, 6);
+		if (AR_SREV_9285E_20(ah))
+			HAL_INI_INIT(&ahp9285->ah_ini_txgain,
+			    ar9285Modes_XE2_0_normal_power, 6);
+		else
+			HAL_INI_INIT(&ahp9285->ah_ini_txgain,
+			    ar9285Modes_original_tx_gain_v2, 6);
 		break;
 	default:
 		HALASSERT(AH_FALSE);
@@ -269,6 +281,13 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
 
 	ar9285AniSetup(ah);			/* Anti Noise Immunity */
+
+	/* Setup noise floor min/max/nominal values */
+	AH5416(ah)->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9285_2GHZ;
+	AH5416(ah)->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9285_2GHZ;
+	AH5416(ah)->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9285_2GHZ;
+	/* XXX no 5ghz values? */
+
 	ar5416InitNfHistBuff(AH5416(ah)->ah_cal.nfCalHist);
 
 	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s: return\n", __func__);
@@ -320,17 +339,6 @@ ar9285WriteIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	}
 	regWrites = ath_hal_ini_write(ah, &AH5212(ah)->ah_ini_common,
 	    1, regWrites);
-
-      	OS_REG_SET_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
-
-	if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
-		uint32_t val;
-		val = OS_REG_READ(ah, AR_PCU_MISC_MODE2) &
-			(~AR_PCU_MISC_MODE2_HWWAR1);
-		OS_REG_WRITE(ah, AR_PCU_MISC_MODE2, val);
-		OS_REG_WRITE(ah, 0x9800 + (651 << 2), 0x11);
-	}
-
 }
 
 /*
@@ -351,6 +359,10 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 #if 0
 	pCap->halWowMatchPatternDword = AH_TRUE;
 #endif
+	/* AR9285 has 2 antennas but is a 1x1 stream device */
+	pCap->halTxStreams = 2;
+	pCap->halRxStreams = 2;
+
 	pCap->halCSTSupport = AH_TRUE;
 	pCap->halRifsRxSupport = AH_TRUE;
 	pCap->halRifsTxSupport = AH_TRUE;
@@ -361,9 +373,7 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halBtCoexSupport = AH_TRUE;
 #endif
 	pCap->halAutoSleepSupport = AH_FALSE;	/* XXX? */
-#if 0
 	pCap->hal4kbSplitTransSupport = AH_FALSE;
-#endif
 	pCap->halRxStbcSupport = 1;
 	pCap->halTxStbcSupport = 1;
 

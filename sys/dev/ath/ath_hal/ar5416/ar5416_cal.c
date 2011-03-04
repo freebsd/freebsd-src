@@ -37,6 +37,9 @@ static void ar5416StartNFCal(struct ath_hal *ah);
 static void ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *);
 static int16_t ar5416GetNf(struct ath_hal *, struct ieee80211_channel *);
 
+static uint16_t ar5416GetDefaultNF(struct ath_hal *ah, const struct ieee80211_channel *chan);
+static void ar5416SanitizeNF(struct ath_hal *ah, int16_t *nf);
+
 /*
  * Determine if calibration is supported by device and channel flags
  */
@@ -548,6 +551,7 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	int i;
 	int32_t val;
 	uint8_t chainmask;
+	int16_t default_nf = ar5416GetDefaultNF(ah, chan);
 
 	/*
 	 * Force NF calibration for all chains.
@@ -567,13 +571,30 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * so we can load below.
 	 */
 	h = AH5416(ah)->ah_cal.nfCalHist;
-	for (i = 0; i < AR5416_NUM_NF_READINGS; i ++)
+	HALDEBUG(ah, HAL_DEBUG_NFCAL, "CCA: ");
+	for (i = 0; i < AR5416_NUM_NF_READINGS; i ++) {
+
+		/* Don't write to EXT radio CCA registers */
+		/* XXX this check should really be cleaner! */
+		if (i >= 3 && !IEEE80211_IS_CHAN_HT40(chan))
+			continue;
+
 		if (chainmask & (1 << i)) { 
+			int16_t nf_val;
+
+			if (h)
+				nf_val = h[i].privNF;
+			else
+				nf_val = default_nf;
+
 			val = OS_REG_READ(ah, ar5416_cca_regs[i]);
 			val &= 0xFFFFFE00;
-			val |= (((uint32_t)(h[i].privNF) << 1) & 0x1ff);
+			val |= (((uint32_t) nf_val << 1) & 0x1ff);
+			HALDEBUG(ah, HAL_DEBUG_NFCAL, "[%d: %d]", i, nf_val);
 			OS_REG_WRITE(ah, ar5416_cca_regs[i], val);
 		}
+	}
+	HALDEBUG(ah, HAL_DEBUG_NFCAL, "\n");
 
 	/* Load software filtered NF value into baseband internal minCCApwr variable. */
 	OS_REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_ENABLE_NF);
@@ -611,6 +632,11 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		}
 }
 
+/*
+ * This just initialises the "good" values for AR5416 which
+ * may not be right; it'lll be overridden by ar5416SanitizeNF()
+ * to nominal values.
+ */
 void
 ar5416InitNfHistBuff(struct ar5212NfCalHist *h)
 {
@@ -652,6 +678,50 @@ ar5416UpdateNFHistBuff(struct ar5212NfCalHist *h, int16_t *nfarray)
 	}
 }   
 
+static uint16_t
+ar5416GetDefaultNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
+{
+        struct ar5416NfLimits *limit;
+
+        if (!chan || IEEE80211_IS_CHAN_2GHZ(chan))
+                limit = &AH5416(ah)->nf_2g;
+        else
+                limit = &AH5416(ah)->nf_5g;
+
+        return limit->nominal;
+}
+
+static void
+ar5416SanitizeNF(struct ath_hal *ah, int16_t *nf)
+{
+
+        struct ar5416NfLimits *limit;
+        int i;
+
+        if (IEEE80211_IS_CHAN_2GHZ(AH_PRIVATE(ah)->ah_curchan))
+                limit = &AH5416(ah)->nf_2g;
+        else
+                limit = &AH5416(ah)->nf_5g;
+
+        for (i = 0; i < AR5416_NUM_NF_READINGS; i++) {
+                if (!nf[i])
+                        continue;
+
+                if (nf[i] > limit->max) {
+                        HALDEBUG(ah, HAL_DEBUG_NFCAL,
+                                  "NF[%d] (%d) > MAX (%d), correcting to MAX\n",
+                                  i, nf[i], limit->max);
+                        nf[i] = limit->max;
+                } else if (nf[i] < limit->min) {
+                        HALDEBUG(ah, HAL_DEBUG_NFCAL,
+                                  "NF[%d] (%d) < MIN (%d), correcting to NOM\n",
+                                  i, nf[i], limit->min);
+                        nf[i] = limit->nominal;
+                }
+        }
+}
+
+
 /*
  * Read the NF and check it against the noise floor threshhold
  */
@@ -672,6 +742,7 @@ ar5416GetNf(struct ath_hal *ah, struct ieee80211_channel *chan)
 		/* TODO - enhance for multiple chains and ext ch */
 		ath_hal_getNoiseFloor(ah, nfarray);
 		nf = nfarray[0];
+		ar5416SanitizeNF(ah, nfarray);
 		if (ar5416GetEepromNoiseFloorThresh(ah, chan, &nfThresh)) {
 			if (nf > nfThresh) {
 				HALDEBUG(ah, HAL_DEBUG_ANY,

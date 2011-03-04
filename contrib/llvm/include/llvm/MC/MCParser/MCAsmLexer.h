@@ -11,7 +11,7 @@
 #define LLVM_MC_MCASMLEXER_H
 
 #include "llvm/ADT/StringRef.h"
-#include "llvm/System/DataTypes.h"
+#include "llvm/Support/DataTypes.h"
 #include "llvm/Support/SMLoc.h"
 
 namespace llvm {
@@ -29,13 +29,16 @@ public:
     // String values.
     Identifier,
     String,
-    
+
     // Integer values.
     Integer,
-    
+
+    // Real values.
+    Real,
+
     // Register values (stored in IntVal).  Only used by TargetAsmLexer.
     Register,
-    
+
     // No-value.
     EndOfStatement,
     Colon,
@@ -43,8 +46,8 @@ public:
     Slash,    // '/'
     LParen, RParen, LBrac, RBrac, LCurly, RCurly,
     Star, Dot, Comma, Dollar, Equal, EqualEqual,
-    
-    Pipe, PipePipe, Caret, 
+
+    Pipe, PipePipe, Caret,
     Amp, AmpAmp, Exclaim, ExclaimEqual, Percent, Hash,
     Less, LessEqual, LessLess, LessGreater,
     Greater, GreaterEqual, GreaterGreater, At
@@ -70,7 +73,7 @@ public:
   SMLoc getLoc() const;
 
   /// getStringContents - Get the contents of a string token (without quotes).
-  StringRef getStringContents() const { 
+  StringRef getStringContents() const {
     assert(Kind == String && "This token isn't a string!");
     return Str.slice(1, Str.size() - 1);
   }
@@ -95,11 +98,11 @@ public:
   // FIXME: Don't compute this in advance, it makes every token larger, and is
   // also not generally what we want (it is nicer for recovery etc. to lex 123br
   // as a single token, then diagnose as an invalid number).
-  int64_t getIntVal() const { 
+  int64_t getIntVal() const {
     assert(Kind == Integer && "This token isn't an integer!");
-    return IntVal; 
+    return IntVal;
   }
-  
+
   /// getRegVal - Get the register number for the current token, which should
   /// be a register.
   unsigned getRegVal() const {
@@ -113,7 +116,7 @@ public:
 class MCAsmLexer {
   /// The current token, stored in the base class for faster access.
   AsmToken CurTok;
-  
+
   /// The location and description of the current error
   SMLoc ErrLoc;
   std::string Err;
@@ -126,12 +129,12 @@ protected: // Can only create subclasses.
   MCAsmLexer();
 
   virtual AsmToken LexToken() = 0;
-  
+
   void SetError(const SMLoc &errLoc, const std::string &err) {
     ErrLoc = errLoc;
     Err = err;
   }
-  
+
 public:
   virtual ~MCAsmLexer();
 
@@ -152,12 +155,12 @@ public:
   const AsmToken &getTok() {
     return CurTok;
   }
-  
+
   /// getErrLoc - Get the current error location
   const SMLoc &getErrLoc() {
     return ErrLoc;
   }
-           
+
   /// getErr - Get the current error string
   const std::string &getErr() {
     return Err;

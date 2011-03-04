@@ -244,7 +244,7 @@ derive_heap_segment (bfd *abfd, bfd_vma *bottom, bfd_vma *top)
 	  || strcmp (".bss", bfd_section_name (abfd, sec)) == 0)
 	{
 	  sec_vaddr = bfd_get_section_vma (abfd, sec);
-	  sec_size = bfd_get_section_size_before_reloc (sec);
+	  sec_size = bfd_get_section_size (sec);
 	  if (sec_vaddr + sec_size > top_of_data_memory)
 	    top_of_data_memory = sec_vaddr + sec_size;
 	}

@@ -509,6 +509,8 @@ ar5211FillCapabilityInfo(struct ath_hal *ah)
 			| HAL_INT_TIM
 			;
 
+	pCap->hal4kbSplitTransSupport = AH_TRUE;
+
 	/* XXX might be ok w/ some chip revs */
 	ahpriv->ah_rxornIsFatal = AH_TRUE;
 	return AH_TRUE;

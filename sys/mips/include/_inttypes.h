@@ -38,7 +38,7 @@
  * Macros for format specifiers.
  */
 
-#ifdef __LP64__
+#ifdef __mips_n64
 #define	__PRI64		"l"
 #define	__PRIptr	"l"
 #else

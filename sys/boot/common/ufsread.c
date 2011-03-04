@@ -122,7 +122,7 @@ lookup(const char *path)
 	const char *s;
 	ino_t ino;
 	ssize_t n;
-	int dt;
+	uint8_t dt;
 
 	ino = ROOTINO;
 	dt = DT_DIR;

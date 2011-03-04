@@ -66,10 +66,6 @@ METHOD void ipi {
 	u_int		cpu;
 };
 
-METHOD uint32_t id {
-	device_t	dev;
-};
-
 METHOD void mask {
 	device_t	dev;
 	u_int		irq;

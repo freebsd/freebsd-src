@@ -195,7 +195,8 @@ typedef struct {
 			halForcePpmSupport		: 1,
 			halEnhancedPmSupport		: 1,
 			halMbssidAggrSupport		: 1,
-			halBssidMatchSupport		: 1;
+			halBssidMatchSupport		: 1,
+			hal4kbSplitTransSupport		: 1;
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
 	uint16_t	halKeyCacheSize;
@@ -209,6 +210,8 @@ typedef struct {
 	uint8_t		halNumAntCfg2GHz;
 	uint8_t		halNumAntCfg5GHz;
 	uint32_t	halIntrMask;
+	uint8_t		halTxStreams;
+	uint8_t		halRxStreams;
 } HAL_CAPABILITIES;
 
 struct regDomain;
@@ -405,14 +408,15 @@ extern	HAL_BOOL ath_hal_getTxQProps(struct ath_hal *ah,
 		HAL_TXQ_INFO *qInfo, const HAL_TX_QUEUE_INFO *qi);
 
 typedef enum {
-	HAL_ANI_PRESENT,			/* is ANI support present */
-	HAL_ANI_NOISE_IMMUNITY_LEVEL,		/* set level */
-	HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION,	/* enable/disable */
-	HAL_ANI_CCK_WEAK_SIGNAL_THR,		/* enable/disable */
-	HAL_ANI_FIRSTEP_LEVEL,			/* set level */
-	HAL_ANI_SPUR_IMMUNITY_LEVEL,		/* set level */
-	HAL_ANI_MODE = 6,	/* 0 => manual, 1 => auto (XXX do not change) */
-	HAL_ANI_PHYERR_RESET,			/* reset phy error stats */
+	HAL_ANI_PRESENT = 0x1,			/* is ANI support present */
+	HAL_ANI_NOISE_IMMUNITY_LEVEL = 0x2,	/* set level */
+	HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION = 0x4,	/* enable/disable */
+	HAL_ANI_CCK_WEAK_SIGNAL_THR = 0x8,		/* enable/disable */
+	HAL_ANI_FIRSTEP_LEVEL = 0x10,			/* set level */
+	HAL_ANI_SPUR_IMMUNITY_LEVEL = 0x20,		/* set level */
+	HAL_ANI_MODE = 0x40,	/* 0 => manual, 1 => auto (XXX do not change) */
+	HAL_ANI_PHYERR_RESET =0x80,			/* reset phy error stats */
+	HAL_ANI_ALL = 0xff
 } HAL_ANI_CMD;
 
 #define	HAL_SPUR_VAL_MASK		0x3FFF
@@ -463,6 +467,10 @@ isBigEndian(void)
 	OS_REG_WRITE(_a, _r, OS_REG_READ(_a, _r) | (_f))
 #define	OS_REG_CLR_BIT(_a, _r, _f) \
 	OS_REG_WRITE(_a, _r, OS_REG_READ(_a, _r) &~ (_f))
+
+/* Analog register writes may require a delay between each one (eg Merlin?) */
+#define	OS_A_REG_RMW_FIELD(_a, _r, _f, _v) \
+	do { OS_REG_WRITE(_a, _r, (OS_REG_READ(_a, _r) &~ (_f)) | (((_v) << _f##_S) & (_f))) ; OS_DELAY(100); } while (0)
 
 /* system-configurable parameters */
 extern	int ath_hal_dma_beacon_response_time;	/* in TU's */

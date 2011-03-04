@@ -33,10 +33,16 @@ CFLAGS=	-DBOOTPROG=\"gptzfsboot\" \
 	-I${.CURDIR}/../../../cddl/boot/zfs \
 	-I${.CURDIR}/../btx/lib -I. \
 	-I${.CURDIR}/../boot2 \
+	-I${.CURDIR}/../../.. \
 	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline --param max-inline-insns-single=100
+
+.if ${CC:T:Mclang} == "clang"
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS+=	${.IMPSRC:T:Mgptldr.S:C/^.+$/-no-integrated-as/}
+.endif
 
 LDFLAGS=-static -N --gc-sections
 

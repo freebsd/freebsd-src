@@ -226,6 +226,9 @@ initarm(void *arg, void *arg2)
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
+	/* Do basic tuning, hz etc */
+	init_param1();
+		
 	physical_start = (vm_offset_t) KERNBASE;
 	physical_end =  lastaddr;
 	physical_freestart = (((vm_offset_t)physical_end) + PAGE_MASK) & ~PAGE_MASK;
@@ -408,8 +411,6 @@ initarm(void *arg, void *arg2)
 	mutex_init();
 	pmap_bootstrap(freemempos, 0xd0000000, &kernel_l1pt);
 
-	/* Do basic tuning, hz etc */
-	init_param1();
 	init_param2(physmem);
 	kdb_init();
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -

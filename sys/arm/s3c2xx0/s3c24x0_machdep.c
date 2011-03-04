@@ -257,6 +257,9 @@ initarm(void *arg, void *arg2)
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
+	/* Do basic tuning, hz etc */
+	init_param1();
+
 #define KERNEL_TEXT_BASE (KERNBASE)
 	freemempos = (lastaddr + PAGE_MASK) & ~PAGE_MASK;
 	/* Define a macro to simplify memory allocation */
@@ -438,8 +441,6 @@ initarm(void *arg, void *arg2)
 	phys_avail[2] = 0;
 	phys_avail[3] = 0;
 
-	/* Do basic tuning, hz etc */
-	init_param1();
 	init_param2(physmem);
 	kdb_init();
 

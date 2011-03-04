@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 SUBDIR:=	${SUBDIR:Nsysinstall}
-.if ${MACHINE_ARCH:Mmips64*} != ""
+# uathload broken for n32 and n64 due to toolchain issues
+.if ${MACHINE_ARCH:Mmipse[lb]} == ""
 SUBDIR:=	${SUBDIR:Nuathload}
 .endif

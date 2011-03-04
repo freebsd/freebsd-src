@@ -48,46 +48,47 @@ std::string llvm::getName(MVT::SimpleValueType T) {
 
 std::string llvm::getEnumName(MVT::SimpleValueType T) {
   switch (T) {
-  case MVT::Other: return "MVT::Other";
-  case MVT::i1:    return "MVT::i1";
-  case MVT::i8:    return "MVT::i8";
-  case MVT::i16:   return "MVT::i16";
-  case MVT::i32:   return "MVT::i32";
-  case MVT::i64:   return "MVT::i64";
-  case MVT::i128:  return "MVT::i128";
-  case MVT::iAny:  return "MVT::iAny";
-  case MVT::fAny:  return "MVT::fAny";
-  case MVT::vAny:  return "MVT::vAny";
-  case MVT::f32:   return "MVT::f32";
-  case MVT::f64:   return "MVT::f64";
-  case MVT::f80:   return "MVT::f80";
-  case MVT::f128:  return "MVT::f128";
+  case MVT::Other:    return "MVT::Other";
+  case MVT::i1:       return "MVT::i1";
+  case MVT::i8:       return "MVT::i8";
+  case MVT::i16:      return "MVT::i16";
+  case MVT::i32:      return "MVT::i32";
+  case MVT::i64:      return "MVT::i64";
+  case MVT::i128:     return "MVT::i128";
+  case MVT::iAny:     return "MVT::iAny";
+  case MVT::fAny:     return "MVT::fAny";
+  case MVT::vAny:     return "MVT::vAny";
+  case MVT::f32:      return "MVT::f32";
+  case MVT::f64:      return "MVT::f64";
+  case MVT::f80:      return "MVT::f80";
+  case MVT::f128:     return "MVT::f128";
   case MVT::ppcf128:  return "MVT::ppcf128";
-  case MVT::Flag:  return "MVT::Flag";
-  case MVT::isVoid:return "MVT::isVoid";
-  case MVT::v2i8:  return "MVT::v2i8";
-  case MVT::v4i8:  return "MVT::v4i8";
-  case MVT::v8i8:  return "MVT::v8i8";
-  case MVT::v16i8: return "MVT::v16i8";
-  case MVT::v32i8: return "MVT::v32i8";
-  case MVT::v2i16: return "MVT::v2i16";
-  case MVT::v4i16: return "MVT::v4i16";
-  case MVT::v8i16: return "MVT::v8i16";
-  case MVT::v16i16: return "MVT::v16i16";
-  case MVT::v2i32: return "MVT::v2i32";
-  case MVT::v4i32: return "MVT::v4i32";
-  case MVT::v8i32: return "MVT::v8i32";
-  case MVT::v1i64: return "MVT::v1i64";
-  case MVT::v2i64: return "MVT::v2i64";
-  case MVT::v4i64: return "MVT::v4i64";
-  case MVT::v8i64: return "MVT::v8i64";
-  case MVT::v2f32: return "MVT::v2f32";
-  case MVT::v4f32: return "MVT::v4f32";
-  case MVT::v8f32: return "MVT::v8f32";
-  case MVT::v2f64: return "MVT::v2f64";
-  case MVT::v4f64: return "MVT::v4f64";
+  case MVT::x86mmx:   return "MVT::x86mmx";
+  case MVT::Glue:     return "MVT::Glue";
+  case MVT::isVoid:   return "MVT::isVoid";
+  case MVT::v2i8:     return "MVT::v2i8";
+  case MVT::v4i8:     return "MVT::v4i8";
+  case MVT::v8i8:     return "MVT::v8i8";
+  case MVT::v16i8:    return "MVT::v16i8";
+  case MVT::v32i8:    return "MVT::v32i8";
+  case MVT::v2i16:    return "MVT::v2i16";
+  case MVT::v4i16:    return "MVT::v4i16";
+  case MVT::v8i16:    return "MVT::v8i16";
+  case MVT::v16i16:   return "MVT::v16i16";
+  case MVT::v2i32:    return "MVT::v2i32";
+  case MVT::v4i32:    return "MVT::v4i32";
+  case MVT::v8i32:    return "MVT::v8i32";
+  case MVT::v1i64:    return "MVT::v1i64";
+  case MVT::v2i64:    return "MVT::v2i64";
+  case MVT::v4i64:    return "MVT::v4i64";
+  case MVT::v8i64:    return "MVT::v8i64";
+  case MVT::v2f32:    return "MVT::v2f32";
+  case MVT::v4f32:    return "MVT::v4f32";
+  case MVT::v8f32:    return "MVT::v8f32";
+  case MVT::v2f64:    return "MVT::v2f64";
+  case MVT::v4f64:    return "MVT::v4f64";
   case MVT::Metadata: return "MVT::Metadata";
-  case MVT::iPTR:  return "MVT::iPTR";
+  case MVT::iPTR:     return "MVT::iPTR";
   case MVT::iPTRAny:  return "MVT::iPTRAny";
   default: assert(0 && "ILLEGAL VALUE TYPE!"); return "";
   }
@@ -107,7 +108,7 @@ std::string llvm::getQualifiedName(const Record *R) {
 
 /// getTarget - Return the current instance of the Target class.
 ///
-CodeGenTarget::CodeGenTarget() {
+CodeGenTarget::CodeGenTarget(RecordKeeper &records) : Records(records) {
   std::vector<Record*> Targets = Records.getAllDerivedDefinitions("Target");
   if (Targets.size() == 0)
     throw std::string("ERROR: No 'Target' subclasses defined!");
@@ -187,6 +188,19 @@ void CodeGenTarget::ReadRegisterClasses() const {
 
   RegisterClasses.reserve(RegClasses.size());
   RegisterClasses.assign(RegClasses.begin(), RegClasses.end());
+}
+
+/// getRegisterByName - If there is a register with the specific AsmName,
+/// return it.
+const CodeGenRegister *CodeGenTarget::getRegisterByName(StringRef Name) const {
+  const std::vector<CodeGenRegister> &Regs = getRegisters();
+  for (unsigned i = 0, e = Regs.size(); i != e; ++i) {
+    const CodeGenRegister &Reg = Regs[i];
+    if (Reg.TheDef->getValueAsString("AsmName") == Name)
+      return &Reg;
+  }
+  
+  return 0;
 }
 
 std::vector<MVT::SimpleValueType> CodeGenTarget::
@@ -294,18 +308,14 @@ void CodeGenTarget::ReadInstructions() const {
     throw std::string("No 'Instruction' subclasses defined!");
 
   // Parse the instructions defined in the .td file.
-  std::string InstFormatName =
-    getAsmWriter()->getValueAsString("InstFormatName");
-
-  for (unsigned i = 0, e = Insts.size(); i != e; ++i) {
-    std::string AsmStr = Insts[i]->getValueAsString(InstFormatName);
-    Instructions[Insts[i]] = new CodeGenInstruction(Insts[i], AsmStr);
-  }
+  for (unsigned i = 0, e = Insts.size(); i != e; ++i)
+    Instructions[Insts[i]] = new CodeGenInstruction(Insts[i]);
 }
 
 static const CodeGenInstruction *
 GetInstByName(const char *Name,
-              const DenseMap<const Record*, CodeGenInstruction*> &Insts) {
+              const DenseMap<const Record*, CodeGenInstruction*> &Insts, 
+              RecordKeeper &Records) {
   const Record *Rec = Records.getDef(Name);
   
   DenseMap<const Record*, CodeGenInstruction*>::const_iterator
@@ -349,7 +359,7 @@ void CodeGenTarget::ComputeInstrsByEnum() const {
   };
   const DenseMap<const Record*, CodeGenInstruction*> &Insts = getInstructions();
   for (const char *const *p = FixedInstrs; *p; ++p) {
-    const CodeGenInstruction *Instr = GetInstByName(*p, Insts);
+    const CodeGenInstruction *Instr = GetInstByName(*p, Insts, Records);
     assert(Instr && "Missing target independent instruction");
     assert(Instr->Namespace == "TargetOpcode" && "Bad namespace");
     InstrsByEnum.push_back(Instr);
@@ -394,8 +404,8 @@ ComplexPattern::ComplexPattern(Record *R) {
   for (unsigned i = 0, e = PropList.size(); i != e; ++i)
     if (PropList[i]->getName() == "SDNPHasChain") {
       Properties |= 1 << SDNPHasChain;
-    } else if (PropList[i]->getName() == "SDNPOptInFlag") {
-      Properties |= 1 << SDNPOptInFlag;
+    } else if (PropList[i]->getName() == "SDNPOptInGlue") {
+      Properties |= 1 << SDNPOptInGlue;
     } else if (PropList[i]->getName() == "SDNPMayStore") {
       Properties |= 1 << SDNPMayStore;
     } else if (PropList[i]->getName() == "SDNPMayLoad") {
@@ -406,6 +416,10 @@ ComplexPattern::ComplexPattern(Record *R) {
       Properties |= 1 << SDNPMemOperand;
     } else if (PropList[i]->getName() == "SDNPVariadic") {
       Properties |= 1 << SDNPVariadic;
+    } else if (PropList[i]->getName() == "SDNPWantRoot") {
+      Properties |= 1 << SDNPWantRoot;
+    } else if (PropList[i]->getName() == "SDNPWantParent") {
+      Properties |= 1 << SDNPWantParent;
     } else {
       errs() << "Unsupported SD Node property '" << PropList[i]->getName()
              << "' on ComplexPattern '" << R->getName() << "'!\n";

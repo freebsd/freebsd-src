@@ -118,7 +118,7 @@ ar9280SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 			channelSel = (freq * 0x8000)/15;
 
 			/* RefDivA setting */
-			OS_REG_RMW_FIELD(ah, AR_AN_SYNTH9,
+			OS_A_REG_RMW_FIELD(ah, AR_AN_SYNTH9,
 			    AR_AN_SYNTH9_REFDIVA, refDivA);
 		}
 		if (!fracMode) {

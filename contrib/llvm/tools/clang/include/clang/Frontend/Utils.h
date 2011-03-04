@@ -28,6 +28,7 @@ class Decl;
 class DependencyOutputOptions;
 class Diagnostic;
 class DiagnosticOptions;
+class FileManager;
 class HeaderSearch;
 class HeaderSearchOptions;
 class IdentifierTable;
@@ -42,7 +43,8 @@ class FrontendOptions;
 
 /// Normalize \arg File for use in a user defined #include directive (in the
 /// predefines buffer).
-std::string NormalizeDashIncludePath(llvm::StringRef File);
+std::string NormalizeDashIncludePath(llvm::StringRef File,
+                                     FileManager &FileMgr);
 
 /// Apply the header search options to get given HeaderSearch object.
 void ApplyHeaderSearchOptions(HeaderSearch &HS,
@@ -72,6 +74,18 @@ bool CheckDiagnostics(Preprocessor &PP);
 /// it to the given preprocessor.  This takes ownership of the output stream.
 void AttachDependencyFileGen(Preprocessor &PP,
                              const DependencyOutputOptions &Opts);
+
+/// AttachHeaderIncludeGen - Create a header include list generator, and attach
+/// it to the given preprocessor.
+///
+/// \param ShowAllHeaders - If true, show all header information instead of just
+/// headers following the predefines buffer. This is useful for making sure
+/// includes mentioned on the command line are also reported, but differs from
+/// the default behavior used by -H.
+/// \param OutputPath - If non-empty, a path to write the header include
+/// information to, instead of writing to stderr.
+void AttachHeaderIncludeGen(Preprocessor &PP, bool ShowAllHeaders = false,
+                            llvm::StringRef OutputPath = "");
 
 /// CacheTokens - Cache tokens for use with PCH. Note that this requires
 /// a seekable stream.

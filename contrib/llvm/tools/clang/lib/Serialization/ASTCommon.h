@@ -20,6 +20,12 @@ namespace clang {
 
 namespace serialization {
 
+enum DeclUpdateKind {
+  UPD_CXX_SET_DEFINITIONDATA,
+  UPD_CXX_ADDED_IMPLICIT_MEMBER,
+  UPD_CXX_ADDED_TEMPLATE_SPECIALIZATION
+};
+
 TypeIdx TypeIdxFromBuiltin(const BuiltinType *BT);
 
 template <typename IdxForTypeTy>
@@ -28,7 +34,7 @@ TypeID MakeTypeID(QualType T, IdxForTypeTy IdxForType) {
     return PREDEF_TYPE_NULL_ID;
 
   unsigned FastQuals = T.getLocalFastQualifiers();
-  T.removeFastQualifiers();
+  T.removeLocalFastQualifiers();
 
   if (T.hasLocalNonFastQualifiers())
     return IdxForType(T).asTypeID(FastQuals);

@@ -101,12 +101,12 @@ sigstring_to_signum(char *sig)
 
 		signo = atoi(sig);
 		return ((signo >= 0 && signo < NSIG) ? signo : (-1));
-	} else if (strcasecmp(sig, "exit") == 0) {
+	} else if (strcasecmp(sig, "EXIT") == 0) {
 		return (0);
 	} else {
 		int n;
 
-		if (strncasecmp(sig, "sig", 3) == 0)
+		if (strncasecmp(sig, "SIG", 3) == 0)
 			sig += 3;
 		for (n = 1; n < sys_nsig; n++)
 			if (sys_signame[n] &&
@@ -171,7 +171,7 @@ trapcmd(int argc, char **argv)
 				out1str("trap -- ");
 				out1qstr(trap[signo]);
 				if (signo == 0) {
-					out1str(" exit\n");
+					out1str(" EXIT\n");
 				} else if (sys_signame[signo]) {
 					out1fmt(" %s\n", sys_signame[signo]);
 				} else {
@@ -365,22 +365,6 @@ ignoresig(int signo)
 	}
 	sigmode[signo] = S_HARD_IGN;
 }
-
-
-#ifdef mkinit
-INCLUDE <signal.h>
-INCLUDE "trap.h"
-
-SHELLPROC {
-	char *sm;
-
-	clear_traps();
-	for (sm = sigmode ; sm < sigmode + NSIG ; sm++) {
-		if (*sm == S_IGN)
-			*sm = S_HARD_IGN;
-	}
-}
-#endif
 
 
 /*

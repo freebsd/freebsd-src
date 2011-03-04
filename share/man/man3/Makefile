@@ -179,6 +179,7 @@ PTHREAD_MAN=	pthread.3 \
 		pthread_exit.3 \
 		pthread_getconcurrency.3 \
 		pthread_getspecific.3 \
+		pthread_getthreadid_np.3 \
 		pthread_join.3 \
 		pthread_key_create.3 \
 		pthread_key_delete.3 \

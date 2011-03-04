@@ -60,6 +60,8 @@
  * $FreeBSD$
  */
 
+#include "opt_isa.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -102,9 +104,11 @@ struct powerpc_intr {
 };
 
 struct pic {
-	device_t pic;
-	uint32_t pic_id;
-	int ipi_irq;
+	device_t dev;
+	uint32_t node;
+	u_int	irqs;
+	u_int	ipis;
+	int	base;
 };
 
 static u_int intrcnt_index = 0;
@@ -113,6 +117,11 @@ static struct powerpc_intr *powerpc_intrs[INTR_VECTORS];
 static struct pic piclist[MAX_PICS];
 static u_int nvectors;		/* Allocated vectors */
 static u_int npics;		/* PICs registered */
+#ifdef DEV_ISA
+static u_int nirqs = 16;	/* Allocated IRQS (ISA pre-allocated). */
+#else
+static u_int nirqs = 0;		/* Allocated IRQs. */
+#endif
 static u_int stray_count;
 
 device_t root_pic;
@@ -142,7 +151,6 @@ smp_intr_init(void *dummy __unused)
 			PIC_BIND(i->pic, i->intline, i->cpu);
 	}
 }
-
 SYSINIT(smp_intr_init, SI_SUB_SMP, SI_ORDER_ANY, smp_intr_init, NULL);
 #endif
 
@@ -231,9 +239,21 @@ intr_lookup(u_int irq)
 static int
 powerpc_map_irq(struct powerpc_intr *i)
 {
+	struct pic *p;
+	u_int cnt;
+	int idx;
 
-	i->intline = INTR_INTLINE(i->irq);
-	i->pic = piclist[INTR_IGN(i->irq)].pic;
+	for (idx = 0; idx < npics; idx++) {
+		p = &piclist[idx];
+		cnt = p->irqs + p->ipis;
+		if (i->irq >= p->base && i->irq < p->base + cnt)
+			break;
+	}
+	if (idx == npics)
+		return (EINVAL);
+
+	i->intline = i->irq - p->base;
+	i->pic = p->dev;
 
 	/* Try a best guess if that failed */
 	if (i->pic == NULL)
@@ -288,46 +308,76 @@ powerpc_assign_intr_cpu(void *arg, u_char cpu)
 }
 
 void
-powerpc_register_pic(device_t dev, u_int ipi)
+powerpc_register_pic(device_t dev, uint32_t node, u_int irqs, u_int ipis,
+    u_int atpic)
 {
-	int i;
+	struct pic *p;
+	u_int irq;
+	int idx;
 
 	mtx_lock(&intr_table_lock);
 
-	for (i = 0; i < npics; i++) {
-		if (piclist[i].pic_id == PIC_ID(dev))
+	/* XXX see powerpc_get_irq(). */
+	for (idx = 0; idx < npics; idx++) {
+		p = &piclist[idx];
+		if (p->node != node)
+			continue;
+		if (node != 0 || p->dev == dev)
 			break;
 	}
-	piclist[i].pic = dev;
-	piclist[i].pic_id = PIC_ID(dev);
-	piclist[i].ipi_irq = ipi;
-	if (i == npics)
+	p = &piclist[idx];
+
+	p->dev = dev;
+	p->node = node;
+	p->irqs = irqs;
+	p->ipis = ipis;
+	if (idx == npics) {
+#ifdef DEV_ISA
+		p->base = (atpic) ? 0 : nirqs;
+#else
+		p->base = nirqs;
+#endif
+		irq = p->base + irqs + ipis;
+		nirqs = MAX(nirqs, irq);
 		npics++;
+	}
 
 	mtx_unlock(&intr_table_lock);
 }
 
-int
-powerpc_ign_lookup(uint32_t pic_id)
+u_int
+powerpc_get_irq(uint32_t node, u_int pin)
 {
-	int i;
+	int idx;
+
+	if (node == 0)
+		return (pin);
 
 	mtx_lock(&intr_table_lock);
-
-	for (i = 0; i < npics; i++) {
-		if (piclist[i].pic_id == pic_id) {
+	for (idx = 0; idx < npics; idx++) {
+		if (piclist[idx].node == node) {
 			mtx_unlock(&intr_table_lock);
-			return (i);
+			return (piclist[idx].base + pin);
 		}
 	}
-	piclist[i].pic = NULL;
-	piclist[i].pic_id = pic_id;
-	piclist[i].ipi_irq = 0;
+
+	/*
+	 * XXX we should never encounter an unregistered PIC, but that
+	 * can only be done when we properly support bus enumeration
+	 * using multiple passes. Until then, fake an entry and give it
+	 * some adhoc maximum number of IRQs and IPIs.
+	 */
+	piclist[idx].dev = NULL;
+	piclist[idx].node = node;
+	piclist[idx].irqs = 124;
+	piclist[idx].ipis = 4;
+	piclist[idx].base = nirqs;
+	nirqs += 128;
 	npics++;
 
 	mtx_unlock(&intr_table_lock);
 
-	return (i);
+	return (piclist[idx].base + pin);
 }
 
 int
@@ -342,15 +392,18 @@ powerpc_enable_intr(void)
 	if (npics == 0)
 		panic("no PIC detected\n");
 
+	if (root_pic == NULL)
+		root_pic = piclist[0].dev;
+
 #ifdef SMP
 	/* Install an IPI handler. */
-
 	for (n = 0; n < npics; n++) {
-		if (piclist[n].pic != root_pic)
+		if (piclist[n].dev != root_pic)
 			continue;
 
+		KASSERT(piclist[n].ipis != 0, ("%s", __func__));
 		error = powerpc_setup_intr("IPI",
-		    INTR_VEC(piclist[n].pic_id, piclist[n].ipi_irq),
+		    MAP_IRQ(piclist[n].node, piclist[n].irqs),
 		    powerpc_ipi_handler, NULL, NULL,
 		    INTR_TYPE_MISC | INTR_EXCL, &ipi_cookie);
 		if (error) {

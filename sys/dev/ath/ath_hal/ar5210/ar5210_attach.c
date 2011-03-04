@@ -377,6 +377,8 @@ ar5210FillCapabilityInfo(struct ath_hal *ah)
 			| HAL_INT_FATAL
 			;
 
+	pCap->hal4kbSplitTransSupport = AH_TRUE;
+
 	ahpriv->ah_rxornIsFatal = AH_TRUE;
 	return AH_TRUE;
 }

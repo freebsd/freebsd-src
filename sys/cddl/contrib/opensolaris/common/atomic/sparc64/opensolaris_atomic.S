@@ -77,7 +77,6 @@ add_64:
 	ENTRY(atomic_or_8)
 	ALTENTRY(atomic_or_8_nv)
 	ALTENTRY(atomic_or_uchar)
-	ALTENTRY(atomic_or_uchar_nv)
 	and	%o0, 0x3, %o4		! %o4 = byte offset, left-to-right
 	xor	%o4, 0x3, %g1		! %g1 = byte offset, right-to-left
 	sll	%g1, 3, %g1		! %g1 = bit offset, right-to-left
@@ -97,7 +96,6 @@ add_64:
 	and	%o5, %o3, %o5
 	retl
 	srl	%o5, %g1, %o0		! %o0 = new value
-	SET_SIZE(atomic_or_uchar_nv)
 	SET_SIZE(atomic_or_uchar)
 	SET_SIZE(atomic_or_8_nv)
 	SET_SIZE(atomic_or_8)

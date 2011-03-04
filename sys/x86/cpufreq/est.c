@@ -947,8 +947,11 @@ static int
 est_features(driver_t *driver, u_int *features)
 {
 
-	/* Notify the ACPI CPU that we support direct access to MSRs */
-	*features = ACPI_CAP_PERF_MSRS;
+	/*
+	 * Notify the ACPI CPU that we support direct access to MSRs.
+	 * XXX C1 "I/O then Halt" seems necessary for some broken BIOS.
+	 */
+	*features = ACPI_CAP_PERF_MSRS | ACPI_CAP_C1_IO_HALT;
 	return (0);
 }
 

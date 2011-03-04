@@ -57,6 +57,9 @@ NOASM=
 .include "${.CURDIR}/gdtoa/Makefile.inc"
 .include "${.CURDIR}/gen/Makefile.inc"
 .include "${.CURDIR}/gmon/Makefile.inc"
+.if ${MK_ICONV} != "no"
+.include "${.CURDIR}/iconv/Makefile.inc"
+.endif
 .include "${.CURDIR}/inet/Makefile.inc"
 .include "${.CURDIR}/isc/Makefile.inc"
 .include "${.CURDIR}/locale/Makefile.inc"
@@ -68,6 +71,7 @@ NOASM=
     ${LIBC_ARCH} != "ia64" && \
     ${LIBC_ARCH} != "powerpc64" && \
     ${LIBC_ARCH} != "sparc64" && \
+    ${MACHINE_ARCH:Mmipsn32*} == "" && \
     ${MACHINE_ARCH:Mmips64*} == ""
 .include "${.CURDIR}/quad/Makefile.inc"
 .endif

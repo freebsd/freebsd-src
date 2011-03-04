@@ -1,5 +1,5 @@
 /* PPC ELF support for BFD.
-   Copyright 1995, 1996, 1998, 2000, 2001, 2002, 2003
+   Copyright 1995, 1996, 1998, 2000, 2001, 2002, 2003, 2005
    Free Software Foundation, Inc.
 
    By Michael Meissner, Cygnus Support, <meissner@cygnus.com>, from information
@@ -20,7 +20,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* This file holds definitions specific to the PPC ELF ABI.  Note
    that most of this is not actually implemented by BFD.  */
@@ -120,10 +120,17 @@ START_RELOC_NUMBERS (elf_ppc_reloc_type)
   RELOC_NUMBER (R_PPC_EMB_BIT_FLD,	115)
   RELOC_NUMBER (R_PPC_EMB_RELSDA,	116)
 
-/* Fake relocations for branch stubs. This will keep them
-   together.  */
-#define R_PPC_RELAX32 251
-#define R_PPC_RELAX32PC 252
+/* Fake relocations for branch stubs, only used internally by ld.  */
+#define R_PPC_RELAX32 245
+#define R_PPC_RELAX32PC 246
+#define R_PPC_RELAX32_PLT 247
+#define R_PPC_RELAX32PC_PLT 248
+
+/* These are GNU extensions used in PIC code sequences.  */
+  RELOC_NUMBER (R_PPC_REL16,		249)
+  RELOC_NUMBER (R_PPC_REL16_LO,		250)
+  RELOC_NUMBER (R_PPC_REL16_HI,		251)
+  RELOC_NUMBER (R_PPC_REL16_HA,		252)
 
 /* These are GNU extensions to enable C++ vtable garbage collection.  */
   RELOC_NUMBER (R_PPC_GNU_VTINHERIT,	253)
@@ -137,6 +144,9 @@ END_RELOC_NUMBERS (R_PPC_max)
 
 #define IS_PPC_TLS_RELOC(R) \
   ((R) >= R_PPC_TLS && (R) <= R_PPC_GOT_DTPREL16_HA)
+
+/* Specify the value of _GLOBAL_OFFSET_TABLE_.  */
+#define DT_PPC_GOT		DT_LOPROC
 
 /* Processor specific flags for the ELF header e_flags field.  */
 
@@ -161,4 +171,15 @@ END_RELOC_NUMBERS (R_PPC_max)
 						   builds when those objects \
 						   are not to be furhter \
 						   relocated.  */
+
+/* Object attribute tags.  */
+enum
+{
+  /* 0-3 are generic.  */
+  Tag_GNU_Power_ABI_FP = 4, /* Value 1 for hard-float, 2 for
+			       soft-float; 0 for not tagged or not
+			       using any ABIs affected by the
+			       differences.  */
+};
+
 #endif /* _ELF_PPC_H */

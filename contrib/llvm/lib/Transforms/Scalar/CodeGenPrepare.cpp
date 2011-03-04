@@ -22,6 +22,8 @@
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Pass.h"
+#include "llvm/Analysis/Dominators.h"
+#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/ProfileInfo.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLowering.h"
@@ -31,6 +33,7 @@
 #include "llvm/Transforms/Utils/BuildLibCalls.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/CommandLine.h"
@@ -39,31 +42,59 @@
 #include "llvm/Support/PatternMatch.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/IRBuilder.h"
+#include "llvm/Support/ValueHandle.h"
 using namespace llvm;
 using namespace llvm::PatternMatch;
+
+STATISTIC(NumBlocksElim, "Number of blocks eliminated");
+STATISTIC(NumPHIsElim, "Number of trivial PHIs eliminated");
+STATISTIC(NumGEPsElim, "Number of GEPs converted to casts");
+STATISTIC(NumCmpUses, "Number of uses of Cmp expressions replaced with uses of "
+                      "sunken Cmps");
+STATISTIC(NumCastUses, "Number of uses of Cast expressions replaced with uses "
+                       "of sunken Casts");
+STATISTIC(NumMemoryInsts, "Number of memory instructions whose address "
+                          "computations were sunk");
+STATISTIC(NumExtsMoved, "Number of [s|z]ext instructions combined with loads");
+STATISTIC(NumExtUses, "Number of uses of [s|z]ext instructions optimized");
 
 static cl::opt<bool>
 CriticalEdgeSplit("cgp-critical-edge-splitting",
                   cl::desc("Split critical edges during codegen prepare"),
-                  cl::init(true), cl::Hidden);
+                  cl::init(false), cl::Hidden);
 
 namespace {
   class CodeGenPrepare : public FunctionPass {
     /// TLI - Keep a pointer of a TargetLowering to consult for determining
     /// transformation profitability.
     const TargetLowering *TLI;
+    DominatorTree *DT;
     ProfileInfo *PFI;
+    
+    /// CurInstIterator - As we scan instructions optimizing them, this is the
+    /// next instruction to optimize.  Xforms that can invalidate this should
+    /// update it.
+    BasicBlock::iterator CurInstIterator;
 
     /// BackEdges - Keep a set of all the loop back edges.
     ///
     SmallSet<std::pair<const BasicBlock*, const BasicBlock*>, 8> BackEdges;
+
+    // Keeps track of non-local addresses that have been sunk into a block. This
+    // allows us to avoid inserting duplicate code for blocks with multiple
+    // load/stores of the same address.
+    DenseMap<Value*, Value*> SunkAddrs;
+
   public:
     static char ID; // Pass identification, replacement for typeid
     explicit CodeGenPrepare(const TargetLowering *tli = 0)
-      : FunctionPass(ID), TLI(tli) {}
+      : FunctionPass(ID), TLI(tli) {
+        initializeCodeGenPreparePass(*PassRegistry::getPassRegistry());
+      }
     bool runOnFunction(Function &F);
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+      AU.addPreserved<DominatorTree>();
       AU.addPreserved<ProfileInfo>();
     }
 
@@ -76,10 +107,9 @@ namespace {
     bool CanMergeBlocks(const BasicBlock *BB, const BasicBlock *DestBB) const;
     void EliminateMostlyEmptyBlock(BasicBlock *BB);
     bool OptimizeBlock(BasicBlock &BB);
-    bool OptimizeMemoryInst(Instruction *I, Value *Addr, const Type *AccessTy,
-                            DenseMap<Value*,Value*> &SunkAddrs);
-    bool OptimizeInlineAsmInst(Instruction *I, CallSite CS,
-                               DenseMap<Value*,Value*> &SunkAddrs);
+    bool OptimizeInst(Instruction *I);
+    bool OptimizeMemoryInst(Instruction *I, Value *Addr, const Type *AccessTy);
+    bool OptimizeInlineAsmInst(CallInst *CS);
     bool OptimizeCallInst(CallInst *CI);
     bool MoveExtToFormExtLoad(Instruction *I);
     bool OptimizeExtUses(Instruction *I);
@@ -89,7 +119,7 @@ namespace {
 
 char CodeGenPrepare::ID = 0;
 INITIALIZE_PASS(CodeGenPrepare, "codegenprepare",
-                "Optimize for code generation", false, false);
+                "Optimize for code generation", false, false)
 
 FunctionPass *llvm::createCodeGenPreparePass(const TargetLowering *TLI) {
   return new CodeGenPrepare(TLI);
@@ -108,13 +138,16 @@ void CodeGenPrepare::findLoopBackEdges(const Function &F) {
 bool CodeGenPrepare::runOnFunction(Function &F) {
   bool EverMadeChange = false;
 
+  DT = getAnalysisIfAvailable<DominatorTree>();
   PFI = getAnalysisIfAvailable<ProfileInfo>();
   // First pass, eliminate blocks that contain only PHI nodes and an
   // unconditional branch.
   EverMadeChange |= EliminateMostlyEmptyBlocks(F);
 
-  // Now find loop back edges.
-  findLoopBackEdges(F);
+  // Now find loop back edges, but only if they are being used to decide which
+  // critical edges to split.
+  if (CriticalEdgeSplit)
+    findLoopBackEdges(F);
 
   bool MadeChange = true;
   while (MadeChange) {
@@ -123,6 +156,9 @@ bool CodeGenPrepare::runOnFunction(Function &F) {
       MadeChange |= OptimizeBlock(*BB);
     EverMadeChange |= MadeChange;
   }
+
+  SunkAddrs.clear();
+
   return EverMadeChange;
 }
 
@@ -297,11 +333,19 @@ void CodeGenPrepare::EliminateMostlyEmptyBlock(BasicBlock *BB) {
   // The PHIs are now updated, change everything that refers to BB to use
   // DestBB and remove BB.
   BB->replaceAllUsesWith(DestBB);
+  if (DT) {
+    BasicBlock *BBIDom  = DT->getNode(BB)->getIDom()->getBlock();
+    BasicBlock *DestBBIDom = DT->getNode(DestBB)->getIDom()->getBlock();
+    BasicBlock *NewIDom = DT->findNearestCommonDominator(BBIDom, DestBBIDom);
+    DT->changeImmediateDominator(DestBB, NewIDom);
+    DT->eraseNode(BB);
+  }
   if (PFI) {
     PFI->replaceAllUses(BB, DestBB);
     PFI->removeEdge(ProfileInfo::getEdge(BB, DestBB));
   }
   BB->eraseFromParent();
+  ++NumBlocksElim;
 
   DEBUG(dbgs() << "AFTER:\n" << *DestBB << "\n\n\n");
 }
@@ -480,6 +524,7 @@ static bool OptimizeNoopCopyExpression(CastInst *CI, const TargetLowering &TLI){
 
     // Replace a use of the cast with a use of the new cast.
     TheUse = InsertedCast;
+    ++NumCastUses;
   }
 
   // If we removed all uses, nuke the cast.
@@ -537,6 +582,7 @@ static bool OptimizeCmpExpression(CmpInst *CI) {
 
     // Replace a use of the cmp with a use of the new cmp.
     TheUse = InsertedCmp;
+    ++NumCmpUses;
   }
 
   // If we removed all uses, nuke the cmp.
@@ -563,14 +609,45 @@ protected:
 } // end anonymous namespace
 
 bool CodeGenPrepare::OptimizeCallInst(CallInst *CI) {
+  BasicBlock *BB = CI->getParent();
+  
+  // Lower inline assembly if we can.
+  // If we found an inline asm expession, and if the target knows how to
+  // lower it to normal LLVM code, do so now.
+  if (TLI && isa<InlineAsm>(CI->getCalledValue())) {
+    if (TLI->ExpandInlineAsm(CI)) {
+      // Avoid invalidating the iterator.
+      CurInstIterator = BB->begin();
+      // Avoid processing instructions out of order, which could cause
+      // reuse before a value is defined.
+      SunkAddrs.clear();
+      return true;
+    }
+    // Sink address computing for memory operands into the block.
+    if (OptimizeInlineAsmInst(CI))
+      return true;
+  }
+  
   // Lower all uses of llvm.objectsize.*
   IntrinsicInst *II = dyn_cast<IntrinsicInst>(CI);
   if (II && II->getIntrinsicID() == Intrinsic::objectsize) {
     bool Min = (cast<ConstantInt>(II->getArgOperand(1))->getZExtValue() == 1);
     const Type *ReturnTy = CI->getType();
     Constant *RetVal = ConstantInt::get(ReturnTy, Min ? 0 : -1ULL);    
-    CI->replaceAllUsesWith(RetVal);
-    CI->eraseFromParent();
+    
+    // Substituting this can cause recursive simplifications, which can
+    // invalidate our iterator.  Use a WeakVH to hold onto it in case this
+    // happens.
+    WeakVH IterHandle(CurInstIterator);
+    
+    ReplaceAndSimplifyAllUses(CI, RetVal, TLI ? TLI->getTargetData() : 0, DT);
+
+    // If the iterator instruction was recursively deleted, start over at the
+    // start of the block.
+    if (IterHandle != CurInstIterator) {
+      CurInstIterator = BB->begin();
+      SunkAddrs.clear();
+    }
     return true;
   }
 
@@ -588,6 +665,7 @@ bool CodeGenPrepare::OptimizeCallInst(CallInst *CI) {
   CodeGenPrepareFortifiedLibCalls Simplifier;
   return Simplifier.fold(CI, TD);
 }
+
 //===----------------------------------------------------------------------===//
 // Memory Optimization
 //===----------------------------------------------------------------------===//
@@ -610,13 +688,69 @@ static bool IsNonLocalValue(Value *V, BasicBlock *BB) {
 /// This method is used to optimize both load/store and inline asms with memory
 /// operands.
 bool CodeGenPrepare::OptimizeMemoryInst(Instruction *MemoryInst, Value *Addr,
-                                        const Type *AccessTy,
-                                        DenseMap<Value*,Value*> &SunkAddrs) {
-  // Figure out what addressing mode will be built up for this operation.
+                                        const Type *AccessTy) {
+  Value *Repl = Addr;
+  
+  // Try to collapse single-value PHI nodes.  This is necessary to undo 
+  // unprofitable PRE transformations.
+  SmallVector<Value*, 8> worklist;
+  SmallPtrSet<Value*, 16> Visited;
+  worklist.push_back(Addr);
+  
+  // Use a worklist to iteratively look through PHI nodes, and ensure that
+  // the addressing mode obtained from the non-PHI roots of the graph
+  // are equivalent.
+  Value *Consensus = 0;
+  unsigned NumUses = 0;
   SmallVector<Instruction*, 16> AddrModeInsts;
-  ExtAddrMode AddrMode = AddressingModeMatcher::Match(Addr, AccessTy,MemoryInst,
-                                                      AddrModeInsts, *TLI);
-
+  ExtAddrMode AddrMode;
+  while (!worklist.empty()) {
+    Value *V = worklist.back();
+    worklist.pop_back();
+    
+    // Break use-def graph loops.
+    if (Visited.count(V)) {
+      Consensus = 0;
+      break;
+    }
+    
+    Visited.insert(V);
+    
+    // For a PHI node, push all of its incoming values.
+    if (PHINode *P = dyn_cast<PHINode>(V)) {
+      for (unsigned i = 0, e = P->getNumIncomingValues(); i != e; ++i)
+        worklist.push_back(P->getIncomingValue(i));
+      continue;
+    }
+    
+    // For non-PHIs, determine the addressing mode being computed.
+    SmallVector<Instruction*, 16> NewAddrModeInsts;
+    ExtAddrMode NewAddrMode =
+      AddressingModeMatcher::Match(V, AccessTy,MemoryInst,
+                                   NewAddrModeInsts, *TLI);
+    
+    // Ensure that the obtained addressing mode is equivalent to that obtained
+    // for all other roots of the PHI traversal.  Also, when choosing one
+    // such root as representative, select the one with the most uses in order
+    // to keep the cost modeling heuristics in AddressingModeMatcher applicable.
+    if (!Consensus || NewAddrMode == AddrMode) {
+      if (V->getNumUses() > NumUses) {
+        Consensus = V;
+        NumUses = V->getNumUses();
+        AddrMode = NewAddrMode;
+        AddrModeInsts = NewAddrModeInsts;
+      }
+      continue;
+    }
+    
+    Consensus = 0;
+    break;
+  }
+  
+  // If the addressing mode couldn't be determined, or if multiple different
+  // ones were determined, bail out now.
+  if (!Consensus) return false;
+  
   // Check to see if any of the instructions supersumed by this addr mode are
   // non-local to I's BB.
   bool AnyNonLocal = false;
@@ -719,60 +853,39 @@ bool CodeGenPrepare::OptimizeMemoryInst(Instruction *MemoryInst, Value *Addr,
       SunkAddr = new IntToPtrInst(Result, Addr->getType(), "sunkaddr",InsertPt);
   }
 
-  MemoryInst->replaceUsesOfWith(Addr, SunkAddr);
+  MemoryInst->replaceUsesOfWith(Repl, SunkAddr);
 
-  if (Addr->use_empty()) {
-    RecursivelyDeleteTriviallyDeadInstructions(Addr);
+  if (Repl->use_empty()) {
+    RecursivelyDeleteTriviallyDeadInstructions(Repl);
     // This address is now available for reassignment, so erase the table entry;
     // we don't want to match some completely different instruction.
     SunkAddrs[Addr] = 0;
   }
+  ++NumMemoryInsts;
   return true;
 }
 
 /// OptimizeInlineAsmInst - If there are any memory operands, use
 /// OptimizeMemoryInst to sink their address computing into the block when
 /// possible / profitable.
-bool CodeGenPrepare::OptimizeInlineAsmInst(Instruction *I, CallSite CS,
-                                           DenseMap<Value*,Value*> &SunkAddrs) {
+bool CodeGenPrepare::OptimizeInlineAsmInst(CallInst *CS) {
   bool MadeChange = false;
-  InlineAsm *IA = cast<InlineAsm>(CS.getCalledValue());
 
-  // Do a prepass over the constraints, canonicalizing them, and building up the
-  // ConstraintOperands list.
-  std::vector<InlineAsm::ConstraintInfo>
-    ConstraintInfos = IA->ParseConstraints();
-
-  /// ConstraintOperands - Information about all of the constraints.
-  std::vector<TargetLowering::AsmOperandInfo> ConstraintOperands;
-  unsigned ArgNo = 0;   // ArgNo - The argument of the CallInst.
-  for (unsigned i = 0, e = ConstraintInfos.size(); i != e; ++i) {
-    ConstraintOperands.
-      push_back(TargetLowering::AsmOperandInfo(ConstraintInfos[i]));
-    TargetLowering::AsmOperandInfo &OpInfo = ConstraintOperands.back();
-
-    // Compute the value type for each operand.
-    switch (OpInfo.Type) {
-    case InlineAsm::isOutput:
-      if (OpInfo.isIndirect)
-        OpInfo.CallOperandVal = CS.getArgument(ArgNo++);
-      break;
-    case InlineAsm::isInput:
-      OpInfo.CallOperandVal = CS.getArgument(ArgNo++);
-      break;
-    case InlineAsm::isClobber:
-      // Nothing to do.
-      break;
-    }
-
+  TargetLowering::AsmOperandInfoVector 
+    TargetConstraints = TLI->ParseConstraints(CS);
+  unsigned ArgNo = 0;
+  for (unsigned i = 0, e = TargetConstraints.size(); i != e; ++i) {
+    TargetLowering::AsmOperandInfo &OpInfo = TargetConstraints[i];
+    
     // Compute the constraint code and ConstraintType to use.
     TLI->ComputeConstraintToUse(OpInfo, SDValue());
 
     if (OpInfo.ConstraintType == TargetLowering::C_Memory &&
         OpInfo.isIndirect) {
-      Value *OpVal = OpInfo.CallOperandVal;
-      MadeChange |= OptimizeMemoryInst(I, OpVal, OpVal->getType(), SunkAddrs);
-    }
+      Value *OpVal = CS->getArgOperand(ArgNo++);
+      MadeChange |= OptimizeMemoryInst(CS, OpVal, OpVal->getType());
+    } else if (OpInfo.Type == InlineAsm::isInput)
+      ArgNo++;
   }
 
   return MadeChange;
@@ -794,7 +907,9 @@ bool CodeGenPrepare::MoveExtToFormExtLoad(Instruction *I) {
   // If the load has other users and the truncate is not free, this probably
   // isn't worthwhile.
   if (!LI->hasOneUse() &&
-      TLI && !TLI->isTruncateFree(I->getType(), LI->getType()))
+      TLI && (TLI->isTypeLegal(TLI->getValueType(LI->getType())) ||
+              !TLI->isTypeLegal(TLI->getValueType(I->getType()))) &&
+      !TLI->isTruncateFree(I->getType(), LI->getType()))
     return false;
 
   // Check whether the target supports casts folded into loads.
@@ -812,13 +927,14 @@ bool CodeGenPrepare::MoveExtToFormExtLoad(Instruction *I) {
   // can fold it.
   I->removeFromParent();
   I->insertAfter(LI);
+  ++NumExtsMoved;
   return true;
 }
 
 bool CodeGenPrepare::OptimizeExtUses(Instruction *I) {
   BasicBlock *DefBB = I->getParent();
 
-  // If both result of the {s|z}xt and its source are live out, rewrite all
+  // If the result of a {s|z}ext and its source are both live out, rewrite all
   // other uses of the source with result of extension.
   Value *Src = I->getOperand(0);
   if (Src->hasOneUse())
@@ -883,11 +999,81 @@ bool CodeGenPrepare::OptimizeExtUses(Instruction *I) {
 
     // Replace a use of the {s|z}ext source with a use of the result.
     TheUse = InsertedTrunc;
-
+    ++NumExtUses;
     MadeChange = true;
   }
 
   return MadeChange;
+}
+
+bool CodeGenPrepare::OptimizeInst(Instruction *I) {
+  if (PHINode *P = dyn_cast<PHINode>(I)) {
+    // It is possible for very late stage optimizations (such as SimplifyCFG)
+    // to introduce PHI nodes too late to be cleaned up.  If we detect such a
+    // trivial PHI, go ahead and zap it here.
+    if (Value *V = SimplifyInstruction(P)) {
+      P->replaceAllUsesWith(V);
+      P->eraseFromParent();
+      ++NumPHIsElim;
+      return true;
+    }
+    return false;
+  }
+  
+  if (CastInst *CI = dyn_cast<CastInst>(I)) {
+    // If the source of the cast is a constant, then this should have
+    // already been constant folded.  The only reason NOT to constant fold
+    // it is if something (e.g. LSR) was careful to place the constant
+    // evaluation in a block other than then one that uses it (e.g. to hoist
+    // the address of globals out of a loop).  If this is the case, we don't
+    // want to forward-subst the cast.
+    if (isa<Constant>(CI->getOperand(0)))
+      return false;
+
+    if (TLI && OptimizeNoopCopyExpression(CI, *TLI))
+      return true;
+
+    if (isa<ZExtInst>(I) || isa<SExtInst>(I)) {
+      bool MadeChange = MoveExtToFormExtLoad(I);
+      return MadeChange | OptimizeExtUses(I);
+    }
+    return false;
+  }
+  
+  if (CmpInst *CI = dyn_cast<CmpInst>(I))
+    return OptimizeCmpExpression(CI);
+  
+  if (LoadInst *LI = dyn_cast<LoadInst>(I)) {
+    if (TLI)
+      return OptimizeMemoryInst(I, I->getOperand(0), LI->getType());
+    return false;
+  }
+  
+  if (StoreInst *SI = dyn_cast<StoreInst>(I)) {
+    if (TLI)
+      return OptimizeMemoryInst(I, SI->getOperand(1),
+                                SI->getOperand(0)->getType());
+    return false;
+  }
+  
+  if (GetElementPtrInst *GEPI = dyn_cast<GetElementPtrInst>(I)) {
+    if (GEPI->hasAllZeroIndices()) {
+      /// The GEP operand must be a pointer, so must its result -> BitCast
+      Instruction *NC = new BitCastInst(GEPI->getOperand(0), GEPI->getType(),
+                                        GEPI->getName(), GEPI);
+      GEPI->replaceAllUsesWith(NC);
+      GEPI->eraseFromParent();
+      ++NumGEPsElim;
+      OptimizeInst(NC);
+      return true;
+    }
+    return false;
+  }
+  
+  if (CallInst *CI = dyn_cast<CallInst>(I))
+    return OptimizeCallInst(CI);
+
+  return false;
 }
 
 // In this pass we look for GEP and cast instructions that are used
@@ -908,74 +1094,11 @@ bool CodeGenPrepare::OptimizeBlock(BasicBlock &BB) {
     }
   }
 
-  // Keep track of non-local addresses that have been sunk into this block.
-  // This allows us to avoid inserting duplicate code for blocks with multiple
-  // load/stores of the same address.
-  DenseMap<Value*, Value*> SunkAddrs;
+  SunkAddrs.clear();
 
-  for (BasicBlock::iterator BBI = BB.begin(), E = BB.end(); BBI != E; ) {
-    Instruction *I = BBI++;
-
-    if (CastInst *CI = dyn_cast<CastInst>(I)) {
-      // If the source of the cast is a constant, then this should have
-      // already been constant folded.  The only reason NOT to constant fold
-      // it is if something (e.g. LSR) was careful to place the constant
-      // evaluation in a block other than then one that uses it (e.g. to hoist
-      // the address of globals out of a loop).  If this is the case, we don't
-      // want to forward-subst the cast.
-      if (isa<Constant>(CI->getOperand(0)))
-        continue;
-
-      bool Change = false;
-      if (TLI) {
-        Change = OptimizeNoopCopyExpression(CI, *TLI);
-        MadeChange |= Change;
-      }
-
-      if (!Change && (isa<ZExtInst>(I) || isa<SExtInst>(I))) {
-        MadeChange |= MoveExtToFormExtLoad(I);
-        MadeChange |= OptimizeExtUses(I);
-      }
-    } else if (CmpInst *CI = dyn_cast<CmpInst>(I)) {
-      MadeChange |= OptimizeCmpExpression(CI);
-    } else if (LoadInst *LI = dyn_cast<LoadInst>(I)) {
-      if (TLI)
-        MadeChange |= OptimizeMemoryInst(I, I->getOperand(0), LI->getType(),
-                                         SunkAddrs);
-    } else if (StoreInst *SI = dyn_cast<StoreInst>(I)) {
-      if (TLI)
-        MadeChange |= OptimizeMemoryInst(I, SI->getOperand(1),
-                                         SI->getOperand(0)->getType(),
-                                         SunkAddrs);
-    } else if (GetElementPtrInst *GEPI = dyn_cast<GetElementPtrInst>(I)) {
-      if (GEPI->hasAllZeroIndices()) {
-        /// The GEP operand must be a pointer, so must its result -> BitCast
-        Instruction *NC = new BitCastInst(GEPI->getOperand(0), GEPI->getType(),
-                                          GEPI->getName(), GEPI);
-        GEPI->replaceAllUsesWith(NC);
-        GEPI->eraseFromParent();
-        MadeChange = true;
-        BBI = NC;
-      }
-    } else if (CallInst *CI = dyn_cast<CallInst>(I)) {
-      // If we found an inline asm expession, and if the target knows how to
-      // lower it to normal LLVM code, do so now.
-      if (TLI && isa<InlineAsm>(CI->getCalledValue())) {
-        if (TLI->ExpandInlineAsm(CI)) {
-          BBI = BB.begin();
-          // Avoid processing instructions out of order, which could cause
-          // reuse before a value is defined.
-          SunkAddrs.clear();
-        } else
-          // Sink address computing for memory operands into the block.
-          MadeChange |= OptimizeInlineAsmInst(I, &(*CI), SunkAddrs);
-      } else {
-        // Other CallInst optimizations that don't need to muck with the
-        // enclosing iterator here.
-        MadeChange |= OptimizeCallInst(CI);
-      }
-    }
-  }
+  CurInstIterator = BB.begin();
+  for (BasicBlock::iterator E = BB.end(); CurInstIterator != E; )
+    MadeChange |= OptimizeInst(CurInstIterator++);
 
   return MadeChange;
 }

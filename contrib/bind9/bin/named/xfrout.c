@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrout.c,v 1.131.26.4 2009/01/29 22:40:34 jinmei Exp $ */
+/* $Id: xfrout.c,v 1.131.26.6 2010-05-27 23:48:18 tbox Exp $ */
 
 #include <config.h>
 
@@ -985,11 +985,13 @@ ns_xfr_start(ns_client_t *client, dns_rdatatype_t reqtype) {
 #ifdef DLZ
 	{
 		/*
-		 * Normal zone table does not have a match.  Try the DLZ database
+		 * Normal zone table does not have a match.
+		 * Try the DLZ database
 		 */
 		if (client->view->dlzdatabase != NULL) {
 			result = dns_dlzallowzonexfr(client->view,
-						     question_name, &client->peeraddr,
+						     question_name,
+						     &client->peeraddr,
 						     &db);
 
 			if (result == ISC_R_NOPERM) {
@@ -1228,9 +1230,9 @@ ns_xfr_start(ns_client_t *client, dns_rdatatype_t reqtype) {
 
 #ifdef DLZ
 	if (is_dlz)
-		CHECK(xfrout_ctx_create(mctx, client, request->id, question_name,
-					reqtype, question_class, zone, db, ver,
-					quota, stream,
+		CHECK(xfrout_ctx_create(mctx, client, request->id,
+					question_name, reqtype, question_class,
+					zone, db, ver, quota, stream,
 					dns_message_gettsigkey(request),
 					tsigbuf,
 					3600,
@@ -1240,9 +1242,9 @@ ns_xfr_start(ns_client_t *client, dns_rdatatype_t reqtype) {
 					&xfr));
 	else
 #endif
-		CHECK(xfrout_ctx_create(mctx, client, request->id, question_name,
-					reqtype, question_class, zone, db, ver,
-					quota, stream,
+		CHECK(xfrout_ctx_create(mctx, client, request->id,
+					question_name, reqtype, question_class,
+					zone, db, ver, quota, stream,
 					dns_message_gettsigkey(request),
 					tsigbuf,
 					dns_zone_getmaxxfrout(zone),

@@ -5,6 +5,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+/* Relative directory for resource files */
+#define CLANG_RESOURCE_DIR ""
+
 /* 32 bit multilib directory. */
 #define CXX_INCLUDE_32BIT_DIR ""
 
@@ -24,13 +27,13 @@
 #define ENABLE_CBE_PRINTF_A 1
 
 /* Define if position independent code is enabled */
-#define ENABLE_PIC 1
+#define ENABLE_PIC 0
 
 /* Define if threads enabled */
-/* #undef ENABLE_THREADS */
+#define ENABLE_THREADS 0
 
 /* Define if timestamp information (e.g., __DATE___) is allowed */
-/* #undef ENABLE_TIMESTAMPS */
+#define ENABLE_TIMESTAMPS 0
 
 /* Define to 1 if you have the `argz_append' function. */
 /* #undef HAVE_ARGZ_APPEND */
@@ -71,8 +74,15 @@
 /* Define to 1 if you have the <CrashReporterClient.h> header file. */
 /* #undef HAVE_CRASHREPORTERCLIENT_H */
 
+/* Define if __crashreporter_info__ exists. */
+#define HAVE_CRASHREPORTER_INFO 0
+
 /* Define to 1 if you have the <ctype.h> header file. */
 #define HAVE_CTYPE_H 1
+
+/* Define to 1 if you have the declaration of `strerror_s', and to 0 if you
+   don't. */
+#define HAVE_DECL_STRERROR_S 0
 
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
@@ -120,6 +130,9 @@
 /* Define if the neat program is available */
 /* #undef HAVE_FDP */
 
+/* Define to 1 if you have the <fenv.h> header file. */
+#define HAVE_FENV_H 1
+
 /* Define if libffi is available on this platform. */
 /* #undef HAVE_FFI_CALL */
 
@@ -149,9 +162,6 @@
 
 /* Define to 1 if you have the `getrusage' function. */
 #define HAVE_GETRUSAGE 1
-
-/* Have Darwin getsect() support */
-/* #undef HAVE_GETSECT */
 
 /* Define to 1 if you have the `gettimeofday' function. */
 #define HAVE_GETTIMEOFDAY 1
@@ -199,7 +209,7 @@
 /* #undef HAVE_LIBPSAPI */
 
 /* Define to 1 if you have the `pthread' library (-lpthread). */
-#define HAVE_LIBPTHREAD 1
+/* #undef HAVE_LIBPTHREAD */
 
 /* Define to 1 if you have the `udis86' library (-ludis86). */
 /* #undef HAVE_LIBUDIS86 */
@@ -225,9 +235,6 @@
 
 /* Define to 1 if you have the <mach-o/dyld.h> header file. */
 /* #undef HAVE_MACH_O_DYLD_H */
-
-/* Define to 1 if you have the <mach-o/getsect.h> header file. */
-/* #undef HAVE_MACH_O_GETSECT_H */
 
 /* Define if mallinfo() is available on this platform. */
 /* #undef HAVE_MALLINFO */
@@ -383,9 +390,6 @@
 /* Define to 1 if you have the `strerror_r' function. */
 #define HAVE_STRERROR_R 1
 
-/* Define to 1 if you have the `strerror_s' function. */
-/* #undef HAVE_STRERROR_S */
-
 /* Define to 1 if you have the <strings.h> header file. */
 #define HAVE_STRINGS_H 1
 
@@ -439,6 +443,9 @@
 /* Define to 1 if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
 
+/* Define to 1 if you have the <sys/uio.h> header file. */
+#define HAVE_SYS_UIO_H 1
+
 /* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
 #define HAVE_SYS_WAIT_H 1
 
@@ -466,17 +473,110 @@
 /* Define to 1 if you have the <windows.h> header file. */
 /* #undef HAVE_WINDOWS_H */
 
+/* Define to 1 if you have the `writev' function. */
+#define HAVE_WRITEV 1
+
+/* Define if the xdot.py program is available */
+/* #undef HAVE_XDOT_PY */
+
+/* Have host's _alloca */
+/* #undef HAVE__ALLOCA */
+
+/* Have host's __alloca */
+/* #undef HAVE___ALLOCA */
+
+/* Have host's __ashldi3 */
+/* #undef HAVE___ASHLDI3 */
+
+/* Have host's __ashrdi3 */
+/* #undef HAVE___ASHRDI3 */
+
+/* Have host's __chkstk */
+/* #undef HAVE___CHKSTK */
+
+/* Have host's __cmpdi2 */
+/* #undef HAVE___CMPDI2 */
+
+/* Have host's __divdi3 */
+/* #undef HAVE___DIVDI3 */
+
 /* Define to 1 if you have the `__dso_handle' function. */
 #define HAVE___DSO_HANDLE 1
+
+/* Have host's __fixdfdi */
+/* #undef HAVE___FIXDFDI */
+
+/* Have host's __fixsfdi */
+/* #undef HAVE___FIXSFDI */
+
+/* Have host's __floatdidf */
+/* #undef HAVE___FLOATDIDF */
+
+/* Have host's __lshrdi3 */
+/* #undef HAVE___LSHRDI3 */
+
+/* Have host's __main */
+/* #undef HAVE___MAIN */
+
+/* Have host's __moddi3 */
+/* #undef HAVE___MODDI3 */
+
+/* Have host's __udivdi3 */
+/* #undef HAVE___UDIVDI3 */
+
+/* Have host's __umoddi3 */
+/* #undef HAVE___UMODDI3 */
+
+/* Have host's ___chkstk */
+/* #undef HAVE____CHKSTK */
+
+/* Linker version detected at compile time. */
+/* #undef HOST_LINK_VERSION */
+
+/* Installation directory for binary executables */
+/* #undef LLVM_BINDIR */
+
+/* Time at which LLVM was configured */
+/* #undef LLVM_CONFIGTIME */
+
+/* Installation directory for data files */
+/* #undef LLVM_DATADIR */
+
+/* Installation directory for documentation */
+/* #undef LLVM_DOCSDIR */
+
+/* Installation directory for config files */
+/* #undef LLVM_ETCDIR */
+
+/* Host triple we were built on */
+/* #undef LLVM_HOSTTRIPLE */
+
+/* Installation directory for include files */
+/* #undef LLVM_INCLUDEDIR */
+
+/* Installation directory for .info files */
+/* #undef LLVM_INFODIR */
+
+/* Installation directory for libraries */
+/* #undef LLVM_LIBDIR */
+
+/* Installation directory for man pages */
+/* #undef LLVM_MANDIR */
 
 /* Build multithreading support into LLVM */
 /* #undef LLVM_MULTITHREADED */
 
 /* LLVM architecture name for the native architecture, if available */
-#define LLVM_NATIVE_ARCH X86Target
+#define LLVM_NATIVE_ARCH X86
 
-/* Short LLVM architecture name for the native architecture, if available */
-#define LLVM_NATIVE_ARCHNAME X86
+/* LLVM name for the native AsmPrinter init function, if available */
+#define LLVM_NATIVE_ASMPRINTER LLVMInitializeX86AsmPrinter
+
+/* LLVM name for the native Target init function, if available */
+#define LLVM_NATIVE_TARGET LLVMInitializeX86Target
+
+/* LLVM name for the native TargetInfo init function, if available */
+#define LLVM_NATIVE_TARGETINFO LLVMInitializeX86TargetInfo
 
 /* Define if this is Unixish platform */
 #define LLVM_ON_UNIX 1
@@ -508,8 +608,11 @@
 /* Define to path to twopi program if found or 'echo twopi' otherwise */
 /* #undef LLVM_PATH_TWOPI */
 
+/* Define to path to xdot.py program if found or 'echo xdot.py' otherwise */
+/* #undef LLVM_PATH_XDOT_PY */
+
 /* Installation prefix directory */
-#define LLVM_PREFIX "/usr"
+/* #undef LLVM_PREFIX */
 
 /* Define if the OS needs help to load dependent libraries for dlopen(). */
 #define LTDL_DLOPEN_DEPLIBS 1
@@ -542,13 +645,13 @@
 #define PACKAGE_NAME "llvm"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "llvm 2.8svn"
+#define PACKAGE_STRING "llvm 2.9svn"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "-llvm-"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.8svn"
+#define PACKAGE_VERSION "2.9svn"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void

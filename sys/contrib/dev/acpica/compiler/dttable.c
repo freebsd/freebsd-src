@@ -1278,7 +1278,7 @@ DtCompileSrat (
 
 /******************************************************************************
  *
- * FUNCTION:    DtTableInfoGeneric
+ * FUNCTION:    DtGetGenericTableInfo
  *
  * PARAMETERS:  Name                - Generic type name
  *
@@ -1288,8 +1288,8 @@ DtCompileSrat (
  *
  *****************************************************************************/
 
-static ACPI_DMTABLE_INFO *
-DtTableInfoGeneric (
+ACPI_DMTABLE_INFO *
+DtGetGenericTableInfo (
     char                    *Name)
 {
     ACPI_DMTABLE_INFO       *Info;
@@ -1346,6 +1346,8 @@ DtCompileUefi (
     UINT16                  *DataOffset;
 
 
+    /* Compile the predefined portion of the UEFI table */
+
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoUefi,
                 &Subtable, TRUE);
     if (ACPI_FAILURE (Status))
@@ -1359,9 +1361,21 @@ DtCompileUefi (
     ParentTable = DtPeekSubtable ();
     DtInsertSubtable (ParentTable, Subtable);
 
+    /*
+     * Compile the "generic" portion of the UEFI table. This
+     * part of the table is not predefined and any of the generic
+     * operators may be used.
+     */
+
+    /* Find any and all labels in the entire generic portion */
+
+    DtDetectAllLabels (*PFieldList);
+
+    /* Now we can actually compile the parse tree */
+
     while (*PFieldList)
     {
-        Info = DtTableInfoGeneric ((*PFieldList)->Name);
+        Info = DtGetGenericTableInfo ((*PFieldList)->Name);
         if (!Info)
         {
             sprintf (MsgBuffer, "Generic data type \"%s\" not found",

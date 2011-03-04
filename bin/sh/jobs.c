@@ -177,22 +177,6 @@ out:				out2fmt_flush("sh: can't access tty; job control turned off\n");
 #endif
 
 
-#ifdef mkinit
-INCLUDE <sys/types.h>
-INCLUDE <stdlib.h>
-
-SHELLPROC {
-	backgndpid = -1;
-	bgjob = NULL;
-#if JOBS
-	jobctl = 0;
-#endif
-}
-
-#endif
-
-
-
 #if JOBS
 int
 fgcmd(int argc __unused, char **argv)
@@ -1056,13 +1040,13 @@ dowait(int block, struct job *job)
 			}
 		if (sig > 0 && sig != SIGINT && sig != SIGPIPE) {
 			if (sig < sys_nsig && sys_siglist[sig])
-				out1str(sys_siglist[sig]);
+				out2str(sys_siglist[sig]);
 			else
-				out1fmt("Signal %d", sig);
+				outfmt(out2, "Signal %d", sig);
 			if (coredump)
-				out1str(" (core dumped)");
-			out1c('\n');
-			flushout(out1);
+				out2str(" (core dumped)");
+			out2c('\n');
+			flushout(out2);
 		}
 	} else {
 		TRACE(("Not printing status, rootshell=%d, job=%p\n", rootshell, job));

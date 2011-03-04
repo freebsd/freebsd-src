@@ -114,8 +114,10 @@ struct sample_node {
  * Calculate the transmit duration of a frame.
  */
 static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
-				int length, 
-				int rix, int short_retries, int long_retries) {
+				int length,
+				int rix, int short_retries,
+				int long_retries, int is_ht40)
+{
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
@@ -153,6 +155,11 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 		t_sifs = 8;
 		t_difs = 28;
 		break;
+	case IEEE80211_T_HT:
+		t_slot = 9;
+		t_sifs = 8;
+		t_difs = 28;
+		break;
 	case IEEE80211_T_DS:
 		/* fall through to default */
 	default:
@@ -172,7 +179,6 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 			cts = 1;
 
 		cix = rt->info[sc->sc_protrix].controlRate;
-
 	}
 
 	if (0 /*length > ic->ic_rtsthreshold */) {
@@ -192,8 +198,9 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 		if (rts)		/* SIFS + CTS */
 			ctsduration += rt->info[cix].spAckDuration;
 
-		ctsduration += ath_hal_computetxtime(sc->sc_ah,
-						     rt, length, rix, AH_TRUE);
+		/* XXX assumes short preamble */
+		/* XXX assumes HT/20; the node info isn't yet available here */
+		ctsduration += ath_hal_pkt_txtime(sc->sc_ah, rt, length, rix, 0, is_ht40);
 
 		if (cts)	/* SIFS + ACK */
 			ctsduration += rt->info[cix].spAckDuration;
@@ -201,9 +208,12 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 		tt += (short_retries + 1) * ctsduration;
 	}
 	tt += t_difs;
+
+	/* XXX assumes short preamble */
+	/* XXX assumes HT/20; the node info isn't yet available here */
+	tt += (long_retries+1)*ath_hal_pkt_txtime(sc->sc_ah, rt, length, rix, 0, is_ht40);
 	tt += (long_retries+1)*(t_sifs + rt->info[rix].spAckDuration);
-	tt += (long_retries+1)*ath_hal_computetxtime(sc->sc_ah, rt, length, 
-						rix, AH_TRUE);
+
 	for (x = 0; x <= short_retries + long_retries; x++) {
 		cw = MIN(WIFI_CW_MAX, (cw + 1) * 2);
 		tt += (t_slot * cw/2);

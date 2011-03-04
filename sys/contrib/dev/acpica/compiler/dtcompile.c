@@ -426,7 +426,10 @@ DtCompileTable (
     Length = DtGetSubtableLength (*Field, Info);
     Subtable = UtLocalCalloc (sizeof (DT_SUBTABLE));
 
-    Subtable->Buffer = UtLocalCalloc (Length);
+    if (Length > 0)
+    {
+        Subtable->Buffer = UtLocalCalloc (Length);
+    }
     Subtable->Length = Length;
     Subtable->TotalLength = Length;
     Buffer = Subtable->Buffer;
@@ -470,7 +473,12 @@ DtCompileTable (
             }
         }
 
+        /* Maintain table offsets */
+
+        LocalField->TableOffset = Gbl_CurrentTableOffset;
         FieldLength = DtGetFieldLength (LocalField, Info);
+        Gbl_CurrentTableOffset += FieldLength;
+
         FieldType = DtGetFieldType (Info);
         Gbl_InputFieldCount++;
 
@@ -535,6 +543,12 @@ DtCompileTable (
             ACPI_FREE (InlineSubtable->Buffer);
             ACPI_FREE (InlineSubtable);
             LocalField = *Field;
+            break;
+
+        case DT_FIELD_TYPE_LABEL:
+
+            DtWriteFieldToListing (Buffer, LocalField, 0);
+            LocalField = LocalField->Next;
             break;
 
         default:

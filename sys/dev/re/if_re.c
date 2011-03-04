@@ -217,6 +217,7 @@ static struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8102EL, RL_8169, "8102EL", RL_MTU },
 	{ RL_HWREV_8102EL_SPIN1, RL_8169, "8102EL", RL_MTU },
 	{ RL_HWREV_8103E, RL_8169, "8103E", RL_MTU },
+	{ RL_HWREV_8401E, RL_8169, "8401E", RL_MTU },
 	{ RL_HWREV_8105E, RL_8169, "8105E", RL_MTU },
 	{ RL_HWREV_8168B_SPIN2, RL_8169, "8168", RL_JUMBO_MTU },
 	{ RL_HWREV_8168B_SPIN3, RL_8169, "8168", RL_JUMBO_MTU },
@@ -1377,6 +1378,7 @@ re_attach(device_t dev)
 		    RL_FLAG_MACSTAT | RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP |
 		    RL_FLAG_AUTOPAD | RL_FLAG_MACSLEEP;
 		break;
+	case RL_HWREV_8401E:
 	case RL_HWREV_8105E:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHYWAKE_PM |
 		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
@@ -1502,8 +1504,11 @@ re_attach(device_t dev)
 	}
 
 	/* Take PHY out of power down mode. */
-	if ((sc->rl_flags & RL_FLAG_PHYWAKE_PM) != 0)
+	if ((sc->rl_flags & RL_FLAG_PHYWAKE_PM) != 0) {
 		CSR_WRITE_1(sc, RL_PMCH, CSR_READ_1(sc, RL_PMCH) | 0x80);
+		if (hw_rev->rl_rev == RL_HWREV_8401E)
+			CSR_WRITE_1(sc, 0xD1, CSR_READ_1(sc, 0xD1) & ~0x08);
+	}
 	if ((sc->rl_flags & RL_FLAG_PHYWAKE) != 0) {
 		re_gmii_writereg(dev, 1, 0x1f, 0);
 		re_gmii_writereg(dev, 1, 0x0e, 0);
@@ -1527,7 +1532,16 @@ re_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = re_ioctl;
 	ifp->if_start = re_start;
-	ifp->if_hwassist = RE_CSUM_FEATURES | CSUM_TSO;
+	/*
+	 * RTL8168/8111C generates wrong IP checksummed frame if the
+	 * packet has IP options so disable TX IP checksum offloading.
+	 */
+	if (sc->rl_hwrev->rl_rev == RL_HWREV_8168C ||
+	    sc->rl_hwrev->rl_rev == RL_HWREV_8168C_SPIN2)
+		ifp->if_hwassist = CSUM_TCP | CSUM_UDP;
+	else
+		ifp->if_hwassist = CSUM_IP | CSUM_TCP | CSUM_UDP;
+	ifp->if_hwassist |= CSUM_TSO;
 	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_TSO4;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_init = re_init;
@@ -3209,6 +3223,7 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct rl_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii;
+	uint32_t		rev;
 	int			error = 0;
 
 	switch (command) {
@@ -3294,9 +3309,14 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if ((mask & IFCAP_TXCSUM) != 0 &&
 		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
 			ifp->if_capenable ^= IFCAP_TXCSUM;
-			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
-				ifp->if_hwassist |= RE_CSUM_FEATURES;
-			else
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0) {
+				rev = sc->rl_hwrev->rl_rev;
+				if (rev == RL_HWREV_8168C ||
+				    rev == RL_HWREV_8168C_SPIN2)
+					ifp->if_hwassist |= CSUM_TCP | CSUM_UDP;
+				else
+					ifp->if_hwassist |= RE_CSUM_FEATURES;
+			} else
 				ifp->if_hwassist &= ~RE_CSUM_FEATURES;
 			reinit = 1;
 		}

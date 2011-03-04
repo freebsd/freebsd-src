@@ -1311,7 +1311,9 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	if (so->so_proto->pr_flags & PR_CONNREQUIRED) {
 		if (so2->so_options & SO_ACCEPTCONN) {
+			CURVNET_SET(so2->so_vnet);
 			so3 = sonewconn(so2, 0);
+			CURVNET_RESTORE();
 		} else
 			so3 = NULL;
 		if (so3 == NULL) {
@@ -2153,9 +2155,9 @@ unp_gc(__unused void *arg, int pending)
 	struct unp_head *heads[] = { &unp_dhead, &unp_shead, &unp_sphead,
 				    NULL };
 	struct unp_head **head;
-	struct file **unref;
+	struct file *f, **unref;
 	struct unpcb *unp;
-	int i;
+	int i, total;
 
 	unp_taskcount++;
 	UNP_LIST_LOCK();
@@ -2193,33 +2195,43 @@ unp_gc(__unused void *arg, int pending)
 	 * Iterate looking for sockets which have been specifically marked
 	 * as as unreachable and store them locally.
 	 */
+	UNP_LINK_RLOCK();
 	UNP_LIST_LOCK();
-	for (i = 0, head = heads; *head != NULL; head++)
+	for (total = 0, head = heads; *head != NULL; head++)
 		LIST_FOREACH(unp, *head, unp_link)
-			if (unp->unp_gcflag & UNPGC_DEAD) {
-				unref[i++] = unp->unp_file;
-				fhold(unp->unp_file);
-				KASSERT(unp->unp_file != NULL,
-				    ("unp_gc: Invalid unpcb."));
-				KASSERT(i <= unp_unreachable,
+			if ((unp->unp_gcflag & UNPGC_DEAD) != 0) {
+				f = unp->unp_file;
+				if (unp->unp_msgcount == 0 || f == NULL ||
+				    f->f_count != unp->unp_msgcount)
+					continue;
+				unref[total++] = f;
+				fhold(f);
+				KASSERT(total <= unp_unreachable,
 				    ("unp_gc: incorrect unreachable count."));
 			}
 	UNP_LIST_UNLOCK();
+	UNP_LINK_RUNLOCK();
 
 	/*
 	 * Now flush all sockets, free'ing rights.  This will free the
 	 * struct files associated with these sockets but leave each socket
 	 * with one remaining ref.
 	 */
-	for (i = 0; i < unp_unreachable; i++)
-		sorflush(unref[i]->f_data);
+	for (i = 0; i < total; i++) {
+		struct socket *so;
+
+		so = unref[i]->f_data;
+		CURVNET_SET(so->so_vnet);
+		sorflush(so);
+		CURVNET_RESTORE();
+	}
 
 	/*
 	 * And finally release the sockets so they can be reclaimed.
 	 */
-	for (i = 0; i < unp_unreachable; i++)
+	for (i = 0; i < total; i++)
 		fdrop(unref[i], NULL);
-	unp_recycled += unp_unreachable;
+	unp_recycled += total;
 	free(unref, M_TEMP);
 }
 

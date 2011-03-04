@@ -44,7 +44,6 @@ s32  e1000_acquire_nvm_generic(struct e1000_hw *hw);
 
 s32  e1000_poll_eerd_eewr_done(struct e1000_hw *hw, int ee_reg);
 s32  e1000_read_mac_addr_generic(struct e1000_hw *hw);
-s32  e1000_read_pba_num_generic(struct e1000_hw *hw, u32 *pba_num);
 s32  e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
                                    u32 pba_num_size);
 s32  e1000_read_pba_length_generic(struct e1000_hw *hw, u32 *pba_num_size);

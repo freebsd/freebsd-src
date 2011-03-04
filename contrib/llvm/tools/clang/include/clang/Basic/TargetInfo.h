@@ -18,7 +18,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/System/DataTypes.h"
+#include "llvm/Support/DataTypes.h"
 #include <cassert>
 #include <vector>
 #include <string>
@@ -64,6 +64,7 @@ protected:
   bool TLSSupported;
   bool NoAsmVariants;  // True if {|} are normal characters.
   unsigned char PointerWidth, PointerAlign;
+  unsigned char BoolWidth, BoolAlign;
   unsigned char IntWidth, IntAlign;
   unsigned char FloatWidth, FloatAlign;
   unsigned char DoubleWidth, DoubleAlign;
@@ -73,6 +74,7 @@ protected:
   unsigned char LongLongWidth, LongLongAlign;
   const char *DescriptionString;
   const char *UserLabelPrefix;
+  const char *MCountName;
   const llvm::fltSemantics *FloatFormat, *DoubleFormat, *LongDoubleFormat;
   unsigned char RegParmMax, SSERegParmMax;
   TargetCXXABI CXXABI;
@@ -139,7 +141,7 @@ public:
   IntType getSigAtomicType() const { return SigAtomicType; }
 
 
-  /// getTypeWidth - Return the width (in bits) of the specified integer type 
+  /// getTypeWidth - Return the width (in bits) of the specified integer type
   /// enum. For example, SignedInt -> getIntWidth().
   unsigned getTypeWidth(IntType T) const;
 
@@ -149,7 +151,7 @@ public:
 
   /// isTypeSigned - Return whether an integer types is signed. Returns true if
   /// the type is signed; false otherwise.
-  bool isTypeSigned(IntType T) const;
+  static bool isTypeSigned(IntType T);
 
   /// getPointerWidth - Return the width of pointers on this target, for the
   /// specified address space.
@@ -162,8 +164,8 @@ public:
 
   /// getBoolWidth/Align - Return the size of '_Bool' and C++ 'bool' for this
   /// target, in bits.
-  unsigned getBoolWidth(bool isWide = false) const { return 8; }  // FIXME
-  unsigned getBoolAlign(bool isWide = false) const { return 8; }  // FIXME
+  unsigned getBoolWidth() const { return BoolWidth; }
+  unsigned getBoolAlign() const { return BoolAlign; }
 
   unsigned getCharWidth() const { return 8; } // FIXME
   unsigned getCharAlign() const { return 8; } // FIXME
@@ -240,6 +242,11 @@ public:
     return UserLabelPrefix;
   }
 
+  /// MCountName - This returns name of the mcount instrumentation function.
+  const char *getMCountName() const {
+    return MCountName;
+  }
+
   bool useBitFieldTypeAlignment() const {
     return UseBitFieldTypeAlignment;
   }
@@ -306,7 +313,7 @@ public:
     std::string Name;           // Operand name: [foo] with no []'s.
   public:
     ConstraintInfo(llvm::StringRef ConstraintStr, llvm::StringRef Name)
-      : Flags(0), TiedOperand(-1), ConstraintStr(ConstraintStr.str()), 
+      : Flags(0), TiedOperand(-1), ConstraintStr(ConstraintStr.str()),
       Name(Name.str()) {}
 
     const std::string &getConstraintStr() const { return ConstraintStr; }
@@ -356,6 +363,9 @@ public:
                            unsigned NumOutputs, unsigned &Index) const;
 
   virtual std::string convertConstraint(const char Constraint) const {
+    // 'p' defaults to 'r', but can be overridden by targets.
+    if (Constraint == 'p')
+      return std::string("r");
     return std::string(1, Constraint);
   }
 
@@ -391,7 +401,7 @@ public:
     return "__OBJC,__cstring_object,regular,no_dead_strip";
   }
 
-  /// getNSStringNonFragileABISection - Return the section to use for 
+  /// getNSStringNonFragileABISection - Return the section to use for
   /// NSString literals, or 0 if no special section is used (NonFragile ABI).
   virtual const char *getNSStringNonFragileABISection() const {
     return "__DATA, __objc_stringobj, regular, no_dead_strip";
@@ -499,7 +509,7 @@ public:
   bool isTLSSupported() const {
     return TLSSupported;
   }
-  
+
   /// hasNoAsmVariants - Return true if {|} are normal characters in the
   /// asm string.  If this returns false (the default), then {abc|xyz} is syntax
   /// that says that when compiling for asm variant #0, "abc" should be
@@ -508,19 +518,18 @@ public:
   bool hasNoAsmVariants() const {
     return NoAsmVariants;
   }
-  
+
   /// getEHDataRegisterNumber - Return the register number that
   /// __builtin_eh_return_regno would return with the specified argument.
   virtual int getEHDataRegisterNumber(unsigned RegNo) const {
-    return -1; 
+    return -1;
   }
-  
-  /// getStaticInitSectionSpecifier - Return the section to use for C++ static 
+
+  /// getStaticInitSectionSpecifier - Return the section to use for C++ static
   /// initialization functions.
   virtual const char *getStaticInitSectionSpecifier() const {
     return 0;
   }
-  
 protected:
   virtual uint64_t getPointerWidthV(unsigned AddrSpace) const {
     return PointerWidth;

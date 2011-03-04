@@ -4,6 +4,7 @@ s/\\\n */ /g
 t loop
 
 s!\.o:!.lo:!
+s! \./! !g
 s! @BFD_H@!!g
 s!@SRCDIR@/../include!$(INCDIR)!g
 s!@TOPDIR@/include!$(INCDIR)!g

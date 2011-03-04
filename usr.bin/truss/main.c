@@ -155,7 +155,7 @@ strsig(int sig)
 	ret = NULL;
 	if (sig > 0 && sig < NSIG) {
 		int i;
-		asprintf(&ret, "sig%s", sys_signame[sig]);
+		asprintf(&ret, "SIG%s", sys_signame[sig]);
 		if (ret == NULL)
 			return (NULL);
 		for (i = 0; ret[i] != '\0'; ++i)

@@ -98,19 +98,7 @@ main(int argc, char *argv[])
 	(void) setlocale(LC_ALL, "");
 	state = 0;
 	if (setjmp(main_handler.loc)) {
-		/*
-		 * When a shell procedure is executed, we raise the
-		 * exception EXSHELLPROC to clean up before executing
-		 * the shell procedure.
-		 */
 		switch (exception) {
-		case EXSHELLPROC:
-			rootpid = getpid();
-			rootshell = 1;
-			minusc = NULL;
-			state = 3;
-			break;
-
 		case EXEXEC:
 			exitstatus = exerrno;
 			break;
@@ -123,10 +111,8 @@ main(int argc, char *argv[])
 			break;
 		}
 
-		if (exception != EXSHELLPROC) {
-		    if (state == 0 || iflag == 0 || ! rootshell)
-			    exitshell(exitstatus);
-		}
+		if (state == 0 || iflag == 0 || ! rootshell)
+			exitshell(exitstatus);
 		reset();
 		if (exception == EXINT)
 			out2fmt_flush("\n");

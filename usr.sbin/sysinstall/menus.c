@@ -961,9 +961,9 @@ DMenu MenuDistributions = {
 	checkDistKernDeveloper, distSetKernDeveloper },
       { "6 User",		"Average user - binaries and doc only",
 	checkDistUser,		distSetUser },
-      { "A Minimal",		"The smallest configuration possible",
+      { "7 Minimal",		"The smallest configuration possible",
 	checkDistMinimum,	distSetMinimum },
-      { "B Custom",		"Specify your own distribution set",
+      { "8 Custom",		"Specify your own distribution set",
 	NULL,			dmenuSubmenu, NULL, &MenuSubDistributions, '>', '>', '>' },
       { NULL } },
 };
@@ -1283,8 +1283,6 @@ DMenu MenuStartup = {
       { " SVR4",	"This host wants to be able to run SVR4 binaries.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "svr4_enable=YES" },
 #endif
-      { " quotas",	"This host wishes to check quotas on startup.",
-	dmenuVarCheck, dmenuToggleVariable, NULL, "check_quotas=YES" },
       { NULL } },
 };
 

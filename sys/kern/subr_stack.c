@@ -39,6 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/stack.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
+
+FEATURE(stack, "Support for capturing kernel stack");
 
 static MALLOC_DEFINE(M_STACK, "stack", "Stack Traces");
 

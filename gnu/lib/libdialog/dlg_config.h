@@ -5,12 +5,10 @@
  * $FreeBSD$
  */
 
-
 #define DIALOG_PATCHDATE 20100428
 #define DIALOG_VERSION "1.1"
 #define HAVE_ALLOCA 1
 #define HAVE_COLOR 1
-#define HAVE_CURSES_H 1
 #define HAVE_DIRENT_H 1
 #define HAVE_DLG_FORMBOX 1
 #define HAVE_DLG_GAUGE 1
@@ -41,6 +39,7 @@
 #define HAVE_INTTYPES_H 1
 #define HAVE_LANGINFO_CODESET 1
 #define HAVE_LC_MESSAGES 1
+#define HAVE_LIBNCURSESW 1
 #define HAVE_LIMITS_H 1
 #define HAVE_LOCALE_H 1
 #define HAVE_MBSTATE_T 1
@@ -89,3 +88,4 @@
 #define SYSTEM_NAME "freebsd9.0"
 #define TIME_WITH_SYS_TIME 1
 #define TYPE_CHTYPE_IS_SCALAR 1
+#define USE_WIDE_CURSES 1

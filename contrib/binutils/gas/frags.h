@@ -1,6 +1,6 @@
 /* frags.h - Header file for the frag concept.
-   Copyright 1987, 1992, 1993, 1994, 1995, 1997, 1998, 1999, 2000, 2001
-   Free Software Foundation, Inc.
+   Copyright 1987, 1992, 1993, 1994, 1995, 1997, 1998, 1999, 2000, 2001,
+   2002, 2003, 2004, 2005, 2006 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,15 +16,13 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef FRAGS_H
 #define FRAGS_H
 
-#ifdef ANSI_PROTOTYPES
 struct obstack;
-#endif
 
 /* A code fragment (frag) is some known number of chars, followed by some
    unknown number of chars. Typically the unknown number of chars is an
@@ -74,6 +72,11 @@ struct frag {
      fr_address has been adjusted.  */
   unsigned int relax_marker:1;
 
+  /* Used to ensure that all insns are emitted on proper address
+     boundaries.  */
+  unsigned int has_code:1;
+  unsigned int insn_addr:6;
+
   /* What state is my tail in? */
   relax_stateT fr_type;
   relax_substateT fr_subtype;
@@ -114,22 +117,8 @@ COMMON fragS zero_address_frag;
 /* For local common (N_BSS segment) fixups.  */
 COMMON fragS bss_address_frag;
 
-#if 0
-/* A macro to speed up appending exactly 1 char to current frag.  */
-/* JF changed < 1 to <= 1 to avoid a race condition.  */
-#define FRAG_APPEND_1_CHAR(datum)			\
-{							\
-  if (obstack_room (&frags) <= 1)			\
-    {							\
-      frag_wane (frag_now);				\
-      frag_new (0);					\
-    }							\
-  obstack_1grow (&frags, datum);			\
-}
-#else
 extern void frag_append_1_char (int);
 #define FRAG_APPEND_1_CHAR(X) frag_append_1_char (X)
-#endif
 
 void frag_init (void);
 fragS *frag_alloc (struct obstack *);
@@ -158,5 +147,7 @@ char *frag_var (relax_stateT type,
 		symbolS * symbol,
 		offsetT offset,
 		char *opcode);
+
+bfd_boolean frag_offset_fixed_p (const fragS *, const fragS *, bfd_vma *);
 
 #endif /* FRAGS_H */

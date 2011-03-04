@@ -37,13 +37,21 @@ MCAsmInfoDarwin::MCAsmInfoDarwin() {
   HasMachoZeroFillDirective = true;  // Uses .zerofill
   HasMachoTBSSDirective = true; // Uses .tbss
   HasStaticCtorDtorReferenceInStaticMode = true;
-  
+
+  // FIXME: Darwin 10 and newer don't need this.
+  LinkerRequiresNonEmptyDwarfLines = true;
+
+  // FIXME: Change this once MC is the system assembler.
+  HasAggressiveSymbolFolding = false;
+
   HiddenVisibilityAttr = MCSA_PrivateExtern;
+  HiddenDeclarationVisibilityAttr = MCSA_Invalid;
   // Doesn't support protected visibility.
   ProtectedVisibilityAttr = MCSA_Global;
   
   HasDotTypeDotSizeDirective = false;
   HasNoDeadStrip = true;
+  HasSymbolResolver = true;
 
   DwarfUsesAbsoluteLabelForStmtList = false;
   DwarfUsesLabelOffsetForRanges = false;

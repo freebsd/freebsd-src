@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2010
+.Dd February 6, 2011
 .Dt BWI 4
 .Os
 .Sh NAME
@@ -81,6 +81,7 @@ driver supports Broadcom BCM43xx based wireless devices, including:
 .It "Buffalo WLI-CB-G54S	BCM4318	CardBus	b/g"
 .It "Buffalo WLI-PCI-G54S	BCM4306	PCI	b/g"
 .It "Compaq R4035 onboard	BCM4306	PCI	b/g"
+.It "Dell Wireless 1390 BCM4311 Mini PCI	b/g"
 .It "Dell Wireless 1470	BCM4318	Mini PCI	b/g"
 .It "Dell Truemobile 1300 r2	BCM4306	Mini PCI	b/g"
 .It "Dell Truemobile 1400	BCM4309	Mini PCI	b/g"
@@ -91,18 +92,18 @@ driver supports Broadcom BCM43xx based wireless devices, including:
 .It "US Robotics 5411	BCM4318	CardBus	b/g"
 .El
 .Pp
-The 
-.Nm 
+The
+.Nm
 driver uses the older v3 version of Broadcom's firmware.
 While this older firmware does support most BCM43xx parts, the
-.Xr bwn 4 
+.Xr bwn 4
 driver works better for the newer chips it supports.
-You must use the 
-.Nm 
+You must use the
+.Nm
 driver if you are using older Broadcom chipsets (BCM4301, BCM4303 and
 BCM4306 rev 2).
-The v4 version of the firmware that 
-.Xr bwn 4 
+The v4 version of the firmware that
+.Xr bwn 4
 uses does not support these chips.
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):

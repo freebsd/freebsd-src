@@ -325,6 +325,8 @@ struct isposinfo {
 #define	ISP_DELAY		DELAY
 #define	ISP_SLEEP(isp, x)	DELAY(x)
 
+#define	ISP_MIN			imin
+
 #ifndef	DIAGNOSTIC
 #define	ISP_INLINE		__inline
 #else
@@ -338,15 +340,27 @@ struct isposinfo {
 
 #define	MAXISPREQUEST(isp)	((IS_FC(isp) || IS_ULTRA2(isp))? 1024 : 256)
 
-#define	MEMORYBARRIER(isp, type, offset, size)			\
+#define	MEMORYBARRIER(isp, type, offset, size, chan)		\
 switch (type) {							\
 case SYNC_SFORDEV:						\
+{								\
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
+	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
+	   BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);		\
+	break;							\
+}								\
 case SYNC_REQUEST:						\
 	bus_dmamap_sync(isp->isp_osinfo.cdmat,			\
 	   isp->isp_osinfo.cdmap, 				\
 	   BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);		\
 	break;							\
 case SYNC_SFORCPU:						\
+{								\
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
+	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
+	   BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);	\
+	break;							\
+}								\
 case SYNC_RESULT:						\
 	bus_dmamap_sync(isp->isp_osinfo.cdmat, 			\
 	   isp->isp_osinfo.cdmap,				\

@@ -13,7 +13,7 @@ for s1 in "$nl" " "; do
 	done
 done
 set -- $list
-for s2 in "$nl" " " ";" ";$nl"; do # s2=";" and ";$nl" are extensions to POSIX
+for s2 in "$nl" " "; do
 	for s3 in "$nl" " "; do
 		r=''
 		eval "for i${s2}do${s3}r=\"\$r \$i\"; done"
