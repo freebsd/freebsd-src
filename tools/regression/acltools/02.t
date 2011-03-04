@@ -63,7 +63,7 @@ cd $MNT
 # First, check whether we can crash the kernel by creating too many
 # entries.  For some reason this won't work in the test file.
 touch xxx
-setfacl -x5 xxx
+setfacl -x2 xxx
 while :; do setfacl -a0 u:42:rwx:allow xxx 2> /dev/null; if [ $? -ne 0 ]; then break; fi; done
 chmod 600 xxx
 rm xxx
