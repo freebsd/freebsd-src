@@ -148,6 +148,7 @@ MAN=	aac.4 \
 	ispfw.4 \
 	iwi.4 \
 	ixgb.4 \
+	ixgbe.4 \
 	jme.4 \
 	joy.4 \
 	kbdmux.4 \
@@ -427,6 +428,7 @@ MAN=	aac.4 \
 	vlan.4 \
 	vpo.4 \
 	vr.4 \
+	vte.4 \
 	watchdog.4 \
 	wb.4 \
 	wi.4 \
@@ -497,6 +499,7 @@ MLINKS+=ipfirewall.4 ipaccounting.4 \
 MLINKS+=ipw.4 if_ipw.4
 MLINKS+=iwi.4 if_iwi.4
 MLINKS+=ixgb.4 if_ixgb.4
+MLINKS+=ixgbe.4 if_ixgbe.4
 MLINKS+=kue.4 if_kue.4
 MLINKS+=lagg.4 trunk.4
 MLINKS+=le.4 if_le.4

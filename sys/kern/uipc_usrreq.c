@@ -421,7 +421,8 @@ uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	UNP_PCB_UNLOCK(unp);
 
 	buf = malloc(namelen + 1, M_TEMP, M_WAITOK);
-	strlcpy(buf, soun->sun_path, namelen + 1);
+	bcopy(soun->sun_path, buf, namelen);
+	buf[namelen] = 0;
 
 restart:
 	vfslocked = 0;
@@ -1144,7 +1145,8 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	len = nam->sa_len - offsetof(struct sockaddr_un, sun_path);
 	if (len <= 0)
 		return (EINVAL);
-	strlcpy(buf, soun->sun_path, len + 1);
+	bcopy(soun->sun_path, buf, len);
+	buf[len] = 0;
 
 	UNP_PCB_LOCK(unp);
 	if (unp->unp_flags & UNP_CONNECTING) {

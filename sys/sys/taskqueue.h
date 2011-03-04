@@ -96,7 +96,7 @@ static void								\
 taskqueue_define_##name(void *arg)					\
 {									\
 	taskqueue_##name =						\
-	    taskqueue_create(#name, M_NOWAIT, (enqueue), (context));	\
+	    taskqueue_create(#name, M_WAITOK, (enqueue), (context));	\
 	init;								\
 }									\
 									\
@@ -120,7 +120,7 @@ static void								\
 taskqueue_define_##name(void *arg)					\
 {									\
 	taskqueue_##name =						\
-	    taskqueue_create_fast(#name, M_NOWAIT, (enqueue),		\
+	    taskqueue_create_fast(#name, M_WAITOK, (enqueue),		\
 	    (context));							\
 	init;								\
 }									\

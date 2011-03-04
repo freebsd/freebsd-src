@@ -16,7 +16,7 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "7.3-RELEASE">
+<!ENTITY release.bugfix "7.4-RELEASE">
 ]>
 
 <article>
@@ -40,7 +40,7 @@
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2010</year>
+      <year>2011</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -167,42 +167,28 @@
   <sect1 id="late-news">
     <title>Late-Breaking News and Corrections</title>
 
-    <para>[20100402] The &os; 7.3-RELEASE Release Notes incorrectly
-      mentioned that a <option>-p</option> flag has been added to the
-      &man.ps.1; utility.  It should have been a <option>-d</option>
-      flag.  The correct entry is:</para>
+    <para>A bug in <application>OpenSSL</application> that could cause
+      it to parse past the end of the message was found at the late
+      stage of &release.bugfix; release process.  The &release.bugfix;
+      includes a fix for this issue by importing relevant parts from
+      the OpenSSL CVS.  This could be triggered by an incorrectly
+      formatted ClientHello SSL/TLS handshake messages.  The details
+      can be found at <ulink
+      url="http://www.openssl.org/news/secadv_20110208.txt"></ulink>.</para>
 
-    <blockquote>
-      <para>The &man.ps.1; command now supports a new flag
-	<option>-d</option>.  This displays descendant info with the
-	output similar to Linux's <option>-H</option> (or
-	<option>-f</option>).</para>
-    </blockquote>
+    <para>The shared object version numbers of
+      <application>libcrypto</application> and
+      <application>libssl</application> have been decreased from
+      <literal>6</literal> to <literal>5</literal>.  These are
+      accidentaly increased on 28 November, 2010 (r215997) as OpenSSL
+      0.9.8p was merged.  Note that this affects systems running
+      7-STABLE after that date (after 7.3-RELEASE), not 7.3-RELEASE
+      and the security branch.  Also note that in &os;
+      &release.bugfix;, the library files with the version number
+      <literal>6</literal> are still provided as symbolic links to
+      prevent binaries built in the time window with the accidentaly
+      increased version number from being broken after the system gets
+      updated to &release.bugfix;.</para>
 
-    <para>[20100330] The <filename>libc</filename> of &os; 7.3-RELEASE
-      has the &man.fdopendir.3; function but
-      <filename>&lt;dirent.h&gt;</filename> header file does not
-      contain the function prototype.  This could cause programs
-      compiled on the system to crash on platforms such as
-      &os;/&arch.amd64;, where <literal>sizeof(void *)</literal> is
-      greater than <literal>sizeof(int)</literal>.  This problem has
-      been fixed in <ulink
-	url="http://svn.freebsd.org/changeset/base/205265">r205265
-	(RELENG_7)</ulink>.  An Errata Notice for 7.3-RELEASE is
-      planned.</para>
-
-    <para>[20100330] It turns out that the
-      <filename>zfsloader</filename> in 7.3-RELEASE, a new boot loader
-      similar to &man.loader.8; but it supports ZFS, does not work
-      properly.  This problem has been fixed in <ulink
-	url="http://svn.freebsd.org/changeset/base/205539">r205539
-	(RELENG_7)</ulink>.  An Errata Notice for 7.3-RELEASE is
-      planned.</para>
-
-    <para>[20100323] The &os; 7.3-RELEASE Release Notes incorrectly
-      mentioned that the &man.hwpmc.4; driver has been added though this
-      driver has already been added in 7.0-RELEASE.  The changes in
-      7.3-RELEASE are that &man.pmcannotate.8; utility and support for
-      Intel Core 2 and Core i7 have been added.</para>
   </sect1>
 </article>

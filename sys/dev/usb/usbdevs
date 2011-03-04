@@ -1837,6 +1837,7 @@ product MSYSTEMS DISKONKEY	0x0010	DiskOnKey
 product MSYSTEMS DISKONKEY2	0x0011	DiskOnKey
 
 /* Myson products */
+product MYSON HEDEN_8813	0x8813	USB-IDE
 product MYSON HEDEN		0x8818	USB-IDE
 product MYSON STARREADER	0x9920	USB flash card adapter
 

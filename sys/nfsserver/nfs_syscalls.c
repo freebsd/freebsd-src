@@ -366,6 +366,8 @@ nfssvc_nfsd(struct thread *td)
 			slp = nfsd->nfsd_slp;
 		}
 		if (error || (slp->ns_flag & SLP_VALID) == 0) {
+			if (slp->ns_flag & SLP_DISCONN)
+				nfsrv_zapsock(slp);
 			if (nd) {
 				if (nd->nd_cr != NULL)
 					crfree(nd->nd_cr);

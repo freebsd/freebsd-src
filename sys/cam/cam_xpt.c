@@ -317,7 +317,7 @@ xpt_schedule_dev_allocq(struct cam_eb *bus, struct cam_ed *dev)
 		CAMQ_GET_PRIO(&dev->drvq))) == 0)) {
 		/*
 		 * The priority of a device waiting for CCB resources
-		 * is that of the the highest priority peripheral driver
+		 * is that of the highest priority peripheral driver
 		 * enqueued.
 		 */
 		retval = xpt_schedule_dev(&bus->sim->devq->alloc_queue,
@@ -340,7 +340,7 @@ xpt_schedule_dev_sendq(struct cam_eb *bus, struct cam_ed *dev)
 	    (cam_ccbq_frozen_top(&dev->ccbq) == 0)) {
 		/*
 		 * The priority of a device waiting for controller
-		 * resources is that of the the highest priority CCB
+		 * resources is that of the highest priority CCB
 		 * enqueued.
 		 */
 		retval =
