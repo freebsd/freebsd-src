@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef CAPABILITIES
 
+FEATURE(security_capabilities, "Capsicum Capability Mode");
+
 /*
  * We don't currently have any MIB entries for sysctls, but we do expose
  * security.capabilities so that it's easy to tell if options CAPABILITIES is
