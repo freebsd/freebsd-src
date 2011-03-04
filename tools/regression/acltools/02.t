@@ -27,7 +27,7 @@
 # $FreeBSD$
 #
 
-# This is a wrapper script to run tools-nfs4.test.
+# This is a wrapper script to run tools-nfs4.test on UFS filesystem.
 #
 # If any of the tests fails, here is how to debug it: go to
 # the directory with problematic filesystem mounted on it,
@@ -44,7 +44,7 @@ if [ `whoami` != "root" ]; then
 	exit 1
 fi
 
-TESTDIR=`dirname $0`
+TESTDIR=$(dirname $(realpath $0))
 
 # Set up the test filesystem.
 MD=`mdconfig -at swap -s 10m`
