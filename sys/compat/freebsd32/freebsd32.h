@@ -316,7 +316,8 @@ struct kinfo_proc32 {
 	char	ki_lockname[LOCKNAMELEN+1];
 	char	ki_comm[COMMLEN+1];
 	char	ki_emul[KI_EMULNAMELEN+1];
-	char	ki_sparestrings[68];
+	char	ki_loginclass[LOGINCLASSLEN+1];
+	char	ki_sparestrings[50];
 	int	ki_spareints[KI_NSPARE_INT];
 	u_int	ki_cr_flags;
 	int	ki_jid;

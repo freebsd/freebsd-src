@@ -79,6 +79,8 @@ static VAR var[] = {
 		CHAR, NULL, 0},
 	{"blocked", "", "sigmask", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
 	{"caught", "", "sigcatch", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
+	{"class", "CLASS", NULL, LJUST, loginclass, NULL, MAXLOGNAME-1, 0,
+		CHAR, NULL, 0},
 	{"comm", "COMMAND", NULL, LJUST|DSIZ, ucomm, s_comm,
 		COMMLEN + OCOMMLEN + 1, 0, CHAR, NULL, 0},
 	{"command", "COMMAND", NULL, COMM|LJUST|USER, command, NULL, 16, 0,

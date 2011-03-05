@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/loginclass.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -745,6 +746,8 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 			if (cred->cr_prison != curthread->td_ucred->cr_prison)
 				kp->ki_jid = cred->cr_prison->pr_id;
 		}
+		strlcpy(kp->ki_loginclass, cred->cr_loginclass->lc_name,
+		    sizeof(kp->ki_loginclass));
 	}
 	ps = p->p_sigacts;
 	if (ps) {
@@ -1059,6 +1062,7 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	bcopy(ki->ki_lockname, ki32->ki_lockname, LOCKNAMELEN + 1);
 	bcopy(ki->ki_comm, ki32->ki_comm, COMMLEN + 1);
 	bcopy(ki->ki_emul, ki32->ki_emul, KI_EMULNAMELEN + 1);
+	bcopy(ki->ki_loginclass, ki32->ki_loginclass, LOGINCLASSLEN + 1);
 	CP(*ki, *ki32, ki_cr_flags);
 	CP(*ki, *ki32, ki_jid);
 	CP(*ki, *ki32, ki_numthreads);
