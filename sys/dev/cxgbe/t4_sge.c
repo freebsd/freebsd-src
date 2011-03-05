@@ -121,7 +121,6 @@ static int alloc_fl_sdesc(struct sge_fl *);
 static void free_fl_sdesc(struct sge_fl *);
 static int alloc_eq_maps(struct sge_eq *);
 static void free_eq_maps(struct sge_eq *);
-static struct mbuf *get_fl_sdesc_data(struct sge_fl *, int, int);
 static void set_fl_tag_idx(struct sge_fl *, int);
 
 static int get_pkt_sgl(struct sge_txq *, struct mbuf **, struct sgl *, int);
@@ -533,17 +532,21 @@ t4_intr_data(void *arg)
 	struct sge_iq *iq = arg;
 	struct adapter *sc = iq->adapter;
 	struct rsp_ctrl *ctrl;
-	struct sge_fl *fl = &rxq->fl;
 	struct ifnet *ifp = rxq->ifp;
+	struct sge_fl *fl = &rxq->fl;
+	struct fl_sdesc *sd = &fl->sdesc[fl->cidx], *sd_next;
 	const struct rss_header *rss;
 	const struct cpl_rx_pkt *cpl;
-	int ndescs = 0, rsp_type;
 	uint32_t len;
+	int ndescs = 0, i;
 	struct mbuf *m0, *m;
 #ifdef INET
 	struct lro_ctrl *lro = &rxq->lro;
 	struct lro_entry *l;
 #endif
+
+	prefetch(sd->m);
+	prefetch(sd->cl);
 
 	IQ_LOCK(iq);
 	iq->intr_next = iq->intr_params;
@@ -552,30 +555,49 @@ t4_intr_data(void *arg)
 		rmb();
 
 		rss = (const void *)iq->cdesc;
-		cpl = (const void *)(rss + 1);
+		i = G_RSPD_TYPE(ctrl->u.type_gen);
 
-		rsp_type = G_RSPD_TYPE(ctrl->u.type_gen);
+		if (__predict_false(i == X_RSPD_TYPE_CPL)) {
 
-		if (__predict_false(rsp_type == X_RSPD_TYPE_CPL)) {
 			/* Can't be anything except an egress update */
-			handle_sge_egr_update(sc, (const void *)cpl);
+			KASSERT(rss->opcode == CPL_SGE_EGR_UPDATE,
+			    ("%s: unexpected CPL %x", __func__, rss->opcode));
+
+			handle_sge_egr_update(sc, (const void *)(rss + 1));
 			goto nextdesc;
 		}
+		KASSERT(i == X_RSPD_TYPE_FLBUF && rss->opcode == CPL_RX_PKT,
+		    ("%s: unexpected CPL %x rsp %d", __func__, rss->opcode, i));
 
-		KASSERT(G_RSPD_TYPE(ctrl->u.type_gen) == X_RSPD_TYPE_FLBUF,
-		    ("unexpected event on data ingress queue: %x",
-		    G_RSPD_TYPE(ctrl->u.type_gen)));
+		sd_next = sd + 1;
+		if (__predict_false(fl->cidx + 1 == fl->cap))
+			sd_next = fl->sdesc;
+		prefetch(sd_next->m);
+		prefetch(sd_next->cl);
+
+		cpl = (const void *)(rss + 1);
+
+		m0 = sd->m;
+		sd->m = NULL;	/* consumed */
 
 		len = be32toh(ctrl->pldbuflen_qid);
-
-		KASSERT(len & F_RSPD_NEWBUF,
-		    ("%s: T4 misconfigured to pack buffers.", __func__));
-
+		if (__predict_false((len & F_RSPD_NEWBUF) == 0))
+			panic("%s: cannot handle packed frames", __func__);
 		len = G_RSPD_LEN(len);
-		m0 = get_fl_sdesc_data(fl, len, M_PKTHDR);
-		if (m0 == NULL) {
-			iq->intr_next = V_QINTR_TIMER_IDX(SGE_NTIMERS - 1);
-			break;
+
+		bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map,
+		    BUS_DMASYNC_POSTREAD);
+
+		m_init(m0, zone_mbuf, MLEN, M_NOWAIT, MT_DATA, M_PKTHDR);
+		if (len < MINCLSIZE) {
+			/* copy data to mbuf, buffer will be recycled */
+			bcopy(sd->cl, mtod(m0, caddr_t), len);
+			m0->m_len = len;
+		} else {
+			bus_dmamap_unload(fl->tag[sd->tag_idx], sd->map);
+			m_cljset(m0, sd->cl, FL_BUF_TYPE(sd->tag_idx));
+			sd->cl = NULL;	/* consumed */
+			m0->m_len = min(len, FL_BUF_SIZE(sd->tag_idx));
 		}
 
 		len -= FL_PKTSHIFT;
@@ -604,16 +626,50 @@ t4_intr_data(void *arg)
 			rxq->vlan_extraction++;
 		}
 
+		i = 1;	/* # of fl sdesc used */
+		sd = sd_next;
+		if (__predict_false(++fl->cidx == fl->cap))
+			fl->cidx = 0;
+
 		len -= m0->m_len;
 		m = m0;
 		while (len) {
-			m->m_next = get_fl_sdesc_data(fl, len, 0);
-			if (m->m_next == NULL)
-				CXGBE_UNIMPLEMENTED("mbuf recovery");
+			i++;
 
+			sd_next = sd + 1;
+			if (__predict_false(fl->cidx + 1 == fl->cap))
+				sd_next = fl->sdesc;
+			prefetch(sd_next->m);
+			prefetch(sd_next->cl);
+
+			m->m_next = sd->m;
+			sd->m = NULL;	/* consumed */
 			m = m->m_next;
+
+			bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map,
+			    BUS_DMASYNC_POSTREAD);
+
+			m_init(m, zone_mbuf, MLEN, M_NOWAIT, MT_DATA, 0);
+			if (len <= MLEN) {
+				bcopy(sd->cl, mtod(m, caddr_t), len);
+				m->m_len = len;
+			} else {
+				bus_dmamap_unload(fl->tag[sd->tag_idx],
+				    sd->map);
+				m_cljset(m, sd->cl, FL_BUF_TYPE(sd->tag_idx));
+				sd->cl = NULL;	/* consumed */
+				m->m_len = min(len, FL_BUF_SIZE(sd->tag_idx));
+			}
+
+			i++;
+			sd = sd_next;
+			if (__predict_false(++fl->cidx == fl->cap))
+				fl->cidx = 0;
+
 			len -= m->m_len;
 		}
+
+		IQ_UNLOCK(iq);
 #ifdef INET
 		if (cpl->l2info & htobe32(F_RXF_LRO) &&
 		    rxq->flags & RXQ_LRO_ENABLED &&
@@ -621,14 +677,15 @@ t4_intr_data(void *arg)
 			/* queued for LRO */
 		} else
 #endif
-			(*ifp->if_input)(ifp, m0);
+		ifp->if_input(ifp, m0);
+		IQ_LOCK(iq);
 
 		FL_LOCK(fl);
-		if (fl->needed >= 32) {
+		fl->needed += i;
+		if (fl->needed >= 32)
 			refill_fl(fl, 64);
-			if (fl->pending >= 32)
-				ring_fl_db(sc, fl);
-		}
+		if (fl->pending >= 32)
+			ring_fl_db(sc, fl);
 		FL_UNLOCK(fl);
 
 nextdesc:	ndescs++;
@@ -642,6 +699,7 @@ nextdesc:	ndescs++;
 			ndescs = 0;
 		}
 	}
+	IQ_UNLOCK(iq);
 
 #ifdef INET
 	while (!SLIST_EMPTY(&lro->lro_active)) {
@@ -654,14 +712,11 @@ nextdesc:	ndescs++;
 	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_CIDXINC(ndescs) |
 	    V_INGRESSQID((u32)iq->cntxt_id) | V_SEINTARM(iq->intr_next));
 
-	IQ_UNLOCK(iq);
-
 	FL_LOCK(fl);
-	if (fl->needed) {
-		refill_fl(fl, -1);
-		if (fl->pending >= 8)
-			ring_fl_db(sc, fl);
-	}
+	if (fl->needed >= 32)
+		refill_fl(fl, 128);
+	if (fl->pending >= 8)
+		ring_fl_db(sc, fl);
 	FL_UNLOCK(fl);
 }
 
@@ -1201,10 +1256,12 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx)
 	    NULL, "rx queue");
 	children = SYSCTL_CHILDREN(oid);
 
+#ifdef INET
 	SYSCTL_ADD_INT(&pi->ctx, children, OID_AUTO, "lro_queued", CTLFLAG_RD,
 	    &rxq->lro.lro_queued, 0, NULL);
 	SYSCTL_ADD_INT(&pi->ctx, children, OID_AUTO, "lro_flushed", CTLFLAG_RD,
 	    &rxq->lro.lro_flushed, 0, NULL);
+#endif
 	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "rxcsum", CTLFLAG_RD,
 	    &rxq->rxcsum, "# of times hardware assisted with checksum");
 	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "vlan_extraction",
@@ -1492,9 +1549,8 @@ refill_fl(struct sge_fl *fl, int nbufs)
 		if (cl == NULL)
 			break;
 
-		rc = bus_dmamap_load(tag, sd->map, cl,
-		    FL_BUF_SIZE(sd->tag_idx), oneseg_dma_callback,
-		    &pa, 0);
+		rc = bus_dmamap_load(tag, sd->map, cl, FL_BUF_SIZE(sd->tag_idx),
+		    oneseg_dma_callback, &pa, 0);
 		if (rc != 0 || pa == 0) {
 			fl->dmamap_failed++;
 			uma_zfree(FL_BUF_ZONE(sd->tag_idx), cl);
@@ -1508,7 +1564,15 @@ refill_fl(struct sge_fl *fl, int nbufs)
 		sd->ba_tag = htobe64(pa | sd->tag_idx);
 #endif
 
-recycled:	fl->pending++;
+recycled:
+		/* sd->m is never recycled, should always be NULL */
+		KASSERT(sd->m == NULL, ("%s: stray mbuf", __func__));
+
+		sd->m = m_gethdr(M_NOWAIT, MT_NOINIT);
+		if (sd->m == NULL)
+			break;
+
+		fl->pending++;
 		fl->needed--;
 		sd++;
 		if (++fl->pidx == fl->cap) {
@@ -1516,10 +1580,6 @@ recycled:	fl->pending++;
 			sd = fl->sdesc;
 			d = fl->desc;
 		}
-
-		/* No harm if gethdr fails, we'll retry after rx */
-		if (sd->m == NULL)
-			sd->m = m_gethdr(M_NOWAIT, MT_NOINIT);
 	}
 }
 
@@ -2333,42 +2393,6 @@ get_flit(bus_dma_segment_t *sgl, int nsegs, int idx)
 	}
 
 	return (0);
-}
-
-static struct mbuf *
-get_fl_sdesc_data(struct sge_fl *fl, int len, int flags)
-{
-	struct fl_sdesc *sd;
-	struct mbuf *m;
-
-	sd = &fl->sdesc[fl->cidx];
-	FL_LOCK(fl);
-	if (++fl->cidx == fl->cap)
-		fl->cidx = 0;
-	fl->needed++;
-	FL_UNLOCK(fl);
-
-	m = sd->m;
-	if (m == NULL) {
-		m = m_gethdr(M_NOWAIT, MT_NOINIT);
-		if (m == NULL)
-			return (NULL);
-	}
-	sd->m = NULL;	/* consumed */
-
-	bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map, BUS_DMASYNC_POSTREAD);
-	m_init(m, zone_mbuf, MLEN, M_NOWAIT, MT_DATA, flags);
-	if ((flags && len < MINCLSIZE) || (!flags && len <= MLEN))
-		bcopy(sd->cl, mtod(m, caddr_t), len);
-	else {
-		bus_dmamap_unload(fl->tag[sd->tag_idx], sd->map);
-		m_cljset(m, sd->cl, FL_BUF_TYPE(sd->tag_idx));
-		sd->cl = NULL;	/* consumed */
-	}
-
-	m->m_len = min(len, FL_BUF_SIZE(sd->tag_idx));
-
-	return (m);
 }
 
 static void
