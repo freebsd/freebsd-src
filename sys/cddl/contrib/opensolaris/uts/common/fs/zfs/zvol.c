@@ -753,14 +753,13 @@ zvol_update_volsize(objset_t *os, uint64_t volsize)
 void
 zvol_remove_minors(const char *name)
 {
-	struct g_provider *pp, *pptmp;
 	struct g_geom *gp, *gptmp;
+	struct g_provider *pp;
 	zvol_state_t *zv;
-	char *namebuf;
+	size_t namelen;
 
-	namebuf = kmem_zalloc(strlen(name) + 2, KM_SLEEP);
-	(void) strncpy(namebuf, name, strlen(name));
-	(void) strcat(namebuf, "/");
+	namelen = strlen(name);
+
 	DROP_GIANT();
 	mutex_enter(&zfsdev_state_lock);
 	g_topology_lock();
@@ -772,10 +771,12 @@ zvol_remove_minors(const char *name)
 		zv = pp->private;
 		if (zv == NULL)
 			continue;
-		if (strncmp(namebuf, zv->zv_name, strlen(namebuf)) == 0)
+		if (strcmp(zv->zv_name, name) == 0 ||
+		    (strncmp(zv->zv_name, name, namelen) == 0 &&
+		     zv->zv_name[namelen] == '/')) {
 			(void) zvol_remove_zv(zv);
+		}
 	}
-	kmem_free(namebuf, strlen(name) + 2);
 
 	g_topology_unlock();
 	mutex_exit(&zfsdev_state_lock);
