@@ -34,6 +34,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/queue.h>
+#include <sys/taskqueue.h>
 #include <sys/sysctl.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -136,6 +139,8 @@ static inline void ring_tx_db(struct adapter *, struct sge_eq *);
 static int reclaim_tx_descs(struct sge_eq *, int, int);
 static void write_eqflush_wr(struct sge_eq *);
 static __be64 get_flit(bus_dma_segment_t *, int, int);
+static int handle_sge_egr_update(struct adapter *,
+    const struct cpl_sge_egr_update *);
 
 /**
  *	t4_sge_init - initialize SGE
@@ -492,21 +497,9 @@ t4_intr_evt(void *arg)
 
 			break;
 			}
-		case CPL_SGE_EGR_UPDATE: {
-			const struct cpl_sge_egr_update *cpl;
-			unsigned int qid;
-			struct sge *s = &sc->sge;
-			struct sge_txq *txq;
-
-			cpl = (const void *)(rss + 1);
-			qid = G_EGR_QID(ntohl(cpl->opcode_qid));
-			txq = (void *)s->eqmap[qid - s->eq_start];
-			txq->egr_update++;
-
-			/* XXX: wake up stalled tx */
-
+		case CPL_SGE_EGR_UPDATE:
+			handle_sge_egr_update(sc, (const void *)(rss + 1));
 			break;
-			}
 
 		default:
 			device_printf(sc->dev,
@@ -565,20 +558,9 @@ t4_intr_data(void *arg)
 		rsp_type = G_RSPD_TYPE(ctrl->u.type_gen);
 
 		if (__predict_false(rsp_type == X_RSPD_TYPE_CPL)) {
-			const struct cpl_sge_egr_update *p = (const void *)cpl;
-			unsigned int qid = G_EGR_QID(ntohl(p->opcode_qid));
-
-			KASSERT(cpl->opcode == CPL_SGE_EGR_UPDATE,
-			    ("unexpected opcode on data ingress queue: %x",
-			    cpl->opcode));
-
-			/* XXX: noone's waiting to be woken up... */
-			wakeup(sc->sge.eqmap[qid - sc->sge.eq_start]);
-
-			ndescs++;
-			iq_next(iq);
-
-			continue;
+			/* Can't be anything except an egress update */
+			handle_sge_egr_update(sc, (const void *)cpl);
+			goto nextdesc;
 		}
 
 		KASSERT(G_RSPD_TYPE(ctrl->u.type_gen) == X_RSPD_TYPE_FLBUF,
@@ -650,7 +632,7 @@ t4_intr_data(void *arg)
 		}
 		FL_UNLOCK(fl);
 
-		ndescs++;
+nextdesc:	ndescs++;
 		iq_next(iq);
 
 		if (ndescs > 32) {
@@ -1264,6 +1246,9 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx)
 	struct sysctl_oid *oid;
 	struct sysctl_oid_list *children;
 
+	txq->port = pi;
+	TASK_INIT(&txq->resume_tx, 0, cxgbe_txq_start, txq);
+
 	mtx_init(&eq->eq_lock, eq->lockname, NULL, MTX_DEF);
 
 	len = eq->qsize * TX_EQ_ESIZE;
@@ -1797,11 +1782,13 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 	struct cpl_tx_pkt_core *cpl;
 	uint32_t ctrl;	/* used in many unrelated places */
 	uint64_t ctrl1;
-	int nflits, ndesc;
+	int nflits, ndesc, pktlen;
 	struct tx_sdesc *txsd;
 	caddr_t dst;
 
 	TXQ_LOCK_ASSERT_OWNED(txq);
+
+	pktlen = m->m_pkthdr.len;
 
 	/*
 	 * Do we have enough flits to send this frame out?
@@ -1815,8 +1802,8 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 	if (sgl->nsegs > 0)
 		nflits += sgl->nflits;
 	else {
-		nflits += howmany(m->m_pkthdr.len, 8);
-		ctrl += m->m_pkthdr.len;
+		nflits += howmany(pktlen, 8);
+		ctrl += pktlen;
 	}
 	ndesc = howmany(nflits, 8);
 	if (ndesc > eq->avail)
@@ -1856,7 +1843,7 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 		lso->ipid_ofst = htobe16(0);
 		lso->mss = htobe16(m->m_pkthdr.tso_segsz);
 		lso->seqno_offset = htobe32(0);
-		lso->len = htobe32(m->m_pkthdr.len);
+		lso->len = htobe32(pktlen);
 
 		cpl = (void *)(lso + 1);
 
@@ -1883,7 +1870,7 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 	cpl->ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
 	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(pi->adapter->pf));
 	cpl->pack = 0;
-	cpl->len = htobe16(m->m_pkthdr.len);
+	cpl->len = htobe16(pktlen);
 	cpl->ctrl1 = htobe64(ctrl1);
 
 	/* Software descriptor */
@@ -1907,7 +1894,14 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 		txq->imm_wrs++;
 		for (; m; m = m->m_next) {
 			copy_to_txd(eq, mtod(m, caddr_t), &dst, m->m_len);
+#ifdef INVARIANTS
+			pktlen -= m->m_len;
+#endif
 		}
+#ifdef INVARIANTS
+		KASSERT(pktlen == 0, ("%s: %d bytes left.", __func__, pktlen));
+#endif
+
 	}
 
 	txq->txpkt_wrs++;
@@ -2389,4 +2383,18 @@ set_fl_tag_idx(struct sge_fl *fl, int mtu)
 	}
 
 	fl->tag_idx = i;
+}
+
+static int
+handle_sge_egr_update(struct adapter *sc, const struct cpl_sge_egr_update *cpl)
+{
+	unsigned int qid = G_EGR_QID(ntohl(cpl->opcode_qid));
+	struct sge *s = &sc->sge;
+	struct sge_txq *txq;
+
+	txq = (void *)s->eqmap[qid - s->eq_start];
+	taskqueue_enqueue(txq->port->tq, &txq->resume_tx);
+	txq->egr_update++;
+
+	return (0);
 }
