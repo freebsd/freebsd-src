@@ -229,8 +229,8 @@ FreeBSD 5.2           |      |                 |                       |
  |     |              |      |                 |                DragonFly 2.2.0
  |  FreeBSD 7.2       |   NetBSD 5.0       OpenBSD 4.5                 |
  |             \      |      |    |            |                       |
- |              |  Mac OS X  |                 |                       |
- |              |    10.6    |                 |                       |
+ |              |  Mac OS X  |    |            |                       |
+ |              |    10.6    |    |            |                       |
  |              |     |      |    |            |                DragonFly 2.4.0
  |              |     |      |    |        OpenBSD 4.6                 |
  |              |     |      |    |            |                       |
