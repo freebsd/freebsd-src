@@ -8,7 +8,7 @@ SDPDIR=	${.CURDIR}/../../libsdp/src
 
 .PATH: ${SDPDIR}
 
-LIB=		sdp
+LIB=		ibsdp
 SHLIB_MAJOR=	1
 NO_PROFILE=
 NO_MAN=
