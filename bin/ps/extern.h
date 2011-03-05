@@ -55,6 +55,7 @@ const	 char *fmt_argv(char **, char *, size_t);
 double	 getpcpu(const KINFO *);
 void	 kvar(KINFO *, VARENT *);
 void	 label(KINFO *, VARENT *);
+void	 loginclass(KINFO *, VARENT *);
 void	 logname(KINFO *, VARENT *);
 void	 longtname(KINFO *, VARENT *);
 void	 lstarted(KINFO *, VARENT *);
