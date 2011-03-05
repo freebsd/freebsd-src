@@ -53,8 +53,8 @@ enum {
 };
 
 #define FW_VERSION_MAJOR 1
-#define FW_VERSION_MINOR 2
-#define FW_VERSION_MICRO 65
+#define FW_VERSION_MINOR 3
+#define FW_VERSION_MICRO 0
 
 struct port_stats {
 	u64 tx_octets;            /* total # of octets in good frames */
