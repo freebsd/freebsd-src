@@ -177,6 +177,7 @@ struct port_info {
 	struct link_config link_cfg;
 	struct port_stats stats;
 
+	struct taskqueue *tq;
 	struct callout tick;
 	struct sysctl_ctx_list ctx;	/* lives from ifconfig up to down */
 	struct sysctl_oid *oid_rxq;
@@ -310,6 +311,9 @@ struct sge_fl {
 struct sge_txq {
 	struct sge_eq eq;	/* MUST be first */
 	struct mbuf *m;		/* held up due to temporary resource shortage */
+	struct task resume_tx;
+
+	struct port_info *port;	/* the port this txq belongs to */
 
 	/* stats for common events first */
 
@@ -545,13 +549,15 @@ static inline bool is_10G_port(const struct port_info *pi)
 	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G) != 0);
 }
 
+/* t4_main.c */
+void cxgbe_txq_start(void *, int);
 int t4_os_find_pci_capability(struct adapter *, int);
 int t4_os_pci_save_state(struct adapter *);
 int t4_os_pci_restore_state(struct adapter *);
-
 void t4_os_portmod_changed(const struct adapter *, int);
 void t4_os_link_changed(struct adapter *, int, int);
 
+/* t4_sge.c */
 void t4_sge_init(struct adapter *);
 int t4_create_dma_tag(struct adapter *);
 int t4_destroy_dma_tag(struct adapter *);
