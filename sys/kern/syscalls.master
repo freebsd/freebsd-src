@@ -926,5 +926,8 @@
 				    fd_set *ou, fd_set *ex, \
 				    const struct timespec *ts, \
 				    const sigset_t *sm); }
+523	AUE_NULL	STD	{ int getloginclass(char *namebuf, \
+				    size_t namelen); }
+524	AUE_NULL	STD	{ int setloginclass(const char *namebuf); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
