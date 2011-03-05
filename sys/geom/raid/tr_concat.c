@@ -308,7 +308,7 @@ g_raid_tr_kerneldump_concat(struct g_raid_tr_object *tr,
 		offset = 0;
 		no++;
 		KASSERT(no < vol->v_disks_count || remain == 0,
-		    ("Request ends after volume end (%ju, %ju)",
+		    ("Request ends after volume end (%ju, %zu)",
 			boffset, blength));
 	} while (remain > 0);
 	return (0);
