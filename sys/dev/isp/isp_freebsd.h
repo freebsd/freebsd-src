@@ -369,7 +369,7 @@ case SYNC_RESULT:						\
 case SYNC_REG:							\
 	bus_space_barrier(isp->isp_osinfo.bus_tag,		\
 	    isp->isp_osinfo.bus_handle, offset, size,		\
-	    BUS_SPACE_BARRIER_READ);				\
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);	\
 	break;							\
 default:							\
 	break;							\
