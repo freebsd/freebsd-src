@@ -198,7 +198,7 @@ again:
 	}
 }
 
-static arith_t binop2(arith_t a, int op, int prec, int noeval)
+static arith_t binop2(arith_t a, int op, int precedence, int noeval)
 {
 	for (;;) {
 		union yystype val;
@@ -221,7 +221,7 @@ static arith_t binop2(arith_t a, int op, int prec, int noeval)
 		a = noeval ? b : do_binop(op, a, b);
 
 		if (op2 < ARITH_BINOP_MIN || op2 >= ARITH_BINOP_MAX ||
-		    arith_prec(op2) >= prec)
+		    arith_prec(op2) >= precedence)
 			return a;
 
 		op = op2;
