@@ -314,7 +314,7 @@ struct sge_txq {
 	struct mbuf *m;		/* held up due to temporary resource shortage */
 	struct task resume_tx;
 
-	struct port_info *port;	/* the port this txq belongs to */
+	struct ifnet *ifp;	/* the interface this txq belongs to */
 
 	/* stats for common events first */
 
@@ -343,7 +343,7 @@ struct sge_rxq {
 	struct sge_fl fl;
 
 	unsigned int flags;
-	struct port_info *port;	/* the port this rxq belongs to */
+	struct ifnet *ifp;	/* the interface this rxq belongs to */
 	struct lro_ctrl lro;	/* LRO state */
 
 	/* stats for common events first */

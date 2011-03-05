@@ -531,11 +531,10 @@ t4_intr_data(void *arg)
 {
 	struct sge_rxq *rxq = arg;
 	struct sge_iq *iq = arg;
+	struct adapter *sc = iq->adapter;
 	struct rsp_ctrl *ctrl;
 	struct sge_fl *fl = &rxq->fl;
-	struct port_info *pi = rxq->port;
-	struct ifnet *ifp = pi->ifp;
-	struct adapter *sc = pi->adapter;
+	struct ifnet *ifp = rxq->ifp;
 	const struct rss_header *rss;
 	const struct cpl_rx_pkt *cpl;
 	int ndescs = 0, rsp_type;
@@ -1193,7 +1192,7 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx)
 	if (pi->ifp->if_capenable & IFCAP_LRO)
 		rxq->flags |= RXQ_LRO_ENABLED;
 #endif
-	rxq->port = pi;
+	rxq->ifp = pi->ifp;
 
 	children = SYSCTL_CHILDREN(pi->oid_rxq);
 
@@ -1246,7 +1245,7 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx)
 	struct sysctl_oid *oid;
 	struct sysctl_oid_list *children;
 
-	txq->port = pi;
+	txq->ifp = pi->ifp;
 	TASK_INIT(&txq->resume_tx, 0, cxgbe_txq_start, txq);
 
 	mtx_init(&eq->eq_lock, eq->lockname, NULL, MTX_DEF);
@@ -2393,9 +2392,11 @@ handle_sge_egr_update(struct adapter *sc, const struct cpl_sge_egr_update *cpl)
 	unsigned int qid = G_EGR_QID(ntohl(cpl->opcode_qid));
 	struct sge *s = &sc->sge;
 	struct sge_txq *txq;
+	struct port_info *pi;
 
 	txq = (void *)s->eqmap[qid - s->eq_start];
-	taskqueue_enqueue(txq->port->tq, &txq->resume_tx);
+	pi = txq->ifp->if_softc;
+	taskqueue_enqueue(pi->tq, &txq->resume_tx);
 	txq->egr_update++;
 
 	return (0);

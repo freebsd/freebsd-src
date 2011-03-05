@@ -2649,10 +2649,9 @@ void
 cxgbe_txq_start(void *arg, int count)
 {
 	struct sge_txq *txq = arg;
-	struct ifnet *ifp = txq->port->ifp;
 
 	TXQ_LOCK(txq);
-	txq_start(ifp, txq);
+	txq_start(txq->ifp, txq);
 	TXQ_UNLOCK(txq);
 }
 
