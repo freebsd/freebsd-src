@@ -1256,28 +1256,69 @@ prep_firmware(struct adapter *sc)
 	/* Check firmware version and install a different one if necessary */
 	rc = t4_check_fw_version(sc);
 	if (rc != 0 || force_firmware_install) {
+		uint32_t v = 0;
 
 		fw = firmware_get(T4_FWNAME);
-		if (fw == NULL) {
-			device_printf(sc->dev,
-			    "Could not find firmware image %s\n", T4_FWNAME);
-			return (ENOENT);
+		if (fw != NULL) {
+			const struct fw_hdr *hdr = (const void *)fw->data;
+
+			v = ntohl(hdr->fw_ver);
+
+			/*
+			 * The firmware module will not be used if it isn't the
+			 * same major version as what the driver was compiled
+			 * with.  This check trumps force_firmware_install.
+			 */
+			if (G_FW_HDR_FW_VER_MAJOR(v) != FW_VERSION_MAJOR) {
+				device_printf(sc->dev,
+				    "Found firmware image but version %d "
+				    "can not be used with this driver (%d)\n",
+				    G_FW_HDR_FW_VER_MAJOR(v), FW_VERSION_MAJOR);
+
+				firmware_put(fw, FIRMWARE_UNLOAD);
+				fw = NULL;
+			}
 		}
 
-		device_printf(sc->dev,
-		    "installing firmware %d.%d.%d on card.\n",
-		    FW_VERSION_MAJOR, FW_VERSION_MINOR, FW_VERSION_MICRO);
-		rc = -t4_load_fw(sc, fw->data, fw->datasize);
-		if (rc != 0) {
-			device_printf(sc->dev,
-			    "failed to install firmware: %d\n", rc);
-			return (rc);
-		} else {
-			t4_get_fw_version(sc, &sc->params.fw_vers);
-			t4_get_tp_version(sc, &sc->params.tp_vers);
+		if (fw == NULL && (rc < 0 || force_firmware_install)) {
+			device_printf(sc->dev, "No usable firmware. "
+			    "card has %d.%d.%d, driver compiled with %d.%d.%d, "
+			    "force_firmware_install%s set",
+			    G_FW_HDR_FW_VER_MAJOR(sc->params.fw_vers),
+			    G_FW_HDR_FW_VER_MINOR(sc->params.fw_vers),
+			    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
+			    FW_VERSION_MAJOR, FW_VERSION_MINOR,
+			    FW_VERSION_MICRO,
+			    force_firmware_install ? "" : " not");
+			return (EAGAIN);
 		}
 
-		firmware_put(fw, FIRMWARE_UNLOAD);
+		/*
+		 * Always upgrade, even for minor/micro/build mismatches.
+		 * Downgrade only for a major version mismatch or if
+		 * force_firmware_install was specified.
+		 */
+		if (fw != NULL && (rc < 0 || force_firmware_install ||
+		    v > sc->params.fw_vers)) {
+			device_printf(sc->dev,
+			    "installing firmware %d.%d.%d.%d on card.\n",
+			    G_FW_HDR_FW_VER_MAJOR(v), G_FW_HDR_FW_VER_MINOR(v),
+			    G_FW_HDR_FW_VER_MICRO(v), G_FW_HDR_FW_VER_BUILD(v));
+
+			rc = -t4_load_fw(sc, fw->data, fw->datasize);
+			if (rc != 0) {
+				device_printf(sc->dev,
+				    "failed to install firmware: %d\n", rc);
+				firmware_put(fw, FIRMWARE_UNLOAD);
+				return (rc);
+			} else {
+				/* refresh */
+				(void) t4_check_fw_version(sc);
+			}
+		}
+
+		if (fw != NULL)
+			firmware_put(fw, FIRMWARE_UNLOAD);
 	}
 
 	/* Contact firmware, request master */
