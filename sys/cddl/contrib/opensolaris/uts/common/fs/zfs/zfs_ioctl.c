@@ -3271,8 +3271,6 @@ zfs_ioc_rename(zfs_cmd_t *zc)
 		if (err)
 			return (err);
 	}
-	if (zc->zc_objset_type == DMU_OST_ZVOL)
-		(void) zvol_remove_minor(zc->zc_name);
 	return (dmu_objset_rename(zc->zc_name, zc->zc_value, recursive));
 }
 

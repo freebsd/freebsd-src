@@ -2312,6 +2312,7 @@ dsl_dataset_snapshot_rename_check(void *arg1, void *arg2, dmu_tx_t *tx)
 static void
 dsl_dataset_snapshot_rename_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 {
+	char oldname[MAXPATHLEN], newname[MAXPATHLEN];
 	dsl_dataset_t *ds = arg1;
 	const char *newsnapname = arg2;
 	dsl_dir_t *dd = ds->ds_dir;
@@ -2327,12 +2328,15 @@ dsl_dataset_snapshot_rename_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	VERIFY(0 == dsl_dataset_get_snapname(ds));
 	err = dsl_dataset_snap_remove(hds, ds->ds_snapname, tx);
 	ASSERT3U(err, ==, 0);
+	dsl_dataset_name(ds, oldname);
 	mutex_enter(&ds->ds_lock);
 	(void) strcpy(ds->ds_snapname, newsnapname);
 	mutex_exit(&ds->ds_lock);
 	err = zap_add(mos, hds->ds_phys->ds_snapnames_zapobj,
 	    ds->ds_snapname, 8, 1, &ds->ds_object, tx);
 	ASSERT3U(err, ==, 0);
+	dsl_dataset_name(ds, newname);
+	zvol_rename_minors(oldname, newname);
 
 	spa_history_log_internal(LOG_DS_RENAME, dd->dd_pool->dp_spa, tx,
 	    "dataset = %llu", ds->ds_object);
