@@ -2223,3 +2223,70 @@ zvol_create_minors(const char *name)
 	kmem_free(osname, MAXPATHLEN);
 	return (0);
 }
+
+static void
+zvol_rename_minor(struct g_geom *gp, const char *newname)
+{
+	struct g_provider *pp;
+	zvol_state_t *zv;
+
+	ASSERT(MUTEX_HELD(&zfsdev_state_lock));
+	g_topology_assert();
+
+	pp = LIST_FIRST(&gp->provider);
+	ASSERT(pp != NULL);
+	zv = pp->private;
+	ASSERT(zv != NULL);
+
+	zv->zv_provider = NULL;
+	g_wither_provider(pp, ENXIO);
+
+	pp = g_new_providerf(gp, "%s/%s", ZVOL_DRIVER, newname);
+	pp->sectorsize = DEV_BSIZE;
+	pp->mediasize = zv->zv_volsize;
+	pp->private = zv;
+	zv->zv_provider = pp;
+	strlcpy(zv->zv_name, newname, sizeof(zv->zv_name));
+	g_error_provider(pp, 0);
+}
+
+void
+zvol_rename_minors(const char *oldname, const char *newname)
+{
+	char name[MAXPATHLEN];
+	struct g_provider *pp;
+	struct g_geom *gp;
+	size_t oldnamelen, newnamelen;
+	zvol_state_t *zv;
+	char *namebuf;
+
+	oldnamelen = strlen(oldname);
+	newnamelen = strlen(newname);
+
+	DROP_GIANT();
+	mutex_enter(&zfsdev_state_lock);
+	g_topology_lock();
+
+	LIST_FOREACH(gp, &zfs_zvol_class.geom, geom) {
+		pp = LIST_FIRST(&gp->provider);
+		if (pp == NULL)
+			continue;
+		zv = pp->private;
+		if (zv == NULL)
+			continue;
+		if (strcmp(zv->zv_name, oldname) == 0) {
+			zvol_rename_minor(gp, newname);
+		} else if (strncmp(zv->zv_name, oldname, oldnamelen) == 0 &&
+		    (zv->zv_name[oldnamelen] == '/' ||
+		     zv->zv_name[oldnamelen] == '@')) {
+			snprintf(name, sizeof(name), "%s%c%s", newname,
+			    zv->zv_name[oldnamelen],
+			    zv->zv_name + oldnamelen + 1);
+			zvol_rename_minor(gp, name);
+		}
+	}
+
+	g_topology_unlock();
+	mutex_exit(&zfsdev_state_lock);
+	PICKUP_GIANT();
+}
