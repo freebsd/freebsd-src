@@ -36,6 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/module.h>
+#include <sys/malloc.h>
+#include <sys/queue.h>
+#include <sys/taskqueue.h>
 #include <sys/pciio.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -274,6 +277,7 @@ static int sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_txq(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
+static inline void txq_start(struct ifnet *, struct sge_txq *);
 
 
 struct t4_pciids {
@@ -692,6 +696,15 @@ cxgbe_attach(device_t dev)
 	ifp->if_softc = pi;
 
 	callout_init(&pi->tick, CALLOUT_MPSAFE);
+	pi->tq = taskqueue_create("cxgbe_taskq", M_NOWAIT,
+	    taskqueue_thread_enqueue, &pi->tq);
+	if (pi->tq == NULL) {
+		device_printf(dev, "failed to allocate port task queue\n");
+		if_free(pi->ifp);
+		return (ENOMEM);
+	}
+	taskqueue_start_threads(&pi->tq, 1, PI_NET, "%s taskq",
+	    device_get_nameunit(dev));
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -745,6 +758,8 @@ cxgbe_detach(device_t dev)
 	rc = cxgbe_uninit_synchronized(pi);
 	if (rc != 0)
 		device_printf(dev, "port uninit failed: %d.\n", rc);
+
+	taskqueue_free(pi->tq);
 
 	ifmedia_removeall(&pi->media);
 	ether_ifdetach(pi->ifp);
@@ -951,13 +966,7 @@ cxgbe_start(struct ifnet *ifp)
 
 	for_each_txq(pi, i, txq) {
 		if (TXQ_TRYLOCK(txq)) {
-			struct buf_ring *br = txq->eq.br;
-			struct mbuf *m;
-
-			m = txq->m ? txq->m : drbr_dequeue(ifp, br);
-			if (m)
-				t4_eth_tx(ifp, txq, m);
-
+			txq_start(ifp, txq);
 			TXQ_UNLOCK(txq);
 		}
 	}
@@ -2579,6 +2588,31 @@ sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS)
 	val = t4_read_reg64(sc, reg);
 
 	return (sysctl_handle_64(oidp, &val, 0, req));
+}
+
+static inline void
+txq_start(struct ifnet *ifp, struct sge_txq *txq)
+{
+	struct buf_ring *br;
+	struct mbuf *m;
+
+	TXQ_LOCK_ASSERT_OWNED(txq);
+
+	br = txq->eq.br;
+	m = txq->m ? txq->m : drbr_dequeue(ifp, br);
+	if (m)
+		t4_eth_tx(ifp, txq, m);
+}
+
+void
+cxgbe_txq_start(void *arg, int count)
+{
+	struct sge_txq *txq = arg;
+	struct ifnet *ifp = txq->port->ifp;
+
+	TXQ_LOCK(txq);
+	txq_start(ifp, txq);
+	TXQ_UNLOCK(txq);
 }
 
 int
