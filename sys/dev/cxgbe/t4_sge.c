@@ -1263,6 +1263,7 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx)
 	eq->sdesc = malloc(eq->cap * sizeof(struct tx_sdesc), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 	eq->br = buf_ring_alloc(eq->qsize, M_CXGBE, M_WAITOK, &eq->eq_lock);
+	eq->iqid = sc->sge.rxq[pi->first_rxq].iq.cntxt_id;
 
 	rc = bus_dma_tag_create(sc->dmat, 1, 0, BUS_SPACE_MAXADDR,
 	    BUS_SPACE_MAXADDR, NULL, NULL, 64 * 1024, TX_SGL_SEGS,
@@ -1290,7 +1291,7 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx)
 	c.fetchszm_to_iqid =
 	    htobe32(V_FW_EQ_ETH_CMD_HOSTFCMODE(X_HOSTFCMODE_STATUS_PAGE) |
 		V_FW_EQ_ETH_CMD_PCIECHN(pi->tx_chan) |
-		V_FW_EQ_ETH_CMD_IQID(sc->sge.rxq[pi->first_rxq].iq.cntxt_id));
+		V_FW_EQ_ETH_CMD_IQID(eq->iqid));
 	c.dcaen_to_eqsize = htobe32(V_FW_EQ_ETH_CMD_FBMIN(X_FETCHBURSTMIN_64B) |
 		      V_FW_EQ_ETH_CMD_FBMAX(X_FETCHBURSTMAX_512B) |
 		      V_FW_EQ_ETH_CMD_CIDXFTHRESH(X_CIDXFLUSHTHRESH_32) |
@@ -2074,7 +2075,8 @@ write_ulp_cpl_sgl(struct port_info *pi, struct sge_txq *txq,
 
 	/* ULP master command */
 	ulpmc = (void *)flitp;
-	ulpmc->cmd_dest = htonl(V_ULPTX_CMD(ULP_TX_PKT) | V_ULP_TXPKT_DEST(0));
+	ulpmc->cmd_dest = htonl(V_ULPTX_CMD(ULP_TX_PKT) | V_ULP_TXPKT_DEST(0) |
+	    V_ULP_TXPKT_FID(eq->iqid));
 	ulpmc->len = htonl(howmany(sizeof(*ulpmc) + sizeof(*ulpsc) +
 	    sizeof(*cpl) + 8 * sgl->nflits, 16));
 
