@@ -70,8 +70,8 @@ static __inline uint64_t
 t4_bus_space_read_8(bus_space_tag_t tag, bus_space_handle_t handle,
     bus_size_t offset)
 {
-	KASSERT(tag == X86_BUS_SPACE_IO,
-	    ("64-bit reads from I/O space not possible."));
+	KASSERT(tag == X86_BUS_SPACE_MEM,
+	    ("%s: can only handle mem space", __func__));
 
 	return (*(volatile uint64_t *)(handle + offset));
 }
@@ -80,8 +80,9 @@ static __inline void
 t4_bus_space_write_8(bus_space_tag_t tag, bus_space_handle_t bsh,
     bus_size_t offset, uint64_t value)
 {
-	KASSERT(tag == X86_BUS_SPACE_IO,
-	    ("64-bit writes to I/O space not possible."));
+	KASSERT(tag == X86_BUS_SPACE_MEM,
+	    ("%s: can only handle mem space", __func__));
+
 	*(volatile uint64_t *)(bsh + offset) = value;
 }
 #else
