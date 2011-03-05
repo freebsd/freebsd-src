@@ -135,6 +135,7 @@ static inline void write_ulp_cpl_sgl(struct port_info *, struct sge_txq *,
 static int write_sgl_to_txd(struct sge_eq *, struct sgl *, caddr_t *);
 static inline void copy_to_txd(struct sge_eq *, caddr_t, caddr_t *, int);
 static inline void ring_tx_db(struct adapter *, struct sge_eq *);
+static inline int reclaimable(struct sge_eq *);
 static int reclaim_tx_descs(struct sge_eq *, int, int);
 static void write_eqflush_wr(struct sge_eq *);
 static __be64 get_flit(bus_dma_segment_t *, int, int);
@@ -753,22 +754,21 @@ t4_eth_tx(struct ifnet *ifp, struct sge_txq *txq, struct mbuf *m)
 	struct sge_eq *eq = &txq->eq;
 	struct buf_ring *br = eq->br;
 	struct mbuf *next;
-	int rc, coalescing;
+	int rc, coalescing, can_reclaim;
 	struct txpkts txpkts;
 	struct sgl sgl;
 
 	TXQ_LOCK_ASSERT_OWNED(txq);
 	KASSERT(m, ("%s: called with nothing to do.", __func__));
 
+	prefetch(&eq->desc[eq->pidx]);
+	prefetch(&eq->sdesc[eq->pidx]);
+
 	txpkts.npkt = 0;/* indicates there's nothing in txpkts */
 	coalescing = 0;
 
-	prefetch(&eq->sdesc[eq->pidx]);
-	prefetch(&eq->desc[eq->pidx]);
-	prefetch(&eq->maps[eq->map_pidx]);
-
 	if (eq->avail < 8)
-		reclaim_tx_descs(eq, 1, 8);
+		reclaim_tx_descs(eq, 0, 8);
 
 	for (; m; m = next ? next : drbr_dequeue(ifp, br)) {
 
@@ -824,7 +824,7 @@ t4_eth_tx(struct ifnet *ifp, struct sge_txq *txq, struct mbuf *m)
 		coalescing = 0;
 
 		if (eq->avail < 8)
-			reclaim_tx_descs(eq, 1, 8);
+			reclaim_tx_descs(eq, 0, 8);
 		rc = write_txpkt_wr(pi, txq, m, &sgl);
 		if (rc != 0) {
 
@@ -851,7 +851,10 @@ doorbell:
 		/* Fewer and fewer doorbells as the queue fills up */
 		if (eq->pending >= (1 << (fls(eq->qsize - eq->avail) / 2)))
 		    ring_tx_db(sc, eq);
-		reclaim_tx_descs(eq, 16, 32);
+
+		can_reclaim = reclaimable(eq);
+		if (can_reclaim >= 32)
+			reclaim_tx_descs(eq, can_reclaim, 32);
 	}
 
 	if (txpkts.npkt > 0)
@@ -874,7 +877,9 @@ doorbell:
 	if (eq->pending)
 		ring_tx_db(sc, eq);
 
-	reclaim_tx_descs(eq, 16, eq->qsize);
+	can_reclaim = reclaimable(eq);
+	if (can_reclaim >= 32)
+		reclaim_tx_descs(eq, can_reclaim, 128);
 
 	return (0);
 }
@@ -2271,32 +2276,40 @@ ring_tx_db(struct adapter *sc, struct sge_eq *eq)
 	eq->pending = 0;
 }
 
-static int
-reclaim_tx_descs(struct sge_eq *eq, int atleast, int howmany)
+static inline int
+reclaimable(struct sge_eq *eq)
 {
-	struct tx_sdesc *txsd;
-	struct tx_map *txm, *next_txm;
-	unsigned int cidx, can_reclaim, reclaimed, maps, next_map_cidx;
-
-	EQ_LOCK_ASSERT_OWNED(eq);
+	unsigned int cidx;
 
 	cidx = eq->spg->cidx;	/* stable snapshot */
 	cidx = be16_to_cpu(cidx);
 
 	if (cidx >= eq->cidx)
-		can_reclaim = cidx - eq->cidx;
+		return (cidx - eq->cidx);
 	else
-		can_reclaim = cidx + eq->cap - eq->cidx;
+		return (cidx + eq->cap - eq->cidx);
+}
 
-	if (can_reclaim < atleast)
-		return (0);
+/*
+ * There are "can_reclaim" tx descriptors ready to be reclaimed.  Reclaim as
+ * many as possible but stop when there are around "n" mbufs to free.
+ *
+ * The actual number reclaimed is provided as the return value.
+ */
+static int
+reclaim_tx_descs(struct sge_eq *eq, int can_reclaim, int n)
+{
+	struct tx_sdesc *txsd;
+	struct tx_map *txm;
+	unsigned int reclaimed, maps;
 
-	next_map_cidx = eq->map_cidx;
-	next_txm = txm = &eq->maps[next_map_cidx];
-	prefetch(txm);
+	EQ_LOCK_ASSERT_OWNED(eq);
+
+	if (can_reclaim == 0)
+		can_reclaim = reclaimable(eq);
 
 	maps = reclaimed = 0;
-	do {
+	while (can_reclaim && maps < n) {
 		int ndesc;
 
 		txsd = &eq->sdesc[eq->cidx];
@@ -2308,15 +2321,18 @@ reclaim_tx_descs(struct sge_eq *eq, int atleast, int howmany)
 		    __func__, can_reclaim, ndesc));
 
 		maps += txsd->map_used;
+
 		reclaimed += ndesc;
-
-		eq->cidx += ndesc;
-		if (eq->cidx >= eq->cap)
-			eq->cidx -= eq->cap;
-
 		can_reclaim -= ndesc;
 
-	} while (can_reclaim && reclaimed < howmany);
+		eq->cidx += ndesc;
+		if (__predict_false(eq->cidx >= eq->cap))
+			eq->cidx -= eq->cap;
+	}
+
+	txm = &eq->maps[eq->map_cidx];
+	if (maps)
+		prefetch(txm->m);
 
 	eq->avail += reclaimed;
 	KASSERT(eq->avail < eq->cap,	/* avail tops out at (cap - 1) */
@@ -2326,22 +2342,22 @@ reclaim_tx_descs(struct sge_eq *eq, int atleast, int howmany)
 	KASSERT(eq->map_avail <= eq->map_total,
 	    ("%s: too many maps available", __func__));
 
-	prefetch(txm->m);
 	while (maps--) {
-		next_txm++;
-		if (++next_map_cidx == eq->map_total) {
-			next_map_cidx = 0;
-			next_txm = eq->maps;
-		}
-		prefetch(next_txm->m);
+		struct tx_map *next;
+
+		next = txm + 1;
+		if (__predict_false(eq->map_cidx + 1 == eq->map_total))
+			next = eq->maps;
+		prefetch(next->m);
 
 		bus_dmamap_unload(eq->tx_tag, txm->map);
 		m_freem(txm->m);
 		txm->m = NULL;
 
-		txm = next_txm;
+		txm = next;
+		if (__predict_false(++eq->map_cidx == eq->map_total))
+			eq->map_cidx = 0;
 	}
-	eq->map_cidx = next_map_cidx;
 
 	return (reclaimed);
 }
