@@ -3685,7 +3685,7 @@ ti_ioctl2(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		 * to the Tigon board you're interested in.  This seems
 		 * like a not-so-good way to do things, since unless you
 		 * subsequently specify the unit number of the device
-		 * you're interested in in every ioctl, you'll only be
+		 * you're interested in every ioctl, you'll only be
 		 * able to debug one board at a time.
 		 */
 		error = 0;
