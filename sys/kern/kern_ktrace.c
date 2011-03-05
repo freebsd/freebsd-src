@@ -111,7 +111,7 @@ static int data_lengths[] = {
 	0,					/* KTR_NAMEI */
 	sizeof(struct ktr_genio),		/* KTR_GENIO */
 	sizeof(struct ktr_psig),		/* KTR_PSIG */
-	sizeof(struct ktr_csw),		/* KTR_CSW */
+	sizeof(struct ktr_csw),			/* KTR_CSW */
 	0,					/* KTR_USER */
 	0,					/* KTR_STRUCT */
 	0,					/* KTR_SYSCTL */
@@ -539,7 +539,7 @@ ktrprocctor_entered(struct thread *td, struct proc *p)
 {
 	struct ktr_proc_ctor *ktp;
 	struct ktr_request *req;
-	struct thread *td2;;
+	struct thread *td2;
 
 	ktrace_assert(td);
 	td2 = FIRST_THREAD_IN_PROC(p);
