@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/loginclass.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/syscallsubr.h>
@@ -484,6 +485,7 @@ proc0_init(void *dummy __unused)
 	p->p_ucred->cr_uidinfo = uifind(0);
 	p->p_ucred->cr_ruidinfo = uifind(0);
 	p->p_ucred->cr_prison = &prison0;
+	p->p_ucred->cr_loginclass = loginclass_find("default");
 #ifdef AUDIT
 	audit_cred_kproc0(p->p_ucred);
 #endif

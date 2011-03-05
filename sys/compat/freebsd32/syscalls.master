@@ -962,3 +962,6 @@
 				    fd_set *ou, fd_set *ex, \
 				    const struct timespec32 *ts, \
 				    const sigset_t *sm); }
+523	AUE_NULL	NOPROTO	{ int getloginclass(char *namebuf, \
+				    size_t namelen); }
+524	AUE_NULL	NOPROTO	{ int setloginclass(const char *namebuf); }

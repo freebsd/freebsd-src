@@ -3874,6 +3874,12 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_NETINET_GETCRED:
 		return (0);
 
+		/*
+		 * Allow jailed root to set loginclass.
+		 */
+	case PRIV_PROC_SETLOGINCLASS:
+		return (0);
+
 	default:
 		/*
 		 * In all remaining cases, deny the privilege request.  This
