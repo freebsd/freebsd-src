@@ -344,6 +344,7 @@ FBSD_1.1 {
 	fexecve;
 	fstatat;
 	futimesat;
+	getloginclass;
 	jail_get;
 	jail_set;
 	jail_remove;
@@ -357,6 +358,7 @@ FBSD_1.1 {
 	readlinkat;
 	renameat;
 	setfib;
+	setloginclass;
 	shmctl;
 	symlinkat;
 	unlinkat;

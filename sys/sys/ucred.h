@@ -35,6 +35,8 @@
 
 #include <bsm/audit.h>
 
+struct loginclass;
+
 /*
  * Credentials.
  *
@@ -54,7 +56,7 @@ struct ucred {
 	struct uidinfo	*cr_uidinfo;	/* per euid resource consumption */
 	struct uidinfo	*cr_ruidinfo;	/* per ruid resource consumption */
 	struct prison	*cr_prison;	/* jail(2) */
-	void		*cr_pspare;	/* general use */
+	struct loginclass	*cr_loginclass; /* login class */
 	u_int		cr_flags;	/* credential flags */
 	void 		*cr_pspare2[2];	/* general use 2 */
 #define	cr_endcopy	cr_label
