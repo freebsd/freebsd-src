@@ -36,6 +36,7 @@
 #include <sys/zio.h>
 #include <sys/arc.h>
 #include <sys/sunddi.h>
+#include <sys/zvol.h>
 #include "zfs_namecheck.h"
 
 static uint64_t dsl_dir_space_towrite(dsl_dir_t *dd);
@@ -1294,6 +1295,7 @@ dsl_dir_rename_check(void *arg1, void *arg2, dmu_tx_t *tx)
 static void
 dsl_dir_rename_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 {
+	char oldname[MAXPATHLEN], newname[MAXPATHLEN];
 	dsl_dir_t *dd = arg1;
 	struct renamearg *ra = arg2;
 	dsl_pool_t *dp = dd->dd_pool;
@@ -1326,6 +1328,7 @@ dsl_dir_rename_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	dmu_buf_will_dirty(dd->dd_dbuf, tx);
 
 	/* remove from old parent zapobj */
+	dsl_dir_name(dd, oldname);
 	err = zap_remove(mos, dd->dd_parent->dd_phys->dd_child_dir_zapobj,
 	    dd->dd_myname, tx);
 	ASSERT3U(err, ==, 0);
@@ -1340,6 +1343,8 @@ dsl_dir_rename_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	err = zap_add(mos, ra->newparent->dd_phys->dd_child_dir_zapobj,
 	    dd->dd_myname, 8, 1, &dd->dd_object, tx);
 	ASSERT3U(err, ==, 0);
+	dsl_dir_name(dd, newname);
+	zvol_rename_minors(oldname, newname);
 
 	spa_history_log_internal(LOG_DS_RENAME, dd->dd_pool->dp_spa,
 	    tx, "dataset = %llu", dd->dd_phys->dd_head_dataset_obj);
