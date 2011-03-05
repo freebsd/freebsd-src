@@ -501,7 +501,14 @@ extern	void ath_hal_free(void *);
 #ifdef AH_DEBUG
 #include "ah_debug.h"
 extern	int ath_hal_debug;
-extern	void HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
+#define	HALDEBUG(_ah, __m, ...) \
+	do {							\
+		if (ath_hal_debug & (__m)) {			\
+			DO_HALDEBUG((_ah), (__m), __VA_ARGS__);	\
+		}						\
+	} while(0);
+
+extern	void DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 	__printflike(3,4);
 #else
 #define HALDEBUG(_ah, __m, _fmt, ...)
