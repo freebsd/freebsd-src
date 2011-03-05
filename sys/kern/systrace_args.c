@@ -3120,6 +3120,21 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 6;
 		break;
 	}
+	/* getloginclass */
+	case 523: {
+		struct getloginclass_args *p = params;
+		uarg[0] = (intptr_t) p->namebuf; /* char * */
+		uarg[1] = p->namelen; /* size_t */
+		*n_args = 2;
+		break;
+	}
+	/* setloginclass */
+	case 524: {
+		struct setloginclass_args *p = params;
+		uarg[0] = (intptr_t) p->namebuf; /* const char * */
+		*n_args = 1;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -8285,6 +8300,29 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 5:
 			p = "const sigset_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getloginclass */
+	case 523:
+		switch(ndx) {
+		case 0:
+			p = "char *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setloginclass */
+	case 524:
+		switch(ndx) {
+		case 0:
+			p = "const char *";
 			break;
 		default:
 			break;
