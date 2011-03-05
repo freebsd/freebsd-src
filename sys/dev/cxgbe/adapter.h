@@ -224,24 +224,25 @@ enum {
 struct sge_iq {
 	bus_dma_tag_t desc_tag;
 	bus_dmamap_t desc_map;
-	struct mtx iq_lock;
-	char lockname[16];
-	unsigned int flags;
-	struct adapter *adapter;
-
-	__be64 *desc;		/* KVA of descriptor ring */
 	bus_addr_t ba;		/* bus address of descriptor ring */
+	char lockname[16];
+	uint32_t flags;
+	uint16_t abs_id;	/* absolute SGE id for the iq */
+	int8_t   intr_pktc_idx;	/* packet count threshold index */
+	int8_t   pad0;
+	iq_intr_handler_t *handler;
+	__be64  *desc;		/* KVA of descriptor ring */
+
+	struct mtx iq_lock;
+	struct adapter *adapter;
 	const __be64 *cdesc;	/* current descriptor */
 	uint8_t  gen;		/* generation bit */
 	uint8_t  intr_params;	/* interrupt holdoff parameters */
-	int8_t   intr_pktc_idx;	/* packet count threshold index */
 	uint8_t  intr_next;	/* holdoff for next interrupt */
 	uint8_t  esize;		/* size (bytes) of each entry in the queue */
 	uint16_t qsize;		/* size (# of entries) of the queue */
 	uint16_t cidx;		/* consumer index */
 	uint16_t cntxt_id;	/* SGE context id  for the iq */
-	uint16_t abs_id;	/* absolute SGE id for the iq */
-	iq_intr_handler_t *handler;
 };
 
 enum {
@@ -342,9 +343,11 @@ struct sge_rxq {
 	struct sge_iq iq;	/* MUST be first */
 	struct sge_fl fl;
 
-	unsigned int flags;
 	struct ifnet *ifp;	/* the interface this rxq belongs to */
+	unsigned int flags;
+#ifdef INET
 	struct lro_ctrl lro;	/* LRO state */
+#endif
 
 	/* stats for common events first */
 
