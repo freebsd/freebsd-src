@@ -2720,6 +2720,7 @@ t4_os_pci_restore_state(struct adapter *sc)
 	pci_cfg_restore(dev, dinfo);
 	return (0);
 }
+
 void
 t4_os_portmod_changed(const struct adapter *sc, int idx)
 {
@@ -2730,10 +2731,13 @@ t4_os_portmod_changed(const struct adapter *sc, int idx)
 
 	if (pi->mod_type == FW_PORT_MOD_TYPE_NONE)
 		if_printf(pi->ifp, "transceiver unplugged.\n");
-	else
+	else if (pi->mod_type > 0 && pi->mod_type < ARRAY_SIZE(mod_str)) {
 		if_printf(pi->ifp, "%s transceiver inserted.\n",
 		    mod_str[pi->mod_type]);
-
+	} else {
+		if_printf(pi->ifp, "transceiver (type %d) inserted.\n",
+		    pi->mod_type);
+	}
 }
 
 void
