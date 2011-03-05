@@ -414,7 +414,6 @@ t4_intr_fwd(void *arg)
 	int ndesc_pending = 0, ndesc_total = 0;
 	int qid;
 
-	IQ_LOCK(iq);
 	while (is_new_response(iq, &ctrl)) {
 
 		rmb();
@@ -441,7 +440,6 @@ t4_intr_fwd(void *arg)
 
 		iq_next(iq);
 	}
-	IQ_UNLOCK(iq);
 
 	if (ndesc_total > 0) {
 		t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
@@ -474,7 +472,6 @@ t4_intr_evt(void *arg)
 
 	KASSERT(iq == &sc->sge.fwq, ("%s: unexpected ingress queue", __func__));
 
-	IQ_LOCK(iq);
 	while (is_new_response(iq, &ctrl)) {
 
 		rmb();
@@ -517,7 +514,6 @@ t4_intr_evt(void *arg)
 		}
 		iq_next(iq);
 	}
-	IQ_UNLOCK(iq);
 
 	if (ndesc_total > 0) {
 		t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
@@ -549,7 +545,6 @@ t4_intr_data(void *arg)
 	prefetch(sd->m);
 	prefetch(sd->cl);
 
-	IQ_LOCK(iq);
 	iq->intr_next = iq->intr_params;
 	while (is_new_response(iq, &ctrl)) {
 
@@ -670,7 +665,6 @@ t4_intr_data(void *arg)
 			len -= m->m_len;
 		}
 
-		IQ_UNLOCK(iq);
 #ifdef INET
 		if (cpl->l2info & htobe32(F_RXF_LRO) &&
 		    rxq->flags & RXQ_LRO_ENABLED &&
@@ -679,7 +673,6 @@ t4_intr_data(void *arg)
 		} else
 #endif
 		ifp->if_input(ifp, m0);
-		IQ_LOCK(iq);
 
 		FL_LOCK(fl);
 		fl->needed += i;
@@ -700,7 +693,6 @@ nextdesc:	ndescs++;
 			ndescs = 0;
 		}
 	}
-	IQ_UNLOCK(iq);
 
 #ifdef INET
 	while (!SLIST_EMPTY(&lro->lro_active)) {
