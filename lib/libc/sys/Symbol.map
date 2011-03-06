@@ -364,6 +364,9 @@ FBSD_1.1 {
 	unlinkat;
 };
 
+FBSD_1.2 {
+};
+
 FBSDprivate_1.0 {
 	___acl_aclcheck_fd;
 	__sys___acl_aclcheck_fd;
