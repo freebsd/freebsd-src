@@ -104,7 +104,8 @@ ata_dmainit(device_t dev)
 			   0, NULL, NULL, &ch->dma.work_tag))
 	goto error;
 
-    if (bus_dmamem_alloc(ch->dma.work_tag, (void **)&ch->dma.work, 0,
+    if (bus_dmamem_alloc(ch->dma.work_tag, (void **)&ch->dma.work,
+			 BUS_DMA_WAITOK | BUS_DMA_COHERENT,
 			 &ch->dma.work_map))
 	goto error;
 
@@ -173,8 +174,8 @@ ata_dmaalloc(device_t dev)
             goto error;
 	}
 
-	if (bus_dmamem_alloc(slot->sg_tag, (void **)&slot->sg,
-			     0, &slot->sg_map)) {
+	if (bus_dmamem_alloc(slot->sg_tag, (void **)&slot->sg, BUS_DMA_WAITOK,
+			     &slot->sg_map)) {
 	    device_printf(ch->dev, "FAILURE - alloc sg_map\n");
 	    goto error;
         }
