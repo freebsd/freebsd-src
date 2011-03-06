@@ -52,6 +52,11 @@ typedef	__int64_t	int64_t;
 #define	_INT64_T_DECLARED
 #endif
 
+#ifndef _UINT64_T_DECLARED
+typedef	__uint64_t	uint64_t;
+#define	_UINT64_T_DECLARED
+#endif
+
 #ifndef _PID_T_DECLARED
 typedef	__pid_t		pid_t;
 #define	_PID_T_DECLARED
