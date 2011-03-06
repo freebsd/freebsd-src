@@ -1837,13 +1837,13 @@ Terminate the shell process.
 If
 .Ar exitstatus
 is given
-it is used as the exit status of the shell;
-otherwise, if the shell is executing an
+it is used as the exit status of the shell.
+Otherwise, if the shell is executing an
 .Cm EXIT
 trap, the exit status of the last command before the trap is used;
 if the shell is executing a trap for a signal,
-the shell exits by resending the signal to itself;
-otherwise, the exit status of the preceding command is used.
+the shell exits by resending the signal to itself.
+Otherwise, the exit status of the preceding command is used.
 The exit status should be an integer between 0 and 255.
 .It Ic export Ar name ...
 .It Ic export Op Fl p
