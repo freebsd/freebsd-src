@@ -62,7 +62,7 @@ __printf_render_time(struct __printf_io *io, const struct printf_info *pi, const
 	struct timespec *ts;
 	time_t *tp;
 	intmax_t t, tx;
-	int i, prec, nsec;
+	int i, prec, nsec, ret;
 
 	if (pi->is_long) {
 		tv = *((struct timeval **)arg[0]);
@@ -116,5 +116,7 @@ __printf_render_time(struct __printf_io *io, const struct printf_info *pi, const
 			nsec /= 10;
 		p += sprintf(p, ".%.*d", prec, nsec);
 	}
-	return(__printf_out(io, pi, buf, p - buf));
+	ret = __printf_out(io, pi, buf, p - buf);
+	__printf_flush(io);
+	return (ret);
 }
