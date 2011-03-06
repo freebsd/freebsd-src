@@ -60,18 +60,6 @@ usage(void)
 	exit(1);
 }
 
-static char *
-upper(const char *str)
-{
-	static char buf[80];
-	char *s;
-
-	strlcpy(buf, str, sizeof(buf));
-	for (s = buf; *s; s++)
-		*s = toupper((unsigned char)*s);
-	return buf;
-}
-
 
 static void
 printsig(FILE *fp)
@@ -81,7 +69,7 @@ printsig(FILE *fp)
 	int		offset = 0;
 
 	for (cnt = NSIG, p = sys_signame + 1; --cnt; ++p) {
-		offset += fprintf(fp, "%s ", upper(*p));
+		offset += fprintf(fp, "%s ", *p);
 		if (offset >= 75 && cnt > 1) {
 			offset = 0;
 			fprintf(fp, "\n");
@@ -401,14 +389,13 @@ main(int ac, char **av)
 			    thiscmd, thispid, thistdev, thisuid);
 
 		if (vflag || sflag)
-			printf("kill -%s %d\n", upper(sys_signame[sig]),
-			    thispid);
+			printf("kill -%s %d\n", sys_signame[sig], thispid);
 
 		killed++;
 		if (!dflag && !sflag) {
 			if (kill(thispid, sig) < 0 /* && errno != ESRCH */ ) {
 				warn("warning: kill -%s %d",
-				    upper(sys_signame[sig]), thispid);
+				    sys_signame[sig], thispid);
 				errors = 1;
 			}
 		}
