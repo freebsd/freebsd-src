@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2008
+.Dd March 6, 2011
 .Dt LOGIN_CLASS 3
 .Os
 .Sh NAME
@@ -75,7 +75,7 @@ Each of these actions is selectable via bit-flags passed
 in the
 .Ar flags
 parameter, which is comprised of one or more of the following:
-.Bl -tag -width LOGIN_SETRESOURCES
+.Bl -tag -width LOGIN_SETLOGINCLASS
 .It LOGIN_SETLOGIN
 Set the login associated with the current session to the user
 specified in the passwd structure using
@@ -170,6 +170,9 @@ utility or the case-insensitive string
 If the string is
 .Ql default
 no action will be taken.
+.It LOGIN_SETLOGINCLASS
+Set the login class of the current process using
+.Xr setloginclass 2 .
 .It LOGIN_SETALL
 Enables all of the above settings.
 .El
@@ -203,9 +206,11 @@ or resources, a message is reported to
 with LOG_ERR priority and directed to the currently active facility.
 .Sh SEE ALSO
 .Xr cpuset 1 ,
+.Xr ps 1 ,
 .Xr cpuset 2 ,
 .Xr setgid 2 ,
 .Xr setlogin 2 ,
+.Xr setloginclass 2 ,
 .Xr setuid 2 ,
 .Xr getcap 3 ,
 .Xr initgroups 3 ,
