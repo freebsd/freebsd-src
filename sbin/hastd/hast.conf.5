@@ -60,6 +60,7 @@ control <addr>
 listen <addr>
 replication <mode>
 checksum <algorithm>
+compression <algorithm>
 timeout <seconds>
 exec <path>
 
@@ -79,6 +80,7 @@ resource <name> {
 	# Resource section
 	replication <mode>
 	checksum <algorithm>
+	compression <algorithm>
 	name <name>
 	local <path>
 	timeout <seconds>
@@ -214,6 +216,24 @@ This is the default setting.
 CRC32 checksum will be calculated.
 .It Ic sha256
 SHA256 checksum will be calculated.
+.El
+.It Ic compression Aq algorithm
+.Pp
+Compression algorithm should be one of the following:
+.Bl -tag -width ".Ic none"
+.It Ic none
+Data send over the network will not be compressed.
+.It Ic hole
+Only blocks that contain all zeros will be compressed.
+This is very useful for initial synchronization where potentially many blocks
+are still all zeros.
+There should be no measurable performance overhead when this algorithm is being
+used.
+This is the default setting.
+.It Ic lzf
+The LZF algorithm by Marc Alexander Lehmann will be used to compress the data
+send over the network.
+LZF is very fast, general purpose compression algorithm.
 .El
 .It Ic timeout Aq seconds
 .Pp

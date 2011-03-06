@@ -117,6 +117,10 @@ struct hastd_config {
 #define	HAST_REPLICATION_MEMSYNC	1
 #define	HAST_REPLICATION_ASYNC		2
 
+#define	HAST_COMPRESSION_NONE	0
+#define	HAST_COMPRESSION_HOLE	1
+#define	HAST_COMPRESSION_LZF	2
+
 #define	HAST_CHECKSUM_NONE	0
 #define	HAST_CHECKSUM_CRC32	1
 #define	HAST_CHECKSUM_SHA256	2
@@ -137,6 +141,8 @@ struct hast_resource {
 	int	hr_keepdirty;
 	/* Path to a program to execute on various events. */
 	char	hr_exec[PATH_MAX];
+	/* Compression algorithm. */
+	int	hr_compression;
 	/* Checksum algorithm. */
 	int	hr_checksum;
 
