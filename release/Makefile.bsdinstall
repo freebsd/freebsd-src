@@ -1,7 +1,22 @@
 # $FreeBSD$
+#
+# Makefile for building releases and release media.
+# 
+# User-driven targets:
+#  cdrom: Builds release CD-ROM media (release.iso)
+#  ftp: Sets up FTP distribution area (ftp)
+#  release: Build all media and FTP distribution area
+#
+# Variables affecting the build process:
+#  WORLDDIR: location of src tree -- must have built world and default kernel
+#            (by default, the directory above this one) 
+#  PORTSDIR: location of ports tree to distribute (default: /usr/ports)
+#  NOPORTS:  if set, do not distribute ports tree
+#  NOSRC:    if set, do not distribute source tree
+#  TARGET/TARGET_ARCH: architecture of built release 
+#
 
 WORLDDIR?=	${.CURDIR}/..
-DISTDIR?=	${DESTDIR}/usr/freebsd-dist
 PORTSDIR?=	/usr/ports
 
 TARGET_ARCH?=	${MACHINE_ARCH}
@@ -11,43 +26,79 @@ TARGET?=	${MACHINE}
 TARGET?=	${TARGET_ARCH}
 .endif
 IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
+DISTDIR=	${.OBJDIR}/dist
 
-packagesystem:
-	-mkdir -p ${DISTDIR}
-	cd ${WORLDDIR} && ${IMAKE} distributeworld distributekernel DISTDIR=${DISTDIR}
-# Set up mergemaster root database
-	sh ${.CURDIR}/scripts/mm-mtree.sh -F "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" -D "${DISTDIR}/base"
-	cd ${WORLDDIR} && ${IMAKE} packageworld packagekernel DISTDIR=${DISTDIR}
-	-mkdir -p ${DISTDIR}/usr
-# Package up src and ports trees
-	ln -fs ${WORLDDIR} ${DISTDIR}/usr/src
-	ln -fs ${PORTSDIR} ${DISTDIR}/usr/ports
+EXTRA_PACKAGES= 
 .if !defined(NOPORTS)
-	cd ${DISTDIR} && tar cLvJf ${DISTDIR}/ports.txz --exclude usr/ports/distfiles --exclude usr/ports/packages --exclude 'usr/ports/INDEX*' usr/ports
+EXTRA_PACKAGES+= ports.txz
 .endif
 .if !defined(NOSRC)
-	cd ${DISTDIR} && tar cLvJf ${DISTDIR}/src.txz --exclude .svn --exclude CVS usr/src
+EXTRA_PACKAGES+= src.txz
 .endif
 
-system:
+.include <bsd.obj.mk>
+
+base.txz:
+	-mkdir ${DISTDIR}
+	cd ${WORLDDIR} && ${IMAKE} distributeworld DISTDIR=${DISTDIR}
+# Set up mergemaster root database
+	sh ${.CURDIR}/scripts/mm-mtree.sh -F "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" -D "${DISTDIR}/base"
+	cd ${WORLDDIR} && ${IMAKE} packageworld DISTDIR=${DISTDIR}
+	mv ${DISTDIR}/*.txz ${.OBJDIR}
+
+kernel.txz:
+	-mkdir ${DISTDIR}
+	cd ${WORLDDIR} && ${IMAKE} distributekernel packagekernel DISTDIR=${DISTDIR}
+	mv ${DISTDIR}/kernel.txz ${.OBJDIR}
+
+src.txz:
+	-mkdir -p ${DISTDIR}/usr
+	ln -fs ${WORLDDIR} ${DISTDIR}/usr/src
+	cd ${DISTDIR} && tar cLvJf ${.OBJDIR}/src.txz --exclude .svn --exclude CVS usr/src
+
+ports.txz:
+	-mkdir -p ${DISTDIR}/usr
+	ln -fs ${PORTSDIR} ${DISTDIR}/usr/ports
+	cd ${DISTDIR} && tar cLvJf ${.OBJDIR}/ports.txz --exclude usr/ports/distfiles --exclude usr/ports/packages --exclude 'usr/ports/INDEX*' usr/ports
+
+system: packagesystem
 # Install system
-	-mkdir ${DISTDIR}/release
-	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution DESTDIR=${DISTDIR}/release
-	-rm ${DISTDIR}/release/boot/kernel/*.symbols
+	-mkdir ${.OBJDIR}/release
+	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution DESTDIR=${.OBJDIR}/release
+	-rm ${.OBJDIR}/release/boot/kernel/*.symbols
 # Copy distfiles
-	mkdir ${DISTDIR}/release/usr/freebsd-dist
-	cp ${DISTDIR}/*.txz ${DISTDIR}/release/usr/freebsd-dist
+	mkdir ${.OBJDIR}/release/usr/freebsd-dist
+	cp ${.OBJDIR}/*.txz ${.OBJDIR}/release/usr/freebsd-dist
 # Set up installation environment
-	ln -s /tmp/bsdinstall_etc/resolv.conf ${DISTDIR}/release/etc/resolv.conf
-	echo sendmail_enable=\"NONE\" > ${DISTDIR}/release/etc/rc.conf
-	echo hostid_enable=\"NO\" >> ${DISTDIR}/release/etc/rc.conf
-	touch ${DISTDIR}/release/etc/fstab
-	cp rc.local ${DISTDIR}/release/etc
+	ln -s /tmp/bsdinstall_etc/resolv.conf ${.OBJDIR}/release/etc/resolv.conf
+	echo sendmail_enable=\"NONE\" > ${.OBJDIR}/release/etc/rc.conf
+	echo hostid_enable=\"NO\" >> ${.OBJDIR}/release/etc/rc.conf
+	touch ${.OBJDIR}/release/etc/fstab
+	cp ${.CURDIR}/rc.local ${.OBJDIR}/release/etc
+	touch ${.OBJDIR}/${.TARGET}
 
-cdrom:
-	echo kernel_options=\"-C\" > ${DISTDIR}/release/boot/loader.conf
-	sh /usr/src/release/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${DISTDIR}/release.iso ${DISTDIR}/release
-	rm ${DISTDIR}/release/boot/loader.conf
+release.iso: system
+	echo kernel_options=\"-C\" > ${.OBJDIR}/release/boot/loader.conf
+	sh /usr/src/release/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.OBJDIR}/release.iso ${.OBJDIR}/release
+	rm ${.OBJDIR}/release/boot/loader.conf
 
-release: packagesystem system cdrom
-	
+packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
+	touch ${.OBJDIR}/${.TARGET}
+
+cdrom: release.iso
+ftp: packagesystem
+	mkdir ${.OBJDIR}/ftp
+	cp ${.OBJDIR}/*.txz ${.OBJDIR}/ftp
+
+release: cdrom ftp
+
+clean:
+	chflags -R noschg ${.OBJDIR}
+	rm -rf ${.OBJDIR}/dist ${.OBJDIR}/ftp
+	rm -f packagesystem
+	rm -f ${.OBJDIR}/*.txz
+	rm -f system
+	rm -rf ${.OBJDIR}/release
+	rm -f ${.OBJDIR}/release.iso
+	rm -f ${.OBJDIR}/*.txz
+
