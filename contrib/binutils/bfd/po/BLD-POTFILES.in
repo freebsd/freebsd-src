@@ -5,4 +5,5 @@ elf64-ia64.c
 elf64-target.h
 peigen.c
 pepigen.c
+pex64igen.c
 targmatch.h

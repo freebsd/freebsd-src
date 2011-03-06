@@ -1,6 +1,6 @@
 /* symbols.h -
    Copyright 1987, 1990, 1992, 1993, 1994, 1995, 1997, 1999, 2000, 2001,
-   2002, 2003 Free Software Foundation, Inc.
+   2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,20 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
-
-#ifdef BFD_ASSEMBLER
-/* The BFD code wants to walk the list in both directions.  */
-#undef  SYMBOLS_NEED_BACKPOINTERS
-#define SYMBOLS_NEED_BACKPOINTERS
-#endif
-
-#ifndef BFD_ASSEMBLER
-/* The non-BFD code expects to be able to manipulate the symbol fields
-   directly.  */
-#include "struc-symbol.h"
-#endif
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 extern struct obstack notes;	/* eg FixS live here.  */
 
@@ -47,18 +35,24 @@ extern int symbol_table_frozen;
    default.  */
 extern int symbols_case_sensitive;
 
+char * symbol_relc_make_expr  (expressionS *);
+char * symbol_relc_make_sym   (symbolS *);
+char * symbol_relc_make_value (offsetT);
 char *decode_local_label_name (char *s);
 symbolS *symbol_find (const char *name);
+symbolS *symbol_find_noref (const char *name, int noref);
 symbolS *symbol_find_exact (const char *name);
-symbolS *symbol_find_base (const char *name, int strip_underscore);
+symbolS *symbol_find_exact_noref (const char *name, int noref);
 symbolS *symbol_find_or_make (const char *name);
 symbolS *symbol_make (const char *name);
 symbolS *symbol_new (const char *name, segT segment, valueT value,
 		     fragS * frag);
 symbolS *symbol_create (const char *name, segT segment, valueT value,
 			fragS * frag);
-struct local_symbol *local_symbol_make (const char *name, segT section,
-					valueT value, fragS * frag);
+symbolS *symbol_clone (symbolS *, int);
+#undef symbol_clone_if_forward_ref
+symbolS *symbol_clone_if_forward_ref (symbolS *, int);
+#define symbol_clone_if_forward_ref(s) symbol_clone_if_forward_ref (s, 0)
 symbolS *symbol_temp_new (segT, valueT, fragS *);
 symbolS *symbol_temp_new_now (void);
 symbolS *symbol_temp_make (void);
@@ -70,6 +64,7 @@ void symbol_print_statistics (FILE *);
 void symbol_table_insert (symbolS * symbolP);
 valueT resolve_symbol_value (symbolS *);
 void resolve_local_symbol_values (void);
+int snapshot_symbol (symbolS **, valueT *, segT *, fragS **);
 
 void print_symbol_value (symbolS *);
 void print_expr (expressionS *);
@@ -90,26 +85,34 @@ extern void copy_symbol_attributes (symbolS *, symbolS *);
 extern valueT S_GET_VALUE (symbolS *);
 extern void S_SET_VALUE (symbolS *, valueT);
 
-#ifdef BFD_ASSEMBLER
 extern int S_IS_FUNCTION (symbolS *);
 extern int S_IS_EXTERNAL (symbolS *);
 extern int S_IS_WEAK (symbolS *);
+extern int S_IS_WEAKREFR (symbolS *);
+extern int S_IS_WEAKREFD (symbolS *);
 extern int S_IS_COMMON (symbolS *);
 extern int S_IS_DEFINED (symbolS *);
 extern int S_FORCE_RELOC (symbolS *, int);
 extern int S_IS_DEBUG (symbolS *);
 extern int S_IS_LOCAL (symbolS *);
-extern int S_IS_EXTERN (symbolS *);
 extern int S_IS_STABD (symbolS *);
+extern int S_IS_VOLATILE (const symbolS *);
+extern int S_IS_FORWARD_REF (const symbolS *);
 extern const char *S_GET_NAME (symbolS *);
 extern segT S_GET_SEGMENT (symbolS *);
 extern void S_SET_SEGMENT (symbolS *, segT);
 extern void S_SET_EXTERNAL (symbolS *);
-extern void S_SET_NAME (symbolS *, char *);
+extern void S_SET_NAME (symbolS *, const char *);
 extern void S_CLEAR_EXTERNAL (symbolS *);
 extern void S_SET_WEAK (symbolS *);
+extern void S_SET_WEAKREFR (symbolS *);
+extern void S_CLEAR_WEAKREFR (symbolS *);
+extern void S_SET_WEAKREFD (symbolS *);
+extern void S_CLEAR_WEAKREFD (symbolS *);
 extern void S_SET_THREAD_LOCAL (symbolS *);
-#endif
+extern void S_SET_VOLATILE (symbolS *);
+extern void S_CLEAR_VOLATILE (symbolS *);
+extern void S_SET_FORWARD_REF (symbolS *);
 
 #ifndef WORKING_DOT_WORD
 struct broken_word
@@ -154,8 +157,6 @@ extern const short seg_N_TYPE[];/* subseg.c */
 
 void symbol_clear_list_pointers (symbolS * symbolP);
 
-#ifdef SYMBOLS_NEED_BACKPOINTERS
-
 void symbol_insert (symbolS * addme, symbolS * target,
 		    symbolS ** rootP, symbolS ** lastP);
 void symbol_remove (symbolS * symbolP, symbolS ** rootP,
@@ -163,10 +164,7 @@ void symbol_remove (symbolS * symbolP, symbolS ** rootP,
 
 extern symbolS *symbol_previous (symbolS *);
 
-#endif /* SYMBOLS_NEED_BACKPOINTERS */
-
 void verify_symbol_chain (symbolS * rootP, symbolS * lastP);
-void verify_symbol_chain_2 (symbolS * symP);
 
 void symbol_append (symbolS * addme, symbolS * target,
 		    symbolS ** rootP, symbolS ** lastP);
@@ -175,6 +173,7 @@ extern symbolS *symbol_next (symbolS *);
 
 extern expressionS *symbol_get_value_expression (symbolS *);
 extern void symbol_set_value_expression (symbolS *, const expressionS *);
+extern offsetT *symbol_X_add_number (symbolS *);
 extern void symbol_set_value_now (symbolS *);
 extern void symbol_set_frag (symbolS *, fragS *);
 extern fragS *symbol_get_frag (symbolS *);
@@ -196,11 +195,9 @@ extern int symbol_section_p (symbolS *);
 extern int symbol_equated_p (symbolS *);
 extern int symbol_equated_reloc_p (symbolS *);
 extern int symbol_constant_p (symbolS *);
-
-#ifdef BFD_ASSEMBLER
+extern int symbol_shadow_p (symbolS *);
 extern asymbol *symbol_get_bfdsym (symbolS *);
 extern void symbol_set_bfdsym (symbolS *, asymbol *);
-#endif
 
 #ifdef OBJ_SYMFIELD_TYPE
 OBJ_SYMFIELD_TYPE *symbol_get_obj (symbolS *);

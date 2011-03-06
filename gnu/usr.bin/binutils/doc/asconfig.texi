@@ -1,4 +1,7 @@
-@c Copyright 1992, 1993 Free Software Foundation, Inc.
+@c $FreeBSD$
+@c Copyright 1992, 1993, 1994, 1996, 1997, 1999, 2000, 2001, 2002,
+@c 2003, 2005
+@c Free Software Foundation, Inc.
 @c This file is part of the documentation for the GAS manual
 
 @c Configuration settings for all-inclusive version of manual
@@ -18,37 +21,54 @@
 @c Object formats of interest
 @c ==========================
 @clear AOUT
-@clear BOUT
 @clear COFF
 @set ELF
 @clear SOM
 
 @c CPUs of interest
 @c ================
-@clear A29K
+@clear ALPHA
 @clear ARC
-@clear ARM
+@set ARM
+@clear BFIN
+@clear CRIS
 @clear D10V
+@clear D30V
 @clear H8/300
-@clear H8/500
-@clear SH
-@set I80386
-@clear I960
-@clear MIPS
-@clear M32R
-@clear M680X0
-@clear Z8000
-@clear SPARC
-@clear VAX
-@clear VXWORKS
 @clear HPPA
+@clear I370
+@set I80386
+@clear I860
+@clear I960
+@set IA64
+@clear IP2K
+@clear M32C
+@clear M32R
+@clear xc16x
+@clear M68HC11
+@clear M680X0
+@clear MCORE
+@set MIPS
+@clear MMIX
+@clear MS1
+@clear MSP430
+@clear PDP11
+@clear PJ
+@set PPC
+@clear SH
+@set SPARC
+@clear TIC54X
 @clear V850
+@clear VAX
+@clear XTENSA
+@clear Z80
+@clear Z8000
 
-@c Does this version of the assembler use the difference-table kluge?
+@c Does this version of the assembler use the difference-table kludge?
 @clear DIFF-TBL-KLUGE
 
 @c Do all machines described use IEEE floating point?
-@set IEEEFLOAT
+@clear IEEEFLOAT
 
 @c Is a word 32 bits, or 16?
 @set W32
@@ -65,6 +85,6 @@
 @c Name of linker:
 @set LD ld
 @c Text for target machine (best not used in generic case; but just in case...)
-@set TARGET i386
-@c Name of object format (NOT SET in generic version)
+@set TARGET machine specific
+@c Name of object format NOT SET in generic version
 @set OBJ-NAME ELF

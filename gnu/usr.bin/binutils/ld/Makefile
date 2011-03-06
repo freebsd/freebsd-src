@@ -10,11 +10,22 @@ CFLAGS+= -O1
 
 PROG=	ld
 SCRIPTDIR= /usr/libdata/ldscripts
-SRCS+=	ldcref.c ldctor.c ldemul.c ldemul-list.h ldexp.c ldfile.c \
-	ldgram.y ldlang.c ldlex.l ldmain.c ldmisc.c \
-	ldver.c ldwrite.c lexsup.c mri.c
+SRCS+=	ldcref.c \
+	ldctor.c \
+	ldemul-list.h \
+	ldemul.c \
+	ldexp.c \
+	ldfile.c \
+	ldgram.y \
+	ldlang.c \
+	ldlex.l \
+	ldmain.c \
+	ldmisc.c \
+	ldver.c \
+	ldwrite.c \
+	lexsup.c \
+	mri.c
 
-WARNS?=	0	# ldemul.h problem (`struct option' declared inside parameter list)
 CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
 CFLAGS+= -DDEFAULT_EMULATION=\"${NATIVE_EMULATION}\"
 CFLAGS+= -DSCRIPTDIR=\"${TOOLS_PREFIX}/usr/libdata\"
@@ -32,15 +43,14 @@ CLEANFILES+=	ldemul-list.h stringify.sed
 
 HOST=		${TARGET_TUPLE}
 LIBSERACHPATH=	\"${TOOLS_PREFIX}/lib\":\"${TOOLS_PREFIX}/usr/lib\"
-ELF_SCR_EXT=	x xbn xn xr xs xu xc xsc xd xdc
+ELF_SCR_EXT=	x xbn xc xd xdc xdw xn xr xs xsc xsw xu xw
 .for ext in ${ELF_SCR_EXT}
 LDSCRIPTS+=	${NATIVE_EMULATION}.${ext}
 .endfor
 
-EMS+=	 ${NATIVE_EMULATION}
 EMXFR=
 EMLST=
-.for _e in ${EMS}
+.for _e in ${NATIVE_EMULATION} ${EMS}
 EMXFR+=	extern ld_emulation_xfer_type ld_${_e}_emulation;
 EMLST+=	&ld_${_e}_emulation,
 .endfor

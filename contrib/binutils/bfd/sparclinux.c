@@ -1,23 +1,23 @@
 /* BFD back-end for linux flavored sparc a.out binaries.
-   Copyright 1992, 1993, 1994, 1995, 1996, 1997, 2000, 2001, 2002, 2003
-   Free Software Foundation, Inc.
+   Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1999, 2000, 2001, 2002,
+   2003, 2004, 2006, 2007 Free Software Foundation, Inc.
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307,
-USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301,
+   USA.  */
 
 #define TARGET_PAGE_SIZE	4096
 #define ZMAGIC_DISK_BLOCK_SIZE	1024
@@ -27,8 +27,8 @@ USA.  */
 
 #define MACHTYPE_OK(mtype) ((mtype) == M_SPARC || (mtype) == M_UNKNOWN)
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "aout/aout64.h"
 #include "aout/stab_gnu.h"
@@ -94,8 +94,7 @@ sparclinux_write_object_contents (abfd)
 #define GOT_REF_PREFIX  "__GOT_"
 #endif
 
-#define IS_GOT_SYM(name) \
-  (strncmp (name, GOT_REF_PREFIX, sizeof GOT_REF_PREFIX - 1) == 0)
+#define IS_GOT_SYM(name)  (CONST_STRNEQ (name, GOT_REF_PREFIX))
 
 /* See if a symbol name is a reference to the procedure linkage table.  */
 
@@ -103,8 +102,7 @@ sparclinux_write_object_contents (abfd)
 #define PLT_REF_PREFIX  "__PLT_"
 #endif
 
-#define IS_PLT_SYM(name) \
-  (strncmp (name, PLT_REF_PREFIX, sizeof PLT_REF_PREFIX - 1) == 0)
+#define IS_PLT_SYM(name)  (CONST_STRNEQ (name, PLT_REF_PREFIX))
 
 /* This string is used to generate specialized error messages.  */
 
@@ -232,8 +230,9 @@ linux_link_hash_table_create (abfd)
   ret = (struct linux_link_hash_table *) bfd_malloc (amt);
   if (ret == (struct linux_link_hash_table *) NULL)
     return (struct bfd_link_hash_table *) NULL;
-  if (! NAME(aout,link_hash_table_init) (&ret->root, abfd,
-					 linux_link_hash_newfunc))
+  if (!NAME(aout,link_hash_table_init) (&ret->root, abfd,
+					linux_link_hash_newfunc,
+					sizeof (struct linux_link_hash_entry)))
     {
       free (ret);
       return (struct bfd_link_hash_table *) NULL;
@@ -312,12 +311,11 @@ linux_link_create_dynamic_sections (abfd, info)
 
   /* We choose to use the name ".linux-dynamic" for the fixup table.
      Why not?  */
-  s = bfd_make_section (abfd, ".linux-dynamic");
+  s = bfd_make_section_with_flags (abfd, ".linux-dynamic", flags);
   if (s == NULL
-      || ! bfd_set_section_flags (abfd, s, flags)
       || ! bfd_set_section_alignment (abfd, s, 2))
     return FALSE;
-  s->_raw_size = 0;
+  s->size = 0;
   s->contents = 0;
 
   return TRUE;
@@ -428,9 +426,7 @@ linux_add_one_symbol (info, abfd, name, flags, section, value, string,
    This function is called via linux_link_hash_traverse.  */
 
 static bfd_boolean
-linux_tally_symbols (h, data)
-     struct linux_link_hash_entry *h;
-     PTR data;
+linux_tally_symbols (struct linux_link_hash_entry *h, void * data)
 {
   struct bfd_link_info *info = (struct bfd_link_info *) data;
   struct fixup *f, *f1;
@@ -442,8 +438,7 @@ linux_tally_symbols (h, data)
     h = (struct linux_link_hash_entry *) h->root.root.u.i.link;
 
   if (h->root.root.type == bfd_link_hash_undefined
-      && strncmp (h->root.root.root.string, NEEDS_SHRLIB,
-		  sizeof NEEDS_SHRLIB - 1) == 0)
+      && CONST_STRNEQ (h->root.root.root.string, NEEDS_SHRLIB))
     {
       const char *name;
       char *p;
@@ -596,9 +591,9 @@ bfd_sparclinux_size_dynamic_sections (output_bfd, info)
 			       ".linux-dynamic");
   if (s != NULL)
     {
-      s->_raw_size = linux_hash_table (info)->fixup_count + 1;
-      s->_raw_size *= 8;
-      s->contents = (bfd_byte *) bfd_zalloc (output_bfd, s->_raw_size);
+      s->size = linux_hash_table (info)->fixup_count + 1;
+      s->size *= 8;
+      s->contents = (bfd_byte *) bfd_zalloc (output_bfd, s->size);
       if (s->contents == NULL)
 	return FALSE;
     }
@@ -763,7 +758,7 @@ linux_finish_dynamic_link (output_bfd, info)
 		SEEK_SET) != 0)
     return FALSE;
 
-  if (bfd_bwrite ((PTR) s->contents, s->_raw_size, output_bfd) != s->_raw_size)
+  if (bfd_bwrite ((PTR) s->contents, s->size, output_bfd) != s->size)
     return FALSE;
 
   return TRUE;

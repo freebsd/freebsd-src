@@ -4,7 +4,7 @@
 # use the normal "Makefile.inc" mechanism, because we need some of these
 # definitions before the sub-Makefile is processed.
 
-VERSION=	"2.15 [FreeBSD] 2004-05-23"
+VERSION=	"2.17.50 [FreeBSD] 2007-07-03"
 
 .if defined(TARGET_ARCH)
 TARGET_CPUARCH=${TARGET_ARCH:C/mips.*e[bl]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
@@ -12,8 +12,10 @@ TARGET_CPUARCH=${TARGET_ARCH:C/mips.*e[bl]/mips/:C/armeb/arm/:C/powerpc64/powerp
 TARGET_CPUARCH=${MACHINE_CPUARCH}
 .endif
 TARGET_ARCH?=	${MACHINE_ARCH}
+TARGET_VENDOR?=	unknown
+TARGET_OS?=	freebsd
 BINUTILS_ARCH=${TARGET_ARCH:C/amd64/x86_64/}
-TARGET_TUPLE?=	${BINUTILS_ARCH}-obrien-freebsd
+TARGET_TUPLE?=	${BINUTILS_ARCH}-${TARGET_VENDOR}-${TARGET_OS}
 .if ${TARGET_ARCH} == "armeb" || ${TARGET_ARCH:Mmips*eb} != ""
 TARGET_BIG_ENDIAN=t
 .endif

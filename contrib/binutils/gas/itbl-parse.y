@@ -1,5 +1,5 @@
 /* itbl-parse.y
-   Copyright 1997 Free Software Foundation, Inc.
+   Copyright 1997, 2002, 2003, 2005, 2006, 2007 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -15,8 +15,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 %{
 
@@ -152,7 +152,7 @@ Here is the grammar for the coprocessor table:
 	    char -> any printable character
 	    ltr -> ['a'..'z'|'A'..'Z'] 
 	    dec -> ['0'..'9']*	    	    	    	    	     ; value in decimal
-	    hex -> '0x'['0'..'9' | 'a'..'f' | 'A'..'F']*	; value in hexidecimal 
+	    hex -> '0x'['0'..'9' | 'a'..'f' | 'A'..'F']*	; value in hexadecimal 
 
 
 Examples
@@ -239,14 +239,15 @@ was deleted from the original format such that we now count the fields.
 
 ----
 FIXME! should really change lexical analyzer 
-to recognize 'dreg' etc. in context sensative way.
+to recognize 'dreg' etc. in context sensitive way.
 Currently function names or mnemonics may be incorrectly parsed as keywords
 
 FIXME! hex is ambiguous with any digit
 
 */
 
-#include <stdio.h>
+#include "as.h"
+#include "itbl-lex.h"
 #include "itbl-ops.h"
 
 /* #define DEBUG */
@@ -273,10 +274,7 @@ FIXME! hex is ambiguous with any digit
 
 static int sbit, ebit;
 static struct itbl_entry *insn=0;
-extern int insntbl_line;
-int yyparse PARAMS ((void));
-int yylex PARAMS ((void));
-static int yyerror PARAMS ((const char *));
+static int yyerror (const char *);
 
 %}
 

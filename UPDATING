@@ -23,6 +23,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	ln -s aj /etc/malloc.conf.)
 
 20110218:
+	GNU binutils 2.17.50 (as of 2007-07-03) has been merged to -HEAD.  This
+	is the last available version under GPLv2.  It brings a number of new
+	features, such as support for newer x86 CPU's (with SSE-3, SSSE-3, SSE
+	4.1 and SSE 4.2), better support for powerpc64, a number of new
+	directives, and lots of other small improvements.  See the ChangeLog
+	file in contrib/binutils for the full details.
+
+20110218:
 	IPsec's HMAC_SHA256-512 support has been fixed to be RFC4868
 	compliant, and will now use half of hash for authentication.
 	This will break interoperability with all stacks (including all

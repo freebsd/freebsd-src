@@ -1,6 +1,6 @@
 /* chew
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2001,
-   2002, 2003
+   2002, 2003, 2005
    Free Software Foundation, Inc.
    Contributed by steve chamberlain @cygnus
 
@@ -18,7 +18,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* Yet another way of extracting documentation from source.
    No, I haven't finished it yet, but I hope you people like it better
@@ -83,10 +83,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    Foo.  */
 
 #include "ansidecl.h"
-#include "sysdep.h"
 #include <assert.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define DEF_SIZE 5000
 #define STACK 50
@@ -587,45 +588,6 @@ translatecomments ()
 
   pc++;
 }
-
-#if 0
-
-/* This is not currently used.  */
-
-/* turn everything not starting with a . into a comment */
-
-static void
-manglecomments ()
-{
-  unsigned int idx = 0;
-  string_type out;
-  init_string (&out);
-
-  while (at (tos, idx))
-    {
-      if (at (tos, idx) == '\n' && at (tos, idx + 1) == '*')
-	{
-	  cattext (&out, "	/*");
-	  idx += 2;
-	}
-      else if (at (tos, idx) == '*' && at (tos, idx + 1) == '}')
-	{
-	  cattext (&out, "*/");
-	  idx += 2;
-	}
-      else
-	{
-	  catchar (&out, at (tos, idx));
-	  idx++;
-	}
-    }
-
-  overwrite_string (tos, &out);
-
-  pc++;
-}
-
-#endif
 
 /* Mod tos so that only lines with leading dots remain */
 static void
