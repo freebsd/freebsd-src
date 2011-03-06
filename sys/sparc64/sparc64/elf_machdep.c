@@ -332,13 +332,23 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
 		addr = lookup(lf, symidx, 1);
 		if (addr == 0)
 			return (-1);
-		value += addr;
+		/*
+		 * With the addition of TLS support binutils started to make
+		 * addend values relative to relocbase instead of sections.
+		 */
+		if (addr > relocbase && addr <= relocbase + value)
+			value += relocbase;
+		else
+			value += addr;
 		if (RELOC_BARE_SYMBOL(rtype))
 			value = elf_relocaddr(lf, value);
 	}
 
 	if (rtype == R_SPARC_OLO10)
 		value = (value & 0x3ff) + ELF64_R_TYPE_DATA(rela->r_info);
+
+	if (rtype == R_SPARC_HIX22)
+		value ^= 0xffffffffffffffff;
 
 	if (RELOC_PC_RELATIVE(rtype))
 		value -= (Elf_Addr)where;
