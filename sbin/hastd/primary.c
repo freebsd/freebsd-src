@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2009 The FreeBSD Foundation
- * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2010-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -1909,15 +1909,17 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	PJDLOG_ASSERT(gres == res);
 	nv_assert(nv, "remoteaddr");
 	nv_assert(nv, "replication");
+	nv_assert(nv, "checksum");
 	nv_assert(nv, "timeout");
 	nv_assert(nv, "exec");
 
 	ncomps = HAST_NCOMPONENTS;
 
-#define MODIFIED_REMOTEADDR	0x1
-#define MODIFIED_REPLICATION	0x2
-#define MODIFIED_TIMEOUT	0x4
-#define MODIFIED_EXEC		0x8
+#define MODIFIED_REMOTEADDR	0x01
+#define MODIFIED_REPLICATION	0x02
+#define MODIFIED_CHECKSUM	0x04
+#define MODIFIED_TIMEOUT	0x10
+#define MODIFIED_EXEC		0x20
 	modified = 0;
 
 	vstr = nv_get_string(nv, "remoteaddr");
@@ -1934,6 +1936,11 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 		gres->hr_replication = vint;
 		modified |= MODIFIED_REPLICATION;
 	}
+	vint = nv_get_int32(nv, "checksum");
+	if (gres->hr_checksum != vint) {
+		gres->hr_checksum = vint;
+		modified |= MODIFIED_CHECKSUM;
+	}
 	vint = nv_get_int32(nv, "timeout");
 	if (gres->hr_timeout != vint) {
 		gres->hr_timeout = vint;
@@ -1946,10 +1953,11 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	}
 
 	/*
-	 * If only timeout was modified we only need to change it without
-	 * reconnecting.
+	 * Change timeout for connected sockets.
+	 * Don't bother if we need to reconnect.
 	 */
-	if (modified == MODIFIED_TIMEOUT) {
+	if ((modified & MODIFIED_TIMEOUT) != 0 &&
+	    (modified & (MODIFIED_REMOTEADDR | MODIFIED_REPLICATION)) == 0) {
 		for (ii = 0; ii < ncomps; ii++) {
 			if (!ISREMOTE(ii))
 				continue;
@@ -1970,8 +1978,8 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 				    "Unable to set connection timeout");
 			}
 		}
-	} else if ((modified &
-	    (MODIFIED_REMOTEADDR | MODIFIED_REPLICATION)) != 0) {
+	}
+	if ((modified & (MODIFIED_REMOTEADDR | MODIFIED_REPLICATION)) != 0) {
 		for (ii = 0; ii < ncomps; ii++) {
 			if (!ISREMOTE(ii))
 				continue;
@@ -1985,6 +1993,7 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	}
 #undef	MODIFIED_REMOTEADDR
 #undef	MODIFIED_REPLICATION
+#undef	MODIFIED_CHECKSUM
 #undef	MODIFIED_TIMEOUT
 #undef	MODIFIED_EXEC
 

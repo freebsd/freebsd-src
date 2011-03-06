@@ -1,11 +1,6 @@
-%{
 /*-
- * Copyright (c) 2009-2010 The FreeBSD Foundation
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
- *
- * This software was developed by Pawel Jakub Dawidek under sponsorship from
- * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,43 +26,19 @@
  * $FreeBSD$
  */
 
-#include <stdio.h>
-#include <string.h>
+#ifndef	_HAST_CHECKSUM_H_
+#define	_HAST_CHECKSUM_H_
 
-#include "hast.h"
+#include <stdlib.h>	/* size_t */
 
-#include "y.tab.h"
+#include <hast.h>
+#include <nv.h>
 
-int depth;
-int lineno;
+const char *checksum_name(int num);
 
-#define	DP	do { } while (0)
-%}
+int checksum_send(const struct hast_resource *res, struct nv *nv,
+    void **datap, size_t *sizep, bool *freedatap);
+int checksum_recv(const struct hast_resource *res, struct nv *nv,
+    void **datap, size_t *sizep, bool *freedatap);
 
-%%
-control			{ DP; return CONTROL; }
-listen			{ DP; return LISTEN; }
-port			{ DP; return PORT; }
-replication		{ DP; return REPLICATION; }
-checksum		{ DP; return CHECKSUM; }
-timeout			{ DP; return TIMEOUT; }
-exec			{ DP; return EXEC; }
-resource		{ DP; return RESOURCE; }
-name			{ DP; return NAME; }
-local			{ DP; return LOCAL; }
-remote			{ DP; return REMOTE; }
-on			{ DP; return ON; }
-fullsync		{ DP; return FULLSYNC; }
-memsync			{ DP; return MEMSYNC; }
-async			{ DP; return ASYNC; }
-none			{ DP; return NONE; }
-crc32			{ DP; return CRC32; }
-sha256			{ DP; return SHA256; }
-[0-9]+			{ DP; yylval.num = atoi(yytext); return NUM; }
-[a-zA-Z0-9\.\-_/\:]+	{ DP; yylval.str = strdup(yytext); return STR; }
-\{			{ DP; depth++; return OB; }
-\}			{ DP; depth--; return CB; }
-#.*$			/* ignore comments */;
-\n			{ lineno++; }
-[ \t]+			/* ignore whitespace */;
-%%
+#endif	/* !_HAST_CHECKSUM_H_ */
