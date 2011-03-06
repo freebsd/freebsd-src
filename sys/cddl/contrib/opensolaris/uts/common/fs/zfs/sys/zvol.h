@@ -76,7 +76,7 @@ extern int zvol_create_minors(const char *name);
 extern void zvol_rename_minors(const char *oldname, const char *newname);
 #endif
 
-#endif
+#endif	/* _KERNEL */
 
 #ifdef	__cplusplus
 }
