@@ -2336,7 +2336,9 @@ dsl_dataset_snapshot_rename_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	    ds->ds_snapname, 8, 1, &ds->ds_object, tx);
 	ASSERT3U(err, ==, 0);
 	dsl_dataset_name(ds, newname);
+#ifdef _KERNEL
 	zvol_rename_minors(oldname, newname);
+#endif
 
 	spa_history_log_internal(LOG_DS_RENAME, dd->dd_pool->dp_spa, tx,
 	    "dataset = %llu", ds->ds_object);
