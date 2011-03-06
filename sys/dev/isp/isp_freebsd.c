@@ -604,11 +604,11 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 				break;
 			}
 			isp_put_24xx_tmf(isp, tmf, fcp->isp_scratch);
-			MEMORYBARRIER(isp, SYNC_SFORDEV, 0, QENTRY_LEN);
+			MEMORYBARRIER(isp, SYNC_SFORDEV, 0, QENTRY_LEN, chan);
 			sp = (isp24xx_statusreq_t *) local;
 			sp->req_completion_status = 1;
 			retval = isp_control(isp, ISPCTL_RUN_MBOXCMD, &mbs);
-			MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN);
+			MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
 			isp_get_24xx_response(isp, &((isp24xx_statusreq_t *)fcp->isp_scratch)[1], sp);
 			FC_SCRATCH_RELEASE(isp, chan);
 			if (retval || sp->req_completion_status != 0) {
