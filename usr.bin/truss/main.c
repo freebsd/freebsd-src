@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/wait.h>
 
-#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -154,12 +153,9 @@ strsig(int sig)
 
 	ret = NULL;
 	if (sig > 0 && sig < NSIG) {
-		int i;
 		asprintf(&ret, "SIG%s", sys_signame[sig]);
 		if (ret == NULL)
 			return (NULL);
-		for (i = 0; ret[i] != '\0'; ++i)
-			ret[i] = toupper(ret[i]);
 	}
 	return (ret);
 }
