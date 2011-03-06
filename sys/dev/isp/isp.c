@@ -777,7 +777,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 					ISP_IOXPUT_32(isp,  ptr[wi++], &cp[i]);
 					wl--;
 				}
-				MEMORYBARRIER(isp, SYNC_REQUEST, 0, ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)));
+				MEMORYBARRIER(isp, SYNC_REQUEST, 0, ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)), -1);
 				ISP_MEMZERO(&mbs, sizeof (mbs));
 				if (la < 0x10000 && nw < 0x10000) {
 					mbs.param[0] = MBOX_LOAD_RISC_RAM_2100;
@@ -846,7 +846,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 					ISP_IOXPUT_16(isp,  ptr[wi++], &cp[i]);
 					wl--;
 				}
-				MEMORYBARRIER(isp, SYNC_REQUEST, 0, ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)));
+				MEMORYBARRIER(isp, SYNC_REQUEST, 0, ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)), -1);
 				ISP_MEMZERO(&mbs, sizeof (mbs));
 				if (la < 0x10000) {
 					mbs.param[0] = MBOX_LOAD_RISC_RAM_2100;
@@ -1716,7 +1716,7 @@ isp_fibre_init(ispsoftc_t *isp)
 	isp_prt(isp, ISP_LOGDEBUG0, "INIT F/W from %p (%08x%08x)",
 	    fcp->isp_scratch, (uint32_t) ((uint64_t)fcp->isp_scdma >> 32),
 	    (uint32_t) fcp->isp_scdma);
-	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, sizeof (*icbp));
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, sizeof (*icbp), 0);
 	isp_mboxcmd(isp, &mbs);
 	FC_SCRATCH_RELEASE(isp, 0);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
@@ -2008,7 +2008,7 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
 	isp_prt(isp, ISP_LOGDEBUG0, "INIT F/W from %04x%04x%04x%04x", DMA_WD3(fcp->isp_scdma), DMA_WD2(fcp->isp_scdma), DMA_WD1(fcp->isp_scdma), DMA_WD0(fcp->isp_scdma));
-	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, sizeof (*icbp));
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, sizeof (*icbp), 0);
 	isp_mboxcmd(isp, &mbs);
 	FC_SCRATCH_RELEASE(isp, 0);
 
@@ -2125,13 +2125,13 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
-	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, QENTRY_LEN);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, QENTRY_LEN, chan);
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		rval = mbs.param[0];
 		goto out;
 	}
-	MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN);
+	MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
 	scp += QENTRY_LEN;
 	isp_get_plogx(isp, (isp_plogx_t *) scp, plp);
 	if (isp->isp_dblev & ISP_LOGDEBUG1) {
@@ -2324,7 +2324,7 @@ isp_getpdb(ispsoftc_t *isp, int chan, uint16_t id, isp_pdb_t *pdb, int dolock)
 			return (-1);
 		}
 	}
-	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, sizeof (un));
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, sizeof (un), chan);
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		if (dolock) {
@@ -3215,7 +3215,7 @@ isp_gid_ft_sns(ispsoftc_t *isp, int chan)
 	rq->snscb_fc4_type = FC4_SCSI;
 
 	isp_put_gid_ft_request(isp, rq, fcp->isp_scratch);
-	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, SNS_GID_FT_REQ_SIZE);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, SNS_GID_FT_REQ_SIZE, chan);
 
 	MBSINIT(&mbs, MBOX_SEND_SNS, MBLOGALL, 10000000);
 	mbs.param[0] = MBOX_SEND_SNS;
@@ -3310,12 +3310,12 @@ isp_gid_ft_ct_passthru(ispsoftc_t *isp, int chan)
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma + CTXOFF);
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma + CTXOFF);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma + CTXOFF);
-	MEMORYBARRIER(isp, SYNC_SFORDEV, XTXOFF, 2 * QENTRY_LEN);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, XTXOFF, 2 * QENTRY_LEN, chan);
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		return (-1);
 	}
-	MEMORYBARRIER(isp, SYNC_SFORCPU, ZTXOFF, QENTRY_LEN);
+	MEMORYBARRIER(isp, SYNC_SFORCPU, ZTXOFF, QENTRY_LEN, chan);
 	pt = &un.plocal;
 	isp_get_ct_pt(isp, (isp_ct_pt_t *) &scp[ZTXOFF], pt);
 	if (isp->isp_dblev & ISP_LOGDEBUG1) {
@@ -3328,7 +3328,7 @@ isp_gid_ft_ct_passthru(ispsoftc_t *isp, int chan)
 		    chan, pt->ctp_status);
 		return (-1);
 	}
-	MEMORYBARRIER(isp, SYNC_SFORCPU, IGPOFF, GIDLEN + 16);
+	MEMORYBARRIER(isp, SYNC_SFORCPU, IGPOFF, GIDLEN + 16, chan);
 	if (isp->isp_dblev & ISP_LOGDEBUG1) {
 		isp_print_bytes(isp, "CT response", GIDLEN+16, &scp[IGPOFF]);
 	}
@@ -3414,7 +3414,7 @@ isp_scan_fabric(ispsoftc_t *isp, int chan)
 		return (0);
 	}
 
-	MEMORYBARRIER(isp, SYNC_SFORCPU, IGPOFF, GIDLEN);
+	MEMORYBARRIER(isp, SYNC_SFORCPU, IGPOFF, GIDLEN, chan);
 	rs0 = (sns_gid_ft_rsp_t *) ((uint8_t *)fcp->isp_scratch+IGPOFF);
 	rs1 = (sns_gid_ft_rsp_t *) ((uint8_t *)fcp->isp_scratch+OGPOFF);
 	isp_get_gid_ft_response(isp, rs0, rs1, NGENT);
@@ -4008,7 +4008,7 @@ isp_register_fc4_type(ispsoftc_t *isp, int chan)
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
-	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, SNS_RFT_ID_REQ_SIZE);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, SNS_RFT_ID_REQ_SIZE, chan);
 	isp_mboxcmd(isp, &mbs);
 	FC_SCRATCH_RELEASE(isp, chan);
 	if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
@@ -4094,13 +4094,13 @@ isp_register_fc4_type_24xx(ispsoftc_t *isp, int chan)
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma + CTXOFF);
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma + CTXOFF);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma + CTXOFF);
-	MEMORYBARRIER(isp, SYNC_SFORDEV, XTXOFF, 2 * QENTRY_LEN);
+	MEMORYBARRIER(isp, SYNC_SFORDEV, XTXOFF, 2 * QENTRY_LEN, chan);
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		FC_SCRATCH_RELEASE(isp, chan);
 		return (-1);
 	}
-	MEMORYBARRIER(isp, SYNC_SFORCPU, ZTXOFF, QENTRY_LEN);
+	MEMORYBARRIER(isp, SYNC_SFORCPU, ZTXOFF, QENTRY_LEN, chan);
 	pt = &un.plocal;
 	isp_get_ct_pt(isp, (isp_ct_pt_t *) &scp[ZTXOFF], pt);
 	if (isp->isp_dblev & ISP_LOGDEBUG1) {
@@ -4552,7 +4552,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 				break;
 			}
 			isp_put_24xx_tmf(isp, tmf, fcp->isp_scratch);
-			MEMORYBARRIER(isp, SYNC_SFORDEV, 0, QENTRY_LEN);
+			MEMORYBARRIER(isp, SYNC_SFORDEV, 0, QENTRY_LEN, chan);
 			fcp->sendmarker = 1;
 			isp_mboxcmd(isp, &mbs);
 			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
@@ -4560,7 +4560,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 				break;
 			}
 			MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN,
-			    QENTRY_LEN);
+			    QENTRY_LEN, chan);
 			sp = (isp24xx_statusreq_t *) local;
 			isp_get_24xx_response(isp,
 			    &((isp24xx_statusreq_t *)fcp->isp_scratch)[1], sp);
@@ -4656,14 +4656,14 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 			ab2 = (isp24xx_abrt_t *)
 			    &((uint8_t *)fcp->isp_scratch)[QENTRY_LEN];
 			ab2->abrt_nphdl = 0xdeaf;
-			MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN);
+			MEMORYBARRIER(isp, SYNC_SFORDEV, 0, 2 * QENTRY_LEN, chan);
 			isp_mboxcmd(isp, &mbs);
 			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 				FC_SCRATCH_RELEASE(isp, chan);
 				break;
 			}
 			MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN,
-			    QENTRY_LEN);
+			    QENTRY_LEN, chan);
 			isp_get_24xx_abrt(isp, ab2, ab);
 			FC_SCRATCH_RELEASE(isp, chan);
 			if (ab->abrt_nphdl == ISP24XX_ABRT_OKAY) {
@@ -4936,7 +4936,7 @@ again:
 			void *addr;
 
 			oop = optr;
-			MEMORYBARRIER(isp, SYNC_ATIOQ, oop, QENTRY_LEN);
+			MEMORYBARRIER(isp, SYNC_ATIOQ, oop, QENTRY_LEN, -1);
 			addr = ISP_QUEUE_ENTRY(isp->isp_atioq, oop);
 			isp_get_hdr(isp, addr, (isphdr_t *)qe);
 			hp = (isphdr_t *)qe;
@@ -5053,7 +5053,7 @@ again:
 		/*
 		 * Synchronize our view of this response queue entry.
 		 */
-		MEMORYBARRIER(isp, SYNC_RESULT, oop, QENTRY_LEN);
+		MEMORYBARRIER(isp, SYNC_RESULT, oop, QENTRY_LEN, -1);
 		isp_get_hdr(isp, hp, &sp->req_header);
 		etype = sp->req_header.rqs_entry_type;
 

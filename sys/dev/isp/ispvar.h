@@ -154,13 +154,13 @@ struct ispmdvec {
 #define	ISP_QAVAIL(isp)	\
 	ISP_QFREE(isp->isp_reqidx, isp->isp_reqodx, RQUEST_QUEUE_LEN(isp))
 
-#define	ISP_ADD_REQUEST(isp, nxti)					\
-	MEMORYBARRIER(isp, SYNC_REQUEST, isp->isp_reqidx, QENTRY_LEN);	\
-	ISP_WRITE(isp, isp->isp_rqstinrp, nxti);			\
+#define	ISP_ADD_REQUEST(isp, nxti)						\
+	MEMORYBARRIER(isp, SYNC_REQUEST, isp->isp_reqidx, QENTRY_LEN, -1);	\
+	ISP_WRITE(isp, isp->isp_rqstinrp, nxti);				\
 	isp->isp_reqidx = nxti
 
 #define	ISP_SYNC_REQUEST(isp)								\
-	MEMORYBARRIER(isp, SYNC_REQUEST, isp->isp_reqidx, QENTRY_LEN);			\
+	MEMORYBARRIER(isp, SYNC_REQUEST, isp->isp_reqidx, QENTRY_LEN, -1);		\
 	isp->isp_reqidx = ISP_NXT_QENTRY(isp->isp_reqidx, RQUEST_QUEUE_LEN(isp));	\
 	ISP_WRITE(isp, isp->isp_rqstinrp, isp->isp_reqidx)
 
@@ -1010,7 +1010,7 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
  *	MAXISPREQUEST(ispsoftc_t *)		maximum request queue size
  *						for this particular board type
  *
- *	MEMORYBARRIER(ispsoftc_t *, barrier_type, offset, size)
+ *	MEMORYBARRIER(ispsoftc_t *, barrier_type, offset, size, chan)
  *
  *		Function/Macro the provides memory synchronization on
  *		various objects so that the ISP's and the system's view
