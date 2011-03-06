@@ -6,8 +6,9 @@
 
 PROG=	hastctl
 SRCS=	activemap.c
+SRCS+=	crc32.c
 SRCS+=	ebuf.c
-SRCS+=	hast_proto.c hastctl.c
+SRCS+=	hast_checksum.c hast_proto.c hastctl.c
 SRCS+=	metadata.c
 SRCS+=	nv.c
 SRCS+=	parse.y pjdlog.c
