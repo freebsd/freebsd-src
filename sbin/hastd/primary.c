@@ -1910,6 +1910,7 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	nv_assert(nv, "remoteaddr");
 	nv_assert(nv, "replication");
 	nv_assert(nv, "checksum");
+	nv_assert(nv, "compression");
 	nv_assert(nv, "timeout");
 	nv_assert(nv, "exec");
 
@@ -1918,6 +1919,7 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 #define MODIFIED_REMOTEADDR	0x01
 #define MODIFIED_REPLICATION	0x02
 #define MODIFIED_CHECKSUM	0x04
+#define MODIFIED_COMPRESSION	0x08
 #define MODIFIED_TIMEOUT	0x10
 #define MODIFIED_EXEC		0x20
 	modified = 0;
@@ -1940,6 +1942,11 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	if (gres->hr_checksum != vint) {
 		gres->hr_checksum = vint;
 		modified |= MODIFIED_CHECKSUM;
+	}
+	vint = nv_get_int32(nv, "compression");
+	if (gres->hr_compression != vint) {
+		gres->hr_compression = vint;
+		modified |= MODIFIED_COMPRESSION;
 	}
 	vint = nv_get_int32(nv, "timeout");
 	if (gres->hr_timeout != vint) {
@@ -1994,6 +2001,7 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 #undef	MODIFIED_REMOTEADDR
 #undef	MODIFIED_REPLICATION
 #undef	MODIFIED_CHECKSUM
+#undef	MODIFIED_COMPRESSION
 #undef	MODIFIED_TIMEOUT
 #undef	MODIFIED_EXEC
 
