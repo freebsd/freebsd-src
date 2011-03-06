@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_CRYPTO
 #include "hast_checksum.h"
 #endif
+#include "hast_compression.h"
 #include "hast_proto.h"
 
 struct hast_main_header {
@@ -67,6 +68,7 @@ struct hast_pipe_stage {
 };
 
 static struct hast_pipe_stage pipeline[] = {
+	{ "compression", compression_send, compression_recv },
 	{ "checksum", checksum_send, checksum_recv }
 };
 
