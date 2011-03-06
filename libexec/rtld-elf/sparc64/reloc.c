@@ -355,6 +355,9 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache,
 	if (type == R_SPARC_OLO10)
 		value = (value & 0x3ff) + ELF64_R_TYPE_DATA(rela->r_info);
 
+	if (type == R_SPARC_HIX22)
+		value ^= 0xffffffffffffffff;
+
 	if (RELOC_PC_RELATIVE(type))
 		value -= (Elf_Addr)where;
 
