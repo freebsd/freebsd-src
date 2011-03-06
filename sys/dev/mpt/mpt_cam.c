@@ -5023,15 +5023,6 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	uint8_t *cdbp;
 
 	/*
-	 * First, DMA sync the received command-
-	 * which is in the *request* * phys area.
-	 *
-	 * XXX: We could optimize this for a range
-	 */
-	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
-	    BUS_DMASYNC_POSTREAD);
-
-	/*
 	 * Stash info for the current command where we can get at it later.
 	 */
 	vbuf = req->req_vbuf;
