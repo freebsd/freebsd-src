@@ -336,10 +336,6 @@ reloc_plt_object(Obj_Entry *obj, const Elf_Rela *rela)
 		obj->priv = malloc(obj->pltrelasize);
 	glink = obj->priv + reloff*sizeof(Elf_Addr)*2;
 
-	if ((reloff < 0) || (reloff >= 0x8000)) {
-		return (-1);
-	}
-
 	dbg(" reloc_plt_object: where=%p,reloff=%lx,glink=%p", (void *)where, reloff, glink);
 
 	memcpy(where, _rtld_bind_start, sizeof(struct funcdesc));
