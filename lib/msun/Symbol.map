@@ -226,5 +226,4 @@ FBSD_1.2 {
 	cexpf;
 	log2;
 	log2f;
-	logl;
 };
