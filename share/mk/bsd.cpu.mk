@@ -59,7 +59,7 @@ CPUTYPE = athlon-mp
 CPUTYPE = athlon
 .  endif
 . elif ${MACHINE_CPUARCH} == "amd64"
-.  if ${CPUTYPE} == "prescott" || ${CPUTYPE} == "core2"
+.  if ${CPUTYPE} == "prescott"
 CPUTYPE = nocona
 .  endif
 . elif ${MACHINE_ARCH} == "sparc64"
@@ -170,7 +170,7 @@ MACHINE_CPU = athlon-xp athlon k7 3dnow sse2 sse mmx k6 k5 i586 i486 i386
 MACHINE_CPU = athlon-xp athlon k7 3dnow sse mmx k6 k5 i586 i486 i386
 .  elif ${CPUTYPE} == "athlon" || ${CPUTYPE} == "athlon-tbird"
 MACHINE_CPU = athlon k7 3dnow mmx k6 k5 i586 i486 i386
-.  elif ${CPUTYPE} == "k6-3" || ${CPUTYPE} == "k6-2"
+.  elif ${CPUTYPE} == "k6-3" || ${CPUTYPE} == "k6-2" || ${CPUTYPE} == "geode"
 MACHINE_CPU = 3dnow mmx k6 k5 i586 i486 i386
 .  elif ${CPUTYPE} == "k6"
 MACHINE_CPU = mmx k6 k5 i586 i486 i386
@@ -206,7 +206,7 @@ MACHINE_CPU = i386
 MACHINE_CPU = k8 3dnow sse3
 .  elif ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64" || ${CPUTYPE} == "k8"
 MACHINE_CPU = k8 3dnow
-.  elif ${CPUTYPE} == "nocona"
+.  elif ${CPUTYPE} == "nocona" || ${CPUTYPE} == "core2"
 MACHINE_CPU = sse3
 .  endif
 MACHINE_CPU += amd64 sse2 sse mmx
