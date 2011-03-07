@@ -44,6 +44,7 @@ typedef struct {
 
 #define	spin_lock(_l)		mtx_lock(&(_l)->m)
 #define	spin_unlock(_l)		mtx_unlock(&(_l)->m)
+#define	spin_trylock(_l)	mtx_trylock(&(_l)->m)
 #define	spin_lock_nested(_l, _n) mtx_lock_flags(&(_l)->m, MTX_DUPOK)
 #define	spin_lock_irq(lock)	spin_lock(lock)
 #define	spin_unlock_irq(lock)	spin_unlock(lock)

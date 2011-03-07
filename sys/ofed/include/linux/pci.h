@@ -534,28 +534,34 @@ pci_enable_msix(struct pci_dev *pdev, struct msix_entry *entries, int nreq)
 #define pci_pool_destroy	dma_pool_destroy
 #define pci_pool_alloc		dma_pool_alloc
 #define pci_pool_free		dma_pool_free
-#define	pci_pool_create(name, pdev, size, align, allocation)		\
-	    dma_pool_create(name, &(pdev)->dev, size, align, allocation)
-#define	pci_free_consistent(hwdev, size, vaddr, dma_handle)		\
-	    dma_free_coherent((hwdev) == NULL ? NULL : &(hwdev)->dev,	\
-		size, vaddr, dma_handle)
-#define	pci_map_sg(hwdev, sg, nents, direction)				\
-	    dma_map_sg((hwdev) == NULL ? NULL : &(hwdev->dev),		\
-		sg, nents, (enum dma_data_direction)direction)
-#define	pci_unmap_sg(hwdev, sg, nents, direction)			\
-	    dma_unmap_sg((hwdev) == NULL ? NULL : &(hwdev)->dev,	\
-		sg, nents, (enum dma_data_direction)direction)
-#define	pci_map_page(hwdev, page, offset, size, direction)		\
-	    dma_map_page((hwdev) == NULL ? NULL : &(hwdev)->dev, page,	\
-		offset, size, (enum dma_data_direction)direction)
-#define	pci_unmap_page(hwdev, dma_address, size, direction)		\
-	    dma_unmap_page((hwdev) == NULL ? NULL : &(hwdev)->dev,	\
-		dma_address, size, (enum dma_data_direction)direction)
-#define	pci_set_dma_mask(pdev, mask)	dma_set_mask(&(pdev)->dev, (mask))
-#define	pci_dma_mapping_error(pdev, dma_addr)				\
-	    dma_mapping_error(&(pdev)->dev, dma_addr)
-#define	pci_set_consistent_dma_mask(pdev, mask)				\
-	    dma_set_coherent_mask(&(pdev)->dev, (mask))
+#define	pci_pool_create(_name, _pdev, _size, _align, _alloc)		\
+	    dma_pool_create(_name, &(_pdev)->dev, _size, _align, _alloc)
+#define	pci_free_consistent(_hwdev, _size, _vaddr, _dma_handle)		\
+	    dma_free_coherent((_hwdev) == NULL ? NULL : &(_hwdev)->dev,	\
+		_size, _vaddr, _dma_handle)
+#define	pci_map_sg(_hwdev, _sg, _nents, _dir)				\
+	    dma_map_sg((_hwdev) == NULL ? NULL : &(_hwdev->dev),	\
+		_sg, _nents, (enum dma_data_direction)_dir)
+#define	pci_map_single(_hwdev, _ptr, _size, _dir)			\
+	    dma_map_single((_hwdev) == NULL ? NULL : &(_hwdev->dev),	\
+		(_ptr), (_size), (enum dma_data_direction)_dir)
+#define	pci_unmap_single(_hwdev, _addr, _size, _dir)			\
+	    dma_unmap_single((_hwdev) == NULL ? NULL : &(_hwdev)->dev,	\
+		_addr, _size, (enum dma_data_direction)_dir)
+#define	pci_unmap_sg(_hwdev, _sg, _nents, _dir)				\
+	    dma_unmap_sg((_hwdev) == NULL ? NULL : &(_hwdev)->dev,	\
+		_sg, _nents, (enum dma_data_direction)_dir)
+#define	pci_map_page(_hwdev, _page, _offset, _size, _dir)		\
+	    dma_map_page((_hwdev) == NULL ? NULL : &(_hwdev)->dev, _page,\
+		_offset, _size, (enum dma_data_direction)_dir)
+#define	pci_unmap_page(_hwdev, _dma_address, _size, _dir)		\
+	    dma_unmap_page((_hwdev) == NULL ? NULL : &(_hwdev)->dev,	\
+		_dma_address, _size, (enum dma_data_direction)_dir)
+#define	pci_set_dma_mask(_pdev, mask)	dma_set_mask(&(_pdev)->dev, (mask))
+#define	pci_dma_mapping_error(_pdev, _dma_addr)				\
+	    dma_mapping_error(&(_pdev)->dev, _dma_addr)
+#define	pci_set_consistent_dma_mask(_pdev, _mask)			\
+	    dma_set_coherent_mask(&(_pdev)->dev, (_mask))
 #define	DECLARE_PCI_UNMAP_ADDR(x)	DEFINE_DMA_UNMAP_ADDR(x);
 #define	DECLARE_PCI_UNMAP_LEN(x)	DEFINE_DMA_UNMAP_LEN(x);
 #define	pci_unmap_addr		dma_unmap_addr

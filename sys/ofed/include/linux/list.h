@@ -44,7 +44,9 @@
 #include <sys/vnode.h>
 #include <sys/conf.h>
 #include <sys/socket.h>
+#include <sys/mbuf.h>
 
+#include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_types.h>
 

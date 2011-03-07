@@ -61,6 +61,12 @@ extern struct net init_net;
 #define	netif_oper_up(dev)	!!((dev)->if_flags & IFF_UP)
 #define	netif_carrier_ok(dev)	netif_running(dev)
 
+static inline void *
+netdev_priv(const struct net_device *dev)
+{
+	return (dev->if_softc);
+}
+
 static inline void
 _handle_ifnet_link_event(void *arg, struct ifnet *ifp, int linkstate)
 {

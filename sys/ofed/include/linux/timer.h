@@ -76,6 +76,8 @@ do {									\
 #define	del_timer(timer)	callout_stop(&(timer)->timer_callout)
 #define	del_timer_sync(timer)	callout_drain(&(timer)->timer_callout)
 
+#define	timer_pending(timer)	callout_pending(&(timer)->timer_callout)
+
 static inline unsigned long
 round_jiffies(unsigned long j)
 {
