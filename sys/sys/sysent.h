@@ -65,6 +65,11 @@ struct sysent {			/* system call table */
 	u_int32_t sy_thrcnt;
 };
 
+/*
+ * A system call is permitted in capability mode.
+ */
+#define	SYF_CAPENABLED	0x00000001
+
 #define	SY_THR_FLAGMASK	0x7
 #define	SY_THR_STATIC	0x1
 #define	SY_THR_DRAINING	0x2

@@ -1566,8 +1566,8 @@ sis_newbuf(struct sis_softc *sc, struct sis_rxdesc *rxd)
 	sc->sis_rx_sparemap = map;
 	bus_dmamap_sync(sc->sis_rx_tag, rxd->rx_dmamap, BUS_DMASYNC_PREREAD);
 	rxd->rx_m = m;
-	rxd->rx_desc->sis_cmdsts = htole32(SIS_RXLEN);
 	rxd->rx_desc->sis_ptr = htole32(SIS_ADDR_LO(segs[0].ds_addr));
+	rxd->rx_desc->sis_cmdsts = htole32(SIS_RXLEN);
 	return (0);
 }
 

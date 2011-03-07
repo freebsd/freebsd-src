@@ -11,6 +11,7 @@ SRCS=	SSEDomainFix.cpp \
 	X86ELFWriterInfo.cpp \
 	X86FastISel.cpp \
 	X86FloatingPoint.cpp \
+	X86FrameLowering.cpp \
 	X86ISelDAGToDAG.cpp \
 	X86ISelLowering.cpp \
 	X86InstrInfo.cpp \
@@ -18,6 +19,7 @@ SRCS=	SSEDomainFix.cpp \
 	X86MCAsmInfo.cpp \
 	X86MCCodeEmitter.cpp \
 	X86MCInstLower.cpp \
+	X86MachObjectWriter.cpp \
 	X86RegisterInfo.cpp \
 	X86SelectionDAGInfo.cpp \
 	X86Subtarget.cpp \

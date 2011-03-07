@@ -150,6 +150,12 @@ dot11rate(const HAL_RATE_TABLE *rt, int rix)
 	    rt->info[rix].dot11Rate : (rt->info[rix].dot11Rate & IEEE80211_RATE_VAL) / 2;
 }
 
+static const char *
+dot11rate_label(const HAL_RATE_TABLE *rt, int rix)
+{
+	return rt->info[rix].phy == IEEE80211_T_HT ? "MCS" : "Mb ";
+}
+
 /*
  * Return the rix with the lowest average_tx_time,
  * or -1 if all the average_tx_times are 0.
@@ -267,6 +273,7 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 		goto done;
 	}
 
+	/* XXX TODO: this doesn't know about 11gn vs 11g protection; teach it */
 	mrr = sc->sc_mrretry && !(ic->ic_flags & IEEE80211_F_USEPROT);
 
 	best_rix = pick_best_rate(sn, rt, size_bin, !mrr);
@@ -426,18 +433,19 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	const int size_bin = size_to_bin(frame_size);
 	const int size = bin_to_size(size_bin);
 	int tt, tries_so_far;
+	int is_ht40 = (an->an_node.ni_htcap & IEEE80211_HTCAP_CHWIDTH40);
 
 	if (!IS_RATE_DEFINED(sn, rix0))
 		return;
 	tt = calc_usecs_unicast_packet(sc, size, rix0, short_tries,
-		MIN(tries0, tries) - 1);
+		MIN(tries0, tries) - 1, is_ht40);
 	tries_so_far = tries0;
 
 	if (tries1 && tries_so_far < tries) {
 		if (!IS_RATE_DEFINED(sn, rix1))
 			return;
 		tt += calc_usecs_unicast_packet(sc, size, rix1, short_tries,
-			MIN(tries1 + tries_so_far, tries) - tries_so_far - 1);
+			MIN(tries1 + tries_so_far, tries) - tries_so_far - 1, is_ht40);
 		tries_so_far += tries1;
 	}
 
@@ -445,7 +453,7 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 		if (!IS_RATE_DEFINED(sn, rix2))
 			return;
 		tt += calc_usecs_unicast_packet(sc, size, rix2, short_tries,
-			MIN(tries2 + tries_so_far, tries) - tries_so_far - 1);
+			MIN(tries2 + tries_so_far, tries) - tries_so_far - 1, is_ht40);
 		tries_so_far += tries2;
 	}
 
@@ -453,7 +461,7 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 		if (!IS_RATE_DEFINED(sn, rix3))
 			return;
 		tt += calc_usecs_unicast_packet(sc, size, rix3, short_tries,
-			MIN(tries3 + tries_so_far, tries) - tries_so_far - 1);
+			MIN(tries3 + tries_so_far, tries) - tries_so_far - 1, is_ht40);
 	}
 
 	if (sn->stats[size_bin][rix0].total_packets < ssc->smoothing_minpackets) {
@@ -552,11 +560,11 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		 * Only one rate was used; optimize work.
 		 */
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
-		     &an->an_node, "%s: size %d %s rate/try %d/%d/%d",
+		     &an->an_node, "%s: size %d %s rate/try %d %s/%d/%d",
 		     __func__,
 		     bin_to_size(size_to_bin(frame_size)),
 		     ts->ts_status ? "FAIL" : "OK",
-		     dot11rate(rt, final_rix), short_tries, long_tries);
+		     dot11rate(rt, final_rix), dot11rate_label(rt, final_rix), short_tries, long_tries);
 		update_stats(sc, an, frame_size, 
 			     final_rix, long_tries,
 			     0, 0,
@@ -579,16 +587,16 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
 		    &an->an_node,
-"%s: size %d finaltsidx %d tries %d %s rate/try [%d/%d %d/%d %d/%d %d/%d]", 
+"%s: size %d finaltsidx %d tries %d %s rate/try [%d %s/%d %d %s/%d %d %s/%d %d %s/%d]", 
 		     __func__,
 		     bin_to_size(size_to_bin(frame_size)),
 		     finalTSIdx,
 		     long_tries, 
 		     ts->ts_status ? "FAIL" : "OK",
-		     dot11rate(rt, rix[0]), tries[0],
-		     dot11rate(rt, rix[1]), tries[1],
-		     dot11rate(rt, rix[2]), tries[2],
-		     dot11rate(rt, rix[3]), tries[3]);
+		     dot11rate(rt, rix[0]), dot11rate_label(rt, rix[0]), tries[0],
+		     dot11rate(rt, rix[1]), dot11rate_label(rt, rix[1]), tries[1],
+		     dot11rate(rt, rix[2]), dot11rate_label(rt, rix[2]), tries[2],
+		     dot11rate(rt, rix[3]), dot11rate_label(rt, rix[3]), tries[3]);
 
 		for (i = 0; i < 4; i++) {
 			if (tries[i] && !IS_RATE_DEFINED(sn, rix[i]))
@@ -764,8 +772,9 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 		for (mask = sn->ratemask, rix = 0; mask != 0; mask >>= 1, rix++) {
 			if ((mask & 1) == 0)
 				continue;
-			printf(" %d/%d", dot11rate(rt, rix),
-			    calc_usecs_unicast_packet(sc, 1600, rix, 0,0));
+			printf(" %d %s/%d", dot11rate(rt, rix), dot11rate_label(rt, rix),
+			    calc_usecs_unicast_packet(sc, 1600, rix, 0,0,
+			        (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40)));
 		}
 		printf("\n");
 	}
@@ -794,7 +803,8 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 			sn->stats[y][rix].last_tx = 0;
 			
 			sn->stats[y][rix].perfect_tx_time =
-			    calc_usecs_unicast_packet(sc, size, rix, 0, 0);
+			    calc_usecs_unicast_packet(sc, size, rix, 0, 0,
+			    (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40));
 			sn->stats[y][rix].average_tx_time =
 			    sn->stats[y][rix].perfect_tx_time;
 		}
@@ -832,8 +842,10 @@ sample_stats(void *arg, struct ieee80211_node *ni)
 	    ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni),
 	    sn->static_rix, sn->ratemask);
 	for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
-		printf("[%4u] cur rix %d since switch: packets %d ticks %u\n",
+		printf("[%4u] cur rix %d (%d %s) since switch: packets %d ticks %u\n",
 		    bin_to_size(y), sn->current_rix[y],
+		    dot11rate(rt, sn->current_rix[y]),
+		    dot11rate_label(rt, sn->current_rix[y]),
 		    sn->packets_since_switch[y], sn->ticks_since_switch[y]);
 		printf("[%4u] last sample %d cur sample %d packets sent %d\n",
 		    bin_to_size(y), sn->last_sample_rix[y],
@@ -848,8 +860,8 @@ sample_stats(void *arg, struct ieee80211_node *ni)
 		for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
 			if (sn->stats[y][rix].total_packets == 0)
 				continue;
-			printf("[%2u:%4u] %8d:%-8d (%3d%%) T %8d F %4d avg %5u last %u\n",
-			    dot11rate(rt, rix),
+			printf("[%2u %s:%4u] %8d:%-8d (%3d%%) T %8d F %4d avg %5u last %u\n",
+			    dot11rate(rt, rix), dot11rate_label(rt, rix),
 			    bin_to_size(y),
 			    sn->stats[y][rix].total_packets,
 			    sn->stats[y][rix].packets_acked,

@@ -36,6 +36,7 @@ namespace tools {
 
     void AddARMTargetArgs(const ArgList &Args, ArgStringList &CmdArgs) const;
     void AddMIPSTargetArgs(const ArgList &Args, ArgStringList &CmdArgs) const;
+    void AddSparcTargetArgs(const ArgList &Args, ArgStringList &CmdArgs) const;
     void AddX86TargetArgs(const ArgList &Args, ArgStringList &CmdArgs) const;
 
   public:
@@ -232,7 +233,8 @@ namespace darwin {
   };
 
   class LLVM_LIBRARY_VISIBILITY Link : public DarwinTool  {
-    void AddLinkArgs(const ArgList &Args, ArgStringList &CmdArgs) const;
+    void AddLinkArgs(Compilation &C, const ArgList &Args,
+                     ArgStringList &CmdArgs) const;
 
   public:
     Link(const ToolChain &TC) : DarwinTool("darwin::Link", "linker", TC) {}
@@ -332,12 +334,53 @@ namespace freebsd {
   };
 } // end namespace freebsd
 
+  /// netbsd -- Directly call GNU Binutils assembler and linker
+namespace netbsd {
+  class LLVM_LIBRARY_VISIBILITY Assemble : public Tool  {
+  public:
+    Assemble(const ToolChain &TC) : Tool("netbsd::Assemble", "assembler",
+                                         TC) {}
+
+    virtual bool hasIntegratedCPP() const { return false; }
+
+    virtual void ConstructJob(Compilation &C, const JobAction &JA,
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
+                              const char *LinkingOutput) const;
+  };
+  class LLVM_LIBRARY_VISIBILITY Link : public Tool  {
+  public:
+    Link(const ToolChain &TC) : Tool("netbsd::Link", "linker", TC) {}
+
+    virtual bool hasIntegratedCPP() const { return false; }
+
+    virtual void ConstructJob(Compilation &C, const JobAction &JA,
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
+                              const char *LinkingOutput) const;
+  };
+} // end namespace netbsd
+
   /// linux -- Directly call GNU Binutils assembler and linker
 namespace linuxtools {
   class LLVM_LIBRARY_VISIBILITY Assemble : public Tool  {
   public:
     Assemble(const ToolChain &TC) : Tool("linux::Assemble", "assembler",
                                          TC) {}
+
+    virtual bool hasIntegratedCPP() const { return false; }
+
+    virtual void ConstructJob(Compilation &C, const JobAction &JA,
+                              const InputInfo &Output,
+                              const InputInfoList &Inputs,
+                              const ArgList &TCArgs,
+                              const char *LinkingOutput) const;
+  };
+  class LLVM_LIBRARY_VISIBILITY Link : public Tool  {
+  public:
+    Link(const ToolChain &TC) : Tool("linux::Link", "linker", TC) {}
 
     virtual bool hasIntegratedCPP() const { return false; }
 

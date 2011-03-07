@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -116,6 +117,14 @@ struct hastd_config {
 #define	HAST_REPLICATION_MEMSYNC	1
 #define	HAST_REPLICATION_ASYNC		2
 
+#define	HAST_COMPRESSION_NONE	0
+#define	HAST_COMPRESSION_HOLE	1
+#define	HAST_COMPRESSION_LZF	2
+
+#define	HAST_CHECKSUM_NONE	0
+#define	HAST_CHECKSUM_CRC32	1
+#define	HAST_CHECKSUM_SHA256	2
+
 /*
  * Structure that describes single resource.
  */
@@ -132,6 +141,10 @@ struct hast_resource {
 	int	hr_keepdirty;
 	/* Path to a program to execute on various events. */
 	char	hr_exec[PATH_MAX];
+	/* Compression algorithm. */
+	int	hr_compression;
+	/* Checksum algorithm. */
+	int	hr_checksum;
 
 	/* Path to local component. */
 	char	hr_localpath[PATH_MAX];

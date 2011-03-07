@@ -424,6 +424,16 @@ Enable/disable EAP workarounds for various interoperability issues
 with misbehaving authentication servers.
 By default these workarounds are enabled.
 Strict EAP conformance can be configured by setting this to 0.
+.It Va wep_tx_keyidx
+which key to use for transmission of packets.
+.It Va wep_keyN key
+An
+.Tn ASCII
+string enclosed in quotation marks to encode the WEP key.
+Without quotes this is a hex string of the actual key.
+WEP is considered insecure and should be avoided.
+The exact translation from an ASCII key to a hex key varies.
+Use hex keys where possible.
 .El
 .Sh CERTIFICATES
 Some EAP authentication methods require use of certificates.
@@ -540,7 +550,10 @@ network={
         scan_ssid=1
         key_mgmt=NONE
         wep_tx_keyidx=0
+	# hex keys denoted without quotes
         wep_key0=42FEEDDEAFBABEDEAFBEEFAA55
+	# ASCII keys denoted with quotes.
+	wep_key1="FreeBSDr0cks!"
 }
 .Ed
 .Sh SEE ALSO

@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <nlm/nlm_prot.h>
 #include <nlm/nlm.h>
 
+FEATURE(nfsd, "NFSv4 server");
+
 extern u_int32_t newnfs_true, newnfs_false, newnfs_xdrneg1;
 extern int nfsrv_useacl;
 extern int newnfs_numnfsd;

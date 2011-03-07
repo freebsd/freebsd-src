@@ -70,6 +70,7 @@ SUBDIR=	${_3dfx} \
 	${_cs} \
 	${_ctau} \
 	${_cxgb} \
+	cxgbe \
 	${_cyclic} \
 	dc \
 	dcons \

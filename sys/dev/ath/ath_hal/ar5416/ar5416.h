@@ -87,6 +87,8 @@ struct ath_hal_5416 {
 	uint32_t	ah_rx_chainmask;
 	uint32_t	ah_tx_chainmask;
 
+	HAL_ANI_CMD	ah_ani_function;
+
 	struct ar5416PerCal ah_cal;		/* periodic calibration state */
 
 	struct ar5416NfLimits nf_2g;

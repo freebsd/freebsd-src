@@ -21,6 +21,7 @@
 #include "ClangASTNodesEmitter.h"
 #include "ClangAttrEmitter.h"
 #include "ClangDiagnosticsEmitter.h"
+#include "ClangSACheckersEmitter.h"
 #include "CodeEmitterGen.h"
 #include "DAGISelEmitter.h"
 #include "DisassemblerEmitter.h"
@@ -37,11 +38,13 @@
 #include "ARMDecoderEmitter.h"
 #include "SubtargetEmitter.h"
 #include "TGParser.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Signals.h"
+#include "llvm/Support/ToolOutputFile.h"
+#include "llvm/Support/Signals.h"
+#include "llvm/Support/system_error.h"
 #include <algorithm>
 #include <cstdio>
 using namespace llvm;
@@ -59,10 +62,12 @@ enum ActionType {
   GenClangAttrList,
   GenClangAttrPCHRead,
   GenClangAttrPCHWrite,
+  GenClangAttrSpellingList,
   GenClangDiagsDefs,
   GenClangDiagGroups,
   GenClangDeclNodes,
   GenClangStmtNodes,
+  GenClangSACheckers,
   GenDAGISel,
   GenFastISel,
   GenOptParserDefs, GenOptParserImpl,
@@ -73,6 +78,7 @@ enum ActionType {
   GenEDInfo,
   GenArmNeon,
   GenArmNeonSema,
+  GenArmNeonTest,
   PrintEnums
 };
 
@@ -127,14 +133,18 @@ namespace {
                                "Generate clang PCH attribute reader"),
                     clEnumValN(GenClangAttrPCHWrite, "gen-clang-attr-pch-write",
                                "Generate clang PCH attribute writer"),
+                    clEnumValN(GenClangAttrSpellingList, "gen-clang-attr-spelling-list",
+                               "Generate a clang attribute spelling list"),
                     clEnumValN(GenClangDiagsDefs, "gen-clang-diags-defs",
                                "Generate Clang diagnostics definitions"),
                     clEnumValN(GenClangDiagGroups, "gen-clang-diag-groups",
                                "Generate Clang diagnostic groups"),
                     clEnumValN(GenClangDeclNodes, "gen-clang-decl-nodes",
-                               "Generate Clang AST statement nodes"),
+                               "Generate Clang AST declaration nodes"),
                     clEnumValN(GenClangStmtNodes, "gen-clang-stmt-nodes",
                                "Generate Clang AST statement nodes"),
+                    clEnumValN(GenClangSACheckers, "gen-clang-sa-checkers",
+                               "Generate Clang Static Analyzer checkers"),
                     clEnumValN(GenLLVMCConf, "gen-llvmc",
                                "Generate LLVMC configuration library"),
                     clEnumValN(GenEDInfo, "gen-enhanced-disassembly-info",
@@ -143,6 +153,8 @@ namespace {
                                "Generate arm_neon.h for clang"),
                     clEnumValN(GenArmNeonSema, "gen-arm-neon-sema",
                                "Generate ARM NEON sema support for clang"),
+                    clEnumValN(GenArmNeonTest, "gen-arm-neon-test",
+                               "Generate ARM NEON tests for clang"),
                     clEnumValN(PrintEnums, "print-enums",
                                "Print enum values for a class"),
                     clEnumValEnd));
@@ -169,12 +181,9 @@ namespace {
 }
 
 
-// FIXME: Eliminate globals from tblgen.
-RecordKeeper llvm::Records;
-
 static SourceMgr SrcMgr;
 
-void llvm::PrintError(SMLoc ErrorLoc, const std::string &Msg) {
+void llvm::PrintError(SMLoc ErrorLoc, const Twine &Msg) {
   SrcMgr.PrintMessage(ErrorLoc, Msg, "error");
 }
 
@@ -184,14 +193,15 @@ void llvm::PrintError(SMLoc ErrorLoc, const std::string &Msg) {
 /// file.
 static bool ParseFile(const std::string &Filename,
                       const std::vector<std::string> &IncludeDirs,
-                      SourceMgr &SrcMgr) {
-  std::string ErrorStr;
-  MemoryBuffer *F = MemoryBuffer::getFileOrSTDIN(Filename.c_str(), &ErrorStr);
-  if (F == 0) {
+                      SourceMgr &SrcMgr,
+                      RecordKeeper &Records) {
+  OwningPtr<MemoryBuffer> File;
+  if (error_code ec = MemoryBuffer::getFileOrSTDIN(Filename.c_str(), File)) {
     errs() << "Could not open input file '" << Filename << "': "
-           << ErrorStr <<"\n";
+           << ec.message() <<"\n";
     return true;
   }
+  MemoryBuffer *F = File.take();
 
   // Tell SrcMgr about this buffer, which is what TGParser will pick up.
   SrcMgr.AddNewSourceBuffer(F, SMLoc());
@@ -200,19 +210,21 @@ static bool ParseFile(const std::string &Filename,
   // it later.
   SrcMgr.setIncludeDirs(IncludeDirs);
 
-  TGParser Parser(SrcMgr);
+  TGParser Parser(SrcMgr, Records);
 
   return Parser.ParseFile();
 }
 
 int main(int argc, char **argv) {
+  RecordKeeper Records;
+
   sys::PrintStackTraceOnErrorSignal();
   PrettyStackTraceProgram X(argc, argv);
   cl::ParseCommandLineOptions(argc, argv);
 
 
   // Parse the input file.
-  if (ParseFile(InputFilename, IncludeDirs, SrcMgr))
+  if (ParseFile(InputFilename, IncludeDirs, SrcMgr, Records))
     return 1;
 
   std::string Error;
@@ -274,6 +286,9 @@ int main(int argc, char **argv) {
     case GenClangAttrPCHWrite:
       ClangAttrPCHWriteEmitter(Records).run(Out.os());
       break;
+    case GenClangAttrSpellingList:
+      ClangAttrSpellingListEmitter(Records).run(Out.os());
+      break;
     case GenClangDiagsDefs:
       ClangDiagsDefsEmitter(Records, ClangComponent).run(Out.os());
       break;
@@ -286,6 +301,9 @@ int main(int argc, char **argv) {
       break;
     case GenClangStmtNodes:
       ClangASTNodesEmitter(Records, "Stmt", "").run(Out.os());
+      break;
+    case GenClangSACheckers:
+      ClangSACheckersEmitter(Records).run(Out.os());
       break;
     case GenDisassembler:
       DisassemblerEmitter(Records).run(Out.os());
@@ -322,6 +340,9 @@ int main(int argc, char **argv) {
       break;
     case GenArmNeonSema:
       NeonEmitter(Records).runHeader(Out.os());
+      break;
+    case GenArmNeonTest:
+      NeonEmitter(Records).runTests(Out.os());
       break;
     case PrintEnums:
     {

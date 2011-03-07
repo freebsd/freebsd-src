@@ -505,6 +505,7 @@
 #define	AR_PCU_CLEAR_BA_VALID		0x04000000 /* clear ba state */
 
 #define	AR_PCU_MISC_MODE2_HWWAR1	0x00100000
+#define	AR_PCU_MISC_MODE2_HWWAR2	0x02000000
 
 /* GPIO Interrupt */
 #define	AR_INTR_GPIO		0x3FF00000	/* gpio interrupted */
@@ -580,6 +581,7 @@
 #define	AR_XSREV_REVISION_OWL_10	0	/* Owl 1.0 */
 #define	AR_XSREV_REVISION_OWL_20	1	/* Owl 2.0/2.1 */
 #define	AR_XSREV_REVISION_OWL_22	2	/* Owl 2.2 */
+#define	AR_XSREV_VERSION_HOWL		0x14	/* Howl (AR9130) */
 #define	AR_XSREV_VERSION_SOWL		0x40
 #define	AR_XSREV_REVISION_SOWL_10	0	/* Sowl 1.0 */
 #define	AR_XSREV_REVISION_SOWL_11	1	/* Sowl 1.1 */
@@ -597,11 +599,11 @@
 	 (AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_OWL_PCIE))
 
 #define	AR_SREV_OWL_20_OR_LATER(_ah) \
-	(AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_SOWL || \
-	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_OWL_20)
+	((AR_SREV_OWL(_ah) && AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_OWL_20) || \
+	AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_HOWL)
 #define	AR_SREV_OWL_22_OR_LATER(_ah) \
-	(AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_SOWL || \
-	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_OWL_22)
+	((AR_SREV_OWL(_ah) && AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_OWL_22) || \
+	AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_HOWL)
 
 #define	AR_SREV_SOWL(_ah) \
 	(AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_SOWL)
@@ -641,5 +643,10 @@
 #define	AR_SREV_9285E_20(_ah) \
 	(AR_SREV_KITE_12_OR_LATER(_ah) && \
 	((OS_REG_READ(_ah, AR_AN_SYNTH9) & 0x7) == 0x1))
+
+/* Not yet implemented chips */
+#define	AR_SREV_9271(_ah)	0
+#define	AR_SREV_9287_11_OR_LATER(_ah)	0
+#define	AR_SREV_9100(_ah)	0
 
 #endif /* _DEV_ATH_AR5416REG_H */

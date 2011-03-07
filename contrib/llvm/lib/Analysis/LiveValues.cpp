@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/LiveValues.h"
+#include "llvm/Instructions.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopInfo.h"
 using namespace llvm;
@@ -22,10 +23,16 @@ namespace llvm {
 }
 
 char LiveValues::ID = 0;
-INITIALIZE_PASS(LiveValues, "live-values",
-                "Value Liveness Analysis", false, true);
+INITIALIZE_PASS_BEGIN(LiveValues, "live-values",
+                "Value Liveness Analysis", false, true)
+INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+INITIALIZE_PASS_DEPENDENCY(LoopInfo)
+INITIALIZE_PASS_END(LiveValues, "live-values",
+                "Value Liveness Analysis", false, true)
 
-LiveValues::LiveValues() : FunctionPass(ID) {}
+LiveValues::LiveValues() : FunctionPass(ID) {
+  initializeLiveValuesPass(*PassRegistry::getPassRegistry());
+}
 
 void LiveValues::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<DominatorTree>();

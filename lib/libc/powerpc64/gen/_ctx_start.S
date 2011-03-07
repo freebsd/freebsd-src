@@ -38,12 +38,13 @@
 	blrl			/* branch to start function */
 	mr	%r3,%r15	/* pass pointer to ucontext as argument */
 	nop
-	bl	PIC_PLT(CNAME(_ctx_done)) /* branch to ctxt completion func */
+	bl	CNAME(_ctx_done) /* branch to ctxt completion func */
 	/*
 	 * we should never return from the
 	 * above branch.
 	 */
 	nop
-	bl	PIC_PLT(CNAME(abort))	/* abort */
+	bl	CNAME(abort)	/* abort */
+	nop
 
 	.section .note.GNU-stack,"",%progbits

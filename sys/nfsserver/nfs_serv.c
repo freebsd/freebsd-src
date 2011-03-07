@@ -97,6 +97,8 @@ __FBSDID("$FreeBSD$");
 #include <nfs/xdr_subs.h>
 #include <nfsserver/nfsm_subs.h>
 
+FEATURE(nfsserver, "NFS server");
+
 #ifdef NFSRV_DEBUG
 #define nfsdbprintf(info)	printf info
 #else

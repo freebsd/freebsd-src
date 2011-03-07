@@ -58,7 +58,7 @@ mount_target_slice()
   zfs mount -a
 
   # Mount all the fstab goodies on disk
-  chroot ${FSMNT} /sbin/mount -a >>${LOGOUT} 2>>${LOGOUT}
+  chroot ${FSMNT} /sbin/mount -a -t nolinprocfs >>${LOGOUT} 2>>${LOGOUT
   chroot ${FSMNT} umount /proc >/dev/null 2>/dev/null 
   chroot ${FSMNT} umount /compat/linux/proc  >/dev/null 2>/dev/null
 
@@ -79,7 +79,7 @@ mount_target_slice()
   if [ "$INSTALLTYPE" != "FreeBSD" ]
   then
     echo_log "Removing old packages, this may take a while... Please wait..."
-    echo '#/bin/sh
+    echo '#!/bin/sh
 for i in `pkg_info -E \*`
 do
   echo "Uninstalling package: ${i}"

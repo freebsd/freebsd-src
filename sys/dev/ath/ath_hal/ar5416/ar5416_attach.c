@@ -58,7 +58,7 @@ ar5416AniSetup(struct ath_hal *ah)
 		.period			= 100,
 	};
 	/* NB: ANI is not enabled yet */
-	ar5212AniAttach(ah, &aniparams, &aniparams, AH_FALSE);
+	ar5416AniAttach(ah, &aniparams, &aniparams, AH_FALSE);
 }
 
 /*
@@ -168,6 +168,9 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	 */
 	AH5416(ah)->ah_rx_chainmask = AR5416_DEFAULT_RXCHAINMASK;
 	AH5416(ah)->ah_tx_chainmask = AR5416_DEFAULT_TXCHAINMASK;
+
+	/* Enable all ANI functions to begin with */
+	AH5416(ah)->ah_ani_function = HAL_ANI_ALL;
 }
 
 uint32_t

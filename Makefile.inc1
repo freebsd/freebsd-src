@@ -213,12 +213,14 @@ BOOTSTRAPPING?=	0
 CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
-		CPUTYPE=${TARGET_CPUTYPE} \
-		GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
-		GROFF_FONT_PATH=${WORLDTMP}/legacy/usr/share/groff_font \
-		GROFF_TMAC_PATH=${WORLDTMP}/legacy/usr/share/tmac
+		CPUTYPE=${TARGET_CPUTYPE}
 .if ${OSRELDATE} < 700044
 CROSSENV+=	AR=gnu-ar RANLIB=gnu-ranlib
+.endif
+.if ${MK_GROFF} != "no"
+CROSSENV+=	GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
+		GROFF_FONT_PATH=${WORLDTMP}/legacy/usr/share/groff_font \
+		GROFF_TMAC_PATH=${WORLDTMP}/legacy/usr/share/tmac
 .endif
 
 # bootstrap-tools stage
@@ -364,6 +366,10 @@ _worldtmp:
 .endfor
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${WORLDTMP}/legacy/usr >/dev/null
+.if ${MK_GROFF} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.groff.dist \
+	    -p ${WORLDTMP}/legacy/usr >/dev/null
+.endif
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${WORLDTMP}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
@@ -446,7 +452,7 @@ build32:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 5.1: building 32 bit shim libraries"
 	@echo "--------------------------------------------------------------"
-	mkdir -p ${LIB32TMP}/usr/lib32
+	mkdir -p ${LIB32TMP}/usr/include
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${LIB32TMP}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
@@ -457,46 +463,41 @@ build32:
 .for _t in obj depend all
 	cd ${.CURDIR}/kerberos5/tools; \
 	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} SSP_CFLAGS= DESTDIR= \
-	    ${_t}
+	    DIRPRFX=kerberos5/tools/ ${_t}
 .endfor
 .endif
 .for _t in obj includes
-	cd ${.CURDIR}/include; ${LIB32WMAKE} ${_t}
-	cd ${.CURDIR}/lib; ${LIB32WMAKE} ${_t}
+	cd ${.CURDIR}/include; ${LIB32WMAKE} DIRPRFX=include/ ${_t}
+	cd ${.CURDIR}/lib; ${LIB32WMAKE} DIRPRFX=lib/ ${_t}
 .if ${MK_CDDL} != "no"
-	cd ${.CURDIR}/cddl/lib; ${LIB32WMAKE} ${_t}
+	cd ${.CURDIR}/cddl/lib; ${LIB32WMAKE} DIRPRFX=cddl/lib/ ${_t}
 .endif
-	cd ${.CURDIR}/gnu/lib; ${LIB32WMAKE} ${_t}
+	cd ${.CURDIR}/gnu/lib; ${LIB32WMAKE} DIRPRFX=gnu/lib/ ${_t}
 .if ${MK_CRYPT} != "no"
-	cd ${.CURDIR}/secure/lib; ${LIB32WMAKE} ${_t}
+	cd ${.CURDIR}/secure/lib; ${LIB32WMAKE} DIRPRFX=secure/lib/ ${_t}
 .endif
 .if ${MK_KERBEROS} != "no"
-	cd ${.CURDIR}/kerberos5/lib; ${LIB32WMAKE} ${_t}
+	cd ${.CURDIR}/kerberos5/lib; ${LIB32WMAKE} DIRPRFX=kerberos5/lib ${_t}
 .endif
 .endfor
 .for _dir in usr.bin/lex/lib
-	cd ${.CURDIR}/${_dir}; ${LIB32WMAKE} obj
+	cd ${.CURDIR}/${_dir}; ${LIB32WMAKE} DIRPRFX=${_dir}/ obj
 .endfor
 .for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic
 	cd ${.CURDIR}/${_dir}; \
 	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} SSP_CFLAGS= DESTDIR= \
-	    build-tools
+	    DIRPRFX=${_dir}/ build-tools
 .endfor
 	cd ${.CURDIR}; \
 	    ${LIB32WMAKE} -f Makefile.inc1 libraries
 .for _t in obj depend all
-	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32WMAKE} ${_t}
-	cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32WMAKE} ${_t}
+	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32WMAKE} \
+	    DIRPRFX=libexec/rtld-elf/ ${_t}
+	cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32WMAKE} \
+	    DIRPRFX=usr.bin/ldd ${_t}
 .endfor
 
 distribute32 install32:
-.if make(distribute32)
-	mkdir -p ${DISTDIR}/${DISTRIBUTION}/usr/lib32	# XXX add to mtree
-	mkdir -p ${DISTDIR}/${DISTRIBUTION}/usr/lib32/dtrace	# XXX add to mtree
-.else
-	mkdir -p ${DESTDIR}/usr/lib32			# XXX add to mtree
-	mkdir -p ${DESTDIR}/usr/lib32/dtrace		# XXX add to mtree
-.endif
 	cd ${.CURDIR}/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
 .if ${MK_CDDL} != "no"
 	cd ${.CURDIR}/cddl/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
@@ -630,6 +631,13 @@ ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 #
 # Installs everything compiled by a 'buildworld'.
 #
+
+# Non-base distributions produced by the base system
+EXTRA_DISTRIBUTIONS=	doc games
+.if defined(LIB32TMP) && ${MK_LIB32} != "no"
+EXTRA_DISTRIBUTIONS+=	lib32
+.endif
+
 distributeworld installworld: installcheck
 	mkdir -p ${INSTALLTMP}
 	progs=$$(for prog in ${ITOOLS}; do \
@@ -652,8 +660,33 @@ distributeworld installworld: installcheck
 	    done); \
 	cp $$libs $$progs ${INSTALLTMP}
 	cp -R $${PATH_LOCALE:-"/usr/share/locale"} ${INSTALLTMP}/locale
+.if make(distributeworld)
+.for dist in ${EXTRA_DISTRIBUTIONS}
+	-mkdir ${DESTDIR}/${DISTDIR}/${dist}
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.root.dist \
+	    -p ${DESTDIR}/${DISTDIR}/${dist} >/dev/null
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
+	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/include >/dev/null
+.endfor
+	-mkdir ${DESTDIR}/${DISTDIR}/base
+	${_+_}cd ${.CURDIR}; ${IMAKE} distrib-dirs \
+	    DESTDIR=${DESTDIR}/${DISTDIR}/base
+.endif
 	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}; \
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
+.if make(distributeworld)
+.for dist in ${EXTRA_DISTRIBUTIONS}
+	find ${DESTDIR}/${DISTDIR}/${dist} -empty -delete
+.endfor
+.endif
+
+packageworld:
+.for dist in base ${EXTRA_DISTRIBUTIONS}
+	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.txz .
+.endfor
 
 #
 # reinstall
@@ -839,6 +872,20 @@ reinstallkernel reinstallkernel.debug: installcheck
 	    ${CROSSENV} PATH=${TMPPATH} \
 	    ${MAKE} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel//}
 
+distributekernel distributekernel.debug:
+.if empty(INSTALLKERNEL)
+	@echo "ERROR: No kernel \"${KERNCONF}\" to install."; \
+	false
+.endif
+	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
+	    ${CROSSENV} PATH=${TMPPATH} ${MAKE} KERNEL=${INSTKERNNAME} \
+	    DESTDIR=${DESTDIR}/${DISTDIR}/kernel \
+	    ${.TARGET:S/distributekernel/install/}
+
+packagekernel:
+	${_+_}cd ${DESTDIR}/${DISTDIR}/kernel; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.txz .
+
 #
 # doxygen
 #
@@ -937,11 +984,10 @@ _strfile=	games/fortune/strfile
 
 .if ${MK_CXX} != "no"
 _gperf=		gnu/usr.bin/gperf
-.if ${BOOTSTRAPPING} < 700004
-_groff=		gnu/usr.bin/groff
-.else
-_groff=		gnu/usr.bin/groff/tmac
 .endif
+
+.if ${MK_GROFF} != "no"
+_groff=		gnu/usr.bin/groff
 .endif
 
 .if ${BOOTSTRAPPING} >= 700044 && ${BOOTSTRAPPING} < 800022
@@ -974,7 +1020,6 @@ _crunchgen=	usr.sbin/crunch/crunchgen
 # with different per-architecture default values. Always build tblgen.
 _clang_tblgen= \
 	lib/clang/libllvmsupport \
-	lib/clang/libllvmsystem \
 	usr.bin/clang/tblgen
 
 .if ${MK_CDDL} != "no"
@@ -1044,7 +1089,9 @@ build-tools:
     ${_aicasm} \
     usr.bin/awk \
     lib/libmagic \
-    usr.sbin/sysinstall
+    usr.sbin/sysinstall \
+    usr.bin/mkesdb_static \
+    usr.bin/mkcsmapper_static
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,build-tools)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
@@ -1154,6 +1201,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libheimntlm} \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
 		lib/libopie lib/libpam ${_lib_libthr} \
 		lib/libradius lib/libsbuf lib/libtacplus \
+		${_cddl_lib_libumem} \
 		lib/libutil ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_secure_lib_libssh} \
 		${_secure_lib_libssl}
@@ -1167,6 +1215,7 @@ _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin
 lib/libopie__L lib/libtacplus__L: lib/libmd__L
 
 .if ${MK_CDDL} != "no"
+_cddl_lib_libumem= cddl/lib/libumem
 _cddl_lib= cddl/lib
 .endif
 

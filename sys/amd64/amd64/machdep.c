@@ -1842,6 +1842,12 @@ fill_regs(struct thread *td, struct reg *regs)
 	struct trapframe *tp;
 
 	tp = td->td_frame;
+	return (fill_frame_regs(tp, regs));
+}
+
+int
+fill_frame_regs(struct trapframe *tp, struct reg *regs)
+{
 	regs->r_r15 = tp->tf_r15;
 	regs->r_r14 = tp->tf_r14;
 	regs->r_r13 = tp->tf_r13;

@@ -18,8 +18,6 @@
 
 namespace llvm {
   class raw_ostream;
-  class Module;
-  class LLVMContext;
   namespace sys { class Path; }
 }
 namespace clang {
@@ -48,6 +46,10 @@ ASTConsumer *CreateASTPrinterXML(llvm::raw_ostream *OS);
 // intended for debugging.
 ASTConsumer *CreateASTDumper();
 
+// AST XML-dumper: dumps out the AST to stderr in a very detailed XML
+// format; this is intended for particularly intense debugging.
+ASTConsumer *CreateASTDumperXML(llvm::raw_ostream &OS);
+
 // Graphical AST viewer: for each function definition, creates a graph of
 // the AST and displays it with the graph viewer "dotty".  Also outputs
 // function declarations to stderr.
@@ -56,10 +58,6 @@ ASTConsumer *CreateASTViewer();
 // DeclContext printer: prints out the DeclContext tree in human-readable form
 // to stderr; this is intended for debugging.
 ASTConsumer *CreateDeclContextPrinter();
-
-// Inheritance viewer: for C++ code, creates a graph of the inheritance
-// tree for the given class and displays it with "dotty".
-ASTConsumer *CreateInheritanceViewer(const std::string& clsname);
 
 } // end clang namespace
 

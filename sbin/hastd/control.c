@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 
 #include "hast.h"
 #include "hastd.h"
+#include "hast_checksum.h"
+#include "hast_compression.h"
 #include "hast_proto.h"
 #include "hooks.h"
 #include "nv.h"
@@ -246,6 +248,10 @@ control_status(struct hastd_config *cfg, struct nv *nvout,
 		nv_add_string(nvout, "unknown", "replication%u", no);
 		break;
 	}
+	nv_add_string(nvout, checksum_name(res->hr_checksum),
+	    "checksum%u", no);
+	nv_add_string(nvout, compression_name(res->hr_compression),
+	    "compression%u", no);
 	nv_add_string(nvout, role2str(res->hr_role), "role%u", no);
 
 	switch (res->hr_role) {

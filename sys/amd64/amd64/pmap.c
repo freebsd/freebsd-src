@@ -457,7 +457,7 @@ CTASSERT(powerof2(NDMPML4E));
 static void
 create_pagetables(vm_paddr_t *firstaddr)
 {
-	int i;
+	int i, j, ndm1g;
 
 	/* Allocate pages */
 	KPTphys = allocpages(firstaddr, NKPT);
@@ -469,8 +469,11 @@ create_pagetables(vm_paddr_t *firstaddr)
 	if (ndmpdp < 4)		/* Minimum 4GB of dirmap */
 		ndmpdp = 4;
 	DMPDPphys = allocpages(firstaddr, NDMPML4E);
-	if ((amd_feature & AMDID_PAGE1GB) == 0)
-		DMPDphys = allocpages(firstaddr, ndmpdp);
+	ndm1g = 0;
+	if ((amd_feature & AMDID_PAGE1GB) != 0)
+		ndm1g = ptoa(Maxmem) >> PDPSHIFT;
+	if (ndm1g < ndmpdp)
+		DMPDphys = allocpages(firstaddr, ndmpdp - ndm1g);
 	dmaplimit = (vm_paddr_t)ndmpdp << PDPSHIFT;
 
 	/* Fill in the underlying page table pages */
@@ -502,32 +505,28 @@ create_pagetables(vm_paddr_t *firstaddr)
 	}
 
 	/*
-	 * Now, set up the direct map region using either 2MB or 1GB pages.
-	 * Later, if pmap_mapdev{_attr}() uses the direct map for non-write-
-	 * back memory, pmap_change_attr() will demote any 2MB or 1GB page
-	 * mappings that are partially used.
+	 * Now, set up the direct map region using 2MB and/or 1GB pages.  If
+	 * the end of physical memory is not aligned to a 1GB page boundary,
+	 * then the residual physical memory is mapped with 2MB pages.  Later,
+	 * if pmap_mapdev{_attr}() uses the direct map for non-write-back
+	 * memory, pmap_change_attr() will demote any 2MB or 1GB page mappings
+	 * that are partially used. 
 	 */
-	if ((amd_feature & AMDID_PAGE1GB) == 0) {
-		for (i = 0; i < NPDEPG * ndmpdp; i++) {
-			((pd_entry_t *)DMPDphys)[i] = (vm_paddr_t)i << PDRSHIFT;
-			/* Preset PG_M and PG_A because demotion expects it. */
-			((pd_entry_t *)DMPDphys)[i] |= PG_RW | PG_V | PG_PS |
-			    PG_G | PG_M | PG_A;
-		}
-		/* And the direct map space's PDP */
-		for (i = 0; i < ndmpdp; i++) {
-			((pdp_entry_t *)DMPDPphys)[i] = DMPDphys +
-			    (i << PAGE_SHIFT);
-			((pdp_entry_t *)DMPDPphys)[i] |= PG_RW | PG_V | PG_U;
-		}
-	} else {
-		for (i = 0; i < ndmpdp; i++) {
-			((pdp_entry_t *)DMPDPphys)[i] =
-			    (vm_paddr_t)i << PDPSHIFT;
-			/* Preset PG_M and PG_A because demotion expects it. */
-			((pdp_entry_t *)DMPDPphys)[i] |= PG_RW | PG_V | PG_PS |
-			    PG_G | PG_M | PG_A;
-		}
+	for (i = NPDEPG * ndm1g, j = 0; i < NPDEPG * ndmpdp; i++, j++) {
+		((pd_entry_t *)DMPDphys)[j] = (vm_paddr_t)i << PDRSHIFT;
+		/* Preset PG_M and PG_A because demotion expects it. */
+		((pd_entry_t *)DMPDphys)[j] |= PG_RW | PG_V | PG_PS | PG_G |
+		    PG_M | PG_A;
+	}
+	for (i = 0; i < ndm1g; i++) {
+		((pdp_entry_t *)DMPDPphys)[i] = (vm_paddr_t)i << PDPSHIFT;
+		/* Preset PG_M and PG_A because demotion expects it. */
+		((pdp_entry_t *)DMPDPphys)[i] |= PG_RW | PG_V | PG_PS | PG_G |
+		    PG_M | PG_A;
+	}
+	for (j = 0; i < ndmpdp; i++, j++) {
+		((pdp_entry_t *)DMPDPphys)[i] = DMPDphys + (j << PAGE_SHIFT);
+		((pdp_entry_t *)DMPDPphys)[i] |= PG_RW | PG_V | PG_U;
 	}
 
 	/* And recursively map PML4 to itself in order to get PTmap */

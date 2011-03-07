@@ -101,7 +101,8 @@ COMMON_SRCS+=	e_acosl.c e_asinl.c e_atan2l.c e_fmodl.c \
 .endif
 
 # C99 complex functions
-COMMON_SRCS+=	s_cimag.c s_cimagf.c s_cimagl.c s_conj.c s_conjf.c s_conjl.c \
+COMMON_SRCS+=	s_cexp.c s_cexpf.c s_cimag.c s_cimagf.c s_cimagl.c \
+	s_conj.c s_conjf.c s_conjl.c \
 	s_cproj.c s_cprojf.c s_creal.c s_crealf.c s_creall.c
 
 # FreeBSD's C library supplies these functions:
@@ -124,14 +125,15 @@ SRCS=	${COMMON_SRCS} ${ARCH_SRCS}
 
 INCS=	fenv.h math.h
 
-MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 ceil.3 \
+MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 ceil.3 cexp.3 \
 	cimag.3 copysign.3 cos.3 cosh.3 csqrt.3 erf.3 exp.3 fabs.3 fdim.3 \
 	feclearexcept.3 feenableexcept.3 fegetenv.3 \
 	fegetround.3 fenv.3 floor.3 \
 	fma.3 fmax.3 fmod.3 hypot.3 ieee.3 ieee_test.3 ilogb.3 j0.3 \
 	lgamma.3 log.3 lrint.3 lround.3 math.3 nan.3 \
 	nextafter.3 remainder.3 rint.3 \
-	round.3 scalbn.3 signbit.3 sin.3 sinh.3 sqrt.3 tan.3 tanh.3 trunc.3
+	round.3 scalbn.3 signbit.3 sin.3 sinh.3 sqrt.3 tan.3 tanh.3 trunc.3 \
+	complex.3
 
 MLINKS+=acos.3 acosf.3 acos.3 acosl.3
 MLINKS+=acosh.3 acoshf.3
@@ -142,6 +144,7 @@ MLINKS+=atanh.3 atanhf.3
 MLINKS+=atan2.3 atan2f.3 atan2.3 atan2l.3 \
 	atan2.3 carg.3 atan2.3 cargf.3 atan2.3 cargl.3
 MLINKS+=ceil.3 ceilf.3 ceil.3 ceill.3
+MLINKS+=cexp.3 cexpf.3
 MLINKS+=cimag.3 cimagf.3 cimag.3 cimagl.3 \
 	cimag.3 conj.3 cimag.3 conjf.3 cimag.3 conjl.3 \
 	cimag.3 cproj.3 cimag.3 cprojf.3 cimag.3 cprojl.3 \

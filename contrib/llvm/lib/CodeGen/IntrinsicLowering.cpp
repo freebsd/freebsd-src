@@ -85,9 +85,11 @@ static CallInst *ReplaceCallWith(const char *NewFn, CallInst *CI,
 }
 
 // VisualStudio defines setjmp as _setjmp
-#if defined(_MSC_VER) && defined(setjmp)
-#define setjmp_undefined_for_visual_studio
-#undef setjmp
+#if defined(_MSC_VER) && defined(setjmp) && \
+                         !defined(setjmp_undefined_for_msvc)
+#  pragma push_macro("setjmp")
+#  undef setjmp
+#  define setjmp_undefined_for_msvc
 #endif
 
 void IntrinsicLowering::AddPrototypes(Module &M) {
@@ -535,4 +537,28 @@ void IntrinsicLowering::LowerIntrinsicCall(CallInst *CI) {
   assert(CI->use_empty() &&
          "Lowering should have eliminated any uses of the intrinsic call!");
   CI->eraseFromParent();
+}
+
+bool IntrinsicLowering::LowerToByteSwap(CallInst *CI) {
+  // Verify this is a simple bswap.
+  if (CI->getNumArgOperands() != 1 ||
+      CI->getType() != CI->getArgOperand(0)->getType() ||
+      !CI->getType()->isIntegerTy())
+    return false;
+
+  const IntegerType *Ty = dyn_cast<IntegerType>(CI->getType());
+  if (!Ty)
+    return false;
+
+  // Okay, we can do this xform, do so now.
+  const Type *Tys[] = { Ty };
+  Module *M = CI->getParent()->getParent()->getParent();
+  Constant *Int = Intrinsic::getDeclaration(M, Intrinsic::bswap, Tys, 1);
+
+  Value *Op = CI->getArgOperand(0);
+  Op = CallInst::Create(Int, Op, CI->getName(), CI);
+
+  CI->replaceAllUsesWith(Op);
+  CI->eraseFromParent();
+  return true;
 }

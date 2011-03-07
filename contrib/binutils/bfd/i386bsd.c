@@ -1,5 +1,5 @@
 /* BFD back-end for i386 a.out binaries under BSD.
-   Copyright 1990, 1991, 1992, 1993, 1994, 2001
+   Copyright 1990, 1991, 1992, 1993, 1994, 2001, 2007
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -16,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* This data should be correct for the format used under all the various
    BSD ports for 386 machines.  */
@@ -42,8 +42,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define MY(OP) CONCAT2 (i386bsd_,OP)
 #define TARGETNAME "a.out-i386-bsd"
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "libaout.h"
 

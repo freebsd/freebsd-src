@@ -65,6 +65,9 @@
 #ifndef PRIu32
 #	define PRIu32 "u"
 #endif
+#ifndef PRIx32
+#	define PRIx32 "x"
+#endif
 #ifndef PRIX32
 #	define PRIX32 "X"
 #endif
@@ -76,6 +79,9 @@
 #	ifndef PRIu64
 #		define PRIu64 "llu"
 #	endif
+#	ifndef PRIx64
+#		define PRIx64 "llx"
+#	endif
 #	ifndef PRIX64
 #		define PRIX64 "llX"
 #	endif
@@ -85,6 +91,9 @@
 #	endif
 #	ifndef PRIu64
 #		define PRIu64 "lu"
+#	endif
+#	ifndef PRIx64
+#		define PRIx64 "lx"
 #	endif
 #	ifndef PRIX64
 #		define PRIX64 "lX"
@@ -169,6 +178,12 @@ typedef unsigned char _Bool;
 
 #ifndef ARRAY_SIZE
 #	define ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))
+#endif
+
+#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 3) || __GNUC__ > 4
+#	define lzma_attr_alloc_size(x) __attribute__((__alloc_size__(x)))
+#else
+#	define lzma_attr_alloc_size(x)
 #endif
 
 #endif

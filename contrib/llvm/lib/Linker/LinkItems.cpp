@@ -15,9 +15,10 @@
 #include "llvm/Linker.h"
 #include "llvm/Module.h"
 #include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/System/Path.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/system_error.h"
 using namespace llvm;
 
 // LinkItems - This function is the main entry point into linking. It takes a
@@ -160,19 +161,19 @@ bool Linker::LinkInFile(const sys::Path &File, bool &is_native) {
   // Check for a file of name "-", which means "read standard input"
   if (File.str() == "-") {
     std::auto_ptr<Module> M;
-    if (MemoryBuffer *Buffer = MemoryBuffer::getSTDIN(&Error)) {
+    OwningPtr<MemoryBuffer> Buffer;
+    error_code ec;
+    if (!(ec = MemoryBuffer::getSTDIN(Buffer))) {
       if (!Buffer->getBufferSize()) {
-        delete Buffer;
         Error = "standard input is empty";
       } else {
-        M.reset(ParseBitcodeFile(Buffer, Context, &Error));
-        delete Buffer;
+        M.reset(ParseBitcodeFile(Buffer.get(), Context, &Error));
         if (M.get())
           if (!LinkInModule(M.get(), &Error))
             return false;
       }
     }
-    return error("Cannot link stdin: " + Error);
+    return error("Cannot link stdin: " + ec.message());
   }
 
   // Determine what variety of file it is.

@@ -205,7 +205,7 @@ struct lzma_internal_s {
 
 /// Allocates memory
 extern void *lzma_alloc(size_t size, lzma_allocator *allocator)
-		lzma_attribute((malloc));
+		lzma_attribute((malloc)) lzma_attr_alloc_size(1);
 
 /// Frees memory
 extern void lzma_free(void *ptr, lzma_allocator *allocator);

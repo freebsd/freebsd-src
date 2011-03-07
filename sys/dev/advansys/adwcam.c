@@ -1,5 +1,5 @@
 /*-
- * CAM SCSI interface for the the Advanced Systems Inc.
+ * CAM SCSI interface for the Advanced Systems Inc.
  * Second Generation SCSI controllers.
  *
  * Product specific probe and attach routines can be found in:

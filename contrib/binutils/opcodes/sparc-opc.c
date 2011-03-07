@@ -1,24 +1,24 @@
 /* Table of opcodes for the sparc.
    Copyright 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2002, 2004
+   2000, 2002, 2004, 2005
    Free Software Foundation, Inc.
 
-This file is part of the BFD library.
+   This file is part of the BFD library.
 
-BFD is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free
-Software Foundation; either version 2, or (at your option) any later
-version.
+   BFD is free software; you can redistribute it and/or modify it under
+   the terms of the GNU General Public License as published by the Free
+   Software Foundation; either version 2, or (at your option) any later
+   version.
 
-BFD is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or
-FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
-for more details.
+   BFD is distributed in the hope that it will be useful, but WITHOUT ANY
+   WARRANTY; without even the implied warranty of MERCHANTABILITY or
+   FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+   for more details.
 
-You should have received a copy of the GNU General Public License
-along with this software; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.	*/
+   You should have received a copy of the GNU General Public License
+   along with this software; see the file COPYING.  If not, write to
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.	*/
 
 /* FIXME-someday: perhaps the ,a's and such should be embedded in the
    instruction's name rather than the args.  This would make gas faster, pinsn
@@ -42,7 +42,7 @@ Boston, MA 02111-1307, USA.	*/
 
 #define v6		(MASK_V6 | MASK_V7 | MASK_V8 | MASK_SPARCLET \
 			 | MASK_SPARCLITE | MASK_V9 | MASK_V9A | MASK_V9B)
-/* v6 insns not supported on the sparclet */
+/* v6 insns not supported on the sparclet.  */
 #define v6notlet	(MASK_V6 | MASK_V7 | MASK_V8 \
 			 | MASK_SPARCLITE | MASK_V9 | MASK_V9A | MASK_V9B)
 #define v7		(MASK_V7 | MASK_V8 | MASK_SPARCLET \
@@ -60,17 +60,18 @@ Boston, MA 02111-1307, USA.	*/
 #define v9		(MASK_V9 | MASK_V9A | MASK_V9B)
 #define v9a		(MASK_V9A | MASK_V9B)
 #define v9b		(MASK_V9B)
-/* v6 insns not supported by v9 */
+/* v6 insns not supported by v9.  */
 #define v6notv9		(MASK_V6 | MASK_V7 | MASK_V8 \
 			 | MASK_SPARCLET | MASK_SPARCLITE)
 /* v9a instructions which would appear to be aliases to v9's impdep's
-   otherwise */
+   otherwise.  */
 #define v9notv9a	(MASK_V9)
 
 /* Table of opcode architectures.
    The order is defined in opcode/sparc.h.  */
 
-const struct sparc_opcode_arch sparc_opcode_archs[] = {
+const struct sparc_opcode_arch sparc_opcode_archs[] =
+{
   { "v6", MASK_V6 },
   { "v7", MASK_V6 | MASK_V7 },
   { "v8", MASK_V6 | MASK_V7 | MASK_V8 },
@@ -88,84 +89,79 @@ const struct sparc_opcode_arch sparc_opcode_archs[] = {
 /* Given NAME, return it's architecture entry.  */
 
 enum sparc_opcode_arch_val
-sparc_opcode_lookup_arch (name)
-     const char *name;
+sparc_opcode_lookup_arch (const char *name)
 {
   const struct sparc_opcode_arch *p;
 
   for (p = &sparc_opcode_archs[0]; p->name; ++p)
-    {
-      if (strcmp (name, p->name) == 0)
-	return (enum sparc_opcode_arch_val) (p - &sparc_opcode_archs[0]);
-    }
+    if (strcmp (name, p->name) == 0)
+      return (enum sparc_opcode_arch_val) (p - &sparc_opcode_archs[0]);
 
   return SPARC_OPCODE_ARCH_BAD;
 }
 
 /* Branch condition field.  */
-#define COND(x)		(((x)&0xf)<<25)
+#define COND(x)		(((x) & 0xf) << 25)
 
 /* v9: Move (MOVcc and FMOVcc) condition field.  */
-#define MCOND(x,i_or_f)	((((i_or_f)&1)<<18)|(((x)>>11)&(0xf<<14))) /* v9 */
+#define MCOND(x,i_or_f)	((((i_or_f) & 1) << 18) | (((x) >> 11) & (0xf << 14))) /* v9 */
 
 /* v9: Move register (MOVRcc and FMOVRcc) condition field.  */
-#define RCOND(x)	(((x)&0x7)<<10)	/* v9 */
+#define RCOND(x)	(((x) & 0x7) << 10)	/* v9 */
 
-#define CONDA	(COND(0x8))
-#define CONDCC	(COND(0xd))
-#define CONDCS	(COND(0x5))
-#define CONDE	(COND(0x1))
-#define CONDG	(COND(0xa))
-#define CONDGE	(COND(0xb))
-#define CONDGU	(COND(0xc))
-#define CONDL	(COND(0x3))
-#define CONDLE	(COND(0x2))
-#define CONDLEU	(COND(0x4))
-#define CONDN	(COND(0x0))
-#define CONDNE	(COND(0x9))
-#define CONDNEG	(COND(0x6))
-#define CONDPOS	(COND(0xe))
-#define CONDVC	(COND(0xf))
-#define CONDVS	(COND(0x7))
+#define CONDA	(COND (0x8))
+#define CONDCC	(COND (0xd))
+#define CONDCS	(COND (0x5))
+#define CONDE	(COND (0x1))
+#define CONDG	(COND (0xa))
+#define CONDGE	(COND (0xb))
+#define CONDGU	(COND (0xc))
+#define CONDL	(COND (0x3))
+#define CONDLE	(COND (0x2))
+#define CONDLEU	(COND (0x4))
+#define CONDN	(COND (0x0))
+#define CONDNE	(COND (0x9))
+#define CONDNEG	(COND (0x6))
+#define CONDPOS	(COND (0xe))
+#define CONDVC	(COND (0xf))
+#define CONDVS	(COND (0x7))
 
 #define CONDNZ	CONDNE
 #define CONDZ	CONDE
 #define CONDGEU	CONDCC
 #define CONDLU	CONDCS
 
-#define FCONDA		(COND(0x8))
-#define FCONDE		(COND(0x9))
-#define FCONDG		(COND(0x6))
-#define FCONDGE		(COND(0xb))
-#define FCONDL		(COND(0x4))
-#define FCONDLE		(COND(0xd))
-#define FCONDLG		(COND(0x2))
-#define FCONDN		(COND(0x0))
-#define FCONDNE		(COND(0x1))
-#define FCONDO		(COND(0xf))
-#define FCONDU		(COND(0x7))
-#define FCONDUE		(COND(0xa))
-#define FCONDUG		(COND(0x5))
-#define FCONDUGE	(COND(0xc))
-#define FCONDUL		(COND(0x3))
-#define FCONDULE	(COND(0xe))
+#define FCONDA		(COND (0x8))
+#define FCONDE		(COND (0x9))
+#define FCONDG		(COND (0x6))
+#define FCONDGE		(COND (0xb))
+#define FCONDL		(COND (0x4))
+#define FCONDLE		(COND (0xd))
+#define FCONDLG		(COND (0x2))
+#define FCONDN		(COND (0x0))
+#define FCONDNE		(COND (0x1))
+#define FCONDO		(COND (0xf))
+#define FCONDU		(COND (0x7))
+#define FCONDUE		(COND (0xa))
+#define FCONDUG		(COND (0x5))
+#define FCONDUGE	(COND (0xc))
+#define FCONDUL		(COND (0x3))
+#define FCONDULE	(COND (0xe))
 
 #define FCONDNZ	FCONDNE
 #define FCONDZ	FCONDE
 
-#define ICC (0)	/* v9 */
-#define XCC (1<<12) /* v9 */
-#define FCC(x)	(((x)&0x3)<<11) /* v9 */
-#define FBFCC(x)	(((x)&0x3)<<20)	/* v9 */
+#define ICC 		(0)	/* v9 */
+#define XCC 		(1 << 12) /* v9 */
+#define FCC(x)		(((x) & 0x3) << 11) /* v9 */
+#define FBFCC(x)	(((x) & 0x3) << 20)	/* v9 */
 
 /* The order of the opcodes in the table is significant:
-	
+
 	* The assembler requires that all instances of the same mnemonic must
 	be consecutive.	If they aren't, the assembler will bomb at runtime.
 
-	* The disassembler should not care about the order of the opcodes.
-
-*/
+	* The disassembler should not care about the order of the opcodes.  */
 
 /* Entries for commutative arithmetic operations.  */
 /* ??? More entries can make use of this.  */
@@ -696,6 +692,10 @@ const struct sparc_opcode sparc_opcodes[] = {
 { "retry",	F3(2, 0x3e, 0)|RD(1), F3(~2, ~0x3e, ~0)|RD(~1)|RS1_G0|SIMM13(~0),	"", 0, v9 },
 { "saved",	F3(2, 0x31, 0)|RD(0), F3(~2, ~0x31, ~0)|RD(~0)|RS1_G0|SIMM13(~0),	"", 0, v9 },
 { "restored",	F3(2, 0x31, 0)|RD(1), F3(~2, ~0x31, ~0)|RD(~1)|RS1_G0|SIMM13(~0),	"", 0, v9 },
+{ "allclean",	F3(2, 0x31, 0)|RD(2), F3(~2, ~0x31, ~0)|RD(~2)|RS1_G0|SIMM13(~0),	"", 0, v9 },
+{ "otherw",	F3(2, 0x31, 0)|RD(3), F3(~2, ~0x31, ~0)|RD(~3)|RS1_G0|SIMM13(~0),	"", 0, v9 },
+{ "normalw",	F3(2, 0x31, 0)|RD(4), F3(~2, ~0x31, ~0)|RD(~4)|RS1_G0|SIMM13(~0),	"", 0, v9 },
+{ "invalw",	F3(2, 0x31, 0)|RD(5), F3(~2, ~0x31, ~0)|RD(~5)|RS1_G0|SIMM13(~0),	"", 0, v9 },
 { "sir",	F3(2, 0x30, 1)|RD(0xf), F3(~2, ~0x30, ~1)|RD(~0xf)|RS1_G0,		"i", 0, v9 },
 
 { "flush",	F3(2, 0x3b, 0), F3(~2, ~0x3b, ~0)|ASI(~0),	"1+2", 0, v8 },
@@ -881,6 +881,13 @@ const struct sparc_opcode sparc_opcodes[] = {
 { "wrpr",	F3(2, 0x32, 1),		F3(~2, ~0x32, ~1),		"1,i,!", 0, v9 }, /* wrpr r1,i,%priv */
 { "wrpr",	F3(2, 0x32, 1),		F3(~2, ~0x32, ~1),		"i,1,!", F_ALIAS, v9 }, /* wrpr i,r1,%priv */
 { "wrpr",	F3(2, 0x32, 1),		F3(~2, ~0x32, ~1)|RS1(~0),	"i,!", 0, v9 },   /* wrpr i,%priv */
+
+{ "rdhpr",	F3(2, 0x29, 0),		F3(~2, ~0x29, ~0)|SIMM13(~0),	"$,d", 0, v9 },   /* rdhpr %hpriv,r */
+{ "wrhpr",	F3(2, 0x33, 0),		F3(~2, ~0x33, ~0),		"1,2,%", 0, v9 }, /* wrhpr r1,r2,%hpriv */
+{ "wrhpr",	F3(2, 0x33, 0),		F3(~2, ~0x33, ~0)|SIMM13(~0),	"1,%", 0, v9 },   /* wrhpr r1,%hpriv */
+{ "wrhpr",	F3(2, 0x33, 1),		F3(~2, ~0x33, ~1),		"1,i,%", 0, v9 }, /* wrhpr r1,i,%hpriv */
+{ "wrhpr",	F3(2, 0x33, 1),		F3(~2, ~0x33, ~1),		"i,1,%", F_ALIAS, v9 }, /* wrhpr i,r1,%hpriv */
+{ "wrhpr",	F3(2, 0x33, 1),		F3(~2, ~0x33, ~1)|RS1(~0),	"i,%", 0, v9 },   /* wrhpr i,%hpriv */
 
 /* ??? This group seems wrong.  A three operand move?  */
 { "mov",	F3(2, 0x30, 0), F3(~2, ~0x30, ~0)|ASI(~0),		"1,2,m", F_ALIAS, v8 }, /* wr r,r,%asrX */
@@ -1348,13 +1355,13 @@ fmovccx("fmovs" suffix, FM_SF, "f,g", cond, fcond, flags)
 
 /* Coprocessor branches.  */
 #define CBR(opcode, mask, lose, flags, arch) \
- { opcode, (mask), ANNUL|(lose), "l",    flags|F_DELAYED, arch }, \
- { opcode, (mask)|ANNUL, (lose), ",a l", flags|F_DELAYED, arch }
+ { opcode, (mask), ANNUL | (lose), "l",    flags | F_DELAYED, arch }, \
+ { opcode, (mask) | ANNUL, (lose), ",a l", flags | F_DELAYED, arch }
 
 /* Floating point branches.  */
 #define FBR(opcode, mask, lose, flags) \
- { opcode, (mask), ANNUL|(lose), "l",    flags|F_DELAYED|F_FBR, v6 }, \
- { opcode, (mask)|ANNUL, (lose), ",a l", flags|F_DELAYED|F_FBR, v6 }
+ { opcode, (mask), ANNUL | (lose), "l",    flags | F_DELAYED | F_FBR, v6 }, \
+ { opcode, (mask) | ANNUL, (lose), ",a l", flags | F_DELAYED | F_FBR, v6 }
 
 /* V9 extended floating point branches.  */
 #define FBRX(opcode, mask, lose, flags) /* v9 */ \
@@ -1829,13 +1836,8 @@ typedef struct
 
 /* Look up NAME in TABLE.  */
 
-static int lookup_name PARAMS ((const arg *, const char *));
-static const char *lookup_value PARAMS ((const arg *, int));
-
 static int
-lookup_name (table, name)
-     const arg *table;
-     const char *name;
+lookup_name (const arg *table, const char *name)
 {
   const arg *p;
 
@@ -1849,9 +1851,7 @@ lookup_name (table, name)
 /* Look up VALUE in TABLE.  */
 
 static const char *
-lookup_value (table, value)
-     const arg *table;
-     int value;
+lookup_value (const arg *table, int value)
 {
   const arg *p;
 
@@ -1859,7 +1859,7 @@ lookup_value (table, value)
     if (value == p->value)
       return p->name;
 
-  return (char *) 0;
+  return NULL;
 }
 
 /* Handle ASI's.  */
@@ -1907,8 +1907,7 @@ static arg asi_table[] =
 /* Return the value for ASI NAME, or -1 if not found.  */
 
 int
-sparc_encode_asi (name)
-     const char *name;
+sparc_encode_asi (const char *name)
 {
   return lookup_name (asi_table, name);
 }
@@ -1916,8 +1915,7 @@ sparc_encode_asi (name)
 /* Return the name for ASI value VALUE or NULL if not found.  */
 
 const char *
-sparc_decode_asi (value)
-     int value;
+sparc_decode_asi (int value)
 {
   return lookup_value (asi_table, value);
 }
@@ -1939,8 +1937,7 @@ static arg membar_table[] =
 /* Return the value for membar arg NAME, or -1 if not found.  */
 
 int
-sparc_encode_membar (name)
-     const char *name;
+sparc_encode_membar (const char *name)
 {
   return lookup_name (membar_table, name);
 }
@@ -1948,8 +1945,7 @@ sparc_encode_membar (name)
 /* Return the name for membar value VALUE or NULL if not found.  */
 
 const char *
-sparc_decode_membar (value)
-     int value;
+sparc_decode_membar (int value)
 {
   return lookup_value (membar_table, value);
 }
@@ -1970,8 +1966,7 @@ static arg prefetch_table[] =
 /* Return the value for prefetch arg NAME, or -1 if not found.  */
 
 int
-sparc_encode_prefetch (name)
-     const char *name;
+sparc_encode_prefetch (const char *name)
 {
   return lookup_name (prefetch_table, name);
 }
@@ -1979,8 +1974,7 @@ sparc_encode_prefetch (name)
 /* Return the name for prefetch value VALUE or NULL if not found.  */
 
 const char *
-sparc_decode_prefetch (value)
-     int value;
+sparc_decode_prefetch (int value)
 {
   return lookup_value (prefetch_table, value);
 }
@@ -2002,8 +1996,7 @@ static arg sparclet_cpreg_table[] =
 /* Return the value for sparclet cpreg arg NAME, or -1 if not found.  */
 
 int
-sparc_encode_sparclet_cpreg (name)
-     const char *name;
+sparc_encode_sparclet_cpreg (const char *name)
 {
   return lookup_name (sparclet_cpreg_table, name);
 }
@@ -2011,8 +2004,7 @@ sparc_encode_sparclet_cpreg (name)
 /* Return the name for sparclet cpreg value VALUE or NULL if not found.  */
 
 const char *
-sparc_decode_sparclet_cpreg (value)
-     int value;
+sparc_decode_sparclet_cpreg (int value)
 {
   return lookup_value (sparclet_cpreg_table, value);
 }

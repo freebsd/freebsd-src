@@ -255,7 +255,7 @@ trap(struct trapframe *frame)
 	 * A trap can occur while DTrace executes a probe. Before
 	 * executing the probe, DTrace blocks re-scheduling and sets
 	 * a flag in it's per-cpu flags to indicate that it doesn't
-	 * want to fault. On returning from the the probe, the no-fault
+	 * want to fault. On returning from the probe, the no-fault
 	 * flag is cleared and finally re-scheduling is enabled.
 	 *
 	 * If the DTrace kernel module has registered a trap handler,
@@ -271,21 +271,7 @@ trap(struct trapframe *frame)
 	    type == T_BPTFLT) {
 		struct reg regs;
 
-		regs.r_fs = frame->tf_fs;
-		regs.r_es = frame->tf_es;
-		regs.r_ds = frame->tf_ds;
-		regs.r_edi = frame->tf_edi;
-		regs.r_esi = frame->tf_esi;
-		regs.r_ebp = frame->tf_ebp;
-		regs.r_ebx = frame->tf_ebx;
-		regs.r_edx = frame->tf_edx;
-		regs.r_ecx = frame->tf_ecx;
-		regs.r_eax = frame->tf_eax;
-		regs.r_eip = frame->tf_eip;
-		regs.r_cs = frame->tf_cs;
-		regs.r_eflags = frame->tf_eflags;
-		regs.r_esp = frame->tf_esp;
-		regs.r_ss = frame->tf_ss;
+		fill_frame_regs(frame, &regs);
 		if (type == T_DTRACE_PROBE &&
 		    dtrace_fasttrap_probe_ptr != NULL &&
 		    dtrace_fasttrap_probe_ptr(&regs) == 0)

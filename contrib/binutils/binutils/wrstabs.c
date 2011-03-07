@@ -1,5 +1,5 @@
 /* wrstabs.c -- Output stabs debugging information
-   Copyright 1996, 1997, 1998, 2000, 2001, 2002, 2003
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2006, 2007
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
@@ -17,19 +17,18 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* This file contains code which writes out stabs debugging
    information.  */
 
-#include <stdio.h>
+#include "sysdep.h"
 #include <assert.h>
-
 #include "bfd.h"
-#include "bucomm.h"
 #include "libiberty.h"
 #include "safe-ctype.h"
+#include "bucomm.h"
 #include "debug.h"
 #include "budbg.h"
 #include "aout/aout64.h"
@@ -480,8 +479,10 @@ write_stabs_in_sections_debugging_info (bfd *abfd, void *dhandle,
   /* Reserve 1 byte for a null byte.  */
   info.strings_size = 1;
 
-  if (! bfd_hash_table_init (&info.strhash.table, string_hash_newfunc)
-      || ! bfd_hash_table_init (&info.typedef_hash.table, string_hash_newfunc))
+  if (!bfd_hash_table_init (&info.strhash.table, string_hash_newfunc,
+			    sizeof (struct string_hash_entry))
+      || !bfd_hash_table_init (&info.typedef_hash.table, string_hash_newfunc,
+			       sizeof (struct string_hash_entry)))
     {
       non_fatal ("bfd_hash_table_init_failed: %s",
 		 bfd_errmsg (bfd_get_error ()));
@@ -1867,7 +1868,7 @@ stab_tag_type (void *p, const char *name, unsigned int id,
 {
   struct stab_write_handle *info = (struct stab_write_handle *) p;
   long index;
-  unsigned int size;
+  unsigned int size = 0;
 
   index = stab_get_struct_index (info, name, id, kind, &size);
   if (index < 0)

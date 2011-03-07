@@ -227,9 +227,9 @@ static const char *const reloc_names[] = {
 	"GLOB_DAT", "JMP_SLOT", "RELATIVE", "UA_32", "PLT32",
 	"HIPLT22", "LOPLT10", "LOPLT10", "PCPLT22", "PCPLT32",
 	"10", "11", "64", "OLO10", "HH22",
-	"HM10", "LM22", "PC_HH22", "PC_HM10", "PC_LM22", 
+	"HM10", "LM22", "PC_HH22", "PC_HM10", "PC_LM22",
 	"WDISP16", "WDISP19", "GLOB_JMP", "7", "5", "6",
-	"DISP64", "PLT64", "HIX22", "LOX10", "H44", "M44", 
+	"DISP64", "PLT64", "HIX22", "LOX10", "H44", "M44",
 	"L44", "REGISTER", "UA64", "UA16"
 };
 #endif
@@ -252,19 +252,19 @@ static const long reloc_target_bitmask[] = {
 	_BM(22), _BM(22),		/* HI22, _22 */
 	_BM(13), _BM(10),		/* RELOC_13, _LO10 */
 	_BM(10), _BM(13), _BM(22),	/* GOT10, GOT13, GOT22 */
-	_BM(10), _BM(22),		/* _PC10, _PC22 */  
-	_BM(30), 0,			/* _WPLT30, _COPY */
-	_BM(32), _BM(32), _BM(32),	/* _GLOB_DAT, JMP_SLOT, _RELATIVE */
-	_BM(32), _BM(32),		/* _UA32, PLT32 */
-	_BM(22), _BM(10),		/* _HIPLT22, LOPLT10 */
-	_BM(32), _BM(22), _BM(10),	/* _PCPLT32, _PCPLT22, _PCPLT10 */
-	_BM(10), _BM(11), -1,		/* _10, _11, _64 */
-	_BM(13), _BM(22),		/* _OLO10, _HH22 */
-	_BM(10), _BM(22),		/* _HM10, _LM22 */
-	_BM(22), _BM(10), _BM(22),	/* _PC_HH22, _PC_HM10, _PC_LM22 */
-	_BM(16), _BM(19),		/* _WDISP16, _WDISP19 */
+	_BM(10), _BM(22),		/* PC10, PC22 */
+	_BM(30), 0,			/* WPLT30, COPY */
+	_BM(32), _BM(32), _BM(32),	/* GLOB_DAT, JMP_SLOT, RELATIVE */
+	_BM(32), _BM(32),		/* UA32, PLT32 */
+	_BM(22), _BM(10),		/* HIPLT22, LOPLT10 */
+	_BM(32), _BM(22), _BM(10),	/* PCPLT32, _PCPLT22, _PCPLT10 */
+	_BM(10), _BM(11), -1,		/* 10, 11, 64 */
+	_BM(13), _BM(22),		/* OLO10, HH22 */
+	_BM(10), _BM(22),		/* HM10, LM22 */
+	_BM(22), _BM(10), _BM(22),	/* PC_HH22, PC_HM10, PC_LM22 */
+	_BM(16), _BM(19),		/* WDISP16, WDISP19 */
 	-1,				/* GLOB_JMP */
-	_BM(7), _BM(5), _BM(6)		/* _7, _5, _6 */
+	_BM(7), _BM(5), _BM(6)		/* 7, 5, 6 */
 	-1, -1,				/* DISP64, PLT64 */
 	_BM(22), _BM(13),		/* HIX22, LOX10 */
 	_BM(22), _BM(10), _BM(13),	/* H44, M44, L44 */
@@ -332,13 +332,23 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
 		addr = lookup(lf, symidx, 1);
 		if (addr == 0)
 			return (-1);
-		value += addr;
+		/*
+		 * With the addition of TLS support binutils started to make
+		 * addend values relative to relocbase instead of sections.
+		 */
+		if (addr > relocbase && addr <= relocbase + value)
+			value += relocbase;
+		else
+			value += addr;
 		if (RELOC_BARE_SYMBOL(rtype))
 			value = elf_relocaddr(lf, value);
 	}
 
 	if (rtype == R_SPARC_OLO10)
 		value = (value & 0x3ff) + ELF64_R_TYPE_DATA(rela->r_info);
+
+	if (rtype == R_SPARC_HIX22)
+		value ^= 0xffffffffffffffff;
 
 	if (RELOC_PC_RELATIVE(rtype))
 		value -= (Elf_Addr)where;

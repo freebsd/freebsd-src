@@ -1,5 +1,5 @@
 /* ELF support for BFD.
-   Copyright 1991, 1992, 1993, 1995, 1997, 1998, 1999, 2001
+   Copyright 1991, 1992, 1993, 1995, 1997, 1998, 1999, 2001, 2003, 2005
    Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
@@ -20,7 +20,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 
 /* This file is part of ELF support for BFD, and contains the portions
@@ -245,11 +245,7 @@ typedef struct {
 
 typedef struct {
   unsigned char		vs_vers[2];
-}
-#ifdef __GNUC__
-  __attribute__ ((packed))
-#endif
-  Elf_External_Versym;
+} ATTRIBUTE_PACKED  Elf_External_Versym;
 
 /* Structure for syminfo section.  */
 typedef struct
@@ -272,5 +268,8 @@ typedef struct
   unsigned char		a_val[8];
 } Elf64_External_Auxv;
 
+/* Size of SHT_GROUP section entry.  */
+
+#define GRP_ENTRY_SIZE		4
 
 #endif /* _ELF_EXTERNAL_H */

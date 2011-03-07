@@ -96,14 +96,13 @@ __FBSDID("$FreeBSD$");
 static void
 ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
     HAL_11N_RATE_SERIES *series, unsigned int pktlen, uint8_t *rix,
-    uint8_t *try)
+    uint8_t *try, int flags)
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_BOOL shortPreamble = AH_FALSE;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	int i;
-	uint8_t txrate;
 
 	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
 	    (ni->ni_capinfo & IEEE80211_CAPINFO_SHORT_PREAMBLE))
@@ -111,28 +110,49 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	memset(series, 0, sizeof(HAL_11N_RATE_SERIES) * 4);
 	for (i = 0; i < 4;  i++) {
-		txrate = rt->info[rix[i]].rateCode;
+		/* Only set flags for actual TX attempts */
+		if (try[i] == 0)
+			continue;
+
 		series[i].Tries = try[i];
+
+		/*
+		 * XXX this isn't strictly correct - sc_txchainmask
+		 * XXX isn't the currently active chainmask;
+		 * XXX it's the interface chainmask at startup.
+		 * XXX It's overridden in the HAL rate scenario function
+		 * XXX for now.
+		 */
 		series[i].ChSel = sc->sc_txchainmask;
-		if (ic->ic_protmode == IEEE80211_PROT_RTSCTS ||
-		    ic->ic_protmode == IEEE80211_PROT_CTSONLY)
+
+		if (flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))
 			series[i].RateFlags |= HAL_RATESERIES_RTS_CTS;
+
+#if 0
 		if (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40)
 			series[i].RateFlags |= HAL_RATESERIES_2040;
-		if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20 ||
-		    ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
-			series[i].RateFlags |= HAL_RATESERIES_HALFGI;
 
-		/* XXX should this check the short preamble value should be set for legacy rates? -adrian */
-		series[i].Rate = txrate;
+		/*
+		 * The hardware only supports short-gi in 40mhz mode -
+		 * if later hardware supports it in 20mhz mode, be sure
+		 * to add the relevant check here.
+		 */
+		if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
+			series[i].RateFlags |= HAL_RATESERIES_HALFGI;
+#endif
+
+		series[i].Rate = rt->info[rix[i]].rateCode;
+		/* the short preamble field is only applicable for non-MCS rates */
+		if (shortPreamble && ! (series[i].Rate & IEEE80211_RATE_MCS))
+			series[i].Rate |= rt->info[rix[i]].shortPreamble;
 
 		/* PktDuration doesn't include slot, ACK, RTS, etc timing - it's just the packet duration */
-		if (txrate & IEEE80211_RATE_MCS) {
+		if (series[i].Rate & IEEE80211_RATE_MCS) {
 			series[i].PktDuration =
 			    ath_computedur_ht(pktlen
-				, txrate
+				, series[i].Rate
 				, ic->ic_txstream
-				, (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40)
+				, 0 /* disable 20/40 for now */
 				, series[i].RateFlags & HAL_RATESERIES_HALFGI);
 		} else {
 			series[i].PktDuration = ath_hal_computetxtime(ah,
@@ -178,7 +198,7 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf
 	/* Setup rate scenario */
 	memset(&series, 0, sizeof(series));
 
-	ath_rateseries_setup(sc, ni, series, pktlen, rix, try);
+	ath_rateseries_setup(sc, ni, series, pktlen, rix, try, flags);
 
 	/* Enforce AR5416 aggregate limit - can't do RTS w/ an agg frame > 8k */
 
@@ -186,6 +206,11 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf
 
 	/* Get a pointer to the last tx descriptor in the list */
 	lastds = &bf->bf_desc[bf->bf_nseg - 1];
+
+#if 0
+	printf("pktlen: %d; flags 0x%x\n", pktlen, flags);
+	ath_rateseries_print(series);
+#endif
 
 	/* Set rate scenario */
 	ath_hal_set11nratescenario(ah, ds,

@@ -219,6 +219,20 @@ struct htcp {
 	uint32_t lasttime;
 };
 
+struct rtcc_cc {
+	struct timeval tls;	/* The time we started the sending  */
+	uint64_t lbw;		/* Our last estimated bw */
+	uint64_t lbw_rtt;	/* RTT at bw estimate */
+	uint64_t bw_bytes;	/* The total bytes since this sending began */
+	uint64_t bw_tot_time;	/* The total time since sending began */
+	uint64_t new_tot_time;	/* temp holding the new value */
+	uint32_t cwnd_at_bw_set;
+	uint8_t ret_from_eq;
+	uint8_t use_dccc_ecn;
+	uint8_t tls_needs_set;	/* Flag to indicate we need to set tls 0 or 1
+				 * means set at send 2 not */
+};
+
 
 struct sctp_nets {
 	TAILQ_ENTRY(sctp_nets) sctp_next;	/* next link */
@@ -245,7 +259,7 @@ struct sctp_nets {
 	/* smoothed average things for RTT and RTO itself */
 	int lastsa;
 	int lastsv;
-	int rtt;		/* last measured rtt value in ms */
+	uint64_t rtt;		/* last measured rtt value in us */
 	unsigned int RTO;
 
 	/* This is used for SHUTDOWN/SHUTDOWN-ACK/SEND or INIT timers */
@@ -254,6 +268,10 @@ struct sctp_nets {
 
 	/* last time in seconds I sent to it */
 	struct timeval last_sent_time;
+	union cc_control_data {
+		struct htcp htcp_ca;	/* JRS - struct used in HTCP algorithm */
+		struct rtcc_cc rtcc;	/* rtcc module cc stuff  */
+	}               cc_mod;
 	int ref_count;
 
 	/* Congestion stats per destination */
@@ -267,7 +285,6 @@ struct sctp_nets {
 	uint32_t ecn_prev_cwnd;	/* ECN prev cwnd at first ecn_echo seen in new
 				 * window */
 	uint32_t partial_bytes_acked;	/* in CA tracks when to incr a MTU */
-	uint32_t prev_rtt;
 	/* tracking variables to avoid the aloc/free in sack processing */
 	unsigned int net_ack;
 	unsigned int net_ack2;
@@ -298,7 +315,6 @@ struct sctp_nets {
 	uint32_t tos_flowlabel;
 
 	struct timeval start_time;	/* time when this net was created */
-	struct timeval last_measured_rtt;
 	uint32_t marked_retrans;/* number or DATA chunks marked for timer
 				 * based retransmissions */
 	uint32_t marked_fastretrans;
@@ -348,8 +364,6 @@ struct sctp_nets {
 	uint8_t RTO_measured;	/* Have we done the first measure */
 	uint8_t last_hs_used;	/* index into the last HS table entry we used */
 	uint8_t lan_type;
-	/* JRS - struct used in HTCP algorithm */
-	struct htcp htcp_ca;
 	uint32_t flowid;
 #ifdef INVARIANTS
 	uint8_t flowidset;
@@ -648,6 +662,15 @@ struct sctp_cc_functions {
 	         struct sctp_nets *net, int burst_limit);
 	void (*sctp_cwnd_update_after_fr_timer) (struct sctp_inpcb *inp,
 	         struct sctp_tcb *stcb, struct sctp_nets *net);
+	void (*sctp_cwnd_update_packet_transmitted) (struct sctp_tcb *stcb,
+	         struct sctp_nets *net);
+	void (*sctp_cwnd_update_tsn_acknowledged) (struct sctp_nets *net,
+	         struct sctp_tmit_chunk *);
+	void (*sctp_cwnd_new_transmission_begins) (struct sctp_tcb *stcb,
+	         struct sctp_nets *net);
+	void (*sctp_cwnd_prepare_net_for_sack) (struct sctp_tcb *stcb,
+	         struct sctp_nets *net);
+	int (*sctp_cwnd_socket_option) (struct sctp_tcb *stcb, int set, struct sctp_cc_option *);
 };
 
 /*
@@ -1166,6 +1189,7 @@ struct sctp_association {
 	uint8_t sctp_nr_sack_on_off;
 	/* JRS 5/21/07 - CMT PF variable */
 	uint8_t sctp_cmt_pf;
+	uint8_t use_precise_time;
 	/*
 	 * The mapping array is used to track out of order sequences above
 	 * last_acked_seq. 0 indicates packet missing 1 indicates packet

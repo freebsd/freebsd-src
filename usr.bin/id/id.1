@@ -31,7 +31,7 @@
 .\"	@(#)id.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd September 26, 2006
+.Dd March 5, 2011
 .Dt ID 1
 .Os
 .Sh NAME
@@ -50,6 +50,8 @@
 .Nm
 .Fl P
 .Op Ar user
+.Nm
+.Fl c
 .Nm
 .Fl g Op Fl nr
 .Op Ar user
@@ -89,6 +91,8 @@ Display the id as a password file entry.
 Ignored for compatibility with other
 .Nm
 implementations.
+.It Fl c
+Display current login class.
 .It Fl g
 Display the effective group ID as a number.
 .It Fl n

@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #define	VFS_MOUNTARG_SIZE_MAX	(1024 * 64)
 
 static int	vfs_domount(struct thread *td, const char *fstype,
-		    char *fspath, int fsflags, void *fsdata);
+		    char *fspath, int fsflags, struct vfsoptlist **optlist);
 static void	free_mntarg(struct mntarg *ma);
 
 static int	usermount = 0;
@@ -667,7 +667,7 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 		goto bail;
 	}
 
-	error = vfs_domount(td, fstype, fspath, fsflags, optlist);
+	error = vfs_domount(td, fstype, fspath, fsflags, &optlist);
 bail:
 	/* copyout the errmsg */
 	if (errmsg_pos != -1 && ((2 * errmsg_pos + 1) < fsoptions->uio_iovcnt)
@@ -683,7 +683,7 @@ bail:
 		}
 	}
 
-	if (error != 0)
+	if (optlist != NULL)
 		vfs_freeopts(optlist);
 	return (error);
 }
@@ -762,12 +762,12 @@ mount(td, uap)
  */
 static int
 vfs_domount_first(
-	struct thread *td,	/* Calling thread. */
-	struct vfsconf *vfsp,	/* File system type. */
-	char *fspath,		/* Mount path. */
-	struct vnode *vp,	/* Vnode to be covered. */
-	int fsflags,		/* Flags common to all filesystems. */
-	void *fsdata		/* Options local to the filesystem. */
+	struct thread *td,		/* Calling thread. */
+	struct vfsconf *vfsp,		/* File system type. */
+	char *fspath,			/* Mount path. */
+	struct vnode *vp,		/* Vnode to be covered. */
+	int fsflags,			/* Flags common to all filesystems. */
+	struct vfsoptlist **optlist	/* Options local to the filesystem. */
 	)
 {
 	struct vattr va;
@@ -807,7 +807,7 @@ vfs_domount_first(
 	/* Allocate and initialize the filesystem. */
 	mp = vfs_mount_alloc(vp, vfsp, fspath, td->td_ucred);
 	/* XXXMAC: pass to vfs_mount_alloc? */
-	mp->mnt_optnew = fsdata;
+	mp->mnt_optnew = *optlist;
 	/* Set the mount level flags. */
 	mp->mnt_flag = (fsflags & (MNT_UPDATEMASK | MNT_ROOTFS | MNT_RDONLY));
 
@@ -830,6 +830,7 @@ vfs_domount_first(
 	if (mp->mnt_opt != NULL)
 		vfs_freeopts(mp->mnt_opt);
 	mp->mnt_opt = mp->mnt_optnew;
+	*optlist = NULL;
 	(void)VFS_STATFS(mp, &mp->mnt_stat);
 
 	/*
@@ -872,16 +873,16 @@ vfs_domount_first(
  */
 static int
 vfs_domount_update(
-	struct thread *td,	/* Calling thread. */
-	struct vnode *vp,	/* Mount point vnode. */
-	int fsflags,		/* Flags common to all filesystems. */
-	void *fsdata		/* Options local to the filesystem. */
+	struct thread *td,		/* Calling thread. */
+	struct vnode *vp,		/* Mount point vnode. */
+	int fsflags,			/* Flags common to all filesystems. */
+	struct vfsoptlist **optlist	/* Options local to the filesystem. */
 	)
 {
 	struct oexport_args oexport;
 	struct export_args export;
 	struct mount *mp;
-	int error, flag;
+	int error, export_error, flag;
 
 	mtx_assert(&Giant, MA_OWNED);
 	ASSERT_VOP_ELOCKED(vp, __func__);
@@ -932,7 +933,7 @@ vfs_domount_update(
 	if ((mp->mnt_flag & MNT_ASYNC) == 0)
 		mp->mnt_kern_flag &= ~MNTK_ASYNC;
 	MNT_IUNLOCK(mp);
-	mp->mnt_optnew = fsdata;
+	mp->mnt_optnew = *optlist;
 	vfs_mergeopts(mp->mnt_optnew, mp->mnt_opt);
 
 	/*
@@ -942,11 +943,12 @@ vfs_domount_update(
 	 */
 	error = VFS_MOUNT(mp);
 
+	export_error = 0;
 	if (error == 0) {
 		/* Process the export option. */
 		if (vfs_copyopt(mp->mnt_optnew, "export", &export,
 		    sizeof(export)) == 0) {
-			error = vfs_export(mp, &export);
+			export_error = vfs_export(mp, &export);
 		} else if (vfs_copyopt(mp->mnt_optnew, "export", &oexport,
 		    sizeof(oexport)) == 0) {
 			export.ex_flags = oexport.ex_flags;
@@ -958,7 +960,7 @@ vfs_domount_update(
 			export.ex_masklen = oexport.ex_masklen;
 			export.ex_indexfile = oexport.ex_indexfile;
 			export.ex_numsecflavors = 0;
-			error = vfs_export(mp, &export);
+			export_error = vfs_export(mp, &export);
 		}
 	}
 
@@ -988,6 +990,7 @@ vfs_domount_update(
 	if (mp->mnt_opt != NULL)
 		vfs_freeopts(mp->mnt_opt);
 	mp->mnt_opt = mp->mnt_optnew;
+	*optlist = NULL;
 	(void)VFS_STATFS(mp, &mp->mnt_stat);
 	/*
 	 * Prevent external consumers of mount options from reading
@@ -1005,7 +1008,7 @@ end:
 	vp->v_iflag &= ~VI_MOUNT;
 	VI_UNLOCK(vp);
 	vrele(vp);
-	return (error);
+	return (error != 0 ? error : export_error);
 }
 
 /*
@@ -1013,11 +1016,11 @@ end:
  */
 static int
 vfs_domount(
-	struct thread *td,	/* Calling thread. */
-	const char *fstype,	/* Filesystem type. */
-	char *fspath,		/* Mount path. */
-	int fsflags,		/* Flags common to all filesystems. */
-	void *fsdata		/* Options local to the filesystem. */
+	struct thread *td,		/* Calling thread. */
+	const char *fstype,		/* Filesystem type. */
+	char *fspath,			/* Mount path. */
+	int fsflags,			/* Flags common to all filesystems. */
+	struct vfsoptlist **optlist	/* Options local to the filesystem. */
 	)
 {
 	struct vfsconf *vfsp;
@@ -1087,9 +1090,9 @@ vfs_domount(
 	vp = nd.ni_vp;
 	if ((fsflags & MNT_UPDATE) == 0) {
 		error = vfs_domount_first(td, vfsp, fspath, vp, fsflags,
-		    fsdata);
+		    optlist);
 	} else {
-		error = vfs_domount_update(td, vp, fsflags, fsdata);
+		error = vfs_domount_update(td, vp, fsflags, optlist);
 	}
 	mtx_unlock(&Giant);
 

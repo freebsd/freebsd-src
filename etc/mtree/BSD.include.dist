@@ -84,7 +84,7 @@
         ..
     ..
     clang
-        2.8
+        2.9
         ..
     ..
     crypto
@@ -105,6 +105,8 @@
         ieee488
         ..
         iicbus
+        ..
+        io
         ..
         lmc
         ..

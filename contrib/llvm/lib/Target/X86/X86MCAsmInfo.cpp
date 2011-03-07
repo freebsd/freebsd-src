@@ -17,6 +17,7 @@
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/ELF.h"
 using namespace llvm;
 
 enum AsmWriterFlavorTy {
@@ -68,7 +69,7 @@ X86MCAsmInfoDarwin::X86MCAsmInfoDarwin(const Triple &Triple) {
   DwarfUsesInlineInfoSection = true;
 
   // Exceptions handling
-  ExceptionsType = ExceptionHandling::Dwarf;
+  ExceptionsType = ExceptionHandling::DwarfTable;
 }
 
 X86ELFMCAsmInfo::X86ELFMCAsmInfo(const Triple &T) {
@@ -88,8 +89,8 @@ X86ELFMCAsmInfo::X86ELFMCAsmInfo(const Triple &T) {
   SupportsDebugInformation = true;
 
   // Exceptions handling
-  ExceptionsType = ExceptionHandling::Dwarf;
-  
+  ExceptionsType = ExceptionHandling::DwarfTable;
+
   // OpenBSD has buggy support for .quad in 32-bit mode, just split into two
   // .words.
   if (T.getOS() == Triple::OpenBSD && T.getArch() == Triple::x86)
@@ -98,13 +99,15 @@ X86ELFMCAsmInfo::X86ELFMCAsmInfo(const Triple &T) {
 
 const MCSection *X86ELFMCAsmInfo::
 getNonexecutableStackSection(MCContext &Ctx) const {
-  return Ctx.getELFSection(".note.GNU-stack", MCSectionELF::SHT_PROGBITS,
-                           0, SectionKind::getMetadata(), false);
+  return Ctx.getELFSection(".note.GNU-stack", ELF::SHT_PROGBITS,
+                           0, SectionKind::getMetadata());
 }
 
 X86MCAsmInfoCOFF::X86MCAsmInfoCOFF(const Triple &Triple) {
-  if (Triple.getArch() == Triple::x86_64)
+  if (Triple.getArch() == Triple::x86_64) {
     GlobalPrefix = "";
+    PrivateGlobalPrefix = ".L";
+  }
 
   AsmTransCBE = x86_asm_table;
   AssemblerDialect = AsmWriterFlavor;

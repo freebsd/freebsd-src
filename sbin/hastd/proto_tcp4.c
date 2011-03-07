@@ -475,22 +475,6 @@ tcp4_descriptor(const void *ctx)
 	return (tctx->tc_fd);
 }
 
-static void
-sin2str(struct sockaddr_in *sinp, char *addr, size_t size)
-{
-	in_addr_t ip;
-	unsigned int port;
-
-	PJDLOG_ASSERT(addr != NULL);
-	PJDLOG_ASSERT(sinp->sin_family == AF_INET);
-
-	ip = ntohl(sinp->sin_addr.s_addr);
-	port = ntohs(sinp->sin_port);
-	PJDLOG_VERIFY(snprintf(addr, size, "tcp4://%u.%u.%u.%u:%u",
-	    ((ip >> 24) & 0xff), ((ip >> 16) & 0xff), ((ip >> 8) & 0xff),
-	    (ip & 0xff), port) < (ssize_t)size);
-}
-
 static bool
 tcp4_address_match(const void *ctx, const char *addr)
 {
@@ -529,7 +513,7 @@ tcp4_local_address(const void *ctx, char *addr, size_t size)
 		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}
-	sin2str(&sin, addr, size);
+	PJDLOG_VERIFY(snprintf(addr, size, "tcp4://%S", &sin) < (ssize_t)size);
 }
 
 static void
@@ -547,7 +531,7 @@ tcp4_remote_address(const void *ctx, char *addr, size_t size)
 		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}
-	sin2str(&sin, addr, size);
+	PJDLOG_VERIFY(snprintf(addr, size, "tcp4://%S", &sin) < (ssize_t)size);
 }
 
 static void

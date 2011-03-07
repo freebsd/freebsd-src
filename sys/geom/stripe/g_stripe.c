@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 #include <geom/stripe/g_stripe.h>
 
+FEATURE(geom_stripe, "GEOM striping support");
 
 static MALLOC_DEFINE(M_STRIPE, "stripe_data", "GEOM_STRIPE Data");
 

@@ -1,5 +1,6 @@
 /* ld-emul.h - Linker emulation header file
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000, 2002, 2003
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000, 2001,
+   2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
    This file is part of GLD, the Gnu Linker.
@@ -53,7 +54,7 @@ extern void ldemul_set_symbols
 extern void ldemul_create_output_section_statements
   (void);
 extern bfd_boolean ldemul_place_orphan
-  (struct lang_input_statement_struct *, asection *);
+  (asection *);
 extern bfd_boolean ldemul_parse_args
   (int, char **);
 extern void ldemul_add_options
@@ -75,6 +76,10 @@ extern void after_open_default
 extern void after_allocation_default
   (void);
 extern void before_allocation_default
+  (void);
+extern void finish_default
+  (void);
+extern void finish_default
   (void);
 extern void set_output_arch_default
   (void);
@@ -142,7 +147,7 @@ typedef struct ld_emulation_xfer_struct {
      the default action should be taken.  This field may be NULL, in
      which case the default action will always be taken.  */
   bfd_boolean (*place_orphan)
-    (struct lang_input_statement_struct *, asection *);
+    (asection *);
 
   /* Run after assigning parsing with the args, but before
      reading the script.  Used to initialize symbols used in the script.  */

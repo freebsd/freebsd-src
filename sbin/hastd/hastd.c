@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
- * Copyright (c) 2010-2011 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2010-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -361,6 +361,10 @@ resource_needs_restart(const struct hast_resource *res0,
 			return (true);
 		if (res0->hr_replication != res1->hr_replication)
 			return (true);
+		if (res0->hr_checksum != res1->hr_checksum)
+			return (true);
+		if (res0->hr_compression != res1->hr_compression)
+			return (true);
 		if (res0->hr_timeout != res1->hr_timeout)
 			return (true);
 		if (strcmp(res0->hr_exec, res1->hr_exec) != 0)
@@ -385,6 +389,10 @@ resource_needs_reload(const struct hast_resource *res0,
 		return (true);
 	if (res0->hr_replication != res1->hr_replication)
 		return (true);
+	if (res0->hr_checksum != res1->hr_checksum)
+		return (true);
+	if (res0->hr_compression != res1->hr_compression)
+		return (true);
 	if (res0->hr_timeout != res1->hr_timeout)
 		return (true);
 	if (strcmp(res0->hr_exec, res1->hr_exec) != 0)
@@ -404,6 +412,8 @@ resource_reload(const struct hast_resource *res)
 	nv_add_uint8(nvout, HASTCTL_RELOAD, "cmd");
 	nv_add_string(nvout, res->hr_remoteaddr, "remoteaddr");
 	nv_add_int32(nvout, (int32_t)res->hr_replication, "replication");
+	nv_add_int32(nvout, (int32_t)res->hr_checksum, "checksum");
+	nv_add_int32(nvout, (int32_t)res->hr_compression, "compression");
 	nv_add_int32(nvout, (int32_t)res->hr_timeout, "timeout");
 	nv_add_string(nvout, res->hr_exec, "exec");
 	if (nv_error(nvout) != 0) {
@@ -562,6 +572,8 @@ hastd_reload(void)
 			strlcpy(cres->hr_remoteaddr, nres->hr_remoteaddr,
 			    sizeof(cres->hr_remoteaddr));
 			cres->hr_replication = nres->hr_replication;
+			cres->hr_checksum = nres->hr_checksum;
+			cres->hr_compression = nres->hr_compression;
 			cres->hr_timeout = nres->hr_timeout;
 			strlcpy(cres->hr_exec, nres->hr_exec,
 			    sizeof(cres->hr_exec));

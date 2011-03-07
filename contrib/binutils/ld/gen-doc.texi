@@ -3,12 +3,17 @@
 @set GENERIC
 
 @c 2. Specific target machines
-@set H8300
-@set I960
 @set ARM
+@set H8300
 @set HPPA
+@set I960
+@set M68HC11
 @set MMIX
 @set MSP430
+@set POWERPC
+@set POWERPC64
+@set Renesas
+@set SPU
 @set TICOFF
 @set WIN32
 @set XTENSA

@@ -49,6 +49,13 @@ __FBSDID("$FreeBSD$");
 #define	FL_ERASE_4K		0x01
 #define	FL_ERASE_32K		0x02
 
+/*
+ * Define the sectorsize to be a smaller size rather than the flash
+ * sector size. Trying to run FFS off of a 64k flash sector size
+ * results in a completely un-usable system.
+ */
+#define	MX25L_SECTORSIZE	512
+
 struct mx25l_flash_ident
 {
 	const char	*name;
@@ -231,15 +238,11 @@ mx25l_write(device_t dev, off_t offset, caddr_t data, off_t count)
 	write_offset = offset;
 
 	/*
-	 * Sanity checks
+	 * Use the erase sectorsize here since blocks are fully erased
+	 * first before they're written to.
 	 */
-	KASSERT(count % sc->sc_sectorsize == 0,
-	    ("count for BIO_WRITE is not sector size (%d bytes) aligned",
-		sc->sc_sectorsize));
-
-	KASSERT(offset % sc->sc_sectorsize == 0,
-	    ("offset for BIO_WRITE is not sector size (%d bytes) aligned",
-		sc->sc_sectorsize));
+	if (count % sc->sc_sectorsize != 0 || offset % sc->sc_sectorsize != 0)
+		return (EIO);
 
 	/*
 	 * Assume here that we write per-sector only 
@@ -308,15 +311,13 @@ mx25l_read(device_t dev, off_t offset, caddr_t data, off_t count)
 	sc = device_get_softc(dev);
 
 	/*
-	 * Sanity checks
+	 * Enforce the disk read sectorsize not the erase sectorsize.
+	 * In this way, smaller read IO is possible,dramatically
+	 * speeding up filesystem/geom_compress access.
 	 */
-	KASSERT(count % sc->sc_sectorsize == 0,
-	    ("count for BIO_READ is not sector size (%d bytes) aligned",
-		sc->sc_sectorsize));
-
-	KASSERT(offset % sc->sc_sectorsize == 0,
-	    ("offset for BIO_READ is not sector size (%d bytes) aligned",
-		sc->sc_sectorsize));
+	if (count % sc->sc_disk->d_sectorsize != 0
+	    || offset % sc->sc_disk->d_sectorsize != 0)
+		return (EIO);
 
 	txBuf[0] = CMD_FAST_READ;
 	cmd.tx_cmd_sz = 5;
@@ -371,7 +372,7 @@ mx25l_attach(device_t dev)
 	sc->sc_disk->d_name = "flash/spi";
 	sc->sc_disk->d_drv1 = sc;
 	sc->sc_disk->d_maxsize = DFLTPHYS;
-	sc->sc_disk->d_sectorsize = ident->sectorsize;
+	sc->sc_disk->d_sectorsize = MX25L_SECTORSIZE;
 	sc->sc_disk->d_mediasize = ident->sectorsize * ident->sectorcount;
 	sc->sc_disk->d_unit = device_get_unit(sc->sc_dev);
 	sc->sc_disk->d_dump = NULL;		/* NB: no dumps */

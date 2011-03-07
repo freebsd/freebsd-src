@@ -19,6 +19,7 @@
 #include "clang/Lex/Preprocessor.h"
 #include "clang-c/Index.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cstring>
@@ -28,9 +29,51 @@ using namespace clang;
 using llvm::StringRef;
 
 //===----------------------------------------------------------------------===//
+// Code completion context implementation
+//===----------------------------------------------------------------------===//
+
+bool CodeCompletionContext::wantConstructorResults() const {
+  switch (Kind) {
+  case CCC_Recovery:
+  case CCC_Statement:
+  case CCC_Expression:
+  case CCC_ObjCMessageReceiver:
+  case CCC_ParenthesizedExpression:
+    return true;
+    
+  case CCC_TopLevel:
+  case CCC_ObjCInterface:
+  case CCC_ObjCImplementation:
+  case CCC_ObjCIvarList:
+  case CCC_ClassStructUnion:
+  case CCC_MemberAccess:
+  case CCC_EnumTag:
+  case CCC_UnionTag:
+  case CCC_ClassOrStructTag:
+  case CCC_ObjCProtocolName:
+  case CCC_Namespace:
+  case CCC_Type:
+  case CCC_Name:
+  case CCC_PotentiallyQualifiedName:
+  case CCC_MacroName:
+  case CCC_MacroNameUse:
+  case CCC_PreprocessorExpression:
+  case CCC_PreprocessorDirective:
+  case CCC_NaturalLanguage:
+  case CCC_SelectorName:
+  case CCC_TypeQualifiers:
+  case CCC_Other:
+  case CCC_OtherWithMacros:
+    return false;
+  }
+  
+  return false;
+}
+
+//===----------------------------------------------------------------------===//
 // Code completion string implementation
 //===----------------------------------------------------------------------===//
-CodeCompletionString::Chunk::Chunk(ChunkKind Kind, llvm::StringRef Text) 
+CodeCompletionString::Chunk::Chunk(ChunkKind Kind, const char *Text) 
   : Kind(Kind), Text("")
 {
   switch (Kind) {
@@ -39,13 +82,9 @@ CodeCompletionString::Chunk::Chunk(ChunkKind Kind, llvm::StringRef Text)
   case CK_Placeholder:
   case CK_Informative:
   case CK_ResultType:
-  case CK_CurrentParameter: {
-    char *New = new char [Text.size() + 1];
-    std::memcpy(New, Text.data(), Text.size());
-    New[Text.size()] = '\0';
-    this->Text = New;
+  case CK_CurrentParameter:
+    this->Text = Text;
     break;
-  }
 
   case CK_Optional:
     llvm_unreachable("Optional strings cannot be created from text");
@@ -110,112 +149,48 @@ CodeCompletionString::Chunk::Chunk(ChunkKind Kind, llvm::StringRef Text)
 }
 
 CodeCompletionString::Chunk
-CodeCompletionString::Chunk::CreateText(StringRef Text) {
+CodeCompletionString::Chunk::CreateText(const char *Text) {
   return Chunk(CK_Text, Text);
 }
 
 CodeCompletionString::Chunk 
-CodeCompletionString::Chunk::CreateOptional(
-                                 std::auto_ptr<CodeCompletionString> Optional) {
+CodeCompletionString::Chunk::CreateOptional(CodeCompletionString *Optional) {
   Chunk Result;
   Result.Kind = CK_Optional;
-  Result.Optional = Optional.release();
+  Result.Optional = Optional;
   return Result;
 }
 
 CodeCompletionString::Chunk 
-CodeCompletionString::Chunk::CreatePlaceholder(StringRef Placeholder) {
+CodeCompletionString::Chunk::CreatePlaceholder(const char *Placeholder) {
   return Chunk(CK_Placeholder, Placeholder);
 }
 
 CodeCompletionString::Chunk 
-CodeCompletionString::Chunk::CreateInformative(StringRef Informative) {
+CodeCompletionString::Chunk::CreateInformative(const char *Informative) {
   return Chunk(CK_Informative, Informative);
 }
 
 CodeCompletionString::Chunk 
-CodeCompletionString::Chunk::CreateResultType(StringRef ResultType) {
+CodeCompletionString::Chunk::CreateResultType(const char *ResultType) {
   return Chunk(CK_ResultType, ResultType);
 }
 
 CodeCompletionString::Chunk 
 CodeCompletionString::Chunk::CreateCurrentParameter(
-                                                StringRef CurrentParameter) {
+                                                const char *CurrentParameter) {
   return Chunk(CK_CurrentParameter, CurrentParameter);
 }
 
-CodeCompletionString::Chunk CodeCompletionString::Chunk::Clone() const {
-  switch (Kind) {
-  case CK_TypedText:
-  case CK_Text:
-  case CK_Placeholder:
-  case CK_Informative:
-  case CK_ResultType:
-  case CK_CurrentParameter:
-  case CK_LeftParen:
-  case CK_RightParen:
-  case CK_LeftBracket:
-  case CK_RightBracket:
-  case CK_LeftBrace:
-  case CK_RightBrace:
-  case CK_LeftAngle:
-  case CK_RightAngle:
-  case CK_Comma:
-  case CK_Colon:
-  case CK_SemiColon:
-  case CK_Equal:
-  case CK_HorizontalSpace:
-  case CK_VerticalSpace:
-    return Chunk(Kind, Text);
-      
-  case CK_Optional: {
-    std::auto_ptr<CodeCompletionString> Opt(Optional->Clone());
-    return CreateOptional(Opt);
-  }
-  }
-
-  // Silence GCC warning.
-  return Chunk();
-}
-
-void
-CodeCompletionString::Chunk::Destroy() {
-  switch (Kind) {
-  case CK_Optional: 
-    delete Optional; 
-    break;
-      
-  case CK_TypedText:
-  case CK_Text: 
-  case CK_Placeholder:
-  case CK_Informative:
-  case CK_ResultType:
-  case CK_CurrentParameter:
-    delete [] Text;
-    break;
-
-  case CK_LeftParen:
-  case CK_RightParen:
-  case CK_LeftBracket:
-  case CK_RightBracket:
-  case CK_LeftBrace:
-  case CK_RightBrace:
-  case CK_LeftAngle:
-  case CK_RightAngle:
-  case CK_Comma:
-  case CK_Colon:
-  case CK_SemiColon:
-  case CK_Equal:
-  case CK_HorizontalSpace:
-  case CK_VerticalSpace:
-    break;
-  }
-}
-
-void CodeCompletionString::clear() {
-  std::for_each(Chunks.begin(), Chunks.end(), 
-                std::mem_fun_ref(&Chunk::Destroy));
-  Chunks.clear();
+CodeCompletionString::CodeCompletionString(const Chunk *Chunks, 
+                                           unsigned NumChunks,
+                                           unsigned Priority, 
+                                           CXAvailabilityKind Availability) 
+  : NumChunks(NumChunks), Priority(Priority), Availability(Availability) 
+{ 
+  Chunk *StoredChunks = reinterpret_cast<Chunk *>(this + 1);
+  for (unsigned I = 0; I != NumChunks; ++I)
+    StoredChunks[I] = Chunks[I];
 }
 
 std::string CodeCompletionString::getAsString() const {
@@ -247,140 +222,30 @@ const char *CodeCompletionString::getTypedText() const {
   return 0;
 }
 
-CodeCompletionString *
-CodeCompletionString::Clone(CodeCompletionString *Result) const {
-  if (!Result)
-    Result = new CodeCompletionString;
-  for (iterator C = begin(), CEnd = end(); C != CEnd; ++C)
-    Result->AddChunk(C->Clone());
+const char *CodeCompletionAllocator::CopyString(llvm::StringRef String) {
+  char *Mem = (char *)Allocate(String.size() + 1, 1);
+  std::copy(String.begin(), String.end(), Mem);
+  Mem[String.size()] = 0;
+  return Mem;
+}
+
+const char *CodeCompletionAllocator::CopyString(llvm::Twine String) {
+  // FIXME: It would be more efficient to teach Twine to tell us its size and
+  // then add a routine there to fill in an allocated char* with the contents
+  // of the string.
+  llvm::SmallString<128> Data;
+  return CopyString(String.toStringRef(Data));
+}
+
+CodeCompletionString *CodeCompletionBuilder::TakeString() {
+  void *Mem = Allocator.Allocate(
+                  sizeof(CodeCompletionString) + sizeof(Chunk) * Chunks.size(), 
+                                 llvm::alignOf<CodeCompletionString>());
+  CodeCompletionString *Result 
+    = new (Mem) CodeCompletionString(Chunks.data(), Chunks.size(),
+                               Priority, Availability);
+  Chunks.clear();
   return Result;
-}
-
-static void WriteUnsigned(llvm::raw_ostream &OS, unsigned Value) {
-  OS.write((const char *)&Value, sizeof(unsigned));
-}
-
-static bool ReadUnsigned(const char *&Memory, const char *MemoryEnd,
-                         unsigned &Value) {
-  if (Memory + sizeof(unsigned) > MemoryEnd)
-    return true;
-
-  memmove(&Value, Memory, sizeof(unsigned));
-  Memory += sizeof(unsigned);
-  return false;
-}
-
-void CodeCompletionString::Serialize(llvm::raw_ostream &OS) const {
-  // Write the number of chunks.
-  WriteUnsigned(OS, size());
-
-  for (iterator C = begin(), CEnd = end(); C != CEnd; ++C) {
-    WriteUnsigned(OS, C->Kind);
-
-    switch (C->Kind) {
-    case CK_TypedText:
-    case CK_Text:
-    case CK_Placeholder:
-    case CK_Informative:
-    case CK_ResultType:
-    case CK_CurrentParameter: {
-      const char *Text = C->Text;
-      unsigned StrLen = strlen(Text);
-      WriteUnsigned(OS, StrLen);
-      OS.write(Text, StrLen);
-      break;
-    }
-
-    case CK_Optional:
-      C->Optional->Serialize(OS);
-      break;
-
-    case CK_LeftParen:
-    case CK_RightParen:
-    case CK_LeftBracket:
-    case CK_RightBracket:
-    case CK_LeftBrace:
-    case CK_RightBrace:
-    case CK_LeftAngle:
-    case CK_RightAngle:
-    case CK_Comma:
-    case CK_Colon:
-    case CK_SemiColon:
-    case CK_Equal:
-    case CK_HorizontalSpace:
-    case CK_VerticalSpace:
-      break;
-    }
-  }
-}
-
-bool CodeCompletionString::Deserialize(const char *&Str, const char *StrEnd) {
-  if (Str == StrEnd || *Str == 0)
-    return false;
-
-  unsigned NumBlocks;
-  if (ReadUnsigned(Str, StrEnd, NumBlocks))
-    return false;
-
-  for (unsigned I = 0; I != NumBlocks; ++I) {
-    if (Str + 1 >= StrEnd)
-      break;
-
-    // Parse the next kind.
-    unsigned KindValue;
-    if (ReadUnsigned(Str, StrEnd, KindValue))
-      return false;
-
-    switch (ChunkKind Kind = (ChunkKind)KindValue) {
-    case CK_TypedText:
-    case CK_Text:
-    case CK_Placeholder:
-    case CK_Informative:
-    case CK_ResultType:
-    case CK_CurrentParameter: {
-      unsigned StrLen;
-      if (ReadUnsigned(Str, StrEnd, StrLen) || (Str + StrLen > StrEnd))
-        return false;
-
-      AddChunk(Chunk(Kind, StringRef(Str, StrLen)));
-      Str += StrLen;
-      break;
-    }
-
-    case CK_Optional: {
-      std::auto_ptr<CodeCompletionString> Optional(new CodeCompletionString());
-      if (Optional->Deserialize(Str, StrEnd))
-        AddOptionalChunk(Optional);
-      break;
-    }
-
-    case CK_LeftParen:
-    case CK_RightParen:
-    case CK_LeftBracket:
-    case CK_RightBracket:
-    case CK_LeftBrace:
-    case CK_RightBrace:
-    case CK_LeftAngle:
-    case CK_RightAngle:
-    case CK_Comma:
-    case CK_Colon:
-    case CK_SemiColon:
-    case CK_Equal:
-    case CK_HorizontalSpace:
-    case CK_VerticalSpace:
-      AddChunk(Chunk(Kind));
-      break;      
-    }
-  };
-  
-  return true;
-}
-
-void CodeCompletionResult::Destroy() {
-  if (Kind == RK_Pattern) {
-    delete Pattern;
-    Pattern = 0;
-  }
 }
 
 unsigned CodeCompletionResult::getPriorityFromDecl(NamedDecl *ND) {
@@ -389,8 +254,15 @@ unsigned CodeCompletionResult::getPriorityFromDecl(NamedDecl *ND) {
   
   // Context-based decisions.
   DeclContext *DC = ND->getDeclContext()->getRedeclContext();
-  if (DC->isFunctionOrMethod() || isa<BlockDecl>(DC))
+  if (DC->isFunctionOrMethod() || isa<BlockDecl>(DC)) {
+    // _cmd is relatively rare
+    if (ImplicitParamDecl *ImplicitParam = dyn_cast<ImplicitParamDecl>(ND))
+      if (ImplicitParam->getIdentifier() &&
+          ImplicitParam->getIdentifier()->isStr("_cmd"))
+        return CCP_ObjC_cmd;
+    
     return CCP_LocalDeclaration;
+  }
   if (DC->isRecord() || isa<ObjCContainerDecl>(DC))
     return CCP_MemberDeclaration;
   
@@ -399,6 +271,7 @@ unsigned CodeCompletionResult::getPriorityFromDecl(NamedDecl *ND) {
     return CCP_Constant;
   if (isa<TypeDecl>(ND) || isa<ObjCInterfaceDecl>(ND))
     return CCP_Type;
+  
   return CCP_Declaration;
 }
 
@@ -454,9 +327,8 @@ PrintingCodeCompleteConsumer::ProcessCodeCompleteResults(Sema &SemaRef,
       if (Results[I].Hidden)
         OS << " (Hidden)";
       if (CodeCompletionString *CCS 
-            = Results[I].CreateCodeCompletionString(SemaRef)) {
+            = Results[I].CreateCodeCompletionString(SemaRef, Allocator)) {
         OS << " : " << CCS->getAsString();
-        delete CCS;
       }
         
       OS << '\n';
@@ -469,9 +341,8 @@ PrintingCodeCompleteConsumer::ProcessCodeCompleteResults(Sema &SemaRef,
     case CodeCompletionResult::RK_Macro: {
       OS << Results[I].Macro->getName();
       if (CodeCompletionString *CCS 
-            = Results[I].CreateCodeCompletionString(SemaRef)) {
+            = Results[I].CreateCodeCompletionString(SemaRef, Allocator)) {
         OS << " : " << CCS->getAsString();
-        delete CCS;
       }
       OS << '\n';
       break;
@@ -493,9 +364,9 @@ PrintingCodeCompleteConsumer::ProcessOverloadCandidates(Sema &SemaRef,
                                                      unsigned NumCandidates) {
   for (unsigned I = 0; I != NumCandidates; ++I) {
     if (CodeCompletionString *CCS
-          = Candidates[I].CreateSignatureString(CurrentArg, SemaRef)) {
+          = Candidates[I].CreateSignatureString(CurrentArg, SemaRef,
+                                                Allocator)) {
       OS << "OVERLOAD: " << CCS->getAsString() << "\n";
-      delete CCS;
     }
   }
 }
@@ -586,38 +457,4 @@ bool clang::operator<(const CodeCompletionResult &X,
     return cmp < 0;
   
   return false;
-}
-
-void 
-CIndexCodeCompleteConsumer::ProcessCodeCompleteResults(Sema &SemaRef,
-                                                 CodeCompletionContext Context,
-                                                 CodeCompletionResult *Results,
-                                                       unsigned NumResults) {
-  // Print the results.
-  for (unsigned I = 0; I != NumResults; ++I) {
-    WriteUnsigned(OS, Results[I].CursorKind);
-    WriteUnsigned(OS, Results[I].Priority);
-    WriteUnsigned(OS, Results[I].Availability);
-    CodeCompletionString *CCS = Results[I].CreateCodeCompletionString(SemaRef);
-    assert(CCS && "No code-completion string?");
-    CCS->Serialize(OS);
-    delete CCS;
-  }
-}
-
-void 
-CIndexCodeCompleteConsumer::ProcessOverloadCandidates(Sema &SemaRef,
-                                                      unsigned CurrentArg,
-                                                OverloadCandidate *Candidates,
-                                                       unsigned NumCandidates) {
-  for (unsigned I = 0; I != NumCandidates; ++I) {
-    WriteUnsigned(OS, CXCursor_NotImplemented);
-    WriteUnsigned(OS, /*Priority=*/I);
-    WriteUnsigned(OS, /*Availability=*/CXAvailability_Available);
-    CodeCompletionString *CCS
-      = Candidates[I].CreateSignatureString(CurrentArg, SemaRef);
-    assert(CCS && "No code-completion string?");
-    CCS->Serialize(OS);
-    delete CCS;
-  }
 }

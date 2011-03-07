@@ -17,6 +17,7 @@
 #define DEBUG_TYPE "loop-delete"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Analysis/LoopPass.h"
+#include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/SmallVector.h"
@@ -28,7 +29,9 @@ namespace {
   class LoopDeletion : public LoopPass {
   public:
     static char ID; // Pass ID, replacement for typeid
-    LoopDeletion() : LoopPass(ID) {}
+    LoopDeletion() : LoopPass(ID) {
+      initializeLoopDeletionPass(*PassRegistry::getPassRegistry());
+    }
     
     // Possibly eliminate loop L if it is dead.
     bool runOnLoop(Loop* L, LPPassManager& LPM);
@@ -49,14 +52,20 @@ namespace {
       AU.addPreserved<LoopInfo>();
       AU.addPreservedID(LoopSimplifyID);
       AU.addPreservedID(LCSSAID);
-      AU.addPreserved<DominanceFrontier>();
     }
   };
 }
   
 char LoopDeletion::ID = 0;
-INITIALIZE_PASS(LoopDeletion, "loop-deletion",
-                "Delete dead loops", false, false);
+INITIALIZE_PASS_BEGIN(LoopDeletion, "loop-deletion",
+                "Delete dead loops", false, false)
+INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+INITIALIZE_PASS_DEPENDENCY(LoopInfo)
+INITIALIZE_PASS_DEPENDENCY(ScalarEvolution)
+INITIALIZE_PASS_DEPENDENCY(LoopSimplify)
+INITIALIZE_PASS_DEPENDENCY(LCSSA)
+INITIALIZE_PASS_END(LoopDeletion, "loop-deletion",
+                "Delete dead loops", false, false)
 
 Pass* llvm::createLoopDeletionPass() {
   return new LoopDeletion();
@@ -69,7 +78,6 @@ bool LoopDeletion::IsLoopDead(Loop* L,
                               SmallVector<BasicBlock*, 4>& exitingBlocks,
                               SmallVector<BasicBlock*, 4>& exitBlocks,
                               bool &Changed, BasicBlock *Preheader) {
-  BasicBlock* exitingBlock = exitingBlocks[0];
   BasicBlock* exitBlock = exitBlocks[0];
   
   // Make sure that all PHI entries coming from the loop are loop invariant.
@@ -79,11 +87,21 @@ bool LoopDeletion::IsLoopDead(Loop* L,
   // of the loop.
   BasicBlock::iterator BI = exitBlock->begin();
   while (PHINode* P = dyn_cast<PHINode>(BI)) {
-    Value* incoming = P->getIncomingValueForBlock(exitingBlock);
+    Value* incoming = P->getIncomingValueForBlock(exitingBlocks[0]);
+
+    // Make sure all exiting blocks produce the same incoming value for the exit
+    // block.  If there are different incoming values for different exiting
+    // blocks, then it is impossible to statically determine which value should
+    // be used.
+    for (unsigned i = 1; i < exitingBlocks.size(); ++i) {
+      if (incoming != P->getIncomingValueForBlock(exitingBlocks[i]))
+        return false;
+    }
+      
     if (Instruction* I = dyn_cast<Instruction>(incoming))
       if (!L->makeLoopInvariant(I, Changed, Preheader->getTerminator()))
         return false;
-      
+
     ++BI;
   }
   
@@ -138,10 +156,6 @@ bool LoopDeletion::runOnLoop(Loop* L, LPPassManager& LPM) {
   if (exitBlocks.size() != 1)
     return false;
   
-  // Loops with multiple exits are too complicated to handle correctly.
-  if (exitingBlocks.size() != 1)
-    return false;
-  
   // Finally, we have to check that the loop really is dead.
   bool Changed = false;
   if (!IsLoopDead(L, exitingBlocks, exitBlocks, Changed, preheader))
@@ -157,7 +171,6 @@ bool LoopDeletion::runOnLoop(Loop* L, LPPassManager& LPM) {
   // Now that we know the removal is safe, remove the loop by changing the
   // branch from the preheader to go to the single exit block.  
   BasicBlock* exitBlock = exitBlocks[0];
-  BasicBlock* exitingBlock = exitingBlocks[0];
   
   // Because we're deleting a large chunk of code at once, the sequence in which
   // we remove things is very important to avoid invalidation issues.  Don't
@@ -174,31 +187,31 @@ bool LoopDeletion::runOnLoop(Loop* L, LPPassManager& LPM) {
 
   // Rewrite phis in the exit block to get their inputs from
   // the preheader instead of the exiting block.
+  BasicBlock* exitingBlock = exitingBlocks[0];
   BasicBlock::iterator BI = exitBlock->begin();
   while (PHINode* P = dyn_cast<PHINode>(BI)) {
     P->replaceUsesOfWith(exitingBlock, preheader);
+    for (unsigned i = 1; i < exitingBlocks.size(); ++i)
+      P->removeIncomingValue(exitingBlocks[i]);
     ++BI;
   }
   
   // Update the dominator tree and remove the instructions and blocks that will
   // be deleted from the reference counting scheme.
   DominatorTree& DT = getAnalysis<DominatorTree>();
-  DominanceFrontier* DF = getAnalysisIfAvailable<DominanceFrontier>();
-  SmallPtrSet<DomTreeNode*, 8> ChildNodes;
+  SmallVector<DomTreeNode*, 8> ChildNodes;
   for (Loop::block_iterator LI = L->block_begin(), LE = L->block_end();
        LI != LE; ++LI) {
     // Move all of the block's children to be children of the preheader, which
     // allows us to remove the domtree entry for the block.
-    ChildNodes.insert(DT[*LI]->begin(), DT[*LI]->end());
-    for (SmallPtrSet<DomTreeNode*, 8>::iterator DI = ChildNodes.begin(),
+    ChildNodes.insert(ChildNodes.begin(), DT[*LI]->begin(), DT[*LI]->end());
+    for (SmallVector<DomTreeNode*, 8>::iterator DI = ChildNodes.begin(),
          DE = ChildNodes.end(); DI != DE; ++DI) {
       DT.changeImmediateDominator(*DI, DT[preheader]);
-      if (DF) DF->changeImmediateDominator((*DI)->getBlock(), preheader, &DT);
     }
     
     ChildNodes.clear();
     DT.eraseNode(*LI);
-    if (DF) DF->removeBlock(*LI);
 
     // Remove the block from the reference counting scheme, so that we can
     // delete it freely later.

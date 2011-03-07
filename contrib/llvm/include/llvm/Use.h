@@ -25,7 +25,6 @@
 #ifndef LLVM_USE_H
 #define LLVM_USE_H
 
-#include "llvm/Support/Casting.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include <cstddef>
 #include <iterator>
@@ -35,9 +34,8 @@ namespace llvm {
 class Value;
 class User;
 class Use;
-
-/// Tag - generic tag type for (at least 32 bit) pointers
-enum Tag { noTag, tagOne, tagTwo, tagThree };
+template<typename>
+struct simplify_type;
 
 // Use** is only 4-byte aligned.
 template<>
@@ -67,17 +65,19 @@ private:
   Use(const Use &U);
 
   /// Destructor - Only for zap()
-  inline ~Use() {
+  ~Use() {
     if (Val) removeFromList();
   }
 
-  /// Default ctor - This leaves the Use completely uninitialized.  The only
-  /// thing that is valid to do with this use is to call the "init" method.
-  inline Use() {}
-  enum PrevPtrTag { zeroDigitTag = noTag
-                  , oneDigitTag = tagOne
-                  , stopTag = tagTwo
-                  , fullStopTag = tagThree };
+  enum PrevPtrTag { zeroDigitTag
+                  , oneDigitTag
+                  , stopTag
+                  , fullStopTag };
+
+  /// Constructor
+  Use(PrevPtrTag tag) : Val(0) {
+    Prev.setInt(tag);
+  }
 
 public:
   /// Normally Use will just implicitly convert to a Value* that it holds.
@@ -112,11 +112,9 @@ public:
   /// a User changes.
   static void zap(Use *Start, const Use *Stop, bool del = false);
 
-  /// getPrefix - Return deletable pointer if appropriate
-  Use *getPrefix();
 private:
   const Use* getImpliedUser() const;
-  static Use *initTags(Use *Start, Use *Stop, ptrdiff_t Done = 0);
+  static Use *initTags(Use *Start, Use *Stop);
   
   Value *Val;
   Use *Next;
@@ -208,6 +206,15 @@ public:
   /// User.h
   ///
   unsigned getOperandNo() const;
+};
+
+//===----------------------------------------------------------------------===//
+//                         AugmentedUse layout struct
+//===----------------------------------------------------------------------===//
+
+struct AugmentedUse : public Use {
+  PointerIntPair<User*, 1, unsigned> ref;
+  AugmentedUse(); // not implemented
 };
 
 } // End llvm namespace

@@ -161,29 +161,36 @@ static const char *reloc_names[] = {
 static const long reloc_target_bitmask[] = {
 #define _BM(x)	(~(-(1ULL << (x))))
 	0,				/* NONE */
-	_BM(8), _BM(16), _BM(32),	/* RELOC_8, _16, _32 */
+	_BM(8), _BM(16), _BM(32),	/* RELOC_8, 16, 32 */
 	_BM(8), _BM(16), _BM(32),	/* DISP8, DISP16, DISP32 */
 	_BM(30), _BM(22),		/* WDISP30, WDISP22 */
-	_BM(22), _BM(22),		/* HI22, _22 */
-	_BM(13), _BM(10),		/* RELOC_13, _LO10 */
+	_BM(22), _BM(22),		/* HI22, 22 */
+	_BM(13), _BM(10),		/* RELOC_13, LO10 */
 	_BM(10), _BM(13), _BM(22),	/* GOT10, GOT13, GOT22 */
-	_BM(10), _BM(22),		/* _PC10, _PC22 */
-	_BM(30), 0,			/* _WPLT30, _COPY */
-	_BM(32), _BM(32), _BM(32),	/* _GLOB_DAT, JMP_SLOT, _RELATIVE */
-	_BM(32), _BM(32),		/* _UA32, PLT32 */
-	_BM(22), _BM(10),		/* _HIPLT22, LOPLT10 */
-	_BM(32), _BM(22), _BM(10),	/* _PCPLT32, _PCPLT22, _PCPLT10 */
-	_BM(10), _BM(11), -1,		/* _10, _11, _64 */
-	_BM(13), _BM(22),		/* _OLO10, _HH22 */
-	_BM(10), _BM(22),		/* _HM10, _LM22 */
-	_BM(22), _BM(10), _BM(22),	/* _PC_HH22, _PC_HM10, _PC_LM22 */
-	_BM(16), _BM(19),		/* _WDISP16, _WDISP19 */
+	_BM(10), _BM(22),		/* PC10, PC22 */
+	_BM(30), 0,			/* WPLT30, COPY */
+	_BM(32), _BM(32), _BM(32),	/* GLOB_DAT, JMP_SLOT, RELATIVE */
+	_BM(32), _BM(32),		/* UA32, PLT32 */
+	_BM(22), _BM(10),		/* HIPLT22, LOPLT10 */
+	_BM(32), _BM(22), _BM(10),	/* PCPLT32, PCPLT22, PCPLT10 */
+	_BM(10), _BM(11), -1,		/* 10, 11, 64 */
+	_BM(13), _BM(22),		/* OLO10, HH22 */
+	_BM(10), _BM(22),		/* HM10, LM22 */
+	_BM(22), _BM(10), _BM(22),	/* PC_HH22, PC_HM10, PC_LM22 */
+	_BM(16), _BM(19),		/* WDISP16, WDISP19 */
 	-1,				/* GLOB_JMP */
-	_BM(7), _BM(5), _BM(6),		/* _7, _5, _6 */
+	_BM(7), _BM(5), _BM(6),		/* 7, 5, 6 */
 	-1, -1,				/* DISP64, PLT64 */
 	_BM(22), _BM(13),		/* HIX22, LOX10 */
 	_BM(22), _BM(10), _BM(13),	/* H44, M44, L44 */
 	-1, -1, _BM(16),		/* REGISTER, UA64, UA16 */
+	_BM(22), _BM(10), 0, _BM(30),	/* GD_HI22, GD_LO10, GD_ADD, GD_CALL */
+	_BM(22), _BM(10), 0,		/* LDM_HI22, LDMO10, LDM_ADD */
+	_BM(30),			/* LDM_CALL */
+	_BM(22), _BM(10), 0,		/* LDO_HIX22, LDO_LOX10, LDO_ADD */
+	_BM(22), _BM(10), 0, 0,		/* IE_HI22, IE_LO10, IE_LD, IE_LDX */
+	0,				/* IE_ADD */
+	_BM(22), _BM(13),		/* LE_HIX22, LE_LOX10 */
 #undef _BM
 };
 #define RELOC_VALUE_BITMASK(t)	(reloc_target_bitmask[t])
@@ -228,7 +235,7 @@ do_copy_relocations(Obj_Entry *dstobj)
 			    ELF_R_SYM(rela->r_info));
 
 			for (srcobj = dstobj->next; srcobj != NULL;
-			     srcobj = srcobj->next) {
+			    srcobj = srcobj->next) {
 				res = symlook_obj(&req, srcobj);
 				if (res == 0) {
 					srcsym = req.sym_out;
@@ -303,11 +310,11 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache,
 	if (type == R_SPARC_NONE)
 		return (0);
 
-	/* We do JMP_SLOTs below */
+	/* We do JMP_SLOTs below. */
 	if (type == R_SPARC_JMP_SLOT)
 		return (0);
 
-	/* COPY relocs are also handled elsewhere */
+	/* COPY relocs are also handled elsewhere. */
 	if (type == R_SPARC_COPY)
 		return (0);
 
@@ -321,11 +328,11 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache,
 	value = rela->r_addend;
 
 	/*
-	 * Handle relative relocs here, because we might not
-	 * be able to access globals yet.
+	 * Handle relative relocs here, because we might not be able to access
+	 * globals yet.
 	 */
 	if (type == R_SPARC_RELATIVE) {
-		/* XXXX -- apparently we ignore the preexisting value */
+		/* XXXX -- apparently we ignore the preexisting value. */
 		*where = (Elf_Addr)(obj->relocbase + value);
 		return (0);
 	}
@@ -335,19 +342,21 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache,
 	 * a non-local variable is accessed.
 	 */
 	if (RELOC_RESOLVE_SYMBOL(type)) {
-
-		/* Find the symbol */
+		/* Find the symbol. */
 		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
 		    false, cache, lockstate);
 		if (def == NULL)
 			return (-1);
 
-		/* Add in the symbol's absolute address */
+		/* Add in the symbol's absolute address. */
 		value += (Elf_Addr)(defobj->relocbase + def->st_value);
 	}
 
 	if (type == R_SPARC_OLO10)
 		value = (value & 0x3ff) + ELF64_R_TYPE_DATA(rela->r_info);
+
+	if (type == R_SPARC_HIX22)
+		value ^= 0xffffffffffffffff;
 
 	if (RELOC_PC_RELATIVE(type))
 		value -= (Elf_Addr)where;
@@ -445,7 +454,6 @@ reloc_plt(Obj_Entry *obj)
 #define	SETHIG5	0x0b000000	/*	sethi	%hi(0), %g5 */
 #define	ORG5	0x82804005	/*	or	%g1, %g5, %g1 */
 
-
 /* %hi(v) with variable shift */
 #define	HIVAL(v, s)	(((v) >> (s)) &  0x003fffff)
 #define LOVAL(v)	((v) & 0x000003ff)
@@ -477,7 +485,7 @@ reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
 
 Elf_Addr
 reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
-	      const Obj_Entry *refobj, const Elf_Rel *rel)
+    const Obj_Entry *refobj, const Elf_Rel *rel)
 {
 	const Elf_Rela *rela = (const Elf_Rela *)rel;
 	Elf_Addr offset;
@@ -734,21 +742,21 @@ install_plt(Elf_Word *pltgot, Elf_Addr proc)
 void
 allocate_initial_tls(Obj_Entry *objs)
 {
-    Elf_Addr* tpval;
+	Elf_Addr* tpval;
 
-    /*
-     * Fix the size of the static TLS block by using the maximum
-     * offset allocated so far and adding a bit for dynamic modules to
-     * use.
-     */
-    tls_static_space = tls_last_offset + RTLD_STATIC_TLS_EXTRA;
-    tpval = allocate_tls(objs, NULL, 3*sizeof(Elf_Addr), sizeof(Elf_Addr));
-    __asm __volatile("mov %0, %%g7" : : "r" (tpval));
+	/*
+	 * Fix the size of the static TLS block by using the maximum offset
+	 * allocated so far and adding a bit for dynamic modules to use.
+	 */
+	tls_static_space = tls_last_offset + RTLD_STATIC_TLS_EXTRA;
+	tpval = allocate_tls(objs, NULL, 3 * sizeof(Elf_Addr),
+	     sizeof(Elf_Addr));
+	__asm __volatile("mov %0, %%g7" : : "r" (tpval));
 }
 
 void *__tls_get_addr(tls_index *ti)
 {
-    register Elf_Addr** tp __asm__("%g7");
+	register Elf_Addr** tp __asm__("%g7");
 
-    return tls_get_addr_common(tp, ti->ti_module, ti->ti_offset);
+	return (tls_get_addr_common(tp, ti->ti_module, ti->ti_offset));
 }
