@@ -19,6 +19,7 @@ SRCS+=	token.l
 SRCS+=	y.tab.h
 MAN=	hastd.8 hast.conf.5
 
+NO_WFORMAT=
 CFLAGS+=-I${.CURDIR}
 CFLAGS+=-DINET
 .if ${MK_INET6_SUPPORT} != "no"
