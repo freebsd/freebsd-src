@@ -52,6 +52,7 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #include <sys/queue.h>
 #include <sys/sched.h>
 #include <sys/sx.h>
+#include <sys/umtx.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -77,7 +78,8 @@ struct waiting_proc {
 
 struct futex {
 	struct sx	f_lck;
-	uint32_t	*f_uaddr;
+	uint32_t	*f_uaddr;	/* user-supplied value, for debug */
+	struct umtx_key	f_key;
 	uint32_t	f_refcount;
 	LIST_ENTRY(futex) f_list;
 	TAILQ_HEAD(lf_waiting_proc, waiting_proc) f_waiting_proc;
@@ -99,6 +101,7 @@ struct mtx futex_mtx;			/* protects the futex list */
 #define FUTEX_CREATE_WP		0x1	/* create waiting_proc */
 #define FUTEX_DONTCREATE	0x2	/* don't create futex if not exists */
 #define FUTEX_DONTEXISTS	0x4	/* return EINVAL if futex exists */
+#define	FUTEX_SHARED		0x8	/* shared futex */
 
 /* wp_flags */
 #define FUTEX_WP_REQUEUED	0x1	/* wp requeued - wp moved from wp_list
@@ -135,6 +138,7 @@ futex_put(struct futex *f, struct waiting_proc *wp)
 
 		LINUX_CTR2(sys_futex, "futex_put destroy uaddr %p ref %d",
 		    f->f_uaddr, f->f_refcount);
+		umtx_key_release(&f->f_key);
 		FUTEX_DESTROY(f);
 		free(f, M_FUTEX);
 		return;
@@ -150,13 +154,19 @@ static int
 futex_get0(uint32_t *uaddr, struct futex **newf, uint32_t flags)
 {
 	struct futex *f, *tmpf;
+	struct umtx_key key;
+	int error;
 
 	*newf = tmpf = NULL;
 
+	error = umtx_key_get(uaddr, TYPE_FUTEX, (flags & FUTEX_SHARED) ?
+	    AUTO_SHARE : THREAD_SHARE, &key);
+	if (error)
+		return (error);
 retry:
 	FUTEXES_LOCK;
 	LIST_FOREACH(f, &futex_list, f_list) {
-		if (f->f_uaddr == uaddr) {
+		if (umtx_key_match(&f->f_key, &key)) {
 			if (tmpf != NULL) {
 				FUTEX_UNLOCK(tmpf);
 				FUTEX_DESTROY(tmpf);
@@ -164,6 +174,7 @@ retry:
 			}
 			if (flags & FUTEX_DONTEXISTS) {
 				FUTEXES_UNLOCK;
+				umtx_key_release(&key);
 				return (EINVAL);
 			}
 
@@ -173,6 +184,7 @@ retry:
 			 */
 			++f->f_refcount;
 			FUTEXES_UNLOCK;
+			umtx_key_release(&key);
 
 			FUTEX_LOCK(f);
 			*newf = f;
@@ -184,6 +196,7 @@ retry:
 
 	if (flags & FUTEX_DONTCREATE) {
 		FUTEXES_UNLOCK;
+		umtx_key_release(&key);
 		LINUX_CTR1(sys_futex, "futex_get uaddr %p null", uaddr);
 		return (0);
 	}
@@ -192,6 +205,7 @@ retry:
 		FUTEXES_UNLOCK;
 		tmpf = malloc(sizeof(*tmpf), M_FUTEX, M_WAITOK | M_ZERO);
 		tmpf->f_uaddr = uaddr;
+		tmpf->f_key = key;
 		tmpf->f_refcount = 1;
 		FUTEX_INIT(tmpf);
 		TAILQ_INIT(&tmpf->f_waiting_proc);
@@ -433,15 +447,13 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 	struct waiting_proc *wp;
 	struct futex *f, *f2;
 	int error = 0;
+	uint32_t flags;
 
-	/*
-	 * Our implementation provides only privates futexes. Most of the apps
-	 * should use private futexes but don't claim so. Therefore we treat
-	 * all futexes as private by clearing the FUTEX_PRIVATE_FLAG. It works
-	 * in most cases (ie. when futexes are not shared on file descriptor
-	 * or between different processes.).
-	 */
-	args->op = (args->op & ~LINUX_FUTEX_PRIVATE_FLAG);
+	if (args->op & LINUX_FUTEX_PRIVATE_FLAG) {
+		flags = 0;
+		args->op &= ~LINUX_FUTEX_PRIVATE_FLAG;
+	} else
+		flags = FUTEX_SHARED;
 
 	switch (args->op) {
 	case LINUX_FUTEX_WAIT:
@@ -453,7 +465,8 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 			printf(ARGS(sys_futex, "futex_wait val %d uaddr %p"),
 			    args->val, args->uaddr);
 #endif
-		error = futex_get(args->uaddr, &wp, &f, FUTEX_CREATE_WP);
+		error = futex_get(args->uaddr, &wp, &f,
+		    flags | FUTEX_CREATE_WP);
 		if (error)
 			return (error);
 		error = copyin(args->uaddr, &val, sizeof(val));
@@ -488,7 +501,8 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 			printf(ARGS(sys_futex, "futex_wake val %d uaddr %p"),
 			    args->val, args->uaddr);
 #endif
-		error = futex_get(args->uaddr, NULL, &f, FUTEX_DONTCREATE);
+		error = futex_get(args->uaddr, NULL, &f,
+		    flags | FUTEX_DONTCREATE);
 		if (error)
 			return (error);
 		if (f == NULL) {
@@ -520,7 +534,7 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		 */
 		if (args->uaddr == args->uaddr2)
 			return (EINVAL);
-		error = futex_get0(args->uaddr, &f, 0);
+		error = futex_get(args->uaddr, NULL, &f, flags);
 		if (error)
 			return (error);
 
@@ -532,7 +546,8 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		 * Glibc fall back to FUTEX_WAKE in case of any error
 		 * returned by FUTEX_CMP_REQUEUE.
 		 */
-		error = futex_get0(args->uaddr2, &f2, FUTEX_DONTEXISTS);
+		error = futex_get(args->uaddr2, NULL, &f2,
+		    flags | FUTEX_DONTEXISTS);
 		if (error) {
 			futex_put(f, NULL);
 			return (error);
@@ -573,11 +588,11 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 			    args->uaddr, args->op, args->val,
 			    args->uaddr2, args->val3);
 #endif
-		error = futex_get0(args->uaddr, &f, 0);
+		error = futex_get(args->uaddr, NULL, &f, flags);
 		if (error)
 			return (error);
 		if (args->uaddr != args->uaddr2)
-			error = futex_get0(args->uaddr2, &f2, 0);
+			error = futex_get(args->uaddr2, NULL, &f2, flags);
 		if (error) {
 			futex_put(f, NULL);
 			return (error);
@@ -747,7 +762,7 @@ retry:
 
 		if (!pi && (uval & FUTEX_WAITERS)) {
 			error = futex_get(uaddr, NULL, &f,
-			    FUTEX_DONTCREATE);
+			    FUTEX_DONTCREATE | FUTEX_SHARED);
 			if (error)
 				return (error);
 			if (f != NULL) {
