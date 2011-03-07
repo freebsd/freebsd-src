@@ -95,19 +95,19 @@ static int
 pjdlog_printf_render_sockaddr(struct __printf_io *io,
     const struct printf_info *pi, const void * const *arg)
 {
-	const struct sockaddr *sa;
+	const struct sockaddr_storage *ss;
 	char buf[64];
 	int ret;
 
-	sa = *(const struct sockaddr * const *)arg[0];
-	switch (sa->sa_family) {
+	ss = *(const struct sockaddr_storage * const *)arg[0];
+	switch (ss->ss_family) {
 	case AF_INET:
 	    {
 		const struct sockaddr_in *sin;
 		in_addr_t ip;
 		unsigned int port;
 
-		sin = (const struct sockaddr_in *)sa;
+		sin = (const struct sockaddr_in *)ss;
 		ip = ntohl(sin->sin_addr.s_addr);
 		port = ntohs(sin->sin_port);
 
@@ -118,7 +118,7 @@ pjdlog_printf_render_sockaddr(struct __printf_io *io,
 	    }
 	default:
 		snprintf(buf, sizeof(buf), "[unsupported family %u]",
-		    (unsigned int)sa->sa_family);
+		    (unsigned int)ss->ss_family);
 		break;
 	}
 	ret = __printf_out(io, pi, buf, strlen(buf));
