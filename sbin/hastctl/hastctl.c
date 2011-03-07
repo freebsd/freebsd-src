@@ -213,8 +213,10 @@ dump_one(struct hast_resource *res)
 		return (ret);
 
 	printf("resource: %s\n", res->hr_name);
-	printf("    datasize: %ju\n", (uintmax_t)res->hr_datasize);
-	printf("    extentsize: %d\n", res->hr_extentsize);
+	printf("    datasize: %ju (%NB)\n", (uintmax_t)res->hr_datasize,
+	    (intmax_t)res->hr_datasize);
+	printf("    extentsize: %d (%NB)\n", res->hr_extentsize,
+	    (intmax_t)res->hr_extentsize);
 	printf("    keepdirty: %d\n", res->hr_keepdirty);
 	printf("    localoff: %ju\n", (uintmax_t)res->hr_localoff);
 	printf("    resuid: %ju\n", (uintmax_t)res->hr_resuid);
@@ -321,8 +323,9 @@ control_status(struct nv *nv)
 		    nv_get_string(nv, "provname%u", ii));
 		printf("  localpath: %s\n",
 		    nv_get_string(nv, "localpath%u", ii));
-		printf("  extentsize: %u\n",
-		    (unsigned int)nv_get_uint32(nv, "extentsize%u", ii));
+		printf("  extentsize: %u (%NB)\n",
+		    (unsigned int)nv_get_uint32(nv, "extentsize%u", ii),
+		    (intmax_t)nv_get_uint32(nv, "extentsize%u", ii));
 		printf("  keepdirty: %u\n",
 		    (unsigned int)nv_get_uint32(nv, "keepdirty%u", ii));
 		printf("  remoteaddr: %s\n",
@@ -332,8 +335,9 @@ control_status(struct nv *nv)
 		str = nv_get_string(nv, "status%u", ii);
 		if (str != NULL)
 			printf("  status: %s\n", str);
-		printf("  dirty: %ju bytes\n",
-		    (uintmax_t)nv_get_uint64(nv, "dirty%u", ii));
+		printf("  dirty: %ju (%NB)\n",
+		    (uintmax_t)nv_get_uint64(nv, "dirty%u", ii),
+		    (intmax_t)nv_get_uint64(nv, "dirty%u", ii));
 	}
 	return (ret);
 }
