@@ -1667,6 +1667,7 @@ sync_thread(void *arg __unused)
 	struct hast_resource *res = arg;
 	struct hio *hio;
 	struct g_gate_ctl_io *ggio;
+	struct timeval tstart, tend, tdiff;
 	unsigned int ii, ncomp, ncomps;
 	off_t offset, length, synced;
 	bool dorewind;
@@ -1680,8 +1681,10 @@ sync_thread(void *arg __unused)
 	for (;;) {
 		mtx_lock(&sync_lock);
 		if (offset >= 0 && !sync_inprogress) {
-			pjdlog_info("Synchronization interrupted. "
-			    "%jd bytes synchronized so far.",
+			gettimeofday(&tend, NULL);
+			timersub(&tend, &tstart, &tdiff);
+			pjdlog_info("Synchronization interrupted after %#.0T. "
+			    "%NB synchronized so far.", &tdiff,
 			    (intmax_t)synced);
 			event_send(res, EVENT_SYNCINTR);
 		}
@@ -1713,10 +1716,11 @@ sync_thread(void *arg __unused)
 			if (offset < 0)
 				pjdlog_info("Nodes are in sync.");
 			else {
-				pjdlog_info("Synchronization started. %ju bytes to go.",
-				    (uintmax_t)(res->hr_extentsize *
+				pjdlog_info("Synchronization started. %NB to go.",
+				    (intmax_t)(res->hr_extentsize *
 				    activemap_ndirty(res->hr_amp)));
 				event_send(res, EVENT_SYNCSTART);
+				gettimeofday(&tstart, NULL);
 			}
 		}
 		if (offset < 0) {
@@ -1730,9 +1734,17 @@ sync_thread(void *arg __unused)
 			rw_rlock(&hio_remote_lock[ncomp]);
 			if (ISCONNECTED(res, ncomp)) {
 				if (synced > 0) {
+					int64_t bps;
+
+					gettimeofday(&tend, NULL);
+					timersub(&tend, &tstart, &tdiff);
+					bps = (int64_t)((double)synced /
+					    ((double)tdiff.tv_sec +
+					    (double)tdiff.tv_usec / 1000000));
 					pjdlog_info("Synchronization complete. "
-					    "%jd bytes synchronized.",
-					    (intmax_t)synced);
+					    "%NB synchronized in %#.0lT (%NB/sec).",
+					    (intmax_t)synced, &tdiff,
+					    (intmax_t)bps);
 					event_send(res, EVENT_SYNCDONE);
 				}
 				mtx_lock(&metadata_lock);
