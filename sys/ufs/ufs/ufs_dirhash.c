@@ -426,7 +426,7 @@ ufsdirhash_build(struct inode *ip)
 	}
 	for (i = 0; i < dirblocks; i++)
 		dh->dh_blkfree[i] = DIRBLKSIZ / DIRALIGN;
-	bmask = VFSTOUFS(vp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
+	bmask = vp->v_mount->mnt_stat.f_iosize - 1;
 	pos = 0;
 	while (pos < ip->i_size) {
 		/* If necessary, get the next directory block. */
@@ -587,7 +587,7 @@ ufsdirhash_lookup(struct inode *ip, char *name, int namelen, doff_t *offp,
 	DIRHASHLIST_UNLOCK();
 
 	vp = ip->i_vnode;
-	bmask = VFSTOUFS(vp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
+	bmask = vp->v_mount->mnt_stat.f_iosize - 1;
 	blkoff = -1;
 	bp = NULL;
 	seqoff = dh->dh_seqoff;
