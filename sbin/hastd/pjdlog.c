@@ -31,9 +31,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 #include <assert.h>
 #include <errno.h>
+#include <libutil.h>
+#include <printf.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,6 +55,77 @@ static int pjdlog_initialized = PJDLOG_NEVER_INITIALIZED;
 static int pjdlog_mode, pjdlog_debug_level;
 static char pjdlog_prefix[128];
 
+static int
+pjdlog_printf_arginfo_humanized_number(const struct printf_info *pi __unused,
+    size_t n, int *argt)
+{
+
+	assert(n >= 1);
+	argt[0] = PA_INT | PA_FLAG_INTMAX;
+	return (1);
+}
+
+static int
+pjdlog_printf_render_humanized_number(struct __printf_io *io,
+    const struct printf_info *pi, const void * const *arg)
+{
+	char buf[5];
+	intmax_t num;
+	int ret;
+
+	num = *(const intmax_t *)arg[0];
+	humanize_number(buf, sizeof(buf), (int64_t)num, "", HN_AUTOSCALE,
+	    HN_NOSPACE | HN_DECIMAL);
+	ret = __printf_out(io, pi, buf, strlen(buf));
+	__printf_flush(io);
+	return (ret);
+}
+
+static int
+pjdlog_printf_arginfo_sockaddr(const struct printf_info *pi __unused,
+    size_t n, int *argt)
+{
+
+	assert(n >= 1);
+	argt[0] = PA_POINTER;
+	return (1);
+}
+
+static int
+pjdlog_printf_render_sockaddr(struct __printf_io *io,
+    const struct printf_info *pi, const void * const *arg)
+{
+	const struct sockaddr *sa;
+	char buf[64];
+	int ret;
+
+	sa = *(const struct sockaddr * const *)arg[0];
+	switch (sa->sa_family) {
+	case AF_INET:
+	    {
+		const struct sockaddr_in *sin;
+		in_addr_t ip;
+		unsigned int port;
+
+		sin = (const struct sockaddr_in *)sa;
+		ip = ntohl(sin->sin_addr.s_addr);
+		port = ntohs(sin->sin_port);
+
+		snprintf(buf, sizeof(buf), "%u.%u.%u.%u:%u",
+		    ((ip >> 24) & 0xff), ((ip >> 16) & 0xff),
+		    ((ip >> 8) & 0xff), (ip & 0xff), port);
+		break;
+	    }
+	default:
+		snprintf(buf, sizeof(buf), "[unsupported family %u]",
+		    (unsigned int)sa->sa_family);
+		break;
+	}
+	ret = __printf_out(io, pi, buf, strlen(buf));
+	__printf_flush(io);
+	return (ret);
+}
+
 void
 pjdlog_init(int mode)
 {
@@ -56,6 +133,17 @@ pjdlog_init(int mode)
 	assert(pjdlog_initialized == PJDLOG_NEVER_INITIALIZED ||
 	    pjdlog_initialized == PJDLOG_NOT_INITIALIZED);
 	assert(mode == PJDLOG_MODE_STD || mode == PJDLOG_MODE_SYSLOG);
+
+	if (pjdlog_initialized == PJDLOG_NEVER_INITIALIZED) {
+		__use_xprintf = 1;
+		register_printf_render_std("T");
+		register_printf_render('N',
+		    pjdlog_printf_render_humanized_number,
+		    pjdlog_printf_arginfo_humanized_number);
+		register_printf_render('S',
+		    pjdlog_printf_render_sockaddr,
+		    pjdlog_printf_arginfo_sockaddr);
+	}
 
 	if (mode == PJDLOG_MODE_SYSLOG)
 		openlog(NULL, LOG_PID | LOG_NDELAY, LOG_DAEMON);
