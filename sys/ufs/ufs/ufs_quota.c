@@ -232,8 +232,7 @@ chkdq(struct inode *ip, ufs2_daddr_t change, struct ucred *cred, int flags)
 		/* Reset timer when crossing soft limit */
 		if (dq->dq_curblocks + change >= dq->dq_bsoftlimit &&
 		    dq->dq_curblocks < dq->dq_bsoftlimit)
-			dq->dq_btime = time_second +
-			    VFSTOUFS(ITOV(ip)->v_mount)->um_btime[i];
+			dq->dq_btime = time_second + ip->i_ump->um_btime[i];
 		dq->dq_curblocks += change;
 		dq->dq_flags |= DQ_MOD;
 		DQI_UNLOCK(dq);
@@ -278,8 +277,7 @@ chkdqchg(struct inode *ip, ufs2_daddr_t change, struct ucred *cred,
 	 */
 	if (ncurblocks >= dq->dq_bsoftlimit && dq->dq_bsoftlimit) {
 		if (dq->dq_curblocks < dq->dq_bsoftlimit) {
-			dq->dq_btime = time_second +
-			    VFSTOUFS(ITOV(ip)->v_mount)->um_btime[type];
+			dq->dq_btime = time_second + ip->i_ump->um_btime[type];
 			if (ip->i_uid == cred->cr_uid)
 				*warn = 1;
 			return (0);
@@ -378,8 +376,7 @@ chkiq(struct inode *ip, int change, struct ucred *cred, int flags)
 		/* Reset timer when crossing soft limit */
 		if (dq->dq_curinodes + change >= dq->dq_isoftlimit &&
 		    dq->dq_curinodes < dq->dq_isoftlimit)
-			dq->dq_itime = time_second +
-			    VFSTOUFS(ITOV(ip)->v_mount)->um_itime[i];
+			dq->dq_itime = time_second + ip->i_ump->um_itime[i];
 		dq->dq_curinodes += change;
 		dq->dq_flags |= DQ_MOD;
 		DQI_UNLOCK(dq);
@@ -423,8 +420,7 @@ chkiqchg(struct inode *ip, int change, struct ucred *cred, int type, int *warn)
 	 */
 	if (ncurinodes >= dq->dq_isoftlimit && dq->dq_isoftlimit) {
 		if (dq->dq_curinodes < dq->dq_isoftlimit) {
-			dq->dq_itime = time_second +
-			    VFSTOUFS(ITOV(ip)->v_mount)->um_itime[type];
+			dq->dq_itime = time_second + ip->i_ump->um_itime[type];
 			if (ip->i_uid == cred->cr_uid)
 				*warn = 1;
 			return (0);
@@ -455,7 +451,7 @@ chkiqchg(struct inode *ip, int change, struct ucred *cred, int type, int *warn)
 static void
 chkdquot(struct inode *ip)
 {
-	struct ufsmount *ump = VFSTOUFS(ITOV(ip)->v_mount);
+	struct ufsmount *ump = ip->i_ump;
 	struct vnode *vp = ITOV(ip);
 	int i;
 
