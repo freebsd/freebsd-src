@@ -3858,6 +3858,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 	 * We set this to 0, the timer code knows that this means its an
 	 * initial value
 	 */
+	net->rto_needed = 1;
 	net->RTO = 0;
 	net->RTO_measured = 0;
 	stcb->asoc.numnets++;
