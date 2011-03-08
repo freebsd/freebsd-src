@@ -226,11 +226,20 @@ struct rtcc_cc {
 	uint64_t bw_bytes;	/* The total bytes since this sending began */
 	uint64_t bw_tot_time;	/* The total time since sending began */
 	uint64_t new_tot_time;	/* temp holding the new value */
-	uint32_t cwnd_at_bw_set;
-	uint8_t ret_from_eq;
-	uint8_t use_dccc_ecn;
+	uint64_t bw_bytes_at_last_rttc;	/* What bw_bytes was at last rtt calc */
+	uint32_t cwnd_at_bw_set;/* Cwnd at last bw saved - lbw */
+	uint32_t vol_reduce;	/* cnt of voluntary reductions */
+	uint16_t steady_step;	/* The number required to be in steady state */
+	uint16_t step_cnt;	/* The current number */
+	uint8_t ret_from_eq;	/* When all things are equal what do I return
+				 * 0/1 - 1 no cc advance */
+	uint8_t use_dccc_ecn;	/* Flag to enable DCCC ECN */
 	uint8_t tls_needs_set;	/* Flag to indicate we need to set tls 0 or 1
 				 * means set at send 2 not */
+	uint8_t last_step_state;/* Last state if steady state stepdown is on */
+	uint8_t rtt_set_this_sack;	/* Flag saying this sack had RTT calc
+					 * on it */
+	uint8_t last_inst_ind;	/* Last saved inst indication */
 };
 
 
@@ -364,6 +373,7 @@ struct sctp_nets {
 	uint8_t RTO_measured;	/* Have we done the first measure */
 	uint8_t last_hs_used;	/* index into the last HS table entry we used */
 	uint8_t lan_type;
+	uint8_t rto_needed;
 	uint32_t flowid;
 #ifdef INVARIANTS
 	uint8_t flowidset;
@@ -671,6 +681,7 @@ struct sctp_cc_functions {
 	void (*sctp_cwnd_prepare_net_for_sack) (struct sctp_tcb *stcb,
 	         struct sctp_nets *net);
 	int (*sctp_cwnd_socket_option) (struct sctp_tcb *stcb, int set, struct sctp_cc_option *);
+	void (*sctp_rtt_calculated) (struct sctp_tcb *, struct sctp_nets *, struct timeval *);
 };
 
 /*
