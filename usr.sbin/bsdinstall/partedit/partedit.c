@@ -128,7 +128,7 @@ main(int argc, const char **argv) {
 		}
 
 		error = 0;
-		if (op == 5 && validate_setup()) { /* Finished */
+		if (op == 5) { /* Finished */
 			dialog_vars.extra_button = TRUE;
 			dialog_vars.extra_label =
 			    __DECONST(char *, "Abort");
@@ -140,7 +140,7 @@ main(int argc, const char **argv) {
 			dialog_vars.extra_button = FALSE;
 			dialog_vars.ok_label = NULL;
 
-			if (op == 0) { /* Save */
+			if (op == 0 && validate_setup()) { /* Save */
 				error = apply_changes(&mesh);
 				break;
 			} else if (op == 3) { /* Don't save => Quit */
