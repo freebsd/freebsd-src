@@ -149,6 +149,7 @@ struct sysentvec ia32_freebsd_sysvec = {
 	.sv_syscallnames = freebsd32_syscallnames,
 	.sv_shared_page_base = FREEBSD32_SHAREDPAGE,
 	.sv_shared_page_len = PAGE_SIZE,
+	.sv_schedtail	= NULL,
 };
 INIT_SYSENTVEC(elf_ia32_sysvec, &ia32_freebsd_sysvec);
 
