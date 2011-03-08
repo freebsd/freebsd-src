@@ -952,7 +952,13 @@ ugen_re_enumerate(struct usb_fifo *f)
 	}
 	if (udev->flags.usb_mode != USB_MODE_HOST) {
 		/* not possible in device side mode */
+		DPRINTFN(6, "device mode\n");
 		return (ENOTTY);
+	}
+	if (udev->parent_hub == NULL) {
+		/* the root HUB cannot be re-enumerated */
+		DPRINTFN(6, "cannot reset root HUB\n");
+		return (EINVAL);
 	}
 	/* make sure all FIFO's are gone */
 	/* else there can be a deadlock */
