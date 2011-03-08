@@ -300,13 +300,16 @@ linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
 }
 
 void
-linux_schedtail(void *arg __unused, struct proc *p)
+linux_schedtail(struct thread *td)
 {
 	struct linux_emuldata *em;
+	struct proc *p;
 	int error = 0;
 	int *child_set_tid;
 
-	if (__predict_true(p->p_sysent != &elf_linux_sysvec))
+	p = td->td_proc;
+
+	if (SV_PROC_ABI(p) != SV_ABI_LINUX)
 		return;
 
 	/* find the emuldata */

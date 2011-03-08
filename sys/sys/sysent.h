@@ -125,6 +125,7 @@ struct sysentvec {
 	vm_offset_t	sv_shared_page_len;
 	vm_offset_t	sv_sigcode_base;
 	void		*sv_shared_page_obj;
+	void		(*sv_schedtail)(struct thread *);
 };
 
 #define	SV_ILP32	0x000100
