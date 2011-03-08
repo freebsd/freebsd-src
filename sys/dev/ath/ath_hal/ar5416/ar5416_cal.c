@@ -468,6 +468,9 @@ ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 
 	/* Do NF cal only at longer intervals */
 	if (longcal) {
+		/* Do temperature compensation if the chipset needs it */
+		AH5416(ah)->ah_olcTempCompensation(ah);
+
 		/*
 		 * Get the value from the previous NF cal
 		 * and update the history buffer.

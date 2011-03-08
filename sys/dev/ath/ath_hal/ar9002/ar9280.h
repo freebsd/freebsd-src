@@ -20,12 +20,23 @@
 
 #include "ar5416/ar5416.h"
 
+/*
+ * This is a chip thing, but it's used here as part of the
+ * ath_hal_9280 struct; so it's convienent to locate the
+ * define here.
+ */
+#define AR9280_TX_GAIN_TABLE_SIZE               22
+
 struct ath_hal_9280 {
 	struct ath_hal_5416 ah_5416;
 
 	HAL_INI_ARRAY	ah_ini_xmodes;
 	HAL_INI_ARRAY	ah_ini_rxgain;
 	HAL_INI_ARRAY	ah_ini_txgain;
+
+	int PDADCdelta;
+
+	uint32_t	originalGain[AR9280_TX_GAIN_TABLE_SIZE];
 };
 #define	AH9280(_ah)	((struct ath_hal_9280 *)(_ah))
 
