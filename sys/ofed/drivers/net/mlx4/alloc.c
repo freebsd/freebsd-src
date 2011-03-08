@@ -229,6 +229,7 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 		int i;
 
 		buf->direct.buf  = NULL;
+		buf->direct.map  = 0;
 		buf->nbufs       = (size + PAGE_SIZE - 1) / PAGE_SIZE;
 		buf->npages      = buf->nbufs;
 		buf->page_shift  = PAGE_SHIFT;
@@ -249,7 +250,6 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 			memset(buf->page_list[i].buf, 0, PAGE_SIZE);
 		}
 
-#ifdef __linux__
 		if (BITS_PER_LONG == 64) {
 			struct page **pages;
 			pages = kmalloc(sizeof *pages * buf->nbufs, GFP_KERNEL);
@@ -262,7 +262,6 @@ int mlx4_buf_alloc(struct mlx4_dev *dev, int size, int max_direct,
 			if (!buf->direct.buf)
 				goto err_free;
 		}
-#endif
 	}
 
 	return 0;
@@ -282,10 +281,8 @@ void mlx4_buf_free(struct mlx4_dev *dev, int size, struct mlx4_buf *buf)
 		dma_free_coherent(&dev->pdev->dev, size, buf->direct.buf,
 				  buf->direct.map);
 	else {
-#ifdef __linux__
 		if (BITS_PER_LONG == 64 && buf->direct.buf)
 			vunmap(buf->direct.buf);
-#endif
 
 		for (i = 0; i < buf->nbufs; ++i)
 			if (buf->page_list[i].buf)

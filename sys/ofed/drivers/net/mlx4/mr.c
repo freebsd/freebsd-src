@@ -484,7 +484,7 @@ int mlx4_buf_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		return -ENOMEM;
 
 	for (i = 0; i < buf->npages; ++i)
-		if (buf->direct.buf)
+		if (buf->direct.map)
 			page_list[i] = buf->direct.map + (i << buf->page_shift);
 		else
 			page_list[i] = buf->page_list[i].map;
