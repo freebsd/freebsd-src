@@ -249,7 +249,7 @@ cpuset_lookup(cpusetid_t setid, struct thread *td)
  * will have no valid cpu based on restrictions from the parent.
  */
 static int
-_cpuset_create(struct cpuset *set, struct cpuset *parent, cpuset_t *mask,
+_cpuset_create(struct cpuset *set, struct cpuset *parent, const cpuset_t *mask,
     cpusetid_t id)
 {
 
@@ -260,7 +260,7 @@ _cpuset_create(struct cpuset *set, struct cpuset *parent, cpuset_t *mask,
 	refcount_init(&set->cs_ref, 1);
 	set->cs_flags = 0;
 	mtx_lock_spin(&cpuset_lock);
-	CPU_AND(mask, &parent->cs_mask);
+	CPU_AND(&set->cs_mask, &parent->cs_mask);
 	set->cs_id = id;
 	set->cs_parent = cpuset_ref(parent);
 	LIST_INSERT_HEAD(&parent->cs_children, set, cs_siblings);
@@ -277,7 +277,7 @@ _cpuset_create(struct cpuset *set, struct cpuset *parent, cpuset_t *mask,
  * allocated.
  */
 static int
-cpuset_create(struct cpuset **setp, struct cpuset *parent, cpuset_t *mask)
+cpuset_create(struct cpuset **setp, struct cpuset *parent, const cpuset_t *mask)
 {
 	struct cpuset *set;
 	cpusetid_t id;
@@ -475,7 +475,7 @@ cpuset_which(cpuwhich_t which, id_t id, struct proc **pp, struct thread **tdp,
  * the new set is a child of 'set'.
  */
 static int
-cpuset_shadow(struct cpuset *set, struct cpuset *fset, cpuset_t *mask)
+cpuset_shadow(struct cpuset *set, struct cpuset *fset, const cpuset_t *mask)
 {
 	struct cpuset *parent;
 
