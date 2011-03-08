@@ -568,12 +568,6 @@ gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 			if (wname > wmax)
 				wmax = wname;
 		}
-	} else {
-		/* In some cases width of index can be greater than
-		 * length of provider's name.
-		 */
-		if (wblocks > wmax)
-			wmax = wblocks;
 	}
 	wname = wmax;
 	pp = LIST_FIRST(&gp->lg_consumer)->lg_provider;
