@@ -58,13 +58,9 @@ struct fl_buf_info {
 	uma_zone_t zone;
 };
 
-/* t4_sge_init will fill up the zone */
-static struct fl_buf_info fl_buf_info[FL_BUF_SIZES] = {
-	{ MCLBYTES, EXT_CLUSTER, NULL},
-	{ MJUMPAGESIZE, EXT_JUMBOP, NULL},
-	{ MJUM9BYTES, EXT_JUMBO9, NULL},
-	{ MJUM16BYTES, EXT_JUMBO16, NULL}
-};
+/* Filled up by t4_sge_modload */
+static struct fl_buf_info fl_buf_info[FL_BUF_SIZES];
+
 #define FL_BUF_SIZE(x)	(fl_buf_info[x].size)
 #define FL_BUF_TYPE(x)	(fl_buf_info[x].type)
 #define FL_BUF_ZONE(x)	(fl_buf_info[x].zone)
@@ -142,6 +138,29 @@ static __be64 get_flit(bus_dma_segment_t *, int, int);
 static int handle_sge_egr_update(struct adapter *,
     const struct cpl_sge_egr_update *);
 
+/*
+ * Called on MOD_LOAD and fills up fl_buf_info[].
+ */
+void
+t4_sge_modload(void)
+{
+	int i;
+	int bufsize[FL_BUF_SIZES] = {
+		MCLBYTES,
+#if MJUMPAGESIZE != MCLBYTES
+		MJUMPAGESIZE,
+#endif
+		MJUM9BYTES,
+		MJUM16BYTES
+	};
+
+	for (i = 0; i < FL_BUF_SIZES; i++) {
+		FL_BUF_SIZE(i) = bufsize[i];
+		FL_BUF_TYPE(i) = m_gettype(bufsize[i]);
+		FL_BUF_ZONE(i) = m_getzone(bufsize[i]);
+	}
+}
+
 /**
  *	t4_sge_init - initialize SGE
  *	@sc: the adapter
@@ -155,11 +174,6 @@ t4_sge_init(struct adapter *sc)
 {
 	struct sge *s = &sc->sge;
 	int i;
-
-	FL_BUF_ZONE(0) = zone_clust;
-	FL_BUF_ZONE(1) = zone_jumbop;
-	FL_BUF_ZONE(2) = zone_jumbo9;
-	FL_BUF_ZONE(3) = zone_jumbo16;
 
 	t4_set_reg_field(sc, A_SGE_CONTROL, V_PKTSHIFT(M_PKTSHIFT) |
 			 V_INGPADBOUNDARY(M_INGPADBOUNDARY) |
@@ -584,7 +598,7 @@ t4_intr_data(void *arg)
 		bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map,
 		    BUS_DMASYNC_POSTREAD);
 
-		m_init(m0, zone_mbuf, MLEN, M_NOWAIT, MT_DATA, M_PKTHDR);
+		m_init(m0, NULL, 0, M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (len < MINCLSIZE) {
 			/* copy data to mbuf, buffer will be recycled */
 			bcopy(sd->cl, mtod(m0, caddr_t), len);
@@ -645,7 +659,7 @@ t4_intr_data(void *arg)
 			bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map,
 			    BUS_DMASYNC_POSTREAD);
 
-			m_init(m, zone_mbuf, MLEN, M_NOWAIT, MT_DATA, 0);
+			m_init(m, NULL, 0, M_NOWAIT, MT_DATA, 0);
 			if (len <= MLEN) {
 				bcopy(sd->cl, mtod(m, caddr_t), len);
 				m->m_len = len;
@@ -1600,9 +1614,6 @@ alloc_fl_sdesc(struct sge_fl *fl)
 		rc = bus_dmamap_create(tag, 0, &sd->map);
 		if (rc != 0)
 			goto failed;
-
-		/* Doesn't matter if this succeeds or not */
-		sd->m = m_gethdr(M_NOWAIT, MT_NOINIT);
 	}
 
 	return (0);
@@ -1611,7 +1622,7 @@ failed:
 		sd--;
 		bus_dmamap_destroy(tag, sd->map);
 		if (sd->m) {
-			m_init(sd->m, zone_mbuf, MLEN, M_NOWAIT, MT_DATA, 0);
+			m_init(sd->m, NULL, 0, M_NOWAIT, MT_DATA, 0);
 			m_free(sd->m);
 			sd->m = NULL;
 		}
@@ -1636,7 +1647,7 @@ free_fl_sdesc(struct sge_fl *fl)
 	for (i = 0; i < fl->cap; i++, sd++) {
 
 		if (sd->m) {
-			m_init(sd->m, zone_mbuf, MLEN, M_NOWAIT, MT_DATA, 0);
+			m_init(sd->m, NULL, 0, M_NOWAIT, MT_DATA, 0);
 			m_free(sd->m);
 			sd->m = NULL;
 		}
