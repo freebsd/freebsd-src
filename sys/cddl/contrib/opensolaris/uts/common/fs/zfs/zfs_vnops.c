@@ -2394,7 +2394,8 @@ zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp, int *ncookies, u_lon
 		 * Minimum entry size is dirent size and 1 byte for a file name.
 		 */
 		ncooks = uio->uio_resid / (sizeof(struct dirent) - sizeof(((struct dirent *)NULL)->d_name) + 1);
-		*cookies = malloc(ncooks * sizeof(u_long), M_TEMP, M_WAITOK);
+		cooks = malloc(ncooks * sizeof(u_long), M_TEMP, M_WAITOK);
+		*cookies = cooks;
 		*ncookies = ncooks;
 	}
 	/*
@@ -2541,16 +2542,6 @@ zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp, int *ncookies, u_lon
 		if (prefetch)
 			dmu_prefetch(os, objnum, 0, 0);
 
-		if (ncookies != NULL) {
-			if (cooks == NULL)
-				cooks = *cookies;
-			else {
-				*cooks++ = offset;
-				ncooks--;
-				KASSERT(ncooks >= 0, ("ncookies=%d", ncooks));
-			}
-		}
-
 	skip_entry:
 		/*
 		 * Move to the next entry, fill in the previous offset.
@@ -2560,6 +2551,12 @@ zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp, int *ncookies, u_lon
 			offset = zap_cursor_serialize(&zc);
 		} else {
 			offset += 1;
+		}
+
+		if (cooks != NULL) {
+			*cooks++ = offset;
+			ncooks--;
+			KASSERT(ncooks >= 0, ("ncookies=%d", ncooks));
 		}
 	}
 	zp->z_zn_prefetch = B_FALSE; /* a lookup will re-enable pre-fetching */
