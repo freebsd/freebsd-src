@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>	
 #include <sys/sdt.h>
 #include <sys/sx.h>
+#include <sys/sysent.h>
 #include <sys/signalvar.h>
 
 #include <security/audit/audit.h>
@@ -895,7 +896,8 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 	}
 	mtx_assert(&Giant, MA_NOTOWNED);
 
-	EVENTHANDLER_INVOKE(schedtail, p);
+	if (p->p_sysent->sv_schedtail != NULL)
+		(p->p_sysent->sv_schedtail)(td);
 }
 
 /*
