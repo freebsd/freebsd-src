@@ -8254,7 +8254,10 @@ no_data_fill:
 				} else {
 					asoc->time_last_sent = *now;
 				}
-				data_list[0]->do_rtt = 1;
+				if (net->rto_needed) {
+					data_list[0]->do_rtt = 1;
+					net->rto_needed = 0;
+				}
 				SCTP_STAT_INCR_BY(sctps_senddata, bundle_at);
 				sctp_clean_up_datalist(stcb, asoc, data_list, bundle_at, net);
 				if (SCTP_BASE_SYSCTL(sctp_early_fr)) {
