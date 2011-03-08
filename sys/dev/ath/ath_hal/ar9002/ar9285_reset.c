@@ -67,8 +67,6 @@ static void ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
 	uint16_t tPdGainOverlap, int16_t *pMinCalPower,
 	uint16_t * pPdGainBoundaries, uint8_t * pPDADCValues,
 	uint16_t numXpdGains);
-static HAL_BOOL getLowerUpperIndex(uint8_t target, uint8_t *pList,
-	uint16_t listSize,  uint16_t *indexL, uint16_t *indexR);
 static uint16_t ar9285GetMaxEdgePower(uint16_t, CAL_CTL_EDGES *);
 
 /* XXX gag, this is sick */
@@ -155,9 +153,12 @@ ar9285SetTransmitPower(struct ath_hal *ah,
      */
     for (i = 0; i < N(ratesArray); i++) {
         ratesArray[i] = (int16_t)(txPowerIndexOffset + ratesArray[i]);
+	/* -5 dBm offset for Merlin and later; this includes Kite */
+	ratesArray[i] -= AR5416_PWR_TABLE_OFFSET_DB * 2;
         if (ratesArray[i] > AR5416_MAX_RATE_POWER)
             ratesArray[i] = AR5416_MAX_RATE_POWER;
-	ratesArray[i] -= AR5416_PWR_TABLE_OFFSET_DB * 2;
+	if (ratesArray[i] < 0)
+		ratesArray[i] = 0;
     }
 
 #ifdef AH_EEPROM_DUMP
@@ -552,11 +553,11 @@ ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
     uint16_t pdGainOverlap_t2;
     static uint8_t  pdadcValues[AR5416_NUM_PDADC_VALUES];
     uint16_t gainBoundaries[AR5416_PD_GAINS_IN_MASK];
-    uint16_t numPiers, i, j;
+    uint16_t numPiers, i;
     int16_t  tMinCalPower;
     uint16_t numXpdGain, xpdMask;
-    uint16_t xpdGainValues[AR5416_4K_NUM_PD_GAINS];
-    uint32_t reg32, regOffset, regChainOffset;
+    uint16_t xpdGainValues[4];	/* v4k eeprom has 2; the other two stay 0 */
+    uint32_t regChainOffset;
 
     OS_MEMZERO(xpdGainValues, sizeof(xpdGainValues));
     
@@ -571,6 +572,7 @@ ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
     pCalBChans = pEepData->calFreqPier2G;
     numPiers = AR5416_4K_NUM_2G_CAL_PIERS;
     numXpdGain = 0;
+
     /* Calculate the value of xpdgains from the xpdGain Mask */
     for (i = 1; i <= AR5416_PD_GAINS_IN_MASK; i++) {
         if ((xpdMask >> (AR5416_PD_GAINS_IN_MASK - i)) & 1) {
@@ -584,23 +586,10 @@ ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
     }
     
     /* Write the detector gain biases and their number */
-    OS_REG_WRITE(ah, AR_PHY_TPCRG1, (OS_REG_READ(ah, AR_PHY_TPCRG1) & 
-    	~(AR_PHY_TPCRG1_NUM_PD_GAIN | AR_PHY_TPCRG1_PD_GAIN_1 | AR_PHY_TPCRG1_PD_GAIN_2 | AR_PHY_TPCRG1_PD_GAIN_3)) | 
-	SM(numXpdGain - 1, AR_PHY_TPCRG1_NUM_PD_GAIN) | SM(xpdGainValues[0], AR_PHY_TPCRG1_PD_GAIN_1 ) |
-	SM(xpdGainValues[1], AR_PHY_TPCRG1_PD_GAIN_2) | SM(0, AR_PHY_TPCRG1_PD_GAIN_3));
+    ar5416WriteDetectorGainBiases(ah, numXpdGain, xpdGainValues);
 
     for (i = 0; i < AR5416_MAX_CHAINS; i++) {
-
-            if (AR_SREV_OWL_20_OR_LATER(ah) && 
-            ( AH5416(ah)->ah_rx_chainmask == 0x5 || AH5416(ah)->ah_tx_chainmask == 0x5) && (i != 0)) {
-            /* Regs are swapped from chain 2 to 1 for 5416 2_0 with 
-             * only chains 0 and 2 populated 
-             */
-            regChainOffset = (i == 1) ? 0x2000 : 0x1000;
-        } else {
-            regChainOffset = i * 0x1000;
-        }
-
+	regChainOffset = ar5416GetRegChainOffset(ah, i);
         if (pEepData->baseEepHeader.txMask & (1 << i)) {
             pRawDataset = pEepData->calPierData2G[i];
 
@@ -616,35 +605,11 @@ ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
                  * negative or greater than 0.  Need to offset the power
                  * values by the amount of minPower for griffin
                  */
-
-                OS_REG_WRITE(ah, AR_PHY_TPCRG5 + regChainOffset,
-                     SM(pdGainOverlap_t2, AR_PHY_TPCRG5_PD_GAIN_OVERLAP) |
-                     SM(gainBoundaries[0], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_1)  |
-                     SM(gainBoundaries[1], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_2)  |
-                     SM(gainBoundaries[2], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_3)  |
-                     SM(gainBoundaries[3], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_4));
+		ar5416SetGainBoundariesClosedLoop(ah, regChainOffset, pdGainOverlap_t2, gainBoundaries); 
             }
 
             /* Write the power values into the baseband power table */
-            regOffset = AR_PHY_BASE + (672 << 2) + regChainOffset;
-
-            for (j = 0; j < 32; j++) {
-                reg32 = ((pdadcValues[4*j + 0] & 0xFF) << 0)  |
-                    ((pdadcValues[4*j + 1] & 0xFF) << 8)  |
-                    ((pdadcValues[4*j + 2] & 0xFF) << 16) |
-                    ((pdadcValues[4*j + 3] & 0xFF) << 24) ;
-                OS_REG_WRITE(ah, regOffset, reg32);
-
-#ifdef PDADC_DUMP
-		ath_hal_printf(ah, "PDADC: Chain %d | PDADC %3d Value %3d | PDADC %3d Value %3d | PDADC %3d Value %3d | PDADC %3d Value %3d |\n",
-			       i,
-			       4*j, pdadcValues[4*j],
-			       4*j+1, pdadcValues[4*j + 1],
-			       4*j+2, pdadcValues[4*j + 2],
-			       4*j+3, pdadcValues[4*j + 3]);
-#endif
-                regOffset += 4;
-            }
+	    ar5416WritePdadcValues(ah, regChainOffset, pdadcValues);
         }
     }
     *pTxPowerIndexOffset = 0;
@@ -858,47 +823,4 @@ interpolate(uint16_t target, uint16_t srcLeft, uint16_t srcRight,
               (srcRight - target) * targetLeft) / (srcRight - srcLeft) );
     }
     return rv;
-}
-
-HAL_BOOL
-getLowerUpperIndex(uint8_t target, uint8_t *pList, uint16_t listSize,
-                   uint16_t *indexL, uint16_t *indexR)
-{
-    uint16_t i;
-
-    /*
-     * Check first and last elements for beyond ordered array cases.
-     */
-    if (target <= pList[0]) {
-        *indexL = *indexR = 0;
-        return AH_TRUE;
-    }
-    if (target >= pList[listSize-1]) {
-        *indexL = *indexR = (uint16_t)(listSize - 1);
-        return AH_TRUE;
-    }
-
-    /* look for value being near or between 2 values in list */
-    for (i = 0; i < listSize - 1; i++) {
-        /*
-         * If value is close to the current value of the list
-         * then target is not between values, it is one of the values
-         */
-        if (pList[i] == target) {
-            *indexL = *indexR = i;
-            return AH_TRUE;
-        }
-        /*
-         * Look for value being between current value and next value
-         * if so return these 2 values
-         */
-        if (target < pList[i + 1]) {
-            *indexL = i;
-            *indexR = (uint16_t)(i + 1);
-            return AH_FALSE;
-        }
-    }
-    HALASSERT(0);
-    *indexL = *indexR = 0;
-    return AH_FALSE;
 }
