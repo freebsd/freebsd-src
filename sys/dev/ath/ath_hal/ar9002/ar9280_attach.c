@@ -30,6 +30,7 @@
 
 #include "ar9002/ar9280v1.ini"
 #include "ar9002/ar9280v2.ini"
+#include "ar9002/ar9280_olc.h"
 
 static const HAL_PERCAL_DATA ar9280_iq_cal = {		/* single sample */
 	.calName = "IQ", .calType = IQ_MISMATCH_CAL,
@@ -112,6 +113,7 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 	uint32_t val;
 	HAL_STATUS ecode;
 	HAL_BOOL rfStatus;
+	int8_t pwr_table_offset;
 
 	HALDEBUG(AH_NULL, HAL_DEBUG_ATTACH, "%s: sc %p st %p sh %p\n",
 	    __func__, sc, (void*) st, (void*) sh);
@@ -142,6 +144,10 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 
 	AH5416(ah)->ah_spurMitigate	= ar9280SpurMitigate;
 	AH5416(ah)->ah_writeIni		= ar9280WriteIni;
+	AH5416(ah)->ah_olcInit		= ar9280olcInit;
+	AH5416(ah)->ah_olcTempCompensation = ar9280olcTemperatureCompensation;
+	AH5416(ah)->ah_setPowerCalTable	= ar9280SetPowerCalTable;
+
 	AH5416(ah)->ah_rx_chainmask	= AR9280_DEFAULT_RXCHAINMASK;
 	AH5416(ah)->ah_tx_chainmask	= AR9280_DEFAULT_TXCHAINMASK;
 
@@ -237,6 +243,18 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 	if (!rfStatus) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: RF setup failed, status %u\n",
 		    __func__, ecode);
+		goto bad;
+	}
+
+        /*
+         * Check whether the power table offset isn't the default.
+         * This can occur with eeprom minor V21 or greater on Merlin.
+         */
+	(void) ath_hal_eepromGet(ah, AR_EEP_PWR_TABLE_OFFSET, &pwr_table_offset);
+	if (pwr_table_offset != AR5416_PWR_TABLE_OFFSET_DB) {
+		ath_hal_printf(ah, "ERROR: default pwr offset: %d dBm != EEPROM pwr offset: %d dBm\n",
+		    AR5416_PWR_TABLE_OFFSET_DB, (int) pwr_table_offset);
+		ecode = HAL_ENOTSUPP;
 		goto bad;
 	}
 
