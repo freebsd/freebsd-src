@@ -278,7 +278,7 @@ static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_txq(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
 static inline void txq_start(struct ifnet *, struct sge_txq *);
-
+static int t4_mod_event(module_t, int, void *);
 
 struct t4_pciids {
 	uint16_t device;
@@ -2815,10 +2815,20 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	return (rc);
 }
 
+static int
+t4_mod_event(module_t mod, int cmd, void *arg)
+{
+
+	if (cmd == MOD_LOAD)
+		t4_sge_modload();
+
+	return (0);
+}
+
 static devclass_t t4_devclass;
 static devclass_t cxgbe_devclass;
 
-DRIVER_MODULE(t4nex, pci, t4_driver, t4_devclass, 0, 0);
+DRIVER_MODULE(t4nex, pci, t4_driver, t4_devclass, t4_mod_event, 0);
 MODULE_VERSION(t4nex, 1);
 
 DRIVER_MODULE(cxgbe, t4nex, cxgbe_driver, cxgbe_devclass, 0, 0);
