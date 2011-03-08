@@ -115,7 +115,11 @@ enum {
 
 	RX_FL_ESIZE = 64,	/* 8 64bit addresses */
 
-	FL_BUF_SIZES = 4,
+#if MJUMPAGESIZE != MCLBYTES
+	FL_BUF_SIZES = 4,	/* cluster, jumbop, jumbo9k, jumbo16k */
+#else
+	FL_BUF_SIZES = 3,	/* cluster, jumbo9k, jumbo16k */
+#endif
 
 	TX_EQ_QSIZE = 1024,
 	TX_EQ_ESIZE = 64,
@@ -562,6 +566,7 @@ void t4_os_portmod_changed(const struct adapter *, int);
 void t4_os_link_changed(struct adapter *, int, int);
 
 /* t4_sge.c */
+void t4_sge_modload(void);
 void t4_sge_init(struct adapter *);
 int t4_create_dma_tag(struct adapter *);
 int t4_destroy_dma_tag(struct adapter *);
