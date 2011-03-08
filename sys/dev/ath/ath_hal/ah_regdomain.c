@@ -28,6 +28,8 @@
 #include "ah_eeprom.h"
 #include "ah_devid.h"
 
+#include "ah_regdomain.h"
+
 /*
  * XXX this code needs a audit+review
  */
@@ -44,9 +46,7 @@
  * definition that's used to setup initializers.  See also further
  * comments below.
  */
-#define BMLEN 2		/* 2 x 64 bits in each channel bitmask */
-typedef uint64_t chanbmask_t[BMLEN];
-
+/* BMLEN is now defined in ah_regdomain.h */
 #define	W0(_a) \
 	(((_a) >= 0 && (_a) < 64 ? (((uint64_t) 1)<<(_a)) : (uint64_t) 0))
 #define	W1(_a) \
@@ -314,25 +314,6 @@ enum {
  * THE following table is the mapping of regdomain pairs specified by
  * an 8 bit regdomain value to the individual unitary reg domains
  */
-typedef struct regDomainPair {
-	HAL_REG_DOMAIN regDmnEnum;	/* 16 bit reg domain pair */
-	HAL_REG_DOMAIN regDmn5GHz;	/* 5GHz reg domain */
-	HAL_REG_DOMAIN regDmn2GHz;	/* 2GHz reg domain */
-	uint32_t flags5GHz;		/* Requirements flags (AdHoc
-					   disallow, noise floor cal needed,
-					   etc) */
-	uint32_t flags2GHz;		/* Requirements flags (AdHoc
-					   disallow, noise floor cal needed,
-					   etc) */
-	uint64_t pscanMask;		/* Passive Scan flags which
-					   can override unitary domain
-					   passive scan flags.  This
-					   value is used as a mask on
-					   the unitary flags*/
-	uint16_t singleCC;		/* Country code of single country if
-					   a one-on-one mapping exists */
-}  REG_DMN_PAIR_MAPPING;
-
 static REG_DMN_PAIR_MAPPING regDomainPairs[] = {
 	{NO_ENUMRD,	DEBUG_REG_DMN,	DEBUG_REG_DMN, NO_REQ, NO_REQ, PSCAN_DEFER, CTRY_DEFAULT },
 	{NULL1_WORLD,	NULL1,		WORLD,		NO_REQ, NO_REQ, PSCAN_DEFER, CTRY_DEFAULT },
@@ -445,11 +426,6 @@ static REG_DMN_PAIR_MAPPING regDomainPairs[] = {
 #define DEF_REGDMN		FCC1_FCCA
 #define	COUNTRY_ERD_FLAG        0x8000
 #define WORLDWIDE_ROAMING_FLAG  0x4000
-
-typedef struct {
-	HAL_CTRY_CODE		countryCode;	   
-	HAL_REG_DOMAIN		regDmnEnum;
-} COUNTRY_CODE_TO_ENUM_RD;
 
 static COUNTRY_CODE_TO_ENUM_RD allCountries[] = {
 	{ CTRY_DEBUG,       NO_ENUMRD },
@@ -613,21 +589,6 @@ enum {
  * check the indices is to collect them in a switch statement in a stub
  * function so the compiler checks for duplicates.
  */
-
-typedef struct {
-	uint16_t	lowChannel;	/* Low channel center in MHz */
-	uint16_t	highChannel;	/* High Channel center in MHz */
-	uint8_t		powerDfs;	/* Max power (dBm) for channel
-					   range when using DFS */
-	uint8_t		antennaMax;	/* Max allowed antenna gain */
-	uint8_t		channelBW;	/* Bandwidth of the channel */
-	uint8_t		channelSep;	/* Channel separation within
-					   the band */
-	uint64_t	useDfs;		/* Use DFS in the RegDomain
-					   if corresponding bit is set */
-	uint64_t	usePassScan;	/* Use Passive Scan in the RegDomain
-					   if corresponding bit is set */
-} REG_DMN_FREQ_BAND;
 
 /*
  * 5GHz 11A channel tags
@@ -1008,25 +969,6 @@ static REG_DMN_FREQ_BAND regDmn2Ghz11gTurboFreq[] = {
 	{ 2512, 2732, 5,  6, 40, 40, NO_DFS, NO_PSCAN },
 #define	T1_2512_2732	AFTER(T3_2437_2437)
 };
-
-typedef struct regDomain {
-	uint16_t regDmnEnum;		/* value from EnumRd table */
-	uint8_t conformanceTestLimit;
-	uint32_t flags;			/* Requirement flags (AdHoc disallow,
-					   noise floor cal needed, etc) */
-	uint64_t dfsMask;		/* DFS bitmask for 5Ghz tables */
-	uint64_t pscan;			/* Bitmask for passive scan */
-	chanbmask_t chan11a;		/* 11a channels */
-	chanbmask_t chan11a_turbo;	/* 11a static turbo channels */
-	chanbmask_t chan11a_dyn_turbo;	/* 11a dynamic turbo channels */
-	chanbmask_t chan11a_half;	/* 11a 1/2 width channels */
-	chanbmask_t chan11a_quarter;	/* 11a 1/4 width channels */
-	chanbmask_t chan11b;		/* 11b channels */
-	chanbmask_t chan11g;		/* 11g channels */
-	chanbmask_t chan11g_turbo;	/* 11g dynamic turbo channels */
-	chanbmask_t chan11g_half;	/* 11g 1/2 width channels */
-	chanbmask_t chan11g_quarter;	/* 11g 1/4 width channels */
-} REG_DOMAIN;
 
 static REG_DOMAIN regDomains[] = {
 
@@ -1711,11 +1653,6 @@ static REG_DOMAIN regDomains[] = {
 	{.regDmnEnum		= NULL1,
 	 .conformanceTestLimit	= NO_CTL,
 	}
-};
-
-struct cmode {
-	u_int	mode;
-	u_int	flags;
 };
 
 static const struct cmode modes[] = {
