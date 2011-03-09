@@ -264,6 +264,13 @@ ar5212GetTsf32(struct ath_hal *ah)
 	return OS_REG_READ(ah, AR_TSF_L32);
 }
 
+void
+ar5212SetTsf64(struct ath_hal *ah, uint64_t tsf64)
+{
+	OS_REG_WRITE(ah, AR_TSF_L32, tsf64 & 0xffffffff);
+	OS_REG_WRITE(ah, AR_TSF_U32, (tsf64 >> 32) & 0xffffffff);
+}
+
 /*
  * Reset the current hardware tsf for stamlme.
  */

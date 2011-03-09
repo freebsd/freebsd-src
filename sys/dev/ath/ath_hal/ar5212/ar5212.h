@@ -462,6 +462,7 @@ extern	void ar5212WriteAssocid(struct ath_hal *ah, const uint8_t *bssid,
 		uint16_t assocId);
 extern	uint32_t ar5212GetTsf32(struct ath_hal *ah);
 extern	uint64_t ar5212GetTsf64(struct ath_hal *ah);
+extern	void ar5212SetTsf64(struct ath_hal *ah, uint64_t tsf64);
 extern	void ar5212ResetTsf(struct ath_hal *ah);
 extern	void ar5212SetBasicRate(struct ath_hal *ah, HAL_RATE_SET *pSet);
 extern	uint32_t ar5212GetRandomSeed(struct ath_hal *ah);

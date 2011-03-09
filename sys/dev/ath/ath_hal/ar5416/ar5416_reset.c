@@ -95,6 +95,7 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	uint32_t powerVal, rssiThrReg;
 	uint32_t ackTpcPow, ctsTpcPow, chirpTpcPow;
 	int i;
+	uint64_t tsf = 0;
 
 	OS_MARK(ah, AH_MARK_RESET, bChannelChange);
 
@@ -151,6 +152,10 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		(AR_MAC_LED_ASSOC | AR_MAC_LED_MODE |
 		 AR_MAC_LED_BLINK_THRESH_SEL | AR_MAC_LED_BLINK_SLOW);
 
+	/* For chips on which the RTC reset is done, save TSF before it gets cleared */
+	if (AR_SREV_MERLIN_20_OR_LATER(ah) && ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL))
+		tsf = ar5212GetTsf64(ah);
+
 	if (!ar5416ChipReset(ah, chan)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: chip reset failed\n", __func__);
 		FAIL(HAL_EIO);
@@ -158,6 +163,10 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	/* Restore bmiss rssi & count thresholds */
 	OS_REG_WRITE(ah, AR_RSSI_THR, rssiThrReg);
+
+	/* Restore TSF */
+	if (tsf)
+		ar5212SetTsf64(ah, tsf);
 
 	OS_MARK(ah, AH_MARK_RESET_LINE, __LINE__);
 	if (AR_SREV_MERLIN_10_OR_LATER(ah))
