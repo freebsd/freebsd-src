@@ -1,0 +1,13 @@
+d.x = 1.23 = #3ff3ae14 7ae147ae; %.8a ==> 0x1.3ae147aep+0
+d.x = 1.23 = #3ff3ae14 7ae147ae; %.7a ==> 0x1.3ae147bp+0
+d.x = 1.23 = #3ff3ae14 7ae147ae; %.2a ==> 0x1.3bp+0
+x.x = 1.23 = #3fff 9d70 a3d7 a3d 70a4; %.La ==> 0xap-3
+q.x = 1.23 = #3fff3ae1 47ae147a e147ae14 7ae147ae; %.20Lqa ==> 0x1.3ae147ae147ae147ae14p+0
+x.x = 3e+27 = #405a 9b18 ab5d f718 b6c; %La ==> 0x9.b18ab5df7180b6cp+88
+x.x = 1.7e+27 = #4059 afc6 a015 291b 4024; %La ==> 0xa.fc6a015291b4024p+87
+q.x = 3e+48 = #40a006be 53879565 60c1e1a9 9c13ee2; %Lqa ==> 0x1.06be5387956560c1e1a909c13ee2p+161
+q.x = 1e+49 = #40a1b5e7 e08ca3a8 f6987819 baecbe22; %Lqa ==> 0x1.b5e7e08ca3a8f6987819baecbe22p+162
+q.x = 1.5 = #3fff8000 0 0 0; %Lqa ==> 0x1.8p+0
+q.x = 2.5 = #40004000 0 0 0; %Lqa ==> 0x1.4p+1
+q.x = 4.5 = #40012000 0 0 0; %Lqa ==> 0x1.2p+2
+q.x = 8.5 = #40021000 0 0 0; %Lqa ==> 0x1.1p+3

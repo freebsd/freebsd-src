@@ -83,7 +83,7 @@ main(Void)
 	int dItry, i, ndig = 0, r = 1;
 	union { long double d; ULong bits[3]; } u, v[2];
 
-	while(s = fgets(ibuf, sizeof(ibuf), stdin)) {
+	while((s = fgets(ibuf, sizeof(ibuf), stdin))) {
 		while(*s <= ' ')
 			if (!*s++)
 				continue;
@@ -94,7 +94,7 @@ main(Void)
 			continue;
 		  case 'n':
 			i = s[1];
-			if (i <= ' ' || i >= '0' && i <= '9') {
+			if (i <= ' ' || (i >= '0' && i <= '9')) {
 				ndig = atoi(s+1);
 				continue;
 				}
@@ -109,8 +109,8 @@ main(Void)
 				u.bits[_2] = (ULong)strtoul(s1=se, &se, 16);
 			    }
 			printf("\nInput: %s", ibuf);
-			printf(" --> f = #%lx %lx %lx\n", u.bits[_0],
-				u.bits[_1], u.bits[_2]);
+			printf(" --> f = #%lx %lx %lx\n", U u.bits[_0],
+				U u.bits[_1], U u.bits[_2]);
 			goto fmt_test;
 			}
 		dItry = 1;

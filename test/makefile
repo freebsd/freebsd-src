@@ -91,6 +91,10 @@ strtodt = strtodt.o $A
 strtodt: $(strtodt)
 	$(CC) -o strtodt $(strtodt) $L
 
+pftest = pftest.o $A
+pftest: ../Printf  $(pftest)
+	$(CC) -o pftest $(pftest) $L
+
 ## On Intel (and Intel-like) systems using extended-precision registers
 ## for double-precision (C type double) computations that sometimes suffer
 ## double rounding errors, the test below involving strtodt generally shows
@@ -138,16 +142,31 @@ tests: Q.out x.out xL.out dt dItest ddtest dtest ftest Qtest xLtest xtest ddtest
 	(cd bad; for i in *; do cmp -s $$i ../obad/$$i && rm $$i;done; cd ..; rmdir bad)
 	touch tests
 
-xs0 = README Qtest.c dItest.c ddtest.c dtest.c dt.c ftest.c getround.c \
-	strtoIdSI.c strtoIddSI.c strtodISI.c strtodt.c strtopddSI.c \
-	strtorddSI.c xLtest.c xQtest.c xtest.c rtestnos testnos testnos1 \
-	testnos3 dI.out dIsi.out ddsi.out dd.out dtst.out d.out f.out \
-	x.ou0 xL.ou0 x.ou1 xL.ou1 Q.ou0 Q.ou1 makefile
+# To test Printf in ../gdtoa.a, "make pf_test" and perhaps "make pf_testLq"
+# (if both long double and quad are desired and available).
 
+pf_test: pftest
+	./pftest <pftestnos >zap
+	cmp pftest.out zap && rm zap
+
+pf_testLq: pftest
+	./pftest <pfLqtestnos >zap
+	cmp pftestLq.out zap && rm zap
+
+xs0 = README Q.ou0 Q.ou1 Qtest.c d.out dI.out dIsi.out dItest.c dd.out\
+	 ddsi.out ddtest.c dt.c dtest.c dtst.out f.out ftest.c\
+	 getround.c makefile pfLqtestnos pftest.c pftestQ.out\
+	 pftestx.out pftestLq.out pftestnos rtestnos strtoIdSI.c\
+	 strtoIddSI.c strtodISI.c strtodt.c strtopddSI.c strtorddSI.c\
+	 testnos testnos1 testnos3 x.ou0 x.ou1 xL.ou0 xL.ou1 xLtest.c\
+	 xQtest.c xtest.c
+
+# invoke "make -r xsum.out"
 xsum.out: xsum0.out $(xs0)
 	xsum $(xs0) >xsum1.out
 	cmp xsum0.out xsum1.out && mv xsum1.out xsum.out || diff xsum[01].out
 
 clean:
-	rm -f *.[ao] dt *test *testsi strtodt strtodtnrp xsum.out xsum1.out tests zap x.out xL.out Q.out
+	rm -f *.[ao] dt *test *testsi pftest.out strtodt strtodtnrp xsum.out\
+	 xsum1.out tests zap x.out xL.out Q.out
 	rm -rf bad

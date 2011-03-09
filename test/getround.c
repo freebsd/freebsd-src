@@ -55,7 +55,7 @@ getround(int r, char *s)
 				r, dir[r]);
 			return r;
 			}
-		}	
+		}
 	i = atoi(s);
 	if (i >= 0 && i < 4) {
 		printf("Rounding mode for strtor... ");

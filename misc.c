@@ -55,7 +55,9 @@ Balloc
 #endif
 
 	ACQUIRE_DTOA_LOCK(0);
-	if ( (rv = freelist[k]) !=0) {
+	/* The k > Kmax case does not need ACQUIRE_DTOA_LOCK(0), */
+	/* but this case seems very unlikely. */
+	if (k <= Kmax && (rv = freelist[k]) !=0) {
 		freelist[k] = rv->next;
 		}
 	else {
@@ -65,7 +67,7 @@ Balloc
 #else
 		len = (sizeof(Bigint) + (x-1)*sizeof(ULong) + sizeof(double) - 1)
 			/sizeof(double);
-		if (pmem_next - private_mem + len <= PRIVATE_mem) {
+		if (k <= Kmax && pmem_next - private_mem + len <= PRIVATE_mem) {
 			rv = (Bigint*)pmem_next;
 			pmem_next += len;
 			}
@@ -89,10 +91,18 @@ Bfree
 #endif
 {
 	if (v) {
-		ACQUIRE_DTOA_LOCK(0);
-		v->next = freelist[v->k];
-		freelist[v->k] = v;
-		FREE_DTOA_LOCK(0);
+		if (v->k > Kmax)
+#ifdef FREE
+			FREE((void*)v);
+#else
+			free((void*)v);
+#endif
+		else {
+			ACQUIRE_DTOA_LOCK(0);
+			v->next = freelist[v->k];
+			freelist[v->k] = v;
+			FREE_DTOA_LOCK(0);
+			}
 		}
 	}
 
@@ -104,8 +114,8 @@ lo0bits
 	(ULong *y)
 #endif
 {
-	register int k;
-	register ULong x = *y;
+	int k;
+	ULong x = *y;
 
 	if (x & 7) {
 		if (x & 1)
@@ -204,12 +214,12 @@ multadd
  int
 hi0bits_D2A
 #ifdef KR_headers
-	(x) register ULong x;
+	(x) ULong x;
 #else
-	(register ULong x)
+	(ULong x)
 #endif
 {
-	register int k = 0;
+	int k = 0;
 
 	if (!(x & 0xffff0000)) {
 		k = 16;
@@ -612,12 +622,12 @@ b2d
 {
 	ULong *xa, *xa0, w, y, z;
 	int k;
-	double d;
+	U d;
 #ifdef VAX
 	ULong d0, d1;
 #else
-#define d0 word0(d)
-#define d1 word1(d)
+#define d0 word0(&d)
+#define d1 word1(&d)
 #endif
 
 	xa0 = a->x;
@@ -630,16 +640,16 @@ b2d
 	*e = 32 - k;
 #ifdef Pack_32
 	if (k < Ebits) {
-		d0 = Exp_1 | y >> Ebits - k;
+		d0 = Exp_1 | y >> (Ebits - k);
 		w = xa > xa0 ? *--xa : 0;
-		d1 = y << (32-Ebits) + k | w >> Ebits - k;
+		d1 = y << ((32-Ebits) + k) | w >> (Ebits - k);
 		goto ret_d;
 		}
 	z = xa > xa0 ? *--xa : 0;
 	if (k -= Ebits) {
-		d0 = Exp_1 | y << k | z >> 32 - k;
+		d0 = Exp_1 | y << k | z >> (32 - k);
 		y = xa > xa0 ? *--xa : 0;
-		d1 = z << k | y >> 32 - k;
+		d1 = z << k | y >> (32 - k);
 		}
 	else {
 		d0 = Exp_1 | y;
@@ -663,10 +673,10 @@ b2d
 #endif
  ret_d:
 #ifdef VAX
-	word0(d) = d0 >> 16 | d0 << 16;
-	word1(d) = d1 >> 16 | d1 << 16;
+	word0(&d) = d0 >> 16 | d0 << 16;
+	word1(&d) = d1 >> 16 | d1 << 16;
 #endif
-	return dval(d);
+	return dval(&d);
 	}
 #undef d0
 #undef d1
@@ -674,12 +684,13 @@ b2d
  Bigint *
 d2b
 #ifdef KR_headers
-	(d, e, bits) double d; int *e, *bits;
+	(dd, e, bits) double dd; int *e, *bits;
 #else
-	(double d, int *e, int *bits)
+	(double dd, int *e, int *bits)
 #endif
 {
 	Bigint *b;
+	U d;
 #ifndef Sudden_Underflow
 	int i;
 #endif
@@ -687,11 +698,14 @@ d2b
 	ULong *x, y, z;
 #ifdef VAX
 	ULong d0, d1;
-	d0 = word0(d) >> 16 | word0(d) << 16;
-	d1 = word1(d) >> 16 | word1(d) << 16;
 #else
-#define d0 word0(d)
-#define d1 word1(d)
+#define d0 word0(&d)
+#define d1 word1(&d)
+#endif
+	d.d = dd;
+#ifdef VAX
+	d0 = word0(&d) >> 16 | word0(&d) << 16;
+	d1 = word1(&d) >> 16 | word1(&d) << 16;
 #endif
 
 #ifdef Pack_32
@@ -715,7 +729,7 @@ d2b
 #ifdef Pack_32
 	if ( (y = d1) !=0) {
 		if ( (k = lo0bits(&y)) !=0) {
-			x[0] = y | z << 32 - k;
+			x[0] = y | z << (32 - k);
 			z >>= k;
 			}
 		else
@@ -726,10 +740,6 @@ d2b
 		     b->wds = (x[1] = z) !=0 ? 2 : 1;
 		}
 	else {
-#ifdef DEBUG
-		if (!z)
-			Bug("Zero passed to d2b");
-#endif
 		k = lo0bits(&z);
 		x[0] = z;
 #ifndef Sudden_Underflow
@@ -788,7 +798,7 @@ d2b
 #endif
 #ifdef IBM
 		*e = (de - Bias - (P-1) << 2) + k;
-		*bits = 4*P + 8 - k - hi0bits(word0(d) & Frac_mask);
+		*bits = 4*P + 8 - k - hi0bits(word0(&d) & Frac_mask);
 #else
 		*e = de - Bias - (P-1) + k;
 		*bits = P - k;
@@ -841,7 +851,7 @@ strcp_D2A(a, b) char *a; char *b;
 strcp_D2A(char *a, CONST char *b)
 #endif
 {
-	while(*a = *b++)
+	while((*a = *b++))
 		a++;
 	return a;
 	}
@@ -855,8 +865,8 @@ memcpy_D2A(a, b, len) Char *a; Char *b; size_t len;
 memcpy_D2A(void *a1, void *b1, size_t len)
 #endif
 {
-	register char *a = (char*)a1, *ae = a + len;
-	register char *b = (char*)b1, *a0 = a;
+	char *a = (char*)a1, *ae = a + len;
+	char *b = (char*)b1, *a0 = a;
 	while(a < ae)
 		*a++ = *b++;
 	return a0;

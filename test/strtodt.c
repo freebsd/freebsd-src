@@ -49,6 +49,8 @@ THIS SOFTWARE.
 		ULong L[2];
 		} U;
 
+#define UL (unsigned long)
+
  static int
 process(char *fname, FILE *f)
 {
@@ -81,7 +83,7 @@ process(char *fname, FILE *f)
 		if (b.L[W0] != a.L[0] || b.L[W1] != a.L[1]) {
 			n++;
 			printf("Line %d of %s: got %lx %lx; expected %lx %lx\n",
-				line, fname, b.L[W0], b.L[W1], a.L[0], a.L[1]);
+				line, fname, UL b.L[W0], UL b.L[W1], UL a.L[0], UL a.L[1]);
 			}
 		}
 	return n;
@@ -120,8 +122,8 @@ main(int argc, char **argv)
 	if (argc <= 1)
 		n = process("<stdin>", stdin);
 	else
-		while(s = *++argv)
-			if (f = fopen(s,"r")) {
+		while((s = *++argv))
+			if ((f = fopen(s,"r"))) {
 				n += process(s, f);
 				fclose(f);
 				}
