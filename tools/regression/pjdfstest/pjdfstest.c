@@ -163,7 +163,7 @@ static struct syscall_desc syscalls[] = {
 	{ "prependacl", ACTION_PREPENDACL, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 	{ "readacl", ACTION_READACL, { TYPE_STRING, TYPE_NONE } },
 #endif
-	{ "write", ACTION_WRITE, { TYPE_NUMBER, TYPE_NONE } },
+	{ "write", ACTION_WRITE, { TYPE_NUMBER, TYPE_STRING, TYPE_NONE } },
 	{ NULL, -1, { TYPE_NONE } }
 };
 
@@ -745,7 +745,7 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		break;
 #endif
 	case ACTION_WRITE:
-		rval = write(DESC(0), "x", 1);
+		rval = write(DESC(0), STR(1), strlen(STR(1)));
 		break;
 	default:
 		fprintf(stderr, "unsupported syscall\n");
