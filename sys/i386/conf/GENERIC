@@ -300,7 +300,7 @@ device		uhci		# UHCI PCI->USB interface
 device		ohci		# OHCI PCI->USB interface
 device		ehci		# EHCI PCI->USB interface (USB 2.0)
 device		usb		# USB Bus (required)
-#device		udbp		# USB Double Bulk Pipe devices
+#device		udbp		# USB Double Bulk Pipe devices (needs netgraph)
 device		uhid		# "Human Interface Devices"
 device		ukbd		# Keyboard
 device		ulpt		# Printer
