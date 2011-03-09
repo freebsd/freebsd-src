@@ -81,9 +81,14 @@ THIS SOFTWARE.
 main(Void)
 {
 	char *s, *s1, *se, *se1;
-	int i, dItry, ndig = 0, r = 1;
-	union { long double d; ULong bits[4]; } u, v[2];
+	int Ltest, i, dItry, ndig = 0, r = 1;
+	union { long double d; ULong bits[4]; } u, v[2], w;
 
+	w.bits[0] = w.bits[3] = 0;
+	w.d = 1.;
+	u.d = 3.;
+	w.d = w.d / u.d;
+	Ltest = sizeof(long double) == 16 && w.bits[0] && w.bits[3];
 	while( (s = fgets(ibuf, sizeof(ibuf), stdin)) !=0) {
 		while(*s <= ' ')
 			if (!*s++)
@@ -95,7 +100,7 @@ main(Void)
 			continue;
 		  case 'n':
 			i = s[1];
-			if (i <= ' ' || i >= '0' && i <= '9') {
+			if (i <= ' ' || (i >= '0' && i <= '9')) {
 				ndig = atoi(s+1);
 				continue;
 				}
@@ -113,8 +118,8 @@ main(Void)
 			    }
 			  }
 			printf("\nInput: %s", ibuf);
-			printf(" --> f = #%lx %lx %lx %lx\n", u.bits[_0],
-				u.bits[_1], u.bits[_2], u.bits[_3]);
+			printf(" --> f = #%lx %lx %lx %lx\n", U u.bits[_0],
+				U u.bits[_1], U u.bits[_2], U u.bits[_3]);
 			goto fmt_test;
 			}
 		dItry = 1;
@@ -128,7 +133,7 @@ main(Void)
 		printf("with bits = #%lx %lx %lx %lx\n",
 			U u.bits[_0], U u.bits[_1], U u.bits[_2], U u.bits[_3]);
  fmt_test:
-		if (sizeof(long double) == 16)
+		if (Ltest)
 			printf("printf(\"%%.35Lg\") gives %.35Lg\n", u.d);
 		se = g_Qfmt(obuf, u.bits, ndig, sizeof(obuf));
 		printf("g_Qfmt(%d) gives %d bytes: \"%s\"\n\n", ndig,
@@ -145,7 +150,7 @@ main(Void)
 				printf("fI[0] == fI[1] = #%lx %lx %lx %lx\n",
 					U v[0].bits[_0], U v[0].bits[_1],
 					U v[0].bits[_2], U v[0].bits[_3]);
-				if (sizeof(long double) == 16)
+				if (Ltest)
 				    printf("= %.35Lg\n", v[0].d);
 				}
 			}
@@ -153,12 +158,12 @@ main(Void)
 			printf("fI[0] = #%lx %lx %lx %lx\n",
 					U v[0].bits[_0], U v[0].bits[_1],
 					U v[0].bits[_2], U v[0].bits[_3]);
-			if (sizeof(long double) == 16)
+			if (Ltest)
 				printf("= %.35Lg\n", v[0].d);
 			printf("fI[1] = #%lx %lx %lx %lx\n",
 					U v[1].bits[_0], U v[1].bits[_1],
 					U v[1].bits[_2], U v[1].bits[_3]);
-			if (sizeof(long double) == 16)
+			if (Ltest)
 				printf("= %.35Lg\n", v[1].d);
 			if (!memcmp(v[0].bits, u.bits, 16))
 				printf("fI[0] == strtod\n");

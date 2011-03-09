@@ -78,7 +78,7 @@ main(Void)
 			continue;
 		  case 'n':
 			i = s[1];
-			if (i <= ' ' || i >= '0' && i <= '9') {
+			if (i <= ' ' || (i >= '0' && i <= '9')) {
 				ndig = atoi(s+1);
 				continue;
 				}

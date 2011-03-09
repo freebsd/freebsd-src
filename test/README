@@ -69,6 +69,12 @@ You can also or alternatively compile getround.c with
 -DUSE_MY_LOCALE (when ../gdtoa.a is compiled with -DUSE_LOCALE)
 to test multi-byte decimal points.
 
+If in the parent directory, you have sucessfully invoked "make Printf"
+to add a "printf" (called Printf and accessed via ../stdio1.h), then
+here you can use "make pf_test" and (if you have both a 64-bit long
+double and a 113-bit "quad" double type) "make pf_testLq" for a brief
+test of %g and %a variants in Printf.
+
 These are simple test programs, not meant for exhaustive testing,
 but for manually testing "interesting" cases.  Paxson's testbase
 is good for more exhaustive testing, in part with random inputs.

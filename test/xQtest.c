@@ -31,16 +31,28 @@ THIS SOFTWARE.
  int
 main(void)
 {
+	union { long double d; unsigned int bits[4]; } u, w;
 	switch(sizeof(long double)) {
+	  case 16:
+		w.bits[0] = w.bits[3] = 0;
+		w.d = 1.;
+		u.d = 3.;
+		w.d = w.d / u.d;
+		if (w.bits[0] && w.bits[3])
+			printf("cp x.ou0 x.out; cp xL.ou0 xL.out;"
+				" cp Q.ou1 Q.out; cp pftestQ.out pftest.out\n");
+		else
+			printf("cp x.ou0 x.out; cp xL.ou0 xL.out;"
+				" cp Q.ou0 Q.out; cp pftestx.out pftest.out\n");
+		break;
 	  case 10:
 	  case 12:
-		printf("cp x.ou1 x.out; cp xL.ou1 xL.out; cp Q.ou0 Q.out\n");
-		break;
-	  case 16:
-		printf("cp x.ou0 x.out; cp xL.ou0 xL.out; cp Q.ou1 Q.out\n");
+		printf("cp x.ou1 x.out; cp xL.ou1 xL.out; cp Q.ou0 Q.out;"
+			" cp pftestx.out pftest.out\n");
 		break;
 	  default:
-		printf("cp x.ou0 x.out; cp xL.ou0 xL.out; cp Q.ou0 Q.out\n");
+		printf("cp x.ou0 x.out; cp xL.ou0 xL.out; cp Q.ou0 Q.out;"
+			" cp pftestx.out pftest.out\n");
 	  }
 	return 0;
 	}

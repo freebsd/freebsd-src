@@ -85,7 +85,7 @@ main(Void)
 	int i, dItry, ndig = 0, r = 1;
 	union { long double d; UShort bits[5]; } u, v[2];
 
-	while(s = fgets(ibuf, sizeof(ibuf), stdin)) {
+	while((s = fgets(ibuf, sizeof(ibuf), stdin))) {
 		while(*s <= ' ')
 			if (!*s++)
 				continue;
@@ -96,7 +96,7 @@ main(Void)
 			continue;
 		  case 'n':
 			i = s[1];
-			if (i <= ' ' || i >= '0' && i <= '9') {
+			if (i <= ' ' || (i >= '0' && i <= '9')) {
 				ndig = atoi(s+1);
 				continue;
 				}
