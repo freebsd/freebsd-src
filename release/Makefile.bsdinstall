@@ -59,7 +59,7 @@ src.txz:
 ports.txz:
 	-mkdir -p ${DISTDIR}/usr
 	ln -fs ${PORTSDIR} ${DISTDIR}/usr/ports
-	cd ${DISTDIR} && tar cLvJf ${.OBJDIR}/ports.txz --exclude usr/ports/distfiles --exclude usr/ports/packages --exclude 'usr/ports/INDEX*' usr/ports
+	cd ${DISTDIR} && tar cLvJf ${.OBJDIR}/ports.txz --exclude usr/ports/distfiles --exclude usr/ports/packages --exclude 'usr/ports/INDEX*' --exclude work usr/ports
 
 system: packagesystem
 # Install system
@@ -100,5 +100,4 @@ clean:
 	rm -f system
 	rm -rf ${.OBJDIR}/release
 	rm -f ${.OBJDIR}/release.iso
-	rm -f ${.OBJDIR}/*.txz
 
