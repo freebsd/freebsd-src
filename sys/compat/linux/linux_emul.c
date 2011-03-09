@@ -309,9 +309,6 @@ linux_schedtail(struct thread *td)
 
 	p = td->td_proc;
 
-	if (SV_PROC_ABI(p) != SV_ABI_LINUX)
-		return;
-
 	/* find the emuldata */
 	em = em_find(p, EMUL_DOLOCK);
 
