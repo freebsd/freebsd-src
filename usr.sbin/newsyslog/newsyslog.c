@@ -775,8 +775,8 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: newsyslog [-CFNnrsv] [-a directory] [-d directory] [-f config-file]\n"
-	    "                 [-S pidfile] [-t timefmt ] [ [-R requestor] filename ... ]\n");
+	    "usage: newsyslog [-CFNPnrsv] [-a directory] [-d directory] [-f config_file]\n"
+	    "                 [-S pidfile] [-t timefmt] [[-R tagname] file ...]\n");
 	exit(1);
 }
 
