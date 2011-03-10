@@ -105,20 +105,23 @@ init_TSC(void)
 
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
-		if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
-		    CPUID_TO_FAMILY(cpu_id) >= 0x10)
+		if ((amd_pminfo & AMDPM_TSC_INVARIANT) != 0 ||
+		    (vm_guest == VM_GUEST_NO &&
+		    CPUID_TO_FAMILY(cpu_id) >= 0x10))
 			tsc_is_invariant = 1;
 		break;
 	case CPU_VENDOR_INTEL:
-		if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
-		    (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+		if ((amd_pminfo & AMDPM_TSC_INVARIANT) != 0 ||
+		    (vm_guest == VM_GUEST_NO &&
+		    ((CPUID_TO_FAMILY(cpu_id) == 0x6 &&
 		    CPUID_TO_MODEL(cpu_id) >= 0xe) ||
 		    (CPUID_TO_FAMILY(cpu_id) == 0xf &&
-		    CPUID_TO_MODEL(cpu_id) >= 0x3))
+		    CPUID_TO_MODEL(cpu_id) >= 0x3))))
 			tsc_is_invariant = 1;
 		break;
 	case CPU_VENDOR_CENTAUR:
-		if (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+		if (vm_guest == VM_GUEST_NO &&
+		    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
 		    CPUID_TO_MODEL(cpu_id) >= 0xf &&
 		    (rdmsr(0x1203) & 0x100000000ULL) == 0)
 			tsc_is_invariant = 1;
