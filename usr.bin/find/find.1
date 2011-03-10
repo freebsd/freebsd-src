@@ -177,6 +177,18 @@ This option is equivalent to the deprecated
 primary.
 .El
 .Sh PRIMARIES
+.Pp
+All primaries which take a numeric argument allow the number to be
+preceded by a plus sign
+.Pq Dq Li +
+or a minus sign
+.Pq Dq Li - .
+A preceding plus sign means
+.Dq more than n ,
+a preceding minus sign means
+.Dq less than n
+and neither means
+.Dq exactly n .
 .Bl -tag -width indent
 .It Ic -Bmin Ar n
 True if the difference between the time of a file's inode creation
@@ -815,18 +827,6 @@ The same thing as
 .Ic -path ,
 for GNU find compatibility.
 .El
-.Pp
-All primaries which take a numeric argument allow the number to be
-preceded by a plus sign
-.Pq Dq Li +
-or a minus sign
-.Pq Dq Li - .
-A preceding plus sign means
-.Dq more than n ,
-a preceding minus sign means
-.Dq less than n
-and neither means
-.Dq exactly n .
 .Sh OPERATORS
 The primaries may be combined using the following operators.
 The operators are listed in order of decreasing precedence.
