@@ -77,7 +77,7 @@
 #include <sys/eventhandler.h>
 #include <machine/clock.h>
 #endif
-#if defined(__i386__)
+#if defined(__amd64__) || defined(__i386__)
 #include <machine/cpufunc.h>		/* for pentium tsc */
 #include <machine/specialreg.h>		/* for CPUID_TSC */
 #ifdef __FreeBSD__
@@ -85,7 +85,7 @@
 #elif defined(__NetBSD__) || defined(__OpenBSD__)
 #include <machine/cpu.h>		/* for cpu_feature */
 #endif
-#endif /* __i386__ */
+#endif /* __amd64 || __i386__ */
 
 /*
  * internal function prototypes
@@ -938,7 +938,8 @@ init_machclk_setup(void)
 
 	machclk_usepcc = 1;
 
-#if (!defined(__i386__) && !defined(__alpha__)) || defined(ALTQ_NOPCC)
+#if (!defined(__alpha__) && !defined(__amd64__) && !defined(__i386__)) || \
+    defined(ALTQ_NOPCC)
 	machclk_usepcc = 0;
 #endif
 #if defined(__FreeBSD__) && defined(SMP)
@@ -947,7 +948,7 @@ init_machclk_setup(void)
 #if defined(__NetBSD__) && defined(MULTIPROCESSOR)
 	machclk_usepcc = 0;
 #endif
-#ifdef __i386__
+#if defined(__amd64__) || defined(__i386__)
 	/* check if TSC is available */
 	if (machclk_usepcc == 1 && ((cpu_feature & CPUID_TSC) == 0 ||
 	    tsc_is_broken))
@@ -980,7 +981,7 @@ init_machclk(void)
 	 * if the clock frequency (of Pentium TSC or Alpha PCC) is
 	 * accessible, just use it.
 	 */
-#ifdef __i386__
+#if defined(__amd64__) || defined(__i386__)
 #ifdef __FreeBSD__
 	machclk_freq = tsc_freq;
 #elif defined(__NetBSD__)
@@ -1040,7 +1041,7 @@ read_machclk(void)
 	u_int64_t val;
 
 	if (machclk_usepcc) {
-#if defined(__i386__)
+#if defined(__amd64__) || defined(__i386__)
 		val = rdtsc();
 #elif defined(__alpha__)
 		static u_int32_t last_pcc, upper;
