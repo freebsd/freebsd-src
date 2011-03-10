@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include "cpufreq_if.h"
 
 uint64_t	tsc_freq;
-int		tsc_is_broken;
 int		tsc_is_invariant;
 int		tsc_present;
 static eventhandler_tag tsc_levels_tag, tsc_pre_tag, tsc_post_tag;
@@ -181,7 +180,7 @@ init_TSC_tc(void)
 		tsc_timecounter.tc_quality = -100;
 #endif
 
-	if (tsc_freq != 0 && !tsc_is_broken) {
+	if (tsc_freq != 0) {
 		tsc_timecounter.tc_frequency = tsc_freq;
 		tc_init(&tsc_timecounter);
 	}
