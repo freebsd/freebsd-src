@@ -266,12 +266,9 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
          * This can occur with eeprom minor V21 or greater on Merlin.
          */
 	(void) ath_hal_eepromGet(ah, AR_EEP_PWR_TABLE_OFFSET, &pwr_table_offset);
-	if (pwr_table_offset != AR5416_PWR_TABLE_OFFSET_DB) {
-		ath_hal_printf(ah, "ERROR: default pwr offset: %d dBm != EEPROM pwr offset: %d dBm\n",
+	if (pwr_table_offset != AR5416_PWR_TABLE_OFFSET_DB)
+		ath_hal_printf(ah, "[ath]: default pwr offset: %d dBm != EEPROM pwr offset: %d dBm; curves will be adjusted.\n",
 		    AR5416_PWR_TABLE_OFFSET_DB, (int) pwr_table_offset);
-		ecode = HAL_ENOTSUPP;
-		goto bad;
-	}
 
 	if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
 		/* setup rxgain table */
