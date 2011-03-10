@@ -30,6 +30,59 @@
 typedef uint64_t chanbmask_t[BMLEN];
 
 /*
+ * The following describe the bit masks for different passive scan
+ * capability/requirements per regdomain.
+ */
+#define	NO_PSCAN	0x0ULL			/* NB: must be zero */
+#define	PSCAN_FCC	0x0000000000000001ULL
+#define	PSCAN_FCC_T	0x0000000000000002ULL
+#define	PSCAN_ETSI	0x0000000000000004ULL
+#define	PSCAN_MKK1	0x0000000000000008ULL
+#define	PSCAN_MKK2	0x0000000000000010ULL
+#define	PSCAN_MKKA	0x0000000000000020ULL
+#define	PSCAN_MKKA_G	0x0000000000000040ULL
+#define	PSCAN_ETSIA	0x0000000000000080ULL
+#define	PSCAN_ETSIB	0x0000000000000100ULL
+#define	PSCAN_ETSIC	0x0000000000000200ULL
+#define	PSCAN_WWR	0x0000000000000400ULL
+#define	PSCAN_MKKA1	0x0000000000000800ULL
+#define	PSCAN_MKKA1_G	0x0000000000001000ULL
+#define	PSCAN_MKKA2	0x0000000000002000ULL
+#define	PSCAN_MKKA2_G	0x0000000000004000ULL
+#define	PSCAN_MKK3	0x0000000000008000ULL
+#define	PSCAN_DEFER	0x7FFFFFFFFFFFFFFFULL
+#define	IS_ECM_CHAN	0x8000000000000000ULL
+
+/*
+ * The following are flags for different requirements per reg domain.
+ * These requirements are either inhereted from the reg domain pair or
+ * from the unitary reg domain if the reg domain pair flags value is 0
+ */
+enum {
+	NO_REQ			= 0x00000000,	/* NB: must be zero */
+	DISALLOW_ADHOC_11A	= 0x00000001,	/* adhoc not allowed in 5GHz */
+	DISALLOW_ADHOC_11A_TURB	= 0x00000002,	/* not allowed w/ 5GHz turbo */
+	NEED_NFC		= 0x00000004,	/* need noise floor check */
+	ADHOC_PER_11D		= 0x00000008,	/* must receive 11d beacon */
+	LIMIT_FRAME_4MS 	= 0x00000020,	/* 4msec tx burst limit */
+	NO_HOSTAP		= 0x00000040,	/* No HOSTAP mode opereation */
+};
+
+/* Bit masks for DFS per regdomain */
+enum {
+	NO_DFS   = 0x0000000000000000ULL,	/* NB: must be zero */
+	DFS_FCC3 = 0x0000000000000001ULL,
+	DFS_ETSI = 0x0000000000000002ULL,
+	DFS_MKK4 = 0x0000000000000004ULL,
+};
+
+enum {						/* conformance test limits */
+	FCC	= 0x10,
+	MKK	= 0x40,
+	ETSI	= 0x30,
+};
+
+/*
  * THE following table is the mapping of regdomain pairs specified by
  * an 8 bit regdomain value to the individual unitary reg domains
  */
