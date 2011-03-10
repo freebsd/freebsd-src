@@ -2236,7 +2236,10 @@ ar5416GetGainBoundariesAndPdadcs(struct ath_hal *ah,
 
         /* Find starting index for this pdGain */
         if (i == 0) {
-            ss = 0; /* for the first pdGain, start from index 0 */
+            if (AR_SREV_MERLIN_20_OR_LATER(ah))
+                ss = (int16_t)(0 - (minPwrT4[i] / 2));
+            else
+                ss = 0; /* for the first pdGain, start from index 0 */
         } else {
 	    /* need overlap entries extrapolated below. */
             ss = (int16_t)((pPdGainBoundaries[i-1] - (minPwrT4[i] / 2)) - tPdGainOverlap + 1 + minDelta);
