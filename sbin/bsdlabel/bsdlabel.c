@@ -105,7 +105,7 @@ static char	tmpfil[] = PATH_TMPFILE;
 static struct	disklabel lab;
 static u_char	bootarea[BBSIZE];
 static off_t	mediasize;
-static u_int	secsize;
+static ssize_t	secsize;
 static char	blank[] = "";
 static char	unknown[] = "unknown";
 
@@ -589,11 +589,11 @@ display(FILE *f, const struct disklabel *lp)
 	}
 	fprintf(f, "%u partitions:\n", lp->d_npartitions);
 	fprintf(f,
-	    "#        size   offset    fstype   [fsize bsize bps/cpg]\n");
+	    "#          size     offset    fstype   [fsize bsize bps/cpg]\n");
 	pp = lp->d_partitions;
 	for (i = 0; i < lp->d_npartitions; i++, pp++) {
 		if (pp->p_size) {
-			fprintf(f, "  %c: %8lu %8lu  ", 'a' + i,
+			fprintf(f, "  %c: %10lu %10lu  ", 'a' + i,
 			   (u_long)pp->p_size, (u_long)pp->p_offset);
 			if (pp->p_fstype < FSMAXTYPES)
 				fprintf(f, "%8.8s", fstypenames[pp->p_fstype]);
@@ -602,13 +602,13 @@ display(FILE *f, const struct disklabel *lp)
 			switch (pp->p_fstype) {
 
 			case FS_UNUSED:				/* XXX */
-				fprintf(f, "    %5lu %5lu %5.5s ",
+				fprintf(f, "    %5lu %5lu %2s",
 				    (u_long)pp->p_fsize,
 				    (u_long)(pp->p_fsize * pp->p_frag), "");
 				break;
 
 			case FS_BSDFFS:
-				fprintf(f, "    %5lu %5lu %5u ",
+				fprintf(f, "    %5lu %5lu %5u",
 				    (u_long)pp->p_fsize,
 				    (u_long)(pp->p_fsize * pp->p_frag),
 				    pp->p_cpg);
