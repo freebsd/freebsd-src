@@ -193,10 +193,12 @@ printcpuinfo(void)
 	printf("%s (", cpu_model);
 	switch(cpu_class) {
 	case CPUCLASS_K8:
-		hw_clockrate = (tsc_freq + 5000) / 1000000;
-		printf("%jd.%02d-MHz ",
-		       (intmax_t)(tsc_freq + 4999) / 1000000,
-		       (u_int)((tsc_freq + 4999) / 10000) % 100);
+		if (tsc_freq != 0) {
+			hw_clockrate = (tsc_freq + 5000) / 1000000;
+			printf("%jd.%02d-MHz ",
+			       (intmax_t)(tsc_freq + 4999) / 1000000,
+			       (u_int)((tsc_freq + 4999) / 10000) % 100);
+		}
 		printf("K8");
 		break;
 	default:

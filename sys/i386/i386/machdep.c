@@ -1172,7 +1172,7 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 #endif
 
 	tsc2 -= tsc1;
-	if (tsc_freq != 0 && !tsc_is_broken) {
+	if (tsc_freq != 0) {
 		*rate = tsc2 * 1000;
 		return (0);
 	}
