@@ -5,7 +5,6 @@
 
 PROG=	bsdlabel
 SRCS=	bsdlabel.c geom_bsd_enc.c
-#MAN=	bsdlabel.5
 MAN+=	bsdlabel.8
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
