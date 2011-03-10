@@ -485,20 +485,6 @@ tbr_timeout(arg)
 		CALLOUT_RESET(&tbr_callout, 1, tbr_timeout, (void *)0);
 	else
 		tbr_timer = 0;	/* don't need tbr_timer anymore */
-#if defined(__alpha__) && !defined(ALTQ_NOPCC)
-	{
-		/*
-		 * XXX read out the machine dependent clock once a second
-		 * to detect counter wrap-around.
-		 */
-		static u_int cnt;
-
-		if (++cnt >= hz) {
-			(void)read_machclk();
-			cnt = 0;
-		}
-	}
-#endif /* __alpha__ && !ALTQ_NOPCC */
 }
 
 /*
@@ -896,16 +882,9 @@ int machclk_usepcc;
 u_int32_t machclk_freq;
 u_int32_t machclk_per_tick;
 
-#ifdef __alpha__
-#ifdef __FreeBSD__
-extern u_int32_t cycles_per_sec;	/* alpha cpu clock frequency */
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
-extern u_int64_t cycles_per_usec;	/* alpha cpu clock frequency */
-#endif
-#endif /* __alpha__ */
 #if defined(__i386__) && defined(__NetBSD__)
 extern u_int64_t cpu_tsc_freq;
-#endif /* __alpha__ */
+#endif
 
 #if (__FreeBSD_version >= 700035)
 /* Update TSC freq with the value indicated by the caller. */
@@ -938,8 +917,7 @@ init_machclk_setup(void)
 
 	machclk_usepcc = 1;
 
-#if (!defined(__alpha__) && !defined(__amd64__) && !defined(__i386__)) || \
-    defined(ALTQ_NOPCC)
+#if (!defined(__amd64__) && !defined(__i386__)) || defined(ALTQ_NOPCC)
 	machclk_usepcc = 0;
 #endif
 #if defined(__FreeBSD__) && defined(SMP)
@@ -989,13 +967,7 @@ init_machclk(void)
 #elif defined(__OpenBSD__) && (defined(I586_CPU) || defined(I686_CPU))
 	machclk_freq = pentium_mhz * 1000000;
 #endif
-#elif defined(__alpha__)
-#ifdef __FreeBSD__
-	machclk_freq = cycles_per_sec;
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
-	machclk_freq = (u_int32_t)(cycles_per_usec * 1000000);
 #endif
-#endif /* __alpha__ */
 
 	/*
 	 * if we don't know the clock frequency, measure it.
@@ -1043,23 +1015,6 @@ read_machclk(void)
 	if (machclk_usepcc) {
 #if defined(__amd64__) || defined(__i386__)
 		val = rdtsc();
-#elif defined(__alpha__)
-		static u_int32_t last_pcc, upper;
-		u_int32_t pcc;
-
-		/*
-		 * for alpha, make a 64bit counter value out of the 32bit
-		 * alpha processor cycle counter.
-		 * read_machclk must be called within a half of its
-		 * wrap-around cycle (about 5 sec for 400MHz cpu) to properly
-		 * detect a counter wrap-around.
-		 * tbr_timeout calls read_machclk once a second.
-		 */
-		pcc = (u_int32_t)alpha_rpcc();
-		if (pcc <= last_pcc)
-			upper++;
-		last_pcc = pcc;
-		val = ((u_int64_t)upper << 32) + pcc;
 #else
 		panic("read_machclk");
 #endif
