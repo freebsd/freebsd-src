@@ -72,9 +72,6 @@
 
 /* machine dependent clock related includes */
 #ifdef __FreeBSD__
-#if __FreeBSD__ < 3
-#include "opt_cpu.h"	/* for FreeBSD-2.2.8 to get i586_ctr_freq */
-#endif
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/eventhandler.h>
@@ -449,7 +446,7 @@ static void
 tbr_timeout(arg)
 	void *arg;
 {
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	VNET_ITERATOR_DECL(vnet_iter);
 #endif
 	struct ifnet *ifp;
@@ -461,7 +458,7 @@ tbr_timeout(arg)
 #else
 	s = splimp();
 #endif
-#if defined(__FreeBSD__) && (__FreeBSD_version >= 500000)
+#ifdef __FreeBSD__
 	IFNET_RLOCK_NOSLEEP();
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
@@ -477,7 +474,7 @@ tbr_timeout(arg)
 			    ifp->if_start != NULL)
 				(*ifp->if_start)(ifp);
 		}
-#if defined(__FreeBSD__) && (__FreeBSD_version >= 500000)
+#ifdef __FreeBSD__
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
@@ -985,11 +982,7 @@ init_machclk(void)
 	 */
 #ifdef __i386__
 #ifdef __FreeBSD__
-#if (__FreeBSD_version > 300000)
 	machclk_freq = tsc_freq;
-#else
-	machclk_freq = i586_ctr_freq;
-#endif
 #elif defined(__NetBSD__)
 	machclk_freq = (u_int32_t)cpu_tsc_freq;
 #elif defined(__OpenBSD__) && (defined(I586_CPU) || defined(I686_CPU))
