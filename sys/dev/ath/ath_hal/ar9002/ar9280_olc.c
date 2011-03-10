@@ -160,6 +160,72 @@ ar9280olcTemperatureCompensation(struct ath_hal *ah)
 	}
 }
 
+
+static int16_t
+ar9280ChangeGainBoundarySettings(struct ath_hal *ah, uint16_t *gb,
+    uint16_t numXpdGain, uint16_t pdGainOverlap_t2, int8_t pwr_table_offset,
+    int16_t *diff)
+{
+	uint16_t k;
+
+	/* Prior to writing the boundaries or the pdadc vs. power table
+	 * into the chip registers the default starting point on the pdadc
+	 * vs. power table needs to be checked and the curve boundaries
+	 * adjusted accordingly
+	 */
+	if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
+		uint16_t gb_limit;
+
+		if (AR5416_PWR_TABLE_OFFSET_DB != pwr_table_offset) {
+			/* get the difference in dB */
+			*diff = (uint16_t)(pwr_table_offset - AR5416_PWR_TABLE_OFFSET_DB);
+			/* get the number of half dB steps */
+			*diff *= 2;
+			/* change the original gain boundary settings
+			 * by the number of half dB steps
+			 */
+			for (k = 0; k < numXpdGain; k++)
+				gb[k] = (uint16_t)(gb[k] - *diff);
+		}
+		/* Because of a hardware limitation, ensure the gain boundary
+		 * is not larger than (63 - overlap)
+		 */
+		gb_limit = (uint16_t)(AR5416_MAX_RATE_POWER - pdGainOverlap_t2);
+
+		for (k = 0; k < numXpdGain; k++)
+			gb[k] = (uint16_t)min(gb_limit, gb[k]);
+	}
+
+	return *diff;
+}
+
+static void
+ar9280AdjustPDADCValues(struct ath_hal *ah, int8_t pwr_table_offset,
+    int16_t diff, uint8_t *pdadcValues)
+{
+#define NUM_PDADC(diff) (AR5416_NUM_PDADC_VALUES - diff)
+	uint16_t k;
+
+	/* If this is a board that has a pwrTableOffset that differs from
+	 * the default AR5416_PWR_TABLE_OFFSET_DB then the start of the
+	 * pdadc vs pwr table needs to be adjusted prior to writing to the
+	 * chip.
+	 */
+	if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
+		if (AR5416_PWR_TABLE_OFFSET_DB != pwr_table_offset) {
+			/* shift the table to start at the new offset */
+			for (k = 0; k < (uint16_t)NUM_PDADC(diff); k++ ) {
+				pdadcValues[k] = pdadcValues[k + diff];
+			}
+
+			/* fill the back of the table */
+			for (k = (uint16_t)NUM_PDADC(diff); k < NUM_PDADC(0); k++) {
+				pdadcValues[k] = pdadcValues[NUM_PDADC(diff)];
+			}
+		}
+	}
+#undef NUM_PDADC
+}
 /*
  * This effectively disables the gain boundaries leaving it
  * to the open-loop TX power control.
@@ -210,10 +276,14 @@ ar9280SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
 	uint16_t numXpdGain, xpdMask;
 	uint16_t xpdGainValues[AR5416_NUM_PD_GAINS];
 	uint32_t regChainOffset;
+	int8_t pwr_table_offset;
 
 	OS_MEMZERO(xpdGainValues, sizeof(xpdGainValues));
 	    
 	xpdMask = pEepData->modalHeader[IEEE80211_IS_CHAN_2GHZ(chan)].xpdGain;
+
+	(void) ath_hal_eepromGet(ah, AR_EEP_PWR_TABLE_OFFSET, &pwr_table_offset);
+
 
 	if (IS_EEP_MINOR_V2(ah)) {
 		pdGainOverlap_t2 = pEepData->modalHeader[IEEE80211_IS_CHAN_2GHZ(chan)].pdGainOverlap;
@@ -256,6 +326,8 @@ ar9280SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
 	for (i = 0; i < AR5416_MAX_CHAINS; i++) {
 		regChainOffset = ar5416GetRegChainOffset(ah, i);
 		if (pEepData->baseEepHeader.txMask & (1 << i)) {
+			uint16_t diff;
+
 			if (IEEE80211_IS_CHAN_2GHZ(chan)) {
 				pRawDataset = pEepData->calPierData2G[i];
 			} else {
@@ -285,7 +357,9 @@ ar9280SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
 			 * vs. power table needs to be checked and the curve boundaries
 			 * adjusted accordingly
 			 */
-			// XXX ath9k_change_gain_boundary_setting();
+			diff = ar9280ChangeGainBoundarySettings(ah,
+			    gainBoundaries, numXpdGain, pdGainOverlap_t2,
+			    pwr_table_offset, &diff);
 
 			if ((i == 0) || AR_SREV_OWL_20_OR_LATER(ah)) {
 				/* Set gain boundaries for either open- or closed-loop TPC */
@@ -306,7 +380,7 @@ ar9280SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
 			 * pdadc vs pwr table needs to be adjusted prior to writing to the
 			 * chip.
 			 */
-			/* XXX ath9k_adjust_pdadc_values() */
+			ar9280AdjustPDADCValues(ah, pwr_table_offset, diff, pdadcValues);
 
 			/* Write the power values into the baseband power table */
 			ar5416WritePdadcValues(ah, regChainOffset, pdadcValues);
