@@ -55,7 +55,7 @@
 /* Global variables for the kernel. */
 
 /* 1.1 */
-extern char kernelname[MAXPATHLEN];
+extern char kernelname[/*MAXPATHLEN*/];
 
 extern int tick;			/* usec per tick (1000000 / hz) */
 extern int hz;				/* system clock's frequency */
