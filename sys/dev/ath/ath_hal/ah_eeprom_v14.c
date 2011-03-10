@@ -132,6 +132,12 @@ v14EepromGet(struct ath_hal *ah, int param, void *val)
 		else
 			*(int8_t *) val = AR5416_PWR_TABLE_OFFSET_DB;
 		return HAL_OK;
+	case AR_EEP_PWDCLKIND:
+		if (IS_VERS(>=, AR5416_EEP_MINOR_VER_10)) {
+			*(uint8_t *) val = pBase->pwdclkind;
+			return HAL_OK;
+		}
+		return HAL_EIO;
 		
         default:
 		HALASSERT(0);

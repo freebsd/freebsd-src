@@ -105,6 +105,8 @@ struct ath_hal_5416 {
 	struct ar5416NfLimits nf_5g;
 
 	int		initPDADC;
+
+	int		ah_need_an_top2_fixup;	/* merlin or later chips that may need this workaround */
 };
 #define	AH5416(_ah)	((struct ath_hal_5416 *)(_ah))
 
