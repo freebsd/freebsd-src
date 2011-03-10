@@ -114,6 +114,7 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_STATUS ecode;
 	HAL_BOOL rfStatus;
 	int8_t pwr_table_offset;
+	uint8_t pwr;
 
 	HALDEBUG(AH_NULL, HAL_DEBUG_ATTACH, "%s: sc %p st %p sh %p\n",
 	    __func__, sc, (void*) st, (void*) sh);
@@ -246,6 +247,20 @@ ar9280Attach(uint16_t devid, HAL_SOFTC sc,
 		goto bad;
 	}
 
+	/* Enable fixup for AR_AN_TOP2 if necessary */
+	/*
+	 * The v14 EEPROM layer returns HAL_EIO if PWDCLKIND isn't supported
+	 * by the EEPROM version.
+	 *
+	 * ath9k checks the EEPROM minor version is >= 0x0a here, instead of
+	 * the abstracted EEPROM access layer.
+	 */
+	ecode = ath_hal_eepromGet(ah, AR_EEP_PWDCLKIND, &pwr);
+	if (AR_SREV_MERLIN_20_OR_LATER(ah) && ecode == HAL_OK && pwr == 0) {
+		printf("[ath] enabling AN_TOP2_FIXUP\n");
+		AH5416(ah)->ah_need_an_top2_fixup = 1;
+	}
+
         /*
          * Check whether the power table offset isn't the default.
          * This can occur with eeprom minor V21 or greater on Merlin.
@@ -362,6 +377,8 @@ ar9280WriteIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	u_int modesIndex, freqIndex;
 	int regWrites = 0;
+	int i;
+	const HAL_INI_ARRAY *ia;
 
 	/* Setup the indices for the next set of register array writes */
 	/* XXX Ignore 11n dynamic mode on the AR5416 for the moment */
@@ -386,10 +403,33 @@ ar9280WriteIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	OS_REG_WRITE(ah, AR_PHY(0), 0x00000007);
 	OS_REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_INTERNAL_ADDAC);
 
-	/* XXX Merlin ini fixups */
-	/* XXX Merlin 100us delay for shift registers */
+	/*
+	 * This is unwound because at the moment, there's a requirement
+	 * for Merlin (and later, perhaps) to have a specific bit fixed
+	 * in the AR_AN_TOP2 register before writing it.
+	 */
+	ia = &AH5212(ah)->ah_ini_modes;
+#if 0
 	regWrites = ath_hal_ini_write(ah, &AH5212(ah)->ah_ini_modes,
 	    modesIndex, regWrites);
+#endif
+	HALASSERT(modesIndex < ia->cols);
+	for (i = 0; i < ia->rows; i++) {
+		uint32_t reg = HAL_INI_VAL(ia, i, 0);
+		uint32_t val = HAL_INI_VAL(ia, i, modesIndex);
+
+		if (reg == AR_AN_TOP2 && AH5416(ah)->ah_need_an_top2_fixup)
+			val &= ~AR_AN_TOP2_PWDCLKIND;
+
+		OS_REG_WRITE(ah, reg, val);
+
+		/* Analog shift register delay seems needed for Merlin - PR kern/154220 */
+		if (reg >= 0x7800 && reg < 0x78a0)
+			OS_DELAY(100);
+
+		DMA_YIELD(regWrites);
+	}
+
 	if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
 		regWrites = ath_hal_ini_write(ah, &AH9280(ah)->ah_ini_rxgain,
 		    modesIndex, regWrites);
