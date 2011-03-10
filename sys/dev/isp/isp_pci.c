@@ -272,6 +272,12 @@ static struct ispmdvec mdvec_2500 = {
 #define	PCI_PRODUCT_QLOGIC_ISP6322	0x6322
 #endif
 
+#ifndef        PCI_PRODUCT_QLOGIC_ISP5432
+#define        PCI_PRODUCT_QLOGIC_ISP5432      0x5432
+#endif
+
+#define        PCI_QLOGIC_ISP5432      \
+       ((PCI_PRODUCT_QLOGIC_ISP5432 << 16) | PCI_VENDOR_QLOGIC)
 
 #define	PCI_QLOGIC_ISP1020	\
 	((PCI_PRODUCT_QLOGIC_ISP1020 << 16) | PCI_VENDOR_QLOGIC)
@@ -411,6 +417,9 @@ isp_pci_probe(device_t dev)
 		break;
 	case PCI_QLOGIC_ISP2532:
 		device_set_desc(dev, "Qlogic ISP 2532 PCI FC-AL Adapter");
+		break;
+	case PCI_QLOGIC_ISP5432:
+		device_set_desc(dev, "Qlogic ISP 5432 PCI FC-AL Adapter");
 		break;
 	case PCI_QLOGIC_ISP6312:
 		device_set_desc(dev, "Qlogic ISP 6312 PCI FC-AL Adapter");
@@ -800,6 +809,12 @@ isp_pci_attach(device_t dev)
 	case PCI_QLOGIC_ISP2532:
 		did = 0x2500;
 		isp->isp_nchan += isp_nvports;
+		isp->isp_mdvec = &mdvec_2500;
+		isp->isp_type = ISP_HA_FC_2500;
+		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] = PCI_MBOX_REGS2400_OFF;
+		break;
+	case PCI_QLOGIC_ISP5432:
+		did = 0x2500;
 		isp->isp_mdvec = &mdvec_2500;
 		isp->isp_type = ISP_HA_FC_2500;
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] = PCI_MBOX_REGS2400_OFF;
