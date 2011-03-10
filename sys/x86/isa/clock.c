@@ -261,7 +261,7 @@ DELAY(int n)
 	static int state = 0;
 #endif
 
-	if (tsc_freq != 0 && !tsc_is_broken) {
+	if (tsc_freq != 0) {
 		uint64_t start, end, now;
 
 		sched_pin();

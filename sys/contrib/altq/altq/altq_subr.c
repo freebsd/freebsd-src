@@ -79,10 +79,8 @@
 #endif
 #if defined(__amd64__) || defined(__i386__)
 #include <machine/cpufunc.h>		/* for pentium tsc */
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <machine/specialreg.h>		/* for CPUID_TSC */
-#ifdef __FreeBSD__
-#include <machine/md_var.h>		/* for cpu_feature */
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
 #include <machine/cpu.h>		/* for cpu_feature */
 #endif
 #endif /* __amd64 || __i386__ */
@@ -928,8 +926,11 @@ init_machclk_setup(void)
 #endif
 #if defined(__amd64__) || defined(__i386__)
 	/* check if TSC is available */
-	if (machclk_usepcc == 1 && ((cpu_feature & CPUID_TSC) == 0 ||
-	    tsc_is_broken))
+#ifdef __FreeBSD__
+	if (tsc_freq == 0)
+#else
+	if ((cpu_feature & CPUID_TSC) == 0)
+#endif
 		machclk_usepcc = 0;
 #endif
 }

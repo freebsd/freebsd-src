@@ -372,7 +372,7 @@ printcpuinfo(void)
 			break;
 		case 0x500:
 			strcat(cpu_model, "K5 model 0");
-			tsc_is_broken = 1;
+			tsc_freq = 0;
 			break;
 		case 0x510:
 			strcat(cpu_model, "K5 model 1");
@@ -570,7 +570,7 @@ printcpuinfo(void)
 		switch (cpu_id & 0xff0) {
 		case 0x540:
 			strcpy(cpu_model, "IDT WinChip C6");
-			tsc_is_broken = 1;
+			tsc_freq = 0;
 			break;
 		case 0x580:
 			strcpy(cpu_model, "IDT WinChip 2");
@@ -607,7 +607,7 @@ printcpuinfo(void)
 		case 0x540:
 			strcpy(cpu_model, "Geode SC1100");
 			cpu = CPU_GEODE1100;
-			tsc_is_broken = 1;
+			tsc_freq = 0;
 			break;
 		default:
 			strcpy(cpu_model, "Geode/NSC unknown");
@@ -640,19 +640,23 @@ printcpuinfo(void)
 #endif
 #if defined(I586_CPU)
 	case CPUCLASS_586:
-		hw_clockrate = (tsc_freq + 5000) / 1000000;
-		printf("%jd.%02d-MHz ",
-		       (intmax_t)(tsc_freq + 4999) / 1000000,
-		       (u_int)((tsc_freq + 4999) / 10000) % 100);
+		if (tsc_freq != 0) {
+			hw_clockrate = (tsc_freq + 5000) / 1000000;
+			printf("%jd.%02d-MHz ",
+			       (intmax_t)(tsc_freq + 4999) / 1000000,
+			       (u_int)((tsc_freq + 4999) / 10000) % 100);
+		}
 		printf("586");
 		break;
 #endif
 #if defined(I686_CPU)
 	case CPUCLASS_686:
-		hw_clockrate = (tsc_freq + 5000) / 1000000;
-		printf("%jd.%02d-MHz ",
-		       (intmax_t)(tsc_freq + 4999) / 1000000,
-		       (u_int)((tsc_freq + 4999) / 10000) % 100);
+		if (tsc_freq != 0) {
+			hw_clockrate = (tsc_freq + 5000) / 1000000;
+			printf("%jd.%02d-MHz ",
+			       (intmax_t)(tsc_freq + 4999) / 1000000,
+			       (u_int)((tsc_freq + 4999) / 10000) % 100);
+		}
 		printf("686");
 		break;
 #endif
