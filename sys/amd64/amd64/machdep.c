@@ -1741,7 +1741,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
         env = getenv("kernelname");
 	if (env != NULL)
-		strlcpy(kernelname, env, sizeof(kernelname));
+		strlcpy(kernelname, env, MAXPATHLEN);
 
 #ifdef XENHVM
 	if (inw(0x10) == 0x49d2) {
