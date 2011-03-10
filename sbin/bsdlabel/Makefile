@@ -17,9 +17,3 @@ DPADD=	${LIBGEOM} ${LIBBSDXML} ${LIBSBUF}
 LDADD=	-lgeom -lbsdxml -lsbuf
 
 .include <bsd.prog.mk>
-
-test: ${PROG}
-	sh ${.CURDIR}/runtest.sh
-
-testx: ${PROG}
-	sh -x ${.CURDIR}/runtest.sh
