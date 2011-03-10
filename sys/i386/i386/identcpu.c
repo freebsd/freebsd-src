@@ -603,11 +603,12 @@ printcpuinfo(void)
 	} else if (cpu_vendor_id == CPU_VENDOR_IBM) {
 		strcpy(cpu_model, "Blue Lightning CPU");
 	} else if (cpu_vendor_id == CPU_VENDOR_NSC) {
-		switch (cpu_id & 0xfff) {
+		switch (cpu_id & 0xff0) {
 		case 0x540:
 			strcpy(cpu_model, "Geode SC1100");
 			cpu = CPU_GEODE1100;
-			tsc_freq = 0;
+			if ((cpu_id & CPUID_STEPPING) == 0)
+				tsc_freq = 0;
 			break;
 		default:
 			strcpy(cpu_model, "Geode/NSC unknown");
