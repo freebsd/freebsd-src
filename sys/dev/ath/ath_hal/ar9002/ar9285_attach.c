@@ -360,8 +360,8 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halWowMatchPatternDword = AH_TRUE;
 #endif
 	/* AR9285 has 2 antennas but is a 1x1 stream device */
-	pCap->halTxStreams = 2;
-	pCap->halRxStreams = 2;
+	pCap->halTxStreams = 1;
+	pCap->halRxStreams = 1;
 
 	pCap->halCSTSupport = AH_TRUE;
 	pCap->halRifsRxSupport = AH_TRUE;
