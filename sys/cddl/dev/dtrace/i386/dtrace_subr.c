@@ -405,6 +405,7 @@ dtrace_gethrtime_init_cpu(void *arg)
 static void
 dtrace_gethrtime_init(void *arg)
 {
+	struct pcpu *pc;
 	uint64_t tsc_f;
 	cpumask_t map;
 	int i;
@@ -437,15 +438,14 @@ dtrace_gethrtime_init(void *arg)
 	nsec_scale = ((uint64_t)NANOSEC << SCALE_SHIFT) / tsc_f;
 
 	/* The current CPU is the reference one. */
+	sched_pin();
 	tsc_skew[curcpu] = 0;
-
 	CPU_FOREACH(i) {
 		if (i == curcpu)
 			continue;
 
-		map = 0;
-		map |= (1 << curcpu);
-		map |= (1 << i);
+		pc = pcpu_find(i);
+		map = PCPU_GET(cpumask) | pc->pc_cpumask;
 
 		smp_rendezvous_cpus(map, dtrace_gethrtime_init_sync,
 		    dtrace_gethrtime_init_cpu,
@@ -453,6 +453,7 @@ dtrace_gethrtime_init(void *arg)
 
 		tsc_skew[i] = tgt_cpu_tsc - hst_cpu_tsc;
 	}
+	sched_unpin();
 }
 
 SYSINIT(dtrace_gethrtime_init, SI_SUB_SMP, SI_ORDER_ANY, dtrace_gethrtime_init, NULL);
