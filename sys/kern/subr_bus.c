@@ -1180,6 +1180,9 @@ devclass_delete_driver(devclass_t busclass, driver_t *driver)
 				if ((error = device_detach(dev)) != 0)
 					return (error);
 				device_set_driver(dev, NULL);
+				BUS_PROBE_NOMATCH(dev->parent, dev);
+				devnomatch(dev);
+				dev->flags |= DF_DONENOMATCH;
 			}
 		}
 	}
@@ -2674,6 +2677,7 @@ device_attach(device_t dev)
 	}
 	device_sysctl_update(dev);
 	dev->state = DS_ATTACHED;
+	dev->flags &= ~DF_DONENOMATCH;
 	devadded(dev);
 	return (0);
 }
