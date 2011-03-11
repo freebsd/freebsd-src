@@ -1,4 +1,4 @@
-/*	$NetBSD: mdreloc.c,v 1.5 2001/04/25 12:24:51 kleink Exp $	*/
+/*	$NetBSD: mdreloc.c,v 1.42 2008/04/28 20:23:04 martin Exp $	*/
 
 /*-
  * Copyright (c) 2000 Eduardo Horvath.
@@ -16,13 +16,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -66,28 +59,29 @@ __FBSDID("$FreeBSD$");
  *		* the relocation is relative to the load address
  *
  */
-#define _RF_S		0x80000000		/* Resolve symbol */
-#define _RF_A		0x40000000		/* Use addend */
-#define _RF_P		0x20000000		/* Location relative */
-#define _RF_G		0x10000000		/* GOT offset */
-#define _RF_B		0x08000000		/* Load address relative */
-#define _RF_U		0x04000000		/* Unaligned */
-#define _RF_SZ(s)	(((s) & 0xff) << 8)	/* memory target size */
-#define _RF_RS(s)	( (s) & 0xff)		/* right shift */
+#define	_RF_S		0x80000000		/* Resolve symbol */
+#define	_RF_A		0x40000000		/* Use addend */
+#define	_RF_P		0x20000000		/* Location relative */
+#define	_RF_G		0x10000000		/* GOT offset */
+#define	_RF_B		0x08000000		/* Load address relative */
+#define	_RF_U		0x04000000		/* Unaligned */
+#define	_RF_X		0x02000000		/* Bare symbols, needs proc */
+#define	_RF_SZ(s)	(((s) & 0xff) << 8)	/* memory target size */
+#define	_RF_RS(s)	( (s) & 0xff)		/* right shift */
 static const int reloc_target_flags[] = {
 	0,							/* NONE */
-	_RF_S|_RF_A|		_RF_SZ(8)  | _RF_RS(0),		/* RELOC_8 */
-	_RF_S|_RF_A|		_RF_SZ(16) | _RF_RS(0),		/* RELOC_16 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* RELOC_32 */
+	_RF_S|_RF_A|		_RF_SZ(8)  | _RF_RS(0),		/* 8 */
+	_RF_S|_RF_A|		_RF_SZ(16) | _RF_RS(0),		/* 16 */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 32 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(8)  | _RF_RS(0),		/* DISP_8 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(16) | _RF_RS(0),		/* DISP_16 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(0),		/* DISP_32 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP_30 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP_22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* HI22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 13 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* LO10 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(10),	/* HI22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 13 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* LO10 */
 	_RF_G|			_RF_SZ(32) | _RF_RS(0),		/* GOT10 */
 	_RF_G|			_RF_SZ(32) | _RF_RS(0),		/* GOT13 */
 	_RF_G|			_RF_SZ(32) | _RF_RS(10),	/* GOT22 */
@@ -106,66 +100,64 @@ static const int reloc_target_flags[] = {
 	      _RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(0),		/* PCPLT32 */
 	      _RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(10),	/* PCPLT22 */
 	      _RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(0),		/* PCPLT10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 11 */
-	_RF_S|_RF_A|		_RF_SZ(64) | _RF_RS(0),		/* 64 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 10 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 11 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(64) | _RF_RS(0),		/* 64 */
 	_RF_S|_RF_A|/*extra*/	_RF_SZ(32) | _RF_RS(0),		/* OLO10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(42),	/* HH22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(32),	/* HM10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* LM22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(42),	/* HH22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(32),	/* HM10 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(10),	/* LM22 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(42),	/* PC_HH22 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(32),	/* PC_HM10 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(10),	/* PC_LM22 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP16 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP19 */
 	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* GLOB_JMP */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 7 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 5 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 6 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 7 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 5 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 6 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(64) | _RF_RS(0),		/* DISP64 */
 	      _RF_A|		_RF_SZ(64) | _RF_RS(0),		/* PLT64 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* HIX22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* LOX10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(22),	/* H44 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(12),	/* M44 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* L44 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(10),	/* HIX22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* LOX10 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(22),	/* H44 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(12),	/* M44 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* L44 */
 	_RF_S|_RF_A|		_RF_SZ(64) | _RF_RS(0),		/* REGISTER */
 	_RF_S|_RF_A|	_RF_U|	_RF_SZ(64) | _RF_RS(0),		/* UA64 */
 	_RF_S|_RF_A|	_RF_U|	_RF_SZ(16) | _RF_RS(0),		/* UA16 */
 };
 
 #if 0
-static const char *reloc_names[] = {
-	"NONE", "RELOC_8", "RELOC_16", "RELOC_32", "DISP_8",
-	"DISP_16", "DISP_32", "WDISP_30", "WDISP_22", "HI22",
-	"22", "13", "LO10", "GOT10", "GOT13",
-	"GOT22", "PC10", "PC22", "WPLT30", "COPY",
-	"GLOB_DAT", "JMP_SLOT", "RELATIVE", "UA_32", "PLT32",
-	"HIPLT22", "LOPLT10", "LOPLT10", "PCPLT22", "PCPLT32",
-	"10", "11", "64", "OLO10", "HH22",
-	"HM10", "LM22", "PC_HH22", "PC_HM10", "PC_LM22",
-	"WDISP16", "WDISP19", "GLOB_JMP", "7", "5", "6",
-	"DISP64", "PLT64", "HIX22", "LOX10", "H44", "M44",
+static const char *const reloc_names[] = {
+	"NONE", "8", "16", "32", "DISP_8", "DISP_16", "DISP_32", "WDISP_30",
+	"WDISP_22", "HI22", "22", "13", "LO10", "GOT10", "GOT13", "GOT22",
+	"PC10", "PC22", "WPLT30", "COPY", "GLOB_DAT", "JMP_SLOT", "RELATIVE",
+	"UA_32", "PLT32", "HIPLT22", "LOPLT10", "LOPLT10", "PCPLT22",
+	"PCPLT32", "10", "11", "64", "OLO10", "HH22", "HM10", "LM22",
+	"PC_HH22", "PC_HM10", "PC_LM22", "WDISP16", "WDISP19", "GLOB_JMP",
+	"7", "5", "6", "DISP64", "PLT64", "HIX22", "LOX10", "H44", "M44",
 	"L44", "REGISTER", "UA64", "UA16"
 };
 #endif
 
-#define RELOC_RESOLVE_SYMBOL(t)		((reloc_target_flags[t] & _RF_S) != 0)
-#define RELOC_PC_RELATIVE(t)		((reloc_target_flags[t] & _RF_P) != 0)
-#define RELOC_BASE_RELATIVE(t)		((reloc_target_flags[t] & _RF_B) != 0)
-#define RELOC_UNALIGNED(t)		((reloc_target_flags[t] & _RF_U) != 0)
-#define RELOC_USE_ADDEND(t)		((reloc_target_flags[t] & _RF_A) != 0)
-#define RELOC_TARGET_SIZE(t)		((reloc_target_flags[t] >> 8) & 0xff)
-#define RELOC_VALUE_RIGHTSHIFT(t)	(reloc_target_flags[t] & 0xff)
+#define	RELOC_RESOLVE_SYMBOL(t)		((reloc_target_flags[t] & _RF_S) != 0)
+#define	RELOC_PC_RELATIVE(t)		((reloc_target_flags[t] & _RF_P) != 0)
+#define	RELOC_BASE_RELATIVE(t)		((reloc_target_flags[t] & _RF_B) != 0)
+#define	RELOC_UNALIGNED(t)		((reloc_target_flags[t] & _RF_U) != 0)
+#define	RELOC_USE_ADDEND(t)		((reloc_target_flags[t] & _RF_A) != 0)
+#define	RELOC_BARE_SYMBOL(t)		((reloc_target_flags[t] & _RF_X) != 0)
+#define	RELOC_TARGET_SIZE(t)		((reloc_target_flags[t] >> 8) & 0xff)
+#define	RELOC_VALUE_RIGHTSHIFT(t)	(reloc_target_flags[t] & 0xff)
 
 static const long reloc_target_bitmask[] = {
-#define _BM(x)	(~(-(1ULL << (x))))
+#define	_BM(x)	(~(-(1ULL << (x))))
 	0,				/* NONE */
-	_BM(8), _BM(16), _BM(32),	/* RELOC_8, 16, 32 */
+	_BM(8), _BM(16), _BM(32),	/* 8, 16, 32 */
 	_BM(8), _BM(16), _BM(32),	/* DISP8, DISP16, DISP32 */
 	_BM(30), _BM(22),		/* WDISP30, WDISP22 */
 	_BM(22), _BM(22),		/* HI22, 22 */
-	_BM(13), _BM(10),		/* RELOC_13, LO10 */
+	_BM(13), _BM(10),		/* 13, LO10 */
 	_BM(10), _BM(13), _BM(22),	/* GOT10, GOT13, GOT22 */
 	_BM(10), _BM(22),		/* PC10, PC22 */
 	_BM(30), 0,			/* WPLT30, COPY */
@@ -184,19 +176,12 @@ static const long reloc_target_bitmask[] = {
 	_BM(22), _BM(13),		/* HIX22, LOX10 */
 	_BM(22), _BM(10), _BM(13),	/* H44, M44, L44 */
 	-1, -1, _BM(16),		/* REGISTER, UA64, UA16 */
-	_BM(22), _BM(10), 0, _BM(30),	/* GD_HI22, GD_LO10, GD_ADD, GD_CALL */
-	_BM(22), _BM(10), 0,		/* LDM_HI22, LDMO10, LDM_ADD */
-	_BM(30),			/* LDM_CALL */
-	_BM(22), _BM(10), 0,		/* LDO_HIX22, LDO_LOX10, LDO_ADD */
-	_BM(22), _BM(10), 0, 0,		/* IE_HI22, IE_LO10, IE_LD, IE_LDX */
-	0,				/* IE_ADD */
-	_BM(22), _BM(13),		/* LE_HIX22, LE_LOX10 */
 #undef _BM
 };
-#define RELOC_VALUE_BITMASK(t)	(reloc_target_bitmask[t])
+#define	RELOC_VALUE_BITMASK(t)	(reloc_target_bitmask[t])
 
 #undef flush
-#define	flush(va, offs)	\
+#define	flush(va, offs)							\
 	__asm __volatile("flush %0 + %1" : : "r" (va), "I" (offs));
 
 static int reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela,
@@ -365,12 +350,12 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache,
 		/*
 		 * Note that even though sparcs use `Elf_rela' exclusively
 		 * we still need the implicit memory addend in relocations
-		 * referring to GOT entries. Undoubtedly, someone f*cked
+		 * referring to GOT entries.  Undoubtedly, someone f*cked
 		 * this up in the distant past, and now we're stuck with
-		 * it in the name of compatibility for all eternity..
+		 * it in the name of compatibility for all eternity ...
 		 *
 		 * In any case, the implicit and explicit should be mutually
-		 * exclusive. We provide a check for that here.
+		 * exclusive.  We provide a check for that here.
 		 */
 		/* XXXX -- apparently we ignore the preexisting value */
 		value += (Elf_Addr)(obj->relocbase);
@@ -456,7 +441,7 @@ reloc_plt(Obj_Entry *obj)
 
 /* %hi(v) with variable shift */
 #define	HIVAL(v, s)	(((v) >> (s)) &  0x003fffff)
-#define LOVAL(v)	((v) & 0x000003ff)
+#define	LOVAL(v)	((v) & 0x000003ff)
 
 int
 reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
@@ -521,7 +506,8 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 		offset = ((Elf_Addr)where) - target;
 		if (offset <= (1L<<20) && offset >= -(1L<<20)) {
 			/*
-			 * We're within 1MB -- we can use a direct branch insn.
+			 * We're within 1MB -- we can use a direct branch
+			 * instruction.
 			 *
 			 * We can generate this pattern:
 			 *
@@ -604,7 +590,8 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			flush(where, 4);
 		} else if (offset >= 0 && offset < (1L<<44)) {
 			/*
-			 * We're withing 44 bits.  We can generate this pattern:
+			 * We're withing 44 bits.  We can generate this
+			 * pattern:
 			 *
 			 * The resulting code in the jump slot is:
 			 *
@@ -628,7 +615,8 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 			flush(where, 4);
 		} else if (offset < 0 && offset > -(1L<<44)) {
 			/*
-			 * We're withing 44 bits.  We can generate this pattern:
+			 * We're withing 44 bits.  We can generate this
+			 * pattern:
 			 *
 			 * The resulting code in the jump slot is:
 			 *
@@ -683,7 +671,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
 		/*
 		 * This is a high PLT slot; the relocation offset specifies a
 		 * pointer that needs to be frobbed; no actual code needs to
-		 * be modified. The pointer to be calculated needs the addend
+		 * be modified.  The pointer to be calculated needs the addend
 		 * added and the reference object relocation base subtraced.
 		 */
 		*wherep = target + rela->r_addend -
