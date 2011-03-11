@@ -30,7 +30,8 @@ struct bootinfo {
 	uint64_t	bi_magic;		/* BOOTINFO_MAGIC */
 #define	BOOTINFO_MAGIC		0xdeadbeeffeedface
 	uint64_t	bi_version;		/* version 1 */
-	uint64_t	bi_spare[6];		/* was: name of booted kernel */
+	uint64_t	bi_spare[5];		/* was: name of booted kernel */
+	uint64_t	bi_pbvm_pgtbl;		/* PA of PBVM page table. */
 	uint64_t	bi_hcdp;		/* DIG64 HCDP table */
 	uint64_t	bi_fpswa;		/* FPSWA interface */
 	uint64_t	bi_boothowto;		/* value for boothowto */
@@ -39,7 +40,7 @@ struct bootinfo {
 	uint64_t	bi_memmap_size;		/* size of EFI memory map */
 	uint64_t	bi_memdesc_size;	/* sizeof EFI memory desc */
 	uint32_t	bi_memdesc_version;	/* EFI memory desc version */
-	uint32_t	bi_spare2;
+	uint32_t	bi_pbvm_pgtblsz;	/* PBVM page table size. */
 	uint64_t	bi_symtab;		/* start of kernel sym table */
 	uint64_t	bi_esymtab;		/* end of kernel sym table */
 	uint64_t	bi_kernend;		/* end of kernel space */
