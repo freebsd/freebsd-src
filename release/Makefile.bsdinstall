@@ -13,6 +13,7 @@
 #  PORTSDIR: location of ports tree to distribute (default: /usr/ports)
 #  NOPORTS:  if set, do not distribute ports tree
 #  NOSRC:    if set, do not distribute source tree
+#  NODOC:    if set, do not generate release documentation
 #  TARGET/TARGET_ARCH: architecture of built release 
 #
 
@@ -34,6 +35,9 @@ EXTRA_PACKAGES+= ports.txz
 .endif
 .if !defined(NOSRC)
 EXTRA_PACKAGES+= src.txz
+.endif
+.if !defined(NODOC)
+EXTRA_PACKAGES+= reldoc
 .endif
 
 .include <bsd.obj.mk>
@@ -61,6 +65,17 @@ ports.txz:
 	ln -fs ${PORTSDIR} ${DISTDIR}/usr/ports
 	cd ${DISTDIR} && tar cLvJf ${.OBJDIR}/ports.txz --exclude usr/ports/distfiles --exclude usr/ports/packages --exclude 'usr/ports/INDEX*' --exclude work usr/ports
 
+reldoc:
+	cd ${.CURDIR}/doc && ${MAKE} all install clean 'FORMATS=html txt' INSTALL_COMPRESSED='' URLS_ABSOLUTE=YES DOCDIR=${.OBJDIR}/rdoc
+	-mkdir ${.OBJDIR}/reldoc
+	@for i in hardware readme relnotes errata; do \
+		cp ${.OBJDIR}/rdoc/${RELNOTES_LANG}/$$i/${TARGET}/article.txt \
+		    ${.OBJDIR}/reldoc/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+		cp ${.OBJDIR}/rdoc/${RELNOTES_LANG}/$$i/${TARGET}/article.html \
+		    ${.OBJDIR}/reldoc/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	done
+	@cp ${.OBJDIR}/rdoc/${RELNOTES_LANG}/readme/docbook.css ${.OBJDIR}/reldoc
+
 system: packagesystem
 # Install system
 	-mkdir ${.OBJDIR}/release
@@ -69,6 +84,8 @@ system: packagesystem
 # Copy distfiles
 	mkdir ${.OBJDIR}/release/usr/freebsd-dist
 	cp ${.OBJDIR}/*.txz ${.OBJDIR}/release/usr/freebsd-dist
+# Copy documentation, if generated
+	-cp ${.OBJDIR}/reldoc/* ${.OBJDIR}/release
 # Set up installation environment
 	ln -s /tmp/bsdinstall_etc/resolv.conf ${.OBJDIR}/release/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.OBJDIR}/release/etc/rc.conf
