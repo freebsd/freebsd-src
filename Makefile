@@ -289,6 +289,7 @@ MAKE_JUST_WORLDS=	YES
 .else
 UNIVERSE_TARGET?=	buildworld
 .endif
+KERNSRCDIR?=		${.CURDIR}/sys
 
 .if defined(DOING_TINDERBOX)
 FAILFILE=tinderbox.failed
@@ -321,8 +322,8 @@ universe_${target}:
 	@echo ">> ${target} ${UNIVERSE_TARGET} completed on `LC_ALL=C date`"
 .endif
 .if !defined(MAKE_JUST_WORLDS)
-.if exists(${.CURDIR}/sys/${target}/conf/NOTES)
-	@(cd ${.CURDIR}/sys/${target}/conf && env __MAKE_CONF=/dev/null \
+.if exists(${KERNSRCDIR}/${target}/conf/NOTES)
+	@(cd ${KERNSRCDIR}/${target}/conf && env __MAKE_CONF=/dev/null \
 	    ${MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
 	    (echo "${target} 'make LINT' failed," \
 	    "check _.${target}.makeLINT for details"| ${MAKEFAIL}))
@@ -336,7 +337,7 @@ universe_kernels: universe_kernconfs
 .if !defined(TARGET)
 TARGET!=	uname -m
 .endif
-KERNCONFS!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
+KERNCONFS!=	cd ${KERNSRCDIR}/${TARGET}/conf && \
 		find [A-Z0-9]*[A-Z0-9] -type f -maxdepth 0 \
 		! -name DEFAULTS ! -name NOTES
 universe_kernconfs:
