@@ -33,6 +33,8 @@
 #include "ar9002/ar9285v2.ini"
 #include "ar9002/ar9280v2.ini"		/* XXX ini for tx/rx gain */
 
+#include "ar9002/ar9285_cal.h"
+
 static const HAL_PERCAL_DATA ar9280_iq_cal = {		/* single sample */
 	.calName = "IQ", .calType = IQ_MISMATCH_CAL,
 	.calNumSamples	= MIN_CAL_SAMPLES,
@@ -117,6 +119,10 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 	AH5416(ah)->ah_cal.adcDcCalData.calData = &ar9280_adc_dc_cal;
 	AH5416(ah)->ah_cal.adcDcCalInitData.calData = &ar9280_adc_init_dc_cal;
 	AH5416(ah)->ah_cal.suppCals = ADC_GAIN_CAL | ADC_DC_CAL | IQ_MISMATCH_CAL;
+
+	if (AR_SREV_KITE_12_OR_LATER(ah))
+		AH5416(ah)->ah_cal_initcal      = ar9285InitCalHardware;
+	AH5416(ah)->ah_cal_pacal        = ar9002_hw_pa_cal;
 
 	AH5416(ah)->ah_spurMitigate	= ar9280SpurMitigate;
 	AH5416(ah)->ah_writeIni		= ar9285WriteIni;
