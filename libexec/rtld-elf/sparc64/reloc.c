@@ -66,6 +66,9 @@ __FBSDID("$FreeBSD$");
 #define	_RF_B		0x08000000		/* Load address relative */
 #define	_RF_U		0x04000000		/* Unaligned */
 #define	_RF_X		0x02000000		/* Bare symbols, needs proc */
+#define	_RF_D		0x01000000		/* Use dynamic TLS offset */
+#define	_RF_O		0x00800000		/* Use static TLS offset */
+#define	_RF_I		0x00400000		/* Use TLS object ID */
 #define	_RF_SZ(s)	(((s) & 0xff) << 8)	/* memory target size */
 #define	_RF_RS(s)	( (s) & 0xff)		/* right shift */
 static const int reloc_target_flags[] = {
@@ -126,6 +129,32 @@ static const int reloc_target_flags[] = {
 	_RF_S|_RF_A|		_RF_SZ(64) | _RF_RS(0),		/* REGISTER */
 	_RF_S|_RF_A|	_RF_U|	_RF_SZ(64) | _RF_RS(0),		/* UA64 */
 	_RF_S|_RF_A|	_RF_U|	_RF_SZ(16) | _RF_RS(0),		/* UA16 */
+
+	/* TLS */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* GD_HI22 */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* GD_LO10 */
+	0,							/* GD_ADD */
+	      _RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* GD_CALL */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* LDM_HI22 */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* LDM_LO10 */
+	0,							/* LDM_ADD */
+	      _RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* LDM_CALL */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* LDO_HIX22 */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* LDO_LOX10 */
+	0,							/* LDO_ADD */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* IE_HI22 */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* IE_LO10 */
+	0,							/* IE_LD */
+	0,							/* IE_LDX */
+	0,							/* IE_ADD */
+	_RF_S|_RF_A|	_RF_O|	_RF_SZ(32) | _RF_RS(10),	/* LE_HIX22 */
+	_RF_S|_RF_A|	_RF_O|	_RF_SZ(32) | _RF_RS(0),		/* LE_LOX10 */
+	_RF_S|		_RF_I|	_RF_SZ(32) | _RF_RS(0),		/* DTPMOD32 */
+	_RF_S|		_RF_I|	_RF_SZ(64) | _RF_RS(0),		/* DTPMOD64 */
+	_RF_S|_RF_A|	_RF_D|	_RF_SZ(32) | _RF_RS(0),		/* DTPOFF32 */
+	_RF_S|_RF_A|	_RF_D|	_RF_SZ(64) | _RF_RS(0),		/* DTPOFF64 */
+	_RF_S|_RF_A|	_RF_O|	_RF_SZ(32) | _RF_RS(0),		/* TPOFF32 */
+	_RF_S|_RF_A|	_RF_O|	_RF_SZ(64) | _RF_RS(0)		/* TPOFF64 */
 };
 
 #if 0
@@ -137,7 +166,11 @@ static const char *const reloc_names[] = {
 	"PCPLT32", "10", "11", "64", "OLO10", "HH22", "HM10", "LM22",
 	"PC_HH22", "PC_HM10", "PC_LM22", "WDISP16", "WDISP19", "GLOB_JMP",
 	"7", "5", "6", "DISP64", "PLT64", "HIX22", "LOX10", "H44", "M44",
-	"L44", "REGISTER", "UA64", "UA16"
+	"L44", "REGISTER", "UA64", "UA16", "GD_HI22", "GD_LO10", "GD_ADD",
+	"GD_CALL", "LDM_HI22", "LDMO10", "LDM_ADD", "LDM_CALL", "LDO_HIX22",
+	"LDO_LOX10", "LDO_ADD", "IE_HI22", "IE_LO10", "IE_LD", "IE_LDX",
+	"IE_ADD", "LE_HIX22", "LE_LOX10", "DTPMOD32", "DTPMOD64", "DTPOFF32",
+	"DTPOFF64", "TPOFF32", "TPOFF64"
 };
 #endif
 
@@ -147,6 +180,9 @@ static const char *const reloc_names[] = {
 #define	RELOC_UNALIGNED(t)		((reloc_target_flags[t] & _RF_U) != 0)
 #define	RELOC_USE_ADDEND(t)		((reloc_target_flags[t] & _RF_A) != 0)
 #define	RELOC_BARE_SYMBOL(t)		((reloc_target_flags[t] & _RF_X) != 0)
+#define	RELOC_USE_TLS_DOFF(t)		((reloc_target_flags[t] & _RF_D) != 0)
+#define	RELOC_USE_TLS_OFF(t)		((reloc_target_flags[t] & _RF_O) != 0)
+#define	RELOC_USE_TLS_ID(t)		((reloc_target_flags[t] & _RF_I) != 0)
 #define	RELOC_TARGET_SIZE(t)		((reloc_target_flags[t] >> 8) & 0xff)
 #define	RELOC_VALUE_RIGHTSHIFT(t)	(reloc_target_flags[t] & 0xff)
 
@@ -176,6 +212,16 @@ static const long reloc_target_bitmask[] = {
 	_BM(22), _BM(13),		/* HIX22, LOX10 */
 	_BM(22), _BM(10), _BM(13),	/* H44, M44, L44 */
 	-1, -1, _BM(16),		/* REGISTER, UA64, UA16 */
+	_BM(22), _BM(10), 0, _BM(30),	/* GD_HI22, GD_LO10, GD_ADD, GD_CALL */
+	_BM(22), _BM(10), 0,		/* LDM_HI22, LDMO10, LDM_ADD */
+	_BM(30),			/* LDM_CALL */
+	_BM(22), _BM(10), 0,		/* LDO_HIX22, LDO_LOX10, LDO_ADD */
+	_BM(22), _BM(10), 0, 0,		/* IE_HI22, IE_LO10, IE_LD, IE_LDX */
+	0,				/* IE_ADD */
+	_BM(22), _BM(13),		/* LE_HIX22, LE_LOX10 */
+	_BM(32), -1,			/* DTPMOD32, DTPMOD64 */
+	_BM(32), -1,			/* DTPOFF32, DTPOFF64 */
+	_BM(32), -1			/* TPOFF32, TPOFF64 */
 #undef _BM
 };
 #define	RELOC_VALUE_BITMASK(t)	(reloc_target_bitmask[t])
@@ -303,12 +349,22 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache,
 	if (type == R_SPARC_COPY)
 		return (0);
 
+	/* Ignore ADD and CALL relocations for dynamic TLS references. */
+	if (type == R_SPARC_TLS_GD_ADD || type == R_SPARC_TLS_GD_CALL ||
+	    type == R_SPARC_TLS_LDM_ADD || type == R_SPARC_TLS_LDM_CALL ||
+	    type == R_SPARC_TLS_LDO_ADD)
+		return (0);
+
 	/*
-	 * Note: R_SPARC_UA16 must be numerically largest relocation type.
+	 * Note: R_SPARC_TLS_TPOFF64 must be the numerically largest
+	 * relocation type.
 	 */
 	if (type >= sizeof(reloc_target_bitmask) /
-	    sizeof(*reloc_target_bitmask))
+	    sizeof(*reloc_target_bitmask)) {
+		_rtld_error("%s: Unsupported relocation type %d in non-PLT "
+		    "object\n", obj->path, type);
 		return (-1);
+	}
 
 	value = rela->r_addend;
 
@@ -333,14 +389,37 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache,
 		if (def == NULL)
 			return (-1);
 
-		/* Add in the symbol's absolute address. */
-		value += (Elf_Addr)(defobj->relocbase + def->st_value);
+		if (RELOC_USE_TLS_ID(type))
+			value = (Elf_Addr)defobj->tlsindex;
+		else if (RELOC_USE_TLS_DOFF(type))
+			value += (Elf_Addr)def->st_value;
+		else if (RELOC_USE_TLS_OFF(type)) {
+			/*
+			 * We lazily allocate offsets for static TLS as we
+			 * see the first relocation that references the TLS
+			 * block.  This allows us to support (small amounts
+			 * of) static TLS in dynamically loaded modules.  If
+			 * we run out of space, we generate an error.
+			 */
+			if (!defobj->tls_done &&
+			    !allocate_tls_offset((Obj_Entry*)defobj)) {
+				_rtld_error("%s: No space available for "
+				    "static Thread Local Storage", obj->path);
+				return (-1);
+			}
+			value += (Elf_Addr)(def->st_value -
+			    defobj->tlsoffset);
+		} else {
+			/* Add in the symbol's absolute address. */
+			value += (Elf_Addr)(def->st_value +
+			    defobj->relocbase);
+		}
 	}
 
 	if (type == R_SPARC_OLO10)
 		value = (value & 0x3ff) + ELF64_R_TYPE_DATA(rela->r_info);
 
-	if (type == R_SPARC_HIX22)
+	if (type == R_SPARC_HIX22 || type == R_SPARC_TLS_LE_HIX22)
 		value ^= 0xffffffffffffffff;
 
 	if (RELOC_PC_RELATIVE(type))
@@ -364,6 +443,9 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache,
 	mask = RELOC_VALUE_BITMASK(type);
 	value >>= RELOC_VALUE_RIGHTSHIFT(type);
 	value &= mask;
+
+	if (type == R_SPARC_LOX10 || type == R_SPARC_TLS_LE_LOX10)
+		value |= 0x1c00;
 
 	if (RELOC_UNALIGNED(type)) {
 		/* Handle unaligned relocations. */
