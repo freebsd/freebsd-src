@@ -115,26 +115,13 @@ dtrace_xcall(processorid_t cpu, dtrace_xcall_t func, void *arg)
 {
 	cpumask_t cpus;
 
-	critical_enter();
-
 	if (cpu == DTRACE_CPUALL)
 		cpus = all_cpus;
 	else
-		cpus = (cpumask_t) (1 << cpu);
+		cpus = (cpumask_t)1 << cpu;
 
-	/* If the current CPU is in the set, call the function directly: */
-	if ((cpus & (1 << curcpu)) != 0) {
-		(*func)(arg);
-
-		/* Mask the current CPU from the set */
-		cpus &= ~(1 << curcpu);
-	}
-
-	/* If there are any CPUs in the set, cross-call to those CPUs */
-	if (cpus != 0)
-		smp_rendezvous_cpus(cpus, NULL, func, smp_no_rendevous_barrier, arg);
-
-	critical_exit();
+	smp_rendezvous_cpus(cpus, smp_no_rendevous_barrier, func,
+	    smp_no_rendevous_barrier, arg);
 }
 
 static void
