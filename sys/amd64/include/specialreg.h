@@ -136,6 +136,15 @@
 #define	CPUID2_AESNI	0x02000000
 
 /*
+ * Important bits in the Thermal and Power Management flags
+ * CPUID.6 EAX and ECX.
+ */
+#define	CPUTPM1_SENSOR	0x00000001
+#define	CPUTPM1_TURBO	0x00000002
+#define	CPUTPM1_ARAT	0x00000004
+#define	CPUTPM2_EFFREQ	0x00000001
+
+/*
  * Important bits in the AMD extended cpuid flags
  */
 #define	AMDID_SYSCALL	0x00000800
