@@ -114,7 +114,7 @@ if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 	ALL_DISTRIBUTIONS="$DISTRIBUTIONS"
 
 	# Download to a directory in the new system as scratch space
-	BSDINSTALL_FETCHDEST="$BSDINSTALL_CHROOT/usr/bsdinstall-dist"
+	BSDINSTALL_FETCHDEST="$BSDINSTALL_CHROOT/usr/freebsd-dist"
 	mkdir -p "$BSDINSTALL_FETCHDEST" || error
 
 	export DISTRIBUTIONS="$FETCH_DISTRIBUTIONS"
