@@ -234,7 +234,7 @@ __FBSDID("$FreeBSD$");
 #ifdef __sparc64__
 #  define LG_QUANTUM		4
 #  define LG_SIZEOF_PTR		3
-#  define NO_TLS
+#  define TLS_MODEL		/* default */
 #endif
 #ifdef __amd64__
 #  define LG_QUANTUM		4
