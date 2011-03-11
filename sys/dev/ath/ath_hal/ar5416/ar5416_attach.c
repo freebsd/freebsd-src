@@ -178,6 +178,9 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	AH5416(ah)->ah_writeIni		= ar5416WriteIni;
 	AH5416(ah)->ah_spurMitigate	= ar5416SpurMitigate;
 
+	/* Internal calibration ops */
+	AH5416(ah)->ah_cal_initcal	= ar5416InitCalHardware;
+
 	/* Internal TX power control related operations */
 	AH5416(ah)->ah_olcInit = ar5416olcInit;
 	AH5416(ah)->ah_olcTempCompensation	= ar5416olcTempCompensation;

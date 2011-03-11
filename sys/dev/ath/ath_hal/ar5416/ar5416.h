@@ -74,6 +74,12 @@ struct ath_hal_5416 {
 	void		(*ah_spurMitigate)(struct ath_hal *,
 			    const struct ieee80211_channel *);
 
+	/* calibration ops */
+	HAL_BOOL	(*ah_cal_initcal)(struct ath_hal *,
+			    const struct ieee80211_channel *);
+	void		(*ah_cal_pacal)(struct ath_hal *,
+			    HAL_BOOL is_reset);
+
 	/* optional open-loop tx power control related methods */
 	void		(*ah_olcInit)(struct ath_hal *);
 	void		(*ah_olcTempCompensation)(struct ath_hal *);
