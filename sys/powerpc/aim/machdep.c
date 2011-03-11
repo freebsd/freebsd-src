@@ -540,7 +540,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	 */
         env = getenv("kernelname");
         if (env != NULL) {
-		strlcpy(kernelname, env, MAXPATHLEN);
+		strlcpy(kernelname, env, sizeof(kernelname));
 		freeenv(env);
 	}
 
