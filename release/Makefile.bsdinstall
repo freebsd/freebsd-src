@@ -19,6 +19,7 @@
 
 WORLDDIR?=	${.CURDIR}/..
 PORTSDIR?=	/usr/ports
+RELNOTES_LANG?= en_US.ISO8859-1
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 .if ${TARGET_ARCH} == ${MACHINE_ARCH}
@@ -68,12 +69,12 @@ ports.txz:
 reldoc:
 	cd ${.CURDIR}/doc && ${MAKE} all install clean 'FORMATS=html txt' INSTALL_COMPRESSED='' URLS_ABSOLUTE=YES DOCDIR=${.OBJDIR}/rdoc
 	-mkdir ${.OBJDIR}/reldoc
-	@for i in hardware readme relnotes errata; do \
-		cp ${.OBJDIR}/rdoc/${RELNOTES_LANG}/$$i/${TARGET}/article.txt \
-		    ${.OBJDIR}/reldoc/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
-		cp ${.OBJDIR}/rdoc/${RELNOTES_LANG}/$$i/${TARGET}/article.html \
-		    ${.OBJDIR}/reldoc/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
-	done
+.for i in hardware readme relnotes errata
+	ln -f ${.OBJDIR}/rdoc/${RELNOTES_LANG}/$i/article.txt \
+	    ${.OBJDIR}/reldoc/${i:U}.TXT
+	ln -f ${.OBJDIR}/rdoc/${RELNOTES_LANG}/$i/article.html \
+	    ${.OBJDIR}/reldoc/${i:U}.HTM
+.endfor
 	@cp ${.OBJDIR}/rdoc/${RELNOTES_LANG}/readme/docbook.css ${.OBJDIR}/reldoc
 
 system: packagesystem
@@ -85,7 +86,9 @@ system: packagesystem
 	mkdir ${.OBJDIR}/release/usr/freebsd-dist
 	cp ${.OBJDIR}/*.txz ${.OBJDIR}/release/usr/freebsd-dist
 # Copy documentation, if generated
-	-cp ${.OBJDIR}/reldoc/* ${.OBJDIR}/release
+.if !defined(NODOC)
+	cp ${.OBJDIR}/reldoc/* ${.OBJDIR}/release
+.endif
 # Set up installation environment
 	ln -s /tmp/bsdinstall_etc/resolv.conf ${.OBJDIR}/release/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.OBJDIR}/release/etc/rc.conf
