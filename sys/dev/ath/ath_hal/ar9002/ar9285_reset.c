@@ -59,8 +59,6 @@ static HAL_BOOL ar9285SetPowerCalTable(struct ath_hal *ah,
 	int16_t *pTxPowerIndexOffset);
 static int16_t interpolate(uint16_t target, uint16_t srcLeft,
 	uint16_t srcRight, int16_t targetLeft, int16_t targetRight);
-static HAL_BOOL ar9285FillVpdTable(uint8_t, uint8_t, uint8_t *, uint8_t *,
-		                   uint16_t, uint8_t *);
 static void ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah, 
 	const struct ieee80211_channel *chan, CAL_DATA_PER_FREQ_4K *pRawDataSet,
 	uint8_t * bChans, uint16_t availPiers,
@@ -667,7 +665,7 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
         for (i = 0; i < numXpdGains; i++) {
             minPwrT4[i] = pRawDataSet[idxL].pwrPdg[i][0];
             maxPwrT4[i] = pRawDataSet[idxL].pwrPdg[i][4];
-            ar9285FillVpdTable(minPwrT4[i], maxPwrT4[i],
+            ar5416FillVpdTable(minPwrT4[i], maxPwrT4[i],
 			       pRawDataSet[idxL].pwrPdg[i],
                                pRawDataSet[idxL].vpdPdg[i],
 			       AR5416_PD_GAIN_ICEPTS, vpdTableI[i]);
@@ -687,9 +685,9 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
             HALASSERT(maxPwrT4[i] > minPwrT4[i]);
 
             /* Fill pier Vpds */
-            ar9285FillVpdTable(minPwrT4[i], maxPwrT4[i], pPwrL, pVpdL,
+            ar5416FillVpdTable(minPwrT4[i], maxPwrT4[i], pPwrL, pVpdL,
 			       AR5416_PD_GAIN_ICEPTS, vpdTableL[i]);
-            ar9285FillVpdTable(minPwrT4[i], maxPwrT4[i], pPwrR, pVpdR,
+            ar5416FillVpdTable(minPwrT4[i], maxPwrT4[i], pPwrR, pVpdR,
 			       AR5416_PD_GAIN_ICEPTS, vpdTableR[i]);
 
             /* Interpolate the final vpd */
@@ -782,37 +780,7 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
     }
     return;
 }
-/*
- * XXX same as ar5416FillVpdTable
- */
-static HAL_BOOL
-ar9285FillVpdTable(uint8_t pwrMin, uint8_t pwrMax, uint8_t *pPwrList,
-                   uint8_t *pVpdList, uint16_t numIntercepts, uint8_t *pRetVpdList)
-{
-    uint16_t  i, k;
-    uint8_t   currPwr = pwrMin;
-    uint16_t  idxL, idxR;
 
-    HALASSERT(pwrMax > pwrMin);
-    for (i = 0; i <= (pwrMax - pwrMin) / 2; i++) {
-        getLowerUpperIndex(currPwr, pPwrList, numIntercepts,
-                           &(idxL), &(idxR));
-        if (idxR < 1)
-            idxR = 1;           /* extrapolate below */
-        if (idxL == numIntercepts - 1)
-            idxL = (uint16_t)(numIntercepts - 2);   /* extrapolate above */
-        if (pPwrList[idxL] == pPwrList[idxR])
-            k = pVpdList[idxL];
-        else
-            k = (uint16_t)( ((currPwr - pPwrList[idxL]) * pVpdList[idxR] + (pPwrList[idxR] - currPwr) * pVpdList[idxL]) /
-                  (pPwrList[idxR] - pPwrList[idxL]) );
-        HALASSERT(k < 256);
-        pRetVpdList[i] = (uint8_t)k;
-        currPwr += 2;               /* half dB steps */
-    }
-
-    return AH_TRUE;
-}
 static int16_t
 interpolate(uint16_t target, uint16_t srcLeft, uint16_t srcRight,
             int16_t targetLeft, int16_t targetRight)

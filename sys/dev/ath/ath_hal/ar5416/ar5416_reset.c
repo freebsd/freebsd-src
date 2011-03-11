@@ -67,9 +67,6 @@ static uint16_t ar5416GetMaxEdgePower(uint16_t freq,
 static int16_t interpolate(uint16_t target, uint16_t srcLeft,
 	uint16_t srcRight, int16_t targetLeft, int16_t targetRight);
 static void ar5416Set11nRegs(struct ath_hal *ah, const struct ieee80211_channel *chan);
-static HAL_BOOL ar5416FillVpdTable(uint8_t pwrMin, uint8_t pwrMax,
-	uint8_t *pPwrList, uint8_t *pVpdList,
-	uint16_t numIntercepts, uint8_t *pRetVpdList);
 
 /*
  * Places the device in and out of reset and then places sane
@@ -2350,7 +2347,7 @@ getLowerUpperIndex(uint8_t target, uint8_t *pList, uint16_t listSize,
  * Fill the Vpdlist for indices Pmax-Pmin
  * Note: pwrMin, pwrMax and Vpdlist are all in dBm * 4
  */
-static HAL_BOOL
+HAL_BOOL
 ar5416FillVpdTable(uint8_t pwrMin, uint8_t pwrMax, uint8_t *pPwrList,
                    uint8_t *pVpdList, uint16_t numIntercepts, uint8_t *pRetVpdList)
 {
