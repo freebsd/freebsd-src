@@ -59,16 +59,12 @@ static HAL_BOOL ar9285SetPowerCalTable(struct ath_hal *ah,
 	int16_t *pTxPowerIndexOffset);
 static int16_t interpolate(uint16_t target, uint16_t srcLeft,
 	uint16_t srcRight, int16_t targetLeft, int16_t targetRight);
-static HAL_BOOL ar9285FillVpdTable(uint8_t, uint8_t, uint8_t *, uint8_t *,
-		                   uint16_t, uint8_t *);
 static void ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah, 
 	const struct ieee80211_channel *chan, CAL_DATA_PER_FREQ_4K *pRawDataSet,
 	uint8_t * bChans, uint16_t availPiers,
 	uint16_t tPdGainOverlap, int16_t *pMinCalPower,
 	uint16_t * pPdGainBoundaries, uint8_t * pPDADCValues,
 	uint16_t numXpdGains);
-static HAL_BOOL getLowerUpperIndex(uint8_t target, uint8_t *pList,
-	uint16_t listSize,  uint16_t *indexL, uint16_t *indexR);
 static uint16_t ar9285GetMaxEdgePower(uint16_t, CAL_CTL_EDGES *);
 
 /* XXX gag, this is sick */
@@ -155,9 +151,12 @@ ar9285SetTransmitPower(struct ath_hal *ah,
      */
     for (i = 0; i < N(ratesArray); i++) {
         ratesArray[i] = (int16_t)(txPowerIndexOffset + ratesArray[i]);
+	/* -5 dBm offset for Merlin and later; this includes Kite */
+	ratesArray[i] -= AR5416_PWR_TABLE_OFFSET_DB * 2;
         if (ratesArray[i] > AR5416_MAX_RATE_POWER)
             ratesArray[i] = AR5416_MAX_RATE_POWER;
-	ratesArray[i] -= AR5416_PWR_TABLE_OFFSET_DB * 2;
+	if (ratesArray[i] < 0)
+		ratesArray[i] = 0;
     }
 
 #ifdef AH_EEPROM_DUMP
@@ -552,11 +551,11 @@ ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
     uint16_t pdGainOverlap_t2;
     static uint8_t  pdadcValues[AR5416_NUM_PDADC_VALUES];
     uint16_t gainBoundaries[AR5416_PD_GAINS_IN_MASK];
-    uint16_t numPiers, i, j;
+    uint16_t numPiers, i;
     int16_t  tMinCalPower;
     uint16_t numXpdGain, xpdMask;
-    uint16_t xpdGainValues[AR5416_4K_NUM_PD_GAINS];
-    uint32_t reg32, regOffset, regChainOffset;
+    uint16_t xpdGainValues[4];	/* v4k eeprom has 2; the other two stay 0 */
+    uint32_t regChainOffset;
 
     OS_MEMZERO(xpdGainValues, sizeof(xpdGainValues));
     
@@ -571,6 +570,7 @@ ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
     pCalBChans = pEepData->calFreqPier2G;
     numPiers = AR5416_4K_NUM_2G_CAL_PIERS;
     numXpdGain = 0;
+
     /* Calculate the value of xpdgains from the xpdGain Mask */
     for (i = 1; i <= AR5416_PD_GAINS_IN_MASK; i++) {
         if ((xpdMask >> (AR5416_PD_GAINS_IN_MASK - i)) & 1) {
@@ -584,23 +584,10 @@ ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
     }
     
     /* Write the detector gain biases and their number */
-    OS_REG_WRITE(ah, AR_PHY_TPCRG1, (OS_REG_READ(ah, AR_PHY_TPCRG1) & 
-    	~(AR_PHY_TPCRG1_NUM_PD_GAIN | AR_PHY_TPCRG1_PD_GAIN_1 | AR_PHY_TPCRG1_PD_GAIN_2 | AR_PHY_TPCRG1_PD_GAIN_3)) | 
-	SM(numXpdGain - 1, AR_PHY_TPCRG1_NUM_PD_GAIN) | SM(xpdGainValues[0], AR_PHY_TPCRG1_PD_GAIN_1 ) |
-	SM(xpdGainValues[1], AR_PHY_TPCRG1_PD_GAIN_2) | SM(0, AR_PHY_TPCRG1_PD_GAIN_3));
+    ar5416WriteDetectorGainBiases(ah, numXpdGain, xpdGainValues);
 
     for (i = 0; i < AR5416_MAX_CHAINS; i++) {
-
-            if (AR_SREV_OWL_20_OR_LATER(ah) && 
-            ( AH5416(ah)->ah_rx_chainmask == 0x5 || AH5416(ah)->ah_tx_chainmask == 0x5) && (i != 0)) {
-            /* Regs are swapped from chain 2 to 1 for 5416 2_0 with 
-             * only chains 0 and 2 populated 
-             */
-            regChainOffset = (i == 1) ? 0x2000 : 0x1000;
-        } else {
-            regChainOffset = i * 0x1000;
-        }
-
+	regChainOffset = ar5416GetRegChainOffset(ah, i);
         if (pEepData->baseEepHeader.txMask & (1 << i)) {
             pRawDataset = pEepData->calPierData2G[i];
 
@@ -616,35 +603,11 @@ ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
                  * negative or greater than 0.  Need to offset the power
                  * values by the amount of minPower for griffin
                  */
-
-                OS_REG_WRITE(ah, AR_PHY_TPCRG5 + regChainOffset,
-                     SM(pdGainOverlap_t2, AR_PHY_TPCRG5_PD_GAIN_OVERLAP) |
-                     SM(gainBoundaries[0], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_1)  |
-                     SM(gainBoundaries[1], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_2)  |
-                     SM(gainBoundaries[2], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_3)  |
-                     SM(gainBoundaries[3], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_4));
+		ar5416SetGainBoundariesClosedLoop(ah, regChainOffset, pdGainOverlap_t2, gainBoundaries); 
             }
 
             /* Write the power values into the baseband power table */
-            regOffset = AR_PHY_BASE + (672 << 2) + regChainOffset;
-
-            for (j = 0; j < 32; j++) {
-                reg32 = ((pdadcValues[4*j + 0] & 0xFF) << 0)  |
-                    ((pdadcValues[4*j + 1] & 0xFF) << 8)  |
-                    ((pdadcValues[4*j + 2] & 0xFF) << 16) |
-                    ((pdadcValues[4*j + 3] & 0xFF) << 24) ;
-                OS_REG_WRITE(ah, regOffset, reg32);
-
-#ifdef PDADC_DUMP
-		ath_hal_printf(ah, "PDADC: Chain %d | PDADC %3d Value %3d | PDADC %3d Value %3d | PDADC %3d Value %3d | PDADC %3d Value %3d |\n",
-			       i,
-			       4*j, pdadcValues[4*j],
-			       4*j+1, pdadcValues[4*j + 1],
-			       4*j+2, pdadcValues[4*j + 2],
-			       4*j+3, pdadcValues[4*j + 3]);
-#endif
-                regOffset += 4;
-            }
+	    ar5416WritePdadcValues(ah, regChainOffset, pdadcValues);
         }
     }
     *pTxPowerIndexOffset = 0;
@@ -702,7 +665,7 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
         for (i = 0; i < numXpdGains; i++) {
             minPwrT4[i] = pRawDataSet[idxL].pwrPdg[i][0];
             maxPwrT4[i] = pRawDataSet[idxL].pwrPdg[i][4];
-            ar9285FillVpdTable(minPwrT4[i], maxPwrT4[i],
+            ar5416FillVpdTable(minPwrT4[i], maxPwrT4[i],
 			       pRawDataSet[idxL].pwrPdg[i],
                                pRawDataSet[idxL].vpdPdg[i],
 			       AR5416_PD_GAIN_ICEPTS, vpdTableI[i]);
@@ -722,9 +685,9 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
             HALASSERT(maxPwrT4[i] > minPwrT4[i]);
 
             /* Fill pier Vpds */
-            ar9285FillVpdTable(minPwrT4[i], maxPwrT4[i], pPwrL, pVpdL,
+            ar5416FillVpdTable(minPwrT4[i], maxPwrT4[i], pPwrL, pVpdL,
 			       AR5416_PD_GAIN_ICEPTS, vpdTableL[i]);
-            ar9285FillVpdTable(minPwrT4[i], maxPwrT4[i], pPwrR, pVpdR,
+            ar5416FillVpdTable(minPwrT4[i], maxPwrT4[i], pPwrR, pVpdR,
 			       AR5416_PD_GAIN_ICEPTS, vpdTableR[i]);
 
             /* Interpolate the final vpd */
@@ -762,7 +725,10 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
 
         /* Find starting index for this pdGain */
         if (i == 0) {
-            ss = 0; /* for the first pdGain, start from index 0 */
+            if (AR_SREV_MERLIN_20_OR_LATER(ah))
+                ss = (int16_t)(0 - (minPwrT4[i] / 2));
+            else
+                ss = 0; /* for the first pdGain, start from index 0 */
         } else {
 	    /* need overlap entries extrapolated below. */
             ss = (int16_t)((pPdGainBoundaries[i-1] - (minPwrT4[i] / 2)) - tPdGainOverlap + 1 + minDelta);
@@ -814,37 +780,7 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
     }
     return;
 }
-/*
- * XXX same as ar5416FillVpdTable
- */
-static HAL_BOOL
-ar9285FillVpdTable(uint8_t pwrMin, uint8_t pwrMax, uint8_t *pPwrList,
-                   uint8_t *pVpdList, uint16_t numIntercepts, uint8_t *pRetVpdList)
-{
-    uint16_t  i, k;
-    uint8_t   currPwr = pwrMin;
-    uint16_t  idxL, idxR;
 
-    HALASSERT(pwrMax > pwrMin);
-    for (i = 0; i <= (pwrMax - pwrMin) / 2; i++) {
-        getLowerUpperIndex(currPwr, pPwrList, numIntercepts,
-                           &(idxL), &(idxR));
-        if (idxR < 1)
-            idxR = 1;           /* extrapolate below */
-        if (idxL == numIntercepts - 1)
-            idxL = (uint16_t)(numIntercepts - 2);   /* extrapolate above */
-        if (pPwrList[idxL] == pPwrList[idxR])
-            k = pVpdList[idxL];
-        else
-            k = (uint16_t)( ((currPwr - pPwrList[idxL]) * pVpdList[idxR] + (pPwrList[idxR] - currPwr) * pVpdList[idxL]) /
-                  (pPwrList[idxR] - pPwrList[idxL]) );
-        HALASSERT(k < 256);
-        pRetVpdList[i] = (uint8_t)k;
-        currPwr += 2;               /* half dB steps */
-    }
-
-    return AH_TRUE;
-}
 static int16_t
 interpolate(uint16_t target, uint16_t srcLeft, uint16_t srcRight,
             int16_t targetLeft, int16_t targetRight)
@@ -858,47 +794,4 @@ interpolate(uint16_t target, uint16_t srcLeft, uint16_t srcRight,
               (srcRight - target) * targetLeft) / (srcRight - srcLeft) );
     }
     return rv;
-}
-
-HAL_BOOL
-getLowerUpperIndex(uint8_t target, uint8_t *pList, uint16_t listSize,
-                   uint16_t *indexL, uint16_t *indexR)
-{
-    uint16_t i;
-
-    /*
-     * Check first and last elements for beyond ordered array cases.
-     */
-    if (target <= pList[0]) {
-        *indexL = *indexR = 0;
-        return AH_TRUE;
-    }
-    if (target >= pList[listSize-1]) {
-        *indexL = *indexR = (uint16_t)(listSize - 1);
-        return AH_TRUE;
-    }
-
-    /* look for value being near or between 2 values in list */
-    for (i = 0; i < listSize - 1; i++) {
-        /*
-         * If value is close to the current value of the list
-         * then target is not between values, it is one of the values
-         */
-        if (pList[i] == target) {
-            *indexL = *indexR = i;
-            return AH_TRUE;
-        }
-        /*
-         * Look for value being between current value and next value
-         * if so return these 2 values
-         */
-        if (target < pList[i + 1]) {
-            *indexL = i;
-            *indexR = (uint16_t)(i + 1);
-            return AH_FALSE;
-        }
-    }
-    HALASSERT(0);
-    *indexL = *indexR = 0;
-    return AH_FALSE;
 }

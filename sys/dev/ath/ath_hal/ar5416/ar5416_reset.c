@@ -61,27 +61,12 @@ static HAL_BOOL ar5416SetPowerPerRateTable(struct ath_hal *ah,
 	uint16_t cfgCtl, uint16_t AntennaReduction,
 	uint16_t twiceMaxRegulatoryPower, 
 	uint16_t powerLimit);
-static HAL_BOOL ar5416SetPowerCalTable(struct ath_hal *ah,
-	struct ar5416eeprom *pEepData,
-	const struct ieee80211_channel *chan,
-	int16_t *pTxPowerIndexOffset);
 static uint16_t ar5416GetMaxEdgePower(uint16_t freq,
 	CAL_CTL_EDGES *pRdEdgesPower, HAL_BOOL is2GHz);
 
 static int16_t interpolate(uint16_t target, uint16_t srcLeft,
 	uint16_t srcRight, int16_t targetLeft, int16_t targetRight);
 static void ar5416Set11nRegs(struct ath_hal *ah, const struct ieee80211_channel *chan);
-static void ar5416GetGainBoundariesAndPdadcs(struct ath_hal *ah, 
-	const struct ieee80211_channel *chan, CAL_DATA_PER_FREQ *pRawDataSet,
-	uint8_t * bChans, uint16_t availPiers,
-	uint16_t tPdGainOverlap, int16_t *pMinCalPower,
-	uint16_t * pPdGainBoundaries, uint8_t * pPDADCValues,
-	uint16_t numXpdGains);
-static HAL_BOOL getLowerUpperIndex(uint8_t target, uint8_t *pList,
-	uint16_t listSize,  uint16_t *indexL, uint16_t *indexR);
-static HAL_BOOL ar5416FillVpdTable(uint8_t pwrMin, uint8_t pwrMax,
-	uint8_t *pPwrList, uint8_t *pVpdList,
-	uint16_t numIntercepts, uint8_t *pRetVpdList);
 
 /*
  * Places the device in and out of reset and then places sane
@@ -107,6 +92,7 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	uint32_t powerVal, rssiThrReg;
 	uint32_t ackTpcPow, ctsTpcPow, chirpTpcPow;
 	int i;
+	uint64_t tsf = 0;
 
 	OS_MARK(ah, AH_MARK_RESET, bChannelChange);
 
@@ -163,6 +149,10 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		(AR_MAC_LED_ASSOC | AR_MAC_LED_MODE |
 		 AR_MAC_LED_BLINK_THRESH_SEL | AR_MAC_LED_BLINK_SLOW);
 
+	/* For chips on which the RTC reset is done, save TSF before it gets cleared */
+	if (AR_SREV_MERLIN_20_OR_LATER(ah) && ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL))
+		tsf = ar5212GetTsf64(ah);
+
 	if (!ar5416ChipReset(ah, chan)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: chip reset failed\n", __func__);
 		FAIL(HAL_EIO);
@@ -170,6 +160,10 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	/* Restore bmiss rssi & count thresholds */
 	OS_REG_WRITE(ah, AR_RSSI_THR, rssiThrReg);
+
+	/* Restore TSF */
+	if (tsf)
+		ar5212SetTsf64(ah, tsf);
 
 	OS_MARK(ah, AH_MARK_RESET_LINE, __LINE__);
 	if (AR_SREV_MERLIN_10_OR_LATER(ah))
@@ -224,6 +218,7 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	 * before any radio register twiddling is done.
 	 */
 	ar5416InitChainMasks(ah);
+	AH5416(ah)->ah_olcInit(ah);
 
 	/* Setup the transmit power values. */
 	if (!ah->ah_setTxPower(ah, chan, rfXpdGain)) {
@@ -407,7 +402,7 @@ ar5416ChannelChange(struct ath_hal *ah, const structu ieee80211_channel *chan)
 		return AH_FALSE;
 
 	/* Setup the transmit power values. */
-	if (!ar5416SetTransmitPower(ah, chan, rfXpdGain)) {
+	if (!ah->ah_setTxPower(ah, chan, rfXpdGain)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: error init'ing transmit power\n", __func__);
 		return AH_FALSE;
@@ -750,7 +745,7 @@ ar5416SetTxPowerLimit(struct ath_hal *ah, uint32_t limit)
 	uint16_t dummyXpdGains[2];
 
 	AH_PRIVATE(ah)->ah_powerLimit = AH_MIN(limit, MAX_RATE_POWER);
-	return ar5416SetTransmitPower(ah, AH_PRIVATE(ah)->ah_curchan,
+	return ah->ah_setTxPower(ah, AH_PRIVATE(ah)->ah_curchan,
 			dummyXpdGains);
 }
 
@@ -848,7 +843,7 @@ ar5416SetTransmitPower(struct ath_hal *ah,
         return AH_FALSE;
     }
 
-    if (!ar5416SetPowerCalTable(ah,  pEepData, chan, &txPowerIndexOffset)) {
+    if (!AH5416(ah)->ah_setPowerCalTable(ah,  pEepData, chan, &txPowerIndexOffset)) {
         HALDEBUG(ah, HAL_DEBUG_ANY, "%s: unable to set power table\n",
 	    __func__);
         return AH_FALSE;
@@ -879,8 +874,70 @@ ar5416SetTransmitPower(struct ath_hal *ah,
     }
 
 #ifdef AH_EEPROM_DUMP
+    /*
+     * Dump the rate array whilst it represents the intended dBm*2
+     * values versus what's being adjusted before being programmed
+     * in. Keep this in mind if you code up this function and enable
+     * this debugging; the values won't necessarily be what's being
+     * programmed into the hardware.
+     */
     ar5416PrintPowerPerRate(ah, ratesArray);
 #endif
+
+    /*
+     * Merlin and later have a power offset, so subtract
+     * pwr_table_offset * 2 from each value. The default
+     * power offset is -5 dBm - ie, a register value of 0
+     * equates to a TX power of -5 dBm.
+     */
+    if (AR_SREV_MERLIN_20_OR_LATER(ah)) {
+        int8_t pwr_table_offset;
+
+	(void) ath_hal_eepromGet(ah, AR_EEP_PWR_TABLE_OFFSET,
+	    &pwr_table_offset);
+	/* Underflow power gets clamped at raw value 0 */
+	/* Overflow power gets camped at AR5416_MAX_RATE_POWER */
+	for (i = 0; i < N(ratesArray); i++) {
+		/*
+		 * + pwr_table_offset is in dBm
+		 * + ratesArray is in 1/2 dBm
+		 */
+		ratesArray[i] -= (pwr_table_offset * 2);
+		if (ratesArray[i] < 0)
+			ratesArray[i] = 0;
+		else if (ratesArray[i] > AR5416_MAX_RATE_POWER)
+		    ratesArray[i] = AR5416_MAX_RATE_POWER;
+	}
+    }
+
+    /*
+     * Adjust rates for OLC where needed
+     *
+     * The following CCK rates need adjusting when doing 2.4ghz
+     * CCK transmission.
+     *
+     * + rate2s, rate2l, rate1l, rate11s, rate11l, rate5_5s, rate5_5l
+     * + rateExtCck, rateDupCck
+     *
+     * They're adjusted here regardless. The hardware then gets
+     * programmed as needed. 5GHz operation doesn't program in CCK
+     * rates for legacy mode but they seem to be initialised for
+     * HT40 regardless of channel type.
+     */
+    if (AR_SREV_MERLIN_20_OR_LATER(ah) &&
+	    ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL)) {
+        int adj[] = {
+	              rate2s, rate2l, rate1l, rate11s, rate11l,
+	              rate5_5s, rate5_5l, rateExtCck, rateDupCck
+		    };
+        int cck_ofdm_delta = 2;
+	int i;
+	for (i = 0; i < N(adj); i++) {
+            ratesArray[i] -= cck_ofdm_delta;
+	    if (ratesArray[i] < 0)
+	        ratesArray[i] = 0;
+        }
+    }
 
     /* Write the OFDM power per rate set */
     OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE1,
@@ -1297,7 +1354,32 @@ ar5416SetDefGainValues(struct ath_hal *ah,
 	}
 }
 
+/*
+ * Get the register chain offset for the given chain.
+ *
+ * Take into account the register chain swapping with AR5416 v2.0.
+ *
+ * XXX make sure that the reg chain swapping is only done for
+ * XXX AR5416 v2.0 or greater, and not later chips?
+ */
+int
+ar5416GetRegChainOffset(struct ath_hal *ah, int i)
+{
+	int regChainOffset;
 
+	if (AR_SREV_OWL_20_OR_LATER(ah) && 
+	    (AH5416(ah)->ah_rx_chainmask == 0x5 ||
+	    AH5416(ah)->ah_tx_chainmask == 0x5) && (i != 0)) {
+		/* Regs are swapped from chain 2 to 1 for 5416 2_0 with 
+		 * only chains 0 and 2 populated 
+		 */
+		regChainOffset = (i == 1) ? 0x2000 : 0x1000;
+	} else {
+		regChainOffset = i * 0x1000;
+	}
+
+	return regChainOffset;
+}
 
 /*
  * Read EEPROM header info and program the device for correct operation
@@ -1323,16 +1405,7 @@ ar5416SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	   if (AR_SREV_MERLIN(ah)) {
 		if (i >= 2) break;
 	   }
-       	   if (AR_SREV_OWL_20_OR_LATER(ah) &&
-            (AH5416(ah)->ah_rx_chainmask == 0x5 ||
-	     AH5416(ah)->ah_tx_chainmask == 0x5) && i != 0) {
-            /* Regs are swapped from chain 2 to 1 for 5416 2_0 with 
-             * only chains 0 and 2 populated 
-             */
-            regChainOffset = (i == 1) ? 0x2000 : 0x1000;
-        } else {
-            regChainOffset = i * 0x1000;
-        }
+	regChainOffset = ar5416GetRegChainOffset(ah, i);
 
         OS_REG_WRITE(ah, AR_PHY_SWITCH_CHAIN_0 + regChainOffset, pModal->antCtrlChain[i]);
 
@@ -1857,6 +1930,120 @@ ar5416GetTargetPowersLeg(struct ath_hal *ah,
     }
 }
 
+/*
+ * Set the gain boundaries for the given radio chain.
+ *
+ * The gain boundaries tell the hardware at what point in the
+ * PDADC array to "switch over" from one PD gain setting
+ * to another. There's also a gain overlap between two
+ * PDADC array gain curves where there's valid PD values
+ * for 2 gain settings.
+ *
+ * The hardware uses the gain overlap and gain boundaries
+ * to determine which gain curve to use for the given
+ * target TX power.
+ */
+void
+ar5416SetGainBoundariesClosedLoop(struct ath_hal *ah, int regChainOffset,
+    uint16_t pdGainOverlap_t2, uint16_t gainBoundaries[])
+{
+	OS_REG_WRITE(ah, AR_PHY_TPCRG5 + regChainOffset,
+	    SM(pdGainOverlap_t2, AR_PHY_TPCRG5_PD_GAIN_OVERLAP) |
+	    SM(gainBoundaries[0], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_1)  |
+	    SM(gainBoundaries[1], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_2)  |
+	    SM(gainBoundaries[2], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_3)  |
+	    SM(gainBoundaries[3], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_4));
+}
+
+/*
+ * Get the gain values and the number of gain levels given
+ * in xpdMask.
+ *
+ * The EEPROM xpdMask determines which power detector gain
+ * levels were used during calibration. Each of these mask
+ * bits maps to a fixed gain level in hardware.
+ */
+uint16_t
+ar5416GetXpdGainValues(struct ath_hal *ah, uint16_t xpdMask,
+    uint16_t xpdGainValues[])
+{
+    int i;
+    uint16_t numXpdGain = 0;
+
+    for (i = 1; i <= AR5416_PD_GAINS_IN_MASK; i++) {
+        if ((xpdMask >> (AR5416_PD_GAINS_IN_MASK - i)) & 1) {
+            if (numXpdGain >= AR5416_NUM_PD_GAINS) {
+                HALASSERT(0);
+                break;
+            }
+            xpdGainValues[numXpdGain] = (uint16_t)(AR5416_PD_GAINS_IN_MASK - i);
+            numXpdGain++;
+        }
+    }
+    return numXpdGain;
+}
+
+/*
+ * Write the detector gain and biases.
+ *
+ * There are four power detector gain levels. The xpdMask in the EEPROM
+ * determines which power detector gain levels have TX power calibration
+ * data associated with them. This function writes the number of
+ * PD gain levels and their values into the hardware.
+ *
+ * This is valid for all TX chains - the calibration data itself however
+ * will likely differ per-chain.
+ */
+void
+ar5416WriteDetectorGainBiases(struct ath_hal *ah, uint16_t numXpdGain,
+    uint16_t xpdGainValues[])
+{
+    OS_REG_WRITE(ah, AR_PHY_TPCRG1, (OS_REG_READ(ah, AR_PHY_TPCRG1) & 
+    	~(AR_PHY_TPCRG1_NUM_PD_GAIN | AR_PHY_TPCRG1_PD_GAIN_1 |
+	AR_PHY_TPCRG1_PD_GAIN_2 | AR_PHY_TPCRG1_PD_GAIN_3)) | 
+	SM(numXpdGain - 1, AR_PHY_TPCRG1_NUM_PD_GAIN) |
+	SM(xpdGainValues[0], AR_PHY_TPCRG1_PD_GAIN_1 ) |
+	SM(xpdGainValues[1], AR_PHY_TPCRG1_PD_GAIN_2) |
+	SM(xpdGainValues[2],  AR_PHY_TPCRG1_PD_GAIN_3));
+}
+
+/*
+ * Write the PDADC array to the given chain offset.
+ *
+ * The 32 PDADC registers are written without any care about
+ * their contents - so if various chips treat values as "special",
+ * this routine will not care.
+ */
+void
+ar5416WritePdadcValues(struct ath_hal *ah, int regChainOffset,
+    uint8_t pdadcValues[])
+{
+	int regOffset;
+	int j;
+	int reg32;
+
+	regOffset = AR_PHY_BASE + (672 << 2) + regChainOffset;
+
+	for (j = 0; j < 32; j++) {
+		reg32 = ((pdadcValues[4*j + 0] & 0xFF) << 0)  |
+		    ((pdadcValues[4*j + 1] & 0xFF) << 8)  |
+		    ((pdadcValues[4*j + 2] & 0xFF) << 16) |
+		    ((pdadcValues[4*j + 3] & 0xFF) << 24) ;
+		OS_REG_WRITE(ah, regOffset, reg32);
+#ifdef PDADC_DUMP
+		ath_hal_printf(ah, "PDADC: Chain %d | PDADC %3d Value %3d |"
+		    " PDADC %3d Value %3d | PDADC %3d Value %3d | PDADC %3d"
+		    " Value %3d |\n",
+		    i,
+		    4*j, pdadcValues[4*j],
+		    4*j+1, pdadcValues[4*j + 1],
+		    4*j+2, pdadcValues[4*j + 2],
+		    4*j+3, pdadcValues[4*j + 3]);
+#endif
+		regOffset += 4;
+	}
+}
+
 /**************************************************************
  * ar5416SetPowerCalTable
  *
@@ -1864,7 +2051,7 @@ ar5416GetTargetPowersLeg(struct ath_hal *ah,
  * points as well as from the nearest pier(s) to get a power detector
  * linear voltage to power level table.
  */
-static HAL_BOOL
+HAL_BOOL
 ar5416SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
 	const struct ieee80211_channel *chan, int16_t *pTxPowerIndexOffset)
 {
@@ -1873,11 +2060,11 @@ ar5416SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
     uint16_t pdGainOverlap_t2;
     static uint8_t  pdadcValues[AR5416_NUM_PDADC_VALUES];
     uint16_t gainBoundaries[AR5416_PD_GAINS_IN_MASK];
-    uint16_t numPiers, i, j;
+    uint16_t numPiers, i;
     int16_t  tMinCalPower;
     uint16_t numXpdGain, xpdMask;
     uint16_t xpdGainValues[AR5416_NUM_PD_GAINS];
-    uint32_t reg32, regOffset, regChainOffset;
+    uint32_t regChainOffset;
 
     OS_MEMZERO(xpdGainValues, sizeof(xpdGainValues));
     
@@ -1897,36 +2084,14 @@ ar5416SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
         numPiers = AR5416_NUM_5G_CAL_PIERS;
     }
 
-    numXpdGain = 0;
     /* Calculate the value of xpdgains from the xpdGain Mask */
-    for (i = 1; i <= AR5416_PD_GAINS_IN_MASK; i++) {
-        if ((xpdMask >> (AR5416_PD_GAINS_IN_MASK - i)) & 1) {
-            if (numXpdGain >= AR5416_NUM_PD_GAINS) {
-                HALASSERT(0);
-                break;
-            }
-            xpdGainValues[numXpdGain] = (uint16_t)(AR5416_PD_GAINS_IN_MASK - i);
-            numXpdGain++;
-        }
-    }
+    numXpdGain = ar5416GetXpdGainValues(ah, xpdMask, xpdGainValues);
     
     /* Write the detector gain biases and their number */
-    OS_REG_WRITE(ah, AR_PHY_TPCRG1, (OS_REG_READ(ah, AR_PHY_TPCRG1) & 
-    	~(AR_PHY_TPCRG1_NUM_PD_GAIN | AR_PHY_TPCRG1_PD_GAIN_1 | AR_PHY_TPCRG1_PD_GAIN_2 | AR_PHY_TPCRG1_PD_GAIN_3)) | 
-	SM(numXpdGain - 1, AR_PHY_TPCRG1_NUM_PD_GAIN) | SM(xpdGainValues[0], AR_PHY_TPCRG1_PD_GAIN_1 ) |
-	SM(xpdGainValues[1], AR_PHY_TPCRG1_PD_GAIN_2) | SM(xpdGainValues[2],  AR_PHY_TPCRG1_PD_GAIN_3));
+    ar5416WriteDetectorGainBiases(ah, numXpdGain, xpdGainValues);
 
     for (i = 0; i < AR5416_MAX_CHAINS; i++) {
-
-            if (AR_SREV_OWL_20_OR_LATER(ah) && 
-            ( AH5416(ah)->ah_rx_chainmask == 0x5 || AH5416(ah)->ah_tx_chainmask == 0x5) && (i != 0)) {
-            /* Regs are swapped from chain 2 to 1 for 5416 2_0 with 
-             * only chains 0 and 2 populated 
-             */
-            regChainOffset = (i == 1) ? 0x2000 : 0x1000;
-        } else {
-            regChainOffset = i * 0x1000;
-        }
+	regChainOffset = ar5416GetRegChainOffset(ah, i);
 
         if (pEepData->baseEepHeader.txMask & (1 << i)) {
             if (IEEE80211_IS_CHAN_2GHZ(chan)) {
@@ -1935,47 +2100,20 @@ ar5416SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
                 pRawDataset = pEepData->calPierData5G[i];
             }
 
-            ar5416GetGainBoundariesAndPdadcs(ah,  chan, pRawDataset,
+            /* Fetch the gain boundaries and the PDADC values */
+	    ar5416GetGainBoundariesAndPdadcs(ah,  chan, pRawDataset,
                                              pCalBChans, numPiers,
                                              pdGainOverlap_t2,
                                              &tMinCalPower, gainBoundaries,
                                              pdadcValues, numXpdGain);
 
             if ((i == 0) || AR_SREV_OWL_20_OR_LATER(ah)) {
-                /*
-                 * Note the pdadc table may not start at 0 dBm power, could be
-                 * negative or greater than 0.  Need to offset the power
-                 * values by the amount of minPower for griffin
-                 */
-
-                OS_REG_WRITE(ah, AR_PHY_TPCRG5 + regChainOffset,
-                     SM(pdGainOverlap_t2, AR_PHY_TPCRG5_PD_GAIN_OVERLAP) |
-                     SM(gainBoundaries[0], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_1)  |
-                     SM(gainBoundaries[1], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_2)  |
-                     SM(gainBoundaries[2], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_3)  |
-                     SM(gainBoundaries[3], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_4));
+		ar5416SetGainBoundariesClosedLoop(ah, regChainOffset,
+		  pdGainOverlap_t2, gainBoundaries);
             }
 
             /* Write the power values into the baseband power table */
-            regOffset = AR_PHY_BASE + (672 << 2) + regChainOffset;
-
-            for (j = 0; j < 32; j++) {
-                reg32 = ((pdadcValues[4*j + 0] & 0xFF) << 0)  |
-                    ((pdadcValues[4*j + 1] & 0xFF) << 8)  |
-                    ((pdadcValues[4*j + 2] & 0xFF) << 16) |
-                    ((pdadcValues[4*j + 3] & 0xFF) << 24) ;
-                OS_REG_WRITE(ah, regOffset, reg32);
-
-#ifdef PDADC_DUMP
-		ath_hal_printf(ah, "PDADC: Chain %d | PDADC %3d Value %3d | PDADC %3d Value %3d | PDADC %3d Value %3d | PDADC %3d Value %3d |\n",
-			       i,
-			       4*j, pdadcValues[4*j],
-			       4*j+1, pdadcValues[4*j + 1],
-			       4*j+2, pdadcValues[4*j + 2],
-			       4*j+3, pdadcValues[4*j + 3]);
-#endif
-                regOffset += 4;
-            }
+	    ar5416WritePdadcValues(ah, regChainOffset, pdadcValues);
         }
     }
     *pTxPowerIndexOffset = 0;
@@ -1989,7 +2127,7 @@ ar5416SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
  * Uses the data points read from EEPROM to reconstruct the pdadc power table
  * Called by ar5416SetPowerCalTable only.
  */
-static void
+void
 ar5416GetGainBoundariesAndPdadcs(struct ath_hal *ah, 
                                  const struct ieee80211_channel *chan,
 				 CAL_DATA_PER_FREQ *pRawDataSet,
@@ -2095,7 +2233,10 @@ ar5416GetGainBoundariesAndPdadcs(struct ath_hal *ah,
 
         /* Find starting index for this pdGain */
         if (i == 0) {
-            ss = 0; /* for the first pdGain, start from index 0 */
+            if (AR_SREV_MERLIN_20_OR_LATER(ah))
+                ss = (int16_t)(0 - (minPwrT4[i] / 2));
+            else
+                ss = 0; /* for the first pdGain, start from index 0 */
         } else {
 	    /* need overlap entries extrapolated below. */
             ss = (int16_t)((pPdGainBoundaries[i-1] - (minPwrT4[i] / 2)) - tPdGainOverlap + 1 + minDelta);
@@ -2206,7 +2347,7 @@ getLowerUpperIndex(uint8_t target, uint8_t *pList, uint16_t listSize,
  * Fill the Vpdlist for indices Pmax-Pmin
  * Note: pwrMin, pwrMax and Vpdlist are all in dBm * 4
  */
-static HAL_BOOL
+HAL_BOOL
 ar5416FillVpdTable(uint8_t pwrMin, uint8_t pwrMax, uint8_t *pPwrList,
                    uint8_t *pVpdList, uint16_t numIntercepts, uint8_t *pRetVpdList)
 {

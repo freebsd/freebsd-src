@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>
 #include <sys/firmware.h>
+#include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -272,13 +273,14 @@ static void t4_get_regs(struct adapter *, struct t4_regdump *, uint8_t *);
 static void cxgbe_tick(void *);
 static int t4_sysctls(struct adapter *);
 static int cxgbe_sysctls(struct port_info *);
+static int sysctl_int_array(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_txq(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
 static inline void txq_start(struct ifnet *, struct sge_txq *);
-
+static int t4_mod_event(module_t, int, void *);
 
 struct t4_pciids {
 	uint16_t device;
@@ -2294,15 +2296,13 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "core_clock", CTLFLAG_RD,
 	    &sc->params.vpd.cclk, 0, "core clock frequency (in KHz)");
 
-	/* XXX: this doesn't seem to show up */
-	SYSCTL_ADD_OPAQUE(ctx, children, OID_AUTO, "holdoff_tmr",
-	    CTLFLAG_RD, &intr_timer, sizeof(intr_timer), "IU",
-	    "interrupt holdoff timer values (us)");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_timers",
+	    CTLTYPE_STRING | CTLFLAG_RD, &intr_timer, sizeof(intr_timer),
+	    sysctl_int_array, "A", "interrupt holdoff timer values (us)");
 
-	/* XXX: this doesn't seem to show up */
-	SYSCTL_ADD_OPAQUE(ctx, children, OID_AUTO, "holdoff_pktc",
-	    CTLFLAG_RD, &intr_pktcount, sizeof(intr_pktcount), "IU",
-	    "interrupt holdoff packet counter values");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_pkt_counts",
+	    CTLTYPE_STRING | CTLFLAG_RD, &intr_pktcount, sizeof(intr_pktcount),
+	    sysctl_int_array, "A", "interrupt holdoff packet counter values");
 
 	return (0);
 }
@@ -2502,6 +2502,22 @@ cxgbe_sysctls(struct port_info *pi)
 #undef SYSCTL_ADD_T4_PORTSTAT
 
 	return (0);
+}
+
+static int
+sysctl_int_array(SYSCTL_HANDLER_ARGS)
+{
+	int rc, *i;
+	struct sbuf sb;
+
+	sbuf_new(&sb, NULL, 32, SBUF_AUTOEXTEND);
+	for (i = arg1; arg2; arg2 -= sizeof(int), i++)
+		sbuf_printf(&sb, "%d ", *i);
+	sbuf_trim(&sb);
+	sbuf_finish(&sb);
+	rc = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
+	sbuf_delete(&sb);
+	return (rc);
 }
 
 static int
@@ -2815,10 +2831,20 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	return (rc);
 }
 
+static int
+t4_mod_event(module_t mod, int cmd, void *arg)
+{
+
+	if (cmd == MOD_LOAD)
+		t4_sge_modload();
+
+	return (0);
+}
+
 static devclass_t t4_devclass;
 static devclass_t cxgbe_devclass;
 
-DRIVER_MODULE(t4nex, pci, t4_driver, t4_devclass, 0, 0);
+DRIVER_MODULE(t4nex, pci, t4_driver, t4_devclass, t4_mod_event, 0);
 MODULE_VERSION(t4nex, 1);
 
 DRIVER_MODULE(cxgbe, t4nex, cxgbe_driver, cxgbe_devclass, 0, 0);

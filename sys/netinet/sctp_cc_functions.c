@@ -185,6 +185,328 @@ sctp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 	}
 }
 
+/* Defines for instantaneous bw decisions */
+#define SCTP_INST_LOOSING 1	/* Loosing to other flows */
+#define SCTP_INST_NEUTRAL 2	/* Neutral, no indication */
+#define SCTP_INST_GAINING 3	/* Gaining, step down possible */
+
+
+static int
+cc_bw_same(struct sctp_tcb *stcb, struct sctp_nets *net, uint64_t nbw,
+    uint64_t rtt_offset, uint64_t vtag, uint8_t inst_ind)
+{
+	uint64_t oth, probepoint;
+
+	probepoint = (((uint64_t) net->cwnd) << 32);
+	if (net->rtt > net->cc_mod.rtcc.lbw_rtt + rtt_offset) {
+		/*
+		 * rtt increased we don't update bw.. so we don't update the
+		 * rtt either.
+		 */
+		/* Probe point 5 */
+		probepoint |= ((5 << 16) | 1);
+		SDT_PROBE(sctp, cwnd, net, rttvar,
+		    vtag,
+		    ((net->cc_mod.rtcc.lbw << 32) | nbw),
+		    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
+		    net->flight_size,
+		    probepoint);
+		if ((net->cc_mod.rtcc.steady_step) && (inst_ind != SCTP_INST_LOOSING)) {
+			if (net->cc_mod.rtcc.last_step_state == 5)
+				net->cc_mod.rtcc.step_cnt++;
+			else
+				net->cc_mod.rtcc.step_cnt = 1;
+			net->cc_mod.rtcc.last_step_state = 5;
+			if ((net->cc_mod.rtcc.step_cnt == net->cc_mod.rtcc.steady_step) ||
+			    ((net->cc_mod.rtcc.step_cnt > net->cc_mod.rtcc.steady_step) &&
+			    ((net->cc_mod.rtcc.step_cnt % net->cc_mod.rtcc.steady_step) == 0))) {
+				/* Try a step down */
+				oth = net->cc_mod.rtcc.vol_reduce;
+				oth <<= 16;
+				oth |= net->cc_mod.rtcc.step_cnt;
+				oth <<= 16;
+				oth |= net->cc_mod.rtcc.last_step_state;
+				SDT_PROBE(sctp, cwnd, net, rttstep,
+				    vtag,
+				    ((net->cc_mod.rtcc.lbw << 32) | nbw),
+				    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
+				    oth,
+				    probepoint);
+				if (net->cwnd > (4 * net->mtu)) {
+					net->cwnd -= net->mtu;
+					net->cc_mod.rtcc.vol_reduce++;
+				} else {
+					net->cc_mod.rtcc.step_cnt = 0;
+				}
+			}
+		}
+		return (1);
+	}
+	if (net->rtt < net->cc_mod.rtcc.lbw_rtt - rtt_offset) {
+		/*
+		 * rtt decreased, there could be more room. we update both
+		 * the bw and the rtt here to lock this in as a good step
+		 * down.
+		 */
+		/* Probe point 6 */
+		probepoint |= ((6 << 16) | 0);
+		SDT_PROBE(sctp, cwnd, net, rttvar,
+		    vtag,
+		    ((net->cc_mod.rtcc.lbw << 32) | nbw),
+		    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
+		    net->flight_size,
+		    probepoint);
+		if (net->cc_mod.rtcc.steady_step) {
+			oth = net->cc_mod.rtcc.vol_reduce;
+			oth <<= 16;
+			oth |= net->cc_mod.rtcc.step_cnt;
+			oth <<= 16;
+			oth |= net->cc_mod.rtcc.last_step_state;
+			SDT_PROBE(sctp, cwnd, net, rttstep,
+			    vtag,
+			    ((net->cc_mod.rtcc.lbw << 32) | nbw),
+			    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
+			    oth,
+			    probepoint);
+			if ((net->cc_mod.rtcc.last_step_state == 5) &&
+			    (net->cc_mod.rtcc.step_cnt > net->cc_mod.rtcc.steady_step)) {
+				/* Step down worked */
+				net->cc_mod.rtcc.step_cnt = 0;
+				return (1);
+			} else {
+				net->cc_mod.rtcc.last_step_state = 6;
+				net->cc_mod.rtcc.step_cnt = 0;
+			}
+		}
+		net->cc_mod.rtcc.lbw = nbw;
+		net->cc_mod.rtcc.lbw_rtt = net->rtt;
+		net->cc_mod.rtcc.cwnd_at_bw_set = net->cwnd;
+		if (inst_ind == SCTP_INST_GAINING)
+			return (1);
+		else if (inst_ind == SCTP_INST_NEUTRAL)
+			return (1);
+		else
+			return (0);
+	}
+	/*
+	 * Ok bw and rtt remained the same .. no update to any
+	 */
+	/* Probe point 7 */
+	probepoint |= ((7 << 16) | net->cc_mod.rtcc.ret_from_eq);
+	SDT_PROBE(sctp, cwnd, net, rttvar,
+	    vtag,
+	    ((net->cc_mod.rtcc.lbw << 32) | nbw),
+	    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
+	    net->flight_size,
+	    probepoint);
+
+	if ((net->cc_mod.rtcc.steady_step) && (inst_ind != SCTP_INST_LOOSING)) {
+		if (net->cc_mod.rtcc.last_step_state == 5)
+			net->cc_mod.rtcc.step_cnt++;
+		else
+			net->cc_mod.rtcc.step_cnt = 1;
+		net->cc_mod.rtcc.last_step_state = 5;
+		if ((net->cc_mod.rtcc.step_cnt == net->cc_mod.rtcc.steady_step) ||
+		    ((net->cc_mod.rtcc.step_cnt > net->cc_mod.rtcc.steady_step) &&
+		    ((net->cc_mod.rtcc.step_cnt % net->cc_mod.rtcc.steady_step) == 0))) {
+			/* Try a step down */
+			if (net->cwnd > (4 * net->mtu)) {
+				net->cwnd -= net->mtu;
+				net->cc_mod.rtcc.vol_reduce++;
+				return (1);
+			} else {
+				net->cc_mod.rtcc.step_cnt = 0;
+			}
+		}
+	}
+	if (inst_ind == SCTP_INST_GAINING)
+		return (1);
+	else if (inst_ind == SCTP_INST_NEUTRAL)
+		return (1);
+	else
+		return ((int)net->cc_mod.rtcc.ret_from_eq);
+}
+
+static int
+cc_bw_decrease(struct sctp_tcb *stcb, struct sctp_nets *net, uint64_t nbw, uint64_t rtt_offset,
+    uint64_t vtag, uint8_t inst_ind)
+{
+	uint64_t oth, probepoint;
+
+	/* Bandwidth decreased. */
+	probepoint = (((uint64_t) net->cwnd) << 32);
+	if (net->rtt > net->cc_mod.rtcc.lbw_rtt + rtt_offset) {
+		/* rtt increased */
+		/* Did we add more */
+		if ((net->cwnd > net->cc_mod.rtcc.cwnd_at_bw_set) &&
+		    (inst_ind != SCTP_INST_LOOSING)) {
+			/* We caused it maybe.. back off? */
+			/* PROBE POINT 1 */
+			probepoint |= ((1 << 16) | 1);
+			SDT_PROBE(sctp, cwnd, net, rttvar,
+			    vtag,
+			    ((net->cc_mod.rtcc.lbw << 32) | nbw),
+			    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
+			    net->flight_size,
+			    probepoint);
+
+			if (net->cc_mod.rtcc.ret_from_eq) {
+				/*
+				 * Switch over to CA if we are less
+				 * aggressive
+				 */
+				net->ssthresh = net->cwnd - 1;
+				net->partial_bytes_acked = 0;
+			}
+			return (1);
+		}
+		/* Probe point 2 */
+		probepoint |= ((2 << 16) | 0);
+		SDT_PROBE(sctp, cwnd, net, rttvar,
+		    vtag,
+		    ((net->cc_mod.rtcc.lbw << 32) | nbw),
+		    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
+		    net->flight_size,
+		    probepoint);
+
+		/* Someone else - fight for more? */
+		if (net->cc_mod.rtcc.steady_step) {
+			oth = net->cc_mod.rtcc.vol_reduce;
+			oth <<= 16;
+			oth |= net->cc_mod.rtcc.step_cnt;
+			oth <<= 16;
+			oth |= net->cc_mod.rtcc.last_step_state;
+			SDT_PROBE(sctp, cwnd, net, rttstep,
+			    vtag,
+			    ((net->cc_mod.rtcc.lbw << 32) | nbw),
+			    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
+			    oth,
+			    probepoint);
+			/*
+			 * Did we voluntarily give up some? if so take one
+			 * back please
+			 */
+			if ((net->cc_mod.rtcc.vol_reduce) &&
+			    (inst_ind != SCTP_INST_GAINING)) {
+				net->cwnd += net->mtu;
+				net->cc_mod.rtcc.vol_reduce--;
+			}
+			net->cc_mod.rtcc.last_step_state = 2;
+			net->cc_mod.rtcc.step_cnt = 0;
+		}
+		goto out_decision;
+	} else if (net->rtt < net->cc_mod.rtcc.lbw_rtt - rtt_offset) {
+		/* bw & rtt decreased */
+		/* Probe point 3 */
+		probepoint |= ((3 << 16) | 0);
+		SDT_PROBE(sctp, cwnd, net, rttvar,
+		    vtag,
+		    ((net->cc_mod.rtcc.lbw << 32) | nbw),
+		    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
+		    net->flight_size,
+		    probepoint);
+		if (net->cc_mod.rtcc.steady_step) {
+			oth = net->cc_mod.rtcc.vol_reduce;
+			oth <<= 16;
+			oth |= net->cc_mod.rtcc.step_cnt;
+			oth <<= 16;
+			oth |= net->cc_mod.rtcc.last_step_state;
+			SDT_PROBE(sctp, cwnd, net, rttstep,
+			    vtag,
+			    ((net->cc_mod.rtcc.lbw << 32) | nbw),
+			    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
+			    oth,
+			    probepoint);
+			if ((net->cc_mod.rtcc.vol_reduce) &&
+			    (inst_ind != SCTP_INST_GAINING)) {
+				net->cwnd += net->mtu;
+				net->cc_mod.rtcc.vol_reduce--;
+			}
+			net->cc_mod.rtcc.last_step_state = 3;
+			net->cc_mod.rtcc.step_cnt = 0;
+		}
+		goto out_decision;
+	}
+	/* The bw decreased but rtt stayed the same */
+	/* Probe point 4 */
+	probepoint |= ((4 << 16) | 0);
+	SDT_PROBE(sctp, cwnd, net, rttvar,
+	    vtag,
+	    ((net->cc_mod.rtcc.lbw << 32) | nbw),
+	    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
+	    net->flight_size,
+	    probepoint);
+	if (net->cc_mod.rtcc.steady_step) {
+		oth = net->cc_mod.rtcc.vol_reduce;
+		oth <<= 16;
+		oth |= net->cc_mod.rtcc.step_cnt;
+		oth <<= 16;
+		oth |= net->cc_mod.rtcc.last_step_state;
+		SDT_PROBE(sctp, cwnd, net, rttstep,
+		    vtag,
+		    ((net->cc_mod.rtcc.lbw << 32) | nbw),
+		    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
+		    oth,
+		    probepoint);
+		if ((net->cc_mod.rtcc.vol_reduce) &&
+		    (inst_ind != SCTP_INST_GAINING)) {
+			net->cwnd += net->mtu;
+			net->cc_mod.rtcc.vol_reduce--;
+		}
+		net->cc_mod.rtcc.last_step_state = 4;
+		net->cc_mod.rtcc.step_cnt = 0;
+	}
+out_decision:
+	net->cc_mod.rtcc.lbw = nbw;
+	net->cc_mod.rtcc.lbw_rtt = net->rtt;
+	net->cc_mod.rtcc.cwnd_at_bw_set = net->cwnd;
+	if (inst_ind == SCTP_INST_GAINING) {
+		return (1);
+	} else {
+		return (0);
+	}
+}
+
+static int
+cc_bw_increase(struct sctp_tcb *stcb, struct sctp_nets *net, uint64_t nbw,
+    uint64_t vtag, uint8_t inst_ind)
+{
+	uint64_t oth, probepoint;
+
+	/*
+	 * BW increased, so update and return 0, since all actions in our
+	 * table say to do the normal CC update. Note that we pay no
+	 * attention to the inst_ind since our overall sum is increasing.
+	 */
+	/* PROBE POINT 0 */
+	probepoint = (((uint64_t) net->cwnd) << 32);
+	SDT_PROBE(sctp, cwnd, net, rttvar,
+	    vtag,
+	    ((net->cc_mod.rtcc.lbw << 32) | nbw),
+	    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
+	    net->flight_size,
+	    probepoint);
+	if (net->cc_mod.rtcc.steady_step) {
+		oth = net->cc_mod.rtcc.vol_reduce;
+		oth <<= 16;
+		oth |= net->cc_mod.rtcc.step_cnt;
+		oth <<= 16;
+		oth |= net->cc_mod.rtcc.last_step_state;
+		SDT_PROBE(sctp, cwnd, net, rttstep,
+		    vtag,
+		    ((net->cc_mod.rtcc.lbw << 32) | nbw),
+		    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
+		    oth,
+		    probepoint);
+		net->cc_mod.rtcc.last_step_state = 0;
+		net->cc_mod.rtcc.step_cnt = 0;
+		net->cc_mod.rtcc.vol_reduce = 0;
+	}
+	net->cc_mod.rtcc.lbw = nbw;
+	net->cc_mod.rtcc.lbw_rtt = net->rtt;
+	net->cc_mod.rtcc.cwnd_at_bw_set = net->cwnd;
+	return (0);
+}
 
 /* RTCC Algoritm to limit growth of cwnd, return
  * true if you want to NOT allow cwnd growth
@@ -193,6 +515,11 @@ static int
 cc_bw_limit(struct sctp_tcb *stcb, struct sctp_nets *net, uint64_t nbw)
 {
 	uint64_t bw_offset, rtt_offset, rtt, vtag, probepoint;
+	uint64_t bytes_for_this_rtt, inst_bw;
+	uint64_t div, inst_off;
+	int bw_shift;
+	uint8_t inst_ind;
+	int ret;
 
 	/*-
 	 * Here we need to see if we want
@@ -231,151 +558,67 @@ cc_bw_limit(struct sctp_tcb *stcb, struct sctp_nets *net, uint64_t nbw)
 	 * RTT it stayed the same if it did not
 	 * change within 1/32nd
 	 */
+	bw_shift = SCTP_BASE_SYSCTL(sctp_rttvar_bw);
 	rtt = stcb->asoc.my_vtag;
 	vtag = (rtt << 32) | (((uint32_t) (stcb->sctp_ep->sctp_lport)) << 16) | (stcb->rport);
 	probepoint = (((uint64_t) net->cwnd) << 32);
 	rtt = net->rtt;
-	bw_offset = net->cc_mod.rtcc.lbw >> SCTP_BASE_SYSCTL(sctp_rttvar_bw);
-	if (nbw > net->cc_mod.rtcc.lbw + bw_offset) {
-		/*
-		 * BW increased, so update and return 0, since all actions
-		 * in our table say to do the normal CC update
-		 */
-		/* PROBE POINT 0 */
+	if (net->cc_mod.rtcc.rtt_set_this_sack) {
+		net->cc_mod.rtcc.rtt_set_this_sack = 0;
+		bytes_for_this_rtt = net->cc_mod.rtcc.bw_bytes - net->cc_mod.rtcc.bw_bytes_at_last_rttc;
+		net->cc_mod.rtcc.bw_bytes_at_last_rttc = net->cc_mod.rtcc.bw_bytes;
+		if (net->rtt) {
+			div = net->rtt / 1000;
+			if (div) {
+				inst_bw = bytes_for_this_rtt / div;
+				inst_off = inst_bw >> bw_shift;
+				if (inst_bw > nbw)
+					inst_ind = SCTP_INST_GAINING;
+				else if ((inst_bw + inst_off) < nbw)
+					inst_ind = SCTP_INST_LOOSING;
+				else
+					inst_ind = SCTP_INST_NEUTRAL;
+				probepoint |= ((0xb << 16) | inst_ind);
+			} else {
+				inst_bw = bytes_for_this_rtt / (uint64_t) (net->rtt);
+				/* Can't determine do not change */
+				inst_ind = net->cc_mod.rtcc.last_inst_ind;
+				probepoint |= ((0xc << 16) | inst_ind);
+			}
+		} else {
+			inst_bw = bytes_for_this_rtt;
+			/* Can't determine do not change */
+			inst_ind = net->cc_mod.rtcc.last_inst_ind;
+			probepoint |= ((0xd << 16) | inst_ind);
+		}
 		SDT_PROBE(sctp, cwnd, net, rttvar,
 		    vtag,
-		    ((net->cc_mod.rtcc.lbw << 32) | nbw),
-		    net->cc_mod.rtcc.lbw_rtt,
-		    rtt,
+		    ((nbw << 32) | inst_bw),
+		    ((net->cc_mod.rtcc.lbw_rtt << 32) | rtt),
+		    net->flight_size,
 		    probepoint);
-		net->cc_mod.rtcc.lbw = nbw;
-		net->cc_mod.rtcc.lbw_rtt = rtt;
-		net->cc_mod.rtcc.cwnd_at_bw_set = net->cwnd;
-		return (0);
+	} else {
+		/* No rtt measurement, use last one */
+		inst_ind = net->cc_mod.rtcc.last_inst_ind;
+	}
+	bw_offset = net->cc_mod.rtcc.lbw >> bw_shift;
+	if (nbw > net->cc_mod.rtcc.lbw + bw_offset) {
+		ret = cc_bw_increase(stcb, net, nbw, vtag, inst_ind);
+		goto out;
 	}
 	rtt_offset = net->cc_mod.rtcc.lbw_rtt >> SCTP_BASE_SYSCTL(sctp_rttvar_rtt);
 	if (nbw < net->cc_mod.rtcc.lbw - bw_offset) {
-		/* Bandwidth decreased. */
-		if (rtt > net->cc_mod.rtcc.lbw_rtt + rtt_offset) {
-			/* rtt increased */
-			/* Did we add more */
-			if (net->cwnd > net->cc_mod.rtcc.cwnd_at_bw_set) {
-				/* We caused it maybe.. back off */
-				/* PROBE POINT 1 */
-				probepoint |= ((1 << 16) | 1);
-				SDT_PROBE(sctp, cwnd, net, rttvar,
-				    vtag,
-				    ((net->cc_mod.rtcc.lbw << 32) | nbw),
-				    net->cc_mod.rtcc.lbw_rtt,
-				    rtt,
-				    probepoint);
-
-				net->cc_mod.rtcc.lbw = nbw;
-				net->cc_mod.rtcc.lbw_rtt = rtt;
-				net->cwnd = net->cc_mod.rtcc.cwnd_at_bw_set;
-				if (net->cc_mod.rtcc.ret_from_eq) {
-					/*
-					 * Switch over to CA if we are less
-					 * aggressive
-					 */
-					net->ssthresh = net->cwnd - 1;
-					net->partial_bytes_acked = 0;
-				}
-				return (1);
-			}
-			/* Probe point 2 */
-			probepoint |= ((2 << 16) | 0);
-			SDT_PROBE(sctp, cwnd, net, rttvar,
-			    vtag,
-			    ((net->cc_mod.rtcc.lbw << 32) | nbw),
-			    net->cc_mod.rtcc.lbw_rtt,
-			    rtt,
-			    probepoint);
-
-			/* Someone else - fight for more? */
-			net->cc_mod.rtcc.lbw = nbw;
-			net->cc_mod.rtcc.lbw_rtt = rtt;
-			net->cc_mod.rtcc.cwnd_at_bw_set = net->cwnd;
-			return (0);
-		} else if (rtt < net->cc_mod.rtcc.lbw_rtt - rtt_offset) {
-			/* rtt decreased */
-			/* Probe point 3 */
-			probepoint |= ((3 << 16) | 0);
-			SDT_PROBE(sctp, cwnd, net, rttvar,
-			    vtag,
-			    ((net->cc_mod.rtcc.lbw << 32) | nbw),
-			    net->cc_mod.rtcc.lbw_rtt,
-			    rtt,
-			    probepoint);
-			net->cc_mod.rtcc.lbw = nbw;
-			net->cc_mod.rtcc.lbw_rtt = rtt;
-			net->cc_mod.rtcc.cwnd_at_bw_set = net->cwnd;
-			return (0);
-		}
-		/* The bw decreased but rtt stayed the same */
-		net->cc_mod.rtcc.lbw = nbw;
-		net->cc_mod.rtcc.lbw_rtt = rtt;
-		net->cc_mod.rtcc.cwnd_at_bw_set = net->cwnd;
-		/* Probe point 4 */
-		probepoint |= ((4 << 16) | 0);
-		SDT_PROBE(sctp, cwnd, net, rttvar,
-		    vtag,
-		    ((net->cc_mod.rtcc.lbw << 32) | nbw),
-		    net->cc_mod.rtcc.lbw_rtt,
-		    rtt,
-		    probepoint);
-		return (0);
+		ret = cc_bw_decrease(stcb, net, nbw, rtt_offset, vtag, inst_ind);
+		goto out;
 	}
 	/*
 	 * If we reach here then we are in a situation where the bw stayed
 	 * the same.
 	 */
-	if (rtt > net->cc_mod.rtcc.lbw_rtt + rtt_offset) {
-		/*
-		 * rtt increased we don't update bw.. so we don't update the
-		 * rtt either.
-		 */
-		/* Probe point 5 */
-		probepoint |= ((5 << 16) | 1);
-		SDT_PROBE(sctp, cwnd, net, rttvar,
-		    vtag,
-		    ((net->cc_mod.rtcc.lbw << 32) | nbw),
-		    net->cc_mod.rtcc.lbw_rtt,
-		    rtt,
-		    probepoint);
-		return (1);
-	}
-	if (rtt < net->cc_mod.rtcc.lbw_rtt - rtt_offset) {
-		/*
-		 * rtt decreased, there could be more room. we update both
-		 * the bw and the rtt here.
-		 */
-		/* Probe point 6 */
-		probepoint |= ((6 << 16) | 0);
-		SDT_PROBE(sctp, cwnd, net, rttvar,
-		    vtag,
-		    ((net->cc_mod.rtcc.lbw << 32) | nbw),
-		    net->cc_mod.rtcc.lbw_rtt,
-		    rtt,
-		    probepoint);
-		net->cc_mod.rtcc.lbw = nbw;
-		net->cc_mod.rtcc.lbw_rtt = rtt;
-		net->cc_mod.rtcc.cwnd_at_bw_set = net->cwnd;
-		return (0);
-	}
-	/*
-	 * Ok bw and rtt remained the same .. no update to any but save the
-	 * latest cwnd.
-	 */
-	/* Probe point 7 */
-	probepoint |= ((7 << 16) | net->cc_mod.rtcc.ret_from_eq);
-	SDT_PROBE(sctp, cwnd, net, rttvar,
-	    vtag,
-	    ((net->cc_mod.rtcc.lbw << 32) | nbw),
-	    net->cc_mod.rtcc.lbw_rtt,
-	    rtt,
-	    probepoint);
-	return ((int)net->cc_mod.rtcc.ret_from_eq);
+	ret = cc_bw_same(stcb, net, nbw, rtt_offset, vtag, inst_ind);
+out:
+	net->cc_mod.rtcc.last_inst_ind = inst_ind;
+	return (ret);
 }
 
 static void
@@ -554,11 +797,15 @@ sctp_cwnd_update_after_sack_common(struct sctp_tcb *stcb,
 				SDT_PROBE(sctp, cwnd, net, rttvar,
 				    vtag,
 				    nbw,
-				    0,
-				    net->rtt,
+				    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
+				    net->flight_size,
 				    probepoint);
 				net->cc_mod.rtcc.lbw = nbw;
 				net->cc_mod.rtcc.lbw_rtt = net->rtt;
+				if (net->cc_mod.rtcc.rtt_set_this_sack) {
+					net->cc_mod.rtcc.rtt_set_this_sack = 0;
+					net->cc_mod.rtcc.bw_bytes_at_last_rttc = net->cc_mod.rtcc.bw_bytes;
+				}
 			}
 		}
 		/*
@@ -1014,15 +1261,22 @@ sctp_cwnd_new_rtcc_transmission_begins(struct sctp_tcb *stcb,
 		SDT_PROBE(sctp, cwnd, net, rttvar,
 		    vtag,
 		    ((net->cc_mod.rtcc.lbw << 32) | 0),
-		    net->cc_mod.rtcc.lbw_rtt,
-		    0,
+		    ((net->cc_mod.rtcc.lbw_rtt << 32) | net->rtt),
+		    net->flight_size,
 		    probepoint);
 		net->cc_mod.rtcc.lbw_rtt = 0;
 		net->cc_mod.rtcc.cwnd_at_bw_set = 0;
 		net->cc_mod.rtcc.lbw = 0;
+		net->cc_mod.rtcc.bw_bytes_at_last_rttc = 0;
+		net->cc_mod.rtcc.vol_reduce = 0;
 		net->cc_mod.rtcc.bw_tot_time = 0;
 		net->cc_mod.rtcc.bw_bytes = 0;
 		net->cc_mod.rtcc.tls_needs_set = 0;
+		if (net->cc_mod.rtcc.steady_step) {
+			net->cc_mod.rtcc.vol_reduce = 0;
+			net->cc_mod.rtcc.step_cnt = 0;
+			net->cc_mod.rtcc.last_step_state = 0;
+		}
 		if (net->cc_mod.rtcc.ret_from_eq) {
 			/* less aggressive one - reset cwnd too */
 			uint32_t cwnd_in_mtu, cwnd;
@@ -1075,11 +1329,20 @@ sctp_set_rtcc_initial_cc_param(struct sctp_tcb *stcb,
 	    probepoint);
 	net->cc_mod.rtcc.lbw_rtt = 0;
 	net->cc_mod.rtcc.cwnd_at_bw_set = 0;
+	net->cc_mod.rtcc.vol_reduce = 0;
 	net->cc_mod.rtcc.lbw = 0;
+	net->cc_mod.rtcc.vol_reduce = 0;
+	net->cc_mod.rtcc.bw_bytes_at_last_rttc = 0;
 	net->cc_mod.rtcc.bw_tot_time = 0;
 	net->cc_mod.rtcc.bw_bytes = 0;
 	net->cc_mod.rtcc.tls_needs_set = 0;
 	net->cc_mod.rtcc.ret_from_eq = SCTP_BASE_SYSCTL(sctp_rttvar_eqret);
+	net->cc_mod.rtcc.steady_step = SCTP_BASE_SYSCTL(sctp_steady_step);
+	net->cc_mod.rtcc.use_dccc_ecn = SCTP_BASE_SYSCTL(sctp_use_dccc_ecn);
+	net->cc_mod.rtcc.step_cnt = 0;
+	net->cc_mod.rtcc.last_step_state = 0;
+
+
 }
 
 static int
@@ -1106,6 +1369,10 @@ sctp_cwnd_rtcc_socket_option(struct sctp_tcb *stcb, int setorget,
 			TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 				net->cc_mod.rtcc.use_dccc_ecn = cc_opt->aid_value.assoc_value;
 			}
+		} else if (cc_opt->option == SCTP_CC_OPT_STEADY_STEP) {
+			TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
+				net->cc_mod.rtcc.steady_step = cc_opt->aid_value.assoc_value;
+			}
 		} else {
 			return (EINVAL);
 		}
@@ -1123,6 +1390,12 @@ sctp_cwnd_rtcc_socket_option(struct sctp_tcb *stcb, int setorget,
 				return (EFAULT);
 			}
 			cc_opt->aid_value.assoc_value = net->cc_mod.rtcc.use_dccc_ecn;
+		} else if (cc_opt->option == SCTP_CC_OPT_STEADY_STEP) {
+			net = TAILQ_FIRST(&stcb->asoc.nets);
+			if (net == NULL) {
+				return (EFAULT);
+			}
+			cc_opt->aid_value.assoc_value = net->cc_mod.rtcc.steady_step;
 		} else {
 			return (EINVAL);
 		}
@@ -1149,6 +1422,12 @@ sctp_cwnd_update_rtcc_after_sack(struct sctp_tcb *stcb,
 	sctp_cwnd_update_after_sack_common(stcb, asoc, accum_moved, reneged_all, will_exit, 1);
 }
 
+static void
+sctp_rtt_rtcc_calculated(struct sctp_tcb *stcb,
+    struct sctp_nets *net, struct timeval *now)
+{
+	net->cc_mod.rtcc.rtt_set_this_sack = 1;
+}
 
 /* Here starts Sally Floyds HS-TCP */
 
@@ -2203,6 +2482,7 @@ struct sctp_cc_functions sctp_cc_functions[] = {
 		.sctp_cwnd_update_tsn_acknowledged = sctp_cwnd_update_rtcc_tsn_acknowledged,
 		.sctp_cwnd_new_transmission_begins = sctp_cwnd_new_rtcc_transmission_begins,
 		.sctp_cwnd_prepare_net_for_sack = sctp_cwnd_prepare_rtcc_net_for_sack,
-		.sctp_cwnd_socket_option = sctp_cwnd_rtcc_socket_option
+		.sctp_cwnd_socket_option = sctp_cwnd_rtcc_socket_option,
+		.sctp_rtt_calculated = sctp_rtt_rtcc_calculated
 	}
 };

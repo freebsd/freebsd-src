@@ -91,7 +91,7 @@ eeprom_v14_base_print(uint16_t *buf)
 
 	printf("| Version: 0x%.4x   | Length: 0x%.4x | Checksum: 0x%.4x ",
 	    eh->version, eh->length, eh->checksum);
-	printf("| CapFlags: 0x%.2x  | eepMisc: 0x%.2x | RegDomain: 0x%.2x 0x%.2x | \n",
+	printf("| CapFlags: 0x%.2x  | eepMisc: 0x%.2x | RegDomain: 0x%.4x 0x%.4x | \n",
 	    eh->opCapFlags, eh->eepMisc, eh->regDmn[0], eh->regDmn[1]);
 	printf("| MAC: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x ",
 	    eh->macAddr[0], eh->macAddr[1], eh->macAddr[2],

@@ -113,6 +113,7 @@ cognet [label="Olivier Houchard\ncognet@FreeBSD.org\n2002/10/09"]
 cokane [label="Coleman Kane\ncokane@FreeBSD.org\n2000/06/19"]
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2004/01/20"]
 csjp [label="Christian S.J. Peron\ncsjp@FreeBSD.org\n2004/05/04"]
+das [label="David Schultz\ndas@FreeBSD.org\n2003/02/21"]
 davidxu [label="David Xu\ndavidxu@FreeBSD.org\n2002/09/02"]
 dchagin [label="Dmitry Chagin\ndchagin@FreeBSD.org\n2009/02/28"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2004/09/14"]
@@ -234,6 +235,7 @@ ticso [label="Bernd Walter\nticso@FreeBSD.org\n2002/01/31"]
 tijl [label="Tijl Coosemans\ntijl@FreeBSD.org\n2010/07/16"]
 trasz [label="Edward Tomasz Napierala\ntrasz@FreeBSD.org\n2008/08/22"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/05/28"]
+trociny [label="Mikolaj Golub\ntrociny@FreeBSD.org\n2011/03/10"]
 tuexen [label="Michael Tuexen\ntuexen@FreeBSD.org\n2009/06/06"]
 ume [label="Hajimu UMEMOTO\nume@FreeBSD.org\n2000/02/26"]
 uqs [label="Ulrich Spoerlein\nuqs@FreeBSD.org\n2010/01/28"]
@@ -333,7 +335,11 @@ emaste -> rstone
 
 emax -> markus
 
+fjoe -> versus
+
 gallatin -> ticso
+
+gavin -> versus
 
 gibbs -> mjacob
 gibbs -> njl
@@ -430,6 +436,7 @@ kib -> rdivacky
 kib -> rmacklem
 kib -> stas
 kib -> tijl
+kib -> trociny
 
 kmacy -> lstewart
 
@@ -442,6 +449,8 @@ markm -> sheldonh
 mav -> ae
 
 mdodd -> jake
+
+mike -> das
 
 mlaier -> benjsc
 mlaier -> dhartmei
@@ -481,6 +490,7 @@ philip -> uqs
 
 pjd -> kib
 pjd -> lulf
+pjd -> trociny
 
 rgrimes -> markm
 

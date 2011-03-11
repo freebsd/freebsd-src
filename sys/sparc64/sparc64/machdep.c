@@ -532,7 +532,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	init_param2(physmem);
 	env = getenv("kernelname");
 	if (env != NULL) {
-		strlcpy(kernelname, env, sizeof(kernelname));
+		strlcpy(kernelname, env, MAXPATHLEN);
 		freeenv(env);
 	}
 

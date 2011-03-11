@@ -105,7 +105,7 @@ static char	tmpfil[] = PATH_TMPFILE;
 static struct	disklabel lab;
 static u_char	bootarea[BBSIZE];
 static off_t	mediasize;
-static u_int	secsize;
+static ssize_t	secsize;
 static char	blank[] = "";
 static char	unknown[] = "unknown";
 
@@ -129,12 +129,6 @@ static uint32_t lba_offset;
 static int labelsoffset = LABELSECTOR;
 static int labeloffset = LABELOFFSET;
 static int bbsize = BBSIZE;
-static int alphacksum =
-#if defined(__alpha__)
-	1;
-#else
-	0;
-#endif
 
 enum	{
 	UNSPEC, EDIT, READ, RESTORE, WRITE, WRITEBOOT
@@ -176,12 +170,6 @@ main(int argc, char *argv[])
 					labelsoffset = 1;
 					labeloffset = 0;
 					bbsize = 8192;
-					alphacksum = 0;
-				} else if (!strcmp(optarg, "alpha")) {
-					labelsoffset = 0;
-					labeloffset = 64;
-					bbsize = 8192;
-					alphacksum = 1;
 				} else {
 					errx(1, "Unsupported architecture");
 				}
@@ -350,7 +338,6 @@ readboot(void)
 {
 	int fd;
 	struct stat st;
-	uint64_t *p;
 
 	if (xxboot == NULL)
 		xxboot = "/boot/boot";
@@ -358,21 +345,7 @@ readboot(void)
 	if (fd < 0)
 		err(1, "cannot open %s", xxboot);
 	fstat(fd, &st);
-	if (alphacksum && st.st_size <= BBSIZE - 512) {
-		if (read(fd, bootarea + 512, st.st_size) != st.st_size)
-			err(1, "read error %s", xxboot);
-
-		/*
-		 * Set the location and length so SRM can find the
-		 * boot blocks.
-		 */
-		p = (uint64_t *)bootarea;
-		p[60] = (st.st_size + secsize - 1) / secsize;
-		p[61] = 1;
-		p[62] = 0;
-		close(fd);
-		return;
-	} else if ((!alphacksum) && st.st_size <= BBSIZE) {
+	if (st.st_size <= BBSIZE) {
 		if (read(fd, bootarea, st.st_size) != st.st_size)
 			err(1, "read error %s", xxboot);
 		close(fd);
@@ -407,7 +380,6 @@ geom_bsd_available(void)
 static int
 writelabel(void)
 {
-	uint64_t *p, sum;
 	int i, fd, serrno;
 	struct gctl_req *grq;
 	char const *errstr;
@@ -430,12 +402,6 @@ writelabel(void)
 			lab.d_partitions[i].p_offset += lba_offset;
 	bsd_disklabel_le_enc(bootarea + labeloffset + labelsoffset * secsize,
 	    lp);
-	if (alphacksum) {
-		/* Generate the bootblock checksum for the SRM console.  */
-		for (p = (uint64_t *)bootarea, i = 0, sum = 0; i < 63; i++)
-			sum += p[i];
-		p[63] = sum;
-	}
 
 	fd = open(specname, O_RDWR);
 	if (fd < 0) {
@@ -623,11 +589,11 @@ display(FILE *f, const struct disklabel *lp)
 	}
 	fprintf(f, "%u partitions:\n", lp->d_npartitions);
 	fprintf(f,
-	    "#        size   offset    fstype   [fsize bsize bps/cpg]\n");
+	    "#          size     offset    fstype   [fsize bsize bps/cpg]\n");
 	pp = lp->d_partitions;
 	for (i = 0; i < lp->d_npartitions; i++, pp++) {
 		if (pp->p_size) {
-			fprintf(f, "  %c: %8lu %8lu  ", 'a' + i,
+			fprintf(f, "  %c: %10lu %10lu  ", 'a' + i,
 			   (u_long)pp->p_size, (u_long)pp->p_offset);
 			if (pp->p_fstype < FSMAXTYPES)
 				fprintf(f, "%8.8s", fstypenames[pp->p_fstype]);
@@ -636,13 +602,13 @@ display(FILE *f, const struct disklabel *lp)
 			switch (pp->p_fstype) {
 
 			case FS_UNUSED:				/* XXX */
-				fprintf(f, "    %5lu %5lu %5.5s ",
+				fprintf(f, "    %5lu %5lu %2s",
 				    (u_long)pp->p_fsize,
 				    (u_long)(pp->p_fsize * pp->p_frag), "");
 				break;
 
 			case FS_BSDFFS:
-				fprintf(f, "    %5lu %5lu %5u ",
+				fprintf(f, "    %5lu %5lu %5u",
 				    (u_long)pp->p_fsize,
 				    (u_long)(pp->p_fsize * pp->p_frag),
 				    pp->p_cpg);

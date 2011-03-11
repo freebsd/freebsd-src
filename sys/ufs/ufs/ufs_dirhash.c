@@ -402,8 +402,7 @@ ufsdirhash_build(struct inode *ip)
 		dh->dh_firstfree[i] = -1;
 	dh->dh_firstfree[DH_NFSTATS] = 0;
 	dh->dh_hused = 0;
-	dh->dh_seqopt = 0;
-	dh->dh_seqoff = 0;
+	dh->dh_seqoff = -1;
 	dh->dh_score = DH_SCOREINIT;
 	dh->dh_lastused = time_second;
 
@@ -427,7 +426,7 @@ ufsdirhash_build(struct inode *ip)
 	}
 	for (i = 0; i < dirblocks; i++)
 		dh->dh_blkfree[i] = DIRBLKSIZ / DIRALIGN;
-	bmask = VFSTOUFS(vp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
+	bmask = vp->v_mount->mnt_stat.f_iosize - 1;
 	pos = 0;
 	while (pos < ip->i_size) {
 		/* If necessary, get the next directory block. */
@@ -551,7 +550,7 @@ ufsdirhash_lookup(struct inode *ip, char *name, int namelen, doff_t *offp,
 	struct direct *dp;
 	struct vnode *vp;
 	struct buf *bp;
-	doff_t blkoff, bmask, offset, prevoff;
+	doff_t blkoff, bmask, offset, prevoff, seqoff;
 	int i, slot;
 	int error;
 
@@ -588,32 +587,33 @@ ufsdirhash_lookup(struct inode *ip, char *name, int namelen, doff_t *offp,
 	DIRHASHLIST_UNLOCK();
 
 	vp = ip->i_vnode;
-	bmask = VFSTOUFS(vp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
+	bmask = vp->v_mount->mnt_stat.f_iosize - 1;
 	blkoff = -1;
 	bp = NULL;
+	seqoff = dh->dh_seqoff;
 restart:
 	slot = ufsdirhash_hash(dh, name, namelen);
 
-	if (dh->dh_seqopt) {
+	if (seqoff != -1) {
 		/*
-		 * Sequential access optimisation. dh_seqoff contains the
+		 * Sequential access optimisation. seqoff contains the
 		 * offset of the directory entry immediately following
 		 * the last entry that was looked up. Check if this offset
 		 * appears in the hash chain for the name we are looking for.
 		 */
 		for (i = slot; (offset = DH_ENTRY(dh, i)) != DIRHASH_EMPTY;
 		    i = WRAPINCR(i, dh->dh_hlen))
-			if (offset == dh->dh_seqoff)
+			if (offset == seqoff)
 				break;
-		if (offset == dh->dh_seqoff) {
+		if (offset == seqoff) {
 			/*
 			 * We found an entry with the expected offset. This
 			 * is probably the entry we want, but if not, the
-			 * code below will turn off seqopt and retry.
+			 * code below will retry.
 			 */ 
 			slot = i;
-		} else 
-			dh->dh_seqopt = 0;
+		} else
+			seqoff = -1;
 	}
 
 	for (; (offset = DH_ENTRY(dh, slot)) != DIRHASH_EMPTY;
@@ -655,9 +655,7 @@ restart:
 				*prevoffp = prevoff;
 			}
 
-			/* Check for sequential access, and update offset. */
-			if (dh->dh_seqopt == 0 && dh->dh_seqoff == offset)
-				dh->dh_seqopt = 1;
+			/* Update offset. */
 			dh->dh_seqoff = offset + DIRSIZ(0, dp);
 			*bpp = bp;
 			*offp = offset;
@@ -666,11 +664,11 @@ restart:
 		}
 
 		/*
-		 * When the name doesn't match in the seqopt case, go back
-		 * and search normally.
+		 * When the name doesn't match in the sequential
+		 * optimization case, go back and search normally.
 		 */
-		if (dh->dh_seqopt) {
-			dh->dh_seqopt = 0;
+		if (seqoff != -1) {
+			seqoff = -1;
 			goto restart;
 		}
 	}
