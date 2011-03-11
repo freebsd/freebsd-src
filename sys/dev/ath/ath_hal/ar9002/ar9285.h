@@ -25,6 +25,12 @@ struct ath_hal_9285 {
 
 	HAL_INI_ARRAY	ah_ini_txgain;
 	HAL_INI_ARRAY	ah_ini_rxgain;
+
+	struct {
+		int32_t prev_offset;	/* Previous value of PA offset value */
+		int8_t max_skipcount;	/* Max No. of times PACAL can be skipped */
+		int8_t skipcount;	/* No. of times the PACAL to be skipped */
+	} pacal_info;
 };
 #define	AH9285(_ah)	((struct ath_hal_9285 *)(_ah))
 
