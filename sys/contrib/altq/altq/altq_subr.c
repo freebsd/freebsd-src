@@ -78,10 +78,10 @@
 #include <machine/clock.h>
 #endif
 #if defined(__amd64__) || defined(__i386__)
+#include <machine/cpu.h>		/* for cpu_feature or tsc_present */
 #include <machine/cpufunc.h>		/* for pentium tsc */
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <machine/specialreg.h>		/* for CPUID_TSC */
-#include <machine/cpu.h>		/* for cpu_feature */
 #endif
 #endif /* __amd64 || __i386__ */
 
@@ -927,7 +927,7 @@ init_machclk_setup(void)
 #if defined(__amd64__) || defined(__i386__)
 	/* check if TSC is available */
 #ifdef __FreeBSD__
-	if (tsc_freq == 0)
+	if (!tsc_present || tsc_freq == 0)
 #else
 	if ((cpu_feature & CPUID_TSC) == 0)
 #endif
