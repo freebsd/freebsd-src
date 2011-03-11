@@ -15,13 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -35,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	from: NetBSD: mdreloc.c,v 1.5 2001/04/25 12:24:51 kleink Exp
+ *	from: NetBSD: mdreloc.c,v 1.42 2008/04/28 20:23:04 martin Exp
  */
 
 #include <sys/cdefs.h>
@@ -150,20 +143,20 @@ elf64_dump_thread(struct thread *td __unused, void *dst __unused,
  *		* the relocation is relative to the load address
  *
  */
-#define _RF_S		0x80000000		/* Resolve symbol */
-#define _RF_A		0x40000000		/* Use addend */
-#define _RF_P		0x20000000		/* Location relative */
-#define _RF_G		0x10000000		/* GOT offset */
-#define _RF_B		0x08000000		/* Load address relative */
-#define _RF_U		0x04000000		/* Unaligned */
+#define	_RF_S		0x80000000		/* Resolve symbol */
+#define	_RF_A		0x40000000		/* Use addend */
+#define	_RF_P		0x20000000		/* Location relative */
+#define	_RF_G		0x10000000		/* GOT offset */
+#define	_RF_B		0x08000000		/* Load address relative */
+#define	_RF_U		0x04000000		/* Unaligned */
 #define	_RF_X		0x02000000		/* Bare symbols, needs proc */
-#define _RF_SZ(s)	(((s) & 0xff) << 8)	/* memory target size */
-#define _RF_RS(s)	( (s) & 0xff)		/* right shift */
+#define	_RF_SZ(s)	(((s) & 0xff) << 8)	/* memory target size */
+#define	_RF_RS(s)	( (s) & 0xff)		/* right shift */
 static const int reloc_target_flags[] = {
 	0,							/* NONE */
-	_RF_S|_RF_A|		_RF_SZ(8)  | _RF_RS(0),		/* RELOC_8 */
-	_RF_S|_RF_A|		_RF_SZ(16) | _RF_RS(0),		/* RELOC_16 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* RELOC_32 */
+	_RF_S|_RF_A|		_RF_SZ(8)  | _RF_RS(0),		/* 8 */
+	_RF_S|_RF_A|		_RF_SZ(16) | _RF_RS(0),		/* 16 */
+	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 32 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(8)  | _RF_RS(0),		/* DISP_8 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(16) | _RF_RS(0),		/* DISP_16 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(0),		/* DISP_32 */
@@ -221,58 +214,55 @@ static const int reloc_target_flags[] = {
 
 #if 0
 static const char *const reloc_names[] = {
-	"NONE", "RELOC_8", "RELOC_16", "RELOC_32", "DISP_8",
-	"DISP_16", "DISP_32", "WDISP_30", "WDISP_22", "HI22",
-	"22", "13", "LO10", "GOT10", "GOT13",
-	"GOT22", "PC10", "PC22", "WPLT30", "COPY",
-	"GLOB_DAT", "JMP_SLOT", "RELATIVE", "UA_32", "PLT32",
-	"HIPLT22", "LOPLT10", "LOPLT10", "PCPLT22", "PCPLT32",
-	"10", "11", "64", "OLO10", "HH22",
-	"HM10", "LM22", "PC_HH22", "PC_HM10", "PC_LM22",
-	"WDISP16", "WDISP19", "GLOB_JMP", "7", "5", "6",
-	"DISP64", "PLT64", "HIX22", "LOX10", "H44", "M44",
+	"NONE", "8", "16", "32", "DISP_8", "DISP_16", "DISP_32", "WDISP_30",
+	"WDISP_22", "HI22", "22", "13", "LO10", "GOT10", "GOT13", "GOT22",
+	"PC10", "PC22", "WPLT30", "COPY", "GLOB_DAT", "JMP_SLOT", "RELATIVE",
+	"UA_32", "PLT32", "HIPLT22", "LOPLT10", "LOPLT10", "PCPLT22",
+	"PCPLT32", "10", "11", "64", "OLO10", "HH22", "HM10", "LM22",
+	"PC_HH22", "PC_HM10", "PC_LM22", "WDISP16", "WDISP19", "GLOB_JMP",
+	"7", "5", "6", "DISP64", "PLT64", "HIX22", "LOX10", "H44", "M44",
 	"L44", "REGISTER", "UA64", "UA16"
 };
 #endif
 
-#define RELOC_RESOLVE_SYMBOL(t)		((reloc_target_flags[t] & _RF_S) != 0)
-#define RELOC_PC_RELATIVE(t)		((reloc_target_flags[t] & _RF_P) != 0)
-#define RELOC_BASE_RELATIVE(t)		((reloc_target_flags[t] & _RF_B) != 0)
-#define RELOC_UNALIGNED(t)		((reloc_target_flags[t] & _RF_U) != 0)
-#define RELOC_USE_ADDEND(t)		((reloc_target_flags[t] & _RF_A) != 0)
+#define	RELOC_RESOLVE_SYMBOL(t)		((reloc_target_flags[t] & _RF_S) != 0)
+#define	RELOC_PC_RELATIVE(t)		((reloc_target_flags[t] & _RF_P) != 0)
+#define	RELOC_BASE_RELATIVE(t)		((reloc_target_flags[t] & _RF_B) != 0)
+#define	RELOC_UNALIGNED(t)		((reloc_target_flags[t] & _RF_U) != 0)
+#define	RELOC_USE_ADDEND(t)		((reloc_target_flags[t] & _RF_A) != 0)
 #define	RELOC_BARE_SYMBOL(t)		((reloc_target_flags[t] & _RF_X) != 0)
-#define RELOC_TARGET_SIZE(t)		((reloc_target_flags[t] >> 8) & 0xff)
-#define RELOC_VALUE_RIGHTSHIFT(t)	(reloc_target_flags[t] & 0xff)
+#define	RELOC_TARGET_SIZE(t)		((reloc_target_flags[t] >> 8) & 0xff)
+#define	RELOC_VALUE_RIGHTSHIFT(t)	(reloc_target_flags[t] & 0xff)
 
 static const long reloc_target_bitmask[] = {
-#define _BM(x)	(~(-(1ULL << (x))))
+#define	_BM(x)	(~(-(1ULL << (x))))
 	0,				/* NONE */
-	_BM(8), _BM(16), _BM(32),	/* RELOC_8, _16, _32 */
+	_BM(8), _BM(16), _BM(32),	/* 8, 16, 32 */
 	_BM(8), _BM(16), _BM(32),	/* DISP8, DISP16, DISP32 */
 	_BM(30), _BM(22),		/* WDISP30, WDISP22 */
-	_BM(22), _BM(22),		/* HI22, _22 */
-	_BM(13), _BM(10),		/* RELOC_13, _LO10 */
+	_BM(22), _BM(22),		/* HI22, 22 */
+	_BM(13), _BM(10),		/* 13, LO10 */
 	_BM(10), _BM(13), _BM(22),	/* GOT10, GOT13, GOT22 */
 	_BM(10), _BM(22),		/* PC10, PC22 */
 	_BM(30), 0,			/* WPLT30, COPY */
 	_BM(32), _BM(32), _BM(32),	/* GLOB_DAT, JMP_SLOT, RELATIVE */
 	_BM(32), _BM(32),		/* UA32, PLT32 */
 	_BM(22), _BM(10),		/* HIPLT22, LOPLT10 */
-	_BM(32), _BM(22), _BM(10),	/* PCPLT32, _PCPLT22, _PCPLT10 */
+	_BM(32), _BM(22), _BM(10),	/* PCPLT32, PCPLT22, PCPLT10 */
 	_BM(10), _BM(11), -1,		/* 10, 11, 64 */
 	_BM(13), _BM(22),		/* OLO10, HH22 */
 	_BM(10), _BM(22),		/* HM10, LM22 */
 	_BM(22), _BM(10), _BM(22),	/* PC_HH22, PC_HM10, PC_LM22 */
 	_BM(16), _BM(19),		/* WDISP16, WDISP19 */
 	-1,				/* GLOB_JMP */
-	_BM(7), _BM(5), _BM(6)		/* 7, 5, 6 */
+	_BM(7), _BM(5), _BM(6),		/* 7, 5, 6 */
 	-1, -1,				/* DISP64, PLT64 */
 	_BM(22), _BM(13),		/* HIX22, LOX10 */
 	_BM(22), _BM(10), _BM(13),	/* H44, M44, L44 */
 	-1, -1, _BM(16),		/* REGISTER, UA64, UA16 */
 #undef _BM
 };
-#define RELOC_VALUE_BITMASK(t)	(reloc_target_bitmask[t])
+#define	RELOC_VALUE_BITMASK(t)	(reloc_target_bitmask[t])
 
 int
 elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
