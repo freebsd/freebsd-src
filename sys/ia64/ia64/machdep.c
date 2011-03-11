@@ -792,7 +792,7 @@ ia64_init(void)
 
 	p = getenv("kernelname");
 	if (p != NULL) {
-		strlcpy(kernelname, p, MAXPATHLEN);
+		strlcpy(kernelname, p, sizeof(kernelname));
 		freeenv(p);
 	}
 
