@@ -960,8 +960,8 @@ stge_dma_alloc(struct stge_softc *sc)
 
 	/* allocate DMA'able memory and load the DMA map for Tx ring. */
 	error = bus_dmamem_alloc(sc->sc_cdata.stge_tx_ring_tag,
-	    (void **)&sc->sc_rdata.stge_tx_ring, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
-	    &sc->sc_cdata.stge_tx_ring_map);
+	    (void **)&sc->sc_rdata.stge_tx_ring, BUS_DMA_NOWAIT |
+	    BUS_DMA_COHERENT | BUS_DMA_ZERO, &sc->sc_cdata.stge_tx_ring_map);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "failed to allocate DMA'able memory for Tx ring\n");
@@ -981,8 +981,8 @@ stge_dma_alloc(struct stge_softc *sc)
 
 	/* allocate DMA'able memory and load the DMA map for Rx ring. */
 	error = bus_dmamem_alloc(sc->sc_cdata.stge_rx_ring_tag,
-	    (void **)&sc->sc_rdata.stge_rx_ring, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
-	    &sc->sc_cdata.stge_rx_ring_map);
+	    (void **)&sc->sc_rdata.stge_rx_ring, BUS_DMA_NOWAIT |
+	    BUS_DMA_COHERENT | BUS_DMA_ZERO, &sc->sc_cdata.stge_rx_ring_map);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "failed to allocate DMA'able memory for Rx ring\n");
