@@ -405,7 +405,7 @@ ar5416ChannelChange(struct ath_hal *ah, const structu ieee80211_channel *chan)
 		return AH_FALSE;
 
 	/* Setup the transmit power values. */
-	if (!ar5416SetTransmitPower(ah, chan, rfXpdGain)) {
+	if (!ah->ah_setTxPower(ah, chan, rfXpdGain)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: error init'ing transmit power\n", __func__);
 		return AH_FALSE;
@@ -748,7 +748,7 @@ ar5416SetTxPowerLimit(struct ath_hal *ah, uint32_t limit)
 	uint16_t dummyXpdGains[2];
 
 	AH_PRIVATE(ah)->ah_powerLimit = AH_MIN(limit, MAX_RATE_POWER);
-	return ar5416SetTransmitPower(ah, AH_PRIVATE(ah)->ah_curchan,
+	return ah->ah_setTxPower(ah, AH_PRIVATE(ah)->ah_curchan,
 			dummyXpdGains);
 }
 
