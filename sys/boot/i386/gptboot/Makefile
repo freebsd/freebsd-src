@@ -65,7 +65,8 @@ gptldr.bin: gptldr.out
 gptldr.out: gptldr.o
 	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} gptldr.o
 
-CLEANFILES+=	gptboot.bin gptboot.out gptboot.o sio.o ufsread.o
+CLEANFILES+=	gptboot.bin gptboot.out gptboot.o sio.o gpt.o crc32.o drv.o \
+		cons.o util.o
 
 gptboot.bin: gptboot.out
 	objcopy -S -O binary gptboot.out ${.TARGET}
