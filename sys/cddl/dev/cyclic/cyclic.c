@@ -473,73 +473,6 @@ cyclic_expire(cyc_cpu_t *cpu, cyc_index_t ndx, cyclic_t *cyclic)
 	(*handler)(arg);
 }
 
-static void
-cyclic_enable_xcall(void *v)
-{
-	cyc_xcallarg_t *argp = v;
-	cyc_cpu_t *cpu = argp->cyx_cpu;
-	cyc_backend_t *be = cpu->cyp_backend;
-
-	be->cyb_enable(be->cyb_arg);
-}
-
-static void
-cyclic_enable(cyc_cpu_t *cpu)
-{
-	cyc_backend_t *be = cpu->cyp_backend;
-	cyc_xcallarg_t arg;
-
-	arg.cyx_cpu = cpu;
-
-	/* Cross call to the target CPU */
-	be->cyb_xcall(be->cyb_arg, cpu->cyp_cpu, cyclic_enable_xcall, &arg);
-}
-
-static void
-cyclic_disable_xcall(void *v)
-{
-	cyc_xcallarg_t *argp = v;
-	cyc_cpu_t *cpu = argp->cyx_cpu;
-	cyc_backend_t *be = cpu->cyp_backend;
-
-	be->cyb_disable(be->cyb_arg);
-}
-
-static void
-cyclic_disable(cyc_cpu_t *cpu)
-{
-	cyc_backend_t *be = cpu->cyp_backend;
-	cyc_xcallarg_t arg;
-
-	arg.cyx_cpu = cpu;
-
-	/* Cross call to the target CPU */
-	be->cyb_xcall(be->cyb_arg, cpu->cyp_cpu, cyclic_disable_xcall, &arg);
-}
-
-static void
-cyclic_reprogram_xcall(void *v)
-{
-	cyc_xcallarg_t *argp = v;
-	cyc_cpu_t *cpu = argp->cyx_cpu;
-	cyc_backend_t *be = cpu->cyp_backend;
-
-	be->cyb_reprogram(be->cyb_arg, argp->cyx_exp);
-}
-
-static void
-cyclic_reprogram(cyc_cpu_t *cpu, hrtime_t exp)
-{
-	cyc_backend_t *be = cpu->cyp_backend;
-	cyc_xcallarg_t arg;
-
-	arg.cyx_cpu = cpu;
-	arg.cyx_exp = exp;
-
-	/* Cross call to the target CPU */
-	be->cyb_xcall(be->cyb_arg, cpu->cyp_cpu, cyclic_reprogram_xcall, &arg);
-}
-
 /*
  *  cyclic_fire(cpu_t *)
  *
@@ -570,17 +503,15 @@ static void
 cyclic_fire(cpu_t *c)
 {
 	cyc_cpu_t *cpu = c->cpu_cyclic;
-
-	mtx_lock_spin(&cpu->cyp_mtx);
-
+	cyc_backend_t *be = cpu->cyp_backend;
 	cyc_index_t *heap = cpu->cyp_heap;
 	cyclic_t *cyclic, *cyclics = cpu->cyp_cyclics;
+	void *arg = be->cyb_arg;
 	hrtime_t now = gethrtime();
 	hrtime_t exp;
 
 	if (cpu->cyp_nelems == 0) {
 		/* This is a spurious fire. */
-		mtx_unlock_spin(&cpu->cyp_mtx);
 		return;
 	}
 
@@ -631,63 +562,34 @@ cyclic_fire(cpu_t *c)
 	 * Now we have a cyclic in the root slot which isn't in the past;
 	 * reprogram the interrupt source.
 	 */
-	cyclic_reprogram(cpu, exp);
-
-	mtx_unlock_spin(&cpu->cyp_mtx);
+	be->cyb_reprogram(arg, exp);
 }
 
-/*
- * cyclic_expand() will cross call onto the CPU to perform the actual
- * expand operation.
- */
 static void
-cyclic_expand(cyc_cpu_t *cpu)
+cyclic_expand_xcall(cyc_xcallarg_t *arg)
 {
-	cyc_index_t new_size, old_size, i;
-	cyc_index_t *new_heap, *old_heap;
-	cyclic_t *new_cyclics, *old_cyclics;
+	cyc_cpu_t *cpu = arg->cyx_cpu;
+	cyc_index_t new_size = arg->cyx_size, size = cpu->cyp_size, i;
+	cyc_index_t *new_heap = arg->cyx_heap;
+	cyclic_t *cyclics = cpu->cyp_cyclics, *new_cyclics = arg->cyx_cyclics;
 
-	ASSERT(MUTEX_HELD(&cpu_lock));
-
-	if ((new_size = ((old_size = cpu->cyp_size) << 1)) == 0)
-		new_size = CY_DEFAULT_PERCPU;
-
-	/*
-	 * Check that the new_size is a power of 2.
-	 */
-	ASSERT(((new_size - 1) & new_size) == 0);
-
-	/* Unlock the mutex while allocating memory so we can wait... */
-	mtx_unlock_spin(&cpu->cyp_mtx);
-
-	new_heap = malloc(sizeof(cyc_index_t) * new_size, M_CYCLIC, M_WAITOK);
-	new_cyclics = malloc(sizeof(cyclic_t) * new_size, M_CYCLIC, M_ZERO | M_WAITOK);
-
-	/* Grab the lock again now we've got the memory... */
+	/* Disable preemption and interrupts. */
 	mtx_lock_spin(&cpu->cyp_mtx);
 
-	/* Check if another thread beat us while the mutex was unlocked. */
-	if (old_size != cpu->cyp_size) {
-		/* Oh well, he won. */
-		mtx_unlock_spin(&cpu->cyp_mtx);
+	/*
+	 * Assert that the new size is a power of 2.
+	 */
+	ASSERT((new_size & (new_size - 1)) == 0);
+	ASSERT(new_size == (size << 1));
+	ASSERT(cpu->cyp_heap != NULL && cpu->cyp_cyclics != NULL);
 
-		free(new_heap, M_CYCLIC);
-		free(new_cyclics, M_CYCLIC);
-
-		mtx_lock_spin(&cpu->cyp_mtx);
-		return;
-	}
-
-	old_heap = cpu->cyp_heap;
-	old_cyclics = cpu->cyp_cyclics;
-
-	bcopy(cpu->cyp_heap, new_heap, sizeof (cyc_index_t) * old_size);
-	bcopy(old_cyclics, new_cyclics, sizeof (cyclic_t) * old_size);
+	bcopy(cpu->cyp_heap, new_heap, sizeof (cyc_index_t) * size);
+	bcopy(cyclics, new_cyclics, sizeof (cyclic_t) * size);
 
 	/*
 	 * Set up the free list, and set all of the new cyclics to be CYF_FREE.
 	 */
-	for (i = old_size; i < new_size; i++) {
+	for (i = size; i < new_size; i++) {
 		new_heap[i] = i;
 		new_cyclics[i].cy_flags = CYF_FREE;
 	}
@@ -699,46 +601,80 @@ cyclic_expand(cyc_cpu_t *cpu)
 	cpu->cyp_heap = new_heap;
 	cpu->cyp_cyclics = new_cyclics;
 	cpu->cyp_size = new_size;
+	mtx_unlock_spin(&cpu->cyp_mtx);
+}
+
+/*
+ * cyclic_expand() will cross call onto the CPU to perform the actual
+ * expand operation.
+ */
+static void
+cyclic_expand(cyc_cpu_t *cpu)
+{
+	cyc_index_t new_size, old_size;
+	cyc_index_t *new_heap, *old_heap;
+	cyclic_t *new_cyclics, *old_cyclics;
+	cyc_xcallarg_t arg;
+	cyc_backend_t *be = cpu->cyp_backend;
+
+	ASSERT(MUTEX_HELD(&cpu_lock));
+
+	old_heap = cpu->cyp_heap;
+	old_cyclics = cpu->cyp_cyclics;
+
+	if ((new_size = ((old_size = cpu->cyp_size) << 1)) == 0) {
+		new_size = CY_DEFAULT_PERCPU;
+		ASSERT(old_heap == NULL && old_cyclics == NULL);
+	}
+
+	/*
+	 * Check that the new_size is a power of 2.
+	 */
+	ASSERT(((new_size - 1) & new_size) == 0);
+
+	new_heap = malloc(sizeof(cyc_index_t) * new_size, M_CYCLIC, M_WAITOK);
+	new_cyclics = malloc(sizeof(cyclic_t) * new_size, M_CYCLIC, M_ZERO | M_WAITOK);
+
+	arg.cyx_cpu = cpu;
+	arg.cyx_heap = new_heap;
+	arg.cyx_cyclics = new_cyclics;
+	arg.cyx_size = new_size;
+
+	be->cyb_xcall(be->cyb_arg, cpu->cyp_cpu,
+	    (cyc_func_t)cyclic_expand_xcall, &arg);
 
 	if (old_cyclics != NULL) {
 		ASSERT(old_heap != NULL);
 		ASSERT(old_size != 0);
-		mtx_unlock_spin(&cpu->cyp_mtx);
-
 		free(old_cyclics, M_CYCLIC);
 		free(old_heap, M_CYCLIC);
-
-		mtx_lock_spin(&cpu->cyp_mtx);
 	}
 }
 
-static cyc_index_t
-cyclic_add_here(cyc_cpu_t *cpu, cyc_handler_t *hdlr,
-    cyc_time_t *when, uint16_t flags)
+static void
+cyclic_add_xcall(cyc_xcallarg_t *arg)
 {
+	cyc_cpu_t *cpu = arg->cyx_cpu;
+	cyc_handler_t *hdlr = arg->cyx_hdlr;
+	cyc_time_t *when = arg->cyx_when;
+	cyc_backend_t *be = cpu->cyp_backend;
 	cyc_index_t ndx, nelems;
+	cyb_arg_t bar = be->cyb_arg;
 	cyclic_t *cyclic;
-
-	ASSERT(MUTEX_HELD(&cpu_lock));
-
-	mtx_lock_spin(&cpu->cyp_mtx);
-
-	ASSERT(!(cpu->cyp_cpu->cpu_flags & CPU_OFFLINE));
-	ASSERT(when->cyt_when >= 0 && when->cyt_interval > 0);
-
-	while (cpu->cyp_nelems == cpu->cyp_size)
-		cyclic_expand(cpu);
 
 	ASSERT(cpu->cyp_nelems < cpu->cyp_size);
 
+	/* Disable preemption and interrupts. */
+	mtx_lock_spin(&cpu->cyp_mtx);
 	nelems = cpu->cyp_nelems++;
 
-	if (nelems == 0)
+	if (nelems == 0) {
 		/*
 		 * If this is the first element, we need to enable the
 		 * backend on this CPU.
 		 */
-		cyclic_enable(cpu);
+		be->cyb_enable(bar);
+	}
 
 	ndx = cpu->cyp_heap[nelems];
 	cyclic = &cpu->cyp_cyclics[ndx];
@@ -746,14 +682,20 @@ cyclic_add_here(cyc_cpu_t *cpu, cyc_handler_t *hdlr,
 	ASSERT(cyclic->cy_flags == CYF_FREE);
 	cyclic->cy_interval = when->cyt_interval;
 
-	if (when->cyt_when == 0)
-		cyclic->cy_expire = gethrtime() + cyclic->cy_interval;
-	else
+	if (when->cyt_when == 0) {
+		/*
+		 * If a start time hasn't been explicitly specified, we'll
+		 * start on the next interval boundary.
+		 */
+		cyclic->cy_expire = (gethrtime() / cyclic->cy_interval + 1) *
+		    cyclic->cy_interval;
+	} else {
 		cyclic->cy_expire = when->cyt_when;
+	}
 
 	cyclic->cy_handler = hdlr->cyh_func;
 	cyclic->cy_arg = hdlr->cyh_arg;
-	cyclic->cy_flags = flags;
+	cyclic->cy_flags = arg->cyx_flags;
 
 	if (cyclic_upheap(cpu, nelems)) {
 		hrtime_t exp = cyclic->cy_expire;
@@ -762,31 +704,63 @@ cyclic_add_here(cyc_cpu_t *cpu, cyc_handler_t *hdlr,
 		 * If our upheap propagated to the root, we need to
 		 * reprogram the interrupt source.
 		 */
-		cyclic_reprogram(cpu, exp);
+		be->cyb_reprogram(bar, exp);
 	}
-
 	mtx_unlock_spin(&cpu->cyp_mtx);
 
-	return (ndx);
+	arg->cyx_ndx = ndx;
 }
 
-
-static int
-cyclic_remove_here(cyc_cpu_t *cpu, cyc_index_t ndx, cyc_time_t *when, int wait)
+static cyc_index_t
+cyclic_add_here(cyc_cpu_t *cpu, cyc_handler_t *hdlr,
+    cyc_time_t *when, uint16_t flags)
 {
-	cyc_index_t nelems, i;
-	cyclic_t *cyclic;
-	cyc_index_t *heap, last;
+	cyc_backend_t *be = cpu->cyp_backend;
+	cyb_arg_t bar = be->cyb_arg;
+	cyc_xcallarg_t arg;
 
 	ASSERT(MUTEX_HELD(&cpu_lock));
-	ASSERT(wait == CY_WAIT || wait == CY_NOWAIT);
+	ASSERT(!(cpu->cyp_cpu->cpu_flags & CPU_OFFLINE));
+	ASSERT(when->cyt_when >= 0 && when->cyt_interval > 0);
 
+	if (cpu->cyp_nelems == cpu->cyp_size) {
+		/*
+		 * This is expensive; it will cross call onto the other
+		 * CPU to perform the expansion.
+		 */
+		cyclic_expand(cpu);
+		ASSERT(cpu->cyp_nelems < cpu->cyp_size);
+	}
+
+	/*
+	 * By now, we know that we're going to be able to successfully
+	 * perform the add.  Now cross call over to the CPU of interest to
+	 * actually add our cyclic.
+	 */
+	arg.cyx_cpu = cpu;
+	arg.cyx_hdlr = hdlr;
+	arg.cyx_when = when;
+	arg.cyx_flags = flags;
+
+	be->cyb_xcall(bar, cpu->cyp_cpu, (cyc_func_t)cyclic_add_xcall, &arg);
+
+	return (arg.cyx_ndx);
+}
+
+static void
+cyclic_remove_xcall(cyc_xcallarg_t *arg)
+{
+	cyc_cpu_t *cpu = arg->cyx_cpu;
+	cyc_backend_t *be = cpu->cyp_backend;
+	cyb_arg_t bar = be->cyb_arg;
+	cyc_index_t ndx = arg->cyx_ndx, nelems = cpu->cyp_nelems, i;
+	cyc_index_t *heap = cpu->cyp_heap, last;
+	cyclic_t *cyclic;
+
+	ASSERT(nelems > 0);
+
+	/* Disable preemption and interrupts. */
 	mtx_lock_spin(&cpu->cyp_mtx);
-
-	heap = cpu->cyp_heap;
-
-	nelems = cpu->cyp_nelems;
-
 	cyclic = &cpu->cyp_cyclics[ndx];
 
 	/*
@@ -794,11 +768,17 @@ cyclic_remove_here(cyc_cpu_t *cpu, cyc_index_t ndx, cyc_time_t *when, int wait)
 	 * removed as part of a juggling operation, the expiration time
 	 * will be used when the cyclic is added to the new CPU.
 	 */
-	if (when != NULL) {
-		when->cyt_when = cyclic->cy_expire;
-		when->cyt_interval = cyclic->cy_interval;
+	if (arg->cyx_when != NULL) {
+		arg->cyx_when->cyt_when = cyclic->cy_expire;
+		arg->cyx_when->cyt_interval = cyclic->cy_interval;
 	}
 
+	/*
+	 * Now set the flags to CYF_FREE.  We don't need a membar_enter()
+	 * between zeroing pend and setting the flags because we're at
+	 * CY_HIGH_LEVEL (that is, the zeroing of pend and the setting
+	 * of cy_flags appear atomic to softints).
+	 */
 	cyclic->cy_flags = CYF_FREE;
 
 	for (i = 0; i < nelems; i++) {
@@ -811,19 +791,21 @@ cyclic_remove_here(cyc_cpu_t *cpu, cyc_index_t ndx, cyc_time_t *when, int wait)
 
 	cpu->cyp_nelems = --nelems;
 
-	if (nelems == 0)
+	if (nelems == 0) {
 		/*
 		 * If we just removed the last element, then we need to
 		 * disable the backend on this CPU.
 		 */
-		cyclic_disable(cpu);
+		be->cyb_disable(bar);
+	}
 
-	if (i == nelems)
+	if (i == nelems) {
 		/*
 		 * If we just removed the last element of the heap, then
 		 * we don't have to downheap.
 		 */
-		goto done;
+		goto out;
+	}
 
 	/*
 	 * Swap the last element of the heap with the one we want to
@@ -833,17 +815,18 @@ cyclic_remove_here(cyc_cpu_t *cpu, cyc_index_t ndx, cyc_time_t *when, int wait)
 	heap[i] = (last = heap[nelems]);
 	heap[nelems] = ndx;
 
-	if (i == 0)
+	if (i == 0) {
 		cyclic_downheap(cpu, 0);
-	else {
+	} else {
 		if (cyclic_upheap(cpu, i) == 0) {
 			/*
 			 * The upheap didn't propagate to the root; if it
 			 * didn't propagate at all, we need to downheap.
 			 */
-			if (heap[i] == last)
+			if (heap[i] == last) {
 				cyclic_downheap(cpu, i);
-			goto done;
+			}
+			goto out;
 		}
 	}
 
@@ -854,10 +837,27 @@ cyclic_remove_here(cyc_cpu_t *cpu, cyc_index_t ndx, cyc_time_t *when, int wait)
 	cyclic = &cpu->cyp_cyclics[heap[0]];
 
 	ASSERT(nelems != 0);
-	cyclic_reprogram(cpu, cyclic->cy_expire);
-
-done:
+	be->cyb_reprogram(bar, cyclic->cy_expire);
+out:
 	mtx_unlock_spin(&cpu->cyp_mtx);
+}
+
+static int
+cyclic_remove_here(cyc_cpu_t *cpu, cyc_index_t ndx, cyc_time_t *when, int wait)
+{
+	cyc_backend_t *be = cpu->cyp_backend;
+	cyc_xcallarg_t arg;
+
+	ASSERT(MUTEX_HELD(&cpu_lock));
+	ASSERT(wait == CY_WAIT || wait == CY_NOWAIT);
+
+	arg.cyx_ndx = ndx;
+	arg.cyx_cpu = cpu;
+	arg.cyx_when = when;
+	arg.cyx_wait = wait;
+
+	be->cyb_xcall(be->cyb_arg, cpu->cyp_cpu,
+	    (cyc_func_t)cyclic_remove_xcall, &arg);
 
 	return (1);
 }
@@ -1214,15 +1214,10 @@ cyclic_add_omni(cyc_omni_handler_t *omni)
 
 	idp->cyi_omni_hdlr = *omni;
 
-	for (i = 0; i < MAXCPU; i++) {
-		if (pcpu_find(i) == NULL)
-			continue;
-
+	CPU_FOREACH(i) {
 		c = &solaris_cpu[i];
-
 		if ((cpu = c->cpu_cyclic) == NULL)
 			continue;
-
 		cyclic_omni_start(idp, cpu);
 	}
 
@@ -1325,12 +1320,8 @@ cyclic_mp_init(void)
 
 	mutex_enter(&cpu_lock);
 
-	for (i = 0; i <= mp_maxid; i++) {
-		if (pcpu_find(i) == NULL)
-			continue;
-
+	CPU_FOREACH(i) {
 		c = &solaris_cpu[i];
-
 		if (c->cpu_cyclic == NULL)
 			cyclic_configure(c);
 	}
@@ -1346,10 +1337,8 @@ cyclic_uninit(void)
 
 	CPU_FOREACH(id) {
 		c = &solaris_cpu[id];
-
 		if (c->cpu_cyclic == NULL)
 			continue;
-
 		cyclic_unconfigure(c);
 	}
 
