@@ -64,8 +64,8 @@ struct file_format *file_formats[] = {
 /*
  * Entered with psr.ic and psr.i both zero.
  */
-void
-enter_kernel(uint64_t start, uint64_t bi)
+static void
+enter_kernel(uint64_t start, struct bootinfo *bi)
 {
 
 	__asm __volatile("srlz.i;;");
@@ -84,55 +84,104 @@ enter_kernel(uint64_t start, uint64_t bi)
 	/* NOTREACHED */
 }
 
-static int
-elf64_exec(struct preloaded_file *fp)
+static void
+mmu_setup_legacy(uint64_t entry)
 {
-	struct file_metadata	*md;
-	Elf_Ehdr		*hdr;
-	pt_entry_t		pte;
-	uint64_t		bi_addr;
-
-	md = file_findmetadata(fp, MODINFOMD_ELFHDR);
-	if (md == NULL)
-		return (EINVAL);
-	hdr = (Elf_Ehdr *)&(md->md_data);
-
-	bi_load(fp, &bi_addr);
-
-	printf("Entering %s at 0x%lx...\n", fp->f_name, hdr->e_entry);
-
-	ldr_enter(fp->f_name);
-
-	__asm __volatile("rsm psr.ic|psr.i;;");
-	__asm __volatile("srlz.i;;");
+	pt_entry_t pte;
 
 	/*
 	 * Region 6 is direct mapped UC and region 7 is direct mapped
 	 * WC. The details of this is controlled by the Alt {I,D}TLB
-	 * handlers. Here we just make sure that they have the largest 
+	 * handlers. Here we just make sure that they have the largest
 	 * possible page size to minimise TLB usage.
 	 */
 	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (28 << 2));
 	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (28 << 2));
+	__asm __volatile("srlz.i;;");
 
 	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
 	    PTE_PL_KERN | PTE_AR_RWX | PTE_ED;
-	pte |= IA64_RR_MASK(hdr->e_entry) & PTE_PPN_MASK;
+	pte |= IA64_RR_MASK(entry) & PTE_PPN_MASK;
 
-	__asm __volatile("mov cr.ifa=%0" :: "r"(hdr->e_entry));
+	__asm __volatile("mov cr.ifa=%0" :: "r"(entry));
 	__asm __volatile("mov cr.itir=%0" :: "r"(28 << 2));
-	__asm __volatile("ptr.i %0,%1" :: "r"(hdr->e_entry), "r"(28<<2));
-	__asm __volatile("ptr.d %0,%1" :: "r"(hdr->e_entry), "r"(28<<2));
+	__asm __volatile("ptr.i %0,%1" :: "r"(entry), "r"(28<<2));
+	__asm __volatile("ptr.d %0,%1" :: "r"(entry), "r"(28<<2));
 	__asm __volatile("srlz.i;;");
 	__asm __volatile("itr.i itr[%0]=%1;;" :: "r"(0), "r"(pte));
 	__asm __volatile("srlz.i;;");
 	__asm __volatile("itr.d dtr[%0]=%1;;" :: "r"(0), "r"(pte));
 	__asm __volatile("srlz.i;;");
+}
 
-	enter_kernel(hdr->e_entry, bi_addr);
+static void
+mmu_setup_paged(void)
+{
+	pt_entry_t pte;
+	u_int sz;
 
+	ia64_set_rr(IA64_RR_BASE(4), (4 << 8) | (IA64_PBVM_PAGE_SHIFT << 2));
+	__asm __volatile("srlz.i;;");
+
+	/*
+	 * Wire the PBVM page table.
+	 */
+
+	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
+	    PTE_PL_KERN | PTE_AR_RWX | PTE_ED;
+	pte |= ia64_pgtbl[0] & PTE_PPN_MASK;
+
+	/*
+	 * Size of the translation. This should be the largest power of 2
+	 * smaller than the LVM in use.
+	 */
+	sz = 24;
+
+	__asm __volatile("mov cr.ifa=%0" :: "r"(IA64_PBVM_BASE));
+	__asm __volatile("mov cr.itir=%0" :: "r"(sz << 2));
+	__asm __volatile("ptr.i %0,%1" :: "r"(IA64_PBVM_BASE), "r"(sz << 2));
+	__asm __volatile("ptr.d %0,%1" :: "r"(IA64_PBVM_BASE), "r"(sz << 2));
+	__asm __volatile("srlz.i;;");
+	__asm __volatile("itr.i itr[%0]=%1;;" :: "r"(0), "r"(pte));
+	__asm __volatile("srlz.i;;");
+	__asm __volatile("itr.d dtr[%0]=%1;;" :: "r"(0), "r"(pte));
+	__asm __volatile("srlz.i;;");
+}
+
+static int
+elf64_exec(struct preloaded_file *fp)
+{
+	struct bootinfo *bi;
+	struct file_metadata *md;
+	Elf_Ehdr *hdr;
+	int error;
+
+	md = file_findmetadata(fp, MODINFOMD_ELFHDR);
+	if (md == NULL)
+		return (EINVAL);
+
+	error = ia64_bootinfo(fp, &bi);
+	if (error)
+		return (error);
+
+	hdr = (Elf_Ehdr *)&(md->md_data);
+	printf("Entering %s at 0x%lx...\n", fp->f_name, hdr->e_entry);
+
+	error = ia64_platform_enter(fp->f_name);
+	if (error)
+		return (error);
+
+	__asm __volatile("rsm psr.ic|psr.i;;");
+	__asm __volatile("srlz.i;;");
+
+	if (IS_LEGACY_KERNEL())
+		mmu_setup_legacy(hdr->e_entry);
+	else
+		mmu_setup_paged();
+
+	enter_kernel(hdr->e_entry, bi);
 	/* NOTREACHED */
-	return (0);
+	return (EDOOFUS);
 }
 
 static int

@@ -31,23 +31,28 @@
 
 #include <bootstrap.h>
 #include <ia64/include/bootinfo.h>
+#include <ia64/include/vmparam.h>
 
-int bi_load(struct preloaded_file *, uint64_t *);
+#define	IS_LEGACY_KERNEL()	(ia64_pgtbl == NULL || ia64_pgtblsz == 0)
 
 /*
  * Portability functions provided by the loader
  * implementation specific to the platform.
  */
-uint64_t ldr_alloc(vm_offset_t);
-int ldr_bootinfo(struct bootinfo *, uint64_t *);
-int ldr_enter(const char *);
+vm_paddr_t ia64_platform_alloc(vm_offset_t, vm_size_t);
+void ia64_platform_free(vm_offset_t, vm_paddr_t, vm_size_t);
+int ia64_platform_bootinfo(struct bootinfo *, struct bootinfo **);
+int ia64_platform_enter(const char *);
 
 /*
  * Functions and variables provided by the ia64 common code
  * and shared by all loader implementations.
  */
+extern uint64_t *ia64_pgtbl;
+extern uint32_t ia64_pgtblsz;
 
 int ia64_autoload(void);
+int ia64_bootinfo(struct preloaded_file *, struct bootinfo **);
 
 ssize_t ia64_copyin(const void *, vm_offset_t, size_t);
 ssize_t ia64_copyout(vm_offset_t, void *, size_t);
