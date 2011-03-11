@@ -63,6 +63,11 @@ SYSCTL_INT(_kern_timecounter, OID_AUTO, smp_tsc, CTLFLAG_RDTUN, &smp_tsc, 0,
 TUNABLE_INT("kern.timecounter.smp_tsc", &smp_tsc);
 #endif
 
+static int	tsc_disabled;
+SYSCTL_INT(_machdep, OID_AUTO, disable_tsc, CTLFLAG_RDTUN, &tsc_disabled, 0,
+    "Disable x86 Time Stamp Counter");
+TUNABLE_INT("machdep.disable_tsc", &tsc_disabled);
+
 static void tsc_freq_changed(void *arg, const struct cf_level *level,
     int status);
 static void tsc_freq_changing(void *arg, const struct cf_level *level,
@@ -84,12 +89,11 @@ init_TSC(void)
 {
 	u_int64_t tscval[2];
 
-	if (cpu_feature & CPUID_TSC)
-		tsc_present = 1;
-	else
-		tsc_present = 0;
+	if ((cpu_feature & CPUID_TSC) == 0)
+		return;
+	tsc_present = 1;
 
-	if (!tsc_present) 
+	if (tsc_disabled)
 		return;
 
 	if (bootverbose)
@@ -151,7 +155,7 @@ void
 init_TSC_tc(void)
 {
 
-	if (!tsc_present) 
+	if (!tsc_present || tsc_disabled)
 		return;
 
 	/*
@@ -248,7 +252,7 @@ tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 {
 
 	/* If there was an error during the transition, don't do anything. */
-	if (status != 0)
+	if (tsc_disabled || status != 0)
 		return;
 
 	/* Total setting for this level gives the new frequency in MHz. */
