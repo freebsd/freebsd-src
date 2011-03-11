@@ -2474,11 +2474,13 @@ _bfd_sparc_elf_relocate_section (bfd *output_bfd,
   Elf_Internal_Rela *rel;
   Elf_Internal_Rela *relend;
   int num_relocs;
+  const struct elf_backend_data *bed;
 
   htab = _bfd_sparc_elf_hash_table (info);
   symtab_hdr = &elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
   local_got_offsets = elf_local_got_offsets (input_bfd);
+  bed = get_elf_backend_data (output_bfd);
 
   if (elf_hash_table (info)->hgot == NULL)
     got_base = 0;
@@ -2876,11 +2878,6 @@ _bfd_sparc_elf_relocate_section (bfd *output_bfd,
 			{
 			  asection *osec;
 
-			  /* We are turning this relocation into one
-			     against a section symbol.  It would be
-			     proper to subtract the symbol's value,
-			     osec->vma, from the emitted reloc addend,
-			     but ld.so expects buggy relocs.  */
 			  osec = sec->output_section;
 			  indx = elf_section_data (osec)->dynindx;
 
@@ -2901,6 +2898,15 @@ _bfd_sparc_elf_relocate_section (bfd *output_bfd,
 			      bfd_set_error (bfd_error_bad_value);
 			      return FALSE;
 			    }
+
+			  /* We are turning this relocation into one
+			     against a section symbol, so subtract out
+			     the output section's address but not the
+			     offset of the input section in the output
+			     section on OSes where ld.so doesn't expect
+			     buggy relocs.  */
+			  if (bed->elf_osabi == ELFOSABI_FREEBSD)
+			    outrel.r_addend -= osec->vma;
 			}
 
 		      outrel.r_info = SPARC_ELF_R_INFO (htab, rel, indx,
