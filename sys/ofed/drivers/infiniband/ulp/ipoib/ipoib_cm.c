@@ -1267,7 +1267,8 @@ static void ipoib_cm_mb_reap(struct work_struct *work)
 		else if (proto == ETHERTYPE_IPV6)
 			icmp6_error(mb, ICMP6_PACKET_TOO_BIG, 0, mtu);
 #endif
-		m_freem(mb);
+		else
+			m_freem(mb);
 
 		spin_lock_irqsave(&priv->lock, flags);
 	}
