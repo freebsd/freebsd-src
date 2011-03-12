@@ -353,5 +353,12 @@ you also compile with -DNO_LOCALE_CACHE, the details about the
 current "decimal point" character string are cached and assumed not
 to change during the program's execution.
 
+On machines with a 64-bit long double and perhaps a 113-bit "quad"
+type, you can invoke "make Printf" to add Printf (and variants, such
+as Fprintf) to gdtoa.a.  These are analogs, declared in stdio1.h, of
+printf and fprintf, etc. in which %La, %Le, %Lf, and %Lg are for long
+double and (if appropriate) %Lqa, %Lqe, %Lqf, and %Lqg are for quad
+precision printing.
+
 Please send comments to	David M. Gay (dmg at acm dot org, with " at "
 changed at "@" and " dot " changed to ".").
