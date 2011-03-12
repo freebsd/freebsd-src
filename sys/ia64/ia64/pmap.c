@@ -390,7 +390,7 @@ pmap_bootstrap()
 	 */
 	ia64_kptdir = (void *)pmap_steal_memory(PAGE_SIZE);
 	nkpt = 0;
-	kernel_vm_end = VM_MIN_KERNEL_ADDRESS - VM_GATEWAY_SIZE;
+	kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
 
 	for (i = 0; phys_avail[i+2]; i+= 2)
 		;
@@ -451,7 +451,7 @@ pmap_bootstrap()
 	 * Initialize the kernel pmap (which is statically allocated).
 	 */
 	PMAP_LOCK_INIT(kernel_pmap);
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < 4; i++)
 		kernel_pmap->pm_rid[i] = 0;
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
 	PCPU_SET(md.current_pmap, kernel_pmap);
@@ -461,16 +461,6 @@ pmap_bootstrap()
 	 */
 	ia64_set_rr(IA64_RR_BASE(5),
 		    (5 << 8) | (PAGE_SHIFT << 2) | 1);
-
-	/*
-	 * Region 6 is direct mapped UC and region 7 is direct mapped
-	 * WC. The details of this is controlled by the Alt {I,D}TLB
-	 * handlers. Here we just make sure that they have the largest 
-	 * possible page size to minimise TLB usage.
-	 */
-	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (IA64_ID_PAGE_SHIFT << 2));
-	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (IA64_ID_PAGE_SHIFT << 2));
-	ia64_srlz_d();
 
 	/*
 	 * Clear out any random TLB entries left over from booting.
@@ -678,7 +668,7 @@ pmap_pinit(struct pmap *pmap)
 	int i;
 
 	PMAP_LOCK_INIT(pmap);
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < 4; i++)
 		pmap->pm_rid[i] = pmap_allocate_rid();
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -699,7 +689,7 @@ pmap_release(pmap_t pmap)
 {
 	int i;
 
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < 4; i++)
 		if (pmap->pm_rid[i])
 			pmap_free_rid(pmap->pm_rid[i]);
 	PMAP_LOCK_DESTROY(pmap);
@@ -1219,7 +1209,6 @@ vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
 	struct ia64_lpte *pte;
-	vm_offset_t gwpage;
 
 	KASSERT(va >= IA64_RR_BASE(5), ("Must be kernel VA"));
 
@@ -1227,19 +1216,16 @@ pmap_kextract(vm_offset_t va)
 	if (va >= IA64_RR_BASE(6))
 		return (IA64_RR_MASK(va));
 
-	/* EPC gateway page? */
-	gwpage = (vm_offset_t)ia64_get_k5();
-	if (va >= gwpage && va < gwpage + VM_GATEWAY_SIZE)
-		return (IA64_RR_MASK((vm_offset_t)ia64_gateway_page));
-
 	/* Bail out if the virtual address is beyond our limits. */
 	if (va >= kernel_vm_end)
 		return (0);
 
-	pte = pmap_find_kpte(va);
-	if (!pmap_present(pte))
-		return (0);
-	return (pmap_ppn(pte) | (va & PAGE_MASK));
+	if (va >= VM_MIN_KERNEL_ADDRESS) {
+		pte = pmap_find_kpte(va);
+		return (pmap_present(pte) ? pmap_ppn(pte)|(va&PAGE_MASK) : 0);
+	}
+
+	return (0);
 }
 
 /*
@@ -2285,12 +2271,12 @@ pmap_switch(pmap_t pm)
 	if (prevpm == pm)
 		goto out;
 	if (pm == NULL) {
-		for (i = 0; i < 5; i++) {
+		for (i = 0; i < 4; i++) {
 			ia64_set_rr(IA64_RR_BASE(i),
 			    (i << 8)|(PAGE_SHIFT << 2)|1);
 		}
 	} else {
-		for (i = 0; i < 5; i++) {
+		for (i = 0; i < 4; i++) {
 			ia64_set_rr(IA64_RR_BASE(i),
 			    (pm->pm_rid[i] << 8)|(PAGE_SHIFT << 2)|1);
 		}
@@ -2387,8 +2373,8 @@ print_trs(int type)
 	db_printf("V RID    Virtual Page  Physical Page PgSz ED AR PL D A MA  P KEY\n");
 	for (i = 0; i <= maxtr; i++) {
 		bzero(&buf, sizeof(buf));
-		res = ia64_call_pal_stacked_physical
-			(PAL_VM_TR_READ, i, type, ia64_tpa((uint64_t) &buf));
+		res = ia64_pal_physical(PAL_VM_TR_READ, i, type,
+		    ia64_tpa((uint64_t)&buf));
 		if (!(res.pal_result[0] & 1))
 			buf.pte &= ~PTE_AR_MASK;
 		if (!(res.pal_result[0] & 2))

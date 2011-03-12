@@ -115,8 +115,7 @@ SYSCTL_UINT(_hw_freq, OID_AUTO, itc, CTLFLAG_RD, &itc_freq, 0,
 
 int cold = 1;
 
-u_int64_t pa_bootinfo;
-struct bootinfo bootinfo;
+struct bootinfo *bootinfo;
 
 struct pcpu pcpu0;
 
@@ -678,15 +677,15 @@ map_gateway_page(void)
 
 	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
 	    PTE_PL_KERN | PTE_AR_X_RX;
-	pte |= (uint64_t)ia64_gateway_page & PTE_PPN_MASK;
+	pte |= ia64_tpa((uint64_t)ia64_gateway_page) & PTE_PPN_MASK;
 
 	__asm __volatile("ptr.d %0,%1; ptr.i %0,%1" ::
-	    "r"(VM_MAX_ADDRESS), "r"(PAGE_SHIFT << 2));
+	    "r"(VM_MAXUSER_ADDRESS), "r"(PAGE_SHIFT << 2));
 
 	__asm __volatile("mov	%0=psr" : "=r"(psr));
 	__asm __volatile("rsm	psr.ic|psr.i");
 	ia64_srlz_i();
-	ia64_set_ifa(VM_MAX_ADDRESS);
+	ia64_set_ifa(VM_MAXUSER_ADDRESS);
 	ia64_set_itir(PAGE_SHIFT << 2);
 	ia64_srlz_d();
 	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(3), "r"(pte));
@@ -696,7 +695,7 @@ map_gateway_page(void)
 	ia64_srlz_i();
 
 	/* Expose the mapping to userland in ar.k5 */
-	ia64_set_k5(VM_MAX_ADDRESS);
+	ia64_set_k5(VM_MAXUSER_ADDRESS);
 }
 
 static u_int
@@ -761,17 +760,6 @@ ia64_init(void)
 	 */
 
 	/*
-	 * pa_bootinfo is the physical address of the bootinfo block as
-	 * passed to us by the loader and set in locore.s.
-	 */
-	bootinfo = *(struct bootinfo *)(IA64_PHYS_TO_RR7(pa_bootinfo));
-
-	if (bootinfo.bi_magic != BOOTINFO_MAGIC || bootinfo.bi_version != 1) {
-		bzero(&bootinfo, sizeof(bootinfo));
-		bootinfo.bi_kernend = (vm_offset_t) round_page(_end);
-	}
-
-	/*
 	 * Look for the I/O ports first - we need them for console
 	 * probing.
 	 */
@@ -788,20 +776,20 @@ ia64_init(void)
 	}
 
 	metadata_missing = 0;
-	if (bootinfo.bi_modulep)
-		preload_metadata = (caddr_t)bootinfo.bi_modulep;
+	if (bootinfo->bi_modulep)
+		preload_metadata = (caddr_t)bootinfo->bi_modulep;
 	else
 		metadata_missing = 1;
 
-	if (envmode == 0 && bootinfo.bi_envp)
-		kern_envp = (caddr_t)bootinfo.bi_envp;
+	if (envmode == 0 && bootinfo->bi_envp)
+		kern_envp = (caddr_t)bootinfo->bi_envp;
 	else
 		kern_envp = static_env;
 
 	/*
 	 * Look at arguments passed to us and compute boothowto.
 	 */
-	boothowto = bootinfo.bi_boothowto;
+	boothowto = bootinfo->bi_boothowto;
 
 	if (boothowto & RB_VERBOSE)
 		bootverbose = 1;
@@ -811,50 +799,48 @@ ia64_init(void)
 	 */
 	kernstart = trunc_page(kernel_text);
 #ifdef DDB
-	ksym_start = bootinfo.bi_symtab;
-	ksym_end = bootinfo.bi_esymtab;
+	ksym_start = bootinfo->bi_symtab;
+	ksym_end = bootinfo->bi_esymtab;
 	kernend = (vm_offset_t)round_page(ksym_end);
 #else
 	kernend = (vm_offset_t)round_page(_end);
 #endif
 	/* But if the bootstrap tells us otherwise, believe it! */
-	if (bootinfo.bi_kernend)
-		kernend = round_page(bootinfo.bi_kernend);
+	if (bootinfo->bi_kernend)
+		kernend = round_page(bootinfo->bi_kernend);
 
-	/*
-	 * Setup the PCPU data for the bootstrap processor. It is needed
-	 * by printf(). Also, since printf() has critical sections, we
-	 * need to initialize at least pc_curthread.
-	 */
-	pcpup = &pcpu0;
-	ia64_set_k4((u_int64_t)pcpup);
-	pcpu_init(pcpup, 0, sizeof(pcpu0));
-	dpcpu_init((void *)kernend, 0);
-	cpu_pcpu_setup(pcpup, ~0U, ia64_get_lid());
-	kernend += DPCPU_SIZE;
-	PCPU_SET(curthread, &thread0);
+        /*
+         * Region 6 is direct mapped UC and region 7 is direct mapped
+         * WC. The details of this is controlled by the Alt {I,D}TLB
+         * handlers. Here we just make sure that they have the largest
+         * possible page size to minimise TLB usage.
+         */
+        ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (PAGE_SHIFT << 2));
+        ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (PAGE_SHIFT << 2));
+        ia64_srlz_d();
 
-#if 0
-	if (ia64_pal_base != 0) {
-		ia64_pal_base &= ~IA64_ID_PAGE_MASK;
-		/*
-		 * We use a TR to map the first 256M of memory - this might
-		 * cover the palcode too.
-		 */
-		if (ia64_pal_base == 0)
-			printf("PAL code mapped by the kernel's TR\n");
-	} else
-		printf("PAL code not found\n");
-#endif
 
 	/*
 	 * Wire things up so we can call the firmware.
 	 */
 	map_pal_code();
-	efi_boot_minimal(bootinfo.bi_systab);
+	efi_boot_minimal(bootinfo->bi_systab);
 	ia64_xiv_init();
 	ia64_sal_init();
 	calculate_frequencies();
+
+        /*
+         * Setup the PCPU data for the bootstrap processor. It is needed
+         * by printf(). Also, since printf() has critical sections, we
+         * need to initialize at least pc_curthread.
+         */
+        pcpup = &pcpu0;
+        ia64_set_k4((u_int64_t)pcpup);
+        pcpu_init(pcpup, 0, sizeof(pcpu0));
+        dpcpu_init((void *)kernend, 0);
+        cpu_pcpu_setup(pcpup, ~0U, ia64_get_lid());
+        kernend += DPCPU_SIZE;
+        PCPU_SET(curthread, &thread0);
 
 	/*
 	 * Initialize the console before we print anything out.
@@ -869,8 +855,8 @@ ia64_init(void)
 	check_sn_sal();
 
 	/* Get FPSWA interface */
-	fpswa_iface = (bootinfo.bi_fpswa == 0) ? NULL :
-	    (struct fpswa_iface *)IA64_PHYS_TO_RR7(bootinfo.bi_fpswa);
+	fpswa_iface = (bootinfo->bi_fpswa == 0) ? NULL :
+	    (struct fpswa_iface *)IA64_PHYS_TO_RR7(bootinfo->bi_fpswa);
 
 	/* Init basic tunables, including hz */
 	init_param1();
@@ -1025,7 +1011,7 @@ uint64_t
 ia64_get_hcdp(void)
 {
 
-	return (bootinfo.bi_hcdp);
+	return (bootinfo->bi_hcdp);
 }
 
 void

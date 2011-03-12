@@ -34,10 +34,15 @@
 #include <machine/intrcnt.h>
 #include <assym.s>
 
-	.section .data.proc0,"aw"
-	.global	kstack
+#define	FW_STACK_SIZE	16384
+
+	.section .data.kstack, "aw"
 	.align	PAGE_SIZE
-kstack:	.space KSTACK_PAGES * PAGE_SIZE
+	.global	kstack
+kstack:	.space	FW_STACK_SIZE
+	.align	PAGE_SIZE
+	.global	kstack_top
+kstack_top:
 
 	.text
 
@@ -64,7 +69,7 @@ ENTRY_NOPROFILE(__start, 1)
 	srlz.i
 	;;
 	ssm	IA64_PSR_DFH
-	mov	r17=KSTACK_PAGES*PAGE_SIZE-SIZEOF_PCB-SIZEOF_TRAPFRAME-16
+	mov	r17=FW_STACK_SIZE-16
 	;;
 }
 {	.mlx
@@ -74,7 +79,7 @@ ENTRY_NOPROFILE(__start, 1)
 }
 {	.mlx
 	mov	ar.bspstore=r16		// switch backing store
-	movl	r16=pa_bootinfo
+	movl	r16=bootinfo
 	;;
 }
 {	.mmi
@@ -199,19 +204,25 @@ ENTRY_NOPROFILE(os_boot_rendez,0)
 	srlz.d
 	rsm	IA64_PSR_IC|IA64_PSR_I
 	;;
+	mov     r16 = (4<<8)|(16<<2)
+	movl    r17 = 4<<61
+	;;
+	mov     rr[r17] = r16
+	;;
+	srlz.d
 	mov	r16 = (5<<8)|(PAGE_SHIFT<<2)|1
 	movl	r17 = 5<<61
 	;;
 	mov	rr[r17] = r16
 	;;
 	srlz.d
-	mov	r16 = (6<<8)|(IA64_ID_PAGE_SHIFT<<2)
+	mov	r16 = (6<<8)|(PAGE_SHIFT<<2)
 	movl	r17 = 6<<61
 	;;
 	mov	rr[r17] = r16
 	;;
 	srlz.d
-	mov	r16 = (7<<8)|(IA64_ID_PAGE_SHIFT<<2)
+	mov	r16 = (7<<8)|(PAGE_SHIFT<<2)
 	movl	r17 = 7<<61
 	;;
 	mov	rr[r17] = r16

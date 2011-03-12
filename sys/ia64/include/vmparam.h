@@ -155,6 +155,8 @@
 /* Place the backing store in the top of half if region 0. */
 #define	IA64_BACKINGSTORE	IA64_REGION_TOP_HALF
 
+#define	VM_GATEWAY_SIZE		PAGE_SIZE
+
 /*
  * Parameters for Pre-Boot Virtual Memory (PBVM).
  * The kernel, its modules and metadata are loaded in the PBVM by the loader.
@@ -198,10 +200,9 @@
 /* user/kernel map constants */
 #define	VM_MIN_ADDRESS		0
 #define	VM_MAXUSER_ADDRESS	IA64_RR_BASE(IA64_PBVM_RR)
-#define	VM_MAX_ADDRESS		VM_MAXUSER_ADDRESS	/* XXX */
-#define	VM_GATEWAY_SIZE		PAGE_SIZE
 #define	VM_MIN_KERNEL_ADDRESS	IA64_RR_BASE(5)
 #define	VM_MAX_KERNEL_ADDRESS	(IA64_RR_BASE(6) - 1)
+#define	VM_MAX_ADDRESS		~0UL
 
 #define	KERNBASE		VM_MAXUSER_ADDRESS
 
