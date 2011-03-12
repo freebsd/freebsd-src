@@ -411,9 +411,7 @@ long double	atan2l(long double, long double);
 long double	atanhl(long double);
 #endif
 long double	atanl(long double);
-#if 0
 long double	cbrtl(long double);
-#endif
 long double	ceill(long double);
 long double	copysignl(long double, long double) __pure2;
 #if 0
