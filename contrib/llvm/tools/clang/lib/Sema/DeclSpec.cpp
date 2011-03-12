@@ -14,6 +14,9 @@
 #include "clang/Parse/ParseDiagnostic.h" // FIXME: remove this back-dependency!
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/ParsedTemplate.h"
+#include "clang/AST/ASTContext.h"
+#include "clang/AST/NestedNameSpecifier.h"
+#include "clang/AST/TypeLoc.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/LangOptions.h"
 #include "llvm/ADT/STLExtras.h"
@@ -23,8 +26,8 @@ using namespace clang;
 
 
 static DiagnosticBuilder Diag(Diagnostic &D, SourceLocation Loc,
-                              SourceManager &SrcMgr, unsigned DiagID) {
-  return D.Report(FullSourceLoc(Loc, SrcMgr), DiagID);
+                              unsigned DiagID) {
+  return D.Report(Loc, DiagID);
 }
 
 
@@ -44,13 +47,249 @@ void UnqualifiedId::setConstructorTemplateId(TemplateIdAnnotation *TemplateId) {
   EndLocation = TemplateId->RAngleLoc;
 }
 
+CXXScopeSpec::CXXScopeSpec(const CXXScopeSpec &Other)
+  : Range(Other.Range), ScopeRep(Other.ScopeRep), Buffer(0), 
+    BufferSize(Other.BufferSize), BufferCapacity(Other.BufferSize) 
+{
+  if (BufferSize) {
+    Buffer = static_cast<char *>(malloc(BufferSize));
+    memcpy(Buffer, Other.Buffer, BufferSize);
+  }
+}
+
+CXXScopeSpec &CXXScopeSpec::operator=(const CXXScopeSpec &Other) {
+  Range = Other.Range;
+  ScopeRep = Other.ScopeRep;
+  if (Buffer && Other.Buffer && BufferCapacity >= Other.BufferSize) {
+    // Re-use our storage.
+    BufferSize = Other.BufferSize;
+    memcpy(Buffer, Other.Buffer, BufferSize);
+    return *this;
+  }
+  
+  if (BufferCapacity)
+    free(Buffer);
+  if (Other.Buffer) {
+    BufferSize = Other.BufferSize;
+    BufferCapacity = BufferSize;
+    Buffer = static_cast<char *>(malloc(BufferSize));
+    memcpy(Buffer, Other.Buffer, BufferSize);
+  } else {
+    Buffer = 0;
+    BufferSize = 0;
+    BufferCapacity = 0;
+  }
+  return *this;
+}
+
+CXXScopeSpec::~CXXScopeSpec() {
+  if (BufferCapacity)
+    free(Buffer);
+}
+
+namespace {
+  void Append(char *Start, char *End, char *&Buffer, unsigned &BufferSize,
+              unsigned &BufferCapacity) {
+    if (BufferSize + (End - Start) > BufferCapacity) {
+      // Reallocate the buffer.
+      unsigned NewCapacity 
+        = std::max((unsigned)(BufferCapacity? BufferCapacity * 2 
+                                            : sizeof(void*) * 2),
+                   (unsigned)(BufferSize + (End - Start)));
+      char *NewBuffer = static_cast<char *>(malloc(NewCapacity));
+      memcpy(NewBuffer, Buffer, BufferSize);
+      
+      if (BufferCapacity)
+        free(Buffer);
+      Buffer = NewBuffer;
+      BufferCapacity = NewCapacity;
+    }
+    
+    memcpy(Buffer + BufferSize, Start, End - Start);
+    BufferSize += End-Start;
+  }
+  
+  /// \brief Save a source location to the given buffer.
+  void SaveSourceLocation(SourceLocation Loc, char *&Buffer,
+                          unsigned &BufferSize, unsigned &BufferCapacity) {
+    unsigned Raw = Loc.getRawEncoding();
+    Append(reinterpret_cast<char *>(&Raw),
+           reinterpret_cast<char *>(&Raw) + sizeof(unsigned),
+           Buffer, BufferSize, BufferCapacity);
+  }
+  
+  /// \brief Save a pointer to the given buffer.
+  void SavePointer(void *Ptr, char *&Buffer, unsigned &BufferSize,
+                   unsigned &BufferCapacity) {
+    Append(reinterpret_cast<char *>(&Ptr),
+           reinterpret_cast<char *>(&Ptr) + sizeof(void *),
+           Buffer, BufferSize, BufferCapacity);
+  }
+}
+void CXXScopeSpec::Extend(ASTContext &Context, SourceLocation TemplateKWLoc, 
+                          TypeLoc TL, SourceLocation ColonColonLoc) {
+  ScopeRep = NestedNameSpecifier::Create(Context, ScopeRep, 
+                                         TemplateKWLoc.isValid(), 
+                                         TL.getTypePtr());
+  if (Range.getBegin().isInvalid())
+    Range.setBegin(TL.getBeginLoc());
+  Range.setEnd(ColonColonLoc);
+
+  // Push source-location info into the buffer.
+  SavePointer(TL.getOpaqueData(), Buffer, BufferSize, BufferCapacity);
+  SaveSourceLocation(ColonColonLoc, Buffer, BufferSize, BufferCapacity);
+
+  assert(Range == NestedNameSpecifierLoc(ScopeRep, Buffer).getSourceRange() &&
+         "NestedNameSpecifierLoc range computation incorrect");
+}
+
+void CXXScopeSpec::Extend(ASTContext &Context, IdentifierInfo *Identifier,
+                          SourceLocation IdentifierLoc, 
+                          SourceLocation ColonColonLoc) {
+  ScopeRep = NestedNameSpecifier::Create(Context, ScopeRep, Identifier);
+  if (Range.getBegin().isInvalid())
+    Range.setBegin(IdentifierLoc);
+  Range.setEnd(ColonColonLoc);
+  
+  // Push source-location info into the buffer.
+  SaveSourceLocation(IdentifierLoc, Buffer, BufferSize, BufferCapacity);
+  SaveSourceLocation(ColonColonLoc, Buffer, BufferSize, BufferCapacity);
+  
+  assert(Range == NestedNameSpecifierLoc(ScopeRep, Buffer).getSourceRange() &&
+         "NestedNameSpecifierLoc range computation incorrect");
+}
+
+void CXXScopeSpec::Extend(ASTContext &Context, NamespaceDecl *Namespace,
+                          SourceLocation NamespaceLoc, 
+                          SourceLocation ColonColonLoc) {
+  ScopeRep = NestedNameSpecifier::Create(Context, ScopeRep, Namespace);
+  if (Range.getBegin().isInvalid())
+    Range.setBegin(NamespaceLoc);
+  Range.setEnd(ColonColonLoc);
+
+  // Push source-location info into the buffer.
+  SaveSourceLocation(NamespaceLoc, Buffer, BufferSize, BufferCapacity);
+  SaveSourceLocation(ColonColonLoc, Buffer, BufferSize, BufferCapacity);
+  
+  assert(Range == NestedNameSpecifierLoc(ScopeRep, Buffer).getSourceRange() &&
+         "NestedNameSpecifierLoc range computation incorrect");
+}
+
+void CXXScopeSpec::Extend(ASTContext &Context, NamespaceAliasDecl *Alias,
+                          SourceLocation AliasLoc, 
+                          SourceLocation ColonColonLoc) {
+  ScopeRep = NestedNameSpecifier::Create(Context, ScopeRep, Alias);
+  if (Range.getBegin().isInvalid())
+    Range.setBegin(AliasLoc);
+  Range.setEnd(ColonColonLoc);
+
+  // Push source-location info into the buffer.
+  SaveSourceLocation(AliasLoc, Buffer, BufferSize, BufferCapacity);
+  SaveSourceLocation(ColonColonLoc, Buffer, BufferSize, BufferCapacity);
+  
+  assert(Range == NestedNameSpecifierLoc(ScopeRep, Buffer).getSourceRange() &&
+         "NestedNameSpecifierLoc range computation incorrect");
+}
+
+void CXXScopeSpec::MakeGlobal(ASTContext &Context, 
+                              SourceLocation ColonColonLoc) {
+  assert(!ScopeRep && "Already have a nested-name-specifier!?");
+  ScopeRep = NestedNameSpecifier::GlobalSpecifier(Context);
+  Range = SourceRange(ColonColonLoc);
+  
+  // Push source-location info into the buffer.
+  SaveSourceLocation(ColonColonLoc, Buffer, BufferSize, BufferCapacity);
+  
+  assert(Range == NestedNameSpecifierLoc(ScopeRep, Buffer).getSourceRange() &&
+         "NestedNameSpecifierLoc range computation incorrect");
+}
+
+void CXXScopeSpec::MakeTrivial(ASTContext &Context, 
+                               NestedNameSpecifier *Qualifier, SourceRange R) {
+  ScopeRep = Qualifier;
+  Range = R;
+
+  // Construct bogus (but well-formed) source information for the 
+  // nested-name-specifier.
+  BufferSize = 0;
+  llvm::SmallVector<NestedNameSpecifier *, 4> Stack;
+  for (NestedNameSpecifier *NNS = Qualifier; NNS; NNS = NNS->getPrefix())
+    Stack.push_back(NNS);
+  while (!Stack.empty()) {
+    NestedNameSpecifier *NNS = Stack.back();
+    Stack.pop_back();
+    switch (NNS->getKind()) {
+    case NestedNameSpecifier::Identifier:
+    case NestedNameSpecifier::Namespace:
+    case NestedNameSpecifier::NamespaceAlias:
+      SaveSourceLocation(R.getBegin(), Buffer, BufferSize, BufferCapacity);
+      break;
+
+    case NestedNameSpecifier::TypeSpec:
+    case NestedNameSpecifier::TypeSpecWithTemplate: {
+      TypeSourceInfo *TSInfo
+        = Context.getTrivialTypeSourceInfo(QualType(NNS->getAsType(), 0),
+                                           R.getBegin());
+      SavePointer(TSInfo->getTypeLoc().getOpaqueData(), Buffer, BufferSize, 
+                  BufferCapacity);
+      break;
+    }
+        
+    case NestedNameSpecifier::Global:
+      break;
+    }
+
+    // Save the location of the '::'.
+    SaveSourceLocation(Stack.empty()? R.getEnd() : R.getBegin(), 
+                       Buffer, BufferSize, BufferCapacity);
+  }
+}
+
+void CXXScopeSpec::Adopt(NestedNameSpecifierLoc Other) {
+  if (!Other) {
+    Range = SourceRange();
+    ScopeRep = 0;
+    return;
+  }
+    
+  if (BufferCapacity)
+    free(Buffer);
+  
+  // Rather than copying the data (which is wasteful), "adopt" the 
+  // pointer (which points into the ASTContext) but set the capacity to zero to
+  // indicate that we don't own it.
+  Range = Other.getSourceRange();
+  ScopeRep = Other.getNestedNameSpecifier();
+  Buffer = static_cast<char *>(Other.getOpaqueData());
+  BufferSize = Other.getDataLength();
+  BufferCapacity = 0;
+}
+
+NestedNameSpecifierLoc 
+CXXScopeSpec::getWithLocInContext(ASTContext &Context) const {
+  if (isEmpty() || isInvalid())
+    return NestedNameSpecifierLoc();
+  
+  // If we adopted our data pointer from elsewhere in the AST context, there's
+  // no need to copy the memory.
+  if (BufferCapacity == 0)
+    return NestedNameSpecifierLoc(ScopeRep, Buffer);
+  
+  void *Mem = Context.Allocate(BufferSize, llvm::alignOf<void *>());
+  memcpy(Mem, Buffer, BufferSize);
+  return NestedNameSpecifierLoc(ScopeRep, Mem);
+}
+
 /// DeclaratorChunk::getFunction - Return a DeclaratorChunk for a function.
 /// "TheDeclarator" is the declarator that this will be added to.
-DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto, bool isVariadic,
+DeclaratorChunk DeclaratorChunk::getFunction(const ParsedAttributes &attrs,
+                                             bool hasProto, bool isVariadic,
                                              SourceLocation EllipsisLoc,
                                              ParamInfo *ArgInfo,
                                              unsigned NumArgs,
                                              unsigned TypeQuals,
+                                             bool RefQualifierIsLvalueRef,
+                                             SourceLocation RefQualifierLoc,
                                              bool hasExceptionSpec,
                                              SourceLocation ThrowLoc,
                                              bool hasAnyExceptionSpec,
@@ -59,11 +298,13 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto, bool isVariadic,
                                              unsigned NumExceptions,
                                              SourceLocation LPLoc,
                                              SourceLocation RPLoc,
-                                             Declarator &TheDeclarator) {
+                                             Declarator &TheDeclarator,
+                                             ParsedType TrailingReturnType) {
   DeclaratorChunk I;
   I.Kind                 = Function;
   I.Loc                  = LPLoc;
   I.EndLoc               = RPLoc;
+  I.Fun.AttrList         = attrs.getList();
   I.Fun.hasPrototype     = hasProto;
   I.Fun.isVariadic       = isVariadic;
   I.Fun.EllipsisLoc      = EllipsisLoc.getRawEncoding();
@@ -71,11 +312,14 @@ DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto, bool isVariadic,
   I.Fun.TypeQuals        = TypeQuals;
   I.Fun.NumArgs          = NumArgs;
   I.Fun.ArgInfo          = 0;
+  I.Fun.RefQualifierIsLValueRef = RefQualifierIsLvalueRef;
+  I.Fun.RefQualifierLoc = RefQualifierLoc.getRawEncoding();
   I.Fun.hasExceptionSpec = hasExceptionSpec;
   I.Fun.ThrowLoc         = ThrowLoc.getRawEncoding();
   I.Fun.hasAnyExceptionSpec = hasAnyExceptionSpec;
   I.Fun.NumExceptions    = NumExceptions;
   I.Fun.Exceptions       = 0;
+  I.Fun.TrailingReturnType   = TrailingReturnType.getAsOpaquePtr();
 
   // new[] an argument array if needed.
   if (NumArgs) {
@@ -218,7 +462,25 @@ const char *DeclSpec::getSpecifierName(TQ T) {
 
 bool DeclSpec::SetStorageClassSpec(SCS S, SourceLocation Loc,
                                    const char *&PrevSpec,
-                                   unsigned &DiagID) {
+                                   unsigned &DiagID,
+                                   const LangOptions &Lang) {
+  // OpenCL prohibits extern, auto, register, and static
+  // It seems sensible to prohibit private_extern too
+  if (Lang.OpenCL) {
+    switch (S) {
+    case SCS_extern:
+    case SCS_private_extern:
+    case SCS_auto:
+    case SCS_register:
+    case SCS_static:
+      DiagID   = diag::err_not_opencl_storage_class_specifier;
+      PrevSpec = getSpecifierName(S);
+      return true;
+    default:
+      break;
+    }
+  }
+
   if (StorageClassSpec != SCS_unspecified) {
     // Changing storage class is allowed only if the previous one
     // was the 'extern' that is part of a linkage specification and
@@ -481,7 +743,7 @@ void DeclSpec::SaveWrittenBuiltinSpecs() {
   writtenBS.Type = getTypeSpecType();
   // Search the list of attributes for the presence of a mode attribute.
   writtenBS.ModeAttr = false;
-  AttributeList* attrs = getAttributes();
+  AttributeList* attrs = getAttributes().getList();
   while (attrs) {
     if (attrs->getKind() == AttributeList::AT_mode) {
       writtenBS.ModeAttr = true;
@@ -510,28 +772,27 @@ void DeclSpec::Finish(Diagnostic &D, Preprocessor &PP) {
   SaveStorageSpecifierAsWritten();
 
   // Check the type specifier components first.
-  SourceManager &SrcMgr = PP.getSourceManager();
 
   // Validate and finalize AltiVec vector declspec.
   if (TypeAltiVecVector) {
     if (TypeAltiVecBool) {
       // Sign specifiers are not allowed with vector bool. (PIM 2.1)
       if (TypeSpecSign != TSS_unspecified) {
-        Diag(D, TSSLoc, SrcMgr, diag::err_invalid_vector_bool_decl_spec)
+        Diag(D, TSSLoc, diag::err_invalid_vector_bool_decl_spec)
           << getSpecifierName((TSS)TypeSpecSign);
       }
 
       // Only char/int are valid with vector bool. (PIM 2.1)
       if (((TypeSpecType != TST_unspecified) && (TypeSpecType != TST_char) &&
            (TypeSpecType != TST_int)) || TypeAltiVecPixel) {
-        Diag(D, TSTLoc, SrcMgr, diag::err_invalid_vector_bool_decl_spec)
+        Diag(D, TSTLoc, diag::err_invalid_vector_bool_decl_spec)
           << (TypeAltiVecPixel ? "__pixel" :
                                  getSpecifierName((TST)TypeSpecType));
       }
 
       // Only 'short' is valid with vector bool. (PIM 2.1)
       if ((TypeSpecWidth != TSW_unspecified) && (TypeSpecWidth != TSW_short))
-        Diag(D, TSWLoc, SrcMgr, diag::err_invalid_vector_bool_decl_spec)
+        Diag(D, TSWLoc, diag::err_invalid_vector_bool_decl_spec)
           << getSpecifierName((TSW)TypeSpecWidth);
 
       // Elements of vector bool are interpreted as unsigned. (PIM 2.1)
@@ -555,7 +816,7 @@ void DeclSpec::Finish(Diagnostic &D, Preprocessor &PP) {
       TypeSpecType = TST_int; // unsigned -> unsigned int, signed -> signed int.
     else if (TypeSpecType != TST_int  &&
              TypeSpecType != TST_char && TypeSpecType != TST_wchar) {
-      Diag(D, TSSLoc, SrcMgr, diag::err_invalid_sign_spec)
+      Diag(D, TSSLoc, diag::err_invalid_sign_spec)
         << getSpecifierName((TST)TypeSpecType);
       // signed double -> double.
       TypeSpecSign = TSS_unspecified;
@@ -570,7 +831,7 @@ void DeclSpec::Finish(Diagnostic &D, Preprocessor &PP) {
     if (TypeSpecType == TST_unspecified)
       TypeSpecType = TST_int; // short -> short int, long long -> long long int.
     else if (TypeSpecType != TST_int) {
-      Diag(D, TSWLoc, SrcMgr,
+      Diag(D, TSWLoc,
            TypeSpecWidth == TSW_short ? diag::err_invalid_short_spec
                                       : diag::err_invalid_longlong_spec)
         <<  getSpecifierName((TST)TypeSpecType);
@@ -582,7 +843,7 @@ void DeclSpec::Finish(Diagnostic &D, Preprocessor &PP) {
     if (TypeSpecType == TST_unspecified)
       TypeSpecType = TST_int;  // long -> long int.
     else if (TypeSpecType != TST_int && TypeSpecType != TST_double) {
-      Diag(D, TSWLoc, SrcMgr, diag::err_invalid_long_spec)
+      Diag(D, TSWLoc, diag::err_invalid_long_spec)
         << getSpecifierName((TST)TypeSpecType);
       TypeSpecType = TST_int;
       TypeSpecOwned = false;
@@ -594,16 +855,16 @@ void DeclSpec::Finish(Diagnostic &D, Preprocessor &PP) {
   // disallow their use.  Need information about the backend.
   if (TypeSpecComplex != TSC_unspecified) {
     if (TypeSpecType == TST_unspecified) {
-      Diag(D, TSCLoc, SrcMgr, diag::ext_plain_complex)
+      Diag(D, TSCLoc, diag::ext_plain_complex)
         << FixItHint::CreateInsertion(
                               PP.getLocForEndOfToken(getTypeSpecComplexLoc()),
                                                  " double");
       TypeSpecType = TST_double;   // _Complex -> _Complex double.
     } else if (TypeSpecType == TST_int || TypeSpecType == TST_char) {
       // Note that this intentionally doesn't include _Complex _Bool.
-      Diag(D, TSTLoc, SrcMgr, diag::ext_integer_complex);
+      Diag(D, TSTLoc, diag::ext_integer_complex);
     } else if (TypeSpecType != TST_float && TypeSpecType != TST_double) {
-      Diag(D, TSCLoc, SrcMgr, diag::err_invalid_complex_spec)
+      Diag(D, TSCLoc, diag::err_invalid_complex_spec)
         << getSpecifierName((TST)TypeSpecType);
       TypeSpecComplex = TSC_unspecified;
     }
@@ -619,7 +880,7 @@ void DeclSpec::Finish(Diagnostic &D, Preprocessor &PP) {
     SourceLocation SCLoc = getStorageClassSpecLoc();
     SourceLocation SCEndLoc = SCLoc.getFileLocWithOffset(strlen(SpecName));
 
-    Diag(D, SCLoc, SrcMgr, diag::err_friend_storage_spec)
+    Diag(D, SCLoc, diag::err_friend_storage_spec)
       << SpecName
       << FixItHint::CreateRemoval(SourceRange(SCLoc, SCEndLoc));
 
@@ -665,3 +926,58 @@ void UnqualifiedId::setOperatorFunctionId(SourceLocation OperatorLoc,
       EndLocation = SymbolLocations[I];
   }
 }
+
+bool VirtSpecifiers::SetSpecifier(Specifier VS, SourceLocation Loc,
+                                  const char *&PrevSpec) {
+  if (Specifiers & VS) {
+    PrevSpec = getSpecifierName(VS);
+    return true;
+  }
+
+  Specifiers |= VS;
+
+  switch (VS) {
+  default: assert(0 && "Unknown specifier!");
+  case VS_Override: VS_overrideLoc = Loc; break;
+  case VS_Final:    VS_finalLoc = Loc; break;
+  case VS_New:      VS_newLoc = Loc; break;
+  }
+
+  return false;
+}
+
+const char *VirtSpecifiers::getSpecifierName(Specifier VS) {
+  switch (VS) {
+  default: assert(0 && "Unknown specifier");
+  case VS_Override: return "override";
+  case VS_Final: return "final";
+  case VS_New: return "new";
+  }
+}
+
+bool ClassVirtSpecifiers::SetSpecifier(Specifier CVS, SourceLocation Loc,
+                                       const char *&PrevSpec) {
+  if (Specifiers & CVS) {
+    PrevSpec = getSpecifierName(CVS);
+    return true;
+  }
+
+  Specifiers |= CVS;
+
+  switch (CVS) {
+  default: assert(0 && "Unknown specifier!");
+  case CVS_Final: CVS_finalLoc = Loc; break;
+  case CVS_Explicit: CVS_explicitLoc = Loc; break;
+  }
+
+  return false;
+}
+
+const char *ClassVirtSpecifiers::getSpecifierName(Specifier CVS) {
+  switch (CVS) {
+  default: assert(0 && "Unknown specifier");
+  case CVS_Final: return "final";
+  case CVS_Explicit: return "explicit";
+  }
+}
+

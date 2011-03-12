@@ -4,9 +4,10 @@
 
 PROG=	hastd
 SRCS=	activemap.c
-SRCS+=	control.c
+SRCS+=	control.c crc32.c
 SRCS+=	ebuf.c event.c
-SRCS+=	hast_proto.c hastd.c hooks.c
+SRCS+=	hast_checksum.c hast_compression.c hast_proto.c hastd.c hooks.c
+SRCS+=	lzf.c
 SRCS+=	metadata.c
 SRCS+=	nv.c
 SRCS+=	secondary.c
@@ -18,6 +19,7 @@ SRCS+=	token.l
 SRCS+=	y.tab.h
 MAN=	hastd.8 hast.conf.5
 
+NO_WFORMAT=
 CFLAGS+=-I${.CURDIR}
 CFLAGS+=-DINET
 .if ${MK_INET6_SUPPORT} != "no"

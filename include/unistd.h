@@ -500,6 +500,7 @@ int	 feature_present(const char *);
 char	*fflagstostr(u_long);
 int	 getdomainname(char *, int);
 int	 getgrouplist(const char *, gid_t, gid_t *, int *);
+int	 getloginclass(char *, size_t);
 mode_t	 getmode(const void *, mode_t);
 int	 getosreldate(void);
 int	 getpeereid(int, uid_t *, gid_t *);
@@ -560,6 +561,7 @@ int	 setkey(const char *);
 #define	_SETKEY_DECLARED
 #endif
 int	 setlogin(const char *);
+int	 setloginclass(const char *);
 void	*setmode(const char *);
 void	 setproctitle(const char *_fmt, ...) __printf0like(1, 2);
 int	 setresgid(gid_t, gid_t, gid_t);

@@ -100,6 +100,8 @@ enum {
 	AR_EEP_ANTGAINMAX_5,	/* int8_t* */
 	AR_EEP_ANTGAINMAX_2,	/* int8_t* */
 	AR_EEP_WRITEPROTECT,	/* use ath_hal_eepromGetFlag */
+	AR_EEP_PWR_TABLE_OFFSET,/* int8_t* */
+	AR_EEP_PWDCLKIND	/* uint8_t* */
 };
 
 typedef struct {

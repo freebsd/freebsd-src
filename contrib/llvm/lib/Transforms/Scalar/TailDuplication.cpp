@@ -26,14 +26,14 @@
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Pass.h"
 #include "llvm/Type.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Support/CFG.h"
-#include "llvm/Analysis/ConstantFolding.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include <map>
 using namespace llvm;
 
@@ -49,7 +49,9 @@ namespace {
     bool runOnFunction(Function &F);
   public:
     static char ID; // Pass identification, replacement for typeid
-    TailDup() : FunctionPass(ID) {}
+    TailDup() : FunctionPass(ID) {
+      initializeTailDupPass(*PassRegistry::getPassRegistry());
+    }
 
   private:
     inline bool shouldEliminateUnconditionalBranch(TerminatorInst *, unsigned);
@@ -59,7 +61,7 @@ namespace {
 }
 
 char TailDup::ID = 0;
-INITIALIZE_PASS(TailDup, "tailduplicate", "Tail Duplication", false, false);
+INITIALIZE_PASS(TailDup, "tailduplicate", "Tail Duplication", false, false)
 
 // Public interface to the Tail Duplication pass
 FunctionPass *llvm::createTailDuplicationPass() { return new TailDup(); }
@@ -360,8 +362,8 @@ void TailDup::eliminateUnconditionalBranch(BranchInst *Branch) {
       Instruction *Inst = BI++;
       if (isInstructionTriviallyDead(Inst))
         Inst->eraseFromParent();
-      else if (Constant *C = ConstantFoldInstruction(Inst)) {
-        Inst->replaceAllUsesWith(C);
+      else if (Value *V = SimplifyInstruction(Inst)) {
+        Inst->replaceAllUsesWith(V);
         Inst->eraseFromParent();
       }
     }

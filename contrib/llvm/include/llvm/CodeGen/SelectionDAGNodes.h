@@ -29,7 +29,7 @@
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/Support/MathExtras.h"
-#include "llvm/System/DataTypes.h"
+#include "llvm/Support/DataTypes.h"
 #include "llvm/Support/DebugLoc.h"
 #include <cassert>
 
@@ -524,24 +524,24 @@ public:
     return X;
   }
 
-  /// getFlaggedNode - If this node has a flag operand, return the node
-  /// to which the flag operand points. Otherwise return NULL.
-  SDNode *getFlaggedNode() const {
+  /// getGluedNode - If this node has a glue operand, return the node
+  /// to which the glue operand points. Otherwise return NULL.
+  SDNode *getGluedNode() const {
     if (getNumOperands() != 0 &&
-      getOperand(getNumOperands()-1).getValueType().getSimpleVT() == MVT::Flag)
+      getOperand(getNumOperands()-1).getValueType() == MVT::Glue)
       return getOperand(getNumOperands()-1).getNode();
     return 0;
   }
 
   // If this is a pseudo op, like copyfromreg, look to see if there is a
-  // real target node flagged to it.  If so, return the target node.
-  const SDNode *getFlaggedMachineNode() const {
+  // real target node glued to it.  If so, return the target node.
+  const SDNode *getGluedMachineNode() const {
     const SDNode *FoundNode = this;
 
-    // Climb up flag edges until a machine-opcode node is found, or the
+    // Climb up glue edges until a machine-opcode node is found, or the
     // end of the chain is reached.
     while (!FoundNode->isMachineOpcode()) {
-      const SDNode *N = FoundNode->getFlaggedNode();
+      const SDNode *N = FoundNode->getGluedNode();
       if (!N) break;
       FoundNode = N;
     }
@@ -549,11 +549,11 @@ public:
     return FoundNode;
   }
 
-  /// getFlaggedUser - If this node has a flag value with a user, return
+  /// getGluedUser - If this node has a glue value with a user, return
   /// the user (there is at most one). Otherwise return NULL.
-  SDNode *getFlaggedUser() const {
+  SDNode *getGluedUser() const {
     for (use_iterator UI = use_begin(), UE = use_end(); UI != UE; ++UI)
-      if (UI.getUse().get().getValueType() == MVT::Flag)
+      if (UI.getUse().get().getValueType() == MVT::Glue)
         return *UI;
     return 0;
   }
@@ -902,6 +902,9 @@ public:
   const Value *getSrcValue() const { return MMO->getValue(); }
   int64_t getSrcValueOffset() const { return MMO->getOffset(); }
 
+  /// Returns the TBAAInfo that describes the dereference.
+  const MDNode *getTBAAInfo() const { return MMO->getTBAAInfo(); }
+
   /// getMemoryVT - Return the type of the in-memory value.
   EVT getMemoryVT() const { return MemoryVT; }
 
@@ -909,6 +912,10 @@ public:
   /// reference performed by operation.
   MachineMemOperand *getMemOperand() const { return MMO; }
 
+  const MachinePointerInfo &getPointerInfo() const {
+    return MMO->getPointerInfo();
+  }
+  
   /// refineAlignment - Update this MemSDNode's MachineMemOperand information
   /// to reflect the alignment of NewMMO, if it has a greater alignment.
   /// This must only be used when the new alignment applies to all users of
@@ -929,6 +936,7 @@ public:
     // with either an intrinsic or a target opcode.
     return N->getOpcode() == ISD::LOAD                ||
            N->getOpcode() == ISD::STORE               ||
+           N->getOpcode() == ISD::PREFETCH            ||
            N->getOpcode() == ISD::ATOMIC_CMP_SWAP     ||
            N->getOpcode() == ISD::ATOMIC_SWAP         ||
            N->getOpcode() == ISD::ATOMIC_LOAD_ADD     ||
@@ -1004,8 +1012,8 @@ public:
 
 /// MemIntrinsicSDNode - This SDNode is used for target intrinsics that touch
 /// memory and need an associated MachineMemOperand. Its opcode may be
-/// INTRINSIC_VOID, INTRINSIC_W_CHAIN, or a target-specific opcode with a
-/// value not less than FIRST_TARGET_MEMORY_OPCODE.
+/// INTRINSIC_VOID, INTRINSIC_W_CHAIN, PREFETCH, or a target-specific opcode
+/// with a value not less than FIRST_TARGET_MEMORY_OPCODE.
 class MemIntrinsicSDNode : public MemSDNode {
 public:
   MemIntrinsicSDNode(unsigned Opc, DebugLoc dl, SDVTList VTs,
@@ -1021,6 +1029,7 @@ public:
     // early a node with a target opcode can be of this class
     return N->getOpcode() == ISD::INTRINSIC_W_CHAIN ||
            N->getOpcode() == ISD::INTRINSIC_VOID ||
+           N->getOpcode() == ISD::PREFETCH ||
            N->isTargetMemoryOpcode();
   }
 };

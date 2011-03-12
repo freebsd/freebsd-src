@@ -218,7 +218,7 @@ thread-specific cache garbage collection sweeps.
 Garbage collection is actually performed incrementally, one size
 class at a time, in order to avoid large collection pauses.
 The default sweep interval is 8192;
-.Ev JEMALLOC_OPTIONS=14g
+.Ev MALLOC_OPTIONS=14g
 will disable garbage collection.
 .It H
 Double/halve the number of thread-specific cache slots per size
@@ -232,7 +232,7 @@ See the
 .Dq G
 option for related tuning information.
 The default number of cache slots is 128;
-.Ev JEMALLOC_OPTIONS=7h
+.Ev MALLOC_OPTIONS=7h
 will disable thread-specific caching.
 Note that one cache slot per size class is not a valid
 configuration due to implementation details.

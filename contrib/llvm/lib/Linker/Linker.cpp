@@ -14,10 +14,11 @@
 #include "llvm/Linker.h"
 #include "llvm/Module.h"
 #include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/System/Path.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Config/config.h"
+#include "llvm/Support/system_error.h"
 using namespace llvm;
 
 Linker::Linker(StringRef progname, StringRef modname,
@@ -97,13 +98,14 @@ std::auto_ptr<Module>
 Linker::LoadObject(const sys::Path &FN) {
   std::string ParseErrorMessage;
   Module *Result = 0;
-  
-  std::auto_ptr<MemoryBuffer> Buffer(MemoryBuffer::getFileOrSTDIN(FN.c_str()));
-  if (Buffer.get())
-    Result = ParseBitcodeFile(Buffer.get(), Context, &ParseErrorMessage);
+
+  OwningPtr<MemoryBuffer> Buffer;
+  if (error_code ec = MemoryBuffer::getFileOrSTDIN(FN.c_str(), Buffer))
+    ParseErrorMessage = "Error reading file '" + FN.str() + "'" + ": "
+                      + ec.message();
   else
-    ParseErrorMessage = "Error reading file '" + FN.str() + "'";
-    
+    Result = ParseBitcodeFile(Buffer.get(), Context, &ParseErrorMessage);
+
   if (Result)
     return std::auto_ptr<Module>(Result);
   Error = "Bitcode file '" + FN.str() + "' could not be loaded";
@@ -133,7 +135,7 @@ static inline sys::Path IsLibrary(StringRef Name,
 
   // Try the libX.so (or .dylib) form
   FullPath.eraseSuffix();
-  FullPath.appendSuffix(&(LTDL_SHLIB_EXT[1]));
+  FullPath.appendSuffix(sys::Path::GetDLLSuffix());
   if (FullPath.isDynamicLibrary())  // Native shared library?
     return FullPath;
   if (FullPath.isBitcodeFile())    // .so file containing bitcode?

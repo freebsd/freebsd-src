@@ -4377,7 +4377,7 @@ isp_start(XS_T *xs)
 	if (IS_SCSI(isp)) {
 		reqp->req_target = target | (XS_CHANNEL(xs) << 7);
 		reqp->req_lun_trn = XS_LUN(xs);
-		cdblen = MIN(cdblen, sizeof (reqp->req_cdb));
+		cdblen = ISP_MIN(cdblen, sizeof (reqp->req_cdb));
 		cdbp = reqp->req_cdb;
 		reqp->req_cdblen = cdblen;
 	} else if (IS_24XX(isp)) {
@@ -4396,25 +4396,25 @@ isp_start(XS_T *xs)
 		t7->req_lun[1] = XS_LUN(xs);
 		tptr = &t7->req_time;
 		cdbp = t7->req_cdb;
-		cdblen = MIN(cdblen, sizeof (t7->req_cdb));
+		cdblen = ISP_MIN(cdblen, sizeof (t7->req_cdb));
 	} else if (ISP_CAP_2KLOGIN(isp)) {
 		ispreqt2e_t *t2e = (ispreqt2e_t *)local;
 		t2e->req_target = target;
 		t2e->req_scclun = XS_LUN(xs);
 		cdbp = t2e->req_cdb;
-		cdblen = MIN(cdblen, sizeof (t2e->req_cdb));
+		cdblen = ISP_MIN(cdblen, sizeof (t2e->req_cdb));
 	} else if (ISP_CAP_SCCFW(isp)) {
 		ispreqt2_t *t2 = (ispreqt2_t *)local;
 		t2->req_target = target;
 		t2->req_scclun = XS_LUN(xs);
 		cdbp = t2->req_cdb;
-		cdblen = MIN(cdblen, sizeof (t2->req_cdb));
+		cdblen = ISP_MIN(cdblen, sizeof (t2->req_cdb));
 	} else {
 		ispreqt2_t *t2 = (ispreqt2_t *)local;
 		t2->req_target = target;
 		t2->req_lun_trn = XS_LUN(xs);
 		cdbp = t2->req_cdb;
-		cdblen = MIN(cdblen, sizeof (t2->req_cdb));
+		cdblen = ISP_MIN(cdblen, sizeof (t2->req_cdb));
 	}
 	ISP_MEMCPY(cdbp, XS_CDBP(xs), cdblen);
 

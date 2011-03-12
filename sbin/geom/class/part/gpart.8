@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 28, 2011
+.Dd March 9, 2011
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -162,7 +162,7 @@ utility:
 .\" ==== SHOW ====
 .Nm
 .Cm show
-.Op Fl lr
+.Op Fl lrp
 .Op Ar geom ...
 .\" ==== UNDO ====
 .Nm
@@ -468,6 +468,8 @@ Additional options include:
 .It Fl l
 For partition schemes that support partition labels print them
 instead of partition type.
+.It Fl p
+Show provider names instead of partition indexes.
 .It Fl r
 Show raw partition type instead of symbolic name.
 .El

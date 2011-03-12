@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/eli/g_eli.h>
 #include <geom/eli/pkcs5v2.h>
 
+FEATURE(geom_eli, "GEOM crypto module");
 
 MALLOC_DEFINE(M_ELI, "eli data", "GEOM_ELI Data");
 

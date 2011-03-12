@@ -71,7 +71,7 @@ extern	void ath_hal_assert_failed(const char* filename,
 		int lineno, const char* msg);
 #endif
 #ifdef AH_DEBUG
-extern	void HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...);
+extern	void DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...);
 #endif /* AH_DEBUG */
 
 /* NB: put this here instead of the driver to avoid circular references */
@@ -79,7 +79,7 @@ SYSCTL_NODE(_hw, OID_AUTO, ath, CTLFLAG_RD, 0, "Atheros driver parameters");
 SYSCTL_NODE(_hw_ath, OID_AUTO, hal, CTLFLAG_RD, 0, "Atheros HAL parameters");
 
 #ifdef AH_DEBUG
-static	int ath_hal_debug = 0;
+int ath_hal_debug = 0;
 SYSCTL_INT(_hw_ath_hal, OID_AUTO, debug, CTLFLAG_RW, &ath_hal_debug,
 	    0, "Atheros HAL debugging printfs");
 TUNABLE_INT("hw.ath.hal.debug", &ath_hal_debug);
@@ -136,7 +136,7 @@ ath_hal_ether_sprintf(const u_int8_t *mac)
 
 #ifdef AH_DEBUG
 void
-HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
+DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 {
 	if (ath_hal_debug & mask) {
 		__va_list ap;

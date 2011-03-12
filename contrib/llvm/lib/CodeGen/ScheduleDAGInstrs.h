@@ -101,6 +101,7 @@ namespace llvm {
     const MachineLoopInfo &MLI;
     const MachineDominatorTree &MDT;
     const MachineFrameInfo *MFI;
+    const InstrItineraryData *InstrItins;
 
     /// Defs, Uses - Remember where defs and uses of each physical register
     /// are as we iterate upward through the instructions. This is allocated
@@ -162,6 +163,15 @@ namespace llvm {
     /// BuildSchedGraph - Build SUnits from the MachineBasicBlock that we are
     /// input.
     virtual void BuildSchedGraph(AliasAnalysis *AA);
+
+    /// AddSchedBarrierDeps - Add dependencies from instructions in the current
+    /// list of instructions being scheduled to scheduling barrier. We want to
+    /// make sure instructions which define registers that are either used by
+    /// the terminator or are live-out are properly scheduled. This is
+    /// especially important when the definition latency of the return value(s)
+    /// are too high to be hidden by the branch or when the liveout registers
+    /// used by instructions in the fallthrough block.
+    void AddSchedBarrierDeps();
 
     /// ComputeLatency - Compute node latency.
     ///

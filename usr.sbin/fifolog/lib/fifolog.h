@@ -68,7 +68,7 @@
  * present in these records as well:
  *	5	32be	time_t containing POSIX's understanding of UTC.
  *
- * These fields are immediately followed by the inner layer payload as 
+ * These fields are immediately followed by the inner layer payload as
  * described below, which has variable length.
  *
  * If the inner layer payload is shorter than the available space in
@@ -95,10 +95,10 @@
  *
  * The inner layer:
  * ----------------
- * The inner layer contains data identification and to the second 
- * timestamping (the timestamp in the outer layer only marks the 
+ * The inner layer contains data identification and to the second
+ * timestamping (the timestamp in the outer layer only marks the
  * first possible timestamp for content in the SYNC record).
- * 
+ *
  *	offset	type	contents
  *      --------------------------------------------------------------
  *	0	32be	ident

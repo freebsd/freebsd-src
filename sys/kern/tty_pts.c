@@ -97,7 +97,7 @@ struct pts_softc {
 	struct cdev	*pts_cdev;	/* (c) Master device node. */
 #endif /* PTS_EXTERNAL */
 
-	struct uidinfo	*pts_uidinfo;	/* (c) Resource limit. */
+	struct ucred	*pts_cred;	/* (c) Resource limit. */
 };
 
 /*
@@ -681,8 +681,8 @@ ptsdrv_free(void *softc)
 	if (psc->pts_unit >= 0)
 		free_unr(pts_pool, psc->pts_unit);
 
-	chgptscnt(psc->pts_uidinfo, -1, 0);
-	uifree(psc->pts_uidinfo);
+	chgptscnt(psc->pts_cred->cr_ruidinfo, -1, 0);
+	crfree(psc->pts_cred);
 
 	knlist_destroy(&psc->pts_inpoll.si_note);
 	knlist_destroy(&psc->pts_outpoll.si_note);
@@ -716,11 +716,11 @@ pts_alloc(int fflags, struct thread *td, struct file *fp)
 	struct tty *tp;
 	struct pts_softc *psc;
 	struct proc *p = td->td_proc;
-	struct uidinfo *uid = td->td_ucred->cr_ruidinfo;
+	struct ucred *cred = td->td_ucred;
 
 	/* Resource limiting. */
 	PROC_LOCK(p);
-	ok = chgptscnt(uid, 1, lim_cur(p, RLIMIT_NPTS));
+	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(p, RLIMIT_NPTS));
 	PROC_UNLOCK(p);
 	if (!ok)
 		return (EAGAIN);
@@ -728,7 +728,7 @@ pts_alloc(int fflags, struct thread *td, struct file *fp)
 	/* Try to allocate a new pts unit number. */
 	unit = alloc_unr(pts_pool);
 	if (unit < 0) {
-		chgptscnt(uid, -1, 0);
+		chgptscnt(cred->cr_ruidinfo, -1, 0);
 		return (EAGAIN);
 	}
 
@@ -738,8 +738,7 @@ pts_alloc(int fflags, struct thread *td, struct file *fp)
 	cv_init(&psc->pts_outwait, "ptsout");
 
 	psc->pts_unit = unit;
-	psc->pts_uidinfo = uid;
-	uihold(uid);
+	psc->pts_cred = crhold(cred);
 
 	tp = tty_alloc(&pts_class, psc);
 	knlist_init_mtx(&psc->pts_inpoll.si_note, tp->t_mtx);
@@ -762,11 +761,11 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 	struct tty *tp;
 	struct pts_softc *psc;
 	struct proc *p = td->td_proc;
-	struct uidinfo *uid = td->td_ucred->cr_ruidinfo;
+	struct ucred *cred = td->td_ucred;
 
 	/* Resource limiting. */
 	PROC_LOCK(p);
-	ok = chgptscnt(uid, 1, lim_cur(p, RLIMIT_NPTS));
+	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(p, RLIMIT_NPTS));
 	PROC_UNLOCK(p);
 	if (!ok)
 		return (EAGAIN);
@@ -778,8 +777,7 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 
 	psc->pts_unit = -1;
 	psc->pts_cdev = dev;
-	psc->pts_uidinfo = uid;
-	uihold(uid);
+	psc->pts_cred = crhold(cred);
 
 	tp = tty_alloc(&pts_class, psc);
 	knlist_init_mtx(&psc->pts_inpoll.si_note, tp->t_mtx);

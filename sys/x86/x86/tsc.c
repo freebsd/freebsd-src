@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include "cpufreq_if.h"
 
 uint64_t	tsc_freq;
-int		tsc_is_broken;
 int		tsc_is_invariant;
 int		tsc_present;
 static eventhandler_tag tsc_levels_tag, tsc_pre_tag, tsc_post_tag;
@@ -63,6 +62,11 @@ SYSCTL_INT(_kern_timecounter, OID_AUTO, smp_tsc, CTLFLAG_RDTUN, &smp_tsc, 0,
     "Indicates whether the TSC is safe to use in SMP mode");
 TUNABLE_INT("kern.timecounter.smp_tsc", &smp_tsc);
 #endif
+
+static int	tsc_disabled;
+SYSCTL_INT(_machdep, OID_AUTO, disable_tsc, CTLFLAG_RDTUN, &tsc_disabled, 0,
+    "Disable x86 Time Stamp Counter");
+TUNABLE_INT("machdep.disable_tsc", &tsc_disabled);
 
 static void tsc_freq_changed(void *arg, const struct cf_level *level,
     int status);
@@ -85,12 +89,11 @@ init_TSC(void)
 {
 	u_int64_t tscval[2];
 
-	if (cpu_feature & CPUID_TSC)
-		tsc_present = 1;
-	else
-		tsc_present = 0;
+	if ((cpu_feature & CPUID_TSC) == 0)
+		return;
+	tsc_present = 1;
 
-	if (!tsc_present) 
+	if (tsc_disabled)
 		return;
 
 	if (bootverbose)
@@ -106,20 +109,23 @@ init_TSC(void)
 
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
-		if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
-		    CPUID_TO_FAMILY(cpu_id) >= 0x10)
+		if ((amd_pminfo & AMDPM_TSC_INVARIANT) != 0 ||
+		    (vm_guest == VM_GUEST_NO &&
+		    CPUID_TO_FAMILY(cpu_id) >= 0x10))
 			tsc_is_invariant = 1;
 		break;
 	case CPU_VENDOR_INTEL:
-		if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
-		    (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+		if ((amd_pminfo & AMDPM_TSC_INVARIANT) != 0 ||
+		    (vm_guest == VM_GUEST_NO &&
+		    ((CPUID_TO_FAMILY(cpu_id) == 0x6 &&
 		    CPUID_TO_MODEL(cpu_id) >= 0xe) ||
 		    (CPUID_TO_FAMILY(cpu_id) == 0xf &&
-		    CPUID_TO_MODEL(cpu_id) >= 0x3))
+		    CPUID_TO_MODEL(cpu_id) >= 0x3))))
 			tsc_is_invariant = 1;
 		break;
 	case CPU_VENDOR_CENTAUR:
-		if (CPUID_TO_FAMILY(cpu_id) == 0x6 &&
+		if (vm_guest == VM_GUEST_NO &&
+		    CPUID_TO_FAMILY(cpu_id) == 0x6 &&
 		    CPUID_TO_MODEL(cpu_id) >= 0xf &&
 		    (rdmsr(0x1203) & 0x100000000ULL) == 0)
 			tsc_is_invariant = 1;
@@ -149,7 +155,7 @@ void
 init_TSC_tc(void)
 {
 
-	if (!tsc_present) 
+	if (!tsc_present || tsc_disabled)
 		return;
 
 	/*
@@ -181,7 +187,7 @@ init_TSC_tc(void)
 		tsc_timecounter.tc_quality = -100;
 #endif
 
-	if (tsc_freq != 0 && !tsc_is_broken) {
+	if (tsc_freq != 0) {
 		tsc_timecounter.tc_frequency = tsc_freq;
 		tc_init(&tsc_timecounter);
 	}
@@ -246,7 +252,7 @@ tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 {
 
 	/* If there was an error during the transition, don't do anything. */
-	if (status != 0)
+	if (tsc_disabled || status != 0)
 		return;
 
 	/* Total setting for this level gives the new frequency in MHz. */

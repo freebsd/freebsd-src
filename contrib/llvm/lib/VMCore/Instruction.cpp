@@ -200,12 +200,10 @@ bool Instruction::isIdenticalToWhenDefined(const Instruction *I) const {
   if (const CallInst *CI = dyn_cast<CallInst>(this))
     return CI->isTailCall() == cast<CallInst>(I)->isTailCall() &&
            CI->getCallingConv() == cast<CallInst>(I)->getCallingConv() &&
-           CI->getAttributes().getRawPointer() ==
-             cast<CallInst>(I)->getAttributes().getRawPointer();
+           CI->getAttributes() == cast<CallInst>(I)->getAttributes();
   if (const InvokeInst *CI = dyn_cast<InvokeInst>(this))
     return CI->getCallingConv() == cast<InvokeInst>(I)->getCallingConv() &&
-           CI->getAttributes().getRawPointer() ==
-             cast<InvokeInst>(I)->getAttributes().getRawPointer();
+           CI->getAttributes() == cast<InvokeInst>(I)->getAttributes();
   if (const InsertValueInst *IVI = dyn_cast<InsertValueInst>(this)) {
     if (IVI->getNumIndices() != cast<InsertValueInst>(I)->getNumIndices())
       return false;
@@ -253,12 +251,11 @@ bool Instruction::isSameOperationAs(const Instruction *I) const {
   if (const CallInst *CI = dyn_cast<CallInst>(this))
     return CI->isTailCall() == cast<CallInst>(I)->isTailCall() &&
            CI->getCallingConv() == cast<CallInst>(I)->getCallingConv() &&
-           CI->getAttributes().getRawPointer() ==
-             cast<CallInst>(I)->getAttributes().getRawPointer();
+           CI->getAttributes() == cast<CallInst>(I)->getAttributes();
   if (const InvokeInst *CI = dyn_cast<InvokeInst>(this))
     return CI->getCallingConv() == cast<InvokeInst>(I)->getCallingConv() &&
-           CI->getAttributes().getRawPointer() ==
-             cast<InvokeInst>(I)->getAttributes().getRawPointer();
+           CI->getAttributes() ==
+             cast<InvokeInst>(I)->getAttributes();
   if (const InsertValueInst *IVI = dyn_cast<InsertValueInst>(this)) {
     if (IVI->getNumIndices() != cast<InsertValueInst>(I)->getNumIndices())
       return false;
@@ -348,7 +345,7 @@ bool Instruction::mayThrow() const {
 ///
 /// In LLVM, the Add, Mul, And, Or, and Xor operators are associative.
 ///
-bool Instruction::isAssociative(unsigned Opcode, const Type *Ty) {
+bool Instruction::isAssociative(unsigned Opcode) {
   return Opcode == And || Opcode == Or || Opcode == Xor ||
          Opcode == Add || Opcode == Mul;
 }
@@ -398,25 +395,10 @@ bool Instruction::isSafeToSpeculativelyExecute() const {
     return Op && !Op->isNullValue() && !Op->isAllOnesValue();
   }
   case Load: {
-    if (cast<LoadInst>(this)->isVolatile())
+    const LoadInst *LI = cast<LoadInst>(this);
+    if (LI->isVolatile())
       return false;
-    // Note that it is not safe to speculate into a malloc'd region because
-    // malloc may return null.
-    // It's also not safe to follow a bitcast, for example:
-    //   bitcast i8* (alloca i8) to i32*
-    // would result in a 4-byte load from a 1-byte alloca.
-    Value *Op0 = getOperand(0);
-    if (GEPOperator *GEP = dyn_cast<GEPOperator>(Op0)) {
-      // TODO: it's safe to do this for any GEP with constant indices that
-      // compute inside the allocated type, but not for any inbounds gep.
-      if (GEP->hasAllZeroIndices())
-        Op0 = GEP->getPointerOperand();
-    }
-    if (isa<AllocaInst>(Op0))
-      return true;
-    if (GlobalVariable *GV = dyn_cast<GlobalVariable>(getOperand(0)))
-      return !GV->hasExternalWeakLinkage();
-    return false;
+    return LI->getPointerOperand()->isDereferenceablePointer();
   }
   case Call:
     return false; // The called function could have undefined behavior or

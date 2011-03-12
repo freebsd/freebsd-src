@@ -383,7 +383,7 @@ LIBUSB_ERROR code on failure.
 Perform a USB control transfer. Returns the actual number of bytes
 transferred on success in the range from and including zero until and
 including
-.Xa wLength .
+.Fa wLength .
 On error a libusb error code is returned, for example
 LIBUSB_ERROR_TIMEOUT if the transfer timeout, LIBUSB_ERROR_PIPE if the
 control request was not supported, LIBUSB_ERROR_NO_DEVICE if the
@@ -393,7 +393,10 @@ The libusb error codes are always negative.
 .Pp
 .Ft int
 .Fn libusb_bulk_transfer "struct libusb_device_handle *devh" "unsigned char endpoint" "unsigned char *data" "int length" "int *transferred" "unsigned int timeout"
-Perform an USB bulk transfer. Returns 0 on success, LIBUSB_ERROR_TIMEOUT 
+Perform an USB bulk transfer.
+A timeout value of zero means no timeout.
+The timeout value is given in milliseconds.
+Returns 0 on success, LIBUSB_ERROR_TIMEOUT 
 if the transfer timeout, LIBUSB_ERROR_PIPE if the control request was not 
 supported, LIBUSB_ERROR_OVERFLOW if the device offered more data, 
 LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and 
@@ -402,7 +405,10 @@ LIBUSB_ERROR code on other failure.
 .Pp
 .Ft int
 .Fn libusb_interrupt_transfer "struct libusb_device_handle *devh" "unsigned char endpoint" "unsigned char *data" "int length" "int *transferred" "unsigned int timeout"
-Perform an USB Interrupt transfer. Returns 0 on success, LIBUSB_ERROR_TIMEOUT 
+Perform an USB Interrupt transfer.
+A timeout value of zero means no timeout.
+The timeout value is given in milliseconds.
+Returns 0 on success, LIBUSB_ERROR_TIMEOUT 
 if the transfer timeout, LIBUSB_ERROR_PIPE if the control request was not 
 supported, LIBUSB_ERROR_OVERFLOW if the device offered more data, 
 LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and 

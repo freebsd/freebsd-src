@@ -11,15 +11,19 @@ SRCS=	ELFObjectWriter.cpp \
 	MCAssembler.cpp \
 	MCCodeEmitter.cpp \
 	MCContext.cpp \
+	MCDwarf.cpp \
+	MCELFObjectTargetWriter.cpp \
 	MCELFStreamer.cpp \
 	MCExpr.cpp \
 	MCInst.cpp \
 	MCInstPrinter.cpp \
 	MCLoggingStreamer.cpp \
 	MCMachOStreamer.cpp \
+	MCMachObjectTargetWriter.cpp \
 	MCNullStreamer.cpp \
 	MCObjectStreamer.cpp \
 	MCObjectWriter.cpp \
+	MCPureStreamer.cpp \
 	MCSection.cpp \
 	MCSectionCOFF.cpp \
 	MCSectionELF.cpp \

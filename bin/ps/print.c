@@ -862,6 +862,26 @@ out:
 	return;
 }
 
+void
+loginclass(KINFO *k, VARENT *ve)
+{
+	VAR *v;
+	char *s;
+
+	v = ve->var;
+	/*
+	 * Don't display login class for system processes;
+	 * login classes are used for resource limits,
+	 * and limits don't apply to system processes.
+	 */
+	if (k->ki_p->ki_flag & P_SYSTEM) {
+		(void)printf("%-*s", v->width, "  -");
+		return;
+	}
+	s = k->ki_p->ki_loginclass;
+	(void)printf("%-*s", v->width, *s ? s : "-");
+}
+
 int
 s_comm(KINFO *k)
 {

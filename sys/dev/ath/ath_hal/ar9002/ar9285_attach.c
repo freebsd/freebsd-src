@@ -33,6 +33,8 @@
 #include "ar9002/ar9285v2.ini"
 #include "ar9002/ar9280v2.ini"		/* XXX ini for tx/rx gain */
 
+#include "ar9002/ar9285_cal.h"
+
 static const HAL_PERCAL_DATA ar9280_iq_cal = {		/* single sample */
 	.calName = "IQ", .calType = IQ_MISMATCH_CAL,
 	.calNumSamples	= MIN_CAL_SAMPLES,
@@ -117,6 +119,10 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 	AH5416(ah)->ah_cal.adcDcCalData.calData = &ar9280_adc_dc_cal;
 	AH5416(ah)->ah_cal.adcDcCalInitData.calData = &ar9280_adc_init_dc_cal;
 	AH5416(ah)->ah_cal.suppCals = ADC_GAIN_CAL | ADC_DC_CAL | IQ_MISMATCH_CAL;
+
+	if (AR_SREV_KITE_12_OR_LATER(ah))
+		AH5416(ah)->ah_cal_initcal      = ar9285InitCalHardware;
+	AH5416(ah)->ah_cal_pacal        = ar9002_hw_pa_cal;
 
 	AH5416(ah)->ah_spurMitigate	= ar9280SpurMitigate;
 	AH5416(ah)->ah_writeIni		= ar9285WriteIni;
@@ -339,17 +345,6 @@ ar9285WriteIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	}
 	regWrites = ath_hal_ini_write(ah, &AH5212(ah)->ah_ini_common,
 	    1, regWrites);
-
-      	OS_REG_SET_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
-
-	if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
-		uint32_t val;
-		val = OS_REG_READ(ah, AR_PCU_MISC_MODE2) &
-			(~AR_PCU_MISC_MODE2_HWWAR1);
-		OS_REG_WRITE(ah, AR_PCU_MISC_MODE2, val);
-		OS_REG_WRITE(ah, 0x9800 + (651 << 2), 0x11);
-	}
-
 }
 
 /*
@@ -371,8 +366,8 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halWowMatchPatternDword = AH_TRUE;
 #endif
 	/* AR9285 has 2 antennas but is a 1x1 stream device */
-	pCap->halTxStreams = 2;
-	pCap->halRxStreams = 2;
+	pCap->halTxStreams = 1;
+	pCap->halRxStreams = 1;
 
 	pCap->halCSTSupport = AH_TRUE;
 	pCap->halRifsRxSupport = AH_TRUE;

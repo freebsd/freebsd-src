@@ -77,6 +77,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
+#ifdef SMP
+#include <sys/smp.h>
+#endif
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -1077,16 +1080,18 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 		return (EOPNOTSUPP);
 
 	/* If we're booting, trust the rate calibrated moments ago. */
-	if (cold) {
+	if (cold && tsc_freq != 0) {
 		*rate = tsc_freq;
 		return (0);
 	}
 
 #ifdef SMP
-	/* Schedule ourselves on the indicated cpu. */
-	thread_lock(curthread);
-	sched_bind(curthread, cpu_id);
-	thread_unlock(curthread);
+	if (smp_cpus > 1) {
+		/* Schedule ourselves on the indicated cpu. */
+		thread_lock(curthread);
+		sched_bind(curthread, cpu_id);
+		thread_unlock(curthread);
+	}
 #endif
 
 	/* Calibrate by measuring a short delay. */
@@ -1097,13 +1102,15 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	intr_restore(reg);
 
 #ifdef SMP
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
+	if (smp_cpus > 1) {
+		thread_lock(curthread);
+		sched_unbind(curthread);
+		thread_unlock(curthread);
+	}
 #endif
 
 	tsc2 -= tsc1;
-	if (tsc_freq != 0 && !tsc_is_broken) {
+	if (tsc_freq != 0) {
 		*rate = tsc2 * 1000;
 		return (0);
 	}
@@ -2458,6 +2465,13 @@ fill_regs(struct thread *td, struct reg *regs)
 
 	tp = td->td_frame;
 	pcb = td->td_pcb;
+	regs->r_gs = pcb->pcb_gs;
+	return (fill_frame_regs(tp, regs));
+}
+
+int
+fill_frame_regs(struct trapframe *tp, struct reg *regs)
+{
 	regs->r_fs = tp->tf_fs;
 	regs->r_es = tp->tf_es;
 	regs->r_ds = tp->tf_ds;
@@ -2473,7 +2487,6 @@ fill_regs(struct thread *td, struct reg *regs)
 	regs->r_eflags = tp->tf_eflags;
 	regs->r_esp = tp->tf_esp;
 	regs->r_ss = tp->tf_ss;
-	regs->r_gs = pcb->pcb_gs;
 	return (0);
 }
 

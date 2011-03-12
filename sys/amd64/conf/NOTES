@@ -547,7 +547,7 @@ options 	LINSYSFS
 # KSTACK_PAGES is the number of memory pages to assign to the kernel
 # stack of each thread.
 
-options 	KSTACK_PAGES=3
+options 	KSTACK_PAGES=5
 
 #####################################################################
 

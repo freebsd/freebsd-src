@@ -34,6 +34,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/queue.h>
+#include <sys/taskqueue.h>
 #include <sys/sysctl.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -55,13 +58,9 @@ struct fl_buf_info {
 	uma_zone_t zone;
 };
 
-/* t4_sge_init will fill up the zone */
-static struct fl_buf_info fl_buf_info[FL_BUF_SIZES] = {
-	{ MCLBYTES, EXT_CLUSTER, NULL},
-	{ MJUMPAGESIZE, EXT_JUMBOP, NULL},
-	{ MJUM9BYTES, EXT_JUMBO9, NULL},
-	{ MJUM16BYTES, EXT_JUMBO16, NULL}
-};
+/* Filled up by t4_sge_modload */
+static struct fl_buf_info fl_buf_info[FL_BUF_SIZES];
+
 #define FL_BUF_SIZE(x)	(fl_buf_info[x].size)
 #define FL_BUF_TYPE(x)	(fl_buf_info[x].type)
 #define FL_BUF_ZONE(x)	(fl_buf_info[x].zone)
@@ -118,7 +117,6 @@ static int alloc_fl_sdesc(struct sge_fl *);
 static void free_fl_sdesc(struct sge_fl *);
 static int alloc_eq_maps(struct sge_eq *);
 static void free_eq_maps(struct sge_eq *);
-static struct mbuf *get_fl_sdesc_data(struct sge_fl *, int, int);
 static void set_fl_tag_idx(struct sge_fl *, int);
 
 static int get_pkt_sgl(struct sge_txq *, struct mbuf **, struct sgl *, int);
@@ -133,9 +131,35 @@ static inline void write_ulp_cpl_sgl(struct port_info *, struct sge_txq *,
 static int write_sgl_to_txd(struct sge_eq *, struct sgl *, caddr_t *);
 static inline void copy_to_txd(struct sge_eq *, caddr_t, caddr_t *, int);
 static inline void ring_tx_db(struct adapter *, struct sge_eq *);
+static inline int reclaimable(struct sge_eq *);
 static int reclaim_tx_descs(struct sge_eq *, int, int);
 static void write_eqflush_wr(struct sge_eq *);
 static __be64 get_flit(bus_dma_segment_t *, int, int);
+static int handle_sge_egr_update(struct adapter *,
+    const struct cpl_sge_egr_update *);
+
+/*
+ * Called on MOD_LOAD and fills up fl_buf_info[].
+ */
+void
+t4_sge_modload(void)
+{
+	int i;
+	int bufsize[FL_BUF_SIZES] = {
+		MCLBYTES,
+#if MJUMPAGESIZE != MCLBYTES
+		MJUMPAGESIZE,
+#endif
+		MJUM9BYTES,
+		MJUM16BYTES
+	};
+
+	for (i = 0; i < FL_BUF_SIZES; i++) {
+		FL_BUF_SIZE(i) = bufsize[i];
+		FL_BUF_TYPE(i) = m_gettype(bufsize[i]);
+		FL_BUF_ZONE(i) = m_getzone(bufsize[i]);
+	}
+}
 
 /**
  *	t4_sge_init - initialize SGE
@@ -150,11 +174,6 @@ t4_sge_init(struct adapter *sc)
 {
 	struct sge *s = &sc->sge;
 	int i;
-
-	FL_BUF_ZONE(0) = zone_clust;
-	FL_BUF_ZONE(1) = zone_jumbop;
-	FL_BUF_ZONE(2) = zone_jumbo9;
-	FL_BUF_ZONE(3) = zone_jumbo16;
 
 	t4_set_reg_field(sc, A_SGE_CONTROL, V_PKTSHIFT(M_PKTSHIFT) |
 			 V_INGPADBOUNDARY(M_INGPADBOUNDARY) |
@@ -409,7 +428,6 @@ t4_intr_fwd(void *arg)
 	int ndesc_pending = 0, ndesc_total = 0;
 	int qid;
 
-	IQ_LOCK(iq);
 	while (is_new_response(iq, &ctrl)) {
 
 		rmb();
@@ -436,7 +454,6 @@ t4_intr_fwd(void *arg)
 
 		iq_next(iq);
 	}
-	IQ_UNLOCK(iq);
 
 	if (ndesc_total > 0) {
 		t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
@@ -469,7 +486,6 @@ t4_intr_evt(void *arg)
 
 	KASSERT(iq == &sc->sge.fwq, ("%s: unexpected ingress queue", __func__));
 
-	IQ_LOCK(iq);
 	while (is_new_response(iq, &ctrl)) {
 
 		rmb();
@@ -492,21 +508,9 @@ t4_intr_evt(void *arg)
 
 			break;
 			}
-		case CPL_SGE_EGR_UPDATE: {
-			const struct cpl_sge_egr_update *cpl;
-			unsigned int qid;
-			struct sge *s = &sc->sge;
-			struct sge_txq *txq;
-
-			cpl = (const void *)(rss + 1);
-			qid = G_EGR_QID(ntohl(cpl->opcode_qid));
-			txq = (void *)s->eqmap[qid - s->eq_start];
-			txq->egr_update++;
-
-			/* XXX: wake up stalled tx */
-
+		case CPL_SGE_EGR_UPDATE:
+			handle_sge_egr_update(sc, (const void *)(rss + 1));
 			break;
-			}
 
 		default:
 			device_printf(sc->dev,
@@ -524,7 +528,6 @@ t4_intr_evt(void *arg)
 		}
 		iq_next(iq);
 	}
-	IQ_UNLOCK(iq);
 
 	if (ndesc_total > 0) {
 		t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS),
@@ -538,63 +541,73 @@ t4_intr_data(void *arg)
 {
 	struct sge_rxq *rxq = arg;
 	struct sge_iq *iq = arg;
+	struct adapter *sc = iq->adapter;
 	struct rsp_ctrl *ctrl;
+	struct ifnet *ifp = rxq->ifp;
 	struct sge_fl *fl = &rxq->fl;
-	struct port_info *pi = rxq->port;
-	struct ifnet *ifp = pi->ifp;
-	struct adapter *sc = pi->adapter;
+	struct fl_sdesc *sd = &fl->sdesc[fl->cidx], *sd_next;
 	const struct rss_header *rss;
 	const struct cpl_rx_pkt *cpl;
-	int ndescs = 0, rsp_type;
 	uint32_t len;
+	int ndescs = 0, i;
 	struct mbuf *m0, *m;
 #ifdef INET
 	struct lro_ctrl *lro = &rxq->lro;
 	struct lro_entry *l;
 #endif
 
-	IQ_LOCK(iq);
+	prefetch(sd->m);
+	prefetch(sd->cl);
+
 	iq->intr_next = iq->intr_params;
 	while (is_new_response(iq, &ctrl)) {
 
 		rmb();
 
 		rss = (const void *)iq->cdesc;
+		i = G_RSPD_TYPE(ctrl->u.type_gen);
+
+		if (__predict_false(i == X_RSPD_TYPE_CPL)) {
+
+			/* Can't be anything except an egress update */
+			KASSERT(rss->opcode == CPL_SGE_EGR_UPDATE,
+			    ("%s: unexpected CPL %x", __func__, rss->opcode));
+
+			handle_sge_egr_update(sc, (const void *)(rss + 1));
+			goto nextdesc;
+		}
+		KASSERT(i == X_RSPD_TYPE_FLBUF && rss->opcode == CPL_RX_PKT,
+		    ("%s: unexpected CPL %x rsp %d", __func__, rss->opcode, i));
+
+		sd_next = sd + 1;
+		if (__predict_false(fl->cidx + 1 == fl->cap))
+			sd_next = fl->sdesc;
+		prefetch(sd_next->m);
+		prefetch(sd_next->cl);
+
 		cpl = (const void *)(rss + 1);
 
-		rsp_type = G_RSPD_TYPE(ctrl->u.type_gen);
-
-		if (__predict_false(rsp_type == X_RSPD_TYPE_CPL)) {
-			const struct cpl_sge_egr_update *p = (const void *)cpl;
-			unsigned int qid = G_EGR_QID(ntohl(p->opcode_qid));
-
-			KASSERT(cpl->opcode == CPL_SGE_EGR_UPDATE,
-			    ("unexpected opcode on data ingress queue: %x",
-			    cpl->opcode));
-
-			/* XXX: noone's waiting to be woken up... */
-			wakeup(sc->sge.eqmap[qid - sc->sge.eq_start]);
-
-			ndescs++;
-			iq_next(iq);
-
-			continue;
-		}
-
-		KASSERT(G_RSPD_TYPE(ctrl->u.type_gen) == X_RSPD_TYPE_FLBUF,
-		    ("unexpected event on data ingress queue: %x",
-		    G_RSPD_TYPE(ctrl->u.type_gen)));
+		m0 = sd->m;
+		sd->m = NULL;	/* consumed */
 
 		len = be32toh(ctrl->pldbuflen_qid);
-
-		KASSERT(len & F_RSPD_NEWBUF,
-		    ("%s: T4 misconfigured to pack buffers.", __func__));
-
+		if (__predict_false((len & F_RSPD_NEWBUF) == 0))
+			panic("%s: cannot handle packed frames", __func__);
 		len = G_RSPD_LEN(len);
-		m0 = get_fl_sdesc_data(fl, len, M_PKTHDR);
-		if (m0 == NULL) {
-			iq->intr_next = V_QINTR_TIMER_IDX(SGE_NTIMERS - 1);
-			break;
+
+		bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map,
+		    BUS_DMASYNC_POSTREAD);
+
+		m_init(m0, NULL, 0, M_NOWAIT, MT_DATA, M_PKTHDR);
+		if (len < MINCLSIZE) {
+			/* copy data to mbuf, buffer will be recycled */
+			bcopy(sd->cl, mtod(m0, caddr_t), len);
+			m0->m_len = len;
+		} else {
+			bus_dmamap_unload(fl->tag[sd->tag_idx], sd->map);
+			m_cljset(m0, sd->cl, FL_BUF_TYPE(sd->tag_idx));
+			sd->cl = NULL;	/* consumed */
+			m0->m_len = min(len, FL_BUF_SIZE(sd->tag_idx));
 		}
 
 		len -= FL_PKTSHIFT;
@@ -623,16 +636,49 @@ t4_intr_data(void *arg)
 			rxq->vlan_extraction++;
 		}
 
+		i = 1;	/* # of fl sdesc used */
+		sd = sd_next;
+		if (__predict_false(++fl->cidx == fl->cap))
+			fl->cidx = 0;
+
 		len -= m0->m_len;
 		m = m0;
 		while (len) {
-			m->m_next = get_fl_sdesc_data(fl, len, 0);
-			if (m->m_next == NULL)
-				CXGBE_UNIMPLEMENTED("mbuf recovery");
+			i++;
 
+			sd_next = sd + 1;
+			if (__predict_false(fl->cidx + 1 == fl->cap))
+				sd_next = fl->sdesc;
+			prefetch(sd_next->m);
+			prefetch(sd_next->cl);
+
+			m->m_next = sd->m;
+			sd->m = NULL;	/* consumed */
 			m = m->m_next;
+
+			bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map,
+			    BUS_DMASYNC_POSTREAD);
+
+			m_init(m, NULL, 0, M_NOWAIT, MT_DATA, 0);
+			if (len <= MLEN) {
+				bcopy(sd->cl, mtod(m, caddr_t), len);
+				m->m_len = len;
+			} else {
+				bus_dmamap_unload(fl->tag[sd->tag_idx],
+				    sd->map);
+				m_cljset(m, sd->cl, FL_BUF_TYPE(sd->tag_idx));
+				sd->cl = NULL;	/* consumed */
+				m->m_len = min(len, FL_BUF_SIZE(sd->tag_idx));
+			}
+
+			i++;
+			sd = sd_next;
+			if (__predict_false(++fl->cidx == fl->cap))
+				fl->cidx = 0;
+
 			len -= m->m_len;
 		}
+
 #ifdef INET
 		if (cpl->l2info & htobe32(F_RXF_LRO) &&
 		    rxq->flags & RXQ_LRO_ENABLED &&
@@ -640,17 +686,17 @@ t4_intr_data(void *arg)
 			/* queued for LRO */
 		} else
 #endif
-			(*ifp->if_input)(ifp, m0);
+		ifp->if_input(ifp, m0);
 
 		FL_LOCK(fl);
-		if (fl->needed >= 32) {
+		fl->needed += i;
+		if (fl->needed >= 32)
 			refill_fl(fl, 64);
-			if (fl->pending >= 32)
-				ring_fl_db(sc, fl);
-		}
+		if (fl->pending >= 32)
+			ring_fl_db(sc, fl);
 		FL_UNLOCK(fl);
 
-		ndescs++;
+nextdesc:	ndescs++;
 		iq_next(iq);
 
 		if (ndescs > 32) {
@@ -673,14 +719,11 @@ t4_intr_data(void *arg)
 	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_CIDXINC(ndescs) |
 	    V_INGRESSQID((u32)iq->cntxt_id) | V_SEINTARM(iq->intr_next));
 
-	IQ_UNLOCK(iq);
-
 	FL_LOCK(fl);
-	if (fl->needed) {
-		refill_fl(fl, -1);
-		if (fl->pending >= 8)
-			ring_fl_db(sc, fl);
-	}
+	if (fl->needed >= 32)
+		refill_fl(fl, 128);
+	if (fl->pending >= 8)
+		ring_fl_db(sc, fl);
 	FL_UNLOCK(fl);
 }
 
@@ -717,22 +760,21 @@ t4_eth_tx(struct ifnet *ifp, struct sge_txq *txq, struct mbuf *m)
 	struct sge_eq *eq = &txq->eq;
 	struct buf_ring *br = eq->br;
 	struct mbuf *next;
-	int rc, coalescing;
+	int rc, coalescing, can_reclaim;
 	struct txpkts txpkts;
 	struct sgl sgl;
 
 	TXQ_LOCK_ASSERT_OWNED(txq);
 	KASSERT(m, ("%s: called with nothing to do.", __func__));
 
+	prefetch(&eq->desc[eq->pidx]);
+	prefetch(&eq->sdesc[eq->pidx]);
+
 	txpkts.npkt = 0;/* indicates there's nothing in txpkts */
 	coalescing = 0;
 
-	prefetch(&eq->sdesc[eq->pidx]);
-	prefetch(&eq->desc[eq->pidx]);
-	prefetch(&eq->maps[eq->map_pidx]);
-
 	if (eq->avail < 8)
-		reclaim_tx_descs(eq, 1, 8);
+		reclaim_tx_descs(eq, 0, 8);
 
 	for (; m; m = next ? next : drbr_dequeue(ifp, br)) {
 
@@ -788,7 +830,7 @@ t4_eth_tx(struct ifnet *ifp, struct sge_txq *txq, struct mbuf *m)
 		coalescing = 0;
 
 		if (eq->avail < 8)
-			reclaim_tx_descs(eq, 1, 8);
+			reclaim_tx_descs(eq, 0, 8);
 		rc = write_txpkt_wr(pi, txq, m, &sgl);
 		if (rc != 0) {
 
@@ -815,7 +857,10 @@ doorbell:
 		/* Fewer and fewer doorbells as the queue fills up */
 		if (eq->pending >= (1 << (fls(eq->qsize - eq->avail) / 2)))
 		    ring_tx_db(sc, eq);
-		reclaim_tx_descs(eq, 16, 32);
+
+		can_reclaim = reclaimable(eq);
+		if (can_reclaim >= 32)
+			reclaim_tx_descs(eq, can_reclaim, 32);
 	}
 
 	if (txpkts.npkt > 0)
@@ -838,7 +883,9 @@ doorbell:
 	if (eq->pending)
 		ring_tx_db(sc, eq);
 
-	reclaim_tx_descs(eq, 16, eq->qsize);
+	can_reclaim = reclaimable(eq);
+	if (can_reclaim >= 32)
+		reclaim_tx_descs(eq, can_reclaim, 128);
 
 	return (0);
 }
@@ -1211,7 +1258,7 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx)
 	if (pi->ifp->if_capenable & IFCAP_LRO)
 		rxq->flags |= RXQ_LRO_ENABLED;
 #endif
-	rxq->port = pi;
+	rxq->ifp = pi->ifp;
 
 	children = SYSCTL_CHILDREN(pi->oid_rxq);
 
@@ -1220,10 +1267,12 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx)
 	    NULL, "rx queue");
 	children = SYSCTL_CHILDREN(oid);
 
+#ifdef INET
 	SYSCTL_ADD_INT(&pi->ctx, children, OID_AUTO, "lro_queued", CTLFLAG_RD,
 	    &rxq->lro.lro_queued, 0, NULL);
 	SYSCTL_ADD_INT(&pi->ctx, children, OID_AUTO, "lro_flushed", CTLFLAG_RD,
 	    &rxq->lro.lro_flushed, 0, NULL);
+#endif
 	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "rxcsum", CTLFLAG_RD,
 	    &rxq->rxcsum, "# of times hardware assisted with checksum");
 	SYSCTL_ADD_UQUAD(&pi->ctx, children, OID_AUTO, "vlan_extraction",
@@ -1264,6 +1313,9 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx)
 	struct sysctl_oid *oid;
 	struct sysctl_oid_list *children;
 
+	txq->ifp = pi->ifp;
+	TASK_INIT(&txq->resume_tx, 0, cxgbe_txq_start, txq);
+
 	mtx_init(&eq->eq_lock, eq->lockname, NULL, MTX_DEF);
 
 	len = eq->qsize * TX_EQ_ESIZE;
@@ -1278,6 +1330,7 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx)
 	eq->sdesc = malloc(eq->cap * sizeof(struct tx_sdesc), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 	eq->br = buf_ring_alloc(eq->qsize, M_CXGBE, M_WAITOK, &eq->eq_lock);
+	eq->iqid = sc->sge.rxq[pi->first_rxq].iq.cntxt_id;
 
 	rc = bus_dma_tag_create(sc->dmat, 1, 0, BUS_SPACE_MAXADDR,
 	    BUS_SPACE_MAXADDR, NULL, NULL, 64 * 1024, TX_SGL_SEGS,
@@ -1305,7 +1358,7 @@ alloc_txq(struct port_info *pi, struct sge_txq *txq, int idx)
 	c.fetchszm_to_iqid =
 	    htobe32(V_FW_EQ_ETH_CMD_HOSTFCMODE(X_HOSTFCMODE_STATUS_PAGE) |
 		V_FW_EQ_ETH_CMD_PCIECHN(pi->tx_chan) |
-		V_FW_EQ_ETH_CMD_IQID(sc->sge.rxq[pi->first_rxq].iq.cntxt_id));
+		V_FW_EQ_ETH_CMD_IQID(eq->iqid));
 	c.dcaen_to_eqsize = htobe32(V_FW_EQ_ETH_CMD_FBMIN(X_FETCHBURSTMIN_64B) |
 		      V_FW_EQ_ETH_CMD_FBMAX(X_FETCHBURSTMAX_512B) |
 		      V_FW_EQ_ETH_CMD_CIDXFTHRESH(X_CIDXFLUSHTHRESH_32) |
@@ -1507,9 +1560,8 @@ refill_fl(struct sge_fl *fl, int nbufs)
 		if (cl == NULL)
 			break;
 
-		rc = bus_dmamap_load(tag, sd->map, cl,
-		    FL_BUF_SIZE(sd->tag_idx), oneseg_dma_callback,
-		    &pa, 0);
+		rc = bus_dmamap_load(tag, sd->map, cl, FL_BUF_SIZE(sd->tag_idx),
+		    oneseg_dma_callback, &pa, 0);
 		if (rc != 0 || pa == 0) {
 			fl->dmamap_failed++;
 			uma_zfree(FL_BUF_ZONE(sd->tag_idx), cl);
@@ -1523,7 +1575,15 @@ refill_fl(struct sge_fl *fl, int nbufs)
 		sd->ba_tag = htobe64(pa | sd->tag_idx);
 #endif
 
-recycled:	fl->pending++;
+recycled:
+		/* sd->m is never recycled, should always be NULL */
+		KASSERT(sd->m == NULL, ("%s: stray mbuf", __func__));
+
+		sd->m = m_gethdr(M_NOWAIT, MT_NOINIT);
+		if (sd->m == NULL)
+			break;
+
+		fl->pending++;
 		fl->needed--;
 		sd++;
 		if (++fl->pidx == fl->cap) {
@@ -1531,10 +1591,6 @@ recycled:	fl->pending++;
 			sd = fl->sdesc;
 			d = fl->desc;
 		}
-
-		/* No harm if gethdr fails, we'll retry after rx */
-		if (sd->m == NULL)
-			sd->m = m_gethdr(M_NOWAIT, MT_NOINIT);
 	}
 }
 
@@ -1558,9 +1614,6 @@ alloc_fl_sdesc(struct sge_fl *fl)
 		rc = bus_dmamap_create(tag, 0, &sd->map);
 		if (rc != 0)
 			goto failed;
-
-		/* Doesn't matter if this succeeds or not */
-		sd->m = m_gethdr(M_NOWAIT, MT_NOINIT);
 	}
 
 	return (0);
@@ -1569,7 +1622,7 @@ failed:
 		sd--;
 		bus_dmamap_destroy(tag, sd->map);
 		if (sd->m) {
-			m_init(sd->m, zone_mbuf, MLEN, M_NOWAIT, MT_DATA, 0);
+			m_init(sd->m, NULL, 0, M_NOWAIT, MT_DATA, 0);
 			m_free(sd->m);
 			sd->m = NULL;
 		}
@@ -1594,7 +1647,7 @@ free_fl_sdesc(struct sge_fl *fl)
 	for (i = 0; i < fl->cap; i++, sd++) {
 
 		if (sd->m) {
-			m_init(sd->m, zone_mbuf, MLEN, M_NOWAIT, MT_DATA, 0);
+			m_init(sd->m, NULL, 0, M_NOWAIT, MT_DATA, 0);
 			m_free(sd->m);
 			sd->m = NULL;
 		}
@@ -1797,11 +1850,13 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 	struct cpl_tx_pkt_core *cpl;
 	uint32_t ctrl;	/* used in many unrelated places */
 	uint64_t ctrl1;
-	int nflits, ndesc;
+	int nflits, ndesc, pktlen;
 	struct tx_sdesc *txsd;
 	caddr_t dst;
 
 	TXQ_LOCK_ASSERT_OWNED(txq);
+
+	pktlen = m->m_pkthdr.len;
 
 	/*
 	 * Do we have enough flits to send this frame out?
@@ -1815,8 +1870,8 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 	if (sgl->nsegs > 0)
 		nflits += sgl->nflits;
 	else {
-		nflits += howmany(m->m_pkthdr.len, 8);
-		ctrl += m->m_pkthdr.len;
+		nflits += howmany(pktlen, 8);
+		ctrl += pktlen;
 	}
 	ndesc = howmany(nflits, 8);
 	if (ndesc > eq->avail)
@@ -1856,7 +1911,7 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 		lso->ipid_ofst = htobe16(0);
 		lso->mss = htobe16(m->m_pkthdr.tso_segsz);
 		lso->seqno_offset = htobe32(0);
-		lso->len = htobe32(m->m_pkthdr.len);
+		lso->len = htobe32(pktlen);
 
 		cpl = (void *)(lso + 1);
 
@@ -1883,7 +1938,7 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 	cpl->ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
 	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(pi->adapter->pf));
 	cpl->pack = 0;
-	cpl->len = htobe16(m->m_pkthdr.len);
+	cpl->len = htobe16(pktlen);
 	cpl->ctrl1 = htobe64(ctrl1);
 
 	/* Software descriptor */
@@ -1907,7 +1962,14 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 		txq->imm_wrs++;
 		for (; m; m = m->m_next) {
 			copy_to_txd(eq, mtod(m, caddr_t), &dst, m->m_len);
+#ifdef INVARIANTS
+			pktlen -= m->m_len;
+#endif
 		}
+#ifdef INVARIANTS
+		KASSERT(pktlen == 0, ("%s: %d bytes left.", __func__, pktlen));
+#endif
+
 	}
 
 	txq->txpkt_wrs++;
@@ -2080,7 +2142,8 @@ write_ulp_cpl_sgl(struct port_info *pi, struct sge_txq *txq,
 
 	/* ULP master command */
 	ulpmc = (void *)flitp;
-	ulpmc->cmd_dest = htonl(V_ULPTX_CMD(ULP_TX_PKT) | V_ULP_TXPKT_DEST(0));
+	ulpmc->cmd_dest = htonl(V_ULPTX_CMD(ULP_TX_PKT) | V_ULP_TXPKT_DEST(0) |
+	    V_ULP_TXPKT_FID(eq->iqid));
 	ulpmc->len = htonl(howmany(sizeof(*ulpmc) + sizeof(*ulpsc) +
 	    sizeof(*cpl) + 8 * sgl->nflits, 16));
 
@@ -2216,32 +2279,40 @@ ring_tx_db(struct adapter *sc, struct sge_eq *eq)
 	eq->pending = 0;
 }
 
-static int
-reclaim_tx_descs(struct sge_eq *eq, int atleast, int howmany)
+static inline int
+reclaimable(struct sge_eq *eq)
 {
-	struct tx_sdesc *txsd;
-	struct tx_map *txm, *next_txm;
-	unsigned int cidx, can_reclaim, reclaimed, maps, next_map_cidx;
-
-	EQ_LOCK_ASSERT_OWNED(eq);
+	unsigned int cidx;
 
 	cidx = eq->spg->cidx;	/* stable snapshot */
 	cidx = be16_to_cpu(cidx);
 
 	if (cidx >= eq->cidx)
-		can_reclaim = cidx - eq->cidx;
+		return (cidx - eq->cidx);
 	else
-		can_reclaim = cidx + eq->cap - eq->cidx;
+		return (cidx + eq->cap - eq->cidx);
+}
 
-	if (can_reclaim < atleast)
-		return (0);
+/*
+ * There are "can_reclaim" tx descriptors ready to be reclaimed.  Reclaim as
+ * many as possible but stop when there are around "n" mbufs to free.
+ *
+ * The actual number reclaimed is provided as the return value.
+ */
+static int
+reclaim_tx_descs(struct sge_eq *eq, int can_reclaim, int n)
+{
+	struct tx_sdesc *txsd;
+	struct tx_map *txm;
+	unsigned int reclaimed, maps;
 
-	next_map_cidx = eq->map_cidx;
-	next_txm = txm = &eq->maps[next_map_cidx];
-	prefetch(txm);
+	EQ_LOCK_ASSERT_OWNED(eq);
+
+	if (can_reclaim == 0)
+		can_reclaim = reclaimable(eq);
 
 	maps = reclaimed = 0;
-	do {
+	while (can_reclaim && maps < n) {
 		int ndesc;
 
 		txsd = &eq->sdesc[eq->cidx];
@@ -2253,15 +2324,18 @@ reclaim_tx_descs(struct sge_eq *eq, int atleast, int howmany)
 		    __func__, can_reclaim, ndesc));
 
 		maps += txsd->map_used;
+
 		reclaimed += ndesc;
-
-		eq->cidx += ndesc;
-		if (eq->cidx >= eq->cap)
-			eq->cidx -= eq->cap;
-
 		can_reclaim -= ndesc;
 
-	} while (can_reclaim && reclaimed < howmany);
+		eq->cidx += ndesc;
+		if (__predict_false(eq->cidx >= eq->cap))
+			eq->cidx -= eq->cap;
+	}
+
+	txm = &eq->maps[eq->map_cidx];
+	if (maps)
+		prefetch(txm->m);
 
 	eq->avail += reclaimed;
 	KASSERT(eq->avail < eq->cap,	/* avail tops out at (cap - 1) */
@@ -2271,22 +2345,22 @@ reclaim_tx_descs(struct sge_eq *eq, int atleast, int howmany)
 	KASSERT(eq->map_avail <= eq->map_total,
 	    ("%s: too many maps available", __func__));
 
-	prefetch(txm->m);
 	while (maps--) {
-		next_txm++;
-		if (++next_map_cidx == eq->map_total) {
-			next_map_cidx = 0;
-			next_txm = eq->maps;
-		}
-		prefetch(next_txm->m);
+		struct tx_map *next;
+
+		next = txm + 1;
+		if (__predict_false(eq->map_cidx + 1 == eq->map_total))
+			next = eq->maps;
+		prefetch(next->m);
 
 		bus_dmamap_unload(eq->tx_tag, txm->map);
 		m_freem(txm->m);
 		txm->m = NULL;
 
-		txm = next_txm;
+		txm = next;
+		if (__predict_false(++eq->map_cidx == eq->map_total))
+			eq->map_cidx = 0;
 	}
-	eq->map_cidx = next_map_cidx;
 
 	return (reclaimed);
 }
@@ -2340,42 +2414,6 @@ get_flit(bus_dma_segment_t *sgl, int nsegs, int idx)
 	return (0);
 }
 
-static struct mbuf *
-get_fl_sdesc_data(struct sge_fl *fl, int len, int flags)
-{
-	struct fl_sdesc *sd;
-	struct mbuf *m;
-
-	sd = &fl->sdesc[fl->cidx];
-	FL_LOCK(fl);
-	if (++fl->cidx == fl->cap)
-		fl->cidx = 0;
-	fl->needed++;
-	FL_UNLOCK(fl);
-
-	m = sd->m;
-	if (m == NULL) {
-		m = m_gethdr(M_NOWAIT, MT_NOINIT);
-		if (m == NULL)
-			return (NULL);
-	}
-	sd->m = NULL;	/* consumed */
-
-	bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map, BUS_DMASYNC_POSTREAD);
-	m_init(m, zone_mbuf, MLEN, M_NOWAIT, MT_DATA, flags);
-	if ((flags && len < MINCLSIZE) || (!flags && len <= MLEN))
-		bcopy(sd->cl, mtod(m, caddr_t), len);
-	else {
-		bus_dmamap_unload(fl->tag[sd->tag_idx], sd->map);
-		m_cljset(m, sd->cl, FL_BUF_TYPE(sd->tag_idx));
-		sd->cl = NULL;	/* consumed */
-	}
-
-	m->m_len = min(len, FL_BUF_SIZE(sd->tag_idx));
-
-	return (m);
-}
-
 static void
 set_fl_tag_idx(struct sge_fl *fl, int mtu)
 {
@@ -2389,4 +2427,20 @@ set_fl_tag_idx(struct sge_fl *fl, int mtu)
 	}
 
 	fl->tag_idx = i;
+}
+
+static int
+handle_sge_egr_update(struct adapter *sc, const struct cpl_sge_egr_update *cpl)
+{
+	unsigned int qid = G_EGR_QID(ntohl(cpl->opcode_qid));
+	struct sge *s = &sc->sge;
+	struct sge_txq *txq;
+	struct port_info *pi;
+
+	txq = (void *)s->eqmap[qid - s->eq_start];
+	pi = txq->ifp->if_softc;
+	taskqueue_enqueue(pi->tq, &txq->resume_tx);
+	txq->egr_update++;
+
+	return (0);
 }

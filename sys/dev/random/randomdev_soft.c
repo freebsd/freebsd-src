@@ -347,7 +347,7 @@ random_yarrow_write(void *buf, int count)
 
 	/*
 	 * Break the input up into HARVESTSIZE chunks. The writer has too
-	 * much control here, so "estimate" the the entropy as zero.
+	 * much control here, so "estimate" the entropy as zero.
 	 */
 	for (i = 0; i < count; i += HARVESTSIZE) {
 		chunk = HARVESTSIZE;

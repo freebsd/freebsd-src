@@ -593,6 +593,10 @@ use the "usbd_xfer_set_stall()" and "usbd_transfer_clear_stall()"
 functions! This flag is automatically cleared after that the stall or
 clear stall has been executed.
 .
+.It pre_scale_frames
+If this flag is set the number of frames specified is assumed to give the buffering time in milliseconds instead of frames.
+During transfer setup the frames field is pre scaled with the corresponding value for the endpoint and rounded to the nearest number of frames greater than zero.
+This option only has effect for ISOCHRONOUS transfers.
 .El
 .Pp
 .Fa bufsize

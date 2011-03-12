@@ -27,6 +27,8 @@
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
+#include "llvm/Analysis/ValueTracking.h"
+#include "llvm/Assembly/Writer.h"
 #include "llvm/Instructions.h"
 #include "llvm/Operator.h"
 #include "llvm/Support/Allocator.h"
@@ -46,8 +48,12 @@ LoopPass *llvm::createLoopDependenceAnalysisPass() {
   return new LoopDependenceAnalysis();
 }
 
-INITIALIZE_PASS(LoopDependenceAnalysis, "lda",
-                "Loop Dependence Analysis", false, true);
+INITIALIZE_PASS_BEGIN(LoopDependenceAnalysis, "lda",
+                "Loop Dependence Analysis", false, true)
+INITIALIZE_PASS_DEPENDENCY(ScalarEvolution)
+INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
+INITIALIZE_PASS_END(LoopDependenceAnalysis, "lda",
+                "Loop Dependence Analysis", false, true)
 char LoopDependenceAnalysis::ID = 0;
 
 //===----------------------------------------------------------------------===//
@@ -86,8 +92,8 @@ static Value *GetPointerOperand(Value *I) {
 static AliasAnalysis::AliasResult UnderlyingObjectsAlias(AliasAnalysis *AA,
                                                          const Value *A,
                                                          const Value *B) {
-  const Value *aObj = A->getUnderlyingObject();
-  const Value *bObj = B->getUnderlyingObject();
+  const Value *aObj = GetUnderlyingObject(A);
+  const Value *bObj = GetUnderlyingObject(B);
   return AA->alias(aObj, AA->getTypeStoreSize(aObj->getType()),
                    bObj, AA->getTypeStoreSize(bObj->getType()));
 }
@@ -128,7 +134,7 @@ void LoopDependenceAnalysis::getLoops(const SCEV *S,
                                       DenseSet<const Loop*>* Loops) const {
   // Refactor this into an SCEVVisitor, if efficiency becomes a concern.
   for (const Loop *L = this->L; L != 0; L = L->getParentLoop())
-    if (!S->isLoopInvariant(L))
+    if (!SE->isLoopInvariant(S, L))
       Loops->insert(L);
 }
 
@@ -217,6 +223,7 @@ LoopDependenceAnalysis::analysePair(DependencePair *P) const {
 
   switch (UnderlyingObjectsAlias(AA, aPtr, bPtr)) {
   case AliasAnalysis::MayAlias:
+  case AliasAnalysis::PartialAlias:
     // We can not analyse objects if we do not know about their aliasing.
     DEBUG(dbgs() << "---> [?] may alias\n");
     return Unknown;

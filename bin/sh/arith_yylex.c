@@ -57,6 +57,7 @@ yylex()
 {
 	int value;
 	const char *buf = arith_buf;
+	char *end;
 	const char *p;
 
 	for (;;) {
@@ -79,7 +80,8 @@ yylex()
 		case '7':
 		case '8':
 		case '9':
-			yylval.val = strtoarith_t(buf, (char **)&arith_buf, 0);
+			yylval.val = strtoarith_t(buf, &end, 0);
+			arith_buf = end;
 			return ARITH_NUM;
 		case 'A':
 		case 'B':

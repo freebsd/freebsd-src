@@ -37,6 +37,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/bio.h>
@@ -51,6 +52,8 @@
 
 #define FOX_CLASS_NAME "FOX"
 #define FOX_MAGIC	"GEOM::FOX"
+
+FEATURE(geom_fox, "GEOM FOX redundant path mitigation support");
 
 struct g_fox_softc {
 	off_t			mediasize;

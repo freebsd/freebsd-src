@@ -63,6 +63,7 @@
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolutionExpander.h"
+#include "llvm/Assembly/Writer.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/ADT/SmallBitVector.h"
@@ -113,7 +114,7 @@ class RegUseTracker {
 public:
   void CountRegister(const SCEV *Reg, size_t LUIdx);
   void DropRegister(const SCEV *Reg, size_t LUIdx);
-  void DropUse(size_t LUIdx);
+  void SwapAndDropUse(size_t LUIdx, size_t LastLUIdx);
 
   bool isRegUsedByUsesOtherThan(const SCEV *Reg, size_t LUIdx) const;
 
@@ -152,11 +153,19 @@ RegUseTracker::DropRegister(const SCEV *Reg, size_t LUIdx) {
 }
 
 void
-RegUseTracker::DropUse(size_t LUIdx) {
-  // Remove the use index from every register's use list.
+RegUseTracker::SwapAndDropUse(size_t LUIdx, size_t LastLUIdx) {
+  assert(LUIdx <= LastLUIdx);
+
+  // Update RegUses. The data structure is not optimized for this purpose;
+  // we must iterate through it and update each of the bit vectors.
   for (RegUsesTy::iterator I = RegUsesMap.begin(), E = RegUsesMap.end();
-       I != E; ++I)
-    I->second.UsedByIndices.reset(LUIdx);
+       I != E; ++I) {
+    SmallBitVector &UsedByIndices = I->second.UsedByIndices;
+    if (LUIdx < UsedByIndices.size())
+      UsedByIndices[LUIdx] =
+        LastLUIdx < UsedByIndices.size() ? UsedByIndices[LastLUIdx] : 0;
+    UsedByIndices.resize(std::min(UsedByIndices.size(), LastLUIdx));
+  }
 }
 
 bool
@@ -202,8 +211,7 @@ struct Formula {
 
   Formula() : ScaledReg(0) {}
 
-  void InitialMatch(const SCEV *S, Loop *L,
-                    ScalarEvolution &SE, DominatorTree &DT);
+  void InitialMatch(const SCEV *S, Loop *L, ScalarEvolution &SE);
 
   unsigned getNumRegs() const;
   const Type *getType() const;
@@ -224,9 +232,9 @@ struct Formula {
 static void DoInitialMatch(const SCEV *S, Loop *L,
                            SmallVectorImpl<const SCEV *> &Good,
                            SmallVectorImpl<const SCEV *> &Bad,
-                           ScalarEvolution &SE, DominatorTree &DT) {
+                           ScalarEvolution &SE) {
   // Collect expressions which properly dominate the loop header.
-  if (S->properlyDominates(L->getHeader(), &DT)) {
+  if (SE.properlyDominates(S, L->getHeader())) {
     Good.push_back(S);
     return;
   }
@@ -235,18 +243,18 @@ static void DoInitialMatch(const SCEV *S, Loop *L,
   if (const SCEVAddExpr *Add = dyn_cast<SCEVAddExpr>(S)) {
     for (SCEVAddExpr::op_iterator I = Add->op_begin(), E = Add->op_end();
          I != E; ++I)
-      DoInitialMatch(*I, L, Good, Bad, SE, DT);
+      DoInitialMatch(*I, L, Good, Bad, SE);
     return;
   }
 
   // Look at addrec operands.
   if (const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(S))
     if (!AR->getStart()->isZero()) {
-      DoInitialMatch(AR->getStart(), L, Good, Bad, SE, DT);
+      DoInitialMatch(AR->getStart(), L, Good, Bad, SE);
       DoInitialMatch(SE.getAddRecExpr(SE.getConstant(AR->getType(), 0),
                                       AR->getStepRecurrence(SE),
                                       AR->getLoop()),
-                     L, Good, Bad, SE, DT);
+                     L, Good, Bad, SE);
       return;
     }
 
@@ -258,7 +266,7 @@ static void DoInitialMatch(const SCEV *S, Loop *L,
 
       SmallVector<const SCEV *, 4> MyGood;
       SmallVector<const SCEV *, 4> MyBad;
-      DoInitialMatch(NewMul, L, MyGood, MyBad, SE, DT);
+      DoInitialMatch(NewMul, L, MyGood, MyBad, SE);
       const SCEV *NegOne = SE.getSCEV(ConstantInt::getAllOnesValue(
         SE.getEffectiveSCEVType(NewMul->getType())));
       for (SmallVectorImpl<const SCEV *>::const_iterator I = MyGood.begin(),
@@ -278,11 +286,10 @@ static void DoInitialMatch(const SCEV *S, Loop *L,
 /// InitialMatch - Incorporate loop-variant parts of S into this Formula,
 /// attempting to keep all loop-invariant and loop-computable values in a
 /// single base register.
-void Formula::InitialMatch(const SCEV *S, Loop *L,
-                           ScalarEvolution &SE, DominatorTree &DT) {
+void Formula::InitialMatch(const SCEV *S, Loop *L, ScalarEvolution &SE) {
   SmallVector<const SCEV *, 4> Good;
   SmallVector<const SCEV *, 4> Bad;
-  DoInitialMatch(S, L, Good, Bad, SE, DT);
+  DoInitialMatch(S, L, Good, Bad, SE);
   if (!Good.empty()) {
     const SCEV *Sum = SE.getAddExpr(Good);
     if (!Sum->isZero())
@@ -608,7 +615,7 @@ DeleteTriviallyDeadInstructions(SmallVectorImpl<WeakVH> &DeadInsts) {
   bool Changed = false;
 
   while (!DeadInsts.empty()) {
-    Instruction *I = dyn_cast_or_null<Instruction>(DeadInsts.pop_back_val());
+    Instruction *I = dyn_cast_or_null<Instruction>(&*DeadInsts.pop_back_val());
 
     if (I == 0 || !isInstructionTriviallyDead(I))
       continue;
@@ -644,8 +651,6 @@ public:
   Cost()
     : NumRegs(0), AddRecCost(0), NumIVMuls(0), NumBaseAdds(0), ImmCost(0),
       SetupCost(0) {}
-
-  unsigned getNumRegs() const { return NumRegs; }
 
   bool operator<(const Cost &Other) const;
 
@@ -722,6 +727,9 @@ void Cost::RateRegister(const SCEV *Reg,
         (isa<SCEVUnknown>(cast<SCEVAddRecExpr>(Reg)->getStart()) ||
          isa<SCEVConstant>(cast<SCEVAddRecExpr>(Reg)->getStart()))))
     ++SetupCost;
+
+    NumIVMuls += isa<SCEVMulExpr>(Reg) &&
+                 SE.hasComputableLoopEvolution(Reg, L);
 }
 
 /// RatePrimaryRegister - Record this register in the set. If we haven't seen it
@@ -756,9 +764,6 @@ void Cost::RateFormula(const Formula &F,
       return;
     }
     RatePrimaryRegister(BaseReg, Regs, L, SE, DT);
-
-    NumIVMuls += isa<SCEVMulExpr>(BaseReg) &&
-                 BaseReg->hasComputableLoopEvolution(L);
   }
 
   if (F.BaseRegs.size() > 1)
@@ -1257,32 +1262,6 @@ struct UseMapDenseMapInfo {
   }
 };
 
-/// FormulaSorter - This class implements an ordering for formulae which sorts
-/// the by their standalone cost.
-class FormulaSorter {
-  /// These two sets are kept empty, so that we compute standalone costs.
-  DenseSet<const SCEV *> VisitedRegs;
-  SmallPtrSet<const SCEV *, 16> Regs;
-  Loop *L;
-  LSRUse *LU;
-  ScalarEvolution &SE;
-  DominatorTree &DT;
-
-public:
-  FormulaSorter(Loop *l, LSRUse &lu, ScalarEvolution &se, DominatorTree &dt)
-    : L(l), LU(&lu), SE(se), DT(dt) {}
-
-  bool operator()(const Formula &A, const Formula &B) {
-    Cost CostA;
-    CostA.RateFormula(A, Regs, VisitedRegs, L, LU->Offsets, SE, DT);
-    Regs.clear();
-    Cost CostB;
-    CostB.RateFormula(B, Regs, VisitedRegs, L, LU->Offsets, SE, DT);
-    Regs.clear();
-    return CostA < CostB;
-  }
-};
-
 /// LSRInstance - This class holds state for the main loop strength reduction
 /// logic.
 class LSRInstance {
@@ -1341,7 +1320,7 @@ class LSRInstance {
                                     LSRUse::KindType Kind,
                                     const Type *AccessTy);
 
-  void DeleteUse(LSRUse &LU);
+  void DeleteUse(LSRUse &LU, size_t LUIdx);
 
   LSRUse *FindUseWithSimilarFormula(const Formula &F, const LSRUse &OrigLU);
 
@@ -1925,10 +1904,13 @@ LSRInstance::getUse(const SCEV *&Expr,
 }
 
 /// DeleteUse - Delete the given use from the Uses list.
-void LSRInstance::DeleteUse(LSRUse &LU) {
+void LSRInstance::DeleteUse(LSRUse &LU, size_t LUIdx) {
   if (&LU != &Uses.back())
     std::swap(LU, Uses.back());
   Uses.pop_back();
+
+  // Update RegUses.
+  RegUses.SwapAndDropUse(LUIdx, Uses.size());
 }
 
 /// FindUseWithFormula - Look for a use distinct from OrigLU which is has
@@ -2073,7 +2055,7 @@ void LSRInstance::CollectFixupsAndInitialFormulae() {
 
         // x == y  -->  x - y == 0
         const SCEV *N = SE.getSCEV(NV);
-        if (N->isLoopInvariant(L)) {
+        if (SE.isLoopInvariant(N, L)) {
           Kind = LSRUse::ICmpZero;
           S = SE.getMinusSCEV(N, S);
         }
@@ -2113,7 +2095,7 @@ void LSRInstance::CollectFixupsAndInitialFormulae() {
 void
 LSRInstance::InsertInitialFormula(const SCEV *S, LSRUse &LU, size_t LUIdx) {
   Formula F;
-  F.InitialMatch(S, L, SE, DT);
+  F.InitialMatch(S, L, SE);
   bool Inserted = InsertFormula(LU, LUIdx, F);
   assert(Inserted && "Initial formula already exists!"); (void)Inserted;
 }
@@ -2213,7 +2195,7 @@ LSRInstance::CollectLoopInvariantFixupsAndFormulae() {
         if (const ICmpInst *ICI = dyn_cast<ICmpInst>(UserInst)) {
           unsigned OtherIdx = !UI.getOperandNo();
           Value *OtherOp = const_cast<Value *>(ICI->getOperand(OtherIdx));
-          if (SE.getSCEV(OtherOp)->hasComputableLoopEvolution(L))
+          if (SE.hasComputableLoopEvolution(SE.getSCEV(OtherOp), L))
             continue;
         }
 
@@ -2296,7 +2278,7 @@ void LSRInstance::GenerateReassociations(LSRUse &LU, unsigned LUIdx,
 
       // Loop-variant "unknown" values are uninteresting; we won't be able to
       // do anything meaningful with them.
-      if (isa<SCEVUnknown>(*J) && !(*J)->isLoopInvariant(L))
+      if (isa<SCEVUnknown>(*J) && !SE.isLoopInvariant(*J, L))
         continue;
 
       // Don't pull a constant into a register if the constant could be folded
@@ -2347,8 +2329,8 @@ void LSRInstance::GenerateCombinations(LSRUse &LU, unsigned LUIdx,
   for (SmallVectorImpl<const SCEV *>::const_iterator
        I = Base.BaseRegs.begin(), E = Base.BaseRegs.end(); I != E; ++I) {
     const SCEV *BaseReg = *I;
-    if (BaseReg->properlyDominates(L->getHeader(), &DT) &&
-        !BaseReg->hasComputableLoopEvolution(L))
+    if (SE.properlyDominates(BaseReg, L->getHeader()) &&
+        !SE.hasComputableLoopEvolution(BaseReg, L))
       Ops.push_back(BaseReg);
     else
       F.BaseRegs.push_back(BaseReg);
@@ -2813,9 +2795,11 @@ LSRInstance::GenerateAllReuseFormulae() {
         print_uses(dbgs()));
 }
 
-/// If their are multiple formulae with the same set of registers used
+/// If there are multiple formulae with the same set of registers used
 /// by other uses, pick the best one and delete the others.
 void LSRInstance::FilterOutUndesirableDedicatedRegisters() {
+  DenseSet<const SCEV *> VisitedRegs;
+  SmallPtrSet<const SCEV *, 16> Regs;
 #ifndef NDEBUG
   bool ChangedFormulae = false;
 #endif
@@ -2828,7 +2812,6 @@ void LSRInstance::FilterOutUndesirableDedicatedRegisters() {
 
   for (size_t LUIdx = 0, NumUses = Uses.size(); LUIdx != NumUses; ++LUIdx) {
     LSRUse &LU = Uses[LUIdx];
-    FormulaSorter Sorter(L, LU, SE, DT);
     DEBUG(dbgs() << "Filtering for use "; LU.print(dbgs()); dbgs() << '\n');
 
     bool Any = false;
@@ -2854,7 +2837,14 @@ void LSRInstance::FilterOutUndesirableDedicatedRegisters() {
         BestFormulae.insert(std::make_pair(Key, FIdx));
       if (!P.second) {
         Formula &Best = LU.Formulae[P.first->second];
-        if (Sorter.operator()(F, Best))
+
+        Cost CostF;
+        CostF.RateFormula(F, Regs, VisitedRegs, L, LU.Offsets, SE, DT);
+        Regs.clear();
+        Cost CostBest;
+        CostBest.RateFormula(Best, Regs, VisitedRegs, L, LU.Offsets, SE, DT);
+        Regs.clear();
+        if (CostF < CostBest)
           std::swap(F, Best);
         DEBUG(dbgs() << "  Filtering out formula "; F.print(dbgs());
               dbgs() << "\n"
@@ -2894,7 +2884,7 @@ static const size_t ComplexityLimit = UINT16_MAX;
 /// this many solutions because it prune the search space, but the pruning
 /// isn't always sufficient.
 size_t LSRInstance::EstimateSearchSpaceComplexity() const {
-  uint32_t Power = 1;
+  size_t Power = 1;
   for (SmallVectorImpl<LSRUse>::const_iterator I = Uses.begin(),
        E = Uses.end(); I != E; ++I) {
     size_t FSize = I->Formulae.size();
@@ -3001,6 +2991,28 @@ void LSRInstance::NarrowSearchSpaceByCollapsingUnrolledCode() {
 
               LUThatHas->AllFixupsOutsideLoop &= LU.AllFixupsOutsideLoop;
 
+              // Update the relocs to reference the new use.
+              for (SmallVectorImpl<LSRFixup>::iterator I = Fixups.begin(),
+                   E = Fixups.end(); I != E; ++I) {
+                LSRFixup &Fixup = *I;
+                if (Fixup.LUIdx == LUIdx) {
+                  Fixup.LUIdx = LUThatHas - &Uses.front();
+                  Fixup.Offset += F.AM.BaseOffs;
+                  // Add the new offset to LUThatHas' offset list.
+                  if (LUThatHas->Offsets.back() != Fixup.Offset) {
+                    LUThatHas->Offsets.push_back(Fixup.Offset);
+                    if (Fixup.Offset > LUThatHas->MaxOffset)
+                      LUThatHas->MaxOffset = Fixup.Offset;
+                    if (Fixup.Offset < LUThatHas->MinOffset)
+                      LUThatHas->MinOffset = Fixup.Offset;
+                  }
+                  DEBUG(dbgs() << "New fixup has offset "
+                               << Fixup.Offset << '\n');
+                }
+                if (Fixup.LUIdx == NumUses-1)
+                  Fixup.LUIdx = LUIdx;
+              }
+
               // Delete formulae from the new use which are no longer legal.
               bool Any = false;
               for (size_t i = 0, e = LUThatHas->Formulae.size(); i != e; ++i) {
@@ -3019,22 +3031,8 @@ void LSRInstance::NarrowSearchSpaceByCollapsingUnrolledCode() {
               if (Any)
                 LUThatHas->RecomputeRegs(LUThatHas - &Uses.front(), RegUses);
 
-              // Update the relocs to reference the new use.
-              for (SmallVectorImpl<LSRFixup>::iterator I = Fixups.begin(),
-                   E = Fixups.end(); I != E; ++I) {
-                LSRFixup &Fixup = *I;
-                if (Fixup.LUIdx == LUIdx) {
-                  Fixup.LUIdx = LUThatHas - &Uses.front();
-                  Fixup.Offset += F.AM.BaseOffs;
-                  DEBUG(dbgs() << "New fixup has offset "
-                               << Fixup.Offset << '\n');
-                }
-                if (Fixup.LUIdx == NumUses-1)
-                  Fixup.LUIdx = LUIdx;
-              }
-
               // Delete the old use.
-              DeleteUse(LU);
+              DeleteUse(LU, LUIdx);
               --LUIdx;
               --NumUses;
               break;
@@ -3546,21 +3544,23 @@ void LSRInstance::RewriteForPHI(PHINode *PN,
       // is the canonical backedge for this loop, which complicates post-inc
       // users.
       if (e != 1 && BB->getTerminator()->getNumSuccessors() > 1 &&
-          !isa<IndirectBrInst>(BB->getTerminator()) &&
-          (PN->getParent() != L->getHeader() || !L->contains(BB))) {
-        // Split the critical edge.
-        BasicBlock *NewBB = SplitCriticalEdge(BB, PN->getParent(), P);
+          !isa<IndirectBrInst>(BB->getTerminator())) {
+        Loop *PNLoop = LI.getLoopFor(PN->getParent());
+        if (!PNLoop || PN->getParent() != PNLoop->getHeader()) {
+          // Split the critical edge.
+          BasicBlock *NewBB = SplitCriticalEdge(BB, PN->getParent(), P);
 
-        // If PN is outside of the loop and BB is in the loop, we want to
-        // move the block to be immediately before the PHI block, not
-        // immediately after BB.
-        if (L->contains(BB) && !L->contains(PN))
-          NewBB->moveBefore(PN->getParent());
+          // If PN is outside of the loop and BB is in the loop, we want to
+          // move the block to be immediately before the PHI block, not
+          // immediately after BB.
+          if (L->contains(BB) && !L->contains(PN))
+            NewBB->moveBefore(PN->getParent());
 
-        // Splitting the edge can reduce the number of PHI entries we have.
-        e = PN->getNumIncomingValues();
-        BB = NewBB;
-        i = PN->getBasicBlockIndex(BB);
+          // Splitting the edge can reduce the number of PHI entries we have.
+          e = PN->getNumIncomingValues();
+          BB = NewBB;
+          i = PN->getBasicBlockIndex(BB);
+        }
       }
 
       std::pair<DenseMap<BasicBlock *, Value *>::iterator, bool> Pair =
@@ -3792,21 +3792,30 @@ private:
 }
 
 char LoopStrengthReduce::ID = 0;
-INITIALIZE_PASS(LoopStrengthReduce, "loop-reduce",
-                "Loop Strength Reduction", false, false);
+INITIALIZE_PASS_BEGIN(LoopStrengthReduce, "loop-reduce",
+                "Loop Strength Reduction", false, false)
+INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+INITIALIZE_PASS_DEPENDENCY(ScalarEvolution)
+INITIALIZE_PASS_DEPENDENCY(IVUsers)
+INITIALIZE_PASS_DEPENDENCY(LoopInfo)
+INITIALIZE_PASS_DEPENDENCY(LoopSimplify)
+INITIALIZE_PASS_END(LoopStrengthReduce, "loop-reduce",
+                "Loop Strength Reduction", false, false)
+
 
 Pass *llvm::createLoopStrengthReducePass(const TargetLowering *TLI) {
   return new LoopStrengthReduce(TLI);
 }
 
 LoopStrengthReduce::LoopStrengthReduce(const TargetLowering *tli)
-  : LoopPass(ID), TLI(tli) {}
+  : LoopPass(ID), TLI(tli) {
+    initializeLoopStrengthReducePass(*PassRegistry::getPassRegistry());
+  }
 
 void LoopStrengthReduce::getAnalysisUsage(AnalysisUsage &AU) const {
   // We split critical edges, so we change the CFG.  However, we do update
   // many analyses if they are around.
   AU.addPreservedID(LoopSimplifyID);
-  AU.addPreserved("domfrontier");
 
   AU.addRequired<LoopInfo>();
   AU.addPreserved<LoopInfo>();
@@ -3815,6 +3824,9 @@ void LoopStrengthReduce::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addPreserved<DominatorTree>();
   AU.addRequired<ScalarEvolution>();
   AU.addPreserved<ScalarEvolution>();
+  // Requiring LoopSimplify a second time here prevents IVUsers from running
+  // twice, since LoopSimplify was invalidated by running ScalarEvolution.
+  AU.addRequiredID(LoopSimplifyID);
   AU.addRequired<IVUsers>();
   AU.addPreserved<IVUsers>();
 }

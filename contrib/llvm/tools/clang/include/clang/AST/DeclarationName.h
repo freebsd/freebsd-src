@@ -315,7 +315,7 @@ inline bool operator>=(DeclarationName LHS, DeclarationName RHS) {
 /// retrieved using its member functions (e.g.,
 /// getCXXConstructorName).
 class DeclarationNameTable {
-  ASTContext &Ctx;
+  const ASTContext &Ctx;
   void *CXXSpecialNamesImpl; // Actually a FoldingSet<CXXSpecialName> *
   CXXOperatorIdName *CXXOperatorNames; // Operator names
   void *CXXLiteralOperatorNames; // Actually a CXXOperatorIdName*
@@ -324,7 +324,7 @@ class DeclarationNameTable {
   DeclarationNameTable& operator=(const DeclarationNameTable&); // NONCOPYABLE
 
 public:
-  DeclarationNameTable(ASTContext &C);
+  DeclarationNameTable(const ASTContext &C);
   ~DeclarationNameTable();
 
   /// getIdentifier - Create a declaration name that is a simple
@@ -402,7 +402,7 @@ struct DeclarationNameLoc {
 
   DeclarationNameLoc(DeclarationName Name);
   // FIXME: this should go away once all DNLocs are properly initialized.
-  DeclarationNameLoc() { NamedType.TInfo = 0; }
+  DeclarationNameLoc() { memset((void*) this, 0, sizeof(*this)); }
 }; // struct DeclarationNameLoc
 
 
@@ -491,6 +491,10 @@ public:
     assert(Name.getNameKind() == DeclarationName::CXXLiteralOperatorName);
     LocInfo.CXXLiteralOperatorName.OpNameLoc = Loc.getRawEncoding();
   }
+
+  /// \brief Determine whether this name contains an unexpanded
+  /// parameter pack.
+  bool containsUnexpandedParameterPack() const;
 
   /// getAsString - Retrieve the human-readable string for this name.
   std::string getAsString() const;

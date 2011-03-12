@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/endian.h>
 #include <sys/errno.h>
 #include <sys/mbuf.h>
@@ -39,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <sys/mchain.h>
+
+FEATURE(libmchain, "mchain library");
 
 MODULE_VERSION(libmchain, 1);
 

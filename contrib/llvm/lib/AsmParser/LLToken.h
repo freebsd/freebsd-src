@@ -42,6 +42,7 @@ namespace lltok {
     kw_linkonce, kw_linkonce_odr, kw_weak, kw_weak_odr, kw_appending,
     kw_dllimport, kw_dllexport, kw_common, kw_available_externally,
     kw_default, kw_hidden, kw_protected,
+    kw_unnamed_addr,
     kw_extern_weak,
     kw_external, kw_thread_local,
     kw_zeroinitializer,
@@ -72,6 +73,7 @@ namespace lltok {
     kw_x86_stdcallcc, kw_x86_fastcallcc, kw_x86_thiscallcc,
     kw_arm_apcscc, kw_arm_aapcscc, kw_arm_aapcs_vfpcc,
     kw_msp430_intrcc,
+    kw_ptx_kernel, kw_ptx_device,
 
     kw_signext,
     kw_zeroext,
@@ -95,6 +97,7 @@ namespace lltok {
     kw_noredzone,
     kw_noimplicitfloat,
     kw_naked,
+    kw_hotpatch,
 
     kw_type,
     kw_opaque,

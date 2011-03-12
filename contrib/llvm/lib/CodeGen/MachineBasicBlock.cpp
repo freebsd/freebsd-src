@@ -17,6 +17,7 @@
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/CodeGen/SlotIndexes.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/Target/TargetRegisterInfo.h"
@@ -146,27 +147,46 @@ MachineBasicBlock::iterator MachineBasicBlock::getFirstNonPHI() {
   return I;
 }
 
+MachineBasicBlock::iterator
+MachineBasicBlock::SkipPHIsAndLabels(MachineBasicBlock::iterator I) {
+  while (I != end() && (I->isPHI() || I->isLabel() || I->isDebugValue()))
+    ++I;
+  return I;
+}
+
 MachineBasicBlock::iterator MachineBasicBlock::getFirstTerminator() {
   iterator I = end();
-  while (I != begin() && (--I)->getDesc().isTerminator())
+  while (I != begin() && ((--I)->getDesc().isTerminator() || I->isDebugValue()))
     ; /*noop */
-  if (I != end() && !I->getDesc().isTerminator()) ++I;
+  while (I != end() && !I->getDesc().isTerminator())
+    ++I;
   return I;
+}
+
+MachineBasicBlock::iterator MachineBasicBlock::getLastNonDebugInstr() {
+  iterator B = begin(), I = end();
+  while (I != B) {
+    --I;
+    if (I->isDebugValue())
+      continue;
+    return I;
+  }
+  // The block is all debug values.
+  return end();
+}
+
+const MachineBasicBlock *MachineBasicBlock::getLandingPadSuccessor() const {
+  // A block with a landing pad successor only has one other successor.
+  if (succ_size() > 2)
+    return 0;
+  for (const_succ_iterator I = succ_begin(), E = succ_end(); I != E; ++I)
+    if ((*I)->isLandingPad())
+      return *I;
+  return 0;
 }
 
 void MachineBasicBlock::dump() const {
   print(dbgs());
-}
-
-static inline void OutputReg(raw_ostream &os, unsigned RegNo,
-                             const TargetRegisterInfo *TRI = 0) {
-  if (RegNo != 0 && TargetRegisterInfo::isPhysicalRegister(RegNo)) {
-    if (TRI)
-      os << " %" << TRI->get(RegNo).Name;
-    else
-      os << " %physreg" << RegNo;
-  } else
-    os << " %reg" << RegNo;
 }
 
 StringRef MachineBasicBlock::getName() const {
@@ -176,7 +196,7 @@ StringRef MachineBasicBlock::getName() const {
     return "(null)";
 }
 
-void MachineBasicBlock::print(raw_ostream &OS) const {
+void MachineBasicBlock::print(raw_ostream &OS, SlotIndexes *Indexes) const {
   const MachineFunction *MF = getParent();
   if (!MF) {
     OS << "Can't print out MachineBasicBlock because parent MachineFunction"
@@ -185,6 +205,9 @@ void MachineBasicBlock::print(raw_ostream &OS) const {
   }
 
   if (Alignment) { OS << "Alignment " << Alignment << "\n"; }
+
+  if (Indexes)
+    OS << Indexes->getMBBStartIdx(this) << '\t';
 
   OS << "BB#" << getNumber() << ": ";
 
@@ -198,28 +221,36 @@ void MachineBasicBlock::print(raw_ostream &OS) const {
   if (hasAddressTaken()) { OS << Comma << "ADDRESS TAKEN"; Comma = ", "; }
   OS << '\n';
 
-  const TargetRegisterInfo *TRI = MF->getTarget().getRegisterInfo();  
+  const TargetRegisterInfo *TRI = MF->getTarget().getRegisterInfo();
   if (!livein_empty()) {
+    if (Indexes) OS << '\t';
     OS << "    Live Ins:";
     for (livein_iterator I = livein_begin(),E = livein_end(); I != E; ++I)
-      OutputReg(OS, *I, TRI);
+      OS << ' ' << PrintReg(*I, TRI);
     OS << '\n';
   }
   // Print the preds of this block according to the CFG.
   if (!pred_empty()) {
+    if (Indexes) OS << '\t';
     OS << "    Predecessors according to CFG:";
     for (const_pred_iterator PI = pred_begin(), E = pred_end(); PI != E; ++PI)
       OS << " BB#" << (*PI)->getNumber();
     OS << '\n';
   }
-  
+
   for (const_iterator I = begin(); I != end(); ++I) {
+    if (Indexes) {
+      if (Indexes->hasIndex(I))
+        OS << Indexes->getInstructionIndex(I);
+      OS << '\t';
+    }
     OS << '\t';
     I->print(OS, &getParent()->getTarget());
   }
 
   // Print the successors of this block according to the CFG.
   if (!succ_empty()) {
+    if (Indexes) OS << '\t';
     OS << "    Successors according to CFG:";
     for (const_succ_iterator SI = succ_begin(), E = succ_end(); SI != E; ++SI)
       OS << " BB#" << (*SI)->getNumber();
@@ -431,13 +462,23 @@ MachineBasicBlock::SplitCriticalEdge(MachineBasicBlock *Succ, Pass *P) {
   MachineFunction *MF = getParent();
   DebugLoc dl;  // FIXME: this is nowhere
 
-  // We may need to update this's terminator, but we can't do that if AnalyzeBranch
-  // fails. If this uses a jump table, we won't touch it.
+  // We may need to update this's terminator, but we can't do that if
+  // AnalyzeBranch fails. If this uses a jump table, we won't touch it.
   const TargetInstrInfo *TII = MF->getTarget().getInstrInfo();
   MachineBasicBlock *TBB = 0, *FBB = 0;
   SmallVector<MachineOperand, 4> Cond;
   if (TII->AnalyzeBranch(*this, TBB, FBB, Cond))
     return NULL;
+
+  // Avoid bugpoint weirdness: A block may end with a conditional branch but
+  // jumps to the same MBB is either case. We have duplicate CFG edges in that
+  // case that we can't handle. Since this never happens in properly optimized
+  // code, just skip those edges.
+  if (TBB && TBB == FBB) {
+    DEBUG(dbgs() << "Won't split critical edge after degenerate BB#"
+                 << getNumber() << '\n');
+    return NULL;
+  }
 
   MachineBasicBlock *NMBB = MF->CreateMachineBasicBlock();
   MF->insert(llvm::next(MachineFunction::iterator(this)), NMBB);

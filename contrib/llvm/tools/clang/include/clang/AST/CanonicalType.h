@@ -66,7 +66,16 @@ public:
 
   /// \brief Retrieve the underlying type pointer, which refers to a
   /// canonical type.
-  T *getTypePtr() const { return cast_or_null<T>(Stored.getTypePtr()); }
+  ///
+  /// The underlying pointer must not be NULL.
+  const T *getTypePtr() const { return cast<T>(Stored.getTypePtr()); }
+
+  /// \brief Retrieve the underlying type pointer, which refers to a
+  /// canonical type, or NULL.
+  ///
+  const T *getTypePtrOrNull() const { 
+    return cast_or_null<T>(Stored.getTypePtrOrNull()); 
+  }
 
   /// \brief Implicit conversion to a qualified type.
   operator QualType() const { return Stored; }
@@ -77,6 +86,8 @@ public:
   bool isNull() const {
     return Stored.isNull();
   }
+
+  SplitQualType split() const { return Stored.split(); }
 
   /// \brief Retrieve a canonical type pointer with a different static type,
   /// upcasting or downcasting as needed.
@@ -216,7 +227,7 @@ protected:
 
 public:
   /// \brief Retrieve the pointer to the underlying Type
-  T* getTypePtr() const { return Stored.getTypePtr(); }
+  const T *getTypePtr() const { return Stored.getTypePtr(); }
 
   /// \brief Implicit conversion to the underlying pointer.
   ///
@@ -225,7 +236,7 @@ public:
   /// @code
   ///   if (CanQual<PointerType> Ptr = T->getAs<PointerType>()) { ... }
   /// @endcode
-  operator const T*() const { return this->Stored.getTypePtr(); }
+  operator const T*() const { return this->Stored.getTypePtrOrNull(); }
 
   /// \brief Try to convert the given canonical type to a specific structural
   /// type.
@@ -336,7 +347,7 @@ namespace llvm {
 /// to return smart pointer (proxies?).
 template<typename T>
 struct simplify_type<const ::clang::CanQual<T> > {
-  typedef T* SimpleType;
+  typedef const T *SimpleType;
   static SimpleType getSimplifiedValue(const ::clang::CanQual<T> &Val) {
     return Val.getTypePtr();
   }
@@ -630,7 +641,6 @@ struct CanProxyAdaptor<RecordType> : public CanProxyBase<RecordType> {
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(RecordDecl *, getDecl)
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(bool, isBeingDefined)
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(bool, hasConstFields)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(unsigned, getAddressSpace)
 };
 
 template<>

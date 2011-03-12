@@ -83,8 +83,7 @@ atomic_add_64_nv(volatile uint64_t *target, int64_t delta)
 	return (newval);
 }
 
-#if defined(__sparc64__) || defined(__powerpc__) || defined(__arm__) || \
-    defined(__mips__)
+#if defined(__powerpc__) || defined(__arm__) || defined(__mips__)
 void
 atomic_or_8(volatile uint8_t *target, uint8_t value)
 {
@@ -105,23 +104,6 @@ atomic_or_8_nv(volatile uint8_t *target, uint8_t value)
 	return (newval);
 }
 
-#ifndef __LP64__
-void *
-atomic_cas_ptr(volatile void *target, void *cmp,  void *newval)
-{
-	void *oldval, **trg;
-
-	mtx_lock(&atomic_mtx);
-	trg = __DEVOLATILE(void **, target);
-	oldval = *trg;
-	if (oldval == cmp)
-		*trg = newval;
-	mtx_unlock(&atomic_mtx);
-	return (oldval);
-}
-#endif
-
-#ifndef __sparc64__
 uint64_t
 atomic_cas_64(volatile uint64_t *target, uint64_t cmp, uint64_t newval)
 {
@@ -134,7 +116,19 @@ atomic_cas_64(volatile uint64_t *target, uint64_t cmp, uint64_t newval)
 	mtx_unlock(&atomic_mtx);
 	return (oldval);
 }
-#endif
+
+uint32_t
+atomic_cas_32(volatile uint32_t *target, uint32_t cmp, uint32_t newval)
+{
+	uint32_t oldval;
+
+	mtx_lock(&atomic_mtx);
+	oldval = *target;
+	if (oldval == cmp)
+		*target = newval;
+	mtx_unlock(&atomic_mtx);
+	return (oldval);
+}
 
 void
 membar_producer(void)

@@ -48,10 +48,14 @@ public:
     return Child->AddBlankLine();
   }
 
-  virtual void SwitchSection(const MCSection *Section) {
-    CurSection = Section;
-    LogCall("SwitchSection");
-    return Child->SwitchSection(Section);
+  virtual void ChangeSection(const MCSection *Section) {
+    LogCall("ChangeSection");
+    return Child->ChangeSection(Section);
+  }
+
+  virtual void InitSections() {
+    LogCall("InitSections");
+    return Child->InitSections();
   }
 
   virtual void EmitLabel(MCSymbol *Symbol) {
@@ -64,9 +68,26 @@ public:
     return Child->EmitAssemblerFlag(Flag);
   }
 
+  virtual void EmitThumbFunc(MCSymbol *Func) {
+    LogCall("EmitThumbFunc");
+    return Child->EmitThumbFunc(Func);
+  }
+
   virtual void EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) {
     LogCall("EmitAssignment");
     return Child->EmitAssignment(Symbol, Value);
+  }
+
+  virtual void EmitWeakReference(MCSymbol *Alias, const MCSymbol *Symbol) {
+    LogCall("EmitWeakReference");
+    return Child->EmitWeakReference(Alias, Symbol);
+  }
+
+  virtual void EmitDwarfAdvanceLineAddr(int64_t LineDelta,
+                                        const MCSymbol *LastLabel,
+                                        const MCSymbol *Label) {
+    LogCall("EmitDwarfAdvanceLineAddr");
+    return Child->EmitDwarfAdvanceLineAddr(LineDelta, LastLabel, Label);
   }
 
   virtual void EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute) {
@@ -132,14 +153,22 @@ public:
     return Child->EmitBytes(Data, AddrSpace);
   }
 
-  virtual void EmitValue(const MCExpr *Value, unsigned Size,unsigned AddrSpace){
+  virtual void EmitValueImpl(const MCExpr *Value, unsigned Size,
+                             bool isPCRel, unsigned AddrSpace){
     LogCall("EmitValue");
-    return Child->EmitValue(Value, Size, AddrSpace);
+    return Child->EmitValueImpl(Value, Size, isPCRel, AddrSpace);
   }
 
-  virtual void EmitIntValue(uint64_t Value, unsigned Size, unsigned AddrSpace) {
-    LogCall("EmitIntValue");
-    return Child->EmitIntValue(Value, Size, AddrSpace);
+  virtual void EmitULEB128Value(const MCExpr *Value,
+                                unsigned AddrSpace = 0) {
+    LogCall("EmitULEB128Value");
+    return Child->EmitULEB128Value(Value, AddrSpace);
+  }
+
+  virtual void EmitSLEB128Value(const MCExpr *Value,
+                                unsigned AddrSpace = 0) {
+    LogCall("EmitSLEB128Value");
+    return Child->EmitSLEB128Value(Value, AddrSpace);
   }
 
   virtual void EmitGPRel32Value(const MCExpr *Value) {
@@ -178,10 +207,21 @@ public:
     return Child->EmitFileDirective(Filename);
   }
 
-  virtual void EmitDwarfFileDirective(unsigned FileNo, StringRef Filename) {
+  virtual bool EmitDwarfFileDirective(unsigned FileNo, StringRef Filename) {
     LogCall("EmitDwarfFileDirective",
             "FileNo:" + Twine(FileNo) + " Filename:" + Filename);
     return Child->EmitDwarfFileDirective(FileNo, Filename);
+  }
+
+  virtual void EmitDwarfLocDirective(unsigned FileNo, unsigned Line,
+                                     unsigned Column, unsigned Flags,
+                                     unsigned Isa, unsigned Discriminator) {
+    LogCall("EmitDwarfLocDirective",
+            "FileNo:" + Twine(FileNo) + " Line:" + Twine(Line) +
+            " Column:" + Twine(Column) + " Flags:" + Twine(Flags) +
+            " Isa:" + Twine(Isa) + " Discriminator:" + Twine(Discriminator));
+            return Child->EmitDwarfLocDirective(FileNo, Line, Column, Flags,
+                                                Isa, Discriminator);
   }
 
   virtual void EmitInstruction(const MCInst &Inst) {

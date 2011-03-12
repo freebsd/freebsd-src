@@ -20,8 +20,7 @@
  */
 
 /*
- * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
 #ifndef	_LIBFS_IMPL_H
@@ -30,13 +29,14 @@
 #include <sys/dmu.h>
 #include <sys/fs/zfs.h>
 #include <sys/zfs_ioctl.h>
-#include <sys/zfs_acl.h>
 #include <sys/spa.h>
 #include <sys/nvpair.h>
 
 #include <libshare.h>
 #include <libuutil.h>
 #include <libzfs.h>
+
+#include "zfs_ioctl_compat.h"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -46,6 +46,13 @@ extern "C" {
 #undef	VERIFY
 #endif
 #define	VERIFY	verify
+
+typedef struct libzfs_fru {
+	char *zf_device;
+	char *zf_fru;
+	struct libzfs_fru *zf_chain;
+	struct libzfs_fru *zf_next;
+} libzfs_fru_t;
 
 struct libzfs_handle {
 	int libzfs_error;
@@ -61,11 +68,17 @@ struct libzfs_handle {
 	char libzfs_desc[1024];
 	char *libzfs_log_str;
 	int libzfs_printerr;
+	int libzfs_storeerr; /* stuff error messages into buffer */
 	void *libzfs_sharehdl; /* libshare handle */
 	uint_t libzfs_shareflags;
 	boolean_t libzfs_mnttab_enable;
 	avl_tree_t libzfs_mnttab_cache;
+	int libzfs_pool_iter;
+	libzfs_fru_t **libzfs_fru_hash;
+	libzfs_fru_t *libzfs_fru_list;
+	char libzfs_chassis_id[256];
 };
+
 #define	ZFSSHARE_MISS	0x01	/* Didn't find entry in cache */
 
 struct zfs_handle {
@@ -77,6 +90,7 @@ struct zfs_handle {
 	dmu_objset_stats_t zfs_dmustats;
 	nvlist_t *zfs_props;
 	nvlist_t *zfs_user_props;
+	nvlist_t *zfs_recvd_props;
 	boolean_t zfs_mntcheck;
 	char *zfs_mntopts;
 	uint8_t *zfs_props_table;
@@ -112,7 +126,6 @@ typedef  enum {
  */
 typedef enum {
 	SHARED_NOT_SHARED = 0x0,
-	SHARED_ISCSI = 0x1,
 	SHARED_NFS = 0x2,
 	SHARED_SMB = 0x4
 } zfs_share_type_t;
@@ -122,6 +135,7 @@ int zfs_error_fmt(libzfs_handle_t *, int, const char *, ...);
 void zfs_error_aux(libzfs_handle_t *, const char *, ...);
 void *zfs_alloc(libzfs_handle_t *, size_t);
 void *zfs_realloc(libzfs_handle_t *, void *, size_t, size_t);
+char *zfs_asprintf(libzfs_handle_t *, const char *, ...);
 char *zfs_strdup(libzfs_handle_t *, const char *);
 int no_memory(libzfs_handle_t *);
 
@@ -172,10 +186,10 @@ zfs_handle_t *make_dataset_handle(libzfs_handle_t *, const char *);
 
 int zpool_open_silent(libzfs_handle_t *, const char *, zpool_handle_t **);
 
-int zvol_create_link(libzfs_handle_t *, const char *);
-int zvol_remove_link(libzfs_handle_t *, const char *);
-int zpool_iter_zvol(zpool_handle_t *, int (*)(const char *, void *), void *);
 boolean_t zpool_name_valid(libzfs_handle_t *, boolean_t, const char *);
+
+int zfs_validate_name(libzfs_handle_t *hdl, const char *path, int type,
+    boolean_t modifying);
 
 void namespace_clear(libzfs_handle_t *);
 
@@ -190,7 +204,10 @@ extern int zfs_parse_options(char *, zfs_share_proto_t);
 extern int zfs_unshare_proto(zfs_handle_t *,
     const char *, zfs_share_proto_t *);
 
-#ifdef	__FreeBSD__
+extern void libzfs_fru_clear(libzfs_handle_t *, boolean_t);
+
+#ifndef sun
+static int zfs_kernel_version = 0;
 
 /*
  * This is FreeBSD version of ioctl, because Solaris' ioctl() updates
@@ -200,11 +217,23 @@ extern int zfs_unshare_proto(zfs_handle_t *,
 static __inline int
 zcmd_ioctl(int fd, unsigned long cmd, zfs_cmd_t *zc)
 {
-	size_t oldsize;
-	int ret;
+	size_t oldsize, zfs_kernel_version_size;
+	int version, ret, cflag = ZFS_CMD_COMPAT_NONE;
+
+	zfs_kernel_version_size = sizeof(zfs_kernel_version);
+	if (zfs_kernel_version == 0) {
+		sysctlbyname("vfs.zfs.version.spa", &zfs_kernel_version,
+		    &zfs_kernel_version_size, NULL, 0);
+	}
+
+	if (zfs_kernel_version == SPA_VERSION_15 ||
+	    zfs_kernel_version == SPA_VERSION_14 ||
+	    zfs_kernel_version == SPA_VERSION_13)
+		cflag = ZFS_CMD_COMPAT_V15;
 
 	oldsize = zc->zc_nvlist_dst_size;
-	ret = ioctl(fd, cmd, zc);
+	ret = zcmd_ioctl_compat(fd, cmd, zc, cflag);
+
 	if (ret == 0 && oldsize < zc->zc_nvlist_dst_size) {
 		ret = -1;
 		errno = ENOMEM;
@@ -213,7 +242,7 @@ zcmd_ioctl(int fd, unsigned long cmd, zfs_cmd_t *zc)
 	return (ret);
 }
 #define	ioctl(fd, cmd, zc)	zcmd_ioctl((fd), (cmd), (zc))
-#endif
+#endif	/* !sun */
 
 #ifdef	__cplusplus
 }

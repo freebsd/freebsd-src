@@ -17,7 +17,6 @@ required_modules="zfs"
 
 zvol_start()
 {
-	zfs volinit
 	# Enable swap on ZVOLs with property org.freebsd:swap=on.
 	zfs list -H -o org.freebsd:swap,name -t volume | \
 	while read state name; do
@@ -40,7 +39,6 @@ zvol_stop()
 			;;
 		esac
 	done
-	zfs volfini
 }
 
 load_rc_config $name

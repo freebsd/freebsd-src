@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 #include <geom/shsec/g_shsec.h>
 
+FEATURE(geom_shsec, "GEOM shared secret device support");
 
 static MALLOC_DEFINE(M_SHSEC, "shsec_data", "GEOM_SHSEC Data");
 

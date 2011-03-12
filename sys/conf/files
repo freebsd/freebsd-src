@@ -574,9 +574,13 @@ dev/ath/if_ath.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_debug.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_keycache.c	optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_tx.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_tx_ht.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_sysctl.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_pci.c		optional ath pci \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
@@ -755,10 +759,15 @@ dev/ath/ath_hal/ar9001/ar9160_attach.c optional ath_hal | ath_ar9160 \
 dev/ath/ath_hal/ar9002/ar9280_attach.c optional ath_hal | ath_ar9280 | \
 	ath_ar9285 \ 
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar9002/ar9280_olc.c optional ath_hal | ath_ar9280 | \
+	ath_ar9285 \ 
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # ar9285 (depends on ar5416 and ar9280)
 dev/ath/ath_hal/ar9002/ar9285_attach.c optional ath_hal | ath_ar9285 \ 
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar9002/ar9285_reset.c optional ath_hal | ath_ar9285 \ 
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar9002/ar9285_cal.c optional ath_hal | ath_ar9285 \ 
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # rf backends
 dev/ath/ath_hal/ar5212/ar2316.c	optional ath_rf2316 \
@@ -1874,7 +1883,7 @@ dev/usb/serial/uvisor.c		optional uvisor
 dev/usb/serial/uvscom.c		optional uvscom
 dev/usb/serial/usb_serial.c 	optional ucom | u3g | uark | ubsa | ubser | \
 					 uchcom | ucycom | ufoma | uftdi | \
-					 ugensa | uipaq | ulpt | umct | \
+					 ugensa | uipaq | umct | \
 					 umodem | umoscom | uplcom | uslcom | \
 					 uvisor | uvscom
 #
@@ -2186,6 +2195,7 @@ kern/kern_linker.c		standard
 kern/kern_lock.c		standard
 kern/kern_lockf.c		standard
 kern/kern_lockstat.c		optional kdtrace_hooks
+kern/kern_loginclass.c		standard
 kern/kern_malloc.c		standard
 kern/kern_mbuf.c		standard
 kern/kern_mib.c			standard
@@ -2272,6 +2282,7 @@ kern/subr_turnstile.c		standard
 kern/subr_uio.c			standard
 kern/subr_unit.c		standard
 kern/subr_witness.c		optional witness
+kern/sys_capability.c		standard
 kern/sys_generic.c		standard
 kern/sys_pipe.c			standard
 kern/sys_process.c		standard
@@ -2553,6 +2564,7 @@ netgraph/bluetooth/socket/ng_btsocket_l2cap_raw.c optional netgraph_bluetooth_so
 netgraph/bluetooth/socket/ng_btsocket_rfcomm.c optional netgraph_bluetooth_socket
 netgraph/bluetooth/socket/ng_btsocket_sco.c optional netgraph_bluetooth_socket
 netgraph/netflow/netflow.c	optional netgraph_netflow
+netgraph/netflow/netflow_v9.c	optional netgraph_netflow
 netgraph/netflow/ng_netflow.c	optional netgraph_netflow
 netgraph/ng_UI.c		optional netgraph_UI
 netgraph/ng_async.c		optional netgraph_async

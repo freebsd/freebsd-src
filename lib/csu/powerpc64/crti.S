@@ -32,13 +32,12 @@ __FBSDID("$FreeBSD$");
 	.section ".opd","aw"
 	.align	3
 _init:
-	.quad	._init,.TOC.@tocbase,0
+	.quad	.L._init,.TOC.@tocbase,0
 	.previous
+	.type	_init,@function
 
 	.align 4
-	.global	._init
-	.type	._init,@function
-._init:
+.L._init:
 	stdu 1,-48(1)
 	mflr 0
 	std 0,64(1)
@@ -49,13 +48,12 @@ _init:
 	.section ".opd","aw"
 	.align	3
 _fini:
-	.quad	._fini,.TOC.@tocbase,0
+	.quad	.L._fini,.TOC.@tocbase,0
 	.previous
+	.type	_fini,@function
 
 	.align 4
-	.global	._fini
-	.type	._fini,@function
-._fini:
+.L._fini:
 	stdu 1,-48(1)
 	mflr 0
 	std 0,64(1)

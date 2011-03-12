@@ -22,9 +22,10 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/system_error.h"
 #include "llvm/Target/TargetRegistry.h"
-#include "llvm/System/Host.h"
-#include "llvm/System/Path.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/Path.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallString.h"
@@ -177,6 +178,45 @@ static Option *LookupOption(StringRef &Arg, StringRef &Value,
   Value = Arg.substr(EqualPos+1);
   Arg = Arg.substr(0, EqualPos);
   return I->second;
+}
+
+/// LookupNearestOption - Lookup the closest match to the option specified by
+/// the specified option on the command line.  If there is a value specified
+/// (after an equal sign) return that as well.  This assumes that leading dashes
+/// have already been stripped.
+static Option *LookupNearestOption(StringRef Arg,
+                                   const StringMap<Option*> &OptionsMap,
+                                   const char *&NearestString) {
+  // Reject all dashes.
+  if (Arg.empty()) return 0;
+
+  // Split on any equal sign.
+  StringRef LHS = Arg.split('=').first;
+
+  // Find the closest match.
+  Option *Best = 0;
+  unsigned BestDistance = 0;
+  for (StringMap<Option*>::const_iterator it = OptionsMap.begin(),
+         ie = OptionsMap.end(); it != ie; ++it) {
+    Option *O = it->second;
+    SmallVector<const char*, 16> OptionNames;
+    O->getExtraOptionNames(OptionNames);
+    if (O->ArgStr[0])
+      OptionNames.push_back(O->ArgStr);
+
+    for (size_t i = 0, e = OptionNames.size(); i != e; ++i) {
+      StringRef Name = OptionNames[i];
+      unsigned Distance = StringRef(Name).edit_distance(
+        Arg, /*AllowReplacements=*/true, /*MaxEditDistance=*/BestDistance);
+      if (!Best || Distance < BestDistance) {
+        Best = O;
+        NearestString = OptionNames[i];
+        BestDistance = Distance;
+      }
+    }
+  }
+
+  return Best;
 }
 
 /// CommaSeparateAndAddOccurence - A wrapper around Handler->addOccurence() that
@@ -463,10 +503,6 @@ static void ExpandResponseFiles(unsigned argc, char** argv,
       const sys::FileStatus *FileStat = respFile.getFileStatus();
       if (FileStat && FileStat->getSize() != 0) {
 
-        // Mmap the response file into memory.
-        OwningPtr<MemoryBuffer>
-          respFilePtr(MemoryBuffer::getFile(respFile.c_str()));
-
         // If we could open the file, parse its contents, otherwise
         // pass the @file option verbatim.
 
@@ -475,7 +511,9 @@ static void ExpandResponseFiles(unsigned argc, char** argv,
         // itself contain additional @file options; any such options will be
         // processed recursively.")
 
-        if (respFilePtr != 0) {
+        // Mmap the response file into memory.
+        OwningPtr<MemoryBuffer> respFilePtr;
+        if (!MemoryBuffer::getFile(respFile.c_str(), respFilePtr)) {
           ParseCStringVector(newArgv, respFilePtr->getBufferStart());
           continue;
         }
@@ -506,7 +544,7 @@ void cl::ParseCommandLineOptions(int argc, char **argv,
   }
 
   // Copy the program name into ProgName, making sure not to overflow it.
-  std::string ProgName = sys::Path(argv[0]).getLast();
+  std::string ProgName = sys::path::filename(argv[0]);
   size_t Len = std::min(ProgName.size(), size_t(79));
   memcpy(ProgramName, ProgName.data(), Len);
   ProgramName[Len] = '\0';
@@ -572,6 +610,8 @@ void cl::ParseCommandLineOptions(int argc, char **argv,
   bool DashDashFound = false;  // Have we read '--'?
   for (int i = 1; i < argc; ++i) {
     Option *Handler = 0;
+    Option *NearestHandler = 0;
+    const char *NearestHandlerString = 0;
     StringRef Value;
     StringRef ArgName = "";
 
@@ -645,12 +685,25 @@ void cl::ParseCommandLineOptions(int argc, char **argv,
       if (Handler == 0)
         Handler = HandlePrefixedOrGroupedOption(ArgName, Value,
                                                 ErrorParsing, Opts);
+
+      // Otherwise, look for the closest available option to report to the user
+      // in the upcoming error.
+      if (Handler == 0 && SinkOpts.empty())
+        NearestHandler = LookupNearestOption(ArgName, Opts,
+                                             NearestHandlerString);
     }
 
     if (Handler == 0) {
       if (SinkOpts.empty()) {
         errs() << ProgramName << ": Unknown command line argument '"
              << argv[i] << "'.  Try: '" << argv[0] << " -help'\n";
+
+        if (NearestHandler) {
+          // If we know a near match, report it as well.
+          errs() << ProgramName << ": Did you mean '-"
+                 << NearestHandlerString << "'?\n";
+        }
+
         ErrorParsing = true;
       } else {
         for (SmallVectorImpl<Option*>::iterator I = SinkOpts.begin(),
@@ -765,6 +818,15 @@ void cl::ParseCommandLineOptions(int argc, char **argv,
     }
   }
 
+  // Now that we know if -debug is specified, we can use it.
+  // Note that if ReadResponseFiles == true, this must be done before the
+  // memory allocated for the expanded command line is free()d below.
+  DEBUG(dbgs() << "Args: ";
+        for (int i = 0; i < argc; ++i)
+          dbgs() << argv[i] << ' ';
+        dbgs() << '\n';
+       );
+
   // Free all of the memory allocated to the map.  Command line options may only
   // be processed once!
   Opts.clear();
@@ -778,12 +840,6 @@ void cl::ParseCommandLineOptions(int argc, char **argv,
          i != e; ++i)
       free(*i);
   }
-
-  DEBUG(dbgs() << "Args: ";
-        for (int i = 0; i < argc; ++i)
-          dbgs() << argv[i] << ' ';
-        dbgs() << '\n';
-       );
 
   // If we had an error processing our arguments, don't let the program execute
   if (ErrorParsing) exit(1);

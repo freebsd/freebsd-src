@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2009 The FreeBSD Foundation
- * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2010-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -806,7 +806,7 @@ hastd_primary(struct hast_resource *res)
 {
 	pthread_t td;
 	pid_t pid;
-	int error, mode;
+	int error, mode, debuglevel;
 
 	/*
 	 * Create communication channel for sending control commands from
@@ -858,6 +858,7 @@ hastd_primary(struct hast_resource *res)
 
 	gres = res;
 	mode = pjdlog_mode_get();
+	debuglevel = pjdlog_debug_get();
 
 	/* Declare that we are sender. */
 	proto_send(res->hr_event, NULL, 0);
@@ -869,6 +870,7 @@ hastd_primary(struct hast_resource *res)
 	descriptors_assert(res, mode);
 
 	pjdlog_init(mode);
+	pjdlog_debug_set(debuglevel);
 	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
 	setproctitle("%s (primary)", res->hr_name);
 
@@ -1667,6 +1669,7 @@ sync_thread(void *arg __unused)
 	struct hast_resource *res = arg;
 	struct hio *hio;
 	struct g_gate_ctl_io *ggio;
+	struct timeval tstart, tend, tdiff;
 	unsigned int ii, ncomp, ncomps;
 	off_t offset, length, synced;
 	bool dorewind;
@@ -1680,8 +1683,10 @@ sync_thread(void *arg __unused)
 	for (;;) {
 		mtx_lock(&sync_lock);
 		if (offset >= 0 && !sync_inprogress) {
-			pjdlog_info("Synchronization interrupted. "
-			    "%jd bytes synchronized so far.",
+			gettimeofday(&tend, NULL);
+			timersub(&tend, &tstart, &tdiff);
+			pjdlog_info("Synchronization interrupted after %#.0T. "
+			    "%NB synchronized so far.", &tdiff,
 			    (intmax_t)synced);
 			event_send(res, EVENT_SYNCINTR);
 		}
@@ -1713,10 +1718,11 @@ sync_thread(void *arg __unused)
 			if (offset < 0)
 				pjdlog_info("Nodes are in sync.");
 			else {
-				pjdlog_info("Synchronization started. %ju bytes to go.",
-				    (uintmax_t)(res->hr_extentsize *
+				pjdlog_info("Synchronization started. %NB to go.",
+				    (intmax_t)(res->hr_extentsize *
 				    activemap_ndirty(res->hr_amp)));
 				event_send(res, EVENT_SYNCSTART);
+				gettimeofday(&tstart, NULL);
 			}
 		}
 		if (offset < 0) {
@@ -1730,9 +1736,17 @@ sync_thread(void *arg __unused)
 			rw_rlock(&hio_remote_lock[ncomp]);
 			if (ISCONNECTED(res, ncomp)) {
 				if (synced > 0) {
+					int64_t bps;
+
+					gettimeofday(&tend, NULL);
+					timersub(&tend, &tstart, &tdiff);
+					bps = (int64_t)((double)synced /
+					    ((double)tdiff.tv_sec +
+					    (double)tdiff.tv_usec / 1000000));
 					pjdlog_info("Synchronization complete. "
-					    "%jd bytes synchronized.",
-					    (intmax_t)synced);
+					    "%NB synchronized in %#.0lT (%NB/sec).",
+					    (intmax_t)synced, &tdiff,
+					    (intmax_t)bps);
 					event_send(res, EVENT_SYNCDONE);
 				}
 				mtx_lock(&metadata_lock);
@@ -1909,15 +1923,19 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	PJDLOG_ASSERT(gres == res);
 	nv_assert(nv, "remoteaddr");
 	nv_assert(nv, "replication");
+	nv_assert(nv, "checksum");
+	nv_assert(nv, "compression");
 	nv_assert(nv, "timeout");
 	nv_assert(nv, "exec");
 
 	ncomps = HAST_NCOMPONENTS;
 
-#define MODIFIED_REMOTEADDR	0x1
-#define MODIFIED_REPLICATION	0x2
-#define MODIFIED_TIMEOUT	0x4
-#define MODIFIED_EXEC		0x8
+#define MODIFIED_REMOTEADDR	0x01
+#define MODIFIED_REPLICATION	0x02
+#define MODIFIED_CHECKSUM	0x04
+#define MODIFIED_COMPRESSION	0x08
+#define MODIFIED_TIMEOUT	0x10
+#define MODIFIED_EXEC		0x20
 	modified = 0;
 
 	vstr = nv_get_string(nv, "remoteaddr");
@@ -1934,6 +1952,16 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 		gres->hr_replication = vint;
 		modified |= MODIFIED_REPLICATION;
 	}
+	vint = nv_get_int32(nv, "checksum");
+	if (gres->hr_checksum != vint) {
+		gres->hr_checksum = vint;
+		modified |= MODIFIED_CHECKSUM;
+	}
+	vint = nv_get_int32(nv, "compression");
+	if (gres->hr_compression != vint) {
+		gres->hr_compression = vint;
+		modified |= MODIFIED_COMPRESSION;
+	}
 	vint = nv_get_int32(nv, "timeout");
 	if (gres->hr_timeout != vint) {
 		gres->hr_timeout = vint;
@@ -1946,10 +1974,11 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	}
 
 	/*
-	 * If only timeout was modified we only need to change it without
-	 * reconnecting.
+	 * Change timeout for connected sockets.
+	 * Don't bother if we need to reconnect.
 	 */
-	if (modified == MODIFIED_TIMEOUT) {
+	if ((modified & MODIFIED_TIMEOUT) != 0 &&
+	    (modified & (MODIFIED_REMOTEADDR | MODIFIED_REPLICATION)) == 0) {
 		for (ii = 0; ii < ncomps; ii++) {
 			if (!ISREMOTE(ii))
 				continue;
@@ -1970,8 +1999,8 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 				    "Unable to set connection timeout");
 			}
 		}
-	} else if ((modified &
-	    (MODIFIED_REMOTEADDR | MODIFIED_REPLICATION)) != 0) {
+	}
+	if ((modified & (MODIFIED_REMOTEADDR | MODIFIED_REPLICATION)) != 0) {
 		for (ii = 0; ii < ncomps; ii++) {
 			if (!ISREMOTE(ii))
 				continue;
@@ -1985,6 +2014,8 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	}
 #undef	MODIFIED_REMOTEADDR
 #undef	MODIFIED_REPLICATION
+#undef	MODIFIED_CHECKSUM
+#undef	MODIFIED_COMPRESSION
 #undef	MODIFIED_TIMEOUT
 #undef	MODIFIED_EXEC
 

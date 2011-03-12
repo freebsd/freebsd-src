@@ -46,6 +46,7 @@ def _help : Flag<"--help">, Alias<help>;
 def version : Flag<"-version">,
   HelpText<"Print the assembler version">;
 def _version : Flag<"--version">, Alias<version>;
+def v : Flag<"-v">, Alias<version>;
 
 // Generic forwarding to LLVM options. This should only be used for debugging
 // and experimental features.
@@ -69,3 +70,6 @@ def show_inst : Flag<"-show-inst">,
 
 def relax_all : Flag<"-relax-all">,
     HelpText<"Relax all fixups (for performance testing)">;
+
+def no_exec_stack : Flag<"--noexecstack">,
+    HelpText<"Mark the file as not needing an executable stack">;

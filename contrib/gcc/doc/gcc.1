@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "GCC 1"
-.TH GCC 1 "2007-07-19" "gcc-4.2.1" "GNU"
+.TH GCC 1 "2011-03-07" "gcc-4.2.1" "GNU"
 .SH "NAME"
 gcc \- GNU project C and C++ compiler
 .SH "SYNOPSIS"
@@ -8733,6 +8733,10 @@ set support.
 .IX Item "nocona"
 Improved version of Intel Pentium4 \s-1CPU\s0 with 64\-bit extensions, \s-1MMX\s0, \s-1SSE\s0,
 \&\s-1SSE2\s0 and \s-1SSE3\s0 instruction set support.
+.IP "\fIcore2\fR" 4
+.IX Item "core2"
+Intel Core2 \s-1CPU\s0 with 64\-bit extensions, \s-1MMX\s0, \s-1SSE\s0, \s-1SSE2\s0 and \s-1SSE3\s0
+instruction set support.
 .IP "\fIk6\fR" 4
 .IX Item "k6"
 \&\s-1AMD\s0 K6 \s-1CPU\s0 with \s-1MMX\s0 instruction set support.
@@ -8751,6 +8755,9 @@ instruction set support.
 .IX Item "k8, opteron, athlon64, athlon-fx"
 \&\s-1AMD\s0 K8 core based CPUs with x86\-64 instruction set support.  (This supersets
 \&\s-1MMX\s0, \s-1SSE\s0, \s-1SSE2\s0, 3dNOW!, enhanced 3dNOW! and 64\-bit instruction set extensions.)
+.IP "\fIk8-sse3, opteron-sse3, athlon64-sse3\fR" 4
+.IX Item "k8-sse3, opteron-sse3, athlon64-sse3"
+Improved versions of k8, opteron and athlon64 with \s-1SSE3\s0 instruction set support.
 .IP "\fIwinchip\-c6\fR" 4
 .IX Item "winchip-c6"
 \&\s-1IDT\s0 Winchip C6 \s-1CPU\s0, dealt in same way as i486 with additional \s-1MMX\s0 instruction
@@ -8767,6 +8774,9 @@ implemented for this chip.)
 .IX Item "c3-2"
 Via C3\-2 \s-1CPU\s0 with \s-1MMX\s0 and \s-1SSE\s0 instruction set support.  (No scheduling is
 implemented for this chip.)
+.IP "\fIgeode\fR" 4
+.IX Item "geode"
+Embedded AMD \s-1CPU\s0 with \s-1MMX\s0 and 3dNOW! instruction set support.
 .RE
 .RS 4
 .Sp

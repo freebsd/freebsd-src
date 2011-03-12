@@ -1705,7 +1705,7 @@ mps_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		    sflags, nsegs - i);
 		if (error != 0) {
 			/* Resource shortage, roll back! */
-			mps_printf(sc, "out of chain frames\n");
+			mps_dprint(sc, MPS_INFO, "out of chain frames\n");
 			cm->cm_flags |= MPS_CM_FLAGS_CHAIN_FAILED;
 			mps_complete_command(cm);
 			return;

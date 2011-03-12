@@ -141,11 +141,7 @@ extern u_int64_t read_machclk(void);
  * misc stuff for compatibility
  */
 /* ioctl cmd type */
-#if defined(__FreeBSD__) && (__FreeBSD__ < 3)
-typedef int ioctlcmd_t;
-#else
 typedef u_long ioctlcmd_t;
-#endif
 
 /*
  * queue macros:

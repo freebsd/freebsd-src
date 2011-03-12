@@ -295,14 +295,14 @@ cpu_reset:
 	lis	%r3,tocbase@ha
 	ld	%r2,tocbase@l(%r3)
 	lis	%r3,1@l
-	bl	CNAME(.cpudep_ap_early_bootstrap) /* Set PCPU */
+	bl	CNAME(cpudep_ap_early_bootstrap) /* Set PCPU */
 	nop
-	bl	CNAME(.pmap_cpu_bootstrap)	/* Turn on virtual memory */
+	bl	CNAME(pmap_cpu_bootstrap)	/* Turn on virtual memory */
 	nop
-	bl	CNAME(.cpudep_ap_bootstrap)	/* Set up PCPU and stack */
+	bl	CNAME(cpudep_ap_bootstrap)	/* Set up PCPU and stack */
 	nop
 	mr	%r1,%r3				/* Use new stack */
-	bl	CNAME(.machdep_ap_bootstrap)	/* And away! */
+	bl	CNAME(machdep_ap_bootstrap)	/* And away! */
 	nop
 
 	/* Should not be reached */
@@ -510,7 +510,7 @@ trapagain:
 	lis	%r3,tocbase@ha
 	ld	%r2,tocbase@l(%r3)
 	addi	%r3,%r1,48
-	bl	CNAME(.powerpc_interrupt)
+	bl	CNAME(powerpc_interrupt)
 	nop
 
 	.globl	CNAME(trapexit)	/* backtrace code sentinel */
@@ -538,7 +538,7 @@ CNAME(trapexit):
 	lis	%r3,tocbase@ha
 	ld	%r2,tocbase@l(%r3)
 	addi	%r3,%r1,48
-	bl	CNAME(.ast)
+	bl	CNAME(ast)
 	nop
 	.globl	CNAME(asttrapexit)	/* backtrace code sentinel #2 */
 CNAME(asttrapexit):
@@ -587,7 +587,7 @@ dbtrap:
 	lis	%r3,tocbase@ha
 	ld	%r2,tocbase@l(%r3)
 	addi	%r3,%r1,48
-	bl	CNAME(.db_trap_glue)
+	bl	CNAME(db_trap_glue)
 	nop
 	or.	%r3,%r3,%r3
 	bne	dbleave

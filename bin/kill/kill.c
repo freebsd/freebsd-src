@@ -26,6 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/*
+ * Important: This file is used both as a standalone program /bin/kill and
+ * as a builtin for /bin/sh (#define SHELL).
+ */
 
 #if 0
 #ifndef lint
