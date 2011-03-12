@@ -75,14 +75,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	local = openpam_get_option(pamh, "luser") ? 1 : 0;
 	remote = openpam_get_option(pamh, "ruser") ? 1 : 0;
 	if (local && remote) {
-		openpam_log(PAM_LOG_ERROR,
+		openpam_log(PAM_LOG_ERROR, "(pam_group) "
 		    "the luser and ruser options are mutually exclusive");
 		return (PAM_SERVICE_ERR);
 	} else if (local) {
 		/* we already have the correct struct passwd */
 	} else {
 		if (!remote)
-			openpam_log(PAM_LOG_NOTICE,
+			openpam_log(PAM_LOG_NOTICE, "(pam_group) "
 			    "neither luser nor ruser specified, assuming ruser");
 		/* default / historical behavior */
 		if (pam_get_item(pamh, PAM_RUSER, &ruser) != PAM_SUCCESS ||
