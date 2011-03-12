@@ -200,6 +200,8 @@ s/\$//g
 		print > syscompat6
 		print > syscompat7
 		print > sysnames
+		print > systrace
+		print > systracetmp
 		savesyscall = syscall
 		next
 	}
@@ -212,6 +214,8 @@ s/\$//g
 		print > syscompat6
 		print > syscompat7
 		print > sysnames
+		print > systrace
+		print > systracetmp
 		syscall = savesyscall
 		next
 	}
@@ -224,6 +228,8 @@ s/\$//g
 		print > syscompat6
 		print > syscompat7
 		print > sysnames
+		print > systrace
+		print > systracetmp
 		next
 	}
 	syscall != $1 {
