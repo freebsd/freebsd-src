@@ -109,8 +109,8 @@ WERROR?= -Werror
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
-.if ${CC:T:Micc} == "icc" || ${CC:T:Mclang} == "clang"
-.error "Profiling doesn't work with icc or clang yet"
+.if ${CC:T:Micc} == "icc"
+.error "Profiling doesn't work with icc"
 .endif
 CFLAGS+=	-DGPROF -falign-functions=16
 .if ${PROFLEVEL} >= 2

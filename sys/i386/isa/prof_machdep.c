@@ -289,7 +289,7 @@ startguprof(gp)
 	if (cputime_clock == CPUTIME_CLOCK_UNINITIALIZED) {
 		cputime_clock = CPUTIME_CLOCK_I8254;
 #if defined(I586_CPU) || defined(I686_CPU)
-		if (tsc_freq != 0 && !tsc_is_broken && mp_ncpus == 1)
+		if (tsc_freq != 0 && mp_ncpus == 1)
 			cputime_clock = CPUTIME_CLOCK_TSC;
 #endif
 	}

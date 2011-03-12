@@ -79,6 +79,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
+#ifdef SMP
+#include <sys/smp.h>
+#endif
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -1142,20 +1145,22 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 		return (EOPNOTSUPP);
 
 	/* If TSC is P-state invariant, DELAY(9) based logic fails. */
-	if (tsc_is_invariant)
+	if (tsc_is_invariant && tsc_freq != 0)
 		return (EOPNOTSUPP);
 
 	/* If we're booting, trust the rate calibrated moments ago. */
-	if (cold) {
+	if (cold && tsc_freq != 0) {
 		*rate = tsc_freq;
 		return (0);
 	}
 
 #ifdef SMP
-	/* Schedule ourselves on the indicated cpu. */
-	thread_lock(curthread);
-	sched_bind(curthread, cpu_id);
-	thread_unlock(curthread);
+	if (smp_cpus > 1) {
+		/* Schedule ourselves on the indicated cpu. */
+		thread_lock(curthread);
+		sched_bind(curthread, cpu_id);
+		thread_unlock(curthread);
+	}
 #endif
 
 	/* Calibrate by measuring a short delay. */
@@ -1166,13 +1171,15 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	intr_restore(reg);
 
 #ifdef SMP
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
+	if (smp_cpus > 1) {
+		thread_lock(curthread);
+		sched_unbind(curthread);
+		thread_unlock(curthread);
+	}
 #endif
 
 	tsc2 -= tsc1;
-	if (tsc_freq != 0 && !tsc_is_broken) {
+	if (tsc_freq != 0) {
 		*rate = tsc2 * 1000;
 		return (0);
 	}

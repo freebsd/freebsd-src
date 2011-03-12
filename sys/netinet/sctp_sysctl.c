@@ -115,6 +115,12 @@ sctp_init_sysctls()
 	SCTP_BASE_SYSCTL(sctp_vtag_time_wait) = SCTPCTL_TIME_WAIT_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_buffer_splitting) = SCTPCTL_BUFFER_SPLITTING_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_initial_cwnd) = SCTPCTL_INITIAL_CWND_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_rttvar_bw) = SCTPCTL_RTTVAR_BW_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_rttvar_rtt) = SCTPCTL_RTTVAR_RTT_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_rttvar_eqret) = SCTPCTL_RTTVAR_EQRET_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_steady_step) = SCTPCTL_RTTVAR_STEADYS_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_use_dccc_ecn) = SCTPCTL_RTTVAR_DCCCECN_DEFAULT;
+
 #if defined(SCTP_LOCAL_TRACE_BUF)
 	memset(&SCTP_BASE_SYSCTL(sctp_log), 0, sizeof(struct sctp_log));
 #endif
@@ -477,7 +483,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 				xraddr.cwnd = net->cwnd;
 				xraddr.flight_size = net->flight_size;
 				xraddr.mtu = net->mtu;
-				xraddr.rtt = net->rtt;
+				xraddr.rtt = net->rtt / 1000;
 				xraddr.start_time.tv_sec = (uint32_t) net->start_time.tv_sec;
 				xraddr.start_time.tv_usec = (uint32_t) net->start_time.tv_usec;
 				SCTP_INP_RUNLOCK(inp);
@@ -633,6 +639,11 @@ sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_vtag_time_wait), SCTPCTL_TIME_WAIT_MIN, SCTPCTL_TIME_WAIT_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_buffer_splitting), SCTPCTL_BUFFER_SPLITTING_MIN, SCTPCTL_BUFFER_SPLITTING_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_initial_cwnd), SCTPCTL_INITIAL_CWND_MIN, SCTPCTL_INITIAL_CWND_MAX);
+		RANGECHK(SCTP_BASE_SYSCTL(sctp_rttvar_bw), SCTPCTL_RTTVAR_BW_MIN, SCTPCTL_RTTVAR_BW_MAX);
+		RANGECHK(SCTP_BASE_SYSCTL(sctp_rttvar_rtt), SCTPCTL_RTTVAR_RTT_MIN, SCTPCTL_RTTVAR_RTT_MAX);
+		RANGECHK(SCTP_BASE_SYSCTL(sctp_rttvar_eqret), SCTPCTL_RTTVAR_EQRET_MIN, SCTPCTL_RTTVAR_EQRET_MAX);
+		RANGECHK(SCTP_BASE_SYSCTL(sctp_steady_step), SCTPCTL_RTTVAR_STEADYS_MIN, SCTPCTL_RTTVAR_STEADYS_MAX);
+		RANGECHK(SCTP_BASE_SYSCTL(sctp_use_dccc_ecn), SCTPCTL_RTTVAR_DCCCECN_MIN, SCTPCTL_RTTVAR_DCCCECN_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_mobility_base), SCTPCTL_MOBILITY_BASE_MIN, SCTPCTL_MOBILITY_BASE_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_mobility_fasthandoff), SCTPCTL_MOBILITY_FASTHANDOFF_MIN, SCTPCTL_MOBILITY_FASTHANDOFF_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_udp_tunneling_for_client_enable), SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MIN, SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MAX);
@@ -1099,6 +1110,26 @@ SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, buffer_splitting, CTLTYPE_UINT | CTLF
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, initial_cwnd, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_initial_cwnd), 0, sysctl_sctp_check, "IU",
     SCTPCTL_INITIAL_CWND_DESC);
+
+SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, rttvar_bw, CTLTYPE_UINT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_rttvar_bw), 0, sysctl_sctp_check, "IU",
+    SCTPCTL_RTTVAR_BW_DESC);
+
+SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, rttvar_rtt, CTLTYPE_UINT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_rttvar_rtt), 0, sysctl_sctp_check, "IU",
+    SCTPCTL_RTTVAR_RTT_DESC);
+
+SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, rttvar_eqret, CTLTYPE_UINT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_rttvar_eqret), 0, sysctl_sctp_check, "IU",
+    SCTPCTL_RTTVAR_EQRET_DESC);
+
+SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, rttvar_steady_step, CTLTYPE_UINT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_steady_step), 0, sysctl_sctp_check, "IU",
+    SCTPCTL_RTTVAR_STEADYS_DESC);
+
+SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, use_dcccecn, CTLTYPE_UINT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_use_dccc_ecn), 0, sysctl_sctp_check, "IU",
+    SCTPCTL_RTTVAR_DCCCECN_DESC);
 
 #ifdef SCTP_DEBUG
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, debug, CTLTYPE_UINT | CTLFLAG_RW,

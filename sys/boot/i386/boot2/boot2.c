@@ -125,14 +125,14 @@ static struct dsk {
     unsigned drive;
     unsigned type;
     unsigned unit;
-    unsigned slice;
-    unsigned part;
+    uint8_t slice;
+    uint8_t part;
     unsigned start;
     int init;
 } dsk;
 static char cmd[512], cmddup[512];
-static char kname[1024];
-static uint16_t opts;
+static const char *kname;
+static uint32_t opts;
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
@@ -144,7 +144,6 @@ static int xfsread(ino_t, void *, size_t);
 static int dskread(void *, unsigned, unsigned);
 static void printf(const char *,...);
 static void putchar(int);
-static uint32_t memsize(void);
 static int drvread(void *, unsigned, unsigned);
 static int keyhit(unsigned);
 static int xputc(int);
@@ -180,15 +179,6 @@ xfsread(ino_t inode, void *buf, size_t nbyte)
 	return -1;
     }
     return 0;
-}
-
-static inline uint32_t
-memsize(void)
-{
-    v86.addr = MEM_EXT;
-    v86.eax = 0x8800;
-    v86int();
-    return v86.eax;
 }
 
 static inline void
@@ -236,6 +226,7 @@ main(void)
     uint8_t autoboot;
     ino_t ino;
 
+    kname = NULL;
     dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
     v86.ctl = V86_FLAGS;
     v86.efl = PSL_RESERVED_DEFAULT | PSL_I;
@@ -245,9 +236,6 @@ main(void)
     dsk.slice = *(uint8_t *)PTOV(ARGS + 1) + 1;
     bootinfo.bi_version = BOOTINFO_VERSION;
     bootinfo.bi_size = sizeof(bootinfo);
-    bootinfo.bi_basemem = 0;	/* XXX will be filled by loader or kernel */
-    bootinfo.bi_extmem = memsize();
-    bootinfo.bi_memsizes_valid++;
 
     /* Process configuration file */
 
@@ -271,11 +259,11 @@ main(void)
      * or in case of failure, try to load a kernel directly instead.
      */
 
-    if (autoboot && !*kname) {
-	memcpy(kname, PATH_BOOT3, sizeof(PATH_BOOT3));
+    if (autoboot && !kname) {
+	kname = PATH_BOOT3;
 	if (!keyhit(3*SECOND)) {
 	    load();
-	    memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
+	    kname = PATH_KERNEL;
 	}
     }
 
@@ -290,7 +278,7 @@ main(void)
 		   'a' + dsk.part, kname);
 	if (ioctrl & IO_SERIAL)
 	    sio_flush();
-	if (!autoboot || keyhit(5*SECOND))
+	if (!autoboot || keyhit(3*SECOND))
 	    getstr();
 	else if (!autoboot || !OPT_CHECK(RBX_QUIET))
 	    putchar('\n');
@@ -319,9 +307,8 @@ load(void)
     static Elf32_Shdr es[2];
     caddr_t p;
     ino_t ino;
-    uint32_t addr, x;
+    uint32_t addr;
     int i, j;
-    uint8_t fmt;
 
     if (!(ino = lookup(kname))) {
 	if (!ls)
@@ -330,15 +317,8 @@ load(void)
     }
     if (xfsread(ino, &hdr, sizeof(hdr)))
 	return;
-    if (N_GETMAGIC(hdr.ex) == ZMAGIC)
-	fmt = 0;
-    else if (IS_ELF(hdr.eh))
-	fmt = 1;
-    else {
-	printf("Invalid %s\n", "format");
-	return;
-    }
-    if (fmt == 0) {
+
+    if (N_GETMAGIC(hdr.ex) == ZMAGIC) {
 	addr = hdr.ex.a_entry & 0xffffff;
 	p = PTOV(addr);
 	fs_off = PAGE_SIZE;
@@ -347,7 +327,7 @@ load(void)
 	p += roundup2(hdr.ex.a_text, PAGE_SIZE);
 	if (xfsread(ino, p, hdr.ex.a_data))
 	    return;
-    } else {
+    } else if (IS_ELF(hdr.eh)) {
 	fs_off = hdr.eh.e_phoff;
 	for (j = i = 0; i < hdr.eh.e_phnum && j < 2; i++) {
 	    if (xfsread(ino, ep + j, sizeof(ep[0])))
@@ -379,7 +359,11 @@ load(void)
 	}
 	addr = hdr.eh.e_entry & 0xffffff;
 	bootinfo.bi_esymtab = VTOP(p);
+    } else {
+	printf("Invalid %s\n", "format");
+	return;
     }
+
     bootinfo.bi_kernelname = VTOP(kname);
     bootinfo.bi_bios_dev = dsk.drive;
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
@@ -474,11 +458,7 @@ parse()
 			     ? DRV_HARD : 0) + drv;
 		dsk_meta = 0;
 	    }
-	    if ((i = ep - arg)) {
-		if ((size_t)i >= sizeof(kname))
-		    return -1;
-		memcpy(kname, arg, i + 1);
-	    }
+            kname = arg;
 	}
 	arg = p;
     }
@@ -491,7 +471,8 @@ dskread(void *buf, unsigned lba, unsigned nblk)
     struct dos_partition *dp;
     struct disklabel *d;
     char *sec;
-    unsigned sl, i;
+    unsigned i;
+    uint8_t sl;
 
     if (!dsk_meta) {
 	sec = dmadat->secbuf;
@@ -551,7 +532,7 @@ static void
 printf(const char *fmt,...)
 {
     va_list ap;
-    char buf[10];
+    static char buf[10];
     char *s;
     unsigned u;
     int c;
@@ -630,7 +611,7 @@ keyhit(unsigned ticks)
 	t1 = *(uint32_t *)PTOV(0x46c);
 	if (!t0)
 	    t0 = t1;
-	if (t1 < t0 || t1 >= t0 + ticks)
+	if ((uint32_t)(t1 - t0) >= ticks)
 	    return 0;
     }
 }

@@ -13,6 +13,11 @@ BOOT_BTX_FLAGS=0x0
 
 CFLAGS+=-DBTX_FLAGS=${BOOT_BTX_FLAGS}
 
+.if ${CC:T:Mclang} == "clang"
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS+=${.IMPSRC:T:Mbtx.S:C/^.+$/-no-integrated-as/}
+.endif
+
 .if defined(BTX_SERIAL)
 BOOT_COMCONSOLE_PORT?= 0x238
 BOOT_COMCONSOLE_SPEED?= 9600

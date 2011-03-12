@@ -206,7 +206,7 @@ typedef struct {
 typedef struct {
 	unsigned prio : 3;	/* priority of channels */
 	unsigned noshare : 1;	/* 1 - chan holds the bus until end of data */
-				/* 0 - all channels share the the bus hold */
+				/* 0 - all channels share the bus hold */
 	unsigned release : 1;	/* 1 - release the bus between transfers */
 				/* 0 - hold the bus until all transfers done */
 } ct_pcr_t;

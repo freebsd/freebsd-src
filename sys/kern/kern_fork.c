@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>	
 #include <sys/sdt.h>
 #include <sys/sx.h>
+#include <sys/sysent.h>
 #include <sys/signalvar.h>
 
 #include <security/audit/audit.h>
@@ -557,10 +558,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 
 	callout_init(&p2->p_itcallout, CALLOUT_MPSAFE);
 
-#ifdef KTRACE
-	ktrprocfork(p1, p2);
-#endif
-
 	/*
 	 * If PF_FORK is set, the child process inherits the
 	 * procfs ioctl flags from its parent.
@@ -595,6 +592,10 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	/* Inform accounting that we have forked. */
 	p2->p_acflag = AFORK;
 	PROC_UNLOCK(p2);
+
+#ifdef KTRACE
+	ktrprocfork(p1, p2);
+#endif
 
 	/*
 	 * Finish creating the child process.  It will return via a different
@@ -895,7 +896,8 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 	}
 	mtx_assert(&Giant, MA_NOTOWNED);
 
-	EVENTHANDLER_INVOKE(schedtail, p);
+	if (p->p_sysent->sv_schedtail != NULL)
+		(p->p_sysent->sv_schedtail)(td);
 }
 
 /*

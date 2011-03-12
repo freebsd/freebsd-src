@@ -80,6 +80,8 @@ __FBSDID("$FreeBSD$");
 #define	KTR_CPU		PCPU_GET(cpuid)
 #endif
 
+FEATURE(ktr, "Kernel support for KTR kernel tracing facility");
+
 SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD, 0, "KTR options");
 
 int	ktr_cpumask = KTR_CPUMASK;

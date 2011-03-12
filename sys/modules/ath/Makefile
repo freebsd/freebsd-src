@@ -35,7 +35,8 @@ ATH_RATE?=	sample		# tx rate control algorithm
 .PATH:	${.CURDIR}/../../dev/ath/ath_hal
 
 KMOD=	if_ath
-SRCS=	if_ath.c if_ath_pci.c if_ath_debug.c if_ath_tx.c if_ath_tx_ht.c
+SRCS=	if_ath.c if_ath_pci.c if_ath_debug.c if_ath_keycache.c if_ath_sysctl.c
+SRCS+=	if_ath_tx.c if_ath_tx_ht.c
 # NB: v3 eeprom support used by both AR5211 and AR5212; just include it
 SRCS+=	ah_osdep.c ah.c ah_regdomain.c ah_eeprom_v3.c
 SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
@@ -96,8 +97,8 @@ SRCS+=	ar2133.c
 SRCS+=	ar9160_attach.c
 
 .PATH:	${.CURDIR}/../../dev/ath/ath_hal/ar9002
-SRCS+=	ar9280.c ar9280_attach.c
-SRCS+=	ar9285.c ar9285_reset.c ar9285_attach.c
+SRCS+=	ar9280.c ar9280_attach.c ar9280_olc.c
+SRCS+=	ar9285.c ar9285_reset.c ar9285_attach.c ar9285_cal.c
 
 # NB: rate control is bound to the driver by symbol names so only pick one
 .if ${ATH_RATE} == "sample"

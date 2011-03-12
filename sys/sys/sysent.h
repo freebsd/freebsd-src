@@ -65,6 +65,11 @@ struct sysent {			/* system call table */
 	u_int32_t sy_thrcnt;
 };
 
+/*
+ * A system call is permitted in capability mode.
+ */
+#define	SYF_CAPENABLED	0x00000001
+
 #define	SY_THR_FLAGMASK	0x7
 #define	SY_THR_STATIC	0x1
 #define	SY_THR_DRAINING	0x2
@@ -120,6 +125,7 @@ struct sysentvec {
 	vm_offset_t	sv_shared_page_len;
 	vm_offset_t	sv_sigcode_base;
 	void		*sv_shared_page_obj;
+	void		(*sv_schedtail)(struct thread *);
 };
 
 #define	SV_ILP32	0x000100

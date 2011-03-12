@@ -55,6 +55,9 @@ SDT_PROBE_DECLARE(sctp, cwnd, net, bl);
 SDT_PROBE_DECLARE(sctp, cwnd, net, ecn);
 /* update at a Packet-Drop -- decrease */
 SDT_PROBE_DECLARE(sctp, cwnd, net, pd);
+/* Rttvar probe declaration */
+SDT_PROBE_DECLARE(sctp, cwnd, net, rttvar);
+SDT_PROBE_DECLARE(sctp, cwnd, net, rttstep);
 
 /* One to track an associations rwnd */
 SDT_PROBE_DECLARE(sctp, rwnd, assoc, val);

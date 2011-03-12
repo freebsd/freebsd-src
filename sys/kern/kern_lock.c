@@ -1299,6 +1299,10 @@ lockstatus(struct lock *lk)
 }
 
 #ifdef INVARIANT_SUPPORT
+
+FEATURE(invariant_support,
+    "Support for modules compiled with INVARIANTS option");
+
 #ifndef INVARIANTS
 #undef	_lockmgr_assert
 #endif

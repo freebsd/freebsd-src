@@ -70,8 +70,8 @@ static __inline uint64_t
 t4_bus_space_read_8(bus_space_tag_t tag, bus_space_handle_t handle,
     bus_size_t offset)
 {
-	KASSERT(tag == X86_BUS_SPACE_IO,
-	    ("64-bit reads from I/O space not possible."));
+	KASSERT(tag == X86_BUS_SPACE_MEM,
+	    ("%s: can only handle mem space", __func__));
 
 	return (*(volatile uint64_t *)(handle + offset));
 }
@@ -80,8 +80,9 @@ static __inline void
 t4_bus_space_write_8(bus_space_tag_t tag, bus_space_handle_t bsh,
     bus_size_t offset, uint64_t value)
 {
-	KASSERT(tag == X86_BUS_SPACE_IO,
-	    ("64-bit writes to I/O space not possible."));
+	KASSERT(tag == X86_BUS_SPACE_MEM,
+	    ("%s: can only handle mem space", __func__));
+
 	*(volatile uint64_t *)(bsh + offset) = value;
 }
 #else
@@ -114,7 +115,11 @@ enum {
 
 	RX_FL_ESIZE = 64,	/* 8 64bit addresses */
 
-	FL_BUF_SIZES = 4,
+#if MJUMPAGESIZE != MCLBYTES
+	FL_BUF_SIZES = 4,	/* cluster, jumbop, jumbo9k, jumbo16k */
+#else
+	FL_BUF_SIZES = 3,	/* cluster, jumbo9k, jumbo16k */
+#endif
 
 	TX_EQ_QSIZE = 1024,
 	TX_EQ_ESIZE = 64,
@@ -176,6 +181,7 @@ struct port_info {
 	struct link_config link_cfg;
 	struct port_stats stats;
 
+	struct taskqueue *tq;
 	struct callout tick;
 	struct sysctl_ctx_list ctx;	/* lives from ifconfig up to down */
 	struct sysctl_oid *oid_rxq;
@@ -222,24 +228,25 @@ enum {
 struct sge_iq {
 	bus_dma_tag_t desc_tag;
 	bus_dmamap_t desc_map;
-	struct mtx iq_lock;
-	char lockname[16];
-	unsigned int flags;
-	struct adapter *adapter;
-
-	__be64 *desc;		/* KVA of descriptor ring */
 	bus_addr_t ba;		/* bus address of descriptor ring */
+	char lockname[16];
+	uint32_t flags;
+	uint16_t abs_id;	/* absolute SGE id for the iq */
+	int8_t   intr_pktc_idx;	/* packet count threshold index */
+	int8_t   pad0;
+	iq_intr_handler_t *handler;
+	__be64  *desc;		/* KVA of descriptor ring */
+
+	struct mtx iq_lock;
+	struct adapter *adapter;
 	const __be64 *cdesc;	/* current descriptor */
 	uint8_t  gen;		/* generation bit */
 	uint8_t  intr_params;	/* interrupt holdoff parameters */
-	int8_t   intr_pktc_idx;	/* packet count threshold index */
 	uint8_t  intr_next;	/* holdoff for next interrupt */
 	uint8_t  esize;		/* size (bytes) of each entry in the queue */
 	uint16_t qsize;		/* size (# of entries) of the queue */
 	uint16_t cidx;		/* consumer index */
 	uint16_t cntxt_id;	/* SGE context id  for the iq */
-	uint16_t abs_id;	/* absolute SGE id for the iq */
-	iq_intr_handler_t *handler;
 };
 
 enum {
@@ -274,6 +281,7 @@ struct sge_eq {
 	uint16_t cidx;		/* consumer idx (desc idx) */
 	uint16_t pidx;		/* producer idx (desc idx) */
 	uint16_t pending;	/* # of descriptors used since last doorbell */
+	uint16_t iqid;		/* iq that gets egr_update for the eq */
 	uint32_t cntxt_id;	/* SGE context id for the eq */
 
 	/* DMA maps used for tx */
@@ -309,6 +317,9 @@ struct sge_fl {
 struct sge_txq {
 	struct sge_eq eq;	/* MUST be first */
 	struct mbuf *m;		/* held up due to temporary resource shortage */
+	struct task resume_tx;
+
+	struct ifnet *ifp;	/* the interface this txq belongs to */
 
 	/* stats for common events first */
 
@@ -336,9 +347,11 @@ struct sge_rxq {
 	struct sge_iq iq;	/* MUST be first */
 	struct sge_fl fl;
 
+	struct ifnet *ifp;	/* the interface this rxq belongs to */
 	unsigned int flags;
-	struct port_info *port;	/* the port this rxq belongs to */
+#ifdef INET
 	struct lro_ctrl lro;	/* LRO state */
+#endif
 
 	/* stats for common events first */
 
@@ -544,13 +557,16 @@ static inline bool is_10G_port(const struct port_info *pi)
 	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G) != 0);
 }
 
+/* t4_main.c */
+void cxgbe_txq_start(void *, int);
 int t4_os_find_pci_capability(struct adapter *, int);
 int t4_os_pci_save_state(struct adapter *);
 int t4_os_pci_restore_state(struct adapter *);
-
 void t4_os_portmod_changed(const struct adapter *, int);
 void t4_os_link_changed(struct adapter *, int, int);
 
+/* t4_sge.c */
+void t4_sge_modload(void);
 void t4_sge_init(struct adapter *);
 int t4_create_dma_tag(struct adapter *);
 int t4_destroy_dma_tag(struct adapter *);

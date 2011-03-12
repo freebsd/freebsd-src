@@ -1758,6 +1758,26 @@ flags_out:
 			*optsize = sizeof(*av);
 		}
 		break;
+	case SCTP_CC_OPTION:
+		{
+			struct sctp_cc_option *cc_opt;
+
+			SCTP_CHECK_AND_CAST(cc_opt, optval, struct sctp_cc_option, *optsize);
+			SCTP_FIND_STCB(inp, stcb, cc_opt->aid_value.assoc_id);
+			if (stcb == NULL) {
+				error = EINVAL;
+			} else {
+				if (stcb->asoc.cc_functions.sctp_cwnd_socket_option == NULL) {
+					error = ENOTSUP;
+				} else {
+					error = (*stcb->asoc.cc_functions.sctp_cwnd_socket_option) (stcb, 0,
+					    cc_opt);
+					*optsize = sizeof(*cc_opt);
+				}
+				SCTP_TCB_UNLOCK(stcb);
+			}
+		}
+		break;
 		/* RS - Get socket option for pluggable stream scheduling */
 	case SCTP_PLUGGABLE_SS:
 		{
@@ -2401,7 +2421,7 @@ flags_out:
 					paddri->spinfo_state = SCTP_INACTIVE;
 				}
 				paddri->spinfo_cwnd = net->cwnd;
-				paddri->spinfo_srtt = ((net->lastsa >> 2) + net->lastsv) >> 1;
+				paddri->spinfo_srtt = net->lastsa >> SCTP_RTT_SHIFT;
 				paddri->spinfo_rto = net->RTO;
 				paddri->spinfo_assoc_id = sctp_get_associd(stcb);
 				SCTP_TCB_UNLOCK(stcb);
@@ -2478,7 +2498,7 @@ flags_out:
 				sstat->sstat_primary.spinfo_state = SCTP_INACTIVE;
 			}
 			sstat->sstat_primary.spinfo_cwnd = net->cwnd;
-			sstat->sstat_primary.spinfo_srtt = net->lastsa;
+			sstat->sstat_primary.spinfo_srtt = net->lastsa >> SCTP_RTT_SHIFT;
 			sstat->sstat_primary.spinfo_rto = net->RTO;
 			sstat->sstat_primary.spinfo_mtu = net->mtu;
 			sstat->sstat_primary.spinfo_assoc_id = sctp_get_associd(stcb);
@@ -2929,6 +2949,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	case SCTP_PLUGGABLE_CC:
 		{
 			struct sctp_assoc_value *av;
+			struct sctp_nets *net;
 
 			SCTP_CHECK_AND_CAST(av, optval, struct sctp_assoc_value, optsize);
 			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
@@ -2937,8 +2958,14 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				case SCTP_CC_RFC2581:
 				case SCTP_CC_HSTCP:
 				case SCTP_CC_HTCP:
+				case SCTP_CC_RTCC:
 					stcb->asoc.cc_functions = sctp_cc_functions[av->assoc_value];
 					stcb->asoc.congestion_control_module = av->assoc_value;
+					if (stcb->asoc.cc_functions.sctp_set_initial_cc_param != NULL) {
+						TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
+							stcb->asoc.cc_functions.sctp_set_initial_cc_param(stcb, net);
+						}
+					}
 					break;
 				default:
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
@@ -2951,6 +2978,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				case SCTP_CC_RFC2581:
 				case SCTP_CC_HSTCP:
 				case SCTP_CC_HTCP:
+				case SCTP_CC_RTCC:
 					SCTP_INP_WLOCK(inp);
 					inp->sctp_ep.sctp_default_cc_module = av->assoc_value;
 					SCTP_INP_WUNLOCK(inp);
@@ -2960,6 +2988,25 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					error = EINVAL;
 					break;
 				}
+			}
+		}
+		break;
+	case SCTP_CC_OPTION:
+		{
+			struct sctp_cc_option *cc_opt;
+
+			SCTP_CHECK_AND_CAST(cc_opt, optval, struct sctp_cc_option, optsize);
+			SCTP_FIND_STCB(inp, stcb, cc_opt->aid_value.assoc_id);
+			if (stcb == NULL) {
+				error = EINVAL;
+			} else {
+				if (stcb->asoc.cc_functions.sctp_cwnd_socket_option == NULL) {
+					error = ENOTSUP;
+				} else {
+					error = (*stcb->asoc.cc_functions.sctp_cwnd_socket_option) (stcb, 1,
+					    cc_opt);
+				}
+				SCTP_TCB_UNLOCK(stcb);
 			}
 		}
 		break;

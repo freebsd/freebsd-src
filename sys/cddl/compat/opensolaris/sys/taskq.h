@@ -39,6 +39,6 @@ struct ostask {
 };
 
 taskqid_t taskq_dispatch_safe(taskq_t *tq, task_func_t func, void *arg,
-    struct ostask *task);
+    u_int flags, struct ostask *task);
 
 #endif	/* _OPENSOLARIS_SYS_TASKQ_H_ */

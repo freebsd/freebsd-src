@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
@@ -46,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/diskpc98.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
+
+FEATURE(geom_pc98, "GEOM NEC PC9800 partitioning support");
 
 #define PC98_CLASS_NAME "PC98"
 

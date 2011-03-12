@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+FEATURE(sysv_msg, "System V message queues support");
+
 static MALLOC_DEFINE(M_MSG, "msg", "SVID compatible message queues");
 
 static int msginit(void);

@@ -183,18 +183,9 @@ ar5416RunInitCals(struct ath_hal *ah, int init_cal_count)
 }
 #endif
 
-/*
- * Initialize Calibration infrastructure.
- */
 HAL_BOOL
-ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
+ar5416InitCalHardware(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
-	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
-	HAL_CHANNEL_INTERNAL *ichan;
-
-	ichan = ath_hal_checkchannel(ah, chan);
-	HALASSERT(ichan != AH_NULL);
-
 	if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
 		/* Enable Rx Filter Cal */
 		OS_REG_CLR_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
@@ -234,6 +225,32 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		    "noisy environment?\n", __func__);
 		return AH_FALSE;
 	}
+
+	return AH_TRUE;
+}
+
+/*
+ * Initialize Calibration infrastructure.
+ */
+HAL_BOOL
+ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
+{
+	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
+	HAL_CHANNEL_INTERNAL *ichan;
+
+	ichan = ath_hal_checkchannel(ah, chan);
+	HALASSERT(ichan != AH_NULL);
+
+	/* Do initial chipset-specific calibration */
+	if (! AH5416(ah)->ah_cal_initcal(ah, chan)) {
+		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: initial chipset calibration did "
+		    "not complete in time; noisy environment?\n", __func__);
+		return AH_FALSE;
+	}
+
+	/* If there's PA Cal, do it */
+	if (AH5416(ah)->ah_cal_pacal)
+		AH5416(ah)->ah_cal_pacal(ah, AH_TRUE);
 
 	/* 
 	 * Do NF calibration after DC offset and other CALs.
@@ -468,6 +485,13 @@ ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 
 	/* Do NF cal only at longer intervals */
 	if (longcal) {
+		/* Do PA calibration if the chipset supports */
+		if (AH5416(ah)->ah_cal_pacal)
+			AH5416(ah)->ah_cal_pacal(ah, AH_FALSE);
+
+		/* Do temperature compensation if the chipset needs it */
+		AH5416(ah)->ah_olcTempCompensation(ah);
+
 		/*
 		 * Get the value from the previous NF cal
 		 * and update the history buffer.

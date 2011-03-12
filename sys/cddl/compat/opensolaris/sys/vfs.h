@@ -121,9 +121,15 @@ typedef	uint64_t	vfs_feature_t;
 #define	VFSFT_DIRENTFLAGS	0x100000008	/* Supports dirent flags */
 #define	VFSFT_ACLONCREATE	0x100000010	/* Supports ACL on create */
 #define	VFSFT_ACEMASKONACCESS	0x100000020	/* Can use ACEMASK for access */
+#define	VFSFT_SYSATTR_VIEWS	0x100000040	/* Supports sysattr view i/f */
+#define	VFSFT_ACCESS_FILTER	0x100000080	/* dirents filtered by access */
+#define	VFSFT_REPARSE		0x100000100	/* Supports reparse point */
+#define	VFSFT_ZEROCOPY_SUPPORTED	0x100000200
+				/* Support loaning /returning cache buffer */
 
-#define	vfs_set_feature(vfsp, feature)	do { } while (0)
-#define	vfs_has_feature(vfsp, feature)	(0)
+#define	vfs_set_feature(vfsp, feature)		do { } while (0)
+#define	vfs_clear_feature(vfsp, feature)	do { } while (0)
+#define	vfs_has_feature(vfsp, feature)		(0)
 
 #endif	/* _KERNEL */
 

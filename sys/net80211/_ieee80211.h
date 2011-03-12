@@ -335,7 +335,7 @@ struct ieee80211_rateset {
  * the structure such that it can be used interchangeably
  * with an ieee80211_rateset (modulo structure size).
  */
-#define	IEEE80211_HTRATE_MAXSIZE 127
+#define	IEEE80211_HTRATE_MAXSIZE	77
 
 struct ieee80211_htrateset {
 	uint8_t		rs_nrates;

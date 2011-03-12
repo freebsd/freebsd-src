@@ -39,11 +39,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/vtoc.h>
 #include <geom/geom.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
+
+FEATURE(geom_part_vtoc8, "GEOM partitioning class for SMI VTOC8 disk labels");
 
 struct g_part_vtoc8_table {
 	struct g_part_table	base;

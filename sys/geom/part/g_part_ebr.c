@@ -42,10 +42,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
+
+FEATURE(geom_part_ebr,
+    "GEOM partitioning class for extended boot records support");
+#if defined(GEOM_PART_EBR_COMPAT)
+FEATURE(geom_part_ebr_compat,
+    "GEOM EBR partitioning class: backward-compatible partition names");
+#endif
 
 #define	EBRSIZE		512
 
@@ -591,7 +599,7 @@ g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 	while (baseentry != NULL && baseentry->gpe_deleted)
 		baseentry = LIST_NEXT(baseentry, gpe_entry);
 
-	/* Wipe-out the the first EBR when there are no slices. */
+	/* Wipe-out the first EBR when there are no slices. */
 	if (baseentry == NULL) {
 		error = g_write_data(cp, 0, buf, pp->sectorsize);
 		goto out;

@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 #include <geom/concat/g_concat.h>
 
+FEATURE(geom_concat, "GEOM concatenation support");
 
 static MALLOC_DEFINE(M_CONCAT, "concat_data", "GEOM_CONCAT Data");
 

@@ -49,7 +49,11 @@
 #include <machine/vmparam.h>
 #include <machine/pte.h>
 
+#if defined(__mips_n32) || defined(__mips_n64) /* PHYSADDR_64BIT */
+#define	NKPT		256	/* mem > 4G, vm_page_startup needs more KPTs */
+#else
 #define	NKPT		120	/* actual number of kernel page tables */
+#endif
 
 #ifndef LOCORE
 

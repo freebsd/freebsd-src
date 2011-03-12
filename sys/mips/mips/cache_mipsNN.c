@@ -230,7 +230,7 @@ mipsNN_icache_sync_range_32(vm_offset_t va, vm_size_t size)
 void
 mipsNN_icache_sync_range_index_16(vm_offset_t va, vm_size_t size)
 {
-	unsigned int eva, tmpva;
+	vm_offset_t eva, tmpva;
 	int i, stride, loopcount;
 
 	/*
@@ -273,7 +273,7 @@ mipsNN_icache_sync_range_index_16(vm_offset_t va, vm_size_t size)
 void
 mipsNN_icache_sync_range_index_32(vm_offset_t va, vm_size_t size)
 {
-	unsigned int eva, tmpva;
+	vm_offset_t eva, tmpva;
 	int i, stride, loopcount;
 
 	/*
