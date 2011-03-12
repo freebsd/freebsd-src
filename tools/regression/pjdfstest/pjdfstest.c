@@ -129,7 +129,7 @@ enum action {
 #define	MAX_ARGS	8
 
 struct syscall_desc {
-	char		*sd_name;
+	const char	*sd_name;
 	enum action	 sd_action;
 	int		 sd_args[MAX_ARGS];
 };
@@ -193,7 +193,7 @@ static struct syscall_desc syscalls[] = {
 
 struct flag {
 	long long	 f_flag;
-	char		*f_str;
+	const char	*f_str;
 };
 
 static struct flag open_flags[] = {
@@ -310,8 +310,8 @@ static struct flag fstatat_flags[] = {
 };
 
 struct name {
-	int	 n_name;
-	char	*n_str;
+	int		 n_name;
+	const char	*n_str;
 };
 
 static struct name pathconf_names[] = {
