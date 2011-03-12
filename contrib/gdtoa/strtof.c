@@ -59,7 +59,7 @@ strtof(CONST char *s, char **sp)
 		break;
 
 	  case STRTOG_Normal:
-		u.L[0] = bits[0] & 0x7fffff | exp + 0x7f + 23 << 23;
+		u.L[0] = (bits[0] & 0x7fffff) | ((exp + 0x7f + 23) << 23);
 		break;
 
 	  case STRTOG_NaNbits:
