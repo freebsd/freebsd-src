@@ -93,8 +93,8 @@ COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_llrintl.c s_lrintl.c s_modfl.c
 COMMON_SRCS+=	e_acosl.c e_asinl.c e_atan2l.c e_fmodl.c \
 	e_hypotl.c e_remainderl.c e_sqrtl.c \
 	invtrig.c k_cosl.c k_sinl.c k_tanl.c \
-	s_atanl.c s_ceill.c s_cosl.c s_cprojl.c s_csqrtl.c s_exp2l.c \
-	s_floorl.c s_fmal.c \
+	s_atanl.c s_cbrtl.c s_ceill.c s_cosl.c s_cprojl.c \
+	s_csqrtl.c s_exp2l.c s_floorl.c s_fmal.c \
 	s_frexpl.c s_logbl.c s_nanl.c s_nextafterl.c s_nexttoward.c \
 	s_remquol.c s_rintl.c s_scalbnl.c \
 	s_sinl.c s_tanl.c s_truncl.c w_cabsl.c
@@ -197,7 +197,8 @@ MLINKS+=scalbn.3 scalbln.3 scalbn.3 scalblnf.3 scalbn.3 scalblnl.3
 MLINKS+=scalbn.3 scalbnf.3 scalbn.3 scalbnl.3
 MLINKS+=sin.3 sinf.3 sin.3 sinl.3
 MLINKS+=sinh.3 sinhf.3
-MLINKS+=sqrt.3 cbrt.3 sqrt.3 cbrtf.3 sqrt.3 sqrtf.3 sqrt.3 sqrtl.3
+MLINKS+=sqrt.3 cbrt.3 sqrt.3 cbrtf.3 sqrt.3 cbrtl.3 sqrt.3 sqrtf.3 \
+	sqrt.3 sqrtl.3
 MLINKS+=tan.3 tanf.3 tan.3 tanl.3
 MLINKS+=tanh.3 tanhf.3
 MLINKS+=trunc.3 truncf.3 trunc.3 truncl.3
