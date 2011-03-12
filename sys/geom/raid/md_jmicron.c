@@ -1187,6 +1187,7 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 		}
 
 		/* We have all we need, create things: volume, ... */
+		mdi->mdio_total_disks = numdisks;
 		mdi->mdio_started = 1;
 		vol = g_raid_create_volume(sc, volname);
 		vol->v_md_data = (void *)(intptr_t)0;
