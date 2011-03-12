@@ -80,7 +80,7 @@ static char *floattotime(double f);
  * ModifierIndex	::=	'Second' | 'Third' | 'Fourth' | 'Fifth' |
  *				'First' | 'Last'
  * 
- * SpecialDay		::=	'Easter' | 'Pashka' | 'ChineseNewYear'
+ * SpecialDay		::=	'Easter' | 'Paskha' | 'ChineseNewYear'
  *
  */
 static int
@@ -459,6 +459,7 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 
 			yearinfo->mondays = mondaytab[isleap(year)];
 			yearinfo->ieaster = easter(year);
+			yearinfo->ipaskha = paskha(year);
 			fpom(year, UTCOffset, yearinfo->ffullmoon,
 			    yearinfo->fnewmoon);
 			fpom(year, UTCOFFSET_CNY, yearinfo->ffullmooncny,
