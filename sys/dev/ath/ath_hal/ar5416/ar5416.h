@@ -249,13 +249,13 @@ extern	void ar5416GetGainBoundariesAndPdadcs(struct ath_hal *ah,
 	uint16_t * pPdGainBoundaries, uint8_t * pPDADCValues,
 	uint16_t numXpdGains);
 extern	void ar5416SetGainBoundariesClosedLoop(struct ath_hal *ah,
-	int regChainOffset, uint16_t pdGainOverlap_t2,
+	int i, uint16_t pdGainOverlap_t2,
 	uint16_t gainBoundaries[]);
 extern	uint16_t ar5416GetXpdGainValues(struct ath_hal *ah, uint16_t xpdMask,
 	uint16_t xpdGainValues[]);
 extern	void ar5416WriteDetectorGainBiases(struct ath_hal *ah,
 	uint16_t numXpdGain, uint16_t xpdGainValues[]);
-extern	void ar5416WritePdadcValues(struct ath_hal *ah, int regChainOffset,
+extern	void ar5416WritePdadcValues(struct ath_hal *ah, int i,
 	uint8_t pdadcValues[]);
 extern	HAL_BOOL ar5416SetPowerCalTable(struct ath_hal *ah,
 	struct ar5416eeprom *pEepData, const struct ieee80211_channel *chan,

@@ -231,12 +231,19 @@ ar9280AdjustPDADCValues(struct ath_hal *ah, int8_t pwr_table_offset,
  * to the open-loop TX power control.
  */
 static void
-ar9280SetGainBoundariesOpenLoop(struct ath_hal *ah, int regChainOffset,
+ar9280SetGainBoundariesOpenLoop(struct ath_hal *ah, int i,
     uint16_t pdGainOverlap_t2, uint16_t gainBoundaries[])
 {
+	int regChainOffset;
+
+	regChainOffset = ar5416GetRegChainOffset(ah, i);
+
 	/* These are unused for OLC */
 	(void) pdGainOverlap_t2;
 	(void) gainBoundaries;
+
+	HALDEBUG(ah, HAL_DEBUG_EEPROM, "%s: chain %d: writing closed loop values\n",
+	    __func__, i);
 
 	OS_REG_WRITE(ah, AR_PHY_TPCRG5 + regChainOffset,
 	    SM(0x6, AR_PHY_TPCRG5_PD_GAIN_OVERLAP) |
@@ -366,11 +373,11 @@ ar9280SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
 				if (AR_SREV_MERLIN_20_OR_LATER(ah) &&
 				    ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL))
 					ar9280SetGainBoundariesOpenLoop(ah,
-					    regChainOffset, pdGainOverlap_t2,
+					    i, pdGainOverlap_t2,
 					    gainBoundaries);
 				else
 					ar5416SetGainBoundariesClosedLoop(ah,
-					    regChainOffset, pdGainOverlap_t2,
+					    i, pdGainOverlap_t2,
 					    gainBoundaries);
 			}
 
@@ -383,7 +390,7 @@ ar9280SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
 			ar9280AdjustPDADCValues(ah, pwr_table_offset, diff, pdadcValues);
 
 			/* Write the power values into the baseband power table */
-			ar5416WritePdadcValues(ah, regChainOffset, pdadcValues);
+			ar5416WritePdadcValues(ah, i, pdadcValues);
 		}
 	}
 	*pTxPowerIndexOffset = 0;
