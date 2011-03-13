@@ -1424,7 +1424,6 @@ arge_tx_ring_init(struct arge_softc *sc)
 	sc->arge_cdata.arge_tx_prod = 0;
 	sc->arge_cdata.arge_tx_cons = 0;
 	sc->arge_cdata.arge_tx_cnt = 0;
-	sc->arge_cdata.arge_tx_pkts = 0;
 
 	rd = &sc->arge_rdata;
 	bzero(rd->arge_tx_ring, sizeof(rd->arge_tx_ring));
@@ -1784,7 +1783,7 @@ arge_intr(void *arg)
 	 */
 	if (status & DMA_INTR_TX_UNDERRUN) {
 		ARGE_WRITE(sc, AR71XX_DMA_TX_STATUS, DMA_TX_STATUS_UNDERRUN);
-		if (sc->arge_cdata.arge_tx_pkts > 0 ) {
+		if (sc->arge_cdata.arge_tx_cnt > 0 ) {
 			ARGE_WRITE(sc, AR71XX_DMA_TX_CONTROL, 
 			    DMA_TX_CONTROL_EN);
 		}
