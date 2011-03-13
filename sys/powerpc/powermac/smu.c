@@ -1177,7 +1177,7 @@ smu_gettime(device_t dev, struct timespec *ts)
 static int
 smu_settime(device_t dev, struct timespec *ts)
 {
-	struct smu_cmd cmd;
+	static struct smu_cmd cmd;
 	struct clocktime ct;
 
 	cmd.cmd = SMU_RTC;
@@ -1194,7 +1194,7 @@ smu_settime(device_t dev, struct timespec *ts)
 	cmd.data[6] = bin2bcd(ct.mon);
 	cmd.data[7] = bin2bcd(ct.year - 2000);
 
-	return (smu_run_cmd(dev, &cmd, 1));
+	return (smu_run_cmd(dev, &cmd, 0));
 }
 
 /* SMU I2C Interface */
