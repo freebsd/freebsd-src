@@ -62,6 +62,22 @@ CODE {
 
 		return (-1);
 	}
+
+	static int
+	g_raid_md_free_disk_default(struct g_raid_md_object *md,
+	    struct g_raid_volume *vol)
+	{
+
+		return (0);
+	}
+
+	static int
+	g_raid_md_free_volume_default(struct g_raid_md_object *md,
+	    struct g_raid_volume *vol)
+	{
+
+		return (0);
+	}
 };
 
 # create() - create new node from scratch.
@@ -111,7 +127,13 @@ METHOD int fail_disk {
 METHOD int free_disk {
 	struct g_raid_md_object *md;
 	struct g_raid_disk *disk;
-};
+} DEFAULT g_raid_md_free_disk_default;
+
+# free_volume() - volume destructor.
+METHOD int free_volume {
+	struct g_raid_md_object *md;
+	struct g_raid_volume *vol;
+} DEFAULT g_raid_md_free_volume_default;
 
 # free() - destructor.
 METHOD int free {

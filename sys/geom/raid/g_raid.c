@@ -1704,6 +1704,8 @@ g_raid_create_volume(struct g_raid_softc *sc, const char *name)
 	vol->v_softc = sc;
 	strlcpy(vol->v_name, name, G_RAID_MAX_VOLUMENAME);
 	vol->v_state = G_RAID_VOLUME_S_STARTING;
+	vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
+	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_UNKNOWN;
 	bioq_init(&vol->v_inflight);
 	bioq_init(&vol->v_locked);
 	LIST_INIT(&vol->v_locks);
@@ -1878,6 +1880,8 @@ g_raid_destroy_volume(struct g_raid_volume *vol)
 		TAILQ_REMOVE(&disk->d_subdisks, &vol->v_subdisks[i], sd_next);
 	}
 	G_RAID_DEBUG1(2, sc, "Volume %s destroyed.", vol->v_name);
+	if (sc->sc_md)
+		G_RAID_MD_FREE_VOLUME(sc->sc_md, vol);
 	free(vol, M_RAID);
 	if (sc->sc_stopping == G_RAID_DESTROY_HARD) {
 		/* Wake up worker to let it selfdestruct. */
@@ -1905,8 +1909,6 @@ g_raid_destroy_disk(struct g_raid_disk *disk)
 		sd->sd_disk = NULL;
 	}
 	TAILQ_REMOVE(&sc->sc_disks, disk, d_next);
-	if (sc->sc_md)
-		G_RAID_MD_FREE_DISK(sc->sc_md, disk);
 	free(disk, M_RAID);
 	return (0);
 }
