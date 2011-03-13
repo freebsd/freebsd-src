@@ -67,7 +67,7 @@ ar9280olcGetTxGainIndex(struct ath_hal *ah,
 		if (calChans[numPiers] == AR5416_BCHAN_UNUSED)
 			break;
 
-	match = getLowerUpperIndex((uint8_t)FREQ2FBIN(centers.synth_center,
+	match = ath_ee_getLowerUpperIndex((uint8_t)FREQ2FBIN(centers.synth_center,
 		    IEEE80211_IS_CHAN_2GHZ(chan)), calChans, numPiers,
 		    &idxL, &idxR);
 	if (match) {
