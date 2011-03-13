@@ -41,6 +41,14 @@ EXTRA_PACKAGES+= src.txz
 EXTRA_PACKAGES+= reldoc
 .endif
 
+RELEASE_TARGETS= ftp
+.if exists(${.CURDIR}/${TARGET}/mkisoimages.sh)
+RELEASE_TARGETS+= cdrom
+.endif
+.if exists(${.CURDIR}/${TARGET}/make-memstick.sh)
+RELEASE_TARGETS+= memstick
+.endif
+
 .include <bsd.obj.mk>
 
 base.txz:
@@ -70,9 +78,9 @@ reldoc:
 	cd ${.CURDIR}/doc && ${MAKE} all install clean 'FORMATS=html txt' INSTALL_COMPRESSED='' URLS_ABSOLUTE=YES DOCDIR=${.OBJDIR}/rdoc
 	-mkdir ${.OBJDIR}/reldoc
 .for i in hardware readme relnotes errata
-	ln -f ${.OBJDIR}/rdoc/${RELNOTES_LANG}/$i/article.txt \
+	ln -f ${.OBJDIR}/rdoc/${RELNOTES_LANG}/${i}/article.txt \
 	    ${.OBJDIR}/reldoc/${i:U}.TXT
-	ln -f ${.OBJDIR}/rdoc/${RELNOTES_LANG}/$i/article.html \
+	ln -f ${.OBJDIR}/rdoc/${RELNOTES_LANG}/${i}/article.html \
 	    ${.OBJDIR}/reldoc/${i:U}.HTM
 .endfor
 	@cp ${.OBJDIR}/rdoc/${RELNOTES_LANG}/readme/docbook.css ${.OBJDIR}/reldoc
@@ -99,18 +107,22 @@ system: packagesystem
 
 release.iso: system
 	echo kernel_options=\"-C\" > ${.OBJDIR}/release/boot/loader.conf
-	sh /usr/src/release/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.OBJDIR}/release.iso ${.OBJDIR}/release
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.OBJDIR}/release.iso ${.OBJDIR}/release
 	rm ${.OBJDIR}/release/boot/loader.conf
+
+memstick: system
+	sh ${.CURDIR}/${TARGET}/make-memstick.sh ${.OBJDIR}/release ${.OBJDIR}/memstick
 
 packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
 	touch ${.OBJDIR}/${.TARGET}
 
 cdrom: release.iso
 ftp: packagesystem
+	rm -rf ${.OBJDIR}/ftp
 	mkdir ${.OBJDIR}/ftp
 	cp ${.OBJDIR}/*.txz ${.OBJDIR}/ftp
 
-release: cdrom ftp
+release: ${RELEASE_TARGETS}
 
 clean:
 	chflags -R noschg ${.OBJDIR}
@@ -119,5 +131,5 @@ clean:
 	rm -f ${.OBJDIR}/*.txz
 	rm -f system
 	rm -rf ${.OBJDIR}/release
-	rm -f ${.OBJDIR}/release.iso
+	rm -f ${.OBJDIR}/release.iso ${.OBJDIR}/memstick
 
