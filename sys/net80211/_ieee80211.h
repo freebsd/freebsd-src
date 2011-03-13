@@ -133,7 +133,7 @@ enum ieee80211_roamingmode {
  */
 struct ieee80211_channel {
 	uint32_t	ic_flags;	/* see below */
-	uint16_t	ic_freq;	/* setting in Mhz */
+	uint16_t	ic_freq;	/* setting in MHz */
 	uint8_t		ic_ieee;	/* IEEE channel number */
 	int8_t		ic_maxregpower;	/* maximum regulatory tx power in dBm */
 	int8_t		ic_maxpower;	/* maximum tx power in .5 dBm */
