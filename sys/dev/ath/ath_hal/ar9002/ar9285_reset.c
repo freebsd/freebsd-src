@@ -603,11 +603,11 @@ ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
                  * negative or greater than 0.  Need to offset the power
                  * values by the amount of minPower for griffin
                  */
-		ar5416SetGainBoundariesClosedLoop(ah, regChainOffset, pdGainOverlap_t2, gainBoundaries); 
+		ar5416SetGainBoundariesClosedLoop(ah, i, pdGainOverlap_t2, gainBoundaries); 
             }
 
             /* Write the power values into the baseband power table */
-	    ar5416WritePdadcValues(ah, regChainOffset, pdadcValues);
+	    ar5416WritePdadcValues(ah, i, pdadcValues);
         }
     }
     *pTxPowerIndexOffset = 0;
