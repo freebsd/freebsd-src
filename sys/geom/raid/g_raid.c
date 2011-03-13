@@ -1909,6 +1909,8 @@ g_raid_destroy_disk(struct g_raid_disk *disk)
 		sd->sd_disk = NULL;
 	}
 	TAILQ_REMOVE(&sc->sc_disks, disk, d_next);
+	if (sc->sc_md)
+		G_RAID_MD_FREE_DISK(sc->sc_md, disk);
 	free(disk, M_RAID);
 	return (0);
 }
