@@ -308,68 +308,113 @@ ieee80211_ht_vdetach(struct ieee80211vap *vap)
 {
 }
 
-static void
-ht_rateprint(struct ieee80211com *ic, int mode,
-	const struct ieee80211_htrateset *rs, int maxmcs, int ratetype)
+static int
+ht_getrate(struct ieee80211com *ic, int index, int mode, int ratetype)
 {
-	int i, rate, mword;
+	int mword, rate;
 
-	for (i = 0; i < rs->rs_nrates && i < maxmcs; i++) {
-		mword = ieee80211_rate2media(ic,
-		    rs->rs_rates[i] | IEEE80211_RATE_MCS, mode);
-		if (IFM_SUBTYPE(mword) != IFM_IEEE80211_MCS)
-			continue;
-		switch (ratetype) {
-		case 0:
-			rate = ieee80211_htrates[
-			    rs->rs_rates[i]].ht20_rate_800ns;
-			break;
-		case 1:
-			rate = ieee80211_htrates[
-			    rs->rs_rates[i]].ht20_rate_400ns;
-			break;
-		case 2:
-			rate = ieee80211_htrates[
-			    rs->rs_rates[i]].ht40_rate_800ns;
-			break;
-		default:
-			rate = ieee80211_htrates[
-			    rs->rs_rates[i]].ht40_rate_400ns;
-			break;
-		}
-		printf("%s%d%sMbps", (i != 0 ? " " : ""),
-		    rate / 2, ((rate & 0x1) != 0 ? ".5" : ""));
+	mword = ieee80211_rate2media(ic, index | IEEE80211_RATE_MCS, mode);
+	if (IFM_SUBTYPE(mword) != IFM_IEEE80211_MCS)
+		return (0);
+	switch (ratetype) {
+	case 0:
+		rate = ieee80211_htrates[index].ht20_rate_800ns;
+		break;
+	case 1:
+		rate = ieee80211_htrates[index].ht20_rate_400ns;
+		break;
+	case 2:
+		rate = ieee80211_htrates[index].ht40_rate_800ns;
+		break;
+	default:
+		rate = ieee80211_htrates[index].ht40_rate_400ns;
+		break;
 	}
-	printf("\n");
+	return (rate);
+}
+
+static struct printranges {
+	int	minmcs;
+	int	maxmcs;
+	int	txstream;
+	int	ratetype;
+	int	htcapflags;
+} ranges[] = {
+	{  0,  7, 1, 0, 0 },
+	{  8, 15, 2, 0, 0 },
+	{ 16, 23, 3, 0, 0 },
+	{ 24, 31, 4, 0, 0 },
+	{ 32,  0, 1, 2, IEEE80211_HTC_TXMCS32 },
+	{ 33, 38, 2, 0, IEEE80211_HTC_TXUNEQUAL },
+	{ 39, 52, 3, 0, IEEE80211_HTC_TXUNEQUAL },
+	{ 53, 76, 4, 0, IEEE80211_HTC_TXUNEQUAL },
+	{  0,  0, 0, 0, 0 },
+};
+
+static void
+ht_rateprint(struct ieee80211com *ic, int mode, int ratetype)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	int minrate, maxrate;
+	struct printranges *range;
+
+	for (range = ranges; range->txstream != 0; range++) {
+		if (ic->ic_txstream < range->txstream)
+			continue;
+		if (range->htcapflags &&
+		    (ic->ic_htcaps & range->htcapflags) == 0)
+			continue;
+		if (ratetype < range->ratetype)
+			continue;
+		minrate = ht_getrate(ic, range->minmcs, mode, ratetype);
+		maxrate = ht_getrate(ic, range->maxmcs, mode, ratetype);
+		if (range->maxmcs) {
+			if_printf(ifp, "MCS %d-%d: %d%sMbps - %d%sMbps\n",
+			    range->minmcs, range->maxmcs,
+			    minrate/2, ((minrate & 0x1) != 0 ? ".5" : ""),
+			    maxrate/2, ((maxrate & 0x1) != 0 ? ".5" : ""));
+		} else {
+			if_printf(ifp, "MCS %d: %d%sMbps\n", range->minmcs,
+			    minrate/2, ((minrate & 0x1) != 0 ? ".5" : ""));
+		}
+	}
 }
 
 static void
-ht_announce(struct ieee80211com *ic, int mode,
-	const struct ieee80211_htrateset *rs)
+ht_announce(struct ieee80211com *ic, int mode)
 {
 	struct ifnet *ifp = ic->ic_ifp;
-	int maxmcs = 2 * 8;
 	const char *modestr = ieee80211_phymode_name[mode];
-	
-	KASSERT(maxmcs <= 16, ("maxmcs > 16"));
-	if_printf(ifp, "%d MCS rates\n", maxmcs);
-	if_printf(ifp, "%s MCS 20Mhz: ", modestr);
-	ht_rateprint(ic, mode, rs, maxmcs, 0);
-	if_printf(ifp, "%s MCS 20Mhz SGI: ", modestr);
-	ht_rateprint(ic, mode, rs, maxmcs, 1);
-	if_printf(ifp, "%s MCS 40Mhz: ", modestr);
-	ht_rateprint(ic, mode, rs, maxmcs, 2);
-	if_printf(ifp, "%s MCS 40Mhz SGI: ", modestr);
-	ht_rateprint(ic, mode, rs, maxmcs, 3);
+
+	if_printf(ifp, "%s MCS 20Mhz\n", modestr);
+	ht_rateprint(ic, mode, 0);
+	if (ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20) {
+		if_printf(ifp, "%s MCS 20Mhz SGI\n", modestr);
+		ht_rateprint(ic, mode, 1);
+	}
+	if (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) {
+		if_printf(ifp, "%s MCS 40Mhz:\n", modestr);
+		ht_rateprint(ic, mode, 2);
+	}
+	if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
+	    (ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40)) {
+		if_printf(ifp, "%s MCS 40Mhz SGI:\n", modestr);
+		ht_rateprint(ic, mode, 3);
+	}
 }
 
 void
 ieee80211_ht_announce(struct ieee80211com *ic)
 {
+	struct ifnet *ifp = ic->ic_ifp;
+
+	if (isset(ic->ic_modecaps, IEEE80211_MODE_11NA) ||
+	    isset(ic->ic_modecaps, IEEE80211_MODE_11NG))
+		if_printf(ifp, "%dT%dR\n", ic->ic_txstream, ic->ic_rxstream);
 	if (isset(ic->ic_modecaps, IEEE80211_MODE_11NA))
-		ht_announce(ic, IEEE80211_MODE_11NA, &ieee80211_rateset_11n);
+		ht_announce(ic, IEEE80211_MODE_11NA);
 	if (isset(ic->ic_modecaps, IEEE80211_MODE_11NG))
-		ht_announce(ic, IEEE80211_MODE_11NG, &ieee80211_rateset_11n);
+		ht_announce(ic, IEEE80211_MODE_11NG);
 }
 
 const struct ieee80211_htrateset *
