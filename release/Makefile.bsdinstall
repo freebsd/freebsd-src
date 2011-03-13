@@ -112,7 +112,8 @@ system: packagesystem
 	-rm ${.OBJDIR}/release/boot/kernel/*.symbols
 # Copy distfiles
 	mkdir ${.OBJDIR}/release/usr/freebsd-dist
-	cp ${.OBJDIR}/*.txz ${.OBJDIR}/release/usr/freebsd-dist
+	cp ${.OBJDIR}/*.txz ${.OBJDIR}/MANIFEST \
+	    ${.OBJDIR}/release/usr/freebsd-dist
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp ${.OBJDIR}/reldoc/* ${.OBJDIR}/release
@@ -134,13 +135,14 @@ memstick: system
 	sh ${.CURDIR}/${TARGET}/make-memstick.sh ${.OBJDIR}/release ${.OBJDIR}/memstick
 
 packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
+	sh ${.CURDIR}/${TARGET}/make-manifest.sh ${DISTDIR}/*.txz > ${.OBJDIR}/MANIFEST
 	touch ${.OBJDIR}/${.TARGET}
 
 cdrom: release.iso
 ftp: packagesystem
 	rm -rf ${.OBJDIR}/ftp
 	mkdir ${.OBJDIR}/ftp
-	cp ${.OBJDIR}/*.txz ${.OBJDIR}/ftp
+	cp ${.OBJDIR}/*.txz ${.OBJDIR}/MANIFEST ${.OBJDIR}/ftp
 
 release: ${RELEASE_TARGETS}
 
@@ -148,7 +150,7 @@ clean:
 	chflags -R noschg ${.OBJDIR}
 	rm -rf ${.OBJDIR}/dist ${.OBJDIR}/ftp
 	rm -f packagesystem
-	rm -f ${.OBJDIR}/*.txz
+	rm -f ${.OBJDIR}/*.txz ${.OBJDIR}/MANIFEST
 	rm -f system
 	rm -rf ${.OBJDIR}/release
 	rm -f ${.OBJDIR}/release.iso ${.OBJDIR}/memstick
