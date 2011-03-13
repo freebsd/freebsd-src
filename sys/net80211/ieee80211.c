@@ -206,6 +206,15 @@ ieee80211_chan_init(struct ieee80211com *ic)
 	DEFAULTRATES(IEEE80211_MODE_11NG,	 ieee80211_rateset_11g);
 
 	/*
+	 * Setup required information to fill the mcsset field, if driver did
+	 * not. Assume a 2T2R setup for historic reasons.
+	 */
+	if (ic->ic_rxstream == 0)
+		ic->ic_rxstream = 2;
+	if (ic->ic_txstream == 0)
+		ic->ic_txstream = 2;
+
+	/*
 	 * Set auto mode to reset active channel state and any desired channel.
 	 */
 	(void) ieee80211_setmode(ic, IEEE80211_MODE_AUTO);
