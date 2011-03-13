@@ -79,6 +79,7 @@ MODULE_DEPEND(arge, miibus, 1, 1, 1);
 
 #include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/if_argevar.h>
+#include <mips/atheros/ar71xx_setup.h>
 #include <mips/atheros/ar71xx_cpudef.h>
 
 #undef ARGE_DEBUG
@@ -400,8 +401,18 @@ arge_attach(device_t dev)
 
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG0, 
 	    FIFO_CFG0_ALL << FIFO_CFG0_ENABLE_SHIFT);
-	ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG1, 0x0fff0000);
-	ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG2, 0x00001fff);
+
+	switch (ar71xx_soc) {
+		case AR71XX_SOC_AR7240:
+		case AR71XX_SOC_AR7241:
+		case AR71XX_SOC_AR7242:
+			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG1, 0x0010ffff);
+			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG2, 0x015500aa);
+			break;
+		default:
+			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG1, 0x0fff0000);
+			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG2, 0x00001fff);
+	}
 
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMATCH, 
 	    FIFO_RX_FILTMATCH_DEFAULT);
@@ -663,6 +674,7 @@ static void
 arge_set_pll(struct arge_softc *sc, int media, int duplex)
 {
 	uint32_t		cfg, ifcontrol, rx_filtmask;
+	uint32_t		fifo_tx;
 	int if_speed;
 
 	cfg = ARGE_READ(sc, AR71XX_MAC_CFG2);
@@ -701,13 +713,25 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 		    "Unknown media %d\n", media);
 	}
 
-	ARGE_WRITE(sc, AR71XX_MAC_FIFO_TX_THRESHOLD,
-	    0x008001ff);
+	switch (ar71xx_soc) {
+		case AR71XX_SOC_AR7240:
+		case AR71XX_SOC_AR7241:
+		case AR71XX_SOC_AR7242:
+			fifo_tx = 0x01f00140;
+			break;
+		case AR71XX_SOC_AR9130:
+		case AR71XX_SOC_AR9132:
+			fifo_tx = 0x00780fff;
+			break;
+		default:
+			fifo_tx = 0x008001ff;
+	}
 
 	ARGE_WRITE(sc, AR71XX_MAC_CFG2, cfg);
 	ARGE_WRITE(sc, AR71XX_MAC_IFCONTROL, ifcontrol);
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMASK, 
 	    rx_filtmask);
+	ARGE_WRITE(sc, AR71XX_MAC_FIFO_TX_THRESHOLD, fifo_tx);
 
 	/* set PLL registers */
 	if (sc->arge_mac_unit == 0)
