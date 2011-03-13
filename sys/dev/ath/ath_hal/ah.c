@@ -986,3 +986,115 @@ ath_hal_ini_bank_write(struct ath_hal *ah, const HAL_INI_ARRAY *ia,
 	}
 	return regWr;
 }
+
+/*
+ * These are EEPROM board related routines which should likely live in
+ * a helper library of some sort.
+ */
+
+/**************************************************************
+ * ath_ee_getLowerUppderIndex
+ *
+ * Return indices surrounding the value in sorted integer lists.
+ * Requirement: the input list must be monotonically increasing
+ *     and populated up to the list size
+ * Returns: match is set if an index in the array matches exactly
+ *     or a the target is before or after the range of the array.
+ */
+HAL_BOOL
+ath_ee_getLowerUpperIndex(uint8_t target, uint8_t *pList, uint16_t listSize,
+                   uint16_t *indexL, uint16_t *indexR)
+{
+    uint16_t i;
+
+    /*
+     * Check first and last elements for beyond ordered array cases.
+     */
+    if (target <= pList[0]) {
+        *indexL = *indexR = 0;
+        return AH_TRUE;
+    }
+    if (target >= pList[listSize-1]) {
+        *indexL = *indexR = (uint16_t)(listSize - 1);
+        return AH_TRUE;
+    }
+
+    /* look for value being near or between 2 values in list */
+    for (i = 0; i < listSize - 1; i++) {
+        /*
+         * If value is close to the current value of the list
+         * then target is not between values, it is one of the values
+         */
+        if (pList[i] == target) {
+            *indexL = *indexR = i;
+            return AH_TRUE;
+        }
+        /*
+         * Look for value being between current value and next value
+         * if so return these 2 values
+         */
+        if (target < pList[i + 1]) {
+            *indexL = i;
+            *indexR = (uint16_t)(i + 1);
+            return AH_FALSE;
+        }
+    }
+    HALASSERT(0);
+    *indexL = *indexR = 0;
+    return AH_FALSE;
+}
+
+/**************************************************************
+ * ath_ee_FillVpdTable
+ *
+ * Fill the Vpdlist for indices Pmax-Pmin
+ * Note: pwrMin, pwrMax and Vpdlist are all in dBm * 4
+ */
+HAL_BOOL
+ath_ee_FillVpdTable(uint8_t pwrMin, uint8_t pwrMax, uint8_t *pPwrList,
+                   uint8_t *pVpdList, uint16_t numIntercepts, uint8_t *pRetVpdList)
+{
+    uint16_t  i, k;
+    uint8_t   currPwr = pwrMin;
+    uint16_t  idxL, idxR;
+
+    HALASSERT(pwrMax > pwrMin);
+    for (i = 0; i <= (pwrMax - pwrMin) / 2; i++) {
+        ath_ee_getLowerUpperIndex(currPwr, pPwrList, numIntercepts,
+                           &(idxL), &(idxR));
+        if (idxR < 1)
+            idxR = 1;           /* extrapolate below */
+        if (idxL == numIntercepts - 1)
+            idxL = (uint16_t)(numIntercepts - 2);   /* extrapolate above */
+        if (pPwrList[idxL] == pPwrList[idxR])
+            k = pVpdList[idxL];
+        else
+            k = (uint16_t)( ((currPwr - pPwrList[idxL]) * pVpdList[idxR] + (pPwrList[idxR] - currPwr) * pVpdList[idxL]) /
+                  (pPwrList[idxR] - pPwrList[idxL]) );
+        HALASSERT(k < 256);
+        pRetVpdList[i] = (uint8_t)k;
+        currPwr += 2;               /* half dB steps */
+    }
+
+    return AH_TRUE;
+}
+
+/**************************************************************************
+ * ath_ee_interpolate
+ *
+ * Returns signed interpolated or the scaled up interpolated value
+ */
+int16_t
+ath_ee_interpolate(uint16_t target, uint16_t srcLeft, uint16_t srcRight,
+            int16_t targetLeft, int16_t targetRight)
+{
+    int16_t rv;
+
+    if (srcRight == srcLeft) {
+        rv = targetLeft;
+    } else {
+        rv = (int16_t)( ((target - srcLeft) * targetRight +
+              (srcRight - target) * targetLeft) / (srcRight - srcLeft) );
+    }
+    return rv;
+}
