@@ -998,8 +998,9 @@ load_rc_config()
 		err 3 'USAGE: load_rc_config name'
 	fi
 
-	if [ -z "$_rc_conf_loaded" ]; then
-		set -o allexport
+	if ${_rc_conf_loaded:-false}; then
+		:
+	else
 		if [ -r /etc/defaults/rc.conf ]; then
 			debug "Sourcing /etc/defaults/rc.conf"
 			. /etc/defaults/rc.conf
@@ -1009,7 +1010,6 @@ load_rc_config()
 			. /etc/rc.conf
 		fi
 		_rc_conf_loaded=true
-		set +o allexport
 	fi
 	if [ -f /etc/rc.conf.d/"$_name" ]; then
 		debug "Sourcing /etc/rc.conf.d/${_name}"
