@@ -91,8 +91,7 @@ struct sii_raid_conf {
 	uint8_t		dummy_3;
 	uint8_t		name[16];		/* 151 - 158 */
 	uint16_t	checksum;		/* 159 */
-	uint8_t		ata_params_160_254[190];
-	uint16_t	ata_checksum;		/* 255 */
+	uint16_t	ata_params_160_255[96];
 } __packed;
 
 struct g_raid_md_sii_perdisk {
@@ -254,7 +253,7 @@ sii_meta_put_name(struct sii_raid_conf *meta, char *buf)
 {
 
 	memset(meta->name, 0x20, 16);
-	memcpy(meta->name, buf, MIN(strlen(meta->name), 16));
+	memcpy(meta->name, buf, MIN(strlen(buf), 16));
 }
 
 static struct sii_raid_conf *
@@ -279,6 +278,14 @@ sii_meta_read(struct g_consumer *cp)
 	meta = malloc(sizeof(*meta), M_MD_SII, M_WAITOK);
 	memcpy(meta, buf, min(sizeof(*meta), pp->sectorsize));
 	g_free(buf);
+
+	/* Check vendor ID. */
+	if (meta->vendor_id != 0x1095) {
+		G_RAID_DEBUG(1, "SiI vendor ID check failed on %s (0x%04x)",
+		    pp->name, meta->vendor_id);
+		free(meta, M_MD_SII);
+		return (NULL);
+	}
 
 	/* Check metadata major version. */
 	if (meta->version_major != 2) {
@@ -367,6 +374,33 @@ sii_meta_erase(struct g_consumer *cp)
 		}
 	}
 	free(buf, M_MD_SII);
+	return (error);
+}
+
+static int
+sii_meta_write_spare(struct g_consumer *cp)
+{
+	struct sii_raid_conf *meta;
+	int error;
+
+	meta = malloc(sizeof(*meta), M_MD_SII, M_WAITOK | M_ZERO);
+	meta->total_sectors = cp->provider->mediasize /
+	    cp->provider->sectorsize - 0x800;
+	meta->vendor_id = 0x1095;
+	meta->version_minor = 0;
+	meta->version_major = 2;
+	meta->timestamp[0] = arc4random();
+	meta->timestamp[1] = arc4random();
+	meta->timestamp[2] = arc4random();
+	meta->timestamp[3] = arc4random();
+	meta->timestamp[4] = arc4random();
+	meta->timestamp[5] = arc4random();
+	meta->type = SII_T_SPARE;
+	meta->generation = 1;
+	meta->raid1_ident = 0xff;
+	meta->raid_location = arc4random();
+	error = sii_meta_write(cp, meta);
+	free(meta, M_MD_SII);
 	return (error);
 }
 
@@ -1436,8 +1470,10 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 
 			/* Welcome the "new" disk. */
 			update += g_raid_md_sii_start_disk(disk);
-			if (disk->d_state != G_RAID_DISK_S_ACTIVE &&
-			    disk->d_state != G_RAID_DISK_S_SPARE) {
+			if (disk->d_state == G_RAID_DISK_S_SPARE) {
+				sii_meta_write_spare(cp);
+				g_raid_destroy_disk(disk);
+			} else if (disk->d_state != G_RAID_DISK_S_ACTIVE) {
 				gctl_error(req, "Disk '%s' doesn't fit.",
 				    diskname);
 				g_raid_destroy_disk(disk);
@@ -1549,14 +1585,14 @@ g_raid_md_write_sii(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1) {
 				pd->pd_meta->disk_number = sd->sd_pos;
 				pd->pd_meta->raid0_ident = 0xff;
-				pd->pd_meta->raid1_ident = sd->sd_pos;
+				pd->pd_meta->raid1_ident = 0;
 			} else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1E) {
 				pd->pd_meta->disk_number = sd->sd_pos / meta->raid1_disks;
 				pd->pd_meta->raid0_ident = sd->sd_pos % meta->raid1_disks;
 				pd->pd_meta->raid1_ident = sd->sd_pos / meta->raid1_disks;
 			} else {
 				pd->pd_meta->disk_number = sd->sd_pos;
-				pd->pd_meta->raid0_ident = sd->sd_pos;
+				pd->pd_meta->raid0_ident = 0;
 				pd->pd_meta->raid1_ident = 0xff;
 			}
 		}

@@ -235,7 +235,7 @@ jmicron_meta_put_name(struct jmicron_raid_conf *meta, char *buf)
 {
 
 	memset(meta->name, 0x20, 16);
-	memcpy(meta->name, buf, MIN(strlen(meta->name), 16));
+	memcpy(meta->name, buf, MIN(strlen(buf), 16));
 }
 
 static int
