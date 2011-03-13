@@ -96,6 +96,8 @@ count_files(const char *file)
 	if (manifest != NULL) {
 		char line[512];
 		char *tok1, *tok2;
+
+		rewind(manifest);
 		while (fgets(line, sizeof(line), manifest) != NULL) {
 			tok2 = line;
 			tok1 = strsep(&tok2, "\t");
