@@ -2422,21 +2422,49 @@ ht_send_action_ht_txchwidth(struct ieee80211_node *ni,
 #undef ADDSHORT
 
 /*
- * Construct the MCS bit mask for inclusion
- * in an HT information element.
+ * Construct the MCS bit mask for inclusion in an HT capabilities
+ * information element.
  */
-static void 
-ieee80211_set_htrates(uint8_t *frm, const struct ieee80211_htrateset *rs)
+static void
+ieee80211_set_mcsset(struct ieee80211com *ic, uint8_t *frm)
 {
 	int i;
+	uint8_t txparams;
 
-	for (i = 0; i < rs->rs_nrates; i++) {
-		int r = rs->rs_rates[i] & IEEE80211_RATE_VAL;
-		if (r < IEEE80211_HTRATE_MAXSIZE) {	/* XXX? */
-			/* NB: this assumes a particular implementation */
-			setbit(frm, r);
+	KASSERT((ic->ic_rxstream > 0 && ic->ic_rxstream <= 4),
+	    ("ic_rxstream %d out of range", ic->ic_rxstream));
+	KASSERT((ic->ic_txstream > 0 && ic->ic_txstream <= 4),
+	    ("ic_txstream %d out of range", ic->ic_txstream));
+
+	for (i = 0; i < ic->ic_rxstream * 8; i++)
+		setbit(frm, i);
+	if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
+	    (ic->ic_htcaps & IEEE80211_HTC_RXMCS32))
+		setbit(frm, 32);
+	if (ic->ic_htcaps & IEEE80211_HTC_RXUNEQUAL) {
+		if (ic->ic_rxstream >= 2) {
+			for (i = 33; i <= 38; i++)
+				setbit(frm, i);
+		}
+		if (ic->ic_rxstream >= 3) {
+			for (i = 39; i <= 52; i++)
+				setbit(frm, i);
+		}
+		if (ic->ic_txstream >= 4) {
+			for (i = 53; i <= 76; i++)
+				setbit(frm, i);
 		}
 	}
+
+	if (ic->ic_rxstream != ic->ic_txstream) {
+		txparams = 0x1;			/* TX MCS set defined */
+		txparams |= 0x2;		/* TX RX MCS not equal */
+		txparams |= (ic->ic_txstream - 1) << 2;	/* num TX streams */
+		if (ic->ic_htcaps & IEEE80211_HTC_TXUNEQUAL)
+			txparams |= 0x16;	/* TX unequal modulation sup */
+	} else
+		txparams = 0;
+	frm[12] = txparams;
 }
 
 /*
@@ -2502,12 +2530,12 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 
 	/* supported MCS set */
 	/*
-	 * XXX it would better to get the rate set from ni_htrates
-	 * so we can restrict it but for sta mode ni_htrates isn't
-	 * setup when we're called to form an AssocReq frame so for
-	 * now we're restricted to the default HT rate set.
+	 * XXX: For sta mode the rate set should be restricted based
+	 * on the AP's capabilities, but ni_htrates isn't setup when
+	 * we're called to form an AssocReq frame so for now we're
+	 * restricted to the device capabilities.
 	 */
-	ieee80211_set_htrates(frm, &ieee80211_rateset_11n);
+	ieee80211_set_mcsset(ni->ni_ic, frm);
 
 	frm += __offsetof(struct ieee80211_ie_htcap, hc_extcap) -
 		__offsetof(struct ieee80211_ie_htcap, hc_mcsset);
