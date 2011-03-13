@@ -784,4 +784,14 @@ extern	int ath_hal_ini_bank_write(struct ath_hal *ah, const HAL_INI_ARRAY *ia,
 #define	TURBO_SYMBOL_TIME	4
 
 #define	WLAN_CTRL_FRAME_SIZE	(2+2+6+4)	/* ACK+FCS */
+
+/* Generic EEPROM board value functions */
+extern	HAL_BOOL ath_ee_getLowerUpperIndex(uint8_t target, uint8_t *pList,
+	uint16_t listSize, uint16_t *indexL, uint16_t *indexR);
+extern	HAL_BOOL ath_ee_FillVpdTable(uint8_t pwrMin, uint8_t pwrMax,
+	uint8_t *pPwrList, uint8_t *pVpdList, uint16_t numIntercepts,
+	uint8_t *pRetVpdList);
+extern	int16_t ath_ee_interpolate(uint16_t target, uint16_t srcLeft,
+	uint16_t srcRight, int16_t targetLeft, int16_t targetRight);
+
 #endif /* _ATH_AH_INTERAL_H_ */

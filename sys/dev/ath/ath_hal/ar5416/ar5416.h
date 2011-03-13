@@ -237,11 +237,6 @@ extern	void ar5416InitChainMasks(struct ath_hal *ah);
 extern	void ar5416RestoreChainMask(struct ath_hal *ah);
 
 /* TX power setup related routines in ar5416_reset.c */
-extern	HAL_BOOL getLowerUpperIndex(uint8_t target, uint8_t *pList,
-	uint16_t listSize,  uint16_t *indexL, uint16_t *indexR);
-extern	HAL_BOOL ar5416FillVpdTable(uint8_t pwrMin, uint8_t pwrMax,
-	uint8_t *pPwrList, uint8_t *pVpdList, uint16_t numIntercepts,
-	uint8_t *pRetVpdList);
 extern	void ar5416GetGainBoundariesAndPdadcs(struct ath_hal *ah,
 	const struct ieee80211_channel *chan, CAL_DATA_PER_FREQ *pRawDataSet,
 	uint8_t * bChans, uint16_t availPiers,
