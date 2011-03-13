@@ -43,6 +43,8 @@ pgtbl_extend(u_int idx)
 	u_int pot;
 
 	pgtblsz = (idx + 1) << 3;
+
+	/* The minimum size is 4KB. */
 	if (pgtblsz < 4096)
 		pgtblsz = 4096;
 
@@ -51,6 +53,14 @@ pgtbl_extend(u_int idx)
 	for (pot = 1; pot < 32; pot <<= 1)
 		pgtblsz = pgtblsz | (pgtblsz >> pot);
 	pgtblsz++;
+
+	/* The maximum size is 1MB. */
+	if (pgtblsz > 1048576)
+		return (ENOMEM);
+
+	/* Make sure the size is a valid (mappable) page size. */
+	if (pgtblsz == 32*1024 || pgtblsz == 128*1024 || pgtblsz == 512*1024)
+		pgtblsz <<= 1;
 
 	/* Allocate naturally aligned memory. */
 	pgtbl = (void *)ia64_platform_alloc(0, pgtblsz);

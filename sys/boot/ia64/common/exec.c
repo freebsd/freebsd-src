@@ -85,9 +85,52 @@ enter_kernel(uint64_t start, struct bootinfo *bi)
 }
 
 static void
+mmu_wire(vm_offset_t va, vm_paddr_t pa, u_int sz, u_int acc)
+{
+	static u_int iidx = 0, didx = 0;
+	pt_entry_t pte;
+	u_int shft;
+
+	/* Round up to the smallest possible page size. */
+	if (sz < 4096)
+		sz = 4096;
+	/* Determine the exponent (base 2). */
+	shft = 0;
+	while (sz > 1) {
+		shft++;
+		sz >>= 1;
+	}
+	/* Truncate to the largest possible page size (256MB). */
+	if (shft > 28)
+		shft = 28;
+	/* Round down to a valid (mappable) page size. */
+	if (shft > 14 && (shft & 1) != 0)
+		shft--;
+
+	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
+	    PTE_PL_KERN | (acc & PTE_AR_MASK) | (pa & PTE_PPN_MASK);
+
+	__asm __volatile("mov cr.ifa=%0" :: "r"(va));
+	__asm __volatile("mov cr.itir=%0" :: "r"(shft << 2));
+	__asm __volatile("srlz.d;;");
+	__asm __volatile("ptr.d %0,%1" :: "r"(va), "r"(shft << 2));
+	__asm __volatile("srlz.d;;");
+	__asm __volatile("itr.d dtr[%0]=%1" :: "r"(didx), "r"(pte));
+	__asm __volatile("srlz.d;;");
+	didx++;
+
+	if (acc == PTE_AR_RWX) {
+		__asm __volatile("ptr.i %0,%1;;" :: "r"(va), "r"(shft << 2));
+		__asm __volatile("srlz.i;;");
+		__asm __volatile("itr.i itr[%0]=%1;;" :: "r"(iidx), "r"(pte));
+		__asm __volatile("srlz.i;;");
+		iidx++;
+	}
+}
+
+static void
 mmu_setup_legacy(uint64_t entry)
 {
-	pt_entry_t pte;
 
 	/*
 	 * Region 6 is direct mapped UC and region 7 is direct mapped
@@ -99,53 +142,28 @@ mmu_setup_legacy(uint64_t entry)
 	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (28 << 2));
 	__asm __volatile("srlz.i;;");
 
-	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
-	    PTE_PL_KERN | PTE_AR_RWX | PTE_ED;
-	pte |= IA64_RR_MASK(entry) & PTE_PPN_MASK;
-
-	__asm __volatile("mov cr.ifa=%0" :: "r"(entry));
-	__asm __volatile("mov cr.itir=%0" :: "r"(28 << 2));
-	__asm __volatile("ptr.i %0,%1" :: "r"(entry), "r"(28<<2));
-	__asm __volatile("ptr.d %0,%1" :: "r"(entry), "r"(28<<2));
-	__asm __volatile("srlz.i;;");
-	__asm __volatile("itr.i itr[%0]=%1;;" :: "r"(0), "r"(pte));
-	__asm __volatile("srlz.i;;");
-	__asm __volatile("itr.d dtr[%0]=%1;;" :: "r"(0), "r"(pte));
-	__asm __volatile("srlz.i;;");
+	mmu_wire(entry, IA64_RR_MASK(entry), 1UL << 28, PTE_AR_RWX);
 }
 
 static void
-mmu_setup_paged(void)
+mmu_setup_paged(vm_offset_t pbvm_top)
 {
-	pt_entry_t pte;
 	u_int sz;
 
-	ia64_set_rr(IA64_RR_BASE(4), (4 << 8) | (IA64_PBVM_PAGE_SHIFT << 2));
+	ia64_set_rr(IA64_RR_BASE(IA64_PBVM_RR),
+	    (IA64_PBVM_RR << 8) | (IA64_PBVM_PAGE_SHIFT << 2));
 	__asm __volatile("srlz.i;;");
 
-	/*
-	 * Wire the PBVM page table.
-	 */
+	/* Wire the PBVM page table. */
+	mmu_wire(IA64_PBVM_PGTBL, (uintptr_t)ia64_pgtbl, ia64_pgtblsz,
+	    PTE_AR_RW);
 
-	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
-	    PTE_PL_KERN | PTE_AR_RWX | PTE_ED;
-	pte |= ia64_pgtbl[0] & PTE_PPN_MASK;
-
-	/*
-	 * Size of the translation. This should be the largest power of 2
-	 * smaller than the LVM in use.
-	 */
-	sz = 24;
-
-	__asm __volatile("mov cr.ifa=%0" :: "r"(IA64_PBVM_BASE));
-	__asm __volatile("mov cr.itir=%0" :: "r"(sz << 2));
-	__asm __volatile("ptr.i %0,%1" :: "r"(IA64_PBVM_BASE), "r"(sz << 2));
-	__asm __volatile("ptr.d %0,%1" :: "r"(IA64_PBVM_BASE), "r"(sz << 2));
-	__asm __volatile("srlz.i;;");
-	__asm __volatile("itr.i itr[%0]=%1;;" :: "r"(0), "r"(pte));
-	__asm __volatile("srlz.i;;");
-	__asm __volatile("itr.d dtr[%0]=%1;;" :: "r"(0), "r"(pte));
-	__asm __volatile("srlz.i;;");
+	/* Wire as much of the PBVM we can. This must be a power of 2. */
+	pbvm_top = (pbvm_top + IA64_PBVM_PAGE_MASK) & ~IA64_PBVM_PAGE_MASK;
+	sz = pbvm_top - IA64_PBVM_BASE;
+	while (sz & (sz - 1))
+		sz -= IA64_PBVM_PAGE_SIZE;
+	mmu_wire(IA64_PBVM_BASE, ia64_pgtbl[0], sz, PTE_AR_RWX);
 }
 
 static int
@@ -177,7 +195,7 @@ elf64_exec(struct preloaded_file *fp)
 	if (IS_LEGACY_KERNEL())
 		mmu_setup_legacy(hdr->e_entry);
 	else
-		mmu_setup_paged();
+		mmu_setup_paged((uintptr_t)(bi + 1));
 
 	enter_kernel(hdr->e_entry, bi);
 	/* NOTREACHED */
