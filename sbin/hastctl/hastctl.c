@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <inttypes.h>
+#include <libutil.h>
 #include <limits.h>
 #include <signal.h>
 #include <stdio.h>
@@ -342,30 +342,11 @@ control_status(struct nv *nv)
 	return (ret);
 }
 
-static int
-numfromstr(const char *str, intmax_t *nump)
-{
-	intmax_t num;
-	char *suffix;
-	int rerrno;
-
-	rerrno = errno;
-	errno = 0;
-	num = strtoimax(str, &suffix, 0);
-	if (errno == 0 && *suffix != '\0')
-		errno = EINVAL;
-	if (errno != 0)
-		return (-1);
-	*nump = num;
-	errno = rerrno;
-	return (0);
-}
-
 int
 main(int argc, char *argv[])
 {
 	struct nv *nv;
-	intmax_t mediasize, extentsize, keepdirty;
+	int64_t mediasize, extentsize, keepdirty;
 	int cmd, debug, error, ii;
 	const char *optstr;
 
@@ -407,15 +388,15 @@ main(int argc, char *argv[])
 			debug++;
 			break;
 		case 'e':
-			if (numfromstr(optarg, &extentsize) < 0)
+			if (expand_number(optarg, &extentsize) < 0)
 				err(1, "Invalid extentsize");
 			break;
 		case 'k':
-			if (numfromstr(optarg, &keepdirty) < 0)
+			if (expand_number(optarg, &keepdirty) < 0)
 				err(1, "Invalid keepdirty");
 			break;
 		case 'm':
-			if (numfromstr(optarg, &mediasize) < 0)
+			if (expand_number(optarg, &mediasize) < 0)
 				err(1, "Invalid mediasize");
 			break;
 		case 'h':
