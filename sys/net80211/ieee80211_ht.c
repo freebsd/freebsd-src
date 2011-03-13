@@ -134,12 +134,6 @@ const struct ieee80211_mcs_rates ieee80211_htrates[IEEE80211_HTRATE_MAXSIZE] = {
 	{ 429, 477,  891,  990 },	/* MCS 76 */
 };
 
-static const struct ieee80211_htrateset ieee80211_rateset_11n =
-	{ 16, {
-	          0,   1,   2,   3,   4,  5,   6,  7,  8,  9,
-		 10,  11,  12,  13,  14,  15 }
-	};
-
 #ifdef IEEE80211_AMPDU_AGE
 static	int ieee80211_ampdu_age = -1;	/* threshold for ampdu reorder q (ms) */
 SYSCTL_PROC(_net_wlan, OID_AUTO, ampdu_age, CTLTYPE_INT | CTLFLAG_RW,
@@ -417,11 +411,40 @@ ieee80211_ht_announce(struct ieee80211com *ic)
 		ht_announce(ic, IEEE80211_MODE_11NG);
 }
 
+static struct ieee80211_htrateset htrateset;
+
 const struct ieee80211_htrateset *
 ieee80211_get_suphtrates(struct ieee80211com *ic,
-	const struct ieee80211_channel *c)
+    const struct ieee80211_channel *c)
 {
-	return &ieee80211_rateset_11n;
+#define	ADDRATE(x)	do {						\
+	htrateset.rs_rates[htrateset.rs_nrates] = x;			\
+	htrateset.rs_nrates++;						\
+} while (0)
+	int i;
+
+	memset(&htrateset, 0, sizeof(struct ieee80211_htrateset));
+	for (i = 0; i < ic->ic_txstream * 8; i++)
+		ADDRATE(i);
+	if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
+	    (ic->ic_htcaps & IEEE80211_HTC_TXMCS32))
+		ADDRATE(i);
+	if (ic->ic_htcaps & IEEE80211_HTC_TXUNEQUAL) {
+		if (ic->ic_txstream >= 2) {
+			 for (i = 33; i <= 38; i++)
+				ADDRATE(i);
+		}
+		if (ic->ic_txstream >= 3) {
+			for (i = 39; i <= 52; i++)
+				ADDRATE(i);
+		}
+		if (ic->ic_txstream == 4) {
+			for (i = 53; i <= 76; i++)
+				ADDRATE(i);
+		}
+	}
+	return &htrateset;
+#undef	ADDRATE
 }
 
 /*
@@ -1559,10 +1582,22 @@ ieee80211_ht_updatehtcap(struct ieee80211_node *ni, const uint8_t *htcapie)
 int
 ieee80211_setup_htrates(struct ieee80211_node *ni, const uint8_t *ie, int flags)
 {
+	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	const struct ieee80211_ie_htcap *htcap;
 	struct ieee80211_htrateset *rs;
-	int i;
+	int i, maxequalmcs, maxunequalmcs;
+
+	maxequalmcs = ic->ic_txstream * 8 - 1;
+	if (ic->ic_htcaps & IEEE80211_HTC_TXUNEQUAL) {
+		if (ic->ic_txstream >= 2)
+			maxunequalmcs = 38;
+		if (ic->ic_txstream >= 3)
+			maxunequalmcs = 52;
+		if (ic->ic_txstream >= 4)
+			maxunequalmcs = 76;
+	} else
+		maxunequalmcs = 0;
 
 	rs = &ni->ni_htrates;
 	memset(rs, 0, sizeof(*rs));
@@ -1581,6 +1616,13 @@ ieee80211_setup_htrates(struct ieee80211_node *ni, const uint8_t *ie, int flags)
 				vap->iv_stats.is_rx_rstoobig++;
 				break;
 			}
+			if (i <= 31 && i > maxequalmcs)
+				continue;
+			if (i == 32 &&
+			    (ic->ic_htcaps & IEEE80211_HTC_TXMCS32) == 0)
+				continue;
+			if (i > 32 && i > maxunequalmcs)
+				continue;
 			rs->rs_rates[rs->rs_nrates++] = i;
 		}
 	}
