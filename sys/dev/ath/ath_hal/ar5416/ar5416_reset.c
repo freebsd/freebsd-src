@@ -1944,9 +1944,17 @@ ar5416GetTargetPowersLeg(struct ath_hal *ah,
  * target TX power.
  */
 void
-ar5416SetGainBoundariesClosedLoop(struct ath_hal *ah, int regChainOffset,
+ar5416SetGainBoundariesClosedLoop(struct ath_hal *ah, int i,
     uint16_t pdGainOverlap_t2, uint16_t gainBoundaries[])
 {
+	int regChainOffset;
+
+	regChainOffset = ar5416GetRegChainOffset(ah, i);
+
+	HALDEBUG(ah, HAL_DEBUG_EEPROM, "%s: chain %d: gainOverlap_t2: %d,"
+	    " gainBoundaries: %d, %d, %d, %d\n", __func__, i, pdGainOverlap_t2,
+	    gainBoundaries[0], gainBoundaries[1], gainBoundaries[2],
+	    gainBoundaries[3]);
 	OS_REG_WRITE(ah, AR_PHY_TPCRG5 + regChainOffset,
 	    SM(pdGainOverlap_t2, AR_PHY_TPCRG5_PD_GAIN_OVERLAP) |
 	    SM(gainBoundaries[0], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_1)  |
@@ -1998,6 +2006,10 @@ void
 ar5416WriteDetectorGainBiases(struct ath_hal *ah, uint16_t numXpdGain,
     uint16_t xpdGainValues[])
 {
+    HALDEBUG(ah, HAL_DEBUG_EEPROM, "%s: numXpdGain: %d,"
+      " xpdGainValues: %d, %d, %d\n", __func__, numXpdGain,
+      xpdGainValues[0], xpdGainValues[1], xpdGainValues[2]);
+
     OS_REG_WRITE(ah, AR_PHY_TPCRG1, (OS_REG_READ(ah, AR_PHY_TPCRG1) & 
     	~(AR_PHY_TPCRG1_NUM_PD_GAIN | AR_PHY_TPCRG1_PD_GAIN_1 |
 	AR_PHY_TPCRG1_PD_GAIN_2 | AR_PHY_TPCRG1_PD_GAIN_3)) | 
@@ -2008,20 +2020,20 @@ ar5416WriteDetectorGainBiases(struct ath_hal *ah, uint16_t numXpdGain,
 }
 
 /*
- * Write the PDADC array to the given chain offset.
+ * Write the PDADC array to the given radio chain i.
  *
  * The 32 PDADC registers are written without any care about
  * their contents - so if various chips treat values as "special",
  * this routine will not care.
  */
 void
-ar5416WritePdadcValues(struct ath_hal *ah, int regChainOffset,
-    uint8_t pdadcValues[])
+ar5416WritePdadcValues(struct ath_hal *ah, int i, uint8_t pdadcValues[])
 {
-	int regOffset;
+	int regOffset, regChainOffset;
 	int j;
 	int reg32;
 
+	regChainOffset = ar5416GetRegChainOffset(ah, i);
 	regOffset = AR_PHY_BASE + (672 << 2) + regChainOffset;
 
 	for (j = 0; j < 32; j++) {
@@ -2030,16 +2042,14 @@ ar5416WritePdadcValues(struct ath_hal *ah, int regChainOffset,
 		    ((pdadcValues[4*j + 2] & 0xFF) << 16) |
 		    ((pdadcValues[4*j + 3] & 0xFF) << 24) ;
 		OS_REG_WRITE(ah, regOffset, reg32);
-#ifdef PDADC_DUMP
-		ath_hal_printf(ah, "PDADC: Chain %d | PDADC %3d Value %3d |"
+		HALDEBUG(ah, HAL_DEBUG_EEPROM, "PDADC: Chain %d |"
 		    " PDADC %3d Value %3d | PDADC %3d Value %3d | PDADC %3d"
-		    " Value %3d |\n",
+		    " Value %3d | PDADC %3d Value %3d |\n",
 		    i,
 		    4*j, pdadcValues[4*j],
 		    4*j+1, pdadcValues[4*j + 1],
 		    4*j+2, pdadcValues[4*j + 2],
 		    4*j+3, pdadcValues[4*j + 3]);
-#endif
 		regOffset += 4;
 	}
 }
@@ -2108,12 +2118,12 @@ ar5416SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom *pEepData,
                                              pdadcValues, numXpdGain);
 
             if ((i == 0) || AR_SREV_OWL_20_OR_LATER(ah)) {
-		ar5416SetGainBoundariesClosedLoop(ah, regChainOffset,
-		  pdGainOverlap_t2, gainBoundaries);
+		ar5416SetGainBoundariesClosedLoop(ah, i, pdGainOverlap_t2,
+		  gainBoundaries);
             }
 
             /* Write the power values into the baseband power table */
-	    ar5416WritePdadcValues(ah, regChainOffset, pdadcValues);
+	    ar5416WritePdadcValues(ah, i, pdadcValues);
         }
     }
     *pTxPowerIndexOffset = 0;
