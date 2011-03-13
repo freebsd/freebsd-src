@@ -135,7 +135,7 @@ memstick: system
 	sh ${.CURDIR}/${TARGET}/make-memstick.sh ${.OBJDIR}/release ${.OBJDIR}/memstick
 
 packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
-	sh ${.CURDIR}/${TARGET}/make-manifest.sh ${DISTDIR}/*.txz > ${.OBJDIR}/MANIFEST
+	sh ${.CURDIR}/scripts/make-manifest.sh ${.OBJDIR}/*.txz > ${.OBJDIR}/MANIFEST
 	touch ${.OBJDIR}/${.TARGET}
 
 cdrom: release.iso
