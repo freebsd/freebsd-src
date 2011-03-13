@@ -57,8 +57,6 @@ static HAL_BOOL ar9285SetPowerCalTable(struct ath_hal *ah,
 	struct ar5416eeprom_4k *pEepData,
 	const struct ieee80211_channel *chan,
 	int16_t *pTxPowerIndexOffset);
-static int16_t interpolate(uint16_t target, uint16_t srcLeft,
-	uint16_t srcRight, int16_t targetLeft, int16_t targetRight);
 static void ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah, 
 	const struct ieee80211_channel *chan, CAL_DATA_PER_FREQ_4K *pRawDataSet,
 	uint8_t * bChans, uint16_t availPiers,
@@ -657,15 +655,15 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
     }
 
     /* Find pier indexes around the current channel */
-    match = getLowerUpperIndex((uint8_t)FREQ2FBIN(centers.synth_center, IEEE80211_IS_CHAN_2GHZ(chan)),
-			bChans, numPiers, &idxL, &idxR);
+    match = ath_ee_getLowerUpperIndex((uint8_t)FREQ2FBIN(centers.synth_center,
+      IEEE80211_IS_CHAN_2GHZ(chan)), bChans, numPiers, &idxL, &idxR);
 
     if (match) {
         /* Directly fill both vpd tables from the matching index */
         for (i = 0; i < numXpdGains; i++) {
             minPwrT4[i] = pRawDataSet[idxL].pwrPdg[i][0];
             maxPwrT4[i] = pRawDataSet[idxL].pwrPdg[i][4];
-            ar5416FillVpdTable(minPwrT4[i], maxPwrT4[i],
+            ath_ee_FillVpdTable(minPwrT4[i], maxPwrT4[i],
 			       pRawDataSet[idxL].pwrPdg[i],
                                pRawDataSet[idxL].vpdPdg[i],
 			       AR5416_PD_GAIN_ICEPTS, vpdTableI[i]);
@@ -685,14 +683,15 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
             HALASSERT(maxPwrT4[i] > minPwrT4[i]);
 
             /* Fill pier Vpds */
-            ar5416FillVpdTable(minPwrT4[i], maxPwrT4[i], pPwrL, pVpdL,
+            ath_ee_FillVpdTable(minPwrT4[i], maxPwrT4[i], pPwrL, pVpdL,
 			       AR5416_PD_GAIN_ICEPTS, vpdTableL[i]);
-            ar5416FillVpdTable(minPwrT4[i], maxPwrT4[i], pPwrR, pVpdR,
+            ath_ee_FillVpdTable(minPwrT4[i], maxPwrT4[i], pPwrR, pVpdR,
 			       AR5416_PD_GAIN_ICEPTS, vpdTableR[i]);
 
             /* Interpolate the final vpd */
             for (j = 0; j <= (maxPwrT4[i] - minPwrT4[i]) / 2; j++) {
-                vpdTableI[i][j] = (uint8_t)(interpolate((uint16_t)FREQ2FBIN(centers.synth_center, IEEE80211_IS_CHAN_2GHZ(chan)),
+                vpdTableI[i][j] = (uint8_t)(ath_ee_interpolate((uint16_t)FREQ2FBIN(centers.synth_center,
+                    IEEE80211_IS_CHAN_2GHZ(chan)),
                     bChans[idxL], bChans[idxR], vpdTableL[i][j], vpdTableR[i][j]));
             }
         }
@@ -779,19 +778,4 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
         k++;
     }
     return;
-}
-
-static int16_t
-interpolate(uint16_t target, uint16_t srcLeft, uint16_t srcRight,
-            int16_t targetLeft, int16_t targetRight)
-{
-    int16_t rv;
-
-    if (srcRight == srcLeft) {
-        rv = targetLeft;
-    } else {
-        rv = (int16_t)( ((target - srcLeft) * targetRight +
-              (srcRight - target) * targetLeft) / (srcRight - srcLeft) );
-    }
-    return rv;
 }
