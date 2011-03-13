@@ -419,7 +419,8 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 		    "block %s frame in CAC state\n", "raw data");
 		vap->iv_stats.is_tx_badstate++;
 		senderr(EIO);		/* XXX */
-	}
+	} else if (vap->iv_state == IEEE80211_S_SCAN)
+		senderr(EIO);
 	/* XXX bypass bridge, pfil, carp, etc. */
 
 	if (m->m_pkthdr.len < sizeof(struct ieee80211_frame_ack))
