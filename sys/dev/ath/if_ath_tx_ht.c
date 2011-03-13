@@ -98,6 +98,7 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
     HAL_11N_RATE_SERIES *series, unsigned int pktlen, uint8_t *rix,
     uint8_t *try, int flags)
 {
+#define	HT_RC_2_STREAMS(_rc)	((((_rc) & 0x78) >> 3) + 1)
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_BOOL shortPreamble = AH_FALSE;
@@ -151,14 +152,15 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 			series[i].PktDuration =
 			    ath_computedur_ht(pktlen
 				, series[i].Rate
-				, ic->ic_txstream
-				, 0 /* disable 20/40 for now */
+				, HT_RC_2_STREAMS(series[i].Rate)
+				, series[i].RateFlags & HAL_RATESERIES_2040
 				, series[i].RateFlags & HAL_RATESERIES_HALFGI);
 		} else {
 			series[i].PktDuration = ath_hal_computetxtime(ah,
 			    rt, pktlen, rix[i], shortPreamble);
 		}
 	}
+#undef	HT_RC_2_STREAMS
 }
 
 #if 0
