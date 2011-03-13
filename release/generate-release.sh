@@ -42,7 +42,7 @@ if [ ! -z $CVSUP_HOST ]; then
 	cp /etc/resolv.conf $2/etc/resolv.conf
 
 	# Checkout ports and doc trees
-	#chroot $2 /usr/bin/csup /docports-supfile || exit 1
+	chroot $2 /usr/bin/csup /docports-supfile || exit 1
 
 	# Build ports to build the docs, then build the docs
 	chroot $2 /bin/sh -c 'pkg_add -r docproj || (cd /usr/ports/textproc/docproj && make install clean BATCH=yes WITHOUT_X11=yes JADETEX=no WITHOUT_PYTHON=yes)' || exit 1
@@ -50,6 +50,7 @@ if [ ! -z $CVSUP_HOST ]; then
 fi
 
 chroot $2 /bin/sh -c "cd /usr/src && make $MAKE_FLAGS buildworld buildkernel" || exit 1
+chroot $2 /bin/sh -c "cd /usr/src/release && make -f Makefile.bsdinstall obj release $RELEASE_FLAGS" || exit 1
 mkdir $2/R
-chroot $2 /bin/sh -c "cd /usr/src/release && MAKEOBJDIR=/R make -f Makefile.bsdinstall release $RELEASE_FLAGS" || exit 1
+cp -pRP $2/usr/obj/usr/src/release/release.iso $2/usr/obj/usr/src/release/memstick $2/usr/obj/usr/src/release/ftp $2/R
 
