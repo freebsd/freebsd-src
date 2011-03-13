@@ -275,16 +275,15 @@ device_register(struct device *dev)
 		unit = -1;
 	if (bsddev == NULL)
 		bsddev = device_add_child(dev->parent->bsddev,
-		    dev->kobj.name, unit);
+		    dev->class->kobj.name, unit);
 	if (bsddev) {
 		if (dev->devt == 0)
-			dev->devt = device_get_unit(bsddev);
+			dev->devt = makedev(0, device_get_unit(bsddev));
 		device_set_softc(bsddev, dev);
 	}
 	dev->bsddev = bsddev;
 	kobject_init(&dev->kobj, &dev_ktype);
 	kobject_add(&dev->kobj, &dev->class->kobj, dev_name(dev));
-	get_device(dev);
 
 	return (0);
 }
@@ -308,17 +307,13 @@ struct device *device_create(struct class *class, struct device *parent,
 static inline void
 device_destroy(struct class *class, dev_t devt)
 {
-	struct device *dev;
 	device_t bsddev;
 	int unit;
 
 	unit = MINOR(devt);
 	bsddev = devclass_get_device(class->bsdclass, unit);
-	if (bsddev) {
-		dev = device_get_softc(bsddev);
-		device_unregister(dev);
-		put_device(dev);
-	}
+	if (bsddev)
+		device_unregister(device_get_softc(bsddev));
 }
 
 static inline void

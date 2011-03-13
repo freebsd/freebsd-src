@@ -29,7 +29,9 @@
 #ifndef _LINUX_NET_IPV6_H_
 #define	_LINUX_NET_IPV6_H_
 
+#ifndef KLD_MODULE
 #include "opt_inet6.h"
+#endif
 
 #define	ipv6_addr_loopback IN6_IS_ADDR_LOOPBACK
 #define	ipv6_addr_copy(dst, src)					\

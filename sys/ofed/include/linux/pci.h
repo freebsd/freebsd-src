@@ -178,7 +178,7 @@ pci_resource_len(struct pci_dev *pdev, int bar)
 }
 
 /*
- * XXX All drivers just seem to want to inspect the type not flags.
+ * All drivers just seem to want to inspect the type not flags.
  */
 static inline int
 pci_resource_flags(struct pci_dev *pdev, int bar)
@@ -429,6 +429,7 @@ linux_pci_attach(device_t dev)
 		spin_lock(&pci_lock);
 		list_del(&pdev->links);
 		spin_unlock(&pci_lock);
+		put_device(&pdev->dev);
 		return (-error);
 	}
 	return (0);
@@ -440,10 +441,14 @@ linux_pci_detach(device_t dev)
 	struct pci_dev *pdev;
 
 	pdev = device_get_softc(dev);
+	mtx_unlock(&Giant);
 	pdev->pdrv->remove(pdev);
+	mtx_lock(&Giant);
 	spin_lock(&pci_lock);
 	list_del(&pdev->links);
 	spin_unlock(&pci_lock);
+	put_device(&pdev->dev);
+
 	return (0);
 }
 
@@ -483,7 +488,9 @@ pci_unregister_driver(struct pci_driver *pdrv)
 
 	list_del(&pdrv->links);
 	bus = devclass_find("pci");
+	mtx_lock(&Giant);
 	devclass_delete_driver(bus, &pdrv->driver);
+	mtx_unlock(&Giant);
 }
 
 struct msix_entry {

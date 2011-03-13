@@ -49,15 +49,13 @@
 #include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_types.h>
+#include <net/if_media.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 
-#include "opt_inet6.h"
-#ifdef INET6
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
-#endif
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>

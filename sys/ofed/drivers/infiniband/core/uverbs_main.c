@@ -891,6 +891,7 @@ static void ib_uverbs_remove_one(struct ib_device *device)
 	if (!uverbs_dev)
 		return;
 
+	sysfs_remove_group(&uverbs_dev->dev->kobj, &device_group);
 	dev_set_drvdata(uverbs_dev->dev, NULL);
 	device_destroy(uverbs_class, uverbs_dev->cdev->dev);
 	cdev_del(uverbs_dev->cdev);
