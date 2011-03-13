@@ -386,11 +386,28 @@ ar2133GetChannelMaxMinPower(struct ath_hal *ah,
 #endif
 }
 
+/*
+ * The ordering of nfarray is thus:
+ *
+ * nfarray[0]:	Chain 0 ctl
+ * nfarray[1]:	Chain 1 ctl
+ * nfarray[2]:	Chain 2 ctl
+ * nfarray[3]:	Chain 0 ext
+ * nfarray[4]:	Chain 1 ext
+ * nfarray[5]:	Chain 2 ext
+ */
 static void 
 ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
 	int16_t nf;
+
+	/*
+	 * Blank nf array - some chips may only
+	 * have one or two RX chainmasks enabled.
+	 */
+	nfarray[0] = nfarray[1] = nfarray[2] = 0;
+	nfarray[3] = nfarray[4] = nfarray[5] = 0;
 
 	switch (ahp->ah_rx_chainmask) {
         case 0x7:
@@ -399,7 +416,7 @@ ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 			nf = 0 - ((nf ^ 0x1ff) + 1);
 		HALDEBUG(ah, HAL_DEBUG_NFCAL,
 		    "NF calibrated [ctl] [chain 2] is %d\n", nf);
-		nfarray[4] = nf;
+		nfarray[2] = nf;
 
 		nf = MS(OS_REG_READ(ah, AR_PHY_CH2_EXT_CCA), AR_PHY_CH2_EXT_MINCCA_PWR);
 		if (nf & 0x100)
@@ -415,7 +432,7 @@ ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 			nf = 0 - ((nf ^ 0x1ff) + 1);
 		HALDEBUG(ah, HAL_DEBUG_NFCAL,
 		    "NF calibrated [ctl] [chain 1] is %d\n", nf);
-		nfarray[2] = nf;
+		nfarray[1] = nf;
 
 
 		nf = MS(OS_REG_READ(ah, AR_PHY_CH1_EXT_CCA), AR_PHY_CH1_EXT_MINCCA_PWR);
@@ -423,7 +440,7 @@ ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 			nf = 0 - ((nf ^ 0x1ff) + 1);
 		HALDEBUG(ah, HAL_DEBUG_NFCAL,
 		    "NF calibrated [ext] [chain 1] is %d\n", nf);
-		nfarray[3] = nf;
+		nfarray[4] = nf;
 		/* fall thru... */
         case 0x1:
 		nf = MS(OS_REG_READ(ah, AR_PHY_CCA), AR_PHY_MINCCA_PWR);
@@ -438,7 +455,7 @@ ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 			nf = 0 - ((nf ^ 0x1ff) + 1);
 		HALDEBUG(ah, HAL_DEBUG_NFCAL,
 		    "NF calibrated [ext] [chain 0] is %d\n", nf);
-		nfarray[1] = nf;
+		nfarray[3] = nf;
 
 		break;
 	}
