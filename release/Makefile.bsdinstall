@@ -11,6 +11,7 @@
 #  WORLDDIR: location of src tree -- must have built world and default kernel
 #            (by default, the directory above this one) 
 #  PORTSDIR: location of ports tree to distribute (default: /usr/ports)
+#  DOCDIR:   location of doc tree (default: /usr/doc)
 #  NOPORTS:  if set, do not distribute ports tree
 #  NOSRC:    if set, do not distribute source tree
 #  NODOC:    if set, do not generate release documentation
@@ -19,6 +20,7 @@
 
 WORLDDIR?=	${.CURDIR}/..
 PORTSDIR?=	/usr/ports
+DOCDIR?=	/usr/doc
 RELNOTES_LANG?= en_US.ISO8859-1
 
 TARGET_ARCH?=	${MACHINE_ARCH}
@@ -29,6 +31,13 @@ TARGET?=	${TARGET_ARCH}
 .endif
 IMAKE=		${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
 DISTDIR=	${.OBJDIR}/dist
+
+.if !exists(${DOCDIR})
+NODOC= true
+.endif
+.if !exists(${PORTSDIR})
+NOPORTS= true
+.endif
 
 EXTRA_PACKAGES= 
 .if !defined(NOPORTS)
@@ -55,7 +64,14 @@ base.txz:
 	-mkdir ${DISTDIR}
 	cd ${WORLDDIR} && ${IMAKE} distributeworld DISTDIR=${DISTDIR}
 # Set up mergemaster root database
-	sh ${.CURDIR}/scripts/mm-mtree.sh -F "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" -D "${DISTDIR}/base"
+	sh ${.CURDIR}/scripts/mm-mtree.sh -F \
+	    "TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}" -D "${DISTDIR}/base"
+# Merge handbook, etc. from doc tree into src tree doc distribution
+.if !defined(NODOC)
+	cd ${DOCDIR} && ${IMAKE} all install \
+	    DOCDIR=${DISTDIR}/doc/usr/share/doc 'FORMATS=html html-split txt' \
+	    INSTALL_COMPRESSED='' URLS_ABSOLUTE=YES
+.endif
 	cd ${WORLDDIR} && ${IMAKE} packageworld DISTDIR=${DISTDIR}
 	mv ${DISTDIR}/*.txz ${.OBJDIR}
 
@@ -67,15 +83,19 @@ kernel.txz:
 src.txz:
 	-mkdir -p ${DISTDIR}/usr
 	ln -fs ${WORLDDIR} ${DISTDIR}/usr/src
-	cd ${DISTDIR} && tar cLvJf ${.OBJDIR}/src.txz --exclude .svn --exclude CVS usr/src
+	cd ${DISTDIR} && tar cLvJf ${.OBJDIR}/src.txz --exclude .svn \
+	    --exclude CVS usr/src
 
 ports.txz:
 	-mkdir -p ${DISTDIR}/usr
 	ln -fs ${PORTSDIR} ${DISTDIR}/usr/ports
-	cd ${DISTDIR} && tar cLvJf ${.OBJDIR}/ports.txz --exclude usr/ports/distfiles --exclude usr/ports/packages --exclude 'usr/ports/INDEX*' --exclude work usr/ports
+	cd ${DISTDIR} && tar cLvJf ${.OBJDIR}/ports.txz \
+	    --exclude usr/ports/distfiles --exclude usr/ports/packages \
+	    --exclude 'usr/ports/INDEX*' --exclude work usr/ports
 
 reldoc:
-	cd ${.CURDIR}/doc && ${MAKE} all install clean 'FORMATS=html txt' INSTALL_COMPRESSED='' URLS_ABSOLUTE=YES DOCDIR=${.OBJDIR}/rdoc
+	cd ${.CURDIR}/doc && ${MAKE} all install clean 'FORMATS=html txt' \
+	    INSTALL_COMPRESSED='' URLS_ABSOLUTE=YES DOCDIR=${.OBJDIR}/rdoc
 	-mkdir ${.OBJDIR}/reldoc
 .for i in hardware readme relnotes errata
 	ln -f ${.OBJDIR}/rdoc/${RELNOTES_LANG}/${i}/article.txt \
@@ -83,7 +103,7 @@ reldoc:
 	ln -f ${.OBJDIR}/rdoc/${RELNOTES_LANG}/${i}/article.html \
 	    ${.OBJDIR}/reldoc/${i:U}.HTM
 .endfor
-	@cp ${.OBJDIR}/rdoc/${RELNOTES_LANG}/readme/docbook.css ${.OBJDIR}/reldoc
+	cp ${.OBJDIR}/rdoc/${RELNOTES_LANG}/readme/docbook.css ${.OBJDIR}/reldoc
 
 system: packagesystem
 # Install system
