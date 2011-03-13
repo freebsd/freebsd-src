@@ -380,19 +380,19 @@ ht_announce(struct ieee80211com *ic, int mode)
 	struct ifnet *ifp = ic->ic_ifp;
 	const char *modestr = ieee80211_phymode_name[mode];
 
-	if_printf(ifp, "%s MCS 20Mhz\n", modestr);
+	if_printf(ifp, "%s MCS 20MHz\n", modestr);
 	ht_rateprint(ic, mode, 0);
 	if (ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20) {
-		if_printf(ifp, "%s MCS 20Mhz SGI\n", modestr);
+		if_printf(ifp, "%s MCS 20MHz SGI\n", modestr);
 		ht_rateprint(ic, mode, 1);
 	}
 	if (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) {
-		if_printf(ifp, "%s MCS 40Mhz:\n", modestr);
+		if_printf(ifp, "%s MCS 40MHz:\n", modestr);
 		ht_rateprint(ic, mode, 2);
 	}
 	if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
 	    (ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40)) {
-		if_printf(ifp, "%s MCS 40Mhz SGI:\n", modestr);
+		if_printf(ifp, "%s MCS 40MHz SGI:\n", modestr);
 		ht_rateprint(ic, mode, 3);
 	}
 }
@@ -1563,7 +1563,7 @@ ieee80211_ht_updatehtcap(struct ieee80211_node *ni, const uint8_t *htcapie)
 	htcap_update_shortgi(ni);
 
 	/* NB: honor operating mode constraint */
-	/* XXX 40 MHZ intolerant */
+	/* XXX 40 MHz intolerant */
 	htflags = (vap->iv_flags_ht & IEEE80211_FHT_HT) ?
 	    IEEE80211_CHAN_HT20 : 0;
 	if ((ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40) &&
