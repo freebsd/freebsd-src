@@ -590,6 +590,10 @@ nofit:
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_SPARE);
 */	else
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
+
+	sd->sd_offset = pd->pd_meta[sdn]->disk_offset * 512;
+	sd->sd_size = pd->pd_meta[sdn]->disk_sectors * 512;
+
 	/* Up to date disk. */
 	g_raid_change_subdisk_state(sd,
 	    G_RAID_SUBDISK_S_ACTIVE);
@@ -782,6 +786,7 @@ static void
 g_raid_md_promise_start(struct g_raid_volume *vol)
 {
 	struct g_raid_softc *sc;
+	struct g_raid_subdisk *sd;
 	struct g_raid_disk *disk;
 	struct g_raid_md_object *md;
 	struct g_raid_md_promise_object *mdi;
@@ -818,6 +823,11 @@ g_raid_md_promise_start(struct g_raid_volume *vol)
 	vol->v_disks_count = meta->total_disks;
 	vol->v_mediasize = (off_t)meta->total_sectors * 512; //ZZZ
 	vol->v_sectorsize = 512; //ZZZ
+	for (i = 0; i < vol->v_disks_count; i++) {
+		sd = &vol->v_subdisks[i];
+		sd->sd_offset = (off_t)meta->disk_offset * 512; //ZZZ
+		sd->sd_size = (off_t)meta->disk_sectors * 512; //ZZZ
+	}
 	g_raid_start_volume(vol);
 
 	/* Make all disks found till the moment take their places. */
