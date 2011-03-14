@@ -183,6 +183,9 @@ SUBDIR=	${_3dfx} \
 	mfi \
 	mii \
 	mlx \
+	mlx4 \
+	mlx4ib \
+	mlxen \
 	${_mly} \
 	mmc \
 	mmcsd \
@@ -193,6 +196,7 @@ SUBDIR=	${_3dfx} \
 	msdosfs_iconv \
 	${_mse} \
 	msk \
+	mthca \
 	mvs \
 	mwl \
 	mwlfw \
