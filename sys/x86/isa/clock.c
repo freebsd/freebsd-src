@@ -245,6 +245,42 @@ getit(void)
 	return ((high << 8) | low);
 }
 
+static __inline void
+delay_tsc(int n)
+{
+	uint64_t start, end, now;
+
+	sched_pin();
+	start = rdtsc();
+	end = start + (tsc_freq * n) / 1000000;
+	do {
+		cpu_spinwait();
+		now = rdtsc();
+	} while (now < end || (now > start && end < start));
+	sched_unpin();
+}
+
+static __inline void
+delay_timecounter(struct timecounter *tc, int n)
+{
+	uint64_t end, now;
+	u_int last, mask, u;
+
+	mask = tc->tc_counter_mask;
+	last = tc->tc_get_timecount(tc) & mask;
+	end = tc->tc_frequency * n / 1000000;
+	now = 0;
+	do {
+		cpu_spinwait();
+		u = tc->tc_get_timecount(tc) & mask;
+		if (u < last)
+			now += mask - last + u + 1;
+		else
+			now += u - last;
+		last = u;
+	} while (now < end);
+}
+
 /*
  * Wait "n" microseconds.
  * Relies on timer 1 counting down from (i8254_freq / hz)
@@ -253,6 +289,7 @@ getit(void)
 void
 DELAY(int n)
 {
+	struct timecounter *tc;
 	int delta, prev_tick, tick, ticks_left;
 
 #ifdef DELAYDEBUG
@@ -262,16 +299,12 @@ DELAY(int n)
 #endif
 
 	if (tsc_freq != 0) {
-		uint64_t start, end, now;
-
-		sched_pin();
-		start = rdtsc();
-		end = start + (tsc_freq * n) / 1000000;
-		do {
-			cpu_spinwait();
-			now = rdtsc();
-		} while (now < end || (now > start && end < start));
-		sched_unpin();
+		delay_tsc(n);
+		return;
+	}
+	tc = timecounter;
+	if (tc->tc_quality > 0) {
+		delay_timecounter(tc, n);
 		return;
 	}
 #ifdef DELAYDEBUG
