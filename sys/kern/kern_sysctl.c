@@ -369,12 +369,12 @@ int
 sysctl_remove_name(struct sysctl_oid *parent, const char *name,
     int del, int recurse)
 {
-	struct sysctl_oid *p;
+	struct sysctl_oid *p, *tmp;
 	int error;
 
 	error = ENOENT;
 	SYSCTL_XLOCK();
-	SLIST_FOREACH(p, SYSCTL_CHILDREN(parent), oid_link) {
+	SLIST_FOREACH_SAFE(p, SYSCTL_CHILDREN(parent), oid_link, tmp) {
 		if (strcmp(p->oid_name, name) == 0) {
 			error = sysctl_remove_oid_locked(p, del, recurse);
 			break;
@@ -389,7 +389,7 @@ sysctl_remove_name(struct sysctl_oid *parent, const char *name,
 static int
 sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 {
-	struct sysctl_oid *p;
+	struct sysctl_oid *p, *tmp;
 	int error;
 
 	SYSCTL_ASSERT_XLOCKED();
@@ -408,7 +408,8 @@ sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 	 */
 	if ((oidp->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
 		if (oidp->oid_refcnt == 1) {
-			SLIST_FOREACH(p, SYSCTL_CHILDREN(oidp), oid_link) {
+			SLIST_FOREACH_SAFE(p,
+			    SYSCTL_CHILDREN(oidp), oid_link, tmp) {
 				if (!recurse)
 					return (ENOTEMPTY);
 				error = sysctl_remove_oid_locked(p, del,
