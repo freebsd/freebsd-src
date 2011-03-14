@@ -259,6 +259,8 @@ g_raid_volume_event2str(int event)
 		return ("DOWN");
 	case G_RAID_VOLUME_E_START:
 		return ("START");
+	case G_RAID_VOLUME_E_STARTMD:
+		return ("STARTMD");
 	default:
 		return ("INVALID");
 	}
@@ -1524,6 +1526,10 @@ g_raid_update_volume(struct g_raid_volume *vol, u_int event)
 	case G_RAID_VOLUME_E_START:
 		if (vol->v_tr)
 			G_RAID_TR_START(vol->v_tr);
+		return (0);
+	default:
+		if (sc->sc_md)
+			G_RAID_MD_VOLUME_EVENT(sc->sc_md, vol, event);
 		return (0);
 	}
 

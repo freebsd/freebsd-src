@@ -116,8 +116,8 @@ struct promise_raid_conf {
 						/* Subdisks in this volume. */
 	char		name[32];		/* Volume label. */
 
-	uint32_t		filler2[338];
-	uint32_t		checksum;
+	uint32_t	filler2[338];
+	uint32_t	checksum;
 } __packed;
 
 struct g_raid_md_promise_perdisk {
@@ -130,24 +130,26 @@ struct g_raid_md_promise_perdisk {
 };
 
 struct g_raid_md_promise_pervolume {
+	struct promise_raid_conf	*pv_meta;
 	uint64_t			 pv_id;
 	uint16_t			 pv_generation;
 	int				 pv_disks_present;
-	struct promise_raid_conf	*pv_meta;
+	int				 pv_started;
+	struct callout			 pv_start_co;	/* STARTING state timer. */
+	struct root_hold_token		*pv_rootmount; /* Root mount delay token. */
 };
 
 struct g_raid_md_promise_object {
 	struct g_raid_md_object	 mdio_base;
-	struct callout		 mdio_start_co;	/* STARTING state timer. */
 	int			 mdio_disks_present;
 	int			 mdio_started;
 	int			 mdio_incomplete;
-	struct root_hold_token	*mdio_rootmount; /* Root mount delay token. */
 };
 
 static g_raid_md_create_t g_raid_md_create_promise;
 static g_raid_md_taste_t g_raid_md_taste_promise;
 static g_raid_md_event_t g_raid_md_event_promise;
+static g_raid_md_volume_event_t g_raid_md_volume_event_promise;
 static g_raid_md_ctl_t g_raid_md_ctl_promise;
 static g_raid_md_write_t g_raid_md_write_promise;
 static g_raid_md_fail_disk_t g_raid_md_fail_disk_promise;
@@ -159,6 +161,7 @@ static kobj_method_t g_raid_md_promise_methods[] = {
 	KOBJMETHOD(g_raid_md_create,	g_raid_md_create_promise),
 	KOBJMETHOD(g_raid_md_taste,	g_raid_md_taste_promise),
 	KOBJMETHOD(g_raid_md_event,	g_raid_md_event_promise),
+	KOBJMETHOD(g_raid_md_volume_event,	g_raid_md_volume_event_promise),
 	KOBJMETHOD(g_raid_md_ctl,	g_raid_md_ctl_promise),
 	KOBJMETHOD(g_raid_md_write,	g_raid_md_write_promise),
 	KOBJMETHOD(g_raid_md_fail_disk,	g_raid_md_fail_disk_promise),
@@ -446,7 +449,7 @@ g_raid_md_promise_supported(int level, int qual, int disks, int force)
 }
 
 static int
-g_raid_md_promise_start_disk(struct g_raid_disk *disk)
+g_raid_md_promise_start_disk(struct g_raid_disk *disk, int sdn)
 {
 #if 0
 	struct g_raid_softc *sc;
@@ -752,10 +755,12 @@ g_raid_md_promise_refill(struct g_raid_softc *sc)
 }
 
 static void
-g_raid_md_promise_start(struct g_raid_softc *sc)
+g_raid_md_promise_start(struct g_raid_volume *vol)
 {
+	struct g_raid_softc *sc;
 	struct g_raid_md_object *md;
 	struct g_raid_md_promise_object *mdi;
+	struct g_raid_md_promise_pervolume *pv;
 #if 0
 	struct g_raid_md_promise_perdisk *pd;
 	struct promise_raid_conf *meta;
@@ -767,8 +772,10 @@ g_raid_md_promise_start(struct g_raid_softc *sc)
 	int i, j, disk_pos;
 #endif
 
+	sc = vol->v_softc;
 	md = sc->sc_md;
 	mdi = (struct g_raid_md_promise_object *)md;
+	pv = vol->v_md_data;
 #if 0
 	meta = mdi->mdio_meta;
 
@@ -858,10 +865,29 @@ g_raid_md_promise_start(struct g_raid_softc *sc)
 	}
 #endif
 
-	callout_stop(&mdi->mdio_start_co);
-	G_RAID_DEBUG1(1, sc, "root_mount_rel %p", mdi->mdio_rootmount);
-	root_mount_rel(mdi->mdio_rootmount);
-	mdi->mdio_rootmount = NULL;
+	callout_stop(&pv->pv_start_co);
+	G_RAID_DEBUG1(1, sc, "root_mount_rel %p", pv->pv_rootmount);
+	root_mount_rel(pv->pv_rootmount);
+	pv->pv_rootmount = NULL;
+}
+
+static void
+g_raid_promise_go(void *arg)
+{
+	struct g_raid_volume *vol;
+	struct g_raid_softc *sc;
+	struct g_raid_md_promise_pervolume *pv;
+
+	vol = arg;
+	pv = vol->v_md_data;
+	sc = vol->v_softc;
+	sx_xlock(&sc->sc_lock);
+	if (!pv->pv_started) {
+		G_RAID_DEBUG1(0, sc, "Force volume start due to timeout.");
+		g_raid_event_send(vol, G_RAID_VOLUME_E_STARTMD,
+		    G_RAID_EVENT_VOLUME);
+	}
+	sx_xunlock(&sc->sc_lock);
 }
 
 static void
@@ -892,6 +918,12 @@ g_raid_md_promise_new_disk(struct g_raid_disk *disk)
 			pv = malloc(sizeof(*pv), M_MD_PROMISE, M_WAITOK | M_ZERO);
 			pv->pv_id = pdmeta->volume_id;
 			vol->v_md_data = pv;
+			callout_init(&pv->pv_start_co, 1);
+			callout_reset(&pv->pv_start_co,
+			    g_raid_start_timeout * hz,
+			    g_raid_promise_go, vol);
+			pv->pv_rootmount = root_mount_hold("GRAID-Promise");
+			G_RAID_DEBUG1(1, sc, "root_mount_hold %p", pv->pv_rootmount);
 			g_raid_start_volume(vol);
 		} else
 			pv = vol->v_md_data;
@@ -915,36 +947,16 @@ g_raid_md_promise_new_disk(struct g_raid_disk *disk)
 		} else {
 			G_RAID_DEBUG1(1, sc, "Older disk");
 		}
-	}
 
-#if 0
-	if (mdi->mdio_started) {
-		if (g_raid_md_promise_start_disk(disk))
-			g_raid_md_write_promise(md, NULL, NULL, NULL);
-	} else {
-		/* If we collected all needed disks - start array. */
-		if (mdi->mdio_disks_present == mdi->mdio_meta->total_disks)
-			g_raid_md_promise_start(sc);
+		if (pv->pv_started) {
+			if (g_raid_md_promise_start_disk(disk, i))
+				g_raid_md_write_promise(md, NULL, NULL, NULL);
+		} else {
+			/* If we collected all needed disks - start array. */
+			if (pv->pv_disks_present == pv->pv_meta->total_disks)
+				g_raid_md_promise_start(vol);
+		}
 	}
-#endif
-}
-
-static void
-g_raid_promise_go(void *arg)
-{
-	struct g_raid_softc *sc;
-	struct g_raid_md_object *md;
-	struct g_raid_md_promise_object *mdi;
-
-	sc = arg;
-	md = sc->sc_md;
-	mdi = (struct g_raid_md_promise_object *)md;
-	sx_xlock(&sc->sc_lock);
-	if (!mdi->mdio_started) {
-		G_RAID_DEBUG1(0, sc, "Force array start due to timeout.");
-		g_raid_event_send(sc, G_RAID_NODE_E_START, 0);
-	}
-	sx_xunlock(&sc->sc_lock);
 }
 
 static int
@@ -1007,7 +1019,7 @@ g_raid_md_taste_promise(struct g_raid_md_object *md, struct g_class *mp,
 				goto search;
 			} else {
 				G_RAID_DEBUG(1,
-				    "Promise vendor mismatch "
+				    "Promise/ATI vendor mismatch "
 				    "0x%04x != 0x105a/0x1002",
 				    vendor);
 			}
@@ -1047,11 +1059,6 @@ search:
 		sc = g_raid_create_node(mp, name, md);
 		md->mdo_softc = sc;
 		geom = sc->sc_geom;
-		callout_init(&mdi->mdio_start_co, 1);
-		callout_reset(&mdi->mdio_start_co, g_raid_start_timeout * hz,
-		    g_raid_promise_go, sc);
-		mdi->mdio_rootmount = root_mount_hold("GRAID-Promise");
-		G_RAID_DEBUG1(1, sc, "root_mount_hold %p", mdi->mdio_rootmount);
 	}
 
 	rcp = g_new_consumer(geom);
@@ -1112,15 +1119,8 @@ g_raid_md_event_promise(struct g_raid_md_object *md,
 
 	sc = md->mdo_softc;
 	mdi = (struct g_raid_md_promise_object *)md;
-	if (disk == NULL) {
-		switch (event) {
-		case G_RAID_NODE_E_START:
-			if (!mdi->mdio_started)
-				g_raid_md_promise_start(sc);
-			return (0);
-		}
+	if (disk == NULL)
 		return (-1);
-	}
 	pd = (struct g_raid_md_promise_perdisk *)disk->d_md_data;
 	switch (event) {
 	case G_RAID_DISK_E_DISCONNECTED:
@@ -1152,6 +1152,24 @@ g_raid_md_event_promise(struct g_raid_md_object *md,
 			g_raid_destroy_node(sc, 0);
 		else
 			g_raid_md_promise_refill(sc);
+		return (0);
+	}
+	return (-2);
+}
+
+static int
+g_raid_md_volume_event_promise(struct g_raid_md_object *md,
+    struct g_raid_volume *vol, u_int event)
+{
+	struct g_raid_softc *sc;
+	struct g_raid_md_promise_pervolume *pv;
+
+	sc = md->mdo_softc;
+	pv = (struct g_raid_md_promise_pervolume *)vol->v_md_data;
+	switch (event) {
+	case G_RAID_VOLUME_E_STARTMD:
+		if (!pv->pv_started)
+			g_raid_md_promise_start(vol);
 		return (0);
 	}
 	return (-2);
@@ -1756,7 +1774,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 //			pd->pd_disk_meta.flags = PROMISE_F_SPARE;
 
 			/* Welcome the "new" disk. */
-			update += g_raid_md_promise_start_disk(disk);
+			update += g_raid_md_promise_start_disk(disk, 0);
 			if (disk->d_state == G_RAID_DISK_S_SPARE) {
 //				promise_meta_write_spare(cp, &pd->pd_disk_meta);
 				g_raid_destroy_disk(disk);
@@ -2091,6 +2109,14 @@ g_raid_md_free_volume_promise(struct g_raid_md_object *md,
 		free(pv->pv_meta, M_MD_PROMISE);
 		pv->pv_meta = NULL;
 	}
+	if (pv && !pv->pv_started) {
+		pv->pv_started = 1;
+		callout_stop(&pv->pv_start_co);
+		G_RAID_DEBUG1(1, md->mdo_softc,
+		    "root_mount_rel %p", pv->pv_rootmount);
+		root_mount_rel(pv->pv_rootmount);
+		pv->pv_rootmount = NULL;
+	}
 	return (0);
 }
 
@@ -2100,14 +2126,6 @@ g_raid_md_free_promise(struct g_raid_md_object *md)
 	struct g_raid_md_promise_object *mdi;
 
 	mdi = (struct g_raid_md_promise_object *)md;
-	if (!mdi->mdio_started) {
-		mdi->mdio_started = 0;
-		callout_stop(&mdi->mdio_start_co);
-		G_RAID_DEBUG1(1, md->mdo_softc,
-		    "root_mount_rel %p", mdi->mdio_rootmount);
-		root_mount_rel(mdi->mdio_rootmount);
-		mdi->mdio_rootmount = NULL;
-	}
 	return (0);
 }
 

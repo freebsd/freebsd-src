@@ -211,6 +211,7 @@ struct g_raid_subdisk {
 #define G_RAID_VOLUME_E_DOWN		0x00
 #define G_RAID_VOLUME_E_UP		0x01
 #define G_RAID_VOLUME_E_START		0x10
+#define G_RAID_VOLUME_E_STARTMD		0x11
 
 #define G_RAID_VOLUME_RL_RAID0		0x00
 #define G_RAID_VOLUME_RL_RAID1		0x01

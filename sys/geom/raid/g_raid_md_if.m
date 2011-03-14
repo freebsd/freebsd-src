@@ -64,6 +64,14 @@ CODE {
 	}
 
 	static int
+	g_raid_md_volume_event_default(struct g_raid_md_object *md,
+	    struct g_raid_volume *vol, u_int event)
+	{
+
+		return (-1);
+	}
+
+	static int
 	g_raid_md_free_disk_default(struct g_raid_md_object *md,
 	    struct g_raid_volume *vol)
 	{
@@ -107,6 +115,13 @@ METHOD int event {
 	struct g_raid_disk *disk;
 	u_int event;
 };
+
+# volume_event() - events handling method.
+METHOD int volume_event {
+	struct g_raid_md_object *md;
+	struct g_raid_volume *vol;
+	u_int event;
+} DEFAULT g_raid_md_volume_event_default;
 
 # write() - metadata write method.
 METHOD int write {
