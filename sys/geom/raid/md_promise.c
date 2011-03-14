@@ -854,13 +854,11 @@ g_raid_promise_go(void *arg)
 	vol = arg;
 	pv = vol->v_md_data;
 	sc = vol->v_softc;
-	sx_xlock(&sc->sc_lock);
 	if (!pv->pv_started) {
 		G_RAID_DEBUG1(0, sc, "Force volume start due to timeout.");
 		g_raid_event_send(vol, G_RAID_VOLUME_E_STARTMD,
 		    G_RAID_EVENT_VOLUME);
 	}
-	sx_xunlock(&sc->sc_lock);
 }
 
 static void

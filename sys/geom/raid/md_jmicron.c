@@ -785,12 +785,10 @@ g_raid_jmicron_go(void *arg)
 	sc = arg;
 	md = sc->sc_md;
 	mdi = (struct g_raid_md_jmicron_object *)md;
-	sx_xlock(&sc->sc_lock);
 	if (!mdi->mdio_started) {
 		G_RAID_DEBUG1(0, sc, "Force array start due to timeout.");
 		g_raid_event_send(sc, G_RAID_NODE_E_START, 0);
 	}
-	sx_xunlock(&sc->sc_lock);
 }
 
 static int

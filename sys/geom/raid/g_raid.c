@@ -434,7 +434,6 @@ g_raid_event_send(void *arg, int event, int flags)
 	struct g_raid_event *ep;
 	int error;
 
-	ep = malloc(sizeof(*ep), M_RAID, M_WAITOK);
 	if ((flags & G_RAID_EVENT_VOLUME) != 0) {
 		sc = ((struct g_raid_volume *)arg)->v_softc;
 	} else if ((flags & G_RAID_EVENT_DISK) != 0) {
@@ -444,6 +443,10 @@ g_raid_event_send(void *arg, int event, int flags)
 	} else {
 		sc = arg;
 	}
+	ep = malloc(sizeof(*ep), M_RAID,
+	    sx_xlocked(&sc->sc_lock) ? M_WAITOK : M_NOWAIT);
+	if (ep == NULL)
+		return (ENOMEM);
 	ep->e_tgt = arg;
 	ep->e_event = event;
 	ep->e_flags = flags;
