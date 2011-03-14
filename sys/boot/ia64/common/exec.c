@@ -85,7 +85,7 @@ enter_kernel(uint64_t start, struct bootinfo *bi)
 }
 
 static void
-mmu_wire(vm_offset_t va, vm_paddr_t pa, u_int sz, u_int acc)
+mmu_wire(vm_offset_t va, vm_paddr_t pa, vm_size_t sz, u_int acc)
 {
 	static u_int iidx = 0, didx = 0;
 	pt_entry_t pte;
@@ -113,6 +113,7 @@ mmu_wire(vm_offset_t va, vm_paddr_t pa, u_int sz, u_int acc)
 	__asm __volatile("mov cr.ifa=%0" :: "r"(va));
 	__asm __volatile("mov cr.itir=%0" :: "r"(shft << 2));
 	__asm __volatile("srlz.d;;");
+
 	__asm __volatile("ptr.d %0,%1" :: "r"(va), "r"(shft << 2));
 	__asm __volatile("srlz.d;;");
 	__asm __volatile("itr.d dtr[%0]=%1" :: "r"(didx), "r"(pte));
@@ -148,7 +149,7 @@ mmu_setup_legacy(uint64_t entry)
 static void
 mmu_setup_paged(vm_offset_t pbvm_top)
 {
-	u_int sz;
+	vm_size_t sz;
 
 	ia64_set_rr(IA64_RR_BASE(IA64_PBVM_RR),
 	    (IA64_PBVM_RR << 8) | (IA64_PBVM_PAGE_SHIFT << 2));
