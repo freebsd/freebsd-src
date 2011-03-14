@@ -101,7 +101,7 @@ xhead:	data8	xtrace
 
 #endif
 
-	.text
+	.section .text.ivt, "ax"
 
 /*
  * exception_save: save interrupted state
@@ -725,7 +725,7 @@ ivt_##name:					\
  * bundles per vector and 48 slots with 16 bundles per vector.
  */
 
-	.section .text.ivt,"ax"
+	.section .ivt, "ax"
 
 	.align	32768
 	.global ia64_vector_table
@@ -812,7 +812,7 @@ IVT_ENTRY(Instruction_TLB, 0x0400)
 3:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
-	br.cond.sptk.few 2b		// loop
+	br.sptk	2b			// loop
 	;;
 9:	ssm	psr.dt
 	mov	pr=r17,0x1ffff		// restore predicates
@@ -898,7 +898,7 @@ IVT_ENTRY(Data_TLB, 0x0800)
 3:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
-	br.cond.sptk.few 2b		// loop
+	br.sptk	2b			// loop
 	;;
 9:	ssm	psr.dt
 	mov	pr=r17,0x1ffff		// restore predicates
@@ -913,24 +913,39 @@ IVT_ENTRY(Alternate_Instruction_TLB, 0x0c00)
 	mov	r18=pr			// save predicates
 	;;
 	extr.u	r17=r16,61,3		// get region number
+	mov	r19=PTE_PRESENT+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+PTE_AR_RWX
+	;;
+	cmp.eq	p13,p0=4,r17		// RR4?
+(p13)	br.cond.sptk.few	4f
 	;;
 	cmp.ge	p13,p0=5,r17		// RR0-RR5?
-	cmp.eq	p15,p14=7,r17		// RR7->p15, RR6->p14
-(p13)	br.spnt	9f
+	cmp.eq	p14,p15=7,r17		// RR7?
+(p13)	br.cond.spnt.few	9f
 	;;
-(p15)	movl	r17=PTE_PRESENT+PTE_MA_WB+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+ \
-			PTE_AR_RX+PTE_ED
-(p14)	movl	r17=PTE_PRESENT+PTE_MA_UC+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+ \
-			PTE_AR_RX
+(p14)	add	r19=PTE_MA_WB,r19
+(p15)	add	r19=PTE_MA_UC,r19
+	dep	r17=0,r16,50,14		// clear bits above PPN
 	;;
-	dep	r16=0,r16,50,14		// clear bits above PPN
-	;;
-	dep	r16=r17,r16,0,12	// put pte bits in 0..11
+1:	dep	r16=r19,r17,0,12	// put pte bits in 0..11
 	;;
 	itc.i	r16
 	mov	pr=r18,0x1ffff		// restore predicates
 	;;
 	rfi
+	;;
+4:
+	add	r19=PTE_MA_WB,r19
+	movl	r17=IA64_PBVM_BASE
+	;;
+	sub	r17=r16,r17
+	movl	r16=IA64_PBVM_PGTBL
+	;;
+	extr.u	r17=r17,IA64_PBVM_PAGE_SHIFT,61-IA64_PBVM_PAGE_SHIFT
+	;;
+	shladd	r16=r17,3,r16
+	;;
+	ld8	r17=[r16]
+	br.sptk	1b
 	;;
 9:	mov	pr=r18,0x1ffff		// restore predicates
 	CALL(trap, 3, cr.ifa)
@@ -941,24 +956,39 @@ IVT_ENTRY(Alternate_Data_TLB, 0x1000)
 	mov	r18=pr			// save predicates
 	;;
 	extr.u	r17=r16,61,3		// get region number
+	mov	r19=PTE_PRESENT+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+PTE_AR_RWX
+	;;
+	cmp.eq	p13,p0=4,r17		// RR4?
+(p13)	br.cond.sptk.few	4f
 	;;
 	cmp.ge	p13,p0=5,r17		// RR0-RR5?
-	cmp.eq	p15,p14=7,r17		// RR7->p15, RR6->p14
-(p13)	br.spnt	9f
+	cmp.eq	p14,p15=7,r17		// RR7?
+(p13)	br.cond.spnt.few	9f
 	;;
-(p15)	movl	r17=PTE_PRESENT+PTE_MA_WB+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+ \
-			PTE_AR_RW+PTE_ED
-(p14)	movl	r17=PTE_PRESENT+PTE_MA_UC+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+ \
-			PTE_AR_RW
+(p14)	add	r19=PTE_MA_WB,r19
+(p15)	add	r19=PTE_MA_UC,r19
+	dep	r17=0,r16,50,14		// clear bits above PPN
 	;;
-	dep	r16=0,r16,50,14		// clear bits above PPN
-	;;
-	dep	r16=r17,r16,0,12	// put pte bits in 0..11
+1:	dep	r16=r19,r17,0,12	// put pte bits in 0..11
 	;;
 	itc.d	r16
 	mov	pr=r18,0x1ffff		// restore predicates
 	;;
 	rfi
+	;;
+4:
+	add	r19=PTE_MA_WB,r19
+	movl	r17=IA64_PBVM_BASE
+	;;
+	sub	r17=r16,r17
+	movl	r16=IA64_PBVM_PGTBL
+	;;
+	extr.u	r17=r17,IA64_PBVM_PAGE_SHIFT,61-IA64_PBVM_PAGE_SHIFT
+	;;
+	shladd	r16=r17,3,r16
+	;;
+	ld8	r17=[r16]
+	br.sptk	1b
 	;;
 9:	mov	pr=r18,0x1ffff		// restore predicates
 	CALL(trap, 4, cr.ifa)
@@ -1045,13 +1075,13 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 {	.mib
 	srlz.d
 	cmp.eq		p13,p0=r29,r27
-(p12)	br.sptk		exception_save_restart
+(p12)	br.cond.sptk.few	exception_save_restart
 	;;
 }
 {	.mib
 	nop		0
 	nop		0
-(p13)	br.sptk		exception_restore_restart
+(p13)	br.cond.sptk.few	exception_restore_restart
 	;;
 }
 {	.mlx
@@ -1147,7 +1177,7 @@ IVT_ENTRY(Dirty_Bit, 0x2000)
 2:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
-	br.cond.sptk.few 1b		// loop
+	br.sptk	1b			// loop
 	;;
 9:	ssm	psr.dt
 	mov	pr=r17,0x1ffff		// restore predicates
@@ -1221,7 +1251,7 @@ IVT_ENTRY(Instruction_Access_Bit, 0x2400)
 2:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
-	br.cond.sptk.few 1b		// loop
+	br.sptk	1b			// loop
 	;;
 9:	ssm	psr.dt
 	mov	pr=r17,0x1ffff		// restore predicates
@@ -1295,7 +1325,7 @@ IVT_ENTRY(Data_Access_Bit, 0x2800)
 2:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
-	br.cond.sptk.few 1b		// loop
+	br.sptk	1b			// loop
 	;;
 9:	ssm	psr.dt
 	mov	pr=r17,0x1ffff		// restore predicates

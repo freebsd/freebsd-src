@@ -61,6 +61,7 @@ ia64_bsp_adjust(uint64_t bsp, int nslots)
 #ifdef _KERNEL
 
 struct _special;
+struct bootinfo;
 struct pcpu;
 struct thread;
 struct trapframe;
@@ -93,7 +94,7 @@ int	ia64_highfp_drop(struct thread *);
 int	ia64_highfp_enable(struct thread *, struct trapframe *);
 int	ia64_highfp_save(struct thread *);
 int	ia64_highfp_save_ipi(void);
-struct ia64_init_return ia64_init(void);
+struct ia64_init_return ia64_init(struct bootinfo *);
 u_int	ia64_itc_freq(void);
 void	ia64_probe_sapics(void);
 void	ia64_sync_icache(vm_offset_t, vm_size_t);

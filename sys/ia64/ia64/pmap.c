@@ -102,17 +102,11 @@ __FBSDID("$FreeBSD$");
  * We reserve region ID 0 for the kernel and allocate the remaining
  * IDs for user pmaps.
  *
- * Region 0..4
- *	User virtually mapped
- *
- * Region 5
- *	Kernel virtually mapped
- *
- * Region 6
- *	Kernel physically mapped uncacheable
- *
- * Region 7
- *	Kernel physically mapped cacheable
+ * Region 0..3:	User virtually mapped [VHPT]
+ * Region 4:	Pre-Boot Virtual Memory (PBVM) and wired mappings [non-VHPT]
+ * Region 5:	Kernel Virtual Memory (KVM) [VHPT]
+ * Region 6:	Uncacheable identity mappings [non-VHPT]
+ * Region 7:	Cacheable identity mappings [non-VHPT]
  */
 
 /* XXX move to a header. */
@@ -346,9 +340,9 @@ pmap_bootstrap()
 	 * Setup RIDs. RIDs 0..7 are reserved for the kernel.
 	 *
 	 * We currently need at least 19 bits in the RID because PID_MAX
-	 * can only be encoded in 17 bits and we need RIDs for 5 regions
+	 * can only be encoded in 17 bits and we need RIDs for 4 regions
 	 * per process. With PID_MAX equalling 99999 this means that we
-	 * need to be able to encode 499995 (=5*PID_MAX).
+	 * need to be able to encode 399996 (=4*PID_MAX).
 	 * The Itanium processor only has 18 bits and the architected
 	 * minimum is exactly that. So, we cannot use a PID based scheme
 	 * in those cases. Enter pmap_ridmap...
@@ -396,13 +390,18 @@ pmap_bootstrap()
 		;
 	count = i+2;
 
+	/*
+	 * Determine a valid (mappable) VHPT size.
+	 */
 	TUNABLE_INT_FETCH("machdep.vhpt.log2size", &pmap_vhpt_log2size);
 	if (pmap_vhpt_log2size == 0)
 		pmap_vhpt_log2size = 20;
-	else if (pmap_vhpt_log2size < 15)
-		pmap_vhpt_log2size = 15;
-	else if (pmap_vhpt_log2size > 61)
-		pmap_vhpt_log2size = 61;
+	else if (pmap_vhpt_log2size < 16)
+		pmap_vhpt_log2size = 16;
+	else if (pmap_vhpt_log2size > 28)
+		pmap_vhpt_log2size = 28;
+	if (pmap_vhpt_log2size & 1)
+		pmap_vhpt_log2size--;
 
 	base = 0;
 	size = 1UL << pmap_vhpt_log2size;
@@ -456,11 +455,8 @@ pmap_bootstrap()
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
 	PCPU_SET(md.current_pmap, kernel_pmap);
 
-	/*
-	 * Region 5 is mapped via the vhpt.
-	 */
-	ia64_set_rr(IA64_RR_BASE(5),
-		    (5 << 8) | (PAGE_SHIFT << 2) | 1);
+	/* Region 5 is mapped via the vhpt. */
+	ia64_set_rr(IA64_RR_BASE(5), (5 << 8) | (PAGE_SHIFT << 2) | 1);
 
 	/*
 	 * Clear out any random TLB entries left over from booting.

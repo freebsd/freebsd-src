@@ -77,17 +77,13 @@ ENTRY_NOPROFILE(__start, 1)
 	movl	gp=__gp			// find kernel globals
 	;;
 }
-{	.mlx
+
 	mov	ar.bspstore=r16		// switch backing store
-	movl	r16=bootinfo
 	;;
-}
-{	.mmi
-	st8	[r16]=r8		// save the PA of the bootinfo block
 	loadrs				// invalidate regs
 	mov	r17=IA64_DCR_DEFAULT
 	;;
-}
+
 {	.mmi
 	mov	cr.dcr=r17
 	mov	ar.rsc=3		// turn rse back on
@@ -101,13 +97,13 @@ ENTRY_NOPROFILE(__start, 1)
 	;;				// we just need to process fptrs
 }
 {	.mib
-	nop	0
+	mov	r9=r8			// Save pointer to bootinfo.
 	nop	0
 	br.call.sptk.many rp=_reloc
 	;;
 }
 {	.mib
-	nop	0
+	mov	out0=r9			// Pass pointer to bootinfo.
 	nop	0
 	br.call.sptk.many rp=ia64_init
 	;;

@@ -127,8 +127,9 @@ extern u_int64_t epc_sigtramp[];
 
 struct fpswa_iface *fpswa_iface;
 
-u_int64_t ia64_pal_base;
-u_int64_t ia64_port_base;
+vm_size_t ia64_pal_size;
+vm_paddr_t ia64_pal_base;
+vm_offset_t ia64_port_base;
 
 u_int64_t ia64_lapic_addr = PAL_PIB_DEFAULT_ADDR;
 
@@ -627,13 +628,13 @@ map_vhpt(uintptr_t vhpt)
 	pte |= vhpt & PTE_PPN_MASK;
 
 	__asm __volatile("ptr.d %0,%1" :: "r"(vhpt),
-	    "r"(IA64_ID_PAGE_SHIFT<<2));
+	    "r"(pmap_vhpt_log2size << 2));
 
 	__asm __volatile("mov   %0=psr" : "=r"(psr));
 	__asm __volatile("rsm   psr.ic|psr.i");
 	ia64_srlz_i();
 	ia64_set_ifa(vhpt);
-	ia64_set_itir(IA64_ID_PAGE_SHIFT << 2);
+	ia64_set_itir(pmap_vhpt_log2size << 2);
 	ia64_srlz_d();
 	__asm __volatile("itr.d dtr[%0]=%1" :: "r"(2), "r"(pte));
 	__asm __volatile("mov   psr.l=%0" :: "r" (psr));
@@ -644,27 +645,38 @@ void
 map_pal_code(void)
 {
 	pt_entry_t pte;
+	vm_offset_t va;
+	vm_size_t sz;
 	uint64_t psr;
+	u_int shft;
 
-	if (ia64_pal_base == 0)
+	if (ia64_pal_size == 0)
 		return;
+
+	va = IA64_PHYS_TO_RR7(ia64_pal_base);
+
+	sz = ia64_pal_size;
+	shft = 0;
+	while (sz > 1) {
+		shft++;
+		sz >>= 1;
+	}
 
 	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
 	    PTE_PL_KERN | PTE_AR_RWX;
 	pte |= ia64_pal_base & PTE_PPN_MASK;
 
-	__asm __volatile("ptr.d %0,%1; ptr.i %0,%1" ::
-	    "r"(IA64_PHYS_TO_RR7(ia64_pal_base)), "r"(IA64_ID_PAGE_SHIFT<<2));
+	__asm __volatile("ptr.d %0,%1; ptr.i %0,%1" :: "r"(va), "r"(shft<<2));
 
 	__asm __volatile("mov	%0=psr" : "=r"(psr));
 	__asm __volatile("rsm	psr.ic|psr.i");
 	ia64_srlz_i();
-	ia64_set_ifa(IA64_PHYS_TO_RR7(ia64_pal_base));
-	ia64_set_itir(IA64_ID_PAGE_SHIFT << 2);
+	ia64_set_ifa(va);
+	ia64_set_itir(shft << 2);
 	ia64_srlz_d();
-	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(1), "r"(pte));
+	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(3), "r"(pte));
 	ia64_srlz_d();
-	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(1), "r"(pte));
+	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(3), "r"(pte));
 	__asm __volatile("mov	psr.l=%0" :: "r" (psr));
 	ia64_srlz_i();
 }
@@ -688,9 +700,9 @@ map_gateway_page(void)
 	ia64_set_ifa(VM_MAXUSER_ADDRESS);
 	ia64_set_itir(PAGE_SHIFT << 2);
 	ia64_srlz_d();
-	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(3), "r"(pte));
+	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(4), "r"(pte));
 	ia64_srlz_d();
-	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(3), "r"(pte));
+	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(4), "r"(pte));
 	__asm __volatile("mov	psr.l=%0" :: "r" (psr));
 	ia64_srlz_i();
 
@@ -736,7 +748,7 @@ calculate_frequencies(void)
 }
 
 struct ia64_init_return
-ia64_init(void)
+ia64_init(struct bootinfo *bi)
 {
 	struct ia64_init_return ret;
 	int phys_avail_cnt;
@@ -747,6 +759,8 @@ ia64_init(void)
 	int metadata_missing;
 
 	/* NO OUTPUT ALLOWED UNTIL FURTHER NOTICE */
+
+	bootinfo = bi;
 
 	/*
 	 * TODO: Disable interrupts, floating point etc.
@@ -770,6 +784,7 @@ ia64_init(void)
 			    md->md_pages * EFI_PAGE_SIZE);
 			break;
 		case EFI_MD_TYPE_PALCODE:
+			ia64_pal_size = md->md_pages * EFI_PAGE_SIZE;
 			ia64_pal_base = md->md_phys;
 			break;
 		}
@@ -818,7 +833,6 @@ ia64_init(void)
         ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (PAGE_SHIFT << 2));
         ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (PAGE_SHIFT << 2));
         ia64_srlz_d();
-
 
 	/*
 	 * Wire things up so we can call the firmware.
