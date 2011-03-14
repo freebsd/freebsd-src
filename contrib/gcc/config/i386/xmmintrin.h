@@ -1243,7 +1243,9 @@ do {									\
 } while (0)
 
 /* For backward source compatibility.  */
+#ifdef __SSE2__
 #include <emmintrin.h>
+#endif
 
 #endif /* __SSE__ */
 #endif /* _XMMINTRIN_H_INCLUDED */
