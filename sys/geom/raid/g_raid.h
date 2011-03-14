@@ -193,7 +193,7 @@ struct g_raid_subdisk {
 };
 
 #define G_RAID_MAX_SUBDISKS	16
-#define G_RAID_MAX_VOLUMENAME	16
+#define G_RAID_MAX_VOLUMENAME	32
 
 #define G_RAID_VOLUME_S_STARTING	0x00
 #define G_RAID_VOLUME_S_BROKEN		0x01

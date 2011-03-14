@@ -214,7 +214,7 @@ g_raid_md_promise_print(struct promise_raid_conf *meta)
 		    meta->disks[i].channel, meta->disks[i].device,
 		    meta->disks[i].id);
 	}
-	printf("name                <%.24s>\n", meta->name);
+	printf("name                <%.32s>\n", meta->name);
 	printf("=================================================\n");
 }
 
@@ -228,7 +228,6 @@ promise_meta_copy(struct promise_raid_conf *meta)
 	return (nmeta);
 }
 
-#if 0
 static int
 promise_meta_find_disk(struct promise_raid_conf *meta, uint64_t id)
 {
@@ -239,6 +238,29 @@ promise_meta_find_disk(struct promise_raid_conf *meta, uint64_t id)
 			return (pos);
 	}
 	return (-1);
+}
+
+static void
+promise_meta_get_name(struct promise_raid_conf *meta, char *buf)
+{
+	int i;
+
+	strncpy(buf, meta->name, 32);
+	buf[32] = 0;
+	for (i = 31; i >= 0; i--) {
+		if (buf[i] > 0x20)
+			break;
+		buf[i] = 0;
+	}
+}
+
+#if 0
+static void
+promise_meta_put_name(struct promise_raid_conf *meta, char *buf)
+{
+
+	memset(meta->name, 0x20, 32);
+	memcpy(meta->name, buf, MIN(strlen(buf), 32));
 }
 #endif
 
@@ -381,20 +403,6 @@ promise_meta_write_spare(struct g_consumer *cp, struct promise_raid_disk *d)
 	free(meta, M_MD_PROMISE);
 	return (error);
 }
-
-static struct g_raid_disk *
-g_raid_md_promise_get_disk(struct g_raid_softc *sc, int id)
-{
-	struct g_raid_disk	*disk;
-	struct g_raid_md_promise_perdisk *pd;
-
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-		pd = (struct g_raid_md_promise_perdisk *)disk->d_md_data;
-		if (pd->pd_disk_pos == id)
-			break;
-	}
-	return (disk);
-}
 #endif
 
 static struct g_raid_volume *
@@ -451,41 +459,46 @@ g_raid_md_promise_supported(int level, int qual, int disks, int force)
 static int
 g_raid_md_promise_start_disk(struct g_raid_disk *disk, int sdn)
 {
-#if 0
 	struct g_raid_softc *sc;
-	struct g_raid_subdisk *sd, *tmpsd;
-	struct g_raid_disk *olddisk, *tmpdisk;
+	struct g_raid_volume *vol;
+	struct g_raid_subdisk *sd;
+	struct g_raid_disk *olddisk;
 	struct g_raid_md_object *md;
 	struct g_raid_md_promise_object *mdi;
 	struct g_raid_md_promise_perdisk *pd, *oldpd;
+	struct g_raid_md_promise_pervolume *pv;
 	struct promise_raid_conf *meta;
-	struct promise_raid_vol *mvol;
-	struct promise_raid_map *mmap0, *mmap1;
 	int disk_pos, resurrection = 0;
 
 	sc = disk->d_softc;
 	md = sc->sc_md;
 	mdi = (struct g_raid_md_promise_object *)md;
-	meta = mdi->mdio_meta;
 	pd = (struct g_raid_md_promise_perdisk *)disk->d_md_data;
 	olddisk = NULL;
 
+	vol = g_raid_md_promise_get_volume(sc, pd->pd_meta[sdn]->volume_id);
+	KASSERT(vol != NULL, ("No Promise volume with ID %16jx",
+	    pd->pd_meta[sdn]->volume_id));
+	pv = vol->v_md_data;
+	meta = pv->pv_meta;
+
 	/* Find disk position in metadata by it's serial. */
-	disk_pos = promise_meta_find_disk(meta, pd->pd_disk_meta.id);
+	disk_pos = promise_meta_find_disk(meta, pd->pd_meta[sdn]->disk.id);
 	if (disk_pos < 0) {
 		G_RAID_DEBUG1(1, sc, "Unknown, probably new or stale disk");
 		/* Failed stale disk is useless for us. */
-		if (pd->pd_disk_meta.flags & PROMISE_F_FAILED) {
-			g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE_FAILED);
-			return (0);
-		}
+//		if (pd->pd_disk_meta.flags & PROMISE_F_FAILED) {
+//			g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE_FAILED);
+//			return (0);
+//		}
 		/* If we are in the start process, that's all for now. */
-		if (!mdi->mdio_started)
+		if (!pv->pv_started)
 			goto nofit;
 		/*
 		 * If we have already started - try to get use of the disk.
 		 * Try to replace OFFLINE disks first, then FAILED.
 		 */
+#if 0
 		TAILQ_FOREACH(tmpdisk, &sc->sc_disks, d_next) {
 			if (tmpdisk->d_state != G_RAID_DISK_S_OFFLINE &&
 			    tmpdisk->d_state != G_RAID_DISK_S_FAILED)
@@ -511,29 +524,32 @@ g_raid_md_promise_start_disk(struct g_raid_disk *disk, int sdn)
 			} else if (olddisk == NULL)
 				olddisk = tmpdisk;
 		}
+#endif
 		if (olddisk == NULL) {
 nofit:
+#if 0
 			if (pd->pd_disk_meta.flags & PROMISE_F_SPARE) {
 				g_raid_change_disk_state(disk,
 				    G_RAID_DISK_S_SPARE);
 				return (1);
 			} else {
+#endif
 				g_raid_change_disk_state(disk,
 				    G_RAID_DISK_S_STALE);
 				return (0);
-			}
+//			}
 		}
 		oldpd = (struct g_raid_md_promise_perdisk *)olddisk->d_md_data;
-		disk_pos = oldpd->pd_disk_pos;
+//		disk_pos = oldpd->pd_disk_pos;
 		resurrection = 1;
 	}
 
+	sd = &vol->v_subdisks[disk_pos];
+
 	if (olddisk == NULL) {
-		/* Find placeholder by position. */
-		olddisk = g_raid_md_promise_get_disk(sc, disk_pos);
-		if (olddisk == NULL)
-			panic("No disk at position %d!", disk_pos);
-		if (olddisk->d_state != G_RAID_DISK_S_OFFLINE) {
+		/* Look for disk at position. */
+		olddisk = sd->sd_disk;
+		if (olddisk != NULL) {
 			G_RAID_DEBUG1(1, sc, "More then one disk for pos %d",
 			    disk_pos);
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE);
@@ -542,6 +558,7 @@ nofit:
 		oldpd = (struct g_raid_md_promise_perdisk *)olddisk->d_md_data;
 	}
 
+#if 0
 	/* Replace failed disk or placeholder with new disk. */
 	TAILQ_FOREACH_SAFE(sd, &olddisk->d_subdisks, sd_next, tmpsd) {
 		TAILQ_REMOVE(&olddisk->d_subdisks, sd, sd_next);
@@ -552,25 +569,33 @@ nofit:
 	pd->pd_disk_pos = disk_pos;
 
 	/* If it was placeholder -- destroy it. */
-	if (olddisk->d_state == G_RAID_DISK_S_OFFLINE) {
-		g_raid_destroy_disk(olddisk);
-	} else {
+	if (olddisk != NULL) {
 		/* Otherwise, make it STALE_FAILED. */
 		g_raid_change_disk_state(olddisk, G_RAID_DISK_S_STALE_FAILED);
 		/* Update global metadata just in case. */
 		memcpy(&meta->disk[disk_pos], &pd->pd_disk_meta,
 		    sizeof(struct promise_raid_disk));
 	}
+#endif
+
+	vol->v_subdisks[disk_pos].sd_disk = disk;
+	TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
 
 	/* Welcome the new disk. */
 	if (resurrection)
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
-	else if (meta->disk[disk_pos].flags & PROMISE_F_FAILED)
+/*	else if (meta->disk[disk_pos].flags & PROMISE_F_FAILED)
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_FAILED);
 	else if (meta->disk[disk_pos].flags & PROMISE_F_SPARE)
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_SPARE);
-	else
+*/	else
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
+	/* Up to date disk. */
+	g_raid_change_subdisk_state(sd,
+	    G_RAID_SUBDISK_S_ACTIVE);
+	g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
+	    G_RAID_EVENT_SUBDISK);
+#if 0
 	TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
 		mvol = promise_get_volume(meta,
 		    (uintptr_t)(sd->sd_volume->v_md_data));
@@ -671,10 +696,9 @@ nofit:
 		    (g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) <
 		     meta->total_disks);
 	}
+#endif
 
 	return (resurrection);
-#endif
-	return (0);
 }
 
 #if 0
@@ -758,19 +782,13 @@ static void
 g_raid_md_promise_start(struct g_raid_volume *vol)
 {
 	struct g_raid_softc *sc;
+	struct g_raid_disk *disk;
 	struct g_raid_md_object *md;
 	struct g_raid_md_promise_object *mdi;
+	struct g_raid_md_promise_perdisk *pd;
 	struct g_raid_md_promise_pervolume *pv;
 	struct promise_raid_conf *meta;
-#if 0
-	struct g_raid_md_promise_perdisk *pd;
-	struct promise_raid_vol *mvol;
-	struct promise_raid_map *mmap;
-	struct g_raid_volume *vol;
-	struct g_raid_subdisk *sd;
-	struct g_raid_disk *disk;
-	int i, j, disk_pos;
-#endif
+	int i;
 
 	sc = vol->v_softc;
 	md = sc->sc_md;
@@ -802,17 +820,14 @@ g_raid_md_promise_start(struct g_raid_volume *vol)
 	vol->v_sectorsize = 512; //ZZZ
 	g_raid_start_volume(vol);
 
-#if 0
 	/* Make all disks found till the moment take their places. */
-	do {
-		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-			if (disk->d_state == G_RAID_DISK_S_NONE) {
-				g_raid_md_promise_start_disk(disk);
-				break;
-			}
+	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		pd = disk->d_md_data;
+		for (i = 0; i < pd->pd_subdisks; i++) {
+			if (pd->pd_meta[i]->volume_id == meta->volume_id)
+				g_raid_md_promise_start_disk(disk, i);
 		}
-	} while (disk != NULL);
-#endif
+	}
 
 	pv->pv_started = 1;
 	G_RAID_DEBUG1(0, sc, "Volume started.");
@@ -859,6 +874,7 @@ g_raid_md_promise_new_disk(struct g_raid_disk *disk)
 	struct g_raid_md_promise_pervolume *pv;
 	struct g_raid_volume *vol;
 	int i;
+	char buf[33];
 
 	sc = disk->d_softc;
 	md = sc->sc_md;
@@ -872,7 +888,8 @@ g_raid_md_promise_new_disk(struct g_raid_disk *disk)
 		vol = g_raid_md_promise_get_volume(sc,
 		    pdmeta->volume_id);
 		if (vol == NULL) {
-			vol = g_raid_create_volume(sc, pdmeta->name);
+			promise_meta_get_name(pdmeta, buf);
+			vol = g_raid_create_volume(sc, buf);
 			pv = malloc(sizeof(*pv), M_MD_PROMISE, M_WAITOK | M_ZERO);
 			pv->pv_id = pdmeta->volume_id;
 			vol->v_md_data = pv;
