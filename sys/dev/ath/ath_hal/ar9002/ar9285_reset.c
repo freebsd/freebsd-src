@@ -239,7 +239,7 @@ ar9285SetTransmitPower(struct ath_hal *ah,
 }
 
 static void
-ath9285SetBoardGain(struct ath_hal *ah, const MODAL_EEP4K_HEADER *pModal,
+ar9285SetBoardGain(struct ath_hal *ah, const MODAL_EEP4K_HEADER *pModal,
     const struct ar5416eeprom_4k *eep, uint8_t txRxAttenLocal)
 {
 	OS_REG_WRITE(ah, AR_PHY_SWITCH_CHAIN_0,
