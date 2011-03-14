@@ -761,9 +761,9 @@ g_raid_md_promise_start(struct g_raid_volume *vol)
 	struct g_raid_md_object *md;
 	struct g_raid_md_promise_object *mdi;
 	struct g_raid_md_promise_pervolume *pv;
+	struct promise_raid_conf *meta;
 #if 0
 	struct g_raid_md_promise_perdisk *pd;
-	struct promise_raid_conf *meta;
 	struct promise_raid_vol *mvol;
 	struct promise_raid_map *mmap;
 	struct g_raid_volume *vol;
@@ -776,72 +776,33 @@ g_raid_md_promise_start(struct g_raid_volume *vol)
 	md = sc->sc_md;
 	mdi = (struct g_raid_md_promise_object *)md;
 	pv = vol->v_md_data;
-#if 0
-	meta = mdi->mdio_meta;
+	meta = pv->pv_meta;
 
-	/* Create volumes and subdisks. */
-	for (i = 0; i < meta->total_volumes; i++) {
-		mvol = promise_get_volume(meta, i);
-		mmap = promise_get_map(mvol, 0);
-		vol = g_raid_create_volume(sc, mvol->name);
-		vol->v_md_data = (void *)(intptr_t)i;
-		if (mmap->type == PROMISE_T_RAID0)
-			vol->v_raid_level = G_RAID_VOLUME_RL_RAID0;
-		else if (mmap->type == PROMISE_T_RAID1 &&
-		    mmap->total_domains >= 2 &&
-		    mmap->total_domains <= mmap->total_disks) {
-			/* Assume total_domains is correct. */
-			if (mmap->total_domains == mmap->total_disks)
-				vol->v_raid_level = G_RAID_VOLUME_RL_RAID1;
-			else
-				vol->v_raid_level = G_RAID_VOLUME_RL_RAID1E;
-		} else if (mmap->type == PROMISE_T_RAID1) {
-			/* total_domains looks wrong. */
-			if (mmap->total_disks <= 2)
-				vol->v_raid_level = G_RAID_VOLUME_RL_RAID1;
-			else
-				vol->v_raid_level = G_RAID_VOLUME_RL_RAID1E;
-		} else if (mmap->type == PROMISE_T_RAID5)
-			vol->v_raid_level = G_RAID_VOLUME_RL_RAID5;
+	if (meta->type == PROMISE_T_RAID0)
+		vol->v_raid_level = G_RAID_VOLUME_RL_RAID0;
+	else if (meta->type == PROMISE_T_RAID1) {
+		if (meta->array_width == 1)
+			vol->v_raid_level = G_RAID_VOLUME_RL_RAID1;
 		else
-			vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
-		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
-		vol->v_strip_size = (u_int)mmap->strip_sectors * 512; //ZZZ
-		vol->v_disks_count = mmap->total_disks;
-		vol->v_mediasize = (off_t)mvol->total_sectors * 512; //ZZZ
-		vol->v_sectorsize = 512; //ZZZ
-		for (j = 0; j < vol->v_disks_count; j++) {
-			sd = &vol->v_subdisks[j];
-			sd->sd_offset = (off_t)mmap->offset * 512; //ZZZ
-			sd->sd_size = (off_t)mmap->disk_sectors * 512; //ZZZ
-		}
-		g_raid_start_volume(vol);
-	}
+			vol->v_raid_level = G_RAID_VOLUME_RL_RAID1E;
+	} else if (meta->type == PROMISE_T_RAID3)
+		vol->v_raid_level = G_RAID_VOLUME_RL_RAID3;
+	else if (meta->type == PROMISE_T_RAID5)
+		vol->v_raid_level = G_RAID_VOLUME_RL_RAID5;
+	else if (meta->type == PROMISE_T_SPAN)
+		vol->v_raid_level = G_RAID_VOLUME_RL_CONCAT;
+	else if (meta->type == PROMISE_T_JBOD)
+		vol->v_raid_level = G_RAID_VOLUME_RL_SINGLE;
+	else
+		vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
+	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
+	vol->v_strip_size = 512 << meta->stripe_shift; //ZZZ
+	vol->v_disks_count = meta->total_disks;
+	vol->v_mediasize = (off_t)meta->total_sectors * 512; //ZZZ
+	vol->v_sectorsize = 512; //ZZZ
+	g_raid_start_volume(vol);
 
-	/* Create disk placeholders to store data for later writing. */
-	for (disk_pos = 0; disk_pos < meta->total_disks; disk_pos++) {
-		pd = malloc(sizeof(*pd), M_MD_PROMISE, M_WAITOK | M_ZERO);
-		pd->pd_disk_pos = disk_pos;
-		pd->pd_disk_meta = meta->disk[disk_pos];
-		disk = g_raid_create_disk(sc);
-		disk->d_md_data = (void *)pd;
-		disk->d_state = G_RAID_DISK_S_OFFLINE;
-		for (i = 0; i < meta->total_volumes; i++) {
-			mvol = promise_get_volume(meta, i);
-			mmap = promise_get_map(mvol, 0);
-			for (j = 0; j < mmap->total_disks; j++) {
-				if ((mmap->disk_idx[j] & PROMISE_DI_IDX) == disk_pos)
-					break;
-			}
-			if (j == mmap->total_disks)
-				continue;
-			vol = g_raid_md_promise_get_volume(sc, i);
-			sd = &vol->v_subdisks[j];
-			sd->sd_disk = disk;
-			TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
-		}
-	}
-
+#if 0
 	/* Make all disks found till the moment take their places. */
 	do {
 		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
@@ -851,19 +812,16 @@ g_raid_md_promise_start(struct g_raid_volume *vol)
 			}
 		}
 	} while (disk != NULL);
+#endif
 
-	mdi->mdio_started = 1;
-	G_RAID_DEBUG1(0, sc, "Array started.");
+	pv->pv_started = 1;
+	G_RAID_DEBUG1(0, sc, "Volume started.");
 	g_raid_md_write_promise(md, NULL, NULL, NULL);
 
 	/* Pickup any STALE/SPARE disks to refill array if needed. */
-	g_raid_md_promise_refill(sc);
+//	g_raid_md_promise_refill(sc);
 
-	TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
-		g_raid_event_send(vol, G_RAID_VOLUME_E_START,
-		    G_RAID_EVENT_VOLUME);
-	}
-#endif
+	g_raid_event_send(vol, G_RAID_VOLUME_E_START, G_RAID_EVENT_VOLUME);
 
 	callout_stop(&pv->pv_start_co);
 	G_RAID_DEBUG1(1, sc, "root_mount_rel %p", pv->pv_rootmount);
@@ -924,28 +882,27 @@ g_raid_md_promise_new_disk(struct g_raid_disk *disk)
 			    g_raid_promise_go, vol);
 			pv->pv_rootmount = root_mount_hold("GRAID-Promise");
 			G_RAID_DEBUG1(1, sc, "root_mount_hold %p", pv->pv_rootmount);
-			g_raid_start_volume(vol);
 		} else
 			pv = vol->v_md_data;
 
 		/* If we haven't started yet - check metadata freshness. */
-		if (pv->pv_meta != NULL && mdi->mdio_started)
-			continue;
-		if (pv->pv_meta == NULL ||
-		    ((int16_t)(pdmeta->generation - pv->pv_generation)) > 0) {
-			G_RAID_DEBUG1(1, sc, "Newer disk");
-			if (pv->pv_meta != NULL)
-				free(pv->pv_meta, M_MD_PROMISE);
-			pv->pv_meta = promise_meta_copy(pdmeta);
-			pv->pv_generation = pv->pv_meta->generation;
-			pv->pv_disks_present = 1;
-		} else if (pdmeta->generation == pv->pv_generation) {
-			pv->pv_disks_present++;
-			G_RAID_DEBUG1(1, sc, "Matching disk (%d of %d up)",
-			    pv->pv_disks_present,
-			    pv->pv_meta->total_disks);
-		} else {
-			G_RAID_DEBUG1(1, sc, "Older disk");
+		if (pv->pv_meta == NULL || !pv->pv_started) {
+			if (pv->pv_meta == NULL ||
+			    ((int16_t)(pdmeta->generation - pv->pv_generation)) > 0) {
+				G_RAID_DEBUG1(1, sc, "Newer disk");
+				if (pv->pv_meta != NULL)
+					free(pv->pv_meta, M_MD_PROMISE);
+				pv->pv_meta = promise_meta_copy(pdmeta);
+				pv->pv_generation = pv->pv_meta->generation;
+				pv->pv_disks_present = 1;
+			} else if (pdmeta->generation == pv->pv_generation) {
+				pv->pv_disks_present++;
+				G_RAID_DEBUG1(1, sc, "Matching disk (%d of %d up)",
+				    pv->pv_disks_present,
+				    pv->pv_meta->total_disks);
+			} else {
+				G_RAID_DEBUG1(1, sc, "Older disk");
+			}
 		}
 
 		if (pv->pv_started) {
