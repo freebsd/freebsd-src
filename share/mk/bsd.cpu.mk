@@ -29,7 +29,7 @@ MACHINE_CPU = mips
 . if ${MACHINE_CPUARCH} == "i386"
 .  if ${CPUTYPE} == "nocona"
 CPUTYPE = prescott
-.  elif ${CPUTYPE} == "core" || ${CPUTYPE} == "core2"
+.  elif ${CPUTYPE} == "core"
 CPUTYPE = prescott
 .  elif ${CPUTYPE} == "p4"
 CPUTYPE = pentium4
@@ -86,6 +86,8 @@ CPUTYPE = ultrasparc3
 _CPUCFLAGS = -march=i686 -falign-functions=0 -falign-jumps=0 -falign-loops=0
 .  elif ${CPUTYPE} == "k5"
 _CPUCFLAGS = -march=pentium
+.  elif ${CPUTYPE} == "core2"
+_CPUCFLAGS = -march=prescott
 .  else
 _CPUCFLAGS = -march=${CPUTYPE}
 .  endif # GCC on 'i386'
@@ -182,6 +184,8 @@ MACHINE_CPU = 3dnow mmx i586 i486 i386
 MACHINE_CPU = sse mmx i586 i486 i386
 .  elif ${CPUTYPE} == "c7"
 MACHINE_CPU = sse3 sse2 sse i686 mmx i586 i486 i386
+.  elif ${CPUTYPE} == "core2"
+MACHINE_CPU = ssse3 sse3 sse2 sse i686 mmx i586 i486 i386
 .  elif ${CPUTYPE} == "prescott"
 MACHINE_CPU = sse3 sse2 sse i686 mmx i586 i486 i386
 .  elif ${CPUTYPE} == "pentium4" || ${CPUTYPE} == "pentium4m" || ${CPUTYPE} == "pentium-m"
@@ -206,7 +210,9 @@ MACHINE_CPU = i386
 MACHINE_CPU = k8 3dnow sse3
 .  elif ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64" || ${CPUTYPE} == "k8"
 MACHINE_CPU = k8 3dnow
-.  elif ${CPUTYPE} == "nocona" || ${CPUTYPE} == "core2"
+.  elif ${CPUTYPE} == "core2"
+MACHINE_CPU = ssse3 sse3
+.  elif ${CPUTYPE} == "nocona"
 MACHINE_CPU = sse3
 .  endif
 MACHINE_CPU += amd64 sse2 sse mmx
