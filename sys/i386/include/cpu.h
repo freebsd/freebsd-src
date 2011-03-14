@@ -67,7 +67,7 @@ void	swi_vm(void *);
  * Return contents of in-cpu fast counter as a sort of "bogo-time"
  * for random-harvesting purposes.
  */
-static __inline u_int64_t
+static __inline uint64_t
 get_cyclecount(void)
 {
 #if defined(I486_CPU) || defined(KLD_MODULE)
@@ -75,7 +75,7 @@ get_cyclecount(void)
 
 	if (!tsc_present) {
 		binuptime(&bt);
-		return (bt.frac ^ bt.sec);
+		return ((uint64_t)bt.sec << 56 | bt.frac >> 8);
 	}
 #endif
 	return (rdtsc());
