@@ -380,5 +380,5 @@ static moduledata_t mlxen_mod = {
         .name = "mlxen",
 	.evhand = mlxen_evhand,
 };
-DECLARE_MODULE(mlxen, mlxen_mod, SI_SUB_KLD, SI_ORDER_ANY);
+DECLARE_MODULE(mlxen, mlxen_mod, SI_SUB_SMP, SI_ORDER_ANY);
 MODULE_DEPEND(mlxen, mlx4, 1, 1, 1);
