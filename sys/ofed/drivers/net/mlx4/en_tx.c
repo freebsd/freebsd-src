@@ -31,21 +31,31 @@
  *
  */
 
-#include <asm/page.h>
+#include "mlx4_en.h"
+
 #include <linux/mlx4/cq.h>
 #include <linux/mlx4/qp.h>
-#include <linux/skbuff.h>
-#include <linux/if_vlan.h>
 #include <linux/vmalloc.h>
 
-#include "mlx4_en.h"
+#include <net/ethernet.h>
+#include <net/if_vlan_var.h>
+#include <sys/mbuf.h>
+
+#include <netinet/in_systm.h>
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <netinet/tcp.h>
+#include <netinet/tcp_lro.h>
+#include <netinet/udp.h>
 
 enum {
 	MAX_INLINE = 104, /* 128 - 16 - 4 - 4 */
 	MAX_BF = 256,
 };
 
-static int inline_thold __read_mostly = MAX_INLINE;
+static int inline_thold = MAX_INLINE;
 
 module_param_named(inline_thold, inline_thold, int, 0444);
 MODULE_PARM_DESC(inline_thold, "treshold for using inline data");
@@ -64,13 +74,23 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 
 	inline_thold = min(inline_thold, MAX_INLINE);
 
-	spin_lock_init(&ring->comp_lock);
+	mtx_init(&ring->tx_lock.m, "mlx4 tx", NULL, MTX_DEF);
+	mtx_init(&ring->comp_lock.m, "mlx4 comp", NULL, MTX_DEF);
 
-	tmp = size * sizeof(struct mlx4_en_tx_info);
-	ring->tx_info = vmalloc(tmp);
-	if (!ring->tx_info) {
+	/* Allocate the buf ring */
+	ring->br = buf_ring_alloc(MLX4_EN_DEF_TX_QUEUE_SIZE, M_DEVBUF,
+	    M_WAITOK, &ring->tx_lock.m);
+	if (ring->br == NULL) {
 		en_err(priv, "Failed allocating tx_info ring\n");
 		return -ENOMEM;
+	}
+
+	tmp = size * sizeof(struct mlx4_en_tx_info);
+	ring->tx_info = kmalloc(tmp, GFP_KERNEL);
+	if (!ring->tx_info) {
+		en_err(priv, "Failed allocating tx_info ring\n");
+		err = -ENOMEM;
+		goto err_tx;
 	}
 	en_dbg(DRV, priv, "Allocated tx_info ring at addr:%p size:%d\n",
 		 ring->tx_info, tmp);
@@ -135,7 +155,8 @@ err_bounce:
 	kfree(ring->bounce_buf);
 	ring->bounce_buf = NULL;
 err_tx:
-	vfree(ring->tx_info);
+	buf_ring_free(ring->br, M_DEVBUF);
+	kfree(ring->tx_info);
 	ring->tx_info = NULL;
 	return err;
 }
@@ -146,6 +167,7 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 	struct mlx4_en_dev *mdev = priv->mdev;
 	en_dbg(DRV, priv, "Destroying tx ring, qpn: %d\n", ring->qpn);
 
+	buf_ring_free(ring->br, M_DEVBUF);
 	if (ring->bf_enabled)
 		mlx4_bf_free(mdev->dev, &ring->bf);
 	mlx4_qp_remove(mdev->dev, &ring->qp);
@@ -155,8 +177,10 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, ring->buf_size);
 	kfree(ring->bounce_buf);
 	ring->bounce_buf = NULL;
-	vfree(ring->tx_info);
+	kfree(ring->tx_info);
 	ring->tx_info = NULL;
+	mtx_destroy(&ring->tx_lock.m);
+	mtx_destroy(&ring->comp_lock.m);
 }
 
 int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
@@ -207,10 +231,9 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 	struct mlx4_en_tx_info *tx_info = &ring->tx_info[index];
 	struct mlx4_en_tx_desc *tx_desc = ring->buf + index * TXBB_SIZE;
 	struct mlx4_wqe_data_seg *data = (void *) tx_desc + tx_info->data_offset;
-	struct sk_buff *skb = tx_info->skb;
-	struct skb_frag_struct *frag;
+	struct mbuf *mb = tx_info->mb;
 	void *end = ring->buf + ring->buf_size;
-	int frags = skb_shinfo(skb)->nr_frags;
+	int frags = tx_info->nr_segs;
 	int i;
 	__be32 *ptr = (__be32 *)tx_desc;
 	__be32 stamp = cpu_to_be32(STAMP_VAL | (!!owner << STAMP_SHIFT));
@@ -218,19 +241,10 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 	/* Optimize the common case when there are no wraparounds */
 	if (likely((void *) tx_desc + tx_info->nr_txbb * TXBB_SIZE <= end)) {
 		if (!tx_info->inl) {
-			if (tx_info->linear) {
-				pci_unmap_single(mdev->pdev,
-					(dma_addr_t) be64_to_cpu(data->addr),
-					 be32_to_cpu(data->byte_count),
-					 PCI_DMA_TODEVICE);
-				++data;
-			}
-
 			for (i = 0; i < frags; i++) {
-				frag = &skb_shinfo(skb)->frags[i];
-				pci_unmap_page(mdev->pdev,
+				pci_unmap_single(mdev->pdev,
 					(dma_addr_t) be64_to_cpu(data[i].addr),
-					frag->size, PCI_DMA_TODEVICE);
+					data[i].byte_count, PCI_DMA_TODEVICE);
 			}
 		}
 		/* Stamp the freed descriptor */
@@ -241,27 +255,13 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 
 	} else {
 		if (!tx_info->inl) {
-			if ((void *) data >= end) {
-				data = (struct mlx4_wqe_data_seg *)
-						(ring->buf + ((void *) data - end));
-			}
-
-			if (tx_info->linear) {
-				pci_unmap_single(mdev->pdev,
-					(dma_addr_t) be64_to_cpu(data->addr),
-					 be32_to_cpu(data->byte_count),
-					 PCI_DMA_TODEVICE);
-				++data;
-			}
-
 			for (i = 0; i < frags; i++) {
 				/* Check for wraparound before unmapping */
 				if ((void *) data >= end)
 					data = (struct mlx4_wqe_data_seg *) ring->buf;
-				frag = &skb_shinfo(skb)->frags[i];
-				pci_unmap_page(mdev->pdev,
+				pci_unmap_single(mdev->pdev,
 					(dma_addr_t) be64_to_cpu(data->addr),
-					 frag->size, PCI_DMA_TODEVICE);
+					data->byte_count, PCI_DMA_TODEVICE);
 				++data;
 			}
 		}
@@ -276,7 +276,7 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 		}
 
 	}
-	dev_kfree_skb_any(skb);
+	m_freem(mb);
 	return tx_info->nr_txbb;
 }
 
@@ -292,8 +292,7 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 		 ring->cons, ring->prod);
 
 	if ((u32) (ring->prod - ring->cons) > ring->size) {
-		if (netif_msg_tx_err(priv))
-			en_warn(priv, "Tx consumer passed producer!\n");
+		en_warn(priv, "Tx consumer passed producer!\n");
 		return 0;
 	}
 
@@ -401,7 +400,9 @@ static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 		if ((u32) (ring->prod - ring->cons) <=
 		     ring->size - HEADROOM - MAX_DESC_TXBBS) {
 			ring->blocked = 0;
-			netif_tx_wake_queue(netdev_get_tx_queue(dev, cq->ring));
+			if (atomic_fetchadd_int(&priv->blocked, -1) == 1)
+				atomic_clear_int(&dev->if_drv_flags,
+				    IFF_DRV_OACTIVE);
 			priv->port_stats.wake_queue++;
 		}
 	}
@@ -430,7 +431,7 @@ void mlx4_en_poll_tx_cq(unsigned long data)
 
 	INC_PERF_COUNTER(priv->pstats.tx_poll);
 
-	if (!spin_trylock_irq(&ring->comp_lock)) {
+	if (!spin_trylock(&ring->comp_lock)) {
 		mod_timer(&cq->timer, jiffies + MLX4_EN_TX_POLL_TIMEOUT);
 		return;
 	}
@@ -443,7 +444,7 @@ void mlx4_en_poll_tx_cq(unsigned long data)
 	if (inflight && priv->port_up)
 		mod_timer(&cq->timer, jiffies + MLX4_EN_TX_POLL_TIMEOUT);
 
-	spin_unlock_irq(&ring->comp_lock);
+	spin_unlock(&ring->comp_lock);
 }
 
 static struct mlx4_en_tx_desc *mlx4_en_bounce_to_desc(struct mlx4_en_priv *priv,
@@ -486,165 +487,178 @@ static inline void mlx4_en_xmit_poll(struct mlx4_en_priv *priv, int tx_ind)
 
 	/* Poll the CQ every mlx4_en_TX_MODER_POLL packets */
 	if ((++ring->poll_cnt & (MLX4_EN_TX_POLL_MODER - 1)) == 0)
-		if (spin_trylock_irq(&ring->comp_lock)) {
+		if (spin_trylock(&ring->comp_lock)) {
 			mlx4_en_process_tx_cq(priv->dev, cq);
-			spin_unlock_irq(&ring->comp_lock);
+			spin_unlock(&ring->comp_lock);
 		}
 }
 
-static void *get_frag_ptr(struct sk_buff *skb)
+static int is_inline(struct mbuf *mb)
 {
-	struct skb_frag_struct *frag =  &skb_shinfo(skb)->frags[0];
-	struct page *page = frag->page;
-	void *ptr;
 
-	ptr = page_address(page);
-	if (unlikely(!ptr))
-		return NULL;
-
-	return ptr + frag->page_offset;
-}
-
-static int is_inline(struct sk_buff *skb, void **pfrag)
-{
-	void *ptr;
-
-	if (inline_thold && !skb_is_gso(skb) && skb->len <= inline_thold) {
-		if (skb_shinfo(skb)->nr_frags == 1) {
-			ptr = get_frag_ptr(skb);
-			if (unlikely(!ptr))
-				return 0;
-
-			if (pfrag)
-				*pfrag = ptr;
-
-			return 1;
-		} else if (unlikely(skb_shinfo(skb)->nr_frags))
-			return 0;
-		else
-			return 1;
-	}
+	if (inline_thold && mb->m_pkthdr.len <= inline_thold &&
+	    (mb->m_pkthdr.csum_flags & CSUM_TSO) == 0)
+		return 1;
 
 	return 0;
 }
 
-static int inline_size(struct sk_buff *skb)
+static int inline_size(struct mbuf *mb)
 {
-	if (skb->len + CTRL_SIZE + sizeof(struct mlx4_wqe_inline_seg)
+	int len;
+
+	len = mb->m_pkthdr.len;
+	if (len + CTRL_SIZE + sizeof(struct mlx4_wqe_inline_seg)
 	    <= MLX4_INLINE_ALIGN)
-		return ALIGN(skb->len + CTRL_SIZE +
+		return ALIGN(len + CTRL_SIZE +
 			     sizeof(struct mlx4_wqe_inline_seg), 16);
 	else
-		return ALIGN(skb->len + CTRL_SIZE + 2 *
+		return ALIGN(len + CTRL_SIZE + 2 *
 			     sizeof(struct mlx4_wqe_inline_seg), 16);
 }
 
-static int get_real_size(struct sk_buff *skb, struct net_device *dev,
-			 int *lso_header_size)
+static int get_head_size(struct mbuf *mb)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
-	int real_size;
+	struct tcphdr *th;
+	struct ip *ip;
+	int ip_hlen, tcp_hlen;
+	int len;
 
-	if (skb_is_gso(skb)) {
-		*lso_header_size = skb_transport_offset(skb) + tcp_hdrlen(skb);
-		real_size = CTRL_SIZE + skb_shinfo(skb)->nr_frags * DS_SIZE +
-			ALIGN(*lso_header_size + 4, DS_SIZE);
-		if (unlikely(*lso_header_size != skb_headlen(skb))) {
-			/* We add a segment for the skb linear buffer only if
-			 * it contains data */
-			if (*lso_header_size < skb_headlen(skb))
-				real_size += DS_SIZE;
-			else {
-				if (netif_msg_tx_err(priv))
-					en_warn(priv, "Non-linear headers\n");
-				return 0;
-			}
-		}
-	} else {
-		*lso_header_size = 0;
-		if (!is_inline(skb, NULL))
-			real_size = CTRL_SIZE + (skb_shinfo(skb)->nr_frags + 1) * DS_SIZE;
-		else
-			real_size = inline_size(skb);
-	}
-
-	return real_size;
+	len = ETHER_HDR_LEN;
+	if (mb->m_len < len + sizeof(struct ip))
+		return (0);
+	ip = (struct ip *)(mtod(mb, char *) + len);
+	if (ip->ip_p != IPPROTO_TCP)
+		return (0);
+	ip_hlen = ip->ip_hl << 2;
+	len += ip_hlen;
+	if (mb->m_len < len + sizeof(struct tcphdr))
+		return (0);
+	th = (struct tcphdr *)(mtod(mb, char *) + len);
+	tcp_hlen = th->th_off << 2;
+	len += tcp_hlen;
+	if (mb->m_len < len)
+		return (0);
+	return (len);
 }
 
-static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc, struct sk_buff *skb,
-			     int real_size, u16 *vlan_tag, int tx_ind, void *fragptr)
+static int get_real_size(struct mbuf *mb, struct net_device *dev, int *segsp,
+    int *lso_header_size)
+{
+	struct mbuf *m;
+	int nr_segs;
+
+	nr_segs = 0;
+	for (m = mb; m != NULL; m = m->m_next)
+		if (m->m_len)
+			nr_segs++;
+
+	if (mb->m_pkthdr.csum_flags & CSUM_TSO) {
+		*lso_header_size = get_head_size(mb);
+		if (*lso_header_size) {
+			if (mb->m_len == *lso_header_size)
+				nr_segs--;
+			*segsp = nr_segs;
+			return CTRL_SIZE + nr_segs * DS_SIZE +
+			    ALIGN(*lso_header_size + 4, DS_SIZE);
+		}
+	} else
+		*lso_header_size = 0;
+	*segsp = nr_segs;
+	if (is_inline(mb))
+		return inline_size(mb);
+	return (CTRL_SIZE + nr_segs * DS_SIZE);
+}
+
+static struct mbuf *mb_copy(struct mbuf *mb, int *offp, char *data, int len)
+{
+	int bytes;
+	int off;
+
+	off = *offp;
+	while (len) {
+		bytes = min(mb->m_len - off, len);
+		if (bytes)
+			memcpy(data, mb->m_data + off, bytes);
+		len -= bytes;
+		data += bytes;
+		off += bytes;
+		if (off == mb->m_len) {
+			off = 0;
+			mb = mb->m_next;
+		}
+	}
+	*offp = off;
+	return (mb);
+}
+
+static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc, struct mbuf *mb,
+			     int real_size, u16 *vlan_tag, int tx_ind)
 {
 	struct mlx4_wqe_inline_seg *inl = &tx_desc->inl;
 	int spc = MLX4_INLINE_ALIGN - CTRL_SIZE - sizeof *inl;
+	int len;
+	int off;
 
-	if (skb->len <= spc) {
-		inl->byte_count = cpu_to_be32(1 << 31 | skb->len);
-		skb_copy_from_linear_data(skb, inl + 1, skb_headlen(skb));
-		if (skb_shinfo(skb)->nr_frags)
-			memcpy(((void *)(inl + 1)) + skb_headlen(skb), fragptr,
-			       skb_shinfo(skb)->frags[0].size);
-
+	off = 0;
+	len = mb->m_pkthdr.len;
+	if (len <= spc) {
+		inl->byte_count = cpu_to_be32(1 << 31 | len);
+		mb_copy(mb, &off, (void *)(inl + 1), len);
 	} else {
 		inl->byte_count = cpu_to_be32(1 << 31 | spc);
-		if (skb_headlen(skb) <= spc) {
-			skb_copy_from_linear_data(skb, inl + 1, skb_headlen(skb));
-			if (skb_headlen(skb) < spc) {
-				memcpy(((void *)(inl + 1)) + skb_headlen(skb),
-					fragptr, spc - skb_headlen(skb));
-				fragptr +=  spc - skb_headlen(skb);
-			}
-			inl = (void *) (inl + 1) + spc;
-			memcpy(((void *)(inl + 1)), fragptr, skb->len - spc);
-		} else {
-			skb_copy_from_linear_data(skb, inl + 1, spc);
-			inl = (void *) (inl + 1) + spc;
-			skb_copy_from_linear_data_offset(skb, spc, inl + 1,
-					skb_headlen(skb) - spc);
-			if (skb_shinfo(skb)->nr_frags)
-				memcpy(((void *)(inl + 1)) + skb_headlen(skb) - spc,
-					fragptr, skb_shinfo(skb)->frags[0].size);
-		}
-
+		mb = mb_copy(mb, &off, (void *)(inl + 1), spc);
+		inl = (void *) (inl + 1) + spc;
+		mb_copy(mb, &off, (void *)(inl + 1), len - spc);
 		wmb();
-		inl->byte_count = cpu_to_be32(1 << 31 | (skb->len - spc));
+		inl->byte_count = cpu_to_be32(1 << 31 | (len - spc));
 	}
 	tx_desc->ctrl.vlan_tag = cpu_to_be16(*vlan_tag);
 	tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_VLAN * !!(*vlan_tag);
 	tx_desc->ctrl.fence_size = (real_size / 16) & 0x3f;
 }
 
-u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb)
+u16 mlx4_en_select_queue(struct net_device *dev, struct mbuf *mb)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	u16 vlan_tag = 0;
-	int tx_ind = 0;
-	struct tcphdr *th = tcp_hdr(skb);
-	struct iphdr *iph = ip_hdr(skb);
 	struct mlx4_en_tx_hash_entry *entry;
+	struct ether_header *eth;
+	struct tcphdr *th;
+	struct ip *iph;
 	u32 hash_index;
+	int tx_ind = 0;
+	u16 vlan_tag = 0;
+	int len;
 
 	/* Obtain VLAN information if present */
-	if (priv->vlgrp && vlan_tx_tag_present(skb)) {
-		vlan_tag = vlan_tx_tag_get(skb);
+	if (mb->m_flags & M_VLANTAG) {
+		vlan_tag = mb->m_pkthdr.ether_vtag;
 		/* Set the Tx ring to use according to vlan priority */
 		tx_ind = priv->tx_prio_map[vlan_tag >> 13];
 		if (tx_ind)
 			return tx_ind;
 	}
-
-	/* Hashing is only done for TCP/IP or UDP/IP packets */
-	if (be16_to_cpu(skb->protocol) != ETH_P_IP)
+	if (mb->m_len <
+	    ETHER_HDR_LEN + sizeof(struct ip) + sizeof(struct tcphdr))
 		return MLX4_EN_NUM_HASH_RINGS;
-
-	hash_index = be32_to_cpu(iph->daddr) & MLX4_EN_TX_HASH_MASK;
-	switch(iph->protocol) {
+	eth = mtod(mb, struct ether_header *);
+	/* Hashing is only done for TCP/IP or UDP/IP packets */
+	if (be16_to_cpu(eth->ether_type) != ETHERTYPE_IP)
+		return MLX4_EN_NUM_HASH_RINGS;
+	len = ETHER_HDR_LEN;
+	iph = (struct ip *)(mtod(mb, char *) + len);
+	len += iph->ip_hl << 2;
+	th = (struct tcphdr *)(mtod(mb, char *) + len);
+	hash_index = be32_to_cpu(iph->ip_dst.s_addr) & MLX4_EN_TX_HASH_MASK;
+	switch(iph->ip_p) {
 	case IPPROTO_UDP:
 		break;
 	case IPPROTO_TCP:
-		if (th) {
-			hash_index = (hash_index ^ be16_to_cpu(th->dest ^ th->source)) &
-					MLX4_EN_TX_HASH_MASK;
-		}
+		if (mb->m_len < len + sizeof(struct tcphdr))
+			return MLX4_EN_NUM_HASH_RINGS;
+		hash_index =
+		    (hash_index ^ be16_to_cpu(th->th_dport ^ th->th_sport)) &
+		    MLX4_EN_TX_HASH_MASK;
 		break;
 	default:
 		return MLX4_EN_NUM_HASH_RINGS;
@@ -660,7 +674,7 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb)
 	}
 
 	entry->cnt++;
-	if (skb->len > MLX4_EN_SMALL_PKT_SIZE)
+	if (mb->m_pkthdr.len > MLX4_EN_SMALL_PKT_SIZE)
 		entry->big_pkts++;
 	else
 		entry->small_pkts++;
@@ -672,7 +686,7 @@ static void mlx4_bf_copy(unsigned long *dst, unsigned long *src, unsigned bytecn
 	__iowrite64_copy(dst, src, bytecnt / 8);
 }
 
-int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
+static int mlx4_en_xmit(struct net_device *dev, int tx_ind, struct mbuf **mbp)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -680,13 +694,10 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct mlx4_en_cq *cq;
 	struct mlx4_en_tx_desc *tx_desc;
 	struct mlx4_wqe_data_seg *data;
-	struct skb_frag_struct *frag;
 	struct mlx4_en_tx_info *tx_info;
-	struct ethhdr *ethh;
-	u64 mac;
-	u32 mac_l, mac_h;
-	int tx_ind = 0;
+	struct mbuf *m;
 	int nr_txbb;
+	int nr_segs;
 	int desc_size;
 	int real_size;
 	dma_addr_t dma;
@@ -695,13 +706,17 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	u16 vlan_tag = 0;
 	int i;
 	int lso_header_size;
-	void *fragptr;
 	bool bounce = false;
+	struct mbuf *mb;
+	int defrag = 1;
 
+	ring = &priv->tx_ring[tx_ind];
+	mb = *mbp;
 	if (!priv->port_up)
 		goto tx_drop;
 
-	real_size = get_real_size(skb, dev, &lso_header_size);
+retry:
+	real_size = get_real_size(mb, dev, &nr_segs, &lso_header_size);
 	if (unlikely(!real_size))
 		goto tx_drop;
 
@@ -709,28 +724,33 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	desc_size = ALIGN(real_size, TXBB_SIZE);
 	nr_txbb = desc_size / TXBB_SIZE;
 	if (unlikely(nr_txbb > MAX_DESC_TXBBS)) {
-		if (netif_msg_tx_err(priv))
-			en_warn(priv, "Oversized header or SG list\n");
+		if (defrag) {
+			mb = m_defrag(*mbp, M_DONTWAIT);
+			if (mb == NULL) {
+				mb = *mbp;
+				goto tx_drop;
+			}
+			*mbp = mb;
+			defrag = 0;
+			goto retry;
+		}
 		goto tx_drop;
 	}
-
-	tx_ind = skb->queue_mapping;
-	ring = &priv->tx_ring[tx_ind];
-	if (priv->vlgrp && vlan_tx_tag_present(skb))
-		vlan_tag = vlan_tx_tag_get(skb);
 
 	/* Check available TXBBs And 2K spare for prefetch */
 	if (unlikely(((int)(ring->prod - ring->cons)) >
 		     ring->size - HEADROOM - MAX_DESC_TXBBS)) {
 		/* every full Tx ring stops queue */
-		netif_tx_stop_queue(netdev_get_tx_queue(dev, tx_ind));
+		if (ring->blocked == 0)
+			atomic_add_int(&priv->blocked, 1);
+		atomic_set_int(&dev->if_drv_flags, IFF_DRV_OACTIVE);
 		ring->blocked = 1;
 		priv->port_stats.queue_stopped++;
 
 		/* Use interrupts to find out when queue opened */
 		cq = &priv->tx_cq[tx_ind];
 		mlx4_en_arm_cq(priv, cq);
-		return NETDEV_TX_BUSY;
+		return EBUSY;
 	}
 
 	/* Track current inflight packets for performance analysis */
@@ -750,19 +770,16 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		bounce = true;
 	}
 
-	/* Save skb in tx_info ring */
-	tx_info = &ring->tx_info[index];
-	tx_info->skb = skb;
-	tx_info->nr_txbb = nr_txbb;
-
 	/* Prepare ctrl segement apart opcode+ownership, which depends on
 	 * whether LSO is used */
+	if (mb->m_flags & M_VLANTAG)
+		vlan_tag = mb->m_pkthdr.ether_vtag;
 	tx_desc->ctrl.vlan_tag = cpu_to_be16(vlan_tag);
 	tx_desc->ctrl.ins_vlan = MLX4_WQE_CTRL_INS_VLAN * !!vlan_tag;
 	tx_desc->ctrl.fence_size = (real_size / 16) & 0x3f;
 	tx_desc->ctrl.srcrb_flags = cpu_to_be32(MLX4_WQE_CTRL_CQ_UPDATE |
 						MLX4_WQE_CTRL_SOLICITED);
-	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
+	if (mb->m_pkthdr.csum_flags & (CSUM_IP|CSUM_TCP|CSUM_UDP)) {
 		tx_desc->ctrl.srcrb_flags |= cpu_to_be32(MLX4_WQE_CTRL_IP_CSUM |
 							 MLX4_WQE_CTRL_TCP_UDP_CSUM);
 		priv->port_stats.tx_chksum_offload++;
@@ -770,10 +787,13 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (unlikely(priv->validate_loopback)) {
 		/* Copy dst mac address to wqe */
-		skb_reset_mac_header(skb);
-		ethh = eth_hdr(skb);
-		if (ethh && ethh->h_dest) {
-			mac = mlx4_en_mac_to_u64(ethh->h_dest);
+		struct ether_header *ethh;
+		u64 mac;
+		u32 mac_l, mac_h;
+
+		ethh = mtod(mb, struct ether_header *);
+		mac = mlx4_en_mac_to_u64(ethh->ether_dhost);
+		if (mac) {
 			mac_h = (u32) ((mac & 0xffff00000000ULL) >> 16);
 			mac_l = (u32) (mac & 0xffffffff);
 			tx_desc->ctrl.srcrb_flags |= cpu_to_be32(mac_h);
@@ -783,6 +803,8 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Handle LSO (TSO) packets */
 	if (lso_header_size) {
+		int segsz;
+
 		/* Mark opcode as LSO */
 		op_own = cpu_to_be32(MLX4_OPCODE_LSO | (1 << 6)) |
 			((ring->prod & ring->size) ?
@@ -790,63 +812,64 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		/* Fill in the LSO prefix */
 		tx_desc->lso.mss_hdr_size = cpu_to_be32(
-			skb_shinfo(skb)->gso_size << 16 | lso_header_size);
+			mb->m_pkthdr.tso_segsz << 16 | lso_header_size);
 
 		/* Copy headers;
 		 * note that we already verified that it is linear */
-		memcpy(tx_desc->lso.header, skb->data, lso_header_size);
+		memcpy(tx_desc->lso.header, mb->m_data, lso_header_size);
 		data = ((void *) &tx_desc->lso +
 			ALIGN(lso_header_size + 4, DS_SIZE));
 
 		priv->port_stats.tso_packets++;
-		i = ((skb->len - lso_header_size) / skb_shinfo(skb)->gso_size) +
-			!!((skb->len - lso_header_size) % skb_shinfo(skb)->gso_size);
-		ring->bytes += skb->len + (i - 1) * lso_header_size;
+		segsz = mb->m_pkthdr.tso_segsz;
+		i = ((mb->m_pkthdr.len - lso_header_size) / segsz) +
+			!!((mb->m_pkthdr.len - lso_header_size) % segsz);
+		ring->bytes += mb->m_pkthdr.len + (i - 1) * lso_header_size;
 		ring->packets += i;
+		mb->m_data += lso_header_size;
+		mb->m_len -= lso_header_size;
 	} else {
 		/* Normal (Non LSO) packet */
 		op_own = cpu_to_be32(MLX4_OPCODE_SEND) |
 			((ring->prod & ring->size) ?
 			 cpu_to_be32(MLX4_EN_BIT_DESC_OWN) : 0);
 		data = &tx_desc->data;
-		ring->bytes += max(skb->len, (unsigned int) ETH_ZLEN);
+		ring->bytes += max(mb->m_pkthdr.len,
+		    (unsigned int)ETHER_MIN_LEN - ETHER_CRC_LEN);
 		ring->packets++;
 
 	}
-	AVG_PERF_COUNTER(priv->pstats.tx_pktsz_avg, skb->len);
+	AVG_PERF_COUNTER(priv->pstats.tx_pktsz_avg, mb->m_pkthdr.len);
 
-
-	/* valid only for none inline segments */
+	/* Save mb in tx_info ring */
+	tx_info = &ring->tx_info[index];
+	tx_info->mb = mb;
+	tx_info->nr_txbb = nr_txbb;
+	tx_info->nr_segs = nr_segs;
+	/* valid only for non inline segments */
 	tx_info->data_offset = (void *) data - (void *) tx_desc;
 
-	tx_info->linear = (lso_header_size < skb_headlen(skb) && !is_inline(skb, NULL)) ? 1 : 0;
-	data += skb_shinfo(skb)->nr_frags + tx_info->linear - 1;
-
-	if (!is_inline(skb, &fragptr)) {
-		/* Map fragments */
-		for (i = skb_shinfo(skb)->nr_frags - 1; i >= 0; i--) {
-			frag = &skb_shinfo(skb)->frags[i];
-			dma = pci_map_page(mdev->dev->pdev, frag->page, frag->page_offset,
-					   frag->size, PCI_DMA_TODEVICE);
+	if (!is_inline(mb)) {
+		for (i = 0, m = mb; i < nr_segs; i++, m = m->m_next) {
+			if (m->m_len == 0) {
+				i--;
+				continue;
+			}
+			dma = pci_map_single(mdev->dev->pdev, m->m_data,
+					     m->m_len, PCI_DMA_TODEVICE);
 			data->addr = cpu_to_be64(dma);
 			data->lkey = cpu_to_be32(mdev->mr.key);
 			wmb();
-			data->byte_count = cpu_to_be32(frag->size);
-			--data;
+			data->byte_count = cpu_to_be32(m->m_len);
+			data++;
 		}
-
-		/* Map linear part */
-		if (tx_info->linear) {
-			dma = pci_map_single(mdev->dev->pdev, skb->data + lso_header_size,
-					     skb_headlen(skb) - lso_header_size, PCI_DMA_TODEVICE);
-			data->addr = cpu_to_be64(dma);
-			data->lkey = cpu_to_be32(mdev->mr.key);
-			wmb();
-			data->byte_count = cpu_to_be32(skb_headlen(skb) - lso_header_size);
+		if (lso_header_size) {
+			mb->m_data -= lso_header_size;
+			mb->m_len += lso_header_size;
 		}
 		tx_info->inl = 0;
 	} else {
-		build_inline_wqe(tx_desc, skb, real_size, &vlan_tag, tx_ind, fragptr);
+		build_inline_wqe(tx_desc, mb, real_size, &vlan_tag, tx_ind);
 		tx_info->inl = 1;
 	}
 
@@ -855,10 +878,6 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* If we used a bounce buffer then copy descriptor back into place */
 	if (bounce)
 		tx_desc = mlx4_en_bounce_to_desc(priv, ring, index, desc_size);
-
-	/* Run destructor before passing skb to HW */
-	if (likely(!skb_shared(skb)))
-		skb_orphan(skb);
 
 	if (ring->bf_enabled && desc_size <= MAX_BF && !bounce && !vlan_tag) {
 		*(u32 *) (&tx_desc->ctrl.vlan_tag) |= ring->doorbell_qpn;
@@ -884,16 +903,133 @@ int mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		wmb();
 		writel(ring->doorbell_qpn, ring->bf.uar->map + MLX4_SEND_DOORBELL);
 	}
-	dev->trans_start = jiffies;
-
-	/* Poll CQ here */
-	mlx4_en_xmit_poll(priv, tx_ind);
 
 	return 0;
 
 tx_drop:
-	dev_kfree_skb_any(skb);
-	priv->stats.tx_dropped++;
-	return NETDEV_TX_OK;
+	*mbp = NULL;
+	m_freem(mb);
+	ring->errors++;
+	return EINVAL;
 }
 
+
+static int
+mlx4_en_transmit_locked(struct ifnet *dev, int tx_ind, struct mbuf *m)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_tx_ring *ring;
+	struct mbuf *next;
+	int enqueued, err = 0;
+
+	ring = &priv->tx_ring[tx_ind];
+	if ((dev->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING || priv->port_up == 0) {
+		if (m != NULL)
+			err = drbr_enqueue(dev, ring->br, m);
+		return (err);  
+	}
+
+	enqueued = 0;
+	if (m == NULL) {
+		next = drbr_dequeue(dev, ring->br);
+	} else if (drbr_needs_enqueue(dev, ring->br)) {
+		if ((err = drbr_enqueue(dev, ring->br, m)) != 0)
+			return (err);
+		next = drbr_dequeue(dev, ring->br);
+	} else
+		next = m;
+
+	/* Process the queue */
+	while (next != NULL) {
+		if ((err = mlx4_en_xmit(dev, tx_ind, &next)) != 0) {
+			if (next != NULL)
+				err = drbr_enqueue(dev, ring->br, next);
+			break;
+		}
+		enqueued++;
+		drbr_stats_update(dev, next->m_pkthdr.len, next->m_flags);
+		/* Send a copy of the frame to the BPF listener */
+		ETHER_BPF_MTAP(dev, next);
+		if ((dev->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			break;
+		next = drbr_dequeue(dev, ring->br);
+	}
+
+	if (enqueued > 0)
+		ring->watchdog_time = ticks;
+
+	return (err);
+}
+
+void
+mlx4_en_tx_que(void *context, int pending)
+{
+	struct mlx4_en_tx_ring *ring;
+	struct mlx4_en_priv *priv;
+	struct net_device *dev;
+	struct mlx4_en_cq *cq;
+	int tx_ind;
+
+	cq = context;
+	dev = cq->dev;
+	priv = dev->if_softc;
+	tx_ind = cq->ring;
+	ring = &priv->tx_ring[tx_ind];
+        if (dev->if_drv_flags & IFF_DRV_RUNNING) {
+		mlx4_en_xmit_poll(priv, tx_ind);
+		spin_lock(&ring->tx_lock);
+                if (!drbr_empty(dev, ring->br))
+			mlx4_en_transmit_locked(dev, tx_ind, NULL);
+		spin_unlock(&ring->tx_lock);
+	}
+}
+
+int
+mlx4_en_transmit(struct ifnet *dev, struct mbuf *m)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_tx_ring *ring;
+	struct mlx4_en_cq *cq;
+	int i = 0, err = 0;
+
+	/* Which queue to use */
+	if ((m->m_flags & (M_FLOWID | M_VLANTAG)) == M_FLOWID)
+		i = m->m_pkthdr.flowid % (MLX4_EN_NUM_HASH_RINGS - 1);
+	else
+		i = mlx4_en_select_queue(dev, m);
+
+	ring = &priv->tx_ring[i];
+
+	if (spin_trylock(&ring->tx_lock)) {
+		err = mlx4_en_transmit_locked(dev, i, m);
+		spin_unlock(&ring->tx_lock);
+		/* Poll CQ here */
+		mlx4_en_xmit_poll(priv, i);
+	} else {
+		err = drbr_enqueue(dev, ring->br, m);
+		cq = &priv->tx_cq[i];
+		taskqueue_enqueue(cq->tq, &cq->cq_task);
+	}
+
+	return (err);
+}
+
+/*
+ * Flush ring buffers.
+ */
+void
+mlx4_en_qflush(struct ifnet *dev)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_tx_ring *ring = priv->tx_ring;
+	struct mbuf *m;
+
+	for (int i = 0; i < priv->tx_ring_num; i++, ring++) {
+		spin_lock(&ring->tx_lock);
+		while ((m = buf_ring_dequeue_sc(ring->br)) != NULL)
+			m_freem(m);
+		spin_unlock(&ring->tx_lock);
+	}
+	if_qflush(dev);
+}

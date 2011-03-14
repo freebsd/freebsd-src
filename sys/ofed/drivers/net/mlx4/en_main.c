@@ -31,7 +31,6 @@
  *
  */
 
-#include <linux/cpumask.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
@@ -162,6 +161,8 @@ static void mlx4_en_remove(struct mlx4_dev *dev, void *endev_ptr)
 	mlx4_mr_free(dev, &mdev->mr);
 	mlx4_uar_free(dev, &mdev->priv_uar);
 	mlx4_pd_free(dev, mdev->priv_pdn);
+	sx_destroy(&mdev->state_lock.sx);
+	mtx_destroy(&mdev->uar_lock.m);
 	kfree(mdev);
 }
 
@@ -191,10 +192,10 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 	if (mlx4_uar_alloc(dev, &mdev->priv_uar))
 		goto err_pd;
 
+	mtx_init(&mdev->uar_lock.m, "mlx4 uar", NULL, MTX_DEF);
 	mdev->uar_map = ioremap(mdev->priv_uar.pfn << PAGE_SHIFT, PAGE_SIZE);
 	if (!mdev->uar_map)
 		goto err_uar;
-	spin_lock_init(&mdev->uar_lock);
 
 	mdev->dev = dev;
 	mdev->dma_device = &(dev->pdev->dev);
@@ -253,7 +254,7 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 
 	/* At this stage all non-port specific tasks are complete:
 	 * mark the card state as up */
-	mutex_init(&mdev->state_lock);
+	sx_init(&mdev->state_lock.sx, "mlxen state");
 	mdev->device_up = true;
 
 	/* Setup ports */
@@ -286,6 +287,7 @@ err_free_netdev:
 err_mr:
 	mlx4_mr_free(dev, &mdev->mr);
 err_uar:
+	mtx_destroy(&mdev->uar_lock.m);
 	mlx4_uar_free(dev, &mdev->priv_uar);
 err_pd:
 	mlx4_pd_free(dev, mdev->priv_pdn);
@@ -308,6 +310,7 @@ enum mlx4_query_reply mlx4_en_query(void *endev_ptr, void *int_dev)
 	return MLX4_QUERY_NOT_MINE;
 }
 
+#if 0
 static struct pci_device_id mlx4_en_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 0x6340) }, /* MT25408 "Hermon" SDR */
 	{ PCI_VDEVICE(MELLANOX, 0x634a) }, /* MT25408 "Hermon" DDR */
@@ -342,6 +345,7 @@ static struct pci_device_id mlx4_en_pci_table[] = {
 };
 
 MODULE_DEVICE_TABLE(pci, mlx4_en_pci_table);
+#endif
 
 static struct mlx4_interface mlx4_en_interface = {
 	.add	= mlx4_en_add,
@@ -365,3 +369,16 @@ static void __exit mlx4_en_cleanup(void)
 module_init(mlx4_en_init);
 module_exit(mlx4_en_cleanup);
 
+#undef MODULE_VERSION
+#include <sys/module.h>
+static int
+mlxen_evhand(module_t mod, int event, void *arg)
+{
+        return (0);
+}
+static moduledata_t mlxen_mod = {
+        .name = "mlxen",
+	.evhand = mlxen_evhand,
+};
+DECLARE_MODULE(mlxen, mlxen_mod, SI_SUB_KLD, SI_ORDER_ANY);
+MODULE_DEPEND(mlxen, mlx4, 1, 1, 1);

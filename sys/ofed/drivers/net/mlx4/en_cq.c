@@ -31,11 +31,11 @@
  *
  */
 
+#include "mlx4_en.h"
+
 #include <linux/mlx4/cq.h>
 #include <linux/mlx4/qp.h>
 #include <linux/mlx4/cmd.h>
-
-#include "mlx4_en.h"
 
 static void mlx4_en_cq_event(struct mlx4_cq *cq, enum mlx4_event event)
 {
@@ -55,14 +55,20 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 		cq->buf_size = cq->size * sizeof(struct mlx4_cqe);
 		cq->vector   = (ring + priv->port) %
 				mdev->dev->caps.num_comp_vectors;
+		TASK_INIT(&cq->cq_task, 0, mlx4_en_rx_que, cq);
 	} else {
 		cq->buf_size = sizeof(struct mlx4_cqe);
 		cq->vector   = MLX4_LEAST_ATTACHED_VECTOR;
+		TASK_INIT(&cq->cq_task, 0, mlx4_en_tx_que, cq);
 	}
 
+	cq->tq = taskqueue_create_fast("mlx4_en_que", M_NOWAIT,
+	    taskqueue_thread_enqueue, &cq->tq);
+	taskqueue_start_threads(&cq->tq, 1, PI_NET, "%s cq",
+	    if_name(priv->dev));
 	cq->ring = ring;
 	cq->is_tx = mode;
-	spin_lock_init(&cq->lock);
+	mtx_init(&cq->lock.m, "mlx4 cq", NULL, MTX_DEF);
 
 	err = mlx4_alloc_hwq_res(mdev->dev, &cq->wqres,
 				cq->buf_size, 2 * PAGE_SIZE);
@@ -105,9 +111,6 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 		init_timer(&cq->timer);
 		cq->timer.function = mlx4_en_poll_tx_cq;
 		cq->timer.data = (unsigned long) cq;
-	} else {
-		netif_napi_add(cq->dev, &cq->napi, mlx4_en_poll_rx_cq, 64);
-		napi_enable(&cq->napi);
 	}
 
 	return 0;
@@ -117,22 +120,22 @@ void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 
+	taskqueue_drain(cq->tq, &cq->cq_task);
+	taskqueue_free(cq->tq);
 	mlx4_en_unmap_buffer(&cq->wqres.buf);
 	mlx4_free_hwq_res(mdev->dev, &cq->wqres, cq->buf_size);
 	cq->buf_size = 0;
 	cq->buf = NULL;
+	mtx_destroy(&cq->lock.m);
 }
 
 void mlx4_en_deactivate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 
+	taskqueue_drain(cq->tq, &cq->cq_task);
 	if (cq->is_tx)
 		del_timer(&cq->timer);
-	else {
-		napi_disable(&cq->napi);
-		netif_napi_del(&cq->napi);
-	}
 
 	mlx4_cq_free(mdev->dev, &cq->mcq);
 }

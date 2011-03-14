@@ -1687,3 +1687,18 @@ static void __exit mlx4_cleanup(void)
 
 module_init_order(mlx4_init, SI_ORDER_MIDDLE);
 module_exit(mlx4_cleanup);
+
+#undef MODULE_VERSION
+#include <sys/module.h>
+static int
+mlx4_evhand(module_t mod, int event, void *arg)
+{
+	return (0);
+}
+
+static moduledata_t mlx4_mod = {
+	.name = "mlx4",
+	.evhand = mlx4_evhand,
+};
+MODULE_VERSION(mlx4, 1);
+DECLARE_MODULE(mlx4, mlx4_mod, SI_SUB_KLD, SI_ORDER_ANY);

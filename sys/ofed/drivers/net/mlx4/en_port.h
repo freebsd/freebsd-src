@@ -586,5 +586,6 @@ struct mlx4_en_stat_out_mbox {
 	__be32 TDROP;
 };
 
+enum mlx4_query_reply mlx4_en_query(void *endev_ptr, void *int_dev);
 
 #endif

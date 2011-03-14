@@ -32,13 +32,12 @@
  */
 
 
+#include "mlx4_en.h"
+
 #include <linux/if_vlan.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/cmd.h>
-
-#include "en_port.h"
-#include "mlx4_en.h"
 
 
 int mlx4_SET_MCAST_FLTR(struct mlx4_dev *dev, u8 port,
@@ -48,14 +47,11 @@ int mlx4_SET_MCAST_FLTR(struct mlx4_dev *dev, u8 port,
 			MLX4_CMD_SET_MCAST_FLTR, MLX4_CMD_TIME_CLASS_B);
 }
 
-int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, u8 port, struct vlan_group *grp)
+int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, u8 port, u32 *vlans)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	struct mlx4_set_vlan_fltr_mbox *filter;
 	int i;
-	int j;
-	int index = 0;
-	u32 entry;
 	int err = 0;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
@@ -63,19 +59,10 @@ int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, u8 port, struct vlan_group *grp)
 		return PTR_ERR(mailbox);
 
 	filter = mailbox->buf;
-	if (grp) {
-		memset(filter, 0, sizeof *filter);
-		for (i = VLAN_FLTR_SIZE - 1; i >= 0; i--) {
-			entry = 0;
-			for (j = 0; j < 32; j++)
-				if (vlan_group_get_device(grp, index++))
-					entry |= 1 << j;
-			filter->entry[i] = cpu_to_be32(entry);
-		}
-	} else {
-		/* When no vlans are configured we block all vlans */
-		memset(filter, 0, sizeof(*filter));
-	}
+	memset(filter, 0, sizeof *filter);
+	if (vlans)
+		for (i = 0; i < VLAN_FLTR_SIZE; i ++)
+			filter->entry[i] = cpu_to_be32(vlans[i]);
 	err = mlx4_cmd(dev, mailbox->dma, port, 0, MLX4_CMD_SET_VLAN_FLTR,
 		       MLX4_CMD_TIME_CLASS_B);
 	mlx4_free_cmd_mailbox(dev, mailbox);
@@ -223,15 +210,19 @@ out:
 int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 {
 	struct mlx4_en_stat_out_mbox *mlx4_en_stats;
-	struct mlx4_en_priv *priv = netdev_priv(mdev->pndev[port]);
-	struct net_device_stats *stats = &priv->stats;
+	struct net_device *dev;
+	struct mlx4_en_priv *priv;
 	struct mlx4_cmd_mailbox *mailbox;
 	u64 in_mod = reset << 8 | port;
+	unsigned long oerror;
+	unsigned long ierror;
 	int err;
 	int i;
 	int counter;
 	u64 counters[4];
 
+	dev = mdev->pndev[port];
+	priv = netdev_priv(dev);
 	memset(counters, 0, sizeof counters);
 	counter = mlx4_get_iboe_counter(priv->mdev->dev, port);
 	if (counter >= 0)
@@ -248,48 +239,45 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 
 	mlx4_en_stats = mailbox->buf;
 
-	spin_lock_bh(&priv->stats_lock);
+	spin_lock(&priv->stats_lock);
 
-	stats->rx_packets = counters[0];
-	stats->rx_bytes = counters[2];
+	oerror = ierror = 0;
+	dev->if_ipackets = counters[0];
+	dev->if_ibytes = counters[2];
 	for (i = 0; i < priv->rx_ring_num; i++) {
-		stats->rx_packets += priv->rx_ring[i].packets;
-		stats->rx_bytes += priv->rx_ring[i].bytes;
+		dev->if_ipackets += priv->rx_ring[i].packets;
+		dev->if_ibytes += priv->rx_ring[i].bytes;
+		ierror += priv->rx_ring[i].errors;
 	}
-	stats->tx_packets = counters[1];
-	stats->tx_bytes = counters[3];
+	dev->if_opackets = counters[1];
+	dev->if_obytes = counters[3];
 	for (i = 0; i <= priv->tx_ring_num; i++) {
-		stats->tx_packets += priv->tx_ring[i].packets;
-		stats->tx_bytes += priv->tx_ring[i].bytes;
+		dev->if_opackets += priv->tx_ring[i].packets;
+		dev->if_obytes += priv->tx_ring[i].bytes;
+		oerror += priv->tx_ring[i].errors;
 	}
 
-	stats->rx_errors = be64_to_cpu(mlx4_en_stats->PCS) +
-			   be32_to_cpu(mlx4_en_stats->RdropLength) +
-			   be32_to_cpu(mlx4_en_stats->RJBBR) +
-			   be32_to_cpu(mlx4_en_stats->RCRC) +
-			   be32_to_cpu(mlx4_en_stats->RRUNT);
-	stats->tx_errors = be32_to_cpu(mlx4_en_stats->TDROP);
-	stats->multicast = be64_to_cpu(mlx4_en_stats->MCAST_prio_0) +
-			   be64_to_cpu(mlx4_en_stats->MCAST_prio_1) +
-			   be64_to_cpu(mlx4_en_stats->MCAST_prio_2) +
-			   be64_to_cpu(mlx4_en_stats->MCAST_prio_3) +
-			   be64_to_cpu(mlx4_en_stats->MCAST_prio_4) +
-			   be64_to_cpu(mlx4_en_stats->MCAST_prio_5) +
-			   be64_to_cpu(mlx4_en_stats->MCAST_prio_6) +
-			   be64_to_cpu(mlx4_en_stats->MCAST_prio_7) +
-			   be64_to_cpu(mlx4_en_stats->MCAST_novlan);
-	stats->collisions = 0;
-	stats->rx_length_errors = be32_to_cpu(mlx4_en_stats->RdropLength);
-	stats->rx_over_errors = be32_to_cpu(mlx4_en_stats->RdropOvflw);
-	stats->rx_crc_errors = be32_to_cpu(mlx4_en_stats->RCRC);
-	stats->rx_frame_errors = 0;
-	stats->rx_fifo_errors = be32_to_cpu(mlx4_en_stats->RdropOvflw);
-	stats->rx_missed_errors = be32_to_cpu(mlx4_en_stats->RdropOvflw);
-	stats->tx_aborted_errors = 0;
-	stats->tx_carrier_errors = 0;
-	stats->tx_fifo_errors = 0;
-	stats->tx_heartbeat_errors = 0;
-	stats->tx_window_errors = 0;
+	dev->if_ierrors = be32_to_cpu(mlx4_en_stats->RDROP) + ierror;
+	dev->if_oerrors = be32_to_cpu(mlx4_en_stats->TDROP) + oerror;
+	dev->if_imcasts = be64_to_cpu(mlx4_en_stats->MCAST_prio_0) +
+			  be64_to_cpu(mlx4_en_stats->MCAST_prio_1) +
+			  be64_to_cpu(mlx4_en_stats->MCAST_prio_2) +
+			  be64_to_cpu(mlx4_en_stats->MCAST_prio_3) +
+			  be64_to_cpu(mlx4_en_stats->MCAST_prio_4) +
+			  be64_to_cpu(mlx4_en_stats->MCAST_prio_5) +
+			  be64_to_cpu(mlx4_en_stats->MCAST_prio_6) +
+			  be64_to_cpu(mlx4_en_stats->MCAST_prio_7) +
+			  be64_to_cpu(mlx4_en_stats->MCAST_novlan);
+	dev->if_omcasts = be64_to_cpu(mlx4_en_stats->TMCAST_prio_0) +
+			  be64_to_cpu(mlx4_en_stats->TMCAST_prio_1) +
+			  be64_to_cpu(mlx4_en_stats->TMCAST_prio_2) +
+			  be64_to_cpu(mlx4_en_stats->TMCAST_prio_3) +
+			  be64_to_cpu(mlx4_en_stats->TMCAST_prio_4) +
+			  be64_to_cpu(mlx4_en_stats->TMCAST_prio_5) +
+			  be64_to_cpu(mlx4_en_stats->TMCAST_prio_6) +
+			  be64_to_cpu(mlx4_en_stats->TMCAST_prio_7) +
+			  be64_to_cpu(mlx4_en_stats->TMCAST_novlan);
+	dev->if_collisions = 0;
 
 	priv->pkstats.broadcast =
 				be64_to_cpu(mlx4_en_stats->RBCAST_prio_0) +
@@ -317,7 +305,7 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	priv->pkstats.tx_prio[5] = be64_to_cpu(mlx4_en_stats->TTOT_prio_5);
 	priv->pkstats.tx_prio[6] = be64_to_cpu(mlx4_en_stats->TTOT_prio_6);
 	priv->pkstats.tx_prio[7] = be64_to_cpu(mlx4_en_stats->TTOT_prio_7);
-	spin_unlock_bh(&priv->stats_lock);
+	spin_unlock(&priv->stats_lock);
 
 out:
 	mlx4_free_cmd_mailbox(mdev->dev, mailbox);

@@ -31,17 +31,14 @@
  *
  */
 
-#include <linux/skbuff.h>
-#include <linux/ip.h>
-#include <linux/if_vlan.h>
-#include <net/ip.h>
-#include <linux/etherdevice.h>
-
 #include "mlx4_en.h"
 
+#include <net/ethernet.h>
+#include <netinet/ip.h>
+#include <machine/in_cksum.h>
 
 static struct mlx4_en_ipfrag *find_session(struct mlx4_en_rx_ring *ring,
-					   struct iphdr *iph)
+					   struct ip *iph)
 {
 	struct mlx4_en_ipfrag *session;
 	int i;
@@ -50,10 +47,10 @@ static struct mlx4_en_ipfrag *find_session(struct mlx4_en_rx_ring *ring,
 		session = &ring->ipfrag[i];
 		if (session->fragments == NULL)
 			continue;
-		if (session->daddr == iph->daddr &&
-		    session->saddr == iph->saddr &&
-		    session->id == iph->id &&
-		    session->protocol == iph->protocol) {
+		if (session->daddr == iph->ip_dst.s_addr &&
+		    session->saddr == iph->ip_src.s_addr &&
+		    session->id == iph->ip_id &&
+		    session->protocol == iph->ip_p) {
 			return session;
 		}
 	}
@@ -61,7 +58,7 @@ static struct mlx4_en_ipfrag *find_session(struct mlx4_en_rx_ring *ring,
 }
 
 static struct mlx4_en_ipfrag *start_session(struct mlx4_en_rx_ring *ring,
-					    struct iphdr *iph)
+					    struct ip *iph)
 {
 	struct mlx4_en_ipfrag *session;
 	int index = -1;
@@ -86,22 +83,18 @@ static void flush_session(struct mlx4_en_priv *priv,
 			  struct mlx4_en_ipfrag *session,
 			  u16 more)
 {
-	struct sk_buff *skb = session->fragments;
-	struct iphdr *iph = ip_hdr(skb);
-	struct net_device *dev = skb->dev;
+	struct mbuf *mb = session->fragments;
+	struct ip *iph = mb->m_pkthdr.header;
+	struct net_device *dev = mb->m_pkthdr.rcvif;
 
 	/* Update IP length and checksum */
-	iph->tot_len = htons(session->total_len);
-	iph->frag_off = htons(more | (session->offset >> 3));
-	iph->check = 0;
-	iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
+	iph->ip_len = htons(session->total_len);
+	iph->ip_off = htons(more | (session->offset >> 3));
+	iph->ip_sum = 0;
+	iph->ip_sum = in_cksum_skip(mb, iph->ip_hl * 4,
+	    (char *)iph - mb->m_data);
 
-	if (session->vlan)
-		vlan_hwaccel_receive_skb(skb, priv->vlgrp,
-					 be16_to_cpu(session->sl_vid));
-	else
-		netif_receive_skb(skb);
-	dev->last_rx = jiffies;
+	dev->if_input(dev, mb);
 	session->fragments = NULL;
 	session->last = NULL;
 }
@@ -109,89 +102,73 @@ static void flush_session(struct mlx4_en_priv *priv,
 
 static inline void frag_append(struct mlx4_en_priv *priv,
 			       struct mlx4_en_ipfrag *session,
-			       struct sk_buff *skb,
+			       struct mbuf *mb,
 			       unsigned int data_len)
 {
-	struct sk_buff *parent = session->fragments;
+	struct mbuf *parent = session->fragments;
 
-	/* Update skb bookkeeping */
-	parent->len += data_len;
-	parent->data_len += data_len;
+	/* Update mb bookkeeping */
+	parent->m_pkthdr.len += data_len;
 	session->total_len += data_len;
 
-	skb_pull(skb, skb->len - data_len);
-	parent->truesize += skb->truesize;
+	m_adj(mb, mb->m_pkthdr.len - data_len);
 
-	if (session->last)
-		session->last->next = skb;
-	else
-		skb_shinfo(parent)->frag_list = skb;
-
-	session->last = skb;
+	session->last->m_next = mb;
+	for (; mb->m_next != NULL; mb = mb->m_next);
+	session->last = mb;
 }
 
 int mlx4_en_rx_frags(struct mlx4_en_priv *priv, struct mlx4_en_rx_ring *ring,
-		     struct sk_buff *skb, struct mlx4_cqe *cqe)
+		     struct mbuf *mb, struct mlx4_cqe *cqe)
 {
 	struct mlx4_en_ipfrag *session;
-	struct iphdr *iph;
+	struct ip *iph;
 	u16 ip_len;
 	u16 ip_hlen;
 	int data_len;
 	u16 offset;
 
-	skb_reset_network_header(skb);
-	skb_reset_transport_header(skb);
-	iph = ip_hdr(skb);
-	ip_len = ntohs(iph->tot_len);
-	ip_hlen = iph->ihl * 4;
+	iph = (struct ip *)(mtod(mb, char *) + ETHER_HDR_LEN);
+	mb->m_pkthdr.header = iph;
+	ip_len = ntohs(iph->ip_len);
+	ip_hlen = iph->ip_hl * 4;
 	data_len = ip_len - ip_hlen;
-	offset = ntohs(iph->frag_off);
-	offset &= IP_OFFSET;
+	offset = ntohs(iph->ip_off);
+	offset &= IP_OFFMASK;
 	offset <<= 3;
 
 	session = find_session(ring, iph);
-	if (unlikely(ip_fast_csum((u8 *)iph, iph->ihl))) {
+	if (unlikely(in_cksum_skip(mb, ip_hlen, (char *)iph - mb->m_data))) {
 		if (session)
 			flush_session(priv, session, IP_MF);
 		return -EINVAL;
 	}
 	if (session) {
 		if (unlikely(session->offset + session->total_len !=
-			     offset + ip_hlen)) {
+		    offset + ip_hlen ||
+		    session->total_len + mb->m_pkthdr.len > 65536)) {
 			flush_session(priv, session, IP_MF);
 			goto new_session;
 		}
-		/* Packets smaller then 60 bytes are padded to that size
-		 * Need to fix len field of the skb to fit the actual data size
-		 * Since ethernet header already removed, the IP total length
-		 * is exactly the data size (the skb is linear)
-		 */
-		skb->len = ip_len;
-
-		frag_append(priv, session, skb, data_len);
+		frag_append(priv, session, mb, data_len);
 	} else {
 new_session:
 		session = start_session(ring, iph);
 		if (unlikely(!session))
 			return -ENOSPC;
 
-		session->fragments = skb;
-		session->daddr = iph->daddr;
-		session->saddr = iph->saddr;
-		session->id = iph->id;
-		session->protocol = iph->protocol;
+		session->fragments = mb;
+		session->daddr = iph->ip_dst.s_addr;
+		session->saddr = iph->ip_src.s_addr;
+		session->id = iph->ip_id;
+		session->protocol = iph->ip_p;
 		session->total_len = ip_len;
 		session->offset = offset;
-		session->vlan = (priv->vlgrp &&
-				 (be32_to_cpu(cqe->vlan_my_qpn) &
-				  MLX4_CQE_VLAN_PRESENT_MASK)) ? 1 : 0;
-		session->sl_vid = cqe->sl_vid;
+		for (; mb->m_next != NULL; mb = mb->m_next);
+		session->last = mb;
 	}
-	if (!(ntohs(iph->frag_off) & IP_MF))
+	if (!(ntohs(iph->ip_off) & IP_MF))
 		flush_session(priv, session, 0);
-	else if (session->fragments->len + priv->dev->mtu > 65536)
-		flush_session(priv, session, IP_MF);
 
 	return 0;
 }

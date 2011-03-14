@@ -390,7 +390,7 @@ static int mlx4_en_set_pauseparam(struct net_device *dev,
 	priv->prof->tx_pause = pause->tx_pause != 0;
 	priv->prof->rx_pause = pause->rx_pause != 0;
 	err = mlx4_SET_PORT_general(mdev->dev, priv->port,
-				    priv->rx_skb_size + ETH_FCS_LEN,
+				    priv->rx_mb_size + ETH_FCS_LEN,
 				    priv->prof->tx_pause,
 				    priv->prof->tx_ppp,
 				    priv->prof->rx_pause,
