@@ -36,6 +36,8 @@
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"
 
+#include "ar9002/ar9285phy.h"
+
 /* Eeprom versioning macros. Returns true if the version is equal or newer than the ver specified */ 
 #define	EEP_MINOR(_ah) \
 	(AH_PRIVATE(_ah)->ah_eeversion & AR5416_EEP_VER_MINOR_MASK)
@@ -236,67 +238,198 @@ ar9285SetTransmitPower(struct ath_hal *ah,
 #undef N
 }
 
+static void
+ath9285SetBoardGain(struct ath_hal *ah, const MODAL_EEP4K_HEADER *pModal,
+    const struct ar5416eeprom_4k *eep, uint8_t txRxAttenLocal)
+{
+	OS_REG_WRITE(ah, AR_PHY_SWITCH_CHAIN_0,
+		  pModal->antCtrlChain[0]);
+
+	OS_REG_WRITE(ah, AR_PHY_TIMING_CTRL4_CHAIN(0),
+		  (OS_REG_READ(ah, AR_PHY_TIMING_CTRL4_CHAIN(0)) &
+		   ~(AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF |
+		     AR_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF)) |
+		  SM(pModal->iqCalICh[0], AR_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF) |
+		  SM(pModal->iqCalQCh[0], AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF));
+
+	if ((eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK) >=
+	    AR5416_EEP_MINOR_VER_3) {
+		txRxAttenLocal = pModal->txRxAttenCh[0];
+
+		OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ,
+		    AR_PHY_GAIN_2GHZ_XATTEN1_MARGIN, pModal->bswMargin[0]);
+		OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ,
+		    AR_PHY_GAIN_2GHZ_XATTEN1_DB, pModal->bswAtten[0]);
+		OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ,
+		    AR_PHY_GAIN_2GHZ_XATTEN2_MARGIN, pModal->xatten2Margin[0]);
+		OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ,
+		    AR_PHY_GAIN_2GHZ_XATTEN2_DB, pModal->xatten2Db[0]);
+
+		/* Set the block 1 value to block 0 value */
+		OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
+		      AR_PHY_GAIN_2GHZ_XATTEN1_MARGIN,
+		      pModal->bswMargin[0]);
+		OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
+		      AR_PHY_GAIN_2GHZ_XATTEN1_DB, pModal->bswAtten[0]);
+		OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
+		      AR_PHY_GAIN_2GHZ_XATTEN2_MARGIN,
+		      pModal->xatten2Margin[0]);
+		OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
+		      AR_PHY_GAIN_2GHZ_XATTEN2_DB, pModal->xatten2Db[0]);
+	}
+
+	OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN,
+		      AR9280_PHY_RXGAIN_TXRX_ATTEN, txRxAttenLocal);
+	OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN,
+		      AR9280_PHY_RXGAIN_TXRX_MARGIN, pModal->rxTxMarginCh[0]);
+
+	OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN + 0x1000,
+		      AR9280_PHY_RXGAIN_TXRX_ATTEN, txRxAttenLocal);
+	OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN + 0x1000,
+		      AR9280_PHY_RXGAIN_TXRX_MARGIN, pModal->rxTxMarginCh[0]);
+}
+
+/*
+ * Read EEPROM header info and program the device for correct operation
+ * given the channel value.
+ */
 HAL_BOOL
 ar9285SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
-    const HAL_EEPROM_v4k *ee = AH_PRIVATE(ah)->ah_eeprom;
-    const struct ar5416eeprom_4k *eep = &ee->ee_base;
-    const MODAL_EEP4K_HEADER *pModal;
-    uint8_t	txRxAttenLocal = 23;
+	const HAL_EEPROM_v4k *ee = AH_PRIVATE(ah)->ah_eeprom;
+	const struct ar5416eeprom_4k *eep = &ee->ee_base;
+	const MODAL_EEP4K_HEADER *pModal;
+	uint8_t txRxAttenLocal;
+	uint8_t ob[5], db1[5], db2[5];
+	uint8_t ant_div_control1, ant_div_control2;
+	uint32_t regVal;
 
-    HALASSERT(AH_PRIVATE(ah)->ah_eeversion >= AR_EEPROM_VER14_1);
-    pModal = &eep->modalHeader;
+	pModal = &eep->modalHeader;
+	txRxAttenLocal = 23;
 
-    OS_REG_WRITE(ah, AR_PHY_SWITCH_COM, pModal->antCtrlCommon);
-    OS_REG_WRITE(ah, AR_PHY_SWITCH_CHAIN_0, pModal->antCtrlChain[0]);
-    OS_REG_WRITE(ah, AR_PHY_TIMING_CTRL4,
-        	(OS_REG_READ(ah, AR_PHY_TIMING_CTRL4) &
-        	~(AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF | AR_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF)) |
-        	SM(pModal->iqCalICh[0], AR_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF) |
-        	SM(pModal->iqCalQCh[0], AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF));
+	OS_REG_WRITE(ah, AR_PHY_SWITCH_COM, pModal->antCtrlCommon);
 
-    if (IS_EEP_MINOR_V3(ah)) {
-	if (IEEE80211_IS_CHAN_HT40(chan)) {
-		/* Overwrite switch settling with HT40 value */
-		OS_REG_RMW_FIELD(ah, AR_PHY_SETTLING, AR_PHY_SETTLING_SWITCH,
-		    pModal->swSettleHt40);
+	/* Single chain for 4K EEPROM*/
+	ar9285SetBoardGain(ah, pModal, eep, txRxAttenLocal);
+
+	/* Initialize Ant Diversity settings from EEPROM */
+	if (pModal->version >= 3) {
+		ant_div_control1 = pModal->antdiv_ctl1;
+		ant_div_control2 = pModal->antdiv_ctl2;
+
+		regVal = OS_REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
+		regVal &= (~(AR_PHY_9285_ANT_DIV_CTL_ALL));
+
+		regVal |= SM(ant_div_control1,
+			     AR_PHY_9285_ANT_DIV_CTL);
+		regVal |= SM(ant_div_control2,
+			     AR_PHY_9285_ANT_DIV_ALT_LNACONF);
+		regVal |= SM((ant_div_control2 >> 2),
+			     AR_PHY_9285_ANT_DIV_MAIN_LNACONF);
+		regVal |= SM((ant_div_control1 >> 1),
+			     AR_PHY_9285_ANT_DIV_ALT_GAINTB);
+		regVal |= SM((ant_div_control1 >> 2),
+			     AR_PHY_9285_ANT_DIV_MAIN_GAINTB);
+
+		OS_REG_WRITE(ah, AR_PHY_MULTICHAIN_GAIN_CTL, regVal);
+		regVal = OS_REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
+		regVal = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
+		regVal &= (~AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+		regVal |= SM((ant_div_control1 >> 3),
+			     AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+
+		OS_REG_WRITE(ah, AR_PHY_CCK_DETECT, regVal);
+		regVal = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
 	}
-	txRxAttenLocal = pModal->txRxAttenCh[0];
 
-        OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ, AR_PHY_GAIN_2GHZ_XATTEN1_MARGIN,
-	    pModal->bswMargin[0]);
-        OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ, AR_PHY_GAIN_2GHZ_XATTEN1_DB,
-	    pModal->bswAtten[0]);
-	OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ, AR_PHY_GAIN_2GHZ_XATTEN2_MARGIN,
-	    pModal->xatten2Margin[0]);
-	OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ, AR_PHY_GAIN_2GHZ_XATTEN2_DB,
-	    pModal->xatten2Db[0]);
+	if (pModal->version >= 2) {
+		ob[0] = pModal->ob_0;
+		ob[1] = pModal->ob_1;
+		ob[2] = pModal->ob_2;
+		ob[3] = pModal->ob_3;
+		ob[4] = pModal->ob_4;
 
-	/* block 1 has the same values as block 0 */	
-        OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
-	    AR_PHY_GAIN_2GHZ_XATTEN1_MARGIN, pModal->bswMargin[0]);
-        OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
-	    AR_PHY_GAIN_2GHZ_XATTEN1_DB, pModal->bswAtten[0]);
-	OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
-	    AR_PHY_GAIN_2GHZ_XATTEN2_MARGIN, pModal->xatten2Margin[0]);
-	OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
-	    AR_PHY_GAIN_2GHZ_XATTEN2_DB, pModal->xatten2Db[0]);
+		db1[0] = pModal->db1_0;
+		db1[1] = pModal->db1_1;
+		db1[2] = pModal->db1_2;
+		db1[3] = pModal->db1_3;
+		db1[4] = pModal->db1_4;
 
-    }
-    OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN,
-        AR9280_PHY_RXGAIN_TXRX_ATTEN, txRxAttenLocal);
-    OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN,
-        AR9280_PHY_RXGAIN_TXRX_MARGIN, pModal->rxTxMarginCh[0]);
+		db2[0] = pModal->db2_0;
+		db2[1] = pModal->db2_1;
+		db2[2] = pModal->db2_2;
+		db2[3] = pModal->db2_3;
+		db2[4] = pModal->db2_4;
+	} else if (pModal->version == 1) {
+		ob[0] = pModal->ob_0;
+		ob[1] = ob[2] = ob[3] = ob[4] = pModal->ob_1;
+		db1[0] = pModal->db1_0;
+		db1[1] = db1[2] = db1[3] = db1[4] = pModal->db1_1;
+		db2[0] = pModal->db2_0;
+		db2[1] = db2[2] = db2[3] = db2[4] = pModal->db2_1;
+	} else {
+		int i;
 
-    OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN + 0x1000,
-        AR9280_PHY_RXGAIN_TXRX_ATTEN, txRxAttenLocal);
-    OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN + 0x1000,
-        AR9280_PHY_RXGAIN_TXRX_MARGIN, pModal->rxTxMarginCh[0]);
+		for (i = 0; i < 5; i++) {
+			ob[i] = pModal->ob_0;
+			db1[i] = pModal->db1_0;
+			db2[i] = pModal->db1_0;
+		}
+	}
 
-    if (AR_SREV_KITE_11(ah))
-	    OS_REG_WRITE(ah, AR9285_AN_TOP4, (AR9285_AN_TOP4_DEFAULT | 0x14));
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_OB_0, ob[0]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_OB_1, ob[1]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_OB_2, ob[2]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_OB_3, ob[3]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_OB_4, ob[4]);
 
-    return AH_TRUE;
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_DB1_0, db1[0]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_DB1_1, db1[1]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_DB1_2, db1[2]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G4, AR9285_AN_RF2G4_DB1_3, db1[3]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G4, AR9285_AN_RF2G4_DB1_4, db1[4]);
+
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G4, AR9285_AN_RF2G4_DB2_0, db2[0]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G4, AR9285_AN_RF2G4_DB2_1, db2[1]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G4, AR9285_AN_RF2G4_DB2_2, db2[2]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G4, AR9285_AN_RF2G4_DB2_3, db2[3]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G4, AR9285_AN_RF2G4_DB2_4, db2[4]);
+
+	OS_REG_RMW_FIELD(ah, AR_PHY_SETTLING, AR_PHY_SETTLING_SWITCH,
+		      pModal->switchSettling);
+	OS_REG_RMW_FIELD(ah, AR_PHY_DESIRED_SZ, AR_PHY_DESIRED_SZ_ADC,
+		      pModal->adcDesiredSize);
+
+	OS_REG_WRITE(ah, AR_PHY_RF_CTL4,
+		  SM(pModal->txEndToXpaOff, AR_PHY_RF_CTL4_TX_END_XPAA_OFF) |
+		  SM(pModal->txEndToXpaOff, AR_PHY_RF_CTL4_TX_END_XPAB_OFF) |
+		  SM(pModal->txFrameToXpaOn, AR_PHY_RF_CTL4_FRAME_XPAA_ON)  |
+		  SM(pModal->txFrameToXpaOn, AR_PHY_RF_CTL4_FRAME_XPAB_ON));
+
+	OS_REG_RMW_FIELD(ah, AR_PHY_RF_CTL3, AR_PHY_TX_END_TO_A2_RX_ON,
+		      pModal->txEndToRxOn);
+
+	OS_REG_RMW_FIELD(ah, AR_PHY_CCA, AR9280_PHY_CCA_THRESH62,
+		      pModal->thresh62);
+	OS_REG_RMW_FIELD(ah, AR_PHY_EXT_CCA0, AR_PHY_EXT_CCA0_THRESH62,
+		      pModal->thresh62);
+
+	if ((eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK) >=
+	    AR5416_EEP_MINOR_VER_2) {
+		OS_REG_RMW_FIELD(ah, AR_PHY_RF_CTL2, AR_PHY_TX_FRAME_TO_DATA_START,
+		    pModal->txFrameToDataStart);
+		OS_REG_RMW_FIELD(ah, AR_PHY_RF_CTL2, AR_PHY_TX_FRAME_TO_PA_ON,
+		    pModal->txFrameToPaOn);
+	}
+
+	if ((eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK) >=
+	    AR5416_EEP_MINOR_VER_3) {
+		if (IEEE80211_IS_CHAN_HT40(chan))
+			OS_REG_RMW_FIELD(ah, AR_PHY_SETTLING,
+			    AR_PHY_SETTLING_SWITCH, pModal->swSettleHt40);
+	}
+
+	return AH_TRUE;
 }
 
 /*
