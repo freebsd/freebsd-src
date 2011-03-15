@@ -113,7 +113,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	int anycast = 0, proxy = 0, tentative = 0;
 	int tlladdr;
 	union nd_opts ndopts;
-	struct sockaddr_dl *proxydl = NULL;
+	struct sockaddr_dl proxydl;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
 #ifndef PULLDOWN_TEST
@@ -248,18 +248,25 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 #endif
 		need_proxy = (rt && (rt->rt_flags & RTF_ANNOUNCE) != 0 &&
 		    rt->rt_gateway->sa_family == AF_LINK);
-		if (rt)
+		if (rt != NULL) {
+			/*
+			 * Make a copy while we can be sure that rt_gateway
+			 * is still stable before unlocking to avoid lock
+			 * order problems.  proxydl will only be used if
+			 * proxy will be set in the next block.
+			 */
+			if (need_proxy)
+				proxydl = *SDL(rt->rt_gateway);
 			RTFREE_LOCKED(rt);
+		}
 		if (need_proxy) {
 			/*
 			 * proxy NDP for single entry
 			 */
 			ifa = (struct ifaddr *)in6ifa_ifpforlinklocal(ifp,
 				IN6_IFF_NOTREADY|IN6_IFF_ANYCAST);
-			if (ifa) {
+			if (ifa)
 				proxy = 1;
-				proxydl = SDL(rt->rt_gateway);
-			}
 		}
 	}
 	if (ifa == NULL) {
@@ -333,7 +340,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		nd6_na_output(ifp, &in6_all, &taddr6,
 		    ((anycast || proxy || !tlladdr) ? 0 : ND_NA_FLAG_OVERRIDE) |
 		    (V_ip6_forwarding ? ND_NA_FLAG_ROUTER : 0),
-		    tlladdr, (struct sockaddr *)proxydl);
+		    tlladdr, (struct sockaddr *)&proxydl);
 		goto freeit;
 	}
 
@@ -343,7 +350,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	nd6_na_output(ifp, &saddr6, &taddr6,
 	    ((anycast || proxy || !tlladdr) ? 0 : ND_NA_FLAG_OVERRIDE) |
 	    (V_ip6_forwarding ? ND_NA_FLAG_ROUTER : 0) | ND_NA_FLAG_SOLICITED,
-	    tlladdr, (struct sockaddr *)proxydl);
+	    tlladdr, (struct sockaddr *)&proxydl);
  freeit:
 	if (ifa != NULL)
 		ifa_free(ifa);

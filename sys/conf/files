@@ -819,6 +819,8 @@ dev/bwi/bwirf.c			optional bwi
 dev/bwi/if_bwi.c		optional bwi
 dev/bwi/if_bwi_pci.c		optional bwi pci
 dev/bwn/if_bwn.c		optional bwn siba_bwn
+dev/bxe/if_bxe.c		optional bxe
+dev/bxe/bxe_link.c		optional bxe
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
@@ -2626,7 +2628,7 @@ netinet/in_gif.c		optional gif inet | netgraph_gif inet
 netinet/ip_gre.c		optional gre inet
 netinet/ip_id.c			optional inet
 netinet/in_mcast.c		optional inet
-netinet/in_pcb.c		optional inet
+netinet/in_pcb.c		optional inet | inet6
 netinet/in_proto.c		optional inet \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 netinet/in_rmx.c		optional inet

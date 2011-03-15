@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 
 uint64_t	tsc_freq;
 int		tsc_is_invariant;
-int		tsc_present;
 static eventhandler_tag tsc_levels_tag, tsc_pre_tag, tsc_post_tag;
 
 SYSCTL_INT(_kern_timecounter, OID_AUTO, invariant_tsc, CTLFLAG_RDTUN,
@@ -89,11 +88,7 @@ init_TSC(void)
 {
 	u_int64_t tscval[2];
 
-	if ((cpu_feature & CPUID_TSC) == 0)
-		return;
-	tsc_present = 1;
-
-	if (tsc_disabled)
+	if ((cpu_feature & CPUID_TSC) == 0 || tsc_disabled)
 		return;
 
 	if (bootverbose)
@@ -155,7 +150,7 @@ void
 init_TSC_tc(void)
 {
 
-	if (!tsc_present || tsc_disabled)
+	if ((cpu_feature & CPUID_TSC) == 0 || tsc_disabled)
 		return;
 
 	/*
@@ -268,12 +263,10 @@ sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 
 	if (tsc_timecounter.tc_frequency == 0)
 		return (EOPNOTSUPP);
-	freq = tsc_freq;
+	freq = tsc_timecounter.tc_frequency;
 	error = sysctl_handle_64(oidp, &freq, 0, req);
-	if (error == 0 && req->newptr != NULL) {
-		tsc_freq = freq;
-		tsc_timecounter.tc_frequency = tsc_freq;
-	}
+	if (error == 0 && req->newptr != NULL)
+		tsc_timecounter.tc_frequency = freq;
 	return (error);
 }
 

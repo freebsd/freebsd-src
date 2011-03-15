@@ -206,6 +206,15 @@ ieee80211_chan_init(struct ieee80211com *ic)
 	DEFAULTRATES(IEEE80211_MODE_11NG,	 ieee80211_rateset_11g);
 
 	/*
+	 * Setup required information to fill the mcsset field, if driver did
+	 * not. Assume a 2T2R setup for historic reasons.
+	 */
+	if (ic->ic_rxstream == 0)
+		ic->ic_rxstream = 2;
+	if (ic->ic_txstream == 0)
+		ic->ic_txstream = 2;
+
+	/*
 	 * Set auto mode to reset active channel state and any desired channel.
 	 */
 	(void) ieee80211_setmode(ic, IEEE80211_MODE_AUTO);
@@ -1067,10 +1076,18 @@ ieee80211_media_setup(struct ieee80211com *ic,
 	    isset(ic->ic_modecaps, IEEE80211_MODE_11NG)) {
 		addmedia(media, caps, addsta,
 		    IEEE80211_MODE_AUTO, IFM_IEEE80211_MCS);
-		/* XXX could walk htrates */
-		/* XXX known array size */
-		if (ieee80211_htrates[15].ht40_rate_400ns > maxrate)
-			maxrate = ieee80211_htrates[15].ht40_rate_400ns;
+		i = ic->ic_txstream * 8 - 1;
+		if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
+		    (ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40))
+			rate = ieee80211_htrates[i].ht40_rate_400ns;
+		else if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40))
+			rate = ieee80211_htrates[i].ht40_rate_800ns;
+		else if ((ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20))
+			rate = ieee80211_htrates[i].ht20_rate_400ns;
+		else
+			rate = ieee80211_htrates[i].ht20_rate_800ns;
+		if (rate > maxrate)
+			maxrate = rate;
 	}
 	return maxrate;
 }
