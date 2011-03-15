@@ -104,7 +104,6 @@ proto_common_send(int sock, const unsigned char *data, size_t size, int fd)
 	return (proto_descriptor_send(sock, fd));
 }
 
-#include <stdio.h>
 static int
 proto_descriptor_recv(int sock, int *fdp)
 {
