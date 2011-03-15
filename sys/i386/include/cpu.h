@@ -70,15 +70,10 @@ void	swi_vm(void *);
 static __inline uint64_t
 get_cyclecount(void)
 {
-#if defined(I486_CPU) || defined(KLD_MODULE)
 	struct bintime bt;
 
-	if (!tsc_present) {
-		binuptime(&bt);
-		return ((uint64_t)bt.sec << 56 | bt.frac >> 8);
-	}
-#endif
-	return (rdtsc());
+	binuptime(&bt);
+	return ((uint64_t)bt.sec << 56 | bt.frac >> 8);
 }
 
 #endif
