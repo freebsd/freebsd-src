@@ -1141,7 +1141,7 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 
 	if (pcpu_find(cpu_id) == NULL || rate == NULL)
 		return (EINVAL);
-	if (!tsc_present)
+	if ((cpu_feature & CPUID_TSC) == 0)
 		return (EOPNOTSUPP);
 
 	/* If TSC is P-state invariant, DELAY(9) based logic fails. */
