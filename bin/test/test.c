@@ -194,7 +194,7 @@ main(int argc, char **argv)
 	int	res;
 	char	*p;
 
-	if ((p = rindex(argv[0], '/')) == NULL)
+	if ((p = strrchr(argv[0], '/')) == NULL)
 		p = argv[0];
 	else
 		p++;
