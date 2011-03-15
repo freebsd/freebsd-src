@@ -34,7 +34,11 @@
 #include <machine/intrcnt.h>
 #include <assym.s>
 
-#define	FW_STACK_SIZE	16384
+/*
+ * The Altix 350 needs more than the architected 16KB (8KB for stack and
+ * 8KB for RSE backing store) when calling EFI to setup virtual mode.
+ */
+#define	FW_STACK_SIZE	3*PAGE_SIZE
 
 	.section .data.kstack, "aw"
 	.align	PAGE_SIZE
