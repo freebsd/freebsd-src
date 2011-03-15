@@ -496,7 +496,7 @@ set_default_part_metadata(const char *name, const char *scheme,
 
 		if (strcmp(type, "freebsd-ufs") == 0) {
 			md->newfs = malloc(255);
-			sprintf(md->newfs, "newfs /dev/%s", name);
+			sprintf(md->newfs, "newfs -U /dev/%s", name);
 		}
 	}
 
