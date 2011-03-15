@@ -1,0 +1,173 @@
+.\" 
+.\" Copyright (c) 2010 Spectra Logic Corporation
+.\" All rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification.
+.\" 2. Redistributions in binary form must reproduce at minimum a disclaimer
+.\"    substantially similar to the "NO WARRANTY" disclaimer below
+.\"    ("Disclaimer") and any redistribution must be conditioned upon
+.\"    including a substantially similar Disclaimer requirement for further
+.\"    binary redistribution.
+.\" 
+.\" NO WARRANTY
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+.\" HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+.\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGES.
+.\" 
+.\" mps driver man page.
+.\"
+.\" Author: Ken Merry <ken@FreeBSD.org>
+.\"
+.\" $Id: //depot/SpectraBSD/head/share/man/man4/mps.4#4 $
+.\" $FreeBSD$
+.\"
+.Dd September 13, 2010
+.Dt MPS 4
+.Os
+.Sh NAME
+.Nm mps
+.Nd LSI Fusion-MPT 2 Serial Attached SCSI driver
+.Sh SYNOPSIS
+To compile this driver into your kernel,
+place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device mps"
+.Ed
+.Pp
+Or, to load the driver as a module at boot, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+mps_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for LSI Logic Fusion-MPT 2
+.Tn SAS
+controllers.
+.Sh HARDWARE
+The following controllers are supported by the
+.Nm
+driver
+.Pp
+.Bl -bullet -compact
+.It
+LSI Logic SAS2004 (4 Port
+.Tn SAS )
+.It
+LSI Logic SAS2008 (8 Port
+.Tn SAS )
+.It
+LSI Logic SAS2108 (8 Port
+.Tn SAS )
+.It
+LSI Logic SAS2116 (16 Port
+.Tn SAS )
+.It
+LSI Logic SAS2208 (8 Port
+.Tn SAS )
+.El
+.Sh CONFIGURATION
+To disable MSI interrupts for all
+.Nm
+driver instances, set the following tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.mps.disable_msi=1
+.Ed
+.Pp
+To disable MSI-X interrupts for all
+.Nm
+driver instances, set the following tunable value in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.mps.disable_msix=1
+.Ed
+.Pp
+To allow the driver to send multiple task management commands (like abort,
+LUN reset, etc.), set the following variable:
+.Bd -literal -offset indent
+hw.mps.X.allow_multiple_tm_cmds=1
+.Ed
+.Pp
+via
+.Xr loader.conf 5
+or
+.Xr sysctl 8 ,
+where X is the adapter number.
+By default the driver only sends one task management command at a time, to
+avoid causing a potential controller lock-up.
+.Sh DEBUGGING
+To enable debugging prints from the
+.Nm
+driver, set the
+.Bd -literal -offset indent
+hw.mps.X.debug_level
+.Ed
+.Pp
+variable, where X is the adapter number, either in
+.Xr loader.conf 5
+or via
+.Xr sysctl 8 .
+The following bits have the described effects:
+.Bl -tag -offset indent
+.It 0x01
+Enable informational prints.
+.It 0x02
+Enable tracing prints.
+.It 0x04
+Enable prints for driver faults.
+.It 0x08
+Enable prints for controller events.
+.El
+.Sh SEE ALSO
+.Xr cd 4 ,
+.Xr ch 4 ,
+.Xr da 4 ,
+.Xr mpt 4 ,
+.Xr pci 4 ,
+.Xr sa 4 ,
+.Xr scsi 4 ,
+.Xr targ 4
+.Sh BUGS
+This driver is still in development, it has only been tested on the amd64
+architecture and has some known shortcomings:
+.Bl -bullet -compact
+.It
+No IR (Integrated RAID) support.
+.It 
+No userland utility support (e.g.
+.Xr mptutil 8).
+.It
+Sometimes the driver gets into a state where devices arrive and depart multiple
+times, without user intervention.
+.It
+The error recovery code isn't complete.
+.El
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was originally written by
+.An Scott Long Aq scottl@FreeBSD.org .
+This man page was written by
+.An Ken Merry Aq ken@FreeBSD.org .
