@@ -160,8 +160,8 @@ mmu_setup_paged(vm_offset_t pbvm_top)
 	    PTE_AR_RW);
 
 	/* Wire as much of the PBVM we can. This must be a power of 2. */
-	pbvm_top = (pbvm_top + IA64_PBVM_PAGE_MASK) & ~IA64_PBVM_PAGE_MASK;
 	sz = pbvm_top - IA64_PBVM_BASE;
+	sz = (sz + IA64_PBVM_PAGE_MASK) & ~IA64_PBVM_PAGE_MASK;
 	while (sz & (sz - 1))
 		sz -= IA64_PBVM_PAGE_SIZE;
 	mmu_wire(IA64_PBVM_BASE, ia64_pgtbl[0], sz, PTE_AR_RWX);
