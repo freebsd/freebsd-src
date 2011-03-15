@@ -636,7 +636,7 @@ map_vhpt(uintptr_t vhpt)
 	ia64_set_ifa(vhpt);
 	ia64_set_itir(pmap_vhpt_log2size << 2);
 	ia64_srlz_d();
-	__asm __volatile("itr.d dtr[%0]=%1" :: "r"(2), "r"(pte));
+	__asm __volatile("itr.d dtr[%0]=%1" :: "r"(4), "r"(pte));
 	__asm __volatile("mov   psr.l=%0" :: "r" (psr));
 	ia64_srlz_i();
 }
@@ -674,9 +674,9 @@ map_pal_code(void)
 	ia64_set_ifa(va);
 	ia64_set_itir(shft << 2);
 	ia64_srlz_d();
-	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(3), "r"(pte));
+	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(2), "r"(pte));
 	ia64_srlz_d();
-	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(3), "r"(pte));
+	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(2), "r"(pte));
 	__asm __volatile("mov	psr.l=%0" :: "r" (psr));
 	ia64_srlz_i();
 }
@@ -700,9 +700,9 @@ map_gateway_page(void)
 	ia64_set_ifa(VM_MAXUSER_ADDRESS);
 	ia64_set_itir(PAGE_SHIFT << 2);
 	ia64_srlz_d();
-	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(4), "r"(pte));
+	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(3), "r"(pte));
 	ia64_srlz_d();
-	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(4), "r"(pte));
+	__asm __volatile("itr.i	itr[%0]=%1" :: "r"(3), "r"(pte));
 	__asm __volatile("mov	psr.l=%0" :: "r" (psr));
 	ia64_srlz_i();
 
