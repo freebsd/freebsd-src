@@ -986,6 +986,7 @@ bxe_probe(device_t dev)
 static void
 bxe_print_adapter_info(struct bxe_softc *sc)
 {
+	int i = 0;
 
 	DBENTER(BXE_EXTREME_LOAD);
 
@@ -1008,17 +1009,26 @@ bxe_print_adapter_info(struct bxe_softc *sc)
 	}
 
 	/* Device features. */
-	printf("); Flags ( ");
+	printf("); Flags (");
 
 	/* Miscellaneous flags. */
 	if (sc->bxe_flags & BXE_USING_MSI_FLAG)
-		printf("MSI ");
-	if (sc->bxe_flags & BXE_USING_MSIX_FLAG)
-		printf("MSI-X ");
-	if (sc->bxe_flags & BXE_SAFC_TX_FLAG)
-		printf("SAFC ");
-	if (TPA_ENABLED(sc))
-		printf("TPA ");
+		printf("MSI");
+
+	if (sc->bxe_flags & BXE_USING_MSIX_FLAG) {
+		if (i > 0) printf("|");
+		printf("MSI-X"); i++;
+	}
+
+	if (sc->bxe_flags & BXE_SAFC_TX_FLAG) {
+		if (i > 0) printf("|");
+		printf("SAFC"); i++;
+	}
+
+	if (TPA_ENABLED(sc)) {
+		if (i > 0) printf("|");
+		printf("TPA"); i++;
+	}
 
 	printf(") Queues (");
 	switch (sc->multi_mode) {
@@ -1032,8 +1042,9 @@ bxe_print_adapter_info(struct bxe_softc *sc)
 		printf("Unknown");
 		break;
 	}
+
 	/* Firmware versions and device features. */
-	BXE_PRINTF("Firmware (%d.%d.%d); Bootcode (%d.%d.%d)\n",
+	printf("); Firmware (%d.%d.%d); Bootcode (%d.%d.%d)\n",
 	    BCM_5710_FW_MAJOR_VERSION,
 	    BCM_5710_FW_MINOR_VERSION,
 	    BCM_5710_FW_REVISION_VERSION,
