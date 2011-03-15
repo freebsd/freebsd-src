@@ -73,7 +73,7 @@ static struct g_raid_tr_class g_raid_tr_concat_class = {
 	"CONCAT",
 	g_raid_tr_concat_methods,
 	sizeof(struct g_raid_tr_concat_object),
-	.trc_priority = 100
+	.trc_priority = 50
 };
 
 static int
@@ -83,7 +83,9 @@ g_raid_tr_taste_concat(struct g_raid_tr_object *tr, struct g_raid_volume *volume
 
 	trs = (struct g_raid_tr_concat_object *)tr;
 	if (tr->tro_volume->v_raid_level != G_RAID_VOLUME_RL_SINGLE &&
-	    tr->tro_volume->v_raid_level != G_RAID_VOLUME_RL_CONCAT)
+	    tr->tro_volume->v_raid_level != G_RAID_VOLUME_RL_CONCAT &&
+	    !(tr->tro_volume->v_disks_count == 1 &&
+	      tr->tro_volume->v_raid_level != G_RAID_VOLUME_RL_UNKNOWN))
 		return (G_RAID_TR_TASTE_FAIL);
 	trs->trso_starting = 1;
 	return (G_RAID_TR_TASTE_SUCCEED);
