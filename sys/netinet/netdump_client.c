@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Sandvine Incorporated. All rights reserved.
+ * Copyright (c) 2005-2011 Sandvine Incorporated. All rights reserved.
  * Copyright (c) 2000 Darrell Anderson <anderson@cs.duke.edu>
  * All rights reserved.
  *
@@ -37,6 +37,8 @@
 #include "opt_netdump.h"
 
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/endian.h>
@@ -116,25 +118,32 @@ static int	 sysctl_force_crash(SYSCTL_HANDLER_ARGS);
 #endif
 static int	 sysctl_handle_inaddr(SYSCTL_HANDLER_ARGS);
 
-static eventhandler_tag nd_tag = NULL;       /* record of our shutdown event */
-static uint32_t nd_seqno = 1;		     /* current sequence number */
-static uint64_t rcvd_acks;		     /* flags for out of order acks */
-static int dump_failed, have_server_mac;
-static uint16_t nd_server_port = NETDUMP_PORT; /* port to respond on */
-static unsigned char buf[MAXDUMPPGS*PAGE_SIZE]; /* Must be at least as big as
-						 * the chunks dumpsys() gives
-						 * us */
+/* Must be at least as big as the chunks dumpsys() gives us. */
+static unsigned char buf[MAXDUMPPGS * PAGE_SIZE];
 static struct ether_addr nd_gw_mac;
+static eventhandler_tag nd_tag;
+static uint64_t rcvd_acks;
+static uint32_t nd_seqno = 1;
+static int dump_failed, have_server_mac;
 
-static int nd_enable = 0;  /* if we should perform a network dump */
-static char nd_ifp_str[IFNAMSIZ]; /* String rappresenting the interface */
-static struct in_addr nd_server = {INADDR_ANY}; /* server address */
-static struct in_addr nd_client = {INADDR_ANY}; /* client (our) address */
-static struct in_addr nd_gw = {INADDR_ANY}; /* gw, if set */
-struct ifnet *nd_ifp = NULL;
-static int nd_polls=10000; /* Times to poll the NIC (0.5ms each poll) before
-			    * assuming packetloss occurred: 5s by default */
-static int nd_retries=10; /* Times to retransmit lost packets */
+/*
+ * Times to poll the NIC (0.5ms each poll) before assuming packetloss
+ * occurred (default to 5s).
+ */
+static int nd_polls = 10000;
+
+/* Times to retransmit lost packets. */
+static int nd_retries = 10;
+
+/* General dynamic settings. */
+static char nd_ifp_str[IFNAMSIZ];
+static struct ether_addr nd_gw_mac;
+static struct in_addr nd_server = {INADDR_ANY};
+static struct in_addr nd_client = {INADDR_ANY};
+static struct in_addr nd_gw = {INADDR_ANY};
+struct ifnet *nd_ifp;
+static int nd_enable = 0;
+static uint16_t nd_server_port = NETDUMP_PORT;
 
 /* Tunables storages. */
 static char nd_server_tun[INET_ADDRSTRLEN];
