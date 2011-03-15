@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_cputype.h"
 #include "opt_ddb.h"
 #include "opt_md.h"
-#include "opt_msgbuf.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
