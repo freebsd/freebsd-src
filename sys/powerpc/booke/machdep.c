@@ -84,7 +84,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_kstack_pages.h"
-#include "opt_msgbuf.h"
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
@@ -450,7 +449,7 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	pc->pc_curpcb = thread0.td_pcb;
 
 	/* Initialise the message buffer. */
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufinit(msgbufp, msgbufsize);
 
 	/* Enable Machine Check interrupt. */
 	mtmsr(mfmsr() | PSL_ME);

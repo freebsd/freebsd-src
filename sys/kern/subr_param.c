@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_param.h"
+#include "opt_msgbuf.h"
 #include "opt_maxusers.h"
 
 #include <sys/limits.h>
@@ -45,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/msgbuf.h>
 
 #include <vm/vm_param.h>
 
@@ -83,6 +85,7 @@ int	maxproc;			/* maximum # of processes */
 int	maxprocperuid;			/* max # of procs per user */
 int	maxfiles;			/* sys. wide open files limit */
 int	maxfilesperproc;		/* per-proc open files limit */
+int	msgbufsize;			/* size of kernel message buffer */
 int	ncallout;			/* maximum # of timer events */
 int	nbuf;
 int	ngroups_max;			/* max # groups per process */
@@ -106,6 +109,8 @@ SYSCTL_INT(_kern, OID_AUTO, nbuf, CTLFLAG_RDTUN, &nbuf, 0,
     "Number of buffers in the buffer cache");
 SYSCTL_INT(_kern, OID_AUTO, nswbuf, CTLFLAG_RDTUN, &nswbuf, 0,
     "Number of swap buffers");
+SYSCTL_INT(_kern, OID_AUTO, msgbufsize, CTLFLAG_RDTUN, &msgbufsize, 0,
+    "Size of the kernel message buffer");
 SYSCTL_LONG(_kern, OID_AUTO, maxswzone, CTLFLAG_RDTUN, &maxswzone, 0,
     "Maximum memory for swap metadata");
 SYSCTL_LONG(_kern, OID_AUTO, maxbcache, CTLFLAG_RDTUN, &maxbcache, 0,
@@ -218,6 +223,8 @@ init_param1(void)
 	maxbcache = VM_BCACHE_SIZE_MAX;
 #endif
 	TUNABLE_LONG_FETCH("kern.maxbcache", &maxbcache);
+	msgbufsize = MSGBUF_SIZE;
+	TUNABLE_INT_FETCH("kern.msgbufsize", &msgbufsize);
 
 	maxtsiz = MAXTSIZ;
 	TUNABLE_ULONG_FETCH("kern.maxtsiz", &maxtsiz);
