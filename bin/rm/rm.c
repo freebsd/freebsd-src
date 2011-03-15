@@ -90,7 +90,7 @@ main(int argc, char *argv[])
 	 * "unlink", for which the functionality provided is greatly
 	 * simplified.
 	 */
-	if ((p = rindex(argv[0], '/')) == NULL)
+	if ((p = strrchr(argv[0], '/')) == NULL)
 		p = argv[0];
 	else
 		++p;
