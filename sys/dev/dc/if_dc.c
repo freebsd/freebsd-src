@@ -2790,8 +2790,6 @@ dc_rx_resync(struct dc_softc *sc)
 	pos = sc->dc_cdata.dc_rx_prod;
 
 	for (i = 0; i < DC_RX_LIST_CNT; i++) {
-		bus_dmamap_sync(sc->dc_rx_ltag, sc->dc_rx_lmap,
-		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 		cur_rx = &sc->dc_ldata.dc_rx_list[pos];
 		if (!(le32toh(cur_rx->dc_status) & DC_RXSTAT_OWN))
 			break;
@@ -2862,6 +2860,7 @@ dc_rxeof(struct dc_softc *sc)
 		bus_dmamap_sync(sc->dc_rx_mtag, sc->dc_cdata.dc_rx_map[i],
 		    BUS_DMASYNC_POSTREAD);
 		total_len = DC_RXBYTES(rxstat);
+		rx_npkts++;
 
 		if (sc->dc_flags & DC_PNIC_RX_BUG_WAR) {
 			if ((rxstat & DC_WHOLEFRAME) != DC_WHOLEFRAME) {
@@ -2939,7 +2938,6 @@ dc_rxeof(struct dc_softc *sc)
 		DC_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		DC_LOCK(sc);
-		rx_npkts++;
 	}
 
 	sc->dc_cdata.dc_rx_prod = i;
@@ -3263,7 +3261,7 @@ dc_intr(void *arg)
 	struct dc_softc *sc;
 	struct ifnet *ifp;
 	uint32_t r, status;
-	int curpkts, n;
+	int n;
 
 	sc = arg;
 
@@ -3293,9 +3291,7 @@ dc_intr(void *arg)
 		CSR_WRITE_4(sc, DC_ISR, status);
 
 		if (status & DC_ISR_RX_OK) {
-			curpkts = ifp->if_ipackets;
-			dc_rxeof(sc);
-			if (curpkts == ifp->if_ipackets) {
+			if (dc_rxeof(sc) == 0) {
 				while (dc_rx_resync(sc))
 					dc_rxeof(sc);
 			}
@@ -3319,9 +3315,7 @@ dc_intr(void *arg)
 		    || (status & DC_ISR_RX_NOBUF)) {
 			r = CSR_READ_4(sc, DC_FRAMESDISCARDED);
 			ifp->if_ierrors += (r & 0xffff) + ((r >> 17) & 0x7ff);
-			curpkts = ifp->if_ipackets;
-			dc_rxeof(sc);
-			if (curpkts == ifp->if_ipackets) {
+			if (dc_rxeof(sc) == 0) {
 				while (dc_rx_resync(sc))
 					dc_rxeof(sc);
 			}
