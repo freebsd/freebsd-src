@@ -309,12 +309,8 @@ AcpiEvNotifyDispatch (
  * RETURN:      ACPI_INTERRUPT_HANDLED
  *
  * DESCRIPTION: Invoked directly from the SCI handler when a global lock
- *              release interrupt occurs. Attempt to acquire the global lock,
- *              if successful, signal the thread waiting for the lock.
- *
- * NOTE: Assumes that the semaphore can be signaled from interrupt level. If
- * this is not possible for some reason, a separate thread will have to be
- * scheduled to do this.
+ *              release interrupt occurs. If there is actually a pending
+ *              request for the lock, signal the waiting thread.
  *
  ******************************************************************************/
 
@@ -322,32 +318,38 @@ static UINT32
 AcpiEvGlobalLockHandler (
     void                    *Context)
 {
-    BOOLEAN                 Acquired = FALSE;
     ACPI_STATUS             Status;
+    ACPI_CPU_FLAGS          Flags;
 
+
+    Flags = AcpiOsAcquireLock (AcpiGbl_GlobalLockPendingLock);
 
     /*
-     * Attempt to get the lock.
-     *
-     * If we don't get it now, it will be marked pending and we will
-     * take another interrupt when it becomes free.
+     * If a request for the global lock is not actually pending,
+     * we are done. This handles "spurious" global lock interrupts
+     * which are possible (and have been seen) with bad BIOSs.
      */
-    ACPI_ACQUIRE_GLOBAL_LOCK (AcpiGbl_FACS, Acquired);
-    if (Acquired)
+    if (!AcpiGbl_GlobalLockPending)
     {
-        /* Got the lock, now wake the thread waiting for it */
-
-        AcpiGbl_GlobalLockAcquired = TRUE;
-
-        /* Send a unit to the semaphore */
-
-        Status = AcpiOsSignalSemaphore (AcpiGbl_GlobalLockSemaphore, 1);
-        if (ACPI_FAILURE (Status))
-        {
-            ACPI_ERROR ((AE_INFO, "Could not signal Global Lock semaphore"));
-        }
+        goto CleanupAndExit;
     }
 
+    /*
+     * Send a unit to the global lock semaphore. The actual acquisition
+     * of the global lock will be performed by the waiting thread.
+     */
+    Status = AcpiOsSignalSemaphore (AcpiGbl_GlobalLockSemaphore, 1);
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_ERROR ((AE_INFO, "Could not signal Global Lock semaphore"));
+    }
+
+    AcpiGbl_GlobalLockPending = FALSE;
+
+
+CleanupAndExit:
+
+    AcpiOsReleaseLock (AcpiGbl_GlobalLockPendingLock, Flags);
     return (ACPI_INTERRUPT_HANDLED);
 }
 
@@ -385,15 +387,22 @@ AcpiEvInitGlobalLockHandler (
      * Map to AE_OK, but mark global lock as not present. Any attempt to
      * actually use the global lock will be flagged with an error.
      */
+    AcpiGbl_GlobalLockPresent = FALSE;
     if (Status == AE_NO_HARDWARE_RESPONSE)
     {
         ACPI_ERROR ((AE_INFO,
             "No response from Global Lock hardware, disabling lock"));
 
-        AcpiGbl_GlobalLockPresent = FALSE;
         return_ACPI_STATUS (AE_OK);
     }
 
+    Status = AcpiOsCreateLock (&AcpiGbl_GlobalLockPendingLock);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    AcpiGbl_GlobalLockPending = FALSE;
     AcpiGbl_GlobalLockPresent = TRUE;
     return_ACPI_STATUS (Status);
 }
@@ -454,7 +463,8 @@ ACPI_STATUS
 AcpiEvAcquireGlobalLock (
     UINT16                  Timeout)
 {
-    ACPI_STATUS             Status = AE_OK;
+    ACPI_CPU_FLAGS          Flags;
+    ACPI_STATUS             Status;
     BOOLEAN                 Acquired = FALSE;
 
 
@@ -487,8 +497,8 @@ AcpiEvAcquireGlobalLock (
     }
 
     /*
-     * Make sure that a global lock actually exists. If not, just treat the
-     * lock as a standard mutex.
+     * Make sure that a global lock actually exists. If not, just
+     * treat the lock as a standard mutex.
      */
     if (!AcpiGbl_GlobalLockPresent)
     {
@@ -496,31 +506,45 @@ AcpiEvAcquireGlobalLock (
         return_ACPI_STATUS (AE_OK);
     }
 
-    /* Attempt to acquire the actual hardware lock */
+    Flags = AcpiOsAcquireLock (AcpiGbl_GlobalLockPendingLock);
 
-    ACPI_ACQUIRE_GLOBAL_LOCK (AcpiGbl_FACS, Acquired);
-    if (Acquired)
+    do
     {
-       /* We got the lock */
+        /* Attempt to acquire the actual hardware lock */
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Acquired hardware Global Lock\n"));
+        ACPI_ACQUIRE_GLOBAL_LOCK (AcpiGbl_FACS, Acquired);
+        if (Acquired)
+        {
+            AcpiGbl_GlobalLockAcquired = TRUE;
+            ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+                "Acquired hardware Global Lock\n"));
+            break;
+        }
 
-        AcpiGbl_GlobalLockAcquired = TRUE;
-        return_ACPI_STATUS (AE_OK);
-    }
+        /*
+         * Did not get the lock. The pending bit was set above, and
+         * we must now wait until we receive the global lock
+         * released interrupt.
+         */
+        AcpiGbl_GlobalLockPending = TRUE;
+        AcpiOsReleaseLock (AcpiGbl_GlobalLockPendingLock, Flags);
 
-    /*
-     * Did not get the lock. The pending bit was set above, and we must now
-     * wait until we get the global lock released interrupt.
-     */
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Waiting for hardware Global Lock\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+            "Waiting for hardware Global Lock\n"));
 
-    /*
-     * Wait for handshake with the global lock interrupt handler.
-     * This interface releases the interpreter if we must wait.
-     */
-    Status = AcpiExSystemWaitSemaphore (AcpiGbl_GlobalLockSemaphore,
-                ACPI_WAIT_FOREVER);
+        /*
+         * Wait for handshake with the global lock interrupt handler.
+         * This interface releases the interpreter if we must wait.
+         */
+        Status = AcpiExSystemWaitSemaphore (AcpiGbl_GlobalLockSemaphore,
+                    ACPI_WAIT_FOREVER);
+
+        Flags = AcpiOsAcquireLock (AcpiGbl_GlobalLockPendingLock);
+
+    } while (ACPI_SUCCESS (Status));
+
+    AcpiGbl_GlobalLockPending = FALSE;
+    AcpiOsReleaseLock (AcpiGbl_GlobalLockPendingLock, Flags);
 
     return_ACPI_STATUS (Status);
 }

@@ -728,6 +728,21 @@ ASLCode
     | error                         {YYABORT; $$ = NULL;}
     ;
 
+/*
+ * Note concerning support for "module-level code".
+ *
+ * ACPI 1.0 allowed Type1 and Type2 executable opcodes outside of control
+ * methods (the so-called module-level code.) This support was explicitly
+ * removed in ACPI 2.0, but this type of code continues to be created by
+ * BIOS vendors. In order to support the disassembly and recompilation of
+ * such code (and the porting of ASL code to iASL), iASL supports this
+ * code in violation of the current ACPI specification.
+ *
+ * The grammar change to support module-level code is to revert the
+ * {ObjectList} portion of the DefinitionBlockTerm in ACPI 2.0 to the
+ * original use of {TermList} instead (see below.) This allows the use
+ * of Type1 and Type2 opcodes at module level.
+ */
 DefinitionBlockTerm
     : PARSEOP_DEFINITIONBLOCK '('	{$<n>$ = TrCreateLeafNode (PARSEOP_DEFINITIONBLOCK);}
         String ','

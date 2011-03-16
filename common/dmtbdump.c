@@ -1275,6 +1275,81 @@ AcpiDmDumpMsct (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiDmDumpSlic
+ *
+ * PARAMETERS:  Table               - A SLIC table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a SLIC
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpSlic (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    UINT32                  Offset = sizeof (ACPI_TABLE_SLIC);
+    ACPI_SLIC_HEADER        *SubTable;
+    ACPI_DMTABLE_INFO       *InfoTable;
+
+
+    /* There is no main SLIC table, only subtables */
+
+    SubTable = ACPI_ADD_PTR (ACPI_SLIC_HEADER, Table, Offset);
+    while (Offset < Table->Length)
+    {
+        /* Common sub-table header */
+
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubTable,
+                    SubTable->Length, AcpiDmTableInfoSlicHdr);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        switch (SubTable->Type)
+        {
+        case ACPI_SLIC_TYPE_PUBLIC_KEY:
+            InfoTable = AcpiDmTableInfoSlic0;
+            break;
+        case ACPI_SLIC_TYPE_WINDOWS_MARKER:
+            InfoTable = AcpiDmTableInfoSlic1;
+            break;
+        default:
+            AcpiOsPrintf ("\n**** Unknown SLIC sub-table type 0x%X\n", SubTable->Type);
+
+            /* Attempt to continue */
+
+            if (!SubTable->Length)
+            {
+                AcpiOsPrintf ("Invalid zero length subtable\n");
+                return;
+            }
+            goto NextSubTable;
+        }
+
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Table->Length, Offset, SubTable,
+                    SubTable->Length, InfoTable);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+NextSubTable:
+        /* Point to next sub-table */
+
+        Offset += SubTable->Length;
+        SubTable = ACPI_ADD_PTR (ACPI_SLIC_HEADER, SubTable, SubTable->Length);
+    }
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiDmDumpSlit
  *
  * PARAMETERS:  Table               - An SLIT
