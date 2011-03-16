@@ -1,5 +1,5 @@
 # <pre>
-# @(#)northamerica	8.41
+# @(#)northamerica	8.42
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -2606,6 +2606,21 @@ Zone America/Costa_Rica	-5:36:20 -	LMT	1890		# San Jose
 # the time was announced as "diez cinco"--the same time as here, indicating
 # that has indeed switched to DST. Assume second Sunday from 2009 forward.
 
+# From Steffen Thorsen (2011-03-08):
+# Granma announced that Cuba is going to start DST on 2011-03-20 00:00:00
+# this year. Nothing about the end date known so far (if that has
+# changed at all).
+#
+# Source:
+# <a href="http://granma.co.cu/2011/03/08/nacional/artic01.html">
+# http://granma.co.cu/2011/03/08/nacional/artic01.html
+# </a>
+#
+# Our info:
+# <a href="http://www.timeanddate.com/news/time/cuba-starts-dst-2011.html">
+# http://www.timeanddate.com/news/time/cuba-starts-dst-2011.html
+# </a>
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Cuba	1928	only	-	Jun	10	0:00	1:00	D
 Rule	Cuba	1928	only	-	Oct	10	0:00	0	S
@@ -2639,7 +2654,9 @@ Rule	Cuba	2000	2004	-	Apr	Sun>=1	0:00s	1:00	D
 Rule	Cuba	2006	max	-	Oct	lastSun	0:00s	0	S
 Rule	Cuba	2007	only	-	Mar	Sun>=8	0:00s	1:00	D
 Rule	Cuba	2008	only	-	Mar	Sun>=15	0:00s	1:00	D
-Rule	Cuba	2009	max	-	Mar	Sun>=8	0:00s	1:00	D
+Rule	Cuba	2009	2010	-	Mar	Sun>=8	0:00s	1:00	D
+Rule	Cuba	2011	only	-	Mar	Sun>=15	0:00s	1:00	D
+Rule	Cuba	2012	max	-	Mar	Sun>=8	0:00s	1:00	D
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Havana	-5:29:28 -	LMT	1890
