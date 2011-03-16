@@ -154,6 +154,19 @@ static inline void cvmx_fpa_enable(void)
 }
 
 /**
+ * Reset FPA to disable. Make sure buffers from all FPA pools are freed
+ * before disabling FPA.
+ */
+static inline void cvmx_fpa_disable(void)
+{
+    cvmx_fpa_ctl_status_t status;
+    
+    status.u64 = cvmx_read_csr(CVMX_FPA_CTL_STATUS);
+    status.s.reset = 1;
+    cvmx_write_csr(CVMX_FPA_CTL_STATUS, status.u64);
+}
+
+/**
  * Get a new block from the FPA
  *
  * @param pool   Pool to get the block from
