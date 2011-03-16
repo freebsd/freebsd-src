@@ -250,7 +250,7 @@ static void cvm_oct_configure_common_hw(device_t bus)
 
         error = bus_setup_intr(bus, sc->sc_rx_irq, INTR_TYPE_NET | INTR_MPSAFE,
 			       cvm_oct_do_interrupt, NULL, cvm_oct_device,
-			       NULL);
+			       &sc->sc_rx_intr_cookie);
         if (error != 0) {
                 device_printf(bus, "could not setup workq irq");
 		return;
@@ -473,17 +473,16 @@ int cvm_oct_init_module(device_t bus)
  *
  * @return Zero on success
  */
-void cvm_oct_cleanup_module(void)
+void cvm_oct_cleanup_module(device_t bus)
 {
 	int port;
+	struct octebus_softc *sc = device_get_softc(bus);
 
 	/* Disable POW interrupt */
 	cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), 0);
 
-#if 0
 	/* Free the interrupt handler */
-	free_irq(8 + pow_receive_group, cvm_oct_device);
-#endif
+	bus_teardown_intr(bus, sc->sc_rx_irq, sc->sc_rx_intr_cookie);
 
 	callout_stop(&cvm_oct_poll_timer);
 	cvm_oct_rx_shutdown();
