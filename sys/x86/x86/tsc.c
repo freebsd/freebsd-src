@@ -263,10 +263,12 @@ sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 
 	if (tsc_timecounter.tc_frequency == 0)
 		return (EOPNOTSUPP);
-	freq = tsc_timecounter.tc_frequency;
+	freq = tsc_freq;
 	error = sysctl_handle_64(oidp, &freq, 0, req);
-	if (error == 0 && req->newptr != NULL)
-		tsc_timecounter.tc_frequency = freq;
+	if (error == 0 && req->newptr != NULL) {
+		tsc_freq = freq;
+		tsc_timecounter.tc_frequency = tsc_freq;
+	}
 	return (error);
 }
 
