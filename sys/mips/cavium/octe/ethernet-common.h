@@ -39,7 +39,7 @@ void cvm_oct_common_set_multicast_list(struct ifnet *ifp);
 void cvm_oct_common_set_mac_address(struct ifnet *ifp, const void *);
 
 int cvm_oct_init_module(device_t);
-void cvm_oct_cleanup_module(void);
+void cvm_oct_cleanup_module(device_t);
 
 /*
  * XXX/juli
