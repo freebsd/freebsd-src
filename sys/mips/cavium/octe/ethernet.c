@@ -103,6 +103,15 @@ static struct taskqueue *cvm_oct_link_taskq;
  */
 static int cvm_oct_num_output_buffers;
 
+/*
+ * The offset from mac_addr_base that should be used for the next port
+ * that is configured.  By convention, if any mgmt ports exist on the
+ * chip, they get the first mac addresses.  The ports controlled by
+ * this driver are numbered sequencially following any mgmt addresses
+ * that may exist.
+ */
+unsigned int cvm_oct_mac_addr_offset;
+
 /**
  * Function to update link status.
  */
@@ -317,6 +326,20 @@ int cvm_oct_init_module(device_t bus)
 	int qos;
 
 	printf("cavium-ethernet: %s\n", OCTEON_SDK_VERSION_STRING);
+
+	/*
+	 * MAC addresses for this driver start after the management
+	 * ports.
+	 *
+	 * XXX Would be nice if __cvmx_mgmt_port_num_ports() were
+	 *     not static to cvmx-mgmt-port.c.
+	 */
+	if (OCTEON_IS_MODEL(OCTEON_CN56XX))
+		cvm_oct_mac_addr_offset = 1;
+	else if (OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX))
+		cvm_oct_mac_addr_offset = 2;
+	else
+		cvm_oct_mac_addr_offset = 0;
 
 	cvm_oct_rx_initialize();
 	cvm_oct_configure_common_hw(bus);
