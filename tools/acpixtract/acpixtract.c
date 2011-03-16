@@ -50,11 +50,11 @@
 
 /* Note: This is a 32-bit program only */
 
-#define VERSION             0x20100107
+#define VERSION             0x20110225
 #define FIND_HEADER         0
 #define EXTRACT_DATA        1
 #define BUFFER_SIZE         256
-
+#define HEADER_LINE_LENGTH  17  /* strlen ("FACP @ 0x737e1000") */
 
 /* Local prototypes */
 
@@ -505,10 +505,26 @@ ExtractTables (
         {
         case FIND_HEADER:
 
+            /* Ignore lines that are too short to be header lines */
+
+            if (strlen (Buffer) < HEADER_LINE_LENGTH)
+            {
+                continue;
+            }
+
             /* Ignore empty lines and lines that start with a space */
 
             if ((Buffer[0] == ' ') ||
                 (Buffer[0] == '\n'))
+            {
+                continue;
+            }
+
+            /* Ignore lines that are not of the form "ABCD @ " */
+
+            if ((Buffer[4] != ' ') ||
+                (Buffer[5] != '@') ||
+                (Buffer[6] != ' '))
             {
                 continue;
             }

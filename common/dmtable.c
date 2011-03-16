@@ -192,6 +192,13 @@ static const char           *AcpiDmMadtSubnames[] =
     "Unknown SubTable Type"         /* Reserved */
 };
 
+static const char           *AcpiDmSlicSubnames[] =
+{
+    "Public Key Structure",
+    "Windows Marker Structure",
+    "Unknown SubTable Type"         /* Reserved */
+};
+
 static const char           *AcpiDmSratSubnames[] =
 {
     "Processor Local APIC/SAPIC Affinity",
@@ -270,7 +277,7 @@ ACPI_DMTABLE_DATA    AcpiDmTableData[] =
     {ACPI_SIG_MSCT, NULL,                   AcpiDmDumpMsct, DtCompileMsct,  TemplateMsct,   "Maximum System Characteristics Table"},
     {ACPI_SIG_RSDT, NULL,                   AcpiDmDumpRsdt, DtCompileRsdt,  TemplateRsdt,   "Root System Description Table"},
     {ACPI_SIG_SBST, AcpiDmTableInfoSbst,    NULL,           NULL,           TemplateSbst,   "Smart Battery Specification Table"},
-    {ACPI_SIG_SLIC, AcpiDmTableInfoSlic,    NULL,           NULL,           NULL,           "Software Licensing Description Table"},
+    {ACPI_SIG_SLIC, NULL,                   AcpiDmDumpSlic, DtCompileSlic,  TemplateSlic,   "Software Licensing Description Table"},
     {ACPI_SIG_SLIT, NULL,                   AcpiDmDumpSlit, DtCompileSlit,  TemplateSlit,   "System Locality Information Table"},
     {ACPI_SIG_SPCR, AcpiDmTableInfoSpcr,    NULL,           NULL,           TemplateSpcr,   "Serial Port Console Redirection table"},
     {ACPI_SIG_SPMI, AcpiDmTableInfoSpmi,    NULL,           NULL,           TemplateSpmi,   "Server Platform Management Interface table"},
@@ -475,30 +482,34 @@ AcpiDmLineHeader (
     char                    *Name)
 {
 
+    /* Allow a null name for fields that span multiple lines (large buffers) */
+
+    if (!Name)
+    {
+        Name = "";
+    }
+
     if (Gbl_DoTemplates && !Gbl_VerboseTemplates) /* Terse template */
     {
         if (ByteLength)
         {
-            AcpiOsPrintf ("[%.3d] %34s : ",
-                ByteLength, Name);
+            AcpiOsPrintf ("[%.4d] %34s : ", ByteLength, Name);
         }
         else
         {
-            AcpiOsPrintf ("%40s : ",
-                Name);
+            AcpiOsPrintf ("%41s : ", Name);
         }
     }
     else /* Normal disassembler or verbose template */
     {
         if (ByteLength)
         {
-            AcpiOsPrintf ("[%3.3Xh %4.4d% 3d] %28s : ",
+            AcpiOsPrintf ("[%3.3Xh %4.4d% 4d] %28s : ",
                 Offset, Offset, ByteLength, Name);
         }
         else
         {
-            AcpiOsPrintf ("%43s : ",
-                Name);
+            AcpiOsPrintf ("%44s : ", Name);
         }
     }
 }
@@ -635,6 +646,7 @@ AcpiDmDumpTable (
         case ACPI_DMT_UINT32:
         case ACPI_DMT_NAME4:
         case ACPI_DMT_SIG:
+        case ACPI_DMT_SLIC:
             ByteLength = 4;
             break;
         case ACPI_DMT_NAME6:
@@ -651,6 +663,9 @@ AcpiDmDumpTable (
         case ACPI_DMT_BUF16:
         case ACPI_DMT_UUID:
             ByteLength = 16;
+            break;
+        case ACPI_DMT_BUF128:
+            ByteLength = 128;
             break;
         case ACPI_DMT_STRING:
             ByteLength = ACPI_STRLEN (ACPI_CAST_PTR (char, Target)) + 1;
@@ -754,17 +769,26 @@ AcpiDmDumpTable (
 
         case ACPI_DMT_BUF7:
         case ACPI_DMT_BUF16:
+        case ACPI_DMT_BUF128:
 
             /*
              * Buffer: Size depends on the opcode and was set above.
              * Each hex byte is separated with a space.
              */
-            for (Temp8 = 0; Temp8 < ByteLength; Temp8++)
+            for (Temp16 = 0; Temp16 < ByteLength; Temp16++)
             {
-                AcpiOsPrintf ("%2.2X", Target[Temp8]);
-                if ((UINT32) (Temp8 + 1) < ByteLength)
+                AcpiOsPrintf ("%2.2X", Target[Temp16]);
+                if ((UINT32) (Temp16 + 1) < ByteLength)
                 {
-                    AcpiOsPrintf (" ");
+                    if ((Temp16 > 0) && (!((Temp16+1) % 16)))
+                    {
+                        AcpiOsPrintf ("\n");
+                        AcpiDmLineHeader (0, 0, NULL);
+                    }
+                    else
+                    {
+                        AcpiOsPrintf (" ");
+                    }
                 }
             }
             AcpiOsPrintf ("\n");
@@ -989,6 +1013,19 @@ AcpiDmDumpTable (
             }
 
             AcpiOsPrintf ("%2.2X <%s>\n", *Target, AcpiDmMadtSubnames[Temp8]);
+            break;
+
+        case ACPI_DMT_SLIC:
+
+            /* SLIC subtable types */
+
+            Temp8 = *Target;
+            if (Temp8 > ACPI_SLIC_TYPE_RESERVED)
+            {
+                Temp8 = ACPI_SLIC_TYPE_RESERVED;
+            }
+
+            AcpiOsPrintf ("%8.8X <%s>\n", *Target, AcpiDmSlicSubnames[Temp8]);
             break;
 
         case ACPI_DMT_SRAT:

@@ -32,7 +32,6 @@ OBJS = \
 	adfile.o \
 	adisasm.o \
 	adwalk.o \
-	aslbtypes.o \
 	aslanalyze.o \
 	aslbtypes.o \
 	aslcodegen.o \

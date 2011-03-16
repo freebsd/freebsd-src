@@ -51,6 +51,31 @@
         ACPI_MODULE_NAME    ("dmtbinfo")
 
 /*
+ * How to add a new table:
+ *
+ * - Add the C table definition to the actbl1.h or actbl2.h header.
+ * - Add ACPI_xxxx_OFFSET macro(s) for the table (and subtables) to list below.
+ * - Define the table in this file (for the disassembler). If any
+ *   new data types are required (ACPI_DMT_*), see below.
+ * - Add an external declaration for the new table definition (AcpiDmTableInfo*)
+ *     in acdisam.h
+ * - Add new table definition to the dispatch table in dmtable.c (AcpiDmTableData)
+ *     If a simple table (with no subtables), no disassembly code is needed.
+ *     Otherwise, create the AcpiDmDump* function for to disassemble the table
+ *     and add it to the dmtbdump.c file.
+ * - Add an external declaration for the new AcpiDmDump* function in acdisasm.h
+ * - Add the new AcpiDmDump* function to the dispatch table in dmtable.c
+ * - Create a template for the new table
+ * - Add data table compiler support
+ *
+ * How to add a new data type (ACPI_DMT_*):
+ *
+ * - Add new type at the end of the ACPI_DMT list in acdisasm.h
+ * - Add length and implementation cases in dmtable.c  (disassembler)
+ * - Add type and length cases in dtutils.c (DT compiler)
+ */
+
+/*
  * Macros used to generate offsets to specific table fields
  */
 #define ACPI_FACS_OFFSET(f)             (UINT8) ACPI_OFFSET (ACPI_TABLE_FACS,f)
@@ -131,6 +156,9 @@
 #define ACPI_MADTH_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_SUBTABLE_HEADER,f)
 #define ACPI_MCFG0_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_MCFG_ALLOCATION,f)
 #define ACPI_MSCT0_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_MSCT_PROXIMITY,f)
+#define ACPI_SLICH_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_SLIC_HEADER,f)
+#define ACPI_SLIC0_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_SLIC_KEY,f)
+#define ACPI_SLIC1_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_SLIC_MARKER,f)
 #define ACPI_SRATH_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_SUBTABLE_HEADER,f)
 #define ACPI_SRAT0_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_SRAT_CPU_AFFINITY,f)
 #define ACPI_SRAT1_OFFSET(f)            (UINT8) ACPI_OFFSET (ACPI_SRAT_MEM_AFFINITY,f)
@@ -1256,13 +1284,42 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoSbst[] =
 
 /*******************************************************************************
  *
- * SLIC - Software Licensing Description Table. NOT FULLY IMPLEMENTED, do not
- * have the table definition.
+ * SLIC - Software Licensing Description Table. There is no common table, just
+ * the standard ACPI header and then subtables.
  *
  ******************************************************************************/
 
-ACPI_DMTABLE_INFO           AcpiDmTableInfoSlic[] =
+/* Common Subtable header (one per Subtable) */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoSlicHdr[] =
 {
+    {ACPI_DMT_SLIC,     ACPI_SLICH_OFFSET (Type),                   "Subtable Type", 0},
+    {ACPI_DMT_UINT32,   ACPI_SLICH_OFFSET (Length),                 "Length", DT_LENGTH},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoSlic0[] =
+{
+    {ACPI_DMT_UINT8,    ACPI_SLIC0_OFFSET (KeyType),                "Key Type", 0},
+    {ACPI_DMT_UINT8,    ACPI_SLIC0_OFFSET (Version),                "Version", 0},
+    {ACPI_DMT_UINT16,   ACPI_SLIC0_OFFSET (Reserved),               "Reserved", 0},
+    {ACPI_DMT_UINT32,   ACPI_SLIC0_OFFSET (Algorithm),              "Algorithm", 0},
+    {ACPI_DMT_NAME4,    ACPI_SLIC0_OFFSET (Magic),                  "Magic", 0},
+    {ACPI_DMT_UINT32,   ACPI_SLIC0_OFFSET (BitLength),              "BitLength", 0},
+    {ACPI_DMT_UINT32,   ACPI_SLIC0_OFFSET (Exponent),               "Exponent", 0},
+    {ACPI_DMT_BUF128,   ACPI_SLIC0_OFFSET (Modulus[0]),             "Modulus", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoSlic1[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_SLIC1_OFFSET (Version),                "Version", 0},
+    {ACPI_DMT_NAME6,    ACPI_SLIC1_OFFSET (OemId[0]),               "Oem ID", 0},
+    {ACPI_DMT_NAME8,    ACPI_SLIC1_OFFSET (OemTableId[0]),          "Oem Table ID", 0},
+    {ACPI_DMT_NAME8,    ACPI_SLIC1_OFFSET (WindowsFlag[0]),         "Windows Flag", 0},
+    {ACPI_DMT_UINT32,   ACPI_SLIC1_OFFSET (SlicVersion),            "SLIC Version", 0},
+    {ACPI_DMT_BUF16,    ACPI_SLIC1_OFFSET (Reserved[0]),            "Reserved", 0},
+    {ACPI_DMT_BUF128,   ACPI_SLIC1_OFFSET (Signature[0]),           "Signature", 0},
     ACPI_DMT_TERMINATOR
 };
 
