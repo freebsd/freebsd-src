@@ -175,28 +175,13 @@ octm_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	switch (cvmx_sysinfo_get()->board_type) {
-#if defined(OCTEON_VENDOR_LANNER)
-	case CVMX_BOARD_TYPE_CUST_LANNER_MR730:
-		/*
-		 * The MR-730 uses its first two MACs for the management
-		 * ports.
-		 */
-		mac = 0;
-		memcpy((u_int8_t *)&mac + 2, octeon_bootinfo->mac_addr_base,
-		       6);
-		mac += sc->sc_port;
-		cvmx_mgmt_port_set_mac(sc->sc_port, mac);
-		break;
-#endif
-	default:
-		mac = cvmx_mgmt_port_get_mac(sc->sc_port);
-		if (mac == CVMX_MGMT_PORT_GET_MAC_ERROR) {
-			device_printf(dev, "unable to read MAC.\n");
-			return (ENXIO);
-		}
-		break;
-	}
+	/*
+	 * Set MAC address for this management port.
+	 */
+	mac = 0;
+	memcpy((u_int8_t *)&mac + 2, octeon_bootinfo->mac_addr_base, 6);
+	mac += sc->sc_port;
+	cvmx_mgmt_port_set_mac(sc->sc_port, mac);
 
 	/* No watermark for input ring.  */
 	mixx_irhwm.u64 = 0;
