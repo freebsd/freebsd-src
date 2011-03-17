@@ -174,8 +174,9 @@ show_battery(int ac, char **av)
 
 	if (mfi_dcmd_command(fd, MFI_DCMD_BBU_GET_STATUS, &stat, sizeof(stat),
 	    NULL, 0, NULL) < 0) {
+		error = errno;
 		warn("Failed to get status");
-		return (errno);
+		return (error);
 	}
 
 	printf("mfi%d: Battery State:\n", mfi_unit);
