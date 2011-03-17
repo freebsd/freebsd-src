@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd March 5, 2011
+.Dd March 16, 2011
 .Dt PS 1
 .Os
 .Sh NAME
@@ -205,8 +205,8 @@ Display information about processes which match the specified process IDs.
 Sort by current CPU usage, instead of the combination of controlling
 terminal and process ID.
 .It Fl S
-Change the way the process time is calculated by summing all exited
-children to their parent process.
+Change the way the process times, namely cputime, systime, and usertime,
+are calculated by summing all exited children to their parent process.
 .It Fl T
 Display information about processes attached to the device associated
 with the standard input.
@@ -596,6 +596,8 @@ symbolic process state (alias
 saved gid from a setgid executable
 .It Cm svuid
 saved UID from a setuid executable
+.It Cm systime
+accumulated system CPU time
 .It Cm tdaddr
 thread address
 .It Cm tdev
@@ -626,6 +628,8 @@ scheduling priority on return from system call (alias
 .Cm usrpri )
 .It Cm user
 user name (from UID)
+.It Cm usertime
+accumulated user CPU time
 .It Cm vsz
 virtual size in Kbytes (alias
 .Cm vsize )
