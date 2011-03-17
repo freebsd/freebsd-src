@@ -129,7 +129,8 @@ typedef const struct acpi_dmtable_info
 #define ACPI_DMT_DEVICE_PATH            44
 #define ACPI_DMT_LABEL                  45
 #define ACPI_DMT_BUF7                   46
-
+#define ACPI_DMT_BUF128                 47
+#define ACPI_DMT_SLIC                   48
 
 typedef
 void (*ACPI_DMTABLE_HANDLER) (
@@ -262,7 +263,9 @@ extern ACPI_DMTABLE_INFO        AcpiDmTableInfoMsct0[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRsdp1[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoRsdp2[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSbst[];
-extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSlic[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSlicHdr[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSlic0[];
+extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSlic1[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSlit[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSpcr[];
 extern ACPI_DMTABLE_INFO        AcpiDmTableInfoSpmi[];
@@ -376,6 +379,10 @@ AcpiDmDumpRsdp (
 
 void
 AcpiDmDumpRsdt (
+    ACPI_TABLE_HEADER       *Table);
+
+void
+AcpiDmDumpSlic (
     ACPI_TABLE_HEADER       *Table);
 
 void
