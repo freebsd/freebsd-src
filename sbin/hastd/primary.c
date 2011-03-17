@@ -150,10 +150,6 @@ static pthread_mutex_t metadata_lock;
  * and remote components.
  */
 #define	HAST_NCOMPONENTS	2
-/*
- * Number of seconds to sleep between reconnect retries or keepalive packets.
- */
-#define	RETRY_SLEEP		10
 
 #define	ISCONNECTED(res, no)	\
 	((res)->hr_remotein != NULL && (res)->hr_remoteout != NULL)
@@ -1318,10 +1314,10 @@ remote_send_thread(void *arg)
 
 	for (;;) {
 		pjdlog_debug(2, "remote_send: Taking request.");
-		QUEUE_TAKE1(hio, send, ncomp, RETRY_SLEEP);
+		QUEUE_TAKE1(hio, send, ncomp, HAST_KEEPALIVE);
 		if (hio == NULL) {
 			now = time(NULL);
-			if (lastcheck + RETRY_SLEEP <= now) {
+			if (lastcheck + HAST_KEEPALIVE <= now) {
 				keepalive_send(res, ncomp);
 				lastcheck = now;
 			}
@@ -2098,7 +2094,7 @@ guard_thread(void *arg)
 	PJDLOG_VERIFY(sigaddset(&mask, SIGINT) == 0);
 	PJDLOG_VERIFY(sigaddset(&mask, SIGTERM) == 0);
 
-	timeout.tv_sec = RETRY_SLEEP;
+	timeout.tv_sec = HAST_KEEPALIVE;
 	timeout.tv_nsec = 0;
 	signo = -1;
 
@@ -2116,7 +2112,7 @@ guard_thread(void *arg)
 
 		pjdlog_debug(2, "remote_guard: Checking connections.");
 		now = time(NULL);
-		if (lastcheck + RETRY_SLEEP <= now) {
+		if (lastcheck + HAST_KEEPALIVE <= now) {
 			for (ii = 0; ii < ncomps; ii++)
 				guard_one(res, ii);
 			lastcheck = now;

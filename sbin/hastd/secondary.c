@@ -418,7 +418,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 
 	/* Error in setting timeout is not critical, but why should it fail? */
-	if (proto_timeout(res->hr_remotein, 0) < 0)
+	if (proto_timeout(res->hr_remotein, 2 * HAST_KEEPALIVE) < 0)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
 	if (proto_timeout(res->hr_remoteout, res->hr_timeout) < 0)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");

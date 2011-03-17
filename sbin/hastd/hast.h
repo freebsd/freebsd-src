@@ -98,6 +98,9 @@
 #define	HAST_ADDRSIZE	1024
 #define	HAST_TOKEN_SIZE	16
 
+/* Number of seconds to sleep between reconnect retries or keepalive packets. */
+#define	HAST_KEEPALIVE	10
+
 struct hastd_config {
 	/* Address to communicate with hastctl(8). */
 	char	 hc_controladdr[HAST_ADDRSIZE];
