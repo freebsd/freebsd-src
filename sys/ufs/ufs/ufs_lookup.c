@@ -1252,10 +1252,8 @@ out:
 	 * drop its snapshot reference so that it will be reclaimed
 	 * when last open reference goes away.
 	 */
-#if defined(FFS) || defined(IFS)
 	if (ip != 0 && (ip->i_flags & SF_SNAPSHOT) != 0 && ip->i_effnlink == 0)
 		ffs_snapgone(ip);
-#endif
 	return (error);
 }
 
@@ -1317,10 +1315,8 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
 	 * drop its snapshot reference so that it will be reclaimed
 	 * when last open reference goes away.
 	 */
-#if defined(FFS) || defined(IFS)
 	if ((oip->i_flags & SF_SNAPSHOT) != 0 && oip->i_effnlink == 0)
 		ffs_snapgone(oip);
-#endif
 	return (error);
 }
 
