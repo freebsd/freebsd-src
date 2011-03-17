@@ -550,12 +550,11 @@ vsize(KINFO *k, VARENT *ve)
 	(void)printf("%*lu", v->width, (u_long)(k->ki_p->ki_size / 1024));
 }
 
-void
-cputime(KINFO *k, VARENT *ve)
+static void
+printtime(KINFO *k, VARENT *ve, long secs, long psecs)
+/* psecs is "parts" of a second. first micro, then centi */
 {
 	VAR *v;
-	long secs;
-	long psecs;	/* "parts" of a second. first micro, then centi */
 	char obuff[128];
 	static char decimal_point;
 
@@ -566,20 +565,7 @@ cputime(KINFO *k, VARENT *ve)
 		secs = 0;
 		psecs = 0;
 	} else {
-		/*
-		 * This counts time spent handling interrupts.  We could
-		 * fix this, but it is not 100% trivial (and interrupt
-		 * time fractions only work on the sparc anyway).	XXX
-		 */
-		secs = k->ki_p->ki_runtime / 1000000;
-		psecs = k->ki_p->ki_runtime % 1000000;
-		if (sumrusage) {
-			secs += k->ki_p->ki_childtime.tv_sec;
-			psecs += k->ki_p->ki_childtime.tv_usec;
-		}
-		/*
-		 * round and scale to 100's
-		 */
+		/* round and scale to 100's */
 		psecs = (psecs + 5000) / 10000;
 		secs += psecs / 100;
 		psecs = psecs % 100;
@@ -587,6 +573,53 @@ cputime(KINFO *k, VARENT *ve)
 	(void)snprintf(obuff, sizeof(obuff), "%3ld:%02ld%c%02ld",
 	    secs / 60, secs % 60, decimal_point, psecs);
 	(void)printf("%*s", v->width, obuff);
+}
+
+void
+cputime(KINFO *k, VARENT *ve)
+{
+	long secs, psecs;
+
+	/*
+	 * This counts time spent handling interrupts.  We could
+	 * fix this, but it is not 100% trivial (and interrupt
+	 * time fractions only work on the sparc anyway).	XXX
+	 */
+	secs = k->ki_p->ki_runtime / 1000000;
+	psecs = k->ki_p->ki_runtime % 1000000;
+	if (sumrusage) {
+		secs += k->ki_p->ki_childtime.tv_sec;
+		psecs += k->ki_p->ki_childtime.tv_usec;
+	}
+	printtime(k, ve, secs, psecs);
+}
+
+void
+systime(KINFO *k, VARENT *ve)
+{
+	long secs, psecs;
+
+	secs = k->ki_p->ki_rusage.ru_stime.tv_sec;
+	psecs = k->ki_p->ki_rusage.ru_stime.tv_usec;
+	if (sumrusage) {
+		secs += k->ki_p->ki_childstime.tv_sec;
+		psecs += k->ki_p->ki_childstime.tv_usec;
+	}
+	printtime(k, ve, secs, psecs);
+}
+
+void
+usertime(KINFO *k, VARENT *ve)
+{
+	long secs, psecs;
+
+	secs = k->ki_p->ki_rusage.ru_utime.tv_sec;
+	psecs = k->ki_p->ki_rusage.ru_utime.tv_usec;
+	if (sumrusage) {
+		secs += k->ki_p->ki_childutime.tv_sec;
+		psecs += k->ki_p->ki_childutime.tv_usec;
+	}
+	printtime(k, ve, secs, psecs);
 }
 
 void
