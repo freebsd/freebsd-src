@@ -926,7 +926,7 @@ const int x86_use_incdec = ~(m_PENT4 | m_NOCONA | m_CORE2 | m_GENERIC);
    integer data in xmm registers.  Which results in pretty abysmal code.  */
 const int x86_inter_unit_moves = 0 /* ~(m_ATHLON_K8) */;
 
-const int x86_ext_80387_constants = m_K6_GEODE | m_ATHLON | m_PENT4 | m_NOCONA | m_PPRO | m_GENERIC32;
+const int x86_ext_80387_constants = m_K6_GEODE | m_ATHLON | m_PENT4 | m_NOCONA | m_CORE2 | m_PPRO | m_GENERIC32;
 /* Some CPU cores are not able to predict more than 4 branch instructions in
    the 16 byte window.  */
 const int x86_four_jump_limit = m_PPRO | m_ATHLON_K8 | m_PENT4 | m_NOCONA | m_CORE2 | m_GENERIC;
@@ -937,7 +937,7 @@ const int x86_cmpxchg = ~m_386;
 /* Compare and exchange 8 bytes was added for pentium.  */
 const int x86_cmpxchg8b = ~(m_386 | m_486);
 /* Compare and exchange 16 bytes was added for nocona.  */
-const int x86_cmpxchg16b = m_NOCONA;
+const int x86_cmpxchg16b = m_NOCONA | m_CORE2;
 /* Exchange and add was added for 80486.  */
 const int x86_xadd = ~m_386;
 const int x86_pad_returns = m_ATHLON_K8 | m_CORE2 | m_GENERIC;
