@@ -394,6 +394,10 @@ DtCompileRsdt (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileSlic (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileSlit (
     void                    **PFieldList);
 
