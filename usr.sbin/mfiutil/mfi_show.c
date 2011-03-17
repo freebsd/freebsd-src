@@ -138,8 +138,9 @@ show_battery(int ac, char **av)
 {
 	struct mfi_bbu_capacity_info cap;
 	struct mfi_bbu_design_info design;
+	struct mfi_bbu_status stat;
 	uint8_t status;
-	int error, fd;
+	int comma, error, fd;
 
 	if (ac != 1) {
 		warnx("show battery: extra arguments");
@@ -171,16 +172,57 @@ show_battery(int ac, char **av)
 		return (error);
 	}
 
+	if (mfi_dcmd_command(fd, MFI_DCMD_BBU_GET_STATUS, &stat, sizeof(stat),
+	    NULL, 0, NULL) < 0) {
+		warn("Failed to get status");
+		return (errno);
+	}
+
 	printf("mfi%d: Battery State:\n", mfi_unit);
-	printf(" Manufacture Date: %d/%d/%d\n", design.mfg_date >> 5 & 0x0f,
+	printf("     Manufacture Date: %d/%d/%d\n", design.mfg_date >> 5 & 0x0f,
 	    design.mfg_date & 0x1f, design.mfg_date >> 9 & 0xffff);
-	printf("    Serial Number: %d\n", design.serial_number);
-	printf("     Manufacturer: %s\n", design.mfg_name);
-	printf("            Model: %s\n", design.device_name);
-	printf("        Chemistry: %s\n", design.device_chemistry);
-	printf("  Design Capacity: %d mAh\n", design.design_capacity);
-	printf("   Design Voltage: %d mV\n", design.design_voltage);
-	printf("   Current Charge: %d%%\n", cap.relative_charge);
+	printf("        Serial Number: %d\n", design.serial_number);
+	printf("         Manufacturer: %s\n", design.mfg_name);
+	printf("                Model: %s\n", design.device_name);
+	printf("            Chemistry: %s\n", design.device_chemistry);
+	printf("      Design Capacity: %d mAh\n", design.design_capacity);
+	printf(" Full Charge Capacity: %d mAh\n", cap.full_charge_capacity);
+	printf("     Current Capacity: %d mAh\n", cap.remaining_capacity);
+	printf("        Charge Cycles: %d\n", cap.cycle_count);
+	printf("       Current Charge: %d%%\n", cap.relative_charge);
+	printf("       Design Voltage: %d mV\n", design.design_voltage);
+	printf("      Current Voltage: %d mV\n", stat.voltage);
+	printf("          Temperature: %d C\n", stat.temperature);
+	printf("               Status:");
+	comma = 0;
+	if (stat.fw_status & MFI_BBU_STATE_PACK_MISSING) {
+		printf(" PACK_MISSING");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_VOLTAGE_LOW) {
+		printf("%s VOLTAGE_LOW", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_TEMPERATURE_HIGH) {
+		printf("%s TEMPERATURE_HIGH", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_CHARGE_ACTIVE) {
+		printf("%s CHARGING", comma ? "," : "");
+		comma = 1;
+	}
+	if (stat.fw_status & MFI_BBU_STATE_DISCHARGE_ACTIVE) {
+		printf("%s DISCHARGING", comma ? "," : "");
+	}
+	if (!comma)
+		printf(" normal");
+	printf("\n");
+	switch (stat.battery_type) {
+	case MFI_BBU_TYPE_BBU:
+		printf("      State of Health: %s\n",
+		    stat.detail.bbu.is_SOH_good ? "good" : "bad");
+		break;
+	}
 
 	close(fd);
 
