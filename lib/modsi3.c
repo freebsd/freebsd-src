@@ -2,8 +2,8 @@
  *
  *                     The LLVM Compiler Infrastructure
  *
- * This file is distributed under the University of Illinois Open Source
- * License. See LICENSE.TXT for details.
+ * This file is dual licensed under the MIT and the University of Illinois Open
+ * Source Licenses. See LICENSE.TXT for details.
  *
  * ===----------------------------------------------------------------------===
  *
@@ -14,10 +14,12 @@
 
 #include "int_lib.h"
 
+su_int __divsi3(si_int a, si_int b);
+
 /* Returns: a % b */
 
 si_int
 __modsi3(si_int a, si_int b)
 {
-    return a - (a / b) * b;
+    return a - __divsi3(a, b) * b;
 }

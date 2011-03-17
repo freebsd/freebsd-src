@@ -28,11 +28,7 @@ UniversalArchs.armv6 := armv6
 
 # Configuration for use with kernel/kexts.
 Configs += cc_kext
-UniversalArchs.cc_kext := armv6 i386 x86_64
-
-# FIXME: Don't build an armv7 slice currently, they have the same functions.
-#
-#UniversalArchs.cc_kext := armv6 armv7 i386 x86_64
+UniversalArchs.cc_kext := armv6 armv7 i386 x86_64
 
 ###
 
@@ -58,7 +54,6 @@ CCKEXT_COMMON_FUNCTIONS := \
 	ashrdi3 \
 	bswapdi2 \
 	bswapsi2 \
-	clear_cache \
 	clzdi2 \
 	clzsi2 \
 	cmpdi2 \
@@ -105,7 +100,7 @@ CCKEXT_COMMON_FUNCTIONS := \
 	udivmoddi4 \
 	umoddi3
 
-CCKEXT_ARM_FUNCTIONS := $(CCKEXT_COMMON_FUNCTONS) \
+CCKEXT_ARM_FUNCTIONS := $(CCKEXT_COMMON_FUNCTIONS) \
 	adddf3 \
 	addsf3 \
 	aeabi_cdcmpeq \
@@ -163,6 +158,9 @@ CCKEXT_ARM_FUNCTIONS := $(CCKEXT_COMMON_FUNCTONS) \
 
 FUNCTIONS.cc_kext.armv6 := $(CCKEXT_ARM_FUNCTIONS)
 FUNCTIONS.cc_kext.armv7 := $(CCKEXT_ARM_FUNCTIONS)
+
+CFLAGS.cc_kext.armv6 := $(CFLAGS) -mthumb
+CFLAGS.cc_kext.armv7 := $(CFLAGS) -mthumb
 
 CCKEXT_X86_FUNCTIONS := $(CCKEXT_COMMON_FUNCTIONS) \
 	divxc3 \

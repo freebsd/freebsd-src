@@ -2,8 +2,8 @@
  *
  *                     The LLVM Compiler Infrastructure
  *
- * This file is distributed under the University of Illinois Open Source
- * License. See LICENSE.TXT for details.
+ * This file is dual licensed under the MIT and the University of Illinois Open
+ * Source Licenses. See LICENSE.TXT for details.
  *
  * ===----------------------------------------------------------------------===
  *
@@ -20,6 +20,7 @@
 /* Assumption:  right shift of signed negative is arithmetic shift */
 
 #include <limits.h>
+#include <stdint.h>
 #include "endianness.h"
 #include <math.h>
 
