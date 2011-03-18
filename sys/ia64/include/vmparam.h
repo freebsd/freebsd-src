@@ -45,7 +45,7 @@
  * USRSTACK is the top (end) of the user stack.  Immediately above the user
  * stack resides the syscall gateway page.
  */
-#define	USRSTACK	VM_MAX_ADDRESS
+#define	USRSTACK	VM_MAXUSER_ADDRESS
 
 /*
  * Virtual memory related constants, all in bytes
@@ -195,13 +195,13 @@
 
 /* user/kernel map constants */
 #define VM_MIN_ADDRESS		0
-#define	VM_MAX_ADDRESS		IA64_RR_BASE(5)
+#define	VM_MAXUSER_ADDRESS	IA64_RR_BASE(5)
 #define	VM_GATEWAY_SIZE		PAGE_SIZE
-#define	VM_MAXUSER_ADDRESS	(VM_MAX_ADDRESS + VM_GATEWAY_SIZE)
-#define	VM_MIN_KERNEL_ADDRESS	VM_MAXUSER_ADDRESS
+#define	VM_MIN_KERNEL_ADDRESS	(VM_MAXUSER_ADDRESS + VM_GATEWAY_SIZE)
 #define VM_MAX_KERNEL_ADDRESS	(IA64_RR_BASE(6) - 1)
+#define	VM_MAX_ADDRESS		~0UL
 
-#define	KERNBASE		VM_MAX_ADDRESS
+#define	KERNBASE		VM_MAXUSER_ADDRESS
 
 /* virtual sizes (bytes) for various kernel submaps */
 #ifndef VM_KMEM_SIZE
