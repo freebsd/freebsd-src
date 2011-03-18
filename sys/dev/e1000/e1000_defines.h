@@ -76,8 +76,8 @@
 #define E1000_WUFC_FLX3 0x00080000 /* Flexible Filter 3 Enable */
 #define E1000_WUFC_FLX4 0x00100000 /* Flexible Filter 4 Enable */
 #define E1000_WUFC_FLX5 0x00200000 /* Flexible Filter 5 Enable */
-#define E1000_WUFC_FLX6  0x00400000 /* Flexible Filter 6 Enable */
-#define E1000_WUFC_FLX7  0x00800000 /* Flexible Filter 7 Enable */
+#define E1000_WUFC_FLX6 0x00400000 /* Flexible Filter 6 Enable */
+#define E1000_WUFC_FLX7 0x00800000 /* Flexible Filter 7 Enable */
 #define E1000_WUFC_FW_RST 0x80000000 /* Wake on FW Reset Enable */
 #define E1000_WUFC_ALL_FILTERS_PHY_4 0x0000F0FF /*Mask for all wakeup filters*/
 #define E1000_WUFC_FLX_OFFSET_PHY 12 /* Offset to the Flexible Filters bits */
@@ -249,6 +249,7 @@
 #define E1000_RXD_SPC_CFI_MASK  0x1000  /* CFI is bit 12 */
 #define E1000_RXD_SPC_CFI_SHIFT 12
 
+#define E1000_RXDEXT_STATERR_LB    0x00040000
 #define E1000_RXDEXT_STATERR_CE    0x01000000
 #define E1000_RXDEXT_STATERR_SE    0x02000000
 #define E1000_RXDEXT_STATERR_SEQ   0x04000000
@@ -1478,7 +1479,8 @@
 #define M88E1011_I_REV_4     0x04
 #define M88E1111_I_PHY_ID    0x01410CC0
 #define M88E1112_E_PHY_ID    0x01410C90
-#define I347AT4_E_PHY_ID    0x01410DC0
+#define I347AT4_E_PHY_ID     0x01410DC0
+#define M88E1340M_E_PHY_ID   0x01410DF0
 #define GG82563_E_PHY_ID     0x01410CA0
 #define IGP03E1000_E_PHY_ID  0x02A80390
 #define IFE_E_PHY_ID         0x02A80330
@@ -1764,11 +1766,10 @@
 #define E1000_RTTBCNRC_RF_INT_MASK	\
 	(E1000_RTTBCNRC_RF_DEC_MASK << E1000_RTTBCNRC_RF_INT_SHIFT)
 
-
 /* DMA Coalescing register fields */
 #define E1000_DMACR_DMACWT_MASK         0x00003FFF /* DMA Coalescing
                                                     * Watchdog Timer */
-#define E1000_DMACR_DMACTHR_MASK        0x00FF0000 /* DMA Coalescing Receive
+#define E1000_DMACR_DMACTHR_MASK        0x00FF0000 /* DMA Coalescing Rx
                                                     * Threshold */
 #define E1000_DMACR_DMACTHR_SHIFT       16
 #define E1000_DMACR_DMAC_LX_MASK        0x30000000 /* Lx when no PCIe
@@ -1781,15 +1782,15 @@
 
 #define E1000_DMCTLX_TTLX_MASK          0x00000FFF /* Time to LX request */
 
-#define E1000_DMCRTRH_UTRESH_MASK       0x0007FFFF /* Receive Traffic Rate
+#define E1000_DMCRTRH_UTRESH_MASK       0x0007FFFF /* Rx Traffic Rate
                                                     * Threshold */
-#define E1000_DMCRTRH_LRPRCW            0x80000000 /* Rcv packet rate in
+#define E1000_DMCRTRH_LRPRCW            0x80000000 /* Rx packet rate in
                                                     * current window */
 
-#define E1000_DMCCNT_CCOUNT_MASK        0x01FFFFFF /* DMA Coal Rcv Traffic
+#define E1000_DMCCNT_CCOUNT_MASK        0x01FFFFFF /* DMA Coal Rx Traffic
                                                     * Current Cnt */
 
-#define E1000_FCRTC_RTH_COAL_MASK       0x0003FFF0 /* Flow ctrl Rcv Threshold
+#define E1000_FCRTC_RTH_COAL_MASK       0x0003FFF0 /* Flow ctrl Rx Threshold
                                                     * High val */
 #define E1000_FCRTC_RTH_COAL_SHIFT      4
 #define E1000_PCIEMISC_LX_DECISION      0x00000080 /* Lx power decision based

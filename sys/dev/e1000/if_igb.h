@@ -322,7 +322,6 @@ struct rx_ring {
 	bool			lro_enabled;
 	bool			hdr_split;
 	bool			discard;
-	bool			needs_refresh;
 	struct mtx		rx_mtx;
 	char			mtx_name[16];
 	u32			next_to_refresh;
@@ -401,6 +400,8 @@ struct adapter {
 	u16		link_speed;
 	u16		link_duplex;
 	u32		smartspeed;
+	u32		fc_setting;
+	u32		dma_coalesce;
 
 	/* Interface queues */
 	struct igb_queue	*queues;
