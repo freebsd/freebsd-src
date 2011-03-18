@@ -93,7 +93,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.1.9";
+char em_driver_version[] = "7.2.2";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -284,9 +284,7 @@ static void	em_handle_tx(void *context, int pending);
 static void	em_handle_rx(void *context, int pending);
 static void	em_handle_link(void *context, int pending);
 
-static void	em_add_rx_process_limit(struct adapter *, const char *,
-		    const char *, int *, int);
-static void	em_set_flow_cntrl(struct adapter *, const char *,
+static void	em_set_sysctl_value(struct adapter *, const char *,
 		    const char *, int *, int);
 
 static __inline void em_rx_discard(struct rx_ring *, int);
@@ -365,6 +363,10 @@ TUNABLE_INT("hw.em.rx_process_limit", &em_rx_process_limit);
 static int em_fc_setting = e1000_fc_full;
 TUNABLE_INT("hw.em.fc_setting", &em_fc_setting);
 
+/* Energy efficient ethernet - default to OFF */
+static int eee_setting = 0;
+TUNABLE_INT("hw.em.eee_setting", &eee_setting);
+
 /* Global used in WOL setup with multiport cards */
 static int global_quad_port_a = 0;
 
@@ -433,12 +435,14 @@ static int
 em_attach(device_t dev)
 {
 	struct adapter	*adapter;
+	struct e1000_hw	*hw;
 	int		error = 0;
 
 	INIT_DEBUGOUT("em_attach: begin");
 
 	adapter = device_get_softc(dev);
 	adapter->dev = adapter->osdep.dev = dev;
+	hw = &adapter->hw;
 	EM_CORE_LOCK_INIT(adapter, device_get_nameunit(dev));
 
 	/* SYSCTL stuff */
@@ -470,11 +474,11 @@ em_attach(device_t dev)
 	** must happen after the MAC is 
 	** identified
 	*/
-	if ((adapter->hw.mac.type == e1000_ich8lan) ||
-	    (adapter->hw.mac.type == e1000_ich9lan) ||
-	    (adapter->hw.mac.type == e1000_ich10lan) ||
-	    (adapter->hw.mac.type == e1000_pchlan) ||
-	    (adapter->hw.mac.type == e1000_pch2lan)) {
+	if ((hw->mac.type == e1000_ich8lan) ||
+	    (hw->mac.type == e1000_ich9lan) ||
+	    (hw->mac.type == e1000_ich10lan) ||
+	    (hw->mac.type == e1000_pchlan) ||
+	    (hw->mac.type == e1000_pch2lan)) {
 		int rid = EM_BAR_TYPE_FLASH;
 		adapter->flash = bus_alloc_resource_any(dev,
 		    SYS_RES_MEMORY, &rid, RF_ACTIVE);
@@ -484,7 +488,7 @@ em_attach(device_t dev)
 			goto err_pci;
 		}
 		/* This is used in the shared code */
-		adapter->hw.flash_address = (u8 *)adapter->flash;
+		hw->flash_address = (u8 *)adapter->flash;
 		adapter->osdep.flash_bus_space_tag =
 		    rman_get_bustag(adapter->flash);
 		adapter->osdep.flash_bus_space_handle =
@@ -492,39 +496,39 @@ em_attach(device_t dev)
 	}
 
 	/* Do Shared Code initialization */
-	if (e1000_setup_init_funcs(&adapter->hw, TRUE)) {
+	if (e1000_setup_init_funcs(hw, TRUE)) {
 		device_printf(dev, "Setup of Shared code failed\n");
 		error = ENXIO;
 		goto err_pci;
 	}
 
-	e1000_get_bus_info(&adapter->hw);
+	e1000_get_bus_info(hw);
 
 	/* Set up some sysctls for the tunable interrupt delays */
 	em_add_int_delay_sysctl(adapter, "rx_int_delay",
 	    "receive interrupt delay in usecs", &adapter->rx_int_delay,
-	    E1000_REGISTER(&adapter->hw, E1000_RDTR), em_rx_int_delay_dflt);
+	    E1000_REGISTER(hw, E1000_RDTR), em_rx_int_delay_dflt);
 	em_add_int_delay_sysctl(adapter, "tx_int_delay",
 	    "transmit interrupt delay in usecs", &adapter->tx_int_delay,
-	    E1000_REGISTER(&adapter->hw, E1000_TIDV), em_tx_int_delay_dflt);
+	    E1000_REGISTER(hw, E1000_TIDV), em_tx_int_delay_dflt);
 	em_add_int_delay_sysctl(adapter, "rx_abs_int_delay",
 	    "receive interrupt delay limit in usecs",
 	    &adapter->rx_abs_int_delay,
-	    E1000_REGISTER(&adapter->hw, E1000_RADV),
+	    E1000_REGISTER(hw, E1000_RADV),
 	    em_rx_abs_int_delay_dflt);
 	em_add_int_delay_sysctl(adapter, "tx_abs_int_delay",
 	    "transmit interrupt delay limit in usecs",
 	    &adapter->tx_abs_int_delay,
-	    E1000_REGISTER(&adapter->hw, E1000_TADV),
+	    E1000_REGISTER(hw, E1000_TADV),
 	    em_tx_abs_int_delay_dflt);
 
 	/* Sysctl for limiting the amount of work done in the taskqueue */
-	em_add_rx_process_limit(adapter, "rx_processing_limit",
+	em_set_sysctl_value(adapter, "rx_processing_limit",
 	    "max number of rx packets to process", &adapter->rx_process_limit,
 	    em_rx_process_limit);
 
 	/* Sysctl for setting the interface flow control */
-	em_set_flow_cntrl(adapter, "flow_control",
+	em_set_sysctl_value(adapter, "flow_control",
 	    "configure flow control",
 	    &adapter->fc_setting, em_fc_setting);
 
@@ -549,15 +553,15 @@ em_attach(device_t dev)
 	} else
 		adapter->num_rx_desc = em_rxd;
 
-	adapter->hw.mac.autoneg = DO_AUTO_NEG;
-	adapter->hw.phy.autoneg_wait_to_complete = FALSE;
-	adapter->hw.phy.autoneg_advertised = AUTONEG_ADV_DEFAULT;
+	hw->mac.autoneg = DO_AUTO_NEG;
+	hw->phy.autoneg_wait_to_complete = FALSE;
+	hw->phy.autoneg_advertised = AUTONEG_ADV_DEFAULT;
 
 	/* Copper options */
-	if (adapter->hw.phy.media_type == e1000_media_type_copper) {
-		adapter->hw.phy.mdix = AUTO_ALL_MODES;
-		adapter->hw.phy.disable_polarity_correction = FALSE;
-		adapter->hw.phy.ms_type = EM_MASTER_SLAVE;
+	if (hw->phy.media_type == e1000_media_type_copper) {
+		hw->phy.mdix = AUTO_ALL_MODES;
+		hw->phy.disable_polarity_correction = FALSE;
+		hw->phy.ms_type = EM_MASTER_SLAVE;
 	}
 
 	/*
@@ -571,7 +575,7 @@ em_attach(device_t dev)
 	 * This controls when hardware reports transmit completion
 	 * status.
 	 */
-	adapter->hw.mac.report_tx_early = 1;
+	hw->mac.report_tx_early = 1;
 
 	/* 
 	** Get queue/ring memory
@@ -591,25 +595,31 @@ em_attach(device_t dev)
 	}
 
 	/* Check SOL/IDER usage */
-	if (e1000_check_reset_block(&adapter->hw))
+	if (e1000_check_reset_block(hw))
 		device_printf(dev, "PHY reset is blocked"
 		    " due to SOL/IDER session.\n");
+
+	/* Sysctl for setting Energy Efficient Ethernet */
+	em_set_sysctl_value(adapter, "eee_control",
+	    "enable Energy Efficient Ethernet",
+	    &hw->dev_spec.ich8lan.eee_disable, eee_setting);
 
 	/*
 	** Start from a known state, this is
 	** important in reading the nvm and
 	** mac from that.
 	*/
-	e1000_reset_hw(&adapter->hw);
+	e1000_reset_hw(hw);
+
 
 	/* Make sure we have a good EEPROM before we read from it */
-	if (e1000_validate_nvm_checksum(&adapter->hw) < 0) {
+	if (e1000_validate_nvm_checksum(hw) < 0) {
 		/*
 		** Some PCI-E parts fail the first check due to
 		** the link being in sleep state, call it again,
 		** if it fails a second time its a real issue.
 		*/
-		if (e1000_validate_nvm_checksum(&adapter->hw) < 0) {
+		if (e1000_validate_nvm_checksum(hw) < 0) {
 			device_printf(dev,
 			    "The EEPROM Checksum Is Not Valid\n");
 			error = EIO;
@@ -618,14 +628,14 @@ em_attach(device_t dev)
 	}
 
 	/* Copy the permanent MAC address out of the EEPROM */
-	if (e1000_read_mac_addr(&adapter->hw) < 0) {
+	if (e1000_read_mac_addr(hw) < 0) {
 		device_printf(dev, "EEPROM read error while reading MAC"
 		    " address\n");
 		error = EIO;
 		goto err_late;
 	}
 
-	if (!em_is_valid_ether_addr(adapter->hw.mac.addr)) {
+	if (!em_is_valid_ether_addr(hw->mac.addr)) {
 		device_printf(dev, "Invalid MAC address\n");
 		error = EIO;
 		goto err_late;
@@ -655,7 +665,7 @@ em_attach(device_t dev)
 	/* Initialize statistics */
 	em_update_stats_counters(adapter);
 
-	adapter->hw.mac.get_link_status = 1;
+	hw->mac.get_link_status = 1;
 	em_update_link_status(adapter);
 
 	/* Register for VLAN events */
@@ -927,11 +937,10 @@ em_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 	if (!adapter->link_active)
 		return;
 
-        /* Call cleanup if number of TX descriptors low */
-	if (txr->tx_avail <= EM_TX_CLEANUP_THRESHOLD)
-		em_txeof(txr);
-
 	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+        	/* Call cleanup if number of TX descriptors low */
+		if (txr->tx_avail <= EM_TX_CLEANUP_THRESHOLD)
+			em_txeof(txr);
 		if (txr->tx_avail < EM_MAX_SCATTER) {
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
@@ -1411,8 +1420,7 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	if (!drbr_empty(ifp, txr->br))
 		em_mq_start_locked(ifp, txr, NULL);
 #else
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		em_start_locked(ifp, txr);
+	em_start_locked(ifp, txr);
 #endif
 	EM_TX_UNLOCK(txr);
 
@@ -1475,24 +1483,20 @@ em_handle_que(void *context, int pending)
 	struct ifnet	*ifp = adapter->ifp;
 	struct tx_ring	*txr = adapter->tx_rings;
 	struct rx_ring	*rxr = adapter->rx_rings;
-	bool		more;
 
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		more = em_rxeof(rxr, adapter->rx_process_limit, NULL);
-
+		bool more = em_rxeof(rxr, adapter->rx_process_limit, NULL);
 		EM_TX_LOCK(txr);
 		em_txeof(txr);
 #ifdef EM_MULTIQUEUE
 		if (!drbr_empty(ifp, txr->br))
 			em_mq_start_locked(ifp, txr, NULL);
 #else
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			em_start_locked(ifp, txr);
+		em_start_locked(ifp, txr);
 #endif
-		em_txeof(txr);
 		EM_TX_UNLOCK(txr);
-		if (more) {
+		if (more || (ifp->if_drv_flags & IFF_DRV_OACTIVE)) {
 			taskqueue_enqueue(adapter->tq, &adapter->que_task);
 			return;
 		}
@@ -1601,10 +1605,8 @@ em_handle_tx(void *context, int pending)
 	if (!drbr_empty(ifp, txr->br))
 		em_mq_start_locked(ifp, txr, NULL);
 #else
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		em_start_locked(ifp, txr);
+	em_start_locked(ifp, txr);
 #endif
-	em_txeof(txr);
 	E1000_WRITE_REG(&adapter->hw, E1000_IMS, txr->ims);
 	EM_TX_UNLOCK(txr);
 }
@@ -2179,6 +2181,7 @@ em_local_timer(void *arg)
 	struct adapter	*adapter = arg;
 	struct ifnet	*ifp = adapter->ifp;
 	struct tx_ring	*txr = adapter->tx_rings;
+	struct rx_ring	*rxr = adapter->rx_rings;
 
 	EM_CORE_LOCK_ASSERT(adapter);
 
@@ -2189,6 +2192,13 @@ em_local_timer(void *arg)
 	if ((adapter->hw.mac.type == e1000_82571) &&
 	    e1000_get_laa_state_82571(&adapter->hw))
 		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
+
+	/* trigger tq to refill rx ring queue if it is empty */
+	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
+		if (rxr->next_to_check == rxr->next_to_refresh) {
+			taskqueue_enqueue(rxr->tq, &rxr->rx_task);
+		}
+	}
 
 	/* 
 	** Don't do TX watchdog check if we've been paused
@@ -3730,17 +3740,17 @@ em_txeof(struct tx_ring *txr)
 		txr->queue_status = EM_QUEUE_HUNG;
 
         /*
-         * If we have enough room, clear IFF_DRV_OACTIVE
+         * If we have a minimum free, clear IFF_DRV_OACTIVE
          * to tell the stack that it is OK to send packets.
          */
-        if (txr->tx_avail > EM_TX_CLEANUP_THRESHOLD) {                
+        if (txr->tx_avail > EM_MAX_SCATTER)
                 ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		/* Disable watchdog if all clean */
-                if (txr->tx_avail == adapter->num_tx_desc) {
-			txr->queue_status = EM_QUEUE_IDLE;
-			return (FALSE);
-		} 
-        }
+
+	/* Disable watchdog if all clean */
+	if (txr->tx_avail == adapter->num_tx_desc) {
+		txr->queue_status = EM_QUEUE_IDLE;
+		return (FALSE);
+	} 
 
 	return (TRUE);
 }
@@ -3758,11 +3768,19 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 	struct mbuf		*m;
 	bus_dma_segment_t	segs[1];
 	struct em_buffer	*rxbuf;
-	int			i, error, nsegs, cleaned;
+	int			i, j, error, nsegs;
+	bool			cleaned = FALSE;
 
-	i = rxr->next_to_refresh;
-	cleaned = -1;
-	while (i != limit) {
+	i = j = rxr->next_to_refresh;
+	/*
+	** Get one descriptor beyond
+	** our work mark to control
+	** the loop.
+	*/
+	if (++j == adapter->num_rx_desc)
+		j = 0;
+
+	while (j != limit) {
 		rxbuf = &rxr->rx_buffers[i];
 		if (rxbuf->m_head == NULL) {
 			m = m_getjcl(M_DONTWAIT, MT_DATA,
@@ -3796,21 +3814,22 @@ em_refresh_mbufs(struct rx_ring *rxr, int limit)
 		bus_dmamap_sync(rxr->rxtag,
 		    rxbuf->map, BUS_DMASYNC_PREREAD);
 		rxr->rx_base[i].buffer_addr = htole64(segs[0].ds_addr);
+		cleaned = TRUE;
 
-		cleaned = i;
-		/* Calculate next index */
-		if (++i == adapter->num_rx_desc)
-			i = 0;
+		i = j; /* Next is precalulated for us */
 		rxr->next_to_refresh = i;
+		/* Calculate next controlling index */
+		if (++j == adapter->num_rx_desc)
+			j = 0;
 	}
 update:
 	/*
 	** Update the tail pointer only if,
 	** and as far as we have refreshed.
 	*/
-	if (cleaned != -1) /* Update tail index */
+	if (cleaned)
 		E1000_WRITE_REG(&adapter->hw,
-		    E1000_RDT(rxr->me), cleaned);
+		    E1000_RDT(rxr->me), rxr->next_to_refresh);
 
 	return;
 }
@@ -3888,36 +3907,32 @@ em_setup_receive_ring(struct rx_ring *rxr)
 	struct	adapter 	*adapter = rxr->adapter;
 	struct em_buffer	*rxbuf;
 	bus_dma_segment_t	seg[1];
-	int			rsize, nsegs, error;
+	int			i, j, nsegs, error;
 
 
 	/* Clear the ring contents */
 	EM_RX_LOCK(rxr);
-	rsize = roundup2(adapter->num_rx_desc *
-	    sizeof(struct e1000_rx_desc), EM_DBA_ALIGN);
-	bzero((void *)rxr->rx_base, rsize);
 
-	/*
-	** Free current RX buffer structs and their mbufs
-	*/
-	for (int i = 0; i < adapter->num_rx_desc; i++) {
-		rxbuf = &rxr->rx_buffers[i];
-		if (rxbuf->m_head != NULL) {
-			bus_dmamap_sync(rxr->rxtag, rxbuf->map,
-			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(rxr->rxtag, rxbuf->map);
-			m_freem(rxbuf->m_head);
-		}
+	/* Invalidate all descriptors */
+	for (i = 0; i < adapter->num_rx_desc; i++) {
+		struct e1000_rx_desc* cur;
+		cur = &rxr->rx_base[i];
+		cur->status = 0;
 	}
 
 	/* Now replenish the mbufs */
-	for (int j = 0; j != adapter->num_rx_desc; ++j) {
+	i = j = rxr->next_to_refresh;
+	if (++j == adapter->num_rx_desc)
+		j = 0;
 
-		rxbuf = &rxr->rx_buffers[j];
+	while(j != rxr->next_to_check) {
+		rxbuf = &rxr->rx_buffers[i];
 		rxbuf->m_head = m_getjcl(M_DONTWAIT, MT_DATA,
 		    M_PKTHDR, adapter->rx_mbuf_sz);
-		if (rxbuf->m_head == NULL)
-			return (ENOBUFS);
+		if (rxbuf->m_head == NULL) {
+			error = ENOBUFS;
+			goto fail;
+		}
 		rxbuf->m_head->m_len = adapter->rx_mbuf_sz;
 		rxbuf->m_head->m_flags &= ~M_HASFCS; /* we strip it */
 		rxbuf->m_head->m_pkthdr.len = adapter->rx_mbuf_sz;
@@ -3929,25 +3944,24 @@ em_setup_receive_ring(struct rx_ring *rxr)
 		if (error != 0) {
 			m_freem(rxbuf->m_head);
 			rxbuf->m_head = NULL;
-			return (error);
+			goto fail;
 		}
 		bus_dmamap_sync(rxr->rxtag,
 		    rxbuf->map, BUS_DMASYNC_PREREAD);
 
 		/* Update descriptor */
-		rxr->rx_base[j].buffer_addr = htole64(seg[0].ds_addr);
+		rxr->rx_base[i].buffer_addr = htole64(seg[0].ds_addr);
+		i = j;
+		if (++j == adapter->num_rx_desc)
+			j = 0;
 	}
 
-
-	/* Setup our descriptor indices */
-	rxr->next_to_check = 0;
-	rxr->next_to_refresh = 0;
-
+fail:
+	rxr->next_to_refresh = i;
 	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-
 	EM_RX_UNLOCK(rxr);
-	return (0);
+	return (error);
 }
 
 /*********************************************************************
@@ -3959,9 +3973,9 @@ static int
 em_setup_receive_structures(struct adapter *adapter)
 {
 	struct rx_ring *rxr = adapter->rx_rings;
-	int j;
+	int q;
 
-	for (j = 0; j < adapter->num_queues; j++, rxr++)
+	for (q = 0; q < adapter->num_queues; q++, rxr++)
 		if (em_setup_receive_ring(rxr))
 			goto fail;
 
@@ -3970,11 +3984,12 @@ fail:
 	/*
 	 * Free RX buffers allocated so far, we will only handle
 	 * the rings that completed, the failing case will have
-	 * cleaned up for itself. 'j' failed, so its the terminus.
+	 * cleaned up for itself. 'q' failed, so its the terminus.
 	 */
-	for (int i = 0; i < j; ++i) {
+	for (int i = 0, n = 0; i < q; ++i) {
 		rxr = &adapter->rx_rings[i];
-		for (int n = 0; n < adapter->num_rx_desc; n++) {
+		n = rxr->next_to_check;
+		while(n != rxr->next_to_refresh) {
 			struct em_buffer *rxbuf;
 			rxbuf = &rxr->rx_buffers[n];
 			if (rxbuf->m_head != NULL) {
@@ -3984,7 +3999,11 @@ fail:
 				m_freem(rxbuf->m_head);
 				rxbuf->m_head = NULL;
 			}
+			if (++n == adapter->num_rx_desc)
+				n = 0;
 		}
+		rxr->next_to_check = 0;
+		rxr->next_to_refresh = 0;
 	}
 
 	return (ENOBUFS);
@@ -4025,7 +4044,8 @@ em_free_receive_buffers(struct rx_ring *rxr)
 	INIT_DEBUGOUT("free_receive_buffers: begin");
 
 	if (rxr->rx_buffers != NULL) {
-		for (int i = 0; i < adapter->num_rx_desc; i++) {
+		int i = rxr->next_to_check;
+		while(i != rxr->next_to_refresh) {
 			rxbuf = &rxr->rx_buffers[i];
 			if (rxbuf->map != NULL) {
 				bus_dmamap_sync(rxr->rxtag, rxbuf->map,
@@ -4037,9 +4057,13 @@ em_free_receive_buffers(struct rx_ring *rxr)
 				m_freem(rxbuf->m_head);
 				rxbuf->m_head = NULL;
 			}
+			if (++i == adapter->num_rx_desc)
+				i = 0;
 		}
 		free(rxr->rx_buffers, M_DEVBUF);
 		rxr->rx_buffers = NULL;
+		rxr->next_to_check = 0;
+		rxr->next_to_refresh = 0;
 	}
 
 	if (rxr->rxtag != NULL) {
@@ -4122,8 +4146,8 @@ em_initialize_receive_unit(struct adapter *adapter)
 		E1000_WRITE_REG(hw, E1000_RDBAH(i), (u32)(bus_addr >> 32));
 		E1000_WRITE_REG(hw, E1000_RDBAL(i), (u32)bus_addr);
 		/* Setup the Head and Tail Descriptor Pointers */
-		E1000_WRITE_REG(hw, E1000_RDH(i), 0);
-		E1000_WRITE_REG(hw, E1000_RDT(i), adapter->num_rx_desc - 1);
+		E1000_WRITE_REG(hw, E1000_RDH(i), rxr->next_to_check);
+		E1000_WRITE_REG(hw, E1000_RDT(i), rxr->next_to_refresh);
 	}
 
 	/* Set early receive threshold on appropriate hw */
@@ -4303,7 +4327,8 @@ next_desc:
 	}
 
 	/* Catch any remaining refresh work */
-	em_refresh_mbufs(rxr, i);
+	if (processed != 0 || i == rxr->next_to_refresh)
+		em_refresh_mbufs(rxr, i);
 
 	rxr->next_to_check = i;
 	if (done != NULL)
@@ -4743,10 +4768,8 @@ em_enable_wakeup(device_t dev)
 	if ((adapter->hw.mac.type == e1000_ich8lan) ||
 	    (adapter->hw.mac.type == e1000_pchlan) ||
 	    (adapter->hw.mac.type == e1000_ich9lan) ||
-	    (adapter->hw.mac.type == e1000_ich10lan)) {
+	    (adapter->hw.mac.type == e1000_ich10lan))
 		e1000_disable_gig_wol_ich8lan(&adapter->hw);
-		e1000_hv_phy_powerdown_workaround_ich8lan(&adapter->hw);
-	}
 
 	/* Keep the laser running on Fiber adapters */
 	if (adapter->hw.phy.media_type == e1000_media_type_fiber ||
@@ -5442,17 +5465,7 @@ em_add_int_delay_sysctl(struct adapter *adapter, const char *name,
 }
 
 static void
-em_add_rx_process_limit(struct adapter *adapter, const char *name,
-	const char *description, int *limit, int value)
-{
-	*limit = value;
-	SYSCTL_ADD_INT(device_get_sysctl_ctx(adapter->dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(adapter->dev)),
-	    OID_AUTO, name, CTLTYPE_INT|CTLFLAG_RW, limit, value, description);
-}
-
-static void
-em_set_flow_cntrl(struct adapter *adapter, const char *name,
+em_set_sysctl_value(struct adapter *adapter, const char *name,
 	const char *description, int *limit, int value)
 {
 	*limit = value;

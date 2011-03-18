@@ -36,7 +36,6 @@
  * 82575EB Gigabit Network Connection
  * 82575EB Gigabit Backplane Connection
  * 82575GB Gigabit Network Connection
- * 82575GB Gigabit Network Connection
  * 82576 Gigabit Network Connection
  * 82576 Quad Port Gigabit Mezzanine Adapter
  */
@@ -44,7 +43,6 @@
 #include "e1000_api.h"
 
 static s32  e1000_init_phy_params_82575(struct e1000_hw *hw);
-static s32  e1000_init_nvm_params_82575(struct e1000_hw *hw);
 static s32  e1000_init_mac_params_82575(struct e1000_hw *hw);
 static s32  e1000_acquire_phy_82575(struct e1000_hw *hw);
 static void e1000_release_phy_82575(struct e1000_hw *hw);
@@ -197,12 +195,14 @@ static s32 e1000_init_phy_params_82575(struct e1000_hw *hw)
 	switch (phy->id) {
 	case I347AT4_E_PHY_ID:
 	case M88E1112_E_PHY_ID:
+	case M88E1340M_E_PHY_ID:
 	case M88E1111_I_PHY_ID:
 		phy->type                   = e1000_phy_m88;
 		phy->ops.check_polarity     = e1000_check_polarity_m88;
 		phy->ops.get_info           = e1000_get_phy_info_m88;
 		if (phy->id == I347AT4_E_PHY_ID ||
-		    phy->id == M88E1112_E_PHY_ID)
+		    phy->id == M88E1112_E_PHY_ID ||
+		    phy->id == M88E1340M_E_PHY_ID)
 			phy->ops.get_cable_length = e1000_get_cable_length_m88_gen2;
 		else
 			phy->ops.get_cable_length = e1000_get_cable_length_m88;
@@ -241,7 +241,7 @@ out:
  *  e1000_init_nvm_params_82575 - Init NVM func ptrs.
  *  @hw: pointer to the HW structure
  **/
-static s32 e1000_init_nvm_params_82575(struct e1000_hw *hw)
+s32 e1000_init_nvm_params_82575(struct e1000_hw *hw)
 {
 	struct e1000_nvm_info *nvm = &hw->nvm;
 	u32 eecd = E1000_READ_REG(hw, E1000_EECD);
@@ -258,7 +258,6 @@ static s32 e1000_init_nvm_params_82575(struct e1000_hw *hw)
 	size += NVM_WORD_SIZE_BASE_SHIFT;
 
 	nvm->word_size = 1 << size;
-
 	nvm->opcode_bits        = 8;
 	nvm->delay_usec         = 1;
 	switch (nvm->override) {
@@ -278,20 +277,23 @@ static s32 e1000_init_nvm_params_82575(struct e1000_hw *hw)
 
 	nvm->type = e1000_nvm_eeprom_spi;
 
-	if (nvm->word_size == (1 << 15)) {
+	if (nvm->word_size == (1 << 15))
 		nvm->page_size = 128;
-	}
-
 
 	/* Function Pointers */
-	nvm->ops.acquire = e1000_acquire_nvm_82575;
-	if (nvm->word_size < (1 << 15)) {
-		nvm->ops.read = e1000_read_nvm_eerd;
-	} else {
-		nvm->ops.read = e1000_read_nvm_spi;
-	}
-	nvm->ops.release = e1000_release_nvm_82575;
-	nvm->ops.valid_led_default = e1000_valid_led_default_82575;
+	nvm->ops.acquire    = e1000_acquire_nvm_82575;
+	nvm->ops.release    = e1000_release_nvm_82575;
+	if (nvm->word_size < (1 << 15))
+		nvm->ops.read    = e1000_read_nvm_eerd;
+	else
+		nvm->ops.read    = e1000_read_nvm_spi;
+
+	nvm->ops.write              = e1000_write_nvm_spi;
+	nvm->ops.validate           = e1000_validate_nvm_checksum_generic;
+	nvm->ops.update             = e1000_update_nvm_checksum_generic;
+	nvm->ops.valid_led_default  = e1000_valid_led_default_82575;
+
+	/* override genric family function pointers for specific descendants */
 	switch (hw->mac.type) {
 	case e1000_82580:
 		nvm->ops.validate = e1000_validate_nvm_checksum_82580;
@@ -302,10 +304,8 @@ static s32 e1000_init_nvm_params_82575(struct e1000_hw *hw)
 		nvm->ops.update = e1000_update_nvm_checksum_i350;
 		break;
 	default:
-		nvm->ops.validate = e1000_validate_nvm_checksum_generic;
-		nvm->ops.update = e1000_update_nvm_checksum_generic;
+		break;
 	}
-	nvm->ops.write = e1000_write_nvm_spi;
 
 	return E1000_SUCCESS;
 }
@@ -889,9 +889,7 @@ static s32 e1000_acquire_nvm_82575(struct e1000_hw *hw)
 	ret_val = e1000_acquire_swfw_sync_82575(hw, E1000_SWFW_EEP_SM);
 	if (ret_val)
 		goto out;
-
 	ret_val = e1000_acquire_nvm_generic(hw);
-
 	if (ret_val)
 		e1000_release_swfw_sync_82575(hw, E1000_SWFW_EEP_SM);
 
@@ -910,7 +908,6 @@ static void e1000_release_nvm_82575(struct e1000_hw *hw)
 {
 	DEBUGFUNC("e1000_release_nvm_82575");
 
-	e1000_release_nvm_generic(hw);
 	e1000_release_swfw_sync_82575(hw, E1000_SWFW_EEP_SM);
 }
 
@@ -1365,7 +1362,8 @@ static s32 e1000_setup_copper_link_82575(struct e1000_hw *hw)
 	switch (hw->phy.type) {
 	case e1000_phy_m88:
 		if (hw->phy.id == I347AT4_E_PHY_ID ||
-		    hw->phy.id == M88E1112_E_PHY_ID)
+		    hw->phy.id == M88E1112_E_PHY_ID ||
+		    hw->phy.id == M88E1340M_E_PHY_ID)
 			ret_val = e1000_copper_link_setup_m88_gen2(hw);
 		else
 			ret_val = e1000_copper_link_setup_m88(hw);
@@ -1840,7 +1838,6 @@ out:
 	return ret_val;
 }
 
-
 /**
  *  e1000_vmdq_set_anti_spoofing_pf - enable or disable anti-spoofing
  *  @hw: pointer to the hardware struct
@@ -1986,7 +1983,7 @@ out:
  *  e1000_reset_mdicnfg_82580 - Reset MDICNFG destination and com_mdio bits
  *  @hw: pointer to the HW structure
  *
- *  This resets the MDICNFG.Destination and MDICNFG.Com_MDIO bits based on
+ *  This resets the the MDICNFG.Destination and MDICNFG.Com_MDIO bits based on
  *  the values found in the EEPROM.  This addresses an issue in which these
  *  bits are not restored from EEPROM after reset.
  **/
