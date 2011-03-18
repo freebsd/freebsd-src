@@ -1281,6 +1281,8 @@ vm_pageout_oom(int shortage)
 	FOREACH_PROC_IN_SYSTEM(p) {
 		int breakout;
 
+		if (p->p_state != PRS_NORMAL)
+			continue;
 		if (PROC_TRYLOCK(p) == 0)
 			continue;
 		/*
@@ -1649,6 +1651,8 @@ vm_daemon()
 		FOREACH_PROC_IN_SYSTEM(p) {
 			vm_pindex_t limit, size;
 
+			if (p->p_state != PRS_NORMAL)
+				continue;
 			/*
 			 * if this is a system process or if we have already
 			 * looked at this process, skip it.
