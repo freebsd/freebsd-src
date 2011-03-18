@@ -236,7 +236,7 @@ struct pci_quirk pci_quirks[] = {
 struct devlist pci_devq;
 uint32_t pci_generation;
 uint32_t pci_numdevs = 0;
-static int pcie_chipset, pcix_chipset;
+static int ht_chipset, pcie_chipset, pcix_chipset;
 
 /* sysctl vars */
 SYSCTL_NODE(_hw, OID_AUTO, pci, CTLFLAG_RD, 0, "PCI bus tuning parameters");
@@ -612,10 +612,24 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 					cfg->pp.pp_data = ptr + PCIR_POWER_DATA;
 			}
 			break;
-#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
 		case PCIY_HT:		/* HyperTransport */
 			/* Determine HT-specific capability type. */
 			val = REG(ptr + PCIR_HT_COMMAND, 2);
+
+			if ((val & 0xe000) == PCIM_HTCAP_SLAVE) {
+				cfg->ht.ht_slave = ptr;
+
+				/*
+				 * If device 0:0:0:0 is an HT slave,
+				 * then this is an HT chipset and MSI
+				 * should be enabled for HT devices.
+				 */
+				if (cfg->domain == 0 && cfg->bus == 0 &&
+				    cfg->slot == 0 && cfg->func == 0)
+					ht_chipset = 1;
+			}
+
+#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
 			switch (val & PCIM_HTCMD_CAP_MASK) {
 			case PCIM_HTCAP_MSI_MAPPING:
 				if (!(val & PCIM_HTCMD_MSI_FIXED)) {
@@ -627,7 +641,7 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 					    4);
 					if (addr != MSI_INTEL_ADDR_BASE)
 						device_printf(pcib,
-	    "HT Bridge at pci%d:%d:%d:%d has non-default MSI window 0x%llx\n",
+	    "HT device at pci%d:%d:%d:%d has non-default MSI window 0x%llx\n",
 						    cfg->domain, cfg->bus,
 						    cfg->slot, cfg->func,
 						    (long long)addr);
@@ -639,8 +653,8 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 				cfg->ht.ht_msiaddr = addr;
 				break;
 			}
-			break;
 #endif
+			break;
 		case PCIY_MSI:		/* PCI MSI */
 			cfg->msi.msi_location = ptr;
 			cfg->msi.msi_ctrl = REG(ptr + PCIR_MSI_CTRL, 2);
@@ -696,6 +710,24 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 			break;
 		}
 	}
+
+	
+#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
+	/*
+	 * Enable the MSI mapping window for all HyperTransport
+	 * slaves.  PCI-PCI bridges have their windows enabled via
+	 * PCIB_MAP_MSI().
+	 */
+	if (cfg->ht.ht_slave != 0 && cfg->ht.ht_msimap != 0 &&
+	    !(cfg->ht.ht_msictrl & PCIM_HTCMD_MSI_ENABLE)) {
+		device_printf(pcib,
+	    "Enabling MSI window for HyperTransport slave at pci%d:%d:%d:%d\n",
+		    cfg->domain, cfg->bus, cfg->slot, cfg->func);
+		 cfg->ht.ht_msictrl |= PCIM_HTCMD_MSI_ENABLE;
+		 WREG(cfg->ht.ht_msimap + PCIR_HT_COMMAND, cfg->ht.ht_msictrl,
+		     2);
+	}
+#endif
 /* REG and WREG use carry through to next functions */
 }
 
@@ -1837,6 +1869,13 @@ pci_msi_device_blacklisted(device_t dev)
 		    q->type == PCI_QUIRK_DISABLE_MSI)
 			return (1);
 	}
+
+	/*
+	 * Blacklist HyperTransport devices if the device at 0:0:0:0
+	 * is not a HyperTransport slave.
+	 */
+	if (!ht_chipset && pci_find_extcap(dev, PCIY_HT, NULL) == 0)
+		return (1);
 	return (0);
 }
 

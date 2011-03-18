@@ -110,6 +110,7 @@ struct pcicfg_msix {
 
 /* Interesting values for HyperTransport */
 struct pcicfg_ht {
+    uint8_t	ht_slave;	/* Non-zero if device is an HT slave. */
     uint8_t	ht_msimap;	/* Offset of MSI mapping cap registers. */
     uint16_t	ht_msictrl;	/* MSI mapping control */
     uint64_t	ht_msiaddr;	/* MSI mapping base address */
