@@ -199,7 +199,7 @@ END(fusufault)
 ENTRY(casuword, 3)
 {	.mlx
 	add		r15=PC_CURTHREAD,r13
-	movl		r14=VM_MAX_ADDRESS
+	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
@@ -249,7 +249,7 @@ END(casuword)
 ENTRY(casuword32, 3)
 {	.mlx
 	add		r15=PC_CURTHREAD,r13
-	movl		r14=VM_MAX_ADDRESS
+	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
@@ -303,7 +303,7 @@ END(casuword32)
 ENTRY(subyte, 2)
 {	.mlx
 	add		r15=PC_CURTHREAD,r13
-	movl		r14=VM_MAX_ADDRESS
+	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
@@ -349,7 +349,7 @@ END(subyte)
 ENTRY(suword16, 2)
 {	.mlx
 	add		r15=PC_CURTHREAD,r13
-	movl		r14=VM_MAX_ADDRESS
+	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
@@ -395,7 +395,7 @@ END(suword16)
 ENTRY(suword32, 2)
 {	.mlx
 	add		r15=PC_CURTHREAD,r13
-	movl		r14=VM_MAX_ADDRESS
+	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
@@ -442,7 +442,7 @@ ENTRY(suword64, 2)
 XENTRY(suword)
 {	.mlx
 	add		r15=PC_CURTHREAD,r13
-	movl		r14=VM_MAX_ADDRESS
+	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
@@ -496,7 +496,7 @@ END(suword64)
 ENTRY(fubyte, 1)
 {	.mlx
 	add		r15=PC_CURTHREAD,r13
-	movl		r14=VM_MAX_ADDRESS
+	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
@@ -542,7 +542,7 @@ END(fubyte)
 ENTRY(fuword16, 2)
 {	.mlx
 	add		r15=PC_CURTHREAD,r13
-	movl		r14=VM_MAX_ADDRESS
+	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
@@ -588,7 +588,7 @@ END(fuword16)
 ENTRY(fuword32, 2)
 {	.mlx
 	add		r15=PC_CURTHREAD,r13
-	movl		r14=VM_MAX_ADDRESS
+	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
@@ -635,7 +635,7 @@ ENTRY(fuword64, 2)
 XENTRY(fuword)
 {	.mlx
 	add		r15=PC_CURTHREAD,r13
-	movl		r14=VM_MAX_ADDRESS
+	movl		r14=VM_MAXUSER_ADDRESS
 	;;
 }
 {	.mib
@@ -750,7 +750,7 @@ ENTRY(copyinstr, 4)
 	mov	loc1=rp
 	.body
 
-	movl	loc2=VM_MAX_ADDRESS		// make sure that src addr
+	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that src addr
 	;; 
 	cmp.geu	p6,p0=in0,loc2			// is in user space.
 	;; 
@@ -863,7 +863,7 @@ ENTRY(copyin, 3)
 	mov	loc1=rp
 	.body
 
-	movl	loc2=VM_MAX_ADDRESS		// make sure that src addr
+	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that src addr
 	;; 
 	cmp.geu	p6,p0=in0,loc2			// is in user space.
 	;; 
@@ -901,7 +901,7 @@ ENTRY(copyout, 3)
 	mov	loc1=rp
 	.body
 
-	movl	loc2=VM_MAX_ADDRESS		// make sure that dest addr
+	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that dest addr
 	;; 
 	cmp.geu	p6,p0=in1,loc2			// is in user space.
 	;; 
