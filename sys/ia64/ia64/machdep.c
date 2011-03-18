@@ -601,12 +601,12 @@ map_gateway_page(void)
 	pte |= (uint64_t)ia64_gateway_page & PTE_PPN_MASK;
 
 	__asm __volatile("ptr.d %0,%1; ptr.i %0,%1" ::
-	    "r"(VM_MAX_ADDRESS), "r"(PAGE_SHIFT << 2));
+	    "r"(VM_MAXUSER_ADDRESS), "r"(PAGE_SHIFT << 2));
 
 	__asm __volatile("mov	%0=psr" : "=r"(psr));
 	__asm __volatile("rsm	psr.ic|psr.i");
 	ia64_srlz_i();
-	ia64_set_ifa(VM_MAX_ADDRESS);
+	ia64_set_ifa(VM_MAXUSER_ADDRESS);
 	ia64_set_itir(PAGE_SHIFT << 2);
 	ia64_srlz_d();
 	__asm __volatile("itr.d	dtr[%0]=%1" :: "r"(3), "r"(pte));
@@ -616,7 +616,7 @@ map_gateway_page(void)
 	ia64_srlz_i();
 
 	/* Expose the mapping to userland in ar.k5 */
-	ia64_set_k5(VM_MAX_ADDRESS);
+	ia64_set_k5(VM_MAXUSER_ADDRESS);
 }
 
 static u_int
