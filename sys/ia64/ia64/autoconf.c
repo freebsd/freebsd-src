@@ -38,7 +38,6 @@
 #include <sys/bus.h>
 #include <sys/cons.h>
 
-#include <machine/bootinfo.h>
 #include <machine/intr.h>
 #include <machine/md_var.h>
 
