@@ -1912,6 +1912,7 @@ g_raid_destroy_disk(struct g_raid_disk *disk)
 		disk->d_consumer = NULL;
 	}
 	TAILQ_FOREACH_SAFE(sd, &disk->d_subdisks, sd_next, tmp) {
+		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_NONE);
 		g_raid_event_send(sd, G_RAID_SUBDISK_E_DISCONNECTED,
 		    G_RAID_EVENT_SUBDISK);
 		TAILQ_REMOVE(&disk->d_subdisks, sd, sd_next);
