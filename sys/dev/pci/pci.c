@@ -236,7 +236,7 @@ struct pci_quirk pci_quirks[] = {
 struct devlist pci_devq;
 uint32_t pci_generation;
 uint32_t pci_numdevs = 0;
-static int ht_chipset, pcie_chipset, pcix_chipset;
+static int pcie_chipset, pcix_chipset;
 
 /* sysctl vars */
 SYSCTL_NODE(_hw, OID_AUTO, pci, CTLFLAG_RD, 0, "PCI bus tuning parameters");
@@ -616,18 +616,8 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 			/* Determine HT-specific capability type. */
 			val = REG(ptr + PCIR_HT_COMMAND, 2);
 
-			if ((val & 0xe000) == PCIM_HTCAP_SLAVE) {
+			if ((val & 0xe000) == PCIM_HTCAP_SLAVE)
 				cfg->ht.ht_slave = ptr;
-
-				/*
-				 * If device 0:0:0:0 is an HT slave,
-				 * then this is an HT chipset and MSI
-				 * should be enabled for HT devices.
-				 */
-				if (cfg->domain == 0 && cfg->bus == 0 &&
-				    cfg->slot == 0 && cfg->func == 0)
-					ht_chipset = 1;
-			}
 
 #if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
 			switch (val & PCIM_HTCMD_CAP_MASK) {
@@ -1869,13 +1859,6 @@ pci_msi_device_blacklisted(device_t dev)
 		    q->type == PCI_QUIRK_DISABLE_MSI)
 			return (1);
 	}
-
-	/*
-	 * Blacklist HyperTransport devices if the device at 0:0:0:0
-	 * is not a HyperTransport slave.
-	 */
-	if (!ht_chipset && pci_find_extcap(dev, PCIY_HT, NULL) == 0)
-		return (1);
 	return (0);
 }
 
