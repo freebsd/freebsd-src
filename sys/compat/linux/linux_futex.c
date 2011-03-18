@@ -395,7 +395,7 @@ futex_atomic_op(struct thread *td, int encoded_op, uint32_t *uaddr)
 		       "cmparg = %x, uaddr = %p\n",
 		       op, cmp, oparg, cmparg, uaddr);
 #endif
-	/* XXX: linux verifies access here and returns EFAULT */
+	/* XXX: Linux verifies access here and returns EFAULT */
 
 	switch (op) {
 	case FUTEX_OP_SET:
@@ -491,11 +491,6 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		LINUX_CTR2(sys_futex, "WAKE val %d uaddr %p",
 		    args->val, args->uaddr);
 
-		/*
-		 * XXX: Linux is able to cope with different addresses
-		 * corresponding to the same mapped memory in the sleeping
-		 * and waker process(es).
-		 */
 #ifdef DEBUG
 		if (ldebug(sys_futex))
 			printf(ARGS(sys_futex, "futex_wake val %d uaddr %p"),
