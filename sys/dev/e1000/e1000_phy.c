@@ -255,10 +255,6 @@ s32 e1000_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 
 	E1000_WRITE_REG(hw, E1000_MDIC, mdic);
 
-	/* Workaround for Si errata */
-	if ((hw->phy.type == e1000_phy_82577) && (hw->revision_id <= 2))
-		msec_delay(10);
-
 	/*
 	 * Poll the ready bit to see if the MDI read completed
 	 * Increasing the time out as testing showed failures with
@@ -325,10 +321,6 @@ s32 e1000_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 	        (E1000_MDIC_OP_WRITE));
 
 	E1000_WRITE_REG(hw, E1000_MDIC, mdic);
-
-	/* Workaround for Si errata */
-	if ((hw->phy.type == e1000_phy_82577) && (hw->revision_id <= 2))
-		msec_delay(10);
 
 	/*
 	 * Poll the ready bit to see if the MDI read completed
@@ -1656,6 +1648,7 @@ s32 e1000_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 		if (!link) {
 			if (hw->phy.type != e1000_phy_m88 ||
 			    hw->phy.id == I347AT4_E_PHY_ID ||
+			    hw->phy.id == M88E1340M_E_PHY_ID ||
 			    hw->phy.id == M88E1112_E_PHY_ID) {
 				DEBUGOUT("Link taking longer than expected.\n");
 			} else {
@@ -1683,6 +1676,7 @@ s32 e1000_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 
 	if (hw->phy.type != e1000_phy_m88 ||
 	    hw->phy.id == I347AT4_E_PHY_ID ||
+	    hw->phy.id == M88E1340M_E_PHY_ID ||
 	    hw->phy.id == M88E1112_E_PHY_ID)
 		goto out;
 
@@ -2233,6 +2227,7 @@ s32 e1000_get_cable_length_m88_gen2(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_get_cable_length_m88_gen2");
 
 	switch (hw->phy.id) {
+	case M88E1340M_E_PHY_ID:
 	case I347AT4_E_PHY_ID:
 		/* Remember the original page select and set it to 7 */
 		ret_val = phy->ops.read_reg(hw, I347AT4_PAGE_SELECT,
@@ -2787,6 +2782,7 @@ enum e1000_phy_type e1000_get_phy_type_from_id(u32 phy_id)
 	case M88E1011_I_PHY_ID:
 	case I347AT4_E_PHY_ID:
 	case M88E1112_E_PHY_ID:
+	case M88E1340M_E_PHY_ID:
 		phy_type = e1000_phy_m88;
 		break;
 	case IGP01E1000_I_PHY_ID: /* IGP 1 & 2 share this */

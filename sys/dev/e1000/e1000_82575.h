@@ -469,6 +469,8 @@ struct e1000_adv_tx_context_desc {
 void e1000_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable);
 void e1000_vmdq_set_anti_spoofing_pf(struct e1000_hw *hw, bool enable, int pf);
 void e1000_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable);
+s32 e1000_init_nvm_params_82575(struct e1000_hw *hw);
+
 enum e1000_promisc_type {
 	e1000_promisc_disabled = 0,   /* all promisc modes disabled */
 	e1000_promisc_unicast = 1,    /* unicast promiscuous enabled */
