@@ -104,7 +104,7 @@ argument specifies the on-disk metadata format to use for this array,
 such as "Intel".
 The
 .Ar label
-argument specifies teh label of the created volume.
+argument specifies the label of the created volume.
 The
 .Ar level
 argument specifies the RAID level of the created volume, such as:
@@ -236,6 +236,13 @@ The GEOM RAID class follows a modular design, allowing different RAID levels
 to be used.
 Support for the following RAID levels is currently implemented: RAID0, RAID1,
 RAID1E, RAID10, SINGLE, CONCAT.
+.Sh RAID LEVEL MIGRATION
+The GEOM RAID class has no support for RAID level migration, allowed by some
+metadata formats.
+If you started migration using BIOS or in some other way, make sure to
+complete it there.
+Do not run GEOM RAID class on migrating volumes under pain of possible data
+corruption!
 .Sh EXIT STATUS
 Exit status is 0 on success, and non-zero if the command fails.
 .Sh SEE ALSO
