@@ -117,7 +117,12 @@ struct promise_raid_conf {
 						/* Subdisks in this volume. */
 	char		name[32];		/* Volume label. */
 
-	uint32_t	filler2[338];
+	uint32_t	filler2[8];
+	uint32_t	magic_3;	/* Something related to rebuild. */
+	uint64_t	rebuild_lba64;	/* Per-volume rebuild position. */
+	uint32_t	magic_4;
+	uint32_t	magic_5;
+	uint32_t	filler3[325];
 	uint32_t	checksum;
 } __packed;
 
@@ -213,6 +218,10 @@ g_raid_md_promise_print(struct promise_raid_conf *meta)
 		    meta->disks[i].id);
 	}
 	printf("name                <%.32s>\n", meta->name);
+	printf("magic_3             0x%08x\n", meta->magic_3);
+	printf("rebuild_lba64       %ju\n", meta->rebuild_lba64);
+	printf("magic_4             0x%08x\n", meta->magic_4);
+	printf("magic_5             0x%08x\n", meta->magic_5);
 	printf("=================================================\n");
 }
 
@@ -637,7 +646,7 @@ nofit:
 			sd->sd_rebuild_pos = 0;
 		else {
 			sd->sd_rebuild_pos =
-			    pd->pd_meta[sdn]->rebuild_lba * 512;
+			    (off_t)pd->pd_meta[sdn]->rebuild_lba * 512;
 		}
 	} else if (!(meta->disks[md_disk_pos].flags & PROMISE_F_ONLINE)) {
 		/* Rebuilding disk. */
@@ -1753,7 +1762,8 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	struct g_raid_md_promise_perdisk *pd;
 	struct g_raid_md_promise_pervolume *pv;
 	struct promise_raid_conf *meta;
-	int i, j, pos;
+	off_t rebuild_lba64;
+	int i, j, pos, rebuild;
 
 	sc = md->mdo_softc;
 	mdi = (struct g_raid_md_promise_object *)md;
@@ -1800,10 +1810,10 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		meta->generation = pv->pv_generation;
 		meta->status = PROMISE_S_VALID | PROMISE_S_ONLINE |
 		    PROMISE_S_INITED | PROMISE_S_READY;
-		if (vol->v_state < G_RAID_VOLUME_S_OPTIMAL)
+		if (vol->v_state <= G_RAID_VOLUME_S_DEGRADED)
 			meta->status |= PROMISE_S_DEGRADED;
 		if (vol->v_dirty)
-			meta->status |= PROMISE_S_MARKED;
+			meta->status |= PROMISE_S_MARKED; /* XXX: INVENTED! */
 		if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID0 ||
 		    vol->v_raid_level == G_RAID_VOLUME_RL_SINGLE)
 			meta->type = PROMISE_T_RAID0;
@@ -1834,6 +1844,8 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			meta->volume_id = pv->pv_meta->volume_id;
 		else
 			arc4rand(&meta->volume_id, sizeof(meta->volume_id), 0);
+		rebuild_lba64 = UINT64_MAX;
+		rebuild = 0;
 		for (i = 0; i < vol->v_disks_count; i++) {
 			sd = &vol->v_subdisks[i];
 			/* For RAID10 we need to translate order. */
@@ -1845,11 +1857,26 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			} else if (sd->sd_state == G_RAID_SUBDISK_S_FAILED) {
 				meta->disks[pos].flags |=
 				    PROMISE_F_DOWN | PROMISE_F_REDIR;
-			} else if (sd->sd_state < G_RAID_SUBDISK_S_ACTIVE) {
+			} else if (sd->sd_state <= G_RAID_SUBDISK_S_REBUILD) {
 				meta->disks[pos].flags |=
 				    PROMISE_F_ONLINE | PROMISE_F_REDIR;
-			} else
+				if (sd->sd_state == G_RAID_SUBDISK_S_REBUILD) {
+					rebuild_lba64 = min(rebuild_lba64,
+					    sd->sd_rebuild_pos / 512);
+				} else
+					rebuild_lba64 = 0;
+				rebuild = 1;
+			} else {
 				meta->disks[pos].flags |= PROMISE_F_ONLINE;
+				if (sd->sd_state < G_RAID_SUBDISK_S_ACTIVE) {
+					meta->status |= PROMISE_S_MARKED;
+					if (sd->sd_state == G_RAID_SUBDISK_S_RESYNC) {
+						rebuild_lba64 = min(rebuild_lba64,
+						    sd->sd_rebuild_pos / 512);
+					} else
+						rebuild_lba64 = 0;
+				}
+			}
 			if (pv->pv_meta != NULL) {
 				meta->disks[pos].id = pv->pv_meta->disks[pos].id;
 			} else {
@@ -1859,6 +1886,28 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			}
 		}
 		promise_meta_put_name(meta, vol->v_name);
+
+		/* Try to mimic AMD BIOS rebuild/resync behavior. */
+		if (rebuild_lba64 != UINT64_MAX) {
+			if (rebuild)
+				meta->magic_3 = 0x03040010UL; /* Rebuild? */
+			else
+				meta->magic_3 = 0x03040008UL; /* Resync? */
+			/* Translate from per-disk to per-volume LBA. */
+			if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1 ||
+			    vol->v_raid_level == G_RAID_VOLUME_RL_RAID1E) {
+				rebuild_lba64 *= meta->array_width;
+			} else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID3 ||
+			    vol->v_raid_level == G_RAID_VOLUME_RL_RAID5) {
+				rebuild_lba64 *= meta->array_width - 1;
+			} else
+				rebuild_lba64 = 0;
+		} else
+			meta->magic_3 = 0x03000000UL;
+		meta->rebuild_lba64 = rebuild_lba64;
+		meta->magic_4 = 0x04010101UL;
+
+		/* Replace per-volume metadata with new. */
 		if (pv->pv_meta != NULL)
 			free(pv->pv_meta, M_MD_PROMISE);
 		pv->pv_meta = meta;
@@ -1888,8 +1937,10 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			if (sd->sd_state == G_RAID_SUBDISK_S_REBUILD) {
 				pd->pd_meta[j]->rebuild_lba =
 				    sd->sd_rebuild_pos / 512;
-			} else
+			} else if (sd->sd_state < G_RAID_SUBDISK_S_REBUILD)
 				pd->pd_meta[j]->rebuild_lba = 0;
+			else
+				pd->pd_meta[j]->rebuild_lba = UINT32_MAX;
 			pd->pd_updated = 1;
 		}
 	}
