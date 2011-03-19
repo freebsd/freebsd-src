@@ -934,7 +934,7 @@ ar5212SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		else
 			ahp->ah_miscMode |= AR_MISC_MODE_MIC_NEW_LOC_ENABLE;
 		/* NB: write here so keys can be setup w/o a reset */
-		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
+		OS_REG_WRITE(ah, AR_MISC_MODE, OS_REG_READ(ah, AR_MISC_MODE) | ahp->ah_miscMode);
 		return AH_TRUE;
 	case HAL_CAP_DIVERSITY:
 		if (ahp->ah_phyPowerOn) {
