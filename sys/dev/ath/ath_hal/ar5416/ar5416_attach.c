@@ -372,7 +372,7 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	 * placed into hardware.
 	 */
 	if (ahp->ah_miscMode != 0)
-		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
+		OS_REG_WRITE(ah, AR_MISC_MODE, OS_REG_READ(ah, AR_MISC_MODE) | ahp->ah_miscMode);
 
 	rfStatus = ar2133RfAttach(ah, &ecode);
 	if (!rfStatus) {
