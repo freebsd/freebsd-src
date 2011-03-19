@@ -1805,8 +1805,20 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
 		if (vol->v_stopping)
 			continue;
+
+		/* Skip volumes not related to specified targets. */
 		if (tvol != NULL && vol != tvol)
 			continue;
+		if (tsd != NULL && vol != tsd->sd_volume)
+			continue;
+		if (tdisk != NULL) {
+			for (i = 0; i < vol->v_disks_count; i++) {
+				if (vol->v_subdisks[i].sd_disk == tdisk)
+					break;
+			}
+			if (i >= vol->v_disks_count)
+				continue;
+		}
 
 		pv = (struct g_raid_md_promise_pervolume *)vol->v_md_data;
 		pv->pv_generation++;
@@ -1978,26 +1990,36 @@ g_raid_md_fail_disk_promise(struct g_raid_md_object *md,
 	struct g_raid_md_promise_object *mdi;
 	struct g_raid_md_promise_perdisk *pd;
 	struct g_raid_subdisk *sd;
+	int i, pos;
 
 	sc = md->mdo_softc;
 	mdi = (struct g_raid_md_promise_object *)md;
 	pd = (struct g_raid_md_promise_perdisk *)tdisk->d_md_data;
 
 	/* We can't fail disk that is not a part of array now. */
-//	if (pd->pd_disk_pos < 0)
-//		return (-1);
+	if (tdisk->d_state != G_RAID_DISK_S_ACTIVE)
+		return (-1);
 
 	/*
 	 * Mark disk as failed in metadata and try to write that metadata
 	 * to the disk itself to prevent it's later resurrection as STALE.
 	 */
-#if 0
-	mdi->mdio_meta->disk[pd->pd_disk_pos].flags = PROMISE_F_FAILED;
-	pd->pd_disk_meta.flags = PROMISE_F_FAILED;
-	g_raid_md_promise_print(mdi->mdio_meta);
-	if (tdisk->d_consumer)
-		promise_meta_write(tdisk->d_consumer, mdi->mdio_meta);
-#endif
+	if (pd->pd_subdisks > 0 && tdisk->d_consumer != NULL)
+		G_RAID_DEBUG(1, "Writing Promise metadata to %s",
+		    g_raid_get_diskname(tdisk));
+	for (i = 0; i < pd->pd_subdisks; i++) {
+		pd->pd_meta[i]->disk.flags |=
+		    PROMISE_F_DOWN | PROMISE_F_REDIR;
+		pos = pd->pd_meta[i]->disk.number;
+		if (pos >= 0 && pos < PROMISE_MAX_DISKS) {
+			pd->pd_meta[i]->disks[pos].flags |=
+			    PROMISE_F_DOWN | PROMISE_F_REDIR;
+		}
+		g_raid_md_promise_print(pd->pd_meta[i]);
+	}
+	if (tdisk->d_consumer != NULL)
+		promise_meta_write(tdisk->d_consumer,
+		    pd->pd_meta, pd->pd_subdisks);
 
 	/* Change states. */
 	g_raid_change_disk_state(tdisk, G_RAID_DISK_S_FAILED);
