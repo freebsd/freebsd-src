@@ -286,12 +286,11 @@ static int
 ng_iface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ifreq *const ifr = (struct ifreq *) data;
-	int s, error = 0;
+	int error = 0;
 
 #ifdef DEBUG
 	ng_iface_print_ioctl(ifp, command, data);
 #endif
-	s = splimp();
 	switch (command) {
 
 	/* These two are mostly handled at a higher layer */
@@ -343,7 +342,6 @@ ng_iface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = EINVAL;
 		break;
 	}
-	(void) splx(s);
 	return (error);
 }
 
