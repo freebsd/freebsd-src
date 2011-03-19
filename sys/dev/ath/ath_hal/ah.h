@@ -596,6 +596,33 @@ struct ath_rx_status;
 struct ieee80211_channel;
 
 /*
+ * This is a channel survey sample entry.
+ *
+ * The AR5212 ANI routines fill these samples. The ANI code then uses it
+ * when calculating listen time; it is also exported via a diagnostic
+ * API.
+ */
+typedef struct {
+	uint32_t        seq_num;
+	uint32_t        tx_busy;
+	uint32_t        rx_busy;
+	uint32_t        chan_busy;
+	uint32_t        cycle_count;
+} HAL_SURVEY_SAMPLE;
+
+/*
+ * This provides 3.2 seconds of sample space given an
+ * ANI time of 1/10th of a second. This may not be enough!
+ */
+#define	CHANNEL_SURVEY_SAMPLE_COUNT	32
+
+typedef struct {
+	HAL_SURVEY_SAMPLE samples[CHANNEL_SURVEY_SAMPLE_COUNT];
+	uint32_t cur_sample;	/* current sample in sequence */
+	uint32_t cur_seq;	/* current sequence number */
+} HAL_CHANNEL_SURVEY;
+
+/*
  * Hardware Access Layer (HAL) API.
  *
  * Clients of the HAL call ath_hal_attach to obtain a reference to an
