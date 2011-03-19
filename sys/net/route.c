@@ -348,13 +348,13 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 	if (dst->sa_family != AF_INET)	/* Only INET supports > 1 fib now */
 		fibnum = 0;
 	rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
+	newrt = NULL;
 	if (rnh == NULL)
 		goto miss;
 
 	/*
 	 * Look up the address in the table for that Address Family
 	 */
-	newrt = NULL;
 	needlock = !(ignflags & RTF_RNH_LOCKED);
 	if (needlock)
 		RADIX_NODE_HEAD_RLOCK(rnh);
