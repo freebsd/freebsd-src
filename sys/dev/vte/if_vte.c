@@ -1963,9 +1963,10 @@ vte_rxfilter(struct vte_softc *sc)
 	}
 
 	mcr = CSR_READ_2(sc, VTE_MCR0);
-	mcr &= ~(MCR0_PROMISC | MCR0_BROADCAST | MCR0_MULTICAST);
+	mcr &= ~(MCR0_PROMISC | MCR0_MULTICAST);
+	mcr |= MCR0_BROADCAST_DIS;
 	if ((ifp->if_flags & IFF_BROADCAST) != 0)
-		mcr |= MCR0_BROADCAST;
+		mcr &= ~MCR0_BROADCAST_DIS;
 	if ((ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
 		if ((ifp->if_flags & IFF_PROMISC) != 0)
 			mcr |= MCR0_PROMISC;
