@@ -1803,7 +1803,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			i = strtol(volname, &tmp, 10);
 			if (verb != volname && tmp[0] == 0) {
 				TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
-					if ((intptr_t)vol->v_md_data == i)
+					if (vol->v_global_id == i)
 						break;
 				}
 			}
