@@ -285,7 +285,7 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	ahp->ah_intrTxqs = 0;
 	for (i = 0; i < AH_PRIVATE(ah)->ah_caps.halTotalQueues; i++)
-		ar5212ResetTxQueue(ah, i);
+		ah->ah_resetTxQueue(ah, i);
 
 	ar5416InitIMR(ah, opmode);
 	ar5212SetCoverageClass(ah, AH_PRIVATE(ah)->ah_coverageClass, 1);
