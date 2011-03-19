@@ -1117,9 +1117,8 @@ g_raid_md_event_promise(struct g_raid_md_object *md,
 		/* Write updated metadata to all disks. */
 		g_raid_md_write_promise(md, NULL, NULL, NULL);
 
-		/* Check if anything left except placeholders. */
-		if (g_raid_ndisks(sc, -1) ==
-		    g_raid_ndisks(sc, G_RAID_DISK_S_OFFLINE))
+		/* Check if anything left. */
+		if (g_raid_ndisks(sc, -1) == 0)
 			g_raid_destroy_node(sc, 0);
 		else
 			g_raid_md_promise_refill(sc);
@@ -1340,16 +1339,12 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			sd->sd_offset = 0;
 			sd->sd_size = size;
 			TAILQ_INSERT_TAIL(&disk->d_subdisks, sd, sd_next);
-			if (sd->sd_disk->d_consumer != NULL) {
-				g_raid_change_disk_state(disk,
-				    G_RAID_DISK_S_ACTIVE);
-				g_raid_change_subdisk_state(sd,
-				    G_RAID_SUBDISK_S_ACTIVE);
-				g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
-				    G_RAID_EVENT_SUBDISK);
-			} else {
-				g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
-			}
+			g_raid_change_disk_state(disk,
+			    G_RAID_DISK_S_ACTIVE);
+			g_raid_change_subdisk_state(sd,
+			    G_RAID_SUBDISK_S_ACTIVE);
+			g_raid_event_send(sd, G_RAID_SUBDISK_E_NEW,
+			    G_RAID_EVENT_SUBDISK);
 		}
 
 		/* Write metadata based on created entities. */
@@ -1651,35 +1646,16 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 
 			pd = (struct g_raid_md_promise_perdisk *)disk->d_md_data;
 
-			/* Erase metadata on deleting disk. */
+			/* Erase metadata on deleting disk and destroy it. */
 			promise_meta_erase(disk->d_consumer);
-
-			/* If disk was assigned, just update statuses. */
-			if (pd->pd_subdisks >= 0) {
-				g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
-				if (disk->d_consumer) {
-					g_raid_kill_consumer(sc, disk->d_consumer);
-					disk->d_consumer = NULL;
-				}
-				TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
-					g_raid_change_subdisk_state(sd,
-					    G_RAID_SUBDISK_S_NONE);
-					g_raid_event_send(sd, G_RAID_SUBDISK_E_DISCONNECTED,
-					    G_RAID_EVENT_SUBDISK);
-				}
-			} else {
-				/* Otherwise -- delete. */
-				g_raid_change_disk_state(disk, G_RAID_DISK_S_NONE);
-				g_raid_destroy_disk(disk);
-			}
+			g_raid_destroy_disk(disk);
 		}
 
 		/* Write updated metadata to remaining disks. */
 		g_raid_md_write_promise(md, NULL, NULL, NULL);
 
-		/* Check if anything left except placeholders. */
-		if (g_raid_ndisks(sc, -1) ==
-		    g_raid_ndisks(sc, G_RAID_DISK_S_OFFLINE))
+		/* Check if anything left. */
+		if (g_raid_ndisks(sc, -1) == 0)
 			g_raid_destroy_node(sc, 0);
 		else
 			g_raid_md_promise_refill(sc);
@@ -2033,9 +2009,8 @@ g_raid_md_fail_disk_promise(struct g_raid_md_object *md,
 	/* Write updated metadata to remaining disks. */
 	g_raid_md_write_promise(md, NULL, NULL, tdisk);
 
-	/* Check if anything left except placeholders. */
-	if (g_raid_ndisks(sc, -1) ==
-	    g_raid_ndisks(sc, G_RAID_DISK_S_OFFLINE))
+	/* Check if anything left. */
+	if (g_raid_ndisks(sc, -1) == 0)
 		g_raid_destroy_node(sc, 0);
 	else
 		g_raid_md_promise_refill(sc);
