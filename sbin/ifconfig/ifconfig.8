@@ -2508,7 +2508,6 @@ to use 100baseTX, full duplex Ethernet media options:
 .Dl # ifconfig xl0 media 100baseTX mediaopt full-duplex
 .Pp
 Label the em0 interface as an uplink:
-.Pp
 .Dl # ifconfig em0 description \&"Uplink to Gigabit Switch 2\&"
 .Pp
 Create the software network interface
@@ -2518,6 +2517,10 @@ Create the software network interface
 Destroy the software network interface
 .Li gif1 :
 .Dl # ifconfig gif1 destroy
+.Pp
+Scan for wireless networks using
+.Li wlan0 :
+.Dl # ifconfig wlan0 scan
 .Sh DIAGNOSTICS
 Messages indicating the specified interface does not exist, the
 requested address is unknown, or the user is not privileged and
