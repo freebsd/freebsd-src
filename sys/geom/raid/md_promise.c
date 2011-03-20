@@ -448,6 +448,70 @@ g_raid_md_promise_get_volume(struct g_raid_softc *sc, uint64_t id)
 }
 
 static int
+g_raid_md_promise_purge_volumes(struct g_raid_softc *sc)
+{
+	struct g_raid_volume	*vol, *tvol;
+	struct g_raid_md_promise_pervolume *pv;
+	int i, res;
+
+	res = 0;
+	TAILQ_FOREACH_SAFE(vol, &sc->sc_volumes, v_next, tvol) {
+		pv = vol->v_md_data;
+		if (!pv->pv_started || vol->v_stopping)
+			continue;
+		for (i = 0; i < vol->v_disks_count; i++) {
+			if (vol->v_subdisks[i].sd_state != G_RAID_SUBDISK_S_NONE)
+				break;
+		}
+		if (i >= vol->v_disks_count) {
+			g_raid_destroy_volume(vol);
+			res = 1;
+		}
+	}
+	return (res);
+}
+
+static int
+g_raid_md_promise_purge_disks(struct g_raid_softc *sc)
+{
+	struct g_raid_disk	*disk, *tdisk;
+	struct g_raid_volume	*vol;
+	struct g_raid_md_promise_perdisk *pd;
+	int i, j, res;
+
+	res = 0;
+	TAILQ_FOREACH_SAFE(disk, &sc->sc_disks, d_next, tdisk) {
+		if (disk->d_state == G_RAID_DISK_S_SPARE)
+			continue;
+		pd = (struct g_raid_md_promise_perdisk *)disk->d_md_data;
+
+		/* Scan for deleted volumes. */
+		for (i = 0; i < pd->pd_subdisks; ) {
+			vol = g_raid_md_promise_get_volume(sc,
+			    pd->pd_meta[i]->volume_id);
+			if (vol != NULL && !vol->v_stopping) {
+				i++;
+				continue;
+			}
+			free(pd->pd_meta[i], M_MD_PROMISE);
+			for (j = i; j < pd->pd_subdisks - 1; j++)
+				pd->pd_meta[j] = pd->pd_meta[j + 1];
+			pd->pd_meta[PROMISE_MAX_SUBDISKS - 1] = NULL;
+			pd->pd_subdisks--;
+			pd->pd_updated = 1;
+		}
+
+		/* If there is no metadata left - erase and delete disk. */
+		if (pd->pd_subdisks == 0) {
+			promise_meta_erase(disk->d_consumer);
+			g_raid_destroy_disk(disk);
+			res = 1;
+		}
+	}
+	return (res);
+}
+
+static int
 g_raid_md_promise_supported(int level, int qual, int disks, int force)
 {
 
@@ -1113,6 +1177,7 @@ g_raid_md_event_promise(struct g_raid_md_object *md,
 		/* Delete disk. */
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_NONE);
 		g_raid_destroy_disk(disk);
+		g_raid_md_promise_purge_volumes(sc);
 
 		/* Write updated metadata to all disks. */
 		g_raid_md_write_promise(md, NULL, NULL, NULL);
@@ -1598,6 +1663,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			i++;
 		if (i >= 2) {
 			g_raid_destroy_volume(vol);
+			g_raid_md_promise_purge_disks(sc);
 			g_raid_md_write_promise(md, NULL, NULL, NULL);
 		} else {
 			TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
@@ -1650,6 +1716,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			promise_meta_erase(disk->d_consumer);
 			g_raid_destroy_disk(disk);
 		}
+		g_raid_md_promise_purge_volumes(sc);
 
 		/* Write updated metadata to remaining disks. */
 		g_raid_md_write_promise(md, NULL, NULL, NULL);
@@ -1755,27 +1822,6 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 
 	if (sc->sc_stopping == G_RAID_DESTROY_HARD)
 		return (0);
-
-	/* Clear "updated" flags and scan for deleted volumes. */
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-		pd = (struct g_raid_md_promise_perdisk *)disk->d_md_data;
-		pd->pd_updated = 0;
-
-		for (i = 0; i < pd->pd_subdisks; ) {
-			vol = g_raid_md_promise_get_volume(sc,
-			    pd->pd_meta[i]->volume_id);
-			if (vol != NULL && !vol->v_stopping) {
-				i++;
-				continue;
-			}
-			free(pd->pd_meta[i], M_MD_PROMISE);
-			for (j = i; j < pd->pd_subdisks - 1; j++)
-				pd->pd_meta[j] = pd->pd_meta[j + 1];
-			pd->pd_meta[PROMISE_MAX_SUBDISKS - 1] = NULL;
-			pd->pd_subdisks--;
-			pd->pd_updated = 1;
-		}
-	}
 
 	/* Generate new per-volume metadata for affected volumes. */
 	TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
@@ -1953,6 +1999,7 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			g_raid_md_promise_print(pd->pd_meta[i]);
 		promise_meta_write(disk->d_consumer,
 		    pd->pd_meta, pd->pd_subdisks);
+		pd->pd_updated = 0;
 	}
 
 	return (0);
