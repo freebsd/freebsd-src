@@ -919,12 +919,12 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 	/* NB: always enable DCU to wait for next fragment from QCU */
 	dmisc = AR_D_MISC_FRAG_WAIT_EN;
 
-#ifdef AH_SUPPORT_5311
-	if (AH_PRIVATE(ah)->ah_macVersion < AR_SREV_VERSION_OAHU) {
-		/* Configure DCU to use the global sequence count */
-		dmisc |= AR5311_D_MISC_SEQ_NUM_CONTROL;
-	}
-#endif
+	/* 
+	 * The chip reset default is to use a DCU backoff threshold of 0x2.
+	 * Restore this when programming the DCU MISC register.
+	 */
+	dmisc |= 0x2;
+
 	/* multiqueue support */
 	if (qi->tqi_cbrPeriod) {
 		OS_REG_WRITE(ah, AR_QCBRCFG(q), 
