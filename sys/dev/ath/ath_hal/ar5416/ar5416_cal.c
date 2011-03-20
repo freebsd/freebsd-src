@@ -235,11 +235,13 @@ ar5416InitCalHardware(struct ath_hal *ah, const struct ieee80211_channel *chan)
 /*
  * Initialize Calibration infrastructure.
  */
+#define	MAX_CAL_CHECK		32
 HAL_BOOL
 ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
 	HAL_CHANNEL_INTERNAL *ichan;
+	int i;
 
 	ichan = ath_hal_checkchannel(ah, chan);
 	HALASSERT(ichan != AH_NULL);
@@ -264,13 +266,29 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	/* XXX this actually kicks off a NF calibration -adrian */
 	OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
 	/*
-	 * Try to make sure the above NF cal completes, just so
-	 * it doesn't clash with subsequent percals -adrian
+	 * This sometimes takes a -lot- longer than it should.
+	 * Just give it a bit more time.
 	 */
-	if (! ar5212WaitNFCalComplete(ah, 10000)) {
+	for (i = 0; i < MAX_CAL_CHECK; i++) {
+		if (ar5212WaitNFCalComplete(ah, 10000))
+			break;
+
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: initial NF calibration did "
-		    "not complete in time; noisy environment?\n", __func__);
-		return AH_FALSE;
+		    "not complete in time; noisy environment (pass %d)?\n", __func__, i);
+	}
+	
+	/*
+	 * Although periodic and NF calibrations shouldn't run concurrently,
+	 * this was causing the radio to not be usable on the active
+	 * channel if the channel was busy.
+	 *
+	 * Instead, now simply print a warning and continue. That way if users
+	 * report "weird crap", they should get this warning.
+	 */
+	if (i >= MAX_CAL_CHECK) {
+		ath_hal_printf(ah, "[ath] Warning - initial NF calibration did "
+		    "not complete in time, noisy environment?\n");
+		/* return AH_FALSE; */
 	}
 
 	/* Initialize list pointers */
@@ -325,6 +343,7 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	ichan->calValid = 0;
 
 	return AH_TRUE;
+#undef	MAX_CAL_CHECK
 }
 
 /*
