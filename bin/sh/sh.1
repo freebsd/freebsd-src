@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2011
+.Dd March 20, 2011
 .Dt SH 1
 .Os
 .Sh NAME
@@ -934,9 +934,9 @@ or
 .Pp
 .D1 Li { Ar list Ns Li \&; }
 .Pp
-The first form executes the commands in a subshell.
+The first form executes the commands in a subshell environment.
 Note that built-in commands thus executed do not affect the current shell.
-The second form does not fork another shell,
+The second form never forks another shell,
 so it is slightly more efficient.
 Grouping commands together this way allows the user to
 redirect their output as though they were one program:
@@ -1450,8 +1450,8 @@ or the backquoted version:
 .Pp
 .D1 Li ` Ns Ar command Ns Li `
 .Pp
-The shell expands the command substitution by executing command in a
-subshell environment and replacing the command substitution
+The shell expands the command substitution by executing command
+and replacing the command substitution
 with the standard output of the command,
 removing sequences of one or more newlines at the end of the substitution.
 Embedded newlines before the end of the output are not removed;
@@ -1459,6 +1459,18 @@ however, during field splitting, they may be translated into spaces
 depending on the value of
 .Va IFS
 and the quoting that is in effect.
+The command is executed in a subshell environment,
+except that the built-in commands
+.Ic jobid ,
+.Ic jobs ,
+.Ic times
+and
+.Ic trap
+return information about the main shell environment
+if they are the only command in a command substitution
+and the substitutions in the command cannot cause side effects
+(such as from assigning values to variables or referencing
+.Li $! ).
 .Ss Arithmetic Expansion
 Arithmetic expansion provides a mechanism for evaluating an arithmetic
 expression and substituting its value.
@@ -2265,8 +2277,8 @@ Omitting the
 .Ar action
 is another way to request the default action, for compatibility reasons this
 usage is not recommended though.
-When the shell forks off a subshell,
-it resets trapped (but not ignored) signals to the default action.
+In a subshell environment,
+the shell resets trapped (but not ignored) signals to the default action.
 The
 .Ic trap
 command has no effect on signals that were ignored on entry to the shell.
