@@ -72,9 +72,12 @@ ar5416IsCalSupp(struct ath_hal *ah, const struct ieee80211_channel *chan,
 		return !IEEE80211_IS_CHAN_B(chan);
 	case ADC_GAIN_CAL:
 	case ADC_DC_CAL:
-		/* Run ADC Gain Cal for non-CCK & non 2GHz-HT20 only */
-		return !IEEE80211_IS_CHAN_B(chan) &&
-		    !(IEEE80211_IS_CHAN_2GHZ(chan) && IEEE80211_IS_CHAN_HT20(chan));
+		/* Run ADC Gain Cal for either 5ghz any or 2ghz HT40 */
+		if (IEEE80211_IS_CHAN_2GHZ(chan))
+			return AH_FALSE;
+		if (IEEE80211_IS_CHAN_HT20(chan))
+			return AH_FALSE;
+		return AH_TRUE;
 	}
 	return AH_FALSE;
 }
