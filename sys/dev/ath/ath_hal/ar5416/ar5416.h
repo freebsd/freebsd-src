@@ -275,6 +275,10 @@ extern	HAL_STATUS ar5416ProcTxDesc(struct ath_hal *ah,
 extern	HAL_BOOL ar5416GetTxCompletionRates(struct ath_hal *ah,
 		const struct ath_desc *ds0, int *rates, int *tries);
 
+extern	HAL_BOOL ar5416ResetTxQueue(struct ath_hal *ah, u_int q);
+extern	int ar5416SetupTxQueue(struct ath_hal *ah, HAL_TX_QUEUE type,
+	        const HAL_TXQ_INFO *qInfo);
+
 extern	HAL_BOOL ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		u_int pktLen, u_int hdrLen, HAL_PKT_TYPE type, u_int keyIx,
 		HAL_CIPHER cipher, uint8_t delims, u_int segLen, HAL_BOOL firstSeg,
