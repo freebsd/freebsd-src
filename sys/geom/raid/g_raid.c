@@ -474,21 +474,16 @@ g_raid_event_send(void *arg, int event, int flags)
 	return (error);
 }
 
-#if 0
 static void
-g_raid_event_cancel(struct g_raid_disk *disk)
+g_raid_event_cancel(struct g_raid_softc *sc, void *tgt)
 {
-	struct g_raid_softc *sc;
 	struct g_raid_event *ep, *tmpep;
 
-	sc = disk->d_softc;
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
 	mtx_lock(&sc->sc_queue_mtx);
 	TAILQ_FOREACH_SAFE(ep, &sc->sc_events, e_next, tmpep) {
-		if ((ep->e_flags & G_RAID_EVENT_VOLUME) != 0)
-			continue;
-		if (ep->e_tgt != disk)
+		if (ep->e_tgt != tgt)
 			continue;
 		TAILQ_REMOVE(&sc->sc_events, ep, e_next);
 		if ((ep->e_flags & G_RAID_EVENT_WAIT) == 0)
@@ -500,7 +495,6 @@ g_raid_event_cancel(struct g_raid_disk *disk)
 	}
 	mtx_unlock(&sc->sc_queue_mtx);
 }
-#endif
 
 static int
 g_raid_event_check(struct g_raid_softc *sc, void *tgt)
@@ -1833,6 +1827,7 @@ g_raid_destroy_node(struct g_raid_softc *sc, int worker)
 	} else
 		G_RAID_DEBUG(1, "Array destroyed.");
 	if (worker) {
+		g_raid_event_cancel(sc, sc);
 		mtx_destroy(&sc->sc_queue_mtx);
 		sx_xunlock(&sc->sc_lock);
 		sx_destroy(&sc->sc_lock);
@@ -1883,6 +1878,7 @@ g_raid_destroy_volume(struct g_raid_volume *vol)
 	g_topology_unlock();
 	TAILQ_REMOVE(&sc->sc_volumes, vol, v_next);
 	for (i = 0; i < G_RAID_MAX_SUBDISKS; i++) {
+		g_raid_event_cancel(sc, &vol->v_subdisks[i]);
 		disk = vol->v_subdisks[i].sd_disk;
 		if (disk == NULL)
 			continue;
@@ -1891,6 +1887,7 @@ g_raid_destroy_volume(struct g_raid_volume *vol)
 	G_RAID_DEBUG1(2, sc, "Volume %s destroyed.", vol->v_name);
 	if (sc->sc_md)
 		G_RAID_MD_FREE_VOLUME(sc->sc_md, vol);
+	g_raid_event_cancel(sc, vol);
 	free(vol, M_RAID);
 	if (sc->sc_stopping == G_RAID_DESTROY_HARD) {
 		/* Wake up worker to let it selfdestruct. */
@@ -1921,6 +1918,7 @@ g_raid_destroy_disk(struct g_raid_disk *disk)
 	TAILQ_REMOVE(&sc->sc_disks, disk, d_next);
 	if (sc->sc_md)
 		G_RAID_MD_FREE_DISK(sc->sc_md, disk);
+	g_raid_event_cancel(sc, disk);
 	free(disk, M_RAID);
 	return (0);
 }
