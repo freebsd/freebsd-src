@@ -360,6 +360,8 @@ resource_needs_restart(const struct hast_resource *res0,
 	    res0->hr_role == HAST_ROLE_SECONDARY) {
 		if (strcmp(res0->hr_remoteaddr, res1->hr_remoteaddr) != 0)
 			return (true);
+		if (strcmp(res0->hr_sourceaddr, res1->hr_sourceaddr) != 0)
+			return (true);
 		if (res0->hr_replication != res1->hr_replication)
 			return (true);
 		if (res0->hr_checksum != res1->hr_checksum)
@@ -388,6 +390,8 @@ resource_needs_reload(const struct hast_resource *res0,
 
 	if (strcmp(res0->hr_remoteaddr, res1->hr_remoteaddr) != 0)
 		return (true);
+	if (strcmp(res0->hr_sourceaddr, res1->hr_sourceaddr) != 0)
+		return (true);
 	if (res0->hr_replication != res1->hr_replication)
 		return (true);
 	if (res0->hr_checksum != res1->hr_checksum)
@@ -412,6 +416,7 @@ resource_reload(const struct hast_resource *res)
 	nvout = nv_alloc();
 	nv_add_uint8(nvout, HASTCTL_RELOAD, "cmd");
 	nv_add_string(nvout, res->hr_remoteaddr, "remoteaddr");
+	nv_add_string(nvout, res->hr_sourceaddr, "sourceaddr");
 	nv_add_int32(nvout, (int32_t)res->hr_replication, "replication");
 	nv_add_int32(nvout, (int32_t)res->hr_checksum, "checksum");
 	nv_add_int32(nvout, (int32_t)res->hr_compression, "compression");
@@ -572,6 +577,8 @@ hastd_reload(void)
 			    cres->hr_name);
 			strlcpy(cres->hr_remoteaddr, nres->hr_remoteaddr,
 			    sizeof(cres->hr_remoteaddr));
+			strlcpy(cres->hr_sourceaddr, nres->hr_sourceaddr,
+			    sizeof(cres->hr_sourceaddr));
 			cres->hr_replication = nres->hr_replication;
 			cres->hr_checksum = nres->hr_checksum;
 			cres->hr_compression = nres->hr_compression;
@@ -849,7 +856,8 @@ connection_migrate(struct hast_resource *res)
 		    "Unable to receive connection command");
 		return;
 	}
-	if (proto_client(res->hr_remoteaddr, &conn) < 0) {
+	if (proto_client(res->hr_sourceaddr[0] != '\0' ? res->hr_sourceaddr : NULL,
+	    res->hr_remoteaddr, &conn) < 0) {
 		val = errno;
 		pjdlog_errno(LOG_WARNING,
 		    "Unable to create outgoing connection to %s",

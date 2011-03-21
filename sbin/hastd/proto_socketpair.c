@@ -57,13 +57,15 @@ struct sp_ctx {
 static void sp_close(void *ctx);
 
 static int
-sp_client(const char *addr, void **ctxp)
+sp_client(const char *srcaddr, const char *dstaddr, void **ctxp)
 {
 	struct sp_ctx *spctx;
 	int ret;
 
-	if (strcmp(addr, "socketpair://") != 0)
+	if (strcmp(dstaddr, "socketpair://") != 0)
 		return (-1);
+
+	PJDLOG_ASSERT(srcaddr == NULL);
 
 	spctx = malloc(sizeof(*spctx));
 	if (spctx == NULL)

@@ -86,7 +86,7 @@ struct hio {
 	 */
 	int			*hio_errors;
 	/*
-	 * Structure used to comunicate with GEOM Gate class.
+	 * Structure used to communicate with GEOM Gate class.
 	 */
 	struct g_gate_ctl_io	 hio_ggio;
 	TAILQ_ENTRY(hio)	*hio_next;
@@ -808,7 +808,7 @@ hastd_primary(struct hast_resource *res)
 	 * Create communication channel for sending control commands from
 	 * parent to child.
 	 */
-	if (proto_client("socketpair://", &res->hr_ctrl) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_ctrl) < 0) {
 		/* TODO: There's no need for this to be fatal error. */
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
@@ -817,7 +817,7 @@ hastd_primary(struct hast_resource *res)
 	/*
 	 * Create communication channel for sending events from child to parent.
 	 */
-	if (proto_client("socketpair://", &res->hr_event) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_event) < 0) {
 		/* TODO: There's no need for this to be fatal error. */
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
@@ -827,7 +827,7 @@ hastd_primary(struct hast_resource *res)
 	 * Create communication channel for sending connection requests from
 	 * child to parent.
 	 */
-	if (proto_client("socketpair://", &res->hr_conn) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_conn) < 0) {
 		/* TODO: There's no need for this to be fatal error. */
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
@@ -1918,6 +1918,7 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	PJDLOG_ASSERT(res->hr_role == HAST_ROLE_PRIMARY);
 	PJDLOG_ASSERT(gres == res);
 	nv_assert(nv, "remoteaddr");
+	nv_assert(nv, "sourceaddr");
 	nv_assert(nv, "replication");
 	nv_assert(nv, "checksum");
 	nv_assert(nv, "compression");
@@ -1927,11 +1928,12 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	ncomps = HAST_NCOMPONENTS;
 
 #define MODIFIED_REMOTEADDR	0x01
-#define MODIFIED_REPLICATION	0x02
-#define MODIFIED_CHECKSUM	0x04
-#define MODIFIED_COMPRESSION	0x08
-#define MODIFIED_TIMEOUT	0x10
-#define MODIFIED_EXEC		0x20
+#define MODIFIED_SOURCEADDR	0x02
+#define MODIFIED_REPLICATION	0x04
+#define MODIFIED_CHECKSUM	0x08
+#define MODIFIED_COMPRESSION	0x10
+#define MODIFIED_TIMEOUT	0x20
+#define MODIFIED_EXEC		0x40
 	modified = 0;
 
 	vstr = nv_get_string(nv, "remoteaddr");
@@ -1942,6 +1944,11 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 		 * addresses, not from the new ones.
 		 */
 		modified |= MODIFIED_REMOTEADDR;
+	}
+	vstr = nv_get_string(nv, "sourceaddr");
+	if (strcmp(gres->hr_sourceaddr, vstr) != 0) {
+		strlcpy(gres->hr_sourceaddr, vstr, sizeof(gres->hr_sourceaddr));
+		modified |= MODIFIED_SOURCEADDR;
 	}
 	vint = nv_get_int32(nv, "replication");
 	if (gres->hr_replication != vint) {
@@ -1974,7 +1981,8 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	 * Don't bother if we need to reconnect.
 	 */
 	if ((modified & MODIFIED_TIMEOUT) != 0 &&
-	    (modified & (MODIFIED_REMOTEADDR | MODIFIED_REPLICATION)) == 0) {
+	    (modified & (MODIFIED_REMOTEADDR | MODIFIED_SOURCEADDR |
+	    MODIFIED_REPLICATION)) == 0) {
 		for (ii = 0; ii < ncomps; ii++) {
 			if (!ISREMOTE(ii))
 				continue;
@@ -1996,7 +2004,8 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 			}
 		}
 	}
-	if ((modified & (MODIFIED_REMOTEADDR | MODIFIED_REPLICATION)) != 0) {
+	if ((modified & (MODIFIED_REMOTEADDR | MODIFIED_SOURCEADDR |
+	    MODIFIED_REPLICATION)) != 0) {
 		for (ii = 0; ii < ncomps; ii++) {
 			if (!ISREMOTE(ii))
 				continue;
@@ -2009,6 +2018,7 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 		}
 	}
 #undef	MODIFIED_REMOTEADDR
+#undef	MODIFIED_SOURCEADDR
 #undef	MODIFIED_REPLICATION
 #undef	MODIFIED_CHECKSUM
 #undef	MODIFIED_COMPRESSION

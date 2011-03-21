@@ -105,7 +105,8 @@ proto_free(struct proto_conn *conn)
 }
 
 static int
-proto_common_setup(const char *addr, struct proto_conn **connp, int side)
+proto_common_setup(const char *srcaddr, const char *dstaddr,
+    struct proto_conn **connp, int side)
 {
 	struct hast_proto *proto;
 	struct proto_conn *conn;
@@ -120,16 +121,16 @@ proto_common_setup(const char *addr, struct proto_conn **connp, int side)
 			if (proto->hp_client == NULL)
 				ret = -1;
 			else
-				ret = proto->hp_client(addr, &ctx);
+				ret = proto->hp_client(srcaddr, dstaddr, &ctx);
 		} else /* if (side == PROTO_SIDE_SERVER_LISTEN) */ {
 			if (proto->hp_server == NULL)
 				ret = -1;
 			else
-				ret = proto->hp_server(addr, &ctx);
+				ret = proto->hp_server(dstaddr, &ctx);
 		}
 		/*
 		 * ret == 0  - success
-		 * ret == -1 - addr is not for this protocol
+		 * ret == -1 - dstaddr is not for this protocol
 		 * ret > 0   - right protocol, but an error occured
 		 */
 		if (ret >= 0)
@@ -159,10 +160,11 @@ proto_common_setup(const char *addr, struct proto_conn **connp, int side)
 }
 
 int
-proto_client(const char *addr, struct proto_conn **connp)
+proto_client(const char *srcaddr, const char *dstaddr,
+    struct proto_conn **connp)
 {
 
-	return (proto_common_setup(addr, connp, PROTO_SIDE_CLIENT));
+	return (proto_common_setup(srcaddr, dstaddr, connp, PROTO_SIDE_CLIENT));
 }
 
 int
@@ -211,7 +213,7 @@ int
 proto_server(const char *addr, struct proto_conn **connp)
 {
 
-	return (proto_common_setup(addr, connp, PROTO_SIDE_SERVER_LISTEN));
+	return (proto_common_setup(NULL, addr, connp, PROTO_SIDE_SERVER_LISTEN));
 }
 
 int
