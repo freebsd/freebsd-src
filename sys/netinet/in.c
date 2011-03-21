@@ -1174,8 +1174,8 @@ in_scrubprefix(struct in_ifaddr *target)
 		 *      doesn't support such action.
 		 */
 		if ((ia->ia_flags & IFA_ROUTE) == 0
-		    && (ia->ia_ifp->if_type != IFT_CARP)
-							) {
+		    && (ia->ia_ifp->if_type != IFT_CARP)) {
+			ifa_ref(&ia->ia_ifa);
 			IN_IFADDR_RUNLOCK();
 			rtinit(&(target->ia_ifa), (int)RTM_DELETE,
 			    rtinitflags(target));
@@ -1185,6 +1185,7 @@ in_scrubprefix(struct in_ifaddr *target)
 			    rtinitflags(ia) | RTF_UP);
 			if (error == 0)
 				ia->ia_flags |= IFA_ROUTE;
+			ifa_free(&ia->ia_ifa);
 			return (error);
 		}
 	}
