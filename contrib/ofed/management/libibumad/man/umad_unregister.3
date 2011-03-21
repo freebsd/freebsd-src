@@ -1,0 +1,30 @@
+.\" -*- nroff -*-
+.\"
+.TH UMAD_UNREGISTER 3  "May 21, 2007" "OpenIB" "OpenIB Programmer\'s Manual"
+.SH "NAME"
+umad_unregister \- unregister umad agent
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/umad.h>
+.sp
+.BI "int umad_unregister(int " "portid" ", int " "agentid");
+.fi
+.SH "DESCRIPTION"
+.B umad_unregister()
+unregisters the specified
+.I agentid\fR
+previously registered using
+.B umad_register()
+or
+.B umad_register_oui()\fR.
+.SH "RETURN VALUE"
+.B umad_unregister()
+returns 0 on success and negative value on error as follows:
+ -EINVAL invalid port handle or agentid
+ *       (kernel error codes)
+.SH "SEE ALSO"
+.BR umad_register (3),
+.BR umad_register_oui (3)
+.SH "AUTHOR"
+.TP
+Hal Rosenstock <halr@voltaire.com>

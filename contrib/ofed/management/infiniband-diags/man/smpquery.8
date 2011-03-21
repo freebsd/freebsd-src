@@ -1,0 +1,113 @@
+.TH SMPQUERY 8 "March 14, 2007" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+smpquery \- query InfiniBand subnet management attributes
+
+.SH SYNOPSIS
+.B smpquery
+[\-d(ebug)] [\-e(rr_show)] [\-v(erbose)] [\-D(irect)] [\-G(uid)] [\-C ca_name] [\-P ca_port] [\-t(imeout) timeout_ms] [--node-name-map node-name-map] [\-V(ersion)] [\-h(elp)] <op> <dest dr_path|lid|guid> [op params]
+
+.SH DESCRIPTION
+.PP
+smpquery allows a basic subset of standard SMP queries including the following:
+node info, node description, switch info, port info. Fields are displayed in
+human readable format.
+
+.SH OPTIONS
+
+.PP
+.TP
+Current supported operations and their parameters:
+        nodeinfo <addr>
+        nodedesc <addr>
+        portinfo <addr> [<portnum>]     # default port is zero
+        switchinfo <addr>
+        pkeys <addr> [<portnum>]
+        sl2vl <addr> [<portnum>]
+        vlarb <addr> [<portnum>]
+        guids <addr>
+
+.TP
+\fB\-\-node\-name\-map\fR <node-name-map>
+Specify a node name map.  The node name map file maps GUIDs to more user friendly
+names.  See
+.B ibnetdiscover(8)
+for node name map file format.
+
+.SH COMMON OPTIONS
+
+Most OpenIB diagnostics take the following common flags. The exact list of
+supported flags per utility can be found in the usage message and can be shown
+using the util_name -h syntax.
+
+# Debugging flags
+.PP
+\-d      raise the IB debugging level.
+        May be used several times (-ddd or -d -d -d).
+.PP
+\-e      show send and receive errors (timeouts and others)
+.PP
+\-h      show the usage message
+.PP
+\-v      increase the application verbosity level.
+        May be used several times (-vv or -v -v -v)
+.PP
+\-V      show the version info.
+
+# Addressing flags
+.PP
+\-D      use directed path address arguments. The path
+        is a comma separated list of out ports.
+        Examples:
+        "0"             # self port
+        "0,1,2,1,4"     # out via port 1, then 2, ...
+.PP
+\-c      use combined route address arguments. The
+        address is a combination of a LID and a direct route path.
+        The LID specified is the DLID and the local LID is used
+        as the DrSLID.
+.PP
+\-G      use GUID address argument. In most cases, it is the Port GUID.
+        Example:
+        "0x08f1040023"
+.PP
+\-s <smlid>      use 'smlid' as the target lid for SM/SA queries.
+
+# Other common flags:
+.PP
+\-C <ca_name>    use the specified ca_name.
+.PP
+\-P <ca_port>    use the specified ca_port.
+.PP
+\-t <timeout_ms> override the default timeout for the solicited mads.
+
+Multiple CA/Multiple Port Support
+
+When no IB device or port is specified, the port to use is selected
+by the following criteria:
+.PP
+1. the first port that is ACTIVE.
+.PP
+2. if not found, the first port that is UP (physical link up).
+
+If a port and/or CA name is specified, the user request is
+attempted to be fulfilled, and will fail if it is not possible.
+
+.SH EXAMPLES
+
+.PP
+smpquery portinfo 3 1        # portinfo by lid, with port modifier
+.PP
+smpquery -G switchinfo 0x2C9000100D051 1        # switchinfo by guid
+.PP
+smpquery -D nodeinfo 0       # nodeinfo by direct route
+.PP
+smpquery -c nodeinfo 6 0,12  # nodeinfo by combined route
+
+.SH SEE ALSO
+.BR smpdump (8)
+
+.SH AUTHOR
+.TP
+Hal Rosenstock
+.RI < halr@voltaire.com >
