@@ -56,7 +56,8 @@ page_address(struct page *page)
 
 	if (page->object != kmem_object && page->object != kernel_object)
 		return (NULL);
-	return (void *)(VM_MIN_KERNEL_ADDRESS + IDX_TO_OFF(page->pindex));
+	return ((void *)(uintptr_t)(VM_MIN_KERNEL_ADDRESS +
+	    IDX_TO_OFF(page->pindex)));
 }
 
 static inline unsigned long

@@ -36,7 +36,7 @@ struct scatterlist {
 		struct page		*page;
 		struct scatterlist	*sg;
 	} sl_un;
-	unsigned long	address;
+	dma_addr_t	address;
 	unsigned long	offset;
 	uint32_t	length;
 	uint32_t	flags;
