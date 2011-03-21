@@ -119,10 +119,17 @@ uds_common_setup(const char *addr, void **ctxp, int side)
 }
 
 static int
-uds_client(const char *addr, void **ctxp)
+uds_client(const char *srcaddr, const char *dstaddr, void **ctxp)
 {
+	int ret;
 
-	return (uds_common_setup(addr, ctxp, UDS_SIDE_CLIENT));
+	ret = uds_common_setup(dstaddr, ctxp, UDS_SIDE_CLIENT);
+	if (ret != 0)
+		return (ret);
+
+	PJDLOG_ASSERT(srcaddr == NULL);
+
+	return (0);
 }
 
 static int

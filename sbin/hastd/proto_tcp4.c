@@ -112,7 +112,7 @@ invalid:
 }
 
 static int
-tcp4_addr(const char *addr, struct sockaddr_in *sinp)
+tcp4_addr(const char *addr, int defport, struct sockaddr_in *sinp)
 {
 	char iporhost[MAXHOSTNAMELEN];
 	const char *pp;
@@ -139,7 +139,7 @@ tcp4_addr(const char *addr, struct sockaddr_in *sinp)
 	pp = strrchr(addr, ':');
 	if (pp == NULL) {
 		/* Port not given, use the default. */
-		sinp->sin_port = htons(HASTD_PORT);
+		sinp->sin_port = htons(defport);
 	} else {
 		intmax_t port;
 
@@ -183,7 +183,7 @@ tcp4_setup_new(const char *addr, int side, void **ctxp)
 		return (errno);
 
 	/* Parse given address. */
-	if ((ret = tcp4_addr(addr, &tctx->tc_sin)) != 0) {
+	if ((ret = tcp4_addr(addr, HASTD_PORT, &tctx->tc_sin)) != 0) {
 		free(tctx);
 		return (ret);
 	}
@@ -196,6 +196,8 @@ tcp4_setup_new(const char *addr, int side, void **ctxp)
 		free(tctx);
 		return (ret);
 	}
+
+	PJDLOG_ASSERT(tctx->tc_sin.sin_family != AF_UNSPEC);
 
 	/* Socket settings. */
 	nodelay = 1;
@@ -235,10 +237,29 @@ tcp4_setup_wrap(int fd, int side, void **ctxp)
 }
 
 static int
-tcp4_client(const char *addr, void **ctxp)
+tcp4_client(const char *srcaddr, const char *dstaddr, void **ctxp)
 {
+	struct tcp4_ctx *tctx;
+	struct sockaddr_in sin;
+	int ret;
 
-	return (tcp4_setup_new(addr, TCP4_SIDE_CLIENT, ctxp));
+	ret = tcp4_setup_new(dstaddr, TCP4_SIDE_CLIENT, ctxp);
+	if (ret != 0)
+		return (ret);
+	tctx = *ctxp;
+	if (srcaddr == NULL)
+		return (0);
+	ret = tcp4_addr(srcaddr, 0, &sin);
+	if (ret != 0) {
+		tcp4_close(tctx);
+		return (ret);
+	}
+	if (bind(tctx->tc_fd, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+		ret = errno;
+		tcp4_close(tctx);
+		return (ret);
+	}
+	return (0);
 }
 
 static int
@@ -486,7 +507,7 @@ tcp4_address_match(const void *ctx, const char *addr)
 	PJDLOG_ASSERT(tctx != NULL);
 	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
 
-	if (tcp4_addr(addr, &sin) != 0)
+	if (tcp4_addr(addr, HASTD_PORT, &sin) != 0)
 		return (false);
 	ip1 = sin.sin_addr.s_addr;
 
