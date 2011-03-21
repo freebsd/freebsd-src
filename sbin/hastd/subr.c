@@ -30,6 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/capability.h>
 #include <sys/types.h>
 #include <sys/disk.h>
 #include <sys/ioctl.h>
@@ -39,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <pwd.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -144,12 +146,21 @@ role2str(int role)
 }
 
 int
-drop_privs(void)
+drop_privs(bool usecapsicum)
 {
 	struct passwd *pw;
 	uid_t ruid, euid, suid;
 	gid_t rgid, egid, sgid;
 	gid_t gidset[1];
+
+	if (usecapsicum) {
+		if (cap_enter() == 0) {
+			pjdlog_debug(1,
+			    "Privileges successfully dropped using capsicum.");
+			return (0);
+		}
+		pjdlog_errno(LOG_WARNING, "Unable to sandbox using capsicum");
+	}
 
 	/*
 	 * According to getpwnam(3) we have to clear errno before calling the
@@ -207,6 +218,9 @@ drop_privs(void)
 	PJDLOG_VERIFY(getgroups(0, NULL) == 1);
 	PJDLOG_VERIFY(getgroups(1, gidset) == 1);
 	PJDLOG_VERIFY(gidset[0] == pw->pw_gid);
+
+	pjdlog_debug(1,
+	    "Privileges successfully dropped using chroot+setgid+setuid.");
 
 	return (0);
 }
