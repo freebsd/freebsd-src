@@ -430,7 +430,8 @@ MK_${var}:=	yes
     GPIO \
     HESIOD \
     ICONV \
-    IDEA
+    IDEA \
+    OFED
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif

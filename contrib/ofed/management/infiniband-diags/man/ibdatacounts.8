@@ -1,0 +1,48 @@
+.TH IBDATACOUNTS 8 "May 30, 2007" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+ibdatacounts \- get IB port data counters
+
+.SH SYNOPSIS
+.B ibdatacounts
+[\-h] [\-b] [\-v] [\-G] [\-N | \-nocolor] [\-C ca_name] [\-P ca_port]
+[\-t(imeout) timeout_ms] <lid|guid> [<port>]
+
+.SH DESCRIPTION
+.PP
+Obtain PMA data counters from specified port (or node).
+Port address is lid unless -G option is used to specify a GUID
+address.
+
+.SH OPTIONS
+.PP
+\-G      use GUID address argument. In most cases, it is the Port GUID.
+        Example:
+        "0x08f1040023"
+.PP
+\-v      increase the verbosity level
+.PP
+\-b      brief mode
+.PP
+\-N | \-nocolor use mono rather than color mode
+.PP
+\-C <ca_name>    use the specified ca_name.
+.PP
+\-P <ca_port>    use the specified ca_port.
+.PP
+\-t <timeout_ms> override the default timeout for the solicited mads.
+
+.SH EXAMPLE
+.PP
+ibdatacounts 2           # show data counters for lid 2
+.PP
+ibdatacounts 2   4       # show data counters for lid 2 port 4
+
+.SH SEE ALSO
+.BR perfquery(8),
+.BR ibaddr(8)
+
+.SH AUTHOR
+.TP
+Hal Rosenstock
+.RI < halr@voltaire.com >

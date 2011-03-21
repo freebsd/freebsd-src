@@ -208,6 +208,10 @@ struct protox {
 	{ -1,		N_SCTPSTAT,	1,	sctp_protopr,
 	  sctp_stats,	NULL,		"sctp",	1,	IPPROTO_SCTP },
 #endif
+#ifdef SDP
+	{ -1,		-1,		1,	protopr,
+	 NULL,		NULL,		"sdp",	1,	IPPROTO_TCP },
+#endif
 	{ N_DIVCBINFO,	-1,		1,	protopr,
 	  NULL,		NULL,		"divert", 1,	IPPROTO_DIVERT },
 	{ N_RIPCBINFO,	N_IPSTAT,	1,	protopr,
@@ -248,6 +252,10 @@ struct protox ip6protox[] = {
 	  ip6_stats,	ip6_ifstats,	"ip6",	1,	IPPROTO_RAW },
 	{ N_RIPCBINFO,	N_ICMP6STAT,	1,	protopr,
 	  icmp6_stats,	icmp6_ifstats,	"icmp6", 1,	IPPROTO_ICMPV6 },
+#ifdef SDP
+	{ -1,		-1,		1,	protopr,
+	 NULL,		NULL,		"sdp",	1,	IPPROTO_TCP },
+#endif
 #ifdef IPSEC
 	{ -1,		N_IPSEC6STAT,	1,	NULL,
 	  ipsec_stats,	NULL,		"ipsec6", 0,	0 },
