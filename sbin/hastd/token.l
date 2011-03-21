@@ -57,6 +57,7 @@ resource		{ DP; return RESOURCE; }
 name			{ DP; return NAME; }
 local			{ DP; return LOCAL; }
 remote			{ DP; return REMOTE; }
+source			{ DP; return SOURCE; }
 on			{ DP; return ON; }
 fullsync		{ DP; return FULLSYNC; }
 memsync			{ DP; return MEMSYNC; }

@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 30, 2010
+.Dd March 20, 2011
 .Dt HAST.CONF 5
 .Os
 .Sh NAME
@@ -93,6 +93,7 @@ resource <name> {
 		local <path>
 		# Required
 		remote <addr>
+		source <addr>
 	}
 	on <node> {
 		# Resource-node section
@@ -101,6 +102,7 @@ resource <name> {
 		local <path>
 		# Required
 		remote <addr>
+		source <addr>
 	}
 }
 .Ed
@@ -337,6 +339,14 @@ A special value of
 .Va none
 can be used when the remote address is not yet known (eg. the other node is not
 set up yet).
+.It Ic source Aq addr
+.Pp
+Local address to bind to before connecting to the remote
+.Nm hastd
+daemon.
+Format is the same as for the
+.Ic listen
+statement.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /var/run/hastctl" -compact
@@ -367,10 +377,12 @@ resource shared {
 resource tank {
 	on hasta {
 		local /dev/mirror/tanka
+		source tcp4://10.0.0.1
 		remote tcp4://10.0.0.2
 	}
 	on hastb {
 		local /dev/mirror/tankb
+		source tcp4://10.0.0.2
 		remote tcp4://10.0.0.1
 	}
 }

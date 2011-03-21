@@ -39,7 +39,7 @@
 
 #define	__constructor	__attribute__((constructor))
 
-typedef int hp_client_t(const char *, void **);
+typedef int hp_client_t(const char *, const char *, void **);
 typedef int hp_connect_t(void *, int);
 typedef int hp_connect_wait_t(void *, int);
 typedef int hp_server_t(const char *, void **);

@@ -351,7 +351,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	/*
 	 * Create communication channel between parent and child.
 	 */
-	if (proto_client("socketpair://", &res->hr_ctrl) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_ctrl) < 0) {
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
 		    "Unable to create control sockets between parent and child");
@@ -359,7 +359,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	/*
 	 * Create communication channel between child and parent.
 	 */
-	if (proto_client("socketpair://", &res->hr_event) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_event) < 0) {
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
 		    "Unable to create event sockets between child and parent");
@@ -368,7 +368,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	 * Create communication channel for sending connection requests from
 	 * parent to child.
 	 */
-	if (proto_client("socketpair://", &res->hr_conn) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_conn) < 0) {
 		/* TODO: There's no need for this to be fatal error. */
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
