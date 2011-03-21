@@ -842,6 +842,8 @@ connection_migrate(struct hast_resource *res)
 	struct proto_conn *conn;
 	int16_t val = 0;
 
+	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
+
 	if (proto_recv(res->hr_conn, &val, sizeof(val)) < 0) {
 		pjdlog_errno(LOG_WARNING,
 		    "Unable to receive connection command");
@@ -869,6 +871,8 @@ out:
 	}
 	if (val == 0 && proto_connection_send(res->hr_conn, conn) < 0)
 		pjdlog_errno(LOG_WARNING, "Unable to send connection");
+
+	pjdlog_prefix_set("%s", "");
 }
 
 static void
