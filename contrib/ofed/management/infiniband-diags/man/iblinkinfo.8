@@ -1,0 +1,52 @@
+.TH IBLINKINFO 8 "Jan 24, 2008" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+iblinkinfo.pl \- report link info for all links in the fabric
+
+.SH SYNOPSIS
+.B iblinkinfo.pl
+   [-Rhcdl -C <ca_name> -P <ca_port> -v <lt,hoq,vlstall> -S <guid> -D <direct_route>]
+
+.SH DESCRIPTION
+.PP
+iblinkinfo.pl reports the link info for each port of each switch active in the
+IB fabric.
+
+.SH OPTIONS
+
+.PP
+.TP
+\fB\-R\fR
+Recalculate the ibnetdiscover information, ie do not use the cached
+information.  This option is slower but should be used if the diag tools have
+not been used for some time or if there are other reasons to believe the
+fabric has changed.
+.TP
+\fB\-S <guid>\fR
+Output only the switch specified by <guid> (hex format)
+.TP
+\fB\-D <direct_route>\fR
+Output only the switch specified by the direct route path.
+.TP
+\fB\-l\fR
+Print all information for each link on one line. Default is to print a header
+with the switch information and then a list for each port (useful for grep\'ing output).
+.TP
+\fB\-d\fR
+Print only switches which have a port in the "Down" state.
+.TP
+\fB\-v <lt,hoq,vlstall>\fR
+Verify additional switch settings (<LifeTime>,<HoqLife>,<VLStallCount>)
+.TP
+\fB\-c\fR
+Print port capabilities (enabled and supported values)
+.TP
+\fB\-C <ca_name>\fR    use the specified ca_name for the search.
+.TP
+\fB\-P <ca_port>\fR    use the specified ca_port for the search.
+
+
+.SH AUTHOR
+.TP
+Ira Weiny
+.RI < weiny2@llnl.gov >
