@@ -277,7 +277,8 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank7, ar5416Bank7, 2);
 	HAL_INI_INIT(&AH5416(ah)->ah_ini_addac, ar5416Addac, 2);
 
-	if (!IS_5416V2_2(ah)) {		/* Owl 2.1/2.0 */
+	if (! AR_SREV_OWL_22_OR_LATER(ah)) {		/* Owl 2.1/2.0 */
+		ath_hal_printf(ah, "[ath] Enabling CLKDRV workaround for AR5416 < v2.2\n");
 		struct ini {
 			uint32_t	*data;		/* NB: !const */
 			int		rows, cols;
