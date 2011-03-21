@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -94,8 +93,9 @@ static void *ih_err;
 /* EHCI HC regs start at this offset within USB range */
 #define	MV_USB_HOST_OFST	0x0100
 
-#define	USB_BRIDGE_INTR_CAUSE  0x210
-#define	USB_BRIDGE_INTR_MASK   0x214
+#define	USB_BRIDGE_INTR_CAUSE	0x210
+#define	USB_BRIDGE_INTR_MASK	0x214
+#define	USB_BRIDGE_ERR_ADDR	0x21C
 
 #define	MV_USB_ADDR_DECODE_ERR (1 << 0)
 #define	MV_USB_HOST_UNDERFLOW  (1 << 1)
@@ -225,7 +225,7 @@ mv_ehci_attach(device_t self)
 
 	sprintf(sc->sc_vendor, "Marvell");
 
-	err = bus_setup_intr(self, irq_err, INTR_FAST | INTR_TYPE_BIO,
+	err = bus_setup_intr(self, irq_err, INTR_TYPE_BIO,
 	    err_intr, NULL, sc, &ih_err);
 	if (err) {
 		device_printf(self, "Could not setup error irq, %d\n", err);
@@ -346,18 +346,22 @@ err_intr(void *arg)
 
 	cause = EREAD4(sc, USB_BRIDGE_INTR_CAUSE);
 	if (cause) {
-		printf("IRQ ERR: cause: 0x%08x\n", cause);
-		if (cause & MV_USB_ADDR_DECODE_ERR)
-			printf("IRQ ERR: Address decoding error\n");
+		printf("USB error: ");
+		if (cause & MV_USB_ADDR_DECODE_ERR) {
+			uint32_t addr;
+
+			addr = EREAD4(sc, USB_BRIDGE_ERR_ADDR);
+			printf("address decoding error (addr=%#x)\n", addr);
+		}
 		if (cause & MV_USB_HOST_UNDERFLOW)
-			printf("IRQ ERR: USB Host Underflow\n");
+			printf("host underflow\n");
 		if (cause & MV_USB_HOST_OVERFLOW)
-			printf("IRQ ERR: USB Host Overflow\n");
+			printf("host overflow\n");
 		if (cause & MV_USB_DEVICE_UNDERFLOW)
-			printf("IRQ ERR: USB Device Underflow\n");
+			printf("device underflow\n");
 		if (cause & ~(MV_USB_ADDR_DECODE_ERR | MV_USB_HOST_UNDERFLOW |
 		    MV_USB_HOST_OVERFLOW | MV_USB_DEVICE_UNDERFLOW))
-			printf("IRQ ERR: Unknown error\n");
+			printf("unknown cause (cause=%#x)\n", cause);
 
 		EWRITE4(sc, USB_BRIDGE_INTR_CAUSE, 0);
 	}

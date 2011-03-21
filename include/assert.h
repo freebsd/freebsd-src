@@ -58,6 +58,6 @@
 #ifndef _ASSERT_H_
 #define _ASSERT_H_
 __BEGIN_DECLS
-void __assert(const char *, const char *, int, const char *);
+void __assert(const char *, const char *, int, const char *) __dead2;
 __END_DECLS
 #endif /* !_ASSERT_H_ */

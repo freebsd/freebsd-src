@@ -371,6 +371,8 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 		    indent, dp->d_fwheads);
 		sbuf_printf(sb, "%s<fwsectors>%u</fwsectors>\n",
 		    indent, dp->d_fwsectors);
+		sbuf_printf(sb, "%s<ident>%s</ident>\n", indent, dp->d_ident);
+		sbuf_printf(sb, "%s<descr>%s</descr>\n", indent, dp->d_descr);
 	}
 }
 
@@ -527,6 +529,7 @@ sysctl_disks(SYSCTL_HANDLER_ARGS)
 	return error;
 }
  
-SYSCTL_PROC(_kern, OID_AUTO, disks, CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NOLOCK, 0, 0, 
+SYSCTL_PROC(_kern, OID_AUTO, disks,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_disks, "A", "names of available disks");
 

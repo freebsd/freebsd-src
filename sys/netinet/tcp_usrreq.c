@@ -1042,7 +1042,7 @@ struct pr_usrreqs tcp6_usrreqs = {
 	.pru_send =		tcp_usr_send,
 	.pru_shutdown =		tcp_usr_shutdown,
 	.pru_sockaddr =		in6_mapped_sockaddr,
- 	.pru_sosetlabel =	in_pcbsosetlabel,
+	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		tcp_usr_close,
 };
 #endif /* INET6 */
@@ -1328,9 +1328,10 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			INP_WLOCK_RECHECK(inp);
 			if (optval)
 				tp->t_flags |= TF_NOPUSH;
-			else {
+			else if (tp->t_flags & TF_NOPUSH) {
 				tp->t_flags &= ~TF_NOPUSH;
-				error = tcp_output(tp);
+				if (TCPS_HAVEESTABLISHED(tp->t_state))
+					error = tcp_output(tp);
 			}
 			INP_WUNLOCK(inp);
 			break;
@@ -1736,10 +1737,6 @@ db_print_tflags(u_int t_flags)
 	}
 	if (t_flags & TF_NEEDFIN) {
 		db_printf("%sTF_NEEDFIN", comma ? ", " : "");
-		comma = 1;
-	}
-	if (t_flags & TF_NOPUSH) {
-		db_printf("%sTF_NOPUSH", comma ? ", " : "");
 		comma = 1;
 	}
 	if (t_flags & TF_NOPUSH) {

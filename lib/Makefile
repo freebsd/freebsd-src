@@ -37,6 +37,7 @@ SUBDIR_ORDERED=	${_csu} \
 	libcompiler_rt \
 	libcrypt \
 	libelf \
+	${_libiconv_modules} \
 	libkvm \
 	msun \
 	libmd \
@@ -154,6 +155,10 @@ _libgpib=	libgpib
 .if ${MK_GSSAPI} != "no"
 _libgssapi=	libgssapi
 _librpcsec_gss=	librpcsec_gss
+.endif
+
+.if ${MK_ICONV} != "no"
+_libiconv_modules=	libiconv_modules
 .endif
 
 .if ${MK_IPX} != "no"

@@ -18,11 +18,10 @@
 #
 # $FreeBSD$
 
-cpu		CPU_CNMIPS
 ident		OCTEON1
 
 makeoptions	ARCH_FLAGS="-march=octeon -mabi=64"
-makeoptions	LDSCRIPT_NAME=ldscript.mips.octeon1.64
+makeoptions	LDSCRIPT_NAME=ldscript.mips.octeon1
 
 # Don't build any modules yet.
 makeoptions	MODULES_OVERRIDE=""
@@ -74,7 +73,6 @@ options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 options 	MAC			# TrustedBSD MAC Framework
-options 	FLOWTABLE		# per-cpu routing cache
 #options 	KDTRACE_FRAME		# Ensure frames are compiled in
 #options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
@@ -177,6 +175,9 @@ device		uart		# Generic UART driver
 # On-board Cavium Octeon Ethernet.
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
 device		octe
+
+# Cavium Octeon management Ethernet.
+device		octm
 
 # Switch PHY support for the octe driver.  These currently present a VLAN per
 # physical port, but may eventually provide support for DSA or similar instead.

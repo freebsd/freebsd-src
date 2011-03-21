@@ -264,6 +264,13 @@ ar5212GetTsf32(struct ath_hal *ah)
 	return OS_REG_READ(ah, AR_TSF_L32);
 }
 
+void
+ar5212SetTsf64(struct ath_hal *ah, uint64_t tsf64)
+{
+	OS_REG_WRITE(ah, AR_TSF_L32, tsf64 & 0xffffffff);
+	OS_REG_WRITE(ah, AR_TSF_U32, (tsf64 >> 32) & 0xffffffff);
+}
+
 /*
  * Reset the current hardware tsf for stamlme.
  */
@@ -451,7 +458,7 @@ ar5212SetSifsTime(struct ath_hal *ah, u_int us)
 	} else {
 		/* convert to system clocks */
 		OS_REG_WRITE(ah, AR_D_GBL_IFS_SIFS, ath_hal_mac_clks(ah, us-2));
-		ahp->ah_slottime = us;
+		ahp->ah_sifstime = us;
 		return AH_TRUE;
 	}
 }
@@ -927,7 +934,7 @@ ar5212SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		else
 			ahp->ah_miscMode |= AR_MISC_MODE_MIC_NEW_LOC_ENABLE;
 		/* NB: write here so keys can be setup w/o a reset */
-		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
+		OS_REG_WRITE(ah, AR_MISC_MODE, OS_REG_READ(ah, AR_MISC_MODE) | ahp->ah_miscMode);
 		return AH_TRUE;
 	case HAL_CAP_DIVERSITY:
 		if (ahp->ah_phyPowerOn) {

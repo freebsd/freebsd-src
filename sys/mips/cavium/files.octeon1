@@ -37,6 +37,10 @@ mips/cavium/octe/mv88e61xxphy.c			optional octe mv88e61xxphy
 mips/cavium/octe/octe.c				optional octe
 mips/cavium/octe/octebus.c			optional octe
 
+mips/cavium/if_octm.c				optional octm
+
+contrib/octeon-sdk/cvmx-mgmt-port.c		optional octm
+
 mips/cavium/octopci.c				optional pci
 mips/cavium/octopci_bus_space.c			optional pci
 

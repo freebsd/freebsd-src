@@ -34,6 +34,8 @@
 
 #include <sys/uio.h>
 
+#include <vm/vm.h>
+
 #define MAXSHELLCMDLEN	PAGE_SIZE
 
 struct image_args {
@@ -75,6 +77,7 @@ struct image_params {
 	int canarylen;
 	unsigned long pagesizes;
 	int pagesizeslen;
+	vm_prot_t stack_prot;
 };
 
 #ifdef _KERNEL

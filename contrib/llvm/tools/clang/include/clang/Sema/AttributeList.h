@@ -15,6 +15,7 @@
 #ifndef LLVM_CLANG_SEMA_ATTRLIST_H
 #define LLVM_CLANG_SEMA_ATTRLIST_H
 
+#include "llvm/Support/Allocator.h"
 #include "clang/Sema/Ownership.h"
 #include "clang/Basic/SourceLocation.h"
 #include <cassert>
@@ -32,6 +33,9 @@ namespace clang {
 /// 4: __attribute__(( aligned(16) )). ParmName is unused, Args/Num used.
 ///
 class AttributeList {
+public:
+  class Factory;
+private:
   IdentifierInfo *AttrName;
   SourceLocation AttrLoc;
   IdentifierInfo *ScopeName;
@@ -42,17 +46,38 @@ class AttributeList {
   unsigned NumArgs;
   AttributeList *Next;
   bool DeclspecAttribute, CXX0XAttribute;
-  mutable bool Invalid; /// True if already diagnosed as invalid.
+
+  /// True if already diagnosed as invalid.
+  mutable bool Invalid;
+
   AttributeList(const AttributeList &); // DO NOT IMPLEMENT
   void operator=(const AttributeList &); // DO NOT IMPLEMENT
-public:
-  AttributeList(IdentifierInfo *AttrName, SourceLocation AttrLoc,
+  void operator delete(void *); // DO NOT IMPLEMENT
+  ~AttributeList(); // DO NOT IMPLEMENT
+  AttributeList(llvm::BumpPtrAllocator &Alloc,
+                IdentifierInfo *AttrName, SourceLocation AttrLoc,
                 IdentifierInfo *ScopeName, SourceLocation ScopeLoc,
                 IdentifierInfo *ParmName, SourceLocation ParmLoc,
                 Expr **args, unsigned numargs,
-                AttributeList *Next, bool declspec = false, bool cxx0x = false);
-  ~AttributeList();
-
+                bool declspec, bool cxx0x);
+public:
+  class Factory {
+    llvm::BumpPtrAllocator Alloc;
+  public:
+    Factory() {}
+    ~Factory() {}
+    AttributeList *Create(IdentifierInfo *AttrName, SourceLocation AttrLoc,
+      IdentifierInfo *ScopeName, SourceLocation ScopeLoc,
+      IdentifierInfo *ParmName, SourceLocation ParmLoc,
+      Expr **args, unsigned numargs, bool declspec = false, bool cxx0x = false) {
+        AttributeList *Mem = Alloc.Allocate<AttributeList>();
+        new (Mem) AttributeList(Alloc, AttrName, AttrLoc, ScopeName, ScopeLoc,
+                                ParmName, ParmLoc, args, numargs,
+                                declspec, cxx0x);
+        return Mem;
+      }
+  };
+  
   enum Kind {             // Please keep this list alphabetized.
     AT_IBAction,          // Clang-specific.
     AT_IBOutlet,          // Clang-specific.
@@ -68,35 +93,48 @@ public:
     AT_carries_dependency,
     AT_cdecl,
     AT_cleanup,
+    AT_common,
     AT_const,
+    AT_constant,
     AT_constructor,
     AT_deprecated,
     AT_destructor,
+    AT_device,
     AT_dllexport,
     AT_dllimport,
     AT_ext_vector_type,
     AT_fastcall,
-    AT_final,
     AT_format,
     AT_format_arg,
+    AT_global,
     AT_gnu_inline,
-    AT_hiding,
+    AT_host,
+    AT_launch_bounds,
     AT_malloc,
+    AT_may_alias,
     AT_mode,
+    AT_neon_polyvector_type,    // Clang-specific.
+    AT_neon_vector_type,        // Clang-specific.
+    AT_naked,
     AT_nodebug,
     AT_noinline,
     AT_no_instrument_function,
+    AT_nocommon,
     AT_nonnull,
     AT_noreturn,
     AT_nothrow,
     AT_nsobject,
     AT_objc_exception,
-    AT_override,
     AT_cf_returns_not_retained, // Clang-specific.
     AT_cf_returns_retained,     // Clang-specific.
     AT_ns_returns_not_retained, // Clang-specific.
     AT_ns_returns_retained,     // Clang-specific.
+    AT_ns_returns_autoreleased, // Clang-specific.
+    AT_cf_consumed,             // Clang-specific.
+    AT_ns_consumed,             // Clang-specific.
+    AT_ns_consumes_self,        // Clang-specific.
     AT_objc_gc,
+    AT_opencl_kernel_function,  // OpenCL-specific.
     AT_overloadable,       // Clang-specific.
     AT_ownership_holds,    // Clang-specific.
     AT_ownership_returns,  // Clang-specific.
@@ -107,12 +145,14 @@ public:
     AT_regparm,
     AT_section,
     AT_sentinel,
+    AT_shared,
     AT_stdcall,
     AT_thiscall,
     AT_transparent_union,
     AT_unavailable,
     AT_unused,
     AT_used,
+    AT_uuid,
     AT_vecreturn,     // PS3 PPU-specific.
     AT_vector_size,
     AT_visibility,
@@ -134,6 +174,7 @@ public:
   SourceLocation getScopeLoc() const { return ScopeLoc; }
   
   IdentifierInfo *getParameterName() const { return ParmName; }
+  SourceLocation getParameterLoc() const { return ParmLoc; }
 
   bool isDeclspecAttribute() const { return DeclspecAttribute; }
   bool isCXX0XAttribute() const { return CXX0XAttribute; }
@@ -199,8 +240,8 @@ public:
 /// The right-hand list is appended to the left-hand list, if any
 /// A pointer to the joined list is returned.
 /// Note: the lists are not left unmodified.
-inline AttributeList* addAttributeLists (AttributeList *Left,
-                                         AttributeList *Right) {
+inline AttributeList *addAttributeLists(AttributeList *Left,
+                                        AttributeList *Right) {
   if (!Left)
     return Right;
 
@@ -227,6 +268,51 @@ struct CXX0XAttributeList {
   CXX0XAttributeList ()
     : AttrList(0), Range(), HasAttr(false) {
   }
+};
+
+/// ParsedAttributes - A collection of parsed attributes.  Currently
+/// we don't differentiate between the various attribute syntaxes,
+/// which is basically silly.
+///
+/// Right now this is a very lightweight container, but the expectation
+/// is that this will become significantly more serious.
+class ParsedAttributes {
+public:
+  ParsedAttributes() : list(0) {}
+
+  bool empty() const { return list == 0; }
+
+  void add(AttributeList *newAttr) {
+    assert(newAttr);
+    assert(newAttr->getNext() == 0);
+    newAttr->setNext(list);
+    list = newAttr;
+  }
+
+  void append(AttributeList *newList) {
+    if (!newList) return;
+
+    AttributeList *lastInNewList = newList;
+    while (AttributeList *next = lastInNewList->getNext())
+      lastInNewList = next;
+
+    lastInNewList->setNext(list);
+    list = newList;
+  }
+
+  void set(AttributeList *newList) {
+    list = newList;
+  }
+
+  void clear() { list = 0; }
+  AttributeList *getList() const { return list; }
+
+  /// Returns a reference to the attribute list.  Try not to introduce
+  /// dependencies on this method, it may not be long-lived.
+  AttributeList *&getListRef() { return list; }
+
+private:
+  AttributeList *list;
 };
 
 }  // end namespace clang

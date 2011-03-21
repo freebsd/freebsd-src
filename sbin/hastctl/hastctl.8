@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 1, 2010
+.Dd March 13, 2011
 .Dt HASTCTL 8
 .Os
 .Sh NAME
@@ -113,6 +113,9 @@ Size of the smaller provider used as backend storage on both nodes.
 This option can be omitted if node providers have the same size on both
 sides.
 .El
+.Pp
+If size is suffixed with a k, M, G or T, it is taken as a kilobyte,
+megabyte, gigabyte or terabyte measurement respectively.
 .It Cm role
 Change role of the given resource.
 The role can be one of:

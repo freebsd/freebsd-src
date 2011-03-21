@@ -36,10 +36,10 @@ and keep them in good working order.
         mechanism for making better selections for these as it
         traverses the hierarchy.
 
-        The BSD.X.new file should NOT be commited, will be missing the
-        correct header, and important keywords like ``nochange''.  Simply
-        use the diff for a sanity check to make sure things are in the
-        correct order and correctly indented.
+        The BSD.X.new file should NOT be committed, as it will be missing
+        the correct header, and important keywords like ``nochange''.
+        Simply use the diff for a sanity check to make sure things are in
+        the correct order and correctly indented.
 
     e)  Further sanity checking of the system builds with DESTDIR=/someplace
         are more complicated, but can often catch missing entries in these

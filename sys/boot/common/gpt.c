@@ -71,7 +71,7 @@ gptupdate(const char *which, struct dsk *dskp, struct gpt_hdr *hdr,
 	entries_per_sec = DEV_BSIZE / hdr->hdr_entsz;
 	slba = curent / entries_per_sec;
 	firstent = slba * entries_per_sec;
-	bcpy(&table[firstent], secbuf, DEV_BSIZE);
+	bcopy(&table[firstent], secbuf, DEV_BSIZE);
 	slba += hdr->hdr_lba_table;
 	if (drvwrite(dskp, secbuf, slba, 1)) {
 		printf("%s: unable to update %s GPT partition table\n",
@@ -82,7 +82,7 @@ gptupdate(const char *which, struct dsk *dskp, struct gpt_hdr *hdr,
 	hdr->hdr_crc_self = 0;
 	hdr->hdr_crc_self = crc32(hdr, hdr->hdr_size);
 	bzero(secbuf, DEV_BSIZE);
-	bcpy(hdr, secbuf, hdr->hdr_size);
+	bcopy(hdr, secbuf, hdr->hdr_size);
 	if (drvwrite(dskp, secbuf, hdr->hdr_lba_self, 1)) {
 		printf("%s: unable to update %s GPT header\n", BOOTPROG, which);
 		return;
@@ -191,7 +191,7 @@ gptread_hdr(const char *which, struct dsk *dskp, struct gpt_hdr *hdr,
 		printf("%s: unable to read %s GPT header\n", BOOTPROG, which);
 		return (-1);
 	}
-	bcpy(secbuf, hdr, sizeof(*hdr));
+	bcopy(secbuf, hdr, sizeof(*hdr));
 	if (bcmp(hdr->hdr_sig, GPT_HDR_SIG, sizeof(hdr->hdr_sig)) != 0 ||
 	    hdr->hdr_lba_self != hdrlba || hdr->hdr_revision < 0x00010000 ||
 	    hdr->hdr_entsz < sizeof(struct gpt_ent) ||
@@ -259,7 +259,7 @@ gptbootconv(const char *which, struct dsk *dskp, struct gpt_hdr *hdr,
 		}
 		if (!sector_updated)
 			continue;
-		bcpy(&table[nent], secbuf, DEV_BSIZE);
+		bcopy(&table[nent], secbuf, DEV_BSIZE);
 		if (drvwrite(dskp, secbuf, slba, 1)) {
 			printf("%s: unable to update %s GPT partition table\n",
 			    BOOTPROG, which);
@@ -271,7 +271,7 @@ gptbootconv(const char *which, struct dsk *dskp, struct gpt_hdr *hdr,
 	hdr->hdr_crc_self = 0;
 	hdr->hdr_crc_self = crc32(hdr, hdr->hdr_size);
 	bzero(secbuf, DEV_BSIZE);
-	bcpy(hdr, secbuf, hdr->hdr_size);
+	bcopy(hdr, secbuf, hdr->hdr_size);
 	if (drvwrite(dskp, secbuf, hdr->hdr_lba_self, 1))
 		printf("%s: unable to update %s GPT header\n", BOOTPROG, which);
 }
@@ -299,7 +299,7 @@ gptread_table(const char *which, const uuid_t *uuid, struct dsk *dskp,
 		}
 		ent = (struct gpt_ent *)secbuf;
 		for (part = 0; part < entries_per_sec; part++, ent++) {
-			bcpy(ent, &table[nent], sizeof(table[nent]));
+			bcopy(ent, &table[nent], sizeof(table[nent]));
 			if (++nent >= hdr->hdr_entries)
 				break;
 		}

@@ -13,13 +13,13 @@
 
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Format.h"
-#include "llvm/System/Program.h"
-#include "llvm/System/Process.h"
+#include "llvm/Support/Program.h"
+#include "llvm/Support/Process.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/System/Signals.h"
 #include "llvm/ADT/STLExtras.h"
 #include <cctype>
 #include <cerrno>
@@ -31,6 +31,13 @@
 #endif
 #if defined(HAVE_FCNTL_H)
 # include <fcntl.h>
+#endif
+#if defined(HAVE_SYS_UIO_H) && defined(HAVE_WRITEV)
+#  include <sys/uio.h>
+#endif
+
+#if defined(__CYGWIN__)
+#include <io.h>
 #endif
 
 #if defined(_MSC_VER)
@@ -164,7 +171,8 @@ raw_ostream &raw_ostream::write_hex(unsigned long long N) {
   return write(CurPtr, EndPtr-CurPtr);
 }
 
-raw_ostream &raw_ostream::write_escaped(StringRef Str) {
+raw_ostream &raw_ostream::write_escaped(StringRef Str,
+                                        bool UseHexEscapes) {
   for (unsigned i = 0, e = Str.size(); i != e; ++i) {
     unsigned char c = Str[i];
 
@@ -187,11 +195,18 @@ raw_ostream &raw_ostream::write_escaped(StringRef Str) {
         break;
       }
 
-      // Always expand to a 3-character octal escape.
-      *this << '\\';
-      *this << char('0' + ((c >> 6) & 7));
-      *this << char('0' + ((c >> 3) & 7));
-      *this << char('0' + ((c >> 0) & 7));
+      // Write out the escaped representation.
+      if (UseHexEscapes) {
+        *this << '\\' << 'x';
+        *this << hexdigit((c >> 4 & 0xF));
+        *this << hexdigit((c >> 0) & 0xF);
+      } else {
+        // Always use a full 3-character octal escape.
+        *this << '\\';
+        *this << char('0' + ((c >> 6) & 7));
+        *this << char('0' + ((c >> 3) & 7));
+        *this << char('0' + ((c >> 0) & 7));
+      }
     }
   }
 
@@ -363,7 +378,9 @@ void format_object_base::home() {
 /// stream should be immediately destroyed; the string will be empty
 /// if no error occurred.
 raw_fd_ostream::raw_fd_ostream(const char *Filename, std::string &ErrorInfo,
-                               unsigned Flags) : Error(false), pos(0) {
+                               unsigned Flags)
+  : Error(false), UseAtomicWrites(false), pos(0)
+{
   assert(Filename != 0 && "Filename is null");
   // Verify that we don't have both "append" and "excl".
   assert((!(Flags & F_Excl) || !(Flags & F_Append)) &&
@@ -410,6 +427,26 @@ raw_fd_ostream::raw_fd_ostream(const char *Filename, std::string &ErrorInfo,
   ShouldClose = true;
 }
 
+/// raw_fd_ostream ctor - FD is the file descriptor that this writes to.  If
+/// ShouldClose is true, this closes the file when the stream is destroyed.
+raw_fd_ostream::raw_fd_ostream(int fd, bool shouldClose, bool unbuffered)
+  : raw_ostream(unbuffered), FD(fd),
+    ShouldClose(shouldClose), Error(false), UseAtomicWrites(false) {
+#ifdef O_BINARY
+  // Setting STDOUT and STDERR to binary mode is necessary in Win32
+  // to avoid undesirable linefeed conversion.
+  if (fd == STDOUT_FILENO || fd == STDERR_FILENO)
+    setmode(fd, O_BINARY);
+#endif
+
+  // Get the starting position.
+  off_t loc = ::lseek(FD, 0, SEEK_CUR);
+  if (loc == (off_t)-1)
+    pos = 0;
+  else
+    pos = static_cast<uint64_t>(loc);
+}
+
 raw_fd_ostream::~raw_fd_ostream() {
   if (FD >= 0) {
     flush();
@@ -435,7 +472,20 @@ void raw_fd_ostream::write_impl(const char *Ptr, size_t Size) {
   pos += Size;
 
   do {
-    ssize_t ret = ::write(FD, Ptr, Size);
+    ssize_t ret;
+
+    // Check whether we should attempt to use atomic writes.
+    if (BUILTIN_EXPECT(!UseAtomicWrites, true)) {
+      ret = ::write(FD, Ptr, Size);
+    } else {
+      // Use ::writev() where available.
+#if defined(HAVE_WRITEV)
+      struct iovec IOV = { (void*) Ptr, Size };
+      ret = ::writev(FD, &IOV, 1);
+#else
+      ret = ::write(FD, Ptr, Size);
+#endif
+    }
 
     if (ret < 0) {
       // If it's a recoverable error, swallow it and retry the write.
@@ -664,35 +714,4 @@ void raw_null_ostream::write_impl(const char *Ptr, size_t Size) {
 
 uint64_t raw_null_ostream::current_pos() const {
   return 0;
-}
-
-//===----------------------------------------------------------------------===//
-//  tool_output_file
-//===----------------------------------------------------------------------===//
-
-tool_output_file::CleanupInstaller::CleanupInstaller(const char *filename)
-  : Filename(filename), Keep(false) {
-  // Arrange for the file to be deleted if the process is killed.
-  if (Filename != "-")
-    sys::RemoveFileOnSignal(sys::Path(Filename));
-}
-
-tool_output_file::CleanupInstaller::~CleanupInstaller() {
-  // Delete the file if the client hasn't told us not to.
-  if (!Keep && Filename != "-")
-    sys::Path(Filename).eraseFromDisk();
-
-  // Ok, the file is successfully written and closed, or deleted. There's no
-  // further need to clean it up on signals.
-  if (Filename != "-")
-    sys::DontRemoveFileOnSignal(sys::Path(Filename));
-}
-
-tool_output_file::tool_output_file(const char *filename, std::string &ErrorInfo,
-                                   unsigned Flags)
-  : Installer(filename),
-    OS(filename, ErrorInfo, Flags) {
-  // If open fails, no cleanup is needed.
-  if (!ErrorInfo.empty())
-    Installer.Keep = true;
 }

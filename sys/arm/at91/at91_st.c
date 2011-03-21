@@ -77,11 +77,7 @@ static unsigned at91st_get_timecount(struct timecounter *tc);
 static struct timecounter at91st_timecounter = {
 	at91st_get_timecount, /* get_timecount */
 	NULL, /* no poll_pps */
-#ifdef SKYEYE_WORKAROUNDS
-	0xffffffffu, /* counter_mask */
-#else
 	0xfffffu, /* counter_mask */
-#endif
 	32768, /* frequency */
 	"AT91RM9200 timer", /* name */
 	1000 /* quality */
@@ -138,18 +134,10 @@ static devclass_t at91st_devclass;
 
 DRIVER_MODULE(at91_st, atmelarm, at91st_driver, at91st_devclass, 0, 0);
 
-#ifdef SKYEYE_WORKAROUNDS
-static unsigned long tot_count = 0;
-#endif
-
 static unsigned
 at91st_get_timecount(struct timecounter *tc)
 {
-#ifdef SKYEYE_WORKAROUNDS
-	return (tot_count);
-#else
 	return (st_crtr());
-#endif
 }
 
 /*
@@ -189,9 +177,6 @@ clock_intr(void *arg)
 
 	/* The interrupt is shared, so we have to make sure it's for us. */
 	if (RD4(ST_SR) & ST_SR_PITS) {
-#ifdef SKYEYE_WORKAROUNDS
-		tot_count += 32768 / hz;
-#endif
 		hardclock(TRAPF_USERMODE(fp), TRAPF_PC(fp));
 		return (FILTER_HANDLED);
 	}

@@ -33,14 +33,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <machine/intr_machdep.h>
-#include <machine/ocpbus.h>
 #include <machine/resource.h>
 
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 #include <isa/isa_common.h>
-
-#include "ocpbus.h"
 
 void
 isa_init(device_t dev)
@@ -62,10 +59,7 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	    resource_list_find(rl, type, *rid) == NULL) {
 		switch (type) {
 		case SYS_RES_IOPORT:	rids = ISA_PNP_NPORT; break;
-		case SYS_RES_IRQ:
-			rids = ISA_PNP_NIRQ;
-			start = ISA_IRQ(start);
-			break;
+		case SYS_RES_IRQ:	rids = ISA_PNP_NIRQ; break;
 		case SYS_RES_MEMORY:	rids = ISA_PNP_NMEM; break;
 		default:		rids = 0; break;
 		}

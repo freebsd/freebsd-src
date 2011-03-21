@@ -47,3 +47,5 @@ _fini:
 	stw 31,12(1)
 	stw 0,20(1)
 	mr 31,1
+
+	.section .note.GNU-stack,"",%progbits

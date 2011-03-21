@@ -609,6 +609,14 @@ Note that
 the NBUF parameter will override this limit.
 Modifies
 .Dv VM_BCACHE_SIZE_MAX .
+.It Va kern.msgbufsize
+Sets the size of the kernel message buffer.
+The default limit of 64KB is usually sufficient unless
+large amounts of trace data need to be collected
+between opportunities to examine the buffer or
+dump it to a file.
+Overrides kernel option
+.Dv MSGBUF_SIZE .
 .It Va machdep.disable_mtrrs
 Disable the use of i686 MTRRs (x86 only).
 .It Va net.inet.tcp.tcbhashsize

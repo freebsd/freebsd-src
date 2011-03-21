@@ -46,3 +46,5 @@ ENTRY(fmod)
 	fstp	%st(1)
 	ret
 END(fmod)
+
+	.section .note.GNU-stack,"",%progbits

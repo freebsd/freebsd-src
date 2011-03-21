@@ -325,6 +325,8 @@ ext2_lookup(ap)
 	*vpp = NULL;
 	vdp = ap->a_dvp;
 	dp = VTOI(vdp);
+	bmask = VFSTOEXT2(vdp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
+
 	/*
 	 * We now have a segment name to search for, and a directory to search.
 	 */
@@ -359,7 +361,6 @@ ext2_lookup(ap)
 	 * profiling time and hence has been removed in the interest
 	 * of simplicity.
 	 */
-	bmask = VFSTOEXT2(vdp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
 	if (nameiop != LOOKUP || i_diroff == 0 ||
 	    i_diroff > dp->i_size) {
 		entryoffsetinblock = 0;

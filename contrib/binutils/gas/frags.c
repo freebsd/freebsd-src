@@ -1,6 +1,6 @@
 /* frags.c - manage frags -
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2003
+   1999, 2000, 2001, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "as.h"
 #include "subsegs.h"
@@ -91,7 +91,14 @@ frag_grow (unsigned int nchars)
       frag_wane (frag_now);
       frag_new (0);
       oldc = frchain_now->frch_obstack.chunk_size;
-      frchain_now->frch_obstack.chunk_size = 2 * nchars + SIZEOF_STRUCT_FRAG;
+      /* Try to allocate a bit more than needed right now.  But don't do
+         this if we would waste too much memory.  Especially necessary
+	 for extremely big (like 2GB initialized) frags.  */
+      if (nchars < 0x10000)
+	frchain_now->frch_obstack.chunk_size = 2 * nchars;
+      else
+        frchain_now->frch_obstack.chunk_size = nchars + 0x10000;
+      frchain_now->frch_obstack.chunk_size += SIZEOF_STRUCT_FRAG;
       if (frchain_now->frch_obstack.chunk_size > 0)
 	while ((n = obstack_room (&frchain_now->frch_obstack)) < nchars
 	       && (unsigned long) frchain_now->frch_obstack.chunk_size > nchars)
@@ -375,4 +382,57 @@ frag_append_1_char (int datum)
       frag_new (0);
     }
   obstack_1grow (&frchain_now->frch_obstack, datum);
+}
+
+/* Return TRUE if FRAG1 and FRAG2 have a fixed relationship between
+   their start addresses.  Set OFFSET to the difference in address
+   not already accounted for in the frag FR_ADDRESS.  */
+
+bfd_boolean
+frag_offset_fixed_p (const fragS *frag1, const fragS *frag2, bfd_vma *offset)
+{
+  const fragS *frag;
+  bfd_vma off;
+
+  /* Start with offset initialised to difference between the two frags.
+     Prior to assigning frag addresses this will be zero.  */
+  off = frag1->fr_address - frag2->fr_address;
+  if (frag1 == frag2)
+    {
+      *offset = off;
+      return TRUE;
+    }
+
+  /* Maybe frag2 is after frag1.  */
+  frag = frag1;
+  while (frag->fr_type == rs_fill)
+    {
+      off += frag->fr_fix + frag->fr_offset * frag->fr_var;
+      frag = frag->fr_next;
+      if (frag == NULL)
+	break;
+      if (frag == frag2)
+	{
+	  *offset = off;
+	  return TRUE;
+	}
+    }
+
+  /* Maybe frag1 is after frag2.  */
+  off = frag1->fr_address - frag2->fr_address;
+  frag = frag2;
+  while (frag->fr_type == rs_fill)
+    {
+      off -= frag->fr_fix + frag->fr_offset * frag->fr_var;
+      frag = frag->fr_next;
+      if (frag == NULL)
+	break;
+      if (frag == frag1)
+	{
+	  *offset = off;
+	  return TRUE;
+	}
+    }
+
+  return FALSE;
 }

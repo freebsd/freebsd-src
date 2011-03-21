@@ -40,17 +40,23 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
 
+FEATURE(geom_part_pc98, "GEOM partitioning class for PC-9800 disk partitions");
+
 #define	SECSIZE		512
+#define	MENUSIZE	7168
+#define	BOOTSIZE	8192
 
 struct g_part_pc98_table {
 	struct g_part_table	base;
 	u_char		boot[SECSIZE];
 	u_char		table[SECSIZE];
+	u_char		menu[MENUSIZE];
 };
 
 struct g_part_pc98_entry {
@@ -105,7 +111,7 @@ static struct g_part_scheme g_part_pc98_scheme = {
 	.gps_entrysz = sizeof(struct g_part_pc98_entry),
 	.gps_minent = NDOSPART,
 	.gps_maxent = NDOSPART,
-	.gps_bootcodesz = SECSIZE,
+	.gps_bootcodesz = BOOTSIZE,
 };
 G_PART_SCHEME_DECLARE(g_part_pc98);
 
@@ -137,6 +143,20 @@ pc98_parse_type(const char *type, u_char *dp_mid, u_char *dp_sid)
 	return (EINVAL);
 }
 
+static int
+pc98_set_slicename(const char *label, u_char *dp_name)
+{
+	int len;
+
+	len = strlen(label);
+	if (len > sizeof(((struct pc98_partition *)NULL)->dp_name))
+		return (EINVAL);
+	bzero(dp_name, sizeof(((struct pc98_partition *)NULL)->dp_name));
+	strncpy(dp_name, label, len);
+
+	return (0);
+}
+
 static void
 pc98_set_chs(struct g_part_table *table, uint32_t lba, u_short *cylp,
     u_char *hdp, u_char *secp)
@@ -161,9 +181,7 @@ g_part_pc98_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 	struct g_part_pc98_entry *entry;
 	struct g_part_pc98_table *table;
 	uint32_t cyl, start, size;
-
-	if (gpp->gpp_parms & G_PART_PARM_LABEL)
-		return (EINVAL);
+	int error;
 
 	cyl = basetable->gpt_heads * basetable->gpt_sectors;
 
@@ -196,22 +214,32 @@ g_part_pc98_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 	    &entry->ent.dp_shd, &entry->ent.dp_ssect);
 	pc98_set_chs(basetable, baseentry->gpe_end, &entry->ent.dp_ecyl,
 	    &entry->ent.dp_ehd, &entry->ent.dp_esect);
-	return (pc98_parse_type(gpp->gpp_type, &entry->ent.dp_mid,
-	    &entry->ent.dp_sid));
+
+	error = pc98_parse_type(gpp->gpp_type, &entry->ent.dp_mid,
+	    &entry->ent.dp_sid);
+	if (error)
+		return (error);
+
+	if (gpp->gpp_parms & G_PART_PARM_LABEL)
+		return (pc98_set_slicename(gpp->gpp_label, entry->ent.dp_name));
+
+	return (0);
 }
 
 static int
 g_part_pc98_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
 	struct g_part_pc98_table *table;
-	size_t codesz;
+	const u_char *codeptr;
 
-	codesz = DOSMAGICOFFSET;
+	if (gpp->gpp_codesize != BOOTSIZE)
+		return (EINVAL);
+
 	table = (struct g_part_pc98_table *)basetable;
-	bzero(table->boot, codesz);
-	codesz = MIN(codesz, gpp->gpp_codesize);
-	if (codesz > 0)
-		bcopy(gpp->gpp_codeptr, table->boot, codesz);
+	codeptr = gpp->gpp_codeptr;
+	bcopy(codeptr, table->boot, SECSIZE);
+	bcopy(codeptr + SECSIZE*2, table->menu, MENUSIZE);
+
 	return (0);
 }
 
@@ -226,7 +254,7 @@ g_part_pc98_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	pp = gpp->gpp_provider;
 	cp = LIST_FIRST(&pp->consumers);
 
-	if (pp->sectorsize < SECSIZE || pp->mediasize < 2 * SECSIZE)
+	if (pp->sectorsize < SECSIZE || pp->mediasize < BOOTSIZE)
 		return (ENOSPC);
 	if (pp->sectorsize > SECSIZE)
 		return (ENXIO);
@@ -300,14 +328,20 @@ g_part_pc98_modify(struct g_part_table *basetable,
     struct g_part_entry *baseentry, struct g_part_parms *gpp)
 {
 	struct g_part_pc98_entry *entry;
-
-	if (gpp->gpp_parms & G_PART_PARM_LABEL)
-		return (EINVAL);
+	int error;
 
 	entry = (struct g_part_pc98_entry *)baseentry;
-	if (gpp->gpp_parms & G_PART_PARM_TYPE)
-		return (pc98_parse_type(gpp->gpp_type, &entry->ent.dp_mid,
-		    &entry->ent.dp_sid));
+
+	if (gpp->gpp_parms & G_PART_PARM_TYPE) {
+		error = pc98_parse_type(gpp->gpp_type, &entry->ent.dp_mid,
+		    &entry->ent.dp_sid);
+		if (error)
+			return (error);
+	}
+
+	if (gpp->gpp_parms & G_PART_PARM_LABEL)
+		return (pc98_set_slicename(gpp->gpp_label, entry->ent.dp_name));
+
 	return (0);
 }
 
@@ -356,7 +390,7 @@ g_part_pc98_probe(struct g_part_table *table, struct g_consumer *cp)
 	pp = cp->provider;
 
 	/* Sanity-check the provider. */
-	if (pp->sectorsize < SECSIZE || pp->mediasize < 2 * SECSIZE)
+	if (pp->sectorsize < SECSIZE || pp->mediasize < BOOTSIZE)
 		return (ENOSPC);
 	if (pp->sectorsize > SECSIZE)
 		return (ENXIO);
@@ -419,7 +453,7 @@ g_part_pc98_read(struct g_part_table *basetable, struct g_consumer *cp)
 	table = (struct g_part_pc98_table *)basetable;
 	msize = pp->mediasize / SECSIZE;
 
-	buf = g_read_data(cp, 0L, 2 * SECSIZE, &error);
+	buf = g_read_data(cp, 0L, BOOTSIZE, &error);
 	if (buf == NULL)
 		return (error);
 
@@ -427,6 +461,7 @@ g_part_pc98_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	bcopy(buf, table->boot, sizeof(table->boot));
 	bcopy(buf + SECSIZE, table->table, sizeof(table->table));
+	bcopy(buf + SECSIZE*2, table->menu, sizeof(table->menu));
 
 	for (index = NDOSPART - 1; index >= 0; index--) {
 		p = buf + SECSIZE + index * DOSPARTSIZE;
@@ -567,5 +602,7 @@ g_part_pc98_write(struct g_part_table *basetable, struct g_consumer *cp)
 	error = g_write_data(cp, 0, table->boot, SECSIZE);
 	if (!error)
 		error = g_write_data(cp, SECSIZE, table->table, SECSIZE);
+	if (!error)
+		error = g_write_data(cp, SECSIZE*2, table->menu, MENUSIZE);
 	return (error);
 }

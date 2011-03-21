@@ -61,7 +61,7 @@ TUNABLE_INT("vfs.zfs.zfetch.block_cap", &zfetch_block_cap);
 SYSCTL_UINT(_vfs_zfs_zfetch, OID_AUTO, block_cap, CTLFLAG_RDTUN,
     &zfetch_block_cap, 0, "Max number of blocks to fetch at a time");
 TUNABLE_QUAD("vfs.zfs.zfetch.array_rd_sz", &zfetch_array_rd_sz);
-SYSCTL_QUAD(_vfs_zfs_zfetch, OID_AUTO, array_rd_sz, CTLFLAG_RDTUN,
+SYSCTL_UQUAD(_vfs_zfs_zfetch, OID_AUTO, array_rd_sz, CTLFLAG_RDTUN,
     &zfetch_array_rd_sz, 0,
     "Number of bytes in a array_read at which we stop prefetching");
 
@@ -244,7 +244,7 @@ dmu_zfetch_dofetch(zfetch_t *zf, zstream_t *zs)
 			break;
 	}
 	zs->zst_ph_offset = prefetch_tail;
-	zs->zst_last = LBOLT;
+	zs->zst_last = ddi_get_lbolt();
 }
 
 void
@@ -405,6 +405,7 @@ top:
 				rc = 1;
 				goto out;
 			}
+
 			if (zh->zst_offset != zs->zst_offset + zs->zst_len) {
 				mutex_exit(&zs->zst_lock);
 				goto top;
@@ -432,6 +433,7 @@ top:
 				rc = 1;
 				goto out;
 			}
+
 			if (zh->zst_offset != zs->zst_offset - zh->zst_len) {
 				mutex_exit(&zs->zst_lock);
 				goto top;
@@ -462,6 +464,7 @@ top:
 				rc = 1;
 				goto out;
 			}
+
 			if ((zh->zst_offset - zs->zst_offset - zs->zst_stride >=
 			    zs->zst_len) || (zs->zst_len == zs->zst_stride)) {
 				mutex_exit(&zs->zst_lock);
@@ -481,6 +484,7 @@ top:
 				rc = 1;
 				goto out;
 			}
+
 			if ((zh->zst_offset - zs->zst_offset + zs->zst_stride >=
 			    zs->zst_len) || (zs->zst_len == zs->zst_stride)) {
 				mutex_exit(&zs->zst_lock);
@@ -603,7 +607,7 @@ dmu_zfetch_stream_reclaim(zfetch_t *zf)
 	for (zs = list_head(&zf->zf_stream); zs;
 	    zs = list_next(&zf->zf_stream, zs)) {
 
-		if (((LBOLT - zs->zst_last) / hz) > zfetch_min_sec_reap)
+		if (((ddi_get_lbolt() - zs->zst_last)/hz) > zfetch_min_sec_reap)
 			break;
 	}
 
@@ -734,7 +738,7 @@ dmu_zfetch(zfetch_t *zf, uint64_t offset, uint64_t size, int prefetched)
 		newstream->zst_ph_offset = zst.zst_len + zst.zst_offset;
 		newstream->zst_cap = zst.zst_len;
 		newstream->zst_direction = ZFETCH_FORWARD;
-		newstream->zst_last = LBOLT;
+		newstream->zst_last = ddi_get_lbolt();
 
 		mutex_init(&newstream->zst_lock, NULL, MUTEX_DEFAULT, NULL);
 

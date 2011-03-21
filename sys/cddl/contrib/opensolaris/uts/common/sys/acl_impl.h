@@ -47,7 +47,7 @@ typedef enum acl_type {
 } zfs_acl_type_t;
 
 struct acl_info {
-	zfs_acl_type_t acl_type;		/* style of acl */
+	zfs_acl_type_t acl_type;	/* style of acl */
 	int acl_cnt;			/* number of acl entries */
 	int acl_entry_size;		/* sizeof acl entry */
 	int acl_flags;			/* special flags about acl */

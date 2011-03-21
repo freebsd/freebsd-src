@@ -190,7 +190,7 @@ bincvt(char *sysfile, char *outfile, void *img, int fsize)
 	    "objcopy -I binary -O elf32-i386-freebsd -B i386 %s %s.o\n",
 #endif
 #ifdef __amd64__
-	    "objcopy -I binary -O elf64-x86-64 -B i386 %s %s.o\n",
+	    "objcopy -I binary -O elf64-x86-64-freebsd -B i386 %s %s.o\n",
 #endif
 	    tname, outfile);
 	printf("%s", sysbuf);
@@ -229,7 +229,7 @@ firmcvt(char *firmfile)
 	    "objcopy -I binary -O elf32-i386-freebsd -B i386 %s %s.o\n",
 #endif
 #ifdef __amd64__
-	    "objcopy -I binary -O elf64-x86-64 -B i386 %s %s.o\n",
+	    "objcopy -I binary -O elf64-x86-64-freebsd -B i386 %s %s.o\n",
 #endif
 	    firmfile, outfile);
 	printf("%s", sysbuf);

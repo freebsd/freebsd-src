@@ -122,6 +122,7 @@ static state_func_t multi_user(void);
 static state_func_t clean_ttys(void);
 static state_func_t catatonia(void);
 static state_func_t death(void);
+static state_func_t death_single(void);
 
 static state_func_t run_script(const char *);
 
@@ -136,6 +137,7 @@ int devfs;
 
 static void transition(state_t);
 static state_t requested_transition;
+static state_t current_state = death_single;
 
 static void setctty(const char *);
 static const char *get_shell(void);
@@ -559,8 +561,9 @@ static void
 transition(state_t s)
 {
 
+	current_state = s;
 	for (;;)
-		s = (state_t) (*s)();
+		current_state = (state_t) (*current_state)();
 }
 
 /*
@@ -796,7 +799,7 @@ runcom(void)
  * Returns 0 on success, otherwise the next transition to enter:
  *  - single_user if fork/execv/waitpid failed, or if the script
  *    terminated with a signal or exit code != 0.
- *  - death if a SIGTERM was delivered to init(8).
+ *  - death_single if a SIGTERM was delivered to init(8).
  */
 static state_func_t
 run_script(const char *script)
@@ -852,8 +855,8 @@ run_script(const char *script)
 		if ((wpid = waitpid(-1, &status, WUNTRACED)) != -1)
 			collect_child(wpid);
 		if (wpid == -1) {
-			if (requested_transition == death)
-				return (state_func_t) death;
+			if (requested_transition == death_single)
+				return (state_func_t) death_single;
 			if (errno == EINTR)
 				continue;
 			warning("wait for %s on %s failed: %m; going to "
@@ -1306,7 +1309,9 @@ transition_handler(int sig)
 
 	switch (sig) {
 	case SIGHUP:
-		requested_transition = clean_ttys;
+		if (current_state == read_ttys || current_state == multi_user ||
+		    current_state == clean_ttys || current_state == catatonia)
+			requested_transition = clean_ttys;
 		break;
 	case SIGUSR2:
 		howto = RB_POWEROFF;
@@ -1315,10 +1320,17 @@ transition_handler(int sig)
 	case SIGINT:
 		Reboot = TRUE;
 	case SIGTERM:
-		requested_transition = death;
+		if (current_state == read_ttys || current_state == multi_user ||
+		    current_state == clean_ttys || current_state == catatonia)
+			requested_transition = death;
+		else
+			requested_transition = death_single;
 		break;
 	case SIGTSTP:
-		requested_transition = catatonia;
+		if (current_state == runcom || current_state == read_ttys ||
+		    current_state == clean_ttys ||
+		    current_state == multi_user || current_state == catatonia)
+			requested_transition = catatonia;
 		break;
 	default:
 		requested_transition = 0;
@@ -1494,9 +1506,6 @@ death(void)
 {
 	struct utmpx utx;
 	session_t *sp;
-	int i;
-	pid_t pid;
-	static const int death_sigs[2] = { SIGTERM, SIGKILL };
 
 	/* NB: should send a message to the session logger to avoid blocking. */
 	utx.ut_type = SHUTDOWN_TIME;
@@ -1517,6 +1526,22 @@ death(void)
 
 	/* Try to run the rc.shutdown script within a period of time */
 	runshutdown();
+
+	return (state_func_t) death_single;
+}
+
+/*
+ * Do what is necessary to reinitialize single user mode or reboot
+ * from an incomplete state.
+ */
+static state_func_t
+death_single(void)
+{
+	int i;
+	pid_t pid;
+	static const int death_sigs[2] = { SIGTERM, SIGKILL };
+
+	revoke(_PATH_CONSOLE);
 
 	for (i = 0; i < 2; ++i) {
 		if (kill(-1, death_sigs[i]) == -1 && errno == ESRCH)

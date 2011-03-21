@@ -90,6 +90,7 @@ struct sysentvec ibcs2_svr3_sysvec = {
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = NULL,
+	.sv_schedtail	= NULL,
 };
 
 static int

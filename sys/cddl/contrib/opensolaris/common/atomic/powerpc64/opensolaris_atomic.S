@@ -36,6 +36,19 @@ ENTRY(atomic_add_64_nv)
 	mr	%r3,%r5
 	blr
 
+ENTRY(atomic_cas_32)
+   1:	lwarx	%r6,0,%r3
+	cmplw	%r6,%r4
+	bne	2f
+	stwcx.	%r5,0,%r3
+	bne-	1b
+	b	3f
+
+   2:	stwcx.	%r6,0,%r3	/* clear reservation */
+
+   3:	mr	%r3,%r6
+	blr
+
 ENTRY(atomic_cas_64)
    1:	ldarx	%r6,0,%r3
 	cmpld	%r6,%r4

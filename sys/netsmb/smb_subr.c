@@ -93,7 +93,7 @@ char *
 smb_strdup(const char *s)
 {
 	char *p;
-	int len;
+	size_t len;
 
 	len = s ? strlen(s) + 1 : 1;
 	p = malloc(len, M_SMBSTR, M_WAITOK);
@@ -108,11 +108,13 @@ smb_strdup(const char *s)
  * duplicate string from a user space.
  */
 char *
-smb_strdupin(char *s, int maxlen)
+smb_strdupin(char *s, size_t maxlen)
 {
 	char *p, bt;
-	int error, len = 0;
+	int error;
+	size_t len;
 
+	len = 0;
 	for (p = s; ;p++) {
 		if (copyin(p, &bt, 1))
 			return NULL;
@@ -135,7 +137,7 @@ smb_strdupin(char *s, int maxlen)
  * duplicate memory block from a user space.
  */
 void *
-smb_memdupin(void *umem, int len)
+smb_memdupin(void *umem, size_t len)
 {
 	char *p;
 
@@ -178,7 +180,7 @@ smb_memfree(void *s)
 }
 
 void *
-smb_zmalloc(unsigned long size, struct malloc_type *type, int flags)
+smb_zmalloc(size_t size, struct malloc_type *type, int flags)
 {
 
 	return malloc(size, type, flags | M_ZERO);
@@ -197,12 +199,12 @@ smb_strtouni(u_int16_t *dst, const char *src)
 void
 m_dumpm(struct mbuf *m) {
 	char *p;
-	int len;
+	size_t len;
 	printf("d=");
 	while(m) {
 		p=mtod(m,char *);
 		len=m->m_len;
-		printf("(%d)",len);
+		printf("(%zu)",len);
 		while(len--){
 			printf("%02x ",((int)*(p++)) & 0xff);
 		}
@@ -337,7 +339,7 @@ smb_copy_iconv(struct mbchain *mbp, c_caddr_t src, caddr_t dst,
 
 int
 smb_put_dmem(struct mbchain *mbp, struct smb_vc *vcp, const char *src,
-	int size, int caseopt)
+	size_t size, int caseopt)
 {
 	struct iconv_drv *dp = vcp->vc_toserver;
 

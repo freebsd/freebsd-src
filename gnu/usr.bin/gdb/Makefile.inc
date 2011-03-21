@@ -20,7 +20,7 @@ OBJ_GDB= ${OBJ_ROOT}/gdb
 # MACHINE_CPUARCH, but there's no easy way to export make functions...
 
 .if defined(TARGET_ARCH)
-TARGET_CPUARCH=${TARGET_ARCH:C/mipse[bl]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+TARGET_CPUARCH=${TARGET_ARCH:C/mips.*e[bl]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
 .else
 TARGET_CPUARCH=${MACHINE_CPUARCH}
 .endif
@@ -42,8 +42,8 @@ CFLAGS+= -I${TARGET_SUBDIR}
 CFLAGS+= -I${BMAKE_BU}/libbfd -I${BMAKE_BU}/libbfd/${TARGET_CPUARCH}
 CFLAGS+= -I${CNTRB_GDB}/gdb
 CFLAGS+= -I${CNTRB_GDB}/gdb/config
-CFLAGS+= -I${CNTRB_GDB}/include
 CFLAGS+= -I${CNTRB_BU}/include
+CFLAGS+= -I${CNTRB_GDB}/include
 CFLAGS+= -I${CNTRB_BU}/bfd
 
 GENSRCS+= nm.h tm.h

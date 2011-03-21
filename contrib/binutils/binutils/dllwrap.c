@@ -1,5 +1,6 @@
 /* dllwrap.c -- wrapper for DLLTOOL and GCC to generate PE style DLLs
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007
+   Free Software Foundation, Inc.
    Contributed by Mumit Khan (khan@xraylith.wisc.edu).
 
    This file is part of GNU Binutils.
@@ -16,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* AIX requires this to be the first thing in the file.  */
 #ifndef __GNUC__
@@ -26,24 +27,15 @@
 #endif
 #endif
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
+#include "sysdep.h"
 #include "bfd.h"
 #include "libiberty.h"
-#include "bucomm.h"
 #include "getopt.h"
 #include "dyn-string.h"
+#include "bucomm.h"
 
 #include <time.h>
 #include <sys/stat.h>
-
-#ifdef ANSI_PROTOTYPES
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -101,7 +93,7 @@ static target_type which_target = UNKNOWN_TARGET;
 static int dontdeltemps = 0;
 static int dry_run = 0;
 
-static char *program_name;
+static char *prog_name;
 
 static int verbose = 0;
 
@@ -118,9 +110,9 @@ static int run (const char *, char *);
 static char *mybasename (const char *);
 static int strhash (const char *);
 static void usage (FILE *, int);
-static void display (const char *, va_list);
-static void inform (const char *, ...);
-static void warn (const char *, ...);
+static void display (const char *, va_list) ATTRIBUTE_PRINTF(1,0);
+static void inform (const char *, ...) ATTRIBUTE_PRINTF_1;
+static void warn (const char *, ...) ATTRIBUTE_PRINTF_1;
 static char *look_for_prog (const char *, const char *, int);
 static char *deduce_name (const char *);
 static void delete_temp_files (void);
@@ -139,8 +131,8 @@ static void cleanup_and_exit (int);
 static void
 display (const char * message, va_list args)
 {
-  if (program_name != NULL)
-    fprintf (stderr, "%s: ", program_name);
+  if (prog_name != NULL)
+    fprintf (stderr, "%s: ", prog_name);
 
   vfprintf (stderr, message, args);
   fputc ('\n', stderr);
@@ -244,17 +236,20 @@ look_for_prog (const char *prog_name, const char *prefix, int end_prefix)
    Returns a dynamically allocated string.  */
 
 static char *
-deduce_name (const char *prog_name)
+deduce_name (const char * name)
 {
   char *cmd;
-  char *dash, *slash, *cp;
+  const char *dash;
+  const char *slash;
+  const char *cp;
 
   dash = NULL;
   slash = NULL;
-  for (cp = program_name; *cp != '\0'; ++cp)
+  for (cp = prog_name; *cp != '\0'; ++cp)
     {
       if (*cp == '-')
 	dash = cp;
+
       if (
 #if defined(__DJGPP__) || defined (__CYGWIN__) || defined(__WIN32__)
 	  *cp == ':' || *cp == '\\' ||
@@ -269,24 +264,18 @@ deduce_name (const char *prog_name)
   cmd = NULL;
 
   if (dash != NULL)
-    {
-      /* First, try looking for a prefixed PROG_NAME in the
-         PROGRAM_NAME directory, with the same prefix as PROGRAM_NAME.  */
-      cmd = look_for_prog (prog_name, program_name, dash - program_name + 1);
-    }
+    /* First, try looking for a prefixed NAME in the
+       PROG_NAME directory, with the same prefix as PROG_NAME.  */
+    cmd = look_for_prog (name, prog_name, dash - prog_name + 1);
 
   if (slash != NULL && cmd == NULL)
-    {
-      /* Next, try looking for a PROG_NAME in the same directory as
-         that of this program.  */
-      cmd = look_for_prog (prog_name, program_name, slash - program_name + 1);
-    }
+    /* Next, try looking for a NAME in the same directory as
+       that of this program.  */
+    cmd = look_for_prog (name, prog_name, slash - prog_name + 1);
 
   if (cmd == NULL)
-    {
-      /* Just return PROG_NAME as is.  */
-      cmd = xstrdup (prog_name);
-    }
+    /* Just return NAME as is.  */
+    cmd = xstrdup (name);
 
   return cmd;
 }
@@ -396,14 +385,14 @@ run (const char *what, char *args)
   if (dry_run)
     return 0;
 
-  pid = pexecute (argv[0], (char * const *) argv, program_name, temp_base,
+  pid = pexecute (argv[0], (char * const *) argv, prog_name, temp_base,
 		  &errmsg_fmt, &errmsg_arg, PEXECUTE_ONE | PEXECUTE_SEARCH);
 
   if (pid == -1)
     {
       int errno_val = errno;
 
-      fprintf (stderr, "%s: ", program_name);
+      fprintf (stderr, "%s: ", prog_name);
       fprintf (stderr, errmsg_fmt, errmsg_arg);
       fprintf (stderr, ": %s\n", strerror (errno_val));
       return 1;
@@ -479,13 +468,14 @@ strhash (const char *str)
 static void
 usage (FILE *file, int status)
 {
-  fprintf (file, _("Usage %s <option(s)> <object-file(s)>\n"), program_name);
+  fprintf (file, _("Usage %s <option(s)> <object-file(s)>\n"), prog_name);
   fprintf (file, _("  Generic options:\n"));
+  fprintf (file, _("   @<file>                Read options from <file>\n"));    
   fprintf (file, _("   --quiet, -q            Work quietly\n"));
   fprintf (file, _("   --verbose, -v          Verbose\n"));
   fprintf (file, _("   --version              Print dllwrap version\n"));
   fprintf (file, _("   --implib <outname>     Synonym for --output-lib\n"));
-  fprintf (file, _("  Options for %s:\n"), program_name);
+  fprintf (file, _("  Options for %s:\n"), prog_name);
   fprintf (file, _("   --driver-name <driver> Defaults to \"gcc\"\n"));
   fprintf (file, _("   --driver-flags <flags> Override default ld flags\n"));
   fprintf (file, _("   --dlltool-name <dlltool> Defaults to \"dlltool\"\n"));
@@ -516,6 +506,8 @@ usage (FILE *file, int status)
   fprintf (file, _("   --nodelete             Keep temp files.\n"));
   fprintf (file, _("  Rest are passed unmodified to the language driver\n"));
   fprintf (file, "\n\n");
+  if (REPORT_BUGS_TO[0] && status == 0)
+    fprintf (file, _("Report bugs to %s\n"), REPORT_BUGS_TO);
   exit (status);
 }
 
@@ -624,7 +616,7 @@ main (int argc, char **argv)
 
   char *image_base_str = 0;
 
-  program_name = argv[0];
+  prog_name = argv[0];
 
 #if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
   setlocale (LC_MESSAGES, "");
@@ -634,6 +626,8 @@ main (int argc, char **argv)
 #endif
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);
+
+  expandargv (&argc, &argv);
 
   saved_argv = (char **) xmalloc (argc * sizeof (char*));
   dlltool_arg_indices = (int *) xmalloc (argc * sizeof (int));
@@ -688,7 +682,7 @@ main (int argc, char **argv)
 	  verbose = 1;
 	  break;
 	case OPTION_VERSION:
-	  print_version (program_name);
+	  print_version (prog_name);
 	  break;
 	case 'e':
 	  entry_point = optarg;
@@ -781,7 +775,7 @@ main (int argc, char **argv)
 	}
     }
 
-  /* sanity checks.  */
+  /* Sanity checks.  */
   if (! dll_name && ! dll_file_name)
     {
       warn (_("Must provide at least one of -o or --dllname options"));
@@ -806,6 +800,7 @@ main (int argc, char **argv)
   if (! def_file_seen)
     {
       char *fileprefix = choose_temp_base ();
+
       def_file_name = (char *) xmalloc (strlen (fileprefix) + 5);
       sprintf (def_file_name, "%s.def",
 	       (dontdeltemps) ? mybasename (fileprefix) : fileprefix);
@@ -816,7 +811,7 @@ main (int argc, char **argv)
 Creating one, but that may not be what you want"));
     }
 
-  /* set the target platform.  */
+  /* Set the target platform.  */
   if (strstr (target, "cygwin"))
     which_target = CYGWIN_TARGET;
   else if (strstr (target, "mingw"))
@@ -824,12 +819,11 @@ Creating one, but that may not be what you want"));
   else
     which_target = UNKNOWN_TARGET;
 
-  /* re-create the command lines as a string, taking care to quote stuff.  */
+  /* Re-create the command lines as a string, taking care to quote stuff.  */
   dlltool_cmdline = dyn_string_new (cmdline_len);
   if (verbose)
-    {
-      dyn_string_append_cstr (dlltool_cmdline, " -v");
-    }
+    dyn_string_append_cstr (dlltool_cmdline, " -v");
+
   dyn_string_append_cstr (dlltool_cmdline, " --dllname ");
   dyn_string_append_cstr (dlltool_cmdline, dll_name);
 
@@ -922,10 +916,8 @@ Creating one, but that may not be what you want"));
 	}
     }
 
-  /*
-   * Step pre-1. If no --def <EXPORT_DEF> is specified, then create it
-   * and then pass it on.
-   */
+  /* Step pre-1. If no --def <EXPORT_DEF> is specified,
+     then create it and then pass it on.  */
 
   if (! def_file_seen)
     {
@@ -980,16 +972,13 @@ Creating one, but that may not be what you want"));
       fprintf (stderr, _("DRIVER options  : %s\n"), driver_cmdline->s);
     }
 
-  /*
-   * Step 1. Call GCC/LD to create base relocation file. If using GCC, the
-   * driver command line will look like the following:
-   *
-   *    % gcc -Wl,--dll --Wl,--base-file,foo.base [rest of command line]
-   *
-   * If the user does not specify a base name, create temporary one that
-   * is deleted at exit.
-   *
-   */
+  /* Step 1. Call GCC/LD to create base relocation file. If using GCC, the
+     driver command line will look like the following:
+    
+        % gcc -Wl,--dll --Wl,--base-file,foo.base [rest of command line]
+    
+     If the user does not specify a base name, create temporary one that
+     is deleted at exit.  */
 
   if (! base_file_name)
     {
@@ -1027,23 +1016,19 @@ Creating one, but that may not be what you want"));
     dyn_string_delete (step1);
   }
 
-
-
-  /*
-   * Step 2. generate the exp file by running dlltool.
-   * dlltool command line will look like the following:
-   *
-   *    % dlltool -Wl,--dll --Wl,--base-file,foo.base [rest of command line]
-   *
-   * If the user does not specify a base name, create temporary one that
-   * is deleted at exit.
-   *
-   */
+  /* Step 2. generate the exp file by running dlltool.
+     dlltool command line will look like the following:
+    
+        % dlltool -Wl,--dll --Wl,--base-file,foo.base [rest of command line]
+    
+     If the user does not specify a base name, create temporary one that
+     is deleted at exit.  */
 
   if (! exp_file_name)
     {
       char *p = strrchr (dll_name, '.');
-      size_t prefix_len = (p) ? p - dll_name : strlen (dll_name);
+      size_t prefix_len = (p) ? (size_t) (p - dll_name) : strlen (dll_name);
+
       exp_file_name = (char *) xmalloc (prefix_len + 4 + 1);
       strncpy (exp_file_name, dll_name, prefix_len);
       exp_file_name[prefix_len] = '\0';
@@ -1053,6 +1038,7 @@ Creating one, but that may not be what you want"));
 
   {
     int quote;
+
     dyn_string_t step2 = dyn_string_new (dlltool_cmdline->length
 					 + strlen (base_file_name)
 					 + strlen (exp_file_name)

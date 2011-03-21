@@ -61,6 +61,7 @@ SUBDIR=	alias \
 	gzip \
 	head \
 	hexdump \
+	${_iconv} \
 	id \
 	ipcrm \
 	ipcs \
@@ -98,7 +99,9 @@ SUBDIR=	alias \
 	mesg \
 	minigzip \
 	ministat \
+	${_mkcsmapper} \
 	mkdep \
+	${_mkesdb} \
 	mkfifo \
 	mklocale \
 	mktemp \
@@ -239,6 +242,16 @@ _clang=		clang
 SUBDIR+=	hesinfo
 .endif
 
+.if ${MK_ICONV} != "no"
+_iconv=		iconv
+_mkcsmapper=	mkcsmapper
+_mkesdb=	mkesdb
+.endif
+
+.if ${MK_GROFF} != "no"
+SUBDIR+=	vgrind
+.endif
+
 .if ${MK_OPENSSL} != "no"
 SUBDIR+=	bc
 SUBDIR+=	chkey
@@ -320,8 +333,6 @@ SUBDIR+=	rpcgen
 SUBDIR+=	unifdef
 SUBDIR+=	xlint
 SUBDIR+=	xstr
-# XXX maybe under textproc?
-SUBDIR+=	vgrind
 SUBDIR+=	yacc
 .endif
 

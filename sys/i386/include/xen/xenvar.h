@@ -28,6 +28,11 @@
 
 #ifndef XENVAR_H_
 #define XENVAR_H_
+
+#include <machine/xen/features.h>
+
+#if defined(XEN)
+
 #define XBOOTUP 0x1
 #define XPMAP   0x2
 extern int xendebug_flags;
@@ -36,7 +41,6 @@ extern int xendebug_flags;
 #else
 #define XENPRINTF printf
 #endif
-#include <machine/xen/features.h>
 
 extern	xen_pfn_t *xen_phys_machine;
 extern	xen_pfn_t *xen_pfn_to_mfn_frame_list[16];
@@ -100,5 +104,12 @@ typedef struct { DECLARE_BITMAP(bits, NR_CPUS); } xen_cpumask_t;
 int  xen_create_contiguous_region(vm_page_t pages, int npages);
 
 void  xen_destroy_contiguous_region(void * addr, int npages);
+
+#elif defined(XENHVM)
+
+#define	PFNTOMFN(pa)	(pa)
+#define	MFNTOPFN(ma)	(ma)
+
+#endif /* !XEN && !XENHVM */
 
 #endif

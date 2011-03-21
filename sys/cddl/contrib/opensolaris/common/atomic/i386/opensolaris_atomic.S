@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -102,14 +102,14 @@
 	ret
 	SET_SIZE(atomic_or_8_nv)
 
-	ENTRY(atomic_cas_ptr)
+	ENTRY(atomic_cas_32)
 	movl	4(%esp), %edx
 	movl	8(%esp), %eax
 	movl	12(%esp), %ecx
 	lock
 	cmpxchgl %ecx, (%edx)
 	ret
-	SET_SIZE(atomic_cas_ptr)
+	SET_SIZE(atomic_cas_32)
 
 	ENTRY(atomic_cas_64)
 	pushl	%ebx

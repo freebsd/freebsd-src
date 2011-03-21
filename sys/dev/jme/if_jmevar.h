@@ -221,7 +221,6 @@ struct jme_softc {
 	volatile int		jme_morework;
 
 	struct task		jme_int_task;
-	struct task		jme_tx_task;
 	struct task		jme_link_task;
 	struct taskqueue	*jme_tq;
 	struct mtx		jme_mtx;

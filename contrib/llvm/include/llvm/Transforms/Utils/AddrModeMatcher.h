@@ -39,6 +39,12 @@ struct ExtAddrMode : public TargetLowering::AddrMode {
   ExtAddrMode() : BaseReg(0), ScaledReg(0) {}
   void print(raw_ostream &OS) const;
   void dump() const;
+  
+  bool operator==(const ExtAddrMode& O) const {
+    return (BaseReg == O.BaseReg) && (ScaledReg == O.ScaledReg) &&
+           (BaseGV == O.BaseGV) && (BaseOffs == O.BaseOffs) &&
+           (HasBaseReg == O.HasBaseReg) && (Scale == O.Scale);
+  }
 };
 
 static inline raw_ostream &operator<<(raw_ostream &OS, const ExtAddrMode &AM) {
@@ -84,7 +90,7 @@ public:
     bool Success = 
       AddressingModeMatcher(AddrModeInsts, TLI, AccessTy,
                             MemoryInst, Result).MatchAddr(V, 0);
-    Success = Success; assert(Success && "Couldn't select *anything*?");
+    (void)Success; assert(Success && "Couldn't select *anything*?");
     return Result;
   }
 private:

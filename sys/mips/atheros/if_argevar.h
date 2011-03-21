@@ -110,7 +110,6 @@ struct arge_chain_data {
 	bus_dmamap_t		arge_tx_ring_map;
 	bus_dmamap_t		arge_rx_ring_map;
 	bus_dmamap_t		arge_rx_sparemap;
-	int			arge_tx_pkts;
 	int			arge_tx_prod;
 	int			arge_tx_cons;
 	int			arge_tx_cnt;

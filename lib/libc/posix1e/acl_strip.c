@@ -141,7 +141,7 @@ acl_strip_np(const acl_t aclp, int recalculate_mask)
 {
 	switch (_acl_brand(aclp)) {
 	case ACL_BRAND_NFS4:
-		return (_nfs4_acl_strip_np(aclp, 1));
+		return (_nfs4_acl_strip_np(aclp, 0));
 
 	case ACL_BRAND_POSIX:
 		return (_posix1e_acl_strip_np(aclp, recalculate_mask));

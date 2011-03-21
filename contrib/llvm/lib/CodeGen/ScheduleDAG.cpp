@@ -15,6 +15,7 @@
 #define DEBUG_TYPE "pre-RA-sched"
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/CodeGen/ScheduleHazardRecognizer.h"
+#include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
@@ -32,6 +33,12 @@ ScheduleDAG::ScheduleDAG(MachineFunction &mf)
 }
 
 ScheduleDAG::~ScheduleDAG() {}
+
+/// getInstrDesc helper to handle SDNodes.
+const TargetInstrDesc *ScheduleDAG::getNodeDesc(const SDNode *Node) const {
+  if (!Node || !Node->isMachineOpcode()) return NULL;
+  return &TII->get(Node->getMachineOpcode());
+}
 
 /// dump - dump the schedule.
 void ScheduleDAG::dumpSchedule() const {
@@ -68,12 +75,12 @@ void ScheduleDAG::Run(MachineBasicBlock *bb,
 /// addPred - This adds the specified edge as a pred of the current node if
 /// not already.  It also adds the current node as a successor of the
 /// specified node.
-void SUnit::addPred(const SDep &D) {
+bool SUnit::addPred(const SDep &D) {
   // If this node already has this depenence, don't add a redundant one.
   for (SmallVector<SDep, 4>::const_iterator I = Preds.begin(), E = Preds.end();
        I != E; ++I)
     if (*I == D)
-      return;
+      return false;
   // Now add a corresponding succ to N.
   SDep P = D;
   P.setSUnit(this);
@@ -99,6 +106,7 @@ void SUnit::addPred(const SDep &D) {
     this->setDepthDirty();
     N->setHeightDirty();
   }
+  return true;
 }
 
 /// removePred - This removes the specified edge as a pred of the current
@@ -278,6 +286,7 @@ void SUnit::dumpAll(const ScheduleDAG *G) const {
 
   dbgs() << "  # preds left       : " << NumPredsLeft << "\n";
   dbgs() << "  # succs left       : " << NumSuccsLeft << "\n";
+  dbgs() << "  # rdefs left       : " << NumRegDefsLeft << "\n";
   dbgs() << "  Latency            : " << Latency << "\n";
   dbgs() << "  Depth              : " << Depth << "\n";
   dbgs() << "  Height             : " << Height << "\n";
@@ -492,7 +501,7 @@ void ScheduleDAGTopologicalSort::RemovePred(SUnit *M, SUnit *N) {
 /// all nodes affected by the edge insertion. These nodes will later get new
 /// topological indexes by means of the Shift method.
 void ScheduleDAGTopologicalSort::DFS(const SUnit *SU, int UpperBound,
-                                     bool& HasLoop) {
+                                     bool &HasLoop) {
   std::vector<const SUnit*> WorkList;
   WorkList.reserve(SUnits.size());
 

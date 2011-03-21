@@ -114,6 +114,30 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 		*txrate = amn->amn_tx_rate0;
 }
 
+/*
+ * Get the TX rates.
+ *
+ * The short preamble bits aren't set here; the caller should augment
+ * the returned rate with the relevant preamble rate flag.
+ */
+void
+ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
+    uint8_t rix0, uint8_t *rix, uint8_t *try)
+{
+	struct amrr_node *amn = ATH_NODE_AMRR(an);
+
+/*	rix[0] = amn->amn_tx_rate0; */
+	rix[1] = amn->amn_tx_rate1;
+	rix[2] = amn->amn_tx_rate2;
+	rix[3] = amn->amn_tx_rate3;
+
+	try[0] = amn->amn_tx_try0;
+	try[1] = amn->amn_tx_try1;
+	try[2] = amn->amn_tx_try2;
+	try[3] = amn->amn_tx_try3;
+}
+
+
 void
 ath_rate_setupxtxdesc(struct ath_softc *sc, struct ath_node *an,
 	struct ath_desc *ds, int shortPreamble, u_int8_t rix)

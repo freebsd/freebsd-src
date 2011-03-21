@@ -59,7 +59,6 @@ int
 _kvm_vnet_selectpid(kvm_t *kd, pid_t pid)
 {
 	struct proc proc;
-	struct thread td;
 	struct ucred cred;
 	struct prison prison;
 	struct vnet vnet;
@@ -82,7 +81,12 @@ _kvm_vnet_selectpid(kvm_t *kd, pid_t pid)
 		{ .n_name = "proc0" },
 		{ .n_name = NULL },
 	};
-	uintptr_t procp, tdp, credp;
+	uintptr_t procp, credp;
+#define	VMCORE_VNET_OF_PROC0
+#ifndef VMCORE_VNET_OF_PROC0
+	struct thread td;
+	uintptr_t tdp;
+#endif
 	lwpid_t dumptid;
 
 	/*
@@ -124,7 +128,6 @@ _kvm_vnet_selectpid(kvm_t *kd, pid_t pid)
 	credp = 0;
 
 	procp = nl[NLIST_ALLPROC].n_value;
-#define	VMCORE_VNET_OF_PROC0
 #ifdef VMCORE_VNET_OF_PROC0
 	if (dumptid > 0) {
 		procp = nl[NLIST_PROC0].n_value;

@@ -2,6 +2,8 @@
 # Makefile.in for etc
 #
 
+DESTDIR		=
+
 prefix 		= @prefix@
 exec_prefix 	= @exec_prefix@
 
@@ -23,7 +25,11 @@ man6dir = $(mandir)/man6
 man7dir = $(mandir)/man7
 man8dir = $(mandir)/man8
 man9dir = $(mandir)/man9
+datarootdir = @datarootdir@
+docdir = @docdir@
 infodir = @infodir@
+pdfdir = @docdir@
+htmldir = @htmldir@
 
 SHELL = /bin/sh
 
@@ -37,7 +43,13 @@ MAKEINFO = `if [ -f ../texinfo/makeinfo/makeinfo ]; \
 TEXI2DVI = `if [ -f ../texinfo/util/texi2dvi ]; \
 	then echo ../texinfo/util/texi2dvi; \
 	else echo texi2dvi; fi`
-TEXI2HTML = texi2html
+TEXI2PDF = `if [ -f ../texinfo/util/texi2dvi ]; \
+	then echo "../texinfo/util/texi2dvi --pdf"; \
+	else echo "texi2dvi --pdf"; fi`
+TEXI2HTML = `if [ -f ../texinfo/makeinfo/makeinfo ]; \
+	then echo "../texinfo/makeinfo/makeinfo --html"; \
+	else echo "makeinfo --html"; fi`
+
 DVIPS = dvips
 
 # Where to find texinfo.tex to format documentation with TeX.
@@ -48,10 +60,10 @@ TEXIDIR = $(srcdir)/../texinfo
 
 INFOFILES = standards.info configure.info
 DVIFILES = standards.dvi configure.dvi
+PDFFILES = standards.pdf configure.pdf
+HTMLFILES = standards.html configure.html
 
-all:
-
-# We want install to imply install-info as per GNU standards.
+all: info
 install: install-info
 
 uninstall:
@@ -68,17 +80,43 @@ info:
 	done
 
 install-info: info
-	$(SHELL) $(srcdir)/../mkinstalldirs $(infodir)
+	$(SHELL) $(srcdir)/../mkinstalldirs $(DESTDIR)$(infodir)
 	if test ! -f standards.info; then cd $(srcdir); fi; \
 	if test -f standards.info; then \
 	  for i in standards.info*; do \
-	    $(INSTALL_DATA) $$i $(infodir)/$$i; \
+	    $(INSTALL_DATA) $$i $(DESTDIR)$(infodir)/$$i; \
 	  done; \
 	fi
 	if test ! -f configure.info; then cd $(srcdir); fi; \
 	if test -f configure.info; then \
 	  for i in configure.info*; do \
-	    $(INSTALL_DATA) $$i $(infodir)/$$i; \
+	    $(INSTALL_DATA) $$i $(DESTDIR)$(infodir)/$$i; \
+	  done; \
+	fi
+
+html:
+	for f in $(HTMLFILES); do \
+	  if test -f $(srcdir)/`echo $$f | sed -e 's/.html$$/.texi/'`; then \
+	    if $(MAKE) "TEXI2HTML=$(TEXI2HTML)" $$f; then \
+	      true; \
+	    else \
+	      exit 1; \
+	    fi; \
+	  fi; \
+	done
+
+install-html: html
+	$(SHELL) $(srcdir)/../mkinstalldirs $(DESTDIR)$(htmldir)
+	if test ! -f standards.html; then cd $(srcdir); fi; \
+	if test -f standards.html; then \
+	  for i in standards.html*; do \
+	    $(INSTALL_DATA) $$i $(DESTDIR)$(htmldir)/$$i; \
+	  done; \
+	fi
+	if test ! -f configure.html; then cd $(srcdir); fi; \
+	if test -f configure.html; then \
+	  for i in configure.html*; do \
+	    $(INSTALL_DATA) $$i $(DESTDIR)$(htmldir)/$$i; \
 	  done; \
 	fi
 
@@ -93,14 +131,46 @@ dvi:
 	  fi; \
 	done
 
+pdf:
+	for f in $(PDFFILES); do \
+	  if test -f $(srcdir)/`echo $$f | sed -e 's/.pdf$$/.texi/'`; then \
+	    if $(MAKE) "TEXI2PDF=$(TEXI2PDF)" $$f; then \
+	      true; \
+	    else \
+	      exit 1; \
+	    fi; \
+	  fi; \
+	done
+
+install-pdf: pdf
+	$(SHELL) $(srcdir)/../mkinstalldirs $(DESTDIR)$(pdfdir)/etc
+	if test ! -f standards.pdf; then cd $(srcdir); fi; \
+	if test -f standards.pdf; then \
+	  for i in standards.pdf*; do \
+	    $(INSTALL_DATA) $$i $(DESTDIR)$(pdfdir)/etc/$$i; \
+	  done; \
+	fi
+	if test ! -f configure.pdf; then cd $(srcdir); fi; \
+	if test -f configure.pdf; then \
+	  for i in configure.pdf*; do \
+	    $(INSTALL_DATA) $$i $(DESTDIR)$(pdfdir)/etc/$$i; \
+	  done; \
+	fi
+
 standards.info: $(srcdir)/standards.texi $(srcdir)/make-stds.texi
 	$(MAKEINFO) --no-split -I$(srcdir) -o standards.info $(srcdir)/standards.texi
+
+standards.html: $(srcdir)/standards.texi $(srcdir)/make-stds.texi
+	$(TEXI2HTML) --no-split -I$(srcdir) -o standards.html $(srcdir)/standards.texi
 
 standards.dvi: $(srcdir)/standards.texi
 	TEXINPUTS=$(TEXIDIR):$$TEXINPUTS $(TEXI2DVI) $(srcdir)/standards.texi
 
 standards.ps: standards.dvi
 	$(DVIPS) standards.dvi -o standards.ps
+
+standards.pdf: $(srcdir)/standards.texi
+	TEXINPUTS=$(TEXIDIR):$$TEXINPUTS $(TEXI2PDF) $(srcdir)/standards.texi
 
 # makeinfo requires images to be in the current directory.
 configure.info: $(srcdir)/configure.texi $(srcdir)/configdev.tin $(srcdir)/configbuild.tin
@@ -130,13 +200,23 @@ configure.ps: configure.dvi $(srcdir)/configdev.ein $(srcdir)/configbuild.ein
 	$(DVIPS) configure.dvi -o configure.ps
 	rm -f configdev.eps configbuild.eps
 
+configure.pdf: $(srcdir)/configure.texi $(srcdir)/configdev.tin $(srcdir)/configbuild.tin $(srcdir)/configdev.ein $(srcdir)/configbuild.ein
+	rm -f configdev.pdf configbuild.pdf
+	epstopdf $(srcdir)/configdev.ein -outfile=configdev.pdf
+	epstopdf $(srcdir)/configbuild.ein -outfile=configbuild.pdf
+	TEXINPUTS=$(TEXIDIR):$$TEXINPUTS $(TEXI2PDF) $(srcdir)/configure.texi
+	rm -f configdev.pdf configbuild.pdf
+
 configure.html: $(srcdir)/configure.texi
-	$(TEXI2HTML) -split_chapter $(srcdir)/configure.texi
+	cp $(srcdir)/configdev.jin configdev.jpg
+	cp $(srcdir)/configbuild.jin configbuild.jpg
+	$(TEXI2HTML) --no-split -I$(srcdir) -o configure.html $(srcdir)/configure.texi
 
 clean:
 	rm -f *.aux *.cp *.cps *.dvi *.fn *.fns *.ky *.kys *.log
 	rm -f *.pg *.pgs *.toc *.tp *.tps *.vr *.vrs
-	rm -f configdev.txt configbuild.txt configdev.eps configbuild.eps
+	rm -f configdev.txt configbuild.txt 
+	rm -f configdev.eps configbuild.eps
 	rm -f configdev.jpg configbuild.jpg
 
 mostlyclean: clean
@@ -145,6 +225,7 @@ distclean:   clean
 	rm -f Makefile config.status config.cache
 
 maintainer-clean realclean:   distclean
+	rm -f *.html*
 	rm -f *.info*
 
 Makefile: $(srcdir)/Makefile.in $(host_makefile_frag) $(target_makefile_frag)

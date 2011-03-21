@@ -898,6 +898,7 @@ struct dl_phdr_info;
 void __pthread_cxa_finalize(struct dl_phdr_info *phdr_info);
 void _thr_tsd_unload(struct dl_phdr_info *phdr_info) __hidden;
 void _thr_sigact_unload(struct dl_phdr_info *phdr_info) __hidden;
+void _thr_stack_fix_protection(struct pthread *thrd);
 
 __END_DECLS
 

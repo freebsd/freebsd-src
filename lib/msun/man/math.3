@@ -220,12 +220,11 @@ and
 .Vt long double
 values, were written for or imported into subsequent versions of FreeBSD.
 .Sh BUGS
-The
-.Fn cbrt
-function and many of the transcendental functions
-are not available in their
+Some of the
 .Vt "long double"
-variants.
+math functions in
+.St -isoC-99
+are not available.
 .Pp
 Many of the routines to compute transcendental functions produce
 inaccurate results in other than the default rounding mode.

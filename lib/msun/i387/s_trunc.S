@@ -25,3 +25,5 @@ ENTRY(trunc)
 	leave
 	ret
 END(trunc)
+
+	.section .note.GNU-stack,"",%progbits

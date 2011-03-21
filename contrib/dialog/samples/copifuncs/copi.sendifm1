@@ -1,0 +1,74 @@
+#! /bin/sh
+##  $Revision: 1.1 $
+##  SH script to send UUCP batches out.
+
+##  =()<. @<_PATH_SHELLVARS>@>()=
+. ~news/innshellvars
+
+PROGNAME=`basename $0`
+LOCK=${LOCKS}/LOCK.${PROGNAME}
+LOG=${MOST_LOGS}/${PROGNAME}.log
+
+MAXJOBS=200
+UUXFLAGS="- -r -gd"
+
+##  Start logging.
+test ! -f ${LOG} && touch ${LOG}
+chmod 0660 ${LOG}
+exec >>${LOG} 2>&1
+echo "${PROGNAME}: [$$] begin `date`"
+cd ${BATCH}
+
+##  Anyone else there?
+trap 'rm -f ${LOCK} ; exit 1' 1 2 3 15
+shlock -p $$ -f ${LOCK} || {
+    echo "${PROGNAME}: [$$] locked by [`cat ${LOCK}`]"
+    exit 0
+}
+
+##  Who are we sending to?
+if [ -n "$1" ] ; then
+    LIST="$*"
+else
+    LIST=`ls /usr/spool/news/out.going|egrep "f[0-9]*.n[0-9]*$"`
+fi
+
+case ${HAVE_UUSTAT} in
+DONT)
+    TEMP=${TMPDIR}/uuq$$
+    uuq -h |tr -d : >${TEMP}
+    ;;
+esac
+
+##  Do the work...
+
+for SITE in ${LIST}; do
+
+    ##  See if any data is ready for host.
+    BATCHFILE=${SITE}.uucp
+    if [ -f ${SITE}.work ] ; then
+	cat ${SITE}.work >>${BATCHFILE}
+	rm -f ${SITE}.work
+    fi
+    mv ${SITE} ${SITE}.work
+    ctlinnd -s -t30 flush ${SITE} || continue
+    cat ${SITE}.work >>${BATCHFILE}
+    rm -f ${SITE}.work
+    if [ ! -s ${BATCHFILE} ] ; then
+	echo "${PROGNAME}: [$$] no articles for ${SITE}"
+	rm -f ${BATCHFILE}
+	continue
+    fi
+
+    ##  Get the compression flags.
+    echo "${PROGNAME}: [$$] begin ${SITE}"
+    case "${SITE}" in
+    phreak)
+	COMPRESS="compress"
+	;;
+    *)
+	COMPRESS="gzip"
+	;;
+    esac
+
+    time batcher \

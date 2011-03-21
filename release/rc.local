@@ -1,0 +1,33 @@
+#!/bin/sh
+# $FreeBSD$
+
+: ${DIALOG_OK=0}
+: ${DIALOG_CANCEL=1}
+: ${DIALOG_HELP=2}
+: ${DIALOG_EXTRA=3}
+: ${DIALOG_ITEM_HELP=4}
+: ${DIALOG_ESC=255}
+
+TERM=xterm; export TERM # XXX: serial consoles
+
+dialog --backtitle "FreeBSD Installer" --title "Welcome" --extra-button --extra-label "Shell" --ok-label "Install" --cancel-label "Live CD" --yesno "Welcome to FreeBSD! Would you like to begin an installation or use the live CD?" 0 0
+
+case $? in
+$DIALOG_OK)	# Install
+	BSDINSTALL_CONFIGCURRENT=yes; export BSDINSTALL_CONFIGCURRENT
+	trap true SIGINT	# Ignore cntrl-C here
+	bsdinstall
+	dialog --backtitle "FreeBSD Installer" --title "Complete" --msgbox "Installation of FreeBSD complete! The system will now reboot." 0 0
+	reboot
+	;;
+$DIALOG_CANCEL)	# Live CD
+	exit 0
+	;;
+$DIALOG_EXTRA)	# Shell
+	clear
+	echo "When finished, type 'exit' to return to the installer."
+	/bin/sh
+	. /etc/rc.local
+	;;
+esac
+

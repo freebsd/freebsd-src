@@ -111,10 +111,7 @@ bool Parser::isCXXSimpleDeclaration() {
   // We need tentative parsing...
 
   TentativeParsingAction PA(*this);
-
   TPR = TryParseSimpleDeclaration();
-  SourceLocation TentativeParseLoc = Tok.getLocation();
-
   PA.Revert();
 
   // In case of an error, let the declaration parsing code handle it.
@@ -139,9 +136,13 @@ Parser::TPResult Parser::TryParseSimpleDeclaration() {
 
   if (Tok.is(tok::kw_typeof))
     TryParseTypeofSpecifier();
-  else
+  else {
     ConsumeToken();
-
+    
+    if (getLang().ObjC1 && Tok.is(tok::less))
+      TryParseProtocolQualifiers();
+  }
+  
   assert(Tok.is(tok::l_paren) && "Expected '('");
 
   TPResult TPR = TryParseInitDeclaratorList();
@@ -242,8 +243,12 @@ bool Parser::isCXXConditionDeclaration() {
   // type-specifier-seq
   if (Tok.is(tok::kw_typeof))
     TryParseTypeofSpecifier();
-  else
+  else {
     ConsumeToken();
+    
+    if (getLang().ObjC1 && Tok.is(tok::less))
+      TryParseProtocolQualifiers();
+  }
   assert(Tok.is(tok::l_paren) && "Expected '('");
 
   // declarator
@@ -313,8 +318,13 @@ bool Parser::isCXXTypeId(TentativeCXXTypeIdContext Context, bool &isAmbiguous) {
   // type-specifier-seq
   if (Tok.is(tok::kw_typeof))
     TryParseTypeofSpecifier();
-  else
+  else {
     ConsumeToken();
+    
+    if (getLang().ObjC1 && Tok.is(tok::less))
+      TryParseProtocolQualifiers();
+  }
+  
   assert(Tok.is(tok::l_paren) && "Expected '('");
 
   // declarator
@@ -448,6 +458,7 @@ bool Parser::isCXX0XAttributeSpecifier (bool CheckClosing,
 ///         abstract-declarator:
 ///           ptr-operator abstract-declarator[opt]
 ///           direct-abstract-declarator
+///           ...
 ///
 ///         direct-abstract-declarator:
 ///           direct-abstract-declarator[opt]
@@ -470,7 +481,7 @@ bool Parser::isCXX0XAttributeSpecifier (bool CheckClosing,
 ///           'volatile'
 ///
 ///         declarator-id:
-///           id-expression
+///           '...'[opt] id-expression
 ///
 ///         id-expression:
 ///           unqualified-id
@@ -495,6 +506,7 @@ Parser::TPResult Parser::TryParseDeclarator(bool mayBeAbstract,
         return TPResult::Error();
 
     if (Tok.is(tok::star) || Tok.is(tok::amp) || Tok.is(tok::caret) ||
+        Tok.is(tok::ampamp) ||
         (Tok.is(tok::annot_cxxscope) && NextToken().is(tok::star))) {
       // ptr-operator
       ConsumeToken();
@@ -509,7 +521,9 @@ Parser::TPResult Parser::TryParseDeclarator(bool mayBeAbstract,
 
   // direct-declarator:
   // direct-abstract-declarator:
-
+  if (Tok.is(tok::ellipsis))
+    ConsumeToken();
+  
   if ((Tok.is(tok::identifier) ||
        (Tok.is(tok::annot_cxxscope) && NextToken().is(tok::identifier))) &&
       mayHaveIdentifier) {
@@ -532,7 +546,12 @@ Parser::TPResult Parser::TryParseDeclarator(bool mayBeAbstract,
       // '(' declarator ')'
       // '(' attributes declarator ')'
       // '(' abstract-declarator ')'
-      if (Tok.is(tok::kw___attribute))
+      if (Tok.is(tok::kw___attribute) ||
+          Tok.is(tok::kw___declspec) ||
+          Tok.is(tok::kw___cdecl) ||
+          Tok.is(tok::kw___stdcall) ||
+          Tok.is(tok::kw___fastcall) ||
+          Tok.is(tok::kw___thiscall))
         return TPResult::True(); // attributes indicate declaration
       TPResult TPR = TryParseDeclarator(mayBeAbstract, mayHaveIdentifier);
       if (TPR != TPResult::Ambiguous())
@@ -547,6 +566,10 @@ Parser::TPResult Parser::TryParseDeclarator(bool mayBeAbstract,
 
   while (1) {
     TPResult TPR(TPResult::Ambiguous());
+
+    // abstract-declarator: ...
+    if (Tok.is(tok::ellipsis))
+      ConsumeToken();
 
     if (Tok.is(tok::l_paren)) {
       // Check whether we have a function declarator or a possible ctor-style
@@ -572,6 +595,118 @@ Parser::TPResult Parser::TryParseDeclarator(bool mayBeAbstract,
       return TPR;
   }
 
+  return TPResult::Ambiguous();
+}
+
+Parser::TPResult 
+Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
+  switch (Kind) {
+  // Obviously starts an expression.
+  case tok::numeric_constant:
+  case tok::char_constant:
+  case tok::string_literal:
+  case tok::wide_string_literal:
+  case tok::l_square:
+  case tok::l_paren:
+  case tok::amp:
+  case tok::ampamp:
+  case tok::star:
+  case tok::plus:
+  case tok::plusplus:
+  case tok::minus:
+  case tok::minusminus:
+  case tok::tilde:
+  case tok::exclaim:
+  case tok::kw_sizeof:
+  case tok::kw___func__:
+  case tok::kw_const_cast:
+  case tok::kw_delete:
+  case tok::kw_dynamic_cast:
+  case tok::kw_false:
+  case tok::kw_new:
+  case tok::kw_operator:
+  case tok::kw_reinterpret_cast:
+  case tok::kw_static_cast:
+  case tok::kw_this:
+  case tok::kw_throw:
+  case tok::kw_true:
+  case tok::kw_typeid:
+  case tok::kw_alignof:
+  case tok::kw_noexcept:
+  case tok::kw_nullptr:
+  case tok::kw___null:
+  case tok::kw___alignof:
+  case tok::kw___builtin_choose_expr:
+  case tok::kw___builtin_offsetof:
+  case tok::kw___builtin_types_compatible_p:
+  case tok::kw___builtin_va_arg:
+  case tok::kw___imag:
+  case tok::kw___real:
+  case tok::kw___FUNCTION__:
+  case tok::kw___PRETTY_FUNCTION__:
+  case tok::kw___has_nothrow_assign:
+  case tok::kw___has_nothrow_copy:
+  case tok::kw___has_nothrow_constructor:
+  case tok::kw___has_trivial_assign:
+  case tok::kw___has_trivial_copy:
+  case tok::kw___has_trivial_constructor:
+  case tok::kw___has_trivial_destructor:
+  case tok::kw___has_virtual_destructor:
+  case tok::kw___is_abstract:
+  case tok::kw___is_base_of:
+  case tok::kw___is_class:
+  case tok::kw___is_convertible_to:
+  case tok::kw___is_empty:
+  case tok::kw___is_enum:
+  case tok::kw___is_pod:
+  case tok::kw___is_polymorphic:
+  case tok::kw___is_union:
+  case tok::kw___is_literal:
+  case tok::kw___uuidof:
+    return TPResult::True();
+      
+  // Obviously starts a type-specifier-seq:
+  case tok::kw_char:
+  case tok::kw_const:
+  case tok::kw_double:
+  case tok::kw_enum:
+  case tok::kw_float:
+  case tok::kw_int:
+  case tok::kw_long:
+  case tok::kw_restrict:
+  case tok::kw_short:
+  case tok::kw_signed:
+  case tok::kw_struct:
+  case tok::kw_union:
+  case tok::kw_unsigned:
+  case tok::kw_void:
+  case tok::kw_volatile:
+  case tok::kw__Bool:
+  case tok::kw__Complex:
+  case tok::kw_class:
+  case tok::kw_typename:
+  case tok::kw_wchar_t:
+  case tok::kw_char16_t:
+  case tok::kw_char32_t:
+  case tok::kw_decltype:
+  case tok::kw_thread_local:
+  case tok::kw__Decimal32:
+  case tok::kw__Decimal64:
+  case tok::kw__Decimal128:
+  case tok::kw___thread:
+  case tok::kw_typeof:
+  case tok::kw___cdecl:
+  case tok::kw___stdcall:
+  case tok::kw___fastcall:
+  case tok::kw___thiscall:
+  case tok::kw___vector:
+  case tok::kw___pixel:
+    return TPResult::False();
+
+  default:
+    break;
+  }
+  
   return TPResult::Ambiguous();
 }
 
@@ -803,6 +938,28 @@ Parser::TPResult Parser::isCXXDeclarationSpecifier() {
 
     // simple-type-specifier:
 
+  case tok::annot_typename:
+  case_typename:
+    // In Objective-C, we might have a protocol-qualified type.
+    if (getLang().ObjC1 && NextToken().is(tok::less)) {
+      // Tentatively parse the 
+      TentativeParsingAction PA(*this);
+      ConsumeToken(); // The type token
+      
+      TPResult TPR = TryParseProtocolQualifiers();
+      bool isFollowedByParen = Tok.is(tok::l_paren);
+      
+      PA.Revert();
+      
+      if (TPR == TPResult::Error())
+        return TPResult::Error();
+      
+      if (isFollowedByParen)
+        return TPResult::Ambiguous();
+      
+      return TPResult::True();
+    }
+      
   case tok::kw_char:
   case tok::kw_wchar_t:
   case tok::kw_char16_t:
@@ -816,11 +973,12 @@ Parser::TPResult Parser::isCXXDeclarationSpecifier() {
   case tok::kw_float:
   case tok::kw_double:
   case tok::kw_void:
-  case tok::annot_typename:
-  case_typename:
     if (NextToken().is(tok::l_paren))
       return TPResult::Ambiguous();
 
+    if (isStartOfObjCClassMessageMissingOpenBracket())
+      return TPResult::False();
+      
     return TPResult::True();
 
   // GNU typeof support.
@@ -870,6 +1028,30 @@ Parser::TPResult Parser::TryParseTypeofSpecifier() {
   return TPResult::Ambiguous();
 }
 
+/// [ObjC] protocol-qualifiers:
+////         '<' identifier-list '>'
+Parser::TPResult Parser::TryParseProtocolQualifiers() {
+  assert(Tok.is(tok::less) && "Expected '<' for qualifier list");
+  ConsumeToken();
+  do {
+    if (Tok.isNot(tok::identifier))
+      return TPResult::Error();
+    ConsumeToken();
+    
+    if (Tok.is(tok::comma)) {
+      ConsumeToken();
+      continue;
+    }
+    
+    if (Tok.is(tok::greater)) {
+      ConsumeToken();
+      return TPResult::Ambiguous();
+    }
+  } while (false);
+  
+  return TPResult::Error();
+}
+
 Parser::TPResult Parser::TryParseDeclarationSpecifier() {
   TPResult TPR = isCXXDeclarationSpecifier();
   if (TPR != TPResult::Ambiguous())
@@ -877,8 +1059,12 @@ Parser::TPResult Parser::TryParseDeclarationSpecifier() {
 
   if (Tok.is(tok::kw_typeof))
     TryParseTypeofSpecifier();
-  else
+  else {
     ConsumeToken();
+    
+    if (getLang().ObjC1 && Tok.is(tok::less))
+      TryParseProtocolQualifiers();
+  }
 
   assert(Tok.is(tok::l_paren) && "Expected '('!");
   return TPResult::Ambiguous();
@@ -940,10 +1126,11 @@ bool Parser::isCXXFunctionDeclarator(bool warnIfAmbiguous) {
 ///   parameter-declaration-list ',' parameter-declaration
 ///
 /// parameter-declaration:
-///   decl-specifier-seq declarator
-///   decl-specifier-seq declarator '=' assignment-expression
-///   decl-specifier-seq abstract-declarator[opt]
-///   decl-specifier-seq abstract-declarator[opt] '=' assignment-expression
+///   decl-specifier-seq declarator attributes[opt]
+///   decl-specifier-seq declarator attributes[opt] '=' assignment-expression
+///   decl-specifier-seq abstract-declarator[opt] attributes[opt]
+///   decl-specifier-seq abstract-declarator[opt] attributes[opt]
+///     '=' assignment-expression
 ///
 Parser::TPResult Parser::TryParseParameterDeclarationClause() {
 
@@ -964,6 +1151,9 @@ Parser::TPResult Parser::TryParseParameterDeclarationClause() {
       return TPResult::True(); // '...' is a sign of a function declarator.
     }
 
+    ParsedAttributes attrs;
+    MaybeParseMicrosoftAttributes(attrs);
+
     // decl-specifier-seq
     TPResult TPR = TryParseDeclarationSpecifier();
     if (TPR != TPResult::Ambiguous())
@@ -975,11 +1165,15 @@ Parser::TPResult Parser::TryParseParameterDeclarationClause() {
     if (TPR != TPResult::Ambiguous())
       return TPR;
 
+    // [GNU] attributes[opt]
+    if (Tok.is(tok::kw___attribute))
+      return TPResult::True();
+
     if (Tok.is(tok::equal)) {
       // '=' assignment-expression
       // Parse through assignment-expression.
-      tok::TokenKind StopToks[3] ={ tok::comma, tok::ellipsis, tok::r_paren };
-      if (!SkipUntil(StopToks, 3, true/*StopAtSemi*/, true/*DontConsume*/))
+      tok::TokenKind StopToks[2] ={ tok::comma, tok::r_paren };
+      if (!SkipUntil(StopToks, 2, true/*StopAtSemi*/, true/*DontConsume*/))
         return TPResult::Error();
     }
 
@@ -1029,6 +1223,10 @@ Parser::TPResult Parser::TryParseFunctionDeclarator() {
          Tok.is(tok::kw_restrict)   )
     ConsumeToken();
 
+  // ref-qualifier[opt]
+  if (Tok.is(tok::amp) || Tok.is(tok::ampamp))
+    ConsumeToken();
+  
   // exception-specification
   if (Tok.is(tok::kw_throw)) {
     ConsumeToken();

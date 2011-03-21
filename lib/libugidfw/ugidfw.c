@@ -1134,7 +1134,7 @@ bsde_get_rule_count(size_t buflen, char *errstr)
 	len = sizeof(rule_count);
 	error = sysctlbyname(MIB ".rule_count", &rule_count, &len, NULL, 0);
 	if (error) {
-		len = snprintf(errstr, buflen, strerror(errno));
+		len = snprintf(errstr, buflen, "%s", strerror(errno));
 		return (-1);
 	}
 	if (len != sizeof(rule_count)) {
@@ -1156,7 +1156,7 @@ bsde_get_rule_slots(size_t buflen, char *errstr)
 	len = sizeof(rule_slots);
 	error = sysctlbyname(MIB ".rule_slots", &rule_slots, &len, NULL, 0);
 	if (error) {
-		len = snprintf(errstr, buflen, strerror(errno));
+		len = snprintf(errstr, buflen, "%s", strerror(errno));
 		return (-1);
 	}
 	if (len != sizeof(rule_slots)) {

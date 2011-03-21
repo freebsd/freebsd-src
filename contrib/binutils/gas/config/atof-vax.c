@@ -1,5 +1,5 @@
 /* atof_vax.c - turn a Flonum into a VAX floating point number
-   Copyright 1987, 1992, 1993, 1995, 1997, 1999, 2000
+   Copyright 1987, 1992, 1993, 1995, 1997, 1999, 2000, 2005, 2007
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -16,42 +16,33 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "as.h"
 
-static int atof_vax_sizeof PARAMS ((int));
-static int next_bits PARAMS ((int));
-static void make_invalid_floating_point_number PARAMS ((LITTLENUM_TYPE *));
-static int what_kind_of_float PARAMS ((int, int *, long *));
-static char *atof_vax PARAMS ((char *, int, LITTLENUM_TYPE *));
-
 /* Precision in LittleNums.  */
-#define MAX_PRECISION (8)
-#define H_PRECISION (8)
-#define G_PRECISION (4)
-#define D_PRECISION (4)
-#define F_PRECISION (2)
+#define MAX_PRECISION	8
+#define H_PRECISION	8
+#define G_PRECISION	4
+#define D_PRECISION	4
+#define F_PRECISION	2
 
 /* Length in LittleNums of guard bits.  */
-#define GUARD (2)
+#define GUARD		2
 
-int flonum_gen2vax PARAMS ((int format_letter, FLONUM_TYPE * f,
-			    LITTLENUM_TYPE * words));
+int flonum_gen2vax (int, FLONUM_TYPE *, LITTLENUM_TYPE *);
 
 /* Number of chars in flonum type 'letter'.  */
-static int
-atof_vax_sizeof (letter)
-     int letter;
+
+static unsigned int
+atof_vax_sizeof (int letter)
 {
   int return_value;
 
-  /*
-   * Permitting uppercase letters is probably a bad idea.
-   * Please use only lower-cased letters in case the upper-cased
-   * ones become unsupported!
-   */
+  /* Permitting uppercase letters is probably a bad idea.
+     Please use only lower-cased letters in case the upper-cased
+     ones become unsupported!  */
   switch (letter)
     {
     case 'f':
@@ -75,8 +66,9 @@ atof_vax_sizeof (letter)
       return_value = 0;
       break;
     }
-  return (return_value);
-}				/* atof_vax_sizeof */
+
+  return return_value;
+}
 
 static const long mask[] =
 {
@@ -116,14 +108,13 @@ static const long mask[] =
 };
 
 
-/* Shared between flonum_gen2vax and next_bits */
+/* Shared between flonum_gen2vax and next_bits.  */
 static int bits_left_in_littlenum;
 static LITTLENUM_TYPE *littlenum_pointer;
 static LITTLENUM_TYPE *littlenum_end;
 
 static int
-next_bits (number_of_bits)
-     int number_of_bits;
+next_bits (int number_of_bits)
 {
   int return_value;
 
@@ -144,23 +135,22 @@ next_bits (number_of_bits)
       bits_left_in_littlenum -= number_of_bits;
       return_value = mask[number_of_bits] & ((*littlenum_pointer) >> bits_left_in_littlenum);
     }
-  return (return_value);
+  return return_value;
 }
 
 static void
-make_invalid_floating_point_number (words)
-     LITTLENUM_TYPE *words;
+make_invalid_floating_point_number (LITTLENUM_TYPE *words)
 {
-  *words = 0x8000;		/* Floating Reserved Operand Code */
+  *words = 0x8000;		/* Floating Reserved Operand Code.  */
 }
+
 
 static int			/* 0 means letter is OK.  */
-what_kind_of_float (letter, precisionP, exponent_bitsP)
-     int letter;		/* In: lowercase please. What kind of float? */
-     int *precisionP;		/* Number of 16-bit words in the float.  */
-     long *exponent_bitsP;	/* Number of exponent bits.  */
+what_kind_of_float (int letter,			/* In: lowercase please. What kind of float?  */
+		    int *precisionP,		/* Number of 16-bit words in the float.  */
+		    long *exponent_bitsP)	/* Number of exponent bits.  */
 {
-  int retval;			/* 0: OK.  */
+  int retval;
 
   retval = 0;
   switch (letter)
@@ -189,29 +179,24 @@ what_kind_of_float (letter, precisionP, exponent_bitsP)
       retval = 69;
       break;
     }
-  return (retval);
+  return retval;
 }
 
-/***********************************************************************\
- *									*
- *	Warning: this returns 16-bit LITTLENUMs, because that is	*
- *	what the VAX thinks in. It is up to the caller to figure	*
- *	out any alignment problems and to conspire for the bytes/word	*
- *	to be emitted in the right order. Bigendians beware!		*
- *									*
- \***********************************************************************/
+/* Warning: this returns 16-bit LITTLENUMs, because that is
+   what the VAX thinks in. It is up to the caller to figure
+   out any alignment problems and to conspire for the bytes/word
+   to be emitted in the right order. Bigendians beware!  */
 
-static char *				/* Return pointer past text consumed.  */
-atof_vax (str, what_kind, words)
-     char *str;			/* Text to convert to binary.  */
-     int what_kind;		/* 'd', 'f', 'g', 'h' */
-     LITTLENUM_TYPE *words;	/* Build the binary here.  */
+static char *
+atof_vax (char *str,			/* Text to convert to binary.  */
+	  int what_kind,		/* 'd', 'f', 'g', 'h'  */
+	  LITTLENUM_TYPE *words)	/* Build the binary here.  */
 {
   FLONUM_TYPE f;
   LITTLENUM_TYPE bits[MAX_PRECISION + MAX_PRECISION + GUARD];
-  /* Extra bits for zeroed low-order bits.  */
-  /* The 1st MAX_PRECISION are zeroed, */
-  /* the last contain flonum bits.  */
+  /* Extra bits for zeroed low-order bits.
+     The 1st MAX_PRECISION are zeroed,
+     the last contain flonum bits.  */
   char *return_value;
   int precision;		/* Number of 16-bit words in the format.  */
   long exponent_bits;
@@ -225,7 +210,7 @@ atof_vax (str, what_kind, words)
 
   if (what_kind_of_float (what_kind, &precision, &exponent_bits))
     {
-      return_value = NULL;	/* We lost.  */
+      return_value = NULL;
       make_invalid_floating_point_number (words);
     }
 
@@ -233,37 +218,30 @@ atof_vax (str, what_kind, words)
     {
       memset (bits, '\0', sizeof (LITTLENUM_TYPE) * MAX_PRECISION);
 
-      /* Use more LittleNums than seems */
-      /* necessary: the highest flonum may have */
-      /* 15 leading 0 bits, so could be useless.  */
+      /* Use more LittleNums than seems
+         necessary: the highest flonum may have
+         15 leading 0 bits, so could be useless.  */
       f.high = f.low + precision - 1 + GUARD;
 
       if (atof_generic (&return_value, ".", "eE", &f))
 	{
 	  make_invalid_floating_point_number (words);
-	  return_value = NULL;	/* we lost */
+	  return_value = NULL;
 	}
-      else
-	{
-	  if (flonum_gen2vax (what_kind, &f, words))
-	    {
-	      return_value = NULL;
-	    }
-	}
+      else if (flonum_gen2vax (what_kind, &f, words))
+	return_value = NULL;
     }
-  return (return_value);
-}				/* atof_vax() */
-
-/*
- * In: a flonum, a vax floating point format.
- * Out: a vax floating-point bit pattern.
- */
 
-int				/* 0: OK.  */
-flonum_gen2vax (format_letter, f, words)
-     int format_letter;		/* One of 'd' 'f' 'g' 'h'.  */
-     FLONUM_TYPE *f;
-     LITTLENUM_TYPE *words;	/* Deliver answer here.  */
+  return return_value;
+}
+
+/* In: a flonum, a vax floating point format.
+   Out: a vax floating-point bit pattern.  */
+
+int
+flonum_gen2vax (int format_letter,	/* One of 'd' 'f' 'g' 'h'.  */
+		FLONUM_TYPE *f,
+		LITTLENUM_TYPE *words)	/* Deliver answer here.  */
 {
   LITTLENUM_TYPE *lp;
   int precision;
@@ -273,16 +251,14 @@ flonum_gen2vax (format_letter, f, words)
   return_value = what_kind_of_float (format_letter, &precision, &exponent_bits);
 
   if (return_value != 0)
-    {
-      make_invalid_floating_point_number (words);
-    }
+    make_invalid_floating_point_number (words);
+
   else
     {
       if (f->low > f->leader)
-	{
-	  /* 0.0e0 seen.  */
-	  memset (words, '\0', sizeof (LITTLENUM_TYPE) * precision);
-	}
+	/* 0.0e0 seen.  */
+	memset (words, '\0', sizeof (LITTLENUM_TYPE) * precision);
+
       else
 	{
 	  long exponent_1;
@@ -292,49 +268,31 @@ flonum_gen2vax (format_letter, f, words)
 	  int exponent_skippage;
 	  LITTLENUM_TYPE word1;
 
-	  /* JF: Deal with new Nan, +Inf and -Inf codes */
+	  /* JF: Deal with new Nan, +Inf and -Inf codes.  */
 	  if (f->sign != '-' && f->sign != '+')
 	    {
 	      make_invalid_floating_point_number (words);
 	      return return_value;
 	    }
-	  /*
-			 * All vaxen floating_point formats (so far) have:
-			 * Bit 15 is sign bit.
-			 * Bits 14:n are excess-whatever exponent.
-			 * Bits n-1:0 (if any) are most significant bits of fraction.
-			 * Bits 15:0 of the next word are the next most significant bits.
-			 * And so on for each other word.
-			 *
-			 * All this to be compatible with a KF11?? (Which is still faster
-			 * than lots of vaxen I can think of, but it also has higher
-			 * maintenance costs ... sigh).
-			 *
-			 * So we need: number of bits of exponent, number of bits of
-			 * mantissa.
-			 */
 
-#ifdef NEVER			/******* This zeroing seems redundant - Dean 3may86 **********/
-	  /*
-			 * No matter how few bits we got back from the atof()
-			 * routine, add enough zero littlenums so the rest of the
-			 * code won't run out of "significant" bits in the mantissa.
-			 */
-	  {
-	    LITTLENUM_TYPE *ltp;
-	    for (ltp = f->leader + 1;
-		 ltp <= f->low + precision;
-		 ltp++)
-	      {
-		*ltp = 0;
-	      }
-	  }
-#endif
+	  /* All vaxen floating_point formats (so far) have:
+	     Bit 15 is sign bit.
+	     Bits 14:n are excess-whatever exponent.
+	     Bits n-1:0 (if any) are most significant bits of fraction.
+	     Bits 15:0 of the next word are the next most significant bits.
+	     And so on for each other word.
+
+	     All this to be compatible with a KF11?? (Which is still faster
+	     than lots of vaxen I can think of, but it also has higher
+	     maintenance costs ... sigh).
+
+	     So we need: number of bits of exponent, number of bits of
+	     mantissa.  */
 
 	  bits_left_in_littlenum = LITTLENUM_NUMBER_OF_BITS;
 	  littlenum_pointer = f->leader;
 	  littlenum_end = f->low;
-	  /* Seek (and forget) 1st significant bit */
+	  /* Seek (and forget) 1st significant bit.  */
 	  for (exponent_skippage = 0;
 	       !next_bits (1);
 	       exponent_skippage++);;
@@ -350,24 +308,19 @@ flonum_gen2vax (format_letter, f, words)
 
 	  if (exponent_4 & ~mask[exponent_bits])
 	    {
-	      /*
-				 * Exponent overflow. Lose immediately.
-				 */
-
+	      /* Exponent overflow. Lose immediately.  */
 	      make_invalid_floating_point_number (words);
 
-	      /*
-				 * We leave return_value alone: admit we read the
-				 * number, but return a floating exception
-				 * because we can't encode the number.
-				 */
+	      /* We leave return_value alone: admit we read the
+	         number, but return a floating exception
+	         because we can't encode the number.  */
 	    }
 	  else
 	    {
 	      lp = words;
 
-	      /* Word 1. Sign, exponent and perhaps high bits.  */
-	      /* Assume 2's complement integers.  */
+	      /* Word 1. Sign, exponent and perhaps high bits.
+	         Assume 2's complement integers.  */
 	      word1 = (((exponent_4 & mask[exponent_bits]) << (15 - exponent_bits))
 		       | ((f->sign == '+') ? 0 : 0x8000)
 		       | next_bits (15 - exponent_bits));
@@ -375,32 +328,26 @@ flonum_gen2vax (format_letter, f, words)
 
 	      /* The rest of the words are just mantissa bits.  */
 	      for (; lp < words + precision; lp++)
-		{
-		  *lp = next_bits (LITTLENUM_NUMBER_OF_BITS);
-		}
+		*lp = next_bits (LITTLENUM_NUMBER_OF_BITS);
 
 	      if (next_bits (1))
 		{
-		  /*
-					 * Since the NEXT bit is a 1, round UP the mantissa.
-					 * The cunning design of these hidden-1 floats permits
-					 * us to let the mantissa overflow into the exponent, and
-					 * it 'does the right thing'. However, we lose if the
-					 * highest-order bit of the lowest-order word flips.
-					 * Is that clear?
-					 */
-
+		  /* Since the NEXT bit is a 1, round UP the mantissa.
+		     The cunning design of these hidden-1 floats permits
+		     us to let the mantissa overflow into the exponent, and
+		     it 'does the right thing'. However, we lose if the
+		     highest-order bit of the lowest-order word flips.
+		     Is that clear?  */
 		  unsigned long carry;
 
 		  /*
-					  #if (sizeof(carry)) < ((sizeof(bits[0]) * BITS_PER_CHAR) + 2)
-					  Please allow at least 1 more bit in carry than is in a LITTLENUM.
-					  We need that extra bit to hold a carry during a LITTLENUM carry
-					  propagation. Another extra bit (kept 0) will assure us that we
-					  don't get a sticky sign bit after shifting right, and that
-					  permits us to propagate the carry without any masking of bits.
-					  #endif
-					  */
+		    #if (sizeof(carry)) < ((sizeof(bits[0]) * BITS_PER_CHAR) + 2)
+		    Please allow at least 1 more bit in carry than is in a LITTLENUM.
+		    We need that extra bit to hold a carry during a LITTLENUM carry
+		    propagation. Another extra bit (kept 0) will assure us that we
+		    don't get a sticky sign bit after shifting right, and that
+		    permits us to propagate the carry without any masking of bits.
+		    #endif   */
 		  for (carry = 1, lp--;
 		       carry && (lp >= words);
 		       lp--)
@@ -413,68 +360,61 @@ flonum_gen2vax (format_letter, f, words)
 		  if ((word1 ^ *words) & (1 << (LITTLENUM_NUMBER_OF_BITS - 1)))
 		    {
 		      make_invalid_floating_point_number (words);
-		      /*
-						 * We leave return_value alone: admit we read the
-						 * number, but return a floating exception
-						 * because we can't encode the number.
-						 */
+		      /* We leave return_value alone: admit we read the
+		         number, but return a floating exception
+		         because we can't encode the number.  */
 		    }
-		}		/* if (we needed to round up) */
-	    }			/* if (exponent overflow) */
-	}			/* if (0.0e0) */
-    }				/* if (float_type was OK) */
-  return (return_value);
-}				/* flonum_gen2vax() */
+		}
+	    }
+	}
+    }
+  return return_value;
+}
 
-/* JF this used to be in vax.c but this looks like a better place for it */
+/* JF this used to be in vax.c but this looks like a better place for it.  */
 
-/*
- *		md_atof()
- *
- * In:	input_line_pointer->the 1st character of a floating-point
- *		number.
- *	1 letter denoting the type of statement that wants a
- *		binary floating point number returned.
- *	Address of where to build floating point literal.
- *		Assumed to be 'big enough'.
- *	Address of where to return size of literal (in chars).
- *
- * Out:	Input_line_pointer->of next char after floating number.
- *	Error message, or 0.
- *	Floating point literal.
- *	Number of chars we used for the literal.
- */
+/* In:	input_line_pointer->the 1st character of a floating-point
+  		number.
+  	1 letter denoting the type of statement that wants a
+  		binary floating point number returned.
+  	Address of where to build floating point literal.
+  		Assumed to be 'big enough'.
+  	Address of where to return size of literal (in chars).
+  
+   Out:	Input_line_pointer->of next char after floating number.
+  	Error message, or 0.
+  	Floating point literal.
+  	Number of chars we used for the literal.  */
 
-#define MAXIMUM_NUMBER_OF_LITTLENUMS (8)	/* For .hfloats.  */
+#define MAXIMUM_NUMBER_OF_LITTLENUMS  8 	/* For .hfloats.  */
 
 char *
-md_atof (what_statement_type, literalP, sizeP)
-     int what_statement_type;
-     char *literalP;
-     int *sizeP;
+md_atof (int what_statement_type,
+	 char *literalP,
+	 int *sizeP)
 {
   LITTLENUM_TYPE words[MAXIMUM_NUMBER_OF_LITTLENUMS];
-  register char kind_of_float;
-  register int number_of_chars;
-  register LITTLENUM_TYPE *littlenumP;
+  char kind_of_float;
+  unsigned int number_of_chars;
+  LITTLENUM_TYPE *littlenumP;
 
   switch (what_statement_type)
     {
-    case 'F':			/* .float */
-    case 'f':			/* .ffloat */
+    case 'F':
+    case 'f':
       kind_of_float = 'f';
       break;
 
-    case 'D':			/* .double */
-    case 'd':			/* .dfloat */
+    case 'D':
+    case 'd':
       kind_of_float = 'd';
       break;
 
-    case 'g':			/* .gfloat */
+    case 'g':
       kind_of_float = 'g';
       break;
 
-    case 'h':			/* .hfloat */
+    case 'h':
       kind_of_float = 'h';
       break;
 
@@ -485,17 +425,15 @@ md_atof (what_statement_type, literalP, sizeP)
 
   if (kind_of_float)
     {
-      register LITTLENUM_TYPE *limit;
+      LITTLENUM_TYPE *limit;
 
       input_line_pointer = atof_vax (input_line_pointer,
 				     kind_of_float,
 				     words);
-      /*
-       * The atof_vax() builds up 16-bit numbers.
-       * Since the assembler may not be running on
-       * a little-endian machine, be very careful about
-       * converting words to chars.
-       */
+      /* The atof_vax() builds up 16-bit numbers.
+         Since the assembler may not be running on
+         a little-endian machine, be very careful about
+         converting words to chars.  */
       number_of_chars = atof_vax_sizeof (kind_of_float);
       know (number_of_chars <= MAXIMUM_NUMBER_OF_LITTLENUMS * sizeof (LITTLENUM_TYPE));
       limit = words + (number_of_chars / sizeof (LITTLENUM_TYPE));
@@ -506,12 +444,8 @@ md_atof (what_statement_type, literalP, sizeP)
 	};
     }
   else
-    {
-      number_of_chars = 0;
-    };
+    number_of_chars = 0;
 
   *sizeP = number_of_chars;
   return kind_of_float ? NULL : _("Bad call to md_atof()");
 }
-
-/* end of atof-vax.c */

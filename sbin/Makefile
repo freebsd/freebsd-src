@@ -62,6 +62,7 @@ SUBDIR=adjkerntz \
 	rcorder \
 	reboot \
 	recoverdisk \
+	resolvconf \
 	restore \
 	route \
 	savecore \

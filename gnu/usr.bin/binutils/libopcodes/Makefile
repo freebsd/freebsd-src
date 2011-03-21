@@ -5,7 +5,7 @@
 .PATH: ${SRCDIR}/opcodes
 
 LIB=	opcodes
-SRCS+=	dis-buf.c dis-init.c disassemble.c
+SRCS+=	dis-buf.c dis-init.c disassemble.c i386-opc.c
 CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${SRCDIR}/opcodes -I${SRCDIR}/bfd
 INTERNALLIB=

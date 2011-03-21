@@ -14,6 +14,7 @@
 #ifndef LLVM_CLANG_SOURCELOCATION_H
 #define LLVM_CLANG_SOURCELOCATION_H
 
+#include "llvm/Support/PointerLikeTypeTraits.h"
 #include <utility>
 #include <cassert>
 
@@ -121,13 +122,28 @@ public:
   /// directly.
   unsigned getRawEncoding() const { return ID; }
 
-
   /// getFromRawEncoding - Turn a raw encoding of a SourceLocation object into
   /// a real SourceLocation.
   static SourceLocation getFromRawEncoding(unsigned Encoding) {
     SourceLocation X;
     X.ID = Encoding;
     return X;
+  }
+
+  /// getPtrEncoding - When a SourceLocation itself cannot be used, this returns
+  /// an (opaque) pointer encoding for it.  This should only be passed
+  /// to SourceLocation::getFromPtrEncoding, it should not be inspected
+  /// directly.
+  void* getPtrEncoding() const {
+    // Double cast to avoid a warning "cast to pointer from integer of different
+    // size".
+    return (void*)(uintptr_t)getRawEncoding();
+  }
+
+  /// getFromPtrEncoding - Turn a pointer encoding of a SourceLocation object
+  /// into a real SourceLocation.
+  static SourceLocation getFromPtrEncoding(void *Encoding) {
+    return getFromRawEncoding((unsigned)(uintptr_t)Encoding);
   }
 
   void print(llvm::raw_ostream &OS, const SourceManager &SM) const;
@@ -265,6 +281,20 @@ public:
 
   bool isInSystemHeader() const;
 
+  /// \brief Determines the order of 2 source locations in the translation unit.
+  ///
+  /// \returns true if this source location comes before 'Loc', false otherwise.
+  bool isBeforeInTranslationUnitThan(SourceLocation Loc) const;
+
+  /// \brief Determines the order of 2 source locations in the translation unit.
+  ///
+  /// \returns true if this source location comes before 'Loc', false otherwise.
+  bool isBeforeInTranslationUnitThan(FullSourceLoc Loc) const {
+    assert(Loc.isValid());
+    assert(SrcMgr == Loc.SrcMgr && "Loc comes from another SourceManager!");
+    return isBeforeInTranslationUnitThan((SourceLocation)Loc);
+  }
+
   /// Prints information about this FullSourceLoc to stderr. Useful for
   ///  debugging.
   void dump() const { SourceLocation::dump(*SrcMgr); }
@@ -349,6 +379,19 @@ namespace llvm {
   struct isPodLike<clang::SourceLocation> { static const bool value = true; };
   template <>
   struct isPodLike<clang::FileID> { static const bool value = true; };
+
+  // Teach SmallPtrSet how to handle SourceLocation.
+  template<>
+  class PointerLikeTypeTraits<clang::SourceLocation> {
+  public:
+    static inline void *getAsVoidPointer(clang::SourceLocation L) {
+      return L.getPtrEncoding();
+    }
+    static inline clang::SourceLocation getFromVoidPointer(void *P) {
+      return clang::SourceLocation::getFromRawEncoding((unsigned)(uintptr_t)P);
+    }
+    enum { NumLowBitsAvailable = 0 };
+  };
 
 }  // end namespace llvm
 

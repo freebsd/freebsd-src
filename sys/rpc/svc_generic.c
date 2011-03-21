@@ -230,14 +230,11 @@ svc_tli_create(
 		/*
 		 * It is an open socket. Get the transport info.
 		 */
-		CURVNET_SET(so->so_vnet);
 		if (!__rpc_socket2sockinfo(so, &si)) {
 			printf(
 		"svc_tli_create: could not get transport information\n");
-			CURVNET_RESTORE();
 			return (NULL);
 		}
-		CURVNET_RESTORE();
 	}
 
 	/*
@@ -264,9 +261,7 @@ svc_tli_create(
 		"svc_tli_create: could not bind to requested address\n");
 				goto freedata;
 			}
-			CURVNET_SET(so->so_vnet);
 			solisten(so, (int)bindaddr->qlen, curthread);
-			CURVNET_RESTORE();
 		}
 			
 	}

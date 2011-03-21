@@ -12,7 +12,6 @@
 
 #include "llvm/AbstractTypeUser.h"
 #include "llvm/Support/Casting.h"
-#include "llvm/System/DataTypes.h"
 #include "llvm/ADT/GraphTraits.h"
 #include <string>
 #include <vector>
@@ -76,19 +75,20 @@ public:
     PPC_FP128TyID,   ///<  5: 128 bit floating point type (two 64-bits)
     LabelTyID,       ///<  6: Labels
     MetadataTyID,    ///<  7: Metadata
+    X86_MMXTyID,     ///<  8: MMX vectors (64 bits)
 
     // Derived types... see DerivedTypes.h file...
     // Make sure FirstDerivedTyID stays up to date!!!
-    IntegerTyID,     ///<  8: Arbitrary bit width integers
-    FunctionTyID,    ///<  9: Functions
-    StructTyID,      ///< 10: Structures
-    ArrayTyID,       ///< 11: Arrays
-    PointerTyID,     ///< 12: Pointers
-    OpaqueTyID,      ///< 13: Opaque: type with unknown structure
-    VectorTyID,      ///< 14: SIMD 'packed' format, or other vector type
+    IntegerTyID,     ///<  9: Arbitrary bit width integers
+    FunctionTyID,    ///< 10: Functions
+    StructTyID,      ///< 11: Structures
+    ArrayTyID,       ///< 12: Arrays
+    PointerTyID,     ///< 13: Pointers
+    OpaqueTyID,      ///< 14: Opaque: type with unknown structure
+    VectorTyID,      ///< 15: SIMD 'packed' format, or other vector type
 
     NumTypeIDs,                         // Must remain as last defined ID
-    LastPrimitiveTyID = MetadataTyID,
+    LastPrimitiveTyID = X86_MMXTyID,
     FirstDerivedTyID = IntegerTyID
   };
 
@@ -212,6 +212,9 @@ public:
   bool isFloatingPointTy() const { return ID == FloatTyID || ID == DoubleTyID ||
       ID == X86_FP80TyID || ID == FP128TyID || ID == PPC_FP128TyID; }
 
+  /// isX86_MMXTy - Return true if this is X86 MMX.
+  bool isX86_MMXTy() const { return ID == X86_MMXTyID; }
+
   /// isFPOrFPVectorTy - Return true if this is a FP type or a vector of FP.
   ///
   bool isFPOrFPVectorTy() const;
@@ -310,7 +313,8 @@ public:
   ///
   bool isSized() const {
     // If it's a primitive, it is always sized.
-    if (ID == IntegerTyID || isFloatingPointTy() || ID == PointerTyID)
+    if (ID == IntegerTyID || isFloatingPointTy() || ID == PointerTyID ||
+        ID == X86_MMXTyID)
       return true;
     // If it is not something that can have a size (e.g. a function or label),
     // it doesn't have a size.
@@ -400,6 +404,7 @@ public:
   static const Type *getX86_FP80Ty(LLVMContext &C);
   static const Type *getFP128Ty(LLVMContext &C);
   static const Type *getPPC_FP128Ty(LLVMContext &C);
+  static const Type *getX86_MMXTy(LLVMContext &C);
   static const IntegerType *getIntNTy(LLVMContext &C, unsigned N);
   static const IntegerType *getInt1Ty(LLVMContext &C);
   static const IntegerType *getInt8Ty(LLVMContext &C);
@@ -416,6 +421,7 @@ public:
   static const PointerType *getX86_FP80PtrTy(LLVMContext &C, unsigned AS = 0);
   static const PointerType *getFP128PtrTy(LLVMContext &C, unsigned AS = 0);
   static const PointerType *getPPC_FP128PtrTy(LLVMContext &C, unsigned AS = 0);
+  static const PointerType *getX86_MMXPtrTy(LLVMContext &C, unsigned AS = 0);
   static const PointerType *getIntNPtrTy(LLVMContext &C, unsigned N,
                                          unsigned AS = 0);
   static const PointerType *getInt1PtrTy(LLVMContext &C, unsigned AS = 0);

@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/ktr.h>
-#include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -138,8 +137,8 @@ struct lock_class lock_class_sx = {
 static u_int asx_retries = 10;
 static u_int asx_loops = 10000;
 SYSCTL_NODE(_debug, OID_AUTO, sx, CTLFLAG_RD, NULL, "sxlock debugging");
-SYSCTL_INT(_debug_sx, OID_AUTO, retries, CTLFLAG_RW, &asx_retries, 0, "");
-SYSCTL_INT(_debug_sx, OID_AUTO, loops, CTLFLAG_RW, &asx_loops, 0, "");
+SYSCTL_UINT(_debug_sx, OID_AUTO, retries, CTLFLAG_RW, &asx_retries, 0, "");
+SYSCTL_UINT(_debug_sx, OID_AUTO, loops, CTLFLAG_RW, &asx_loops, 0, "");
 #endif
 
 void

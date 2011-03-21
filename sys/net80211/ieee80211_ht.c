@@ -54,31 +54,85 @@ __FBSDID("$FreeBSD$");
 #define	MS(_v, _f)	(((_v) & _f) >> _f##_S)
 #define	SM(_v, _f)	(((_v) << _f##_S) & _f)
 
-const struct ieee80211_mcs_rates ieee80211_htrates[16] = {
-    /*  20Mhz  SGI 40Mhz  SGI */
-	{  13,  14,  27,  30 },	/* MCS 0 */
-	{  26,  29,  54,  60 },	/* MCS 1 */
-	{  39,  43,  81,  90 },	/* MCS 2 */
-	{  52,  58, 108, 120 },	/* MCS 3 */
-	{  78,  87, 162, 180 },	/* MCS 4 */
-	{ 104, 116, 216, 240 },	/* MCS 5 */
-	{ 117, 130, 243, 270 },	/* MCS 6 */
-	{ 130, 144, 270, 300 },	/* MCS 7 */
-	{  26,  29,  54,  60 },	/* MCS 8 */
-	{  52,  58, 108, 120 },	/* MCS 9 */
-	{  78,  87, 162, 180 },	/* MCS 10 */
-	{ 104, 116, 216, 240 },	/* MCS 11 */
-	{ 156, 173, 324, 360 },	/* MCS 12 */
-	{ 208, 231, 432, 480 },	/* MCS 13 */
-	{ 234, 260, 486, 540 },	/* MCS 14 */
-	{ 260, 289, 540, 600 }	/* MCS 15 */
+const struct ieee80211_mcs_rates ieee80211_htrates[IEEE80211_HTRATE_MAXSIZE] = {
+	{  13,  14,   27,   30 },	/* MCS 0 */
+	{  26,  29,   54,   60 },	/* MCS 1 */
+	{  39,  43,   81,   90 },	/* MCS 2 */
+	{  52,  58,  108,  120 },	/* MCS 3 */
+	{  78,  87,  162,  180 },	/* MCS 4 */
+	{ 104, 116,  216,  240 },	/* MCS 5 */
+	{ 117, 130,  243,  270 },	/* MCS 6 */
+	{ 130, 144,  270,  300 },	/* MCS 7 */
+	{  26,  29,   54,   60 },	/* MCS 8 */
+	{  52,  58,  108,  120 },	/* MCS 9 */
+	{  78,  87,  162,  180 },	/* MCS 10 */
+	{ 104, 116,  216,  240 },	/* MCS 11 */
+	{ 156, 173,  324,  360 },	/* MCS 12 */
+	{ 208, 231,  432,  480 },	/* MCS 13 */
+	{ 234, 260,  486,  540 },	/* MCS 14 */
+	{ 260, 289,  540,  600 },	/* MCS 15 */
+	{  39,  43,   81,   90 },	/* MCS 16 */
+	{  78,  87,  162,  180 },	/* MCS 17 */
+	{ 117, 130,  243,  270 },	/* MCS 18 */
+	{ 156, 173,  324,  360 },	/* MCS 19 */
+	{ 234, 260,  486,  540 },	/* MCS 20 */
+	{ 312, 347,  648,  720 },	/* MCS 21 */
+	{ 351, 390,  729,  810 },	/* MCS 22 */
+	{ 390, 433,  810,  900 },	/* MCS 23 */
+	{  52,  58,  108,  120 },	/* MCS 24 */
+	{ 104, 116,  216,  240 },	/* MCS 25 */
+	{ 156, 173,  324,  360 },	/* MCS 26 */
+	{ 208, 231,  432,  480 },	/* MCS 27 */
+	{ 312, 347,  648,  720 },	/* MCS 28 */
+	{ 416, 462,  864,  960 },	/* MCS 29 */
+	{ 468, 520,  972, 1080 },	/* MCS 30 */
+	{ 520, 578, 1080, 1200 },	/* MCS 31 */
+	{   0,   0,   12,   13 },	/* MCS 32 */
+	{  78,  87,  162,  180 },	/* MCS 33 */
+	{ 104, 116,  216,  240 },	/* MCS 34 */
+	{ 130, 144,  270,  300 },	/* MCS 35 */
+	{ 117, 130,  243,  270 },	/* MCS 36 */
+	{ 156, 173,  324,  360 },	/* MCS 37 */
+	{ 195, 217,  405,  450 },	/* MCS 38 */
+	{ 104, 116,  216,  240 },	/* MCS 39 */
+	{ 130, 144,  270,  300 },	/* MCS 40 */
+	{ 130, 144,  270,  300 },	/* MCS 41 */
+	{ 156, 173,  324,  360 },	/* MCS 42 */
+	{ 182, 202,  378,  420 },	/* MCS 43 */
+	{ 182, 202,  378,  420 },	/* MCS 44 */
+	{ 208, 231,  432,  480 },	/* MCS 45 */
+	{ 156, 173,  324,  360 },	/* MCS 46 */
+	{ 195, 217,  405,  450 },	/* MCS 47 */
+	{ 195, 217,  405,  450 },	/* MCS 48 */
+	{ 234, 260,  486,  540 },	/* MCS 49 */
+	{ 273, 303,  567,  630 },	/* MCS 50 */
+	{ 273, 303,  567,  630 },	/* MCS 51 */
+	{ 312, 347,  648,  720 },	/* MCS 52 */
+	{ 130, 144,  270,  300 },	/* MCS 53 */
+	{ 156, 173,  324,  360 },	/* MCS 54 */
+	{ 182, 202,  378,  420 },	/* MCS 55 */
+	{ 156, 173,  324,  360 },	/* MCS 56 */
+	{ 182, 202,  378,  420 },	/* MCS 57 */
+	{ 208, 231,  432,  480 },	/* MCS 58 */
+	{ 234, 260,  486,  540 },	/* MCS 59 */
+	{ 208, 231,  432,  480 },	/* MCS 60 */
+	{ 234, 260,  486,  540 },	/* MCS 61 */
+	{ 260, 289,  540,  600 },	/* MCS 62 */
+	{ 260, 289,  540,  600 },	/* MCS 63 */
+	{ 286, 318,  594,  660 },	/* MCS 64 */
+	{ 195, 217,  405,  450 },	/* MCS 65 */
+	{ 234, 260,  486,  540 },	/* MCS 66 */
+	{ 273, 303,  567,  630 },	/* MCS 67 */
+	{ 234, 260,  486,  540 },	/* MCS 68 */
+	{ 273, 303,  567,  630 },	/* MCS 69 */
+	{ 312, 347,  648,  720 },	/* MCS 70 */
+	{ 351, 390,  729,  810 },	/* MCS 71 */
+	{ 312, 347,  648,  720 },	/* MCS 72 */
+	{ 351, 390,  729,  810 },	/* MCS 73 */
+	{ 390, 433,  810,  900 },	/* MCS 74 */
+	{ 390, 433,  810,  900 },	/* MCS 75 */
+	{ 429, 477,  891,  990 },	/* MCS 76 */
 };
-
-static const struct ieee80211_htrateset ieee80211_rateset_11n =
-	{ 16, {
-	          0,   1,   2,   3,   4,  5,   6,  7,  8,  9,
-		 10,  11,  12,  13,  14,  15 }
-	};
 
 #ifdef IEEE80211_AMPDU_AGE
 static	int ieee80211_ampdu_age = -1;	/* threshold for ampdu reorder q (ms) */
@@ -248,75 +302,149 @@ ieee80211_ht_vdetach(struct ieee80211vap *vap)
 {
 }
 
-static void
-ht_rateprint(struct ieee80211com *ic, int mode,
-	const struct ieee80211_htrateset *rs, int maxmcs, int ratetype)
+static int
+ht_getrate(struct ieee80211com *ic, int index, int mode, int ratetype)
 {
-	int i, rate, mword;
+	int mword, rate;
 
-	for (i = 0; i < rs->rs_nrates && i < maxmcs; i++) {
-		mword = ieee80211_rate2media(ic,
-		    rs->rs_rates[i] | IEEE80211_RATE_MCS, mode);
-		if (IFM_SUBTYPE(mword) != IFM_IEEE80211_MCS)
-			continue;
-		switch (ratetype) {
-		case 0:
-			rate = ieee80211_htrates[
-			    rs->rs_rates[i]].ht20_rate_800ns;
-			break;
-		case 1:
-			rate = ieee80211_htrates[
-			    rs->rs_rates[i]].ht20_rate_400ns;
-			break;
-		case 2:
-			rate = ieee80211_htrates[
-			    rs->rs_rates[i]].ht40_rate_800ns;
-			break;
-		default:
-			rate = ieee80211_htrates[
-			    rs->rs_rates[i]].ht40_rate_400ns;
-			break;
-		}
-		printf("%s%d%sMbps", (i != 0 ? " " : ""),
-		    rate / 2, ((rate & 0x1) != 0 ? ".5" : ""));
+	mword = ieee80211_rate2media(ic, index | IEEE80211_RATE_MCS, mode);
+	if (IFM_SUBTYPE(mword) != IFM_IEEE80211_MCS)
+		return (0);
+	switch (ratetype) {
+	case 0:
+		rate = ieee80211_htrates[index].ht20_rate_800ns;
+		break;
+	case 1:
+		rate = ieee80211_htrates[index].ht20_rate_400ns;
+		break;
+	case 2:
+		rate = ieee80211_htrates[index].ht40_rate_800ns;
+		break;
+	default:
+		rate = ieee80211_htrates[index].ht40_rate_400ns;
+		break;
 	}
-	printf("\n");
+	return (rate);
+}
+
+static struct printranges {
+	int	minmcs;
+	int	maxmcs;
+	int	txstream;
+	int	ratetype;
+	int	htcapflags;
+} ranges[] = {
+	{  0,  7, 1, 0, 0 },
+	{  8, 15, 2, 0, 0 },
+	{ 16, 23, 3, 0, 0 },
+	{ 24, 31, 4, 0, 0 },
+	{ 32,  0, 1, 2, IEEE80211_HTC_TXMCS32 },
+	{ 33, 38, 2, 0, IEEE80211_HTC_TXUNEQUAL },
+	{ 39, 52, 3, 0, IEEE80211_HTC_TXUNEQUAL },
+	{ 53, 76, 4, 0, IEEE80211_HTC_TXUNEQUAL },
+	{  0,  0, 0, 0, 0 },
+};
+
+static void
+ht_rateprint(struct ieee80211com *ic, int mode, int ratetype)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+	int minrate, maxrate;
+	struct printranges *range;
+
+	for (range = ranges; range->txstream != 0; range++) {
+		if (ic->ic_txstream < range->txstream)
+			continue;
+		if (range->htcapflags &&
+		    (ic->ic_htcaps & range->htcapflags) == 0)
+			continue;
+		if (ratetype < range->ratetype)
+			continue;
+		minrate = ht_getrate(ic, range->minmcs, mode, ratetype);
+		maxrate = ht_getrate(ic, range->maxmcs, mode, ratetype);
+		if (range->maxmcs) {
+			if_printf(ifp, "MCS %d-%d: %d%sMbps - %d%sMbps\n",
+			    range->minmcs, range->maxmcs,
+			    minrate/2, ((minrate & 0x1) != 0 ? ".5" : ""),
+			    maxrate/2, ((maxrate & 0x1) != 0 ? ".5" : ""));
+		} else {
+			if_printf(ifp, "MCS %d: %d%sMbps\n", range->minmcs,
+			    minrate/2, ((minrate & 0x1) != 0 ? ".5" : ""));
+		}
+	}
 }
 
 static void
-ht_announce(struct ieee80211com *ic, int mode,
-	const struct ieee80211_htrateset *rs)
+ht_announce(struct ieee80211com *ic, int mode)
 {
 	struct ifnet *ifp = ic->ic_ifp;
-	int maxmcs = 2 * 8;
 	const char *modestr = ieee80211_phymode_name[mode];
-	
-	KASSERT(maxmcs <= 16, ("maxmcs > 16"));
-	if_printf(ifp, "%d MCS rates\n", maxmcs);
-	if_printf(ifp, "%s MCS 20Mhz: ", modestr);
-	ht_rateprint(ic, mode, rs, maxmcs, 0);
-	if_printf(ifp, "%s MCS 20Mhz SGI: ", modestr);
-	ht_rateprint(ic, mode, rs, maxmcs, 1);
-	if_printf(ifp, "%s MCS 40Mhz: ", modestr);
-	ht_rateprint(ic, mode, rs, maxmcs, 2);
-	if_printf(ifp, "%s MCS 40Mhz SGI: ", modestr);
-	ht_rateprint(ic, mode, rs, maxmcs, 3);
+
+	if_printf(ifp, "%s MCS 20MHz\n", modestr);
+	ht_rateprint(ic, mode, 0);
+	if (ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI20) {
+		if_printf(ifp, "%s MCS 20MHz SGI\n", modestr);
+		ht_rateprint(ic, mode, 1);
+	}
+	if (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) {
+		if_printf(ifp, "%s MCS 40MHz:\n", modestr);
+		ht_rateprint(ic, mode, 2);
+	}
+	if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
+	    (ic->ic_htcaps & IEEE80211_HTCAP_SHORTGI40)) {
+		if_printf(ifp, "%s MCS 40MHz SGI:\n", modestr);
+		ht_rateprint(ic, mode, 3);
+	}
 }
 
 void
 ieee80211_ht_announce(struct ieee80211com *ic)
 {
+	struct ifnet *ifp = ic->ic_ifp;
+
+	if (isset(ic->ic_modecaps, IEEE80211_MODE_11NA) ||
+	    isset(ic->ic_modecaps, IEEE80211_MODE_11NG))
+		if_printf(ifp, "%dT%dR\n", ic->ic_txstream, ic->ic_rxstream);
 	if (isset(ic->ic_modecaps, IEEE80211_MODE_11NA))
-		ht_announce(ic, IEEE80211_MODE_11NA, &ieee80211_rateset_11n);
+		ht_announce(ic, IEEE80211_MODE_11NA);
 	if (isset(ic->ic_modecaps, IEEE80211_MODE_11NG))
-		ht_announce(ic, IEEE80211_MODE_11NG, &ieee80211_rateset_11n);
+		ht_announce(ic, IEEE80211_MODE_11NG);
 }
+
+static struct ieee80211_htrateset htrateset;
 
 const struct ieee80211_htrateset *
 ieee80211_get_suphtrates(struct ieee80211com *ic,
-	const struct ieee80211_channel *c)
+    const struct ieee80211_channel *c)
 {
-	return &ieee80211_rateset_11n;
+#define	ADDRATE(x)	do {						\
+	htrateset.rs_rates[htrateset.rs_nrates] = x;			\
+	htrateset.rs_nrates++;						\
+} while (0)
+	int i;
+
+	memset(&htrateset, 0, sizeof(struct ieee80211_htrateset));
+	for (i = 0; i < ic->ic_txstream * 8; i++)
+		ADDRATE(i);
+	if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
+	    (ic->ic_htcaps & IEEE80211_HTC_TXMCS32))
+		ADDRATE(i);
+	if (ic->ic_htcaps & IEEE80211_HTC_TXUNEQUAL) {
+		if (ic->ic_txstream >= 2) {
+			 for (i = 33; i <= 38; i++)
+				ADDRATE(i);
+		}
+		if (ic->ic_txstream >= 3) {
+			for (i = 39; i <= 52; i++)
+				ADDRATE(i);
+		}
+		if (ic->ic_txstream == 4) {
+			for (i = 53; i <= 76; i++)
+				ADDRATE(i);
+		}
+	}
+	return &htrateset;
+#undef	ADDRATE
 }
 
 /*
@@ -1435,7 +1563,7 @@ ieee80211_ht_updatehtcap(struct ieee80211_node *ni, const uint8_t *htcapie)
 	htcap_update_shortgi(ni);
 
 	/* NB: honor operating mode constraint */
-	/* XXX 40 MHZ intolerant */
+	/* XXX 40 MHz intolerant */
 	htflags = (vap->iv_flags_ht & IEEE80211_FHT_HT) ?
 	    IEEE80211_CHAN_HT20 : 0;
 	if ((ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40) &&
@@ -1454,10 +1582,22 @@ ieee80211_ht_updatehtcap(struct ieee80211_node *ni, const uint8_t *htcapie)
 int
 ieee80211_setup_htrates(struct ieee80211_node *ni, const uint8_t *ie, int flags)
 {
+	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
 	const struct ieee80211_ie_htcap *htcap;
 	struct ieee80211_htrateset *rs;
-	int i;
+	int i, maxequalmcs, maxunequalmcs;
+
+	maxequalmcs = ic->ic_txstream * 8 - 1;
+	if (ic->ic_htcaps & IEEE80211_HTC_TXUNEQUAL) {
+		if (ic->ic_txstream >= 2)
+			maxunequalmcs = 38;
+		if (ic->ic_txstream >= 3)
+			maxunequalmcs = 52;
+		if (ic->ic_txstream >= 4)
+			maxunequalmcs = 76;
+	} else
+		maxunequalmcs = 0;
 
 	rs = &ni->ni_htrates;
 	memset(rs, 0, sizeof(*rs));
@@ -1476,6 +1616,13 @@ ieee80211_setup_htrates(struct ieee80211_node *ni, const uint8_t *ie, int flags)
 				vap->iv_stats.is_rx_rstoobig++;
 				break;
 			}
+			if (i <= 31 && i > maxequalmcs)
+				continue;
+			if (i == 32 &&
+			    (ic->ic_htcaps & IEEE80211_HTC_TXMCS32) == 0)
+				continue;
+			if (i > 32 && i > maxunequalmcs)
+				continue;
 			rs->rs_rates[rs->rs_nrates++] = i;
 		}
 	}
@@ -2317,21 +2464,49 @@ ht_send_action_ht_txchwidth(struct ieee80211_node *ni,
 #undef ADDSHORT
 
 /*
- * Construct the MCS bit mask for inclusion
- * in an HT information element.
+ * Construct the MCS bit mask for inclusion in an HT capabilities
+ * information element.
  */
-static void 
-ieee80211_set_htrates(uint8_t *frm, const struct ieee80211_htrateset *rs)
+static void
+ieee80211_set_mcsset(struct ieee80211com *ic, uint8_t *frm)
 {
 	int i;
+	uint8_t txparams;
 
-	for (i = 0; i < rs->rs_nrates; i++) {
-		int r = rs->rs_rates[i] & IEEE80211_RATE_VAL;
-		if (r < IEEE80211_HTRATE_MAXSIZE) {	/* XXX? */
-			/* NB: this assumes a particular implementation */
-			setbit(frm, r);
+	KASSERT((ic->ic_rxstream > 0 && ic->ic_rxstream <= 4),
+	    ("ic_rxstream %d out of range", ic->ic_rxstream));
+	KASSERT((ic->ic_txstream > 0 && ic->ic_txstream <= 4),
+	    ("ic_txstream %d out of range", ic->ic_txstream));
+
+	for (i = 0; i < ic->ic_rxstream * 8; i++)
+		setbit(frm, i);
+	if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
+	    (ic->ic_htcaps & IEEE80211_HTC_RXMCS32))
+		setbit(frm, 32);
+	if (ic->ic_htcaps & IEEE80211_HTC_RXUNEQUAL) {
+		if (ic->ic_rxstream >= 2) {
+			for (i = 33; i <= 38; i++)
+				setbit(frm, i);
+		}
+		if (ic->ic_rxstream >= 3) {
+			for (i = 39; i <= 52; i++)
+				setbit(frm, i);
+		}
+		if (ic->ic_txstream >= 4) {
+			for (i = 53; i <= 76; i++)
+				setbit(frm, i);
 		}
 	}
+
+	if (ic->ic_rxstream != ic->ic_txstream) {
+		txparams = 0x1;			/* TX MCS set defined */
+		txparams |= 0x2;		/* TX RX MCS not equal */
+		txparams |= (ic->ic_txstream - 1) << 2;	/* num TX streams */
+		if (ic->ic_htcaps & IEEE80211_HTC_TXUNEQUAL)
+			txparams |= 0x16;	/* TX unequal modulation sup */
+	} else
+		txparams = 0;
+	frm[12] = txparams;
 }
 
 /*
@@ -2397,12 +2572,12 @@ ieee80211_add_htcap_body(uint8_t *frm, struct ieee80211_node *ni)
 
 	/* supported MCS set */
 	/*
-	 * XXX it would better to get the rate set from ni_htrates
-	 * so we can restrict it but for sta mode ni_htrates isn't
-	 * setup when we're called to form an AssocReq frame so for
-	 * now we're restricted to the default HT rate set.
+	 * XXX: For sta mode the rate set should be restricted based
+	 * on the AP's capabilities, but ni_htrates isn't setup when
+	 * we're called to form an AssocReq frame so for now we're
+	 * restricted to the device capabilities.
 	 */
-	ieee80211_set_htrates(frm, &ieee80211_rateset_11n);
+	ieee80211_set_mcsset(ni->ni_ic, frm);
 
 	frm += __offsetof(struct ieee80211_ie_htcap, hc_extcap) -
 		__offsetof(struct ieee80211_ie_htcap, hc_mcsset);

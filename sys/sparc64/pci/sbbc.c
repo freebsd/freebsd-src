@@ -335,7 +335,7 @@ sbbc_pci_attach(device_t dev)
 	rid = SBBC_PCI_BAR;
 	/*
 	 * Note that we don't activate the resource so it's not mapped twice
-	 * but only once by the the firmware.
+	 * but only once by the firmware.
 	 */
 	sc->sc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 0);
 	if (sc->sc_res == NULL) {

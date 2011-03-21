@@ -7,6 +7,7 @@ SUBDIR= adduser \
 	arp \
 	bootparamd \
 	burncd \
+	bsdinstall \
 	cdcontrol \
 	chkgrp \
 	chown \
@@ -88,6 +89,7 @@ SUBDIR= adduser \
 	trpt \
 	tzsetup \
 	ugidfw \
+	utxrm \
 	vipw \
 	wake \
 	watch \

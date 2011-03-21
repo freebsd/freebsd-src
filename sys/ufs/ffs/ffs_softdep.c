@@ -575,6 +575,9 @@ softdep_get_depcounts(struct mount *mp,
 }
 
 #else
+
+FEATURE(softupdates, "FFS soft-updates support");
+
 /*
  * These definitions need to be adapted to the system to which
  * this file is being ported.
@@ -622,9 +625,9 @@ SYSCTL_NODE(_debug_softdep, OID_AUTO, current, CTLFLAG_RW, 0,
 
 #define	SOFTDEP_TYPE(type, str, long)					\
     static MALLOC_DEFINE(M_ ## type, #str, long);			\
-    SYSCTL_LONG(_debug_softdep_total, OID_AUTO, str, CTLFLAG_RD,	\
+    SYSCTL_ULONG(_debug_softdep_total, OID_AUTO, str, CTLFLAG_RD,	\
 	&dep_total[D_ ## type], 0, "");					\
-    SYSCTL_LONG(_debug_softdep_current, OID_AUTO, str, CTLFLAG_RD, 	\
+    SYSCTL_ULONG(_debug_softdep_current, OID_AUTO, str, CTLFLAG_RD, 	\
 	&dep_current[D_ ## type], 0, "");
 
 SOFTDEP_TYPE(PAGEDEP, pagedep, "File page dependencies"); 
@@ -747,7 +750,7 @@ static	void handle_written_jnewblk(struct jnewblk *);
 static	void handle_written_jfreeblk(struct jfreeblk *);
 static	void handle_written_jfreefrag(struct jfreefrag *);
 static	void complete_jseg(struct jseg *);
-static	void jseg_write(struct fs *, struct jblocks *, struct jseg *,
+static	void jseg_write(struct ufsmount *ump, struct jblocks *, struct jseg *,
 	    uint8_t *);
 static	void jaddref_write(struct jaddref *, struct jseg *, uint8_t *);
 static	void jremref_write(struct jremref *, struct jseg *, uint8_t *);
@@ -876,8 +879,8 @@ static	struct jfreeblk *newjfreeblk(struct freeblks *, ufs_lbn_t,
 	    ufs2_daddr_t, int);
 static	struct jfreefrag *newjfreefrag(struct freefrag *, struct inode *,
 	    ufs2_daddr_t, long, ufs_lbn_t);
-static	struct freework *newfreework(struct freeblks *, struct freework *, 
-	    ufs_lbn_t, ufs2_daddr_t, int, int);
+static	struct freework *newfreework(struct ufsmount *, struct freeblks *,
+	    struct freework *, ufs_lbn_t, ufs2_daddr_t, int, int);
 static	void jwait(struct worklist *wk);
 static	struct inodedep *inodedep_lookup_ip(struct inode *);
 static	int bmsafemap_rollbacks(struct bmsafemap *);
@@ -1342,7 +1345,7 @@ softdep_process_worklist(mp, full)
 	int full;
 {
 	struct thread *td = curthread;
-	int cnt, matchcnt, loopcount;
+	int cnt, matchcnt;
 	struct ufsmount *ump;
 	long starttime;
 
@@ -1354,7 +1357,6 @@ softdep_process_worklist(mp, full)
 	matchcnt = 0;
 	ump = VFSTOUFS(mp);
 	ACQUIRE_LOCK(&lk);
-	loopcount = 1;
 	starttime = time_second;
 	softdep_process_journal(mp, full?MNT_WAIT:0);
 	while (ump->softdep_on_worklist > 0) {
@@ -1379,9 +1381,9 @@ softdep_process_worklist(mp, full)
 		 * We do not generally want to stop for buffer space, but if
 		 * we are really being a buffer hog, we will stop and wait.
 		 */
-		if (loopcount++ % 128 == 0) {
+		if (should_yield()) {
 			FREE_LOCK(&lk);
-			uio_yield();
+			kern_yield(-1);
 			bwillwrite();
 			ACQUIRE_LOCK(&lk);
 		}
@@ -2555,8 +2557,8 @@ softdep_prelink(dvp, vp)
 }
 
 static void
-jseg_write(fs, jblocks, jseg, data)
-	struct fs *fs;
+jseg_write(ump, jblocks, jseg, data)
+	struct ufsmount *ump;
 	struct jblocks *jblocks;
 	struct jseg *jseg;
 	uint8_t *data;
@@ -2567,9 +2569,9 @@ jseg_write(fs, jblocks, jseg, data)
 	rec->jsr_seq = jseg->js_seq;
 	rec->jsr_oldest = jblocks->jb_oldestseq;
 	rec->jsr_cnt = jseg->js_cnt;
-	rec->jsr_blocks = jseg->js_size / DEV_BSIZE;
+	rec->jsr_blocks = jseg->js_size / ump->um_devvp->v_bufobj.bo_bsize;
 	rec->jsr_crc = 0;
-	rec->jsr_time = fs->fs_mtime;
+	rec->jsr_time = ump->um_fs->fs_mtime;
 }
 
 static inline void
@@ -2719,19 +2721,21 @@ softdep_process_journal(mp, flags)
 	int size;
 	int cnt;
 	int off;
+	int devbsize;
 
 	if ((mp->mnt_kern_flag & MNTK_SUJ) == 0)
 		return;
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
 	jblocks = ump->softdep_jblocks;
+	devbsize = ump->um_devvp->v_bufobj.bo_bsize;
 	/*
 	 * We write anywhere between a disk block and fs block.  The upper
 	 * bound is picked to prevent buffer cache fragmentation and limit
 	 * processing time per I/O.
 	 */
-	jrecmin = (DEV_BSIZE / JREC_SIZE) - 1; /* -1 for seg header */
-	jrecmax = (fs->fs_bsize / DEV_BSIZE) * jrecmin;
+	jrecmin = (devbsize / JREC_SIZE) - 1; /* -1 for seg header */
+	jrecmax = (fs->fs_bsize / devbsize) * jrecmin;
 	segwritten = 0;
 	while ((cnt = ump->softdep_on_journal) != 0) {
 		/*
@@ -2786,7 +2790,7 @@ softdep_process_journal(mp, flags)
 		 */
 		cnt = ump->softdep_on_journal;
 		if (cnt < jrecmax)
-			size = howmany(cnt, jrecmin) * DEV_BSIZE;
+			size = howmany(cnt, jrecmin) * devbsize;
 		else
 			size = fs->fs_bsize;
 		/*
@@ -2806,7 +2810,7 @@ softdep_process_journal(mp, flags)
 		 * sequence number to it and link it in-order.
 		 */
 		cnt = MIN(ump->softdep_on_journal,
-		    (size / DEV_BSIZE) * jrecmin);
+		    (size / devbsize) * jrecmin);
 		jseg->js_buf = bp;
 		jseg->js_cnt = cnt;
 		jseg->js_refs = cnt + 1;	/* Self ref. */
@@ -2825,8 +2829,8 @@ softdep_process_journal(mp, flags)
 		while ((wk = LIST_FIRST(&ump->softdep_journal_pending))
 		    != NULL) {
 			/* Place a segment header on every device block. */
-			if ((off % DEV_BSIZE) == 0) {
-				jseg_write(fs, jblocks, jseg, data);
+			if ((off % devbsize) == 0) {
+				jseg_write(ump, jblocks, jseg, data);
 				off += JREC_SIZE;
 				data = bp->b_data + off;
 			}
@@ -3367,7 +3371,8 @@ free_freedep(freedep)
  * is visible outside of softdep_setup_freeblocks().
  */
 static struct freework *
-newfreework(freeblks, parent, lbn, nb, frags, journal)
+newfreework(ump, freeblks, parent, lbn, nb, frags, journal)
+	struct ufsmount *ump;
 	struct freeblks *freeblks;
 	struct freework *parent;
 	ufs_lbn_t lbn;
@@ -3384,7 +3389,8 @@ newfreework(freeblks, parent, lbn, nb, frags, journal)
 	freework->fw_lbn = lbn;
 	freework->fw_blkno = nb;
 	freework->fw_frags = frags;
-	freework->fw_ref = 0;
+	freework->fw_ref = ((UFSTOVFS(ump)->mnt_kern_flag & MNTK_SUJ) == 0 ||
+	    lbn >= -NXADDR) ? 0 : NINDIR(ump->um_fs) + 1;
 	freework->fw_off = 0;
 	LIST_INIT(&freework->fw_jwork);
 
@@ -5199,15 +5205,16 @@ softdep_setup_freeblocks(ip, length, flags)
 				continue;
 			frags = sblksize(fs, oldsize, i);
 			frags = numfrags(fs, frags);
-			newfreework(freeblks, NULL, i, blkno, frags, needj);
+			newfreework(ip->i_ump, freeblks, NULL, i, blkno, frags,
+			    needj);
 		}
 		for (i = 0, tmpval = NINDIR(fs), lbn = NDADDR; i < NIADDR;
 		    i++, tmpval *= NINDIR(fs)) {
 			blkno = DIP(ip, i_ib[i]);
 			DIP_SET(ip, i_ib[i], 0);
-			if (blkno) 
-				newfreework(freeblks, NULL, -lbn - i, blkno,
-				    fs->fs_frag, needj);
+			if (blkno)
+				newfreework(ip->i_ump, freeblks, NULL, -lbn - i,
+				    blkno, fs->fs_frag, needj);
 			lbn += tmpval;
 		}
 		UFS_LOCK(ip->i_ump);
@@ -5225,8 +5232,8 @@ softdep_setup_freeblocks(ip, length, flags)
 				continue;
 			frags = sblksize(fs, oldextsize, i);
 			frags = numfrags(fs, frags);
-			newfreework(freeblks, NULL, -1 - i, blkno, frags,
-			    needj);
+			newfreework(ip->i_ump, freeblks, NULL, -1 - i, blkno,
+			    frags, needj);
 		}
 	}
 	if (LIST_EMPTY(&freeblks->fb_jfreeblkhd))
@@ -6141,9 +6148,6 @@ indir_trunc(freework, dbn, lbn)
 		bap2 = (ufs2_daddr_t *)bp->b_data;
 	}
 
-	if (needj)
-		freework->fw_ref += NINDIR(fs) + 1;
-
 	/*
 	 * Reclaim indirect blocks which never made it to disk.
 	 */
@@ -6178,7 +6182,7 @@ indir_trunc(freework, dbn, lbn)
 			ufs_lbn_t nlbn;
 
 			nlbn = (lbn + 1) - (i * lbnadd);
-			nfreework = newfreework(freeblks, freework,
+			nfreework = newfreework(ump, freeblks, freework,
 			    nlbn, nb, fs->fs_frag, 0);
 			WORKLIST_INSERT_UNLOCKED(&nfreework->fw_jwork, wk);
 			freedeps++;
@@ -6225,7 +6229,7 @@ indir_trunc(freework, dbn, lbn)
 
 			nlbn = (lbn + 1) - (i * lbnadd);
 			if (needj != 0) {
-				nfreework = newfreework(freeblks, freework,
+				nfreework = newfreework(ump, freeblks, freework,
 				    nlbn, nb, fs->fs_frag, 0);
 				freedeps++;
 			}

@@ -308,8 +308,36 @@
 		};
 	};
 
+	pci0: pcie@f1040000 {
+		compatible = "mrvl,pcie";
+		device_type = "pci";
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <0xf1040000 0x2000>;
+		bus-range = <0 255>;
+		ranges = <0x02000000 0x0 0xf2000000 0xf2000000 0x0 0x04000000
+			  0x01000000 0x0 0x00000000 0xf1100000 0x0 0x00100000>;
+		clock-frequency = <33333333>;
+		interrupt-parent = <&PIC>;
+		interrupts = <68>;
+		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
+		interrupt-map = <
+			/* IDSEL 0x1 */
+			0x0800 0x0 0x0 0x1 &PIC 0x20
+			0x0800 0x0 0x0 0x2 &PIC 0x21
+			0x0800 0x0 0x0 0x3 &PIC 0x22
+			0x0800 0x0 0x0 0x4 &PIC 0x23
+			>;
+	};
+
 	sram@fd000000 {
 		compatible = "mrvl,cesa-sram";
 		reg = <0xfd000000 0x00100000>;
+	};
+
+	chosen {
+		stdin = "serial0";
+		stdout = "serial0";
 	};
 };

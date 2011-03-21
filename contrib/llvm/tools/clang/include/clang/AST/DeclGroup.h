@@ -14,7 +14,7 @@
 #ifndef LLVM_CLANG_AST_DECLGROUP_H
 #define LLVM_CLANG_AST_DECLGROUP_H
 
-#include "llvm/System/DataTypes.h"
+#include "llvm/Support/DataTypes.h"
 #include <cassert>
 
 namespace clang {
@@ -39,12 +39,12 @@ public:
 
   Decl*& operator[](unsigned i) {
     assert (i < NumDecls && "Out-of-bounds access.");
-    return *((Decl**) (this+1));
+    return ((Decl**) (this+1))[i];
   }
 
   Decl* const& operator[](unsigned i) const {
     assert (i < NumDecls && "Out-of-bounds access.");
-    return *((Decl* const*) (this+1));
+    return ((Decl* const*) (this+1))[i];
   }
 };
 

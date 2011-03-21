@@ -26,7 +26,7 @@
 #include "llvm/Support/DOTGraphTraits.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/GraphTraits.h"
-#include "llvm/System/Path.h"
+#include "llvm/Support/Path.h"
 #include <vector>
 #include <cassert>
 
@@ -89,14 +89,28 @@ class GraphWriter {
 
 public:
   GraphWriter(raw_ostream &o, const GraphType &g, bool SN) : O(o), G(g) {
-  DTraits = DOTTraits(SN);
-}
+    DTraits = DOTTraits(SN);
+  }
 
-  void writeHeader(const std::string &Name) {
+  void writeGraph(const std::string &Title = "") {
+    // Output the header for the graph...
+    writeHeader(Title);
+
+    // Emit all of the nodes in the graph...
+    writeNodes();
+
+    // Output any customizations on the graph
+    DOTGraphTraits<GraphType>::addCustomGraphFeatures(G, *this);
+
+    // Output the end of the graph
+    writeFooter();
+  }
+
+  void writeHeader(const std::string &Title) {
     std::string GraphName = DTraits.getGraphName(G);
 
-    if (!Name.empty())
-      O << "digraph \"" << DOT::EscapeString(Name) << "\" {\n";
+    if (!Title.empty())
+      O << "digraph \"" << DOT::EscapeString(Title) << "\" {\n";
     else if (!GraphName.empty())
       O << "digraph \"" << DOT::EscapeString(GraphName) << "\" {\n";
     else
@@ -105,8 +119,8 @@ public:
     if (DTraits.renderGraphFromBottomUp())
       O << "\trankdir=\"BT\";\n";
 
-    if (!Name.empty())
-      O << "\tlabel=\"" << DOT::EscapeString(Name) << "\";\n";
+    if (!Title.empty())
+      O << "\tlabel=\"" << DOT::EscapeString(Title) << "\";\n";
     else if (!GraphName.empty())
       O << "\tlabel=\"" << DOT::EscapeString(GraphName) << "\";\n";
     O << DTraits.getGraphProperties(G);
@@ -282,22 +296,13 @@ public:
 template<typename GraphType>
 raw_ostream &WriteGraph(raw_ostream &O, const GraphType &G,
                         bool ShortNames = false,
-                        const std::string &Name = "",
                         const std::string &Title = "") {
   // Start the graph emission process...
   GraphWriter<GraphType> W(O, G, ShortNames);
 
-  // Output the header for the graph...
-  W.writeHeader(Title);
+  // Emit the graph.
+  W.writeGraph(Title);
 
-  // Emit all of the nodes in the graph...
-  W.writeNodes();
-
-  // Output any customizations on the graph
-  DOTGraphTraits<GraphType>::addCustomGraphFeatures(G, W);
-
-  // Output the end of the graph
-  W.writeFooter();
   return O;
 }
 
@@ -322,7 +327,7 @@ sys::Path WriteGraph(const GraphType &G, const std::string &Name,
   raw_fd_ostream O(Filename.c_str(), ErrorInfo);
 
   if (ErrorInfo.empty()) {
-    llvm::WriteGraph(O, G, ShortNames, Name, Title);
+    llvm::WriteGraph(O, G, ShortNames, Title);
     errs() << " done. \n";
   } else {
     errs() << "error opening file '" << Filename.str() << "' for writing!\n";

@@ -1208,4 +1208,17 @@ static const struct rt2860_rate {
 	{ 30, 0x09 },	\
 	{ 31, 0x10 }
 
+
+union run_stats {
+	uint32_t	raw;
+	struct {
+		uint16_t	fail;
+		uint16_t	pad;
+	} error;
+	struct {
+		uint16_t	success;
+		uint16_t	retry;
+	} tx;
+} __aligned(4);
+
 #endif	/* _IF_RUNREG_H_ */

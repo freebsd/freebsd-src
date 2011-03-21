@@ -58,6 +58,65 @@ ar2133WriteRegs(struct ath_hal *ah, u_int modesIndex, u_int freqIndex,
 }
 
 /*
+ * Fix on 2.4 GHz band for orientation sensitivity issue by increasing
+ * rf_pwd_icsyndiv.
+ * 
+ * Theoretical Rules:
+ *   if 2 GHz band
+ *      if forceBiasAuto
+ *         if synth_freq < 2412
+ *            bias = 0
+ *         else if 2412 <= synth_freq <= 2422
+ *            bias = 1
+ *         else // synth_freq > 2422
+ *            bias = 2
+ *      else if forceBias > 0
+ *         bias = forceBias & 7
+ *      else
+ *         no change, use value from ini file
+ *   else
+ *      no change, invalid band
+ *
+ *  1st Mod:
+ *    2422 also uses value of 2
+ *    <approved>
+ *
+ *  2nd Mod:
+ *    Less than 2412 uses value of 0, 2412 and above uses value of 2
+ */
+static void
+ar2133ForceBias(struct ath_hal *ah, uint16_t synth_freq)
+{
+        uint32_t tmp_reg;
+        int reg_writes = 0;
+        uint32_t new_bias = 0;
+	struct ar2133State *priv = AR2133(ah);
+
+	/* XXX this is a bit of a silly check for 2.4ghz channels -adrian */
+        if (synth_freq >= 3000)
+                return;
+
+        if (synth_freq < 2412)
+                new_bias = 0;
+        else if (synth_freq < 2422)
+                new_bias = 1;
+        else
+                new_bias = 2;
+
+        /* pre-reverse this field */
+        tmp_reg = ath_hal_reverseBits(new_bias, 3);
+
+        HALDEBUG(ah, HAL_DEBUG_ANY, "%s: Force rf_pwd_icsyndiv to %1d on %4d\n",
+                  __func__, new_bias, synth_freq);
+
+        /* swizzle rf_pwd_icsyndiv */
+        ar5416ModifyRfBuffer(priv->Bank6Data, tmp_reg, 3, 181, 3);
+
+        /* write Bank 6 with new params */
+        ath_hal_ini_bank_write(ah, &AH5416(ah)->ah_ini_bank6, priv->Bank6Data, reg_writes);
+}
+
+/*
  * Take the MHz channel value and set the Channel value
  *
  * ASSUMES: Writes enabled to analog bus
@@ -124,6 +183,10 @@ ar2133SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		    __func__, freq);
 		return AH_FALSE;
 	}
+
+	/* Workaround for hw bug - AR5416 specific */
+	if (AR_SREV_OWL(ah))
+		ar2133ForceBias(ah, freq);
 
 	reg32 = (channelSel << 8) | (aModeRefSel << 2) | (bModeSynth << 1) |
 		(1 << 5) | 0x1;
@@ -323,11 +386,28 @@ ar2133GetChannelMaxMinPower(struct ath_hal *ah,
 #endif
 }
 
+/*
+ * The ordering of nfarray is thus:
+ *
+ * nfarray[0]:	Chain 0 ctl
+ * nfarray[1]:	Chain 1 ctl
+ * nfarray[2]:	Chain 2 ctl
+ * nfarray[3]:	Chain 0 ext
+ * nfarray[4]:	Chain 1 ext
+ * nfarray[5]:	Chain 2 ext
+ */
 static void 
 ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
 	int16_t nf;
+
+	/*
+	 * Blank nf array - some chips may only
+	 * have one or two RX chainmasks enabled.
+	 */
+	nfarray[0] = nfarray[1] = nfarray[2] = 0;
+	nfarray[3] = nfarray[4] = nfarray[5] = 0;
 
 	switch (ahp->ah_rx_chainmask) {
         case 0x7:
@@ -336,7 +416,7 @@ ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 			nf = 0 - ((nf ^ 0x1ff) + 1);
 		HALDEBUG(ah, HAL_DEBUG_NFCAL,
 		    "NF calibrated [ctl] [chain 2] is %d\n", nf);
-		nfarray[4] = nf;
+		nfarray[2] = nf;
 
 		nf = MS(OS_REG_READ(ah, AR_PHY_CH2_EXT_CCA), AR_PHY_CH2_EXT_MINCCA_PWR);
 		if (nf & 0x100)
@@ -352,7 +432,7 @@ ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 			nf = 0 - ((nf ^ 0x1ff) + 1);
 		HALDEBUG(ah, HAL_DEBUG_NFCAL,
 		    "NF calibrated [ctl] [chain 1] is %d\n", nf);
-		nfarray[2] = nf;
+		nfarray[1] = nf;
 
 
 		nf = MS(OS_REG_READ(ah, AR_PHY_CH1_EXT_CCA), AR_PHY_CH1_EXT_MINCCA_PWR);
@@ -360,7 +440,7 @@ ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 			nf = 0 - ((nf ^ 0x1ff) + 1);
 		HALDEBUG(ah, HAL_DEBUG_NFCAL,
 		    "NF calibrated [ext] [chain 1] is %d\n", nf);
-		nfarray[3] = nf;
+		nfarray[4] = nf;
 		/* fall thru... */
         case 0x1:
 		nf = MS(OS_REG_READ(ah, AR_PHY_CCA), AR_PHY_MINCCA_PWR);
@@ -375,7 +455,7 @@ ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 			nf = 0 - ((nf ^ 0x1ff) + 1);
 		HALDEBUG(ah, HAL_DEBUG_NFCAL,
 		    "NF calibrated [ext] [chain 0] is %d\n", nf);
-		nfarray[1] = nf;
+		nfarray[3] = nf;
 
 		break;
 	}

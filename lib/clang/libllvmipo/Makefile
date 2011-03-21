@@ -20,7 +20,6 @@ SRCS=	ArgumentPromotion.cpp \
 	LowerSetJmp.cpp \
 	MergeFunctions.cpp \
 	PartialInlining.cpp \
-	PartialSpecialization.cpp \
 	PruneEH.cpp \
 	StripDeadPrototypes.cpp \
 	StripSymbols.cpp \

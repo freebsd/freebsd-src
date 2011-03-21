@@ -17,7 +17,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd July 23, 2010
+.Dd January 31, 2011
 .Dt NEWSYSLOG 8
 .Os
 .Sh NAME
@@ -26,13 +26,12 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl CFNPnrsv
-.Op Fl R Ar tagname
-.Op Fl S Ar pidfile
 .Op Fl a Ar directory
 .Op Fl d Ar directory
 .Op Fl f Ar config_file
+.Op Fl S Ar pidfile
 .Op Fl t Ar timefmt
-.Op Ar
+.Op Oo Fl R Ar tagname Oc Ar
 .Sh DESCRIPTION
 The
 .Nm
@@ -279,6 +278,7 @@ accepted for backwards compatibility.
 .Sh SEE ALSO
 .Xr bzip2 1 ,
 .Xr gzip 1 ,
+.Xr xz 1 ,
 .Xr syslog 3 ,
 .Xr newsyslog.conf 5 ,
 .Xr chown 8 ,

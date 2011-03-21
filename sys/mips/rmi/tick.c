@@ -167,7 +167,7 @@ sysctl_machdep_counter_freq(SYSCTL_HANDLER_ARGS)
 	if (softc == NULL)
 		return (EOPNOTSUPP);
 	freq = counter_freq;
-	error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
+	error = sysctl_handle_64(oidp, &freq, sizeof(freq), req);
 	if (error == 0 && req->newptr != NULL) {
 		counter_freq = freq;
 		softc->et.et_frequency = counter_freq;
@@ -176,8 +176,8 @@ sysctl_machdep_counter_freq(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_machdep, OID_AUTO, counter_freq, CTLTYPE_QUAD | CTLFLAG_RW,
-    0, sizeof(u_int), sysctl_machdep_counter_freq, "IU",
+SYSCTL_PROC(_machdep, OID_AUTO, counter_freq, CTLTYPE_U64 | CTLFLAG_RW,
+    NULL, 0, sysctl_machdep_counter_freq, "QU",
     "Timecounter frequency in Hz");
 
 static unsigned

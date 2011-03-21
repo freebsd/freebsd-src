@@ -130,10 +130,12 @@ ar91xx_chip_set_pll_ge0(int speed)
 			pll = AR91XX_PLL_VAL_1000;
 			break;
 		default:
-			printf("ar91xx_chip_set_pll_ge0: invalid speed %d\n", speed);
+			printf("ar91xx_chip_set_pll_ge0: invalid speed %d\n",
+			    speed);
 			return;
 	}
-	ar71xx_write_pll(AR91XX_PLL_REG_ETH_CONFIG, AR91XX_PLL_REG_ETH0_INT_CLOCK, pll, AR91XX_ETH0_PLL_SHIFT);
+	ar71xx_write_pll(AR91XX_PLL_REG_ETH_CONFIG,
+	    AR91XX_PLL_REG_ETH0_INT_CLOCK, pll, AR91XX_ETH0_PLL_SHIFT);
 }
 
 static void
@@ -152,10 +154,12 @@ ar91xx_chip_set_pll_ge1(int speed)
 			pll = AR91XX_PLL_VAL_1000;
 			break;
 		default:
-			printf("ar91xx_chip_set_pll_ge0: invalid speed %d\n", speed);
+			printf("ar91xx_chip_set_pll_ge0: invalid speed %d\n",
+			    speed);
 			return;
 	}
-	ar71xx_write_pll(AR91XX_PLL_REG_ETH_CONFIG, AR91XX_PLL_REG_ETH1_INT_CLOCK, pll, AR91XX_ETH1_PLL_SHIFT);
+	ar71xx_write_pll(AR91XX_PLL_REG_ETH_CONFIG,
+	    AR91XX_PLL_REG_ETH1_INT_CLOCK, pll, AR91XX_ETH1_PLL_SHIFT);
 }
 
 static void
@@ -187,6 +191,13 @@ ar91xx_chip_init_usb_peripheral(void)
 
 	ar71xx_device_start(RST_RESET_USB_PHY);
 	DELAY(100);
+
+	/* Wireless */
+	ar71xx_device_stop(AR91XX_RST_RESET_MODULE_AMBA2WMAC);
+	DELAY(1000);
+
+	ar71xx_device_start(AR91XX_RST_RESET_MODULE_AMBA2WMAC);
+	DELAY(1000);
 }
 
 struct ar71xx_cpu_def ar91xx_chip_def = {

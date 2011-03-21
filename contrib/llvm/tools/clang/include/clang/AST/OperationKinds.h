@@ -17,107 +17,238 @@
 
 namespace clang {
   
-/// CastKind - the kind of cast this represents.
+/// CastKind - The kind of operation required for a conversion.
 enum CastKind {
-  /// CK_Unknown - Unknown cast kind.
-  /// FIXME: The goal is to get rid of this and make all casts have a
-  /// kind so that the AST client doesn't have to try to figure out what's
-  /// going on.
-  CK_Unknown,
+  /// CK_Dependent - A conversion which cannot yet be analyzed because
+  /// either the expression or target type is dependent.  These are
+  /// created only for explicit casts; dependent ASTs aren't required
+  /// to even approximately type-check.
+  ///   (T*) malloc(sizeof(T))
+  ///   reinterpret_cast<intptr_t>(A<T>::alloc());
+  CK_Dependent,
 
-  /// CK_BitCast - Used for reinterpret_cast.
+  /// CK_BitCast - A conversion which causes a bit pattern of one type
+  /// to be reinterpreted as a bit pattern of another type.  Generally
+  /// the operands must have equivalent size and unrelated types.
+  ///
+  /// The pointer conversion char* -> int* is a bitcast.  Many other
+  /// pointer conversions which are "physically" bitcasts are given
+  /// special cast kinds.
+  ///
+  /// Vector coercions are bitcasts.
   CK_BitCast,
 
-  /// CK_LValueBitCast - Used for reinterpret_cast of expressions to
-  /// a reference type.
+  /// CK_LValueBitCast - A conversion which reinterprets the address of
+  /// an l-value as an l-value of a different kind.  Used for
+  /// reinterpret_casts of l-value expressions to reference types.
+  ///    bool b; reinterpret_cast<char&>(b) = 'a';
   CK_LValueBitCast,
+  
+  /// CK_LValueToRValue - A conversion which causes the extraction of
+  /// an r-value from the operand gl-value.  The result of an r-value
+  /// conversion is always unqualified.
+  CK_LValueToRValue,
+
+  /// CK_GetObjCProperty - A conversion which calls an Objective-C
+  /// property getter.  The operand is an OK_ObjCProperty l-value; the
+  /// result will generally be an r-value, but could be an ordinary
+  /// gl-value if the property reference is to an implicit property
+  /// for a method that returns a reference type.
+  CK_GetObjCProperty,
     
-  /// CK_NoOp - Used for const_cast.
+  /// CK_NoOp - A conversion which does not affect the type other than
+  /// (possibly) adding qualifiers.
+  ///   int    -> int
+  ///   char** -> const char * const *
   CK_NoOp,
 
-  /// CK_BaseToDerived - Base to derived class casts.
+  /// CK_BaseToDerived - A conversion from a C++ class pointer/reference
+  /// to a derived class pointer/reference.
+  ///   B *b = static_cast<B*>(a);
   CK_BaseToDerived,
 
-  /// CK_DerivedToBase - Derived to base class casts.
+  /// CK_DerivedToBase - A conversion from a C++ class pointer
+  /// to a base class pointer.
+  ///   A *a = new B();
   CK_DerivedToBase,
 
-  /// CK_UncheckedDerivedToBase - Derived to base class casts that
-  /// assume that the derived pointer is not null.
+  /// CK_UncheckedDerivedToBase - A conversion from a C++ class
+  /// pointer/reference to a base class that can assume that the
+  /// derived pointer is not null.
+  ///   const A &a = B();
+  ///   b->method_from_a();
   CK_UncheckedDerivedToBase,
 
-  /// CK_Dynamic - Dynamic cast.
+  /// CK_Dynamic - A C++ dynamic_cast.
   CK_Dynamic,
 
-  /// CK_ToUnion - Cast to union (GCC extension).
+  /// CK_ToUnion - The GCC cast-to-union extension.
+  ///   int   -> union { int x; float y; }
+  ///   float -> union { int x; float y; }
   CK_ToUnion,
 
   /// CK_ArrayToPointerDecay - Array to pointer decay.
+  ///   int[10] -> int*
+  ///   char[5][6] -> char(*)[6]
   CK_ArrayToPointerDecay,
 
-  // CK_FunctionToPointerDecay - Function to pointer decay.
+  /// CK_FunctionToPointerDecay - Function to pointer decay.
+  ///   void(int) -> void(*)(int)
   CK_FunctionToPointerDecay,
 
-  /// CK_NullToMemberPointer - Null pointer to member pointer.
+  /// CK_NullToPointer - Null pointer constant to pointer, ObjC
+  /// pointer, or block pointer.
+  ///   (void*) 0
+  ///   void (^block)() = 0;
+  CK_NullToPointer,
+
+  /// CK_NullToMemberPointer - Null pointer constant to member pointer.
+  ///   int A::*mptr = 0;
+  ///   int (A::*fptr)(int) = nullptr;
   CK_NullToMemberPointer,
 
   /// CK_BaseToDerivedMemberPointer - Member pointer in base class to
   /// member pointer in derived class.
+  ///   int B::*mptr = &A::member;
   CK_BaseToDerivedMemberPointer,
 
   /// CK_DerivedToBaseMemberPointer - Member pointer in derived class to
   /// member pointer in base class.
+  ///   int A::*mptr = static_cast<int A::*>(&B::member);
   CK_DerivedToBaseMemberPointer,
     
-  /// CK_UserDefinedConversion - Conversion using a user defined type
-  /// conversion function.
-  CK_UserDefinedConversion,
-
-  /// CK_ConstructorConversion - Conversion by constructor
-  CK_ConstructorConversion,
-    
-  /// CK_IntegralToPointer - Integral to pointer
-  CK_IntegralToPointer,
-    
-  /// CK_PointerToIntegral - Pointer to integral
-  CK_PointerToIntegral,
-    
-  /// CK_ToVoid - Cast to void.
-  CK_ToVoid,
-    
-  /// CK_VectorSplat - Casting from an integer/floating type to an extended
-  /// vector type with the same element type as the src type. Splats the 
-  /// src expression into the destination expression.
-  CK_VectorSplat,
-    
-  /// CK_IntegralCast - Casting between integral types of different size.
-  CK_IntegralCast,
-
-  /// CK_IntegralToFloating - Integral to floating point.
-  CK_IntegralToFloating,
-    
-  /// CK_FloatingToIntegral - Floating point to integral.
-  CK_FloatingToIntegral,
-    
-  /// CK_FloatingCast - Casting between floating types of different size.
-  CK_FloatingCast,
-    
-  /// CK_MemberPointerToBoolean - Member pointer to boolean
+  /// CK_MemberPointerToBoolean - Member pointer to boolean.  A check
+  /// against the null member pointer.
   CK_MemberPointerToBoolean,
 
-  /// CK_AnyPointerToObjCPointerCast - Casting any pointer to objective-c 
-  /// pointer
+  /// CK_UserDefinedConversion - Conversion using a user defined type
+  /// conversion function.
+  ///    struct A { operator int(); }; int i = int(A());
+  CK_UserDefinedConversion,
+
+  /// CK_ConstructorConversion - Conversion by constructor.
+  ///    struct A { A(int); }; A a = A(10);
+  CK_ConstructorConversion,
+    
+  /// CK_IntegralToPointer - Integral to pointer.  A special kind of
+  /// reinterpreting conversion.  Applies to normal, ObjC, and block
+  /// pointers.
+  ///    (char*) 0x1001aab0
+  ///    reinterpret_cast<int*>(0)
+  CK_IntegralToPointer,
+    
+  /// CK_PointerToIntegral - Pointer to integral.  A special kind of
+  /// reinterpreting conversion.  Applies to normal, ObjC, and block
+  /// pointers.
+  ///    (intptr_t) "help!"
+  CK_PointerToIntegral,
+
+  /// CK_PointerToBoolean - Pointer to boolean conversion.  A check
+  /// against null.  Applies to normal, ObjC, and block pointers.
+  CK_PointerToBoolean,
+    
+  /// CK_ToVoid - Cast to void, discarding the computed value.
+  ///    (void) malloc(2048)
+  CK_ToVoid,
+    
+  /// CK_VectorSplat - A conversion from an arithmetic type to a
+  /// vector of that element type.  Fills all elements ("splats") with
+  /// the source value.
+  ///    __attribute__((ext_vector_type(4))) int v = 5;
+  CK_VectorSplat,
+    
+  /// CK_IntegralCast - A cast between integral types (other than to
+  /// boolean).  Variously a bitcast, a truncation, a sign-extension,
+  /// or a zero-extension.
+  ///    long l = 5;
+  ///    (unsigned) i
+  CK_IntegralCast,
+
+  /// CK_IntegralToBoolean - Integral to boolean.  A check against zero.
+  ///    (bool) i
+  CK_IntegralToBoolean,
+
+  /// CK_IntegralToFloating - Integral to floating point.
+  ///    float f = i;
+  CK_IntegralToFloating,
+    
+  /// CK_FloatingToIntegral - Floating point to integral.  Rounds
+  /// towards zero, discarding any fractional component.
+  ///    (int) f
+  CK_FloatingToIntegral,
+
+  /// CK_FloatingToBoolean - Floating point to boolean.
+  ///    (bool) f
+  CK_FloatingToBoolean,
+    
+  /// CK_FloatingCast - Casting between floating types of different size.
+  ///    (double) f
+  ///    (float) ld
+  CK_FloatingCast,
+    
+  /// CK_AnyPointerToObjCPointerCast - Casting any other pointer kind
+  /// to an Objective-C pointer.
   CK_AnyPointerToObjCPointerCast,
 
-  /// CK_AnyPointerToBlockPointerCast - Casting any pointer to block 
-  /// pointer
+  /// CK_AnyPointerToBlockPointerCast - Casting any other pointer kind
+  /// to a block pointer.
   CK_AnyPointerToBlockPointerCast,
 
   /// \brief Converting between two Objective-C object types, which
   /// can occur when performing reference binding to an Objective-C
   /// object.
-  CK_ObjCObjectLValueCast
+  CK_ObjCObjectLValueCast,
+
+  /// \brief A conversion of a floating point real to a floating point
+  /// complex of the original type.  Injects the value as the real
+  /// component with a zero imaginary component.
+  ///   float -> _Complex float
+  CK_FloatingRealToComplex,
+
+  /// \brief Converts a floating point complex to floating point real
+  /// of the source's element type.  Just discards the imaginary
+  /// component.
+  ///   _Complex long double -> long double
+  CK_FloatingComplexToReal,
+
+  /// \brief Converts a floating point complex to bool by comparing
+  /// against 0+0i.
+  CK_FloatingComplexToBoolean,
+
+  /// \brief Converts between different floating point complex types.
+  ///   _Complex float -> _Complex double
+  CK_FloatingComplexCast,
+
+  /// \brief Converts from a floating complex to an integral complex.
+  ///   _Complex float -> _Complex int
+  CK_FloatingComplexToIntegralComplex,
+
+  /// \brief Converts from an integral real to an integral complex
+  /// whose element type matches the source.  Injects the value as
+  /// the real component with a zero imaginary component.
+  ///   long -> _Complex long
+  CK_IntegralRealToComplex,
+
+  /// \brief Converts an integral complex to an integral real of the
+  /// source's element type by discarding the imaginary component.
+  ///   _Complex short -> short
+  CK_IntegralComplexToReal,
+
+  /// \brief Converts an integral complex to bool by comparing against
+  /// 0+0i.
+  CK_IntegralComplexToBoolean,
+
+  /// \brief Converts between different integral complex types.
+  ///   _Complex char -> _Complex long long
+  ///   _Complex unsigned int -> _Complex signed int
+  CK_IntegralComplexCast,
+
+  /// \brief Converts from an integral complex to a floating complex.
+  ///   _Complex unsigned -> _Complex float
+  CK_IntegralComplexToFloatingComplex
 };
 
+#define CK_Invalid ((CastKind) -1)
 
 enum BinaryOperatorKind {
   // Operators listed in order of precedence.

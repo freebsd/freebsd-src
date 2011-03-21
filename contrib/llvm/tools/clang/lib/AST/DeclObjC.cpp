@@ -153,6 +153,9 @@ ObjCContainerDecl::FindPropertyDeclaration(IdentifierInfo *PropertyId) const {
 ObjCPropertyDecl *
 ObjCInterfaceDecl::FindPropertyVisibleInPrimaryClass(
                                             IdentifierInfo *PropertyId) const {
+  if (ExternallyCompleted)
+    LoadExternalDefinition();
+
   if (ObjCPropertyDecl *PD =
       ObjCPropertyDecl::findPropertyDecl(cast<DeclContext>(this), PropertyId))
     return PD;
@@ -171,6 +174,9 @@ void ObjCInterfaceDecl::mergeClassExtensionProtocolList(
                               ObjCProtocolDecl *const* ExtList, unsigned ExtNum,
                               ASTContext &C)
 {
+  if (ExternallyCompleted)
+    LoadExternalDefinition();
+
   if (AllReferencedProtocols.empty() && ReferencedProtocols.empty()) {
     AllReferencedProtocols.set(ExtList, ExtNum, C);
     return;
@@ -270,6 +276,9 @@ ObjCMethodDecl *ObjCInterfaceDecl::lookupMethod(Selector Sel,
   const ObjCInterfaceDecl* ClassDecl = this;
   ObjCMethodDecl *MethodDecl = 0;
 
+  if (ExternallyCompleted)
+    LoadExternalDefinition();
+
   while (ClassDecl != NULL) {
     if ((MethodDecl = ClassDecl->getMethod(Sel, isInstance)))
       return MethodDecl;
@@ -302,14 +311,16 @@ ObjCMethodDecl *ObjCInterfaceDecl::lookupMethod(Selector Sel,
   return NULL;
 }
 
-ObjCMethodDecl *ObjCInterfaceDecl::lookupPrivateInstanceMethod(
-                                   const Selector &Sel) {
+ObjCMethodDecl *ObjCInterfaceDecl::lookupPrivateMethod(
+                                   const Selector &Sel,
+                                   bool Instance) {
   ObjCMethodDecl *Method = 0;
   if (ObjCImplementationDecl *ImpDecl = getImplementation())
-    Method = ImpDecl->getInstanceMethod(Sel);
+    Method = Instance ? ImpDecl->getInstanceMethod(Sel) 
+                      : ImpDecl->getClassMethod(Sel);
   
   if (!Method && getSuperClass())
-    return getSuperClass()->lookupPrivateInstanceMethod(Sel);
+    return getSuperClass()->lookupPrivateMethod(Sel, Instance);
   return Method;
 }
 
@@ -443,11 +454,29 @@ ObjCInterfaceDecl(DeclContext *DC, SourceLocation atLoc, IdentifierInfo *Id,
   : ObjCContainerDecl(ObjCInterface, DC, atLoc, Id),
     TypeForDecl(0), SuperClass(0),
     CategoryList(0), IvarList(0), 
-    ForwardDecl(FD), InternalInterface(isInternal),
+    ForwardDecl(FD), InternalInterface(isInternal), ExternallyCompleted(false),
     ClassLoc(CLoc) {
 }
 
+void ObjCInterfaceDecl::LoadExternalDefinition() const {
+  assert(ExternallyCompleted && "Class is not externally completed");
+  ExternallyCompleted = false;
+  getASTContext().getExternalSource()->CompleteType(
+                                        const_cast<ObjCInterfaceDecl *>(this));
+}
+
+void ObjCInterfaceDecl::setExternallyCompleted() {
+  assert(getASTContext().getExternalSource() && 
+         "Class can't be externally completed without an external source");
+  assert(!ForwardDecl && 
+         "Forward declarations can't be externally completed");
+  ExternallyCompleted = true;
+}
+
 ObjCImplementationDecl *ObjCInterfaceDecl::getImplementation() const {
+  if (ExternallyCompleted)
+    LoadExternalDefinition();
+
   return getASTContext().getObjCImplementation(
                                           const_cast<ObjCInterfaceDecl*>(this));
 }
@@ -506,6 +535,9 @@ ObjCIvarDecl *ObjCInterfaceDecl::all_declared_ivar_begin() {
 ///
 ObjCCategoryDecl *
 ObjCInterfaceDecl::FindCategoryDeclaration(IdentifierInfo *CategoryId) const {
+  if (ExternallyCompleted)
+    LoadExternalDefinition();
+
   for (ObjCCategoryDecl *Category = getCategoryList();
        Category; Category = Category->getNextClassCategory())
     if (Category->getIdentifier() == CategoryId)
@@ -711,7 +743,7 @@ ObjCClassDecl::ObjCClassDecl(DeclContext *DC, SourceLocation L,
 void ObjCClassDecl::setClassList(ASTContext &C, ObjCInterfaceDecl*const*List,
                                  const SourceLocation *Locs, unsigned Num) {
   ForwardDecls = (ObjCClassRef*) C.Allocate(sizeof(ObjCClassRef)*Num,
-                                            llvm::alignof<ObjCClassRef>());
+                                            llvm::alignOf<ObjCClassRef>());
   for (unsigned i = 0; i < Num; ++i)
     new (&ForwardDecls[i]) ObjCClassRef(List[i], Locs[i]);
   
@@ -896,7 +928,6 @@ ObjCPropertyDecl *ObjCPropertyDecl::Create(ASTContext &C, DeclContext *DC,
   return new (C) ObjCPropertyDecl(DC, L, Id, AtLoc, T);
 }
 
-
 //===----------------------------------------------------------------------===//
 // ObjCPropertyImplDecl
 //===----------------------------------------------------------------------===//
@@ -907,8 +938,16 @@ ObjCPropertyImplDecl *ObjCPropertyImplDecl::Create(ASTContext &C,
                                                    SourceLocation L,
                                                    ObjCPropertyDecl *property,
                                                    Kind PK,
-                                                   ObjCIvarDecl *ivar) {
-  return new (C) ObjCPropertyImplDecl(DC, atLoc, L, property, PK, ivar);
+                                                   ObjCIvarDecl *ivar,
+                                                   SourceLocation ivarLoc) {
+  return new (C) ObjCPropertyImplDecl(DC, atLoc, L, property, PK, ivar,
+                                      ivarLoc);
 }
 
+SourceRange ObjCPropertyImplDecl::getSourceRange() const {
+  SourceLocation EndLoc = getLocation();
+  if (IvarLoc.isValid())
+    EndLoc = IvarLoc;
 
+  return SourceRange(AtLoc, EndLoc);
+}

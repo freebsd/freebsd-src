@@ -137,6 +137,7 @@
 #define		pthread_getprio			_pthread_getprio
 #define		pthread_getschedparam		_pthread_getschedparam
 #define		pthread_getspecific		_pthread_getspecific
+#define		pthread_getthreadid_np		_pthread_getthreadid_np
 #define		pthread_join			_pthread_join
 #define		pthread_key_create		_pthread_key_create
 #define		pthread_key_delete		_pthread_key_delete

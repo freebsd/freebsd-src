@@ -94,11 +94,8 @@ _kvm_initvtop(kvm_t *kd)
 }
 
 int
-_kvm_kvatop(kvm_t *kd, u_long va , off_t *pa)
+_kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 {
-
-	u_long offset = va & (PAGE_SIZE - 1);
-	struct vmstate *vm = kd->vmst;
 
 	if (kd->vmst->minidump)
 		return _kvm_minidump_kvatop(kd, va, pa);
@@ -113,9 +110,11 @@ _kvm_kvatop(kvm_t *kd, u_long va , off_t *pa)
  * not just those for a kernel crash dump.  Some architectures
  * have to deal with these NOT being constants!  (i.e. m68k)
  */
+#ifdef FBSD_NOT_YET
 int
 _kvm_mdopen(kvm_t *kd __unused)
 {
 
 	return (0);
 }
+#endif

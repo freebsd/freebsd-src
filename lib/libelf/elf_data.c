@@ -115,8 +115,10 @@ elf_getdata(Elf_Scn *s, Elf_Data *d)
 	d->d_type    = elftype;
 	d->d_version = e->e_version;
 
-	if (sh_type == SHT_NOBITS)
+	if (sh_type == SHT_NOBITS || sh_size == 0) {
+	        STAILQ_INSERT_TAIL(&s->s_data, d, d_next);
 		return (d);
+        }
 
 	if ((d->d_buf = malloc(msz*count)) == NULL) {
 		(void) _libelf_release_data(d);

@@ -89,3 +89,4 @@ ENTRY(__longjmp)
 	li	%r3,1
 	blr
 
+	.section .note.GNU-stack,"",%progbits

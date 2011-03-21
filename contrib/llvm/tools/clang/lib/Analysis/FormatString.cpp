@@ -296,8 +296,8 @@ bool ArgTypeResult::matchesType(ASTContext &C, QualType argTy) const {
     }
 
     case CPointerTy:
-      return argTy->getAs<PointerType>() != NULL ||
-             argTy->getAs<ObjCObjectPointerType>() != NULL;
+      return argTy->isPointerType() || argTy->isObjCObjectPointerType() ||
+        argTy->isNullPtrType();
 
     case ObjCPointerTy:
       return argTy->getAs<ObjCObjectPointerType>() != NULL;
@@ -423,7 +423,7 @@ bool FormatSpecifier::hasValidLengthModifier() const {
         case ConversionSpecifier::xArg:
         case ConversionSpecifier::XArg:
         case ConversionSpecifier::nArg:
-	case ConversionSpecifier::rArg:
+        case ConversionSpecifier::rArg:
           return true;
         default:
           return false;
@@ -449,7 +449,7 @@ bool FormatSpecifier::hasValidLengthModifier() const {
         case ConversionSpecifier::nArg:
         case ConversionSpecifier::cArg:
         case ConversionSpecifier::sArg:
-	case ConversionSpecifier::rArg:
+        case ConversionSpecifier::rArg:
           return true;
         default:
           return false;

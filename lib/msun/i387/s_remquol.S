@@ -61,3 +61,5 @@ ENTRY(remquol)
 	movl	28(%esp),%ecx
 	movl	%eax,(%ecx)
 	ret
+
+	.section .note.GNU-stack,"",%progbits

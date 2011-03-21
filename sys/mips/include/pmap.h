@@ -49,7 +49,11 @@
 #include <machine/vmparam.h>
 #include <machine/pte.h>
 
+#if defined(__mips_n32) || defined(__mips_n64) /* PHYSADDR_64BIT */
+#define	NKPT		256	/* mem > 4G, vm_page_startup needs more KPTs */
+#else
 #define	NKPT		120	/* actual number of kernel page tables */
+#endif
 
 #ifndef LOCORE
 
@@ -79,8 +83,6 @@ struct pmap {
 	pd_entry_t *pm_segtab;	/* KVA of segment table */
 	TAILQ_HEAD(, pv_entry) pm_pvlist;	/* list of mappings in
 						 * pmap */
-	uint32_t	pm_gen_count;	/* generation count (pmap lock dropped) */
-	u_int		pm_retries;
 	cpumask_t	pm_active;		/* active on cpus */
 	struct {
 		u_int32_t asid:ASID_BITS;	/* TLB address space tag */
@@ -138,8 +140,8 @@ typedef struct pv_entry {
  * regions.
  */
 #define	PHYS_AVAIL_ENTRIES	10
-extern vm_offset_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
-extern vm_offset_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
+extern vm_paddr_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
+extern vm_paddr_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
 
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
@@ -151,10 +153,10 @@ extern vm_paddr_t dump_avail[PHYS_AVAIL_ENTRIES + 2];
 #define	pmap_page_set_memattr(m, ma)	(void)0
 
 void pmap_bootstrap(void);
-void *pmap_mapdev(vm_offset_t, vm_size_t);
+void *pmap_mapdev(vm_paddr_t, vm_size_t);
 void pmap_unmapdev(vm_offset_t, vm_size_t);
 vm_offset_t pmap_steal_memory(vm_size_t size);
-int page_is_managed(vm_offset_t pa);
+int page_is_managed(vm_paddr_t pa);
 void pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int attr);
 void pmap_kremove(vm_offset_t va);

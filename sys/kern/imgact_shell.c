@@ -195,7 +195,7 @@ exec_shell_imgact(imgp)
 	length = (imgp->args->argc == 0) ? 0 :
 	    strlen(imgp->args->begin_argv) + 1;		/* bytes to delete */
 
-	if (offset - length > imgp->args->stringspace) {
+	if (offset > imgp->args->stringspace + length) {
 		if (sname != NULL)
 			sbuf_delete(sname);
 		return (E2BIG);

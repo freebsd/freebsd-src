@@ -295,7 +295,7 @@ keyLookup(char *key)
 {
      textkey_t	*tk;
 
-     for(tk = keyMap; tk->name; tk++) {
+     for(tk = keyMap; tk->name && strcmp(tk->name, "end"); tk++) {
 	  if(strcasecmp(key, tk->name) == 0)
 	       return tk;
      }

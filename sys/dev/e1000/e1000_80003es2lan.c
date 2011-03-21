@@ -82,8 +82,8 @@ static void e1000_power_down_phy_copper_80003es2lan(struct e1000_hw *hw);
  * with a lower bound at "index" and the upper bound at
  * "index + 5".
  */
-static const u16 e1000_gg82563_cable_length_table[] =
-         { 0, 60, 115, 150, 150, 60, 115, 150, 180, 180, 0xFF };
+static const u16 e1000_gg82563_cable_length_table[] = {
+	0, 60, 115, 150, 150, 60, 115, 150, 180, 180, 0xFF };
 #define GG82563_CABLE_LENGTH_TABLE_SIZE \
                 (sizeof(e1000_gg82563_cable_length_table) / \
                  sizeof(e1000_gg82563_cable_length_table[0]))
@@ -854,7 +854,7 @@ static s32 e1000_get_link_up_info_80003es2lan(struct e1000_hw *hw, u16 *speed,
  **/
 static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 {
-	u32 ctrl, icr;
+	u32 ctrl;
 	s32 ret_val;
 
 	DEBUGFUNC("e1000_reset_hw_80003es2lan");
@@ -890,7 +890,7 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 
 	/* Clear any pending interrupt events. */
 	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
-	icr = E1000_READ_REG(hw, E1000_ICR);
+	E1000_READ_REG(hw, E1000_ICR);
 
 	ret_val = e1000_check_alt_mac_addr_generic(hw);
 
@@ -909,6 +909,7 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 	struct e1000_mac_info *mac = &hw->mac;
 	u32 reg_data;
 	s32 ret_val;
+	u16 kum_reg_data;
 	u16 i;
 
 	DEBUGFUNC("e1000_init_hw_80003es2lan");
@@ -935,6 +936,13 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 
 	/* Setup link and flow control */
 	ret_val = mac->ops.setup_link(hw);
+
+	/* Disable IBIST slave mode (far-end loopback) */
+	e1000_read_kmrn_reg_80003es2lan(hw, E1000_KMRNCTRLSTA_INBAND_PARAM,
+	                                &kum_reg_data);
+	kum_reg_data |= E1000_KMRNCTRLSTA_IBIST_DISABLE;
+	e1000_write_kmrn_reg_80003es2lan(hw, E1000_KMRNCTRLSTA_INBAND_PARAM,
+	                                 kum_reg_data);
 
 	/* Set the transmit descriptor write-back policy */
 	reg_data = E1000_READ_REG(hw, E1000_TXDCTL(0));

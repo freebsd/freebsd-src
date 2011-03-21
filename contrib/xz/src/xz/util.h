@@ -19,11 +19,12 @@
 
 
 /// \brief      Safe realloc() that never returns NULL
-extern void *xrealloc(void *ptr, size_t size);
+extern void *xrealloc(void *ptr, size_t size)
+		lzma_attribute((malloc)) lzma_attr_alloc_size(2);
 
 
 /// \brief      Safe strdup() that never returns NULL
-extern char *xstrdup(const char *src);
+extern char *xstrdup(const char *src) lzma_attribute((malloc));
 
 
 /// \brief      Fancy version of strtoull()

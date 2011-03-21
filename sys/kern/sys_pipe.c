@@ -29,9 +29,9 @@
  * write mode.  The small write mode acts like conventional pipes with
  * a kernel buffer.  If the buffer is less than PIPE_MINDIRECT, then the
  * "normal" pipe buffering is done.  If the buffer is between PIPE_MINDIRECT
- * and PIPE_SIZE in size, it is fully mapped and wired into the kernel, and
- * the receiving process can copy it directly from the pages in the sending
- * process.
+ * and PIPE_SIZE in size, the sending process pins the underlying pages in
+ * memory, and the receiving process copies directly from these pinned pages
+ * in the sending process.
  *
  * If the sending process receives a signal, it is possible that it will
  * go away, and certainly its address space can change, because control

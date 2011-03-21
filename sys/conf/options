@@ -63,6 +63,7 @@ SYSCTL_DEBUG	opt_sysctl.h
 ADAPTIVE_LOCKMGRS
 ALQ
 AUDIT		opt_global.h
+CAPABILITIES	opt_capabilities.h
 CODA_COMPAT_5	opt_coda.h
 COMPAT_43	opt_compat.h
 COMPAT_43TTY	opt_compat.h
@@ -199,6 +200,7 @@ CD9660		opt_dontuse.h
 CODA		opt_dontuse.h
 EXT2FS		opt_dontuse.h
 FDESCFS		opt_dontuse.h
+FFS		opt_dontuse.h
 HPFS		opt_dontuse.h
 MSDOSFS		opt_dontuse.h
 NTFS		opt_dontuse.h
@@ -215,9 +217,6 @@ UNIONFS		opt_dontuse.h
 
 # Pseudofs debugging
 PSEUDOFS_TRACE	opt_pseudofs.h
-
-# Broken - ffs_snapshot() dependency from ufs_lookup() :-(
-FFS		opt_ffs_broken_fixme.h
 
 # In-kernel GSS-API
 KGSSAPI		opt_kgssapi.h
@@ -439,6 +438,7 @@ SCTP_PACKET_LOGGING	opt_sctp.h # Log to a packet buffer last N packets
 SCTP_LTRACE_CHUNKS	opt_sctp.h # Log to KTR chunks processed
 SCTP_LTRACE_ERRORS	opt_sctp.h # Log to KTR error returns.
 SCTP_USE_PERCPU_STAT    opt_sctp.h # Use per cpu stats.
+SCTP_MCORE_INPUT        opt_sctp.h # Have multiple input threads for input mbufs
 #
 #
 #
@@ -642,6 +642,7 @@ BUS_DEBUG		opt_bus.h
 
 # options for USB support
 USB_DEBUG		opt_usb.h
+USB_HOST_ALIGN		opt_usb.h
 USB_REQ_DEBUG		opt_usb.h
 USB_VERBOSE		opt_usb.h
 USB_EHCI_BIG_ENDIAN_DESC	opt_usb.h
@@ -699,7 +700,12 @@ ED_SIC			opt_ed.h
 BCE_DEBUG		opt_bce.h
 BCE_NVRAM_WRITE_SUPPORT	opt_bce.h
 
+# bxe driver
+BXE_DEBUG		opt_bxe.h
+BXE_NVRAM_WRITE_SUPPORT	opt_bxe.h
+
 SOCKBUF_DEBUG		opt_global.h
+
 
 # options for ubsec driver
 UBSEC_DEBUG		opt_ubsec.h

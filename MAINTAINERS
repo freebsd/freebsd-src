@@ -47,6 +47,7 @@ cd(4)		ken	Pre-commit review requested.
 pass(4)		ken	Pre-commit review requested.
 ch(4)		ken	Pre-commit review requested.
 em(4)		jfv	Pre-commit review requested.
+bxe(4)		davidch	Pre-commit review requested.
 tdfx(4)		cokane  Just keep me informed of changes, try not to break it.
 sendmail	gshapiro	Pre-commit review requested.
 etc/mail	gshapiro	Pre-commit review requested.
@@ -107,7 +108,7 @@ linux emul	emulation	Please discuss changes here.
 bs{diff,patch}	cperciva	Pre-commit review requested.
 portsnap	cperciva	Pre-commit review requested.
 freebsd-update	cperciva	Pre-commit review requested.
-openssl		simon		Pre-commit review requested.
+openssl		-		No non-upstream commits should be done.
 sys/netgraph/bluetooth	emax	Pre-commit review preferred.
 lib/libbluetooth	emax	Pre-commit review preferred.
 lib/libsdp		emax	Pre-commit review preferred.

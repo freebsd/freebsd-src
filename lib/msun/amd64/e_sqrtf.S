@@ -31,3 +31,5 @@ ENTRY(sqrtf)
 	sqrtss	%xmm0, %xmm0
 	ret
 END(sqrtf)
+
+	.section .note.GNU-stack,"",%progbits

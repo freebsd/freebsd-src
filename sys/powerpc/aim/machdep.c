@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_kstack_pages.h"
-#include "opt_msgbuf.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -555,7 +554,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	pc->pc_curpcb = thread0.td_pcb;
 
 	/* Initialise the message buffer. */
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufinit(msgbufp, msgbufsize);
 
 #ifdef KDB
 	if (boothowto & RB_KDB)

@@ -1,5 +1,5 @@
 /* rename.c -- rename a file, preserving symlinks.
-   Copyright 1999, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 1999, 2002, 2003, 2007 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -15,9 +15,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
+#include "sysdep.h"
 #include "bfd.h"
 #include "bucomm.h"
 
@@ -37,6 +38,7 @@
 #define O_BINARY 0
 #endif
 
+#if ! defined (_WIN32) || defined (__CYGWIN32__)
 static int simple_copy (const char *, const char *);
 
 /* The number of bytes to copy at once.  */
@@ -88,6 +90,7 @@ simple_copy (const char *from, const char *to)
     }
   return 0;
 }
+#endif /* __CYGWIN32__ or not _WIN32 */
 
 /* Set the times of the file DESTINATION to be the same as those in
    STATBUF.  */
@@ -140,7 +143,7 @@ set_times (const char *destination, const struct stat *statbuf)
    Return 0 if ok, -1 if error.  */
 
 int
-smart_rename (const char *from, const char *to, int preserve_dates)
+smart_rename (const char *from, const char *to, int preserve_dates ATTRIBUTE_UNUSED)
 {
   bfd_boolean exists;
   struct stat s;

@@ -37,6 +37,8 @@
 #include "dumpregs.h"
 
 #include <stdlib.h>
+#include <string.h>
+#include <err.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/mman.h>

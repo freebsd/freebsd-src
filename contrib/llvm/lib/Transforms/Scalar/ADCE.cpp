@@ -33,7 +33,9 @@ STATISTIC(NumRemoved, "Number of instructions removed");
 namespace {
   struct ADCE : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
-    ADCE() : FunctionPass(ID) {}
+    ADCE() : FunctionPass(ID) {
+      initializeADCEPass(*PassRegistry::getPassRegistry());
+    }
     
     virtual bool runOnFunction(Function& F);
     
@@ -45,7 +47,7 @@ namespace {
 }
 
 char ADCE::ID = 0;
-INITIALIZE_PASS(ADCE, "adce", "Aggressive Dead Code Elimination", false, false);
+INITIALIZE_PASS(ADCE, "adce", "Aggressive Dead Code Elimination", false, false)
 
 bool ADCE::runOnFunction(Function& F) {
   SmallPtrSet<Instruction*, 128> alive;

@@ -269,7 +269,7 @@ void e1000_init_function_pointers_82540(struct e1000_hw *hw)
  **/
 static s32 e1000_reset_hw_82540(struct e1000_hw *hw)
 {
-	u32 ctrl, icr, manc;
+	u32 ctrl, manc;
 	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_reset_hw_82540");
@@ -314,7 +314,7 @@ static s32 e1000_reset_hw_82540(struct e1000_hw *hw)
 	E1000_WRITE_REG(hw, E1000_MANC, manc);
 
 	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
-	icr = E1000_READ_REG(hw, E1000_ICR);
+	E1000_READ_REG(hw, E1000_ICR);
 
 	return ret_val;
 }

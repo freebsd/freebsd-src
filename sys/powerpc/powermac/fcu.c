@@ -62,19 +62,20 @@ __FBSDID("$FreeBSD$");
 #define FCU_PWM_FAIL      0x2b
 #define FCU_PWM_AVAILABLE 0x2c
 #define FCU_PWM_ACTIVE    0x2d
-#define FCU_PWM_READ(x)   0x31 + (x) * 2
-#define FCU_PWM_SET(x)    0x30 + (x) * 2
+#define FCU_PWM_RPM(x)    0x31 + (x) * 2 /* Get RPM. */
+#define FCU_PWM_SGET(x)   0x30 + (x) * 2 /* Set or get PWM. */
 
 struct fcu_fan {
 	int     id;
-	cell_t	min_rpm;
-	cell_t	max_rpm;
+	cell_t	min;
+	cell_t	max;
 	char	location[32];
 	enum {
 		FCU_FAN_RPM,
 		FCU_FAN_PWM
 	} type;
 	int     setpoint;
+	int     rpm;
 };
 
 struct fcu_softc {
@@ -83,6 +84,14 @@ struct fcu_softc {
 	uint32_t                sc_addr;
 	struct fcu_fan		*sc_fans;
 	int			sc_nfans;
+};
+
+/* We can read the PWM and the RPM from a PWM controlled fan.
+ * Offer both values via sysctl.
+ */
+enum {
+	FCU_PWM_SYSCTL_PWM   = 1 << 8,
+	FCU_PWM_SYSCTL_RPM   = 2 << 8
 };
 
 static int fcu_rpm_shift;
@@ -96,6 +105,9 @@ static void fcu_attach_fans(device_t dev);
 static int  fcu_fill_fan_prop(device_t dev);
 static int  fcu_fan_set_rpm(device_t dev, struct fcu_fan *fan, int rpm);
 static int  fcu_fan_get_rpm(device_t dev, struct fcu_fan *fan, int *rpm);
+static int  fcu_fan_set_pwm(device_t dev, struct fcu_fan *fan, int pwm);
+static int  fcu_fan_get_pwm(device_t dev, struct fcu_fan *fan, int *pwm,
+			    int *rpm);
 static int  fcu_fanrpm_sysctl(SYSCTL_HANDLER_ARGS);
 static void fcu_start(void *xdev);
 static int  fcu_write(device_t dev, uint32_t addr, uint8_t reg, uint8_t *buf,
@@ -246,34 +258,21 @@ fcu_fan_set_rpm(device_t dev, struct fcu_fan *fan, int rpm)
 	sc = device_get_softc(dev);
 
 	/* Clamp to allowed range */
-	rpm = max(fan->min_rpm, rpm);
-	rpm = min(fan->max_rpm, rpm);
+	rpm = max(fan->min, rpm);
+	rpm = min(fan->max, rpm);
 
 	if (fan->type == FCU_FAN_RPM) {
 		reg = FCU_RPM_SET(fan->id);
 		fan->setpoint = rpm;
-	} else if (fan->type == FCU_FAN_PWM) {
-		reg = FCU_PWM_SET(fan->id);
-		if (rpm > 3500)
-			rpm = 3500;
-		if (rpm < 500)
-			rpm = 500;
-		fan->setpoint = rpm;
-		/* PWM 30: 550 rpm, PWM 255: 3400 rpm.  */
-		rpm = (rpm * 255) / 3500;
 	} else {
 		device_printf(dev, "Unknown fan type: %d\n", fan->type);
 		return (EIO);
 	}
 
-	if (fan->type == FCU_FAN_RPM) {
-		buf[0] = rpm >> (8 - fcu_rpm_shift);
-		buf[1] = rpm << fcu_rpm_shift;
-		fcu_write(sc->sc_dev, sc->sc_addr, reg, buf, 2);
-	} else {
-		buf[0] = rpm;
-		fcu_write(sc->sc_dev, sc->sc_addr, reg, buf, 1);
-	}
+	buf[0] = rpm >> (8 - fcu_rpm_shift);
+	buf[1] = rpm << fcu_rpm_shift;
+
+	fcu_write(sc->sc_dev, sc->sc_addr, reg, buf, 2);
 
 	return (0);
 }
@@ -313,7 +312,63 @@ fcu_fan_get_rpm(device_t dev, struct fcu_fan *fan, int *rpm)
 			return (ENXIO);
 		}
 		reg = FCU_RPM_READ(fan->id);
-	} else if (fan->type == FCU_FAN_PWM) {
+
+	} else {
+		device_printf(dev, "Unknown fan type: %d\n", fan->type);
+		return (EIO);
+	}
+
+	/* It seems that we can read the fans rpm. */
+	fcu_read_1(sc->sc_dev, sc->sc_addr, reg, buff);
+
+	*rpm = (buff[0] << (8 - fcu_rpm_shift)) | buff[1] >> fcu_rpm_shift;
+
+	return (0);
+}
+
+static int
+fcu_fan_set_pwm(device_t dev, struct fcu_fan *fan, int pwm)
+{
+	uint8_t reg;
+	struct fcu_softc *sc;
+	uint8_t buf[2];
+
+	sc = device_get_softc(dev);
+
+	/* Clamp to allowed range */
+	pwm = max(fan->min, pwm);
+	pwm = min(fan->max, pwm);
+
+	if (fan->type == FCU_FAN_PWM) {
+		reg = FCU_PWM_SGET(fan->id);
+		if (pwm > 100)
+			pwm = 100;
+		if (pwm < 30)
+			pwm = 30;
+		fan->setpoint = pwm;
+	} else {
+		device_printf(dev, "Unknown fan type: %d\n", fan->type);
+		return (EIO);
+	}
+
+	buf[0] = (pwm * 2550) / 1000;
+
+	fcu_write(sc->sc_dev, sc->sc_addr, reg, buf, 1);
+
+	return (0);
+}
+
+static int
+fcu_fan_get_pwm(device_t dev, struct fcu_fan *fan, int *pwm, int *rpm)
+{
+	uint8_t reg;
+	struct fcu_softc *sc;
+	uint8_t buf[2];
+	uint8_t active = 0, avail = 0, fail = 0;
+
+	sc = device_get_softc(dev);
+
+	if (fan->type == FCU_FAN_PWM) {
 		/* Check if the fan is available. */
 		reg = FCU_PWM_AVAILABLE;
 		fcu_read_1(sc->sc_dev, sc->sc_addr, reg, &avail);
@@ -337,16 +392,21 @@ fcu_fan_get_rpm(device_t dev, struct fcu_fan *fan, int *rpm)
 				      fan->id);
 			return (ENXIO);
 		}
-		reg = FCU_PWM_READ(fan->id);
+		reg = FCU_PWM_SGET(fan->id);
 	} else {
 		device_printf(dev, "Unknown fan type: %d\n", fan->type);
 		return (EIO);
 	}
 
-	/* It seems that we can read the fans rpm. */
-	fcu_read_1(sc->sc_dev, sc->sc_addr, reg, buff);
+	/* It seems that we can read the fans pwm. */
+	fcu_read_1(sc->sc_dev, sc->sc_addr, reg, buf);
 
-	*rpm = (buff[0] << (8 - fcu_rpm_shift)) | buff[1] >> fcu_rpm_shift;
+	*pwm = (buf[0] * 1000) / 2550;
+
+	/* Now read the rpm. */
+	reg = FCU_PWM_RPM(fan->id);
+	fcu_read_1(sc->sc_dev, sc->sc_addr, reg, buf);
+	*rpm = (buf[0] << (8 - fcu_rpm_shift)) | buf[1] >> fcu_rpm_shift;
 
 	return (0);
 }
@@ -412,18 +472,41 @@ fcu_fanrpm_sysctl(SYSCTL_HANDLER_ARGS)
 	device_t fcu;
 	struct fcu_softc *sc;
 	struct fcu_fan *fan;
-	int rpm = 0, error;
+	int rpm = 0, pwm = 0, error;
 
 	fcu = arg1;
 	sc = device_get_softc(fcu);
-	fan = &sc->sc_fans[arg2];
-	fcu_fan_get_rpm(fcu, fan, &rpm);
-	error = sysctl_handle_int(oidp, &rpm, 0, req);
+	fan = &sc->sc_fans[arg2 & 0x00ff];
+	if (fan->type == FCU_FAN_RPM) {
+		fcu_fan_get_rpm(fcu, fan, &rpm);
+		error = sysctl_handle_int(oidp, &rpm, 0, req);
+	} else {
+		fcu_fan_get_pwm(fcu, fan, &pwm, &rpm);
+
+		switch (arg2 & 0xff00) {
+		case FCU_PWM_SYSCTL_PWM:
+			error = sysctl_handle_int(oidp, &pwm, 0, req);
+			break;
+		case FCU_PWM_SYSCTL_RPM:
+			error = sysctl_handle_int(oidp, &rpm, 0, req);
+			break;
+		default:
+			/* This should never happen */
+			error = -1;
+		};
+	}
+
+	/* We can only read the RPM from a PWM controlled fan, so return. */
+	if ((arg2 & 0xff00) == FCU_PWM_SYSCTL_RPM)
+		return (0);
 
 	if (error || !req->newptr)
 		return (error);
 
-	return (fcu_fan_set_rpm(fcu, fan, rpm));
+	if (fan->type == FCU_FAN_RPM)
+		return (fcu_fan_set_rpm(fcu, fan, rpm));
+	else
+		return (fcu_fan_set_pwm(fcu, fan, pwm));
 }
 
 static void
@@ -432,15 +515,12 @@ fcu_attach_fans(device_t dev)
 	struct fcu_softc *sc;
 	struct sysctl_oid *oid, *fanroot_oid;
 	struct sysctl_ctx_list *ctx;
-	phandle_t child;
 	char sysctl_name[32];
 	int i, j;
 
 	sc = device_get_softc(dev);
 
 	sc->sc_nfans = 0;
-
-	child = ofw_bus_get_node(dev);
 
 	/* Count the actual number of fans. */
 	sc->sc_nfans = fcu_fill_fan_prop(dev);
@@ -472,35 +552,69 @@ fcu_attach_fans(device_t dev)
 		}
 		sysctl_name[j] = 0;
 
-		sc->sc_fans[i].min_rpm = 2400 >> fcu_rpm_shift;
-		sc->sc_fans[i].max_rpm = 56000 >> fcu_rpm_shift;
-		fcu_fan_get_rpm(dev, &sc->sc_fans[i], &sc->sc_fans[i].setpoint);
+		if (sc->sc_fans[i].type == FCU_FAN_RPM) {
+			sc->sc_fans[i].min = 2400 >> fcu_rpm_shift;
+			sc->sc_fans[i].max = 56000 >> fcu_rpm_shift;
+			fcu_fan_get_rpm(dev, &sc->sc_fans[i],
+					&sc->sc_fans[i].setpoint);
 
-		oid = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(fanroot_oid),
-				      OID_AUTO, sysctl_name, CTLFLAG_RD, 0,
-				      "Fan Information");
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "minrpm",
-			       CTLTYPE_INT | CTLFLAG_RD,
-			       &(sc->sc_fans[i].min_rpm), sizeof(cell_t),
-			       "Minimum allowed RPM");
-		SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "maxrpm",
-			       CTLTYPE_INT | CTLFLAG_RD,
-			       &(sc->sc_fans[i].max_rpm), sizeof(cell_t),
-			       "Maximum allowed RPM");
-		/* I use i to pass the fan id. */
-		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO, "rpm",
-				CTLTYPE_INT | CTLFLAG_RW, dev, i,
-				fcu_fanrpm_sysctl, "I", "Fan RPM");
+			oid = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(fanroot_oid),
+					      OID_AUTO, sysctl_name,
+					      CTLFLAG_RD, 0, "Fan Information");
+			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+				       "minrpm", CTLTYPE_INT | CTLFLAG_RD,
+				       &(sc->sc_fans[i].min), sizeof(cell_t),
+				       "Minimum allowed RPM");
+			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+				       "maxrpm", CTLTYPE_INT | CTLFLAG_RD,
+				       &(sc->sc_fans[i].max), sizeof(cell_t),
+				       "Maximum allowed RPM");
+			/* I use i to pass the fan id. */
+			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+					"rpm", CTLTYPE_INT | CTLFLAG_RW, dev, i,
+					fcu_fanrpm_sysctl, "I", "Fan RPM");
+		} else {
+			sc->sc_fans[i].min = 30;
+			sc->sc_fans[i].max = 100;
+			fcu_fan_get_pwm(dev, &sc->sc_fans[i],
+					&sc->sc_fans[i].setpoint,
+					&sc->sc_fans[i].rpm);
+
+			oid = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(fanroot_oid),
+					      OID_AUTO, sysctl_name,
+					      CTLFLAG_RD, 0, "Fan Information");
+			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+				       "minpwm", CTLTYPE_INT | CTLFLAG_RD,
+				       &(sc->sc_fans[i].min), sizeof(cell_t),
+				       "Minimum allowed PWM in %");
+			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+				       "maxpwm", CTLTYPE_INT | CTLFLAG_RD,
+				       &(sc->sc_fans[i].max), sizeof(cell_t),
+				       "Maximum allowed PWM in %");
+			/* I use i to pass the fan id or'ed with the type
+			 * of info I want to display/modify.
+			 */
+			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+					"pwm", CTLTYPE_INT | CTLFLAG_RW, dev,
+					FCU_PWM_SYSCTL_PWM | i,
+					fcu_fanrpm_sysctl, "I", "Fan PWM in %");
+			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+					"rpm", CTLTYPE_INT | CTLFLAG_RD, dev,
+					FCU_PWM_SYSCTL_RPM | i,
+					fcu_fanrpm_sysctl, "I", "Fan RPM");
+		}
 	}
 
 	/* Dump fan location, type & RPM. */
 	if (bootverbose) {
 		device_printf(dev, "Fans\n");
 		for (i = 0; i < sc->sc_nfans; i++) {
-			device_printf(dev, "Location: %s type: %d ID: %d RPM: %d\n",
-				      sc->sc_fans[i].location,
+			device_printf(dev, "Location: %s type: %d ID: %d "
+				      "RPM: %d\n", sc->sc_fans[i].location,
 				      sc->sc_fans[i].type, sc->sc_fans[i].id,
-				      sc->sc_fans[i].setpoint);
+				      (sc->sc_fans[i].type == FCU_FAN_RPM) ?
+				      sc->sc_fans[i].setpoint :
+				      sc->sc_fans[i].rpm );
 	    }
 	}
 }

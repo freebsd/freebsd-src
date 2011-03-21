@@ -537,7 +537,7 @@ acpi_video_vo_init(UINT32 adr)
 			SYSCTL_ADD_PROC(&vo->vo_sysctl_ctx,
 			    SYSCTL_CHILDREN(vo->vo_sysctl_tree),
 			    OID_AUTO, "levels",
-			    CTLTYPE_OPAQUE|CTLFLAG_RD, vo, 0,
+			    CTLTYPE_INT | CTLFLAG_RD, vo, 0,
 			    acpi_video_vo_levels_sysctl, "I",
 			    "supported brightness levels");
 		} else

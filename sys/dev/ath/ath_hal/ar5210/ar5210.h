@@ -177,6 +177,8 @@ extern	HAL_STATUS ar5210ProcTxDesc(struct ath_hal *,
 		struct ath_desc *, struct ath_tx_status *);
 extern  void ar5210GetTxIntrQueue(struct ath_hal *ah, uint32_t *);
 extern  void ar5210IntrReqTxDesc(struct ath_hal *ah, struct ath_desc *);
+extern	HAL_BOOL ar5210GetTxCompletionRates(struct ath_hal *ah,
+		const struct ath_desc *, int *rates, int *tries);
 
 extern	uint32_t ar5210GetRxDP(struct ath_hal *);
 extern	void ar5210SetRxDP(struct ath_hal *, uint32_t rxdp);
@@ -275,7 +277,8 @@ extern	HAL_INT ar5210SetInterrupts(struct ath_hal *, HAL_INT ints);
 extern	const HAL_RATE_TABLE *ar5210GetRateTable(struct ath_hal *, u_int mode);
 
 extern	HAL_BOOL ar5210AniControl(struct ath_hal *, HAL_ANI_CMD, int );
-extern	void ar5210AniPoll(struct ath_hal *, const HAL_NODE_STATS *,
+extern	void ar5210AniPoll(struct ath_hal *, const struct ieee80211_channel *);
+extern	void ar5210RxMonitor(struct ath_hal *, const HAL_NODE_STATS *,
 		const struct ieee80211_channel *);
 extern	void ar5210MibEvent(struct ath_hal *, const HAL_NODE_STATS *);
 #endif /* _ATH_AR5210_H_ */

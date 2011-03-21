@@ -1,22 +1,9 @@
 \input texinfo.tex
 @setfilename bfd.info
-@c Copyright 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1997, 2000, 2003
+@c Copyright 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1997, 2000,
+@c 2001, 2002, 2003, 2006, 2007
 @c Free Software Foundation, Inc.
 @c 
-@tex
-% NOTE LOCAL KLUGE TO AVOID TOO MUCH WHITESPACE
-\global\long\def\example{%
-\begingroup
-\let\aboveenvbreak=\par
-\let\afterenvbreak=\par
-\parskip=0pt
-\lisp}
-\global\long\def\Eexample{%
-\Elisp
-\endgroup
-\vskip -\parskip% to cancel out effect of following \par
-}
-@end tex
 @synindex fn cp
 
 @ifinfo
@@ -27,26 +14,29 @@ END-INFO-DIR-ENTRY
 @end format
 @end ifinfo
 
-@ifinfo
+@copying
 This file documents the BFD library.
 
-Copyright (C) 1991, 2000, 2001, 2003 Free Software Foundation, Inc.
+Copyright @copyright{} 1991, 2000, 2001, 2003, 2006, 2007 Free Software Foundation, Inc.
 
-      Permission is granted to copy, distribute and/or modify this document
-      under the terms of the GNU Free Documentation License, Version 1.1
-      or any later version published by the Free Software Foundation;
-      with no Invariant Sections, with no Front-Cover Texts, and with no
-      Back-Cover Texts.  A copy of the license is included in the
-      section entitled ``GNU Free Documentation License''.
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being ``GNU General Public License'' and ``Funding
+Free Software'', the Front-Cover texts being (a) (see below), and with
+the Back-Cover Texts being (b) (see below).  A copy of the license is
+included in the section entitled ``GNU Free Documentation License''.
 
-@ignore
-Permission is granted to process this file through Tex and print the
-results, provided the printed document carries copying permission
-notice identical to this one except for the removal of this paragraph
-(this paragraph not being relevant to the printed manual).
+(a) The FSF's Front-Cover Text is:
 
-@end ignore
-@end ifinfo
+     A GNU Manual
+
+(b) The FSF's Back-Cover Text is:
+
+     You have freedom to copy and modify this GNU Manual, like GNU
+     software.  Copies published by the Free Software Foundation raise
+     funds for GNU development.
+@end copying
 @iftex
 @c@finalout
 @setchapternewpage on
@@ -56,7 +46,7 @@ notice identical to this one except for the removal of this paragraph
 @title{libbfd}
 @subtitle{The Binary File Descriptor Library}
 @sp 1
-@subtitle First Edition---BFD version < 3.0  % Since no product is stable berfore version 3.0 :-)
+@subtitle First Edition---BFD version < 3.0  % Since no product is stable before version 3.0 :-)
 @subtitle Original Document Created: April 1991
 @author {Steve Chamberlain}
 @author {Cygnus Support}
@@ -75,7 +65,7 @@ notice identical to this one except for the removal of this paragraph
 @end tex
 
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1991, 2001, 2003 Free Software Foundation, Inc.
+Copyright @copyright{} 1991, 2001, 2003, 2006 Free Software Foundation, Inc.
 
       Permission is granted to copy, distribute and/or modify this document
       under the terms of the GNU Free Documentation License, Version 1.1
@@ -86,6 +76,7 @@ Copyright @copyright{} 1991, 2001, 2003 Free Software Foundation, Inc.
 
 @end titlepage
 @end iftex
+@contents
 
 @node Top, Overview, (dir), (dir)
 @ifinfo
@@ -97,7 +88,7 @@ This file documents the binary file descriptor library libbfd.
 * BFD front end::		BFD front end
 * BFD back ends::		BFD back ends
 * GNU Free Documentation License::  GNU Free Documentation License
-* Index::			Index
+* BFD Index::		BFD Index
 @end menu
 
 @node Overview, BFD front end, Top, Top
@@ -157,7 +148,7 @@ To use the library, include @file{bfd.h} and link with @file{libbfd.a}.
 BFD provides a common interface to the parts of an object file
 for a calling application. 
 
-When an application sucessfully opens a target file (object, archive, or
+When an application successfully opens a target file (object, archive, or
 whatever), a pointer to an internal structure is returned. This pointer
 points to a structure called @code{bfd}, described in
 @file{bfd.h}.  Our convention is to call this pointer a BFD, and
@@ -307,6 +298,7 @@ structures.
 @end ignore
 @end menu
 @node What to Put Where, aout, BFD back ends, BFD back ends
+@section What to Put Where
 All of BFD lives in one directory.
 
 @node aout, coff, What to Put Where, BFD back ends
@@ -323,11 +315,11 @@ All of BFD lives in one directory.
 @node mmo,  , elf, BFD back ends
 @include  mmo.texi
 
-@node GNU Free Documentation License, Index, BFD back ends, Top
+@node GNU Free Documentation License, BFD Index, BFD back ends, Top
 @include fdl.texi
 
-@node Index,  , GNU Free Documentation License, Top
-@unnumbered Index
+@node BFD Index,  , GNU Free Documentation License, Top
+@unnumbered BFD Index
 @printindex cp
 
 @tex
@@ -345,5 +337,4 @@ All of BFD lives in one directory.
 % Blame: doc@cygnus.com, 28mar91.
 @end tex
 
-@contents
 @bye

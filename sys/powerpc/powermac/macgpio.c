@@ -191,7 +191,7 @@ macgpio_attach(device_t dev)
 			OF_searchprop(child, "interrupt-parent", &iparent,
 			    sizeof(iparent));
 			resource_list_add(&dinfo->mdi_resources, SYS_RES_IRQ,
-			    0, INTR_VEC(iparent, irq), INTR_VEC(iparent, irq),
+			    0, MAP_IRQ(iparent, irq), MAP_IRQ(iparent, irq),
 			    1);
 		}
 
@@ -264,10 +264,8 @@ static struct resource *
 macgpio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		     u_long start, u_long end, u_long count, u_int flags)
 {
-	struct macgpio_softc *sc;
 	struct macgpio_devinfo *dinfo;
 
-	sc = device_get_softc(bus);
 	dinfo = device_get_ivars(child);
 
 	if (type != SYS_RES_IRQ)

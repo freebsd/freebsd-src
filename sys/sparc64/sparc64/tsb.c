@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/ktr.h>
-#include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -80,7 +79,6 @@ struct tte *tsb_kernel;
 vm_size_t tsb_kernel_mask;
 vm_size_t tsb_kernel_size;
 vm_paddr_t tsb_kernel_phys;
-vm_paddr_t tsb_kernel_phys_end;
 u_int tsb_kernel_ldd_phys;
 
 struct tte *

@@ -117,14 +117,15 @@ kproc_create(void (*func)(void *), void *arg,
 
 	/* call the processes' main()... */
 	cpu_set_fork_handler(td, func, arg);
+	thread_lock(td);
 	TD_SET_CAN_RUN(td);
+	sched_prio(td, PVM);
+	sched_user_prio(td, PUSER);
 
 	/* Delay putting it on the run queue until now. */
-	if (!(flags & RFSTOPPED)) {
-		thread_lock(td);
+	if (!(flags & RFSTOPPED))
 		sched_add(td, SRQ_BORING); 
-		thread_unlock(td);
-	}
+	thread_unlock(td);
 
 	return 0;
 }
@@ -316,17 +317,19 @@ kthread_exit(void)
 
 	p = curthread->td_proc;
 
-
 	/* A module may be waiting for us to exit. */
 	wakeup(curthread);
+
+	/*
+	 * The last exiting thread in a kernel process must tear down
+	 * the whole process.
+	 */
 	rw_wlock(&tidhash_lock);
 	PROC_LOCK(p);
 	if (p->p_numthreads == 1) {
 		PROC_UNLOCK(p);
 		rw_wunlock(&tidhash_lock);
 		kproc_exit(0);
-
-		/* NOTREACHED. */
 	}
 	LIST_REMOVE(curthread, td_hash);
 	rw_wunlock(&tidhash_lock);

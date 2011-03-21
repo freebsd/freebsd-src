@@ -1,0 +1,40 @@
+-- $Id: README,v 1.3 2007/01/11 22:52:19 tom Exp $
+
+You can set the environment-variable DIALOG to whatever program you
+want to check. Default is "dialog".
+
+Use "export DIALOG=/usr/bin/dialog" for sh or "setenv DIALOG ../dialog" for csh
+to test the /usr/bin/dialog program.
+
+-- Here is the original README for the samples directory.
+
+There is no documentation at the moment for cdialog 0.9a, but here are a 
+small installer (copismall) for 'points' fido-like, that uses cdialog 0.9a.
+It can demonstrate some of the new features... run "copismall" paying 
+attention because after asking for some things, it then installs and/or
+configures programs like as Inn, Ifmail, Smail to make the 'point'. 
+It's in Italian language only at moment, but the code is bash......
+If you want look at other much professional products FREE realized with 
+cdialog and that use much of the other new characteristics, look for one of
+the ComeOn Point Suites v1.1+. Makers are a sub-group of the ComeOn Linux
+Development Team... ComeOn Linux! follows GNU philosophy.
+
+Mail demarco_p@abramo.it to have the actual location of these Suites and 
+of other free ComeOn Linux! software, or if you want more info about 
+ComeOn Linux!
+
+To run the "ComeOn Point Installer! v0.9a.small", type:
+$ copismall
+
+Other external samples could be:
+
+copa  - ComeOn Point Administrator! v0.8
+copm  - ComeOn Point Maintainer! v0.2
+copi  - ComeOn Point Installer! v0.9 (system-wide version of copi)
+coepi - ComeOn Expert Point Installer! v1.3 (Professional)
+
+cops  - ComeOn Point Suite! v1.1
+copsp - ComeOn Point Suite Professional! v1.1
+
+coui  - ComeOn UUCP Installer! v0.1 (makes dialup networks in a moment)
+

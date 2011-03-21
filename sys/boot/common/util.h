@@ -37,7 +37,7 @@ void memcpy(void *dst, const void *src, int len);
 void memset(void *b, int c, size_t len);
 int memcmp(const void *b1, const void *b2, size_t len);
 
-#define	bcpy(src, dst, len)	memcpy((dst), (src), (len))
+#define	bcopy(src, dst, len)	memcpy((dst), (src), (len))
 #define	bzero(buf, size)	memset((buf), 0, (size))
 #define	bcmp(b1, b2, len)	(memcmp((b1), (b2), (len)) != 0)
 

@@ -63,3 +63,4 @@ HIDENAME(cerror):
 	movl	$-1,%edx
 	ret
 
+	.section .note.GNU-stack,"",%progbits

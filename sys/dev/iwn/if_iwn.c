@@ -122,7 +122,6 @@ static void	iwn_read_eeprom_channels(struct iwn_softc *, int,
 static void	iwn_read_eeprom_enhinfo(struct iwn_softc *);
 static struct ieee80211_node *iwn_node_alloc(struct ieee80211vap *,
 		    const uint8_t mac[IEEE80211_ADDR_LEN]);
-static void	iwn_newassoc(struct ieee80211_node *, int);
 static int	iwn_media_change(struct ifnet *);
 static int	iwn_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	iwn_rx_phy(struct iwn_softc *, struct iwn_rx_desc *,
@@ -652,7 +651,6 @@ iwn_attach(device_t dev)
 	ic->ic_vap_delete = iwn_vap_delete;
 	ic->ic_raw_xmit = iwn_raw_xmit;
 	ic->ic_node_alloc = iwn_node_alloc;
-	ic->ic_newassoc = iwn_newassoc;
 	ic->ic_wme.wme_update = iwn_wme_update;
 	ic->ic_update_mcast = iwn_update_mcast;
 	ic->ic_scan_start = iwn_scan_start;
@@ -1927,13 +1925,6 @@ static struct ieee80211_node *
 iwn_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	return malloc(sizeof (struct iwn_node), M_80211_NODE,M_NOWAIT | M_ZERO);
-}
-
-static void
-iwn_newassoc(struct ieee80211_node *ni, int isnew)
-{
-	/* XXX move */
-	ieee80211_ratectl_node_init(ni);
 }
 
 static int

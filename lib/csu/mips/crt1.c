@@ -83,7 +83,7 @@ __start(char **ap,
 	argv = ap + 1;
 	env  = ap + 2 + argc;
 	environ = env;
-	if(argc > 0 && argv[0] != NULL) {
+	if (argc > 0 && argv[0] != NULL) {
 		const char *s;
 		__progname = argv[0];
 		for (s = __progname; *s != '\0'; s++)

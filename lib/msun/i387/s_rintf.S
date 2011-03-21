@@ -13,3 +13,5 @@ ENTRY(rintf)
 	frndint
 	ret
 END(rintf)
+
+	.section .note.GNU-stack,"",%progbits

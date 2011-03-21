@@ -855,9 +855,9 @@ rescan0:
 		} else if (((m->flags & PG_REFERENCED) == 0) &&
 			(actcount = pmap_ts_referenced(m))) {
 			vm_page_activate(m);
-			VM_OBJECT_UNLOCK(object);
-			m->act_count += (actcount + ACT_ADVANCE);
 			vm_page_unlock(m);
+			m->act_count += actcount + ACT_ADVANCE;
+			VM_OBJECT_UNLOCK(object);
 			continue;
 		}
 
@@ -871,9 +871,9 @@ rescan0:
 			vm_page_flag_clear(m, PG_REFERENCED);
 			actcount = pmap_ts_referenced(m);
 			vm_page_activate(m);
-			VM_OBJECT_UNLOCK(object);
-			m->act_count += (actcount + ACT_ADVANCE + 1);
 			vm_page_unlock(m);
+			m->act_count += actcount + ACT_ADVANCE + 1;
+			VM_OBJECT_UNLOCK(object);
 			continue;
 		}
 
@@ -1281,6 +1281,8 @@ vm_pageout_oom(int shortage)
 	FOREACH_PROC_IN_SYSTEM(p) {
 		int breakout;
 
+		if (p->p_state != PRS_NORMAL)
+			continue;
 		if (PROC_TRYLOCK(p) == 0)
 			continue;
 		/*
@@ -1649,6 +1651,8 @@ vm_daemon()
 		FOREACH_PROC_IN_SYSTEM(p) {
 			vm_pindex_t limit, size;
 
+			if (p->p_state != PRS_NORMAL)
+				continue;
 			/*
 			 * if this is a system process or if we have already
 			 * looked at this process, skip it.

@@ -182,7 +182,7 @@ cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 			counter &= (1<<24) - 1;
 		}
 
-		error = dump_write(di, (void *)(pa),0, dumplo, sz);
+		error = dump_write(di, (void *)(intptr_t)(pa),0, dumplo, sz); /* XXX fix PA */
 		if (error)
 			break;
 		dumplo += sz;

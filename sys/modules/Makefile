@@ -70,6 +70,7 @@ SUBDIR=	${_3dfx} \
 	${_cs} \
 	${_ctau} \
 	${_cxgb} \
+	cxgbe \
 	${_cyclic} \
 	dc \
 	dcons \
@@ -151,6 +152,7 @@ SUBDIR=	${_3dfx} \
 	jme \
 	joy \
 	kbdmux \
+	khelp \
 	krpc \
 	ksyms \
 	le \

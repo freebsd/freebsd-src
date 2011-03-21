@@ -56,3 +56,5 @@ ENTRY(tan)
 	fstp	%st(0)
 	ret
 END(tan)
+
+	.section .note.GNU-stack,"",%progbits

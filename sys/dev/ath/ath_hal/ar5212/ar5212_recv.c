@@ -199,7 +199,7 @@ ar5212SetRxFilter(struct ath_hal *ah, uint32_t bits)
 			ahp->ah_miscMode |= AR_MISC_MODE_BSSID_MATCH_FORCE;
 		else
 			ahp->ah_miscMode &= ~AR_MISC_MODE_BSSID_MATCH_FORCE;
-		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
+		OS_REG_WRITE(ah, AR_MISC_MODE, OS_REG_READ(ah, AR_MISC_MODE) | ahp->ah_miscMode);
 	}
 }
 

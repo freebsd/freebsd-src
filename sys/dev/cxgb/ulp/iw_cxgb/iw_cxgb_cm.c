@@ -101,32 +101,32 @@ SYSCTL_NODE(_hw, OID_AUTO, cxgb, CTLFLAG_RD, 0, "iw_cxgb driver parameters");
 
 static int ep_timeout_secs = 10;
 TUNABLE_INT("hw.iw_cxgb.ep_timeout_secs", &ep_timeout_secs);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, ep_timeout_secs, CTLFLAG_RDTUN, &ep_timeout_secs, 0,
+SYSCTL_INT(_hw_cxgb, OID_AUTO, ep_timeout_secs, CTLFLAG_RDTUN, &ep_timeout_secs, 0,
     "CM Endpoint operation timeout in seconds (default=10)");
 
 static int mpa_rev = 1;
 TUNABLE_INT("hw.iw_cxgb.mpa_rev", &mpa_rev);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, mpa_rev, CTLFLAG_RDTUN, &mpa_rev, 0,
+SYSCTL_INT(_hw_cxgb, OID_AUTO, mpa_rev, CTLFLAG_RDTUN, &mpa_rev, 0,
     "MPA Revision, 0 supports amso1100, 1 is spec compliant. (default=1)");
 
 static int markers_enabled = 0;
 TUNABLE_INT("hw.iw_cxgb.markers_enabled", &markers_enabled);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, markers_enabled, CTLFLAG_RDTUN, &markers_enabled, 0,
+SYSCTL_INT(_hw_cxgb, OID_AUTO, markers_enabled, CTLFLAG_RDTUN, &markers_enabled, 0,
     "Enable MPA MARKERS (default(0)=disabled)");
 
 static int crc_enabled = 1;
 TUNABLE_INT("hw.iw_cxgb.crc_enabled", &crc_enabled);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, crc_enabled, CTLFLAG_RDTUN, &crc_enabled, 0,
+SYSCTL_INT(_hw_cxgb, OID_AUTO, crc_enabled, CTLFLAG_RDTUN, &crc_enabled, 0,
     "Enable MPA CRC (default(1)=enabled)");
 
 static int rcv_win = 256 * 1024;
 TUNABLE_INT("hw.iw_cxgb.rcv_win", &rcv_win);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, rcv_win, CTLFLAG_RDTUN, &rcv_win, 0,
+SYSCTL_INT(_hw_cxgb, OID_AUTO, rcv_win, CTLFLAG_RDTUN, &rcv_win, 0,
     "TCP receive window in bytes (default=256KB)");
 
 static int snd_win = 32 * 1024;
 TUNABLE_INT("hw.iw_cxgb.snd_win", &snd_win);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, snd_win, CTLFLAG_RDTUN, &snd_win, 0,
+SYSCTL_INT(_hw_cxgb, OID_AUTO, snd_win, CTLFLAG_RDTUN, &snd_win, 0,
     "TCP send window in bytes (default=32KB)");
 
 static unsigned int nocong = 0;

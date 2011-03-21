@@ -137,7 +137,6 @@ macb_watchdog(struct macb_softc *sc);
 
 static int macb_intr_rx_locked(struct macb_softc *sc, int count);
 static void macb_intr_task(void *arg, int pending __unused);
-static void	macb_tx_task(void *arg, int pending __unused);
 static void macb_intr(void *xsc);
 
 static void
@@ -533,7 +532,7 @@ macb_watchdog(struct macb_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	macbinit_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_tx_task);
+		macbstart_locked(ifp);
 }
 
 
@@ -837,6 +836,7 @@ macb_intr(void *xsc)
 		return;
 	}
 
+	MACB_LOCK(sc);
 	status = read_4(sc, EMAC_ISR);
 
 	while (status) {
@@ -846,16 +846,15 @@ macb_intr(void *xsc)
 		}
 
 		if (status & TCOMP_INTERRUPT) {
-			MACB_LOCK(sc);
 			macb_tx_cleanup(sc);
-			MACB_UNLOCK(sc);
 		}
 
 		status = read_4(sc, EMAC_ISR);
 	}
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_tx_task);
+		macbstart_locked(ifp);
+	MACB_UNLOCK(sc);
 }
 
 static inline int
@@ -1022,16 +1021,6 @@ macbstart(struct ifnet *ifp)
 	macbstart_locked(ifp);
 	MACB_UNLOCK(sc);
 
-}
-
-
-static void
-macb_tx_task(void *arg, int pending __unused)
-{
-	struct ifnet *ifp;
-
-	ifp = (struct ifnet *)arg;
-	macbstart(ifp);
 }
 
 
@@ -1392,7 +1381,6 @@ macb_attach(device_t dev)
 	sc->if_flags = ifp->if_flags;
 
 	TASK_INIT(&sc->sc_intr_task, 0, macb_intr_task, sc);
-	TASK_INIT(&sc->sc_tx_task, 0, macb_tx_task, ifp);
 
 	sc->sc_tq = taskqueue_create_fast("macb_taskq", M_WAITOK,
 	    taskqueue_thread_enqueue, &sc->sc_tq);
@@ -1434,8 +1422,18 @@ macb_detach(device_t dev)
 	struct macb_softc *sc;
 
 	sc = device_get_softc(dev);
+	ether_ifdetach(sc->ifp);
+	MACB_LOCK(sc);
 	macbstop(sc);
+	MACB_UNLOCK(sc);
+	callout_drain(&sc->tick_ch);
+	bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
+	taskqueue_drain(sc->sc_tq, &sc->sc_intr_task);
+	taskqueue_free(sc->sc_tq);
 	macb_deactivate(dev);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
+	bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->mem_res);
+	MACB_LOCK_DESTROY(sc);
 
 	return (0);
 }

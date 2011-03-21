@@ -34,7 +34,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/linker_set.h>
 #include <sys/module.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -463,7 +462,7 @@ usb_proc_drain(struct usb_process *up)
 /*------------------------------------------------------------------------*
  *	usb_proc_rewakeup
  *
- * This function is called to re-wakeup the the given USB
+ * This function is called to re-wakeup the given USB
  * process. This usually happens after that the USB system has been in
  * polling mode, like during a panic. This function must be called
  * having "up->up_mtx" locked.

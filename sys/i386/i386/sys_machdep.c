@@ -32,9 +32,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capabilities.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -108,6 +110,29 @@ sysarch(td, uap)
 	struct segment_descriptor sd, *sdp;
 
 	AUDIT_ARG_CMD(uap->op);
+
+#ifdef CAPABILITIES
+	/*
+	 * Whitelist of operations which are safe enough for capability mode.
+	 */
+	if (IN_CAPABILITY_MODE(td)) {
+		switch (uap->op) {
+			case I386_GET_LDT:
+			case I386_SET_LDT:
+			case I386_GET_IOPERM:
+			case I386_GET_FSBASE:
+			case I386_SET_FSBASE:
+			case I386_GET_GSBASE:
+			case I386_SET_GSBASE:
+				break;
+
+			case I386_SET_IOPERM:
+			default:
+				return (ECAPMODE);
+		}
+	}
+#endif
+
 	switch (uap->op) {
 	case I386_GET_IOPERM:
 	case I386_SET_IOPERM:
@@ -623,7 +648,7 @@ i386_set_ldt(td, uap, descs)
 			uap->start = NLDT;
 			uap->num = MAX_LD - NLDT;
 		}
-		if (uap->num <= 0)
+		if (uap->num == 0)
 			return (EINVAL);
 		mtx_lock_spin(&dt_lock);
 		if ((pldt = mdp->md_ldt) == NULL ||
@@ -644,8 +669,7 @@ i386_set_ldt(td, uap, descs)
 	if (!(uap->start == LDT_AUTO_ALLOC && uap->num == 1)) {
 		/* verify range of descriptors to modify */
 		largest_ld = uap->start + uap->num;
-		if (uap->start >= MAX_LD ||
-		    uap->num < 0 || largest_ld > MAX_LD) {
+		if (uap->start >= MAX_LD || largest_ld > MAX_LD) {
 			return (EINVAL);
 		}
 	}

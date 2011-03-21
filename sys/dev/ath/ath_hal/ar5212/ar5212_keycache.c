@@ -99,11 +99,18 @@ ar5212ResetKeyCacheEntry(struct ath_hal *ah, uint16_t entry)
 /*
  * Sets the mac part of the specified key cache entry (and any
  * associated MIC entry) and mark them valid.
+ *
+ * Since mac[0] is shifted off and not presented to the hardware,
+ * it does double duty as a "don't use for unicast, use for multicast
+ * matching" flag. This interface should later be extended to
+ * explicitly do that rather than overloading a bit in the MAC
+ * address.
  */
 HAL_BOOL
 ar5212SetKeyCacheEntryMac(struct ath_hal *ah, uint16_t entry, const uint8_t *mac)
 {
 	uint32_t macHi, macLo;
+	uint32_t unicast_flag = AR_KEYTABLE_VALID;
 
 	if (entry >= AH_PRIVATE(ah)->ah_caps.halKeyCacheSize) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: entry %u out of range\n",
@@ -115,6 +122,16 @@ ar5212SetKeyCacheEntryMac(struct ath_hal *ah, uint16_t entry, const uint8_t *mac
 	 * the 4 MSBs, and MacHi is the 2 LSBs.
 	 */
 	if (mac != AH_NULL) {
+		/*
+		 * AR_KEYTABLE_VALID indicates that the address is a unicast
+		 * address, which must match the transmitter address for
+		 * decrypting frames.
+		 * Not setting this bit allows the hardware to use the key
+		 * for multicast frame decryption.
+		 */
+		if (mac[0] & 0x01)
+			unicast_flag = 0;
+
 		macHi = (mac[5] << 8) | mac[4];
 		macLo = (mac[3] << 24)| (mac[2] << 16)
 		      | (mac[1] << 8) | mac[0];
@@ -125,7 +142,7 @@ ar5212SetKeyCacheEntryMac(struct ath_hal *ah, uint16_t entry, const uint8_t *mac
 		macLo = macHi = 0;
 	}
 	OS_REG_WRITE(ah, AR_KEYTABLE_MAC0(entry), macLo);
-	OS_REG_WRITE(ah, AR_KEYTABLE_MAC1(entry), macHi | AR_KEYTABLE_VALID);
+	OS_REG_WRITE(ah, AR_KEYTABLE_MAC1(entry), macHi | unicast_flag);
 	return AH_TRUE;
 }
 

@@ -89,6 +89,12 @@ v14EepromGet(struct ath_hal *ah, int param, void *val)
 	case AR_EEP_OL_PWRCTRL:
 		HALASSERT(val == AH_NULL);
 		return pBase->openLoopPwrCntl ?  HAL_OK : HAL_EIO;
+	case AR_EEP_DAC_HPWR_5G:
+		if (IS_VERS(>=, AR5416_EEP_MINOR_VER_20)) {
+			*(uint8_t *) val = pBase->dacHiPwrMode_5G;
+			return HAL_OK;
+		} else
+			return HAL_EIO;
 	case AR_EEP_AMODE:
 		HALASSERT(val == AH_NULL);
 		return pBase->opCapFlags & AR5416_OPFLAGS_11A ?
@@ -120,6 +126,19 @@ v14EepromGet(struct ath_hal *ah, int param, void *val)
 	case AR_EEP_ANTGAINMAX_5:
 		*(int8_t *) val = ee->ee_antennaGainMax[0];
 		return HAL_OK;
+	case AR_EEP_PWR_TABLE_OFFSET:
+		if (IS_VERS(>=, AR5416_EEP_MINOR_VER_21))
+			*(int8_t *) val = pBase->pwr_table_offset;
+		else
+			*(int8_t *) val = AR5416_PWR_TABLE_OFFSET_DB;
+		return HAL_OK;
+	case AR_EEP_PWDCLKIND:
+		if (IS_VERS(>=, AR5416_EEP_MINOR_VER_10)) {
+			*(uint8_t *) val = pBase->pwdclkind;
+			return HAL_OK;
+		}
+		return HAL_EIO;
+		
         default:
 		HALASSERT(0);
 		return HAL_EINVAL;
@@ -153,8 +172,8 @@ v14EepromDiag(struct ath_hal *ah, int request,
 
 	switch (request) {
 	case HAL_DIAG_EEPROM:
-		*result = &ee->ee_base;
-		*resultsize = sizeof(ee->ee_base);
+		*result = ee;
+		*resultsize = sizeof(HAL_EEPROM_v14);
 		return AH_TRUE;
 	}
 	return AH_FALSE;

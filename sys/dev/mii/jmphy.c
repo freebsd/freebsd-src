@@ -373,10 +373,10 @@ jmphy_setmedia(struct mii_softc *sc, struct ifmedia_entry *ife)
 		bmcr |= BMCR_LOOP;
 
 	anar = jmphy_anar(ife);
-	if (((IFM_SUBTYPE(ife->ifm_media) == IFM_AUTO ||
+	if ((IFM_SUBTYPE(ife->ifm_media) == IFM_AUTO ||
 	    (ife->ifm_media & IFM_FDX) != 0) &&
-	    (ife->ifm_media & IFM_FLOW) != 0) ||
-	    (sc->mii_flags & MIIF_FORCEPAUSE) != 0)
+	    ((ife->ifm_media & IFM_FLOW) != 0 ||
+	    (sc->mii_flags & MIIF_FORCEPAUSE) != 0))
 		anar |= ANAR_PAUSE_TOWARDS;
 
 	if ((sc->mii_flags & MIIF_HAVE_GTCR) != 0) {

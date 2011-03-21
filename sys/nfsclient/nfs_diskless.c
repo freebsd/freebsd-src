@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -202,6 +203,7 @@ nfs_setup_diskless(void)
 		return;
 	}
 	ifa = NULL;
+	CURVNET_SET(TD_TO_VNET(curthread));
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -213,12 +215,14 @@ nfs_setup_diskless(void)
 					  LLADDR(&ourdl),
 					  sdl->sdl_alen)) {
 				    IFNET_RUNLOCK();
+				    CURVNET_RESTORE();
 				    goto match_done;
 				}
 			}
 		}
 	}
 	IFNET_RUNLOCK();
+	CURVNET_RESTORE();
 	printf("nfs_diskless: no interface\n");
 	return;	/* no matching interface */
 match_done:

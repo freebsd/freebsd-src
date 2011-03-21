@@ -10,6 +10,7 @@
 #include "llvm/ADT/Triple.h"
 
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Twine.h"
 #include <cassert>
 #include <cstring>
@@ -21,7 +22,7 @@ const char *Triple::getArchTypeName(ArchType Kind) {
   switch (Kind) {
   case InvalidArch: return "<invalid>";
   case UnknownArch: return "unknown";
-    
+
   case alpha:   return "alpha";
   case arm:     return "arm";
   case bfin:    return "bfin";
@@ -29,7 +30,6 @@ const char *Triple::getArchTypeName(ArchType Kind) {
   case mips:    return "mips";
   case mipsel:  return "mipsel";
   case msp430:  return "msp430";
-  case pic16:   return "pic16";
   case ppc64:   return "powerpc64";
   case ppc:     return "powerpc";
   case sparc:   return "sparc";
@@ -41,6 +41,7 @@ const char *Triple::getArchTypeName(ArchType Kind) {
   case x86_64:  return "x86_64";
   case xcore:   return "xcore";
   case mblaze:  return "mblaze";
+  case ptx:     return "ptx";
   }
 
   return "<invalid>";
@@ -70,7 +71,10 @@ const char *Triple::getArchTypePrefix(ArchType Kind) {
 
   case x86:
   case x86_64:  return "x86";
+
   case xcore:   return "xcore";
+
+  case ptx:     return "ptx";
   }
 }
 
@@ -97,7 +101,6 @@ const char *Triple::getOSTypeName(OSType Kind) {
   case Linux: return "linux";
   case Lv2: return "lv2";
   case MinGW32: return "mingw32";
-  case MinGW64: return "mingw64";
   case NetBSD: return "netbsd";
   case OpenBSD: return "openbsd";
   case Psp: return "psp";
@@ -105,6 +108,18 @@ const char *Triple::getOSTypeName(OSType Kind) {
   case Win32: return "win32";
   case Haiku: return "haiku";
   case Minix: return "minix";
+  }
+
+  return "<invalid>";
+}
+
+const char *Triple::getEnvironmentTypeName(EnvironmentType Kind) {
+  switch (Kind) {
+  case UnknownEnvironment: return "unknown";
+  case GNU: return "gnu";
+  case GNUEABI: return "gnueabi";
+  case EABI: return "eabi";
+  case MachO: return "macho";
   }
 
   return "<invalid>";
@@ -125,8 +140,6 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
     return mipsel;
   if (Name == "msp430")
     return msp430;
-  if (Name == "pic16")
-    return pic16;
   if (Name == "ppc64")
     return ppc64;
   if (Name == "ppc")
@@ -149,6 +162,8 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
     return x86_64;
   if (Name == "xcore")
     return xcore;
+  if (Name == "ptx")
+    return ptx;
 
   return UnknownArch;
 }
@@ -187,6 +202,9 @@ Triple::ArchType Triple::getArchTypeForDarwinArchName(StringRef Str) {
       Str == "armv6" || Str == "armv7")
     return Triple::arm;
 
+  if (Str == "ptx")
+    return Triple::ptx;
+
   return Triple::UnknownArch;
 }
 
@@ -210,28 +228,29 @@ const char *Triple::getArchNameForAssembler() {
     return "arm";
   if (Str == "armv4t" || Str == "thumbv4t")
     return "armv4t";
-  if (Str == "armv5" || Str == "armv5e" || Str == "thumbv5" || Str == "thumbv5e")
+  if (Str == "armv5" || Str == "armv5e" || Str == "thumbv5"
+      || Str == "thumbv5e")
     return "armv5";
   if (Str == "armv6" || Str == "thumbv6")
     return "armv6";
   if (Str == "armv7" || Str == "thumbv7")
     return "armv7";
+  if (Str == "ptx")
+    return "ptx";
   return NULL;
 }
 
 //
 
 Triple::ArchType Triple::ParseArch(StringRef ArchName) {
-  if (ArchName.size() == 4 && ArchName[0] == 'i' && 
-      ArchName[2] == '8' && ArchName[3] == '6' && 
+  if (ArchName.size() == 4 && ArchName[0] == 'i' &&
+      ArchName[2] == '8' && ArchName[3] == '6' &&
       ArchName[1] - '3' < 6) // i[3-9]86
     return x86;
   else if (ArchName == "amd64" || ArchName == "x86_64")
     return x86_64;
   else if (ArchName == "bfin")
     return bfin;
-  else if (ArchName == "pic16")
-    return pic16;
   else if (ArchName == "powerpc")
     return ppc;
   else if ((ArchName == "powerpc64") || (ArchName == "ppu"))
@@ -266,6 +285,8 @@ Triple::ArchType Triple::ParseArch(StringRef ArchName) {
     return tce;
   else if (ArchName == "xcore")
     return xcore;
+  else if (ArchName == "ptx")
+    return ptx;
   else
     return UnknownArch;
 }
@@ -296,8 +317,6 @@ Triple::OSType Triple::ParseOS(StringRef OSName) {
     return Lv2;
   else if (OSName.startswith("mingw32"))
     return MinGW32;
-  else if (OSName.startswith("mingw64"))
-    return MinGW64;
   else if (OSName.startswith("netbsd"))
     return NetBSD;
   else if (OSName.startswith("openbsd"))
@@ -316,12 +335,26 @@ Triple::OSType Triple::ParseOS(StringRef OSName) {
     return UnknownOS;
 }
 
+Triple::EnvironmentType Triple::ParseEnvironment(StringRef EnvironmentName) {
+  if (EnvironmentName.startswith("eabi"))
+    return EABI;
+  else if (EnvironmentName.startswith("gnueabi"))
+    return GNUEABI;
+  else if (EnvironmentName.startswith("gnu"))
+    return GNU;
+  else if (EnvironmentName.startswith("macho"))
+    return MachO;
+  else
+    return UnknownEnvironment;
+}
+
 void Triple::Parse() const {
   assert(!isInitialized() && "Invalid parse call.");
 
   Arch = ParseArch(getArchName());
   Vendor = ParseVendor(getVendorName());
   OS = ParseOS(getOSName());
+  Environment = ParseEnvironment(getEnvironmentName());
 
   assert(isInitialized() && "Failed to initialize!");
 }
@@ -348,24 +381,28 @@ std::string Triple::normalize(StringRef Str) {
   OSType OS = UnknownOS;
   if (Components.size() > 2)
     OS = ParseOS(Components[2]);
+  EnvironmentType Environment = UnknownEnvironment;
+  if (Components.size() > 3)
+    Environment = ParseEnvironment(Components[3]);
 
   // Note which components are already in their final position.  These will not
   // be moved.
-  bool Found[3];
+  bool Found[4];
   Found[0] = Arch != UnknownArch;
   Found[1] = Vendor != UnknownVendor;
   Found[2] = OS != UnknownOS;
+  Found[3] = Environment != UnknownEnvironment;
 
   // If they are not there already, permute the components into their canonical
   // positions by seeing if they parse as a valid architecture, and if so moving
   // the component to the architecture position etc.
-  for (unsigned Pos = 0; Pos != 3; ++Pos) {
+  for (unsigned Pos = 0; Pos != array_lengthof(Found); ++Pos) {
     if (Found[Pos])
       continue; // Already in the canonical position.
 
     for (unsigned Idx = 0; Idx != Components.size(); ++Idx) {
       // Do not reparse any components that already matched.
-      if (Idx < 3 && Found[Idx])
+      if (Idx < array_lengthof(Found) && Found[Idx])
         continue;
 
       // Does this component parse as valid for the target position?
@@ -386,6 +423,10 @@ std::string Triple::normalize(StringRef Str) {
         OS = ParseOS(Comp);
         Valid = OS != UnknownOS;
         break;
+      case 3:
+        Environment = ParseEnvironment(Comp);
+        Valid = Environment != UnknownEnvironment;
+        break;
       }
       if (!Valid)
         continue; // Nope, try the next component.
@@ -404,7 +445,7 @@ std::string Triple::normalize(StringRef Str) {
         // components to the right.
         for (unsigned i = Pos; !CurrentComponent.empty(); ++i) {
           // Skip over any fixed components.
-          while (i < 3 && Found[i]) ++i;
+          while (i < array_lengthof(Found) && Found[i]) ++i;
           // Place the component at the new position, getting the component
           // that was at this position - it will be moved right.
           std::swap(CurrentComponent, Components[i]);
@@ -416,22 +457,23 @@ std::string Triple::normalize(StringRef Str) {
         do {
           // Insert one empty component at Idx.
           StringRef CurrentComponent(""); // The empty component.
-          for (unsigned i = Idx; i < Components.size(); ++i) {
-            // Skip over any fixed components.
-            while (i < 3 && Found[i]) ++i;
+          for (unsigned i = Idx; i < Components.size();) {
             // Place the component at the new position, getting the component
             // that was at this position - it will be moved right.
             std::swap(CurrentComponent, Components[i]);
             // If it was placed on top of an empty component then we are done.
             if (CurrentComponent.empty())
               break;
+            // Advance to the next component, skipping any fixed components.
+            while (++i < array_lengthof(Found) && Found[i])
+              ;
           }
           // The last component was pushed off the end - append it.
           if (!CurrentComponent.empty())
             Components.push_back(CurrentComponent);
 
           // Advance Idx to the component's new position.
-          while (++Idx < 3 && Found[Idx]) {}
+          while (++Idx < array_lengthof(Found) && Found[Idx]) {}
         } while (Idx < Pos); // Add more until the final position is reached.
       }
       assert(Pos < Components.size() && Components[Pos] == Comp &&
@@ -482,17 +524,17 @@ StringRef Triple::getOSAndEnvironmentName() const {
 static unsigned EatNumber(StringRef &Str) {
   assert(!Str.empty() && Str[0] >= '0' && Str[0] <= '9' && "Not a number");
   unsigned Result = Str[0]-'0';
-  
+
   // Eat the digit.
   Str = Str.substr(1);
-  
+
   // Handle "darwin11".
   if (Result == 1 && !Str.empty() && Str[0] >= '0' && Str[0] <= '9') {
     Result = Result*10 + (Str[0] - '0');
     // Eat the digit.
     Str = Str.substr(1);
   }
-  
+
   return Result;
 }
 
@@ -505,10 +547,10 @@ void Triple::getDarwinNumber(unsigned &Maj, unsigned &Min,
   assert(getOS() == Darwin && "Not a darwin target triple!");
   StringRef OSName = getOSName();
   assert(OSName.startswith("darwin") && "Unknown darwin target triple!");
-  
+
   // Strip off "darwin".
   OSName = OSName.substr(6);
-  
+
   Maj = Min = Revision = 0;
 
   if (OSName.empty() || OSName[0] < '0' || OSName[0] > '9')
@@ -517,27 +559,27 @@ void Triple::getDarwinNumber(unsigned &Maj, unsigned &Min,
   // The major version is the first digit.
   Maj = EatNumber(OSName);
   if (OSName.empty()) return;
-  
+
   // Handle minor version: 10.4.9 -> darwin8.9.
   if (OSName[0] != '.')
     return;
-  
+
   // Eat the '.'.
   OSName = OSName.substr(1);
 
   if (OSName.empty() || OSName[0] < '0' || OSName[0] > '9')
     return;
-  
+
   Min = EatNumber(OSName);
   if (OSName.empty()) return;
 
   // Handle revision darwin8.9.1
   if (OSName[0] != '.')
     return;
-  
+
   // Eat the '.'.
   OSName = OSName.substr(1);
-  
+
   if (OSName.empty() || OSName[0] < '0' || OSName[0] > '9')
     return;
 
@@ -559,6 +601,10 @@ void Triple::setVendor(VendorType Kind) {
 
 void Triple::setOS(OSType Kind) {
   setOSName(getOSTypeName(Kind));
+}
+
+void Triple::setEnvironment(EnvironmentType Kind) {
+  setEnvironmentName(getEnvironmentTypeName(Kind));
 }
 
 void Triple::setArchName(StringRef Str) {

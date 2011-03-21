@@ -39,9 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
-#include <dev/ofw/openfirm.h>
-
 #include <machine/fdt.h>
+
+#include <dev/ofw/openfirm.h>
 
 #include "fdt_common.h"
 #include "ofw_bus_if.h"
@@ -150,6 +150,8 @@ static void
 fdtbus_identify(driver_t *driver, device_t parent)
 {
 
+	debugf("%s(driver=%p, parent=%p)\n", __func__, driver, parent);
+
 	if (device_find_child(parent, "fdtbus", -1) == NULL)
 		BUS_ADD_CHILD(parent, 0, "fdtbus", -1);
 }
@@ -157,6 +159,8 @@ fdtbus_identify(driver_t *driver, device_t parent)
 static int
 fdtbus_probe(device_t dev)
 {
+
+	debugf("%s(dev=%p); pass=%u\n", __func__, dev, bus_current_pass);
 
 	device_set_desc(dev, "FDT main bus");
 	if (!bootverbose)
@@ -472,12 +476,9 @@ newbus_device_from_fdt_node(device_t dev_par, phandle_t node)
 			return;
 		}
 
-	if (type != NULL && strcmp(type, "pci") == 0) {
-		pci_from_fdt_node(dev_par, node, name, type, compat);
-		return;
-	}
-
 	child = newbus_device_create(dev_par, node, name, type, compat);
+	if (type != NULL && strcmp(type, "pci") == 0)
+		pci_from_fdt_node(child, node, name, type, compat);
 }
 
 static struct resource *

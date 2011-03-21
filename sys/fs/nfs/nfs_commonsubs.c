@@ -1983,7 +1983,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 			NFSCLRBIT_ATTRBIT(retbitp, NFSATTRBIT_ACL);
 		} else if (naclp != NULL) {
 			if (vn_lock(vp, LK_SHARED) == 0) {
-				error = VOP_ACCESS(vp, VREAD_ACL, cred, p);
+				error = VOP_ACCESSX(vp, VREAD_ACL, cred, p);
 				if (error == 0)
 					error = VOP_GETACL(vp, ACL_TYPE_NFS4,
 					    naclp, cred, p);

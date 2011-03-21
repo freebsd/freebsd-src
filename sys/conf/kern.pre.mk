@@ -15,7 +15,7 @@ KODIR?=		/boot/${KERNEL}
 LDSCRIPT_NAME?=	ldscript.$M
 LDSCRIPT?=	$S/conf/${LDSCRIPT_NAME}
 
-M=	${MACHINE_CPUARCH}
+M=		${MACHINE_CPUARCH}
 
 AWK?=		awk
 LINT?=		lint
@@ -82,11 +82,8 @@ INCLUDES+= -I$S/dev/twa
 # ...  and XFS
 INCLUDES+= -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs
 
-# ...  and OpenSolaris
-INCLUDES+= -I$S/contrib/opensolaris/compat
-
-# ... and the same for cxgb
-INCLUDES+= -I$S/dev/cxgb
+# ... and the same for cxgb and cxgbe
+INCLUDES+= -I$S/dev/cxgb -I$S/dev/cxgbe
 
 .endif
 
@@ -112,8 +109,8 @@ WERROR?= -Werror
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
-.if ${CC:T:Micc} == "icc" || ${CC:T:Mclang} == "clang"
-.error "Profiling doesn't work with icc or clang yet"
+.if ${CC:T:Micc} == "icc"
+.error "Profiling doesn't work with icc"
 .endif
 CFLAGS+=	-DGPROF -falign-functions=16
 .if ${PROFLEVEL} >= 2

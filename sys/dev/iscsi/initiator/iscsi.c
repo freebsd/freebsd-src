@@ -229,12 +229,9 @@ iscsi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode, struct thread *
 	  error = sp->soc == NULL? ENOTCONN: i_fullfeature(dev, 1);
 	  if(error == 0) {
 	       sp->proc = td->td_proc;
-	       SYSCTL_ADD_UINT(&sp->clist,
-			       SYSCTL_CHILDREN(sp->oid),
-			       OID_AUTO,
-			       "pid",
-			       CTLFLAG_RD,
-			       &sp->proc->p_pid, sizeof(pid_t), "control process id");
+	       SYSCTL_ADD_INT(&sp->clist, SYSCTL_CHILDREN(sp->oid),
+		   OID_AUTO, "pid", CTLFLAG_RD,
+		   &sp->proc->p_pid, sizeof(pid_t), "control process id");
 	  }
 	  break;
 

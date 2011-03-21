@@ -6,8 +6,10 @@
 
 PROG=	hastctl
 SRCS=	activemap.c
+SRCS+=	crc32.c
 SRCS+=	ebuf.c
-SRCS+=	hast_proto.c hastctl.c
+SRCS+=	hast_checksum.c hast_compression.c hast_proto.c hastctl.c
+SRCS+=	lzf.c
 SRCS+=	metadata.c
 SRCS+=	nv.c
 SRCS+=	parse.y pjdlog.c
@@ -17,6 +19,7 @@ SRCS+=	subr.c
 SRCS+=	y.tab.h
 MAN=	hastctl.8
 
+NO_WFORMAT=
 CFLAGS+=-I${.CURDIR}/../hastd
 CFLAGS+=-DINET
 .if ${MK_INET6_SUPPORT} != "no"
@@ -26,8 +29,8 @@ CFLAGS+=-DINET6
 CFLAGS+=-DYY_NO_UNPUT
 CFLAGS+=-DYY_NO_INPUT
 
-DPADD=	${LIBL}
-LDADD=	-ll
+DPADD=	${LIBL} ${LIBUTIL}
+LDADD=	-ll -lutil
 .if ${MK_OPENSSL} != "no"
 DPADD+=	${LIBCRYPTO}
 LDADD+=	-lcrypto

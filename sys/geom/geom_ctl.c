@@ -75,7 +75,7 @@ void
 g_ctl_init(void)
 {
 
-	make_dev(&g_ctl_cdevsw, 0,
+	make_dev_credf(MAKEDEV_ETERNAL, &g_ctl_cdevsw, 0, NULL,
 	    UID_ROOT, GID_OPERATOR, 0640, PATH_GEOM_CTL);
 	KASSERT(GCTL_PARAM_RD == VM_PROT_READ,
 		("GCTL_PARAM_RD != VM_PROT_READ"));

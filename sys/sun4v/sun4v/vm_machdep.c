@@ -17,10 +17,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -52,7 +48,6 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
-#include <sys/linker_set.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/sf_buf.h>

@@ -1086,7 +1086,7 @@ relocked:
 				    "SYN|FIN segment ignored (based on "
 				    "sysctl setting)\n", s, __func__);
 			TCPSTAT_INC(tcps_badsyn);
-                	goto dropunlock;
+			goto dropunlock;
 		}
 		/*
 		 * Segment's flags are (SYN) or (SYN|FIN).
@@ -1291,6 +1291,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	short ostate = 0;
 #endif
 	thflags = th->th_flags;
+	tp->sackhint.last_sack_ack = 0;
 
 	/*
 	 * If this is either a state-changing packet or current state isn't
@@ -2271,7 +2272,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						/*
 						 * Compute the amount of data in flight first.
 						 * We can inject new data into the pipe iff 
-						 * we have less than 1/2 the original window's 	
+						 * we have less than 1/2 the original window's
 						 * worth of data in flight.
 						 */
 						awnd = (tp->snd_nxt - tp->snd_fack) +

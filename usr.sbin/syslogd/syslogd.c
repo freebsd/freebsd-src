@@ -1093,8 +1093,9 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		v->iov_len = snprintf(greetings, sizeof greetings,
 		    "\r\n\7Message from syslogd@%s at %.24s ...\r\n",
 		    f->f_prevhost, f->f_lasttime);
-		if (v->iov_len > 0)
-			v++;
+		if (v->iov_len >= sizeof greetings)
+			v->iov_len = sizeof greetings - 1;
+		v++;
 		v->iov_base = nul;
 		v->iov_len = 0;
 		v++;

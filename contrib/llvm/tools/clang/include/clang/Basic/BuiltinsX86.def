@@ -25,11 +25,16 @@
 // FIXME: Are these nothrow/const?
 
 // MMX
+//
+// FIXME: All MMX instructions will be generated via builtins. Any MMX vector
+// types (<1 x i64>, <2 x i32>, etc.) that aren't used by these builtins will be
+// expanded by the back-end.
 BUILTIN(__builtin_ia32_emms, "v", "")
 BUILTIN(__builtin_ia32_femms, "v", "")
 BUILTIN(__builtin_ia32_paddb, "V8cV8cV8c", "")
 BUILTIN(__builtin_ia32_paddw, "V4sV4sV4s", "")
 BUILTIN(__builtin_ia32_paddd, "V2iV2iV2i", "")
+BUILTIN(__builtin_ia32_paddq, "V1LLiV1LLiV1LLi", "")
 BUILTIN(__builtin_ia32_paddsb, "V8cV8cV8c", "")
 BUILTIN(__builtin_ia32_paddsw, "V4sV4sV4s", "")
 BUILTIN(__builtin_ia32_paddusb, "V8cV8cV8c", "")
@@ -37,6 +42,7 @@ BUILTIN(__builtin_ia32_paddusw, "V4sV4sV4s", "")
 BUILTIN(__builtin_ia32_psubb, "V8cV8cV8c", "")
 BUILTIN(__builtin_ia32_psubw, "V4sV4sV4s", "")
 BUILTIN(__builtin_ia32_psubd, "V2iV2iV2i", "")
+BUILTIN(__builtin_ia32_psubq, "V1LLiV1LLiV1LLi", "")
 BUILTIN(__builtin_ia32_psubsb, "V8cV8cV8c", "")
 BUILTIN(__builtin_ia32_psubsw, "V4sV4sV4s", "")
 BUILTIN(__builtin_ia32_psubusb, "V8cV8cV8c", "")
@@ -76,6 +82,7 @@ BUILTIN(__builtin_ia32_psradi, "V2iV2ii", "")
 BUILTIN(__builtin_ia32_packsswb, "V8cV4sV4s", "")
 BUILTIN(__builtin_ia32_packssdw, "V4sV2iV2i", "")
 BUILTIN(__builtin_ia32_packuswb, "V8cV4sV4s", "")
+BUILTIN(__builtin_ia32_pshufw, "V4sV4sIc", "")
 BUILTIN(__builtin_ia32_punpckhbw, "V8cV8cV8c", "")
 BUILTIN(__builtin_ia32_punpckhwd, "V4sV4sV4s", "")
 BUILTIN(__builtin_ia32_punpckhdq, "V2iV2iV2i", "")
@@ -91,7 +98,7 @@ BUILTIN(__builtin_ia32_pcmpgtd, "V2iV2iV2i", "")
 BUILTIN(__builtin_ia32_maskmovq, "vV8cV8cc*", "")
 BUILTIN(__builtin_ia32_pmovmskb, "iV8c", "")
 BUILTIN(__builtin_ia32_movntq, "vV1LLi*V1LLi", "")
-BUILTIN(__builtin_ia32_palignr, "V8cV8cV8cc", "") // FIXME: Correct type?
+BUILTIN(__builtin_ia32_palignr, "V8cV8cV8cIc", "")
 BUILTIN(__builtin_ia32_vec_init_v2si, "V2iii", "")
 BUILTIN(__builtin_ia32_vec_init_v4hi, "V4sssss", "")
 BUILTIN(__builtin_ia32_vec_init_v8qi, "V8ccccccccc", "")
@@ -249,8 +256,8 @@ BUILTIN(__builtin_ia32_psraw128, "V8sV8sV8s", "")
 BUILTIN(__builtin_ia32_psrad128, "V4iV4iV4i", "")
 BUILTIN(__builtin_ia32_psrlw128, "V8sV8sV8s", "")
 BUILTIN(__builtin_ia32_psrld128, "V4iV4iV4i", "")
-BUILTIN(__builtin_ia32_pslldqi128, "V2LLiV2LLii", "")
-BUILTIN(__builtin_ia32_psrldqi128, "V2LLiV2LLii", "")
+BUILTIN(__builtin_ia32_pslldqi128, "V2LLiV2LLiIi", "")
+BUILTIN(__builtin_ia32_psrldqi128, "V2LLiV2LLiIi", "")
 BUILTIN(__builtin_ia32_psrlq128, "V2LLiV2LLiV2LLi", "")
 BUILTIN(__builtin_ia32_psllw128, "V8sV8sV8s", "")
 BUILTIN(__builtin_ia32_pslld128, "V4iV4iV4i", "")
@@ -267,7 +274,7 @@ BUILTIN(__builtin_ia32_pmaddwd128, "V8sV8sV8s", "")
 BUILTIN(__builtin_ia32_monitor, "vv*UiUi", "")
 BUILTIN(__builtin_ia32_mwait, "vUiUi", "")
 BUILTIN(__builtin_ia32_lddqu, "V16ccC*", "")
-BUILTIN(__builtin_ia32_palignr128, "V16cV16cV16cc", "") // FIXME: Correct type?
+BUILTIN(__builtin_ia32_palignr128, "V16cV16cV16cIc", "") // FIXME: Correct type?
 BUILTIN(__builtin_ia32_insertps128, "V4fV4fV4fi", "")
 
 BUILTIN(__builtin_ia32_storelv4si, "vV2i*V2LLi", "")
