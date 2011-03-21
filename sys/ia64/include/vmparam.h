@@ -42,12 +42,6 @@
 #define	_MACHINE_VMPARAM_H_
 
 /*
- * USRSTACK is the top (end) of the user stack.  Immediately above the user
- * stack resides the syscall gateway page.
- */
-#define	USRSTACK	VM_MAXUSER_ADDRESS
-
-/*
  * Virtual memory related constants, all in bytes
  */
 #ifndef MAXTSIZ
@@ -122,6 +116,8 @@
 #define	VM_NRESERVLEVEL		0
 #endif
 
+#define	IA64_VM_MINKERN_REGION	4
+
 /*
  * Manipulating region bits of an address.
  */
@@ -138,7 +134,8 @@
  * to 0x1ffbffffffffffff. We define the top half of a region in terms of
  * this worst-case gap.
  */
-#define	IA64_REGION_TOP_HALF	0x1ffc000000000000
+#define	IA64_REGION_GAP_START	0x0004000000000000
+#define	IA64_REGION_GAP_EXTEND	0x1ffc000000000000
 
 /*
  * Page size of the identity mappings in region 7.
@@ -151,7 +148,6 @@
 #define	IA64_ID_PAGE_SIZE	(1<<(LOG2_ID_PAGE_SIZE))
 #define	IA64_ID_PAGE_MASK	(IA64_ID_PAGE_SIZE-1)
 
-#define	IA64_BACKINGSTORE	IA64_RR_BASE(4)
 
 /*
  * Parameters for Pre-Boot Virtual Memory (PBVM).
@@ -177,9 +173,9 @@
  * and wired into the CPU, but does not assume that the mapping covers the
  * whole of PBVM.
  */
-#define	IA64_PBVM_RR		4
+#define	IA64_PBVM_RR		IA64_VM_MINKERN_REGION
 #define	IA64_PBVM_BASE		\
-		(IA64_RR_BASE(IA64_PBVM_RR) + IA64_REGION_TOP_HALF)
+		(IA64_RR_BASE(IA64_PBVM_RR) + IA64_REGION_GAP_EXTEND)
 
 #define	IA64_PBVM_PGTBL_MAXSZ	1048576
 #define	IA64_PBVM_PGTBL		\
@@ -194,14 +190,20 @@
  */
 
 /* user/kernel map constants */
-#define VM_MIN_ADDRESS		0
-#define	VM_MAXUSER_ADDRESS	IA64_RR_BASE(5)
-#define	VM_GATEWAY_SIZE		PAGE_SIZE
-#define	VM_MIN_KERNEL_ADDRESS	(VM_MAXUSER_ADDRESS + VM_GATEWAY_SIZE)
-#define VM_MAX_KERNEL_ADDRESS	(IA64_RR_BASE(6) - 1)
+#define	VM_MIN_ADDRESS		0
+#define	VM_MAXUSER_ADDRESS	IA64_RR_BASE(IA64_VM_MINKERN_REGION)
+#define	VM_MIN_KERNEL_ADDRESS	IA64_RR_BASE(IA64_VM_MINKERN_REGION + 1)
+#define	VM_MAX_KERNEL_ADDRESS	(IA64_RR_BASE(IA64_VM_MINKERN_REGION + 2) - 1)
 #define	VM_MAX_ADDRESS		~0UL
 
 #define	KERNBASE		VM_MAXUSER_ADDRESS
+
+/*
+ * USRSTACK is the top (end) of the user stack.  Immediately above the user
+ * stack resides the syscall gateway page.
+ */
+#define	USRSTACK		VM_MAXUSER_ADDRESS
+#define	IA64_BACKINGSTORE	(USRSTACK - (2 * MAXSSIZ) - PAGE_SIZE)
 
 /* virtual sizes (bytes) for various kernel submaps */
 #ifndef VM_KMEM_SIZE
