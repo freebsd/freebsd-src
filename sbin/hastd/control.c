@@ -327,7 +327,7 @@ control_handle(struct hastd_config *cfg)
 	if (cmd == HASTCTL_SET_ROLE) {
 		role = nv_get_uint8(nvin, "role");
 		switch (role) {
-		case HAST_ROLE_INIT:	/* Is that valid to set, hmm? */
+		case HAST_ROLE_INIT:
 		case HAST_ROLE_PRIMARY:
 		case HAST_ROLE_SECONDARY:
 			break;
