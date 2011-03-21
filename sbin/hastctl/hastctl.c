@@ -330,6 +330,9 @@ control_status(struct nv *nv)
 		    (unsigned int)nv_get_uint32(nv, "keepdirty%u", ii));
 		printf("  remoteaddr: %s\n",
 		    nv_get_string(nv, "remoteaddr%u", ii));
+		str = nv_get_string(nv, "sourceaddr%u", ii);
+		if (str != NULL)
+			printf("  sourceaddr: %s\n", str);
 		printf("  replication: %s\n",
 		    nv_get_string(nv, "replication%u", ii));
 		str = nv_get_string(nv, "status%u", ii);
@@ -466,7 +469,7 @@ main(int argc, char *argv[])
 	}
 
 	/* Setup control connection... */
-	if (proto_client(cfg->hc_controladdr, &controlconn) < 0) {
+	if (proto_client(NULL, cfg->hc_controladdr, &controlconn) < 0) {
 		pjdlog_exit(EX_OSERR,
 		    "Unable to setup control connection to %s",
 		    cfg->hc_controladdr);
