@@ -478,7 +478,7 @@ init_local(struct hast_resource *res)
 	 * that there were no writes yet, so there is no need to synchronize
 	 * anything.
 	 */
-	res->hr_primary_localcnt = 1;
+	res->hr_primary_localcnt = 0;
 	res->hr_primary_remotecnt = 0;
 	if (metadata_write(res) < 0)
 		exit(EX_NOINPUT);
@@ -1093,7 +1093,11 @@ ggate_recv_thread(void *arg)
 			break;
 		case BIO_WRITE:
 			if (res->hr_resuid == 0) {
-				/* This is first write, initialize resuid. */
+				/*
+				 * This is first write, initialize localcnt and
+				 * resuid.
+				 */
+				res->hr_primary_localcnt = 1;
 				(void)init_resuid(res);
 			}
 			for (;;) {
