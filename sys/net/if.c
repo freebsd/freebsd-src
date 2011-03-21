@@ -1881,6 +1881,11 @@ if_route(struct ifnet *ifp, int flag, int fam)
 
 void	(*vlan_link_state_p)(struct ifnet *);	/* XXX: private from if_vlan */
 void	(*vlan_trunk_cap_p)(struct ifnet *);		/* XXX: private from if_vlan */
+struct ifnet *(*vlan_trunkdev_p)(struct ifnet *);
+struct	ifnet *(*vlan_devat_p)(struct ifnet *, uint16_t);
+int	(*vlan_tag_p)(struct ifnet *, uint16_t *);
+int	(*vlan_setcookie_p)(struct ifnet *, void *);
+void	*(*vlan_cookie_p)(struct ifnet *);
 
 /*
  * Handle a change in the interface link state. To avoid LORs
@@ -1935,6 +1940,7 @@ do_link_state_change(void *arg, int pending)
 	if (log_link_state_change)
 		log(LOG_NOTICE, "%s: link state changed to %s\n", ifp->if_xname,
 		    (link_state == LINK_STATE_UP) ? "UP" : "DOWN" );
+	EVENTHANDLER_INVOKE(ifnet_link_event, ifp, ifp->if_link_state);
 	CURVNET_RESTORE();
 }
 

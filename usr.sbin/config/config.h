@@ -53,6 +53,7 @@ struct file_list {
 	char	*f_depends;		/* additional dependancies */
 	char	*f_clean;		/* File list to add to clean rule */
 	char	*f_warn;		/* warning message */
+	const char *f_objprefix;	/* prefix string for object name */
 };
 
 struct files_name {

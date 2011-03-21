@@ -117,8 +117,8 @@ struct ctlname {
 #ifdef _KERNEL
 #include <sys/linker_set.h>
 
-#define SYSCTL_HANDLER_ARGS struct sysctl_oid *oidp, void *arg1, int arg2, \
-	struct sysctl_req *req
+#define SYSCTL_HANDLER_ARGS struct sysctl_oid *oidp, void *arg1,	\
+	intptr_t arg2, struct sysctl_req *req
 
 /* definitions for sysctl_req 'lock' member */
 #define	REQ_UNWIRED	1
@@ -160,7 +160,7 @@ struct sysctl_oid {
 	int		oid_number;
 	u_int		oid_kind;
 	void		*oid_arg1;
-	int		oid_arg2;
+	intptr_t	oid_arg2;
 	const char	*oid_name;
 	int 		(*oid_handler)(SYSCTL_HANDLER_ARGS);
 	const char	*oid_fmt;
@@ -746,9 +746,11 @@ extern char	kern_ident[];
 /* Dynamic oid handling */
 struct sysctl_oid *sysctl_add_oid(struct sysctl_ctx_list *clist,
 		struct sysctl_oid_list *parent, int nbr, const char *name,
-		int kind, void *arg1, int arg2,
+		int kind, void *arg1, intptr_t arg2,
 		int (*handler) (SYSCTL_HANDLER_ARGS),
 		const char *fmt, const char *descr);
+int	sysctl_remove_name(struct sysctl_oid *parent, const char *name, int del,
+		int recurse);
 void	sysctl_rename_oid(struct sysctl_oid *oidp, const char *name);
 int	sysctl_move_oid(struct sysctl_oid *oidp,
 		struct sysctl_oid_list *parent);
