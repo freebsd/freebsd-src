@@ -277,7 +277,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 	    /* Is primary is out-of-date? */
 	    (res->hr_secondary_localcnt > res->hr_primary_remotecnt &&
 	     res->hr_secondary_remotecnt == res->hr_primary_localcnt) ||
-	    /* Node are more or less in sync? */
+	    /* Nodes are more or less in sync? */
 	    (res->hr_secondary_localcnt == res->hr_primary_remotecnt &&
 	     res->hr_secondary_remotecnt == res->hr_primary_localcnt) ||
 	    /* Is secondary is out-of-date? */
