@@ -247,6 +247,7 @@ static inline int iboe_get_rate(struct net_device *dev)
 #else
 static inline int iboe_get_rate(struct net_device *dev)
 {
+#ifdef __amd64__
 	if (dev->if_baudrate >= IF_Gbps(40ULL))
 		return IB_RATE_40_GBPS;
 	else if (dev->if_baudrate >= IF_Gbps(30ULL))
@@ -256,6 +257,7 @@ static inline int iboe_get_rate(struct net_device *dev)
 	else if (dev->if_baudrate >= IF_Gbps(10ULL))
 		return IB_RATE_10_GBPS;
 	else
+#endif
 		return IB_RATE_PORT_CURRENT;
 }
 #endif
