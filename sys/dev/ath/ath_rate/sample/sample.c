@@ -250,6 +250,55 @@ pick_sample_rate(struct sample_softc *ssc , struct sample_node *sn,
 #undef	MCS
 }
 
+static int
+ath_rate_get_static_rix(struct ath_softc *sc, const struct ieee80211_node *ni)
+{
+#define	RATE(_ix)	(ni->ni_rates.rs_rates[(_ix)] & IEEE80211_RATE_VAL)
+#define	DOT11RATE(_ix)	(rt->info[(_ix)].dot11Rate & IEEE80211_RATE_VAL)
+#define	MCS(_ix)	(ni->ni_htrates.rs_rates[_ix] | IEEE80211_RATE_MCS)
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
+	int srate;
+
+	/* Check MCS rates */
+	for (srate = ni->ni_htrates.rs_nrates - 1; srate >= 0; srate--) {
+		if (MCS(srate) == tp->ucastrate)
+			return sc->sc_rixmap[tp->ucastrate];
+	}
+
+	/* Check legacy rates */
+	for (srate = ni->ni_rates.rs_nrates - 1; srate >= 0; srate--) {
+		if (RATE(srate) == tp->ucastrate)
+			return sc->sc_rixmap[tp->ucastrate];
+	}
+	return -1;
+#undef	RATE
+#undef	DOT11RATE
+#undef	MCS
+}
+
+static void
+ath_rate_update_static_rix(struct ath_softc *sc, struct ieee80211_node *ni)
+{
+	struct ath_node *an = ATH_NODE(ni);
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
+	struct sample_node *sn = ATH_NODE_SAMPLE(an);
+
+	if (tp != NULL && tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
+		/*
+		 * A fixed rate is to be used; ucastrate is the IEEE code
+		 * for this rate (sans basic bit).  Check this against the
+		 * negotiated rate set for the node.  Note the fixed rate
+		 * may not be available for various reasons so we only
+		 * setup the static rate index if the lookup is successful.
+		 */
+		sn->static_rix = ath_rate_get_static_rix(sc, ni);
+	} else {
+		sn->static_rix = -1;
+	}
+}
+
+
+
 void
 ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 		  int shortPreamble, size_t frameLen,
@@ -266,6 +315,8 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 	const int size_bin = size_to_bin(frameLen);
 	int rix, mrr, best_rix, change_rates;
 	unsigned average_tx_time;
+
+	ath_rate_update_static_rix(sc, &an->an_node);
 
 	if (sn->static_rix != -1) {
 		rix = sn->static_rix;
@@ -560,9 +611,10 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		 * Only one rate was used; optimize work.
 		 */
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
-		     &an->an_node, "%s: size %d %s rate/try %d %s/%d/%d",
+		     &an->an_node, "%s: size %d (%d bytes) %s rate/try %d %s/%d/%d",
 		     __func__,
 		     bin_to_size(size_to_bin(frame_size)),
+		     frame_size,
 		     ts->ts_status ? "FAIL" : "OK",
 		     dot11rate(rt, final_rix), dot11rate_label(rt, final_rix), short_tries, long_tries);
 		update_stats(sc, an, frame_size, 
@@ -587,9 +639,10 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
 		    &an->an_node,
-"%s: size %d finaltsidx %d tries %d %s rate/try [%d %s/%d %d %s/%d %d %s/%d %d %s/%d]", 
+"%s: size %d (%d bytes) finaltsidx %d tries %d %s rate/try [%d %s/%d %d %s/%d %d %s/%d %d %s/%d]", 
 		     __func__,
 		     bin_to_size(size_to_bin(frame_size)),
+		     frame_size,
 		     finalTSIdx,
 		     long_tries, 
 		     ts->ts_status ? "FAIL" : "OK",
@@ -686,12 +739,10 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 #define	RATE(_ix)	(ni->ni_rates.rs_rates[(_ix)] & IEEE80211_RATE_VAL)
 #define	DOT11RATE(_ix)	(rt->info[(_ix)].dot11Rate & IEEE80211_RATE_VAL)
 #define	MCS(_ix)	(ni->ni_htrates.rs_rates[_ix] | IEEE80211_RATE_MCS)
-
 	struct ath_node *an = ATH_NODE(ni);
-	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
-	int x, y, srate, rix;
+	int x, y, rix;
 
 	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
 
@@ -702,33 +753,7 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 	    ("no mrr schedule for mode %u", sc->sc_curmode));
 
         sn->static_rix = -1;
-	if (tp != NULL && tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
-		/*
-		 * A fixed rate is to be used; ucastrate is the IEEE code
-		 * for this rate (sans basic bit).  Check this against the
-		 * negotiated rate set for the node.  Note the fixed rate
-		 * may not be available for various reasons so we only
-		 * setup the static rate index if the lookup is successful.
-		 */
-
-		/* XXX todo: check MCS rates */
-
-		/* Check legacy rates */
-		for (srate = ni->ni_rates.rs_nrates - 1; srate >= 0; srate--)
-			if (RATE(srate) == tp->ucastrate) {
-				sn->static_rix = sc->sc_rixmap[tp->ucastrate];
-				break;
-			}
-#ifdef IEEE80211_DEBUG
-			if (sn->static_rix == -1) {
-				IEEE80211_NOTE(ni->ni_vap,
-				    IEEE80211_MSG_RATECTL, ni,
-				    "%s: ucastrate %u not found, nrates %u",
-				    __func__, tp->ucastrate,
-				    ni->ni_rates.rs_nrates);
-			}
-#endif
-	}
+	ath_rate_update_static_rix(sc, ni);
 
 	/*
 	 * Construct a bitmask of usable rates.  This has all
