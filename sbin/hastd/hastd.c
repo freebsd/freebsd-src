@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <activemap.h>
@@ -877,9 +878,11 @@ main_loop(void)
 	struct timeval seltimeout;
 	struct timespec sigtimeout;
 	int fd, maxfd, ret, signo;
+	time_t lastcheck, now;
 	sigset_t mask;
 	fd_set rfds;
 
+	lastcheck = time(NULL);	
 	seltimeout.tv_sec = REPORT_INTERVAL;
 	seltimeout.tv_usec = 0;
 	sigtimeout.tv_sec = 0;
@@ -943,9 +946,18 @@ main_loop(void)
 
 		PJDLOG_ASSERT(maxfd + 1 <= (int)FD_SETSIZE);
 		ret = select(maxfd + 1, &rfds, NULL, NULL, &seltimeout);
-		if (ret == 0)
+		now = time(NULL);
+		if (lastcheck + REPORT_INTERVAL <= now) {
 			hook_check();
-		else if (ret == -1) {
+			lastcheck = now;
+		}
+		if (ret == 0) {
+			/*
+			 * select(2) timed out, so there should be no
+			 * descriptors to check.
+			 */
+			continue;
+		} else if (ret == -1) {
 			if (errno == EINTR)
 				continue;
 			KEEP_ERRNO((void)pidfile_remove(pfh));
