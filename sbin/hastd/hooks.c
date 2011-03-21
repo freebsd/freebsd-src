@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <pjdlog.h>
 
 #include "hooks.h"
+#include "subr.h"
 #include "synch.h"
 
 /* Report processes that are running for too long not often than this value. */
@@ -184,8 +185,8 @@ hook_alloc(const char *path, char **args)
 	(void)strlcpy(hp->hp_comm, path, sizeof(hp->hp_comm));
 	/* We start at 2nd argument as we don't want to have exec name twice. */
 	for (ii = 1; args[ii] != NULL; ii++) {
-		(void)strlcat(hp->hp_comm, " ", sizeof(hp->hp_comm));
-		(void)strlcat(hp->hp_comm, args[ii], sizeof(hp->hp_comm));
+		(void)snprlcat(hp->hp_comm, sizeof(hp->hp_comm), " %s",
+		    args[ii]);
 	}
 	if (strlen(hp->hp_comm) >= sizeof(hp->hp_comm) - 1) {
 		pjdlog_error("Exec path too long, correct configuration file.");
