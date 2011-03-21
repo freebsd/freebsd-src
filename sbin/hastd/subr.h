@@ -45,6 +45,9 @@
 	errno = _rerrno;						\
 } while (0)
 
+int vsnprlcat(char *str, size_t size, const char *fmt, va_list ap);
+int snprlcat(char *str, size_t size, const char *fmt, ...);
+
 int provinfo(struct hast_resource *res, bool dowrite);
 const char *role2str(int role);
 int drop_privs(void);
