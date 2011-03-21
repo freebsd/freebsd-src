@@ -2324,7 +2324,11 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	unsigned int last_timestamp;
 	int rv;
 	boolean_t fictitious, need_wakeup, result, user_wire;
+	vm_prot_t prot;
 
+	prot = 0;
+	if (flags & VM_MAP_WIRE_WRITE)
+		prot |= VM_PROT_WRITE;
 	user_wire = (flags & VM_MAP_WIRE_USER) ? TRUE : FALSE;
 	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
@@ -2392,20 +2396,17 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 * above.)
 		 */
 		entry->eflags |= MAP_ENTRY_IN_TRANSITION;
-		/*
-		 *
-		 */
-		if (entry->wired_count == 0) {
-			if ((entry->protection & (VM_PROT_READ|VM_PROT_EXECUTE))
-			    == 0) {
-				entry->eflags |= MAP_ENTRY_WIRE_SKIPPED;
-				if ((flags & VM_MAP_WIRE_HOLESOK) == 0) {
-					end = entry->end;
-					rv = KERN_INVALID_ADDRESS;
-					goto done;
-				}
-				goto next_entry;
+		if ((entry->protection & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0
+		    || (entry->protection & prot) != prot) {
+			entry->eflags |= MAP_ENTRY_WIRE_SKIPPED;
+			if ((flags & VM_MAP_WIRE_HOLESOK) == 0) {
+				end = entry->end;
+				rv = KERN_INVALID_ADDRESS;
+				goto done;
 			}
+			goto next_entry;
+		}
+		if (entry->wired_count == 0) {
 			entry->wired_count++;
 			saved_start = entry->start;
 			saved_end = entry->end;
