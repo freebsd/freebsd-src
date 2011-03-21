@@ -288,6 +288,8 @@ hook_check(void)
 
 	assert(hooks_initialized);
 
+	pjdlog_debug(1, "Checking hooks.");
+
 	/*
 	 * Report about processes that are running for a long time.
 	 */
@@ -362,6 +364,8 @@ hook_execv(const char *path, va_list ap)
 	hp = hook_alloc(path, args);
 	if (hp == NULL)
 		return;
+
+	pjdlog_debug(1, "Executing hook: %s", hp->hp_comm);
 
 	pid = fork();
 	switch (pid) {
