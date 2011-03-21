@@ -288,7 +288,7 @@ hook_check(void)
 
 	assert(hooks_initialized);
 
-	pjdlog_debug(1, "Checking hooks.");
+	pjdlog_debug(2, "Checking hooks.");
 
 	/*
 	 * Report about processes that are running for a long time.
