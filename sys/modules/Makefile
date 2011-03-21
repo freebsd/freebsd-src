@@ -185,9 +185,9 @@ SUBDIR=	${_3dfx} \
 	mfi \
 	mii \
 	mlx \
-	mlx4 \
-	mlx4ib \
-	mlxen \
+	${_mlx4} \
+	${_mlx4ib} \
+	${_mlxen} \
 	${_mly} \
 	mmc \
 	mmcsd \
@@ -198,7 +198,7 @@ SUBDIR=	${_3dfx} \
 	msdosfs_iconv \
 	${_mse} \
 	msk \
-	mthca \
+	${_mthca} \
 	mvs \
 	mwl \
 	mwlfw \
@@ -673,6 +673,13 @@ _zfs=		zfs
 .endif
 .endif
 
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_mthca=		mthca
+_mlx4=		mlx4
+_mlx4ib=	mlx4ib
+_mlxen=		mlxen
+.endif
+
 .if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
 SUBDIR=${MODULES_OVERRIDE}
 .endif
@@ -690,5 +697,6 @@ afterinstall:
 		kldxref ${DESTDIR}${KMODDIR}; \
 	fi
 .endif
+#endif
 
 .include <bsd.subdir.mk>
