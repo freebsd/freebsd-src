@@ -48,4 +48,4 @@ struct bootinfo {
 	uint64_t	bi_modulep;		/* preloaded modules */
 };
 
-extern struct bootinfo bootinfo;
+extern struct bootinfo *bootinfo;
