@@ -41,3 +41,5 @@ __FBSDID("$FreeBSD$");
 SYSCALL(reboot)
 	iret
 END(__sys_reboot)
+
+	.section .note.GNU-stack,"",%progbits

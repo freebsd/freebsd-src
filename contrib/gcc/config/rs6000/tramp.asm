@@ -115,3 +115,5 @@ FUNC_START(__trampoline_setup)
 FUNC_END(__trampoline_setup)
 
 #endif
+
+	.section .note.GNU-stack,"",%progbits

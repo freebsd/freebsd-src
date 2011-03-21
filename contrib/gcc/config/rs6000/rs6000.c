@@ -18426,7 +18426,7 @@ rs6000_elf_declare_function_name (FILE *file, const char *name, tree decl)
 static void
 rs6000_elf_end_indicate_exec_stack (void)
 {
-  if (TARGET_32BIT)
+  if (NEED_INDICATE_EXEC_STACK)
     file_end_indicate_exec_stack ();
 }
 #endif

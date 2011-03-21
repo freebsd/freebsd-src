@@ -98,6 +98,20 @@ struct ifnet *cvm_oct_device[TOTAL_NUMBER_OF_PORTS];
  */
 static struct taskqueue *cvm_oct_link_taskq;
 
+/*
+ * Number of buffers in output buffer pool.
+ */
+static int cvm_oct_num_output_buffers;
+
+/*
+ * The offset from mac_addr_base that should be used for the next port
+ * that is configured.  By convention, if any mgmt ports exist on the
+ * chip, they get the first mac addresses.  The ports controlled by
+ * this driver are numbered sequencially following any mgmt addresses
+ * that may exist.
+ */
+unsigned int cvm_oct_mac_addr_offset;
+
 /**
  * Function to update link status.
  */
@@ -185,13 +199,13 @@ static void cvm_do_timer(void *arg)
 	}
 }
 
-
 /**
  * Configure common hardware for all interfaces
  */
 static void cvm_oct_configure_common_hw(device_t bus)
 {
 	struct octebus_softc *sc;
+	int pko_queues;
 	int error;
 	int rid;
 
@@ -199,13 +213,34 @@ static void cvm_oct_configure_common_hw(device_t bus)
 
 	/* Setup the FPA */
 	cvmx_fpa_enable();
-	cvm_oct_mem_fill_fpa(CVMX_FPA_PACKET_POOL, CVMX_FPA_PACKET_POOL_SIZE, num_packet_buffers);
-	cvm_oct_mem_fill_fpa(CVMX_FPA_WQE_POOL, CVMX_FPA_WQE_POOL_SIZE, num_packet_buffers);
-	if (CVMX_FPA_OUTPUT_BUFFER_POOL != CVMX_FPA_PACKET_POOL)
-		cvm_oct_mem_fill_fpa(CVMX_FPA_OUTPUT_BUFFER_POOL, CVMX_FPA_OUTPUT_BUFFER_POOL_SIZE, 128);
+	cvm_oct_mem_fill_fpa(CVMX_FPA_PACKET_POOL, CVMX_FPA_PACKET_POOL_SIZE,
+			     num_packet_buffers);
+	cvm_oct_mem_fill_fpa(CVMX_FPA_WQE_POOL, CVMX_FPA_WQE_POOL_SIZE,
+			     num_packet_buffers);
+	if (CVMX_FPA_OUTPUT_BUFFER_POOL != CVMX_FPA_PACKET_POOL) {
+		/*
+		 * If the FPA uses different pools for output buffers and
+		 * packets, size the output buffer pool based on the number
+		 * of PKO queues.
+		 */
+		if (OCTEON_IS_MODEL(OCTEON_CN38XX))
+			pko_queues = 128;
+		else if (OCTEON_IS_MODEL(OCTEON_CN3XXX))
+			pko_queues = 32;
+		else if (OCTEON_IS_MODEL(OCTEON_CN50XX))
+			pko_queues = 32;
+		else
+			pko_queues = 256;
+
+		cvm_oct_num_output_buffers = 4 * pko_queues;
+		cvm_oct_mem_fill_fpa(CVMX_FPA_OUTPUT_BUFFER_POOL,
+				     CVMX_FPA_OUTPUT_BUFFER_POOL_SIZE,
+				     cvm_oct_num_output_buffers);
+	}
 
 	if (USE_RED)
-		cvmx_helper_setup_red(num_packet_buffers/4, num_packet_buffers/8);
+		cvmx_helper_setup_red(num_packet_buffers/4,
+				      num_packet_buffers/8);
 
 	/* Enable the MII interface */
 	if (!octeon_is_simulation())
@@ -224,7 +259,7 @@ static void cvm_oct_configure_common_hw(device_t bus)
 
         error = bus_setup_intr(bus, sc->sc_rx_irq, INTR_TYPE_NET | INTR_MPSAFE,
 			       cvm_oct_do_interrupt, NULL, cvm_oct_device,
-			       NULL);
+			       &sc->sc_rx_intr_cookie);
         if (error != 0) {
                 device_printf(bus, "could not setup workq irq");
 		return;
@@ -232,21 +267,18 @@ static void cvm_oct_configure_common_hw(device_t bus)
 
 
 #ifdef SMP
-	if (USE_MULTICORE_RECEIVE) {
-		critical_enter();
-		{
-			int cpu;
-			for (cpu = 0; cpu < mp_maxid; cpu++) {
-				if (!CPU_ABSENT(cpu) &&
-				   (cpu != PCPU_GET(cpuid))) {
-					cvmx_ciu_intx0_t en;
-					en.u64 = cvmx_read_csr(CVMX_CIU_INTX_EN0(cpu*2));
-					en.s.workq |= (1<<pow_receive_group);
-					cvmx_write_csr(CVMX_CIU_INTX_EN0(cpu*2), en.u64);
-				}
-			}
+	{
+		cvmx_ciu_intx0_t en;
+		int core;
+
+		CPU_FOREACH(core) {
+			if (core == PCPU_GET(cpuid))
+				continue;
+
+			en.u64 = cvmx_read_csr(CVMX_CIU_INTX_EN0(core*2));
+			en.s.workq |= (1<<pow_receive_group);
+			cvmx_write_csr(CVMX_CIU_INTX_EN0(core*2), en.u64);
 		}
-		critical_exit();
 	}
 #endif
 }
@@ -295,6 +327,20 @@ int cvm_oct_init_module(device_t bus)
 
 	printf("cavium-ethernet: %s\n", OCTEON_SDK_VERSION_STRING);
 
+	/*
+	 * MAC addresses for this driver start after the management
+	 * ports.
+	 *
+	 * XXX Would be nice if __cvmx_mgmt_port_num_ports() were
+	 *     not static to cvmx-mgmt-port.c.
+	 */
+	if (OCTEON_IS_MODEL(OCTEON_CN56XX))
+		cvm_oct_mac_addr_offset = 1;
+	else if (OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX))
+		cvm_oct_mac_addr_offset = 2;
+	else
+		cvm_oct_mac_addr_offset = 0;
+
 	cvm_oct_rx_initialize();
 	cvm_oct_configure_common_hw(bus);
 
@@ -306,11 +352,13 @@ int cvm_oct_init_module(device_t bus)
 		int num_ports = cvmx_helper_ports_on_interface(interface);
 		int port;
 
-		for (port = cvmx_helper_get_ipd_port(interface, 0); port < cvmx_helper_get_ipd_port(interface, num_ports); port++) {
+		for (port = 0; port < num_ports; port++) {
 			cvmx_pip_prt_tagx_t pip_prt_tagx;
-			pip_prt_tagx.u64 = cvmx_read_csr(CVMX_PIP_PRT_TAGX(port));
+			int pkind = cvmx_helper_get_ipd_port(interface, port);
+
+			pip_prt_tagx.u64 = cvmx_read_csr(CVMX_PIP_PRT_TAGX(pkind));
 			pip_prt_tagx.s.grp = pow_receive_group;
-			cvmx_write_csr(CVMX_PIP_PRT_TAGX(port), pip_prt_tagx.u64);
+			cvmx_write_csr(CVMX_PIP_PRT_TAGX(pkind), pip_prt_tagx.u64);
 		}
 	}
 
@@ -448,17 +496,16 @@ int cvm_oct_init_module(device_t bus)
  *
  * @return Zero on success
  */
-void cvm_oct_cleanup_module(void)
+void cvm_oct_cleanup_module(device_t bus)
 {
 	int port;
+	struct octebus_softc *sc = device_get_softc(bus);
 
 	/* Disable POW interrupt */
 	cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), 0);
 
-#if 0
 	/* Free the interrupt handler */
-	free_irq(8 + pow_receive_group, cvm_oct_device);
-#endif
+	bus_teardown_intr(bus, sc->sc_rx_irq, sc->sc_rx_intr_cookie);
 
 	callout_stop(&cvm_oct_poll_timer);
 	cvm_oct_rx_shutdown();
@@ -478,4 +525,13 @@ void cvm_oct_cleanup_module(void)
 			cvm_oct_device[port] = NULL;
 		}
 	}
+	/* Free the HW pools */
+	cvm_oct_mem_empty_fpa(CVMX_FPA_PACKET_POOL, CVMX_FPA_PACKET_POOL_SIZE, num_packet_buffers);
+	cvm_oct_mem_empty_fpa(CVMX_FPA_WQE_POOL, CVMX_FPA_WQE_POOL_SIZE, num_packet_buffers);
+
+	if (CVMX_FPA_OUTPUT_BUFFER_POOL != CVMX_FPA_PACKET_POOL)
+		cvm_oct_mem_empty_fpa(CVMX_FPA_OUTPUT_BUFFER_POOL, CVMX_FPA_OUTPUT_BUFFER_POOL_SIZE, cvm_oct_num_output_buffers);
+
+	/* Disable FPA, all buffers are free, not done by helper shutdown. */
+	cvmx_fpa_disable();
 }

@@ -37,8 +37,28 @@ static void ar5416StartNFCal(struct ath_hal *ah);
 static void ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *);
 static int16_t ar5416GetNf(struct ath_hal *, struct ieee80211_channel *);
 
+static uint16_t ar5416GetDefaultNF(struct ath_hal *ah, const struct ieee80211_channel *chan);
+static void ar5416SanitizeNF(struct ath_hal *ah, int16_t *nf);
+
 /*
  * Determine if calibration is supported by device and channel flags
+ */
+
+/*
+ * ADC GAIN/DC offset calibration is for calibrating two ADCs that
+ * are acting as one by interleaving incoming symbols. This isn't
+ * relevant for 2.4GHz 20MHz wide modes because, as far as I can tell,
+ * the secondary ADC is never enabled. It is enabled however for
+ * 5GHz modes.
+ *
+ * It hasn't been confirmed whether doing this calibration is needed
+ * at all in the above modes and/or whether it's actually harmful.
+ * So for now, let's leave it enabled and just remember to get
+ * confirmation that it needs to be clarified.
+ *
+ * See US Patent No: US 7,541,952 B1:
+ *  " Method and Apparatus for Offset and Gain Compensation for
+ *    Analog-to-Digital Converters."
  */
 static OS_INLINE HAL_BOOL
 ar5416IsCalSupp(struct ath_hal *ah, const struct ieee80211_channel *chan,
@@ -52,9 +72,12 @@ ar5416IsCalSupp(struct ath_hal *ah, const struct ieee80211_channel *chan,
 		return !IEEE80211_IS_CHAN_B(chan);
 	case ADC_GAIN_CAL:
 	case ADC_DC_CAL:
-		/* Run ADC Gain Cal for non-CCK & non 2GHz-HT20 only */
-		return !IEEE80211_IS_CHAN_B(chan) &&
-		    !(IEEE80211_IS_CHAN_2GHZ(chan) && IEEE80211_IS_CHAN_HT20(chan));
+		/* Run ADC Gain Cal for either 5ghz any or 2ghz HT40 */
+		if (IEEE80211_IS_CHAN_2GHZ(chan))
+			return AH_FALSE;
+		if (IEEE80211_IS_CHAN_HT20(chan))
+			return AH_FALSE;
+		return AH_TRUE;
 	}
 	return AH_FALSE;
 }
@@ -163,18 +186,9 @@ ar5416RunInitCals(struct ath_hal *ah, int init_cal_count)
 }
 #endif
 
-/*
- * Initialize Calibration infrastructure.
- */
 HAL_BOOL
-ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
+ar5416InitCalHardware(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
-	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
-	HAL_CHANNEL_INTERNAL *ichan;
-
-	ichan = ath_hal_checkchannel(ah, chan);
-	HALASSERT(ichan != AH_NULL);
-
 	if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
 		/* Enable Rx Filter Cal */
 		OS_REG_CLR_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
@@ -215,6 +229,34 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		return AH_FALSE;
 	}
 
+	return AH_TRUE;
+}
+
+/*
+ * Initialize Calibration infrastructure.
+ */
+#define	MAX_CAL_CHECK		32
+HAL_BOOL
+ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
+{
+	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
+	HAL_CHANNEL_INTERNAL *ichan;
+	int i;
+
+	ichan = ath_hal_checkchannel(ah, chan);
+	HALASSERT(ichan != AH_NULL);
+
+	/* Do initial chipset-specific calibration */
+	if (! AH5416(ah)->ah_cal_initcal(ah, chan)) {
+		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: initial chipset calibration did "
+		    "not complete in time; noisy environment?\n", __func__);
+		return AH_FALSE;
+	}
+
+	/* If there's PA Cal, do it */
+	if (AH5416(ah)->ah_cal_pacal)
+		AH5416(ah)->ah_cal_pacal(ah, AH_TRUE);
+
 	/* 
 	 * Do NF calibration after DC offset and other CALs.
 	 * Per system engineers, noise floor value can sometimes be 20 dB
@@ -224,13 +266,29 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	/* XXX this actually kicks off a NF calibration -adrian */
 	OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
 	/*
-	 * Try to make sure the above NF cal completes, just so
-	 * it doesn't clash with subsequent percals -adrian
+	 * This sometimes takes a -lot- longer than it should.
+	 * Just give it a bit more time.
 	 */
-	if (! ar5212WaitNFCalComplete(ah, 10000)) {
+	for (i = 0; i < MAX_CAL_CHECK; i++) {
+		if (ar5212WaitNFCalComplete(ah, 10000))
+			break;
+
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: initial NF calibration did "
-		    "not complete in time; noisy environment?\n", __func__);
-		return AH_FALSE;
+		    "not complete in time; noisy environment (pass %d)?\n", __func__, i);
+	}
+	
+	/*
+	 * Although periodic and NF calibrations shouldn't run concurrently,
+	 * this was causing the radio to not be usable on the active
+	 * channel if the channel was busy.
+	 *
+	 * Instead, now simply print a warning and continue. That way if users
+	 * report "weird crap", they should get this warning.
+	 */
+	if (i >= MAX_CAL_CHECK) {
+		ath_hal_printf(ah, "[ath] Warning - initial NF calibration did "
+		    "not complete in time, noisy environment?\n");
+		/* return AH_FALSE; */
 	}
 
 	/* Initialize list pointers */
@@ -285,6 +343,7 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	ichan->calValid = 0;
 
 	return AH_TRUE;
+#undef	MAX_CAL_CHECK
 }
 
 /*
@@ -448,6 +507,13 @@ ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 
 	/* Do NF cal only at longer intervals */
 	if (longcal) {
+		/* Do PA calibration if the chipset supports */
+		if (AH5416(ah)->ah_cal_pacal)
+			AH5416(ah)->ah_cal_pacal(ah, AH_FALSE);
+
+		/* Do temperature compensation if the chipset needs it */
+		AH5416(ah)->ah_olcTempCompensation(ah);
+
 		/*
 		 * Get the value from the previous NF cal
 		 * and update the history buffer.
@@ -531,6 +597,7 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	int i;
 	int32_t val;
 	uint8_t chainmask;
+	int16_t default_nf = ar5416GetDefaultNF(ah, chan);
 
 	/*
 	 * Force NF calibration for all chains.
@@ -550,13 +617,30 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * so we can load below.
 	 */
 	h = AH5416(ah)->ah_cal.nfCalHist;
-	for (i = 0; i < AR5416_NUM_NF_READINGS; i ++)
+	HALDEBUG(ah, HAL_DEBUG_NFCAL, "CCA: ");
+	for (i = 0; i < AR5416_NUM_NF_READINGS; i ++) {
+
+		/* Don't write to EXT radio CCA registers */
+		/* XXX this check should really be cleaner! */
+		if (i >= 3 && !IEEE80211_IS_CHAN_HT40(chan))
+			continue;
+
 		if (chainmask & (1 << i)) { 
+			int16_t nf_val;
+
+			if (h)
+				nf_val = h[i].privNF;
+			else
+				nf_val = default_nf;
+
 			val = OS_REG_READ(ah, ar5416_cca_regs[i]);
 			val &= 0xFFFFFE00;
-			val |= (((uint32_t)(h[i].privNF) << 1) & 0x1ff);
+			val |= (((uint32_t) nf_val << 1) & 0x1ff);
+			HALDEBUG(ah, HAL_DEBUG_NFCAL, "[%d: %d]", i, nf_val);
 			OS_REG_WRITE(ah, ar5416_cca_regs[i], val);
 		}
+	}
+	HALDEBUG(ah, HAL_DEBUG_NFCAL, "\n");
 
 	/* Load software filtered NF value into baseband internal minCCApwr variable. */
 	OS_REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_ENABLE_NF);
@@ -594,6 +678,11 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		}
 }
 
+/*
+ * This just initialises the "good" values for AR5416 which
+ * may not be right; it'lll be overridden by ar5416SanitizeNF()
+ * to nominal values.
+ */
 void
 ar5416InitNfHistBuff(struct ar5212NfCalHist *h)
 {
@@ -635,6 +724,50 @@ ar5416UpdateNFHistBuff(struct ar5212NfCalHist *h, int16_t *nfarray)
 	}
 }   
 
+static uint16_t
+ar5416GetDefaultNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
+{
+        struct ar5416NfLimits *limit;
+
+        if (!chan || IEEE80211_IS_CHAN_2GHZ(chan))
+                limit = &AH5416(ah)->nf_2g;
+        else
+                limit = &AH5416(ah)->nf_5g;
+
+        return limit->nominal;
+}
+
+static void
+ar5416SanitizeNF(struct ath_hal *ah, int16_t *nf)
+{
+
+        struct ar5416NfLimits *limit;
+        int i;
+
+        if (IEEE80211_IS_CHAN_2GHZ(AH_PRIVATE(ah)->ah_curchan))
+                limit = &AH5416(ah)->nf_2g;
+        else
+                limit = &AH5416(ah)->nf_5g;
+
+        for (i = 0; i < AR5416_NUM_NF_READINGS; i++) {
+                if (!nf[i])
+                        continue;
+
+                if (nf[i] > limit->max) {
+                        HALDEBUG(ah, HAL_DEBUG_NFCAL,
+                                  "NF[%d] (%d) > MAX (%d), correcting to MAX\n",
+                                  i, nf[i], limit->max);
+                        nf[i] = limit->max;
+                } else if (nf[i] < limit->min) {
+                        HALDEBUG(ah, HAL_DEBUG_NFCAL,
+                                  "NF[%d] (%d) < MIN (%d), correcting to NOM\n",
+                                  i, nf[i], limit->min);
+                        nf[i] = limit->nominal;
+                }
+        }
+}
+
+
 /*
  * Read the NF and check it against the noise floor threshhold
  */
@@ -655,6 +788,7 @@ ar5416GetNf(struct ath_hal *ah, struct ieee80211_channel *chan)
 		/* TODO - enhance for multiple chains and ext ch */
 		ath_hal_getNoiseFloor(ah, nfarray);
 		nf = nfarray[0];
+		ar5416SanitizeNF(ah, nfarray);
 		if (ar5416GetEepromNoiseFloorThresh(ah, chan, &nfThresh)) {
 			if (nf > nfThresh) {
 				HALDEBUG(ah, HAL_DEBUG_ANY,

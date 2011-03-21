@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_cputype.h"
 #include "opt_ddb.h"
 #include "opt_md.h"
-#include "opt_msgbuf.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -103,8 +102,11 @@ __FBSDID("$FreeBSD$");
 char machine[] = "mips";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "Machine class");
 
-static char cpu_model[30];
+char cpu_model[80];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "Machine model");
+
+char cpu_board[80];
+SYSCTL_STRING(_hw, OID_AUTO, board, CTLFLAG_RD, cpu_board, 0, "Machine board");
 
 int cold = 1;
 long realmem = 0;
@@ -136,8 +138,8 @@ char pcpu_space[MAXCPU][PAGE_SIZE * 2] \
 
 struct pcpu *pcpup = (struct pcpu *)pcpu_space;
 
-vm_offset_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
-vm_offset_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
+vm_paddr_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
+vm_paddr_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
 vm_paddr_t dump_avail[PHYS_AVAIL_ENTRIES + 2];
 
 #ifdef UNIMPLEMENTED
@@ -182,8 +184,8 @@ cpu_startup(void *dummy)
 	if (boothowto & RB_VERBOSE)
 		bootverbose++;
 
-	printf("real memory  = %lu (%luK bytes)\n", ptoa(realmem),
-	    ptoa(realmem) / 1024);
+	printf("real memory  = %ju (%juK bytes)\n", ptoa((uintmax_t)realmem),
+	    ptoa((uintmax_t)realmem) / 1024);
 
 	/*
 	 * Display any holes after the first chunk of extended memory.
@@ -193,20 +195,21 @@ cpu_startup(void *dummy)
 
 		printf("Physical memory chunk(s):\n");
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
-			uintptr_t size1 = phys_avail[indx + 1] - phys_avail[indx];
+			vm_paddr_t size1 = phys_avail[indx + 1] - phys_avail[indx];
 
-			printf("0x%08llx - 0x%08llx, %llu bytes (%llu pages)\n",
-			    (unsigned long long)phys_avail[indx],
-			    (unsigned long long)phys_avail[indx + 1] - 1,
-			    (unsigned long long)size1,
-			    (unsigned long long)size1 / PAGE_SIZE);
+			printf("0x%08jx - 0x%08jx, %ju bytes (%ju pages)\n",
+			    (uintmax_t)phys_avail[indx],
+			    (uintmax_t)phys_avail[indx + 1] - 1,
+			    (uintmax_t)size1,
+			    (uintmax_t)size1 / PAGE_SIZE);
 		}
 	}
 
 	vm_ksubmap_init(&kmi);
 
-	printf("avail memory = %lu (%luMB)\n", ptoa(cnt.v_free_count),
-	    ptoa(cnt.v_free_count) / 1048576);
+	printf("avail memory = %ju (%juMB)\n", 
+	    ptoa((uintmax_t)cnt.v_free_count),
+	    ptoa((uintmax_t)cnt.v_free_count) / 1048576);
 	cpu_init_interrupts();
 
 	/*
@@ -509,12 +512,12 @@ cpu_idle_wakeup(int cpu)
 }
 
 int
-is_cacheable_mem(vm_offset_t addr)
+is_cacheable_mem(vm_paddr_t pa)
 {
 	int i;
 
 	for (i = 0; physmem_desc[i + 1] != 0; i += 2) {
-		if (addr >= physmem_desc[i] && addr < physmem_desc[i + 1])
+		if (pa >= physmem_desc[i] && pa < physmem_desc[i + 1])
 			return (1);
 	}
 

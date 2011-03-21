@@ -129,7 +129,7 @@ kernel_from_dumpnr(int nr)
 	snprintf(path, sizeof(path), "%s/info.%d", crashdir, nr);
 	info = fopen(path, "r");
 	if (info == NULL) {
-		warn(path);
+		warn("%s", path);
 		return;
 	}
 	while (fgets(path, sizeof(path), info) != NULL) {
@@ -408,7 +408,7 @@ main(int argc, char *argv[])
 	if (dumpnr >= 0) {
 		snprintf(path, sizeof(path), "%s/vmcore.%d", crashdir, dumpnr);
 		if (stat(path, &st) == -1)
-			err(1, path);
+			err(1, "%s", path);
 		if (!S_ISREG(st.st_mode))
 			errx(1, "%s: not a regular file", path);
 		vmcore = strdup(path);

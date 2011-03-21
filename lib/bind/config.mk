@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 .include <bsd.own.mk>
+.include <bsd.endian.mk>
 
 # BIND version number
 .if defined(BIND_DIR) && exists(${BIND_DIR}/version)
@@ -45,7 +46,7 @@ CFLAGS+=	-DOPENSSL
 CFLAGS+=	-DUSE_MD5
 
 # Endianness
-.if ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "sparc64"
+.if ${TARGET_ENDIANNESS} == 4321
 CFLAGS+=	-DWORDS_BIGENDIAN
 .endif
 
@@ -121,4 +122,3 @@ CRYPTO_LDADD=	-lcrypto
 
 PTHREAD_DPADD=	${LIBPTHREAD}
 PTHREAD_LDADD=	-lpthread
-

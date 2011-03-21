@@ -51,3 +51,5 @@ ENTRY(remainder)
 	movsd	-8(%rsp),%xmm0
 	fstp	%st
 	ret
+
+	.section .note.GNU-stack,"",%progbits

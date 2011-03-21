@@ -140,7 +140,6 @@ _kvm_minidump_freevtop(kvm_t *kd)
 int
 _kvm_minidump_initvtop(kvm_t *kd)
 {
-	u_long pa;
 	struct vmstate *vmst;
 	off_t off;
 
@@ -182,7 +181,7 @@ _kvm_minidump_initvtop(kvm_t *kd)
 	}
 
 	if (pread(kd->pmfd, vmst->bitmap, vmst->hdr.bitmapsize, off) !=
-	    vmst->hdr.bitmapsize) {
+	    (ssize_t)vmst->hdr.bitmapsize) {
 		_kvm_err(kd, kd->program, "cannot read %d bytes for page bitmap",
 		    vmst->hdr.bitmapsize);
 		return (-1);
@@ -197,7 +196,7 @@ _kvm_minidump_initvtop(kvm_t *kd)
 	}
 
 	if (pread(kd->pmfd, vmst->ptemap, vmst->hdr.ptesize, off) !=
-	    vmst->hdr.ptesize) {
+	    (ssize_t)vmst->hdr.ptesize) {
 		_kvm_err(kd, kd->program, "cannot read %d bytes for ptemap",
 		    vmst->hdr.ptesize);
 		return (-1);
@@ -219,7 +218,6 @@ _kvm_minidump_kvatop(kvm_t *kd, u_long va, off_t *pa)
 	u_long offset, pteindex, a;
 	off_t ofs;
 	pt_entry_t *ptemap;
-	int i;
 
 	if (ISALIVE(kd)) {
 		_kvm_err(kd, 0, "kvm_kvatop called in live kernel!");
@@ -238,9 +236,9 @@ _kvm_minidump_kvatop(kvm_t *kd, u_long va, off_t *pa)
 		a = (MIPS_XKPHYS_TO_PHYS(va));
 	else
 #endif
-	if (va >= MIPS_KSEG0_START && va < MIPS_KSEG0_END)
+	if (va >= (u_long)MIPS_KSEG0_START && va < (u_long)MIPS_KSEG0_END)
 		a = (MIPS_KSEG0_TO_PHYS(va));
-	else if (va >= MIPS_KSEG1_START && va < MIPS_KSEG1_END)
+	else if (va >= (u_long)MIPS_KSEG1_START && va < (u_long)MIPS_KSEG1_END)
 		a = (MIPS_KSEG1_TO_PHYS(va));
 	else if (va >= vm->hdr.kernbase) {
 		pteindex = (va - vm->hdr.kernbase) >> PAGE_SHIFT;

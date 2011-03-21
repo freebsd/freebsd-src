@@ -50,8 +50,8 @@ nexttowardf(float x, long double y)
 	if(ix<0x00800000) {		/* underflow */
 	    t = x*x;
 	    if(t!=x) {		/* raise underflow flag */
-	        SET_FLOAT_WORD(y,hx);
-		return y;
+	        SET_FLOAT_WORD(x,hx);
+		return x;
 	    }
 	}
 	SET_FLOAT_WORD(x,hx);

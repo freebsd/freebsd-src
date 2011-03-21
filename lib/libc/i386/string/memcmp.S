@@ -74,3 +74,5 @@ L6:	movzbl  -1(%edi),%eax		/* Perform unsigned comparison	*/
 	popl	%edi
 	ret
 END(memcmp)
+
+	.section .note.GNU-stack,"",%progbits

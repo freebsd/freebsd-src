@@ -66,8 +66,6 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 {
 	cvmx_pko_command_word0_t    pko_command;
 	cvmx_buf_ptr_t              hw_buffer;
-	uint64_t                    old_scratch;
-	uint64_t                    old_scratch2;
 	int                         dropped;
 	int                         qos;
 	cvm_oct_private_t          *priv = (cvm_oct_private_t *)ifp->if_softc;
@@ -94,18 +92,6 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 			qos = 0;
 	} else
 		qos = 0;
-
-	if (USE_ASYNC_IOBDMA) {
-		/* Save scratch in case userspace is using it */
-		CVMX_SYNCIOBDMA;
-		old_scratch = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
-		old_scratch2 = cvmx_scratch_read64(CVMX_SCR_SCRATCH+8);
-
-		/* Assume we're going to be able t osend this packet. Fetch and increment
-		   the number of pending packets for output */
-		cvmx_fau_async_fetch_and_add32(CVMX_SCR_SCRATCH+8, FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
-		cvmx_fau_async_fetch_and_add32(CVMX_SCR_SCRATCH, priv->fau+qos*4, 1);
-	}
 
 	/* The CN3XXX series of parts has an errata (GMX-401) which causes the
 	   GMX block to hang if a collision occurs towards the end of a
@@ -156,9 +142,14 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 		 * in memory we borrow from the WQE pool.
 		 */
 		work = cvmx_fpa_alloc(CVMX_FPA_WQE_POOL);
-		gp = (uint64_t *)work;
+		if (work == NULL) {
+			m_freem(m);
+			ifp->if_oerrors++;
+			return 1;
+		}
 
 		segs = 0;
+		gp = (uint64_t *)work;
 		for (n = m; n != NULL; n = n->m_next) {
 			if (segs == CVMX_FPA_WQE_POOL_SIZE / sizeof (uint64_t))
 				panic("%s: too many segments in packet; call m_collapse().", __func__);
@@ -195,8 +186,7 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 	pko_command.s.subone0 = 1;
 
 	/* Check if we can use the hardware checksumming */
-	if (USE_HW_TCPUDP_CHECKSUM &&
-	    (m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP)) != 0) {
+	if ((m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP)) != 0) {
 		/* Use hardware checksum calc */
 		pko_command.s.ipoffp1 = ETHER_HDR_LEN + 1;
 	}
@@ -207,16 +197,9 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 	 * core instead of per QoS, to reduce contention here.
 	 */
 	IF_LOCK(&priv->tx_free_queue[qos]);
-	if (USE_ASYNC_IOBDMA) {
-		/* Get the number of mbufs in use by the hardware */
-		CVMX_SYNCIOBDMA;
-		in_use = cvmx_scratch_read64(CVMX_SCR_SCRATCH);
-		buffers_to_free = cvmx_scratch_read64(CVMX_SCR_SCRATCH+8);
-	} else {
-		/* Get the number of mbufs in use by the hardware */
-		in_use = cvmx_fau_fetch_and_add32(priv->fau+qos*4, 1);
-		buffers_to_free = cvmx_fau_fetch_and_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
-	}
+	/* Get the number of mbufs in use by the hardware */
+	in_use = cvmx_fau_fetch_and_add32(priv->fau+qos*4, 1);
+	buffers_to_free = cvmx_fau_fetch_and_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
 
 	cvmx_pko_send_packet_prepare(priv->port, priv->queue + qos, CVMX_PKO_LOCK_CMD_QUEUE);
 
@@ -231,12 +214,6 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 		dropped = 1;
 	}
 
-	if (USE_ASYNC_IOBDMA) {
-		/* Restore the scratch area */
-		cvmx_scratch_write64(CVMX_SCR_SCRATCH, old_scratch);
-		cvmx_scratch_write64(CVMX_SCR_SCRATCH+8, old_scratch2);
-	}
-
 	if (__predict_false(dropped)) {
 		m_freem(m);
 		cvmx_fau_atomic_add32(priv->fau+qos*4, -1);
@@ -247,6 +224,9 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 
 		/* Pass it to any BPF listeners.  */
 		ETHER_BPF_MTAP(ifp, m);
+
+		ifp->if_opackets++;
+		ifp->if_obytes += m->m_pkthdr.len;
 	}
 
 	/* Free mbufs not in use by the hardware */

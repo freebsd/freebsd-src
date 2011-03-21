@@ -57,3 +57,5 @@ ENTRY(__sys_vfork)
 	jmp	HIDENAME(cerror)
 #endif
 END(__sys_vfork)
+
+	.section .note.GNU-stack,"",%progbits

@@ -3,6 +3,7 @@
 
 AIM			opt_global.h
 E500			opt_global.h
+CELL
 
 POWERPC
 POWERPC64
@@ -17,6 +18,7 @@ GFB_NO_MODE_CHANGE	opt_gfb.h
 
 MPC85XX			opt_platform.h
 POWERMAC		opt_platform.h
+PS3			opt_platform.h
 MAMBO
 PSIM
 

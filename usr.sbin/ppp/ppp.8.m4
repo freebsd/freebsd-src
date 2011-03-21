@@ -3924,6 +3924,13 @@ If the
 .Dq !\&
 is used, no error is given if the address is not currently assigned to
 the interface (and no deletion takes place).
+.It iface name Ar name
+Renames the interface to
+.Ar name .
+.It iface description Ar description
+Sets the interface description to
+.Ar description .
+Useful if you have many interfaces on your system.
 .It iface show
 Shows the current state and current addresses for the interface.
 It is much the same as running

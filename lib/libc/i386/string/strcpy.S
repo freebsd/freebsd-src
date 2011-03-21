@@ -88,3 +88,5 @@ L1:	movb	(%edx),%al		/* unroll loop, but not too much */
 L2:	popl	%eax			/* pop dst address */
 	ret
 END(strcpy)
+
+	.section .note.GNU-stack,"",%progbits

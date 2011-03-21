@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_kstack_pages.h"
-#include "opt_msgbuf.h"
+#include "opt_platform.h"
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
@@ -163,13 +163,18 @@ extern void dcache_inval(void);
 extern void icache_enable(void);
 extern void icache_inval(void);
 
+/*
+ * Bootinfo is passed to us by legacy loaders. Save the address of the
+ * structure to handle backward compatibility.
+ */
+uint32_t *bootinfo;
+
 struct kva_md_info kmi;
 struct pcpu __pcpu[MAXCPU];
 struct trapframe frame0;
 int cold = 1;
 long realmem = 0;
 long Maxmem = 0;
-
 char machine[] = "powerpc";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
 
@@ -294,6 +299,10 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
 			dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
 			end = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
+
+			bootinfo = (uint32_t *)preload_search_info(kmdp,
+			    MODINFO_METADATA | MODINFOMD_BOOTINFO);
+
 #ifdef DDB
 			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
@@ -312,6 +321,15 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 		  */
 		while (1);
 	}
+
+#if defined(FDT_DTB_STATIC)
+	/*
+	 * In case the device tree blob was not retrieved (from metadata) try
+	 * to use the statically embedded one.
+	 */
+	if (dtbp == (vm_offset_t)NULL)
+		dtbp = (vm_offset_t)&fdt_static_dtb;
+#endif
 
 	if (OF_install(OFW_FDT, 0) == FALSE)
 		while (1);
@@ -401,7 +419,7 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	pc->pc_curpcb = thread0.td_pcb;
 
 	/* Initialise the message buffer. */
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufinit(msgbufp, msgbufsize);
 
 	/* Enable Machine Check interrupt. */
 	mtmsr(mfmsr() | PSL_ME);

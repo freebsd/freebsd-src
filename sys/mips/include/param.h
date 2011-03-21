@@ -116,31 +116,39 @@
 #define	CACHE_LINE_SHIFT	6
 #define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
 
-#define	PAGE_SHIFT	12		/* LOG2(PAGE_SIZE) */
-#define	PAGE_SIZE	(1<<PAGE_SHIFT) /* bytes/page */
-#define	PAGE_MASK	(PAGE_SIZE-1)
+#define	PAGE_SHIFT		12		/* LOG2(PAGE_SIZE) */
+#define	PAGE_SIZE		(1<<PAGE_SHIFT) /* bytes/page */
+#define	PAGE_MASK		(PAGE_SIZE-1)
 
-#define	NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
-#define	NPDEPG		(PAGE_SIZE/(sizeof (pd_entry_t)))
+#define	NPTEPG			(PAGE_SIZE/(sizeof (pt_entry_t)))
+#define	NPDEPG			(PAGE_SIZE/(sizeof (pd_entry_t)))
 
-#if defined(__mips_n64)
-#define	SEGSHIFT	31		/* LOG2(NBSEG) */
-#define	NBSEG		(1ul << SEGSHIFT)	/* bytes/segment */
-#define	PDRSHIFT	22              /* second level */
-#define	PDRMASK		((1 << PDRSHIFT) - 1)
+#if defined(__mips_n32) || defined(__mips_n64) /*  PHYSADDR_64_BIT */
+#define	NPTEPGSHIFT		9               /* LOG2(NPTEPG) */
 #else
-#define	SEGSHIFT	22		/* LOG2(NBSEG) */
-#define	NBSEG		(1 << SEGSHIFT)	/* bytes/segment */
-#define	PDRSHIFT	SEGSHIFT	/* alias for SEG in 32 bit */
-#define	PDRMASK		((1 << PDRSHIFT) - 1)
+#define	NPTEPGSHIFT		10               /* LOG2(NPTEPG) */
 #endif
-#define	NBPDR		(1 << PDRSHIFT)	/* bytes/pagedir */
-#define	SEGMASK		(NBSEG-1)	/* byte offset into segment */
 
-#define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
+#ifdef __mips_n64
+#define	NPDEPGSHIFT		9               /* LOG2(NPTEPG) */
+#define	SEGSHIFT		(PAGE_SHIFT + NPTEPGSHIFT + NPDEPGSHIFT)
+#define	NBSEG			(1ul << SEGSHIFT)
+#define	PDRSHIFT		(PAGE_SHIFT + NPTEPGSHIFT)
+#define	PDRMASK			((1 << PDRSHIFT) - 1)
+#else
+#define	NPDEPGSHIFT		10               /* LOG2(NPTEPG) */
+#define	SEGSHIFT		(PAGE_SHIFT + NPTEPGSHIFT)
+#define	NBSEG			(1 << SEGSHIFT)	/* bytes/segment */
+#define	PDRSHIFT		SEGSHIFT	/* alias for SEG in 32 bit */
+#define	PDRMASK			((1 << PDRSHIFT) - 1)
+#endif
+#define	NBPDR			(1 << PDRSHIFT)	/* bytes/pagedir */
+#define	SEGMASK			(NBSEG - 1)	/* byte offset into segment */
 
-#define	BLKDEV_IOSIZE	2048		/* xxx: Why is this 1/2 page? */
-#define	MAXDUMPPGS	1		/* xxx: why is this only one? */
+#define	MAXPAGESIZES		1		/* max supported pagesizes */
+
+#define	BLKDEV_IOSIZE		2048		/* xxx: Why is this 1/2 page? */
+#define	MAXDUMPPGS		1		/* xxx: why is this only one? */
 
 /*
  * The kernel stack needs to be aligned on a (PAGE_SIZE * 2) boundary.
@@ -151,8 +159,8 @@
 #define	UPAGES			2
 
 /* pages ("clicks") (4096 bytes) to disk blocks */
-#define	ctod(x)		((x) << (PAGE_SHIFT - DEV_BSHIFT))
-#define	dtoc(x)		((x) >> (PAGE_SHIFT - DEV_BSHIFT))
+#define	ctod(x)			((x) << (PAGE_SHIFT - DEV_BSHIFT))
+#define	dtoc(x)			((x) >> (PAGE_SHIFT - DEV_BSHIFT))
 
 /*
  * Map a ``block device block'' to a file system block.
@@ -160,24 +168,17 @@
  * field from the disk label.
  * For now though just use DEV_BSIZE.
  */
-#define	bdbtofsb(bn)	((bn) / (BLKDEV_IOSIZE/DEV_BSIZE))
+#define	bdbtofsb(bn)		((bn) / (BLKDEV_IOSIZE/DEV_BSIZE))
 
 /*
  * Mach derived conversion macros
  */
-#define round_page(x)		(((unsigned long)(x) + PAGE_MASK) & ~PAGE_MASK)
-#define trunc_page(x)		((unsigned long)(x) & ~PAGE_MASK)
+#define	round_page(x)		(((x) + PAGE_MASK) & ~PAGE_MASK)
+#define	trunc_page(x)		((x) & ~PAGE_MASK)
 
-#define atop(x)			((unsigned long)(x) >> PAGE_SHIFT)
-#define ptoa(x)			((unsigned long)(x) << PAGE_SHIFT)
+#define	atop(x)			((x) >> PAGE_SHIFT)
+#define	ptoa(x)			((x) << PAGE_SHIFT)
 
-#define mips_btop(x)		((unsigned long)(x) >> PAGE_SHIFT)
-#define mips_ptob(x)		((unsigned long)(x) << PAGE_SHIFT)
-
-#define	pgtok(x)		((unsigned long)(x) * (PAGE_SIZE / 1024))
-
-#ifndef _KERNEL
-#define	DELAY(n)	{ register int N = (n); while (--N > 0); }
-#endif /* !_KERNEL */
+#define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
 
 #endif /* !_MIPS_INCLUDE_PARAM_H_ */

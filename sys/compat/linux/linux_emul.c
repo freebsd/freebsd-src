@@ -87,7 +87,7 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 		em = malloc(sizeof *em, M_LINUX, M_WAITOK | M_ZERO);
 		em->pid = child;
 		em->pdeath_signal = 0;
-		em->used_requeue = 0;
+		em->flags = 0;
 		em->robust_futexes = NULL;
 		if (flags & LINUX_CLONE_THREAD) {
 			/* handled later in the code */
@@ -300,14 +300,14 @@ linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
 }
 
 void
-linux_schedtail(void *arg __unused, struct proc *p)
+linux_schedtail(struct thread *td)
 {
 	struct linux_emuldata *em;
+	struct proc *p;
 	int error = 0;
 	int *child_set_tid;
 
-	if (__predict_true(p->p_sysent != &elf_linux_sysvec))
-		return;
+	p = td->td_proc;
 
 	/* find the emuldata */
 	em = em_find(p, EMUL_DOLOCK);

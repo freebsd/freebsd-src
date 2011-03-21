@@ -1176,11 +1176,8 @@ ndis_rxeof_eth(adapter, ctx, addr, hdr, hdrlen, lookahead, lookaheadlen, pktlen)
 	block = adapter;
 
 	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-
-	if (m == NULL) {
-		NdisFreePacket(p);
+	if (m == NULL)
 		return;
-	}
 
 	/* Save the data provided to us so far. */
 

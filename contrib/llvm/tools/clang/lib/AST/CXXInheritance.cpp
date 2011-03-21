@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 #include "clang/AST/CXXInheritance.h"
+#include "clang/AST/RecordLayout.h"
 #include "clang/AST/DeclCXX.h"
 #include <algorithm>
 #include <set>
@@ -75,18 +76,21 @@ void CXXBasePaths::swap(CXXBasePaths &Other) {
   std::swap(DetectedVirtual, Other.DetectedVirtual);
 }
 
-bool CXXRecordDecl::isDerivedFrom(CXXRecordDecl *Base) const {
+bool CXXRecordDecl::isDerivedFrom(const CXXRecordDecl *Base) const {
   CXXBasePaths Paths(/*FindAmbiguities=*/false, /*RecordPaths=*/false,
                      /*DetectVirtual=*/false);
   return isDerivedFrom(Base, Paths);
 }
 
-bool CXXRecordDecl::isDerivedFrom(CXXRecordDecl *Base, CXXBasePaths &Paths) const {
+bool CXXRecordDecl::isDerivedFrom(const CXXRecordDecl *Base,
+                                  CXXBasePaths &Paths) const {
   if (getCanonicalDecl() == Base->getCanonicalDecl())
     return false;
   
   Paths.setOrigin(const_cast<CXXRecordDecl*>(this));
-  return lookupInBases(&FindBaseClass, Base->getCanonicalDecl(), Paths);
+  return lookupInBases(&FindBaseClass,
+                       const_cast<CXXRecordDecl*>(Base->getCanonicalDecl()),
+                       Paths);
 }
 
 bool CXXRecordDecl::isVirtuallyDerivedFrom(CXXRecordDecl *Base) const {
@@ -662,3 +666,50 @@ CXXRecordDecl::getFinalOverriders(CXXFinalOverriderMap &FinalOverriders) const {
     }
   }
 }
+
+static void 
+AddIndirectPrimaryBases(const CXXRecordDecl *RD, ASTContext &Context,
+                        CXXIndirectPrimaryBaseSet& Bases) {
+  // If the record has a virtual primary base class, add it to our set.
+  const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
+  if (Layout.isPrimaryBaseVirtual())
+    Bases.insert(Layout.getPrimaryBase());
+
+  for (CXXRecordDecl::base_class_const_iterator I = RD->bases_begin(),
+       E = RD->bases_end(); I != E; ++I) {
+    assert(!I->getType()->isDependentType() &&
+           "Cannot get indirect primary bases for class with dependent bases.");
+
+    const CXXRecordDecl *BaseDecl =
+      cast<CXXRecordDecl>(I->getType()->getAs<RecordType>()->getDecl());
+
+    // Only bases with virtual bases participate in computing the
+    // indirect primary virtual base classes.
+    if (BaseDecl->getNumVBases())
+      AddIndirectPrimaryBases(BaseDecl, Context, Bases);
+  }
+
+}
+
+void 
+CXXRecordDecl::getIndirectPrimaryBases(CXXIndirectPrimaryBaseSet& Bases) const {
+  ASTContext &Context = getASTContext();
+
+  if (!getNumVBases())
+    return;
+
+  for (CXXRecordDecl::base_class_const_iterator I = bases_begin(),
+       E = bases_end(); I != E; ++I) {
+    assert(!I->getType()->isDependentType() &&
+           "Cannot get indirect primary bases for class with dependent bases.");
+
+    const CXXRecordDecl *BaseDecl =
+      cast<CXXRecordDecl>(I->getType()->getAs<RecordType>()->getDecl());
+
+    // Only bases with virtual bases participate in computing the
+    // indirect primary virtual base classes.
+    if (BaseDecl->getNumVBases())
+      AddIndirectPrimaryBases(BaseDecl, Context, Bases);
+  }
+}
+

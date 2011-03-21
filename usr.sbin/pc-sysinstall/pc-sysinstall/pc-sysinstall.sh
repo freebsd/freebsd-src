@@ -125,7 +125,7 @@ case $1 in
   ;;
 
   # The user is wanting to create a new partition
-  create-part) ${PARTMANAGERDIR}/create-part.sh "${2}" "${3}"
+  create-part) ${PARTMANAGERDIR}/create-part.sh "${2}" "${3}" "${4}" "${5}"
   ;;
 
   # The user is wanting to delete an existing partition

@@ -533,25 +533,6 @@ x86bios_emu_outl(struct x86emu *emu, uint16_t port, uint32_t val)
 	iodev_write_4(port, val);
 }
 
-static void
-x86bios_emu_get_intr(struct x86emu *emu, int intno)
-{
-	uint16_t *sp;
-	uint32_t iv;
-
-	emu->x86.R_SP -= 6;
-
-	sp = (uint16_t *)((vm_offset_t)x86bios_seg + emu->x86.R_SP);
-	sp[0] = htole16(emu->x86.R_IP);
-	sp[1] = htole16(emu->x86.R_CS);
-	sp[2] = htole16(emu->x86.R_FLG);
-
-	iv = x86bios_get_intr(intno);
-	emu->x86.R_IP = iv & 0xffff;
-	emu->x86.R_CS = (iv >> 16) & 0xffff;
-	emu->x86.R_FLG &= ~(F_IF | F_TF);
-}
-
 void *
 x86bios_alloc(uint32_t *offset, size_t size, int flags)
 {
@@ -764,7 +745,6 @@ fail:
 static int
 x86bios_init(void)
 {
-	int i;
 
 	mtx_init(&x86bios_lock, "x86bios lock", NULL, MTX_DEF);
 
@@ -786,9 +766,6 @@ x86bios_init(void)
 	x86bios_emu.emu_outb = x86bios_emu_outb;
 	x86bios_emu.emu_outw = x86bios_emu_outw;
 	x86bios_emu.emu_outl = x86bios_emu_outl;
-
-	for (i = 0; i < 256; i++)
-		x86bios_emu._x86emu_intrTab[i] = x86bios_emu_get_intr;
 
 	return (0);
 }

@@ -54,7 +54,7 @@ realpath(const char * __restrict path, char * __restrict resolved)
 	char *p, *q, *s;
 	size_t left_len, resolved_len;
 	unsigned symlinks;
-	int serrno, slen, m;
+	int m, serrno, slen;
 	char left[PATH_MAX], next_token[PATH_MAX], symlink[PATH_MAX];
 
 	if (path == NULL) {
@@ -73,7 +73,6 @@ realpath(const char * __restrict path, char * __restrict resolved)
 		m = 1;
 	} else
 		m = 0;
-
 	symlinks = 0;
 	if (path[0] == '/') {
 		resolved[0] = '/';
@@ -86,8 +85,10 @@ realpath(const char * __restrict path, char * __restrict resolved)
 		if (getcwd(resolved, PATH_MAX) == NULL) {
 			if (m)
 				free(resolved);
-			else
-				strlcpy(resolved, ".", PATH_MAX);
+			else {
+				resolved[0] = '.';
+				resolved[1] = '\0';
+			}
 			return (NULL);
 		}
 		resolved_len = strlen(resolved);

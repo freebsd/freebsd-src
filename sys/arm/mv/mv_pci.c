@@ -212,23 +212,17 @@ static struct mtx pcicfg_mtx;
 static int
 mv_pcib_probe(device_t self)
 {
-	phandle_t parnode;
+	phandle_t node;
 
-	/*
-	 * The PCI subnode does not have the 'compatible' property, so we need
-	 * to check in the parent PCI node. However the parent is not
-	 * represented by a separate ofw_bus child, and therefore
-	 * ofw_bus_is_compatible() cannot be used, but direct fdt equivalent.
-	 */
-	parnode = OF_parent(ofw_bus_get_node(self));
-	if (parnode == 0)
+	node = ofw_bus_get_node(self);
+	if (!fdt_is_type(node, "pci"))
 		return (ENXIO);
-	if (!(fdt_is_compatible(parnode, "mrvl,pcie") ||
-	    fdt_is_compatible(parnode, "mrvl,pci")))
+
+	if (!(fdt_is_compatible(node, "mrvl,pcie") ||
+	    fdt_is_compatible(node, "mrvl,pci")))
 		return (ENXIO);
 
 	device_set_desc(self, "Marvell Integrated PCI/PCI-E Controller");
-
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -243,15 +237,16 @@ mv_pcib_attach(device_t self)
 	sc = device_get_softc(self);
 	sc->sc_dev = self;
 
-	parnode = OF_parent(ofw_bus_get_node(self));
-	if (fdt_is_compatible(parnode, "mrvl,pcie")) {
+	node = ofw_bus_get_node(self);
+	parnode = OF_parent(node);
+	if (fdt_is_compatible(node, "mrvl,pcie")) {
 		sc->sc_type = MV_TYPE_PCIE;
 		sc->sc_mem_win_target = MV_WIN_PCIE_MEM_TARGET;
 		sc->sc_mem_win_attr = MV_WIN_PCIE_MEM_ATTR;
 		sc->sc_io_win_target = MV_WIN_PCIE_IO_TARGET;
 		sc->sc_io_win_attr = MV_WIN_PCIE_IO_ATTR;
 #ifdef SOC_MV_ORION
-	} else if (fdt_is_compatible(parnode, "mrvl,pci")) {
+	} else if (fdt_is_compatible(node, "mrvl,pci")) {
 		sc->sc_type = MV_TYPE_PCI;
 		sc->sc_mem_win_target = MV_WIN_PCI_MEM_TARGET;
 		sc->sc_mem_win_attr = MV_WIN_PCI_MEM_ATTR;
@@ -260,8 +255,6 @@ mv_pcib_attach(device_t self)
 #endif
 	} else
 		return (ENXIO);
-
-	node = ofw_bus_get_node(self);
 
 	/*
 	 * Get PCI interrupt info.

@@ -34,10 +34,18 @@
 #include <machine/intrcnt.h>
 #include <assym.s>
 
-	.section .data.proc0,"aw"
-	.global	kstack
+/*
+ * The Altix 350 needs more than the architected 16KB (8KB for stack and
+ * 8KB for RSE backing store) when calling EFI to setup virtual mode.
+ */
+#define	FW_STACK_SIZE	3*PAGE_SIZE
+
+	.section .data.kstack, "aw"
 	.align	PAGE_SIZE
-kstack:	.space KSTACK_PAGES * PAGE_SIZE
+	.global	kstack
+kstack:	.space	FW_STACK_SIZE
+	.global	kstack_top
+kstack_top:
 
 	.text
 
@@ -64,7 +72,7 @@ ENTRY_NOPROFILE(__start, 1)
 	srlz.i
 	;;
 	ssm	IA64_PSR_DFH
-	mov	r17=KSTACK_PAGES*PAGE_SIZE-SIZEOF_PCB-SIZEOF_TRAPFRAME-16
+	mov	r17=FW_STACK_SIZE-16
 	;;
 }
 {	.mlx

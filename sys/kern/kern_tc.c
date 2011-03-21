@@ -140,7 +140,7 @@ sysctl_kern_timecounter_freq(SYSCTL_HANDLER_ARGS)
 	struct timecounter *tc = arg1;
 
 	freq = tc->tc_frequency;
-	return sysctl_handle_quad(oidp, &freq, 0, req);
+	return sysctl_handle_64(oidp, &freq, 0, req);
 }
 
 /*
@@ -341,7 +341,7 @@ tc_init(struct timecounter *tc)
 	    "counter", CTLTYPE_UINT | CTLFLAG_RD, tc, sizeof(*tc),
 	    sysctl_kern_timecounter_get, "IU", "current timecounter value");
 	SYSCTL_ADD_PROC(NULL, SYSCTL_CHILDREN(tc_root), OID_AUTO,
-	    "frequency", CTLTYPE_QUAD | CTLFLAG_RD, tc, sizeof(*tc),
+	    "frequency", CTLTYPE_U64 | CTLFLAG_RD, tc, sizeof(*tc),
 	     sysctl_kern_timecounter_freq, "QU", "timecounter frequency");
 	SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(tc_root), OID_AUTO,
 	    "quality", CTLFLAG_RD, &(tc->tc_quality), 0,

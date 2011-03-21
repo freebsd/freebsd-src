@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check.c,v 1.95.12.4 2009/06/03 00:06:01 marka Exp $ */
+/* $Id: check.c,v 1.95.12.6 2010-03-04 23:47:53 tbox Exp $ */
 
 /*! \file */
 
@@ -23,6 +23,7 @@
 
 #include <stdlib.h>
 
+#include <isc/base64.h>
 #include <isc/buffer.h>
 #include <isc/log.h>
 #include <isc/mem.h>
@@ -40,6 +41,8 @@
 #include <dns/rdataclass.h>
 #include <dns/rdatatype.h>
 #include <dns/secalg.h>
+
+#include <dst/dst.h>
 
 #include <isccfg/aclconf.h>
 #include <isccfg/cfg.h>
@@ -1667,13 +1670,70 @@ check_servers(const cfg_obj_t *config, const cfg_obj_t *voptions,
 }
 
 static isc_result_t
+check_trusted_key(const cfg_obj_t *key, isc_log_t *logctx)
+{
+	const char *keystr, *keynamestr;
+	dns_fixedname_t fkeyname;
+	dns_name_t *keyname;
+	isc_buffer_t keydatabuf;
+	isc_region_t r;
+	isc_result_t result = ISC_R_SUCCESS;
+	isc_result_t tresult;
+	isc_uint32_t flags, proto, alg;
+	unsigned char keydata[4096];
+
+	flags = cfg_obj_asuint32(cfg_tuple_get(key, "flags"));
+	proto = cfg_obj_asuint32(cfg_tuple_get(key, "protocol"));
+	alg = cfg_obj_asuint32(cfg_tuple_get(key, "algorithm"));
+	keyname = dns_fixedname_name(&fkeyname);
+	keynamestr = cfg_obj_asstring(cfg_tuple_get(key, "name"));
+
+	if (flags > 0xffff) {
+		cfg_obj_log(key, logctx, ISC_LOG_WARNING,
+			    "flags too big: %u\n", flags);
+		result = ISC_R_FAILURE;
+	}
+	if (proto > 0xff) {
+		cfg_obj_log(key, logctx, ISC_LOG_WARNING,
+			    "protocol too big: %u\n", proto);
+		result = ISC_R_FAILURE;
+	}
+	if (alg > 0xff) {
+		cfg_obj_log(key, logctx, ISC_LOG_WARNING,
+			    "algorithm too big: %u\n", alg);
+		result = ISC_R_FAILURE;
+	}
+
+	isc_buffer_init(&keydatabuf, keydata, sizeof(keydata));
+
+	keystr = cfg_obj_asstring(cfg_tuple_get(key, "key"));
+	tresult = isc_base64_decodestring(keystr, &keydatabuf);
+
+	if (tresult != ISC_R_SUCCESS) {
+		cfg_obj_log(key, logctx, ISC_LOG_ERROR,
+			    "%s", isc_result_totext(tresult));
+		result = ISC_R_FAILURE;
+	} else {
+		isc_buffer_usedregion(&keydatabuf, &r);
+
+		if ((alg == DST_ALG_RSASHA1 || alg == DST_ALG_RSAMD5) &&
+		    r.length > 1 && r.base[0] == 1 && r.base[1] == 3)
+			cfg_obj_log(key, logctx, ISC_LOG_WARNING,
+				    "trusted key '%s' has a weak exponent",
+				    keynamestr);
+	}
+
+	return (result);
+}
+
+static isc_result_t
 check_viewconf(const cfg_obj_t *config, const cfg_obj_t *voptions,
 	       const char *viewname, dns_rdataclass_t vclass,
 	       isc_log_t *logctx, isc_mem_t *mctx)
 {
 	const cfg_obj_t *zones = NULL;
 	const cfg_obj_t *keys = NULL;
-	const cfg_listelt_t *element;
+	const cfg_listelt_t *element, *element2;
 	isc_symtab_t *symtab = NULL;
 	isc_result_t result = ISC_R_SUCCESS;
 	isc_result_t tresult = ISC_R_SUCCESS;
@@ -1814,6 +1874,33 @@ check_viewconf(const cfg_obj_t *config, const cfg_obj_t *voptions,
 		cfg_obj_log(obj, logctx, ISC_LOG_WARNING,
 			    "'dnssec-validation yes;' and 'dnssec-enable no;'");
 
+	/*
+	 * Check trusted-keys and managed-keys.
+	 */
+	keys = NULL;
+	if (voptions != NULL)
+		(void)cfg_map_get(voptions, "trusted-keys", &keys);
+	if (keys == NULL)
+		(void)cfg_map_get(config, "trusted-keys", &keys);
+
+	for (element = cfg_list_first(keys);
+	     element != NULL;
+	     element = cfg_list_next(element))
+	{
+		const cfg_obj_t *keylist = cfg_listelt_value(element);
+		for (element2 = cfg_list_first(keylist);
+		     element2 != NULL;
+		     element2 = cfg_list_next(element2)) {
+			obj = cfg_listelt_value(element2);
+			tresult = check_trusted_key(obj, logctx);
+			if (tresult != ISC_R_SUCCESS)
+				result = tresult;
+		}
+	}
+
+	/*
+	 * Check options.
+	 */
 	if (voptions != NULL)
 		tresult = check_options(voptions, logctx, mctx);
 	else

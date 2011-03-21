@@ -65,4 +65,7 @@ void call_initfini_pointer(const struct Struct_Obj_Entry *, Elf_Addr);
 
 extern void *__tls_get_addr(unsigned long module, unsigned long offset);
 
+#define	RTLD_DEFAULT_STACK_PF_EXEC	0
+#define	RTLD_DEFAULT_STACK_EXEC		0
+
 #endif

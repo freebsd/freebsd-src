@@ -180,8 +180,7 @@
 
 #define IGB_TX_PTHRESH			8
 #define IGB_TX_HTHRESH			1
-#define IGB_TX_WTHRESH			(((hw->mac.type == e1000_82576 || \
-					  hw->mac.type == e1000_vfadapt) && \
+#define IGB_TX_WTHRESH			((hw->mac.type != e1000_82575 && \
                                           adapter->msix_mem) ? 1 : 16)
 
 #define MAX_NUM_MULTICAST_ADDRESSES     128
@@ -361,7 +360,7 @@ struct adapter {
 	struct resource *msix_mem;
 	struct resource	*res;
 	void		*tag;
-	u32		eims_mask;
+	u32		que_mask;
 
 	int		linkvec;
 	int		link_mask;
@@ -378,6 +377,7 @@ struct adapter {
 	struct mtx	core_mtx;
 	int		igb_insert_vlan_header;
         u16		num_queues;
+	u16		vf_ifp;  /* a VF interface */
 
 	eventhandler_tag vlan_attach;
 	eventhandler_tag vlan_detach;
@@ -400,6 +400,8 @@ struct adapter {
 	u16		link_speed;
 	u16		link_duplex;
 	u32		smartspeed;
+	u32		fc_setting;
+	u32		dma_coalesce;
 
 	/* Interface queues */
 	struct igb_queue	*queues;

@@ -22,6 +22,61 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110218:
+	GNU binutils 2.17.50 (as of 2007-07-03) has been merged to -HEAD.  This
+	is the last available version under GPLv2.  It brings a number of new
+	features, such as support for newer x86 CPU's (with SSE-3, SSSE-3, SSE
+	4.1 and SSE 4.2), better support for powerpc64, a number of new
+	directives, and lots of other small improvements.  See the ChangeLog
+	file in contrib/binutils for the full details.
+
+20110218:
+	IPsec's HMAC_SHA256-512 support has been fixed to be RFC4868
+	compliant, and will now use half of hash for authentication.
+	This will break interoperability with all stacks (including all
+	actual FreeBSD versions) who implement
+	draft-ietf-ipsec-ciph-sha-256-00 (they use 96 bits of hash for
+	authentication).
+	The only workaround with such peers is to use another HMAC
+	algorithm for IPsec ("phase 2") authentication.
+
+20110207:
+	Remove the uio_yield prototype and symbol.  This function has
+	been misnamed since it was introduced and should not be
+	globally exposed with this name.  The equivalent functionality
+	is now available using kern_yield(curthread->td_user_pri).
+	The function remains undocumented.
+
+20110112:
+	A SYSCTL_[ADD_]UQUAD was added for unsigned uint64_t pointers,
+	symmetric with the existing SYSCTL_[ADD_]QUAD.  Type checking
+	for scalar sysctls is defined but disabled.  Code that needs
+	UQUAD to pass the type checking that must compile on older
+	systems where the define is not present can check against
+	__FreeBSD_version >= 900030.
+
+	The system dialog(1) has been replaced with a new version previously
+	in ports as devel/cdialog. dialog(1) is mostly command-line compatible
+	with the previous version, but the libdialog associated with it has
+	a largely incompatible API. As such, the original version of libdialog
+	will be kept temporarily as libodialog, until its base system consumers
+	are replaced or updated. Bump __FreeBSD_version to 900030.
+
+20110103:
+	If you are trying to run make universe on a -stable system, and you get
+	the following warning:
+	"Makefile", line 356: "Target architecture for i386/conf/GENERIC 
+	unknown.  config(8) likely too old."
+	or something similar to it, then you must upgrade your -stable system
+	to 8.2-Release or newer (really, any time after r210146 7/15/2010 in
+	stable/8) or build the config from the latest stable/8 branch and
+	install it on your system.
+
+	Prior to this date, building a current universe on 8-stable system from
+	between 7/15/2010 and 1/2/2011 would result in a weird shell parsing
+	error in the first kernel build phase.  A new config on those old 
+	systems will fix that problem for older versions of -current.
+
 20101228:
 	The TCP stack has been modified to allow Khelp modules to interact with
 	it via helper hook points and store per-connection data in the TCP

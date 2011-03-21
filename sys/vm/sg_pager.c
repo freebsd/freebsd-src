@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/uma.h>
 
-static void sg_pager_init(void);
 static vm_object_t sg_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
 static void sg_pager_dealloc(vm_object_t);
@@ -53,28 +52,13 @@ static void sg_pager_putpages(vm_object_t, vm_page_t *, int,
 static boolean_t sg_pager_haspage(vm_object_t, vm_pindex_t, int *,
 		int *);
 
-static uma_zone_t fakepg_zone;
-
-static vm_page_t sg_pager_getfake(vm_paddr_t, vm_memattr_t);
-static void sg_pager_putfake(vm_page_t);
-
 struct pagerops sgpagerops = {
-	.pgo_init =	sg_pager_init,
 	.pgo_alloc =	sg_pager_alloc,
 	.pgo_dealloc =	sg_pager_dealloc,
 	.pgo_getpages =	sg_pager_getpages,
 	.pgo_putpages =	sg_pager_putpages,
 	.pgo_haspage =	sg_pager_haspage,
 };
-
-static void
-sg_pager_init(void)
-{
-
-	fakepg_zone = uma_zcreate("SG fakepg", sizeof(struct vm_page),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-	    UMA_ZONE_NOFREE|UMA_ZONE_VM); 
-}
 
 static vm_object_t
 sg_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
@@ -138,7 +122,7 @@ sg_pager_dealloc(vm_object_t object)
 	 */
 	while ((m = TAILQ_FIRST(&object->un_pager.sgp.sgp_pglist)) != 0) {
 		TAILQ_REMOVE(&object->un_pager.sgp.sgp_pglist, m, pageq);
-		sg_pager_putfake(m);
+		vm_page_putfake(m);
 	}
 	
 	sg = object->handle;
@@ -193,7 +177,7 @@ sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	    ("backing page for SG is fake"));
 
 	/* Construct a new fake page. */
-	page = sg_pager_getfake(paddr, memattr);
+	page = vm_page_getfake(paddr, memattr);
 	VM_OBJECT_LOCK(object);
 	TAILQ_INSERT_TAIL(&object->un_pager.sgp.sgp_pglist, page, pageq);
 
@@ -228,34 +212,4 @@ sg_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
 	if (after != NULL)
 		*after = 0;
 	return (TRUE);
-}
-
-/*
- * Create a fictitious page with the specified physical address and memory
- * attribute.  The memory attribute is the only the machine-dependent aspect
- * of a fictitious page that must be initialized.
- */
-static vm_page_t
-sg_pager_getfake(vm_paddr_t paddr, vm_memattr_t memattr)
-{
-	vm_page_t m;
-
-	m = uma_zalloc(fakepg_zone, M_WAITOK | M_ZERO);
-	m->phys_addr = paddr;
-	/* Fictitious pages don't use "segind". */
-	m->flags = PG_FICTITIOUS;
-	/* Fictitious pages don't use "order" or "pool". */
-	m->oflags = VPO_BUSY;
-	m->wire_count = 1;
-	pmap_page_set_memattr(m, memattr);
-	return (m);
-}
-
-static void
-sg_pager_putfake(vm_page_t m)
-{
-
-	if (!(m->flags & PG_FICTITIOUS))
-		panic("sg_pager_putfake: bad page");
-	uma_zfree(fakepg_zone, m);
 }

@@ -1,0 +1,296 @@
+#!/bin/bash
+# $Id: copismall,v 1.8 2010/01/13 10:26:52 tom Exp $
+#
+#  ComeOn Point Installer! v0.9a.small (small version for cdialog v0.9a)
+#  - installa il point in modo visuale e auto-detecting. Versione light.
+#
+#  AUTHOR: Beppe (beppe.dem@nsm.it)
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#
+
+# THIS IS NOT THE ORIGINAL VERSION!!!! This files was adequate to be
+# a demo for cdialog v0.9a+. However it doesn't include all its features.
+# Look for one of the free ComeOn Linux! tools to have a complete
+# demo of cdialog. ComeOn Linux! follows the GNU philosophy.
+# Send peacefully a mail to demarco_p@abramo.it for more info.
+
+. ./setup-vars
+
+#COMEONDIR=/usr/lib/ComeOn
+#POINTDIR=$COMEONDIR/point
+POINTDIR=`pwd`
+
+AKASETUP=$POINTDIR/.akasetup
+PNTSETUP=$POINTDIR/.pntsetup
+EMSIFILE=$POINTDIR/.emsi
+COPIUSER=$POINTDIR/.copi.user
+COPIVER=v0.9a.small
+TITLE="ComeOn Point Installer! $COPIVER  -+-  (c) 1996 ComeOn Linux!"
+
+#FUNCSVER=v0.9.2
+#FUNCSDIR=$POINTDIR/funcs-$FUNCSVER
+FUNCSDIR=$POINTDIR/copifuncs
+
+#COPIDIR=$POINTDIR/copi-$COPIVER
+#. $COPIDIR/copishellvars
+
+#POINTVER="v1.1"		# ComeOn Point version
+
+if [ $LOGNAME != root ]
+then
+  $DIALOG --backtitle "$TITLE" --title "Error!" --beep --msgbox "Questo programma per funzionare correttamente deve essere avviato dall'amministratore di sistema (root)." 0 0
+  exit
+fi
+
+
+$DIALOG --backtitle "$TITLE" --title "Are you sure?" --cr-wrap --msgbox "Questo installer procedera' in modalita'
+auto-detect all'installazione del point.
+Premi <Enter> per iniziare o <Esc> per uscire. " 0 0
+
+if [ $? = $DIALOG_CANCEL -o $? = $DIALOG_ESC ]; then
+ exit
+fi
+
+
+pushd $FUNCSDIR >/dev/null
+. ./copi.funcs
+. ./common.funcs
+. ./admin.funcs
+
+###############################################################################
+find_incompatible_packages
+
+if [ "$PKG_TO_REMOVE" ]
+then
+  $DIALOG --backtitle "$TITLE" --beep --title "Problem detected" --msgbox "Attenzione, prima di poter continuare bisogna avviare pkgtool e rimuovere i seguenti packages: $PKG_TO_REMOVE." 0 0
+  exit
+fi
+
+###############################################################################
+mkstemp dialog
+
+find_necessary_packages
+
+if [ "$PKG_TO_INSTALL" ]
+then
+  echo -n "Attenzione, prima di poter continuare bisogna avviare setup ed installare i seguenti packages dai disk sets N (quelli del Networking): $PKG_TO_INSTALL." >$tmp_dialog
+
+  if [ "`echo $PKG_TO_INSTALL | grep tcpip`" ]
+  then
+    echo -n " Ricordarsi poi di effettuare lo shutdown per rendere effettive le modifiche." >>$tmp_dialog
+  fi
+
+  $DIALOG --backtitle "$TITLE" --beep --title "Problem detected" --msgbox "`cat $tmp_dialog`" 0 0
+
+  rm $tmp_dialog
+  exit
+fi
+
+###############################################################################
+mkstemp smailp
+
+SMAILTGZ=""
+if [ ! -d /usr/lib/smail ]
+then
+  $DIALOG --backtitle "$TITLE" --title "Smail not found" --inputbox "Bisogna installare Smail, per cui inserire il percorso completo di dove trovarne i binari compressi" 0 0 "/cdrom/sunsite/system/Mail/delivery/smail-linuxbin-3.1.29.1.tar.gz" 2>$tmp_smailp
+  SMAILTGZ="`cat $tmp_smailp`"
+  rm $tmp_smailp
+  while [ ! -f "$SMAILTGZ" ]
+  do
+    $DIALOG --backtitle "$TITLE" --beep --title "Archive not found" --inputbox "Percorso di file \"$SMAILTGZ\" non valido, controllarne la correttezza." 0 0 "/cdrom/sunsite/system/Mail/delivery/smail-linuxbin-3.1.29.1.tar.gz" 2>$tmp_smailp
+    SMAILTGZ="`cat $tmp_smailp`"
+    rm $tmp_smailp
+  done
+fi
+
+###############################################################################
+mkstemp target
+mkstemp asetup
+mkstemp psetup
+
+AKA=""
+while [ ! "$AKA" ]
+do
+  $DIALOG --backtitle "$TITLE" --title "Primary address" --inputbox "Inserire il proprio address principale, completo di point e di domain. Il poll sara' effettuato per default dal boss corrispondente." 0 0 "2:335/722.7@fidonet" 2>$tmp_target
+  AKAFTN="`cat $tmp_target`"
+  rm $tmp_target
+  fidonetpoint2int $AKAFTN
+  AKA="$_RETVAL"
+done
+echo -n "`echo $AKA | cut -f2- -d.`:" >$tmp_asetup
+echo -n "`echo $AKA | cut -f1 -d. | cut -c2-`:" >$tmp_psetup
+AKASFTN="$AKAFTN"
+AKAS="$AKA"
+while [ "$AKAFTN" ]
+do
+  $DIALOG --backtitle "$TITLE" --title "AKAs" --inputbox "Inserire un eventuale address secondario, oppure lasciare la riga vuota per proseguire. Attenzione: nel caso si abbiano piu' indirizzi sulla stessa rete, bisognera' configurare solo uno di questi.  Gli indirizzi correntemente definiti sono: $AKASFTN" 0 0 2>$tmp_target
+  AKAFTN="`cat $tmp_target`"
+  rm $tmp_target
+  if [ "$AKAFTN" ]
+  then
+    fidonetpoint2int $AKAFTN
+    AKA="$_RETVAL"
+    if [ "`echo $AKAS | grep \".\`echo $AKA | cut -f5 -d.\`.\"`" ]
+    then
+      $DIALOG --backtitle "$TITLE" --beep --title "Invalid address" --msgbox "Non si possono avere piu' indirizzi sullo stesso dominio (net)." 0 0
+    else
+      AKASFTN="$AKASFTN $AKAFTN"
+      AKAS="$AKAS $AKA"
+      echo -n "`echo $AKA | cut -f2- -d.`:" >>$tmp_asetup
+      echo -n "`echo $AKA | cut -f1 -d. | cut -c2-`:" >>$tmp_psetup
+    fi
+  fi
+done
+echo ":" >>$tmp_asetup
+echo ":" >>$tmp_psetup
+save $AKASETUP
+save $PNTSETUP
+mv $tmp_asetup $AKASETUP
+mv $tmp_psetup $PNTSETUP
+
+###############################################################################
+mkstemp hostnm
+
+$DIALOG --backtitle "$TITLE" --title "Hostname" --inputbox "Inserire l'hostname di questo computer qualora si abbia una rete gia' configurata, altrimenti inventarne uno fittizio da assegnare e questa macchina verra' configurata per il loopback." 0 0 "quark.comeon.org" 2>$tmp_hostnm
+NEW_HOSTNAME="`cat $tmp_hostnm`"
+rm $tmp_hostnm
+
+###############################################################################
+mkstemp master
+
+$DIALOG --backtitle "$TITLE" --title "Point admin" --inputbox "Scegliere l'user principale per la gestione e l'uso del point. Se l'user non esiste, verra' creato. Se esiste, ne verranno adattate le informazioni quali nome, gruppi, etc." 0 0 "beppe" --and-widget --title "Insert SysOp's name" --inputbox "Inserire nome e cognome del gestore ed utilizzatore principale del point (il proprio nome)." 0 0 "Giuseppe De Marco" --and-widget --title "Choose editor" --inputbox "Scegliere l'editor da usare per scrivere i messaggi" 0 0 "vim" 2>$tmp_master
+POST_USER="`cut $tmp_master -f1`"
+POST_NAME="`cut $tmp_master -f2`"
+POST_EDIT="`cut $tmp_master -f3`"
+rm $tmp_master
+save $COPIUSER
+echo $POST_USER >$COPIUSER
+
+###############################################################################
+mkstemp expire
+mkstemp origin
+
+$DIALOG --backtitle "$TITLE" --title "Origin" --inputbox "Scegliere l'Origin del sistema" 9 60 "$POST_USER's linux box" 2>$tmp_origin
+NEW_ORIGIN="`cat $tmp_origin`"
+rm $tmp_origin
+
+$DIALOG --backtitle "$TITLE" --title "News expiring" --inputbox "Decidere per quanti giorni i messaggi echomail (le news) dovranno transitare sul sistema prima di venire cancellati automaticamente da news.daily. Inserire never se si vuole che non vengano mai cancellati. Sono ammesse cifre decimali (i.e. 25.5).  Notare comunque che il valore qui inserito e' quello di default, ma per ogni singola area (newsgroup) sara' possibile specificare poi un valore appropriato." 0 0 "30" 2>$tmp_expire
+KEEPDAYS="`cat $tmp_expire`"
+rm $tmp_expire
+
+###############################################################################
+mkstemp dialer
+mkstemp ifmail
+mkstemp mailvr
+mkstemp passwd
+
+IFMAILTGZ=""
+IFMAILVERS=""
+if [ ! -d /usr/lib/ifmail -o ! -d /etc/ifmail -o ! -d /var/log/ifmail -o ! -f /usr/lib/ifmail/ifcico ]
+then
+  $DIALOG --backtitle "$TITLE" --title "ifmail not found" --inputbox "Inserire il percorso COMPLETO dei sorgenti compressi di ifmail che verranno decompressi in /usr/src e compilati." 0 0 "/cdrom/sunsite/system/Mail/transport/ifmail-2.8b.tar.gz" 2>$tmp_ifmail
+  IFMAILTGZ="`cat $tmp_ifmail`"
+  rm $tmp_ifmail
+  while [ ! -f "$IFMAILTGZ" ]
+  do
+    $DIALOG --backtitle "$TITLE" --beep --title "invalid filename" --inputbox "Percorso di file \"$IFMAILTGZ\" non valido, controllarne la correttezza." 0 0 "/cdrom/sunsite/system/Mail/transport/ifmail-2.8b.tar.gz" 2>$tmp_ifmail
+    IFMAILTGZ="`cat $tmp_ifmail`"
+    rm $tmp_ifmail
+  done
+
+  $DIALOG --backtitle "$TITLE" --title "ifmail version" --inputbox "Specificare la versione di ifmail" 0 0 "2.8b" 2>$tmp_mailvr
+  IFMAILVERS="`cat $tmp_mailvr` + ComeOn Point $POINTVER"
+  rm $tmp_mailvr
+fi
+
+IAKA=1
+PASSW=""
+AKA="`cut $AKASETUP -f$IAKA -d:`"
+while [ "$AKA" ]
+do
+  int2fido $AKA
+  AKAFTN="$_RETVAL"
+  $DIALOG --backtitle "$TITLE" --title "Password" --inputbox "Specificare la password di sessione e per i pacchetti per il nodo $AKAFTN -- attenzione che alcuni mailers accettano solo passwords da 8 caratteri in maiuscolo!!" 0 0 "MYPASSWD" 2>$tmp_passwd
+  PASSW="$PASSW`cat $tmp_passwd`:"
+  rm $tmp_passwd
+  IAKA=$[$IAKA+1]
+  AKA="`cut $AKASETUP -f$IAKA -d:`"
+done
+PASSW="$PASSW:"
+
+$DIALOG --backtitle "$TITLE" \
+--title "Modem speed" --inputbox "Specificare la velocita' del proprio modem (che sta su /dev/modem)" 0 0 "16800" --and-widget \
+--title "System name" --inputbox "Specificare il nome del sistema per il pacchetto EMSI" 0 0 "`cat $COPIUSER`'s linux point" --and-widget \
+--title "Location" --inputbox "Inserire la localita' fisica in cui risiede il sistema" 0 0 "Catanzaro, Italy - Europe" --and-widget \
+--title "Phone number" --inputbox "Inserire il proprio numero di telefono in formato internazionale, cioe' completo di doppio prefisso (xx-yyy-zzzzzz)" 0 0 "39-961-31997" --and-widget \
+--title "International call prefix" --inputbox "Specificare il prefisso da comporre per poter effettuare una chiamata internazionale (se ci si trova in Italia ad es. bisogna inserire 00)" 0 0 "00" --and-widget \
+--title "Long-distance call prefix" --inputbox "Specificare il prefisso da comporre per poter effettuare una chiamata interurbana in ambito nazionale, che verra' sostituito al prefisso della propria nazione quando incontrato in nodelist (per l'Italia ad es. bisogna inserire 0, che sostituira' il 39)" 0 0 "0" --and-widget \
+--title "Pointlist flags" --inputbox "Inserire eventuali flags stile pointlist per il pacchetto EMSI" 0 0 "MO,V32B,V42B,ZYX" --and-widget \
+--title "Modem dialing" --inputbox "Inserire la stringa da inviare al modem per comporre un numero telefonico" 0 0 "ATDT" 2>$tmp_dialer
+
+echo -en "\t$POST_NAME\t\t" >>$tmp_dialer
+save $EMSIFILE
+mv $tmp_dialer $EMSIFILE
+
+###############################################################################
+
+if [ -d /etc/smail ]
+then
+  SMAILCFGDIR=/etc/smail
+else
+  SMAILCFGDIR=/usr/lib/smail
+fi
+
+###############################################################################
+
+$DIALOG --backtitle "$TITLE" --title "First step completed!" --msgbox "OK, ora ho tutte le informazioni necessarie per poter installare il point. Da qui in poi faro' tutto da solo, quindi ci si puo' tranquillamente andare a prendere un caffe'. :-)" 0 0
+
+###############################################################################
+
+killall sendmail 2>/dev/null
+if [ $SMAILTGZ ]; then tar zxvf $SMAILTGZ -C / >/dev/null; fi
+/usr/sbin/sendmail -bd -q15m
+
+if [ ! "`ping -c1 $NEW_HOSTNAME | grep \"1 packets received\"`" ]; then
+  configure_loopback $NEW_HOSTNAME
+fi
+
+add_postmaster "$POST_USER" "$POST_NAME"
+add_alias "$POST_NAME" "$POST_USER"
+configure_trn "$POST_USER" "$POST_EDIT"
+configure_elm "$POST_USER" "$POST_EDIT"
+
+comment_nntp_in_inetdconf
+set_organization "$NEW_ORIGIN"
+create_innconf_newsfeeds_distrib
+create_expirectl $KEEPDAYS
+create_nnrpaccess
+create_hostsnntp
+create_dirs_and_files
+install_rcnews
+install_crontab_news
+if [ $IFMAILTGZ ]; then
+  install_ifmail "$IFMAILTGZ" /usr/lib/ifmail /etc/ifmail /var/log/ifmail "$IFMAILVERS" /usr/src
+fi
+configure_ifmail /usr/lib/ifmail /etc/ifmail /var/log/ifmail "$PASSW"
+configure_smail $SMAILCFGDIR
+
+###############################################################################
+$DIALOG --backtitle "$TITLE" \
+--title "-=[ Enjoy! ]=-" --msgbox "Il point e' stato installato con successo!" 0 0 --and-widget \
+--msgbox "trn (il newsreader, per leggere/scrivere gli echomail) ed elm (il mailreader, per leggere/scrivere i netmail) sono gia' stati configurati per l'user $POST_USER." 0 0
+
+popd >/dev/null

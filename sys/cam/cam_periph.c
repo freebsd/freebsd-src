@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <sys/linker_set.h>
 #include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -1561,6 +1560,15 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 		case SS_START:
 		{
 			int le;
+			if (SID_TYPE(&cgd.inq_data) == T_SEQUENTIAL) {
+				xpt_free_ccb(orig_ccb);
+				ccb->ccb_h.status |= CAM_DEV_QFRZN;
+				*action_string = "Will not autostart a "
+				    "sequential access device";
+				err_action = SS_FAIL;
+				error = EIO;
+				break;
+			}
 
 			/*
 			 * Send a start unit command to the device, and

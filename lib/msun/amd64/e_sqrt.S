@@ -32,3 +32,5 @@ ENTRY(sqrt)
 	ret
 END(sqrt)
 
+
+	.section .note.GNU-stack,"",%progbits

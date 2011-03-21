@@ -78,6 +78,7 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = NULL, /* XXXKIB */
 	.sv_syscallnames = syscallnames,
+	.sv_schedtail	= NULL,
 };
 
 static Elf32_Brandinfo freebsd_brand_info = {
@@ -169,9 +170,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			addr = lookup(lf, symidx, 1);
 			if (addr == 0)
 				return -1;
-			if (*where != addr)
-				*where = addr;
-
+			*where += addr;
 			break;
 
 		case R_ARM_COPY:	/* none */

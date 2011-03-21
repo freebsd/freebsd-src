@@ -76,11 +76,7 @@ usart_at91rm92_probe(device_t dev)
 	switch (device_get_unit(dev))
 	{
 	case 0:
-#ifdef SKYEYE_WORKAROUNDS
-		device_set_desc(dev, "USART0");
-#else
 		device_set_desc(dev, "DBGU");
-#endif
 		/*
 		 * Setting sc_sysdev makes this device a 'system device' and
 		 * indirectly makes it the system console.

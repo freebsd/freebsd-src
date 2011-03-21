@@ -68,29 +68,31 @@ AcpiOsTableOverride(ACPI_TABLE_HEADER *ExistingTable,
     ACPI_TABLE_HEADER **NewTable)
 {
     char modname[] = "acpi_dsdt";
-    caddr_t acpi_table, p, s;
+    caddr_t acpi_table;
+    ACPI_TABLE_HEADER *hdr;
+    size_t sz;
 
     if (ExistingTable == NULL || NewTable == NULL)
 	return (AE_BAD_PARAMETER);
 
+    *NewTable = NULL;
 #ifdef notyet
     for (int i = 0; i < ACPI_NAME_SIZE; i++)
 	modname[i + 5] = tolower(ExistingTable->Signature[i]);
 #else
     /* If we're not overriding the DSDT, just return. */
-    if (strncmp(ExistingTable->Signature, ACPI_SIG_DSDT, ACPI_NAME_SIZE) != 0) {
-	*NewTable = NULL;
+    if (strncmp(ExistingTable->Signature, ACPI_SIG_DSDT, ACPI_NAME_SIZE) != 0)
 	return (AE_OK);
-    }
 #endif
 
-    if ((acpi_table = preload_search_by_type(modname)) != NULL &&
-	(p = preload_search_info(acpi_table, MODINFO_ADDR)) != NULL &&
-	(s = preload_search_info(acpi_table, MODINFO_SIZE)) != NULL &&
-	*(size_t *)s != 0)
-	*NewTable = *(ACPI_TABLE_HEADER **)p;
-    else
-	*NewTable = NULL;
+    acpi_table = preload_search_by_type(modname);
+    if (acpi_table == NULL)
+	return (AE_OK);
+
+    hdr = preload_fetch_addr(acpi_table);
+    sz = preload_fetch_size(acpi_table);
+    if (hdr != NULL && sz != 0)
+	*NewTable = hdr;
 
     return (AE_OK);
 }

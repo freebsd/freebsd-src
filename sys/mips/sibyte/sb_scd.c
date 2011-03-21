@@ -242,11 +242,11 @@ sb_clear_mailbox(int cpu, uint64_t val)
 	sb_store64(regaddr, val);
 }
 
-int
-platform_num_processors(void)
+cpumask_t
+platform_cpu_mask(void)
 {
 
-	return (SYSREV_NUM_PROCESSORS(sb_read_sysrev()));
+	return (~0U >> (32 - SYSREV_NUM_PROCESSORS(sb_read_sysrev())));
 }
 #endif	/* SMP */
 

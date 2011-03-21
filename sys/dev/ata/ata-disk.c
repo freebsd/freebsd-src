@@ -145,6 +145,8 @@ ad_attach(device_t dev)
 	adp->disk->d_flags |= DISKFLAG_CANDELETE;
     strlcpy(adp->disk->d_ident, atadev->param.serial,
 	sizeof(adp->disk->d_ident));
+    strlcpy(adp->disk->d_descr, atadev->param.model,
+	sizeof(adp->disk->d_descr));
     parent = device_get_parent(ch->dev);
     if (parent != NULL && device_get_parent(parent) != NULL &&
 	    (device_get_devclass(parent) ==

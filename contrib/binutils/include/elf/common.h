@@ -1,6 +1,6 @@
 /* ELF support for BFD.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003
+   2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
@@ -21,7 +21,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 
 /* This file is part of ELF support for BFD, and contains the portions
@@ -118,6 +118,7 @@
 #define EM_PPC		 20	/* PowerPC */
 #define EM_PPC64	 21	/* 64-bit PowerPC */
 #define EM_S390		 22	/* IBM S/390 */
+#define EM_SPU		 23	/* Sony/Toshiba/IBM SPU */
 
 #define EM_V800		 36	/* NEC V800 series */
 #define EM_FR20		 37	/* Fujitsu FR20 */
@@ -180,7 +181,13 @@
 #define EM_ARC_A5	 93	/* ARC Cores Tangent-A5 */
 #define EM_XTENSA	 94	/* Tensilica Xtensa Architecture */
 #define EM_IP2K		101	/* Ubicom IP2022 micro controller */
+#define EM_CR		103	/* National Semiconductor CompactRISC */
 #define EM_MSP430	105	/* TI msp430 micro controller */
+#define EM_BLACKFIN	106	/* ADI Blackfin */
+#define EM_ALTERA_NIOS2	113	/* Altera Nios II soft-core processor */
+#define EM_CRX		114	/* National Semiconductor CRX */
+#define EM_CR16		115	/* National Semiconductor CompactRISC - CR16 */
+#define EM_SCORE        135     /* Sunplus Score */ 
 
 /* If it is necessary to assign new unofficial EM_* values, please pick large
    random numbers (0x8523, 0xa7f2, etc.) to minimize the chances of collision
@@ -194,76 +201,87 @@
    unofficial e_machine number should eventually ask registry@caldera.com for
    an officially blessed number to be added to the list above.	*/
 
-#define EM_PJ_OLD      99	/* picoJava */
-
-/* Cygnus PowerPC ELF backend.  Written in the absence of an ABI.  */
-#define EM_CYGNUS_POWERPC 0x9025
-
-/* Old version of Sparc v9, from before the ABI; this should be
-   removed shortly.  */
-#define EM_OLD_SPARCV9	11
+/* Old version of Sparc v9, from before the ABI;
+   This should be removed shortly.  */
+#define EM_OLD_SPARCV9		11
 
 /* Old version of PowerPC, this should be removed shortly. */
-#define EM_PPC_OLD	17
+#define EM_PPC_OLD		17
 
-/* (Deprecated) Temporary number for the OpenRISC processor.  */
-#define EM_OR32		0x8472
+/* picoJava */
+#define EM_PJ_OLD      		99
 
-/* Cygnus M32R ELF backend.  Written in the absence of an ABI.  */
-#define EM_CYGNUS_M32R	0x9041
+/* AVR magic number.  Written in the absense of an ABI.  */
+#define EM_AVR_OLD		0x1057
 
-/* Alpha backend magic number.  Written in the absence of an ABI.  */
-#define EM_ALPHA	0x9026
+/* MSP430 magic number.  Written in the absense of everything.  */
+#define EM_MSP430_OLD		0x1059
 
-/* old S/390 backend magic number. Written in the absence of an ABI.  */
-#define EM_S390_OLD	0xa390
-
-/* D10V backend magic number.  Written in the absence of an ABI.  */
-#define EM_CYGNUS_D10V	0x7650
-
-/* D30V backend magic number.  Written in the absence of an ABI.  */
-#define EM_CYGNUS_D30V	0x7676
-
-/* V850 backend magic number.  Written in the absense of an ABI.  */
-#define EM_CYGNUS_V850	0x9080
-
-/* mn10200 and mn10300 backend magic numbers.
-   Written in the absense of an ABI.  */
-#define EM_CYGNUS_MN10200	0xdead
-#define EM_CYGNUS_MN10300	0xbeef
+/* Morpho MT.   Written in the absense of an ABI.  */
+#define EM_MT                   0x2530
 
 /* FR30 magic number - no EABI available.  */
 #define EM_CYGNUS_FR30		0x3330
 
-/* AVR magic number
-   Written in the absense of an ABI.  */
-#define EM_AVR_OLD		0x1057
-
-/* OpenRISC magic number
-   Written in the absense of an ABI.  */
+/* OpenRISC magic number.  Written in the absense of an ABI.  */
 #define EM_OPENRISC_OLD		0x3426
 
-/* DLX magic number
-   Written in the absense of an ABI.  */
+/* DLX magic number.  Written in the absense of an ABI.  */
 #define EM_DLX			0x5aa5
-
-#define EM_XSTORMY16		0xad45
 
 /* FRV magic number - no EABI available??.  */
 #define EM_CYGNUS_FRV		0x5441
 
-/* Ubicom IP2xxx; no ABI */
+/* Infineon Technologies 16-bit microcontroller with C166-V2 core.  */
+#define EM_XC16X   		0x4688
+
+/* D10V backend magic number.  Written in the absence of an ABI.  */
+#define EM_CYGNUS_D10V		0x7650
+
+/* D30V backend magic number.  Written in the absence of an ABI.  */
+#define EM_CYGNUS_D30V		0x7676
+
+/* Ubicom IP2xxx;   Written in the absense of an ABI.  */
 #define EM_IP2K_OLD		0x8217
 
-/* MSP430 magic number
-      Written in the absense everything.  */
-#define EM_MSP430_OLD		0x1059
+/* (Deprecated) Temporary number for the OpenRISC processor.  */
+#define EM_OR32			0x8472
+
+/* Cygnus PowerPC ELF backend.  Written in the absence of an ABI.  */
+#define EM_CYGNUS_POWERPC 	0x9025
+
+/* Alpha backend magic number.  Written in the absence of an ABI.  */
+#define EM_ALPHA		0x9026
+
+/* Cygnus M32R ELF backend.  Written in the absence of an ABI.  */
+#define EM_CYGNUS_M32R		0x9041
+
+/* V850 backend magic number.  Written in the absense of an ABI.  */
+#define EM_CYGNUS_V850		0x9080
+
+/* old S/390 backend magic number. Written in the absence of an ABI.  */
+#define EM_S390_OLD		0xa390
+
+/* Old, unofficial value for Xtensa.  */
+#define EM_XTENSA_OLD		0xabc7
+
+#define EM_XSTORMY16		0xad45
+
+/* mn10200 and mn10300 backend magic numbers.
+   Written in the absense of an ABI.  */
+#define EM_CYGNUS_MN10300	0xbeef
+#define EM_CYGNUS_MN10200	0xdead
+
+/* Renesas M32C and M16C.  */
+#define EM_M32C			0xFEB0
 
 /* Vitesse IQ2000.  */
 #define EM_IQ2000		0xFEBA
 
-/* Old, unofficial value for Xtensa.  */
-#define EM_XTENSA_OLD		0xabc7
+/* NIOS magic number - no EABI available.  */
+#define EM_NIOS32		0xFEBB
+
+#define EM_CYGNUS_MEP		0xF00D  /* Toshiba MeP */
 
 /* See the above comment before you add a new EM_* value here.  */
 
@@ -287,8 +305,10 @@
 #define PT_LOPROC	0x70000000	/* Processor-specific */
 #define PT_HIPROC	0x7FFFFFFF	/* Processor-specific */
 
-#define PT_GNU_EH_FRAME	(PT_LOOS + 0x474e550)
-#define PT_GNU_STACK	(PT_LOOS + 0x474e551)
+#define PT_GNU_EH_FRAME	(PT_LOOS + 0x474e550) /* Frame unwind information */
+#define PT_SUNW_EH_FRAME PT_GNU_EH_FRAME      /* Solaris uses the same value */
+#define PT_GNU_STACK	(PT_LOOS + 0x474e551) /* Stack flags */
+#define PT_GNU_RELRO	(PT_LOOS + 0x474e552) /* Read-only after relocation */
 
 /* Program segment permissions, in program header p_flags field.  */
 
@@ -323,6 +343,8 @@
 #define SHT_LOOS	0x60000000	/* First of OS specific semantics */
 #define SHT_HIOS	0x6fffffff	/* Last of OS specific semantics */
 
+#define SHT_GNU_ATTRIBUTES 0x6ffffff5	/* Object attributes */
+#define SHT_GNU_HASH	0x6ffffff6	/* GNU style symbol hash table */
 #define SHT_GNU_LIBLIST	0x6ffffff7	/* List of prelink dependencies */
 
 /* The next three section types are defined by Solaris, and are named
@@ -431,7 +453,7 @@
 #define ELF64_ST_INFO  ELF_ST_INFO
 
 /* This macro disassembles and assembles a symbol's visibility into
-   the st_other field.  The STV_ defines specificy the actual visibility.  */
+   the st_other field.  The STV_ defines specify the actual visibility.  */
 
 #define ELF_ST_VISIBILITY(v)		((v) & 0x3)
 /* The remaining bits in the st_other field are not currently used.
@@ -458,6 +480,8 @@
 #define STT_FILE	4		/* Symbol gives a file name */
 #define STT_COMMON	5		/* An uninitialised common block */
 #define STT_TLS		6		/* Thread local data object */
+#define STT_RELC        8               /* Complex relocation expression */
+#define STT_SRELC       9               /* Signed Complex relocation expression */
 #define STT_LOOS	10		/* OS-specific semantics */
 #define STT_HIOS	12		/* OS-specific semantics */
 #define STT_LOPROC	13		/* Application-specific semantics */
@@ -494,7 +518,7 @@
 
 #define ELF64_R_SYM(i)		((i) >> 32)
 #define ELF64_R_TYPE(i)		((i) & 0xffffffff)
-#define ELF64_R_INFO(s,t)	(((bfd_vma) (s) << 32) + (bfd_vma) (t))
+#define ELF64_R_INFO(s,t)	(((bfd_vma) (s) << 31 << 1) + (bfd_vma) (t))
 
 /* Dynamic section tags.  */
 
@@ -529,7 +553,7 @@
 #define DT_FINI_ARRAYSZ 28
 #define DT_RUNPATH	29
 #define DT_FLAGS	30
-#define DT_ENCODING	31
+#define DT_ENCODING	32
 #define DT_PREINIT_ARRAY   32
 #define DT_PREINIT_ARRAYSZ 33
 
@@ -563,6 +587,9 @@
 #define DT_VALRNGHI	0x6ffffdff
 
 #define DT_ADDRRNGLO	0x6ffffe00
+#define DT_GNU_HASH	0x6ffffef5
+#define DT_TLSDESC_PLT	0x6ffffef6
+#define DT_TLSDESC_GOT	0x6ffffef7
 #define DT_GNU_CONFLICT	0x6ffffef8
 #define DT_GNU_LIBLIST	0x6ffffef9
 #define DT_CONFIG	0x6ffffefa

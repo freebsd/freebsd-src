@@ -77,7 +77,7 @@ struct syncache {
 	u_int16_t	sc_flags;
 #ifndef TCP_OFFLOAD_DISABLE
 	struct toe_usrreqs *sc_tu;		/* TOE operations */
-	void 		*sc_toepcb;		/* TOE protocol block */
+	void		*sc_toepcb;		/* TOE protocol block */
 #endif			
 	struct label	*sc_label;		/* MAC label reference */
 	struct ucred	*sc_cred;		/* cred cache for jail checks */

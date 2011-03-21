@@ -32,17 +32,98 @@ __FBSDID("$FreeBSD$");
 
 #include "libia64.h"
 
+uint64_t *ia64_pgtbl;
+uint32_t ia64_pgtblsz;
+
+static int
+pgtbl_extend(u_int idx)
+{
+	uint64_t *pgtbl;
+	uint32_t pgtblsz;
+	u_int pot;
+
+	pgtblsz = (idx + 1) << 3;
+
+	/* The minimum size is 4KB. */
+	if (pgtblsz < 4096)
+		pgtblsz = 4096;
+
+	/* Find the next higher power of 2. */
+	pgtblsz--;
+	for (pot = 1; pot < 32; pot <<= 1)
+		pgtblsz = pgtblsz | (pgtblsz >> pot);
+	pgtblsz++;
+
+	/* The maximum size is 1MB. */
+	if (pgtblsz > 1048576)
+		return (ENOMEM);
+
+	/* Make sure the size is a valid (mappable) page size. */
+	if (pgtblsz == 32*1024 || pgtblsz == 128*1024 || pgtblsz == 512*1024)
+		pgtblsz <<= 1;
+
+	/* Allocate naturally aligned memory. */
+	pgtbl = (void *)ia64_platform_alloc(0, pgtblsz);
+	if (pgtbl == NULL)
+		return (ENOMEM);
+
+	/* Initialize new page table. */
+	if (ia64_pgtbl != NULL && ia64_pgtbl != pgtbl)
+		bcopy(ia64_pgtbl, pgtbl, ia64_pgtblsz);
+	bzero(pgtbl + (ia64_pgtblsz >> 3), pgtblsz - ia64_pgtblsz);
+
+	if (ia64_pgtbl != NULL && ia64_pgtbl != pgtbl)
+		ia64_platform_free(0, (uintptr_t)ia64_pgtbl, ia64_pgtblsz);
+
+	ia64_pgtbl = pgtbl;
+	ia64_pgtblsz = pgtblsz;
+	return (0);
+}
+
 static void *
 va2pa(vm_offset_t va, size_t *len)
 {
 	uint64_t pa;
+	u_int idx, ofs;
+	int error;
 
+	/* Backward compatibility. */
 	if (va >= IA64_RR_BASE(7)) {
 		pa = IA64_RR_MASK(va);
 		return ((void *)pa);
 	}
 
-	printf("\n%s: va=%lx, *len=%lx\n", __func__, va, *len);
+	if (va < IA64_PBVM_BASE) {
+		error = EINVAL;
+		goto fail;
+	}
+
+	idx = (va - IA64_PBVM_BASE) >> IA64_PBVM_PAGE_SHIFT;
+	if (idx >= (ia64_pgtblsz >> 3)) {
+		error = pgtbl_extend(idx);
+		if (error)
+			goto fail;
+	}
+
+	ofs = va & IA64_PBVM_PAGE_MASK;
+	pa = ia64_pgtbl[idx];
+	if (pa == 0) {
+		pa = ia64_platform_alloc(va - ofs, IA64_PBVM_PAGE_SIZE);
+		if (pa == 0) {
+			error = ENOMEM;
+			goto fail;
+		}
+		ia64_pgtbl[idx] = pa;
+	}
+	pa += ofs;
+
+	/* We can not cross page boundaries (in general). */
+	if (*len + ofs > IA64_PBVM_PAGE_SIZE)
+		*len = IA64_PBVM_PAGE_SIZE - ofs;
+
+	return ((void *)pa);
+
+ fail:
 	*len = 0;
 	return (NULL);
 }

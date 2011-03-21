@@ -1,0 +1,187 @@
+dnl $Id: configure.in,v 1.57 2010/04/28 20:33:01 tom Exp $
+dnl Process this file with autoconf to produce a configure script.
+dnl
+AC_PREREQ(2.13.20020210)
+AC_INIT(dialog.h)
+AC_CONFIG_HEADER(dlg_config.h:config.hin)
+
+CF_VERSION_INFO(dialog)
+AC_ARG_PROGRAM
+
+DESTDIR=
+AC_SUBST(DESTDIR)
+
+dnl
+dnl Checks for programs.
+dnl
+AC_PROG_CC
+AC_PROG_CPP
+AC_PROG_GCC_TRADITIONAL
+AC_PROG_MAKE_SET
+AC_PROG_RANLIB
+AC_PROG_INSTALL
+
+dnl needed for CF_WITH_LIBTOOL
+AC_CHECK_TOOL(AR, ar, ar)
+
+AC_ISC_POSIX
+AC_C_CONST
+
+CF_MAKEFLAGS
+CF_MAKE_TAGS
+CF_DISABLE_ECHO
+CF_PROG_EXT
+CF_PATHSEP
+CF_LIB_PREFIX
+CF_XOPEN_SOURCE
+CF_LARGEFILE
+
+CF_WITH_WARNINGS
+
+dnl
+dnl Checks for libraries.
+dnl
+EXTRAOBJS=""
+CF_BUNDLED_INTL(makefile,enable)
+CF_MATH_LIB(,sqrt(x))
+
+CF_WITH_NO_LEAKS
+
+CF_ARG_MSG_ENABLE([if you want --trace option],
+	trace,
+	[  --disable-trace         do not support --trace option],
+	[EXTRAOBJS="$EXTRAOBJS trace\$o"
+	 AC_DEFINE(HAVE_DLG_TRACE)],,yes)
+
+LIBTOOL_MAKE="#"
+CF_WITH_LIBTOOL
+if test "$with_libtool" = "yes" ; then
+	OBJEXT="lo"
+	LIBTOOL_MAKE=
+	CF_WITH_LIBTOOL_OPTS
+fi
+AC_SUBST(LIBTOOL_MAKE)
+
+use_ncurses=no
+AC_ARG_WITH(ncurses,
+	[  --with-ncurses          compile/link with ncurses library],
+	[use_ncurses=ncurses])
+AC_ARG_WITH(ncursesw,
+	[  --with-ncursesw         compile/link with wide-char ncurses library],
+	[use_ncurses=ncursesw])
+if test $use_ncurses != no ; then
+	cf_wide_curses=yes
+	if test $use_ncurses = ncursesw ; then
+		CF_UTF8_LIB
+	fi
+	CF_NCURSES_CONFIG($use_ncurses)
+else
+	cf_wide_curses=no
+	CF_CURSES_CONFIG
+fi
+
+cf_all_widgets=yes
+CF_ARG_MSG_ENABLE([if you want extra dialogs],
+	extras,
+	[  --disable-extras        do not include extra dialogs],
+	[cf_all_widgets=yes],[cf_all_widgets=no],yes)
+
+CF_ARG_MSG_ENABLE([if you want config-file support],
+	rc-file,
+	[  --disable-rc-file       do not include config-file support],
+	[EXTRAOBJS="$EXTRAOBJS rc\$o"
+	 AC_DEFINE(HAVE_RC_FILE)],,$cf_all_widgets)
+
+CF_ARG_MSG_ENABLE([if you want Xdialog-style dialogs],
+	Xdialog,
+	[  --disable-Xdialog       do not include Xdialog-style dialogs],
+	[EXTRAOBJS="$EXTRAOBJS calendar\$o fselect\$o timebox\$o"
+	 AC_DEFINE(HAVE_XDIALOG)],,$cf_all_widgets)
+
+CF_ARG_MSG_ENABLE([if you want the form dialog],
+	form,
+	[  --disable-form          do not include the form dialog],
+	[EXTRAOBJS="$EXTRAOBJS formbox\$o"
+	 AC_DEFINE(HAVE_DLG_FORMBOX)],,$cf_all_widgets)
+
+CF_ARG_MSG_ENABLE([if you want the gauge dialog],
+	gauge,
+	[  --disable-gauge         do not include the gauge dialogs],
+	[EXTRAOBJS="$EXTRAOBJS guage\$o pause\$o progressbox\$o"
+	 AC_DEFINE(HAVE_DLG_GAUGE)],,$cf_all_widgets)
+
+CF_ARG_MSG_ENABLE([if you want the tailbox dialog],
+	tailbox,
+	[  --disable-tailbox       do not include the tailbox dialog],
+	[EXTRAOBJS="$EXTRAOBJS tailbox\$o"
+	 AC_DEFINE(HAVE_DLG_TAILBOX)],,$cf_all_widgets)
+
+CF_ARG_MSG_ENABLE([if you want the mixedform dialog],
+	mixedform,
+	[  --disable-mixedform     do not include the mixedform dialog],
+	[EXTRAOBJS="$EXTRAOBJS mixedform\$o"
+	 AC_DEFINE(HAVE_DLG_MIXEDFORM)],,$cf_all_widgets)
+
+CF_ARG_MSG_ENABLE([if you want the mixedgauge dialog],
+	mixedgauge,
+	[  --disable-mixedgauge    do not include the mixedgauge dialog],
+	[EXTRAOBJS="$EXTRAOBJS mixedgauge\$o"
+	 AC_DEFINE(HAVE_MIXEDGAUGE)],,$cf_all_widgets)
+
+CF_ARG_MSG_ENABLE([if you want the wide-curses features],
+	widec,
+	[  --enable-widec          enable wide-curses features],
+	[AC_DEFINE(USE_WIDE_CURSES)],,$cf_wide_curses)
+
+AC_SUBST(EXTRAOBJS)
+
+dnl
+dnl Checks for header files.
+dnl
+AC_HEADER_STDC
+AC_HEADER_TIME
+AC_HEADER_DIRENT
+AC_CHECK_HEADERS(search.h unctrl.h unistd.h)
+CF_CURSES_TERM_H
+
+dnl
+dnl Checks for library functions.
+dnl
+AC_TYPE_SIGNAL
+AC_CHECK_FUNCS(\
+_nc_free_and_exit \
+strcasecmp \
+strftime \
+tsearch \
+waitpid \
+)
+
+CF_CURSES_FUNCS(\
+flushinp \
+getbegx \
+getbegy \
+getbegyx \
+getcurx \
+getcury \
+getmaxx \
+getmaxy \
+getmaxyx \
+getparx \
+getpary \
+getparyx \
+use_default_colors \
+wget_wch \
+)
+
+AC_CHECK_FUNC(start_color,[AC_DEFINE(HAVE_COLOR)])
+CF_CURSES_CHTYPE
+CF_FUNC_WAIT
+CF_MBSTATE_T
+
+CF_HEADERS_SH(DLG,dlg_config.h)
+
+AC_TRY_LINK([#include <locale.h>],[setlocale(LC_ALL, "")],[AC_DEFINE(HAVE_SETLOCALE)])
+
+CF_DISABLE_RPATH_HACK
+
+AC_OUTPUT(dialog-config makefile $EXTRA_OUTPUT $SUB_MAKEFILE samples/install/makefile,,,sort -u)

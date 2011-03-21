@@ -577,6 +577,7 @@ nfsrv_adminrevoke(struct nfsd_clid *revokep, NFSPROC_T *p)
 	 * Now, write out the revocation record
 	 */
 	nfsrv_writestable(clp->lc_id, clp->lc_idlen, NFSNST_REVOKE, p);
+	nfsrv_backupstable();
 
 	/*
 	 * and clear out the state, marking the clientid revoked.
@@ -1921,7 +1922,7 @@ tryagain:
 		 */
 		new_stp->ls_seq = new_stp->ls_opentolockseq;
 		nfsrvd_refcache(new_stp->ls_op);
-		stateidp->seqid = new_stp->ls_stateid.seqid = 0;
+		stateidp->seqid = new_stp->ls_stateid.seqid = 1;
 		stateidp->other[0] = new_stp->ls_stateid.other[0] =
 		    clp->lc_clientid.lval[0];
 		stateidp->other[1] = new_stp->ls_stateid.other[1] =
@@ -2988,8 +2989,10 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 	 * If the client just confirmed its first open, write a timestamp
 	 * to the stable storage file.
 	 */
-	if (gotstate)
+	if (gotstate != 0) {
 		nfsrv_writestable(client, len, NFSNST_NEWSTATE, p);
+		nfsrv_backupstable();
+	}
 	return (error);
 }
 
@@ -4092,14 +4095,14 @@ nfsrv_updatestable(NFSPROC_T *p)
 	NFSVNO_ATTRINIT(&nva);
 	NFSVNO_SETATTRVAL(&nva, size, 0);
 	vp = NFSFPVNODE(sf->nsf_fp);
-	NFS_STARTWRITE(vp, &mp);
+	vn_start_write(vp, &mp, V_WAIT);
 	if (vn_lock(vp, LK_EXCLUSIVE) == 0) {
 		error = nfsvno_setattr(vp, &nva, NFSFPCRED(sf->nsf_fp), p,
 		    NULL);
 		VOP_UNLOCK(vp, 0);
 	} else
 		error = EPERM;
-	NFS_ENDWRITE(mp);
+	vn_finished_write(mp);
 	if (!error)
 	    error = NFSD_RDWR(UIO_WRITE, vp,
 		(caddr_t)&sf->nsf_rec, sizeof (struct nfsf_rec), (off_t)0,
@@ -4132,6 +4135,7 @@ nfsrv_updatestable(NFSPROC_T *p)
 		LIST_REMOVE(sp, nst_list);
 		free((caddr_t)sp, M_TEMP);
 	}
+	nfsrv_backupstable();
 }
 
 /*
@@ -4266,6 +4270,7 @@ nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, vnode_t vp,
 	 * Ok, we can expire the conflicting client.
 	 */
 	nfsrv_writestable(clp->lc_id, clp->lc_idlen, NFSNST_REVOKE, p);
+	nfsrv_backupstable();
 	nfsrv_cleanclient(clp, p);
 	nfsrv_freedeleglist(&clp->lc_deleg);
 	nfsrv_freedeleglist(&clp->lc_olddeleg);
@@ -4441,6 +4446,7 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 	 * sleep without the state changing.
 	 */
 	nfsrv_writestable(clp->lc_id, clp->lc_idlen, NFSNST_REVOKE, p);
+	nfsrv_backupstable();
 	if (clp->lc_expiry < NFSD_MONOSEC) {
 		nfsrv_cleanclient(clp, p);
 		nfsrv_freedeleglist(&clp->lc_deleg);

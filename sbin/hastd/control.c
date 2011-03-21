@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 
 #include "hast.h"
 #include "hastd.h"
+#include "hast_checksum.h"
+#include "hast_compression.h"
 #include "hast_proto.h"
 #include "hooks.h"
 #include "nv.h"
@@ -61,6 +63,10 @@ child_cleanup(struct hast_resource *res)
 	if (res->hr_event != NULL) {
 		proto_close(res->hr_event);
 		res->hr_event = NULL;
+	}
+	if (res->hr_conn != NULL) {
+		proto_close(res->hr_conn);
+		res->hr_conn = NULL;
 	}
 	res->hr_workerpid = 0;
 }
@@ -159,12 +165,13 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 	nv_add_uint8(cnvout, HASTCTL_STATUS, "cmd");
 	error = nv_error(cnvout);
 	if (error != 0) {
-		/* LOG */
+		pjdlog_common(LOG_ERR, 0, error,
+		    "Unable to prepare control header");
 		goto end;
 	}
 	if (hast_proto_send(res, res->hr_ctrl, cnvout, NULL, 0) < 0) {
 		error = errno;
-		/* LOG */
+		pjdlog_errno(LOG_ERR, "Unable to send control header");
 		goto end;
 	}
 
@@ -173,17 +180,17 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 	 */
 	if (hast_proto_recv_hdr(res->hr_ctrl, &cnvin) < 0) {
 		error = errno;
-		/* LOG */
+		pjdlog_errno(LOG_ERR, "Unable to receive control header");
 		goto end;
 	}
 
-	error = nv_get_int64(cnvin, "error");
+	error = nv_get_int16(cnvin, "error");
 	if (error != 0)
 		goto end;
 
 	if ((str = nv_get_string(cnvin, "status")) == NULL) {
 		error = ENOENT;
-		/* LOG */
+		pjdlog_errno(LOG_ERR, "Field 'status' is missing.");
 		goto end;
 	}
 	nv_add_string(nvout, str, "status%u", no);
@@ -241,6 +248,10 @@ control_status(struct hastd_config *cfg, struct nv *nvout,
 		nv_add_string(nvout, "unknown", "replication%u", no);
 		break;
 	}
+	nv_add_string(nvout, checksum_name(res->hr_checksum),
+	    "checksum%u", no);
+	nv_add_string(nvout, compression_name(res->hr_compression),
+	    "compression%u", no);
 	nv_add_string(nvout, role2str(res->hr_role), "role%u", no);
 
 	switch (res->hr_role) {
@@ -277,6 +288,7 @@ control_handle(struct hastd_config *cfg)
 		return;
 	}
 
+	cfg->hc_controlin = conn;
 	nvin = nvout = NULL;
 	role = HAST_ROLE_UNDEF;
 
@@ -383,6 +395,7 @@ close:
 	if (nvout != NULL)
 		nv_free(nvout);
 	proto_close(conn);
+	cfg->hc_controlin = NULL;
 }
 
 /*
@@ -410,7 +423,6 @@ ctrl_thread(void *arg)
 			nv_free(nvin);
 			continue;
 		}
-		nv_free(nvin);
 		nvout = nv_alloc();
 		switch (cmd) {
 		case HASTCTL_STATUS:
@@ -432,11 +444,23 @@ ctrl_thread(void *arg)
 				nv_add_uint32(nvout, (uint32_t)0, "keepdirty");
 				nv_add_uint64(nvout, (uint64_t)0, "dirty");
 			}
+			nv_add_int16(nvout, 0, "error");
+			break;
+		case HASTCTL_RELOAD:
+			/*
+			 * When parent receives SIGHUP and discovers that
+			 * something related to us has changes, it sends reload
+			 * message to us.
+			 */
+			assert(res->hr_role == HAST_ROLE_PRIMARY);
+			primary_config_reload(res, nvin);
+			nv_add_int16(nvout, 0, "error");
 			break;
 		default:
 			nv_add_int16(nvout, EINVAL, "error");
 			break;
 		}
+		nv_free(nvin);
 		if (nv_error(nvout) != 0) {
 			pjdlog_error("Unable to create answer on control message.");
 			nv_free(nvout);

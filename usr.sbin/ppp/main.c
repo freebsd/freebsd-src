@@ -386,11 +386,6 @@ main(int argc, char **argv)
 
   /* NOTE:  We may now have changed argv[1] via a ``set proctitle'' */
 
-  if (prompt) {
-    prompt->bundle = bundle;	/* couldn't do it earlier */
-    if (!sw.quiet)
-      prompt_Printf(prompt, "Using interface: %s\n", bundle->iface->name);
-  }
   SignalBundle = bundle;
   bundle->NatEnabled = sw.nat;
   if (sw.nat)
@@ -429,6 +424,12 @@ main(int argc, char **argv)
                   "in auto mode.\n");
     AbortProgram(EX_START);
   }
+
+  if (prompt) {
+    prompt->bundle = bundle;	/* couldn't do it earlier */
+    if (!sw.quiet)
+      prompt_Printf(prompt, "Using interface: %s\n", bundle->iface->name);
+  } 
 
   if (sw.mode != PHYS_INTERACTIVE) {
     if (sw.mode != PHYS_DIRECT) {

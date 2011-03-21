@@ -76,7 +76,8 @@ public:
     StartOfLine   = 0x01,  // At start of line or only after whitespace.
     LeadingSpace  = 0x02,  // Whitespace exists before this token.
     DisableExpand = 0x04,  // This identifier may never be macro expanded.
-    NeedsCleaning = 0x08   // Contained an escaped newline or trigraph.
+    NeedsCleaning = 0x08,   // Contained an escaped newline or trigraph.
+    LeadingEmptyMacro = 0x10 // Empty macro exists before this token.
   };
 
   tok::TokenKind getKind() const { return (tok::TokenKind)Kind; }
@@ -87,6 +88,12 @@ public:
   bool is(tok::TokenKind K) const { return Kind == (unsigned) K; }
   bool isNot(tok::TokenKind K) const { return Kind != (unsigned) K; }
 
+  /// isAnyIdentifier - Return true if this is a raw identifier (when lexing
+  /// in raw mode) or a non-keyword identifier (when lexing in non-raw mode).
+  bool isAnyIdentifier() const {
+    return is(tok::identifier) || is(tok::raw_identifier);
+  }
+
   /// isLiteral - Return true if this is a "literal", like a numeric
   /// constant, string, etc.
   bool isLiteral() const {
@@ -96,9 +103,11 @@ public:
   }
 
   bool isAnnotation() const {
-    return is(tok::annot_typename) ||
-           is(tok::annot_cxxscope) ||
-           is(tok::annot_template_id);
+#define ANNOTATION(NAME) \
+    if (is(tok::annot_##NAME)) \
+      return true;
+#include "clang/Basic/TokenKinds.def"
+    return false;
   }
 
   /// getLocation - Return a source location identifier for the specified
@@ -153,12 +162,27 @@ public:
   }
 
   IdentifierInfo *getIdentifierInfo() const {
-    assert(!isAnnotation() && "Used IdentInfo on annotation token!");
+    assert(isNot(tok::raw_identifier) &&
+           "getIdentifierInfo() on a tok::raw_identifier token!");
+    assert(!isAnnotation() &&
+           "getIdentifierInfo() on an annotation token!");
     if (isLiteral()) return 0;
     return (IdentifierInfo*) PtrData;
   }
   void setIdentifierInfo(IdentifierInfo *II) {
     PtrData = (void*) II;
+  }
+
+  /// getRawIdentifierData - For a raw identifier token (i.e., an identifier
+  /// lexed in raw mode), returns a pointer to the start of it in the text
+  /// buffer if known, null otherwise.
+  const char *getRawIdentifierData() const {
+    assert(is(tok::raw_identifier));
+    return reinterpret_cast<const char*>(PtrData);
+  }
+  void setRawIdentifierData(const char *Ptr) {
+    assert(is(tok::raw_identifier));
+    PtrData = const_cast<char*>(Ptr);
   }
 
   /// getLiteralData - For a literal token (numeric constant, string, etc), this
@@ -231,7 +255,13 @@ public:
   /// newlines in it.
   ///
   bool needsCleaning() const { return (Flags & NeedsCleaning) ? true : false; }
-    
+
+  /// \brief Return true if this token has an empty macro before it.
+  ///
+  bool hasLeadingEmptyMacro() const {
+    return (Flags & LeadingEmptyMacro) ? true : false;
+  }
+
 };
 
 /// PPConditionalInfo - Information about the conditional stack (#if directives)

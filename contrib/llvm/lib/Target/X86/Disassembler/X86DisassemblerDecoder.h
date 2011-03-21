@@ -24,7 +24,7 @@ extern "C" {
   const char*             name;
 
 #define INSTRUCTION_IDS     \
-  InstrUID*  instructionIDs;
+  const InstrUID *instructionIDs;
 
 #include "X86DisassemblerDecoderCommon.h"
   
@@ -399,7 +399,7 @@ struct InternalInstruction {
   /* The segment override type */
   SegmentOverride segmentOverride;
   
-  /* Sizes of various critical pieces of data */
+  /* Sizes of various critical pieces of data, in bytes */
   uint8_t registerSize;
   uint8_t addressSize;
   uint8_t displacementSize;
@@ -423,7 +423,7 @@ struct InternalInstruction {
   /* The instruction ID, extracted from the decode table */
   uint16_t instructionID;
   /* The specifier for the instruction, from the instruction info table */
-  struct InstructionSpecifier* spec;
+  const struct InstructionSpecifier *spec;
   
   /* state for additional bytes, consumed during operand decode.  Pattern:
      consumed___ indicates that the byte was already consumed and does not

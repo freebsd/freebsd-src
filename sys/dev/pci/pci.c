@@ -612,10 +612,14 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 					cfg->pp.pp_data = ptr + PCIR_POWER_DATA;
 			}
 			break;
-#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
 		case PCIY_HT:		/* HyperTransport */
 			/* Determine HT-specific capability type. */
 			val = REG(ptr + PCIR_HT_COMMAND, 2);
+
+			if ((val & 0xe000) == PCIM_HTCAP_SLAVE)
+				cfg->ht.ht_slave = ptr;
+
+#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
 			switch (val & PCIM_HTCMD_CAP_MASK) {
 			case PCIM_HTCAP_MSI_MAPPING:
 				if (!(val & PCIM_HTCMD_MSI_FIXED)) {
@@ -627,7 +631,7 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 					    4);
 					if (addr != MSI_INTEL_ADDR_BASE)
 						device_printf(pcib,
-	    "HT Bridge at pci%d:%d:%d:%d has non-default MSI window 0x%llx\n",
+	    "HT device at pci%d:%d:%d:%d has non-default MSI window 0x%llx\n",
 						    cfg->domain, cfg->bus,
 						    cfg->slot, cfg->func,
 						    (long long)addr);
@@ -639,8 +643,8 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 				cfg->ht.ht_msiaddr = addr;
 				break;
 			}
-			break;
 #endif
+			break;
 		case PCIY_MSI:		/* PCI MSI */
 			cfg->msi.msi_location = ptr;
 			cfg->msi.msi_ctrl = REG(ptr + PCIR_MSI_CTRL, 2);
@@ -696,6 +700,24 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 			break;
 		}
 	}
+
+	
+#if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
+	/*
+	 * Enable the MSI mapping window for all HyperTransport
+	 * slaves.  PCI-PCI bridges have their windows enabled via
+	 * PCIB_MAP_MSI().
+	 */
+	if (cfg->ht.ht_slave != 0 && cfg->ht.ht_msimap != 0 &&
+	    !(cfg->ht.ht_msictrl & PCIM_HTCMD_MSI_ENABLE)) {
+		device_printf(pcib,
+	    "Enabling MSI window for HyperTransport slave at pci%d:%d:%d:%d\n",
+		    cfg->domain, cfg->bus, cfg->slot, cfg->func);
+		 cfg->ht.ht_msictrl |= PCIM_HTCMD_MSI_ENABLE;
+		 WREG(cfg->ht.ht_msimap + PCIR_HT_COMMAND, cfg->ht.ht_msictrl,
+		     2);
+	}
+#endif
 /* REG and WREG use carry through to next functions */
 }
 
@@ -2549,13 +2571,13 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 			return (barlen);
 	}
 
-	count = 1 << mapsize;
+	count = (pci_addr_t)1 << mapsize;
 	if (basezero || base == pci_mapbase(testval)) {
 		start = 0;	/* Let the parent decide. */
 		end = ~0ULL;
 	} else {
 		start = base;
-		end = base + (1 << mapsize) - 1;
+		end = base + count - 1;
 	}
 	resource_list_add(rl, type, reg, start, end, count);
 
@@ -3056,15 +3078,20 @@ pci_resume(device_t dev)
 static void
 pci_load_vendor_data(void)
 {
-	caddr_t vendordata, info;
+	caddr_t data;
+	void *ptr;
+	size_t sz;
 
-	if ((vendordata = preload_search_by_type("pci_vendor_data")) != NULL) {
-		info = preload_search_info(vendordata, MODINFO_ADDR);
-		pci_vendordata = *(char **)info;
-		info = preload_search_info(vendordata, MODINFO_SIZE);
-		pci_vendordata_size = *(size_t *)info;
-		/* terminate the database */
-		pci_vendordata[pci_vendordata_size] = '\n';
+	data = preload_search_by_type("pci_vendor_data");
+	if (data != NULL) {
+		ptr = preload_fetch_addr(data);
+		sz = preload_fetch_size(data);
+		if (ptr != NULL && sz != 0) {
+			pci_vendordata = ptr;
+			pci_vendordata_size = sz;
+			/* terminate the database */
+			pci_vendordata[pci_vendordata_size] = '\n';
+		}
 	}
 }
 
@@ -3759,7 +3786,7 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	 * situation where we might allocate the excess to
 	 * another driver, which won't work.
 	 */
-	count = 1UL << mapsize;
+	count = (pci_addr_t)1 << mapsize;
 	if (RF_ALIGNMENT(flags) < mapsize)
 		flags = (flags & ~RF_ALIGNMENT_MASK) | RF_ALIGNMENT_LOG2(mapsize);
 	if (PCI_BAR_MEM(testval) && (testval & PCIM_BAR_MEM_PREFETCH))

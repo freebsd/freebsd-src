@@ -563,7 +563,7 @@ sctp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(sctps_sendfastretrans, "\t\t%ju fast retransmitted DATA chunk%s\n");
 	p(sctps_sendmultfastretrans, "\t\t%ju FR'%s that happened more "
 	    "than once to same chunk\n");
-	p(sctps_sendheartbeat, "\t\t%ju intput HB chunk%s\n");
+	p(sctps_sendheartbeat, "\t\t%ju output HB chunk%s\n");
 	p(sctps_sendecne, "\t\t%ju output ECNE chunk%s\n");
 	p(sctps_sendauth, "\t\t%ju output AUTH chunk%s\n");
 	p1a(sctps_senderrors, "\t\t%ju ip_output error counter\n");

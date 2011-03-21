@@ -324,10 +324,6 @@ RESET {
 		popredir();
 }
 
-SHELLPROC {
-	clearredir();
-}
-
 #endif
 
 /* Return true if fd 0 has already been redirected at least once.  */

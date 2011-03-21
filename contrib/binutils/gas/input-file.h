@@ -1,5 +1,6 @@
 /* input_file.h header for input-file.c
-   Copyright 1987, 1992, 1993, 2000 Free Software Foundation, Inc.
+   Copyright 1987, 1992, 1993, 2000, 2003, 2005, 2006
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -15,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /*"input_file.c":Operating-system dependant functions to read source files.*/
 
@@ -51,14 +52,13 @@
  *
  * input_file_close ()			Closes opened file.
  *
- * All errors are reported (using as_perror) so caller doesn't have to think
- * about I/O errors. No I/O errors are fatal: an end-of-file may be faked.
+ * All errors are reported so caller doesn't have to think
+ * about I/O errors.
  */
 
 char *input_file_give_next_buffer (char *where);
 char *input_file_push (void);
 unsigned int input_file_buffer_size (void);
-int input_file_is_open (void);
 void input_file_begin (void);
 void input_file_close (void);
 void input_file_end (void);

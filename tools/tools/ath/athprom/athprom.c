@@ -43,6 +43,7 @@
 #include <err.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #ifndef DIR_TEMPLATE
 #define	DIR_TEMPLATE	"/usr/local/libdata/athprom"

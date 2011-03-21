@@ -258,7 +258,7 @@ aibs_attach_sif(struct aibs_softc *sc, enum aibs_type st)
 #endif
 		snprintf(si, sizeof(si), "%i", i);
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->sc_dev),
-		    SYSCTL_CHILDREN(so), i, si, CTLTYPE_OPAQUE | CTLFLAG_RD,
+		    SYSCTL_CHILDREN(so), i, si, CTLTYPE_INT | CTLFLAG_RD,
 		    sc, st, aibs_sysctl, st == AIBS_TEMP ? "IK" : "I", desc);
 	}
 

@@ -16,6 +16,9 @@ _BIND.chroot.dist=	BIND.chroot.dist
 _BIND.include.dist=	BIND.include.dist
 .endif
 .endif
+.if ${MK_GROFF} != "no"
+_BSD.groff.dist=	BSD.groff.dist
+.endif
 .if ${MK_SENDMAIL} != "no"
 _BSD.sendmail.dist=	BSD.sendmail.dist
 .endif

@@ -91,6 +91,7 @@
 #define	RESTORE_U_PCB_CONTEXT(reg, offs, base) \
 	REG_L	reg, U_PCB_CONTEXT + (SZREG * offs) (base)
 
+
 /*
  * Setup for and return to user.
  */
@@ -194,11 +195,6 @@ LEAF(savectx)
 	SAVE_U_PCB_CONTEXT(ra, PREG_PC, a0)
 	move	ra, v0			/* restore 'ra' before returning */
 
-	/*
-	 * FREEBSD_DEVELOPERS_FIXME:
-	 * In case there are CPU-specific registers that need
-	 * to be saved with the other registers do so here.
-	 */
 	j	ra
 	move	v0, zero
 END(savectx)
@@ -253,11 +249,6 @@ NON_LEAF(cpu_switch, CALLFRAME_SIZ, ra)
 	nop
 getpc:
 	SAVE_U_PCB_CONTEXT(ra, PREG_PC, a0)		# save return address
-	/*
-	 * FREEBSD_DEVELOPERS_FIXME:
-	 * In case there are CPU-specific registers that need
-	 * to be saved with the other registers do so here.
-	 */
 
 	PTR_S	a2, TD_LOCK(a3)			# Switchout td_lock 
 
@@ -284,8 +275,8 @@ blocked_loop:
 	PTR_LI	s0, MIPS_KSEG2_START		# If Uarea addr is below kseg2,
 #endif
 	bltu	v0, s0, sw2			# no need to insert in TLB.
-	lw	a1, TD_UPTE + 0(s7)		# a1 = u. pte #0
-	lw	a2, TD_UPTE + 4(s7)		# a2 = u. pte #1
+	PTE_L	a1, TD_UPTE + 0(s7)		# a1 = u. pte #0
+	PTE_L	a2, TD_UPTE + PTESIZE(s7)	# a2 = u. pte #1
 /*
  * Wiredown the USPACE of newproc in TLB entry#0.  Check whether target
  * USPACE is already in another place of TLB before that, and if so
@@ -306,8 +297,8 @@ blocked_loop:
 	sll	s0, PAGE_SHIFT + 1
 	addu	t1, s0
 	MTC0	t1, MIPS_COP_0_TLB_HI
-	mtc0	zero, MIPS_COP_0_TLB_LO0
-	mtc0	zero, MIPS_COP_0_TLB_LO1
+	PTE_MTC0	zero, MIPS_COP_0_TLB_LO0
+	PTE_MTC0	zero, MIPS_COP_0_TLB_LO1
 	HAZARD_DELAY
 	tlbwi
 	HAZARD_DELAY
@@ -317,9 +308,9 @@ entry0set:
 /* SMP!! - Works only for  unshared TLB case - i.e. no v-cpus */
 	mtc0	zero, MIPS_COP_0_TLB_INDEX		# TLB entry #0
 	HAZARD_DELAY
-	mtc0	a1, MIPS_COP_0_TLB_LO0		# upte[0]
+	PTE_MTC0	a1, MIPS_COP_0_TLB_LO0		# upte[0]
 	HAZARD_DELAY
-	mtc0	a2, MIPS_COP_0_TLB_LO1		# upte[1]
+	PTE_MTC0	a2, MIPS_COP_0_TLB_LO1		# upte[1]
 	HAZARD_DELAY
 	tlbwi					# set TLB entry #0
 	HAZARD_DELAY
@@ -327,13 +318,15 @@ entry0set:
  * Now running on new u struct.
  */
 sw2:
+	PTR_L	s0, TD_PCB(s7)
+	RESTORE_U_PCB_CONTEXT(sp, PREG_SP, s0)
 	PTR_LA	t1, _C_LABEL(pmap_activate)	# s7 = new proc pointer
 	jalr	t1				# s7 = new proc pointer
 	move	a0, s7				# BDSLOT
 /*
  * Restore registers and return.
  */
-	PTR_L	a0, TD_PCB(s7)
+	move	a0, s0
 	RESTORE_U_PCB_CONTEXT(gp, PREG_GP, a0)
 	RESTORE_U_PCB_CONTEXT(v0, PREG_SR, a0)	# restore kernel context
 	RESTORE_U_PCB_CONTEXT(ra, PREG_RA, a0)
@@ -345,13 +338,8 @@ sw2:
 	RESTORE_U_PCB_CONTEXT(s5, PREG_S5, a0)
 	RESTORE_U_PCB_CONTEXT(s6, PREG_S6, a0)
 	RESTORE_U_PCB_CONTEXT(s7, PREG_S7, a0)
-	RESTORE_U_PCB_CONTEXT(sp, PREG_SP, a0)
 	RESTORE_U_PCB_CONTEXT(s8, PREG_S8, a0)
-	/*
-	 * FREEBSD_DEVELOPERS_FIXME:
-	 * In case there are CPU-specific registers that need
-	 * to be restored with the other registers do so here.
-	 */
+
 	mfc0	t0, MIPS_COP_0_STATUS
 	and	t0, t0, MIPS_SR_INT_MASK
 	and	v0, v0, ~MIPS_SR_INT_MASK

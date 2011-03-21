@@ -88,3 +88,5 @@ L1:	rep
 	popl	%edi
 	ret
 END(memset)
+
+	.section .note.GNU-stack,"",%progbits

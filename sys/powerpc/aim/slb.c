@@ -200,9 +200,7 @@ make_intermediate(uint64_t esid, struct slbtnode *parent)
 uint64_t
 kernel_va_to_slbv(vm_offset_t va)
 {
-	uint64_t esid, slbv;
-
-	esid = (uintptr_t)va >> ADDR_SR_SHFT;
+	uint64_t slbv;
 
 	/* Set kernel VSID to deterministic value */
 	slbv = (KERNEL_VSID((uintptr_t)va >> ADDR_SR_SHFT)) << SLBV_VSID_SHIFT;
@@ -485,18 +483,11 @@ slb_uma_real_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	static vm_offset_t realmax = 0;
 	void *va;
 	vm_page_t m;
-	int pflags;
 
 	if (realmax == 0)
 		realmax = platform_real_maxaddr();
 
 	*flags = UMA_SLAB_PRIV;
-	if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
-		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
-	else    
-		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED;
-	if (wait & M_ZERO)
-		pflags |= VM_ALLOC_ZERO;
 
 	for (;;) {
 		m = vm_phys_alloc_contig(1, 0, realmax, PAGE_SIZE,

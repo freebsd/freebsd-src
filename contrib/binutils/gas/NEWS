@@ -1,4 +1,82 @@
 -*- text -*-
+* Support for the National Semiconductor CR16 target has been added.
+
+* Added gas .reloc pseudo.  This is a low-level interface for creating
+  relocations.
+
+* Add support for x86_64 PE+ target.
+
+* Add support for Score target.
+
+* Support for the Infineon XC16X has been added by KPIT Cummins Infosystems.
+
+* Support for ms2 architecture has been added.
+
+* Support for the Z80 processor family has been added.
+
+* Add support for the "@<file>" syntax to the command line, so that extra
+  switches can be read from <file>.
+
+* The SH target supports a new command line switch --enable-reg-prefix which,
+  if enabled, will allow register names to be optionally prefixed with a $
+  character.  This allows register names to be distinguished from label names.
+  
+* Macros with a variable number of arguments are now supported. See the
+  documentation for how this works.
+
+* Added --reduce-memory-overheads switch to reduce the size of the hash
+  tables used, at the expense of longer assembly times, and
+  --hash-size=<NUMBER> to set the size of the hash tables used by gas.
+
+* Macro names and macro parameter names can now be any identifier that would
+  also be legal as a symbol elsewhere. For macro parameter names, this is
+  known to cause problems in certain sources when the respective target uses
+  characters inconsistently, and thus macro parameter references may no longer
+  be recognized as such (see the documentation for details).
+  
+* Support the .f_floating, .d_floating, .g_floating and .h_floating directives
+  for the VAX target in order to be more compatible with the VAX MACRO
+  assembler.
+
+* New command line option -mtune=[itanium1|itanium2] for IA64 targets.
+
+Changes in 2.16:
+
+* Redefinition of macros now results in an error.
+
+* New command line option -mhint.b=[ok|warning|error] for IA64 targets.
+
+* New command line option -munwind-check=[warning|error] for IA64
+  targets.
+
+* The IA64 port now uses automatic dependency violation removal as its default
+  mode.
+
+* Port to MAXQ processor contributed by HCL Tech.
+
+* Added support for generating unwind tables for ARM ELF targets.
+
+* Add a -g command line option to generate debug information in the target's
+  preferred debug format.
+
+* Support for the crx-elf target added.
+
+* Support for the sh-symbianelf target added.
+
+* Added a pseudo-op (.secrel32) to generate 32 bit section relative relocations
+  on pe[i]-i386; required for this target's DWARF 2 support.
+
+* Support for Motorola MCF521x/5249/547x/548x added.
+
+* Support for ColdFire EMAC instructions added and Motorola syntax for MAC/EMAC
+  instrucitons.
+
+* New command line option -mno-shared for MIPS ELF targets.
+
+* New command line option --alternate and pseudo-ops .altmacro and .noaltmacro
+  added to enter (and leave) alternate macro syntax mode.
+
+Changes in 2.15:
 
 * The MIPS -membedded-pic option (Embedded-PIC code generation) is
   deprecated and will be removed in a future release.

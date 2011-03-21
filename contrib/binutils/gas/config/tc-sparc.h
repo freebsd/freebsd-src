@@ -1,6 +1,7 @@
 /* tc-sparc.h - Macros and type defines for the sparc.
    Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003, 2005, 2007
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,15 +17,13 @@
 
    You should have received a copy of the GNU General Public
    License along with GAS; see the file COPYING.  If not, write
-   to the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   to the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 #ifndef TC_SPARC
 #define TC_SPARC 1
 
-#ifdef ANSI_PROTOTYPES
 struct frag;
-#endif
 
 /* This is used to set the default value for `target_big_endian'.  */
 #define TARGET_BYTES_BIG_ENDIAN 1
@@ -33,19 +32,25 @@ struct frag;
 
 #define TARGET_ARCH bfd_arch_sparc
 
+#ifdef TE_FreeBSD
+#define ELF_TARGET_FORMAT	"elf32-sparc-freebsd"
+#define ELF64_TARGET_FORMAT	"elf64-sparc-freebsd"
+#endif
+
+#ifndef ELF_TARGET_FORMAT
+#define ELF_TARGET_FORMAT	"elf32-sparc"
+#endif
+
+#ifndef ELF64_TARGET_FORMAT
+#define ELF64_TARGET_FORMAT	"elf64-sparc"
+#endif
+
 extern const char *sparc_target_format PARAMS ((void));
 #define TARGET_FORMAT sparc_target_format ()
 
 #define RELOC_EXPANSION_POSSIBLE
 #define MAX_RELOC_EXPANSION 2
 
-#if 0
-#ifdef TE_SPARCAOUT
-/* Bi-endian support may eventually be unconditional, but until things are
-   working well it's only provided for targets that need it.  */
-#define SPARC_BIENDIAN
-#endif
-#endif
 /* Make it unconditional and check if -EL is valid after option parsing */
 #define SPARC_BIENDIAN
 
@@ -87,7 +92,6 @@ extern void sparc_handle_align PARAMS ((struct frag *));
 
 #define TC_FORCE_RELOCATION_LOCAL(FIX)		\
   (!(FIX)->fx_pcrel				\
-   || (FIX)->fx_plt				\
    || (sparc_pic_code				\
        && S_IS_EXTERNAL ((FIX)->fx_addsy))	\
    || TC_FORCE_RELOCATION (FIX))
@@ -116,7 +120,7 @@ extern void sparc_handle_align PARAMS ((struct frag *));
 		       == S_GET_SEGMENT ((FIX)->fx_addsy)))		\
 	       || S_IS_LOCAL ((FIX)->fx_addsy)))))
 
-/* Values passed to md_apply_fix3 don't include the symbol value.  */
+/* Values passed to md_apply_fix don't include the symbol value.  */
 #define MD_APPLY_SYM_VALUE(FIX) 0
 
 /* Finish up the entire symtab.  */
@@ -180,7 +184,7 @@ extern void cons_fix_new_sparc
 extern void sparc_cfi_frame_initial_instructions PARAMS ((void));
 
 #define tc_regname_to_dw2regnum sparc_regname_to_dw2regnum
-extern int sparc_regname_to_dw2regnum PARAMS ((const char *regname));
+extern int sparc_regname_to_dw2regnum PARAMS ((char *regname));
 
 #define tc_cfi_emit_pcrel_expr sparc_cfi_emit_pcrel_expr
 extern void sparc_cfi_emit_pcrel_expr PARAMS ((expressionS *, unsigned int));

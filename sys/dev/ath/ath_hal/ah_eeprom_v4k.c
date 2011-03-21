@@ -65,9 +65,9 @@ v4kEepromGet(struct ath_hal *ah, int param, void *val)
         case AR_EEP_RFSILENT:
 		return pBase->rfSilent;
     	case AR_EEP_OB_2:
-		return pModal->ob;
+		return pModal->ob_0;
     	case AR_EEP_DB_2:
-		return pModal->db;
+		return pModal->db1_1;
 	case AR_EEP_TXMASK:
 		return pBase->txMask;
 	case AR_EEP_RXMASK:
@@ -137,8 +137,8 @@ v4kEepromDiag(struct ath_hal *ah, int request,
 
 	switch (request) {
 	case HAL_DIAG_EEPROM:
-		*result = &ee->ee_base;
-		*resultsize = sizeof(ee->ee_base);
+		*result = ee;
+		*resultsize = sizeof(HAL_EEPROM_v4k);
 		return AH_TRUE;
 	}
 	return AH_FALSE;

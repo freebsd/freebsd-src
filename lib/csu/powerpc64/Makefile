@@ -12,9 +12,24 @@ CFLAGS+=	-Wall -Wno-unused \
 all: ${OBJS}
 
 CLEANFILES=	${OBJS}
+CLEANFILES+=	crt1.s gcrt1.s
 
-gcrt1.o: crt1.c
-	${CC} ${CFLAGS} -DGCRT -c -o gcrt1.o ${.ALLSRC}
+# See the comment in lib/csu/common/crtbrand.c for the reason crt1.c is not
+# directly compiled to .o files.
+
+crt1.s: crt1.c
+	${CC} ${CFLAGS} -S -o ${.TARGET} ${.CURDIR}/crt1.c
+	sed -i "" -e '/\.note\.ABI-tag/s/progbits/note/' ${.TARGET}
+
+crt1.o: crt1.s
+	${CC} ${CFLAGS} -c -o ${.TARGET} crt1.s
+
+gcrt1.s: crt1.c
+	${CC} ${CFLAGS} -DGCRT -S -o ${.TARGET} ${.CURDIR}/crt1.c
+	sed -i "" -e '/\.note\.ABI-tag/s/progbits/note/' ${.TARGET}
+
+gcrt1.o: gcrt1.s
+	${CC} ${CFLAGS} -c -o ${.TARGET} gcrt1.s
 
 realinstall:
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \

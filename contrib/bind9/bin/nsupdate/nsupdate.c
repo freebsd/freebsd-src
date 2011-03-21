@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsupdate.c,v 1.163.48.3 2009/04/30 07:12:49 marka Exp $ */
+/* $Id: nsupdate.c,v 1.163.48.15 2010-12-09 04:30:57 tbox Exp $ */
 
 /*! \file */
 
@@ -38,6 +38,7 @@
 #include <isc/log.h>
 #include <isc/mem.h>
 #include <isc/parseint.h>
+#include <isc/print.h>
 #include <isc/random.h>
 #include <isc/region.h>
 #include <isc/sockaddr.h>
@@ -185,6 +186,7 @@ ddebug(const char *format, ...) ISC_FORMAT_PRINTF(1, 2);
 #ifdef GSSAPI
 static dns_fixedname_t fkname;
 static isc_sockaddr_t *kserver = NULL;
+static char *realm = NULL;
 static char servicename[DNS_NAME_FORMATSIZE];
 static dns_name_t *keyname;
 typedef struct nsu_gssinfo {
@@ -539,7 +541,8 @@ setup_keystr(void) {
 
 	debug("keycreate");
 	result = dns_tsigkey_create(keyname, hmacname, secret, secretlen,
-				    ISC_TRUE, NULL, 0, 0, mctx, NULL, &tsigkey);
+				    ISC_FALSE, NULL, 0, 0, mctx, NULL,
+				    &tsigkey);
 	if (result != ISC_R_SUCCESS)
 		fprintf(stderr, "could not create key from %s: %s\n",
 			keystr, dns_result_totext(result));
@@ -550,6 +553,19 @@ setup_keystr(void) {
 		isc_mem_free(mctx, secret);
 }
 
+static int
+basenamelen(const char *file) {
+	int len = strlen(file);
+
+	if (len > 1 && file[len - 1] == '.')
+		len -= 1;
+	else if (len > 8 && strcmp(file + len - 8, ".private") == 0)
+		len -= 8;
+	else if (len > 4 && strcmp(file + len - 4, ".key") == 0)
+		len -= 4;
+	return (len);
+}
+
 static void
 setup_keyfile(void) {
 	dst_key_t *dstkey = NULL;
@@ -558,12 +574,16 @@ setup_keyfile(void) {
 
 	debug("Creating key...");
 
+	if (sig0key != NULL)
+		dst_key_free(&sig0key);
+
 	result = dst_key_fromnamedfile(keyfile,
 				       DST_TYPE_PRIVATE | DST_TYPE_KEY, mctx,
 				       &dstkey);
 	if (result != ISC_R_SUCCESS) {
-		fprintf(stderr, "could not read key from %s: %s\n",
-			keyfile, isc_result_totext(result));
+		fprintf(stderr, "could not read key from %.*s.{private,key}: "
+				"%s\n", basenamelen(keyfile), keyfile,
+				isc_result_totext(result));
 		return;
 	}
 	switch (dst_key_alg(dstkey)) {
@@ -591,14 +611,14 @@ setup_keyfile(void) {
 						   hmacname, dstkey, ISC_FALSE,
 						   NULL, 0, 0, mctx, NULL,
 						   &tsigkey);
+		dst_key_free(&dstkey);
 		if (result != ISC_R_SUCCESS) {
 			fprintf(stderr, "could not create key from %s: %s\n",
 				keyfile, isc_result_totext(result));
-			dst_key_free(&dstkey);
 			return;
 		}
 	} else
-		sig0key = dstkey;
+		dst_key_attach(dstkey, &sig0key);
 }
 
 static void
@@ -1349,7 +1369,7 @@ evaluate_key(char *cmdline) {
 	if (tsigkey != NULL)
 		dns_tsigkey_detach(&tsigkey);
 	result = dns_tsigkey_create(keyname, hmacname, secret, secretlen,
-				    ISC_TRUE, NULL, 0, 0, mctx, NULL,
+				    ISC_FALSE, NULL, 0, 0, mctx, NULL,
 				    &tsigkey);
 	isc_mem_free(mctx, secret);
 	if (result != ISC_R_SUCCESS) {
@@ -1386,6 +1406,31 @@ evaluate_zone(char *cmdline) {
 	}
 
 	return (STATUS_MORE);
+}
+
+static isc_uint16_t
+evaluate_realm(char *cmdline) {
+#ifdef GSSAPI
+	char *word;
+	char buf[1024];
+
+	word = nsu_strsep(&cmdline, " \t\r\n");
+	if (*word == 0) {
+		if (realm != NULL)
+			isc_mem_free(mctx, realm);
+		realm = NULL;
+		return (STATUS_MORE);
+	}
+
+	snprintf(buf, sizeof(buf), "@%s", word);
+	realm = isc_mem_strdup(mctx, buf);
+	if (realm == NULL)
+		fatal("out of memory");
+	return (STATUS_MORE);
+#else
+	UNUSED(cmdline);
+	return (STATUS_SYNTAX);
+#endif
 }
 
 static isc_uint16_t
@@ -1779,6 +1824,8 @@ get_next_command(void) {
 		usegsstsig = ISC_FALSE;
 		return (evaluate_key(cmdline));
 	}
+	if (strcasecmp(word, "realm") == 0)
+		return (evaluate_realm(cmdline));
 	if (strcasecmp(word, "gsstsig") == 0) {
 #ifdef GSSAPI
 		usegsstsig = ISC_TRUE;
@@ -1984,6 +2031,10 @@ send_update(dns_name_t *zonename, isc_sockaddr_t *master,
 		isc_sockaddr_format(master, addrbuf, sizeof(addrbuf));
 		fprintf(stderr, "Sending update to %s\n", addrbuf);
 	}
+
+	/* Windows doesn't like the tsig name to be compressed. */
+	if (updatemsg->tsigname)
+		updatemsg->tsigname->attributes |= DNS_NAMEATTR_NOCOMPRESS;
 
 	result = dns_request_createvia3(requestmgr, updatemsg, srcaddr,
 					master, options, tsigkey, timeout,
@@ -2307,7 +2358,7 @@ start_gssrequest(dns_name_t *master)
 	servname = dns_fixedname_name(&fname);
 
 	result = isc_string_printf(servicename, sizeof(servicename),
-				   "DNS/%s", namestr);
+				   "DNS/%s%s", namestr, realm ? realm : "");
 	if (result != ISC_R_SUCCESS)
 		fatal("isc_string_printf(servicename) failed: %s",
 		      isc_result_totext(result));
@@ -2347,7 +2398,6 @@ start_gssrequest(dns_name_t *master)
 		      isc_result_totext(result));
 
 	/* Build first request. */
-
 	context = GSS_C_NO_CONTEXT;
 	result = dns_tkey_buildgssquery(rmsg, keyname, servname, NULL, 0,
 					&context, use_win2k_gsstsig);
@@ -2585,6 +2635,7 @@ start_update(void) {
 		dns_name_init(name, NULL);
 		dns_name_clone(userzone, name);
 	} else {
+		dns_rdataset_t *tmprdataset;
 		result = dns_message_firstname(updatemsg, section);
 		if (result == ISC_R_NOMORE) {
 			section = DNS_SECTION_PREREQUISITE;
@@ -2602,6 +2653,19 @@ start_update(void) {
 		dns_message_currentname(updatemsg, section, &firstname);
 		dns_name_init(name, NULL);
 		dns_name_clone(firstname, name);
+		/*
+		 * Looks to see if the first name references a DS record
+		 * and if that name is not the root remove a label as DS
+		 * records live in the parent zone so we need to start our
+		 * search one label up.
+		 */
+		tmprdataset = ISC_LIST_HEAD(firstname->list);
+		if (section == DNS_SECTION_UPDATE &&
+		    !dns_name_equal(firstname, dns_rootname) &&
+		    tmprdataset->type == dns_rdatatype_ds) {
+		    unsigned int labels = dns_name_countlabels(name);
+		    dns_name_getlabelsequence(name, 1, labels - 1, name);
+		}
 	}
 
 	ISC_LIST_INIT(name->list);
@@ -2635,6 +2699,10 @@ cleanup(void) {
 	if (kserver != NULL) {
 		isc_mem_put(mctx, kserver, sizeof(isc_sockaddr_t));
 		kserver = NULL;
+	}
+	if (realm != NULL) {
+		isc_mem_free(mctx, realm);
+		realm = NULL;
 	}
 #endif
 

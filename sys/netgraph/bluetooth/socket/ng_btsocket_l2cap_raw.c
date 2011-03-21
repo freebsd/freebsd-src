@@ -125,23 +125,23 @@ static int					ng_btsocket_l2cap_raw_curpps;
 SYSCTL_DECL(_net_bluetooth_l2cap_sockets);
 SYSCTL_NODE(_net_bluetooth_l2cap_sockets, OID_AUTO, raw, CTLFLAG_RW,
 	0, "Bluetooth raw L2CAP sockets family");
-SYSCTL_INT(_net_bluetooth_l2cap_sockets_raw, OID_AUTO, debug_level,
+SYSCTL_UINT(_net_bluetooth_l2cap_sockets_raw, OID_AUTO, debug_level,
 	CTLFLAG_RW,
 	&ng_btsocket_l2cap_raw_debug_level, NG_BTSOCKET_WARN_LEVEL,
 	"Bluetooth raw L2CAP sockets debug level");
-SYSCTL_INT(_net_bluetooth_l2cap_sockets_raw, OID_AUTO, ioctl_timeout,
+SYSCTL_UINT(_net_bluetooth_l2cap_sockets_raw, OID_AUTO, ioctl_timeout,
 	CTLFLAG_RW,
 	&ng_btsocket_l2cap_raw_ioctl_timeout, 5,
 	"Bluetooth raw L2CAP sockets ioctl timeout");
-SYSCTL_INT(_net_bluetooth_l2cap_sockets_raw, OID_AUTO, queue_len, 
+SYSCTL_UINT(_net_bluetooth_l2cap_sockets_raw, OID_AUTO, queue_len,
 	CTLFLAG_RD,
 	&ng_btsocket_l2cap_raw_queue.len, 0,
 	"Bluetooth raw L2CAP sockets input queue length");
-SYSCTL_INT(_net_bluetooth_l2cap_sockets_raw, OID_AUTO, queue_maxlen, 
+SYSCTL_UINT(_net_bluetooth_l2cap_sockets_raw, OID_AUTO, queue_maxlen,
 	CTLFLAG_RD,
 	&ng_btsocket_l2cap_raw_queue.maxlen, 0,
 	"Bluetooth raw L2CAP sockets input queue max. length");
-SYSCTL_INT(_net_bluetooth_l2cap_sockets_raw, OID_AUTO, queue_drops, 
+SYSCTL_UINT(_net_bluetooth_l2cap_sockets_raw, OID_AUTO, queue_drops,
 	CTLFLAG_RD,
 	&ng_btsocket_l2cap_raw_queue.drops, 0,
 	"Bluetooth raw L2CAP sockets input queue drops");

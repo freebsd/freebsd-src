@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -20,14 +19,12 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #ifndef	_SYS_CALLB_H
 #define	_SYS_CALLB_H
-
-#pragma ident	"@(#)callb.h	1.29	05/06/23 SMI"
 
 #include <sys/kcondvar.h>
 
@@ -68,7 +65,8 @@ extern "C" {
 #define	CB_CL_MDBOOT		CB_CL_UADMIN
 #define	CB_CL_ENTER_DEBUGGER	14
 #define	CB_CL_CPR_POST_KERNEL	15
-#define	NCBCLASS		16 /* CHANGE ME if classes are added/removed */
+#define	CB_CL_CPU_DEEP_IDLE	16
+#define	NCBCLASS		17 /* CHANGE ME if classes are added/removed */
 
 /*
  * CB_CL_CPR_DAEMON class specific definitions are given below:

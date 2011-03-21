@@ -283,7 +283,6 @@ struct tmpfs_node {
 			 * issue the required page ins or page outs whenever
 			 * a position within the file is accessed. */
 			vm_object_t		tn_aobj;
-			size_t			tn_aobj_pages;
 
 		}tn_reg;
 

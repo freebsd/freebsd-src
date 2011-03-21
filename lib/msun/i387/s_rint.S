@@ -41,3 +41,5 @@ ENTRY(rint)
 	frndint
 	ret
 END(rint)
+
+	.section .note.GNU-stack,"",%progbits

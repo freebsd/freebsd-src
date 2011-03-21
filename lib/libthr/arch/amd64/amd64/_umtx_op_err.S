@@ -35,3 +35,5 @@
 #define KERNCALL	movq %rcx, %r10; syscall
 
 RSYSCALL_ERR(_umtx_op)
+
+	.section .note.GNU-stack,"",%progbits

@@ -144,13 +144,16 @@ zfs_read(struct open_file *f, void *start, size_t size, size_t *resid	/* out */)
 {
 	spa_t *spa = (spa_t *) f->f_devdata;
 	struct file *fp = (struct file *)f->f_fsdata;
-	const znode_phys_t *zp = (const znode_phys_t *) fp->f_dnode.dn_bonus;
+	struct stat sb;
 	size_t n;
 	int rc;
 
+	rc = zfs_stat(f, &sb);
+	if (rc)
+		return (rc);
 	n = size;
-	if (fp->f_seekp + n > zp->zp_size)
-		n = zp->zp_size - fp->f_seekp;
+	if (fp->f_seekp + n > sb.st_size)
+		n = sb.st_size - fp->f_seekp;
 	
 	rc = dnode_read(spa, &fp->f_dnode, fp->f_seekp, start, n);
 	if (rc)
@@ -182,7 +185,6 @@ static off_t
 zfs_seek(struct open_file *f, off_t offset, int where)
 {
 	struct file *fp = (struct file *)f->f_fsdata;
-	znode_phys_t *zp = (znode_phys_t *) fp->f_dnode.dn_bonus;
 
 	switch (where) {
 	case SEEK_SET:
@@ -192,8 +194,18 @@ zfs_seek(struct open_file *f, off_t offset, int where)
 		fp->f_seekp += offset;
 		break;
 	case SEEK_END:
-		fp->f_seekp = zp->zp_size - offset;
+	    {
+		struct stat sb;
+		int error;
+
+		error = zfs_stat(f, &sb);
+		if (error != 0) {
+			errno = error;
+			return (-1);
+		}
+		fp->f_seekp = sb.st_size - offset;
 		break;
+	    }
 	default:
 		errno = EINVAL;
 		return (-1);
@@ -204,16 +216,10 @@ zfs_seek(struct open_file *f, off_t offset, int where)
 static int
 zfs_stat(struct open_file *f, struct stat *sb)
 {
+	spa_t *spa = (spa_t *) f->f_devdata;
 	struct file *fp = (struct file *)f->f_fsdata;
-	znode_phys_t *zp = (znode_phys_t *) fp->f_dnode.dn_bonus;
 
-	/* only important stuff */
-	sb->st_mode = zp->zp_mode;
-	sb->st_uid = zp->zp_uid;
-	sb->st_gid = zp->zp_gid;
-	sb->st_size = zp->zp_size;
-
-	return (0);
+	return (zfs_dnode_stat(spa, &fp->f_dnode, sb));
 }
 
 static int
@@ -221,14 +227,16 @@ zfs_readdir(struct open_file *f, struct dirent *d)
 {
 	spa_t *spa = (spa_t *) f->f_devdata;
 	struct file *fp = (struct file *)f->f_fsdata;
-	znode_phys_t *zp = (znode_phys_t *) fp->f_dnode.dn_bonus;
 	mzap_ent_phys_t mze;
+	struct stat sb;
 	size_t bsize = fp->f_dnode.dn_datablkszsec << SPA_MINBLOCKSHIFT;
 	int rc;
 
-	if ((zp->zp_mode >> 12) != 0x4) {
+	rc = zfs_stat(f, &sb);
+	if (rc)
+		return (rc);
+	if (!S_ISDIR(sb.st_mode))
 		return (ENOTDIR);
-	}
 
 	/*
 	 * If this is the first read, get the zap type.

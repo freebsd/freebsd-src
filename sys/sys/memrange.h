@@ -4,6 +4,9 @@
  * $FreeBSD$
  */
 
+#ifndef _SYS_MEMRANGE_H_
+#define	_SYS_MEMRANGE_H_
+
 /* Memory range attributes */
 #define MDF_UNCACHEABLE		(1<<0)	/* region not cached */
 #define MDF_WRITECOMBINE	(1<<1)	/* region supports "write combine" action */
@@ -65,7 +68,12 @@ struct mem_range_softc
 
 extern struct mem_range_softc mem_range_softc;
 
-extern int mem_range_attr_get(struct mem_range_desc *mrd, int *arg);
-extern int mem_range_attr_set(struct mem_range_desc *mrd, int *arg);
+extern void	mem_range_init(void);
+extern void	mem_range_destroy(void);
 
-#endif
+extern int	mem_range_attr_get(struct mem_range_desc *mrd, int *arg);
+extern int	mem_range_attr_set(struct mem_range_desc *mrd, int *arg);
+
+#endif /* _KERNEL */
+
+#endif /* _SYS_MEMRANGE_H_ */

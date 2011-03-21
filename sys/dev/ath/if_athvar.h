@@ -333,6 +333,9 @@ struct ath_softc {
 	struct callout		sc_cal_ch;	/* callout handle for cals */
 	int			sc_lastlongcal;	/* last long cal completed */
 	int			sc_lastcalreset;/* last cal reset done */
+	int			sc_lastani;	/* last ANI poll */
+	int			sc_lastshortcal;	/* last short calibration */
+	HAL_BOOL		sc_doresetcal;	/* Yes, we're doing a reset cal atm */
 	HAL_NODE_STATS		sc_halstats;	/* station-mode rssi stats */
 	u_int			sc_tdmadbaprep;	/* TDMA DBA prep time */
 	u_int			sc_tdmaswbaprep;/* TDMA SWBA prep time */
@@ -342,6 +345,9 @@ struct ath_softc {
 	u_int			sc_tdmaslotlen;	/* TDMA slot length (usec) */
 	u_int32_t		sc_avgtsfdeltap;/* TDMA slot adjust (+) */
 	u_int32_t		sc_avgtsfdeltam;/* TDMA slot adjust (-) */
+	uint16_t		*sc_eepromdata;	/* Local eeprom data, if AR9100 */
+	int			sc_txchainmask;	/* currently configured TX chainmask */
+	int			sc_rxchainmask;	/* currently configured RX chainmask */
 };
 
 #define	ATH_LOCK_INIT(_sc) \
@@ -502,6 +508,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_setDefAntenna)((_ah), (_ant)))
 #define	ath_hal_rxmonitor(_ah, _arg, _chan) \
 	((*(_ah)->ah_rxMonitor)((_ah), (_arg), (_chan)))
+#define	ath_hal_ani_poll(_ah, _chan) \
+	((*(_ah)->ah_aniPoll)((_ah), (_chan)))
 #define	ath_hal_mibevent(_ah, _stats) \
 	((*(_ah)->ah_procMibEvent)((_ah), (_stats)))
 #define	ath_hal_setslottime(_ah, _us) \
@@ -624,6 +632,12 @@ void	ath_intr(void *);
 	ath_hal_setcapability(_ah, HAL_CAP_INTMIT, 1, _v, NULL)
 #define	ath_hal_getchannoise(_ah, _c) \
 	((*(_ah)->ah_getChanNoise)((_ah), (_c)))
+#define	ath_hal_getrxchainmask(_ah, _prxchainmask) \
+	(ath_hal_getcapability(_ah, HAL_CAP_RX_CHAINMASK, 0, _prxchainmask))
+#define	ath_hal_gettxchainmask(_ah, _ptxchainmask) \
+	(ath_hal_getcapability(_ah, HAL_CAP_TX_CHAINMASK, 0, _ptxchainmask))
+#define	ath_hal_split4ktrans(_ah) \
+	(ath_hal_getcapability(_ah, HAP_CAP_SPLIT_4KB_TRANS, 0, NULL) == HAL_OK)
 
 #define	ath_hal_setuprxdesc(_ah, _ds, _size, _intreq) \
 	((*(_ah)->ah_setupRxDesc)((_ah), (_ds), (_size), (_intreq)))
@@ -645,6 +659,27 @@ void	ath_intr(void *);
 	((*(_ah)->ah_procTxDesc)((_ah), (_ds), (_ts)))
 #define	ath_hal_gettxintrtxqs(_ah, _txqs) \
 	((*(_ah)->ah_getTxIntrQueue)((_ah), (_txqs)))
+#define ath_hal_gettxcompletionrates(_ah, _ds, _rates, _tries) \
+	((*(_ah)->ah_getTxCompletionRates)((_ah), (_ds), (_rates), (_tries)))
+
+#define	ath_hal_chaintxdesc(_ah, _ds, _pktlen, _hdrlen, _type, _keyix, \
+	_cipher, _delims, _seglen, _first, _last) \
+	((*(_ah)->ah_chainTxDesc((_ah), (_ds), (_pktlen), (_hdrlen), \
+	(_type), (_keyix), (_cipher), (_delims), (_seglen), \
+	(_first), (_last)))) 
+#define	ath_hal_setupfirsttxdesc(_ah, _ds, _aggrlen, _flags, _txpower, \
+		_txr0, _txtr0, _antm, _rcr, _rcd) \
+	((*(_ah)->ah_setupFirstTxDesc)((_ah), (_ds), (_aggrlen), (_flags), \
+	(_txpower), (_txr0), (_txtr0), (_antm), (_rcr), (_rcd)))
+#define	ath_hal_setuplasttxdesc(_ah, _ds, _ds0) \
+	((*(_ah)->ah_setupLastTxDesc)((_ah), (_ds), (_ds0)))
+#define	ath_hal_set11nratescenario(_ah, _ds, _dur, _rt, _series, _ns, _flags) \
+	((*(_ah)->ah_set11nRateScenario)((_ah), (_ds), (_dur), (_rt), \
+	(_series), (_ns), (_flags)))
+#define	ath_hal_set11naggrmiddle(_ah, _ds, _num) \
+	((*(_ah)->ah_set11nAggrMiddle((_ah), (_ds), (_num))))
+#define	ath_hal_set11nburstduration(_ah, _ds, _dur) \
+	((*(_ah)->ah_set11nBurstDuration)((_ah), (_ds), (_dur)))
 
 #define ath_hal_gpioCfgOutput(_ah, _gpio, _type) \
         ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio), (_type)))

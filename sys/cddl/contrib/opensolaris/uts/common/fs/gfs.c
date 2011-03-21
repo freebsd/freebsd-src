@@ -40,7 +40,6 @@
 #include <sys/vfs.h>
 #include <sys/vnode.h>
 #include <sys/cred.h>
-#include <sys/kdb.h>
 
 #include <sys/gfs.h>
 
@@ -107,6 +106,42 @@
  *
  * 	gfs_root_create_file()
  */
+
+#ifdef sun
+/*
+ * gfs_make_opsvec: take an array of vnode type definitions and create
+ * their vnodeops_t structures
+ *
+ * This routine takes an array of gfs_opsvec_t's.  It could
+ * alternatively take an array of gfs_opsvec_t*'s, which would allow
+ * vnode types to be completely defined in files external to the caller
+ * of gfs_make_opsvec().  As it stands, much more sharing takes place --
+ * both the caller and the vnode type provider need to access gfsv_ops
+ * and gfsv_template, and the caller also needs to know gfsv_name.
+ */
+int
+gfs_make_opsvec(gfs_opsvec_t *vec)
+{
+	int error, i;
+
+	for (i = 0; ; i++) {
+		if (vec[i].gfsv_name == NULL)
+			return (0);
+		error = vn_make_ops(vec[i].gfsv_name, vec[i].gfsv_template,
+		    vec[i].gfsv_ops);
+		if (error)
+			break;
+	}
+
+	cmn_err(CE_WARN, "gfs_make_opsvec: bad vnode ops template for '%s'",
+	    vec[i].gfsv_name);
+	for (i--; i >= 0; i--) {
+		vn_freevnodeops(*vec[i].gfsv_ops);
+		*vec[i].gfsv_ops = NULL;
+	}
+	return (error);
+}
+#endif	/* sun */
 
 /*
  * Low level directory routines
@@ -311,6 +346,22 @@ gfs_readdir_emit(gfs_readdir_state_t *st, uio_t *uiop, offset_t voff,
 	return (gfs_readdir_emit_int(st, uiop, off + st->grd_ureclen, ncookies,
 	    cookies));
 }
+
+#ifdef sun
+/*
+ * gfs_readdir_emitn: like gfs_readdir_emit(), but takes an integer
+ * instead of a string for the entry's name.
+ */
+int
+gfs_readdir_emitn(gfs_readdir_state_t *st, uio_t *uiop, offset_t voff,
+    ino64_t ino, unsigned long num)
+{
+	char buf[40];
+
+	numtos(num, buf);
+	return (gfs_readdir_emit(st, uiop, voff, ino, buf, 0));
+}
+#endif
 
 /*
  * gfs_readdir_pred: readdir loop predicate
@@ -542,6 +593,28 @@ gfs_root_create(size_t size, vfs_t *vfsp, vnodeops_t *ops, ino64_t ino,
 	return (vp);
 }
 
+#ifdef sun
+/*
+ * gfs_root_create_file(): create a root vnode for a GFS file as a filesystem
+ *
+ * Similar to gfs_root_create(), this creates a root vnode for a file to
+ * be the pseudo-filesystem.
+ */
+vnode_t *
+gfs_root_create_file(size_t size, vfs_t *vfsp, vnodeops_t *ops, ino64_t ino)
+{
+	vnode_t	*vp = gfs_file_create(size, NULL, ops);
+
+	((gfs_file_t *)vp->v_data)->gfs_ino = ino;
+
+	VFS_HOLD(vfsp);
+	VN_SET_VFS_TYPE_DEV(vp, vfsp, VREG, 0);
+	vp->v_flag |= VROOT | VNOCACHE | VNOMAP | VNOSWAP | VNOMOUNT;
+
+	return (vp);
+}
+#endif	/* sun */
+
 /*
  * gfs_file_inactive()
  *
@@ -570,7 +643,7 @@ gfs_file_inactive(vnode_t *vp)
 	 */
 	if ((dp = fp->gfs_parent->v_data) == NULL)
 		return (NULL);
-		
+
 	/*
 	 * First, see if this vnode is cached in the parent.
 	 */
@@ -995,6 +1068,7 @@ gfs_dir_readdir(vnode_t *dvp, uio_t *uiop, int *eofp, int *ncookies,
 	return (gfs_readdir_fini(&gstate, error, eofp, eof));
 }
 
+
 /*
  * gfs_vop_lookup: VOP_LOOKUP() entry point
  *
@@ -1061,6 +1135,81 @@ gfs_vop_readdir(ap)
 
 	return (error);
 }
+
+
+#ifdef sun
+/*
+ * gfs_vop_map: VOP_MAP() entry point
+ *
+ * Convenient routine for handling pseudo-files that wish to allow mmap() calls.
+ * This function only works for readonly files, and uses the read function for
+ * the vnode to fill in the data.  The mapped data is immediately faulted in and
+ * filled with the necessary data during this call; there are no getpage() or
+ * putpage() routines.
+ */
+/* ARGSUSED */
+int
+gfs_vop_map(vnode_t *vp, offset_t off, struct as *as, caddr_t *addrp,
+    size_t len, uchar_t prot, uchar_t maxprot, uint_t flags, cred_t *cred,
+    caller_context_t *ct)
+{
+	int rv;
+	ssize_t resid = len;
+
+	/*
+	 * Check for bad parameters
+	 */
+#ifdef _ILP32
+	if (len > MAXOFF_T)
+		return (ENOMEM);
+#endif
+	if (vp->v_flag & VNOMAP)
+		return (ENOTSUP);
+	if (off > MAXOFF_T)
+		return (EFBIG);
+	if ((long)off < 0 || (long)(off + len) < 0)
+		return (EINVAL);
+	if (vp->v_type != VREG)
+		return (ENODEV);
+	if ((prot & (PROT_EXEC | PROT_WRITE)) != 0)
+		return (EACCES);
+
+	/*
+	 * Find appropriate address if needed, otherwise clear address range.
+	 */
+	as_rangelock(as);
+	rv = choose_addr(as, addrp, len, off, ADDR_VACALIGN, flags);
+	if (rv != 0) {
+		as_rangeunlock(as);
+		return (rv);
+	}
+
+	/*
+	 * Create mapping
+	 */
+	rv = as_map(as, *addrp, len, segvn_create, zfod_argsp);
+	as_rangeunlock(as);
+	if (rv != 0)
+		return (rv);
+
+	/*
+	 * Fill with data from read()
+	 */
+	rv = vn_rdwr(UIO_READ, vp, *addrp, len, off, UIO_USERSPACE,
+	    0, (rlim64_t)0, cred, &resid);
+
+	if (rv == 0 && resid != 0)
+		rv = ENXIO;
+
+	if (rv != 0) {
+		as_rangelock(as);
+		(void) as_unmap(as, *addrp, len);
+		as_rangeunlock(as);
+	}
+
+	return (rv);
+}
+#endif	/* sun */
 
 /*
  * gfs_vop_inactive: VOP_INACTIVE() entry point

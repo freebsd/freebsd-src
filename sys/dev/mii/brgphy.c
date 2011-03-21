@@ -453,7 +453,7 @@ brgphy_setmedia(struct mii_softc *sc, int media)
 		break;
 	}
 
-	if ((media & IFM_GMASK) == IFM_FDX) {
+	if ((media & IFM_FDX) != 0) {
 		bmcr |= BRGPHY_BMCR_FDX;
 		gig = BRGPHY_1000CTL_AFD;
 	} else {

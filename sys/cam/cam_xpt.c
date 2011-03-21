@@ -197,11 +197,11 @@ u_int32_t cam_dflags = CAM_DEBUG_FLAGS;
 u_int32_t cam_dflags = CAM_DEBUG_NONE;
 #endif
 TUNABLE_INT("kern.cam.dflags", &cam_dflags);
-SYSCTL_INT(_kern_cam, OID_AUTO, dflags, CTLFLAG_RW,
+SYSCTL_UINT(_kern_cam, OID_AUTO, dflags, CTLFLAG_RW,
 	&cam_dflags, 0, "Cam Debug Flags");
 u_int32_t cam_debug_delay;
 TUNABLE_INT("kern.cam.debug_delay", &cam_debug_delay);
-SYSCTL_INT(_kern_cam, OID_AUTO, debug_delay, CTLFLAG_RW,
+SYSCTL_UINT(_kern_cam, OID_AUTO, debug_delay, CTLFLAG_RW,
 	&cam_debug_delay, 0, "Cam Debug Flags");
 #endif
 
@@ -317,7 +317,7 @@ xpt_schedule_dev_allocq(struct cam_eb *bus, struct cam_ed *dev)
 		CAMQ_GET_PRIO(&dev->drvq))) == 0)) {
 		/*
 		 * The priority of a device waiting for CCB resources
-		 * is that of the the highest priority peripheral driver
+		 * is that of the highest priority peripheral driver
 		 * enqueued.
 		 */
 		retval = xpt_schedule_dev(&bus->sim->devq->alloc_queue,
@@ -340,7 +340,7 @@ xpt_schedule_dev_sendq(struct cam_eb *bus, struct cam_ed *dev)
 	    (cam_ccbq_frozen_top(&dev->ccbq) == 0)) {
 		/*
 		 * The priority of a device waiting for controller
-		 * resources is that of the the highest priority CCB
+		 * resources is that of the highest priority CCB
 		 * enqueued.
 		 */
 		retval =

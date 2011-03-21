@@ -37,3 +37,5 @@ SYSCALL(setlogin)
 	li	%r5,0
 	stw	%r5,CNAME(_logname_valid)@toc@l(%r4)
 	blr
+
+	.section .note.GNU-stack,"",%progbits

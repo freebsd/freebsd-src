@@ -38,7 +38,6 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/wait.h>
-#include <sys/time.h>
 
 #include <ufs/ufs/dinode.h>
 
@@ -51,6 +50,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <stdarg.h>
 #include <signal.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "dump.h"

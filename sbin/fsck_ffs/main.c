@@ -42,11 +42,10 @@ static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/14/95";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/file.h>
-#include <sys/time.h>
 #include <sys/mount.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/disklabel.h>
@@ -62,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include <stdint.h>
 #include <string.h>
+#include <time.h>
 
 #include "fsck.h"
 

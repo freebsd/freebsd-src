@@ -80,8 +80,9 @@ __FBSDID("$FreeBSD$");
 #ifdef NTOSKRNL_DEBUG_TIMERS
 static int sysctl_show_timers(SYSCTL_HANDLER_ARGS);
 
-SYSCTL_PROC(_debug, OID_AUTO, ntoskrnl_timers, CTLFLAG_RW, 0, 0,
-	sysctl_show_timers, "I", "Show ntoskrnl timer stats");
+SYSCTL_PROC(_debug, OID_AUTO, ntoskrnl_timers, CTLTYPE_INT | CTLFLAG_RW,
+    NULL, 0, sysctl_show_timers, "I",
+    "Show ntoskrnl timer stats");
 #endif
 
 struct kdpc_queue {
@@ -3354,7 +3355,7 @@ KeSetEvent(nt_kevent *kevent, uint32_t increment, uint8_t kwait)
 		 * setting the state to signalled since we're supposed
 		 * to automatically clear synchronization events anyway).
 		 *
-		 * If it's a notification event, or the the first
+		 * If it's a notification event, or the first
 		 * waiter is doing a WAITTYPE_ALL wait, go through
 		 * the full wait satisfaction process.
 		 */

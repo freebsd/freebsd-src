@@ -115,12 +115,17 @@ taskqid_t
 taskq_dispatch(taskq_t *tq, task_func_t func, void *arg, uint_t flags)
 {
 	struct ostask *task;
-	int mflag;
+	int mflag, prio;
 
 	if ((flags & (TQ_SLEEP | TQ_NOQUEUE)) == TQ_SLEEP)
 		mflag = M_WAITOK;
 	else
 		mflag = M_NOWAIT;
+	/* 
+	 * If TQ_FRONT is given, we want higher priority for this task, so it
+	 * can go at the front of the queue.
+	 */
+	prio = !!(flags & TQ_FRONT);
 
 	task = uma_zalloc(taskq_zone, mflag);
 	if (task == NULL)
@@ -129,7 +134,7 @@ taskq_dispatch(taskq_t *tq, task_func_t func, void *arg, uint_t flags)
 	task->ost_func = func;
 	task->ost_arg = arg;
 
-	TASK_INIT(&task->ost_task, 0, taskq_run, task);
+	TASK_INIT(&task->ost_task, prio, taskq_run, task);
 	taskqueue_enqueue(tq->tq_queue, &task->ost_task);
 
 	return ((taskqid_t)(void *)task);
@@ -148,17 +153,24 @@ taskq_run_safe(void *arg, int pending __unused)
 }
 
 taskqid_t
-taskq_dispatch_safe(taskq_t *tq, task_func_t func, void *arg,
+taskq_dispatch_safe(taskq_t *tq, task_func_t func, void *arg, u_int flags,
     struct ostask *task)
 {
+	int prio;
 
 	ASSERT(task->ost_magic != TASKQ_MAGIC);
+
+	/* 
+	 * If TQ_FRONT is given, we want higher priority for this task, so it
+	 * can go at the front of the queue.
+	 */
+	prio = !!(flags & TQ_FRONT);
 
 	task->ost_magic = TASKQ_MAGIC;
 	task->ost_func = func;
 	task->ost_arg = arg;
 
-	TASK_INIT(&task->ost_task, 0, taskq_run_safe, task);
+	TASK_INIT(&task->ost_task, prio, taskq_run_safe, task);
 	taskqueue_enqueue(tq->tq_queue, &task->ost_task);
 
 	return ((taskqid_t)(void *)task);

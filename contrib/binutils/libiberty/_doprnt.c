@@ -14,18 +14,14 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "config.h"
 #include "ansidecl.h"
 #include "safe-ctype.h"
 
 #include <stdio.h>
-#ifdef ANSI_PROTOTYPES
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
@@ -79,10 +75,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
       } while (0)
 
 int
-_doprnt (format, ap, stream)
-  const char * format;
-  va_list ap;
-  FILE * stream;
+_doprnt (const char *format, va_list ap, FILE *stream)
 {
   const char * ptr = format;
   char specifier[128];
@@ -223,10 +216,10 @@ _doprnt (format, ap, stream)
     fflush(stdin); \
 } while (0)
 
-static int checkit PARAMS ((const char * format, ...)) ATTRIBUTE_PRINTF_1;
+static int checkit (const char * format, ...) ATTRIBUTE_PRINTF_1;
 
 static int
-checkit VPARAMS ((const char* format, ...))
+checkit (const char* format, ...)
 {
   int result;
   VA_OPEN (args, format);
@@ -239,7 +232,7 @@ checkit VPARAMS ((const char* format, ...))
 }
 
 int
-main ()
+main (void)
 {
   RESULT(checkit ("<%d>\n", 0x12345678));
   RESULT(printf ("<%d>\n", 0x12345678));

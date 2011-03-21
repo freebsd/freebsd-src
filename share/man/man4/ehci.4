@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 20, 2005
+.Dd February 24, 2011
 .Dt EHCI 4
 .Os
 .Sh NAME
@@ -70,6 +70,7 @@ but can be noticed since
 2.0 devices plugged in to the same
 connector appear to connect to different USB busses.
 .Sh SEE ALSO
+.Xr xhci 4 ,
 .Xr ohci 4 ,
 .Xr uhci 4 ,
 .Xr usb 4
@@ -78,7 +79,19 @@ The
 .Nm
 device driver first appeared in
 .Fx 5.1 .
-.Sh BUGS
-The driver is not finished and is quite buggy.
-.Pp
-There is currently no support for isochronous transfers.
+.Sh LOADER TUNABLES
+Tunables can be set at the
+.Xr loader 8
+prompt before booting the kernel or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width "xxxxxx"
+.It Va hw.usb.ehci.lostintrbug
+This tunable enables the lost interrupt quirk.
+The default value is 0 (off).
+.It Va hw.usb.ehci.iaadbug
+This tunable enables the EHCI doorbell quirk.
+The default value is 0 (off).
+.It Va hw.usb.ehci.no_hs
+This tunable disables USB devices to attach like HIGH-speed ones and will force all attached devices to attach to the FULL- or LOW-speed companion controller.
+The default value is 0 (off).
+.El

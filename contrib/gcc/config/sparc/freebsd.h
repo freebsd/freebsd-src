@@ -161,6 +161,13 @@ Boston, MA 02110-1301, USA.  */
 
 /* #define DWARF_OFFSET_SIZE PTR_SIZE */
 
+#ifdef HAVE_AS_TLS
+#undef TARGET_SUN_TLS
+#undef TARGET_GNU_TLS
+#define TARGET_SUN_TLS 0
+#define TARGET_GNU_TLS 1
+#endif
+
 #undef ENDFILE_SPEC
 #define ENDFILE_SPEC						\
   "%{ffast-math|funsafe-math-optimizations:crtfastmath.o%s} "	\

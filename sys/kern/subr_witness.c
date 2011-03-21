@@ -1175,7 +1175,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	mtx_assert(&w_mtx, MA_OWNED);
 
 	/*
-	 * If we know that the the lock we are acquiring comes after
+	 * If we know that the lock we are acquiring comes after
 	 * the lock we most recently acquired in the lock order tree,
 	 * then there is no need for any further checks.
 	 */
@@ -2544,6 +2544,10 @@ sysctl_debug_witness_fullgraph(SYSCTL_HANDLER_ARGS)
 		return (error);
 	}
 	error = 0;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
 	sb = sbuf_new_for_sysctl(NULL, NULL, FULLGRAPH_SBUF_SIZE, req);
 	if (sb == NULL)
 		return (ENOMEM);

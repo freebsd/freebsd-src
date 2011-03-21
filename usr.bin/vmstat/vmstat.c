@@ -409,14 +409,10 @@ static long
 getuptime(void)
 {
 	struct timespec sp;
-	time_t uptime;
 
 	(void)clock_gettime(CLOCK_MONOTONIC, &sp);
-	uptime = sp.tv_sec;
-	if (uptime <= 0 || uptime > 60*60*24*365*10)
-		errx(1, "time makes no sense; namelist must be wrong");
 
-	return(uptime);
+	return(sp.tv_sec);
 }
 
 static void

@@ -136,11 +136,13 @@ ar724x_chip_set_pll_ge1(int speed)
 static void
 ar724x_chip_ddr_flush_ge0(void)
 {
+	ar71xx_ddr_flush(AR724X_DDR_REG_FLUSH_GE0);
 }
 
 static void
 ar724x_chip_ddr_flush_ge1(void)
 {
+	ar71xx_ddr_flush(AR724X_DDR_REG_FLUSH_GE1);
 }
 
 static uint32_t

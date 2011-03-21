@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_isa.h"
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
-#include "opt_msgbuf.h"
 #include "opt_perfmon.h"
 #include "opt_sched.h"
 #include "opt_kdtrace.h"
@@ -74,7 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/memrange.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
@@ -82,6 +80,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
+#ifdef SMP
+#include <sys/smp.h>
+#endif
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -195,8 +196,6 @@ struct region_descriptor r_gdt, r_idt;
 struct pcpu __pcpu[MAXCPU];
 
 struct mtx icu_lock;
-
-struct mem_range_softc mem_range_softc;
 
 struct mtx dt_lock;	/* lock for GDT and LDT */
 
@@ -335,6 +334,9 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	fpstate_drop(td);
 	sf.sf_uc.uc_mcontext.mc_fsbase = pcb->pcb_fsbase;
 	sf.sf_uc.uc_mcontext.mc_gsbase = pcb->pcb_gsbase;
+	bzero(sf.sf_uc.uc_mcontext.mc_spare,
+	    sizeof(sf.sf_uc.uc_mcontext.mc_spare));
+	bzero(sf.sf_uc.__spare__, sizeof(sf.sf_uc.__spare__));
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -356,6 +358,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Build the argument list for the signal handler. */
 	regs->tf_rdi = sig;			/* arg 1 in %rdi */
 	regs->tf_rdx = (register_t)&sfp->sf_uc;	/* arg 3 in %rdx */
+	bzero(&sf.sf_si, sizeof(sf.sf_si));
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		regs->tf_rsi = (register_t)&sfp->sf_si;	/* arg 2 in %rsi */
@@ -386,7 +389,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	}
 
 	regs->tf_rsp = (long)sfp;
-	regs->tf_rip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	regs->tf_rip = p->p_sysent->sv_sigcode_base;
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
@@ -544,20 +547,22 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 		return (EINVAL);
 
 	/* If TSC is P-state invariant, DELAY(9) based logic fails. */
-	if (tsc_is_invariant)
+	if (tsc_is_invariant && tsc_freq != 0)
 		return (EOPNOTSUPP);
 
 	/* If we're booting, trust the rate calibrated moments ago. */
-	if (cold) {
+	if (cold && tsc_freq != 0) {
 		*rate = tsc_freq;
 		return (0);
 	}
 
 #ifdef SMP
-	/* Schedule ourselves on the indicated cpu. */
-	thread_lock(curthread);
-	sched_bind(curthread, cpu_id);
-	thread_unlock(curthread);
+	if (smp_cpus > 1) {
+		/* Schedule ourselves on the indicated cpu. */
+		thread_lock(curthread);
+		sched_bind(curthread, cpu_id);
+		thread_unlock(curthread);
+	}
 #endif
 
 	/* Calibrate by measuring a short delay. */
@@ -568,12 +573,24 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	intr_restore(reg);
 
 #ifdef SMP
-	thread_lock(curthread);
-	sched_unbind(curthread);
-	thread_unlock(curthread);
+	if (smp_cpus > 1) {
+		thread_lock(curthread);
+		sched_unbind(curthread);
+		thread_unlock(curthread);
+	}
 #endif
 
-	*rate = (tsc2 - tsc1) * 1000;
+	tsc2 -= tsc1;
+	if (tsc_freq != 0) {
+		*rate = tsc2 * 1000;
+		return (0);
+	}
+
+	/*
+	 * Subtract 0.5% of the total.  Empirical testing has shown that
+	 * overhead in DELAY() works out to approximately this value.
+	 */
+	*rate = tsc2 * 1000 - tsc2 * 5;
 	return (0);
 }
 
@@ -1507,7 +1524,7 @@ do_next:
 	 * calculation, etc.).
 	 */
 	while (phys_avail[pa_indx - 1] + PAGE_SIZE +
-	    round_page(MSGBUF_SIZE) >= phys_avail[pa_indx]) {
+	    round_page(msgbufsize) >= phys_avail[pa_indx]) {
 		physmem -= atop(phys_avail[pa_indx] - phys_avail[pa_indx - 1]);
 		phys_avail[pa_indx--] = 0;
 		phys_avail[pa_indx--] = 0;
@@ -1516,7 +1533,7 @@ do_next:
 	Maxmem = atop(phys_avail[pa_indx]);
 
 	/* Trim off space for the message buffer. */
-	phys_avail[pa_indx] -= round_page(MSGBUF_SIZE);
+	phys_avail[pa_indx] -= round_page(msgbufsize);
 
 	/* Map the message buffer. */
 	msgbufp = (struct msgbuf *)PHYS_TO_DMAP(phys_avail[pa_indx]);
@@ -1531,12 +1548,14 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	struct nmi_pcpu *np;
 	u_int64_t msr;
 	char *env;
+	size_t kstack0_sz;
 
 	thread0.td_kstack = physfree + KERNBASE;
-	bzero((void *)thread0.td_kstack, KSTACK_PAGES * PAGE_SIZE);
-	physfree += KSTACK_PAGES * PAGE_SIZE;
-	thread0.td_pcb = (struct pcb *)
-	   (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	thread0.td_kstack_pages = KSTACK_PAGES;
+	kstack0_sz = thread0.td_kstack_pages * PAGE_SIZE;
+	bzero((void *)thread0.td_kstack, kstack0_sz);
+	physfree += kstack0_sz;
+	thread0.td_pcb = (struct pcb *)(thread0.td_kstack + kstack0_sz) - 1;
 
 	/*
  	 * This may be done better later if it gets more high level
@@ -1678,8 +1697,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	initializecpucache();
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
-	common_tss[0].tss_rsp0 = thread0.td_kstack + \
-	    KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb);
+	common_tss[0].tss_rsp0 = thread0.td_kstack +
+	    kstack0_sz - sizeof(struct pcb);
 	/* Ensure the stack is aligned to 16 bytes */
 	common_tss[0].tss_rsp0 &= ~0xFul;
 	PCPU_SET(rsp0, common_tss[0].tss_rsp0);
@@ -1717,7 +1736,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	/* now running on new page tables, configured,and u/iom is accessible */
 
-	msgbufinit(msgbufp, MSGBUF_SIZE);
+	msgbufinit(msgbufp, msgbufsize);
 	fpuinit();
 
 	/* transfer to user mode */
@@ -1840,6 +1859,12 @@ fill_regs(struct thread *td, struct reg *regs)
 	struct trapframe *tp;
 
 	tp = td->td_frame;
+	return (fill_frame_regs(tp, regs));
+}
+
+int
+fill_frame_regs(struct trapframe *tp, struct reg *regs)
+{
 	regs->r_r15 = tp->tf_r15;
 	regs->r_r14 = tp->tf_r14;
 	regs->r_r13 = tp->tf_r13;
@@ -2045,6 +2070,7 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	get_fpcontext(td, mcp);
 	mcp->mc_fsbase = pcb->pcb_fsbase;
 	mcp->mc_gsbase = pcb->pcb_gsbase;
+	bzero(mcp->mc_spare, sizeof(mcp->mc_spare));
 	return (0);
 }
 

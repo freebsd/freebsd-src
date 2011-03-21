@@ -33,7 +33,7 @@
 .Nd print kernel ktr trace buffer
 .Sh SYNOPSIS
 .Nm
-.Op Fl cfqrt
+.Op Fl cfqrtH
 .Op Fl e Ar execfile
 .Op Fl i Ar ktrfile
 .Op Fl m Ar corefile
@@ -55,6 +55,8 @@ Quiet mode; do not print the column header.
 Print relative timestamps rather than absolute timestamps.
 .It Fl t
 Print the timestamp for each entry.
+.It Fl H
+Print the thread ID for each entry.
 .It Fl i Ar ktrfile
 File containing saved ktr trace events; for more information see the
 .Xr ktr 4

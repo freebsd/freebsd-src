@@ -90,7 +90,7 @@ SYSCTL_UINT(_debug_ddb_capture, OID_AUTO, maxbufsize, CTLFLAG_RD,
     &db_capture_maxbufsize, 0,
     "Maximum value for debug.ddb.capture.bufsize");
 
-SYSCTL_UINT(_debug_ddb_capture, OID_AUTO, inprogress, CTLFLAG_RD,
+SYSCTL_INT(_debug_ddb_capture, OID_AUTO, inprogress, CTLFLAG_RD,
     &db_capture_inprogress, 0, "DDB output capture in progress");
 
 /*

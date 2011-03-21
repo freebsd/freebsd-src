@@ -45,4 +45,3 @@ struct alias {
 struct alias *lookupalias(const char *, int);
 int aliascmd(int, char **);
 int unaliascmd(int, char **);
-void rmaliases(void);

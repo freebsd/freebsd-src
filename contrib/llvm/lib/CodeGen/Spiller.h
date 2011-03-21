@@ -10,14 +10,13 @@
 #ifndef LLVM_CODEGEN_SPILLER_H
 #define LLVM_CODEGEN_SPILLER_H
 
-#include "llvm/ADT/SmallVector.h"
-
 namespace llvm {
 
   class LiveInterval;
   class MachineFunction;
   class MachineFunctionPass;
   class SlotIndex;
+  template <typename T> class SmallVectorImpl;
   class VirtRegMap;
 
   /// Spiller interface.
@@ -37,7 +36,7 @@ namespace llvm {
     /// @param newIntervals  The newly created intervals will be appended here.
     virtual void spill(LiveInterval *li,
                        SmallVectorImpl<LiveInterval*> &newIntervals,
-                       SmallVectorImpl<LiveInterval*> &spillIs) = 0;
+                       const SmallVectorImpl<LiveInterval*> &spillIs) = 0;
 
   };
 
@@ -45,6 +44,13 @@ namespace llvm {
   Spiller* createSpiller(MachineFunctionPass &pass,
                          MachineFunction &mf,
                          VirtRegMap &vrm);
+
+  /// Create and return a spiller that will insert spill code directly instead
+  /// of deferring though VirtRegMap.
+  Spiller *createInlineSpiller(MachineFunctionPass &pass,
+                               MachineFunction &mf,
+                               VirtRegMap &vrm);
+
 }
 
 #endif

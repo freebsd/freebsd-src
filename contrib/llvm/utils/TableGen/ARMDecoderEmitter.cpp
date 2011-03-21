@@ -221,7 +221,7 @@ typedef enum {
 #define BIT_WIDTH 32
 
 // Forward declaration.
-class FilterChooser;
+class ARMFilterChooser;
 
 // Representation of the instruction to work on.
 typedef bit_value_t insn_t[BIT_WIDTH];
@@ -240,7 +240,7 @@ typedef bit_value_t insn_t[BIT_WIDTH];
 /// the Filter/FilterChooser combo does not know how to distinguish among the
 /// Opcodes assigned.
 ///
-/// An example of a conflcit is 
+/// An example of a conflict is 
 ///
 /// Conflict:
 ///                     111101000.00........00010000....
@@ -262,9 +262,9 @@ typedef bit_value_t insn_t[BIT_WIDTH];
 /// decoder could try to decode the even/odd register numbering and assign to
 /// VST4q8a or VST4q8b, but for the time being, the decoder chooses the "a"
 /// version and return the Opcode since the two have the same Asm format string.
-class Filter {
+class ARMFilter {
 protected:
-  FilterChooser *Owner; // points to the FilterChooser who owns this filter
+  ARMFilterChooser *Owner; // points to the FilterChooser who owns this filter
   unsigned StartBit; // the starting bit position
   unsigned NumBits; // number of bits to filter
   bool Mixed; // a mixed region contains both set and unset bits
@@ -276,7 +276,7 @@ protected:
   std::vector<unsigned> VariableInstructions;
 
   // Map of well-known segment value to its delegate.
-  std::map<unsigned, FilterChooser*> FilterChooserMap;
+  std::map<unsigned, ARMFilterChooser*> FilterChooserMap;
 
   // Number of instructions which fall under FilteredInstructions category.
   unsigned NumFiltered;
@@ -296,16 +296,17 @@ public:
   }
   // Return the filter chooser for the group of instructions without constant
   // segment values.
-  FilterChooser &getVariableFC() {
+  ARMFilterChooser &getVariableFC() {
     assert(NumFiltered == 1);
     assert(FilterChooserMap.size() == 1);
     return *(FilterChooserMap.find((unsigned)-1)->second);
   }
 
-  Filter(const Filter &f);
-  Filter(FilterChooser &owner, unsigned startBit, unsigned numBits, bool mixed);
+  ARMFilter(const ARMFilter &f);
+  ARMFilter(ARMFilterChooser &owner, unsigned startBit, unsigned numBits,
+            bool mixed);
 
-  ~Filter();
+  ~ARMFilter();
 
   // Divides the decoding task into sub tasks and delegates them to the
   // inferior FilterChooser's.
@@ -333,7 +334,7 @@ typedef enum {
   ATTR_MIXED
 } bitAttr_t;
 
-/// FilterChooser - FilterChooser chooses the best filter among a set of Filters
+/// ARMFilterChooser - FilterChooser chooses the best filter among a set of Filters
 /// in order to perform the decoding of instructions at the current level.
 ///
 /// Decoding proceeds from the top down.  Based on the well-known encoding bits
@@ -348,11 +349,11 @@ typedef enum {
 /// It is useful to think of a Filter as governing the switch stmts of the
 /// decoding tree.  And each case is delegated to an inferior FilterChooser to
 /// decide what further remaining bits to look at.
-class FilterChooser {
+class ARMFilterChooser {
   static TARGET_NAME_t TargetName;
 
 protected:
-  friend class Filter;
+  friend class ARMFilter;
 
   // Vector of codegen instructions to choose our filter.
   const std::vector<const CodeGenInstruction*> &AllInstructions;
@@ -361,14 +362,14 @@ protected:
   const std::vector<unsigned> Opcodes;
 
   // Vector of candidate filters.
-  std::vector<Filter> Filters;
+  std::vector<ARMFilter> Filters;
 
   // Array of bit values passed down from our parent.
   // Set to all BIT_UNFILTERED's for Parent == NULL.
   bit_value_t FilterBitValues[BIT_WIDTH];
 
   // Links to the FilterChooser above us in the decoding tree.
-  FilterChooser *Parent;
+  ARMFilterChooser *Parent;
   
   // Index of the best filter from Filters.
   int BestIndex;
@@ -376,13 +377,13 @@ protected:
 public:
   static void setTargetName(TARGET_NAME_t tn) { TargetName = tn; }
 
-  FilterChooser(const FilterChooser &FC) :
+  ARMFilterChooser(const ARMFilterChooser &FC) :
       AllInstructions(FC.AllInstructions), Opcodes(FC.Opcodes),
       Filters(FC.Filters), Parent(FC.Parent), BestIndex(FC.BestIndex) {
     memcpy(FilterBitValues, FC.FilterBitValues, sizeof(FilterBitValues));
   }
 
-  FilterChooser(const std::vector<const CodeGenInstruction*> &Insts,
+  ARMFilterChooser(const std::vector<const CodeGenInstruction*> &Insts,
                 const std::vector<unsigned> &IDs) :
       AllInstructions(Insts), Opcodes(IDs), Filters(), Parent(NULL),
       BestIndex(-1) {
@@ -392,10 +393,10 @@ public:
     doFilter();
   }
 
-  FilterChooser(const std::vector<const CodeGenInstruction*> &Insts,
-                const std::vector<unsigned> &IDs,
-                bit_value_t (&ParentFilterBitValues)[BIT_WIDTH],
-                FilterChooser &parent) :
+  ARMFilterChooser(const std::vector<const CodeGenInstruction*> &Insts,
+                   const std::vector<unsigned> &IDs,
+                   bit_value_t (&ParentFilterBitValues)[BIT_WIDTH],
+                   ARMFilterChooser &parent) :
       AllInstructions(Insts), Opcodes(IDs), Filters(), Parent(&parent),
       BestIndex(-1) {
     for (unsigned i = 0; i < BIT_WIDTH; ++i)
@@ -426,8 +427,9 @@ protected:
       Insn[i] = bitFromBits(Bits, i);
 
     // Set Inst{21} to 1 (wback) when IndexModeBits == IndexModeUpd.
-    if (getByteField(*AllInstructions[Opcode]->TheDef, "IndexModeBits")
-        == IndexModeUpd)
+    Record *R = AllInstructions[Opcode]->TheDef;
+    if (R->getValue("IndexModeBits") &&
+        getByteField(*R, "IndexModeBits") == IndexModeUpd)
       Insn[21] = BIT_TRUE;
   }
 
@@ -452,7 +454,7 @@ protected:
   /// dumpFilterArray on each filter chooser up to the top level one.
   void dumpStack(raw_ostream &o, const char *prefix);
 
-  Filter &bestFilter() {
+  ARMFilter &bestFilter() {
     assert(BestIndex != -1 && "BestIndex not set");
     return Filters[BestIndex];
   }
@@ -497,11 +499,12 @@ protected:
   bool emitSingletonDecoder(raw_ostream &o, unsigned &Indentation,unsigned Opc);
 
   // Emits code to decode the singleton, and then to decode the rest.
-  void emitSingletonDecoder(raw_ostream &o, unsigned &Indentation,Filter &Best);
+  void emitSingletonDecoder(raw_ostream &o, unsigned &Indentation,
+                            ARMFilter &Best);
 
   // Assign a single filter and run with it.
-  void runSingleFilter(FilterChooser &owner, unsigned startBit, unsigned numBit,
-      bool mixed);
+  void runSingleFilter(ARMFilterChooser &owner, unsigned startBit,
+                       unsigned numBit, bool mixed);
 
   // reportRegion is a helper function for filterProcessor to mark a region as
   // eligible for use as a filter region.
@@ -530,7 +533,7 @@ protected:
 //                       //
 ///////////////////////////
 
-Filter::Filter(const Filter &f) :
+ARMFilter::ARMFilter(const ARMFilter &f) :
   Owner(f.Owner), StartBit(f.StartBit), NumBits(f.NumBits), Mixed(f.Mixed),
   FilteredInstructions(f.FilteredInstructions),
   VariableInstructions(f.VariableInstructions),
@@ -538,7 +541,7 @@ Filter::Filter(const Filter &f) :
   LastOpcFiltered(f.LastOpcFiltered), NumVariable(f.NumVariable) {
 }
 
-Filter::Filter(FilterChooser &owner, unsigned startBit, unsigned numBits,
+ARMFilter::ARMFilter(ARMFilterChooser &owner, unsigned startBit, unsigned numBits,
     bool mixed) : Owner(&owner), StartBit(startBit), NumBits(numBits),
                   Mixed(mixed) {
   assert(StartBit + NumBits - 1 < BIT_WIDTH);
@@ -575,8 +578,8 @@ Filter::Filter(FilterChooser &owner, unsigned startBit, unsigned numBits,
          && "Filter returns no instruction categories");
 }
 
-Filter::~Filter() {
-  std::map<unsigned, FilterChooser*>::iterator filterIterator;
+ARMFilter::~ARMFilter() {
+  std::map<unsigned, ARMFilterChooser*>::iterator filterIterator;
   for (filterIterator = FilterChooserMap.begin();
        filterIterator != FilterChooserMap.end();
        filterIterator++) {
@@ -590,7 +593,7 @@ Filter::~Filter() {
 // A special case arises when there's only one entry in the filtered
 // instructions.  In order to unambiguously decode the singleton, we need to
 // match the remaining undecoded encoding bits against the singleton.
-void Filter::recurse() {
+void ARMFilter::recurse() {
   std::map<uint64_t, std::vector<unsigned> >::const_iterator mapIterator;
 
   bit_value_t BitValueArray[BIT_WIDTH];
@@ -606,12 +609,12 @@ void Filter::recurse() {
 
     // Delegates to an inferior filter chooser for futher processing on this
     // group of instructions whose segment values are variable.
-    FilterChooserMap.insert(std::pair<unsigned, FilterChooser*>(
+    FilterChooserMap.insert(std::pair<unsigned, ARMFilterChooser*>(
                               (unsigned)-1,
-                              new FilterChooser(Owner->AllInstructions,
-                                                VariableInstructions,
-                                                BitValueArray,
-                                                *Owner)
+                              new ARMFilterChooser(Owner->AllInstructions,
+                                                   VariableInstructions,
+                                                   BitValueArray,
+                                                   *Owner)
                               ));
   }
 
@@ -638,18 +641,18 @@ void Filter::recurse() {
 
     // Delegates to an inferior filter chooser for futher processing on this
     // category of instructions.
-    FilterChooserMap.insert(std::pair<unsigned, FilterChooser*>(
+    FilterChooserMap.insert(std::pair<unsigned, ARMFilterChooser*>(
                               mapIterator->first,
-                              new FilterChooser(Owner->AllInstructions,
-                                                mapIterator->second,
-                                                BitValueArray,
-                                                *Owner)
+                              new ARMFilterChooser(Owner->AllInstructions,
+                                                   mapIterator->second,
+                                                   BitValueArray,
+                                                   *Owner)
                               ));
   }
 }
 
 // Emit code to decode instructions given a segment or segments of bits.
-void Filter::emit(raw_ostream &o, unsigned &Indentation) {
+void ARMFilter::emit(raw_ostream &o, unsigned &Indentation) {
   o.indent(Indentation) << "// Check Inst{";
 
   if (NumBits > 1)
@@ -660,7 +663,7 @@ void Filter::emit(raw_ostream &o, unsigned &Indentation) {
   o.indent(Indentation) << "switch (fieldFromInstruction(insn, "
                         << StartBit << ", " << NumBits << ")) {\n";
 
-  std::map<unsigned, FilterChooser*>::iterator filterIterator;
+  std::map<unsigned, ARMFilterChooser*>::iterator filterIterator;
 
   bool DefaultCase = false;
   for (filterIterator = FilterChooserMap.begin();
@@ -709,7 +712,7 @@ void Filter::emit(raw_ostream &o, unsigned &Indentation) {
 
 // Returns the number of fanout produced by the filter.  More fanout implies
 // the filter distinguishes more categories of instructions.
-unsigned Filter::usefulness() const {
+unsigned ARMFilter::usefulness() const {
   if (VariableInstructions.size())
     return FilteredInstructions.size();
   else
@@ -723,10 +726,10 @@ unsigned Filter::usefulness() const {
 //////////////////////////////////
 
 // Define the symbol here.
-TARGET_NAME_t FilterChooser::TargetName;
+TARGET_NAME_t ARMFilterChooser::TargetName;
 
 // This provides an opportunity for target specific code emission.
-void FilterChooser::emitTopHook(raw_ostream &o) {
+void ARMFilterChooser::emitTopHook(raw_ostream &o) {
   if (TargetName == TARGET_ARM) {
     // Emit code that references the ARMFormat data type.
     o << "static const ARMFormat ARMFormats[] = {\n";
@@ -747,7 +750,7 @@ void FilterChooser::emitTopHook(raw_ostream &o) {
 }
 
 // Emit the top level typedef and decodeInstruction() function.
-void FilterChooser::emitTop(raw_ostream &o, unsigned &Indentation) {
+void ARMFilterChooser::emitTop(raw_ostream &o, unsigned &Indentation) {
   // Run the target specific emit hook.
   emitTopHook(o);
 
@@ -801,7 +804,7 @@ void FilterChooser::emitTop(raw_ostream &o, unsigned &Indentation) {
 
   o << '\n';
 
-  o.indent(Indentation) << "static uint16_t decodeInstruction(field_t insn) {\n";
+  o.indent(Indentation) <<"static uint16_t decodeInstruction(field_t insn) {\n";
 
   ++Indentation; ++Indentation;
   // Emits code to decode the instructions.
@@ -818,7 +821,7 @@ void FilterChooser::emitTop(raw_ostream &o, unsigned &Indentation) {
 
 // This provides an opportunity for target specific code emission after
 // emitTop().
-void FilterChooser::emitBot(raw_ostream &o, unsigned &Indentation) {
+void ARMFilterChooser::emitBot(raw_ostream &o, unsigned &Indentation) {
   if (TargetName != TARGET_THUMB) return;
 
   // Emit code that decodes the Thumb ISA.
@@ -843,7 +846,7 @@ void FilterChooser::emitBot(raw_ostream &o, unsigned &Indentation) {
 //
 // Returns false if and on the first uninitialized bit value encountered.
 // Returns true, otherwise.
-bool FilterChooser::fieldFromInsn(uint64_t &Field, insn_t &Insn,
+bool ARMFilterChooser::fieldFromInsn(uint64_t &Field, insn_t &Insn,
     unsigned StartBit, unsigned NumBits) const {
   Field = 0;
 
@@ -860,7 +863,7 @@ bool FilterChooser::fieldFromInsn(uint64_t &Field, insn_t &Insn,
 
 /// dumpFilterArray - dumpFilterArray prints out debugging info for the given
 /// filter array as a series of chars.
-void FilterChooser::dumpFilterArray(raw_ostream &o,
+void ARMFilterChooser::dumpFilterArray(raw_ostream &o,
     bit_value_t (&filter)[BIT_WIDTH]) {
   unsigned bitIndex;
 
@@ -884,8 +887,8 @@ void FilterChooser::dumpFilterArray(raw_ostream &o,
 
 /// dumpStack - dumpStack traverses the filter chooser chain and calls
 /// dumpFilterArray on each filter chooser up to the top level one.
-void FilterChooser::dumpStack(raw_ostream &o, const char *prefix) {
-  FilterChooser *current = this;
+void ARMFilterChooser::dumpStack(raw_ostream &o, const char *prefix) {
+  ARMFilterChooser *current = this;
 
   while (current) {
     o << prefix;
@@ -896,7 +899,7 @@ void FilterChooser::dumpStack(raw_ostream &o, const char *prefix) {
 }
 
 // Called from Filter::recurse() when singleton exists.  For debug purpose.
-void FilterChooser::SingletonExists(unsigned Opc) {
+void ARMFilterChooser::SingletonExists(unsigned Opc) {
   insn_t Insn0;
   insnWithID(Insn0, Opc);
 
@@ -923,7 +926,7 @@ void FilterChooser::SingletonExists(unsigned Opc) {
 // This returns a list of undecoded bits of an instructions, for example,
 // Inst{20} = 1 && Inst{3-0} == 0b1111 represents two islands of yet-to-be
 // decoded bits in order to verify that the instruction matches the Opcode.
-unsigned FilterChooser::getIslands(std::vector<unsigned> &StartBits,
+unsigned ARMFilterChooser::getIslands(std::vector<unsigned> &StartBits,
     std::vector<unsigned> &EndBits, std::vector<uint64_t> &FieldVals,
     insn_t &Insn) {
   unsigned Num, BitNo;
@@ -983,7 +986,7 @@ unsigned FilterChooser::getIslands(std::vector<unsigned> &StartBits,
 
 // Emits code to decode the singleton.  Return true if we have matched all the
 // well-known bits.
-bool FilterChooser::emitSingletonDecoder(raw_ostream &o, unsigned &Indentation,
+bool ARMFilterChooser::emitSingletonDecoder(raw_ostream &o, unsigned &Indentation,
                                          unsigned Opc) {
   std::vector<unsigned> StartBits;
   std::vector<unsigned> EndBits;
@@ -1046,8 +1049,9 @@ bool FilterChooser::emitSingletonDecoder(raw_ostream &o, unsigned &Indentation,
 }
 
 // Emits code to decode the singleton, and then to decode the rest.
-void FilterChooser::emitSingletonDecoder(raw_ostream &o, unsigned &Indentation,
-    Filter &Best) {
+void ARMFilterChooser::emitSingletonDecoder(raw_ostream &o,
+                                            unsigned &Indentation,
+                                            ARMFilter &Best) {
 
   unsigned Opc = Best.getSingletonOpc();
 
@@ -1063,10 +1067,11 @@ void FilterChooser::emitSingletonDecoder(raw_ostream &o, unsigned &Indentation,
 
 // Assign a single filter and run with it.  Top level API client can initialize
 // with a single filter to start the filtering process.
-void FilterChooser::runSingleFilter(FilterChooser &owner, unsigned startBit,
-    unsigned numBit, bool mixed) {
+void ARMFilterChooser::runSingleFilter(ARMFilterChooser &owner,
+                                       unsigned startBit,
+                                       unsigned numBit, bool mixed) {
   Filters.clear();
-  Filter F(*this, startBit, numBit, true);
+  ARMFilter F(*this, startBit, numBit, true);
   Filters.push_back(F);
   BestIndex = 0; // Sole Filter instance to choose from.
   bestFilter().recurse();
@@ -1074,18 +1079,18 @@ void FilterChooser::runSingleFilter(FilterChooser &owner, unsigned startBit,
 
 // reportRegion is a helper function for filterProcessor to mark a region as
 // eligible for use as a filter region.
-void FilterChooser::reportRegion(bitAttr_t RA, unsigned StartBit,
-    unsigned BitIndex, bool AllowMixed) {
+void ARMFilterChooser::reportRegion(bitAttr_t RA, unsigned StartBit,
+                                    unsigned BitIndex, bool AllowMixed) {
   if (RA == ATTR_MIXED && AllowMixed)
-    Filters.push_back(Filter(*this, StartBit, BitIndex - StartBit, true));   
+    Filters.push_back(ARMFilter(*this, StartBit, BitIndex - StartBit, true));   
   else if (RA == ATTR_ALL_SET && !AllowMixed)
-    Filters.push_back(Filter(*this, StartBit, BitIndex - StartBit, false));
+    Filters.push_back(ARMFilter(*this, StartBit, BitIndex - StartBit, false));
 }
 
 // FilterProcessor scans the well-known encoding bits of the instructions and
 // builds up a list of candidate filters.  It chooses the best filter and
 // recursively descends down the decoding tree.
-bool FilterChooser::filterProcessor(bool AllowMixed, bool Greedy) {
+bool ARMFilterChooser::filterProcessor(bool AllowMixed, bool Greedy) {
   Filters.clear();
   BestIndex = -1;
   unsigned numInstructions = Opcodes.size();
@@ -1317,7 +1322,7 @@ bool FilterChooser::filterProcessor(bool AllowMixed, bool Greedy) {
 // Decides on the best configuration of filter(s) to use in order to decode
 // the instructions.  A conflict of instructions may occur, in which case we
 // dump the conflict set to the standard error.
-void FilterChooser::doFilter() {
+void ARMFilterChooser::doFilter() {
   unsigned Num = Opcodes.size();
   assert(Num && "FilterChooser created with no instructions");
 
@@ -1350,7 +1355,7 @@ void FilterChooser::doFilter() {
 // Emits code to decode our share of instructions.  Returns true if the
 // emitted code causes a return, which occurs if we know how to decode
 // the instruction at this level or the instruction is not decodeable.
-bool FilterChooser::emit(raw_ostream &o, unsigned &Indentation) {
+bool ARMFilterChooser::emit(raw_ostream &o, unsigned &Indentation) {
   if (Opcodes.size() == 1)
     // There is only one instruction in the set, which is great!
     // Call emitSingletonDecoder() to see whether there are any remaining
@@ -1359,7 +1364,7 @@ bool FilterChooser::emit(raw_ostream &o, unsigned &Indentation) {
 
   // Choose the best filter to do the decodings!
   if (BestIndex != -1) {
-    Filter &Best = bestFilter();
+    ARMFilter &Best = bestFilter();
     if (Best.getNumFiltered() == 1)
       emitSingletonDecoder(o, Indentation, Best);
     else
@@ -1488,11 +1493,11 @@ bool FilterChooser::emit(raw_ostream &o, unsigned &Indentation) {
 
 class ARMDecoderEmitter::ARMDEBackend {
 public:
-  ARMDEBackend(ARMDecoderEmitter &frontend) :
+  ARMDEBackend(ARMDecoderEmitter &frontend, RecordKeeper &Records) :
     NumberedInstructions(),
     Opcodes(),
     Frontend(frontend),
-    Target(),
+    Target(Records),
     FC(NULL)
   {
     if (Target.getName() == "ARM")
@@ -1538,13 +1543,14 @@ protected:
   std::vector<unsigned> Opcodes2;
   ARMDecoderEmitter &Frontend;
   CodeGenTarget Target;
-  FilterChooser *FC;
+  ARMFilterChooser *FC;
 
   TARGET_NAME_t TargetName;
 };
 
-bool ARMDecoderEmitter::ARMDEBackend::populateInstruction(
-    const CodeGenInstruction &CGI, TARGET_NAME_t TN) {
+bool ARMDecoderEmitter::
+ARMDEBackend::populateInstruction(const CodeGenInstruction &CGI,
+                                  TARGET_NAME_t TN) {
   const Record &Def = *CGI.TheDef;
   const StringRef Name = Def.getName();
   uint8_t Form = getByteField(Def, "Form");
@@ -1559,19 +1565,16 @@ bool ARMDecoderEmitter::ARMDEBackend::populateInstruction(
   // which is a better design and less fragile than the name matchings.
   if (Bits.allInComplete()) return false;
 
+  // Ignore "asm parser only" instructions.
+  if (Def.getValueAsBit("isAsmParserOnly"))
+    return false;
+
   if (TN == TARGET_ARM) {
     // FIXME: what about Int_MemBarrierV6 and Int_SyncBarrierV6?
     if ((Name != "Int_MemBarrierV7" && Name != "Int_SyncBarrierV7") &&
         Form == ARM_FORMAT_PSEUDO)
       return false;
     if (thumbInstruction(Form))
-      return false;
-    if (Name.find("CMPz") != std::string::npos /* ||
-        Name.find("CMNz") != std::string::npos */)
-      return false;
-
-    // Ignore pseudo instructions.
-    if (Name == "BXr9" || Name == "BMOVPCRX" || Name == "BMOVPCRXr9")
       return false;
 
     // Tail calls are other patterns that generate existing instructions.
@@ -1581,11 +1584,6 @@ bool ARMDecoderEmitter::ARMDEBackend::populateInstruction(
         Name == "TAILJMPdND" || Name == "TAILJMPdNDt" ||
         Name == "TAILJMPr"  || Name == "TAILJMPrND" ||
         Name == "MOVr_TC")
-      return false;
-
-    // VLDMQ/VSTMQ can be handled with the more generic VLDMD/VSTMD.
-    if (Name == "VLDMQ" || Name == "VLDMQ_UPD" ||
-        Name == "VSTMQ" || Name == "VSTMQ_UPD")
       return false;
 
     //
@@ -1610,13 +1608,13 @@ bool ARMDecoderEmitter::ARMDEBackend::populateInstruction(
     // better off using the generic RSCri and RSCrs instructions.
     if (Name == "RSCSri" || Name == "RSCSrs") return false;
 
-    // MOVCCr, MOVCCs, MOVCCi, FCYPScc, FCYPDcc, FNEGScc, and FNEGDcc are used
-    // in the compiler to implement conditional moves.  We can ignore them in
-    // favor of their more generic versions of instructions.
-    // See also SDNode *ARMDAGToDAGISel::Select(SDValue Op).
-    if (Name == "MOVCCr" || Name == "MOVCCs" || Name == "MOVCCi" ||
-        Name == "FCPYScc" || Name == "FCPYDcc" ||
-        Name == "FNEGScc" || Name == "FNEGDcc")
+    // MOVCCr, MOVCCs, MOVCCi, MOVCCi16, FCYPScc, FCYPDcc, FNEGScc, and
+    // FNEGDcc are used in the compiler to implement conditional moves.
+    // We can ignore them in favor of their more generic versions of
+    // instructions. See also SDNode *ARMDAGToDAGISel::Select(SDValue Op).
+    if (Name == "MOVCCr"   || Name == "MOVCCs"  || Name == "MOVCCi" ||
+        Name == "MOVCCi16" || Name == "FCPYScc" || Name == "FCPYDcc" ||
+        Name == "FNEGScc"  || Name == "FNEGDcc")
       return false;
 
     // Ditto for VMOVDcc, VMOVScc, VNEGDcc, and VNEGScc.
@@ -1624,15 +1622,10 @@ bool ARMDecoderEmitter::ARMDEBackend::populateInstruction(
         Name == "VNEGScc")
       return false;
 
-    // Ignore the *_sfp instructions when decoding.  They are used by the
-    // compiler to implement scalar floating point operations using vector
-    // operations in order to work around some performance issues.
-    if (Name.find("_sfp") != std::string::npos) return false;
-
-    // LDM_RET is a special case of LDM (Load Multiple) where the registers
+    // LDMIA_RET is a special case of LDM (Load Multiple) where the registers
     // loaded include the PC, causing a branch to a loaded address.  Ignore
-    // the LDM_RET instruction when decoding.
-    if (Name == "LDM_RET") return false;
+    // the LDMIA_RET instruction when decoding.
+    if (Name == "LDMIA_RET") return false;
 
     // Bcc is in a more generic form than B.  Ignore B when decoding.
     if (Name == "B") return false;
@@ -1671,18 +1664,17 @@ bool ARMDecoderEmitter::ARMDEBackend::populateInstruction(
     // VREV64qf is equivalent to VREV64q32.
     if (Name == "VREV64df" || Name == "VREV64qf") return false;
 
-    // VDUPLNfd is equivalent to VDUPLN32d; VDUPfdf is specialized VDUPLN32d.
-    // VDUPLNfq is equivalent to VDUPLN32q; VDUPfqf is specialized VDUPLN32q.
+    // VDUPLNfd is equivalent to VDUPLN32d.
+    // VDUPLNfq is equivalent to VDUPLN32q.
     // VLD1df is equivalent to VLD1d32.
     // VLD1qf is equivalent to VLD1q32.
     // VLD2d64 is equivalent to VLD1q64.
     // VST1df is equivalent to VST1d32.
     // VST1qf is equivalent to VST1q32.
     // VST2d64 is equivalent to VST1q64.
-    if (Name == "VDUPLNfd" || Name == "VDUPfdf" ||
-        Name == "VDUPLNfq" || Name == "VDUPfqf" ||
-        Name == "VLD1df" || Name == "VLD1qf" || Name == "VLD2d64" ||
-        Name == "VST1df" || Name == "VST1qf" || Name == "VST2d64")
+    if (Name == "VDUPLNfd" || Name == "VDUPLNfq" ||
+        Name == "VLD1df"   || Name == "VLD1qf"   || Name == "VLD2d64" ||
+        Name == "VST1df"   || Name == "VST1qf"   || Name == "VST2d64")
       return false;
   } else if (TN == TARGET_THUMB) {
     if (!thumbInstruction(Form))
@@ -1696,12 +1688,8 @@ bool ARMDecoderEmitter::ARMDEBackend::populateInstruction(
     if (Name == "tTPsoft" || Name == "t2TPsoft")
       return false;
 
-    // Ignore tLEApcrel and tLEApcrelJT, prefer tADDrPCi.
-    if (Name == "tLEApcrel" || Name == "tLEApcrelJT")
-      return false;
-
-    // Ignore t2LEApcrel, prefer the generic t2ADD* for disassembly printing.
-    if (Name == "t2LEApcrel")
+    // Ignore tADR, prefer tADDrPCi.
+    if (Name == "tADR")
       return false;
 
     // Ignore tADDrSP, tADDspr, and tPICADD, prefer the generic tADDhirr.
@@ -1719,42 +1707,33 @@ bool ARMDecoderEmitter::ARMDEBackend::populateInstruction(
     if (Name == "t2LDRDpci")
       return false;
 
-    // Ignore t2TBB, t2TBH and prefer the generic t2TBBgen, t2TBHgen.
-    if (Name == "t2TBB" || Name == "t2TBH")
-      return false;
-
     // Resolve conflicts:
     //
     //   tBfar conflicts with tBLr9
-    //   tCMNz conflicts with tCMN (with assembly format strings being equal)
-    //   tPOP_RET/t2LDM_RET conflict with tPOP/t2LDM (ditto)
+    //   tPOP_RET/t2LDMIA_RET conflict with tPOP/t2LDM (ditto)
     //   tMOVCCi conflicts with tMOVi8
     //   tMOVCCr conflicts with tMOVgpr2gpr
-    //   tBR_JTr conflicts with tBRIND
     //   tSpill conflicts with tSTRspi
     //   tLDRcp conflicts with tLDRspi
     //   tRestore conflicts with tLDRspi
-    //   t2LEApcrelJT conflicts with t2LEApcrel
+    //   t2MOVCCi16 conflicts with tMOVi16
     if (Name == "tBfar" ||
-        /* Name == "tCMNz" || */ Name == "tCMPzi8" || Name == "tCMPzr" ||
-        Name == "tCMPzhir" || /* Name == "t2CMNzrr" || Name == "t2CMNzrs" ||
-        Name == "t2CMNzri" || */ Name == "t2CMPzrr" || Name == "t2CMPzrs" ||
-        Name == "t2CMPzri" || Name == "tPOP_RET" || Name == "t2LDM_RET" ||
-        Name == "tMOVCCi" || Name == "tMOVCCr" || Name == "tBR_JTr" ||
+        Name == "tPOP_RET" || Name == "t2LDMIA_RET" ||
+        Name == "tMOVCCi" || Name == "tMOVCCr" ||
         Name == "tSpill" || Name == "tLDRcp" || Name == "tRestore" ||
-        Name == "t2LEApcrelJT")
+        Name == "t2MOVCCi16")
       return false;
   }
 
-  // Dumps the instruction encoding format.
-  switch (TargetName) {
-  case TARGET_ARM:
-  case TARGET_THUMB:
-    DEBUG(errs() << Name << " " << stringForARMFormat((ARMFormat)Form));
-    break;
-  }
-
   DEBUG({
+      // Dumps the instruction encoding format.
+      switch (TargetName) {
+      case TARGET_ARM:
+      case TARGET_THUMB:
+        errs() << Name << " " << stringForARMFormat((ARMFormat)Form);
+        break;
+      }
+
       errs() << " ";
 
       // Dumps the instruction encoding bits.
@@ -1763,8 +1742,8 @@ bool ARMDecoderEmitter::ARMDEBackend::populateInstruction(
       errs() << '\n';
 
       // Dumps the list of operand info.
-      for (unsigned i = 0, e = CGI.OperandList.size(); i != e; ++i) {
-        CodeGenInstruction::OperandInfo Info = CGI.OperandList[i];
+      for (unsigned i = 0, e = CGI.Operands.size(); i != e; ++i) {
+        const CGIOperandList::OperandInfo &Info = CGI.Operands[i];
         const std::string &OperandName = Info.Name;
         const Record &OperandDef = *Info.Rec;
 
@@ -1778,32 +1757,20 @@ bool ARMDecoderEmitter::ARMDEBackend::populateInstruction(
 void ARMDecoderEmitter::ARMDEBackend::populateInstructions() {
   getInstructionsByEnumValue(NumberedInstructions);
 
-  uint16_t numUIDs = NumberedInstructions.size();
-  uint16_t uid;
-
-  const char *instClass = NULL;
-
-  switch (TargetName) {
-  case TARGET_ARM:
-    instClass = "InstARM";
-    break;
-  default:
-    assert(0 && "Unreachable code!");
-  }
-
-  for (uid = 0; uid < numUIDs; uid++) {
-    // filter out intrinsics
-    if (!NumberedInstructions[uid]->TheDef->isSubClassOf(instClass))
-      continue;
-
-    if (populateInstruction(*NumberedInstructions[uid], TargetName))
-      Opcodes.push_back(uid);
-  }
-
-  // Special handling for the ARM chip, which supports two modes of execution.
-  // This branch handles the Thumb opcodes.
+  unsigned numUIDs = NumberedInstructions.size();
   if (TargetName == TARGET_ARM) {
-    for (uid = 0; uid < numUIDs; uid++) {
+    for (unsigned uid = 0; uid < numUIDs; uid++) {
+      // filter out intrinsics
+      if (!NumberedInstructions[uid]->TheDef->isSubClassOf("InstARM"))
+        continue;
+
+      if (populateInstruction(*NumberedInstructions[uid], TargetName))
+        Opcodes.push_back(uid);
+    }
+
+    // Special handling for the ARM chip, which supports two modes of execution.
+    // This branch handles the Thumb opcodes.
+    for (unsigned uid = 0; uid < numUIDs; uid++) {
       // filter out intrinsics
       if (!NumberedInstructions[uid]->TheDef->isSubClassOf("InstARM")
           && !NumberedInstructions[uid]->TheDef->isSubClassOf("InstThumb"))
@@ -1812,6 +1779,18 @@ void ARMDecoderEmitter::ARMDEBackend::populateInstructions() {
       if (populateInstruction(*NumberedInstructions[uid], TARGET_THUMB))
         Opcodes2.push_back(uid);
     }
+
+    return;
+  }
+
+  // For other targets.
+  for (unsigned uid = 0; uid < numUIDs; uid++) {
+    Record *R = NumberedInstructions[uid]->TheDef;
+    if (R->getValueAsString("Namespace") == "TargetOpcode")
+      continue;
+
+    if (populateInstruction(*NumberedInstructions[uid], TargetName))
+      Opcodes.push_back(uid);
   }
 }
 
@@ -1826,25 +1805,25 @@ void ARMDecoderEmitter::ARMDEBackend::emit(raw_ostream &o) {
     assert(0 && "Unreachable code!");
   }
 
-  o << "#include \"llvm/System/DataTypes.h\"\n";
+  o << "#include \"llvm/Support/DataTypes.h\"\n";
   o << "#include <assert.h>\n";
   o << '\n';
   o << "namespace llvm {\n\n";
 
-  FilterChooser::setTargetName(TargetName);
+  ARMFilterChooser::setTargetName(TargetName);
 
   switch (TargetName) {
   case TARGET_ARM: {
     // Emit common utility and ARM ISA decoder.
-    FC = new FilterChooser(NumberedInstructions, Opcodes);
+    FC = new ARMFilterChooser(NumberedInstructions, Opcodes);
     // Reset indentation level.
     unsigned Indentation = 0;
     FC->emitTop(o, Indentation);
     delete FC;
 
     // Emit Thumb ISA decoder as well.
-    FilterChooser::setTargetName(TARGET_THUMB);
-    FC = new FilterChooser(NumberedInstructions, Opcodes2);
+    ARMFilterChooser::setTargetName(TARGET_THUMB);
+    FC = new ARMFilterChooser(NumberedInstructions, Opcodes2);
     // Reset indentation level.
     Indentation = 0;
     FC->emitBot(o, Indentation);
@@ -1863,7 +1842,7 @@ void ARMDecoderEmitter::ARMDEBackend::emit(raw_ostream &o) {
 
 void ARMDecoderEmitter::initBackend()
 {
-    Backend = new ARMDEBackend(*this);
+  Backend = new ARMDEBackend(*this, Records);
 }
 
 void ARMDecoderEmitter::run(raw_ostream &o)

@@ -285,10 +285,7 @@ ieee80211_node_set_chan(struct ieee80211_node *ni,
 	mode = ieee80211_chan2mode(chan);
 	if (IEEE80211_IS_CHAN_HT(chan)) {
 		/*
-		 * XXX Gotta be careful here; the rate set returned by
-		 * ieee80211_get_suprates is actually any HT rate
-		 * set so blindly copying it will be bad.  We must
-		 * install the legacy rate est in ni_rates and the
+		 * We must install the legacy rate est in ni_rates and the
 		 * HT rate set in ni_htrates.
 		 */
 		ni->ni_htrates = *ieee80211_get_suphtrates(ic, chan);
@@ -1137,6 +1134,8 @@ ieee80211_alloc_node(struct ieee80211_node_table *nt,
 	IEEE80211_NOTE(vap, IEEE80211_MSG_INACT, ni,
 	    "%s: inact_reload %u", __func__, ni->ni_inact_reload);
 
+	ieee80211_ratectl_node_init(ni);
+
 	return ni;
 }
 
@@ -1174,6 +1173,8 @@ ieee80211_tmp_node(struct ieee80211vap *vap,
 		ni->ni_txpower = bss->ni_txpower;
 		/* XXX optimize away */
 		ieee80211_psq_init(&ni->ni_psq, "unknown");
+
+		ieee80211_ratectl_node_init(ni);
 	} else {
 		/* XXX msg */
 		vap->iv_stats.is_rx_nodealloc++;

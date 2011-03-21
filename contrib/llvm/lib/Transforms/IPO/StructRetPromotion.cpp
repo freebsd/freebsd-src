@@ -50,7 +50,9 @@ namespace {
 
     virtual bool runOnSCC(CallGraphSCC &SCC);
     static char ID; // Pass identification, replacement for typeid
-    SRETPromotion() : CallGraphSCCPass(ID) {}
+    SRETPromotion() : CallGraphSCCPass(ID) {
+      initializeSRETPromotionPass(*PassRegistry::getPassRegistry());
+    }
 
   private:
     CallGraphNode *PromoteReturn(CallGraphNode *CGN);
@@ -61,8 +63,11 @@ namespace {
 }
 
 char SRETPromotion::ID = 0;
-INITIALIZE_PASS(SRETPromotion, "sretpromotion",
-                "Promote sret arguments to multiple ret values", false, false);
+INITIALIZE_PASS_BEGIN(SRETPromotion, "sretpromotion",
+                "Promote sret arguments to multiple ret values", false, false)
+INITIALIZE_AG_DEPENDENCY(CallGraph)
+INITIALIZE_PASS_END(SRETPromotion, "sretpromotion",
+                "Promote sret arguments to multiple ret values", false, false)
 
 Pass *llvm::createStructRetPromotionPass() {
   return new SRETPromotion();

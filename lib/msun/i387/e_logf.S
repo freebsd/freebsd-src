@@ -13,3 +13,5 @@ ENTRY(logf)
 	flds	4(%esp)
 	fyl2x
 	ret
+
+	.section .note.GNU-stack,"",%progbits

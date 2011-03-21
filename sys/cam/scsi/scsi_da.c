@@ -1127,9 +1127,9 @@ dasysctlinit(void *context, int pending)
 		struct ccb_trans_settings_fc *fc = &cts.xport_specific.fc;
 		if (fc->valid & CTS_FC_VALID_WWPN) {
 			softc->wwpn = fc->wwpn;
-			SYSCTL_ADD_XLONG(&softc->sysctl_ctx,
+			SYSCTL_ADD_UQUAD(&softc->sysctl_ctx,
 			    SYSCTL_CHILDREN(softc->sysctl_tree),
-			    OID_AUTO, "wwpn", CTLTYPE_QUAD | CTLFLAG_RD,
+			    OID_AUTO, "wwpn", CTLFLAG_RD,
 			    &softc->wwpn, "World Wide Port Name");
 		}
 	}
@@ -1310,6 +1310,12 @@ daregister(struct cam_periph *periph, void *arg)
 		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
 	strlcpy(softc->disk->d_ident, cgd->serial_num,
 	    MIN(sizeof(softc->disk->d_ident), cgd->serial_num_len + 1));
+	cam_strvis(softc->disk->d_descr, cgd->inq_data.vendor,
+	    sizeof(cgd->inq_data.vendor), sizeof(softc->disk->d_descr));
+	strlcat(softc->disk->d_descr, " ", sizeof(softc->disk->d_descr));
+	cam_strvis(&softc->disk->d_descr[strlen(softc->disk->d_descr)],
+	    cgd->inq_data.product, sizeof(cgd->inq_data.product),
+	    sizeof(softc->disk->d_descr) - strlen(softc->disk->d_descr));
 	softc->disk->d_hba_vendor = cpi.hba_vendor;
 	softc->disk->d_hba_device = cpi.hba_device;
 	softc->disk->d_hba_subvendor = cpi.hba_subvendor;

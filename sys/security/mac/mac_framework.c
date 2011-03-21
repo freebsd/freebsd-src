@@ -151,7 +151,7 @@ static int	mac_late = 0;
  * for an object type at run-time.
  */
 uint64_t	mac_labeled;
-SYSCTL_QUAD(_security_mac, OID_AUTO, labeled, CTLFLAG_RD, &mac_labeled, 0,
+SYSCTL_UQUAD(_security_mac, OID_AUTO, labeled, CTLFLAG_RD, &mac_labeled, 0,
     "Mask of object types being labeled");
 
 MALLOC_DEFINE(M_MACTEMP, "mactemp", "MAC temporary label storage");

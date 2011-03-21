@@ -161,7 +161,7 @@ INIT {
 
 /*
  * This routine initializes the builtin variables.  It is called when the
- * shell is initialized and again when a shell procedure is spawned.
+ * shell is initialized.
  */
 
 void
@@ -542,47 +542,6 @@ environment(void)
 }
 
 
-/*
- * Called when a shell procedure is invoked to clear out nonexported
- * variables.  It is also necessary to reallocate variables of with
- * VSTACK set since these are currently allocated on the stack.
- */
-
-MKINIT void shprocvar(void);
-
-#ifdef mkinit
-SHELLPROC {
-	shprocvar();
-}
-#endif
-
-void
-shprocvar(void)
-{
-	struct var **vpp;
-	struct var *vp, **prev;
-
-	for (vpp = vartab ; vpp < vartab + VTABSIZE ; vpp++) {
-		for (prev = vpp ; (vp = *prev) != NULL ; ) {
-			if ((vp->flags & VEXPORT) == 0) {
-				*prev = vp->next;
-				if ((vp->flags & VTEXTFIXED) == 0)
-					ckfree(vp->text);
-				if ((vp->flags & VSTRFIXED) == 0)
-					ckfree(vp);
-			} else {
-				if (vp->flags & VSTACK) {
-					vp->text = savestr(vp->text);
-					vp->flags &=~ VSTACK;
-				}
-				prev = &vp->next;
-			}
-		}
-	}
-	initvar();
-}
-
-
 static int
 var_compare(const void *a, const void *b)
 {
@@ -600,9 +559,8 @@ var_compare(const void *a, const void *b)
 
 
 /*
- * Command to list all variables which are set.  Currently this command
- * is invoked from the set command when the set command is called without
- * any variables.
+ * Command to list all variables which are set.  This is invoked from the
+ * set command when it is called without any options or operands.
  */
 
 int
@@ -840,9 +798,7 @@ setvarcmd(int argc, char **argv)
 
 
 /*
- * The unset builtin command.  We unset the function before we unset the
- * variable to allow a function to be unset when there is a readonly variable
- * with the same name.
+ * The unset builtin command.
  */
 
 int

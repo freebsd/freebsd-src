@@ -178,7 +178,11 @@ ports_recurse() (
 	do
 		if [ ! -d $d ] ; then
 			echo "Missing port $d" 1>&2
-			exit 2
+			continue
+		fi
+		if [ ! -f $d/Makefile ] ; then
+			echo "Missing port $d" 1>&2
+			continue
 		fi
 		if [ "x$t" != "x." ] ; then
 			echo "\"$t\" -> \"$d\"" >> /tmp/_.plist.dot
@@ -229,6 +233,7 @@ ports_build() (
 				if make install ${PORTS_OPTS} ; then
 					if [ "x${PKG_DIR}" != "x" ] ; then
 						make package ${PORTS_OPTS}
+						mkdir -p ${PKG_DIR}
 						mv *.tbz ${PKG_DIR}
 					fi
 				else

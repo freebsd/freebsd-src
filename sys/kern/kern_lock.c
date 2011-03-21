@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/ktr.h>
-#include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/lock_profile.h>
 #include <sys/lockmgr.h>
@@ -1300,6 +1299,10 @@ lockstatus(struct lock *lk)
 }
 
 #ifdef INVARIANT_SUPPORT
+
+FEATURE(invariant_support,
+    "Support for modules compiled with INVARIANTS option");
+
 #ifndef INVARIANTS
 #undef	_lockmgr_assert
 #endif

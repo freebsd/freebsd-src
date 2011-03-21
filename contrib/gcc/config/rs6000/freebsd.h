@@ -37,6 +37,13 @@
 #undef	TARGET_AIX
 #define	TARGET_AIX TARGET_64BIT
 
+#ifdef HAVE_LD_NO_DOT_SYMS
+/* New ABI uses a local sym for the function entry point.  */
+extern int dot_symbols;
+#undef DOT_SYMBOLS
+#define DOT_SYMBOLS dot_symbols
+#endif
+
 #undef  FBSD_TARGET_CPU_CPP_BUILTINS
 #define FBSD_TARGET_CPU_CPP_BUILTINS()		\
   do						\
@@ -196,7 +203,7 @@
 #ifdef __powerpc64__
 #define CRT_CALL_STATIC_FUNCTION(SECTION_OP, FUNC)	\
   asm (SECTION_OP "\n"					\
-"	bl ." #FUNC "\n"				\
+"	bl " #FUNC "\n"					\
 "	nop\n"						\
 "	.previous");
 #endif
@@ -230,6 +237,8 @@
       }
 #endif
 
+#define TARGET_ASM_FILE_END rs6000_elf_end_indicate_exec_stack
+
 /* FreeBSD doesn't support saving and restoring 64-bit regs with a 32-bit
    kernel. This is supported when running on a 64-bit kernel with
    COMPAT_FREEBSD32, but tell GCC it isn't so that our 32-bit binaries
@@ -242,3 +251,5 @@
 #define PROFILE_HOOK(LABEL) \
   do { if (TARGET_64BIT) output_profile_hook (LABEL); } while (0)
 
+#undef NEED_INDICATE_EXEC_STACK
+#define NEED_INDICATE_EXEC_STACK 1

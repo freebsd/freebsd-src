@@ -62,8 +62,6 @@
 #define __GNUCLIKE___OFFSETOF 1
 #define __GNUCLIKE___SECTION 1
 
-#define __GNUCLIKE_ATTRIBUTE_MODE_DI 1
-
 #ifndef __INTEL_COMPILER
 # define __GNUCLIKE_CTOR_SECTION_HANDLING 1
 #endif
@@ -364,18 +362,7 @@
 	extern __typeof (sym) aliassym __attribute__ ((__alias__ (#sym)))
 #endif
 #ifdef __STDC__
-#ifdef __powerpc64__
 #define	__weak_reference(sym,alias)	\
-	__asm__(".weak " #alias);	\
-	__asm__(".equ "  #alias ", " #sym); \
-	__asm__(".weak ." #alias);	\
-	__asm__(".equ ."  #alias ", ." #sym)
-#else
-#define	__weak_reference(sym,alias)	\
-	__asm__(".weak " #alias);	\
-	__asm__(".equ "  #alias ", " #sym)
-#endif
-#define	__weak_reference_data(sym,alias)\
 	__asm__(".weak " #alias);	\
 	__asm__(".equ "  #alias ", " #sym)
 #define	__warn_references(sym,msg)	\

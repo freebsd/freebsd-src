@@ -38,3 +38,5 @@ ENTRY(scalbn)
 	movsd	-8(%rsp),%xmm0
 	ret
 END(scalbn)
+
+	.section .note.GNU-stack,"",%progbits

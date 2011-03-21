@@ -10,17 +10,72 @@
 #include "clang/Frontend/FrontendAction.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/DeclGroup.h"
 #include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
+#include "clang/Frontend/FrontendPluginRegistry.h"
+#include "clang/Frontend/MultiplexConsumer.h"
 #include "clang/Parse/ParseAST.h"
+#include "clang/Serialization/ASTDeserializationListener.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace clang;
+
+namespace {
+
+/// \brief Dumps deserialized declarations.
+class DeserializedDeclsDumper : public ASTDeserializationListener {
+  ASTDeserializationListener *Previous;
+
+public:
+  DeserializedDeclsDumper(ASTDeserializationListener *Previous)
+    : Previous(Previous) { }
+
+  virtual void DeclRead(serialization::DeclID ID, const Decl *D) {
+    llvm::outs() << "PCH DECL: " << D->getDeclKindName();
+    if (const NamedDecl *ND = dyn_cast<NamedDecl>(D))
+      llvm::outs() << " - " << ND->getNameAsString();
+    llvm::outs() << "\n";
+
+    if (Previous)
+      Previous->DeclRead(ID, D);
+  }
+};
+
+  /// \brief Checks deserialized declarations and emits error if a name
+  /// matches one given in command-line using -error-on-deserialized-decl.
+  class DeserializedDeclsChecker : public ASTDeserializationListener {
+    ASTContext &Ctx;
+    std::set<std::string> NamesToCheck;
+    ASTDeserializationListener *Previous;
+
+  public:
+    DeserializedDeclsChecker(ASTContext &Ctx,
+                             const std::set<std::string> &NamesToCheck, 
+                             ASTDeserializationListener *Previous)
+      : Ctx(Ctx), NamesToCheck(NamesToCheck), Previous(Previous) { }
+
+    virtual void DeclRead(serialization::DeclID ID, const Decl *D) {
+      if (const NamedDecl *ND = dyn_cast<NamedDecl>(D))
+        if (NamesToCheck.find(ND->getNameAsString()) != NamesToCheck.end()) {
+          unsigned DiagID
+            = Ctx.getDiagnostics().getCustomDiagID(Diagnostic::Error,
+                                                   "%0 was deserialized");
+          Ctx.getDiagnostics().Report(Ctx.getFullLoc(D->getLocation()), DiagID)
+              << ND->getNameAsString();
+        }
+
+      if (Previous)
+        Previous->DeclRead(ID, D);
+    }
+};
+
+} // end anonymous namespace
 
 FrontendAction::FrontendAction() : Instance(0) {}
 
@@ -31,6 +86,39 @@ void FrontendAction::setCurrentFile(llvm::StringRef Value, InputKind Kind,
   CurrentFile = Value;
   CurrentFileKind = Kind;
   CurrentASTUnit.reset(AST);
+}
+
+ASTConsumer* FrontendAction::CreateWrappedASTConsumer(CompilerInstance &CI,
+                                                      llvm::StringRef InFile) {
+  ASTConsumer* Consumer = CreateASTConsumer(CI, InFile);
+  if (!Consumer)
+    return 0;
+
+  if (CI.getFrontendOpts().AddPluginActions.size() == 0)
+    return Consumer;
+
+  // Make sure the non-plugin consumer is first, so that plugins can't
+  // modifiy the AST.
+  std::vector<ASTConsumer*> Consumers(1, Consumer);
+
+  for (size_t i = 0, e = CI.getFrontendOpts().AddPluginActions.size();
+       i != e; ++i) { 
+    // This is O(|plugins| * |add_plugins|), but since both numbers are
+    // way below 50 in practice, that's ok.
+    for (FrontendPluginRegistry::iterator
+        it = FrontendPluginRegistry::begin(),
+        ie = FrontendPluginRegistry::end();
+        it != ie; ++it) {
+      if (it->getName() == CI.getFrontendOpts().AddPluginActions[i]) {
+        llvm::OwningPtr<PluginASTAction> P(it->instantiate());
+        FrontendAction* c = P.get();
+        if (P->ParseArgs(CI, CI.getFrontendOpts().AddPluginArgs[i]))
+          Consumers.push_back(c->CreateASTConsumer(CI, InFile));
+      }
+    }
+  }
+
+  return new MultiplexConsumer(Consumers);
 }
 
 bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
@@ -51,7 +139,8 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
 
     llvm::IntrusiveRefCntPtr<Diagnostic> Diags(&CI.getDiagnostics());
     std::string Error;
-    ASTUnit *AST = ASTUnit::LoadFromASTFile(Filename, Diags);
+    ASTUnit *AST = ASTUnit::LoadFromASTFile(Filename, Diags,
+                                            CI.getFileSystemOpts());
     if (!AST)
       goto failure;
 
@@ -69,7 +158,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
       goto failure;
 
     /// Create the AST consumer.
-    CI.setASTConsumer(CreateASTConsumer(CI, Filename));
+    CI.setASTConsumer(CreateWrappedASTConsumer(CI, Filename));
     if (!CI.hasASTConsumer())
       goto failure;
 
@@ -80,7 +169,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   if (!CI.hasFileManager())
     CI.createFileManager();
   if (!CI.hasSourceManager())
-    CI.createSourceManager();
+    CI.createSourceManager(CI.getFileManager());
 
   // IR files bypass the rest of initialization.
   if (InputKind == IK_LLVM_IR) {
@@ -113,16 +202,30 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   if (!usesPreprocessorOnly()) {
     CI.createASTContext();
 
-    llvm::OwningPtr<ASTConsumer> Consumer(CreateASTConsumer(CI, Filename));
+    llvm::OwningPtr<ASTConsumer> Consumer(
+        CreateWrappedASTConsumer(CI, Filename));
+    if (!Consumer)
+      goto failure;
+
+    CI.getASTContext().setASTMutationListener(Consumer->GetASTMutationListener());
 
     /// Use PCH?
     if (!CI.getPreprocessorOpts().ImplicitPCHInclude.empty()) {
       assert(hasPCHSupport() && "This action does not have PCH support!");
+      ASTDeserializationListener *DeserialListener
+          = CI.getInvocation().getFrontendOpts().ChainedPCH ?
+                  Consumer->GetASTDeserializationListener() : 0;
+      if (CI.getPreprocessorOpts().DumpDeserializedPCHDecls)
+        DeserialListener = new DeserializedDeclsDumper(DeserialListener);
+      if (!CI.getPreprocessorOpts().DeserializedPCHDeclsToErrorOn.empty())
+        DeserialListener = new DeserializedDeclsChecker(CI.getASTContext(),
+                         CI.getPreprocessorOpts().DeserializedPCHDeclsToErrorOn,
+                                                        DeserialListener);
       CI.createPCHExternalASTSource(
                                 CI.getPreprocessorOpts().ImplicitPCHInclude,
                                 CI.getPreprocessorOpts().DisablePCHValidation,
-                                CI.getInvocation().getFrontendOpts().ChainedPCH?
-                                 Consumer->GetASTDeserializationListener() : 0);
+                                CI.getPreprocessorOpts().DisableStatCache,
+                                DeserialListener);
       if (!CI.getASTContext().getExternalSource())
         goto failure;
     }
@@ -137,7 +240,7 @@ bool FrontendAction::BeginSourceFile(CompilerInstance &CI,
   if (!CI.hasASTContext() || !CI.getASTContext().getExternalSource()) {
     Preprocessor &PP = CI.getPreprocessor();
     PP.getBuiltinInfo().InitializeBuiltins(PP.getIdentifierTable(),
-                                           PP.getLangOptions().NoBuiltin);
+                                           PP.getLangOptions());
   }
 
   return true;
@@ -187,6 +290,9 @@ void FrontendAction::Execute() {
 void FrontendAction::EndSourceFile() {
   CompilerInstance &CI = getCompilerInstance();
 
+  // Inform the diagnostic client we are done with this source file.
+  CI.getDiagnosticClient().EndSourceFile();
+
   // Finalize the action.
   EndSourceFileAction();
 
@@ -223,10 +329,7 @@ void FrontendAction::EndSourceFile() {
 
   // Cleanup the output streams, and erase the output files if we encountered
   // an error.
-  CI.clearOutputFiles(/*EraseFiles=*/CI.getDiagnostics().getNumErrors());
-
-  // Inform the diagnostic client we are done with this source file.
-  CI.getDiagnosticClient().EndSourceFile();
+  CI.clearOutputFiles(/*EraseFiles=*/CI.getDiagnostics().hasErrorOccurred());
 
   if (isCurrentFileAST()) {
     CI.takeSema();

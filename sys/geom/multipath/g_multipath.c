@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 #include <geom/multipath/g_multipath.h>
 
+FEATURE(geom_multipath, "GEOM multipath support");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, multipath, CTLFLAG_RW, 0,

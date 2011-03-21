@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
+FEATURE(audit, "BSM audit support");
+
 static uma_zone_t	audit_record_zone;
 static MALLOC_DEFINE(M_AUDITCRED, "audit_cred", "Audit cred storage");
 MALLOC_DEFINE(M_AUDITDATA, "audit_data", "Audit data storage");

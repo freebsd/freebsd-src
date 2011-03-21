@@ -124,7 +124,7 @@ int
 _kvm_initvtop(kvm_t *kd)
 {
 	struct vmstate *vm;
-	struct nlist nlist[2];
+	struct nlist nl[2];
 	u_long kernbase, physaddr, pa;
 	pd_entry_t *l1pt;
 	Elf32_Ehdr *ehdr;
@@ -154,25 +154,25 @@ _kvm_initvtop(kvm_t *kd)
 	hdrsz = ehdr->e_phoff + ehdr->e_phentsize * ehdr->e_phnum;
 	if (_kvm_maphdrs(kd, hdrsz) == -1)
 		return (-1);
-	nlist[0].n_name = "kernbase";
-	nlist[1].n_name = NULL;
-	if (kvm_nlist(kd, nlist) != 0)
+	nl[0].n_name = "kernbase";
+	nl[1].n_name = NULL;
+	if (kvm_nlist(kd, nl) != 0)
 		kernbase = KERNBASE;
 	else
-		kernbase = nlist[0].n_value;
+		kernbase = nl[0].n_value;
 
-	nlist[0].n_name = "physaddr";
-	if (kvm_nlist(kd, nlist) != 0) {
+	nl[0].n_name = "physaddr";
+	if (kvm_nlist(kd, nl) != 0) {
 		_kvm_err(kd, kd->program, "couldn't get phys addr");
 		return (-1);
 	}
-	physaddr = nlist[0].n_value;
-	nlist[0].n_name = "kernel_l1pa";
-	if (kvm_nlist(kd, nlist) != 0) {
+	physaddr = nl[0].n_value;
+	nl[0].n_name = "kernel_l1pa";
+	if (kvm_nlist(kd, nl) != 0) {
 		_kvm_err(kd, kd->program, "bad namelist");
 		return (-1);
 	}
-	if (kvm_read(kd, (nlist[0].n_value - kernbase + physaddr), &pa,
+	if (kvm_read(kd, (nl[0].n_value - kernbase + physaddr), &pa,
 	    sizeof(pa)) != sizeof(pa)) {
 		_kvm_err(kd, kd->program, "cannot read kernel_l1pa");
 		return (-1);
@@ -205,7 +205,6 @@ _kvm_initvtop(kvm_t *kd)
 int
 _kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 {
-	u_long offset = va & (PAGE_SIZE - 1);
 	struct vmstate *vm = kd->vmst;
 	pd_entry_t pd;
 	pt_entry_t pte;
@@ -244,7 +243,7 @@ _kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 	*pa = (pte & L2_S_FRAME) | (va & L2_S_OFFSET);
 	return (_kvm_pa2off(kd, *pa, pa, PAGE_SIZE));
 invalid:
-	_kvm_err(kd, 0, "Invalid address (%x)", va);
+	_kvm_err(kd, 0, "Invalid address (%lx)", va);
 	return 0;
 }
 
@@ -253,16 +252,15 @@ invalid:
  * not just those for a kernel crash dump.  Some architectures
  * have to deal with these NOT being constants!  (i.e. m68k)
  */
+#ifdef FBSD_NOT_YET
 int
-_kvm_mdopen(kd)
-	kvm_t	*kd;
+_kvm_mdopen(kvm_t *kd)
 {
 
-#ifdef FBSD_NOT_YET
 	kd->usrstack = USRSTACK;
 	kd->min_uva = VM_MIN_ADDRESS;
 	kd->max_uva = VM_MAXUSER_ADDRESS;
-#endif
 
 	return (0);
 }
+#endif

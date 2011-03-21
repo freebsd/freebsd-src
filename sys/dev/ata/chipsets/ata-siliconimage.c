@@ -494,7 +494,11 @@ ata_siiprb_ch_attach(device_t dev)
 static int
 ata_siiprb_ch_detach(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(dev);
 
+    if (ch->dma.work_tag && ch->dma.work_map)
+	bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
+	    BUS_DMASYNC_POSTWRITE);
     ata_dmafini(dev);
     return 0;
 }
@@ -576,6 +580,8 @@ ata_siiprb_begin_transaction(struct ata_request *request)
 	}
     }
 
+    bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map, BUS_DMASYNC_PREWRITE);
+
     /* activate the prb */
     prb_bus = ch->dma.work_bus;
     ATA_OUTL(ctlr->r_res2, 0x1c00 + offset, prb_bus);
@@ -598,7 +604,9 @@ ata_siiprb_end_transaction(struct ata_request *request)
 
     /* kill the timeout */
     callout_stop(&request->callout);
-    
+
+    bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map, BUS_DMASYNC_POSTWRITE);
+
     prb = (struct ata_siiprb_command *)
 	((u_int8_t *)rman_get_virtual(ctlr->r_res2) + offset);
 
@@ -671,6 +679,8 @@ ata_siiprb_issue_cmd(device_t dev)
     int offset = ch->unit * 0x2000;
     int timeout;
 
+    bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map, BUS_DMASYNC_PREWRITE);
+
     /* issue command to chip */
     ATA_OUTL(ctlr->r_res2, 0x1c00 + offset, prb_bus);
     ATA_OUTL(ctlr->r_res2, 0x1c04 + offset, prb_bus >> 32);
@@ -681,6 +691,9 @@ ata_siiprb_issue_cmd(device_t dev)
         if ((status = ATA_INL(ctlr->r_res2, 0x1008 + offset)) & 0x00010000)
             break;
     }
+
+    bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map, BUS_DMASYNC_POSTWRITE);
+
     // SOS XXX ATA_OUTL(ctlr->r_res2, 0x1008 + offset, 0x00010000);
     ATA_OUTL(ctlr->r_res2, 0x1008 + offset, 0x08ff08ff);
 

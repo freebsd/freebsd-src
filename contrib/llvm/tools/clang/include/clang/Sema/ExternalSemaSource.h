@@ -14,11 +14,14 @@
 #define LLVM_CLANG_SEMA_EXTERNAL_SEMA_SOURCE_H
 
 #include "clang/AST/ExternalASTSource.h"
-#include "clang/Sema/ObjCMethodList.h"
+#include <utility>
 
 namespace clang {
 
+struct ObjCMethodList;
 class Sema;
+class Scope;
+class LookupResult;
 
 /// \brief An abstract interface that should be implemented by
 /// external AST sources that also provide information for semantic
@@ -44,10 +47,17 @@ public:
   ///
   /// \returns a pair of Objective-C methods lists containing the
   /// instance and factory methods, respectively, with this selector.
-  virtual std::pair<ObjCMethodList, ObjCMethodList>
-  ReadMethodPool(Selector Sel) {
-    return std::pair<ObjCMethodList, ObjCMethodList>();
-  }
+  virtual std::pair<ObjCMethodList,ObjCMethodList> ReadMethodPool(Selector Sel);
+
+  /// \brief Do last resort, unqualified lookup on a LookupResult that
+  /// Sema cannot find.
+  ///
+  /// \param R a LookupResult that is being recovered.
+  ///
+  /// \param S the Scope of the identifier occurrence.
+  ///
+  /// \return true to tell Sema to recover using the LookupResult.
+  virtual bool LookupUnqualified(LookupResult &R, Scope *S) { return false; }
 
   // isa/cast/dyn_cast support
   static bool classof(const ExternalASTSource *Source) {

@@ -175,7 +175,11 @@
 #define VFTA_SIZE			128
 
 /* Offload bits in mbuf flag */
+#if __FreeBSD_version >= 800000
 #define CSUM_OFFLOAD		(CSUM_IP|CSUM_TCP|CSUM_UDP|CSUM_SCTP)
+#else
+#define CSUM_OFFLOAD		(CSUM_IP|CSUM_TCP|CSUM_UDP)
+#endif
 
 /*
  *****************************************************************************
@@ -400,7 +404,7 @@ struct adapter {
 #define IXV_TX_LOCK_ASSERT(_sc)         mtx_assert(&(_sc)->tx_mtx, MA_OWNED)
 
 /* Workaround to make 8.0 buildable */
-#if __FreeBSD_version < 800504
+#if __FreeBSD_version >= 800000 && __FreeBSD_version < 800504
 static __inline int
 drbr_needs_enqueue(struct ifnet *ifp, struct buf_ring *br)
 {

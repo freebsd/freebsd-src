@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -59,24 +61,24 @@ sctp_early_fr_timer(struct sctp_inpcb *inp,
 {
 	struct sctp_tmit_chunk *chk, *pchk;
 	struct timeval now, min_wait, tv;
-	unsigned int cur_rtt, cnt = 0, cnt_resend = 0;
+	unsigned int cur_rto, cnt = 0, cnt_resend = 0;
 
 	/* an early FR is occuring. */
 	(void)SCTP_GETTIME_TIMEVAL(&now);
 	/* get cur rto in micro-seconds */
 	if (net->lastsa == 0) {
 		/* Hmm no rtt estimate yet? */
-		cur_rtt = stcb->asoc.initial_rto >> 2;
+		cur_rto = stcb->asoc.initial_rto >> 2;
 	} else {
 
-		cur_rtt = ((net->lastsa >> 2) + net->lastsv) >> 1;
+		cur_rto = (net->lastsa >> SCTP_RTT_SHIFT) + net->lastsv;
 	}
-	if (cur_rtt < SCTP_BASE_SYSCTL(sctp_early_fr_msec)) {
-		cur_rtt = SCTP_BASE_SYSCTL(sctp_early_fr_msec);
+	if (cur_rto < SCTP_BASE_SYSCTL(sctp_early_fr_msec)) {
+		cur_rto = SCTP_BASE_SYSCTL(sctp_early_fr_msec);
 	}
-	cur_rtt *= 1000;
-	tv.tv_sec = cur_rtt / 1000000;
-	tv.tv_usec = cur_rtt % 1000000;
+	cur_rto *= 1000;
+	tv.tv_sec = cur_rto / 1000000;
+	tv.tv_usec = cur_rto % 1000000;
 	min_wait = now;
 	timevalsub(&min_wait, &tv);
 	if (min_wait.tv_sec < 0 || min_wait.tv_usec < 0) {
@@ -624,7 +626,7 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	struct sctp_tmit_chunk *chk, *nchk;
 	struct sctp_nets *lnets;
 	struct timeval now, min_wait, tv;
-	int cur_rtt;
+	int cur_rto;
 	int cnt_abandoned;
 	int audit_tf, num_mk, fir;
 	unsigned int cnt_mk;
@@ -642,10 +644,10 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	 */
 	(void)SCTP_GETTIME_TIMEVAL(&now);
 	/* get cur rto in micro-seconds */
-	cur_rtt = (((net->lastsa >> 2) + net->lastsv) >> 1);
-	cur_rtt *= 1000;
+	cur_rto = (net->lastsa >> SCTP_RTT_SHIFT) + net->lastsv;
+	cur_rto *= 1000;
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & (SCTP_EARLYFR_LOGGING_ENABLE | SCTP_FR_LOGGING_ENABLE)) {
-		sctp_log_fr(cur_rtt,
+		sctp_log_fr(cur_rto,
 		    stcb->asoc.peers_rwnd,
 		    window_probe,
 		    SCTP_FR_T3_MARK_TIME);
@@ -655,8 +657,8 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 		    SCTP_FR_CWND_REPORT);
 		sctp_log_fr(net->flight_size, net->cwnd, stcb->asoc.total_flight, SCTP_FR_CWND_REPORT);
 	}
-	tv.tv_sec = cur_rtt / 1000000;
-	tv.tv_usec = cur_rtt % 1000000;
+	tv.tv_sec = cur_rto / 1000000;
+	tv.tv_usec = cur_rto % 1000000;
 	min_wait = now;
 	timevalsub(&min_wait, &tv);
 	if (min_wait.tv_sec < 0 || min_wait.tv_usec < 0) {
@@ -669,7 +671,7 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 		min_wait.tv_sec = min_wait.tv_usec = 0;
 	}
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & (SCTP_EARLYFR_LOGGING_ENABLE | SCTP_FR_LOGGING_ENABLE)) {
-		sctp_log_fr(cur_rtt, now.tv_sec, now.tv_usec, SCTP_FR_T3_MARK_TIME);
+		sctp_log_fr(cur_rto, now.tv_sec, now.tv_usec, SCTP_FR_T3_MARK_TIME);
 		sctp_log_fr(0, min_wait.tv_sec, min_wait.tv_usec, SCTP_FR_T3_MARK_TIME);
 	}
 	/*
@@ -818,6 +820,12 @@ start_again:
 			/* reset the TSN for striking and other FR stuff */
 			chk->rec.data.doing_fast_retransmit = 0;
 			/* Clear any time so NO RTT is being done */
+
+			if (chk->do_rtt) {
+				if (chk->whoTo->rto_needed == 0) {
+					chk->whoTo->rto_needed = 1;
+				}
+			}
 			chk->do_rtt = 0;
 			if (alt != net) {
 				sctp_free_remote_addr(chk->whoTo);
@@ -934,19 +942,6 @@ start_again:
 			}
 		}
 	}
-	/*
-	 * Setup the ecn nonce re-sync point. We do this since
-	 * retranmissions are NOT setup for ECN. This means that do to
-	 * Karn's rule, we don't know the total of the peers ecn bits.
-	 */
-	chk = TAILQ_FIRST(&stcb->asoc.send_queue);
-	if (chk == NULL) {
-		stcb->asoc.nonce_resync_tsn = stcb->asoc.sending_seq;
-	} else {
-		stcb->asoc.nonce_resync_tsn = chk->rec.data.TSN_seq;
-	}
-	stcb->asoc.nonce_wait_for_ecne = 0;
-	stcb->asoc.nonce_sum_check = 0;
 	/* We return 1 if we only have a window probe outstanding */
 	return (0);
 }
@@ -1026,7 +1021,10 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 
 	/* CMT FR loss recovery ended with the T3 */
 	net->fast_retran_loss_recovery = 0;
-
+	if ((stcb->asoc.cc_functions.sctp_cwnd_new_transmission_begins) &&
+	    (net->flight_size == 0)) {
+		(*stcb->asoc.cc_functions.sctp_cwnd_new_transmission_begins) (stcb, net);
+	}
 	/*
 	 * setup the sat loss recovery that prevents satellite cwnd advance.
 	 */
@@ -1144,11 +1142,6 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 		lchk = sctp_try_advance_peer_ack_point(stcb, &stcb->asoc);
 		/* C3. See if we need to send a Fwd-TSN */
 		if (SCTP_TSN_GT(stcb->asoc.advanced_peer_ack_point, stcb->asoc.last_acked_seq)) {
-			/*
-			 * ISSUE with ECN, see FWD-TSN processing for notes
-			 * on issues that will occur when the ECN NONCE
-			 * stuff is put into SCTP for cross checking.
-			 */
 			send_forward_tsn(stcb, &stcb->asoc);
 			if (lchk) {
 				/* Assure a timer is up */
@@ -1513,9 +1506,8 @@ static void
 sctp_audit_stream_queues_for_size(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb)
 {
-	struct sctp_stream_out *outs;
 	struct sctp_stream_queue_pending *sp;
-	unsigned int chks_in_queue = 0;
+	unsigned int i, chks_in_queue = 0;
 	int being_filled = 0;
 
 	/*
@@ -1529,32 +1521,21 @@ sctp_audit_stream_queues_for_size(struct sctp_inpcb *inp,
 		    stcb->asoc.sent_queue_retran_cnt);
 		stcb->asoc.sent_queue_retran_cnt = 0;
 	}
-	SCTP_TCB_SEND_LOCK(stcb);
-	if (TAILQ_EMPTY(&stcb->asoc.out_wheel)) {
-		int i, cnt = 0;
-
-		/* Check to see if a spoke fell off the wheel */
-		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
-			if (!TAILQ_EMPTY(&stcb->asoc.strmout[i].outqueue)) {
-				sctp_insert_on_wheel(stcb, &stcb->asoc, &stcb->asoc.strmout[i], 1);
-				cnt++;
-			}
-		}
-		if (cnt) {
-			/* yep, we lost a spoke or two */
-			SCTP_PRINTF("Found an additional %d streams NOT on outwheel, corrected\n", cnt);
+	if (stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, &stcb->asoc)) {
+		/* No stream scheduler information, initialize scheduler */
+		stcb->asoc.ss_functions.sctp_ss_init(stcb, &stcb->asoc, 0);
+		if (!stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, &stcb->asoc)) {
+			/* yep, we lost a stream or two */
+			SCTP_PRINTF("Found additional streams NOT managed by scheduler, corrected\n");
 		} else {
-			/* no spokes lost, */
+			/* no streams lost */
 			stcb->asoc.total_output_queue_size = 0;
 		}
-		SCTP_TCB_SEND_UNLOCK(stcb);
-		return;
 	}
-	SCTP_TCB_SEND_UNLOCK(stcb);
 	/* Check to see if some data queued, if so report it */
-	TAILQ_FOREACH(outs, &stcb->asoc.out_wheel, next_spoke) {
-		if (!TAILQ_EMPTY(&outs->outqueue)) {
-			TAILQ_FOREACH(sp, &outs->outqueue, next) {
+	for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
+		if (!TAILQ_EMPTY(&stcb->asoc.strmout[i].outqueue)) {
+			TAILQ_FOREACH(sp, &stcb->asoc.strmout[i].outqueue, next) {
 				if (sp->msg_is_complete)
 					being_filled++;
 				chks_in_queue++;
@@ -1645,7 +1626,8 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				else if (ret == 0) {
 					break;
 				}
-				if (cnt_sent >= SCTP_BASE_SYSCTL(sctp_hb_maxburst))
+				if (SCTP_BASE_SYSCTL(sctp_hb_maxburst) &&
+				    (cnt_sent >= SCTP_BASE_SYSCTL(sctp_hb_maxburst)))
 					break;
 			}
 		}

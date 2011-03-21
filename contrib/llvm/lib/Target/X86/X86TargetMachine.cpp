@@ -30,10 +30,12 @@ static MCAsmInfo *createMCAsmInfo(const Target &T, StringRef TT) {
   case Triple::Darwin:
     return new X86MCAsmInfoDarwin(TheTriple);
   case Triple::MinGW32:
-  case Triple::MinGW64:
   case Triple::Cygwin:
   case Triple::Win32:
-    return new X86MCAsmInfoCOFF(TheTriple);
+    if (TheTriple.getEnvironment() == Triple::MachO)
+      return new X86MCAsmInfoDarwin(TheTriple);
+    else
+      return new X86MCAsmInfoCOFF(TheTriple);
   default:
     return new X86ELFMCAsmInfo(TheTriple);
   }
@@ -43,22 +45,25 @@ static MCStreamer *createMCStreamer(const Target &T, const std::string &TT,
                                     MCContext &Ctx, TargetAsmBackend &TAB,
                                     raw_ostream &_OS,
                                     MCCodeEmitter *_Emitter,
-                                    bool RelaxAll) {
+                                    bool RelaxAll,
+                                    bool NoExecStack) {
   Triple TheTriple(TT);
   switch (TheTriple.getOS()) {
   case Triple::Darwin:
     return createMachOStreamer(Ctx, TAB, _OS, _Emitter, RelaxAll);
   case Triple::MinGW32:
-  case Triple::MinGW64:
   case Triple::Cygwin:
   case Triple::Win32:
-    return createWinCOFFStreamer(Ctx, TAB, *_Emitter, _OS, RelaxAll);
+    if (TheTriple.getEnvironment() == Triple::MachO)
+      return createMachOStreamer(Ctx, TAB, _OS, _Emitter, RelaxAll);
+    else
+      return createWinCOFFStreamer(Ctx, TAB, *_Emitter, _OS, RelaxAll);
   default:
-    return createELFStreamer(Ctx, TAB, _OS, _Emitter, RelaxAll);
+    return createELFStreamer(Ctx, TAB, _OS, _Emitter, RelaxAll, NoExecStack);
   }
 }
 
-extern "C" void LLVMInitializeX86Target() { 
+extern "C" void LLVMInitializeX86Target() {
   // Register the target.
   RegisterTargetMachine<X86_32TargetMachine> X(TheX86_32Target);
   RegisterTargetMachine<X86_64TargetMachine> Y(TheX86_64Target);
@@ -89,28 +94,38 @@ extern "C" void LLVMInitializeX86Target() {
 
 X86_32TargetMachine::X86_32TargetMachine(const Target &T, const std::string &TT,
                                          const std::string &FS)
-  : X86TargetMachine(T, TT, FS, false) {
+  : X86TargetMachine(T, TT, FS, false),
+    DataLayout(getSubtargetImpl()->isTargetDarwin() ?
+               "e-p:32:32-f64:32:64-i64:32:64-f80:128:128-n8:16:32" :
+               (getSubtargetImpl()->isTargetCygMing() ||
+                getSubtargetImpl()->isTargetWindows()) ?
+               "e-p:32:32-f64:64:64-i64:64:64-f80:32:32-n8:16:32" :
+               "e-p:32:32-f64:32:64-i64:32:64-f80:32:32-n8:16:32"),
+    InstrInfo(*this),
+    TSInfo(*this),
+    TLInfo(*this),
+    JITInfo(*this) {
 }
 
 
 X86_64TargetMachine::X86_64TargetMachine(const Target &T, const std::string &TT,
                                          const std::string &FS)
-  : X86TargetMachine(T, TT, FS, true) {
+  : X86TargetMachine(T, TT, FS, true),
+    DataLayout("e-p:64:64-s:64-f64:64:64-i64:64:64-f80:128:128-n8:16:32:64"),
+    InstrInfo(*this),
+    TSInfo(*this),
+    TLInfo(*this),
+    JITInfo(*this) {
 }
 
 /// X86TargetMachine ctor - Create an X86 target.
 ///
-X86TargetMachine::X86TargetMachine(const Target &T, const std::string &TT, 
+X86TargetMachine::X86TargetMachine(const Target &T, const std::string &TT,
                                    const std::string &FS, bool is64Bit)
-  : LLVMTargetMachine(T, TT), 
+  : LLVMTargetMachine(T, TT),
     Subtarget(TT, FS, is64Bit),
-    DataLayout(Subtarget.getDataLayout()),
-    FrameInfo(TargetFrameInfo::StackGrowsDown,
-              Subtarget.getStackAlignment(),
-              (Subtarget.isTargetWin64() ? -40 :
-               (Subtarget.is64Bit() ? -8 : -4))),
-    InstrInfo(*this), JITInfo(*this), TLInfo(*this), TSInfo(*this),
-    ELFWriterInfo(*this) {
+    FrameLowering(*this, Subtarget),
+    ELFWriterInfo(is64Bit, true) {
   DefRelocModel = getRelocationModel();
 
   // If no relocation model was picked, default as appropriate for the target.
@@ -217,12 +232,12 @@ bool X86TargetMachine::addCodeEmitter(PassManagerBase &PM,
                                       JITCodeEmitter &JCE) {
   // FIXME: Move this to TargetJITInfo!
   // On Darwin, do not override 64-bit setting made in X86TargetMachine().
-  if (DefRelocModel == Reloc::Default && 
+  if (DefRelocModel == Reloc::Default &&
       (!Subtarget.isTargetDarwin() || !Subtarget.is64Bit())) {
     setRelocationModel(Reloc::Static);
     Subtarget.setPICStyle(PICStyles::None);
   }
-  
+
 
   PM.add(createX86JITCodeEmitterPass(*this, JCE));
 

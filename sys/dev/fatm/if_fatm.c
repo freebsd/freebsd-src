@@ -2794,13 +2794,13 @@ fatm_attach(device_t dev)
 		goto fail;
 
 	if (SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
-	    OID_AUTO, "istats", CTLFLAG_RD, sc, 0, fatm_sysctl_istats,
-	    "LU", "internal statistics") == NULL)
+	    OID_AUTO, "istats", CTLTYPE_ULONG | CTLFLAG_RD, sc, 0,
+	    fatm_sysctl_istats, "LU", "internal statistics") == NULL)
 		goto fail;
 
 	if (SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
-	    OID_AUTO, "stats", CTLFLAG_RD, sc, 0, fatm_sysctl_stats,
-	    "LU", "card statistics") == NULL)
+	    OID_AUTO, "stats", CTLTYPE_ULONG | CTLFLAG_RD, sc, 0,
+	    fatm_sysctl_stats, "LU", "card statistics") == NULL)
 		goto fail;
 
 	if (SYSCTL_ADD_INT(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),

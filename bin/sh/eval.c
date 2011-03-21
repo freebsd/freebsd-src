@@ -111,10 +111,6 @@ RESET {
 	loopnest = 0;
 	funcnest = 0;
 }
-
-SHELLPROC {
-	exitstatus = 0;
-}
 #endif
 
 
@@ -671,6 +667,7 @@ safe_builtin(int idx, int argc, char **argv)
 
 /*
  * Execute a simple command.
+ * Note: This may or may not return if (flags & EV_EXIT).
  */
 
 static void
@@ -707,6 +704,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	arglist.lastp = &arglist.list;
 	varlist.lastp = &varlist.list;
 	varflag = 1;
+	jp = NULL;
 	do_clearcmdentry = 0;
 	oexitstatus = exitstatus;
 	exitstatus = 0;
@@ -730,7 +728,9 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	argc = 0;
 	for (sp = arglist.list ; sp ; sp = sp->next)
 		argc++;
-	argv = stalloc(sizeof (char *) * (argc + 1));
+	/* Add one slot at the beginning for tryexec(). */
+	argv = stalloc(sizeof (char *) * (argc + 2));
+	argv++;
 
 	for (sp = arglist.list ; sp ; sp = sp->next) {
 		TRACE(("evalcommand arg: %s\n", sp->text));
@@ -812,7 +812,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 				 * bookinging effort, since most such runs add
 				 * directories in front of the new PATH.
 				 */
-				clearcmdentry(0);
+				clearcmdentry();
 				do_clearcmdentry = 1;
 			}
 
@@ -854,7 +854,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 						argc -= 2;
 					}
 					path = _PATH_STDPATH;
-					clearcmdentry(0);
+					clearcmdentry();
 					do_clearcmdentry = 1;
 				} else if (!strcmp(argv[1], "--")) {
 					if (argc == 2)
@@ -925,14 +925,10 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		reffunc(cmdentry.u.func);
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
-			if (exception == EXSHELLPROC)
-				freeparam(&saveparam);
-			else {
-				freeparam(&shellparam);
-				shellparam = saveparam;
-				if (exception == EXERROR || exception == EXEXEC)
-					popredir();
-			}
+			freeparam(&shellparam);
+			shellparam = saveparam;
+			if (exception == EXERROR || exception == EXEXEC)
+				popredir();
 			unreffunc(cmdentry.u.func);
 			poplocalvars();
 			localvars = savelocalvars;
@@ -965,7 +961,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			evalskip = 0;
 			skipcount = 0;
 		}
-		if (flags & EV_EXIT)
+		if (jp)
 			exitshell(exitstatus);
 	} else if (cmdentry.cmdtype == CMDBUILTIN) {
 #ifdef DEBUG
@@ -1013,13 +1009,10 @@ cmddone:
 		out1 = &output;
 		out2 = &errout;
 		freestdout();
-		if (e != EXSHELLPROC) {
-			commandname = savecmdname;
-			if (flags & EV_EXIT) {
-				exitshell(exitstatus);
-			}
-		}
 		handler = savehandler;
+		commandname = savecmdname;
+		if (jp)
+			exitshell(exitstatus);
 		if (flags == EV_BACKCMD) {
 			backcmd->buf = memout.buf;
 			backcmd->nleft = memout.nextc - memout.buf;
@@ -1068,7 +1061,7 @@ out:
 	if (lastarg)
 		setvar("_", lastarg, 0);
 	if (do_clearcmdentry)
-		clearcmdentry(0);
+		clearcmdentry();
 	popstackmark(&smark);
 }
 

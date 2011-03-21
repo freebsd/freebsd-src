@@ -27,6 +27,30 @@ struct suffix_pair {
 };
 
 
+/// \brief      Test if the char is a directory separator
+static bool
+is_dir_sep(char c)
+{
+#ifdef TUKLIB_DOSLIKE
+	return c == '/' || c == '\\' || c == ':';
+#else
+	return c == '/';
+#endif
+}
+
+
+/// \brief      Test if the string contains a directory separator
+static bool
+has_dir_sep(const char *str)
+{
+#ifdef TUKLIB_DOSLIKE
+	return strpbrk(str, "/\\:") != NULL;
+#else
+	return strchr(str, '/') != NULL;
+#endif
+}
+
+
 /// \brief      Checks if src_name has given compressed_suffix
 ///
 /// \param      suffix      Filename suffix to look for
@@ -44,7 +68,8 @@ test_suffix(const char *suffix, const char *src_name, size_t src_len)
 	// The filename must have at least one character in addition to
 	// the suffix. src_name may contain path to the filename, so we
 	// need to check for directory separator too.
-	if (src_len <= suffix_len || src_name[src_len - suffix_len - 1] == '/')
+	if (src_len <= suffix_len
+			|| is_dir_sep(src_name[src_len - suffix_len - 1]))
 		return 0;
 
 	if (strcmp(suffix, src_name + src_len - suffix_len) == 0)
@@ -199,9 +224,9 @@ suffix_get_dest_name(const char *src_name)
 extern void
 suffix_set(const char *suffix)
 {
-	// Empty suffix and suffixes having a slash are rejected. Such
-	// suffixes would break things later.
-	if (suffix[0] == '\0' || strchr(suffix, '/') != NULL)
+	// Empty suffix and suffixes having a directory separator are
+	// rejected. Such suffixes would break things later.
+	if (suffix[0] == '\0' || has_dir_sep(suffix))
 		message_fatal(_("%s: Invalid filename suffix"), optarg);
 
 	// Replace the old custom_suffix (if any) with the new suffix.

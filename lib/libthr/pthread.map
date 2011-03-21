@@ -272,6 +272,7 @@ FBSDprivate_1.0 {
 	_pthread_getprio;
 	_pthread_getschedparam;
 	_pthread_getspecific;
+	_pthread_getthreadid_np;
 	_pthread_join;
 	_pthread_key_create;
 	_pthread_key_delete;
@@ -382,6 +383,8 @@ FBSDprivate_1.0 {
 	_thread_size_key;
 	_thread_state_running;
 	_thread_state_zoombie;
+
+	__pthread_map_stacks_exec;
 };
 
 FBSD_1.1 {
@@ -401,6 +404,7 @@ FBSD_1.1 {
 
 FBSD_1.2 {
 	openat;
+	pthread_getthreadid_np;
 	setcontext;
 	swapcontext;
 };

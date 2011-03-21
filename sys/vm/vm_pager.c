@@ -82,8 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
-MALLOC_DEFINE(M_VMPGDATA, "vm_pgdata", "XXX: VM pager private data");
-
 int cluster_pbuf_freecnt = -1;	/* unlimited to begin with */
 
 static int dead_pager_getpages(vm_object_t, vm_page_t *, int, int);

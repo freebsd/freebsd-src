@@ -17,7 +17,7 @@
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Path.h"
+#include "llvm/Support/Path.h"
 #include "llvm/ADT/OwningPtr.h"
 #include <cstdio>
 
@@ -78,7 +78,7 @@ static void LexRawTokensFromMainFile(Preprocessor &PP,
     // If we have an identifier with no identifier info for our raw token, look
     // up the indentifier info.  This is important for equality comparison of
     // identifier tokens.
-    if (RawTok.is(tok::identifier) && !RawTok.getIdentifierInfo())
+    if (RawTok.is(tok::raw_identifier))
       PP.LookUpIdentifierInfo(RawTok);
 
     RawTokens.push_back(RawTok);

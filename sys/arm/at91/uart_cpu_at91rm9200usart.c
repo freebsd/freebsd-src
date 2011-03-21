@@ -73,13 +73,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	 * XXX: Not pretty, but will work because we map the needed addresses
 	 * early.
 	 */
-#ifdef SKYEYE_WORKAROUNDS
-	di->bas.bsh = AT91RM92_BASE + AT91RM92_USART0_BASE;
-	di->baudrate = 38400;
-#else
 	di->bas.bsh = AT91RM92_BASE + AT91RM92_DBGU_BASE;
 	di->baudrate = 115200;
-#endif
 	di->bas.regshft = 0;
 	di->bas.rclk = 0;
 	di->databits = 8;

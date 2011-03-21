@@ -18,10 +18,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -66,7 +62,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_kstack_pages.h"
-#include "opt_msgbuf.h"
 #include "opt_pmap.h"
 
 #include <sys/param.h>
@@ -390,7 +385,8 @@ pmap_bootstrap(u_int cpu_impl)
 	 * not support it, yet.
 	 */
 	virtsz = roundup(physsz, PAGE_SIZE_4M << (PAGE_SHIFT - TTE_SHIFT));
-	if (cpu_impl >= CPU_IMPL_ULTRASPARCIIIp)
+	if (cpu_impl == CPU_IMPL_SPARC64V ||
+	    cpu_impl >= CPU_IMPL_ULTRASPARCIIIp)
 		tsb_kernel_ldd_phys = 1;
 	else {
 		dtlb_slots_avail = 0;
@@ -439,7 +435,7 @@ pmap_bootstrap(u_int cpu_impl)
 	/*
 	 * Allocate and map the message buffer.
 	 */
-	pa = pmap_bootstrap_alloc(MSGBUF_SIZE, colors);
+	pa = pmap_bootstrap_alloc(msgbufsize, colors);
 	msgbufp = (struct msgbuf *)TLB_PHYS_TO_DIRECT(pa);
 
 	/*
@@ -482,6 +478,21 @@ pmap_bootstrap(u_int cpu_impl)
 #define	PATCH_TSB(addr, val) do {					\
 	if (addr[0] != SETHI(IF_F2_RD(addr[0]), 0x0) ||			\
 	    addr[1] != OR_R_I_R(IF_F3_RD(addr[1]), 0x0,			\
+	    IF_F3_RS1(addr[1]))	||					\
+	    addr[3] != SETHI(IF_F2_RD(addr[3]), 0x0))			\
+		panic("%s: patched instructions have changed",		\
+		    __func__);						\
+	addr[0] |= EIF_IMM((val) >> 42, 22);				\
+	addr[1] |= EIF_IMM((val) >> 32, 10);				\
+	addr[3] |= EIF_IMM((val) >> 10, 22);				\
+	flush(addr);							\
+	flush(addr + 1);						\
+	flush(addr + 3);						\
+} while (0)
+
+#define	PATCH_TSB_MASK(addr, val) do {					\
+	if (addr[0] != SETHI(IF_F2_RD(addr[0]), 0x0) ||			\
+	    addr[1] != OR_R_I_R(IF_F3_RD(addr[1]), 0x0,			\
 	    IF_F3_RS1(addr[1])))					\
 		panic("%s: patched instructions have changed",		\
 		    __func__);						\
@@ -507,20 +518,20 @@ pmap_bootstrap(u_int cpu_impl)
 	PATCH_LDD(tl1_dmmu_miss_patch_quad_ldd_1, ldd);
 	PATCH_TSB(tl1_dmmu_miss_patch_tsb_1, off);
 	PATCH_TSB(tl1_dmmu_miss_patch_tsb_2, off);
-	PATCH_TSB(tl1_dmmu_miss_patch_tsb_mask_1, tsb_kernel_mask);
-	PATCH_TSB(tl1_dmmu_miss_patch_tsb_mask_2, tsb_kernel_mask);
+	PATCH_TSB_MASK(tl1_dmmu_miss_patch_tsb_mask_1, tsb_kernel_mask);
+	PATCH_TSB_MASK(tl1_dmmu_miss_patch_tsb_mask_2, tsb_kernel_mask);
 	PATCH_ASI(tl1_dmmu_prot_patch_asi_1, asi);
 	PATCH_LDD(tl1_dmmu_prot_patch_quad_ldd_1, ldd);
 	PATCH_TSB(tl1_dmmu_prot_patch_tsb_1, off);
 	PATCH_TSB(tl1_dmmu_prot_patch_tsb_2, off);
-	PATCH_TSB(tl1_dmmu_prot_patch_tsb_mask_1, tsb_kernel_mask);
-	PATCH_TSB(tl1_dmmu_prot_patch_tsb_mask_2, tsb_kernel_mask);
+	PATCH_TSB_MASK(tl1_dmmu_prot_patch_tsb_mask_1, tsb_kernel_mask);
+	PATCH_TSB_MASK(tl1_dmmu_prot_patch_tsb_mask_2, tsb_kernel_mask);
 	PATCH_ASI(tl1_immu_miss_patch_asi_1, asi);
 	PATCH_LDD(tl1_immu_miss_patch_quad_ldd_1, ldd);
 	PATCH_TSB(tl1_immu_miss_patch_tsb_1, off);
 	PATCH_TSB(tl1_immu_miss_patch_tsb_2, off);
-	PATCH_TSB(tl1_immu_miss_patch_tsb_mask_1, tsb_kernel_mask);
-	PATCH_TSB(tl1_immu_miss_patch_tsb_mask_2, tsb_kernel_mask);
+	PATCH_TSB_MASK(tl1_immu_miss_patch_tsb_mask_1, tsb_kernel_mask);
+	PATCH_TSB_MASK(tl1_immu_miss_patch_tsb_mask_2, tsb_kernel_mask);
 
 	/*
 	 * Enter fake 8k pages for the 4MB kernel pages, so that

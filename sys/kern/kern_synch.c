@@ -413,9 +413,10 @@ mi_switch(int flags, struct thread *newtd)
 	 */
 	if (kdb_active)
 		kdb_switch();
-	if (flags & SW_VOL)
+	if (flags & SW_VOL) {
 		td->td_ru.ru_nvcsw++;
-	else
+		td->td_swvoltick = ticks;
+	} else
 		td->td_ru.ru_nivcsw++;
 #ifdef SCHED_STATS
 	SCHED_STAT_INC(sched_switch_stats[flags & SW_TYPE_MASK]);
@@ -538,6 +539,36 @@ synch_setup(void *dummy)
 	loadav(NULL);
 }
 
+int
+should_yield(void)
+{
+
+	return (ticks - curthread->td_swvoltick >= hogticks);
+}
+
+void
+maybe_yield(void)
+{
+
+	if (should_yield())
+		kern_yield(curthread->td_user_pri);
+}
+
+void
+kern_yield(int prio)
+{
+	struct thread *td;
+
+	td = curthread;
+	DROP_GIANT();
+	thread_lock(td);
+	if (prio >= 0)
+		sched_prio(td, prio);
+	mi_switch(SW_VOL | SWT_RELINQUISH, NULL);
+	thread_unlock(td);
+	PICKUP_GIANT();
+}
+
 /*
  * General purpose yield system call.
  */
@@ -546,7 +577,8 @@ yield(struct thread *td, struct yield_args *uap)
 {
 
 	thread_lock(td);
-	sched_prio(td, PRI_MAX_TIMESHARE);
+	if (PRI_BASE(td->td_pri_class) == PRI_TIMESHARE)
+		sched_prio(td, PRI_MAX_TIMESHARE);
 	mi_switch(SW_VOL | SWT_RELINQUISH, NULL);
 	thread_unlock(td);
 	td->td_retval[0] = 0;

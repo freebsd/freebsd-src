@@ -165,3 +165,5 @@ L4:	xorl	%eax,%eax
 	popl	%ebx
 	ret
 END(strncmp)
+
+	.section .note.GNU-stack,"",%progbits
