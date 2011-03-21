@@ -1162,11 +1162,13 @@ ng_bypass(hook_p hook1, hook_p hook2)
 		TRAP_ERROR();
 		return (EINVAL);
 	}
+	mtx_lock(&ng_topo_mtx);
 	hook1->hk_peer->hk_peer = hook2->hk_peer;
 	hook2->hk_peer->hk_peer = hook1->hk_peer;
 
 	hook1->hk_peer = &ng_deadhook;
 	hook2->hk_peer = &ng_deadhook;
+	mtx_unlock(&ng_topo_mtx);
 
 	NG_HOOK_UNREF(hook1);
 	NG_HOOK_UNREF(hook2);
@@ -1643,10 +1645,8 @@ ng_path2noderef(node_p here, const char *address,
 				node_p *destp, hook_p *lasthook)
 {
 	char    fullpath[NG_PATHSIZ];
-	char   *nodename, *path, pbuf[2];
+	char   *nodename, *path;
 	node_p  node, oldnode;
-	char   *cp;
-	hook_p hook = NULL;
 
 	/* Initialize */
 	if (destp == NULL) {
@@ -1663,11 +1663,6 @@ ng_path2noderef(node_p here, const char *address,
 	if (ng_path_parse(fullpath, &nodename, &path, NULL) < 0) {
 		TRAP_ERROR();
 		return EINVAL;
-	}
-	if (path == NULL) {
-		pbuf[0] = '.';	/* Needs to be writable */
-		pbuf[1] = '\0';
-		path = pbuf;
 	}
 
 	/*
@@ -1690,41 +1685,41 @@ ng_path2noderef(node_p here, const char *address,
 		NG_NODE_REF(node);
 	}
 
+	if (path == NULL) {
+		if (lasthook != NULL)
+			*lasthook = NULL;
+		*destp = node;
+		return (0);
+	}
+
 	/*
 	 * Now follow the sequence of hooks
-	 * XXX
-	 * We actually cannot guarantee that the sequence
-	 * is not being demolished as we crawl along it
-	 * without extra-ordinary locking etc.
-	 * So this is a bit dodgy to say the least.
-	 * We can probably hold up some things by holding
-	 * the nodelist mutex for the time of this
-	 * crawl if we wanted.. At least that way we wouldn't have to
-	 * worry about the nodes disappearing, but the hooks would still
-	 * be a problem.
+	 *
+	 * XXXGL: The path may demolish as we go the sequence, but if
+	 * we hold the topology mutex at critical places, then, I hope,
+	 * we would always have valid pointers in hand, although the
+	 * path behind us may no longer exist.
 	 */
-	for (cp = path; node != NULL && *cp != '\0'; ) {
+	for (;;) {
+		hook_p hook;
 		char *segment;
 
 		/*
 		 * Break out the next path segment. Replace the dot we just
-		 * found with a NUL; "cp" points to the next segment (or the
+		 * found with a NUL; "path" points to the next segment (or the
 		 * NUL at the end).
 		 */
-		for (segment = cp; *cp != '\0'; cp++) {
-			if (*cp == '.') {
-				*cp++ = '\0';
+		for (segment = path; *path != '\0'; path++) {
+			if (*path == '.') {
+				*path++ = '\0';
 				break;
 			}
 		}
 
-		/* Empty segment */
-		if (*segment == '\0')
-			continue;
-
 		/* We have a segment, so look for a hook by that name */
 		hook = ng_findhook(node, segment);
 
+		mtx_lock(&ng_topo_mtx);
 		/* Can't get there from here... */
 		if (hook == NULL
 		    || NG_HOOK_PEER(hook) == NULL
@@ -1732,15 +1727,7 @@ ng_path2noderef(node_p here, const char *address,
 		    || NG_HOOK_NOT_VALID(NG_HOOK_PEER(hook))) {
 			TRAP_ERROR();
 			NG_NODE_UNREF(node);
-#if 0
-			printf("hooknotvalid %s %s %d %d %d %d ",
-					path,
-					segment,
-					hook == NULL,
-					NG_HOOK_PEER(hook) == NULL,
-					NG_HOOK_NOT_VALID(hook),
-					NG_HOOK_NOT_VALID(NG_HOOK_PEER(hook)));
-#endif
+			mtx_unlock(&ng_topo_mtx);
 			return (ENOENT);
 		}
 
@@ -1757,21 +1744,25 @@ ng_path2noderef(node_p here, const char *address,
 		NG_NODE_UNREF(oldnode);	/* XXX another race */
 		if (NG_NODE_NOT_VALID(node)) {
 			NG_NODE_UNREF(node);	/* XXX more races */
-			node = NULL;
+			mtx_unlock(&ng_topo_mtx);
+			TRAP_ERROR();
+			return (ENXIO);
 		}
-	}
 
-	/* If node somehow missing, fail here (probably this is not needed) */
-	if (node == NULL) {
-		TRAP_ERROR();
-		return (ENXIO);
+		if (*path == '\0') {
+			if (lasthook != NULL) {
+				if (hook != NULL) {
+					*lasthook = NG_HOOK_PEER(hook);
+					NG_HOOK_REF(*lasthook);
+				} else
+					*lasthook = NULL;
+			}
+			mtx_unlock(&ng_topo_mtx);
+			*destp = node;
+			return (0);
+		}
+		mtx_unlock(&ng_topo_mtx);
 	}
-
-	/* Done */
-	*destp = node;
-	if (lasthook != NULL)
-		*lasthook = (hook ? NG_HOOK_PEER(hook) : NULL);
-	return (0);
 }
 
 /***************************************************************\
@@ -3501,12 +3492,14 @@ ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr)
 	 * that the peer is still connected (even if invalid,) we know
 	 * that the peer node is present, though maybe invalid.
 	 */
+	mtx_lock(&ng_topo_mtx);
 	if ((hook == NULL) ||
 	    NG_HOOK_NOT_VALID(hook) ||
 	    NG_HOOK_NOT_VALID(peer = NG_HOOK_PEER(hook)) ||
 	    NG_NODE_NOT_VALID(peernode = NG_PEER_NODE(hook))) {
 		NG_FREE_ITEM(item);
 		TRAP_ERROR();
+		mtx_unlock(&ng_topo_mtx);
 		return (ENETDOWN);
 	}
 
@@ -3518,6 +3511,9 @@ ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr)
 	NGI_SET_HOOK(item, peer);
 	NGI_SET_NODE(item, peernode);
 	SET_RETADDR(item, here, retaddr);
+
+	mtx_unlock(&ng_topo_mtx);
+
 	return (0);
 }
 
@@ -3539,10 +3535,9 @@ ng_address_path(node_p here, item_p item, char *address, ng_ID_t retaddr)
 		return (error);
 	}
 	NGI_SET_NODE(item, dest);
-	if ( hook) {
-		NG_HOOK_REF(hook);	/* don't let it go while on the queue */
+	if (hook)
 		NGI_SET_HOOK(item, hook);
-	}
+
 	SET_RETADDR(item, here, retaddr);
 	return (0);
 }
