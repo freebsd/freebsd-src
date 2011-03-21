@@ -169,6 +169,8 @@ struct hast_resource {
 
 	/* Address of the remote component. */
 	char	hr_remoteaddr[HAST_ADDRSIZE];
+	/* Local address to bind to for outgoing connections. */
+	char	hr_sourceaddr[HAST_ADDRSIZE];
 	/* Connection for incoming data. */
 	struct proto_conn *hr_remotein;
 	/* Connection for outgoing data. */
