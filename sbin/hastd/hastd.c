@@ -884,19 +884,12 @@ out:
 }
 
 static void
-main_loop(void)
+check_signals(void)
 {
-	struct hast_resource *res;
-	struct timeval seltimeout;
 	struct timespec sigtimeout;
-	int fd, maxfd, ret, signo;
-	time_t lastcheck, now;
 	sigset_t mask;
-	fd_set rfds;
+	int signo;
 
-	lastcheck = time(NULL);	
-	seltimeout.tv_sec = REPORT_INTERVAL;
-	seltimeout.tv_usec = 0;
 	sigtimeout.tv_sec = 0;
 	sigtimeout.tv_nsec = 0;
 
@@ -906,29 +899,45 @@ main_loop(void)
 	PJDLOG_VERIFY(sigaddset(&mask, SIGTERM) == 0);
 	PJDLOG_VERIFY(sigaddset(&mask, SIGCHLD) == 0);
 
+	while ((signo = sigtimedwait(&mask, NULL, &sigtimeout)) != -1) {
+		switch (signo) {
+		case SIGINT:
+		case SIGTERM:
+			sigexit_received = true;
+			terminate_workers();
+			proto_close(cfg->hc_controlconn);
+			exit(EX_OK);
+			break;
+		case SIGCHLD:
+			child_exit();
+			break;
+		case SIGHUP:
+			hastd_reload();
+			break;
+		default:
+			PJDLOG_ABORT("Unexpected signal (%d).", signo);
+		}
+	}
+}
+
+static void
+main_loop(void)
+{
+	struct hast_resource *res;
+	struct timeval seltimeout;
+	int fd, maxfd, ret;
+	time_t lastcheck, now;
+	fd_set rfds;
+
+	lastcheck = time(NULL);	
+	seltimeout.tv_sec = REPORT_INTERVAL;
+	seltimeout.tv_usec = 0;
+
 	pjdlog_info("Started successfully, running protocol version %d.",
 	    HAST_PROTO_VERSION);
 
 	for (;;) {
-		while ((signo = sigtimedwait(&mask, NULL, &sigtimeout)) != -1) {
-			switch (signo) {
-			case SIGINT:
-			case SIGTERM:
-				sigexit_received = true;
-				terminate_workers();
-				proto_close(cfg->hc_controlconn);
-				exit(EX_OK);
-				break;
-			case SIGCHLD:
-				child_exit();
-				break;
-			case SIGHUP:
-				hastd_reload();
-				break;
-			default:
-				PJDLOG_ABORT("Unexpected signal (%d).", signo);
-			}
-		}
+		check_signals();
 
 		/* Setup descriptors for select(2). */
 		FD_ZERO(&rfds);
@@ -975,6 +984,12 @@ main_loop(void)
 			KEEP_ERRNO((void)pidfile_remove(pfh));
 			pjdlog_exit(EX_OSERR, "select() failed");
 		}
+
+		/*
+		 * Check for signals before we do anything to update our
+		 * info about terminated workers in the meantime.
+		 */
+		check_signals();
 
 		if (FD_ISSET(proto_descriptor(cfg->hc_controlconn), &rfds))
 			control_handle(cfg);
