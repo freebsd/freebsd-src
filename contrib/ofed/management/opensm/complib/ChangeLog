@@ -1,0 +1,96 @@
+2007-07=11  Hal Rosenstock <halr@voltaire.com>
+
+	* configure.in: to version 2.2.1
+
+2007-06-25  Hal Rosenstock <halr@voltaire.com>
+
+	* cl_event_wheel.c: Fix some typos in printfs when
+	  __CL_EVENT_WHEEL_TEST__ defined
+
+2007-06-20  Hal Rosenstock <halr@voltaire.com>
+
+	* libosmcomp.map: Add get_next map functions as global
+
+2007-06-20  Todd Rimmer <todd.rimmer@qlogic.com>
+
+	* include/complib/cl_map.h, include/complib/cl_qmap.h,
+	  include/complib/cl_fleximap.h, cl_map.c:
+	  Add get_next functions to the various maps
+
+	* include/complib/cl_fleximap.h: In cl_fmap_remove_all, make
+	  sure the count field is properly maintained.
+
+2007-06-19  Todd Rimmer <todd.rimmer@qlogic.com>
+
+	* include/complib/cl_qmap.h: In cl_qmap_remove_all, make
+	  sure the count field is properly maintained.
+
+2007-06-19  Hal Rosenstock <halr@voltaire.com>
+
+	* include/complib/cl_threadpool.h: Eliminate compile warning
+	  with cl_threadpool.c introduced by previous change
+
+2007-06-13  Sasha Khapyorsky <sashak@voltaire.com>
+
+	* include/complib/cl_threadpool.h, complib/cl_threadpool.c,
+	  complib/cl_dispatcher.c, complib/libosmcomp.map: Thread
+	  pool rework
+
+2007-06-13  Hal Rosenstock <halr@voltaire.com>
+
+	* configure.in: Bump to version 2.2.0
+
+	* libosmcomp.ver, libosmcomp.map: Update version info for
+	  previous API removals
+
+	* include/complib/cl_memory.h, include/complib/cl_memtrack.h,
+	  complib/cl_memory.c, complib/cl_memtrack.c, include/Makefile.am:
+	  Remove deprecated memory allocation related routines
+
+2007-06-13  Yevgeny Kliteynik <kliteyn@dev.mellanox.co.il>
+
+	* include/complib/cl_perf.h, include/complib/cl_async_proc.h,
+	  complib/cl_perf.c, complib/cl_async_proc.c, Makefile.am,
+	  libosmcomp.map: Remove unused cl_perf and cl_async_proc
+
+2007-05-09  Hal Rosenstock <halr@voltaire.com>
+
+	* configure.in: Bump to version 2.1.2
+
+2007-03-29  Hal Rosenstock <halr@voltaire.com>
+
+	* configure.in: Bump to version 2.1.1
+
+2007-01-08  Sasha Khapyorsky <sashak@voltaire.com>
+
+	* cl_log.c: SIGUSR1 fixes
+
+2007-01-08  Ira Weiny <weiny2@llnl.gov>
+
+	* cl_log.c: Add SIGUSR1 handling to reopen osm.log
+
+2006-10-31  Hal Rosenstock <halr@voltaire.com>
+
+	* configure.in: Bumped to version version 2.1.0
+
+2006-09-05  Sasha Khapyorsky <sashak@voltaire.com>
+
+	* cl_event_wheel.c: Changes to support new osm_log
+	  initializer osm_log_init_v2()
+
+2006-08-29  Sasha Khapyorsky <sashak@voltaire.com>
+
+	* cl_event_wheel.c: Support option to limit size of OpenSM
+	  log file
+
+2006-07-20  Sasha Khapyorsky <sashak@voltaire.com>
+
+	* cl_pool.c: Fix memory corruption in cl_qcpool_init
+
+2006-07-19  Hal Rosenstock <halr@voltaire.com>
+
+	* Makefile.am: Eliminate deprecated warnings
+
+2006-06-11  Hal Rosenstock <halr@voltaire.com>
+
+	* configure.in: Released version 1.2.1 (OFED 1.1)
