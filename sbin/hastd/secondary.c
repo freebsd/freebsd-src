@@ -259,6 +259,19 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 			memset(map, 0xff, mapsize);
 		}
 		nv_add_uint8(nvout, HAST_SYNCSRC_PRIMARY, "syncsrc");
+	} else if (res->hr_resuid != resuid) {
+		char errmsg[256];
+
+		(void)snprintf(errmsg, sizeof(errmsg),
+		    "Resource unique ID mismatch (primary=%ju, secondary=%ju).",
+		    (uintmax_t)resuid, (uintmax_t)res->hr_resuid);
+		pjdlog_error("%s", errmsg);
+		nv_add_string(nvout, errmsg, "errmsg");
+		if (hast_proto_send(res, res->hr_remotein, nvout, NULL, 0) < 0) {
+			pjdlog_exit(EX_TEMPFAIL, "Unable to send response to %s",
+			    res->hr_remoteaddr);
+		}
+		exit(EX_CONFIG);
 	} else if (
 	    /* Is primary is out-of-date? */
 	    (res->hr_secondary_localcnt > res->hr_primary_remotecnt &&
