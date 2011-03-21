@@ -2100,6 +2100,7 @@ nd6_need_cache(struct ifnet *ifp)
 #ifdef IFT_CARP
 	case IFT_CARP:
 #endif
+	case IFT_INFINIBAND:
 	case IFT_GIF:		/* XXX need more cases? */
 	case IFT_PPP:
 	case IFT_TUNNEL:

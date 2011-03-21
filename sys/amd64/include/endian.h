@@ -69,72 +69,58 @@ extern "C" {
 
 #if defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE_BUILTIN_CONSTANT_P)
 
-#define __byte_swap_int_var(x) \
-__extension__ ({ register __uint32_t __X = (x); \
-   __asm ("bswap %0" : "+r" (__X)); \
-   __X; })
+#define	__bswap64_const(_x)			\
+	(((_x) >> 56) |				\
+	(((_x) >> 40) & (0xffUL << 8)) |	\
+	(((_x) >> 24) & (0xffUL << 16)) |	\
+	(((_x) >> 8) & (0xffUL << 24)) |	\
+	(((_x) << 8) & (0xffUL << 32)) |	\
+	(((_x) << 24) & (0xffUL << 40)) |	\
+	(((_x) << 40) & (0xffUL << 48)) |	\
+	((_x) << 56))
 
-#ifdef __OPTIMIZE__
+#define	__bswap32_const(_x)			\
+	(((_x) >> 24) |				\
+	(((_x) & (0xff << 16)) >> 8) |		\
+	(((_x) & (0xff << 8)) << 8) |		\
+	((_x) << 24))
 
-#define	__byte_swap_int_const(x) \
-	((((x) & 0xff000000) >> 24) | \
-	 (((x) & 0x00ff0000) >>  8) | \
-	 (((x) & 0x0000ff00) <<  8) | \
-	 (((x) & 0x000000ff) << 24))
-#define	__byte_swap_int(x) (__builtin_constant_p(x) ? \
-	__byte_swap_int_const(x) : __byte_swap_int_var(x))
-
-#else	/* __OPTIMIZE__ */
-
-#define	__byte_swap_int(x) __byte_swap_int_var(x)
-
-#endif	/* __OPTIMIZE__ */
-
-#define __byte_swap_long_var(x) \
-__extension__ ({ register __uint64_t __X = (x); \
-   __asm ("bswap %0" : "+r" (__X)); \
-   __X; })
-
-#ifdef __OPTIMIZE__
-
-#define	__byte_swap_long_const(x) \
-	(((x >> 56) | \
-	 ((x >> 40) & 0xff00) | \
-	 ((x >> 24) & 0xff0000) | \
-	 ((x >> 8) & 0xff000000) | \
-	 ((x << 8) & (0xfful << 32)) | \
-	 ((x << 24) & (0xfful << 40)) | \
-	 ((x << 40) & (0xfful << 48)) | \
-	 ((x << 56))))
-
-#define	__byte_swap_long(x) (__builtin_constant_p(x) ? \
-	__byte_swap_long_const(x) : __byte_swap_long_var(x))
-
-#else	/* __OPTIMIZE__ */
-
-#define	__byte_swap_long(x) __byte_swap_long_var(x)
-
-#endif	/* __OPTIMIZE__ */
+#define __bswap16_const(_x)	(__uint16_t)((_x) << 8 | (_x) >> 8)
 
 static __inline __uint64_t
-__bswap64(__uint64_t _x)
+__bswap64_var(__uint64_t _x)
 {
 
-	return (__byte_swap_long(_x));
+	__asm ("bswap %0" : "+r" (_x));
+	return (_x);
 }
 
 static __inline __uint32_t
-__bswap32(__uint32_t _x)
+__bswap32_var(__uint32_t _x)
 {
 
-	return (__byte_swap_int(_x));
+	__asm ("bswap %0" : "+r" (_x));
+	return (_x);
 }
 
 static __inline __uint16_t
-__bswap16(__uint16_t _x)
+__bswap16_var(__uint16_t _x)
 {
-	return (_x << 8 | _x >> 8);
+
+	return (__bswap16_const(_x));
 }
+
+#define	__bswap64(_x)					\
+	(__builtin_constant_p(_x) ?			\
+	    __bswap64_const((__uint64_t)(_x)) : __bswap64_var(_x))
+
+#define	__bswap32(_x)					\
+	(__builtin_constant_p(_x) ?			\
+	    __bswap32_const((__uint32_t)(_x)) : __bswap32_var(_x))
+
+#define	__bswap16(_x)					\
+	(__builtin_constant_p(_x) ?			\
+	    __bswap16_const((__uint16_t)(_x)) : __bswap16_var(_x))
 
 #define	__htonl(x)	__bswap32(x)
 #define	__htons(x)	__bswap16(x)

@@ -365,10 +365,31 @@ sysctl_remove_oid(struct sysctl_oid *oidp, int del, int recurse)
 	return (error);
 }
 
+int
+sysctl_remove_name(struct sysctl_oid *parent, const char *name,
+    int del, int recurse)
+{
+	struct sysctl_oid *p, *tmp;
+	int error;
+
+	error = ENOENT;
+	SYSCTL_XLOCK();
+	SLIST_FOREACH_SAFE(p, SYSCTL_CHILDREN(parent), oid_link, tmp) {
+		if (strcmp(p->oid_name, name) == 0) {
+			error = sysctl_remove_oid_locked(p, del, recurse);
+			break;
+		}
+	}
+	SYSCTL_XUNLOCK();
+
+	return (error);
+}
+
+
 static int
 sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 {
-	struct sysctl_oid *p;
+	struct sysctl_oid *p, *tmp;
 	int error;
 
 	SYSCTL_ASSERT_XLOCKED();
@@ -387,7 +408,8 @@ sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 	 */
 	if ((oidp->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
 		if (oidp->oid_refcnt == 1) {
-			SLIST_FOREACH(p, SYSCTL_CHILDREN(oidp), oid_link) {
+			SLIST_FOREACH_SAFE(p,
+			    SYSCTL_CHILDREN(oidp), oid_link, tmp) {
 				if (!recurse)
 					return (ENOTEMPTY);
 				error = sysctl_remove_oid_locked(p, del,
@@ -428,14 +450,13 @@ sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 	}
 	return (0);
 }
-
 /*
  * Create new sysctls at run time.
  * clist may point to a valid context initialized with sysctl_ctx_init().
  */
 struct sysctl_oid *
 sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
-	int number, const char *name, int kind, void *arg1, int arg2,
+	int number, const char *name, int kind, void *arg1, intptr_t arg2,
 	int (*handler)(SYSCTL_HANDLER_ARGS), const char *fmt, const char *descr)
 {
 	struct sysctl_oid *oidp;
@@ -479,6 +500,7 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 		SYSCTL_CHILDREN_SET(oidp, malloc(sizeof(struct sysctl_oid_list),
 		    M_SYSCTLOID, M_WAITOK));
 		SLIST_INIT(SYSCTL_CHILDREN(oidp));
+		oidp->oid_arg2 = arg2;
 	} else {
 		oidp->oid_arg1 = arg1;
 		oidp->oid_arg2 = arg2;
