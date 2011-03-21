@@ -50,6 +50,7 @@
 #include <sys/_mutex.h>
 #include <machine/atomic.h>
 #include <machine/pte.h>
+#include <machine/vmparam.h>
 
 #ifdef _KERNEL
 
@@ -75,7 +76,7 @@ struct md_page {
 struct pmap {
 	struct mtx		pm_mtx;
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
-	uint32_t		pm_rid[5];	/* base RID for pmap */
+	uint32_t		pm_rid[IA64_VM_MINKERN_REGION];
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 };
 
