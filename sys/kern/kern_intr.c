@@ -74,6 +74,7 @@ struct intr_thread {
 
 /* Interrupt thread flags kept in it_flags */
 #define	IT_DEAD		0x000001	/* Thread is waiting to exit. */
+#define	IT_WAIT		0x000002	/* Thread is waiting for completion. */
 
 struct	intr_entropy {
 	struct	thread *td;
@@ -735,6 +736,39 @@ intr_handler_source(void *cookie)
 	return (ie->ie_source);
 }
 
+/*
+ * Sleep until an ithread finishes executing an interrupt handler.
+ *
+ * XXX Doesn't currently handle interrupt filters or fast interrupt
+ * handlers.  This is intended for compatibility with linux drivers
+ * only.  Do not use in BSD code.
+ */
+void
+_intr_drain(int irq)
+{
+	struct mtx *mtx;
+	struct intr_event *ie;
+	struct intr_thread *ithd;
+	struct thread *td;
+
+	ie = intr_lookup(irq);
+	if (ie == NULL)
+		return;
+	if (ie->ie_thread == NULL)
+		return;
+	ithd = ie->ie_thread;
+	td = ithd->it_thread;
+	thread_lock(td);
+	mtx = td->td_lock;
+	if (!TD_AWAITING_INTR(td)) {
+		ithd->it_flags |= IT_WAIT;
+		msleep_spin(ithd, mtx, "isync", 0);
+	}
+	mtx_unlock_spin(mtx);
+	return;
+}
+
+
 #ifndef INTR_FILTER
 int
 intr_event_remove_handler(void *cookie)
@@ -1271,6 +1305,7 @@ ithread_loop(void *arg)
 	struct intr_event *ie;
 	struct thread *td;
 	struct proc *p;
+	int wake;
 
 	td = curthread;
 	p = td->td_proc;
@@ -1279,6 +1314,7 @@ ithread_loop(void *arg)
 	    ("%s: ithread and proc linkage out of sync", __func__));
 	ie = ithd->it_event;
 	ie->ie_count = 0;
+	wake = 0;
 
 	/*
 	 * As long as we have interrupts outstanding, go through the
@@ -1319,12 +1355,20 @@ ithread_loop(void *arg)
 		 * set again, so we have to check it again.
 		 */
 		thread_lock(td);
-		if (!ithd->it_need && !(ithd->it_flags & IT_DEAD)) {
+		if (!ithd->it_need && !(ithd->it_flags & (IT_DEAD | IT_WAIT))) {
 			TD_SET_IWAIT(td);
 			ie->ie_count = 0;
 			mi_switch(SW_VOL | SWT_IWAIT, NULL);
 		}
+		if (ithd->it_flags & IT_WAIT) {
+			wake = 1;
+			ithd->it_flags &= ~IT_WAIT;
+		}
 		thread_unlock(td);
+		if (wake) {
+			wakeup(ithd);
+			wake = 0;
+		}
 	}
 }
 
@@ -1439,6 +1483,7 @@ ithread_loop(void *arg)
 	struct thread *td;
 	struct proc *p;
 	int priv;
+	int wake;
 
 	td = curthread;
 	p = td->td_proc;
@@ -1449,6 +1494,7 @@ ithread_loop(void *arg)
 	    ("%s: ithread and proc linkage out of sync", __func__));
 	ie = ithd->it_event;
 	ie->ie_count = 0;
+	wake = 0;
 
 	/*
 	 * As long as we have interrupts outstanding, go through the
@@ -1492,12 +1538,20 @@ ithread_loop(void *arg)
 		 * set again, so we have to check it again.
 		 */
 		thread_lock(td);
-		if (!ithd->it_need && !(ithd->it_flags & IT_DEAD)) {
+		if (!ithd->it_need && !(ithd->it_flags & (IT_DEAD | IT_WAIT))) {
 			TD_SET_IWAIT(td);
 			ie->ie_count = 0;
 			mi_switch(SW_VOL | SWT_IWAIT, NULL);
 		}
+		if (ithd->it_flags & IT_WAIT) {
+			wake = 1;
+			ithd->it_flags &= ~IT_WAIT;
+		}
 		thread_unlock(td);
+		if (wake) {
+			wakeup(ithd);
+			wake = 0;
+		}
 	}
 }
 

@@ -1132,6 +1132,7 @@ nd6_ifptomac(struct ifnet *ifp)
 #ifdef IFT_CARP
 	case IFT_CARP:
 #endif
+	case IFT_INFINIBAND:
 	case IFT_BRIDGE:
 	case IFT_ISO88025:
 		return IF_LLADDR(ifp);
@@ -1449,6 +1450,7 @@ nd6_dad_duplicated(struct ifaddr *ifa)
 #ifdef IFT_IEEE80211
 		case IFT_IEEE80211:
 #endif
+		case IFT_INFINIBAND:
 			in6 = ia->ia_addr.sin6_addr;
 			if (in6_get_hw_ifid(ifp, &in6) == 0 &&
 			    IN6_ARE_ADDR_EQUAL(&ia->ia_addr.sin6_addr, &in6)) {

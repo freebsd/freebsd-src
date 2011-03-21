@@ -194,7 +194,7 @@ sx_sysinit(void *arg)
 {
 	struct sx_args *sargs = arg;
 
-	sx_init(sargs->sa_sx, sargs->sa_desc);
+	sx_init_flags(sargs->sa_sx, sargs->sa_desc, sargs->sa_flags);
 }
 
 void
