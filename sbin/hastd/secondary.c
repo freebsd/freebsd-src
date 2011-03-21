@@ -271,6 +271,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 			pjdlog_exit(EX_TEMPFAIL, "Unable to send response to %s",
 			    res->hr_remoteaddr);
 		}
+		nv_free(nvout);
 		exit(EX_CONFIG);
 	} else if (
 	    /* Is primary is out-of-date? */
