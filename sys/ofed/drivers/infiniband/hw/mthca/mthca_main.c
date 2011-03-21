@@ -1228,8 +1228,8 @@ static int __devinit mthca_init_one(struct pci_dev *pdev,
 	}
 
 	if (id->driver_data >= ARRAY_SIZE(mthca_hca_table)) {
-		printk(KERN_ERR PFX "%s has invalid driver data %lx\n",
-		       pci_name(pdev), id->driver_data);
+		printk(KERN_ERR PFX "%s has invalid driver data %jx\n",
+		       pci_name(pdev), (uintmax_t)id->driver_data);
 		mutex_unlock(&mthca_device_mutex);
 		return -ENODEV;
 	}
