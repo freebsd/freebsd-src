@@ -2378,8 +2378,8 @@ print_trs(int type)
 	db_printf("V RID    Virtual Page  Physical Page PgSz ED AR PL D A MA  P KEY\n");
 	for (i = 0; i <= maxtr; i++) {
 		bzero(&buf, sizeof(buf));
-		res = ia64_call_pal_stacked_physical
-			(PAL_VM_TR_READ, i, type, ia64_tpa((uint64_t) &buf));
+		res = ia64_pal_physical(PAL_VM_TR_READ, i, type,
+		    ia64_tpa((uint64_t)&buf));
 		if (!(res.pal_result[0] & 1))
 			buf.pte &= ~PTE_AR_MASK;
 		if (!(res.pal_result[0] & 2))

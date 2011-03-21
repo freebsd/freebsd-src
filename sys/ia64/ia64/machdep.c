@@ -116,7 +116,7 @@ SYSCTL_UINT(_hw_freq, OID_AUTO, itc, CTLFLAG_RD, &itc_freq, 0,
 int cold = 1;
 
 u_int64_t pa_bootinfo;
-struct bootinfo bootinfo;
+struct bootinfo *bootinfo;
 
 struct pcpu pcpu0;
 
@@ -684,11 +684,11 @@ ia64_init(void)
 	 * pa_bootinfo is the physical address of the bootinfo block as
 	 * passed to us by the loader and set in locore.s.
 	 */
-	bootinfo = *(struct bootinfo *)(IA64_PHYS_TO_RR7(pa_bootinfo));
+	bootinfo = (struct bootinfo *)(IA64_PHYS_TO_RR7(pa_bootinfo));
 
-	if (bootinfo.bi_magic != BOOTINFO_MAGIC || bootinfo.bi_version != 1) {
-		bzero(&bootinfo, sizeof(bootinfo));
-		bootinfo.bi_kernend = (vm_offset_t) round_page(_end);
+	if (bootinfo->bi_magic != BOOTINFO_MAGIC || bootinfo->bi_version != 1) {
+		bzero(bootinfo, sizeof(*bootinfo));
+		bootinfo->bi_kernend = (vm_offset_t)round_page(_end);
 	}
 
 	/*
@@ -708,20 +708,20 @@ ia64_init(void)
 	}
 
 	metadata_missing = 0;
-	if (bootinfo.bi_modulep)
-		preload_metadata = (caddr_t)bootinfo.bi_modulep;
+	if (bootinfo->bi_modulep)
+		preload_metadata = (caddr_t)bootinfo->bi_modulep;
 	else
 		metadata_missing = 1;
 
-	if (envmode == 0 && bootinfo.bi_envp)
-		kern_envp = (caddr_t)bootinfo.bi_envp;
+	if (envmode == 0 && bootinfo->bi_envp)
+		kern_envp = (caddr_t)bootinfo->bi_envp;
 	else
 		kern_envp = static_env;
 
 	/*
 	 * Look at arguments passed to us and compute boothowto.
 	 */
-	boothowto = bootinfo.bi_boothowto;
+	boothowto = bootinfo->bi_boothowto;
 
 	if (boothowto & RB_VERBOSE)
 		bootverbose = 1;
@@ -731,15 +731,15 @@ ia64_init(void)
 	 */
 	kernstart = trunc_page(kernel_text);
 #ifdef DDB
-	ksym_start = bootinfo.bi_symtab;
-	ksym_end = bootinfo.bi_esymtab;
+	ksym_start = bootinfo->bi_symtab;
+	ksym_end = bootinfo->bi_esymtab;
 	kernend = (vm_offset_t)round_page(ksym_end);
 #else
 	kernend = (vm_offset_t)round_page(_end);
 #endif
 	/* But if the bootstrap tells us otherwise, believe it! */
-	if (bootinfo.bi_kernend)
-		kernend = round_page(bootinfo.bi_kernend);
+	if (bootinfo->bi_kernend)
+		kernend = round_page(bootinfo->bi_kernend);
 
 	/*
 	 * Setup the PCPU data for the bootstrap processor. It is needed
@@ -775,7 +775,7 @@ ia64_init(void)
 	 * Wire things up so we can call the firmware.
 	 */
 	map_pal_code();
-	efi_boot_minimal(bootinfo.bi_systab);
+	efi_boot_minimal(bootinfo->bi_systab);
 	ia64_xiv_init();
 	ia64_sal_init();
 	calculate_frequencies();
@@ -784,8 +784,8 @@ ia64_init(void)
 		printf("WARNING: loader(8) metadata is missing!\n");
 
 	/* Get FPSWA interface */
-	fpswa_iface = (bootinfo.bi_fpswa == 0) ? NULL :
-	    (struct fpswa_iface *)IA64_PHYS_TO_RR7(bootinfo.bi_fpswa);
+	fpswa_iface = (bootinfo->bi_fpswa == 0) ? NULL :
+	    (struct fpswa_iface *)IA64_PHYS_TO_RR7(bootinfo->bi_fpswa);
 
 	/* Init basic tunables, including hz */
 	init_param1();
@@ -940,7 +940,7 @@ uint64_t
 ia64_get_hcdp(void)
 {
 
-	return (bootinfo.bi_hcdp);
+	return (bootinfo->bi_hcdp);
 }
 
 void
