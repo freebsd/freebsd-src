@@ -102,17 +102,11 @@ __FBSDID("$FreeBSD$");
  * We reserve region ID 0 for the kernel and allocate the remaining
  * IDs for user pmaps.
  *
- * Region 0..4
- *	User virtually mapped
- *
- * Region 5
- *	Kernel virtually mapped
- *
- * Region 6
- *	Kernel physically mapped uncacheable
- *
- * Region 7
- *	Kernel physically mapped cacheable
+ * Region 0-3:	User virtually mapped
+ * Region 4:	PBVM and special mappings
+ * Region 5:	Kernel virtual memory
+ * Region 6:	Direct-mapped uncacheable
+ * Region 7:	Direct-mapped cacheable
  */
 
 /* XXX move to a header. */
@@ -346,9 +340,9 @@ pmap_bootstrap()
 	 * Setup RIDs. RIDs 0..7 are reserved for the kernel.
 	 *
 	 * We currently need at least 19 bits in the RID because PID_MAX
-	 * can only be encoded in 17 bits and we need RIDs for 5 regions
+	 * can only be encoded in 17 bits and we need RIDs for 4 regions
 	 * per process. With PID_MAX equalling 99999 this means that we
-	 * need to be able to encode 499995 (=5*PID_MAX).
+	 * need to be able to encode 399996 (=4*PID_MAX).
 	 * The Itanium processor only has 18 bits and the architected
 	 * minimum is exactly that. So, we cannot use a PID based scheme
 	 * in those cases. Enter pmap_ridmap...
@@ -390,7 +384,7 @@ pmap_bootstrap()
 	 */
 	ia64_kptdir = (void *)pmap_steal_memory(PAGE_SIZE);
 	nkpt = 0;
-	kernel_vm_end = VM_MIN_KERNEL_ADDRESS - VM_GATEWAY_SIZE;
+	kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
 
 	for (i = 0; phys_avail[i+2]; i+= 2)
 		;
@@ -451,16 +445,13 @@ pmap_bootstrap()
 	 * Initialize the kernel pmap (which is statically allocated).
 	 */
 	PMAP_LOCK_INIT(kernel_pmap);
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < IA64_VM_MINKERN_REGION; i++)
 		kernel_pmap->pm_rid[i] = 0;
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
 	PCPU_SET(md.current_pmap, kernel_pmap);
 
-	/*
-	 * Region 5 is mapped via the vhpt.
-	 */
-	ia64_set_rr(IA64_RR_BASE(5),
-		    (5 << 8) | (PAGE_SHIFT << 2) | 1);
+	/* Region 5 is mapped via the VHPT. */
+	ia64_set_rr(IA64_RR_BASE(5), (5 << 8) | (PAGE_SHIFT << 2) | 1);
 
 	/*
 	 * Region 6 is direct mapped UC and region 7 is direct mapped
@@ -678,7 +669,7 @@ pmap_pinit(struct pmap *pmap)
 	int i;
 
 	PMAP_LOCK_INIT(pmap);
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < IA64_VM_MINKERN_REGION; i++)
 		pmap->pm_rid[i] = pmap_allocate_rid();
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -699,7 +690,7 @@ pmap_release(pmap_t pmap)
 {
 	int i;
 
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < IA64_VM_MINKERN_REGION; i++)
 		if (pmap->pm_rid[i])
 			pmap_free_rid(pmap->pm_rid[i]);
 	PMAP_LOCK_DESTROY(pmap);
@@ -1221,7 +1212,7 @@ pmap_kextract(vm_offset_t va)
 	struct ia64_lpte *pte;
 	vm_offset_t gwpage;
 
-	KASSERT(va >= IA64_RR_BASE(5), ("Must be kernel VA"));
+	KASSERT(va >= VM_MAXUSER_ADDRESS, ("Must be kernel VA"));
 
 	/* Regions 6 and 7 are direct mapped. */
 	if (va >= IA64_RR_BASE(6))
@@ -1229,7 +1220,7 @@ pmap_kextract(vm_offset_t va)
 
 	/* EPC gateway page? */
 	gwpage = (vm_offset_t)ia64_get_k5();
-	if (va >= gwpage && va < gwpage + VM_GATEWAY_SIZE)
+	if (va >= gwpage && va < gwpage + PAGE_SIZE)
 		return (IA64_RR_MASK((vm_offset_t)ia64_gateway_page));
 
 	/* Bail out if the virtual address is beyond our limits. */
@@ -2285,12 +2276,12 @@ pmap_switch(pmap_t pm)
 	if (prevpm == pm)
 		goto out;
 	if (pm == NULL) {
-		for (i = 0; i < 5; i++) {
+		for (i = 0; i < IA64_VM_MINKERN_REGION; i++) {
 			ia64_set_rr(IA64_RR_BASE(i),
 			    (i << 8)|(PAGE_SHIFT << 2)|1);
 		}
 	} else {
-		for (i = 0; i < 5; i++) {
+		for (i = 0; i < IA64_VM_MINKERN_REGION; i++) {
 			ia64_set_rr(IA64_RR_BASE(i),
 			    (pm->pm_rid[i] << 8)|(PAGE_SHIFT << 2)|1);
 		}
