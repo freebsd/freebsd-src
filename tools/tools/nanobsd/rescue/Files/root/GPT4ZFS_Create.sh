@@ -25,10 +25,7 @@ shift; while getopts :s:z: arg; do case ${arg} in
   #?) exerr ${usage};;                                                                                                      
 esac; done; shift $(( ${OPTIND} - 1 ))                                                                                                
  
-gpart delete -i 3 $dsk
-gpart delete -i 2 $dsk
-gpart delete -i 1 $dsk
-gpart destroy $dsk
+gpart destroy -F $dsk
 gpart create -s gpt $dsk
 
 # Boot
