@@ -1757,13 +1757,13 @@ sync_thread(void *arg __unused)
 				mtx_lock(&metadata_lock);
 				res->hr_syncsrc = HAST_SYNCSRC_UNDEF;
 				res->hr_primary_localcnt =
-				    res->hr_secondary_localcnt;
-				res->hr_primary_remotecnt =
 				    res->hr_secondary_remotecnt;
+				res->hr_primary_remotecnt =
+				    res->hr_secondary_localcnt;
 				pjdlog_debug(1,
 				    "Setting localcnt to %ju and remotecnt to %ju.",
 				    (uintmax_t)res->hr_primary_localcnt,
-				    (uintmax_t)res->hr_secondary_localcnt);
+				    (uintmax_t)res->hr_primary_remotecnt);
 				(void)metadata_write(res);
 				mtx_unlock(&metadata_lock);
 			}
