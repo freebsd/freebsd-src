@@ -127,9 +127,7 @@ system: packagesystem
 	touch ${.OBJDIR}/${.TARGET}
 
 release.iso: system
-	echo kernel_options=\"-C\" > ${.OBJDIR}/release/boot/loader.conf
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.OBJDIR}/release.iso ${.OBJDIR}/release
-	rm ${.OBJDIR}/release/boot/loader.conf
 
 memstick: system
 	sh ${.CURDIR}/${TARGET}/make-memstick.sh ${.OBJDIR}/release ${.OBJDIR}/memstick

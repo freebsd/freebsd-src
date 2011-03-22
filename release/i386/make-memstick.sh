@@ -32,12 +32,14 @@ if [ -e ${2} ]; then
   exit 1
 fi
 
+echo '/dev/gpt/FreeBSD_Install / ufs rw,noatime 1 1' > ${1}/etc/fstab
 rm -f ${tempfile}
-makefs ${tempfile} ${1}
+makefs -B little ${tempfile} ${1}
 if [ $? -ne 0 ]; then
   echo "makefs failed"
   exit 1
 fi
+rm ${1}/etc/fstab
 
 #
 # Use $BLOCKSIZE for transfers to improve efficiency.  When calculating
@@ -46,7 +48,7 @@ fi
 #
 
 filesize=`stat -f "%z" ${tempfile}`
-blocks=$(($filesize / ${BLOCKSIZE} + 2))
+blocks=$(($filesize / ${BLOCKSIZE} + 256))
 dd if=/dev/zero of=${2} bs=${BLOCKSIZE} count=${blocks}
 if [ $? -ne 0 ]; then
   echo "creation of image file failed"
@@ -59,19 +61,12 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-fdisk -BIq /dev/${unit}
-if [ $? -ne 0 ]; then
-  echo "fdisk failed"
-  exit 1
-fi
+gpart create -s GPT ${unit}
+gpart add -t freebsd-boot -s 64K ${unit}
+gpart bootcode -b ${1}/boot/pmbr -p ${1}/boot/gptboot -i 1 ${unit}
+gpart add -t freebsd-ufs -l FreeBSD_Install ${unit}
 
-bsdlabel -B -w /dev/${unit}
-if [ $? -ne 0 ]; then
-  echo "bsdlabel failed"
-  exit 1
-fi
-
-dd if=${tempfile} of=/dev/${unit}a bs=$BLOCKSIZE conv=sync
+dd if=${tempfile} of=/dev/${unit}p2 bs=$BLOCKSIZE conv=sync
 if [ $? -ne 0 ]; then
   echo "copying filesystem into image file failed"
   exit 1
