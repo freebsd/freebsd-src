@@ -49,14 +49,14 @@ static MALLOC_DEFINE(M_MD_PROMISE, "md_promise_data", "GEOM_RAID Promise metadat
 
 struct promise_raid_disk {
 	uint8_t		flags;			/* Subdisk status. */
-#define PROMISE_F_VALID              0x00000001
-#define PROMISE_F_ONLINE             0x00000002
-#define PROMISE_F_ASSIGNED           0x00000004
-#define PROMISE_F_SPARE              0x00000008
-#define PROMISE_F_DUPLICATE          0x00000010
-#define PROMISE_F_REDIR              0x00000020
-#define PROMISE_F_DOWN               0x00000040
-#define PROMISE_F_READY              0x00000080
+#define PROMISE_F_VALID		0x01
+#define PROMISE_F_ONLINE	0x02
+#define PROMISE_F_ASSIGNED	0x04
+#define PROMISE_F_SPARE		0x08
+#define PROMISE_F_DUPLICATE	0x10
+#define PROMISE_F_REDIR		0x20
+#define PROMISE_F_DOWN		0x40
+#define PROMISE_F_READY		0x80
 
 	uint8_t		number;			/* Position in a volume. */
 	uint8_t		channel;		/* ATA channel number. */
@@ -66,19 +66,19 @@ struct promise_raid_disk {
 
 struct promise_raid_conf {
 	char		promise_id[24];
-#define PROMISE_MAGIC                "Promise Technology, Inc."
-#define FREEBSD_MAGIC                "FreeBSD ATA driver RAID "
+#define PROMISE_MAGIC		"Promise Technology, Inc."
+#define FREEBSD_MAGIC		"FreeBSD ATA driver RAID "
 
 	uint32_t	dummy_0;
 	uint64_t	magic_0;
-#define PROMISE_MAGIC0(x)            (((uint64_t)(x.channel) << 48) | \
+#define PROMISE_MAGIC0(x)	(((uint64_t)(x.channel) << 48) | \
 				((uint64_t)(x.device != 0) << 56))
 	uint16_t	magic_1;
 	uint32_t	magic_2;
 	uint8_t		filler1[470];
 
 	uint32_t	integrity;
-#define PROMISE_I_VALID              0x00000080
+#define PROMISE_I_VALID		0x00000080
 
 	struct promise_raid_disk	disk;	/* This subdisk info. */
 	uint32_t	disk_offset;		/* Subdisk offset. */
@@ -86,22 +86,22 @@ struct promise_raid_conf {
 	uint32_t	rebuild_lba;		/* Rebuild position. */
 	uint16_t	generation;		/* Generation number. */
 	uint8_t		status;			/* Volume status. */
-#define PROMISE_S_VALID              0x01
-#define PROMISE_S_ONLINE             0x02
-#define PROMISE_S_INITED             0x04
-#define PROMISE_S_READY              0x08
-#define PROMISE_S_DEGRADED           0x10
-#define PROMISE_S_MARKED             0x20
-#define PROMISE_S_MIGRATING          0x40
-#define PROMISE_S_FUNCTIONAL         0x80
+#define PROMISE_S_VALID		0x01
+#define PROMISE_S_ONLINE	0x02
+#define PROMISE_S_INITED	0x04
+#define PROMISE_S_READY		0x08
+#define PROMISE_S_DEGRADED	0x10
+#define PROMISE_S_MARKED	0x20
+#define PROMISE_S_MIGRATING	0x40
+#define PROMISE_S_FUNCTIONAL	0x80
 
 	uint8_t		type;			/* Voluem type. */
-#define PROMISE_T_RAID0              0x00
-#define PROMISE_T_RAID1              0x01
-#define PROMISE_T_RAID3              0x02
-#define PROMISE_T_RAID5              0x04
-#define PROMISE_T_SPAN               0x08
-#define PROMISE_T_JBOD               0x10
+#define PROMISE_T_RAID0		0x00
+#define PROMISE_T_RAID1		0x01
+#define PROMISE_T_RAID3		0x02
+#define PROMISE_T_RAID5		0x04
+#define PROMISE_T_SPAN		0x08
+#define PROMISE_T_JBOD		0x10
 
 	uint8_t		total_disks;		/* Disks in this volume. */
 	uint8_t		stripe_shift;		/* Strip size. */
@@ -138,7 +138,6 @@ struct g_raid_md_promise_pervolume {
 	int				 pv_disks_present;
 	int				 pv_started;
 	struct callout			 pv_start_co;	/* STARTING state timer. */
-	struct root_hold_token		*pv_rootmount; /* Root mount delay token. */
 };
 
 static g_raid_md_create_t g_raid_md_create_promise;
@@ -887,6 +886,7 @@ g_raid_md_promise_start(struct g_raid_volume *vol)
 	}
 
 	pv->pv_started = 1;
+	callout_stop(&pv->pv_start_co);
 	G_RAID_DEBUG1(0, sc, "Volume started.");
 	g_raid_md_write_promise(md, vol, NULL, NULL);
 
@@ -894,11 +894,6 @@ g_raid_md_promise_start(struct g_raid_volume *vol)
 	g_raid_md_promise_refill(sc);
 
 	g_raid_event_send(vol, G_RAID_VOLUME_E_START, G_RAID_EVENT_VOLUME);
-
-	callout_stop(&pv->pv_start_co);
-	G_RAID_DEBUG1(1, sc, "root_mount_rel %p", pv->pv_rootmount);
-	root_mount_rel(pv->pv_rootmount);
-	pv->pv_rootmount = NULL;
 }
 
 static void
@@ -955,8 +950,6 @@ g_raid_md_promise_new_disk(struct g_raid_disk *disk)
 			callout_reset(&pv->pv_start_co,
 			    g_raid_start_timeout * hz,
 			    g_raid_promise_go, vol);
-			pv->pv_rootmount = root_mount_hold("GRAID-Promise");
-			G_RAID_DEBUG1(1, sc, "root_mount_hold %p", pv->pv_rootmount);
 		} else
 			pv = vol->v_md_data;
 
@@ -1936,10 +1929,6 @@ g_raid_md_free_volume_promise(struct g_raid_md_object *md,
 	if (pv && !pv->pv_started) {
 		pv->pv_started = 1;
 		callout_stop(&pv->pv_start_co);
-		G_RAID_DEBUG1(1, md->mdo_softc,
-		    "root_mount_rel %p", pv->pv_rootmount);
-		root_mount_rel(pv->pv_rootmount);
-		pv->pv_rootmount = NULL;
 	}
 	return (0);
 }
