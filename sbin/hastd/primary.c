@@ -1610,9 +1610,14 @@ ggate_send_thread(void *arg)
 		if (ii == ncomps) {
 			/*
 			 * None of the requests were successful.
-			 * Use first error.
+			 * Use the error from local component except the
+			 * case when we did only remote request.
 			 */
-			ggio->gctl_error = hio->hio_errors[0];
+			if (ggio->gctl_cmd == BIO_READ &&
+			    res->hr_syncsrc == HAST_SYNCSRC_SECONDARY)
+				ggio->gctl_error = hio->hio_errors[1];
+			else
+				ggio->gctl_error = hio->hio_errors[0];
 		}
 		if (ggio->gctl_error == 0 && ggio->gctl_cmd == BIO_WRITE) {
 			mtx_lock(&res->hr_amp_lock);
