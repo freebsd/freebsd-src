@@ -5151,9 +5151,10 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		sc->sc_stats.ast_tdma_tsfadjm = TDMA_AVG(sc->sc_avgtsfdeltam);
 #endif
 		rt = sc->sc_currates;
-		/* XXX HT rates */
 		sc->sc_stats.ast_tx_rate =
 		    rt->info[sc->sc_txrix].dot11Rate &~ IEEE80211_RATE_BASIC;
+		if (rt->info[sc->sc_txrix].phy & IEEE80211_T_HT)
+			sc->sc_stats.ast_tx_rate |= IEEE80211_RATE_MCS;
 		return copyout(&sc->sc_stats,
 		    ifr->ifr_data, sizeof (sc->sc_stats));
 	case SIOCZATHSTATS:
