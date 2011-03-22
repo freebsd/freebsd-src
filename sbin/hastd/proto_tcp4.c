@@ -337,7 +337,7 @@ tcp4_connect_wait(void *ctx, int timeout)
 	tv.tv_usec = 0;
 again:
 	FD_ZERO(&fdset);
-	FD_SET(tctx->tc_fd, &fdset); 
+	FD_SET(tctx->tc_fd, &fdset);
 	ret = select(tctx->tc_fd + 1, NULL, &fdset, NULL, &tv);
 	if (ret == 0) {
 		error = ETIMEDOUT;
