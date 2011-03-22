@@ -134,12 +134,12 @@ const char *
 role2str(int role)
 {
 
-	switch (role) {																			
-	case HAST_ROLE_INIT:																				
+	switch (role) {
+	case HAST_ROLE_INIT:
 		return ("init");
-	case HAST_ROLE_PRIMARY:																			
+	case HAST_ROLE_PRIMARY:
 		return ("primary");
-	case HAST_ROLE_SECONDARY:																			
+	case HAST_ROLE_SECONDARY:
 		return ("secondary");
 	}
 	return ("unknown");

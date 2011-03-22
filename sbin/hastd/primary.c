@@ -183,7 +183,7 @@ static pthread_mutex_t metadata_lock;
 	while (((hio) = TAILQ_FIRST(&hio_##name##_list[(ncomp)])) == NULL && !_last) { \
 		cv_timedwait(&hio_##name##_list_cond[(ncomp)],		\
 		    &hio_##name##_list_lock[(ncomp)], (timeout));	\
-		if ((timeout) != 0) 					\
+		if ((timeout) != 0)					\
 			_last = true;					\
 	}								\
 	if (hio != NULL) {						\
@@ -1268,7 +1268,7 @@ keepalive_send(struct hast_resource *res, unsigned int ncomp)
 		rw_unlock(&hio_remote_lock[ncomp]);
 		return;
 	}
-	
+
 	PJDLOG_ASSERT(res->hr_remotein != NULL);
 	PJDLOG_ASSERT(res->hr_remoteout != NULL);
 
@@ -1314,7 +1314,7 @@ remote_send_thread(void *arg)
 
 	/* Remote component is 1 for now. */
 	ncomp = 1;
-	lastcheck = time(NULL);	
+	lastcheck = time(NULL);
 
 	for (;;) {
 		pjdlog_debug(2, "remote_send: Taking request.");
