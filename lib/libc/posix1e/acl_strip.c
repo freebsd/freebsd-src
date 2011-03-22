@@ -36,13 +36,12 @@ __FBSDID("$FreeBSD$");
 #include "acl_support.h"
 
 /*
- * These three routines from sys/kern/subr_acl_nfs4.c are used by both kernel
+ * These routines from sys/kern/subr_acl_nfs4.c are used by both kernel
  * and libc.
  */
-void	acl_nfs4_trivial_from_mode(struct acl *aclp, mode_t mode);
-void	acl_nfs4_sync_acl_from_mode(struct acl *aclp, mode_t mode,
-	    int file_owner_id);
 void	acl_nfs4_sync_mode_from_acl(mode_t *_mode, const struct acl *aclp);
+void	acl_nfs4_trivial_from_mode_libc(struct acl *aclp, int file_owner_id,
+	    int canonical_six);
 
 static acl_t
 _nfs4_acl_strip_np(const acl_t aclp, int canonical_six)
@@ -59,10 +58,7 @@ _nfs4_acl_strip_np(const acl_t aclp, int canonical_six)
 	_acl_brand_as(newacl, ACL_BRAND_NFS4);
 
 	acl_nfs4_sync_mode_from_acl(&mode, &(aclp->ats_acl));
-	if (canonical_six)
-		acl_nfs4_sync_acl_from_mode(&(newacl->ats_acl), mode, -1);
-	else
-		acl_nfs4_trivial_from_mode(&(newacl->ats_acl), mode);
+	acl_nfs4_trivial_from_mode_libc(&(newacl->ats_acl), mode, canonical_six);
 
 	return (newacl);
 }
