@@ -5,8 +5,8 @@ do
 	R=`echo $i | cut -f 2 -d :`
 	./fontcvt \
 		$C $R \
-		~/terminus-font-4.30/ter-u${R}n.bdf \
-		~/terminus-font-4.30/ter-u${R}b.bdf \
+		~/terminus-font-4.32/ter-u${R}n.bdf \
+		~/terminus-font-4.32/ter-u${R}b.bdf \
 		terminus-u${R}.vfnt
 	gzip -9nf terminus-u${R}.vfnt
 done
