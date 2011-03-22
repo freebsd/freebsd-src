@@ -54,4 +54,7 @@ fi
 LABEL=$1; shift
 NAME=$1; shift
 
+echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > $1/etc/fstab
 mkisofs $bootable -l -r -part -no-desktop -V $LABEL -o $NAME $*
+rm $1/etc/fstab
+
