@@ -598,6 +598,29 @@ ar5416InitUserSettings(struct ath_hal *ah)
 #endif
 }
 
+static void
+ar5416SetRfMode(struct ath_hal *ah, const struct ieee80211_channel *chan)
+{
+	uint32_t rfMode;
+
+	if (chan == AH_NULL)
+		return;
+
+	/* treat channel B as channel G , no  B mode suport in owl */
+	rfMode = IEEE80211_IS_CHAN_CCK(chan) ?
+	    AR_PHY_MODE_DYNAMIC : AR_PHY_MODE_OFDM;
+
+	if (AR_SREV_MERLIN_20(ah) && IS_5GHZ_FAST_CLOCK_EN(ah, chan)) {
+		/* phy mode bits for 5GHz channels require Fast Clock */
+		rfMode |= AR_PHY_MODE_DYNAMIC
+		       |  AR_PHY_MODE_DYN_CCK_DISABLE;
+	} else if (!AR_SREV_MERLIN_10_OR_LATER(ah)) {
+		rfMode |= IEEE80211_IS_CHAN_5GHZ(chan) ?
+			AR_PHY_MODE_RF5GHZ : AR_PHY_MODE_RF2GHZ;
+	}
+	OS_REG_WRITE(ah, AR_PHY_MODE, rfMode);
+}
+
 /*
  * Places the hardware into reset and then pulls it out of reset
  */
@@ -629,22 +652,9 @@ ar5416ChipReset(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * with an active radio can result in corrupted shifts to the
 	 * radio device.
 	 */
-	if (chan != AH_NULL) { 
-		uint32_t rfMode;
+	if (chan != AH_NULL)
+		ar5416SetRfMode(ah, chan);
 
-		/* treat channel B as channel G , no  B mode suport in owl */
-		rfMode = IEEE80211_IS_CHAN_CCK(chan) ?
-		    AR_PHY_MODE_DYNAMIC : AR_PHY_MODE_OFDM;
-		if (AR_SREV_MERLIN_20(ah) && IS_5GHZ_FAST_CLOCK_EN(ah, chan)) {
-			/* phy mode bits for 5GHz channels require Fast Clock */
-			rfMode |= AR_PHY_MODE_DYNAMIC
-			       |  AR_PHY_MODE_DYN_CCK_DISABLE;
-		} else if (!AR_SREV_MERLIN_10_OR_LATER(ah)) {
-			rfMode |= IEEE80211_IS_CHAN_5GHZ(chan) ?
-				AR_PHY_MODE_RF5GHZ : AR_PHY_MODE_RF2GHZ;
-		}
-		OS_REG_WRITE(ah, AR_PHY_MODE, rfMode);
-	}
 	return AH_TRUE;	
 }
 
