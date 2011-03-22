@@ -584,8 +584,6 @@ g_raid_md_promise_supported(int level, int qual, int disks, int force)
 	case G_RAID_VOLUME_RL_SINGLE:
 		if (disks != 1)
 			return (0);
-		if (!force)
-			return (0);
 		break;
 	case G_RAID_VOLUME_RL_CONCAT:
 		if (disks < 2)
