@@ -65,8 +65,8 @@ __FBSDID("$FreeBSD$");
 #include "synch.h"
 
 struct hio {
-	uint64_t 	 hio_seq;
-	int	 	 hio_error;
+	uint64_t	 hio_seq;
+	int		 hio_error;
 	struct nv	*hio_nv;
 	void		*hio_data;
 	uint8_t		 hio_cmd;
