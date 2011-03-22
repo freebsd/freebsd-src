@@ -236,9 +236,8 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 		mlx4_info(mdev, "Using %d tx rings for port:%d\n",
 			  mdev->profile.prof[i].tx_ring_num, i);
 		mdev->profile.prof[i].rx_ring_num = rounddown_pow_of_two(
-			min_t(int, dev->caps.num_comp_vectors, MAX_RX_RINGS/2)) +
-		(mdev->profile.udp_rss ? rounddown_pow_of_two(
-			min_t(int, dev->caps.num_comp_vectors, MAX_RX_RINGS/2)) : 1);
+			min_t(int, dev->caps.num_comp_vectors, MAX_RX_RINGS));
+
 		mlx4_info(mdev, "Defaulting to %d rx rings for port:%d\n",
 			  mdev->profile.prof[i].rx_ring_num, i);
 	}
