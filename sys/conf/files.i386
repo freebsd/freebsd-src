@@ -237,6 +237,7 @@ dev/tpm/tpm_isa.c		optional tpm isa
 dev/uart/uart_cpu_i386.c	optional uart
 dev/acpica/acpi_if.m		standard
 dev/acpi_support/acpi_wmi_if.m	standard
+dev/vt/hw/xboxfb/xboxfb.c	optional vt_xboxfb
 dev/wpi/if_wpi.c		optional wpi
 i386/acpica/acpi_machdep.c	optional acpi
 acpi_wakecode.o			optional acpi				\

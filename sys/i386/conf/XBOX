@@ -11,13 +11,13 @@ options 	KDB
 options 	DDB
 
 options 	XBOX			# kernel is for XBOX
-device		xboxfb			# frame buffer support (REQUIRED!)
-device		sc			# syscons
-device		fb
+device		vt
+device		vt_xboxfb		# frame buffer support (REQUIRED!)
 
 # no support yet for root device name fetching
-options 	ROOTDEVNAME=\"ufs:ad0s1a\"
+#options 	ROOTDEVNAME=\"ufs:ad0s1a\"
 #options 	ROOTDEVNAME=\"cd9660:acd0\"
+options		ROOTDEVNAME=\"ufs:label/xboxa\"
 
 options 	SCHED_4BSD		# 4BSD scheduler
 options 	INET			# InterNETworking
@@ -35,6 +35,7 @@ options 	NFSCLIENT		# Network Filesystem Client
 options 	CD9660			# ISO 9660 Filesystem
 #options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 #options 	PSEUDOFS		# Pseudo-filesystem framework
+options 	GEOM_LABEL		# Provides labelization
 #options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
 #options 	KTRACE			# ktrace(1) support
 #options 	SYSVSHM			# SYSV-style shared memory
@@ -73,6 +74,8 @@ device		pty		# BSD-style compatibility pseudo ttys
 # Be aware of the administrative consequences of enabling this!
 # Note that 'bpf' is required for DHCP.
 device		bpf		# Berkeley packet filter
+
+device		kbdmux		# keyboard multiplexer
 
 # USB support
 options 	USB_DEBUG	# enable debug msgs
