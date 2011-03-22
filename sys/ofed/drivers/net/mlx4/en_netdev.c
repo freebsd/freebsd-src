@@ -277,10 +277,7 @@ static void mlx4_en_netpoll(struct net_device *dev)
 		cq = &priv->rx_cq[i];
 		spin_lock_irqsave(&cq->lock, flags);
 		napi_synchronize(&cq->napi);
-		if (priv->rx_ring[i].use_frags)
-			mlx4_en_process_rx_cq(dev, cq, 0);
-		else
-			mlx4_en_process_rx_cq_mb(dev, cq, 0);
+		mlx4_en_process_rx_cq(dev, cq, 0);
 		spin_unlock_irqrestore(&cq->lock, flags);
 	}
 }
@@ -866,10 +863,6 @@ int mlx4_en_alloc_resources(struct mlx4_en_priv *priv)
 				      prof->rx_ring_size, i, RX))
 			goto err;
 
-		if (i > priv->rx_ring_num - priv->udp_rings - 1)
-			priv->rx_ring[i].use_frags = 0;
-		else
-			priv->rx_ring[i].use_frags = 1;
 		if (mlx4_en_create_rx_ring(priv, &priv->rx_ring[i],
 					   prof->rx_ring_size))
 			goto err;
@@ -880,7 +873,7 @@ int mlx4_en_alloc_resources(struct mlx4_en_priv *priv)
 
 	/* Populate Tx priority mappings */
 	mlx4_en_set_prio_map(priv, priv->tx_prio_map,
-			     prof->tx_ring_num - MLX4_EN_NUM_HASH_RINGS);
+			     priv->tx_ring_num - MLX4_EN_NUM_HASH_RINGS);
 
 	return 0;
 
@@ -1193,6 +1186,83 @@ static int mlx4_en_set_tx_ring_size(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+static int mlx4_en_set_tx_ppp(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx4_en_priv *priv;
+	int ppp;
+	int error;
+
+	priv = arg1;
+	ppp = priv->prof->tx_ppp;
+	error = sysctl_handle_int(oidp, &ppp, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (ppp > 0xff || ppp < 0)
+		return (-EINVAL);
+	priv->prof->tx_ppp = ppp;
+	error = -mlx4_SET_PORT_general(priv->mdev->dev, priv->port,
+				       priv->rx_mb_size + ETHER_CRC_LEN,
+				       priv->prof->tx_pause,
+				       priv->prof->tx_ppp,
+				       priv->prof->rx_pause,
+				       priv->prof->rx_ppp);
+
+	return (error);
+}
+
+static int mlx4_en_set_rx_ppp(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx4_en_priv *priv;
+	struct mlx4_en_dev *mdev;
+	int tx_ring_num;
+	int ppp;
+	int error;
+	int port_up;
+
+	port_up = 0;
+	priv = arg1;
+	mdev = priv->mdev;
+	ppp = priv->prof->rx_ppp;
+	error = sysctl_handle_int(oidp, &ppp, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	if (ppp > 0xff || ppp < 0)
+		return (-EINVAL);
+	/* See if we have to change the number of tx queues. */
+	if (!ppp != !priv->prof->rx_ppp) {
+		tx_ring_num = MLX4_EN_NUM_HASH_RINGS + 1 +
+		    (!!ppp) * MLX4_EN_NUM_PPP_RINGS;
+		mutex_lock(&mdev->state_lock);
+		if (priv->port_up) {
+			port_up = 1;
+			mlx4_en_stop_port(priv->dev);
+		}
+		mlx4_en_free_resources(priv);
+		priv->tx_ring_num = tx_ring_num;
+		priv->prof->rx_ppp = ppp;
+		error = -mlx4_en_alloc_resources(priv);
+		if (error)
+			en_err(priv, "Failed reallocating port resources\n");
+		if (error == 0 && port_up) {
+			error = -mlx4_en_start_port(priv->dev);
+			if (error)
+				en_err(priv, "Failed starting port\n");
+		}
+		mutex_unlock(&mdev->state_lock);
+		return (error);
+
+	}
+	priv->prof->rx_ppp = ppp;
+	error = -mlx4_SET_PORT_general(priv->mdev->dev, priv->port,
+				       priv->rx_mb_size + ETHER_CRC_LEN,
+				       priv->prof->tx_pause,
+				       priv->prof->tx_ppp,
+				       priv->prof->rx_pause,
+				       priv->prof->rx_ppp);
+
+	return (error);
+}
+
 static void mlx4_en_sysctl_conf(struct mlx4_en_priv *priv)
 {
 	struct net_device *dev;
@@ -1222,14 +1292,20 @@ static void mlx4_en_sysctl_conf(struct mlx4_en_priv *priv)
 	    CTLTYPE_INT | CTLFLAG_RD, &priv->tx_ring_num, 0,
 	    "Number of transmit rings");
 	SYSCTL_ADD_PROC(ctx, node_list, OID_AUTO, "rx_size",
-	    CTLTYPE_INT | CTLFLAG_RW, priv, 0, mlx4_en_set_rx_ring_size, "I",
-	    "Receive ring size");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
+	    mlx4_en_set_rx_ring_size, "I", "Receive ring size");
 	SYSCTL_ADD_PROC(ctx, node_list, OID_AUTO, "tx_size",
-	    CTLTYPE_INT | CTLFLAG_RW, priv, 0, mlx4_en_set_tx_ring_size, "I",
-	    "Transmit ring size");
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
+	    mlx4_en_set_tx_ring_size, "I", "Transmit ring size");
 	SYSCTL_ADD_UINT(ctx, node_list, OID_AUTO, "ip_reasm",
-	    CTLFLAG_RD, &priv->mdev->profile.ip_reasm, 0,
+	    CTLFLAG_RW, &priv->ip_reasm, 0,
 	    "Allow reassembly of IP fragments.");
+	SYSCTL_ADD_PROC(ctx, node_list, OID_AUTO, "tx_ppp",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
+	    mlx4_en_set_tx_ppp, "I", "TX Per-priority pause");
+	SYSCTL_ADD_PROC(ctx, node_list, OID_AUTO, "rx_ppp",
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
+	    mlx4_en_set_rx_ppp, "I", "RX Per-priority pause");
 
 	/* Add coalescer configuration. */
 	coal = SYSCTL_ADD_NODE(ctx, node_list, OID_AUTO,
@@ -1416,9 +1492,9 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->flags = prof->flags;
 	priv->tx_ring_num = prof->tx_ring_num;
 	priv->rx_ring_num = prof->rx_ring_num;
-	priv->udp_rings = mdev->profile.udp_rss ? prof->rx_ring_num / 2 : 1;
 	priv->mac_index = -1;
 	priv->msg_enable = MLX4_EN_MSG_LEVEL;
+	priv->ip_reasm = priv->mdev->profile.ip_reasm;
 	mtx_init(&priv->stats_lock.m, "mlx4 stats", NULL, MTX_DEF);
 	mtx_init(&priv->vlan_lock.m, "mlx4 vlan", NULL, MTX_DEF);
 	INIT_WORK(&priv->mcast_task, mlx4_en_do_set_multicast);
