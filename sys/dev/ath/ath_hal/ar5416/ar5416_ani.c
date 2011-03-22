@@ -488,7 +488,7 @@ ar5416AniRestart(struct ath_hal *ah, struct ar5212AniState *aniState)
 	OS_REG_WRITE(ah, AR_PHY_ERR_1, params->ofdmPhyErrBase);
 	OS_REG_WRITE(ah, AR_PHY_ERR_2, params->cckPhyErrBase);
 	OS_REG_WRITE(ah, AR_PHY_ERR_MASK_1, AR_PHY_ERR_OFDM_TIMING);
-	OS_REG_WRITE(ah, AR_PHY_ERR_MASK_1, AR_PHY_ERR_CCK_TIMING);
+	OS_REG_WRITE(ah, AR_PHY_ERR_MASK_2, AR_PHY_ERR_CCK_TIMING);
 
 	/* Clear the mib counters and save them in the stats */
 	ar5212UpdateMibCounters(ah, &ahp->ah_mibStats);
