@@ -474,10 +474,11 @@ ar5416WriteIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * Write addac shifts
 	 */
 	OS_REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_EXTERNAL_RADIO);
-#if 0
+
 	/* NB: only required for Sowl */
-	ar5416EepromSetAddac(ah, chan);
-#endif
+	if (AR_SREV_SOWL(ah))
+		ar5416EepromSetAddac(ah, chan);
+
 	regWrites = ath_hal_ini_write(ah, &AH5416(ah)->ah_ini_addac, 1,
 	    regWrites);
 	OS_REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_INTERNAL_ADDAC);
