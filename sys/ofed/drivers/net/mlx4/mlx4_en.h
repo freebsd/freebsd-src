@@ -335,7 +335,6 @@ struct mlx4_en_rx_ring {
 	unsigned long bytes;
 	unsigned long packets;
 	unsigned long errors;
-	unsigned int use_frags;
 	struct lro_ctrl lro;
 	struct mlx4_en_ipfrag ipfrag[MLX4_EN_NUM_IPFRAG_SESSIONS];
 };
@@ -383,9 +382,9 @@ struct mlx4_en_port_profile {
 	u32 tx_ring_size;
 	u32 rx_ring_size;
 	u8 rx_pause;
-	u8 rx_ppp;
 	u8 tx_pause;
-	u8 tx_ppp;
+	u32 rx_ppp;
+	u32 tx_ppp;
 };
 
 struct mlx4_en_profile {
@@ -533,11 +532,11 @@ struct mlx4_en_priv {
 #define MLX4_EN_FLAG_PROMISC	0x1
 	u32 tx_ring_num;
 	u32 rx_ring_num;
-	u32 udp_rings;
 	u32 rx_mb_size;
 	struct mlx4_en_frag_info frag_info[MLX4_EN_MAX_RX_FRAGS];
 	u16 num_frags;
 	u16 log_rx_info;
+	int ip_reasm;
 
 	struct mlx4_en_tx_ring tx_ring[MAX_TX_RINGS];
 	struct mlx4_en_rx_ring rx_ring[MAX_RX_RINGS];
