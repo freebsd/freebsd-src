@@ -235,6 +235,8 @@ extern	void ar5416GetTargetPowersLeg(struct ath_hal *ah,
 		uint16_t numRates, HAL_BOOL isExtTarget);
 extern	void ar5416InitChainMasks(struct ath_hal *ah);
 extern	void ar5416RestoreChainMask(struct ath_hal *ah);
+extern	void ar5416EepromSetAddac(struct ath_hal *ah,
+		const struct ieee80211_channel *chan);
 
 /* TX power setup related routines in ar5416_reset.c */
 extern	void ar5416GetGainBoundariesAndPdadcs(struct ath_hal *ah,

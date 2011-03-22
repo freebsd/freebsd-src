@@ -2425,3 +2425,76 @@ ar5416OverrideIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		OS_REG_WRITE(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS, val);
 	}
 }
+
+struct ini {
+	uint32_t        *data;          /* NB: !const */
+	int             rows, cols;
+};
+
+/*
+ * Override XPA bias level based on operating frequency.
+ * This is a v14 EEPROM specific thing for the AR9160.
+ */
+void
+ar5416EepromSetAddac(struct ath_hal *ah, const struct ieee80211_channel *chan)
+{
+#define	XPA_LVL_FREQ(cnt)	(pModal->xpaBiasLvlFreq[cnt])
+	MODAL_EEP_HEADER	*pModal;
+	HAL_EEPROM_v14 *ee = AH_PRIVATE(ah)->ah_eeprom;
+	struct ar5416eeprom	*eep = &ee->ee_base;
+	uint8_t biaslevel;
+
+	if (! AR_SREV_SOWL(ah))
+		return;
+
+        if (EEP_MINOR(ah) < AR5416_EEP_MINOR_VER_7)
+                return;
+
+	pModal = &(eep->modalHeader[IEEE80211_IS_CHAN_2GHZ(chan)]);
+
+	if (pModal->xpaBiasLvl != 0xff)
+		biaslevel = pModal->xpaBiasLvl;
+	else {
+		uint16_t resetFreqBin, freqBin, freqCount = 0;
+		CHAN_CENTERS centers;
+
+		ar5416GetChannelCenters(ah, chan, &centers);
+
+		resetFreqBin = FREQ2FBIN(centers.synth_center, IEEE80211_IS_CHAN_2GHZ(chan));
+		freqBin = XPA_LVL_FREQ(0) & 0xff;
+		biaslevel = (uint8_t) (XPA_LVL_FREQ(0) >> 14);
+
+		freqCount++;
+
+		while (freqCount < 3) {
+			if (XPA_LVL_FREQ(freqCount) == 0x0)
+			break;
+
+			freqBin = XPA_LVL_FREQ(freqCount) & 0xff;
+			if (resetFreqBin >= freqBin)
+				biaslevel = (uint8_t)(XPA_LVL_FREQ(freqCount) >> 14);
+			else
+				break;
+			freqCount++;
+		}
+	}
+
+	HALDEBUG(ah, HAL_DEBUG_EEPROM, "%s: overriding XPA bias level = %d\n",
+	    __func__, biaslevel);
+
+	/*
+	 * This is a dirty workaround for the const initval data,
+	 * which will upset multiple AR9160's on the same board.
+	 *
+	 * The HAL should likely just have a private copy of the addac
+	 * data per instance.
+	 */
+	if (IEEE80211_IS_CHAN_2GHZ(chan))
+                HAL_INI_VAL((struct ini *) &AH5416(ah)->ah_ini_addac, 7, 1) =
+		    (HAL_INI_VAL(&AH5416(ah)->ah_ini_addac, 7, 1) & (~0x18)) | biaslevel << 3;
+        else
+                HAL_INI_VAL((struct ini *) &AH5416(ah)->ah_ini_addac, 6, 1) =
+		    (HAL_INI_VAL(&AH5416(ah)->ah_ini_addac, 6, 1) & (~0xc0)) | biaslevel << 6;
+#undef XPA_LVL_FREQ
+}
+
