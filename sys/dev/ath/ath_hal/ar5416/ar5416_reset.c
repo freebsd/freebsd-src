@@ -1317,16 +1317,12 @@ ar5416SetDefGainValues(struct ath_hal *ah,
 			      AR_PHY_GAIN_2GHZ_XATTEN2_DB,
 			      pModal->xatten2Db[i]);
 		} else {
-			OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
-			  (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + regChainOffset) &
-			   ~AR_PHY_GAIN_2GHZ_BSW_MARGIN)
-			  | SM(pModal-> bswMargin[i],
-			       AR_PHY_GAIN_2GHZ_BSW_MARGIN));
-			OS_REG_WRITE(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
-			  (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + regChainOffset) &
-			   ~AR_PHY_GAIN_2GHZ_BSW_ATTEN)
-			  | SM(pModal->bswAtten[i],
-			       AR_PHY_GAIN_2GHZ_BSW_ATTEN));
+			OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
+			      AR_PHY_GAIN_2GHZ_BSW_MARGIN,
+			      pModal->bswMargin[i]);
+			OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + regChainOffset,
+			      AR_PHY_GAIN_2GHZ_BSW_ATTEN,
+			      pModal->bswAtten[i]);
 		}
 	}
 
@@ -1338,16 +1334,12 @@ ar5416SetDefGainValues(struct ath_hal *ah,
 		      AR_PHY_RXGAIN + regChainOffset,
 		      AR9280_PHY_RXGAIN_TXRX_MARGIN, pModal->rxTxMarginCh[i]);
 	} else {
-		OS_REG_WRITE(ah,
+		OS_REG_RMW_FIELD(ah,
 			  AR_PHY_RXGAIN + regChainOffset,
-			  (OS_REG_READ(ah, AR_PHY_RXGAIN + regChainOffset) &
-			   ~AR_PHY_RXGAIN_TXRX_ATTEN)
-			  | SM(txRxAttenLocal, AR_PHY_RXGAIN_TXRX_ATTEN));
-		OS_REG_WRITE(ah,
+			  AR_PHY_RXGAIN_TXRX_ATTEN, txRxAttenLocal);
+		OS_REG_RMW_FIELD(ah,
 			  AR_PHY_GAIN_2GHZ + regChainOffset,
-			  (OS_REG_READ(ah, AR_PHY_GAIN_2GHZ + regChainOffset) &
-			   ~AR_PHY_GAIN_2GHZ_RXTX_MARGIN) |
-			  SM(pModal->rxTxMarginCh[i], AR_PHY_GAIN_2GHZ_RXTX_MARGIN));
+			  AR_PHY_GAIN_2GHZ_RXTX_MARGIN, pModal->rxTxMarginCh[i]);
 	}
 }
 
