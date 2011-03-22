@@ -3531,15 +3531,6 @@ rx_accept:
 			rs->rs_keyix == HAL_RXKEYIX_INVALID ?
 				IEEE80211_KEYIX_NONE : rs->rs_keyix);
 		sc->sc_lastrs = rs;
-		/* tag AMPDU aggregates for reorder processing */
-#if 0
-		/*
-		 * Just make sure all frames are tagged for AMPDU reorder checking.
-		 * As there seems to be some situations where single frames aren't
-		 * matching a node but bump the seqno. This needs to be investigated.
-		 */
-		m->m_flags |= M_AMPDU;
-#endif
 
 		/* Keep statistics on the number of aggregate packets received */
 		if (rs->rs_isaggr)
