@@ -1697,7 +1697,7 @@ g_raid_create_node(struct g_class *mp,
 }
 
 struct g_raid_volume *
-g_raid_create_volume(struct g_raid_softc *sc, const char *name)
+g_raid_create_volume(struct g_raid_softc *sc, const char *name, int id)
 {
 	struct g_raid_volume	*vol, *vol1;
 	int i;
@@ -1721,15 +1721,24 @@ g_raid_create_volume(struct g_raid_softc *sc, const char *name)
 
 	/* Find free ID for this volume. */
 	g_topology_lock();
-	for (i = 0; ; i++) {
+	vol1 = vol;
+	if (id >= 0) {
 		LIST_FOREACH(vol1, &g_raid_volumes, v_global_next) {
-			if (vol1->v_global_id == i)
+			if (vol1->v_global_id == id)
 				break;
 		}
-		if (vol1 == NULL)
-			break;
 	}
-	vol->v_global_id = i;
+	if (vol1 != NULL) {
+		for (id = 0; ; id++) {
+			LIST_FOREACH(vol1, &g_raid_volumes, v_global_next) {
+				if (vol1->v_global_id == id)
+					break;
+			}
+			if (vol1 == NULL)
+				break;
+		}
+	}
+	vol->v_global_id = id;
 	LIST_INSERT_HEAD(&g_raid_volumes, vol, v_global_next);
 	g_topology_unlock();
 

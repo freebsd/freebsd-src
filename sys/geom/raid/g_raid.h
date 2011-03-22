@@ -350,7 +350,7 @@ struct g_raid_softc * g_raid_create_node(struct g_class *mp,
     const char *name, struct g_raid_md_object *md);
 int g_raid_create_node_format(const char *format, struct g_geom **gp);
 struct g_raid_volume * g_raid_create_volume(struct g_raid_softc *sc,
-    const char *name);
+    const char *name, int id);
 struct g_raid_disk * g_raid_create_disk(struct g_raid_softc *sc);
 const char * g_raid_get_diskname(struct g_raid_disk *disk);
 

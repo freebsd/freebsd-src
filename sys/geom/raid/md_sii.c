@@ -721,7 +721,7 @@ g_raid_md_sii_start(struct g_raid_softc *sc)
 
 	/* Create volumes and subdisks. */
 	sii_meta_get_name(meta, buf);
-	vol = g_raid_create_volume(sc, buf);
+	vol = g_raid_create_volume(sc, buf, -1);
 	vol->v_mediasize = (off_t)meta->total_sectors * 512;
 	if (meta->type == SII_T_RAID0) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID0;
@@ -1276,7 +1276,7 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 		/* We have all we need, create things: volume, ... */
 		mdi->mdio_total_disks = numdisks;
 		mdi->mdio_started = 1;
-		vol = g_raid_create_volume(sc, volname);
+		vol = g_raid_create_volume(sc, volname, -1);
 		vol->v_md_data = (void *)(intptr_t)0;
 		vol->v_raid_level = level;
 		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;

@@ -938,7 +938,7 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 	for (i = 0; i < meta->total_volumes; i++) {
 		mvol = intel_get_volume(meta, i);
 		mmap = intel_get_map(mvol, 0);
-		vol = g_raid_create_volume(sc, mvol->name);
+		vol = g_raid_create_volume(sc, mvol->name, -1);
 		vol->v_md_data = (void *)(intptr_t)i;
 		if (mmap->type == INTEL_T_RAID0)
 			vol->v_raid_level = G_RAID_VOLUME_RL_RAID0;
@@ -1537,7 +1537,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 
 		/* We have all we need, create things: volume, ... */
 		mdi->mdio_started = 1;
-		vol = g_raid_create_volume(sc, volname);
+		vol = g_raid_create_volume(sc, volname, -1);
 		vol->v_md_data = (void *)(intptr_t)0;
 		vol->v_raid_level = level;
 		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
@@ -1721,7 +1721,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 		}
 
 		/* We have all we need, create things: volume, ... */
-		vol = g_raid_create_volume(sc, volname);
+		vol = g_raid_create_volume(sc, volname, -1);
 		vol->v_md_data = (void *)(intptr_t)i;
 		vol->v_raid_level = level;
 		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;

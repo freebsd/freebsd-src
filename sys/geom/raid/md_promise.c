@@ -940,7 +940,7 @@ g_raid_md_promise_new_disk(struct g_raid_disk *disk)
 		vol = g_raid_md_promise_get_volume(sc, pdmeta->volume_id);
 		if (vol == NULL) {
 			promise_meta_get_name(pdmeta, buf);
-			vol = g_raid_create_volume(sc, buf);
+			vol = g_raid_create_volume(sc, buf, pdmeta->array_number);
 			pv = malloc(sizeof(*pv), M_MD_PROMISE, M_WAITOK | M_ZERO);
 			pv->pv_id = pdmeta->volume_id;
 			vol->v_md_data = pv;
@@ -1398,7 +1398,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 		arc4rand(&pv->pv_id, sizeof(pv->pv_id), 0);
 		pv->pv_generation = 0;
 		pv->pv_started = 1;
-		vol = g_raid_create_volume(sc, volname);
+		vol = g_raid_create_volume(sc, volname, -1);
 		vol->v_md_data = pv;
 		vol->v_raid_level = level;
 		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
@@ -1715,8 +1715,7 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1 ||
 		    vol->v_raid_level == G_RAID_VOLUME_RL_RAID1E)
 			meta->array_width /= 2;
-		if (pv->pv_meta != NULL)
-			meta->array_number = pv->pv_meta->array_number;
+		meta->array_number = vol->v_global_id;
 		meta->total_sectors = vol->v_mediasize / vol->v_sectorsize;
 		meta->cylinders = meta->total_sectors / (255 * 63) - 1;
 		meta->heads = 254;
