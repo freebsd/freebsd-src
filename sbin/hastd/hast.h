@@ -86,7 +86,6 @@
 #define	HAST_TIMEOUT	5
 #define	HAST_CONFIG	"/etc/hast.conf"
 #define	HAST_CONTROL	"/var/run/hastctl"
-#define	HASTD_PORT	8457
 #define	HASTD_LISTEN	"tcp4://0.0.0.0:8457"
 #define	HASTD_PIDFILE	"/var/run/hastd.pid"
 
