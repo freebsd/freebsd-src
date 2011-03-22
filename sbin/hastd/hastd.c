@@ -132,19 +132,19 @@ dtype2str(mode_t mode)
 
 	if (S_ISBLK(mode))
 		return ("block device");
-	else if (S_ISCHR(mode)) 
+	else if (S_ISCHR(mode))
 		return ("character device");
-	else if (S_ISDIR(mode)) 
+	else if (S_ISDIR(mode))
 		return ("directory");
 	else if (S_ISFIFO(mode))
 		return ("pipe or FIFO");
-	else if (S_ISLNK(mode)) 
+	else if (S_ISLNK(mode))
 		return ("symbolic link");
-	else if (S_ISREG(mode)) 
+	else if (S_ISREG(mode))
 		return ("regular file");
 	else if (S_ISSOCK(mode))
 		return ("socket");
-	else if (S_ISWHT(mode)) 
+	else if (S_ISWHT(mode))
 		return ("whiteout");
 	else
 		return ("unknown");
@@ -929,7 +929,7 @@ main_loop(void)
 	time_t lastcheck, now;
 	fd_set rfds;
 
-	lastcheck = time(NULL);	
+	lastcheck = time(NULL);
 	seltimeout.tv_sec = REPORT_INTERVAL;
 	seltimeout.tv_usec = 0;
 
