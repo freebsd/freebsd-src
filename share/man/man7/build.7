@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2011
+.Dd March 18, 2011
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -196,6 +196,13 @@ variable
 .Va DISTDIR .
 This target is used while building a release; see
 .Xr release 7 .
+.It Cm packageworld
+Archive the results of
+.Cm distributeworld ,
+placing the results in
+.Va DISTDIR .
+This target is used while building a release; see
+.Xr release 7 .
 .It Cm installworld
 Install everything built by a preceding
 .Cm buildworld
@@ -248,7 +255,7 @@ Create a build toolchain for each architecture supported by the build system.
 Kernel specific build targets in
 .Pa /usr/src
 are:
-.Bl -tag -width ".Cm reinstallkernel"
+.Bl -tag -width ".Cm distributekernel"
 .It Cm buildkernel
 Rebuild the kernel and the kernel modules.
 .It Cm installkernel
@@ -265,6 +272,18 @@ and
 .Va KODIR
 .Xr make 1
 variables.
+.It Cm distributekernel
+Install the kernel to the directory
+.Pa ${DISTDIR}/kernel/boot/kernel .
+This target is used while building a release; see
+.Xr release 7 .
+.It Cm packagekernel
+Archive the results of
+.Cm distributekernel ,
+placing the results in
+.Va DISTDIR .
+This target is used while building a release; see
+.Xr release 7 .
 .It Cm kernel
 Equivalent to
 .Cm buildkernel
