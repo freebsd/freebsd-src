@@ -779,6 +779,14 @@ ar5416SetupTxQueue(struct ath_hal *ah, HAL_TX_QUEUE type,
 		       | HAL_TXQ_ARB_LOCKOUT_GLOBAL
 		       | HAL_TXQ_BACKOFF_DISABLE;
 		break;
+	case HAL_TX_QUEUE_PSPOLL:
+		q = 1;				/* lowest priority */
+		defqflags |= HAL_TXQ_DBA_GATED
+		       | HAL_TXQ_CBR_DIS_QEMPTY
+		       | HAL_TXQ_CBR_DIS_BEMPTY
+		       | HAL_TXQ_ARB_LOCKOUT_GLOBAL
+		       | HAL_TXQ_BACKOFF_DISABLE;
+		break;
 	case HAL_TX_QUEUE_UAPSD:
 		q = pCap->halTotalQueues-3;	/* nextest highest priority */
 		if (ahp->ah_txq[q].tqi_type != HAL_TX_QUEUE_INACTIVE) {
@@ -919,6 +927,9 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 	/* NB: always enable DCU to wait for next fragment from QCU */
 	dmisc = AR_D_MISC_FRAG_WAIT_EN;
 
+	/* Enable exponential backoff window */
+	dmisc |= AR_D_MISC_BKOFF_PERSISTENCE;
+
 	/* 
 	 * The chip reset default is to use a DCU backoff threshold of 0x2.
 	 * Restore this when programming the DCU MISC register.
@@ -1020,6 +1031,12 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 		}
 		dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
 			    AR_D_MISC_ARB_LOCKOUT_CNTRL);
+		break;
+	case HAL_TX_QUEUE_PSPOLL:
+		qmisc |= AR_Q_MISC_CBR_INCR_DIS1;
+		break;
+	case HAL_TX_QUEUE_UAPSD:
+		dmisc |= AR_D_MISC_POST_FR_BKOFF_DIS;
 		break;
 	default:			/* NB: silence compiler */
 		break;
