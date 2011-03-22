@@ -31,6 +31,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>	/* MAXHOSTNAMELEN */
+#include <sys/socket.h>
+
+#include <arpa/inet.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -44,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "hast.h"
 #include "pjdlog.h"
 #include "proto_impl.h"
 #include "subr.h"
@@ -183,7 +185,8 @@ tcp4_setup_new(const char *addr, int side, void **ctxp)
 		return (errno);
 
 	/* Parse given address. */
-	if ((ret = tcp4_addr(addr, HASTD_PORT, &tctx->tc_sin)) != 0) {
+	if ((ret = tcp4_addr(addr, PROTO_TCP4_DEFAULT_PORT,
+	    &tctx->tc_sin)) != 0) {
 		free(tctx);
 		return (ret);
 	}
@@ -507,7 +510,7 @@ tcp4_address_match(const void *ctx, const char *addr)
 	PJDLOG_ASSERT(tctx != NULL);
 	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
 
-	if (tcp4_addr(addr, HASTD_PORT, &sin) != 0)
+	if (tcp4_addr(addr, PROTO_TCP4_DEFAULT_PORT, &sin) != 0)
 		return (false);
 	ip1 = sin.sin_addr.s_addr;
 
@@ -569,21 +572,21 @@ tcp4_close(void *ctx)
 	free(tctx);
 }
 
-static struct hast_proto tcp4_proto = {
-	.hp_name = "tcp4",
-	.hp_client = tcp4_client,
-	.hp_connect = tcp4_connect,
-	.hp_connect_wait = tcp4_connect_wait,
-	.hp_server = tcp4_server,
-	.hp_accept = tcp4_accept,
-	.hp_wrap = tcp4_wrap,
-	.hp_send = tcp4_send,
-	.hp_recv = tcp4_recv,
-	.hp_descriptor = tcp4_descriptor,
-	.hp_address_match = tcp4_address_match,
-	.hp_local_address = tcp4_local_address,
-	.hp_remote_address = tcp4_remote_address,
-	.hp_close = tcp4_close
+static struct proto tcp4_proto = {
+	.prt_name = "tcp4",
+	.prt_client = tcp4_client,
+	.prt_connect = tcp4_connect,
+	.prt_connect_wait = tcp4_connect_wait,
+	.prt_server = tcp4_server,
+	.prt_accept = tcp4_accept,
+	.prt_wrap = tcp4_wrap,
+	.prt_send = tcp4_send,
+	.prt_recv = tcp4_recv,
+	.prt_descriptor = tcp4_descriptor,
+	.prt_address_match = tcp4_address_match,
+	.prt_local_address = tcp4_local_address,
+	.prt_remote_address = tcp4_remote_address,
+	.prt_close = tcp4_close
 };
 
 static __constructor void
