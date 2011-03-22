@@ -57,37 +57,43 @@ struct nvidia_raid_conf {
 	uint32_t	sector_size;
 	uint8_t		name[16];
 	uint8_t		revision[4];
-	uint32_t	dummy_1;
+	uint32_t	disk_status;
 
 	uint32_t	magic_0;
-#define NVIDIA_MAGIC0               0x00640044
+#define NVIDIA_MAGIC0		0x00640044
 
 	uint64_t	volume_id[2];
-	uint8_t		flags;
+	uint8_t		state;
+#define NVIDIA_S_IDLE		0
+#define NVIDIA_S_INIT		2
+#define NVIDIA_S_REBUILD	3
+#define NVIDIA_S_UPGRADE	4
+#define NVIDIA_S_SYNC		5
 	uint8_t		array_width;
 	uint8_t		total_disks;
-	uint8_t		dummy_2;
+	uint8_t		orig_array_width;
 	uint16_t	type;
-#define NVIDIA_T_RAID0              0x00000080
-#define NVIDIA_T_RAID1              0x00000081
-#define NVIDIA_T_RAID3              0x00000083
-#define NVIDIA_T_RAID5              0x00000085
-#define NVIDIA_T_RAID10             0x00008180
-#define NVIDIA_T_CONCAT             0x000000ff
+#define NVIDIA_T_RAID0		0x0080
+#define NVIDIA_T_RAID1		0x0081
+#define NVIDIA_T_RAID3		0x0083
+#define NVIDIA_T_RAID5		0x0085	/* RLQ = 00/02? */
+#define NVIDIA_T_RAID5_SYM	0x0095	/* RLQ = 03 */
+#define NVIDIA_T_RAID10		0x8180
+#define NVIDIA_T_CONCAT		0x00ff
 
 	uint16_t	dummy_3;
 	uint32_t	strip_sectors;
 	uint32_t	strip_bytes;
 	uint32_t	strip_shift;
 	uint32_t	strip_mask;
-	uint32_t	strip_sizesectors;
-	uint32_t	strip_sizebytes;
+	uint32_t	stripe_sectors;
+	uint32_t	stripe_bytes;
 	uint32_t	rebuild_lba;
 	uint32_t	orig_type;
 	uint32_t	orig_total_sectors;
 	uint32_t	status;
-#define NVIDIA_S_BOOTABLE           0x00000001
-#define NVIDIA_S_DEGRADED           0x00000002
+#define NVIDIA_S_BOOTABLE	0x00000001
+#define NVIDIA_S_DEGRADED	0x00000002
 
 	uint32_t	filler[98];
 } __packed;
@@ -149,7 +155,7 @@ g_raid_md_nvidia_print(struct nvidia_raid_conf *meta)
 
 	printf("********* ATA NVidia RAID Metadata *********\n");
 	printf("nvidia_id           <%.8s>\n", meta->nvidia_id);
-	printf("config_size         0x%08x\n", meta->config_size);
+	printf("config_size         %u\n", meta->config_size);
 	printf("checksum            0x%08x\n", meta->checksum);
 	printf("version             0x%04x\n", meta->version);
 	printf("disk_number         %d\n", meta->disk_number);
@@ -160,22 +166,22 @@ g_raid_md_nvidia_print(struct nvidia_raid_conf *meta)
 	printf("revision            0x%02x%02x%02x%02x\n",
 	    meta->revision[0], meta->revision[1],
 	    meta->revision[2], meta->revision[3]);
-	printf("dummy_1             0x%08x\n", meta->dummy_1);
+	printf("disk_status         0x%08x\n", meta->disk_status);
 	printf("magic_0             0x%08x\n", meta->magic_0);
 	printf("volume_id           0x%016jx%016jx\n",
-	    meta->volume_id[0], meta->volume_id[1]);
-	printf("flags               0x%02x\n", meta->flags);
+	    meta->volume_id[1], meta->volume_id[0]);
+	printf("state               0x%02x\n", meta->state);
 	printf("array_width         %u\n", meta->array_width);
 	printf("total_disks         %u\n", meta->total_disks);
-	printf("dummy_2             0x%02x\n", meta->dummy_2);
+	printf("orig_array_width    %u\n", meta->orig_array_width);
 	printf("type                0x%04x\n", meta->type);
 	printf("dummy_3             0x%04x\n", meta->dummy_3);
 	printf("strip_sectors       %u\n", meta->strip_sectors);
 	printf("strip_bytes         %u\n", meta->strip_bytes);
 	printf("strip_shift         %u\n", meta->strip_shift);
 	printf("strip_mask          0x%08x\n", meta->strip_mask);
-	printf("strip_sizesectors   %u\n", meta->strip_sizesectors);
-	printf("strip_sizebytes     %u\n", meta->strip_sizebytes);
+	printf("stripe_sectors      %u\n", meta->stripe_sectors);
+	printf("stripe_bytes        %u\n", meta->stripe_bytes);
 	printf("rebuild_lba         %u\n", meta->rebuild_lba);
 	printf("orig_type           0x%04x\n", meta->orig_type);
 	printf("orig_total_sectors  %u\n", meta->orig_total_sectors);
@@ -207,7 +213,6 @@ nvidia_meta_get_name(struct nvidia_raid_conf *meta, char *buf)
 	}
 }
 
-#if 0
 static void
 nvidia_meta_put_name(struct nvidia_raid_conf *meta, char *buf)
 {
@@ -215,7 +220,6 @@ nvidia_meta_put_name(struct nvidia_raid_conf *meta, char *buf)
 	memset(meta->name, 0x20, 16);
 	memcpy(meta->name, buf, MIN(strlen(buf), 16));
 }
-#endif
 
 static struct nvidia_raid_conf *
 nvidia_meta_read(struct g_consumer *cp)
@@ -274,6 +278,7 @@ nvidia_meta_read(struct g_consumer *cp)
 	/* Check raid type. */
 	if (meta->type != NVIDIA_T_RAID0 && meta->type != NVIDIA_T_RAID1 &&
 	    meta->type != NVIDIA_T_RAID3 && meta->type != NVIDIA_T_RAID5 &&
+	    meta->type != NVIDIA_T_RAID5_SYM &&
 	    meta->type != NVIDIA_T_RAID10 && meta->type != NVIDIA_T_CONCAT) {
 		G_RAID_DEBUG(1, "NVidia unknown RAID level on %s (0x%02x)",
 		    pp->name, meta->type);
@@ -284,20 +289,20 @@ nvidia_meta_read(struct g_consumer *cp)
 	return (meta);
 }
 
-#if 0
 static int
 nvidia_meta_write(struct g_consumer *cp, struct nvidia_raid_conf *meta)
 {
 	struct g_provider *pp;
 	char *buf;
 	int error, i;
-	uint16_t checksum, *ptr;
+	uint32_t checksum, *ptr;
 
 	pp = cp->provider;
 
 	/* Recalculate checksum for case if metadata were changed. */
 	meta->checksum = 0;
-	for (checksum = 0, ptr = (uint16_t *)meta, i = 0; i < 159; i++)
+	for (checksum = 0, ptr = (uint32_t *)meta,
+	    i = 0; i < meta->config_size; i++)
 		checksum += *ptr++;
 	meta->checksum -= checksum;
 
@@ -305,41 +310,32 @@ nvidia_meta_write(struct g_consumer *cp, struct nvidia_raid_conf *meta)
 	buf = malloc(pp->sectorsize, M_MD_NVIDIA, M_WAITOK | M_ZERO);
 	memcpy(buf, meta, sizeof(*meta));
 
-	/* Write 4 copies of metadata. */
-	for (i = 0; i < 4; i++) {
-		error = g_write_data(cp,
-		    pp->mediasize - (pp->sectorsize * (1 + 0x200 * i)),
-		    buf, pp->sectorsize);
-		if (error != 0) {
-			G_RAID_DEBUG(1, "Cannot write metadata to %s (error=%d).",
-			    pp->name, error);
-			break;
-		}
+	/* Write metadata. */
+	error = g_write_data(cp,
+	    pp->mediasize - 2 * pp->sectorsize, buf, pp->sectorsize);
+	if (error != 0) {
+		G_RAID_DEBUG(1, "Cannot write metadata to %s (error=%d).",
+		    pp->name, error);
 	}
 
 	free(buf, M_MD_NVIDIA);
 	return (error);
 }
-#endif
 
 static int
 nvidia_meta_erase(struct g_consumer *cp)
 {
 	struct g_provider *pp;
 	char *buf;
-	int error, i;
+	int error;
 
 	pp = cp->provider;
 	buf = malloc(pp->sectorsize, M_MD_NVIDIA, M_WAITOK | M_ZERO);
-	/* Write 4 copies of metadata. */
-	for (i = 0; i < 4; i++) {
-		error = g_write_data(cp,
-		    pp->mediasize - (pp->sectorsize * (1 + 0x200 * i)),
-		    buf, pp->sectorsize);
-		if (error != 0) {
-			G_RAID_DEBUG(1, "Cannot erase metadata on %s (error=%d).",
-			    pp->name, error);
-		}
+	error = g_write_data(cp,
+	    pp->mediasize - 2 * pp->sectorsize, buf, pp->sectorsize);
+	if (error != 0) {
+		G_RAID_DEBUG(1, "Cannot erase metadata on %s (error=%d).",
+		    pp->name, error);
 	}
 	free(buf, M_MD_NVIDIA);
 	return (error);
@@ -692,6 +688,7 @@ g_raid_md_nvidia_start(struct g_raid_softc *sc)
 	nvidia_meta_get_name(meta, buf);
 	vol = g_raid_create_volume(sc, buf, -1);
 	vol->v_mediasize = (off_t)meta->total_sectors * 512;
+	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
 	if (meta->type == NVIDIA_T_RAID0) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID0;
 		size = vol->v_mediasize / mdi->mdio_total_disks;
@@ -710,11 +707,14 @@ g_raid_md_nvidia_start(struct g_raid_softc *sc)
 	} else if (meta->type == NVIDIA_T_RAID5) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID5;
 		size = vol->v_mediasize / (mdi->mdio_total_disks - 1);
+	} else if (meta->type == NVIDIA_T_RAID5_SYM) {
+		vol->v_raid_level = G_RAID_VOLUME_RL_RAID5;
+//		vol->v_raid_level_qualifier = 0x03;
+		size = vol->v_mediasize / (mdi->mdio_total_disks - 1);
 	} else {
 		vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
 		size = 0;
 	}
-	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
 	vol->v_strip_size = meta->strip_sectors * 512; //ZZZ
 	vol->v_disks_count = mdi->mdio_total_disks;
 	vol->v_sectorsize = 512; //ZZZ
@@ -847,8 +847,8 @@ g_raid_md_create_nvidia(struct g_raid_md_object *md, struct g_class *mp,
 	mdi = (struct g_raid_md_nvidia_object *)md;
 	arc4rand(&mdi->mdio_volume_id, 16, 0);
 	mdi->mdio_generation = 0;
-	snprintf(name, sizeof(name), "NVidia-%016jx%016jx",
-	    mdi->mdio_volume_id[0], mdi->mdio_volume_id[1]);
+	snprintf(name, sizeof(name), "NVidia-%08x",
+	    (uint32_t)mdi->mdio_volume_id[0]);
 	sc = g_raid_create_node(mp, name, md);
 	if (sc == NULL)
 		return (G_RAID_MD_TASTE_FAIL);
@@ -954,8 +954,8 @@ search:
 	} else { /* Not found matching node -- create one. */
 		result = G_RAID_MD_TASTE_NEW;
 		memcpy(&mdi->mdio_volume_id, &meta->volume_id, 16);
-		snprintf(name, sizeof(name), "NVidia-%016jx%016jx",
-		    mdi->mdio_volume_id[0], mdi->mdio_volume_id[1]);
+		snprintf(name, sizeof(name), "NVidia-%08x",
+		    (uint32_t)mdi->mdio_volume_id[0]);
 		sc = g_raid_create_node(mp, name, md);
 		md->mdo_softc = sc;
 		geom = sc->sc_geom;
@@ -1174,7 +1174,7 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 			return (error);
 
 		/* Reserve space for metadata. */
-		size -= 0x800 * sectorsize;
+		size -= 2 * sectorsize;
 
 		/* Handle size argument. */
 		len = sizeof(*sizearg);
@@ -1447,7 +1447,6 @@ static int
 g_raid_md_write_nvidia(struct g_raid_md_object *md, struct g_raid_volume *tvol,
     struct g_raid_subdisk *tsd, struct g_raid_disk *tdisk)
 {
-#if 0
 	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
 	struct g_raid_subdisk *sd;
@@ -1464,7 +1463,7 @@ g_raid_md_write_nvidia(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		return (0);
 
 	/* Bump generation. Newly written metadata may differ from previous. */
-	mdi->mdio_generation++;
+//	mdi->mdio_generation++;
 
 	/* There is only one volume. */
 	vol = TAILQ_FIRST(&sc->sc_volumes);
@@ -1473,36 +1472,51 @@ g_raid_md_write_nvidia(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	meta = malloc(sizeof(*meta), M_MD_NVIDIA, M_WAITOK | M_ZERO);
 	if (mdi->mdio_meta)
 		memcpy(meta, mdi->mdio_meta, sizeof(*meta));
+	memcpy(meta->nvidia_id, NVIDIA_MAGIC, sizeof(NVIDIA_MAGIC));
+	meta->config_size = 30;
+	meta->version = 0x0064;
 	meta->total_sectors = vol->v_mediasize / vol->v_sectorsize;
-	meta->vendor_id = 0x1095;
-	meta->version_minor = 0;
-	meta->version_major = 2;
+	meta->sector_size = vol->v_sectorsize;
+	nvidia_meta_put_name(meta, vol->v_name);
+	meta->magic_0 = NVIDIA_MAGIC0;
 	memcpy(&meta->volume_id, &mdi->mdio_volume_id, 16);
-	meta->strip_sectors = vol->v_strip_size / vol->v_sectorsize;
-	if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID0) {
+	meta->state = NVIDIA_S_IDLE;
+	if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1)
+		meta->array_width = 1;
+	else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1E)
+		meta->array_width = vol->v_disks_count / 2;
+	else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID5)
+		meta->array_width = vol->v_disks_count - 1;
+	else
+		meta->array_width = vol->v_disks_count;
+	meta->total_disks = vol->v_disks_count;
+	meta->orig_array_width = meta->array_width;
+	if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID0)
 		meta->type = NVIDIA_T_RAID0;
-		meta->raid0_disks = vol->v_disks_count;
-		meta->raid1_disks = 0xff;
-	} else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1) {
+	else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1)
 		meta->type = NVIDIA_T_RAID1;
-		meta->raid0_disks = 0xff;
-		meta->raid1_disks = vol->v_disks_count;
-	} else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1E) {
+	else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1E)
 		meta->type = NVIDIA_T_RAID10;
-		meta->raid0_disks = vol->v_disks_count / 2;
-		meta->raid1_disks = 2;
-	} else if (vol->v_raid_level == G_RAID_VOLUME_RL_CONCAT ||
-	    vol->v_raid_level == G_RAID_VOLUME_RL_SINGLE) {
+	else if (vol->v_raid_level == G_RAID_VOLUME_RL_CONCAT ||
+	    vol->v_raid_level == G_RAID_VOLUME_RL_SINGLE)
 		meta->type = NVIDIA_T_CONCAT;
-		meta->raid0_disks = vol->v_disks_count;
-		meta->raid1_disks = 0xff;
-	} else {
-		meta->type = NVIDIA_T_RAID5;
-		meta->raid0_disks = vol->v_disks_count;
-		meta->raid1_disks = 0xff;
-	}
-	meta->generation = mdi->mdio_generation;
-	meta->raid_status = vol->v_dirty ? NVIDIA_S_ONLINE : NVIDIA_S_AVAILABLE;
+//	else if (vol->v_raid_level_qualifier == 0)
+//		meta->type = NVIDIA_T_RAID5;
+	else
+		meta->type = NVIDIA_T_RAID5_SYM;
+	meta->strip_sectors = vol->v_strip_size / vol->v_sectorsize;
+	meta->strip_bytes = vol->v_strip_size;
+	meta->strip_shift = ffs(meta->strip_sectors) - 1;
+	meta->strip_mask = meta->strip_sectors - 1;
+	meta->stripe_sectors = meta->strip_sectors * meta->orig_array_width;
+	meta->stripe_bytes = meta->stripe_sectors * vol->v_sectorsize;
+	meta->rebuild_lba = 0;
+	meta->orig_type = meta->type;
+	meta->orig_total_sectors = meta->total_sectors;
+	meta->status = 0;
+
+//	meta->generation = mdi->mdio_generation;
+/*	meta->raid_status = vol->v_dirty ? NVIDIA_S_ONLINE : NVIDIA_S_AVAILABLE;
 	for (i = 0; i < vol->v_disks_count; i++) {
 		sd = &vol->v_subdisks[i];
 		if (sd->sd_state == G_RAID_SUBDISK_S_STALE ||
@@ -1510,7 +1524,7 @@ g_raid_md_write_nvidia(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			meta->raid_status = NVIDIA_S_ONLINE;
 	}
 	meta->raid_location = mdi->mdio_location;
-	nvidia_meta_put_name(meta, vol->v_name);
+*/
 
 	/* We are done. Print meta data and store them to disks. */
 	if (mdi->mdio_meta != NULL)
@@ -1527,7 +1541,8 @@ g_raid_md_write_nvidia(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		}
 		pd->pd_meta = nvidia_meta_copy(meta);
 		if ((sd = TAILQ_FIRST(&disk->d_subdisks)) != NULL) {
-			if (sd->sd_state < G_RAID_SUBDISK_S_NEW)
+			pd->pd_meta->disk_number = sd->sd_pos;
+/*			if (sd->sd_state < G_RAID_SUBDISK_S_NEW)
 				pd->pd_meta->disk_status = NVIDIA_S_DROPPED;
 			else if (sd->sd_state < G_RAID_SUBDISK_S_STALE) {
 				pd->pd_meta->disk_status = NVIDIA_S_REBUILD;
@@ -1535,26 +1550,12 @@ g_raid_md_write_nvidia(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 				    sd->sd_rebuild_pos / vol->v_sectorsize;
 			} else
 				pd->pd_meta->disk_status = NVIDIA_S_CURRENT;
-			if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1) {
-				pd->pd_meta->disk_number = sd->sd_pos;
-				pd->pd_meta->raid0_ident = 0xff;
-				pd->pd_meta->raid1_ident = 0;
-			} else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1E) {
-				pd->pd_meta->disk_number = sd->sd_pos / meta->raid1_disks;
-				pd->pd_meta->raid0_ident = sd->sd_pos % meta->raid1_disks;
-				pd->pd_meta->raid1_ident = sd->sd_pos / meta->raid1_disks;
-			} else {
-				pd->pd_meta->disk_number = sd->sd_pos;
-				pd->pd_meta->raid0_ident = 0;
-				pd->pd_meta->raid1_ident = 0xff;
-			}
-		}
+*/		}
 		G_RAID_DEBUG(1, "Writing NVidia metadata to %s",
 		    g_raid_get_diskname(disk));
 		g_raid_md_nvidia_print(pd->pd_meta);
 		nvidia_meta_write(disk->d_consumer, pd->pd_meta);
 	}
-#endif
 	return (0);
 }
 
