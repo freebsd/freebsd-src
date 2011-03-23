@@ -51,21 +51,23 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 	int err;
 
 	cq->size = entries;
+	cq->tq = taskqueue_create_fast("mlx4_en_que", M_NOWAIT,
+	    taskqueue_thread_enqueue, &cq->tq);
 	if (mode == RX) {
 		cq->buf_size = cq->size * sizeof(struct mlx4_cqe);
 		cq->vector   = (ring + priv->port) %
 				mdev->dev->caps.num_comp_vectors;
 		TASK_INIT(&cq->cq_task, 0, mlx4_en_rx_que, cq);
+		taskqueue_start_threads(&cq->tq, 1, PI_NET, "%s rx cq",
+		    if_name(priv->dev));
 	} else {
 		cq->buf_size = sizeof(struct mlx4_cqe);
 		cq->vector   = MLX4_LEAST_ATTACHED_VECTOR;
 		TASK_INIT(&cq->cq_task, 0, mlx4_en_tx_que, cq);
+		taskqueue_start_threads(&cq->tq, 1, PI_NET, "%s tx cq",
+		    if_name(priv->dev));
 	}
 
-	cq->tq = taskqueue_create_fast("mlx4_en_que", M_NOWAIT,
-	    taskqueue_thread_enqueue, &cq->tq);
-	taskqueue_start_threads(&cq->tq, 1, PI_NET, "%s cq",
-	    if_name(priv->dev));
 	cq->ring = ring;
 	cq->is_tx = mode;
 	mtx_init(&cq->lock.m, "mlx4 cq", NULL, MTX_DEF);
