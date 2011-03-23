@@ -1568,7 +1568,7 @@ bxe_probe_pci_caps(struct bxe_softc *sc)
 	DBENTER(BXE_EXTREME_LOAD);
 
 	/* Check if PCI Power Management capability is enabled. */
-	if (pci_find_extcap(dev, PCIY_PMG, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_PMG, &reg) == 0) {
 		if (reg != 0) {
 			DBPRINT(sc, BXE_EXTREME_LOAD,
 				"%s(): Found PM capability at 0x%04X\n",
@@ -1578,7 +1578,7 @@ bxe_probe_pci_caps(struct bxe_softc *sc)
 	}
 
 	/* Check if PCIe capability is enabled. */
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		if (reg != 0) {
 			link_status = pci_read_config(dev, reg + 0x12, 2);
 
@@ -1612,7 +1612,7 @@ bxe_probe_pci_caps(struct bxe_softc *sc)
 
 
 	/* Check if MSI capability is enabled. */
-	if (pci_find_extcap(dev, PCIY_MSI, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_MSI, &reg) == 0) {
 		if (reg != 0) {
 			DBPRINT(sc, BXE_EXTREME_LOAD,
 				"%s(): Found MSI capability at 0x%04X\n",
@@ -1622,7 +1622,7 @@ bxe_probe_pci_caps(struct bxe_softc *sc)
 	}
 
 	/* Check if MSI-X capability is enabled. */
-	if (pci_find_extcap(dev, PCIY_MSIX, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_MSIX, &reg) == 0) {
 		if (reg != 0) {
 			DBPRINT(sc, BXE_EXTREME_LOAD,
 				"%s(): Found MSI-X capability at 0x%04X\n",
