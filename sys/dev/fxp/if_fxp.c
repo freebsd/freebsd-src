@@ -87,7 +87,7 @@ MODULE_DEPEND(fxp, miibus, 1, 1, 1);
 #include "miibus_if.h"
 
 /*
- * NOTE!  On the Alpha, we have an alignment constraint.  The
+ * NOTE!  On !x86 we typically have an alignment constraint.  The
  * card DMAs the packet immediately following the RFA.  However,
  * the first thing in the packet is a 14-byte Ethernet header.
  * This means that the packet is misaligned.  To compensate,
@@ -675,7 +675,7 @@ fxp_attach(device_t dev)
 	}
 
 	error = bus_dmamem_alloc(sc->fxp_stag, (void **)&sc->fxp_stats,
-	    BUS_DMA_NOWAIT | BUS_DMA_ZERO, &sc->fxp_smap);
+	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT | BUS_DMA_ZERO, &sc->fxp_smap);
 	if (error) {
 		device_printf(dev, "could not allocate stats DMA memory\n");
 		goto fail;
@@ -697,7 +697,7 @@ fxp_attach(device_t dev)
 	}
 
 	error = bus_dmamem_alloc(sc->cbl_tag, (void **)&sc->fxp_desc.cbl_list,
-	    BUS_DMA_NOWAIT | BUS_DMA_ZERO, &sc->cbl_map);
+	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT | BUS_DMA_ZERO, &sc->cbl_map);
 	if (error) {
 		device_printf(dev, "could not allocate TxCB DMA memory\n");
 		goto fail;
@@ -722,7 +722,7 @@ fxp_attach(device_t dev)
 	}
 
 	error = bus_dmamem_alloc(sc->mcs_tag, (void **)&sc->mcsp,
-	    BUS_DMA_NOWAIT | BUS_DMA_ZERO, &sc->mcs_map);
+	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT | BUS_DMA_ZERO, &sc->mcs_map);
 	if (error) {
 		device_printf(dev,
 		    "could not allocate multicast setup DMA memory\n");
