@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "geom/raid/g_raid.h"
 #include "g_raid_md_if.h"
 
-static MALLOC_DEFINE(M_MD_NVIDIA, "md_nvidia_data", "GEOM_RAID NVidia metadata");
+static MALLOC_DEFINE(M_MD_NVIDIA, "md_nvidia_data", "GEOM_RAID NVIDIA metadata");
 
 struct nvidia_raid_conf {
 	uint8_t		nvidia_id[8];
@@ -139,13 +139,13 @@ static kobj_method_t g_raid_md_nvidia_methods[] = {
 };
 
 static struct g_raid_md_class g_raid_md_nvidia_class = {
-	"NVidia",
+	"NVIDIA",
 	g_raid_md_nvidia_methods,
 	sizeof(struct g_raid_md_nvidia_object),
 	.mdc_priority = 100
 };
 
-static int NVidiaNodeID = 1;
+static int NVIDIANodeID = 1;
 
 static void
 g_raid_md_nvidia_print(struct nvidia_raid_conf *meta)
@@ -154,7 +154,7 @@ g_raid_md_nvidia_print(struct nvidia_raid_conf *meta)
 	if (g_raid_debug < 1)
 		return;
 
-	printf("********* ATA NVidia RAID Metadata *********\n");
+	printf("********* ATA NVIDIA RAID Metadata *********\n");
 	printf("nvidia_id           <%.8s>\n", meta->nvidia_id);
 	printf("config_size         %u\n", meta->config_size);
 	printf("checksum            0x%08x\n", meta->checksum);
@@ -258,22 +258,22 @@ nvidia_meta_read(struct g_consumer *cp)
 	memcpy(meta, buf, min(sizeof(*meta), pp->sectorsize));
 	g_free(buf);
 
-	/* Check if this is an NVidia RAID struct */
+	/* Check if this is an NVIDIA RAID struct */
 	if (strncmp(meta->nvidia_id, NVIDIA_MAGIC, strlen(NVIDIA_MAGIC))) {
-		G_RAID_DEBUG(1, "NVidia signature check failed on %s", pp->name);
+		G_RAID_DEBUG(1, "NVIDIA signature check failed on %s", pp->name);
 		free(meta, M_MD_NVIDIA);
 		return (NULL);
 	}
 	if (meta->config_size > 128 ||
 	    meta->config_size < 10) {
-		G_RAID_DEBUG(1, "NVidia metadata size looks wrong: %d",
+		G_RAID_DEBUG(1, "NVIDIA metadata size looks wrong: %d",
 		    meta->config_size);
 		free(meta, M_MD_NVIDIA);
 		return (NULL);
 	}
 	/* Check metadata major version. */
 /*	if (meta->version_major != 2) {
-		G_RAID_DEBUG(1, "NVidia version check failed on %s (%d.%d)",
+		G_RAID_DEBUG(1, "NVIDIA version check failed on %s (%d.%d)",
 		    pp->name, meta->version_major, meta->version_minor);
 		free(meta, M_MD_NVIDIA);
 		return (NULL);
@@ -284,7 +284,7 @@ nvidia_meta_read(struct g_consumer *cp)
 	    i = 0; i < meta->config_size; i++)
 		checksum += *ptr++;
 	if (checksum != 0) {
-		G_RAID_DEBUG(1, "NVidia checksum check failed on %s", pp->name);
+		G_RAID_DEBUG(1, "NVIDIA checksum check failed on %s", pp->name);
 		free(meta, M_MD_NVIDIA);
 		return (NULL);
 	}
@@ -294,7 +294,7 @@ nvidia_meta_read(struct g_consumer *cp)
 	    meta->type != NVIDIA_T_RAID3 && meta->type != NVIDIA_T_RAID5 &&
 	    meta->type != NVIDIA_T_RAID5_SYM &&
 	    meta->type != NVIDIA_T_RAID01 && meta->type != NVIDIA_T_CONCAT) {
-		G_RAID_DEBUG(1, "NVidia unknown RAID level on %s (0x%02x)",
+		G_RAID_DEBUG(1, "NVIDIA unknown RAID level on %s (0x%02x)",
 		    pp->name, meta->type);
 		free(meta, M_MD_NVIDIA);
 		return (NULL);
@@ -804,8 +804,8 @@ g_raid_md_create_nvidia(struct g_raid_md_object *md, struct g_class *mp,
 
 	mdi = (struct g_raid_md_nvidia_object *)md;
 	arc4rand(&mdi->mdio_volume_id, 16, 0);
-	snprintf(name, sizeof(name), "NVidia-%d",
-	    atomic_fetchadd_int(&NVidiaNodeID, 1));
+	snprintf(name, sizeof(name), "NVIDIA-%d",
+	    atomic_fetchadd_int(&NVIDIANodeID, 1));
 	sc = g_raid_create_node(mp, name, md);
 	if (sc == NULL)
 		return (G_RAID_MD_TASTE_FAIL);
@@ -830,7 +830,7 @@ g_raid_md_taste_nvidia(struct g_raid_md_object *md, struct g_class *mp,
 	char name[32];
 	uint16_t vendor;
 
-	G_RAID_DEBUG(1, "Tasting NVidia on %s", cp->provider->name);
+	G_RAID_DEBUG(1, "Tasting NVIDIA on %s", cp->provider->name);
 	mdi = (struct g_raid_md_nvidia_object *)md;
 	pp = cp->provider;
 
@@ -852,12 +852,12 @@ g_raid_md_taste_nvidia(struct g_raid_md_object *md, struct g_class *mp,
 		if (g_raid_aggressive_spare) {
 			if (vendor == 0x10de) {
 				G_RAID_DEBUG(1,
-				    "No NVidia metadata, forcing spare.");
+				    "No NVIDIA metadata, forcing spare.");
 				spare = 2;
 				goto search;
 			} else {
 				G_RAID_DEBUG(1,
-				    "NVidia vendor mismatch 0x%04x != 0x10de",
+				    "NVIDIA vendor mismatch 0x%04x != 0x10de",
 				    vendor);
 			}
 		}
@@ -867,13 +867,13 @@ g_raid_md_taste_nvidia(struct g_raid_md_object *md, struct g_class *mp,
 	/* Check this disk position in obtained metadata. */
 	disk_pos = meta->disk_number;
 	if (disk_pos == -1) {
-		G_RAID_DEBUG(1, "NVidia disk position not found");
+		G_RAID_DEBUG(1, "NVIDIA disk position not found");
 		goto fail1;
 	}
 
 	/* Metadata valid. Print it. */
 	g_raid_md_nvidia_print(meta);
-	G_RAID_DEBUG(1, "NVidia disk position %d", disk_pos);
+	G_RAID_DEBUG(1, "NVIDIA disk position %d", disk_pos);
 	spare = 0;//(meta->type == NVIDIA_T_SPARE) ? 1 : 0;
 
 search:
@@ -911,15 +911,15 @@ search:
 	} else { /* Not found matching node -- create one. */
 		result = G_RAID_MD_TASTE_NEW;
 		memcpy(&mdi->mdio_volume_id, &meta->volume_id, 16);
-		snprintf(name, sizeof(name), "NVidia-%d",
-		    atomic_fetchadd_int(&NVidiaNodeID, 1));
+		snprintf(name, sizeof(name), "NVIDIA-%d",
+		    atomic_fetchadd_int(&NVIDIANodeID, 1));
 		sc = g_raid_create_node(mp, name, md);
 		md->mdo_softc = sc;
 		geom = sc->sc_geom;
 		callout_init(&mdi->mdio_start_co, 1);
 		callout_reset(&mdi->mdio_start_co, g_raid_start_timeout * hz,
 		    g_raid_nvidia_go, sc);
-		mdi->mdio_rootmount = root_mount_hold("GRAID-NVidia");
+		mdi->mdio_rootmount = root_mount_hold("GRAID-NVIDIA");
 		G_RAID_DEBUG1(1, sc, "root_mount_hold %p", mdi->mdio_rootmount);
 	}
 
@@ -1514,7 +1514,7 @@ g_raid_md_write_nvidia(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			}
 		} else
 			pd->pd_meta->disk_number = meta->total_disks + spares++;
-		G_RAID_DEBUG(1, "Writing NVidia metadata to %s",
+		G_RAID_DEBUG(1, "Writing NVIDIA metadata to %s",
 		    g_raid_get_diskname(disk));
 		g_raid_md_nvidia_print(pd->pd_meta);
 		nvidia_meta_write(disk->d_consumer, pd->pd_meta);
