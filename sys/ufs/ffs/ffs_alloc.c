@@ -219,7 +219,7 @@ nospace:
 #endif
 	if (fs->fs_pendingblocks > 0 && reclaimed == 0) {
 		reclaimed = 1;
-		softdep_request_cleanup(fs, ITOV(ip));
+		softdep_request_cleanup(fs, ITOV(ip), FLUSH_BLOCKS_WAIT);
 		goto retry;
 	}
 	UFS_UNLOCK(ump);
@@ -420,7 +420,7 @@ nospace:
 	 */
 	if (fs->fs_pendingblocks > 0 && reclaimed == 0) {
 		reclaimed = 1;
-		softdep_request_cleanup(fs, vp);
+		softdep_request_cleanup(fs, vp, FLUSH_BLOCKS_WAIT);
 		UFS_UNLOCK(ump);
 		if (bp) {
 			brelse(bp);
@@ -936,7 +936,7 @@ ffs_valloc(pvp, mode, cred, vpp)
 	struct ufsmount *ump;
 	ino_t ino, ipref;
 	u_int cg;
-	int error, error1;
+	int error, error1, reclaimed;
 	static struct timeval lastfail;
 	static int curfail;
 
@@ -946,6 +946,8 @@ ffs_valloc(pvp, mode, cred, vpp)
 	ump = pip->i_ump;
 
 	UFS_LOCK(ump);
+	reclaimed = 0;
+retry:
 	if (fs->fs_cstotal.cs_nifree == 0)
 		goto noinodes;
 
@@ -1019,6 +1021,11 @@ dup_alloc:
 		(*vpp)->v_op = &ffs_vnodeops1;
 	return (0);
 noinodes:
+	if (fs->fs_pendinginodes > 0 && reclaimed == 0) {
+		reclaimed = 1;
+		softdep_request_cleanup(fs, pvp, FLUSH_INODES_WAIT);
+		goto retry;
+	}
 	UFS_UNLOCK(ump);
 	if (ppsratecheck(&lastfail, &curfail, 1)) {
 		ffs_fserr(fs, pip->i_number, "out of inodes");
