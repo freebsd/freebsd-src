@@ -602,11 +602,8 @@ retransmit:
 			printf(". ");
 			goto retransmit; /* 1 s, no ack */
 		}
-		/*
-		 * this is not always necessary, but does no harm.
-		 */
 		netdump_network_poll();
-		DELAY(500); /* 0.5 ms */
+		DELAY(500);
 	}
 	nd_seqno += i;
 	return 0;
