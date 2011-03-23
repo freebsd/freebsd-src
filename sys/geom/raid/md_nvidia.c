@@ -265,26 +265,28 @@ nvidia_meta_read(struct g_consumer *cp)
 		return (NULL);
 	}
 	if (meta->config_size > 128 ||
-	    meta->config_size < 10) {
+	    meta->config_size < 30) {
 		G_RAID_DEBUG(1, "NVIDIA metadata size looks wrong: %d",
 		    meta->config_size);
 		free(meta, M_MD_NVIDIA);
 		return (NULL);
 	}
-	/* Check metadata major version. */
-/*	if (meta->version_major != 2) {
-		G_RAID_DEBUG(1, "NVIDIA version check failed on %s (%d.%d)",
-		    pp->name, meta->version_major, meta->version_minor);
-		free(meta, M_MD_NVIDIA);
-		return (NULL);
-	}
-*/
+
 	/* Check metadata checksum. */
 	for (checksum = 0, ptr = (uint32_t *)meta,
 	    i = 0; i < meta->config_size; i++)
 		checksum += *ptr++;
 	if (checksum != 0) {
 		G_RAID_DEBUG(1, "NVIDIA checksum check failed on %s", pp->name);
+		free(meta, M_MD_NVIDIA);
+		return (NULL);
+	}
+
+	/* Check volume state. */
+	if (meta->state != NVIDIA_S_IDLE && meta->state != NVIDIA_S_INIT &&
+	    meta->state != NVIDIA_S_REBUILD && meta->state != NVIDIA_S_SYNC) {
+		G_RAID_DEBUG(1, "NVIDIA unknown state on %s (0x%02x)",
+		    pp->name, meta->state);
 		free(meta, M_MD_NVIDIA);
 		return (NULL);
 	}
@@ -541,14 +543,14 @@ nofit:
 			/* Rebuilding disk. */
 			g_raid_change_subdisk_state(sd,
 			    G_RAID_SUBDISK_S_REBUILD);
-			sd->sd_rebuild_pos = pd->pd_meta->rebuild_lba *
-			    pd->pd_meta->sector_size;
+			sd->sd_rebuild_pos = (off_t)pd->pd_meta->rebuild_lba /
+			    meta->array_width * pd->pd_meta->sector_size;
 		} else if (meta->state == NVIDIA_S_SYNC) {
 			/* Resyncing/dirty disk. */
 			g_raid_change_subdisk_state(sd,
 			    G_RAID_SUBDISK_S_RESYNC);
-			sd->sd_rebuild_pos = pd->pd_meta->rebuild_lba *
-			    pd->pd_meta->sector_size;
+			sd->sd_rebuild_pos = (off_t)pd->pd_meta->rebuild_lba /
+			    meta->array_width * pd->pd_meta->sector_size;
 		} else {
 			/* Up to date disk. */
 			g_raid_change_subdisk_state(sd,
@@ -1510,7 +1512,8 @@ g_raid_md_write_nvidia(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			if (sd->sd_state != G_RAID_SUBDISK_S_ACTIVE) {
 				pd->pd_meta->disk_status = 0x100;
 				pd->pd_meta->rebuild_lba =
-				    sd->sd_rebuild_pos / vol->v_sectorsize;
+				    sd->sd_rebuild_pos / vol->v_sectorsize *
+				    meta->array_width;
 			}
 		} else
 			pd->pd_meta->disk_number = meta->total_disks + spares++;
