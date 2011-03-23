@@ -858,14 +858,6 @@ nd_handle_arp(struct mbuf **mb)
 		return;
 	}
 
-#ifdef INVARIANTS
-	if (!bcmp(ar_sha(ah), ifp->if_broadcastaddr, ifp->if_addrlen)) {
-		NETDDEBUG("nd_handle_arp: ignoring ARP as link address is "
-		    "broadcast.\n");
-		return;
-	}
-#endif
-
 	if (isaddr.s_addr == nd_client.s_addr) {
 		printf("nd_handle_arp: %*D is using my IP address %s!\n",
 				ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
