@@ -64,7 +64,7 @@ TUNABLE_INT("kern.geom.raid.read_err_thresh", &g_raid_read_err_thresh);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, read_err_thresh, CTLFLAG_RW,
     &g_raid_read_err_thresh, 0,
     "Number of read errors equated to disk failure");
-u_int g_raid_start_timeout = 15;
+u_int g_raid_start_timeout = 30;
 TUNABLE_INT("kern.geom.raid.start_timeout", &g_raid_start_timeout);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, start_timeout, CTLFLAG_RW,
     &g_raid_start_timeout, 0,
