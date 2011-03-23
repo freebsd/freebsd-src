@@ -320,7 +320,11 @@ ata_ahci_ch_attach(device_t dev)
 static int
 ata_ahci_ch_detach(device_t dev)
 {
-
+    struct ata_channel *ch = device_get_softc(dev);
+ 
+    if (ch->dma.work_tag && ch->dma.work_map)
+	bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
     ata_ahci_ch_suspend(dev);
     ata_dmafini(dev);
     return (0);
@@ -495,6 +499,9 @@ ata_ahci_begin_transaction(struct ata_request *request)
 		 ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset) &
 		 ~ATA_AHCI_P_CMD_ATAPI);
 
+    bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
+	BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
     /* issue command to controller */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CI + offset, 1);
     
@@ -536,6 +543,9 @@ ata_ahci_end_transaction(struct ata_request *request)
 
     /* kill the timeout */
     callout_stop(&request->callout);
+
+    bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
+	BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
     /* get status */
     tf_data = ATA_INL(ctlr->r_res2, ATA_AHCI_P_TFD + offset);
@@ -590,6 +600,9 @@ ata_ahci_issue_cmd(device_t dev, u_int16_t flags, int timeout)
     clp->bytecount = 0;
     clp->cmd_table_phys = htole64(ch->dma.work_bus + ATA_AHCI_CT_OFFSET);
 
+    bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
+	BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
     /* issue command to controller */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CI + offset, 1);
 
@@ -599,6 +612,9 @@ ata_ahci_issue_cmd(device_t dev, u_int16_t flags, int timeout)
         if (!((status = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CI + offset)) & 1))
             break;
     }
+
+    bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
+	BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
     /* clear interrupts */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IS + offset,
