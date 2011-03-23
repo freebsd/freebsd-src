@@ -458,7 +458,7 @@ cxgb_controller_attach(device_t dev)
 	ai = cxgb_get_adapter_info(dev);
 
 	/* find the PCIe link width and set max read request to 4KB*/
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		uint16_t lnk;
 
 		lnk = pci_read_config(dev, reg + PCIR_EXPRESS_LINK_STA, 2);

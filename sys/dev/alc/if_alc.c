@@ -783,7 +783,7 @@ alc_attach(device_t dev)
 	sc->alc_dma_rd_burst = 0;
 	sc->alc_dma_wr_burst = 0;
 	sc->alc_rcb = DMA_CFG_RCB_64;
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &base) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &base) == 0) {
 		sc->alc_flags |= ALC_FLAG_PCIE;
 		sc->alc_expcap = base;
 		burst = CSR_READ_2(sc, base + PCIR_EXPRESS_DEVICE_CTL);
@@ -963,7 +963,7 @@ alc_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_TSO4;
 	ifp->if_hwassist = ALC_CSUM_FEATURES | CSUM_TSO;
-	if (pci_find_extcap(dev, PCIY_PMG, &base) == 0) {
+	if (pci_find_cap(dev, PCIY_PMG, &base) == 0) {
 		ifp->if_capabilities |= IFCAP_WOL_MAGIC | IFCAP_WOL_MCAST;
 		sc->alc_flags |= ALC_FLAG_PM;
 		sc->alc_pmcap = base;

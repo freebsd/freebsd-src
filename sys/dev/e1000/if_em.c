@@ -4756,7 +4756,7 @@ em_enable_wakeup(device_t dev)
 	u32		pmc, ctrl, ctrl_ext, rctl;
 	u16     	status;
 
-	if ((pci_find_extcap(dev, PCIY_PMG, &pmc) != 0))
+	if ((pci_find_cap(dev, PCIY_PMG, &pmc) != 0))
 		return;
 
 	/* Advertise the wakeup capability */
@@ -4924,7 +4924,7 @@ em_disable_aspm(struct adapter *adapter)
 		default:
 			return;
 	}
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &base) != 0)
+	if (pci_find_cap(dev, PCIY_EXPRESS, &base) != 0)
 		return;
 	reg = base + PCIR_EXPRESS_LINK_CAP;
 	link_cap = pci_read_config(dev, reg, 2);
