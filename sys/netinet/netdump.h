@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2010 Sandvine Incorporated
+ * Copyright (c) 2005-2011 Sandvine Incorporated
  * Copyright (c) 2000 Darrell Anderson <anderson@cs.duke.edu>
  * All rights reserved.
  *
