@@ -418,6 +418,12 @@ _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
 _mse=		mse
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_mlx4=		mlx4
+_mlx4ib=	mlx4ib
+_mlxen=		mlxen
+_mthca=		mthca
+.endif
 .if ${MK_NCP} != "no"
 _ncp=		ncp
 .endif
@@ -566,6 +572,12 @@ _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
 _mly=		mly
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_mlx4=		mlx4
+_mlx4ib=	mlx4ib
+_mlxen=		mlxen
+_mthca=		mthca
+.endif
 _ndis=		ndis
 _nfe=		nfe
 _nve=		nve
@@ -673,13 +685,6 @@ _zfs=		zfs
 .endif
 .endif
 
-.if ${MK_OFED} != "no" || defined(ALL_MODULES)
-_mthca=		mthca
-_mlx4=		mlx4
-_mlx4ib=	mlx4ib
-_mlxen=		mlxen
-.endif
-
 .if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
 SUBDIR=${MODULES_OVERRIDE}
 .endif
@@ -697,6 +702,5 @@ afterinstall:
 		kldxref ${DESTDIR}${KMODDIR}; \
 	fi
 .endif
-#endif
 
 .include <bsd.subdir.mk>
