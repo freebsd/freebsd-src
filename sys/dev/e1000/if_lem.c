@@ -95,6 +95,14 @@
 	if ((locking) != 0)						\
 		EM_CORE_UNLOCK(adapter);				\
 } while (0)
+#define	EM_RX_LOCK_COND(adapter, locking) do {				\
+	if ((locking) != 0)						\
+		EM_RX_LOCK(adapter);					\
+} while (0)
+#define	EM_RX_UNLOCK_COND(adapter, locking) do {			\
+	if ((locking) != 0)						\
+		EM_RX_UNLOCK(adapter);					\
+} while (0)
 #define	EM_TX_LOCK_COND(adapter, locking) do {				\
 	if ((locking) != 0)						\
 		EM_TX_LOCK(adapter);					\
@@ -218,7 +226,8 @@ static void	lem_txeof(struct adapter *);
 static void	lem_tx_purge(struct adapter *);
 static int	lem_allocate_receive_structures(struct adapter *);
 static int	lem_allocate_transmit_structures(struct adapter *);
-static bool	lem_rxeof(struct adapter *, int, int *);
+static bool	_lem_rxeof_generic(struct adapter *, int, int *, int);
+#define	lem_rxeof(a, c, d)	_lem_rxeof_generic(a, c, d, 1)
 #ifndef __NO_STRICT_ALIGNMENT
 static int	lem_fixup_rx(struct adapter *);
 #endif
@@ -1296,7 +1305,7 @@ _lem_poll_generic(struct ifnet *ifp, enum poll_cmd cmd, int count, int locking)
 	}
 	EM_CORE_UNLOCK_COND(adapter, locking);
 
-	lem_rxeof(adapter, count, &rx_done);
+	_lem_rxeof_generic(adapter, count, &rx_done, locking);
 
 	EM_TX_LOCK_COND(adapter, locking);
 	lem_txeof(adapter);
@@ -3475,7 +3484,7 @@ lem_free_receive_structures(struct adapter *adapter)
  *  For polling we also now return the number of cleaned packets
  *********************************************************************/
 static bool
-lem_rxeof(struct adapter *adapter, int count, int *done)
+_lem_rxeof_generic(struct adapter *adapter, int count, int *done, int locking)
 {
 	struct ifnet	*ifp = adapter->ifp;;
 	struct mbuf	*mp;
@@ -3484,7 +3493,7 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 	int		i, rx_sent = 0;
 	struct e1000_rx_desc   *current_desc;
 
-	EM_RX_LOCK(adapter);
+	EM_RX_LOCK_COND(adapter, locking);
 	i = adapter->next_rx_desc_to_check;
 	current_desc = &adapter->rx_desc_base[i];
 	bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
@@ -3493,7 +3502,7 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 	if (!((current_desc->status) & E1000_RXD_STAT_DD)) {
 		if (done != NULL)
 			*done = rx_sent;
-		EM_RX_UNLOCK(adapter);
+		EM_RX_UNLOCK_COND(adapter, locking);
 		return (FALSE);
 	}
 
@@ -3634,9 +3643,9 @@ discard:
 		/* Call into the stack */
 		if (m != NULL) {
 			adapter->next_rx_desc_to_check = i;
-			EM_RX_UNLOCK(adapter);
+			EM_RX_UNLOCK_COND(adapter, locking);
 			(*ifp->if_input)(ifp, m);
-			EM_RX_LOCK(adapter);
+			EM_RX_LOCK_COND(adapter, locking);
 			rx_sent++;
 			i = adapter->next_rx_desc_to_check;
 		}
@@ -3650,7 +3659,7 @@ discard:
 	E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), i);
 	if (done != NULL)
 		*done = rx_sent;
-	EM_RX_UNLOCK(adapter);
+	EM_RX_UNLOCK_COND(adapter, locking);
 	return ((status & E1000_RXD_STAT_DD) ? TRUE : FALSE);
 }
 
