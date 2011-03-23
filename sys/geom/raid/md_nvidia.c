@@ -78,7 +78,8 @@ struct nvidia_raid_conf {
 #define NVIDIA_T_RAID3		0x0083
 #define NVIDIA_T_RAID5		0x0085	/* RLQ = 00/02? */
 #define NVIDIA_T_RAID5_SYM	0x0095	/* RLQ = 03 */
-#define NVIDIA_T_RAID10		0x8180
+#define NVIDIA_T_RAID10		0x008a
+#define NVIDIA_T_RAID01		0x8180
 #define NVIDIA_T_CONCAT		0x00ff
 
 	uint16_t	dummy_3;
@@ -199,6 +200,19 @@ nvidia_meta_copy(struct nvidia_raid_conf *meta)
 	return (nmeta);
 }
 
+static int
+nvidia_meta_translate_disk(struct nvidia_raid_conf *meta, int md_disk_pos)
+{
+	int disk_pos;
+
+	if (md_disk_pos >= 0 && meta->type == NVIDIA_T_RAID01) {
+		disk_pos = (md_disk_pos / meta->array_width) +
+		    (md_disk_pos % meta->array_width) * meta->array_width;
+	} else
+		disk_pos = md_disk_pos;
+	return (disk_pos);
+}
+
 static void
 nvidia_meta_get_name(struct nvidia_raid_conf *meta, char *buf)
 {
@@ -279,7 +293,7 @@ nvidia_meta_read(struct g_consumer *cp)
 	if (meta->type != NVIDIA_T_RAID0 && meta->type != NVIDIA_T_RAID1 &&
 	    meta->type != NVIDIA_T_RAID3 && meta->type != NVIDIA_T_RAID5 &&
 	    meta->type != NVIDIA_T_RAID5_SYM &&
-	    meta->type != NVIDIA_T_RAID10 && meta->type != NVIDIA_T_CONCAT) {
+	    meta->type != NVIDIA_T_RAID01 && meta->type != NVIDIA_T_CONCAT) {
 		G_RAID_DEBUG(1, "NVidia unknown RAID level on %s (0x%02x)",
 		    pp->name, meta->type);
 		free(meta, M_MD_NVIDIA);
@@ -426,6 +440,8 @@ g_raid_md_nvidia_start_disk(struct g_raid_disk *disk)
 			disk_pos = -3;
 	} else
 		disk_pos = -3;
+	/* For RAID0+1 we need to translate order. */
+	disk_pos = nvidia_meta_translate_disk(meta, disk_pos);
 	if (disk_pos < 0) {
 		G_RAID_DEBUG1(1, sc, "Unknown, probably new or stale disk");
 		/* If we are in the start process, that's all for now. */
@@ -654,7 +670,7 @@ g_raid_md_nvidia_start(struct g_raid_softc *sc)
 	} else if (meta->type == NVIDIA_T_RAID1) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID1;
 		size = vol->v_mediasize;
-	} else if (meta->type == NVIDIA_T_RAID10) {
+	} else if (meta->type == NVIDIA_T_RAID01) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID1E;
 		size = vol->v_mediasize / (mdi->mdio_total_disks / 2);
 	} else if (meta->type == NVIDIA_T_CONCAT) {
@@ -1441,7 +1457,7 @@ g_raid_md_write_nvidia(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1)
 		meta->type = NVIDIA_T_RAID1;
 	else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1E)
-		meta->type = NVIDIA_T_RAID10;
+		meta->type = NVIDIA_T_RAID01;
 	else if (vol->v_raid_level == G_RAID_VOLUME_RL_CONCAT ||
 	    vol->v_raid_level == G_RAID_VOLUME_RL_SINGLE)
 		meta->type = NVIDIA_T_CONCAT;
@@ -1488,7 +1504,9 @@ g_raid_md_write_nvidia(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		}
 		pd->pd_meta = nvidia_meta_copy(meta);
 		if ((sd = TAILQ_FIRST(&disk->d_subdisks)) != NULL) {
-			pd->pd_meta->disk_number = sd->sd_pos;
+			/* For RAID0+1 we need to translate order. */
+			pd->pd_meta->disk_number =
+			    nvidia_meta_translate_disk(meta, sd->sd_pos);
 			if (sd->sd_state != G_RAID_SUBDISK_S_ACTIVE) {
 				pd->pd_meta->disk_status = 0x100;
 				pd->pd_meta->rebuild_lba =

@@ -623,7 +623,7 @@ g_raid_md_promise_start_disk(struct g_raid_disk *disk, int sdn,
 	if (sdn >= 0) {
 		/* Find disk position in metadata by it's serial. */
 		md_disk_pos = promise_meta_find_disk(meta, pd->pd_meta[sdn]->disk.id);
-		/* For RAID10 we need to translate order. */
+		/* For RAID0+1 we need to translate order. */
 		disk_pos = promise_meta_translate_disk(vol, md_disk_pos);
 	} else {
 		md_disk_pos = -1;
@@ -684,7 +684,7 @@ g_raid_md_promise_start_disk(struct g_raid_disk *disk, int sdn,
 		if (disk_pos >= 0) {
 			if (vol->v_raid_level != G_RAID_VOLUME_RL_CONCAT)
 				esize = size / 512;
-			/* For RAID10 we need to translate order. */
+			/* For RAID0+1 we need to translate order. */
 			md_disk_pos = promise_meta_translate_disk(vol, disk_pos);
 		} else {
 nofit:
@@ -1725,7 +1725,7 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		rebuild = 0;
 		for (i = 0; i < vol->v_disks_count; i++) {
 			sd = &vol->v_subdisks[i];
-			/* For RAID10 we need to translate order. */
+			/* For RAID0+1 we need to translate order. */
 			pos = promise_meta_translate_disk(vol, i);
 			meta->disks[pos].flags = PROMISE_F_VALID |
 			    PROMISE_F_ASSIGNED;
@@ -1795,7 +1795,7 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 			disk = sd->sd_disk;
 			if (disk == NULL)
 				continue;
-			/* For RAID10 we need to translate order. */
+			/* For RAID0+1 we need to translate order. */
 			pos = promise_meta_translate_disk(vol, i);
 			pd = (struct g_raid_md_promise_perdisk *)disk->d_md_data;
 			for (j = 0; j < pd->pd_subdisks; j++) {

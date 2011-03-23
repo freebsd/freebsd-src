@@ -59,7 +59,7 @@ struct sii_raid_conf {
 	uint8_t		type;
 #define SII_T_RAID0             0x00
 #define SII_T_RAID1             0x01
-#define SII_T_RAID10            0x02
+#define SII_T_RAID01            0x02
 #define SII_T_SPARE             0x03
 #define SII_T_CONCAT            0x04
 #define SII_T_RAID5             0x10
@@ -200,7 +200,7 @@ sii_meta_total_disks(struct sii_raid_conf *meta)
 		return (meta->raid0_disks);
 	case SII_T_RAID1:
 		return (meta->raid1_disks);
-	case SII_T_RAID10:
+	case SII_T_RAID01:
 		return (meta->raid0_disks * meta->raid1_disks);
 	case SII_T_SPARE:
 	case SII_T_JBOD:
@@ -225,7 +225,7 @@ sii_meta_disk_pos(struct sii_raid_conf *meta, struct sii_raid_conf *pdmeta)
 	case SII_T_RAID5:
 	case SII_T_CONCAT:
 		return (pdmeta->disk_number);
-	case SII_T_RAID10:
+	case SII_T_RAID01:
 		return (pdmeta->raid1_ident * pdmeta->raid1_disks +
 		    pdmeta->raid0_ident);
 	case SII_T_JBOD:
@@ -306,7 +306,7 @@ sii_meta_read(struct g_consumer *cp)
 
 	/* Check raid type. */
 	if (meta->type != SII_T_RAID0 && meta->type != SII_T_RAID1 &&
-	    meta->type != SII_T_RAID10 && meta->type != SII_T_SPARE &&
+	    meta->type != SII_T_RAID01 && meta->type != SII_T_SPARE &&
 	    meta->type != SII_T_RAID5 && meta->type != SII_T_CONCAT &&
 	    meta->type != SII_T_JBOD) {
 		G_RAID_DEBUG(1, "SiI unknown RAID level on %s (0x%02x)",
@@ -729,7 +729,7 @@ g_raid_md_sii_start(struct g_raid_softc *sc)
 	} else if (meta->type == SII_T_RAID1) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID1;
 		size = vol->v_mediasize;
-	} else if (meta->type == SII_T_RAID10) {
+	} else if (meta->type == SII_T_RAID01) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID1E;
 		size = vol->v_mediasize / (mdi->mdio_total_disks / 2);
 	} else if (meta->type == SII_T_CONCAT) {
@@ -1533,7 +1533,7 @@ g_raid_md_write_sii(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		meta->raid0_disks = 0xff;
 		meta->raid1_disks = vol->v_disks_count;
 	} else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1E) {
-		meta->type = SII_T_RAID10;
+		meta->type = SII_T_RAID01;
 		meta->raid0_disks = vol->v_disks_count / 2;
 		meta->raid1_disks = 2;
 	} else if (vol->v_raid_level == G_RAID_VOLUME_RL_CONCAT ||
