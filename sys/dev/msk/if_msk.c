@@ -1759,10 +1759,10 @@ mskc_attach(device_t dev)
 	}
 
 	/* Check bus type. */
-	if (pci_find_extcap(sc->msk_dev, PCIY_EXPRESS, &reg) == 0) {
+	if (pci_find_cap(sc->msk_dev, PCIY_EXPRESS, &reg) == 0) {
 		sc->msk_bustype = MSK_PEX_BUS;
 		sc->msk_expcap = reg;
-	} else if (pci_find_extcap(sc->msk_dev, PCIY_PCIX, &reg) == 0) {
+	} else if (pci_find_cap(sc->msk_dev, PCIY_PCIX, &reg) == 0) {
 		sc->msk_bustype = MSK_PCIX_BUS;
 		sc->msk_pcixcap = reg;
 	} else

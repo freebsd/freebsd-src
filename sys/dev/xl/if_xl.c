@@ -1407,7 +1407,7 @@ xl_attach(device_t dev)
 
 	/* Check availability of WOL. */
 	if ((sc->xl_caps & XL_CAPS_PWRMGMT) != 0 &&
-	    pci_find_extcap(dev, PCIY_PMG, &pmcap) == 0) {
+	    pci_find_cap(dev, PCIY_PMG, &pmcap) == 0) {
 		sc->xl_pmcap = pmcap;
 		sc->xl_flags |= XL_FLAG_WOL;
 		sinfo2 = 0;

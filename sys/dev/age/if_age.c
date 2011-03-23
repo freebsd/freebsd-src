@@ -346,7 +346,7 @@ age_get_macaddr(struct age_softc *sc)
 		CSR_WRITE_4(sc, AGE_SPI_CTRL, reg);
 	}
 
-	if (pci_find_extcap(sc->age_dev, PCIY_VPD, &vpdc) == 0) {
+	if (pci_find_cap(sc->age_dev, PCIY_VPD, &vpdc) == 0) {
 		/*
 		 * PCI VPD capability found, let TWSI reload EEPROM.
 		 * This will set ethernet address of controller.
@@ -563,7 +563,7 @@ age_attach(device_t dev)
 
 
 	/* Get DMA parameters from PCIe device control register. */
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &i) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &i) == 0) {
 		sc->age_flags |= AGE_FLAG_PCIE;
 		burst = pci_read_config(dev, i + 0x08, 2);
 		/* Max read request size. */
@@ -610,7 +610,7 @@ age_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_TSO4;
 	ifp->if_hwassist = AGE_CSUM_FEATURES | CSUM_TSO;
-	if (pci_find_extcap(dev, PCIY_PMG, &pmc) == 0) {
+	if (pci_find_cap(dev, PCIY_PMG, &pmc) == 0) {
 		sc->age_flags |= AGE_FLAG_PMCAP;
 		ifp->if_capabilities |= IFCAP_WOL_MAGIC | IFCAP_WOL_MCAST;
 	}
@@ -1329,7 +1329,7 @@ age_setwol(struct age_softc *sc)
 
 	AGE_LOCK_ASSERT(sc);
 
-	if (pci_find_extcap(sc->age_dev, PCIY_PMG, &pmc) != 0) {
+	if (pci_find_cap(sc->age_dev, PCIY_PMG, &pmc) != 0) {
 		CSR_WRITE_4(sc, AGE_WOL_CFG, 0);
 		/*
 		 * No PME capability, PHY power down.

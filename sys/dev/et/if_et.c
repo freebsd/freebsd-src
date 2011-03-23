@@ -275,7 +275,7 @@ et_attach(device_t dev)
 	}
 
 	msic = 0;
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &cap) == 0) {
 		sc->sc_expcap = cap;
 		sc->sc_flags |= ET_FLAG_PCIE;
 		msic = pci_msi_count(dev);
