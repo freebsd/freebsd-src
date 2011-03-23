@@ -78,6 +78,86 @@ scheme_supports_labels(const char *scheme)
 	return (0);
 }
 
+static void
+newfs_command(const char *fstype, char *command, int use_default)
+{
+	if (strcmp(fstype, "freebsd-ufs") == 0) {
+		int i;
+		DIALOG_LISTITEM items[] = {
+			{"UFS1", "UFS Version 1",
+			    "Use version 1 of the UFS file system instead "
+			    "of version 2 (not recommended)", 0 },
+			{"SU", "Softupdates",
+			    "Enable softupdates (default)", 1 },
+			{"SUJ", "Softupdates journaling",
+			    "Enable file system journaling (default - "
+			    "turn off for SSDs)", 1 },
+			{"TRIM", "Enable SSD TRIM support",
+			    "Enable TRIM support, useful on solid-state drives",
+			    0 },
+		};
+
+		if (!use_default) {
+			int choice;
+			choice = dlg_checklist("UFS Options", "", 0, 0, 0,
+			    sizeof(items)/sizeof(items[0]), items, NULL,
+			    FLAG_CHECK, &i);
+			if (choice == 1) /* Cancel */
+				return;
+		}
+
+		strcpy(command, "newfs ");
+		for (i = 0; i < (int)(sizeof(items)/sizeof(items[0])); i++) {
+			if (items[i].state == 0)
+				continue;
+			if (strcmp(items[i].name, "UFS1") == 0)
+				strcat(command, "-O1 ");
+			else if (strcmp(items[i].name, "SU") == 0)
+				strcat(command, "-U ");
+			else if (strcmp(items[i].name, "SUJ") == 0)
+				strcat(command, "-j ");
+			else if (strcmp(items[i].name, "TRIM") == 0)
+				strcat(command, "-t ");
+		}
+	} else if (strcmp(fstype, "fat32") == 0 || strcmp(fstype, "efi") == 0) {
+		int i;
+		DIALOG_LISTITEM items[] = {
+			{"FAT32", "FAT Type 32",
+			    "Create a FAT32 filesystem (default)", 1 },
+			{"FAT16", "FAT Type 16",
+			    "Create a FAT16 filesystem", 0 },
+			{"FAT12", "FAT Type 12",
+			    "Create a FAT12 filesystem", 0 },
+		};
+
+		if (!use_default) {
+			int choice;
+			choice = dlg_checklist("FAT Options", "", 0, 0, 0,
+			    sizeof(items)/sizeof(items[0]), items, NULL,
+			    FLAG_RADIO, &i);
+			if (choice == 1) /* Cancel */
+				return;
+		}
+
+		strcpy(command, "newfs_msdos ");
+		for (i = 0; i < (int)(sizeof(items)/sizeof(items[0])); i++) {
+			if (items[i].state == 0)
+				continue;
+			if (strcmp(items[i].name, "FAT32") == 0)
+				strcat(command, "-F 32 ");
+			else if (strcmp(items[i].name, "FAT16") == 0)
+				strcat(command, "-F 16 ");
+			else if (strcmp(items[i].name, "SUJ") == 0)
+				strcat(command, "-F 12 ");
+		}
+	} else {
+		if (!use_default)
+			dialog_msgbox("Error", "No configurable options exist "
+			    "for this filesystem.", 0, 0, TRUE);
+		command[0] = '\0';
+	}
+}
+
 int
 gpart_partition(const char *lg_name, const char *scheme)
 {
@@ -332,6 +412,7 @@ gpart_edit(struct gprovider *pp)
 	const char *errstr, *oldtype, *scheme;
 	struct partition_metadata *md;
 	char sizestr[32];
+	char newfs[64];
 	intmax_t idx;
 	int hadlabel, choice, junk, nitems;
 	unsigned i;
@@ -444,16 +525,6 @@ editpart:
 		goto editpart;
 	}
 
-	if (strncmp(items[0].text, "freebsd-", 8) != 0 &&
-	    items[0].text[0] != '\0') {
-		char message[512];
-
-		sprintf(message, "Cannot mount unknown file system %s!\n",
-		    items[0].text);
-		dialog_msgbox("Error", message, 0, 0, TRUE);
-		goto editpart;
-	}
-
 	r = gctl_get_handle();
 	gctl_ro_param(r, "class", -1, "PART");
 	gctl_ro_param(r, "arg0", -1, geom->lg_name);
@@ -471,8 +542,10 @@ editpart:
 	}
 	gctl_free(r);
 
+	newfs_command(items[0].text, newfs, 1);
 	set_default_part_metadata(pp->lg_name, scheme, items[0].text,
-	    items[2].text, strcmp(oldtype, items[0].text) != 0);
+	    items[2].text, (strcmp(oldtype, items[0].text) != 0) ?
+	    newfs : NULL);
 
 	for (i = 0; i < (sizeof(items) / sizeof(items[0])); i++)
 		if (items[i].text_free)
@@ -481,7 +554,7 @@ editpart:
 
 void
 set_default_part_metadata(const char *name, const char *scheme,
-    const char *type, const char *mountpoint, int newfs)
+    const char *type, const char *mountpoint, const char *newfs)
 {
 	struct partition_metadata *md;
 
@@ -494,9 +567,10 @@ set_default_part_metadata(const char *name, const char *scheme,
 			md->newfs = NULL;
 		}
 
-		if (strcmp(type, "freebsd-ufs") == 0) {
-			md->newfs = malloc(255);
-			sprintf(md->newfs, "newfs -U /dev/%s", name);
+		if (newfs != NULL && newfs[0] != '\0') {
+			md->newfs = malloc(strlen(newfs) + strlen(" /dev/") +
+			    strlen(name) + 1);
+			sprintf(md->newfs, "%s /dev/%s", newfs, name);
 		}
 	}
 
@@ -533,11 +607,12 @@ set_default_part_metadata(const char *name, const char *scheme,
 		sprintf(md->fstab->fs_spec, "/dev/%s", name);
 		md->fstab->fs_file = strdup(mountpoint);
 		/* Get VFS from text after freebsd-, if possible */
-		if (strncmp("freebsd-", type, 8))
+		if (strncmp("freebsd-", type, 8) == 0)
 			md->fstab->fs_vfstype = strdup(&type[8]);
+		else if (strcmp("fat32", type) == 0 || strcmp("efi", type) == 0)
+			md->fstab->fs_vfstype = strdup("msdosfs");
 		else
 			md->fstab->fs_vfstype = strdup(type); /* Guess */
-		md->fstab->fs_vfstype = strdup(&type[8]);
 		if (strcmp(type, "freebsd-swap") == 0) {
 			md->fstab->fs_type = strdup(FSTAB_SW);
 			md->fstab->fs_freq = 0;
@@ -665,6 +740,7 @@ gpart_create(struct gprovider *pp, char *default_type, char *default_size,
 	struct ggeom *geom;
 	const char *errstr, *scheme;
 	char sizestr[32], startstr[32], output[64];
+	char newfs[64], options_fstype[64];
 	intmax_t maxsize, size, sector, firstfree, stripe;
 	uint64_t bytes;
 	int nitems, choice, junk;
@@ -756,12 +832,37 @@ gpart_create(struct gprovider *pp, char *default_type, char *default_size,
 	if (default_mountpoint != NULL)
 		items[2].text = default_mountpoint;
 
+	/* Default options */
+	strncpy(options_fstype, items[0].text,
+	    sizeof(options_fstype));
+	newfs_command(options_fstype, newfs, 1);
 addpartform:
 	if (interactive) {
+		dialog_vars.extra_label = "Options";
+		dialog_vars.extra_button = TRUE;
 		choice = dlg_form("Add Partition", "", 0, 0, 0, nitems,
 		    items, &junk);
-		if (choice) /* Cancel pressed */
+		dialog_vars.extra_button = FALSE;
+		switch (choice) {
+		case 0: /* OK */
+			break;
+		case 1: /* Cancel */
 			return;
+		case 3: /* Options */
+			strncpy(options_fstype, items[0].text,
+			    sizeof(options_fstype));
+			newfs_command(options_fstype, newfs, 0);
+			goto addpartform;
+		}
+	}
+
+	/*
+	 * If the user changed the fs type after specifying options, undo
+	 * their choices in favor of the new filesystem's defaults.
+	 */
+	if (strcmp(options_fstype, items[0].name) != 0) {
+		strncpy(options_fstype, items[0].text, sizeof(options_fstype));
+		newfs_command(options_fstype, newfs, 1);
 	}
 
 	size = maxsize;
@@ -881,7 +982,7 @@ addpartform:
 		gpart_partition(strtok(output, " "), "BSD");
 	else
 		set_default_part_metadata(strtok(output, " "), scheme,
-		    items[0].text, items[2].text, 1);
+		    items[0].text, items[2].text, newfs);
 
 	for (i = 0; i < (sizeof(items) / sizeof(items[0])); i++)
 		if (items[i].text_free)
