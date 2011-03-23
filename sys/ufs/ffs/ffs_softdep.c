@@ -1105,10 +1105,7 @@ static int *stat_countp;	/* statistic to count in proc_waiting timeout */
 static struct callout softdep_callout;
 static int req_pending;
 static int req_clear_inodedeps;	/* syncer process flush some inodedeps */
-#define FLUSH_INODES		1
 static int req_clear_remove;	/* syncer process flush some freeblks */
-#define FLUSH_REMOVE		2
-#define FLUSH_REMOVE_WAIT	3
 static long num_freeblkdep;	/* number of freeblks workitems allocated */
 
 /*
@@ -7131,7 +7128,7 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	 */
 	ACQUIRE_LOCK(&lk);
 	if (!(ip->i_flags & SF_SNAPSHOT) && num_dirrem > max_softdeps / 2)
-		(void) request_cleanup(ITOV(dp)->v_mount, FLUSH_REMOVE);
+		(void) request_cleanup(ITOV(dp)->v_mount, FLUSH_BLOCKS);
 	num_dirrem += 1;
 	FREE_LOCK(&lk);
 	dirrem = malloc(sizeof(struct dirrem),
@@ -10868,19 +10865,22 @@ softdep_slowdown(vp)
 
 /*
  * Called by the allocation routines when they are about to fail
- * in the hope that we can free up some disk space.
+ * in the hope that we can free up the requested resource (inodes
+ * or disk space).
  * 
  * First check to see if the work list has anything on it. If it has,
- * clean up entries until we successfully free some space. Because this
- * process holds inodes locked, we cannot handle any remove requests
- * that might block on a locked inode as that could lead to deadlock.
- * If the worklist yields no free space, encourage the syncer daemon
- * to help us. In no event will we try for longer than tickdelay seconds.
+ * clean up entries until we successfully free the requested resource.
+ * Because this process holds inodes locked, we cannot handle any remove
+ * requests that might block on a locked inode as that could lead to
+ * deadlock. If the worklist yields none of the requested resource,
+ * encourage the syncer daemon to help us. In no event will we try for
+ * longer than tickdelay seconds.
  */
 int
-softdep_request_cleanup(fs, vp)
+softdep_request_cleanup(fs, vp, resource)
 	struct fs *fs;
 	struct vnode *vp;
+	int resource;
 {
 	struct ufsmount *ump;
 	long starttime;
@@ -10889,7 +10889,12 @@ softdep_request_cleanup(fs, vp)
 
 	ump = VTOI(vp)->i_ump;
 	mtx_assert(UFS_MTX(ump), MA_OWNED);
-	needed = fs->fs_cstotal.cs_nbfree + fs->fs_contigsumsize;
+	if (resource == FLUSH_BLOCKS_WAIT)
+		needed = fs->fs_cstotal.cs_nbfree + fs->fs_contigsumsize;
+	else if (resource == FLUSH_INODES_WAIT)
+		needed = fs->fs_cstotal.cs_nifree + 2;
+	else
+		return (0);
 	starttime = time_second + tickdelay;
 	/*
 	 * If we are being called because of a process doing a
@@ -10903,7 +10908,10 @@ softdep_request_cleanup(fs, vp)
 		if (error != 0)
 			return (0);
 	}
-	while (fs->fs_pendingblocks > 0 && fs->fs_cstotal.cs_nbfree <= needed) {
+	while ((resource == FLUSH_BLOCKS_WAIT && fs->fs_pendingblocks > 0 &&
+		fs->fs_cstotal.cs_nbfree <= needed) ||
+	       (resource == FLUSH_INODES_WAIT && fs->fs_pendinginodes > 0 &&
+		fs->fs_cstotal.cs_nifree <= needed)) {
 		if (time_second > starttime)
 			return (0);
 		UFS_UNLOCK(ump);
@@ -10916,7 +10924,7 @@ softdep_request_cleanup(fs, vp)
 			UFS_LOCK(ump);
 			continue;
 		}
-		request_cleanup(UFSTOVFS(ump), FLUSH_REMOVE_WAIT);
+		request_cleanup(UFSTOVFS(ump), resource);
 		FREE_LOCK(&lk);
 		UFS_LOCK(ump);
 	}
@@ -10963,7 +10971,9 @@ request_cleanup(mp, resource)
 	 * Next, we attempt to speed up the syncer process. If that
 	 * is successful, then we allow the process to continue.
 	 */
-	if (softdep_speedup() && resource != FLUSH_REMOVE_WAIT)
+	if (softdep_speedup() &&
+	    resource != FLUSH_BLOCKS_WAIT &&
+	    resource != FLUSH_INODES_WAIT)
 		return(0);
 	/*
 	 * If we are resource constrained on inode dependencies, try
@@ -10978,13 +10988,14 @@ request_cleanup(mp, resource)
 	switch (resource) {
 
 	case FLUSH_INODES:
+	case FLUSH_INODES_WAIT:
 		stat_ino_limit_push += 1;
 		req_clear_inodedeps += 1;
 		stat_countp = &stat_ino_limit_hit;
 		break;
 
-	case FLUSH_REMOVE:
-	case FLUSH_REMOVE_WAIT:
+	case FLUSH_BLOCKS:
+	case FLUSH_BLOCKS_WAIT:
 		stat_blk_limit_push += 1;
 		req_clear_remove += 1;
 		stat_countp = &stat_blk_limit_hit;
