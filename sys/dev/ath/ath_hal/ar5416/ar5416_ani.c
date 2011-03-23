@@ -310,14 +310,10 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 			ahp->ah_procPhyErr &= ~HAL_ANI_ENA;
 			/* Turn off HW counters if we have them */
 			ar5416AniDetach(ah);
-			ar5212SetRxFilter(ah,
-				ar5212GetRxFilter(ah) &~ HAL_RX_FILTER_PHYERR);
 		} else {			/* normal/auto mode */
 			/* don't mess with state if already enabled */
 			if (ahp->ah_procPhyErr & HAL_ANI_ENA)
 				break;
-			ar5212SetRxFilter(ah,
-				ar5212GetRxFilter(ah) &~ HAL_RX_FILTER_PHYERR);
 			/* Enable MIB Counters */
 			enableAniMIBCounters(ah, ahp->ah_curani != AH_NULL ?
 			    ahp->ah_curani->params: &ahp->ah_aniParams24 /*XXX*/);
