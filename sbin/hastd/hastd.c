@@ -224,7 +224,8 @@ descriptors_assert(const struct hast_resource *res, int pjdlogmode)
 				    fd, dtype2str(mode), dtype2str(S_IFSOCK));
 				break;
 			}
-		} else if (fd == proto_descriptor(res->hr_conn)) {
+		} else if (res->hr_role == HAST_ROLE_PRIMARY &&
+		    fd == proto_descriptor(res->hr_conn)) {
 			if (!isopen) {
 				(void)snprintf(msg, sizeof(msg),
 				    "Descriptor %d (conn) is closed, but should be open.",
@@ -235,6 +236,15 @@ descriptors_assert(const struct hast_resource *res, int pjdlogmode)
 				(void)snprintf(msg, sizeof(msg),
 				    "Descriptor %d (conn) is %s, but should be %s.",
 				    fd, dtype2str(mode), dtype2str(S_IFSOCK));
+				break;
+			}
+		} else if (res->hr_role == HAST_ROLE_SECONDARY &&
+		    res->hr_conn != NULL &&
+		    fd == proto_descriptor(res->hr_conn)) {
+			if (isopen) {
+				(void)snprintf(msg, sizeof(msg),
+				    "Descriptor %d (conn) is open, but should be closed.",
+				    fd);
 				break;
 			}
 		} else if (res->hr_role == HAST_ROLE_SECONDARY &&
@@ -851,6 +861,8 @@ connection_migrate(struct hast_resource *res)
 
 	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
 
+	PJDLOG_ASSERT(res->hr_role == HAST_ROLE_PRIMARY);
+
 	if (proto_recv(res->hr_conn, &val, sizeof(val)) < 0) {
 		pjdlog_errno(LOG_WARNING,
 		    "Unable to receive connection command");
@@ -951,17 +963,19 @@ main_loop(void)
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			if (res->hr_event == NULL)
 				continue;
-			PJDLOG_ASSERT(res->hr_conn != NULL);
 			fd = proto_descriptor(res->hr_event);
 			PJDLOG_ASSERT(fd >= 0);
 			FD_SET(fd, &rfds);
 			maxfd = fd > maxfd ? fd : maxfd;
 			if (res->hr_role == HAST_ROLE_PRIMARY) {
 				/* Only primary workers asks for connections. */
+				PJDLOG_ASSERT(res->hr_conn != NULL);
 				fd = proto_descriptor(res->hr_conn);
 				PJDLOG_ASSERT(fd >= 0);
 				FD_SET(fd, &rfds);
 				maxfd = fd > maxfd ? fd : maxfd;
+			} else {
+				PJDLOG_ASSERT(res->hr_conn == NULL);
 			}
 		}
 
@@ -998,20 +1012,26 @@ main_loop(void)
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			if (res->hr_event == NULL)
 				continue;
-			PJDLOG_ASSERT(res->hr_conn != NULL);
 			if (FD_ISSET(proto_descriptor(res->hr_event), &rfds)) {
 				if (event_recv(res) == 0)
 					continue;
 				/* The worker process exited? */
 				proto_close(res->hr_event);
 				res->hr_event = NULL;
-				proto_close(res->hr_conn);
-				res->hr_conn = NULL;
+				if (res->hr_conn != NULL) {
+					proto_close(res->hr_conn);
+					res->hr_conn = NULL;
+				}
 				continue;
 			}
-			if (res->hr_role == HAST_ROLE_PRIMARY &&
-			    FD_ISSET(proto_descriptor(res->hr_conn), &rfds)) {
-				connection_migrate(res);
+			if (res->hr_role == HAST_ROLE_PRIMARY) {
+				PJDLOG_ASSERT(res->hr_conn != NULL);
+				if (FD_ISSET(proto_descriptor(res->hr_conn),
+				    &rfds)) {
+					connection_migrate(res);
+				}
+			} else {
+				PJDLOG_ASSERT(res->hr_conn == NULL);
 			}
 		}
 	}
