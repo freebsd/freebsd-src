@@ -85,6 +85,11 @@ SYSCTL_INT(_hw_ath_hal, OID_AUTO, debug, CTLFLAG_RW, &ath_hal_debug,
 TUNABLE_INT("hw.ath.hal.debug", &ath_hal_debug);
 #endif /* AH_DEBUG */
 
+int ath_hal_ar5416_biasadj = 0;
+SYSCTL_INT(_hw_ath_hal, OID_AUTO, ar5416_biasadj, CTLFLAG_RW,
+	&ath_hal_debug, 0, "Enable 2ghz AR5416 direction sensitivity"
+	" bias adjust");
+
 /* NB: these are deprecated; they exist for now for compatibility */
 int	ath_hal_dma_beacon_response_time = 2;	/* in TU's */
 SYSCTL_INT(_hw_ath_hal, OID_AUTO, dma_brt, CTLFLAG_RW,
