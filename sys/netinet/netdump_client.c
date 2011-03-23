@@ -1080,13 +1080,14 @@ netdump_trigger(void *arg, int howto)
 {
 	struct dumperinfo dumper;
 	void (*old_if_input)(struct ifnet *, struct mbuf *)=NULL;
-	int found, must_lock;
+	int found, must_lock, nd_gw_unset;
 
 	if ((howto&(RB_HALT|RB_DUMP))!=RB_DUMP || !nd_enable || cold ||
 	    dumping)
 		return;
 
 	found = 0;
+	nd_gw_unset = 0;
 	must_lock = 1;
 #if defined(KDB) && !defined(KDB_UNATTENDED)
 	if (panicstr != NULL)
@@ -1147,6 +1148,7 @@ netdump_trigger(void *arg, int howto)
 
 	if (nd_gw.s_addr == INADDR_ANY) {
 		nd_gw.s_addr = nd_server.s_addr;
+		nd_gw_unset = 1;
 	}
 	printf("\n-----------------------------------\n");
 	printf("netdump in progress. searching for server.. ");
@@ -1187,6 +1189,8 @@ netdump_trigger(void *arg, int howto)
 	printf("cancelling normal dump\n");
 	set_dumper(NULL);
 trig_abort:
+	if (nd_gw_unset != 0)
+		nd_gw.s_addr = INADDR_ANY;
 	if (old_if_input)
 		nd_ifp->if_input = old_if_input;
 	if ((nd_ifp->if_capenable & IFCAP_POLLING) == 0 && must_lock != 0)
