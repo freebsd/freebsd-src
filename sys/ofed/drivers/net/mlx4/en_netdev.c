@@ -53,13 +53,11 @@ static void mlx4_en_vlan_rx_add_vid(void *arg, struct net_device *dev, u16 vid)
 
 	if ((vid == 0) || (vid > 4095))    /* Invalid */
 		return;
-
 	en_dbg(HW, priv, "adding VLAN:%d\n", vid);
-
-	spin_lock(&priv->vlan_lock);
-	priv->vlgrp_modified = true;
 	idx = vid >> 5;
 	field = 1 << (vid & 0x1f);
+	spin_lock(&priv->vlan_lock);
+	priv->vlgrp_modified = true;
 	if (priv->vlan_unregister[idx] & field)
 		priv->vlan_unregister[idx] &= ~field;
 	else
@@ -77,10 +75,10 @@ static void mlx4_en_vlan_rx_kill_vid(void *arg, struct net_device *dev, u16 vid)
 	if ((vid == 0) || (vid > 4095))    /* Invalid */
 		return;
 	en_dbg(HW, priv, "Killing VID:%d\n", vid);
-	spin_lock(&priv->vlan_lock);
-	priv->vlgrp_modified = true;
 	idx = vid >> 5;
 	field = 1 << (vid & 0x1f);
+	spin_lock(&priv->vlan_lock);
+	priv->vlgrp_modified = true;
 	if (priv->vlan_register[idx] & field)
 		priv->vlan_register[idx] &= ~field;
 	else
@@ -1541,12 +1539,9 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 #endif
 	if (mdev->LSO_support)
 		dev->if_capabilities |= IFCAP_TSO | IFCAP_VLAN_HWTSO;
-
-	/* Don't enable LOR unless the user requests. */
-	dev->if_capenable = dev->if_capabilities;
-
 	if (mdev->profile.num_lro)
 		dev->if_capabilities |= IFCAP_LRO;
+	dev->if_capenable = dev->if_capabilities;
 
         /* Register for VLAN events */
 	priv->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
