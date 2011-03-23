@@ -120,7 +120,7 @@ int	softdep_flushfiles(struct mount *, int, struct thread *);
 void	softdep_update_inodeblock(struct inode *, struct buf *, int);
 void	softdep_load_inodeblock(struct inode *);
 void	softdep_freefile(struct vnode *, ino_t, int);
-int	softdep_request_cleanup(struct fs *, struct vnode *);
+int	softdep_request_cleanup(struct fs *, struct vnode *, int);
 void	softdep_setup_freeblocks(struct inode *, off_t, int);
 void	softdep_setup_inomapdep(struct buf *, struct inode *, ino_t);
 void	softdep_setup_blkmapdep(struct buf *, struct mount *, ufs2_daddr_t,
@@ -147,6 +147,13 @@ int	softdep_waitidle(struct mount *);
 int	softdep_prealloc(struct vnode *, int);
 int	softdep_journal_lookup(struct mount *, struct vnode **);
 
+/*
+ * Things to request flushing in softdep_request_cleanup()
+ */
+#define FLUSH_INODES		1
+#define FLUSH_INODES_WAIT	2
+#define FLUSH_BLOCKS		3
+#define FLUSH_BLOCKS_WAIT	4
 
 int	ffs_rdonly(struct inode *);
 
