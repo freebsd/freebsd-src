@@ -105,6 +105,14 @@
 	if ((locking) != 0)						\
 		IGB_CORE_UNLOCK(adapter);				\
 } while (0)
+#define	IGB_RX_LOCK_COND(rxr, locking) do {				\
+	if ((locking) != 0)						\
+		IGB_RX_LOCK(rxr);					\
+} while (0)
+#define	IGB_RX_UNLOCK_COND(rxr, locking) do {				\
+	if ((locking) != 0)						\
+		IGB_RX_UNLOCK(rxr);					\
+} while (0)
 #define	IGB_TX_LOCK_COND(txr, locking) do {				\
 	if ((locking) != 0)						\
 		IGB_TX_LOCK(txr);					\
@@ -245,7 +253,8 @@ static __inline	void igb_rx_discard(struct rx_ring *, int);
 static __inline void igb_rx_input(struct rx_ring *,
 		    struct ifnet *, struct mbuf *, u32);
 
-static bool	igb_rxeof(struct igb_queue *, int, int *);
+static bool	_igb_rxeof_generic(struct igb_queue *, int, int *, int);
+#define	igb_rxeof(q, c, d)	_igb_rxeof_generic(q, c, d, 1)
 static void	igb_rx_checksum(u32, struct mbuf *, u32);
 static int	igb_tx_ctx_setup(struct tx_ring *, struct mbuf *);
 static bool	igb_tso_setup(struct tx_ring *, struct mbuf *, u32 *);
@@ -1462,7 +1471,7 @@ _igb_poll_generic(struct ifnet *ifp, enum poll_cmd cmd, int count, int locking)
 	}
 	IGB_CORE_UNLOCK_COND(adapter, locking);
 
-	igb_rxeof(que, count, &rx_done);
+	_igb_rxeof_generic(que, count, &rx_done, locking);
 
 	IGB_TX_LOCK_COND(txr, locking);
 	do {
@@ -4438,7 +4447,7 @@ igb_rx_input(struct rx_ring *rxr, struct ifnet *ifp, struct mbuf *m, u32 ptype)
  *  Return TRUE if more to clean, FALSE otherwise
  *********************************************************************/
 static bool
-igb_rxeof(struct igb_queue *que, int count, int *done)
+_igb_rxeof_generic(struct igb_queue *que, int count, int *done, int locking)
 {
 	struct adapter		*adapter = que->adapter;
 	struct rx_ring		*rxr = que->rxr;
@@ -4449,7 +4458,7 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 	u32			ptype, staterr = 0;
 	union e1000_adv_rx_desc	*cur;
 
-	IGB_RX_LOCK(rxr);
+	IGB_RX_LOCK_COND(rxr, locking);
 	/* Sync the ring. */
 	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
@@ -4628,7 +4637,7 @@ next_desc:
 	if (done != NULL)
 		*done = rxdone;
 
-	IGB_RX_UNLOCK(rxr);
+	IGB_RX_UNLOCK_COND(rxr, locking);
 	return ((staterr & E1000_RXD_STAT_DD) ? TRUE : FALSE);
 }
 
