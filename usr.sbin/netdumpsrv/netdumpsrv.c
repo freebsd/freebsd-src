@@ -455,7 +455,7 @@ handle_kdh(struct netdump_client *client, struct netdump_msg *msg)
 
 	client->any_data_rcvd = 1;
 	h = (struct kerneldumpheader *)msg->nm_data;
-	if (msg->nm_hdr.len < sizeof(struct kerneldumpheader)) {
+	if (msg->nm_hdr.mh_len < sizeof(struct kerneldumpheader)) {
 		LOGERR("Bad KDH from %s [%s]: packet too small\n",
 		    client->hostname, client_ntoa(client));
 		client_pinfo(client, "Bad KDH: packet too small\n");
@@ -506,7 +506,7 @@ handle_vmcore(struct netdump_client *client, struct netdump_msg *msg)
 		/* Approximately every 16MB with MTU of 1500 */
 		LOGINFO(".");
 	}
-	if (pwrite(client->corefd, msg->nm_data, msg->nm_hdr.len,
+	if (pwrite(client->corefd, msg->nm_data, msg->nm_hdr.mh_len,
 	    msg->nm_hdr.mh_offset) == -1) {
 		LOGERR("pwrite (for client %s [%s]): %s\n", client->hostname,
 		    client_ntoa(client), strerror(errno));
