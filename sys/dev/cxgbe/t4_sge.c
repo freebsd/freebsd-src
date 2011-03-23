@@ -1134,7 +1134,7 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 		fl->cntxt_id = be16toh(c.fl0id);
 		fl->pidx = fl->cidx = 0;
 
-		cntxt_id = iq->cntxt_id - sc->sge.eq_start;
+		cntxt_id = fl->cntxt_id - sc->sge.eq_start;
 		KASSERT(cntxt_id < sc->sge.neq,
 		    ("%s: fl->cntxt_id (%d) more than the max (%d)", __func__,
 		    cntxt_id, sc->sge.neq - 1));
