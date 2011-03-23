@@ -553,7 +553,7 @@ mxge_firmware_probe(mxge_softc_t *sc)
 	 * Verify the max read request size was set to 4KB
 	 * before trying the test with 4KB.
 	 */
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		pectl = pci_read_config(dev, reg + 0x8, 2);
 		if ((pectl & (5 << 12)) != (5 << 12)) {
 			device_printf(dev, "Max Read Req. size != 4k (0x%x\n",
@@ -3731,7 +3731,7 @@ mxge_setup_cfg_space(mxge_softc_t *sc)
 	uint16_t cmd, lnk, pectl;
 
 	/* find the PCIe link width and set max read request to 4KB*/
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		lnk = pci_read_config(dev, reg + 0x12, 2);
 		sc->link_width = (lnk >> 4) & 0x3f;
 
@@ -3760,7 +3760,7 @@ mxge_read_reboot(mxge_softc_t *sc)
 	uint32_t vs;
 
 	/* find the vendor specific offset */
-	if (pci_find_extcap(dev, PCIY_VENDOR, &vs) != 0) {
+	if (pci_find_cap(dev, PCIY_VENDOR, &vs) != 0) {
 		device_printf(sc->dev,
 			      "could not find vendor specific offset\n");
 		return (uint32_t)-1;

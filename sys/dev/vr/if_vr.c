@@ -696,7 +696,7 @@ vr_attach(device_t dev)
 	}
 
 	if (sc->vr_revid >= REV_ID_VT6102_A &&
-	    pci_find_extcap(dev, PCIY_PMG, &pmc) == 0)
+	    pci_find_cap(dev, PCIY_PMG, &pmc) == 0)
 		ifp->if_capabilities |= IFCAP_WOL_UCAST | IFCAP_WOL_MAGIC;
 
 	/* Rhine supports oversized VLAN frame. */
@@ -711,7 +711,7 @@ vr_attach(device_t dev)
 	 * shuts down. Be sure to kick it in the head to wake it
 	 * up again.
 	 */
-	if (pci_find_extcap(dev, PCIY_PMG, &pmc) == 0)
+	if (pci_find_cap(dev, PCIY_PMG, &pmc) == 0)
 		VR_CLRBIT(sc, VR_STICKHW, (VR_STICKHW_DS0|VR_STICKHW_DS1));
 
 	/*
@@ -2494,7 +2494,7 @@ vr_setwol(struct vr_softc *sc)
 	VR_LOCK_ASSERT(sc);
 
 	if (sc->vr_revid < REV_ID_VT6102_A ||
-	    pci_find_extcap(sc->vr_dev, PCIY_PMG, &pmc) != 0)
+	    pci_find_cap(sc->vr_dev, PCIY_PMG, &pmc) != 0)
 		return;
 
 	ifp = sc->vr_ifp;
