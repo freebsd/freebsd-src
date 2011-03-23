@@ -569,15 +569,10 @@ vga_init(struct vt_device *vd)
 	struct vga_softc *sc = vd->vd_softc;
 	int textmode = 0;
 
-#if defined(__amd64__)
-	sc->vga_fb_tag = AMD64_BUS_SPACE_MEM;
+#if defined(__amd64__) || defined(__i386__)
+	sc->vga_fb_tag = X86_BUS_SPACE_MEM;
 	sc->vga_fb_handle = KERNBASE + VGA_MEM_BASE;
-	sc->vga_reg_tag = AMD64_BUS_SPACE_IO;
-	sc->vga_reg_handle = VGA_REG_BASE;
-#elif defined(__i386__)
-	sc->vga_fb_tag = I386_BUS_SPACE_MEM;
-	sc->vga_fb_handle = KERNBASE + VGA_MEM_BASE;
-	sc->vga_reg_tag = I386_BUS_SPACE_IO;
+	sc->vga_reg_tag = X86_BUS_SPACE_IO;
 	sc->vga_reg_handle = VGA_REG_BASE;
 #else
 # error "Architecture not yet supported!"
