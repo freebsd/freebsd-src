@@ -950,7 +950,7 @@ netdump_pkt_in(struct ifnet *ifp, struct mbuf *m)
 		goto done;
 	}
 	if (m->m_len < ETHER_HDR_LEN) {
-		NETDDEBUG_IF(ifp, "discard frome w/o leading ethernet "
+		NETDDEBUG_IF(ifp, "discard frame w/o leading ethernet "
 		    "header (len %u pkt len %u)\n", m->m_len, m->m_pkthdr.len);
 		goto done;
 	}
