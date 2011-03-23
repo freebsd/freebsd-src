@@ -709,11 +709,6 @@ kmeminit(void *dummy)
 	if (((vm_kmem_size / 2) / PAGE_SIZE) > cnt.v_page_count)
 		vm_kmem_size = 2 * cnt.v_page_count * PAGE_SIZE;
 
-	/*
-	 * Tune settings based on the kmem map's size at this time.
-	 */
-	init_param3(vm_kmem_size / PAGE_SIZE);
-
 #ifdef DEBUG_MEMGUARD
 	tmp = memguard_fudge(vm_kmem_size, vm_kmem_size_max);
 #else
