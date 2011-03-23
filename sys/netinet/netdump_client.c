@@ -1096,7 +1096,8 @@ netdump_trigger(void *arg, int howto)
 		IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(nd_ifp, &V_ifnet, if_link) {
 		if (!strncmp(nd_ifp->if_xname, nd_ifp_str,
-		    strlen(nd_ifp->if_xname))) {
+		    strlen(nd_ifp->if_xname)) &&
+		    netdump_supported_nic(nd_ifp)) {
 			found = 1;
 			break;
 		}
