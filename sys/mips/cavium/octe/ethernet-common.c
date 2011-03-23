@@ -269,33 +269,18 @@ void cvm_oct_common_poll(struct ifnet *ifp)
  */
 int cvm_oct_common_init(struct ifnet *ifp)
 {
-	static int count;
 	char mac[6] = {
 		octeon_bootinfo->mac_addr_base[0],
 		octeon_bootinfo->mac_addr_base[1],
 		octeon_bootinfo->mac_addr_base[2],
 		octeon_bootinfo->mac_addr_base[3],
 		octeon_bootinfo->mac_addr_base[4],
-		octeon_bootinfo->mac_addr_base[5] + count};
+		octeon_bootinfo->mac_addr_base[5] };
 	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
 
-	switch (cvmx_sysinfo_get()->board_type) {
-#if defined(OCTEON_VENDOR_LANNER)
-	case CVMX_BOARD_TYPE_CUST_LANNER_MR730:
-		/*
-		 * The MR-730 uses its first two MACs for the management
-		 * ports.
-		 */
-		mac[5] += 2;
-		break;
-#endif
-	default:
-		break;
-	}
+	mac[5] += cvm_oct_mac_addr_offset++;
 
 	ifp->if_mtu = ETHERMTU;
-
-	count++;
 
 	cvm_oct_mdio_setup_device(ifp);
 

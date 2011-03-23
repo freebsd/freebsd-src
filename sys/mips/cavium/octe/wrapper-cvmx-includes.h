@@ -45,5 +45,6 @@ AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR W
 #include <contrib/octeon-sdk/cvmx-helper.h>
 #include <contrib/octeon-sdk/cvmx-helper-board.h>
 #include <contrib/octeon-sdk/cvmx-interrupt.h>
+#include <contrib/octeon-sdk/octeon-model.h>
 
 #endif

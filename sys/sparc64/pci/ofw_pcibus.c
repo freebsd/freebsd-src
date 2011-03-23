@@ -165,7 +165,7 @@ ofw_pcibus_setup_device(device_t bridge, uint32_t clock, u_int busno,
 		CS_WRITE(PCIR_SECLAT_1, reg, 1);
 	} else {
 		reg = CS_READ(PCIR_MINGNT, 1);
-		if (reg != 0) {
+		if ((int)reg > 0) {
 			switch (clock) {
 			case 33000000:
 				reg *= 8;

@@ -142,6 +142,14 @@ NORMAL_CTFCONVERT= [ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
 
 NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 
+# Infiniband C flags.  Correct include paths and omit errors that linux
+# does not honor.
+OFEDINCLUDES=	-I$S/ofed/include/
+OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith -fms-extensions
+OFEDCFLAGS=	${CFLAGS:N-I*} ${OFEDINCLUDES} ${CFLAGS:M-I*} ${OFEDNOERR}
+OFED_C_NOIMP=	${CC} -c -o ${.TARGET} ${OFEDCFLAGS} ${WERROR} ${PROF}
+OFED_C=		${OFED_C_NOIMP} ${.IMPSRC}
+
 GEN_CFILES= $S/$M/$M/genassym.c ${MFILES:T:S/.m$/.c/}
 SYSTEM_CFILES= config.c env.c hints.c vnode_if.c
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}

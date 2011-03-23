@@ -1544,7 +1544,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 							htcap = frm;
 					} else if (ishtinfooui(frm)) {
 						if (htinfo == NULL)
-							htcap = frm;
+							htinfo = frm;
 					}
 				}
 				/* XXX Atheros OUI support */

@@ -111,16 +111,12 @@ struct ia64_pal_result {
 	uint64_t	pal_result[3];
 };
 
+struct ia64_pal_result ia64_pal_physical(u_long, u_long, u_long, u_long);
+
 struct ia64_pal_result ia64_call_pal_static(uint64_t proc, uint64_t arg1,
     uint64_t arg2, uint64_t arg3);
 
-struct ia64_pal_result ia64_call_pal_static_physical(uint64_t proc,
-    uint64_t arg1, uint64_t arg2, uint64_t arg3);
-
 struct ia64_pal_result ia64_call_pal_stacked(uint64_t proc, uint64_t arg1,
     uint64_t arg2, uint64_t arg3);
-
-struct ia64_pal_result ia64_call_pal_stacked_physical(uint64_t proc,
-    uint64_t arg1, uint64_t arg2, uint64_t arg3);
 
 #endif /* _MACHINE_PAL_H_ */

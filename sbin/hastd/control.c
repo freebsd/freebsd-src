@@ -234,6 +234,8 @@ control_status(struct hastd_config *cfg, struct nv *nvout,
 	nv_add_string(nvout, res->hr_provname, "provname%u", no);
 	nv_add_string(nvout, res->hr_localpath, "localpath%u", no);
 	nv_add_string(nvout, res->hr_remoteaddr, "remoteaddr%u", no);
+	if (res->hr_sourceaddr[0] != '\0')
+		nv_add_string(nvout, res->hr_sourceaddr, "sourceaddr%u", no);
 	switch (res->hr_replication) {
 	case HAST_REPLICATION_FULLSYNC:
 		nv_add_string(nvout, "fullsync", "replication%u", no);
@@ -325,7 +327,7 @@ control_handle(struct hastd_config *cfg)
 	if (cmd == HASTCTL_SET_ROLE) {
 		role = nv_get_uint8(nvin, "role");
 		switch (role) {
-		case HAST_ROLE_INIT:	/* Is that valid to set, hmm? */
+		case HAST_ROLE_INIT:
 		case HAST_ROLE_PRIMARY:
 		case HAST_ROLE_SECONDARY:
 			break;

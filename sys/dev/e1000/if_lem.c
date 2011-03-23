@@ -4023,7 +4023,7 @@ lem_enable_wakeup(device_t dev)
 	u32		pmc, ctrl, ctrl_ext, rctl;
 	u16     	status;
 
-	if ((pci_find_extcap(dev, PCIY_PMG, &pmc) != 0))
+	if ((pci_find_cap(dev, PCIY_PMG, &pmc) != 0))
 		return;
 
 	/* Advertise the wakeup capability */

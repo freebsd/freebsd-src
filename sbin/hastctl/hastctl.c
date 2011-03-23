@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <inttypes.h>
+#include <libutil.h>
 #include <limits.h>
 #include <signal.h>
 #include <stdio.h>
@@ -330,6 +330,9 @@ control_status(struct nv *nv)
 		    (unsigned int)nv_get_uint32(nv, "keepdirty%u", ii));
 		printf("  remoteaddr: %s\n",
 		    nv_get_string(nv, "remoteaddr%u", ii));
+		str = nv_get_string(nv, "sourceaddr%u", ii);
+		if (str != NULL)
+			printf("  sourceaddr: %s\n", str);
 		printf("  replication: %s\n",
 		    nv_get_string(nv, "replication%u", ii));
 		str = nv_get_string(nv, "status%u", ii);
@@ -342,30 +345,11 @@ control_status(struct nv *nv)
 	return (ret);
 }
 
-static int
-numfromstr(const char *str, intmax_t *nump)
-{
-	intmax_t num;
-	char *suffix;
-	int rerrno;
-
-	rerrno = errno;
-	errno = 0;
-	num = strtoimax(str, &suffix, 0);
-	if (errno == 0 && *suffix != '\0')
-		errno = EINVAL;
-	if (errno != 0)
-		return (-1);
-	*nump = num;
-	errno = rerrno;
-	return (0);
-}
-
 int
 main(int argc, char *argv[])
 {
 	struct nv *nv;
-	intmax_t mediasize, extentsize, keepdirty;
+	int64_t mediasize, extentsize, keepdirty;
 	int cmd, debug, error, ii;
 	const char *optstr;
 
@@ -407,15 +391,15 @@ main(int argc, char *argv[])
 			debug++;
 			break;
 		case 'e':
-			if (numfromstr(optarg, &extentsize) < 0)
+			if (expand_number(optarg, &extentsize) < 0)
 				err(1, "Invalid extentsize");
 			break;
 		case 'k':
-			if (numfromstr(optarg, &keepdirty) < 0)
+			if (expand_number(optarg, &keepdirty) < 0)
 				err(1, "Invalid keepdirty");
 			break;
 		case 'm':
-			if (numfromstr(optarg, &mediasize) < 0)
+			if (expand_number(optarg, &mediasize) < 0)
 				err(1, "Invalid mediasize");
 			break;
 		case 'h':
@@ -485,7 +469,7 @@ main(int argc, char *argv[])
 	}
 
 	/* Setup control connection... */
-	if (proto_client(cfg->hc_controladdr, &controlconn) < 0) {
+	if (proto_client(NULL, cfg->hc_controladdr, &controlconn) < 0) {
 		pjdlog_exit(EX_OSERR,
 		    "Unable to setup control connection to %s",
 		    cfg->hc_controladdr);
@@ -496,9 +480,8 @@ main(int argc, char *argv[])
 		    cfg->hc_controladdr);
 	}
 
-	if (drop_privs() != 0)
+	if (drop_privs(true) != 0)
 		exit(EX_CONFIG);
-	pjdlog_debug(1, "Privileges successfully dropped.");
 
 	/* Send the command to the server... */
 	if (hast_proto_send(NULL, controlconn, nv, NULL, 0) < 0) {

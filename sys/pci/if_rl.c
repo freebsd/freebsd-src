@@ -939,7 +939,7 @@ rl_attach(device_t dev)
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	/* Check WOL for RTL8139B or newer controllers. */
 	if (sc->rl_type == RL_8139 &&
-	    pci_find_extcap(sc->rl_dev, PCIY_PMG, &pmc) == 0) {
+	    pci_find_cap(sc->rl_dev, PCIY_PMG, &pmc) == 0) {
 		hwrev = CSR_READ_4(sc, RL_TXCFG) & RL_TXCFG_HWREV;
 		switch (hwrev) {
 		case RL_HWREV_8139B:
@@ -2122,7 +2122,7 @@ rl_resume(device_t dev)
 	RL_LOCK(sc);
 
 	if ((ifp->if_capabilities & IFCAP_WOL) != 0 &&
-	    pci_find_extcap(sc->rl_dev, PCIY_PMG, &pmc) == 0) {
+	    pci_find_cap(sc->rl_dev, PCIY_PMG, &pmc) == 0) {
 		/* Disable PME and clear PME status. */
 		pmstat = pci_read_config(sc->rl_dev,
 		    pmc + PCIR_POWER_STATUS, 2);
@@ -2187,7 +2187,7 @@ rl_setwol(struct rl_softc *sc)
 	ifp = sc->rl_ifp;
 	if ((ifp->if_capabilities & IFCAP_WOL) == 0)
 		return;
-	if (pci_find_extcap(sc->rl_dev, PCIY_PMG, &pmc) != 0)
+	if (pci_find_cap(sc->rl_dev, PCIY_PMG, &pmc) != 0)
 		return;
 
 	/* Enable config register write. */

@@ -36,25 +36,36 @@ __FBSDID("$FreeBSD$");
 #include <machine/ia64_cpu.h>
 #include <machine/pte.h>
 
-#include <ia64/include/bootinfo.h>
 #include <ia64/include/vmparam.h>
 
 #include <efi.h>
 #include <efilib.h>
 
-#include "bootstrap.h"
+#include "libia64.h"
 
-#define _KERNEL
+static int elf64_exec(struct preloaded_file *amp);
+static int elf64_obj_exec(struct preloaded_file *amp);
 
-static int	elf64_exec(struct preloaded_file *amp);
+static struct file_format ia64_elf = {
+	elf64_loadfile,
+	elf64_exec
+};
+static struct file_format ia64_elf_obj = {
+	elf64_obj_loadfile,
+	elf64_obj_exec
+};
 
-struct file_format ia64_elf = { elf64_loadfile, elf64_exec };
+struct file_format *file_formats[] = {
+	&ia64_elf,
+	&ia64_elf_obj,
+	NULL
+};
 
 /*
  * Entered with psr.ic and psr.i both zero.
  */
-void
-enter_kernel(uint64_t start, uint64_t bi)
+static void
+enter_kernel(uint64_t start, struct bootinfo *bi)
 {
 
 	__asm __volatile("srlz.i;;");
@@ -73,53 +84,130 @@ enter_kernel(uint64_t start, uint64_t bi)
 	/* NOTREACHED */
 }
 
-static int
-elf64_exec(struct preloaded_file *fp)
+static void
+mmu_wire(vm_offset_t va, vm_paddr_t pa, vm_size_t sz, u_int acc)
 {
-	struct file_metadata	*md;
-	Elf_Ehdr		*hdr;
-	pt_entry_t		pte;
-	uint64_t		bi_addr;
+	static u_int iidx = 0, didx = 0;
+	pt_entry_t pte;
+	u_int shft;
 
-	md = file_findmetadata(fp, MODINFOMD_ELFHDR);
-	if (md == NULL)
-		return (EINVAL);
-	hdr = (Elf_Ehdr *)&(md->md_data);
+	/* Round up to the smallest possible page size. */
+	if (sz < 4096)
+		sz = 4096;
+	/* Determine the exponent (base 2). */
+	shft = 0;
+	while (sz > 1) {
+		shft++;
+		sz >>= 1;
+	}
+	/* Truncate to the largest possible page size (256MB). */
+	if (shft > 28)
+		shft = 28;
+	/* Round down to a valid (mappable) page size. */
+	if (shft > 14 && (shft & 1) != 0)
+		shft--;
 
-	bi_load(fp, &bi_addr);
+	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
+	    PTE_PL_KERN | (acc & PTE_AR_MASK) | (pa & PTE_PPN_MASK);
 
-	printf("Entering %s at 0x%lx...\n", fp->f_name, hdr->e_entry);
+	__asm __volatile("mov cr.ifa=%0" :: "r"(va));
+	__asm __volatile("mov cr.itir=%0" :: "r"(shft << 2));
+	__asm __volatile("srlz.d;;");
 
-	ldr_enter(fp->f_name);
+	__asm __volatile("ptr.d %0,%1" :: "r"(va), "r"(shft << 2));
+	__asm __volatile("srlz.d;;");
+	__asm __volatile("itr.d dtr[%0]=%1" :: "r"(didx), "r"(pte));
+	__asm __volatile("srlz.d;;");
+	didx++;
 
-	__asm __volatile("rsm psr.ic|psr.i;;");
-	__asm __volatile("srlz.i;;");
+	if (acc == PTE_AR_RWX) {
+		__asm __volatile("ptr.i %0,%1;;" :: "r"(va), "r"(shft << 2));
+		__asm __volatile("srlz.i;;");
+		__asm __volatile("itr.i itr[%0]=%1;;" :: "r"(iidx), "r"(pte));
+		__asm __volatile("srlz.i;;");
+		iidx++;
+	}
+}
+
+static void
+mmu_setup_legacy(uint64_t entry)
+{
 
 	/*
 	 * Region 6 is direct mapped UC and region 7 is direct mapped
 	 * WC. The details of this is controlled by the Alt {I,D}TLB
-	 * handlers. Here we just make sure that they have the largest 
+	 * handlers. Here we just make sure that they have the largest
 	 * possible page size to minimise TLB usage.
 	 */
 	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (28 << 2));
 	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (28 << 2));
-
-	pte = PTE_PRESENT | PTE_MA_WB | PTE_ACCESSED | PTE_DIRTY |
-	    PTE_PL_KERN | PTE_AR_RWX | PTE_ED;
-	pte |= IA64_RR_MASK(hdr->e_entry) & PTE_PPN_MASK;
-
-	__asm __volatile("mov cr.ifa=%0" :: "r"(hdr->e_entry));
-	__asm __volatile("mov cr.itir=%0" :: "r"(28 << 2));
-	__asm __volatile("ptr.i %0,%1" :: "r"(hdr->e_entry), "r"(28<<2));
-	__asm __volatile("ptr.d %0,%1" :: "r"(hdr->e_entry), "r"(28<<2));
-	__asm __volatile("srlz.i;;");
-	__asm __volatile("itr.i itr[%0]=%1;;" :: "r"(0), "r"(pte));
-	__asm __volatile("srlz.i;;");
-	__asm __volatile("itr.d dtr[%0]=%1;;" :: "r"(0), "r"(pte));
 	__asm __volatile("srlz.i;;");
 
-	enter_kernel(hdr->e_entry, bi_addr);
+	mmu_wire(entry, IA64_RR_MASK(entry), 1UL << 28, PTE_AR_RWX);
+}
 
+static void
+mmu_setup_paged(vm_offset_t pbvm_top)
+{
+	vm_size_t sz;
+
+	ia64_set_rr(IA64_RR_BASE(IA64_PBVM_RR),
+	    (IA64_PBVM_RR << 8) | (IA64_PBVM_PAGE_SHIFT << 2));
+	__asm __volatile("srlz.i;;");
+
+	/* Wire the PBVM page table. */
+	mmu_wire(IA64_PBVM_PGTBL, (uintptr_t)ia64_pgtbl, ia64_pgtblsz,
+	    PTE_AR_RW);
+
+	/* Wire as much of the PBVM we can. This must be a power of 2. */
+	sz = pbvm_top - IA64_PBVM_BASE;
+	sz = (sz + IA64_PBVM_PAGE_MASK) & ~IA64_PBVM_PAGE_MASK;
+	while (sz & (sz - 1))
+		sz -= IA64_PBVM_PAGE_SIZE;
+	mmu_wire(IA64_PBVM_BASE, ia64_pgtbl[0], sz, PTE_AR_RWX);
+}
+
+static int
+elf64_exec(struct preloaded_file *fp)
+{
+	struct bootinfo *bi;
+	struct file_metadata *md;
+	Elf_Ehdr *hdr;
+	int error;
+
+	md = file_findmetadata(fp, MODINFOMD_ELFHDR);
+	if (md == NULL)
+		return (EINVAL);
+
+	error = ia64_bootinfo(fp, &bi);
+	if (error)
+		return (error);
+
+	hdr = (Elf_Ehdr *)&(md->md_data);
+	printf("Entering %s at 0x%lx...\n", fp->f_name, hdr->e_entry);
+
+	error = ia64_platform_enter(fp->f_name);
+	if (error)
+		return (error);
+
+	__asm __volatile("rsm psr.ic|psr.i;;");
+	__asm __volatile("srlz.i;;");
+
+	if (IS_LEGACY_KERNEL())
+		mmu_setup_legacy(hdr->e_entry);
+	else
+		mmu_setup_paged((uintptr_t)(bi + 1));
+
+	enter_kernel(hdr->e_entry, bi);
 	/* NOTREACHED */
-	return (0);
+	return (EDOOFUS);
+}
+
+static int
+elf64_obj_exec(struct preloaded_file *fp)
+{
+
+	printf("%s called for preloaded file %p (=%s):\n", __func__, fp,
+	    fp->f_name);
+	return (ENOSYS);
 }

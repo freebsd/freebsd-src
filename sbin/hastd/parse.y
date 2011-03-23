@@ -276,7 +276,7 @@ yy_config_free(struct hastd_config *config)
 %}
 
 %token CONTROL LISTEN PORT REPLICATION CHECKSUM COMPRESSION
-%token TIMEOUT EXEC EXTENTSIZE RESOURCE NAME LOCAL REMOTE ON
+%token TIMEOUT EXEC EXTENTSIZE RESOURCE NAME LOCAL REMOTE SOURCE ON
 %token FULLSYNC MEMSYNC ASYNC NONE CRC32 SHA256 HOLE LZF
 %token NUM STR OB CB
 
@@ -652,6 +652,7 @@ resource_start:	STR
 		curres->hr_localpath[0] = '\0';
 		curres->hr_localfd = -1;
 		curres->hr_remoteaddr[0] = '\0';
+		curres->hr_sourceaddr[0] = '\0';
 		curres->hr_ggateunit = -1;
 	}
 	;
@@ -778,6 +779,8 @@ resource_node_entry:
 	local_statement
 	|
 	remote_statement
+	|
+	source_statement
 	;
 
 remote_statement:	REMOTE STR
@@ -789,6 +792,23 @@ remote_statement:	REMOTE STR
 			    sizeof(curres->hr_remoteaddr)) >=
 			    sizeof(curres->hr_remoteaddr)) {
 				pjdlog_error("remote argument is too long.");
+				free($2);
+				return (1);
+			}
+		}
+		free($2);
+	}
+	;
+
+source_statement:	SOURCE STR
+	{
+		assert(depth == 2);
+		if (mynode) {
+			assert(curres != NULL);
+			if (strlcpy(curres->hr_sourceaddr, $2,
+			    sizeof(curres->hr_sourceaddr)) >=
+			    sizeof(curres->hr_sourceaddr)) {
+				pjdlog_error("source argument is too long.");
 				free($2);
 				return (1);
 			}

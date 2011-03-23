@@ -1317,8 +1317,8 @@ xl_attach(device_t dev)
 	}
 
 	error = bus_dmamem_alloc(sc->xl_ldata.xl_rx_tag,
-	    (void **)&sc->xl_ldata.xl_rx_list, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
-	    &sc->xl_ldata.xl_rx_dmamap);
+	    (void **)&sc->xl_ldata.xl_rx_list, BUS_DMA_NOWAIT |
+	    BUS_DMA_COHERENT | BUS_DMA_ZERO, &sc->xl_ldata.xl_rx_dmamap);
 	if (error) {
 		device_printf(dev, "no memory for rx list buffers!\n");
 		bus_dma_tag_destroy(sc->xl_ldata.xl_rx_tag);
@@ -1349,8 +1349,8 @@ xl_attach(device_t dev)
 	}
 
 	error = bus_dmamem_alloc(sc->xl_ldata.xl_tx_tag,
-	    (void **)&sc->xl_ldata.xl_tx_list, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
-	    &sc->xl_ldata.xl_tx_dmamap);
+	    (void **)&sc->xl_ldata.xl_tx_list, BUS_DMA_NOWAIT |
+	    BUS_DMA_COHERENT | BUS_DMA_ZERO, &sc->xl_ldata.xl_tx_dmamap);
 	if (error) {
 		device_printf(dev, "no memory for list buffers!\n");
 		bus_dma_tag_destroy(sc->xl_ldata.xl_tx_tag);
@@ -1407,7 +1407,7 @@ xl_attach(device_t dev)
 
 	/* Check availability of WOL. */
 	if ((sc->xl_caps & XL_CAPS_PWRMGMT) != 0 &&
-	    pci_find_extcap(dev, PCIY_PMG, &pmcap) == 0) {
+	    pci_find_cap(dev, PCIY_PMG, &pmcap) == 0) {
 		sc->xl_pmcap = pmcap;
 		sc->xl_flags |= XL_FLAG_WOL;
 		sinfo2 = 0;

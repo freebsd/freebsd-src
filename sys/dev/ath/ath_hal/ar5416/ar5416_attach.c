@@ -112,6 +112,8 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_fillTxDesc		= ar5416FillTxDesc;
 	ah->ah_procTxDesc		= ar5416ProcTxDesc;
 	ah->ah_getTxCompletionRates	= ar5416GetTxCompletionRates;
+	ah->ah_setupTxQueue		= ar5416SetupTxQueue;
+	ah->ah_resetTxQueue		= ar5416ResetTxQueue;
 
 	/* Receive Functions */
 	ah->ah_startPcuReceive		= ar5416StartPcuReceive;
@@ -275,7 +277,8 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank7, ar5416Bank7, 2);
 	HAL_INI_INIT(&AH5416(ah)->ah_ini_addac, ar5416Addac, 2);
 
-	if (!IS_5416V2_2(ah)) {		/* Owl 2.1/2.0 */
+	if (! IS_5416V2_2(ah)) {		/* Owl 2.1/2.0 */
+		ath_hal_printf(ah, "[ath] Enabling CLKDRV workaround for AR5416 < v2.2\n");
 		struct ini {
 			uint32_t	*data;		/* NB: !const */
 			int		rows, cols;
@@ -372,7 +375,7 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	 * placed into hardware.
 	 */
 	if (ahp->ah_miscMode != 0)
-		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
+		OS_REG_WRITE(ah, AR_MISC_MODE, OS_REG_READ(ah, AR_MISC_MODE) | ahp->ah_miscMode);
 
 	rfStatus = ar2133RfAttach(ah, &ecode);
 	if (!rfStatus) {
@@ -471,10 +474,11 @@ ar5416WriteIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * Write addac shifts
 	 */
 	OS_REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_EXTERNAL_RADIO);
-#if 0
+
 	/* NB: only required for Sowl */
-	ar5416EepromSetAddac(ah, chan);
-#endif
+	if (AR_SREV_SOWL(ah))
+		ar5416EepromSetAddac(ah, chan);
+
 	regWrites = ath_hal_ini_write(ah, &AH5416(ah)->ah_ini_addac, 1,
 	    regWrites);
 	OS_REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_INTERNAL_ADDAC);

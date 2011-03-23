@@ -1632,7 +1632,7 @@ killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 		LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
 			PROC_LOCK(p);	      
 			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
-				p->p_state == PRS_NEW ) {
+			    p->p_state == PRS_NEW) {
 				PROC_UNLOCK(p);
 				continue;
 			}
