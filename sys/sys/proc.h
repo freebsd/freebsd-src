@@ -487,7 +487,7 @@ struct proc {
 		PRS_NEW = 0,		/* In creation */
 		PRS_NORMAL,		/* threads can be run. */
 		PRS_ZOMBIE
-	} p_state;			/* (j/c) S* process status. */
+	} p_state;			/* (j/c) Process status. */
 	pid_t		p_pid;		/* (b) Process identifier. */
 	LIST_ENTRY(proc) p_hash;	/* (d) Hash chain. */
 	LIST_ENTRY(proc) p_pglist;	/* (g + e) List of processes in pgrp. */
