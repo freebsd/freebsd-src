@@ -1183,18 +1183,18 @@ _ehci_remove_qh(ehci_qh_t *sqh, ehci_qh_t *last)
 static void
 ehci_data_toggle_update(struct usb_xfer *xfer, uint16_t actlen, uint16_t xlen)
 {
-	uint8_t full = (actlen == xlen);
+	uint16_t rem;
 	uint8_t dt;
 
 	/* count number of full packets */
 	dt = (actlen / xfer->max_packet_size) & 1;
 
 	/* cumpute remainder */
-	actlen = actlen % xfer->max_packet_size;
+	rem = actlen % xfer->max_packet_size;
 
-	if (actlen > 0)
+	if (rem > 0)
 		dt ^= 1;	/* short packet at the end */
-	else if (!full)
+	else if (actlen != xlen)
 		dt ^= 1;	/* zero length packet at the end */
 
 	xfer->endpoint->toggle_next ^= dt;
