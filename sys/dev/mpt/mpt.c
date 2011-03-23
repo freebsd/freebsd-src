@@ -718,15 +718,16 @@ mpt_intr(void *arg)
 		uint32_t           ctxt_idx;
 		u_int		   cb_index;
 		u_int		   req_index;
+		u_int		   offset;
 		int		   free_rf;
 
 		req = NULL;
 		reply_frame = NULL;
 		reply_baddr = 0;
+		offset = 0;
 		if ((reply_desc & MPI_ADDRESS_REPLY_A_BIT) != 0) {
-			u_int offset;
 			/*
-			 * Insure that the reply frame is coherent.
+			 * Ensure that the reply frame is coherent.
 			 */
 			reply_baddr = MPT_REPLY_BADDR(reply_desc);
 			offset = reply_baddr - (mpt->reply_phys & 0xFFFFFFFF);
@@ -808,10 +809,15 @@ mpt_intr(void *arg)
 			    " 0x%x)\n", req_index, reply_desc);
 		}
 
+		bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 		free_rf = mpt_reply_handlers[cb_index](mpt, req,
 		    reply_desc, reply_frame);
 
 		if (reply_frame != NULL && free_rf) {
+			bus_dmamap_sync_range(mpt->reply_dmat,
+			    mpt->reply_dmap, offset, MPT_REPLY_SIZE,
+			    BUS_DMASYNC_PREREAD);
 			mpt_free_reply(mpt, reply_baddr);
 		}
 
@@ -844,6 +850,8 @@ mpt_complete_request_chain(struct mpt_softc *mpt, struct req_queue *chain,
 		MSG_REQUEST_HEADER *msg_hdr;
 		u_int		    cb_index;
 
+		bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 		msg_hdr = (MSG_REQUEST_HEADER *)req->req_vbuf;
 		ioc_status_frame.Function = msg_hdr->Function;
 		ioc_status_frame.MsgContext = msg_hdr->MsgContext;
@@ -1167,7 +1175,7 @@ mpt_free_request(struct mpt_softc *mpt, request_t *req)
 {
 	request_t *nxt;
 	struct mpt_evtf_record *record;
-	uint32_t reply_baddr;
+	uint32_t offset, reply_baddr;
 	
 	if (req == NULL || req != &mpt->request_pool[req->index]) {
 		panic("mpt_free_request bad req ptr\n");
@@ -1216,8 +1224,10 @@ mpt_free_request(struct mpt_softc *mpt, request_t *req)
 	req->state = REQ_STATE_ALLOCATED;
 	mpt_assign_serno(mpt, req);
 	mpt_send_event_ack(mpt, req, &record->reply, record->context);
-	reply_baddr = (uint32_t)((uint8_t *)record - mpt->reply)
-		    + (mpt->reply_phys & 0xFFFFFFFF);
+	offset = (uint32_t)((uint8_t *)record - mpt->reply);
+	reply_baddr = offset + (mpt->reply_phys & 0xFFFFFFFF);
+	bus_dmamap_sync_range(mpt->reply_dmat, mpt->reply_dmap, offset,
+	    MPT_REPLY_SIZE, BUS_DMASYNC_PREREAD);
 	mpt_free_reply(mpt, reply_baddr);
 }
 
@@ -1257,7 +1267,7 @@ mpt_send_cmd(struct mpt_softc *mpt, request_t *req)
 		mpt_dump_request(mpt, req);
 	}
 	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
-	    BUS_DMASYNC_PREWRITE);
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	req->state |= REQ_STATE_QUEUED;
 	KASSERT(mpt_req_on_free_list(mpt, req) == 0,
 	    ("req %p:%u func %x on freelist list in mpt_send_cmd",
@@ -1696,8 +1706,6 @@ mpt_read_extcfg_page(struct mpt_softc *mpt, int Action, uint32_t PageAddress,
 		mpt_free_request(mpt, req);
 		return (-1);
 	}
-	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
-	    BUS_DMASYNC_POSTREAD);
 	memcpy(buf, ((uint8_t *)req->req_vbuf)+MPT_RQSL(mpt), len);
 	mpt_free_request(mpt, req);
 	return (0);
@@ -1795,8 +1803,6 @@ mpt_read_cfg_page(struct mpt_softc *mpt, int Action, uint32_t PageAddress,
 		mpt_free_request(mpt, req);
 		return (-1);
 	}
-	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
-	    BUS_DMASYNC_POSTREAD);
 	memcpy(hdr, ((uint8_t *)req->req_vbuf)+MPT_RQSL(mpt), len);
 	mpt_free_request(mpt, req);
 	return (0);
@@ -2383,10 +2389,12 @@ mpt_upload_fw(struct mpt_softc *mpt)
 	flags <<= MPI_SGE_FLAGS_SHIFT;
 	sge->FlagsLength = htole32(flags | mpt->fw_image_size);
 	sge->Address = htole32(mpt->fw_phys);
+	bus_dmamap_sync(mpt->fw_dmat, mpt->fw_dmap, BUS_DMASYNC_PREREAD);
 	error = mpt_send_handshake_cmd(mpt, sizeof(fw_req_buf), &fw_req_buf);
 	if (error)
 		return(error);
 	error = mpt_recv_handshake_reply(mpt, sizeof(fw_reply), &fw_reply);
+	bus_dmamap_sync(mpt->fw_dmat, mpt->fw_dmap, BUS_DMASYNC_POSTREAD);
 	return (error);
 }
 
@@ -2431,8 +2439,10 @@ mpt_download_fw(struct mpt_softc *mpt)
 		  MPI_DIAG_RW_ENABLE|MPI_DIAG_DISABLE_ARM);
 
 	fw_hdr = (MpiFwHeader_t *)mpt->fw_image;
+	bus_dmamap_sync(mpt->fw_dmat, mpt->fw_dmap, BUS_DMASYNC_PREWRITE);
 	mpt_diag_outsl(mpt, fw_hdr->LoadStartAddress, (uint32_t*)fw_hdr,
 		       fw_hdr->ImageSize);
+	bus_dmamap_sync(mpt->fw_dmat, mpt->fw_dmap, BUS_DMASYNC_POSTWRITE);
 
 	ext_offset = fw_hdr->NextImageHeaderOffset;
 	while (ext_offset != 0) {
@@ -2440,9 +2450,12 @@ mpt_download_fw(struct mpt_softc *mpt)
 
 		ext = (MpiExtImageHeader_t *)((uintptr_t)fw_hdr + ext_offset);
 		ext_offset = ext->NextImageHeaderOffset;
-
+		bus_dmamap_sync(mpt->fw_dmat, mpt->fw_dmap,
+		    BUS_DMASYNC_PREWRITE);
 		mpt_diag_outsl(mpt, ext->LoadStartAddress, (uint32_t*)ext,
 			       ext->ImageSize);
+		bus_dmamap_sync(mpt->fw_dmat, mpt->fw_dmap,
+		    BUS_DMASYNC_POSTWRITE);
 	}
 
 	if (mpt->is_sas) {
@@ -2506,7 +2519,7 @@ mpt_dma_buf_alloc(struct mpt_softc *mpt)
 
 	/* Allocate some DMA accessable memory for requests */
 	if (bus_dmamem_alloc(mpt->request_dmat, (void **)&mpt->request,
-	    BUS_DMA_NOWAIT, &mpt->request_dmap) != 0) {
+	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &mpt->request_dmap) != 0) {
 		mpt_prt(mpt, "cannot allocate %d bytes of request memory\n",
 		    MPT_REQ_MEM_SIZE(mpt));
 		return (1);
@@ -2714,11 +2727,12 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		    mpt->fw_image_size, 1, mpt->fw_image_size, 0,
 		    &mpt->fw_dmat);
 		if (error != 0) {
-			mpt_prt(mpt, "cannot create firmwarew dma tag\n");
+			mpt_prt(mpt, "cannot create firmware dma tag\n");
 			return (ENOMEM);
 		}
 		error = bus_dmamem_alloc(mpt->fw_dmat,
-		    (void **)&mpt->fw_image, BUS_DMA_NOWAIT, &mpt->fw_dmap);
+		    (void **)&mpt->fw_image, BUS_DMA_NOWAIT |
+		    BUS_DMA_COHERENT, &mpt->fw_dmap);
 		if (error != 0) {
 			mpt_prt(mpt, "cannot allocate firmware memory\n");
 			bus_dma_tag_destroy(mpt->fw_dmat);
