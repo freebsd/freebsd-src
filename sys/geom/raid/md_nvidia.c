@@ -144,6 +144,8 @@ static struct g_raid_md_class g_raid_md_nvidia_class = {
 	.mdc_priority = 100
 };
 
+static int NVidiaNodeID = 1;
+
 static void
 g_raid_md_nvidia_print(struct nvidia_raid_conf *meta)
 {
@@ -420,7 +422,7 @@ g_raid_md_nvidia_start_disk(struct g_raid_disk *disk)
 	/* Find disk position in metadata by it's serial. */
 	if (pd->pd_meta != NULL) {
 		disk_pos = pd->pd_meta->disk_number;
-		if (disk_pos >= meta->total_disks)
+		if (disk_pos >= meta->total_disks || mdi->mdio_started)
 			disk_pos = -3;
 	} else
 		disk_pos = -3;
@@ -516,13 +518,6 @@ nofit:
 
 		if (resurrection) {
 			/* New or ex-spare disk. */
-			g_raid_change_subdisk_state(sd,
-			    G_RAID_SUBDISK_S_NEW);
-		} else if (mdi->mdio_started) {
-			/*
-			 * As soon as we have no generations --
-			 * treat every hot-plugged disk as new.
-			 */
 			g_raid_change_subdisk_state(sd,
 			    G_RAID_SUBDISK_S_NEW);
 		} else if (meta->state == NVIDIA_S_REBUILD &&
@@ -793,8 +788,8 @@ g_raid_md_create_nvidia(struct g_raid_md_object *md, struct g_class *mp,
 
 	mdi = (struct g_raid_md_nvidia_object *)md;
 	arc4rand(&mdi->mdio_volume_id, 16, 0);
-	snprintf(name, sizeof(name), "NVidia-%08x",
-	    (uint32_t)mdi->mdio_volume_id[0]);
+	snprintf(name, sizeof(name), "NVidia-%d",
+	    atomic_fetchadd_int(&NVidiaNodeID, 1));
 	sc = g_raid_create_node(mp, name, md);
 	if (sc == NULL)
 		return (G_RAID_MD_TASTE_FAIL);
@@ -900,8 +895,8 @@ search:
 	} else { /* Not found matching node -- create one. */
 		result = G_RAID_MD_TASTE_NEW;
 		memcpy(&mdi->mdio_volume_id, &meta->volume_id, 16);
-		snprintf(name, sizeof(name), "NVidia-%08x",
-		    (uint32_t)mdi->mdio_volume_id[0]);
+		snprintf(name, sizeof(name), "NVidia-%d",
+		    atomic_fetchadd_int(&NVidiaNodeID, 1));
 		sc = g_raid_create_node(mp, name, md);
 		md->mdo_softc = sc;
 		geom = sc->sc_geom;
@@ -967,8 +962,11 @@ g_raid_md_event_nvidia(struct g_raid_md_object *md,
 	if (disk == NULL) {
 		switch (event) {
 		case G_RAID_NODE_E_START:
-			if (!mdi->mdio_started)
+			if (!mdi->mdio_started) {
+				/* Bump volume ID to drop missing disks. */
+				arc4rand(&mdi->mdio_volume_id, 16, 0);
 				g_raid_md_nvidia_start(sc);
+			}
 			return (0);
 		}
 		return (-1);
@@ -995,8 +993,14 @@ g_raid_md_event_nvidia(struct g_raid_md_object *md,
 			g_raid_destroy_disk(disk);
 		}
 
-		/* Write updated metadata to all disks. */
-		g_raid_md_write_nvidia(md, NULL, NULL, NULL);
+		if (mdi->mdio_started) {
+			/* Bump volume ID to prevent disk resurrection. */
+			if (pd->pd_disk_pos >= 0)
+				arc4rand(&mdi->mdio_volume_id, 16, 0);
+
+			/* Write updated metadata to all disks. */
+			g_raid_md_write_nvidia(md, NULL, NULL, NULL);
+		}
 
 		/* Check if anything left except placeholders. */
 		if (g_raid_ndisks(sc, -1) ==
