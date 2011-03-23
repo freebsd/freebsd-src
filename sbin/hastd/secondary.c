@@ -378,16 +378,6 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 		pjdlog_exit(EX_OSERR,
 		    "Unable to create event sockets between child and parent");
 	}
-	/*
-	 * Create communication channel for sending connection requests from
-	 * parent to child.
-	 */
-	if (proto_client(NULL, "socketpair://", &res->hr_conn) < 0) {
-		/* TODO: There's no need for this to be fatal error. */
-		KEEP_ERRNO((void)pidfile_remove(pfh));
-		pjdlog_exit(EX_OSERR,
-		    "Unable to create connection sockets between parent and child");
-	}
 
 	pid = fork();
 	if (pid < 0) {
@@ -405,7 +395,6 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 		proto_recv(res->hr_event, NULL, 0);
 		/* Declare that we are sender. */
 		proto_send(res->hr_ctrl, NULL, 0);
-		proto_send(res->hr_conn, NULL, 0);
 		res->hr_workerpid = pid;
 		return;
 	}
@@ -418,7 +407,6 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	proto_send(res->hr_event, NULL, 0);
 	/* Declare that we are receiver. */
 	proto_recv(res->hr_ctrl, NULL, 0);
-	proto_recv(res->hr_conn, NULL, 0);
 	descriptors_cleanup(res);
 
 	descriptors_assert(res, mode);
