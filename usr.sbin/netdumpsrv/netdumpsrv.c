@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2010 Sandvine Incorporated. All rights reserved.
+ * Copyright (c) 2005-2011 Sandvine Incorporated. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
