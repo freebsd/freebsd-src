@@ -1281,14 +1281,13 @@ vm_pageout_oom(int shortage)
 	FOREACH_PROC_IN_SYSTEM(p) {
 		int breakout;
 
-		if (p->p_state != PRS_NORMAL)
-			continue;
 		if (PROC_TRYLOCK(p) == 0)
 			continue;
 		/*
 		 * If this is a system, protected or killed process, skip it.
 		 */
-		if ((p->p_flag & (P_INEXEC | P_PROTECTED | P_SYSTEM)) ||
+		if (p->p_state != PRS_NORMAL ||
+		    (p->p_flag & (P_INEXEC | P_PROTECTED | P_SYSTEM)) ||
 		    (p->p_pid == 1) || P_KILLED(p) ||
 		    ((p->p_pid < 48) && (swap_pager_avail != 0))) {
 			PROC_UNLOCK(p);
@@ -1651,14 +1650,13 @@ vm_daemon()
 		FOREACH_PROC_IN_SYSTEM(p) {
 			vm_pindex_t limit, size;
 
-			if (p->p_state != PRS_NORMAL)
-				continue;
 			/*
 			 * if this is a system process or if we have already
 			 * looked at this process, skip it.
 			 */
 			PROC_LOCK(p);
-			if (p->p_flag & (P_INEXEC | P_SYSTEM | P_WEXIT)) {
+			if (p->p_state != PRS_NORMAL ||
+			    p->p_flag & (P_INEXEC | P_SYSTEM | P_WEXIT)) {
 				PROC_UNLOCK(p);
 				continue;
 			}
