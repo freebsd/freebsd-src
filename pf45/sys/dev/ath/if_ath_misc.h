@@ -53,4 +53,6 @@ extern int ath_tx_findrix(const struct ath_softc *sc, uint8_t rate);
 extern struct ath_buf * ath_getbuf(struct ath_softc *sc);
 extern struct ath_buf * _ath_getbuf_locked(struct ath_softc *sc);
 
+extern int ath_reset(struct ifnet *);
+
 #endif

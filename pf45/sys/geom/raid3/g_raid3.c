@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <geom/raid3/g_raid3.h>
 
+FEATURE(geom_raid3, "GEOM RAID-3 functionality");
 
 static MALLOC_DEFINE(M_RAID3, "raid3_data", "GEOM_RAID3 Data");
 

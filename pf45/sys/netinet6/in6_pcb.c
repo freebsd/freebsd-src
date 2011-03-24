@@ -256,8 +256,11 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 		inp->in6p_laddr = sin6->sin6_addr;
 	}
 	if (lport == 0) {
-		if ((error = in6_pcbsetport(&inp->in6p_laddr, inp, cred)) != 0)
+		if ((error = in6_pcbsetport(&inp->in6p_laddr, inp, cred)) != 0) {
+			/* Undo an address bind that may have occurred. */
+			inp->in6p_laddr = in6addr_any;
 			return (error);
+		}
 	} else {
 		inp->inp_lport = lport;
 		if (in_pcbinshash(inp) != 0) {

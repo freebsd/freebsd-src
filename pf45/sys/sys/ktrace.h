@@ -156,12 +156,26 @@ struct ktr_csw {
 	 */
 struct sockaddr;
 struct stat;
+struct sysentvec;
 
 /*
  * KTR_SYSCTL - name of a sysctl MIB
  */
 #define	KTR_SYSCTL	9
 	/* record contains null-terminated MIB name */
+
+/*
+ * KTR_PROCCTOR - trace process creation (multiple ABI support)
+ */
+#define KTR_PROCCTOR	10
+struct ktr_proc_ctor {
+	u_int	sv_flags;	/* struct sysentvec sv_flags copy */
+};
+
+/*
+ * KTR_PROCDTOR - trace process destruction (multiple ABI support)
+ */
+#define KTR_PROCDTOR	11
 
 /*
  * KTR_DROP - If this bit is set in ktr_type, then at least one event
@@ -182,6 +196,8 @@ struct stat;
 #define KTRFAC_USER	(1<<KTR_USER)
 #define KTRFAC_STRUCT	(1<<KTR_STRUCT)
 #define KTRFAC_SYSCTL	(1<<KTR_SYSCTL)
+#define KTRFAC_PROCCTOR	(1<<KTR_PROCCTOR)
+#define KTRFAC_PROCDTOR	(1<<KTR_PROCDTOR)
 
 /*
  * trace flags (also in p_traceflags)
@@ -198,6 +214,7 @@ void	ktrgenio(int, enum uio_rw, struct uio *, int);
 void	ktrsyscall(int, int narg, register_t args[]);
 void	ktrsysctl(int *name, u_int namelen);
 void	ktrsysret(int, int, register_t);
+void	ktrprocctor(struct proc *);
 void	ktrprocexec(struct proc *, struct ucred **, struct vnode **);
 void	ktrprocexit(struct thread *);
 void	ktrprocfork(struct proc *, struct proc *);

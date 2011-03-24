@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include <geom/journal/g_journal.h>
 
+FEATURE(geom_journal, "GEOM journaling support");
 
 /*
  * On-disk journal format:

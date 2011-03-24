@@ -350,7 +350,7 @@ void TailDuplicatePass::DuplicateInstruction(MachineInstr *MI,
     if (!MO.isReg())
       continue;
     unsigned Reg = MO.getReg();
-    if (!Reg || TargetRegisterInfo::isPhysicalRegister(Reg))
+    if (!TargetRegisterInfo::isVirtualRegister(Reg))
       continue;
     if (MO.isDef()) {
       const TargetRegisterClass *RC = MRI->getRegClass(Reg);
@@ -459,15 +459,19 @@ TailDuplicatePass::TailDuplicate(MachineBasicBlock *TailBB, MachineFunction &MF,
   // duplicate only one, because one branch instruction can be eliminated to
   // compensate for the duplication.
   unsigned MaxDuplicateCount;
-  if (MF.getFunction()->hasFnAttr(Attribute::OptimizeForSize))
+  if (TailDuplicateSize.getNumOccurrences() == 0 &&
+      MF.getFunction()->hasFnAttr(Attribute::OptimizeForSize))
     MaxDuplicateCount = 1;
   else
     MaxDuplicateCount = TailDuplicateSize;
 
   if (PreRegAlloc) {
-      // Pre-regalloc tail duplication hurts compile time and doesn't help
-      // much except for indirect branches.
-    if (TailBB->empty() || !TailBB->back().getDesc().isIndirectBranch())
+    if (TailBB->empty())
+      return false;
+    const TargetInstrDesc &TID = TailBB->back().getDesc();
+    // Pre-regalloc tail duplication hurts compile time and doesn't help
+    // much except for indirect branches and returns.
+    if (!TID.isIndirectBranch() && !TID.isReturn())
       return false;
     // If the target has hardware branch prediction that can handle indirect
     // branches, duplicating them can often make them predictable when there
@@ -500,9 +504,10 @@ TailDuplicatePass::TailDuplicate(MachineBasicBlock *TailBB, MachineFunction &MF,
     if (!I->isPHI() && !I->isDebugValue())
       InstrCount += 1;
   }
-  // Heuristically, don't tail-duplicate calls if it would expand code size,
-  // as it's less likely to be worth the extra cost.
-  if (InstrCount > 1 && HasCall)
+  // Don't tail-duplicate calls before register allocation. Calls presents a
+  // barrier to register allocation so duplicating them may end up increasing
+  // spills.
+  if (InstrCount > 1 && (PreRegAlloc && HasCall))
     return false;
 
   DEBUG(dbgs() << "\n*** Tail-duplicating BB#" << TailBB->getNumber() << '\n');

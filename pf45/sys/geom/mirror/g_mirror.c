@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <geom/mirror/g_mirror.h>
 
+FEATURE(geom_mirror, "GEOM mirroring support");
 
 static MALLOC_DEFINE(M_MIRROR, "mirror_data", "GEOM_MIRROR Data");
 

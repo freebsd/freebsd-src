@@ -144,6 +144,7 @@ struct t_op {
 	{"-L",	FILSYM,	UNOP},
 	{"-S",	FILSOCK,UNOP},
 	{"=",	STREQ,	BINOP},
+	{"==",	STREQ,	BINOP},
 	{"!=",	STRNE,	BINOP},
 	{"<",	STRLT,	BINOP},
 	{">",	STRGT,	BINOP},
@@ -193,7 +194,7 @@ main(int argc, char **argv)
 	int	res;
 	char	*p;
 
-	if ((p = rindex(argv[0], '/')) == NULL)
+	if ((p = strrchr(argv[0], '/')) == NULL)
 		p = argv[0];
 	else
 		p++;

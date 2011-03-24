@@ -91,6 +91,8 @@ fi
 
 publisher="The FreeBSD Project.  http://www.freebsd.org/"
 
+echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > $1/etc/fstab
 $MKISOFS $BOOTOPTS -r -J -V $LABEL -publisher "$publisher" -o $NAME $BASE $*
 rm -f $BASE/$EFIPART
+rm $1/etc/fstab
 exit 0

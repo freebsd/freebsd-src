@@ -551,6 +551,7 @@ vendor VTECH		0x0f88	VTech
 vendor FALCOM		0x0f94	Falcom Wireless Communications GmbH
 vendor RIM		0x0fca	Research In Motion
 vendor DYNASTREAM	0x0fcf	Dynastream Innovations
+vendor KONTRON		0x0fe6	Kontron AG
 vendor QUALCOMM		0x1004	Qualcomm
 vendor APACER		0x1005	Apacer
 vendor MOTOROLA4	0x100d	Motorola
@@ -2008,6 +2009,9 @@ product KODAK DC290		0x0112	Digital Science DC290
 product KODAK DC240		0x0120	Digital Science DC240
 product KODAK DC280		0x0130	Digital Science DC280
 
+/* Kontron AG products */
+product KONTRON DM9601		0x8101	USB Ethernet
+
 /* Konica Corp. Products */
 product KONICA CAMERA		0x0720	Digital Color Camera
 
@@ -2153,6 +2157,7 @@ product MELCO WLIUCG		0x0137	WLI-UC-G
 product MELCO RT2870_1		0x0148	RT2870
 product MELCO RT2870_2		0x0150	RT2870
 product MELCO WLIUCGN		0x015d	WLI-UC-GN
+product MELCO WLIUCG301N	0x016f	WLI-UC-G301N
 
 /* Merlin products */
 product MERLIN V620             0x1110  Merlin V620
@@ -2778,9 +2783,23 @@ product RICOH VGPVCC8		0x183b	VGP-VCC8 Camera
 product REINERSCT CYBERJACK_ECOM	0x0100	e-com cyberJack
 
 /* Roland products */
+product ROLAND UA100		0x0000	UA-100 Audio I/F
+product ROLAND UM4		0x0002	UM-4 MIDI I/F
+product ROLAND SC8850		0x0003	SC-8850 MIDI Synth
+product ROLAND U8		0x0004	U-8 Audio I/F
+product ROLAND UM2		0x0005	UM-2 MIDI I/F
+product ROLAND SC8820		0x0007	SC-8820 MIDI Synth
+product ROLAND PC300		0x0008	PC-300 MIDI Keyboard
 product ROLAND UM1		0x0009	UM-1 MIDI I/F
+product ROLAND SK500		0x000b	SK-500 MIDI Keyboard
+product ROLAND SCD70		0x000c	SC-D70 MIDI Synth
 product ROLAND UM880N		0x0014	EDIROL UM-880 MIDI I/F (native)
 product ROLAND UM880G		0x0015	EDIROL UM-880 MIDI I/F (generic)
+product ROLAND SD90		0x0016	SD-90 MIDI Synth
+product ROLAND UM550		0x0023	UM-550 MIDI I/F
+product ROLAND SD20		0x0027	SD-20 MIDI Synth
+product ROLAND SD80		0x0029	SD-80 MIDI Synth
+product ROLAND UA700		0x002b	UA-700 Audio I/F
 
 /* Rockfire products */
 product ROCKFIRE GAMEPAD	0x2033	gamepad 203USB
@@ -2843,6 +2862,7 @@ product SENAO RT3072_5		0x9801	RT3072
 /* ShanTou products */
 product SHANTOU ST268		0x0268	ST268
 product SHANTOU DM9601		0x9601	DM 9601
+product SHANTOU ADM8515		0x8515	ADM8515
 
 /* Shark products */
 product SHARK PA		0x0400	Pocket Adapter
@@ -3389,10 +3409,11 @@ product XYRATEX PRISM_GT_2	0x2002	PrismGT USB 2.0 WLAN
 /* Yamaha products */
 product YAMAHA UX256		0x1000	UX256 MIDI I/F
 product YAMAHA UX96		0x1008	UX96 MIDI I/F
+product YAMAHA RPU200		0x3104	RP-U200
 product YAMAHA RTA54I		0x4000	NetVolante RTA54i Broadband&ISDN Router
-product YAMAHA RTA55I		0x4004	NetVolante RTA55i Broadband VoIP Router
 product YAMAHA RTW65B		0x4001	NetVolante RTW65b Broadband Wireless Router
 product YAMAHA RTW65I		0x4002	NetVolante RTW65i Broadband&ISDN Wireless Router
+product YAMAHA RTA55I		0x4004	NetVolante RTA55i Broadband VoIP Router
 
 /* Yano products */
 product YANO U640MO		0x0101	U640MO-03

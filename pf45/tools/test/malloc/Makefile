@@ -4,6 +4,7 @@ SRCS=	main.c
 .PATH:	${.CURDIR}/../../../lib/libc/stdlib
 
 NO_MAN=
+WARNS?=6
 
 test:	malloc
 	@echo

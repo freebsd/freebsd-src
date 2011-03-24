@@ -2883,7 +2883,7 @@ bge_attach(device_t dev)
   	/*
 	 * Check if this is a PCI-X or PCI Express device.
   	 */
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		/*
 		 * Found a PCI Express capabilities register, this
 		 * must be a PCI Express device.
@@ -2897,7 +2897,7 @@ bge_attach(device_t dev)
 		 * Check if the device is in PCI-X Mode.
 		 * (This bit is not valid on PCI Express controllers.)
 		 */
-		if (pci_find_extcap(dev, PCIY_PCIX, &reg) == 0)
+		if (pci_find_cap(dev, PCIY_PCIX, &reg) == 0)
 			sc->bge_pcixcap = reg;
 		if ((pci_read_config(dev, BGE_PCI_PCISTATE, 4) &
 		    BGE_PCISTATE_PCI_BUSMODE) == 0)
@@ -2917,7 +2917,7 @@ bge_attach(device_t dev)
 	 * normal operation.
 	 */
 	rid = 0;
-	if (pci_find_extcap(sc->bge_dev, PCIY_MSI, &reg) == 0) {
+	if (pci_find_cap(sc->bge_dev, PCIY_MSI, &reg) == 0) {
 		sc->bge_msicap = reg;
 		if (bge_can_use_msi(sc)) {
 			msicount = pci_msi_count(dev);

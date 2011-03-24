@@ -265,6 +265,16 @@ ar9280GetChannelMaxMinPower(struct ath_hal *ah,
 #endif
 }
 
+/*
+ * The ordering of nfarray is thus:
+ *
+ * nfarray[0]: Chain 0 ctl
+ * nfarray[1]: Chain 1 ctl
+ * nfarray[2]: Chain 2 ctl
+ * nfarray[3]: Chain 0 ext
+ * nfarray[4]: Chain 1 ext
+ * nfarray[5]: Chain 2 ext
+ */
 static void
 ar9280GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 {
@@ -297,6 +307,11 @@ ar9280GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 	HALDEBUG(ah, HAL_DEBUG_NFCAL,
 	    "NF calibrated [ext] [chain 1] is %d\n", nf);
 	nfarray[4] = nf;
+
+        /* Chain 2 - invalid */
+        nfarray[2] = 0;
+        nfarray[5] = 0;
+
 }
 
 /*

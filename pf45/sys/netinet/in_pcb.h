@@ -491,6 +491,8 @@ void	in_pcbinfo_init(struct inpcbinfo *, const char *, struct inpcbhead *,
 void	in_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
 int	in_pcballoc(struct socket *, struct inpcbinfo *);
 int	in_pcbbind(struct inpcb *, struct sockaddr *, struct ucred *);
+int	in_pcb_lport(struct inpcb *, struct in_addr *, u_short *,
+	    struct ucred *, int);
 int	in_pcbbind_setup(struct inpcb *, struct sockaddr *, in_addr_t *,
 	    u_short *, struct ucred *);
 int	in_pcbconnect(struct inpcb *, struct sockaddr *, struct ucred *);

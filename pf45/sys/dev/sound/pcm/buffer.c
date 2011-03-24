@@ -93,7 +93,7 @@ sndbuf_alloc(struct snd_dbuf *b, bus_dma_tag_t dmatag, int dmaflags,
 	int ret;
 
 	b->dmatag = dmatag;
-	b->dmaflags = dmaflags | BUS_DMA_NOWAIT;
+	b->dmaflags = dmaflags | BUS_DMA_NOWAIT | BUS_DMA_COHERENT;
 	b->maxsize = size;
 	b->bufsize = b->maxsize;
 	b->buf_addr = 0;

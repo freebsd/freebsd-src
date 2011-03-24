@@ -22,6 +22,8 @@
 /set gname=wheel
     backups
     ..
+    cache
+    ..
     crash
     ..
     cron

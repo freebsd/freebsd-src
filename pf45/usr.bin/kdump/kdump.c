@@ -55,7 +55,9 @@ extern int errno;
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/sysent.h>
 #include <sys/un.h>
+#include <sys/queue.h>
 #ifdef IPX
 #include <sys/types.h>
 #include <netipx/ipx.h>
@@ -81,10 +83,12 @@ extern int errno;
 #include "ktrace.h"
 #include "kdump_subr.h"
 
+u_int abidump(struct ktr_header *);
+int fetchprocinfo(struct ktr_header *, u_int *);
 int fread_tail(void *, int, int);
 void dumpheader(struct ktr_header *);
-void ktrsyscall(struct ktr_syscall *);
-void ktrsysret(struct ktr_sysret *);
+void ktrsyscall(struct ktr_syscall *, u_int);
+void ktrsysret(struct ktr_sysret *, u_int);
 void ktrnamei(char *, int);
 void hexdump(char *, int, int);
 void visdump(char *, int, int);
@@ -100,12 +104,56 @@ void sockfamilyname(int);
 const char *ioctlname(u_long);
 
 int timestamp, decimal, fancy = 1, suppressdata, tail, threads, maxdata,
-    resolv = 0;
+    resolv = 0, abiflag = 0;
 const char *tracefile = DEF_TRACEFILE;
 struct ktr_header ktr_header;
 
 #define TIME_FORMAT	"%b %e %T %Y"
 #define eqs(s1, s2)	(strcmp((s1), (s2)) == 0)
+
+#define print_number(i,n,c) do {		\
+	if (decimal)				\
+		printf("%c%ld", c, (long)*i);	\
+	else					\
+		printf("%c%#lx", c, (long)*i);	\
+	i++;					\
+	n--;					\
+	c = ',';				\
+	} while (0);
+
+#if defined(__amd64__) || defined(__i386__)
+
+void linux_ktrsyscall(struct ktr_syscall *);
+void linux_ktrsysret(struct ktr_sysret *);
+extern char *linux_syscallnames[];
+extern int nlinux_syscalls;
+
+/*
+ * from linux.h
+ * Linux syscalls return negative errno's, we do positive and map them
+ */
+static int bsd_to_linux_errno[ELAST + 1] = {
+	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
+	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
+	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
+	-30, -31, -32, -33, -34, -11,-115,-114, -88, -89,
+	-90, -91, -92, -93, -94, -95, -96, -97, -98, -99,
+	-100,-101,-102,-103,-104,-105,-106,-107,-108,-109,
+	-110,-111, -40, -36,-112,-113, -39, -11, -87,-122,
+	-116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
+	-6,  -6, -43, -42, -75,-125, -84, -95, -16, -74,
+	-72, -67, -71
+};
+#endif
+
+struct proc_info
+{
+	TAILQ_ENTRY(proc_info)	info;
+	u_int			sv_flags;
+	pid_t			pid;
+};
+
+TAILQ_HEAD(trace_procs, proc_info) trace_procs;
 
 int
 main(int argc, char *argv[])
@@ -115,11 +163,15 @@ main(int argc, char *argv[])
 	int trpoints = ALL_POINTS;
 	int drop_logged;
 	pid_t pid = 0;
+	u_int sv_flags;
 
 	(void) setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc,argv,"f:dElm:np:HRrsTt:")) != -1)
+	while ((ch = getopt(argc,argv,"f:dElm:np:AHRrsTt:")) != -1)
 		switch((char)ch) {
+		case 'A':
+			abiflag = 1;
+			break;
 		case 'f':
 			tracefile = optarg;
 			break;
@@ -173,6 +225,7 @@ main(int argc, char *argv[])
 		errx(1, "%s", strerror(ENOMEM));
 	if (!freopen(tracefile, "r", stdin))
 		err(1, "%s", tracefile);
+	TAILQ_INIT(&trace_procs);
 	drop_logged = 0;
 	while (fread_tail(&ktr_header, sizeof(struct ktr_header), 1)) {
 		if (ktr_header.ktr_type & KTR_DROP) {
@@ -205,6 +258,9 @@ main(int argc, char *argv[])
 		}
 		if (ktrlen && fread_tail(m, ktrlen, 1) == 0)
 			errx(1, "data too short");
+		if (fetchprocinfo(&ktr_header, (u_int *)m) != 0)
+			continue;
+		sv_flags = abidump(&ktr_header);
 		if (pid && ktr_header.ktr_pid != pid)
 			continue;
 		if ((trpoints & (1<<ktr_header.ktr_type)) == 0)
@@ -212,10 +268,20 @@ main(int argc, char *argv[])
 		drop_logged = 0;
 		switch (ktr_header.ktr_type) {
 		case KTR_SYSCALL:
-			ktrsyscall((struct ktr_syscall *)m);
+#if defined(__amd64__) || defined(__i386__)
+			if ((sv_flags & SV_ABI_MASK) == SV_ABI_LINUX)
+				linux_ktrsyscall((struct ktr_syscall *)m);
+			else
+#endif
+				ktrsyscall((struct ktr_syscall *)m, sv_flags);
 			break;
 		case KTR_SYSRET:
-			ktrsysret((struct ktr_sysret *)m);
+#if defined(__amd64__) || defined(__i386__)
+			if ((sv_flags & SV_ABI_MASK) == SV_ABI_LINUX)
+				linux_ktrsysret((struct ktr_sysret *)m);
+			else
+#endif
+				ktrsysret((struct ktr_sysret *)m, sv_flags);
 			break;
 		case KTR_NAMEI:
 		case KTR_SYSCTL:
@@ -258,6 +324,84 @@ fread_tail(void *buf, int size, int num)
 	return (i);
 }
 
+int
+fetchprocinfo(struct ktr_header *kth, u_int *flags)
+{
+	struct proc_info *pi;
+
+	switch (kth->ktr_type) {
+	case KTR_PROCCTOR:
+		TAILQ_FOREACH(pi, &trace_procs, info) {
+			if (pi->pid == kth->ktr_pid) {
+				TAILQ_REMOVE(&trace_procs, pi, info);
+				break;
+			}
+		}
+		pi = malloc(sizeof(struct proc_info));
+		if (pi == NULL)
+			errx(1, "%s", strerror(ENOMEM));
+		pi->sv_flags = *flags;
+		pi->pid = kth->ktr_pid;
+		TAILQ_INSERT_TAIL(&trace_procs, pi, info);
+		return (1);
+
+	case KTR_PROCDTOR:
+		TAILQ_FOREACH(pi, &trace_procs, info) {
+			if (pi->pid == kth->ktr_pid) {
+				TAILQ_REMOVE(&trace_procs, pi, info);
+				free(pi);
+				break;
+			}
+		}
+		return (1);
+	}
+
+	return (0);
+}
+
+u_int
+abidump(struct ktr_header *kth)
+{
+	struct proc_info *pi;
+	const char *abi;
+	const char *arch;
+	u_int flags = 0;
+
+	TAILQ_FOREACH(pi, &trace_procs, info) {
+		if (pi->pid == kth->ktr_pid) {
+			flags = pi->sv_flags;
+			break;
+		}
+	}
+
+	if (abiflag == 0)
+		return (flags);
+
+	switch (flags & SV_ABI_MASK) {
+	case SV_ABI_LINUX:
+		abi = "L";
+		break;
+	case SV_ABI_FREEBSD:
+		abi = "F";
+		break;
+	default:
+		abi = "U";
+		break;
+	}
+
+	if (flags != 0) {
+		if (flags & SV_LP64)
+			arch = "64";
+		else
+			arch = "32";
+	} else
+		arch = "00";
+
+	printf("%s%s  ", abi, arch);
+
+	return (flags);
+}
+
 void
 dumpheader(struct ktr_header *kth)
 {
@@ -293,6 +437,10 @@ dumpheader(struct ktr_header *kth)
 	case KTR_SYSCTL:
 		type = "SCTL";
 		break;
+	case KTR_PROCCTOR:
+		/* FALLTHROUGH */
+	case KTR_PROCDTOR:
+		return;
 	default:
 		(void)sprintf(unknown, "UNKNOWN(%d)", kth->ktr_type);
 		type = unknown;
@@ -337,30 +485,21 @@ dumpheader(struct ktr_header *kth)
 int nsyscalls = sizeof (syscallnames) / sizeof (syscallnames[0]);
 
 void
-ktrsyscall(struct ktr_syscall *ktr)
+ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 {
 	int narg = ktr->ktr_narg;
 	register_t *ip;
 
-	if (ktr->ktr_code >= nsyscalls || ktr->ktr_code < 0)
+	if ((flags != 0 && ((flags & SV_ABI_MASK) != SV_ABI_FREEBSD)) ||
+	    (ktr->ktr_code >= nsyscalls || ktr->ktr_code < 0))
 		(void)printf("[%d]", ktr->ktr_code);
 	else
 		(void)printf("%s", syscallnames[ktr->ktr_code]);
 	ip = &ktr->ktr_args[0];
 	if (narg) {
 		char c = '(';
-		if (fancy) {
-
-#define print_number(i,n,c) do {                      \
-	if (decimal)                                  \
-		(void)printf("%c%ld", c, (long)*i);   \
-	else                                          \
-		(void)printf("%c%#lx", c, (long)*i);  \
-	i++;                                          \
-	n--;                                          \
-	c = ',';                                      \
-	} while (0);
-
+		if (fancy &&
+		    (flags == 0 || (flags & SV_ABI_MASK) == SV_ABI_FREEBSD)) {
 			if (ktr->ktr_code == SYS_ioctl) {
 				const char *cp;
 				print_number(ip,narg,c);
@@ -807,13 +946,14 @@ ktrsyscall(struct ktr_syscall *ktr)
 }
 
 void
-ktrsysret(struct ktr_sysret *ktr)
+ktrsysret(struct ktr_sysret *ktr, u_int flags)
 {
 	register_t ret = ktr->ktr_retval;
 	int error = ktr->ktr_error;
 	int code = ktr->ktr_code;
 
-	if (code >= nsyscalls || code < 0)
+	if ((flags != 0 && ((flags & SV_ABI_MASK) != SV_ABI_FREEBSD)) ||
+	    (code >= nsyscalls || code < 0))
 		(void)printf("[%d] ", code);
 	else
 		(void)printf("%s ", syscallnames[code]);
@@ -1364,10 +1504,71 @@ invalid:
 	printf("invalid record\n");
 }
 
+#if defined(__amd64__) || defined(__i386__)
+void
+linux_ktrsyscall(struct ktr_syscall *ktr)
+{
+	int narg = ktr->ktr_narg;
+	register_t *ip;
+
+	if (ktr->ktr_code >= nlinux_syscalls || ktr->ktr_code < 0)
+		printf("[%d]", ktr->ktr_code);
+	else
+		printf("%s", linux_syscallnames[ktr->ktr_code]);
+	ip = &ktr->ktr_args[0];
+	if (narg) {
+		char c = '(';
+		while (narg > 0)
+			print_number(ip, narg, c);
+		putchar(')');
+	}
+	putchar('\n');
+}
+
+void
+linux_ktrsysret(struct ktr_sysret *ktr)
+{
+	register_t ret = ktr->ktr_retval;
+	int error = ktr->ktr_error;
+	int code = ktr->ktr_code;
+
+	if (code >= nlinux_syscalls || code < 0)
+		printf("[%d] ", code);
+	else
+		printf("%s ", linux_syscallnames[code]);
+
+	if (error == 0) {
+		if (fancy) {
+			printf("%ld", (long)ret);
+			if (ret < 0 || ret > 9)
+				printf("/%#lx", (long)ret);
+		} else {
+			if (decimal)
+				printf("%ld", (long)ret);
+			else
+				printf("%#lx", (long)ret);
+		}
+	} else if (error == ERESTART)
+		printf("RESTART");
+	else if (error == EJUSTRETURN)
+		printf("JUSTRETURN");
+	else {
+		if (ktr->ktr_error <= ELAST + 1)
+			error = abs(bsd_to_linux_errno[ktr->ktr_error]);
+		else
+			error = 999;
+		printf("-1 errno %d", error);
+		if (fancy)
+			printf(" %s", strerror(ktr->ktr_error));
+	}
+	putchar('\n');
+}
+#endif
+
 void
 usage(void)
 {
-	fprintf(stderr, "usage: kdump [-dEnlHRrsT] [-f trfile] "
+	fprintf(stderr, "usage: kdump [-dEnlHRrsTA] [-f trfile] "
 	    "[-m maxdata] [-p pid] [-t trstr]\n");
 	exit(1);
 }

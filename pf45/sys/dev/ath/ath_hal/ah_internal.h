@@ -476,6 +476,7 @@ isBigEndian(void)
 extern	int ath_hal_dma_beacon_response_time;	/* in TU's */
 extern	int ath_hal_sw_beacon_response_time;	/* in TU's */
 extern	int ath_hal_additional_swba_backoff;	/* in TU's */
+extern	int ath_hal_ar5416_biasadj;		/* 1 or 0 */
 
 /* wait for the register contents to have the specified value */
 extern	HAL_BOOL ath_hal_wait(struct ath_hal *, u_int reg,
@@ -501,7 +502,14 @@ extern	void ath_hal_free(void *);
 #ifdef AH_DEBUG
 #include "ah_debug.h"
 extern	int ath_hal_debug;
-extern	void HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
+#define	HALDEBUG(_ah, __m, ...) \
+	do {							\
+		if (ath_hal_debug & (__m)) {			\
+			DO_HALDEBUG((_ah), (__m), __VA_ARGS__);	\
+		}						\
+	} while(0);
+
+extern	void DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 	__printflike(3,4);
 #else
 #define HALDEBUG(_ah, __m, _fmt, ...)
@@ -777,4 +785,14 @@ extern	int ath_hal_ini_bank_write(struct ath_hal *ah, const HAL_INI_ARRAY *ia,
 #define	TURBO_SYMBOL_TIME	4
 
 #define	WLAN_CTRL_FRAME_SIZE	(2+2+6+4)	/* ACK+FCS */
+
+/* Generic EEPROM board value functions */
+extern	HAL_BOOL ath_ee_getLowerUpperIndex(uint8_t target, uint8_t *pList,
+	uint16_t listSize, uint16_t *indexL, uint16_t *indexR);
+extern	HAL_BOOL ath_ee_FillVpdTable(uint8_t pwrMin, uint8_t pwrMax,
+	uint8_t *pPwrList, uint8_t *pVpdList, uint16_t numIntercepts,
+	uint8_t *pRetVpdList);
+extern	int16_t ath_ee_interpolate(uint16_t target, uint16_t srcLeft,
+	uint16_t srcRight, int16_t targetLeft, int16_t targetRight);
+
 #endif /* _ATH_AH_INTERAL_H_ */

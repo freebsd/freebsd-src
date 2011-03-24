@@ -98,7 +98,7 @@ agp_find_caps(device_t dev)
 	int capreg;
 
 
-	if (pci_find_extcap(dev, PCIY_AGP, &capreg) != 0)
+	if (pci_find_cap(dev, PCIY_AGP, &capreg) != 0)
 		capreg = 0;
 	return (capreg);
 }

@@ -402,7 +402,9 @@ marshal(const char *name)
 	printf("-g %d ", fs->fs_avgfilesize);
 	printf("-h %d ", fs->fs_avgfpdir);
 	/* -i is dumb */
-	/* -j..l unimplemented */
+	if (fs->fs_flags & FS_SUJ)
+		printf("-j ");
+	/* -k..l unimplemented */
 	printf("-m %d ", fs->fs_minfree);
 	/* -n unimplemented */
 	printf("-o ");
@@ -419,6 +421,8 @@ marshal(const char *name)
 	}
 	/* -p..r unimplemented */
 	printf("-s %jd ", (intmax_t)fsbtodb(fs, fs->fs_size));
+	if (fs->fs_flags & FS_TRIM)
+		printf("-t ");
 	printf("%s ", disk.d_name);
 	printf("\n");
 

@@ -104,7 +104,6 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 		return (error);
 
    	td->td_retval[0] = p2->p_pid;
-	td->td_retval[1] = 0;
 
 	error = linux_proc_init(td, td->td_retval[0], 0);
 	if (error)

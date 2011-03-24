@@ -52,12 +52,15 @@ t ()
 }
 
 count=0
-echo "1..94"
+echo "1..97"
 
 t 0 'b = b' 
+t 0 'b == b' 
 t 1 'b != b' 
 t 0 '\( b = b \)' 
+t 0 '\( b == b \)' 
 t 1 '! \( b = b \)' 
+t 1 '! \( b == b \)' 
 t 1 '! -f /etc/passwd'
 
 t 0 '-h = -h'

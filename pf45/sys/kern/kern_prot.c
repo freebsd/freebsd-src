@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/loginclass.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/refcount.h>
@@ -68,6 +69,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
+
+#ifdef REGRESSION
+FEATURE(regression,
+    "Kernel support for interfaces nessesary for regression testing (SECURITY RISK!)");
+#endif
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
@@ -1837,6 +1843,8 @@ crfree(struct ucred *cr)
 		 */
 		if (cr->cr_prison != NULL)
 			prison_free(cr->cr_prison);
+		if (cr->cr_loginclass != NULL)
+			loginclass_free(cr->cr_loginclass);
 #ifdef AUDIT
 		audit_cred_destroy(cr);
 #endif
@@ -1873,6 +1881,7 @@ crcopy(struct ucred *dest, struct ucred *src)
 	uihold(dest->cr_uidinfo);
 	uihold(dest->cr_ruidinfo);
 	prison_hold(dest->cr_prison);
+	loginclass_hold(dest->cr_loginclass);
 #ifdef AUDIT
 	audit_cred_copy(src, dest);
 #endif

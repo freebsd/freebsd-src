@@ -83,7 +83,7 @@ static void gpart_bootcode(struct gctl_req *, unsigned int);
 static void *gpart_bootfile_read(const char *, ssize_t *);
 static void gpart_issue(struct gctl_req *, unsigned int);
 static void gpart_show(struct gctl_req *, unsigned int);
-static void gpart_show_geom(struct ggeom *, const char *);
+static void gpart_show_geom(struct ggeom *, const char *, int);
 static int gpart_show_hasopt(struct gctl_req *, const char *, const char *);
 static void gpart_write_partcode(struct ggeom *, int, void *, ssize_t);
 static void gpart_write_partcode_vtoc8(struct ggeom *, int, void *);
@@ -153,8 +153,9 @@ struct g_command PUBSYM(class_commands)[] = {
 	{ "show", 0, gpart_show, {
 		{ 'l', "show_label", NULL, G_TYPE_BOOL },
 		{ 'r', "show_rawtype", NULL, G_TYPE_BOOL },
+		{ 'p', "show_providers", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL },
-	    "[-lr] [geom ...]"
+	    "[-lrp] [geom ...]"
 	},
 	{ "undo", 0, gpart_issue, G_NULL_OPTS,
 	    "geom"
@@ -543,13 +544,13 @@ done:
 }
 
 static void
-gpart_show_geom(struct ggeom *gp, const char *element)
+gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 {
 	struct gprovider *pp;
 	const char *s, *scheme;
 	off_t first, last, sector, end;
 	off_t length, secsz;
-	int idx, wblocks, wname;
+	int idx, wblocks, wname, wmax;
 
 	scheme = find_geomcfg(gp, "scheme");
 	s = find_geomcfg(gp, "first");
@@ -560,7 +561,15 @@ gpart_show_geom(struct ggeom *gp, const char *element)
 	s = find_geomcfg(gp, "state");
 	if (s != NULL && *s != 'C')
 		s = NULL;
-	wname = strlen(gp->lg_name);
+	wmax = strlen(gp->lg_name);
+	if (show_providers) {
+		LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
+			wname = strlen(pp->lg_name);
+			if (wname > wmax)
+				wmax = wname;
+		}
+	}
+	wname = wmax;
 	pp = LIST_FIRST(&gp->lg_consumer)->lg_provider;
 	secsz = pp->lg_sectorsize;
 	printf("=>%*jd  %*jd  %*s  %s  (%s)%s\n",
@@ -594,10 +603,18 @@ gpart_show_geom(struct ggeom *gp, const char *element)
 			    (intmax_t)(sector - first), wname, "",
 			    fmtsize((sector - first) * secsz));
 		}
-		printf("  %*jd  %*jd  %*d  %s %s (%s)\n",
-		    wblocks, (intmax_t)sector, wblocks, (intmax_t)length,
-		    wname, idx, find_provcfg(pp, element),
-		    fmtattrib(pp), fmtsize(pp->lg_mediasize));
+		if (show_providers) {
+			printf("  %*jd  %*jd  %*s  %s %s (%s)\n",
+			    wblocks, (intmax_t)sector, wblocks,
+			    (intmax_t)length, wname, pp->lg_name,
+			    find_provcfg(pp, element), fmtattrib(pp),
+			    fmtsize(pp->lg_mediasize));
+		} else
+			printf("  %*jd  %*jd  %*d  %s %s (%s)\n",
+			    wblocks, (intmax_t)sector, wblocks,
+			    (intmax_t)length, wname, idx,
+			    find_provcfg(pp, element), fmtattrib(pp),
+			    fmtsize(pp->lg_mediasize));
 		first = end + 1;
 	}
 	if (first <= last) {
@@ -630,7 +647,7 @@ gpart_show(struct gctl_req *req, unsigned int fl __unused)
 	struct gclass *classp;
 	struct ggeom *gp;
 	const char *element, *name;
-	int error, i, nargs;
+	int error, i, nargs, show_providers;
 
 	element = NULL;
 	if (gpart_show_hasopt(req, "show_label", element))
@@ -651,19 +668,20 @@ gpart_show(struct gctl_req *req, unsigned int fl __unused)
 		geom_deletetree(&mesh);
 		errx(EXIT_FAILURE, "Class %s not found.", name);
 	}
+	show_providers = gctl_get_int(req, "show_providers");
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs > 0) {
 		for (i = 0; i < nargs; i++) {
 			name = gctl_get_ascii(req, "arg%d", i);
 			gp = find_geom(classp, name);
 			if (gp != NULL)
-				gpart_show_geom(gp, element);
+				gpart_show_geom(gp, element, show_providers);
 			else
 				errx(EXIT_FAILURE, "No such geom: %s.", name);
 		}
 	} else {
 		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
-			gpart_show_geom(gp, element);
+			gpart_show_geom(gp, element, show_providers);
 		}
 	}
 	geom_deletetree(&mesh);

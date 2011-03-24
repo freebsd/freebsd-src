@@ -1,0 +1,30 @@
+.TH IBFINDNODESUSING 8 "May 22, 2007" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+ibfindnodesusing.pl \- find a list of end nodes which are routed through the specified switch and port
+
+.SH SYNOPSIS
+.B ibfindnodesusing.pl
+[-R] <switch_guid|switch_name> <port>
+
+.SH DESCRIPTION
+.PP
+ibfindnodesusing.pl uses ibroute and detects the current nodes which are routed
+through both directions of the link specified.  The link is specified by one
+switch port end; the script finds the remote end automatically.
+
+
+.SH OPTIONS
+
+.PP
+.TP
+\fB\-R\fR
+Recalculate the ibnetdiscover information, ie do not use the cached
+information.  This option is slower but should be used if the diag tools have
+not been used for some time or if there are other reasons to believe that
+the fabric has changed.
+
+.SH AUTHOR
+.TP
+Ira Weiny
+.RI < weiny2@llnl.gov >

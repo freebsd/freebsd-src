@@ -32,7 +32,7 @@ private:
 public:
   enum {
     // The target register number for an abstract frame pointer. The value is
-    // an arbitrary value greater than TargetRegisterInfo::FirstVirtualRegister.
+    // an arbitrary value that doesn't collide with any real target register.
     VirtualFP = ~0U
   };
   MachineLocation()
@@ -41,6 +41,11 @@ public:
   : IsRegister(true), Register(R), Offset(0) {}
   MachineLocation(unsigned R, int O)
   : IsRegister(false), Register(R), Offset(O) {}
+
+  bool operator==(const MachineLocation &Other) const {
+      return IsRegister == Other.IsRegister && Register == Other.Register &&
+        Offset == Other.Offset;
+  }
   
   // Accessors
   bool isReg()           const { return IsRegister; }

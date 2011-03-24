@@ -41,11 +41,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 #include <sys/uuid.h>
 #include <geom/geom.h>
 #include <geom/part/g_part.h>
 
 #include "g_part_if.h"
+
+FEATURE(geom_part_gpt, "GEOM partitioning class for GPT partitions support");
 
 CTASSERT(offsetof(struct gpt_hdr, padding) == 92);
 CTASSERT(sizeof(struct gpt_ent) == 128);

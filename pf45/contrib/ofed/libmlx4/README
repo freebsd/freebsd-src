@@ -1,0 +1,58 @@
+Introduction
+============
+
+libmlx4 is a userspace driver for Mellanox ConnectX InfiniBand HCAs.
+It is a plug-in module for libibverbs that allows programs to use
+Mellanox hardware directly from userspace.  See the libibverbs package
+for more information.
+
+Using libmlx4
+==============
+
+libmlx4 will be loaded and used automatically by programs linked with
+libibverbs.  The mlx4_ib kernel module must be loaded for HCA devices
+to be detected and used.
+
+Supported Hardware
+==================
+
+libmlx4 currently supports HCAs based on the following Mellanox chip:
+
+    MT25408 ConnectX (PCI Express)
+
+These HCAs use the mlx4_ib kernel driver.  Support for other Mellanox
+HCAs, which use the ib_mthca kernel driver, is provided by the
+libmthca userspace driver.
+
+Valgrind Support
+================
+
+When running applications that use libibverbs under the Valgrind
+memory-checking debugger, Valgrind will falsely report "read from
+uninitialized" for memory that was initialized by the kernel drivers
+or HCA hardware.  Specifically, Valgrind cannot see when kernel
+drivers or HCA hardware write to userspace memory, so when the process
+reads from that memory, Valgrind incorrectly assumes that the memory
+contents are uninitialized, and therefore raises a warning.
+
+libmlx4 can be built with specific support for the Valgrind
+memory-checking debugger by specifying the --with-valgrind command
+line argument to configure.  This flag enables code in libibverbs to
+tell Valgrind "this memory may look uninitialized, but it's really
+OK," which therefore suppresses the incorrect "read from
+uninitialized" warnings.  This code adds trivial overhead to the
+critical performance path, so it is disabled by default.  The intent
+is that production users can use a "normal" build of libmlx4 and
+developers can use the "valgrind debug" build by simply switching
+their OPENIB_DRIVER_PATH environment variables.
+
+Libmlx4 needs some header files from Valgrind in order to compile this
+support; it is important to use the header files from the same version
+of Valgrind that will be used at run time.  You may need to specify
+the directory where Valgrind's header files are installed as an
+argument to --with-valgrind.  For example
+
+	./configure --with-valgrind=/opt/valgrind
+
+will make the libmlx4 build look for valgrind headers in
+/opt/valgrind/include

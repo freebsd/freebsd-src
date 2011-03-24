@@ -6476,6 +6476,9 @@ all_done:
 			asoc->peers_rwnd = 0;
 		}
 	}
+	if (asoc->cc_functions.sctp_cwnd_update_packet_transmitted) {
+		(*asoc->cc_functions.sctp_cwnd_update_packet_transmitted) (stcb, net);
+	}
 }
 
 static void
@@ -7340,6 +7343,10 @@ nothing_to_send:
 					    SCTP_CWND_LOG_FILL_OUTQ_CALLED);
 				}
 				continue;
+			}
+			if ((stcb->asoc.cc_functions.sctp_cwnd_new_transmission_begins) &&
+			    (net->flight_size == 0)) {
+				(*stcb->asoc.cc_functions.sctp_cwnd_new_transmission_begins) (stcb, net);
 			}
 			if ((asoc->sctp_cmt_on_off == 0) &&
 			    (asoc->primary_destination != net) &&
@@ -8247,7 +8254,10 @@ no_data_fill:
 				} else {
 					asoc->time_last_sent = *now;
 				}
-				data_list[0]->do_rtt = 1;
+				if (net->rto_needed) {
+					data_list[0]->do_rtt = 1;
+					net->rto_needed = 0;
+				}
 				SCTP_STAT_INCR_BY(sctps_senddata, bundle_at);
 				sctp_clean_up_datalist(stcb, asoc, data_list, bundle_at, net);
 				if (SCTP_BASE_SYSCTL(sctp_early_fr)) {

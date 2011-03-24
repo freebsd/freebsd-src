@@ -17,11 +17,24 @@
 #include "clang/Lex/Preprocessor.h"
 using namespace clang;
 
+/// \brief Handle the annotation token produced for #pragma unused(...)
+///
+/// Each annot_pragma_unused is followed by the argument token so e.g.
+/// "#pragma unused(x,y)" becomes:
+/// annot_pragma_unused 'x' annot_pragma_unused 'y'
+void Parser::HandlePragmaUnused() {
+  assert(Tok.is(tok::annot_pragma_unused));
+  SourceLocation UnusedLoc = ConsumeToken();
+  Actions.ActOnPragmaUnused(Tok, getCurScope(), UnusedLoc);
+  ConsumeToken(); // The argument token.
+}
 
 // #pragma GCC visibility comes in two variants:
 //   'push' '(' [visibility] ')'
 //   'pop'
-void PragmaGCCVisibilityHandler::HandlePragma(Preprocessor &PP, Token &VisTok) {
+void PragmaGCCVisibilityHandler::HandlePragma(Preprocessor &PP, 
+                                              PragmaIntroducerKind Introducer,
+                                              Token &VisTok) {
   SourceLocation VisLoc = VisTok.getLocation();
 
   Token Tok;
@@ -74,7 +87,9 @@ void PragmaGCCVisibilityHandler::HandlePragma(Preprocessor &PP, Token &VisTok) {
 //   pack '(' [integer] ')'
 //   pack '(' 'show' ')'
 //   pack '(' ('push' | 'pop') [',' identifier] [, integer] ')'
-void PragmaPackHandler::HandlePragma(Preprocessor &PP, Token &PackTok) {
+void PragmaPackHandler::HandlePragma(Preprocessor &PP, 
+                                     PragmaIntroducerKind Introducer,
+                                     Token &PackTok) {
   SourceLocation PackLoc = PackTok.getLocation();
 
   Token Tok;
@@ -222,16 +237,22 @@ static void ParseAlignPragma(Sema &Actions, Preprocessor &PP, Token &FirstTok,
   Actions.ActOnPragmaOptionsAlign(Kind, FirstTok.getLocation(), KindLoc);
 }
 
-void PragmaAlignHandler::HandlePragma(Preprocessor &PP, Token &AlignTok) {
+void PragmaAlignHandler::HandlePragma(Preprocessor &PP, 
+                                      PragmaIntroducerKind Introducer,
+                                      Token &AlignTok) {
   ParseAlignPragma(Actions, PP, AlignTok, /*IsOptions=*/false);
 }
 
-void PragmaOptionsHandler::HandlePragma(Preprocessor &PP, Token &OptionsTok) {
+void PragmaOptionsHandler::HandlePragma(Preprocessor &PP, 
+                                        PragmaIntroducerKind Introducer,
+                                        Token &OptionsTok) {
   ParseAlignPragma(Actions, PP, OptionsTok, /*IsOptions=*/true);
 }
 
 // #pragma unused(identifier)
-void PragmaUnusedHandler::HandlePragma(Preprocessor &PP, Token &UnusedTok) {
+void PragmaUnusedHandler::HandlePragma(Preprocessor &PP, 
+                                       PragmaIntroducerKind Introducer,
+                                       Token &UnusedTok) {
   // FIXME: Should we be expanding macros here? My guess is no.
   SourceLocation UnusedLoc = UnusedTok.getLocation();
 
@@ -291,14 +312,27 @@ void PragmaUnusedHandler::HandlePragma(Preprocessor &PP, Token &UnusedTok) {
   assert(RParenLoc.isValid() && "Valid '#pragma unused' must have ')'");
   assert(!Identifiers.empty() && "Valid '#pragma unused' must have arguments");
 
-  // Perform the action to handle the pragma.
-  Actions.ActOnPragmaUnused(Identifiers.data(), Identifiers.size(),
-                            parser.getCurScope(), UnusedLoc, LParenLoc, RParenLoc);
+  // For each identifier token, insert into the token stream a
+  // annot_pragma_unused token followed by the identifier token.
+  // This allows us to cache a "#pragma unused" that occurs inside an inline
+  // C++ member function.
+
+  Token *Toks = new Token[2*Identifiers.size()];
+  for (unsigned i=0; i != Identifiers.size(); i++) {
+    Token &pragmaUnusedTok = Toks[2*i], &idTok = Toks[2*i+1];
+    pragmaUnusedTok.startToken();
+    pragmaUnusedTok.setKind(tok::annot_pragma_unused);
+    pragmaUnusedTok.setLocation(UnusedLoc);
+    idTok = Identifiers[i];
+  }
+  PP.EnterTokenStream(Toks, 2*Identifiers.size(), /*DisableMacroExpansion=*/true, /*OwnsTokens=*/true);
 }
 
 // #pragma weak identifier
 // #pragma weak identifier '=' identifier
-void PragmaWeakHandler::HandlePragma(Preprocessor &PP, Token &WeakTok) {
+void PragmaWeakHandler::HandlePragma(Preprocessor &PP, 
+                                     PragmaIntroducerKind Introducer,
+                                     Token &WeakTok) {
   // FIXME: Should we be expanding macros here? My guess is no.
   SourceLocation WeakLoc = WeakTok.getLocation();
 
@@ -337,3 +371,64 @@ void PragmaWeakHandler::HandlePragma(Preprocessor &PP, Token &WeakTok) {
     Actions.ActOnPragmaWeakID(WeakName, WeakLoc, WeakNameLoc);
   }
 }
+
+void
+PragmaFPContractHandler::HandlePragma(Preprocessor &PP, 
+                                      PragmaIntroducerKind Introducer,
+                                      Token &Tok) {
+  tok::OnOffSwitch OOS;
+  if (PP.LexOnOffSwitch(OOS))
+    return;
+
+  Actions.ActOnPragmaFPContract(OOS);
+}
+
+void 
+PragmaOpenCLExtensionHandler::HandlePragma(Preprocessor &PP, 
+                                           PragmaIntroducerKind Introducer,
+                                           Token &Tok) {
+  PP.Lex(Tok);
+  if (Tok.isNot(tok::identifier)) {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_identifier) <<
+      "OPENCL";
+    return;
+  }
+  IdentifierInfo *ename = Tok.getIdentifierInfo();
+  SourceLocation NameLoc = Tok.getLocation();
+
+  PP.Lex(Tok);
+  if (Tok.isNot(tok::colon)) {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_colon) << ename;
+    return;
+  }
+
+  PP.Lex(Tok);
+  if (Tok.isNot(tok::identifier)) {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_enable_disable);
+    return;
+  }
+  IdentifierInfo *op = Tok.getIdentifierInfo();
+
+  unsigned state;
+  if (op->isStr("enable")) {
+    state = 1;
+  } else if (op->isStr("disable")) {
+    state = 0;
+  } else {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_enable_disable);
+    return;
+  }
+
+  OpenCLOptions &f = Actions.getOpenCLOptions();
+  if (ename->isStr("all")) {
+#define OPENCLEXT(nm)   f.nm = state;
+#include "clang/Basic/OpenCLExtensions.def"
+  }
+#define OPENCLEXT(nm) else if (ename->isStr(#nm)) { f.nm = state; }
+#include "clang/Basic/OpenCLExtensions.def"
+  else {
+    PP.Diag(NameLoc, diag::warn_pragma_unknown_extension) << ename;
+    return;
+  }
+}
+

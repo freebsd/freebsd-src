@@ -13,7 +13,7 @@
 #include "llvm/MC/MCParser/MCAsmParserExtension.h"
 
 namespace llvm {
-class MCInst;
+class MCStreamer;
 class StringRef;
 class Target;
 class SMLoc;
@@ -41,6 +41,8 @@ public:
 
   unsigned getAvailableFeatures() const { return AvailableFeatures; }
   void setAvailableFeatures(unsigned Value) { AvailableFeatures = Value; }
+
+  virtual bool ParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &EndLoc) = 0;
 
   /// ParseInstruction - Parse one assembly instruction.
   ///
@@ -70,16 +72,16 @@ public:
   /// \param DirectiveID - the identifier token of the directive.
   virtual bool ParseDirective(AsmToken DirectiveID) = 0;
   
-  /// MatchInstruction - Recognize a series of operands of a parsed instruction
-  /// as an actual MCInst.  This returns false and fills in Inst on success and
-  /// returns true on failure to match.
+  /// MatchAndEmitInstruction - Recognize a series of operands of a parsed
+  /// instruction as an actual MCInst and emit it to the specified MCStreamer.
+  /// This returns false on success and returns true on failure to match.
   ///
   /// On failure, the target parser is responsible for emitting a diagnostic
   /// explaining the match failure.
   virtual bool 
-  MatchInstruction(SMLoc IDLoc,
-                   const SmallVectorImpl<MCParsedAsmOperand*> &Operands,
-                   MCInst &Inst) = 0;
+  MatchAndEmitInstruction(SMLoc IDLoc,
+                          SmallVectorImpl<MCParsedAsmOperand*> &Operands,
+                          MCStreamer &Out) = 0;
   
 };
 

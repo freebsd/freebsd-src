@@ -27,6 +27,9 @@ public:
   // Default ctor - Initialize to empty.
   SmallString() {}
 
+  // Initialize from a StringRef.
+  SmallString(StringRef S) : SmallVector<char, InternalLen>(S.begin(), S.end()) {}
+
   // Initialize with a range.
   template<typename ItTy>
   SmallString(ItTy S, ItTy E) : SmallVector<char, InternalLen>(S, E) {}
@@ -38,14 +41,15 @@ public:
   // Extra methods.
   StringRef str() const { return StringRef(this->begin(), this->size()); }
 
-  // Implicit conversion to StringRef.
-  operator StringRef() const { return str(); }
-
-  const char *c_str() {
+  // TODO: Make this const, if it's safe...
+  const char* c_str() {
     this->push_back(0);
     this->pop_back();
     return this->data();
   }
+
+  // Implicit conversion to StringRef.
+  operator StringRef() const { return str(); }
 
   // Extra operators.
   const SmallString &operator=(StringRef RHS) {

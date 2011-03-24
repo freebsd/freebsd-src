@@ -36,6 +36,8 @@
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"
 
+#include "ar9002/ar9285phy.h"
+
 /* Eeprom versioning macros. Returns true if the version is equal or newer than the ver specified */ 
 #define	EEP_MINOR(_ah) \
 	(AH_PRIVATE(_ah)->ah_eeversion & AR5416_EEP_VER_MINOR_MASK)
@@ -57,18 +59,12 @@ static HAL_BOOL ar9285SetPowerCalTable(struct ath_hal *ah,
 	struct ar5416eeprom_4k *pEepData,
 	const struct ieee80211_channel *chan,
 	int16_t *pTxPowerIndexOffset);
-static int16_t interpolate(uint16_t target, uint16_t srcLeft,
-	uint16_t srcRight, int16_t targetLeft, int16_t targetRight);
-static HAL_BOOL ar9285FillVpdTable(uint8_t, uint8_t, uint8_t *, uint8_t *,
-		                   uint16_t, uint8_t *);
 static void ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah, 
 	const struct ieee80211_channel *chan, CAL_DATA_PER_FREQ_4K *pRawDataSet,
 	uint8_t * bChans, uint16_t availPiers,
 	uint16_t tPdGainOverlap, int16_t *pMinCalPower,
 	uint16_t * pPdGainBoundaries, uint8_t * pPDADCValues,
 	uint16_t numXpdGains);
-static HAL_BOOL getLowerUpperIndex(uint8_t target, uint8_t *pList,
-	uint16_t listSize,  uint16_t *indexL, uint16_t *indexR);
 static uint16_t ar9285GetMaxEdgePower(uint16_t, CAL_CTL_EDGES *);
 
 /* XXX gag, this is sick */
@@ -155,9 +151,12 @@ ar9285SetTransmitPower(struct ath_hal *ah,
      */
     for (i = 0; i < N(ratesArray); i++) {
         ratesArray[i] = (int16_t)(txPowerIndexOffset + ratesArray[i]);
+	/* -5 dBm offset for Merlin and later; this includes Kite */
+	ratesArray[i] -= AR5416_PWR_TABLE_OFFSET_DB * 2;
         if (ratesArray[i] > AR5416_MAX_RATE_POWER)
             ratesArray[i] = AR5416_MAX_RATE_POWER;
-	ratesArray[i] -= AR5416_PWR_TABLE_OFFSET_DB * 2;
+	if (ratesArray[i] < 0)
+		ratesArray[i] = 0;
     }
 
 #ifdef AH_EEPROM_DUMP
@@ -239,67 +238,198 @@ ar9285SetTransmitPower(struct ath_hal *ah,
 #undef N
 }
 
+static void
+ar9285SetBoardGain(struct ath_hal *ah, const MODAL_EEP4K_HEADER *pModal,
+    const struct ar5416eeprom_4k *eep, uint8_t txRxAttenLocal)
+{
+	OS_REG_WRITE(ah, AR_PHY_SWITCH_CHAIN_0,
+		  pModal->antCtrlChain[0]);
+
+	OS_REG_WRITE(ah, AR_PHY_TIMING_CTRL4_CHAIN(0),
+		  (OS_REG_READ(ah, AR_PHY_TIMING_CTRL4_CHAIN(0)) &
+		   ~(AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF |
+		     AR_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF)) |
+		  SM(pModal->iqCalICh[0], AR_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF) |
+		  SM(pModal->iqCalQCh[0], AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF));
+
+	if ((eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK) >=
+	    AR5416_EEP_MINOR_VER_3) {
+		txRxAttenLocal = pModal->txRxAttenCh[0];
+
+		OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ,
+		    AR_PHY_GAIN_2GHZ_XATTEN1_MARGIN, pModal->bswMargin[0]);
+		OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ,
+		    AR_PHY_GAIN_2GHZ_XATTEN1_DB, pModal->bswAtten[0]);
+		OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ,
+		    AR_PHY_GAIN_2GHZ_XATTEN2_MARGIN, pModal->xatten2Margin[0]);
+		OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ,
+		    AR_PHY_GAIN_2GHZ_XATTEN2_DB, pModal->xatten2Db[0]);
+
+		/* Set the block 1 value to block 0 value */
+		OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
+		      AR_PHY_GAIN_2GHZ_XATTEN1_MARGIN,
+		      pModal->bswMargin[0]);
+		OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
+		      AR_PHY_GAIN_2GHZ_XATTEN1_DB, pModal->bswAtten[0]);
+		OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
+		      AR_PHY_GAIN_2GHZ_XATTEN2_MARGIN,
+		      pModal->xatten2Margin[0]);
+		OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
+		      AR_PHY_GAIN_2GHZ_XATTEN2_DB, pModal->xatten2Db[0]);
+	}
+
+	OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN,
+		      AR9280_PHY_RXGAIN_TXRX_ATTEN, txRxAttenLocal);
+	OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN,
+		      AR9280_PHY_RXGAIN_TXRX_MARGIN, pModal->rxTxMarginCh[0]);
+
+	OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN + 0x1000,
+		      AR9280_PHY_RXGAIN_TXRX_ATTEN, txRxAttenLocal);
+	OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN + 0x1000,
+		      AR9280_PHY_RXGAIN_TXRX_MARGIN, pModal->rxTxMarginCh[0]);
+}
+
+/*
+ * Read EEPROM header info and program the device for correct operation
+ * given the channel value.
+ */
 HAL_BOOL
 ar9285SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
-    const HAL_EEPROM_v4k *ee = AH_PRIVATE(ah)->ah_eeprom;
-    const struct ar5416eeprom_4k *eep = &ee->ee_base;
-    const MODAL_EEP4K_HEADER *pModal;
-    uint8_t	txRxAttenLocal = 23;
+	const HAL_EEPROM_v4k *ee = AH_PRIVATE(ah)->ah_eeprom;
+	const struct ar5416eeprom_4k *eep = &ee->ee_base;
+	const MODAL_EEP4K_HEADER *pModal;
+	uint8_t txRxAttenLocal;
+	uint8_t ob[5], db1[5], db2[5];
+	uint8_t ant_div_control1, ant_div_control2;
+	uint32_t regVal;
 
-    HALASSERT(AH_PRIVATE(ah)->ah_eeversion >= AR_EEPROM_VER14_1);
-    pModal = &eep->modalHeader;
+	pModal = &eep->modalHeader;
+	txRxAttenLocal = 23;
 
-    OS_REG_WRITE(ah, AR_PHY_SWITCH_COM, pModal->antCtrlCommon);
-    OS_REG_WRITE(ah, AR_PHY_SWITCH_CHAIN_0, pModal->antCtrlChain[0]);
-    OS_REG_WRITE(ah, AR_PHY_TIMING_CTRL4,
-        	(OS_REG_READ(ah, AR_PHY_TIMING_CTRL4) &
-        	~(AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF | AR_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF)) |
-        	SM(pModal->iqCalICh[0], AR_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF) |
-        	SM(pModal->iqCalQCh[0], AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF));
+	OS_REG_WRITE(ah, AR_PHY_SWITCH_COM, pModal->antCtrlCommon);
 
-    if (IS_EEP_MINOR_V3(ah)) {
-	if (IEEE80211_IS_CHAN_HT40(chan)) {
-		/* Overwrite switch settling with HT40 value */
-		OS_REG_RMW_FIELD(ah, AR_PHY_SETTLING, AR_PHY_SETTLING_SWITCH,
-		    pModal->swSettleHt40);
+	/* Single chain for 4K EEPROM*/
+	ar9285SetBoardGain(ah, pModal, eep, txRxAttenLocal);
+
+	/* Initialize Ant Diversity settings from EEPROM */
+	if (pModal->version >= 3) {
+		ant_div_control1 = pModal->antdiv_ctl1;
+		ant_div_control2 = pModal->antdiv_ctl2;
+
+		regVal = OS_REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
+		regVal &= (~(AR_PHY_9285_ANT_DIV_CTL_ALL));
+
+		regVal |= SM(ant_div_control1,
+			     AR_PHY_9285_ANT_DIV_CTL);
+		regVal |= SM(ant_div_control2,
+			     AR_PHY_9285_ANT_DIV_ALT_LNACONF);
+		regVal |= SM((ant_div_control2 >> 2),
+			     AR_PHY_9285_ANT_DIV_MAIN_LNACONF);
+		regVal |= SM((ant_div_control1 >> 1),
+			     AR_PHY_9285_ANT_DIV_ALT_GAINTB);
+		regVal |= SM((ant_div_control1 >> 2),
+			     AR_PHY_9285_ANT_DIV_MAIN_GAINTB);
+
+		OS_REG_WRITE(ah, AR_PHY_MULTICHAIN_GAIN_CTL, regVal);
+		regVal = OS_REG_READ(ah, AR_PHY_MULTICHAIN_GAIN_CTL);
+		regVal = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
+		regVal &= (~AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+		regVal |= SM((ant_div_control1 >> 3),
+			     AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+
+		OS_REG_WRITE(ah, AR_PHY_CCK_DETECT, regVal);
+		regVal = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
 	}
-	txRxAttenLocal = pModal->txRxAttenCh[0];
 
-        OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ, AR_PHY_GAIN_2GHZ_XATTEN1_MARGIN,
-	    pModal->bswMargin[0]);
-        OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ, AR_PHY_GAIN_2GHZ_XATTEN1_DB,
-	    pModal->bswAtten[0]);
-	OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ, AR_PHY_GAIN_2GHZ_XATTEN2_MARGIN,
-	    pModal->xatten2Margin[0]);
-	OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ, AR_PHY_GAIN_2GHZ_XATTEN2_DB,
-	    pModal->xatten2Db[0]);
+	if (pModal->version >= 2) {
+		ob[0] = pModal->ob_0;
+		ob[1] = pModal->ob_1;
+		ob[2] = pModal->ob_2;
+		ob[3] = pModal->ob_3;
+		ob[4] = pModal->ob_4;
 
-	/* block 1 has the same values as block 0 */	
-        OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
-	    AR_PHY_GAIN_2GHZ_XATTEN1_MARGIN, pModal->bswMargin[0]);
-        OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
-	    AR_PHY_GAIN_2GHZ_XATTEN1_DB, pModal->bswAtten[0]);
-	OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
-	    AR_PHY_GAIN_2GHZ_XATTEN2_MARGIN, pModal->xatten2Margin[0]);
-	OS_REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ + 0x1000,
-	    AR_PHY_GAIN_2GHZ_XATTEN2_DB, pModal->xatten2Db[0]);
+		db1[0] = pModal->db1_0;
+		db1[1] = pModal->db1_1;
+		db1[2] = pModal->db1_2;
+		db1[3] = pModal->db1_3;
+		db1[4] = pModal->db1_4;
 
-    }
-    OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN,
-        AR9280_PHY_RXGAIN_TXRX_ATTEN, txRxAttenLocal);
-    OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN,
-        AR9280_PHY_RXGAIN_TXRX_MARGIN, pModal->rxTxMarginCh[0]);
+		db2[0] = pModal->db2_0;
+		db2[1] = pModal->db2_1;
+		db2[2] = pModal->db2_2;
+		db2[3] = pModal->db2_3;
+		db2[4] = pModal->db2_4;
+	} else if (pModal->version == 1) {
+		ob[0] = pModal->ob_0;
+		ob[1] = ob[2] = ob[3] = ob[4] = pModal->ob_1;
+		db1[0] = pModal->db1_0;
+		db1[1] = db1[2] = db1[3] = db1[4] = pModal->db1_1;
+		db2[0] = pModal->db2_0;
+		db2[1] = db2[2] = db2[3] = db2[4] = pModal->db2_1;
+	} else {
+		int i;
 
-    OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN + 0x1000,
-        AR9280_PHY_RXGAIN_TXRX_ATTEN, txRxAttenLocal);
-    OS_REG_RMW_FIELD(ah, AR_PHY_RXGAIN + 0x1000,
-        AR9280_PHY_RXGAIN_TXRX_MARGIN, pModal->rxTxMarginCh[0]);
+		for (i = 0; i < 5; i++) {
+			ob[i] = pModal->ob_0;
+			db1[i] = pModal->db1_0;
+			db2[i] = pModal->db1_0;
+		}
+	}
 
-    if (AR_SREV_KITE_11(ah))
-	    OS_REG_WRITE(ah, AR9285_AN_TOP4, (AR9285_AN_TOP4_DEFAULT | 0x14));
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_OB_0, ob[0]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_OB_1, ob[1]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_OB_2, ob[2]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_OB_3, ob[3]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_OB_4, ob[4]);
 
-    return AH_TRUE;
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_DB1_0, db1[0]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_DB1_1, db1[1]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G3, AR9285_AN_RF2G3_DB1_2, db1[2]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G4, AR9285_AN_RF2G4_DB1_3, db1[3]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G4, AR9285_AN_RF2G4_DB1_4, db1[4]);
+
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G4, AR9285_AN_RF2G4_DB2_0, db2[0]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G4, AR9285_AN_RF2G4_DB2_1, db2[1]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G4, AR9285_AN_RF2G4_DB2_2, db2[2]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G4, AR9285_AN_RF2G4_DB2_3, db2[3]);
+	OS_A_REG_RMW_FIELD(ah, AR9285_AN_RF2G4, AR9285_AN_RF2G4_DB2_4, db2[4]);
+
+	OS_REG_RMW_FIELD(ah, AR_PHY_SETTLING, AR_PHY_SETTLING_SWITCH,
+		      pModal->switchSettling);
+	OS_REG_RMW_FIELD(ah, AR_PHY_DESIRED_SZ, AR_PHY_DESIRED_SZ_ADC,
+		      pModal->adcDesiredSize);
+
+	OS_REG_WRITE(ah, AR_PHY_RF_CTL4,
+		  SM(pModal->txEndToXpaOff, AR_PHY_RF_CTL4_TX_END_XPAA_OFF) |
+		  SM(pModal->txEndToXpaOff, AR_PHY_RF_CTL4_TX_END_XPAB_OFF) |
+		  SM(pModal->txFrameToXpaOn, AR_PHY_RF_CTL4_FRAME_XPAA_ON)  |
+		  SM(pModal->txFrameToXpaOn, AR_PHY_RF_CTL4_FRAME_XPAB_ON));
+
+	OS_REG_RMW_FIELD(ah, AR_PHY_RF_CTL3, AR_PHY_TX_END_TO_A2_RX_ON,
+		      pModal->txEndToRxOn);
+
+	OS_REG_RMW_FIELD(ah, AR_PHY_CCA, AR9280_PHY_CCA_THRESH62,
+		      pModal->thresh62);
+	OS_REG_RMW_FIELD(ah, AR_PHY_EXT_CCA0, AR_PHY_EXT_CCA0_THRESH62,
+		      pModal->thresh62);
+
+	if ((eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK) >=
+	    AR5416_EEP_MINOR_VER_2) {
+		OS_REG_RMW_FIELD(ah, AR_PHY_RF_CTL2, AR_PHY_TX_FRAME_TO_DATA_START,
+		    pModal->txFrameToDataStart);
+		OS_REG_RMW_FIELD(ah, AR_PHY_RF_CTL2, AR_PHY_TX_FRAME_TO_PA_ON,
+		    pModal->txFrameToPaOn);
+	}
+
+	if ((eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK) >=
+	    AR5416_EEP_MINOR_VER_3) {
+		if (IEEE80211_IS_CHAN_HT40(chan))
+			OS_REG_RMW_FIELD(ah, AR_PHY_SETTLING,
+			    AR_PHY_SETTLING_SWITCH, pModal->swSettleHt40);
+	}
+
+	return AH_TRUE;
 }
 
 /*
@@ -552,11 +682,11 @@ ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
     uint16_t pdGainOverlap_t2;
     static uint8_t  pdadcValues[AR5416_NUM_PDADC_VALUES];
     uint16_t gainBoundaries[AR5416_PD_GAINS_IN_MASK];
-    uint16_t numPiers, i, j;
+    uint16_t numPiers, i;
     int16_t  tMinCalPower;
     uint16_t numXpdGain, xpdMask;
-    uint16_t xpdGainValues[AR5416_4K_NUM_PD_GAINS];
-    uint32_t reg32, regOffset, regChainOffset;
+    uint16_t xpdGainValues[4];	/* v4k eeprom has 2; the other two stay 0 */
+    uint32_t regChainOffset;
 
     OS_MEMZERO(xpdGainValues, sizeof(xpdGainValues));
     
@@ -571,6 +701,7 @@ ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
     pCalBChans = pEepData->calFreqPier2G;
     numPiers = AR5416_4K_NUM_2G_CAL_PIERS;
     numXpdGain = 0;
+
     /* Calculate the value of xpdgains from the xpdGain Mask */
     for (i = 1; i <= AR5416_PD_GAINS_IN_MASK; i++) {
         if ((xpdMask >> (AR5416_PD_GAINS_IN_MASK - i)) & 1) {
@@ -584,23 +715,10 @@ ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
     }
     
     /* Write the detector gain biases and their number */
-    OS_REG_WRITE(ah, AR_PHY_TPCRG1, (OS_REG_READ(ah, AR_PHY_TPCRG1) & 
-    	~(AR_PHY_TPCRG1_NUM_PD_GAIN | AR_PHY_TPCRG1_PD_GAIN_1 | AR_PHY_TPCRG1_PD_GAIN_2 | AR_PHY_TPCRG1_PD_GAIN_3)) | 
-	SM(numXpdGain - 1, AR_PHY_TPCRG1_NUM_PD_GAIN) | SM(xpdGainValues[0], AR_PHY_TPCRG1_PD_GAIN_1 ) |
-	SM(xpdGainValues[1], AR_PHY_TPCRG1_PD_GAIN_2) | SM(0, AR_PHY_TPCRG1_PD_GAIN_3));
+    ar5416WriteDetectorGainBiases(ah, numXpdGain, xpdGainValues);
 
     for (i = 0; i < AR5416_MAX_CHAINS; i++) {
-
-            if (AR_SREV_OWL_20_OR_LATER(ah) && 
-            ( AH5416(ah)->ah_rx_chainmask == 0x5 || AH5416(ah)->ah_tx_chainmask == 0x5) && (i != 0)) {
-            /* Regs are swapped from chain 2 to 1 for 5416 2_0 with 
-             * only chains 0 and 2 populated 
-             */
-            regChainOffset = (i == 1) ? 0x2000 : 0x1000;
-        } else {
-            regChainOffset = i * 0x1000;
-        }
-
+	regChainOffset = ar5416GetRegChainOffset(ah, i);
         if (pEepData->baseEepHeader.txMask & (1 << i)) {
             pRawDataset = pEepData->calPierData2G[i];
 
@@ -616,35 +734,11 @@ ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
                  * negative or greater than 0.  Need to offset the power
                  * values by the amount of minPower for griffin
                  */
-
-                OS_REG_WRITE(ah, AR_PHY_TPCRG5 + regChainOffset,
-                     SM(pdGainOverlap_t2, AR_PHY_TPCRG5_PD_GAIN_OVERLAP) |
-                     SM(gainBoundaries[0], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_1)  |
-                     SM(gainBoundaries[1], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_2)  |
-                     SM(gainBoundaries[2], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_3)  |
-                     SM(gainBoundaries[3], AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_4));
+		ar5416SetGainBoundariesClosedLoop(ah, i, pdGainOverlap_t2, gainBoundaries); 
             }
 
             /* Write the power values into the baseband power table */
-            regOffset = AR_PHY_BASE + (672 << 2) + regChainOffset;
-
-            for (j = 0; j < 32; j++) {
-                reg32 = ((pdadcValues[4*j + 0] & 0xFF) << 0)  |
-                    ((pdadcValues[4*j + 1] & 0xFF) << 8)  |
-                    ((pdadcValues[4*j + 2] & 0xFF) << 16) |
-                    ((pdadcValues[4*j + 3] & 0xFF) << 24) ;
-                OS_REG_WRITE(ah, regOffset, reg32);
-
-#ifdef PDADC_DUMP
-		ath_hal_printf(ah, "PDADC: Chain %d | PDADC %3d Value %3d | PDADC %3d Value %3d | PDADC %3d Value %3d | PDADC %3d Value %3d |\n",
-			       i,
-			       4*j, pdadcValues[4*j],
-			       4*j+1, pdadcValues[4*j + 1],
-			       4*j+2, pdadcValues[4*j + 2],
-			       4*j+3, pdadcValues[4*j + 3]);
-#endif
-                regOffset += 4;
-            }
+	    ar5416WritePdadcValues(ah, i, pdadcValues);
         }
     }
     *pTxPowerIndexOffset = 0;
@@ -694,15 +788,15 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
     }
 
     /* Find pier indexes around the current channel */
-    match = getLowerUpperIndex((uint8_t)FREQ2FBIN(centers.synth_center, IEEE80211_IS_CHAN_2GHZ(chan)),
-			bChans, numPiers, &idxL, &idxR);
+    match = ath_ee_getLowerUpperIndex((uint8_t)FREQ2FBIN(centers.synth_center,
+      IEEE80211_IS_CHAN_2GHZ(chan)), bChans, numPiers, &idxL, &idxR);
 
     if (match) {
         /* Directly fill both vpd tables from the matching index */
         for (i = 0; i < numXpdGains; i++) {
             minPwrT4[i] = pRawDataSet[idxL].pwrPdg[i][0];
             maxPwrT4[i] = pRawDataSet[idxL].pwrPdg[i][4];
-            ar9285FillVpdTable(minPwrT4[i], maxPwrT4[i],
+            ath_ee_FillVpdTable(minPwrT4[i], maxPwrT4[i],
 			       pRawDataSet[idxL].pwrPdg[i],
                                pRawDataSet[idxL].vpdPdg[i],
 			       AR5416_PD_GAIN_ICEPTS, vpdTableI[i]);
@@ -722,14 +816,15 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
             HALASSERT(maxPwrT4[i] > minPwrT4[i]);
 
             /* Fill pier Vpds */
-            ar9285FillVpdTable(minPwrT4[i], maxPwrT4[i], pPwrL, pVpdL,
+            ath_ee_FillVpdTable(minPwrT4[i], maxPwrT4[i], pPwrL, pVpdL,
 			       AR5416_PD_GAIN_ICEPTS, vpdTableL[i]);
-            ar9285FillVpdTable(minPwrT4[i], maxPwrT4[i], pPwrR, pVpdR,
+            ath_ee_FillVpdTable(minPwrT4[i], maxPwrT4[i], pPwrR, pVpdR,
 			       AR5416_PD_GAIN_ICEPTS, vpdTableR[i]);
 
             /* Interpolate the final vpd */
             for (j = 0; j <= (maxPwrT4[i] - minPwrT4[i]) / 2; j++) {
-                vpdTableI[i][j] = (uint8_t)(interpolate((uint16_t)FREQ2FBIN(centers.synth_center, IEEE80211_IS_CHAN_2GHZ(chan)),
+                vpdTableI[i][j] = (uint8_t)(ath_ee_interpolate((uint16_t)FREQ2FBIN(centers.synth_center,
+                    IEEE80211_IS_CHAN_2GHZ(chan)),
                     bChans[idxL], bChans[idxR], vpdTableL[i][j], vpdTableR[i][j]));
             }
         }
@@ -762,7 +857,10 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
 
         /* Find starting index for this pdGain */
         if (i == 0) {
-            ss = 0; /* for the first pdGain, start from index 0 */
+            if (AR_SREV_MERLIN_20_OR_LATER(ah))
+                ss = (int16_t)(0 - (minPwrT4[i] / 2));
+            else
+                ss = 0; /* for the first pdGain, start from index 0 */
         } else {
 	    /* need overlap entries extrapolated below. */
             ss = (int16_t)((pPdGainBoundaries[i-1] - (minPwrT4[i] / 2)) - tPdGainOverlap + 1 + minDelta);
@@ -813,92 +911,4 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
         k++;
     }
     return;
-}
-/*
- * XXX same as ar5416FillVpdTable
- */
-static HAL_BOOL
-ar9285FillVpdTable(uint8_t pwrMin, uint8_t pwrMax, uint8_t *pPwrList,
-                   uint8_t *pVpdList, uint16_t numIntercepts, uint8_t *pRetVpdList)
-{
-    uint16_t  i, k;
-    uint8_t   currPwr = pwrMin;
-    uint16_t  idxL, idxR;
-
-    HALASSERT(pwrMax > pwrMin);
-    for (i = 0; i <= (pwrMax - pwrMin) / 2; i++) {
-        getLowerUpperIndex(currPwr, pPwrList, numIntercepts,
-                           &(idxL), &(idxR));
-        if (idxR < 1)
-            idxR = 1;           /* extrapolate below */
-        if (idxL == numIntercepts - 1)
-            idxL = (uint16_t)(numIntercepts - 2);   /* extrapolate above */
-        if (pPwrList[idxL] == pPwrList[idxR])
-            k = pVpdList[idxL];
-        else
-            k = (uint16_t)( ((currPwr - pPwrList[idxL]) * pVpdList[idxR] + (pPwrList[idxR] - currPwr) * pVpdList[idxL]) /
-                  (pPwrList[idxR] - pPwrList[idxL]) );
-        HALASSERT(k < 256);
-        pRetVpdList[i] = (uint8_t)k;
-        currPwr += 2;               /* half dB steps */
-    }
-
-    return AH_TRUE;
-}
-static int16_t
-interpolate(uint16_t target, uint16_t srcLeft, uint16_t srcRight,
-            int16_t targetLeft, int16_t targetRight)
-{
-    int16_t rv;
-
-    if (srcRight == srcLeft) {
-        rv = targetLeft;
-    } else {
-        rv = (int16_t)( ((target - srcLeft) * targetRight +
-              (srcRight - target) * targetLeft) / (srcRight - srcLeft) );
-    }
-    return rv;
-}
-
-HAL_BOOL
-getLowerUpperIndex(uint8_t target, uint8_t *pList, uint16_t listSize,
-                   uint16_t *indexL, uint16_t *indexR)
-{
-    uint16_t i;
-
-    /*
-     * Check first and last elements for beyond ordered array cases.
-     */
-    if (target <= pList[0]) {
-        *indexL = *indexR = 0;
-        return AH_TRUE;
-    }
-    if (target >= pList[listSize-1]) {
-        *indexL = *indexR = (uint16_t)(listSize - 1);
-        return AH_TRUE;
-    }
-
-    /* look for value being near or between 2 values in list */
-    for (i = 0; i < listSize - 1; i++) {
-        /*
-         * If value is close to the current value of the list
-         * then target is not between values, it is one of the values
-         */
-        if (pList[i] == target) {
-            *indexL = *indexR = i;
-            return AH_TRUE;
-        }
-        /*
-         * Look for value being between current value and next value
-         * if so return these 2 values
-         */
-        if (target < pList[i + 1]) {
-            *indexL = i;
-            *indexR = (uint16_t)(i + 1);
-            return AH_FALSE;
-        }
-    }
-    HALASSERT(0);
-    *indexL = *indexR = 0;
-    return AH_FALSE;
 }

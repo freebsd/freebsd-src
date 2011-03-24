@@ -100,10 +100,13 @@
 #define	KI_EMULNAMELEN	16		/* size of returned ki_emul */
 #define KI_NGROUPS	16		/* number of groups in ki_groups */
 #define	LOGNAMELEN	17		/* size of returned ki_login */
+#define	LOGINCLASSLEN	17		/* size of returned ki_loginclass */
 
+/* Flags for the process credential. */
+#define	KI_CRF_CAPABILITY_MODE	0x00000001
 /*
- * Steal a bit from ki_cr_flags (cr_flags is never used) to indicate
- * that the cred had more than KI_NGROUPS groups.
+ * Steal a bit from ki_cr_flags to indicate that the cred had more than
+ * KI_NGROUPS groups.
  */
 #define KI_CRF_GRP_OVERFLOW	0x80000000
 
@@ -170,12 +173,13 @@ struct kinfo_proc {
 	char	ki_lockname[LOCKNAMELEN+1]; /* lock name */
 	char	ki_comm[COMMLEN+1];	/* command name */
 	char	ki_emul[KI_EMULNAMELEN+1];  /* emulation name */
+	char	ki_loginclass[LOGINCLASSLEN+1]; /* login class */
 	/*
 	 * When adding new variables, take space for char-strings from the
 	 * front of ki_sparestrings, and ints from the end of ki_spareints.
 	 * That way the spare room from both arrays will remain contiguous.
 	 */
-	char	ki_sparestrings[68];	/* spare string space */
+	char	ki_sparestrings[50];	/* spare string space */
 	int	ki_spareints[KI_NSPARE_INT];	/* spare room for growth */
 	u_int	ki_cr_flags;		/* Credential flags */
 	int	ki_jid;			/* Process jail ID */

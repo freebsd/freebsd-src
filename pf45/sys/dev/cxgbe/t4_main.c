@@ -36,11 +36,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/module.h>
+#include <sys/malloc.h>
+#include <sys/queue.h>
+#include <sys/taskqueue.h>
 #include <sys/pciio.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>
 #include <sys/firmware.h>
+#include <sys/sbuf.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -201,7 +205,7 @@ SYSCTL_UINT(_hw_cxgbe, OID_AUTO, qsize_rxq, CTLFLAG_RDTUN,
 /*
  * Interrupt types allowed.
  */
-static int intr_types = 7;
+static int intr_types = INTR_MSIX | INTR_MSI | INTR_INTX;
 TUNABLE_INT("hw.cxgbe.interrupt_types", &intr_types);
 SYSCTL_UINT(_hw_cxgbe, OID_AUTO, interrupt_types, CTLFLAG_RDTUN, &intr_types, 0,
     "interrupt types allowed (bits 0, 1, 2 = INTx, MSI, MSI-X respectively)");
@@ -215,7 +219,7 @@ SYSCTL_UINT(_hw_cxgbe, OID_AUTO, interrupt_forwarding, CTLFLAG_RDTUN,
     &intr_fwd, 0, "always use forwarded interrupts");
 
 struct intrs_and_queues {
-	int intr_type;		/* 1, 2, or 4 for INTx, MSI, or MSI-X */
+	int intr_type;		/* INTx, MSI, or MSI-X */
 	int nirq;		/* Number of vectors */
 	int intr_fwd;		/* Interrupts forwarded */
 	int ntxq10g;		/* # of NIC txq's for each 10G port */
@@ -269,12 +273,14 @@ static void t4_get_regs(struct adapter *, struct t4_regdump *, uint8_t *);
 static void cxgbe_tick(void *);
 static int t4_sysctls(struct adapter *);
 static int cxgbe_sysctls(struct port_info *);
+static int sysctl_int_array(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_txq(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
-
+static inline void txq_start(struct ifnet *, struct sge_txq *);
+static int t4_mod_event(module_t, int, void *);
 
 struct t4_pciids {
 	uint16_t device;
@@ -633,7 +639,7 @@ t4_detach(device_t dev)
 	if (sc->flags & FW_OK)
 		t4_fw_bye(sc, sc->mbox);
 
-	if (sc->intr_type == 2 || sc->intr_type == 4)
+	if (sc->intr_type == INTR_MSI || sc->intr_type == INTR_MSIX)
 		pci_release_msi(dev);
 
 	if (sc->regs_res)
@@ -692,6 +698,15 @@ cxgbe_attach(device_t dev)
 	ifp->if_softc = pi;
 
 	callout_init(&pi->tick, CALLOUT_MPSAFE);
+	pi->tq = taskqueue_create("cxgbe_taskq", M_NOWAIT,
+	    taskqueue_thread_enqueue, &pi->tq);
+	if (pi->tq == NULL) {
+		device_printf(dev, "failed to allocate port task queue\n");
+		if_free(pi->ifp);
+		return (ENOMEM);
+	}
+	taskqueue_start_threads(&pi->tq, 1, PI_NET, "%s taskq",
+	    device_get_nameunit(dev));
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -745,6 +760,8 @@ cxgbe_detach(device_t dev)
 	rc = cxgbe_uninit_synchronized(pi);
 	if (rc != 0)
 		device_printf(dev, "port uninit failed: %d.\n", rc);
+
+	taskqueue_free(pi->tq);
 
 	ifmedia_removeall(&pi->media);
 	ether_ifdetach(pi->ifp);
@@ -951,13 +968,7 @@ cxgbe_start(struct ifnet *ifp)
 
 	for_each_txq(pi, i, txq) {
 		if (TXQ_TRYLOCK(txq)) {
-			struct buf_ring *br = txq->eq.br;
-			struct mbuf *m;
-
-			m = txq->m ? txq->m : drbr_dequeue(ifp, br);
-			if (m)
-				t4_eth_tx(ifp, txq, m);
-
+			txq_start(ifp, txq);
 			TXQ_UNLOCK(txq);
 		}
 	}
@@ -1141,14 +1152,14 @@ cfg_itype_and_nqueues(struct adapter *sc, int n10g, int n1g,
 	bzero(iaq, sizeof(*iaq));
 	nc = mp_ncpus;	/* our snapshot of the number of CPUs */
 
-	for (itype = 4; itype; itype >>= 1) {
+	for (itype = INTR_MSIX; itype; itype >>= 1) {
 
 		if ((itype & intr_types) == 0)
 			continue;	/* not allowed */
 
-		if (itype == 4)
+		if (itype == INTR_MSIX)
 			navail = pci_msix_count(sc->dev);
-		else if (itype == 2)
+		else if (itype == INTR_MSI)
 			navail = pci_msi_count(sc->dev);
 		else
 			navail = 1;
@@ -1168,44 +1179,50 @@ cfg_itype_and_nqueues(struct adapter *sc, int n10g, int n1g,
 		iaq->nirq = n10g * nrxq10g + n1g * nrxq1g + 2;
 		if (iaq->nirq <= navail && intr_fwd == 0) {
 
+			if (itype == INTR_MSI && !powerof2(iaq->nirq))
+				goto fwd;
+
 			/* One for err, one for fwq, and one for each rxq */
 
 			iaq->intr_fwd = 0;
 			iaq->nrxq10g = nrxq10g;
 			iaq->nrxq1g = nrxq1g;
-			if (itype == 2) {
-				/* # of vectors requested must be power of 2 */
-				while (!powerof2(iaq->nirq))
-					iaq->nirq++;
-				KASSERT(iaq->nirq <= navail,
-				    ("%s: bad MSI calculation", __func__));
-			}
+
 		} else {
 fwd:
 			iaq->intr_fwd = 1;
-			iaq->nirq = navail;
+
+			if (navail > nc) {
+				if (itype == INTR_MSIX)
+					navail = nc + 1;
+
+				/* navail is and must remain a pow2 for MSI */
+				if (itype == INTR_MSI) {
+					KASSERT(powerof2(navail),
+					    ("%d not power of 2", navail));
+
+					while (navail / 2 > nc)
+						navail /= 2;
+				}
+			}
+			iaq->nirq = navail;	/* total # of interrupts */
 
 			/*
 			 * If we have multiple vectors available reserve one
 			 * exclusively for errors.  The rest will be shared by
 			 * the fwq and data.
 			 */
-			if (navail > 1) {
+			if (navail > 1)
 				navail--;
-
-				if (navail > nc && itype == 4)
-					iaq->nirq = nc + 1;
-			}
-
 			iaq->nrxq10g = min(nrxq10g, navail);
 			iaq->nrxq1g = min(nrxq1g, navail);
 		}
 
 		navail = iaq->nirq;
 		rc = 0;
-		if (itype == 4)
+		if (itype == INTR_MSIX)
 			rc = pci_alloc_msix(sc->dev, &navail);
-		else if (itype == 2)
+		else if (itype == INTR_MSI)
 			rc = pci_alloc_msi(sc->dev, &navail);
 
 		if (rc == 0) {
@@ -1247,28 +1264,69 @@ prep_firmware(struct adapter *sc)
 	/* Check firmware version and install a different one if necessary */
 	rc = t4_check_fw_version(sc);
 	if (rc != 0 || force_firmware_install) {
+		uint32_t v = 0;
 
 		fw = firmware_get(T4_FWNAME);
-		if (fw == NULL) {
-			device_printf(sc->dev,
-			    "Could not find firmware image %s\n", T4_FWNAME);
-			return (ENOENT);
+		if (fw != NULL) {
+			const struct fw_hdr *hdr = (const void *)fw->data;
+
+			v = ntohl(hdr->fw_ver);
+
+			/*
+			 * The firmware module will not be used if it isn't the
+			 * same major version as what the driver was compiled
+			 * with.  This check trumps force_firmware_install.
+			 */
+			if (G_FW_HDR_FW_VER_MAJOR(v) != FW_VERSION_MAJOR) {
+				device_printf(sc->dev,
+				    "Found firmware image but version %d "
+				    "can not be used with this driver (%d)\n",
+				    G_FW_HDR_FW_VER_MAJOR(v), FW_VERSION_MAJOR);
+
+				firmware_put(fw, FIRMWARE_UNLOAD);
+				fw = NULL;
+			}
 		}
 
-		device_printf(sc->dev,
-		    "installing firmware %d.%d.%d on card.\n",
-		    FW_VERSION_MAJOR, FW_VERSION_MINOR, FW_VERSION_MICRO);
-		rc = -t4_load_fw(sc, fw->data, fw->datasize);
-		if (rc != 0) {
-			device_printf(sc->dev,
-			    "failed to install firmware: %d\n", rc);
-			return (rc);
-		} else {
-			t4_get_fw_version(sc, &sc->params.fw_vers);
-			t4_get_tp_version(sc, &sc->params.tp_vers);
+		if (fw == NULL && (rc < 0 || force_firmware_install)) {
+			device_printf(sc->dev, "No usable firmware. "
+			    "card has %d.%d.%d, driver compiled with %d.%d.%d, "
+			    "force_firmware_install%s set",
+			    G_FW_HDR_FW_VER_MAJOR(sc->params.fw_vers),
+			    G_FW_HDR_FW_VER_MINOR(sc->params.fw_vers),
+			    G_FW_HDR_FW_VER_MICRO(sc->params.fw_vers),
+			    FW_VERSION_MAJOR, FW_VERSION_MINOR,
+			    FW_VERSION_MICRO,
+			    force_firmware_install ? "" : " not");
+			return (EAGAIN);
 		}
 
-		firmware_put(fw, FIRMWARE_UNLOAD);
+		/*
+		 * Always upgrade, even for minor/micro/build mismatches.
+		 * Downgrade only for a major version mismatch or if
+		 * force_firmware_install was specified.
+		 */
+		if (fw != NULL && (rc < 0 || force_firmware_install ||
+		    v > sc->params.fw_vers)) {
+			device_printf(sc->dev,
+			    "installing firmware %d.%d.%d.%d on card.\n",
+			    G_FW_HDR_FW_VER_MAJOR(v), G_FW_HDR_FW_VER_MINOR(v),
+			    G_FW_HDR_FW_VER_MICRO(v), G_FW_HDR_FW_VER_BUILD(v));
+
+			rc = -t4_load_fw(sc, fw->data, fw->datasize);
+			if (rc != 0) {
+				device_printf(sc->dev,
+				    "failed to install firmware: %d\n", rc);
+				firmware_put(fw, FIRMWARE_UNLOAD);
+				return (rc);
+			} else {
+				/* refresh */
+				(void) t4_check_fw_version(sc);
+			}
+		}
+
+		if (fw != NULL)
+			firmware_put(fw, FIRMWARE_UNLOAD);
 	}
 
 	/* Contact firmware, request master */
@@ -1429,10 +1487,10 @@ t4_set_desc(struct adapter *sc)
 	struct adapter_params *p = &sc->params;
 
 	snprintf(buf, sizeof(buf),
-	    "Chelsio %s (rev %d) %d port %sNIC PCIe-x%d %s, S/N:%s, E/C:%s",
+	    "Chelsio %s (rev %d) %d port %sNIC PCIe-x%d %d %s, S/N:%s, E/C:%s",
 	    p->vpd.id, p->rev, p->nports, is_offload(sc) ? "R" : "",
-	    p->pci.width, (sc->intr_type == 4 ) ? "MSI-X" :
-	    (sc->intr_type == 2) ? "MSI" : "INTx", p->vpd.sn, p->vpd.ec);
+	    p->pci.width, sc->intr_count, sc->intr_type == INTR_MSIX ? "MSI-X" :
+	    (sc->intr_type == INTR_MSI ? "MSI" : "INTx"), p->vpd.sn, p->vpd.ec);
 
 	device_set_desc_copy(sc->dev, buf);
 }
@@ -2244,15 +2302,13 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "core_clock", CTLFLAG_RD,
 	    &sc->params.vpd.cclk, 0, "core clock frequency (in KHz)");
 
-	/* XXX: this doesn't seem to show up */
-	SYSCTL_ADD_OPAQUE(ctx, children, OID_AUTO, "holdoff_tmr",
-	    CTLFLAG_RD, &intr_timer, sizeof(intr_timer), "IU",
-	    "interrupt holdoff timer values (us)");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_timers",
+	    CTLTYPE_STRING | CTLFLAG_RD, &intr_timer, sizeof(intr_timer),
+	    sysctl_int_array, "A", "interrupt holdoff timer values (us)");
 
-	/* XXX: this doesn't seem to show up */
-	SYSCTL_ADD_OPAQUE(ctx, children, OID_AUTO, "holdoff_pktc",
-	    CTLFLAG_RD, &intr_pktcount, sizeof(intr_pktcount), "IU",
-	    "interrupt holdoff packet counter values");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_pkt_counts",
+	    CTLTYPE_STRING | CTLFLAG_RD, &intr_pktcount, sizeof(intr_pktcount),
+	    sysctl_int_array, "A", "interrupt holdoff packet counter values");
 
 	return (0);
 }
@@ -2455,6 +2511,22 @@ cxgbe_sysctls(struct port_info *pi)
 }
 
 static int
+sysctl_int_array(SYSCTL_HANDLER_ARGS)
+{
+	int rc, *i;
+	struct sbuf sb;
+
+	sbuf_new(&sb, NULL, 32, SBUF_AUTOEXTEND);
+	for (i = arg1; arg2; arg2 -= sizeof(int), i++)
+		sbuf_printf(&sb, "%d ", *i);
+	sbuf_trim(&sb);
+	sbuf_finish(&sb);
+	rc = sysctl_handle_string(oidp, sbuf_data(&sb), sbuf_len(&sb), req);
+	sbuf_delete(&sb);
+	return (rc);
+}
+
+static int
 sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS)
 {
 	struct port_info *pi = arg1;
@@ -2581,6 +2653,30 @@ sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_64(oidp, &val, 0, req));
 }
 
+static inline void
+txq_start(struct ifnet *ifp, struct sge_txq *txq)
+{
+	struct buf_ring *br;
+	struct mbuf *m;
+
+	TXQ_LOCK_ASSERT_OWNED(txq);
+
+	br = txq->eq.br;
+	m = txq->m ? txq->m : drbr_dequeue(ifp, br);
+	if (m)
+		t4_eth_tx(ifp, txq, m);
+}
+
+void
+cxgbe_txq_start(void *arg, int count)
+{
+	struct sge_txq *txq = arg;
+
+	TXQ_LOCK(txq);
+	txq_start(txq->ifp, txq);
+	TXQ_UNLOCK(txq);
+}
+
 int
 t4_os_find_pci_capability(struct adapter *sc, int cap)
 {
@@ -2646,6 +2742,7 @@ t4_os_pci_restore_state(struct adapter *sc)
 	pci_cfg_restore(dev, dinfo);
 	return (0);
 }
+
 void
 t4_os_portmod_changed(const struct adapter *sc, int idx)
 {
@@ -2656,10 +2753,13 @@ t4_os_portmod_changed(const struct adapter *sc, int idx)
 
 	if (pi->mod_type == FW_PORT_MOD_TYPE_NONE)
 		if_printf(pi->ifp, "transceiver unplugged.\n");
-	else
+	else if (pi->mod_type > 0 && pi->mod_type < ARRAY_SIZE(mod_str)) {
 		if_printf(pi->ifp, "%s transceiver inserted.\n",
 		    mod_str[pi->mod_type]);
-
+	} else {
+		if_printf(pi->ifp, "transceiver (type %d) inserted.\n",
+		    pi->mod_type);
+	}
 }
 
 void
@@ -2737,10 +2837,20 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	return (rc);
 }
 
+static int
+t4_mod_event(module_t mod, int cmd, void *arg)
+{
+
+	if (cmd == MOD_LOAD)
+		t4_sge_modload();
+
+	return (0);
+}
+
 static devclass_t t4_devclass;
 static devclass_t cxgbe_devclass;
 
-DRIVER_MODULE(t4nex, pci, t4_driver, t4_devclass, 0, 0);
+DRIVER_MODULE(t4nex, pci, t4_driver, t4_devclass, t4_mod_event, 0);
 MODULE_VERSION(t4nex, 1);
 
 DRIVER_MODULE(cxgbe, t4nex, cxgbe_driver, cxgbe_devclass, 0, 0);

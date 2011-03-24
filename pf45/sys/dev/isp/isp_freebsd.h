@@ -325,6 +325,8 @@ struct isposinfo {
 #define	ISP_DELAY		DELAY
 #define	ISP_SLEEP(isp, x)	DELAY(x)
 
+#define	ISP_MIN			imin
+
 #ifndef	DIAGNOSTIC
 #define	ISP_INLINE		__inline
 #else
@@ -367,7 +369,7 @@ case SYNC_RESULT:						\
 case SYNC_REG:							\
 	bus_space_barrier(isp->isp_osinfo.bus_tag,		\
 	    isp->isp_osinfo.bus_handle, offset, size,		\
-	    BUS_SPACE_BARRIER_READ);				\
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);	\
 	break;							\
 default:							\
 	break;							\

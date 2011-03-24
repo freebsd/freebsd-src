@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -85,7 +86,6 @@
 #define	HAST_TIMEOUT	5
 #define	HAST_CONFIG	"/etc/hast.conf"
 #define	HAST_CONTROL	"/var/run/hastctl"
-#define	HASTD_PORT	8457
 #define	HASTD_LISTEN	"tcp4://0.0.0.0:8457"
 #define	HASTD_PIDFILE	"/var/run/hastd.pid"
 
@@ -96,6 +96,9 @@
 
 #define	HAST_ADDRSIZE	1024
 #define	HAST_TOKEN_SIZE	16
+
+/* Number of seconds to sleep between reconnect retries or keepalive packets. */
+#define	HAST_KEEPALIVE	10
 
 struct hastd_config {
 	/* Address to communicate with hastctl(8). */
@@ -116,6 +119,14 @@ struct hastd_config {
 #define	HAST_REPLICATION_MEMSYNC	1
 #define	HAST_REPLICATION_ASYNC		2
 
+#define	HAST_COMPRESSION_NONE	0
+#define	HAST_COMPRESSION_HOLE	1
+#define	HAST_COMPRESSION_LZF	2
+
+#define	HAST_CHECKSUM_NONE	0
+#define	HAST_CHECKSUM_CRC32	1
+#define	HAST_CHECKSUM_SHA256	2
+
 /*
  * Structure that describes single resource.
  */
@@ -132,6 +143,10 @@ struct hast_resource {
 	int	hr_keepdirty;
 	/* Path to a program to execute on various events. */
 	char	hr_exec[PATH_MAX];
+	/* Compression algorithm. */
+	int	hr_compression;
+	/* Checksum algorithm. */
+	int	hr_checksum;
 
 	/* Path to local component. */
 	char	hr_localpath[PATH_MAX];
@@ -153,6 +168,8 @@ struct hast_resource {
 
 	/* Address of the remote component. */
 	char	hr_remoteaddr[HAST_ADDRSIZE];
+	/* Local address to bind to for outgoing connections. */
+	char	hr_sourceaddr[HAST_ADDRSIZE];
 	/* Connection for incoming data. */
 	struct proto_conn *hr_remotein;
 	/* Connection for outgoing data. */

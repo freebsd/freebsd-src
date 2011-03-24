@@ -436,7 +436,7 @@ openfirmware_core(void *args)
 	isync();
 #endif
 
-       	result = ofwcall(args);
+	result = ofwcall(args);
 	ofw_sprg_restore();
 
 	intr_restore(oldmsr);

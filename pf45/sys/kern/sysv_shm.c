@@ -95,6 +95,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
+FEATURE(sysv_shm, "System V shared memory segments support");
+
 static MALLOC_DEFINE(M_SHM, "shm", "SVID compatible shared memory segments");
 
 static int shmget_allocate_segment(struct thread *td,

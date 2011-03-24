@@ -82,6 +82,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <machine/atomic.h>
 
+FEATURE(p1003_1b_mqueue, "POSIX P1003.1B message queues support");
+
 /*
  * Limits and constants
  */

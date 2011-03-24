@@ -10,8 +10,8 @@
 #include "llvm/Support/CrashRecoveryContext.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Config/config.h"
-#include "llvm/System/Mutex.h"
-#include "llvm/System/ThreadLocal.h"
+#include "llvm/Support/Mutex.h"
+#include "llvm/Support/ThreadLocal.h"
 #include <setjmp.h>
 #include <cstdio>
 using namespace llvm;
@@ -128,6 +128,9 @@ static void CrashRecoverySignalHandler(int Signal) {
     // This call of Disable isn't thread safe, but it doesn't actually matter.
     CrashRecoveryContext::Disable();
     raise(Signal);
+
+    // The signal will be thrown once the signal mask is restored.
+    return;
   }
 
   // Unblock the signal we received.
@@ -201,4 +204,27 @@ const std::string &CrashRecoveryContext::getBacktrace() const {
   assert(CRC && "Crash recovery context never initialized!");
   assert(CRC->Failed && "No crash was detected!");
   return CRC->Backtrace;
+}
+
+//
+
+namespace {
+struct RunSafelyOnThreadInfo {
+  void (*UserFn)(void*);
+  void *UserData;
+  CrashRecoveryContext *CRC;
+  bool Result;
+};
+}
+
+static void RunSafelyOnThread_Dispatch(void *UserData) {
+  RunSafelyOnThreadInfo *Info =
+    reinterpret_cast<RunSafelyOnThreadInfo*>(UserData);
+  Info->Result = Info->CRC->RunSafely(Info->UserFn, Info->UserData);
+}
+bool CrashRecoveryContext::RunSafelyOnThread(void (*Fn)(void*), void *UserData,
+                                             unsigned RequestedStackSize) {
+  RunSafelyOnThreadInfo Info = { Fn, UserData, this, false };
+  llvm_execute_on_thread(RunSafelyOnThread_Dispatch, &Info, RequestedStackSize);
+  return Info.Result;
 }

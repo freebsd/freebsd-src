@@ -20,13 +20,13 @@
 
 namespace llvm {
   /// ScheduleDAGSDNodes - A ScheduleDAG for scheduling SDNode-based DAGs.
-  /// 
+  ///
   /// Edges between SUnits are initially based on edges in the SelectionDAG,
   /// and additional edges can be added by the schedulers as heuristics.
   /// SDNodes such as Constants, Registers, and a few others that are not
   /// interesting to schedulers are not allocated SUnits.
   ///
-  /// SDNodes with MVT::Flag operands are grouped along with the flagged
+  /// SDNodes with MVT::Glue operands are grouped along with the flagged
   /// nodes into a single SUnit so that they are scheduled together.
   ///
   /// SDNode-based scheduling graphs do not use SDep::Anti or SDep::Output
@@ -36,6 +36,7 @@ namespace llvm {
   class ScheduleDAGSDNodes : public ScheduleDAG {
   public:
     SelectionDAG *DAG;                    // DAG of the current basic block
+    const InstrItineraryData *InstrItins;
 
     explicit ScheduleDAGSDNodes(MachineFunction &mf);
 
@@ -72,12 +73,16 @@ namespace llvm {
     /// predecessors / successors info nor the temporary scheduling states.
     ///
     SUnit *Clone(SUnit *N);
-    
+
     /// BuildSchedGraph - Build the SUnit graph from the selection dag that we
     /// are input.  This SUnit graph is similar to the SelectionDAG, but
     /// excludes nodes that aren't interesting to scheduling, and represents
     /// flagged together nodes with a single SUnit.
     virtual void BuildSchedGraph(AliasAnalysis *AA);
+
+    /// InitNumRegDefsLeft - Determine the # of regs defined by this node.
+    ///
+    void InitNumRegDefsLeft(SUnit *SU);
 
     /// ComputeLatency - Compute node latency.
     ///
@@ -104,6 +109,30 @@ namespace llvm {
     virtual std::string getGraphNodeLabel(const SUnit *SU) const;
 
     virtual void getCustomGraphFeatures(GraphWriter<ScheduleDAG*> &GW) const;
+
+    /// RegDefIter - In place iteration over the values defined by an
+    /// SUnit. This does not need copies of the iterator or any other STLisms.
+    /// The iterator creates itself, rather than being provided by the SchedDAG.
+    class RegDefIter {
+      const ScheduleDAGSDNodes *SchedDAG;
+      const SDNode *Node;
+      unsigned DefIdx;
+      unsigned NodeNumDefs;
+      EVT ValueType;
+    public:
+      RegDefIter(const SUnit *SU, const ScheduleDAGSDNodes *SD);
+
+      bool IsValid() const { return Node != NULL; }
+
+      EVT GetValue() const {
+        assert(IsValid() && "bad iterator");
+        return ValueType;
+      }
+
+      void Advance();
+    private:
+      void InitNodeNumDefs();
+    };
 
   private:
     /// ClusterNeighboringLoads - Cluster loads from "near" addresses into

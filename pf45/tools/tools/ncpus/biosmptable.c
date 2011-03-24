@@ -34,7 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <machine/mptable.h>
+#include <x86/mptable.h>
 
 #include <err.h>
 #include <fcntl.h>

@@ -29,21 +29,11 @@
 #include <sys/stdint.h>
 
 /* CREATORS */
-const char *fifolog_create(const char *fn, off_t size, unsigned recsize);
-
+const char *fifolog_create(const char *fn, off_t size, ssize_t recsize);
 
 /* WRITERS */
 
-struct fifolog_writer;
-struct fifolog_writer *fifolog_write_new(void);
-const char *fifolog_write_open(struct fifolog_writer *f, const char *fn, unsigned writerate, unsigned syncrate, int compression);
-int fifolog_write_bytes(struct fifolog_writer *f, uint32_t id, time_t now, const void *ptr, unsigned len);
-void fifolog_write_bytes_poll(struct fifolog_writer *f, uint32_t id, time_t now, const void *ptr, unsigned len);
-int fifolog_write_poll(struct fifolog_writer *f, time_t now);
-void fifolog_write_close(struct fifolog_writer *f);
-void fifolog_write_destroy(struct fifolog_writer *f);
-int fifolog_write_flush(struct fifolog_writer *f);
-extern const char *fifolog_write_statnames[];
+#include "fifolog_write.h"
 
 /* READERS */
 
@@ -55,8 +45,3 @@ void fifolog_reader_process(struct fifolog_reader *fl, off_t from, fifolog_reade
 
 /* UTILS */
 time_t get_date(char *p);
-
-#if (__FreeBSD__ < 7)
-int     expand_number(char *_buf, int64_t *_num);
-#endif
-

@@ -37,6 +37,7 @@ void
 putc(int c)
 {
 
+	v86.ctl = V86_FLAGS;
 	v86.addr = 0x10;
 	v86.eax = 0xe00 | (c & 0xff);
 	v86.ebx = 0x7;

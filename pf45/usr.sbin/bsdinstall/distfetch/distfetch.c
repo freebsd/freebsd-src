@@ -46,14 +46,33 @@ main(void)
 	ndists++; /* Last one */
 
 	urls = calloc(ndists, sizeof(const char *));
+	if (urls == NULL) {
+		fprintf(stderr, "Out of memory!\n");
+		return (1);
+	}
+
+	init_dialog(stdin, stdout);
+	dialog_vars.backtitle = __DECONST(char *, "FreeBSD Installer");
+	dlg_put_backtitle();
+
 	for (i = 0; i < ndists; i++) {
 		urls[i] = malloc(PATH_MAX);
 		sprintf(urls[i], "%s/%s", getenv("BSDINSTALL_DISTSITE"),
 		    strsep(&diststring, " \t"));
 	}
 
-	chdir(getenv("BSDINSTALL_DISTDIR"));
+	if (chdir(getenv("BSDINSTALL_DISTDIR")) != 0) {
+		char error[512];
+		sprintf(error, "Could could change to directory %s: %s\n",
+		    getenv("BSDINSTALL_DISTDIR"), strerror(errno));
+		dialog_msgbox("Error", error, 0, 0, TRUE);
+		end_dialog();
+		return (1);
+	}
+
 	nfetched = fetch_files(ndists, urls);
+
+	end_dialog();
 
 	free(diststring);
 	for (i = 0; i < ndists; i++) 
@@ -81,6 +100,11 @@ fetch_files(int nfiles, char **urls)
 	
 	/* Make the transfer list for dialog */
 	items = calloc(sizeof(char *), nfiles * 2);
+	if (items == NULL) {
+		fprintf(stderr, "Out of memory!\n");
+		return (-1);
+	}
+
 	for (i = 0; i < nfiles; i++) {
 		items[i*2] = strrchr(urls[i], '/');
 		if (items[i*2] != NULL)
@@ -89,10 +113,6 @@ fetch_files(int nfiles, char **urls)
 			items[i*2] = urls[i];
 		items[i*2 + 1] = "Pending";
 	}
-
-	init_dialog(stdin, stdout);
-	dialog_vars.backtitle = __DECONST(char *, "FreeBSD Installer");
-	dlg_put_backtitle();
 
 	dialog_msgbox("", "Connecting to server.\nPlease wait...", 0, 0, FALSE);
 
@@ -180,8 +200,8 @@ fetch_files(int nfiles, char **urls)
 		fclose(fetch_out);
 		fclose(file_out);
 	}
-	end_dialog();
 
 	free(items);
 	return (nsuccess);
 }
+

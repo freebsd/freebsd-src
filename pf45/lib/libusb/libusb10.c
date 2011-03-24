@@ -51,7 +51,6 @@ struct libusb_context *usbi_default_context = NULL;
 /* Prototypes */
 
 static struct libusb20_transfer *libusb10_get_transfer(struct libusb20_device *, uint8_t, uint8_t);
-static int libusb10_get_maxframe(struct libusb20_device *, libusb_transfer *);
 static int libusb10_get_buffsize(struct libusb20_device *, libusb_transfer *);
 static int libusb10_convert_error(uint8_t status);
 static void libusb10_complete_transfer(struct libusb20_transfer *, struct libusb_super_transfer *, int);
@@ -810,25 +809,14 @@ libusb_free_transfer(struct libusb_transfer *uxfer)
 	free(sxfer);
 }
 
-static int
+static uint32_t
 libusb10_get_maxframe(struct libusb20_device *pdev, libusb_transfer *xfer)
 {
-	int ret;
-	int usb_speed;
-
-	usb_speed = libusb20_dev_get_speed(pdev);
+	uint32_t ret;
 
 	switch (xfer->type) {
 	case LIBUSB_TRANSFER_TYPE_ISOCHRONOUS:
-		switch (usb_speed) {
-		case LIBUSB20_SPEED_LOW:
-		case LIBUSB20_SPEED_FULL:
-			ret = 60 * 1;
-			break;
-		default:
-			ret = 60 * 8;
-			break;
-		}
+		ret = 60 | LIBUSB20_MAX_FRAME_PRE_SCALE;	/* 60ms */
 		break;
 	case LIBUSB_TRANSFER_TYPE_CONTROL:
 		ret = 2;

@@ -1192,7 +1192,7 @@ sis_attach(device_t dev)
 	ifp->if_snd.ifq_drv_maxlen = SIS_TX_LIST_CNT - 1;
 	IFQ_SET_READY(&ifp->if_snd);
 
-	if (pci_find_extcap(sc->sis_dev, PCIY_PMG, &pmc) == 0) {
+	if (pci_find_cap(sc->sis_dev, PCIY_PMG, &pmc) == 0) {
 		if (sc->sis_type == SIS_TYPE_83815)
 			ifp->if_capabilities |= IFCAP_WOL;
 		else
@@ -1566,8 +1566,8 @@ sis_newbuf(struct sis_softc *sc, struct sis_rxdesc *rxd)
 	sc->sis_rx_sparemap = map;
 	bus_dmamap_sync(sc->sis_rx_tag, rxd->rx_dmamap, BUS_DMASYNC_PREREAD);
 	rxd->rx_m = m;
-	rxd->rx_desc->sis_cmdsts = htole32(SIS_RXLEN);
 	rxd->rx_desc->sis_ptr = htole32(SIS_ADDR_LO(segs[0].ds_addr));
+	rxd->rx_desc->sis_cmdsts = htole32(SIS_RXLEN);
 	return (0);
 }
 
@@ -2472,7 +2472,7 @@ sis_wol(struct sis_softc *sc)
 		/* Enable silent RX mode. */
 		SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RX_ENABLE);
 	} else {
-		if (pci_find_extcap(sc->sis_dev, PCIY_PMG, &pmc) != 0)
+		if (pci_find_cap(sc->sis_dev, PCIY_PMG, &pmc) != 0)
 			return;
 		val = 0;
 		if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)

@@ -12,10 +12,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "ASTCommon.h"
+#include "clang/Serialization/ASTDeserializationListener.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "llvm/ADT/StringExtras.h"
 
 using namespace clang;
+
+// Give ASTDeserializationListener's VTable a home.
+ASTDeserializationListener::~ASTDeserializationListener() { }
 
 serialization::TypeIdx
 serialization::TypeIdxFromBuiltin(const BuiltinType *BT) {
@@ -32,7 +36,8 @@ serialization::TypeIdxFromBuiltin(const BuiltinType *BT) {
   case BuiltinType::UInt128:    ID = PREDEF_TYPE_UINT128_ID;    break;
   case BuiltinType::Char_S:     ID = PREDEF_TYPE_CHAR_S_ID;     break;
   case BuiltinType::SChar:      ID = PREDEF_TYPE_SCHAR_ID;      break;
-  case BuiltinType::WChar:      ID = PREDEF_TYPE_WCHAR_ID;      break;
+  case BuiltinType::WChar_S:
+  case BuiltinType::WChar_U:    ID = PREDEF_TYPE_WCHAR_ID;      break;
   case BuiltinType::Short:      ID = PREDEF_TYPE_SHORT_ID;      break;
   case BuiltinType::Int:        ID = PREDEF_TYPE_INT_ID;        break;
   case BuiltinType::Long:       ID = PREDEF_TYPE_LONG_ID;       break;
@@ -49,9 +54,6 @@ serialization::TypeIdxFromBuiltin(const BuiltinType *BT) {
   case BuiltinType::ObjCId:     ID = PREDEF_TYPE_OBJC_ID;       break;
   case BuiltinType::ObjCClass:  ID = PREDEF_TYPE_OBJC_CLASS;    break;
   case BuiltinType::ObjCSel:    ID = PREDEF_TYPE_OBJC_SEL;      break;
-  case BuiltinType::UndeducedAuto:
-    assert(0 && "Should not see undeduced auto here");
-    break;
   }
 
   return TypeIdx(ID);

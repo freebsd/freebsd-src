@@ -33,7 +33,7 @@
 #define LLVM_SUPPORT_CONSTANT_RANGE_H
 
 #include "llvm/ADT/APInt.h"
-#include "llvm/System/DataTypes.h"
+#include "llvm/Support/DataTypes.h"
 
 namespace llvm {
 
@@ -54,7 +54,7 @@ public:
   /// @brief Initialize a range of values explicitly. This will assert out if
   /// Lower==Upper and Lower != Min or Max value for its type. It will also
   /// assert out if the two APInt's are not the same bit width.
-  ConstantRange(const APInt& Lower, const APInt& Upper);
+  ConstantRange(const APInt &Lower, const APInt &Upper);
 
   /// makeICmpRegion - Produce the smallest range that contains all values that
   /// might satisfy the comparison specified by Pred when compared to any value
@@ -91,6 +91,11 @@ public:
   /// for example: [100, 8)
   ///
   bool isWrappedSet() const;
+
+  /// isSignWrappedSet - Return true if this set wraps around the INT_MIN of
+  /// its bitwidth, for example: i8 [120, 140).
+  ///
+  bool isSignWrappedSet() const;
 
   /// contains - Return true if the specified value is in the set.
   ///
@@ -218,6 +223,14 @@ public:
   /// from an unsigned division of a value in this range and a value in
   /// \p Other.
   ConstantRange udiv(const ConstantRange &Other) const;
+
+  /// binaryAnd - return a new range representing the possible values resulting
+  /// from a binary-and of a value in this range by a value in \p Other.
+  ConstantRange binaryAnd(const ConstantRange &Other) const;
+
+  /// binaryOr - return a new range representing the possible values resulting
+  /// from a binary-or of a value in this range by a value in \p Other.
+  ConstantRange binaryOr(const ConstantRange &Other) const;
 
   /// shl - Return a new range representing the possible values resulting
   /// from a left shift of a value in this range by a value in \p Other.

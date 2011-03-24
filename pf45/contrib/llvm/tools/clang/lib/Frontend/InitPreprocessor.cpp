@@ -22,8 +22,9 @@
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/APFloat.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/System/Path.h"
+#include "llvm/Support/Path.h"
 using namespace clang;
 
 // Append a #define line to Buf for Macro.  Macro should be of the form XXX,
@@ -47,33 +48,39 @@ static void DefineBuiltinMacro(MacroBuilder &Builder, llvm::StringRef Macro,
   }
 }
 
-std::string clang::NormalizeDashIncludePath(llvm::StringRef File) {
+std::string clang::NormalizeDashIncludePath(llvm::StringRef File,
+                                            FileManager &FileMgr) {
   // Implicit include paths should be resolved relative to the current
   // working directory first, and then use the regular header search
   // mechanism. The proper way to handle this is to have the
   // predefines buffer located at the current working directory, but
-  // it has not file entry. For now, workaround this by using an
+  // it has no file entry. For now, workaround this by using an
   // absolute path if we find the file here, and otherwise letting
   // header search handle it.
-  llvm::sys::Path Path(File);
-  Path.makeAbsolute();
-  if (!Path.exists())
+  llvm::SmallString<128> Path(File);
+  llvm::sys::fs::make_absolute(Path);
+  bool exists;
+  if (llvm::sys::fs::exists(Path.str(), exists) || !exists)
     Path = File;
+  else if (exists)
+    FileMgr.getFile(File);
 
   return Lexer::Stringify(Path.str());
 }
 
 /// AddImplicitInclude - Add an implicit #include of the specified file to the
 /// predefines buffer.
-static void AddImplicitInclude(MacroBuilder &Builder, llvm::StringRef File) {
+static void AddImplicitInclude(MacroBuilder &Builder, llvm::StringRef File,
+                               FileManager &FileMgr) {
   Builder.append("#include \"" +
-                 llvm::Twine(NormalizeDashIncludePath(File)) + "\"");
+                 llvm::Twine(NormalizeDashIncludePath(File, FileMgr)) + "\"");
 }
 
 static void AddImplicitIncludeMacros(MacroBuilder &Builder,
-                                     llvm::StringRef File) {
+                                     llvm::StringRef File,
+                                     FileManager &FileMgr) {
   Builder.append("#__include_macros \"" +
-                 llvm::Twine(NormalizeDashIncludePath(File)) + "\"");
+                 llvm::Twine(NormalizeDashIncludePath(File, FileMgr)) + "\"");
   // Marker token to stop the __include_macros fetch loop.
   Builder.append("##"); // ##?
 }
@@ -92,7 +99,7 @@ static void AddImplicitIncludePTH(MacroBuilder &Builder, Preprocessor &PP,
     return;
   }
 
-  AddImplicitInclude(Builder, OriginalFile);
+  AddImplicitInclude(Builder, OriginalFile, PP.getFileManager());
 }
 
 /// PickFP - This is used to pick a value based on the FP semantics of the
@@ -167,15 +174,10 @@ static void DefineFloatMacros(MacroBuilder &Builder, llvm::StringRef Prefix,
 /// signedness of 'isSigned' and with a value suffix of 'ValSuffix' (e.g. LL).
 static void DefineTypeSize(llvm::StringRef MacroName, unsigned TypeWidth,
                            llvm::StringRef ValSuffix, bool isSigned,
-                           MacroBuilder& Builder) {
-  long long MaxVal;
-  if (isSigned) {
-    assert(TypeWidth != 1);
-    MaxVal = ~0ULL >> (65-TypeWidth);
-  } else
-    MaxVal = ~0ULL >> (64-TypeWidth);
-
-  Builder.defineMacro(MacroName, llvm::Twine(MaxVal) + ValSuffix);
+                           MacroBuilder &Builder) {
+  llvm::APInt MaxVal = isSigned ? llvm::APInt::getSignedMaxValue(TypeWidth)
+                                : llvm::APInt::getMaxValue(TypeWidth);
+  Builder.defineMacro(MacroName, MaxVal.toString(10, isSigned) + ValSuffix);
 }
 
 /// DefineTypeSize - An overloaded helper that uses TargetInfo to determine
@@ -342,6 +344,10 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
       Builder.defineMacro("_NATIVE_WCHAR_T_DEFINED");
       Builder.append("class type_info;");
     }
+
+    if (LangOpts.CPlusPlus0x) {
+      Builder.defineMacro("_HAS_CHAR16_T_LANGUAGE_SUPPORT", "1");
+    }
   }
 
   if (LangOpts.Optimize)
@@ -465,6 +471,9 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   if (FEOpts.ProgramAction == frontend::RunAnalysis)
     Builder.defineMacro("__clang_analyzer__");
 
+  if (LangOpts.FastRelaxedMath)
+    Builder.defineMacro("__FAST_RELAXED_MATH__");
+
   // Get other target #defines.
   TI.getTargetDefines(LangOpts, Builder);
 }
@@ -515,8 +524,7 @@ static void InitializeFileRemapping(Diagnostic &Diags,
     
     // Create the file entry for the file that we're mapping from.
     const FileEntry *FromFile = FileMgr.getVirtualFile(Remap->first,
-                                                       ToFile->getSize(),
-                                                       0);
+                                                       ToFile->getSize(), 0);
     if (!FromFile) {
       Diags.Report(diag::err_fe_remap_missing_from_file)
       << Remap->first;
@@ -526,7 +534,7 @@ static void InitializeFileRemapping(Diagnostic &Diags,
     // Load the contents of the file we're mapping to.
     std::string ErrorStr;
     const llvm::MemoryBuffer *Buffer
-    = llvm::MemoryBuffer::getFile(ToFile->getName(), &ErrorStr);
+      = FileMgr.getBufferForFile(ToFile->getName(), &ErrorStr);
     if (!Buffer) {
       Diags.Report(diag::err_fe_error_opening)
         << Remap->second << ErrorStr;
@@ -582,7 +590,8 @@ void clang::InitializePreprocessor(Preprocessor &PP,
   // If -imacros are specified, include them now.  These are processed before
   // any -include directives.
   for (unsigned i = 0, e = InitOpts.MacroIncludes.size(); i != e; ++i)
-    AddImplicitIncludeMacros(Builder, InitOpts.MacroIncludes[i]);
+    AddImplicitIncludeMacros(Builder, InitOpts.MacroIncludes[i],
+                             PP.getFileManager());
 
   // Process -include directives.
   for (unsigned i = 0, e = InitOpts.Includes.size(); i != e; ++i) {
@@ -590,7 +599,7 @@ void clang::InitializePreprocessor(Preprocessor &PP,
     if (Path == InitOpts.ImplicitPTHInclude)
       AddImplicitIncludePTH(Builder, PP, Path);
     else
-      AddImplicitInclude(Builder, Path);
+      AddImplicitInclude(Builder, Path, PP.getFileManager());
   }
 
   // Exit the command line and go back to <built-in> (2 is LC_LEAVE).

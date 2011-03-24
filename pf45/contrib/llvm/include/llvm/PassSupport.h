@@ -23,6 +23,9 @@
 
 #include "Pass.h"
 #include "llvm/PassRegistry.h"
+#include "llvm/InitializePasses.h"
+#include "llvm/Support/Atomic.h"
+#include <vector>
 
 namespace llvm {
 
@@ -54,17 +57,14 @@ public:
            NormalCtor_t normal, bool isCFGOnly, bool is_analysis)
     : PassName(name), PassArgument(arg), PassID(pi), 
       IsCFGOnlyPass(isCFGOnly), 
-      IsAnalysis(is_analysis), IsAnalysisGroup(false), NormalCtor(normal) {
-    PassRegistry::getPassRegistry()->registerPass(*this);
-  }
+      IsAnalysis(is_analysis), IsAnalysisGroup(false), NormalCtor(normal) { }
   /// PassInfo ctor - Do not call this directly, this should only be invoked
   /// through RegisterPass. This version is for use by analysis groups; it
   /// does not auto-register the pass.
   PassInfo(const char *name, const void *pi)
     : PassName(name), PassArgument(""), PassID(pi), 
       IsCFGOnlyPass(false), 
-      IsAnalysis(false), IsAnalysisGroup(true), NormalCtor(0) {
-  }
+      IsAnalysis(false), IsAnalysisGroup(true), NormalCtor(0) { }
 
   /// getPassName - Return the friendly name for the pass, never returns null
   ///
@@ -129,8 +129,50 @@ private:
   PassInfo(const PassInfo &);       // do not implement
 };
 
+#define CALL_ONCE_INITIALIZATION(function) \
+  static volatile sys::cas_flag initialized = 0; \
+  sys::cas_flag old_val = sys::CompareAndSwap(&initialized, 1, 0); \
+  if (old_val == 0) { \
+    function(Registry); \
+    sys::MemoryFence(); \
+    initialized = 2; \
+  } else { \
+    sys::cas_flag tmp = initialized; \
+    sys::MemoryFence(); \
+    while (tmp != 2) { \
+      tmp = initialized; \
+      sys::MemoryFence(); \
+    } \
+  }
+
 #define INITIALIZE_PASS(passName, arg, name, cfg, analysis) \
-  static RegisterPass<passName> passName ## _info(arg, name, cfg, analysis)
+  static void* initialize##passName##PassOnce(PassRegistry &Registry) { \
+    PassInfo *PI = new PassInfo(name, arg, & passName ::ID, \
+      PassInfo::NormalCtor_t(callDefaultCtor< passName >), cfg, analysis); \
+    Registry.registerPass(*PI, true); \
+    return PI; \
+  } \
+  void llvm::initialize##passName##Pass(PassRegistry &Registry) { \
+    CALL_ONCE_INITIALIZATION(initialize##passName##PassOnce) \
+  }
+
+#define INITIALIZE_PASS_BEGIN(passName, arg, name, cfg, analysis) \
+  static void* initialize##passName##PassOnce(PassRegistry &Registry) {
+
+#define INITIALIZE_PASS_DEPENDENCY(depName) \
+    initialize##depName##Pass(Registry);
+#define INITIALIZE_AG_DEPENDENCY(depName) \
+    initialize##depName##AnalysisGroup(Registry);
+
+#define INITIALIZE_PASS_END(passName, arg, name, cfg, analysis) \
+    PassInfo *PI = new PassInfo(name, arg, & passName ::ID, \
+      PassInfo::NormalCtor_t(callDefaultCtor< passName >), cfg, analysis); \
+    Registry.registerPass(*PI, true); \
+    return PI; \
+  } \
+  void llvm::initialize##passName##Pass(PassRegistry &Registry) { \
+    CALL_ONCE_INITIALIZATION(initialize##passName##PassOnce) \
+  }
 
 template<typename PassName>
 Pass *callDefaultCtor() { return new PassName(); }
@@ -161,7 +203,7 @@ struct RegisterPass : public PassInfo {
     : PassInfo(Name, PassArg, &passName::ID,
                PassInfo::NormalCtor_t(callDefaultCtor<passName>),
                CFGOnly, is_analysis) {
-    
+    PassRegistry::getPassRegistry()->registerPass(*this);
   }
 };
 
@@ -186,7 +228,7 @@ struct RegisterPass : public PassInfo {
 /// a nice name with the interface.
 ///
 class RegisterAGBase : public PassInfo {
-protected:
+public:
   RegisterAGBase(const char *Name,
                  const void *InterfaceID,
                  const void *PassID = 0,
@@ -206,9 +248,52 @@ struct RegisterAnalysisGroup : public RegisterAGBase {
   }
 };
 
+#define INITIALIZE_ANALYSIS_GROUP(agName, name, defaultPass) \
+  static void* initialize##agName##AnalysisGroupOnce(PassRegistry &Registry) { \
+    initialize##defaultPass##Pass(Registry); \
+    PassInfo *AI = new PassInfo(name, & agName :: ID); \
+    Registry.registerAnalysisGroup(& agName ::ID, 0, *AI, false, true); \
+    return AI; \
+  } \
+  void llvm::initialize##agName##AnalysisGroup(PassRegistry &Registry) { \
+    CALL_ONCE_INITIALIZATION(initialize##agName##AnalysisGroupOnce) \
+  }
+
+
 #define INITIALIZE_AG_PASS(passName, agName, arg, name, cfg, analysis, def) \
-  static RegisterPass<passName> passName ## _info(arg, name, cfg, analysis); \
-  static RegisterAnalysisGroup<agName, def> passName ## _ag(passName ## _info)
+  static void* initialize##passName##PassOnce(PassRegistry &Registry) { \
+    if (!def) initialize##agName##AnalysisGroup(Registry); \
+    PassInfo *PI = new PassInfo(name, arg, & passName ::ID, \
+      PassInfo::NormalCtor_t(callDefaultCtor< passName >), cfg, analysis); \
+    Registry.registerPass(*PI, true); \
+    \
+    PassInfo *AI = new PassInfo(name, & agName :: ID); \
+    Registry.registerAnalysisGroup(& agName ::ID, & passName ::ID, \
+                                   *AI, def, true); \
+    return AI; \
+  } \
+  void llvm::initialize##passName##Pass(PassRegistry &Registry) { \
+    CALL_ONCE_INITIALIZATION(initialize##passName##PassOnce) \
+  }
+
+
+#define INITIALIZE_AG_PASS_BEGIN(passName, agName, arg, n, cfg, analysis, def) \
+  static void* initialize##passName##PassOnce(PassRegistry &Registry) { \
+    if (!def) initialize##agName##AnalysisGroup(Registry);
+
+#define INITIALIZE_AG_PASS_END(passName, agName, arg, n, cfg, analysis, def) \
+    PassInfo *PI = new PassInfo(n, arg, & passName ::ID, \
+      PassInfo::NormalCtor_t(callDefaultCtor< passName >), cfg, analysis); \
+    Registry.registerPass(*PI, true); \
+    \
+    PassInfo *AI = new PassInfo(n, & agName :: ID); \
+    Registry.registerAnalysisGroup(& agName ::ID, & passName ::ID, \
+                                   *AI, def, true); \
+    return AI; \
+  } \
+  void llvm::initialize##passName##Pass(PassRegistry &Registry) { \
+    CALL_ONCE_INITIALIZATION(initialize##passName##PassOnce) \
+  }
 
 //===---------------------------------------------------------------------------
 /// PassRegistrationListener class - This class is meant to be derived from by

@@ -39,18 +39,12 @@ public:
   BitVector getReservedRegs(const MachineFunction &MF) const;
   const TargetRegisterClass* getPointerRegClass(unsigned Kind = 0) const;
 
-  bool hasFP(const MachineFunction &MF) const;
-  bool hasReservedCallFrame(const MachineFunction &MF) const;
-
   void eliminateCallFramePseudoInstr(MachineFunction &MF,
                                      MachineBasicBlock &MBB,
                                      MachineBasicBlock::iterator I) const;
 
   void eliminateFrameIndex(MachineBasicBlock::iterator II,
                            int SPAdj, RegScavenger *RS = NULL) const;
-
-  void emitPrologue(MachineFunction &MF) const;
-  void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const;
 
   void processFunctionBeforeFrameFinalized(MachineFunction &MF) const;
 

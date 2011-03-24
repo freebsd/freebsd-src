@@ -1,0 +1,4 @@
+0.9.0 - Initial release.
+1.0.0 - Following RFC for enhanced configuration semantics, strong parsing, 
+	major cleanup, verbosity logging and thread safe code
+	

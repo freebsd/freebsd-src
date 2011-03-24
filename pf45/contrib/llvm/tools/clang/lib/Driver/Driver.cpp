@@ -1,4 +1,4 @@
-//===--- Driver.cpp - Clang GCC Compatible Driver -----------------------*-===//
+//===--- Driver.cpp - Clang GCC Compatible Driver -------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -6,6 +6,10 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
+
+#ifdef HAVE_CLANG_CONFIG_H
+# include "clang/Config/config.h"
+#endif
 
 #include "clang/Driver/Driver.h"
 
@@ -30,12 +34,20 @@
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/System/Path.h"
-#include "llvm/System/Program.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/Program.h"
 
 #include "InputInfo.h"
 
 #include <map>
+
+#ifdef __CYGWIN__
+#include <cygwin/version.h>
+#if defined(CYGWIN_VERSION_DLL_MAJOR) && CYGWIN_VERSION_DLL_MAJOR<1007
+#define IS_CYGWIN15 1
+#endif
+#endif
 
 using namespace clang::driver;
 using namespace clang;
@@ -50,8 +62,9 @@ Driver::Driver(llvm::StringRef _ClangExecutable,
     DefaultImageName(_DefaultImageName),
     DriverTitle("clang \"gcc-compatible\" driver"),
     Host(0),
-    CCCGenericGCCName("gcc"), CCPrintOptionsFilename(0), CCCIsCXX(false),
+    CCPrintOptionsFilename(0), CCPrintHeadersFilename(0), CCCIsCXX(false),
     CCCEcho(false), CCCPrintBindings(false), CCPrintOptions(false),
+    CCPrintHeaders(false), CCCGenericGCCName("gcc"),
     CheckInputsExist(true), CCCUseClang(true), CCCUseClangCXX(true),
     CCCUseClangCPP(true), CCCUsePCH(true), SuppressMissingInputWarning(false) {
   if (IsProduction) {
@@ -69,16 +82,16 @@ Driver::Driver(llvm::StringRef _ClangExecutable,
       CCCUseClangCXX = false;
   }
 
-  llvm::sys::Path Executable(ClangExecutable);
-  Name = Executable.getBasename();
-  Dir = Executable.getDirname();
+  Name = llvm::sys::path::stem(ClangExecutable);
+  Dir  = llvm::sys::path::parent_path(ClangExecutable);
 
   // Compute the path to the resource directory.
-  llvm::sys::Path P(Dir);
-  P.eraseComponent(); // Remove /bin from foo/bin
-  P.appendComponent("lib");
-  P.appendComponent("clang");
-  P.appendComponent(CLANG_VERSION_STRING);
+  llvm::StringRef ClangResourceDir(CLANG_RESOURCE_DIR);
+  llvm::SmallString<128> P(Dir);
+  if (ClangResourceDir != "")
+    llvm::sys::path::append(P, ClangResourceDir);
+  else
+    llvm::sys::path::append(P, "..", "lib", "clang", CLANG_VERSION_STRING);
   ResourceDir = P.str();
 }
 
@@ -115,6 +128,7 @@ InputArgList *Driver::ParseArgStrings(const char **ArgBegin,
 DerivedArgList *Driver::TranslateInputArgs(const InputArgList &Args) const {
   DerivedArgList *DAL = new DerivedArgList(Args);
 
+  bool HasNostdlib = Args.hasArg(options::OPT_nostdlib);
   for (ArgList::const_iterator it = Args.begin(),
          ie = Args.end(); it != ie; ++it) {
     const Arg *A = *it;
@@ -155,6 +169,25 @@ DerivedArgList *Driver::TranslateInputArgs(const InputArgList &Args) const {
       DAL->AddSeparateArg(A, Opts->getOption(options::OPT_MF),
                           A->getValue(Args, 1));
       continue;
+    }
+
+    // Rewrite reserved library names.
+    if (A->getOption().matches(options::OPT_l)) {
+      llvm::StringRef Value = A->getValue(Args);
+
+      // Rewrite unless -nostdlib is present.
+      if (!HasNostdlib && Value == "stdc++") {
+        DAL->AddFlagArg(A, Opts->getOption(
+                              options::OPT_Z_reserved_lib_stdcxx));
+        continue;
+      }
+
+      // Rewrite unconditionally.
+      if (Value == "cc_kext") {
+        DAL->AddFlagArg(A, Opts->getOption(
+                              options::OPT_Z_reserved_lib_cckext));
+        continue;
+      }
     }
 
     DAL->append(*it);
@@ -205,6 +238,13 @@ Compilation *Driver::BuildCompilation(int argc, const char **argv) {
   CCCPrintActions = Args->hasArg(options::OPT_ccc_print_phases);
   CCCPrintBindings = Args->hasArg(options::OPT_ccc_print_bindings);
   CCCIsCXX = Args->hasArg(options::OPT_ccc_cxx) || CCCIsCXX;
+  if (CCCIsCXX) {
+#ifdef IS_CYGWIN15
+    CCCGenericGCCName = "g++-4";
+#else
+    CCCGenericGCCName = "g++";
+#endif
+  }
   CCCEcho = Args->hasArg(options::OPT_ccc_echo);
   if (const Arg *A = Args->getLastArg(options::OPT_ccc_gcc_name))
     CCCGenericGCCName = A->getValue(*Args);
@@ -241,8 +281,12 @@ Compilation *Driver::BuildCompilation(int argc, const char **argv) {
     DefaultHostTriple = A->getValue(*Args);
   if (const Arg *A = Args->getLastArg(options::OPT_ccc_install_dir))
     Dir = InstalledDir = A->getValue(*Args);
-  if (const Arg *A = Args->getLastArg(options::OPT_B))
-    PrefixDir = A->getValue(*Args);
+  for (arg_iterator it = Args->filtered_begin(options::OPT_B),
+         ie = Args->filtered_end(); it != ie; ++it) {
+    const Arg *A = *it;
+    A->claim();
+    PrefixDirs.push_back(A->getValue(*Args, 0));
+  }
 
   Host = GetHostInfo(DefaultHostTriple.c_str());
 
@@ -287,7 +331,7 @@ int Driver::ExecuteCompilation(const Compilation &C) const {
   }
 
   // If there were errors building the compilation, quit now.
-  if (getDiags().getNumErrors())
+  if (getDiags().hasErrorOccurred())
     return 1;
 
   const Command *FailingCommand = 0;
@@ -365,7 +409,7 @@ void Driver::PrintVersion(const Compilation &C, llvm::raw_ostream &OS) const {
 /// option.
 static void PrintDiagnosticCategories(llvm::raw_ostream &OS) {
   for (unsigned i = 1; // Skip the empty category.
-       const char *CategoryName = Diagnostic::getCategoryNameFromID(i); ++i)
+       const char *CategoryName = DiagnosticIDs::getCategoryNameFromID(i); ++i)
     OS << i << ',' << CategoryName << '\n';
 }
 
@@ -373,8 +417,19 @@ bool Driver::HandleImmediateArgs(const Compilation &C) {
   // The order these options are handled in gcc is all over the place, but we
   // don't expect inconsistencies w.r.t. that to matter in practice.
 
+  if (C.getArgs().hasArg(options::OPT_dumpmachine)) {
+    llvm::outs() << C.getDefaultToolChain().getTripleString() << '\n';
+    return false;
+  }
+
   if (C.getArgs().hasArg(options::OPT_dumpversion)) {
-    llvm::outs() << CLANG_VERSION_STRING "\n";
+    // Since -dumpversion is only implemented for pedantic GCC compatibility, we
+    // return an answer which matches our definition of __VERSION__.
+    //
+    // If we want to return a more correct answer some day, then we should
+    // introduce a non-pedantically GCC compatible mode to Clang in which we
+    // provide sensible definitions for -dumpversion, __VERSION__, etc.
+    llvm::outs() << "4.2.1\n";
     return false;
   }
 
@@ -709,10 +764,20 @@ void Driver::BuildActions(const ToolChain &TC, const ArgList &Args,
       }
 
       // Check that the file exists, if enabled.
-      if (CheckInputsExist && memcmp(Value, "-", 2) != 0 &&
-          !llvm::sys::Path(Value).exists())
-        Diag(clang::diag::err_drv_no_such_file) << A->getValue(Args);
-      else
+      if (CheckInputsExist && memcmp(Value, "-", 2) != 0) {
+        llvm::SmallString<64> Path(Value);
+        if (Arg *WorkDir = Args.getLastArg(options::OPT_working_directory))
+          if (llvm::sys::path::is_absolute(Path.str())) {
+            Path = WorkDir->getValue(Args);
+            llvm::sys::path::append(Path, Value);
+          }
+
+        bool exists = false;
+        if (/*error_code ec =*/llvm::sys::fs::exists(Value, exists) || !exists)
+          Diag(clang::diag::err_drv_no_such_file) << Path.str();
+        else
+          Inputs.push_back(std::make_pair(Ty, A));
+      } else
         Inputs.push_back(std::make_pair(Ty, A));
 
     } else if (A->getOption().isLinkerInput()) {
@@ -726,7 +791,7 @@ void Driver::BuildActions(const ToolChain &TC, const ArgList &Args,
 
       // Follow gcc behavior and treat as linker input for invalid -x
       // options. Its not clear why we shouldn't just revert to unknown; but
-      // this isn't very important, we might as well be bug comatible.
+      // this isn't very important, we might as well be bug compatible.
       if (!InputType) {
         Diag(clang::diag::err_drv_unknown_language) << A->getValue(Args);
         InputType = types::TY_Object;
@@ -747,8 +812,7 @@ void Driver::BuildActions(const ToolChain &TC, const ArgList &Args,
 
   // -{E,M,MM} only run the preprocessor.
   if ((FinalPhaseArg = Args.getLastArg(options::OPT_E)) ||
-      (FinalPhaseArg = Args.getLastArg(options::OPT_M)) ||
-      (FinalPhaseArg = Args.getLastArg(options::OPT_MM))) {
+      (FinalPhaseArg = Args.getLastArg(options::OPT_M, options::OPT_MM))) {
     FinalPhase = phases::Preprocess;
 
     // -{fsyntax-only,-analyze,emit-ast,S} only run up to the compiler.
@@ -856,7 +920,7 @@ Action *Driver::ConstructPhaseAction(const ArgList &Args, phases::ID Phase,
   case phases::Preprocess: {
     types::ID OutputTy;
     // -{M, MM} alter the output type.
-    if (Args.hasArg(options::OPT_M) || Args.hasArg(options::OPT_MM)) {
+    if (Args.hasArg(options::OPT_M, options::OPT_MM)) {
       OutputTy = types::TY_Dependencies;
     } else {
       OutputTy = types::getPreprocessedType(Input->getType());
@@ -945,7 +1009,7 @@ void Driver::BuildJobs(Compilation &C) const {
 
   // If the user passed -Qunused-arguments or there were errors, don't warn
   // about any unused arguments.
-  if (Diags.getNumErrors() ||
+  if (Diags.hasErrorOccurred() ||
       C.getArgs().hasArg(options::OPT_Qunused_arguments))
     return;
 
@@ -1141,8 +1205,8 @@ const char *Driver::GetNamedOutputPath(Compilation &C,
     return C.addTempFile(C.getArgs().MakeArgString(TmpName.c_str()));
   }
 
-  llvm::sys::Path BasePath(BaseInput);
-  std::string BaseName(BasePath.getLast());
+  llvm::SmallString<128> BasePath(BaseInput);
+  llvm::StringRef BaseName = llvm::sys::path::filename(BasePath);
 
   // Determine what the derived output name should be.
   const char *NamedOutput;
@@ -1163,11 +1227,11 @@ const char *Driver::GetNamedOutputPath(Compilation &C,
 
   // As an annoying special case, PCH generation doesn't strip the pathname.
   if (JA.getType() == types::TY_PCH) {
-    BasePath.eraseComponent();
-    if (BasePath.isEmpty())
+    llvm::sys::path::remove_filename(BasePath);
+    if (BasePath.empty())
       BasePath = NamedOutput;
     else
-      BasePath.appendComponent(NamedOutput);
+      llvm::sys::path::append(BasePath, NamedOutput);
     return C.addResultFile(C.getArgs().MakeArgString(BasePath.c_str()));
   } else {
     return C.addResultFile(NamedOutput);
@@ -1177,10 +1241,12 @@ const char *Driver::GetNamedOutputPath(Compilation &C,
 std::string Driver::GetFilePath(const char *Name, const ToolChain &TC) const {
   // Respect a limited subset of the '-Bprefix' functionality in GCC by
   // attempting to use this prefix when lokup up program paths.
-  if (!PrefixDir.empty()) {
-    llvm::sys::Path P(PrefixDir);
+  for (Driver::prefix_list::const_iterator it = PrefixDirs.begin(),
+       ie = PrefixDirs.end(); it != ie; ++it) {
+    llvm::sys::Path P(*it);
     P.appendComponent(Name);
-    if (P.exists())
+    bool Exists;
+    if (!llvm::sys::fs::exists(P.str(), Exists) && Exists)
       return P.str();
   }
 
@@ -1189,7 +1255,8 @@ std::string Driver::GetFilePath(const char *Name, const ToolChain &TC) const {
          it = List.begin(), ie = List.end(); it != ie; ++it) {
     llvm::sys::Path P(*it);
     P.appendComponent(Name);
-    if (P.exists())
+    bool Exists;
+    if (!llvm::sys::fs::exists(P.str(), Exists) && Exists)
       return P.str();
   }
 
@@ -1200,10 +1267,13 @@ std::string Driver::GetProgramPath(const char *Name, const ToolChain &TC,
                                    bool WantFile) const {
   // Respect a limited subset of the '-Bprefix' functionality in GCC by
   // attempting to use this prefix when lokup up program paths.
-  if (!PrefixDir.empty()) {
-    llvm::sys::Path P(PrefixDir);
+  for (Driver::prefix_list::const_iterator it = PrefixDirs.begin(),
+       ie = PrefixDirs.end(); it != ie; ++it) {
+    llvm::sys::Path P(*it);
     P.appendComponent(Name);
-    if (WantFile ? P.exists() : P.canExecute())
+    bool Exists;
+    if (WantFile ? !llvm::sys::fs::exists(P.str(), Exists) && Exists
+                 : P.canExecute())
       return P.str();
   }
 
@@ -1212,7 +1282,9 @@ std::string Driver::GetProgramPath(const char *Name, const ToolChain &TC,
          it = List.begin(), ie = List.end(); it != ie; ++it) {
     llvm::sys::Path P(*it);
     P.appendComponent(Name);
-    if (WantFile ? P.exists() : P.canExecute())
+    bool Exists;
+    if (WantFile ? !llvm::sys::fs::exists(P.str(), Exists) && Exists
+                 : P.canExecute())
       return P.str();
   }
 
@@ -1266,6 +1338,8 @@ const HostInfo *Driver::GetHostInfo(const char *TripleStr) const {
     return createDragonFlyHostInfo(*this, Triple);
   case llvm::Triple::OpenBSD:
     return createOpenBSDHostInfo(*this, Triple);
+  case llvm::Triple::NetBSD:
+    return createNetBSDHostInfo(*this, Triple);
   case llvm::Triple::FreeBSD:
     return createFreeBSDHostInfo(*this, Triple);
   case llvm::Triple::Minix:
@@ -1275,7 +1349,6 @@ const HostInfo *Driver::GetHostInfo(const char *TripleStr) const {
   case llvm::Triple::Win32:
     return createWindowsHostInfo(*this, Triple);
   case llvm::Triple::MinGW32:
-  case llvm::Triple::MinGW64:
     return createMinGWHostInfo(*this, Triple);
   default:
     return createUnknownHostInfo(*this, Triple);

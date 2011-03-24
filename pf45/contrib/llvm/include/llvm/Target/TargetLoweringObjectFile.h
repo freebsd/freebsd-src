@@ -69,10 +69,6 @@ protected:
   /// the section the Language Specific Data Area information is emitted to.
   const MCSection *LSDASection;
   
-  /// EHFrameSection - If exception handling is supported by the target, this is
-  /// the section the EH Frame is emitted to.
-  const MCSection *EHFrameSection;
-  
   // Dwarf sections for debug info.  If a target supports debug info, these must
   // be set.
   const MCSection *DwarfAbbrevSection;
@@ -91,6 +87,11 @@ protected:
   // Extra TLS Variable Data section.  If the target needs to put additional
   // information for a TLS variable, it'll go here.
   const MCSection *TLSExtraDataSection;
+  
+  /// CommDirectiveSupportsAlignment - True if .comm supports alignment.  This
+  /// is a hack for as long as we support 10.4 Tiger, whose assembler doesn't
+  /// support alignment on comm.
+  bool CommDirectiveSupportsAlignment;
   
   /// SupportsWeakEmptyEHFrame - True if target object file supports a
   /// weak_definition of constant 0 for an omitted EH frame.
@@ -128,13 +129,17 @@ public:
     return SupportsWeakOmittedEHFrame;
   }
   
+  bool getCommDirectiveSupportsAlignment() const {
+    return CommDirectiveSupportsAlignment;
+  }
+
   const MCSection *getTextSection() const { return TextSection; }
   const MCSection *getDataSection() const { return DataSection; }
   const MCSection *getBSSSection() const { return BSSSection; }
   const MCSection *getStaticCtorSection() const { return StaticCtorSection; }
   const MCSection *getStaticDtorSection() const { return StaticDtorSection; }
   const MCSection *getLSDASection() const { return LSDASection; }
-  const MCSection *getEHFrameSection() const { return EHFrameSection; }
+  virtual const MCSection *getEHFrameSection() const = 0;
   const MCSection *getDwarfAbbrevSection() const { return DwarfAbbrevSection; }
   const MCSection *getDwarfInfoSection() const { return DwarfInfoSection; }
   const MCSection *getDwarfLineSection() const { return DwarfLineSection; }

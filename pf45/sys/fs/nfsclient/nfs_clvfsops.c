@@ -73,6 +73,8 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfsclient/nfs.h>
 #include <fs/nfsclient/nfsdiskless.h>
 
+FEATURE(nfscl, "NFSv4 client");
+
 extern int nfscl_ticks;
 extern struct timeval nfsboottime;
 extern struct nfsstats	newnfsstats;

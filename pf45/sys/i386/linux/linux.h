@@ -47,6 +47,9 @@ extern u_char linux_debug_map[];
 MALLOC_DECLARE(M_LINUX);
 #endif
 
+#define	LINUX_SHAREDPAGE	(VM_MAXUSER_ADDRESS - PAGE_SIZE)
+#define	LINUX_USRSTACK		LINUX_SHAREDPAGE
+
 #define	PTRIN(v)	(void *)(v)
 #define	PTROUT(v)	(l_uintptr_t)(v)
 

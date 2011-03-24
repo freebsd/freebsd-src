@@ -115,7 +115,7 @@ extern devclass_t ahc_devclass;
  * The number of dma segments supported.  The sequencer can handle any number
  * of physically contiguous S/G entrys.  To reduce the driver's memory
  * consumption, we limit the number supported to be sufficient to handle
- * the largest mapping supported by the the legacy kernel MAXPHYS setting of
+ * the largest mapping supported by the legacy kernel MAXPHYS setting of
  * 128K.  This can be increased once some testing is done.  Assuming the
  * be the number of paged sized transfers in MAXPHYS plus an extra element
  * to handle any unaligned residual.  The sequencer fetches SG elements

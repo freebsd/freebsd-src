@@ -100,6 +100,9 @@ enum {
 	UQ_MSC_EJECT_HUAWEISCSI,	/* ejects after Huawei SCSI command */
 	UQ_MSC_EJECT_TCT,		/* ejects after TCT SCSI command */
 
+	UQ_BAD_MIDI,		/* device claims MIDI class, but isn't */
+	UQ_AU_VENDOR_CLASS,	/* audio device uses vendor and not audio class */
+
 	USB_QUIRK_MAX
 };
 

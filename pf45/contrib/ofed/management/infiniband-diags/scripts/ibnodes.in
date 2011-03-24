@@ -1,0 +1,5 @@
+#!/bin/sh
+
+IBPATH=${IBPATH:-@IBSCRIPTPATH@}
+
+$IBPATH/ibhosts $@; $IBPATH/ibswitches $@

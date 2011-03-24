@@ -365,7 +365,7 @@ usb_bus_attach(struct usb_proc_msg *pm)
 
 	case USB_REV_3_0:
 		speed = USB_SPEED_SUPER;
-		device_printf(bus->bdev, "4.8Gbps Super Speed USB v3.0\n");
+		device_printf(bus->bdev, "5.0Gbps Super Speed USB v3.0\n");
 		break;
 
 	default:

@@ -265,6 +265,7 @@ struct uaudio_softc {
 	uint8_t	sc_uq_au_inp_async:1;
 	uint8_t	sc_uq_au_no_xu:1;
 	uint8_t	sc_uq_bad_adc:1;
+	uint8_t	sc_uq_au_vendor_class:1;
 };
 
 struct uaudio_search_result {
@@ -401,8 +402,8 @@ static int	umidi_open(struct usb_fifo *, int);
 static int	umidi_ioctl(struct usb_fifo *, u_long cmd, void *, int);
 static void	umidi_close(struct usb_fifo *, int);
 static void	umidi_init(device_t dev);
-static int32_t	umidi_probe(device_t dev);
-static int32_t	umidi_detach(device_t dev);
+static int	umidi_probe(device_t dev);
+static int	umidi_detach(device_t dev);
 
 #ifdef USB_DEBUG
 static void	uaudio_chan_dump_ep_desc(
@@ -541,10 +542,16 @@ uaudio_probe(device_t dev)
 	if (uaa->use_generic == 0)
 		return (ENXIO);
 
-	/* trigger on the control interface */
+	/* lookup non-standard device */
 
-	if ((uaa->info.bInterfaceClass == UICLASS_AUDIO) &&
-	    (uaa->info.bInterfaceSubClass == UISUBCLASS_AUDIOCONTROL)) {
+	if (uaa->info.bInterfaceClass != UICLASS_AUDIO) {
+		if (usb_test_quirk(uaa, UQ_AU_VENDOR_CLASS) == 0)
+			return (ENXIO);
+	}
+
+	/* check for AUDIO control interface */
+
+	if (uaa->info.bInterfaceSubClass == UISUBCLASS_AUDIOCONTROL) {
 		if (usb_test_quirk(uaa, UQ_BAD_AUDIO))
 			return (ENXIO);
 		else
@@ -553,9 +560,11 @@ uaudio_probe(device_t dev)
 
 	/* check for MIDI stream */
 
-	if ((uaa->info.bInterfaceClass == UICLASS_AUDIO) &&
-	    (uaa->info.bInterfaceSubClass == UISUBCLASS_MIDISTREAM)) {
-		return (0);
+	if (uaa->info.bInterfaceSubClass == UISUBCLASS_MIDISTREAM) {
+		if (usb_test_quirk(uaa, UQ_BAD_MIDI))
+			return (ENXIO);
+		else
+			return (0);
 	}
 	return (ENXIO);
 }
@@ -585,6 +594,9 @@ uaudio_attach(device_t dev)
 
 	if (usb_test_quirk(uaa, UQ_BAD_ADC))
 		sc->sc_uq_bad_adc = 1;
+
+	if (usb_test_quirk(uaa, UQ_AU_VENDOR_CLASS))
+		sc->sc_uq_au_vendor_class = 1;
 
 	umidi_init(dev);
 
@@ -800,6 +812,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 	uint8_t bBitResolution;
 	uint8_t x;
 	uint8_t audio_if = 0;
+	uint8_t uma_if_class;
 
 	while ((desc = usb_desc_foreach(cd, desc))) {
 
@@ -817,19 +830,22 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 				alt_index++;
 			}
 
-			if ((id->bInterfaceClass == UICLASS_AUDIO) &&
-			    (id->bInterfaceSubClass == UISUBCLASS_AUDIOSTREAM)) {
+			uma_if_class =
+			    ((id->bInterfaceClass == UICLASS_AUDIO) ||
+			    ((id->bInterfaceClass == UICLASS_VENDOR) &&
+			    (sc->sc_uq_au_vendor_class != 0)));
+
+			if ((uma_if_class != 0) && (id->bInterfaceSubClass == UISUBCLASS_AUDIOSTREAM)) {
 				audio_if = 1;
 			} else {
 				audio_if = 0;
 			}
 
-			if ((id->bInterfaceClass == UICLASS_AUDIO) &&
+			if ((uma_if_class != 0) &&
 			    (id->bInterfaceSubClass == UISUBCLASS_MIDISTREAM)) {
 
 				/*
 				 * XXX could allow multiple MIDI interfaces
-				 * XXX
 				 */
 
 				if ((sc->sc_midi_chan.valid == 0) &&
@@ -1340,7 +1356,8 @@ uaudio_chan_init(struct uaudio_softc *sc, struct snd_dbuf *b,
 		    usbd_errstr(err));
 		goto error;
 	}
-	usbd_set_parent_iface(sc->sc_udev, iface_index, sc->sc_mixer_iface_index);
+	usbd_set_parent_iface(sc->sc_udev, iface_index,
+	    sc->sc_mixer_iface_index);
 
 	/*
 	 * If just one sampling rate is supported,
@@ -3705,7 +3722,7 @@ static struct usb_fifo_methods umidi_fifo_methods = {
 	.basename[0] = "umidi",
 };
 
-static int32_t
+static int
 umidi_probe(device_t dev)
 {
 	struct uaudio_softc *sc = device_get_softc(dev);
@@ -3770,7 +3787,7 @@ detach:
 	return (ENXIO);			/* failure */
 }
 
-static int32_t
+static int
 umidi_detach(device_t dev)
 {
 	struct uaudio_softc *sc = device_get_softc(dev);

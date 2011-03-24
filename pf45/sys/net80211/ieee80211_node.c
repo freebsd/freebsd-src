@@ -285,10 +285,7 @@ ieee80211_node_set_chan(struct ieee80211_node *ni,
 	mode = ieee80211_chan2mode(chan);
 	if (IEEE80211_IS_CHAN_HT(chan)) {
 		/*
-		 * XXX Gotta be careful here; the rate set returned by
-		 * ieee80211_get_suprates is actually any HT rate
-		 * set so blindly copying it will be bad.  We must
-		 * install the legacy rate est in ni_rates and the
+		 * We must install the legacy rate est in ni_rates and the
 		 * HT rate set in ni_htrates.
 		 */
 		ni->ni_htrates = *ieee80211_get_suphtrates(ic, chan);

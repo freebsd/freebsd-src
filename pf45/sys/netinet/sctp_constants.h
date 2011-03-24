@@ -355,8 +355,8 @@ __FBSDID("$FreeBSD$");
 /* RTO calculation flag to say if it
  * is safe to determine local lan or not.
  */
-#define SCTP_DETERMINE_LL_NOTOK 0
-#define SCTP_DETERMINE_LL_OK    1
+#define SCTP_RTT_FROM_NON_DATA 0
+#define SCTP_RTT_FROM_DATA     1
 
 
 /* IP hdr (20/40) + 12+2+2 (enet) + sctp common 12 */
@@ -965,10 +965,9 @@ __FBSDID("$FreeBSD$");
  * local lan type rtt's
  */
  /*
-  * We allow 500us for the rtt and another 500us for the cookie processing
-  * since we measure this on the first rtt.
+  * We allow 900us for the rtt.
   */
-#define SCTP_LOCAL_LAN_RTT 1100
+#define SCTP_LOCAL_LAN_RTT 900
 #define SCTP_LAN_UNKNOWN  0
 #define SCTP_LAN_LOCAL    1
 #define SCTP_LAN_INTERNET 2

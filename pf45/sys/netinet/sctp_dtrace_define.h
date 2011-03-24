@@ -71,6 +71,34 @@ SDT_PROBE_ARGTYPE(sctp, cwnd, net, ack, 3, "int");
 /* The new value of the cwnd */
 SDT_PROBE_ARGTYPE(sctp, cwnd, net, ack, 4, "int");
 
+
+/* ACK-INCREASE */
+SDT_PROBE_DEFINE(sctp, cwnd, net, rttvar, rttvar);
+/* The Vtag << 32 | localport << 16 | remoteport */
+SDT_PROBE_ARGTYPE(sctp, cwnd, net, rttvar, 0, "uint64_t");
+/* obw | nbw */
+SDT_PROBE_ARGTYPE(sctp, cwnd, net, rttvar, 1, "uint64_t");
+/* bwrtt | newrtt */
+SDT_PROBE_ARGTYPE(sctp, cwnd, net, rttvar, 2, "uint64_t");
+/* flight */
+SDT_PROBE_ARGTYPE(sctp, cwnd, net, rttvar, 3, "uint64_t");
+/* (cwnd << 32) | point << 16 | retval(0/1) */
+SDT_PROBE_ARGTYPE(sctp, cwnd, net, rttvar, 4, "uint64_t");
+
+
+SDT_PROBE_DEFINE(sctp, cwnd, net, rttstep, rttstep);
+/* The Vtag << 32 | localport << 16 | remoteport */
+SDT_PROBE_ARGTYPE(sctp, cwnd, net, rttstep, 0, "uint64_t");
+/* obw | nbw */
+SDT_PROBE_ARGTYPE(sctp, cwnd, net, rttstep, 1, "uint64_t");
+/* bwrtt | nrtt */
+SDT_PROBE_ARGTYPE(sctp, cwnd, net, rttstep, 2, "uint64_t");
+/* cwnd_saved | stepcnt << 16 | oldstep  */
+SDT_PROBE_ARGTYPE(sctp, cwnd, net, rttstep, 3, "uint64_t");
+/* (cwnd << 32) | point << 16 | retval(0/1) */
+SDT_PROBE_ARGTYPE(sctp, cwnd, net, rttstep, 4, "uint64_t");
+
+
 /* FastRetransmit-DECREASE */
 SDT_PROBE_DEFINE(sctp, cwnd, net, fr, fr);
 /* The Vtag for this end */

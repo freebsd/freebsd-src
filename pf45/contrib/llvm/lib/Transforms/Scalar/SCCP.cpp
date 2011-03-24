@@ -481,6 +481,19 @@ private:
     }
   }
 
+  /// InsertInOverdefinedPHIs - Insert an entry in the UsersOfOverdefinedPHIS
+  /// map for I and PN, but if one is there already, do not create another.
+  /// (Duplicate entries do not break anything directly, but can lead to
+  /// exponential growth of the table in rare cases.)
+  void InsertInOverdefinedPHIs(Instruction *I, PHINode *PN) {
+    std::multimap<PHINode*, Instruction*>::iterator J, E;
+    tie(J, E) = UsersOfOverdefinedPHIs.equal_range(PN);
+    for (; J != E; ++J)
+      if (J->second == I)
+        return;
+    UsersOfOverdefinedPHIs.insert(std::make_pair(PN, I));
+  }
+
 private:
   friend class InstVisitor<SCCPSolver>;
 
@@ -973,9 +986,9 @@ void SCCPSolver::visitBinaryOperator(Instruction &I) {
         if (Result.isConstant()) {
           markConstant(IV, &I, Result.getConstant());
           // Remember that this instruction is virtually using the PHI node
-          // operands.
-          UsersOfOverdefinedPHIs.insert(std::make_pair(PN1, &I));
-          UsersOfOverdefinedPHIs.insert(std::make_pair(PN2, &I));
+          // operands. 
+          InsertInOverdefinedPHIs(&I, PN1);
+          InsertInOverdefinedPHIs(&I, PN2);
           return;
         }
         
@@ -1056,8 +1069,8 @@ void SCCPSolver::visitCmpInst(CmpInst &I) {
           markConstant(&I, Result.getConstant());
           // Remember that this instruction is virtually using the PHI node
           // operands.
-          UsersOfOverdefinedPHIs.insert(std::make_pair(PN1, &I));
-          UsersOfOverdefinedPHIs.insert(std::make_pair(PN2, &I));
+          InsertInOverdefinedPHIs(&I, PN1);
+          InsertInOverdefinedPHIs(&I, PN2);
           return;
         }
         
@@ -1585,22 +1598,20 @@ namespace {
   ///
   struct SCCP : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
-    SCCP() : FunctionPass(ID) {}
+    SCCP() : FunctionPass(ID) {
+      initializeSCCPPass(*PassRegistry::getPassRegistry());
+    }
 
     // runOnFunction - Run the Sparse Conditional Constant Propagation
     // algorithm, and return true if the function was modified.
     //
     bool runOnFunction(Function &F);
-
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-      AU.setPreservesCFG();
-    }
   };
 } // end anonymous namespace
 
 char SCCP::ID = 0;
 INITIALIZE_PASS(SCCP, "sccp",
-                "Sparse Conditional Constant Propagation", false, false);
+                "Sparse Conditional Constant Propagation", false, false)
 
 // createSCCPPass - This is the public interface to this file.
 FunctionPass *llvm::createSCCPPass() {
@@ -1701,7 +1712,9 @@ namespace {
   ///
   struct IPSCCP : public ModulePass {
     static char ID;
-    IPSCCP() : ModulePass(ID) {}
+    IPSCCP() : ModulePass(ID) {
+      initializeIPSCCPPass(*PassRegistry::getPassRegistry());
+    }
     bool runOnModule(Module &M);
   };
 } // end anonymous namespace
@@ -1709,7 +1722,7 @@ namespace {
 char IPSCCP::ID = 0;
 INITIALIZE_PASS(IPSCCP, "ipsccp",
                 "Interprocedural Sparse Conditional Constant Propagation",
-                false, false);
+                false, false)
 
 // createIPSCCPPass - This is the public interface to this file.
 ModulePass *llvm::createIPSCCPPass() {

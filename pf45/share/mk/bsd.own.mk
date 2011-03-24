@@ -313,6 +313,7 @@ _clang_no=CLANG
     BIND_MTREE \
     BIND_NAMED \
     BIND_UTILS \
+    BINUTILS \
     BLUETOOTH \
     BOOT \
     BSD_CPIO \
@@ -335,6 +336,7 @@ _clang_no=CLANG
     FP_LIBC \
     FREEBSD_UPDATE \
     GAMES \
+    GCC \
     GCOV \
     GDB \
     GNU \
@@ -427,7 +429,9 @@ MK_${var}:=	yes
     ${_clang_no} \
     GPIO \
     HESIOD \
-    IDEA
+    ICONV \
+    IDEA \
+    OFED
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif

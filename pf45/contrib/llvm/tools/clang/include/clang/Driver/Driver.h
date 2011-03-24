@@ -17,7 +17,7 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/System/Path.h" // FIXME: Kill when CompilationInfo
+#include "llvm/Support/Path.h" // FIXME: Kill when CompilationInfo
                               // lands.
 #include <list>
 #include <set>
@@ -74,7 +74,8 @@ public:
   /// functionality.
   /// FIXME: This type of customization should be removed in favor of the
   /// universal driver when it is ready.
-  std::string PrefixDir;
+  typedef llvm::SmallVector<std::string, 4> prefix_list;
+  prefix_list PrefixDirs;
 
   /// Default host triple.
   std::string DefaultHostTriple;
@@ -92,11 +93,11 @@ public:
   /// Information about the host which can be overriden by the user.
   std::string HostBits, HostMachine, HostSystem, HostRelease;
 
-  /// Name to use when calling the generic gcc.
-  std::string CCCGenericGCCName;
-
   /// The file to log CC_PRINT_OPTIONS output to, if enabled.
   const char *CCPrintOptionsFilename;
+
+  /// The file to log CC_PRINT_HEADERS output to, if enabled.
+  const char *CCPrintHeadersFilename;
 
   /// Whether the driver should follow g++ like behavior.
   unsigned CCCIsCXX : 1;
@@ -111,7 +112,14 @@ public:
   /// CCPrintOptionsFilename or to stderr.
   unsigned CCPrintOptions : 1;
 
+  /// Set CC_PRINT_HEADERS mode, which causes the frontend to log header include
+  /// information to CCPrintHeadersFilename or to stderr.
+  unsigned CCPrintHeaders : 1;
+
 private:
+  /// Name to use when calling the generic gcc.
+  std::string CCCGenericGCCName;
+
   /// Whether to check that input files exist when constructing compilation
   /// jobs.
   unsigned CheckInputsExist : 1;
@@ -156,6 +164,10 @@ public:
 
   /// @name Accessors
   /// @{
+
+  /// Name to use when calling the generic gcc.
+  const std::string &getCCCGenericGCCName() const { return CCCGenericGCCName; }
+
 
   const OptTable &getOpts() const { return *Opts; }
 

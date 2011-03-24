@@ -195,11 +195,6 @@ LEAF(savectx)
 	SAVE_U_PCB_CONTEXT(ra, PREG_PC, a0)
 	move	ra, v0			/* restore 'ra' before returning */
 
-	/*
-	 * FREEBSD_DEVELOPERS_FIXME:
-	 * In case there are CPU-specific registers that need
-	 * to be saved with the other registers do so here.
-	 */
 	j	ra
 	move	v0, zero
 END(savectx)
@@ -254,11 +249,6 @@ NON_LEAF(cpu_switch, CALLFRAME_SIZ, ra)
 	nop
 getpc:
 	SAVE_U_PCB_CONTEXT(ra, PREG_PC, a0)		# save return address
-	/*
-	 * FREEBSD_DEVELOPERS_FIXME:
-	 * In case there are CPU-specific registers that need
-	 * to be saved with the other registers do so here.
-	 */
 
 	PTR_S	a2, TD_LOCK(a3)			# Switchout td_lock 
 
@@ -328,13 +318,15 @@ entry0set:
  * Now running on new u struct.
  */
 sw2:
+	PTR_L	s0, TD_PCB(s7)
+	RESTORE_U_PCB_CONTEXT(sp, PREG_SP, s0)
 	PTR_LA	t1, _C_LABEL(pmap_activate)	# s7 = new proc pointer
 	jalr	t1				# s7 = new proc pointer
 	move	a0, s7				# BDSLOT
 /*
  * Restore registers and return.
  */
-	PTR_L	a0, TD_PCB(s7)
+	move	a0, s0
 	RESTORE_U_PCB_CONTEXT(gp, PREG_GP, a0)
 	RESTORE_U_PCB_CONTEXT(v0, PREG_SR, a0)	# restore kernel context
 	RESTORE_U_PCB_CONTEXT(ra, PREG_RA, a0)
@@ -346,13 +338,8 @@ sw2:
 	RESTORE_U_PCB_CONTEXT(s5, PREG_S5, a0)
 	RESTORE_U_PCB_CONTEXT(s6, PREG_S6, a0)
 	RESTORE_U_PCB_CONTEXT(s7, PREG_S7, a0)
-	RESTORE_U_PCB_CONTEXT(sp, PREG_SP, a0)
 	RESTORE_U_PCB_CONTEXT(s8, PREG_S8, a0)
-	/*
-	 * FREEBSD_DEVELOPERS_FIXME:
-	 * In case there are CPU-specific registers that need
-	 * to be restored with the other registers do so here.
-	 */
+
 	mfc0	t0, MIPS_COP_0_STATUS
 	and	t0, t0, MIPS_SR_INT_MASK
 	and	v0, v0, ~MIPS_SR_INT_MASK

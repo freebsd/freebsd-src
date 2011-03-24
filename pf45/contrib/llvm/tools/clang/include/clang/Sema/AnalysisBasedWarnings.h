@@ -25,6 +25,9 @@ class FunctionDecl;
 class ObjCMethodDecl;
 class QualType;
 class Sema;
+namespace sema {
+  class FunctionScopeInfo;
+}
 
 namespace sema {
 
@@ -47,16 +50,14 @@ private:
   enum VisitFlag { NotVisited = 0, Visited = 1, Pending = 2 };
   llvm::DenseMap<const FunctionDecl*, VisitFlag> VisitedFD;
 
-  void IssueWarnings(Policy P, const Decl *D, QualType BlockTy);
 
 public:
   AnalysisBasedWarnings(Sema &s);
 
-  Policy getDefaultPolicy() { return DefaultPolicy; }
+  void IssueWarnings(Policy P, FunctionScopeInfo *fscope,
+                     const Decl *D, const BlockExpr *blkExpr);
 
-  void IssueWarnings(Policy P, const BlockExpr *E);
-  void IssueWarnings(Policy P, const FunctionDecl *D);
-  void IssueWarnings(Policy P, const ObjCMethodDecl *D);
+  Policy getDefaultPolicy() { return DefaultPolicy; }
 };
 
 }} // end namespace clang::sema

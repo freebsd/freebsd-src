@@ -1310,6 +1310,12 @@ daregister(struct cam_periph *periph, void *arg)
 		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
 	strlcpy(softc->disk->d_ident, cgd->serial_num,
 	    MIN(sizeof(softc->disk->d_ident), cgd->serial_num_len + 1));
+	cam_strvis(softc->disk->d_descr, cgd->inq_data.vendor,
+	    sizeof(cgd->inq_data.vendor), sizeof(softc->disk->d_descr));
+	strlcat(softc->disk->d_descr, " ", sizeof(softc->disk->d_descr));
+	cam_strvis(&softc->disk->d_descr[strlen(softc->disk->d_descr)],
+	    cgd->inq_data.product, sizeof(cgd->inq_data.product),
+	    sizeof(softc->disk->d_descr) - strlen(softc->disk->d_descr));
 	softc->disk->d_hba_vendor = cpi.hba_vendor;
 	softc->disk->d_hba_device = cpi.hba_device;
 	softc->disk->d_hba_subvendor = cpi.hba_subvendor;
