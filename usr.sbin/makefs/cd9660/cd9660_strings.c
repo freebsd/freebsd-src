@@ -55,7 +55,7 @@ cd9660_uppercase_characters(char *str, int len)
 }
 
 static inline int
-cd9660_is_a_char(char c)
+cd9660_is_d_char(char c)
 {
 	return (isupper((unsigned char)c)
 		|| c == '_'
@@ -63,7 +63,7 @@ cd9660_is_a_char(char c)
 }
 
 static inline int
-cd9660_is_d_char(char c)
+cd9660_is_a_char(char c)
 {
 	return (isupper((unsigned char)c)
 			|| c == '_'
