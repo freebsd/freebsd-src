@@ -87,7 +87,7 @@ TUNABLE_INT("hw.ath.hal.debug", &ath_hal_debug);
 
 int ath_hal_ar5416_biasadj = 0;
 SYSCTL_INT(_hw_ath_hal, OID_AUTO, ar5416_biasadj, CTLFLAG_RW,
-	&ath_hal_debug, 0, "Enable 2ghz AR5416 direction sensitivity"
+	&ath_hal_ar5416_biasadj, 0, "Enable 2ghz AR5416 direction sensitivity"
 	" bias adjust");
 
 /* NB: these are deprecated; they exist for now for compatibility */
