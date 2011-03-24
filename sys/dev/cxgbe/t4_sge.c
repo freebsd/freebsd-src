@@ -468,7 +468,7 @@ t4_intr_err(void *arg)
 {
 	struct adapter *sc = arg;
 
-	if (sc->intr_type == 1)
+	if (sc->intr_type == INTR_INTX)
 		t4_write_reg(sc, MYPF_REG(A_PCIE_PF_CLI), 0);
 
 	t4_slow_intr_handler(sc);
