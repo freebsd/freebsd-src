@@ -128,6 +128,13 @@ enum {
 };
 
 enum {
+	/* adapter intr_type */
+	INTR_INTX	= (1 << 0),
+	INTR_MSI 	= (1 << 1),
+	INTR_MSIX	= (1 << 2)
+};
+
+enum {
 	/* adapter flags */
 	FULL_INIT_DONE	= (1 << 0),
 	FW_OK		= (1 << 1),
