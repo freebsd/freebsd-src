@@ -142,11 +142,9 @@ getpriority(td, uap)
 			uap->who = td->td_ucred->cr_uid;
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
-			/* Do not bother to check PRS_NEW processes */
-			if (p->p_state == PRS_NEW)
-				continue;
 			PROC_LOCK(p);
-			if (p_cansee(td, p) == 0 &&
+			if (p->p_state == PRS_NORMAL &&
+			    p_cansee(td, p) == 0 &&
 			    p->p_ucred->cr_uid == uap->who) {
 				if (p->p_nice < low)
 					low = p->p_nice;
