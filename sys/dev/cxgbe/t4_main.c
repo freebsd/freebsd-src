@@ -205,7 +205,7 @@ SYSCTL_UINT(_hw_cxgbe, OID_AUTO, qsize_rxq, CTLFLAG_RDTUN,
 /*
  * Interrupt types allowed.
  */
-static int intr_types = 7;
+static int intr_types = INTR_MSIX | INTR_MSI | INTR_INTX;
 TUNABLE_INT("hw.cxgbe.interrupt_types", &intr_types);
 SYSCTL_UINT(_hw_cxgbe, OID_AUTO, interrupt_types, CTLFLAG_RDTUN, &intr_types, 0,
     "interrupt types allowed (bits 0, 1, 2 = INTx, MSI, MSI-X respectively)");
@@ -219,7 +219,7 @@ SYSCTL_UINT(_hw_cxgbe, OID_AUTO, interrupt_forwarding, CTLFLAG_RDTUN,
     &intr_fwd, 0, "always use forwarded interrupts");
 
 struct intrs_and_queues {
-	int intr_type;		/* 1, 2, or 4 for INTx, MSI, or MSI-X */
+	int intr_type;		/* INTx, MSI, or MSI-X */
 	int nirq;		/* Number of vectors */
 	int intr_fwd;		/* Interrupts forwarded */
 	int ntxq10g;		/* # of NIC txq's for each 10G port */
@@ -639,7 +639,7 @@ t4_detach(device_t dev)
 	if (sc->flags & FW_OK)
 		t4_fw_bye(sc, sc->mbox);
 
-	if (sc->intr_type == 2 || sc->intr_type == 4)
+	if (sc->intr_type == INTR_MSI || sc->intr_type == INTR_MSIX)
 		pci_release_msi(dev);
 
 	if (sc->regs_res)
@@ -1152,14 +1152,14 @@ cfg_itype_and_nqueues(struct adapter *sc, int n10g, int n1g,
 	bzero(iaq, sizeof(*iaq));
 	nc = mp_ncpus;	/* our snapshot of the number of CPUs */
 
-	for (itype = 4; itype; itype >>= 1) {
+	for (itype = INTR_MSIX; itype; itype >>= 1) {
 
 		if ((itype & intr_types) == 0)
 			continue;	/* not allowed */
 
-		if (itype == 4)
+		if (itype == INTR_MSIX)
 			navail = pci_msix_count(sc->dev);
-		else if (itype == 2)
+		else if (itype == INTR_MSI)
 			navail = pci_msi_count(sc->dev);
 		else
 			navail = 1;
@@ -1179,44 +1179,50 @@ cfg_itype_and_nqueues(struct adapter *sc, int n10g, int n1g,
 		iaq->nirq = n10g * nrxq10g + n1g * nrxq1g + 2;
 		if (iaq->nirq <= navail && intr_fwd == 0) {
 
+			if (itype == INTR_MSI && !powerof2(iaq->nirq))
+				goto fwd;
+
 			/* One for err, one for fwq, and one for each rxq */
 
 			iaq->intr_fwd = 0;
 			iaq->nrxq10g = nrxq10g;
 			iaq->nrxq1g = nrxq1g;
-			if (itype == 2) {
-				/* # of vectors requested must be power of 2 */
-				while (!powerof2(iaq->nirq))
-					iaq->nirq++;
-				KASSERT(iaq->nirq <= navail,
-				    ("%s: bad MSI calculation", __func__));
-			}
+
 		} else {
 fwd:
 			iaq->intr_fwd = 1;
-			iaq->nirq = navail;
+
+			if (navail > nc) {
+				if (itype == INTR_MSIX)
+					navail = nc + 1;
+
+				/* navail is and must remain a pow2 for MSI */
+				if (itype == INTR_MSI) {
+					KASSERT(powerof2(navail),
+					    ("%d not power of 2", navail));
+
+					while (navail / 2 > nc)
+						navail /= 2;
+				}
+			}
+			iaq->nirq = navail;	/* total # of interrupts */
 
 			/*
 			 * If we have multiple vectors available reserve one
 			 * exclusively for errors.  The rest will be shared by
 			 * the fwq and data.
 			 */
-			if (navail > 1) {
+			if (navail > 1)
 				navail--;
-
-				if (navail > nc && itype == 4)
-					iaq->nirq = nc + 1;
-			}
-
 			iaq->nrxq10g = min(nrxq10g, navail);
 			iaq->nrxq1g = min(nrxq1g, navail);
 		}
 
 		navail = iaq->nirq;
 		rc = 0;
-		if (itype == 4)
+		if (itype == INTR_MSIX)
 			rc = pci_alloc_msix(sc->dev, &navail);
-		else if (itype == 2)
+		else if (itype == INTR_MSI)
 			rc = pci_alloc_msi(sc->dev, &navail);
 
 		if (rc == 0) {
@@ -1481,10 +1487,10 @@ t4_set_desc(struct adapter *sc)
 	struct adapter_params *p = &sc->params;
 
 	snprintf(buf, sizeof(buf),
-	    "Chelsio %s (rev %d) %d port %sNIC PCIe-x%d %s, S/N:%s, E/C:%s",
+	    "Chelsio %s (rev %d) %d port %sNIC PCIe-x%d %d %s, S/N:%s, E/C:%s",
 	    p->vpd.id, p->rev, p->nports, is_offload(sc) ? "R" : "",
-	    p->pci.width, (sc->intr_type == 4 ) ? "MSI-X" :
-	    (sc->intr_type == 2) ? "MSI" : "INTx", p->vpd.sn, p->vpd.ec);
+	    p->pci.width, sc->intr_count, sc->intr_type == INTR_MSIX ? "MSI-X" :
+	    (sc->intr_type == INTR_MSI ? "MSI" : "INTx"), p->vpd.sn, p->vpd.ec);
 
 	device_set_desc_copy(sc->dev, buf);
 }
