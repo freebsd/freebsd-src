@@ -2291,5 +2291,5 @@ static moduledata_t dummynet_mod = {
 DECLARE_MODULE(dummynet, dummynet_mod,
 	SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY-1);
 MODULE_DEPEND(dummynet, ipfw, 2, 2, 2);
-MODULE_VERSION(dummynet, 1);
+MODULE_VERSION(dummynet, 3);
 /* end of file */
