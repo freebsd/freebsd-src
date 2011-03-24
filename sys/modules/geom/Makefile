@@ -18,6 +18,7 @@ SUBDIR=	geom_bde \
 	geom_nop \
 	geom_part \
 	geom_pc98 \
+	geom_raid \
 	geom_raid3 \
 	geom_sched \
 	geom_shsec \
