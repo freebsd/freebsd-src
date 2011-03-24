@@ -441,7 +441,8 @@ arpintr(struct mbuf *m)
 	if (ntohs(ar->ar_hrd) != ARPHRD_ETHER &&
 	    ntohs(ar->ar_hrd) != ARPHRD_IEEE802 &&
 	    ntohs(ar->ar_hrd) != ARPHRD_ARCNET &&
-	    ntohs(ar->ar_hrd) != ARPHRD_IEEE1394) {
+	    ntohs(ar->ar_hrd) != ARPHRD_IEEE1394 &&
+	    ntohs(ar->ar_hrd) != ARPHRD_INFINIBAND) {
 		log(LOG_ERR, "arp: unknown hardware address format (0x%2D)\n",
 		    (unsigned char *)&ar->ar_hrd, "");
 		m_freem(m);

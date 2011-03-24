@@ -46,7 +46,7 @@ if [ `whoami` != "root" ]; then
 	exit 1
 fi
 
-TESTDIR=`dirname $0`
+TESTDIR=$(dirname $(realpath $0))
 
 # Set up the test filesystem.
 MD=`mdconfig -at swap -s 64m`
@@ -64,13 +64,13 @@ cd $MNT
 # First, check whether we can crash the kernel by creating too many
 # entries.  For some reason this won't work in the test file.
 touch xxx
-setfacl -x5 xxx
+setfacl -x2 xxx
 while :; do setfacl -a0 u:42:rwx:allow xxx 2> /dev/null; if [ $? -ne 0 ]; then break; fi; done
 chmod 600 xxx
 rm xxx
 echo "ok 2"
 
-perl $TESTDIR/run $TESTDIR/tools-nfs4.test > /dev/null
+perl $TESTDIR/run $TESTDIR/tools-nfs4-psarc.test > /dev/null
 
 if [ $? -eq 0 ]; then
 	echo "ok 3"

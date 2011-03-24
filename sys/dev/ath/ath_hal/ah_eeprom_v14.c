@@ -126,6 +126,19 @@ v14EepromGet(struct ath_hal *ah, int param, void *val)
 	case AR_EEP_ANTGAINMAX_5:
 		*(int8_t *) val = ee->ee_antennaGainMax[0];
 		return HAL_OK;
+	case AR_EEP_PWR_TABLE_OFFSET:
+		if (IS_VERS(>=, AR5416_EEP_MINOR_VER_21))
+			*(int8_t *) val = pBase->pwr_table_offset;
+		else
+			*(int8_t *) val = AR5416_PWR_TABLE_OFFSET_DB;
+		return HAL_OK;
+	case AR_EEP_PWDCLKIND:
+		if (IS_VERS(>=, AR5416_EEP_MINOR_VER_10)) {
+			*(uint8_t *) val = pBase->pwdclkind;
+			return HAL_OK;
+		}
+		return HAL_EIO;
+		
         default:
 		HALASSERT(0);
 		return HAL_EINVAL;

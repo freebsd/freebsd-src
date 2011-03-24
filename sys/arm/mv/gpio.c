@@ -344,7 +344,7 @@ uint8_t
 mv_gpio_in(uint32_t pin)
 {
 
-	return (mv_gpio_value_get(pin));
+	return (mv_gpio_value_get(pin) ? 1 : 0);
 }
 
 static uint32_t

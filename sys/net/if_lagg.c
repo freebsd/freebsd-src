@@ -341,7 +341,8 @@ lagg_clone_destroy(struct ifnet *ifp)
 	while ((lp = SLIST_FIRST(&sc->sc_ports)) != NULL)
 		lagg_port_destroy(lp, 1);
 	/* Unhook the aggregation protocol */
-	(*sc->sc_detach)(sc);
+	if (sc->sc_detach != NULL)
+		(*sc->sc_detach)(sc);
 
 	LAGG_WUNLOCK(sc);
 

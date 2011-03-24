@@ -55,19 +55,19 @@ cd9660_uppercase_characters(char *str, int len)
 }
 
 static inline int
-cd9660_is_a_char(char c)
-{
-	return (isupper((unsigned char)c)
-		|| c == '_'
-		|| (c >= '0' && c <= '?'));
-}
-
-static inline int
 cd9660_is_d_char(char c)
 {
 	return (isupper((unsigned char)c)
+		|| c == '_'
+		|| (c >= '0' && c <= '9'));
+}
+
+static inline int
+cd9660_is_a_char(char c)
+{
+	return (isupper((unsigned char)c)
 			|| c == '_'
-			|| (c >= '%' && c <= '9')
+			|| (c >= '%' && c <= '?')
 			|| (c >= ' ' && c <= '\"'));
 }
 

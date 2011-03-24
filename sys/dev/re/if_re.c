@@ -1237,7 +1237,7 @@ re_attach(device_t dev)
 
 	msic = pci_msi_count(dev);
 	msixc = pci_msix_count(dev);
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0)
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0)
 		sc->rl_flags |= RL_FLAG_PCIE;
 	if (bootverbose) {
 		device_printf(dev, "MSI count : %d\n", msic);
@@ -1561,7 +1561,7 @@ re_attach(device_t dev)
 	if (ifp->if_capabilities & IFCAP_HWCSUM)
 		ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
 	/* Enable WOL if PM is supported. */
-	if (pci_find_extcap(sc->rl_dev, PCIY_PMG, &reg) == 0)
+	if (pci_find_cap(sc->rl_dev, PCIY_PMG, &reg) == 0)
 		ifp->if_capabilities |= IFCAP_WOL;
 	ifp->if_capenable = ifp->if_capabilities;
 	/*
@@ -3565,7 +3565,7 @@ re_setwol(struct rl_softc *sc)
 
 	RL_LOCK_ASSERT(sc);
 
-	if (pci_find_extcap(sc->rl_dev, PCIY_PMG, &pmc) != 0)
+	if (pci_find_cap(sc->rl_dev, PCIY_PMG, &pmc) != 0)
 		return;
 
 	ifp = sc->rl_ifp;
@@ -3633,7 +3633,7 @@ re_clrwol(struct rl_softc *sc)
 
 	RL_LOCK_ASSERT(sc);
 
-	if (pci_find_extcap(sc->rl_dev, PCIY_PMG, &pmc) != 0)
+	if (pci_find_cap(sc->rl_dev, PCIY_PMG, &pmc) != 0)
 		return;
 
 	/* Enable config register write. */

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 19, 2011
+.Dd March 7, 2011
 .Dt COMPLEX 3
 .Os
 .Sh NAME
@@ -73,6 +73,10 @@ respectively.
 cabs	complex absolute value (i.e. norm, modulus, magnitude)
 csqrt	complex square root
 .El
+.Ss Exponential Function
+.Cl
+cexp	exponential base e
+.El
 .\" Section 7.3.9 of ISO C99 standard
 .Ss Manipulation Functions
 .Cl
@@ -97,29 +101,23 @@ The
 functions described here conform to
 .St -isoC-99 .
 .Sh BUGS
-The trigonmetric functions
+The trigonmetric and hyperbolic functions
 .Fn cacos ,
-.Fn casin ,
-.Fn catan ,
-.Fn ccos ,
-.Fn csin ,
-and
-.Fn ctan
-are not implemented.
-.Pp
-The hyperbolic functions
 .Fn cacosh ,
+.Fn casin ,
 .Fn casinh ,
+.Fn catan ,
 .Fn catanh ,
+.Fn ccos ,
 .Fn ccosh ,
+.Fn csin ,
 .Fn csinh ,
+.Fn ctan ,
 and
 .Fn ctanh
 are not implemented.
 .Pp
-The exponential and logarithmic functions
-.Fn cexp ,
-and
+The logarithmic functions
 .Fn clog
 are not implemented.
 .Pp

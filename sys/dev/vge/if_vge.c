@@ -1004,12 +1004,12 @@ vge_attach(device_t dev)
 		goto fail;
 	}
 
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &cap) == 0) {
 		sc->vge_flags |= VGE_FLAG_PCIE;
 		sc->vge_expcap = cap;
 	} else
 		sc->vge_flags |= VGE_FLAG_JUMBO;
-	if (pci_find_extcap(dev, PCIY_PMG, &cap) == 0) {
+	if (pci_find_cap(dev, PCIY_PMG, &cap) == 0) {
 		sc->vge_flags |= VGE_FLAG_PMCAP;
 		sc->vge_pmcap = cap;
 	}

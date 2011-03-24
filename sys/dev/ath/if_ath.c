@@ -612,7 +612,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 * Don't think of doing that unless you know what you're doing.
 	 */
 
-#ifdef	DO_ATH_11N
+#ifdef	AH_ENABLE_11N
 	/*
 	 * Query HT capabilities
 	 */
@@ -3531,15 +3531,6 @@ rx_accept:
 			rs->rs_keyix == HAL_RXKEYIX_INVALID ?
 				IEEE80211_KEYIX_NONE : rs->rs_keyix);
 		sc->sc_lastrs = rs;
-		/* tag AMPDU aggregates for reorder processing */
-#if 0
-		/*
-		 * Just make sure all frames are tagged for AMPDU reorder checking.
-		 * As there seems to be some situations where single frames aren't
-		 * matching a node but bump the seqno. This needs to be investigated.
-		 */
-		m->m_flags |= M_AMPDU;
-#endif
 
 		/* Keep statistics on the number of aggregate packets received */
 		if (rs->rs_isaggr)
@@ -5160,9 +5151,10 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		sc->sc_stats.ast_tdma_tsfadjm = TDMA_AVG(sc->sc_avgtsfdeltam);
 #endif
 		rt = sc->sc_currates;
-		/* XXX HT rates */
 		sc->sc_stats.ast_tx_rate =
 		    rt->info[sc->sc_txrix].dot11Rate &~ IEEE80211_RATE_BASIC;
+		if (rt->info[sc->sc_txrix].phy & IEEE80211_T_HT)
+			sc->sc_stats.ast_tx_rate |= IEEE80211_RATE_MCS;
 		return copyout(&sc->sc_stats,
 		    ifr->ifr_data, sizeof (sc->sc_stats));
 	case SIOCZATHSTATS:

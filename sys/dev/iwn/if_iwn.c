@@ -429,7 +429,7 @@ iwn_attach(device_t dev)
 	 * Get the offset of the PCI Express Capability Structure in PCI
 	 * Configuration Space.
 	 */
-	error = pci_find_extcap(dev, PCIY_EXPRESS, &sc->sc_cap_off);
+	error = pci_find_cap(dev, PCIY_EXPRESS, &sc->sc_cap_off);
 	if (error != 0) {
 		device_printf(dev, "PCIe capability structure not found!\n");
 		return error;

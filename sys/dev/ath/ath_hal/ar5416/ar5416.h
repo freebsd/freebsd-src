@@ -74,6 +74,22 @@ struct ath_hal_5416 {
 	void		(*ah_spurMitigate)(struct ath_hal *,
 			    const struct ieee80211_channel *);
 
+	/* calibration ops */
+	HAL_BOOL	(*ah_cal_initcal)(struct ath_hal *,
+			    const struct ieee80211_channel *);
+	void		(*ah_cal_pacal)(struct ath_hal *,
+			    HAL_BOOL is_reset);
+
+	/* optional open-loop tx power control related methods */
+	void		(*ah_olcInit)(struct ath_hal *);
+	void		(*ah_olcTempCompensation)(struct ath_hal *);
+
+	/* tx power control */
+	HAL_BOOL	(*ah_setPowerCalTable) (struct ath_hal *ah,
+			    struct ar5416eeprom *pEepData,
+			    const struct ieee80211_channel *chan,
+        		    int16_t *pTxPowerIndexOffset);
+
 	u_int       	ah_globaltxtimeout;	/* global tx timeout */
 	u_int		ah_gpioMask;
 	int		ah_hangs;		/* h/w hangs state */
@@ -93,6 +109,10 @@ struct ath_hal_5416 {
 
 	struct ar5416NfLimits nf_2g;
 	struct ar5416NfLimits nf_5g;
+
+	int		initPDADC;
+
+	int		ah_need_an_top2_fixup;	/* merlin or later chips that may need this workaround */
 };
 #define	AH5416(_ah)	((struct ath_hal_5416 *)(_ah))
 
@@ -192,6 +212,7 @@ extern	HAL_RFGAIN ar5416GetRfgain(struct ath_hal *ah);
 extern	HAL_BOOL ar5416Disable(struct ath_hal *ah);
 extern	HAL_BOOL ar5416ChipReset(struct ath_hal *ah,
 		const struct ieee80211_channel *);
+extern	int ar5416GetRegChainOffset(struct ath_hal *ah, int i);
 extern	HAL_BOOL ar5416SetBoardValues(struct ath_hal *,
 		const struct ieee80211_channel *);
 extern	HAL_BOOL ar5416SetResetReg(struct ath_hal *, uint32_t type);
@@ -214,6 +235,28 @@ extern	void ar5416GetTargetPowersLeg(struct ath_hal *ah,
 		uint16_t numRates, HAL_BOOL isExtTarget);
 extern	void ar5416InitChainMasks(struct ath_hal *ah);
 extern	void ar5416RestoreChainMask(struct ath_hal *ah);
+extern	void ar5416EepromSetAddac(struct ath_hal *ah,
+		const struct ieee80211_channel *chan);
+
+/* TX power setup related routines in ar5416_reset.c */
+extern	void ar5416GetGainBoundariesAndPdadcs(struct ath_hal *ah,
+	const struct ieee80211_channel *chan, CAL_DATA_PER_FREQ *pRawDataSet,
+	uint8_t * bChans, uint16_t availPiers,
+	uint16_t tPdGainOverlap, int16_t *pMinCalPower,
+	uint16_t * pPdGainBoundaries, uint8_t * pPDADCValues,
+	uint16_t numXpdGains);
+extern	void ar5416SetGainBoundariesClosedLoop(struct ath_hal *ah,
+	int i, uint16_t pdGainOverlap_t2,
+	uint16_t gainBoundaries[]);
+extern	uint16_t ar5416GetXpdGainValues(struct ath_hal *ah, uint16_t xpdMask,
+	uint16_t xpdGainValues[]);
+extern	void ar5416WriteDetectorGainBiases(struct ath_hal *ah,
+	uint16_t numXpdGain, uint16_t xpdGainValues[]);
+extern	void ar5416WritePdadcValues(struct ath_hal *ah, int i,
+	uint8_t pdadcValues[]);
+extern	HAL_BOOL ar5416SetPowerCalTable(struct ath_hal *ah,
+	struct ar5416eeprom *pEepData, const struct ieee80211_channel *chan,
+	int16_t *pTxPowerIndexOffset);
 
 extern	HAL_BOOL ar5416StopTxDma(struct ath_hal *ah, u_int q);
 extern	HAL_BOOL ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
@@ -233,6 +276,10 @@ extern	HAL_STATUS ar5416ProcTxDesc(struct ath_hal *ah,
 		struct ath_desc *, struct ath_tx_status *);
 extern	HAL_BOOL ar5416GetTxCompletionRates(struct ath_hal *ah,
 		const struct ath_desc *ds0, int *rates, int *tries);
+
+extern	HAL_BOOL ar5416ResetTxQueue(struct ath_hal *ah, u_int q);
+extern	int ar5416SetupTxQueue(struct ath_hal *ah, HAL_TX_QUEUE type,
+	        const HAL_TXQ_INFO *qInfo);
 
 extern	HAL_BOOL ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		u_int pktLen, u_int hdrLen, HAL_PKT_TYPE type, u_int keyIx,

@@ -60,6 +60,10 @@ static void
 DtLinkField (
     DT_FIELD                *Field);
 
+static void
+DtMergeField (
+    char                    *Value);
+
 static ACPI_STATUS
 DtParseLine (
     char                    *LineBuffer,
@@ -222,6 +226,56 @@ DtLinkField (
 
 /******************************************************************************
  *
+ * FUNCTION:    DtMergeField
+ *
+ * PARAMETERS:  Value               - Merge this line into previous one
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Merge a field value to the previous one,
+ *              probably for a multi-line buffer definition.
+ *
+ *****************************************************************************/
+
+static void
+DtMergeField (
+    char                    *Value)
+{
+    DT_FIELD                *Prev;
+    DT_FIELD                *Next;
+    char                    *NewValue;
+    UINT32                  PrevLength;
+    UINT32                  ThisLength;
+
+
+    Prev = Next = Gbl_FieldList;
+
+    while (Next)
+    {
+        Prev = Next;
+        Next = Next->Next;
+    }
+
+    if (Prev)
+    {
+        PrevLength = ACPI_STRLEN (Prev->Value);
+        ThisLength = ACPI_STRLEN (Value);
+
+        /* Add two for: separator + NULL terminator */
+
+        NewValue = UtLocalCalloc (PrevLength + ThisLength + 2);
+        ACPI_STRNCPY (NewValue, Prev->Value, PrevLength);
+        NewValue[PrevLength] = ' ';
+
+        ACPI_STRNCPY ((NewValue + PrevLength + 1), Value, ThisLength);
+        ACPI_FREE (Prev->Value);
+        Prev->Value = NewValue;
+    }
+}
+
+
+/******************************************************************************
+ *
  * FUNCTION:    DtParseLine
  *
  * PARAMETERS:  LineBuffer          - Current source code line
@@ -354,11 +408,12 @@ DtParseLine (
 
     Length = ACPI_PTR_DIFF (End, Start);
     TmpValue = UtLocalCalloc (Length + 1);
+
     ACPI_STRNCPY (TmpValue, Start, Length);
     Value = DtTrim (TmpValue);
     ACPI_FREE (TmpValue);
 
-    if (Name && Value)
+    if (ACPI_STRLEN (Name) && Value)
     {
         Field = UtLocalCalloc (sizeof (DT_FIELD));
         Field->Name = Name;
@@ -369,6 +424,17 @@ DtParseLine (
         Field->Column = Column;
 
         DtLinkField (Field);
+    }
+    else if (!ACPI_STRLEN (Name))
+    {
+        /* Handle multi-line buffers (length > 16) */
+
+        DtMergeField (Value);
+    }
+    else
+    {
+        ACPI_FREE (Name);
+        ACPI_FREE (Value);
     }
 
     return (AE_OK);

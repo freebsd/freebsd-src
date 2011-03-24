@@ -49,12 +49,12 @@ The
 function formats the signed 64-bit quantity given in
 .Fa number
 into
-.Fa buffer .
+.Fa buf .
 A space and then
 .Fa suffix
 is appended to the end.
 The buffer pointed to by
-.Fa buffer
+.Fa buf
 must be at least
 .Fa len
 bytes long.
@@ -62,7 +62,7 @@ bytes long.
 If the formatted number (including
 .Fa suffix )
 would be too long to fit into
-.Fa buffer ,
+.Fa buf ,
 then divide
 .Fa number
 by 1024 until it will.
@@ -91,7 +91,7 @@ The
 argument must be at least 4 plus the length of
 .Fa suffix ,
 in order to ensure a useful result is generated into
-.Fa buffer .
+.Fa buf .
 To use a specific prefix, specify this as
 .Fa scale
 (multiplier = 1024 ^ scale).
@@ -132,7 +132,7 @@ with 1000 instead of 1024.
 The
 .Fn humanize_number
 function returns the number of characters stored in
-.Fa buffer
+.Fa buf
 (excluding the terminating
 .Dv NUL )
 upon success, or \-1 upon failure.

@@ -72,9 +72,12 @@ ar5416IsCalSupp(struct ath_hal *ah, const struct ieee80211_channel *chan,
 		return !IEEE80211_IS_CHAN_B(chan);
 	case ADC_GAIN_CAL:
 	case ADC_DC_CAL:
-		/* Run ADC Gain Cal for non-CCK & non 2GHz-HT20 only */
-		return !IEEE80211_IS_CHAN_B(chan) &&
-		    !(IEEE80211_IS_CHAN_2GHZ(chan) && IEEE80211_IS_CHAN_HT20(chan));
+		/* Run ADC Gain Cal for either 5ghz any or 2ghz HT40 */
+		if (IEEE80211_IS_CHAN_2GHZ(chan))
+			return AH_FALSE;
+		if (IEEE80211_IS_CHAN_HT20(chan))
+			return AH_FALSE;
+		return AH_TRUE;
 	}
 	return AH_FALSE;
 }
@@ -183,18 +186,9 @@ ar5416RunInitCals(struct ath_hal *ah, int init_cal_count)
 }
 #endif
 
-/*
- * Initialize Calibration infrastructure.
- */
 HAL_BOOL
-ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
+ar5416InitCalHardware(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
-	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
-	HAL_CHANNEL_INTERNAL *ichan;
-
-	ichan = ath_hal_checkchannel(ah, chan);
-	HALASSERT(ichan != AH_NULL);
-
 	if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
 		/* Enable Rx Filter Cal */
 		OS_REG_CLR_BIT(ah, AR_PHY_ADC_CTL, AR_PHY_ADC_CTL_OFF_PWDADC);
@@ -235,6 +229,34 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		return AH_FALSE;
 	}
 
+	return AH_TRUE;
+}
+
+/*
+ * Initialize Calibration infrastructure.
+ */
+#define	MAX_CAL_CHECK		32
+HAL_BOOL
+ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
+{
+	struct ar5416PerCal *cal = &AH5416(ah)->ah_cal;
+	HAL_CHANNEL_INTERNAL *ichan;
+	int i;
+
+	ichan = ath_hal_checkchannel(ah, chan);
+	HALASSERT(ichan != AH_NULL);
+
+	/* Do initial chipset-specific calibration */
+	if (! AH5416(ah)->ah_cal_initcal(ah, chan)) {
+		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: initial chipset calibration did "
+		    "not complete in time; noisy environment?\n", __func__);
+		return AH_FALSE;
+	}
+
+	/* If there's PA Cal, do it */
+	if (AH5416(ah)->ah_cal_pacal)
+		AH5416(ah)->ah_cal_pacal(ah, AH_TRUE);
+
 	/* 
 	 * Do NF calibration after DC offset and other CALs.
 	 * Per system engineers, noise floor value can sometimes be 20 dB
@@ -244,13 +266,29 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	/* XXX this actually kicks off a NF calibration -adrian */
 	OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
 	/*
-	 * Try to make sure the above NF cal completes, just so
-	 * it doesn't clash with subsequent percals -adrian
+	 * This sometimes takes a -lot- longer than it should.
+	 * Just give it a bit more time.
 	 */
-	if (! ar5212WaitNFCalComplete(ah, 10000)) {
+	for (i = 0; i < MAX_CAL_CHECK; i++) {
+		if (ar5212WaitNFCalComplete(ah, 10000))
+			break;
+
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: initial NF calibration did "
-		    "not complete in time; noisy environment?\n", __func__);
-		return AH_FALSE;
+		    "not complete in time; noisy environment (pass %d)?\n", __func__, i);
+	}
+	
+	/*
+	 * Although periodic and NF calibrations shouldn't run concurrently,
+	 * this was causing the radio to not be usable on the active
+	 * channel if the channel was busy.
+	 *
+	 * Instead, now simply print a warning and continue. That way if users
+	 * report "weird crap", they should get this warning.
+	 */
+	if (i >= MAX_CAL_CHECK) {
+		ath_hal_printf(ah, "[ath] Warning - initial NF calibration did "
+		    "not complete in time, noisy environment?\n");
+		/* return AH_FALSE; */
 	}
 
 	/* Initialize list pointers */
@@ -305,6 +343,7 @@ ar5416InitCal(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	ichan->calValid = 0;
 
 	return AH_TRUE;
+#undef	MAX_CAL_CHECK
 }
 
 /*
@@ -468,6 +507,13 @@ ar5416PerCalibrationN(struct ath_hal *ah, struct ieee80211_channel *chan,
 
 	/* Do NF cal only at longer intervals */
 	if (longcal) {
+		/* Do PA calibration if the chipset supports */
+		if (AH5416(ah)->ah_cal_pacal)
+			AH5416(ah)->ah_cal_pacal(ah, AH_FALSE);
+
+		/* Do temperature compensation if the chipset needs it */
+		AH5416(ah)->ah_olcTempCompensation(ah);
+
 		/*
 		 * Get the value from the previous NF cal
 		 * and update the history buffer.

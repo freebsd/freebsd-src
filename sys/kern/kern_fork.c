@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>	
 #include <sys/sdt.h>
 #include <sys/sx.h>
+#include <sys/sysent.h>
 #include <sys/signalvar.h>
 
 #include <security/audit/audit.h>
@@ -629,12 +630,13 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	/*
 	 * Set the child start time and mark the process as being complete.
 	 */
+	PROC_LOCK(p2);
+	PROC_LOCK(p1);
 	microuptime(&p2->p_stats->p_start);
 	PROC_SLOCK(p2);
 	p2->p_state = PRS_NORMAL;
 	PROC_SUNLOCK(p2);
 
-	PROC_LOCK(p1);
 #ifdef KDTRACE_HOOKS
 	/*
 	 * Tell the DTrace fasttrap provider about the new process
@@ -642,11 +644,8 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * p_state is PRS_NORMAL since the fasttrap module will use pfind()
 	 * later on.
 	 */
-	if (dtrace_fasttrap_fork) {
-		PROC_LOCK(p2);
+	if (dtrace_fasttrap_fork)
 		dtrace_fasttrap_fork(p1, p2);
-		PROC_UNLOCK(p2);
-	}
 #endif
 	if ((p1->p_flag & (P_TRACED | P_FOLLOWFORK)) == (P_TRACED |
 	    P_FOLLOWFORK)) {
@@ -659,12 +658,11 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 		 */
 		td->td_dbgflags |= TDB_FORK;
 		td->td_dbg_forked = p2->p_pid;
-		PROC_LOCK(p2);
 		td2->td_dbgflags |= TDB_STOPATFORK;
 		_PHOLD(p2);
 		p2_held = 1;
-		PROC_UNLOCK(p2);
 	}
+	PROC_UNLOCK(p2);
 	if ((flags & RFSTOPPED) == 0) {
 		/*
 		 * If RFSTOPPED not requested, make child runnable and
@@ -895,7 +893,8 @@ fork_exit(void (*callout)(void *, struct trapframe *), void *arg,
 	}
 	mtx_assert(&Giant, MA_NOTOWNED);
 
-	EVENTHANDLER_INVOKE(schedtail, p);
+	if (p->p_sysent->sv_schedtail != NULL)
+		(p->p_sysent->sv_schedtail)(td);
 }
 
 /*

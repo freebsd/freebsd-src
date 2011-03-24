@@ -98,6 +98,7 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
     HAL_11N_RATE_SERIES *series, unsigned int pktlen, uint8_t *rix,
     uint8_t *try, int flags)
 {
+#define	HT_RC_2_STREAMS(_rc)	((((_rc) & 0x78) >> 3) + 1)
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_BOOL shortPreamble = AH_FALSE;
@@ -128,7 +129,6 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		if (flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))
 			series[i].RateFlags |= HAL_RATESERIES_RTS_CTS;
 
-#if 0
 		if (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40)
 			series[i].RateFlags |= HAL_RATESERIES_2040;
 
@@ -139,26 +139,25 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		 */
 		if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40)
 			series[i].RateFlags |= HAL_RATESERIES_HALFGI;
-#endif
 
 		series[i].Rate = rt->info[rix[i]].rateCode;
-		/* the short preamble field is only applicable for non-MCS rates */
-		if (shortPreamble && ! (series[i].Rate & IEEE80211_RATE_MCS))
-			series[i].Rate |= rt->info[rix[i]].shortPreamble;
 
 		/* PktDuration doesn't include slot, ACK, RTS, etc timing - it's just the packet duration */
 		if (series[i].Rate & IEEE80211_RATE_MCS) {
 			series[i].PktDuration =
 			    ath_computedur_ht(pktlen
 				, series[i].Rate
-				, ic->ic_txstream
-				, 0 /* disable 20/40 for now */
+				, HT_RC_2_STREAMS(series[i].Rate)
+				, series[i].RateFlags & HAL_RATESERIES_2040
 				, series[i].RateFlags & HAL_RATESERIES_HALFGI);
 		} else {
+			if (shortPreamble)
+				series[i].Rate |= rt->info[rix[i]].shortPreamble;
 			series[i].PktDuration = ath_hal_computetxtime(ah,
 			    rt, pktlen, rix[i], shortPreamble);
 		}
 	}
+#undef	HT_RC_2_STREAMS
 }
 
 #if 0

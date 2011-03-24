@@ -209,6 +209,16 @@
     ..
     gssapi
     ..
+    infiniband
+        complib 
+        ..
+        iba
+        ..
+        opensm
+        ..
+        vendor
+        ..
+    ..
     isofs
         cd9660
         ..
@@ -276,6 +286,8 @@
     pcap
     ..
     protocols
+    ..
+    rdma
     ..
     readline
     ..

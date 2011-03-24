@@ -330,8 +330,6 @@ FBSD_1.0 {
 
 FBSD_1.1 {
 	__semctl;
-	cap_enter;
-	cap_getmode;
 	closefrom;
 	cpuset;
 	cpuset_getid;
@@ -360,6 +358,13 @@ FBSD_1.1 {
 	shmctl;
 	symlinkat;
 	unlinkat;
+};
+
+FBSD_1.2 {
+	cap_enter;
+	cap_getmode;
+	getloginclass;
+	setloginclass;
 };
 
 FBSDprivate_1.0 {

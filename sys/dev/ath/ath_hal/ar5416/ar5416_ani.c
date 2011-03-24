@@ -310,14 +310,10 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 			ahp->ah_procPhyErr &= ~HAL_ANI_ENA;
 			/* Turn off HW counters if we have them */
 			ar5416AniDetach(ah);
-			ar5212SetRxFilter(ah,
-				ar5212GetRxFilter(ah) &~ HAL_RX_FILTER_PHYERR);
 		} else {			/* normal/auto mode */
 			/* don't mess with state if already enabled */
 			if (ahp->ah_procPhyErr & HAL_ANI_ENA)
 				break;
-			ar5212SetRxFilter(ah,
-				ar5212GetRxFilter(ah) &~ HAL_RX_FILTER_PHYERR);
 			/* Enable MIB Counters */
 			enableAniMIBCounters(ah, ahp->ah_curani != AH_NULL ?
 			    ahp->ah_curani->params: &ahp->ah_aniParams24 /*XXX*/);
@@ -488,7 +484,7 @@ ar5416AniRestart(struct ath_hal *ah, struct ar5212AniState *aniState)
 	OS_REG_WRITE(ah, AR_PHY_ERR_1, params->ofdmPhyErrBase);
 	OS_REG_WRITE(ah, AR_PHY_ERR_2, params->cckPhyErrBase);
 	OS_REG_WRITE(ah, AR_PHY_ERR_MASK_1, AR_PHY_ERR_OFDM_TIMING);
-	OS_REG_WRITE(ah, AR_PHY_ERR_MASK_1, AR_PHY_ERR_CCK_TIMING);
+	OS_REG_WRITE(ah, AR_PHY_ERR_MASK_2, AR_PHY_ERR_CCK_TIMING);
 
 	/* Clear the mib counters and save them in the stats */
 	ar5212UpdateMibCounters(ah, &ahp->ah_mibStats);
@@ -855,10 +851,16 @@ ar5416AniPoll(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		/* check to see if need to raise immunity */
 		if (aniState->ofdmPhyErrCount > aniState->listenTime *
 		    params->ofdmTrigHigh / 1000) {
+                        HALDEBUG(ah, HAL_DEBUG_ANI,
+                            "%s: OFDM err %u listenTime %u\n", __func__,
+                            aniState->ofdmPhyErrCount, aniState->listenTime);
 			ar5416AniOfdmErrTrigger(ah);
 			ar5416AniRestart(ah, aniState);
 		} else if (aniState->cckPhyErrCount > aniState->listenTime *
 			   params->cckTrigHigh / 1000) {
+                        HALDEBUG(ah, HAL_DEBUG_ANI,
+                            "%s: CCK err %u listenTime %u\n", __func__,
+                            aniState->ofdmPhyErrCount, aniState->listenTime);
 			ar5416AniCckErrTrigger(ah);
 			ar5416AniRestart(ah, aniState);
 		}

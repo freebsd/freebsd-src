@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "GCC 1"
-.TH GCC 1 "2011-02-20" "gcc-4.2.1" "GNU"
+.TH GCC 1 "2011-03-07" "gcc-4.2.1" "GNU"
 .SH "NAME"
 gcc \- GNU project C and C++ compiler
 .SH "SYNOPSIS"
@@ -541,7 +541,7 @@ in the following sections.
 \&\-mno\-fp\-ret\-in\-387  \-msoft\-float  \-msvr3\-shlib 
 \&\-mno\-wide\-multiply  \-mrtd  \-malign\-double 
 \&\-mpreferred\-stack\-boundary=\fR\fInum\fR 
-\&\fB\-mmmx  \-msse  \-msse2 \-msse3 \-m3dnow 
+\&\fB\-mmmx  \-msse  \-msse2 \-msse3 \-mssse3 \-m3dnow 
 \&\-mthreads  \-mno\-align\-stringops  \-minline\-all\-stringops 
 \&\-mpush\-args  \-maccumulate\-outgoing\-args  \-m128bit\-long\-double 
 \&\-m96bit\-long\-double  \-mregparm=\fR\fInum\fR  \fB\-msseregparm 
@@ -8733,6 +8733,10 @@ set support.
 .IX Item "nocona"
 Improved version of Intel Pentium4 \s-1CPU\s0 with 64\-bit extensions, \s-1MMX\s0, \s-1SSE\s0,
 \&\s-1SSE2\s0 and \s-1SSE3\s0 instruction set support.
+.IP "\fIcore2\fR" 4
+.IX Item "core2"
+Intel Core2 \s-1CPU\s0 with 64\-bit extensions, \s-1MMX\s0, \s-1SSE\s0, \s-1SSE2\s0, \s-1SSE3\s0 and \s-1SSSE3\s0
+instruction set support.
 .IP "\fIk6\fR" 4
 .IX Item "k6"
 \&\s-1AMD\s0 K6 \s-1CPU\s0 with \s-1MMX\s0 instruction set support.
@@ -8770,6 +8774,9 @@ implemented for this chip.)
 .IX Item "c3-2"
 Via C3\-2 \s-1CPU\s0 with \s-1MMX\s0 and \s-1SSE\s0 instruction set support.  (No scheduling is
 implemented for this chip.)
+.IP "\fIgeode\fR" 4
+.IX Item "geode"
+Embedded AMD \s-1CPU\s0 with \s-1MMX\s0 and 3dNOW! instruction set support.
 .RE
 .RS 4
 .Sp
@@ -9050,15 +9057,20 @@ preferred alignment to \fB\-mpreferred\-stack\-boundary=2\fR.
 .IX Item "-msse3"
 .IP "\fB\-mno\-sse3\fR" 4
 .IX Item "-mno-sse3"
+.IP "\fB\-mssse3\fR" 4
+.IX Item "-mssse3"
+.IP "\fB\-mno\-ssse3\fR" 4
+.IX Item "-mno-ssse3"
 .IP "\fB\-m3dnow\fR" 4
 .IX Item "-m3dnow"
 .IP "\fB\-mno\-3dnow\fR" 4
 .IX Item "-mno-3dnow"
 .PD
 These switches enable or disable the use of instructions in the \s-1MMX\s0,
-\&\s-1SSE\s0, \s-1SSE2\s0 or 3DNow! extended instruction sets.  These extensions are
-also available as built-in functions: see \fBX86 Built-in Functions\fR,
-for details of the functions enabled and disabled by these switches.
+\&\s-1SSE\s0, \s-1SSE2\s0, \s-1SSE3\s0, \s-1SSSE3\s0 or 3DNow! extended instruction sets.
+These extensions are also available as built-in functions: see
+\fBX86 Built-in Functions\fR, for details of the functions enabled and
+disabled by these switches.
 .Sp
 To have \s-1SSE/SSE2\s0 instructions generated automatically from floating-point
 code (as opposed to 387 instructions), see \fB\-mfpmath=sse\fR.

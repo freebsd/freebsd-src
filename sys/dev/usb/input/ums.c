@@ -668,7 +668,7 @@ ums_attach(device_t dev)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "parseinfo", CTLTYPE_STRING|CTLFLAG_RD,
 	    sc, 0, ums_sysctl_handler_parseinfo,
-	    "", "Dump UMS report parsing information");
+	    "", "Dump of parsed HID report descriptor");
 
 	return (0);
 
@@ -949,10 +949,10 @@ ums_sysctl_handler_parseinfo(SYSCTL_HANDLER_ARGS)
 	struct ums_softc *sc = arg1;
 	struct ums_info *info;
 	struct sbuf *sb;
-	int i, j, err;
+	int i, j, err, had_output;
 
 	sb = sbuf_new_auto();
-	for (i = 0; i < UMS_INFO_MAX; i++) {
+	for (i = 0, had_output = 0; i < UMS_INFO_MAX; i++) {
 		info = &sc->sc_info[i];
 
 		/* Don't emit empty info */
@@ -962,6 +962,9 @@ ums_sysctl_handler_parseinfo(SYSCTL_HANDLER_ARGS)
 		    info->sc_buttons == 0)
 			continue;
 
+		if (had_output)
+			sbuf_printf(sb, "\n");
+		had_output = 1;
 		sbuf_printf(sb, "i%d:", i + 1);
 		if (info->sc_flags & UMS_FLAG_X_AXIS)
 			sbuf_printf(sb, " X:r%d, p%d, s%d;",
@@ -995,7 +998,6 @@ ums_sysctl_handler_parseinfo(SYSCTL_HANDLER_ARGS)
 			    (int)info->sc_loc_btn[j].pos,
 			    (int)info->sc_loc_btn[j].size);
 		}
-		sbuf_printf(sb, "\n");
 	}
 	sbuf_finish(sb);
 	err = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);

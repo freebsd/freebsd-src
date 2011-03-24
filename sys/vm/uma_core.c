@@ -112,7 +112,7 @@ static uma_zone_t slabrefzone;	/* With refcounters (for UMA_ZONE_REFCNT) */
 static uma_zone_t hashzone;
 
 /* The boot-time adjusted value for cache line alignment. */
-static int uma_align_cache = 64 - 1;
+int uma_align_cache = 64 - 1;
 
 static MALLOC_DEFINE(M_UMAHASH, "UMAHash", "UMA Hash Buckets");
 

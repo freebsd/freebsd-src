@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
- * Copyright (c) 2010-2011 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2010-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <activemap.h>
@@ -131,19 +132,19 @@ dtype2str(mode_t mode)
 
 	if (S_ISBLK(mode))
 		return ("block device");
-	else if (S_ISCHR(mode)) 
+	else if (S_ISCHR(mode))
 		return ("character device");
-	else if (S_ISDIR(mode)) 
+	else if (S_ISDIR(mode))
 		return ("directory");
 	else if (S_ISFIFO(mode))
 		return ("pipe or FIFO");
-	else if (S_ISLNK(mode)) 
+	else if (S_ISLNK(mode))
 		return ("symbolic link");
-	else if (S_ISREG(mode)) 
+	else if (S_ISREG(mode))
 		return ("regular file");
 	else if (S_ISSOCK(mode))
 		return ("socket");
-	else if (S_ISWHT(mode)) 
+	else if (S_ISWHT(mode))
 		return ("whiteout");
 	else
 		return ("unknown");
@@ -223,7 +224,8 @@ descriptors_assert(const struct hast_resource *res, int pjdlogmode)
 				    fd, dtype2str(mode), dtype2str(S_IFSOCK));
 				break;
 			}
-		} else if (fd == proto_descriptor(res->hr_conn)) {
+		} else if (res->hr_role == HAST_ROLE_PRIMARY &&
+		    fd == proto_descriptor(res->hr_conn)) {
 			if (!isopen) {
 				(void)snprintf(msg, sizeof(msg),
 				    "Descriptor %d (conn) is closed, but should be open.",
@@ -234,6 +236,15 @@ descriptors_assert(const struct hast_resource *res, int pjdlogmode)
 				(void)snprintf(msg, sizeof(msg),
 				    "Descriptor %d (conn) is %s, but should be %s.",
 				    fd, dtype2str(mode), dtype2str(S_IFSOCK));
+				break;
+			}
+		} else if (res->hr_role == HAST_ROLE_SECONDARY &&
+		    res->hr_conn != NULL &&
+		    fd == proto_descriptor(res->hr_conn)) {
+			if (isopen) {
+				(void)snprintf(msg, sizeof(msg),
+				    "Descriptor %d (conn) is open, but should be closed.",
+				    fd);
 				break;
 			}
 		} else if (res->hr_role == HAST_ROLE_SECONDARY &&
@@ -359,7 +370,13 @@ resource_needs_restart(const struct hast_resource *res0,
 	    res0->hr_role == HAST_ROLE_SECONDARY) {
 		if (strcmp(res0->hr_remoteaddr, res1->hr_remoteaddr) != 0)
 			return (true);
+		if (strcmp(res0->hr_sourceaddr, res1->hr_sourceaddr) != 0)
+			return (true);
 		if (res0->hr_replication != res1->hr_replication)
+			return (true);
+		if (res0->hr_checksum != res1->hr_checksum)
+			return (true);
+		if (res0->hr_compression != res1->hr_compression)
 			return (true);
 		if (res0->hr_timeout != res1->hr_timeout)
 			return (true);
@@ -383,7 +400,13 @@ resource_needs_reload(const struct hast_resource *res0,
 
 	if (strcmp(res0->hr_remoteaddr, res1->hr_remoteaddr) != 0)
 		return (true);
+	if (strcmp(res0->hr_sourceaddr, res1->hr_sourceaddr) != 0)
+		return (true);
 	if (res0->hr_replication != res1->hr_replication)
+		return (true);
+	if (res0->hr_checksum != res1->hr_checksum)
+		return (true);
+	if (res0->hr_compression != res1->hr_compression)
 		return (true);
 	if (res0->hr_timeout != res1->hr_timeout)
 		return (true);
@@ -403,7 +426,10 @@ resource_reload(const struct hast_resource *res)
 	nvout = nv_alloc();
 	nv_add_uint8(nvout, HASTCTL_RELOAD, "cmd");
 	nv_add_string(nvout, res->hr_remoteaddr, "remoteaddr");
+	nv_add_string(nvout, res->hr_sourceaddr, "sourceaddr");
 	nv_add_int32(nvout, (int32_t)res->hr_replication, "replication");
+	nv_add_int32(nvout, (int32_t)res->hr_checksum, "checksum");
+	nv_add_int32(nvout, (int32_t)res->hr_compression, "compression");
 	nv_add_int32(nvout, (int32_t)res->hr_timeout, "timeout");
 	nv_add_string(nvout, res->hr_exec, "exec");
 	if (nv_error(nvout) != 0) {
@@ -561,7 +587,11 @@ hastd_reload(void)
 			    cres->hr_name);
 			strlcpy(cres->hr_remoteaddr, nres->hr_remoteaddr,
 			    sizeof(cres->hr_remoteaddr));
+			strlcpy(cres->hr_sourceaddr, nres->hr_sourceaddr,
+			    sizeof(cres->hr_sourceaddr));
 			cres->hr_replication = nres->hr_replication;
+			cres->hr_checksum = nres->hr_checksum;
+			cres->hr_compression = nres->hr_compression;
 			cres->hr_timeout = nres->hr_timeout;
 			strlcpy(cres->hr_exec, nres->hr_exec,
 			    sizeof(cres->hr_exec));
@@ -829,12 +859,17 @@ connection_migrate(struct hast_resource *res)
 	struct proto_conn *conn;
 	int16_t val = 0;
 
+	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
+
+	PJDLOG_ASSERT(res->hr_role == HAST_ROLE_PRIMARY);
+
 	if (proto_recv(res->hr_conn, &val, sizeof(val)) < 0) {
 		pjdlog_errno(LOG_WARNING,
 		    "Unable to receive connection command");
 		return;
 	}
-	if (proto_client(res->hr_remoteaddr, &conn) < 0) {
+	if (proto_client(res->hr_sourceaddr[0] != '\0' ? res->hr_sourceaddr : NULL,
+	    res->hr_remoteaddr, &conn) < 0) {
 		val = errno;
 		pjdlog_errno(LOG_WARNING,
 		    "Unable to create outgoing connection to %s",
@@ -856,20 +891,17 @@ out:
 	}
 	if (val == 0 && proto_connection_send(res->hr_conn, conn) < 0)
 		pjdlog_errno(LOG_WARNING, "Unable to send connection");
+
+	pjdlog_prefix_set("%s", "");
 }
 
 static void
-main_loop(void)
+check_signals(void)
 {
-	struct hast_resource *res;
-	struct timeval seltimeout;
 	struct timespec sigtimeout;
-	int fd, maxfd, ret, signo;
 	sigset_t mask;
-	fd_set rfds;
+	int signo;
 
-	seltimeout.tv_sec = REPORT_INTERVAL;
-	seltimeout.tv_usec = 0;
 	sigtimeout.tv_sec = 0;
 	sigtimeout.tv_nsec = 0;
 
@@ -879,29 +911,45 @@ main_loop(void)
 	PJDLOG_VERIFY(sigaddset(&mask, SIGTERM) == 0);
 	PJDLOG_VERIFY(sigaddset(&mask, SIGCHLD) == 0);
 
+	while ((signo = sigtimedwait(&mask, NULL, &sigtimeout)) != -1) {
+		switch (signo) {
+		case SIGINT:
+		case SIGTERM:
+			sigexit_received = true;
+			terminate_workers();
+			proto_close(cfg->hc_controlconn);
+			exit(EX_OK);
+			break;
+		case SIGCHLD:
+			child_exit();
+			break;
+		case SIGHUP:
+			hastd_reload();
+			break;
+		default:
+			PJDLOG_ABORT("Unexpected signal (%d).", signo);
+		}
+	}
+}
+
+static void
+main_loop(void)
+{
+	struct hast_resource *res;
+	struct timeval seltimeout;
+	int fd, maxfd, ret;
+	time_t lastcheck, now;
+	fd_set rfds;
+
+	lastcheck = time(NULL);
+	seltimeout.tv_sec = REPORT_INTERVAL;
+	seltimeout.tv_usec = 0;
+
 	pjdlog_info("Started successfully, running protocol version %d.",
 	    HAST_PROTO_VERSION);
 
 	for (;;) {
-		while ((signo = sigtimedwait(&mask, NULL, &sigtimeout)) != -1) {
-			switch (signo) {
-			case SIGINT:
-			case SIGTERM:
-				sigexit_received = true;
-				terminate_workers();
-				proto_close(cfg->hc_controlconn);
-				exit(EX_OK);
-				break;
-			case SIGCHLD:
-				child_exit();
-				break;
-			case SIGHUP:
-				hastd_reload();
-				break;
-			default:
-				PJDLOG_ABORT("Unexpected signal (%d).", signo);
-			}
-		}
+		check_signals();
 
 		/* Setup descriptors for select(2). */
 		FD_ZERO(&rfds);
@@ -915,30 +963,47 @@ main_loop(void)
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			if (res->hr_event == NULL)
 				continue;
-			PJDLOG_ASSERT(res->hr_conn != NULL);
 			fd = proto_descriptor(res->hr_event);
 			PJDLOG_ASSERT(fd >= 0);
 			FD_SET(fd, &rfds);
 			maxfd = fd > maxfd ? fd : maxfd;
 			if (res->hr_role == HAST_ROLE_PRIMARY) {
 				/* Only primary workers asks for connections. */
+				PJDLOG_ASSERT(res->hr_conn != NULL);
 				fd = proto_descriptor(res->hr_conn);
 				PJDLOG_ASSERT(fd >= 0);
 				FD_SET(fd, &rfds);
 				maxfd = fd > maxfd ? fd : maxfd;
+			} else {
+				PJDLOG_ASSERT(res->hr_conn == NULL);
 			}
 		}
 
 		PJDLOG_ASSERT(maxfd + 1 <= (int)FD_SETSIZE);
 		ret = select(maxfd + 1, &rfds, NULL, NULL, &seltimeout);
-		if (ret == 0)
+		now = time(NULL);
+		if (lastcheck + REPORT_INTERVAL <= now) {
 			hook_check();
-		else if (ret == -1) {
+			lastcheck = now;
+		}
+		if (ret == 0) {
+			/*
+			 * select(2) timed out, so there should be no
+			 * descriptors to check.
+			 */
+			continue;
+		} else if (ret == -1) {
 			if (errno == EINTR)
 				continue;
 			KEEP_ERRNO((void)pidfile_remove(pfh));
 			pjdlog_exit(EX_OSERR, "select() failed");
 		}
+
+		/*
+		 * Check for signals before we do anything to update our
+		 * info about terminated workers in the meantime.
+		 */
+		check_signals();
 
 		if (FD_ISSET(proto_descriptor(cfg->hc_controlconn), &rfds))
 			control_handle(cfg);
@@ -947,20 +1012,26 @@ main_loop(void)
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			if (res->hr_event == NULL)
 				continue;
-			PJDLOG_ASSERT(res->hr_conn != NULL);
 			if (FD_ISSET(proto_descriptor(res->hr_event), &rfds)) {
 				if (event_recv(res) == 0)
 					continue;
 				/* The worker process exited? */
 				proto_close(res->hr_event);
 				res->hr_event = NULL;
-				proto_close(res->hr_conn);
-				res->hr_conn = NULL;
+				if (res->hr_conn != NULL) {
+					proto_close(res->hr_conn);
+					res->hr_conn = NULL;
+				}
 				continue;
 			}
-			if (res->hr_role == HAST_ROLE_PRIMARY &&
-			    FD_ISSET(proto_descriptor(res->hr_conn), &rfds)) {
-				connection_migrate(res);
+			if (res->hr_role == HAST_ROLE_PRIMARY) {
+				PJDLOG_ASSERT(res->hr_conn != NULL);
+				if (FD_ISSET(proto_descriptor(res->hr_conn),
+				    &rfds)) {
+					connection_migrate(res);
+				}
+			} else {
+				PJDLOG_ASSERT(res->hr_conn == NULL);
 			}
 		}
 	}

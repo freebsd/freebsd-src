@@ -112,7 +112,7 @@ octebus_attach(device_t dev)
 static int
 octebus_detach(device_t dev)
 {
-	cvm_oct_cleanup_module();
+	cvm_oct_cleanup_module(dev);
 	return (0);
 }
 

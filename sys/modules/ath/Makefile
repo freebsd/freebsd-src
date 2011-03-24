@@ -97,8 +97,8 @@ SRCS+=	ar2133.c
 SRCS+=	ar9160_attach.c
 
 .PATH:	${.CURDIR}/../../dev/ath/ath_hal/ar9002
-SRCS+=	ar9280.c ar9280_attach.c
-SRCS+=	ar9285.c ar9285_reset.c ar9285_attach.c
+SRCS+=	ar9280.c ar9280_attach.c ar9280_olc.c
+SRCS+=	ar9285.c ar9285_reset.c ar9285_attach.c ar9285_cal.c
 
 # NB: rate control is bound to the driver by symbol names so only pick one
 .if ${ATH_RATE} == "sample"
