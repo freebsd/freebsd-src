@@ -896,6 +896,15 @@ ieee80211_wme_initparams_locked(struct ieee80211vap *vap)
 		return;
 
 	/*
+	 * Clear the wme cap_info field so a qoscount from a previous
+	 * vap doesn't confuse later code which only parses the beacon
+	 * field and updates hardware when said field changes.
+	 * Otherwise the hardware is programmed with defaults, not what
+	 * the beacon actually announces.
+	 */
+	wme->wme_wmeChanParams.cap_info = 0;
+
+	/*
 	 * Select mode; we can be called early in which case we
 	 * always use auto mode.  We know we'll be called when
 	 * entering the RUN state with bsschan setup properly
