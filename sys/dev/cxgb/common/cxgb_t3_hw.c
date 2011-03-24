@@ -1750,6 +1750,7 @@ static int t3_handle_intr_status(adapter_t *adapter, unsigned int reg,
 			fatal++;
 			CH_ALERT(adapter, "%s (0x%x)\n",
 				 acts->msg, status & acts->mask);
+			status &= ~acts->mask;
 		} else if (acts->msg)
 			CH_WARN(adapter, "%s (0x%x)\n",
 				acts->msg, status & acts->mask);
@@ -2189,11 +2190,10 @@ static int mac_intr_handler(adapter_t *adap, unsigned int idx)
 		t3_os_link_intr(pi);
 	}
 
-	t3_write_reg(adap, A_XGM_INT_CAUSE + mac->offset, cause);
-
 	if (cause & XGM_INTR_FATAL)
 		t3_fatal_err(adap);
 
+	t3_write_reg(adap, A_XGM_INT_CAUSE + mac->offset, cause);
 	return cause != 0;
 }
 
@@ -4189,6 +4189,7 @@ int t3_init_hw(adapter_t *adapter, u32 fw_params)
 	t3_write_reg(adapter, A_PM1_TX_MODE, 0);
 	chan_init_hw(adapter, adapter->params.chan_map);
 	t3_sge_init(adapter, &adapter->params.sge);
+	t3_set_reg_field(adapter, A_PL_RST, 0, F_FATALPERREN);
 
 	t3_write_reg(adapter, A_T3DBG_GPIO_ACT_LOW, calc_gpio_intr(adapter));
 
