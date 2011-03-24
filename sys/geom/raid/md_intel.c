@@ -938,7 +938,7 @@ g_raid_md_intel_start(struct g_raid_softc *sc)
 	for (i = 0; i < meta->total_volumes; i++) {
 		mvol = intel_get_volume(meta, i);
 		mmap = intel_get_map(mvol, 0);
-		vol = g_raid_create_volume(sc, mvol->name);
+		vol = g_raid_create_volume(sc, mvol->name, -1);
 		vol->v_md_data = (void *)(intptr_t)i;
 		if (mmap->type == INTEL_T_RAID0)
 			vol->v_raid_level = G_RAID_VOLUME_RL_RAID0;
@@ -1077,12 +1077,10 @@ g_raid_intel_go(void *arg)
 	sc = arg;
 	md = sc->sc_md;
 	mdi = (struct g_raid_md_intel_object *)md;
-	sx_xlock(&sc->sc_lock);
 	if (!mdi->mdio_started) {
 		G_RAID_DEBUG1(0, sc, "Force array start due to timeout.");
 		g_raid_event_send(sc, G_RAID_NODE_E_START, 0);
 	}
-	sx_xunlock(&sc->sc_lock);
 }
 
 static int
@@ -1539,7 +1537,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 
 		/* We have all we need, create things: volume, ... */
 		mdi->mdio_started = 1;
-		vol = g_raid_create_volume(sc, volname);
+		vol = g_raid_create_volume(sc, volname, -1);
 		vol->v_md_data = (void *)(intptr_t)0;
 		vol->v_raid_level = level;
 		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
@@ -1723,7 +1721,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 		}
 
 		/* We have all we need, create things: volume, ... */
-		vol = g_raid_create_volume(sc, volname);
+		vol = g_raid_create_volume(sc, volname, -1);
 		vol->v_md_data = (void *)(intptr_t)i;
 		vol->v_raid_level = level;
 		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
@@ -1805,7 +1803,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			i = strtol(volname, &tmp, 10);
 			if (verb != volname && tmp[0] == 0) {
 				TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
-					if ((intptr_t)vol->v_md_data == i)
+					if (vol->v_global_id == i)
 						break;
 				}
 			}
