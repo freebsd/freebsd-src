@@ -570,9 +570,18 @@ printtime(KINFO *k, VARENT *ve, long secs, long psecs)
 		secs += psecs / 100;
 		psecs = psecs % 100;
 	}
-	(void)snprintf(obuff, sizeof(obuff), "%3ld:%02ld%c%02ld",
+	(void)snprintf(obuff, sizeof(obuff), "%ld:%02ld%c%02ld",
 	    secs / 60, secs % 60, decimal_point, psecs);
 	(void)printf("%*s", v->width, obuff);
+}
+
+static int
+sizetime(long secs)
+{
+
+	if (secs < 60)
+		return (7);
+	return (log10(secs / 60) + 7);
 }
 
 void
@@ -930,6 +939,17 @@ s_comm(KINFO *k)
 }
 
 int
+s_cputime(KINFO *k)
+{
+	long secs;
+
+	secs = k->ki_p->ki_runtime / 1000000;
+	if (sumrusage)
+		secs += k->ki_p->ki_childtime.tv_sec;
+	return (sizetime(secs));
+}
+
+int
 s_label(KINFO *k)
 {
 	char *string = NULL;
@@ -974,4 +994,26 @@ s_logname(KINFO *k)
 		return (1);
 
 	return (strlen(s));
+}
+
+int
+s_systime(KINFO *k)
+{
+	long secs;
+
+	secs = k->ki_p->ki_rusage.ru_stime.tv_sec;
+	if (sumrusage)
+		secs += k->ki_p->ki_childstime.tv_sec;
+	return (sizetime(secs));
+}
+
+int
+s_usertime(KINFO *k)
+{
+	long secs;
+
+	secs = k->ki_p->ki_rusage.ru_utime.tv_sec;
+	if (sumrusage)
+		secs += k->ki_p->ki_childutime.tv_sec;
+	return (sizetime(secs));
 }
