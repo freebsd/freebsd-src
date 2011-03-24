@@ -193,7 +193,7 @@ struct g_raid_subdisk {
 };
 
 #define G_RAID_MAX_SUBDISKS	16
-#define G_RAID_MAX_VOLUMENAME	16
+#define G_RAID_MAX_VOLUMENAME	32
 
 #define G_RAID_VOLUME_S_STARTING	0x00
 #define G_RAID_VOLUME_S_BROKEN		0x01
@@ -211,6 +211,7 @@ struct g_raid_subdisk {
 #define G_RAID_VOLUME_E_DOWN		0x00
 #define G_RAID_VOLUME_E_UP		0x01
 #define G_RAID_VOLUME_E_START		0x10
+#define G_RAID_VOLUME_E_STARTMD		0x11
 
 #define G_RAID_VOLUME_RL_RAID0		0x00
 #define G_RAID_VOLUME_RL_RAID1		0x01
@@ -349,7 +350,7 @@ struct g_raid_softc * g_raid_create_node(struct g_class *mp,
     const char *name, struct g_raid_md_object *md);
 int g_raid_create_node_format(const char *format, struct g_geom **gp);
 struct g_raid_volume * g_raid_create_volume(struct g_raid_softc *sc,
-    const char *name);
+    const char *name, int id);
 struct g_raid_disk * g_raid_create_disk(struct g_raid_softc *sc);
 const char * g_raid_get_diskname(struct g_raid_disk *disk);
 

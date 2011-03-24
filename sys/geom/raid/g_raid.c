@@ -64,7 +64,7 @@ TUNABLE_INT("kern.geom.raid.read_err_thresh", &g_raid_read_err_thresh);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, read_err_thresh, CTLFLAG_RW,
     &g_raid_read_err_thresh, 0,
     "Number of read errors equated to disk failure");
-u_int g_raid_start_timeout = 15;
+u_int g_raid_start_timeout = 30;
 TUNABLE_INT("kern.geom.raid.start_timeout", &g_raid_start_timeout);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, start_timeout, CTLFLAG_RW,
     &g_raid_start_timeout, 0,
@@ -259,6 +259,8 @@ g_raid_volume_event2str(int event)
 		return ("DOWN");
 	case G_RAID_VOLUME_E_START:
 		return ("START");
+	case G_RAID_VOLUME_E_STARTMD:
+		return ("STARTMD");
 	default:
 		return ("INVALID");
 	}
@@ -432,7 +434,6 @@ g_raid_event_send(void *arg, int event, int flags)
 	struct g_raid_event *ep;
 	int error;
 
-	ep = malloc(sizeof(*ep), M_RAID, M_WAITOK);
 	if ((flags & G_RAID_EVENT_VOLUME) != 0) {
 		sc = ((struct g_raid_volume *)arg)->v_softc;
 	} else if ((flags & G_RAID_EVENT_DISK) != 0) {
@@ -442,6 +443,10 @@ g_raid_event_send(void *arg, int event, int flags)
 	} else {
 		sc = arg;
 	}
+	ep = malloc(sizeof(*ep), M_RAID,
+	    sx_xlocked(&sc->sc_lock) ? M_WAITOK : M_NOWAIT);
+	if (ep == NULL)
+		return (ENOMEM);
 	ep->e_tgt = arg;
 	ep->e_event = event;
 	ep->e_flags = flags;
@@ -469,21 +474,16 @@ g_raid_event_send(void *arg, int event, int flags)
 	return (error);
 }
 
-#if 0
 static void
-g_raid_event_cancel(struct g_raid_disk *disk)
+g_raid_event_cancel(struct g_raid_softc *sc, void *tgt)
 {
-	struct g_raid_softc *sc;
 	struct g_raid_event *ep, *tmpep;
 
-	sc = disk->d_softc;
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
 	mtx_lock(&sc->sc_queue_mtx);
 	TAILQ_FOREACH_SAFE(ep, &sc->sc_events, e_next, tmpep) {
-		if ((ep->e_flags & G_RAID_EVENT_VOLUME) != 0)
-			continue;
-		if (ep->e_tgt != disk)
+		if (ep->e_tgt != tgt)
 			continue;
 		TAILQ_REMOVE(&sc->sc_events, ep, e_next);
 		if ((ep->e_flags & G_RAID_EVENT_WAIT) == 0)
@@ -495,7 +495,6 @@ g_raid_event_cancel(struct g_raid_disk *disk)
 	}
 	mtx_unlock(&sc->sc_queue_mtx);
 }
-#endif
 
 static int
 g_raid_event_check(struct g_raid_softc *sc, void *tgt)
@@ -1525,6 +1524,10 @@ g_raid_update_volume(struct g_raid_volume *vol, u_int event)
 		if (vol->v_tr)
 			G_RAID_TR_START(vol->v_tr);
 		return (0);
+	default:
+		if (sc->sc_md)
+			G_RAID_MD_VOLUME_EVENT(sc->sc_md, vol, event);
+		return (0);
 	}
 
 	/* Manage root mount release. */
@@ -1694,7 +1697,7 @@ g_raid_create_node(struct g_class *mp,
 }
 
 struct g_raid_volume *
-g_raid_create_volume(struct g_raid_softc *sc, const char *name)
+g_raid_create_volume(struct g_raid_softc *sc, const char *name, int id)
 {
 	struct g_raid_volume	*vol, *vol1;
 	int i;
@@ -1704,6 +1707,8 @@ g_raid_create_volume(struct g_raid_softc *sc, const char *name)
 	vol->v_softc = sc;
 	strlcpy(vol->v_name, name, G_RAID_MAX_VOLUMENAME);
 	vol->v_state = G_RAID_VOLUME_S_STARTING;
+	vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
+	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_UNKNOWN;
 	bioq_init(&vol->v_inflight);
 	bioq_init(&vol->v_locked);
 	LIST_INIT(&vol->v_locks);
@@ -1716,15 +1721,24 @@ g_raid_create_volume(struct g_raid_softc *sc, const char *name)
 
 	/* Find free ID for this volume. */
 	g_topology_lock();
-	for (i = 0; ; i++) {
+	vol1 = vol;
+	if (id >= 0) {
 		LIST_FOREACH(vol1, &g_raid_volumes, v_global_next) {
-			if (vol1->v_global_id == i)
+			if (vol1->v_global_id == id)
 				break;
 		}
-		if (vol1 == NULL)
-			break;
 	}
-	vol->v_global_id = i;
+	if (vol1 != NULL) {
+		for (id = 0; ; id++) {
+			LIST_FOREACH(vol1, &g_raid_volumes, v_global_next) {
+				if (vol1->v_global_id == id)
+					break;
+			}
+			if (vol1 == NULL)
+				break;
+		}
+	}
+	vol->v_global_id = id;
 	LIST_INSERT_HEAD(&g_raid_volumes, vol, v_global_next);
 	g_topology_unlock();
 
@@ -1822,6 +1836,7 @@ g_raid_destroy_node(struct g_raid_softc *sc, int worker)
 	} else
 		G_RAID_DEBUG(1, "Array destroyed.");
 	if (worker) {
+		g_raid_event_cancel(sc, sc);
 		mtx_destroy(&sc->sc_queue_mtx);
 		sx_xunlock(&sc->sc_lock);
 		sx_destroy(&sc->sc_lock);
@@ -1872,12 +1887,16 @@ g_raid_destroy_volume(struct g_raid_volume *vol)
 	g_topology_unlock();
 	TAILQ_REMOVE(&sc->sc_volumes, vol, v_next);
 	for (i = 0; i < G_RAID_MAX_SUBDISKS; i++) {
+		g_raid_event_cancel(sc, &vol->v_subdisks[i]);
 		disk = vol->v_subdisks[i].sd_disk;
 		if (disk == NULL)
 			continue;
 		TAILQ_REMOVE(&disk->d_subdisks, &vol->v_subdisks[i], sd_next);
 	}
 	G_RAID_DEBUG1(2, sc, "Volume %s destroyed.", vol->v_name);
+	if (sc->sc_md)
+		G_RAID_MD_FREE_VOLUME(sc->sc_md, vol);
+	g_raid_event_cancel(sc, vol);
 	free(vol, M_RAID);
 	if (sc->sc_stopping == G_RAID_DESTROY_HARD) {
 		/* Wake up worker to let it selfdestruct. */
@@ -1899,6 +1918,7 @@ g_raid_destroy_disk(struct g_raid_disk *disk)
 		disk->d_consumer = NULL;
 	}
 	TAILQ_FOREACH_SAFE(sd, &disk->d_subdisks, sd_next, tmp) {
+		g_raid_change_subdisk_state(sd, G_RAID_SUBDISK_S_NONE);
 		g_raid_event_send(sd, G_RAID_SUBDISK_E_DISCONNECTED,
 		    G_RAID_EVENT_SUBDISK);
 		TAILQ_REMOVE(&disk->d_subdisks, sd, sd_next);
@@ -1907,6 +1927,7 @@ g_raid_destroy_disk(struct g_raid_disk *disk)
 	TAILQ_REMOVE(&sc->sc_disks, disk, d_next);
 	if (sc->sc_md)
 		G_RAID_MD_FREE_DISK(sc->sc_md, disk);
+	g_raid_event_cancel(sc, disk);
 	free(disk, M_RAID);
 	return (0);
 }

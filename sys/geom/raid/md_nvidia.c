@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2011 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,62 +42,73 @@ __FBSDID("$FreeBSD$");
 #include "geom/raid/g_raid.h"
 #include "g_raid_md_if.h"
 
-static MALLOC_DEFINE(M_MD_JMICRON, "md_jmicron_data", "GEOM_RAID JMicron metadata");
+static MALLOC_DEFINE(M_MD_NVIDIA, "md_nvidia_data", "GEOM_RAID NVIDIA metadata");
 
-#define	JMICRON_MAX_DISKS	8
-#define	JMICRON_MAX_SPARE	2
+struct nvidia_raid_conf {
+	uint8_t		nvidia_id[8];
+#define NVIDIA_MAGIC                "NVIDIA  "
 
-struct jmicron_raid_conf {
-    u_int8_t		signature[2];
-#define	JMICRON_MAGIC		"JM"
+	uint32_t	config_size;
+	uint32_t	checksum;
+	uint16_t	version;
+	uint8_t		disk_number;
+	uint8_t		dummy_0;
+	uint32_t	total_sectors;
+	uint32_t	sector_size;
+	uint8_t		name[16];
+	uint8_t		revision[4];
+	uint32_t	disk_status;
 
-    u_int16_t		version;
-#define	JMICRON_VERSION		0x0001
+	uint32_t	magic_0;
+#define NVIDIA_MAGIC0		0x00640044
 
-    u_int16_t		checksum;
-    u_int8_t		filler_1[10];
-    u_int32_t		disk_id;
-    u_int32_t		offset;
-    u_int32_t		disk_sectors_high;
-    u_int16_t		disk_sectors_low;
-    u_int8_t		filler_2[2];
-    u_int8_t		name[16];
-    u_int8_t		type;
-#define	JMICRON_T_RAID0		0
-#define	JMICRON_T_RAID1		1
-#define	JMICRON_T_RAID01	2
-#define	JMICRON_T_CONCAT	3
-#define	JMICRON_T_RAID5		5
+	uint64_t	volume_id[2];
+	uint8_t		state;
+#define NVIDIA_S_IDLE		0
+#define NVIDIA_S_INIT		2
+#define NVIDIA_S_REBUILD	3
+#define NVIDIA_S_UPGRADE	4
+#define NVIDIA_S_SYNC		5
+	uint8_t		array_width;
+	uint8_t		total_disks;
+	uint8_t		orig_array_width;
+	uint16_t	type;
+#define NVIDIA_T_RAID0		0x0080
+#define NVIDIA_T_RAID1		0x0081
+#define NVIDIA_T_RAID3		0x0083
+#define NVIDIA_T_RAID5		0x0085	/* RLQ = 00/02? */
+#define NVIDIA_T_RAID5_SYM	0x0095	/* RLQ = 03 */
+#define NVIDIA_T_RAID10		0x008a
+#define NVIDIA_T_RAID01		0x8180
+#define NVIDIA_T_CONCAT		0x00ff
 
-    u_int8_t		stripe_shift;
-    u_int16_t		flags;
-#define	JMICRON_F_READY		0x0001
-#define	JMICRON_F_BOOTABLE	0x0002
-#define	JMICRON_F_BADSEC	0x0004
-#define	JMICRON_F_ACTIVE	0x0010
-#define	JMICRON_F_UNSYNC	0x0020
-#define	JMICRON_F_NEWEST	0x0040
+	uint16_t	dummy_3;
+	uint32_t	strip_sectors;
+	uint32_t	strip_bytes;
+	uint32_t	strip_shift;
+	uint32_t	strip_mask;
+	uint32_t	stripe_sectors;
+	uint32_t	stripe_bytes;
+	uint32_t	rebuild_lba;
+	uint32_t	orig_type;
+	uint32_t	orig_total_sectors;
+	uint32_t	status;
+#define NVIDIA_S_BOOTABLE	0x00000001
+#define NVIDIA_S_DEGRADED	0x00000002
 
-    u_int8_t		filler_3[4];
-    u_int32_t		spare[JMICRON_MAX_SPARE];
-    u_int32_t		disks[JMICRON_MAX_DISKS];
-#define	JMICRON_DISK_MASK	0xFFFFFFF0
-#define	JMICRON_SEG_MASK	0x0000000F
-    u_int8_t		filler_4[32];
-    u_int8_t		filler_5[384];
+	uint32_t	filler[98];
+} __packed;
+
+struct g_raid_md_nvidia_perdisk {
+	struct nvidia_raid_conf	*pd_meta;
+	int			 pd_disk_pos;
+	off_t			 pd_disk_size;
 };
 
-struct g_raid_md_jmicron_perdisk {
-	struct jmicron_raid_conf	*pd_meta;
-	int				 pd_disk_pos;
-	int				 pd_disk_id;
-	off_t				 pd_disk_size;
-};
-
-struct g_raid_md_jmicron_object {
+struct g_raid_md_nvidia_object {
 	struct g_raid_md_object	 mdio_base;
-	uint32_t		 mdio_config_id;
-	struct jmicron_raid_conf	*mdio_meta;
+	uint64_t		 mdio_volume_id[2];
+	struct nvidia_raid_conf	*mdio_meta;
 	struct callout		 mdio_start_co;	/* STARTING state timer. */
 	int			 mdio_total_disks;
 	int			 mdio_disks_present;
@@ -106,118 +117,104 @@ struct g_raid_md_jmicron_object {
 	struct root_hold_token	*mdio_rootmount; /* Root mount delay token. */
 };
 
-static g_raid_md_create_t g_raid_md_create_jmicron;
-static g_raid_md_taste_t g_raid_md_taste_jmicron;
-static g_raid_md_event_t g_raid_md_event_jmicron;
-static g_raid_md_ctl_t g_raid_md_ctl_jmicron;
-static g_raid_md_write_t g_raid_md_write_jmicron;
-static g_raid_md_fail_disk_t g_raid_md_fail_disk_jmicron;
-static g_raid_md_free_disk_t g_raid_md_free_disk_jmicron;
-static g_raid_md_free_t g_raid_md_free_jmicron;
+static g_raid_md_create_t g_raid_md_create_nvidia;
+static g_raid_md_taste_t g_raid_md_taste_nvidia;
+static g_raid_md_event_t g_raid_md_event_nvidia;
+static g_raid_md_ctl_t g_raid_md_ctl_nvidia;
+static g_raid_md_write_t g_raid_md_write_nvidia;
+static g_raid_md_fail_disk_t g_raid_md_fail_disk_nvidia;
+static g_raid_md_free_disk_t g_raid_md_free_disk_nvidia;
+static g_raid_md_free_t g_raid_md_free_nvidia;
 
-static kobj_method_t g_raid_md_jmicron_methods[] = {
-	KOBJMETHOD(g_raid_md_create,	g_raid_md_create_jmicron),
-	KOBJMETHOD(g_raid_md_taste,	g_raid_md_taste_jmicron),
-	KOBJMETHOD(g_raid_md_event,	g_raid_md_event_jmicron),
-	KOBJMETHOD(g_raid_md_ctl,	g_raid_md_ctl_jmicron),
-	KOBJMETHOD(g_raid_md_write,	g_raid_md_write_jmicron),
-	KOBJMETHOD(g_raid_md_fail_disk,	g_raid_md_fail_disk_jmicron),
-	KOBJMETHOD(g_raid_md_free_disk,	g_raid_md_free_disk_jmicron),
-	KOBJMETHOD(g_raid_md_free,	g_raid_md_free_jmicron),
+static kobj_method_t g_raid_md_nvidia_methods[] = {
+	KOBJMETHOD(g_raid_md_create,	g_raid_md_create_nvidia),
+	KOBJMETHOD(g_raid_md_taste,	g_raid_md_taste_nvidia),
+	KOBJMETHOD(g_raid_md_event,	g_raid_md_event_nvidia),
+	KOBJMETHOD(g_raid_md_ctl,	g_raid_md_ctl_nvidia),
+	KOBJMETHOD(g_raid_md_write,	g_raid_md_write_nvidia),
+	KOBJMETHOD(g_raid_md_fail_disk,	g_raid_md_fail_disk_nvidia),
+	KOBJMETHOD(g_raid_md_free_disk,	g_raid_md_free_disk_nvidia),
+	KOBJMETHOD(g_raid_md_free,	g_raid_md_free_nvidia),
 	{ 0, 0 }
 };
 
-static struct g_raid_md_class g_raid_md_jmicron_class = {
-	"JMicron",
-	g_raid_md_jmicron_methods,
-	sizeof(struct g_raid_md_jmicron_object),
+static struct g_raid_md_class g_raid_md_nvidia_class = {
+	"NVIDIA",
+	g_raid_md_nvidia_methods,
+	sizeof(struct g_raid_md_nvidia_object),
 	.mdc_priority = 100
 };
 
+static int NVIDIANodeID = 1;
+
 static void
-g_raid_md_jmicron_print(struct jmicron_raid_conf *meta)
+g_raid_md_nvidia_print(struct nvidia_raid_conf *meta)
 {
-	int k;
 
 	if (g_raid_debug < 1)
 		return;
 
-	printf("********* ATA JMicron RAID Metadata *********\n");
-	printf("signature           <%c%c>\n", meta->signature[0], meta->signature[1]);
-	printf("version             %04x\n", meta->version);
-	printf("checksum            0x%04x\n", meta->checksum);
-	printf("disk_id             0x%08x\n", meta->disk_id);
-	printf("offset              0x%08x\n", meta->offset);
-	printf("disk_sectors_high   0x%08x\n", meta->disk_sectors_high);
-	printf("disk_sectors_low    0x%04x\n", meta->disk_sectors_low);
+	printf("********* ATA NVIDIA RAID Metadata *********\n");
+	printf("nvidia_id           <%.8s>\n", meta->nvidia_id);
+	printf("config_size         %u\n", meta->config_size);
+	printf("checksum            0x%08x\n", meta->checksum);
+	printf("version             0x%04x\n", meta->version);
+	printf("disk_number         %d\n", meta->disk_number);
+	printf("dummy_0             0x%02x\n", meta->dummy_0);
+	printf("total_sectors       %u\n", meta->total_sectors);
+	printf("sector_size         %u\n", meta->sector_size);
 	printf("name                <%.16s>\n", meta->name);
-	printf("type                %d\n", meta->type);
-	printf("stripe_shift        %d\n", meta->stripe_shift);
-	printf("flags               %04x\n", meta->flags);
-	printf("spare              ");
-	for (k = 0; k < JMICRON_MAX_SPARE; k++)
-		printf(" 0x%08x", meta->spare[k]);
-	printf("\n");
-	printf("disks              ");
-	for (k = 0; k < JMICRON_MAX_DISKS; k++)
-		printf(" 0x%08x", meta->disks[k]);
-	printf("\n");
+	printf("revision            0x%02x%02x%02x%02x\n",
+	    meta->revision[0], meta->revision[1],
+	    meta->revision[2], meta->revision[3]);
+	printf("disk_status         0x%08x\n", meta->disk_status);
+	printf("magic_0             0x%08x\n", meta->magic_0);
+	printf("volume_id           0x%016jx%016jx\n",
+	    meta->volume_id[1], meta->volume_id[0]);
+	printf("state               0x%02x\n", meta->state);
+	printf("array_width         %u\n", meta->array_width);
+	printf("total_disks         %u\n", meta->total_disks);
+	printf("orig_array_width    %u\n", meta->orig_array_width);
+	printf("type                0x%04x\n", meta->type);
+	printf("dummy_3             0x%04x\n", meta->dummy_3);
+	printf("strip_sectors       %u\n", meta->strip_sectors);
+	printf("strip_bytes         %u\n", meta->strip_bytes);
+	printf("strip_shift         %u\n", meta->strip_shift);
+	printf("strip_mask          0x%08x\n", meta->strip_mask);
+	printf("stripe_sectors      %u\n", meta->stripe_sectors);
+	printf("stripe_bytes        %u\n", meta->stripe_bytes);
+	printf("rebuild_lba         %u\n", meta->rebuild_lba);
+	printf("orig_type           0x%04x\n", meta->orig_type);
+	printf("orig_total_sectors  %u\n", meta->orig_total_sectors);
+	printf("status              0x%08x\n", meta->status);
 	printf("=================================================\n");
 }
 
-static struct jmicron_raid_conf *
-jmicron_meta_copy(struct jmicron_raid_conf *meta)
+static struct nvidia_raid_conf *
+nvidia_meta_copy(struct nvidia_raid_conf *meta)
 {
-	struct jmicron_raid_conf *nmeta;
+	struct nvidia_raid_conf *nmeta;
 
-	nmeta = malloc(sizeof(*meta), M_MD_JMICRON, M_WAITOK);
+	nmeta = malloc(sizeof(*meta), M_MD_NVIDIA, M_WAITOK);
 	memcpy(nmeta, meta, sizeof(*meta));
 	return (nmeta);
 }
 
 static int
-jmicron_meta_total_disks(struct jmicron_raid_conf *meta)
+nvidia_meta_translate_disk(struct nvidia_raid_conf *meta, int md_disk_pos)
 {
-	int pos;
+	int disk_pos;
 
-	for (pos = 0; pos < JMICRON_MAX_DISKS; pos++) {
-		if (meta->disks[pos] == 0)
-			break;
-	}
-	return (pos);
-}
-
-static int
-jmicron_meta_total_spare(struct jmicron_raid_conf *meta)
-{
-	int pos, n;
-
-	n = 0;
-	for (pos = 0; pos < JMICRON_MAX_SPARE; pos++) {
-		if (meta->spare[pos] != 0)
-			n++;
-	}
-	return (n);
-}
-
-/*
- * Generate fake Configuration ID based on disk IDs.
- * Note: it will change after each disk set change.
- */
-static uint32_t
-jmicron_meta_config_id(struct jmicron_raid_conf *meta)
-{
-	int pos;
-	uint32_t config_id;
-
-	config_id = 0;
-	for (pos = 0; pos < JMICRON_MAX_DISKS; pos++)
-		config_id += meta->disks[pos] << pos;
-	return (config_id);
+	if (md_disk_pos >= 0 && meta->type == NVIDIA_T_RAID01) {
+		disk_pos = (md_disk_pos / meta->array_width) +
+		    (md_disk_pos % meta->array_width) * meta->array_width;
+	} else
+		disk_pos = md_disk_pos;
+	return (disk_pos);
 }
 
 static void
-jmicron_meta_get_name(struct jmicron_raid_conf *meta, char *buf)
+nvidia_meta_get_name(struct nvidia_raid_conf *meta, char *buf)
 {
 	int i;
 
@@ -231,67 +228,77 @@ jmicron_meta_get_name(struct jmicron_raid_conf *meta, char *buf)
 }
 
 static void
-jmicron_meta_put_name(struct jmicron_raid_conf *meta, char *buf)
+nvidia_meta_put_name(struct nvidia_raid_conf *meta, char *buf)
 {
 
 	memset(meta->name, 0x20, 16);
 	memcpy(meta->name, buf, MIN(strlen(buf), 16));
 }
 
-static int
-jmicron_meta_find_disk(struct jmicron_raid_conf *meta, uint32_t id)
-{
-	int pos;
-
-	id &= JMICRON_DISK_MASK;
-	for (pos = 0; pos < JMICRON_MAX_DISKS; pos++) {
-		if ((meta->disks[pos] & JMICRON_DISK_MASK) == id)
-			return (pos);
-	}
-	for (pos = 0; pos < JMICRON_MAX_SPARE; pos++) {
-		if ((meta->spare[pos] & JMICRON_DISK_MASK) == id)
-			return (-3);
-	}
-	return (-1);
-}
-
-static struct jmicron_raid_conf *
-jmicron_meta_read(struct g_consumer *cp)
+static struct nvidia_raid_conf *
+nvidia_meta_read(struct g_consumer *cp)
 {
 	struct g_provider *pp;
-	struct jmicron_raid_conf *meta;
+	struct nvidia_raid_conf *meta;
 	char *buf;
 	int error, i;
-	uint16_t checksum, *ptr;
+	uint32_t checksum, *ptr;
 
 	pp = cp->provider;
 
 	/* Read the anchor sector. */
 	buf = g_read_data(cp,
-	    pp->mediasize - pp->sectorsize, pp->sectorsize, &error);
+	    pp->mediasize - 2 * pp->sectorsize, pp->sectorsize, &error);
 	if (buf == NULL) {
 		G_RAID_DEBUG(1, "Cannot read metadata from %s (error=%d).",
 		    pp->name, error);
 		return (NULL);
 	}
-	meta = (struct jmicron_raid_conf *)buf;
-
-	/* Check if this is an JMicron RAID struct */
-	if (strncmp(meta->signature, JMICRON_MAGIC, strlen(JMICRON_MAGIC))) {
-		G_RAID_DEBUG(1, "JMicron signature check failed on %s", pp->name);
-		g_free(buf);
-		return (NULL);
-	}
-	meta = malloc(sizeof(*meta), M_MD_JMICRON, M_WAITOK);
+	meta = malloc(sizeof(*meta), M_MD_NVIDIA, M_WAITOK);
 	memcpy(meta, buf, min(sizeof(*meta), pp->sectorsize));
 	g_free(buf);
 
+	/* Check if this is an NVIDIA RAID struct */
+	if (strncmp(meta->nvidia_id, NVIDIA_MAGIC, strlen(NVIDIA_MAGIC))) {
+		G_RAID_DEBUG(1, "NVIDIA signature check failed on %s", pp->name);
+		free(meta, M_MD_NVIDIA);
+		return (NULL);
+	}
+	if (meta->config_size > 128 ||
+	    meta->config_size < 30) {
+		G_RAID_DEBUG(1, "NVIDIA metadata size looks wrong: %d",
+		    meta->config_size);
+		free(meta, M_MD_NVIDIA);
+		return (NULL);
+	}
+
 	/* Check metadata checksum. */
-	for (checksum = 0, ptr = (uint16_t *)meta, i = 0; i < 64; i++)
+	for (checksum = 0, ptr = (uint32_t *)meta,
+	    i = 0; i < meta->config_size; i++)
 		checksum += *ptr++;
 	if (checksum != 0) {
-		G_RAID_DEBUG(1, "JMicron checksum check failed on %s", pp->name);
-		free(meta, M_MD_JMICRON);
+		G_RAID_DEBUG(1, "NVIDIA checksum check failed on %s", pp->name);
+		free(meta, M_MD_NVIDIA);
+		return (NULL);
+	}
+
+	/* Check volume state. */
+	if (meta->state != NVIDIA_S_IDLE && meta->state != NVIDIA_S_INIT &&
+	    meta->state != NVIDIA_S_REBUILD && meta->state != NVIDIA_S_SYNC) {
+		G_RAID_DEBUG(1, "NVIDIA unknown state on %s (0x%02x)",
+		    pp->name, meta->state);
+		free(meta, M_MD_NVIDIA);
+		return (NULL);
+	}
+
+	/* Check raid type. */
+	if (meta->type != NVIDIA_T_RAID0 && meta->type != NVIDIA_T_RAID1 &&
+	    meta->type != NVIDIA_T_RAID3 && meta->type != NVIDIA_T_RAID5 &&
+	    meta->type != NVIDIA_T_RAID5_SYM &&
+	    meta->type != NVIDIA_T_RAID01 && meta->type != NVIDIA_T_CONCAT) {
+		G_RAID_DEBUG(1, "NVIDIA unknown RAID level on %s (0x%02x)",
+		    pp->name, meta->type);
+		free(meta, M_MD_NVIDIA);
 		return (NULL);
 	}
 
@@ -299,63 +306,65 @@ jmicron_meta_read(struct g_consumer *cp)
 }
 
 static int
-jmicron_meta_write(struct g_consumer *cp, struct jmicron_raid_conf *meta)
+nvidia_meta_write(struct g_consumer *cp, struct nvidia_raid_conf *meta)
 {
 	struct g_provider *pp;
 	char *buf;
 	int error, i;
-	uint16_t checksum, *ptr;
+	uint32_t checksum, *ptr;
 
 	pp = cp->provider;
 
 	/* Recalculate checksum for case if metadata were changed. */
 	meta->checksum = 0;
-	for (checksum = 0, ptr = (uint16_t *)meta, i = 0; i < 64; i++)
+	for (checksum = 0, ptr = (uint32_t *)meta,
+	    i = 0; i < meta->config_size; i++)
 		checksum += *ptr++;
 	meta->checksum -= checksum;
 
 	/* Create and fill buffer. */
-	buf = malloc(pp->sectorsize, M_MD_JMICRON, M_WAITOK | M_ZERO);
+	buf = malloc(pp->sectorsize, M_MD_NVIDIA, M_WAITOK | M_ZERO);
 	memcpy(buf, meta, sizeof(*meta));
 
+	/* Write metadata. */
 	error = g_write_data(cp,
-	    pp->mediasize - pp->sectorsize, buf, pp->sectorsize);
+	    pp->mediasize - 2 * pp->sectorsize, buf, pp->sectorsize);
 	if (error != 0) {
 		G_RAID_DEBUG(1, "Cannot write metadata to %s (error=%d).",
 		    pp->name, error);
 	}
 
-	free(buf, M_MD_JMICRON);
+	free(buf, M_MD_NVIDIA);
 	return (error);
 }
 
 static int
-jmicron_meta_erase(struct g_consumer *cp)
+nvidia_meta_erase(struct g_consumer *cp)
 {
 	struct g_provider *pp;
 	char *buf;
 	int error;
 
 	pp = cp->provider;
-	buf = malloc(pp->sectorsize, M_MD_JMICRON, M_WAITOK | M_ZERO);
+	buf = malloc(pp->sectorsize, M_MD_NVIDIA, M_WAITOK | M_ZERO);
 	error = g_write_data(cp,
-	    pp->mediasize - pp->sectorsize, buf, pp->sectorsize);
+	    pp->mediasize - 2 * pp->sectorsize, buf, pp->sectorsize);
 	if (error != 0) {
 		G_RAID_DEBUG(1, "Cannot erase metadata on %s (error=%d).",
 		    pp->name, error);
 	}
-	free(buf, M_MD_JMICRON);
+	free(buf, M_MD_NVIDIA);
 	return (error);
 }
 
 static struct g_raid_disk *
-g_raid_md_jmicron_get_disk(struct g_raid_softc *sc, int id)
+g_raid_md_nvidia_get_disk(struct g_raid_softc *sc, int id)
 {
 	struct g_raid_disk	*disk;
-	struct g_raid_md_jmicron_perdisk *pd;
+	struct g_raid_md_nvidia_perdisk *pd;
 
 	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-		pd = (struct g_raid_md_jmicron_perdisk *)disk->d_md_data;
+		pd = (struct g_raid_md_nvidia_perdisk *)disk->d_md_data;
 		if (pd->pd_disk_pos == id)
 			break;
 	}
@@ -363,11 +372,9 @@ g_raid_md_jmicron_get_disk(struct g_raid_softc *sc, int id)
 }
 
 static int
-g_raid_md_jmicron_supported(int level, int qual, int disks, int force)
+g_raid_md_nvidia_supported(int level, int qual, int disks, int force)
 {
 
-	if (disks > 8)
-		return (0);
 	switch (level) {
 	case G_RAID_VOLUME_RL_RAID0:
 		if (disks < 1)
@@ -384,13 +391,13 @@ g_raid_md_jmicron_supported(int level, int qual, int disks, int force)
 	case G_RAID_VOLUME_RL_RAID1E:
 		if (disks < 2)
 			return (0);
-		if (!force && (disks != 4))
+		if (disks % 2 != 0)
+			return (0);
+		if (!force && (disks < 4))
 			return (0);
 		break;
 	case G_RAID_VOLUME_RL_SINGLE:
 		if (disks != 1)
-			return (0);
-		if (!force)
 			return (0);
 		break;
 	case G_RAID_VOLUME_RL_CONCAT:
@@ -399,8 +406,6 @@ g_raid_md_jmicron_supported(int level, int qual, int disks, int force)
 		break;
 	case G_RAID_VOLUME_RL_RAID5:
 		if (disks < 3)
-			return (0);
-		if (!force)
 			return (0);
 		break;
 	default:
@@ -412,26 +417,33 @@ g_raid_md_jmicron_supported(int level, int qual, int disks, int force)
 }
 
 static int
-g_raid_md_jmicron_start_disk(struct g_raid_disk *disk)
+g_raid_md_nvidia_start_disk(struct g_raid_disk *disk)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_subdisk *sd, *tmpsd;
 	struct g_raid_disk *olddisk, *tmpdisk;
 	struct g_raid_md_object *md;
-	struct g_raid_md_jmicron_object *mdi;
-	struct g_raid_md_jmicron_perdisk *pd, *oldpd;
-	struct jmicron_raid_conf *meta;
+	struct g_raid_md_nvidia_object *mdi;
+	struct g_raid_md_nvidia_perdisk *pd, *oldpd;
+	struct nvidia_raid_conf *meta;
 	int disk_pos, resurrection = 0;
 
 	sc = disk->d_softc;
 	md = sc->sc_md;
-	mdi = (struct g_raid_md_jmicron_object *)md;
+	mdi = (struct g_raid_md_nvidia_object *)md;
 	meta = mdi->mdio_meta;
-	pd = (struct g_raid_md_jmicron_perdisk *)disk->d_md_data;
+	pd = (struct g_raid_md_nvidia_perdisk *)disk->d_md_data;
 	olddisk = NULL;
 
 	/* Find disk position in metadata by it's serial. */
-	disk_pos = jmicron_meta_find_disk(meta, pd->pd_disk_id);
+	if (pd->pd_meta != NULL) {
+		disk_pos = pd->pd_meta->disk_number;
+		if (disk_pos >= meta->total_disks || mdi->mdio_started)
+			disk_pos = -3;
+	} else
+		disk_pos = -3;
+	/* For RAID0+1 we need to translate order. */
+	disk_pos = nvidia_meta_translate_disk(meta, disk_pos);
 	if (disk_pos < 0) {
 		G_RAID_DEBUG1(1, sc, "Unknown, probably new or stale disk");
 		/* If we are in the start process, that's all for now. */
@@ -447,7 +459,7 @@ g_raid_md_jmicron_start_disk(struct g_raid_disk *disk)
 				continue;
 			/* Make sure this disk is big enough. */
 			TAILQ_FOREACH(sd, &tmpdisk->d_subdisks, sd_next) {
-				if (sd->sd_offset + sd->sd_size + 512 >
+				if (sd->sd_offset + sd->sd_size + 2 * 512 >
 				    pd->pd_disk_size) {
 					G_RAID_DEBUG1(1, sc,
 					    "Disk too small (%ju < %ju)",
@@ -466,24 +478,17 @@ g_raid_md_jmicron_start_disk(struct g_raid_disk *disk)
 		}
 		if (olddisk == NULL) {
 nofit:
-			if (disk_pos == -3 || pd->pd_disk_pos == -3) {
-				g_raid_change_disk_state(disk,
-				    G_RAID_DISK_S_SPARE);
-				return (1);
-			} else {
-				g_raid_change_disk_state(disk,
-				    G_RAID_DISK_S_STALE);
-				return (0);
-			}
+			g_raid_change_disk_state(disk, G_RAID_DISK_S_SPARE);
+			return (1);
 		}
-		oldpd = (struct g_raid_md_jmicron_perdisk *)olddisk->d_md_data;
+		oldpd = (struct g_raid_md_nvidia_perdisk *)olddisk->d_md_data;
 		disk_pos = oldpd->pd_disk_pos;
 		resurrection = 1;
 	}
 
 	if (olddisk == NULL) {
 		/* Find placeholder by position. */
-		olddisk = g_raid_md_jmicron_get_disk(sc, disk_pos);
+		olddisk = g_raid_md_nvidia_get_disk(sc, disk_pos);
 		if (olddisk == NULL)
 			panic("No disk at position %d!", disk_pos);
 		if (olddisk->d_state != G_RAID_DISK_S_OFFLINE) {
@@ -492,7 +497,7 @@ nofit:
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_STALE);
 			return (0);
 		}
-		oldpd = (struct g_raid_md_jmicron_perdisk *)olddisk->d_md_data;
+		oldpd = (struct g_raid_md_nvidia_perdisk *)olddisk->d_md_data;
 	}
 
 	/* Replace failed disk or placeholder with new disk. */
@@ -503,8 +508,6 @@ nofit:
 	}
 	oldpd->pd_disk_pos = -2;
 	pd->pd_disk_pos = disk_pos;
-	/* Update global metadata just in case. */
-	meta->disks[disk_pos] = pd->pd_disk_id;
 
 	/* If it was placeholder -- destroy it. */
 	if (olddisk->d_state == G_RAID_DISK_S_OFFLINE) {
@@ -515,34 +518,39 @@ nofit:
 	}
 
 	/* Welcome the new disk. */
-	g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
+	if (resurrection)
+		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
+	else// if (pd->pd_meta->disk_status == NVIDIA_S_CURRENT ||
+	    //pd->pd_meta->disk_status == NVIDIA_S_REBUILD)
+		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
+//	else
+//		g_raid_change_disk_state(disk, G_RAID_DISK_S_FAILED);
 	TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
 
 		/*
-		 * Different disks may have different sizes/offsets,
-		 * especially in concat mode. Update.
+		 * Different disks may have different sizes,
+		 * in concat mode. Update from real disk size.
 		 */
-		if (pd->pd_meta != NULL && !resurrection) {
-			sd->sd_offset =
-			    (off_t)pd->pd_meta->offset * 16 * 512; //ZZZ
-			sd->sd_size =
-			    (((off_t)pd->pd_meta->disk_sectors_high << 16) +
-			      pd->pd_meta->disk_sectors_low) * 512;
-		}
+		if (meta->type == NVIDIA_T_CONCAT)
+			sd->sd_size = pd->pd_disk_size - 0x800 * 512;
 
 		if (resurrection) {
-			/* Stale disk, almost same as new. */
+			/* New or ex-spare disk. */
 			g_raid_change_subdisk_state(sd,
 			    G_RAID_SUBDISK_S_NEW);
-		} else if ((meta->flags & JMICRON_F_BADSEC) != 0 &&
-		    (pd->pd_meta->flags & JMICRON_F_BADSEC) == 0) {
-			/* Cold-inserted or rebuilding disk. */
+		} else if (meta->state == NVIDIA_S_REBUILD &&
+		    (pd->pd_meta->disk_status & 0x100)) {
+			/* Rebuilding disk. */
 			g_raid_change_subdisk_state(sd,
-			    G_RAID_SUBDISK_S_NEW);
-		} else if (pd->pd_meta->flags & JMICRON_F_UNSYNC) {
-			/* Dirty or resyncing disk.. */
+			    G_RAID_SUBDISK_S_REBUILD);
+			sd->sd_rebuild_pos = (off_t)pd->pd_meta->rebuild_lba /
+			    meta->array_width * pd->pd_meta->sector_size;
+		} else if (meta->state == NVIDIA_S_SYNC) {
+			/* Resyncing/dirty disk. */
 			g_raid_change_subdisk_state(sd,
-			    G_RAID_SUBDISK_S_STALE);
+			    G_RAID_SUBDISK_S_RESYNC);
+			sd->sd_rebuild_pos = (off_t)pd->pd_meta->rebuild_lba /
+			    meta->array_width * pd->pd_meta->sector_size;
 		} else {
 			/* Up to date disk. */
 			g_raid_change_subdisk_state(sd,
@@ -563,26 +571,26 @@ nofit:
 }
 
 static void
-g_disk_md_jmicron_retaste(void *arg, int pending)
+g_disk_md_nvidia_retaste(void *arg, int pending)
 {
 
 	G_RAID_DEBUG(1, "Array is not complete, trying to retaste.");
 	g_retaste(&g_raid_class);
-	free(arg, M_MD_JMICRON);
+	free(arg, M_MD_NVIDIA);
 }
 
 static void
-g_raid_md_jmicron_refill(struct g_raid_softc *sc)
+g_raid_md_nvidia_refill(struct g_raid_softc *sc)
 {
 	struct g_raid_md_object *md;
-	struct g_raid_md_jmicron_object *mdi;
-	struct jmicron_raid_conf *meta;
+	struct g_raid_md_nvidia_object *mdi;
+	struct nvidia_raid_conf *meta;
 	struct g_raid_disk *disk;
 	struct task *task;
 	int update, na;
 
 	md = sc->sc_md;
-	mdi = (struct g_raid_md_jmicron_object *)md;
+	mdi = (struct g_raid_md_nvidia_object *)md;
 	meta = mdi->mdio_meta;
 	update = 0;
 	do {
@@ -598,7 +606,7 @@ g_raid_md_jmicron_refill(struct g_raid_softc *sc)
 		/* Try to get use some of STALE disks. */
 		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 			if (disk->d_state == G_RAID_DISK_S_STALE) {
-				update += g_raid_md_jmicron_start_disk(disk);
+				update += g_raid_md_nvidia_start_disk(disk);
 				if (disk->d_state == G_RAID_DISK_S_ACTIVE)
 					break;
 			}
@@ -609,7 +617,7 @@ g_raid_md_jmicron_refill(struct g_raid_softc *sc)
 		/* Try to get use some of SPARE disks. */
 		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 			if (disk->d_state == G_RAID_DISK_S_SPARE) {
-				update += g_raid_md_jmicron_start_disk(disk);
+				update += g_raid_md_nvidia_start_disk(disk);
 				if (disk->d_state == G_RAID_DISK_S_ACTIVE)
 					break;
 			}
@@ -618,7 +626,7 @@ g_raid_md_jmicron_refill(struct g_raid_softc *sc)
 
 	/* Write new metadata if we changed something. */
 	if (update) {
-		g_raid_md_write_jmicron(md, NULL, NULL, NULL);
+		g_raid_md_write_nvidia(md, NULL, NULL, NULL);
 		meta = mdi->mdio_meta;
 	}
 
@@ -629,19 +637,19 @@ g_raid_md_jmicron_refill(struct g_raid_softc *sc)
 	/* Request retaste hoping to find spare. */
 	if (mdi->mdio_incomplete) {
 		task = malloc(sizeof(struct task),
-		    M_MD_JMICRON, M_WAITOK | M_ZERO);
-		TASK_INIT(task, 0, g_disk_md_jmicron_retaste, task);
+		    M_MD_NVIDIA, M_WAITOK | M_ZERO);
+		TASK_INIT(task, 0, g_disk_md_nvidia_retaste, task);
 		taskqueue_enqueue(taskqueue_swi, task);
 	}
 }
 
 static void
-g_raid_md_jmicron_start(struct g_raid_softc *sc)
+g_raid_md_nvidia_start(struct g_raid_softc *sc)
 {
 	struct g_raid_md_object *md;
-	struct g_raid_md_jmicron_object *mdi;
-	struct g_raid_md_jmicron_perdisk *pd;
-	struct jmicron_raid_conf *meta;
+	struct g_raid_md_nvidia_object *mdi;
+	struct g_raid_md_nvidia_perdisk *pd;
+	struct nvidia_raid_conf *meta;
 	struct g_raid_volume *vol;
 	struct g_raid_subdisk *sd;
 	struct g_raid_disk *disk;
@@ -650,52 +658,54 @@ g_raid_md_jmicron_start(struct g_raid_softc *sc)
 	char buf[17];
 
 	md = sc->sc_md;
-	mdi = (struct g_raid_md_jmicron_object *)md;
+	mdi = (struct g_raid_md_nvidia_object *)md;
 	meta = mdi->mdio_meta;
 
 	/* Create volumes and subdisks. */
-	jmicron_meta_get_name(meta, buf);
+	nvidia_meta_get_name(meta, buf);
 	vol = g_raid_create_volume(sc, buf, -1);
-	size = ((off_t)meta->disk_sectors_high << 16) + meta->disk_sectors_low;
-	size *= 512; //ZZZ
-	if (meta->type == JMICRON_T_RAID0) {
+	vol->v_mediasize = (off_t)meta->total_sectors * 512;
+	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
+	if (meta->type == NVIDIA_T_RAID0) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID0;
-		vol->v_mediasize = size * mdi->mdio_total_disks;
-	} else if (meta->type == JMICRON_T_RAID1) {
+		size = vol->v_mediasize / mdi->mdio_total_disks;
+	} else if (meta->type == NVIDIA_T_RAID1) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID1;
-		vol->v_mediasize = size;
-	} else if (meta->type == JMICRON_T_RAID01) {
+		size = vol->v_mediasize;
+	} else if (meta->type == NVIDIA_T_RAID01) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID1E;
-		vol->v_mediasize = size * mdi->mdio_total_disks / 2;
-	} else if (meta->type == JMICRON_T_CONCAT) {
+		size = vol->v_mediasize / (mdi->mdio_total_disks / 2);
+	} else if (meta->type == NVIDIA_T_CONCAT) {
 		if (mdi->mdio_total_disks == 1)
 			vol->v_raid_level = G_RAID_VOLUME_RL_SINGLE;
 		else
 			vol->v_raid_level = G_RAID_VOLUME_RL_CONCAT;
-		vol->v_mediasize = 0;
-	} else if (meta->type == JMICRON_T_RAID5) {
+		size = 0;
+	} else if (meta->type == NVIDIA_T_RAID5) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID5;
-		vol->v_mediasize = size * (mdi->mdio_total_disks - 1);
+		size = vol->v_mediasize / (mdi->mdio_total_disks - 1);
+	} else if (meta->type == NVIDIA_T_RAID5_SYM) {
+		vol->v_raid_level = G_RAID_VOLUME_RL_RAID5;
+//		vol->v_raid_level_qualifier = 0x03;
+		size = vol->v_mediasize / (mdi->mdio_total_disks - 1);
 	} else {
 		vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
-		vol->v_mediasize = 0;
+		size = 0;
 	}
-	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
-	vol->v_strip_size = 1024 << meta->stripe_shift; //ZZZ
+	vol->v_strip_size = meta->strip_sectors * 512; //ZZZ
 	vol->v_disks_count = mdi->mdio_total_disks;
 	vol->v_sectorsize = 512; //ZZZ
 	for (j = 0; j < vol->v_disks_count; j++) {
 		sd = &vol->v_subdisks[j];
-		sd->sd_offset = (off_t)meta->offset * 16 * 512; //ZZZ
+		sd->sd_offset = 0;
 		sd->sd_size = size;
 	}
 	g_raid_start_volume(vol);
 
 	/* Create disk placeholders to store data for later writing. */
 	for (disk_pos = 0; disk_pos < mdi->mdio_total_disks; disk_pos++) {
-		pd = malloc(sizeof(*pd), M_MD_JMICRON, M_WAITOK | M_ZERO);
+		pd = malloc(sizeof(*pd), M_MD_NVIDIA, M_WAITOK | M_ZERO);
 		pd->pd_disk_pos = disk_pos;
-		pd->pd_disk_id = meta->disks[disk_pos];
 		disk = g_raid_create_disk(sc);
 		disk->d_md_data = (void *)pd;
 		disk->d_state = G_RAID_DISK_S_OFFLINE;
@@ -708,7 +718,7 @@ g_raid_md_jmicron_start(struct g_raid_softc *sc)
 	do {
 		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 			if (disk->d_state == G_RAID_DISK_S_NONE) {
-				g_raid_md_jmicron_start_disk(disk);
+				g_raid_md_nvidia_start_disk(disk);
 				break;
 			}
 		}
@@ -716,10 +726,10 @@ g_raid_md_jmicron_start(struct g_raid_softc *sc)
 
 	mdi->mdio_started = 1;
 	G_RAID_DEBUG1(0, sc, "Array started.");
-	g_raid_md_write_jmicron(md, NULL, NULL, NULL);
+	g_raid_md_write_nvidia(md, NULL, NULL, NULL);
 
 	/* Pickup any STALE/SPARE disks to refill array if needed. */
-	g_raid_md_jmicron_refill(sc);
+	g_raid_md_nvidia_refill(sc);
 
 	g_raid_event_send(vol, G_RAID_VOLUME_E_START, G_RAID_EVENT_VOLUME);
 
@@ -730,61 +740,56 @@ g_raid_md_jmicron_start(struct g_raid_softc *sc)
 }
 
 static void
-g_raid_md_jmicron_new_disk(struct g_raid_disk *disk)
+g_raid_md_nvidia_new_disk(struct g_raid_disk *disk)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_md_object *md;
-	struct g_raid_md_jmicron_object *mdi;
-	struct jmicron_raid_conf *pdmeta;
-	struct g_raid_md_jmicron_perdisk *pd;
+	struct g_raid_md_nvidia_object *mdi;
+	struct nvidia_raid_conf *pdmeta;
+	struct g_raid_md_nvidia_perdisk *pd;
 
 	sc = disk->d_softc;
 	md = sc->sc_md;
-	mdi = (struct g_raid_md_jmicron_object *)md;
-	pd = (struct g_raid_md_jmicron_perdisk *)disk->d_md_data;
+	mdi = (struct g_raid_md_nvidia_object *)md;
+	pd = (struct g_raid_md_nvidia_perdisk *)disk->d_md_data;
 	pdmeta = pd->pd_meta;
 
 	if (mdi->mdio_started) {
-		if (g_raid_md_jmicron_start_disk(disk))
-			g_raid_md_write_jmicron(md, NULL, NULL, NULL);
+		if (g_raid_md_nvidia_start_disk(disk))
+			g_raid_md_write_nvidia(md, NULL, NULL, NULL);
 	} else {
-		/*
-		 * If we haven't started yet - update common metadata
-		 * to get subdisks details, avoiding data from spare disks.
-		 */
 		if (mdi->mdio_meta == NULL ||
-		    jmicron_meta_find_disk(mdi->mdio_meta,
-		     mdi->mdio_meta->disk_id) == -3) {
+		    mdi->mdio_meta->disk_number >= mdi->mdio_meta->total_disks) {
+			G_RAID_DEBUG1(1, sc, "Newer disk");
 			if (mdi->mdio_meta != NULL)
-				free(mdi->mdio_meta, M_MD_JMICRON);
-			mdi->mdio_meta = jmicron_meta_copy(pdmeta);
-			mdi->mdio_total_disks = jmicron_meta_total_disks(pdmeta);
-		}
-		mdi->mdio_meta->flags |= pdmeta->flags & JMICRON_F_BADSEC;
-
-		mdi->mdio_disks_present++;
-		G_RAID_DEBUG1(1, sc, "Matching disk (%d of %d+%d up)",
-		    mdi->mdio_disks_present,
-		    mdi->mdio_total_disks,
-		    jmicron_meta_total_spare(mdi->mdio_meta));
+				free(mdi->mdio_meta, M_MD_NVIDIA);
+			mdi->mdio_meta = nvidia_meta_copy(pdmeta);
+			mdi->mdio_total_disks = pdmeta->total_disks;
+			mdi->mdio_disks_present = 1;
+		} else if (pdmeta->disk_number < mdi->mdio_meta->total_disks) {
+			mdi->mdio_disks_present++;
+			G_RAID_DEBUG1(1, sc, "Matching disk (%d of %d up)",
+			    mdi->mdio_disks_present,
+			    mdi->mdio_total_disks);
+		} else
+			G_RAID_DEBUG1(1, sc, "Spare disk");
 
 		/* If we collected all needed disks - start array. */
-		if (mdi->mdio_disks_present == mdi->mdio_total_disks +
-		    jmicron_meta_total_spare(mdi->mdio_meta))
-			g_raid_md_jmicron_start(sc);
+		if (mdi->mdio_disks_present == mdi->mdio_total_disks)
+			g_raid_md_nvidia_start(sc);
 	}
 }
 
 static void
-g_raid_jmicron_go(void *arg)
+g_raid_nvidia_go(void *arg)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_md_object *md;
-	struct g_raid_md_jmicron_object *mdi;
+	struct g_raid_md_nvidia_object *mdi;
 
 	sc = arg;
 	md = sc->sc_md;
-	mdi = (struct g_raid_md_jmicron_object *)md;
+	mdi = (struct g_raid_md_nvidia_object *)md;
 	if (!mdi->mdio_started) {
 		G_RAID_DEBUG1(0, sc, "Force array start due to timeout.");
 		g_raid_event_send(sc, G_RAID_NODE_E_START, 0);
@@ -792,16 +797,17 @@ g_raid_jmicron_go(void *arg)
 }
 
 static int
-g_raid_md_create_jmicron(struct g_raid_md_object *md, struct g_class *mp,
+g_raid_md_create_nvidia(struct g_raid_md_object *md, struct g_class *mp,
     struct g_geom **gp)
 {
 	struct g_raid_softc *sc;
-	struct g_raid_md_jmicron_object *mdi;
-	char name[16];
+	struct g_raid_md_nvidia_object *mdi;
+	char name[32];
 
-	mdi = (struct g_raid_md_jmicron_object *)md;
-	mdi->mdio_config_id = arc4random();
-	snprintf(name, sizeof(name), "JMicron-%08x", mdi->mdio_config_id);
+	mdi = (struct g_raid_md_nvidia_object *)md;
+	arc4rand(&mdi->mdio_volume_id, 16, 0);
+	snprintf(name, sizeof(name), "NVIDIA-%d",
+	    atomic_fetchadd_int(&NVIDIANodeID, 1));
 	sc = g_raid_create_node(mp, name, md);
 	if (sc == NULL)
 		return (G_RAID_MD_TASTE_FAIL);
@@ -811,23 +817,23 @@ g_raid_md_create_jmicron(struct g_raid_md_object *md, struct g_class *mp,
 }
 
 static int
-g_raid_md_taste_jmicron(struct g_raid_md_object *md, struct g_class *mp,
+g_raid_md_taste_nvidia(struct g_raid_md_object *md, struct g_class *mp,
                               struct g_consumer *cp, struct g_geom **gp)
 {
 	struct g_consumer *rcp;
 	struct g_provider *pp;
-	struct g_raid_md_jmicron_object *mdi, *mdi1;
+	struct g_raid_md_nvidia_object *mdi, *mdi1;
 	struct g_raid_softc *sc;
 	struct g_raid_disk *disk;
-	struct jmicron_raid_conf *meta;
-	struct g_raid_md_jmicron_perdisk *pd;
+	struct nvidia_raid_conf *meta;
+	struct g_raid_md_nvidia_perdisk *pd;
 	struct g_geom *geom;
 	int error, disk_pos, result, spare, len;
-	char name[16];
+	char name[32];
 	uint16_t vendor;
 
-	G_RAID_DEBUG(1, "Tasting JMicron on %s", cp->provider->name);
-	mdi = (struct g_raid_md_jmicron_object *)md;
+	G_RAID_DEBUG(1, "Tasting NVIDIA on %s", cp->provider->name);
+	mdi = (struct g_raid_md_nvidia_object *)md;
 	pp = cp->provider;
 
 	/* Read metadata from device. */
@@ -841,19 +847,19 @@ g_raid_md_taste_jmicron(struct g_raid_md_object *md, struct g_class *mp,
 	len = 2;
 	if (pp->geom->rank == 1)
 		g_io_getattr("GEOM::hba_vendor", cp, &len, &vendor);
-	meta = jmicron_meta_read(cp);
+	meta = nvidia_meta_read(cp);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
 	if (meta == NULL) {
 		if (g_raid_aggressive_spare) {
-			if (vendor == 0x197b) {
+			if (vendor == 0x10de) {
 				G_RAID_DEBUG(1,
-				    "No JMicron metadata, forcing spare.");
+				    "No NVIDIA metadata, forcing spare.");
 				spare = 2;
 				goto search;
 			} else {
 				G_RAID_DEBUG(1,
-				    "JMicron vendor mismatch 0x%04x != 0x197b",
+				    "NVIDIA vendor mismatch 0x%04x != 0x10de",
 				    vendor);
 			}
 		}
@@ -861,17 +867,16 @@ g_raid_md_taste_jmicron(struct g_raid_md_object *md, struct g_class *mp,
 	}
 
 	/* Check this disk position in obtained metadata. */
-	disk_pos = jmicron_meta_find_disk(meta, meta->disk_id);
+	disk_pos = meta->disk_number;
 	if (disk_pos == -1) {
-		G_RAID_DEBUG(1, "JMicron disk_id %08x not found",
-		    meta->disk_id);
+		G_RAID_DEBUG(1, "NVIDIA disk position not found");
 		goto fail1;
 	}
 
 	/* Metadata valid. Print it. */
-	g_raid_md_jmicron_print(meta);
-	G_RAID_DEBUG(1, "JMicron disk position %d", disk_pos);
-	spare = (disk_pos == -2) ? 1 : 0;
+	g_raid_md_nvidia_print(meta);
+	G_RAID_DEBUG(1, "NVIDIA disk position %d", disk_pos);
+	spare = 0;//(meta->type == NVIDIA_T_SPARE) ? 1 : 0;
 
 search:
 	/* Search for matching node. */
@@ -885,13 +890,13 @@ search:
 			continue;
 		if (sc->sc_md->mdo_class != md->mdo_class)
 			continue;
-		mdi1 = (struct g_raid_md_jmicron_object *)sc->sc_md;
-		if (spare == 2) {
+		mdi1 = (struct g_raid_md_nvidia_object *)sc->sc_md;
+		if (spare) {
 			if (mdi1->mdio_incomplete)
 				break;
 		} else {
-			if (mdi1->mdio_config_id ==
-			    jmicron_meta_config_id(meta))
+			if (memcmp(&mdi1->mdio_volume_id,
+			     &meta->volume_id, 16) == 0)
 				break;
 		}
 	}
@@ -907,16 +912,16 @@ search:
 
 	} else { /* Not found matching node -- create one. */
 		result = G_RAID_MD_TASTE_NEW;
-		mdi->mdio_config_id = jmicron_meta_config_id(meta);
-		snprintf(name, sizeof(name), "JMicron-%08x",
-		    mdi->mdio_config_id);
+		memcpy(&mdi->mdio_volume_id, &meta->volume_id, 16);
+		snprintf(name, sizeof(name), "NVIDIA-%d",
+		    atomic_fetchadd_int(&NVIDIANodeID, 1));
 		sc = g_raid_create_node(mp, name, md);
 		md->mdo_softc = sc;
 		geom = sc->sc_geom;
 		callout_init(&mdi->mdio_start_co, 1);
 		callout_reset(&mdi->mdio_start_co, g_raid_start_timeout * hz,
-		    g_raid_jmicron_go, sc);
-		mdi->mdio_rootmount = root_mount_hold("GRAID-JMicron");
+		    g_raid_nvidia_go, sc);
+		mdi->mdio_rootmount = root_mount_hold("GRAID-NVIDIA");
 		G_RAID_DEBUG1(1, sc, "root_mount_hold %p", mdi->mdio_rootmount);
 	}
 
@@ -928,14 +933,12 @@ search:
 	g_topology_unlock();
 	sx_xlock(&sc->sc_lock);
 
-	pd = malloc(sizeof(*pd), M_MD_JMICRON, M_WAITOK | M_ZERO);
+	pd = malloc(sizeof(*pd), M_MD_NVIDIA, M_WAITOK | M_ZERO);
 	pd->pd_meta = meta;
 	if (spare == 2) {
 		pd->pd_disk_pos = -3;
-		pd->pd_disk_id = arc4random() & JMICRON_DISK_MASK;
 	} else {
 		pd->pd_disk_pos = -1;
-		pd->pd_disk_id = meta->disk_id;
 	}
 	pd->pd_disk_size = pp->mediasize;
 	disk = g_raid_create_disk(sc);
@@ -952,38 +955,41 @@ search:
 		G_RAID_DEBUG1(2, sc, "Dumping not supported by %s: %d.", 
 		    rcp->provider->name, error);
 
-	g_raid_md_jmicron_new_disk(disk);
+	g_raid_md_nvidia_new_disk(disk);
 
 	sx_xunlock(&sc->sc_lock);
 	g_topology_lock();
 	*gp = geom;
 	return (result);
 fail1:
-	free(meta, M_MD_JMICRON);
+	free(meta, M_MD_NVIDIA);
 	return (G_RAID_MD_TASTE_FAIL);
 }
 
 static int
-g_raid_md_event_jmicron(struct g_raid_md_object *md,
+g_raid_md_event_nvidia(struct g_raid_md_object *md,
     struct g_raid_disk *disk, u_int event)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_subdisk *sd;
-	struct g_raid_md_jmicron_object *mdi;
-	struct g_raid_md_jmicron_perdisk *pd;
+	struct g_raid_md_nvidia_object *mdi;
+	struct g_raid_md_nvidia_perdisk *pd;
 
 	sc = md->mdo_softc;
-	mdi = (struct g_raid_md_jmicron_object *)md;
+	mdi = (struct g_raid_md_nvidia_object *)md;
 	if (disk == NULL) {
 		switch (event) {
 		case G_RAID_NODE_E_START:
-			if (!mdi->mdio_started)
-				g_raid_md_jmicron_start(sc);
+			if (!mdi->mdio_started) {
+				/* Bump volume ID to drop missing disks. */
+				arc4rand(&mdi->mdio_volume_id, 16, 0);
+				g_raid_md_nvidia_start(sc);
+			}
 			return (0);
 		}
 		return (-1);
 	}
-	pd = (struct g_raid_md_jmicron_perdisk *)disk->d_md_data;
+	pd = (struct g_raid_md_nvidia_perdisk *)disk->d_md_data;
 	switch (event) {
 	case G_RAID_DISK_E_DISCONNECTED:
 		/* If disk was assigned, just update statuses. */
@@ -1005,30 +1011,36 @@ g_raid_md_event_jmicron(struct g_raid_md_object *md,
 			g_raid_destroy_disk(disk);
 		}
 
-		/* Write updated metadata to all disks. */
-		g_raid_md_write_jmicron(md, NULL, NULL, NULL);
+		if (mdi->mdio_started) {
+			/* Bump volume ID to prevent disk resurrection. */
+			if (pd->pd_disk_pos >= 0)
+				arc4rand(&mdi->mdio_volume_id, 16, 0);
+
+			/* Write updated metadata to all disks. */
+			g_raid_md_write_nvidia(md, NULL, NULL, NULL);
+		}
 
 		/* Check if anything left except placeholders. */
 		if (g_raid_ndisks(sc, -1) ==
 		    g_raid_ndisks(sc, G_RAID_DISK_S_OFFLINE))
 			g_raid_destroy_node(sc, 0);
 		else
-			g_raid_md_jmicron_refill(sc);
+			g_raid_md_nvidia_refill(sc);
 		return (0);
 	}
 	return (-2);
 }
 
 static int
-g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
+g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
     struct gctl_req *req)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
 	struct g_raid_subdisk *sd;
 	struct g_raid_disk *disk;
-	struct g_raid_md_jmicron_object *mdi;
-	struct g_raid_md_jmicron_perdisk *pd;
+	struct g_raid_md_nvidia_object *mdi;
+	struct g_raid_md_nvidia_perdisk *pd;
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	char arg[16];
@@ -1040,7 +1052,7 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 	int error;
 
 	sc = md->mdo_softc;
-	mdi = (struct g_raid_md_jmicron_object *)md;
+	mdi = (struct g_raid_md_nvidia_object *)md;
 	verb = gctl_get_param(req, "verb", NULL);
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	error = 0;
@@ -1066,7 +1078,7 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 		}
 		numdisks = *nargs - 3;
 		force = gctl_get_paraml(req, "force", sizeof(*force));
-		if (!g_raid_md_jmicron_supported(level, qual, numdisks,
+		if (!g_raid_md_nvidia_supported(level, qual, numdisks,
 		    force ? *force : 0)) {
 			gctl_error(req, "Unsupported RAID level "
 			    "(0x%02x/0x%02x), or number of disks (%d).",
@@ -1100,9 +1112,8 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 				}
 				pp = cp->provider;
 			}
-			pd = malloc(sizeof(*pd), M_MD_JMICRON, M_WAITOK | M_ZERO);
+			pd = malloc(sizeof(*pd), M_MD_NVIDIA, M_WAITOK | M_ZERO);
 			pd->pd_disk_pos = i;
-			pd->pd_disk_id = arc4random() & JMICRON_DISK_MASK;
 			disk = g_raid_create_disk(sc);
 			disk->d_md_data = (void *)pd;
 			disk->d_consumer = cp;
@@ -1131,7 +1142,7 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 			return (error);
 
 		/* Reserve space for metadata. */
-		size -= sectorsize;
+		size -= 2 * sectorsize;
 
 		/* Handle size argument. */
 		len = sizeof(*sizearg);
@@ -1210,7 +1221,7 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 
 		/* , and subdisks. */
 		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-			pd = (struct g_raid_md_jmicron_perdisk *)disk->d_md_data;
+			pd = (struct g_raid_md_nvidia_perdisk *)disk->d_md_data;
 			sd = &vol->v_subdisks[pd->pd_disk_pos];
 			sd->sd_disk = disk;
 			sd->sd_offset = 0;
@@ -1230,10 +1241,10 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 
 		/* Write metadata based on created entities. */
 		G_RAID_DEBUG1(0, sc, "Array started.");
-		g_raid_md_write_jmicron(md, NULL, NULL, NULL);
+		g_raid_md_write_nvidia(md, NULL, NULL, NULL);
 
 		/* Pickup any STALE/SPARE disks to refill array if needed. */
-		g_raid_md_jmicron_refill(sc);
+		g_raid_md_nvidia_refill(sc);
 
 		g_raid_event_send(vol, G_RAID_VOLUME_E_START,
 		    G_RAID_EVENT_VOLUME);
@@ -1251,7 +1262,7 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 
 		TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 			if (disk->d_consumer)
-				jmicron_meta_erase(disk->d_consumer);
+				nvidia_meta_erase(disk->d_consumer);
 		}
 		g_raid_destroy_node(sc, 0);
 		return (0);
@@ -1288,14 +1299,14 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 			}
 
 			if (strcmp(verb, "fail") == 0) {
-				g_raid_md_fail_disk_jmicron(md, NULL, disk);
+				g_raid_md_fail_disk_nvidia(md, NULL, disk);
 				continue;
 			}
 
-			pd = (struct g_raid_md_jmicron_perdisk *)disk->d_md_data;
+			pd = (struct g_raid_md_nvidia_perdisk *)disk->d_md_data;
 
 			/* Erase metadata on deleting disk. */
-			jmicron_meta_erase(disk->d_consumer);
+			nvidia_meta_erase(disk->d_consumer);
 
 			/* If disk was assigned, just update statuses. */
 			if (pd->pd_disk_pos >= 0) {
@@ -1318,14 +1329,14 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 		}
 
 		/* Write updated metadata to remaining disks. */
-		g_raid_md_write_jmicron(md, NULL, NULL, NULL);
+		g_raid_md_write_nvidia(md, NULL, NULL, NULL);
 
 		/* Check if anything left except placeholders. */
 		if (g_raid_ndisks(sc, -1) ==
 		    g_raid_ndisks(sc, G_RAID_DISK_S_OFFLINE))
 			g_raid_destroy_node(sc, 0);
 		else
-			g_raid_md_jmicron_refill(sc);
+			g_raid_md_nvidia_refill(sc);
 		return (error);
 	}
 	if (strcmp(verb, "insert") == 0) {
@@ -1356,9 +1367,8 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 			}
 			pp = cp->provider;
 
-			pd = malloc(sizeof(*pd), M_MD_JMICRON, M_WAITOK | M_ZERO);
+			pd = malloc(sizeof(*pd), M_MD_NVIDIA, M_WAITOK | M_ZERO);
 			pd->pd_disk_pos = -3;
-			pd->pd_disk_id = arc4random() & JMICRON_DISK_MASK;
 			pd->pd_disk_size = pp->mediasize;
 
 			disk = g_raid_create_disk(sc);
@@ -1379,9 +1389,9 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 				    cp->provider->name);
 
 			/* Welcome the "new" disk. */
-			update += g_raid_md_jmicron_start_disk(disk);
-			if (disk->d_state != G_RAID_DISK_S_ACTIVE &&
-			    disk->d_state != G_RAID_DISK_S_SPARE) {
+			update += g_raid_md_nvidia_start_disk(disk);
+			if (disk->d_state != G_RAID_DISK_S_SPARE &&
+			    disk->d_state != G_RAID_DISK_S_ACTIVE) {
 				gctl_error(req, "Disk '%s' doesn't fit.",
 				    diskname);
 				g_raid_destroy_disk(disk);
@@ -1392,7 +1402,7 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 
 		/* Write new metadata if we changed something. */
 		if (update)
-			g_raid_md_write_jmicron(md, NULL, NULL, NULL);
+			g_raid_md_write_nvidia(md, NULL, NULL, NULL);
 		return (error);
 	}
 	gctl_error(req, "Command '%s' is not supported.", verb);
@@ -1400,20 +1410,20 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 }
 
 static int
-g_raid_md_write_jmicron(struct g_raid_md_object *md, struct g_raid_volume *tvol,
+g_raid_md_write_nvidia(struct g_raid_md_object *md, struct g_raid_volume *tvol,
     struct g_raid_subdisk *tsd, struct g_raid_disk *tdisk)
 {
 	struct g_raid_softc *sc;
 	struct g_raid_volume *vol;
 	struct g_raid_subdisk *sd;
 	struct g_raid_disk *disk;
-	struct g_raid_md_jmicron_object *mdi;
-	struct g_raid_md_jmicron_perdisk *pd;
-	struct jmicron_raid_conf *meta;
+	struct g_raid_md_nvidia_object *mdi;
+	struct g_raid_md_nvidia_perdisk *pd;
+	struct nvidia_raid_conf *meta;
 	int i, spares;
 
 	sc = md->mdo_softc;
-	mdi = (struct g_raid_md_jmicron_object *)md;
+	mdi = (struct g_raid_md_nvidia_object *)md;
 
 	if (sc->sc_stopping == G_RAID_DESTROY_HARD)
 		return (0);
@@ -1422,104 +1432,119 @@ g_raid_md_write_jmicron(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	vol = TAILQ_FIRST(&sc->sc_volumes);
 
 	/* Fill global fields. */
-	meta = malloc(sizeof(*meta), M_MD_JMICRON, M_WAITOK | M_ZERO);
-	strncpy(meta->signature, JMICRON_MAGIC, 2);
-	meta->version = JMICRON_VERSION;
-	jmicron_meta_put_name(meta, vol->v_name);
-	if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID0)
-		meta->type = JMICRON_T_RAID0;
-	else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1)
-		meta->type = JMICRON_T_RAID1;
+	meta = malloc(sizeof(*meta), M_MD_NVIDIA, M_WAITOK | M_ZERO);
+	if (mdi->mdio_meta)
+		memcpy(meta, mdi->mdio_meta, sizeof(*meta));
+	memcpy(meta->nvidia_id, NVIDIA_MAGIC, sizeof(NVIDIA_MAGIC));
+	meta->config_size = 30;
+	meta->version = 0x0064;
+	meta->total_sectors = vol->v_mediasize / vol->v_sectorsize;
+	meta->sector_size = vol->v_sectorsize;
+	nvidia_meta_put_name(meta, vol->v_name);
+	meta->magic_0 = NVIDIA_MAGIC0;
+	memcpy(&meta->volume_id, &mdi->mdio_volume_id, 16);
+	meta->state = NVIDIA_S_IDLE;
+	if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1)
+		meta->array_width = 1;
 	else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1E)
-		meta->type = JMICRON_T_RAID01;
+		meta->array_width = vol->v_disks_count / 2;
+	else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID5)
+		meta->array_width = vol->v_disks_count - 1;
+	else
+		meta->array_width = vol->v_disks_count;
+	meta->total_disks = vol->v_disks_count;
+	meta->orig_array_width = meta->array_width;
+	if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID0)
+		meta->type = NVIDIA_T_RAID0;
+	else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1)
+		meta->type = NVIDIA_T_RAID1;
+	else if (vol->v_raid_level == G_RAID_VOLUME_RL_RAID1E)
+		meta->type = NVIDIA_T_RAID01;
 	else if (vol->v_raid_level == G_RAID_VOLUME_RL_CONCAT ||
 	    vol->v_raid_level == G_RAID_VOLUME_RL_SINGLE)
-		meta->type = JMICRON_T_CONCAT;
+		meta->type = NVIDIA_T_CONCAT;
+//	else if (vol->v_raid_level_qualifier == 0)
+//		meta->type = NVIDIA_T_RAID5;
 	else
-		meta->type = JMICRON_T_RAID5;
-	meta->stripe_shift = fls(vol->v_strip_size / 2048);
-	meta->flags = JMICRON_F_READY | JMICRON_F_BOOTABLE;
+		meta->type = NVIDIA_T_RAID5_SYM;
+	meta->strip_sectors = vol->v_strip_size / vol->v_sectorsize;
+	meta->strip_bytes = vol->v_strip_size;
+	meta->strip_shift = ffs(meta->strip_sectors) - 1;
+	meta->strip_mask = meta->strip_sectors - 1;
+	meta->stripe_sectors = meta->strip_sectors * meta->orig_array_width;
+	meta->stripe_bytes = meta->stripe_sectors * vol->v_sectorsize;
+	meta->rebuild_lba = 0;
+	meta->orig_type = meta->type;
+	meta->orig_total_sectors = meta->total_sectors;
+	meta->status = 0;
+
 	for (i = 0; i < vol->v_disks_count; i++) {
 		sd = &vol->v_subdisks[i];
-		if (sd->sd_disk == NULL || sd->sd_disk->d_md_data == NULL)
-			meta->disks[i] = 0xffffffff;
-		else {
-			pd = (struct g_raid_md_jmicron_perdisk *)
-			    sd->sd_disk->d_md_data;
-			meta->disks[i] = pd->pd_disk_id;
-		}
-		if (sd->sd_state < G_RAID_SUBDISK_S_STALE)
-			meta->flags |= JMICRON_F_BADSEC;
-		if (vol->v_dirty)
-			meta->flags |= JMICRON_F_UNSYNC;
-	}
-
-	/* Put spares to their slots. */
-	spares = 0;
-	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-		pd = (struct g_raid_md_jmicron_perdisk *)disk->d_md_data;
-		if (disk->d_state != G_RAID_DISK_S_SPARE)
-			continue;
-		meta->spare[spares] = pd->pd_disk_id;
-		if (++spares >= 2)
-			break;
+		if ((sd->sd_state == G_RAID_SUBDISK_S_STALE ||
+		     sd->sd_state == G_RAID_SUBDISK_S_RESYNC ||
+		     vol->v_dirty) &&
+		     meta->state != NVIDIA_S_REBUILD)
+			meta->state = NVIDIA_S_SYNC;
+		else if (sd->sd_state == G_RAID_SUBDISK_S_NEW ||
+		     sd->sd_state == G_RAID_SUBDISK_S_REBUILD)
+			meta->state = NVIDIA_S_REBUILD;
 	}
 
 	/* We are done. Print meta data and store them to disks. */
 	if (mdi->mdio_meta != NULL)
-		free(mdi->mdio_meta, M_MD_JMICRON);
+		free(mdi->mdio_meta, M_MD_NVIDIA);
 	mdi->mdio_meta = meta;
-	i = 0;
+	spares = 0;
 	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
-		pd = (struct g_raid_md_jmicron_perdisk *)disk->d_md_data;
+		pd = (struct g_raid_md_nvidia_perdisk *)disk->d_md_data;
 		if (disk->d_state != G_RAID_DISK_S_ACTIVE &&
 		    disk->d_state != G_RAID_DISK_S_SPARE)
 			continue;
 		if (pd->pd_meta != NULL) {
-			free(pd->pd_meta, M_MD_JMICRON);
+			free(pd->pd_meta, M_MD_NVIDIA);
 			pd->pd_meta = NULL;
 		}
-		pd->pd_meta = jmicron_meta_copy(meta);
-		pd->pd_meta->disk_id = pd->pd_disk_id;
+		pd->pd_meta = nvidia_meta_copy(meta);
 		if ((sd = TAILQ_FIRST(&disk->d_subdisks)) != NULL) {
-			pd->pd_meta->offset =
-			    (sd->sd_offset / 512) / 16;
-			pd->pd_meta->disk_sectors_high =
-			    (sd->sd_size / 512) >> 16;
-			pd->pd_meta->disk_sectors_low =
-			    (sd->sd_size / 512) & 0xffff;
-			if (sd->sd_state < G_RAID_SUBDISK_S_STALE)
-				pd->pd_meta->flags &= ~JMICRON_F_BADSEC;
-			else if (sd->sd_state < G_RAID_SUBDISK_S_ACTIVE)
-				pd->pd_meta->flags |= JMICRON_F_UNSYNC;
-		}
-		G_RAID_DEBUG(1, "Writing JMicron metadata to %s",
+			/* For RAID0+1 we need to translate order. */
+			pd->pd_meta->disk_number =
+			    nvidia_meta_translate_disk(meta, sd->sd_pos);
+			if (sd->sd_state != G_RAID_SUBDISK_S_ACTIVE) {
+				pd->pd_meta->disk_status = 0x100;
+				pd->pd_meta->rebuild_lba =
+				    sd->sd_rebuild_pos / vol->v_sectorsize *
+				    meta->array_width;
+			}
+		} else
+			pd->pd_meta->disk_number = meta->total_disks + spares++;
+		G_RAID_DEBUG(1, "Writing NVIDIA metadata to %s",
 		    g_raid_get_diskname(disk));
-		g_raid_md_jmicron_print(pd->pd_meta);
-		jmicron_meta_write(disk->d_consumer, pd->pd_meta);
+		g_raid_md_nvidia_print(pd->pd_meta);
+		nvidia_meta_write(disk->d_consumer, pd->pd_meta);
 	}
 	return (0);
 }
 
 static int
-g_raid_md_fail_disk_jmicron(struct g_raid_md_object *md,
+g_raid_md_fail_disk_nvidia(struct g_raid_md_object *md,
     struct g_raid_subdisk *tsd, struct g_raid_disk *tdisk)
 {
 	struct g_raid_softc *sc;
-	struct g_raid_md_jmicron_object *mdi;
-	struct g_raid_md_jmicron_perdisk *pd;
+	struct g_raid_md_nvidia_object *mdi;
+	struct g_raid_md_nvidia_perdisk *pd;
 	struct g_raid_subdisk *sd;
 
 	sc = md->mdo_softc;
-	mdi = (struct g_raid_md_jmicron_object *)md;
-	pd = (struct g_raid_md_jmicron_perdisk *)tdisk->d_md_data;
+	mdi = (struct g_raid_md_nvidia_object *)md;
+	pd = (struct g_raid_md_nvidia_perdisk *)tdisk->d_md_data;
 
 	/* We can't fail disk that is not a part of array now. */
 	if (pd->pd_disk_pos < 0)
 		return (-1);
 
+	/* Erase metadata to prevent disks's later resurrection. */
 	if (tdisk->d_consumer)
-		jmicron_meta_erase(tdisk->d_consumer);
+		nvidia_meta_erase(tdisk->d_consumer);
 
 	/* Change states. */
 	g_raid_change_disk_state(tdisk, G_RAID_DISK_S_FAILED);
@@ -1531,39 +1556,39 @@ g_raid_md_fail_disk_jmicron(struct g_raid_md_object *md,
 	}
 
 	/* Write updated metadata to remaining disks. */
-	g_raid_md_write_jmicron(md, NULL, NULL, tdisk);
+	g_raid_md_write_nvidia(md, NULL, NULL, tdisk);
 
 	/* Check if anything left except placeholders. */
 	if (g_raid_ndisks(sc, -1) ==
 	    g_raid_ndisks(sc, G_RAID_DISK_S_OFFLINE))
 		g_raid_destroy_node(sc, 0);
 	else
-		g_raid_md_jmicron_refill(sc);
+		g_raid_md_nvidia_refill(sc);
 	return (0);
 }
 
 static int
-g_raid_md_free_disk_jmicron(struct g_raid_md_object *md,
+g_raid_md_free_disk_nvidia(struct g_raid_md_object *md,
     struct g_raid_disk *disk)
 {
-	struct g_raid_md_jmicron_perdisk *pd;
+	struct g_raid_md_nvidia_perdisk *pd;
 
-	pd = (struct g_raid_md_jmicron_perdisk *)disk->d_md_data;
+	pd = (struct g_raid_md_nvidia_perdisk *)disk->d_md_data;
 	if (pd->pd_meta != NULL) {
-		free(pd->pd_meta, M_MD_JMICRON);
+		free(pd->pd_meta, M_MD_NVIDIA);
 		pd->pd_meta = NULL;
 	}
-	free(pd, M_MD_JMICRON);
+	free(pd, M_MD_NVIDIA);
 	disk->d_md_data = NULL;
 	return (0);
 }
 
 static int
-g_raid_md_free_jmicron(struct g_raid_md_object *md)
+g_raid_md_free_nvidia(struct g_raid_md_object *md)
 {
-	struct g_raid_md_jmicron_object *mdi;
+	struct g_raid_md_nvidia_object *mdi;
 
-	mdi = (struct g_raid_md_jmicron_object *)md;
+	mdi = (struct g_raid_md_nvidia_object *)md;
 	if (!mdi->mdio_started) {
 		mdi->mdio_started = 0;
 		callout_stop(&mdi->mdio_start_co);
@@ -1573,10 +1598,10 @@ g_raid_md_free_jmicron(struct g_raid_md_object *md)
 		mdi->mdio_rootmount = NULL;
 	}
 	if (mdi->mdio_meta != NULL) {
-		free(mdi->mdio_meta, M_MD_JMICRON);
+		free(mdi->mdio_meta, M_MD_NVIDIA);
 		mdi->mdio_meta = NULL;
 	}
 	return (0);
 }
 
-G_RAID_MD_DECLARE(g_raid_md_jmicron);
+G_RAID_MD_DECLARE(g_raid_md_nvidia);
