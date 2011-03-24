@@ -908,7 +908,7 @@ loginclass(KINFO *k, VARENT *ve)
 	 * and limits don't apply to system processes.
 	 */
 	if (k->ki_p->ki_flag & P_SYSTEM) {
-		(void)printf("%-*s", v->width, "  -");
+		(void)printf("%-*s", v->width, "-");
 		return;
 	}
 	s = k->ki_p->ki_loginclass;
@@ -947,4 +947,31 @@ s_label(KINFO *k)
 	}
 	mac_free(proclabel);
 	return (size);
+}
+
+int
+s_loginclass(KINFO *k)
+{
+	char *s;
+
+	if (k->ki_p->ki_flag & P_SYSTEM)
+		return (1);
+
+	s = k->ki_p->ki_loginclass;
+	if (s == NULL)
+		return (1);
+
+	return (strlen(s));
+}
+
+int
+s_logname(KINFO *k)
+{
+	char *s;
+
+	s = k->ki_p->ki_login;
+	if (s == NULL)
+		return (1);
+
+	return (strlen(s));
 }
