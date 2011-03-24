@@ -75,6 +75,8 @@ void	 runame(KINFO *, VARENT *);
 void	 rvar(KINFO *, VARENT *);
 int	 s_comm(KINFO *);
 int	 s_label(KINFO *);
+int	 s_loginclass(KINFO *);
+int	 s_logname(KINFO *);
 int	 s_rgroupname(KINFO *);
 int	 s_runame(KINFO *);
 int	 s_uname(KINFO *);
