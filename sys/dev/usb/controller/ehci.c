@@ -1189,7 +1189,7 @@ ehci_data_toggle_update(struct usb_xfer *xfer, uint16_t actlen, uint16_t xlen)
 	/* count number of full packets */
 	dt = (actlen / xfer->max_packet_size) & 1;
 
-	/* cumpute remainder */
+	/* compute remainder */
 	rem = actlen % xfer->max_packet_size;
 
 	if (rem > 0)
