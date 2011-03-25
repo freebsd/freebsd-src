@@ -484,7 +484,7 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	const int size_bin = size_to_bin(frame_size);
 	const int size = bin_to_size(size_bin);
 	int tt, tries_so_far;
-	int is_ht40 = (an->an_node.ni_htcap & IEEE80211_HTCAP_CHWIDTH40);
+	int is_ht40 = (an->an_node.ni_chw == 40);
 
 	if (!IS_RATE_DEFINED(sn, rix0))
 		return;
@@ -799,7 +799,7 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 				continue;
 			printf(" %d %s/%d", dot11rate(rt, rix), dot11rate_label(rt, rix),
 			    calc_usecs_unicast_packet(sc, 1600, rix, 0,0,
-			        (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40)));
+			        (ni->ni_chw == 40)));
 		}
 		printf("\n");
 	}
@@ -829,7 +829,7 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 			
 			sn->stats[y][rix].perfect_tx_time =
 			    calc_usecs_unicast_packet(sc, size, rix, 0, 0,
-			    (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40));
+			    (ni->ni_chw == 40));
 			sn->stats[y][rix].average_tx_time =
 			    sn->stats[y][rix].perfect_tx_time;
 		}
