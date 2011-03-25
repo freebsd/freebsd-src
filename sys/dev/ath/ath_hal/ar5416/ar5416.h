@@ -24,7 +24,6 @@
 #include "ah_eeprom_v14.h"	/* for CAL_TARGET_POWER_* */
 
 #define	AR5416_MAGIC	0x20065416
-#define	AR5416_INT_MITIGATION	1
 
 enum {
 	HAL_RESET_POWER_ON,
