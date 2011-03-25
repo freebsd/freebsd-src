@@ -164,8 +164,8 @@ struct sysctl_oid {
 	const char	*oid_name;
 	int 		(*oid_handler)(SYSCTL_HANDLER_ARGS);
 	const char	*oid_fmt;
-	int		oid_refcnt;
-	u_int		oid_running;
+	int16_t		oid_refcnt;
+	uint16_t	oid_running;
 	const char	*oid_descr;
 };
 
