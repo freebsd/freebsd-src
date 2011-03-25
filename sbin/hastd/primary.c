@@ -509,7 +509,7 @@ primary_connect(struct hast_resource *res, struct proto_conn **connp)
 		primary_exit(EX_TEMPFAIL,
 		    "Unable to receive connection from parent");
 	}
-	if (proto_connect_wait(conn, HAST_TIMEOUT) < 0) {
+	if (proto_connect_wait(conn, res->hr_timeout) < 0) {
 		pjdlog_errno(LOG_WARNING, "Unable to connect to %s",
 		    res->hr_remoteaddr);
 		proto_close(conn);
