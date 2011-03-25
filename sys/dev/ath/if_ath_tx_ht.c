@@ -129,9 +129,14 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 		if (flags & (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA))
 			series[i].RateFlags |= HAL_RATESERIES_RTS_CTS;
 
-#if 0
-		if (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40)
+		/*
+		 * Transmit 40MHz frames only if the node has negotiated
+		 * it rather than whether the node is capable of it or not.
+	 	 * It's subtly different in the hostap case.
+	 	 */
+		if (ni->ni_chw == 40)
 			series[i].RateFlags |= HAL_RATESERIES_2040;
+#if 0
 		/*
 		 * The hardware only supports short-gi in 40mhz mode -
 		 * if later hardware supports it in 20mhz mode, be sure
