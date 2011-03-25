@@ -64,7 +64,7 @@ freebsd32_ioctl_md(struct thread *td, struct freebsd32_ioctl_args *uap,
 	struct md_ioctl mdv;
 	struct md_ioctl32 md32;
 	u_long com = 0;
-	int error;
+	int i, error;
 
 	if (uap->com & IOC_IN) {
 		if ((error = copyin(uap->data, &md32, sizeof(md32)))) {
@@ -116,6 +116,14 @@ freebsd32_ioctl_md(struct thread *td, struct freebsd32_ioctl_args *uap,
 		CP(mdv, md32, md_base);
 		CP(mdv, md32, md_fwheads);
 		CP(mdv, md32, md_fwsectors);
+		if (com == MDIOCLIST) {
+			/*
+			 * Use MDNPAD, and not MDNPAD32.  Padding is
+			 * allocated and used by compat32 ABI.
+			 */
+			for (i = 0; i < MDNPAD; i++)
+				CP(mdv, md32, md_pad[i]);
+		}
 		error = copyout(&md32, uap->data, sizeof(md32));
 	}
 	return error;
