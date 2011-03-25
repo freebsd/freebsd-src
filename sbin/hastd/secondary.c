@@ -201,7 +201,6 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		    "Unable to allocate memory (%zu bytes) for activemap.",
 		    mapsize);
 	}
-	nv_add_uint32(nvout, (uint32_t)mapsize, "mapsize");
 	/*
 	 * When we work as primary and secondary is missing we will increase
 	 * localcnt in our metadata. When secondary is connected and synced
@@ -339,6 +338,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		    (uintmax_t)res->hr_secondary_localcnt,
 		    (uintmax_t)res->hr_secondary_remotecnt);
 	}
+	nv_add_uint32(nvout, (uint32_t)mapsize, "mapsize");
 	if (hast_proto_send(res, res->hr_remotein, nvout, map, mapsize) < 0) {
 		pjdlog_exit(EX_TEMPFAIL, "Unable to send activemap to %s",
 		    res->hr_remoteaddr);
