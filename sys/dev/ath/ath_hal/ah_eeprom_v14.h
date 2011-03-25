@@ -217,14 +217,14 @@ typedef struct ModalEepHeader {
 	uint8_t		ob_ch1;				// 1 -> ob and db become chain specific from AR9280
 	uint8_t		db_ch1;				// 1
 	uint8_t		flagBits;			// 1
-#define	AR5416_EEP_FLAG_USEANT1		0x01	/* +1 configured antenna */
-#define	AR5416_EEP_FLAG_FORCEXPAON	0x02	/* force XPA bit for 5G */
-#define	AR5416_EEP_FLAG_LOCALBIAS	0x04	/* enable local bias */
-#define	AR5416_EEP_FLAG_FEMBANDSELECT	0x08	/* FEM band select used */
-#define	AR5416_EEP_FLAG_XLNABUFIN	0x10
-#define	AR5416_EEP_FLAG_XLNAISEL	0x60
-#define	AR5416_EEP_FLAG_XLNAISEL_S	5
-#define	AR5416_EEP_FLAG_XLNABUFMODE	0x80
+#define	AR5416_EEP_FLAG_USEANT1		0x80	/* +1 configured antenna */
+#define	AR5416_EEP_FLAG_FORCEXPAON	0x40	/* force XPA bit for 5G */
+#define	AR5416_EEP_FLAG_LOCALBIAS	0x20	/* enable local bias */
+#define	AR5416_EEP_FLAG_FEMBANDSELECT	0x10	/* FEM band select used */
+#define	AR5416_EEP_FLAG_XLNABUFIN	0x08
+#define	AR5416_EEP_FLAG_XLNAISEL1	0x04
+#define	AR5416_EEP_FLAG_XLNAISEL2	0x02
+#define	AR5416_EEP_FLAG_XLNABUFMODE	0x01
 	uint8_t		miscBits;			// [0..1]: bb_tx_dac_scale_cck
 	uint16_t	xpaBiasLvlFreq[3];		// 3
 	uint8_t		futureModal[6];			// 6
