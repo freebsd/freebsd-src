@@ -96,7 +96,7 @@ ar9280AniSetup(struct ath_hal *ah)
 	AH5416(ah)->ah_ani_function &= ~ HAL_ANI_NOISE_IMMUNITY_LEVEL;
 
         /* NB: ANI is not enabled yet */
-        ar5416AniAttach(ah, &aniparams, &aniparams, AH_FALSE);
+        ar5416AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
 }
 
 /*
