@@ -118,8 +118,8 @@ cpu_initclocks(void)
 	sclock = 0;
 	if (PCPU_GET(impl) == CPU_IMPL_SPARC64V ||
 	    PCPU_GET(impl) >= CPU_IMPL_ULTRASPARCIII) {
-		if (OF_getprop(OF_parent(PCPU_GET(node)), "stick-frequency",
-		    &sclock, sizeof(sclock)) == -1) {
+		if (OF_getprop(OF_peer(0), "stick-frequency", &sclock,
+		    sizeof(sclock)) == -1) {
 			panic("%s: could not determine STICK frequency",
 			    __func__);
 		}
