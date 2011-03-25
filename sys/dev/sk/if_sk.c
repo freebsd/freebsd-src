@@ -2036,8 +2036,8 @@ sk_dma_alloc(sc_if)
 
 	/* allocate DMA'able memory and load the DMA map for Tx ring */
 	error = bus_dmamem_alloc(sc_if->sk_cdata.sk_tx_ring_tag,
-	    (void **)&sc_if->sk_rdata.sk_tx_ring, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
-	    &sc_if->sk_cdata.sk_tx_ring_map);
+	    (void **)&sc_if->sk_rdata.sk_tx_ring, BUS_DMA_NOWAIT |
+	    BUS_DMA_COHERENT | BUS_DMA_ZERO, &sc_if->sk_cdata.sk_tx_ring_map);
 	if (error != 0) {
 		device_printf(sc_if->sk_if_dev,
 		    "failed to allocate DMA'able memory for Tx ring\n");
@@ -2057,8 +2057,8 @@ sk_dma_alloc(sc_if)
 
 	/* allocate DMA'able memory and load the DMA map for Rx ring */
 	error = bus_dmamem_alloc(sc_if->sk_cdata.sk_rx_ring_tag,
-	    (void **)&sc_if->sk_rdata.sk_rx_ring, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
-	    &sc_if->sk_cdata.sk_rx_ring_map);
+	    (void **)&sc_if->sk_rdata.sk_rx_ring, BUS_DMA_NOWAIT |
+	    BUS_DMA_COHERENT | BUS_DMA_ZERO, &sc_if->sk_cdata.sk_rx_ring_map);
 	if (error != 0) {
 		device_printf(sc_if->sk_if_dev,
 		    "failed to allocate DMA'able memory for Rx ring\n");
@@ -2165,8 +2165,9 @@ sk_dma_jumbo_alloc(sc_if)
 
 	/* allocate DMA'able memory and load the DMA map for jumbo Rx ring */
 	error = bus_dmamem_alloc(sc_if->sk_cdata.sk_jumbo_rx_ring_tag,
-	    (void **)&sc_if->sk_rdata.sk_jumbo_rx_ring,
-	    BUS_DMA_NOWAIT|BUS_DMA_ZERO, &sc_if->sk_cdata.sk_jumbo_rx_ring_map);
+	    (void **)&sc_if->sk_rdata.sk_jumbo_rx_ring, BUS_DMA_NOWAIT |
+	    BUS_DMA_COHERENT | BUS_DMA_ZERO,
+	    &sc_if->sk_cdata.sk_jumbo_rx_ring_map);
 	if (error != 0) {
 		device_printf(sc_if->sk_if_dev,
 		    "failed to allocate DMA'able memory for jumbo Rx ring\n");
