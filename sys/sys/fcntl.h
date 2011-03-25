@@ -123,9 +123,11 @@ typedef	__pid_t		pid_t;
 #define	FEXEC		O_EXEC
 #endif
 
-/* Defined by POSIX 1003.1-2008; BSD default, but reserve for future use. */
 #if __POSIX_VISIBLE >= 200809
+/* Defined by POSIX 1003.1-2008; BSD default, but reserve for future use. */
 #define	O_TTY_INIT	0x00080000	/* Restore default termios attributes */
+
+#define	O_CLOEXEC	0x00100000
 #endif
 
 /*
