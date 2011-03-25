@@ -194,6 +194,23 @@ ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 	mask = ints & HAL_INT_COMMON;
 	mask2 = 0;
 
+#ifdef	AR5416_INT_MITIGATION
+	/*
+	 * Overwrite default mask if Interrupt mitigation
+	 * is specified for AR5416
+	 */
+	mask = ints & HAL_INT_COMMON;
+	if (ints & HAL_INT_TX)
+		mask |= AR_IMR_TXMINTR | AR_IMR_TXINTM;
+	if (ints & HAL_INT_RX)
+		mask |= AR_IMR_RXERR | AR_IMR_RXMINTR | AR_IMR_RXINTM;
+	if (ints & HAL_INT_TX) {
+		if (ahp->ah_txErrInterruptMask)
+			mask |= AR_IMR_TXERR;
+		if (ahp->ah_txEolInterruptMask)
+			mask |= AR_IMR_TXEOL;
+	}
+#else
 	if (ints & HAL_INT_TX) {
 		if (ahp->ah_txOkInterruptMask)
 			mask |= AR_IMR_TXOK;
@@ -206,16 +223,6 @@ ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 	}
 	if (ints & HAL_INT_RX)
 		mask |= AR_IMR_RXOK | AR_IMR_RXERR | AR_IMR_RXDESC;
-#ifdef AR5416_INT_MITIGATION
-	/*
-	 * Overwrite default mask if Interrupt mitigation
-	 * is specified for AR5416
-	 */
-	mask = ints & HAL_INT_COMMON;
-	if (ints & HAL_INT_TX)
-		mask |= AR_IMR_TXMINTR | AR_IMR_TXINTM;
-	if (ints & HAL_INT_RX)
-		mask |= AR_IMR_RXERR | AR_IMR_RXMINTR | AR_IMR_RXINTM;
 #endif
 	if (ints & (HAL_INT_BMISC)) {
 		mask |= AR_IMR_BCNMISC;
