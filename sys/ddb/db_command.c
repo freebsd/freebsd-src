@@ -723,10 +723,16 @@ static void
 db_gdb(db_expr_t dummy1, boolean_t dummy2, db_expr_t dummy3, char *dummy4)
 {
 
-	if (kdb_dbbe_select("gdb") != 0)
+	if (kdb_dbbe_select("gdb") != 0) {
 		db_printf("The remote GDB backend could not be selected.\n");
-	else
-		db_printf("Step to enter the remote GDB backend.\n");
+		return;
+	}
+	/*
+	 * Mark that we are done in the debugger.  kdb_trap()
+	 * should re-enter with the new backend.
+	 */
+	db_cmd_loop_done = 1;
+	db_printf("(ctrl-c will return control to ddb)\n");
 }
 
 static void

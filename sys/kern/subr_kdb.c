@@ -144,10 +144,9 @@ kdb_sysctl_current(SYSCTL_HANDLER_ARGS)
 	char buf[16];
 	int error;
 
-	if (kdb_dbbe != NULL) {
-		strncpy(buf, kdb_dbbe->dbbe_name, sizeof(buf));
-		buf[sizeof(buf) - 1] = '\0';
-	} else
+	if (kdb_dbbe != NULL)
+		strlcpy(buf, kdb_dbbe->dbbe_name, sizeof(buf));
+	else
 		*buf = '\0';
 	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
 	if (error != 0 || req->newptr == NULL)
@@ -513,13 +512,15 @@ kdb_thr_select(struct thread *thr)
 int
 kdb_trap(int type, int code, struct trapframe *tf)
 {
+	struct kdb_dbbe *be;
 	register_t intr;
 #ifdef SMP
 	int did_stop_cpus;
 #endif
 	int handled;
 
-	if (kdb_dbbe == NULL || kdb_dbbe->dbbe_trap == NULL)
+	be = kdb_dbbe;
+	if (be == NULL || be->dbbe_trap == NULL)
 		return (0);
 
 	/* We reenter the debugger through kdb_reenter(). */
@@ -543,7 +544,15 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	makectx(tf, &kdb_pcb);
 	kdb_thr_select(curthread);
 
-	handled = kdb_dbbe->dbbe_trap(type, code);
+	for (;;) {
+		handled = be->dbbe_trap(type, code);
+		if (be == kdb_dbbe)
+			break;
+		be = kdb_dbbe;
+		if (be == NULL || be->dbbe_trap == NULL)
+			break;
+		printf("Switching to %s back-end\n", be->dbbe_name);
+	}
 
 	kdb_active--;
 
