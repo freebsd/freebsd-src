@@ -1069,7 +1069,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	else
 		flags = FFLAGS(flags);
 
-	error = falloc(td, &nfp, &indx);
+	error = fallocf(td, &nfp, &indx, flags);
 	if (error)
 		return (error);
 	/* An extra reference on `nfp' has been held for us by falloc(). */
@@ -4488,7 +4488,7 @@ fhopen(td, uap)
 	 * end of vn_open code
 	 */
 
-	if ((error = falloc(td, &nfp, &indx)) != 0) {
+	if ((error = fallocf(td, &nfp, &indx, fmode)) != 0) {
 		if (fmode & FWRITE)
 			vp->v_writecount--;
 		goto bad;
