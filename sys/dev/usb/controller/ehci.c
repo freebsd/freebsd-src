@@ -259,6 +259,8 @@ ehci_init(ehci_softc_t *sc)
 	usb_callout_init_mtx(&sc->sc_tmo_pcd, &sc->sc_bus.bus_mtx, 0);
 	usb_callout_init_mtx(&sc->sc_tmo_poll, &sc->sc_bus.bus_mtx, 0);
 
+	sc->sc_offs = EHCI_CAPLENGTH(EREAD4(sc, EHCI_CAPLEN_HCIVERSION));
+
 #ifdef USB_DEBUG
 	if (ehciiaadbug)
 		sc->sc_flags |= EHCI_SCFLG_IAADBUG;
@@ -268,8 +270,6 @@ ehci_init(ehci_softc_t *sc)
 		ehci_dump_regs(sc);
 	}
 #endif
-
-	sc->sc_offs = EHCI_CAPLENGTH(EREAD4(sc, EHCI_CAPLEN_HCIVERSION));
 
 	version = EHCI_HCIVERSION(EREAD4(sc, EHCI_CAPLEN_HCIVERSION));
 	device_printf(sc->sc_bus.bdev, "EHCI version %x.%x\n",
