@@ -1058,6 +1058,8 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 	int count;
 	boolean_t pmap_failed;
 
+	if (len == 0)
+		return (0);
 	end = round_page(addr + len);	
 	addr = trunc_page(addr);
 
