@@ -96,7 +96,7 @@ enum {
 
 enum {
 	FW_VERSION_MAJOR = 7,
-	FW_VERSION_MINOR = 8,
+	FW_VERSION_MINOR = 11,
 	FW_VERSION_MICRO = 0
 };
 
