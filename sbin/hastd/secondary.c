@@ -414,7 +414,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	pjdlog_init(mode);
 	pjdlog_debug_set(debuglevel);
 	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
-	setproctitle("%s (secondary)", res->hr_name);
+	setproctitle("%s (%s)", res->hr_name, role2str(res->hr_role));
 
 	PJDLOG_VERIFY(sigemptyset(&mask) == 0);
 	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
