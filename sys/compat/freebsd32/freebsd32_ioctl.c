@@ -66,8 +66,6 @@ freebsd32_ioctl_md(struct thread *td, struct freebsd32_ioctl_args *uap,
 	u_long com = 0;
 	int error;
 
-	if (uap->data == NULL)
-		panic("%s: where is my ioctl data??", __func__);
 	if (uap->com & IOC_IN) {
 		if ((error = copyin(uap->data, &md32, sizeof(md32)))) {
 			return (error);
@@ -132,9 +130,6 @@ freebsd32_ioctl_ioc_toc_header(struct thread *td,
 	struct ioc_toc_header32 toch32;
 	int error;
 
-	if (uap->data == NULL)
-		panic("%s: where is my ioctl data??", __func__);
-
 	if ((error = copyin(uap->data, &toch32, sizeof(toch32))))
 		return (error);
 	CP(toch32, toch, len);
@@ -153,9 +148,6 @@ freebsd32_ioctl_ioc_read_toc(struct thread *td,
 	struct ioc_read_toc_entry toce;
 	struct ioc_read_toc_entry32 toce32;
 	int error;
-
-	if (uap->data == NULL)
-		panic("%s: where is my ioctl data??", __func__);
 
 	if ((error = copyin(uap->data, &toce32, sizeof(toce32))))
 		return (error);
