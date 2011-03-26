@@ -53,8 +53,6 @@ CTASSERT(sizeof(struct kerneldumpheader) == 512);
 #define	MD_ALIGN(x)	(((off_t)(x) + PAGE_MASK) & ~PAGE_MASK)
 #define	DEV_ALIGN(x)	(((off_t)(x) + (DEV_BSIZE-1)) & ~(DEV_BSIZE-1))
 
-extern uint64_t KPDPphys;
-
 uint64_t *vm_page_dump;
 int vm_page_dump_size;
 
