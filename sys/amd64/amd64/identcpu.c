@@ -385,7 +385,7 @@ printcpuinfo(void)
 				);
 			}
 
-			if (cpu_vendor_id == CPU_VENDOR_CENTAUR)
+			if (via_feature_rng != 0 || via_feature_xcrypt != 0)
 				print_via_padlock_info();
 
 			if ((cpu_feature & CPUID_HTT) &&
@@ -643,25 +643,7 @@ print_via_padlock_info(void)
 {
 	u_int regs[4];
 
-	/* Check for supported models. */
-	switch (cpu_id & 0xff0) {
-	case 0x690:
-		if ((cpu_id & 0xf) < 3)
-			return;
-	case 0x6a0:
-	case 0x6d0:
-	case 0x6f0:
-		break;
-	default:
-		return;
-	}
-	
-	do_cpuid(0xc0000000, regs);
-	if (regs[0] >= 0xc0000001)
-		do_cpuid(0xc0000001, regs);
-	else
-		return;
-
+	do_cpuid(0xc0000001, regs);
 	printf("\n  VIA Padlock Features=0x%b", regs[3],
 	"\020"
 	"\003RNG"		/* RNG */
