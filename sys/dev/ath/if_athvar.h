@@ -43,6 +43,14 @@
 
 #define	ATH_TIMEOUT		1000
 
+/*
+ * 802.11n requires more TX and RX buffers to do AMPDU.
+ */
+#ifdef	AH_ENABLE_11N
+#define	ATH_TXBUF	512
+#define	ATH_RXBUF	512
+#endif
+
 #ifndef ATH_RXBUF
 #define	ATH_RXBUF	40		/* number of RX buffers */
 #endif
