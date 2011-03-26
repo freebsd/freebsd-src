@@ -64,6 +64,8 @@
 
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include "ofw_pci_if.h"
+
 typedef uint32_t ofw_pci_intr_t;
 
 /* PCI range child spaces. XXX: are these MI? */
