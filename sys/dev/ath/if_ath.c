@@ -1927,6 +1927,19 @@ ath_calcrxfilter(struct ath_softc *sc)
 	if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
 	    IEEE80211_IS_CHAN_ANYG(ic->ic_curchan))
 		rfilt |= HAL_RX_FILTER_BEACON;
+
+#if 0
+	/*
+	 * Enable hardware PS-POLL only for hostap mode;
+	 * STA mode sends PS-POLL frames but never
+	 * sends them.
+	 */
+	if (ath_hal_getcapability(ah, HAL_CAP_HAS_PSPOLL,
+	    0, NULL) == HAL_OK &&
+	    ic->ic_opmode == IEEE80211_M_HOSTAP)
+		rfilt |= HAL_RX_FILTER_PSPOLL;
+#endif
+
 	if (sc->sc_nmeshvaps) {
 		rfilt |= HAL_RX_FILTER_BEACON;
 		if (sc->sc_hasbmatch)
@@ -1936,8 +1949,14 @@ ath_calcrxfilter(struct ath_softc *sc)
 	}
 	if (ic->ic_opmode == IEEE80211_M_MONITOR)
 		rfilt |= HAL_RX_FILTER_CONTROL;
+
+	/*
+	 * Enable RX of compressed BAR frames only when doing
+	 * 802.11n. Required for A-MPDU.
+	 */
 	if (IEEE80211_IS_CHAN_HT(ic->ic_curchan))
 		rfilt |= HAL_RX_FILTER_COMPBAR;
+
 	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x, %s if_flags 0x%x\n",
 	    __func__, rfilt, ieee80211_opmode_name[ic->ic_opmode], ifp->if_flags);
 	return rfilt;
