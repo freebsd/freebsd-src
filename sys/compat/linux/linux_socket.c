@@ -433,6 +433,8 @@ linux_to_bsd_cmsg_type(int cmsg_type)
 	switch (cmsg_type) {
 	case LINUX_SCM_RIGHTS:
 		return (SCM_RIGHTS);
+	case LINUX_SCM_CREDENTIALS:
+		return (SCM_CREDS);
 	}
 	return (-1);
 }
@@ -444,6 +446,8 @@ bsd_to_linux_cmsg_type(int cmsg_type)
 	switch (cmsg_type) {
 	case SCM_RIGHTS:
 		return (LINUX_SCM_RIGHTS);
+	case SCM_CREDS:
+		return (LINUX_SCM_CREDENTIALS);
 	}
 	return (-1);
 }
@@ -459,7 +463,16 @@ linux_to_bsd_msghdr(struct msghdr *bhdr, const struct l_msghdr *lhdr)
 	bhdr->msg_iov		= PTRIN(lhdr->msg_iov);
 	bhdr->msg_iovlen	= lhdr->msg_iovlen;
 	bhdr->msg_control	= PTRIN(lhdr->msg_control);
-	bhdr->msg_controllen	= lhdr->msg_controllen;
+
+	/*
+	 * msg_controllen is skipped since BSD and LINUX control messages
+	 * are potentially different sizes (e.g. the cred structure used
+	 * by SCM_CREDS is different between the two operating system).
+	 *
+	 * The caller can set it (if necessary) after converting all the
+	 * control messages.
+	 */
+
 	bhdr->msg_flags		= linux_to_bsd_msg_flags(lhdr->msg_flags);
 	return (0);
 }
@@ -472,7 +485,16 @@ bsd_to_linux_msghdr(const struct msghdr *bhdr, struct l_msghdr *lhdr)
 	lhdr->msg_iov		= PTROUT(bhdr->msg_iov);
 	lhdr->msg_iovlen	= bhdr->msg_iovlen;
 	lhdr->msg_control	= PTROUT(bhdr->msg_control);
-	lhdr->msg_controllen	= bhdr->msg_controllen;
+
+	/*
+	 * msg_controllen is skipped since BSD and LINUX control messages
+	 * are potentially different sizes (e.g. the cred structure used
+	 * by SCM_CREDS is different between the two operating system).
+	 *
+	 * The caller can set it (if necessary) after converting all the
+	 * control messages.
+	 */
+
 	/* msg_flags skipped */
 	return (0);
 }
@@ -1092,6 +1114,7 @@ static int
 linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 {
 	struct cmsghdr *cmsg;
+	struct cmsgcred cmcred;
 	struct mbuf *control;
 	struct msghdr msg;
 	struct l_cmsghdr linux_cmsg;
@@ -1099,13 +1122,12 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 	struct l_msghdr linux_msg;
 	struct iovec *iov;
 	socklen_t datalen;
+	struct sockaddr *sa;
+	sa_family_t sa_family;
 	void *data;
 	int error;
 
 	error = copyin(PTRIN(args->msg), &linux_msg, sizeof(linux_msg));
-	if (error)
-		return (error);
-	error = linux_to_bsd_msghdr(&msg, &linux_msg);
 	if (error)
 		return (error);
 
@@ -1116,8 +1138,12 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 	 * order to handle this case.  This should be checked, but allows the
 	 * Linux ping to work.
 	 */
-	if (msg.msg_control != NULL && msg.msg_controllen == 0)
-		msg.msg_control = NULL;
+	if (PTRIN(linux_msg.msg_control) != NULL && linux_msg.msg_controllen == 0)
+		linux_msg.msg_control = PTROUT(NULL);
+
+	error = linux_to_bsd_msghdr(&msg, &linux_msg);
+	if (error)
+		return (error);
 
 #ifdef COMPAT_LINUX32
 	error = linux32_copyiniov(PTRIN(msg.msg_iov), msg.msg_iovlen,
@@ -1128,13 +1154,21 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 	if (error)
 		return (error);
 
-	if (msg.msg_control != NULL) {
+	control = NULL;
+	cmsg = NULL;
+
+	if ((ptr_cmsg = LINUX_CMSG_FIRSTHDR(&linux_msg)) != NULL) {
+		error = kern_getsockname(td, args->s, &sa, &datalen);
+		if (error)
+			goto bad;
+		sa_family = sa->sa_family;
+		free(sa, M_SONAME);
+
 		error = ENOBUFS;
 		cmsg = malloc(CMSG_HDRSZ, M_TEMP, M_WAITOK | M_ZERO);
 		control = m_get(M_WAIT, MT_CONTROL);
 		if (control == NULL)
 			goto bad;
-		ptr_cmsg = LINUX_CMSG_FIRSTHDR(&msg);
 
 		do {
 			error = copyin(ptr_cmsg, &linux_cmsg,
@@ -1147,28 +1181,58 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 				goto bad;
 
 			/*
-			 * Now we support only SCM_RIGHTS, so return EINVAL
-			 * in any other cmsg_type
+			 * Now we support only SCM_RIGHTS and SCM_CRED,
+			 * so return EINVAL in any other cmsg_type
 			 */
-			if ((cmsg->cmsg_type =
-			    linux_to_bsd_cmsg_type(linux_cmsg.cmsg_type)) == -1)
-				goto bad;
+			cmsg->cmsg_type =
+			    linux_to_bsd_cmsg_type(linux_cmsg.cmsg_type);
 			cmsg->cmsg_level =
 			    linux_to_bsd_sockopt_level(linux_cmsg.cmsg_level);
+			if (cmsg->cmsg_type == -1
+			    || cmsg->cmsg_level != SOL_SOCKET)
+				goto bad;
 
-			datalen = linux_cmsg.cmsg_len - L_CMSG_HDRSZ;
-			cmsg->cmsg_len = CMSG_LEN(datalen);
+			/*
+			 * Some applications (e.g. pulseaudio) attempt to
+			 * send ancillary data even if the underlying protocol
+			 * doesn't support it which is not allowed in the
+			 * FreeBSD system call interface.
+			 */
+			if (sa_family != AF_UNIX)
+				continue;
+
 			data = LINUX_CMSG_DATA(ptr_cmsg);
+			datalen = linux_cmsg.cmsg_len - L_CMSG_HDRSZ;
+
+			switch (cmsg->cmsg_type)
+			{
+			case SCM_RIGHTS:
+				break;
+
+			case SCM_CREDS:
+				data = &cmcred;
+				datalen = sizeof(cmcred);
+
+				/*
+				 * The lower levels will fill in the structure
+				 */
+				bzero(data, datalen);
+				break;
+			}
+
+			cmsg->cmsg_len = CMSG_LEN(datalen);
 
 			error = ENOBUFS;
 			if (!m_append(control, CMSG_HDRSZ, (c_caddr_t) cmsg))
 				goto bad;
 			if (!m_append(control, datalen, (c_caddr_t) data))
 				goto bad;
-		} while ((ptr_cmsg = LINUX_CMSG_NXTHDR(&msg, ptr_cmsg)));
-	} else {
-		control = NULL;
-		cmsg = NULL;
+		} while ((ptr_cmsg = LINUX_CMSG_NXTHDR(&linux_msg, ptr_cmsg)));
+
+		if (m_length(control, NULL) == 0) {
+			m_freem(control);
+			control = NULL;
+		}
 	}
 
 	msg.msg_iov = iov;
@@ -1193,9 +1257,11 @@ static int
 linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 {
 	struct cmsghdr *cm;
+	struct cmsgcred *cmcred;
 	struct msghdr msg;
 	struct l_cmsghdr *linux_cmsg = NULL;
-	socklen_t datalen, outlen, clen;
+	struct l_ucred linux_ucred;
+	socklen_t datalen, outlen;
 	struct l_msghdr linux_msg;
 	struct iovec *iov, *uiov;
 	struct mbuf *control = NULL;
@@ -1252,39 +1318,35 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 			goto bad;
 	}
 
-	if (control) {
+	outbuf = PTRIN(linux_msg.msg_control);
+	outlen = 0;
 
+	if (control) {
 		linux_cmsg = malloc(L_CMSG_HDRSZ, M_TEMP, M_WAITOK | M_ZERO);
-		outbuf = PTRIN(linux_msg.msg_control);
-		cm = mtod(control, struct cmsghdr *);
-		outlen = 0;
-		clen = control->m_len;
+
+		msg.msg_control = mtod(control, struct cmsghdr *);
+		msg.msg_controllen = control->m_len;
+
+		cm = CMSG_FIRSTHDR(&msg);
 
 		while (cm != NULL) {
-
-			if ((linux_cmsg->cmsg_type =
-			    bsd_to_linux_cmsg_type(cm->cmsg_type)) == -1)
+			linux_cmsg->cmsg_type =
+			    bsd_to_linux_cmsg_type(cm->cmsg_type);
+			linux_cmsg->cmsg_level =
+			    bsd_to_linux_sockopt_level(cm->cmsg_level);
+			if (linux_cmsg->cmsg_type == -1
+			    || cm->cmsg_level != SOL_SOCKET)
 			{
 				error = EINVAL;
 				goto bad;
 			}
+
 			data = CMSG_DATA(cm);
 			datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
 
-			switch (linux_cmsg->cmsg_type)
+			switch (cm->cmsg_type)
 			{
-			case LINUX_SCM_RIGHTS:
-				if (outlen + LINUX_CMSG_LEN(datalen) >
-				    linux_msg.msg_controllen) {
-					if (outlen == 0) {
-						error = EMSGSIZE;
-						goto bad;
-					} else {
-						linux_msg.msg_flags |=
-						    LINUX_MSG_CTRUNC;
-						goto out;
-					}
-				}
+			case SCM_RIGHTS:
 				if (args->flags & LINUX_MSG_CMSG_CLOEXEC) {
 					fds = datalen / sizeof(int);
 					fdp = data;
@@ -1295,11 +1357,40 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 					}
 				}
 				break;
+
+			case SCM_CREDS:
+				/*
+				 * Currently LOCAL_CREDS is never in
+				 * effect for Linux so no need to worry
+				 * about sockcred
+				 */
+				if (datalen != sizeof (*cmcred)) {
+					error = EMSGSIZE;
+					goto bad;
+				}
+				cmcred = (struct cmsgcred *)data;
+				bzero(&linux_ucred, sizeof(linux_ucred));
+				linux_ucred.pid = cmcred->cmcred_pid;
+				linux_ucred.uid = cmcred->cmcred_uid;
+				linux_ucred.gid = cmcred->cmcred_gid;
+				data = &linux_ucred;
+				datalen = sizeof(linux_ucred);
+				break;
+			}
+
+			if (outlen + LINUX_CMSG_LEN(datalen) >
+			    linux_msg.msg_controllen) {
+				if (outlen == 0) {
+					error = EMSGSIZE;
+					goto bad;
+				} else {
+					linux_msg.msg_flags |=
+					    LINUX_MSG_CTRUNC;
+					goto out;
+				}
 			}
 
 			linux_cmsg->cmsg_len = LINUX_CMSG_LEN(datalen);
-			linux_cmsg->cmsg_level =
-			    bsd_to_linux_sockopt_level(cm->cmsg_level);
 
 			error = copyout(linux_cmsg, outbuf, L_CMSG_HDRSZ);
 			if (error)
@@ -1312,18 +1403,13 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 
 			outbuf += LINUX_CMSG_ALIGN(datalen);
 			outlen += LINUX_CMSG_LEN(datalen);
-			linux_msg.msg_controllen = outlen;
 
-			if (CMSG_SPACE(datalen) < clen) {
-				clen -= CMSG_SPACE(datalen);
-				cm = (struct cmsghdr *)
-				    ((caddr_t)cm + CMSG_SPACE(datalen));
-			} else
-				cm = NULL;
+			cm = CMSG_NXTHDR(&msg, cm);
 		}
 	}
 
 out:
+	linux_msg.msg_controllen = outlen;
 	error = copyout(&linux_msg, PTRIN(args->msg), sizeof(linux_msg));
 
 bad:
