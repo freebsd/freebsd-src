@@ -3917,7 +3917,7 @@ dc_stop(struct dc_softc *sc)
 	struct dc_list_data *ld;
 	struct dc_chain_data *cd;
 	int i;
-	uint32_t ctl;
+	uint32_t ctl, isr;
 
 	DC_LOCK_ASSERT(sc);
 
@@ -3932,6 +3932,30 @@ dc_stop(struct dc_softc *sc)
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	DC_CLRBIT(sc, DC_NETCFG, (DC_NETCFG_RX_ON | DC_NETCFG_TX_ON));
+
+	for (i = 0; i < DC_TIMEOUT; i++) {
+		isr = CSR_READ_4(sc, DC_ISR);
+		if ((isr & DC_ISR_TX_IDLE ||
+		    (isr & DC_ISR_TX_STATE) == DC_TXSTATE_RESET) &&
+		    (isr & DC_ISR_RX_STATE) == DC_RXSTATE_STOPPED)
+			break;
+		DELAY(10);
+	}
+
+	if (i == DC_TIMEOUT) {
+		if (!((isr & DC_ISR_TX_IDLE) ||
+		    (isr & DC_ISR_TX_STATE) == DC_TXSTATE_RESET) &&
+		    !DC_IS_ASIX(sc) && !DC_IS_DAVICOM(sc))
+			device_printf(sc->dc_dev,
+			    "%s: failed to force tx to idle state\n",
+			    __func__);
+		if (!((isr & DC_ISR_RX_STATE) == DC_RXSTATE_STOPPED) &&
+		    !DC_HAS_BROKEN_RXSTATE(sc))
+			device_printf(sc->dc_dev,
+			    "%s: failed to force rx to idle state\n",
+			    __func__);
+	}
+
 	CSR_WRITE_4(sc, DC_IMR, 0x00000000);
 	CSR_WRITE_4(sc, DC_TXADDR, 0x00000000);
 	CSR_WRITE_4(sc, DC_RXADDR, 0x00000000);
