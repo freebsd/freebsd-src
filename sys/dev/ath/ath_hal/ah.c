@@ -599,8 +599,10 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		default:
 			return HAL_ENOTSUPP;
 		}
-	case HAP_CAP_SPLIT_4KB_TRANS:	/* hardware handles descriptors straddling 4k page boundary */
+	case HAL_CAP_SPLIT_4KB_TRANS:	/* hardware handles descriptors straddling 4k page boundary */
 		return pCap->hal4kbSplitTransSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_HAS_PSPOLL:	/* hardware has ps-poll support */
+		return pCap->halHasPsPollSupport ? HAL_OK : HAL_ENOTSUPP;
 	default:
 		return HAL_EINVAL;
 	}
