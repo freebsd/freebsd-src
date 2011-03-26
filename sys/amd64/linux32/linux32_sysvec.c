@@ -249,8 +249,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	struct linux32_ps_strings *arginfo;
 
 	arginfo = (struct linux32_ps_strings *)LINUX32_PS_STRINGS;
-	uplatform = (Elf32_Addr *)((caddr_t)arginfo - linux_szsigcode -
-	    linux_szplatform);
+	uplatform = (Elf32_Addr *)((caddr_t)arginfo - linux_szplatform);
 
 	KASSERT(curthread->td_proc == imgp->proc,
 	    ("unsafe elf_linux_fixup(), should be curproc"));
