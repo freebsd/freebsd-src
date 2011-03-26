@@ -142,7 +142,7 @@ ftp: packagesystem
 	mkdir ${.OBJDIR}/ftp
 	cp ${.OBJDIR}/*.txz ${.OBJDIR}/MANIFEST ${.OBJDIR}/ftp
 
-release: ${RELEASE_TARGETS}
+release: obj ${RELEASE_TARGETS}
 
 clean:
 	chflags -R noschg ${.OBJDIR}
