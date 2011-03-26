@@ -300,6 +300,8 @@ linux_to_bsd_so_sockopt(int opt)
 		return (SO_OOBINLINE);
 	case LINUX_SO_LINGER:
 		return (SO_LINGER);
+	case LINUX_SO_PASSCRED:
+		return (LOCAL_CREDS);
 	case LINUX_SO_PEERCRED:
 		return (LOCAL_PEERCRED);
 	case LINUX_SO_RCVLOWAT:
@@ -1467,6 +1469,12 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 	switch (bsd_args.level) {
 	case SOL_SOCKET:
 		name = linux_to_bsd_so_sockopt(args->optname);
+		switch (args->optname) {
+		case LINUX_SO_PASSCRED:
+			/* FreeBSD bug? socket level opts at non socket level */
+			bsd_args.level = 0;
+			break;
+		}
 		switch (name) {
 		case SO_RCVTIMEO:
 			/* FALLTHROUGH */
@@ -1544,6 +1552,12 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 	switch (bsd_args.level) {
 	case SOL_SOCKET:
 		name = linux_to_bsd_so_sockopt(args->optname);
+		switch (args->optname) {
+		case LINUX_SO_PASSCRED:
+			/* FreeBSD bug? socket level opts at non socket level */
+			bsd_args.level = 0;
+			break;
+		}
 		switch (name) {
 		case SO_RCVTIMEO:
 			/* FALLTHROUGH */
