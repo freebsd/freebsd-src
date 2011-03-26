@@ -54,9 +54,6 @@
 
 #ifdef _KERNEL
 
-#ifndef NKPT
-#define	NKPT		30	/* initial number of kernel page tables */
-#endif
 #define MAXKPT		(PAGE_SIZE/sizeof(vm_offset_t))
 
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
