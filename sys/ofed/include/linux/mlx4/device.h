@@ -251,6 +251,7 @@ struct mlx4_caps {
 	u16			stat_rate_support;
 	int			udp_rss;
 	int			loopback_support;
+	int			wol;
 	u8			port_width_cap[MLX4_MAX_PORTS + 1];
 	int			max_gso_sz;
 	int                     reserved_qps_cnt[MLX4_NUM_QP_REGION];
@@ -535,6 +536,9 @@ int mlx4_mtt_init(struct mlx4_dev *dev, int npages, int page_shift,
 		  struct mlx4_mtt *mtt);
 void mlx4_mtt_cleanup(struct mlx4_dev *dev, struct mlx4_mtt *mtt);
 u64 mlx4_mtt_addr(struct mlx4_dev *dev, struct mlx4_mtt *mtt);
+int mlx4_wol_read(struct mlx4_dev *dev, u64 *config, int port);
+int mlx4_wol_write(struct mlx4_dev *dev, u64 config, int port);
+
 
 int mlx4_mr_reserve_range(struct mlx4_dev *dev, int cnt, int align, u32 *base_mridx);
 void mlx4_mr_release_range(struct mlx4_dev *dev, u32 base_mridx, int cnt);
