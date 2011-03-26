@@ -560,7 +560,8 @@ printcpuinfo(void)
 	} else if (cpu_vendor_id == CPU_VENDOR_RISE) {
 		strcpy(cpu_model, "Rise ");
 		switch (cpu_id & 0xff0) {
-		case 0x500:
+		case 0x500:	/* 6401 and 6441 (Kirin) */
+		case 0x520:	/* 6510 (Lynx) */
 			strcat(cpu_model, "mP6");
 			break;
 		default:
@@ -570,10 +571,19 @@ printcpuinfo(void)
 		switch (cpu_id & 0xff0) {
 		case 0x540:
 			strcpy(cpu_model, "IDT WinChip C6");
+			/*
+			 * http://www.centtech.com/c6_data_sheet.pdf
+			 *
+			 * I-12 RDTSC may return incoherent values in EDX:EAX
+			 * I-13 RDTSC hangs when certain event counters are used
+			 */
 			tsc_freq = 0;
 			break;
 		case 0x580:
 			strcpy(cpu_model, "IDT WinChip 2");
+			break;
+		case 0x590:
+			strcpy(cpu_model, "IDT WinChip 3");
 			break;
 		case 0x660:
 			strcpy(cpu_model, "VIA C3 Samuel");
@@ -852,7 +862,7 @@ printcpuinfo(void)
 				);
 			}
 
-			if (cpu_vendor_id == CPU_VENDOR_CENTAUR)
+			if (via_feature_rng != 0 || via_feature_xcrypt != 0)
 				print_via_padlock_info();
 
 			if ((cpu_feature & CPUID_HTT) &&
@@ -1126,6 +1136,12 @@ finishidentcpu(void)
 		if (cpu_exthigh >= 0x80000008) {
 			do_cpuid(0x80000008, regs);
 			cpu_procinfo2 = regs[2];
+		}
+	} else if (cpu_vendor_id == CPU_VENDOR_CENTAUR) {
+		init_exthigh();
+		if (cpu_exthigh >= 0x80000001) {
+			do_cpuid(0x80000001, regs);
+			amd_feature = regs[3] & ~(cpu_feature & 0x0183f3ff);
 		}
 	} else if (cpu_vendor_id == CPU_VENDOR_CYRIX) {
 		if (cpu == CPU_486) {
@@ -1560,25 +1576,7 @@ print_via_padlock_info(void)
 {
 	u_int regs[4];
 
-	/* Check for supported models. */
-	switch (cpu_id & 0xff0) {
-	case 0x690:
-		if ((cpu_id & 0xf) < 3)
-			return;
-	case 0x6a0:
-	case 0x6d0:
-	case 0x6f0:
-		break;
-	default:
-		return;
-	}
-	
-	do_cpuid(0xc0000000, regs);
-	if (regs[0] >= 0xc0000001)
-		do_cpuid(0xc0000001, regs);
-	else
-		return;
-
+	do_cpuid(0xc0000001, regs);
 	printf("\n  VIA Padlock Features=0x%b", regs[3],
 	"\020"
 	"\003RNG"		/* RNG */
