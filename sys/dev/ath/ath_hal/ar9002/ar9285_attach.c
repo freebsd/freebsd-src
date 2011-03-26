@@ -380,6 +380,9 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 #endif
 	pCap->halAutoSleepSupport = AH_FALSE;	/* XXX? */
 	pCap->hal4kbSplitTransSupport = AH_FALSE;
+	if (AR_SREV_KITE_12_OR_LATER(ah))
+		pCap->halHasPsPollSupport = AH_TRUE;
+
 	pCap->halRxStbcSupport = 1;
 	pCap->halTxStbcSupport = 1;
 
