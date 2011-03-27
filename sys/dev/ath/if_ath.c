@@ -612,7 +612,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 * Don't think of doing that unless you know what you're doing.
 	 */
 
-#ifdef	AH_ENABLE_11N
+#ifdef	ATH_ENABLE_11N
 	/*
 	 * Query HT capabilities
 	 */
