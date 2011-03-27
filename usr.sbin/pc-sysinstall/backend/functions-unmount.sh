@@ -143,7 +143,7 @@ unmount_all_filesystems()
 
   # Check if we need to run any gmirror syncing
   ls ${MIRRORCFGDIR}/* >/dev/null 2>/dev/null
-  if [ "$?" = "0" ]
+  if [ $? -eq 0 ]
   then
     # Lets start syncing now
     start_gmirror_sync

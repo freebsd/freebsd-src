@@ -46,27 +46,27 @@ zfs_cleanup_unmount()
         then
           # Make sure we haven't already added the zfs boot line when
           # Creating a dedicated "/boot" partition
-          cat ${FSMNT}/boot/loader.conf 2>/dev/null | grep "vfs.root.mountfrom=" >/dev/null 2>/dev/null
-          if [ "$?" != "0" ] ; then
+          cat ${FSMNT}/boot/loader.conf 2>/dev/null | grep -q "vfs.root.mountfrom=" 2>/dev/null
+          if [ $? -ne 0 ] ; then
             echo "vfs.root.mountfrom=\"zfs:${ZPOOLNAME}\"" >> ${FSMNT}/boot/loader.conf
           fi
-          FOUNDZFSROOT="${ZPOOLNAME}" ; export FOUNDZFSROOT
+          export FOUNDZFSROOT="${ZPOOLNAME}"
         fi
       done
       FOUNDZFS="1"
     fi
   done
 
-  if [ ! -z "${FOUNDZFS}" ]
+  if [ -n "${FOUNDZFS}" ]
   then
     # Check if we need to add our ZFS flags to rc.conf, src.conf and loader.conf
-    cat ${FSMNT}/boot/loader.conf 2>/dev/null | grep 'zfs_load="YES"' >/dev/null 2>/dev/null
-    if [ "$?" != "0" ]
+    cat ${FSMNT}/boot/loader.conf 2>/dev/null | grep -q 'zfs_load="YES"' 2>/dev/null
+    if [ $? -ne 0 ]
     then
       echo 'zfs_load="YES"' >>${FSMNT}/boot/loader.conf
     fi
-    cat ${FSMNT}/etc/rc.conf 2>/dev/null | grep 'zfs_enable="YES"' >/dev/null 2>/dev/null
-    if [ "$?" != "0" ]
+    cat ${FSMNT}/etc/rc.conf 2>/dev/null | grep -q 'zfs_enable="YES"' 2>/dev/null
+    if [ $? -ne 0 ]
     then
       echo 'zfs_enable="YES"' >>${FSMNT}/etc/rc.conf
     fi
@@ -172,7 +172,7 @@ setup_fstab()
 
 
     # Figure out if we are using a glabel, or the raw name for this entry
-    if [ ! -z "${PARTLABEL}" ]
+    if [ -n "${PARTLABEL}" ]
     then
       DEVICE="label/${PARTLABEL}"
     else
@@ -190,7 +190,7 @@ setup_fstab()
 
     # Set our ROOTFSTYPE for loader.conf if necessary
     check_for_mount "${PARTMNT}" "/"
-    if [ "$?" = "0" ] ; then
+    if [ $? -eq 0 ] ; then
       if [ "${PARTFS}" = "ZFS" ] ; then
         ROOTFSTYPE="zfs"
         XPOOLNAME=$(get_zpool_name "${PART}")
@@ -263,12 +263,12 @@ setup_gmirror()
 
     sleep 3
 
-    NUM="`expr ${NUM} + 1`"
+    NUM=$((NUM+1))
   done
 
   
-  cat ${FSMNT}/boot/loader.conf 2>/dev/null | grep 'geom_mirror_load="YES"' >/dev/null 2>/dev/null
-  if [ "$?" != "0" ]
+  cat ${FSMNT}/boot/loader.conf 2>/dev/null | grep -q 'geom_mirror_load="YES"' 2>/dev/null
+  if [ $? -ne 0 ]
   then
     echo 'geom_mirror_load="YES"' >>${FSMNT}/boot/loader.conf
   fi
@@ -304,8 +304,8 @@ setup_geli_loading()
   done
 
   # Make sure we have geom_eli set to load at boot
-  cat ${FSMNT}/boot/loader.conf 2>/dev/null | grep 'geom_eli_load="YES"' >/dev/null 2>/dev/null
-  if [ "$?" != "0" ]
+  cat ${FSMNT}/boot/loader.conf 2>/dev/null | grep -q 'geom_eli_load="YES"' 2>/dev/null
+  if [ $? -ne 0 ]
   then
     echo 'geom_eli_load="YES"' >>${FSMNT}/boot/loader.conf
   fi
@@ -360,8 +360,8 @@ setup_gjournal()
 {
 
   # Make sure we have geom_journal set to load at boot
-  cat ${FSMNT}/boot/loader.conf 2>/dev/null | grep 'geom_journal_load="YES"' >/dev/null 2>/dev/null
-  if [ "$?" != "0" ]
+  cat ${FSMNT}/boot/loader.conf 2>/dev/null | grep -q 'geom_journal_load="YES"' 2>/dev/null
+  if [ $? -ne 0 ]
   then
     echo 'geom_journal_load="YES"' >>${FSMNT}/boot/loader.conf
   fi
@@ -385,14 +385,14 @@ set_root_pw()
   echo_log "Setting root password"
 
   # Check if setting plaintext password
-  if [ ! -z "${PW}" ] ; then
+  if [ -n "${PW}" ] ; then
     echo "${PW}" > ${FSMNT}/.rootpw
     run_chroot_cmd "cat /.rootpw | pw usermod root -h 0"
     rc_halt "rm ${FSMNT}/.rootpw"
   fi
 
   # Check if setting encrypted password
-  if [ ! -z "${ENCPW}" ] ; then
+  if [ -n "${ENCPW}" ] ; then
     echo "${ENCPW}" > ${FSMNT}/.rootpw
     run_chroot_cmd "cat /.rootpw | pw usermod root -H 0"
     rc_halt "rm ${FSMNT}/.rootpw"
@@ -405,7 +405,7 @@ run_final_cleanup()
 {
   # Check if we need to run any gmirror setup
   ls ${MIRRORCFGDIR}/* >/dev/null 2>/dev/null
-  if [ "$?" = "0" ]
+  if [ $? -eq 0 ]
   then
     # Lets setup gmirror now
     setup_gmirror
@@ -413,7 +413,7 @@ run_final_cleanup()
 
   # Check if we need to save any geli keys
   ls ${GELIKEYDIR}/* >/dev/null 2>/dev/null
-  if [ "$?" = "0" ]
+  if [ $? -eq 0 ]
   then
     # Lets setup geli loading
     setup_geli_loading

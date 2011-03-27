@@ -140,7 +140,7 @@ install_components()
 {
   # First, lets check and see if we even have any optional modules
   get_value_from_cfg installComponents
-  if [ ! -z "${VAL}" ]
+  if [ -n "${VAL}" ]
   then
     # Lets start by cleaning up the string and getting it ready to parse
     strip_white_space ${VAL}
