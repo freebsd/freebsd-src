@@ -1930,9 +1930,9 @@ ath_calcrxfilter(struct ath_softc *sc)
 
 #if 0
 	/*
-	 * Enable hardware PS-POLL only for hostap mode;
+	 * Enable hardware PS-POLL RX only for hostap mode;
 	 * STA mode sends PS-POLL frames but never
-	 * sends them.
+	 * receives them.
 	 */
 	if (ath_hal_getcapability(ah, HAL_CAP_HAS_PSPOLL,
 	    0, NULL) == HAL_OK &&
