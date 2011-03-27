@@ -62,5 +62,5 @@ fi
 chroot $2 /bin/sh -c "cd /usr/src && make $MAKE_FLAGS buildworld buildkernel" || exit 1
 chroot $2 /bin/sh -c "cd /usr/src/release && make release" || exit 1
 mkdir $2/R
-cp -pRP $2/usr/obj/usr/src/release/release.iso $2/usr/obj/usr/src/release/memstick $2/usr/obj/usr/src/release/ftp $2/R
+cp -pRP $2/usr/obj/usr/src/release/*.iso $2/usr/obj/usr/src/release/memstick $2/usr/obj/usr/src/release/ftp $2/R
 
