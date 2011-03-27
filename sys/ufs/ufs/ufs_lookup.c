@@ -37,7 +37,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ffs_broken_fixme.h"
 #include "opt_ufs.h"
 #include "opt_quota.h"
 
@@ -1239,7 +1238,7 @@ out:
 	 * when last open reference goes away.
 	 */
 	if (ip != 0 && (ip->i_flags & SF_SNAPSHOT) != 0 && ip->i_effnlink == 0)
-		ffs_snapgone(ip);
+		UFS_SNAPGONE(ip);
 	return (error);
 }
 
@@ -1289,7 +1288,7 @@ ufs_dirrewrite(dp, oip, newinum, newtype, isrmdir)
 	 * when last open reference goes away.
 	 */
 	if ((oip->i_flags & SF_SNAPSHOT) != 0 && oip->i_effnlink == 0)
-		ffs_snapgone(oip);
+		UFS_SNAPGONE(oip);
 	return (error);
 }
 
