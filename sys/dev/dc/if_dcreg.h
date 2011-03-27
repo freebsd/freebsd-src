@@ -745,6 +745,7 @@ struct dc_softc {
 	int			dc_if_media;
 	u_int32_t		dc_flags;
 	u_int32_t		dc_txthresh;
+	u_int32_t		dc_eaddr[2];
 	u_int8_t		*dc_srom;
 	struct dc_mediainfo	*dc_mi;
 	struct dc_list_data	*dc_ldata;
