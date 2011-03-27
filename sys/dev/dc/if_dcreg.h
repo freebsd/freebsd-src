@@ -495,6 +495,7 @@ struct dc_chain_data {
 	bus_dmamap_t		dc_tx_map[DC_TX_LIST_CNT];
 	u_int32_t		*dc_sbuf;
 	u_int8_t		dc_pad[DC_MIN_FRAMELEN];
+	int			dc_tx_pkts;
 	int			dc_tx_first;
 	int			dc_tx_prod;
 	int			dc_tx_cons;
@@ -780,7 +781,6 @@ struct dc_softc {
 #define DC_128BIT_HASH		0x00001000
 #define DC_64BIT_HASH		0x00002000
 #define DC_TULIP_LEDS		0x00004000
-#define DC_TX_ONE		0x00008000
 #define DC_TX_ALIGN		0x00010000	/* align mbuf on tx */
 
 /*

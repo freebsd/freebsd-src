@@ -1334,7 +1334,6 @@ dc_setfilt_xircom(struct dc_softc *sc)
 
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_TX_ON);
 	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_RX_ON);
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	sframe->dc_status = htole32(DC_TXSTAT_OWN);
 	CSR_WRITE_4(sc, DC_TXSTART, 0xFFFFFFFF);
 
@@ -2466,13 +2465,15 @@ dc_list_tx_init(struct dc_softc *sc)
 			nexti = 0;
 		else
 			nexti = i + 1;
+		ld->dc_tx_list[i].dc_status = 0;
+		ld->dc_tx_list[i].dc_ctl = 0;
+		ld->dc_tx_list[i].dc_data = 0;
 		ld->dc_tx_list[i].dc_next = htole32(DC_TXDESC(sc, nexti));
 		cd->dc_tx_chain[i] = NULL;
-		ld->dc_tx_list[i].dc_data = 0;
-		ld->dc_tx_list[i].dc_ctl = 0;
 	}
 
 	cd->dc_tx_prod = cd->dc_tx_cons = cd->dc_tx_cnt = 0;
+	cd->dc_tx_pkts = 0;
 	bus_dmamap_sync(sc->dc_ltag, sc->dc_lmap,
 	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 	return (0);
@@ -2670,7 +2671,6 @@ dc_pnic_rx_bug_war(struct dc_softc *sc, int idx)
 	 * the status word to make it look like a successful
 	 * frame reception.
 	 */
-	dc_newbuf(sc, i, 0);
 	bcopy(ptr, mtod(m, char *), total_len);
 	cur_rx->dc_status = htole32(rxstat | DC_RXSTAT_FIRSTFRAG);
 }
@@ -2841,6 +2841,9 @@ dc_txeof(struct dc_softc *sc)
 	int idx;
 	u_int32_t ctl, txstat;
 
+	if (sc->dc_cdata.dc_tx_cnt == 0)
+		return;
+
 	ifp = sc->dc_ifp;
 
 	/*
@@ -2912,11 +2915,10 @@ dc_txeof(struct dc_softc *sc)
 				dc_init_locked(sc);
 				return;
 			}
-		}
-
+		} else
+			ifp->if_opackets++;
 		ifp->if_collisions += (txstat & DC_TXSTAT_COLLCNT) >> 3;
 
-		ifp->if_opackets++;
 		if (sc->dc_cdata.dc_tx_chain[idx] != NULL) {
 			bus_dmamap_sync(sc->dc_mtag,
 			    sc->dc_cdata.dc_tx_map[idx],
@@ -2951,6 +2953,13 @@ dc_tick(void *xsc)
 	DC_LOCK_ASSERT(sc);
 	ifp = sc->dc_ifp;
 	mii = device_get_softc(sc->dc_miibus);
+
+	/*
+	 * Reclaim transmitted frames for controllers that do
+	 * not generate TX completion interrupt for every frame.
+	 */
+	if (sc->dc_flags & DC_TX_USE_TX_INTR)
+		dc_txeof(sc);
 
 	if (sc->dc_flags & DC_REDUCED_MII_POLL) {
 		if (sc->dc_flags & DC_21143_NWAY) {
@@ -3322,8 +3331,11 @@ dc_encap(struct dc_softc *sc, struct mbuf **m_head)
 		    htole32(DC_TXCTL_FINT);
 	if (sc->dc_flags & DC_TX_INTR_ALWAYS)
 		sc->dc_ldata->dc_tx_list[cur].dc_ctl |= htole32(DC_TXCTL_FINT);
-	if (sc->dc_flags & DC_TX_USE_TX_INTR && sc->dc_cdata.dc_tx_cnt > 64)
+	if (sc->dc_flags & DC_TX_USE_TX_INTR &&
+	    ++sc->dc_cdata.dc_tx_pkts >= 8) {
+		sc->dc_cdata.dc_tx_pkts = 0;
 		sc->dc_ldata->dc_tx_list[cur].dc_ctl |= htole32(DC_TXCTL_FINT);
+	}
 	sc->dc_ldata->dc_tx_list[first].dc_status = htole32(DC_TXSTAT_OWN);
 
 	bus_dmamap_sync(sc->dc_mtag, sc->dc_cdata.dc_tx_map[idx],
@@ -3391,11 +3403,6 @@ dc_start_locked(struct ifnet *ifp)
 		 * to him.
 		 */
 		BPF_MTAP(ifp, m_head);
-
-		if (sc->dc_flags & DC_TX_ONE) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			break;
-		}
 	}
 
 	if (queued > 0) {
@@ -3687,14 +3694,13 @@ dc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 		sc->dc_if_flags = ifp->if_flags;
 		DC_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		DC_LOCK(sc);
-		dc_setfilt(sc);
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			dc_setfilt(sc);
 		DC_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
