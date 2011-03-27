@@ -144,23 +144,23 @@ parse_package_index()
 
     for part in ${line}
     do
-      if [ "${i}" -eq "0" ]
+      if [ ${i} -eq 0 ]
       then
         PKGNAME="${part}"
 
-      elif [ "${i}" -eq "1" ]
+      elif [ ${i} -eq 1 ]
       then
         PACKAGE=`basename "${part}"`
 
-      elif [ "${i}" -eq "3" ]
+      elif [ ${i} -eq 3 ]
       then
         DESC="${part}"
 
-      elif [ "${i}" -eq "6" ]
+      elif [ ${i} -eq 6 ]
       then
         CATEGORY=`echo "${part}" | cut -f1 -d' '`
 
-      elif [ "${i}" -eq "8" ]
+      elif [ ${i} -eq 8 ]
       then
         DEPS="${part}"
       fi
@@ -235,7 +235,7 @@ get_package_dependencies()
   INDEX_FILE="${PKGDIR}/INDEX.deps"
   REGEX="^${PACKAGE}|"
 
-  if [ "${LONG}" -ne "0" ]
+  if [ ${LONG} -ne 0 ]
   then
     REGEX="^.*|${PACKAGE}|"
   fi
@@ -243,8 +243,7 @@ get_package_dependencies()
   LINE=`grep "${REGEX}" "${INDEX_FILE}" 2>/dev/null`
   DEPS=`echo "${LINE}"|cut -f3 -d'|'`
 
-  VAL="${DEPS}"
-  export VAL
+  export VAL="${DEPS}"
 
   if [ -z "${VAL}" ]
   then
@@ -265,8 +264,7 @@ get_package_name()
   LINE=`grep "${REGEX}" "${INDEX_FILE}" 2>/dev/null`
   NAME=`echo "${LINE}"|cut -f2 -d'|'`
 
-  VAL="${NAME}"
-  export VAL
+  export VAL="${NAME}"
 
   if [ -z "${VAL}" ]
   then
@@ -287,8 +285,7 @@ get_package_short_name()
   LINE=`grep "${REGEX}" "${INDEX_FILE}" 2>/dev/null`
   NAME=`echo "${LINE}"|cut -f1 -d'|'`
 
-  VAL="${NAME}"
-  export VAL
+  export VAL="${NAME}"
 
   if [ -z "${VAL}" ]
   then
@@ -307,8 +304,7 @@ get_package_category()
   LINE=`grep "|${PACKAGE}|" "${INDEX_FILE}" 2>/dev/null`
   NAME=`echo "${LINE}"|cut -f1 -d'|'`
 
-  VAL="${NAME}"
-  export VAL
+  export VAL="${NAME}"
 
   if [ -z "${VAL}" ]
   then

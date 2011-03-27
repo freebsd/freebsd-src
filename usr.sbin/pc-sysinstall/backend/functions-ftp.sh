@@ -292,8 +292,7 @@ get_ftp_mirror()
     MIRROR=`cat "${CONFDIR}/mirrors.conf"`
   fi
 
-  VAL="${MIRROR}"
-  export VAL
+  export VAL="${MIRROR}"
 };
 
 
@@ -303,9 +302,7 @@ get_ftpHost()
   ftpPath="$VAL"
 
   ftpHost=`echo "${ftpPath}" | sed -E 's|^(ftp://)([^/]*)(.*)|\2|'`
-  VAL="${ftpHost}"
-
-  export VAL
+  export VAL="${ftpHost}"
 };
 
 get_ftpDir()
@@ -314,9 +311,7 @@ get_ftpDir()
   ftpPath="$VAL"
 
   ftpDir=`echo "${ftpPath}" | sed -E 's|^(ftp://)([^/]*)(.*)|\3|'`
-  VAL="${ftpDir}"
-
-  export VAL
+  export VAL="${ftpDir}"
 };
 
 get_ftp_mirrors()

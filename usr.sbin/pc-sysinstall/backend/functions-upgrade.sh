@@ -42,7 +42,7 @@ mount_target_slice()
 
   if [ -e "/dev/${MPART}" ] ; then
     rc_nohalt "mount /dev/${MPART} ${FSMNT}"
-    if [ "$?" != "0" ] ; then
+    if [ $? -ne 0 ] ; then
       # Check if we have ZFS tank name
       rc_halt "mount -t zfs ${MPART} ${FSMNT}"
     fi
@@ -58,7 +58,7 @@ mount_target_slice()
   zfs mount -a
 
   # Mount all the fstab goodies on disk
-  chroot ${FSMNT} /sbin/mount -a -t nolinprocfs >>${LOGOUT} 2>>${LOGOUT
+  chroot ${FSMNT} /sbin/mount -a -t nolinprocfs >>${LOGOUT} 2>>${LOGOUT}
   chroot ${FSMNT} umount /proc >/dev/null 2>/dev/null 
   chroot ${FSMNT} umount /compat/linux/proc  >/dev/null 2>/dev/null
 
@@ -80,7 +80,7 @@ mount_target_slice()
   then
     echo_log "Removing old packages, this may take a while... Please wait..."
     echo '#!/bin/sh
-for i in `pkg_info -E \*`
+for i in `pkg_info -aE`
 do
   echo "Uninstalling package: ${i}"
   pkg_delete -f ${i} >/dev/null 2>/dev/null
@@ -116,8 +116,8 @@ mount_upgrade()
   # We are ready to start mounting, lets read the config and do it
   while read line
   do
-    echo $line | grep "^disk0=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^disk0=" 2>/dev/null
+    if [ $? -eq 0 ]
     then
 
       # Found a disk= entry, lets get the disk we are working on
@@ -126,11 +126,11 @@ mount_upgrade()
       DISK="$VAL"
     fi
 
-    echo $line | grep "^commitDiskPart" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^commitDiskPart" 2>/dev/null
+    if [ $? -eq 0 ]
     then
       # Found our flag to commit this disk setup / lets do sanity check and do it
-      if [ ! -z "${DISK}" ]
+      if [ -n "${DISK}" ]
       then
 
         # Start mounting this slice

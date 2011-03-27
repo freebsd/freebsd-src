@@ -33,14 +33,14 @@ check_for_enc_pass()
   CURLINE="${1}"
  
   get_next_cfg_line "${CFGF}" "${CURLINE}" 
-  echo ${VAL} | grep "^encpass=" >/dev/null 2>/dev/null
-  if [ "$?" = "0" ] ; then
+  echo ${VAL} | grep -q "^encpass=" 2>/dev/null
+  if [ $? -eq 0 ] ; then
     # Found a password, return it
     get_value_from_string "${VAL}"
     return
   fi
 
-  VAL="" ; export VAL
+  export VAL=""
   return
 };
 
@@ -51,17 +51,17 @@ get_fs_line_xvars()
   ACTIVEDEV="${1}"
   LINE="${2}"
 
-  echo $LINE | grep ' (' >/dev/null 2>/dev/null
-  if [ "$?" = "0" ] ; then
+  echo $LINE | grep -q ' (' 2>/dev/null
+  if [ $? -eq 0 ] ; then
 
     # See if we are looking for ZFS specific options
-    echo $LINE | grep '^ZFS' >/dev/null 2>/dev/null
-    if [ "$?" = "0" ] ; then
+    echo $LINE | grep -q '^ZFS' 2>/dev/null
+    if [ $? -eq 0 ] ; then
       ZTYPE="NONE"
       ZFSVARS="`echo $LINE | cut -d '(' -f 2- | cut -d ')' -f 1 | xargs`"
 
-      echo $ZFSVARS | grep -E "^(disk|file|mirror|raidz(1|2)?|spare|log|cache):" >/dev/null 2>/dev/null
-	  if [ "$?" = "0" ] ; then
+      echo $ZFSVARS | grep -qE "^(disk|file|mirror|raidz(1|2)?|spare|log|cache):" 2>/dev/null
+	  if [ $? -eq 0 ] ; then
        ZTYPE=`echo $ZFSVARS | cut -f1 -d:`
        ZFSVARS=`echo $ZFSVARS | sed "s|$ZTYPE: ||g" | sed "s|$ZTYPE:||g"`
 	  fi
@@ -79,8 +79,7 @@ get_fs_line_xvars()
   fi # End of xtra-options block
 
   # If we got here, set VAR to empty and export
-  VAR=""
-  export VAR
+  export VAR=""
   return
 };
 
@@ -94,12 +93,12 @@ setup_zfs_mirror_parts()
   for _zvars in $_mirrline
   do
     echo "Looping through _zvars: $_zvars" >>${LOGOUT}
-    echo "$_zvars" | grep "${2}" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ] ; then continue ; fi
+    echo "$_zvars" | grep -q "${2}" 2>/dev/null
+    if [ $? -eq 0 ] ; then continue ; fi
     if [ -z "$_zvars" ] ; then continue ; fi
 
     is_disk "$_zvars" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ] ; then
+    if [ $? -eq 0 ] ; then
       echo "Setting up ZFS mirror disk $_zvars" >>${LOGOUT}
       init_gpt_full_disk "$_zvars" >/dev/null 2>/dev/null
       rc_halt "gpart bootcode -p /boot/gptzfsboot -i 1 ${_zvars}" >/dev/null 2>/dev/null
@@ -138,12 +137,12 @@ gen_glabel_name()
   while
   Z=1
   do
-    glabel status | grep "${NAME}${NUM}" >/dev/null 2>/dev/null
-    if [ "$?" != "0" ]
+    glabel status | grep -q "${NAME}${NUM}" 2>/dev/null
+    if [ $? -ne 0 ]
     then
       break
     else
-      NUM="`expr ${NUM} + 1`"
+        NUM=$((NUM+1))
     fi
 
     if [ $NUM -gt $MAXNUM ]
@@ -154,8 +153,7 @@ gen_glabel_name()
   done 
    
 
-  VAL="${NAME}${NUM}" 
-  export VAL
+  export VAL="${NAME}${NUM}" 
 };
 
 # Function to setup partitions using gpart
@@ -180,8 +178,8 @@ setup_gpart_partitions()
   while read line
   do
     # Check for data on this slice
-    echo $line | grep "^${_dTag}-part=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^${_dTag}-part=" 2>/dev/null
+    if [ $? -eq 0 ]
     then
       FOUNDPARTS="0"
       # Found a slice- entry, lets get the slice info
@@ -194,8 +192,8 @@ setup_gpart_partitions()
       MNT=`echo $STRING | tr -s '\t' ' ' | cut -d ' ' -f 3` 
 
       # Check if we have a .eli extension on this FS
-      echo ${FS} | grep ".eli" >/dev/null 2>/dev/null
-      if [ "$?" = "0" ]
+      echo ${FS} | grep -q ".eli" 2>/dev/null
+      if [ $? -eq 0 ]
       then
         FS="`echo ${FS} | cut -d '.' -f 1`"
         ENC="ON"
@@ -210,9 +208,9 @@ setup_gpart_partitions()
 
       # Check if the user tried to setup / as an encrypted partition
       check_for_mount "${MNT}" "/"
-      if [ "${?}" = "0" -a "${ENC}" = "ON" ]
+      if [ $? -eq 0 -a "${ENC}" = "ON" ]
       then
-        USINGENCROOT="0" ; export USINGENCROOT
+        export USINGENCROOT="0"
       fi
           
       # Now check that these values are sane
@@ -223,13 +221,13 @@ setup_gpart_partitions()
 
       # Check that we have a valid size number
       expr $SIZE + 1 >/dev/null 2>/dev/null
-      if [ "$?" != "0" ]; then
+      if [ $? -ne 0 ]; then
         exit_err "ERROR: The size specified on $line is invalid"
       fi
 
       # Check that the mount-point starts with /
-      echo "$MNT" | grep -e "^/" -e "^none" >/dev/null 2>/dev/null
-      if [ "$?" != "0" ]; then
+      echo "$MNT" | grep -qe "^/" -e "^none" 2>/dev/null
+      if [ $? -ne 0 ]; then
         exit_err "ERROR: The mount-point specified on $line is invalid"
       fi
 
@@ -242,19 +240,19 @@ setup_gpart_partitions()
 
       # Check if we found a valid root partition
       check_for_mount "${MNT}" "/"
-      if [ "${?}" = "0" ] ; then
-        FOUNDROOT="1" ; export FOUNDROOT
+      if [ $? -eq 0 ] ; then
+        export FOUNDROOT="1"
         if [ "${CURPART}" = "2" -a "$_pType" = "gpt" ] ; then
-          FOUNDROOT="0" ; export FOUNDROOT
+          export FOUNDROOT="0"
         fi
         if [ "${CURPART}" = "1" -a "$_pType" = "mbr" ] ; then
-          FOUNDROOT="0" ; export FOUNDROOT
+          export FOUNDROOT="0"
         fi
       fi
 
       check_for_mount "${MNT}" "/boot"
-      if [ "${?}" = "0" ] ; then
-        USINGBOOTPART="0" ; export USINGBOOTPART
+      if [ $? -eq 0 ] ; then
+        export USINGBOOTPART="0"
         if [ "${CURPART}" != "2" -a "${_pType}" = "gpt" ] ; then
             exit_err "/boot partition must be first partition"
         fi
@@ -280,8 +278,8 @@ setup_gpart_partitions()
       XTRAOPTS="${VAR}"
 
       # Check if using zfs mirror
-      echo ${XTRAOPTS} | grep "mirror" >/dev/null 2>/dev/null
-      if [ "$?" = "0" ] ; then
+      echo ${XTRAOPTS} | grep -q "mirror" 2>/dev/null
+      if [ $? -eq 0 ] ; then
         if [ "${_pType}" = "gpt" ] ; then
        	  XTRAOPTS=$(setup_zfs_mirror_parts "$XTRAOPTS" "${_pDisk}p${CURPART}")
         else
@@ -325,10 +323,10 @@ setup_gpart_partitions()
 
         # Clear out any headers
         sleep 2
-        dd if=/dev/zero of=${_pDisk}p${CURPART} count=2048 >/dev/null 2>/dev/null
+        dd if=/dev/zero of=${_pDisk}p${CURPART} count=2048 2>/dev/null
 
         # If we have a enc password, save it as well
-        if [ ! -z "${ENCPASS}" ] ; then
+        if [ -n "${ENCPASS}" ] ; then
           echo "${ENCPASS}" >${PARTDIR}-enc/${_pDisk}p${CURPART}-encpass
         fi
       else
@@ -336,10 +334,10 @@ setup_gpart_partitions()
         echo "${FS}:${MNT}:${ENC}:${PLABEL}:MBR:${XTRAOPTS}:${IMAGE}" >${PARTDIR}/${_wSlice}${PARTLETTER}
         # Clear out any headers
         sleep 2
-        dd if=/dev/zero of=${_wSlice}${PARTLETTER} count=2048 >/dev/null 2>/dev/null
+        dd if=/dev/zero of=${_wSlice}${PARTLETTER} count=2048 2>/dev/null
 
         # If we have a enc password, save it as well
-        if [ ! -z "${ENCPASS}" ] ; then
+        if [ -n "${ENCPASS}" ] ; then
           echo "${ENCPASS}" >${PARTDIR}-enc/${_wSlice}${PARTLETTER}-encpass
         fi
       fi
@@ -347,11 +345,11 @@ setup_gpart_partitions()
 
       # Increment our parts counter
       if [ "$_pType" = "gpt" ] ; then 
-        CURPART="`expr ${CURPART} + 1`"
+          CURPART=$((CURPART+1))
         # If this is a gpt partition, we can continue and skip the MBR part letter stuff
         continue
       else
-        CURPART="`expr ${CURPART} + 1`"
+          CURPART=$((CURPART+1))
         if [ "$CURPART" = "3" ] ; then CURPART="4" ; fi
       fi
 
@@ -370,8 +368,8 @@ setup_gpart_partitions()
 
     fi # End of subsection locating a slice in config
 
-    echo $line | grep "^commitDiskLabel" >/dev/null 2>/dev/null
-    if [ "$?" = "0" -a "${FOUNDPARTS}" = "0" ]
+    echo $line | grep -q "^commitDiskLabel" 2>/dev/null
+    if [ $? -eq 0 -a "${FOUNDPARTS}" = "0" ]
     then
 
       # If this is the boot disk, stamp the right gptboot
@@ -455,20 +453,17 @@ setup_disk_label()
   done
 
   # Setup some files which we'll be referring to
-  LABELLIST="${TMPDIR}/workingLabels"
-  export LABELLIST
+  export LABELLIST="${TMPDIR}/workingLabels"
   rm $LABELLIST >/dev/null 2>/dev/null
 
   # Set our flag to determine if we've got a valid root partition in this setup
-  FOUNDROOT="-1"
-  export FOUNDROOT
+  export FOUNDROOT="-1"
 
   # Check if we are using a /boot partition
-  USINGBOOTPART="1"
-  export USINGBOOTPART
+  export USINGBOOTPART="1"
  
   # Set encryption on root check
-  USINGENCROOT="1" ; export USINGENCROOT
+  export USINGENCROOT="1"
   
   # Make the tmp directory where we'll store FS info & mount-points
   rm -rf ${PARTDIR} >/dev/null 2>/dev/null
@@ -516,8 +511,8 @@ check_fstab_mbr()
   then
     PARTLETTER=`echo "$SLICE" | sed -E 's|^.+([a-h])$|\1|'`
 
-    cat "${FSTAB}" | awk '{ print $2 }' | grep -E '^/$' >/dev/null 2>&1
-    if [ "$?" = "0" ]
+    cat "${FSTAB}" | awk '{ print $2 }' | grep -qE '^/$' 2>&1
+    if [ $? -eq 0 ]
     then
       if [ "${PARTLETTER}" = "a" ]
       then
@@ -532,8 +527,8 @@ check_fstab_mbr()
       export ROOTIMAGE
     fi
 
-    cat "${FSTAB}" | awk '{ print $2 }' | grep -E '^/boot$' >/dev/null 2>&1
-    if [ "$?" = "0" ]
+    cat "${FSTAB}" | awk '{ print $2 }' | grep -qE '^/boot$' 2>&1
+    if [ $? -eq 0 ]
     then
       if [ "${PARTLETTER}" = "a" ]
       then
@@ -567,8 +562,8 @@ check_fstab_gpt()
   then
     PARTNUMBER=`echo "${SLICE}" | sed -E 's|^.+p([0-9]*)$|\1|'`
 
-    cat "${FSTAB}" | awk '{ print $2 }' | grep -E '^/$' >/dev/null 2>&1
-    if [ "$?" = "0" ]
+    cat "${FSTAB}" | awk '{ print $2 }' | grep -qE '^/$' 2>&1
+    if [ $? -eq 0 ]
     then
       if [ "${PARTNUMBER}" = "2" ]
       then
@@ -583,8 +578,8 @@ check_fstab_gpt()
       export ROOTIMAGE
     fi
 
-    cat "${FSTAB}" | awk '{ print $2 }' | grep -E '^/boot$' >/dev/null 2>&1
-    if [ "$?" = "0" ]
+    cat "${FSTAB}" | awk '{ print $2 }' | grep -qE '^/boot$' 2>&1
+    if [ $? -eq 0 ]
     then
       if [ "${PARTNUMBER}" = "2" ]
       then
@@ -645,7 +640,7 @@ check_disk_layout()
   do
     F=1
     mount ${slice} /mnt 2>/dev/null
-    if [ "$?" != "0" ]
+    if [ $? -ne 0 ]
     then
       continue
     fi 
@@ -661,7 +656,7 @@ check_disk_layout()
       F="$?"
     fi 
 
-    if [ "${F}" = "0" ]
+    if [ ${F} -eq 0 ]
     then
       umount /mnt
       break 
