@@ -45,8 +45,8 @@ Type=Application" > ${FSMNT}/usr/share/skel/.kde4/Autostart/tray-${NIC}.desktop
 check_is_wifi()
 {
   NIC="$1"
-  ifconfig ${NIC} | grep "802.11" >/dev/null 2>/dev/null
-  if [ "$?" = "0" ]
+  ifconfig ${NIC} | grep -q "802.11" 2>/dev/null
+  if [ $? -eq 0 ]
   then
     return 0
   else 
@@ -66,15 +66,15 @@ get_first_wired_nic()
     do
       NIC="`echo $line | cut -d ':' -f 1`"
       check_is_wifi ${NIC}
-      if [ "$?" != "0" ]
+      if [ $? -ne 0 ]
       then
-        VAL="${NIC}" ; export VAL
+        export VAL="${NIC}"
         return
       fi
     done < ${TMPDIR}/.niclist
   fi
 
-  VAL="" ; export VAL
+  export VAL=""
   return
 };
 
@@ -95,14 +95,14 @@ enable_dhcp_all()
       DESC="`echo $line | cut -d ':' -f 2`"
       echo_log "Setting $NIC to DHCP on the system."
       check_is_wifi ${NIC}
-      if [ "$?" = "0" ]
+      if [ $? -eq 0 ]
       then
         # We have a wifi device, setup a wlan* entry for it
         WLAN="wlan${WLANCOUNT}"
         echo "wlans_${NIC}=\"${WLAN}\"" >>${FSMNT}/etc/rc.conf
         echo "ifconfig_${WLAN}=\"DHCP\"" >>${FSMNT}/etc/rc.conf
         CNIC="${WLAN}"
-        WLANCOUNT="`expr ${WLANCOUNT} + 1`"
+        WLANCOUNT=$((WLANCOUNT+1))
       else
         echo "ifconfig_${NIC}=\"DHCP\"" >>${FSMNT}/etc/rc.conf
         CNIC="${NIC}"
@@ -144,7 +144,7 @@ save_manual_nic()
   # Check if we have a netmask to set
   get_value_from_cfg netSaveMask
   NETMASK="${VAL}"
-  if [ ! -z "${NETMASK}" ]
+  if [ -n "${NETMASK}" ]
   then
     IFARGS="${IFARGS} netmask ${NETMASK}"
   fi
@@ -156,7 +156,7 @@ save_manual_nic()
   # Check if we have a default router to set
   get_value_from_cfg netSaveDefaultRouter
   NETROUTE="${VAL}"
-  if [ ! -z "${NETROUTE}" ]
+  if [ -n "${NETROUTE}" ]
   then
     echo "defaultrouter=\"${NETROUTE}\"" >>${FSMNT}/etc/rc.conf
   fi
@@ -164,7 +164,7 @@ save_manual_nic()
   # Check if we have a nameserver to enable
   get_value_from_cfg netSaveNameServer
   NAMESERVER="${VAL}"
-  if [ ! -z "${NAMESERVER}" ]
+  if [ -n "${NAMESERVER}" ]
   then
     echo "nameserver ${NAMESERVER}" >${FSMNT}/etc/resolv.conf
   fi
@@ -174,8 +174,8 @@ save_manual_nic()
 # Function which determines if a nic is active / up
 is_nic_active()
 {
-  ifconfig ${1} | grep "status: active" >/dev/null 2>/dev/null
-  if [ "$?" = "0" ] ; then
+  ifconfig ${1} | grep -q "status: active" 2>/dev/null
+  if [ $? -eq 0 ] ; then
     return 0
   else
     return 1
@@ -195,12 +195,12 @@ enable_auto_dhcp()
     DESC="`echo $line | cut -d ':' -f 2`"
 
     is_nic_active "${NIC}"
-    if [ "$?" = "0" ] ; then
+    if [ $? -eq 0 ] ; then
       echo_log "Trying DHCP on $NIC $DESC"
       dhclient ${NIC} >/dev/null 2>/dev/null
-      if [ "$?" = "0" ] ; then
+      if [ $? -eq 0 ] ; then
         # Got a valid DHCP IP, we can return now
-	    WRKNIC="$NIC" ; export WRKNIC
+	    export WRKNIC="$NIC"
    	    return 0
 	  fi
     fi
@@ -242,7 +242,7 @@ enable_manual_nic()
   # Check if we have a netmask to set
   get_value_from_cfg netMask
   NETMASK="${VAL}"
-  if [ ! -z "${NETMASK}" ]
+  if [ -n "${NETMASK}" ]
   then
     rc_halt "ifconfig ${NIC} netmask ${NETMASK}"
   fi
@@ -250,7 +250,7 @@ enable_manual_nic()
   # Check if we have a default router to set
   get_value_from_cfg netDefaultRouter
   NETROUTE="${VAL}"
-  if [ ! -z "${NETROUTE}" ]
+  if [ -n "${NETROUTE}" ]
   then
     rc_halt "route add default ${NETROUTE}"
   fi
@@ -258,7 +258,7 @@ enable_manual_nic()
   # Check if we have a nameserver to enable
   get_value_from_cfg netNameServer
   NAMESERVER="${VAL}"
-  if [ ! -z "${NAMESERVER}" ]
+  if [ -n "${NAMESERVER}" ]
   then
     echo "nameserver ${NAMESERVER}" >/etc/resolv.conf
   fi
@@ -309,4 +309,3 @@ save_networking_install()
   fi
 
 };
-

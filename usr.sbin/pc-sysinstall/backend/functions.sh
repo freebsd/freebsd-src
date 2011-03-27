@@ -91,8 +91,7 @@ strip_white_space()
     exit 1
   fi
 
-  VAL=`echo "$1" | tr -d ' '`
-  export VAL
+  export VAL=`echo "$1" | tr -d ' '`
 };
 
 # Displays an error message and exits with error 1
@@ -239,7 +238,7 @@ fetch_file()
 
     # Check if the download is finished
     ps -p ${PID} >/dev/null 2>/dev/null
-    if [ "$?" != "0" ]
+    if [ $? -ne 0 ]
     then
       break;
     fi
@@ -293,7 +292,7 @@ iscompressed()
   RES=1
 
   if echo "${FILE}" | \
-    grep -iE '\.(Z|lzo|lzw|lzma|gz|bz2|xz|zip)$' >/dev/null 2>&1
+    grep -qiE '\.(Z|lzo|lzw|lzma|gz|bz2|xz|zip)$' 2>&1
   then
     RES=0
   fi

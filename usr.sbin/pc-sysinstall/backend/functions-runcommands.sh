@@ -82,24 +82,24 @@ run_commands()
   while read line
   do
     # Check if we need to run any chroot command
-    echo $line | grep ^runCommand= >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q ^runCommand=  2>/dev/null
+    if [ $? -eq 0 ]
     then
       get_value_from_string "$line"
       run_chroot_cmd "$VAL"
     fi
 
     # Check if we need to run any chroot script
-    echo $line | grep ^runScript= >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q ^runScript= 2>/dev/null
+    if [ $? -eq 0 ]
     then
       get_value_from_string "$line"
       run_chroot_script "$VAL"
     fi
 
     # Check if we need to run any chroot command
-    echo $line | grep ^runExtCommand= >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q ^runExtCommand= 2>/dev/null
+    if [ $? -eq 0 ]
     then
       get_value_from_string "$line"
       run_ext_cmd "$VAL"
