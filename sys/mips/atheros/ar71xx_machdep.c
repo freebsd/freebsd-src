@@ -139,13 +139,39 @@ platform_trap_exit(void)
 
 }
 
+/*
+ * Obtain the MAC address via the Redboot environment.
+ */
+static void
+ar71xx_redboot_get_macaddr(void)
+{
+	char *var;
+	int count = 0;
+
+	/*
+	 * "ethaddr" is passed via envp on RedBoot platforms
+	 * "kmac" is passed via argv on RouterBOOT platforms
+	 */
+	if ((var = getenv("ethaddr")) != NULL ||
+	    (var = getenv("kmac")) != NULL) {
+		count = sscanf(var, "%x%*c%x%*c%x%*c%x%*c%x%*c%x",
+		    &ar711_base_mac[0], &ar711_base_mac[1],
+		    &ar711_base_mac[2], &ar711_base_mac[3],
+		    &ar711_base_mac[4], &ar711_base_mac[5]);
+		if (count < 6)
+			memset(ar711_base_mac, 0,
+			    sizeof(ar711_base_mac));
+		freeenv(var);
+	}
+}
+
 void
 platform_start(__register_t a0 __unused, __register_t a1 __unused, 
     __register_t a2 __unused, __register_t a3 __unused)
 {
 	uint64_t platform_counter_freq;
-	int argc, i, count = 0;
-	char **argv, **envp, *var;
+	int argc, i;
+	char **argv, **envp;
 	vm_offset_t kernend;
 
 	/* 
@@ -252,21 +278,8 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	else 
 		printf ("envp is invalid\n");
 
-	/*
-	 * "ethaddr" is passed via envp on RedBoot platforms
-	 * "kmac" is passed via argv on RouterBOOT platforms
-	 */
-	if ((var = getenv("ethaddr")) != NULL ||
-	    (var = getenv("kmac")) != NULL) {
-		count = sscanf(var, "%x%*c%x%*c%x%*c%x%*c%x%*c%x",
-		    &ar711_base_mac[0], &ar711_base_mac[1],
-		    &ar711_base_mac[2], &ar711_base_mac[3],
-		    &ar711_base_mac[4], &ar711_base_mac[5]);
-		if (count < 6)
-			memset(ar711_base_mac, 0,
-			    sizeof(ar711_base_mac));
-		freeenv(var);
-	}
+	/* Redboot if_arge MAC address is in the environment */
+	ar71xx_redboot_get_macaddr();
 
 	init_param2(physmem);
 	mips_cpu_init();
