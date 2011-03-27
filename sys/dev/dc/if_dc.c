@@ -2894,6 +2894,7 @@ dc_rxeof(struct dc_softc *sc)
 				if (rxstat & DC_RXSTAT_CRCERR)
 					continue;
 				else {
+					ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 					dc_init_locked(sc);
 					return;
 				}
@@ -3030,6 +3031,7 @@ dc_txeof(struct dc_softc *sc)
 			if (txstat & DC_TXSTAT_LATECOLL)
 				ifp->if_collisions++;
 			if (!(txstat & DC_TXSTAT_UNDERRUN)) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				dc_init_locked(sc);
 				return;
 			}
@@ -3141,8 +3143,10 @@ dc_tx_underrun(struct dc_softc *sc)
 	u_int32_t isr;
 	int i;
 
-	if (DC_IS_DAVICOM(sc))
+	if (DC_IS_DAVICOM(sc)) {
+		sc->dc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		dc_init_locked(sc);
+	}
 
 	if (DC_IS_INTEL(sc)) {
 		/*
@@ -3162,6 +3166,7 @@ dc_tx_underrun(struct dc_softc *sc)
 			device_printf(sc->dc_dev,
 			    "%s: failed to force tx to idle state\n",
 			    __func__);
+			sc->dc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			dc_init_locked(sc);
 		}
 	}
@@ -3233,7 +3238,7 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		if (status & DC_ISR_BUS_ERR) {
 			if_printf(ifp, "%s: bus error\n", __func__);
-			dc_reset(sc);
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			dc_init_locked(sc);
 		}
 	}
@@ -3246,7 +3251,7 @@ dc_intr(void *arg)
 {
 	struct dc_softc *sc;
 	struct ifnet *ifp;
-	u_int32_t status;
+	u_int32_t r, status;
 	int curpkts, n;
 
 	sc = arg;
@@ -3301,6 +3306,8 @@ dc_intr(void *arg)
 
 		if ((status & DC_ISR_RX_WATDOGTIMEO)
 		    || (status & DC_ISR_RX_NOBUF)) {
+			r = CSR_READ_4(sc, DC_FRAMESDISCARDED);
+			ifp->if_ierrors += (r & 0xffff) + ((r >> 17) & 0x7ff);
 			curpkts = ifp->if_ipackets;
 			dc_rxeof(sc);
 			if (curpkts == ifp->if_ipackets) {
@@ -3313,7 +3320,7 @@ dc_intr(void *arg)
 			dc_start_locked(ifp);
 
 		if (status & DC_ISR_BUS_ERR) {
-			dc_reset(sc);
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			dc_init_locked(sc);
 			DC_UNLOCK(sc);
 			return;
@@ -3559,6 +3566,9 @@ dc_init_locked(struct dc_softc *sc)
 
 	DC_LOCK_ASSERT(sc);
 
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
+
 	mii = device_get_softc(sc->dc_miibus);
 
 	/*
@@ -3719,6 +3729,9 @@ dc_init_locked(struct dc_softc *sc)
 	mii_mediachg(mii);
 	dc_setcfg(sc, sc->dc_if_media);
 
+	/* Clear missed frames and overflow counter. */
+	CSR_READ_4(sc, DC_FRAMESDISCARDED);
+
 	/* Don't start the ticker if this is a homePNA link. */
 	if (IFM_SUBTYPE(mii->mii_media.ifm_media) == IFM_HPNA_1)
 		sc->dc_link = 1;
@@ -3809,6 +3822,7 @@ dc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 					dc_setfilt(sc);
 			} else {
 				sc->dc_txthresh = 0;
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				dc_init_locked(sc);
 			}
 		} else {
@@ -3881,8 +3895,7 @@ dc_watchdog(void *xsc)
 	ifp->if_oerrors++;
 	device_printf(sc->dc_dev, "watchdog timeout\n");
 
-	dc_stop(sc);
-	dc_reset(sc);
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	dc_init_locked(sc);
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
