@@ -471,11 +471,15 @@ struct dc_desc {
 
 #define DC_INC(x, y)		(x) = (x + 1) % y
 
+#define	DC_LIST_ALIGN		(sizeof(struct dc_desc))
+#define	DC_RXBUF_ALIGN		4
+
 /* Macros to easily get the DMA address of a descriptor. */
-#define DC_RXDESC(sc, i)	(sc->dc_laddr +				\
-    (uintptr_t)(sc->dc_ldata->dc_rx_list + i) - (uintptr_t)sc->dc_ldata)
-#define DC_TXDESC(sc, i)	(sc->dc_laddr +				\
-    (uintptr_t)(sc->dc_ldata->dc_tx_list + i) - (uintptr_t)sc->dc_ldata)
+#define	DC_ADDR_LO(x)		((uint64_t)(x) & 0xFFFFFFFF)
+#define DC_RXDESC(sc, i)	\
+    (DC_ADDR_LO(sc->dc_ldata.dc_rx_list_paddr + (sizeof(struct dc_desc) * i)))
+#define DC_TXDESC(sc, i)	\
+    (DC_ADDR_LO(sc->dc_ldata.dc_tx_list_paddr + (sizeof(struct dc_desc) * i)))
 
 #if BYTE_ORDER == BIG_ENDIAN
 #define DC_SP_MAC(x)		((x) << 16)
@@ -484,9 +488,14 @@ struct dc_desc {
 #endif
 
 struct dc_list_data {
-	struct dc_desc		dc_rx_list[DC_RX_LIST_CNT];
-	struct dc_desc		dc_tx_list[DC_TX_LIST_CNT];
+	struct dc_desc		*dc_rx_list;
+	bus_addr_t		dc_rx_list_paddr;
+	struct dc_desc		*dc_tx_list;
+	bus_addr_t		dc_tx_list_paddr;
 };
+
+#define	DC_RX_LIST_SZ		((sizeof(struct dc_desc) * DC_RX_LIST_CNT))
+#define	DC_TX_LIST_SZ		((sizeof(struct dc_desc) * DC_TX_LIST_CNT))
 
 struct dc_chain_data {
 	struct mbuf		*dc_rx_chain[DC_RX_LIST_CNT];
@@ -722,14 +731,17 @@ struct dc_softc {
 	device_t		dc_dev;		/* device info */
 	bus_space_handle_t	dc_bhandle;	/* bus space handle */
 	bus_space_tag_t		dc_btag;	/* bus space tag */
-	bus_dma_tag_t		dc_ltag;	/* tag for descriptor ring */
-	bus_dmamap_t		dc_lmap;	/* map for descriptor ring */
-	u_int32_t		dc_laddr;	/* DMA address of dc_ldata */
-	bus_dma_tag_t		dc_mtag;	/* tag for mbufs */
+	bus_dma_tag_t		dc_ptag;	/* parent DMA tag */
 	bus_dmamap_t		dc_sparemap;
+	bus_dma_tag_t		dc_rx_ltag;	/* tag for RX descriptors */
+	bus_dmamap_t		dc_rx_lmap;
+	bus_dma_tag_t		dc_tx_ltag;	/* tag for TX descriptors */
+	bus_dmamap_t		dc_tx_lmap;
 	bus_dma_tag_t		dc_stag;	/* tag for the setup frame */
 	bus_dmamap_t		dc_smap;	/* map for the setup frame */
-	u_int32_t		dc_saddr;	/* DMA address of setup frame */
+	bus_addr_t		dc_saddr;	/* DMA address of setup frame */
+	bus_dma_tag_t		dc_rx_mtag;	/* tag for RX mbufs */
+	bus_dma_tag_t		dc_tx_mtag;	/* tag for TX mbufs */
 	void			*dc_intrhand;
 	struct resource		*dc_irq;
 	struct resource		*dc_res;
@@ -749,7 +761,7 @@ struct dc_softc {
 	u_int32_t		dc_eaddr[2];
 	u_int8_t		*dc_srom;
 	struct dc_mediainfo	*dc_mi;
-	struct dc_list_data	*dc_ldata;
+	struct dc_list_data	dc_ldata;
 	struct dc_chain_data	dc_cdata;
 	struct callout		dc_stat_ch;
 	struct callout		dc_wdog_ch;
@@ -796,7 +808,6 @@ struct dc_softc {
 	bus_space_barrier(sc->dc_btag, sc->dc_bhandle, reg, 4, flags)
 
 #define DC_TIMEOUT		1000
-#define ETHER_ALIGN		2
 
 /*
  * General constants that are fun to know.
