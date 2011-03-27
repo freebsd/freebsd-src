@@ -17,6 +17,7 @@ FILES=	100.chksetuid \
 
 .if ${MK_IPFILTER} != "no"
 FILES+=	510.ipfdenied
+FILES+=	610.ipf6denied
 .endif
 
 .if ${MK_IPFW} != "no"
