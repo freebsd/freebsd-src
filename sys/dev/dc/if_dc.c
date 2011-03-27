@@ -127,7 +127,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#define DC_USEIOSPACE
+#define	DC_USEIOSPACE
 
 #include <dev/dc/if_dcreg.h>
 
@@ -261,16 +261,16 @@ static void dc_dma_map_addr(void *, bus_dma_segment_t *, int, int);
 static void dc_delay(struct dc_softc *);
 static void dc_eeprom_idle(struct dc_softc *);
 static void dc_eeprom_putbyte(struct dc_softc *, int);
-static void dc_eeprom_getword(struct dc_softc *, int, u_int16_t *);
-static void dc_eeprom_getword_pnic(struct dc_softc *, int, u_int16_t *);
-static void dc_eeprom_getword_xircom(struct dc_softc *, int, u_int16_t *);
+static void dc_eeprom_getword(struct dc_softc *, int, uint16_t *);
+static void dc_eeprom_getword_pnic(struct dc_softc *, int, uint16_t *);
+static void dc_eeprom_getword_xircom(struct dc_softc *, int, uint16_t *);
 static void dc_eeprom_width(struct dc_softc *);
 static void dc_read_eeprom(struct dc_softc *, caddr_t, int, int, int);
 
 static void dc_mii_writebit(struct dc_softc *, int);
 static int dc_mii_readbit(struct dc_softc *);
 static void dc_mii_sync(struct dc_softc *);
-static void dc_mii_send(struct dc_softc *, u_int32_t, int);
+static void dc_mii_send(struct dc_softc *, uint32_t, int);
 static int dc_mii_readreg(struct dc_softc *, struct dc_mii_frame *);
 static int dc_mii_writereg(struct dc_softc *, struct dc_mii_frame *);
 static int dc_miibus_readreg(device_t, int, int);
@@ -301,11 +301,11 @@ static void dc_apply_fixup(struct dc_softc *, int);
 static int dc_check_multiport(struct dc_softc *);
 
 #ifdef DC_USEIOSPACE
-#define DC_RES			SYS_RES_IOPORT
-#define DC_RID			DC_PCI_CFBIO
+#define	DC_RES			SYS_RES_IOPORT
+#define	DC_RID			DC_PCI_CFBIO
 #else
-#define DC_RES			SYS_RES_MEMORY
-#define DC_RID			DC_PCI_CFBMA
+#define	DC_RES			SYS_RES_MEMORY
+#define	DC_RID			DC_PCI_CFBMA
 #endif
 
 static device_method_t dc_methods[] = {
@@ -341,14 +341,14 @@ static devclass_t dc_devclass;
 DRIVER_MODULE(dc, pci, dc_driver, dc_devclass, 0, 0);
 DRIVER_MODULE(miibus, dc, miibus_driver, miibus_devclass, 0, 0);
 
-#define DC_SETBIT(sc, reg, x)				\
+#define	DC_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) | (x))
 
-#define DC_CLRBIT(sc, reg, x)				\
+#define	DC_CLRBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) & ~(x))
 
-#define SIO_SET(x)	DC_SETBIT(sc, DC_SIO, (x))
-#define SIO_CLR(x)	DC_CLRBIT(sc, DC_SIO, (x))
+#define	SIO_SET(x)	DC_SETBIT(sc, DC_SIO, (x))
+#define	SIO_CLR(x)	DC_CLRBIT(sc, DC_SIO, (x))
 
 static void
 dc_delay(struct dc_softc *sc)
@@ -495,10 +495,10 @@ dc_eeprom_putbyte(struct dc_softc *sc, int addr)
  * the EEPROM.
  */
 static void
-dc_eeprom_getword_pnic(struct dc_softc *sc, int addr, u_int16_t *dest)
+dc_eeprom_getword_pnic(struct dc_softc *sc, int addr, uint16_t *dest)
 {
 	int i;
-	u_int32_t r;
+	uint32_t r;
 
 	CSR_WRITE_4(sc, DC_PN_SIOCTL, DC_PN_EEOPCODE_READ | addr);
 
@@ -506,7 +506,7 @@ dc_eeprom_getword_pnic(struct dc_softc *sc, int addr, u_int16_t *dest)
 		DELAY(1);
 		r = CSR_READ_4(sc, DC_SIO);
 		if (!(r & DC_PN_SIOCTL_BUSY)) {
-			*dest = (u_int16_t)(r & 0xFFFF);
+			*dest = (uint16_t)(r & 0xFFFF);
 			return;
 		}
 	}
@@ -518,17 +518,17 @@ dc_eeprom_getword_pnic(struct dc_softc *sc, int addr, u_int16_t *dest)
  * the EEPROM, too.
  */
 static void
-dc_eeprom_getword_xircom(struct dc_softc *sc, int addr, u_int16_t *dest)
+dc_eeprom_getword_xircom(struct dc_softc *sc, int addr, uint16_t *dest)
 {
 
 	SIO_SET(DC_SIO_ROMSEL | DC_SIO_ROMCTL_READ);
 
 	addr *= 2;
 	CSR_WRITE_4(sc, DC_ROM, addr | 0x160);
-	*dest = (u_int16_t)CSR_READ_4(sc, DC_SIO) & 0xff;
+	*dest = (uint16_t)CSR_READ_4(sc, DC_SIO) & 0xff;
 	addr += 1;
 	CSR_WRITE_4(sc, DC_ROM, addr | 0x160);
-	*dest |= ((u_int16_t)CSR_READ_4(sc, DC_SIO) & 0xff) << 8;
+	*dest |= ((uint16_t)CSR_READ_4(sc, DC_SIO) & 0xff) << 8;
 
 	SIO_CLR(DC_SIO_ROMSEL | DC_SIO_ROMCTL_READ);
 }
@@ -537,10 +537,10 @@ dc_eeprom_getword_xircom(struct dc_softc *sc, int addr, u_int16_t *dest)
  * Read a word of data stored in the EEPROM at address 'addr.'
  */
 static void
-dc_eeprom_getword(struct dc_softc *sc, int addr, u_int16_t *dest)
+dc_eeprom_getword(struct dc_softc *sc, int addr, uint16_t *dest)
 {
 	int i;
-	u_int16_t word = 0;
+	uint16_t word = 0;
 
 	/* Force EEPROM to idle state. */
 	dc_eeprom_idle(sc);
@@ -586,7 +586,7 @@ static void
 dc_read_eeprom(struct dc_softc *sc, caddr_t dest, int off, int cnt, int be)
 {
 	int i;
-	u_int16_t word = 0, *ptr;
+	uint16_t word = 0, *ptr;
 
 	for (i = 0; i < cnt; i++) {
 		if (DC_IS_PNIC(sc))
@@ -595,7 +595,7 @@ dc_read_eeprom(struct dc_softc *sc, caddr_t dest, int off, int cnt, int be)
 			dc_eeprom_getword_xircom(sc, off + i, &word);
 		else
 			dc_eeprom_getword(sc, off + i, &word);
-		ptr = (u_int16_t *)(dest + (i * 2));
+		ptr = (uint16_t *)(dest + (i * 2));
 		if (be)
 			*ptr = be16toh(word);
 		else
@@ -680,7 +680,7 @@ dc_mii_sync(struct dc_softc *sc)
  * Clock a series of bits through the MII.
  */
 static void
-dc_mii_send(struct dc_softc *sc, u_int32_t bits, int cnt)
+dc_mii_send(struct dc_softc *sc, uint32_t bits, int cnt)
 {
 	int i;
 
@@ -1016,9 +1016,9 @@ dc_miibus_mediainit(device_t dev)
 		ifmedia_add(ifm, IFM_ETHER | IFM_HPNA_1, 0, NULL);
 }
 
-#define DC_BITS_512	9
-#define DC_BITS_128	7
-#define DC_BITS_64	6
+#define	DC_BITS_512	9
+#define	DC_BITS_128	7
+#define	DC_BITS_64	6
 
 static uint32_t
 dc_mchash_le(struct dc_softc *sc, const uint8_t *addr)
@@ -1082,7 +1082,7 @@ dc_setfilt_21143(struct dc_softc *sc)
 {
 	uint16_t eaddr[(ETHER_ADDR_LEN+1)/2];
 	struct dc_desc *sframe;
-	u_int32_t h, *sp;
+	uint32_t h, *sp;
 	struct ifmultiaddr *ifma;
 	struct ifnet *ifp;
 	int i;
@@ -1156,7 +1156,7 @@ dc_setfilt_admtek(struct dc_softc *sc)
 	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
 	int h = 0;
-	u_int32_t hashes[2] = { 0, 0 };
+	uint32_t hashes[2] = { 0, 0 };
 
 	ifp = sc->dc_ifp;
 
@@ -1217,7 +1217,7 @@ dc_setfilt_asix(struct dc_softc *sc)
 	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
 	int h = 0;
-	u_int32_t hashes[2] = { 0, 0 };
+	uint32_t hashes[2] = { 0, 0 };
 
 	ifp = sc->dc_ifp;
 
@@ -1287,7 +1287,7 @@ dc_setfilt_xircom(struct dc_softc *sc)
 	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
 	struct dc_desc *sframe;
-	u_int32_t h, *sp;
+	uint32_t h, *sp;
 	int i;
 
 	ifp = sc->dc_ifp;
@@ -1379,7 +1379,7 @@ static void
 dc_setcfg(struct dc_softc *sc, int media)
 {
 	int i, restart = 0, watchdogreg;
-	u_int32_t isr;
+	uint32_t isr;
 
 	if (IFM_SUBTYPE(media) == IFM_NONE)
 		return;
@@ -1563,8 +1563,8 @@ static const struct dc_type *
 dc_devtype(device_t dev)
 {
 	const struct dc_type *t;
-	u_int32_t devid;
-	u_int8_t rev;
+	uint32_t devid;
+	uint8_t rev;
 
 	t = dc_devs;
 	devid = pci_get_devid(dev);
@@ -1607,9 +1607,9 @@ static void
 dc_apply_fixup(struct dc_softc *sc, int media)
 {
 	struct dc_mediainfo *m;
-	u_int8_t *p;
+	uint8_t *p;
 	int i;
-	u_int32_t reg;
+	uint32_t reg;
 
 	m = sc->dc_mi;
 
@@ -1668,11 +1668,11 @@ dc_decode_leaf_sia(struct dc_softc *sc, struct dc_eblock_sia *l)
 	if (l->dc_sia_code & DC_SIA_CODE_EXT) {
 		m->dc_gp_len = 2;
 		m->dc_gp_ptr =
-		(u_int8_t *)&l->dc_un.dc_sia_ext.dc_sia_gpio_ctl;
+		(uint8_t *)&l->dc_un.dc_sia_ext.dc_sia_gpio_ctl;
 	} else {
 		m->dc_gp_len = 2;
 		m->dc_gp_ptr =
-		(u_int8_t *)&l->dc_un.dc_sia_noext.dc_sia_gpio_ctl;
+		(uint8_t *)&l->dc_un.dc_sia_noext.dc_sia_gpio_ctl;
 	}
 
 	m->dc_next = sc->dc_mi;
@@ -1699,7 +1699,7 @@ dc_decode_leaf_sym(struct dc_softc *sc, struct dc_eblock_sym *l)
 		m->dc_media = IFM_100_TX | IFM_FDX;
 
 	m->dc_gp_len = 2;
-	m->dc_gp_ptr = (u_int8_t *)&l->dc_sym_gpio_ctl;
+	m->dc_gp_ptr = (uint8_t *)&l->dc_sym_gpio_ctl;
 
 	m->dc_next = sc->dc_mi;
 	sc->dc_mi = m;
@@ -1712,7 +1712,7 @@ static int
 dc_decode_leaf_mii(struct dc_softc *sc, struct dc_eblock_mii *l)
 {
 	struct dc_mediainfo *m;
-	u_int8_t *p;
+	uint8_t *p;
 
 	m = malloc(sizeof(struct dc_mediainfo), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (m == NULL) {
@@ -1723,7 +1723,7 @@ dc_decode_leaf_mii(struct dc_softc *sc, struct dc_eblock_mii *l)
 	m->dc_media = IFM_AUTO;
 	m->dc_gp_len = l->dc_gpr_len;
 
-	p = (u_int8_t *)l;
+	p = (uint8_t *)l;
 	p += sizeof(struct dc_eblock_mii);
 	m->dc_gp_ptr = p;
 	p += 2 * l->dc_gpr_len;
@@ -2031,13 +2031,13 @@ static int
 dc_attach(device_t dev)
 {
 	uint32_t eaddr[(ETHER_ADDR_LEN+3)/4];
-	u_int32_t command;
+	uint32_t command;
 	struct dc_softc *sc;
 	struct ifnet *ifp;
 	struct dc_mediainfo *m;
-	u_int32_t reg, revision;
+	uint32_t reg, revision;
 	int error, mac_offset, phy, rid, tmp;
-	u_int8_t *mac;
+	uint8_t *mac;
 
 	sc = device_get_softc(dev);
 	sc->dc_dev = dev;
@@ -2715,7 +2715,7 @@ dc_newbuf(struct dc_softc *sc, int i)
  * the time.
  */
 
-#define DC_WHOLEFRAME	(DC_RXSTAT_FIRSTFRAG | DC_RXSTAT_LASTFRAG)
+#define	DC_WHOLEFRAME	(DC_RXSTAT_FIRSTFRAG | DC_RXSTAT_LASTFRAG)
 static void
 dc_pnic_rx_bug_war(struct dc_softc *sc, int idx)
 {
@@ -2724,7 +2724,7 @@ dc_pnic_rx_bug_war(struct dc_softc *sc, int idx)
 	struct mbuf *m = NULL;
 	unsigned char *ptr;
 	int i, total_len;
-	u_int32_t rxstat = 0;
+	uint32_t rxstat = 0;
 
 	i = sc->dc_pnic_rx_bug_save;
 	cur_rx = &sc->dc_ldata.dc_rx_list[idx];
@@ -2835,7 +2835,7 @@ dc_rxeof(struct dc_softc *sc)
 	struct ifnet *ifp;
 	struct dc_desc *cur_rx;
 	int i, total_len, rx_npkts;
-	u_int32_t rxstat;
+	uint32_t rxstat;
 
 	DC_LOCK_ASSERT(sc);
 
@@ -2956,7 +2956,7 @@ dc_txeof(struct dc_softc *sc)
 	struct dc_desc *cur_tx;
 	struct ifnet *ifp;
 	int idx, setup;
-	u_int32_t ctl, txstat;
+	uint32_t ctl, txstat;
 
 	if (sc->dc_cdata.dc_tx_cnt == 0)
 		return;
@@ -3065,7 +3065,7 @@ dc_tick(void *xsc)
 	struct dc_softc *sc;
 	struct mii_data *mii;
 	struct ifnet *ifp;
-	u_int32_t r;
+	uint32_t r;
 
 	sc = xsc;
 	DC_LOCK_ASSERT(sc);
@@ -3142,7 +3142,7 @@ dc_tick(void *xsc)
 static void
 dc_tx_underrun(struct dc_softc *sc)
 {
-	u_int32_t isr;
+	uint32_t isr;
 	int i;
 
 	if (DC_IS_DAVICOM(sc)) {
@@ -3212,7 +3212,7 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		dc_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
-		u_int32_t	status;
+		uint32_t	status;
 
 		status = CSR_READ_4(sc, DC_ISR);
 		status &= (DC_ISR_RX_WATDOGTIMEO | DC_ISR_RX_NOBUF |
@@ -3226,7 +3226,7 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		CSR_WRITE_4(sc, DC_ISR, status);
 
 		if (status & (DC_ISR_RX_WATDOGTIMEO | DC_ISR_RX_NOBUF)) {
-			u_int32_t r = CSR_READ_4(sc, DC_FRAMESDISCARDED);
+			uint32_t r = CSR_READ_4(sc, DC_FRAMESDISCARDED);
 			ifp->if_ierrors += (r & 0xffff) + ((r >> 17) & 0x7ff);
 
 			if (dc_rx_resync(sc))
@@ -3255,7 +3255,7 @@ dc_intr(void *arg)
 {
 	struct dc_softc *sc;
 	struct ifnet *ifp;
-	u_int32_t r, status;
+	uint32_t r, status;
 	int curpkts, n;
 
 	sc = arg;
@@ -3917,7 +3917,7 @@ dc_stop(struct dc_softc *sc)
 	struct dc_list_data *ld;
 	struct dc_chain_data *cd;
 	int i;
-	u_int32_t ctl;
+	uint32_t ctl;
 
 	DC_LOCK_ASSERT(sc);
 
