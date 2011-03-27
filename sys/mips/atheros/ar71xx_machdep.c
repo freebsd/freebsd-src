@@ -180,6 +180,20 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	if (realmem == 0)
 		realmem = btoc(32*1024*1024);
 
+	/*
+	 * Allow build-time override in case Redboot lies
+	 * or in other situations (eg where there's u-boot)
+	 * where there isn't (yet) a convienent method of
+	 * being told how much RAM is available.
+	 *
+	 * This happens on at least the Ubiquiti LS-SR71A
+	 * board, where redboot says there's 16mb of RAM
+	 * but in fact there's 32mb.
+	 */
+#if	defined(AR71XX_REALMEM)
+		realmem = btoc(MIPS_REALMEM);
+#endif
+
 	/* phys_avail regions are in bytes */
 	phys_avail[0] = MIPS_KSEG0_TO_PHYS(kernel_kseg0_end);
 	phys_avail[1] = ctob(realmem);
