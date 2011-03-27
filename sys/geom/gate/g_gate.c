@@ -409,13 +409,14 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	for (unit = 0; unit < g_gate_maxunits; unit++) {
 		if (g_gate_units[unit] == NULL)
 			continue;
-		if (strcmp(name, g_gate_units[unit]->sc_provider->name) != 0)
+		if (strcmp(name, g_gate_units[unit]->sc_name) != 0)
 			continue;
 		mtx_unlock(&g_gate_units_lock);
 		mtx_destroy(&sc->sc_queue_mtx);
 		free(sc, M_GATE);
 		return (EEXIST);
 	}
+	sc->sc_name = name;
 	g_gate_units[sc->sc_unit] = sc;
 	g_gate_nunits++;
 	mtx_unlock(&g_gate_units_lock);
@@ -434,6 +435,9 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	sc->sc_provider = pp;
 	g_error_provider(pp, 0);
 	g_topology_unlock();
+	mtx_lock(&g_gate_units_lock);
+	sc->sc_name = sc->sc_provider->name;
+	mtx_unlock(&g_gate_units_lock);
 
 	if (sc->sc_timeout > 0) {
 		callout_reset(&sc->sc_callout, sc->sc_timeout * hz,
