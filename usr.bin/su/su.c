@@ -149,7 +149,7 @@ int
 main(int argc, char *argv[])
 {
 	static char	*cleanenv;
-	struct passwd	*pwd;
+	struct passwd	*pwd = NULL;
 	struct pam_conv	conv = { openpam_ttyconv, NULL };
 	enum tristate	iscsh;
 	login_cap_t	*lc;
@@ -255,8 +255,9 @@ main(int argc, char *argv[])
 	/* get current login name, real uid and shell */
 	ruid = getuid();
 	username = getlogin();
-	pwd = getpwnam(username);
-	if (username == NULL || pwd == NULL || pwd->pw_uid != ruid)
+	if (username != NULL)
+		pwd = getpwnam(username);
+	if (pwd == NULL || pwd->pw_uid != ruid)
 		pwd = getpwuid(ruid);
 	if (pwd == NULL) {
 #ifdef USE_BSM_AUDIT
