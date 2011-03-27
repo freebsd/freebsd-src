@@ -35,7 +35,7 @@
 check_autologin()
 {
   get_value_from_cfg autoLoginUser
-  if [ ! -z "${VAL}"  -a "${INSTALLTYPE}" = "PCBSD" ]
+  if [ -n "${VAL}"  -a "${INSTALLTYPE}" = "PCBSD" ]
   then
     AUTOU="${VAL}"
     # Add the auto-login user line
@@ -72,77 +72,77 @@ setup_users()
   while read line
   do
 
-    echo $line | grep "^userName=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^userName=" 2>/dev/null
+    if [ $? -eq 0 ]
     then
       get_value_from_string "${line}"
       USERNAME="$VAL"
     fi
 
-    echo $line | grep "^userComment=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^userComment=" 2>/dev/null
+    if [ $? -eq 0 ]
     then
       get_value_from_string "${line}"
       USERCOMMENT="$VAL"
     fi
 
-    echo $line | grep "^userPass=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^userPass=" 2>/dev/null
+    if [ $? -eq 0 ]
     then
       get_value_from_string "${line}"
       USERPASS="$VAL"
     fi
 
-    echo $line | grep "^userEncPass=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^userEncPass=" 2>/dev/null
+    if [ $? -eq 0 ]
     then
       get_value_from_string "${line}"
       USERENCPASS="$VAL"
     fi
 
-    echo $line | grep "^userShell=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^userShell=" 2>/dev/null
+    if [ $? -eq 0 ]
     then
       get_value_from_string "${line}"
       strip_white_space "$VAL"
       USERSHELL="$VAL"
     fi
 
-    echo $line | grep "^userHome=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^userHome=" 2>/dev/null
+    if [ $? -eq 0 ]
     then
       get_value_from_string "${line}"
       USERHOME="$VAL"
     fi
 
-    echo $line | grep "^userGroups=" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^userGroups=" 2>/dev/null
+    if [ $? -eq 0 ]
     then
       get_value_from_string "${line}"
       USERGROUPS="$VAL"
     fi
 
 
-    echo $line | grep "^commitUser" >/dev/null 2>/dev/null
-    if [ "$?" = "0" ]
+    echo $line | grep -q "^commitUser" 2>/dev/null
+    if [ $? -eq 0 ]
     then
       # Found our flag to commit this user, lets check and do it
-      if [ ! -z "${USERNAME}" ]
+      if [ -n "${USERNAME}" ]
       then
 
         # Now add this user to the system, by building our args list
         ARGS="-n ${USERNAME}"
 
-        if [ ! -z "${USERCOMMENT}" ]
+        if [ -n "${USERCOMMENT}" ]
         then
           ARGS="${ARGS} -c \"${USERCOMMENT}\""
         fi
          
-        if [ ! -z "${USERPASS}" ]
+        if [ -n "${USERPASS}" ]
         then
           ARGS="${ARGS} -h 0"
           echo "${USERPASS}" >${FSMNT}/.tmpPass
-	elif [ ! -z "${USERENCPASS}" ] 
+	elif [ -n "${USERENCPASS}" ] 
 	then
           ARGS="${ARGS} -H 0"
           echo "${USERENCPASS}" >${FSMNT}/.tmpPass
@@ -151,19 +151,19 @@ setup_users()
           rm ${FSMNT}/.tmpPass 2>/dev/null 2>/dev/null
         fi
 
-        if [ ! -z "${USERSHELL}" ]
+        if [ -n "${USERSHELL}" ]
         then
           ARGS="${ARGS} -s \"${USERSHELL}\""
         else
           ARGS="${ARGS} -s \"/nonexistant\""
         fi
          
-        if [ ! -z "${USERHOME}" ]
+        if [ -n "${USERHOME}" ]
         then
           ARGS="${ARGS} -m -d \"${USERHOME}\""
         fi
 
-        if [ ! -z "${USERGROUPS}" ]
+        if [ -n "${USERGROUPS}" ]
         then
           ARGS="${ARGS} -G \"${USERGROUPS}\""
         fi
