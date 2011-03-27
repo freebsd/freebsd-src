@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
 
+#include <mips/atheros/ar71xx_setup.h>
 #include <mips/atheros/ar71xx_bus_space_reversed.h>
 
 #define EHCI_HC_DEVSTR		"AR71XX Integrated USB 2.0 controller"
@@ -192,6 +193,19 @@ ar71xx_ehci_attach(device_t self)
 	 * register following a port enable.
 	 */
 	sc->sc_flags = EHCI_SCFLG_SETMODE;
+
+	switch (ar71xx_soc) {
+		case AR71XX_SOC_AR7241:
+		case AR71XX_SOC_AR7242:
+		case AR71XX_SOC_AR9130:
+		case AR71XX_SOC_AR9132:
+			sc->sc_flags |= EHCI_SCFLG_TT | EHCI_SCFLG_NORESTERM;
+			break;
+		default:
+			/* fallthrough */
+			break;
+	}
+
 	(void) ehci_reset(sc);
 
 	err = ehci_init(sc);
