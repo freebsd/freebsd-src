@@ -872,3 +872,9 @@ SDP		opt_ofed.h
 SDP_DEBUG	opt_ofed.h
 IPOIB_DEBUG	opt_ofed.h
 IPOIB_CM	opt_ofed.h
+
+# At least one of the AR71XX ubiquiti boards has a Redboot configuration
+# that "lies" about the amount of RAM it has. Until a cleaner method is
+# defined, this option will suffice in overriding what Redboot says.
+AR71XX_REALMEM    opt_global.h
+
