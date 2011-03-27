@@ -3142,50 +3142,57 @@ dc_tick(void *xsc)
 static void
 dc_tx_underrun(struct dc_softc *sc)
 {
-	uint32_t isr;
-	int i;
+	uint32_t netcfg, isr;
+	int i, reinit;
 
-	if (DC_IS_DAVICOM(sc)) {
+	reinit = 0;
+	netcfg = CSR_READ_4(sc, DC_NETCFG);
+	device_printf(sc->dc_dev, "TX underrun -- ");
+	if ((sc->dc_flags & DC_TX_STORENFWD) == 0) {
+		if (sc->dc_txthresh + DC_TXTHRESH_INC > DC_TXTHRESH_MAX) {
+			printf("using store and forward mode\n");
+			netcfg |= DC_NETCFG_STORENFWD;
+		} else {
+			printf("increasing TX threshold\n");
+			sc->dc_txthresh += DC_TXTHRESH_INC;
+			netcfg &= ~DC_NETCFG_TX_THRESH;
+			netcfg |= sc->dc_txthresh;
+		}
+
+		if (DC_IS_INTEL(sc)) {
+			/*
+			 * The real 21143 requires that the transmitter be idle
+			 * in order to change the transmit threshold or store
+			 * and forward state.
+			 */
+			CSR_WRITE_4(sc, DC_NETCFG, netcfg & ~DC_NETCFG_TX_ON);
+
+			for (i = 0; i < DC_TIMEOUT; i++) {
+				isr = CSR_READ_4(sc, DC_ISR);
+				if (isr & DC_ISR_TX_IDLE)
+					break;
+				DELAY(10);
+			}
+			if (i == DC_TIMEOUT) {
+				device_printf(sc->dc_dev,
+				    "%s: failed to force tx to idle state\n",
+				    __func__);
+				reinit++;
+			}
+		}
+	} else {
+		printf("resetting\n");
+		reinit++;
+	}
+
+	if (reinit == 0) {
+		CSR_WRITE_4(sc, DC_NETCFG, netcfg);
+		if (DC_IS_INTEL(sc))
+			CSR_WRITE_4(sc, DC_NETCFG, netcfg | DC_NETCFG_TX_ON);
+	} else {
 		sc->dc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		dc_init_locked(sc);
 	}
-
-	if (DC_IS_INTEL(sc)) {
-		/*
-		 * The real 21143 requires that the transmitter be idle
-		 * in order to change the transmit threshold or store
-		 * and forward state.
-		 */
-		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_TX_ON);
-
-		for (i = 0; i < DC_TIMEOUT; i++) {
-			isr = CSR_READ_4(sc, DC_ISR);
-			if (isr & DC_ISR_TX_IDLE)
-				break;
-			DELAY(10);
-		}
-		if (i == DC_TIMEOUT) {
-			device_printf(sc->dc_dev,
-			    "%s: failed to force tx to idle state\n",
-			    __func__);
-			sc->dc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-			dc_init_locked(sc);
-		}
-	}
-
-	device_printf(sc->dc_dev, "TX underrun -- ");
-	sc->dc_txthresh += DC_TXTHRESH_INC;
-	if (sc->dc_txthresh > DC_TXTHRESH_MAX) {
-		printf("using store and forward mode\n");
-		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_STORENFWD);
-	} else {
-		printf("increasing TX threshold\n");
-		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_TX_THRESH);
-		DC_SETBIT(sc, DC_NETCFG, sc->dc_txthresh);
-	}
-
-	if (DC_IS_INTEL(sc))
-		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_TX_ON);
 }
 
 #ifdef DEVICE_POLLING
@@ -3825,7 +3832,6 @@ dc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				if (need_setfilt)
 					dc_setfilt(sc);
 			} else {
-				sc->dc_txthresh = 0;
 				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				dc_init_locked(sc);
 			}
