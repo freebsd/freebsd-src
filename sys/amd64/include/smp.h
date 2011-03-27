@@ -41,7 +41,6 @@ extern u_long *ipi_invlrng_counts[MAXCPU];
 extern u_long *ipi_invlpg_counts[MAXCPU];
 extern u_long *ipi_invlcache_counts[MAXCPU];
 extern u_long *ipi_rendezvous_counts[MAXCPU];
-extern u_long *ipi_lazypmap_counts[MAXCPU];
 #endif
 
 /* IPI handlers */
