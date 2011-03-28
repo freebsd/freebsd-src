@@ -116,6 +116,7 @@ static int	 netdump_udp_output(struct mbuf *m);
 #ifdef NETDUMP_CLIENT_DEBUG
 static int	 sysctl_force_crash(SYSCTL_HANDLER_ARGS);
 #endif
+static int	 sysctl_handle_ifxname(SYSCTL_HANDLER_ARGS);
 static int	 sysctl_handle_inaddr(SYSCTL_HANDLER_ARGS);
 
 /* Must be at least as big as the chunks dumpsys() gives us. */
@@ -171,6 +172,47 @@ netdump_supported_nic(struct ifnet *ifp)
 /*-
  * Sysctls specific code.
  */
+
+/*
+ * [sysctl_handle_ifxname]
+ *
+ * sysctl handler to deal with converting a string sysctl to/from an ifaddr
+ * name.
+ *
+ * Parameters:
+ *	SYSCTL_HANDLER_ARGS
+ *	 - arg1 is a pointer to the if structure name
+ *	 - arg2 is unused
+ *
+ * Returns:
+ *	int	see errno.h, 0 for success
+ */
+static int
+sysctl_handle_ifxname(SYSCTL_HANDLER_ARGS)
+{
+	char buf[IFNAMSIZ];
+	struct ifnet *ifp;
+	int error, found;
+
+	strlcpy(buf, arg1, sizeof(buf));
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	found = 0;
+	IFNET_RLOCK_NOSLEEP();
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		if (!strncmp(ifp->if_xname, buf, strlen(ifp->if_xname)) &&
+		    netdump_supported_nic(ifp)) {
+			found = 1;
+			break;
+		}
+	}
+	IFNET_RUNLOCK_NOSLEEP();
+	if (found == 0)
+		return (EINVAL);
+	strlcpy(arg1, buf, strlen(buf));
+	return (error);
+}
 
 /*
  * [sysctl_handle_inaddr]
@@ -245,8 +287,8 @@ SYSCTL_PROC(_net_dump, OID_AUTO, client, CTLTYPE_STRING|CTLFLAG_RW, &nd_client,
 	0, sysctl_handle_inaddr, "A", "dump client");
 SYSCTL_PROC(_net_dump, OID_AUTO, gateway, CTLTYPE_STRING|CTLFLAG_RW, &nd_gw,
 	0, sysctl_handle_inaddr, "A", "dump default gateway");
-SYSCTL_STRING(_net_dump, OID_AUTO, nic, CTLFLAG_RW, nd_ifp_str,
-	sizeof(nd_ifp_str), "dumping interface string");
+SYSCTL_PROC(_net_dump, OID_AUTO, nic, CTLTYPE_STRING|CTLFLAG_RW, &nd_ifp_str,
+	0, sysctl_handle_ifxname, "A", "dumping interface name");
 SYSCTL_INT(_net_dump, OID_AUTO, polls, CTLTYPE_INT|CTLFLAG_RW, &nd_polls, 0,
 	"times to poll NIC per retry");
 SYSCTL_INT(_net_dump, OID_AUTO, retries, CTLTYPE_INT|CTLFLAG_RW, &nd_retries, 0,
