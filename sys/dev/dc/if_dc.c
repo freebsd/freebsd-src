@@ -44,8 +44,8 @@ __FBSDID("$FreeBSD$");
  * ASIX Electronics AX88141 (www.asix.com.tw)
  * ADMtek AL981 (www.admtek.com.tw)
  * ADMtek AN983 (www.admtek.com.tw)
- * ADMtek cardbus AN985 (www.admtek.com.tw)
- * Netgear FA511 (www.netgear.com) Appears to be rebadged ADMTek cardbus AN985
+ * ADMtek CardBus AN985 (www.admtek.com.tw)
+ * Netgear FA511 (www.netgear.com) Appears to be rebadged ADMTek CardBus AN985
  * Davicom DM9100, DM9102, DM9102A (www.davicom8.com)
  * Accton EN1217 (www.accton.com)
  * Xircom X3201 (www.xircom.com)
@@ -165,7 +165,7 @@ static const struct dc_type dc_devs[] = {
 	{ DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_AN983), 0,
 		"ADMtek AN983 10/100BaseTX" },
 	{ DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_AN985), 0,
-		"ADMtek AN985 cardBus 10/100BaseTX or clone" },
+		"ADMtek AN985 CardBus 10/100BaseTX or clone" },
 	{ DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_ADM9511), 0,
 		"ADMtek ADM9511 10/100BaseTX" },
 	{ DC_DEVID(DC_VENDORID_ADMTEK, DC_DEVICEID_ADM9513), 0,
