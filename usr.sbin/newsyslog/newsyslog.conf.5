@@ -21,7 +21,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd January 31, 2011
+.Dd February 25, 2011
 .Dt NEWSYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -349,6 +349,11 @@ If this field is not present, then a
 .Dv SIGHUP
 signal will be sent.
 .El
+.Sh EXAMPLES
+The following is an example of the
+.Dq Aq Li include
+entry:
+.Dl "<include> /etc/newsyslog-local.conf"
 .Sh SEE ALSO
 .Xr bzip2 1 ,
 .Xr gzip 1 ,
