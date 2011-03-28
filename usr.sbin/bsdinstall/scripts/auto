@@ -140,8 +140,6 @@ if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 	export DISTRIBUTIONS="$ALL_DISTRIBUTIONS"
 fi
 
-error
-
 bsdinstall checksum || error
 bsdinstall distextract || error
 bsdinstall rootpass || error
