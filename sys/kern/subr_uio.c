@@ -506,7 +506,7 @@ copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz)
 	map = &td->td_proc->p_vmspace->vm_map;
 	size = (vm_size_t)round_page(sz);
 
-	if (!vm_map_remove(map, addr, addr + size))
+	if (vm_map_remove(map, addr, addr + size) != KERN_SUCCESS)
 		return (EINVAL);
 
 	return (0);
