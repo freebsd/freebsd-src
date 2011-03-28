@@ -468,24 +468,26 @@ cloneuio(struct uio *uiop)
 int
 copyout_map(struct thread *td, vm_offset_t *addr, size_t sz)
 {
-	struct vmspace *vms = td->td_proc->p_vmspace;
+	struct vmspace *vms;
 	int error;
 	vm_size_t size;
-	
-	/* 
+
+	vms = td->td_proc->p_vmspace;
+
+	/*
 	 * Map somewhere after heap in process memory.
 	 */
 	PROC_LOCK(td->td_proc);
-	*addr = round_page((vm_offset_t)vms->vm_daddr + 
+	*addr = round_page((vm_offset_t)vms->vm_daddr +
 	    lim_max(td->td_proc, RLIMIT_DATA));
 	PROC_UNLOCK(td->td_proc);
 
 	/* round size up to page boundry */
-	size = (vm_size_t) round_page(sz);
-    
-	error = vm_mmap(&vms->vm_map, addr, size, PROT_READ | PROT_WRITE, 
+	size = (vm_size_t)round_page(sz);
+
+	error = vm_mmap(&vms->vm_map, addr, size, PROT_READ | PROT_WRITE,
 	    VM_PROT_ALL, MAP_PRIVATE | MAP_ANON, OBJT_DEFAULT, NULL, 0);
-	
+
 	return (error);
 }
 
@@ -497,12 +499,12 @@ copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz)
 {
 	vm_map_t map;
 	vm_size_t size;
-    
+
 	if (sz == 0)
 		return (0);
 
 	map = &td->td_proc->p_vmspace->vm_map;
-	size = (vm_size_t) round_page(sz);	
+	size = (vm_size_t)round_page(sz);
 
 	if (!vm_map_remove(map, addr, addr + size))
 		return (EINVAL);
