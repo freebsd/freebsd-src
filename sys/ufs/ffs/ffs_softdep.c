@@ -514,9 +514,10 @@ softdep_releasefile(ip)
 }
 
 int
-softdep_request_cleanup(fs, vp)
+softdep_request_cleanup(fs, vp, resource)
 	struct fs *fs;
 	struct vnode *vp;
+	int resource;
 {
 
 	return (0);
