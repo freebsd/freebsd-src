@@ -70,7 +70,6 @@ freebsd32_ioctl_md(struct thread *td, struct freebsd32_ioctl_args *uap,
 		panic("%s: where is my ioctl data??", __func__);
 	if (uap->com & IOC_IN) {
 		if ((error = copyin(uap->data, &md32, sizeof(md32)))) {
-			fdrop(fp, td);
 			return (error);
 		}
 		CP(md32, mdv, md_version);
@@ -121,7 +120,6 @@ freebsd32_ioctl_md(struct thread *td, struct freebsd32_ioctl_args *uap,
 		CP(mdv, md32, md_fwsectors);
 		error = copyout(&md32, uap->data, sizeof(md32));
 	}
-	fdrop(fp, td);
 	return error;
 }
 
@@ -144,7 +142,6 @@ freebsd32_ioctl_ioc_toc_header(struct thread *td,
 	CP(toch32, toch, ending_track);
 	error = fo_ioctl(fp, CDIOREADTOCHEADER, (caddr_t)&toch,
 	    td->td_ucred, td);
-	fdrop(fp, td);
 	return (error);
 }
 
@@ -175,7 +172,6 @@ freebsd32_ioctl_ioc_read_toc(struct thread *td,
 		PTROUT_CP(toce, toce32, data);
 		error = copyout(&toce32, uap->data, sizeof(toce32));
 	}
-	fdrop(fp, td);
 	return error;
 }
 
@@ -192,7 +188,6 @@ freebsd32_ioctl_fiodgname(struct thread *td,
 	CP(fgn32, fgn, len);
 	PTRIN_CP(fgn32, fgn, buf);
 	error = fo_ioctl(fp, FIODGNAME, (caddr_t)&fgn, td->td_ucred, td);
-	fdrop(fp, td);
 	return (error);
 }
 
@@ -219,16 +214,20 @@ freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 	case MDIOCDETACH_32:	/* FALLTHROUGH */
 	case MDIOCQUERY_32:	/* FALLTHROUGH */
 	case MDIOCLIST_32:
-		return freebsd32_ioctl_md(td, uap, fp);
+		error = freebsd32_ioctl_md(td, uap, fp);
+		break;
 
 	case CDIOREADTOCENTRYS_32:
-		return freebsd32_ioctl_ioc_read_toc(td, uap, fp);
+		error = freebsd32_ioctl_ioc_read_toc(td, uap, fp);
+		break;
 
 	case CDIOREADTOCHEADER_32:
-		return freebsd32_ioctl_ioc_toc_header(td, uap, fp);
+		error = freebsd32_ioctl_ioc_toc_header(td, uap, fp);
+		break;
 
 	case FIODGNAME_32:
-		return freebsd32_ioctl_fiodgname(td, uap, fp);
+		error = freebsd32_ioctl_fiodgname(td, uap, fp);
+		break;
 
 	default:
 		fdrop(fp, td);
@@ -237,4 +236,7 @@ freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 		PTRIN_CP(*uap, ap, data);
 		return ioctl(td, &ap);
 	}
+
+	fdrop(fp, td);
+	return error;
 }
