@@ -156,6 +156,11 @@ static void get_fpcontext(struct thread *td, mcontext_t *mcp);
 static int  set_fpcontext(struct thread *td, const mcontext_t *mcp);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
+/*
+ * The file "conf/ldscript.amd64" defines the symbol "kernphys".  Its value is
+ * the physical address at which the kernel is loaded.
+ */
+extern char kernphys[];
 #ifdef DDB
 extern vm_offset_t ksym_start, ksym_end;
 #endif
@@ -1417,7 +1422,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 			/*
 			 * block out kernel memory as not available.
 			 */
-			if (pa >= 0x100000 && pa < first)
+			if (pa >= (vm_paddr_t)kernphys && pa < first)
 				goto do_dump_avail;
 
 			/*
