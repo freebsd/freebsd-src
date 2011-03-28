@@ -217,7 +217,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	 * but in fact there's 32mb.
 	 */
 #if	defined(AR71XX_REALMEM)
-		realmem = btoc(MIPS_REALMEM);
+		realmem = btoc(AR71XX_REALMEM);
 #endif
 
 	/* phys_avail regions are in bytes */
