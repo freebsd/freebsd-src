@@ -29,14 +29,14 @@
 echo "Begun Installation at $(date)" > $BSDINSTALL_LOG
 
 error() {
+	test -n "$DISTDIR_IS_UNIONFS" && umount -f $BSDINSTALL_DISTDIR
+	test -f $PATH_FSTAB && bsdinstall umount
 	dialog --backtitle "FreeBSD Installer" --title "Abort" \
 	    --no-label "Exit" --yes-label "Restart" --yesno \
 	    "An installation step has been aborted. Would you like to restart the installation or exit the installer?" 0 0
 	if [ $? -ne 0 ]; then
 		exit
 	else
-		test -n $DISTDIR_IS_UNIONFS && umount -f $BSDINSTALL_DISTDIR
-		test -f $PATH_FSTAB && bsdinstall umount
 		exec $0
 	fi
 }
@@ -81,7 +81,7 @@ if [ -n "$FETCH_DISTRIBUTIONS" -a -n "$BSDINSTALL_CONFIGCURRENT" ]; then
 	NETCONFIG_DONE=yes
 fi
 
-if [ -n "$FETCH_DISTRIBUTIONS" -a -z "$BSDINSTALL_DISTSITE" ]; then
+if [ -n "$FETCH_DISTRIBUTIONS" ]; then
 	exec 3>&1
 	BSDINSTALL_DISTSITE=`bsdinstall mirrorselect 2>&1 1>&3`
 	MIRROR_BUTTON=$?
@@ -125,8 +125,7 @@ if [ ! -z "$FETCH_DISTRIBUTIONS" ]; then
 
 	export DISTRIBUTIONS="$FETCH_DISTRIBUTIONS"
 	# Try to use any existing distfiles
-	if [ -d $BSDINSTALL_DISTDIR -a "$FETCH_DISTRIBUTIONS" != \
-	    "$ALL_DISTRIBUTIONS" ]; then
+	if [ -d $BSDINSTALL_DISTDIR ]; then
 		DISTDIR_IS_UNIONFS=1
 		mount_unionfs "$BSDINSTALL_FETCHDEST" "$BSDINSTALL_DISTDIR"
 	fi
