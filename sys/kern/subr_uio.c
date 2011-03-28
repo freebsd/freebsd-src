@@ -44,13 +44,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/mman.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #ifdef ZERO_COPY_SOCKETS
@@ -456,4 +459,50 @@ cloneuio(struct uio *uiop)
 	uio->uio_iov = (struct iovec *)(uio + 1);
 	bcopy(uiop->uio_iov, uio->uio_iov, iovlen);
 	return (uio);
+}
+
+/*
+ * Map some anonymous memory in user space of size sz, rounded up to the page
+ * boundary.
+ */
+int
+copyout_map(struct thread *td, vm_offset_t *addr, size_t sz)
+{
+	struct vmspace *vms = td->td_proc->p_vmspace;
+	int error;
+	vm_size_t size;
+	
+	/* 
+	 * Map somewhere after heap in process memory.
+	 */
+	PROC_LOCK(td->td_proc);
+	*addr = round_page((vm_offset_t)vms->vm_daddr + 
+	    lim_max(td->td_proc, RLIMIT_DATA));
+	PROC_UNLOCK(td->td_proc);
+
+	/* round size up to page boundry */
+	size = (vm_size_t) round_page(sz);
+    
+	error = vm_mmap(&vms->vm_map, addr, size, PROT_READ | PROT_WRITE, 
+	    VM_PROT_ALL, MAP_PRIVATE | MAP_ANON, OBJT_DEFAULT, NULL, 0);
+	
+	return (error);
+}
+
+/*
+ * Unmap memory in user space.
+ */
+int
+copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz)
+{
+	vm_map_t map;
+	vm_size_t size;
+    
+	map = &td->td_proc->p_vmspace->vm_map;
+	size = (vm_size_t) round_page(sz);	
+
+	if (!vm_map_remove(map, addr, addr + size))
+		return (EINVAL);
+
+	return (0);
 }
