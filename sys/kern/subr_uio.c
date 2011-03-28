@@ -498,6 +498,9 @@ copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz)
 	vm_map_t map;
 	vm_size_t size;
     
+	if (sz == 0)
+		return (0);
+
 	map = &td->td_proc->p_vmspace->vm_map;
 	size = (vm_size_t) round_page(sz);	
 
