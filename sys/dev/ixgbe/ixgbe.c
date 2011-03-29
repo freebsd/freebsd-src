@@ -41,6 +41,14 @@
 
 #if defined(DEVICE_POLLING) || defined(NETDUMP_CLIENT)
 
+#define	IXGBE_RX_LOCK_COND(rxr, locking) do {				\
+	if ((locking) != 0)						\
+		IXGBE_RX_LOCK(rxr);					\
+} while (0)
+#define	IXGBE_RX_UNLOCK_COND(rxr, locking) do {				\
+	if ((locking) != 0)						\
+		IXGBE_RX_UNLOCK(rtxr);					\
+} while (0)
 #define	IXGBE_TX_LOCK_COND(txr, locking) do {				\
 	if ((locking) != 0)						\
 		IXGBE_TX_LOCK(txr);					\
@@ -157,7 +165,8 @@ static void     ixgbe_enable_intr(struct adapter *);
 static void     ixgbe_disable_intr(struct adapter *);
 static void     ixgbe_update_stats_counters(struct adapter *);
 static bool	ixgbe_txeof(struct tx_ring *);
-static bool	ixgbe_rxeof(struct ix_queue *, int, int *);
+static bool	_ixgbe_rxeof_generic(struct ix_queue *, int, int *, int);
+#define	ixgbe_rxeof(a, c, d)	_ixgbe_rxeof_generic(a, c, d, 1)
 static void	ixgbe_rx_checksum(u32, struct mbuf *, u32);
 static void     ixgbe_set_promisc(struct adapter *);
 static void     ixgbe_set_multi(struct adapter *);
@@ -3351,7 +3360,7 @@ _ixgbe_poll_generic(struct ifnet *ifp, enum poll_cmd cmd, int count,
 		if ((reg_eicr & IXGBE_EICR_LSC) != 0)
 			taskqueue_enqueue(adapter->tq, &adapter->link_task);
 	}
-	ixgbe_rxeof(que, count, &rx_npkts);
+	_ixgbe_rxeof_generic(que, count, &rx_npkts, 0);
 	IXGBE_TX_LOCK_COND(txr, locking);
 	do {
 		more_tx = ixgbe_txeof(txr);
@@ -4241,7 +4250,8 @@ ixgbe_rx_discard(struct rx_ring *rxr, int i)
  *  Return TRUE for more work, FALSE for all clean.
  *********************************************************************/
 static bool
-ixgbe_rxeof(struct ix_queue *que, int count, int *rx_npktsp)
+_ixgbe_rxeof_generic(struct ix_queue *que, int count, int *rx_npktsp,
+    int locking)
 {
 	struct adapter		*adapter = que->adapter;
 	struct rx_ring		*rxr = que->rxr;
@@ -4253,7 +4263,7 @@ ixgbe_rxeof(struct ix_queue *que, int count, int *rx_npktsp)
 	union ixgbe_adv_rx_desc	*cur;
 	struct ixgbe_rx_buf	*rbuf, *nbuf;
 
-	IXGBE_RX_LOCK(rxr);
+	IXGBE_RX_LOCK_COND(rxr, locking);
 
 	for (i = rxr->next_to_check; count != 0;) {
 		struct mbuf	*sendmp, *mh, *mp;
@@ -4483,7 +4493,7 @@ next_desc:
 		tcp_lro_flush(lro, queued);
 	}
 
-	IXGBE_RX_UNLOCK(rxr);
+	IXGBE_RX_UNLOCK_COND(rxr, locking);
 
 	/*
 	** We still have cleaning to do?
