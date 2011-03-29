@@ -208,7 +208,7 @@ sysctl_handle_ifxname(SYSCTL_HANDLER_ARGS)
 }
 
 /*
- * Sysctl handler to deal with converting a string sysctl to/from an in_addr.
+ * Sysctl handler converting a string sysctl to/from an in_addr.
  *
  * Parameters:
  *	SYSCTL_HANDLER_ARGS
@@ -267,12 +267,10 @@ TUNABLE_INT("net.dump.enable", &nd_enable);
  */
 
 /*
- * [netdump_mbuf_nop]
- *
- * netdump wraps external mbufs around address ranges.  unlike most sane
+ * Netdump wraps external mbufs around address ranges.  unlike most sane
  * counterparts, netdump uses a stop-and-wait approach to flow control and
  * retransmission, so the ack obviates the need for mbuf reference
- * counting.  we still need to tell other mbuf handlers not to do anything
+ * counting.  We still need to tell other mbuf handlers not to do anything
  * special with our mbufs, so specify this nop handler.
  *
  * Parameters:
@@ -285,12 +283,9 @@ TUNABLE_INT("net.dump.enable", &nd_enable);
 static void
 netdump_mbuf_nop(void *ptr, void *opt_args)
 {
-	;
 }
 
 /*
- * [netdump_ether_output]
- *
  * Handles creation of the ethernet header, then places outgoing packets into
  * the tx buffer for the NIC
  *
@@ -307,15 +302,15 @@ netdump_mbuf_nop(void *ptr, void *opt_args)
  */
 static int
 netdump_ether_output(struct mbuf *m, struct ifnet *ifp, struct ether_addr dst,
-		     u_short etype)
+    u_short etype)
 {
 	struct ether_header *eh;
 
-	/* fill in the ethernet header */
+	/* Fill in the ethernet header. */
 	M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
-	if (m == 0) {
+	if (m == NULL) {
 		printf("netdump_ether_output: Out of mbufs\n");
-		return ENOBUFS;
+		return (ENOBUFS);
 	}
 	eh = mtod(m, struct ether_header *);
 	memcpy(eh->ether_shost, IF_LLADDR(ifp), ETHER_ADDR_LEN);
@@ -326,23 +321,21 @@ netdump_ether_output(struct mbuf *m, struct ifnet *ifp, struct ether_addr dst,
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) != IFF_DRV_RUNNING) {
 		if_printf(ifp, "netdump_ether_output: Interface isn't up\n");
 		m_freem(m);
-		return ENETDOWN;
+		return (ENETDOWN);
 	}
 
 	if (_IF_QFULL(&ifp->if_snd)) {
 		if_printf(ifp, "netdump_ether_output: TX queue full\n");
 		m_freem(m);
-		return ENOBUFS;
+		return (ENOBUFS);
 	}
 
 	_IF_ENQUEUE(&ifp->if_snd, m);
-	return 0;
+	return (0);
 }
 
 /*
- * [netdump_udp_output]
- *
- * unreliable transmission of an mbuf chain to the netdump server
+ * Unreliable transmission of an mbuf chain to the netdump server
  * Note: can't handle fragmentation; fails if the packet is larger than
  *	 nd_ifp->if_mtu after adding the UDP/IP headers
  *
@@ -361,9 +354,9 @@ netdump_udp_output(struct mbuf *m)
 	MPASS(nd_ifp != NULL);
 
 	M_PREPEND(m, sizeof(struct udpiphdr), M_DONTWAIT);
-	if (m == 0) {
+	if (m == NULL) {
 		printf("netdump_udp_output: Out of mbufs\n");
-		return ENOBUFS;
+		return (ENOBUFS);
 	}
 	ui = mtod(m, struct udpiphdr *);
 	bzero(ui->ui_x1, sizeof(ui->ui_x1));
@@ -391,14 +384,12 @@ netdump_udp_output(struct mbuf *m)
 	ip->ip_sum = in_cksum(m, sizeof(struct ip));
 
 	if (m->m_pkthdr.len > nd_ifp->if_mtu) {
-		/* Whoops. The packet is too big. */
-		printf("netdump_udp_output: Packet is too big: "
-		       "%u > MTU %lu\n", m->m_pkthdr.len, nd_ifp->if_mtu);
+		printf("netdump_udp_output: Packet is too big: %u > MTU %lu\n",
+		    m->m_pkthdr.len, nd_ifp->if_mtu);
 		m_freem(m);
-		return ENOBUFS;
+		return (ENOBUFS);
 	}
-
-	return netdump_ether_output(m, nd_ifp, nd_gw_mac, ETHERTYPE_IP);
+	return (netdump_ether_output(m, nd_ifp, nd_gw_mac, ETHERTYPE_IP));
 }
 
 /*
