@@ -3338,6 +3338,7 @@ ath_rx_proc(void *arg, int npending)
 		ds = bf->bf_desc;
 		if (ds->ds_link == bf->bf_daddr) {
 			/* NB: never process the self-linked entry at the end */
+			sc->sc_stats.ast_rx_hitqueueend++;
 			break;
 		}
 		/* XXX sync descriptor memory */
