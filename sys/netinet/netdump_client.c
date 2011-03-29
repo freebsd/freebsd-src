@@ -202,7 +202,7 @@ sysctl_handle_ifxname(SYSCTL_HANDLER_ARGS)
 	IFNET_RUNLOCK_NOSLEEP();
 	if (found == 0)
 		return (EINVAL);
-	strlcpy(arg1, buf, strlen(buf));
+	strlcpy(arg1, buf, strlen(buf) + 1);
 	return (error);
 }
 
