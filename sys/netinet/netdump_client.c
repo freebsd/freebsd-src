@@ -99,11 +99,11 @@ static void	 nd_handle_arp(struct mbuf **mb);
 static void	 nd_handle_ip(struct mbuf **mb);
 static int	 netdump_arp_server(void);
 static void	 netdump_config_defaults(void);
-static int	 netdump_dumper(void *priv, void *virtual,
-		    vm_offset_t physical, off_t offset, size_t length);
+static int	 netdump_dumper(void *priv __unused, void *virtual,
+		    vm_offset_t physical __unused, off_t offset, size_t length);
 static int	 netdump_ether_output(struct mbuf *m, struct ifnet *ifp, 
 		    struct ether_addr dst, u_short etype);
-static void	 netdump_mbuf_nop(void *ptr, void *opt_args);
+static void	 netdump_mbuf_nop(void *ptr __unused, void *opt_args __unused);
 static int	 netdump_modevent(module_t mod, int type, void *unused); 
 static void	 netdump_network_poll(void);
 static void	 netdump_pkt_in(struct ifnet *ifp, struct mbuf *m);
@@ -280,7 +280,7 @@ TUNABLE_INT("net.dump.enable", &nd_enable);
  *	void
  */
 static void
-netdump_mbuf_nop(void *ptr, void *opt_args)
+netdump_mbuf_nop(void *ptr __unused, void *opt_args __unused)
 {
 }
 
@@ -992,11 +992,9 @@ netdump_network_poll()
  */
 
 /*
- * [netdump_dumper]
- *
- * Callback from dumpsys() to dump a chunk of memory
- * Copies it out to our static buffer then sends it across the network
- * Detects the initial KDH and makes sure it's given a special packet type
+ * Callback from dumpsys() to dump a chunk of memory.
+ * Copies it out to our static buffer then sends it across the network.
+ * Detects the initial KDH and makes sure it is given a special packet type.
  *
  * Parameters:
  *	priv	 Unused. Optional private pointer.
@@ -1010,44 +1008,40 @@ netdump_network_poll()
  *	errno on error
  */
 static int
-netdump_dumper(void *priv, void *virtual, vm_offset_t physical, off_t offset,
-		size_t length)
+netdump_dumper(void *priv __unused, void *virtual,
+    vm_offset_t physical __unused, off_t offset, size_t length)
 {
-	int err;
-	int msgtype = NETDUMP_VMCORE;
+	int err, msgtype;
 
-	(void)priv;
-
-	NETDDEBUGV("netdump_dumper(%p, %p, 0x%jx, %ju, %zu)\n",
-	    priv, virtual, (uintmax_t)physical, (uintmax_t)offset, length);
+	NETDDEBUGV("netdump_dumper(NULL, %p, NULL, %ju, %zu)\n",
+	    virtual, (uintmax_t)offset, length);
 
 	if (length > sizeof(buf))
-		return ENOSPC;
+		return (ENOSPC);
+
 	/*
 	 * The first write (at offset 0) is the kernel dump header.  Flag it
-	 * for the server to treat specially.  XXX: This doesn't strip out the
-	 * footer KDH, although it shouldn't hurt anything.
+	 * for the server to treat specially.
+	 * XXX: This doesn't strip out the footer KDH, although it
+	 * should not hurt anything.
 	 */
+	msgtype = NETDUMP_VMCORE;
 	if (offset == 0 && length > 0)
 		msgtype = NETDUMP_KDH;
 	else if (offset > 0)
 		offset -= sizeof(struct kerneldumpheader);
-
 	memcpy(buf, virtual, length);
-	err=netdump_send(msgtype, offset, buf, length);
-	if (err) {
-		dump_failed=1;
-		return err;
+	err = netdump_send(msgtype, offset, buf, length);
+	if (err != 0) {
+		dump_failed = 1;
+		return (err);
 	}
-	
-	return 0;
+	return (0);
 }
 
 /*
- * [netdump_trigger]
- *
- * called from kern_shutdown during "boot" (invoked on panic).  perform a
- * network dump, and if successful cancel the normal disk dump.
+ * Handler going into shutdown_pre_sync hook.
+ * Overrides a standard disk dumping activity.
  *
  * Parameters:
  *	arg	unused
@@ -1060,13 +1054,10 @@ static void
 netdump_trigger(void *arg, int howto)
 {
 	struct dumperinfo dumper;
-	void (*old_if_input)(struct ifnet *, struct mbuf *)=NULL;
+	void (*old_if_input)(struct ifnet *, struct mbuf *);
 	int found, must_lock, nd_gw_unset;
 
-	if ((howto&(RB_HALT|RB_DUMP))!=RB_DUMP || !nd_enable || cold ||
-	    dumping)
-		return;
-
+	old_if_input = NULL;
 	found = 0;
 	nd_gw_unset = 0;
 	must_lock = 1;
@@ -1074,6 +1065,13 @@ netdump_trigger(void *arg, int howto)
 	if (panicstr != NULL)
 		must_lock = 0;
 #endif
+
+	/* Check if the dumping is allowed to continue. */
+	if ((howto & (RB_HALT | RB_DUMP)) != RB_DUMP || nd_enable == 0 ||
+	    cold != 0 || dumping != 0)
+		return;
+
+	/* Lookup the right if device to be used in the dump. */
 	if (must_lock != 0)
 		IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(nd_ifp, &V_ifnet, if_link) {
@@ -1086,11 +1084,11 @@ netdump_trigger(void *arg, int howto)
 	}
 	if (must_lock != 0)
 		IFNET_RUNLOCK_NOSLEEP();
-
 	if (found == 0) {
 		printf("netdump_trigger: Can't netdump: no valid NIC given\n");
 		return;
 	}
+
 	MPASS(nd_ifp != NULL);
 
 	if (nd_server.s_addr == INADDR_ANY) {
@@ -1123,7 +1121,7 @@ netdump_trigger(void *arg, int howto)
 	if ((nd_ifp->if_capenable & IFCAP_POLLING) == 0 && must_lock != 0)
 		nd_ifp->if_ndumpfuncs->ne_disable_intr(nd_ifp);
 
-	/* Make the card use *our* receive callback */
+	/* Make the card use *our* receive callback. */
 	old_if_input = nd_ifp->if_input;
 	nd_ifp->if_input = netdump_pkt_in;
 
@@ -1141,27 +1139,21 @@ netdump_trigger(void *arg, int howto)
 		printf("Failed to contact netdump server\n");
 		goto trig_abort;
 	}
-	printf("dumping to %s (%6D)\n", inet_ntoa(nd_server),
-			nd_gw_mac.octet, ":");
+	printf("dumping to %s (%6D)\n", inet_ntoa(nd_server), nd_gw_mac.octet,
+	    ":");
 	printf("-----------------------------------\n");
 
-	/*
-	 * dump memory.
-	 */
+	/* Call the dumping routine. */
 	dumper.dumper = netdump_dumper;
 	dumper.priv = NULL;
 	dumper.blocksize = NETDUMP_DATASIZE;
 	dumper.mediasize = 0;
 	dumper.mediaoffset = 0;
-
-	/* in dump_machdep.c */
 	dumpsys(&dumper);
-
-	if (dump_failed) {
+	if (dump_failed != 0) {
 		printf("Failed to dump the actual raw datas\n");
 		goto trig_abort;
 	}
-
 	if (netdump_send(NETDUMP_FINISHED, 0, NULL, 0) != 0) {
 		printf("Failed to close the transaction\n");
 		goto trig_abort;
