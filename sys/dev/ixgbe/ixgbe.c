@@ -3360,7 +3360,7 @@ _ixgbe_poll_generic(struct ifnet *ifp, enum poll_cmd cmd, int count,
 		if ((reg_eicr & IXGBE_EICR_LSC) != 0)
 			taskqueue_enqueue(adapter->tq, &adapter->link_task);
 	}
-	_ixgbe_rxeof_generic(que, count, &rx_npkts, 0);
+	_ixgbe_rxeof_generic(que, count, &rx_npkts, locking);
 	IXGBE_TX_LOCK_COND(txr, locking);
 	do {
 		more_tx = ixgbe_txeof(txr);
