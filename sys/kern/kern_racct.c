@@ -285,8 +285,6 @@ racct_add(struct proc *p, int resource, uint64_t amount)
 	 * We need proc lock to dereference p->p_ucred.
 	 */
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	KASSERT(amount >= 0, ("racct_add: invalid amount for resource %d: %ju",
-	    resource, amount));
 
 	mtx_lock(&racct_lock);
 #ifdef RCTL
@@ -312,10 +310,6 @@ racct_add_cred_locked(struct ucred *cred, int resource, uint64_t amount)
 
 	SDT_PROBE(racct, kernel, rusage, add_cred, cred, resource, amount,
 	    0, 0);
-
-	KASSERT(amount >= 0,
-	    ("racct_add_cred: invalid amount for resource %d: %ju",
-	    resource, amount));
 
 	racct_alloc_resource(cred->cr_ruidinfo->ui_racct, resource, amount);
 	for (pr = cred->cr_prison; pr != NULL; pr = pr->pr_parent)
@@ -355,9 +349,6 @@ racct_add_force(struct proc *p, int resource, uint64_t amount)
 	 * We need proc lock to dereference p->p_ucred.
 	 */
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	KASSERT(amount >= 0,
-	    ("racct_add_force: invalid amount for resource %d: %ju",
-	    resource, amount));
 
 	mtx_lock(&racct_lock);
 	racct_alloc_resource(p->p_racct, resource, amount);
@@ -382,8 +373,6 @@ racct_set_locked(struct proc *p, int resource, uint64_t amount)
 	 * We need proc lock to dereference p->p_ucred.
 	 */
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	KASSERT(amount >= 0, ("racct_set: invalid amount for resource %d: %ju",
-	    resource, amount));
 
 	diff = amount - p->p_racct->r_resources[resource];
 #ifdef notyet
@@ -442,9 +431,6 @@ racct_set_force(struct proc *p, int resource, uint64_t amount)
 	 * We need proc lock to dereference p->p_ucred.
 	 */
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	KASSERT(amount >= 0,
-	    ("racct_set_force: invalid amount for resource %d: %ju",
-	    resource, amount));
 
 	mtx_lock(&racct_lock);
 	diff = amount - p->p_racct->r_resources[resource];
@@ -506,8 +492,6 @@ racct_sub(struct proc *p, int resource, uint64_t amount)
 	 * We need proc lock to dereference p->p_ucred.
 	 */
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	KASSERT(amount >= 0, ("racct_sub: invalid amount for resource %d: %ju",
-	    resource, amount));
 	KASSERT(racct_is_reclaimable(resource),
 	    ("racct_sub: called for non-reclaimable resource %d", resource));
 
@@ -530,9 +514,6 @@ racct_sub_cred_locked(struct ucred *cred, int resource, uint64_t amount)
 	SDT_PROBE(racct, kernel, rusage, sub_cred, cred, resource, amount,
 	    0, 0);
 
-	KASSERT(amount >= 0,
-	    ("racct_sub_cred: invalid amount for resource %d: %ju",
-	    resource, amount));
 #ifdef notyet
 	KASSERT(racct_is_reclaimable(resource),
 	    ("racct_sub_cred: called for non-reclaimable resource %d",
