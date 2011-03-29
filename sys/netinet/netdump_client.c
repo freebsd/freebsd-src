@@ -1176,11 +1176,9 @@ trig_abort:
  */
 
 /*
- * [netdump_config_defaults]
- *
  * Called upon module load. Initializes the sysctl variables to sane defaults
  * (locates the first available NIC and uses the first IPv4 IP on that card as
- * the client IP). Leaves the server IP unconfigured.
+ * the client IP).  Leaves the server IP unconfigured.
  *
  * Parameters:
  *	void
@@ -1224,31 +1222,30 @@ netdump_config_defaults()
 static int
 netdump_modevent(module_t mod, int type, void *unused) 
 {
+#ifdef NETDUMP_CLIENT_DEBUG
+	char buf[INET_ADDRSTRLEN];
+#endif
+
 	switch (type) {
 	case MOD_LOAD:
 		netdump_config_defaults();
-
-		/* PRI_FIRST happens before the networks are disabled */
 		nd_tag = EVENTHANDLER_REGISTER(shutdown_pre_sync, 
-					       netdump_trigger, NULL, 
-					       SHUTDOWN_PRI_FIRST);
+		    netdump_trigger, NULL, SHUTDOWN_PRI_FIRST);
 
 #ifdef NETDUMP_CLIENT_DEBUG
-		if (!nd_ifp)
-			printf("netdump: Warning: No default interface "
-			    "found. Manual configuration required.\n");
-		else {
-			char buf[INET_ADDRSTRLEN];
+		if (nd_ifp == NULL) {
+			printf("netdump: Warning: No default interface found.
+			printf("Manual configuration required.\n");
+		} else {
 			inet_ntoa_r(nd_client, buf);
-			printf("netdump: Using interface %s; client IP "
-			    "%s\n", nd_ifp->if_xname, buf);
+			printf("netdump: Using interface %s; client IP %s\n",
+			    nd_ifp->if_xname, buf);
 		}
 #endif
-
 		printf("netdump initialized\n");
 		break;
 	case MOD_UNLOAD:
-		if (nd_tag) {
+		if (nd_tag != NULL) {
 			EVENTHANDLER_DEREGISTER(shutdown_pre_sync, nd_tag);
 			nd_tag = NULL;
 		}
@@ -1257,7 +1254,7 @@ netdump_modevent(module_t mod, int type, void *unused)
 	default:
 		break;
 	}
-	return 0;
+	return (0);
 }
 static moduledata_t netdump_mod = {"netdump", netdump_modevent, 0};
 DECLARE_MODULE(netdump, netdump_mod, SI_SUB_PROTO_END, SI_ORDER_ANY);
@@ -1269,4 +1266,3 @@ DB_COMMAND(netdump, ddb_force_netdump)
 	netdump_trigger(NULL, RB_DUMP);
 }
 #endif
-
