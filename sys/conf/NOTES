@@ -2930,6 +2930,9 @@ options 	AAC_DEBUG	# Debugging levels:
 				# 2 - extremely noisy, emit trace
 				#     items in loops, etc.
 
+# Resource Accounting
+options 	RACCT
+
 # Yet more undocumented options for linting.
 # BKTR_ALLOC_PAGES has no effect except to cause warnings, and
 # BROOKTREE_ALLOC_PAGES hasn't actually been superseded by it, since the
