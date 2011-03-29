@@ -895,8 +895,6 @@ NETDDEBUG("nd_handle_arp: ignoring ARP reply from %s (not netdump server)\n",
 }
 
 /*
- * [netdump_pkt_in]
- *
  * Handler for incoming packets directly from the network adapter
  * Identifies the packet type (IP or ARP) and passes it along to one of the
  * helper functions nd_handle_ip or nd_handle_arp.
@@ -917,17 +915,19 @@ netdump_pkt_in(struct ifnet *ifp, struct mbuf *m)
 	struct ether_header *eh;
 	u_short etype;
 
-	/* Ethernet processing */
+	/* Ethernet processing. */
 	if ((m->m_flags & M_PKTHDR) == 0) {
-		NETDDEBUG_IF(ifp, "discard frame w/o packet header\n");
+		NETDDEBUG_IF(ifp,
+		    "netdump_pkt_in: Discard frame without packet header\n");
 		goto done;
 	}
 	if (m->m_len < ETHER_HDR_LEN) {
-		NETDDEBUG_IF(ifp, "discard frame w/o leading ethernet "
-		    "header (len %u pkt len %u)\n", m->m_len, m->m_pkthdr.len);
+		NETDDEBUG_IF(ifp,
+"netdump_pkt_in: Discard frame without leading eth header (len %u pktlen %u)\n",
+		    m->m_len, m->m_pkthdr.len);
 		goto done;
 	}
-	if (m->m_flags & M_HASFCS) {
+	if ((m->m_flags & M_HASFCS) != 0) {
 		m_adj(m, -ETHER_CRC_LEN);
 		m->m_flags &= ~M_HASFCS;
 	}
@@ -935,13 +935,14 @@ netdump_pkt_in(struct ifnet *ifp, struct mbuf *m)
 	m->m_pkthdr.header = eh;
 	etype = ntohs(eh->ether_type);
 	if ((m->m_flags & M_VLANTAG) != 0 || etype == ETHERTYPE_VLAN) {
-		NETDDEBUG_IF(ifp, "ignoring vlan packets\n");
+		NETDDEBUG_IF(ifp, "netdump_pkt_in: Ignoring vlan packets\n");
 		goto done;
 	}
-	/* XXX: Probably should check if we're the recipient MAC address */
-	/* Done ethernet processing. Strip off the ethernet header */
-	m_adj(m, ETHER_HDR_LEN);
 
+	/* XXX: Probably must also check if we're the recipient MAC address. */
+
+	/* Done ethernet processing. Strip off the ethernet header. */
+	m_adj(m, ETHER_HDR_LEN);
 	switch (etype) {
 		case ETHERTYPE_ARP:
 			nd_handle_arp(&m);
@@ -950,20 +951,19 @@ netdump_pkt_in(struct ifnet *ifp, struct mbuf *m)
 			nd_handle_ip(&m);
 			break;
 		default:
-			NETDDEBUG_IF(ifp, "dropping unknown ethertype %hu\n",
+			NETDDEBUG_IF(ifp,
+			    "netdump_pkt_in: Dropping unknown ethertype %hu\n",
 			    etype);
 			break;
 	}
-
 done:
-	if (m) m_freem(m);
+	if (m != NULL)
+		m_freem(m);
 }
 
 /*
- * [netdump_network_poll]
- *
- * after trapping, instead of assuming that most of the network stack is sane
- * just poll the driver directly for packets
+ * After trapping, instead of assuming that most of the network stack is sane
+ * just poll the driver directly for packets.
  *
  * Parameters:
  *	void
