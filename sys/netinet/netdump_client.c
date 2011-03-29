@@ -150,8 +150,6 @@ static char nd_gw_tun[INET_ADDRSTRLEN];
 static char nd_nic_tun[IFNAMSIZ];
 
 /*
- * [netdump_supported_nic]
- *
  * Checks for netdump support on a network interface
  *
  * Parameters:
@@ -163,7 +161,8 @@ static char nd_nic_tun[IFNAMSIZ];
 static __inline int
 netdump_supported_nic(struct ifnet *ifp)
 {
-	return ifp->if_ndumpfuncs != NULL;
+
+	return (ifp->if_ndumpfuncs != NULL);
 }
 
 /*-
@@ -171,10 +170,7 @@ netdump_supported_nic(struct ifnet *ifp)
  */
 
 /*
- * [sysctl_handle_ifxname]
- *
- * sysctl handler to deal with converting a string sysctl to/from an ifaddr
- * name.
+ * Sysctl handler converting a string sysctl to/from an ifaddr name.
  *
  * Parameters:
  *	SYSCTL_HANDLER_ARGS
@@ -212,9 +208,7 @@ sysctl_handle_ifxname(SYSCTL_HANDLER_ARGS)
 }
 
 /*
- * [sysctl_handle_inaddr]
- *
- * sysctl handler to deal with converting a string sysctl to/from an in_addr
+ * Sysctl handler to deal with converting a string sysctl to/from an in_addr.
  *
  * Parameters:
  *	SYSCTL_HANDLER_ARGS
