@@ -529,21 +529,29 @@ psycho_attach(device_t dev)
 		 *
 		 * For the moment, 32KB should be more than enough.
 		 */
-		memcpy(&sc->sc_dma_methods, &iommu_dma_methods,
-		    sizeof(sc->sc_dma_methods));
-		sc->sc_is = malloc(sizeof(struct iommu_state), M_DEVBUF,
-		    M_NOWAIT | M_ZERO);
+		sc->sc_is = malloc(sizeof(*sc->sc_is), M_DEVBUF, M_NOWAIT |
+		    M_ZERO);
 		if (sc->sc_is == NULL)
-			panic("%s: malloc iommu_state failed", __func__);
+			panic("%s: could not malloc IOMMU state", __func__);
 		sc->sc_is->is_flags = IOMMU_PRESERVE_PROM;
 		if (sc->sc_mode == PSYCHO_MODE_SABRE) {
-			sc->sc_dma_methods.dm_dmamap_sync =
+			sc->sc_dma_methods =
+			    malloc(sizeof(*sc->sc_dma_methods), M_DEVBUF,
+			    M_NOWAIT);
+			if (sc->sc_dma_methods == NULL)
+				panic("%s: could not malloc DMA methods",
+				    __func__);
+			memcpy(sc->sc_dma_methods, &iommu_dma_methods,
+			    sizeof(*sc->sc_dma_methods));
+			sc->sc_dma_methods->dm_dmamap_sync =
 			    sabre_dmamap_sync;
 			sc->sc_is->is_pmaxaddr =
 			    IOMMU_MAXADDR(SABRE_IOMMU_BITS);
-		} else
+		} else {
+			sc->sc_dma_methods = &iommu_dma_methods;
 			sc->sc_is->is_pmaxaddr =
 			    IOMMU_MAXADDR(PSYCHO_IOMMU_BITS);
+		}
 		sc->sc_is->is_sb[0] = sc->sc_is->is_sb[1] = 0;
 		if (OF_getproplen(node, "no-streaming-cache") < 0)
 			sc->sc_is->is_sb[0] = sc->sc_pcictl + PCR_STRBUF;
@@ -551,6 +559,7 @@ psycho_attach(device_t dev)
 		psycho_iommu_init(sc, 3, dvmabase);
 	} else {
 		/* Just copy IOMMU state, config tag and address. */
+		sc->sc_dma_methods = &iommu_dma_methods;
 		sc->sc_is = osc->sc_is;
 		if (OF_getproplen(node, "no-streaming-cache") < 0)
 			sc->sc_is->is_sb[1] = sc->sc_pcictl + PCR_STRBUF;
@@ -567,7 +576,7 @@ psycho_attach(device_t dev)
 		panic("%s: bus_dma_tag_create failed", __func__);
 	/* Customize the tag. */
 	sc->sc_pci_dmat->dt_cookie = sc->sc_is;
-	sc->sc_pci_dmat->dt_mt = &sc->sc_dma_methods;
+	sc->sc_pci_dmat->dt_mt = sc->sc_dma_methods;
 
 	i = OF_getprop(node, "bus-range", (void *)prop_array,
 	    sizeof(prop_array));

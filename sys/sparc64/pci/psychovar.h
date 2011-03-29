@@ -36,7 +36,7 @@
  * per pair of psychos.
  */
 struct psycho_softc {
-	struct bus_dma_methods		sc_dma_methods;
+	struct bus_dma_methods		*sc_dma_methods;
 
 	device_t			sc_dev;
 
