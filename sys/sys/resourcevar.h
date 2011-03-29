@@ -79,6 +79,8 @@ struct plimit {
 	int	pl_refcnt;		/* number of references */
 };
 
+struct racct;
+
 /*-
  * Per uid resource consumption.  This structure is used to track
  * the total resource consumption (process count, socket buffer size,
@@ -99,6 +101,7 @@ struct uidinfo {
 	long	ui_ptscnt;		/* (b) number of pseudo-terminals */
 	uid_t	ui_uid;			/* (a) uid */
 	u_int	ui_ref;			/* (b) reference count */
+	struct racct *ui_racct;		/* (a) resource accounting */
 };
 
 #define	UIDINFO_VMSIZE_LOCK(ui)		mtx_lock(&((ui)->ui_vmsize_mtx))
@@ -140,6 +143,8 @@ struct uidinfo
 void	 uifree(struct uidinfo *uip);
 void	 uihashinit(void);
 void	 uihold(struct uidinfo *uip);
+void	 ui_racct_foreach(void (*callback)(struct racct *racct,
+	    void *arg2, void *arg3), void *arg2, void *arg3);
 
 #endif /* _KERNEL */
 #endif /* !_SYS_RESOURCEVAR_H_ */

@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/systm.h>
 #include <sys/signalvar.h>
@@ -525,6 +526,9 @@ proc0_init(void *dummy __unused)
 	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_cur = pageablemem / 3;
 	p->p_limit->pl_rlimit[RLIMIT_MEMLOCK].rlim_max = pageablemem;
 	p->p_cpulimit = RLIM_INFINITY;
+
+	/* Initialize resource accounting structures. */
+	racct_create(&p->p_racct);
 
 	p->p_stats = pstats_alloc();
 
