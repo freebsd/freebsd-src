@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2009 The FreeBSD Foundation
- * Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2010-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -86,7 +86,7 @@ struct hio {
 	 */
 	int			*hio_errors;
 	/*
-	 * Structure used to comunicate with GEOM Gate class.
+	 * Structure used to communicate with GEOM Gate class.
 	 */
 	struct g_gate_ctl_io	 hio_ggio;
 	TAILQ_ENTRY(hio)	*hio_next;
@@ -150,10 +150,6 @@ static pthread_mutex_t metadata_lock;
  * and remote components.
  */
 #define	HAST_NCOMPONENTS	2
-/*
- * Number of seconds to sleep between reconnect retries or keepalive packets.
- */
-#define	RETRY_SLEEP		10
 
 #define	ISCONNECTED(res, no)	\
 	((res)->hr_remotein != NULL && (res)->hr_remoteout != NULL)
@@ -187,7 +183,7 @@ static pthread_mutex_t metadata_lock;
 	while (((hio) = TAILQ_FIRST(&hio_##name##_list[(ncomp)])) == NULL && !_last) { \
 		cv_timedwait(&hio_##name##_list_cond[(ncomp)],		\
 		    &hio_##name##_list_lock[(ncomp)], (timeout));	\
-		if ((timeout) != 0) 					\
+		if ((timeout) != 0)					\
 			_last = true;					\
 	}								\
 	if (hio != NULL) {						\
@@ -482,7 +478,7 @@ init_local(struct hast_resource *res)
 	 * that there were no writes yet, so there is no need to synchronize
 	 * anything.
 	 */
-	res->hr_primary_localcnt = 1;
+	res->hr_primary_localcnt = 0;
 	res->hr_primary_remotecnt = 0;
 	if (metadata_write(res) < 0)
 		exit(EX_NOINPUT);
@@ -806,13 +802,13 @@ hastd_primary(struct hast_resource *res)
 {
 	pthread_t td;
 	pid_t pid;
-	int error, mode;
+	int error, mode, debuglevel;
 
 	/*
 	 * Create communication channel for sending control commands from
 	 * parent to child.
 	 */
-	if (proto_client("socketpair://", &res->hr_ctrl) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_ctrl) < 0) {
 		/* TODO: There's no need for this to be fatal error. */
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
@@ -821,7 +817,7 @@ hastd_primary(struct hast_resource *res)
 	/*
 	 * Create communication channel for sending events from child to parent.
 	 */
-	if (proto_client("socketpair://", &res->hr_event) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_event) < 0) {
 		/* TODO: There's no need for this to be fatal error. */
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
@@ -831,7 +827,7 @@ hastd_primary(struct hast_resource *res)
 	 * Create communication channel for sending connection requests from
 	 * child to parent.
 	 */
-	if (proto_client("socketpair://", &res->hr_conn) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_conn) < 0) {
 		/* TODO: There's no need for this to be fatal error. */
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
@@ -858,6 +854,7 @@ hastd_primary(struct hast_resource *res)
 
 	gres = res;
 	mode = pjdlog_mode_get();
+	debuglevel = pjdlog_debug_get();
 
 	/* Declare that we are sender. */
 	proto_send(res->hr_event, NULL, 0);
@@ -869,6 +866,7 @@ hastd_primary(struct hast_resource *res)
 	descriptors_assert(res, mode);
 
 	pjdlog_init(mode);
+	pjdlog_debug_set(debuglevel);
 	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
 	setproctitle("%s (primary)", res->hr_name);
 
@@ -1095,7 +1093,11 @@ ggate_recv_thread(void *arg)
 			break;
 		case BIO_WRITE:
 			if (res->hr_resuid == 0) {
-				/* This is first write, initialize resuid. */
+				/*
+				 * This is first write, initialize localcnt and
+				 * resuid.
+				 */
+				res->hr_primary_localcnt = 1;
 				(void)init_resuid(res);
 			}
 			for (;;) {
@@ -1266,7 +1268,7 @@ keepalive_send(struct hast_resource *res, unsigned int ncomp)
 		rw_unlock(&hio_remote_lock[ncomp]);
 		return;
 	}
-	
+
 	PJDLOG_ASSERT(res->hr_remotein != NULL);
 	PJDLOG_ASSERT(res->hr_remoteout != NULL);
 
@@ -1312,14 +1314,14 @@ remote_send_thread(void *arg)
 
 	/* Remote component is 1 for now. */
 	ncomp = 1;
-	lastcheck = time(NULL);	
+	lastcheck = time(NULL);
 
 	for (;;) {
 		pjdlog_debug(2, "remote_send: Taking request.");
-		QUEUE_TAKE1(hio, send, ncomp, RETRY_SLEEP);
+		QUEUE_TAKE1(hio, send, ncomp, HAST_KEEPALIVE);
 		if (hio == NULL) {
 			now = time(NULL);
-			if (lastcheck + RETRY_SLEEP <= now) {
+			if (lastcheck + HAST_KEEPALIVE <= now) {
 				keepalive_send(res, ncomp);
 				lastcheck = now;
 			}
@@ -1608,9 +1610,14 @@ ggate_send_thread(void *arg)
 		if (ii == ncomps) {
 			/*
 			 * None of the requests were successful.
-			 * Use first error.
+			 * Use the error from local component except the
+			 * case when we did only remote request.
 			 */
-			ggio->gctl_error = hio->hio_errors[0];
+			if (ggio->gctl_cmd == BIO_READ &&
+			    res->hr_syncsrc == HAST_SYNCSRC_SECONDARY)
+				ggio->gctl_error = hio->hio_errors[1];
+			else
+				ggio->gctl_error = hio->hio_errors[0];
 		}
 		if (ggio->gctl_error == 0 && ggio->gctl_cmd == BIO_WRITE) {
 			mtx_lock(&res->hr_amp_lock);
@@ -1667,6 +1674,7 @@ sync_thread(void *arg __unused)
 	struct hast_resource *res = arg;
 	struct hio *hio;
 	struct g_gate_ctl_io *ggio;
+	struct timeval tstart, tend, tdiff;
 	unsigned int ii, ncomp, ncomps;
 	off_t offset, length, synced;
 	bool dorewind;
@@ -1680,8 +1688,10 @@ sync_thread(void *arg __unused)
 	for (;;) {
 		mtx_lock(&sync_lock);
 		if (offset >= 0 && !sync_inprogress) {
-			pjdlog_info("Synchronization interrupted. "
-			    "%jd bytes synchronized so far.",
+			gettimeofday(&tend, NULL);
+			timersub(&tend, &tstart, &tdiff);
+			pjdlog_info("Synchronization interrupted after %#.0T. "
+			    "%NB synchronized so far.", &tdiff,
 			    (intmax_t)synced);
 			event_send(res, EVENT_SYNCINTR);
 		}
@@ -1713,10 +1723,11 @@ sync_thread(void *arg __unused)
 			if (offset < 0)
 				pjdlog_info("Nodes are in sync.");
 			else {
-				pjdlog_info("Synchronization started. %ju bytes to go.",
-				    (uintmax_t)(res->hr_extentsize *
+				pjdlog_info("Synchronization started. %NB to go.",
+				    (intmax_t)(res->hr_extentsize *
 				    activemap_ndirty(res->hr_amp)));
 				event_send(res, EVENT_SYNCSTART);
+				gettimeofday(&tstart, NULL);
 			}
 		}
 		if (offset < 0) {
@@ -1730,21 +1741,29 @@ sync_thread(void *arg __unused)
 			rw_rlock(&hio_remote_lock[ncomp]);
 			if (ISCONNECTED(res, ncomp)) {
 				if (synced > 0) {
+					int64_t bps;
+
+					gettimeofday(&tend, NULL);
+					timersub(&tend, &tstart, &tdiff);
+					bps = (int64_t)((double)synced /
+					    ((double)tdiff.tv_sec +
+					    (double)tdiff.tv_usec / 1000000));
 					pjdlog_info("Synchronization complete. "
-					    "%jd bytes synchronized.",
-					    (intmax_t)synced);
+					    "%NB synchronized in %#.0lT (%NB/sec).",
+					    (intmax_t)synced, &tdiff,
+					    (intmax_t)bps);
 					event_send(res, EVENT_SYNCDONE);
 				}
 				mtx_lock(&metadata_lock);
 				res->hr_syncsrc = HAST_SYNCSRC_UNDEF;
 				res->hr_primary_localcnt =
-				    res->hr_secondary_localcnt;
-				res->hr_primary_remotecnt =
 				    res->hr_secondary_remotecnt;
+				res->hr_primary_remotecnt =
+				    res->hr_secondary_localcnt;
 				pjdlog_debug(1,
 				    "Setting localcnt to %ju and remotecnt to %ju.",
 				    (uintmax_t)res->hr_primary_localcnt,
-				    (uintmax_t)res->hr_secondary_localcnt);
+				    (uintmax_t)res->hr_primary_remotecnt);
 				(void)metadata_write(res);
 				mtx_unlock(&metadata_lock);
 			}
@@ -1908,16 +1927,22 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	PJDLOG_ASSERT(res->hr_role == HAST_ROLE_PRIMARY);
 	PJDLOG_ASSERT(gres == res);
 	nv_assert(nv, "remoteaddr");
+	nv_assert(nv, "sourceaddr");
 	nv_assert(nv, "replication");
+	nv_assert(nv, "checksum");
+	nv_assert(nv, "compression");
 	nv_assert(nv, "timeout");
 	nv_assert(nv, "exec");
 
 	ncomps = HAST_NCOMPONENTS;
 
-#define MODIFIED_REMOTEADDR	0x1
-#define MODIFIED_REPLICATION	0x2
-#define MODIFIED_TIMEOUT	0x4
-#define MODIFIED_EXEC		0x8
+#define MODIFIED_REMOTEADDR	0x01
+#define MODIFIED_SOURCEADDR	0x02
+#define MODIFIED_REPLICATION	0x04
+#define MODIFIED_CHECKSUM	0x08
+#define MODIFIED_COMPRESSION	0x10
+#define MODIFIED_TIMEOUT	0x20
+#define MODIFIED_EXEC		0x40
 	modified = 0;
 
 	vstr = nv_get_string(nv, "remoteaddr");
@@ -1929,10 +1954,25 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 		 */
 		modified |= MODIFIED_REMOTEADDR;
 	}
+	vstr = nv_get_string(nv, "sourceaddr");
+	if (strcmp(gres->hr_sourceaddr, vstr) != 0) {
+		strlcpy(gres->hr_sourceaddr, vstr, sizeof(gres->hr_sourceaddr));
+		modified |= MODIFIED_SOURCEADDR;
+	}
 	vint = nv_get_int32(nv, "replication");
 	if (gres->hr_replication != vint) {
 		gres->hr_replication = vint;
 		modified |= MODIFIED_REPLICATION;
+	}
+	vint = nv_get_int32(nv, "checksum");
+	if (gres->hr_checksum != vint) {
+		gres->hr_checksum = vint;
+		modified |= MODIFIED_CHECKSUM;
+	}
+	vint = nv_get_int32(nv, "compression");
+	if (gres->hr_compression != vint) {
+		gres->hr_compression = vint;
+		modified |= MODIFIED_COMPRESSION;
 	}
 	vint = nv_get_int32(nv, "timeout");
 	if (gres->hr_timeout != vint) {
@@ -1946,10 +1986,12 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 	}
 
 	/*
-	 * If only timeout was modified we only need to change it without
-	 * reconnecting.
+	 * Change timeout for connected sockets.
+	 * Don't bother if we need to reconnect.
 	 */
-	if (modified == MODIFIED_TIMEOUT) {
+	if ((modified & MODIFIED_TIMEOUT) != 0 &&
+	    (modified & (MODIFIED_REMOTEADDR | MODIFIED_SOURCEADDR |
+	    MODIFIED_REPLICATION)) == 0) {
 		for (ii = 0; ii < ncomps; ii++) {
 			if (!ISREMOTE(ii))
 				continue;
@@ -1970,8 +2012,9 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 				    "Unable to set connection timeout");
 			}
 		}
-	} else if ((modified &
-	    (MODIFIED_REMOTEADDR | MODIFIED_REPLICATION)) != 0) {
+	}
+	if ((modified & (MODIFIED_REMOTEADDR | MODIFIED_SOURCEADDR |
+	    MODIFIED_REPLICATION)) != 0) {
 		for (ii = 0; ii < ncomps; ii++) {
 			if (!ISREMOTE(ii))
 				continue;
@@ -1984,7 +2027,10 @@ primary_config_reload(struct hast_resource *res, struct nv *nv)
 		}
 	}
 #undef	MODIFIED_REMOTEADDR
+#undef	MODIFIED_SOURCEADDR
 #undef	MODIFIED_REPLICATION
+#undef	MODIFIED_CHECKSUM
+#undef	MODIFIED_COMPRESSION
 #undef	MODIFIED_TIMEOUT
 #undef	MODIFIED_EXEC
 
@@ -2067,7 +2113,7 @@ guard_thread(void *arg)
 	PJDLOG_VERIFY(sigaddset(&mask, SIGINT) == 0);
 	PJDLOG_VERIFY(sigaddset(&mask, SIGTERM) == 0);
 
-	timeout.tv_sec = RETRY_SLEEP;
+	timeout.tv_sec = HAST_KEEPALIVE;
 	timeout.tv_nsec = 0;
 	signo = -1;
 
@@ -2085,7 +2131,7 @@ guard_thread(void *arg)
 
 		pjdlog_debug(2, "remote_guard: Checking connections.");
 		now = time(NULL);
-		if (lastcheck + RETRY_SLEEP <= now) {
+		if (lastcheck + HAST_KEEPALIVE <= now) {
 			for (ii = 0; ii < ncomps; ii++)
 				guard_one(res, ii);
 			lastcheck = now;

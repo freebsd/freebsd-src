@@ -65,8 +65,8 @@ __FBSDID("$FreeBSD$");
 #include "synch.h"
 
 struct hio {
-	uint64_t 	 hio_seq;
-	int	 	 hio_error;
+	uint64_t	 hio_seq;
+	int		 hio_error;
 	struct nv	*hio_nv;
 	void		*hio_data;
 	uint8_t		 hio_cmd;
@@ -259,6 +259,20 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 			memset(map, 0xff, mapsize);
 		}
 		nv_add_uint8(nvout, HAST_SYNCSRC_PRIMARY, "syncsrc");
+	} else if (res->hr_resuid != resuid) {
+		char errmsg[256];
+
+		(void)snprintf(errmsg, sizeof(errmsg),
+		    "Resource unique ID mismatch (primary=%ju, secondary=%ju).",
+		    (uintmax_t)resuid, (uintmax_t)res->hr_resuid);
+		pjdlog_error("%s", errmsg);
+		nv_add_string(nvout, errmsg, "errmsg");
+		if (hast_proto_send(res, res->hr_remotein, nvout, NULL, 0) < 0) {
+			pjdlog_exit(EX_TEMPFAIL, "Unable to send response to %s",
+			    res->hr_remoteaddr);
+		}
+		nv_free(nvout);
+		exit(EX_CONFIG);
 	} else if (
 	    /* Is primary is out-of-date? */
 	    (res->hr_secondary_localcnt > res->hr_primary_remotecnt &&
@@ -346,12 +360,12 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	sigset_t mask;
 	pthread_t td;
 	pid_t pid;
-	int error, mode;
+	int error, mode, debuglevel;
 
 	/*
 	 * Create communication channel between parent and child.
 	 */
-	if (proto_client("socketpair://", &res->hr_ctrl) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_ctrl) < 0) {
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
 		    "Unable to create control sockets between parent and child");
@@ -359,20 +373,10 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	/*
 	 * Create communication channel between child and parent.
 	 */
-	if (proto_client("socketpair://", &res->hr_event) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_event) < 0) {
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
 		    "Unable to create event sockets between child and parent");
-	}
-	/*
-	 * Create communication channel for sending connection requests from
-	 * parent to child.
-	 */
-	if (proto_client("socketpair://", &res->hr_conn) < 0) {
-		/* TODO: There's no need for this to be fatal error. */
-		KEEP_ERRNO((void)pidfile_remove(pfh));
-		pjdlog_exit(EX_OSERR,
-		    "Unable to create connection sockets between parent and child");
 	}
 
 	pid = fork();
@@ -391,24 +395,24 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 		proto_recv(res->hr_event, NULL, 0);
 		/* Declare that we are sender. */
 		proto_send(res->hr_ctrl, NULL, 0);
-		proto_send(res->hr_conn, NULL, 0);
 		res->hr_workerpid = pid;
 		return;
 	}
 
 	gres = res;
 	mode = pjdlog_mode_get();
+	debuglevel = pjdlog_debug_get();
 
 	/* Declare that we are sender. */
 	proto_send(res->hr_event, NULL, 0);
 	/* Declare that we are receiver. */
 	proto_recv(res->hr_ctrl, NULL, 0);
-	proto_recv(res->hr_conn, NULL, 0);
 	descriptors_cleanup(res);
 
 	descriptors_assert(res, mode);
 
 	pjdlog_init(mode);
+	pjdlog_debug_set(debuglevel);
 	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
 	setproctitle("%s (secondary)", res->hr_name);
 
@@ -416,7 +420,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 
 	/* Error in setting timeout is not critical, but why should it fail? */
-	if (proto_timeout(res->hr_remotein, 0) < 0)
+	if (proto_timeout(res->hr_remotein, 2 * HAST_KEEPALIVE) < 0)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
 	if (proto_timeout(res->hr_remoteout, res->hr_timeout) < 0)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");

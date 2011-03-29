@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "hast.h"
 #include "pjdlog.h"
 #include "proto_impl.h"
 
@@ -57,13 +56,15 @@ struct sp_ctx {
 static void sp_close(void *ctx);
 
 static int
-sp_client(const char *addr, void **ctxp)
+sp_client(const char *srcaddr, const char *dstaddr, void **ctxp)
 {
 	struct sp_ctx *spctx;
 	int ret;
 
-	if (strcmp(addr, "socketpair://") != 0)
+	if (strcmp(dstaddr, "socketpair://") != 0)
 		return (-1);
+
+	PJDLOG_ASSERT(srcaddr == NULL);
 
 	spctx = malloc(sizeof(*spctx));
 	if (spctx == NULL)
@@ -219,13 +220,13 @@ sp_close(void *ctx)
 	free(spctx);
 }
 
-static struct hast_proto sp_proto = {
-	.hp_name = "socketpair",
-	.hp_client = sp_client,
-	.hp_send = sp_send,
-	.hp_recv = sp_recv,
-	.hp_descriptor = sp_descriptor,
-	.hp_close = sp_close
+static struct proto sp_proto = {
+	.prt_name = "socketpair",
+	.prt_client = sp_client,
+	.prt_send = sp_send,
+	.prt_recv = sp_recv,
+	.prt_descriptor = sp_descriptor,
+	.prt_close = sp_close
 };
 
 static __constructor void

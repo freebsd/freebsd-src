@@ -1,9 +1,6 @@
 /*-
- * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
- *
- * This software was developed by Pawel Jakub Dawidek under sponsorship from
- * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,33 +26,19 @@
  * $FreeBSD$
  */
 
-#ifndef	_PROTO_H_
-#define	_PROTO_H_
+#ifndef	_HAST_CHECKSUM_H_
+#define	_HAST_CHECKSUM_H_
 
-#include <stdbool.h>	/* bool */
 #include <stdlib.h>	/* size_t */
 
-struct proto_conn;
+#include <hast.h>
+#include <nv.h>
 
-int proto_client(const char *srcaddr, const char *dstaddr,
-    struct proto_conn **connp);
-int proto_connect(struct proto_conn *conn, int timeout);
-int proto_connect_wait(struct proto_conn *conn, int timeout);
-int proto_server(const char *addr, struct proto_conn **connp);
-int proto_accept(struct proto_conn *conn, struct proto_conn **newconnp);
-int proto_send(const struct proto_conn *conn, const void *data, size_t size);
-int proto_recv(const struct proto_conn *conn, void *data, size_t size);
-int proto_connection_send(const struct proto_conn *conn,
-    struct proto_conn *mconn);
-int proto_connection_recv(const struct proto_conn *conn, bool client,
-    struct proto_conn **newconnp);
-int proto_descriptor(const struct proto_conn *conn);
-bool proto_address_match(const struct proto_conn *conn, const char *addr);
-void proto_local_address(const struct proto_conn *conn, char *addr,
-    size_t size);
-void proto_remote_address(const struct proto_conn *conn, char *addr,
-    size_t size);
-int proto_timeout(const struct proto_conn *conn, int timeout);
-void proto_close(struct proto_conn *conn);
+const char *checksum_name(int num);
 
-#endif	/* !_PROTO_H_ */
+int checksum_send(const struct hast_resource *res, struct nv *nv,
+    void **datap, size_t *sizep, bool *freedatap);
+int checksum_recv(const struct hast_resource *res, struct nv *nv,
+    void **datap, size_t *sizep, bool *freedatap);
+
+#endif	/* !_HAST_CHECKSUM_H_ */

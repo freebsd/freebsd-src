@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <inttypes.h>
+#include <libutil.h>
 #include <limits.h>
 #include <signal.h>
 #include <stdio.h>
@@ -213,8 +213,10 @@ dump_one(struct hast_resource *res)
 		return (ret);
 
 	printf("resource: %s\n", res->hr_name);
-	printf("    datasize: %ju\n", (uintmax_t)res->hr_datasize);
-	printf("    extentsize: %d\n", res->hr_extentsize);
+	printf("    datasize: %ju (%NB)\n", (uintmax_t)res->hr_datasize,
+	    (intmax_t)res->hr_datasize);
+	printf("    extentsize: %d (%NB)\n", res->hr_extentsize,
+	    (intmax_t)res->hr_extentsize);
 	printf("    keepdirty: %d\n", res->hr_keepdirty);
 	printf("    localoff: %ju\n", (uintmax_t)res->hr_localoff);
 	printf("    resuid: %ju\n", (uintmax_t)res->hr_resuid);
@@ -321,47 +323,33 @@ control_status(struct nv *nv)
 		    nv_get_string(nv, "provname%u", ii));
 		printf("  localpath: %s\n",
 		    nv_get_string(nv, "localpath%u", ii));
-		printf("  extentsize: %u\n",
-		    (unsigned int)nv_get_uint32(nv, "extentsize%u", ii));
+		printf("  extentsize: %u (%NB)\n",
+		    (unsigned int)nv_get_uint32(nv, "extentsize%u", ii),
+		    (intmax_t)nv_get_uint32(nv, "extentsize%u", ii));
 		printf("  keepdirty: %u\n",
 		    (unsigned int)nv_get_uint32(nv, "keepdirty%u", ii));
 		printf("  remoteaddr: %s\n",
 		    nv_get_string(nv, "remoteaddr%u", ii));
+		str = nv_get_string(nv, "sourceaddr%u", ii);
+		if (str != NULL)
+			printf("  sourceaddr: %s\n", str);
 		printf("  replication: %s\n",
 		    nv_get_string(nv, "replication%u", ii));
 		str = nv_get_string(nv, "status%u", ii);
 		if (str != NULL)
 			printf("  status: %s\n", str);
-		printf("  dirty: %ju bytes\n",
-		    (uintmax_t)nv_get_uint64(nv, "dirty%u", ii));
+		printf("  dirty: %ju (%NB)\n",
+		    (uintmax_t)nv_get_uint64(nv, "dirty%u", ii),
+		    (intmax_t)nv_get_uint64(nv, "dirty%u", ii));
 	}
 	return (ret);
-}
-
-static int
-numfromstr(const char *str, intmax_t *nump)
-{
-	intmax_t num;
-	char *suffix;
-	int rerrno;
-
-	rerrno = errno;
-	errno = 0;
-	num = strtoimax(str, &suffix, 0);
-	if (errno == 0 && *suffix != '\0')
-		errno = EINVAL;
-	if (errno != 0)
-		return (-1);
-	*nump = num;
-	errno = rerrno;
-	return (0);
 }
 
 int
 main(int argc, char *argv[])
 {
 	struct nv *nv;
-	intmax_t mediasize, extentsize, keepdirty;
+	int64_t mediasize, extentsize, keepdirty;
 	int cmd, debug, error, ii;
 	const char *optstr;
 
@@ -403,15 +391,15 @@ main(int argc, char *argv[])
 			debug++;
 			break;
 		case 'e':
-			if (numfromstr(optarg, &extentsize) < 0)
+			if (expand_number(optarg, &extentsize) < 0)
 				err(1, "Invalid extentsize");
 			break;
 		case 'k':
-			if (numfromstr(optarg, &keepdirty) < 0)
+			if (expand_number(optarg, &keepdirty) < 0)
 				err(1, "Invalid keepdirty");
 			break;
 		case 'm':
-			if (numfromstr(optarg, &mediasize) < 0)
+			if (expand_number(optarg, &mediasize) < 0)
 				err(1, "Invalid mediasize");
 			break;
 		case 'h':
@@ -481,7 +469,7 @@ main(int argc, char *argv[])
 	}
 
 	/* Setup control connection... */
-	if (proto_client(cfg->hc_controladdr, &controlconn) < 0) {
+	if (proto_client(NULL, cfg->hc_controladdr, &controlconn) < 0) {
 		pjdlog_exit(EX_OSERR,
 		    "Unable to setup control connection to %s",
 		    cfg->hc_controladdr);
