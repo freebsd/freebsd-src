@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/racct.h>
 #include <sys/sx.h>
 #include <sys/sysent.h>
 #include <sys/namei.h>
@@ -1195,6 +1196,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			root = mypr->pr_root;
 			vref(root);
 		}
+		racct_create(&pr->pr_racct);
 		strlcpy(pr->pr_hostuuid, DEFAULT_HOSTUUID, HOSTUUIDLEN);
 		pr->pr_flags |= PR_HOST;
 #if defined(INET) || defined(INET6)
@@ -2295,6 +2297,9 @@ do_jail_attach(struct thread *td, struct prison *pr)
 	newcred->cr_prison = pr;
 	p->p_ucred = newcred;
 	PROC_UNLOCK(p);
+#ifdef RACCT
+	racct_proc_ucred_changed(p, oldcred, newcred);
+#endif
 	crfree(oldcred);
 	prison_deref(ppr, PD_DEREF | PD_DEUREF);
 	return (0);
@@ -2527,6 +2532,7 @@ prison_deref(struct prison *pr, int flags)
 		if (pr->pr_cpuset != NULL)
 			cpuset_rel(pr->pr_cpuset);
 		osd_jail_exit(pr);
+		racct_destroy(&pr->pr_racct);
 		free(pr, M_PRISON);
 
 		/* Removing a prison frees a reference on its parent. */
@@ -4263,6 +4269,17 @@ SYSCTL_JAIL_PARAM(_allow, quotas, CTLTYPE_INT | CTLFLAG_RW,
 SYSCTL_JAIL_PARAM(_allow, socket_af, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may create sockets other than just UNIX/IPv4/IPv6/route");
 
+void
+prison_racct_foreach(void (*callback)(struct racct *racct,
+    void *arg2, void *arg3), void *arg2, void *arg3)
+{
+	struct prison *pr;
+
+	sx_slock(&allprison_lock);
+	TAILQ_FOREACH(pr, &allprison, pr_list)
+		(callback)(pr->pr_racct, arg2, arg3);
+	sx_sunlock(&allprison_lock);
+}
 
 #ifdef DDB
 
