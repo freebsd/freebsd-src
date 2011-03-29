@@ -1234,7 +1234,7 @@ netdump_modevent(module_t mod, int type, void *unused)
 
 #ifdef NETDUMP_CLIENT_DEBUG
 		if (nd_ifp == NULL) {
-			printf("netdump: Warning: No default interface found.
+			printf("netdump: Warning: No default interface found.");
 			printf("Manual configuration required.\n");
 		} else {
 			inet_ntoa_r(nd_client, buf);
