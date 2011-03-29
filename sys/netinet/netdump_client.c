@@ -118,7 +118,6 @@ static int	 sysctl_handle_inaddr(SYSCTL_HANDLER_ARGS);
 
 /* Must be at least as big as the chunks dumpsys() gives us. */
 static unsigned char buf[MAXDUMPPGS * PAGE_SIZE];
-static struct ether_addr nd_gw_mac;
 static eventhandler_tag nd_tag;
 static uint64_t rcvd_acks;
 static uint32_t nd_seqno = 1;
