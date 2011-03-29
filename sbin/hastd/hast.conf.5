@@ -1,5 +1,5 @@
 .\" Copyright (c) 2010 The FreeBSD Foundation
-.\" Copyright (c) 2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2010-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
 .\" All rights reserved.
 .\"
 .\" This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 30, 2010
+.Dd March 20, 2011
 .Dt HAST.CONF 5
 .Os
 .Sh NAME
@@ -59,6 +59,8 @@ file is following:
 control <addr>
 listen <addr>
 replication <mode>
+checksum <algorithm>
+compression <algorithm>
 timeout <seconds>
 exec <path>
 
@@ -77,6 +79,8 @@ on <node> {
 resource <name> {
 	# Resource section
 	replication <mode>
+	checksum <algorithm>
+	compression <algorithm>
 	name <name>
 	local <path>
 	timeout <seconds>
@@ -89,6 +93,7 @@ resource <name> {
 		local <path>
 		# Required
 		remote <addr>
+		source <addr>
 	}
 	on <node> {
 		# Resource-node section
@@ -97,6 +102,7 @@ resource <name> {
 		local <path>
 		# Required
 		remote <addr>
+		source <addr>
 	}
 }
 .Ed
@@ -201,6 +207,36 @@ The
 .Ic async
 replication mode is currently not implemented.
 .El
+.It Ic checksum Aq algorithm
+.Pp
+Checksum algorithm should be one of the following:
+.Bl -tag -width ".Ic sha256"
+.It Ic none
+No checksum will be calculated for the data being send over the network.
+This is the default setting.
+.It Ic crc32
+CRC32 checksum will be calculated.
+.It Ic sha256
+SHA256 checksum will be calculated.
+.El
+.It Ic compression Aq algorithm
+.Pp
+Compression algorithm should be one of the following:
+.Bl -tag -width ".Ic none"
+.It Ic none
+Data send over the network will not be compressed.
+.It Ic hole
+Only blocks that contain all zeros will be compressed.
+This is very useful for initial synchronization where potentially many blocks
+are still all zeros.
+There should be no measurable performance overhead when this algorithm is being
+used.
+This is the default setting.
+.It Ic lzf
+The LZF algorithm by Marc Alexander Lehmann will be used to compress the data
+send over the network.
+LZF is very fast, general purpose compression algorithm.
+.El
 .It Ic timeout Aq seconds
 .Pp
 Connection timeout in seconds.
@@ -303,6 +339,14 @@ A special value of
 .Va none
 can be used when the remote address is not yet known (eg. the other node is not
 set up yet).
+.It Ic source Aq addr
+.Pp
+Local address to bind to before connecting to the remote
+.Nm hastd
+daemon.
+Format is the same as for the
+.Ic listen
+statement.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /var/run/hastctl" -compact
@@ -333,10 +377,12 @@ resource shared {
 resource tank {
 	on hasta {
 		local /dev/mirror/tanka
+		source tcp4://10.0.0.1
 		remote tcp4://10.0.0.2
 	}
 	on hastb {
 		local /dev/mirror/tankb
+		source tcp4://10.0.0.2
 		remote tcp4://10.0.0.1
 	}
 }

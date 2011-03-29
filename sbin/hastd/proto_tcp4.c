@@ -31,6 +31,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>	/* MAXHOSTNAMELEN */
+#include <sys/socket.h>
+
+#include <arpa/inet.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -44,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "hast.h"
 #include "pjdlog.h"
 #include "proto_impl.h"
 #include "subr.h"
@@ -112,7 +114,7 @@ invalid:
 }
 
 static int
-tcp4_addr(const char *addr, struct sockaddr_in *sinp)
+tcp4_addr(const char *addr, int defport, struct sockaddr_in *sinp)
 {
 	char iporhost[MAXHOSTNAMELEN];
 	const char *pp;
@@ -139,7 +141,7 @@ tcp4_addr(const char *addr, struct sockaddr_in *sinp)
 	pp = strrchr(addr, ':');
 	if (pp == NULL) {
 		/* Port not given, use the default. */
-		sinp->sin_port = htons(HASTD_PORT);
+		sinp->sin_port = htons(defport);
 	} else {
 		intmax_t port;
 
@@ -183,7 +185,8 @@ tcp4_setup_new(const char *addr, int side, void **ctxp)
 		return (errno);
 
 	/* Parse given address. */
-	if ((ret = tcp4_addr(addr, &tctx->tc_sin)) != 0) {
+	if ((ret = tcp4_addr(addr, PROTO_TCP4_DEFAULT_PORT,
+	    &tctx->tc_sin)) != 0) {
 		free(tctx);
 		return (ret);
 	}
@@ -196,6 +199,8 @@ tcp4_setup_new(const char *addr, int side, void **ctxp)
 		free(tctx);
 		return (ret);
 	}
+
+	PJDLOG_ASSERT(tctx->tc_sin.sin_family != AF_UNSPEC);
 
 	/* Socket settings. */
 	nodelay = 1;
@@ -235,10 +240,29 @@ tcp4_setup_wrap(int fd, int side, void **ctxp)
 }
 
 static int
-tcp4_client(const char *addr, void **ctxp)
+tcp4_client(const char *srcaddr, const char *dstaddr, void **ctxp)
 {
+	struct tcp4_ctx *tctx;
+	struct sockaddr_in sin;
+	int ret;
 
-	return (tcp4_setup_new(addr, TCP4_SIDE_CLIENT, ctxp));
+	ret = tcp4_setup_new(dstaddr, TCP4_SIDE_CLIENT, ctxp);
+	if (ret != 0)
+		return (ret);
+	tctx = *ctxp;
+	if (srcaddr == NULL)
+		return (0);
+	ret = tcp4_addr(srcaddr, 0, &sin);
+	if (ret != 0) {
+		tcp4_close(tctx);
+		return (ret);
+	}
+	if (bind(tctx->tc_fd, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+		ret = errno;
+		tcp4_close(tctx);
+		return (ret);
+	}
+	return (0);
 }
 
 static int
@@ -316,7 +340,7 @@ tcp4_connect_wait(void *ctx, int timeout)
 	tv.tv_usec = 0;
 again:
 	FD_ZERO(&fdset);
-	FD_SET(tctx->tc_fd, &fdset); 
+	FD_SET(tctx->tc_fd, &fdset);
 	ret = select(tctx->tc_fd + 1, NULL, &fdset, NULL, &tv);
 	if (ret == 0) {
 		error = ETIMEDOUT;
@@ -475,22 +499,6 @@ tcp4_descriptor(const void *ctx)
 	return (tctx->tc_fd);
 }
 
-static void
-sin2str(struct sockaddr_in *sinp, char *addr, size_t size)
-{
-	in_addr_t ip;
-	unsigned int port;
-
-	PJDLOG_ASSERT(addr != NULL);
-	PJDLOG_ASSERT(sinp->sin_family == AF_INET);
-
-	ip = ntohl(sinp->sin_addr.s_addr);
-	port = ntohs(sinp->sin_port);
-	PJDLOG_VERIFY(snprintf(addr, size, "tcp4://%u.%u.%u.%u:%u",
-	    ((ip >> 24) & 0xff), ((ip >> 16) & 0xff), ((ip >> 8) & 0xff),
-	    (ip & 0xff), port) < (ssize_t)size);
-}
-
 static bool
 tcp4_address_match(const void *ctx, const char *addr)
 {
@@ -502,7 +510,7 @@ tcp4_address_match(const void *ctx, const char *addr)
 	PJDLOG_ASSERT(tctx != NULL);
 	PJDLOG_ASSERT(tctx->tc_magic == TCP4_CTX_MAGIC);
 
-	if (tcp4_addr(addr, &sin) != 0)
+	if (tcp4_addr(addr, PROTO_TCP4_DEFAULT_PORT, &sin) != 0)
 		return (false);
 	ip1 = sin.sin_addr.s_addr;
 
@@ -529,7 +537,7 @@ tcp4_local_address(const void *ctx, char *addr, size_t size)
 		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}
-	sin2str(&sin, addr, size);
+	PJDLOG_VERIFY(snprintf(addr, size, "tcp4://%S", &sin) < (ssize_t)size);
 }
 
 static void
@@ -547,7 +555,7 @@ tcp4_remote_address(const void *ctx, char *addr, size_t size)
 		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}
-	sin2str(&sin, addr, size);
+	PJDLOG_VERIFY(snprintf(addr, size, "tcp4://%S", &sin) < (ssize_t)size);
 }
 
 static void
@@ -564,21 +572,21 @@ tcp4_close(void *ctx)
 	free(tctx);
 }
 
-static struct hast_proto tcp4_proto = {
-	.hp_name = "tcp4",
-	.hp_client = tcp4_client,
-	.hp_connect = tcp4_connect,
-	.hp_connect_wait = tcp4_connect_wait,
-	.hp_server = tcp4_server,
-	.hp_accept = tcp4_accept,
-	.hp_wrap = tcp4_wrap,
-	.hp_send = tcp4_send,
-	.hp_recv = tcp4_recv,
-	.hp_descriptor = tcp4_descriptor,
-	.hp_address_match = tcp4_address_match,
-	.hp_local_address = tcp4_local_address,
-	.hp_remote_address = tcp4_remote_address,
-	.hp_close = tcp4_close
+static struct proto tcp4_proto = {
+	.prt_name = "tcp4",
+	.prt_client = tcp4_client,
+	.prt_connect = tcp4_connect,
+	.prt_connect_wait = tcp4_connect_wait,
+	.prt_server = tcp4_server,
+	.prt_accept = tcp4_accept,
+	.prt_wrap = tcp4_wrap,
+	.prt_send = tcp4_send,
+	.prt_recv = tcp4_recv,
+	.prt_descriptor = tcp4_descriptor,
+	.prt_address_match = tcp4_address_match,
+	.prt_local_address = tcp4_local_address,
+	.prt_remote_address = tcp4_remote_address,
+	.prt_close = tcp4_close
 };
 
 static __constructor void

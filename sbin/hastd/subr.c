@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2010 The FreeBSD Foundation
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -38,12 +39,36 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <pwd.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <pjdlog.h>
 
 #include "hast.h"
 #include "subr.h"
+
+int
+vsnprlcat(char *str, size_t size, const char *fmt, va_list ap)
+{
+	size_t len;
+
+	len = strlen(str);
+	return (vsnprintf(str + len, size - len, fmt, ap));
+}
+
+int
+snprlcat(char *str, size_t size, const char *fmt, ...)
+{
+	va_list ap;
+	int result;
+
+	va_start(ap, fmt);
+	result = vsnprlcat(str, size, fmt, ap);
+	va_end(ap);
+	return (result);
+}
 
 int
 provinfo(struct hast_resource *res, bool dowrite)
@@ -108,12 +133,12 @@ const char *
 role2str(int role)
 {
 
-	switch (role) {																			
-	case HAST_ROLE_INIT:																				
+	switch (role) {
+	case HAST_ROLE_INIT:
 		return ("init");
-	case HAST_ROLE_PRIMARY:																			
+	case HAST_ROLE_PRIMARY:
 		return ("primary");
-	case HAST_ROLE_SECONDARY:																			
+	case HAST_ROLE_SECONDARY:
 		return ("secondary");
 	}
 	return ("unknown");

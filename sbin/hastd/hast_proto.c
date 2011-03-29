@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -34,12 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <errno.h>
-#include <string.h>
 #include <strings.h>
-
-#ifdef HAVE_CRYPTO
-#include <openssl/sha.h>
-#endif
 
 #include <hast.h>
 #include <ebuf.h>
@@ -47,6 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <pjdlog.h>
 #include <proto.h>
 
+#ifdef HAVE_CRYPTO
+#include "hast_checksum.h"
+#endif
+#include "hast_compression.h"
 #include "hast_proto.h"
 
 struct hast_main_header {
@@ -67,170 +67,10 @@ struct hast_pipe_stage {
 	hps_recv_t	*hps_recv;
 };
 
-static int compression_send(const struct hast_resource *res, struct nv *nv,
-    void **datap, size_t *sizep, bool *freedatap);
-static int compression_recv(const struct hast_resource *res, struct nv *nv,
-    void **datap, size_t *sizep, bool *freedatap);
-#ifdef HAVE_CRYPTO
-static int checksum_send(const struct hast_resource *res, struct nv *nv,
-    void **datap, size_t *sizep, bool *freedatap);
-static int checksum_recv(const struct hast_resource *res, struct nv *nv,
-    void **datap, size_t *sizep, bool *freedatap);
-#endif
-
 static struct hast_pipe_stage pipeline[] = {
 	{ "compression", compression_send, compression_recv },
-#ifdef HAVE_CRYPTO
 	{ "checksum", checksum_send, checksum_recv }
-#endif
 };
-
-static int
-compression_send(const struct hast_resource *res, struct nv *nv, void **datap,
-    size_t *sizep, bool *freedatap)
-{
-	unsigned char *newbuf;
-
-	res = res;	/* TODO */
-
-	/*
-	 * TODO: For now we emulate compression.
-	 * At 80% probability we succeed to compress data, which means we
-	 * allocate new buffer, copy the data over set *freedatap to true.
-	 */
-
-	if (arc4random_uniform(100) < 80) {
-		uint32_t *origsize;
-
-		/*
-		 * Compression succeeded (but we will grow by 4 bytes, not
-		 * shrink for now).
-		 */
-		newbuf = malloc(sizeof(uint32_t) + *sizep);
-		if (newbuf == NULL)
-			return (-1);
-		origsize = (void *)newbuf;
-		*origsize = htole32((uint32_t)*sizep);
-		nv_add_string(nv, "null", "compression");
-		if (nv_error(nv) != 0) {
-			free(newbuf);
-			errno = nv_error(nv);
-			return (-1);
-		}
-		bcopy(*datap, newbuf + sizeof(uint32_t), *sizep);
-		if (*freedatap)
-			free(*datap);
-		*freedatap = true;
-		*datap = newbuf;
-		*sizep = sizeof(uint32_t) + *sizep;
-	} else {
-		/*
-		 * Compression failed, so we leave everything as it was.
-		 * It is not critical for compression to succeed.
-		 */
-	}
-
-	return (0);
-}
-
-static int
-compression_recv(const struct hast_resource *res, struct nv *nv, void **datap,
-    size_t *sizep, bool *freedatap)
-{
-	unsigned char *newbuf;
-	const char *algo;
-	size_t origsize;
-
-	res = res;	/* TODO */
-
-	/*
-	 * TODO: For now we emulate compression.
-	 */
-
-	algo = nv_get_string(nv, "compression");
-	if (algo == NULL)
-		return (0);	/* No compression. */
-	if (strcmp(algo, "null") != 0) {
-		pjdlog_error("Unknown compression algorithm '%s'.", algo);
-		return (-1);	/* Unknown compression algorithm. */
-	}
-
-	origsize = le32toh(*(uint32_t *)*datap);
-	newbuf = malloc(origsize);
-	if (newbuf == NULL)
-		return (-1);
-	bcopy((unsigned char *)*datap + sizeof(uint32_t), newbuf, origsize);
-	if (*freedatap)
-		free(*datap);
-	*freedatap = true;
-	*datap = newbuf;
-	*sizep = origsize;
-
-	return (0);
-}
-
-#ifdef HAVE_CRYPTO
-static int
-checksum_send(const struct hast_resource *res, struct nv *nv, void **datap,
-    size_t *sizep, bool *freedatap __unused)
-{
-	unsigned char hash[SHA256_DIGEST_LENGTH];
-	SHA256_CTX ctx;
-
-	res = res;	/* TODO */
-
-	SHA256_Init(&ctx);
-	SHA256_Update(&ctx, *datap, *sizep);
-	SHA256_Final(hash, &ctx);
-
-	nv_add_string(nv, "sha256", "checksum");
-	nv_add_uint8_array(nv, hash, sizeof(hash), "hash");
-
-	return (0);
-}
-
-static int
-checksum_recv(const struct hast_resource *res, struct nv *nv, void **datap,
-    size_t *sizep, bool *freedatap __unused)
-{
-	unsigned char chash[SHA256_DIGEST_LENGTH];
-	const unsigned char *rhash;
-	SHA256_CTX ctx;
-	const char *algo;
-	size_t size;
-
-	res = res;	/* TODO */
-
-	algo = nv_get_string(nv, "checksum");
-	if (algo == NULL)
-		return (0);	/* No checksum. */
-	if (strcmp(algo, "sha256") != 0) {
-		pjdlog_error("Unknown checksum algorithm '%s'.", algo);
-		return (-1);	/* Unknown checksum algorithm. */
-	}
-	rhash = nv_get_uint8_array(nv, &size, "hash");
-	if (rhash == NULL) {
-		pjdlog_error("Checksum algorithm is present, but hash is missing.");
-		return (-1);	/* Hash not found. */
-	}
-	if (size != sizeof(chash)) {
-		pjdlog_error("Invalid hash size (%zu) for %s, should be %zu.",
-		    size, algo, sizeof(chash));
-		return (-1);	/* Different hash size. */
-	}
-
-	SHA256_Init(&ctx);
-	SHA256_Update(&ctx, *datap, *sizep);
-	SHA256_Final(chash, &ctx);
-
-	if (bcmp(rhash, chash, sizeof(chash)) != 0) {
-		pjdlog_error("Hash mismatch.");
-		return (-1);	/* Hash mismatch. */
-	}
-
-	return (0);
-}
-#endif	/* HAVE_CRYPTO */
 
 /*
  * Send the given nv structure via conn.
@@ -253,18 +93,13 @@ hast_proto_send(const struct hast_resource *res, struct proto_conn *conn,
 	ret = -1;
 
 	if (data != NULL) {
-if (false) {
 		unsigned int ii;
 
 		for (ii = 0; ii < sizeof(pipeline) / sizeof(pipeline[0]);
 		    ii++) {
-			ret = pipeline[ii].hps_send(res, nv, &dptr, &size,
+			(void)pipeline[ii].hps_send(res, nv, &dptr, &size,
 			    &freedata);
-			if (ret == -1)
-				goto end;
 		}
-		ret = -1;
-}
 		nv_add_uint32(nv, size, "size");
 		if (nv_error(nv) != 0) {
 			errno = nv_error(nv);
@@ -359,27 +194,24 @@ hast_proto_recv_data(const struct hast_resource *res, struct proto_conn *conn,
 	else {
 		if (proto_recv(conn, data, dsize) < 0)
 			goto end;
-if (false) {
 		for (ii = sizeof(pipeline) / sizeof(pipeline[0]); ii > 0;
 		    ii--) {
-			assert(!"to be verified");
 			ret = pipeline[ii - 1].hps_recv(res, nv, &dptr,
 			    &dsize, &freedata);
 			if (ret == -1)
 				goto end;
 		}
 		ret = -1;
-		if (dsize < size)
+		if (dsize > size) {
+			errno = EINVAL;
 			goto end;
-		/* TODO: 'size' doesn't seem right here. It is maximum data size. */
+		}
 		if (dptr != data)
 			bcopy(dptr, data, dsize);
-}
 	}
 
 	ret = 0;
 end:
-if (ret < 0) printf("%s:%u %s\n", __func__, __LINE__, strerror(errno));
 	if (freedata)
 		free(dptr);
 	return (ret);
