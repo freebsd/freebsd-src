@@ -589,8 +589,6 @@ retransmit:
 }
 
 /*
- * [nd_handle_ip]
- *
  * Handler for IP packets: checks their sanity and then processes any netdump
  * ACK packets it finds.
  *
@@ -608,42 +606,46 @@ retransmit:
 static void
 nd_handle_ip(struct mbuf **mb)
 {
-	unsigned short hlen;
 	struct ip *ip;
 	struct udpiphdr *udp;
 	struct netdump_ack *nd_ack;
 	struct mbuf *m;
 	int rcv_ackno;
+	unsigned short hlen;
 
-	/* IP processing */
+	/* IP processing. */
 	m = *mb;
 	if (m->m_pkthdr.len < sizeof(struct ip)) {
 		NETDDEBUG("nd_handle_ip: dropping packet too small for IP "
 		    "header\n");
 		return;
 	}
-	if (m->m_len < sizeof(struct ip) &&
-	    (*mb = m = m_pullup(m, sizeof(struct ip))) == NULL) {
-		NETDDEBUG("nd_handle_ip: m_pullup failed\n");
-		return;
+	if (m->m_len < sizeof(struct ip)) {
+		m = m_pullup(m, sizeof(struct ip));
+		*mb = m;
+		if (m == NULL) {
+			NETDDEBUG("nd_handle_ip: m_pullup failed\n");
+			return;
+		}
 	}
-
 	ip = mtod(m, struct ip *);
 
-	/* IP version */
+	/* IP version. */
 	if (ip->ip_v != IPVERSION) {
 		NETDDEBUG("nd_handle_ip: Bad IP version %d\n", ip->ip_v);
 		return;
 	}
 
-	/* Header length */
+	/* Header length. */
 	hlen = ip->ip_hl << 2;
 	if (hlen < sizeof(struct ip)) {
 		NETDDEBUG("nd_handle_ip: Bad IP header length (%hu)\n", hlen);
 		return;
 	}
 	if (hlen > m->m_len) {
-		if ((*mb = m = m_pullup(m, hlen)) == NULL) {
+		m = m_pullup(m, hlen);
+		*mb = m;
+		if (m == NULL) {
 			NETDDEBUG("nd_handle_ip: m_pullup failed\n");
 			return;
 		}
@@ -659,31 +661,32 @@ nd_handle_ip(struct mbuf **mb)
 	}
 #endif
 
-	/* Checksum */
-	if (m->m_pkthdr.csum_flags & CSUM_IP_CHECKED) {
-		if (!(m->m_pkthdr.csum_flags & CSUM_IP_VALID)) {
+	/* Checksum. */
+	if ((m->m_pkthdr.csum_flags & CSUM_IP_CHECKED) != 0) {
+		if ((m->m_pkthdr.csum_flags & CSUM_IP_VALID) == 0) {
 			NETDDEBUG("nd_handle_ip: Bad IP checksum\n");
 			return;
 		}
 	} else
 		NETDDEBUG("nd_handle_ip: HW didn't check IP cksum\n");
 
-	/* Convert fields to host byte order */
+	/* Convert fields to host byte order. */
 	ip->ip_len = ntohs(ip->ip_len);
 	if (ip->ip_len < hlen) {
-		NETDDEBUG("nd_handle_ip: IP packet smaller (%hu) than "
-		    "header (%hu)\n", ip->ip_len, hlen);
+	NETDDEBUG("nd_handle_ip: IP packet smaller (%hu) than header (%hu)\n",
+		    ip->ip_len, hlen);
 		return;
 	}
 	ip->ip_off = ntohs(ip->ip_off);
 
 	if (m->m_pkthdr.len < ip->ip_len) {
-		NETDDEBUG("nd_handle_ip: IP packet bigger (%hu) than "
-		    "ethernet packet (%hu)\n", ip->ip_len, m->m_pkthdr.len);
+NETDDEBUG("nd_handle_ip: IP packet bigger (%hu) than ethernet packet (%hu)\n",
+		    ip->ip_len, m->m_pkthdr.len);
 		return;
 	}
 	if (m->m_pkthdr.len > ip->ip_len) {
-		/* Truncate the packet to the IP length */
+
+		/* Truncate the packet to the IP length. */
 		if (m->m_len == m->m_pkthdr.len) {
 			m->m_len = ip->ip_len;
 			m->m_pkthdr.len = ip->ip_len;
@@ -697,13 +700,13 @@ nd_handle_ip(struct mbuf **mb)
 		return;
 	}
 
-	/* Check that the source is the server's IP */
+	/* Check that the source is the server's IP. */
 	if (ip->ip_src.s_addr != nd_server.s_addr) {
 		NETDDEBUG("nd_handle_ip: Drop packet not from server\n");
 		return;
 	}
 
-	/* Check if the destination IP is ours */
+	/* Check if the destination IP is ours. */
 	if (ip->ip_dst.s_addr != nd_client.s_addr) {
 		NETDDEBUGV("nd_handle_ip: Drop packet not to our IP\n");
 		return;
@@ -714,28 +717,31 @@ nd_handle_ip(struct mbuf **mb)
 		return;
 	}
 
-	/* Let's not deal with fragments */
-	if (ip->ip_off & (IP_MF | IP_OFFMASK)) {
+	/* Do not deal with fragments. */
+	if ((ip->ip_off & (IP_MF | IP_OFFMASK)) != 0) {
 		NETDDEBUG("nd_handle_ip: Drop fragmented packet\n");
 		return;
 	}
-	/* UDP custom is to have packet length not include IP header */
+
+	/* UDP custom is to have packet length not include IP header. */
 	ip->ip_len -= hlen;
 
-	/* IP done */
-	/* UDP processing */
+	/* UDP processing. */
 
-	/* Get IP and UDP headers together, along with the netdump packet */
+	/* Get IP and UDP headers together, along with the netdump packet. */
 	if (m->m_pkthdr.len <
 	    sizeof(struct udpiphdr) + sizeof(struct netdump_ack)) {
 		NETDDEBUG("nd_handle_ip: Ignoring small packet\n");
 		return;
 	}
-	if (m->m_len < sizeof(struct udpiphdr) + sizeof(struct netdump_ack) &&
-	    (*mb = m = m_pullup(m, sizeof(struct udpiphdr) +
-	    sizeof(struct netdump_ack))) == NULL) {
-		NETDDEBUG("nd_handle_ip: m_pullup failed\n");
-		return;
+	if (m->m_len < sizeof(struct udpiphdr) + sizeof(struct netdump_ack)) {
+		m = m_pullup(m, sizeof(struct udpiphdr) +
+		    sizeof(struct netdump_ack));
+		*mb = m;
+		if (m == NULL) {
+			NETDDEBUG("nd_handle_ip: m_pullup failed\n");
+			return;
+		}
 	}
 	udp = mtod(m, struct udpiphdr *);
 
@@ -744,34 +750,27 @@ nd_handle_ip(struct mbuf **mb)
 		return;
 	}
 
-	/* UDP done */
-	/* Netdump processing */
+	/* Netdump processing. */
 
 	/*
-	 * packet is meant for us.  extract the ack sequence number.
-	 * if it's the first ack, extract the port number as well
+	 * Packet is meant for us.  Extract the ack sequence number and the
+	 * port number if necessary.
 	 */
-	nd_ack = (struct netdump_ack *)
-		(mtod(m, caddr_t) + sizeof(struct udpiphdr));
+	nd_ack = (struct netdump_ack *)(mtod(m, caddr_t) +
+	    sizeof(struct udpiphdr));
 	rcv_ackno = ntohl(nd_ack->na_seqno);
-
-	if (nd_server_port == NETDUMP_PORT) {
+	if (nd_server_port == NETDUMP_PORT)
 	    nd_server_port = ntohs(udp->ui_u.uh_sport);
-	}
-
-	if (rcv_ackno >= nd_seqno+64) {
+	if (rcv_ackno >= nd_seqno + 64)
 		printf("nd_handle_ip: ACK %d too far in future!\n", rcv_ackno);
-	} else if (rcv_ackno < nd_seqno) {
-		/* Do nothing: A duplicated past ACK */
-	} else {
+	else if (rcv_ackno >= nd_seqno) {
+
 		/* We're interested in this ack. Record it. */
 		rcvd_acks |= 1 << (rcv_ackno-nd_seqno);
 	}
 }
 
 /*
- * [nd_handle_arp]
- *
  * Handler for ARP packets: checks their sanity and then
  * 1. If the ARP is a request for our IP, respond with our MAC address
  * 2. If the ARP is a response from our server, record its MAC address
@@ -790,39 +789,45 @@ nd_handle_ip(struct mbuf **mb)
 static void
 nd_handle_arp(struct mbuf **mb)
 {
+	char buf[INET_ADDRSTRLEN];
+	struct in_addr isaddr, itaddr, myaddr;
+	struct ether_addr dst;
 	struct mbuf *m;
 	struct arphdr *ah;
 	struct ifnet *ifp;
-	int req_len, op;
-	struct in_addr isaddr, itaddr, myaddr;
 	uint8_t *enaddr;
-	struct ether_addr dst;
+	int req_len, op;
 
 	m = *mb;
 	ifp = m->m_pkthdr.rcvif;
-	if (m->m_len < sizeof(struct arphdr) && ((*mb = m = m_pullup(m,
-	    sizeof(struct arphdr))) == NULL)) {
+	if (m->m_len < sizeof(struct arphdr)) {
+		m = m_pullup(m, sizeof(struct arphdr));
+		*mb = m;
+		if (m == NULL) {
 		NETDDEBUG("nd_handle_arp: runt packet: m_pullup failed\n");
-		return;
+			return;
+		}
 	}
 	ah = mtod(m, struct arphdr *);
 
 	if (ntohs(ah->ar_hrd) != ARPHRD_ETHER) {
-		NETDDEBUG("nd_handle_arp: unknown hardware address fmt "
-		    "0x%2D)\n", (unsigned char *)&ah->ar_hrd, "");
+		NETDDEBUG("nd_handle_arp: unknown hardware address 0x%2D)\n",
+		    (unsigned char *)&ah->ar_hrd, "");
 		return;
 	}
-
 	if (ntohs(ah->ar_pro) != ETHERTYPE_IP) {
-		NETDDEBUG("nd_handle_arp: Drop ARP for unknown "
-		    "protocol %d\n", ntohs(ah->ar_pro));
+		NETDDEBUG("nd_handle_arp: Drop ARP for unknown protocol %d\n",
+		    ntohs(ah->ar_pro));
 		return;
 	}
-
 	req_len = arphdr_len2(ifp->if_addrlen, sizeof(struct in_addr));
-	if (m->m_len < req_len && (*mb = m = m_pullup(m, req_len)) == NULL) {
+	if (m->m_len < req_len) {
+		m = m_pullup(m, req_len);
+		*mb = m;
+		if (m == NULL) {
 		NETDDEBUG("nd_handle_arp: runt packet: m_pullup failed\n");
-		return;
+			return;
+		}
 	}
 	ah = mtod(m, struct arphdr *);
 
@@ -839,27 +844,25 @@ nd_handle_arp(struct mbuf **mb)
 
 	if (isaddr.s_addr == nd_client.s_addr) {
 		printf("nd_handle_arp: %*D is using my IP address %s!\n",
-				ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
-				inet_ntoa(isaddr));
+		    ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
+		    inet_ntoa(isaddr));
 		return;
 	}
 
 	if (!bcmp(ar_sha(ah), ifp->if_broadcastaddr, ifp->if_addrlen)) {
-		NETDDEBUG("nd_handle_arp: ignoring ARP from broadcast "
-		    "address\n");
+	NETDDEBUG("nd_handle_arp: ignoring ARP from broadcast address\n");
 		return;
 	}
 
 	if (op == ARPOP_REPLY) {
 		if (isaddr.s_addr != nd_gw.s_addr) {
-			char buf[INET_ADDRSTRLEN];
 			inet_ntoa_r(isaddr, buf);
-			NETDDEBUG("nd_handle_arp: ignoring ARP reply from "
-			    "%s (not netdump server)\n", buf);
+NETDDEBUG("nd_handle_arp: ignoring ARP reply from %s (not netdump server)\n",
+			    buf);
 			return;
 		}
 		memcpy(nd_gw_mac.octet, ar_sha(ah),
-				min(ah->ar_hln, ETHER_ADDR_LEN));
+		    min(ah->ar_hln, ETHER_ADDR_LEN));
 		have_server_mac = 1;
 		NETDDEBUG("\nnd_handle_arp: Got server MAC address %6D\n",
 		    nd_gw_mac.octet, ":");
@@ -867,8 +870,7 @@ nd_handle_arp(struct mbuf **mb)
 	}
 
 	if (op != ARPOP_REQUEST) {
-		NETDDEBUG("nd_handle_arp: Ignoring non-request/non-reply "
-		    "ARP\n");
+		NETDDEBUG("nd_handle_arp: Ignoring ARP non-request/reply\n");
 		return;
 	}
 
@@ -882,14 +884,14 @@ nd_handle_arp(struct mbuf **mb)
 	memcpy(ar_tpa(ah), ar_spa(ah), ah->ar_pln);
 	memcpy(ar_spa(ah), &itaddr, ah->ar_pln);
 	ah->ar_op = htons(ARPOP_REPLY);
-	ah->ar_pro = htons(ETHERTYPE_IP); /* let's be sure! */
-	m->m_flags &= ~(M_BCAST|M_MCAST); /* never reply by broadcast */
+	ah->ar_pro = htons(ETHERTYPE_IP);
+	m->m_flags &= ~(M_BCAST|M_MCAST);
 	m->m_len = sizeof(*ah) + (2 * ah->ar_pln) + (2 * ah->ar_hln);
 	m->m_pkthdr.len = m->m_len;
 
 	memcpy(dst.octet, ar_tha(ah), ETHER_ADDR_LEN);
 	netdump_ether_output(m, ifp, dst, ETHERTYPE_ARP);
-	*mb = NULL; /* Don't m_free upon return */
+	*mb = NULL;
 }
 
 /*
