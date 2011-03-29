@@ -65,8 +65,6 @@ options 	MAC			# TrustedBSD MAC Framework
 #options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
-options		RACCT
-
 # Debugging for use in -current
 options 	KDB			# Enable kernel debugger support.
 options 	DDB			# Support DDB.
