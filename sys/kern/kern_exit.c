@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
 #include <sys/signalvar.h>
@@ -739,6 +740,11 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	 * Decrement the count of procs running with this uid.
 	 */
 	(void)chgproccnt(p->p_ucred->cr_ruidinfo, -1, 0);
+
+	/*
+	 * Destroy resource accounting information associated with the process.
+	 */
+	racct_proc_exit(p);
 
 	/*
 	 * Free credentials, arguments, and sigacts.
