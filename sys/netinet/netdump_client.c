@@ -393,8 +393,6 @@ netdump_udp_output(struct mbuf *m)
 }
 
 /*
- * [netdump_send_arp]
- *
  * Builds and sends a single ARP request to locate the server
  *
  * Parameters:
@@ -407,10 +405,10 @@ netdump_udp_output(struct mbuf *m)
 static int
 netdump_send_arp()
 {
-	struct mbuf *m;
-	int pktlen = arphdr_len2(ETHER_ADDR_LEN, sizeof(struct in_addr));
-	struct arphdr *ah;
 	struct ether_addr bcast;
+	struct mbuf *m;
+	struct arphdr *ah;
+	int pktlen;
 
 	MPASS(nd_ifp != NULL);
 
@@ -419,10 +417,12 @@ netdump_send_arp()
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL) {
 		printf("netdump_send_arp: Out of mbufs");
-		return ENOBUFS;
+		return (ENOBUFS);
 	}
-	m->m_pkthdr.len = m->m_len = pktlen;
-	MH_ALIGN(m, pktlen); /* Make room for ethernet header */
+	pktlen = arphdr_len2(ETHER_ADDR_LEN, sizeof(struct in_addr));
+	m->m_len = pktlen;
+	m->m_pkthdr.len = pktlen;
+	MH_ALIGN(m, pktlen);
 	ah = mtod(m, struct arphdr *);
 	ah->ar_hrd = htons(ARPHRD_ETHER);
 	ah->ar_pro = htons(ETHERTYPE_IP);
@@ -434,12 +434,10 @@ netdump_send_arp()
 	bzero(ar_tha(ah), ETHER_ADDR_LEN);
 	((struct in_addr *)ar_tpa(ah))->s_addr = nd_gw.s_addr;
 
-	return netdump_ether_output(m, nd_ifp, bcast, ETHERTYPE_ARP);
+	return (netdump_ether_output(m, nd_ifp, bcast, ETHERTYPE_ARP));
 }
 
 /*
- * [netdump_arp_server]
- *
  * Sends ARP requests to locate the server and waits for a response
  *
  * Parameters:
@@ -454,34 +452,30 @@ netdump_arp_server()
 {
 	int err, polls, retries;
 
-	for (retries=0; retries < nd_retries && !have_server_mac; retries++) {
+	for (retries = 0; retries < nd_retries && have_server_mac == 0;
+	    retries++) {
 		err = netdump_send_arp();
-
-		if (err)
-			return err;
-
-		for (polls=0; polls < nd_polls && !have_server_mac; polls++) {
+		if (err != 0)
+			return (err);
+		for (polls = 0; polls < nd_polls && have_server_mac == 0;
+		    polls++) {
 			netdump_network_poll();
-			DELAY(500); /* 0.5 ms */
+			DELAY(500);
 		}
-
-		if (!have_server_mac) printf("(ARP retry)");
+		if (have_server_mac == 0)
+			printf("(ARP retry)");
 	}
-
-	if (have_server_mac)
-		return 0;
+	if (have_server_mac != 0)
+		return (0);
 
 	printf("\nARP timed out.\n");
-
-	return ETIMEDOUT;
+	return (ETIMEDOUT);
 }
 
 /*
- * [netdump_send]
- *
- * construct and reliably send a netdump packet.  may fail from a resource
- * shortage or extreme number of unacknowledged retransmissions.  wait for
- * an acknowledgement before returning.  splits packets into chunks small
+ * Construct and reliably send a netdump packet.  May fail from a resource
+ * shortage or extreme number of unacknowledged retransmissions.  Wait for
+ * an acknowledgement before returning.  Splits packets into chunks small
  * enough to be sent without fragmentation (looks up the interface MTU)
  *
  * Parameters:
@@ -494,49 +488,54 @@ netdump_arp_server()
  *	int see errno.h, 0 for success
  */
 static int
-netdump_send(uint32_t type, off_t offset, 
-	     unsigned char *data, uint32_t datalen)
+netdump_send(uint32_t type, off_t offset, unsigned char *data, uint32_t datalen)
 {
+	uint64_t want_acks;
 	struct netdump_msg_hdr *nd_msg_hdr;
 	struct mbuf *m, *m2;
-	int retries = 0, polls, error;
-	uint32_t i, sent_so_far;
-	uint64_t want_acks=0;
+	uint32_t i, pktlen, sent_so_far;
+	int retries, polls, error;
 
+	want_acks = 0;
 	rcvd_acks = 0;
+	retries = 0;
 
 	MPASS(nd_ifp != NULL);
 
 retransmit:
-	/* We might get chunks too big to fit in packets. Yuck. */
-	for (i=sent_so_far=0; sent_so_far < datalen || (i==0 && datalen==0);
-		i++) {
-		uint32_t pktlen = datalen-sent_so_far;
-		/* First bound: the packet structure */
-		pktlen = min(pktlen, NETDUMP_DATASIZE);
-		/* Second bound: the interface MTU (assume no IP options) */
-		pktlen = min(pktlen, nd_ifp->if_mtu -
-				sizeof(struct udpiphdr) -
-				sizeof(struct netdump_msg_hdr));
 
-		/* Check if we're retransmitting and this has been ACKed
-		 * already */
+	/* Chunks can be too big to fit in packets. */
+	for (i = sent_so_far = 0; sent_so_far <
+	    datalen || (i == 0 && datalen == 0); i++) {
+		pktlen = datalen - sent_so_far;
+
+		/* First bound: the packet structure. */
+		pktlen = min(pktlen, NETDUMP_DATASIZE);
+
+		/* Second bound: the interface MTU (assume no IP options). */
+		pktlen = min(pktlen, nd_ifp->if_mtu - sizeof(struct udpiphdr) -
+		    sizeof(struct netdump_msg_hdr));
+
+		/*
+		 * Check if it is retransmitting and this has been ACKed
+		 * already.
+		 * */
 		if ((rcvd_acks & (1 << i)) != 0) {
 			sent_so_far += pktlen;
 			continue;
 		}
 
 		/*
-		 * get and fill a header mbuf, then chain data as an extended
+		 * Get and fill a header mbuf, then chain data as an extended
 		 * mbuf.
 		 */
 		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL) {
 			printf("netdump_send: Out of mbufs!\n");
-			return ENOBUFS;
+			return (ENOBUFS);
 		}
-		m->m_pkthdr.len = m->m_len = sizeof(struct netdump_msg_hdr);
-		/* leave room for udpip */
+		m->m_len = sizeof(struct netdump_msg_hdr);
+		m->m_pkthdr.len = sizeof(struct netdump_msg_hdr);
 		MH_ALIGN(m, sizeof(struct netdump_msg_hdr));
 		nd_msg_hdr = mtod(m, struct netdump_msg_hdr *);
 		nd_msg_hdr->mh_seqno = htonl(nd_seqno+i);
@@ -545,53 +544,49 @@ retransmit:
 		nd_msg_hdr->mh_len = htonl(pktlen);
 		nd_msg_hdr->mh__pad = 0;
 
-		if (pktlen) {
-			if ((m2 = m_get(M_DONTWAIT, MT_DATA)) == NULL) {
+		if (pktlen != 0) {
+			m2 = m_get(M_DONTWAIT, MT_DATA);
+			if (m2 == NULL) {
 				m_freem(m);
 				printf("netdump_send: Out of mbufs!\n");
-				return ENOBUFS;
+				return (ENOBUFS);
 			}
 			MEXTADD(m2, data+sent_so_far, pktlen, netdump_mbuf_nop,
-				NULL, NULL, M_RDONLY, EXT_MOD_TYPE);
+			    NULL, NULL, M_RDONLY, EXT_MOD_TYPE);
 			m2->m_len = pktlen;
 			m->m_next = m2;
 			m->m_pkthdr.len += m2->m_len;
 		}
+		error = netdump_udp_output(m);
+		if (error != 0)
+			return (error);
 
-		if ((error = netdump_udp_output(m)) != 0) {
-			return error;
-		}
-
-		/* Note that we're waiting for this packet in the bitfield */
+		/* Note that we're waiting for this packet in the bitfield. */
 		want_acks |= 1 << i;
-
 		sent_so_far += pktlen;
 	}
-
-	if (i >= sizeof(want_acks)*8) {
+	if (i >= sizeof(want_acks) * 8)
 		printf("Warning: Sent more than %zd packets (%d). "
-		       "Acknowledgements will fail unless the size of "
-		       "rcvd_acks/want_acks is increased.\n",
-		       sizeof(want_acks)*8, i);
-	}
+		    "Acknowledgements will fail unless the size of "
+		    "rcvd_acks/want_acks is increased.\n",
+		    sizeof(want_acks) * 8, i);
 
 	/*
-	 * wait for acks. a *real* window would speed things up considerably.
+	 * Wait for acks.  A *real* window would speed things up considerably.
 	 */
 	polls = 0;
 	while (rcvd_acks != want_acks) {		
 		if (polls++ > nd_polls) {
-			if (retries++ > nd_retries) {
-				return ETIMEDOUT; /* 10 s, no ack */
-			}
+			if (retries++ > nd_retries)
+				return (ETIMEDOUT);
 			printf(". ");
-			goto retransmit; /* 1 s, no ack */
+			goto retransmit;
 		}
 		netdump_network_poll();
 		DELAY(500);
 	}
 	nd_seqno += i;
-	return 0;
+	return (0);
 }
 
 /*
