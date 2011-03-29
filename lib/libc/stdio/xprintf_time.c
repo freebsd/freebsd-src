@@ -62,7 +62,7 @@ __printf_render_time(struct __printf_io *io, const struct printf_info *pi, const
 	struct timespec *ts;
 	time_t *tp;
 	intmax_t t, tx;
-	int i, prec, nsec;
+	int i, prec, nsec, ret;
 
 	prec = 0;
 	if (pi->is_long) {
@@ -79,6 +79,12 @@ __printf_render_time(struct __printf_io *io, const struct printf_info *pi, const
 		tp = *((time_t **)arg[0]);
 		t = *tp;
 	}
+	if (pi->is_long || pi->is_long_double) {
+		if (pi->prec >= 0) 
+			prec = pi->prec;
+		if (prec == 0)
+			nsec = 0;
+	}
 
 	p = buf;
 	if (pi->alt) {
@@ -87,29 +93,29 @@ __printf_render_time(struct __printf_io *io, const struct printf_info *pi, const
 			p += sprintf(p, "%jdy", t / YEAR);
 			t %= YEAR;
 		}
-		if (t >= DAY && t != 0) {
+		if (tx >= DAY && (t != 0 || prec != 0)) {
 			p += sprintf(p, "%jdd", t / DAY);
 			t %= DAY;
 		}
-		if (t >= HOUR && t != 0) {
+		if (tx >= HOUR && (t != 0 || prec != 0)) {
 			p += sprintf(p, "%jdh", t / HOUR);
 			t %= HOUR;
 		}
-		if (t >= MINUTE && t != 0) {
+		if (tx >= MINUTE && (t != 0 || prec != 0)) {
 			p += sprintf(p, "%jdm", t / MINUTE);
 			t %= MINUTE;
 		}
-		if (t != 0 || tx == 0)
+		if (t != 0 || tx == 0 || prec != 0)
 			p += sprintf(p, "%jds", t);
 	} else  {
 		p += sprintf(p, "%jd", (intmax_t)t);
 	}
-	if (pi->is_long || pi->is_long_double) {
-		if (pi->prec >= 0) 
-			prec = pi->prec;
+	if (prec != 0) {
 		for (i = prec; i < 9; i++)
 			nsec /= 10;
 		p += sprintf(p, ".%.*d", prec, nsec);
 	}
-	return(__printf_out(io, pi, buf, p - buf));
+	ret = __printf_out(io, pi, buf, p - buf);
+	__printf_flush(io);
+	return (ret);
 }
