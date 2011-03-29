@@ -69,6 +69,9 @@ CWARNFLAGS	+=	-Werror
 .   endif
 .  endif
 . endif
+. if defined(NO_WFORMAT)
+CWARNFLAGS	+=	-Wno-format
+. endif
 .endif
 
 .if defined(IGNORE_PRAGMA)
