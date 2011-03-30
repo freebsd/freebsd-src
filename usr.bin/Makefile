@@ -126,6 +126,7 @@ SUBDIR=	alias \
 	printenv \
 	printf \
 	procstat \
+	rctl \
 	renice \
 	rev \
 	revoke \
