@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
+#include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/file.h>		/* Must come after sys/malloc.h */
@@ -2669,3 +2670,29 @@ freebsd32_copyout_strings(struct image_params *imgp)
 	return ((register_t *)stack_base);
 }
 
+int
+freebsd32_kldstat(struct thread *td, struct freebsd32_kldstat_args *uap)
+{
+	struct kld_file_stat stat;
+	struct kld32_file_stat stat32;
+	int error, version;
+
+	if ((error = copyin(&uap->stat->version, &version, sizeof(version)))
+	    != 0)
+		return (error);
+	if (version != sizeof(struct kld32_file_stat_1) &&
+	    version != sizeof(struct kld32_file_stat))
+		return (EINVAL);
+
+	error = kern_kldstat(td, uap->fileid, &stat);
+	if (error != 0)
+		return (error);
+
+	bcopy(&stat.name[0], &stat32.name[0], sizeof(stat.name));
+	CP(stat, stat32, refs);
+	CP(stat, stat32, id);
+	PTROUT_CP(stat, stat32, address);
+	CP(stat, stat32, size);
+	bcopy(&stat.pathname[0], &stat32.pathname[0], sizeof(stat.pathname));
+	return (copyout(&stat32, uap->stat, version));
+}
