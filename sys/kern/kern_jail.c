@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/racct.h>
+#include <sys/rctl.h>
 #include <sys/sx.h>
 #include <sys/sysent.h>
 #include <sys/namei.h>
@@ -2532,6 +2533,9 @@ prison_deref(struct prison *pr, int flags)
 		if (pr->pr_cpuset != NULL)
 			cpuset_rel(pr->pr_cpuset);
 		osd_jail_exit(pr);
+#ifdef RCTL
+		rctl_racct_release(pr->pr_racct);
+#endif
 		racct_destroy(&pr->pr_racct);
 		free(pr, M_PRISON);
 
