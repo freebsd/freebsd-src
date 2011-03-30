@@ -3135,6 +3135,56 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
+	/* rctl_get_racct */
+	case 525: {
+		struct rctl_get_racct_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* rctl_get_rules */
+	case 526: {
+		struct rctl_get_rules_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* rctl_get_limits */
+	case 527: {
+		struct rctl_get_limits_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* rctl_add_rule */
+	case 528: {
+		struct rctl_add_rule_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
+	/* rctl_remove_rule */
+	case 529: {
+		struct rctl_remove_rule_args *p = params;
+		uarg[0] = (intptr_t) p->inbufp; /* const void * */
+		uarg[1] = p->inbuflen; /* size_t */
+		uarg[2] = (intptr_t) p->outbufp; /* void * */
+		uarg[3] = p->outbuflen; /* size_t */
+		*n_args = 4;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -8323,6 +8373,101 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		switch(ndx) {
 		case 0:
 			p = "const char *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_get_racct */
+	case 525:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_get_rules */
+	case 526:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_get_limits */
+	case 527:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_add_rule */
+	case 528:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* rctl_remove_rule */
+	case 529:
+		switch(ndx) {
+		case 0:
+			p = "const void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "void *";
+			break;
+		case 3:
+			p = "size_t";
 			break;
 		default:
 			break;
