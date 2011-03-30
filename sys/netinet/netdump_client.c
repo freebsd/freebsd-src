@@ -322,7 +322,7 @@ netdump_ether_output(struct mbuf *m, struct ifnet *ifp, struct ether_addr dst,
 		m_freem(m);
 		return (ENETDOWN);
 	}
-	return ((ifp->if_transmit(ifp, m));
+	return ((ifp->if_transmit)(ifp, m));
 }
 
 /*
