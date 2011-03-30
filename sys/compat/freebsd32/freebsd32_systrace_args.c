@@ -1428,11 +1428,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
-	/* kldstat */
+	/* freebsd32_kldstat */
 	case 308: {
-		struct kldstat_args *p = params;
+		struct freebsd32_kldstat_args *p = params;
 		iarg[0] = p->fileid; /* int */
-		uarg[1] = (intptr_t) p->stat; /* struct kld_file_stat * */
+		uarg[1] = (intptr_t) p->stat; /* struct kld32_file_stat * */
 		*n_args = 2;
 		break;
 	}
@@ -5217,14 +5217,14 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* kldstat */
+	/* freebsd32_kldstat */
 	case 308:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "struct kld_file_stat *";
+			p = "struct kld32_file_stat *";
 			break;
 		default:
 			break;
