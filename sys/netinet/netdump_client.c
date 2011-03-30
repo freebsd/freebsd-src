@@ -518,7 +518,7 @@ retransmit:
 		/*
 		 * Check if it is retransmitting and this has been ACKed
 		 * already.
-		 * */
+		 */
 		if ((rcvd_acks & (1 << i)) != 0) {
 			sent_so_far += pktlen;
 			continue;
