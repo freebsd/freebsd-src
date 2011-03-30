@@ -136,7 +136,7 @@ g_gate_destroy(struct g_gate_softc *sc, boolean_t force)
 	mtx_unlock(&g_gate_units_lock);
 	mtx_destroy(&sc->sc_queue_mtx);
 	g_topology_lock();
-	G_GATE_DEBUG(0, "Device %s destroyed.", gp->name);
+	G_GATE_DEBUG(1, "Device %s destroyed.", gp->name);
 	gp->softc = NULL;
 	g_wither_geom(gp, ENXIO);
 	sc->sc_provider = NULL;
@@ -438,6 +438,7 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	mtx_lock(&g_gate_units_lock);
 	sc->sc_name = sc->sc_provider->name;
 	mtx_unlock(&g_gate_units_lock);
+	G_GATE_DEBUG(1, "Device %s created.", gp->name);
 
 	if (sc->sc_timeout > 0) {
 		callout_reset(&sc->sc_callout, sc->sc_timeout * hz,
