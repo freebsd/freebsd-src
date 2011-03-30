@@ -2738,9 +2738,9 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				len = fxdr_unsigned(int, *tl);
 			} else if (nd->nd_flag & ND_NFSV3) {
 				NFSM_DISSECT(tl, u_int32_t *, 3*NFSX_UNSIGNED);
-				nfsva.na_fileid =
-				    fxdr_unsigned(long, *++tl);
-				len = fxdr_unsigned(int, *++tl);
+				nfsva.na_fileid = fxdr_hyper(tl);
+				tl += 2;
+				len = fxdr_unsigned(int, *tl);
 			} else {
 				NFSM_DISSECT(tl, u_int32_t *, 2*NFSX_UNSIGNED);
 				nfsva.na_fileid =
