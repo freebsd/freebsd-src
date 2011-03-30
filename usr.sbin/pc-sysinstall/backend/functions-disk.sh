@@ -421,7 +421,7 @@ setup_disk_slice()
 
     # Check if we have an image file defined
     echo $line | grep -q "^image=" 2>/dev/null
-    if [ $? eq 0 ] ; then
+    if [ $? -eq 0 ] ; then
       # Found an image= entry, lets read / set it
       get_value_from_string "${line}"
       strip_white_space "$VAL"
