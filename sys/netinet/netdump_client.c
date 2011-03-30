@@ -316,21 +316,13 @@ netdump_ether_output(struct mbuf *m, struct ifnet *ifp, struct ether_addr dst,
 	memcpy(eh->ether_dhost, dst.octet, ETHER_ADDR_LEN);
 	eh->ether_type = htons(etype);
 
-	if (((ifp->if_flags & (IFF_MONITOR|IFF_UP)) != IFF_UP) ||
+	if (((ifp->if_flags & (IFF_MONITOR | IFF_UP)) != IFF_UP) ||
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) != IFF_DRV_RUNNING) {
 		if_printf(ifp, "netdump_ether_output: Interface isn't up\n");
 		m_freem(m);
 		return (ENETDOWN);
 	}
-
-	if (_IF_QFULL(&ifp->if_snd)) {
-		if_printf(ifp, "netdump_ether_output: TX queue full\n");
-		m_freem(m);
-		return (ENOBUFS);
-	}
-
-	_IF_ENQUEUE(&ifp->if_snd, m);
-	return (0);
+	return ((ifp->if_transmit(ifp, m));
 }
 
 /*
