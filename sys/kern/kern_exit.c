@@ -177,6 +177,7 @@ exit1(struct thread *td, int rv)
 	}
 	KASSERT(p->p_numthreads == 1,
 	    ("exit1: proc %p exiting with %d threads", p, p->p_numthreads));
+	racct_sub(p, RACCT_NTHR, 1);
 	/*
 	 * Wakeup anyone in procfs' PIOCWAIT.  They should have a hold
 	 * on our vmspace, so we should block below until they have
@@ -745,6 +746,9 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	 * Destroy resource accounting information associated with the process.
 	 */
 	racct_proc_exit(p);
+	PROC_LOCK(p->p_pptr);
+	racct_sub(p->p_pptr, RACCT_NPROC, 1);
+	PROC_UNLOCK(p->p_pptr);
 
 	/*
 	 * Free credentials, arguments, and sigacts.
@@ -905,7 +909,11 @@ proc_reparent(struct proc *child, struct proc *parent)
 	if (child->p_pptr == parent)
 		return;
 
+	PROC_LOCK(parent);
+	racct_add_force(parent, RACCT_NPROC, 1);
+	PROC_UNLOCK(parent);
 	PROC_LOCK(child->p_pptr);
+	racct_sub(child->p_pptr, RACCT_NPROC, 1);
 	sigqueue_take(child->p_ksi);
 	PROC_UNLOCK(child->p_pptr);
 	LIST_REMOVE(child, p_sibling);
