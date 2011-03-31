@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 
 /* BXE Debug Options */
 #ifdef BXE_DEBUG
-	uint32_t bxe_debug = BXE_WARN;
+	uint32_t bxe_debug = BXE_INFO;
 
 /*          0 = Never              */
 /*          1 = 1 in 2,147,483,648 */
@@ -382,7 +382,7 @@ static void bxe_breakpoint(struct bxe_softc *);
 #endif
 
 
-#define	BXE_DRIVER_VERSION	"1.5.52_preliminary"
+#define	BXE_DRIVER_VERSION	"1.5.52"
 
 static void bxe_init_e1_firmware(struct bxe_softc *sc);
 static void bxe_init_e1h_firmware(struct bxe_softc *sc);
@@ -13042,10 +13042,20 @@ bxe_dma_alloc(device_t dev)
 		 * address of the block.
 		 */
 
-		if (bus_dma_tag_create(sc->parent_tag, BCM_PAGE_SIZE,
-		    BXE_DMA_BOUNDARY, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-		    NULL, NULL, BXE_STATUS_BLK_SZ, 1, BXE_STATUS_BLK_SZ,
-		    0, NULL, NULL, &fp->status_block_tag)) {
+		if (bus_dma_tag_create(sc->parent_tag,
+		    BCM_PAGE_SIZE,	/* alignment for segs */
+		    BXE_DMA_BOUNDARY, 	/* cannot cross */
+		    BUS_SPACE_MAXADDR,	/* restricted low */
+		    BUS_SPACE_MAXADDR,	/* restricted hi */
+		    NULL,		/* filter f() */
+		    NULL,		/* filter f() arg */
+		    BXE_STATUS_BLK_SZ,	/* max map for this tag */
+		    1,			/* # of discontinuities */
+		    BXE_STATUS_BLK_SZ,	/* max seg size */
+		    0,			/* flags */
+		    NULL,		/* lock f() */
+		    NULL,		/* lock f() arg */
+		    &fp->status_block_tag)) {
 			BXE_PRINTF("%s(%d): Could not allocate fp[%d] "
 			    "status block DMA tag!\n", __FILE__, __LINE__, i);
 			rc = ENOMEM;
@@ -13086,10 +13096,20 @@ bxe_dma_alloc(device_t dev)
 		 * allocate and clear the  memory, and fetch the
 		 * physical address of the block.
 		 */
-		if (bus_dma_tag_create(sc->parent_tag, BCM_PAGE_SIZE,
-		    BXE_DMA_BOUNDARY, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-		    NULL, NULL, BXE_TX_CHAIN_PAGE_SZ, 1, BXE_TX_CHAIN_PAGE_SZ,
-		    0, NULL, NULL, &fp->tx_bd_chain_tag)) {
+		if (bus_dma_tag_create(sc->parent_tag,
+		    BCM_PAGE_SIZE,	/* alignment for segs */
+		    BXE_DMA_BOUNDARY,	/* cannot cross */
+		    BUS_SPACE_MAXADDR,	/* restricted low */
+		    BUS_SPACE_MAXADDR,	/* restricted hi */
+		    NULL,		/* filter f() */
+		    NULL,		/* filter f() arg */
+		    BXE_TX_CHAIN_PAGE_SZ,/* max map for this tag */
+		    1,			/* # of discontinuities */
+		    BXE_TX_CHAIN_PAGE_SZ,/* max seg size */
+		    0,			/* flags */
+		    NULL,		/* lock f() */
+		    NULL,		/* lock f() arg */
+		    &fp->tx_bd_chain_tag)) {
 			BXE_PRINTF(
 			    "%s(%d): Could not allocate fp[%d] TX descriptor "
 			    "chain DMA tag!\n", __FILE__, __LINE__, i);
@@ -13132,23 +13152,33 @@ bxe_dma_alloc(device_t dev)
 		}
 
 		/*
-		 * Check the required size before mapping to conserve resources.
+		 * Check required size before mapping to conserve resources.
 		 */
 		if (bxe_tso_enable) {
-			max_size = BXE_TSO_MAX_SIZE;
-			max_segments = 32; /* BXE_MAX_SEGMENTS; */
+			max_size     = BXE_TSO_MAX_SIZE;
+			max_segments = BXE_TSO_MAX_SEGMENTS;
 			max_seg_size = BXE_TSO_MAX_SEG_SIZE;
 		} else {
-			max_size  = MCLBYTES * BXE_MAX_SEGMENTS;
+			max_size     = MCLBYTES * BXE_MAX_SEGMENTS;
 			max_segments = BXE_MAX_SEGMENTS;
 			max_seg_size = MCLBYTES;
 		}
 
 		/* Create a DMA tag for TX mbufs. */
-		if (bus_dma_tag_create(sc->parent_tag, 1, BXE_DMA_BOUNDARY,
-		    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
-		    max_size, max_segments, max_seg_size,
-		    0, NULL, NULL, &fp->tx_mbuf_tag)) {
+		if (bus_dma_tag_create(sc->parent_tag,
+		    1, 			/* alignment for segs */
+		    BXE_DMA_BOUNDARY,	/* cannot cross */
+		    BUS_SPACE_MAXADDR,	/* restricted low */
+		    BUS_SPACE_MAXADDR,	/* restricted hi */
+		    NULL,		/* filter f() */
+		    NULL,		/* filter f() arg */
+		    max_size,		/* max map for this tag */
+		    max_segments,	/* # of discontinuities */
+		    max_seg_size,	/* max seg size */
+		    0,			/* flags */
+		    NULL,		/* lock f() */
+		    NULL,		/* lock f() arg */
+		    &fp->tx_mbuf_tag)) {
 			BXE_PRINTF(
 		"%s(%d): Could not allocate fp[%d] TX mbuf DMA tag!\n",
 			    __FILE__, __LINE__, i);
@@ -13174,12 +13204,22 @@ bxe_dma_alloc(device_t dev)
 		 * the  memory, and fetch the physical
 		 * address of the blocks.
 		 */
-		if (bus_dma_tag_create(sc->parent_tag, BCM_PAGE_SIZE,
-		    BXE_DMA_BOUNDARY, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-		    NULL, NULL, BXE_RX_CHAIN_PAGE_SZ, 1, BXE_RX_CHAIN_PAGE_SZ,
-		    0, NULL, NULL, &fp->rx_bd_chain_tag)) {
-			BXE_PRINTF(
-		"%s(%d): Could not allocate fp[%d] RX BD chain DMA tag!\n",
+		if (bus_dma_tag_create(sc->parent_tag,
+		    BCM_PAGE_SIZE,	/* alignment for segs */
+		    BXE_DMA_BOUNDARY,	/* cannot cross */
+		    BUS_SPACE_MAXADDR,	/* restricted low */
+		    BUS_SPACE_MAXADDR,	/* restricted hi */
+		    NULL,		/* filter f() */
+		    NULL,		/* filter f() arg */
+		    BXE_RX_CHAIN_PAGE_SZ,/* max map for this tag */
+		    1,			/* # of discontinuities */
+		    BXE_RX_CHAIN_PAGE_SZ,/* max seg size */
+		    0,			/* flags */
+		    NULL,		/* lock f() */
+		    NULL,		/* lock f() arg */
+		    &fp->rx_bd_chain_tag)) {
+			BXE_PRINTF("%s(%d): Could not allocate fp[%d] "
+			    "RX BD chain DMA tag!\n",
 			    __FILE__, __LINE__, i);
 			rc = ENOMEM;
 			goto bxe_dma_alloc_exit;
@@ -13222,9 +13262,19 @@ bxe_dma_alloc(device_t dev)
 		/*
 		 * Create a DMA tag for RX mbufs.
 		 */
-		if (bus_dma_tag_create(sc->parent_tag, 1, BXE_DMA_BOUNDARY,
-		    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
-		    MJUM9BYTES, 1, MJUM9BYTES, 0, NULL,  NULL,
+		if (bus_dma_tag_create(sc->parent_tag,
+		    1,			/* alignment for segs */
+		    BXE_DMA_BOUNDARY,	/* cannot cross */
+		    BUS_SPACE_MAXADDR,	/* restricted low */
+		    BUS_SPACE_MAXADDR,	/* restricted hi */
+		    NULL,		/* filter f() */
+		    NULL,		/* filter f() arg */
+		    MJUM9BYTES,		/* max map for this tag */
+		    1,			/* # of discontinuities */
+		    MJUM9BYTES,		/* max seg size */
+		    0,			/* flags */
+		    NULL,		/* lock f() */
+		    NULL,		/* lock f() arg */
 		    &fp->rx_mbuf_tag)) {
 			BXE_PRINTF(
 		"%s(%d): Could not allocate fp[%d] RX mbuf DMA tag!\n",
@@ -13251,10 +13301,20 @@ bxe_dma_alloc(device_t dev)
 		 * map the memory into DMA space, and fetch
 		 * the physical address of the block.
 		 */
-		if (bus_dma_tag_create(sc->parent_tag, BCM_PAGE_SIZE,
-		    BXE_DMA_BOUNDARY, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-		    NULL, NULL, BXE_RX_CHAIN_PAGE_SZ, 1, BXE_RX_CHAIN_PAGE_SZ,
-		    0, NULL, NULL, &fp->rx_comp_chain_tag)) {
+		if (bus_dma_tag_create(sc->parent_tag,
+		    BCM_PAGE_SIZE,	/* alignment for segs */
+		    BXE_DMA_BOUNDARY,	/* cannot cross */
+		    BUS_SPACE_MAXADDR,	/* restricted low */
+		    BUS_SPACE_MAXADDR,	/* restricted hi */
+		    NULL,		/* filter f() */
+		    NULL,		/* filter f() arg */
+		    BXE_RX_CHAIN_PAGE_SZ,/* max map for this tag */
+		    1,			/* # of discontinuities */
+		    BXE_RX_CHAIN_PAGE_SZ,/* max seg size */
+		    0,			/* flags */
+		    NULL,		/* lock f() */
+		    NULL,		/* lock f() arg */
+		    &fp->rx_comp_chain_tag)) {
 			BXE_PRINTF(
 	"%s(%d): Could not allocate fp[%d] RX Completion Queue DMA tag!\n",
 			    __FILE__, __LINE__, i);
@@ -13311,10 +13371,19 @@ bxe_dma_alloc(device_t dev)
 			 * memory into DMA space, and fetch the
 			 * physical address of the block.
 			 */
-			if (bus_dma_tag_create(sc->parent_tag, BCM_PAGE_SIZE,
-			    BXE_DMA_BOUNDARY, BUS_SPACE_MAXADDR,
-			    BUS_SPACE_MAXADDR, NULL, NULL, BXE_RX_CHAIN_PAGE_SZ,
-			    1, BXE_RX_CHAIN_PAGE_SZ, 0,  NULL, NULL,
+			if (bus_dma_tag_create(sc->parent_tag,
+			    BCM_PAGE_SIZE,	/* alignment for segs */
+			    BXE_DMA_BOUNDARY,	/* cannot cross */
+			    BUS_SPACE_MAXADDR,	/* restricted low */
+			    BUS_SPACE_MAXADDR,	/* restricted hi */
+			    NULL,		/* filter f() */
+			    NULL,		/* filter f() arg */
+			    BXE_RX_CHAIN_PAGE_SZ,/* max map for this tag */
+			    1,			/* # of discontinuities */
+			    BXE_RX_CHAIN_PAGE_SZ,/* max seg size */
+			    0,			/* flags */
+			    NULL,		/* lock f() */
+			    NULL,		/* lock f() arg */
 			    &fp->rx_sge_chain_tag)) {
 				BXE_PRINTF(
 	"%s(%d): Could not allocate fp[%d] RX SGE descriptor chain DMA tag!\n",
