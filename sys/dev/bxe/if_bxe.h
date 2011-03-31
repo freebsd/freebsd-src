@@ -310,16 +310,22 @@ struct bxe_type {
 
 /* Receive Buffer Descriptor (rx_bd) definitions. */
 #define	NUM_RX_PAGES		2
+
 /* 512 (0x200) of 8 byte bds in 4096 byte page. */
 #define	TOTAL_RX_BD_PER_PAGE	(BCM_PAGE_SIZE / sizeof(struct eth_rx_bd))
+
 /* 510 (0x1fe) = 512 - 2 */
 #define	USABLE_RX_BD_PER_PAGE	(TOTAL_RX_BD_PER_PAGE - 2)
+
 /* 1024 (0x400) */
 #define	TOTAL_RX_BD		(TOTAL_RX_BD_PER_PAGE * NUM_RX_PAGES)
+
 /* 1020 (0x3fc) = 1024 - 4 */
 #define	USABLE_RX_BD		(USABLE_RX_BD_PER_PAGE * NUM_RX_PAGES)
+
 /* 1023 (0x3ff) = 1024 -1 */
 #define	MAX_RX_BD		(TOTAL_RX_BD - 1)
+
 /* 511 (0x1ff) = 512 - 1 */
 #define	RX_DESC_MASK		(TOTAL_RX_BD_PER_PAGE - 1)
 
@@ -333,23 +339,28 @@ struct bxe_type {
 
 /* Receive Completion Queue definitions. */
 
-/* CQEs are 4 times larger (32 bytes) than rx_bd's (8 bytes). 8pages. */
+/* CQEs (32 bytes) are 4 times larger than rx_bd's (8 bytes). */
 #define	NUM_RCQ_PAGES		(NUM_RX_PAGES * 4)
+
 /* 128 (0x80) */
 #define	TOTAL_RCQ_ENTRIES_PER_PAGE					\
 	(BCM_PAGE_SIZE / sizeof(union eth_rx_cqe))
+
 /* 127 (0x7f)for the next page RCQ bd */
 #define	USABLE_RCQ_ENTRIES_PER_PAGE	(TOTAL_RCQ_ENTRIES_PER_PAGE - 1)
+
 /* 1024 (0x400) */
 #define	TOTAL_RCQ_ENTRIES	(TOTAL_RCQ_ENTRIES_PER_PAGE * NUM_RCQ_PAGES)
+
 /* 1016 (0x3f8) */
 #define	USABLE_RCQ_ENTRIES	(USABLE_RCQ_ENTRIES_PER_PAGE * NUM_RCQ_PAGES)
+
 /* 1023 (0x3ff) */
 #define	MAX_RCQ_ENTRIES		(TOTAL_RCQ_ENTRIES - 1)
 
 #define	NEXT_RCQ_IDX(x)							\
 	((((x) & USABLE_RCQ_ENTRIES_PER_PAGE) ==			\
-	(USABLE_RCQ_ENTRIES_PER_PAGE-1)) ? (x) + 2 : (x) + 1)
+	(USABLE_RCQ_ENTRIES_PER_PAGE - 1)) ? (x) + 2 : (x) + 1)
 #define	RCQ_ENTRY(x)		((x) & MAX_RCQ_ENTRIES)
 #define	RCQ_PAGE(x)		(((x) & ~USABLE_RCQ_ENTRIES_PER_PAGE) >> 7)
 #define	RCQ_IDX(x)		((x) & USABLE_RCQ_ENTRIES_PER_PAGE)
@@ -957,10 +968,10 @@ struct bxe_fastpath {
 	struct mbuf		*rx_mbuf_ptr[TOTAL_RX_BD];
 
 	/* Hardware maintained Completion Queue (CQ) chains. */
-	bus_dma_tag_t		rx_comp_chain_tag;
-	bus_dmamap_t		rx_comp_chain_map[NUM_RCQ_PAGES];
-	union eth_rx_cqe	*rx_comp_chain[NUM_RCQ_PAGES];
-	bus_addr_t		rx_comp_chain_paddr[NUM_RCQ_PAGES];
+	bus_dma_tag_t		rx_cq_chain_tag;
+	bus_dmamap_t		rx_cq_chain_map[NUM_RCQ_PAGES];
+	union eth_rx_cqe	*rx_cq_chain[NUM_RCQ_PAGES];
+	bus_addr_t		rx_cq_chain_paddr[NUM_RCQ_PAGES];
 
 	/* Taskqueue reqources. */
 	struct task		task;
@@ -999,10 +1010,8 @@ struct bxe_fastpath {
 	/* Transmit packet consumer index. */
 	uint16_t		tx_pkt_cons;
 
-	/* Transmit buffer descriptor producer index. */
+	/* Transmit buffer descriptor prod/cons indices. */
 	uint16_t		tx_bd_prod;
-
-	/* Transmit buffer descriptor consumer index. */
 	uint16_t		tx_bd_cons;
 
 	/* Driver's copy of the fastpath CSTORM/USTORM indices. */
@@ -1014,8 +1023,8 @@ struct bxe_fastpath {
 	uint16_t		rx_bd_cons;
 
 	/* Driver's copy of the receive completion queue prod/cons indices. */
-	uint16_t		rx_comp_prod;
-	uint16_t		rx_comp_cons;
+	uint16_t		rx_cq_prod;
+	uint16_t		rx_cq_cons;
 
 	/* Pointer to the receive consumer index in the status block. */
 	uint16_t		*rx_cons_sb;
@@ -1095,6 +1104,7 @@ struct bxe_fastpath {
 
 	uint64_t		tpa_queue_used;
 #endif
+
 	/* FreeBSD interface statistics. */
 	unsigned long		soft_rx_errors;
 	unsigned long		soft_tx_errors;
