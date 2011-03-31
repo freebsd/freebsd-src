@@ -431,7 +431,10 @@ g_raid_md_jmicron_start_disk(struct g_raid_disk *disk)
 	olddisk = NULL;
 
 	/* Find disk position in metadata by it's serial. */
-	disk_pos = jmicron_meta_find_disk(meta, pd->pd_disk_id);
+	if (pd->pd_meta != NULL)
+		disk_pos = jmicron_meta_find_disk(meta, pd->pd_disk_id);
+	else
+		disk_pos = -1;
 	if (disk_pos < 0) {
 		G_RAID_DEBUG1(1, sc, "Unknown, probably new or stale disk");
 		/* If we are in the start process, that's all for now. */
@@ -522,7 +525,7 @@ nofit:
 		 * Different disks may have different sizes/offsets,
 		 * especially in concat mode. Update.
 		 */
-		if (pd->pd_meta != NULL && !resurrection) {
+		if (!resurrection) {
 			sd->sd_offset =
 			    (off_t)pd->pd_meta->offset * 16 * 512; //ZZZ
 			sd->sd_size =
