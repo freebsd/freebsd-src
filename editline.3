@@ -1,4 +1,4 @@
-.\"	$NetBSD: editline.3,v 1.50 2005/10/12 09:29:43 wiz Exp $
+.\"	$NetBSD: editline.3,v 1.55 2007/01/12 16:31:13 christos Exp $
 .\"
 .\" Copyright (c) 1997-2003 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -13,11 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"        This product includes software developed by the NetBSD
-.\"        Foundation, Inc. and its contributors.
-.\" 4. Neither the name of The NetBSD Foundation nor the names of its
+.\" 3. Neither the name of The NetBSD Foundation nor the names of its
 .\"    contributors may be used to endorse or promote products derived
 .\"    from this software without specific prior written permission.
 .\"
@@ -33,7 +29,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 9, 2005
+.Dd January 12, 2007
 .Os
 .Dt EDITLINE 3
 .Sh NAME
@@ -82,7 +78,7 @@
 .Ft int
 .Fn el_set "EditLine *e" "int op" "..."
 .Ft int
-.Fn el_get "EditLine *e" "int op" "void *result"
+.Fn el_get "EditLine *e" "int op" "..."
 .Ft int
 .Fn el_source "EditLine *e" "const char *file"
 .Ft void
@@ -402,6 +398,25 @@ to be associated with this EditLine structure.
 It can be retrieved with the corresponding
 .Fn el_get
 call.
+.It Dv EL_SETFP , Fa "int fd" , Fa "FILE *fp"
+Set the current
+.Nm editline
+file pointer for
+.Dq input
+.Fa fd
+=
+.Dv 0 ,
+.Dq output
+.Fa fd
+=
+.Dv 1 ,
+or
+.Dq error
+.Fa fd
+=
+.Dv 2
+from
+.Fa fp .
 .El
 .It Fn el_get
 Get
@@ -426,15 +441,24 @@ Return the name of the editor, which will be one of
 .Dq emacs
 or
 .Dq vi .
+.It Dv EL_GETTC , Fa "const char *name" , Fa "void *value"
+Return non-zero if
+.Fa name
+is a valid
+.Xr termcap 5
+capability
+and set
+.Fa value
+to the current value of that capability.
 .It Dv EL_SIGNAL , Fa "int *"
 Return non-zero if
 .Nm
 has installed private signal handlers (see
 .Fn el_get
 above).
-.It Dv EL_EDITMODE, Fa "int *"
+.It Dv EL_EDITMODE , Fa "int *"
 Return non-zero if editing is enabled.
-.It Dv EL_GETCFN, Fa "int (**f)(EditLine *, char *)"
+.It Dv EL_GETCFN , Fa "int (**f)(EditLine *, char *)"
 Return a pointer to the function that read characters, which is equal to
 ``EL_BUILTIN_GETCFN'' in the case of the default builtin function.
 .It Dv EL_CLIENTDATA , Fa "void **data"
@@ -443,13 +467,32 @@ Retrieve
 previously registered with the corresponding
 .Fn el_set
 call.
-.It Dv EL_UNBUFFERED, Fa "int"
+.It Dv EL_UNBUFFERED , Fa "int"
 Sets or clears unbuffered mode.
 In this mode,
 .Fn el_gets
 will return immediately after processing a single character.
-.It Dv EL_PREP_TERM, Fa "int"
+.It Dv EL_PREP_TERM , Fa "int"
 Sets or clears terminal editing mode.
+.It Dv EL_GETFP , Fa "int fd", Fa "FILE **fp"
+Return in
+.Fa fp
+the current
+.Nm editline
+file pointer for
+.Dq input
+.Fa fd
+=
+.Dv 0 ,
+.Dq output
+.Fa fd
+=
+.Dv 1 ,
+or
+.Dq error
+.Fa fd
+=
+.Dv 2 .
 .El
 .It Fn el_source
 Initialise
@@ -511,7 +554,7 @@ Returns \-1 if
 is empty or won't fit, and 0 otherwise.
 .It Fn el_deletestr
 Delete
-.Fa num
+.Fa count
 characters before the cursor.
 .El
 .Sh HISTORY LIST FUNCTIONS
@@ -635,7 +678,7 @@ into the history.
 .It Dv H_GETUNIQUE
 Retrieve the current setting if adjacent identical elements should
 be entered into the history.
-.It Dv H_DEL , Fa "int num"
+.It Dv H_DEL , Fa "int e"
 Delete the event numbered
 .Fa e .
 This function is only provided for
@@ -731,7 +774,8 @@ is a NUL terminated string to tokenize.
 .Xr sh 1 ,
 .Xr signal 3 ,
 .Xr termcap 3 ,
-.Xr editrc 5
+.Xr editrc 5 ,
+.Xr termcap 5
 .Sh HISTORY
 The
 .Nm

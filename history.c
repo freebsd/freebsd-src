@@ -1,4 +1,4 @@
-/*	$NetBSD: history.c,v 1.31 2005/08/01 14:34:06 christos Exp $	*/
+/*	$NetBSD: history.c,v 1.32 2006/09/28 13:52:51 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)history.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: history.c,v 1.31 2005/08/01 14:34:06 christos Exp $");
+__RCSID("$NetBSD: history.c,v 1.32 2006/09/28 13:52:51 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -548,6 +548,7 @@ history_end(History *h)
 
 	if (h->h_next == history_def_next)
 		history_def_clear(h->h_ref, &ev);
+	h_free(h->h_ref);
 	h_free(h);
 }
 

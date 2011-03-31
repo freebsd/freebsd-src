@@ -1,4 +1,4 @@
-#	$NetBSD: Makefile,v 1.34 2005/05/28 12:02:53 lukem Exp $
+#	$NetBSD: Makefile,v 1.35 2006/08/31 20:20:38 rpaulo Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
 USE_SHLIBDIR=	yes
@@ -37,7 +37,7 @@ INCSDIR=/usr/include
 CLEANFILES+=editline.c
 CLEANFILES+=common.h.tmp editline.c.tmp emacs.h.tmp fcns.c.tmp fcns.h.tmp
 CLEANFILES+=help.c.tmp help.h.tmp vi.h.tmp
-CLEANFILES+=test.o test
+CLEANFILES+=tc1.o tc1
 CPPFLAGS+=-I. -I${LIBEDITDIR} 
 CPPFLAGS+=-I. -I${.CURDIR}
 CPPFLAGS+=#-DDEBUG_TTY -DDEBUG_KEY -DDEBUG_READ -DDEBUG -DDEBUG_REFRESH
@@ -94,9 +94,9 @@ editline.c: ${OSRCS} makelist Makefile
 	${HOST_SH} ${LIBEDITDIR}/makelist -e ${OSRCS:T} > ${.TARGET}.tmp && \
 	    mv ${.TARGET}.tmp ${.TARGET}
 
-test.o:	${LIBEDITDIR}/TEST/test.c
+tc1.o:	${LIBEDITDIR}/TEST/tc1.c
 	
-test:	libedit.a test.o 
+tc1:	libedit.a tc1.o 
 	${_MKTARGET_LINK}
 	${CC} ${LDFLAGS} ${.ALLSRC} -o ${.TARGET} libedit.a ${LDADD} -ltermcap
 
