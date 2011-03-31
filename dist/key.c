@@ -1,4 +1,4 @@
-/*	$NetBSD: key.c,v 1.16 2005/07/06 21:13:02 christos Exp $	*/
+/*	$NetBSD: key.c,v 1.17 2005/08/08 14:05:37 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: key.c,v 1.16 2005/07/06 21:13:02 christos Exp $");
+__RCSID("$NetBSD: key.c,v 1.17 2005/08/08 14:05:37 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -46,7 +46,7 @@ __RCSID("$NetBSD: key.c,v 1.16 2005/07/06 21:13:02 christos Exp $");
  *	  the extended-key map.
  *
  *      An extended-key (key) is a sequence of keystrokes introduced
- *	with an sequence introducer and consisting of an arbitrary
+ *	with a sequence introducer and consisting of an arbitrary
  *	number of characters.  This module maintains a map (the el->el_key.map)
  *	to convert these extended-key sequences into input strs
  *	(XK_STR), editor functions (XK_CMD), or unix commands (XK_EXE).
@@ -449,7 +449,7 @@ node__put(EditLine *el, key_node_t *ptr)
 
 
 /* node__get():
- *	Returns pointer to an key_node_t for ch.
+ *	Returns pointer to a key_node_t for ch.
  */
 private key_node_t *
 node__get(int ch)

@@ -1,4 +1,4 @@
-/*	$NetBSD: common.c,v 1.17 2005/08/01 23:00:15 christos Exp $	*/
+/*	$NetBSD: common.c,v 1.18 2005/08/08 14:05:37 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)common.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: common.c,v 1.17 2005/08/01 23:00:15 christos Exp $");
+__RCSID("$NetBSD: common.c,v 1.18 2005/08/08 14:05:37 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -155,7 +155,7 @@ ed_delete_next_char(EditLine *el, int c __attribute__((__unused__)))
 				return (CC_ERROR);
 #else
 				term_overwrite(el, STReof, 4);
-					/* then do a EOF */
+					/* then do an EOF */
 				term__flush();
 				return (CC_EOF);
 #endif

@@ -1,4 +1,4 @@
-/*	$NetBSD: filecomplete.c,v 1.7 2005/06/11 18:18:59 christos Exp $	*/
+/*	$NetBSD: filecomplete.c,v 1.8 2005/08/03 13:41:38 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -38,7 +38,7 @@
 
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: filecomplete.c,v 1.7 2005/06/11 18:18:59 christos Exp $");
+__RCSID("$NetBSD: filecomplete.c,v 1.8 2005/08/03 13:41:38 christos Exp $");
 #endif /* not lint && not SCCSID */
 
 #include <sys/types.h>
@@ -438,7 +438,7 @@ fn_complete(EditLine *el,
 	} else
 		matches = 0;
 	if (!attempted_completion_function || 
-	    (over != NULL && *over && !matches))
+	    (over != NULL && !*over && !matches))
 		matches = completion_matches(temp, complet_func);
 
 	if (over != NULL)

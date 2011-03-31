@@ -1,4 +1,4 @@
-/*	$NetBSD: term.c,v 1.40 2004/05/22 23:21:28 christos Exp $	*/
+/*	$NetBSD: term.c,v 1.41 2005/08/08 14:05:37 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
 #else
-__RCSID("$NetBSD: term.c,v 1.40 2004/05/22 23:21:28 christos Exp $");
+__RCSID("$NetBSD: term.c,v 1.41 2005/08/08 14:05:37 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -944,7 +944,7 @@ term_set(EditLine *el, const char *term)
 		Val(T_co) = tgetnum("co");
 		Val(T_li) = tgetnum("li");
 		for (t = tstr; t->name != NULL; t++) {
-			/* XXX: some systems tgetstr needs non const */
+			/* XXX: some systems' tgetstr needs non const */
 			term_alloc(el, t, tgetstr(strchr(t->name, *t->name),
 			    &area));
 		}
@@ -1449,7 +1449,7 @@ term_echotc(EditLine *el, int argc __attribute__((__unused__)),
 			break;
 		}
 	if (t->name == NULL) {
-		/* XXX: some systems tgetstr needs non const */
+		/* XXX: some systems' tgetstr needs non const */
 		scap = tgetstr(strchr(*argv, **argv), &area);
 	}
 	if (!scap || scap[0] == '\0') {
