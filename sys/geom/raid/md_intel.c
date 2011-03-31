@@ -1953,7 +1953,6 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 
 			disk = g_raid_create_disk(sc);
 			disk->d_consumer = cp;
-			disk->d_consumer->private = disk;
 			disk->d_md_data = (void *)pd;
 			cp->private = disk;
 
