@@ -1389,10 +1389,8 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 			/* If disk was assigned, just update statuses. */
 			if (pd->pd_disk_pos >= 0) {
 				g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
-				if (disk->d_consumer) {
-					g_raid_kill_consumer(sc, disk->d_consumer);
-					disk->d_consumer = NULL;
-				}
+				g_raid_kill_consumer(sc, disk->d_consumer);
+				disk->d_consumer = NULL;
 				TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
 					g_raid_change_subdisk_state(sd,
 					    G_RAID_SUBDISK_S_NONE);

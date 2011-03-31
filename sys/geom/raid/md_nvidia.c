@@ -1311,10 +1311,8 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 			/* If disk was assigned, just update statuses. */
 			if (pd->pd_disk_pos >= 0) {
 				g_raid_change_disk_state(disk, G_RAID_DISK_S_OFFLINE);
-				if (disk->d_consumer) {
-					g_raid_kill_consumer(sc, disk->d_consumer);
-					disk->d_consumer = NULL;
-				}
+				g_raid_kill_consumer(sc, disk->d_consumer);
+				disk->d_consumer = NULL;
 				TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
 					g_raid_change_subdisk_state(sd,
 					    G_RAID_SUBDISK_S_NONE);
@@ -1435,7 +1433,7 @@ g_raid_md_write_nvidia(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	meta = malloc(sizeof(*meta), M_MD_NVIDIA, M_WAITOK | M_ZERO);
 	if (mdi->mdio_meta)
 		memcpy(meta, mdi->mdio_meta, sizeof(*meta));
-	memcpy(meta->nvidia_id, NVIDIA_MAGIC, sizeof(NVIDIA_MAGIC));
+	memcpy(meta->nvidia_id, NVIDIA_MAGIC, sizeof(NVIDIA_MAGIC) - 1);
 	meta->config_size = 30;
 	meta->version = 0x0064;
 	meta->total_sectors = vol->v_mediasize / vol->v_sectorsize;
