@@ -15627,13 +15627,6 @@ bxe_add_sysctls(struct bxe_softc *sc)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->bxe_dev));
 	struct bxe_eth_stats *estats = &sc->eth_stats;
 
-	struct sysctl_oid *queue_node;
-	    struct sysctl_oid_list *queue_list;
-
-#define QUEUE_NAME_LEN 32
-	char namebuf[QUEUE_NAME_LEN];
-
-
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
 	    "estats_total_bytes_received_hi",
 	    CTLFLAG_RD, &estats->total_bytes_received_hi,
@@ -15747,28 +15740,36 @@ bxe_add_sysctls(struct bxe_softc *sc)
 	    CTLFLAG_RD, &sc->mbuf_alloc_failed, 0,
 	    "mbuf cluster allocation failures");
 
-	for (int i = 0; i < sc->num_queues; i++) {
-		struct bxe_fastpath *fp	= &sc->fp[i];
-		snprintf(namebuf, QUEUE_NAME_LEN, "fp[%02d]", i);
+	do() {
+#define QUEUE_NAME_LEN 32
+		char namebuf[QUEUE_NAME_LEN];
+		struct sysctl_oid *queue_node;
+		struct sysctl_oid_list *queue_list;
 
-		queue_node = SYSCTL_ADD_NODE(ctx, children, OID_AUTO,
-		    namebuf, CTLFLAG_RD, NULL, "Queue Name");
-		queue_list = SYSCTL_CHILDREN(queue_node);
+		for (int i = 0; i < sc->num_queues; i++) {
+			struct bxe_fastpath *fp	= &sc->fp[i];
+			snprintf(namebuf, QUEUE_NAME_LEN, "fp[%02d]", i);
 
-		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
-		    "mbuf_alloc_failed",
-		    CTLFLAG_RD, &fp->mbuf_alloc_failed,
-		    "Mbuf allocation failures");
+			queue_node = SYSCTL_ADD_NODE(ctx, children, OID_AUTO,
+			    namebuf, CTLFLAG_RD, NULL, "Queue Name");
+			queue_list = SYSCTL_CHILDREN(queue_node);
 
-		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
-		    "mbuf_defrag_attempts",
-		    CTLFLAG_RD, &fp->mbuf_defrag_attempts,
-		    "Mbuf defrag attempts");
+			SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
+			    "mbuf_alloc_failed",
+			    CTLFLAG_RD, &fp->mbuf_alloc_failed,
+			    "Mbuf allocation failures");
 
-		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
-		    "mbuf_defrag_successes",
-		    CTLFLAG_RD, &fp->mbuf_defrag_successes,
-		    "Mbuf defrag successes");
+			SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
+			    "mbuf_defrag_attempts",
+			    CTLFLAG_RD, &fp->mbuf_defrag_attempts,
+			    "Mbuf defrag attempts");
+
+			SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
+			    "mbuf_defrag_successes",
+			    CTLFLAG_RD, &fp->mbuf_defrag_successes,
+			    "Mbuf defrag successes");
+		}
+
 	}
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "driver_state",
