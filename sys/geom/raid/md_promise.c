@@ -818,10 +818,10 @@ restart:
 			} else
 				update = 0;
 			if (update) {
+				updated = 1;
 				g_raid_md_write_promise(md, vol, NULL, disk);
 				break;
 			}
-			updated += update;
 		}
 	}
 	if (updated)
