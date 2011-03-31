@@ -1,4 +1,4 @@
-/*	$NetBSD: common.c,v 1.18 2005/08/08 14:05:37 christos Exp $	*/
+/*	$NetBSD: common.c,v 1.19 2006/03/06 21:11:56 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)common.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: common.c,v 1.18 2005/08/08 14:05:37 christos Exp $");
+__RCSID("$NetBSD: common.c,v 1.19 2006/03/06 21:11:56 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -137,7 +137,7 @@ ed_delete_prev_word(EditLine *el, int c __attribute__((__unused__)))
  */
 protected el_action_t
 /*ARGSUSED*/
-ed_delete_next_char(EditLine *el, int c __attribute__((__unused__)))
+ed_delete_next_char(EditLine *el, int c)
 {
 #ifdef notdef			/* XXX */
 #define	EL	el->el_line
@@ -154,9 +154,8 @@ ed_delete_next_char(EditLine *el, int c __attribute__((__unused__)))
 #ifdef KSHVI
 				return (CC_ERROR);
 #else
-				term_overwrite(el, STReof, 4);
-					/* then do an EOF */
-				term__flush();
+				/* then do an EOF */
+				term_writechar(el, c);
 				return (CC_EOF);
 #endif
 			} else {
