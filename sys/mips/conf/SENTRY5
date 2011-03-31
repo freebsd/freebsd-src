@@ -66,6 +66,7 @@ device		pci			# siba_pcib
 # pci devices
 # notyet:
 #device		ath			# in pci slot
+#device		ath_pci			# Atheros pci/cardbus glue
 #device		ath_hal			# pci chip support
 #options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 
