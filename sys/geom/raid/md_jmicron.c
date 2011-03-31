@@ -1129,6 +1129,11 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 		if (error != 0)
 			return (error);
 
+		if (sectorsize <= 0) {
+			gctl_error(req, "Can't get sector size.");
+			return (-8);
+		}
+
 		/* Reserve space for metadata. */
 		size -= sectorsize;
 

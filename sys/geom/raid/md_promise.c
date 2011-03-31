@@ -1343,6 +1343,11 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			return (error);
 		}
 
+		if (sectorsize <= 0) {
+			gctl_error(req, "Can't get sector size.");
+			return (-8);
+		}
+
 		/* Handle size argument. */
 		len = sizeof(*sizearg);
 		sizearg = gctl_get_param(req, "size", &len);

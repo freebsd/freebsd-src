@@ -1431,7 +1431,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 					gctl_error(req, "Can't open disk '%s'.",
 					    diskname);
 					g_topology_unlock();
-					error = -4;
+					error = -7;
 					break;
 				}
 				pp = cp->provider;
@@ -1480,6 +1480,11 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 		}
 		if (error != 0)
 			return (error);
+
+		if (sectorsize <= 0) {
+			gctl_error(req, "Can't get sector size.");
+			return (-8);
+		}
 
 		/* Reserve some space for metadata. */
 		size -= ((4096 + sectorsize - 1) / sectorsize) * sectorsize;
