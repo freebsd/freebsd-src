@@ -720,8 +720,6 @@ g_raid_tr_iodone_raid1(struct g_raid_tr_object *tr,
 				    bp->bio_error);
 				bp->bio_cmd = BIO_WRITE;
 				bp->bio_cflags = G_RAID_BIO_FLAG_SYNC;
-				bp->bio_offset = bp->bio_offset;
-				bp->bio_length = bp->bio_length;
 				G_RAID_LOGREQ(4, bp, "Queueing rebuild write.");
 				g_raid_subdisk_iostart(trs->trso_failed_sd, bp);
 			} else {
