@@ -785,6 +785,7 @@ ah_input_cb(struct cryptop *crp)
 			sav->tdb_cryptoid = crp->crp_sid;
 
 		if (crp->crp_etype == EAGAIN) {
+			KEY_FREESAV(&sav);
 			error = crypto_dispatch(crp);
 			return error;
 		}

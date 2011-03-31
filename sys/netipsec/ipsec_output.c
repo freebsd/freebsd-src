@@ -247,7 +247,6 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 	panic("ipsec_process_done");
 bad:
 	m_freem(m);
-	KEY_FREESAV(&sav);
 	return (error);
 }
 
