@@ -15,4 +15,6 @@
 #define HAVE_STRVIS 1
 #define HAVE_STRUNVIS 1
 
+#define HAVE_STRUCT_DIRENT_D_NAMLEN 1
+
 #include "sys.h"

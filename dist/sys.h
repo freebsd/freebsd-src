@@ -1,4 +1,4 @@
-/*	$NetBSD: sys.h,v 1.9 2004/01/17 17:57:40 christos Exp $	*/
+/*	$NetBSD: sys.h,v 1.13 2009/12/30 22:37:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -71,6 +71,10 @@
 			/* When we want to hide everything	*/
 #endif
 
+#ifndef __arraycount
+# define __arraycount(a) (sizeof(a) / sizeof(*(a)))
+#endif
+
 #ifndef _PTR_T
 # define _PTR_T
 typedef void	*ptr_t;
@@ -100,6 +104,15 @@ char	*fgetln(FILE *fp, size_t *len);
 
 #define	REGEX		/* Use POSIX.2 regular expression functions */
 #undef	REGEXP		/* Use UNIX V8 regular expression functions */
+
+#if defined(__sun)
+extern int tgetent(char *, const char *);
+extern int tgetflag(char *);
+extern int tgetnum(char *);
+extern int tputs(const char *, int, int (*)(int));
+extern char* tgoto(const char*, int, int);
+extern char* tgetstr(char*, char**);
+#endif
 
 #ifdef notdef
 # undef REGEX
