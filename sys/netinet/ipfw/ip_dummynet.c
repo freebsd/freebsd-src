@@ -748,9 +748,10 @@ schk_delete_cb(void *obj, void *arg)
 #endif
 	fsk_detach_list(&s->fsk_list, arg ? DN_DESTROY : 0);
 	/* no more flowset pointing to us now */
-	if (s->sch.flags & DN_HAVE_MASK)
+	if (s->sch.flags & DN_HAVE_MASK) {
 		dn_ht_scan(s->siht, si_destroy, NULL);
-	else if (s->siht)
+		dn_ht_free(s->siht, 0);
+	} else if (s->siht)
 		si_destroy(s->siht, NULL);
 	if (s->profile) {
 		free(s->profile, M_DUMMYNET);
