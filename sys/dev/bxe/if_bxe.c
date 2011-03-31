@@ -1036,7 +1036,7 @@ bxe_print_adapter_info(struct bxe_softc *sc)
 		printf("None");
 		break;
 	case ETH_RSS_MODE_REGULAR:
-		printf("RSS");
+		printf("RSS:%d", sc->num_queues);
 		break;
 	default:
 		printf("Unknown");
@@ -1717,14 +1717,6 @@ bxe_attach(device_t dev)
 
 	/* Prepare the tick routine. */
 	callout_init(&sc->bxe_tick_callout, CALLOUT_MPSAFE);
-	ifmedia_init(&sc->bxe_ifmedia, IFM_IMASK, bxe_ifmedia_upd,
-	     bxe_ifmedia_status);
-	ifmedia_add(&sc->bxe_ifmedia, IFM_ETHER | IFM_10G_CX4, 0, NULL);
-	ifmedia_add(&sc->bxe_ifmedia, IFM_ETHER | IFM_10G_CX4 | IFM_FDX, 0,
-	    NULL);
-	ifmedia_add(&sc->bxe_ifmedia, IFM_ETHER | IFM_AUTO, 0, NULL);
-	ifmedia_set(&sc->bxe_ifmedia, IFM_ETHER | IFM_AUTO);
-	sc->bxe_ifmedia.ifm_media = sc->bxe_ifmedia.ifm_cur->ifm_media;
 
 	/* Enable bus master capability */
 	pci_enable_busmaster(dev);
@@ -1778,11 +1770,61 @@ bxe_attach(device_t dev)
 
 	/* Get hardware info from shared memory and validate data. */
 	if (bxe_get_function_hwinfo(sc)) {
-		DBPRINT(sc, BXE_WARN, "%s(): Failed to get hardware info!\n",
-			__FUNCTION__);
+		DBPRINT(sc, BXE_WARN,
+		    "%s(): Failed to get hardware info!\n", __FUNCTION__);
 		rc = ENODEV;
 		goto bxe_attach_fail;
 	}
+
+	/* Identify supported media based on the PHY type. */
+	switch (XGXS_EXT_PHY_TYPE(sc->link_params.ext_phy_config)) {
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT:
+		DBPRINT(sc, BXE_INFO_LOAD,
+		    "%s(): Found 10GBase-CX4 media.\n", __FUNCTION__);
+		sc->media = IFM_10G_CX4;
+		break;
+#if 0
+	/* ToDo: Configure correct media types for these PHYs. */
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8071
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726
+#endif
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727:
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727_NOC:
+		DBPRINT(sc, BXE_INFO_LOAD,
+		    "%s(): Found 10GBase-SR media.\n", __FUNCTION__);
+		sc->media = IFM_10G_SR;
+		break;
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481:
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84823:
+		DBPRINT(sc, BXE_INFO_LOAD,
+		    "%s(): Found 10GBase-T media.\n", __FUNCTION__);
+		sc->media = IFM_10G_T;
+		break;
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE:
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN:
+	default:
+		BXE_PRINTF("%s(%d): PHY not supported by driver!\n",
+		    __FILE__, __LINE__);
+		sc->media = 0;
+		rc = ENODEV;
+		goto bxe_attach_fail;
+	}
+
+	/* Setup supported media options. */
+	ifmedia_init(&sc->bxe_ifmedia,
+	    IFM_IMASK, bxe_ifmedia_upd,	bxe_ifmedia_status);
+	ifmedia_add(&sc->bxe_ifmedia,
+	    IFM_ETHER | sc->media | IFM_FDX, 0,	NULL);
+	ifmedia_add(&sc->bxe_ifmedia,
+	    IFM_ETHER | IFM_AUTO, 0, NULL);
+	ifmedia_set(&sc->bxe_ifmedia,
+	    IFM_ETHER | IFM_AUTO);
+	sc->bxe_ifmedia.ifm_media = sc->bxe_ifmedia.ifm_cur->ifm_media;
 
 	/* Set init arrays */
 	rc = bxe_init_firmware(sc);
@@ -14153,6 +14195,18 @@ bxe_ifmedia_upd(struct ifnet *ifp)
 		DBPRINT(sc, BXE_VERBOSE_PHY,
 	    "%s(): Media set to IFM_10G_CX4, forced mode.\n", __FUNCTION__);
 		break;
+	case IFM_10G_SR:
+		DBPRINT(sc, BXE_VERBOSE_PHY,
+	    "%s(): Media set to IFM_10G_SR, forced mode.\n", __FUNCTION__);
+		break;
+	case IFM_10G_T:
+		DBPRINT(sc, BXE_VERBOSE_PHY,
+	    "%s(): Media set to IFM_10G_T, forced mode.\n", __FUNCTION__);
+		break;
+	case IFM_10G_TWINAX:
+		DBPRINT(sc, BXE_VERBOSE_PHY,
+	    "%s(): Media set to IFM_10G_TWINAX, forced mode.\n", __FUNCTION__);
+		break;
 	default:
 		DBPRINT(sc, BXE_WARN, "%s(): Invalid media type!\n",
 		    __FUNCTION__);
@@ -14198,7 +14252,7 @@ bxe_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 		goto bxe_ifmedia_status_exit;
 	}
 
-	ifmr->ifm_active |= IFM_10G_CX4;
+	ifmr->ifm_active |= sc->media;
 
 	if (sc->link_vars.duplex == MEDIUM_FULL_DUPLEX)
 		ifmr->ifm_active |= IFM_FDX;
