@@ -1,4 +1,4 @@
-/*	$NetBSD: refresh.c,v 1.17 2001/04/13 00:53:11 lukem Exp $	*/
+/*	$NetBSD: refresh.c,v 1.26 2003/08/07 16:44:33 agc Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,19 +32,18 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include "config.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)refresh.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: refresh.c,v 1.17 2001/04/13 00:53:11 lukem Exp $");
+__RCSID("$NetBSD: refresh.c,v 1.26 2003/08/07 16:44:33 agc Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
 /*
  * refresh.c: Lower level screen refreshing functions
  */
-#include "sys.h"
 #include <stdio.h>
 #include <ctype.h>
 #include <unistd.h>
@@ -62,24 +57,24 @@ private void	re_insert (EditLine *, char *, int, int, char *, int);
 private void	re_delete(EditLine *, char *, int, int, int);
 private void	re_fastputc(EditLine *, int);
 private void	re__strncopy(char *, char *, size_t);
-private void	re__copy_and_pad(char *, char *, size_t);
+private void	re__copy_and_pad(char *, const char *, size_t);
 
 #ifdef DEBUG_REFRESH
-private void	re_printstr(EditLine *, char *, char *, char *);
+private void	re_printstr(EditLine *, const char *, char *, char *);
 #define	__F el->el_errfile
 #define	ELRE_ASSERT(a, b, c)	do 				\
-				    if (a) {			\
+				    if (/*CONSTCOND*/ a) {	\
 					(void) fprintf b;	\
 					c;			\
 				    }				\
-				while (0)
+				while (/*CONSTCOND*/0)
 #define	ELRE_DEBUG(a, b)	ELRE_ASSERT(a,b,;)
 
 /* re_printstr():
  *	Print a string on the debugging pty
  */
 private void
-re_printstr(EditLine *el, char *str, char *f, char *t)
+re_printstr(EditLine *el, const char *str, char *f, char *t)
 {
 
 	ELRE_DEBUG(1, (__F, "%s:\"", str));
@@ -210,6 +205,14 @@ re_refresh(EditLine *el)
 	el->el_refresh.r_cursor.h = 0;
 	el->el_refresh.r_cursor.v = 0;
 
+	if (el->el_line.cursor >= el->el_line.lastchar) {
+		if (el->el_map.current == el->el_map.alt
+		    && el->el_line.lastchar != el->el_line.buffer)
+			el->el_line.cursor = el->el_line.lastchar - 1;
+		else
+			el->el_line.cursor = el->el_line.lastchar;
+	}
+
 	cur.h = -1;		/* set flag in case I'm not set */
 	cur.v = 0;
 
@@ -319,7 +322,6 @@ re_goto_bottom(EditLine *el)
 {
 
 	term_move_to_line(el, el->el_refresh.r_oldcv);
-	term__putc('\r');
 	term__putc('\n');
 	re_clear_display(el);
 	term__flush();
@@ -332,7 +334,8 @@ re_goto_bottom(EditLine *el)
  */
 private void
 /*ARGSUSED*/
-re_insert(EditLine *el, char *d, int dat, int dlen, char *s, int num)
+re_insert(EditLine *el __attribute__((__unused__)),
+    char *d, int dat, int dlen, char *s, int num)
 {
 	char *a, *b;
 
@@ -375,7 +378,8 @@ re_insert(EditLine *el, char *d, int dat, int dlen, char *s, int num)
  */
 private void
 /*ARGSUSED*/
-re_delete(EditLine *el, char *d, int dat, int dlen, int num)
+re_delete(EditLine *el __attribute__((__unused__)),
+    char *d, int dat, int dlen, int num)
 {
 	char *a, *b;
 
@@ -908,9 +912,9 @@ re_update_line(EditLine *el, char *old, char *new, int i)
  *	Copy string and pad with spaces
  */
 private void
-re__copy_and_pad(char *dst, char *src, size_t width)
+re__copy_and_pad(char *dst, const char *src, size_t width)
 {
-	int i;
+	size_t i;
 
 	for (i = 0; i < width; i++) {
 		if (*src == '\0')
@@ -933,6 +937,14 @@ re_refresh_cursor(EditLine *el)
 {
 	char *cp, c;
 	int h, v, th;
+
+	if (el->el_line.cursor >= el->el_line.lastchar) {
+		if (el->el_map.current == el->el_map.alt
+		    && el->el_line.lastchar != el->el_line.buffer)
+			el->el_line.cursor = el->el_line.lastchar - 1;
+		else
+			el->el_line.cursor = el->el_line.lastchar;
+	}
 
 	/* first we must find where the cursor is... */
 	h = el->el_prompt.p_pos.h;
@@ -1056,8 +1068,8 @@ re_fastaddc(EditLine *el)
 		re_fastputc(el, c);
 	} else {
 		re_fastputc(el, '\\');
-		re_fastputc(el, (int) ((((unsigned int) c >> 6) & 7) + '0'));
-		re_fastputc(el, (int) ((((unsigned int) c >> 3) & 7) + '0'));
+		re_fastputc(el, (int)(((((unsigned int)c) >> 6) & 3) + '0'));
+		re_fastputc(el, (int)(((((unsigned int)c) >> 3) & 7) + '0'));
 		re_fastputc(el, (c & 7) + '0');
 	}
 	term__flush();
