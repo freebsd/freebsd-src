@@ -1,4 +1,4 @@
-/*	$NetBSD: filecomplete.c,v 1.8 2005/08/03 13:41:38 christos Exp $	*/
+/*	$NetBSD: filecomplete.c,v 1.10 2006/11/09 16:58:38 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
+ * 3. Neither the name of The NetBSD Foundation nor the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -38,7 +34,7 @@
 
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: filecomplete.c,v 1.8 2005/08/03 13:41:38 christos Exp $");
+__RCSID("$NetBSD: filecomplete.c,v 1.10 2006/11/09 16:58:38 christos Exp $");
 #endif /* not lint && not SCCSID */
 
 #include <sys/types.h>
@@ -398,6 +394,7 @@ fn_complete(EditLine *el,
 	const char *ctemp;
 	size_t len;
 	int what_to_do = '\t';
+	int retval = CC_NORM;
 
 	if (el->el_state.lastcmd == el->el_state.thiscmd)
 		what_to_do = '?';
@@ -420,7 +417,11 @@ fn_complete(EditLine *el,
 		ctemp--;
 
 	len = li->cursor - ctemp;
+#if defined(__SSP__) || defined(__SSP_ALL__)
+	temp = malloc(len + 1);
+#else
 	temp = alloca(len + 1);
+#endif
 	(void)strncpy(temp, ctemp, len);
 	temp[len] = '\0';
 
@@ -445,9 +446,10 @@ fn_complete(EditLine *el,
 		*over = 0;
 
 	if (matches) {
-		int i, retval = CC_REFRESH;
+		int i;
 		int matches_num, maxlen, match_len, match_display=1;
 
+		retval = CC_REFRESH;
 		/*
 		 * Only replace the completed string with common part of
 		 * possible matches if there is possible completion.
@@ -519,11 +521,13 @@ fn_complete(EditLine *el,
 		/* free elements of array and the array itself */
 		for (i = 0; matches[i]; i++)
 			free(matches[i]);
-		free(matches), matches = NULL;
-
-		return (retval);
+		free(matches);
+		matches = NULL;
 	}
-	return (CC_NORM);
+#if defined(__SSP__) || defined(__SSP_ALL__)
+	free(temp);
+#endif
+	return retval;
 }
 
 /*

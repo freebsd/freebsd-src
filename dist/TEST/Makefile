@@ -1,7 +1,7 @@
-# $NetBSD: Makefile,v 1.2 2003/12/05 13:37:48 lukem Exp $
+# $NetBSD: Makefile,v 1.3 2006/08/31 20:20:38 rpaulo Exp $
 
 NOMAN=1
-PROG=test
+PROG=tc1
 CPPFLAGS=-I${.CURDIR}/..
 LDADD+=-ledit -ltermcap
 DPADD+=${LIBEDIT} ${LIBTERMCAP}
