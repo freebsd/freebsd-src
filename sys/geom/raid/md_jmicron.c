@@ -579,14 +579,12 @@ g_raid_md_jmicron_refill(struct g_raid_softc *sc)
 {
 	struct g_raid_md_object *md;
 	struct g_raid_md_jmicron_object *mdi;
-	struct jmicron_raid_conf *meta;
 	struct g_raid_disk *disk;
 	struct task *task;
 	int update, na;
 
 	md = sc->sc_md;
 	mdi = (struct g_raid_md_jmicron_object *)md;
-	meta = mdi->mdio_meta;
 	update = 0;
 	do {
 		/* Make sure we miss anything. */
@@ -620,10 +618,8 @@ g_raid_md_jmicron_refill(struct g_raid_softc *sc)
 	} while (disk != NULL);
 
 	/* Write new metadata if we changed something. */
-	if (update) {
+	if (update)
 		g_raid_md_write_jmicron(md, NULL, NULL, NULL);
-		meta = mdi->mdio_meta;
-	}
 
 	/* Update status of our need for spare. */
 	mdi->mdio_incomplete = (g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) <
@@ -835,9 +831,7 @@ g_raid_md_taste_jmicron(struct g_raid_md_object *md, struct g_class *mp,
 
 	/* Read metadata from device. */
 	meta = NULL;
-	spare = 0;
 	vendor = 0xffff;
-	disk_pos = 0;
 	if (g_access(cp, 1, 0, 0) != 0)
 		return (G_RAID_MD_TASTE_FAIL);
 	g_topology_unlock();
@@ -1133,6 +1127,11 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 		if (error != 0)
 			return (error);
 
+		if (sectorsize <= 0) {
+			gctl_error(req, "Can't get sector size.");
+			return (-8);
+		}
+
 		/* Reserve space for metadata. */
 		size -= sectorsize;
 
@@ -1364,7 +1363,6 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 
 			disk = g_raid_create_disk(sc);
 			disk->d_consumer = cp;
-			disk->d_consumer->private = disk;
 			disk->d_md_data = (void *)pd;
 			cp->private = disk;
 			g_topology_unlock();
@@ -1470,7 +1468,6 @@ g_raid_md_write_jmicron(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	if (mdi->mdio_meta != NULL)
 		free(mdi->mdio_meta, M_MD_JMICRON);
 	mdi->mdio_meta = meta;
-	i = 0;
 	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
 		pd = (struct g_raid_md_jmicron_perdisk *)disk->d_md_data;
 		if (disk->d_state != G_RAID_DISK_S_ACTIVE &&
@@ -1507,12 +1504,10 @@ g_raid_md_fail_disk_jmicron(struct g_raid_md_object *md,
     struct g_raid_subdisk *tsd, struct g_raid_disk *tdisk)
 {
 	struct g_raid_softc *sc;
-	struct g_raid_md_jmicron_object *mdi;
 	struct g_raid_md_jmicron_perdisk *pd;
 	struct g_raid_subdisk *sd;
 
 	sc = md->mdo_softc;
-	mdi = (struct g_raid_md_jmicron_object *)md;
 	pd = (struct g_raid_md_jmicron_perdisk *)tdisk->d_md_data;
 
 	/* We can't fail disk that is not a part of array now. */

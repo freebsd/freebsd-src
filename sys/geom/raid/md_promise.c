@@ -1154,12 +1154,10 @@ g_raid_md_event_promise(struct g_raid_md_object *md,
     struct g_raid_disk *disk, u_int event)
 {
 	struct g_raid_softc *sc;
-	struct g_raid_md_promise_perdisk *pd;
 
 	sc = md->mdo_softc;
 	if (disk == NULL)
 		return (-1);
-	pd = (struct g_raid_md_promise_perdisk *)disk->d_md_data;
 	switch (event) {
 	case G_RAID_DISK_E_DISCONNECTED:
 		/* Delete disk. */
@@ -1184,10 +1182,8 @@ static int
 g_raid_md_volume_event_promise(struct g_raid_md_object *md,
     struct g_raid_volume *vol, u_int event)
 {
-	struct g_raid_softc *sc;
 	struct g_raid_md_promise_pervolume *pv;
 
-	sc = md->mdo_softc;
 	pv = (struct g_raid_md_promise_pervolume *)vol->v_md_data;
 	switch (event) {
 	case G_RAID_VOLUME_E_STARTMD:
@@ -1343,6 +1339,11 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 					g_raid_destroy_disk(disks[i]);
 			}
 			return (error);
+		}
+
+		if (sectorsize <= 0) {
+			gctl_error(req, "Can't get sector size.");
+			return (-8);
 		}
 
 		/* Handle size argument. */
@@ -1567,8 +1568,6 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 				continue;
 			}
 
-			pd = (struct g_raid_md_promise_perdisk *)disk->d_md_data;
-
 			/* Erase metadata on deleting disk and destroy it. */
 			promise_meta_erase(disk->d_consumer);
 			g_raid_destroy_disk(disk);
@@ -1610,14 +1609,12 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 				error = -4;
 				break;
 			}
-			pp = cp->provider;
 			g_topology_unlock();
 
 			pd = malloc(sizeof(*pd), M_MD_PROMISE, M_WAITOK | M_ZERO);
 
 			disk = g_raid_create_disk(sc);
 			disk->d_consumer = cp;
-			disk->d_consumer->private = disk;
 			disk->d_md_data = (void *)pd;
 			cp->private = disk;
 

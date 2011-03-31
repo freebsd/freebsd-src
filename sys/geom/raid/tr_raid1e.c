@@ -196,13 +196,11 @@ g_raid_tr_taste_raid1e(struct g_raid_tr_object *tr, struct g_raid_volume *vol)
 static int
 g_raid_tr_update_state_raid1e_even(struct g_raid_volume *vol)
 {
-	struct g_raid_tr_raid1e_object *trs;
 	struct g_raid_softc *sc;
 	struct g_raid_subdisk *sd, *bestsd, *worstsd;
 	int i, j, state, sstate;
 
 	sc = vol->v_softc;
-	trs = (struct g_raid_tr_raid1e_object *)vol->v_tr;
 	state = G_RAID_VOLUME_S_OPTIMAL;
 	for (i = 0; i < vol->v_disks_count / N; i++) {
 		bestsd = &vol->v_subdisks[i * N];
@@ -251,13 +249,11 @@ g_raid_tr_update_state_raid1e_even(struct g_raid_volume *vol)
 static int
 g_raid_tr_update_state_raid1e_odd(struct g_raid_volume *vol)
 {
-	struct g_raid_tr_raid1e_object *trs;
 	struct g_raid_softc *sc;
 	struct g_raid_subdisk *sd, *bestsd, *worstsd;
 	int i, j, state, sstate;
 
 	sc = vol->v_softc;
-	trs = (struct g_raid_tr_raid1e_object *)vol->v_tr;
 	if (g_raid_nsubdisks(vol, G_RAID_SUBDISK_S_ACTIVE) ==
 	    vol->v_disks_count)
 		return (G_RAID_VOLUME_S_OPTIMAL);
