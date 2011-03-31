@@ -1,4 +1,4 @@
-/*	$NetBSD: emacs.c,v 1.19 2004/10/28 21:14:52 dsl Exp $	*/
+/*	$NetBSD: emacs.c,v 1.20 2005/08/08 14:05:37 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)emacs.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: emacs.c,v 1.19 2004/10/28 21:14:52 dsl Exp $");
+__RCSID("$NetBSD: emacs.c,v 1.20 2005/08/08 14:05:37 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -59,7 +59,7 @@ em_delete_or_list(EditLine *el, int c __attribute__((__unused__)))
 					/* if I'm at the end */
 		if (el->el_line.cursor == el->el_line.buffer) {
 					/* and the beginning */
-			term_overwrite(el, STReof, 4);	/* then do a EOF */
+			term_overwrite(el, STReof, 4);	/* then do an EOF */
 			term__flush();
 			return (CC_EOF);
 		} else {

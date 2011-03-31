@@ -1,4 +1,4 @@
-/*	$NetBSD: chared.h,v 1.15 2005/08/01 23:00:15 christos Exp $	*/
+/*	$NetBSD: chared.h,v 1.16 2005/08/08 14:05:37 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -48,7 +48,7 @@
 #define	EL_MAXMACRO	10
 
 /*
- * This is a issue of basic "vi" look-and-feel. Defining VI_MOVE works
+ * This is an issue of basic "vi" look-and-feel. Defining VI_MOVE works
  * like real vi: i.e. the transition from command<->insert modes moves
  * the cursor.
  *

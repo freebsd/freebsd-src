@@ -1,4 +1,4 @@
-/*	$NetBSD: vi.c,v 1.21 2005/04/25 01:06:03 matt Exp $	*/
+/*	$NetBSD: vi.c,v 1.24 2005/08/10 12:46:24 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -41,7 +41,7 @@
 #if 0
 static char sccsid[] = "@(#)vi.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: vi.c,v 1.21 2005/04/25 01:06:03 matt Exp $");
+__RCSID("$NetBSD: vi.c,v 1.24 2005/08/10 12:46:24 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -71,8 +71,10 @@ cv_action(EditLine *el, int c)
 			    el->el_line.lastchar - el->el_line.buffer);
 		el->el_chared.c_vcmd.action = NOP;
 		el->el_chared.c_vcmd.pos = 0;
-		el->el_line.lastchar = el->el_line.buffer;
-		el->el_line.cursor = el->el_line.buffer;
+		if (!(c & YANK)) {
+			el->el_line.lastchar = el->el_line.buffer;
+			el->el_line.cursor = el->el_line.buffer;
+		}
 		if (c & INSERT)
 			el->el_map.current = el->el_map.key;
 
@@ -89,7 +91,6 @@ cv_action(EditLine *el, int c)
 private el_action_t
 cv_paste(EditLine *el, int c)
 {
-	char *ptr;
 	c_kill_t *k = &el->el_chared.c_kill;
 	int len = k->last - k->buf;
 
@@ -103,12 +104,12 @@ cv_paste(EditLine *el, int c)
 
 	if (!c && el->el_line.cursor < el->el_line.lastchar)
 		el->el_line.cursor++;
-	ptr = el->el_line.cursor;
 
 	c_insert(el, len);
 	if (el->el_line.cursor + len > el->el_line.lastchar)
 		return (CC_ERROR);
-	(void) memcpy(ptr, k->buf, len +0u);
+	(void) memcpy(el->el_line.cursor, k->buf, len +0u);
+
 	return (CC_REFRESH);
 }
 
@@ -895,7 +896,7 @@ vi_yank(EditLine *el, int c)
 
 /* vi_comment_out():
  *	Vi comment out current command
- *	[c]
+ *	[#]
  */
 protected el_action_t
 /*ARGSUSED*/
@@ -912,7 +913,7 @@ vi_comment_out(EditLine *el, int c)
 /* vi_alias():
  *	Vi include shell alias
  *	[@]
- * NB: posix impiles that we should enter insert mode, however
+ * NB: posix implies that we should enter insert mode, however
  * this is against historical precedent...
  */
 protected el_action_t
