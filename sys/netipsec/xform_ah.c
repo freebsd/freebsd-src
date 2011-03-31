@@ -715,6 +715,8 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	tc->tc_protoff = protoff;
 	tc->tc_skip = skip;
 	tc->tc_ptr = (caddr_t) mtag; /* Save the mtag we've identified. */
+	KEY_ADDREFSA(sav);
+	tc->tc_sav = sav;
 
 	if (mtag == NULL)
 		return crypto_dispatch(crp);
@@ -764,13 +766,8 @@ ah_input_cb(struct cryptop *crp)
 	mtag = (struct m_tag *) tc->tc_ptr;
 	m = (struct mbuf *) crp->crp_buf;
 
-	sav = KEY_ALLOCSA(&tc->tc_dst, tc->tc_proto, tc->tc_spi);
-	if (sav == NULL) {
-		V_ahstat.ahs_notdb++;
-		DPRINTF(("%s: SA expired while in crypto\n", __func__));
-		error = ENOBUFS;		/*XXX*/
-		goto bad;
-	}
+	sav = tc->tc_sav;
+	IPSEC_ASSERT(sav != NULL, ("null SA!"));
 
 	saidx = &sav->sah->saidx;
 	IPSEC_ASSERT(saidx->dst.sa.sa_family == AF_INET ||
@@ -785,7 +782,6 @@ ah_input_cb(struct cryptop *crp)
 			sav->tdb_cryptoid = crp->crp_sid;
 
 		if (crp->crp_etype == EAGAIN) {
-			KEY_FREESAV(&sav);
 			error = crypto_dispatch(crp);
 			return error;
 		}
@@ -1111,6 +1107,8 @@ ah_output(
 
 	/* These are passed as-is to the callback. */
 	tc->tc_isr = isr;
+	KEY_ADDREFSA(sav);
+	tc->tc_sav = sav;
 	tc->tc_spi = sav->spi;
 	tc->tc_dst = sav->sah->saidx.dst;
 	tc->tc_proto = sav->sah->saidx.proto;
@@ -1147,14 +1145,14 @@ ah_output_cb(struct cryptop *crp)
 
 	isr = tc->tc_isr;
 	IPSECREQUEST_LOCK(isr);
-	sav = KEY_ALLOCSA(&tc->tc_dst, tc->tc_proto, tc->tc_spi);
-	if (sav == NULL) {
+	sav = tc->tc_sav;
+	/* With the isr lock released SA pointer can be updated. */
+	if (sav != isr->sav) {
 		V_ahstat.ahs_notdb++;
 		DPRINTF(("%s: SA expired while in crypto\n", __func__));
 		error = ENOBUFS;		/*XXX*/
 		goto bad;
 	}
-	IPSEC_ASSERT(isr->sav == sav, ("SA changed\n"));
 
 	/* Check for crypto errors. */
 	if (crp->crp_etype) {
@@ -1162,7 +1160,6 @@ ah_output_cb(struct cryptop *crp)
 			sav->tdb_cryptoid = crp->crp_sid;
 
 		if (crp->crp_etype == EAGAIN) {
-			KEY_FREESAV(&sav);
 			IPSECREQUEST_UNLOCK(isr);
 			error = crypto_dispatch(crp);
 			return error;
