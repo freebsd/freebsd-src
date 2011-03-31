@@ -235,21 +235,23 @@ sysctl_handle_inaddr(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_NODE(_net, OID_AUTO, dump, CTLFLAG_RW, 0, "netdump");
-SYSCTL_PROC(_net_dump, OID_AUTO, server, CTLTYPE_STRING|CTLFLAG_RW, &nd_server,
-	0, sysctl_handle_inaddr, "A", "dump server");
-SYSCTL_PROC(_net_dump, OID_AUTO, client, CTLTYPE_STRING|CTLFLAG_RW, &nd_client,
-	0, sysctl_handle_inaddr, "A", "dump client");
-SYSCTL_PROC(_net_dump, OID_AUTO, gateway, CTLTYPE_STRING|CTLFLAG_RW, &nd_gw,
-	0, sysctl_handle_inaddr, "A", "dump default gateway");
-SYSCTL_PROC(_net_dump, OID_AUTO, nic, CTLTYPE_STRING|CTLFLAG_RW, &nd_ifp_str,
-	0, sysctl_handle_ifxname, "A", "dumping interface name");
-SYSCTL_INT(_net_dump, OID_AUTO, polls, CTLTYPE_INT|CTLFLAG_RW, &nd_polls, 0,
-	"times to poll NIC per retry");
-SYSCTL_INT(_net_dump, OID_AUTO, retries, CTLTYPE_INT|CTLFLAG_RW, &nd_retries, 0,
-	"times to retransmit lost packets");
-SYSCTL_INT(_net_dump, OID_AUTO, enable, CTLTYPE_INT|CTLFLAG_RW, &nd_enable,
-	0, "enable network dump");
+SYSCTL_NODE(_net, OID_AUTO, dump, CTLFLAG_RW | CTLFLAG_MPSAFE, 0, "netdump");
+SYSCTL_PROC(_net_dump, OID_AUTO, server, CTLTYPE_STRING | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, &nd_server, 0, sysctl_handle_inaddr, "A", "dump server");
+SYSCTL_PROC(_net_dump, OID_AUTO, client, CTLTYPE_STRING |CTLFLAG_RW |
+    CTLFLAG_MPSAFE, &nd_client, 0, sysctl_handle_inaddr, "A", "dump client");
+SYSCTL_PROC(_net_dump, OID_AUTO, gateway, CTLTYPE_STRING | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, &nd_gw, 0, sysctl_handle_inaddr, "A",
+    "dump default gateway");
+SYSCTL_PROC(_net_dump, OID_AUTO, nic, CTLTYPE_STRING | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, &nd_ifp_str, 0, sysctl_handle_ifxname, "A",
+    "dumping interface name");
+SYSCTL_INT(_net_dump, OID_AUTO, polls, CTLTYPE_INT | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, &nd_polls, 0, "times to poll NIC per retry");
+SYSCTL_INT(_net_dump, OID_AUTO, retries, CTLTYPE_INT | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, &nd_retries, 0, "times to retransmit lost packets");
+SYSCTL_INT(_net_dump, OID_AUTO, enable, CTLTYPE_INT | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, &nd_enable, 0, "enable network dump");
 
 TUNABLE_STR("net.dump.server", nd_server_tun, sizeof(nd_server_tun));
 TUNABLE_STR("net.dump.client", nd_client_tun, sizeof(nd_client_tun));
