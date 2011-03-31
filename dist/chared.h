@@ -1,4 +1,4 @@
-/*	$NetBSD: chared.h,v 1.2 1997/01/11 06:47:49 lukem Exp $	*/
+/*	$NetBSD: chared.h,v 1.6 2001/01/10 07:45:41 jdolecek Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -42,61 +42,61 @@
  * el.chared.h: Character editor interface
  */
 #ifndef _h_el_chared
-#define _h_el_chared
+#define	_h_el_chared
 
 #include <ctype.h>
 #include <string.h>
 
 #include "histedit.h"
 
-#define EL_MAXMACRO 10
+#define	EL_MAXMACRO	10
 
 /*
  * This is a issue of basic "vi" look-and-feel. Defining VI_MOVE works
  * like real vi: i.e. the transition from command<->insert modes moves
  * the cursor.
  *
- * On the other hand we really don't want to move the cursor, because 
+ * On the other hand we really don't want to move the cursor, because
  * all the editing commands don't include the character under the cursor.
  * Probably the best fix is to make all the editing commands aware of
  * this fact.
  */
-#define VI_MOVE
+#define	VI_MOVE
 
 
 typedef struct c_macro_t {
-    int    level;
-    char **macro;
-    char  *nline;
+	int	  level;
+	char	**macro;
+	char	 *nline;
 } c_macro_t;
 
-/* 
+/*
  * Undo information for both vi and emacs
  */
 typedef struct c_undo_t {
-    int   action;
-    int   isize;
-    int   dsize;
-    char *ptr;
-    char *buf;
+	int	 action;
+	size_t	 isize;
+	size_t	 dsize;
+	char	*ptr;
+	char	*buf;
 } c_undo_t;
 
 /*
  * Current action information for vi
  */
 typedef struct c_vcmd_t {
-    int   action;
-    char *pos;
-    char *ins;
+	int	 action;
+	char	*pos;
+	char	*ins;
 } c_vcmd_t;
 
 /*
  * Kill buffer for emacs
  */
 typedef struct c_kill_t {
-    char *buf;
-    char *last;
-    char *mark;
+	char	*buf;
+	char	*last;
+	char	*mark;
 } c_kill_t;
 
 /*
@@ -104,30 +104,30 @@ typedef struct c_kill_t {
  * commands from both editors!
  */
 typedef struct el_chared_t {
-    c_undo_t    c_undo;
-    c_kill_t    c_kill;
-    c_vcmd_t    c_vcmd;
-    c_macro_t   c_macro;
+	c_undo_t	c_undo;
+	c_kill_t	c_kill;
+	c_vcmd_t	c_vcmd;
+	c_macro_t	c_macro;
 } el_chared_t;
 
 
-#define STReof "^D\b\b"
-#define STRQQ  "\"\""
+#define	STReof		"^D\b\b"
+#define	STRQQ		"\"\""
 
-#define isglob(a) (strchr("*[]?", (a)) != NULL)
-#define isword(a) (isprint(a))
+#define	isglob(a)	(strchr("*[]?", (a)) != NULL)
+#define	isword(a)	(isprint(a))
 
-#define NOP    	  0x00
-#define DELETE 	  0x01
-#define INSERT 	  0x02
-#define CHANGE 	  0x04
+#define	NOP		0x00
+#define	DELETE		0x01
+#define	INSERT		0x02
+#define	CHANGE		0x04
 
-#define CHAR_FWD	0
-#define CHAR_BACK	1
+#define	CHAR_FWD	0
+#define	CHAR_BACK	1
 
-#define MODE_INSERT	0
-#define MODE_REPLACE	1
-#define MODE_REPLACE_1	2
+#define	MODE_INSERT	0
+#define	MODE_REPLACE	1
+#define	MODE_REPLACE_1	2
 
 #include "common.h"
 #include "vi.h"
@@ -136,25 +136,24 @@ typedef struct el_chared_t {
 #include "fcns.h"
 
 
-protected int   cv__isword	__P((int));
-protected void  cv_delfini	__P((EditLine *));
-protected char *cv__endword	__P((char *, char *, int));
-protected int   ce__isword	__P((int));
-protected void  cv_undo		__P((EditLine *, int, int, char *));
-protected char *cv_next_word	__P((EditLine*, char *, char *, int, 
-				     int (*)(int)));
-protected char *cv_prev_word	__P((EditLine*, char *, char *, int,
-				     int (*)(int)));
-protected char *c__next_word	__P((char *, char *, int, int (*)(int)));
-protected char *c__prev_word	__P((char *, char *, int, int (*)(int)));
-protected void  c_insert	__P((EditLine *, int));
-protected void  c_delbefore	__P((EditLine *, int));
-protected void  c_delafter	__P((EditLine *, int));
-protected int   c_gets		__P((EditLine *, char *));
-protected int   c_hpos		__P((EditLine *));
+protected int	 cv__isword(int);
+protected void	 cv_delfini(EditLine *);
+protected char	*cv__endword(char *, char *, int);
+protected int	 ce__isword(int);
+protected void	 cv_undo(EditLine *, int, size_t, char *);
+protected char	*cv_next_word(EditLine*, char *, char *, int, int (*)(int));
+protected char	*cv_prev_word(EditLine*, char *, char *, int, int (*)(int));
+protected char	*c__next_word(char *, char *, int, int (*)(int));
+protected char	*c__prev_word(char *, char *, int, int (*)(int));
+protected void	 c_insert(EditLine *, int);
+protected void	 c_delbefore(EditLine *, int);
+protected void	 c_delafter(EditLine *, int);
+protected int	 c_gets(EditLine *, char *);
+protected int	 c_hpos(EditLine *);
 
-protected int   ch_init		__P((EditLine *));
-protected void  ch_reset	__P((EditLine *));
-protected void  ch_end		__P((EditLine *));
+protected int	 ch_init(EditLine *);
+protected void	 ch_reset(EditLine *);
+protected int	 ch_enlargebufs	__P((EditLine *, size_t));
+protected void	 ch_end(EditLine *);
 
 #endif /* _h_el_chared */

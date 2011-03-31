@@ -1,4 +1,4 @@
-/*	$NetBSD: hist.c,v 1.2 1997/01/11 06:47:55 lukem Exp $	*/
+/*	$NetBSD: hist.c,v 1.9 2001/05/17 01:02:17 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -36,11 +36,12 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)hist.c	8.1 (Berkeley) 6/4/93";
 #else
-static char rcsid[] = "$NetBSD: hist.c,v 1.2 1997/01/11 06:47:55 lukem Exp $";
+__RCSID("$NetBSD: hist.c,v 1.9 2001/05/17 01:02:17 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -55,14 +56,17 @@ static char rcsid[] = "$NetBSD: hist.c,v 1.2 1997/01/11 06:47:55 lukem Exp $";
  *	Initialization function.
  */
 protected int
-hist_init(el)
-    EditLine *el;
+hist_init(EditLine *el)
 {
-    el->el_history.fun  = NULL;
-    el->el_history.ref  = NULL;
-    el->el_history.buf   = (char *) el_malloc(EL_BUFSIZ);
-    el->el_history.last  = el->el_history.buf;
-    return 0;
+
+	el->el_history.fun = NULL;
+	el->el_history.ref = NULL;
+	el->el_history.buf = (char *) el_malloc(EL_BUFSIZ);
+	el->el_history.sz  = EL_BUFSIZ;
+	if (el->el_history.buf == NULL)
+		return (-1);
+	el->el_history.last = el->el_history.buf;
+	return (0);
 }
 
 
@@ -70,11 +74,11 @@ hist_init(el)
  *	clean up history;
  */
 protected void
-hist_end(el)
-    EditLine *el;
+hist_end(EditLine *el)
 {
-    el_free((ptr_t) el->el_history.buf);
-    el->el_history.buf   = NULL;
+
+	el_free((ptr_t) el->el_history.buf);
+	el->el_history.buf = NULL;
 }
 
 
@@ -82,15 +86,12 @@ hist_end(el)
  *	Set new history interface
  */
 protected int
-hist_set(el, fun, ptr)
-    EditLine *el;
-    hist_fun_t fun;
-    ptr_t ptr;
-
+hist_set(EditLine *el, hist_fun_t fun, ptr_t ptr)
 {
-    el->el_history.ref = ptr;
-    el->el_history.fun = fun;
-    return 0;
+
+	el->el_history.ref = ptr;
+	el->el_history.fun = fun;
+	return (0);
 }
 
 
@@ -99,78 +100,99 @@ hist_set(el, fun, ptr)
  *	eventno tells us the event to get.
  */
 protected el_action_t
-hist_get(el)
-    EditLine *el;
+hist_get(EditLine *el)
 {
-    const char    *hp;
-    int     h;
+	const char *hp;
+	int h;
 
-    if (el->el_history.eventno == 0) {	/* if really the current line */
-	(void) strncpy(el->el_line.buffer, el->el_history.buf, EL_BUFSIZ);
-	el->el_line.lastchar = el->el_line.buffer + 
-		(el->el_history.last - el->el_history.buf);
+	if (el->el_history.eventno == 0) {	/* if really the current line */
+		(void) strncpy(el->el_line.buffer, el->el_history.buf,
+		    el->el_history.sz);
+		el->el_line.lastchar = el->el_line.buffer +
+		    (el->el_history.last - el->el_history.buf);
 
 #ifdef KSHVI
-    if (el->el_map.type == MAP_VI)
-	el->el_line.cursor = el->el_line.buffer;
-    else
+		if (el->el_map.type == MAP_VI)
+			el->el_line.cursor = el->el_line.buffer;
+		else
 #endif /* KSHVI */
-	el->el_line.cursor = el->el_line.lastchar;
+			el->el_line.cursor = el->el_line.lastchar;
 
-	return CC_REFRESH;
-    }
-
-    if (el->el_history.ref == NULL)
-	return CC_ERROR;
-
-    hp = HIST_FIRST(el);
-
-    if (hp == NULL)
-	return CC_ERROR;
-
-    for (h = 1; h < el->el_history.eventno; h++)
-	if ((hp = HIST_NEXT(el)) == NULL) {
-	    el->el_history.eventno = h;
-	    return CC_ERROR;
+		return (CC_REFRESH);
 	}
+	if (el->el_history.ref == NULL)
+		return (CC_ERROR);
 
-    (void) strncpy(el->el_line.buffer, hp, EL_BUFSIZ);
-    el->el_line.lastchar = el->el_line.buffer + strlen(el->el_line.buffer);
+	hp = HIST_FIRST(el);
 
-    if (el->el_line.lastchar > el->el_line.buffer) {
-	if (el->el_line.lastchar[-1] == '\n')
-	    el->el_line.lastchar--;
-	if (el->el_line.lastchar[-1] == ' ')
-	    el->el_line.lastchar--;
-	if (el->el_line.lastchar < el->el_line.buffer)
-	    el->el_line.lastchar = el->el_line.buffer;
-    }
+	if (hp == NULL)
+		return (CC_ERROR);
 
+	for (h = 1; h < el->el_history.eventno; h++)
+		if ((hp = HIST_NEXT(el)) == NULL) {
+			el->el_history.eventno = h;
+			return (CC_ERROR);
+		}
+	(void) strncpy(el->el_line.buffer, hp,
+			(size_t)(el->el_line.limit - el->el_line.buffer));
+	el->el_line.lastchar = el->el_line.buffer + strlen(el->el_line.buffer);
+
+	if (el->el_line.lastchar > el->el_line.buffer) {
+		if (el->el_line.lastchar[-1] == '\n')
+			el->el_line.lastchar--;
+		if (el->el_line.lastchar[-1] == ' ')
+			el->el_line.lastchar--;
+		if (el->el_line.lastchar < el->el_line.buffer)
+			el->el_line.lastchar = el->el_line.buffer;
+	}
 #ifdef KSHVI
-    if (el->el_map.type == MAP_VI)
-	el->el_line.cursor = el->el_line.buffer;
-    else
+	if (el->el_map.type == MAP_VI)
+		el->el_line.cursor = el->el_line.buffer;
+	else
 #endif /* KSHVI */
-	el->el_line.cursor = el->el_line.lastchar;
+		el->el_line.cursor = el->el_line.lastchar;
 
-    return CC_REFRESH;
+	return (CC_REFRESH);
 }
+
 
 /* hist_list()
  *	List history entries
  */
 protected int
 /*ARGSUSED*/
-hist_list(el, argc, argv)
-    EditLine *el;
-    int argc;
-    char **argv;
+hist_list(EditLine *el, int argc, char **argv)
 {
-    const char *str;
+	const char *str;
 
-    if (el->el_history.ref == NULL)
-	return -1;
-    for (str = HIST_LAST(el); str != NULL; str = HIST_PREV(el))
-	(void) fprintf(el->el_outfile, "%d %s", el->el_history.ev->num, str);
-    return 0;
+	if (el->el_history.ref == NULL)
+		return (-1);
+	for (str = HIST_LAST(el); str != NULL; str = HIST_PREV(el))
+		(void) fprintf(el->el_outfile, "%d %s",
+		    el->el_history.ev.num, str);
+	return (0);
+}
+
+/* hist_enlargebuf()
+ *	Enlarge history buffer to specified value. Called from el_enlargebufs().
+ *	Return 0 for failure, 1 for success.
+ */
+protected int
+/*ARGSUSED*/
+hist_enlargebuf(EditLine *el, size_t oldsz, size_t newsz)
+{
+	char *newbuf;
+
+	newbuf = realloc(el->el_history.buf, newsz);
+	if (!newbuf)
+		return 0;
+
+	(void) memset(&newbuf[oldsz], '\0', newsz - oldsz);
+
+	el->el_history.last = newbuf +
+				(el->el_history.last - el->el_history.buf);
+	el->el_history.buf = newbuf;
+	el->el_history.sz  = newsz;
+
+	return 1;
 }
