@@ -1119,6 +1119,7 @@ struct bxe_softc {
 	 * MUST start with ifnet pointer (see definition of miibus_statchg()).
 	 */
 	struct ifnet		*bxe_ifp;
+	int			media;
 
 	/* Parent device handle. */
 	device_t		bxe_dev;
