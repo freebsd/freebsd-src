@@ -458,9 +458,7 @@ SYSCTL_UINT(_hw_bxe, OID_AUTO, tpa_enable, CTLFLAG_RDTUN, &bxe_tpa_enable,
 
 /*
  * Specifies the number of queues that will be used when a multi-queue
- * RSS mode is selected  using bxe_multi_mode below.  Some RSS modes
- * require additional queue configuration which may conflict with this
- * setting.  In that case this value will be overriden.
+ * RSS mode is selected  using bxe_multi_mode below.
  *
  * Allowable values are 0 (Auto) or 1 to MAX_CONTEXT (fixed queue number).
  */
@@ -1145,7 +1143,7 @@ bxe_interrupt_allocate(struct bxe_softc *sc)
 			break;
 		}
 	} else {
-		/* User	has	forced INTx mode. */
+		/* User	has forced INTx mode. */
 		sc->multi_mode = ETH_RSS_MODE_DISABLED;
 		sc->num_queues = 1;
 	}
@@ -1451,7 +1449,7 @@ bxe_interrupt_attach(struct bxe_softc *sc)
 			"%s(): Enabling slowpath MSI[0] vector.\n",
 			__FUNCTION__);
 		/*
-		 * Setup the interrupt handler.  Note that we pass the driver
+		 * Setup the interrupt handler. Note that we pass the driver
 		 * instance to the interrupt handler for the slowpath.
 		 */
 		rc = bus_setup_intr(sc->bxe_dev,sc->bxe_msi_res[0],
@@ -1477,7 +1475,7 @@ bxe_interrupt_attach(struct bxe_softc *sc)
 				"%s(): Enabling MSI[%d] vector.\n",
 				__FUNCTION__, i + 1);
 			/*
-			 * Setup the interrupt handler.  Note that we pass the
+			 * Setup the interrupt handler. Note that we pass the
 			 * fastpath context to the interrupt handler in this
 			 * case.
 			 */
@@ -1762,7 +1760,7 @@ bxe_attach(device_t dev)
 
 	/* Put indirect address registers into a sane state. */
 	pci_write_config(sc->bxe_dev, PCICFG_GRC_ADDRESS,
-		PCICFG_VENDOR_ID_OFFSET, 4);
+	    PCICFG_VENDOR_ID_OFFSET, 4);
 	REG_WR(sc, PXP2_REG_PGL_ADDR_88_F0 + BP_PORT(sc) * 16, 0);
 	REG_WR(sc, PXP2_REG_PGL_ADDR_8C_F0 + BP_PORT(sc) * 16, 0);
 	REG_WR(sc, PXP2_REG_PGL_ADDR_90_F0 + BP_PORT(sc) * 16, 0);
@@ -1829,7 +1827,8 @@ bxe_attach(device_t dev)
 	/* Set init arrays */
 	rc = bxe_init_firmware(sc);
 	if (rc) {
-		BXE_PRINTF("Error loading firmware\n");
+		BXE_PRINTF("%s(%d): Error loading firmware\n",
+		    __FILE__, __LINE__);
 		goto bxe_attach_fail;
 	}
 
@@ -1846,8 +1845,8 @@ bxe_attach(device_t dev)
 
 	/* Check that NVRAM contents are valid.*/
 	if (bxe_nvram_test(sc)) {
-		DBPRINT(sc, BXE_WARN, "%s(): Failed NVRAM test!\n",
-			__FUNCTION__);
+		BXE_PRINTF("%s(%d): Failed NVRAM test!\n",
+		    __FILE__, __LINE__);
 		rc = ENODEV;
 		goto bxe_attach_fail;
 	}
@@ -1855,7 +1854,7 @@ bxe_attach(device_t dev)
 	/* Allocate the appropriate interrupts.*/
 	if (bxe_interrupt_allocate(sc)) {
 		BXE_PRINTF("%s(%d): Interrupt allocation failed!\n",
-			__FILE__, __LINE__);
+		    __FILE__, __LINE__);
 		rc = ENODEV;
 		goto bxe_attach_fail;
 	}
@@ -1902,10 +1901,13 @@ bxe_attach(device_t dev)
 	/* Disable WoL. */
 	sc->wol = 0;
 
+	/* Assume a standard 1500 byte MTU size for mbuf allocations. */
+	sc->mbuf_alloc_size  = MCLBYTES;
+
 	/* Allocate DMA memory resources. */
 	if (bxe_dma_alloc(sc->bxe_dev)) {
 		BXE_PRINTF("%s(%d): DMA allocation failed!\n",
-			__FILE__, __LINE__);
+		    __FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bxe_attach_fail;
 	}
@@ -1914,7 +1916,7 @@ bxe_attach(device_t dev)
 	ifp = sc->bxe_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		BXE_PRINTF("%s(%d): Interface allocation failed!\n",
-			__FILE__, __LINE__);
+		    __FILE__, __LINE__);
 		rc = ENXIO;
 		goto bxe_attach_fail;
 	}
@@ -1935,8 +1937,6 @@ bxe_attach(device_t dev)
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_baudrate = IF_Gbps(10UL);
 
-	/* Assume a standard 1500 byte MTU size for mbuf allocations. */
-	sc->mbuf_alloc_size  = MCLBYTES;
 	ifp->if_snd.ifq_drv_maxlen = sc->tx_ring_size;
 
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
@@ -1947,8 +1947,8 @@ bxe_attach(device_t dev)
 
 	/* Attach the interrupts to the interrupt handlers. */
 	if (bxe_interrupt_attach(sc)) {
-		BXE_PRINTF("%s(%d): Interrupt allocation failed!\n", __FILE__,
-		    __LINE__);
+		BXE_PRINTF("%s(%d): Interrupt allocation failed!\n",
+		    __FILE__, __LINE__);
 		goto bxe_attach_fail;
 	}
 
@@ -2901,6 +2901,9 @@ bxe_setup_leading(struct bxe_softc *sc)
 
 	DBENTER(BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET | BXE_VERBOSE_RAMROD);
 
+	DBPRINT(sc, BXE_INFO_LOAD, "%s(): Setup leading connection "
+	    "on fp[00].\n", __FUNCTION__);
+
 	/* Reset IGU state for the leading connection. */
 	bxe_ack_sb(sc, sc->fp[0].sb_id, CSTORM_ID, 0, IGU_INT_ENABLE, 0);
 
@@ -2928,6 +2931,9 @@ bxe_stop_leading(struct bxe_softc *sc)
 	int rc, timeout;
 
 	DBENTER(BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET | BXE_VERBOSE_RAMROD);
+
+	DBPRINT(sc, BXE_INFO_LOAD, "%s(): Stop client connection "
+	    "on fp[00].\n", __FUNCTION__);
 
 	/* Send the ETH_HALT ramrod. */
 	sc->fp[0].state = BXE_FP_STATE_HALTING;
@@ -2987,6 +2993,9 @@ bxe_setup_multi(struct bxe_softc *sc, int index)
 
 	DBENTER(BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET | BXE_VERBOSE_RAMROD);
 
+	DBPRINT(sc, BXE_INFO_LOAD, "%s(): Setup client connection "
+	    "on fp[%02d].\n", __FUNCTION__, index);
+
 	fp = &sc->fp[index];
 	/* Reset IGU state. */
 	bxe_ack_sb(sc, fp->sb_id, CSTORM_ID, 0, IGU_INT_ENABLE, 0);
@@ -3019,7 +3028,11 @@ bxe_stop_multi(struct bxe_softc *sc, int index)
 
 	DBENTER(BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET | BXE_VERBOSE_RAMROD);
 
+	DBPRINT(sc, BXE_INFO_LOAD, "%s(): Stop client connection "
+	    "on fp[%02d].\n", __FUNCTION__, index);
+
 	fp = &sc->fp[index];
+
 	/* Halt the client connection. */
 	fp->state = BXE_FP_STATE_HALTING;
 	bxe_sp_post(sc, RAMROD_CMD_ID_ETH_HALT, index, 0, fp->cl_id, 0);
@@ -4398,7 +4411,7 @@ bxe_write_dmae(struct bxe_softc *sc, bus_addr_t dma_addr, uint32_t dst_addr,
 
 	bxe_post_dmae(sc, &dmae, INIT_DMAE_C(sc));
 
-	DELAY(5);
+	DELAY(50);
 
 	timeout = 4000;
 	while (*wb_comp != BXE_WB_COMP_VAL) {
@@ -4409,7 +4422,7 @@ bxe_write_dmae(struct bxe_softc *sc, bus_addr_t dma_addr, uint32_t dst_addr,
 			break;
 		}
 		timeout--;
-		DELAY(5);
+		DELAY(50);
 	}
 
 	BXE_DMAE_UNLOCK(sc);
@@ -4485,9 +4498,9 @@ bxe_read_dmae(struct bxe_softc *sc, uint32_t src_addr,
 
 	bxe_post_dmae(sc, &dmae, INIT_DMAE_C(sc));
 
-	DELAY(5);
+	DELAY(50);
 
-	timeout = 200;
+	timeout = 4000;
 	while (*wb_comp != BXE_WB_COMP_VAL) {
 		if (!timeout) {
 			DBPRINT(sc, 1,
@@ -4496,7 +4509,7 @@ bxe_read_dmae(struct bxe_softc *sc, uint32_t src_addr,
 			break;
 		}
 		timeout--;
-		DELAY(5);
+		DELAY(50);
 	}
 
 	BXE_DMAE_UNLOCK(sc);
@@ -8527,8 +8540,7 @@ bxe_chktso_window(struct bxe_softc* sc, int nsegs, bus_dma_segment_t *segs,
 }
 
 /*
- * bxe_tx_encap()
- * Encapsultes an mbuf cluster into the bxe tx_bd chain structure and
+ * Encapsultes an mbuf cluster into the tx_bd chain structure and
  * makes the memory visible to the controller.
  *
  * If an mbuf is submitted to this routine and cannot be given to the
@@ -10769,6 +10781,7 @@ bxe_init_context(struct bxe_softc *sc)
 		    U64_HI(fp->rx_bd_chain_paddr[0]);
 		context->ustorm_st_context.common.bd_page_base_lo =
 		    U64_LO(fp->rx_bd_chain_paddr[0]);
+
 		if (TPA_ENABLED(sc) && !(fp->disable_tpa)) {
 			/* Enable TPA and SGE chain support. */
 			context->ustorm_st_context.common.flags |=
@@ -11333,7 +11346,7 @@ bxe_init_nic(struct bxe_softc *sc, uint32_t load_code)
 		fp->sb_id = fp->cl_id;
 
 		DBPRINT(sc, (BXE_INFO_LOAD | BXE_INFO_RESET),
-		    "%s(): fp[%d]: cl_id = %d, sb_id = %d,\n",
+		    "%s(): fp[%d]: cl_id = %d, sb_id = %d\n",
 		    __FUNCTION__, fp->index, fp->cl_id, fp->sb_id);
 
 		/* Initialize the fastpath status block. */
@@ -14761,7 +14774,8 @@ bxe_rxeof(struct bxe_fastpath *fp)
 		    __FUNCTION__));
 
 		/* Check the CQE type for slowpath or fastpath completion. */
-		if (__predict_false(CQE_TYPE(cqe_fp_flags) == 1)) {
+		if (__predict_false(CQE_TYPE(cqe_fp_flags) ==
+		    RX_ETH_CQE_TYPE_ETH_RAMROD)) {
 			/* This is a slowpath completion. */
 			bxe_sp_event(fp, cqe);
 			goto bxe_rxeof_next_cqe;
@@ -14891,6 +14905,7 @@ bxe_rxeof(struct bxe_fastpath *fp)
 
 					DBRUN(bxe_breakpoint(sc));
 
+					/* ToDo: Find alterntive to panic(). */
 					panic(
 				"bxe%d: Double mbuf allocation failure!\n",
 					    sc->bxe_unit);
@@ -15352,6 +15367,7 @@ bxe_sysctl_driver_state(SYSCTL_HANDLER_ARGS)
 			fp = &sc->fp[i];
 			bxe_dump_fp_state(fp);
 		}
+		bxe_dump_status_block(sc);
 	}
 
 	return (error);
