@@ -35,7 +35,6 @@ SUBDIR=	${_3dfx} \
 	${_asr} \
 	ata \
 	ath \
-	ath_ahb \
 	ath_pci \
 	${_auxio} \
 	bce \
