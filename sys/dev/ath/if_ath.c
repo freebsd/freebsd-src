@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/taskqueue.h>
 #include <sys/priv.h>
+#include <sys/module.h>
 
 #include <machine/bus.h>
 
@@ -5591,3 +5592,5 @@ ath_tdma_beacon_send(struct ath_softc *sc, struct ieee80211vap *vap)
 }
 #endif /* IEEE80211_SUPPORT_TDMA */
 
+MODULE_VERSION(if_ath, 1);
+MODULE_DEPEND(if_ath, wlan, 1, 1, 1);          /* 802.11 media layer */
