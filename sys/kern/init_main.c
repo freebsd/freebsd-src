@@ -557,6 +557,9 @@ proc0_init(void *dummy __unused)
 	 * Charge root for one process.
 	 */
 	(void)chgproccnt(p->p_ucred->cr_ruidinfo, 1, 0);
+	PROC_LOCK(p);
+	racct_add_force(p, RACCT_NPROC, 1);
+	PROC_UNLOCK(p);
 }
 SYSINIT(p0init, SI_SUB_INTRINSIC, SI_ORDER_FIRST, proc0_init, NULL);
 
