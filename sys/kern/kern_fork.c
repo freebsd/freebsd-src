@@ -734,6 +734,12 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 		return (fork_norfproc(td, flags));
 	}
 
+	PROC_LOCK(p1);
+	error = racct_add(p1, RACCT_NPROC, 1);
+	PROC_UNLOCK(p1);
+	if (error != 0)
+		return (EAGAIN);
+
 	mem_charged = 0;
 	vm2 = NULL;
 	if (pages == 0)
@@ -817,6 +823,17 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 	}
 
 	/*
+	 * After fork, there is exactly one thread running.
+	 */
+	PROC_LOCK(newproc);
+	error = racct_set(newproc, RACCT_NTHR, 1);
+	PROC_UNLOCK(newproc);
+	if (error != 0) {
+		error = EAGAIN;
+		goto fail;
+	}
+
+	/*
 	 * Increment the count of procs running with this uid. Don't allow
 	 * a nonprivileged user to exceed their current limit.
 	 *
@@ -857,6 +874,9 @@ fail1:
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
 	pause("fork", hz / 2);
+	PROC_LOCK(p1);
+	racct_sub(p1, RACCT_NPROC, 1);
+	PROC_UNLOCK(p1);
 	return (error);
 }
 
