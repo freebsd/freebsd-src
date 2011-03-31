@@ -570,6 +570,12 @@ dev/ata/atapi-fd.c		optional atapifd
 dev/ata/atapi-tape.c		optional atapist
 dev/ata/atapi-cam.c		optional atapicam
 #
+dev/ath/if_ath_pci.c		optional ath_pci pci \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
+#
+dev/ath/if_ath_ahb.c		optional ath_ahb \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
+#
 dev/ath/if_ath.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_debug.c		optional ath \
@@ -581,8 +587,6 @@ dev/ath/if_ath_tx.c		optional ath \
 dev/ath/if_ath_tx_ht.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_sysctl.c		optional ath \
-	compile-with "${NORMAL_C} -I$S/dev/ath"
-dev/ath/if_ath_pci.c		optional ath pci \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ah_osdep.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
