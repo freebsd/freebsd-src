@@ -1,4 +1,4 @@
-/*	$NetBSD: key.c,v 1.19 2006/03/23 20:22:51 christos Exp $	*/
+/*	$NetBSD: key.c,v 1.23 2009/12/30 22:37:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: key.c,v 1.19 2006/03/23 20:22:51 christos Exp $");
+__RCSID("$NetBSD: key.c,v 1.23 2009/12/30 22:37:40 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -72,7 +72,7 @@ __RCSID("$NetBSD: key.c,v 1.19 2006/03/23 20:22:51 christos Exp $");
  * of these node elements
  */
 struct key_node_t {
-	char		ch;		/* single character of key 	 */
+	Char		ch;		/* single character of key 	 */
 	int		type;		/* node type			 */
 	key_value_t	val;		/* command code or pointer to str,  */
 					/* if this is a leaf 		 */
@@ -80,17 +80,17 @@ struct key_node_t {
 	struct key_node_t *sibling;	/* ptr to another key with same prefix*/
 };
 
-private int		 node_trav(EditLine *, key_node_t *, char *,
+private int		 node_trav(EditLine *, key_node_t *, Char *,
     key_value_t *);
-private int		 node__try(EditLine *, key_node_t *, const char *,
+private int		 node__try(EditLine *, key_node_t *, const Char *,
     key_value_t *, int);
-private key_node_t	*node__get(int);
+private key_node_t	*node__get(Int);
 private void		 node__free(key_node_t *);
 private void		 node__put(EditLine *, key_node_t *);
-private int		 node__delete(EditLine *, key_node_t **, const char *);
-private int		 node_lookup(EditLine *, const char *, key_node_t *,
-    int);
-private int		 node_enum(EditLine *, key_node_t *, int);
+private int		 node__delete(EditLine *, key_node_t **, const Char *);
+private int		 node_lookup(EditLine *, const Char *, key_node_t *,
+    size_t);
+private int		 node_enum(EditLine *, key_node_t *, size_t);
 
 #define	KEY_BUFSIZ	EL_BUFSIZ
 
@@ -102,7 +102,7 @@ protected int
 key_init(EditLine *el)
 {
 
-	el->el_key.buf = (char *) el_malloc(KEY_BUFSIZ);
+	el->el_key.buf = el_malloc(KEY_BUFSIZ * sizeof(*el->el_key.buf));
 	if (el->el_key.buf == NULL)
 		return (-1);
 	el->el_key.map = NULL;
@@ -139,7 +139,7 @@ key_map_cmd(EditLine *el, int cmd)
  *	Associate str with a key value
  */
 protected key_value_t *
-key_map_str(EditLine *el, char *str)
+key_map_str(EditLine *el, Char *str)
 {
 
 	el->el_key.val.str = str;
@@ -171,7 +171,7 @@ key_reset(EditLine *el)
  *      The last character read is returned in *ch.
  */
 protected int
-key_get(EditLine *el, char *ch, key_value_t *val)
+key_get(EditLine *el, Char *ch, key_value_t *val)
 {
 
 	return (node_trav(el, el->el_key.map, ch, val));
@@ -185,7 +185,7 @@ key_get(EditLine *el, char *ch, key_value_t *val)
  *      out str or a unix command.
  */
 protected void
-key_add(EditLine *el, const char *key, key_value_t *val, int ntype)
+key_add(EditLine *el, const Char *key, key_value_t *val, int ntype)
 {
 
 	if (key[0] == '\0') {
@@ -213,9 +213,12 @@ key_add(EditLine *el, const char *key, key_value_t *val, int ntype)
  *
  */
 protected void
-key_clear(EditLine *el, el_action_t *map, const char *in)
+key_clear(EditLine *el, el_action_t *map, const Char *in)
 {
-
+#ifdef WIDECHAR
+        if (*in > N_KEYS) /* can't be in the map */
+                return;
+#endif
 	if ((map[(unsigned char)*in] == ED_SEQUENCE_LEAD_IN) &&
 	    ((map == el->el_map.key &&
 	    el->el_map.alt[(unsigned char)*in] != ED_SEQUENCE_LEAD_IN) ||
@@ -230,7 +233,7 @@ key_clear(EditLine *el, el_action_t *map, const char *in)
  *      they exists.
  */
 protected int
-key_delete(EditLine *el, const char *key)
+key_delete(EditLine *el, const Char *key)
 {
 
 	if (key[0] == '\0') {
@@ -251,7 +254,7 @@ key_delete(EditLine *el, const char *key)
  *	Print entire el->el_key.map if null
  */
 protected void
-key_print(EditLine *el, const char *key)
+key_print(EditLine *el, const Char *key)
 {
 
 	/* do nothing if el->el_key.map is empty and null key specified */
@@ -261,7 +264,7 @@ key_print(EditLine *el, const char *key)
 	el->el_key.buf[0] = '"';
 	if (node_lookup(el, key, el->el_key.map, 1) <= -1)
 		/* key is not bound */
-		(void) fprintf(el->el_errfile, "Unbound extended key \"%s\"\n",
+		(void) fprintf(el->el_errfile, "Unbound extended key \"" FSTR "\"\n",
 		    key);
 	return;
 }
@@ -272,14 +275,14 @@ key_print(EditLine *el, const char *key)
  * 	found.  May read in more characters.
  */
 private int
-node_trav(EditLine *el, key_node_t *ptr, char *ch, key_value_t *val)
+node_trav(EditLine *el, key_node_t *ptr, Char *ch, key_value_t *val)
 {
 
 	if (ptr->ch == *ch) {
 		/* match found */
 		if (ptr->next) {
 			/* key not complete so get next char */
-			if (el_getc(el, ch) != 1) {	/* if EOF or error */
+			if (FUN(el,getc)(el, ch) != 1) {/* if EOF or error */
 				val->cmd = ED_END_OF_FILE;
 				return (XK_CMD);
 				/* PWP: Pretend we just read an end-of-file */
@@ -309,7 +312,7 @@ node_trav(EditLine *el, key_node_t *ptr, char *ch, key_value_t *val)
  * 	Find a node that matches *str or allocate a new one
  */
 private int
-node__try(EditLine *el, key_node_t *ptr, const char *str, key_value_t *val, int ntype)
+node__try(EditLine *el, key_node_t *ptr, const Char *str, key_value_t *val, int ntype)
 {
 
 	if (ptr->ch != *str) {
@@ -350,7 +353,7 @@ node__try(EditLine *el, key_node_t *ptr, const char *str, key_value_t *val, int 
 			break;
 		case XK_STR:
 		case XK_EXE:
-			if ((ptr->val.str = el_strdup(val->str)) == NULL)
+			if ((ptr->val.str = Strdup(val->str)) == NULL)
 				return -1;
 			break;
 		default:
@@ -371,7 +374,7 @@ node__try(EditLine *el, key_node_t *ptr, const char *str, key_value_t *val, int 
  *	Delete node that matches str
  */
 private int
-node__delete(EditLine *el, key_node_t **inptr, const char *str)
+node__delete(EditLine *el, key_node_t **inptr, const Char *str)
 {
 	key_node_t *ptr;
 	key_node_t *prev_ptr = NULL;
@@ -451,7 +454,7 @@ node__put(EditLine *el, key_node_t *ptr)
  *	Returns pointer to a key_node_t for ch.
  */
 private key_node_t *
-node__get(int ch)
+node__get(Int ch)
 {
 	key_node_t *ptr;
 
@@ -481,14 +484,14 @@ node__free(key_node_t *k)
  *	Print if last node
  */
 private int
-node_lookup(EditLine *el, const char *str, key_node_t *ptr, int cnt)
+node_lookup(EditLine *el, const Char *str, key_node_t *ptr, size_t cnt)
 {
-	int ncnt;
+	ssize_t used;
 
 	if (ptr == NULL)
 		return (-1);	/* cannot have null ptr */
 
-	if (*str == 0) {
+	if (!str || *str == 0) {
 		/* no more chars in str.  node_enum from here. */
 		(void) node_enum(el, ptr, cnt);
 		return (0);
@@ -496,17 +499,19 @@ node_lookup(EditLine *el, const char *str, key_node_t *ptr, int cnt)
 		/* If match put this char into el->el_key.buf.  Recurse */
 		if (ptr->ch == *str) {
 			/* match found */
-			ncnt = key__decode_char(el->el_key.buf, KEY_BUFSIZ, cnt,
-			    (unsigned char) ptr->ch);
+			used = ct_visual_char(el->el_key.buf + cnt,
+			    KEY_BUFSIZ - cnt, ptr->ch);
+			if (used == -1)
+				return (-1); /* ran out of buffer space */
 			if (ptr->next != NULL)
 				/* not yet at leaf */
 				return (node_lookup(el, str + 1, ptr->next,
-				    ncnt + 1));
+				    used + cnt));
 			else {
 			    /* next node is null so key should be complete */
 				if (str[1] == 0) {
-					el->el_key.buf[ncnt + 1] = '"';
-					el->el_key.buf[ncnt + 2] = '\0';
+					el->el_key.buf[cnt + used    ] = '"';
+					el->el_key.buf[cnt + used + 1] = '\0';
 					key_kprint(el, el->el_key.buf,
 					    &ptr->val, ptr->type);
 					return (0);
@@ -530,16 +535,16 @@ node_lookup(EditLine *el, const char *str, key_node_t *ptr, int cnt)
  *	Traverse the node printing the characters it is bound in buffer
  */
 private int
-node_enum(EditLine *el, key_node_t *ptr, int cnt)
+node_enum(EditLine *el, key_node_t *ptr, size_t cnt)
 {
-	int ncnt;
+        ssize_t used;
 
 	if (cnt >= KEY_BUFSIZ - 5) {	/* buffer too small */
 		el->el_key.buf[++cnt] = '"';
 		el->el_key.buf[++cnt] = '\0';
 		(void) fprintf(el->el_errfile,
 		    "Some extended keys too long for internal print buffer");
-		(void) fprintf(el->el_errfile, " \"%s...\"\n", el->el_key.buf);
+		(void) fprintf(el->el_errfile, " \"" FSTR "...\"\n", el->el_key.buf);
 		return (0);
 	}
 	if (ptr == NULL) {
@@ -550,15 +555,14 @@ node_enum(EditLine *el, key_node_t *ptr, int cnt)
 		return (-1);
 	}
 	/* put this char at end of str */
-	ncnt = key__decode_char(el->el_key.buf, KEY_BUFSIZ, cnt,
-	    (unsigned char)ptr->ch);
+        used = ct_visual_char(el->el_key.buf + cnt, KEY_BUFSIZ - cnt, ptr->ch);
 	if (ptr->next == NULL) {
 		/* print this key and function */
-		el->el_key.buf[ncnt + 1] = '"';
-		el->el_key.buf[ncnt + 2] = '\0';
+		el->el_key.buf[cnt + used   ] = '"';
+		el->el_key.buf[cnt + used + 1] = '\0';
 		key_kprint(el, el->el_key.buf, &ptr->val, ptr->type);
 	} else
-		(void) node_enum(el, ptr->next, ncnt + 1);
+		(void) node_enum(el, ptr->next, cnt + used);
 
 	/* go to sibling if there is one */
 	if (ptr->sibling)
@@ -572,7 +576,7 @@ node_enum(EditLine *el, key_node_t *ptr, int cnt)
  *	function specified by val
  */
 protected void
-key_kprint(EditLine *el, const char *key, key_value_t *val, int ntype)
+key_kprint(EditLine *el, const Char *key, key_value_t *val, int ntype)
 {
 	el_bindings_t *fp;
 	char unparsbuf[EL_BUFSIZ];
@@ -585,13 +589,16 @@ key_kprint(EditLine *el, const char *key, key_value_t *val, int ntype)
 			(void) key__decode_str(val->str, unparsbuf,
 			    sizeof(unparsbuf), 
 			    ntype == XK_STR ? "\"\"" : "[]");
-			(void) fprintf(el->el_outfile, fmt, key, unparsbuf);
+			(void) fprintf(el->el_outfile, fmt,
+			    ct_encode_string(key, &el->el_scratch), unparsbuf);
 			break;
 		case XK_CMD:
 			for (fp = el->el_map.help; fp->name; fp++)
 				if (val->cmd == fp->func) {
+                    ct_wcstombs(unparsbuf, fp->name, sizeof(unparsbuf));
+                    unparsbuf[sizeof(unparsbuf) -1] = '\0';
 					(void) fprintf(el->el_outfile, fmt,
-					    key, fp->name);
+                        ct_encode_string(key, &el->el_scratch), unparsbuf);
 					break;
 				}
 #ifdef DEBUG_KEY
@@ -606,7 +613,8 @@ key_kprint(EditLine *el, const char *key, key_value_t *val, int ntype)
 			break;
 		}
 	else
-		(void) fprintf(el->el_outfile, fmt, key, "no input");
+		(void) fprintf(el->el_outfile, fmt, ct_encode_string(key,
+		    &el->el_scratch), "no input");
 }
 
 
@@ -615,52 +623,14 @@ key_kprint(EditLine *el, const char *key, key_value_t *val, int ntype)
 		*b++ = c; \
 	else \
 		b++
-/* key__decode_char():
- *	Put a printable form of char in buf.
- */
-protected int
-key__decode_char(char *buf, int cnt, int off, int ch)
-{
-	char *sb = buf + off;
-	char *eb = buf + cnt;
-	char *b = sb;
-	if (ch == 0) {
-		ADDC('^');
-		ADDC('@');
-		return b - sb;
-	}
-	if (iscntrl(ch)) {
-		ADDC('^');
-		if (ch == '\177')
-			ADDC('?');
-		else
-			ADDC(ch | 0100);
-	} else if (ch == '^') {
-		ADDC('\\');
-		ADDC('^');
-	} else if (ch == '\\') {
-		ADDC('\\');
-		ADDC('\\');
-	} else if (ch == ' ' || (isprint(ch) && !isspace(ch))) {
-		ADDC(ch);
-	} else {
-		ADDC('\\');
-		ADDC((((unsigned int) ch >> 6) & 7) + '0');
-		ADDC((((unsigned int) ch >> 3) & 7) + '0');
-		ADDC((ch & 7) + '0');
-	}
-	return b - sb;
-}
-
-
 /* key__decode_str():
  *	Make a printable version of the ey
  */
-protected int
-key__decode_str(const char *str, char *buf, int len, const char *sep)
+protected size_t
+key__decode_str(const Char *str, char *buf, size_t len, const char *sep)
 {
 	char *b = buf, *eb = b + len;
-	const char *p;
+	const Char *p;
 
 	b = buf;
 	if (sep[0] != '\0') {
@@ -669,38 +639,27 @@ key__decode_str(const char *str, char *buf, int len, const char *sep)
 	if (*str == '\0') {
 		ADDC('^');
 		ADDC('@');
-		if (sep[0] != '\0' && sep[1] != '\0') {
-			ADDC(sep[1]);
-		}
-		goto done;
+		goto add_endsep;
 	}
 	for (p = str; *p != 0; p++) {
-		if (iscntrl((unsigned char) *p)) {
-			ADDC('^');
-			if (*p == '\177') {
-				ADDC('?');
-			} else {
-				ADDC(*p | 0100);
-			}
-		} else if (*p == '^' || *p == '\\') {
-			ADDC('\\');
-			ADDC(*p);
-		} else if (*p == ' ' || (isprint((unsigned char) *p) &&
-			!isspace((unsigned char) *p))) {
-			ADDC(*p);
-		} else {
-			ADDC('\\');
-			ADDC((((unsigned int) *p >> 6) & 7) + '0');
-			ADDC((((unsigned int) *p >> 3) & 7) + '0');
-			ADDC((*p & 7) + '0');
+		Char dbuf[VISUAL_WIDTH_MAX];
+		Char *p2 = dbuf;
+		ssize_t l = ct_visual_char(dbuf, VISUAL_WIDTH_MAX, *p);
+		while (l-- > 0) {
+			ssize_t n = ct_encode_char(b, (size_t)(eb - b), *p2++);
+			if (n == -1) /* ran out of space */
+				goto add_endsep;
+			else
+				b += n;
 		}
 	}
+add_endsep:
 	if (sep[0] != '\0' && sep[1] != '\0') {
 		ADDC(sep[1]);
 	}
-done:
 	ADDC('\0');
-	if (b - buf >= len)
+	if ((size_t)(b - buf) >= len)
 	    buf[len - 1] = '\0';
-	return b - buf;
+	return (size_t)(b - buf);
 }
+

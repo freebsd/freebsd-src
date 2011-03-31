@@ -1,4 +1,4 @@
-/*	$NetBSD: filecomplete.h,v 1.5 2006/08/21 12:45:30 christos Exp $	*/
+/*	$NetBSD: filecomplete.h,v 1.9 2009/12/30 22:37:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -15,9 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -37,10 +34,10 @@
 int fn_complete(EditLine *,
     char *(*)(const char *, int),
     char **(*)(const char *, int, int),
-    const char *, const char *, const char *(*)(const char *), int,
+    const Char *, const Char *, const char *(*)(const char *), size_t,
     int *, int *, int *, int *);
 
-void fn_display_match_list(EditLine *, char **, int, int);
+void fn_display_match_list(EditLine *, char **, size_t, size_t);
 char *fn_tilde_expand(const char *);
 char *fn_filename_completion_function(const char *, int);
 
