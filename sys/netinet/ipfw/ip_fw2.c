@@ -1123,6 +1123,12 @@ do {								\
 				args->f_id._flags = TCP(ulp)->th_flags;
 				break;
 
+			case IPPROTO_SCTP:
+				PULLUP_TO(hlen, ulp, struct sctphdr);
+				src_port = SCTP(ulp)->src_port;
+				dst_port = SCTP(ulp)->dest_port;
+				break;
+
 			case IPPROTO_UDP:
 				PULLUP_TO(hlen, ulp, struct udphdr);
 				dst_port = UDP(ulp)->uh_dport;
