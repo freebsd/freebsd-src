@@ -128,7 +128,7 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 		}
 
 		/* Interrupt Mitigation on AR5416 */
-#ifdef AR5416_INT_MITIGATION
+#ifdef	AH_AR5416_INTERRUPT_MITIGATION
 		if (isr & (AR_ISR_RXMINTR | AR_ISR_RXINTM))
 			*masked |= HAL_INT_RX;
 		if (isr & (AR_ISR_TXMINTR | AR_ISR_TXINTM))
@@ -194,7 +194,7 @@ ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 	mask = ints & HAL_INT_COMMON;
 	mask2 = 0;
 
-#ifdef	AR5416_INT_MITIGATION
+#ifdef	AH_AR5416_INTERRUPT_MITIGATION
 	/*
 	 * Overwrite default mask if Interrupt mitigation
 	 * is specified for AR5416
