@@ -388,8 +388,9 @@ struct bxe_type {
 
 /* Reduce from 13 to leave room for the parsing buffer. */
 #define	BXE_MAX_SEGMENTS		12
-#define	BXE_TSO_MAX_SIZE		65536
-#define	BXE_TSO_MAX_SEG_SIZE		4096
+#define BXE_TSO_MAX_SEGMENTS		32
+#define	BXE_TSO_MAX_SIZE		(65535 + sizeof(struct ether_vlan_header))
+#define	BXE_TSO_MAX_SEG_SIZE	4096
 
 /*
  * Hardware Support For IP and TCP checksum.
