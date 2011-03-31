@@ -824,7 +824,7 @@ g_raid_md_taste_nvidia(struct g_raid_md_object *md, struct g_class *mp,
 	struct nvidia_raid_conf *meta;
 	struct g_raid_md_nvidia_perdisk *pd;
 	struct g_geom *geom;
-	int error, disk_pos, result, spare, len;
+	int error, result, spare, len;
 	char name[32];
 	uint16_t vendor;
 
@@ -834,9 +834,7 @@ g_raid_md_taste_nvidia(struct g_raid_md_object *md, struct g_class *mp,
 
 	/* Read metadata from device. */
 	meta = NULL;
-	spare = 0;
 	vendor = 0xffff;
-	disk_pos = 0;
 	if (g_access(cp, 1, 0, 0) != 0)
 		return (G_RAID_MD_TASTE_FAIL);
 	g_topology_unlock();
@@ -862,16 +860,9 @@ g_raid_md_taste_nvidia(struct g_raid_md_object *md, struct g_class *mp,
 		return (G_RAID_MD_TASTE_FAIL);
 	}
 
-	/* Check this disk position in obtained metadata. */
-	disk_pos = meta->disk_number;
-	if (disk_pos == -1) {
-		G_RAID_DEBUG(1, "NVIDIA disk position not found");
-		goto fail1;
-	}
-
 	/* Metadata valid. Print it. */
 	g_raid_md_nvidia_print(meta);
-	G_RAID_DEBUG(1, "NVIDIA disk position %d", disk_pos);
+	G_RAID_DEBUG(1, "NVIDIA disk position %d", meta->disk_number);
 	spare = 0;//(meta->type == NVIDIA_T_SPARE) ? 1 : 0;
 
 search:
