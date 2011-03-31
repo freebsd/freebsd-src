@@ -1608,7 +1608,7 @@ g_raid_access(struct g_provider *pp, int acr, int acw, int ace)
 {
 	struct g_raid_volume *vol;
 	struct g_raid_softc *sc;
-	int dcr, dcw, dce, opens, error = 0;
+	int dcw, opens, error = 0;
 
 	g_topology_assert();
 	sc = pp->geom->softc;
@@ -1618,10 +1618,7 @@ g_raid_access(struct g_provider *pp, int acr, int acw, int ace)
 
 	G_RAID_DEBUG1(2, sc, "Access request for %s: r%dw%de%d.", pp->name,
 	    acr, acw, ace);
-
-	dcr = pp->acr + acr;
 	dcw = pp->acw + acw;
-	dce = pp->ace + ace;
 
 	g_topology_unlock();
 	sx_xlock(&sc->sc_lock);

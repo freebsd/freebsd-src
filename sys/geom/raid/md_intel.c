@@ -1153,7 +1153,6 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 
 	/* Read metadata from device. */
 	meta = NULL;
-	spare = 0;
 	vendor = 0xffff;
 	disk_pos = 0;
 	if (g_access(cp, 1, 0, 0) != 0)
@@ -1431,7 +1430,7 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 					gctl_error(req, "Can't open disk '%s'.",
 					    diskname);
 					g_topology_unlock();
-					error = -4;
+					error = -7;
 					break;
 				}
 				pp = cp->provider;
@@ -1480,6 +1479,11 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 		}
 		if (error != 0)
 			return (error);
+
+		if (sectorsize <= 0) {
+			gctl_error(req, "Can't get sector size.");
+			return (-8);
+		}
 
 		/* Reserve some space for metadata. */
 		size -= ((4096 + sectorsize - 1) / sectorsize) * sectorsize;
@@ -1953,7 +1957,6 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 
 			disk = g_raid_create_disk(sc);
 			disk->d_consumer = cp;
-			disk->d_consumer->private = disk;
 			disk->d_md_data = (void *)pd;
 			cp->private = disk;
 
