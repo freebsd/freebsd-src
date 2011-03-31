@@ -22,6 +22,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110331:
+	ath(4) has been split into bus- and device- modules. if_ath contains
+	the HAL, the TX rate control and the network device code. if_ath_pci
+	contains the PCI bus glue. For Atheros MIPS embedded systems, if_ath_ahb
+	contains the AHB glue. Users need to load both if_ath_pci and if_ath
+	in order to use ath on everything else.
+
+	TO REPEAT: if_ath_ahb is not needed for normal users. Normal users only
+	need to load if_ath and if_ath_pci for ath(4) operation.
+
 20110218:
 	GNU binutils 2.17.50 (as of 2007-07-03) has been merged to -HEAD.  This
 	is the last available version under GPLv2.  It brings a number of new
