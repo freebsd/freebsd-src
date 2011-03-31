@@ -1435,7 +1435,7 @@ g_raid_md_write_nvidia(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	meta = malloc(sizeof(*meta), M_MD_NVIDIA, M_WAITOK | M_ZERO);
 	if (mdi->mdio_meta)
 		memcpy(meta, mdi->mdio_meta, sizeof(*meta));
-	memcpy(meta->nvidia_id, NVIDIA_MAGIC, sizeof(NVIDIA_MAGIC));
+	memcpy(meta->nvidia_id, NVIDIA_MAGIC, sizeof(NVIDIA_MAGIC) - 1);
 	meta->config_size = 30;
 	meta->version = 0x0064;
 	meta->total_sectors = vol->v_mediasize / vol->v_sectorsize;

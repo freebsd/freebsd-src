@@ -541,9 +541,9 @@ intel_meta_write_spare(struct g_consumer *cp, struct intel_raid_disk *d)
 
 	/* Fill anchor and single disk. */
 	meta = malloc(INTEL_MAX_MD_SIZE(1), M_MD_INTEL, M_WAITOK | M_ZERO);
-	memcpy(&meta->intel_id[0], INTEL_MAGIC, sizeof(INTEL_MAGIC));
+	memcpy(&meta->intel_id[0], INTEL_MAGIC, sizeof(INTEL_MAGIC) - 1);
 	memcpy(&meta->version[0], INTEL_VERSION_1000,
-	    sizeof(INTEL_VERSION_1000));
+	    sizeof(INTEL_VERSION_1000) - 1);
 	meta->config_size = INTEL_MAX_MD_SIZE(1);
 	meta->config_id = arc4random();
 	meta->generation = 1;
@@ -2049,7 +2049,7 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	/* Fill anchor and disks. */
 	meta = malloc(INTEL_MAX_MD_SIZE(numdisks),
 	    M_MD_INTEL, M_WAITOK | M_ZERO);
-	memcpy(&meta->intel_id[0], INTEL_MAGIC, sizeof(INTEL_MAGIC));
+	memcpy(&meta->intel_id[0], INTEL_MAGIC, sizeof(INTEL_MAGIC) - 1);
 	meta->config_size = INTEL_MAX_MD_SIZE(numdisks);
 	meta->config_id = mdi->mdio_config_id;
 	meta->generation = mdi->mdio_generation;
@@ -2214,7 +2214,7 @@ g_raid_md_write_intel(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 	meta->total_volumes = vi;
 	if (strcmp(version, INTEL_VERSION_1300) != 0)
 		meta->attributes &= INTEL_ATTR_CHECKSUM;
-	memcpy(&meta->version[0], version, sizeof(INTEL_VERSION_1000));
+	memcpy(&meta->version[0], version, sizeof(INTEL_VERSION_1000) - 1);
 
 	/* We are done. Print meta data and store them to disks. */
 	g_raid_md_intel_print(meta);
