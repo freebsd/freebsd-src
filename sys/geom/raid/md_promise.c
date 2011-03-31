@@ -398,7 +398,8 @@ next:
 	    &off, &size)) {
 		/* Optionally add record for unused space. */
 		meta = (struct promise_raid_conf *)buf;
-		memcpy(&meta->promise_id[0], PROMISE_MAGIC, sizeof(PROMISE_MAGIC));
+		memcpy(&meta->promise_id[0], PROMISE_MAGIC,
+		    sizeof(PROMISE_MAGIC) - 1);
 		meta->dummy_0 = 0x00020000;
 		meta->integrity = PROMISE_I_VALID;
 		meta->disk.flags = PROMISE_F_ONLINE | PROMISE_F_VALID;
@@ -462,7 +463,7 @@ promise_meta_write_spare(struct g_consumer *cp)
 	int error;
 
 	meta = malloc(sizeof(*meta), M_MD_PROMISE, M_WAITOK | M_ZERO);
-	memcpy(&meta->promise_id[0], PROMISE_MAGIC, sizeof(PROMISE_MAGIC));
+	memcpy(&meta->promise_id[0], PROMISE_MAGIC, sizeof(PROMISE_MAGIC) - 1);
 	meta->dummy_0 = 0x00020000;
 	meta->integrity = PROMISE_I_VALID;
 	meta->disk.flags = PROMISE_F_SPARE | PROMISE_F_ONLINE | PROMISE_F_VALID;
@@ -818,10 +819,10 @@ restart:
 			} else
 				update = 0;
 			if (update) {
+				updated = 1;
 				g_raid_md_write_promise(md, vol, NULL, disk);
 				break;
 			}
-			updated += update;
 		}
 	}
 	if (updated)
@@ -1684,7 +1685,8 @@ g_raid_md_write_promise(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		meta = malloc(sizeof(*meta), M_MD_PROMISE, M_WAITOK | M_ZERO);
 		if (pv->pv_meta != NULL)
 			memcpy(meta, pv->pv_meta, sizeof(*meta));
-		memcpy(meta->promise_id, PROMISE_MAGIC, sizeof(PROMISE_MAGIC));
+		memcpy(meta->promise_id, PROMISE_MAGIC,
+		    sizeof(PROMISE_MAGIC) - 1);
 		meta->dummy_0 = 0x00020000;
 		meta->integrity = PROMISE_I_VALID;
 
