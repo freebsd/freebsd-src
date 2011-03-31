@@ -584,14 +584,12 @@ g_raid_md_nvidia_refill(struct g_raid_softc *sc)
 {
 	struct g_raid_md_object *md;
 	struct g_raid_md_nvidia_object *mdi;
-	struct nvidia_raid_conf *meta;
 	struct g_raid_disk *disk;
 	struct task *task;
 	int update, na;
 
 	md = sc->sc_md;
 	mdi = (struct g_raid_md_nvidia_object *)md;
-	meta = mdi->mdio_meta;
 	update = 0;
 	do {
 		/* Make sure we miss anything. */
@@ -625,10 +623,8 @@ g_raid_md_nvidia_refill(struct g_raid_softc *sc)
 	} while (disk != NULL);
 
 	/* Write new metadata if we changed something. */
-	if (update) {
+	if (update)
 		g_raid_md_write_nvidia(md, NULL, NULL, NULL);
-		meta = mdi->mdio_meta;
-	}
 
 	/* Update status of our need for spare. */
 	mdi->mdio_incomplete = (g_raid_ndisks(sc, G_RAID_DISK_S_ACTIVE) <
@@ -828,7 +824,7 @@ g_raid_md_taste_nvidia(struct g_raid_md_object *md, struct g_class *mp,
 	struct nvidia_raid_conf *meta;
 	struct g_raid_md_nvidia_perdisk *pd;
 	struct g_geom *geom;
-	int error, disk_pos, result, spare, len;
+	int error, result, spare, len;
 	char name[32];
 	uint16_t vendor;
 
@@ -838,9 +834,7 @@ g_raid_md_taste_nvidia(struct g_raid_md_object *md, struct g_class *mp,
 
 	/* Read metadata from device. */
 	meta = NULL;
-	spare = 0;
 	vendor = 0xffff;
-	disk_pos = 0;
 	if (g_access(cp, 1, 0, 0) != 0)
 		return (G_RAID_MD_TASTE_FAIL);
 	g_topology_unlock();
@@ -866,16 +860,9 @@ g_raid_md_taste_nvidia(struct g_raid_md_object *md, struct g_class *mp,
 		return (G_RAID_MD_TASTE_FAIL);
 	}
 
-	/* Check this disk position in obtained metadata. */
-	disk_pos = meta->disk_number;
-	if (disk_pos == -1) {
-		G_RAID_DEBUG(1, "NVIDIA disk position not found");
-		goto fail1;
-	}
-
 	/* Metadata valid. Print it. */
 	g_raid_md_nvidia_print(meta);
-	G_RAID_DEBUG(1, "NVIDIA disk position %d", disk_pos);
+	G_RAID_DEBUG(1, "NVIDIA disk position %d", meta->disk_number);
 	spare = 0;//(meta->type == NVIDIA_T_SPARE) ? 1 : 0;
 
 search:
@@ -1141,6 +1128,11 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 		if (error != 0)
 			return (error);
 
+		if (sectorsize <= 0) {
+			gctl_error(req, "Can't get sector size.");
+			return (-8);
+		}
+
 		/* Reserve space for metadata. */
 		size -= 2 * sectorsize;
 
@@ -1371,7 +1363,6 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 
 			disk = g_raid_create_disk(sc);
 			disk->d_consumer = cp;
-			disk->d_consumer->private = disk;
 			disk->d_md_data = (void *)pd;
 			cp->private = disk;
 			g_topology_unlock();
@@ -1528,12 +1519,10 @@ g_raid_md_fail_disk_nvidia(struct g_raid_md_object *md,
     struct g_raid_subdisk *tsd, struct g_raid_disk *tdisk)
 {
 	struct g_raid_softc *sc;
-	struct g_raid_md_nvidia_object *mdi;
 	struct g_raid_md_nvidia_perdisk *pd;
 	struct g_raid_subdisk *sd;
 
 	sc = md->mdo_softc;
-	mdi = (struct g_raid_md_nvidia_object *)md;
 	pd = (struct g_raid_md_nvidia_perdisk *)tdisk->d_md_data;
 
 	/* We can't fail disk that is not a part of array now. */
