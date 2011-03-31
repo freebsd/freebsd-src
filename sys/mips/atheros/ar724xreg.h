@@ -51,6 +51,8 @@
 #define	AR724X_DDR_REG_FLUSH_GE1	(AR71XX_DDR_CONFIG + 0x80)
 
 #define	AR724X_RESET_REG_RESET_MODULE	AR71XX_RST_BLOCK_BASE + 0x1c
+#define	AR724X_RESET_USB_HOST			(1 << 5)
+#define	AR724X_RESET_USB_PHY			(1 << 4)
 #define	AR724X_RESET_MODULE_USB_OHCI_DLL	(1 << 3)
 
 /* XXX so USB requires different init code? -adrian */
