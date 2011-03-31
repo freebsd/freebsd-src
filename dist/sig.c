@@ -1,4 +1,4 @@
-/*	$NetBSD: sig.c,v 1.8 2001/01/09 17:31:04 jdolecek Exp $	*/
+/*	$NetBSD: sig.c,v 1.11 2003/08/07 16:44:33 agc Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,12 +32,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include "config.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)sig.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: sig.c,v 1.8 2001/01/09 17:31:04 jdolecek Exp $");
+__RCSID("$NetBSD: sig.c,v 1.11 2003/08/07 16:44:33 agc Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -50,7 +46,6 @@ __RCSID("$NetBSD: sig.c,v 1.8 2001/01/09 17:31:04 jdolecek Exp $");
  *	  our policy is to trap all signals, set a good state
  *	  and pass the ball to our caller.
  */
-#include "sys.h"
 #include "el.h"
 #include <stdlib.h>
 
@@ -122,9 +117,9 @@ sig_init(EditLine *el)
 #undef	_DO
 	    (void) sigprocmask(SIG_BLOCK, &nset, &oset);
 
-#define	SIGSIZE (sizeof(sighdl) / sizeof(sighdl[0]) * sizeof(sig_t))
+#define	SIGSIZE (sizeof(sighdl) / sizeof(sighdl[0]) * sizeof(el_signalhandler_t))
 
-	el->el_signal = (sig_t *) el_malloc(SIGSIZE);
+	el->el_signal = (el_signalhandler_t *) el_malloc(SIGSIZE);
 	if (el->el_signal == NULL)
 		return (-1);
 	for (i = 0; sighdl[i] != -1; i++)
@@ -164,7 +159,7 @@ sig_set(EditLine *el)
 	    (void) sigprocmask(SIG_BLOCK, &nset, &oset);
 
 	for (i = 0; sighdl[i] != -1; i++) {
-		sig_t s;
+		el_signalhandler_t s;
 		/* This could happen if we get interrupted */
 		if ((s = signal(sighdl[i], sig_handler)) != sig_handler)
 			el->el_signal[i] = s;

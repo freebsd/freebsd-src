@@ -1,13 +1,13 @@
-#	$NetBSD: Makefile,v 1.4 2001/05/16 07:09:26 enami Exp $	
+#	$NetBSD: Makefile,v 1.7 2003/08/03 09:23:15 lukem Exp $	
 
-.PATH:	${CURDIR}/..
+NOOBJ=		# defined
+
+.include <bsd.own.mk>
+
+.PATH:	${NETBSDSRCDIR}/lib/libedit
 
 INCS=		readline.h
 INCSDIR=	/usr/include/readline
-SYMLINKS=	readline.h ${INCSDIR}/history.h
-
-MKOBJ=	no
-
-incinstall:: linksinstall
+INCSYMLINKS=	readline.h ${INCSDIR}/history.h
 
 .include <bsd.prog.mk>

@@ -1,4 +1,4 @@
-/*	$NetBSD: sys.h,v 1.4 2000/09/04 22:06:32 lukem Exp $	*/
+/*	$NetBSD: sys.h,v 1.9 2004/01/17 17:57:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -44,6 +40,24 @@
 #ifndef _h_sys
 #define	_h_sys
 
+#ifdef HAVE_SYS_CDEFS_H
+#include <sys/cdefs.h>
+#endif
+
+#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
+# define __attribute__(A)
+#endif
+
+#ifndef __BEGIN_DECLS
+# ifdef  __cplusplus
+#  define __BEGIN_DECLS  extern "C" {
+#  define __END_DECLS    }
+# else
+#  define __BEGIN_DECLS
+#  define __END_DECLS
+# endif
+#endif
+ 
 #ifndef public
 # define public		/* Externally visible functions/variables */
 #endif
@@ -57,8 +71,6 @@
 			/* When we want to hide everything	*/
 #endif
 
-#include <sys/cdefs.h>
-
 #ifndef _PTR_T
 # define _PTR_T
 typedef void	*ptr_t;
@@ -71,23 +83,42 @@ typedef void	*ioctl_t;
 
 #include <stdio.h>
 
+#ifndef HAVE_STRLCAT
+#define	strlcat libedit_strlcat
+size_t	strlcat(char *dst, const char *src, size_t size);
+#endif
+
+#ifndef HAVE_STRLCPY
+#define	strlcpy libedit_strlcpy
+size_t	strlcpy(char *dst, const char *src, size_t size);
+#endif
+
+#ifndef HAVE_FGETLN
+#define	fgetln libedit_fgetln
+char	*fgetln(FILE *fp, size_t *len);
+#endif
+
 #define	REGEX		/* Use POSIX.2 regular expression functions */
 #undef	REGEXP		/* Use UNIX V8 regular expression functions */
 
-#ifdef SUNOS
+#ifdef notdef
 # undef REGEX
 # undef REGEXP
 # include <malloc.h>
-typedef void (*sig_t)(int);
 # ifdef __GNUC__
 /*
  * Broken hdrs.
  */
+extern int	tgetent(const char *bp, char *name);
+extern int	tgetflag(const char *id);
+extern int	tgetnum(const char *id);
+extern char    *tgetstr(const char *id, char **area);
+extern char    *tgoto(const char *cap, int col, int row);
+extern int	tputs(const char *str, int affcnt, int (*putc)(int));
 extern char    *getenv(const char *);
 extern int	fprintf(FILE *, const char *, ...);
 extern int	sigsetmask(int);
 extern int	sigblock(int);
-extern int	ioctl(int, int, void *);
 extern int	fputc(int, FILE *);
 extern int	fgetc(FILE *);
 extern int	fflush(FILE *);
@@ -96,7 +127,6 @@ extern int	toupper(int);
 extern int	errno, sys_nerr;
 extern char	*sys_errlist[];
 extern void	perror(const char *);
-extern int	read(int, const char*, int);
 #  include <string.h>
 #  define strerror(e)	sys_errlist[e]
 # endif

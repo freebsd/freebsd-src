@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.14 2001/01/23 15:55:30 jdolecek Exp $	*/
+/*	$NetBSD: parse.c,v 1.22 2005/05/29 04:58:15 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,12 +32,12 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include "config.h"
 #if !defined(lint) && !defined(SCCSID)
 #if 0
 static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: parse.c,v 1.14 2001/01/23 15:55:30 jdolecek Exp $");
+__RCSID("$NetBSD: parse.c,v 1.22 2005/05/29 04:58:15 lukem Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -58,19 +54,17 @@ __RCSID("$NetBSD: parse.c,v 1.14 2001/01/23 15:55:30 jdolecek Exp $");
  *	settc
  *	setty
  */
-#include "sys.h"
 #include "el.h"
-#include "tokenizer.h"
 #include <stdlib.h>
 
 private const struct {
-	char *name;
-	int (*func)(EditLine *, int, char **);
+	const char *name;
+	int (*func)(EditLine *, int, const char **);
 } cmds[] = {
 	{ "bind",	map_bind	},
 	{ "echotc",	term_echotc	},
 	{ "edit",	el_editmode	},
-	{ "history",	hist_list	},
+	{ "history",	hist_command	},
 	{ "telltc",	term_telltc	},
 	{ "settc",	term_settc	},
 	{ "setty",	tty_stty	},
@@ -84,12 +78,12 @@ private const struct {
 protected int
 parse_line(EditLine *el, const char *line)
 {
-	char **argv;
+	const char **argv;
 	int argc;
 	Tokenizer *tok;
 
 	tok = tok_init(NULL);
-	tok_line(tok, line, &argc, &argv);
+	tok_str(tok, line, &argc, &argv);
 	argc = el_parse(el, argc, argv);
 	tok_end(tok);
 	return (argc);
@@ -100,9 +94,9 @@ parse_line(EditLine *el, const char *line)
  *	Command dispatcher
  */
 public int
-el_parse(EditLine *el, int argc, char *argv[])
+el_parse(EditLine *el, int argc, const char *argv[])
 {
-	char *ptr;
+	const char *ptr;
 	int i;
 
 	if (argc < 1)
@@ -142,7 +136,7 @@ el_parse(EditLine *el, int argc, char *argv[])
  *	the appropriate character or -1 if the escape is not valid
  */
 protected int
-parse__escape(const char **const ptr)
+parse__escape(const char **ptr)
 {
 	const char *p;
 	int c;
@@ -207,7 +201,7 @@ parse__escape(const char **const ptr)
 			c = *p;
 			break;
 		}
-	} else if (*p == '^' && isalpha((unsigned char) p[1])) {
+	} else if (*p == '^') {
 		p++;
 		c = (*p == '?') ? '\177' : (*p & 0237);
 	} else
@@ -215,6 +209,7 @@ parse__escape(const char **const ptr)
 	*ptr = ++p;
 	return (c);
 }
+
 /* parse__string():
  *	Parse the escapes from in and put the raw string out
  */
@@ -236,6 +231,14 @@ parse__string(char *out, const char *in)
 				return (NULL);
 			*out++ = n;
 			break;
+
+		case 'M':
+			if (in[1] == '-' && in[2] != '\0') {
+				*out++ = '\033';
+				in += 2;
+				break;
+			}
+			/*FALLTHROUGH*/
 
 		default:
 			*out++ = *in++;

@@ -1,4 +1,4 @@
-.\"	$NetBSD: editrc.5,v 1.11 2001/06/19 13:42:09 wiz Exp $
+.\"	$NetBSD: editrc.5,v 1.19 2003/11/01 23:35:33 christos Exp $
 .\"
 .\" Copyright (c) 1997-2000 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -33,7 +33,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 8, 2000
+.Dd October 18, 2003
 .Os
 .Dt EDITRC 5
 .Sh NAME
@@ -62,7 +62,7 @@ for more information.
 .Ar prog
 is the program name string that a program defines when it calls
 .Xr el_init 3
-to setup
+to set up
 .Xr editline 3 ,
 which is usually
 .Va argv[0] .
@@ -122,7 +122,7 @@ Options include:
 Bind all keys to the standard GNU Emacs-like bindings.
 .It Fl v
 Bind all keys to the standard
-.Xr vi 1 -like
+.Xr vi 1 Ns -like
 bindings.
 .It Fl a
 List or change key bindings in the
@@ -222,7 +222,7 @@ or
 indicating that the terminal does or does not have that capability.
 .Pp
 .Fl s
-returns an emptry string for non-existent capabilities, rather than
+returns an empty string for non-existent capabilities, rather than
 causing an error.
 .Fl v
 causes messages to be verbose.
@@ -230,11 +230,27 @@ causes messages to be verbose.
 Enable or disable the
 .Nm editline
 functionality in a program.
-.It Ic history
-List the history.
+.It Ic history Ar list | Ar size Dv n | Ar unique Dv n
+The 
+.Ar list
+command lists all entries in the history.
+The
+.Ar size
+command sets the history size to
+.Dv n
+entries.
+The
+.Ar unique
+command controls if history should keep duplicate entries.
+If
+.Dv n
+is non zero, only keep unique history entries.
+If
+.Dv n
+is zero, then keep all entries (the default).
 .It Ic telltc
 List the values of all the terminal capabilities (see
-.Xr termcap 5 ).
+.Xr termcap 5 ) .
 .It Ic settc Ar cap Ar val
 Set the terminal capability
 .Ar cap
@@ -251,6 +267,7 @@ No sanity checking is done.
 .Op Ar +mode
 .Op Ar -mode
 .Op Ar mode
+.Op Ar char=c
 .Xc
 Control which tty modes that
 .Nm
@@ -291,6 +308,15 @@ fixes
 on or off or removes control of
 .Ar mode
 in the chosen set.
+.Pp
+.Ic Setty
+can also be used to set tty characters to particular values using
+.Ar char=value .
+If
+.Ar value
+is empty
+then the character is set to
+.Dv _POSIX_VDISABLE .
 .El
 .Sh EDITOR COMMANDS
 The following editor commands are available for use in key bindings:
@@ -380,7 +406,7 @@ Cut the entire line and save in cut buffer.
 Cut area between mark and cursor and save in cut buffer.
 .It Ic em-copy-region
 Copy area between mark and cursor to cut buffer.
-.It Ic em-gosmacs-traspose
+.It Ic em-gosmacs-transpose
 Exchange the two characters before the cursor.
 .It Ic em-next-word
 Move next to end of current word.
