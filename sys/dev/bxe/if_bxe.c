@@ -352,7 +352,7 @@ static int bxe_sysctl_reg_read(SYSCTL_HANDLER_ARGS);
 static int bxe_sysctl_breakpoint(SYSCTL_HANDLER_ARGS);
 static void bxe_validate_rx_packet(struct bxe_fastpath *, uint16_t,
 	    union eth_rx_cqe *, struct mbuf *);
-static void bxe_dump_grc(struct bxe_softc *, int);
+static void bxe_grcdump(struct bxe_softc *, int);
 static void bxe_dump_enet(struct bxe_softc *,struct mbuf *);
 static void bxe_dump_mbuf (struct bxe_softc *, struct mbuf *);
 static void bxe_dump_tx_mbuf_chain(struct bxe_softc *, int, int);
@@ -8585,16 +8585,22 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(fp->tx_mbuf_tag, map, m0,
 	    segs, &nsegs, BUS_DMA_NOWAIT);
 	do{
-	/* Handle any mapping errors. */
+		/* Handle any mapping errors. */
 		if(__predict_false(error)){
 			if (error == ENOMEM) {
+				/* Temporary OS resource issue. */
 				rc = ENOMEM;
 			}else if (error == EFBIG) {
+				/* Possibly recoverable. */
+				DBRUN(fp->mbuf_defrag_attempts++);
 				m0 = m_defrag(*m_head, M_DONTWAIT);
 				if (m0 == NULL) {
+					BXE_PRINTF("%s(%d): Can't defrag TX frame!\n",
+					    __FILE__, __LINE__);
 					rc = ENOBUFS;
 				} else {
 				/* Defrag was successful, try mapping again.*/
+					DBRUN(fp->mbuf_defrag_successes++);
 					*m_head = m0;
 					error =
 					    bus_dmamap_load_mbuf_sg(
@@ -8602,10 +8608,15 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 						segs, &nsegs, BUS_DMA_NOWAIT);
 				}
 			}else {
+				/* Unrecoverable. */
+				BXE_PRINTF("%s(%d): Unknown TX mapping error! "
+				    "rc = %d.\n", __FILE__, __LINE__, error);
+				DBRUN(bxe_dump_mbuf(sc, m0));
 				rc = error;
 			}
 			break;
 		}
+
 		/*
 		 * Now that we know how many buffer descriptors	are required to
 		 * send the frame, check whether we have enough transmit BD's
@@ -8615,29 +8626,39 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 		if (__predict_false((nsegs + 2) >
 		    (USABLE_TX_BD - fp->used_tx_bd))) {
 			bus_dmamap_unload(fp->tx_mbuf_tag, map);
+			BXE_PRINTF("%s(%d): Insufficient TX queue space!\n",
+				   __FILE__, __LINE__);
+			/* DRC - Should we drop a frame with this error? */
 			rc = ENOBUFS;
 			break;
 		}
+
 		/* Now make sure it fits in the pkt window */
-		if (nsegs > 12) {
-		/* The mbuf has more segments than the controller can handle.
-		 * Try to defrag the mbuf if there are too many
-		 * segments.  If it can't be defragged then
-		 * drop the frame, log an error, and exit.
-		 * An alternative would be to use a bounce buffer.
-		 */
+		if (__predict_false(nsegs > 12)) {
+			/* The mbuf has more segments than the controller can
+			 * handle. Try to defrag the mbuf if there are too many
+			 * segments.  If it can't be defragged then
+			 * drop the frame, log an error, and exit.
+			 * An alternative would be to use a bounce buffer.
+			 */
 			if(m0->m_pkthdr.csum_flags & CSUM_TSO){
 				if (! bxe_chktso_window(sc,nsegs,segs,m0))
 					/* Send it */
 					break;
 			}
+
 			/* Defrag for non tso and if tso needs it */
+			DBRUN(fp->mbuf_defrag_attempts++);
 			m0 = m_defrag(*m_head, M_DONTWAIT);
 			if (m0 == NULL) {
+				BXE_PRINTF("%s(%d): Can't defrag TX frame!\n",
+				    __FILE__, __LINE__);
 				rc = ENOBUFS;
 				break;
 			}
+
 			/* Defrag was successful, try mapping again. */
+			DBRUN(fp->mbuf_defrag_successes++);
 			*m_head = m0;
 			error =
 			    bus_dmamap_load_mbuf_sg(
@@ -8654,6 +8675,8 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 					/* The frame can't be defragged,
 					 *  drop it.
 					 */
+					BXE_PRINTF("%s(%d): Can't map TX frame!\n",
+					    __FILE__, __LINE__);
 					rc = error;
 				}
 				break;
@@ -8663,6 +8686,8 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 				if (bxe_chktso_window(sc,nsegs,segs,m0))
 					rc = ENOBUFS;
 			} else if (nsegs > 12 ){
+				BXE_PRINTF("%s(%d): Too many fragments for a TSO "
+				    "frame!\n",	__FILE__, __LINE__);
 				rc = ENOBUFS;
 			}
 		}
@@ -8672,15 +8697,13 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 	if (rc){
 		if(rc == ENOMEM){
 			/* Recoverable try again later  */
-			BXE_PRINTF("%s(%d): Error mapping mbuf into TX chain"
-			   "returning pkt to queue\n",__FILE__, __LINE__);
+			BXE_PRINTF("%s(%d): Error mapping mbuf into TX chain, "
+			   "returning pkt to queue!\n",__FILE__, __LINE__);
 		}else{
 			fp->soft_tx_errors++;
 			DBRUN(fp->tx_mbuf_alloc--);
 			m_freem(*m_head);
 			*m_head = NULL;
-			BXE_PRINTF("%s(%d): Error mapping mbuf into TX chain"
-			    "Frame dropped \n",__FILE__, __LINE__);
 		}
 		return (rc);
 	}
@@ -14838,7 +14861,7 @@ bxe_rxeof(struct bxe_fastpath *fp)
 
 			/*
 			 * The high level logic used here is to
-			 * immediatley replace each	receive buffer
+			 * immediatley replace each receive buffer
 			 * as it is used so that the receive chain
 			 * is full at all times.  First we try to
 			 * allocate a new receive buffer, but if
@@ -15497,7 +15520,7 @@ bxe_sysctl_reg_read(SYSCTL_HANDLER_ARGS)
 *   0 for success, positive value for failure.
 */
 static int
-bxe_sysctl_dump_grc(SYSCTL_HANDLER_ARGS)
+bxe_sysctl_grcdump(SYSCTL_HANDLER_ARGS)
 {
 	struct bxe_softc *sc;
 	int error, result;
@@ -15510,10 +15533,10 @@ bxe_sysctl_dump_grc(SYSCTL_HANDLER_ARGS)
 
 	if (result == 1) {
 		/* Generate a grcdump and log the contents.*/
-		bxe_dump_grc(sc, 1);
+		bxe_grcdump(sc, 1);
 	} else {
 		/* Generate a grcdump and don't log the contents. */
-		bxe_dump_grc(sc, 0);
+		bxe_grcdump(sc, 0);
 	}
 
 	return (error);
@@ -15555,13 +15578,18 @@ bxe_sysctl_breakpoint(SYSCTL_HANDLER_ARGS)
 static void
 bxe_add_sysctls(struct bxe_softc *sc)
 {
-	struct sysctl_ctx_list *ctx;
-	struct sysctl_oid_list *children;
-	struct bxe_eth_stats *estats;
+	struct sysctl_ctx_list *ctx =
+	    device_get_sysctl_ctx(sc->bxe_dev);
+	struct sysctl_oid_list *children =
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->bxe_dev));
+	struct bxe_eth_stats *estats = &sc->eth_stats;
 
-	estats = &sc->eth_stats;
-	ctx = device_get_sysctl_ctx(sc->bxe_dev);
-	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->bxe_dev));
+	struct sysctl_oid *queue_node;
+	    struct sysctl_oid_list *queue_list;
+
+#define QUEUE_NAME_LEN 32
+	char namebuf[QUEUE_NAME_LEN];
+
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
 	    "estats_total_bytes_received_hi",
@@ -15676,36 +15704,60 @@ bxe_add_sysctls(struct bxe_softc *sc)
 	    CTLFLAG_RD, &sc->mbuf_alloc_failed, 0,
 	    "mbuf cluster allocation failures");
 
+	for (int i = 0; i < sc->num_queues; i++) {
+		struct bxe_fastpath *fp	= &sc->fp[i];
+		snprintf(namebuf, QUEUE_NAME_LEN, "fp[%02d]", i);
+
+		queue_node = SYSCTL_ADD_NODE(ctx, children, OID_AUTO,
+		    namebuf, CTLFLAG_RD, NULL, "Queue Name");
+		queue_list = SYSCTL_CHILDREN(queue_node);
+
+		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
+		    "mbuf_alloc_failed",
+		    CTLFLAG_RD, &fp->mbuf_alloc_failed,
+		    "Mbuf allocation failures");
+
+		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
+		    "mbuf_defrag_attempts",
+		    CTLFLAG_RD, &fp->mbuf_defrag_attempts,
+		    "Mbuf defrag attempts");
+
+		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
+		    "mbuf_defrag_successes",
+		    CTLFLAG_RD, &fp->mbuf_defrag_successes,
+		    "Mbuf defrag successes");
+	}
+
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "driver_state",
-	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0, bxe_sysctl_driver_state,
-	    "I", "Drive state information");
+	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0,
+	    bxe_sysctl_driver_state, "I", "Drive state information");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "hw_state",
-	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0, bxe_sysctl_hw_state,
-	    "I", "Hardware state information");
+	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0,
+	    bxe_sysctl_hw_state, "I", "Hardware state information");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "dump_fw",
-	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0, bxe_sysctl_dump_fw,
-	    "I", "Dump MCP firmware");
+	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0,
+	    bxe_sysctl_dump_fw,	"I", "Dump MCP firmware");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "dump_rx_chain",
-	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0, bxe_sysctl_dump_rx_chain,
-	    "I", "Dump rx_bd chain");
+	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0,
+	    bxe_sysctl_dump_rx_chain, "I", "Dump rx_bd chain");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "dump_cqe_chain",
-	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0, bxe_sysctl_dump_cqe_chain,
-	    "I", "Dump cqe chain");
+	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0,
+	    bxe_sysctl_dump_cqe_chain, "I", "Dump cqe chain");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "dump_tx_chain",
-	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0, bxe_sysctl_dump_tx_chain,
-	    "I", "Dump tx_bd chain");
+	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0,
+	    bxe_sysctl_dump_tx_chain, "I", "Dump tx_bd chain");
 
 	/*
 	 * Generates a GRCdump (run sysctl dev.bxe.0.grcdump=0
-	 * before access buffer below).
+	 * before accessing buffer below).
 	 */
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "grcdump",
-	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0, bxe_sysctl_dump_grc,
+	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0, bxe_sysctl_grcdump,
 	    "I", "Initiate a grcdump operation");
 
 	/*
@@ -15713,16 +15765,17 @@ bxe_add_sysctls(struct bxe_softc *sc)
 	 *  Use "sysctl -b dev.bxe.0.grcdump_buffer > buf.bin".
 	 */
 	SYSCTL_ADD_OPAQUE(ctx, children, OID_AUTO, "grcdump_buffer",
-	    CTLFLAG_RD | CTLFLAG_SKIP, sc->grcdump_buffer, BXE_GRCDUMP_BUF_SIZE,
-	    "IU", "Grcdump buffer");
+	    CTLFLAG_RD | CTLFLAG_SKIP, sc->grcdump_buffer,
+	    BXE_GRCDUMP_BUF_SIZE, "IU", "Access grcdump buffer");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "breakpoint",
-	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0, bxe_sysctl_breakpoint,
-	    "I", "Driver breakpoint");
+	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0,
+	    bxe_sysctl_breakpoint, "I", "Driver breakpoint");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "reg_read",
-	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0, bxe_sysctl_reg_read,
-	    "I", "Register read");
+	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0,
+	    bxe_sysctl_reg_read, "I", "Register read");
+
 #endif /* BXE_DEBUG */
 }
 
@@ -15886,7 +15939,7 @@ bxe_dump_debug_reg_wread(struct bxe_softc *sc, uint32_t *index)
  *   None.
  */
 static void
-bxe_dump_grc(struct bxe_softc *sc, int log)
+bxe_grcdump(struct bxe_softc *sc, int log)
 {
 	uint32_t *buf, i, index;
 
