@@ -1084,6 +1084,8 @@ struct bxe_fastpath {
 
 	/* Memory buffer allocation failure counter. */
 	unsigned long		mbuf_alloc_failed;
+	unsigned long		mbuf_defrag_attempts;
+	unsigned long		mbuf_defrag_successes;
 
 	/* Track the number of enqueued mbufs. */
 	int			tx_mbuf_alloc;
