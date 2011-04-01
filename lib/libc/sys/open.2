@@ -248,8 +248,7 @@ When a new file is created it is given the group of the directory
 which contains it.
 .Pp
 Unless
-.Dv
-O_CLOEXEC
+.Dv O_CLOEXEC
 flag was specified,
 the new descriptor is set to remain open across
 .Xr execve 2
@@ -416,7 +415,7 @@ of
 .Dv O_WRONLY ,
 .Dv O_RDWR
 and
-.Dv O_EXEC.
+.Dv O_EXEC .
 .It Bq Eq EBADF
 The
 .Fa path
