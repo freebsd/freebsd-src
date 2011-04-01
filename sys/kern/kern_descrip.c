@@ -1514,7 +1514,7 @@ fdavail(struct thread *td, int n)
  * release the FILEDESC lock.
  */
 int
-falloc(struct thread *td, struct file **resultfp, int *resultfd)
+fallocf(struct thread *td, struct file **resultfp, int *resultfd, int flags)
 {
 	struct proc *p = td->td_proc;
 	struct file *fp;
@@ -1557,12 +1557,21 @@ falloc(struct thread *td, struct file **resultfp, int *resultfd)
 		return (error);
 	}
 	p->p_fd->fd_ofiles[i] = fp;
+	if ((flags & O_CLOEXEC) != 0)
+		p->p_fd->fd_ofileflags[i] |= UF_EXCLOSE;
 	FILEDESC_XUNLOCK(p->p_fd);
 	if (resultfp)
 		*resultfp = fp;
 	if (resultfd)
 		*resultfd = i;
 	return (0);
+}
+
+int
+falloc(struct thread *td, struct file **resultfp, int *resultfd)
+{
+
+	return (fallocf(td, resultfp, resultfd, 0));
 }
 
 /*
