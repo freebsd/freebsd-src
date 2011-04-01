@@ -38,7 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/file.h>
 #include <sys/ioccom.h>
+#include <sys/malloc.h>
 #include <sys/mdioctl.h>
+#include <sys/memrange.h>
 #include <sys/proc.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
@@ -55,6 +57,7 @@ __FBSDID("$FreeBSD$");
 CTASSERT((sizeof(struct md_ioctl32)+4) == 436);
 CTASSERT(sizeof(struct ioc_read_toc_entry32) == 8);
 CTASSERT(sizeof(struct ioc_toc_header32) == 4);
+CTASSERT(sizeof(struct mem_range_op32) == 12);
 
 
 static int
@@ -191,6 +194,49 @@ freebsd32_ioctl_fiodgname(struct thread *td,
 	return (error);
 }
 
+static int
+freebsd32_ioctl_memrange(struct thread *td,
+    struct freebsd32_ioctl_args *uap, struct file *fp)
+{
+	struct mem_range_op mro;
+	struct mem_range_op32 mro32;
+	int error;
+	u_long com;
+
+	if ((error = copyin(uap->data, &mro32, sizeof(mro32))) != 0)
+		return (error);
+
+	PTRIN_CP(mro32, mro, mo_desc);
+	CP(mro32, mro, mo_arg[0]);
+	CP(mro32, mro, mo_arg[1]);
+
+	com = 0;
+	switch (uap->com) {
+	case MEMRANGE_GET32:
+		com = MEMRANGE_GET;
+		break;
+
+	case MEMRANGE_SET32:
+		com = MEMRANGE_SET;
+		break;
+
+	default:
+		panic("%s: unknown MEMRANGE %#x", __func__, uap->com);
+	}
+
+	if ((error = fo_ioctl(fp, com, (caddr_t)&mro, td->td_ucred, td)) != 0)
+		return (error);
+
+	if ( (com & IOC_OUT) ) {
+		CP(mro, mro32, mo_arg[0]);
+		CP(mro, mro32, mo_arg[1]);
+
+		error = copyout(&mro32, uap->data, sizeof(mro32));
+	}
+
+	return (error);
+}
+
 int
 freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 {
@@ -227,6 +273,11 @@ freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 
 	case FIODGNAME_32:
 		error = freebsd32_ioctl_fiodgname(td, uap, fp);
+		break;
+
+	case MEMRANGE_GET32:	/* FALLTHROUGH */
+	case MEMRANGE_SET32:
+		error = freebsd32_ioctl_memrange(td, uap, fp);
 		break;
 
 	default:

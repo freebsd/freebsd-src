@@ -67,6 +67,12 @@ struct fiodgname_arg32 {
 	caddr_t32	buf;
 };
 
+struct mem_range_op32
+{
+	caddr_t32	mo_desc;
+	int		mo_arg[2];
+};
+
 #define	CDIOREADTOCENTRYS_32 _IOWR('c', 5, struct ioc_read_toc_entry32)
 #define	CDIOREADTOCHEADER_32 _IOR('c', 4, struct ioc_toc_header32)
 #define	MDIOCATTACH_32	_IOC(IOC_INOUT, 'm', 0, sizeof(struct md_ioctl32) + 4)
@@ -74,5 +80,7 @@ struct fiodgname_arg32 {
 #define	MDIOCQUERY_32	_IOC(IOC_INOUT, 'm', 2, sizeof(struct md_ioctl32) + 4)
 #define	MDIOCLIST_32	_IOC(IOC_INOUT, 'm', 3, sizeof(struct md_ioctl32) + 4)
 #define	FIODGNAME_32	_IOW('f', 120, struct fiodgname_arg32)
+#define	MEMRANGE_GET32	_IOWR('m', 50, struct mem_range_op32)
+#define	MEMRANGE_SET32	_IOW('m', 51, struct mem_range_op32)
 
 #endif	/* _COMPAT_FREEBSD32_IOCTL_H_ */
