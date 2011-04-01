@@ -1761,8 +1761,9 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	u32			txd_upper, txd_lower, txd_used, txd_saved;
 	int			ip_off, poff;
 	int			nsegs, i, j, first, last = 0;
-	int			error, do_tso, tso_desc = 0;
+	int			error, do_tso, tso_desc = 0, remap = 1;
 
+retry:
 	m_head = *m_headp;
 	txd_upper = txd_lower = txd_used = txd_saved = 0;
 	do_tso = ((m_head->m_pkthdr.csum_flags & CSUM_TSO) != 0);
@@ -1900,7 +1901,7 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	 * All other errors, in particular EINVAL, are fatal and prevent the
 	 * mbuf chain from ever going through.  Drop it and report error.
 	 */
-	if (error == EFBIG) {
+	if (error == EFBIG && remap) {
 		struct mbuf *m;
 
 		m = m_defrag(*m_headp, M_DONTWAIT);
@@ -1912,20 +1913,9 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 		}
 		*m_headp = m;
 
-		/* Try it again */
-		error = bus_dmamap_load_mbuf_sg(txr->txtag, map,
-		    *m_headp, segs, &nsegs, BUS_DMA_NOWAIT);
-
-		if (error == ENOMEM) {
-			adapter->no_tx_dma_setup++;
-			return (error);
-		} else if (error != 0) {
-			adapter->no_tx_dma_setup++;
-			m_freem(*m_headp);
-			*m_headp = NULL;
-			return (error);
-		}
-
+		/* Try it again, but only once */
+		remap = 0;
+		goto retry;
 	} else if (error == ENOMEM) {
 		adapter->no_tx_dma_setup++;
 		return (error);
