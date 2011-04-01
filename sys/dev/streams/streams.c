@@ -241,7 +241,7 @@ streamsopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	}
 
 	fdp = td->td_proc->p_fd;
-	if ((error = falloc(td, &fp, &fd)) != 0)
+	if ((error = falloc(td, &fp, &fd, 0)) != 0)
 	  return error;
 	/* An extra reference on `fp' has been held for us by falloc(). */
 
