@@ -176,7 +176,7 @@ socket(td, uap)
 		return (error);
 #endif
 	fdp = td->td_proc->p_fd;
-	error = falloc(td, &fp, &fd);
+	error = falloc(td, &fp, &fd, 0);
 	if (error)
 		return (error);
 	/* An extra reference on `fp' has been held for us by falloc(). */
@@ -358,7 +358,7 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 	if (error != 0)
 		goto done;
 #endif
-	error = falloc(td, &nfp, &fd);
+	error = falloc(td, &nfp, &fd, 0);
 	if (error)
 		goto done;
 	ACCEPT_LOCK();
@@ -606,12 +606,12 @@ kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	if (error)
 		goto free1;
 	/* On success extra reference to `fp1' and 'fp2' is set by falloc. */
-	error = falloc(td, &fp1, &fd);
+	error = falloc(td, &fp1, &fd, 0);
 	if (error)
 		goto free2;
 	rsv[0] = fd;
 	fp1->f_data = so1;	/* so1 already has ref count */
-	error = falloc(td, &fp2, &fd);
+	error = falloc(td, &fp2, &fd, 0);
 	if (error)
 		goto free3;
 	fp2->f_data = so2;	/* so2 already has ref count */
@@ -2299,7 +2299,7 @@ sctp_peeloff(td, uap)
 	 * but that is ok.
 	 */
 
-	error = falloc(td, &nfp, &fd);
+	error = falloc(td, &nfp, &fd, 0);
 	if (error)
 		goto done;
 	td->td_retval[0] = fd;

@@ -1974,7 +1974,7 @@ kern_kmq_open(struct thread *td, const char *upath, int flags, mode_t mode,
 	if (len < 2  || path[0] != '/' || index(path + 1, '/') != NULL)
 		return (EINVAL);
 
-	error = falloc(td, &fp, &fd);
+	error = falloc(td, &fp, &fd, 0);
 	if (error)
 		return (error);
 

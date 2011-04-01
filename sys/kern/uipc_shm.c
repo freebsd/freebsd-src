@@ -496,7 +496,7 @@ shm_open(struct thread *td, struct shm_open_args *uap)
 	fdp = td->td_proc->p_fd;
 	cmode = (uap->mode & ~fdp->fd_cmask) & ACCESSPERMS;
 
-	error = falloc(td, &fp, &fd);
+	error = falloc(td, &fp, &fd, 0);
 	if (error)
 		return (error);
 
