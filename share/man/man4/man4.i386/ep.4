@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 1, 2008
+.Dd April 1, 2011
 .Dt EP 4 i386
 .Os
 .Sh NAME
@@ -81,9 +81,6 @@ Use the BNC port.
 .It 10baseT/UTP
 Use the UTP port.
 .El
-.Pp
-If there are multiple cards in the computer, they are searched for
-in the following order: bus, slot, then Ethernet address.
 .Sh HARDWARE
 The
 .Nm
@@ -128,13 +125,14 @@ scan operation at IO address 0x110.
 Beware!
 Avoid placing other cards at that address!
 .Pp
-Furthermore,
-the 3c509 should only
-be configured in EISA mode
+Furthermore, the 3c509 should only be configured in EISA mode
 when installed in a computer that has actual EISA slots
 (and an EISA-aware BIOS).
-The normal driver auto-detection support
-is sufficient for non-EISA systems.
+The normal driver auto-detection support is sufficient for non-EISA systems.
+.Pp
+Cards in PnP mode may conflict with other resources in the system.
+Ensure your BIOS is configured correctly to exclude resources used by
+the 3c509, especially IRQs, to avoid unpredictable behavior.
 .Pp
 Many different companies sold the 3Com PC Cards under their own private
 label.
@@ -212,5 +210,3 @@ This should never happen.
 .Sh STANDARDS
 are great.
 There is so many to choose from.
-.Sh BUGS
-Support for the 3Com 3C1 CompactFlash is not working.
