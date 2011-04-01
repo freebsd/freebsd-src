@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2011, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -93,7 +93,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.2.2";
+char em_driver_version[] = "7.2.3";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -2182,6 +2182,7 @@ em_local_timer(void *arg)
 	struct ifnet	*ifp = adapter->ifp;
 	struct tx_ring	*txr = adapter->tx_rings;
 	struct rx_ring	*rxr = adapter->rx_rings;
+	u32		trigger;
 
 	EM_CORE_LOCK_ASSERT(adapter);
 
@@ -2193,12 +2194,11 @@ em_local_timer(void *arg)
 	    e1000_get_laa_state_82571(&adapter->hw))
 		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
 
-	/* trigger tq to refill rx ring queue if it is empty */
-	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
-		if (rxr->next_to_check == rxr->next_to_refresh) {
-			taskqueue_enqueue(rxr->tq, &rxr->rx_task);
-		}
-	}
+	/* Mask to use in the irq trigger */
+	if (adapter->msix_mem)
+		trigger = rxr->ims; /* RX for 82574 */
+	else
+		trigger = E1000_ICS_RXDMT0;
 
 	/* 
 	** Don't do TX watchdog check if we've been paused
@@ -2217,6 +2217,10 @@ em_local_timer(void *arg)
 			goto hung;
 out:
 	callout_reset(&adapter->timer, hz, em_local_timer, adapter);
+#ifndef DEVICE_POLLING
+	/* Trigger an RX interrupt to guarantee mbuf refresh */
+	E1000_WRITE_REG(&adapter->hw, E1000_ICS, trigger);
+#endif
 	return;
 hung:
 	/* Looks like we're hung */
@@ -4327,7 +4331,7 @@ next_desc:
 	}
 
 	/* Catch any remaining refresh work */
-	if (processed != 0 || i == rxr->next_to_refresh)
+	if (e1000_rx_unrefreshed(rxr))
 		em_refresh_mbufs(rxr, i);
 
 	rxr->next_to_check = i;
