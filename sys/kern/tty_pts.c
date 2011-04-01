@@ -805,7 +805,7 @@ posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 	if (uap->flags & ~(O_RDWR|O_NOCTTY))
 		return (EINVAL);
 	
-	error = falloc(td, &fp, &fd);
+	error = falloc(td, &fp, &fd, 0);
 	if (error)
 		return (error);
 
