@@ -15740,7 +15740,7 @@ bxe_add_sysctls(struct bxe_softc *sc)
 	    CTLFLAG_RD, &sc->mbuf_alloc_failed, 0,
 	    "mbuf cluster allocation failures");
 
-	do() {
+	do {
 #define QUEUE_NAME_LEN 32
 		char namebuf[QUEUE_NAME_LEN];
 		struct sysctl_oid *queue_node;
@@ -15770,7 +15770,7 @@ bxe_add_sysctls(struct bxe_softc *sc)
 			    "Mbuf defrag successes");
 		}
 
-	}
+	} while (0);
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "driver_state",
 	    CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0,
