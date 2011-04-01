@@ -99,7 +99,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	kld/firmware/fwconsumer/Makefile \
 	kld/firmware/fwconsumer/fw_consumer.c \
 	kld/firmware/fwimage/Makefile \
-	kld/firmware/fwimage/firmware.img.in \
+	kld/firmware/fwimage/firmware.img.uu \
 	kld/khelp/Makefile \
 	kld/khelp/README \
 	kld/khelp/h_example.c \
