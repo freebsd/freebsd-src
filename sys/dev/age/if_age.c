@@ -1092,11 +1092,14 @@ again:
 	 * Create Tx/Rx buffer parent tag.
 	 * L1 supports full 64bit DMA addressing in Tx/Rx buffers
 	 * so it needs separate parent DMA tag.
+	 * XXX
+	 * It seems enabling 64bit DMA causes data corruption. Limit
+	 * DMA address space to 32bit.
 	 */
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(sc->age_dev), /* parent */
 	    1, 0,			/* alignment, boundary */
-	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
 	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
