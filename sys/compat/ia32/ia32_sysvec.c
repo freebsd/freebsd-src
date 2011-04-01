@@ -95,14 +95,12 @@ CTASSERT(sizeof(struct ia32_sigframe4) == 408);
 
 extern const char *freebsd32_syscallnames[];
 
-static void ia32_fixlimit(struct rlimit *rl, int which);
-
 SYSCTL_NODE(_compat, OID_AUTO, ia32, CTLFLAG_RW, 0, "ia32 mode");
 
 static u_long	ia32_maxdsiz = IA32_MAXDSIZ;
 SYSCTL_ULONG(_compat_ia32, OID_AUTO, maxdsiz, CTLFLAG_RW, &ia32_maxdsiz, 0, "");
 TUNABLE_ULONG("compat.ia32.maxdsiz", &ia32_maxdsiz);
-static u_long	ia32_maxssiz = IA32_MAXSSIZ;
+u_long	ia32_maxssiz = IA32_MAXSSIZ;
 SYSCTL_ULONG(_compat_ia32, OID_AUTO, maxssiz, CTLFLAG_RW, &ia32_maxssiz, 0, "");
 TUNABLE_ULONG("compat.ia32.maxssiz", &ia32_maxssiz);
 static u_long	ia32_maxvmem = IA32_MAXVMEM;
@@ -206,7 +204,7 @@ elf32_dump_thread(struct thread *td __unused, void *dst __unused,
 {
 }
 
-static void
+void
 ia32_fixlimit(struct rlimit *rl, int which)
 {
 

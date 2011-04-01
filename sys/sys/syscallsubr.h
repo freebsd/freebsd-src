@@ -52,6 +52,7 @@ struct kld_file_stat;
 struct ksiginfo;
 struct sendfile_args;
 struct thr_param;
+struct ogetdirentries_args;
 
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
@@ -143,6 +144,8 @@ int	kern_msgsnd(struct thread *, int, const void *, size_t, int, long);
 int	kern_msgrcv(struct thread *, int, void *, size_t, long, int, long *);
 int     kern_nanosleep(struct thread *td, struct timespec *rqt,
 	    struct timespec *rmt);
+int	kern_ogetdirentries(struct thread *td, struct ogetdirentries_args *uap,
+	    long *ploff);
 int	kern_open(struct thread *td, char *path, enum uio_seg pathseg,
 	    int flags, int mode);
 int	kern_openat(struct thread *td, int fd, char *path,

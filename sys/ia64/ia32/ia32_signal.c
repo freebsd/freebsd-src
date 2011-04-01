@@ -92,6 +92,15 @@ x) */
 };
 int sz_ia32_sigcode = sizeof(ia32_sigcode);
 
+#ifdef COMPAT_43
+int
+ofreebsd32_sigreturn(struct thread *td, struct ofreebsd32_sigreturn_args *uap)
+{
+
+	return (EOPNOTSUPP);
+}
+#endif
+
 /*
  * Signal sending has not been implemented on ia64.  This causes
  * the sigtramp code to not understand the arguments and the application
