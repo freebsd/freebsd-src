@@ -1355,10 +1355,16 @@ delete-old-files:
 	@echo ">>> Removing old files (only deletes safe to delete libs)"
 # Ask for every old file if the user really wants to remove it.
 # It's annoying, but better safe than sorry.
-	@for file in ${OLD_FILES} ${OLD_FILES:Musr/share/*.gz:R}; do \
+# NB: We cannot pass the list of OLD_FILES as a parameter because the
+# argument list will get too long. Using .for/.endfor make "loops" will make
+# the Makefile parser segfault.
+	@exec 3<&0; \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	    -V OLD_FILES -V "OLD_FILES:Musr/share/*.gz:R" | xargs -n1 | \
+	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
-			rm ${RM_I} "${DESTDIR}/$${file}"; \
+			rm ${RM_I} "${DESTDIR}/$${file}" <&3; \
 		fi; \
 	done
 # Remove catpages without corresponding manpages.
@@ -1368,14 +1374,16 @@ delete-old-files:
 	while read catpage; do \
 		read manpage; \
 		if [ ! -e "$${manpage}" ]; then \
-			rm ${RM_I} $${catpage} <&3 ; \
+			rm ${RM_I} $${catpage} <&3; \
 	        fi; \
 	done
 	@echo ">>> Old files removed"
 
 check-old-files:
 	@echo ">>> Checking for old files"
-	@for file in ${OLD_FILES} ${OLD_FILES:Musr/share/*.gz:R}; do \
+	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	    -V OLD_FILES -V "OLD_FILES:Musr/share/*.gz:R" | xargs -n1 | \
+	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 		 	echo "${DESTDIR}/$${file}"; \
 		fi; \
@@ -1386,24 +1394,29 @@ check-old-files:
 	while read catpage; do \
 		read manpage; \
 		if [ ! -e "$${manpage}" ]; then \
-			echo $${catpage} ; \
+			echo $${catpage}; \
 	        fi; \
 	done
 
 delete-old-libs:
 	@echo ">>> Removing old libraries"
 	@echo "${OLD_LIBS_MESSAGE}" | fmt
-	@for file in ${OLD_LIBS}; do \
+	@exec 3<&0; \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	    -V OLD_LIBS | xargs -n1 | \
+	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
-			rm ${RM_I} "${DESTDIR}/$${file}"; \
+			rm ${RM_I} "${DESTDIR}/$${file}" <&3; \
 		fi; \
 	done
 	@echo ">>> Old libraries removed"
 
 check-old-libs:
 	@echo ">>> Checking for old libraries"
-	@for file in ${OLD_LIBS}; do \
+	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	    -V OLD_LIBS | xargs -n1 | \
+	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			echo "${DESTDIR}/$${file}"; \
 		fi; \
@@ -1411,7 +1424,9 @@ check-old-libs:
 
 delete-old-dirs:
 	@echo ">>> Removing old directories"
-	@for dir in ${OLD_DIRS}; do \
+	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	    -V OLD_DIRS | xargs -n1 | \
+	while read dir; do \
 		if [ -d "${DESTDIR}/$${dir}" ]; then \
 			rmdir -v "${DESTDIR}/$${dir}" || true; \
 		elif [ -L "${DESTDIR}/$${dir}" ]; then \
@@ -1422,7 +1437,9 @@ delete-old-dirs:
 
 check-old-dirs:
 	@echo ">>> Checking for old directories"
-	@for dir in ${OLD_DIRS}; do \
+	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	    -V OLD_DIRS | xargs -n1 | \
+	while read dir; do \
 		if [ -d "${DESTDIR}/$${dir}" ]; then \
 			echo "${DESTDIR}/$${dir}"; \
 		elif [ -L "${DESTDIR}/$${dir}" ]; then \
