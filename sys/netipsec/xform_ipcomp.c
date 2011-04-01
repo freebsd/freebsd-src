@@ -142,7 +142,28 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	struct tdb_crypto *tc;
 	struct cryptodesc *crdc;
 	struct cryptop *crp;
+	struct ipcomp *ipcomp;
+	caddr_t addr;
 	int hlen = IPCOMP_HLENGTH;
+
+	/*
+	 * Check that the next header of the IPComp is not IPComp again, before
+	 * doing any real work.  Given it is not possible to do double
+	 * compression it means someone is playing tricks on us.
+	 */
+	if (m->m_len < skip + hlen && (m = m_pullup(m, skip + hlen)) == NULL) {
+		V_ipcompstat.ipcomps_hdrops++;		/*XXX*/
+		DPRINTF(("%s: m_pullup failed\n", __func__));
+		return (ENOBUFS);
+	}
+	addr = (caddr_t) mtod(m, struct ip *) + skip;
+	ipcomp = (struct ipcomp *)addr;
+	if (ipcomp->comp_nxt == IPPROTO_IPCOMP) {
+		m_freem(m);
+		V_ipcompstat.ipcomps_pdrops++;	/* XXX have our own stats? */
+		DPRINTF(("%s: recursive compression detected\n", __func__));
+		return (EINVAL);
+	}
 
 	/* Get crypto descriptors */
 	crp = crypto_getreq(1);
