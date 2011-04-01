@@ -2424,6 +2424,8 @@ age_rxintr(struct age_softc *sc, int rr_prod, int count)
 	bus_dmamap_sync(sc->age_cdata.age_rr_ring_tag,
 	    sc->age_cdata.age_rr_ring_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_sync(sc->age_cdata.age_rx_ring_tag,
+	    sc->age_cdata.age_rx_ring_map, BUS_DMASYNC_POSTWRITE);
 
 	for (prog = 0; rr_cons != rr_prod; prog++) {
 		if (count <= 0)
@@ -2455,6 +2457,8 @@ age_rxintr(struct age_softc *sc, int rr_prod, int count)
 		/* Update the consumer index. */
 		sc->age_cdata.age_rr_cons = rr_cons;
 
+		bus_dmamap_sync(sc->age_cdata.age_rx_ring_tag,
+		    sc->age_cdata.age_rx_ring_map, BUS_DMASYNC_PREWRITE);
 		/* Sync descriptors. */
 		bus_dmamap_sync(sc->age_cdata.age_rr_ring_tag,
 		    sc->age_cdata.age_rr_ring_map,
@@ -2981,8 +2985,7 @@ age_init_rx_ring(struct age_softc *sc)
 	}
 
 	bus_dmamap_sync(sc->age_cdata.age_rx_ring_tag,
-	    sc->age_cdata.age_rx_ring_map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	    sc->age_cdata.age_rx_ring_map, BUS_DMASYNC_PREWRITE);
 
 	return (0);
 }
