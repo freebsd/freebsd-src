@@ -312,11 +312,10 @@ man_display_page() {
 	# device flag (-T) we have to pass to eqn(1) and groff(1). Then,
 	# setup the pipeline of commands based on the user's request.
 
-	# Apparently the locale flags are switched on where the manpage is
-	# found not just the locale env variables.
-	nroff_dev="ascii"
-	case "X${use_locale}X${manpage}" in
-	XyesX*/${man_lang}*${man_charset}/*)
+	# If the manpage is from a particular charset, we need to setup nroff
+	# to properly output for the correct device.
+	case "${manpage}" in
+	*.${man_charset}/*)
 		# I don't pretend to know this; I'm just copying from the
 		# previous version of man(1).
 		case "$man_charset" in
@@ -327,8 +326,19 @@ man_display_page() {
 		*)		nroff_dev="ascii" ;;
 		esac
 
-		NROFF="$NROFF -T$nroff_dev -dlocale=$man_lang.$man_charset"
+		NROFF="$NROFF -T$nroff_dev"
 		EQN="$EQN -T$nroff_dev"
+
+		# Iff the manpage is from the locale and not just the charset,
+		# then we need to define the locale string.
+		case "${manpage}" in
+		*/${man_lang}_${man_country}.${man_charset}/*)
+			NROFF="$NROFF -dlocale=$man_lang.$man_charset"
+			;;
+		*/${man_lang}.${man_charset}/*)
+			NROFF="$NROFF -dlocale=$man_lang.$man_charset"
+			;;
+		esac
 
 		# Allow language specific calls to override the default
 		# set of utilities.
@@ -557,28 +567,38 @@ man_setup() {
 # Usage: man_setup_locale
 # Setup necessary locale variables.
 man_setup_locale() {
+	local lang_cc
+
+	locpaths='.'
+	man_charset='US-ASCII'
+
 	# Setup locale information.
 	if [ -n "$oflag" ]; then
-		decho "Using non-localized manpages"
-		unset use_locale
-	elif [ -n "$LC_ALL" ]; then
-		parse_locale "$LC_ALL"
-	elif [ -n "$LC_CTYPE" ]; then
-		parse_locale "$LC_CTYPE"
-	elif [ -n "$LANG" ]; then
-		parse_locale "$LANG"
+		decho 'Using non-localized manpages'
+	else
+		# Use the locale tool to give us the proper LC_CTYPE
+		eval $( $LOCALE )
+
+		case "$LC_CTYPE" in
+		C)		;;
+		POSIX)		;;
+		[a-z][a-z]_[A-Z][A-Z]\.*)
+				lang_cc="${LC_CTYPE%.*}"
+				man_lang="${LC_CTYPE%_*}"
+				man_country="${lang_cc#*_}"
+				man_charset="${LC_CTYPE#*.}"
+				locpaths="$LC_CTYPE"
+				locpaths="$locpaths:$man_lang.$man_charset"
+				if [ "$man_lang" != "en" ]; then
+					locpaths="$locpaths:en.$man_charset"
+				fi
+				locpaths="$locpaths:."
+				;;
+		*)		echo 'Unknown locale, assuming C' >&2
+				;;
+		esac
 	fi
 
-	if [ -n "$use_locale" ]; then
-		locpaths="${man_lang}_${man_country}.${man_charset}"
-		locpaths="$locpaths:$man_lang.$man_charset"
-		if [ "$man_lang" != "en" ]; then
-			locpaths="$locpaths:en.$man_charset"
-		fi
-		locpaths="$locpaths:."
-	else
-		locpaths="."
-	fi
 	decho "Using locale paths: $locpaths"
 }
 
@@ -658,28 +678,6 @@ parse_file() {
 				;;
 		esac
 	done < "$file"
-}
-
-# Usage: parse_locale localestring
-# Setup locale variables for proper parsing.
-parse_locale() {
-	local lang_cc
-
-	case "$1" in
-	C)				;;
-	POSIX)				;;
-	[a-z][a-z]_[A-Z][A-Z]\.*)	lang_cc="${1%.*}"
-					man_lang="${1%_*}"
-					man_country="${lang_cc#*_}"
-					man_charset="${1#*.}"
-					use_locale=yes
-					return 0
-					;;
-	*)				echo 'Unknown locale, assuming C' >&2
-					;;
-	esac
-
-	unset use_locale
 }
 
 # Usage: search_path
@@ -893,6 +891,7 @@ do_whatis() {
 
 EQN=/usr/bin/eqn
 COL=/usr/bin/col
+LOCALE=/usr/bin/locale
 NROFF='/usr/bin/groff -S -Wall -mtty-char -man'
 PIC=/usr/bin/pic
 SYSCTL=/sbin/sysctl
