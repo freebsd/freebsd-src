@@ -845,12 +845,6 @@ done2:
 		exit1(td, W_EXITCODE(0, SIGABRT));
 		/* NOT REACHED */
 	}
-
-#ifdef KTRACE
-	if (error == 0)
-		ktrprocctor(p);
-#endif
-
 	return (error);
 }
 
