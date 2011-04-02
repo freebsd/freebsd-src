@@ -40,7 +40,7 @@
 .Nd display kernel trace data
 .Sh SYNOPSIS
 .Nm
-.Op Fl dEnlHRsT
+.Op Fl dEnlHRsTA
 .Op Fl f Ar trfile
 .Op Fl m Ar maxdata
 .Op Fl p Ar pid
@@ -103,6 +103,8 @@ GIDs, dates etc. symbolically instead of numerically.
 Suppress display of I/O data.
 .It Fl T
 Display absolute timestamps for each entry (seconds since epoch).
+.It Fl A
+Display description of the ABI of traced process.
 .It Fl t Ar trstr
 See the
 .Fl t
