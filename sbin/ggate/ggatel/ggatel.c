@@ -53,7 +53,6 @@ static const char *path = NULL;
 static int unit = G_GATE_UNIT_AUTO;
 static unsigned flags = 0;
 static int force = 0;
-static unsigned queue_size = G_GATE_QUEUE_SIZE;
 static unsigned sectorsize = 0;
 static unsigned timeout = G_GATE_TIMEOUT;
 
@@ -61,7 +60,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: %s create [-v] [-o <ro|wo|rw>] [-q queue_size] "
+	fprintf(stderr, "usage: %s create [-v] [-o <ro|wo|rw>] "
 	    "[-s sectorsize] [-t timeout] [-u unit] <path>\n", getprogname());
 	fprintf(stderr, "       %s rescue [-v] [-o <ro|wo|rw>] <-u unit> "
 	    "<path>\n", getprogname());
@@ -182,7 +181,7 @@ g_gatel_create(void)
 	ggioc.gctl_sectorsize = sectorsize;
 	ggioc.gctl_timeout = timeout;
 	ggioc.gctl_flags = flags;
-	ggioc.gctl_maxcount = queue_size;
+	ggioc.gctl_maxcount = 0;
 	strlcpy(ggioc.gctl_info, path, sizeof(ggioc.gctl_info));
 	g_gate_ioctl(G_GATE_CMD_CREATE, &ggioc);
 	if (unit == -1)
@@ -230,7 +229,7 @@ main(int argc, char *argv[])
 	for (;;) {
 		int ch;
 
-		ch = getopt(argc, argv, "fo:q:s:t:u:v");
+		ch = getopt(argc, argv, "fo:s:t:u:v");
 		if (ch == -1)
 			break;
 		switch (ch) {
@@ -252,14 +251,6 @@ main(int argc, char *argv[])
 				errx(EXIT_FAILURE,
 				    "Invalid argument for '-o' option.");
 			}
-			break;
-		case 'q':
-			if (action != CREATE)
-				usage();
-			errno = 0;
-			queue_size = strtoul(optarg, NULL, 10);
-			if (queue_size == 0 && errno != 0)
-				errx(EXIT_FAILURE, "Invalid queue_size.");
 			break;
 		case 's':
 			if (action != CREATE)
