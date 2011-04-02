@@ -183,6 +183,10 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 	unsigned char *map;
 	size_t mapsize;
 
+	/* Setup direction. */
+	if (proto_send(res->hr_remoteout, NULL, 0) == -1)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
+
 	map = NULL;
 	mapsize = 0;
 	nvout = nv_alloc();
@@ -346,6 +350,9 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 	if (map != NULL)
 		free(map);
 	nv_free(nvout);
+	/* Setup direction. */
+	if (proto_recv(res->hr_remotein, NULL, 0) == -1)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
 	if (res->hr_secondary_localcnt > res->hr_primary_remotecnt &&
 	     res->hr_primary_localcnt > res->hr_secondary_remotecnt) {
 		/* Exit on split-brain. */
