@@ -83,7 +83,7 @@
 #define	HIO_KEEPALIVE		5
 
 #define	HAST_USER	"hast"
-#define	HAST_TIMEOUT	5
+#define	HAST_TIMEOUT	20
 #define	HAST_CONFIG	"/etc/hast.conf"
 #define	HAST_CONTROL	"/var/run/hastctl"
 #define	HASTD_LISTEN	"tcp4://0.0.0.0:8457"
