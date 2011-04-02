@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mdioctl.h>
 #include <sys/memrange.h>
+#include <sys/pciio.h>
 #include <sys/proc.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
@@ -58,6 +59,9 @@ CTASSERT((sizeof(struct md_ioctl32)+4) == 436);
 CTASSERT(sizeof(struct ioc_read_toc_entry32) == 8);
 CTASSERT(sizeof(struct ioc_toc_header32) == 4);
 CTASSERT(sizeof(struct mem_range_op32) == 12);
+CTASSERT(sizeof(struct pci_conf_io32) == 36);
+CTASSERT(sizeof(struct pci_match_conf32) == 44);
+CTASSERT(sizeof(struct pci_conf32) == 44);
 
 
 static int
