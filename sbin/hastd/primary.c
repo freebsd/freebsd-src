@@ -701,6 +701,11 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		(void)hast_activemap_flush(res);
 	}
 	nv_free(nvin);
+	/* Setup directions. */
+	if (proto_send(out, NULL, 0) == -1)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
+	if (proto_recv(in, NULL, 0) == -1)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
 	pjdlog_info("Connected to %s.", res->hr_remoteaddr);
 	if (inp != NULL && outp != NULL) {
 		*inp = in;
