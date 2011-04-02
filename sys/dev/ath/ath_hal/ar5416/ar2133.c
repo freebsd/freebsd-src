@@ -251,11 +251,19 @@ ar2133SetRfRegs(struct ath_hal *ah, const struct ieee80211_channel *chan,
 	
 	/* Only the 5 or 2 GHz OB/DB need to be set for a mode */
 	if (IEEE80211_IS_CHAN_2GHZ(chan)) {
+		HALDEBUG(ah, HAL_DEBUG_EEPROM, "%s: 2ghz: OB_2:%d, DB_2:%d\n",
+		    __func__,
+		    ath_hal_eepromGet(ah, AR_EEP_OB_2, AH_NULL),
+		    ath_hal_eepromGet(ah, AR_EEP_DB_2, AH_NULL));
 		ar5416ModifyRfBuffer(priv->Bank6Data,
 		    ath_hal_eepromGet(ah, AR_EEP_OB_2, AH_NULL), 3, 197, 0);
 		ar5416ModifyRfBuffer(priv->Bank6Data,
 		    ath_hal_eepromGet(ah, AR_EEP_DB_2, AH_NULL), 3, 194, 0);
 	} else {
+		HALDEBUG(ah, HAL_DEBUG_EEPROM, "%s: 5ghz: OB_5:%d, DB_5:%d\n",
+		    __func__,
+		    ath_hal_eepromGet(ah, AR_EEP_OB_5, AH_NULL),
+		    ath_hal_eepromGet(ah, AR_EEP_DB_5, AH_NULL));
 		ar5416ModifyRfBuffer(priv->Bank6Data,
 		    ath_hal_eepromGet(ah, AR_EEP_OB_5, AH_NULL), 3, 203, 0);
 		ar5416ModifyRfBuffer(priv->Bank6Data,
