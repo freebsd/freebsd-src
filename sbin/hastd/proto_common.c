@@ -82,6 +82,17 @@ proto_common_send(int sock, const unsigned char *data, size_t size, int fd)
 	size_t sendsize;
 
 	PJDLOG_ASSERT(sock >= 0);
+
+	if (data == NULL) {
+		/* The caller is just trying to decide about direction. */
+
+		PJDLOG_ASSERT(size == 0);
+
+		if (shutdown(sock, SHUT_RD) == -1)
+			return (errno);
+		return (0);
+	}
+
 	PJDLOG_ASSERT(data != NULL);
 	PJDLOG_ASSERT(size > 0);
 
@@ -141,6 +152,17 @@ proto_common_recv(int sock, unsigned char *data, size_t size, int *fdp)
 	ssize_t done;
 
 	PJDLOG_ASSERT(sock >= 0);
+
+	if (data == NULL) {
+		/* The caller is just trying to decide about direction. */
+
+		PJDLOG_ASSERT(size == 0);
+
+		if (shutdown(sock, SHUT_WR) == -1)
+			return (errno);
+		return (0);
+	}
+
 	PJDLOG_ASSERT(data != NULL);
 	PJDLOG_ASSERT(size > 0);
 
