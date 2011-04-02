@@ -94,6 +94,7 @@ proto_common_send(int sock, const unsigned char *data, size_t size, int fd)
 {
 	ssize_t done;
 	size_t sendsize;
+	int errcount = 0;
 
 	PJDLOG_ASSERT(sock >= 0);
 
@@ -118,6 +119,23 @@ proto_common_send(int sock, const unsigned char *data, size_t size, int fd)
 		} else if (done < 0) {
 			if (errno == EINTR)
 				continue;
+			if (errno == ENOBUFS) {
+				/*
+				 * If there are no buffers we retry.
+				 * After each try we increase delay before the
+				 * next one and we give up after fifteen times.
+				 * This gives 11s of total wait time.
+				 */
+				if (errcount == 15) {
+					pjdlog_warning("Getting ENOBUFS errors for 11s on send(), giving up.");
+				} else {
+					if (errcount == 0)
+						pjdlog_warning("Got ENOBUFS error on send(), retrying for a bit.");
+					errcount++;
+					usleep(100000 * errcount);
+					continue;
+				}
+			}
 			/*
 			 * If this is blocking socket and we got EAGAIN, this
 			 * means the request timed out. Translate errno to
@@ -131,6 +149,10 @@ proto_common_send(int sock, const unsigned char *data, size_t size, int fd)
 		data += done;
 		size -= done;
 	} while (size > 0);
+	if (errcount > 0) {
+		pjdlog_info("Data sent successfully after %d ENOBUFS error%s.",
+		    errcount, errcount == 1 ? "" : "s");
+	}
 
 	if (fd == -1)
 		return (0);
