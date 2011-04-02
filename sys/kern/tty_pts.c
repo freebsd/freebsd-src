@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/serial.h>
 #include <sys/stat.h>
@@ -682,6 +683,7 @@ ptsdrv_free(void *softc)
 		free_unr(pts_pool, psc->pts_unit);
 
 	chgptscnt(psc->pts_cred->cr_ruidinfo, -1, 0);
+	racct_sub_cred(psc->pts_cred, RACCT_NPTS, 1);
 	crfree(psc->pts_cred);
 
 	knlist_destroy(&psc->pts_inpoll.si_note);
@@ -712,7 +714,7 @@ static
 int
 pts_alloc(int fflags, struct thread *td, struct file *fp)
 {
-	int unit, ok;
+	int unit, ok, error;
 	struct tty *tp;
 	struct pts_softc *psc;
 	struct proc *p = td->td_proc;
@@ -720,14 +722,23 @@ pts_alloc(int fflags, struct thread *td, struct file *fp)
 
 	/* Resource limiting. */
 	PROC_LOCK(p);
-	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(p, RLIMIT_NPTS));
-	PROC_UNLOCK(p);
-	if (!ok)
+	error = racct_add(p, RACCT_NPTS, 1);
+	if (error != 0) {
+		PROC_UNLOCK(p);
 		return (EAGAIN);
+	}
+	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(p, RLIMIT_NPTS));
+	if (!ok) {
+		racct_sub(p, RACCT_NPTS, 1);
+		PROC_UNLOCK(p);
+		return (EAGAIN);
+	}
+	PROC_UNLOCK(p);
 
 	/* Try to allocate a new pts unit number. */
 	unit = alloc_unr(pts_pool);
 	if (unit < 0) {
+		racct_sub(p, RACCT_NPTS, 1);
 		chgptscnt(cred->cr_ruidinfo, -1, 0);
 		return (EAGAIN);
 	}
@@ -757,7 +768,7 @@ int
 pts_alloc_external(int fflags, struct thread *td, struct file *fp,
     struct cdev *dev, const char *name)
 {
-	int ok;
+	int ok, error;
 	struct tty *tp;
 	struct pts_softc *psc;
 	struct proc *p = td->td_proc;
@@ -765,10 +776,18 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 
 	/* Resource limiting. */
 	PROC_LOCK(p);
-	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(p, RLIMIT_NPTS));
-	PROC_UNLOCK(p);
-	if (!ok)
+	error = racct_add(p, RACCT_NPTS, 1);
+	if (error != 0) {
+		PROC_UNLOCK(p);
 		return (EAGAIN);
+	}
+	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(p, RLIMIT_NPTS));
+	if (!ok) {
+		racct_sub(p, RACCT_NPTS, 1);
+		PROC_UNLOCK(p);
+		return (EAGAIN);
+	}
+	PROC_UNLOCK(p);
 
 	/* Allocate TTY and softc. */
 	psc = malloc(sizeof(struct pts_softc), M_PTS, M_WAITOK|M_ZERO);
