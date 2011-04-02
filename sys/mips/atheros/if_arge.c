@@ -227,10 +227,31 @@ arge_attach(device_t dev)
 	uint32_t		reg, rnd;
 	int			is_base_mac_empty, i, phys_total;
 	uint32_t		hint;
+	long			eeprom_mac_addr = 0;
 
 	sc = device_get_softc(dev);
 	sc->arge_dev = dev;
 	sc->arge_mac_unit = device_get_unit(dev);
+
+	/*
+	 * Some units (eg the TP-Link WR-1043ND) do not have a convenient
+	 * EEPROM location to read the ethernet MAC address from.
+	 * OpenWRT simply snaffles it from a fixed location.
+	 *
+	 * Since multiple units seem to use this feature, include
+	 * a method of setting the MAC address based on an flash location
+	 * in CPU address space.
+	 */
+	if (sc->arge_mac_unit == 0 &&
+	    resource_long_value(device_get_name(dev), device_get_unit(dev), 
+	    "eeprommac", &eeprom_mac_addr) == 0) {
+		int i;
+		const char *mac = (const char *) MIPS_PHYS_TO_KSEG1(eeprom_mac_addr);
+		device_printf(dev, "Overriding MAC from EEPROM\n");
+		for (i = 0; i < 6; i++) {
+			ar711_base_mac[i] = mac[i];
+		}
+	}
 
 	KASSERT(((sc->arge_mac_unit == 0) || (sc->arge_mac_unit == 1)), 
 	    ("if_arge: Only MAC0 and MAC1 supported"));
