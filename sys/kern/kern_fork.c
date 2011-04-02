@@ -613,10 +613,6 @@ again:
 
 	callout_init(&p2->p_itcallout, CALLOUT_MPSAFE);
 
-#ifdef KTRACE
-	ktrprocfork(p1, p2);
-#endif
-
 	/*
 	 * If PF_FORK is set, the child process inherits the
 	 * procfs ioctl flags from its parent.
@@ -660,6 +656,10 @@ again:
 	/* Inform accounting that we have forked. */
 	p2->p_acflag = AFORK;
 	PROC_UNLOCK(p2);
+
+#ifdef KTRACE
+	ktrprocfork(p1, p2);
+#endif
 
 	/*
 	 * Finish creating the child process.  It will return via a different
