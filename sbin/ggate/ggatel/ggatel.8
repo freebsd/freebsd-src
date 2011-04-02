@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2004
+.Dd April 2, 2011
 .Dt GGATEL 8
 .Os
 .Sh NAME
@@ -35,7 +35,6 @@
 .Cm create
 .Op Fl v
 .Op Fl o Cm ro | wo | rw
-.Op Fl q Ar queue_size
 .Op Fl s Ar sectorsize
 .Op Fl t Ar timeout
 .Op Fl u Ar unit
@@ -100,10 +99,6 @@ or read-write
 .Pq Cm rw .
 Default is
 .Cm rw .
-.It Fl q Ar queue_size
-Number of pending I/O requests that can be queued before they will
-start to be canceled.
-Default is 1024.
 .It Fl s Ar sectorsize
 Sector size for
 .Nm ggate
