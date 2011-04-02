@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -34,8 +35,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <errno.h>
+#include <fcntl.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <unistd.h>
 
 #include "pjdlog.h"
 #include "proto_impl.h"
@@ -44,6 +48,16 @@ __FBSDID("$FreeBSD$");
 #ifndef MAX_SEND_SIZE
 #define	MAX_SEND_SIZE	32768
 #endif
+
+static bool
+blocking_socket(int sock)
+{
+	int flags;
+
+	flags = fcntl(sock, F_GETFL);
+	PJDLOG_ASSERT(flags >= 0);
+	return ((flags & O_NONBLOCK) == 0);
+}
 
 static int
 proto_descriptor_send(int sock, int fd)
@@ -99,11 +113,19 @@ proto_common_send(int sock, const unsigned char *data, size_t size, int fd)
 	do {
 		sendsize = size < MAX_SEND_SIZE ? size : MAX_SEND_SIZE;
 		done = send(sock, data, sendsize, MSG_NOSIGNAL);
-		if (done == 0)
+		if (done == 0) {
 			return (ENOTCONN);
-		else if (done < 0) {
+		} else if (done < 0) {
 			if (errno == EINTR)
 				continue;
+			/*
+			 * If this is blocking socket and we got EAGAIN, this
+			 * means the request timed out. Translate errno to
+			 * ETIMEDOUT, to give administrator a hint to
+			 * eventually increase timeout.
+			 */
+			if (errno == EAGAIN && blocking_socket(sock))
+				errno = ETIMEDOUT;
 			return (errno);
 		}
 		data += done;
@@ -169,10 +191,19 @@ proto_common_recv(int sock, unsigned char *data, size_t size, int *fdp)
 	do {
 		done = recv(sock, data, size, MSG_WAITALL);
 	} while (done == -1 && errno == EINTR);
-	if (done == 0)
+	if (done == 0) {
 		return (ENOTCONN);
-	else if (done < 0)
+	} else if (done < 0) {
+		/*
+		 * If this is blocking socket and we got EAGAIN, this
+		 * means the request timed out. Translate errno to
+		 * ETIMEDOUT, to give administrator a hint to
+		 * eventually increase timeout.
+		 */
+		if (errno == EAGAIN && blocking_socket(sock))
+			errno = ETIMEDOUT;
 		return (errno);
+	}
 	if (fdp == NULL)
 		return (0);
 	return (proto_descriptor_recv(sock, fdp));
