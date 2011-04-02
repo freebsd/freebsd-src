@@ -3501,10 +3501,14 @@ cancel_jaddref(jaddref, inodedep, wkhd)
 	 * us so that it is consistent with the in-memory reference.  This
 	 * ensures that inode nlink rollbacks always have the correct link.
 	 */
-	if (needsj == 0)
+	if (needsj == 0) {
 		for (inoref = TAILQ_NEXT(&jaddref->ja_ref, if_deps); inoref;
-		    inoref = TAILQ_NEXT(inoref, if_deps))
+		    inoref = TAILQ_NEXT(inoref, if_deps)) {
+			if (inoref->if_state & GOINGAWAY)
+				break;
 			inoref->if_nlink--;
+		}
+	}
 	jsegdep = inoref_jseg(&jaddref->ja_ref);
 	if (jaddref->ja_state & NEWBLOCK)
 		move_newblock_dep(jaddref, inodedep);
@@ -3522,6 +3526,7 @@ cancel_jaddref(jaddref, inodedep, wkhd)
 		if (jaddref->ja_state & DEPCOMPLETE)
 			remove_from_journal(&jaddref->ja_list);
 	}
+	jaddref->ja_state |= (GOINGAWAY | DEPCOMPLETE);
 	/*
 	 * Leave NEWBLOCK jaddrefs on the inodedep so handle_workitem_remove
 	 * can arrange for them to be freed with the bitmap.  Otherwise we
@@ -3535,7 +3540,6 @@ cancel_jaddref(jaddref, inodedep, wkhd)
 		free_jaddref(jaddref);
 		return (needsj);
 	}
-	jaddref->ja_state |= GOINGAWAY;
 	/*
 	 * Leave the head of the list for jsegdeps for fast merging.
 	 */
@@ -4071,6 +4075,7 @@ softdep_revert_mkdir(dp, ip)
 {
 	struct inodedep *inodedep;
 	struct jaddref *jaddref;
+	struct jaddref *dotaddref;
 	struct vnode *dvp;
 
 	dvp = ITOV(dp);
@@ -4090,12 +4095,12 @@ softdep_revert_mkdir(dp, ip)
 		    inoreflst);
 		KASSERT(jaddref->ja_parent == dp->i_number,
 		    ("softdep_revert_mkdir: addref parent mismatch"));
+		dotaddref = (struct jaddref *)TAILQ_PREV(&jaddref->ja_ref,
+		    inoreflst, if_deps);
 		cancel_jaddref(jaddref, inodedep, &inodedep->id_inowait);
-		jaddref = (struct jaddref *)TAILQ_LAST(&inodedep->id_inoreflst,
-		    inoreflst);
-		KASSERT(jaddref->ja_parent == ip->i_number,
+		KASSERT(dotaddref->ja_parent == ip->i_number,
 		    ("softdep_revert_mkdir: dot addref parent mismatch"));
-		cancel_jaddref(jaddref, inodedep, &inodedep->id_inowait);
+		cancel_jaddref(dotaddref, inodedep, &inodedep->id_inowait);
 	}
 	FREE_LOCK(&lk);
 }
@@ -5734,14 +5739,14 @@ softdep_freefile(pvp, ino, mode)
 		clear_unlinked_inodedep(inodedep);
 		/* Re-acquire inodedep as we've dropped lk. */
 		inodedep_lookup(pvp->v_mount, ino, 0, &inodedep);
-		if (inodedep && (inodedep->id_state & DEPCOMPLETE) == 0)
-			inodedep->id_state |= GOINGAWAY;
 	}
 	if (inodedep == NULL || check_inode_unwritten(inodedep)) {
 		FREE_LOCK(&lk);
 		handle_workitem_freefile(freefile);
 		return;
 	}
+	if (inodedep && (inodedep->id_state & DEPCOMPLETE) == 0)
+		inodedep->id_state |= GOINGAWAY;
 	WORKLIST_INSERT(&inodedep->id_inowait, &freefile->fx_list);
 	FREE_LOCK(&lk);
 	if (ip->i_number == ino)
