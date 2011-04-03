@@ -206,6 +206,13 @@ ar71xx_ehci_attach(device_t self)
 			break;
 	}
 
+	/*
+	 * ehci_reset() needs the correct offset to access the host controller
+	 * registers. The AR724x/AR913x offsets aren't 0.
+	*/
+	sc->sc_offs = EHCI_CAPLENGTH(EREAD4(sc, EHCI_CAPLEN_HCIVERSION));
+
+
 	(void) ehci_reset(sc);
 
 	err = ehci_init(sc);
