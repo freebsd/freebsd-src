@@ -28,8 +28,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <machine/bootinfo.h>
 #include <machine/efi.h>
-#include <ia64/include/bootinfo.h>
 #include <stand.h>
 #include "libski.h"
 
