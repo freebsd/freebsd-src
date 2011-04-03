@@ -105,3 +105,5 @@ dev/siba/siba_pcib.c		optional	siba pci
 
 dev/hwpmc/hwpmc_mips.c		optional hwpmc
 dev/hwpmc/hwpmc_mips24k.c	optional hwpmc
+
+dev/nvram2env/nvram2env.c	optional	nvram2env
