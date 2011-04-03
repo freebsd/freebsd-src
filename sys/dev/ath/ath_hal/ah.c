@@ -21,6 +21,7 @@
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
+#include "ah_eeprom.h"			/* for 5ghz fast clock flag */
 
 #include "ar5416/ar5416reg.h"		/* NB: includes ar5212reg.h */
 
@@ -419,6 +420,8 @@ ath_hal_chan2wmode(struct ath_hal *ah, const struct ieee80211_channel *chan)
                                      /* 11a Turbo  11b  11g  108g */
 static const uint8_t CLOCK_RATE[]  = { 40,  80,   22,  44,   88  };
 
+#define	CLOCK_FAST_RATE_5GHZ_OFDM	44
+
 u_int
 ath_hal_mac_clks(struct ath_hal *ah, u_int usecs)
 {
@@ -426,7 +429,12 @@ ath_hal_mac_clks(struct ath_hal *ah, u_int usecs)
 	u_int clks;
 
 	/* NB: ah_curchan may be null when called attach time */
-	if (c != AH_NULL) {
+	/* XXX merlin and later specific workaround - 5ghz fast clock is 44 */
+	if (c != AH_NULL && IS_5GHZ_FAST_CLOCK_EN(ah, c)) {
+		clks = usecs * CLOCK_FAST_RATE_5GHZ_OFDM;
+		if (IEEE80211_IS_CHAN_HT40(c))
+			clks <<= 1;
+	} else if (c != AH_NULL) {
 		clks = usecs * CLOCK_RATE[ath_hal_chan2wmode(ah, c)];
 		if (IEEE80211_IS_CHAN_HT40(c))
 			clks <<= 1;
@@ -442,7 +450,12 @@ ath_hal_mac_usec(struct ath_hal *ah, u_int clks)
 	u_int usec;
 
 	/* NB: ah_curchan may be null when called attach time */
-	if (c != AH_NULL) {
+	/* XXX merlin and later specific workaround - 5ghz fast clock is 44 */
+	if (c != AH_NULL && IS_5GHZ_FAST_CLOCK_EN(ah, c)) {
+		usec = clks / CLOCK_FAST_RATE_5GHZ_OFDM;
+		if (IEEE80211_IS_CHAN_HT40(c))
+			usec >>= 1;
+	} else if (c != AH_NULL) {
 		usec = clks / CLOCK_RATE[ath_hal_chan2wmode(ah, c)];
 		if (IEEE80211_IS_CHAN_HT40(c))
 			usec >>= 1;
