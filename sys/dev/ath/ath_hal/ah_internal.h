@@ -796,4 +796,10 @@ extern	HAL_BOOL ath_ee_FillVpdTable(uint8_t pwrMin, uint8_t pwrMax,
 extern	int16_t ath_ee_interpolate(uint16_t target, uint16_t srcLeft,
 	uint16_t srcRight, int16_t targetLeft, int16_t targetRight);
 
+/* Whether 5ghz fast clock is needed for Merlin and later */
+#define	IS_5GHZ_FAST_CLOCK_EN(_ah, _c) \
+	(IEEE80211_IS_CHAN_5GHZ(_c) && \
+	ath_hal_eepromGetFlag(ah, AR_EEP_FSTCLK_5G))
+
+
 #endif /* _ATH_AH_INTERAL_H_ */
