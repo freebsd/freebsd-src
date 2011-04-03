@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/bpf.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -57,28 +58,44 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_pf.h>
 #include <dev/usb/usb_transfer.h>
 
+static int usb_no_pf;
+
+SYSCTL_INT(_hw_usb, OID_AUTO, no_pf, CTLFLAG_RW,
+    &usb_no_pf, 0, "Set to disable USB packet filtering");
+
+TUNABLE_INT("hw.usb.no_pf", &usb_no_pf);
+
 void
 usbpf_attach(struct usb_bus *ubus)
 {
 	struct ifnet *ifp;
 
+	if (usb_no_pf != 0) {
+		ubus->ifp = NULL;
+		return;
+	}
+
 	ifp = ubus->ifp = if_alloc(IFT_USB);
+	if (ifp == NULL) {
+		device_printf(ubus->parent, "usbpf: Could not allocate "
+		    "instance\n");
+		return;
+	}
+
 	if_initname(ifp, "usbus", device_get_unit(ubus->bdev));
 	ifp->if_flags = IFF_CANTCONFIG;
 	if_attach(ifp);
 	if_up(ifp);
 
-	KASSERT(sizeof(struct usbpf_pkthdr) == USBPF_HDR_LEN,
-	    ("wrong USB pf header length (%zd)", sizeof(struct usbpf_pkthdr)));
-
 	/*
-	 * XXX According to the specification of DLT_USB, it indicates packets
-	 * beginning with USB setup header.  But not sure all packets would be.
+	 * XXX According to the specification of DLT_USB, it indicates
+	 * packets beginning with USB setup header. But not sure all
+	 * packets would be.
 	 */
 	bpfattach(ifp, DLT_USB, USBPF_HDR_LEN);
 
 	if (bootverbose)
-		device_printf(ubus->parent, "usbpf attached\n");
+		device_printf(ubus->parent, "usbpf: Attached\n");
 }
 
 void
@@ -172,79 +189,204 @@ usbpf_aggregate_status(struct usb_xfer_flags_int *flags)
 	return (val);
 }
 
+static int
+usbpf_xfer_frame_is_read(struct usb_xfer *xfer, uint32_t frame)
+{
+	int isread;
+
+	if ((frame == 0) && (xfer->flags_int.control_xfr != 0) &&
+	    (xfer->flags_int.control_hdr != 0)) {
+		/* special case */
+		if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
+			/* The device controller writes to memory */
+			isread = 1;
+		} else {
+			/* The host controller reads from memory */
+			isread = 0;
+		}
+	} else {
+		isread = USB_GET_DATA_ISREAD(xfer);
+	}
+	return (isread);
+}
+
+static uint32_t
+usbpf_xfer_precompute_size(struct usb_xfer *xfer, int type)
+{
+	uint32_t totlen;
+	uint32_t x;
+	uint32_t nframes;
+
+	if (type == USBPF_XFERTAP_SUBMIT)
+		nframes = xfer->nframes;
+	else
+		nframes = xfer->aframes;
+
+	totlen = USBPF_HDR_LEN + (USBPF_FRAME_HDR_LEN * nframes);
+
+	/* precompute all trace lengths */
+	for (x = 0; x != nframes; x++) {
+		if (usbpf_xfer_frame_is_read(xfer, x)) {
+			if (type != USBPF_XFERTAP_SUBMIT) {
+				totlen += USBPF_FRAME_ALIGN(
+				    xfer->frlengths[x]);
+			}
+		} else {
+			if (type == USBPF_XFERTAP_SUBMIT) {
+				totlen += USBPF_FRAME_ALIGN(
+				    xfer->frlengths[x]);
+			}
+		}
+	}
+	return (totlen);
+}
+
 void
 usbpf_xfertap(struct usb_xfer *xfer, int type)
 {
-	struct usb_endpoint *ep = xfer->endpoint;
-	struct usb_page_search res;
-	struct usb_xfer_root *info = xfer->xroot;
-	struct usb_bus *bus = info->bus;
+	struct usb_bus *bus;
 	struct usbpf_pkthdr *up;
-	usb_frlength_t isoc_offset = 0;
-	int i;
-	char *buf, *ptr, *end;
+	struct usbpf_framehdr *uf;
+	usb_frlength_t offset;
+	uint32_t totlen;
+	uint32_t frame;
+	uint32_t temp;
+	uint32_t nframes;
+	uint32_t x;
+	uint8_t *buf;
+	uint8_t *ptr;
 
+	bus = xfer->xroot->bus;
+
+	/* sanity checks */
+	if (usb_no_pf != 0)
+		return;
+	if (bus->ifp == NULL)
+		return;
 	if (!bpf_peers_present(bus->ifp->if_bpf))
 		return;
 
+	totlen = usbpf_xfer_precompute_size(xfer, type);
+
+	if (type == USBPF_XFERTAP_SUBMIT)
+		nframes = xfer->nframes;
+	else
+		nframes = xfer->aframes;
+
 	/*
-	 * XXX TODO
-	 * Allocating the buffer here causes copy operations twice what's
-	 * really inefficient. Copying usbpf_pkthdr and data is for USB packet
-	 * read filter to pass a virtually linear buffer.
+	 * XXX TODO XXX
+	 *
+	 * When BPF supports it we could pass a fragmented array of
+	 * buffers avoiding the data copy operation here.
 	 */
-	buf = ptr = malloc(sizeof(struct usbpf_pkthdr) + (USB_PAGE_SIZE * 5),
-	    M_TEMP, M_NOWAIT);
+	buf = ptr = malloc(totlen, M_TEMP, M_NOWAIT);
 	if (buf == NULL) {
-		printf("usbpf_xfertap: out of memory\n");	/* XXX */
+		device_printf(bus->parent, "usbpf: Out of memory\n");
 		return;
 	}
-	end = buf + sizeof(struct usbpf_pkthdr) + (USB_PAGE_SIZE * 5);
 
-	bzero(ptr, sizeof(struct usbpf_pkthdr));
 	up = (struct usbpf_pkthdr *)ptr;
-	up->up_busunit = htole32(device_get_unit(bus->bdev));
+	ptr += USBPF_HDR_LEN;
+
+	/* fill out header */
+	temp = device_get_unit(bus->bdev);
+	up->up_totlen = htole32(totlen);
+	up->up_busunit = htole32(temp);
+	up->up_address = xfer->xroot->udev->device_index;
+	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE)
+		up->up_mode = USBPF_MODE_DEVICE;
+	else
+		up->up_mode = USBPF_MODE_HOST;
 	up->up_type = type;
-	up->up_xfertype = ep->edesc->bmAttributes & UE_XFERTYPE;
-	up->up_address = xfer->address;
-	up->up_endpoint = xfer->endpointno;
-	up->up_flags = htole32(usbpf_aggregate_xferflags(&xfer->flags));
-	up->up_status = htole32(usbpf_aggregate_status(&xfer->flags_int));
-	switch (type) {
-	case USBPF_XFERTAP_SUBMIT:
-		up->up_length = htole32(xfer->sumlen);
-		up->up_frames = htole32(xfer->nframes);
-		break;
-	case USBPF_XFERTAP_DONE:
-		up->up_length = htole32(xfer->actlen);
-		up->up_frames = htole32(xfer->aframes);
-		break;
-	default:
-		panic("wrong usbpf type (%d)", type);
+	up->up_xfertype = xfer->endpoint->edesc->bmAttributes & UE_XFERTYPE;
+	temp = usbpf_aggregate_xferflags(&xfer->flags);
+	up->up_flags = htole32(temp);
+	temp = usbpf_aggregate_status(&xfer->flags_int);
+	up->up_status = htole32(temp);
+	temp = xfer->error;
+	up->up_error = htole32(temp);
+	temp = xfer->interval;
+	up->up_interval = htole32(temp);
+	up->up_frames = htole32(nframes);
+	temp = xfer->max_packet_size;
+	up->up_packet_size = htole32(temp);
+	temp = xfer->max_packet_count;
+	up->up_packet_count = htole32(temp);
+	temp = xfer->endpointno;
+	up->up_endpoint = htole32(temp);
+	up->up_speed = xfer->xroot->udev->speed;
+
+	/* clear reserved area */
+	memset(up->up_reserved, 0, sizeof(up->up_reserved));
+
+	/* init offset and frame */
+	offset = 0;
+	frame = 0;
+
+	/* iterate all the USB frames and copy data, if any */
+	for (x = 0; x != nframes; x++) {
+		uint32_t length;
+		int isread;
+
+		/* get length */
+		length = xfer->frlengths[x];
+
+		/* get frame header pointer */
+		uf = (struct usbpf_framehdr *)ptr;
+		ptr += USBPF_FRAME_HDR_LEN;
+
+		/* fill out packet header */
+		uf->length = htole32(length);
+		uf->flags = 0;
+
+		/* get information about data read/write */
+		isread = usbpf_xfer_frame_is_read(xfer, x);
+
+		/* check if we need to copy any data */
+		if (isread) {
+			if (type == USBPF_XFERTAP_SUBMIT)
+				length = 0;
+			else {
+				uf->flags |= htole32(
+				    USBPF_FRAMEFLAG_DATA_FOLLOWS);
+			}
+		} else {
+			if (type != USBPF_XFERTAP_SUBMIT)
+				length = 0;
+			else {
+				uf->flags |= htole32(
+				    USBPF_FRAMEFLAG_DATA_FOLLOWS);
+			}
+		}
+
+		/* check if data is read direction */
+		if (isread)
+			uf->flags |= htole32(USBPF_FRAMEFLAG_READ);
+
+		/* copy USB data, if any */
+		if (length != 0) {
+			/* copy data */
+			usbd_copy_out(&xfer->frbuffers[frame],
+			    offset, ptr, length);
+
+			/* align length */
+			temp = USBPF_FRAME_ALIGN(length);
+
+			/* zero pad */
+			if (temp != length)
+				memset(ptr + length, 0, temp - length);
+
+			ptr += temp;
+		}
+
+		if (xfer->flags_int.isochronous_xfr) {
+			offset += usbd_xfer_old_frame_length(xfer, x);
+		} else {
+			frame ++;
+		}
 	}
 
-	up->up_error = htole32(xfer->error);
-	up->up_interval = htole32(xfer->interval);
-	ptr += sizeof(struct usbpf_pkthdr);
+	bpf_tap(bus->ifp->if_bpf, buf, totlen);
 
-	for (i = 0; i < up->up_frames; i++) {
-		if (ptr + sizeof(uint32_t) >= end)
-			goto done;
-		*((uint32_t *)ptr) = htole32(xfer->frlengths[i]);
-		ptr += sizeof(uint32_t);
-
-		if (ptr + xfer->frlengths[i] >= end)
-			goto done;
-		if (xfer->flags_int.isochronous_xfr == 1) {
-			usbd_get_page(&xfer->frbuffers[0], isoc_offset, &res);
-			isoc_offset += xfer->frlengths[i];
-		} else
-			usbd_get_page(&xfer->frbuffers[i], 0, &res);
-		bcopy(res.buffer, ptr, xfer->frlengths[i]);
-		ptr += xfer->frlengths[i];
-	}
-
-	bpf_tap(bus->ifp->if_bpf, buf, ptr - buf);
-done:
 	free(buf, M_TEMP);
 }
