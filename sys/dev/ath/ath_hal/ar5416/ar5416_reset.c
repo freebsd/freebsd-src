@@ -480,7 +480,15 @@ ar5416InitDMA(struct ath_hal *ah)
 	 * reduce the number of usable entries in PCU TXBUF to avoid
 	 * wrap around.
 	 */
-	OS_REG_WRITE(ah, AR_PCU_TXBUF_CTRL, AR_PCU_TXBUF_CTRL_USABLE_SIZE);
+	if (AR_SREV_KITE(ah))
+		/*
+		 * For AR9285 the number of Fifos are reduced to half.
+		 * So set the usable tx buf size also to half to
+		 * avoid data/delimiter underruns
+		 */
+		OS_REG_WRITE(ah, AR_PCU_TXBUF_CTRL, AR_9285_PCU_TXBUF_CTRL_USABLE_SIZE);
+	else
+		OS_REG_WRITE(ah, AR_PCU_TXBUF_CTRL, AR_PCU_TXBUF_CTRL_USABLE_SIZE);
 }
 
 static void
