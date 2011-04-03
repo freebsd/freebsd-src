@@ -263,7 +263,7 @@ ehci_ixp_detach(device_t self)
 	 * disable interrupts that might have been switched on in ehci_init
 	 */
 	if (sc->sc_io_res) {
-		EWRITE4(sc, EHCI_USBINTR, 0);
+		EOWRITE4(sc, EHCI_USBINTR, 0);
 	}
 
  	if (sc->sc_irq_res && sc->sc_intr_hdl) {
