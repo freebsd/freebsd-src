@@ -107,7 +107,6 @@ extern vm_offset_t md_load(char *, vm_offset_t *);
 static int sparc64_autoload(void);
 static ssize_t sparc64_readin(const int, vm_offset_t, const size_t);
 static ssize_t sparc64_copyin(const void *, vm_offset_t, size_t);
-static void sparc64_maphint(vm_offset_t, size_t);
 static vm_offset_t claim_virt(vm_offset_t, size_t, int);
 static vm_offset_t alloc_phys(size_t, int);
 static int map_phys(int, size_t, vm_offset_t, vm_offset_t);
@@ -294,50 +293,6 @@ sparc64_copyin(const void *src, vm_offset_t dest, size_t len)
 	mmu_ops->mmu_mapin(dest, len);
 	memcpy((void *)dest, src, len);
 	return (len);
-}
-
-static void
-sparc64_maphint(vm_offset_t va, size_t len)
-{
-	vm_paddr_t pa;
-	vm_offset_t mva;
-	size_t size;
-	int i, free_excess = 0;
-
-	if (!is_sun4v)
-		return;
-
-	if (tlb_store[va >> 22].te_pa != -1)
-		return;
-
-	/* round up to nearest 4MB page */
-	size = (len + PAGE_MASK_4M) & ~PAGE_MASK_4M;
-#if 0
-	pa = alloc_phys(PAGE_SIZE_256M, PAGE_SIZE_256M);
-
-	if (pa != -1)
-		free_excess = 1;
-	else
-#endif
-		pa = alloc_phys(size, PAGE_SIZE_256M);
-	if (pa == -1)
-		pa = alloc_phys(size, PAGE_SIZE_4M);
-	if (pa == -1)
-		panic("%s: out of memory", __func__);
-
-	for (i = 0; i < size; i += PAGE_SIZE_4M) {
-		mva = claim_virt(va + i, PAGE_SIZE_4M, 0);
-		if (mva != (va + i))
-			panic("%s: can't claim virtual page "
-			    "(wanted %#lx, got %#lx)",
-			    __func__, va, mva);
-
-		tlb_store[mva >> 22].te_pa = pa + i;
-		if (map_phys(-1, PAGE_SIZE_4M, mva, pa + i) != 0)
-			printf("%s: can't map physical page\n", __func__);
-	}
-	if (free_excess)
-		release_phys(pa, PAGE_SIZE_256M);
 }
 
 /*
@@ -809,7 +764,6 @@ main(int (*openfirm)(void *))
 	archsw.arch_copyout = ofw_copyout;
 	archsw.arch_readin = sparc64_readin;
 	archsw.arch_autoload = sparc64_autoload;
-	archsw.arch_maphint = sparc64_maphint;
 
 	if (init_heap() == (vm_offset_t)-1)
 		OF_exit();
