@@ -296,6 +296,7 @@ SUBDIR+=	crunch
 SUBDIR+=	uathload
 SUBDIR+=	uhsoctl
 SUBDIR+=	usbconfig
+SUBDIR+=	usbdump
 .endif
 
 .if ${MK_WIRELESS} != "no"
