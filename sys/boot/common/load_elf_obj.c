@@ -144,8 +144,10 @@ __elfN(obj_loadfile)(char *filename, u_int64_t dest,
 		goto oerr;
 	}
 
-	/* Page-align the load address */
-	dest = roundup(dest, PAGE_SIZE);
+	if (archsw.arch_loadaddr != NULL)
+		dest = archsw.arch_loadaddr(LOAD_ELF, hdr, dest);
+	else
+		dest = roundup(dest, PAGE_SIZE);
 
 	/*
 	 * Ok, we think we should handle this.
