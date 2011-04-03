@@ -260,6 +260,8 @@ ehci_init(ehci_softc_t *sc)
 	usb_callout_init_mtx(&sc->sc_tmo_pcd, &sc->sc_bus.bus_mtx, 0);
 	usb_callout_init_mtx(&sc->sc_tmo_poll, &sc->sc_bus.bus_mtx, 0);
 
+	sc->sc_offs = EHCI_CAPLENGTH(EREAD4(sc, EHCI_CAPLEN_HCIVERSION));
+
 #ifdef USB_DEBUG
 	if (ehciiaadbug)
 		sc->sc_flags |= EHCI_SCFLG_IAADBUG;
@@ -269,8 +271,6 @@ ehci_init(ehci_softc_t *sc)
 		ehci_dump_regs(sc);
 	}
 #endif
-
-	sc->sc_offs = EHCI_CAPLENGTH(EREAD4(sc, EHCI_CAPLEN_HCIVERSION));
 
 	version = EHCI_HCIVERSION(EREAD4(sc, EHCI_CAPLEN_HCIVERSION));
 	device_printf(sc->sc_bus.bdev, "EHCI version %x.%x\n",
@@ -1181,6 +1181,26 @@ _ehci_remove_qh(ehci_qh_t *sqh, ehci_qh_t *last)
 	return (last);
 }
 
+static void
+ehci_data_toggle_update(struct usb_xfer *xfer, uint16_t actlen, uint16_t xlen)
+{
+	uint16_t rem;
+	uint8_t dt;
+
+	/* count number of full packets */
+	dt = (actlen / xfer->max_packet_size) & 1;
+
+	/* compute remainder */
+	rem = actlen % xfer->max_packet_size;
+
+	if (rem > 0)
+		dt ^= 1;	/* short packet at the end */
+	else if (actlen != xlen)
+		dt ^= 1;	/* zero length packet at the end */
+
+	xfer->endpoint->toggle_next ^= dt;
+}
+
 static usb_error_t
 ehci_non_isoc_done_sub(struct usb_xfer *xfer)
 {
@@ -1214,7 +1234,10 @@ ehci_non_isoc_done_sub(struct usb_xfer *xfer)
 			status |= EHCI_QTD_HALTED;
 		} else if (xfer->aframes != xfer->nframes) {
 			xfer->frlengths[xfer->aframes] += td->len - len;
+			/* manually update data toggle */
+			ehci_data_toggle_update(xfer, td->len - len, td->len);
 		}
+
 		/* Check for last transfer */
 		if (((void *)td) == xfer->td_transfer_last) {
 			td = NULL;
@@ -1295,9 +1318,6 @@ ehci_non_isoc_done(struct usb_xfer *xfer)
 	usb_pc_cpu_invalidate(qh->page_cache);
 
 	status = hc32toh(sc, qh->qh_qtd.qtd_status);
-
-	xfer->endpoint->toggle_next =
-	    (status & EHCI_QTD_TOGGLE_MASK) ? 1 : 0;
 
 	/* reset scanner */
 
@@ -1876,6 +1896,8 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 
 	if (xfer->flags_int.control_xfr) {
 		if (xfer->flags_int.control_hdr) {
+
+			xfer->endpoint->toggle_next = 0;
 
 			temp.qtd_status &=
 			    htohc32(temp.sc, EHCI_QTD_SET_CERR(3));
