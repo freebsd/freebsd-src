@@ -133,10 +133,6 @@ extern	void ar5416Detach(struct ath_hal *ah);
 extern	void ar5416AttachPCIE(struct ath_hal *ah);
 extern	HAL_BOOL ar5416FillCapabilityInfo(struct ath_hal *ah);
 
-#define	IS_5GHZ_FAST_CLOCK_EN(_ah, _c) \
-	(IEEE80211_IS_CHAN_5GHZ(_c) && \
-	 ath_hal_eepromGetFlag(ah, AR_EEP_FSTCLK_5G))
-
 extern	void ar5416AniAttach(struct ath_hal *, const struct ar5212AniParams *,
 		const struct ar5212AniParams *, HAL_BOOL ena);
 extern	void ar5416AniDetach(struct ath_hal *);
