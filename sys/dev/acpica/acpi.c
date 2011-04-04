@@ -2088,15 +2088,10 @@ acpi_GetHandleInScope(ACPI_HANDLE parent, char *path, ACPI_HANDLE *result)
 uint32_t
 acpi_TimerDelta(uint32_t end, uint32_t start)
 {
-    uint32_t delta;
 
-    if (end >= start)
-	delta = end - start;
-    else if (AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER)
-	delta = ((0xFFFFFFFF - start) + end + 1);
-    else
-	delta = ((0x00FFFFFF - start) + end + 1) & 0x00FFFFFF;
-    return (delta);
+	if (end < start && (AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER) == 0)
+		end |= 0x01000000;
+	return (end - start);
 }
 
 /*
