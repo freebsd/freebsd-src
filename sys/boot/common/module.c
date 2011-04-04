@@ -280,7 +280,7 @@ file_load(char *filename, vm_offset_t dest, struct preloaded_file **result)
 
     error = EFTYPE;
     for (i = 0, fp = NULL; file_formats[i] && fp == NULL; i++) {
-	error = (file_formats[i]->l_load)(filename, loadaddr, &fp);
+	error = (file_formats[i]->l_load)(filename, dest, &fp);
 	if (error == 0) {
 	    fp->f_loader = i;		/* remember the loader */
 	    *result = fp;
