@@ -378,6 +378,7 @@ ar5210FillCapabilityInfo(struct ath_hal *ah)
 			;
 
 	pCap->hal4kbSplitTransSupport = AH_TRUE;
+	pCap->halHasRxSelfLinkedTail = AH_TRUE;
 
 	ahpriv->ah_rxornIsFatal = AH_TRUE;
 	return AH_TRUE;
