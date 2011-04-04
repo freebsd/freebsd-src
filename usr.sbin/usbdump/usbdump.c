@@ -323,7 +323,7 @@ print_apacket(const struct bpf_xhdr *hdr, const uint8_t *ptr, int ptr_len)
 
 	len = strftime(buf, sizeof(buf), "%H:%M:%S", tm);
 
-	printf("%.*s.%06ju usbus%d.%d %s-%s-EP=%08x,SPD=%s,NFR=%d,SLEN=%d,IVAL=%d%s%s\n",
+	printf("%.*s.%06ld usbus%d.%d %s-%s-EP=%08x,SPD=%s,NFR=%d,SLEN=%d,IVAL=%d%s%s\n",
 	    (int)len, buf, tv.tv_usec,
 	    (int)up->up_busunit, (int)up->up_address,
 	    (up->up_type == USBPF_XFERTAP_SUBMIT) ? "SUBM" : "DONE",
