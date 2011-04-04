@@ -2748,11 +2748,15 @@ t4_os_portmod_changed(const struct adapter *sc, int idx)
 {
 	struct port_info *pi = sc->port[idx];
 	static const char *mod_str[] = {
-		NULL, "LR", "SR", "ER", "TWINAX", "active TWINAX"
+		NULL, "LR", "SR", "ER", "TWINAX", "active TWINAX", "LRM"
 	};
 
 	if (pi->mod_type == FW_PORT_MOD_TYPE_NONE)
 		if_printf(pi->ifp, "transceiver unplugged.\n");
+	else if (pi->mod_type == FW_PORT_MOD_TYPE_UNKNOWN)
+		if_printf(pi->ifp, "unknown transceiver inserted.\n");
+	else if (pi->mod_type == FW_PORT_MOD_TYPE_NOTSUPPORTED)
+		if_printf(pi->ifp, "unsupported transceiver inserted.\n");
 	else if (pi->mod_type > 0 && pi->mod_type < ARRAY_SIZE(mod_str)) {
 		if_printf(pi->ifp, "%s transceiver inserted.\n",
 		    mod_str[pi->mod_type]);
