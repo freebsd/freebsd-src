@@ -317,6 +317,7 @@ MAN=	aac.4 \
 	null.4 \
 	${_nve.4} \
 	${_nvram.4} \
+	${_nvram2env.4} \
 	${_nxge.4} \
 	ohci.4 \
 	orm.4 \
@@ -709,6 +710,9 @@ MLINKS+=lindev.4 full.4
 
 .if ${MACHINE_CPUARCH} == "powerpc"
 _atp.4=		atp.4
+.endif
+.if ${MACHINE_CPUARCH} == "mips"
+_nvram2env.4=	nvram2env.4
 .endif
 
 .if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
