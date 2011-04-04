@@ -114,6 +114,7 @@ typedef enum {
 	HAL_CAP_STREAMS		= 39,	/* how many 802.11n spatial streams are available */
 	HAL_CAP_SPLIT_4KB_TRANS	= 40,	/* hardware supports descriptors straddling a 4k page boundary */
 	HAL_CAP_HAS_PSPOLL	= 41,	/* hardware has ps-poll support */
+	HAL_CAP_RXDESC_SELFLINK	= 42,	/* support a self-linked tail RX descriptor */
 } HAL_CAPABILITY_TYPE;
 
 /* 

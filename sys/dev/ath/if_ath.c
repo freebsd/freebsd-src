@@ -595,6 +595,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_hasbmask = ath_hal_hasbssidmask(ah);
 	sc->sc_hasbmatch = ath_hal_hasbssidmatch(ah);
 	sc->sc_hastsfadd = ath_hal_hastsfadjust(ah);
+	sc->sc_rxslink = ath_hal_self_linked_final_rxdesc(ah);
 	if (ath_hal_hasfastframes(ah))
 		ic->ic_caps |= IEEE80211_C_FF;
 	wmodes = ath_hal_getwirelessmodes(ah);
@@ -3135,8 +3136,17 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 	 * descriptor list.  This insures the hardware always has
 	 * someplace to write a new frame.
 	 */
+	/*
+	 * 11N: we can no longer afford to self link the last descriptor.
+	 * MAC acknowledges BA status as long as it copies frames to host
+	 * buffer (or rx fifo). This can incorrectly acknowledge packets
+	 * to a sender if last desc is self-linked.
+	 */
 	ds = bf->bf_desc;
-	ds->ds_link = bf->bf_daddr;	/* link to self */
+	if (sc->sc_rxslink)
+		ds->ds_link = bf->bf_daddr;	/* link to self */
+	else
+		ds->ds_link = 0;		/* terminate the list */
 	ds->ds_data = bf->bf_segs[0].ds_addr;
 	ath_hal_setuprxdesc(ah, ds
 		, m->m_len		/* buffer size */
@@ -3321,8 +3331,15 @@ ath_rx_proc(void *arg, int npending)
 	tsf = ath_hal_gettsf64(ah);
 	do {
 		bf = STAILQ_FIRST(&sc->sc_rxbuf);
-		if (bf == NULL) {		/* NB: shouldn't happen */
+		if (sc->sc_rxslink && bf == NULL) {	/* NB: shouldn't happen */
 			if_printf(ifp, "%s: no buffer!\n", __func__);
+			break;
+		} else if (bf == NULL) {
+			/*
+			 * End of List:
+			 * this can happen for non-self-linked RX chains
+			 */
+			sc->sc_stats.ast_rx_hitqueueend++;
 			break;
 		}
 		m = bf->bf_m;

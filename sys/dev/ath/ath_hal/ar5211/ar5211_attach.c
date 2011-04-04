@@ -510,6 +510,7 @@ ar5211FillCapabilityInfo(struct ath_hal *ah)
 			;
 
 	pCap->hal4kbSplitTransSupport = AH_TRUE;
+	pCap->halHasRxSelfLinkedTail = AH_TRUE;
 
 	/* XXX might be ok w/ some chip revs */
 	ahpriv->ah_rxornIsFatal = AH_TRUE;
