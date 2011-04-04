@@ -843,6 +843,8 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halBtCoexSupport = AH_FALSE;	/* XXX need support */
 	pCap->halAutoSleepSupport = AH_FALSE;
 	pCap->hal4kbSplitTransSupport = AH_TRUE;
+	/* Disable this so Block-ACK works correctly */
+	pCap->halHasRxSelfLinkedTail = AH_FALSE;
 #if 0	/* XXX not yet */
 	pCap->halNumAntCfg2GHz = ar5416GetNumAntConfig(ahp, HAL_FREQ_BAND_2GHZ);
 	pCap->halNumAntCfg5GHz = ar5416GetNumAntConfig(ahp, HAL_FREQ_BAND_5GHZ);

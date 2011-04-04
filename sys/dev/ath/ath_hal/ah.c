@@ -616,6 +616,8 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return pCap->hal4kbSplitTransSupport ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_HAS_PSPOLL:	/* hardware has ps-poll support */
 		return pCap->halHasPsPollSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_RXDESC_SELFLINK:	/* hardware supports self-linked final RX descriptors correctly */
+		return pCap->halHasRxSelfLinkedTail ? HAL_OK : HAL_ENOTSUPP;
 	default:
 		return HAL_EINVAL;
 	}
