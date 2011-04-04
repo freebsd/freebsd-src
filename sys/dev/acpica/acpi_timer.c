@@ -327,14 +327,15 @@ acpi_timer_test()
     }
     intr_restore(s);
 
-    if (max - min > 2)
+    delta = max - min;
+    if (delta > 2 && vm_guest == VM_GUEST_NO)
 	n = 0;
     else if (min < 0 || max == 0)
 	n = 0;
     else
 	n = 1;
     if (bootverbose)
-	printf(" %d/%d", n, max-min);
+	printf(" %d/%d", n, delta);
 
     return (n);
 }
