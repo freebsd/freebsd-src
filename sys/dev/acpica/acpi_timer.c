@@ -310,7 +310,7 @@ acpi_timer_test()
     int		min, max, n, delta;
     register_t	s;
 
-    min = 10000000;
+    min = INT32_MAX;
     max = 0;
 
     /* Test the timer with interrupts disabled to get accurate results. */
@@ -321,7 +321,7 @@ acpi_timer_test()
 	delta = acpi_TimerDelta(this, last);
 	if (delta > max)
 	    max = delta;
-	else if (delta < min)
+	if (delta < min)
 	    min = delta;
 	last = this;
     }
