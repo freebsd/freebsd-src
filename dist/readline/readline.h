@@ -1,4 +1,4 @@
-/*	$NetBSD: readline.h,v 1.30 2009/09/07 21:24:34 christos Exp $	*/
+/*	$NetBSD: readline.h,v 1.31 2010/08/04 20:29:18 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -202,6 +202,7 @@ int		 _rl_qsort_string_compare(char **, char **);
 char 	       **rl_completion_matches(const char *, rl_compentry_func_t *);
 void		 rl_forced_update_display(void);
 int		 rl_set_prompt(const char *);
+int		 rl_on_new_line(void);
 
 /*
  * The following are not implemented

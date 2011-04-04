@@ -1,4 +1,4 @@
-/*	$NetBSD: readline.c,v 1.89 2010/04/15 00:57:33 christos Exp $	*/
+/*	$NetBSD: readline.c,v 1.90 2010/08/04 20:29:18 christos Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -31,7 +31,7 @@
 
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: readline.c,v 1.89 2010/04/15 00:57:33 christos Exp $");
+__RCSID("$NetBSD: readline.c,v 1.90 2010/08/04 20:29:18 christos Exp $");
 #endif /* not lint && not SCCSID */
 
 #include <sys/types.h>
@@ -2233,4 +2233,10 @@ rl_bind_key_in_map(int key, rl_command_func_t *fun, Keymap k)
 void
 rl_cleanup_after_signal(void)
 {
+}
+
+int
+rl_on_new_line(void)
+{
+	return 0;
 }
