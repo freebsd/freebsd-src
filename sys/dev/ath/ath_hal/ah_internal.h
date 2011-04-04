@@ -197,7 +197,8 @@ typedef struct {
 			halMbssidAggrSupport		: 1,
 			halBssidMatchSupport		: 1,
 			hal4kbSplitTransSupport		: 1,
-			halHasPsPollSupport		: 1;
+			halHasPsPollSupport		: 1,
+			halHasRxSelfLinkedTail		: 1;
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
 	uint16_t	halKeyCacheSize;
