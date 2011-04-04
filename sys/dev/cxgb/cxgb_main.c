@@ -739,7 +739,7 @@ cxgb_controller_detach(device_t dev)
 static void
 cxgb_free(struct adapter *sc)
 {
-	int i;
+	int i, nqsets = 0;
 
 	ADAPTER_LOCK(sc);
 	sc->flags |= CXGB_SHUTDOWN;
@@ -756,6 +756,7 @@ cxgb_free(struct adapter *sc)
 		if (sc->portdev[i] &&
 		    device_delete_child(sc->dev, sc->portdev[i]) != 0)
 			device_printf(sc->dev, "failed to delete child port\n");
+		nqsets += sc->port[i].nqsets;
 	}
 
 	/*
@@ -781,7 +782,7 @@ cxgb_free(struct adapter *sc)
 	 * sysctls are cleaned up by the kernel linker.
 	 */
 	if (sc->flags & FULL_INIT_DONE) {
- 		t3_free_sge_resources(sc);
+ 		t3_free_sge_resources(sc, nqsets);
  		sc->flags &= ~FULL_INIT_DONE;
  	}
 
@@ -870,9 +871,9 @@ setup_sge_qsets(adapter_t *sc)
 			    (sc->flags & USING_MSIX) ? qset_idx + 1 : irq_idx,
 			    &sc->params.sge.qset[qset_idx], ntxq, pi);
 			if (err) {
-				t3_free_sge_resources(sc);
-				device_printf(sc->dev, "t3_sge_alloc_qset failed with %d\n",
-				    err);
+				t3_free_sge_resources(sc, qset_idx);
+				device_printf(sc->dev,
+				    "t3_sge_alloc_qset failed with %d\n", err);
 				return (err);
 			}
 		}
