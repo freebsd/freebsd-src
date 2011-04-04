@@ -861,6 +861,7 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 		pCap->halIntrMask &= ~HAL_INT_TBTT;
 
 	pCap->hal4kbSplitTransSupport = AH_TRUE;
+	pCap->halHasRxSelfLinkedTail = AH_TRUE;
 
 	return AH_TRUE;
 #undef IS_COBRA
