@@ -71,7 +71,6 @@ static u_int	acpi_timer_get_timecount_safe(struct timecounter *tc);
 static int	acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS);
 static void	acpi_timer_boot_test(void);
 
-static u_int	acpi_timer_read(void);
 static int	acpi_timer_test(void);
 
 static device_method_t acpi_timer_methods[] = {
@@ -101,9 +100,10 @@ static struct timecounter acpi_timer_timecounter = {
 	-1				/* quality (chosen later) */
 };
 
-static u_int
-acpi_timer_read()
+static __inline uint32_t
+acpi_timer_read(void)
 {
+
     return (bus_space_read_4(acpi_timer_bst, acpi_timer_bsh, 0));
 }
 
