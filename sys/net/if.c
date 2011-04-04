@@ -465,8 +465,8 @@ if_alloc(u_char type)
 }
 
 /*
- * Do the actual work of freeing a struct ifnet, associated index, and layer
- * 2 common structure.  This call is made when the last reference to an
+ * Do the actual work of freeing a struct ifnet, and layer 2 common
+ * structure.  This call is made when the last reference to an
  * interface is released.
  */
 static void
@@ -475,13 +475,6 @@ if_free_internal(struct ifnet *ifp)
 
 	KASSERT((ifp->if_flags & IFF_DYING),
 	    ("if_free_internal: interface not dying"));
-
-	IFNET_WLOCK();
-	KASSERT(ifp == ifnet_byindex_locked(ifp->if_index),
-	    ("%s: freeing unallocated ifnet", ifp->if_xname));
-
-	ifindex_free_locked(ifp->if_index);
-	IFNET_WUNLOCK();
 
 	if (if_com_free[ifp->if_alloctype] != NULL)
 		if_com_free[ifp->if_alloctype](ifp->if_l2com,
@@ -513,6 +506,14 @@ if_free_type(struct ifnet *ifp, u_char type)
 	    ifp->if_alloctype));
 
 	ifp->if_flags |= IFF_DYING;			/* XXX: Locking */
+
+	IFNET_WLOCK();
+	KASSERT(ifp == ifnet_byindex_locked(ifp->if_index),
+	    ("%s: freeing unallocated ifnet", ifp->if_xname));
+
+	ifindex_free_locked(ifp->if_index);
+	IFNET_WUNLOCK();
+
 	if (!refcount_release(&ifp->if_refcount))
 		return;
 	if_free_internal(ifp);
