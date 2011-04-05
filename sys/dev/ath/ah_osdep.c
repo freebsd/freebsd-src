@@ -173,7 +173,11 @@ DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 static	struct alq *ath_hal_alq;
 static	int ath_hal_alq_emitdev;	/* need to emit DEVICE record */
 static	u_int ath_hal_alq_lost;		/* count of lost records */
-static	const char *ath_hal_logfile = "/tmp/ath_hal.log";
+static	char ath_hal_logfile[MAXPATHLEN] = "/tmp/ath_hal.log";
+
+SYSCTL_STRING(_hw_ath_hal, OID_AUTO, alq_logfile, CTLFLAG_RW,
+    &ath_hal_logfile, sizeof(kernelname), "Name of ALQ logfile");
+
 static	u_int ath_hal_alq_qsize = 64*1024;
 
 static int
