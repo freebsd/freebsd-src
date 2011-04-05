@@ -28,6 +28,7 @@ CFLAGS=	-Os \
 	-fno-unit-at-a-time \
 	-mno-align-long-strings \
 	-mrtd \
+	-mregparm=3 \
 	-D${BOOT2_UFS} \
 	-DFLAGS=${BOOT_BOOT1_FLAGS} \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
