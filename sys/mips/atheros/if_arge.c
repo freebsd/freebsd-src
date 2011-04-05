@@ -1855,6 +1855,27 @@ arge_intr(void *arg)
 	}
 
 	/*
+	 * If we've finished TXing and there's space for more packets
+	 * to be queued for TX, do so. Otherwise we may end up in a
+	 * situation where the interface send queue was filled
+	 * whilst the hardware queue was full, then the hardware
+	 * queue was drained by the interface send queue wasn't,
+	 * and thus if_start() is never called to kick-start
+	 * the send process (and all subsequent packets are simply
+	 * discarded.
+	 *
+	 * XXX TODO: make sure that the hardware deals nicely
+	 * with the possibility of the queue being enabled above
+	 * after a TX underrun, then having the hardware queue added
+	 * to below.
+	 */
+	if (status & (DMA_INTR_TX_PKT_SENT | DMA_INTR_TX_UNDERRUN) &&
+	    (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
+		if (!IFQ_IS_EMPTY(&ifp->if_snd))
+			arge_start_locked(ifp);
+	}
+
+	/*
 	 * We handled all bits, clear status
 	 */
 	sc->arge_intr_status = 0;
