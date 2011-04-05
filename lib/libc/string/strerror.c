@@ -87,7 +87,7 @@ strerror_r(int errnum, char *strerrbuf, size_t buflen)
 	catd = catopen("libc", NL_CAT_LOCALE);
 #endif
 
-	if (errnum < 1 || errnum >= sys_nerr) {
+	if (errnum < 0 || errnum >= sys_nerr) {
 		errstr(errnum,
 #if defined(NLS)
 			catgets(catd, 1, 0xffff, UPREFIX),
