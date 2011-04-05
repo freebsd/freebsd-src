@@ -84,7 +84,11 @@ MODULE_DEPEND(arge, miibus, 1, 1, 1);
 
 typedef enum {
 	ARGE_DBG_MII 	=	0x00000001,
-	ARGE_DBG_INTR	=	0x00000002
+	ARGE_DBG_INTR	=	0x00000002,
+	ARGE_DBG_TX	=	0x00000004,
+	ARGE_DBG_RX	=	0x00000008,
+	ARGE_DBG_ERR	=	0x00000010,
+	ARGE_DBG_RESET	=	0x00000020,
 } arge_debug_flags;
 
 #ifdef ARGE_DEBUG
@@ -985,6 +989,7 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	/* Start transmitting */
+	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: setting DMA_TX_CONTROL_EN\n", __func__);
 	ARGE_WRITE(sc, AR71XX_DMA_TX_CONTROL, DMA_TX_CONTROL_EN);
 	return (0);
 }
@@ -1006,15 +1011,31 @@ arge_start_locked(struct ifnet *ifp)
 {
 	struct arge_softc	*sc;
 	struct mbuf		*m_head;
-	int			enq;
+	int			enq = 0;
 
 	sc = ifp->if_softc;
 
 	ARGE_LOCK_ASSERT(sc);
 
+	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: beginning\n", __func__);
+
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 	    IFF_DRV_RUNNING || sc->arge_link_status == 0 )
 		return;
+
+	/*
+	 * Before we go any further, check whether we're already full.
+	 * The below check errors out immediately if the ring is full
+	 * and never gets a chance to set this flag. Although it's
+	 * likely never needed, this at least avoids an unexpected
+	 * situation.
+	 */
+	if (sc->arge_cdata.arge_tx_cnt >= ARGE_TX_RING_COUNT - 2) {
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		ARGEDEBUG(sc, ARGE_DBG_ERR, "%s: tx_cnt %d >= max %d; setting IFF_DRV_OACTIVE\n",
+		    __func__, sc->arge_cdata.arge_tx_cnt, ARGE_TX_RING_COUNT - 2);
+		return;
+	}
 
 	arge_flush_ddr(sc);
 
@@ -1043,6 +1064,7 @@ arge_start_locked(struct ifnet *ifp)
 		 */
 		ETHER_BPF_MTAP(ifp, m_head);
 	}
+	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: finished; queued %d packets\n", __func__, enq);
 }
 
 static void
@@ -1621,6 +1643,9 @@ arge_tx_locked(struct arge_softc *sc)
 
 	cons = sc->arge_cdata.arge_tx_cons;
 	prod = sc->arge_cdata.arge_tx_prod;
+
+	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: cons=%d, prod=%d\n", __func__, cons, prod);
+
 	if (cons == prod)
 		return;
 
@@ -1771,6 +1796,7 @@ arge_intr(void *arg)
 {
 	struct arge_softc	*sc = arg;
 	uint32_t		status;
+	struct ifnet		*ifp = sc->arge_ifp;
 
 	status = ARGE_READ(sc, AR71XX_DMA_INTR_STATUS);
 	status |= sc->arge_intr_status;
@@ -1809,6 +1835,7 @@ arge_intr(void *arg)
 	if ( status & DMA_INTR_RX_OVERFLOW) {
 		ARGE_WRITE(sc, AR71XX_DMA_RX_STATUS, DMA_RX_STATUS_OVERFLOW);
 		ARGE_WRITE(sc, AR71XX_DMA_RX_CONTROL, DMA_RX_CONTROL_EN);
+		sc->stats.rx_overflow++;
 	}
 
 	if (status & DMA_INTR_TX_PKT_SENT)
@@ -1819,6 +1846,8 @@ arge_intr(void *arg)
 	 */
 	if (status & DMA_INTR_TX_UNDERRUN) {
 		ARGE_WRITE(sc, AR71XX_DMA_TX_STATUS, DMA_TX_STATUS_UNDERRUN);
+		sc->stats.tx_underflow++;
+		ARGEDEBUG(sc, ARGE_DBG_TX, "%s: TX underrun; tx_cnt=%d\n", __func__, sc->arge_cdata.arge_tx_cnt);
 		if (sc->arge_cdata.arge_tx_cnt > 0 ) {
 			ARGE_WRITE(sc, AR71XX_DMA_TX_CONTROL, 
 			    DMA_TX_CONTROL_EN);
