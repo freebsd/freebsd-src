@@ -281,22 +281,7 @@ WITH_HESIOD=
 WITH_IDEA=
 .endif
 
-#
-# Default behaviour of MK_CLANG depends on the architecture.
-#
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || \
-    ${MACHINE_ARCH} == "powerpc"
-_clang_yes=CLANG
-_clang_no=
-.else
-_clang_yes=
-_clang_no=CLANG
-.endif
-
-#
-# MK_* options which default to "yes".
-#
-.for var in \
+__DEFAULT_YES_OPTIONS = \
     ACCT \
     ACPI \
     AMD \
@@ -321,7 +306,6 @@ _clang_no=CLANG
     BZIP2 \
     CALENDAR \
     CDDL \
-    ${_clang_yes} \
     CPP \
     CRYPT \
     CTM \
@@ -330,7 +314,6 @@ _clang_no=CLANG
     DICT \
     DYNAMICROOT \
     EXAMPLES \
-    FDT \
     FLOPPY \
     FORTH \
     FP_LIBC \
@@ -341,6 +324,7 @@ _clang_no=CLANG
     GDB \
     GNU \
     GPIB \
+    GPIO \
     GROFF \
     HTML \
     INET6 \
@@ -403,6 +387,51 @@ _clang_no=CLANG
     WPA_SUPPLICANT_EAPOL \
     ZFS \
     ZONEINFO
+
+__DEFAULT_NO_OPTIONS = \
+    BSD_GREP \
+    BIND_IDN \
+    BIND_LARGE_FILE \
+    BIND_LIBS \
+    BIND_SIGCHASE \
+    BIND_XML \
+    GNU_CPIO \
+    HESIOD \
+    ICONV \
+    IDEA \
+    OFED
+
+#
+# Default behaviour of some options depends on the architecture.  Unfortunately
+# this means that we have to test TARGET_ARCH (the buildworld case) as well
+# as MACHINE_ARCH (the non-buildworld case).  Normally TARGET_ARCH is not
+# used at all in bsd.*.mk, but we have to make an exception here if we want
+# to allow defaults for some things like clang and ftd to vary by target
+# architecture.
+#
+.if defined(TARGET_ARCH)
+__T=${TARGET_ARCH}
+.else
+__T=${MACHINE_ARCH}
+.endif
+# Clang is only for x86 and 32-bit powerpc right now, by default.
+.if ${__T} == "amd64" || ${__T} == "i386" || ${__T} == "powerpc"
+__DEFAULT_YES_OPTIONS+=CLANG
+.else
+__DEFAULT_NO_OPTIONS+=CLANG
+.endif
+# FDT is needed only for arm and powerpc (and not powerpc64)
+.if ${__T} == "arm" || ${__T} == "armeb" || ${__T} == "powerpc"
+__DEFAULT_YES_OPTIONS+=FDT
+.else
+__DEFAULT_NO_OPTIONS+=FDT
+.endif
+.undef __T
+
+#
+# MK_* options which default to "yes".
+#
+.for var in ${__DEFAULT_YES_OPTIONS}
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
@@ -415,23 +444,12 @@ MK_${var}:=	no
 MK_${var}:=	yes
 .endif
 .endfor
+.undef __DEFAULT_YES_OPTIONS
 
 #
 # MK_* options which default to "no".
 #
-.for var in \
-    BIND_IDN \
-    BIND_LARGE_FILE \
-    BIND_LIBS \
-    BIND_SIGCHASE \
-    BIND_XML \
-    BSD_GREP \
-    ${_clang_no} \
-    GPIO \
-    HESIOD \
-    ICONV \
-    IDEA \
-    OFED
+.for var in ${__DEFAULT_NO_OPTIONS}
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
@@ -444,6 +462,7 @@ MK_${var}:=	yes
 MK_${var}:=	no
 .endif
 .endfor
+.undef __DEFAULT_NO_OPTIONS
 
 #
 # Force some options off if their dependencies are off.

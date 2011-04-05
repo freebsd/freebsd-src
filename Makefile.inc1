@@ -1019,11 +1019,11 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 _crunchgen=	usr.sbin/crunch/crunchgen
 .endif
 
-# XXX: There is no way to specify bootstrap tools depending on MK-flags
-# with different per-architecture default values. Always build tblgen.
+.if ${MK_CLANG} != "no"
 _clang_tblgen= \
 	lib/clang/libllvmsupport \
 	usr.bin/clang/tblgen
+.endif
 
 .if ${MK_CDDL} != "no"
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
