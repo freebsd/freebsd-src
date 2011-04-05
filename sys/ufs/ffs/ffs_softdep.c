@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
@@ -514,9 +515,10 @@ softdep_releasefile(ip)
 }
 
 int
-softdep_request_cleanup(fs, vp, resource)
+softdep_request_cleanup(fs, vp, cred, resource)
 	struct fs *fs;
 	struct vnode *vp;
+	struct ucred *cred;
 	int resource;
 {
 
@@ -1131,6 +1133,11 @@ static int stat_jwait_filepage;	/* Times blocked in jwait() for filepage. */
 static int stat_jwait_freeblks;	/* Times blocked in jwait() for freeblks. */
 static int stat_jwait_inode;	/* Times blocked in jwait() for inodes. */
 static int stat_jwait_newblk;	/* Times blocked in jwait() for newblks. */
+static int stat_cleanup_high_delay; /* Maximum cleanup delay (in ticks) */
+static int stat_cleanup_blkrequests; /* Number of block cleanup requests */
+static int stat_cleanup_inorequests; /* Number of inode cleanup requests */
+static int stat_cleanup_retries; /* Number of cleanups that needed to flush */
+static int stat_cleanup_failures; /* Number of cleanup requests that failed */
 
 SYSCTL_INT(_debug_softdep, OID_AUTO, max_softdeps, CTLFLAG_RW,
     &max_softdeps, 0, "");
@@ -1176,6 +1183,16 @@ SYSCTL_INT(_debug_softdep, OID_AUTO, jwait_inode, CTLFLAG_RW,
     &stat_jwait_inode, 0, "");
 SYSCTL_INT(_debug_softdep, OID_AUTO, jwait_newblk, CTLFLAG_RW,
     &stat_jwait_newblk, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_blkrequests, CTLFLAG_RW,
+    &stat_cleanup_blkrequests, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_inorequests, CTLFLAG_RW,
+    &stat_cleanup_inorequests, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_high_delay, CTLFLAG_RW,
+    &stat_cleanup_high_delay, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_retries, CTLFLAG_RW,
+    &stat_cleanup_retries, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_failures, CTLFLAG_RW,
+    &stat_cleanup_failures, 0, "");
 
 SYSCTL_DECL(_vfs_ffs);
 
@@ -10879,29 +10896,29 @@ softdep_slowdown(vp)
  * Because this process holds inodes locked, we cannot handle any remove
  * requests that might block on a locked inode as that could lead to
  * deadlock. If the worklist yields none of the requested resource,
- * encourage the syncer daemon to help us. In no event will we try for
- * longer than tickdelay seconds.
+ * start syncing out vnodes to free up the needed space.
  */
 int
-softdep_request_cleanup(fs, vp, resource)
+softdep_request_cleanup(fs, vp, cred, resource)
 	struct fs *fs;
 	struct vnode *vp;
+	struct ucred *cred;
 	int resource;
 {
 	struct ufsmount *ump;
+	struct mount *mp;
+	struct vnode *lvp, *mvp;
 	long starttime;
 	ufs2_daddr_t needed;
 	int error;
 
+	mp = vp->v_mount;
 	ump = VTOI(vp)->i_ump;
 	mtx_assert(UFS_MTX(ump), MA_OWNED);
 	if (resource == FLUSH_BLOCKS_WAIT)
-		needed = fs->fs_cstotal.cs_nbfree + fs->fs_contigsumsize;
-	else if (resource == FLUSH_INODES_WAIT)
-		needed = fs->fs_cstotal.cs_nifree + 2;
+		stat_cleanup_blkrequests += 1;
 	else
-		return (0);
-	starttime = time_second + tickdelay;
+		stat_cleanup_inorequests += 1;
 	/*
 	 * If we are being called because of a process doing a
 	 * copy-on-write, then it is not safe to update the vnode
@@ -10914,12 +10931,56 @@ softdep_request_cleanup(fs, vp, resource)
 		if (error != 0)
 			return (0);
 	}
-	while ((resource == FLUSH_BLOCKS_WAIT && fs->fs_pendingblocks > 0 &&
+	/*
+	 * If we are in need of resources, consider pausing for
+	 * tickdelay to give ourselves some breathing room.
+	 */
+	UFS_UNLOCK(ump);
+	ACQUIRE_LOCK(&lk);
+	request_cleanup(UFSTOVFS(ump), resource);
+	FREE_LOCK(&lk);
+	UFS_LOCK(ump);
+	/*
+	 * Now clean up at least as many resources as we will need.
+	 *
+	 * When requested to clean up inodes, the number that are needed
+	 * is set by the number of simultaneous writers (mnt_writeopcount)
+	 * plus a bit of slop (2) in case some more writers show up while
+	 * we are cleaning.
+	 *
+	 * When requested to free up space, the amount of space that
+	 * we need is enough blocks to allocate a full-sized segment
+	 * (fs_contigsumsize). The number of such segments that will
+	 * be needed is set by the number of simultaneous writers
+	 * (mnt_writeopcount) plus a bit of slop (2) in case some more
+	 * writers show up while we are cleaning.
+	 *
+	 * Additionally, if we are unpriviledged and allocating space,
+	 * we need to ensure that we clean up enough blocks to get the
+	 * needed number of blocks over the threshhold of the minimum
+	 * number of blocks required to be kept free by the filesystem
+	 * (fs_minfree).
+	 */
+	if (resource == FLUSH_INODES_WAIT) {
+		needed = vp->v_mount->mnt_writeopcount + 2;
+	} else if (resource == FLUSH_BLOCKS_WAIT) {
+		needed = (vp->v_mount->mnt_writeopcount + 2) *
+		    fs->fs_contigsumsize;
+		if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE, 0))
+			needed += fragstoblks(fs,
+			    roundup((fs->fs_dsize * fs->fs_minfree / 100) -
+			    fs->fs_cstotal.cs_nffree, fs->fs_frag));
+	} else {
+		printf("softdep_request_cleanup: Unknown resource type %d\n",
+		    resource);
+		return (0);
+	}
+	starttime = time_second;
+retry:
+	while ((resource == FLUSH_BLOCKS_WAIT && ump->softdep_on_worklist > 0 &&
 		fs->fs_cstotal.cs_nbfree <= needed) ||
 	       (resource == FLUSH_INODES_WAIT && fs->fs_pendinginodes > 0 &&
 		fs->fs_cstotal.cs_nifree <= needed)) {
-		if (time_second > starttime)
-			return (0);
 		UFS_UNLOCK(ump);
 		ACQUIRE_LOCK(&lk);
 		process_removes(vp);
@@ -10930,10 +10991,60 @@ softdep_request_cleanup(fs, vp, resource)
 			UFS_LOCK(ump);
 			continue;
 		}
-		request_cleanup(UFSTOVFS(ump), resource);
 		FREE_LOCK(&lk);
 		UFS_LOCK(ump);
 	}
+	/*
+	 * If we still need resources and there are no more worklist
+	 * entries to process to obtain them, we have to start flushing
+	 * the dirty vnodes to force the release of additional requests
+	 * to the worklist that we can then process to reap addition
+	 * resources. We walk the vnodes associated with the mount point
+	 * until we get the needed worklist requests that we can reap.
+	 */
+	if ((resource == FLUSH_BLOCKS_WAIT && 
+	     fs->fs_cstotal.cs_nbfree <= needed) ||
+	    (resource == FLUSH_INODES_WAIT && fs->fs_pendinginodes > 0 &&
+	     fs->fs_cstotal.cs_nifree <= needed)) {
+		UFS_UNLOCK(ump);
+		MNT_ILOCK(mp);
+		MNT_VNODE_FOREACH(lvp, mp, mvp) {
+			UFS_LOCK(ump);
+			if (ump->softdep_on_worklist > 0) {
+				UFS_UNLOCK(ump);
+				MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+				MNT_IUNLOCK(mp);
+				UFS_LOCK(ump);
+				stat_cleanup_retries += 1;
+				goto retry;
+			}
+			UFS_UNLOCK(ump);
+			VI_LOCK(lvp);
+			if (TAILQ_FIRST(&lvp->v_bufobj.bo_dirty.bv_hd) == 0 ||
+			    VOP_ISLOCKED(lvp) != 0) {
+				VI_UNLOCK(lvp);
+				continue;
+			}
+			MNT_IUNLOCK(mp);
+			if (vget(lvp, LK_EXCLUSIVE | LK_INTERLOCK, curthread)) {
+				MNT_ILOCK(mp);
+				continue;
+			}
+			if (lvp->v_vflag & VV_NOSYNC) {	/* unlinked */
+				vput(lvp);
+				MNT_ILOCK(mp);
+				continue;
+			}
+			(void) ffs_syncvnode(lvp, MNT_WAIT);
+			vput(lvp);
+			MNT_ILOCK(mp);
+		}
+		MNT_IUNLOCK(mp);
+		stat_cleanup_failures += 1;
+		UFS_LOCK(ump);
+	}
+	if (time_second - starttime > stat_cleanup_high_delay)
+		stat_cleanup_high_delay = time_second - starttime;
 	return (1);
 }
 
