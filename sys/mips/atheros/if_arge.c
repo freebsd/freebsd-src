@@ -87,7 +87,6 @@ typedef enum {
 	ARGE_DBG_INTR	=	0x00000002
 } arge_debug_flags;
 
-#undef ARGE_DEBUG
 #ifdef ARGE_DEBUG
 #define	ARGEDEBUG(_sc, _m, ...) 					\
 	do {								\
@@ -213,9 +212,11 @@ arge_attach_sysctl(device_t dev)
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(dev);
 
+#ifdef	ARGE_DEBUG
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"debug", CTLFLAG_RW, &sc->arge_debug, 0,
 		"arge interface debugging flags");
+#endif
 
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"tx_pkts_aligned", CTLFLAG_RW, &sc->stats.tx_pkts_aligned, 0,
@@ -225,9 +226,14 @@ arge_attach_sysctl(device_t dev)
 		"tx_pkts_unaligned", CTLFLAG_RW, &sc->stats.tx_pkts_unaligned, 0,
 		"number of TX unaligned packets");
 
-	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "tx_prod", CTLFLAG_RW, &sc->arge_cdata.arge_tx_prod, 0, "");
-	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "tx_cons", CTLFLAG_RW, &sc->arge_cdata.arge_tx_cons, 0, "");
-	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "tx_cnt", CTLFLAG_RW, &sc->arge_cdata.arge_tx_cnt, 0, "");
+#ifdef	ARGE_DEBUG
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "tx_prod",
+	    CTLFLAG_RW, &sc->arge_cdata.arge_tx_prod, 0, "");
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "tx_cons",
+	    CTLFLAG_RW, &sc->arge_cdata.arge_tx_cons, 0, "");
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "tx_cnt",
+	    CTLFLAG_RW, &sc->arge_cdata.arge_tx_cnt, 0, "");
+#endif
 }
 
 static int
