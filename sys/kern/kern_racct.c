@@ -777,6 +777,11 @@ racct_set(struct proc *p, int resource, uint64_t amount)
 }
 
 void
+racct_set_force(struct proc *p, int resource, uint64_t amount)
+{
+}
+
+void
 racct_sub(struct proc *p, int resource, uint64_t amount)
 {
 }
@@ -788,6 +793,13 @@ racct_sub_cred(struct ucred *cred, int resource, uint64_t amount)
 
 uint64_t
 racct_get_limit(struct proc *p, int resource)
+{
+
+	return (UINT64_MAX);
+}
+
+uint64_t
+racct_get_available(struct proc *p, int resource)
 {
 
 	return (UINT64_MAX);
