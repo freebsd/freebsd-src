@@ -154,6 +154,8 @@ struct arge_softc {
 	struct {
 		uint32_t	tx_pkts_unaligned;
 		uint32_t	tx_pkts_aligned;
+		uint32_t	rx_overflow;
+		uint32_t	tx_underflow;
 	} stats;
 };
 
