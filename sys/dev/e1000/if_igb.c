@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2011, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -99,7 +99,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 2.1.7";
+char igb_driver_version[] = "version - 2.2.3";
 
 
 /*********************************************************************
@@ -262,6 +262,7 @@ static void	igb_handle_link(void *context, int pending);
 
 static void	igb_set_sysctl_value(struct adapter *, const char *,
 		    const char *, int *, int);
+static int	igb_set_flowcntl(SYSCTL_HANDLER_ARGS);
 
 #ifdef DEVICE_POLLING
 static poll_handler_t igb_poll;
@@ -350,8 +351,8 @@ static int igb_fc_setting = e1000_fc_full;
 TUNABLE_INT("hw.igb.fc_setting", &igb_fc_setting);
 
 /* Energy Efficient Ethernet - default to off */
-static int igb_eee_setting = FALSE;
-TUNABLE_INT("hw.igb.ee_setting", &igb_eee_setting);
+static int igb_eee_disabled = TRUE;
+TUNABLE_INT("hw.igb.eee_disabled", &igb_eee_disabled);
 
 /*
 ** DMA Coalescing, only for i350 - default to off,
@@ -445,6 +446,11 @@ igb_attach(device_t dev)
 	    OID_AUTO, "enable_aim", CTLTYPE_INT|CTLFLAG_RW,
 	    &igb_enable_aim, 1, "Interrupt Moderation");
 
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "flow_control", CTLTYPE_INT|CTLFLAG_RW,
+	    adapter, 0, igb_set_flowcntl, "I", "Flow Control");
+
 	callout_init_mtx(&adapter->timer, &adapter->core_mtx, 0);
 
 	/* Determine hardware and mac info */
@@ -470,11 +476,6 @@ igb_attach(device_t dev)
 	igb_set_sysctl_value(adapter, "rx_processing_limit",
 	    "max number of rx packets to process", &adapter->rx_process_limit,
 	    igb_rx_process_limit);
-
-       /* Sysctl for setting the interface flow control */
-	igb_set_sysctl_value(adapter, "flow_control",
-	    "configure flow control",
-	    &adapter->fc_setting, igb_fc_setting);
 
 	/*
 	 * Validate number of transmit and receive descriptors. It
@@ -552,10 +553,10 @@ igb_attach(device_t dev)
 		igb_set_sysctl_value(adapter, "dma_coalesce",
 		    "configure dma coalesce",
 		    &adapter->dma_coalesce, igb_dma_coalesce);
-		igb_set_sysctl_value(adapter, "eee_control",
+		igb_set_sysctl_value(adapter, "eee_disabled",
 		    "enable Energy Efficient Ethernet",
 		    &adapter->hw.dev_spec._82575.eee_disable,
-		    igb_eee_setting);
+		    igb_eee_disabled);
 		e1000_set_eee_i350(&adapter->hw);
 	}
 
@@ -822,11 +823,12 @@ igb_start_locked(struct tx_ring *txr, struct ifnet *ifp)
 	if (!adapter->link_active)
 		return;
 
+	/* Call cleanup if number of TX descriptors low */
+	if (txr->tx_avail <= IGB_TX_CLEANUP_THRESHOLD)
+		igb_txeof(txr);
+
 	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-		/* Cleanup if TX descriptors are low */
-		if (txr->tx_avail <= IGB_TX_CLEANUP_THRESHOLD)
-			igb_txeof(txr);
-		if (txr->tx_avail <= IGB_TX_OP_THRESHOLD) {
+		if (txr->tx_avail <= IGB_MAX_SCATTER) {
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
@@ -932,13 +934,6 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 
 	/* Process the queue */
 	while (next != NULL) {
-		/* Call cleanup if number of TX descriptors low */
-		if (txr->tx_avail <= IGB_TX_CLEANUP_THRESHOLD)
-			igb_txeof(txr);
-		if (txr->tx_avail <= IGB_TX_OP_THRESHOLD) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			break;
-		}
 		if ((err = igb_xmit(txr, &next)) != 0) {
 			if (next != NULL)
 				err = drbr_enqueue(ifp, txr->br, next);
@@ -949,6 +944,12 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			break;
+		if (txr->tx_avail <= IGB_TX_CLEANUP_THRESHOLD)
+			igb_txeof(txr);
+		if (txr->tx_avail <= IGB_MAX_SCATTER) {
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			break;
+		}
 		next = drbr_dequeue(ifp, txr->br);
 	}
 	if (enq > 0) {
@@ -1266,9 +1267,12 @@ igb_init_locked(struct adapter *adapter)
 	else
 #endif /* DEVICE_POLLING */
 	{
-	igb_enable_intr(adapter);
-	E1000_WRITE_REG(&adapter->hw, E1000_ICS, E1000_ICS_LSC);
+		igb_enable_intr(adapter);
+		E1000_WRITE_REG(&adapter->hw, E1000_ICS, E1000_ICS_LSC);
 	}
+
+	/* Set Energy Efficient Ethernet */
+	e1000_set_eee_i350(&adapter->hw);
 
 	/* Don't reset the phy next time init gets called */
 	adapter->hw.phy.reset_disable = TRUE;
@@ -1457,10 +1461,6 @@ igb_msix_que(void *arg)
 	IGB_TX_LOCK(txr);
 	more_tx = igb_txeof(txr);
 	IGB_TX_UNLOCK(txr);
-
-	/* If RX ring is depleted do refresh first */
-	if (rxr->next_to_check == rxr->next_to_refresh)
-		igb_refresh_mbufs(rxr, rxr->next_to_check);
 
 	more_rx = igb_rxeof(que, adapter->rx_process_limit, NULL);
 
@@ -2670,14 +2670,6 @@ igb_reset(struct adapter *adapter)
 	fc->pause_time = IGB_FC_PAUSE_TIME;
 	fc->send_xon = TRUE;
 
-	/* Set Flow control, use the tunable location if sane */
-	if ((igb_fc_setting >= 0) && (igb_fc_setting < 4))
-		fc->requested_mode = adapter->fc_setting;
-	else
-		fc->requested_mode = e1000_fc_none;
-
-	fc->current_mode = fc->requested_mode;
-
 	/* Issue a global reset */
 	e1000_reset_hw(hw);
 	E1000_WRITE_REG(hw, E1000_WUC, 0);
@@ -2864,7 +2856,7 @@ igb_dma_malloc(struct adapter *adapter, bus_size_t size,
 	}
 
 	error = bus_dmamem_alloc(dma->dma_tag, (void**) &dma->dma_vaddr,
-	    BUS_DMA_NOWAIT, &dma->dma_map);
+	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &dma->dma_map);
 	if (error) {
 		device_printf(adapter->dev,
 		    "%s: bus_dmamem_alloc(%ju) failed: %d\n",
@@ -3631,18 +3623,16 @@ igb_txeof(struct tx_ring *txr)
          * If we have a minimum free, clear IFF_DRV_OACTIVE
          * to tell the stack that it is OK to send packets.
          */
-        if (txr->tx_avail > IGB_TX_OP_THRESHOLD)               
+        if (txr->tx_avail > IGB_TX_CLEANUP_THRESHOLD) {                
                 ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-
-	/* All clean, turn off the watchdog */
-	if (txr->tx_avail == adapter->num_tx_desc) {
-		txr->queue_status = IGB_QUEUE_IDLE;
-		return (FALSE);
-	}
-
+		/* All clean, turn off the watchdog */
+                if (txr->tx_avail == adapter->num_tx_desc) {
+			txr->queue_status = IGB_QUEUE_IDLE;
+			return (FALSE);
+		}
+        }
 	return (TRUE);
 }
-
 
 /*********************************************************************
  *
@@ -3830,13 +3820,11 @@ fail:
 static void
 igb_free_receive_ring(struct rx_ring *rxr)
 {
-	struct	adapter		*adapter;
+	struct	adapter		*adapter = rxr->adapter;
 	struct igb_rx_buf	*rxbuf;
-	int i;
 
-	adapter = rxr->adapter;
-	i = rxr->next_to_check;
-	while (i != rxr->next_to_refresh) {
+
+	for (int i = 0; i < adapter->num_rx_desc; i++) {
 		rxbuf = &rxr->rx_buffers[i];
 		if (rxbuf->m_head != NULL) {
 			bus_dmamap_sync(rxr->htag, rxbuf->hmap,
@@ -3854,12 +3842,7 @@ igb_free_receive_ring(struct rx_ring *rxr)
 		}
 		rxbuf->m_head = NULL;
 		rxbuf->m_pack = NULL;
-
-		if (++i == adapter->num_rx_desc)
-			i = 0;
 	}
-	rxr->next_to_check = 0;
-	rxr->next_to_refresh = 0;
 }
 
 
@@ -3877,33 +3860,32 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 	struct igb_rx_buf	*rxbuf;
 	bus_dma_segment_t	pseg[1], hseg[1];
 	struct lro_ctrl		*lro = &rxr->lro;
-	int			i, j, nsegs, error = 0;
+	int			rsize, nsegs, error = 0;
 
 	adapter = rxr->adapter;
 	dev = adapter->dev;
 	ifp = adapter->ifp;
 
+	/* Clear the ring contents */
 	IGB_RX_LOCK(rxr);
-	/* Invalidate all descriptors */
-	for (i = 0; i < adapter->num_rx_desc; i++) {
-		union e1000_adv_rx_desc* cur;
-		cur = &rxr->rx_base[i];
-		cur->wb.upper.status_error = 0;
-        }
+	rsize = roundup2(adapter->num_rx_desc *
+	    sizeof(union e1000_adv_rx_desc), IGB_DBA_ALIGN);
+	bzero((void *)rxr->rx_base, rsize);
+
+	/*
+	** Free current RX buffer structures and their mbufs
+	*/
+	igb_free_receive_ring(rxr);
 
 	/* Configure for header split? */
 	if (igb_header_split)
 		rxr->hdr_split = TRUE;
 
-        /* Get our indices */
-	i = j = rxr->next_to_refresh;
-	if (++j == adapter->num_rx_desc)
-		j = 0;
         /* Now replenish the ring mbufs */
-	while (j != rxr->next_to_check) {
+	for (int j = 0; j < adapter->num_rx_desc; ++j) {
 		struct mbuf	*mh, *mp;
 
-		rxbuf = &rxr->rx_buffers[i];
+		rxbuf = &rxr->rx_buffers[j];
 		if (rxr->hdr_split == FALSE)
 			goto skip_head;
 
@@ -3926,7 +3908,7 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 		bus_dmamap_sync(rxr->htag,
 		    rxbuf->hmap, BUS_DMASYNC_PREREAD);
 		/* Update descriptor */
-		rxr->rx_base[i].read.hdr_addr = htole64(hseg[0].ds_addr);
+		rxr->rx_base[j].read.hdr_addr = htole64(hseg[0].ds_addr);
 
 skip_head:
 		/* Now the payload cluster */
@@ -3947,16 +3929,12 @@ skip_head:
 		bus_dmamap_sync(rxr->ptag,
 		    rxbuf->pmap, BUS_DMASYNC_PREREAD);
 		/* Update descriptor */
-		rxr->rx_base[i].read.pkt_addr = htole64(pseg[0].ds_addr);
-
-		/* Setup for next loop */
-		i = j;
-		if (++j == adapter->num_rx_desc)
-			j = 0;
+		rxr->rx_base[j].read.pkt_addr = htole64(pseg[0].ds_addr);
         }
 
 	/* Setup our descriptor indices */
-	rxr->next_to_refresh = i;
+	rxr->next_to_check = 0;
+	rxr->next_to_refresh = adapter->num_rx_desc - 1;
 	rxr->lro_enabled = FALSE;
 	rxr->rx_split_packets = 0;
 	rxr->rx_bytes = 0;
@@ -3989,11 +3967,11 @@ skip_head:
 	return (0);
 
 fail:
-	rxr->next_to_refresh = i;
 	igb_free_receive_ring(rxr);
 	IGB_RX_UNLOCK(rxr);
 	return (error);
 }
+
 
 /*********************************************************************
  *
@@ -4528,7 +4506,7 @@ next_desc:
 	}
 
 	/* Catch any remainders */
-	if (processed != 0 || i == rxr->next_to_refresh)
+	if (igb_rx_unrefreshed(rxr))
 		igb_refresh_mbufs(rxr, i);
 
 	rxr->next_to_check = i;
@@ -5552,3 +5530,38 @@ igb_set_sysctl_value(struct adapter *adapter, const char *name,
 	    OID_AUTO, name, CTLTYPE_INT|CTLFLAG_RW, limit, value, description);
 }
 
+/*
+** Set flow control using sysctl:
+** Flow control values:
+** 	0 - off
+**	1 - rx pause
+**	2 - tx pause
+**	3 - full
+*/
+static int
+igb_set_flowcntl(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	struct adapter *adapter;
+
+	error = sysctl_handle_int(oidp, &igb_fc_setting, 0, req);
+
+	if (error)
+		return (error);
+
+	adapter = (struct adapter *) arg1;
+	switch (igb_fc_setting) {
+		case e1000_fc_rx_pause:
+		case e1000_fc_tx_pause:
+		case e1000_fc_full:
+			adapter->hw.fc.requested_mode = igb_fc_setting;
+			break;
+		case e1000_fc_none:
+		default:
+			adapter->hw.fc.requested_mode = e1000_fc_none;
+	}
+
+	adapter->hw.fc.current_mode = adapter->hw.fc.requested_mode;
+	e1000_force_mac_fc(&adapter->hw);
+	return error;
+}
