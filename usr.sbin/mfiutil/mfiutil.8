@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2009
+.Dd April 5, 2011
 .Dt MFIUTIL 8
 .Os
 .Sh NAME
@@ -367,7 +367,7 @@ Enable caching only for write I/O operations.
 Use write-back policy for cached writes.
 .It Cm write-through
 Use write-through policy for cached writes.
-.It Cm read-ahead Op Ar value
+.It Cm read-ahead Ar value
 Set the read ahead policy for cached reads.
 The
 .Ar value
@@ -376,7 +376,18 @@ argument can be set to either
 .Dq adaptive ,
 or
 .Dq always .
-.It Cm write-cache Op Ar value
+.It Cm bad-bbu-write-cache Ar value
+Control the behavior of I/O write caching if the battery is dead or
+missing.
+The
+.Ar value
+argument can be set to either
+.Dq disable
+or
+.Dq enable .
+In general this setting should be left disabled to avoid data loss when
+the system loses power.
+.It Cm write-cache Ar value
 Control the write caches on the physical drives backing
 .Ar volume .
 The
