@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
@@ -357,7 +358,9 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	 */
 	PROC_LOCK(td->td_proc);
 	if (a_out->a_text > maxtsiz ||
-	    a_out->a_data + bss_size > lim_cur(td->td_proc, RLIMIT_DATA)) {
+	    a_out->a_data + bss_size > lim_cur(td->td_proc, RLIMIT_DATA) ||
+	    racct_set(td->td_proc, RACCT_DATA, a_out->a_data +
+	    bss_size) != 0) {
 		PROC_UNLOCK(td->td_proc);
 		error = ENOMEM;
 		goto cleanup;
