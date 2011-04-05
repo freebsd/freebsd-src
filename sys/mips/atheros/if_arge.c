@@ -82,11 +82,20 @@ MODULE_DEPEND(arge, miibus, 1, 1, 1);
 #include <mips/atheros/ar71xx_setup.h>
 #include <mips/atheros/ar71xx_cpudef.h>
 
+typedef enum {
+	ARGE_DBG_MII 	=	0x00000001,
+	ARGE_DBG_INTR	=	0x00000002
+} arge_debug_flags;
+
 #undef ARGE_DEBUG
 #ifdef ARGE_DEBUG
-#define dprintf printf
+#define	ARGEDEBUG(_sc, _m, ...) 					\
+	do {								\
+		if ((_m) & (_sc)->arge_debug)				\
+			device_printf((_sc)->arge_dev, __VA_ARGS__);	\
+	} while (0)
 #else
-#define dprintf(x, arg...)
+#define	ARGEDEBUG(_sc, _m, ...)
 #endif
 
 static int arge_attach(device_t);
@@ -215,6 +224,10 @@ arge_attach_sysctl(device_t dev)
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"tx_pkts_unaligned", CTLFLAG_RW, &sc->stats.tx_pkts_unaligned, 0,
 		"number of TX unaligned packets");
+
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "tx_prod", CTLFLAG_RW, &sc->arge_cdata.arge_tx_prod, 0, "");
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "tx_cons", CTLFLAG_RW, &sc->arge_cdata.arge_tx_cons, 0, "");
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "tx_cnt", CTLFLAG_RW, &sc->arge_cdata.arge_tx_cnt, 0, "");
 }
 
 static int
@@ -598,7 +611,7 @@ arge_miibus_readreg(device_t dev, int phy, int reg)
 
 	if (i < 0) {
 		mtx_unlock(&miibus_mtx);
-		dprintf("%s timedout\n", __func__);
+		ARGEDEBUG(sc, ARGE_DBG_MII, "%s timedout\n", __func__);
 		/* XXX: return ERRNO istead? */
 		return (-1);
 	}
@@ -607,7 +620,7 @@ arge_miibus_readreg(device_t dev, int phy, int reg)
 	ARGE_MII_WRITE(AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
 	mtx_unlock(&miibus_mtx);
 
-	dprintf("%s: phy=%d, reg=%02x, value[%08x]=%04x\n", __func__, 
+	ARGEDEBUG(sc, ARGE_DBG_MII, "%s: phy=%d, reg=%02x, value[%08x]=%04x\n", __func__, 
 		 phy, reg, addr, result);
 
 	return (result);
@@ -625,7 +638,7 @@ arge_miibus_writereg(device_t dev, int phy, int reg, int data)
 	if ((sc->arge_phymask  & (1 << phy)) == 0)
 		return (-1);
 
-	dprintf("%s: phy=%d, reg=%02x, value=%04x\n", __func__, 
+	ARGEDEBUG(sc, ARGE_DBG_MII, "%s: phy=%d, reg=%02x, value=%04x\n", __func__, 
 	    phy, reg, data);
 
 	mtx_lock(&miibus_mtx);
@@ -640,7 +653,7 @@ arge_miibus_writereg(device_t dev, int phy, int reg, int data)
 	mtx_unlock(&miibus_mtx);
 
 	if (i < 0) {
-		dprintf("%s timedout\n", __func__);
+		ARGEDEBUG(sc, ARGE_DBG_MII, "%s timedout\n", __func__);
 		/* XXX: return ERRNO istead? */
 		return (-1);
 	}
@@ -1730,14 +1743,12 @@ arge_intr_filter(void *arg)
 	status = ARGE_READ(sc, AR71XX_DMA_INTR_STATUS);
 	ints = ARGE_READ(sc, AR71XX_DMA_INTR);
 
-#if 0
-	dprintf("int mask(filter) = %b\n", ints,
+	ARGEDEBUG(sc, ARGE_DBG_INTR, "int mask(filter) = %b\n", ints,
 	    "\20\10RX_BUS_ERROR\7RX_OVERFLOW\5RX_PKT_RCVD"
 	    "\4TX_BUS_ERROR\2TX_UNDERRUN\1TX_PKT_SENT");
-	dprintf("status(filter) = %b\n", status, 
+	ARGEDEBUG(sc, ARGE_DBG_INTR, "status(filter) = %b\n", status, 
 	    "\20\10RX_BUS_ERROR\7RX_OVERFLOW\5RX_PKT_RCVD"
 	    "\4TX_BUS_ERROR\2TX_UNDERRUN\1TX_PKT_SENT");
-#endif
 
 	if (status & DMA_INTR_ALL) {
 		sc->arge_intr_status |= status;
@@ -1758,11 +1769,9 @@ arge_intr(void *arg)
 	status = ARGE_READ(sc, AR71XX_DMA_INTR_STATUS);
 	status |= sc->arge_intr_status;
 
-#if 0
-	dprintf("int status(intr) = %b\n", status, 
+	ARGEDEBUG(sc, ARGE_DBG_INTR, "int status(intr) = %b\n", status, 
 	    "\20\10\7RX_OVERFLOW\5RX_PKT_RCVD"
 	    "\4TX_BUS_ERROR\2TX_UNDERRUN\1TX_PKT_SENT");
-#endif
 
 	/* 
 	 * Is it our interrupt at all? 
