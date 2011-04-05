@@ -63,12 +63,10 @@ static void
 op_mark(struct athregrec *a)
 {
         const char *s = "UNKNOWN";
-#if 0
         if (a->reg <= MAX_MARKERS)
                 s = markers[a->reg];
-#endif
 
-	printf("mark\t%d (%d): %d\n", s, a->reg, a->val);
+	printf("mark\t%s (%d): %d\n", s, a->reg, a->val);
 }
 
 int
@@ -79,7 +77,7 @@ main(int argc, const char *argv[])
 	struct athregrec a;
 	int r;
 
-	if (argc < 1) {
+	if (argc < 2) {
 		printf("usage: %s <ahq log>\n", argv[0]);
 		exit(127);
 	}
