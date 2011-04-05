@@ -44,6 +44,9 @@
 #include <stdio.h>
 
 __BEGIN_DECLS
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
  * ==== Editing ====
@@ -87,7 +90,7 @@ void		 el_reset(EditLine *);
  */
 const char	*el_gets(EditLine *, int *);
 int		 el_getc(EditLine *, char *);
-void		 el_push(EditLine *, char *);
+void		 el_push(EditLine *, const char *);
 
 /*
  * Beep!
@@ -132,6 +135,10 @@ unsigned char	_el_fn_sh_complete(EditLine *, int);
 #define	EL_GETTC	17	/* , const char *, ..., NULL);	*/
 #define	EL_GETFP	18	/* , int, FILE **)		*/
 #define	EL_SETFP	19	/* , int, FILE *)		*/
+#define	EL_REFRESH	20	/* , void);			      set     */
+#define	EL_PROMPT_ESC	21	/* , prompt_func, Char);	      set/get */
+#define	EL_RPROMPT_ESC	22	/* , prompt_func, Char);	      set/get */
+#define	EL_RESIZE	23	/* , el_zfunc_t, void *);	      set     */
 
 #define	EL_BUILTIN_GETCFN	(NULL)
 
@@ -205,6 +212,9 @@ int		history(History *, HistEvent *, int, ...);
 #define	H_SETUNIQUE	20	/* , int);		*/
 #define	H_GETUNIQUE	21	/* , void);		*/
 #define	H_DEL		22	/* , int);		*/
+#define	H_NEXT_EVDATA	23	/* , const int, histdata_t *);	*/
+#define	H_DELDATA	24	/* , int, histdata_t *);*/
+#define	H_REPLACE	25	/* , const char *, histdata_t);	*/
 
 
 /*
@@ -225,5 +235,8 @@ int		 tok_str(Tokenizer *, const char *,
 		    int *, const char ***);
 
 __END_DECLS
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _HISTEDIT_H_ */

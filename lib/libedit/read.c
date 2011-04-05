@@ -211,7 +211,7 @@ read_preread(EditLine *el)
  *	Push a macro
  */
 public void
-el_push(EditLine *el, char *str)
+el_push(EditLine *el, const char *str)
 {
 	c_macro_t *ma = &el->el_chared.c_macro;
 
