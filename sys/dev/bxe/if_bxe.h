@@ -1080,7 +1080,6 @@ struct bxe_fastpath {
 	struct xstorm_per_client_stats	old_xclient;
 	struct bxe_q_stats	eth_q_stats;
 
-#ifdef BXE_DEBUG
 	uint16_t		free_rx_bd;
 
 	/* Recieve/transmit packet counters. */
@@ -1094,6 +1093,7 @@ struct bxe_fastpath {
 	/* Memory buffer allocation failure counter. */
 	unsigned long		mbuf_alloc_failed;
 	unsigned long		mbuf_defrag_attempts;
+	unsigned long		mbuf_defrag_failures;
 	unsigned long		mbuf_defrag_successes;
 
 	/* Track the number of enqueued mbufs. */
@@ -1103,7 +1103,22 @@ struct bxe_fastpath {
 	int			tpa_mbuf_alloc;
 
 	uint64_t		tpa_queue_used;
-#endif
+
+	unsigned long		null_cqe_flags;
+	unsigned long		ip_csum_offload_frames;
+	unsigned long		tcp_csum_offload_frames;
+	unsigned long		udp_csum_offload_frames;
+	unsigned long		tso_offload_frames;
+	unsigned long		tx_encap_failures;
+	unsigned long		tx_start_called_on_empty_queue;
+	unsigned long		tx_queue_too_full;
+	unsigned long		tx_dma_mapping_failure;
+	unsigned long		tso_window_violation;
+	unsigned long		std_window_violation;
+	unsigned long		unsupported_tso_ipv6_request;
+	unsigned long		unsupported_tso_protocol_request;
+	unsigned long		tpa_mbuf_alloc_failed;
+	unsigned long		tx_chain_lost_mbuf;
 
 	/* FreeBSD interface statistics. */
 	unsigned long		soft_rx_errors;
@@ -1471,7 +1486,6 @@ struct bxe_softc {
 	/* Frame size and mbuf allocation size for RX frames. */
 	uint32_t		max_frame_size;
 	int			mbuf_alloc_size;
-	uint32_t		mbuf_alloc_failed;
 
 	uint16_t		tx_driver;
 
@@ -1486,11 +1500,6 @@ struct bxe_softc {
 	unsigned long		debug_mbuf_sim_map_failed;
 	unsigned long		debug_received_frame_error;
 	unsigned long		debug_memory_allocated;
-	unsigned long		debug_udp_csum_offload_frames;
-	unsigned long		debug_tcp_csum_offload_frames;
-	unsigned long		debug_ip_csum_offload_frames;
-	unsigned long		debug_ip6_csum_offload_frames;
-	unsigned long		debug_tso_offload_frames;
 
 	/* A buffer for hardware/firmware state information (grcdump). */
 	uint32_t		*grcdump_buffer;
