@@ -224,7 +224,10 @@ eepromSwap(struct ar5416eeprom *ee)
 			integer = __bswap32(pModal->antCtrlChain[i]);
 			pModal->antCtrlChain[i] = integer;
 		}
-
+		for (i = 0; i < 3; i++) {
+			word = __bswap16(pModal->xpaBiasLvlFreq[i]);
+			pModal->xpaBiasLvlFreq[i] = word;
+		}
 		for (i = 0; i < AR5416_EEPROM_MODAL_SPURS; i++) {
 			word = __bswap16(pModal->spurChans[i].spurChan);
 			pModal->spurChans[i].spurChan = word;
