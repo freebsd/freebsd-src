@@ -217,9 +217,9 @@ nospace:
 	(void) chkdq(ip, -btodb(size), cred, FORCE);
 	UFS_LOCK(ump);
 #endif
-	if (fs->fs_pendingblocks > 0 && reclaimed == 0) {
+	if (reclaimed == 0) {
 		reclaimed = 1;
-		softdep_request_cleanup(fs, ITOV(ip), FLUSH_BLOCKS_WAIT);
+		softdep_request_cleanup(fs, ITOV(ip), cred, FLUSH_BLOCKS_WAIT);
 		goto retry;
 	}
 	UFS_UNLOCK(ump);
@@ -418,9 +418,9 @@ nospace:
 	/*
 	 * no space available
 	 */
-	if (fs->fs_pendingblocks > 0 && reclaimed == 0) {
+	if (reclaimed == 0) {
 		reclaimed = 1;
-		softdep_request_cleanup(fs, vp, FLUSH_BLOCKS_WAIT);
+		softdep_request_cleanup(fs, vp, cred, FLUSH_BLOCKS_WAIT);
 		UFS_UNLOCK(ump);
 		if (bp) {
 			brelse(bp);
@@ -1023,7 +1023,7 @@ dup_alloc:
 noinodes:
 	if (fs->fs_pendinginodes > 0 && reclaimed == 0) {
 		reclaimed = 1;
-		softdep_request_cleanup(fs, pvp, FLUSH_INODES_WAIT);
+		softdep_request_cleanup(fs, pvp, cred, FLUSH_INODES_WAIT);
 		goto retry;
 	}
 	UFS_UNLOCK(ump);
