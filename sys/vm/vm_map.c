@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
 #include <sys/vnode.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/file.h>
 #include <sys/sysctl.h>
@@ -313,6 +314,19 @@ vm_init2(void)
 	    vmspace_zinit, vmspace_zfini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 }
 
+static void
+vmspace_container_reset(struct proc *p)
+{
+
+	PROC_LOCK(p);
+	racct_set(p, RACCT_DATA, 0);
+	racct_set(p, RACCT_STACK, 0);
+	racct_set(p, RACCT_RSS, 0);
+	racct_set(p, RACCT_MEMLOCK, 0);
+	racct_set(p, RACCT_VMEM, 0);
+	PROC_UNLOCK(p);
+}
+
 static inline void
 vmspace_dofree(struct vmspace *vm)
 {
@@ -410,6 +424,7 @@ vmspace_exit(struct thread *td)
 		pmap_activate(td);
 		vmspace_dofree(vm);
 	}
+	vmspace_container_reset(p);
 }
 
 /* Acquire reference to vmspace owned by another process. */
@@ -3279,6 +3294,10 @@ vm_map_growstack(struct proc *p, vm_offset_t addr)
 	rlim_t stacklim, vmemlim;
 	int is_procstack, rv;
 	struct ucred *cred;
+#ifdef notyet
+	uint64_t limit;
+#endif
+	int error;
 
 Retry:
 	PROC_LOCK(p);
@@ -3377,6 +3396,14 @@ Retry:
 		vm_map_unlock_read(map);
 		return (KERN_NO_SPACE);
 	}
+	PROC_LOCK(p);
+	if (is_procstack &&
+	    racct_set(p, RACCT_STACK, ctob(vm->vm_ssize) + grow_amount)) {
+		PROC_UNLOCK(p);
+		vm_map_unlock_read(map);
+		return (KERN_NO_SPACE);
+	}
+	PROC_UNLOCK(p);
 
 	/* Round up the grow amount modulo SGROWSIZ */
 	grow_amount = roundup (grow_amount, sgrowsiz);
@@ -3386,12 +3413,28 @@ Retry:
 		grow_amount = trunc_page((vm_size_t)stacklim) -
 		    ctob(vm->vm_ssize);
 	}
+#ifdef notyet
+	PROC_LOCK(p);
+	limit = racct_get_available(p, RACCT_STACK);
+	PROC_UNLOCK(p);
+	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount > limit))
+		grow_amount = limit - ctob(vm->vm_ssize);
+#endif
 
 	/* If we would blow our VMEM resource limit, no go */
 	if (map->size + grow_amount > vmemlim) {
 		vm_map_unlock_read(map);
-		return (KERN_NO_SPACE);
+		rv = KERN_NO_SPACE;
+		goto out;
 	}
+	PROC_LOCK(p);
+	if (racct_set(p, RACCT_VMEM, map->size + grow_amount)) {
+		PROC_UNLOCK(p);
+		vm_map_unlock_read(map);
+		rv = KERN_NO_SPACE;
+		goto out;
+	}
+	PROC_UNLOCK(p);
 
 	if (vm_map_lock_upgrade(map))
 		goto Retry;
@@ -3488,6 +3531,16 @@ Retry:
 		    (p->p_flag & P_SYSTEM)
 		    ? VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES
 		    : VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
+	}
+
+out:
+	if (rv != KERN_SUCCESS) {
+		PROC_LOCK(p);
+		error = racct_set(p, RACCT_VMEM, map->size);
+		KASSERT(error == 0, ("decreasing RACCT_VMEM failed"));
+	    	error = racct_set(p, RACCT_STACK, ctob(vm->vm_ssize));
+		KASSERT(error == 0, ("decreasing RACCT_STACK failed"));
+		PROC_UNLOCK(p);
 	}
 
 	return (rv);
