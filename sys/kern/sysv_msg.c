@@ -634,8 +634,7 @@ msgget(td, uap)
 		msqkptr->u.msg_perm.cgid = cred->cr_gid;
 		msqkptr->u.msg_perm.gid = cred->cr_gid;
 		msqkptr->u.msg_perm.mode = (msgflg & 0777);
-		crhold(cred);
-		msqkptr->cred = cred;
+		msqkptr->cred = crhold(cred);
 		/* Make sure that the returned msqid is unique */
 		msqkptr->u.msg_perm.seq = (msqkptr->u.msg_perm.seq + 1) & 0x7fff;
 		msqkptr->u.msg_first = NULL;
