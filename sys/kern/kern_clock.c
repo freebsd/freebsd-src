@@ -201,6 +201,10 @@ deadlkres(void)
 		tryl = 0;
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
+			if (p->p_state == PRS_NEW) {
+				PROC_UNLOCK(p);
+				continue;
+			}
 			FOREACH_THREAD_IN_PROC(p, td) {
 
 				/*
