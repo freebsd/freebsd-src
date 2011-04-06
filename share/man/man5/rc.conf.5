@@ -1891,6 +1891,34 @@ Set to change the default forwarder configuration from
 .Dq forward first
 to
 .Dq forward only .
+.It Va netdumpsrv_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+run the
+.Xr netdumpsrv 8
+daemon.
+.It Va netdumpsrv_program
+.Pq Vt str
+Path to
+.Xr netdumpsrv 8
+(default
+.Pa /usr/sbin/netdumpsrv ) .
+.It Va netdumpsrv_pidfile
+.Pq Vt str
+This is the default path to the
+.Xr netdumpsrv 8
+daemon's PID file
+(default
+.Pa /usr/sbin/netdumpsrv.pid ) .
+.It Va netdumpsrv_flags
+.Pq Vt str
+If
+.Va netdumpsrv_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to
+.Xr netdumpsrv 8 .
 .It Va kerberos5_server_enable
 .Pq Vt bool
 Set to
