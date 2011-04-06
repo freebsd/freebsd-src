@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
@@ -246,6 +247,8 @@ shm_deallocate_segment(shmseg)
 #ifdef MAC
 	mac_sysvshm_cleanup(shmseg);
 #endif
+	racct_sub_cred(shmseg->cred, RACCT_NSHM, 1);
+	racct_sub_cred(shmseg->cred, RACCT_SHMSIZE, size);
 	crfree(shmseg->cred);
 	shmseg->cred = NULL;
 }
@@ -669,6 +672,17 @@ shmget_allocate_segment(td, uap, mode)
 		shm_last_free = -1;
 	}
 	shmseg = &shmsegs[segnum];
+	PROC_LOCK(td->td_proc);
+	if (racct_add(td->td_proc, RACCT_NSHM, 1)) {
+		PROC_UNLOCK(td->td_proc);
+		return (ENOSPC);
+	}
+	if (racct_add(td->td_proc, RACCT_SHMSIZE, size)) {
+		racct_sub(td->td_proc, RACCT_NSHM, 1);
+		PROC_UNLOCK(td->td_proc);
+		return (ENOMEM);
+	}
+	PROC_UNLOCK(td->td_proc);
 	/*
 	 * In case we sleep in malloc(), mark the segment present but deleted
 	 * so that noone else tries to create the same key.
@@ -684,8 +698,13 @@ shmget_allocate_segment(td, uap, mode)
 	 */
 	shm_object = vm_pager_allocate(shm_use_phys ? OBJT_PHYS : OBJT_SWAP,
 	    0, size, VM_PROT_DEFAULT, 0, cred);
-	if (shm_object == NULL)
+	if (shm_object == NULL) {
+		PROC_LOCK(td->td_proc);
+		racct_sub(td->td_proc, RACCT_NSHM, 1);
+		racct_sub(td->td_proc, RACCT_SHMSIZE, size);
+		PROC_UNLOCK(td->td_proc);
 		return (ENOMEM);
+	}
 	VM_OBJECT_LOCK(shm_object);
 	vm_object_clear_flag(shm_object, OBJ_ONEMAPPING);
 	vm_object_set_flag(shm_object, OBJ_NOSPLIT);
