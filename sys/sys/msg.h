@@ -160,6 +160,7 @@ struct msqid_kernel {
 	 * Kernel-private components of the message queue.
 	 */
 	struct	label *label;	/* MAC label */
+	struct	ucred *cred;	/* creator's credentials */
 };
 
 #else /* !_KERNEL */
