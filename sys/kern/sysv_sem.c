@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/racct.h>
 #include <sys/sem.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
@@ -656,6 +657,7 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 		semakptr->u.sem_perm.cuid = cred->cr_uid;
 		semakptr->u.sem_perm.uid = cred->cr_uid;
 		semakptr->u.sem_perm.mode = 0;
+		racct_sub_cred(semakptr->cred, RACCT_NSEM, semakptr->u.sem_nsems);
 		crfree(semakptr->cred);
 		semakptr->cred = NULL;
 		SEMUNDO_LOCK();
@@ -929,6 +931,13 @@ semget(struct thread *td, struct semget_args *uap)
 			error = ENOSPC;
 			goto done2;
 		}
+		PROC_LOCK(td->td_proc);
+		error = racct_add(td->td_proc, RACCT_NSEM, nsems);
+		PROC_UNLOCK(td->td_proc);
+		if (error != 0) {
+			error = ENOSPC;
+			goto done2;
+		}
 		DPRINTF(("semid %d is available\n", semid));
 		mtx_lock(&sema_mtx[semid]);
 		KASSERT((sema[semid].u.sem_perm.mode & SEM_ALLOC) == 0,
@@ -1010,12 +1019,19 @@ semop(struct thread *td, struct semop_args *uap)
 	/* Allocate memory for sem_ops */
 	if (nsops <= SMALL_SOPS)
 		sops = small_sops;
-	else if (nsops <= seminfo.semopm)
-		sops = malloc(nsops * sizeof(*sops), M_TEMP, M_WAITOK);
-	else {
+	else if (nsops > seminfo.semopm) {
 		DPRINTF(("too many sops (max=%d, nsops=%d)\n", seminfo.semopm,
 		    nsops));
 		return (E2BIG);
+	} else {
+		PROC_LOCK(td->td_proc);
+		if (nsops > racct_get_available(td->td_proc, RACCT_NSEMOP)) {
+			PROC_UNLOCK(td->td_proc);
+			return (E2BIG);
+		}
+		PROC_UNLOCK(td->td_proc);
+
+		sops = malloc(nsops * sizeof(*sops), M_TEMP, M_WAITOK);
 	}
 	if ((error = copyin(uap->sops, sops, nsops * sizeof(sops[0]))) != 0) {
 		DPRINTF(("error = %d from copyin(%p, %p, %d)\n", error,
