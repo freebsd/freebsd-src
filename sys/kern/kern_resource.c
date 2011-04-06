@@ -129,7 +129,8 @@ getpriority(td, uap)
 		sx_sunlock(&proctree_lock);
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (p_cansee(td, p) == 0) {
+			if (p->p_state == PRS_NORMAL &&
+			    p_cansee(td, p) == 0) {
 				if (p->p_nice < low)
 					low = p->p_nice;
 			}
@@ -215,7 +216,8 @@ setpriority(td, uap)
 		sx_sunlock(&proctree_lock);
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (p_cansee(td, p) == 0) {
+			if (p->p_state == PRS_NORMAL &&
+			    p_cansee(td, p) == 0) {
 				error = donice(td, p, uap->prio);
 				found++;
 			}
@@ -230,7 +232,8 @@ setpriority(td, uap)
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
-			if (p->p_ucred->cr_uid == uap->who &&
+			if (p->p_state == PRS_NORMAL &&
+			    p->p_ucred->cr_uid == uap->who &&
 			    p_cansee(td, p) == 0) {
 				error = donice(td, p, uap->prio);
 				found++;
