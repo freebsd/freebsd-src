@@ -2,11 +2,7 @@
 Set to not build
 .Xr g++ 1
 and related libraries.
-Implies
-.Dv WITHOUT_CLANG
-and
-.Dv WITHOUT_GROFF
-and will also prevent building of
+It will also prevent building of
 .Xr gperf 1
 and
 .Xr devd 8 .
