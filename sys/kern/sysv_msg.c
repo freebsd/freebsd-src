@@ -466,6 +466,9 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 		}
 #endif
 
+		crfree(msqkptr->cred);
+		msqkptr->cred = NULL;
+
 		/* Free the message headers */
 		msghdr = msqkptr->u.msg_first;
 		while (msghdr != NULL) {
@@ -620,6 +623,8 @@ msgget(td, uap)
 		msqkptr->u.msg_perm.cgid = cred->cr_gid;
 		msqkptr->u.msg_perm.gid = cred->cr_gid;
 		msqkptr->u.msg_perm.mode = (msgflg & 0777);
+		crhold(cred);
+		msqkptr->cred = cred;
 		/* Make sure that the returned msqid is unique */
 		msqkptr->u.msg_perm.seq = (msqkptr->u.msg_perm.seq + 1) & 0x7fff;
 		msqkptr->u.msg_first = NULL;

@@ -246,6 +246,8 @@ shm_deallocate_segment(shmseg)
 #ifdef MAC
 	mac_sysvshm_cleanup(shmseg);
 #endif
+	crfree(shmseg->cred);
+	shmseg->cred = NULL;
 }
 
 static int
@@ -694,6 +696,8 @@ shmget_allocate_segment(td, uap, mode)
 	shmseg->u.shm_perm.cgid = shmseg->u.shm_perm.gid = cred->cr_gid;
 	shmseg->u.shm_perm.mode = (shmseg->u.shm_perm.mode & SHMSEG_WANTED) |
 	    (mode & ACCESSPERMS) | SHMSEG_ALLOCATED;
+	crhold(cred);
+	shmseg->cred = cred;
 	shmseg->u.shm_segsz = uap->size;
 	shmseg->u.shm_cpid = td->td_proc->p_pid;
 	shmseg->u.shm_lpid = shmseg->u.shm_nattch = 0;

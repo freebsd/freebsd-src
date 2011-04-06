@@ -656,6 +656,8 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 		semakptr->u.sem_perm.cuid = cred->cr_uid;
 		semakptr->u.sem_perm.uid = cred->cr_uid;
 		semakptr->u.sem_perm.mode = 0;
+		crfree(semakptr->cred);
+		semakptr->cred = NULL;
 		SEMUNDO_LOCK();
 		semundo_clear(semidx, -1);
 		SEMUNDO_UNLOCK();
@@ -937,6 +939,8 @@ semget(struct thread *td, struct semget_args *uap)
 		sema[semid].u.sem_perm.cgid = cred->cr_gid;
 		sema[semid].u.sem_perm.gid = cred->cr_gid;
 		sema[semid].u.sem_perm.mode = (semflg & 0777) | SEM_ALLOC;
+		crhold(cred);
+		sema[semid].cred = cred;
 		sema[semid].u.sem_perm.seq =
 		    (sema[semid].u.sem_perm.seq + 1) & 0x7fff;
 		sema[semid].u.sem_nsems = nsems;
