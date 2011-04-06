@@ -148,7 +148,7 @@ static int drvread(void *, unsigned, unsigned);
 static int keyhit(unsigned);
 static int xputc(int);
 static int xgetc(int);
-static int getc(int);
+static inline int getc(int);
 
 static void memcpy(void *, const void *, int);
 static void
