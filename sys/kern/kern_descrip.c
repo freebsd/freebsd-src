@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/socketvar.h>
@@ -276,11 +277,15 @@ int
 getdtablesize(struct thread *td, struct getdtablesize_args *uap)
 {
 	struct proc *p = td->td_proc;
+	uint64_t lim;
 
 	PROC_LOCK(p);
 	td->td_retval[0] =
 	    min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
+	lim = racct_get_limit(td->td_proc, RACCT_NOFILE);
 	PROC_UNLOCK(p);
+	if (lim < td->td_retval[0])
+		td->td_retval[0] = lim;
 	return (0);
 }
 
@@ -793,8 +798,25 @@ do_dup(struct thread *td, int flags, int old, int new,
 	 * out for a race.
 	 */
 	if (flags & DUP_FIXED) {
-		if (new >= fdp->fd_nfiles)
+		if (new >= fdp->fd_nfiles) {
+			/*
+			 * The resource limits are here instead of e.g. fdalloc(),
+			 * because the file descriptor table may be shared between
+			 * processes, so we can't really use racct_add()/racct_sub().
+			 * Instead of counting the number of actually allocated
+			 * descriptors, just put the limit on the size of the file
+			 * descriptor table.
+			 */
+			PROC_LOCK(p);
+			error = racct_set(p, RACCT_NOFILE, new + 1);
+			PROC_UNLOCK(p);
+			if (error != 0) {
+				FILEDESC_XUNLOCK(fdp);
+				fdrop(fp, td);
+				return (EMFILE);
+			}
 			fdgrowtable(fdp, new + 1);
+		}
 		if (fdp->fd_ofiles[new] == NULL)
 			fdused(fdp, new);
 	} else {
@@ -1440,7 +1462,7 @@ fdalloc(struct thread *td, int minfd, int *result)
 {
 	struct proc *p = td->td_proc;
 	struct filedesc *fdp = p->p_fd;
-	int fd = -1, maxfd;
+	int fd = -1, maxfd, error;
 
 	FILEDESC_XLOCK_ASSERT(fdp);
 
@@ -1463,6 +1485,11 @@ fdalloc(struct thread *td, int minfd, int *result)
 			return (EMFILE);
 		if (fd < fdp->fd_nfiles)
 			break;
+		PROC_LOCK(p);
+		error = racct_set(p, RACCT_NOFILE, min(fdp->fd_nfiles * 2, maxfd));
+		PROC_UNLOCK(p);
+		if (error != 0)
+			return (EMFILE);
 		fdgrowtable(fdp, min(fdp->fd_nfiles * 2, maxfd));
 	}
 
@@ -1494,6 +1521,11 @@ fdavail(struct thread *td, int n)
 
 	FILEDESC_LOCK_ASSERT(fdp);
 
+	/*
+	 * XXX: This is only called from uipc_usrreq.c:unp_externalize();
+	 *      call racct_add() from there instead of dealing with containers
+	 *      here.
+	 */
 	PROC_LOCK(p);
 	lim = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
 	PROC_UNLOCK(p);
@@ -1741,6 +1773,10 @@ fdfree(struct thread *td)
 	fdp = td->td_proc->p_fd;
 	if (fdp == NULL)
 		return;
+
+	PROC_LOCK(td->td_proc);
+	racct_set(td->td_proc, RACCT_NOFILE, 0);
+	PROC_UNLOCK(td->td_proc);
 
 	/* Check for special need to clear POSIX style locks */
 	fdtol = td->td_proc->p_fdtol;
