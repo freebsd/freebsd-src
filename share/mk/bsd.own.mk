@@ -500,6 +500,11 @@ MK_OPENSSH:=	no
 MK_KERBEROS:=	no
 .endif
 
+.if ${MK_CXX} == "no"
+MK_CLANG:=	no
+MK_GROFF:=	no
+.endif
+
 .if ${MK_IPX} == "no"
 MK_NCP:=	no
 .endif

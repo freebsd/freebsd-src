@@ -1127,9 +1127,11 @@ _kgzip=		usr.sbin/kgzip
 .endif
 .endif
 
+.if ${MK_CLANG} != "no"
 .if ${CC:T:Mclang} == "clang"
 _clang=		usr.bin/clang
 _clang_libs=	lib/clang
+.endif
 .endif
 
 cross-tools:
