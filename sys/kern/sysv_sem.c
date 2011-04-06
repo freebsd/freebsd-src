@@ -948,8 +948,7 @@ semget(struct thread *td, struct semget_args *uap)
 		sema[semid].u.sem_perm.cgid = cred->cr_gid;
 		sema[semid].u.sem_perm.gid = cred->cr_gid;
 		sema[semid].u.sem_perm.mode = (semflg & 0777) | SEM_ALLOC;
-		crhold(cred);
-		sema[semid].cred = cred;
+		sema[semid].cred = crhold(cred);
 		sema[semid].u.sem_perm.seq =
 		    (sema[semid].u.sem_perm.seq + 1) & 0x7fff;
 		sema[semid].u.sem_nsems = nsems;
