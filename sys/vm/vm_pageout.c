@@ -1303,7 +1303,8 @@ vm_pageout_oom(int shortage)
 			thread_lock(td);
 			if (!TD_ON_RUNQ(td) &&
 			    !TD_IS_RUNNING(td) &&
-			    !TD_IS_SLEEPING(td)) {
+			    !TD_IS_SLEEPING(td) &&
+			    !TD_IS_SUSPENDED(td)) {
 				thread_unlock(td);
 				breakout = 1;
 				break;
@@ -1679,7 +1680,8 @@ again:
 				thread_lock(td);
 				if (!TD_ON_RUNQ(td) &&
 				    !TD_IS_RUNNING(td) &&
-				    !TD_IS_SLEEPING(td)) {
+				    !TD_IS_SLEEPING(td) &&
+				    !TD_IS_SUSPENDED(td)) {
 					thread_unlock(td);
 					breakout = 1;
 					break;
