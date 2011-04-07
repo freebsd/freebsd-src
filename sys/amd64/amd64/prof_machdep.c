@@ -311,18 +311,22 @@ void
 startguprof(gp)
 	struct gmonparam *gp;
 {
+	uint64_t freq;
+
+	freq = atomic_load_acq_64(&tsc_freq);
 	if (cputime_clock == CPUTIME_CLOCK_UNINITIALIZED) {
-		cputime_clock = CPUTIME_CLOCK_I8254;
-		if (tsc_freq != 0 && mp_ncpus == 1)
+		if (freq != 0 && mp_ncpus == 1)
 			cputime_clock = CPUTIME_CLOCK_TSC;
+		else
+			cputime_clock = CPUTIME_CLOCK_I8254;
 	}
-	gp->profrate = i8254_freq << CPUTIME_CLOCK_I8254_SHIFT;
 	if (cputime_clock == CPUTIME_CLOCK_TSC) {
-		gp->profrate = tsc_freq >> 1;
+		gp->profrate = freq >> 1;
 		cputime_prof_active = 1;
-	}
+	} else
+		gp->profrate = i8254_freq << CPUTIME_CLOCK_I8254_SHIFT;
 #if defined(PERFMON) && defined(I586_PMC_GUPROF)
-	else if (cputime_clock == CPUTIME_CLOCK_I586_PMC) {
+	if (cputime_clock == CPUTIME_CLOCK_I586_PMC) {
 		if (perfmon_avail() &&
 		    perfmon_setup(0, cputime_clock_pmc_conf) == 0) {
 			if (perfmon_start(0) != 0)
