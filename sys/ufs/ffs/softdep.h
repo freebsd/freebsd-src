@@ -448,6 +448,7 @@ struct indirdep {
 	struct	allocindirhd ir_writehd; /* Waiting for the pointer write. */
 	struct	allocindirhd ir_donehd;	/* done waiting to update safecopy */
 	struct	allocindirhd ir_deplisthd; /* allocindir deps for this block */
+	struct	jnewblkhd ir_jnewblkhd;	/* Canceled block allocations. */
 	struct	workhead ir_jwork;	/* Journal work pending. */
 };
 
@@ -496,7 +497,7 @@ union allblk {
 struct freefrag {
 	struct	worklist ff_list;	/* id_inowait or delayed worklist */
 #	define	ff_state ff_list.wk_state
-	struct	jfreefrag *ff_jfreefrag; /* Associated journal entry. */
+	struct	worklist *ff_jdep;	/* Associated journal entry. */
 	struct	workhead ff_jwork;	/* Journal work pending. */
 	ufs2_daddr_t ff_blkno;		/* fragment physical block number */
 	long	ff_fragsize;		/* size of fragment being deleted */
@@ -538,6 +539,7 @@ struct freework {
 	struct	worklist fw_list;		/* Delayed worklist. */
 #	define	fw_state fw_list.wk_state
 	LIST_ENTRY(freework) fw_next;		/* Queue for freeblk list. */
+	struct	jnewblk  *fw_jnewblk;		/* Journal entry to cancel. */
 	struct	freeblks *fw_freeblks;		/* Root of operation. */
 	struct	freework *fw_parent;		/* Parent indirect. */
 	ufs2_daddr_t	 fw_blkno;		/* Our block #. */
@@ -805,7 +807,8 @@ struct jnewblk {
 #	define	jn_state jn_list.wk_state
 	struct	jsegdep	*jn_jsegdep;	/* Will track our journal record. */
 	LIST_ENTRY(jnewblk) jn_deps;	/* Jnewblks on sm_jnewblkhd. */
-	struct	newblk	*jn_newblk;	/* Back pointer to newblk. */
+	LIST_ENTRY(jnewblk) jn_indirdeps; /* Jnewblks on ir_jnewblkhd. */
+	struct	worklist *jn_dep;	/* Dependency to ref completed seg. */
 	ino_t		jn_ino;		/* Ino to which allocated. */
 	ufs_lbn_t	jn_lbn;		/* Lbn to which allocated. */
 	ufs2_daddr_t	jn_blkno;	/* Blkno allocated */
