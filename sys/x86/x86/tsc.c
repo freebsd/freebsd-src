@@ -245,14 +245,16 @@ tsc_freq_changing(void *arg, const struct cf_level *level, int *status)
 static void
 tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 {
+	uint64_t freq;
 
 	/* If there was an error during the transition, don't do anything. */
 	if (tsc_disabled || status != 0)
 		return;
 
 	/* Total setting for this level gives the new frequency in MHz. */
-	tsc_freq = (uint64_t)level->total_set.freq * 1000000;
-	tsc_timecounter.tc_frequency = tsc_freq;
+	freq = (uint64_t)level->total_set.freq * 1000000;
+	atomic_store_rel_64(&tsc_freq, freq);
+	atomic_store_rel_64(&tsc_timecounter.tc_frequency, freq);
 }
 
 static int
@@ -261,13 +263,13 @@ sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 	int error;
 	uint64_t freq;
 
-	if (tsc_timecounter.tc_frequency == 0)
+	freq = atomic_load_acq_64(&tsc_freq);
+	if (freq == 0)
 		return (EOPNOTSUPP);
-	freq = tsc_freq;
 	error = sysctl_handle_64(oidp, &freq, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		tsc_freq = freq;
-		tsc_timecounter.tc_frequency = tsc_freq;
+		atomic_store_rel_64(&tsc_freq, freq);
+		atomic_store_rel_64(&tsc_timecounter.tc_frequency, freq);
 	}
 	return (error);
 }
