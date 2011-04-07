@@ -383,7 +383,7 @@ IDTVEC(fast_syscall)
 	movq	%rsp,%rdi
 	call	syscall
 	movq	PCPU(CURPCB),%rax
-	testq	$PCB_FULL_IRET,PCB_FLAGS(%rax)
+	testl	$PCB_FULL_IRET,PCB_FLAGS(%rax)
 	jne	3f
 1:	/* Check for and handle AST's on return to userland. */
 	cli
