@@ -481,15 +481,11 @@ SYSCTL_UINT(_hw_bxe, OID_AUTO, queue_count, CTLFLAG_RDTUN, &bxe_queue_count,
  * destination IP address and the source/destination TCP port).
  *
  */
+/* static int bxe_multi_mode = ETH_RSS_MODE_REGULAR; */
 static int bxe_multi_mode = ETH_RSS_MODE_DISABLED;
 TUNABLE_INT("hw.bxe.multi_mode", &bxe_multi_mode);
 SYSCTL_UINT(_hw_bxe, OID_AUTO, multi_mode, CTLFLAG_RDTUN, &bxe_multi_mode,
     0, "Multi-Queue Mode");
-
-static uint32_t bxe_pri_map = 0x0;
-TUNABLE_INT("hw.bxe.pri_map", &bxe_pri_map);
-SYSCTL_UINT(_hw_bxe, OID_AUTO, pri_map, CTLFLAG_RDTUN, &bxe_pri_map,
-    0, "Priority map");
 
 /*
  * Host interrupt coalescing is controller by these values.
@@ -521,6 +517,7 @@ TUNABLE_INT("hw.bxe.mrrs", &bxe_mrrs);
 SYSCTL_UINT(_hw_bxe, OID_AUTO, mrrs, CTLFLAG_RDTUN, &bxe_mrrs,
     0, "PCIe maximum read request size.");
 
+#if 0
 /*
  * Allows setting the maximum number of received frames to process
  * during an interrupt.
@@ -544,6 +541,7 @@ static int bxe_tx_limit = -1;
 TUNABLE_INT("hw.bxe.tx_limit", &bxe_tx_limit);
 SYSCTL_UINT(_hw_bxe, OID_AUTO, tx_limit, CTLFLAG_RDTUN, &bxe_tx_limit,
 	0, "Maximum transmit frames processed during an interrupt.");
+#endif
 
 /*
  * Global variables
@@ -1891,8 +1889,16 @@ bxe_attach(device_t dev)
 	else
 		sc->mrrs = bxe_mrrs;
 
-	/* Select the RX and TX ring sizes */
-	sc->tx_ring_size = USABLE_TX_BD;
+	/*
+	 * Select the RX and TX ring sizes.  The actual
+	 * ring size for TX is complicated by the fact
+	 * that a single TX frame may be broken up into
+	 * many buffer descriptors (tx_start_bd,
+	 * tx_parse_bd, tx_data_bd).  In the best case,
+	 * there are always at least two BD's required
+	 * so we'll assume the best case here.
+	 */
+	sc->tx_ring_size = (USABLE_TX_BD >> 1);
 	sc->rx_ring_size = USABLE_RX_BD;
 
 	/* Assume receive IP/TCP/UDP checksum is enabled. */
@@ -2907,7 +2913,7 @@ bxe_setup_leading(struct bxe_softc *sc)
 
 	DBENTER(BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET | BXE_VERBOSE_RAMROD);
 
-	DBPRINT(sc, BXE_INFO_LOAD, "%s(): Setup leading connection "
+	DBPRINT(sc, BXE_VERBOSE_LOAD, "%s(): Setup leading connection "
 	    "on fp[00].\n", __FUNCTION__);
 
 	/* Reset IGU state for the leading connection. */
@@ -2938,7 +2944,7 @@ bxe_stop_leading(struct bxe_softc *sc)
 
 	DBENTER(BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET | BXE_VERBOSE_RAMROD);
 
-	DBPRINT(sc, BXE_INFO_LOAD, "%s(): Stop client connection "
+	DBPRINT(sc, BXE_VERBOSE_LOAD, "%s(): Stop client connection "
 	    "on fp[00].\n", __FUNCTION__);
 
 	/* Send the ETH_HALT ramrod. */
@@ -2999,7 +3005,7 @@ bxe_setup_multi(struct bxe_softc *sc, int index)
 
 	DBENTER(BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET | BXE_VERBOSE_RAMROD);
 
-	DBPRINT(sc, BXE_INFO_LOAD, "%s(): Setup client connection "
+	DBPRINT(sc, BXE_VERBOSE_LOAD, "%s(): Setup client connection "
 	    "on fp[%02d].\n", __FUNCTION__, index);
 
 	fp = &sc->fp[index];
@@ -3034,7 +3040,7 @@ bxe_stop_multi(struct bxe_softc *sc, int index)
 
 	DBENTER(BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET | BXE_VERBOSE_RAMROD);
 
-	DBPRINT(sc, BXE_INFO_LOAD, "%s(): Stop client connection "
+	DBPRINT(sc, BXE_VERBOSE_LOAD, "%s(): Stop client connection "
 	    "on fp[%02d].\n", __FUNCTION__, index);
 
 	fp = &sc->fp[index];
@@ -3679,6 +3685,7 @@ bxe_init_locked(struct bxe_softc *sc, int load_mode)
 			BXE_PRINTF("Multi-function mode is disabled\n");
 			/* sc->state = BXE_STATE_DISABLED; */
 		}
+
 		/* Setup additional client connections for RSS/multi-queue */
 		if (sc->state == BXE_STATE_OPEN) {
 			for (i = 1; i < sc->num_queues; i++) {
@@ -3794,9 +3801,9 @@ bxe_wait_ramrod(struct bxe_softc *sc, int state, int idx, int *state_p,
 
 	DBENTER(BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET | BXE_VERBOSE_RAMROD);
 
-	DBPRINT(sc, BXE_VERBOSE_RAMROD, "%s(): %s for state 0x%08X on fp[%d], "
-	    "currently 0x%08X.\n", __FUNCTION__, poll ? "Polling" : "Waiting",
-	    state, idx, *state_p);
+	DBPRINT(sc, BXE_VERBOSE_RAMROD, "%s(): %s for state 0x%08X on "
+	    "fp[%02d], currently 0x%08X.\n", __FUNCTION__,
+	    poll ? "Polling" : "Waiting", state, idx, *state_p);
 
 	rc = 0;
 	timeout = 5000;
@@ -8680,9 +8687,9 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 					/* OK to send. */
 					break;
 				else
-					fp->tso_window_violation++;
+					fp->window_violation_tso++;
 			} else
-				fp->std_window_violation++;
+				fp->window_violation_std++;
 
 			/*
 			 * If this is a standard frame then defrag is
@@ -8829,7 +8836,7 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 			if (m0->m_pkthdr.csum_flags & CSUM_IP) {
 				DBPRINT(sc, BXE_EXTREME_SEND, "%s(): IP checksum "
 					"enabled.\n", __FUNCTION__);
-				fp->ip_csum_offload_frames++;
+				fp->offload_frames_csum_ip++;
 				flags |= ETH_TX_BD_FLAGS_IP_CSUM;
 			}
 
@@ -8846,7 +8853,7 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 
 				/* Add the TCP checksum offload flag. */
 				flags |= ETH_TX_BD_FLAGS_L4_CSUM;
-				fp->tcp_csum_offload_frames++;
+				fp->offload_frames_csum_tcp++;
 
 				/* Update the enet + IP + TCP header length. */
 				tx_parse_bd->total_hlen += (uint16_t)(th->th_off << 1);
@@ -8879,7 +8886,7 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 
 				/* Add the TCP checksum offload flag for UDP frames too. */
 				flags |= ETH_TX_BD_FLAGS_L4_CSUM;
-				fp->udp_csum_offload_frames++;
+				fp->offload_frames_csum_udp++;
 				tx_parse_bd->global_data |= ETH_TX_PARSE_BD_UDP_CS_FLG;
 
 				/* Get a pointer to the UDP header. */
@@ -8907,12 +8914,12 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 			break;
 		}
 		case ETHERTYPE_IPV6:
-			fp->unsupported_tso_ipv6_request++;
+			fp->unsupported_tso_request_ipv6++;
 			/* DRC - How to handle this error? */
 			break;
 
 		default:
-			fp->unsupported_tso_protocol_request++;
+			fp->unsupported_tso_request_not_tcp++;
 			/* DRC - How to handle this error? */
 		}
 
@@ -8926,7 +8933,7 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 
 			tx_start_bd->bd_flags.as_bitfield |= ETH_TX_BD_FLAGS_SW_LSO;
 
-			fp->tso_offload_frames++;
+			fp->offload_frames_tso++;
  			if (__predict_false(tx_start_bd->nbytes > hdr_len)) {
 				/*
 				 * Split the first BD into 2 BDs to make the
@@ -9047,7 +9054,7 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 
 	DOORBELL(sc, fp->index, fp->tx_db.raw);
 
-	DBRUN(fp->tx_pkts++);
+	fp->tx_pkts++;
 
 	/* Prevent speculative reads from getting ahead of the status block. */
 	bus_space_barrier(sc->bxe_btag, sc->bxe_bhandle,
@@ -9076,12 +9083,9 @@ bxe_tx_start(struct ifnet *ifp)
 {
 	struct bxe_softc *sc;
 	struct bxe_fastpath *fp;
-	int fp_index;
 
 	sc = ifp->if_softc;
 	DBENTER(BXE_EXTREME_SEND);
-
-	fp_index = 0;
 
 	/* Exit if there's no link. */
 	if (!sc->link_vars.link_up) {
@@ -9101,7 +9105,7 @@ bxe_tx_start(struct ifnet *ifp)
 	}
 
 	/* Set the TX queue for the frame. */
-	fp = &sc->fp[fp_index];
+	fp = &sc->fp[0];
 
 	BXE_CORE_LOCK(sc);
 	bxe_tx_start_locked(ifp, fp);
@@ -9389,10 +9393,10 @@ bxe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 static __inline uint16_t
 bxe_rx_cq_cons(struct bxe_fastpath *fp)
 {
-	volatile uint16_t rx_cons_sb = 0;
+	volatile uint16_t rx_cq_cons_sb = 0;
 
 	rmb();
-	rx_cons_sb = (volatile uint16_t) le16toh(*fp->rx_cons_sb);
+	rx_cq_cons_sb = (volatile uint16_t) le16toh(*fp->rx_cq_cons_sb);
 
 	/*
 	 * It is valid for the hardware's copy of the completion
@@ -9401,11 +9405,11 @@ bxe_rx_cq_cons(struct bxe_fastpath *fp)
 	 * that it is pointing at the next available CQE so we
 	 * need to adjust the value accordingly.
 	 */
-	if ((rx_cons_sb & USABLE_RCQ_ENTRIES_PER_PAGE) ==
+	if ((rx_cq_cons_sb & USABLE_RCQ_ENTRIES_PER_PAGE) ==
 		USABLE_RCQ_ENTRIES_PER_PAGE)
-		rx_cons_sb++;
+		rx_cq_cons_sb++;
 
-	return (rx_cons_sb);
+	return (rx_cq_cons_sb);
 }
 
 static __inline int
@@ -10301,7 +10305,7 @@ bxe_init_rx_chains(struct bxe_softc *sc)
 	struct eth_rx_sge *sge;
 	struct eth_rx_bd *rx_bd;
 	struct eth_rx_cqe_next_page *nextpg;
-	uint16_t ring_prod, cqe_ring_prod;
+	uint16_t rx_bd_prod, rx_sge_prod;
 	int func, i, j, rcq_idx, rx_idx, rx_sge_idx, max_agg_queues;
 
 	DBENTER(BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET);
@@ -10347,15 +10351,17 @@ bxe_init_rx_chains(struct bxe_softc *sc)
 		}
 	}
 
+	/* Allocate memory for RX and CQ chains. */
 	for (i = 0; i < sc->num_queues; i++) {
 		fp = &sc->fp[i];
 		DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET),
 		    "%s(): Initializing fp[%d] RX chain.\n", __FUNCTION__, i);
 
-		fp->rx_bd_cons = 0;
+		fp->rx_bd_cons = fp->rx_bd_prod = 0;
+		fp->rx_cq_cons = fp->rx_cq_prod = 0;
 
-		/* Pointer to status block's completion queue consumer index. */
-		fp->rx_cons_sb = &fp->status_block->
+		/* Status block's completion queue consumer index. */
+		fp->rx_cq_cons_sb = &fp->status_block->
 		    u_status_block.index_values[HC_INDEX_U_ETH_RX_CQ_CONS];
 
 		/* Pointer to status block's receive consumer index. */
@@ -10395,7 +10401,7 @@ bxe_init_rx_chains(struct bxe_softc *sc)
 			rx_idx = ((j + 1) % NUM_RX_PAGES);
 			rx_bd = &fp->rx_bd_chain[j][USABLE_RX_BD_PER_PAGE];
 
-			DBPRINT(sc, (BXE_INFO_LOAD),
+			DBPRINT(sc, (BXE_EXTREME_LOAD),
 			    "%s(): fp[%02d].rx_bd_chain[%02d][0x%04X]=0x%jX\n",
 			     __FUNCTION__, i, j,
 			    (uint16_t) USABLE_RX_BD_PER_PAGE,
@@ -10417,7 +10423,7 @@ bxe_init_rx_chains(struct bxe_softc *sc)
 			nextpg = (struct eth_rx_cqe_next_page *)
 			    &fp->rx_cq_chain[j][USABLE_RCQ_ENTRIES_PER_PAGE];
 
-			DBPRINT(sc, (BXE_INFO_LOAD),
+			DBPRINT(sc, (BXE_EXTREME_LOAD),
 			    "%s(): fp[%02d].rx_cq_chain[%02d][0x%04X]=0x%jX\n",
 			     __FUNCTION__, i, j,
 			    (uint16_t) USABLE_RCQ_ENTRIES_PER_PAGE,
@@ -10431,10 +10437,10 @@ bxe_init_rx_chains(struct bxe_softc *sc)
 
 		if (TPA_ENABLED(sc)) {
 			/* Allocate SGEs and initialize the ring elements. */
-			ring_prod = 0;
+			rx_sge_prod = 0;
 
-			while (ring_prod < sc->rx_ring_size) {
-				if (bxe_alloc_rx_sge(sc, fp, ring_prod) != 0) {
+			while (rx_sge_prod < sc->rx_ring_size) {
+				if (bxe_alloc_rx_sge(sc, fp, rx_sge_prod) != 0) {
 					fp->tpa_mbuf_alloc_failed++;
 					BXE_PRINTF(
 					    "%s(%d): Memory allocation failure! "
@@ -10443,48 +10449,48 @@ bxe_init_rx_chains(struct bxe_softc *sc)
 
 					/* Cleanup already allocated elements */
 					bxe_free_rx_sge_range(sc, fp,
-					    ring_prod);
+					    rx_sge_prod);
 					fp->disable_tpa = 1;
-					ring_prod = 0;
+					rx_sge_prod = 0;
 					break;
 				}
-				ring_prod = NEXT_SGE_IDX(ring_prod);
+				rx_sge_prod = NEXT_SGE_IDX(rx_sge_prod);
 			}
 
-			fp->rx_sge_prod = ring_prod;
+			fp->rx_sge_prod = rx_sge_prod;
 		}
 
 		/*
 		 * Allocate buffers for all the RX BDs in RX BD Chain.
-		 * Add completion queue entries at the same time.
 		 */
-		fp->rx_cq_cons = ring_prod = cqe_ring_prod = 0;
-		DBRUN(fp->free_rx_bd = USABLE_RX_BD);
+		rx_bd_prod = 0;
+		DBRUN(fp->free_rx_bd = sc->rx_ring_size);
 
-		while (ring_prod < sc->rx_ring_size) {
-			if (bxe_get_buf(fp, NULL, ring_prod)) {
+		for (j = 0; j < sc->rx_ring_size; j++) {
+			if (bxe_get_buf(fp, NULL, rx_bd_prod)) {
 				BXE_PRINTF(
 	"%s(%d): Memory allocation failure! Cannot fill fp[%d] RX chain.\n",
 				    __FILE__, __LINE__, i);
 				break;
 			}
-			ring_prod = NEXT_RX_BD(ring_prod);
-			cqe_ring_prod = NEXT_RCQ_IDX(cqe_ring_prod);
+			rx_bd_prod = NEXT_RX_BD(rx_bd_prod);
 		}
 
 		/* Update the driver's copy of the producer indices. */
-		fp->rx_bd_prod = ring_prod;
+		fp->rx_bd_prod = rx_bd_prod;
+		fp->rx_cq_prod = MAX_RCQ_ENTRIES;
+		fp->rx_pkts = fp->rx_calls = 0;
 
-		fp->rx_cq_prod = cqe_ring_prod;
-		/*
-		 * fp->rx_cq_prod =
-		 *     (uint16_t)min(NUM_RCQ_PAGES*TOTAL_RCQ_ENTRIES_PER_PAGE,
-		 *     cqe_ring_prod);
-		 */
+		DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET),
+		    "%s(): USABLE_RX_BD=0x%04X, USABLE_RCQ_ENTRIES=0x%04X\n",
+		    __FUNCTION__, (uint16_t) USABLE_RX_BD,
+		    (uint16_t) USABLE_RCQ_ENTRIES);
+		DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET),
+		    "%s(): fp[%02d]->rx_bd_prod=0x%04X, rx_cq_prod=0x%04X\n",
+		    __FUNCTION__, i, fp->rx_bd_prod, fp->rx_cq_prod);
 
-		DBRUN(fp->rx_pkts = fp->rx_calls = 0);
 
-		/* Prepare the CQ buffers for DMA access. */
+		/* Prepare the recevie BD and CQ buffers for DMA access. */
 		for (j = 0; j < NUM_RX_PAGES; j++)
 			bus_dmamap_sync(fp->rx_bd_chain_tag,
 			    fp->rx_bd_chain_map[j], BUS_DMASYNC_PREREAD |
@@ -10496,22 +10502,26 @@ bxe_init_rx_chains(struct bxe_softc *sc)
 			    BUS_DMASYNC_PREWRITE);
 
 		/*
-		 * Tell the controller that we have rx_bd's and CQE's available.
-		 * Warning! this will generate an interrupt (to the TSTORM).
-		 * This must only be done when the controller is initialized.
+		 * Tell the controller that we have rx_bd's and CQE's
+		 * available.  Warning! this will generate an interrupt
+		 * (to the TSTORM).  This must only be done when the
+		 * controller is initialized.
 		 */
-		bxe_update_rx_prod(sc, fp, ring_prod, fp->rx_cq_prod,
-		    fp->rx_sge_prod);
+		bxe_update_rx_prod(sc, fp, fp->rx_bd_prod,
+		    fp->rx_cq_prod, fp->rx_sge_prod);
 
-		if (i != 0)
-			continue;
-
-		REG_WR(sc, BAR_USTORM_INTMEM +
-		    USTORM_MEM_WORKAROUND_ADDRESS_OFFSET(func),
-		    U64_LO(fp->rx_cq_chain_paddr[0]));
-		REG_WR(sc, BAR_USTORM_INTMEM +
-		    USTORM_MEM_WORKAROUND_ADDRESS_OFFSET(func) + 4,
-		    U64_HI(fp->rx_cq_chain_paddr[0]));
+		/*
+		 * Tell controller where the receive CQ
+		 * chains start in physical memory.
+		 */
+		if (i == 0) {
+			REG_WR(sc, BAR_USTORM_INTMEM +
+			    USTORM_MEM_WORKAROUND_ADDRESS_OFFSET(func),
+			    U64_LO(fp->rx_cq_chain_paddr[0]));
+			REG_WR(sc, BAR_USTORM_INTMEM +
+			    USTORM_MEM_WORKAROUND_ADDRESS_OFFSET(func) + 4,
+			    U64_HI(fp->rx_cq_chain_paddr[0]));
+		}
 	}
 
 	DBEXIT(BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET);
@@ -10570,7 +10580,7 @@ bxe_init_tx_chains(struct bxe_softc *sc)
 		fp->tx_cons_sb =
 		    &fp->status_block->c_status_block.index_values[C_SB_ETH_TX_CQ_INDEX];
 
-		DBRUN(fp->tx_pkts = 0);
+		fp->tx_pkts = 0;
 	}
 
 	DBEXIT(BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET);
@@ -11196,7 +11206,8 @@ bxe_init_internal_func(struct bxe_softc *sc)
 	for (i = 0; i < sc->num_queues; i++) {
 		fp = &sc->fp[i];
 		nextpg = (struct eth_rx_cqe_next_page *)
-		    &fp->rx_cq_chain[i][USABLE_RCQ_ENTRIES_PER_PAGE];
+		    &fp->rx_cq_chain[0][USABLE_RCQ_ENTRIES_PER_PAGE];
+
 		/* Program the completion queue address. */
 		REG_WR(sc, BAR_USTORM_INTMEM +
 		    USTORM_CQE_PAGE_BASE_OFFSET(port, fp->cl_id),
@@ -11205,15 +11216,18 @@ bxe_init_internal_func(struct bxe_softc *sc)
 		    USTORM_CQE_PAGE_BASE_OFFSET(port, fp->cl_id) + 4,
 		    U64_HI(fp->rx_cq_chain_paddr[0]));
 
-		/* Next page */
-		REG_WR(sc, BAR_USTORM_INTMEM + USTORM_CQE_PAGE_NEXT_OFFSET(port,
-		    fp->cl_id), nextpg->addr_lo);
-		REG_WR(sc, BAR_USTORM_INTMEM + USTORM_CQE_PAGE_NEXT_OFFSET(port,
-		    fp->cl_id) + 4, nextpg->addr_hi);
+		/* Program the first CQ next page address. */
+		REG_WR(sc, BAR_USTORM_INTMEM +
+		    USTORM_CQE_PAGE_NEXT_OFFSET(port, fp->cl_id),
+		    nextpg->addr_lo);
+		REG_WR(sc, BAR_USTORM_INTMEM +
+		    USTORM_CQE_PAGE_NEXT_OFFSET(port, fp->cl_id) + 4,
+		    nextpg->addr_hi);
 
 		/* Set the maximum TPA aggregation size. */
 		REG_WR16(sc, BAR_USTORM_INTMEM +
-		    USTORM_MAX_AGG_SIZE_OFFSET(port, fp->cl_id), max_agg_size);
+		    USTORM_MAX_AGG_SIZE_OFFSET(port, fp->cl_id),
+		    max_agg_size);
 	}
 
 	/* Configure lossless flow control. */
@@ -11256,14 +11270,6 @@ bxe_init_internal_func(struct bxe_softc *sc)
 			DBPRINT(sc, BXE_VERBOSE_MISC,
 			    "%s(): All MIN values are zeroes, "
 			    "fairness will be disabled.\n", __FUNCTION__);
-	}
-
-	switch (sc->multi_mode) {
-	case ETH_RSS_MODE_DISABLED:
-	case ETH_RSS_MODE_REGULAR:
-		break;
-	default:
-		break;
 	}
 
 	/* Store it to internal memory */
@@ -11351,7 +11357,7 @@ bxe_init_nic(struct bxe_softc *sc, uint32_t load_code)
 		/* Set the status block ID for this fastpath instance. */
 		fp->sb_id = fp->cl_id;
 
-		DBPRINT(sc, (BXE_INFO_LOAD | BXE_INFO_RESET),
+		DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET),
 		    "%s(): fp[%d]: cl_id = %d, sb_id = %d\n",
 		    __FUNCTION__, fp->index, fp->cl_id, fp->sb_id);
 
@@ -11872,24 +11878,27 @@ bxe_init_pxp_arb(struct bxe_softc *sc, int r_order, int w_order)
 	uint32_t val, i;
 
 	if (r_order > MAX_RD_ORD) {
-		DBPRINT(sc, BXE_INFO,
-		    "read order of %d order adjusted to %d\n", r_order,
-		    MAX_RD_ORD);
+		DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET),
+		    "%s(): Read order of %d order adjusted to %d\n",
+		    __FUNCTION__,  r_order, MAX_RD_ORD);
 		r_order = MAX_RD_ORD;
 	}
 	if (w_order > MAX_WR_ORD) {
-		DBPRINT(sc, BXE_INFO,
-		    "write order of %d order adjusted to %d\n", w_order,
-		    MAX_WR_ORD);
+		DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET),
+		    "%s(): Write order of %d order adjusted to %d\n",
+		    __FUNCTION__, w_order, MAX_WR_ORD);
 		w_order = MAX_WR_ORD;
 	}
 
-	DBPRINT(sc, BXE_INFO, "read order %d write order %d\n", r_order,
-	    w_order);
+	DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET),
+	    "%s(): Read order %d, write order %d\n",
+	    __FUNCTION__, r_order, w_order);
 
 	for (i = 0; i < NUM_RD_Q - 1; i++) {
-		REG_WR(sc, read_arb_addr[i].l, read_arb_data[i][r_order].l);
-		REG_WR(sc, read_arb_addr[i].add, read_arb_data[i][r_order].add);
+		REG_WR(sc, read_arb_addr[i].l,
+		    read_arb_data[i][r_order].l);
+		REG_WR(sc, read_arb_addr[i].add,
+		    read_arb_data[i][r_order].add);
 		REG_WR(sc, read_arb_addr[i].ubound,
 		    read_arb_data[i][r_order].ubound);
 	}
@@ -11969,13 +11978,17 @@ bxe_init_pxp(struct bxe_softc *sc)
 	uint16_t devctl;
 	int r_order, w_order;
 
-	devctl = pci_read_config(sc->bxe_dev, sc->pcie_cap + PCI_EXP_DEVCTL, 2);
-	DBPRINT(sc, BXE_INFO, "read 0x%x from devctl\n", devctl);
+	devctl = pci_read_config(sc->bxe_dev,
+	    sc->pcie_cap + PCI_EXP_DEVCTL, 2);
+	DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET),
+	    "%s(): Read 0x%x from devctl\n", __FUNCTION__, devctl);
 	w_order = ((devctl & PCI_EXP_DEVCTL_PAYLOAD) >> 5);
 	if (sc->mrrs == -1)
 		r_order = ((devctl & PCI_EXP_DEVCTL_READRQ) >> 12);
 	else {
-		DBPRINT(sc, BXE_INFO, "force read order to %d\n", sc->mrrs);
+		DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET),
+		    "%s(): Force MRRS read order to %d\n",
+		    __FUNCTION__, sc->mrrs);
 		r_order = sc->mrrs;
 	}
 
@@ -13990,7 +14003,8 @@ bxe_set_rx_mode(struct bxe_softc *sc)
 	} else {
 		/* Enable selective multicast mode. */
 		DBPRINT(sc, BXE_INFO,
-		    "%s(): Enabling selective multicast mode.\n", __FUNCTION__);
+		    "%s(): Enabling selective multicast mode.\n",
+		    __FUNCTION__);
 
 		if (CHIP_IS_E1(sc)) {
 			i = 0;
@@ -14683,14 +14697,14 @@ bxe_tpa_stop_exit:
  */
 static __inline void
 bxe_update_rx_prod(struct bxe_softc *sc, struct bxe_fastpath *fp,
-    uint16_t bd_prod, uint16_t rx_cq_prod, uint16_t sge_prod)
+    uint16_t bd_prod, uint16_t cqe_prod, uint16_t sge_prod)
 {
 	volatile struct ustorm_eth_rx_producers rx_prods = {0};
 	int i;
 
 	/* Update producers. */
 	rx_prods.bd_prod =  bd_prod;
-	rx_prods.cqe_prod = rx_cq_prod;
+	rx_prods.cqe_prod = cqe_prod;
 	rx_prods.sge_prod = sge_prod;
 
 	wmb();
@@ -14702,8 +14716,8 @@ bxe_update_rx_prod(struct bxe_softc *sc, struct bxe_fastpath *fp,
 	}
 
 	DBPRINT(sc, BXE_EXTREME_RECV, "%s(%d): Wrote fp[%02d] bd_prod = 0x%04X, "
-	    "rx_cq_prod = 0x%04X, sge_prod = 0x%04X\n", __FUNCTION__, curcpu,
-	    fp->index, bd_prod, rx_cq_prod, sge_prod);
+	    "cqe_prod = 0x%04X, sge_prod = 0x%04X\n", __FUNCTION__, curcpu,
+	    fp->index, bd_prod, cqe_prod, sge_prod);
 }
 
 /*
@@ -14721,10 +14735,7 @@ bxe_rxeof(struct bxe_fastpath *fp)
 	uint16_t rx_bd_prod, rx_bd_prod_idx;
 	uint16_t rx_cq_cons, rx_cq_cons_idx;
 	uint16_t rx_cq_prod, rx_cq_cons_sb;
-
-#ifdef BXE_DEBUG
 	unsigned long rx_pkts = 0;
-#endif
 
 	sc = fp->sc;
 	ifp = sc->bxe_ifp;
@@ -15021,7 +15032,7 @@ bxe_rxeof(struct bxe_fastpath *fp)
 bxe_rxeof_next_rx:
 		rx_bd_prod = NEXT_RX_BD(rx_bd_prod);
 		rx_bd_cons = NEXT_RX_BD(rx_bd_cons);
-		DBRUN(rx_pkts++);
+		rx_pkts++;
 
 bxe_rxeof_next_cqe:
 		rx_cq_prod = NEXT_RCQ_IDX(rx_cq_prod);
@@ -15051,8 +15062,8 @@ bxe_rxeof_next_cqe:
 	bus_space_barrier(sc->bxe_btag, sc->bxe_bhandle, 0, 0,
 	    BUS_SPACE_BARRIER_READ);
 
-	DBRUN(fp->rx_pkts += rx_pkts);
-	DBRUN(fp->rx_calls++);
+	fp->rx_pkts += rx_pkts;
+	fp->rx_calls++;
 	DBEXIT(BXE_EXTREME_RECV);
 }
 
@@ -15713,6 +15724,16 @@ bxe_add_sysctls(struct bxe_softc *sc)
 	    CTLFLAG_RD, &estats->driver_xoff,
 	    0, "Driver transmit queue full count");
 
+	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
+	    "tx_start_called_with_link_down",
+	    CTLFLAG_RD, &sc->tx_start_called_with_link_down,
+	    "TX start routine called while link down count");
+
+	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO,
+	    "tx_start_called_with_queue_full",
+	    CTLFLAG_RD, &sc->tx_start_called_with_queue_full,
+	    "TX start routine called with queue full count");
+
 	/* ToDo: Add more statistics here. */
 
 #ifdef BXE_DEBUG
@@ -15734,6 +15755,16 @@ bxe_add_sysctls(struct bxe_softc *sc)
 			queue_node = SYSCTL_ADD_NODE(ctx, children, OID_AUTO,
 			    namebuf, CTLFLAG_RD, NULL, "Queue Name");
 			queue_list = SYSCTL_CHILDREN(queue_node);
+
+			SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
+			    "rx_pkts",
+			    CTLFLAG_RD, &fp->rx_pkts,
+			    "Received packets");
+
+			SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
+			    "tx_pkts",
+			    CTLFLAG_RD, &fp->tx_pkts,
+			    "Transmitted packets");
 
 			SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
 			    "mbuf_alloc_failed",
@@ -15761,23 +15792,23 @@ bxe_add_sysctls(struct bxe_softc *sc)
 			    "Mbuf defrag success count");
 
 			SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
-			    "ip_csum_offload_frames",
-			    CTLFLAG_RD, &fp->ip_csum_offload_frames,
+			    "offload_frames_csum_ip",
+			    CTLFLAG_RD, &fp->offload_frames_csum_ip,
 			    "IP checksum offload frame count");
 
 			SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
-			    "tcp_csum_offload_frames",
-			    CTLFLAG_RD, &fp->tcp_csum_offload_frames,
+			    "offload_frames_csum_tcp",
+			    CTLFLAG_RD, &fp->offload_frames_csum_tcp,
 			    "TCP checksum offload frame count");
 
 			SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
-			    "udp_csum_offload_frames",
-			    CTLFLAG_RD, &fp->udp_csum_offload_frames,
+			    "offload_frames_csum_udp",
+			    CTLFLAG_RD, &fp->offload_frames_csum_udp,
 			    "UDP checksum offload frame count");
 
 			SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
-			    "tso_offload_frames",
-			    CTLFLAG_RD, &fp->tso_offload_frames,
+			    "offload_frames_tso",
+			    CTLFLAG_RD, &fp->offload_frames_tso,
 			    "TSO offload frame count");
 
 			SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
@@ -15797,23 +15828,23 @@ bxe_add_sysctls(struct bxe_softc *sc)
 			    "TX queue too full to add a TX frame count");
 
 			SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
-			    "std_window_violation",
-			    CTLFLAG_RD, &fp->std_window_violation,
+			    "window_violation_std",
+			    CTLFLAG_RD, &fp->window_violation_std,
 			    "Standard frame TX BD window violation count");
 
 			SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
-			    "tso_window_violation",
-			    CTLFLAG_RD, &fp->tso_window_violation,
+			    "window_violation_tso",
+			    CTLFLAG_RD, &fp->window_violation_tso,
 			    "TSO frame TX BD window violation count");
 
 			SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
-			    "unsupported_tso_ipv6_request",
-			    CTLFLAG_RD, &fp->unsupported_tso_ipv6_request,
+			    "unsupported_tso_request_ipv6",
+			    CTLFLAG_RD, &fp->unsupported_tso_request_ipv6,
 			    "TSO frames with unsupported IPv6 protocol count");
 
 			SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
-			    "unsupported_tso_protocol_request",
-			    CTLFLAG_RD, &fp->unsupported_tso_protocol_request,
+			    "unsupported_tso_request_not_tcp",
+			    CTLFLAG_RD, &fp->unsupported_tso_request_not_tcp,
 			    "TSO frames with unsupported protocol count");
 
 			SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO,
