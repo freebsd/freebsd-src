@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2010
+.Dd April 7, 2011
 .Dt ADA 4
 .Os
 .Sh NAME
@@ -122,6 +122,11 @@ seconds.
 .Pp
 This variable determines whether to spin-down disks when shutting down.
 Set to 1 to enable spin-down, 0 to disable.  
+The default is currently enabled.
+.It kern.cam.ada.write_cache
+.Pp
+This variable determines whether device write cache should be enabled or not.
+Set to 1 to enable write cache, 0 to disable, -1 to left it as-is.
 The default is currently enabled.
 .El
 .Sh FILES

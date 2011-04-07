@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #define ATA_MAX_28BIT_LBA               268435455UL
 
 typedef enum {
+	ADA_STATE_WCACHE,
 	ADA_STATE_NORMAL
 } ada_state;
 
@@ -89,6 +90,7 @@ typedef enum {
 } ada_quirks;
 
 typedef enum {
+	ADA_CCB_WCACHE		= 0x01,
 	ADA_CCB_BUFFER_IO	= 0x03,
 	ADA_CCB_WAITING		= 0x04,
 	ADA_CCB_DUMP		= 0x05,
@@ -186,6 +188,10 @@ static void		adashutdown(void *arg, int howto);
 #define	ADA_DEFAULT_SPINDOWN_SHUTDOWN	1
 #endif
 
+#ifndef	ADA_DEFAULT_WRITE_CACHE
+#define	ADA_DEFAULT_WRITE_CACHE	1
+#endif
+
 /*
  * Most platforms map firmware geometry to actual, but some don't.  If
  * not overridden, default to nothing.
@@ -198,6 +204,7 @@ static int ada_retry_count = ADA_DEFAULT_RETRY;
 static int ada_default_timeout = ADA_DEFAULT_TIMEOUT;
 static int ada_send_ordered = ADA_DEFAULT_SEND_ORDERED;
 static int ada_spindown_shutdown = ADA_DEFAULT_SPINDOWN_SHUTDOWN;
+static int ada_write_cache = ADA_DEFAULT_WRITE_CACHE;
 
 SYSCTL_NODE(_kern_cam, OID_AUTO, ada, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
@@ -213,6 +220,9 @@ TUNABLE_INT("kern.cam.ada.ada_send_ordered", &ada_send_ordered);
 SYSCTL_INT(_kern_cam_ada, OID_AUTO, spindown_shutdown, CTLFLAG_RW,
            &ada_spindown_shutdown, 0, "Spin down upon shutdown");
 TUNABLE_INT("kern.cam.ada.spindown_shutdown", &ada_spindown_shutdown);
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, write_cache, CTLFLAG_RW,
+           &ada_write_cache, 0, "Enable disk write cache");
+TUNABLE_INT("kern.cam.ada.write_cache", &ada_write_cache);
 
 /*
  * ADA_ORDEREDTAG_INTERVAL determines how often, relative
@@ -568,6 +578,7 @@ adaasync(void *callback_arg, u_int32_t code,
 	struct cam_path *path, void *arg)
 {
 	struct cam_periph *periph;
+	struct ada_softc *softc;
 
 	periph = (struct cam_periph *)callback_arg;
 	switch (code) {
@@ -599,6 +610,28 @@ adaasync(void *callback_arg, u_int32_t code,
 			printf("adaasync: Unable to attach to new device "
 				"due to status 0x%x\n", status);
 		break;
+	}
+	case AC_SENT_BDR:
+	case AC_BUS_RESET:
+	{
+		struct ccb_getdev cgd;
+
+		softc = (struct ada_softc *)periph->softc;
+		cam_periph_async(periph, code, path, arg);
+		if (ada_write_cache < 0)
+			break;
+		if (softc->state != ADA_STATE_NORMAL)
+			break;
+		xpt_setup_ccb(&cgd.ccb_h, path, CAM_PRIORITY_NORMAL);
+		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
+		xpt_action((union ccb *)&cgd);
+		if ((cgd.ident_data.support.command1 & ATA_SUPPORT_WRITECACHE) == 0)
+			break;
+		softc->state = ADA_STATE_WCACHE;
+		cam_periph_acquire(periph);
+		cam_freeze_devq_arg(periph->path,
+		    RELSIM_RELEASE_RUNLEVEL, CAM_RL_DEV + 1);
+		xpt_schedule(periph, CAM_PRIORITY_DEV);
 	}
 	default:
 		cam_periph_async(periph, code, path, arg);
@@ -691,7 +724,6 @@ adaregister(struct cam_periph *periph, void *arg)
 	}
 	if (cgd->ident_data.support.command2 & ATA_SUPPORT_CFA)
 		softc->flags |= ADA_FLAG_CAN_CFA;
-	softc->state = ADA_STATE_NORMAL;
 
 	periph->softc = softc;
 
@@ -788,7 +820,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	 * them and the only alternative would be to
 	 * not attach the device on failure.
 	 */
-	xpt_register_async(AC_LOST_DEVICE,
+	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE,
 			   adaasync, periph, periph->path);
 
 	/*
@@ -799,6 +831,16 @@ adaregister(struct cam_periph *periph, void *arg)
 	callout_reset(&softc->sendordered_c,
 	    (ADA_DEFAULT_TIMEOUT * hz) / ADA_ORDEREDTAG_INTERVAL,
 	    adasendorderedtag, softc);
+
+	if (ada_write_cache >= 0 &&
+	    cgd->ident_data.support.command1 & ATA_SUPPORT_WRITECACHE) {
+		softc->state = ADA_STATE_WCACHE;
+		cam_periph_acquire(periph);
+		cam_freeze_devq_arg(periph->path,
+		    RELSIM_RELEASE_RUNLEVEL, CAM_RL_DEV + 1);
+		xpt_schedule(periph, CAM_PRIORITY_DEV);
+	} else
+		softc->state = ADA_STATE_NORMAL;
 
 	return(CAM_REQ_CMP);
 }
@@ -1009,6 +1051,23 @@ out:
 		adaschedule(periph);
 		break;
 	}
+	case ADA_STATE_WCACHE:
+	{
+		cam_fill_ataio(ataio,
+		    1,
+		    adadone,
+		    CAM_DIR_NONE,
+		    0,
+		    NULL,
+		    0,
+		    ada_default_timeout*1000);
+
+		ata_28bit_cmd(ataio, ATA_SETFEATURES, ada_write_cache ?
+		    ATA_SF_ENAB_WCACHE : ATA_SF_DIS_WCACHE, 0, 0);
+		start_ccb->ccb_h.ccb_state = ADA_CCB_WCACHE;
+		xpt_action(start_ccb);
+		break;
+	}
 	}
 }
 
@@ -1096,6 +1155,36 @@ adadone(struct cam_periph *periph, union ccb *done_ccb)
 		} else
 			biodone(bp);
 		break;
+	}
+	case ADA_CCB_WCACHE:
+	{
+		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			if (adaerror(done_ccb, 0, 0) == ERESTART) {
+				return;
+			} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
+				cam_release_devq(done_ccb->ccb_h.path,
+				    /*relsim_flags*/0,
+				    /*reduction*/0,
+				    /*timeout*/0,
+				    /*getcount_only*/0);
+			}
+		}
+
+		softc->state = ADA_STATE_NORMAL;
+		/*
+		 * Since our peripheral may be invalidated by an error
+		 * above or an external event, we must release our CCB
+		 * before releasing the reference on the peripheral.
+		 * The peripheral will only go away once the last reference
+		 * is removed, and we need it around for the CCB release
+		 * operation.
+		 */
+		xpt_release_ccb(done_ccb);
+		cam_release_devq(periph->path,
+		    RELSIM_RELEASE_RUNLEVEL, 0, CAM_RL_DEV + 1, FALSE);
+		adaschedule(periph);
+		cam_periph_release_locked(periph);
+		return;
 	}
 	case ADA_CCB_WAITING:
 	{
