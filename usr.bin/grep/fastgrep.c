@@ -60,8 +60,7 @@ fgrepcomp(fastgrep_t *fg, const char *pat)
 	fg->eol = false;
 	fg->reversed = false;
 
-	fg->pattern = grep_malloc(strlen(pat) + 1);
-	strcpy(fg->pattern, pat);
+	fg->pattern = (unsigned char *)grep_strdup(pat);
 
 	/* Preprocess pattern. */
 	for (i = 0; i <= UCHAR_MAX; i++)
@@ -106,9 +105,10 @@ fastcomp(fastgrep_t *fg, const char *pat)
 	}
 
 	if (fg->len >= 14 &&
-	    strncmp(pat + (fg->bol ? 1 : 0), "[[:<:]]", 7) == 0 &&
-	    strncmp(pat + (fg->bol ? 1 : 0) + fg->len - 7, "[[:>:]]", 7) == 0) {
+	    memcmp(pat, "[[:<:]]", 7) == 0 &&
+	    memcmp(pat + fg->len - 7, "[[:>:]]", 7) == 0) {
 		fg->len -= 14;
+		pat += 7;
 		/* Word boundary is handled separately in util.c */
 		wflag = true;
 	}
@@ -119,7 +119,8 @@ fastcomp(fastgrep_t *fg, const char *pat)
 	 * string respectively.
 	 */
 	fg->pattern = grep_malloc(fg->len + 1);
-	strlcpy(fg->pattern, pat + (bol ? 1 : 0) + wflag, fg->len + 1);
+	memcpy(fg->pattern, pat, fg->len);
+	fg->pattern[fg->len] = '\0';
 
 	/* Look for ways to cheat...er...avoid the full regex engine. */
 	for (i = 0; i < fg->len; i++) {
