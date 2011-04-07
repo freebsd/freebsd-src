@@ -1,4 +1,6 @@
 /*	$OpenBSD: util.c,v 1.36 2007/10/02 17:59:18 otto Exp $	*/
+/*	$NetBSD: fastgrep.c,v 1.4 2011/02/27 17:33:37 joerg Exp $	*/
+/*	$FreeBSD$ */
 
 /*-
  * Copyright (c) 1999 James Howard and Dag-Erling Coïdan Smørgrav
@@ -112,9 +114,9 @@ fastcomp(fastgrep_t *fg, const char *pat)
 	}
 
 	/*
-	 * Copy pattern minus '^' and '$' characters as well as word
-	 * match character classes at the beginning and ending of the
-	 * string respectively.
+	 * pat has been adjusted earlier to not include '^', '$' or
+	 * the word match character classes at the beginning and ending
+	 * of the string respectively.
 	 */
 	fg->pattern = grep_malloc(fg->len + 1);
 	memcpy(fg->pattern, pat, fg->len);
