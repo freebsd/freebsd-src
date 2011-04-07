@@ -546,18 +546,19 @@ int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
 	register_t reg;
-	uint64_t tsc1, tsc2;
+	uint64_t freq, tsc1, tsc2;
 
 	if (pcpu_find(cpu_id) == NULL || rate == NULL)
 		return (EINVAL);
+	freq = atomic_load_acq_64(&tsc_freq);
 
 	/* If TSC is P-state invariant, DELAY(9) based logic fails. */
-	if (tsc_is_invariant && tsc_freq != 0)
+	if (tsc_is_invariant && freq != 0)
 		return (EOPNOTSUPP);
 
 	/* If we're booting, trust the rate calibrated moments ago. */
-	if (cold && tsc_freq != 0) {
-		*rate = tsc_freq;
+	if (cold && freq != 0) {
+		*rate = freq;
 		return (0);
 	}
 
@@ -586,7 +587,7 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 #endif
 
 	tsc2 -= tsc1;
-	if (tsc_freq != 0) {
+	if (freq != 0) {
 		*rate = tsc2 * 1000;
 		return (0);
 	}

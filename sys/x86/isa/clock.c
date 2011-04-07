@@ -246,13 +246,13 @@ getit(void)
 }
 
 static __inline void
-delay_tsc(int n)
+delay_tsc(int n, uint64_t freq)
 {
 	uint64_t start, end, now;
 
 	sched_pin();
 	start = rdtsc();
-	end = start + (tsc_freq * n) / 1000000;
+	end = start + (freq * n) / 1000000;
 	do {
 		cpu_spinwait();
 		now = rdtsc();
@@ -290,6 +290,7 @@ void
 DELAY(int n)
 {
 	struct timecounter *tc;
+	uint64_t freq;
 	int delta, prev_tick, tick, ticks_left;
 
 #ifdef DELAYDEBUG
@@ -298,8 +299,9 @@ DELAY(int n)
 	static int state = 0;
 #endif
 
-	if (tsc_freq != 0) {
-		delay_tsc(n);
+	freq = atomic_load_acq_64(&tsc_freq);
+	if (freq != 0) {
+		delay_tsc(n, freq);
 		return;
 	}
 	tc = timecounter;
