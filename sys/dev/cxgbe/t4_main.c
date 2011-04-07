@@ -2803,18 +2803,35 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 		return (rc);
 
 	switch (cmd) {
-	case CHELSIO_T4_GETREG32: {
-		struct t4_reg32 *edata = (struct t4_reg32 *)data;
+	case CHELSIO_T4_GETREG: {
+		struct t4_reg *edata = (struct t4_reg *)data;
+
 		if ((edata->addr & 0x3) != 0 || edata->addr >= sc->mmio_len)
 			return (EFAULT);
-		edata->val = t4_read_reg(sc, edata->addr);
+
+		if (edata->size == 4)
+			edata->val = t4_read_reg(sc, edata->addr);
+		else if (edata->size == 8)
+			edata->val = t4_read_reg64(sc, edata->addr);
+		else
+			return (EINVAL);
+
 		break;
 	}
-	case CHELSIO_T4_SETREG32: {
-		struct t4_reg32 *edata = (struct t4_reg32 *)data;
+	case CHELSIO_T4_SETREG: {
+		struct t4_reg *edata = (struct t4_reg *)data;
+
 		if ((edata->addr & 0x3) != 0 || edata->addr >= sc->mmio_len)
 			return (EFAULT);
-		t4_write_reg(sc, edata->addr, edata->val);
+
+		if (edata->size == 4) {
+			if (edata->val & 0xffffffff00000000)
+				return (EINVAL);
+			t4_write_reg(sc, edata->addr, (uint32_t) edata->val);
+		} else if (edata->size == 8)
+			t4_write_reg64(sc, edata->addr, edata->val);
+		else
+			return (EINVAL);
 		break;
 	}
 	case CHELSIO_T4_REGDUMP: {
