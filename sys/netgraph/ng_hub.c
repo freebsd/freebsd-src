@@ -157,6 +157,8 @@ ng_hub_shutdown(node_p node)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	free(priv, M_NETGRAPH_HUB);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);
 	return (0);
 }
 
