@@ -290,7 +290,9 @@ struct bxe_type {
 #define	RX_SGE_MASK_LEN_MASK	(RX_SGE_MASK_LEN - 1)
 #define	NEXT_SGE_MASK_ELEM(el)	(((el) + 1) & RX_SGE_MASK_LEN_MASK)
 
-/* Transmit Buffer Descriptor (tx_bd) definitions. */
+/*
+ * Transmit Buffer Descriptor (tx_bd) definitions*
+ */
 
 /* ToDo: Tune this value based on multi-queue/RSS enable/disable. */
 #define	NUM_TX_PAGES		2
@@ -308,7 +310,9 @@ struct bxe_type {
 #define	TX_PAGE(x)		(((x) & ~USABLE_TX_BD_PER_PAGE) >> 8)
 #define	TX_IDX(x)		((x) & USABLE_TX_BD_PER_PAGE)
 
-/* Receive Buffer Descriptor (rx_bd) definitions. */
+/*
+ * Receive Buffer Descriptor (rx_bd) definitions*
+ */
 #define	NUM_RX_PAGES		2
 
 /* 512 (0x200) of 8 byte bds in 4096 byte page. */
@@ -337,14 +341,15 @@ struct bxe_type {
 #define	RX_PAGE(x)		(((x) & ~RX_DESC_MASK) >> 9)
 #define	RX_IDX(x)		((x) & RX_DESC_MASK)
 
-/* Receive Completion Queue definitions. */
+/*
+ * Receive Completion Queue definitions*
+ */
 
 /* CQEs (32 bytes) are 4 times larger than rx_bd's (8 bytes). */
 #define	NUM_RCQ_PAGES		(NUM_RX_PAGES * 4)
 
 /* 128 (0x80) */
-#define	TOTAL_RCQ_ENTRIES_PER_PAGE					\
-	(BCM_PAGE_SIZE / sizeof(union eth_rx_cqe))
+#define	TOTAL_RCQ_ENTRIES_PER_PAGE (BCM_PAGE_SIZE / sizeof(union eth_rx_cqe))
 
 /* 127 (0x7f)for the next page RCQ bd */
 #define	USABLE_RCQ_ENTRIES_PER_PAGE	(TOTAL_RCQ_ENTRIES_PER_PAGE - 1)
@@ -1027,7 +1032,7 @@ struct bxe_fastpath {
 	uint16_t		rx_cq_cons;
 
 	/* Pointer to the receive consumer index in the status block. */
-	uint16_t		*rx_cons_sb;
+	uint16_t		*rx_cq_cons_sb;
 
 	/*
 	 * Pointer to the receive buffer descriptor consumer in the
@@ -1086,11 +1091,7 @@ struct bxe_fastpath {
 	unsigned long		rx_pkts;
 	unsigned long		tx_pkts;
 	unsigned long		tpa_pkts;
-
-	/* Receive interrupt counter. */
 	unsigned long		rx_calls;
-
-	/* Memory buffer allocation failure counter. */
 	unsigned long		mbuf_alloc_failed;
 	unsigned long		mbuf_defrag_attempts;
 	unsigned long		mbuf_defrag_failures;
@@ -1105,18 +1106,18 @@ struct bxe_fastpath {
 	uint64_t		tpa_queue_used;
 
 	unsigned long		null_cqe_flags;
-	unsigned long		ip_csum_offload_frames;
-	unsigned long		tcp_csum_offload_frames;
-	unsigned long		udp_csum_offload_frames;
-	unsigned long		tso_offload_frames;
+	unsigned long		offload_frames_csum_ip;
+	unsigned long		offload_frames_csum_tcp;
+	unsigned long		offload_frames_csum_udp;
+	unsigned long		offload_frames_tso;
 	unsigned long		tx_encap_failures;
 	unsigned long		tx_start_called_on_empty_queue;
 	unsigned long		tx_queue_too_full;
 	unsigned long		tx_dma_mapping_failure;
-	unsigned long		tso_window_violation;
-	unsigned long		std_window_violation;
-	unsigned long		unsupported_tso_ipv6_request;
-	unsigned long		unsupported_tso_protocol_request;
+	unsigned long		window_violation_tso;
+	unsigned long		window_violation_std;
+	unsigned long		unsupported_tso_request_ipv6;
+	unsigned long		unsupported_tso_request_not_tcp;
 	unsigned long		tpa_mbuf_alloc_failed;
 	unsigned long		tx_chain_lost_mbuf;
 
@@ -1505,10 +1506,8 @@ struct bxe_softc {
 	uint32_t		*grcdump_buffer;
 #endif
 
-#ifdef EVST_STOP_ON_ERROR
-	uint32_t		next_free;
-	uint32_t		last_alloc;
-#endif
+	unsigned long 		tx_start_called_with_link_down;
+	unsigned long 		tx_start_called_with_queue_full;
 }; /* end of struct bxe_softc */
 
 #define	MDIO_AN_CL73_OR_37_COMPLETE					\
