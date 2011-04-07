@@ -102,6 +102,7 @@ typedef struct {
 	bool		 bol;
 	bool		 eol;
 	bool		 reversed;
+	bool		 word;
 } fastgrep_t;
 
 /* Flags passed to regcomp() and regexec() */

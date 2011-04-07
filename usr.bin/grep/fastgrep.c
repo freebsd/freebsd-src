@@ -81,27 +81,25 @@ fastcomp(fastgrep_t *fg, const char *pat)
 	int hasDot = 0;
 	int lastHalfDot = 0;
 	int shiftPatternLen;
-	bool bol = false;
-	bool eol = false;
 
 	/* Initialize. */
 	fg->len = strlen(pat);
 	fg->bol = false;
 	fg->eol = false;
 	fg->reversed = false;
+	fg->word = wflag;
 
 	/* Remove end-of-line character ('$'). */
 	if (fg->len > 0 && pat[fg->len - 1] == '$') {
-		eol = true;
 		fg->eol = true;
 		fg->len--;
 	}
 
 	/* Remove beginning-of-line character ('^'). */
 	if (pat[0] == '^') {
-		bol = true;
 		fg->bol = true;
 		fg->len--;
+		pat++;
 	}
 
 	if (fg->len >= 14 &&
@@ -110,7 +108,7 @@ fastcomp(fastgrep_t *fg, const char *pat)
 		fg->len -= 14;
 		pat += 7;
 		/* Word boundary is handled separately in util.c */
-		wflag = true;
+		fg->word = true;
 	}
 
 	/*
@@ -149,7 +147,7 @@ fastcomp(fastgrep_t *fg, const char *pat)
 	 * Determine if a reverse search would be faster based on the placement
 	 * of the dots.
 	 */
-	if ((!(lflag || cflag)) && ((!(bol || eol)) &&
+	if ((!(lflag || cflag)) && ((!(fg->bol || fg->eol)) &&
 	    ((lastHalfDot) && ((firstHalfDot < 0) ||
 	    ((fg->len - (lastHalfDot + 1)) < (size_t)firstHalfDot)))) &&
 	    !oflag && !color) {
