@@ -893,6 +893,76 @@ ath_hal_getChanNoise(struct ath_hal *ah, const struct ieee80211_channel *chan)
 }
 
 /*
+ * Fetch the current setup of ctl/ext noise floor values.
+ *
+ * If the CHANNEL_MIMO_NF_VALID flag isn't set, the array is simply
+ * populated with values from NOISE_FLOOR[] + ath_hal_getNfAdjust().
+ *
+ * The caller must supply ctl/ext NF arrays which are at least
+ * AH_MIMO_MAX_CHAINS entries long.
+ */
+int
+ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
+    const struct ieee80211_channel *chan, uint8_t *nf_ctl,
+    uint8_t *nf_ext)
+{
+	HAL_CHANNEL_INTERNAL *ichan;
+	int i;
+
+	ichan = ath_hal_checkchannel(ah, chan);
+	if (ichan == AH_NULL) {
+		HALDEBUG(ah, HAL_DEBUG_NFCAL,
+		    "%s: invalid channel %u/0x%x; no mapping\n",
+		    __func__, chan->ic_freq, chan->ic_flags);
+		for (i = 0; i < AH_MIMO_MAX_CHAINS; i++) {
+			nf_ctl[i] = nf_ext[i] = 0;
+		}
+		return 0;
+	}
+
+	/* Return 0 if there's no valid MIMO values (yet) */
+	if (! (ichan->privFlags & CHANNEL_MIMO_NF_VALID)) {
+		for (i = 0; i < AH_MIMO_MAX_CHAINS; i++) {
+			nf_ctl[i] = nf_ext[i] = 0;
+		}
+		return 0;
+	}
+	if (ichan->rawNoiseFloor == 0) {
+		WIRELESS_MODE mode = ath_hal_chan2wmode(ah, chan);
+		HALASSERT(mode < WIRELESS_MODE_MAX);
+		/*
+		 * See the comment below - this could cause issues for
+		 * stations which have a very low RSSI, below the
+		 * 'normalised' NF values in NOISE_FLOOR[].
+		 */
+		for (i = 0; i < AH_MIMO_MAX_CHAINS; i++) {
+			nf_ctl[i] = nf_ext[i] = NOISE_FLOOR[mode] +
+			    ath_hal_getNfAdjust(ah, ichan);
+		}
+		return 1;
+	} else {
+		/*
+		 * The value returned here from a MIMO radio is presumed to be
+		 * "good enough" as a NF calculation. As RSSI values are calculated
+		 * against this, an adjusted NF may be higher than the RSSI value
+		 * returned from a vary weak station, resulting in an obscenely
+		 * high signal strength calculation being returned.
+		 *
+		 * This should be re-evaluated at a later date, along with any
+		 * signal strength calculations which are made. Quite likely the
+		 * RSSI values will need to be adjusted to ensure the calculations
+		 * don't "wrap" when RSSI is less than the "adjusted" NF value.
+		 * ("Adjust" here is via ichan->noiseFloorAdjust.)
+		 */
+		for (i = 0; i < AH_MIMO_MAX_CHAINS; i++) {
+			nf_ctl[i] = ichan->noiseFloorCtl[i] + ath_hal_getNfAdjust(ah, ichan);
+			nf_ext[i] = ichan->noiseFloorExt[i] + ath_hal_getNfAdjust(ah, ichan);
+		}
+		return 1;
+	}
+}
+
+/*
  * Process all valid raw noise floors into the dBm noise floor values.
  * Though our device has no reference for a dBm noise floor, we perform
  * a relative minimization of NF's based on the lowest NF found across a

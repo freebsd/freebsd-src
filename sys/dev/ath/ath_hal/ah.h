@@ -951,6 +951,14 @@ extern	HAL_STATUS __ahdecl ath_hal_set_channels(struct ath_hal *,
     HAL_CTRY_CODE cc, HAL_REG_DOMAIN regDmn);
 
 /*
+ * Fetch the ctl/ext noise floor values reported by a MIMO
+ * radio. Returns 1 for valid results, 0 for invalid channel.
+ */
+extern int __ahdecl ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
+    const struct ieee80211_channel *chan, uint8_t *nf_ctl,
+    uint8_t *nf_ext);
+
+/*
  * Calibrate noise floor data following a channel scan or similar.
  * This must be called prior retrieving noise floor data.
  */
