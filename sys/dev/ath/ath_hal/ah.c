@@ -903,8 +903,8 @@ ath_hal_getChanNoise(struct ath_hal *ah, const struct ieee80211_channel *chan)
  */
 int
 ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
-    const struct ieee80211_channel *chan, uint8_t *nf_ctl,
-    uint8_t *nf_ext)
+    const struct ieee80211_channel *chan, int16_t *nf_ctl,
+    int16_t *nf_ext)
 {
 	HAL_CHANNEL_INTERNAL *ichan;
 	int i;
