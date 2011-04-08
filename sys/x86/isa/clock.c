@@ -245,6 +245,7 @@ getit(void)
 	return ((high << 8) | low);
 }
 
+#ifndef DELAYDEBUG
 static __inline void
 delay_tsc(int n, uint64_t freq)
 {
@@ -280,6 +281,7 @@ delay_timecounter(struct timecounter *tc, int n)
 		last = u;
 	} while (now < end);
 }
+#endif
 
 /*
  * Wait "n" microseconds.
@@ -289,15 +291,23 @@ delay_timecounter(struct timecounter *tc, int n)
 void
 DELAY(int n)
 {
-	struct timecounter *tc;
-	uint64_t freq;
 	int delta, prev_tick, tick, ticks_left;
-
 #ifdef DELAYDEBUG
 	int getit_calls = 1;
 	int n1;
 	static int state = 0;
-#endif
+
+	if (state == 0) {
+		state = 1;
+		for (n1 = 1; n1 <= 10000000; n1 *= 10)
+			DELAY(n1);
+		state = 2;
+	}
+	if (state == 1)
+		printf("DELAY(%d)...", n);
+#else
+	struct timecounter *tc;
+	uint64_t freq;
 
 	freq = atomic_load_acq_64(&tsc_freq);
 	if (freq != 0) {
@@ -309,15 +319,6 @@ DELAY(int n)
 		delay_timecounter(tc, n);
 		return;
 	}
-#ifdef DELAYDEBUG
-	if (state == 0) {
-		state = 1;
-		for (n1 = 1; n1 <= 10000000; n1 *= 10)
-			DELAY(n1);
-		state = 2;
-	}
-	if (state == 1)
-		printf("DELAY(%d)...", n);
 #endif
 	/*
 	 * Read the counter first, so that the rest of the setup overhead is
