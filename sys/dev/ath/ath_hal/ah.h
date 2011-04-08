@@ -955,8 +955,8 @@ extern	HAL_STATUS __ahdecl ath_hal_set_channels(struct ath_hal *,
  * radio. Returns 1 for valid results, 0 for invalid channel.
  */
 extern int __ahdecl ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
-    const struct ieee80211_channel *chan, uint8_t *nf_ctl,
-    uint8_t *nf_ext);
+    const struct ieee80211_channel *chan, int16_t *nf_ctl,
+    int16_t *nf_ext);
 
 /*
  * Calibrate noise floor data following a channel scan or similar.
