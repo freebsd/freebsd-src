@@ -736,10 +736,13 @@ ugen20_process(struct libusb20_device *pdev)
 
 static int
 ugen20_tr_open(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
-    uint32_t MaxFrameCount, uint8_t ep_no)
+    uint32_t MaxFrameCount, uint8_t ep_no, uint8_t pre_scale)
 {
 	struct usb_fs_open temp;
 	struct usb_fs_endpoint *fsep;
+
+	if (pre_scale)
+		MaxFrameCount |= USB_FS_MAX_FRAMES_PRE_SCALE;
 
 	memset(&temp, 0, sizeof(temp));
 
