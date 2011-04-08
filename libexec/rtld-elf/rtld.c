@@ -1474,12 +1474,9 @@ load_object(const char *name, const Obj_Entry *refobj)
 	free(path);
 	return NULL;
     }
-    for (obj = obj_list->next;  obj != NULL;  obj = obj->next) {
-	if (obj->ino == sb.st_ino && obj->dev == sb.st_dev) {
-	    close(fd);
+    for (obj = obj_list->next;  obj != NULL;  obj = obj->next)
+	if (obj->ino == sb.st_ino && obj->dev == sb.st_dev)
 	    break;
-	}
-    }
     if (obj != NULL) {
 	object_add_name(obj, name);
 	free(path);
