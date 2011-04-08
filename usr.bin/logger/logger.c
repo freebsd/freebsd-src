@@ -59,7 +59,8 @@ __FBSDID("$FreeBSD$");
 
 int	decode(char *, CODE *);
 int	pencode(char *);
-static void	logmessage(int, const char *, const char *, const char *);
+static void	logmessage(int, const char *, const char *, const char *,
+			   const char *);
 static void	usage(void);
 
 struct socks {
@@ -137,8 +138,11 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+	if (tag == NULL)
+		tag = getlogin();
 	/* setup for logging */
-	openlog(tag ? tag : getlogin(), logflags, 0);
+	if (host == NULL)
+		openlog(tag, logflags, 0);
 	(void) fclose(stdout);
 
 	/* log input line if appropriate */
@@ -149,11 +153,11 @@ main(int argc, char *argv[])
 		for (p = buf, endp = buf + sizeof(buf) - 2; *argv;) {
 			len = strlen(*argv);
 			if (p + len > endp && p > buf) {
-				logmessage(pri, host, svcname, buf);
+				logmessage(pri, tag, host, svcname, buf);
 				p = buf;
 			}
 			if (len > sizeof(buf) - 1)
-				logmessage(pri, host, svcname, *argv++);
+				logmessage(pri, tag, host, svcname, *argv++);
 			else {
 				if (p != buf)
 					*p++ = ' ';
@@ -162,10 +166,10 @@ main(int argc, char *argv[])
 			}
 		}
 		if (p != buf)
-			logmessage(pri, host, svcname, buf);
+			logmessage(pri, tag, host, svcname, buf);
 	} else
 		while (fgets(buf, sizeof(buf), stdin) != NULL)
-			logmessage(pri, host, svcname, buf);
+			logmessage(pri, tag, host, svcname, buf);
 	exit(0);
 }
 
@@ -173,7 +177,8 @@ main(int argc, char *argv[])
  *  Send the message to syslog, either on the local host, or on a remote host
  */
 void
-logmessage(int pri, const char *host, const char *svcname, const char *buf)
+logmessage(int pri, const char *tag, const char *host, const char *svcname,
+	   const char *buf)
 {
 	static struct socks *socks;
 	static int nsock = 0;
@@ -217,7 +222,7 @@ logmessage(int pri, const char *host, const char *svcname, const char *buf)
 			errx(1, "socket");
 	}
 
-	if ((len = asprintf(&line, "<%d>%s", pri, buf)) == -1)
+	if ((len = asprintf(&line, "<%d>%s: %s", pri, tag, buf)) == -1)
 		errx(1, "asprintf");
 
 	lsent = -1;
