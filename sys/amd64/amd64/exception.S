@@ -383,10 +383,11 @@ IDTVEC(fast_syscall)
 	movq	%rsp,%rdi
 	call	syscall
 1:	movq	PCPU(CURPCB),%rax
+	/* Disable interrupts before testing PCB_FULL_IRET. */
+	cli
 	testl	$PCB_FULL_IRET,PCB_FLAGS(%rax)
 	jnz	3f
 	/* Check for and handle AST's on return to userland. */
-	cli
 	movq	PCPU(CURTHREAD),%rax
 	testl	$TDF_ASTPENDING | TDF_NEEDRESCHED,TD_FLAGS(%rax)
 	je	2f
