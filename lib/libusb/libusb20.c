@@ -156,14 +156,20 @@ libusb20_tr_open(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
     uint32_t MaxFrameCount, uint8_t ep_no)
 {
 	uint32_t size;
+	uint8_t pre_scale;
 	int error;
 
-	if (xfer->is_opened) {
+	if (xfer->is_opened)
 		return (LIBUSB20_ERROR_BUSY);
+	if (MaxFrameCount & LIBUSB20_MAX_FRAME_PRE_SCALE) {
+		MaxFrameCount &= ~LIBUSB20_MAX_FRAME_PRE_SCALE;
+		pre_scale = 1;
+	} else {
+		pre_scale = 0;
 	}
-	if (MaxFrameCount == 0) {
+	if (MaxFrameCount == 0)
 		return (LIBUSB20_ERROR_INVALID_PARAM);
-	}
+
 	xfer->maxFrames = MaxFrameCount;
 
 	size = MaxFrameCount * sizeof(xfer->pLength[0]);
@@ -182,7 +188,7 @@ libusb20_tr_open(struct libusb20_transfer *xfer, uint32_t MaxBufSize,
 	memset(xfer->ppBuffer, 0, size);
 
 	error = xfer->pdev->methods->tr_open(xfer, MaxBufSize,
-	    MaxFrameCount, ep_no);
+	    MaxFrameCount, ep_no, pre_scale);
 
 	if (error) {
 		free(xfer->ppBuffer);
