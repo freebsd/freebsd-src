@@ -5,7 +5,6 @@
 
 PROG=	bsdlabel
 SRCS=	bsdlabel.c geom_bsd_enc.c
-#MAN=	bsdlabel.5
 MAN+=	bsdlabel.8
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
@@ -17,9 +16,3 @@ DPADD=	${LIBGEOM} ${LIBBSDXML} ${LIBSBUF}
 LDADD=	-lgeom -lbsdxml -lsbuf
 
 .include <bsd.prog.mk>
-
-test: ${PROG}
-	sh ${.CURDIR}/runtest.sh
-
-testx: ${PROG}
-	sh -x ${.CURDIR}/runtest.sh
