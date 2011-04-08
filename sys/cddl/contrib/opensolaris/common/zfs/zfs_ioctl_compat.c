@@ -20,6 +20,8 @@
  */
 /*
  * Copyright 2010 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
+ * Portions Copyright 2005, 2010, Oracle and/or its affiliates.
+ * All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -151,17 +153,69 @@ zfs_cmd_compat_put(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 }
 
 static int
-zfs_ioctl_compat_write_nvlist_dst(zfs_cmd_t *zc, nvlist_t *nvl, size_t nvsize)
+zfs_ioctl_compat_get_nvlist(uint64_t nvl, size_t size, int iflag,
+    nvlist_t **nvp)
 {
-	char *packed = (void *)(uintptr_t)zc->zc_nvlist_dst;
-	int err;
+	char *packed;
+	int error;
+	nvlist_t *list = NULL;
 
-	err = nvlist_pack(nvl, &packed, &nvsize,
-	    NV_ENCODE_NATIVE, 0);
-	if (err == 0)
-		zc->zc_nvlist_dst_size = nvsize;
+	/*
+	 * Read in and unpack the user-supplied nvlist.
+	 */
+	if (size == 0)
+		return (EINVAL);
 
-	return (err);
+#ifdef _KERNEL
+	packed = kmem_alloc(size, KM_SLEEP);
+	if ((error = ddi_copyin((void *)(uintptr_t)nvl, packed, size,
+	    iflag)) != 0) {
+		kmem_free(packed, size);
+		return (error);
+	}
+#else
+	packed = (void *)(uintptr_t)nvl;
+#endif
+
+	error = nvlist_unpack(packed, size, &list, 0);
+
+#ifdef _KERNEL
+	kmem_free(packed, size);
+#endif
+
+	if (error != 0)
+		return (error);
+
+	*nvp = list;
+	return (0);
+}
+
+static int
+zfs_ioctl_compat_put_nvlist(zfs_cmd_t *zc, nvlist_t *nvl)
+{
+	char *packed = NULL;
+	int error = 0;
+	size_t size;
+
+	VERIFY(nvlist_size(nvl, &size, NV_ENCODE_NATIVE) == 0);
+
+#ifdef _KERNEL
+	packed = kmem_alloc(size, KM_SLEEP);
+	VERIFY(nvlist_pack(nvl, &packed, &size, NV_ENCODE_NATIVE,
+	    KM_SLEEP) == 0);
+
+	if (ddi_copyout(packed,
+	    (void *)(uintptr_t)zc->zc_nvlist_dst, size, zc->zc_iflags) != 0)
+		error = EFAULT;
+	kmem_free(packed, size);
+#else
+	packed = (void *)(uintptr_t)zc->zc_nvlist_dst;
+	VERIFY(nvlist_pack(nvl, &packed, &size, NV_ENCODE_NATIVE,
+	    0) == 0);
+#endif
+
+	zc->zc_nvlist_dst_size = size;
+	return (error);
 }
 
 static void
@@ -205,17 +259,16 @@ zfs_ioctl_compat_fix_stats_nvlist(nvlist_t *nvl)
 	}
 }
 
-static void
+static int
 zfs_ioctl_compat_fix_stats(zfs_cmd_t *zc, const int cflag)
 {
 	nvlist_t *nv, *nvp = NULL;
 	nvpair_t *elem;
-	size_t nvsize;
-	char *packed;
+	int error;
 
-	if (nvlist_unpack((void *)(uintptr_t)zc->zc_nvlist_dst,
-	    zc->zc_nvlist_dst_size, &nv, 0) != 0)
-		return;
+	if ((error = zfs_ioctl_compat_get_nvlist(zc->zc_nvlist_dst,
+	    zc->zc_nvlist_dst_size, zc->zc_iflags, &nv)) != 0)
+		return (error);
 
 	if (cflag == 5) { /* ZFS_IOC_POOL_STATS */
 		elem = NULL;
@@ -227,21 +280,22 @@ zfs_ioctl_compat_fix_stats(zfs_cmd_t *zc, const int cflag)
 	} else
 		zfs_ioctl_compat_fix_stats_nvlist(nv);
 
-	VERIFY(nvlist_size(nv, &nvsize, NV_ENCODE_NATIVE) == 0);
-	zfs_ioctl_compat_write_nvlist_dst(zc, nv, nvsize);
+	error = zfs_ioctl_compat_put_nvlist(zc, nv);
 
 	nvlist_free(nv);
+
+	return (error);
 }
 
-static void
+static int
 zfs_ioctl_compat_pool_get_props(zfs_cmd_t *zc)
 {
 	nvlist_t *nv, *nva = NULL;
-	size_t nvsize;
+	int error;
 
-	if (nvlist_unpack((void *)(uintptr_t)zc->zc_nvlist_dst,
-	    zc->zc_nvlist_dst_size, &nv, 0) != 0)
-		return;
+	if ((error = zfs_ioctl_compat_get_nvlist(zc->zc_nvlist_dst,
+	    zc->zc_nvlist_dst_size, zc->zc_iflags, &nv)) != 0)
+		return (error);
 
 #ifdef _KERNEL
 	if (nvlist_lookup_nvlist(nv, "allocated", &nva) == 0) {
@@ -265,10 +319,11 @@ zfs_ioctl_compat_pool_get_props(zfs_cmd_t *zc)
 	}
 #endif
 
-	VERIFY(nvlist_size(nv, &nvsize, NV_ENCODE_NATIVE) == 0);
-	zfs_ioctl_compat_write_nvlist_dst(zc, nv, nvsize);
+	error = zfs_ioctl_compat_put_nvlist(zc, nv);
 
 	nvlist_free(nv);
+
+	return (error);
 }
 
 #ifndef _KERNEL
