@@ -166,6 +166,13 @@ struct ieee80211_node {
 	uint32_t		ni_avgrssi;	/* recv ssi state */
 	int8_t			ni_noise;	/* noise floor */
 
+	/* mimo statistics */
+	uint32_t		ni_mimo_rssi_ctl[IEEE80211_MAX_CHAINS];
+	uint32_t		ni_mimo_rssi_ext[IEEE80211_MAX_CHAINS];
+	uint8_t			ni_mimo_noise_ctl[IEEE80211_MAX_CHAINS];
+	uint8_t			ni_mimo_noise_ext[IEEE80211_MAX_CHAINS];
+	uint8_t			ni_mimo_chains;
+
 	/* header */
 	uint8_t			ni_macaddr[IEEE80211_ADDR_LEN];
 	uint8_t			ni_bssid[IEEE80211_ADDR_LEN];
