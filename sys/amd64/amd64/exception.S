@@ -382,10 +382,10 @@ IDTVEC(fast_syscall)
 	FAKE_MCOUNT(TF_RIP(%rsp))
 	movq	%rsp,%rdi
 	call	syscall
-	movq	PCPU(CURPCB),%rax
+1:	movq	PCPU(CURPCB),%rax
 	testl	$PCB_FULL_IRET,PCB_FLAGS(%rax)
-	jne	3f
-1:	/* Check for and handle AST's on return to userland. */
+	jnz	3f
+	/* Check for and handle AST's on return to userland. */
 	cli
 	movq	PCPU(CURTHREAD),%rax
 	testl	$TDF_ASTPENDING | TDF_NEEDRESCHED,TD_FLAGS(%rax)
@@ -661,7 +661,7 @@ doreti:
 doreti_ast:
 	/*
 	 * Check for ASTs atomically with returning.  Disabling CPU
-	 * interrupts provides sufficient locking eve in the SMP case,
+	 * interrupts provides sufficient locking even in the SMP case,
 	 * since we will be informed of any new ASTs by an IPI.
 	 */
 	cli
@@ -682,8 +682,7 @@ doreti_ast:
 	 */
 doreti_exit:
 	MEXITCOUNT
-	movq	PCPU(CURTHREAD),%r8
-	movq	TD_PCB(%r8),%r8
+	movq	PCPU(CURPCB),%r8
 
 	/*
 	 * Do not reload segment registers for kernel.
