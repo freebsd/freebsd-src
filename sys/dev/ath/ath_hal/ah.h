@@ -31,6 +31,14 @@
 #include "ah_osdep.h"
 
 /*
+ * The maximum number of TX/RX chains supported.
+ * This is intended to be used by various statistics gathering operations
+ * (NF, RSSI, EVM).
+ */
+#define	AH_MIMO_MAX_CHAINS		3
+#define	AH_MIMO_MAX_EVM_PILOTS		6
+
+/*
  * __ahdecl is analogous to _cdecl; it defines the calling
  * convention used within the HAL.  For most systems this
  * can just default to be empty and the compiler will (should)
