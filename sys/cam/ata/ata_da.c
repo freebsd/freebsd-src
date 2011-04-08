@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ada.h"
+
 #include <sys/param.h>
 
 #ifdef _KERNEL
@@ -127,6 +129,13 @@ struct ada_softc {
 	int	 outstanding_cmds;
 	int	 trim_max_ranges;
 	int	 trim_running;
+	int	 write_cache;
+#ifdef ADA_TEST_FAILURE
+	int      force_read_error;
+	int      force_write_error;
+	int      periodic_read_error;
+	int      periodic_read_count;
+#endif
 	struct	 disk_params params;
 	struct	 disk *disk;
 	struct task		sysctl_task;
@@ -618,11 +627,11 @@ adaasync(void *callback_arg, u_int32_t code,
 
 		softc = (struct ada_softc *)periph->softc;
 		cam_periph_async(periph, code, path, arg);
-		if (ada_write_cache < 0)
+		if (ada_write_cache < 0 && softc->write_cache < 0)
 			break;
 		if (softc->state != ADA_STATE_NORMAL)
 			break;
-		xpt_setup_ccb(&cgd.ccb_h, path, CAM_PRIORITY_NORMAL);
+		xpt_setup_ccb(&cgd.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		cgd.ccb_h.func_code = XPT_GDEV_TYPE;
 		xpt_action((union ccb *)&cgd);
 		if ((cgd.ident_data.support.command1 & ATA_SUPPORT_WRITECACHE) == 0)
@@ -647,8 +656,12 @@ adasysctlinit(void *context, int pending)
 	char tmpstr[80], tmpstr2[80];
 
 	periph = (struct cam_periph *)context;
-	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+
+	/* periph was held for us when this task was enqueued */
+	if (periph->flags & CAM_PERIPH_INVALID) {
+		cam_periph_release(periph);
 		return;
+	}
 
 	softc = (struct ada_softc *)periph->softc;
 	snprintf(tmpstr, sizeof(tmpstr), "CAM ADA unit %d", periph->unit_number);
@@ -665,6 +678,28 @@ adasysctlinit(void *context, int pending)
 		return;
 	}
 
+	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "write_cache", CTLFLAG_RW | CTLFLAG_MPSAFE,
+		&softc->write_cache, 0, "Enable disk write cache.");
+#ifdef ADA_TEST_FAILURE
+	/*
+	 * Add a 'door bell' sysctl which allows one to set it from userland
+	 * and cause something bad to happen.  For the moment, we only allow
+	 * whacking the next read or write.
+	 */
+	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "force_read_error", CTLFLAG_RW | CTLFLAG_MPSAFE,
+		&softc->force_read_error, 0,
+		"Force a read error for the next N reads.");
+	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "force_write_error", CTLFLAG_RW | CTLFLAG_MPSAFE,
+		&softc->force_write_error, 0,
+		"Force a write error for the next N writes.");
+	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+		OID_AUTO, "periodic_read_error", CTLFLAG_RW | CTLFLAG_MPSAFE,
+		&softc->periodic_read_error, 0,
+		"Force a read error every N reads (don't set too low).");
+#endif
 	cam_periph_release(periph);
 }
 
@@ -738,6 +773,10 @@ adaregister(struct cam_periph *periph, void *arg)
 		softc->quirks = ((struct ada_quirk_entry *)match)->quirks;
 	else
 		softc->quirks = ADA_Q_NONE;
+	softc->write_cache = -1;
+	snprintf(announce_buf, sizeof(announce_buf),
+	    "kern.cam.ada.%d.writa_cache", periph->unit_number);
+	TUNABLE_INT_FETCH(announce_buf, &softc->write_cache);
 
 	bzero(&cpi, sizeof(cpi));
 	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NONE);
@@ -812,6 +851,14 @@ adaregister(struct cam_periph *periph, void *arg)
 		dp->secsize, dp->heads,
 		dp->secs_per_track, dp->cylinders);
 	xpt_announce_periph(periph, announce_buf);
+
+	/*
+	 * Create our sysctl variables, now that we know
+	 * we have successfully attached.
+	 */
+	cam_periph_acquire(periph);
+	taskqueue_enqueue(taskqueue_thread, &softc->sysctl_task);
+
 	/*
 	 * Add async callbacks for bus reset and
 	 * bus device reset calls.  I don't bother
@@ -832,7 +879,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	    (ADA_DEFAULT_TIMEOUT * hz) / ADA_ORDEREDTAG_INTERVAL,
 	    adasendorderedtag, softc);
 
-	if (ada_write_cache >= 0 &&
+	if ((ada_write_cache >= 0 || softc->write_cache >= 0) &&
 	    cgd->ident_data.support.command1 & ATA_SUPPORT_WRITECACHE) {
 		softc->state = ADA_STATE_WCACHE;
 		cam_periph_acquire(periph);
@@ -944,7 +991,45 @@ adastart(struct cam_periph *periph, union ccb *start_ccb)
 		{
 			uint64_t lba = bp->bio_pblkno;
 			uint16_t count = bp->bio_bcount / softc->params.secsize;
+#ifdef ADA_TEST_FAILURE
+			int fail = 0;
 
+			/*
+			 * Support the failure ioctls.  If the command is a
+			 * read, and there are pending forced read errors, or
+			 * if a write and pending write errors, then fail this
+			 * operation with EIO.  This is useful for testing
+			 * purposes.  Also, support having every Nth read fail.
+			 *
+			 * This is a rather blunt tool.
+			 */
+			if (bp->bio_cmd == BIO_READ) {
+				if (softc->force_read_error) {
+					softc->force_read_error--;
+					fail = 1;
+				}
+				if (softc->periodic_read_error > 0) {
+					if (++softc->periodic_read_count >=
+					    softc->periodic_read_error) {
+						softc->periodic_read_count = 0;
+						fail = 1;
+					}
+				}
+			} else {
+				if (softc->force_write_error) {
+					softc->force_write_error--;
+					fail = 1;
+				}
+			}
+			if (fail) {
+				bp->bio_error = EIO;
+				bp->bio_flags |= BIO_ERROR;
+				biodone(bp);
+				xpt_release_ccb(start_ccb);
+				adaschedule(periph);
+				return;
+			}
+#endif
 			cam_fill_ataio(ataio,
 			    ada_retry_count,
 			    adadone,
@@ -1062,7 +1147,8 @@ out:
 		    0,
 		    ada_default_timeout*1000);
 
-		ata_28bit_cmd(ataio, ATA_SETFEATURES, ada_write_cache ?
+		ata_28bit_cmd(ataio, ATA_SETFEATURES, (softc->write_cache > 0 ||
+		     (softc->write_cache < 0 && ada_write_cache)) ?
 		    ATA_SF_ENAB_WCACHE : ATA_SF_DIS_WCACHE, 0, 0);
 		start_ccb->ccb_h.ccb_state = ADA_CCB_WCACHE;
 		xpt_action(start_ccb);
