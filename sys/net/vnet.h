@@ -122,7 +122,7 @@ void vnet_log_recursion(struct vnet *, const char *, int);
 #define	VNET_ASSERT(condition)						\
 	if (!(condition)) {						\
 		printf("VNET_ASSERT @ %s:%d %s():\n",			\
-			__FILE__, __LINE__, __FUNCTION__);		\
+			__FILE__, __LINE__, __func__);			\
 		panic(#condition);					\
 	}
 
@@ -131,7 +131,7 @@ void vnet_log_recursion(struct vnet *, const char *, int);
 	struct vnet *saved_vnet = curvnet;				\
 	const char *saved_vnet_lpush = curthread->td_vnet_lpush;	\
 	curvnet = arg;							\
-	curthread->td_vnet_lpush = __FUNCTION__;
+	curthread->td_vnet_lpush = __func__;
  
 #define	CURVNET_SET_VERBOSE(arg)					\
 	CURVNET_SET_QUIET(arg)						\
