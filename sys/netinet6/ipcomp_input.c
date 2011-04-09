@@ -117,8 +117,21 @@ ipcomp4_input(m, off)
 		goto fail;
 	}
 	ipcomp = mtod(md, struct ipcomp *);
-	ip = mtod(m, struct ip *);
 	nxt = ipcomp->comp_nxt;
+
+	/*
+	 * Check that the next header of the IPComp is not IPComp again, before
+	 * doing any real work.  Given it is not possible to do double
+	 * compression it means someone is playing tricks on us.
+	 */
+	if (nxt == IPPROTO_IPCOMP) {
+		ipseclog((LOG_ERR, "IPv4 IPComp input: "
+		    "recursive compression detected."));
+		ipsecstat.in_inval++;
+		goto fail;
+	}
+
+	ip = mtod(m, struct ip *);
 #ifdef _IP_VHL
 	hlen = IP_VHL_HL(ip->ip_vhl) << 2;
 #else
@@ -268,6 +281,18 @@ ipcomp6_input(mp, offp, proto)
 	ipcomp = mtod(md, struct ipcomp *);
 	ip6 = mtod(m, struct ip6_hdr *);
 	nxt = ipcomp->comp_nxt;
+
+	/*
+	 * Check that the next header of the IPComp is not IPComp again, before
+	 * doing any real work.  Given it is not possible to do double
+	 * compression it means someone is playing tricks on us.
+	 */
+	if (nxt == IPPROTO_IPCOMP) {
+		ipseclog((LOG_ERR, "IPv6 IPComp input: "
+		    "recursive compression detected."));
+		ipsecstat.in_inval++;
+		goto fail;
+	}
 
 	cpi = ntohs(ipcomp->comp_cpi);
 
