@@ -667,14 +667,16 @@ rtadvd_input()
 	}
 
 	/*
-	 * If we happen to receive data on an interface which is now down,
-	 * just discard the data.
+	 * If we happen to receive data on an interface which is now gone
+	 * or down, just discard the data.
 	 */
-	if ((iflist[pi->ipi6_ifindex]->ifm_flags & IFF_UP) == 0) {
+	if (iflist[pi->ipi6_ifindex] == NULL ||
+	    (iflist[pi->ipi6_ifindex]->ifm_flags & IFF_UP) == 0) {
 		syslog(LOG_INFO,
 		       "<%s> received data on a disabled interface (%s)",
 		       __func__,
-		       if_indextoname(pi->ipi6_ifindex, ifnamebuf));
+		       (iflist[pi->ipi6_ifindex] == NULL) ? "[gone]" :
+			    if_indextoname(pi->ipi6_ifindex, ifnamebuf));
 		return;
 	}
 
