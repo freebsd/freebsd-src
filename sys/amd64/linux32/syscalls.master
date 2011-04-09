@@ -326,8 +326,10 @@
 				    l_uid16_t uid, l_gid16_t gid); }
 183	AUE_GETCWD	STD	{ int linux_getcwd(char *buf, \
 				    l_ulong bufsize); }
-184	AUE_CAPGET	STD	{ int linux_capget(void); }
-185	AUE_CAPSET	STD	{ int linux_capset(void); }
+184	AUE_CAPGET	STD	{ int linux_capget(struct l_user_cap_header *hdrp, \
+				    struct l_user_cap_data *datap); }
+185	AUE_CAPSET	STD	{ int linux_capset(struct l_user_cap_header *hdrp, \
+				    struct l_user_cap_data *datap); }
 186	AUE_NULL	STD	{ int linux_sigaltstack(l_stack_t *uss, \
 				    l_stack_t *uoss); }
 187	AUE_SENDFILE	STD	{ int linux_sendfile(void); }
