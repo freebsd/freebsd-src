@@ -925,11 +925,8 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 	count = last - first;
 
 	do {
-		if (count-- < 0) {	/* completely used? */
-			/* Undo an address bind that may have occurred. */
-			inp->in6p_laddr = in6addr_any;
+		if (count-- < 0)	/* completely used? */
 			return (EADDRNOTAVAIL);
-		}
 		++*lastport;
 		if (*lastport < first || *lastport > last)
 			*lastport = first;
