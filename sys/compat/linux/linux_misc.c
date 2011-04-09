@@ -1679,6 +1679,100 @@ linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 	return (0);
 }
 
+#define _LINUX_CAPABILITY_VERSION  0x19980330
+
+struct l_user_cap_header {
+	l_int	version;
+	l_int	pid;
+};
+
+struct l_user_cap_data {
+	l_int	effective;
+	l_int	permitted;
+	l_int	inheritable;
+};
+
+int
+linux_capget(struct thread *td, struct linux_capget_args *args)
+{
+	struct l_user_cap_header luch;
+	struct l_user_cap_data lucd;
+	int error;
+
+	if (args->hdrp == NULL)
+		return (EFAULT);
+
+	error = copyin(args->hdrp, &luch, sizeof(luch));
+	if (error != 0)
+		return (error);
+
+	if (luch.version != _LINUX_CAPABILITY_VERSION) {
+		luch.version = _LINUX_CAPABILITY_VERSION;
+		error = copyout(&luch, args->hdrp, sizeof(luch));
+		if (error)
+			return (error);
+		return (EINVAL);
+	}
+
+	if (luch.pid)
+		return (EPERM);
+
+	if (args->datap) {
+		/*
+		 * The current implementation doesn't support setting
+		 * a capability (it's essentially a stub) so indicate
+		 * that no capabilities are currently set or available
+		 * to request.
+		 */
+		bzero (&lucd, sizeof(lucd));
+		error = copyout(&lucd, args->datap, sizeof(lucd));
+	}
+
+	return (error);
+}
+
+int
+linux_capset(struct thread *td, struct linux_capset_args *args)
+{
+	struct l_user_cap_header luch;
+	struct l_user_cap_data lucd;
+	int error;
+
+	if (args->hdrp == NULL || args->datap == NULL)
+		return (EFAULT);
+
+	error = copyin(args->hdrp, &luch, sizeof(luch));
+	if (error != 0)
+		return (error);
+
+	if (luch.version != _LINUX_CAPABILITY_VERSION) {
+		luch.version = _LINUX_CAPABILITY_VERSION;
+		error = copyout(&luch, args->hdrp, sizeof(luch));
+		if (error)
+			return (error);
+		return (EINVAL);
+	}
+
+	if (luch.pid)
+		return (EPERM);
+
+	error = copyin(args->datap, &lucd, sizeof(lucd));
+	if (error != 0)
+		return (error);
+
+	/* We currently don't support setting any capabilities. */
+	if (lucd.effective || lucd.permitted || lucd.inheritable) {
+		linux_msg(td,
+			  "capset effective=0x%x, permitted=0x%x, "
+			  "inheritable=0x%x is not implemented",
+			  (int)lucd.effective, (int)lucd.permitted,
+			  (int)lucd.inheritable);
+		return (EPERM);
+	}
+
+	return (0);
+}
+
 int
 linux_prctl(struct thread *td, struct linux_prctl_args *args)
 {
@@ -1711,6 +1805,21 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		error = copyout(&pdeath_signal,
 		    (void *)(register_t)args->arg2,
 		    sizeof(pdeath_signal));
+		break;
+	case LINUX_PR_GET_KEEPCAPS:
+		/*
+		 * Indicate that we always clear the effective and
+		 * permitted capability sets when the user id becomes
+		 * non-zero (actually the capability sets are simply
+		 * always zero in the current implementation).
+		 */
+		td->td_retval[0] = 0;
+		break;
+	case LINUX_PR_SET_KEEPCAPS:
+		/*
+		 * Ignore requests to keep the effective and permitted
+		 * capability sets when the user id becomes non-zero.
+		 */
 		break;
 	case LINUX_PR_SET_NAME:
 		/*
