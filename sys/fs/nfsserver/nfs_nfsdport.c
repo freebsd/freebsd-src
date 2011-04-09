@@ -1975,9 +1975,13 @@ again:
 							vref(vp);
 							nvp = vp;
 							r = 0;
-						} else
+						} else {
 							r = VOP_LOOKUP(vp, &nvp,
 							    &cn);
+							if (vp != nvp)
+								VOP_UNLOCK(vp,
+								    0);
+						}
 					}
 				}
 				if (!r) {
