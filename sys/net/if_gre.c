@@ -53,6 +53,7 @@
 #include "opt_inet6.h"
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -643,6 +644,9 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		si.sin_len = sizeof(struct sockaddr_in);
 		si.sin_addr.s_addr = sc->g_src.s_addr;
 		sa = sintosa(&si);
+		error = prison_if(curthread->td_ucred, sa);
+		if (error != 0)
+			break;
 		ifr->ifr_addr = *sa;
 		break;
 	case GREGADDRD:
@@ -651,6 +655,9 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		si.sin_len = sizeof(struct sockaddr_in);
 		si.sin_addr.s_addr = sc->g_dst.s_addr;
 		sa = sintosa(&si);
+		error = prison_if(curthread->td_ucred, sa);
+		if (error != 0)
+			break;
 		ifr->ifr_addr = *sa;
 		break;
 	case SIOCSIFPHYADDR:
@@ -714,8 +721,14 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		si.sin_family = AF_INET;
 		si.sin_len = sizeof(struct sockaddr_in);
 		si.sin_addr.s_addr = sc->g_src.s_addr;
+		error = prison_if(curthread->td_ucred, (struct sockaddr *)&si);
+		if (error != 0)
+			break;
 		memcpy(&lifr->addr, &si, sizeof(si));
 		si.sin_addr.s_addr = sc->g_dst.s_addr;
+		error = prison_if(curthread->td_ucred, (struct sockaddr *)&si);
+		if (error != 0)
+			break;
 		memcpy(&lifr->dstaddr, &si, sizeof(si));
 		break;
 	case SIOCGIFPSRCADDR:
@@ -730,6 +743,9 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		si.sin_family = AF_INET;
 		si.sin_len = sizeof(struct sockaddr_in);
 		si.sin_addr.s_addr = sc->g_src.s_addr;
+		error = prison_if(curthread->td_ucred, (struct sockaddr *)&si);
+		if (error != 0)
+			break;
 		bcopy(&si, &ifr->ifr_addr, sizeof(ifr->ifr_addr));
 		break;
 	case SIOCGIFPDSTADDR:
@@ -744,6 +760,9 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		si.sin_family = AF_INET;
 		si.sin_len = sizeof(struct sockaddr_in);
 		si.sin_addr.s_addr = sc->g_dst.s_addr;
+		error = prison_if(curthread->td_ucred, (struct sockaddr *)&si);
+		if (error != 0)
+			break;
 		bcopy(&si, &ifr->ifr_addr, sizeof(ifr->ifr_addr));
 		break;
 	case GRESKEY:
