@@ -17,8 +17,11 @@ $DIALOG_OK)	# Install
 	BSDINSTALL_CONFIGCURRENT=yes; export BSDINSTALL_CONFIGCURRENT
 	trap true SIGINT	# Ignore cntrl-C here
 	bsdinstall
-	dialog --backtitle "FreeBSD Installer" --title "Complete" --msgbox "Installation of FreeBSD complete! The system will now reboot." 0 0
-	reboot
+	if [ $? -eq 0 ]; then
+		dialog --backtitle "FreeBSD Installer" --title "Complete" --yes-label "Reboot" --no-label "Live CD" --yesno "Installation of FreeBSD complete! Would you like to reboot into the installed system now?" 0 0 && reboot
+	else
+		. /etc/rc.local
+	fi
 	;;
 $DIALOG_CANCEL)	# Live CD
 	exit 0
