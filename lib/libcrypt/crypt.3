@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 19, 1997
+.Dd April 9, 2011
 .Dt CRYPT 3
 .Os
 .Sh NAME
@@ -188,6 +188,10 @@ MD5
 Blowfish
 .It
 NT-Hash
+.It
+SHA-256
+.It
+SHA-512
 .El
 .Pp
 Other crypt formats may be easily added.
@@ -226,7 +230,9 @@ Valid values are
 .\"
 .Ql des ,
 .Ql blf ,
-.Ql md5
+.Ql md5 ,
+.Ql sha256 ,
+.Ql sha512
 and
 .Ql nth .
 .Pp
