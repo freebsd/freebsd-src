@@ -5194,3 +5194,37 @@ nfsrv_unlocklf(struct nfslockfile *lfp)
 	nfsv4_unlock(&lfp->lf_locallock_lck, 0);
 }
 
+/*
+ * Clear out all state for the NFSv4 server.
+ * Must be called by a thread that can sleep when no nfsds are running.
+ */
+void
+nfsrv_throwawayallstate(NFSPROC_T *p)
+{
+	struct nfsclient *clp, *nclp;
+	struct nfslockfile *lfp, *nlfp;
+	int i;
+
+	/*
+	 * For each client, clean out the state and then free the structure.
+	 */
+	for (i = 0; i < NFSCLIENTHASHSIZE; i++) {
+		LIST_FOREACH_SAFE(clp, &nfsclienthash[i], lc_hash, nclp) {
+			nfsrv_cleanclient(clp, p);
+			nfsrv_freedeleglist(&clp->lc_deleg);
+			nfsrv_freedeleglist(&clp->lc_olddeleg);
+			free(clp, M_NFSDCLIENT);
+		}
+	}
+
+	/*
+	 * Also, free up any remaining lock file structures.
+	 */
+	for (i = 0; i < NFSLOCKHASHSIZE; i++) {
+		LIST_FOREACH_SAFE(lfp, &nfslockhash[i], lf_hash, nlfp) {
+			printf("nfsd unload: fnd a lock file struct\n");
+			nfsrv_freenfslockfile(lfp);
+		}
+	}
+}
+
