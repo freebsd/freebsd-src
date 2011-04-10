@@ -475,9 +475,9 @@ rctl_rule_matches(const struct rctl_rule *rule, const struct rctl_rule *filter)
 				return (0);
 			break;
 		case RCTL_SUBJECT_TYPE_LOGINCLASS:
-			if (filter->rr_subject.hr_loginclass != NULL &&
-			    rule->rr_subject.hr_loginclass !=
-			    filter->rr_subject.hr_loginclass)
+			if (filter->rr_subject.rs_loginclass != NULL &&
+			    rule->rr_subject.rs_loginclass !=
+			    filter->rr_subject.rs_loginclass)
 				return (0);
 			break;
 		case RCTL_SUBJECT_TYPE_JAIL:
@@ -642,8 +642,8 @@ rctl_rule_acquire_subject(struct rctl_rule *rule)
 			uihold(rule->rr_subject.rs_uip);
 		break;
 	case RCTL_SUBJECT_TYPE_LOGINCLASS:
-		if (rule->rr_subject.hr_loginclass != NULL)
-			loginclass_hold(rule->rr_subject.hr_loginclass);
+		if (rule->rr_subject.rs_loginclass != NULL)
+			loginclass_hold(rule->rr_subject.rs_loginclass);
 		break;
 	default:
 		panic("rctl_rule_acquire_subject: unknown subject type %d",
@@ -665,8 +665,8 @@ rctl_rule_release_subject(struct rctl_rule *rule)
 			uifree(rule->rr_subject.rs_uip);
 		break;
 	case RCTL_SUBJECT_TYPE_LOGINCLASS:
-		if (rule->rr_subject.hr_loginclass != NULL)
-			loginclass_free(rule->rr_subject.hr_loginclass);
+		if (rule->rr_subject.rs_loginclass != NULL)
+			loginclass_free(rule->rr_subject.rs_loginclass);
 		break;
 	default:
 		panic("rctl_rule_release_subject: unknown subject type %d",
@@ -685,7 +685,7 @@ rctl_rule_alloc(int flags)
 	rule->rr_subject_type = RCTL_SUBJECT_TYPE_UNDEFINED;
 	rule->rr_subject.rs_proc = NULL;
 	rule->rr_subject.rs_uip = NULL;
-	rule->rr_subject.hr_loginclass = NULL;
+	rule->rr_subject.rs_loginclass = NULL;
 	rule->rr_subject.rs_prison = NULL;
 	rule->rr_per = RCTL_SUBJECT_TYPE_UNDEFINED;
 	rule->rr_resource = RACCT_UNDEFINED;
@@ -707,7 +707,7 @@ rctl_rule_duplicate(const struct rctl_rule *rule, int flags)
 	copy->rr_subject_type = rule->rr_subject_type;
 	copy->rr_subject.rs_proc = rule->rr_subject.rs_proc;
 	copy->rr_subject.rs_uip = rule->rr_subject.rs_uip;
-	copy->rr_subject.hr_loginclass = rule->rr_subject.hr_loginclass;
+	copy->rr_subject.rs_loginclass = rule->rr_subject.rs_loginclass;
 	copy->rr_subject.rs_prison = rule->rr_subject.rs_prison;
 	copy->rr_per = rule->rr_per;
 	copy->rr_resource = rule->rr_resource;
@@ -780,7 +780,7 @@ rctl_rule_fully_specified(const struct rctl_rule *rule)
 			return (0);
 		break;
 	case RCTL_SUBJECT_TYPE_LOGINCLASS:
-		if (rule->rr_subject.hr_loginclass == NULL)
+		if (rule->rr_subject.rs_loginclass == NULL)
 			return (0);
 		break;
 	case RCTL_SUBJECT_TYPE_JAIL:
@@ -832,7 +832,7 @@ rctl_string_to_rule(char *rulestr, struct rctl_rule **rulep)
 	if (subject_idstr == NULL || subject_idstr[0] == '\0') {
 		rule->rr_subject.rs_proc = NULL;
 		rule->rr_subject.rs_uip = NULL;
-		rule->rr_subject.hr_loginclass = NULL;
+		rule->rr_subject.rs_loginclass = NULL;
 		rule->rr_subject.rs_prison = NULL;
 	} else {
 		switch (rule->rr_subject_type) {
@@ -858,9 +858,9 @@ rctl_string_to_rule(char *rulestr, struct rctl_rule **rulep)
 			rule->rr_subject.rs_uip = uifind(id);
 			break;
 		case RCTL_SUBJECT_TYPE_LOGINCLASS:
-			rule->rr_subject.hr_loginclass =
+			rule->rr_subject.rs_loginclass =
 			    loginclass_find(subject_idstr);
-			if (rule->rr_subject.hr_loginclass == NULL) {
+			if (rule->rr_subject.rs_loginclass == NULL) {
 				error = ENAMETOOLONG;
 				goto out;
 			}
@@ -1002,7 +1002,7 @@ rctl_rule_add(struct rctl_rule *rule)
 		break;
 
 	case RCTL_SUBJECT_TYPE_LOGINCLASS:
-		lc = rule->rr_subject.hr_loginclass;
+		lc = rule->rr_subject.rs_loginclass;
 		KASSERT(lc != NULL, ("rctl_rule_add: NULL loginclass"));
 		rctl_racct_add_rule(lc->lc_racct, rule);
 		break;
@@ -1034,7 +1034,7 @@ rctl_rule_add(struct rctl_rule *rule)
 				break;
 			continue;
 		case RCTL_SUBJECT_TYPE_LOGINCLASS:
-			if (cred->cr_loginclass == rule->rr_subject.hr_loginclass)
+			if (cred->cr_loginclass == rule->rr_subject.rs_loginclass)
 				break;
 			continue;
 		case RCTL_SUBJECT_TYPE_JAIL:
@@ -1137,11 +1137,11 @@ rctl_rule_to_sbuf(struct sbuf *sb, const struct rctl_rule *rule)
 			    rule->rr_subject.rs_uip->ui_uid);
 		break;
 	case RCTL_SUBJECT_TYPE_LOGINCLASS:
-		if (rule->rr_subject.hr_loginclass == NULL)
+		if (rule->rr_subject.rs_loginclass == NULL)
 			sbuf_printf(sb, ":");
 		else
 			sbuf_printf(sb, "%s:",
-			    rule->rr_subject.hr_loginclass->lc_name);
+			    rule->rr_subject.rs_loginclass->lc_name);
 		break;
 	case RCTL_SUBJECT_TYPE_JAIL:
 		if (rule->rr_subject.rs_prison == NULL)
@@ -1247,7 +1247,7 @@ rctl_get_racct(struct thread *td, struct rctl_get_racct_args *uap)
 	struct loginclass *lc;
 	struct prison *pr;
 
-	error = priv_check(td, PRIV_RCTL_GET_USAGE);
+	error = priv_check(td, PRIV_RCTL_GET_RACCT);
 	if (error != 0)
 		return (error);
 
@@ -1287,7 +1287,7 @@ rctl_get_racct(struct thread *td, struct rctl_get_racct_args *uap)
 		outputsbuf = rctl_racct_to_sbuf(uip->ui_racct, 1);
 		break;
 	case RCTL_SUBJECT_TYPE_LOGINCLASS:
-		lc = filter->rr_subject.hr_loginclass;
+		lc = filter->rr_subject.rs_loginclass;
 		if (lc == NULL) {
 			error = EINVAL;
 			goto out;
