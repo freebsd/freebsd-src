@@ -189,9 +189,12 @@ hast_proto_recv_data(const struct hast_resource *res, struct proto_conn *conn,
 	dptr = data;
 
 	dsize = nv_get_uint32(nv, "size");
-	if (dsize == 0)
+	if (dsize > size) {
+		errno = EINVAL;
+		goto end;
+	} else if (dsize == 0) {
 		(void)nv_set_error(nv, 0);
-	else {
+	} else {
 		if (proto_recv(conn, data, dsize) < 0)
 			goto end;
 		for (ii = sizeof(pipeline) / sizeof(pipeline[0]); ii > 0;
