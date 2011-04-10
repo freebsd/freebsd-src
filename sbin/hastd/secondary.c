@@ -183,6 +183,10 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 	unsigned char *map;
 	size_t mapsize;
 
+	/* Setup direction. */
+	if (proto_send(res->hr_remoteout, NULL, 0) == -1)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
+
 	map = NULL;
 	mapsize = 0;
 	nvout = nv_alloc();
@@ -201,7 +205,6 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		    "Unable to allocate memory (%zu bytes) for activemap.",
 		    mapsize);
 	}
-	nv_add_uint32(nvout, (uint32_t)mapsize, "mapsize");
 	/*
 	 * When we work as primary and secondary is missing we will increase
 	 * localcnt in our metadata. When secondary is connected and synced
@@ -339,6 +342,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		    (uintmax_t)res->hr_secondary_localcnt,
 		    (uintmax_t)res->hr_secondary_remotecnt);
 	}
+	nv_add_uint32(nvout, (uint32_t)mapsize, "mapsize");
 	if (hast_proto_send(res, res->hr_remotein, nvout, map, mapsize) < 0) {
 		pjdlog_exit(EX_TEMPFAIL, "Unable to send activemap to %s",
 		    res->hr_remoteaddr);
@@ -346,6 +350,9 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 	if (map != NULL)
 		free(map);
 	nv_free(nvout);
+	/* Setup direction. */
+	if (proto_recv(res->hr_remotein, NULL, 0) == -1)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
 	if (res->hr_secondary_localcnt > res->hr_primary_remotecnt &&
 	     res->hr_primary_localcnt > res->hr_secondary_remotecnt) {
 		/* Exit on split-brain. */
@@ -414,7 +421,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	pjdlog_init(mode);
 	pjdlog_debug_set(debuglevel);
 	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
-	setproctitle("%s (secondary)", res->hr_name);
+	setproctitle("%s (%s)", res->hr_name, role2str(res->hr_role));
 
 	PJDLOG_VERIFY(sigemptyset(&mask) == 0);
 	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
