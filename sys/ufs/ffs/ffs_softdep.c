@@ -753,8 +753,7 @@ static	void handle_written_jnewblk(struct jnewblk *);
 static	void handle_written_jfreeblk(struct jfreeblk *);
 static	void handle_written_jfreefrag(struct jfreefrag *);
 static	void complete_jseg(struct jseg *);
-static	void jseg_write(struct ufsmount *ump, struct jblocks *, struct jseg *,
-	    uint8_t *);
+static	void jseg_write(struct ufsmount *ump, struct jseg *, uint8_t *);
 static	void jaddref_write(struct jaddref *, struct jseg *, uint8_t *);
 static	void jremref_write(struct jremref *, struct jseg *, uint8_t *);
 static	void jmvref_write(struct jmvref *, struct jseg *, uint8_t *);
@@ -769,6 +768,7 @@ static	void handle_allocdirect_partdone(struct allocdirect *,
 static	struct jnewblk *cancel_newblk(struct newblk *, struct worklist *,
 	    struct workhead *);
 static	void indirdep_complete(struct indirdep *);
+static	int indirblk_inseg(struct mount *, ufs2_daddr_t);
 static	void handle_allocindir_partdone(struct allocindir *);
 static	void initiate_write_filepage(struct pagedep *, struct buf *);
 static	void initiate_write_indirdep(struct indirdep*, struct buf *);
@@ -802,7 +802,9 @@ static	void free_newdirblk(struct newdirblk *);
 static	void free_jremref(struct jremref *);
 static	void free_jaddref(struct jaddref *);
 static	void free_jsegdep(struct jsegdep *);
-static	void free_jseg(struct jseg *);
+static	void free_jsegs(struct jblocks *);
+static	void rele_jseg(struct jseg *);
+static	void free_jseg(struct jseg *, struct jblocks *);
 static	void free_jnewblk(struct jnewblk *);
 static	void free_jfreeblk(struct jfreeblk *);
 static	void free_jfreefrag(struct jfreefrag *);
@@ -872,7 +874,7 @@ static	int journal_unsuspend(struct ufsmount *ump);
 static	void softdep_prelink(struct vnode *, struct vnode *);
 static	void add_to_journal(struct worklist *);
 static	void remove_from_journal(struct worklist *);
-static	void softdep_process_journal(struct mount *, int);
+static	void softdep_process_journal(struct mount *, struct worklist *, int);
 static	struct jremref *newjremref(struct dirrem *, struct inode *,
 	    struct inode *ip, off_t, nlink_t);
 static	struct jaddref *newjaddref(struct inode *, ino_t, off_t, int16_t,
@@ -1376,7 +1378,7 @@ softdep_process_worklist(mp, full)
 	ump = VFSTOUFS(mp);
 	ACQUIRE_LOCK(&lk);
 	starttime = time_second;
-	softdep_process_journal(mp, full?MNT_WAIT:0);
+	softdep_process_journal(mp, NULL, full?MNT_WAIT:0);
 	while (ump->softdep_on_worklist > 0) {
 		if ((cnt = process_worklist_item(mp, LK_NOWAIT)) == -1)
 			break;
@@ -1999,6 +2001,37 @@ newblk_lookup(mp, newblkno, flags, newblkpp)
 }
 
 /*
+ * Structures and routines associated with indir caching.
+ */
+struct workhead *indir_hashtbl;
+u_long	indir_hash;		/* size of hash table - 1 */
+#define	INDIR_HASH(mp, blkno) \
+	(&indir_hashtbl[((((register_t)(mp)) >> 13) + (blkno)) & indir_hash])
+
+static int
+indirblk_inseg(mp, blkno)
+	struct mount *mp;
+	ufs2_daddr_t blkno;
+{
+	struct freework *freework;
+	struct workhead *wkhd;
+	struct worklist *wk;
+
+	wkhd = INDIR_HASH(mp, blkno);
+	LIST_FOREACH(wk, wkhd, wk_list) {
+		freework = WK_FREEWORK(wk);
+		if (freework->fw_blkno == blkno &&
+		    freework->fw_list.wk_mp == mp) {
+			LIST_REMOVE(freework, fw_next);
+			WORKLIST_REMOVE(&freework->fw_list);
+			WORKITEM_FREE(freework, D_FREEWORK);
+			return (1);
+		}
+	}
+	return (0);
+}
+
+/*
  * Executed during filesystem system initialization before
  * mounting any filesystems.
  */
@@ -2012,6 +2045,7 @@ softdep_initialize()
 	inodedep_hashtbl = hashinit(desiredvnodes, M_INODEDEP, &inodedep_hash);
 	newblk_hashtbl = hashinit(desiredvnodes / 5,  M_NEWBLK, &newblk_hash);
 	bmsafemap_hashtbl = hashinit(1024, M_BMSAFEMAP, &bmsafemap_hash);
+	indir_hashtbl = hashinit(desiredvnodes / 10, M_FREEWORK, &indir_hash);
 
 	/* initialise bioops hack */
 	bioops.io_start = softdep_disk_io_initiation;
@@ -2120,9 +2154,12 @@ softdep_unmount(mp)
 struct jblocks {
 	struct jseglst	jb_segs;	/* TAILQ of current segments. */
 	struct jseg	*jb_writeseg;	/* Next write to complete. */
+	struct jseg	*jb_oldestseg;	/* Oldest segment with valid entries. */
 	struct jextent	*jb_extent;	/* Extent array. */
 	uint64_t	jb_nextseq;	/* Next sequence number. */
-	uint64_t	jb_oldestseq;	/* Oldest active sequence number. */
+	uint64_t	jb_oldestwrseq;	/* Oldest written sequence number. */
+	uint8_t		jb_needseg;	/* Need a forced segment. */
+	uint8_t		jb_suspended;	/* Did journal suspend writes? */
 	int		jb_avail;	/* Available extents. */
 	int		jb_used;	/* Last used extent. */
 	int		jb_head;	/* Allocator head. */
@@ -2132,7 +2169,6 @@ struct jblocks {
 	int		jb_min;		/* Minimum free space. */
 	int		jb_low;		/* Low on space. */
 	int		jb_age;		/* Insertion time of oldest rec. */
-	int		jb_suspended;	/* Did journal suspend writes? */
 };
 
 struct jextent {
@@ -2575,9 +2611,8 @@ softdep_prelink(dvp, vp)
 }
 
 static void
-jseg_write(ump, jblocks, jseg, data)
+jseg_write(ump, jseg, data)
 	struct ufsmount *ump;
-	struct jblocks *jblocks;
 	struct jseg *jseg;
 	uint8_t *data;
 {
@@ -2585,7 +2620,7 @@ jseg_write(ump, jblocks, jseg, data)
 
 	rec = (struct jsegrec *)data;
 	rec->jsr_seq = jseg->js_seq;
-	rec->jsr_oldest = jblocks->jb_oldestseq;
+	rec->jsr_oldest = jseg->js_oldseq;
 	rec->jsr_cnt = jseg->js_cnt;
 	rec->jsr_blocks = jseg->js_size / ump->um_devvp->v_bufobj.bo_bsize;
 	rec->jsr_crc = 0;
@@ -2722,8 +2757,9 @@ jtrunc_write(jtrunc, jseg, data)
  * Flush some journal records to disk.
  */
 static void
-softdep_process_journal(mp, flags)
+softdep_process_journal(mp, needwk, flags)
 	struct mount *mp;
+	struct worklist *needwk;
 	int flags;
 {
 	struct jblocks *jblocks;
@@ -2755,17 +2791,23 @@ softdep_process_journal(mp, flags)
 	jrecmin = (devbsize / JREC_SIZE) - 1; /* -1 for seg header */
 	jrecmax = (fs->fs_bsize / devbsize) * jrecmin;
 	segwritten = 0;
-	while ((cnt = ump->softdep_on_journal) != 0) {
+	for (;;) {
+		cnt = ump->softdep_on_journal;
 		/*
-		 * Create a new segment to hold as many as 'cnt' journal
-		 * entries and add them to the segment.  Notice cnt is
-		 * off by one to account for the space required by the
-		 * jsegrec.  If we don't have a full block to log skip it
-		 * unless we haven't written anything.
+		 * Criteria for writing a segment:
+		 * 1) We have a full block.
+		 * 2) We're called from jwait() and haven't found the
+		 *    journal item yet.
+		 * 3) Always write if needseg is set.
+		 * 4) If we are called from process_worklist and have
+		 *    not yet written anything we write a partial block
+		 *    to enforce a 1 second maximum latency on journal
+		 *    entries.
 		 */
-		cnt++;
-		if (cnt < jrecmax && segwritten)
+		if (cnt < (jrecmax - 1) && needwk == NULL &&
+		    jblocks->jb_needseg == 0 && (segwritten || cnt == 0))
 			break;
+		cnt++;
 		/*
 		 * Verify some free journal space.  softdep_prealloc() should
 	 	 * guarantee that we don't run out so this is indicative of
@@ -2783,6 +2825,7 @@ softdep_process_journal(mp, flags)
 		jseg = malloc(sizeof(*jseg), M_JSEG, M_SOFTDEP_FLAGS);
 		workitem_alloc(&jseg->js_list, D_JSEG, mp);
 		LIST_INIT(&jseg->js_entries);
+		LIST_INIT(&jseg->js_indirs);
 		jseg->js_state = ATTACHED;
 		jseg->js_jblocks = jblocks;
 		bp = geteblk(fs->fs_bsize, 0);
@@ -2794,7 +2837,8 @@ softdep_process_journal(mp, flags)
 		 * the caller will loop if the entry it cares about is
 		 * not written.
 		 */
-		if (ump->softdep_on_journal == 0 || jblocks->jb_free == 0) {
+		cnt = ump->softdep_on_journal;
+		if (cnt + jblocks->jb_needseg == 0 || jblocks->jb_free == 0) {
 			bp->b_flags |= B_INVAL | B_NOCACHE;
 			WORKITEM_FREE(jseg, D_JSEG);
 			FREE_LOCK(&lk);
@@ -2806,8 +2850,9 @@ softdep_process_journal(mp, flags)
 		 * Calculate the disk block size required for the available
 		 * records rounded to the min size.
 		 */
-		cnt = ump->softdep_on_journal;
-		if (cnt < jrecmax)
+		if (cnt == 0)
+			size = devbsize;
+		else if (cnt < jrecmax)
 			size = howmany(cnt, jrecmin) * devbsize;
 		else
 			size = fs->fs_bsize;
@@ -2827,15 +2872,15 @@ softdep_process_journal(mp, flags)
 		 * Initialize our jseg with cnt records.  Assign the next
 		 * sequence number to it and link it in-order.
 		 */
-		cnt = MIN(ump->softdep_on_journal,
-		    (size / devbsize) * jrecmin);
+		cnt = MIN(cnt, (size / devbsize) * jrecmin);
 		jseg->js_buf = bp;
 		jseg->js_cnt = cnt;
 		jseg->js_refs = cnt + 1;	/* Self ref. */
 		jseg->js_size = size;
 		jseg->js_seq = jblocks->jb_nextseq++;
-		if (TAILQ_EMPTY(&jblocks->jb_segs))
-			jblocks->jb_oldestseq = jseg->js_seq;
+		if (jblocks->jb_oldestseg == NULL)
+			jblocks->jb_oldestseg = jseg;
+		jseg->js_oldseq = jblocks->jb_oldestseg->js_seq;
 		TAILQ_INSERT_TAIL(&jblocks->jb_segs, jseg, js_next);
 		if (jblocks->jb_writeseg == NULL)
 			jblocks->jb_writeseg = jseg;
@@ -2846,12 +2891,16 @@ softdep_process_journal(mp, flags)
 		off = 0;
 		while ((wk = LIST_FIRST(&ump->softdep_journal_pending))
 		    != NULL) {
+			if (cnt == 0)
+				break;
 			/* Place a segment header on every device block. */
 			if ((off % devbsize) == 0) {
-				jseg_write(ump, jblocks, jseg, data);
+				jseg_write(ump, jseg, data);
 				off += JREC_SIZE;
 				data = bp->b_data + off;
 			}
+			if (wk == needwk)
+				needwk = NULL;
 			remove_from_journal(wk);
 			wk->wk_state |= IOSTARTED;
 			WORKLIST_INSERT(&jseg->js_entries, wk);
@@ -2882,23 +2931,28 @@ softdep_process_journal(mp, flags)
 				    TYPENAME(wk->wk_type));
 				/* NOTREACHED */
 			}
-			if (--cnt == 0)
-				break;
 			off += JREC_SIZE;
 			data = bp->b_data + off;
+			cnt--;
 		}
 		/*
 		 * Write this one buffer and continue.
 		 */
+		segwritten = 1;
+		jblocks->jb_needseg = 0;
 		WORKLIST_INSERT(&bp->b_dep, &jseg->js_list);
 		FREE_LOCK(&lk);
 		BO_LOCK(bp->b_bufobj);
 		bgetvp(ump->um_devvp, bp);
 		BO_UNLOCK(bp->b_bufobj);
-		if (flags == MNT_NOWAIT)
-			bawrite(bp);
-		else
+		/*
+		 * We only do the blocking wait once we find the journal
+		 * entry we're looking for.
+		 */
+		if (needwk == NULL && flags & MNT_WAIT)
 			bwrite(bp);
+		else
+			bawrite(bp);
 		ACQUIRE_LOCK(&lk);
 	}
 	/*
@@ -2949,7 +3003,7 @@ complete_jseg(jseg)
 			break;
 		case D_JMVREF:
 			/* No jsegdep here. */
-			free_jseg(jseg);
+			rele_jseg(jseg);
 			jmvref = WK_JMVREF(wk);
 			LIST_REMOVE(jmvref, jm_deps);
 			free_pagedep(jmvref->jm_pagedep);
@@ -2977,7 +3031,7 @@ complete_jseg(jseg)
 			wakeup(wk);
 	}
 	/* Release the self reference so the structure may be freed. */
-	free_jseg(jseg);
+	rele_jseg(jseg);
 }
 
 /*
@@ -3009,11 +3063,16 @@ handle_written_jseg(jseg, bp)
 		return;
 	/* Iterate through available jsegs processing their entries. */
 	do {
+		jblocks->jb_oldestwrseq = jseg->js_oldseq;
 		jsegn = TAILQ_NEXT(jseg, js_next);
 		complete_jseg(jseg);
 		jseg = jsegn;
 	} while (jseg && jseg->js_state & DEPCOMPLETE);
 	jblocks->jb_writeseg = jseg;
+	/*
+	 * Attempt to free jsegs now that oldestwrseq may have advanced. 
+	 */
+	free_jsegs(jblocks);
 }
 
 static inline struct jsegdep *
@@ -3682,6 +3741,8 @@ cancel_jnewblk(jnewblk, wkhd)
 	struct jsegdep *jsegdep;
 
 	jsegdep = jnewblk->jn_jsegdep;
+	if (jnewblk->jn_jsegdep == NULL || jnewblk->jn_dep == NULL)
+		panic("cancel_jnewblk: Invalid state");
 	jnewblk->jn_jsegdep  = NULL;
 	jnewblk->jn_dep = NULL;
 	jnewblk->jn_state |= GOINGAWAY;
@@ -3709,34 +3770,97 @@ free_jfreeblk(jfreeblk)
 }
 
 /*
+ * Free a single jseg once it is no longer referenced in memory or on
+ * disk.  Reclaim journal blocks and dependencies waiting for the segment
+ * to disappear.
+ */
+static void
+free_jseg(jseg, jblocks)
+	struct jseg *jseg;
+	struct jblocks *jblocks;
+{
+	struct freework *freework;
+
+	/*
+	 * Free freework structures that were lingering to indicate freed
+	 * indirect blocks that forced journal write ordering on reallocate.
+	 */
+	while ((freework = LIST_FIRST(&jseg->js_indirs)) != NULL) {
+		LIST_REMOVE(freework, fw_next);
+		WORKLIST_REMOVE(&freework->fw_list);
+		WORKITEM_FREE(freework, D_FREEWORK);
+	}
+	if (jblocks->jb_oldestseg == jseg)
+		jblocks->jb_oldestseg = TAILQ_NEXT(jseg, js_next);
+	TAILQ_REMOVE(&jblocks->jb_segs, jseg, js_next);
+	jblocks_free(jblocks, jseg->js_list.wk_mp, jseg->js_size);
+	KASSERT(LIST_EMPTY(&jseg->js_entries),
+	    ("free_jseg: Freed jseg has valid entries."));
+	WORKITEM_FREE(jseg, D_JSEG);
+}
+
+/*
+ * Free all jsegs that meet the criteria for being reclaimed and update
+ * oldestseg.
+ */
+static void
+free_jsegs(jblocks)
+	struct jblocks *jblocks;
+{
+	struct jseg *jseg;
+
+	/*
+	 * Free only those jsegs which have none allocated before them to
+	 * preserve the journal space ordering.
+	 */
+	while ((jseg = TAILQ_FIRST(&jblocks->jb_segs)) != NULL) {
+		/*
+		 * Only reclaim space when nothing depends on this journal
+		 * set and another set has written that it is no longer
+		 * valid.
+		 */
+		if (jseg->js_refs != 0) {
+			jblocks->jb_oldestseg = jseg;
+			return;
+		}
+		if (!LIST_EMPTY(&jseg->js_indirs) &&
+		    jseg->js_seq >= jblocks->jb_oldestwrseq)
+			break;
+		free_jseg(jseg, jblocks);
+	}
+	/*
+	 * If we exited the loop above we still must discover the
+	 * oldest valid segment.
+	 */
+	if (jseg)
+		for (jseg = jblocks->jb_oldestseg; jseg != NULL;
+		     jseg = TAILQ_NEXT(jseg, js_next))
+			if (jseg->js_refs != 0)
+				break;
+	jblocks->jb_oldestseg = jseg;
+	/*
+	 * The journal has no valid records but some jsegs may still be
+	 * waiting on oldestwrseq to advance.  We force a small record
+	 * out to permit these lingering records to be reclaimed.
+	 */
+	if (jblocks->jb_oldestseg == NULL && !TAILQ_EMPTY(&jblocks->jb_segs))
+		jblocks->jb_needseg = 1;
+}
+
+/*
  * Release one reference to a jseg and free it if the count reaches 0.  This
  * should eventually reclaim journal space as well.
  */
 static void
-free_jseg(jseg)
+rele_jseg(jseg)
 	struct jseg *jseg;
 {
-	struct jblocks *jblocks;
 
 	KASSERT(jseg->js_refs > 0,
 	    ("free_jseg: Invalid refcnt %d", jseg->js_refs));
 	if (--jseg->js_refs != 0)
 		return;
-	/*
-	 * Free only those jsegs which have none allocated before them to
-	 * preserve the journal space ordering.
-	 */
-	jblocks = jseg->js_jblocks;
-	while ((jseg = TAILQ_FIRST(&jblocks->jb_segs)) != NULL) {
-		jblocks->jb_oldestseq = jseg->js_seq;
-		if (jseg->js_refs != 0)
-			break;
-		TAILQ_REMOVE(&jblocks->jb_segs, jseg, js_next);
-		jblocks_free(jblocks, jseg->js_list.wk_mp, jseg->js_size);
-		KASSERT(LIST_EMPTY(&jseg->js_entries),
-		    ("free_jseg: Freed jseg has valid entries."));
-		WORKITEM_FREE(jseg, D_JSEG);
-	}
+	free_jsegs(jseg->js_jblocks);
 }
 
 /*
@@ -3748,7 +3872,7 @@ free_jsegdep(jsegdep)
 {
 
 	if (jsegdep->jd_seg)
-		free_jseg(jsegdep->jd_seg);
+		rele_jseg(jsegdep->jd_seg);
 	WORKITEM_FREE(jsegdep, D_JSEGDEP);
 }
 
@@ -3769,7 +3893,7 @@ jwait(wk)
 	 * this point.  The caller may call back in and re-issue the request.
 	 */
 	if ((wk->wk_state & IOSTARTED) == 0) {
-		softdep_process_journal(wk->wk_mp, MNT_WAIT);
+		softdep_process_journal(wk->wk_mp, wk, MNT_WAIT);
 		return;
 	}
 	wk->wk_state |= IOWAITING;
@@ -6004,7 +6128,9 @@ freework_freeblock(freework)
 	LIST_SWAP(&wkhd, &freework->fw_jwork, worklist, wk_list);
 	jnewblk = freework->fw_jnewblk;
 	if (jnewblk != NULL) {
-		cancel_jnewblk(jnewblk, &wkhd);
+		/* Could've already been canceled in indir_trunc(). */
+		if ((jnewblk->jn_state & GOINGAWAY) == 0)
+			cancel_jnewblk(jnewblk, &wkhd);
 		needj = 0;
 	} else if (needj)
 		WORKLIST_INSERT(&wkhd, &freework->fw_list);
@@ -6068,16 +6194,40 @@ handle_written_freework(freework)
 {
 	struct freeblks *freeblks;
 	struct freework *parent;
+	struct jsegdep *jsegdep;
+	struct worklist *wk;
+	int needj;
 
+	needj = 0;
 	freeblks = freework->fw_freeblks;
 	parent = freework->fw_parent;
+	/*
+	 * SUJ needs to wait for the segment referencing freed indirect
+	 * blocks to expire so that we know the checker will not confuse
+	 * a re-allocated indirect block with its old contents.
+	 */
+	if (freework->fw_lbn <= -NDADDR &&
+	    freework->fw_list.wk_mp->mnt_kern_flag & MNTK_SUJ) {
+		LIST_FOREACH(wk, &freeblks->fb_jwork, wk_list)
+			if (wk->wk_type == D_JSEGDEP)
+				break;
+		if (wk) {
+			jsegdep = WK_JSEGDEP(wk);
+			LIST_INSERT_HEAD(&jsegdep->jd_seg->js_indirs,
+			    freework, fw_next);
+			WORKLIST_INSERT(INDIR_HASH(freework->fw_list.wk_mp,
+			    freework->fw_blkno), &freework->fw_list);
+			needj = 1;
+		}
+	}
 	if (parent) {
 		if (--parent->fw_ref != 0)
 			parent = NULL;
 		freeblks = NULL;
 	} else if (--freeblks->fb_ref != 0)
 		freeblks = NULL;
-	WORKITEM_FREE(freework, D_FREEWORK);
+	if (needj == 0)
+		WORKITEM_FREE(freework, D_FREEWORK);
 	/*
 	 * Don't delay these block frees or it takes an intolerable amount
 	 * of time to process truncates and free their journal entries.
@@ -6251,6 +6401,10 @@ indir_trunc(freework, dbn, lbn)
 		LIST_SWAP(&wkhd, &indirdep->ir_jwork, worklist, wk_list);
 		LIST_FOREACH_SAFE(jnewblk, &indirdep->ir_jnewblkhd,
 		    jn_indirdeps, jnewblkn) {
+			/*
+			 * XXX This cancel may cause some lengthy delay
+			 * before the record is reclaimed below.
+			 */
 			LIST_REMOVE(jnewblk, jn_indirdeps);
 			cancel_jnewblk(jnewblk, &wkhd);
 		}
@@ -8165,13 +8319,15 @@ softdep_disk_io_initiation(bp)
 		case D_ALLOCINDIR:
 			/*
 			 * We have to wait for the jnewblk to be journaled
-			 * before we can write to a block otherwise the
-			 * contents may be confused with an earlier file
+			 * before we can write to a block if the contents
+			 * may be confused with an earlier file's indirect
 			 * at recovery time.  Handle the marker as described
 			 * above.
 			 */
 			newblk = WK_NEWBLK(wk);
-			if (newblk->nb_jnewblk != NULL) {
+			if (newblk->nb_jnewblk != NULL &&
+			    indirblk_inseg(newblk->nb_list.wk_mp,
+			    newblk->nb_newblkno)) {
 				LIST_REMOVE(&marker, wk_list);
 				LIST_INSERT_BEFORE(wk, &marker, wk_list);
 				stat_jwait_newblk++;

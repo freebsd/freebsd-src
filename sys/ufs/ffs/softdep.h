@@ -538,7 +538,7 @@ struct freeblks {
 struct freework {
 	struct	worklist fw_list;		/* Delayed worklist. */
 #	define	fw_state fw_list.wk_state
-	LIST_ENTRY(freework) fw_next;		/* Queue for freeblk list. */
+	LIST_ENTRY(freework) fw_next;		/* For seg journal list. */
 	struct	jnewblk  *fw_jnewblk;		/* Journal entry to cancel. */
 	struct	freeblks *fw_freeblks;		/* Root of operation. */
 	struct	freework *fw_parent;		/* Parent indirect. */
@@ -888,10 +888,12 @@ struct jseg {
 	struct	worklist js_list;	/* b_deps link for journal */
 #	define	js_state js_list.wk_state
 	struct	workhead js_entries;	/* Entries awaiting write */
+	LIST_HEAD(, freework) js_indirs;/* List of indirects in this seg. */
 	TAILQ_ENTRY(jseg) js_next;	/* List of all unfinished segments. */
 	struct	jblocks *js_jblocks;	/* Back pointer to block/seg list */
 	struct	buf *js_buf;		/* Buffer while unwritten */
 	uint64_t js_seq;		/* Journal record sequence number. */
+	uint64_t js_oldseq;		/* Oldest valid sequence number. */
 	int	js_size;		/* Size of journal record in bytes. */
 	int	js_cnt;			/* Total items allocated. */
 	int	js_refs;		/* Count of js_entries items. */
