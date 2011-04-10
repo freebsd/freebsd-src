@@ -225,17 +225,12 @@ hast_proto_recv(const struct hast_resource *res, struct proto_conn *conn,
     struct nv **nvp, void *data, size_t size)
 {
 	struct nv *nv;
-	size_t dsize;
 	int ret;
 
 	ret = hast_proto_recv_hdr(conn, &nv);
 	if (ret < 0)
 		return (ret);
-	dsize = nv_get_uint32(nv, "size");
-	if (dsize == 0)
-		(void)nv_set_error(nv, 0);
-	else
-		ret = hast_proto_recv_data(res, conn, nv, data, size);
+	ret = hast_proto_recv_data(res, conn, nv, data, size);
 	if (ret < 0)
 		nv_free(nv);
 	else
