@@ -279,6 +279,7 @@ static void dc_miibus_statchg(device_t);
 static void dc_miibus_mediainit(device_t);
 
 static void dc_setcfg(struct dc_softc *, int);
+static void dc_netcfg_wait(struct dc_softc *);
 static uint32_t dc_mchash_le(struct dc_softc *, const uint8_t *);
 static uint32_t dc_mchash_be(const uint8_t *);
 static void dc_setfilt_21143(struct dc_softc *);
@@ -1371,6 +1372,32 @@ dc_setfilt(struct dc_softc *sc)
 		dc_setfilt_xircom(sc);
 }
 
+static void
+dc_netcfg_wait(struct dc_softc *sc)
+{
+	uint32_t isr;
+	int i;
+
+	for (i = 0; i < DC_TIMEOUT; i++) {
+		isr = CSR_READ_4(sc, DC_ISR);
+		if (isr & DC_ISR_TX_IDLE &&
+		    ((isr & DC_ISR_RX_STATE) == DC_RXSTATE_STOPPED ||
+		    (isr & DC_ISR_RX_STATE) == DC_RXSTATE_WAIT))
+			break;
+		DELAY(10);
+	}
+	if (i == DC_TIMEOUT) {
+		if (!(isr & DC_ISR_TX_IDLE) && !DC_IS_ASIX(sc))
+			device_printf(sc->dc_dev,
+			    "%s: failed to force tx to idle state\n", __func__);
+		if (!((isr & DC_ISR_RX_STATE) == DC_RXSTATE_STOPPED ||
+		    (isr & DC_ISR_RX_STATE) == DC_RXSTATE_WAIT) &&
+		    !DC_HAS_BROKEN_RXSTATE(sc))
+			device_printf(sc->dc_dev,
+			    "%s: failed to force rx to idle state\n", __func__);
+	}
+}
+
 /*
  * In order to fiddle with the 'full-duplex' and '100Mbps' bits in
  * the netconfig register, we first have to put the transmit and/or
@@ -1379,8 +1406,7 @@ dc_setfilt(struct dc_softc *sc)
 static void
 dc_setcfg(struct dc_softc *sc, int media)
 {
-	int i, restart = 0, watchdogreg;
-	uint32_t isr;
+	int restart = 0, watchdogreg;
 
 	if (IFM_SUBTYPE(media) == IFM_NONE)
 		return;
@@ -1388,28 +1414,7 @@ dc_setcfg(struct dc_softc *sc, int media)
 	if (CSR_READ_4(sc, DC_NETCFG) & (DC_NETCFG_TX_ON | DC_NETCFG_RX_ON)) {
 		restart = 1;
 		DC_CLRBIT(sc, DC_NETCFG, (DC_NETCFG_TX_ON | DC_NETCFG_RX_ON));
-
-		for (i = 0; i < DC_TIMEOUT; i++) {
-			isr = CSR_READ_4(sc, DC_ISR);
-			if (isr & DC_ISR_TX_IDLE &&
-			    ((isr & DC_ISR_RX_STATE) == DC_RXSTATE_STOPPED ||
-			    (isr & DC_ISR_RX_STATE) == DC_RXSTATE_WAIT))
-				break;
-			DELAY(10);
-		}
-
-		if (i == DC_TIMEOUT) {
-			if (!(isr & DC_ISR_TX_IDLE) && !DC_IS_ASIX(sc))
-				device_printf(sc->dc_dev,
-				    "%s: failed to force tx to idle state\n",
-				    __func__);
-			if (!((isr & DC_ISR_RX_STATE) == DC_RXSTATE_STOPPED ||
-			    (isr & DC_ISR_RX_STATE) == DC_RXSTATE_WAIT) &&
-			    !DC_HAS_BROKEN_RXSTATE(sc))
-				device_printf(sc->dc_dev,
-				    "%s: failed to force rx to idle state\n",
-				    __func__);
-		}
+		dc_netcfg_wait(sc);
 	}
 
 	if (IFM_SUBTYPE(media) == IFM_100_TX) {
@@ -3916,7 +3921,7 @@ dc_stop(struct dc_softc *sc)
 	struct dc_list_data *ld;
 	struct dc_chain_data *cd;
 	int i;
-	uint32_t ctl;
+	uint32_t ctl, netcfg;
 
 	DC_LOCK_ASSERT(sc);
 
@@ -3927,14 +3932,21 @@ dc_stop(struct dc_softc *sc)
 	callout_stop(&sc->dc_stat_ch);
 	callout_stop(&sc->dc_wdog_ch);
 	sc->dc_wdog_timer = 0;
+	sc->dc_link = 0;
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
-	DC_CLRBIT(sc, DC_NETCFG, (DC_NETCFG_RX_ON | DC_NETCFG_TX_ON));
+	netcfg = CSR_READ_4(sc, DC_NETCFG);
+	if (netcfg & (DC_NETCFG_RX_ON | DC_NETCFG_TX_ON))
+		CSR_WRITE_4(sc, DC_NETCFG,
+		   netcfg & ~(DC_NETCFG_RX_ON | DC_NETCFG_TX_ON));
 	CSR_WRITE_4(sc, DC_IMR, 0x00000000);
+	/* Wait the completion of TX/RX SM. */
+	if (netcfg & (DC_NETCFG_RX_ON | DC_NETCFG_TX_ON))
+		dc_netcfg_wait(sc);
+
 	CSR_WRITE_4(sc, DC_TXADDR, 0x00000000);
 	CSR_WRITE_4(sc, DC_RXADDR, 0x00000000);
-	sc->dc_link = 0;
 
 	/*
 	 * Free data in the RX lists.
