@@ -486,11 +486,11 @@
 /*
  * Resource Limits privileges.
  */
-#define	PRIV_RCTL_GET_RULES	670
-#define	PRIV_RCTL_ADD_RULE	671
-#define	PRIV_RCTL_REMOVE_RULE	672
-#define	PRIV_RCTL_GET_USAGE	673
-#define	PRIV_RCTL_GET_LIMITS	674
+#define	PRIV_RCTL_GET_RACCT	670
+#define	PRIV_RCTL_GET_RULES	671
+#define	PRIV_RCTL_GET_LIMITS	672
+#define	PRIV_RCTL_ADD_RULE	673
+#define	PRIV_RCTL_REMOVE_RULE	674
 
 /*
  * Track end of privilege list.
