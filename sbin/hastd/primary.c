@@ -509,7 +509,7 @@ primary_connect(struct hast_resource *res, struct proto_conn **connp)
 		primary_exit(EX_TEMPFAIL,
 		    "Unable to receive connection from parent");
 	}
-	if (proto_connect_wait(conn, HAST_TIMEOUT) < 0) {
+	if (proto_connect_wait(conn, res->hr_timeout) < 0) {
 		pjdlog_errno(LOG_WARNING, "Unable to connect to %s",
 		    res->hr_remoteaddr);
 		proto_close(conn);
@@ -701,6 +701,11 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		(void)hast_activemap_flush(res);
 	}
 	nv_free(nvin);
+	/* Setup directions. */
+	if (proto_send(out, NULL, 0) == -1)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
+	if (proto_recv(in, NULL, 0) == -1)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
 	pjdlog_info("Connected to %s.", res->hr_remoteaddr);
 	if (inp != NULL && outp != NULL) {
 		*inp = in;
@@ -761,7 +766,7 @@ init_ggate(struct hast_resource *res)
 	ggiocreate.gctl_mediasize = res->hr_datasize;
 	ggiocreate.gctl_sectorsize = res->hr_local_sectorsize;
 	ggiocreate.gctl_flags = 0;
-	ggiocreate.gctl_maxcount = G_GATE_MAX_QUEUE_SIZE;
+	ggiocreate.gctl_maxcount = 0;
 	ggiocreate.gctl_timeout = 0;
 	ggiocreate.gctl_unit = G_GATE_NAME_GIVEN;
 	snprintf(ggiocreate.gctl_name, sizeof(ggiocreate.gctl_name), "hast/%s",
@@ -868,7 +873,7 @@ hastd_primary(struct hast_resource *res)
 	pjdlog_init(mode);
 	pjdlog_debug_set(debuglevel);
 	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
-	setproctitle("%s (primary)", res->hr_name);
+	setproctitle("%s (%s)", res->hr_name, role2str(res->hr_role));
 
 	init_local(res);
 	init_ggate(res);
