@@ -470,7 +470,7 @@ activemap_copyin(struct activemap *amp, const unsigned char *buf, size_t size)
 }
 
 /*
- * Function merges the given bitmap with existng one.
+ * Function merges the given bitmap with existing one.
  */
 void
 activemap_merge(struct activemap *amp, const unsigned char *buf, size_t size)
