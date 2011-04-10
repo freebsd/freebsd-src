@@ -903,15 +903,19 @@ loop:
 void
 proc_reparent(struct proc *child, struct proc *parent)
 {
+	int locked;
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
 	PROC_LOCK_ASSERT(child, MA_OWNED);
 	if (child->p_pptr == parent)
 		return;
 
-	PROC_LOCK(parent);
+	locked = PROC_LOCKED(parent);
+	if (!locked)
+		PROC_LOCK(parent);
 	racct_add_force(parent, RACCT_NPROC, 1);
-	PROC_UNLOCK(parent);
+	if (!locked)
+		PROC_UNLOCK(parent);
 	PROC_LOCK(child->p_pptr);
 	racct_sub(child->p_pptr, RACCT_NPROC, 1);
 	sigqueue_take(child->p_ksi);
