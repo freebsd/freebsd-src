@@ -153,17 +153,17 @@ The release makefile
 is fairly abstruse.
 Most developers will only be concerned with the
 .Cm release
-target.
+and
+.Cm install
+targets.
 .\" XXX: Some sort of introduction to this list?  All the others have one.
 .Bl -tag -width ".Cm packagesystem"
 .It Cm release
 Meta-target to build all release media and distributions applicable to this
-platform. All output goes to
-.Pa ${.OBJDIR} ,
-which will likely be either
-.Pa src/release
-or the equivalent path in
-.Pa /usr/obj .
+platform.
+.It Cm install
+Copy all produced release media to 
+.Pa ${DESTDIR} .
 .It Cm cdrom
 Builds installation CD-ROM images. On some systems, this may require that
 .Xr mkisofs 8
@@ -173,8 +173,10 @@ and possibly that the
 .Xr md 4
 (memory disk) device driver be present in the kernel
 (either by being compiled in or available as a module). This target
-produces a file called
+produces files called
 .Pa release.iso
+and
+.Pa bootonly.iso
 as its output.
 .It Cm memstick
 Builds an installation memory stick image named
@@ -293,12 +295,12 @@ svn co svn://svn.freebsd.org/base/head src
 cd src
 make buildworld
 cd release
-make obj release 
+make release install DESTDIR=/var/freebsd-snapshot
 .Ed
 .Pp
-After running these commands, a complete system suitable for FTP or
-CD-ROM distribution is available in the
-.Pa /usr/obj/usr/src/release
+After running these commands, all produced distribution files (tarballs
+for FTP, CD-ROM images, etc.) are available in the
+.Pa /var/freebsd-snapshot
 directory.
 .Pp
 The following sequence of commands can be used to build a
