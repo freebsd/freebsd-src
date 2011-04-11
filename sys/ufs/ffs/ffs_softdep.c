@@ -815,9 +815,19 @@ static	void cancel_jnewblk(struct jnewblk *, struct workhead *);
 static	int cancel_jaddref(struct jaddref *, struct inodedep *,
 	    struct workhead *);
 static	void cancel_jfreefrag(struct jfreefrag *);
+static	inline void setup_freedirect(struct freeblks *, struct inode *,
+	    int, int);
+static	inline void setup_freeext(struct freeblks *, struct inode *, int, int);
+static	inline void setup_freeindir(struct freeblks *, struct inode *, int i,
+	    ufs_lbn_t, int);
+static	inline struct freeblks *newfreeblks(struct mount *, struct inode *);
 static	void indir_trunc(struct freework *, ufs2_daddr_t, ufs_lbn_t);
-static	int deallocate_dependencies(struct buf *, struct inodedep *,
+static	void softdep_trunc_deps(struct vnode *, struct freeblks *, ufs_lbn_t,
+	    int, int);
+static 	int cancel_pagedep(struct pagedep *, struct inodedep *,
 	    struct freeblks *);
+static	int deallocate_dependencies(struct buf *, struct inodedep *,
+	    struct freeblks *, int off);
 static	void free_newblk(struct newblk *);
 static	void cancel_allocdirect(struct allocdirectlst *,
 	    struct allocdirect *, struct freeblks *, int);
@@ -1114,7 +1124,6 @@ static struct callout softdep_callout;
 static int req_pending;
 static int req_clear_inodedeps;	/* syncer process flush some inodedeps */
 static int req_clear_remove;	/* syncer process flush some freeblks */
-static long num_freeblkdep;	/* number of freeblks workitems allocated */
 
 /*
  * runtime statistics
@@ -1832,7 +1841,6 @@ pagedep_lookup(mp, ino, lbn, flags, pagedeppp)
  */
 LIST_HEAD(inodedep_hashhead, inodedep) *inodedep_hashtbl;
 static u_long	inodedep_hash;	/* size of hash table - 1 */
-static long	num_inodedep;	/* number of inodedep allocated */
 #define	INODEDEP_HASH(fs, inum) \
       (&inodedep_hashtbl[((((register_t)(fs)) >> 13) + (inum)) & inodedep_hash])
 
@@ -1884,7 +1892,7 @@ inodedep_lookup(mp, inum, flags, inodedeppp)
 	/*
 	 * If we are over our limit, try to improve the situation.
 	 */
-	if (num_inodedep > max_softdeps && (flags & NODELAY) == 0)
+	if (dep_current[D_INODEDEP] > max_softdeps && (flags & NODELAY) == 0)
 		request_cleanup(mp, FLUSH_INODES);
 	FREE_LOCK(&lk);
 	inodedep = malloc(sizeof(struct inodedep),
@@ -1895,7 +1903,6 @@ inodedep_lookup(mp, inum, flags, inodedeppp)
 		WORKITEM_FREE(inodedep, D_INODEDEP);
 		return (1);
 	}
-	num_inodedep += 1;
 	inodedep->id_fs = fs;
 	inodedep->id_ino = inum;
 	inodedep->id_state = ALLCOMPLETE;
@@ -2472,7 +2479,7 @@ journal_space(ump, thresh)
 	 * We use a tighter restriction here to prevent request_cleanup()
 	 * running in threads from running into locks we currently hold.
 	 */
-	if (num_inodedep > (max_softdeps / 10) * 9)
+	if (dep_current[D_INODEDEP] > (max_softdeps / 10) * 9)
 		return (0);
 	if (thresh)
 		thresh = jblocks->jb_min;
@@ -5340,6 +5347,83 @@ allocindir_merge(aip, oldaip)
 	return (freefrag);
 }
 
+static inline void
+setup_freedirect(freeblks, ip, i, needj)
+	struct freeblks *freeblks;
+	struct inode *ip;
+	int i;
+	int needj;
+{
+	ufs2_daddr_t blkno;
+	int frags;
+
+	blkno = DIP(ip, i_db[i]);
+	if (blkno == 0)
+		return;
+	DIP_SET(ip, i_db[i], 0);
+	frags = sblksize(ip->i_fs, ip->i_size, i);
+	frags = numfrags(ip->i_fs, frags);
+	newfreework(ip->i_ump, freeblks, NULL, i, blkno, frags, needj);
+}
+
+static inline void
+setup_freeext(freeblks, ip, i, needj)
+	struct freeblks *freeblks;
+	struct inode *ip;
+	int i;
+	int needj;
+{
+	ufs2_daddr_t blkno;
+	int frags;
+
+	blkno = ip->i_din2->di_extb[i];
+	if (blkno == 0)
+		return;
+	ip->i_din2->di_extb[i] = 0;
+	frags = sblksize(ip->i_fs, ip->i_din2->di_extsize, i);
+	frags = numfrags(ip->i_fs, frags);
+	newfreework(ip->i_ump, freeblks, NULL, -1 - i, blkno, frags, needj);
+}
+
+static inline void
+setup_freeindir(freeblks, ip, i, lbn, needj)
+	struct freeblks *freeblks;
+	struct inode *ip;
+	ufs_lbn_t lbn;
+	int i;
+	int needj;
+{
+	ufs2_daddr_t blkno;
+
+	blkno = DIP(ip, i_ib[i]);
+	if (blkno == 0)
+		return;
+	DIP_SET(ip, i_ib[i], 0);
+	newfreework(ip->i_ump, freeblks, NULL, lbn, blkno, ip->i_fs->fs_frag,
+	    needj);
+}
+
+static inline struct freeblks *
+newfreeblks(mp, ip)
+	struct mount *mp;
+	struct inode *ip;
+{
+	struct freeblks *freeblks;
+
+	freeblks = malloc(sizeof(struct freeblks),
+		M_FREEBLKS, M_SOFTDEP_FLAGS|M_ZERO);
+	workitem_alloc(&freeblks->fb_list, D_FREEBLKS, mp);
+	LIST_INIT(&freeblks->fb_jfreeblkhd);
+	LIST_INIT(&freeblks->fb_jwork);
+	freeblks->fb_state = ATTACHED;
+	freeblks->fb_uid = ip->i_uid;
+	freeblks->fb_previousinum = ip->i_number;
+	freeblks->fb_devvp = ip->i_devvp;
+	freeblks->fb_chkcnt = 0;
+
+	return (freeblks);
+}
+
 /*
  * Block de-allocation dependencies.
  * 
@@ -5381,35 +5465,20 @@ softdep_setup_freeblocks(ip, length, flags)
 	struct inodedep *inodedep;
 	struct allocdirect *adp;
 	struct jfreeblk *jfreeblk;
-	struct bufobj *bo;
-	struct vnode *vp;
 	struct buf *bp;
 	struct fs *fs;
 	ufs2_daddr_t extblocks, datablocks;
 	struct mount *mp;
 	int i, delay, error;
-	ufs2_daddr_t blkno;
 	ufs_lbn_t tmpval;
 	ufs_lbn_t lbn;
-	long oldextsize;
-	long oldsize;
-	int frags;
 	int needj;
 
 	fs = ip->i_fs;
 	mp = UFSTOVFS(ip->i_ump);
 	if (length != 0)
 		panic("softdep_setup_freeblocks: non-zero length");
-	freeblks = malloc(sizeof(struct freeblks),
-		M_FREEBLKS, M_SOFTDEP_FLAGS|M_ZERO);
-	workitem_alloc(&freeblks->fb_list, D_FREEBLKS, mp);
-	LIST_INIT(&freeblks->fb_jfreeblkhd);
-	LIST_INIT(&freeblks->fb_jwork);
-	freeblks->fb_state = ATTACHED;
-	freeblks->fb_uid = ip->i_uid;
-	freeblks->fb_previousinum = ip->i_number;
-	freeblks->fb_devvp = ip->i_devvp;
-	freeblks->fb_chkcnt = 0;
+	freeblks = newfreeblks(mp, ip);
 	ACQUIRE_LOCK(&lk);
 	/*
 	 * If we're truncating a removed file that will never be written
@@ -5422,54 +5491,29 @@ softdep_setup_freeblocks(ip, length, flags)
 		needj = 0;
 	else
 		needj = 1;
-	num_freeblkdep++;
 	FREE_LOCK(&lk);
 	extblocks = 0;
 	if (fs->fs_magic == FS_UFS2_MAGIC)
 		extblocks = btodb(fragroundup(fs, ip->i_din2->di_extsize));
 	datablocks = DIP(ip, i_blocks) - extblocks;
 	if ((flags & IO_NORMAL) != 0) {
-		oldsize = ip->i_size;
+		for (i = 0; i < NDADDR; i++)
+			setup_freedirect(freeblks, ip, i, needj);
+		for (i = 0, tmpval = NINDIR(fs), lbn = NDADDR; i < NIADDR;
+		    i++, lbn += tmpval, tmpval *= NINDIR(fs))
+			setup_freeindir(freeblks, ip, i, -lbn -i, needj);
 		ip->i_size = 0;
 		DIP_SET(ip, i_size, 0);
 		freeblks->fb_chkcnt = datablocks;
-		for (i = 0; i < NDADDR; i++) {
-			blkno = DIP(ip, i_db[i]);
-			DIP_SET(ip, i_db[i], 0);
-			if (blkno == 0)
-				continue;
-			frags = sblksize(fs, oldsize, i);
-			frags = numfrags(fs, frags);
-			newfreework(ip->i_ump, freeblks, NULL, i, blkno, frags,
-			    needj);
-		}
-		for (i = 0, tmpval = NINDIR(fs), lbn = NDADDR; i < NIADDR;
-		    i++, tmpval *= NINDIR(fs)) {
-			blkno = DIP(ip, i_ib[i]);
-			DIP_SET(ip, i_ib[i], 0);
-			if (blkno)
-				newfreework(ip->i_ump, freeblks, NULL, -lbn - i,
-				    blkno, fs->fs_frag, needj);
-			lbn += tmpval;
-		}
 		UFS_LOCK(ip->i_ump);
 		fs->fs_pendingblocks += datablocks;
 		UFS_UNLOCK(ip->i_ump);
 	}
 	if ((flags & IO_EXT) != 0) {
-		oldextsize = ip->i_din2->di_extsize;
+		for (i = 0; i < NXADDR; i++)
+			setup_freeext(freeblks, ip, i, needj);
 		ip->i_din2->di_extsize = 0;
 		freeblks->fb_chkcnt += extblocks;
-		for (i = 0; i < NXADDR; i++) {
-			blkno = ip->i_din2->di_extb[i];
-			ip->i_din2->di_extb[i] = 0;
-			if (blkno == 0)
-				continue;
-			frags = sblksize(fs, oldextsize, i);
-			frags = numfrags(fs, frags);
-			newfreework(ip->i_ump, freeblks, NULL, -1 - i, blkno,
-			    frags, needj);
-		}
 	}
 	if (LIST_EMPTY(&freeblks->fb_jfreeblkhd))
 		needj = 0;
@@ -5543,35 +5587,7 @@ softdep_setup_freeblocks(ip, length, flags)
 
 	FREE_LOCK(&lk);
 	bdwrite(bp);
-	/*
-	 * We must wait for any I/O in progress to finish so that
-	 * all potential buffers on the dirty list will be visible.
-	 * Once they are all there, walk the list and get rid of
-	 * any dependencies.
-	 */
-	vp = ITOV(ip);
-	bo = &vp->v_bufobj;
-	BO_LOCK(bo);
-	drain_output(vp);
-restart:
-	TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs) {
-		if (((flags & IO_EXT) == 0 && (bp->b_xflags & BX_ALTDATA)) ||
-		    ((flags & IO_NORMAL) == 0 &&
-		      (bp->b_xflags & BX_ALTDATA) == 0))
-			continue;
-		if ((bp = getdirtybuf(bp, BO_MTX(bo), MNT_WAIT)) == NULL)
-			goto restart;
-		BO_UNLOCK(bo);
-		ACQUIRE_LOCK(&lk);
-		(void) inodedep_lookup(mp, ip->i_number, 0, &inodedep);
-		if (deallocate_dependencies(bp, inodedep, freeblks))
-			bp->b_flags |= B_INVAL | B_NOCACHE;
-		FREE_LOCK(&lk);
-		brelse(bp);
-		BO_LOCK(bo);
-		goto restart;
-	}
-	BO_UNLOCK(bo);
+	softdep_trunc_deps(ITOV(ip), freeblks, 0, 0, flags);
 	ACQUIRE_LOCK(&lk);
 	if (inodedep_lookup(mp, ip->i_number, 0, &inodedep) != 0)
 		(void) free_inodedep(inodedep);
@@ -5603,6 +5619,122 @@ restart:
 }
 
 /*
+ * Eliminate any dependencies that exist in memory beyond lblkno:off
+ */
+static void
+softdep_trunc_deps(vp, freeblks, lblkno, off, flags)
+	struct vnode *vp;
+	struct freeblks *freeblks;
+	ufs_lbn_t lblkno;
+	int off;
+	int flags;
+{
+	struct inodedep *inodedep;
+	struct bufobj *bo;
+	struct buf *bp;
+	struct mount *mp;
+	ino_t ino;
+
+	/*
+	 * We must wait for any I/O in progress to finish so that
+	 * all potential buffers on the dirty list will be visible.
+	 * Once they are all there, walk the list and get rid of
+	 * any dependencies.
+	 */
+	ino = VTOI(vp)->i_number;
+	mp = vp->v_mount;
+	bo = &vp->v_bufobj;
+	BO_LOCK(bo);
+	drain_output(vp);
+restart:
+	TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs) {
+		if (((flags & IO_EXT) == 0 && (bp->b_xflags & BX_ALTDATA)) ||
+		    ((flags & IO_NORMAL) == 0 &&
+		      (bp->b_xflags & BX_ALTDATA) == 0))
+			continue;
+		if ((bp = getdirtybuf(bp, BO_MTX(bo), MNT_WAIT)) == NULL)
+			goto restart;
+		BO_UNLOCK(bo);
+		ACQUIRE_LOCK(&lk);
+		(void) inodedep_lookup(mp, ino, 0, &inodedep);
+		if (deallocate_dependencies(bp, inodedep, freeblks, 0))
+			bp->b_flags |= B_INVAL | B_NOCACHE;
+		FREE_LOCK(&lk);
+		brelse(bp);
+		BO_LOCK(bo);
+		goto restart;
+	}
+	BO_UNLOCK(bo);
+}
+
+static int
+cancel_pagedep(pagedep, inodedep, freeblks)
+	struct pagedep *pagedep;
+	struct inodedep *inodedep;
+	struct freeblks *freeblks;
+{
+	struct newdirblk *newdirblk;
+	struct jremref *jremref;
+	struct jmvref *jmvref;
+	struct dirrem *dirrem;
+	int i;
+
+	/*
+	 * There should be no directory add dependencies present
+	 * as the directory could not be truncated until all
+	 * children were removed.
+	 */
+	KASSERT(LIST_FIRST(&pagedep->pd_pendinghd) == NULL,
+	    ("deallocate_dependencies: pendinghd != NULL"));
+	for (i = 0; i < DAHASHSZ; i++)
+		KASSERT(LIST_FIRST(&pagedep->pd_diraddhd[i]) == NULL,
+		    ("deallocate_dependencies: diraddhd != NULL"));
+	/*
+	 * Copy any directory remove dependencies to the list
+	 * to be processed after the zero'ed inode is written.
+	 * If the inode has already been written, then they 
+	 * can be dumped directly onto the work list.
+	 */
+	LIST_FOREACH(dirrem, &pagedep->pd_dirremhd, dm_next) {
+		/*
+		 * If there are any dirrems we wait for
+		 * the journal write to complete and
+		 * then restart the buf scan as the lock
+		 * has been dropped.
+		 */
+		while ((jremref = LIST_FIRST(&dirrem->dm_jremrefhd))
+		    != NULL) {
+			stat_jwait_filepage++;
+			jwait(&jremref->jr_list);
+			return (ERESTART);
+		}
+		LIST_REMOVE(dirrem, dm_next);
+		dirrem->dm_dirinum = pagedep->pd_ino;
+		if (inodedep == NULL ||
+		    (inodedep->id_state & ALLCOMPLETE) == ALLCOMPLETE) {
+			dirrem->dm_state |= COMPLETE;
+			add_to_worklist(&dirrem->dm_list, 0);
+		} else
+			WORKLIST_INSERT(&inodedep->id_bufwait,
+			    &dirrem->dm_list);
+	}
+	if ((pagedep->pd_state & NEWBLOCK) != 0) {
+		newdirblk = pagedep->pd_newdirblk;
+		WORKLIST_REMOVE(&newdirblk->db_list);
+		free_newdirblk(newdirblk);
+	}
+	while ((jmvref = LIST_FIRST(&pagedep->pd_jmvrefhd)) != NULL) {
+		stat_jwait_filepage++;
+		jwait(&jmvref->jm_list);
+		return (ERESTART);
+	}
+	WORKLIST_REMOVE(&pagedep->pd_list);
+	LIST_REMOVE(pagedep, pd_hash);
+	WORKITEM_FREE(pagedep, D_PAGEDEP);
+	return (0);
+}
+
+/*
  * Reclaim any dependency structures from a buffer that is about to
  * be reallocated to a new vnode. The buffer must be locked, thus,
  * no I/O completion operations can occur while we are manipulating
@@ -5611,20 +5743,16 @@ restart:
  * all dependencies were cleared, 0 otherwise.
  */
 static int
-deallocate_dependencies(bp, inodedep, freeblks)
+deallocate_dependencies(bp, inodedep, freeblks, off)
 	struct buf *bp;
 	struct inodedep *inodedep;
 	struct freeblks *freeblks;
+	int off;
 {
 	struct worklist *wk;
 	struct indirdep *indirdep;
-	struct newdirblk *newdirblk;
 	struct allocindir *aip;
 	struct pagedep *pagedep;
-	struct jremref *jremref;
-	struct jmvref *jmvref;
-	struct dirrem *dirrem;
-	int i;
 
 	mtx_assert(&lk, MA_OWNED);
 	while ((wk = LIST_FIRST(&bp->b_dep)) != NULL) {
@@ -5640,61 +5768,8 @@ deallocate_dependencies(bp, inodedep, freeblks)
 
 		case D_PAGEDEP:
 			pagedep = WK_PAGEDEP(wk);
-			/*
-			 * There should be no directory add dependencies present
-			 * as the directory could not be truncated until all
-			 * children were removed.
-			 */
-			KASSERT(LIST_FIRST(&pagedep->pd_pendinghd) == NULL,
-			    ("deallocate_dependencies: pendinghd != NULL"));
-			for (i = 0; i < DAHASHSZ; i++)
-				KASSERT(LIST_FIRST(&pagedep->pd_diraddhd[i]) == NULL,
-				    ("deallocate_dependencies: diraddhd != NULL"));
-			/*
-			 * Copy any directory remove dependencies to the list
-			 * to be processed after the zero'ed inode is written.
-			 * If the inode has already been written, then they 
-			 * can be dumped directly onto the work list.
-			 */
-			LIST_FOREACH(dirrem, &pagedep->pd_dirremhd, dm_next) {
-				/*
-				 * If there are any dirrems we wait for
-				 * the journal write to complete and
-				 * then restart the buf scan as the lock
-				 * has been dropped.
-				 */
-				while ((jremref =
-				    LIST_FIRST(&dirrem->dm_jremrefhd))
-				    != NULL) {
-					stat_jwait_filepage++;
-					jwait(&jremref->jr_list);
-					return (0);
-				}
-				LIST_REMOVE(dirrem, dm_next);
-				dirrem->dm_dirinum = pagedep->pd_ino;
-				if (inodedep == NULL ||
-				    (inodedep->id_state & ALLCOMPLETE) ==
-				     ALLCOMPLETE) {
-					dirrem->dm_state |= COMPLETE;
-					add_to_worklist(&dirrem->dm_list, 0);
-				} else
-					WORKLIST_INSERT(&inodedep->id_bufwait,
-					    &dirrem->dm_list);
-			}
-			if ((pagedep->pd_state & NEWBLOCK) != 0) {
-				newdirblk = pagedep->pd_newdirblk;
-				WORKLIST_REMOVE(&newdirblk->db_list);
-				free_newdirblk(newdirblk);
-			}
-			while ((jmvref = LIST_FIRST(&pagedep->pd_jmvrefhd))
-			    != NULL) {
-				stat_jwait_filepage++;
-				jwait(&jmvref->jm_list);
+			if (cancel_pagedep(pagedep, inodedep, freeblks))
 				return (0);
-			}
-			WORKLIST_REMOVE(&pagedep->pd_list);
-			LIST_REMOVE(pagedep, pd_hash);
-			WORKITEM_FREE(pagedep, D_PAGEDEP);
 			continue;
 
 		case D_ALLOCINDIR:
@@ -6087,7 +6162,6 @@ free_inodedep(inodedep)
 		LIST_REMOVE(inodedep, id_deps);
 	LIST_REMOVE(inodedep, id_hash);
 	WORKITEM_FREE(inodedep, D_INODEDEP);
-	num_inodedep -= 1;
 	return (1);
 }
 
@@ -6326,7 +6400,6 @@ handle_complete_freeblocks(freeblks)
 	 */
 	handle_jwork(&freeblks->fb_jwork);
 	WORKITEM_FREE(freeblks, D_FREEBLKS);
-	num_freeblkdep--;
 	FREE_LOCK(&lk);
 }
 
@@ -7397,7 +7470,6 @@ dirrem_journal(dirrem, jremref, dotremref, dotdotremref)
  * Allocate a new dirrem if appropriate and return it along with
  * its associated pagedep. Called without a lock, returns with lock.
  */
-static long num_dirrem;		/* number of dirrem allocated */
 static struct dirrem *
 newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	struct buf *bp;		/* buffer containing directory block */
@@ -7428,9 +7500,9 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	 * the number of freefile and freeblks structures.
 	 */
 	ACQUIRE_LOCK(&lk);
-	if (!(ip->i_flags & SF_SNAPSHOT) && num_dirrem > max_softdeps / 2)
+	if (!(ip->i_flags & SF_SNAPSHOT) &&
+	    dep_current[D_DIRREM] > max_softdeps / 2)
 		(void) request_cleanup(ITOV(dp)->v_mount, FLUSH_BLOCKS);
-	num_dirrem += 1;
 	FREE_LOCK(&lk);
 	dirrem = malloc(sizeof(struct dirrem),
 		M_DIRREM, M_SOFTDEP_FLAGS|M_ZERO);
@@ -8086,7 +8158,6 @@ handle_workitem_remove(dirrem, xp)
 		if (ip->i_nlink == 0) 
 			unlinked_inodedep(mp, inodedep);
 		inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
-		num_dirrem -= 1;
 		KASSERT(LIST_EMPTY(&dirrem->dm_jwork),
 		    ("handle_workitem_remove: worklist not empty. %s",
 		    TYPENAME(LIST_FIRST(&dirrem->dm_jwork)->wk_type)));
@@ -8116,7 +8187,6 @@ handle_workitem_remove(dirrem, xp)
 	if (dirrem->dm_state & DIRCHG) {
 		KASSERT(LIST_EMPTY(&dirrem->dm_jwork),
 		    ("handle_workitem_remove: DIRCHG and worklist not empty."));
-		num_dirrem -= 1;
 		WORKITEM_FREE(dirrem, D_DIRREM);
 		FREE_LOCK(&lk);
 		goto out;
@@ -11156,10 +11226,10 @@ softdep_slowdown(vp)
 			jlow = 1;
 	}
 	max_softdeps_hard = max_softdeps * 11 / 10;
-	if (num_dirrem < max_softdeps_hard / 2 &&
-	    num_inodedep < max_softdeps_hard &&
+	if (dep_current[D_DIRREM] < max_softdeps_hard / 2 &&
+	    dep_current[D_INODEDEP] < max_softdeps_hard &&
 	    VFSTOUFS(vp->v_mount)->um_numindirdeps < maxindirdeps &&
-	    num_freeblkdep < max_softdeps_hard && jlow == 0) {
+	    dep_current[D_FREEBLKS] < max_softdeps_hard && jlow == 0) {
 		FREE_LOCK(&lk);
   		return (0);
 	}
