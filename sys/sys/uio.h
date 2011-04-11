@@ -94,6 +94,8 @@ int	copyiniov(struct iovec *iovp, u_int iovcnt, struct iovec **iov,
 int	copyinstrfrom(const void * __restrict src, void * __restrict dst,
 	    size_t len, size_t * __restrict copied, int seg);
 int	copyinuio(struct iovec *iovp, u_int iovcnt, struct uio **uiop);
+int	copyout_map(struct thread *td, vm_offset_t *addr, size_t sz);
+int	copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz);
 void	uio_yield(void);
 int	uiomove(void *cp, int n, struct uio *uio);
 int	uiomove_frombuf(void *buf, int buflen, struct uio *uio);
