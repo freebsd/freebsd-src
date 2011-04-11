@@ -246,40 +246,50 @@ getit(void)
 }
 
 #ifndef DELAYDEBUG
-static __inline void
-delay_tsc(int n, uint64_t freq)
+static u_int
+get_tsc(__unused struct timecounter *tc)
 {
-	uint64_t start, end, now;
 
-	sched_pin();
-	start = rdtsc();
-	end = start + (freq * n) / 1000000;
-	do {
-		cpu_spinwait();
-		now = rdtsc();
-	} while (now < end || (now > start && end < start));
-	sched_unpin();
+	return (rdtsc());
 }
 
-static __inline void
-delay_timecounter(struct timecounter *tc, int n)
+static __inline int
+delay_tc(int n)
 {
-	uint64_t end, now;
+	struct timecounter *tc;
+	timecounter_get_t *func;
+	uint64_t end, freq, now;
 	u_int last, mask, u;
 
-	mask = tc->tc_counter_mask;
-	last = tc->tc_get_timecount(tc) & mask;
-	end = tc->tc_frequency * n / 1000000;
+	tc = timecounter;
+	freq = atomic_load_acq_64(&tsc_freq);
+	if (freq != 0) {
+		func = get_tsc;
+		mask = ~0u;
+	} else {
+		if (tc->tc_quality <= 0)
+			return (0);
+		func = tc->tc_get_timecount;
+		mask = tc->tc_counter_mask;
+		freq = tc->tc_frequency;
+	}
 	now = 0;
+	end = freq * n / 1000000;
+	if (func == get_tsc)
+		sched_pin();
+	last = func(tc) & mask;
 	do {
 		cpu_spinwait();
-		u = tc->tc_get_timecount(tc) & mask;
+		u = func(tc) & mask;
 		if (u < last)
 			now += mask - last + u + 1;
 		else
 			now += u - last;
 		last = u;
 	} while (now < end);
+	if (func == get_tsc)
+		sched_unpin();
+	return (1);
 }
 #endif
 
@@ -306,19 +316,8 @@ DELAY(int n)
 	if (state == 1)
 		printf("DELAY(%d)...", n);
 #else
-	struct timecounter *tc;
-	uint64_t freq;
-
-	freq = atomic_load_acq_64(&tsc_freq);
-	if (freq != 0) {
-		delay_tsc(n, freq);
+	if (delay_tc(n))
 		return;
-	}
-	tc = timecounter;
-	if (tc->tc_quality > 0) {
-		delay_timecounter(tc, n);
-		return;
-	}
 #endif
 	/*
 	 * Read the counter first, so that the rest of the setup overhead is
