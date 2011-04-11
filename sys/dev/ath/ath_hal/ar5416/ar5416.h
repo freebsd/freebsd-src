@@ -37,6 +37,19 @@ typedef struct {
 	uint16_t	ext_center;
 } CHAN_CENTERS;
 
+typedef enum Ar5416_Rates {
+        rate6mb,  rate9mb,  rate12mb, rate18mb,
+        rate24mb, rate36mb, rate48mb, rate54mb,
+        rate1l,   rate2l,   rate2s,   rate5_5l,
+        rate5_5s, rate11l,  rate11s,  rateXr,
+        rateHt20_0, rateHt20_1, rateHt20_2, rateHt20_3,
+        rateHt20_4, rateHt20_5, rateHt20_6, rateHt20_7,
+        rateHt40_0, rateHt40_1, rateHt40_2, rateHt40_3,
+        rateHt40_4, rateHt40_5, rateHt40_6, rateHt40_7,
+        rateDupCck, rateDupOfdm, rateExtCck, rateExtOfdm,
+        Ar5416RateSize
+} AR5416_RATES;
+
 #define	AR5416_DEFAULT_RXCHAINMASK	7
 #define	AR5416_DEFAULT_TXCHAINMASK	1
 #define	AR5416_MAX_RATE_POWER		63
