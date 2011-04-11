@@ -6,6 +6,7 @@
 #  cdrom: Builds release CD-ROM media (release.iso)
 #  ftp: Sets up FTP distribution area (ftp)
 #  release: Build all media and FTP distribution area
+#  install: Copies all release media into ${DESTDIR}
 #
 # Variables affecting the build process:
 #  WORLDDIR: location of src tree -- must have built world and default kernel
@@ -159,22 +160,26 @@ memstick: system
 
 packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
 	sh ${.CURDIR}/scripts/make-manifest.sh ${.OBJDIR}/*.txz > ${.OBJDIR}/MANIFEST
-	touch ${.OBJDIR}/${.TARGET}
+	touch ${.TARGET}
 
 cdrom: release.iso bootonly.iso
 ftp: packagesystem
-	rm -rf ${.OBJDIR}/ftp
-	mkdir ${.OBJDIR}/ftp
-	cp ${.OBJDIR}/*.txz ${.OBJDIR}/MANIFEST ${.OBJDIR}/ftp
+	rm -rf ftp
+	mkdir ftp
+	cp *.txz MANIFEST ftp
 
 release: obj ${RELEASE_TARGETS}
 
 clean:
 	chflags -R noschg ${.OBJDIR}
-	rm -rf ${.OBJDIR}/dist ${.OBJDIR}/ftp
+	rm -rf dist ftp
 	rm -f packagesystem
-	rm -f ${.OBJDIR}/*.txz ${.OBJDIR}/MANIFEST
+	rm -f *.txz MANIFEST
 	rm -f system
-	rm -rf ${.OBJDIR}/release
-	rm -f ${.OBJDIR}/release.iso ${.OBJDIR}/memstick
+	rm -rf release bootonly
+	rm -f release.iso bootonly.iso memstick
+
+install:
+	-mkdir ${DESTDIR}
+	cp -a *.iso memstick ftp ${DESTDIR}/
 
