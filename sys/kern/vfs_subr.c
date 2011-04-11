@@ -89,8 +89,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 #endif
 
-static MALLOC_DEFINE(M_NETADDR, "subr_export_host", "Export host address structure");
-
 static void	delmntque(struct vnode *vp);
 static int	flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo,
 		    int slpflag, int slptimeo);
