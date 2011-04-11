@@ -295,7 +295,8 @@ svn co svn://svn.freebsd.org/base/head src
 cd src
 make buildworld
 cd release
-make release install DESTDIR=/var/freebsd-snapshot
+make release
+make install DESTDIR=/var/freebsd-snapshot
 .Ed
 .Pp
 After running these commands, all produced distribution files (tarballs
