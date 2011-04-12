@@ -42,45 +42,58 @@ __FBSDID("$FreeBSD$");
 #include <locale.h>
 #include <libutil.h>
 
+static const int maxscale = 7;
+
 int
 humanize_number(char *buf, size_t len, int64_t quotient,
     const char *suffix, int scale, int flags)
 {
 	const char *prefixes, *sep;
-	int	i, r, remainder, maxscale, s1, s2, sign;
+	int	i, r, remainder, s1, s2, sign;
 	int64_t	divisor, max;
 	size_t	baselen;
 
 	assert(buf != NULL);
 	assert(suffix != NULL);
 	assert(scale >= 0);
+	assert(scale < maxscale || (((scale & (HN_AUTOSCALE | HN_GETSCALE)) != 0)));
+	assert(!((flags & HN_DIVISOR_1000) && (flags & HN_IEC_PREFIXES)));
 
 	remainder = 0;
 
-	if (flags & HN_DIVISOR_1000) {
-		/* SI for decimal multiplies */
-		divisor = 1000;
-		if (flags & HN_B)
-			prefixes = "B\0k\0M\0G\0T\0P\0E";
-		else
-			prefixes = "\0\0k\0M\0G\0T\0P\0E";
-	} else {
+	if (flags & HN_IEC_PREFIXES) {
+		baselen = 2;
 		/*
-		 * binary multiplies
-		 * XXX IEC 60027-2 recommends Ki, Mi, Gi...
+		 * Use the prefixes for power of two recommended by
+		 * the International Electrotechnical Commission
+		 * (IEC) in IEC 80000-3 (i.e. Ki, Mi, Gi...).
+		 *
+		 * HN_IEC_PREFIXES implies a divisor of 1024 here
+		 * (use of HN_DIVISOR_1000 would have triggered
+		 * an assertion earlier).
 		 */
 		divisor = 1024;
 		if (flags & HN_B)
-			prefixes = "B\0K\0M\0G\0T\0P\0E";
+			prefixes = "B\0\0Ki\0Mi\0Gi\0Ti\0Pi\0Ei";
 		else
-			prefixes = "\0\0K\0M\0G\0T\0P\0E";
+			prefixes = "\0\0Ki\0Mi\0Gi\0Ti\0Pi\0Ei";
+	} else {
+		baselen = 1;
+		if (flags & HN_DIVISOR_1000)
+			divisor = 1000;
+		else
+			divisor = 1024;
+
+		if (flags & HN_B)
+			prefixes = "B\0\0k\0\0M\0\0G\0\0T\0\0P\0\0E";
+		else
+			prefixes = "\0\0\0k\0\0M\0\0G\0\0T\0\0P\0\0E";
 	}
 
-#define	SCALE2PREFIX(scale)	(&prefixes[(scale) << 1])
-	maxscale = 7;
+#define	SCALE2PREFIX(scale)	(&prefixes[(scale) * 3])
 
-	if (scale >= maxscale &&
-	    (scale & (HN_AUTOSCALE | HN_GETSCALE)) == 0)
+	if (scale < 0 || (scale >= maxscale &&
+	    (scale & (HN_AUTOSCALE | HN_GETSCALE)) == 0))
 		return (-1);
 
 	if (buf == NULL || suffix == NULL)
@@ -91,10 +104,10 @@ humanize_number(char *buf, size_t len, int64_t quotient,
 	if (quotient < 0) {
 		sign = -1;
 		quotient = -quotient;
-		baselen = 3;		/* sign, digit, prefix */
+		baselen += 2;		/* sign, digit */
 	} else {
 		sign = 1;
-		baselen = 2;		/* digit, prefix */
+		baselen += 1;		/* digit */
 	}
 	if (flags & HN_NOSPACE)
 		sep = "";
