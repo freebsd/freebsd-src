@@ -1078,7 +1078,7 @@ scanvars(void)
 
 	STAILQ_FOREACH(vent, &varlist, next_ve) {
 		v = vent->var;
-		if (v->flag & DSIZ) {
+		if (v->sproc != NULL) {
 			v->dwidth = v->width;
 			v->width = 0;
 		}
@@ -1098,9 +1098,9 @@ dynsizevars(KINFO *ki)
 
 	STAILQ_FOREACH(vent, &varlist, next_ve) {
 		v = vent->var;
-		if (!(v->flag & DSIZ))
+		if (v->sproc == NULL)
 			continue;
-		i = (v->sproc)( ki);
+		i = (v->sproc)(ki);
 		if (v->width < i)
 			v->width = i;
 		if (v->width > v->dwidth)
