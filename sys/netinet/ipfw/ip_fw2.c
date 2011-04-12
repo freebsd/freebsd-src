@@ -1793,10 +1793,13 @@ do {								\
 					if (mtag != NULL)
 						m_tag_delete(m, mtag);
 					match = 0;
-				} else if (mtag == NULL) {
-					if ((mtag = m_tag_alloc(MTAG_IPFW,
-					    tag, 0, M_NOWAIT)) != NULL)
-						m_tag_prepend(m, mtag);
+				} else {
+					if (mtag == NULL) {
+						mtag = m_tag_alloc( MTAG_IPFW,
+						    tag, 0, M_NOWAIT);
+						if (mtag != NULL)
+							m_tag_prepend(m, mtag);
+					}
 					match = 1;
 				}
 				break;
