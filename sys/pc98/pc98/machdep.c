@@ -1071,20 +1071,13 @@ cpu_flush_dcache(void *ptr, size_t len)
 int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
+	uint64_t tsc1, tsc2;
 	register_t reg;
-	uint64_t freq, tsc1, tsc2;
 
 	if (pcpu_find(cpu_id) == NULL || rate == NULL)
 		return (EINVAL);
 	if ((cpu_feature & CPUID_TSC) == 0)
 		return (EOPNOTSUPP);
-	freq = atomic_load_acq_64(&tsc_freq);
-
-	/* If we're booting, trust the rate calibrated moments ago. */
-	if (cold && freq != 0) {
-		*rate = freq;
-		return (0);
-	}
 
 #ifdef SMP
 	if (smp_cpus > 1) {
@@ -1101,6 +1094,7 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	DELAY(1000);
 	tsc2 = rdtsc();
 	intr_restore(reg);
+	*rate = (tsc2 - tsc1) * 1000;
 
 #ifdef SMP
 	if (smp_cpus > 1) {
@@ -1110,17 +1104,6 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	}
 #endif
 
-	tsc2 -= tsc1;
-	if (freq != 0) {
-		*rate = tsc2 * 1000;
-		return (0);
-	}
-
-	/*
-	 * Subtract 0.5% of the total.  Empirical testing has shown that
-	 * overhead in DELAY() works out to approximately this value.
-	 */
-	*rate = tsc2 * 1000 - tsc2 * 5;
 	return (0);
 }
 
