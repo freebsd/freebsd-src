@@ -546,7 +546,7 @@ int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
 	uint64_t tsc1, tsc2;
-	uint64_t acnt, mcnt;
+	uint64_t acnt, mcnt, perf;
 	register_t reg;
 
 	if (pcpu_find(cpu_id) == NULL || rate == NULL)
@@ -579,7 +579,8 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 		acnt = rdmsr(MSR_APERF);
 		tsc2 = rdtsc();
 		intr_restore(reg);
-		*rate = (tsc2 - tsc1) / 1000 * acnt / mcnt * 1000000;
+		perf = 1000 * acnt / mcnt;
+		*rate = (tsc2 - tsc1) * perf;
 	} else {
 		tsc1 = rdtsc();
 		DELAY(1000);
