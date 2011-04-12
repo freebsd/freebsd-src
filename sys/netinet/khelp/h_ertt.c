@@ -6,9 +6,9 @@
  * All rights reserved.
  *
  * This software was developed at the Centre for Advanced Internet
- * Architectures, Swinburne University, by David Hayes, made possible in part by
- * a grant from the Cisco University Research Program Fund at Community
- * Foundation Silicon Valley.
+ * Architectures, Swinburne University of Technology, by David Hayes, made
+ * possible in part by a grant from the Cisco University Research Program Fund
+ * at Community Foundation Silicon Valley.
  *
  * Portions of this software were developed at the Centre for Advanced
  * Internet Architectures, Swinburne University of Technology, Melbourne,

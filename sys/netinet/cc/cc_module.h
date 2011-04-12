@@ -3,9 +3,9 @@
  * All rights reserved.
  *
  * This software was developed by Lawrence Stewart while studying at the Centre
- * for Advanced Internet Architectures, Swinburne University, made possible in
- * part by a grant from the Cisco University Research Program Fund at Community
- * Foundation Silicon Valley.
+ * for Advanced Internet Architectures, Swinburne University of Technology, made
+ * possible in part by a grant from the Cisco University Research Program Fund
+ * at Community Foundation Silicon Valley.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,10 +33,10 @@
 
 /*
  * This software was first released in 2009 by Lawrence Stewart as part of the
- * NewTCP research project at Swinburne University's Centre for Advanced
- * Internet Architectures, Melbourne, Australia, which was made possible in part
- * by a grant from the Cisco University Research Program Fund at Community
- * Foundation Silicon Valley. More details are available at:
+ * NewTCP research project at Swinburne University of Technology's Centre for
+ * Advanced Internet Architectures, Melbourne, Australia, which was made
+ * possible in part by a grant from the Cisco University Research Program Fund
+ * at Community Foundation Silicon Valley. More details are available at:
  *   http://caia.swin.edu.au/urp/newtcp/
  */
 
