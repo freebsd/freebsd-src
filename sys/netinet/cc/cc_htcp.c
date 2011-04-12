@@ -6,9 +6,9 @@
  * All rights reserved.
  *
  * This software was developed at the Centre for Advanced Internet
- * Architectures, Swinburne University, by Lawrence Stewart and James Healy,
- * made possible in part by a grant from the Cisco University Research Program
- * Fund at Community Foundation Silicon Valley.
+ * Architectures, Swinburne University of Technology, by Lawrence Stewart and
+ * James Healy, made possible in part by a grant from the Cisco University
+ * Research Program Fund at Community Foundation Silicon Valley.
  *
  * Portions of this software were developed at the Centre for Advanced
  * Internet Architectures, Swinburne University of Technology, Melbourne,
@@ -40,10 +40,10 @@
  * An implementation of the H-TCP congestion control algorithm for FreeBSD,
  * based on the Internet Draft "draft-leith-tcp-htcp-06.txt" by Leith and
  * Shorten. Originally released as part of the NewTCP research project at
- * Swinburne University's Centre for Advanced Internet Architectures, Melbourne,
- * Australia, which was made possible in part by a grant from the Cisco
- * University Research Program Fund at Community Foundation Silicon Valley. More
- * details are available at:
+ * Swinburne University of Technology's Centre for Advanced Internet
+ * Architectures, Melbourne, Australia, which was made possible in part by a
+ * grant from the Cisco University Research Program Fund at Community Foundation
+ * Silicon Valley. More details are available at:
  *   http://caia.swin.edu.au/urp/newtcp/
  */
 
