@@ -263,7 +263,7 @@ delay_tc(int n)
 
 	tc = timecounter;
 	freq = atomic_load_acq_64(&tsc_freq);
-	if (freq != 0) {
+	if (tsc_is_invariant && freq != 0) {
 		func = get_tsc;
 		mask = ~0u;
 	} else {
