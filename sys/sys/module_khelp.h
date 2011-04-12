@@ -4,9 +4,9 @@
  * All rights reserved.
  *
  * This software was developed by Lawrence Stewart while studying at the Centre
- * for Advanced Internet Architectures, Swinburne University, made possible in
- * part by grants from the FreeBSD Foundation and Cisco University Research
- * Program Fund at Community Foundation Silicon Valley.
+ * for Advanced Internet Architectures, Swinburne University of Technology, made
+ * possible in part by grants from the FreeBSD Foundation and Cisco University
+ * Research Program Fund at Community Foundation Silicon Valley.
  *
  * Portions of this software were developed at the Centre for Advanced
  * Internet Architectures, Swinburne University of Technology, Melbourne,

@@ -8,9 +8,9 @@
  * All rights reserved.
  *
  * Portions of this software were developed at the Centre for Advanced Internet
- * Architectures, Swinburne University, by Lawrence Stewart, James Healy and
- * David Hayes, made possible in part by a grant from the Cisco University
- * Research Program Fund at Community Foundation Silicon Valley.
+ * Architectures, Swinburne University of Technology, by Lawrence Stewart,
+ * James Healy and David Hayes, made possible in part by a grant from the Cisco
+ * University Research Program Fund at Community Foundation Silicon Valley.
  *
  * Portions of this software were developed at the Centre for Advanced
  * Internet Architectures, Swinburne University of Technology, Melbourne,
