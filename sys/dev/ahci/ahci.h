@@ -412,8 +412,10 @@ struct ahci_channel {
 	int			fatalerr;	/* Fatal error happend */
 	int			lastslot;	/* Last used slot */
 	int			taggedtarget;	/* Last tagged target */
+	int			resetting;	/* Hard-reset in progress. */
 	union ccb		*frozen;	/* Frozen command */
 	struct callout		pm_timer;	/* Power management events */
+	struct callout		reset_timer;	/* Hard-reset timeout */
 
 	struct ahci_device	user[16];	/* User-specified settings */
 	struct ahci_device	curr[16];	/* Current settings */
