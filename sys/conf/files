@@ -2083,6 +2083,7 @@ geom/geom_event.c		standard
 geom/geom_fox.c			optional geom_fox
 geom/geom_io.c			standard
 geom/geom_kern.c		standard
+geom/geom_map.c			optional geom_map
 geom/geom_mbr.c			optional geom_mbr
 geom/geom_mbr_enc.c		optional geom_mbr
 geom/geom_pc98.c		optional geom_pc98
