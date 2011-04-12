@@ -24,10 +24,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
 /*
  * netdump_client.c
- * FreeBSD kernel module supporting netdump network dumps.
- * netdump_server must be running to accept client dumps.
+ * FreeBSD subsystem supporting netdump network dumps.
+ * A dedicated server must be running to accept client dumps.
  * XXX: This should be split into machdep and non-machdep parts
  *
 */
@@ -98,19 +99,17 @@ __FBSDID("$FreeBSD$");
 static void	 nd_handle_arp(struct mbuf **mb);
 static void	 nd_handle_ip(struct mbuf **mb);
 static int	 netdump_arp_server(void);
-static void	 netdump_config_defaults(void);
+static void	 netdump_config_defaults(void *dummy __unused);
 static int	 netdump_dumper(void *priv __unused, void *virtual,
 		    vm_offset_t physical __unused, off_t offset, size_t length);
 static int	 netdump_ether_output(struct mbuf *m, struct ifnet *ifp, 
 		    struct ether_addr dst, u_short etype);
 static void	 netdump_mbuf_nop(void *ptr __unused, void *opt_args __unused);
-static int	 netdump_modevent(module_t mod, int type, void *unused); 
 static void	 netdump_network_poll(void);
 static void	 netdump_pkt_in(struct ifnet *ifp, struct mbuf *m);
 static int	 netdump_send(uint32_t type, off_t offset, unsigned char *data,
 		    uint32_t datalen);
 static int	 netdump_send_arp(void);
-static void	 netdump_trigger(void *arg, int howto);
 static int	 netdump_udp_output(struct mbuf *m);
 
 static int	 sysctl_handle_ifxname(SYSCTL_HANDLER_ARGS);
@@ -118,7 +117,6 @@ static int	 sysctl_handle_inaddr(SYSCTL_HANDLER_ARGS);
 
 /* Must be at least as big as the chunks dumpsys() gives us. */
 static unsigned char buf[MAXDUMPPGS * PAGE_SIZE];
-static eventhandler_tag nd_tag;
 static uint64_t rcvd_acks;
 static uint32_t nd_seqno = 1;
 static int dump_failed, have_server_mac;
@@ -1034,24 +1032,23 @@ netdump_dumper(void *priv __unused, void *virtual,
 }
 
 /*
- * Handler going into shutdown_pre_sync hook.
- * Overrides a standard disk dumping activity.
+ * Dumper routine, specular to dumpsys().
  *
  * Parameters:
- *	arg	unused
- *	howto   boot flags (only dump if RB_DUMP set)
+ *	void
  *
  * Returns:
- *	void
+ *	int see errno.h, 0 for success
  */
-static void
-netdump_trigger(void *arg, int howto)
+int
+netdumpsys()
 {
 	struct dumperinfo dumper;
 	void (*old_if_input)(struct ifnet *, struct mbuf *);
-	int found, must_lock, nd_gw_unset;
+	int error, found, must_lock, nd_gw_unset;
 
 	old_if_input = NULL;
+	error = 0;
 	found = 0;
 	nd_gw_unset = 0;
 	must_lock = 1;
@@ -1061,9 +1058,8 @@ netdump_trigger(void *arg, int howto)
 #endif
 
 	/* Check if the dumping is allowed to continue. */
-	if ((howto & (RB_HALT | RB_DUMP)) != RB_DUMP || nd_enable == 0 ||
-	    cold != 0 || dumping != 0)
-		return;
+	if (nd_enable == 0)
+		return (EINVAL);
 
 	/* Lookup the right if device to be used in the dump. */
 	if (must_lock != 0)
@@ -1079,33 +1075,20 @@ netdump_trigger(void *arg, int howto)
 	if (must_lock != 0)
 		IFNET_RUNLOCK_NOSLEEP();
 	if (found == 0) {
-		printf("netdump_trigger: Can't netdump: no valid NIC given\n");
-		return;
+		printf("netdumpsys: Can't netdump: no valid NIC given\n");
+		return (EINVAL);
 	}
 
 	MPASS(nd_ifp != NULL);
 
 	if (nd_server.s_addr == INADDR_ANY) {
-		printf("netdump_trigger: Can't netdump; no server IP given\n");
-		return;
+		printf("netdumpsys: Can't netdump; no server IP given\n");
+		return (EINVAL);
 	}
 	if (nd_client.s_addr == INADDR_ANY) {
-		printf("netdump_trigger: Can't netdump; no client IP given\n");
-		return;
+		printf("netdumpsys: Can't netdump; no client IP given\n");
+		return (EINVAL);
 	}
-
-	/*
-	 * netdump is invoked as a pre-sync handler instead of as
-	 * a real dumpdev dump routine  (that is because shutdown handlers
-	 * run as post-sync handlers, earlier than dumping routines
-	 * taking place, and thus network and devices may not be further
-	 * available). 
-	 * Make sure, artificially, the dump context is set so a debugger
-	 * can find the stack trace.
-	 */
-	savectx(&dumppcb);
-	dumptid = curthread->td_tid;
-	dumping++;
 
 	/*
 	 * nd_server_port could have switched after the first ack the
@@ -1127,10 +1110,12 @@ netdump_trigger(void *arg, int howto)
 	printf("netdump in progress. searching for server.. ");
 	if (netdump_arp_server()) {
 		printf("Failed to locate server MAC address\n");
+		error = EINVAL;
 		goto trig_abort;
 	}
 	if (netdump_send(NETDUMP_HERALD, 0, NULL, 0) != 0) {
 		printf("Failed to contact netdump server\n");
+		error = EINVAL;
 		goto trig_abort;
 	}
 	printf("dumping to %s (%6D)\n", inet_ntoa(nd_server), nd_gw_mac.octet,
@@ -1146,15 +1131,15 @@ netdump_trigger(void *arg, int howto)
 	dumpsys(&dumper);
 	if (dump_failed != 0) {
 		printf("Failed to dump the actual raw datas\n");
+		error = EINVAL;
 		goto trig_abort;
 	}
 	if (netdump_send(NETDUMP_FINISHED, 0, NULL, 0) != 0) {
 		printf("Failed to close the transaction\n");
+		error = EINVAL;
 		goto trig_abort;
 	}
 	printf("\nnetdump finished.\n");
-	printf("cancelling normal dump\n");
-	set_dumper(NULL);
 trig_abort:
 	if (nd_gw_unset != 0)
 		nd_gw.s_addr = INADDR_ANY;
@@ -1162,7 +1147,7 @@ trig_abort:
 		nd_ifp->if_input = old_if_input;
 	if ((nd_ifp->if_capenable & IFCAP_POLLING) == 0 && must_lock != 0)
 		nd_ifp->if_ndumpfuncs->ne_enable_intr(nd_ifp);
-	dumping--;
+	return (error);
 }
 
 /*-
@@ -1170,18 +1155,18 @@ trig_abort:
  */
 
 /*
- * Called upon module load. Initializes the sysctl variables to sane defaults
+ * Called upon system init. Initializes the sysctl variables to sane defaults
  * (locates the first available NIC and uses the first IPv4 IP on that card as
  * the client IP).  Leaves the server IP unconfigured.
  *
  * Parameters:
- *	void
+ *	void *, unused
  *
  * Returns:
  *	void
  */
 static void
-netdump_config_defaults()
+netdump_config_defaults(void *dummy __unused)
 {
 	struct ifnet *ifp;
 	int found;
@@ -1212,51 +1197,12 @@ netdump_config_defaults()
 			nd_ifp = ifp;
 	}
 }
-
-static int
-netdump_modevent(module_t mod, int type, void *unused) 
-{
-#ifdef NETDUMP_CLIENT_DEBUG
-	char buf[INET_ADDRSTRLEN];
-#endif
-
-	switch (type) {
-	case MOD_LOAD:
-		netdump_config_defaults();
-		nd_tag = EVENTHANDLER_REGISTER(shutdown_pre_sync, 
-		    netdump_trigger, NULL, SHUTDOWN_PRI_FIRST);
-
-#ifdef NETDUMP_CLIENT_DEBUG
-		if (nd_ifp == NULL) {
-			printf("netdump: Warning: No default interface found.");
-			printf("Manual configuration required.\n");
-		} else {
-			inet_ntoa_r(nd_client, buf);
-			printf("netdump: Using interface %s; client IP %s\n",
-			    nd_ifp->if_xname, buf);
-		}
-#endif
-		printf("netdump initialized\n");
-		break;
-	case MOD_UNLOAD:
-		if (nd_tag != NULL) {
-			EVENTHANDLER_DEREGISTER(shutdown_pre_sync, nd_tag);
-			nd_tag = NULL;
-		}
-		printf("netdump unloaded\n");
-		break;
-	default:
-		break;
-	}
-	return (0);
-}
-static moduledata_t netdump_mod = {"netdump", netdump_modevent, 0};
-DECLARE_MODULE(netdump, netdump_mod, SI_SUB_PROTO_END, SI_ORDER_ANY);
+SYSINIT(netdump, SI_SUB_KLD, SI_ORDER_ANY, netdump_config_defaults, NULL);
 
 #ifdef DDB
 DB_COMMAND(netdump, ddb_force_netdump)
 {
 
-	netdump_trigger(NULL, RB_DUMP);
+	netdumpsys();
 }
 #endif

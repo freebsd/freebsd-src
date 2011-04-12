@@ -70,6 +70,8 @@ struct netdump_methods {
 	ndumplock_handler_t	*ne_enable_intr;
 };
 
+int	 netdumpsys(void);
+
 #endif
 
 #endif /* !_NETINET_NETDUMP_H_ */

@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_kdb.h"
+#include "opt_netdump.h"
 #include "opt_panic.h"
 #include "opt_show_busybufs.h"
 #include "opt_sched.h"
@@ -79,6 +80,15 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
+
+#ifdef NETDUMP_CLIENT
+#include <sys/socket.h>
+
+#include <net/if.h>
+#include <net/if_var.h>
+
+#include <netinet/netdump.h>
+#endif
 
 #include <sys/signalvar.h>
 
@@ -130,8 +140,8 @@ int rebooting;				/* system is rebooting */
 static struct dumperinfo dumper;	/* our selected dumper */
 
 /* Context information for dump-debuggers. */
-struct pcb dumppcb;		/* Registers. */
-lwpid_t dumptid;		/* Thread ID. */
+static struct pcb dumppcb;		/* Registers. */
+static lwpid_t dumptid;			/* Thread ID. */
 
 static void poweroff_wait(void *, int);
 static void shutdown_halt(void *junk, int howto);
@@ -233,19 +243,38 @@ static void
 doadump(void)
 {
 
+	savectx(&dumppcb);
+	dumptid = curthread->td_tid;
+	dumping++;
+
+#ifdef NETDUMP_CLIENT
+	/*
+	 * If netdump finished successfully just return, otherwise give
+	 * traditional disk dumping a chance.
+	 *
+	 * Avoid a POLA breakage by skipping netdump when calling it from
+	 * within KDB.  That may change in the future.
+	 */
+#ifdef KDB
+	if (kdb_why == KDB_WHY_UNSET)
+#endif
+		if (netdumpsys() == 0) {
+			dumping--;
+			return;
+		}
+#endif
+
 	/*
 	 * Sometimes people have to call this from the kernel debugger. 
 	 * (if 'panic' can not dump)
 	 * Give them a clue as to why they can't dump.
 	 */
 	if (dumper.dumper == NULL) {
+		dumping--;
 		printf("Cannot dump. Device not defined or unavailable.\n");
 		return;
 	}
 
-	savectx(&dumppcb);
-	dumptid = curthread->td_tid;
-	dumping++;
 #ifdef DDB
 	if (textdump_pending)
 		textdump_dumpsys(&dumper);
