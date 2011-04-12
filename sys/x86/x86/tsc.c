@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 
 uint64_t	tsc_freq;
 int		tsc_is_invariant;
+int		tsc_perf_stat;
+
 static eventhandler_tag tsc_levels_tag, tsc_pre_tag, tsc_post_tag;
 
 SYSCTL_INT(_kern_timecounter, OID_AUTO, invariant_tsc, CTLFLAG_RDTUN,
@@ -151,6 +153,7 @@ tsc_freq_intel(void)
 static void
 probe_tsc_freq(void)
 {
+	u_int regs[4];
 	uint64_t tsc1, tsc2;
 
 	switch (cpu_vendor_id) {
@@ -176,6 +179,12 @@ probe_tsc_freq(void)
 		    (rdmsr(0x1203) & 0x100000000ULL) == 0)
 			tsc_is_invariant = 1;
 		break;
+	}
+
+	if (cpu_high >= 6) {
+		do_cpuid(6, regs);
+		if ((regs[2] & CPUID_PERF_STAT) != 0)
+			tsc_perf_stat = 1;
 	}
 
 	if (tsc_skip_calibration) {

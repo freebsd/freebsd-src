@@ -873,8 +873,11 @@ printcpuinfo(void)
 			 * If this CPU supports P-state invariant TSC then
 			 * mention the capability.
 			 */
-			if (tsc_is_invariant)
+			if (tsc_is_invariant) {
 				printf("\n  TSC: P-state invariant");
+				if (tsc_perf_stat)
+					printf(", performance statistics");
+			}
 
 		}
 	} else if (cpu_vendor_id == CPU_VENDOR_CYRIX) {
