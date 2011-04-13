@@ -87,6 +87,7 @@ typedef enum {
 	PROBE_SETPM,
 	PROBE_SETAPST,
 	PROBE_SETDMAAA,
+	PROBE_SETAN,
 	PROBE_SET_MULTI,
 	PROBE_INQUIRY,
 	PROBE_FULL_INQUIRY,
@@ -103,6 +104,7 @@ static char *probe_action_text[] = {
 	"PROBE_SETPM",
 	"PROBE_SETAPST",
 	"PROBE_SETDMAAA",
+	"PROBE_SETAN",
 	"PROBE_SET_MULTI",
 	"PROBE_INQUIRY",
 	"PROBE_FULL_INQUIRY",
@@ -435,6 +437,19 @@ negotiate:
 		ata_28bit_cmd(ataio, ATA_SETFEATURES,
 		    (softc->caps & CTS_SATA_CAPS_H_DMAAA) ? 0x10 : 0x90,
 		    0, 0x02);
+		break;
+	case PROBE_SETAN:
+		cam_fill_ataio(ataio,
+		    1,
+		    probedone,
+		    CAM_DIR_NONE,
+		    0,
+		    NULL,
+		    0,
+		    30*1000);
+		ata_28bit_cmd(ataio, ATA_SETFEATURES,
+		    (softc->caps & CTS_SATA_CAPS_H_AN) ? 0x10 : 0x90,
+		    0, 0x05);
 		break;
 	case PROBE_SET_MULTI:
 	{
@@ -1027,6 +1042,16 @@ noerror:
 		}
 		/* FALLTHROUGH */
 	case PROBE_SETDMAAA:
+		if ((ident_buf->satasupport & ATA_SUPPORT_ASYNCNOTIF) &&
+		    (!(softc->caps & CTS_SATA_CAPS_H_AN)) !=
+		    (!(ident_buf->sataenabled & ATA_SUPPORT_ASYNCNOTIF))) {
+			PROBE_SET_ACTION(softc, PROBE_SETAN);
+			xpt_release_ccb(done_ccb);
+			xpt_schedule(periph, priority);
+			return;
+		}
+		/* FALLTHROUGH */
+	case PROBE_SETAN:
 notsata:
 		if (path->device->protocol == PROTO_ATA) {
 			PROBE_SET_ACTION(softc, PROBE_SET_MULTI);
