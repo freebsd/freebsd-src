@@ -136,7 +136,11 @@ typedef struct ModalEepHeader4k {
 	uint8_t		db2_2:4, db2_3:4;
 	uint8_t		db2_4:4, reserved:4;
 #endif
-	uint8_t		futureModal[4];				// 4
+	uint8_t		tx_diversity;
+	uint8_t		flc_pwr_thresh;
+	uint8_t		bb_scale_smrt_antenna;
+#define	EEP_4K_BB_DESIRED_SCALE_MASK	0x1f
+	uint8_t		futureModal[1];
 
 	SPUR_CHAN spurChans[AR5416_EEPROM_MODAL_SPURS];	// 20 B
 } __packed MODAL_EEP4K_HEADER;				// == 68 B
