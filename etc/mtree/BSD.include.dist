@@ -133,6 +133,10 @@
         wi
         ..
     ..
+    edit
+        readline
+        ..
+    ..
     fs
         devfs
         ..
