@@ -70,18 +70,8 @@
 #include <sys/bus.h>
 #include <sys/rman.h>
 
-#include <dev/mii/mii.h>
-#include <dev/mii/miivar.h>
-#include "miidevs.h"
-
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
-#include "miibus_if.h"
-
 
 /*
  * Device identification definitions.
