@@ -98,8 +98,7 @@ struct cubic {
 	int		t_last_cong;
 };
 
-MALLOC_DECLARE(M_CUBIC);
-MALLOC_DEFINE(M_CUBIC, "cubic data",
+static MALLOC_DEFINE(M_CUBIC, "cubic data",
     "Per connection data required for the CUBIC congestion control algorithm");
 
 struct cc_algo cubic_cc_algo = {
