@@ -3615,6 +3615,12 @@ rx_accept:
 			} else
 				sc->sc_rxotherant = 0;
 		}
+
+		/* Newer school diversity - kite specific for now */
+		/* XXX perhaps migrate the normal diversity code to this? */
+		if ((ah)->ah_rxAntCombDiversity)
+			(*(ah)->ah_rxAntCombDiversity)(ah, rs, ticks, hz);
+
 		if (sc->sc_softled) {
 			/*
 			 * Blink for any data frame.  Otherwise do a
