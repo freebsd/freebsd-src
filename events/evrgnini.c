@@ -696,7 +696,7 @@ AcpiEvInitializeRegion (
                         }
                     }
 
-                    Status = AcpiEvExecuteRegMethod (RegionObj, 1);
+                    Status = AcpiEvExecuteRegMethod (RegionObj, ACPI_REG_CONNECT);
 
                     if (AcpiNsLocked)
                     {

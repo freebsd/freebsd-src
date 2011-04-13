@@ -327,7 +327,8 @@ AcpiExCreateRegion (
      * range
      */
     if ((RegionSpace >= ACPI_NUM_PREDEFINED_REGIONS) &&
-        (RegionSpace < ACPI_USER_REGION_BEGIN))
+        (RegionSpace < ACPI_USER_REGION_BEGIN) &&
+        (RegionSpace != ACPI_ADR_SPACE_DATA_TABLE))
     {
         ACPI_ERROR ((AE_INFO, "Invalid AddressSpace type 0x%X", RegionSpace));
         return_ACPI_STATUS (AE_AML_INVALID_SPACE_ID);

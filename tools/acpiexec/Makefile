@@ -56,6 +56,7 @@ OBJS = \
 	dswscope.o \
 	dswstate.o \
 	evevent.o \
+	evglock.o \
 	evgpe.o \
 	evgpeblk.o \
 	evgpeinit.o \
@@ -307,6 +308,9 @@ dswstate.o :        $(ACPICA_CORE)/dispatcher/dswstate.c
 	$(COMPILE)
 
 evevent.o :         $(ACPICA_CORE)/events/evevent.c
+	$(COMPILE)
+
+evglock.o :         $(ACPICA_CORE)/events/evglock.c
 	$(COMPILE)
 
 evgpe.o :           $(ACPICA_CORE)/events/evgpe.c
@@ -588,7 +592,7 @@ utcopy.o :          $(ACPICA_CORE)/utilities/utcopy.c
 utdebug.o :         $(ACPICA_CORE)/utilities/utdebug.c
 	$(COMPILE)
 
-utdebug.o :         $(ACPICA_CORE)/utilities/utdebug.c
+utdecode.o :        $(ACPICA_CORE)/utilities/utdecode.c
 	$(COMPILE)
 
 utdelete.o :        $(ACPICA_CORE)/utilities/utdelete.c

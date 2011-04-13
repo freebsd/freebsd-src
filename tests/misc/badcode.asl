@@ -116,6 +116,11 @@ DefinitionBlock ("badcode.aml", "DSDT", 1, "Intel", "Example", 0x00000001)
         Store (MTH2 (), Local0)
     }
 
+    // Method MTH4 does not explicitly return a value
+    
+    Method (MTH4) {Return}
+    Method (MTH5) {Store (MTH4(), Local0)}
+    
     // Invalid _HID values
 
     Device (H1)
@@ -186,6 +191,16 @@ DefinitionBlock ("badcode.aml", "DSDT", 1, "Intel", "Example", 0x00000001)
     Method (_Q22)
     {
         Return ("Unexpected Return Value")
+    }
+
+    // _REG must have a corresponding Operation Region declaration
+    // within the same scope
+
+    Device (EC)
+    {
+        Method (_REG, 2)
+        {
+        }
     }
 
     /*

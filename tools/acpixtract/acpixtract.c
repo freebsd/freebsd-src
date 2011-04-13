@@ -50,11 +50,11 @@
 
 /* Note: This is a 32-bit program only */
 
-#define VERSION             0x20110225
+#define VERSION             0x20110330
 #define FIND_HEADER         0
 #define EXTRACT_DATA        1
 #define BUFFER_SIZE         256
-#define HEADER_LINE_LENGTH  17  /* strlen ("FACP @ 0x737e1000") */
+#define MIN_HEADER_LENGTH   6   /* strlen ("DSDT @") */
 
 /* Local prototypes */
 
@@ -507,7 +507,7 @@ ExtractTables (
 
             /* Ignore lines that are too short to be header lines */
 
-            if (strlen (Buffer) < HEADER_LINE_LENGTH)
+            if (strlen (Buffer) < MIN_HEADER_LENGTH)
             {
                 continue;
             }
@@ -520,11 +520,15 @@ ExtractTables (
                 continue;
             }
 
-            /* Ignore lines that are not of the form "ABCD @ " */
-
-            if ((Buffer[4] != ' ') ||
-                (Buffer[5] != '@') ||
-                (Buffer[6] != ' '))
+            /*
+             * Ignore lines that are not of the form <sig> @ <addr>. Examples:
+             *
+             * DSDT @ 0x737e4000
+             * XSDT @ 0x737f2fff
+             * RSD PTR @ 0xf6cd0
+             * SSDT @ (nil)
+             */
+            if (!strstr (Buffer, " @ "))
             {
                 continue;
             }
