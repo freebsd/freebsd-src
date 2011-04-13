@@ -53,6 +53,8 @@ OBJS = \
 	dtexpress.o \
 	dtfield.o \
 	dtio.o \
+	dtparserlex.o \
+	dtparserparse.o \
 	dtsubtable.o \
 	dttable.o \
 	dttemplate.o \
@@ -147,11 +149,15 @@ OBJS = \
 
 INTERMEDIATES = \
 	aslcompilerlex.c \
-	aslcompilerparse.c
+	aslcompilerparse.c \
+	dtparserlex.c \
+	dtparserparse.c
 
 MISC = \
 	aslcompiler.y.h \
-	aslcompilerparse.output
+	aslcompilerparse.output \
+	dtparser.y.h \
+	dtparserparse.output
 
 
 #
@@ -166,14 +172,22 @@ $(PROG) : $(INTERMEDIATES) $(OBJS)
 # Parser and Lexer - intermediate C files
 #
 aslcompilerlex.c :   $(ASL_COMPILER)/aslcompiler.l
-	${LEX} ${LFLAGS} -o$@ $?
+	${LEX} ${LFLAGS} -PAslCompiler -o$@ $?
 
 aslcompilerparse.c : $(ASL_COMPILER)/aslcompiler.y
-	${YACC} ${YFLAGS} -o$@ $?
+	${YACC} ${YFLAGS} -pAslCompiler -o$@ $?
 	@mv -f aslcompilerparse.h aslcompiler.y.h
 
+dtparserlex.c :      $(ASL_COMPILER)/dtparser.l
+	${LEX} ${LFLAGS} -PDtParser -o$@ $?
+
+dtparserparse.c :    $(ASL_COMPILER)/dtparser.y
+	${YACC} ${YFLAGS} -pDtParser -o$@ $?
+	@mv -f dtparserparse.h dtparser.y.h
+
+
 #
-# Parser and Lexer - final object files
+# Parsers and Lexers - final object files
 #
 # Cannot use the common compile warning flags since the C files are created
 # by the utilities above and they are not necessarily ANSI C, etc.
@@ -182,6 +196,12 @@ aslcompilerlex.o :   aslcompilerlex.c
 	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $?
 
 aslcompilerparse.o : aslcompilerparse.c
+	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $?
+
+dtparserlex.o :      dtparserlex.c
+	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $?
+
+dtparserparse.o :    dtparserparse.c
 	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $?
 
 

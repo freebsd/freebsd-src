@@ -142,6 +142,23 @@ static unsigned char OemxCode[] =
     0x02,0x5C,0x47,0x50,0x45,0x32,0x01,0x00   /* 000000A8    ".\GPE2.." */
 };
 
+/* Example ECDT */
+
+unsigned char EcdtCode[] =
+{
+    0x45,0x43,0x44,0x54,0x4E,0x00,0x00,0x00,  /* 00000000    "ECDTN..." */
+    0x01,0x94,0x20,0x49,0x6E,0x74,0x65,0x6C,  /* 00000008    ".. Intel" */
+    0x54,0x65,0x6D,0x70,0x6C,0x61,0x74,0x65,  /* 00000010    "Template" */
+    0x01,0x00,0x00,0x00,0x49,0x4E,0x54,0x4C,  /* 00000018    "....INTL" */
+    0x16,0x03,0x11,0x20,0x01,0x08,0x00,0x00,  /* 00000020    "... ...." */
+    0x66,0x00,0x00,0x00,0x00,0x00,0x00,0x00,  /* 00000028    "f......." */
+    0x01,0x08,0x00,0x00,0x62,0x00,0x00,0x00,  /* 00000030    "....b..." */
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,  /* 00000038    "........" */
+    0x09,0x5C,0x5F,0x53,0x42,0x2E,0x50,0x43,  /* 00000040    ".\_SB.PC" */
+    0x49,0x30,0x2E,0x45,0x43,0x00             /* 00000048    "I0.EC."   */
+};
+
+
 /*
  * Example installable control method
  *
@@ -277,6 +294,37 @@ DefinitionBlock ("", "DSDT", 2, "Intel", "Many", 0x00000001)
         Method (_L00) {}
     }
 }
+
+/* Example ECDT */
+
+[000h 0000   4]                    Signature : "ECDT"    /* Embedded Controller Boot Resources Table */
+[004h 0004   4]                 Table Length : 0000004E
+[008h 0008   1]                     Revision : 01
+[009h 0009   1]                     Checksum : 14
+[00Ah 0010   6]                       Oem ID : " Intel"
+[010h 0016   8]                 Oem Table ID : "Template"
+[018h 0024   4]                 Oem Revision : 00000001
+[01Ch 0028   4]              Asl Compiler ID : "INTL"
+[020h 0032   4]        Asl Compiler Revision : 20110316
+
+
+[024h 0036  12]      Command/Status Register : <Generic Address Structure>
+[024h 0036   1]                     Space ID : 01 (SystemIO)
+[025h 0037   1]                    Bit Width : 08
+[026h 0038   1]                   Bit Offset : 00
+[027h 0039   1]         Encoded Access Width : 00 (Undefined/Legacy)
+[028h 0040   8]                      Address : 0000000000000066
+
+[030h 0048  12]                Data Register : <Generic Address Structure>
+[030h 0048   1]                     Space ID : 01 (SystemIO)
+[031h 0049   1]                    Bit Width : 08
+[032h 0050   1]                   Bit Offset : 00
+[033h 0051   1]         Encoded Access Width : 00 (Undefined/Legacy)
+[034h 0052   8]                      Address : 0000000000000062
+
+[03Ch 0060   4]                          UID : 00000000
+[040h 0064   1]                   GPE Number : 09
+[041h 0065  13]                     Namepath : "\_SB.PCI0.EC"
 
 #endif
 
