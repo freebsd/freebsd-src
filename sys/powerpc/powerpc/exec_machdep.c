@@ -1015,6 +1015,9 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 		tf->srr0 = (register_t)entry;
 	    #ifdef AIM
 		tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
+		#ifdef __powerpc64__
+		tf->srr1 &= ~PSL_SF;
+		#endif
 	    #else
 		tf->srr1 = PSL_USERSET;
 	    #endif
