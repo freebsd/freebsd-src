@@ -35,7 +35,7 @@
 #include "ar5416/ar5416.h"
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"
-
+#include "ar9002/ar9002phy.h"
 #include "ar9002/ar9285phy.h"
 
 /* Eeprom versioning macros. Returns true if the version is equal or newer than the ver specified */ 
@@ -413,6 +413,42 @@ ar9285SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		if (IEEE80211_IS_CHAN_HT40(chan))
 			OS_REG_RMW_FIELD(ah, AR_PHY_SETTLING,
 			    AR_PHY_SETTLING_SWITCH, pModal->swSettleHt40);
+	}
+
+	/*
+	 * Program the CCK TX gain factor appropriately if needed.
+	 * The AR9285/AR9271 has a non-constant PA tx gain behaviour
+	 * for CCK versus OFDM rates; other chips deal with this
+	 * differently.
+	 *
+	 * The mask/shift/multiply hackery is done so place the same
+	 * value (bb_desired_scale) into multiple 5-bit fields.
+	 * For example, AR_PHY_TX_PWRCTRL9 has bb_desired_scale written
+	 * to three fields: (0..4), (5..9) and (10..14).
+	 */
+	if (AR_SREV_9271(ah) || AR_SREV_KITE(ah)) {
+		uint8_t bb_desired_scale = (pModal->bb_scale_smrt_antenna & EEP_4K_BB_DESIRED_SCALE_MASK);
+		if ((eep->baseEepHeader.txGainType == 0) && (bb_desired_scale != 0)) {
+			uint32_t pwrctrl, mask, clr;
+
+			mask = (1<<0) | (1<<5) | (1<<10) | (1<<15) | (1<<20) | (1<<25);
+			pwrctrl = mask * bb_desired_scale;
+			clr = mask * 0x1f;
+			OS_REG_RMW(ah, AR_PHY_TX_PWRCTRL8, pwrctrl, clr);
+			OS_REG_RMW(ah, AR_PHY_TX_PWRCTRL10, pwrctrl, clr);
+			OS_REG_RMW(ah, AR_PHY_CH0_TX_PWRCTRL12, pwrctrl, clr);
+
+			mask = (1<<0) | (1<<5) | (1<<15);
+			pwrctrl = mask * bb_desired_scale;
+			clr = mask * 0x1f;
+			OS_REG_RMW(ah, AR_PHY_TX_PWRCTRL9, pwrctrl, clr);
+
+			mask = (1<<0) | (1<<5);
+			pwrctrl = mask * bb_desired_scale;
+			clr = mask * 0x1f;
+			OS_REG_RMW(ah, AR_PHY_CH0_TX_PWRCTRL11, pwrctrl, clr);
+			OS_REG_RMW(ah, AR_PHY_CH0_TX_PWRCTRL13, pwrctrl, clr);
+		}
 	}
 
 	return AH_TRUE;
