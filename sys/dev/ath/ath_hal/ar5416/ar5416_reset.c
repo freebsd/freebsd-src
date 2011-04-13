@@ -1228,7 +1228,7 @@ ar5416UpdateChainMasks(struct ath_hal *ah, HAL_BOOL is_ht)
 		AH5416(ah)->ah_tx_chainmask = 1;
 	}
 	AH5416(ah)->ah_rx_chainmask = pCap->halRxChainMask;
-	HALDEBUG(ah, HAL_DEBUG_ANY, "TX chainmask: 0x%x; RX chainmask: 0x%x\n",
+	HALDEBUG(ah, HAL_DEBUG_RESET, "TX chainmask: 0x%x; RX chainmask: 0x%x\n",
 	    AH5416(ah)->ah_tx_chainmask,
 	    AH5416(ah)->ah_rx_chainmask);
 }
