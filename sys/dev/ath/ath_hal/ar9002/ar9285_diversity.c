@@ -371,6 +371,9 @@ ar9285_ant_comb_scan(struct ath_hal *ah, struct ath_rx_status *rs,
 	int rx_ant_conf, main_ant_conf;
 	HAL_BOOL short_scan = AH_FALSE;
 
+	if (! ar9285_check_div_comb(ah))
+		return;
+
 	rx_ant_conf = (rs->rs_rssi_ctl[2] >> ATH_ANT_RX_CURRENT_SHIFT) &
 		       ATH_ANT_RX_MASK;
 	main_ant_conf = (rs->rs_rssi_ctl[2] >> ATH_ANT_RX_MAIN_SHIFT) &
@@ -414,7 +417,6 @@ ar9285_ant_comb_scan(struct ath_hal *ah, struct ath_rx_status *rs,
 		alt_rssi_avg = (antcomb->alt_total_rssi /
 				 antcomb->total_pkt_count);
 	}
-
 
 	ar9285_antdiv_comb_conf_get(ah, &div_ant_conf);
 	curr_alt_set = div_ant_conf.alt_lna_conf;
@@ -584,6 +586,16 @@ div_comb_done:
 	ath_ant_div_conf_fast_divbias(&div_ant_conf);
 
 	ar9285_antdiv_comb_conf_set(ah, &div_ant_conf);
+
+	if (curr_alt_set != div_ant_conf.alt_lna_conf)
+		HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: lna_conf: %x -> %x\n",
+		    __func__, curr_alt_set, div_ant_conf.alt_lna_conf);
+	if (curr_main_set != div_ant_conf.main_lna_conf)
+		HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: main_lna_conf: %x -> %x\n",
+		    __func__, curr_main_set, div_ant_conf.main_lna_conf);
+	if (curr_bias != div_ant_conf.fast_div_bias)
+		HALDEBUG(ah, HAL_DEBUG_DIVERSITY, "%s: fast_div_bias: %x -> %x\n",
+		    __func__, curr_bias, div_ant_conf.fast_div_bias);
 
 	antcomb->scan_start_time = ticks;
 	antcomb->total_pkt_count = 0;

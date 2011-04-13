@@ -44,6 +44,7 @@ enum {
 	HAL_DEBUG_POWER		= 0x00020000,	/* power management */
 	HAL_DEBUG_GPIO		= 0x00040000,	/* GPIO debugging */
 	HAL_DEBUG_INTERRUPT	= 0x00080000,	/* interrupt handling */
+	HAL_DEBUG_DIVERSITY	= 0x00100000,	/* diversity debugging */
 
 	HAL_DEBUG_ANY		= 0xffffffff
 };
