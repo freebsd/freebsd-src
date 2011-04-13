@@ -442,7 +442,7 @@ nfs_printf(const char *fmt, ...)
 
 	mtx_lock(&Giant);
 	va_start(ap, fmt);
-	printf(fmt, ap);
+	vprintf(fmt, ap);
 	va_end(ap);
 	mtx_unlock(&Giant);
 }
@@ -656,7 +656,7 @@ out:
 SYSCTL_DECL(_vfs_nfs);
 static int nfs_acdebug;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, acdebug, CTLFLAG_RW, &nfs_acdebug, 0,
-    "Toggle acdebug (access cache debug) flag");
+    "Toggle acdebug (attribute cache debug) flag");
 #endif
 
 /*
@@ -713,6 +713,9 @@ nfs_getattrcache(struct vnode *vp, struct vattr *vaper)
 	if ((time_second - np->n_attrstamp) >= timeo) {
 		nfsstats.attrcache_misses++;
 		mtx_unlock(&np->n_mtx);
+#ifdef NFS_ACDEBUG
+		mtx_unlock(&Giant);	/* nfs_printf() */
+#endif
 		KDTRACE_NFS_ATTRCACHE_GET_MISS(vp);
 		return (ENOENT);
 	}
