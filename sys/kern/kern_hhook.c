@@ -58,8 +58,7 @@ struct hhook {
 	STAILQ_ENTRY(hhook)	hhk_next;
 };
 
-MALLOC_DECLARE(M_HHOOK);
-MALLOC_DEFINE(M_HHOOK, "hhook", "Helper hooks are linked off hhook_head lists");
+static MALLOC_DEFINE(M_HHOOK, "hhook", "Helper hooks are linked off hhook_head lists");
 
 LIST_HEAD(hhookheadhead, hhook_head);
 VNET_DEFINE(struct hhookheadhead, hhook_head_list);

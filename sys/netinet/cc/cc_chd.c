@@ -127,8 +127,7 @@ static VNET_DEFINE(uint32_t, chd_qthresh) = 20;
 #define	V_chd_loss_fair	VNET(chd_loss_fair)
 #define	V_chd_use_max	VNET(chd_use_max)
 
-MALLOC_DECLARE(M_CHD);
-MALLOC_DEFINE(M_CHD, "chd data",
+static MALLOC_DEFINE(M_CHD, "chd data",
     "Per connection data required for the CHD congestion control algorithm");
 
 struct cc_algo chd_cc_algo = {
