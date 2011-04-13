@@ -1,6 +1,6 @@
 /*
  * ------+---------+---------+---------+---------+---------+---------+---------*
- * Copyright (c) 2001  - Garance Alistair Drosehn <gad@FreeBSD.org>.
+ * Copyright (c) 2001,2011  - Garance Alistair Drosehn <gad@FreeBSD.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -248,7 +248,7 @@ ctl_freeinf(struct cjobinfo *cjinf)
 	/* [cpriv->pub.cji_fname is part of cpriv-malloced area] */
 	FREESTR(cpriv->pub.cji_jobname);
 	FREESTR(cpriv->pub.cji_mailto);
-	FREESTR(cpriv->pub.cji_username);
+	FREESTR(cpriv->pub.cji_headruser);
 
 	if (cpriv->cji_fstream != NULL) {
 		fclose(cpriv->cji_fstream);
@@ -343,7 +343,7 @@ ctl_readcf(const char *ptrname, const char *cfname)
 			cpriv->pub.cji_jobname = strdup(lbuff);
 			break;
 		case 'L':
-			cpriv->pub.cji_username = strdup(lbuff);
+			cpriv->pub.cji_headruser = strdup(lbuff);
 			break;
 		case 'M':
 			/*
@@ -586,8 +586,8 @@ ctl_renametf(const char *ptrname, const char *tfname)
 		fprintf(newcf, "C%s\n", cjinf->cji_class);
 	if (cjinf->cji_jobname != NULL)
 		fprintf(newcf, "J%s\n", cjinf->cji_jobname);
-	if (cjinf->cji_username != NULL)
-		fprintf(newcf, "L%s\n", cjinf->cji_username);
+	if (cjinf->cji_headruser != NULL)
+		fprintf(newcf, "L%s\n", cjinf->cji_headruser);
 
 	/*
 	 * This should probably add more sanity checks on mailto value.
@@ -832,7 +832,7 @@ ctl_dumpcji(FILE *dbg_stream, const char *heading, struct cjobinfo *cjinf)
 	PRINTSTR("cf-fname", cpriv->pub.cji_fname);
 	PRINTSTR("jobname.J", cpriv->pub.cji_jobname);
 	PRINTSTR("mailto.M", cpriv->pub.cji_mailto);
-	PRINTSTR("hdruser.L", cpriv->pub.cji_username);
+	PRINTSTR("headruser.L", cpriv->pub.cji_headruser);
 
 	ctl_dbgline++;
 	fprintf(dbg_stream, "%4d] %12s = ", ctl_dbgline, "*cjprivate");
