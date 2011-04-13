@@ -533,7 +533,8 @@ pmpstart(struct cam_periph *periph, union ccb *start_ccb)
 		      /*data_ptr*/NULL,
 		      /*dxfer_len*/0,
 		      pmp_default_timeout * 1000);
-		ata_pm_write_cmd(ataio, 0x60, 15, 0xf);
+		ata_pm_write_cmd(ataio, 0x60, 15, 0x07 |
+		    ((softc->caps & CTS_SATA_CAPS_H_AN) ? 0x08 : 0));
 		break;
 	default:
 		break;
@@ -672,7 +673,9 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 				cts.xport_specific.sata.revision = (res & 0x0f0) >> 4;
 				cts.xport_specific.sata.valid = CTS_SATA_VALID_REVISION;
 				cts.xport_specific.sata.caps = softc->caps &
-				    (CTS_SATA_CAPS_H_PMREQ | CTS_SATA_CAPS_H_DMAAA);
+				    (CTS_SATA_CAPS_H_PMREQ |
+				     CTS_SATA_CAPS_H_DMAAA |
+				     CTS_SATA_CAPS_H_AN);
 				cts.xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
 				xpt_action((union ccb *)&cts);
 				xpt_free_path(dpath);

@@ -474,6 +474,7 @@ siis_ch_attach(device_t dev)
 		ch->curr[i] = ch->user[i];
 		if (ch->pm_level)
 			ch->user[i].caps = CTS_SATA_CAPS_H_PMREQ;
+		ch->user[i].caps |= CTS_SATA_CAPS_H_AN;
 	}
 	mtx_init(&ch->mtx, "SIIS channel lock", NULL, MTX_DEF);
 	rid = ch->unit;
@@ -1869,6 +1870,7 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 			cts->xport_specific.sata.caps = d->caps & CTS_SATA_CAPS_D;
 			if (ch->pm_level)
 				cts->xport_specific.sata.caps |= CTS_SATA_CAPS_H_PMREQ;
+			cts->xport_specific.sata.caps |= CTS_SATA_CAPS_H_AN;
 			cts->xport_specific.sata.caps &=
 			    ch->user[ccb->ccb_h.target_id].caps;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
@@ -1876,6 +1878,9 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 			cts->xport_specific.sata.revision = d->revision;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
 			cts->xport_specific.sata.caps = d->caps;
+			if (cts->type == CTS_TYPE_CURRENT_SETTINGS &&
+			    (ch->quirks & SIIS_Q_SNTF) == 0)
+				cts->xport_specific.sata.caps &= ~CTS_SATA_CAPS_H_AN;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
 		}
 		cts->xport_specific.sata.mode = d->mode;
