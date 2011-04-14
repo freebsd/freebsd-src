@@ -169,8 +169,6 @@ uintptr_t moea64_get_unique_vsid(void);
 #define	VSID_TO_HASH(vsid)	(((vsid) >> 4) & 0xfffff)
 #define	VSID_HASH_MASK		0x0000007fffffffffULL
 
-#define	MOEA_PVO_CHECK(pvo)
-
 #define LOCK_TABLE() mtx_lock(&moea64_table_mutex)
 #define UNLOCK_TABLE() mtx_unlock(&moea64_table_mutex);
 #define ASSERT_TABLE_LOCK() mtx_assert(&moea64_table_mutex, MA_OWNED)
@@ -2084,7 +2082,6 @@ moea64_remove_all(mmu_t mmu, vm_page_t m)
 	for (pvo = LIST_FIRST(pvo_head); pvo != NULL; pvo = next_pvo) {
 		next_pvo = LIST_NEXT(pvo, pvo_vlink);
 
-		MOEA_PVO_CHECK(pvo);	/* sanity check */
 		pmap = pvo->pvo_pmap;
 		PMAP_LOCK(pmap);
 		moea64_pvo_remove(mmu, pvo);
@@ -2413,7 +2410,6 @@ moea64_query_bit(mmu_t mmu, vm_page_t m, u_int64_t ptebit)
 	vm_page_lock_queues();
 
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-		MOEA_PVO_CHECK(pvo);	/* sanity check */
 
 		/*
 		 * See if we saved the bit off.  If so, cache it and return
@@ -2421,7 +2417,6 @@ moea64_query_bit(mmu_t mmu, vm_page_t m, u_int64_t ptebit)
 		 */
 		if (pvo->pvo_pte.lpte.pte_lo & ptebit) {
 			moea64_attr_save(m, ptebit);
-			MOEA_PVO_CHECK(pvo);	/* sanity check */
 			vm_page_unlock_queues();
 			return (TRUE);
 		}
@@ -2434,7 +2429,6 @@ moea64_query_bit(mmu_t mmu, vm_page_t m, u_int64_t ptebit)
 	 */
 	powerpc_sync();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-		MOEA_PVO_CHECK(pvo);	/* sanity check */
 
 		/*
 		 * See if this pvo has a valid PTE.  if so, fetch the
@@ -2449,7 +2443,6 @@ moea64_query_bit(mmu_t mmu, vm_page_t m, u_int64_t ptebit)
 				UNLOCK_TABLE();
 
 				moea64_attr_save(m, ptebit);
-				MOEA_PVO_CHECK(pvo);	/* sanity check */
 				vm_page_unlock_queues();
 				return (TRUE);
 			}
@@ -2490,7 +2483,6 @@ moea64_clear_bit(mmu_t mmu, vm_page_t m, u_int64_t ptebit)
 	 */
 	count = 0;
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-		MOEA_PVO_CHECK(pvo);	/* sanity check */
 
 		LOCK_TABLE();
 		pt = MOEA64_PVO_TO_PTE(mmu, pvo);
@@ -2503,7 +2495,6 @@ moea64_clear_bit(mmu_t mmu, vm_page_t m, u_int64_t ptebit)
 			}
 		}
 		pvo->pvo_pte.lpte.pte_lo &= ~ptebit;
-		MOEA_PVO_CHECK(pvo);	/* sanity check */
 		UNLOCK_TABLE();
 	}
 
