@@ -176,7 +176,7 @@ inb(u_int port)
 {
 	u_char	data;
 
-	__asm volatile("inb %w1, %0" : "=a" (data) : "Nd" (port));
+	__asm __volatile("inb %w1, %0" : "=a" (data) : "Nd" (port));
 	return (data);
 }
 
@@ -185,7 +185,7 @@ inl(u_int port)
 {
 	u_int	data;
 
-	__asm volatile("inl %w1, %0" : "=a" (data) : "Nd" (port));
+	__asm __volatile("inl %w1, %0" : "=a" (data) : "Nd" (port));
 	return (data);
 }
 
@@ -227,20 +227,20 @@ inw(u_int port)
 {
 	u_short	data;
 
-	__asm volatile("inw %w1, %0" : "=a" (data) : "Nd" (port));
+	__asm __volatile("inw %w1, %0" : "=a" (data) : "Nd" (port));
 	return (data);
 }
 
 static __inline void
 outb(u_int port, u_char data)
 {
-	__asm volatile("outb %0, %w1" : : "a" (data), "Nd" (port));
+	__asm __volatile("outb %0, %w1" : : "a" (data), "Nd" (port));
 }
 
 static __inline void
 outl(u_int port, u_int data)
 {
-	__asm volatile("outl %0, %w1" : : "a" (data), "Nd" (port));
+	__asm __volatile("outl %0, %w1" : : "a" (data), "Nd" (port));
 }
 
 static __inline void
@@ -270,7 +270,7 @@ outsl(u_int port, const void *addr, size_t count)
 static __inline void
 outw(u_int port, u_short data)
 {
-	__asm volatile("outw %0, %w1" : : "a" (data), "Nd" (port));
+	__asm __volatile("outw %0, %w1" : : "a" (data), "Nd" (port));
 }
 
 static __inline void
