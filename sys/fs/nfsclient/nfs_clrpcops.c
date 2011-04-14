@@ -4177,7 +4177,7 @@ nfsrpc_setaclrpc(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	NFSZERO_ATTRBIT(&attrbits);
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_ACL);
 	(void) nfsv4_fillattr(nd, vnode_mount(vp), vp, aclp, NULL, NULL, 0,
-	    &attrbits, NULL, NULL, 0, 0, 0, (uint64_t)0);
+	    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0);
 	error = nfscl_request(nd, vp, p, cred, stuff);
 	if (error)
 		return (error);
