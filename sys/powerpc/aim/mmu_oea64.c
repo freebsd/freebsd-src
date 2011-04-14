@@ -936,7 +936,7 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 	pa = moea64_bootstrap_alloc(KSTACK_PAGES * PAGE_SIZE, PAGE_SIZE);
 	va = virtual_avail + KSTACK_GUARD_PAGES * PAGE_SIZE;
 	virtual_avail = va + KSTACK_PAGES * PAGE_SIZE;
-	CTR2(KTR_PMAP, "moea_bootstrap: kstack0 at %#x (%#x)", pa, va);
+	CTR2(KTR_PMAP, "moea64_bootstrap: kstack0 at %#x (%#x)", pa, va);
 	thread0.td_kstack = va;
 	thread0.td_kstack_pages = KSTACK_PAGES;
 	for (i = 0; i < KSTACK_PAGES; i++) {
