@@ -1919,7 +1919,7 @@ APPLESTATIC int
 nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
     NFSACL_T *saclp, struct vattr *vap, fhandle_t *fhp, int rderror,
     nfsattrbit_t *attrbitp, struct ucred *cred, NFSPROC_T *p, int isdgram,
-    int reterr, int at_root, uint64_t mounted_on_fileno)
+    int reterr, int supports_nfsv4acls, int at_root, uint64_t mounted_on_fileno)
 {
 	int bitpos, retnum = 0;
 	u_int32_t *tl;
@@ -1974,12 +1974,12 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 	 */
 	if (NFSISSET_ATTRBIT(retbitp, NFSATTRBIT_ACLSUPPORT) &&
 	    (nfsrv_useacl == 0 || ((cred != NULL || p != NULL) &&
-		!NFSHASNFS4ACL(mp)))) {
+		supports_nfsv4acls == 0))) {
 		NFSCLRBIT_ATTRBIT(retbitp, NFSATTRBIT_ACLSUPPORT);
 	}
 	if (NFSISSET_ATTRBIT(retbitp, NFSATTRBIT_ACL)) {
 		if (nfsrv_useacl == 0 || ((cred != NULL || p != NULL) &&
-		    !NFSHASNFS4ACL(mp))) {
+		    supports_nfsv4acls == 0)) {
 			NFSCLRBIT_ATTRBIT(retbitp, NFSATTRBIT_ACL);
 		} else if (naclp != NULL) {
 			if (vn_lock(vp, LK_SHARED) == 0) {
@@ -2016,7 +2016,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 		case NFSATTRBIT_SUPPORTEDATTRS:
 			NFSSETSUPP_ATTRBIT(&attrbits);
 			if (nfsrv_useacl == 0 || ((cred != NULL || p != NULL)
-			    && !NFSHASNFS4ACL(mp))) {
+			    && supports_nfsv4acls == 0)) {
 			    NFSCLRBIT_ATTRBIT(&attrbits,NFSATTRBIT_ACLSUPPORT);
 			    NFSCLRBIT_ATTRBIT(&attrbits,NFSATTRBIT_ACL);
 			}
