@@ -250,7 +250,7 @@ static u_int
 get_tsc(__unused struct timecounter *tc)
 {
 
-	return (rdtsc());
+	return (rdtsc32());
 }
 
 static __inline int
