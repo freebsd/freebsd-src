@@ -288,9 +288,9 @@ int nfsrv_mtofh(struct nfsrv_descript *, struct nfsrvfh *);
 int nfsrv_putattrbit(struct nfsrv_descript *, nfsattrbit_t *);
 void nfsrv_wcc(struct nfsrv_descript *, int, struct nfsvattr *, int,
     struct nfsvattr *);
-int nfsv4_fillattr(struct nfsrv_descript *, vnode_t, NFSACL_T *,
+int nfsv4_fillattr(struct nfsrv_descript *, struct mount *, vnode_t, NFSACL_T *,
     struct vattr *, fhandle_t *, int, nfsattrbit_t *,
-    struct ucred *, NFSPROC_T *, int, int);
+    struct ucred *, NFSPROC_T *, int, int, int, uint64_t);
 void nfsrv_fillattr(struct nfsrv_descript *, struct nfsvattr *);
 void nfsrv_adj(mbuf_t, int, int);
 void nfsrv_postopattr(struct nfsrv_descript *, int, struct nfsvattr *);
@@ -556,9 +556,9 @@ void nfsvno_open(struct nfsrv_descript *, struct nameidata *, nfsquad_t,
     struct nfsexstuff *, vnode_t *);
 void nfsvno_updfilerev(vnode_t, struct nfsvattr *, struct ucred *,
     NFSPROC_T *);
-int nfsvno_fillattr(struct nfsrv_descript *, vnode_t,
+int nfsvno_fillattr(struct nfsrv_descript *, struct mount *, vnode_t,
     struct nfsvattr *, fhandle_t *, int, nfsattrbit_t *,
-    struct ucred *, NFSPROC_T *, int, int);
+    struct ucred *, NFSPROC_T *, int, int, int, uint64_t);
 int nfsrv_sattr(struct nfsrv_descript *, struct nfsvattr *, nfsattrbit_t *,
     NFSACL_T *, NFSPROC_T *);
 int nfsv4_sattr(struct nfsrv_descript *, struct nfsvattr *, nfsattrbit_t *,
