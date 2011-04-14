@@ -215,7 +215,6 @@ struct iwn_softc {
 	struct resource		*irq;
 
 	u_int			sc_flags;
-#define IWN_FLAG_HAS_5GHZ	(1 << 0)
 #define IWN_FLAG_HAS_OTPROM	(1 << 1)
 #define IWN_FLAG_CALIB_DONE	(1 << 2)
 #define IWN_FLAG_USE_ICT	(1 << 3)
