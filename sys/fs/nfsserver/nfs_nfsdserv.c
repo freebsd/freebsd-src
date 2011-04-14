@@ -170,7 +170,7 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 {
 	struct nfsvattr nva;
 	fhandle_t fh;
-	int at_root = 0, error = 0;
+	int at_root = 0, error = 0, supports_nfsv4acls;
 	struct nfsreferral *refp;
 	nfsattrbit_t attrbits;
 	struct mount *mp;
@@ -213,6 +213,7 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 				nd->nd_repstat = nfsrv_checkgetattr(nd, vp,
 				    &nva, &attrbits, nd->nd_cred, p);
 			if (nd->nd_repstat == 0) {
+				supports_nfsv4acls = nfs_supportsnfsv4acls(vp);
 				mp = vp->v_mount;
 				if (nfsrv_enable_crossmntpt != 0 &&
 				    vp->v_type == VDIR &&
@@ -245,8 +246,8 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 				if (nd->nd_repstat == 0) {
 					(void)nfsvno_fillattr(nd, mp, vp, &nva,
 					    &fh, 0, &attrbits, nd->nd_cred, p,
-					    isdgram, 1, at_root,
-					    mounted_on_fileno);
+					    isdgram, 1, supports_nfsv4acls,
+					    at_root, mounted_on_fileno);
 					vfs_unbusy(mp);
 				}
 				vrele(vp);
