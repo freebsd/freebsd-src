@@ -32,6 +32,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	TO REPEAT: if_ath_ahb is not needed for normal users. Normal users only
 	need to load if_ath and if_ath_pci for ath(4) operation.
 
+20110314:
+	As part of the replacement of sysinstall, the process of building
+	release media has changed significantly. For details, please re-read
+	release(7), which has been updated to reflect the new build process.
+
 20110218:
 	GNU binutils 2.17.50 (as of 2007-07-03) has been merged to -HEAD.  This
 	is the last available version under GPLv2.  It brings a number of new
