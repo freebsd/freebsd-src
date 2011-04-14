@@ -50,9 +50,6 @@
 #define IWN_HIADDR(paddr)	(0)
 #endif
 
-/* Base Address Register. */
-#define IWN_PCI_BAR0	PCI_MAPREG_START
-
 /*
  * Control and status registers.
  */
