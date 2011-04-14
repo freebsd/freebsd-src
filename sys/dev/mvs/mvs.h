@@ -561,6 +561,8 @@ struct mvs_channel {
 	int			fatalerr;	/* Fatal error happend */
 	int			lastslot;	/* Last used slot */
 	int			taggedtarget;	/* Last tagged target */
+	int			resetting;	/* Hard-reset in progress. */
+	int			resetpolldiv;	/* Hard-reset poll divider. */
 	int			out_idx;	/* Next written CRQB */
 	int			in_idx;		/* Next read CRPB */
 	u_int			transfersize;	/* PIO transfer size */
@@ -569,6 +571,7 @@ struct mvs_channel {
 	u_int			fake_busy;	/* Fake busy bit after command submission */
 	union ccb		*frozen;	/* Frozen command */
 	struct callout		pm_timer;	/* Power management events */
+	struct callout		reset_timer;	/* Hard-reset timeout */
 
 	struct mvs_device	user[16];	/* User-specified settings */
 	struct mvs_device	curr[16];	/* Current settings */
