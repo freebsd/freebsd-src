@@ -322,6 +322,15 @@ rdtsc(void)
 	return (low | ((uint64_t)high << 32));
 }
 
+static __inline uint32_t
+rdtsc32(void)
+{
+	uint32_t rv;
+
+	__asm __volatile("rdtsc" : "=a" (rv) : : "edx");
+	return (rv);
+}
+
 static __inline void
 wbinvd(void)
 {
