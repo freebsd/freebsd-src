@@ -773,10 +773,6 @@ adaregister(struct cam_periph *periph, void *arg)
 		softc->quirks = ((struct ada_quirk_entry *)match)->quirks;
 	else
 		softc->quirks = ADA_Q_NONE;
-	softc->write_cache = -1;
-	snprintf(announce_buf, sizeof(announce_buf),
-	    "kern.cam.ada.%d.writa_cache", periph->unit_number);
-	TUNABLE_INT_FETCH(announce_buf, &softc->write_cache);
 
 	bzero(&cpi, sizeof(cpi));
 	xpt_setup_ccb(&cpi.ccb_h, periph->path, CAM_PRIORITY_NONE);
@@ -788,7 +784,12 @@ adaregister(struct cam_periph *periph, void *arg)
 	/*
 	 * Register this media as a disk
 	 */
+	(void)cam_periph_hold(periph, PRIBIO);
 	mtx_unlock(periph->sim->mtx);
+	softc->write_cache = -1;
+	snprintf(announce_buf, sizeof(announce_buf),
+	    "kern.cam.ada.%d.write_cache", periph->unit_number);
+	TUNABLE_INT_FETCH(announce_buf, &softc->write_cache);
 	adagetparams(periph, cgd);
 	softc->disk = disk_alloc();
 	softc->disk->d_open = adaopen;
@@ -841,6 +842,7 @@ adaregister(struct cam_periph *periph, void *arg)
 
 	disk_create(softc->disk, DISK_VERSION);
 	mtx_lock(periph->sim->mtx);
+	cam_periph_unhold(periph);
 
 	dp = &softc->params;
 	snprintf(announce_buf, sizeof(announce_buf),
