@@ -276,7 +276,7 @@ acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS)
 }
  
 SYSCTL_PROC(_machdep, OID_AUTO, acpi_timer_freq, CTLTYPE_INT | CTLFLAG_RW,
-	    0, sizeof(u_int), acpi_timer_sysctl_freq, "I", "");
+    0, sizeof(u_int), acpi_timer_sysctl_freq, "I", "ACPI timer frequency");
 
 /*
  * Some ACPI timers are known or believed to suffer from implementation
