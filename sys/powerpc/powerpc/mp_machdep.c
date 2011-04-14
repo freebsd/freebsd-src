@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr_machdep.h>
+#include <machine/pcb.h>
 #include <machine/platform.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
@@ -62,6 +63,7 @@ volatile static u_int ap_letgo;
 volatile static u_quad_t ap_timebase;
 static u_int ipi_msg_cnt[32];
 static struct mtx ap_boot_mtx;
+struct pcb stoppcbs[MAXCPU];
 
 void
 machdep_ap_bootstrap(void)
@@ -306,6 +308,7 @@ powerpc_ipi_handler(void *arg)
 			 */
 			CTR1(KTR_SMP, "%s: IPI_STOP or IPI_STOP_HARD (stop)",
 			    __func__);
+			savectx(&stoppcbs[PCPU_GET(cpuid)]);
 			self = PCPU_GET(cpumask);
 			savectx(PCPU_GET(curpcb));
 			atomic_set_int(&stopped_cpus, self);
