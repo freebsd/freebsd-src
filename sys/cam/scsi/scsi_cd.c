@@ -714,10 +714,11 @@ cdregister(struct cam_periph *periph, void *arg)
 	 */
 	cam_periph_unlock(periph);
 	softc->disk = disk_alloc();
-	softc->disk->d_devstat = devstat_new_entry("cd", 
+	softc->disk->d_devstat = devstat_new_entry("cd",
 			  periph->unit_number, 0,
-	  		  DEVSTAT_BS_UNAVAILABLE,
-			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_SCSI,
+			  DEVSTAT_BS_UNAVAILABLE,
+			  DEVSTAT_TYPE_CDROM |
+			  XPORT_DEVSTAT_TYPE(cpi.transport),
 			  DEVSTAT_PRIORITY_CD);
 	softc->disk->d_open = cdopen;
 	softc->disk->d_close = cdclose;
