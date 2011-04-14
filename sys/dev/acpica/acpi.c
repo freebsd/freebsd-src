@@ -2594,6 +2594,8 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	return_ACPI_STATUS (AE_OK);
     }
 
+    EVENTHANDLER_INVOKE(power_suspend);
+
     if (smp_started) {
 	thread_lock(curthread);
 	sched_bind(curthread, 0);
@@ -2684,6 +2686,8 @@ backout:
 	sched_unbind(curthread);
 	thread_unlock(curthread);
     }
+
+    EVENTHANDLER_INVOKE(power_resume);
 
     /* Allow another sleep request after a while. */
     timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);
