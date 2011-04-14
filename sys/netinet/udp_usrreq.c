@@ -246,15 +246,23 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 #ifdef INET6
 	struct sockaddr_in6 udp_in6;
 #endif
-#ifdef IPSEC
-#ifdef IPSEC_NAT_T
-#ifdef INET
 	struct udpcb *up;
-#endif
-#endif
-#endif
 
 	INP_RLOCK_ASSERT(inp);
+
+	/*
+	 * Engage the tunneling protocol.
+	 */
+	up = intoudpcb(inp);
+	if (up->u_tun_func != NULL) {
+		(*up->u_tun_func)(n, off, inp);
+		return;
+	}
+
+	if (n == NULL)
+		return;
+
+	off += sizeof(struct udphdr);
 
 #ifdef IPSEC
 	/* Check AH/ESP integrity. */
@@ -322,7 +330,6 @@ udp_input(struct mbuf *m, int off)
 	struct udphdr *uh;
 	struct ifnet *ifp;
 	struct inpcb *inp;
-	struct udpcb *up;
 	int len;
 	struct ip save_ip;
 	struct sockaddr_in udp_in;
@@ -508,24 +515,7 @@ udp_input(struct mbuf *m, int off)
 				struct mbuf *n;
 
 				n = m_copy(m, 0, M_COPYALL);
-				up = intoudpcb(last);
-				if (up->u_tun_func == NULL) {
-					if (n != NULL)
-						udp_append(last, 
-						    ip, n, 
-						    iphlen +
-						    sizeof(struct udphdr),
-						    &udp_in);
-				} else {
-					/*
-					 * Engage the tunneling protocol we
-					 * will have to leave the info_lock
-					 * up, since we are hunting through
-					 * multiple UDP's.
-					 */
-
-					(*up->u_tun_func)(n, iphlen, last);
-				}
+				udp_append(last, ip, n, iphlen, &udp_in);
 				INP_RUNLOCK(last);
 			}
 			last = inp;
@@ -551,16 +541,7 @@ udp_input(struct mbuf *m, int off)
 			UDPSTAT_INC(udps_noportbcast);
 			goto badheadlocked;
 		}
-		up = intoudpcb(last);
-		if (up->u_tun_func == NULL) {
-			udp_append(last, ip, m, iphlen + sizeof(struct udphdr),
-			    &udp_in);
-		} else {
-			/*
-			 * Engage the tunneling protocol.
-			 */
-			(*up->u_tun_func)(m, iphlen, last);
-		}
+		udp_append(last, ip, m, iphlen, &udp_in);
 		INP_RUNLOCK(last);
 		INP_INFO_RUNLOCK(&V_udbinfo);
 		return;
@@ -606,16 +587,7 @@ udp_input(struct mbuf *m, int off)
 		INP_RUNLOCK(inp);
 		goto badunlocked;
 	}
-	up = intoudpcb(inp);
-	if (up->u_tun_func == NULL) {
-		udp_append(inp, ip, m, iphlen + sizeof(struct udphdr), &udp_in);
-	} else {
-		/*
-		 * Engage the tunneling protocol.
-		 */
-
-		(*up->u_tun_func)(m, iphlen, inp);
-	}
+	udp_append(inp, ip, m, iphlen, &udp_in);
 	INP_RUNLOCK(inp);
 	return;
 
