@@ -45,15 +45,15 @@
 
 struct region_descriptor;
 
-#define readb(va)	(*(volatile u_int8_t *) (va))
-#define readw(va)	(*(volatile u_int16_t *) (va))
-#define readl(va)	(*(volatile u_int32_t *) (va))
-#define readq(va)	(*(volatile u_int64_t *) (va))
+#define readb(va)	(*(volatile uint8_t *) (va))
+#define readw(va)	(*(volatile uint16_t *) (va))
+#define readl(va)	(*(volatile uint32_t *) (va))
+#define readq(va)	(*(volatile uint64_t *) (va))
 
-#define writeb(va, d)	(*(volatile u_int8_t *) (va) = (d))
-#define writew(va, d)	(*(volatile u_int16_t *) (va) = (d))
-#define writel(va, d)	(*(volatile u_int32_t *) (va) = (d))
-#define writeq(va, d)	(*(volatile u_int64_t *) (va) = (d))
+#define writeb(va, d)	(*(volatile uint8_t *) (va) = (d))
+#define writew(va, d)	(*(volatile uint16_t *) (va) = (d))
+#define writel(va, d)	(*(volatile uint32_t *) (va) = (d))
+#define writeq(va, d)	(*(volatile uint64_t *) (va) = (d))
 
 #if defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE)
 
@@ -295,31 +295,31 @@ read_rflags(void)
 	return (rf);
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdmsr(u_int msr)
 {
-	u_int32_t low, high;
+	uint32_t low, high;
 
 	__asm __volatile("rdmsr" : "=a" (low), "=d" (high) : "c" (msr));
-	return (low | ((u_int64_t)high << 32));
+	return (low | ((uint64_t)high << 32));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdpmc(u_int pmc)
 {
-	u_int32_t low, high;
+	uint32_t low, high;
 
 	__asm __volatile("rdpmc" : "=a" (low), "=d" (high) : "c" (pmc));
-	return (low | ((u_int64_t)high << 32));
+	return (low | ((uint64_t)high << 32));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdtsc(void)
 {
-	u_int32_t low, high;
+	uint32_t low, high;
 
 	__asm __volatile("rdtsc" : "=a" (low), "=d" (high));
-	return (low | ((u_int64_t)high << 32));
+	return (low | ((uint64_t)high << 32));
 }
 
 static __inline void
@@ -335,9 +335,9 @@ write_rflags(u_long rf)
 }
 
 static __inline void
-wrmsr(u_int msr, u_int64_t newval)
+wrmsr(u_int msr, uint64_t newval)
 {
-	u_int32_t low, high;
+	uint32_t low, high;
 
 	low = newval;
 	high = newval >> 32;
@@ -530,114 +530,114 @@ ltr(u_short sel)
 	__asm __volatile("ltr %0" : : "r" (sel));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdr0(void)
 {
-	u_int64_t data;
+	uint64_t data;
 	__asm __volatile("movq %%dr0,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_dr0(u_int64_t dr0)
+load_dr0(uint64_t dr0)
 {
 	__asm __volatile("movq %0,%%dr0" : : "r" (dr0));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdr1(void)
 {
-	u_int64_t data;
+	uint64_t data;
 	__asm __volatile("movq %%dr1,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_dr1(u_int64_t dr1)
+load_dr1(uint64_t dr1)
 {
 	__asm __volatile("movq %0,%%dr1" : : "r" (dr1));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdr2(void)
 {
-	u_int64_t data;
+	uint64_t data;
 	__asm __volatile("movq %%dr2,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_dr2(u_int64_t dr2)
+load_dr2(uint64_t dr2)
 {
 	__asm __volatile("movq %0,%%dr2" : : "r" (dr2));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdr3(void)
 {
-	u_int64_t data;
+	uint64_t data;
 	__asm __volatile("movq %%dr3,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_dr3(u_int64_t dr3)
+load_dr3(uint64_t dr3)
 {
 	__asm __volatile("movq %0,%%dr3" : : "r" (dr3));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdr4(void)
 {
-	u_int64_t data;
+	uint64_t data;
 	__asm __volatile("movq %%dr4,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_dr4(u_int64_t dr4)
+load_dr4(uint64_t dr4)
 {
 	__asm __volatile("movq %0,%%dr4" : : "r" (dr4));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdr5(void)
 {
-	u_int64_t data;
+	uint64_t data;
 	__asm __volatile("movq %%dr5,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_dr5(u_int64_t dr5)
+load_dr5(uint64_t dr5)
 {
 	__asm __volatile("movq %0,%%dr5" : : "r" (dr5));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdr6(void)
 {
-	u_int64_t data;
+	uint64_t data;
 	__asm __volatile("movq %%dr6,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_dr6(u_int64_t dr6)
+load_dr6(uint64_t dr6)
 {
 	__asm __volatile("movq %0,%%dr6" : : "r" (dr6));
 }
 
-static __inline u_int64_t
+static __inline uint64_t
 rdr7(void)
 {
-	u_int64_t data;
+	uint64_t data;
 	__asm __volatile("movq %%dr7,%0" : "=r" (data));
 	return (data);
 }
 
 static __inline void
-load_dr7(u_int64_t dr7)
+load_dr7(uint64_t dr7)
 {
 	__asm __volatile("movq %0,%%dr7" : : "r" (dr7));
 }
@@ -684,14 +684,14 @@ void	lldt(u_short sel);
 void	load_cr0(u_long cr0);
 void	load_cr3(u_long cr3);
 void	load_cr4(u_long cr4);
-void	load_dr0(u_int64_t dr0);
-void	load_dr1(u_int64_t dr1);
-void	load_dr2(u_int64_t dr2);
-void	load_dr3(u_int64_t dr3);
-void	load_dr4(u_int64_t dr4);
-void	load_dr5(u_int64_t dr5);
-void	load_dr6(u_int64_t dr6);
-void	load_dr7(u_int64_t dr7);
+void	load_dr0(uint64_t dr0);
+void	load_dr1(uint64_t dr1);
+void	load_dr2(uint64_t dr2);
+void	load_dr3(uint64_t dr3);
+void	load_dr4(uint64_t dr4);
+void	load_dr5(uint64_t dr5);
+void	load_dr6(uint64_t dr6);
+void	load_dr7(uint64_t dr7);
 void	load_fs(u_short sel);
 void	load_gs(u_short sel);
 void	ltr(u_short sel);
@@ -705,23 +705,23 @@ u_long	rcr0(void);
 u_long	rcr2(void);
 u_long	rcr3(void);
 u_long	rcr4(void);
-u_int64_t rdmsr(u_int msr);
-u_int64_t rdpmc(u_int pmc);
-u_int64_t rdr0(void);
-u_int64_t rdr1(void);
-u_int64_t rdr2(void);
-u_int64_t rdr3(void);
-u_int64_t rdr4(void);
-u_int64_t rdr5(void);
-u_int64_t rdr6(void);
-u_int64_t rdr7(void);
-u_int64_t rdtsc(void);
+uint64_t rdmsr(u_int msr);
+uint64_t rdpmc(u_int pmc);
+uint64_t rdr0(void);
+uint64_t rdr1(void);
+uint64_t rdr2(void);
+uint64_t rdr3(void);
+uint64_t rdr4(void);
+uint64_t rdr5(void);
+uint64_t rdr6(void);
+uint64_t rdr7(void);
+uint64_t rdtsc(void);
 u_int	read_rflags(void);
 u_int	rfs(void);
 u_int	rgs(void);
 void	wbinvd(void);
 void	write_rflags(u_int rf);
-void	wrmsr(u_int msr, u_int64_t newval);
+void	wrmsr(u_int msr, uint64_t newval);
 
 #endif	/* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE */
 
