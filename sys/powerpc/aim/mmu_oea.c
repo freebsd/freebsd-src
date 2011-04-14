@@ -161,8 +161,6 @@ __FBSDID("$FreeBSD$");
 #define	VSID_TO_SR(vsid)	((vsid) & 0xf)
 #define	VSID_TO_HASH(vsid)	(((vsid) >> 4) & 0xfffff)
 
-#define	MOEA_PVO_CHECK(pvo)
-
 struct ofw_map {
 	vm_offset_t	om_va;
 	vm_size_t	om_len;
@@ -1809,7 +1807,6 @@ moea_remove_all(mmu_t mmu, vm_page_t m)
 	for (pvo = LIST_FIRST(pvo_head); pvo != NULL; pvo = next_pvo) {
 		next_pvo = LIST_NEXT(pvo, pvo_vlink);
 
-		MOEA_PVO_CHECK(pvo);	/* sanity check */
 		pmap = pvo->pvo_pmap;
 		PMAP_LOCK(pmap);
 		moea_pvo_remove(pvo, -1);
@@ -2163,7 +2160,6 @@ moea_pte_spill(vm_offset_t addr)
 		/*
 		 * We need to find a pvo entry for this address.
 		 */
-		MOEA_PVO_CHECK(pvo);
 		if (source_pvo == NULL &&
 		    moea_pte_match(&pvo->pvo_pte.pte, sr, addr,
 		    pvo->pvo_pte.pte.pte_hi & PTE_HID)) {
@@ -2176,7 +2172,6 @@ moea_pte_spill(vm_offset_t addr)
 			if (j >= 0) {
 				PVO_PTEGIDX_SET(pvo, j);
 				moea_pte_overflow--;
-				MOEA_PVO_CHECK(pvo);
 				mtx_unlock(&moea_table_mutex);
 				return (1);
 			}
@@ -2215,7 +2210,6 @@ moea_pte_spill(vm_offset_t addr)
 		 */
 		LIST_FOREACH(pvo, &moea_pvo_table[ptegidx ^ moea_pteg_mask],
 		    pvo_olink) {
-			MOEA_PVO_CHECK(pvo);
 			/*
 			 * We also need the pvo entry of the victim we are
 			 * replacing so save the R & C bits of the PTE.
@@ -2244,9 +2238,6 @@ moea_pte_spill(vm_offset_t addr)
 	PVO_PTEGIDX_CLR(victim_pvo);
 	PVO_PTEGIDX_SET(source_pvo, i);
 	moea_pte_replacements++;
-
-	MOEA_PVO_CHECK(victim_pvo);
-	MOEA_PVO_CHECK(source_pvo);
 
 	mtx_unlock(&moea_table_mutex);
 	return (1);
@@ -2299,7 +2290,6 @@ moea_query_bit(vm_page_t m, int ptebit)
 
 	vm_page_lock_queues();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-		MOEA_PVO_CHECK(pvo);	/* sanity check */
 
 		/*
 		 * See if we saved the bit off.  If so, cache it and return
@@ -2307,7 +2297,6 @@ moea_query_bit(vm_page_t m, int ptebit)
 		 */
 		if (pvo->pvo_pte.pte.pte_lo & ptebit) {
 			moea_attr_save(m, ptebit);
-			MOEA_PVO_CHECK(pvo);	/* sanity check */
 			vm_page_unlock_queues();
 			return (TRUE);
 		}
@@ -2320,7 +2309,6 @@ moea_query_bit(vm_page_t m, int ptebit)
 	 */
 	powerpc_sync();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-		MOEA_PVO_CHECK(pvo);	/* sanity check */
 
 		/*
 		 * See if this pvo has a valid PTE.  if so, fetch the
@@ -2333,7 +2321,6 @@ moea_query_bit(vm_page_t m, int ptebit)
 			mtx_unlock(&moea_table_mutex);
 			if (pvo->pvo_pte.pte.pte_lo & ptebit) {
 				moea_attr_save(m, ptebit);
-				MOEA_PVO_CHECK(pvo);	/* sanity check */
 				vm_page_unlock_queues();
 				return (TRUE);
 			}
@@ -2373,7 +2360,6 @@ moea_clear_bit(vm_page_t m, int ptebit)
 	 */
 	count = 0;
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-		MOEA_PVO_CHECK(pvo);	/* sanity check */
 		pt = moea_pvo_to_pte(pvo, -1);
 		if (pt != NULL) {
 			moea_pte_synch(pt, &pvo->pvo_pte.pte);
@@ -2384,7 +2370,6 @@ moea_clear_bit(vm_page_t m, int ptebit)
 			mtx_unlock(&moea_table_mutex);
 		}
 		pvo->pvo_pte.pte.pte_lo &= ~ptebit;
-		MOEA_PVO_CHECK(pvo);	/* sanity check */
 	}
 
 	vm_page_unlock_queues();
