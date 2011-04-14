@@ -363,8 +363,9 @@ sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_U64 | CTLFLAG_RW,
     0, 0, sysctl_machdep_tsc_freq, "QU", "Time Stamp Counter frequency");
 
-static unsigned
+static u_int
 tsc_get_timecount(struct timecounter *tc)
 {
-	return (rdtsc());
+
+	return (rdtsc32());
 }
