@@ -260,7 +260,7 @@ enum {
 	/* eq flags */
 	EQ_ALLOCATED	= (1 << 1),	/* firmware resources allocated */
 	EQ_STARTED	= (1 << 2),	/* started */
-	EQ_STALLED	= (1 << 3),	/* currently stalled */
+	EQ_CRFLUSHED	= (1 << 3),	/* expecting an update from SGE */
 };
 
 /*
