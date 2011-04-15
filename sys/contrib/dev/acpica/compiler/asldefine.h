@@ -66,9 +66,20 @@
 #define ASL_STRING_CACHE_SIZE       32768
 
 #define ASL_FIRST_PARSE_OPCODE      PARSEOP_ACCESSAS
-#define ASL_YYTNAME_START           3
-
 #define ASL_PARSE_OPCODE_BASE       PARSEOP_ACCESSAS        /* First Lex type */
+
+
+/*
+ * Per-parser-generator configuration. These values are used to cheat and
+ * directly access the bison/yacc token name table (yyname or yytname).
+ * Note: These values are the index in yyname for the first lex token
+ * (PARSEOP_ACCCESSAS).
+ */
+#if defined (YYBISON)
+#define ASL_YYTNAME_START           3   /* Bison */
+#elif defined (YYBYACC)
+#define ASL_YYTNAME_START           257 /* Berkeley yacc */
+#endif
 
 
 /*
@@ -97,6 +108,7 @@
 
 /* filename suffixes for output files */
 
+#define FILE_SUFFIX_PREPROCESSOR    "i"
 #define FILE_SUFFIX_AML_CODE        "aml"
 #define FILE_SUFFIX_LISTING         "lst"
 #define FILE_SUFFIX_HEX_DUMP        "hex"
