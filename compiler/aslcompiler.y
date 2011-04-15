@@ -43,14 +43,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define YYDEBUG 1
-#define YYERROR_VERBOSE 1
-
-/*
- * State stack - compiler will fault if it overflows.   (Default was 200)
- */
-#define YYINITDEPTH 600
-
 #include "aslcompiler.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -74,44 +66,39 @@
  *      ResourceMacroList, and FieldUnitList
  */
 
+void *                      AslLocalAllocate (unsigned int Size);
 
-/*
- * Next statement is important - this makes everything public so that
- * we can access some of the parser tables from other modules
- */
+/* Bison/yacc configuration */
+
 #define static
 #undef alloca
-#define alloca      AslLocalAllocate
-#define YYERROR_VERBOSE     1
+#define alloca              AslLocalAllocate
+#define yytname             AslCompilername
 
-void *
-AslLocalAllocate (unsigned int Size);
+#define YYINITDEPTH         600             /* State stack depth */
+#define YYDEBUG             1               /* Enable debug output */
+#define YYERROR_VERBOSE     1               /* Verbose error messages */
 
 /*
  * The windows version of bison defines this incorrectly as "32768" (Not negative).
- * Using a custom (edited binary) version of bison that defines YYFLAG as YYFBAD
- * instead (#define YYFBAD      32768), so we can define it correctly here.
+ * We use a custom (edited binary) version of bison that defines YYFLAG as YYFBAD
+ * instead (#define YYFBAD 32768), so we can define it correctly here.
  *
  * The problem is that if YYFLAG is positive, the extended syntax error messages
  * are disabled.
  */
-
 #define YYFLAG              -32768
 
-
 %}
-
 
 /*
  * Declare the type of values in the grammar
  */
-
 %union {
     UINT64              i;
     char                *s;
     ACPI_PARSE_OBJECT   *n;
 }
-
 
 /*! [Begin] no source code translation */
 
@@ -121,14 +108,12 @@ AslLocalAllocate (unsigned int Size);
  */
 %expect 60
 
-
 /*
  * Token types: These are returned by the lexer
  *
  * NOTE: This list MUST match the AslKeywordMapping table found
  *       in aslmap.c EXACTLY!  Double check any changes!
  */
-
 %token <i> PARSEOP_ACCESSAS
 %token <i> PARSEOP_ACCESSATTRIB_BLOCK
 %token <i> PARSEOP_ACCESSATTRIB_BLOCK_CALL
@@ -3137,4 +3122,33 @@ AslDoError (void)
 
     return (TrCreateLeafNode (PARSEOP_ERRORNODE));
 
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    UtGetOpName
+ *
+ * PARAMETERS:  ParseOpcode         - Parser keyword ID
+ *
+ * RETURN:      Pointer to the opcode name
+ *
+ * DESCRIPTION: Get the ascii name of the parse opcode
+ *
+ ******************************************************************************/
+
+char *
+UtGetOpName (
+    UINT32                  ParseOpcode)
+{
+#ifdef ASL_YYTNAME_START
+    /*
+     * First entries (ASL_YYTNAME_START) in yytname are special reserved names.
+     * Ignore first 8 characters of the name
+     */
+    return ((char *) yytname
+        [(ParseOpcode - ASL_FIRST_PARSE_OPCODE) + ASL_YYTNAME_START] + 8);
+#else
+    return ("[Unknown parser generator]");
+#endif
 }
