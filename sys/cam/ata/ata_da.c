@@ -180,6 +180,8 @@ static void		adagetparams(struct cam_periph *periph,
 				struct ccb_getdev *cgd);
 static timeout_t	adasendorderedtag;
 static void		adashutdown(void *arg, int howto);
+static void		adasuspend(void *arg);
+static void		adaresume(void *arg);
 
 #ifndef ADA_DEFAULT_TIMEOUT
 #define ADA_DEFAULT_TIMEOUT 30	/* Timeout in seconds */
@@ -195,6 +197,10 @@ static void		adashutdown(void *arg, int howto);
 
 #ifndef	ADA_DEFAULT_SPINDOWN_SHUTDOWN
 #define	ADA_DEFAULT_SPINDOWN_SHUTDOWN	1
+#endif
+
+#ifndef	ADA_DEFAULT_SPINDOWN_SUSPEND
+#define	ADA_DEFAULT_SPINDOWN_SUSPEND	1
 #endif
 
 #ifndef	ADA_DEFAULT_WRITE_CACHE
@@ -213,6 +219,7 @@ static int ada_retry_count = ADA_DEFAULT_RETRY;
 static int ada_default_timeout = ADA_DEFAULT_TIMEOUT;
 static int ada_send_ordered = ADA_DEFAULT_SEND_ORDERED;
 static int ada_spindown_shutdown = ADA_DEFAULT_SPINDOWN_SHUTDOWN;
+static int ada_spindown_suspend = ADA_DEFAULT_SPINDOWN_SUSPEND;
 static int ada_write_cache = ADA_DEFAULT_WRITE_CACHE;
 
 SYSCTL_NODE(_kern_cam, OID_AUTO, ada, CTLFLAG_RD, 0,
@@ -229,6 +236,9 @@ TUNABLE_INT("kern.cam.ada.ada_send_ordered", &ada_send_ordered);
 SYSCTL_INT(_kern_cam_ada, OID_AUTO, spindown_shutdown, CTLFLAG_RW,
            &ada_spindown_shutdown, 0, "Spin down upon shutdown");
 TUNABLE_INT("kern.cam.ada.spindown_shutdown", &ada_spindown_shutdown);
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, spindown_suspend, CTLFLAG_RW,
+           &ada_spindown_suspend, 0, "Spin down upon suspend");
+TUNABLE_INT("kern.cam.ada.spindown_suspend", &ada_spindown_suspend);
 SYSCTL_INT(_kern_cam_ada, OID_AUTO, write_cache, CTLFLAG_RW,
            &ada_write_cache, 0, "Enable disk write cache");
 TUNABLE_INT("kern.cam.ada.write_cache", &ada_write_cache);
@@ -525,8 +535,14 @@ adainit(void)
 		       "due to status 0x%x!\n", status);
 	} else if (ada_send_ordered) {
 
-		/* Register our shutdown event handler */
-		if ((EVENTHANDLER_REGISTER(shutdown_post_sync, adashutdown, 
+		/* Register our event handlers */
+		if ((EVENTHANDLER_REGISTER(power_suspend, adasuspend,
+					   NULL, EVENTHANDLER_PRI_LAST)) == NULL)
+		    printf("adainit: power event registration failed!\n");
+		if ((EVENTHANDLER_REGISTER(power_resume, adaresume,
+					   NULL, EVENTHANDLER_PRI_LAST)) == NULL)
+		    printf("adainit: power event registration failed!\n");
+		if ((EVENTHANDLER_REGISTER(shutdown_post_sync, adashutdown,
 					   NULL, SHUTDOWN_PRI_DEFAULT)) == NULL)
 		    printf("adainit: shutdown event registration failed!\n");
 	}
@@ -1372,7 +1388,7 @@ adasendorderedtag(void *arg)
  * sync the disk cache to physical media.
  */
 static void
-adashutdown(void * arg, int howto)
+adaflush(void)
 {
 	struct cam_periph *periph;
 	struct ada_softc *softc;
@@ -1424,10 +1440,13 @@ adashutdown(void * arg, int howto)
 					 /*getcount_only*/0);
 		cam_periph_unlock(periph);
 	}
+}
 
-	if (ada_spindown_shutdown == 0 ||
-	    (howto & (RB_HALT | RB_POWEROFF)) == 0)
-		return;
+static void
+adaspindown(uint8_t cmd, int flags)
+{
+	struct cam_periph *periph;
+	struct ada_softc *softc;
 
 	TAILQ_FOREACH(periph, &adadriver.units, unit_links) {
 		union ccb ccb;
@@ -1454,13 +1473,13 @@ adashutdown(void * arg, int howto)
 		cam_fill_ataio(&ccb.ataio,
 				    1,
 				    adadone,
-				    CAM_DIR_NONE,
+				    CAM_DIR_NONE | flags,
 				    0,
 				    NULL,
 				    0,
 				    ada_default_timeout*1000);
 
-		ata_28bit_cmd(&ccb.ataio, ATA_STANDBY_IMMEDIATE, 0, 0, 0);
+		ata_28bit_cmd(&ccb.ataio, cmd, 0, 0, 0);
 		xpt_polled_action(&ccb);
 
 		if ((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
@@ -1472,6 +1491,62 @@ adashutdown(void * arg, int howto)
 					 /*reduction*/0,
 					 /*timeout*/0,
 					 /*getcount_only*/0);
+		cam_periph_unlock(periph);
+	}
+}
+
+static void
+adashutdown(void *arg, int howto)
+{
+
+	adaflush();
+	if (ada_spindown_shutdown != 0 &&
+	    (howto & (RB_HALT | RB_POWEROFF)) != 0)
+		adaspindown(ATA_STANDBY_IMMEDIATE, 0);
+}
+
+static void
+adasuspend(void *arg)
+{
+
+	adaflush();
+	if (ada_spindown_suspend != 0)
+		adaspindown(ATA_SLEEP, CAM_DEV_QFREEZE);
+}
+
+static void
+adaresume(void *arg)
+{
+	struct cam_periph *periph;
+	struct ada_softc *softc;
+
+	if (ada_spindown_suspend == 0)
+		return;
+
+	TAILQ_FOREACH(periph, &adadriver.units, unit_links) {
+		cam_periph_lock(periph);
+		softc = (struct ada_softc *)periph->softc;
+		/*
+		 * We only spin-down the drive if it is capable of it..
+		 */
+		if ((softc->flags & ADA_FLAG_CAN_POWERMGT) == 0) {
+			cam_periph_unlock(periph);
+			continue;
+		}
+
+		if (bootverbose)
+			xpt_print(periph->path, "resume\n");
+
+		/*
+		 * Drop freeze taken due to CAM_DEV_QFREEZE flag set on
+		 * sleep request.
+		 */
+		cam_release_devq(periph->path,
+			 /*relsim_flags*/0,
+			 /*openings*/0,
+			 /*timeout*/0,
+			 /*getcount_only*/0);
+		
 		cam_periph_unlock(periph);
 	}
 }
