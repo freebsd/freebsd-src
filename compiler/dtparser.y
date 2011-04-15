@@ -53,7 +53,8 @@
 
 UINT64                  DtParserResult;    /* Global for expression return value */
 
-int DtParserlex (void); /* TBD: not sure why this is needed */
+int DtParserlex (void);
+int DtParserparse (void);
 extern char*            DtParsertext;
 extern void             DtParsererror (char const * msg);
 #define YYFLAG          -32768
@@ -171,7 +172,7 @@ extern DT_FIELD                 *Gbl_CurrentField;
 #define PR_YYTNAME_START        3
 
 #ifdef _USE_BERKELEY_YACC
-#define yytname DtParsername[];
+#define yytname DtParsername
 #endif
 
 
