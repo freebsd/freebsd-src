@@ -222,8 +222,8 @@ static void	iwn5000_ampdu_tx_stop(struct iwn_softc *, uint8_t, uint16_t);
 static int	iwn5000_query_calibration(struct iwn_softc *);
 static int	iwn5000_send_calibration(struct iwn_softc *);
 static int	iwn5000_send_wimax_coex(struct iwn_softc *);
-static int	iwn5000_temp_offset_calib(struct iwn_softc *);
 static int	iwn5000_crystal_calib(struct iwn_softc *);
+static int	iwn5000_temp_offset_calib(struct iwn_softc *);
 static int	iwn4965_post_alive(struct iwn_softc *);
 static int	iwn5000_post_alive(struct iwn_softc *);
 static int	iwn4965_load_bootcode(struct iwn_softc *, const uint8_t *,
