@@ -407,9 +407,15 @@ pci_get_powerstate(device_t dev)
 }
 
 static __inline int
+pci_find_cap(device_t dev, int capability, int *capreg)
+{
+    return (PCI_FIND_EXTCAP(device_get_parent(dev), dev, capability, capreg));
+}
+
+static __inline int
 pci_find_extcap(device_t dev, int capability, int *capreg)
 {
-    return PCI_FIND_EXTCAP(device_get_parent(dev), dev, capability, capreg);
+    return (PCI_FIND_EXTCAP(device_get_parent(dev), dev, capability, capreg));
 }
 
 static __inline int
