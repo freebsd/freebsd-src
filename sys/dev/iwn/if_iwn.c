@@ -132,6 +132,8 @@ static void	iwn_rx_done(struct iwn_softc *, struct iwn_rx_desc *,
 static void	iwn_rx_compressed_ba(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
 #endif
+static void	iwn5000_rx_calib_results(struct iwn_softc *,
+		    struct iwn_rx_desc *, struct iwn_rx_data *);
 static void	iwn_rx_statistics(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
 static void	iwn4965_tx_done(struct iwn_softc *, struct iwn_rx_desc *,
@@ -217,15 +219,10 @@ static void	iwn5000_ampdu_tx_start(struct iwn_softc *,
 		    struct ieee80211_node *, uint8_t, uint16_t);
 static void	iwn5000_ampdu_tx_stop(struct iwn_softc *, uint8_t, uint16_t);
 #endif
-static int	iwn5000_send_calib_results(struct iwn_softc *);
-static int	iwn5000_save_calib_result(struct iwn_softc *,
-		    struct iwn_phy_calib *, int, int);
-static void	iwn5000_free_calib_results(struct iwn_softc *);
-static int	iwn5000_chrystal_calib(struct iwn_softc *);
-static int	iwn5000_send_calib_query(struct iwn_softc *, uint32_t);
-static int	iwn5000_rx_calib_result(struct iwn_softc *,
-		    struct iwn_rx_desc *, struct iwn_rx_data *);
+static int	iwn5000_query_calibration(struct iwn_softc *);
+static int	iwn5000_send_calibration(struct iwn_softc *);
 static int	iwn5000_send_wimax_coex(struct iwn_softc *);
+static int	iwn5000_crystal_calib(struct iwn_softc *);
 static int	iwn4965_post_alive(struct iwn_softc *);
 static int	iwn5000_post_alive(struct iwn_softc *);
 static int	iwn4965_load_bootcode(struct iwn_softc *, const uint8_t *,
@@ -709,9 +706,6 @@ iwn_hal_attach(struct iwn_softc *sc)
 		sc->fwname = "iwn5000fw";
 		sc->txchainmask = IWN_ANT_B;
 		sc->rxchainmask = IWN_ANT_AB;
-		sc->calib_init = IWN_CALIB_XTAL | IWN_CALIB_LO |
-		    IWN_CALIB_TX_IQ | IWN_CALIB_TX_IQ_PERIODIC |
-		    IWN_CALIB_BASE_BAND;
 		break;
 	case IWN_HW_REV_TYPE_5150:
 		sc->sc_hal = &iwn5000_hal;
@@ -719,8 +713,6 @@ iwn_hal_attach(struct iwn_softc *sc)
 		sc->fwname = "iwn5150fw";
 		sc->txchainmask = IWN_ANT_A;
 		sc->rxchainmask = IWN_ANT_AB;
-		sc->calib_init = IWN_CALIB_DC | IWN_CALIB_LO |
-		    IWN_CALIB_TX_IQ | IWN_CALIB_BASE_BAND;
 		break;
 	case IWN_HW_REV_TYPE_5300:
 	case IWN_HW_REV_TYPE_5350:
@@ -729,9 +721,6 @@ iwn_hal_attach(struct iwn_softc *sc)
 		sc->fwname = "iwn5000fw";
 		sc->txchainmask = IWN_ANT_ABC;
 		sc->rxchainmask = IWN_ANT_ABC;
-		sc->calib_init = IWN_CALIB_XTAL | IWN_CALIB_LO |
-		    IWN_CALIB_TX_IQ | IWN_CALIB_TX_IQ_PERIODIC |
-		    IWN_CALIB_BASE_BAND;
 		break;
 	case IWN_HW_REV_TYPE_1000:
 		sc->sc_hal = &iwn5000_hal;
@@ -739,9 +728,6 @@ iwn_hal_attach(struct iwn_softc *sc)
 		sc->fwname = "iwn1000fw";
 		sc->txchainmask = IWN_ANT_A;
 		sc->rxchainmask = IWN_ANT_AB;
-		sc->calib_init = IWN_CALIB_XTAL | IWN_CALIB_LO |
-		    IWN_CALIB_TX_IQ | IWN_CALIB_TX_IQ_PERIODIC |
-		    IWN_CALIB_BASE_BAND;
 		break;
 	case IWN_HW_REV_TYPE_6000:
 		sc->sc_hal = &iwn5000_hal;
@@ -757,11 +743,8 @@ iwn_hal_attach(struct iwn_softc *sc)
 		default:
 			sc->txchainmask = IWN_ANT_ABC;
 			sc->rxchainmask = IWN_ANT_ABC;
-			sc->calib_runtime = IWN_CALIB_DC;
 			break;
 		}
-		sc->calib_init = IWN_CALIB_XTAL | IWN_CALIB_LO |
-		    IWN_CALIB_TX_IQ | IWN_CALIB_BASE_BAND;
 		break;
 	case IWN_HW_REV_TYPE_6050:
 		sc->sc_hal = &iwn5000_hal;
@@ -769,9 +752,6 @@ iwn_hal_attach(struct iwn_softc *sc)
 		sc->fwname = "iwn6050fw";
 		sc->txchainmask = IWN_ANT_AB;
 		sc->rxchainmask = IWN_ANT_AB;
-		sc->calib_init = IWN_CALIB_XTAL | IWN_CALIB_LO |
-		    IWN_CALIB_TX_IQ | IWN_CALIB_BASE_BAND;
-		sc->calib_runtime = IWN_CALIB_DC;
 		break;
 	case IWN_HW_REV_TYPE_6005:
 		sc->sc_hal = &iwn5000_hal;
@@ -779,9 +759,6 @@ iwn_hal_attach(struct iwn_softc *sc)
 		sc->fwname = "iwn6005fw";
 		sc->txchainmask = IWN_ANT_AB;
 		sc->rxchainmask = IWN_ANT_AB;
-		sc->calib_init = IWN_CALIB_XTAL | IWN_CALIB_LO |
-		    IWN_CALIB_TX_IQ | IWN_CALIB_BASE_BAND;
-		sc->calib_runtime = IWN_CALIB_DC;
 		break;
 	default:
 		device_printf(sc->sc_dev, "adapter type %d not supported\n",
@@ -866,8 +843,6 @@ iwn_detach(device_t dev)
 		callout_drain(&sc->calib_to);
 		ieee80211_ifdetach(ic);
 	}
-
-	iwn5000_free_calib_results(sc);
 
 	/* Free DMA resources. */
 	iwn_free_rx_ring(sc, &sc->rxq);
@@ -1679,7 +1654,7 @@ static void
 iwn5000_read_eeprom(struct iwn_softc *sc)
 {
 	struct iwn5000_eeprom_calib_hdr hdr;
-	int32_t temp, volt;
+	int32_t volt;
 	uint32_t addr, base;
 	int i;
 	uint16_t val;
@@ -1711,12 +1686,18 @@ iwn5000_read_eeprom(struct iwn_softc *sc)
 	if (sc->hw_type == IWN_HW_REV_TYPE_5150) {
 		/* Compute temperature offset. */
 		iwn_read_prom_data(sc, base + IWN5000_EEPROM_TEMP, &val, 2);
-		temp = le16toh(val);
+		sc->eeprom_temp = le16toh(val);
 		iwn_read_prom_data(sc, base + IWN5000_EEPROM_VOLT, &val, 2);
 		volt = le16toh(val);
-		sc->temp_off = temp - (volt / -5);
+		sc->temp_off = sc->eeprom_temp - (volt / -5);
 		DPRINTF(sc, IWN_DEBUG_CALIBRATE, "temp=%d volt=%d offset=%dK\n",
-		    temp, volt, sc->temp_off);
+		    sc->eeprom_temp, volt, sc->temp_off);
+	} else {
+		/* Read crystal calibration. */
+		iwn_read_prom_data(sc, base + IWN5000_EEPROM_CRYSTAL,
+		    &sc->eeprom_crystal, sizeof (uint32_t));
+		DPRINTF(sc, IWN_DEBUG_CALIBRATE, "crystal calibration 0x%08x\n",
+		    le32toh(sc->eeprom_crystal));
 	}
 }
 
@@ -2202,6 +2183,63 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 #endif
 
 /*
+ * Process a CALIBRATION_RESULT notification sent by the initialization
+ * firmware on response to a CMD_CALIB_CONFIG command (5000 only).
+ */
+static void
+iwn5000_rx_calib_results(struct iwn_softc *sc, struct iwn_rx_desc *desc,
+    struct iwn_rx_data *data)
+{
+	struct iwn_phy_calib *calib = (struct iwn_phy_calib *)(desc + 1);
+	int len, idx = -1;
+
+	/* Runtime firmware should not send such a notification. */
+	if (sc->sc_flags & IWN_FLAG_CALIB_DONE)
+		return;
+
+	len = (le32toh(desc->len) & 0x3fff) - 4;
+	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
+
+	switch (calib->code) {
+	case IWN5000_PHY_CALIB_DC:
+		if (sc->hw_type == IWN_HW_REV_TYPE_5150)
+			idx = 0;
+		break;
+	case IWN5000_PHY_CALIB_LO:
+		idx = 1;
+		break;
+	case IWN5000_PHY_CALIB_TX_IQ:
+		idx = 2;
+		break;
+	case IWN5000_PHY_CALIB_TX_IQ_PERIODIC:
+		if (sc->hw_type < IWN_HW_REV_TYPE_6000 &&
+		    sc->hw_type != IWN_HW_REV_TYPE_5150)
+			idx = 3;
+		break;
+	case IWN5000_PHY_CALIB_BASE_BAND:
+		idx = 4;
+		break;
+	}
+	if (idx == -1)	/* Ignore other results. */
+		return;
+
+	/* Save calibration result. */
+	if (sc->calibcmd[idx].buf != NULL)
+		free(sc->calibcmd[idx].buf, M_DEVBUF);
+	sc->calibcmd[idx].buf = malloc(len, M_DEVBUF, M_NOWAIT);
+	if (sc->calibcmd[idx].buf == NULL) {
+		DPRINTF(sc, IWN_DEBUG_CALIBRATE,
+		    "not enough memory for calibration result %d\n",
+		    calib->code);
+		return;
+	}
+	DPRINTF(sc, IWN_DEBUG_CALIBRATE,
+	    "saving calibration result code=%d len=%d\n", calib->code, len);
+	sc->calibcmd[idx].len = len;
+	memcpy(sc->calibcmd[idx].buf, calib, len);
+}
+
+/*
  * Process an RX_STATISTICS or BEACON_STATISTICS firmware notification.
  * The latter is sent by the firmware after each received beacon.
  */
@@ -2555,7 +2593,7 @@ iwn_notif_intr(struct iwn_softc *sc)
 			break;
 		}
 		case IWN5000_CALIBRATION_RESULT:
-			iwn5000_rx_calib_result(sc, desc, data);
+			iwn5000_rx_calib_results(sc, desc, data);
 			break;
 
 		case IWN5000_CALIBRATION_DONE:
@@ -4849,7 +4887,7 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 
 	if (ic->ic_opmode == IEEE80211_M_MONITOR) {
 		/* Link LED blinks while monitoring. */
-		iwn_set_led(sc, IWN_LED_LINK, 20, 20);
+		iwn_set_led(sc, IWN_LED_LINK, 5, 5);
 		return 0;
 	}
 	error = iwn_set_timing(sc, ni);
@@ -5192,200 +5230,57 @@ iwn5000_ampdu_tx_stop(struct iwn_softc *sc, uint8_t tid, uint16_t ssn)
 #endif
 
 /*
- * Send calibration results to the runtime firmware.  These results were
- * obtained on first boot from the initialization firmware, or by reading
- * the EEPROM for crystal calibration.
+ * Query calibration tables from the initialization firmware.  We do this
+ * only once at first boot.  Called from a process context.
  */
 static int
-iwn5000_send_calib_results(struct iwn_softc *sc)
+iwn5000_query_calibration(struct iwn_softc *sc)
 {
-	struct iwn_calib_info *calib_result;
-	int idx, error;
-
-	for (idx = 0; idx < IWN_CALIB_NUM; idx++) {
-		calib_result = &sc->calib_results[idx];
-
-		/* No support for this type of calibration. */
-		if ((sc->calib_init & (1 << idx)) == 0)
-			continue;
-
-		/* No calibration result available. */
-		if (calib_result->buf == NULL)
-			continue;
-
-		DPRINTF(sc, IWN_DEBUG_CALIBRATE,
-		    "%s: send calibration result idx=%d, len=%d\n",
-		    __func__, idx, calib_result->len);
-
-		error = iwn_cmd(sc, IWN_CMD_PHY_CALIB, calib_result->buf,
-		    calib_result->len, 0);
-		if (error != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: could not send calibration result "
-			    "idx=%d, error=%d\n",
-			    __func__, idx, error);
-			return error;
-		}
-	}
-	return 0;
-}
-
-/*
- * Save calibration result at the given index.  The index determines
- * in which order the results are sent to the runtime firmware.
- */
-static int
-iwn5000_save_calib_result(struct iwn_softc *sc, struct iwn_phy_calib *calib,
-    int len, int idx)
-{
-	struct iwn_calib_info *calib_result = &sc->calib_results[idx];
-
-	DPRINTF(sc, IWN_DEBUG_CALIBRATE,
-	    "%s: saving calibration result code=%d, idx=%d, len=%d\n",
-	    __func__, calib->code, idx, len);
-
-	if (calib_result->buf != NULL)
-		free(calib_result->buf, M_DEVBUF);
-
-	calib_result->buf = malloc(len, M_DEVBUF, M_NOWAIT);
-	if (calib_result->buf == NULL) {
-		device_printf(sc->sc_dev,
-		    "%s: not enough memory for calibration result "
-		    "code=%d, len=%d\n", __func__, calib->code, len);
-		return ENOMEM;
-	}
-
-	calib_result->len = len;
-	memcpy(calib_result->buf, calib, len);
-	return 0;
-}
-
-static void
-iwn5000_free_calib_results(struct iwn_softc *sc)
-{
-	struct iwn_calib_info *calib_result;
-	int idx;
-
-	for (idx = 0; idx < IWN_CALIB_NUM; idx++) {
-		calib_result = &sc->calib_results[idx];
-
-		if (calib_result->buf != NULL)
-			free(calib_result->buf, M_DEVBUF);
-
-		calib_result->buf = NULL;
-		calib_result->len = 0;
-	}
-}
-
-/*
- * Obtain the crystal calibration result from the EEPROM.
- */
-static int
-iwn5000_chrystal_calib(struct iwn_softc *sc)
-{
-	struct iwn5000_phy_calib_crystal cmd;
-	uint32_t base, crystal;
-	uint16_t val;
-
-	/* Read crystal calibration. */
-	iwn_read_prom_data(sc, IWN5000_EEPROM_CAL, &val, 2);
-	base = le16toh(val);
-	iwn_read_prom_data(sc, base + IWN5000_EEPROM_CRYSTAL, &crystal,
-	    sizeof(uint32_t));
-	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: crystal calibration=0x%08x\n",
-	    __func__, le32toh(crystal));
-
-	memset(&cmd, 0, sizeof cmd);
-	cmd.code = IWN5000_PHY_CALIB_CRYSTAL;
-	cmd.ngroups = 1;
-	cmd.isvalid = 1;
-	cmd.cap_pin[0] = le32toh(crystal) & 0xff;
-	cmd.cap_pin[1] = (le32toh(crystal) >> 16) & 0xff;
-
-	return iwn5000_save_calib_result(sc, (struct iwn_phy_calib *)&cmd,
-	    sizeof cmd, IWN_CALIB_IDX_XTAL);
-}
-
-/*
- * Query calibration results from the initialization firmware.  We do this
- * only once at first boot.
- */
-static int
-iwn5000_send_calib_query(struct iwn_softc *sc, uint32_t cfg)
-{
-#define	CALIB_INIT_CFG	0xffffffff;
 	struct iwn5000_calib_config cmd;
 	int error;
 
 	memset(&cmd, 0, sizeof cmd);
-	cmd.ucode.once.enable = CALIB_INIT_CFG;
-	if (cfg == 0) {
-		cmd.ucode.once.start  = CALIB_INIT_CFG;
-		cmd.ucode.once.send   = CALIB_INIT_CFG;
-		cmd.ucode.flags       = CALIB_INIT_CFG;
-	} else
-		cmd.ucode.once.start  = cfg;
-
-	DPRINTF(sc, IWN_DEBUG_CALIBRATE,
-	    "%s: query calibration results, cfg %x\n", __func__, cfg);
-
+	cmd.ucode.once.enable = 0xffffffff;
+	cmd.ucode.once.start  = 0xffffffff;
+	cmd.ucode.once.send   = 0xffffffff;
+	cmd.ucode.flags       = 0xffffffff;
+	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: sending calibration query\n",
+	    __func__);
 	error = iwn_cmd(sc, IWN5000_CMD_CALIB_CONFIG, &cmd, sizeof cmd, 0);
 	if (error != 0)
 		return error;
 
 	/* Wait at most two seconds for calibration to complete. */
 	if (!(sc->sc_flags & IWN_FLAG_CALIB_DONE))
-		error = msleep(sc, &sc->sc_mtx, PCATCH, "iwninit", 2 * hz);
-
+		error = msleep(sc, &sc->sc_mtx, PCATCH, "iwncal", 2 * hz);
 	return error;
-#undef	CALIB_INIT_CFG
 }
 
 /*
- * Process a CALIBRATION_RESULT notification sent by the initialization
- * firmware on response to a CMD_CALIB_CONFIG command.
+ * Send calibration results to the runtime firmware.  These results were
+ * obtained on first boot from the initialization firmware.
  */
 static int
-iwn5000_rx_calib_result(struct iwn_softc *sc, struct iwn_rx_desc *desc,
-    struct iwn_rx_data *data)
+iwn5000_send_calibration(struct iwn_softc *sc)
 {
-#define	FRAME_SIZE_MASK		0x3fff
-	struct iwn_phy_calib *calib = (struct iwn_phy_calib *)(desc + 1);
-	int len, idx;
+	int idx, error;
 
-	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
-	len = (le32toh(desc->len) & FRAME_SIZE_MASK);
-
-	/* Remove length field itself. */
-	len -= 4;
-
-	/*
-	 * Determine the order in which the results will be send to the
-	 * runtime firmware.
-	 */
-	switch (calib->code) {
-	case IWN5000_PHY_CALIB_DC:
-		idx = IWN_CALIB_IDX_DC;
-		break;
-	case IWN5000_PHY_CALIB_LO:
-		idx = IWN_CALIB_IDX_LO;
-		break;
-	case IWN5000_PHY_CALIB_TX_IQ:
-		idx = IWN_CALIB_IDX_TX_IQ;
-		break;
-	case IWN5000_PHY_CALIB_TX_IQ_PERIODIC:
-		idx = IWN_CALIB_IDX_TX_IQ_PERIODIC;
-		break;
-	case IWN5000_PHY_CALIB_BASE_BAND:
-		idx = IWN_CALIB_IDX_BASE_BAND;
-		break;
-	default:
+	for (idx = 0; idx < 5; idx++) {
+		if (sc->calibcmd[idx].buf == NULL)
+			continue;	/* No results available. */
 		DPRINTF(sc, IWN_DEBUG_CALIBRATE,
-		   "%s: unknown calibration code=%d\n", __func__, calib->code);
-		return EINVAL;
+		    "send calibration result idx=%d len=%d\n", idx,
+		    sc->calibcmd[idx].len);
+		error = iwn_cmd(sc, IWN_CMD_PHY_CALIB, sc->calibcmd[idx].buf,
+		    sc->calibcmd[idx].len, 0);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: could not send calibration result, error %d\n",
+			    __func__, error);
+			return error;
+		}
 	}
-	return iwn5000_save_calib_result(sc, calib, len, idx);
-#undef	FRAME_SIZE_MASK
+	return 0;
 }
 
 static int
@@ -5413,6 +5308,22 @@ iwn5000_send_wimax_coex(struct iwn_softc *sc)
 	DPRINTF(sc, IWN_DEBUG_RESET, "%s: Configuring WiMAX coexistence\n",
 	    __func__);
 	return iwn_cmd(sc, IWN5000_CMD_WIMAX_COEX, &wimax, sizeof wimax, 0);
+}
+
+static int
+iwn5000_crystal_calib(struct iwn_softc *sc)
+{
+	struct iwn5000_phy_calib_crystal cmd;
+
+	memset(&cmd, 0, sizeof cmd);
+	cmd.code = IWN5000_PHY_CALIB_CRYSTAL;
+	cmd.ngroups = 1;
+	cmd.isvalid = 1;
+	cmd.cap_pin[0] = le32toh(sc->eeprom_crystal) & 0xff;
+	cmd.cap_pin[1] = (le32toh(sc->eeprom_crystal) >> 16) & 0xff;
+	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "sending crystal calibration %d, %d\n",
+	    cmd.cap_pin[0], cmd.cap_pin[1]);
+	return iwn_cmd(sc, IWN_CMD_PHY_CALIB, &cmd, sizeof cmd, 0);
 }
 
 /*
@@ -5531,36 +5442,21 @@ iwn5000_post_alive(struct iwn_softc *sc)
 		    __func__, error);
 		return error;
 	}
-
+	if (sc->hw_type != IWN_HW_REV_TYPE_5150) {
+		/* Perform crystal calibration. */
+		error = iwn5000_crystal_calib(sc);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: crystal calibration failed, error %d\n",
+			    __func__, error);
+			return error;
+		}
+	}
 	if (!(sc->sc_flags & IWN_FLAG_CALIB_DONE)) {
-		/*
-		 * Start calibration by setting and sending the chrystal
-		 * calibration first, this must be done before we are able
-		 * to query the other calibration results.
-		 */
-		error = iwn5000_chrystal_calib(sc);
-		if (error != 0) {
+		/* Query calibration from the initialization firmware. */
+		if ((error = iwn5000_query_calibration(sc)) != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: could not set chrystal calibration, "
-			    "error=%d\n", __func__, error);
-			return error;
-		}
-		error = iwn5000_send_calib_results(sc);
-		if (error != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: could not send chrystal calibration, "
-			    "error=%d\n", __func__, error);
-			return error;
-		}
-
-		/*
-		 * Query other calibration results from the initialization
-		 * firmware.
-		 */
-		error = iwn5000_send_calib_query(sc, 0);
-		if (error != 0) {
-			device_printf(sc->sc_dev,
-			    "%s: could not query calibration, error=%d\n",
+			    "%s: could not query calibration, error %d\n",
 			    __func__, error);
 			return error;
 		}
@@ -5572,24 +5468,8 @@ iwn5000_post_alive(struct iwn_softc *sc)
 		iwn_hw_stop(sc);
 		error = iwn_hw_init(sc);
 	} else {
-		/*
-		 * Send calibration results obtained from the initialization
-		 * firmware to the runtime firmware.
-		 */
-		error = iwn5000_send_calib_results(sc);
-
-		/*
-		 * Tell the runtime firmware to do certain calibration types.
-		 */
-		if (sc->calib_runtime != 0) {
-			error = iwn5000_send_calib_query(sc, sc->calib_runtime);
-			if (error != 0) {
-				device_printf(sc->sc_dev,
-				    "%s: could not send query calibration, "
-				    "error=%d, cfg=%x\n", __func__, error,
-				    sc->calib_runtime);
-			}
-		}
+		/* Send calibration results to runtime firmware. */
+		error = iwn5000_send_calibration(sc);
 	}
 	return error;
 }
