@@ -74,8 +74,6 @@ typedef boolean_t bool;
 #define false FALSE
 #define true TRUE
 
-#undef msleep
-#define msleep(x) DELAY((x) * 1000)
 #define mdelay(x) DELAY((x) * 1000)
 #define udelay(x) DELAY(x)
 
