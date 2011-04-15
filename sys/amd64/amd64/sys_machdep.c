@@ -214,7 +214,6 @@ sysarch(td, uap)
 		if (!error) {
 			pcb->pcb_fsbase = i386base;
 			td->td_frame->tf_fs = _ufssel;
-			set_pcb_flags(pcb, PCB_FULL_IRET);
 			update_gdt_fsbase(td, i386base);
 		}
 		break;
@@ -226,7 +225,6 @@ sysarch(td, uap)
 		error = copyin(uap->parms, &i386base, sizeof(i386base));
 		if (!error) {
 			pcb->pcb_gsbase = i386base;
-			set_pcb_flags(pcb, PCB_FULL_IRET);
 			td->td_frame->tf_gs = _ugssel;
 			update_gdt_gsbase(td, i386base);
 		}
