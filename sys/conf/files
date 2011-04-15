@@ -190,6 +190,7 @@ contrib/dev/acpica/dispatcher/dswload2.c	optional acpi
 contrib/dev/acpica/dispatcher/dswscope.c	optional acpi
 contrib/dev/acpica/dispatcher/dswstate.c	optional acpi
 contrib/dev/acpica/events/evevent.c		optional acpi
+contrib/dev/acpica/events/evglock.c		optional acpi
 contrib/dev/acpica/events/evgpe.c		optional acpi
 contrib/dev/acpica/events/evgpeblk.c		optional acpi
 contrib/dev/acpica/events/evgpeinit.c		optional acpi

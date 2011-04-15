@@ -10,7 +10,7 @@ SRCS+=	dmextern.c dmrestag.c dmtable.c dmtbdump.c dmtbinfo.c	\
 
 # compiler
 SRCS+=	aslanalyze.c aslbtypes.c aslcodegen.c aslcompile.c	\
-	aslcompiler.y.h	aslcompilerlex.l aslcompilerparse.y	\
+	aslcompiler.y.h aslcompilerlex.c aslcompilerparse.c	\
 	aslerror.c aslfiles.c aslfold.c asllength.c		\
 	asllisting.c aslload.c asllookup.c aslmain.c aslmap.c	\
 	aslopcodes.c asloperands.c aslopt.c aslpredef.c		\
@@ -19,7 +19,8 @@ SRCS+=	aslanalyze.c aslbtypes.c aslcodegen.c aslcompile.c	\
 	aslrestype2q.c aslrestype2w.c aslstartup.c aslstubs.c	\
 	asltransform.c asltree.c aslutils.c asluuid.c		\
 	aslwalks.c dtcompile.c dtexpress.c dtfield.c dtio.c	\
-	dtsubtable.c dttable.c dttemplate.c dtutils.c
+	dtparser.y.h dtparserlex.c dtparserparse.c dtsubtable.c	\
+	dttable.c dttemplate.c dtutils.c
 
 # debugger
 SRCS+=	dbfileio.c
@@ -62,20 +63,31 @@ MAN=	iasl.8
 
 CFLAGS+= -DACPI_ASL_COMPILER -I.
 CFLAGS+= -D_USE_BERKELEY_YACC
-LFLAGS= -i -PAslCompiler
-YFLAGS= -d -pAslCompiler
+LFLAGS= -i -s
+YFLAGS= -d
 DPADD=	${LIBPTHREAD}
 LDADD=	-lpthread
 
-CLEANFILES= aslcompiler.y.h aslcompilerlex.l aslcompilerparse.y
+CLEANFILES= aslcompiler.y.h aslcompilerlex.c aslcompilerparse.c	\
+	aslcompilerparse.h dtparser.y.h dtparserlex.c		\
+	dtparserparse.c dtparserparse.h
 
-aslcompiler.y.h: aslcompilerparse.h
-	cat ${.ALLSRC} > ${.TARGET}
+aslcompilerlex.c: aslcompiler.l
+	${LEX} ${LFLAGS} -PAslCompiler -o${.TARGET} ${.ALLSRC}
 
-aslcompilerlex.l: aslcompiler.l
-	cat ${.ALLSRC} > ${.TARGET}
+aslcompilerparse.c: aslcompiler.y
+	${YACC} ${YFLAGS} -pAslCompiler -o${.TARGET} ${.ALLSRC}
 
-aslcompilerparse.y: aslcompiler.y
-	cat ${.ALLSRC} > ${.TARGET}
+aslcompiler.y.h: aslcompilerparse.c
+	mv -f aslcompilerparse.h ${.TARGET}
+
+dtparserlex.c: dtparser.l
+	${LEX} ${LFLAGS} -PDtParser -o${.TARGET} ${.ALLSRC}
+
+dtparserparse.c: dtparser.y
+	${YACC} ${YFLAGS} -pDtParser -o${.TARGET} ${.ALLSRC}
+
+dtparser.y.h: dtparserparse.c
+	mv -f dtparserparse.h ${.TARGET}
 
 .include <bsd.prog.mk>
