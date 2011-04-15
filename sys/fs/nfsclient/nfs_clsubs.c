@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/syscall.h>
 #include <sys/sysproto.h>
+#include <sys/taskqueue.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -77,11 +78,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 extern struct mtx ncl_iod_mutex;
-extern enum nfsiod_state ncl_iodwant[NFS_MAXRAHEAD];
-extern struct nfsmount *ncl_iodmount[NFS_MAXRAHEAD];
+extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
+extern struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
 extern int ncl_numasync;
 extern unsigned int ncl_iodmax;
 extern struct nfsstats newnfsstats;
+
+struct task	ncl_nfsiodnew_task;
 
 int
 ncl_uninit(struct vfsconf *vfsp)
@@ -393,10 +396,11 @@ ncl_init(struct vfsconf *vfsp)
 	int i;
 
 	/* Ensure async daemons disabled */
-	for (i = 0; i < NFS_MAXRAHEAD; i++) {
+	for (i = 0; i < NFS_MAXASYNCDAEMON; i++) {
 		ncl_iodwant[i] = NFSIOD_NOT_AVAILABLE;
 		ncl_iodmount[i] = NULL;
 	}
+	TASK_INIT(&ncl_nfsiodnew_task, 0, ncl_nfsiodnew_tq, NULL);
 	ncl_nhinit();			/* Init the nfsnode table */
 
 	return (0);
