@@ -1765,17 +1765,13 @@ ffs_nodealloccg(ip, cg, ipref, mode)
 		}
 	}
 	i = start + len - loc;
-	map = inosused[i];
-	ipref = i * NBBY;
-	for (i = 1; i < (1 << NBBY); i <<= 1, ipref++) {
-		if ((map & i) == 0) {
-			cgp->cg_irotor = ipref;
-			goto gotit;
-		}
+	map = inosused[i] ^ 0xff;
+	if (map == 0) {
+		printf("fs = %s\n", fs->fs_fsmnt);
+		panic("ffs_nodealloccg: block not in map");
 	}
-	printf("fs = %s\n", fs->fs_fsmnt);
-	panic("ffs_nodealloccg: block not in map");
-	/* NOTREACHED */
+	ipref = i * NBBY + ffs(map) - 1;
+	cgp->cg_irotor = ipref;
 gotit:
 	/*
 	 * Check to see if we need to initialize more inodes.
