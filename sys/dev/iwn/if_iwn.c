@@ -4003,7 +4003,7 @@ iwn4965_get_temperature(struct iwn_softc *sc)
 		return 0;
 
 	/* Sign-extend 23-bit R4 value to 32-bit. */
-	r4 = (r4 << 8) >> 8;
+	r4 = ((r4 & 0xffffff) ^ 0x800000) - 0x800000;
 	/* Compute temperature in Kelvin. */
 	temp = (259 * (r4 - r2)) / (r3 - r1);
 	temp = (temp * 97) / 100 + 8;
@@ -6283,7 +6283,6 @@ static void
 iwn_hw_stop(struct iwn_softc *sc)
 {
 	const struct iwn_hal *hal = sc->sc_hal;
-	uint32_t tmp;
 	int chnl, qid, ntries;
 
 	IWN_WRITE(sc, IWN_RESET, IWN_RESET_NEVO);
@@ -6305,8 +6304,7 @@ iwn_hw_stop(struct iwn_softc *sc)
 		for (chnl = 0; chnl < hal->ndmachnls; chnl++) {
 			IWN_WRITE(sc, IWN_FH_TX_CONFIG(chnl), 0);
 			for (ntries = 0; ntries < 200; ntries++) {
-				tmp = IWN_READ(sc, IWN_FH_TX_STATUS);
-				if ((tmp & IWN_FH_TX_STATUS_IDLE(chnl)) ==
+				if (IWN_READ(sc, IWN_FH_TX_STATUS) &
 				    IWN_FH_TX_STATUS_IDLE(chnl))
 					break;
 				DELAY(10);
