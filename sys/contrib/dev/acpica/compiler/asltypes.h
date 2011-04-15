@@ -76,6 +76,7 @@
 #define NODE_COMPILER_EMITTED       0x00020000
 #define NODE_IS_DUPLICATE           0x00040000
 #define NODE_IS_RESOURCE_DATA       0x00080000
+#define NODE_IS_NULL_RETURN         0x00100000
 
 /* Keeps information about individual control methods */
 

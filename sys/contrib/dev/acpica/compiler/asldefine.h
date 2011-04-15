@@ -123,6 +123,7 @@
 #define ASL_EXTERNAL_METHOD         255
 #define ASL_ABORT                   TRUE
 #define ASL_NO_ABORT                FALSE
+#define ASL_EOF                     ACPI_UINT32_MAX
 
 
 /* Support for reserved method names */

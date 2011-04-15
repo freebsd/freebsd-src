@@ -466,7 +466,7 @@ AcpiDsLoad1EndOp (
         else if (Op->Common.AmlOpcode == AML_DATA_REGION_OP)
         {
             Status = AcpiExCreateRegion (Op->Named.Data, Op->Named.Length,
-                        REGION_DATA_TABLE, WalkState);
+                        ACPI_ADR_SPACE_DATA_TABLE, WalkState);
             if (ACPI_FAILURE (Status))
             {
                 return_ACPI_STATUS (Status);
