@@ -3366,8 +3366,8 @@ iwn_watchdog(void *arg)
 
 	KASSERT(ifp->if_drv_flags & IFF_DRV_RUNNING, ("not running"));
 
-	if (sc->sc_tx_timer > 0 || counter == 50) {
-		if (--sc->sc_tx_timer == 0 || counter == 50) {
+	if (sc->sc_tx_timer > 0) {
+		if (--sc->sc_tx_timer == 0) {
 			if_printf(ifp, "device timeout\n");
 			ieee80211_runtask(ic, &sc->sc_reinit_task);
 			return;
