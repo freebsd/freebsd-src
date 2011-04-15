@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 
 const char *const sys_errlist[] = {
-	"Undefined error: 0",			/*  0 - ENOERROR */
+	"No error: 0",				/*  0 - ENOERROR */
 	"Operation not permitted",		/*  1 - EPERM */
 	"No such file or directory",		/*  2 - ENOENT */
 	"No such process",			/*  3 - ESRCH */
