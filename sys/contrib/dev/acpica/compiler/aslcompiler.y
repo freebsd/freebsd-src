@@ -1484,7 +1484,7 @@ ReturnTerm
     : PARSEOP_RETURN '('			{$<n>$ = TrCreateLeafNode (PARSEOP_RETURN);}
         OptionalReturnArg
         ')'                         {$$ = TrLinkChildren ($<n>3,1,$4);}
-    | PARSEOP_RETURN 				{$$ = TrLinkChildren (TrCreateLeafNode (PARSEOP_RETURN),1,TrCreateLeafNode (PARSEOP_ZERO));}
+    | PARSEOP_RETURN 				{$$ = TrLinkChildren (TrCreateLeafNode (PARSEOP_RETURN),1,TrSetNodeFlags (TrCreateLeafNode (PARSEOP_ZERO), NODE_IS_NULL_RETURN));}
     | PARSEOP_RETURN '('
         error ')'                   {$$ = AslDoError(); yyclearin;}
     ;
@@ -3061,7 +3061,7 @@ OptionalTermArg
     ;
 
 OptionalReturnArg
-    :                               {$$ = TrCreateLeafNode (PARSEOP_ZERO);}       /* Placeholder is a ZeroOp object */
+    :                               {$$ = TrSetNodeFlags (TrCreateLeafNode (PARSEOP_ZERO), NODE_IS_NULL_RETURN);}       /* Placeholder is a ZeroOp object */
     | TermArg                       {$$ = $1;}
     ;
 

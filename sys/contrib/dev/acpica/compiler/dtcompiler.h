@@ -220,9 +220,20 @@ DtGetParentSubtable (
 
 /* dtexpress - Integer expressions and labels */
 
-UINT64
+ACPI_STATUS
 DtResolveIntegerExpression (
-    DT_FIELD                *Field);
+    DT_FIELD                *Field,
+    UINT64                  *ReturnValue);
+
+UINT64
+DtDoOperator (
+    UINT64                  LeftValue,
+    UINT32                  Operator,
+    UINT64                  RightValue);
+
+UINT64
+DtResolveLabel (
+    char                    *LabelString);
 
 void
 DtDetectAllLabels (
@@ -258,6 +269,25 @@ DtCompileFlag (
     UINT8                   *Buffer,
     DT_FIELD                *Field,
     ACPI_DMTABLE_INFO       *Info);
+
+
+/* dtparser - lex/yacc files */
+
+UINT64
+DtEvaluateExpression (
+    char                    *ExprString);
+
+int
+DtInitLexer (
+    char                    *String);
+
+void
+DtTerminateLexer (
+    void);
+
+char *
+DtGetOpName (
+    UINT32                  ParseOpcode);
 
 
 /* dtutils - Miscellaneous utilities */
@@ -306,8 +336,7 @@ DtGetFileSize (
 
 char*
 DtGetFieldValue (
-    DT_FIELD                *Field,
-    char                    *Name);
+    DT_FIELD                *Field);
 
 UINT8
 DtGetFieldType (
@@ -415,6 +444,10 @@ DtCompileWdat (
 
 ACPI_STATUS
 DtCompileXsdt (
+    void                    **PFieldList);
+
+ACPI_STATUS
+DtCompileGeneric (
     void                    **PFieldList);
 
 ACPI_DMTABLE_INFO *

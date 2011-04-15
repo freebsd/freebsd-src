@@ -1224,7 +1224,6 @@ DtCompileSlit (
     DT_FIELD                *FieldList;
     UINT32                  Localities;
     UINT8                   *LocalityBuffer;
-    UINT32                  RemainingData;
 
 
     Status = DtCompileTable (PFieldList, AcpiDmTableInfoSlit,
@@ -1240,22 +1239,17 @@ DtCompileSlit (
     Localities = *ACPI_CAST_PTR (UINT32, Subtable->Buffer);
     LocalityBuffer = UtLocalCalloc (Localities);
 
+    /* Compile each locality buffer */
+
     FieldList = *PFieldList;
     while (FieldList)
     {
-        /* Handle multiple-line buffer */
-
-        RemainingData = Localities;
-        while (RemainingData && FieldList)
-        {
-            RemainingData = DtCompileBuffer (
-                LocalityBuffer + (Localities - RemainingData),
-                FieldList->Value, FieldList, RemainingData);
-            FieldList = FieldList->Next;
-        }
+        DtCompileBuffer (LocalityBuffer,
+            FieldList->Value, FieldList, Localities);
 
         DtCreateSubtable (LocalityBuffer, Localities, &Subtable);
         DtInsertSubtable (ParentTable, Subtable);
+        FieldList = FieldList->Next;
     }
 
     ACPI_FREE (LocalityBuffer);
@@ -1411,7 +1405,6 @@ DtCompileUefi (
     DT_SUBTABLE             *Subtable;
     DT_SUBTABLE             *ParentTable;
     DT_FIELD                **PFieldList = (DT_FIELD **) List;
-    ACPI_DMTABLE_INFO       *Info;
     UINT16                  *DataOffset;
 
 
@@ -1436,45 +1429,7 @@ DtCompileUefi (
      * operators may be used.
      */
 
-    /* Find any and all labels in the entire generic portion */
-
-    DtDetectAllLabels (*PFieldList);
-
-    /* Now we can actually compile the parse tree */
-
-    while (*PFieldList)
-    {
-        Info = DtGetGenericTableInfo ((*PFieldList)->Name);
-        if (!Info)
-        {
-            sprintf (MsgBuffer, "Generic data type \"%s\" not found",
-                (*PFieldList)->Name);
-            DtNameError (ASL_ERROR, ASL_MSG_INVALID_FIELD_NAME,
-                (*PFieldList), MsgBuffer);
-
-            *PFieldList = (*PFieldList)->Next;
-            continue;
-        }
-
-        Status = DtCompileTable (PFieldList, Info,
-                    &Subtable, TRUE);
-        if (ACPI_SUCCESS (Status))
-        {
-            DtInsertSubtable (ParentTable, Subtable);
-        }
-        else
-        {
-            *PFieldList = (*PFieldList)->Next;
-
-            if (Status == AE_NOT_FOUND)
-            {
-                sprintf (MsgBuffer, "Generic data type \"%s\" not found",
-                    (*PFieldList)->Name);
-                DtNameError (ASL_ERROR, ASL_MSG_INVALID_FIELD_NAME,
-                    (*PFieldList), MsgBuffer);
-            }
-        }
-    }
+    DtCompileGeneric ((void **) PFieldList);
 
     return (AE_OK);
 }
@@ -1535,6 +1490,81 @@ DtCompileXsdt (
         DtCreateSubtable ((UINT8 *) &Address, 8, &Subtable);
         DtInsertSubtable (ParentTable, Subtable);
         FieldList = FieldList->Next;
+    }
+
+    return (AE_OK);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    DtCompileGeneric
+ *
+ * PARAMETERS:  List                - Current field list pointer
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Compile generic unknown table.
+ *
+ *****************************************************************************/
+
+ACPI_STATUS
+DtCompileGeneric (
+    void                    **List)
+{
+    ACPI_STATUS             Status;
+    DT_SUBTABLE             *Subtable;
+    DT_SUBTABLE             *ParentTable;
+    DT_FIELD                **PFieldList = (DT_FIELD **) List;
+    ACPI_DMTABLE_INFO       *Info;
+
+
+    ParentTable = DtPeekSubtable ();
+
+    /*
+     * Compile the "generic" portion of the table. This
+     * part of the table is not predefined and any of the generic
+     * operators may be used.
+     */
+
+    /* Find any and all labels in the entire generic portion */
+
+    DtDetectAllLabels (*PFieldList);
+
+    /* Now we can actually compile the parse tree */
+
+    while (*PFieldList)
+    {
+        Info = DtGetGenericTableInfo ((*PFieldList)->Name);
+        if (!Info)
+        {
+            sprintf (MsgBuffer, "Generic data type \"%s\" not found",
+                (*PFieldList)->Name);
+            DtNameError (ASL_ERROR, ASL_MSG_INVALID_FIELD_NAME,
+                (*PFieldList), MsgBuffer);
+
+            *PFieldList = (*PFieldList)->Next;
+            continue;
+        }
+
+        Status = DtCompileTable (PFieldList, Info,
+                    &Subtable, TRUE);
+        if (ACPI_SUCCESS (Status))
+        {
+            DtInsertSubtable (ParentTable, Subtable);
+        }
+        else
+        {
+            *PFieldList = (*PFieldList)->Next;
+
+            if (Status == AE_NOT_FOUND)
+            {
+                sprintf (MsgBuffer, "Generic data type \"%s\" not found",
+                    (*PFieldList)->Name);
+                DtNameError (ASL_ERROR, ASL_MSG_INVALID_FIELD_NAME,
+                    (*PFieldList), MsgBuffer);
+            }
+        }
     }
 
     return (AE_OK);
