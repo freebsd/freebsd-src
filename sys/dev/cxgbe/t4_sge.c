@@ -279,7 +279,7 @@ t4_setup_adapter_iqs(struct adapter *sc)
 			}
 		}
 
-		handler = t4_intr_evt;
+		handler = t4_evt_rx;
 		i = 0;	/* forward fwq's interrupt to the first fiq */
 	} else {
 		handler = NULL;
@@ -345,7 +345,7 @@ t4_setup_eth_queues(struct port_info *pi)
 		    device_get_nameunit(pi->dev), i);
 		init_iq(&rxq->iq, sc, pi->tmr_idx, pi->pktc_idx,
 		    pi->qsize_rxq, RX_IQ_ESIZE,
-		    sc->flags & INTR_FWD ? t4_intr_data: NULL, name);
+		    sc->flags & INTR_FWD ? t4_eth_rx : NULL, name);
 
 		snprintf(name, sizeof(name), "%s rxq%d-fl",
 		    device_get_nameunit(pi->dev), i);
@@ -428,6 +428,9 @@ t4_intr_fwd(void *arg)
 	int ndesc_pending = 0, ndesc_total = 0;
 	int qid;
 
+	if (!atomic_cmpset_32(&iq->state, IQS_IDLE, IQS_BUSY))
+		return;
+
 	while (is_new_response(iq, &ctrl)) {
 
 		rmb();
@@ -460,6 +463,8 @@ t4_intr_fwd(void *arg)
 		    V_CIDXINC(ndesc_pending) | V_INGRESSQID((u32)iq->cntxt_id) |
 		    V_SEINTARM(iq->intr_params));
 	}
+
+	atomic_cmpset_32(&iq->state, IQS_BUSY, IQS_IDLE);
 }
 
 /* Deals with error interrupts */
@@ -477,6 +482,32 @@ t4_intr_err(void *arg)
 /* Deals with the firmware event queue */
 void
 t4_intr_evt(void *arg)
+{
+	struct sge_iq *iq = arg;
+
+	if (!atomic_cmpset_32(&iq->state, IQS_IDLE, IQS_BUSY))
+		return;
+
+	t4_evt_rx(arg);
+
+	atomic_cmpset_32(&iq->state, IQS_BUSY, IQS_IDLE);
+}
+
+void
+t4_intr_data(void *arg)
+{
+	struct sge_iq *iq = arg;
+
+	if (!atomic_cmpset_32(&iq->state, IQS_IDLE, IQS_BUSY))
+		return;
+
+	t4_eth_rx(arg);
+
+	atomic_cmpset_32(&iq->state, IQS_BUSY, IQS_IDLE);
+}
+
+void
+t4_evt_rx(void *arg)
 {
 	struct sge_iq *iq = arg;
 	struct adapter *sc = iq->adapter;
@@ -537,7 +568,7 @@ t4_intr_evt(void *arg)
 }
 
 void
-t4_intr_data(void *arg)
+t4_eth_rx(void *arg)
 {
 	struct sge_rxq *rxq = arg;
 	struct sge_iq *iq = arg;
@@ -1017,8 +1048,6 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 	if (pi == NULL)
 		pi = sc->port[0];
 
-	mtx_init(&iq->iq_lock, iq->lockname, NULL, MTX_DEF);
-
 	len = iq->qsize * iq->esize;
 	rc = alloc_ring(sc, len, &iq->desc_tag, &iq->desc_map, &iq->ba,
 	    (void **)&iq->desc);
@@ -1148,6 +1177,7 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 	}
 
 	/* Enable IQ interrupts */
+	atomic_store_rel_32(&iq->state, IQS_IDLE);
 	t4_write_reg(sc, MYPF_REG(A_SGE_PF_GTS), V_SEINTARM(iq->intr_params) |
 	    V_INGRESSQID(iq->cntxt_id));
 
@@ -1179,6 +1209,10 @@ free_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl)
 			return (rc);
 		}
 		iq->flags &= ~IQ_STARTED;
+
+		/* Synchronize with the interrupt handler */
+		while (!atomic_cmpset_32(&iq->state, IQS_IDLE, IQS_DISABLED))
+			pause("iqfree", hz / 1000);
 	}
 
 	if (iq->flags & IQ_ALLOCATED) {
@@ -1195,9 +1229,6 @@ free_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl)
 	}
 
 	free_ring(sc, iq->desc_tag, iq->desc_map, iq->ba, iq->desc);
-
-	if (mtx_initialized(&iq->iq_lock))
-		mtx_destroy(&iq->iq_lock);
 
 	bzero(iq, sizeof(*iq));
 
@@ -1425,6 +1456,27 @@ free_txq(struct port_info *pi, struct sge_txq *txq)
 	struct sge_eq *eq = &txq->eq;
 
 	if (eq->flags & (EQ_ALLOCATED | EQ_STARTED)) {
+
+		/*
+		 * Wait for the response to a credit flush if there's one
+		 * pending.  Clearing the flag tells handle_sge_egr_update or
+		 * cxgbe_txq_start (depending on how far the response has made
+		 * it) that they should ignore the response and wake up free_txq
+		 * instead.
+		 *
+		 * The interface has been marked down by the time we get here
+		 * (both IFF_UP and IFF_DRV_RUNNING cleared).  qflush has
+		 * emptied the tx buf_rings and we know nothing new is being
+		 * queued for tx so we don't have to worry about a new credit
+		 * flush request.
+		 */
+		TXQ_LOCK(txq);
+		if (eq->flags & EQ_CRFLUSHED) {
+			eq->flags &= ~EQ_CRFLUSHED;
+			msleep(txq, &eq->eq_lock, 0, "crflush", 0);
+		}
+		TXQ_UNLOCK(txq);
+
 		rc = -t4_eth_eq_free(sc, sc->mbox, sc->pf, 0, eq->cntxt_id);
 		if (rc != 0) {
 			device_printf(pi->dev,
@@ -2444,13 +2496,14 @@ handle_sge_egr_update(struct adapter *sc, const struct cpl_sge_egr_update *cpl)
 	struct port_info *pi;
 
 	txq = (void *)s->eqmap[qid - s->eq_start];
-
-	KASSERT(txq->eq.flags & EQ_CRFLUSHED,
-	    ("%s: tx queue %p not expecting an update.", __func__, txq));
-
-	pi = txq->ifp->if_softc;
-	taskqueue_enqueue(pi->tq, &txq->resume_tx);
-	txq->egr_update++;
+	TXQ_LOCK(txq);
+	if (txq->eq.flags & EQ_CRFLUSHED) {
+		pi = txq->ifp->if_softc;
+		taskqueue_enqueue(pi->tq, &txq->resume_tx);
+		txq->egr_update++;
+	} else
+		wakeup_one(txq);	/* txq is going away, wakeup free_txq */
+	TXQ_UNLOCK(txq);
 
 	return (0);
 }
