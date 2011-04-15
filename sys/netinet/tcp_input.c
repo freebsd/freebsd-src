@@ -1296,7 +1296,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				(TF_RCVD_SCALE|TF_REQ_SCALE)) {
 				tp->rcv_scale = tp->request_r_scale;
 			}
-			tp->rcv_adv += tp->rcv_wnd;
+			tp->rcv_adv += imin(tp->rcv_wnd,
+			    TCP_MAXWIN << tp->rcv_scale);
 			tp->snd_una++;		/* SYN is acked */
 			/*
 			 * If there's data, delay ACK; if there's also a FIN
