@@ -42,22 +42,26 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define YYDEBUG 1
-#define YYERROR_VERBOSE 1
-
 #include "aslcompiler.h"
 #include "dtcompiler.h"
 
-#define _COMPONENT          ACPI_COMPILER
+#define _COMPONENT          DT_COMPILER
         ACPI_MODULE_NAME    ("dtparser")
 
-UINT64                  DtParserResult;    /* Global for expression return value */
+int                         DtParserlex (void);
+int                         DtParserparse (void);
+void                        DtParsererror (char const *msg);
+extern char                 *DtParsertext;
+extern DT_FIELD             *Gbl_CurrentField;
 
-int DtParserlex (void);
-int DtParserparse (void);
-extern char*            DtParsertext;
-extern void             DtParsererror (char const * msg);
-#define YYFLAG          -32768
+UINT64                      DtParserResult; /* Expression return value */
+
+/* Bison/yacc configuration */
+
+#define yytname             DtParsername
+#define YYDEBUG             1               /* Enable debug output */
+#define YYERROR_VERBOSE     1               /* Verbose error messages */
+#define YYFLAG              -32768
 
 %}
 
@@ -66,6 +70,8 @@ extern void             DtParsererror (char const * msg);
      UINT64                 value;
      UINT32                 op;
 }
+
+/*! [Begin] no source code translation */
 
 %type  <value>  Expression
 
@@ -164,16 +170,13 @@ Expression
     ;
 %%
 
+/*! [End] no source code translation !*/
+
 /*
  * Local support functions, including parser entry point
  */
-extern DT_FIELD                 *Gbl_CurrentField;
 #define PR_FIRST_PARSE_OPCODE   EXPOP_EOF
 #define PR_YYTNAME_START        3
-
-#ifdef _USE_BERKELEY_YACC
-#define yytname DtParsername
-#endif
 
 
 /******************************************************************************
@@ -213,13 +216,16 @@ char *
 DtGetOpName (
     UINT32                  ParseOpcode)
 {
-
+#ifdef ASL_YYTNAME_START
     /*
      * First entries (PR_YYTNAME_START) in yytname are special reserved names.
      * Ignore first 6 characters of name (EXPOP_)
      */
     return ((char *) yytname
         [(ParseOpcode - PR_FIRST_PARSE_OPCODE) + PR_YYTNAME_START] + 6);
+#else
+    return ("[Unknown parser generator]");
+#endif
 }
 
 

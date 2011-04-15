@@ -166,11 +166,15 @@ OBJS = \
 
 INTERMEDIATES = \
 	aslcompilerlex.c \
-	aslcompilerparse.c
+	aslcompilerparse.c \
+	dtparserlex.c \
+	dtparserparse.c
 
 MISC = \
 	aslcompiler.y.h \
-	aslcompilerparse.output
+	aslcompilerparse.output \
+	dtparser.y.h \
+	dtparserparse.output
 
 
 #
