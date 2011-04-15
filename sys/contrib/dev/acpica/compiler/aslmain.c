@@ -148,7 +148,7 @@ Options (
     printf ("  -ls            Create combined source file (expanded includes) (*.src)\n");
 
     printf ("\nACPI Data Tables:\n");
-    printf ("  -T <Sig>       Create table template file for <Sig> (or \"ALL\")\n");
+    printf ("  -T <Sig>|ALL|* Create table template file(s) for <Sig>\n");
     printf ("  -vt            Create verbose templates (full disassembly)\n");
 
     printf ("\nAML Disassembler:\n");
@@ -425,10 +425,12 @@ AslDoOptions (
         {
         case 'b':
             AslCompilerdebug = 1; /* same as yydebug */
+            DtParserdebug = 1;
             break;
 
         case 'p':
             AslCompilerdebug = 1; /* same as yydebug */
+            DtParserdebug = 1;
             break;
 
         case 't':
