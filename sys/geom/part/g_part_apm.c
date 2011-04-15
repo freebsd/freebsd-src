@@ -390,7 +390,7 @@ g_part_apm_probe(struct g_part_table *basetable, struct g_consumer *cp)
 	buf = g_read_data(cp, 0L, pp->sectorsize, &error);
 	if (buf == NULL)
 		return (error);
-	if (be16dec(buf) == be16toh(APM_DDR_SIG)) {
+	if (be16dec(buf) == APM_DDR_SIG) {
 		/* Normal Apple DDR */
 		table->ddr.ddr_sig = be16dec(buf);
 		table->ddr.ddr_blksize = be16dec(buf + 2);
