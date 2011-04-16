@@ -176,7 +176,7 @@ static int	iwn5000_add_node(struct iwn_softc *, struct iwn_node_info *,
 static int	iwn_set_link_quality(struct iwn_softc *,
 		    struct ieee80211_node *);
 static int	iwn_add_broadcast_node(struct iwn_softc *, int);
-static int	iwn_wme_update(struct ieee80211com *);
+static int	iwn_updateedca(struct ieee80211com *);
 static void	iwn_update_mcast(struct ifnet *);
 static void	iwn_set_led(struct iwn_softc *, uint8_t, uint8_t, uint8_t);
 static int	iwn_set_critical_temp(struct iwn_softc *);
@@ -422,7 +422,7 @@ iwn_attach(device_t dev)
 	struct ieee80211com *ic;
 	struct ifnet *ifp;
 	const struct iwn_hal *hal;
-	uint32_t tmp;
+	uint32_t reg;
 	int i, error, result;
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
@@ -442,12 +442,12 @@ iwn_attach(device_t dev)
 	pci_write_config(dev, 0x41, 0, 1);
 
 	/* Hardware bug workaround. */
-	tmp = pci_read_config(dev, PCIR_COMMAND, 1);
-	if (tmp & PCIM_CMD_INTxDIS) {
+	reg = pci_read_config(dev, PCIR_COMMAND, 1);
+	if (reg & PCIM_CMD_INTxDIS) {
 		DPRINTF(sc, IWN_DEBUG_RESET, "%s: PCIe INTx Disable set\n",
 		    __func__);
-		tmp &= ~PCIM_CMD_INTxDIS;
-		pci_write_config(dev, PCIR_COMMAND, tmp, 1);
+		reg &= ~PCIM_CMD_INTxDIS;
+		pci_write_config(dev, PCIR_COMMAND, reg, 1);
 	}
 
 	/* Enable bus-mastering. */
@@ -654,7 +654,7 @@ iwn_attach(device_t dev)
 	ic->ic_raw_xmit = iwn_raw_xmit;
 	ic->ic_node_alloc = iwn_node_alloc;
 	ic->ic_newassoc = iwn_newassoc;
-	ic->ic_wme.wme_update = iwn_wme_update;
+	ic->ic_wme.wme_update = iwn_updateedca;
 	ic->ic_update_mcast = iwn_update_mcast;
 	ic->ic_scan_start = iwn_scan_start;
 	ic->ic_scan_end = iwn_scan_end;
@@ -836,7 +836,7 @@ iwn_detach(device_t dev)
 	struct iwn_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic;
-	int i;
+	int qid;
 
 	if (ifp != NULL) {
 		ic = ifp->if_l2com;
@@ -854,8 +854,8 @@ iwn_detach(device_t dev)
 	/* Free DMA resources. */
 	iwn_free_rx_ring(sc, &sc->rxq);
 	if (sc->sc_hal != NULL)
-		for (i = 0; i < sc->sc_hal->ntxqs; i++)
-			iwn_free_tx_ring(sc, &sc->txq[i]);
+		for (qid = 0; qid < sc->sc_hal->ntxqs; qid++)
+			iwn_free_tx_ring(sc, &sc->txq[qid]);
 	iwn_free_sched(sc);
 	iwn_free_kw(sc);
 	if (sc->ict != NULL)
@@ -3715,23 +3715,23 @@ iwn_add_broadcast_node(struct iwn_softc *sc, int async)
 }
 
 static int
-iwn_wme_update(struct ieee80211com *ic)
+iwn_updateedca(struct ieee80211com *ic)
 {
 #define IWN_EXP2(x)	((1 << (x)) - 1)	/* CWmin = 2^ECWmin - 1 */
 	struct iwn_softc *sc = ic->ic_ifp->if_softc;
 	struct iwn_edca_params cmd;
-	int i;
+	int aci;
 
 	memset(&cmd, 0, sizeof cmd);
 	cmd.flags = htole32(IWN_EDCA_UPDATE);
-	for (i = 0; i < WME_NUM_AC; i++) {
-		const struct wmeParams *wmep =
-		    &ic->ic_wme.wme_chanParams.cap_wmeParams[i];
-		cmd.ac[i].aifsn = wmep->wmep_aifsn;
-		cmd.ac[i].cwmin = htole16(IWN_EXP2(wmep->wmep_logcwmin));
-		cmd.ac[i].cwmax = htole16(IWN_EXP2(wmep->wmep_logcwmax));
-		cmd.ac[i].txoplimit =
-		    htole16(IEEE80211_TXOP_TO_US(wmep->wmep_txopLimit));
+	for (aci = 0; aci < WME_NUM_AC; aci++) {
+		const struct wmeParams *ac =
+		    &ic->ic_wme.wme_chanParams.cap_wmeParams[aci];
+		cmd.ac[aci].aifsn = ac->wmep_aifsn;
+		cmd.ac[aci].cwmin = htole16(IWN_EXP2(ac->wmep_logcwmin));
+		cmd.ac[aci].cwmax = htole16(IWN_EXP2(ac->wmep_logcwmax));
+		cmd.ac[aci].txoplimit =
+		    htole16(IEEE80211_TXOP_TO_US(ac->wmep_txopLimit));
 	}
 	IEEE80211_UNLOCK(ic);
 	IWN_LOCK(sc);
@@ -4500,7 +4500,7 @@ iwn_set_pslevel(struct iwn_softc *sc, int dtim, int level, int async)
 	const struct iwn_pmgt *pmgt;
 	struct iwn_pmgt_cmd cmd;
 	uint32_t max, skip_dtim;
-	uint32_t tmp;
+	uint32_t reg;
 	int i;
 
 	/* Select which PS parameters to use. */
@@ -4517,8 +4517,8 @@ iwn_set_pslevel(struct iwn_softc *sc, int dtim, int level, int async)
 	if (level == 5)
 		cmd.flags |= htole16(IWN_PS_FAST_PD);
 	/* Retrieve PCIe Active State Power Management (ASPM). */
-	tmp = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
-	if (!(tmp & 0x1))	/* L0s Entry disabled. */
+	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
+	if (!(reg & 0x1))	/* L0s Entry disabled. */
 		cmd.flags |= htole16(IWN_PS_PCI_PMGT);
 	cmd.rxtimeout = htole32(pmgt->rxtimeout * 1024);
 	cmd.txtimeout = htole32(pmgt->txtimeout * 1024);
@@ -5952,7 +5952,7 @@ iwn_clock_wait(struct iwn_softc *sc)
 static int
 iwn_apm_init(struct iwn_softc *sc)
 {
-	uint32_t tmp;
+	uint32_t reg;
 	int error;
 
 	/* Disable L0s exit timer (NMI bug workaround.) */
@@ -5967,9 +5967,9 @@ iwn_apm_init(struct iwn_softc *sc)
 	IWN_SETBITS(sc, IWN_HW_IF_CONFIG, IWN_HW_IF_CONFIG_HAP_WAKE_L1A);
 
 	/* Retrieve PCIe Active State Power Management (ASPM). */
-	tmp = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
+	reg = pci_read_config(sc->sc_dev, sc->sc_cap_off + 0x10, 1);
 	/* Workaround for HW instability in PCIe L0->L0s->L1 transition. */
-	if (tmp & 0x02)	/* L1 Entry enabled. */
+	if (reg & 0x02)	/* L1 Entry enabled. */
 		IWN_SETBITS(sc, IWN_GIO, IWN_GIO_L0S_ENA);
 	else
 		IWN_CLRBITS(sc, IWN_GIO, IWN_GIO_L0S_ENA);
