@@ -246,6 +246,8 @@ extern	void ar5416InitChainMasks(struct ath_hal *ah);
 extern	void ar5416RestoreChainMask(struct ath_hal *ah);
 extern	void ar5416EepromSetAddac(struct ath_hal *ah,
 		const struct ieee80211_channel *chan);
+extern	uint16_t ar5416GetMaxEdgePower(uint16_t freq,
+		CAL_CTL_EDGES *pRdEdgesPower, HAL_BOOL is2GHz);
 
 /* TX power setup related routines in ar5416_reset.c */
 extern	void ar5416GetGainBoundariesAndPdadcs(struct ath_hal *ah,

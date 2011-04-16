@@ -65,7 +65,6 @@ static void ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
 	uint16_t tPdGainOverlap, int16_t *pMinCalPower,
 	uint16_t * pPdGainBoundaries, uint8_t * pPDADCValues,
 	uint16_t numXpdGains);
-static uint16_t ar9285GetMaxEdgePower(uint16_t, CAL_CTL_EDGES *);
 
 HAL_BOOL
 ar9285SetTransmitPower(struct ath_hal *ah,
@@ -558,9 +557,9 @@ ar9285SetPowerPerRateTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
 				(((cfgCtl & ~CTL_MODE_M) | (pCtlMode[ctlMode] & CTL_MODE_M)) == 
 				 ((pEepData->ctlIndex[i] & CTL_MODE_M) | SD_NO_CTL))) {
 				rep = &(pEepData->ctlData[i]);
-				twiceMinEdgePower = ar9285GetMaxEdgePower(freq,
+				twiceMinEdgePower = ar5416GetMaxEdgePower(freq,
 							rep->ctlEdges[
-							  owl_get_ntxchains(AH5416(ah)->ah_tx_chainmask) - 1]);
+							  owl_get_ntxchains(AH5416(ah)->ah_tx_chainmask) - 1], AH_TRUE);
 				if ((cfgCtl & ~CTL_MODE_M) == SD_NO_CTL) {
 					/* Find the minimum of all CTL edge powers that apply to this channel */
 					twiceMaxEdgePower = AH_MIN(twiceMaxEdgePower, twiceMinEdgePower);
@@ -642,58 +641,6 @@ ar9285SetPowerPerRateTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
 #undef SUB_NUM_CTL_MODES_AT_2G_40
 #undef N
 }
-
-/**************************************************************************
- * fbin2freq
- *
- * Get channel value from binary representation held in eeprom
- * RETURNS: the frequency in MHz
- */
-static uint16_t
-fbin2freq(uint8_t fbin)
-{
-    /*
-     * Reserved value 0xFF provides an empty definition both as
-     * an fbin and as a frequency - do not convert
-     */
-    if (fbin == AR5416_BCHAN_UNUSED) {
-        return fbin;
-    }
-
-    return (uint16_t)(2300 + fbin);
-}
-
-/*
- * XXX almost the same as ar5416GetMaxEdgePower.
- */
-static uint16_t
-ar9285GetMaxEdgePower(uint16_t freq, CAL_CTL_EDGES *pRdEdgesPower)
-{
-    uint16_t twiceMaxEdgePower = AR5416_MAX_RATE_POWER;
-    int      i;
-
-    /* Get the edge power */
-    for (i = 0; (i < AR5416_NUM_BAND_EDGES) && (pRdEdgesPower[i].bChannel != AR5416_BCHAN_UNUSED) ; i++) {
-        /*
-         * If there's an exact channel match or an inband flag set
-         * on the lower channel use the given rdEdgePower
-         */
-        if (freq == fbin2freq(pRdEdgesPower[i].bChannel)) {
-            twiceMaxEdgePower = MS(pRdEdgesPower[i].tPowerFlag, CAL_CTL_EDGES_POWER);
-            break;
-        } else if ((i > 0) && (freq < fbin2freq(pRdEdgesPower[i].bChannel))) {
-            if (fbin2freq(pRdEdgesPower[i - 1].bChannel) < freq && (pRdEdgesPower[i - 1].tPowerFlag & CAL_CTL_EDGES_FLAG) != 0) {
-                twiceMaxEdgePower = MS(pRdEdgesPower[i - 1].tPowerFlag, CAL_CTL_EDGES_POWER);
-            }
-            /* Leave loop - no more affecting edges possible in this monotonic increasing list */
-            break;
-        }
-    }
-    HALASSERT(twiceMaxEdgePower > 0);
-    return twiceMaxEdgePower;
-}
-
-
 
 static HAL_BOOL
 ar9285SetPowerCalTable(struct ath_hal *ah, struct ar5416eeprom_4k *pEepData,
