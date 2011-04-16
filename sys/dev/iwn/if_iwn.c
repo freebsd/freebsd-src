@@ -1247,9 +1247,9 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 	}
 
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MJUMPAGESIZE, 1,
-	    MJUMPAGESIZE, BUS_DMA_NOWAIT, NULL, NULL, &ring->data_dmat);
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    IWN_RBUF_SIZE, 1, IWN_RBUF_SIZE, BUS_DMA_NOWAIT, NULL, NULL,
+	    &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: bus_dma_tag_create_failed, error %d\n",
@@ -1282,7 +1282,8 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 			goto fail;
 		}
 
-		data->m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
+		data->m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR,
+		    IWN_RBUF_SIZE);
 		if (data->m == NULL) {
 			device_printf(sc->sc_dev,
 			    "%s: could not allocate rx mbuf\n", __func__);
@@ -1290,10 +1291,9 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 			goto fail;
 		}
 
-		/* Map page. */
 		error = bus_dmamap_load(ring->data_dmat, data->map,
-		    mtod(data->m, caddr_t), MJUMPAGESIZE,
-		    iwn_dma_map_addr, &paddr, BUS_DMA_NOWAIT);
+		    mtod(data->m, void *), IWN_RBUF_SIZE, iwn_dma_map_addr,
+		    &paddr, BUS_DMA_NOWAIT);
 		if (error != 0 && error != EFBIG) {
 			device_printf(sc->sc_dev,
 			    "%s: bus_dmamap_load failed, error %d\n",
@@ -2093,8 +2093,7 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		return;
 	}
 
-	/* XXX don't need mbuf, just dma buffer */
-	m1 = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUMPAGESIZE);
+	m1 = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, IWN_RBUF_SIZE);
 	if (m1 == NULL) {
 		DPRINTF(sc, IWN_DEBUG_ANY, "%s: no mbuf to restock ring\n",
 		    __func__);
@@ -2103,9 +2102,8 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	}
 	bus_dmamap_unload(ring->data_dmat, data->map);
 
-	error = bus_dmamap_load(ring->data_dmat, data->map,
-	    mtod(m1, caddr_t), MJUMPAGESIZE,
-	    iwn_dma_map_addr, &paddr, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load(ring->data_dmat, data->map, mtod(m1, void *),
+	    IWN_RBUF_SIZE, iwn_dma_map_addr, &paddr, BUS_DMA_NOWAIT);
 	if (error != 0 && error != EFBIG) {
 		device_printf(sc->sc_dev,
 		    "%s: bus_dmamap_load failed, error %d\n", __func__, error);
