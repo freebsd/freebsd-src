@@ -88,7 +88,7 @@ static int	iwn_init_otprom(struct iwn_softc *);
 static int	iwn_read_prom_data(struct iwn_softc *, uint32_t, void *, int);
 static void	iwn_dma_map_addr(void *, bus_dma_segment_t *, int, int);
 static int	iwn_dma_contig_alloc(struct iwn_softc *, struct iwn_dma_info *,
-		    void **, bus_size_t, bus_size_t, int);
+		    void **, bus_size_t, bus_size_t);
 static void	iwn_dma_contig_free(struct iwn_dma_info *);
 static int	iwn_alloc_sched(struct iwn_softc *);
 static void	iwn_free_sched(struct iwn_softc *);
@@ -1117,7 +1117,7 @@ iwn_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 
 static int
 iwn_dma_contig_alloc(struct iwn_softc *sc, struct iwn_dma_info *dma,
-	void **kvap, bus_size_t size, bus_size_t alignment, int flags)
+    void **kvap, bus_size_t size, bus_size_t alignment)
 {
 	int error;
 
@@ -1126,7 +1126,7 @@ iwn_dma_contig_alloc(struct iwn_softc *sc, struct iwn_dma_info *dma,
 
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), alignment,
 	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
-	    1, size, flags, NULL, NULL, &dma->tag);
+	    1, size, BUS_DMA_NOWAIT, NULL, NULL, &dma->tag);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: bus_dma_tag_create failed, error %d\n",
@@ -1134,14 +1134,14 @@ iwn_dma_contig_alloc(struct iwn_softc *sc, struct iwn_dma_info *dma,
 		goto fail;
 	}
 	error = bus_dmamem_alloc(dma->tag, (void **)&dma->vaddr,
-	    flags | BUS_DMA_ZERO, &dma->map);
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT, &dma->map);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: bus_dmamem_alloc failed, error %d\n", __func__, error);
 		goto fail;
 	}
-	error = bus_dmamap_load(dma->tag, dma->map, dma->vaddr,
-	    size, iwn_dma_map_addr, &dma->paddr, flags);
+	error = bus_dmamap_load(dma->tag, dma->map, dma->vaddr, size,
+	    iwn_dma_map_addr, &dma->paddr, BUS_DMA_NOWAIT);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: bus_dmamap_load failed, error %d\n", __func__, error);
@@ -1176,8 +1176,8 @@ static int
 iwn_alloc_sched(struct iwn_softc *sc)
 {
 	/* TX scheduler rings must be aligned on a 1KB boundary. */
-	return iwn_dma_contig_alloc(sc, &sc->sched_dma,
-	    (void **)&sc->sched, sc->sc_hal->schedsz, 1024, BUS_DMA_NOWAIT);
+	return iwn_dma_contig_alloc(sc, &sc->sched_dma, (void **)&sc->sched,
+	    sc->sc_hal->schedsz, 1024);
 }
 
 static void
@@ -1190,8 +1190,7 @@ static int
 iwn_alloc_kw(struct iwn_softc *sc)
 {
 	/* "Keep Warm" page must be aligned on a 4KB boundary. */
-	return iwn_dma_contig_alloc(sc, &sc->kw_dma, NULL, 4096, 4096,
-	    BUS_DMA_NOWAIT);
+	return iwn_dma_contig_alloc(sc, &sc->kw_dma, NULL, 4096, 4096);
 }
 
 static void
@@ -1204,8 +1203,8 @@ static int
 iwn_alloc_ict(struct iwn_softc *sc)
 {
 	/* ICT table must be aligned on a 4KB boundary. */
-	return iwn_dma_contig_alloc(sc, &sc->ict_dma,
-	    (void **)&sc->ict, IWN_ICT_SIZE, 4096, BUS_DMA_NOWAIT);
+	return iwn_dma_contig_alloc(sc, &sc->ict_dma, (void **)&sc->ict,
+	    IWN_ICT_SIZE, 4096);
 }
 
 static void
@@ -1218,8 +1217,8 @@ static int
 iwn_alloc_fwmem(struct iwn_softc *sc)
 {
 	/* Must be aligned on a 16-byte boundary. */
-	return iwn_dma_contig_alloc(sc, &sc->fw_dma, NULL,
-	    sc->sc_hal->fwsz, 16, BUS_DMA_NOWAIT);
+	return iwn_dma_contig_alloc(sc, &sc->fw_dma, NULL, sc->sc_hal->fwsz,
+	    16);
 }
 
 static void
@@ -1238,8 +1237,8 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 
 	/* Allocate RX descriptors (256-byte aligned). */
 	size = IWN_RX_RING_COUNT * sizeof (uint32_t);
-	error = iwn_dma_contig_alloc(sc, &ring->desc_dma,
-	    (void **)&ring->desc, size, 256, BUS_DMA_NOWAIT);
+	error = iwn_dma_contig_alloc(sc, &ring->desc_dma, (void **)&ring->desc,
+	    size, 256);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not allocate Rx ring DMA memory, error %d\n",
@@ -1259,9 +1258,8 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 	}
 
 	/* Allocate RX status area (16-byte aligned). */
-	error = iwn_dma_contig_alloc(sc, &ring->stat_dma,
-	    (void **)&ring->stat, sizeof (struct iwn_rx_status),
-	    16, BUS_DMA_NOWAIT);
+	error = iwn_dma_contig_alloc(sc, &ring->stat_dma, (void **)&ring->stat,
+	    sizeof (struct iwn_rx_status), 16);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not allocate Rx status DMA memory, error %d\n",
@@ -1377,8 +1375,8 @@ iwn_alloc_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring, int qid)
 
 	/* Allocate TX descriptors (256-byte aligned.) */
 	size = IWN_TX_RING_COUNT * sizeof(struct iwn_tx_desc);
-	error = iwn_dma_contig_alloc(sc, &ring->desc_dma,
-	    (void **)&ring->desc, size, 256, BUS_DMA_NOWAIT);
+	error = iwn_dma_contig_alloc(sc, &ring->desc_dma, (void **)&ring->desc,
+	    size, 256);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not allocate TX ring DMA memory, error %d\n",
@@ -1394,8 +1392,8 @@ iwn_alloc_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring, int qid)
 		return 0;
 
 	size = IWN_TX_RING_COUNT * sizeof(struct iwn_tx_cmd);
-	error = iwn_dma_contig_alloc(sc, &ring->cmd_dma,
-	    (void **)&ring->cmd, size, 4, BUS_DMA_NOWAIT);
+	error = iwn_dma_contig_alloc(sc, &ring->cmd_dma, (void **)&ring->cmd,
+	    size, 4);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not allocate TX cmd DMA memory, error %d\n",
