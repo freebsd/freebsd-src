@@ -1732,7 +1732,8 @@ iwn_read_eeprom_band(struct iwn_softc *sc, int n)
 	struct iwn_eeprom_chan *channels = sc->eeprom_channels[n];
 	const struct iwn_chan_band *band = &iwn_bands[n];
 	struct ieee80211_channel *c;
-	int i, chan, nflags;
+	uint8_t chan;
+	int i, nflags;
 
 	for (i = 0; i < band->nchan; i++) {
 		if (!(channels[i].flags & IWN_EEPROM_CHAN_VALID)) {
@@ -3806,8 +3807,6 @@ iwn4965_set_txpower(struct iwn_softc *sc, struct ieee80211_channel *ch,
 	((y1) + fdivround(((int)(x) - (x1)) * ((y2) - (y1)), (x2) - (x1), n))
 
 	static const int tdiv[IWN_NATTEN_GROUPS] = { 9, 8, 8, 8, 6 };
-	struct ifnet *ifp = sc->sc_ifp;
-	struct ieee80211com *ic = ifp->if_l2com;
 	struct iwn_ucode_info *uc = &sc->ucode_info;
 	struct iwn4965_cmd_txpower cmd;
 	struct iwn4965_eeprom_chan_samples *chans;
@@ -3816,8 +3815,8 @@ iwn4965_set_txpower(struct iwn_softc *sc, struct ieee80211_channel *ch,
 	const uint8_t *rf_gain, *dsp_gain;
 	uint8_t chan;
 
-	/* Retrieve channel number. */
-	chan = ieee80211_chan2ieee(ic, ch);
+	/* Retrieve current channel from last RXON. */
+	chan = sc->rxon.chan;
 	DPRINTF(sc, IWN_DEBUG_RESET, "setting TX power for channel %d\n",
 	    chan);
 
