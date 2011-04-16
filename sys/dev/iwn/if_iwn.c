@@ -1148,6 +1148,8 @@ iwn_dma_contig_alloc(struct iwn_softc *sc, struct iwn_dma_info *dma,
 		goto fail;
 	}
 
+	bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
+
 	if (kvap != NULL)
 		*kvap = dma->vaddr;
 	return 0;
@@ -1307,8 +1309,6 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 			error = ENOMEM;	/* XXX unique code */
 			goto fail;
 		}
-		bus_dmamap_sync(ring->data_dmat, data->map,
-		    BUS_DMASYNC_PREWRITE);
 
 		/* Set physical address of RX buffer (256-byte aligned). */
 		ring->desc[i] = htole32(paddr >> 8);
@@ -1436,8 +1436,6 @@ iwn_alloc_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring, int qid)
 			    __func__, error);
 			goto fail;
 		}
-		bus_dmamap_sync(ring->data_dmat, data->map,
-		    BUS_DMASYNC_PREWRITE);
 	}
 	return 0;
 fail:
@@ -1454,6 +1452,8 @@ iwn_reset_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring)
 		struct iwn_tx_data *data = &ring->data[i];
 
 		if (data->m != NULL) {
+			bus_dmamap_sync(ring->data_dmat, data->map,
+			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(ring->data_dmat, data->map);
 			m_freem(data->m);
 			data->m = NULL;
@@ -2208,6 +2208,8 @@ iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	struct iwn_compressed_ba *ba = (struct iwn_compressed_ba *)(desc + 1);
 	struct iwn_tx_ring *txq;
 
+	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
+
 	txq = &sc->txq[letoh16(ba->qid)];
 	/* XXX TBD */
 }
@@ -2458,6 +2460,8 @@ iwn_cmd_done(struct iwn_softc *sc, struct iwn_rx_desc *desc)
 
 	/* If the command was mapped in an mbuf, free it. */
 	if (data->m != NULL) {
+		bus_dmamap_sync(ring->data_dmat, data->map,
+		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(ring->data_dmat, data->map);
 		m_freem(data->m);
 		data->m = NULL;
