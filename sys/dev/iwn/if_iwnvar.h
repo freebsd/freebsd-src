@@ -157,7 +157,7 @@ struct iwn_fw_info {
 	struct iwn_fw_part	boot;
 };
 
-struct iwn_hal {
+struct iwn_ops {
 	int		(*load_firmware)(struct iwn_softc *);
 	void		(*read_eeprom)(struct iwn_softc *);
 	int		(*post_alive)(struct iwn_softc *);
@@ -180,15 +180,6 @@ struct iwn_hal {
 	void		(*ampdu_tx_stop)(struct iwn_softc *, uint8_t,
 			    uint16_t);
 #endif
-	int		ntxqs;
-	int		ndmachnls;
-	uint8_t		broadcast_id;
-	int		rxonsz;
-	int		schedsz;
-	uint32_t	fw_text_maxsz;
-	uint32_t	fw_data_maxsz;
-	uint32_t	fwsz;
-	bus_size_t	sched_txfact_addr;
 };
 
 struct iwn_vap {
@@ -215,10 +206,20 @@ struct iwn_softc {
 #define IWN_FLAG_INTERNAL_PA	(1 << 4)
 
 	uint8_t 		hw_type;
-	const struct iwn_hal	*sc_hal;
+
+	struct iwn_ops		ops;
 	const char		*fwname;
 	const struct iwn_sensitivity_limits
 				*limits;
+	int			ntxqs;
+	int			ndmachnls;
+	uint8_t			broadcast_id;
+	int			rxonsz;
+	int			schedsz;
+	uint32_t		fw_text_maxsz;
+	uint32_t		fw_data_maxsz;
+	uint32_t		fwsz;
+	bus_size_t		sched_txfact_addr;
 
 	/* TX scheduler rings. */
 	struct iwn_dma_info	sched_dma;
