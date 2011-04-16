@@ -1159,16 +1159,20 @@ fail:
 static void
 iwn_dma_contig_free(struct iwn_dma_info *dma)
 {
-	if (dma->tag != NULL) {
-		if (dma->map != NULL) {
-			if (dma->paddr == 0) {
-				bus_dmamap_sync(dma->tag, dma->map,
-				    BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE);
-				bus_dmamap_unload(dma->tag, dma->map);
-			}
+	if (dma->map != NULL) {
+		if (dma->vaddr != NULL) {
+			bus_dmamap_sync(dma->tag, dma->map,
+			    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(dma->tag, dma->map);
 			bus_dmamem_free(dma->tag, &dma->vaddr, dma->map);
+			dma->vaddr = NULL;
 		}
+		bus_dmamap_destroy(dma->tag, dma->map);
+		dma->map = NULL;
+	}
+	if (dma->tag != NULL) {
 		bus_dma_tag_destroy(dma->tag);
+		dma->tag = NULL;
 	}
 }
 
@@ -1360,6 +1364,10 @@ iwn_free_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 		if (data->map != NULL)
 			bus_dmamap_destroy(ring->data_dmat, data->map);
 	}
+	if (ring->data_dmat != NULL) {
+		bus_dma_tag_destroy(ring->data_dmat);
+		ring->data_dmat = NULL;
+	}
 }
 
 static int
@@ -1478,6 +1486,10 @@ iwn_free_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring)
 		}
 		if (data->map != NULL)
 			bus_dmamap_destroy(ring->data_dmat, data->map);
+	}
+	if (ring->data_dmat != NULL) {
+		bus_dma_tag_destroy(ring->data_dmat);
+		ring->data_dmat = NULL;
 	}
 }
 
