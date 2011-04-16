@@ -176,7 +176,7 @@ int	ncl_reclaim(struct vop_reclaim_args *);
 
 /* other stuff */
 int	ncl_removeit(struct sillyrename *, struct vnode *);
-int	ncl_nget(struct mount *, u_int8_t *, int, struct nfsnode **);
+int	ncl_nget(struct mount *, u_int8_t *, int, struct nfsnode **, int);
 nfsuint64 *ncl_getcookie(struct nfsnode *, off_t, int);
 void	ncl_invaldir(struct vnode *);
 int	ncl_upgrade_vnlock(struct vnode *);
