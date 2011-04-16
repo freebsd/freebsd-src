@@ -273,7 +273,7 @@ nfs_statfs(struct mount *mp, struct statfs *sbp)
 	error = vfs_busy(mp, MBF_NOWAIT);
 	if (error)
 		return (error);
-	error = ncl_nget(mp, nmp->nm_fh, nmp->nm_fhsize, &np);
+	error = ncl_nget(mp, nmp->nm_fh, nmp->nm_fhsize, &np, LK_EXCLUSIVE);
 	if (error) {
 		vfs_unbusy(mp);
 		return (error);
@@ -1221,7 +1221,8 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		 * by nfs_statfs() before any I/O occurs.
 		 */
 		mp->mnt_stat.f_iosize = NFS_DIRBLKSIZ;
-		error = ncl_nget(mp, nmp->nm_fh, nmp->nm_fhsize, &np);
+		error = ncl_nget(mp, nmp->nm_fh, nmp->nm_fhsize, &np,
+		    LK_EXCLUSIVE);
 		if (error)
 			goto bad;
 		*vpp = NFSTOV(np);
@@ -1336,7 +1337,7 @@ nfs_root(struct mount *mp, int flags, struct vnode **vpp)
 	int error;
 
 	nmp = VFSTONFS(mp);
-	error = ncl_nget(mp, nmp->nm_fh, nmp->nm_fhsize, &np);
+	error = ncl_nget(mp, nmp->nm_fh, nmp->nm_fhsize, &np, flags);
 	if (error)
 		return error;
 	vp = NFSTOV(np);
