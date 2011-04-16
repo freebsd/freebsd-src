@@ -1433,10 +1433,8 @@ static const struct iwn_chan_band {
 #define IWN6050_OTP_NBLOCKS	7
 
 /* HW rate indices. */
-#define IWN_RIDX_CCK1	 0
-#define IWN_RIDX_CCK11	 3
-#define IWN_RIDX_OFDM6	 4
-#define IWN_RIDX_OFDM54	11
+#define IWN_RIDX_CCK1	0
+#define IWN_RIDX_OFDM6	4
 
 static const struct iwn_rate {
 	uint8_t	rate;
