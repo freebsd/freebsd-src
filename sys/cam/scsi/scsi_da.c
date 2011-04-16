@@ -1231,35 +1231,6 @@ daregister(struct cam_periph *periph, void *arg)
 	TASK_INIT(&softc->sysctl_task, 0, dasysctlinit, periph);
 
 	/*
-	 * RBC devices don't have to support READ(6), only READ(10).
-	 */
-	if (softc->quirks & DA_Q_NO_6_BYTE || SID_TYPE(&cgd->inq_data) == T_RBC)
-		softc->minimum_cmd_size = 10;
-	else
-		softc->minimum_cmd_size = 6;
-
-	/*
-	 * Load the user's default, if any.
-	 */
-	snprintf(tmpstr, sizeof(tmpstr), "kern.cam.da.%d.minimum_cmd_size",
-		 periph->unit_number);
-	TUNABLE_INT_FETCH(tmpstr, &softc->minimum_cmd_size);
-
-	/*
-	 * 6, 10, 12 and 16 are the currently permissible values.
-	 */
-	if (softc->minimum_cmd_size < 6)
-		softc->minimum_cmd_size = 6;
-	else if ((softc->minimum_cmd_size > 6)
-	      && (softc->minimum_cmd_size <= 10))
-		softc->minimum_cmd_size = 10;
-	else if ((softc->minimum_cmd_size > 10)
-	      && (softc->minimum_cmd_size <= 12))
-		softc->minimum_cmd_size = 12;
-	else if (softc->minimum_cmd_size > 12)
-		softc->minimum_cmd_size = 16;
-
-	/*
 	 * Register this media as a disk
 	 */
 
@@ -1291,6 +1262,35 @@ daregister(struct cam_periph *periph, void *arg)
 	    dasendorderedtag, softc);
 
 	mtx_unlock(periph->sim->mtx);
+	/*
+	 * RBC devices don't have to support READ(6), only READ(10).
+	 */
+	if (softc->quirks & DA_Q_NO_6_BYTE || SID_TYPE(&cgd->inq_data) == T_RBC)
+		softc->minimum_cmd_size = 10;
+	else
+		softc->minimum_cmd_size = 6;
+
+	/*
+	 * Load the user's default, if any.
+	 */
+	snprintf(tmpstr, sizeof(tmpstr), "kern.cam.da.%d.minimum_cmd_size",
+		 periph->unit_number);
+	TUNABLE_INT_FETCH(tmpstr, &softc->minimum_cmd_size);
+
+	/*
+	 * 6, 10, 12 and 16 are the currently permissible values.
+	 */
+	if (softc->minimum_cmd_size < 6)
+		softc->minimum_cmd_size = 6;
+	else if ((softc->minimum_cmd_size > 6)
+	      && (softc->minimum_cmd_size <= 10))
+		softc->minimum_cmd_size = 10;
+	else if ((softc->minimum_cmd_size > 10)
+	      && (softc->minimum_cmd_size <= 12))
+		softc->minimum_cmd_size = 12;
+	else if (softc->minimum_cmd_size > 12)
+		softc->minimum_cmd_size = 16;
+
 	softc->disk = disk_alloc();
 	softc->disk->d_devstat = devstat_new_entry(periph->periph_name,
 			  periph->unit_number, 0,
