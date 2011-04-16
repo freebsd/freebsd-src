@@ -61,8 +61,6 @@ static HAL_BOOL ar5416SetPowerPerRateTable(struct ath_hal *ah,
 	uint16_t cfgCtl, uint16_t AntennaReduction,
 	uint16_t twiceMaxRegulatoryPower, 
 	uint16_t powerLimit);
-static uint16_t ar5416GetMaxEdgePower(uint16_t freq,
-	CAL_CTL_EDGES *pRdEdgesPower, HAL_BOOL is2GHz);
 static void ar5416Set11nRegs(struct ath_hal *ah, const struct ieee80211_channel *chan);
 
 /*
@@ -1779,7 +1777,7 @@ fbin2freq(uint8_t fbin, HAL_BOOL is2GHz)
  *
  * Find the maximum conformance test limit for the given channel and CTL info
  */
-static uint16_t
+uint16_t
 ar5416GetMaxEdgePower(uint16_t freq, CAL_CTL_EDGES *pRdEdgesPower, HAL_BOOL is2GHz)
 {
     uint16_t twiceMaxEdgePower = AR5416_MAX_RATE_POWER;
