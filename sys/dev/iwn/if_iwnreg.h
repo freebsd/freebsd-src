@@ -79,10 +79,10 @@
 #define IWN_MEM_WADDR		0x410
 #define IWN_MEM_WDATA		0x418
 #define IWN_MEM_RDATA		0x41c
-#define IWN_PRPH_WADDR		0x444
-#define IWN_PRPH_RADDR		0x448
-#define IWN_PRPH_WDATA		0x44c
-#define IWN_PRPH_RDATA		0x450
+#define IWN_PRPH_WADDR  	0x444
+#define IWN_PRPH_RADDR   	0x448
+#define IWN_PRPH_WDATA  	0x44c
+#define IWN_PRPH_RDATA   	0x450
 #define IWN_HBUS_TARG_WRPTR	0x460
 
 /*
@@ -1428,8 +1428,8 @@ static const struct iwn_chan_band {
 	{ 11, { 36, 44, 52, 60, 100, 108, 116, 124, 132, 149, 157 } }
 };
 
-#define IWN1000_OTP_NBLOCKS	3
-#define IWN6000_OTP_NBLOCKS	4
+#define IWN1000_OTP_NBLOCKS	3 
+#define IWN6000_OTP_NBLOCKS	4 
 #define IWN6050_OTP_NBLOCKS	7
 
 /* HW rate indices. */
@@ -1618,13 +1618,13 @@ static const struct iwn_sensitivity_limits iwn5150_sensitivity_limits = {
 static const struct iwn_sensitivity_limits iwn1000_sensitivity_limits = {
 	120, 155,
 	240, 290,
-	90, 120,
+	 90, 120,
 	170, 210,
 	125, 200,
 	170, 400,
-	95,
-	95,
-	95
+	 95,
+	 95,
+	 95
 };
 
 static const struct iwn_sensitivity_limits iwn6000_sensitivity_limits = {

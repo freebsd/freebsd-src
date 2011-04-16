@@ -201,7 +201,7 @@ struct iwn_vap {
 #define	IWN_VAP(_vap)	((struct iwn_vap *)(_vap))
 
 struct iwn_softc {
-	device_t 		sc_dev;
+	device_t		sc_dev;
 
 	struct ifnet		*sc_ifp;
 	int			sc_debug;
@@ -244,7 +244,7 @@ struct iwn_softc {
 	struct iwn_rx_ring	rxq;
 
 	int			mem_rid;
-	struct resource 	*mem;
+	struct resource		*mem;
 	bus_space_tag_t		sc_st;
 	bus_space_handle_t	sc_sh;
 	int			irq_rid;
@@ -254,7 +254,7 @@ struct iwn_softc {
 	int			sc_cap_off;	/* PCIe Capabilities. */
 
 	/* Tasks used by the driver */
-	struct task             sc_reinit_task;
+	struct task		sc_reinit_task;
 	struct task		sc_radioon_task;
 	struct task		sc_radiooff_task;
 
