@@ -2128,18 +2128,18 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	m->m_data = head;
 	m->m_pkthdr.len = m->m_len = len;
 
-	rssi = hal->get_rssi(sc, stat);
-
 	/* Grab a reference to the source node. */
 	wh = mtod(m, struct ieee80211_frame *);
 	ni = ieee80211_find_rxnode(ic, (struct ieee80211_frame_min *)wh);
 	nf = (ni != NULL && ni->ni_vap->iv_state == IEEE80211_S_RUN &&
 	    (ic->ic_flags & IEEE80211_F_SCAN) == 0) ? sc->noise : -95;
 
+	rssi = hal->get_rssi(sc, stat);
+
 	if (ieee80211_radiotap_active(ic)) {
 		struct iwn_rx_radiotap_header *tap = &sc->sc_rxtap;
 
-		tap->wr_tsft = htole64(stat->tstamp);
+		tap->wr_tsft = stat->tstamp;
 		tap->wr_flags = 0;
 		if (stat->flags & htole16(IWN_STAT_FLAG_SHPREAMBLE))
 			tap->wr_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
@@ -2161,8 +2161,8 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		/* Unknown rate: should not happen. */
 		default:  tap->wr_rate =   0;
 		}
-		tap->wr_dbm_antsignal = rssi;
-		tap->wr_dbm_antnoise = nf;
+		tap->wr_dbm_antsignal = (int8_t)rssi;
+		tap->wr_dbm_antnoise = (int8_t)nf;
 	}
 
 	IWN_UNLOCK(sc);
@@ -3985,18 +3985,12 @@ iwn4965_get_rssi(struct iwn_softc *sc, struct iwn_rx_stat *stat)
 	agc  = (le16toh(phy->agc) >> 7) & 0x7f;
 
 	rssi = 0;
-#if 0
-	if (mask & IWN_ANT_A)	/* Ant A */
-		rssi = max(rssi, phy->rssi[0]);
-	if (mask & IWN_ATH_B)	/* Ant B */
-		rssi = max(rssi, phy->rssi[2]);
-	if (mask & IWN_ANT_C)	/* Ant C */
-		rssi = max(rssi, phy->rssi[4]);
-#else
-	rssi = max(rssi, phy->rssi[0]);
-	rssi = max(rssi, phy->rssi[2]);
-	rssi = max(rssi, phy->rssi[4]);
-#endif
+	if (mask & IWN_ANT_A)
+		rssi = MAX(rssi, phy->rssi[0]);
+	if (mask & IWN_ANT_B)
+		rssi = MAX(rssi, phy->rssi[2]);
+	if (mask & IWN_ANT_C)
+		rssi = MAX(rssi, phy->rssi[4]);
 
 	DPRINTF(sc, IWN_DEBUG_RECV, "%s: agc %d mask 0x%x rssi %d %d %d "
 	    "result %d\n", __func__, agc, mask,
