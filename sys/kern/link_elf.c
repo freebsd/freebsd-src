@@ -692,10 +692,6 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	 * Read the elf header from the file.
 	 */
 	firstpage = malloc(PAGE_SIZE, M_LINKER, M_WAITOK);
-	if (firstpage == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
 	hdr = (Elf_Ehdr *)firstpage;
 	error = vn_rdwr(UIO_READ, nd.ni_vp, firstpage, PAGE_SIZE, 0,
 	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
@@ -829,10 +825,6 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	}
 #else
 	ef->address = malloc(mapsize, M_LINKER, M_WAITOK);
-	if (ef->address == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
 #endif
 	mapbase = ef->address;
 
@@ -918,10 +910,6 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	if (nbytes == 0 || hdr->e_shoff == 0)
 		goto nosyms;
 	shdr = malloc(nbytes, M_LINKER, M_WAITOK | M_ZERO);
-	if (shdr == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
 	error = vn_rdwr(UIO_READ, nd.ni_vp,
 	    (caddr_t)shdr, nbytes, hdr->e_shoff,
 	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
@@ -944,10 +932,6 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	strcnt = shdr[symstrindex].sh_size;
 	ef->strbase = malloc(strcnt, M_LINKER, M_WAITOK);
 
-	if (ef->symbase == NULL || ef->strbase == NULL) {
-		error = ENOMEM;
-		goto out;
-	}
 	error = vn_rdwr(UIO_READ, nd.ni_vp,
 	    ef->symbase, symcnt, shdr[symtabindex].sh_offset,
 	    UIO_SYSSPACE, IO_NODELOCKED, td->td_ucred, NOCRED,
@@ -1318,8 +1302,6 @@ link_elf_lookup_set(linker_file_t lf, const char *name,
 
 	len = strlen(name) + sizeof("__start_set_"); /* sizeof includes \0 */
 	setsym = malloc(len, M_LINKER, M_WAITOK);
-	if (setsym == NULL)
-		return (ENOMEM);
 
 	/* get address of first entry */
 	snprintf(setsym, len, "%s%s", "__start_set_", name);
