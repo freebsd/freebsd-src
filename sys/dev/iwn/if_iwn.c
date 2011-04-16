@@ -521,7 +521,7 @@ iwn_attach(device_t dev)
 	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
 	    RF_ACTIVE);
 	if (sc->mem == NULL ) {
-		device_printf(dev, "could not allocate memory resources\n");
+		device_printf(dev, "can't map mem space\n");
 		error = ENOMEM;
 		return error;
 	}
@@ -535,7 +535,7 @@ iwn_attach(device_t dev)
 	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->irq == NULL) {
-		device_printf(dev, "could not allocate interrupt resource\n");
+		device_printf(dev, "can't map interrupt\n");
 		error = ENOMEM;
 		goto fail;
 	}
@@ -568,16 +568,15 @@ iwn_attach(device_t dev)
 	error = iwn_alloc_kw(sc);
 	if (error != 0) {
 		device_printf(dev,
-		    "could not allocate \"Keep Warm\" page, error %d\n", error);
+		    "could not allocate keep warm page, error %d\n", error);
 		goto fail;
 	}
 
 	/* Allocate ICT table for 5000 Series. */
 	if (sc->hw_type != IWN_HW_REV_TYPE_4965 &&
 	    (error = iwn_alloc_ict(sc)) != 0) {
-		device_printf(dev,
-		    "%s: could not allocate ICT table, error %d\n",
-		    __func__, error);
+		device_printf(dev, "could not allocate ICT table, error %d\n",
+		    error);
 		goto fail;
 	}
 
@@ -595,8 +594,8 @@ iwn_attach(device_t dev)
 		error = iwn_alloc_tx_ring(sc, &sc->txq[i], i);
 		if (error != 0) {
 			device_printf(dev,
-			    "could not allocate Tx ring %d, error %d\n",
-			    i, error);
+			    "could not allocate TX ring %d, error %d\n", i,
+			    error);
 			goto fail;
 		}
 	}
@@ -604,8 +603,8 @@ iwn_attach(device_t dev)
 	/* Allocate RX ring. */
 	error = iwn_alloc_rx_ring(sc, &sc->rxq);
 	if (error != 0 ){
-		device_printf(dev,
-		    "could not allocate Rx ring, error %d\n", error);
+		device_printf(dev, "could not allocate RX ring, error %d\n",
+		    error);
 		goto fail;
 	}
 
@@ -621,9 +620,11 @@ iwn_attach(device_t dev)
 	    ((sc->rxchainmask >> 2) & 1) +
 	    ((sc->rxchainmask >> 1) & 1) +
 	    ((sc->rxchainmask >> 0) & 1);
-	device_printf(sc->sc_dev, "MIMO %dT%dR, %.4s, address %6D\n",
-	    sc->ntxchains, sc->nrxchains, sc->eeprom_domain,
-	    macaddr, ":");
+	if (bootverbose) {
+		device_printf(dev, "MIMO %dT%dR, %.4s, address %6D\n",
+		    sc->ntxchains, sc->nrxchains, sc->eeprom_domain,
+		    macaddr, ":");
+	}
 
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
 	if (ifp == NULL) {
@@ -745,12 +746,13 @@ iwn_attach(device_t dev)
 	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, iwn_intr, sc, &sc->sc_ih);
 	if (error != 0) {
-		device_printf(dev, "could not set up interrupt, error %d\n",
+		device_printf(dev, "can't establish interrupt, error %d\n",
 		    error);
 		goto fail;
 	}
 
-	ieee80211_announce(ic);
+	if (bootverbose)
+		ieee80211_announce(ic);
 	return 0;
 fail:
 	iwn_detach(dev);
@@ -1451,11 +1453,6 @@ iwn_reset_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 			DELAY(10);
 		}
 		iwn_nic_unlock(sc);
-#ifdef IWN_DEBUG
-		if (ntries == 1000)
-			DPRINTF(sc, IWN_DEBUG_ANY, "%s\n",
-			    "timeout resetting Rx ring");
-#endif
 	}
 	ring->cur = 0;
 	sc->last_rx_valid = 0;
@@ -2246,8 +2243,8 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 	if (stat->cfg_phy_len > IWN_STAT_MAXLEN) {
 		device_printf(sc->sc_dev,
-		    "%s: invalid rx statistic header, len %d\n",
-		    __func__, stat->cfg_phy_len);
+		    "%s: invalid RX statistic header, len %d\n", __func__,
+		    stat->cfg_phy_len);
 		return;
 	}
 	if (desc->type == IWN_MPDU_RX_DONE) {
@@ -2263,7 +2260,7 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 	/* Discard frames with a bad FCS early. */
 	if ((flags & IWN_RX_NOERROR) != IWN_RX_NOERROR) {
-		DPRINTF(sc, IWN_DEBUG_RECV, "%s: rx flags error %x\n",
+		DPRINTF(sc, IWN_DEBUG_RECV, "%s: RX flags error %x\n",
 		    __func__, flags);
 		ifp->if_ierrors++;
 		return;
@@ -2464,7 +2461,9 @@ iwn_rx_statistics(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		return;
 
 	bus_dmamap_sync(sc->rxq.data_dmat, data->map, BUS_DMASYNC_POSTREAD);
-	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: cmd %d\n", __func__, desc->type);
+
+	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: received statistics, cmd %d\n",
+	    __func__, desc->type);
 	sc->calib_cnt = 0;	/* Reset TX power calibration timeout. */
 
 	/* Test if temperature has changed. */
@@ -2971,6 +2970,8 @@ iwn_intr(void *arg)
 		    __func__);
 	}
 	if (r1 & (IWN_INT_SW_ERR | IWN_INT_HW_ERR)) {
+		device_printf(sc->sc_dev, "%s: fatal firmware error\n",
+		    __func__);
 		iwn_fatal_intr(sc);
 		ifp->if_flags &= ~IFF_UP;
 		iwn_stop_locked(sc);
@@ -4183,9 +4184,9 @@ iwn4965_get_rssi(struct iwn_softc *sc, struct iwn_rx_stat *stat)
 	if (mask & IWN_ANT_C)
 		rssi = MAX(rssi, phy->rssi[4]);
 
-	DPRINTF(sc, IWN_DEBUG_RECV, "%s: agc %d mask 0x%x rssi %d %d %d "
-	    "result %d\n", __func__, agc, mask,
-	    phy->rssi[0], phy->rssi[2], phy->rssi[4],
+	DPRINTF(sc, IWN_DEBUG_RECV,
+	    "%s: agc %d mask 0x%x rssi %d %d %d result %d\n", __func__, agc,
+	    mask, phy->rssi[0], phy->rssi[2], phy->rssi[4],
 	    rssi - agc - IWN_RSSI_TO_DBM);
 	return rssi - agc - IWN_RSSI_TO_DBM;
 }
@@ -4203,8 +4204,8 @@ iwn5000_get_rssi(struct iwn_softc *sc, struct iwn_rx_stat *stat)
 		   le16toh(phy->rssi[1]) & 0xff);
 	rssi = MAX(le16toh(phy->rssi[2]) & 0xff, rssi);
 
-	DPRINTF(sc, IWN_DEBUG_RECV, "%s: agc %d rssi %d %d %d "
-	    "result %d\n", __func__, agc,
+	DPRINTF(sc, IWN_DEBUG_RECV,
+	    "%s: agc %d rssi %d %d %d result %d\n", __func__, agc,
 	    phy->rssi[0], phy->rssi[1], phy->rssi[2],
 	    rssi - agc - IWN_RSSI_TO_DBM);
 	return rssi - agc - IWN_RSSI_TO_DBM;
@@ -4311,7 +4312,8 @@ iwn_init_sensitivity(struct iwn_softc *sc)
 
 	/* Request statistics at each beacon interval. */
 	flags = 0;
-	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: calibrate phy\n", __func__);
+	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: sending request for statistics\n",
+	    __func__);
 	return iwn_cmd(sc, IWN_CMD_GET_STATISTICS, &flags, sizeof flags, 1);
 }
 
@@ -4824,7 +4826,7 @@ iwn_config(struct iwn_softc *sc)
 	error = iwn_set_critical_temp(sc);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
-		    "%s: ccould not set critical temperature\n", __func__);
+		    "%s: could not set critical temperature\n", __func__);
 		return error;
 	}
 
@@ -5035,17 +5037,9 @@ iwn_auth(struct iwn_softc *sc, struct ieee80211vap *vap)
 		sc->rxon.cck_mask  = 0x0f;
 		sc->rxon.ofdm_mask = 0x15;
 	}
-	DPRINTF(sc, IWN_DEBUG_STATE,
-	    "%s: config chan %d mode %d flags 0x%x cck 0x%x ofdm 0x%x "
-	    "ht_single 0x%x ht_dual 0x%x rxchain 0x%x "
-	    "myaddr %6D wlap %6D bssid %6D associd %d filter 0x%x\n",
-	    __func__,
-	    le16toh(sc->rxon.chan), sc->rxon.mode, le32toh(sc->rxon.flags),
-	    sc->rxon.cck_mask, sc->rxon.ofdm_mask,
-	    sc->rxon.ht_single_mask, sc->rxon.ht_dual_mask,
-	    le16toh(sc->rxon.rxchain),
-	    sc->rxon.myaddr, ":", sc->rxon.wlap, ":", sc->rxon.bssid, ":",
-	    le16toh(sc->rxon.associd), le32toh(sc->rxon.filter));
+	DPRINTF(sc, IWN_DEBUG_STATE, "rxon chan %d flags %x cck %x ofdm %x\n",
+	    sc->rxon.chan, sc->rxon.flags, sc->rxon.cck_mask,
+	    sc->rxon.ofdm_mask);
 	error = iwn_cmd(sc, IWN_CMD_RXON, &sc->rxon, hal->rxonsz, 1);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
@@ -5057,7 +5051,7 @@ iwn_auth(struct iwn_softc *sc, struct ieee80211vap *vap)
 	error = hal->set_txpower(sc, ni->ni_chan, 1);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
-		    "%s: could not set Tx power, error %d\n", __func__, error);
+		    "%s: could not set TX power, error %d\n", __func__, error);
 		return error;
 	}
 	/*
@@ -5143,18 +5137,8 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 		maxrxampdu = ampdudensity = 0;
 #endif
 	sc->rxon.filter |= htole32(IWN_FILTER_BSS);
-
-	DPRINTF(sc, IWN_DEBUG_STATE,
-	    "%s: config chan %d mode %d flags 0x%x cck 0x%x ofdm 0x%x "
-	    "ht_single 0x%x ht_dual 0x%x rxchain 0x%x "
-	    "myaddr %6D wlap %6D bssid %6D associd %d filter 0x%x\n",
-	    __func__,
-	    le16toh(sc->rxon.chan), sc->rxon.mode, le32toh(sc->rxon.flags),
-	    sc->rxon.cck_mask, sc->rxon.ofdm_mask,
-	    sc->rxon.ht_single_mask, sc->rxon.ht_dual_mask,
-	    le16toh(sc->rxon.rxchain),
-	    sc->rxon.myaddr, ":", sc->rxon.wlap, ":", sc->rxon.bssid, ":",
-	    le16toh(sc->rxon.associd), le32toh(sc->rxon.filter));
+	DPRINTF(sc, IWN_DEBUG_STATE, "rxon chan %d flags %x\n",
+	    sc->rxon.chan, sc->rxon.flags);
 	error = iwn_cmd(sc, IWN_CMD_RXON, &sc->rxon, hal->rxonsz, 1);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
@@ -5167,7 +5151,7 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 	error = hal->set_txpower(sc, ni->ni_chan, 1);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
-		    "%s: could not set Tx power, error %d\n", __func__, error);
+		    "%s: could not set TX power, error %d\n", __func__, error);
 		return error;
 	}
 
@@ -5183,19 +5167,19 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 	node.htflags = htole32(IWN_AMDPU_SIZE_FACTOR(3) |
 	    IWN_AMDPU_DENSITY(5));	/* 2us */
 #endif
-	DPRINTF(sc, IWN_DEBUG_STATE, "%s: add BSS node, id %d htflags 0x%x\n",
-	    __func__, node.id, le32toh(node.htflags));
+	DPRINTF(sc, IWN_DEBUG_STATE, "%s: adding BSS node\n", __func__);
 	error = hal->add_node(sc, &node, 1);
 	if (error != 0) {
-		device_printf(sc->sc_dev, "could not add BSS node\n");
+		device_printf(sc->sc_dev,
+		    "%s: could not add BSS node, error %d\n", __func__, error);
 		return error;
 	}
-	DPRINTF(sc, IWN_DEBUG_STATE, "setting link quality for node %d\n",
-	    node.id);
+	DPRINTF(sc, IWN_DEBUG_STATE, "%s: setting link quality for node %d\n",
+	    __func__, node.id);
 	error = iwn_set_link_quality(sc, ni);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
-		    "%s: could not setup MRR for node %d, error %d\n",
+		    "%s: could not setup link quality for node %d, error %d\n",
 		    __func__, node.id, error);
 		return error;
 	}
@@ -5242,7 +5226,7 @@ iwn_ampdu_rx_start(struct ieee80211com *ic, struct ieee80211_node *ni,
 	node.addba_tid = tid;
 	node.addba_ssn = htole16(ba->ba_winstart);
 	DPRINTF(sc, IWN_DEBUG_RECV, "ADDBA RA=%d TID=%d SSN=%d\n",
-	    wn->id, tid, ba->ba_winstart));
+	    wn->id, tid, ba->ba_winstart);
 	return sc->sc_hal->add_node(sc, &node, 1);
 }
 
@@ -5912,8 +5896,7 @@ iwn_read_firmware_leg(struct iwn_softc *sc, struct iwn_fw_info *fw)
 		ptr++;
 	}
 	if (fw->size < hdrlen) {
-		device_printf(sc->sc_dev,
-		    "%s: firmware file too short: %zu bytes\n",
+		device_printf(sc->sc_dev, "%s: firmware too short: %zu bytes\n",
 		    __func__, fw->size);
 		return EINVAL;
 	}
@@ -5926,8 +5909,7 @@ iwn_read_firmware_leg(struct iwn_softc *sc, struct iwn_fw_info *fw)
 	/* Check that all firmware sections fit. */
 	if (fw->size < hdrlen + fw->main.textsz + fw->main.datasz +
 	    fw->init.textsz + fw->init.datasz + fw->boot.textsz) {
-		device_printf(sc->sc_dev,
-		    "%s: firmware file too short: %zu bytes\n",
+		device_printf(sc->sc_dev, "%s: firmware too short: %zu bytes\n",
 		    __func__, fw->size);
 		return EINVAL;
 	}
@@ -5956,18 +5938,18 @@ iwn_read_firmware_tlv(struct iwn_softc *sc, struct iwn_fw_info *fw,
 	uint32_t len;
 
 	if (fw->size < sizeof (*hdr)) {
-		device_printf(sc->sc_dev,
-		    "%s: firmware file too short: %zu bytes\n",
+		device_printf(sc->sc_dev, "%s: firmware too short: %zu bytes\n",
 		    __func__, fw->size);
 		return EINVAL;
 	}
 	hdr = (const struct iwn_fw_tlv_hdr *)fw->data;
 	if (hdr->signature != htole32(IWN_FW_SIGNATURE)) {
-		device_printf(sc->sc_dev,
-		    "%s: bad firmware file signature 0x%08x\n",
+		device_printf(sc->sc_dev, "%s: bad firmware signature 0x%08x\n",
 		    __func__, le32toh(hdr->signature));
 		return EINVAL;
 	}
+	DPRINTF(sc, IWN_DEBUG_RESET, "FW: \"%.64s\", build 0x%x\n", hdr->descr,
+	    le32toh(hdr->build));
 
 	/*
 	 * Select the closest supported alternative that is less than
@@ -5976,6 +5958,7 @@ iwn_read_firmware_tlv(struct iwn_softc *sc, struct iwn_fw_info *fw,
 	altmask = le64toh(hdr->altmask);
 	while (alt > 0 && !(altmask & (1ULL << alt)))
 		alt--;	/* Downgrade. */
+	DPRINTF(sc, IWN_DEBUG_RESET, "using alternative %d\n", alt);
 
 	ptr = (const uint8_t *)(hdr + 1);
 	end = (const uint8_t *)(fw->data + fw->size);
@@ -5988,8 +5971,8 @@ iwn_read_firmware_tlv(struct iwn_softc *sc, struct iwn_fw_info *fw,
 		ptr += sizeof (*tlv);
 		if (ptr + len > end) {
 			device_printf(sc->sc_dev,
-			    "%s: firmware file too short: %zu bytes\n",
-			    __func__, fw->size);
+			    "%s: firmware too short: %zu bytes\n", __func__,
+			    fw->size);
 			return EINVAL;
 		}
 		/* Skip other alternatives. */
@@ -6019,8 +6002,7 @@ iwn_read_firmware_tlv(struct iwn_softc *sc, struct iwn_fw_info *fw,
 			break;
 		default:
 			DPRINTF(sc, IWN_DEBUG_RESET,
-			    "%s: TLV type %d not handled\n",
-			    __func__, le16toh(tlv->type));
+			    "TLV type %d not handled\n", le16toh(tlv->type));
 			break;
 		}
 next:		/* TLV fields are 32-bit aligned. */
@@ -6043,9 +6025,8 @@ iwn_read_firmware(struct iwn_softc *sc)
 	/* Read firmware image from filesystem. */
 	sc->fw_fp = firmware_get(sc->fwname);
 	if (sc->fw_fp == NULL) {
-		device_printf(sc->sc_dev,
-		    "%s: could not load firmare image \"%s\"\n", __func__,
-		    sc->fwname);
+		device_printf(sc->sc_dev, "%s: could not read firmware %s\n",
+		    __func__, sc->fwname);
 		IWN_LOCK(sc);
 		return EINVAL;
 	}
@@ -6054,8 +6035,7 @@ iwn_read_firmware(struct iwn_softc *sc)
 	fw->size = sc->fw_fp->datasize;
 	fw->data = (const uint8_t *)sc->fw_fp->data;
 	if (fw->size < sizeof (uint32_t)) {
-		device_printf(sc->sc_dev,
-		    "%s: firmware file too short: %zu bytes\n",
+		device_printf(sc->sc_dev, "%s: firmware too short: %zu bytes\n",
 		    __func__, fw->size);
 		firmware_put(sc->fw_fp, FIRMWARE_UNLOAD);
 		sc->fw_fp = NULL;
@@ -6069,7 +6049,8 @@ iwn_read_firmware(struct iwn_softc *sc)
 		error = iwn_read_firmware_tlv(sc, fw, 1);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
-		    "%s: could not read firmware sections\n", __func__);
+		    "%s: could not read firmware sections, error %d\n",
+		    __func__, error);
 		firmware_put(sc->fw_fp, FIRMWARE_UNLOAD);
 		sc->fw_fp = NULL;
 		return error;
@@ -6082,8 +6063,8 @@ iwn_read_firmware(struct iwn_softc *sc)
 	    fw->init.datasz > hal->fw_data_maxsz ||
 	    fw->boot.textsz > IWN_FW_BOOT_TEXT_MAXSZ ||
 	    (fw->boot.textsz & 3) != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: firmware sections too large\n", __func__);
+		device_printf(sc->sc_dev, "%s: firmware sections too large\n",
+		    __func__);
 		firmware_put(sc->fw_fp, FIRMWARE_UNLOAD);
 		sc->fw_fp = NULL;
 		return EINVAL;
@@ -6506,7 +6487,7 @@ iwn_init_locked(struct iwn_softc *sc)
 
 	error = iwn_hw_prepare(sc);
 	if (error != 0) {
-		device_printf(sc->sc_dev, "%s: hardware not ready, eror %d\n",
+		device_printf(sc->sc_dev, "%s: hardware not ready, error %d\n",
 		    __func__, error);
 		goto fail;
 	}
