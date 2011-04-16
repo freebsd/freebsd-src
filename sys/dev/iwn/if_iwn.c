@@ -532,6 +532,7 @@ iwn_attach(device_t dev)
 	if ((result = pci_msi_count(dev)) == 1 &&
 	    pci_alloc_msi(dev, &result) == 0)
 		sc->irq_rid = 1;
+	/* Install interrupt handler. */
 	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->irq == NULL) {
@@ -589,7 +590,7 @@ iwn_attach(device_t dev)
 		goto fail;
 	}
 
-	/* Allocate TX rings (16 on 4965AGN, 20 on 5000). */
+	/* Allocate TX rings (16 on 4965AGN, 20 on >=5000). */
 	for (i = 0; i < hal->ntxqs; i++) {
 		error = iwn_alloc_tx_ring(sc, &sc->txq[i], i);
 		if (error != 0) {
@@ -929,6 +930,7 @@ iwn_detach(device_t dev)
 		ieee80211_ifdetach(ic);
 	}
 
+	/* Uninstall interrupt handler. */
 	if (sc->irq != NULL) {
 		bus_teardown_intr(dev, sc->irq, sc->sc_ih);
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, sc->irq);
@@ -1496,7 +1498,7 @@ iwn_alloc_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring, int qid)
 	ring->queued = 0;
 	ring->cur = 0;
 
-	/* Allocate TX descriptors (256-byte aligned.) */
+	/* Allocate TX descriptors (256-byte aligned). */
 	size = IWN_TX_RING_COUNT * sizeof(struct iwn_tx_desc);
 	error = iwn_dma_contig_alloc(sc, &ring->desc_dma, (void **)&ring->desc,
 	    size, 256);
@@ -1510,6 +1512,7 @@ iwn_alloc_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring, int qid)
 	/*
 	 * We only use rings 0 through 4 (4 EDCA + cmd) so there is no need
 	 * to allocate commands space for other rings.
+	 * XXX Do we really need to allocate descriptors for other rings?
 	 */
 	if (qid > 4)
 		return 0;
@@ -1618,7 +1621,7 @@ iwn5000_ict_reset(struct iwn_softc *sc)
 	memset(sc->ict, 0, IWN_ICT_SIZE);
 	sc->ict_cur = 0;
 
-	/* Set physical address of ICT table (4KB aligned.) */
+	/* Set physical address of ICT table (4KB aligned). */
 	DPRINTF(sc, IWN_DEBUG_RESET, "%s: enabling ICT\n", __func__);
 	IWN_WRITE(sc, IWN_DRAM_INT_TBL, IWN_DRAM_INT_TBL_ENABLE |
 	    IWN_DRAM_INT_TBL_WRAP_CHECK | sc->ict_dma.paddr >> 12);
@@ -1701,10 +1704,10 @@ iwn4965_read_eeprom(struct iwn_softc *sc)
 	uint16_t val;
 	int i;
 
-	/* Read regulatory domain (4 ASCII characters.) */
+	/* Read regulatory domain (4 ASCII characters). */
 	iwn_read_prom_data(sc, IWN4965_EEPROM_DOMAIN, sc->eeprom_domain, 4);
 
-	/* Read the list of authorized channels (20MHz ones only.) */
+	/* Read the list of authorized channels (20MHz ones only). */
 	for (i = 0; i < 5; i++) {
 		addr = iwn4965_regulatory_bands[i];
 		iwn_read_eeprom_channels(sc, i, addr);
@@ -1785,13 +1788,13 @@ iwn5000_read_eeprom(struct iwn_softc *sc)
 	uint16_t val;
 	int i;
 
-	/* Read regulatory domain (4 ASCII characters.) */
+	/* Read regulatory domain (4 ASCII characters). */
 	iwn_read_prom_data(sc, IWN5000_EEPROM_REG, &val, 2);
 	base = le16toh(val);
 	iwn_read_prom_data(sc, base + IWN5000_EEPROM_DOMAIN,
 	    sc->eeprom_domain, 4);
 
-	/* Read the list of authorized channels (20MHz ones only.) */
+	/* Read the list of authorized channels (20MHz ones only). */
 	for (i = 0; i < 5; i++) {
 		addr = base + iwn5000_regulatory_bands[i];
 		iwn_read_eeprom_channels(sc, i, addr);
@@ -2455,7 +2458,7 @@ iwn_rx_statistics(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	struct iwn_stats *stats = (struct iwn_stats *)(desc + 1);
 	int temp;
 
-	/* Beacon stats are meaningful only when associated and not scanning. */
+	/* Ignore statistics received during a scan. */
 	if (vap->iv_state != IEEE80211_S_RUN ||
 	    (ic->ic_flags & IEEE80211_F_SCAN))
 		return;
@@ -2474,7 +2477,7 @@ iwn_rx_statistics(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: temperature %d\n",
 		    __func__, temp);
 
-		/* Update TX power if need be (4965AGN only.) */
+		/* Update TX power if need be (4965AGN only). */
 		if (sc->hw_type == IWN_HW_REV_TYPE_4965)
 			iwn4965_power_calibration(sc, temp);
 	}
@@ -2972,6 +2975,7 @@ iwn_intr(void *arg)
 	if (r1 & (IWN_INT_SW_ERR | IWN_INT_HW_ERR)) {
 		device_printf(sc->sc_dev, "%s: fatal firmware error\n",
 		    __func__);
+		/* Dump firmware error log and stop. */
 		iwn_fatal_intr(sc);
 		ifp->if_flags &= ~IFF_UP;
 		iwn_stop_locked(sc);
@@ -3015,7 +3019,7 @@ done:
 
 /*
  * Update TX scheduler ring when transmitting an 802.11 frame (4965AGN and
- * 5000 adapters use a slightly different format.)
+ * 5000 adapters use a slightly different format).
  */
 static void
 iwn4965_update_sched(struct iwn_softc *sc, int qid, int idx, uint8_t id,
@@ -3141,12 +3145,13 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 	/* Encrypt the frame if need be. */
 	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		/* Retrieve key for TX. */
 		k = ieee80211_crypto_encap(ni, m);
 		if (k == NULL) {
 			m_freem(m);
 			return ENOBUFS;
 		}
-		/* Packet header may have moved, reset our local pointer. */
+		/* 802.11 header may have moved. */
 		wh = mtod(m, struct ieee80211_frame *);
 	}
 	totlen = m->m_pkthdr.len;
@@ -3421,6 +3426,7 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	if (type == IEEE80211_FC0_TYPE_MGT) {
 		uint8_t subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 
+		/* Tell HW to set timestamp in probe responses. */
 		if (subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)
 			flags |= IWN_TX_INSERT_TSTAMP;
 
@@ -3899,7 +3905,7 @@ iwn_updateedca(struct ieee80211com *ic)
 	}
 	IEEE80211_UNLOCK(ic);
 	IWN_LOCK(sc);
-	(void) iwn_cmd(sc, IWN_CMD_EDCA_PARAMS, &cmd, sizeof cmd, 1 /*async*/);
+	(void)iwn_cmd(sc, IWN_CMD_EDCA_PARAMS, &cmd, sizeof cmd, 1);
 	IWN_UNLOCK(sc);
 	IEEE80211_LOCK(ic);
 	return 0;
@@ -3980,7 +3986,7 @@ iwn4965_power_calibration(struct iwn_softc *sc, int temp)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 
-	/* Adjust TX power if need be (delta >= 3 degC.) */
+	/* Adjust TX power if need be (delta >= 3 degC). */
 	DPRINTF(sc, IWN_DEBUG_CALIBRATE, "%s: temperature %d->%d\n",
 	    __func__, sc->temp, temp);
 	if (abs(temp - sc->temp) >= 3) {
@@ -4244,7 +4250,7 @@ iwn4965_get_temperature(struct iwn_softc *sc)
 	r3 = le32toh(uc->temp[2].chan20MHz);
 	r4 = le32toh(sc->rawtemp);
 
-	if (r1 == r3)	/* Prevents division by 0 (should not happen.) */
+	if (r1 == r3)	/* Prevents division by 0 (should not happen). */
 		return 0;
 
 	/* Sign-extend 23-bit R4 value to 32-bit. */
@@ -4265,8 +4271,7 @@ iwn5000_get_temperature(struct iwn_softc *sc)
 
 	/*
 	 * Temperature is not used by the driver for 5000 Series because
-	 * TX power calibration is handled by firmware.  We export it to
-	 * users through the sensor framework though.
+	 * TX power calibration is handled by firmware.
 	 */
 	temp = le32toh(sc->rawtemp);
 	if (sc->hw_type == IWN_HW_REV_TYPE_5150) {
@@ -4744,7 +4749,7 @@ iwn_config(struct iwn_softc *sc)
 		}
 	}
 
-	/* Configure valid TX chains for 5000 Series. */
+	/* Configure valid TX chains for >=5000 Series. */
 	if (sc->hw_type != IWN_HW_REV_TYPE_4965) {
 		txmask = htole32(sc->txchainmask);
 		DPRINTF(sc, IWN_DEBUG_RESET,
@@ -5033,7 +5038,7 @@ iwn_auth(struct iwn_softc *sc, struct ieee80211vap *vap)
 		sc->rxon.cck_mask  = 0x03;
 		sc->rxon.ofdm_mask = 0;
 	} else {
-		/* XXX assume 802.11b/g */
+		/* Assume 802.11b/g. */
 		sc->rxon.cck_mask  = 0x0f;
 		sc->rxon.ofdm_mask = 0x15;
 	}
@@ -5068,9 +5073,6 @@ iwn_auth(struct iwn_softc *sc, struct ieee80211vap *vap)
 	return 0;
 }
 
-/*
- * Configure the adapter for associated state.
- */
 static int
 iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 {
@@ -5112,7 +5114,7 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 		sc->rxon.cck_mask  = 0x03;
 		sc->rxon.ofdm_mask = 0;
 	} else {
-		/* XXX assume 802.11b/g */
+		/* Assume 802.11b/g. */
 		sc->rxon.cck_mask  = 0x0f;
 		sc->rxon.ofdm_mask = 0x15;
 	}
@@ -5232,7 +5234,7 @@ iwn_ampdu_rx_start(struct ieee80211com *ic, struct ieee80211_node *ni,
 
 /*
  * This function is called by upper layer on teardown of an HT-immediate
- * Block Ack agreement (eg. uppon receipt of a DELBA frame.)
+ * Block Ack agreement (eg. uppon receipt of a DELBA frame).
  */
 static void
 iwn_ampdu_rx_stop(struct ieee80211com *ic, struct ieee80211_node *ni,
@@ -5537,7 +5539,7 @@ iwn5000_temp_offset_calib(struct iwn_softc *sc)
 
 /*
  * This function is called after the runtime firmware notifies us of its
- * readiness (called in a process context.)
+ * readiness (called in a process context).
  */
 static int
 iwn4965_post_alive(struct iwn_softc *sc)
@@ -5552,7 +5554,7 @@ iwn4965_post_alive(struct iwn_softc *sc)
 	iwn_mem_set_region_4(sc, sc->sched_base + IWN4965_SCHED_CTX_OFF, 0,
 	    IWN4965_SCHED_CTX_LEN / sizeof (uint32_t));
 
-	/* Set physical address of TX scheduler rings (1KB aligned.) */
+	/* Set physical address of TX scheduler rings (1KB aligned). */
 	iwn_prph_write(sc, IWN4965_SCHED_DRAM_ADDR, sc->sched_dma.paddr >> 10);
 
 	IWN_SETBITS(sc, IWN_FH_TX_CHICKEN, IWN_FH_TX_CHICKEN_SCHED_RETRY);
@@ -5590,7 +5592,7 @@ iwn4965_post_alive(struct iwn_softc *sc)
 
 /*
  * This function is called after the initialization or runtime firmware
- * notifies us of its readiness (called in a process context.)
+ * notifies us of its readiness (called in a process context).
  */
 static int
 iwn5000_post_alive(struct iwn_softc *sc)
@@ -5609,7 +5611,7 @@ iwn5000_post_alive(struct iwn_softc *sc)
 	iwn_mem_set_region_4(sc, sc->sched_base + IWN5000_SCHED_CTX_OFF, 0,
 	    IWN5000_SCHED_CTX_LEN / sizeof (uint32_t));
 
-	/* Set physical address of TX scheduler rings (1KB aligned.) */
+	/* Set physical address of TX scheduler rings (1KB aligned). */
 	iwn_prph_write(sc, IWN5000_SCHED_DRAM_ADDR, sc->sched_dma.paddr >> 10);
 
 	IWN_SETBITS(sc, IWN_FH_TX_CHICKEN, IWN_FH_TX_CHICKEN_SCHED_RETRY);
@@ -5685,7 +5687,7 @@ iwn5000_post_alive(struct iwn_softc *sc)
 
 /*
  * The firmware boot code is small and is intended to be copied directly into
- * the NIC internal memory (no DMA transfer.)
+ * the NIC internal memory (no DMA transfer).
  */
 static int
 iwn4965_load_bootcode(struct iwn_softc *sc, const uint8_t *ucode, int size)
@@ -6099,12 +6101,12 @@ iwn_apm_init(struct iwn_softc *sc)
 	uint32_t reg;
 	int error;
 
-	/* Disable L0s exit timer (NMI bug workaround.) */
+	/* Disable L0s exit timer (NMI bug workaround). */
 	IWN_SETBITS(sc, IWN_GIO_CHICKEN, IWN_GIO_CHICKEN_DIS_L0S_TIMER);
-	/* Don't wait for ICH L0s (ICH bug workaround.) */
+	/* Don't wait for ICH L0s (ICH bug workaround). */
 	IWN_SETBITS(sc, IWN_GIO_CHICKEN, IWN_GIO_CHICKEN_L1A_NO_L0S_RX);
 
-	/* Set FH wait threshold to max (HW bug under stress workaround.) */
+	/* Set FH wait threshold to max (HW bug under stress workaround). */
 	IWN_SETBITS(sc, IWN_DBG_HPET_MEM, 0xffff0000);
 
 	/* Enable HAP INTA to move adapter from L1a to L0s. */
@@ -6132,7 +6134,7 @@ iwn_apm_init(struct iwn_softc *sc)
 		return error;
 
 	if (sc->hw_type == IWN_HW_REV_TYPE_4965) {
-		/* Enable DMA and BSM (Bootstrap State Machine.) */
+		/* Enable DMA and BSM (Bootstrap State Machine). */
 		iwn_prph_write(sc, IWN_APMG_CLK_EN,
 		    IWN_APMG_CLK_CTRL_DMA_CLK_RQT |
 		    IWN_APMG_CLK_CTRL_BSM_CLK_RQT);
@@ -6316,9 +6318,9 @@ iwn_hw_init(struct iwn_softc *sc)
 		return error;
 	IWN_WRITE(sc, IWN_FH_RX_CONFIG, 0);
 	IWN_WRITE(sc, IWN_FH_RX_WPTR, 0);
-	/* Set physical address of RX ring (256-byte aligned.) */
+	/* Set physical address of RX ring (256-byte aligned). */
 	IWN_WRITE(sc, IWN_FH_RX_BASE, sc->rxq.desc_dma.paddr >> 8);
-	/* Set physical address of RX status (16-byte aligned.) */
+	/* Set physical address of RX status (16-byte aligned). */
 	IWN_WRITE(sc, IWN_FH_STATUS_WPTR, sc->rxq.stat_dma.paddr >> 4);
 	/* Enable RX. */
 	IWN_WRITE(sc, IWN_FH_RX_CONFIG,
@@ -6338,14 +6340,14 @@ iwn_hw_init(struct iwn_softc *sc)
 	/* Initialize TX scheduler. */
 	iwn_prph_write(sc, hal->sched_txfact_addr, 0);
 
-	/* Set physical address of "keep warm" page (16-byte aligned.) */
+	/* Set physical address of "keep warm" page (16-byte aligned). */
 	IWN_WRITE(sc, IWN_FH_KW_ADDR, sc->kw_dma.paddr >> 4);
 
 	/* Initialize TX rings. */
 	for (qid = 0; qid < hal->ntxqs; qid++) {
 		struct iwn_tx_ring *txq = &sc->txq[qid];
 
-		/* Set physical address of TX ring (256-byte aligned.) */
+		/* Set physical address of TX ring (256-byte aligned). */
 		IWN_WRITE(sc, IWN_FH_CBBC_QUEUE(qid),
 		    txq->desc_dma.paddr >> 8);
 	}
