@@ -2108,6 +2108,18 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		device_printf(sc->sc_dev,
 		    "%s: bus_dmamap_load failed, error %d\n", __func__, error);
 		m_freem(m1);
+
+		/* Try to reload the old mbuf. */
+		error = bus_dmamap_load(ring->data_dmat, data->map,
+		    mtod(data->m, void *), IWN_RBUF_SIZE, iwn_dma_map_addr,
+		    &paddr, BUS_DMA_NOWAIT);
+		if (error != 0 && error != EFBIG) {
+			panic("%s: could not load old RX mbuf", __func__);
+		}
+		/* Physical address may have changed. */
+		ring->desc[ring->cur] = htole32(paddr >> 8);
+		bus_dmamap_sync(ring->data_dmat, ring->desc_dma.map,
+		    BUS_DMASYNC_PREWRITE);
 		ifp->if_ierrors++;
 		return;
 	}
