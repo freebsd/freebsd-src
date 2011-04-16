@@ -3145,7 +3145,6 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	struct iwn_tx_desc *desc;
 	struct iwn_tx_data *data;
 	struct mbuf *mnew;
-	bus_addr_t paddr;
 	bus_dma_segment_t segs[IWN_MAX_SCATTER];
 	uint32_t flags;
 	u_int hdrlen;
@@ -3246,9 +3245,8 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	txant = IWN_LSB(sc->txchainmask);
 	tx->rflags |= IWN_RFLAG_ANT(txant);
 	/* Set physical address of "scratch area". */
-	paddr = ring->cmd_dma.paddr + ring->cur * sizeof (struct iwn_tx_cmd);
-	tx->loaddr = htole32(IWN_LOADDR(paddr));
-	tx->hiaddr = IWN_HIADDR(paddr);
+	tx->loaddr = htole32(IWN_LOADDR(data->scratch_paddr));
+	tx->hiaddr = IWN_HIADDR(data->scratch_paddr);
 
 	/* Copy 802.11 header in TX command. */
 	memcpy((uint8_t *)(tx + 1), wh, hdrlen);
