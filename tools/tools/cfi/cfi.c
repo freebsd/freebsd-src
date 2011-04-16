@@ -38,9 +38,12 @@
 #include <sys/ioctl.h>
 #include <sys/cfictl.h>
 
-#include <stdio.h>
+#include <err.h>
 #include <getopt.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 const char *progname;
 const char *dvname;
@@ -48,8 +51,6 @@ const char *dvname;
 static void
 usage(void)
 {
-	int i;
-
 	fprintf(stderr, "usage: %s [-f device] op...\n", progname);
 	fprintf(stderr, "where op's are:\n");
 	fprintf(stderr, "fact\t\tread factory PR segment\n");
