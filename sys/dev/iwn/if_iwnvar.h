@@ -206,7 +206,6 @@ struct iwn_softc {
 	struct ifnet		*sc_ifp;
 	int			sc_debug;
 
-	/* Locks */
 	struct mtx		sc_mtx;
 
 	u_int			sc_flags;
