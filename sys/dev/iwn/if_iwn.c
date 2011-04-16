@@ -764,6 +764,7 @@ iwn_hal_attach(struct iwn_softc *sc)
 		sc->sc_hal = &iwn4965_hal;
 		sc->limits = &iwn4965_sensitivity_limits;
 		sc->fwname = "iwn4965fw";
+		/* Override chains masks, ROM is known to be broken. */
 		sc->txchainmask = IWN_ANT_AB;
 		sc->rxchainmask = IWN_ANT_ABC;
 		break;
@@ -771,6 +772,7 @@ iwn_hal_attach(struct iwn_softc *sc)
 		sc->sc_hal = &iwn5000_hal;
 		sc->limits = &iwn5000_sensitivity_limits;
 		sc->fwname = "iwn5000fw";
+		/* Override chains masks, ROM is known to be broken. */
 		sc->txchainmask = IWN_ANT_B;
 		sc->rxchainmask = IWN_ANT_AB;
 		break;
@@ -778,23 +780,17 @@ iwn_hal_attach(struct iwn_softc *sc)
 		sc->sc_hal = &iwn5000_hal;
 		sc->limits = &iwn5150_sensitivity_limits;
 		sc->fwname = "iwn5150fw";
-		sc->txchainmask = IWN_ANT_A;
-		sc->rxchainmask = IWN_ANT_AB;
 		break;
 	case IWN_HW_REV_TYPE_5300:
 	case IWN_HW_REV_TYPE_5350:
 		sc->sc_hal = &iwn5000_hal;
 		sc->limits = &iwn5000_sensitivity_limits;
 		sc->fwname = "iwn5000fw";
-		sc->txchainmask = IWN_ANT_ABC;
-		sc->rxchainmask = IWN_ANT_ABC;
 		break;
 	case IWN_HW_REV_TYPE_1000:
 		sc->sc_hal = &iwn5000_hal;
 		sc->limits = &iwn1000_sensitivity_limits;
 		sc->fwname = "iwn1000fw";
-		sc->txchainmask = IWN_ANT_A;
-		sc->rxchainmask = IWN_ANT_AB;
 		break;
 	case IWN_HW_REV_TYPE_6000:
 		sc->sc_hal = &iwn5000_hal;
@@ -804,12 +800,9 @@ iwn_hal_attach(struct iwn_softc *sc)
 		case 0x422C:
 		case 0x4239:
 			sc->sc_flags |= IWN_FLAG_INTERNAL_PA;
+			/* Override chains masks, ROM is known to be broken. */
 			sc->txchainmask = IWN_ANT_BC;
 			sc->rxchainmask = IWN_ANT_BC;
-			break;
-		default:
-			sc->txchainmask = IWN_ANT_ABC;
-			sc->rxchainmask = IWN_ANT_ABC;
 			break;
 		}
 		break;
@@ -817,15 +810,11 @@ iwn_hal_attach(struct iwn_softc *sc)
 		sc->sc_hal = &iwn5000_hal;
 		sc->limits = &iwn6000_sensitivity_limits;
 		sc->fwname = "iwn6050fw";
-		sc->txchainmask = IWN_ANT_AB;
-		sc->rxchainmask = IWN_ANT_AB;
 		break;
 	case IWN_HW_REV_TYPE_6005:
 		sc->sc_hal = &iwn5000_hal;
 		sc->limits = &iwn6000_sensitivity_limits;
 		sc->fwname = "iwn6005fw";
-		sc->txchainmask = IWN_ANT_AB;
-		sc->rxchainmask = IWN_ANT_AB;
 		break;
 	default:
 		device_printf(sc->sc_dev, "adapter type %d not supported\n",
@@ -1673,6 +1662,11 @@ iwn_read_eeprom(struct iwn_softc *sc, uint8_t macaddr[IEEE80211_ADDR_LEN])
 	iwn_read_prom_data(sc, IWN_EEPROM_RFCFG, &val, 2);
 	sc->rfcfg = le16toh(val);
 	DPRINTF(sc, IWN_DEBUG_RESET, "radio config=0x%04x\n", sc->rfcfg);
+	/* Read Tx/Rx chains from ROM unless it's known to be broken. */
+	if (sc->txchainmask == 0)
+		sc->txchainmask = IWN_RFCFG_TXANTMSK(sc->rfcfg);
+	if (sc->rxchainmask == 0)
+		sc->rxchainmask = IWN_RFCFG_RXANTMSK(sc->rfcfg);
 
 	/* Read MAC address. */
 	iwn_read_prom_data(sc, IWN_EEPROM_MAC, macaddr, 6);
