@@ -1250,6 +1250,17 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 		goto fail;
 	}
 
+	/* Allocate RX status area (16-byte aligned). */
+	error = iwn_dma_contig_alloc(sc, &ring->stat_dma, (void **)&ring->stat,
+	    sizeof (struct iwn_rx_status), 16);
+	if (error != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: could not allocate Rx status DMA memory, error %d\n",
+		    __func__, error);
+		goto fail;
+	}
+
+	/* Create RX buffer DMA tag. */
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    IWN_RBUF_SIZE, 1, IWN_RBUF_SIZE, BUS_DMA_NOWAIT, NULL, NULL,
@@ -1257,16 +1268,6 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: bus_dma_tag_create_failed, error %d\n",
-		    __func__, error);
-		goto fail;
-	}
-
-	/* Allocate RX status area (16-byte aligned). */
-	error = iwn_dma_contig_alloc(sc, &ring->stat_dma, (void **)&ring->stat,
-	    sizeof (struct iwn_rx_status), 16);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: could not allocate Rx status DMA memory, error %d\n",
 		    __func__, error);
 		goto fail;
 	}
