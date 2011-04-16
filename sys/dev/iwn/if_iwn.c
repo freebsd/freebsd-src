@@ -1653,6 +1653,12 @@ iwn_read_eeprom(struct iwn_softc *sc, uint8_t macaddr[IEEE80211_ADDR_LEN])
 		}
 	}
 
+	iwn_read_prom_data(sc, IWN_EEPROM_SKU_CAP, &val, 2);
+	DPRINTF(sc, IWN_DEBUG_RESET, "SKU capabilities=0x%04x\n", le16toh(val));
+	/* Check if HT support is bonded out. */
+	if (val & htole16(IWN_EEPROM_SKU_CAP_11N))
+		sc->sc_flags |= IWN_FLAG_HAS_11N;
+
 	iwn_read_prom_data(sc, IWN_EEPROM_RFCFG, &val, 2);
 	sc->rfcfg = le16toh(val);
 	DPRINTF(sc, IWN_DEBUG_RESET, "radio config=0x%04x\n", sc->rfcfg);
@@ -4595,9 +4601,11 @@ static int
 iwn_send_sensitivity(struct iwn_softc *sc)
 {
 	struct iwn_calib_state *calib = &sc->calib;
-	struct iwn_sensitivity_cmd cmd;
+	struct iwn_enhanced_sensitivity_cmd cmd;
+	int len;
 
 	memset(&cmd, 0, sizeof cmd);
+	len = sizeof (struct iwn_sensitivity_cmd);
 	cmd.which = IWN_SENSITIVITY_WORKTBL;
 	/* OFDM modulation. */
 	cmd.corr_ofdm_x1       = htole16(calib->ofdm_x1);
@@ -4619,7 +4627,21 @@ iwn_send_sensitivity(struct iwn_softc *sc)
 	    calib->ofdm_x1, calib->ofdm_mrc_x1, calib->ofdm_x4,
 	    calib->ofdm_mrc_x4, calib->cck_x4,
 	    calib->cck_mrc_x4, calib->energy_cck);
-	return iwn_cmd(sc, IWN_CMD_SET_SENSITIVITY, &cmd, sizeof cmd, 1);
+
+	if (!(sc->sc_flags & IWN_FLAG_ENH_SENS))
+		goto send;
+	/* Enhanced sensitivity settings. */
+	len = sizeof (struct iwn_enhanced_sensitivity_cmd);
+	cmd.ofdm_det_slope_mrc = htole16(668);
+	cmd.ofdm_det_icept_mrc = htole16(4);
+	cmd.ofdm_det_slope     = htole16(486);
+	cmd.ofdm_det_icept     = htole16(37);
+	cmd.cck_det_slope_mrc  = htole16(853);
+	cmd.cck_det_icept_mrc  = htole16(4);
+	cmd.cck_det_slope      = htole16(476);
+	cmd.cck_det_icept      = htole16(99);
+send:
+	return iwn_cmd(sc, IWN_CMD_SET_SENSITIVITY, &cmd, len, 1);
 }
 
 /*
@@ -6175,6 +6197,8 @@ iwn5000_nic_config(struct iwn_softc *sc)
 		/* Indicate that ROM calibration version is >=6. */
 		IWN_SETBITS(sc, IWN_GP_DRIVER, IWN_GP_DRIVER_CALIB_VER6);
 	}
+	if (sc->hw_type == IWN_HW_REV_TYPE_6005)
+		IWN_SETBITS(sc, IWN_GP_DRIVER, IWN_GP_DRIVER_6050_1X2);
 	return 0;
 }
 
@@ -6303,6 +6327,10 @@ iwn_hw_init(struct iwn_softc *sc)
 	/* _Really_ make sure "radio off" bit is cleared! */
 	IWN_WRITE(sc, IWN_UCODE_GP1_CLR, IWN_UCODE_GP1_RFKILL);
 	IWN_WRITE(sc, IWN_UCODE_GP1_CLR, IWN_UCODE_GP1_RFKILL);
+
+	/* Enable shadow registers. */
+	if (sc->hw_type >= IWN_HW_REV_TYPE_6000)
+		IWN_SETBITS(sc, IWN_SHADOW_REG_CTRL, 0x800fffff);
 
 	if ((error = ops->load_firmware(sc)) != 0) {
 		device_printf(sc->sc_dev,
