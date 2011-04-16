@@ -220,9 +220,7 @@ clnt_vc_create(
 		}
 	}
 
-	CURVNET_SET(so->so_vnet);
 	if (!__rpc_socket2sockinfo(so, &si)) {
-		CURVNET_RESTORE();
 		goto err;
 	}
 
@@ -245,7 +243,6 @@ clnt_vc_create(
 		sopt.sopt_valsize = sizeof(one);
 		sosetopt(so, &sopt);
 	}
-	CURVNET_RESTORE();
 
 	ct->ct_closeit = FALSE;
 

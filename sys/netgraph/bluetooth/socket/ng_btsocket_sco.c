@@ -50,6 +50,9 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+
+#include <net/vnet.h>
+
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/bluetooth/include/ng_bluetooth.h>
@@ -477,8 +480,11 @@ ng_btsocket_sco_process_lp_con_ind(struct ng_mesg *msg,
 		 * space then create new socket and set proper source address.
 		 */
 
-		if (pcb->so->so_qlen <= pcb->so->so_qlimit)
+		if (pcb->so->so_qlen <= pcb->so->so_qlimit) {
+			CURVNET_SET(pcb->so->so_vnet);
 			so1 = sonewconn(pcb->so, 0);
+			CURVNET_RESTORE();
+		}
 
 		if (so1 == NULL) {
 			status = 0x0d; /* Rejected due to limited resources */

@@ -428,7 +428,6 @@ nfs_mountroot(struct mount *mp)
 	char buf[128];
 	char *cp;
 
-	CURVNET_SET(TD_TO_VNET(td));
 
 #if defined(BOOTP_NFSROOT) && defined(BOOTP)
 	bootpc_init();		/* use bootp to get nfs_diskless filled in */
@@ -437,7 +436,6 @@ nfs_mountroot(struct mount *mp)
 #endif
 
 	if (nfs_diskless_valid == 0) {
-		CURVNET_RESTORE();
 		return (-1);
 	}
 	if (nfs_diskless_valid == 1)
@@ -504,10 +502,12 @@ nfs_mountroot(struct mount *mp)
 		sin.sin_family = AF_INET;
 		sin.sin_len = sizeof(sin);
                 /* XXX MRT use table 0 for this sort of thing */
+		CURVNET_SET(TD_TO_VNET(td));
 		error = rtrequest(RTM_ADD, (struct sockaddr *)&sin,
 		    (struct sockaddr *)&nd->mygateway,
 		    (struct sockaddr *)&mask,
 		    RTF_UP | RTF_GATEWAY, NULL);
+		CURVNET_RESTORE();
 		if (error)
 			panic("nfs_mountroot: RTM_ADD: %d", error);
 	}
@@ -525,7 +525,6 @@ nfs_mountroot(struct mount *mp)
 	nd->root_args.hostname = buf;
 	if ((error = nfs_mountdiskless(buf,
 	    &nd->root_saddr, &nd->root_args, td, &vp, mp)) != 0) {
-		CURVNET_RESTORE();
 		return (error);
 	}
 
@@ -539,7 +538,6 @@ nfs_mountroot(struct mount *mp)
 	    sizeof (prison0.pr_hostname));
 	mtx_unlock(&prison0.pr_mtx);
 	inittodr(ntohl(nd->root_time));
-	CURVNET_RESTORE();
 	return (0);
 }
 
