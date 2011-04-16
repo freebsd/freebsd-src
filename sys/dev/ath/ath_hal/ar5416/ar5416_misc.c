@@ -290,6 +290,8 @@ ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		    (ah->ah_macVersion == AR_XSREV_VERSION_OWL_PCIE) ||
 		    AR_SREV_SOWL(ah)) ?
 			HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_DIVERSITY:		/* disable classic fast diversity */
+		return HAL_ENXIO;
 	default:
 		break;
 	}
