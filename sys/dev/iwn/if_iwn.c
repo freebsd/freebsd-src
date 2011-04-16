@@ -1294,7 +1294,7 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 		if (data->m == NULL) {
 			device_printf(sc->sc_dev,
 			    "%s: could not allocate rx mbuf\n", __func__);
-			error = ENOMEM;
+			error = ENOBUFS;
 			goto fail;
 		}
 
@@ -1305,8 +1305,6 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 			device_printf(sc->sc_dev,
 			    "%s: bus_dmamap_load failed, error %d\n",
 			    __func__, error);
-			m_freem(data->m);
-			error = ENOMEM;	/* XXX unique code */
 			goto fail;
 		}
 
@@ -1361,6 +1359,7 @@ iwn_free_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 			    BUS_DMASYNC_POSTREAD);
 			bus_dmamap_unload(ring->data_dmat, data->map);
 			m_freem(data->m);
+			data->m = NULL;
 		}
 		if (data->map != NULL)
 			bus_dmamap_destroy(ring->data_dmat, data->map);
