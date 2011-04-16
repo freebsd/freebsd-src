@@ -2906,8 +2906,8 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	struct iwn_cmd_data *tx;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k = NULL;
-	struct mbuf *mnew;
-	bus_dma_segment_t segs[IWN_MAX_SCATTER];
+	struct mbuf *m1;
+	bus_dma_segment_t *seg, segs[IWN_MAX_SCATTER];
 	uint32_t flags;
 	u_int hdrlen;
 	int totlen, error, pad, nsegs = 0, i, rate;
@@ -3063,26 +3063,30 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	tx->security = 0;
 	tx->flags = htole32(flags);
 
-	if (m->m_len > 0) {
-		error = bus_dmamap_load_mbuf_sg(ring->data_dmat, data->map,
-		    m, segs, &nsegs, BUS_DMA_NOWAIT);
-		if (error == EFBIG) {
-			/* too many fragments, linearize */
-			mnew = m_collapse(m, M_DONTWAIT, IWN_MAX_SCATTER);
-			if (mnew == NULL) {
-				device_printf(sc->sc_dev,
-				    "%s: could not defrag mbuf\n", __func__);
-				m_freem(m);
-				return ENOBUFS;
-			}
-			m = mnew;
-			error = bus_dmamap_load_mbuf_sg(ring->data_dmat,
-			    data->map, m, segs, &nsegs, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(ring->data_dmat, data->map, m, segs,
+	    &nsegs, BUS_DMA_NOWAIT);
+	if (error != 0) {
+		if (error != EFBIG) {
+			device_printf(sc->sc_dev,
+			    "%s: can't map mbuf (error %d)\n", __func__, error);
+			m_freem(m);
+			return error;
 		}
+		/* Too many DMA segments, linearize mbuf. */
+		m1 = m_collapse(m, M_DONTWAIT, IWN_MAX_SCATTER);
+		if (m1 == NULL) {
+			device_printf(sc->sc_dev,
+			    "%s: could not defrag mbuf\n", __func__);
+			m_freem(m);
+			return ENOBUFS;
+		}
+		m = m1;
+
+		error = bus_dmamap_load_mbuf_sg(ring->data_dmat, data->map, m,
+		    segs, &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: bus_dmamap_load_mbuf_sg failed, error %d\n",
-			    __func__, error);
+			    "%s: can't map mbuf (error %d)\n", __func__, error);
 			m_freem(m);
 			return error;
 		}
@@ -3095,16 +3099,20 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	    __func__, ring->qid, ring->cur, m->m_pkthdr.len, nsegs);
 
 	/* Fill TX descriptor. */
-	desc->nsegs = 1 + nsegs;
+	desc->nsegs = 1;
+	if (m->m_len != 0)
+		desc->nsegs += nsegs;
 	/* First DMA segment is used by the TX command. */
 	desc->segs[0].addr = htole32(IWN_LOADDR(data->cmd_paddr));
 	desc->segs[0].len  = htole16(IWN_HIADDR(data->cmd_paddr) |
 	    (4 + sizeof (*tx) + hdrlen + pad) << 4);
 	/* Other DMA segments are for data payload. */
+	seg = &segs[0];
 	for (i = 1; i <= nsegs; i++) {
-		desc->segs[i].addr = htole32(IWN_LOADDR(segs[i - 1].ds_addr));
-		desc->segs[i].len  = htole16(IWN_HIADDR(segs[i - 1].ds_addr) |
-		    segs[i - 1].ds_len << 4);
+		desc->segs[i].addr = htole32(IWN_LOADDR(seg->ds_addr));
+		desc->segs[i].len  = htole16(IWN_HIADDR(seg->ds_addr) |
+		    seg->ds_len << 4);
+		seg++;
 	}
 
 	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_PREWRITE);
@@ -3144,8 +3152,8 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	struct ieee80211_frame *wh;
 	struct iwn_tx_desc *desc;
 	struct iwn_tx_data *data;
-	struct mbuf *mnew;
-	bus_dma_segment_t segs[IWN_MAX_SCATTER];
+	struct mbuf *m1;
+	bus_dma_segment_t *seg, segs[IWN_MAX_SCATTER];
 	uint32_t flags;
 	u_int hdrlen;
 	int totlen, error, pad, nsegs = 0, i, rate;
@@ -3256,26 +3264,30 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	tx->security = 0;
 	tx->flags = htole32(flags);
 
-	if (m->m_len > 0) {
-		error = bus_dmamap_load_mbuf_sg(ring->data_dmat, data->map,
-		    m, segs, &nsegs, BUS_DMA_NOWAIT);
-		if (error == EFBIG) {
-			/* Too many fragments, linearize. */
-			mnew = m_collapse(m, M_DONTWAIT, IWN_MAX_SCATTER);
-			if (mnew == NULL) {
-				device_printf(sc->sc_dev,
-				    "%s: could not defrag mbuf\n", __func__);
-				m_freem(m);
-				return ENOBUFS;
-			}
-			m = mnew;
-			error = bus_dmamap_load_mbuf_sg(ring->data_dmat,
-			    data->map, m, segs, &nsegs, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(ring->data_dmat, data->map, m, segs,
+	    &nsegs, BUS_DMA_NOWAIT);
+	if (error != 0) {
+		if (error != EFBIG) {
+			device_printf(sc->sc_dev,
+			    "%s: can't map mbuf (error %d)\n", __func__, error);
+			m_freem(m);
+			return error;
 		}
+		/* Too many DMA segments, linearize mbuf. */
+		m1 = m_collapse(m, M_DONTWAIT, IWN_MAX_SCATTER);
+		if (m1 == NULL) {
+			device_printf(sc->sc_dev,
+			    "%s: could not defrag mbuf\n", __func__);
+			m_freem(m);
+			return ENOBUFS;
+		}
+		m = m1;
+
+		error = bus_dmamap_load_mbuf_sg(ring->data_dmat, data->map, m,
+		    segs, &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: bus_dmamap_load_mbuf_sg failed, error %d\n",
-			    __func__, error);
+			    "%s: can't map mbuf (error %d)\n", __func__, error);
 			m_freem(m);
 			return error;
 		}
@@ -3288,16 +3300,20 @@ iwn_tx_data_raw(struct iwn_softc *sc, struct mbuf *m,
 	    __func__, ring->qid, ring->cur, m->m_pkthdr.len, nsegs);
 
 	/* Fill TX descriptor. */
-	desc->nsegs = 1 + nsegs;
+	desc->nsegs = 1;
+	if (m->m_len != 0)
+		desc->nsegs += nsegs;
 	/* First DMA segment is used by the TX command. */
 	desc->segs[0].addr = htole32(IWN_LOADDR(data->cmd_paddr));
 	desc->segs[0].len  = htole16(IWN_HIADDR(data->cmd_paddr) |
 	    (4 + sizeof (*tx) + hdrlen + pad) << 4);
 	/* Other DMA segments are for data payload. */
+	seg = &segs[0];
 	for (i = 1; i <= nsegs; i++) {
-		desc->segs[i].addr = htole32(IWN_LOADDR(segs[i - 1].ds_addr));
-		desc->segs[i].len  = htole16(IWN_HIADDR(segs[i - 1].ds_addr) |
-		    segs[i - 1].ds_len << 4);
+		desc->segs[i].addr = htole32(IWN_LOADDR(seg->ds_addr));
+		desc->segs[i].len  = htole16(IWN_HIADDR(seg->ds_addr) |
+		    seg->ds_len << 4);
+		seg++;
 	}
 
 	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_PREWRITE);
