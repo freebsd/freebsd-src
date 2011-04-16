@@ -201,18 +201,13 @@ struct iwn_vap {
 #define	IWN_VAP(_vap)	((struct iwn_vap *)(_vap))
 
 struct iwn_softc {
+	device_t 		sc_dev;
+
 	struct ifnet		*sc_ifp;
 	int			sc_debug;
 
 	/* Locks */
 	struct mtx		sc_mtx;
-
-	/* Bus */
-	device_t 		sc_dev;
-	int			mem_rid;
-	int			irq_rid;
-	struct resource 	*mem;
-	struct resource		*irq;
 
 	u_int			sc_flags;
 #define IWN_FLAG_HAS_OTPROM	(1 << 1)
@@ -249,8 +244,12 @@ struct iwn_softc {
 	struct iwn_tx_ring	txq[IWN5000_NTXQUEUES];
 	struct iwn_rx_ring	rxq;
 
+	int			mem_rid;
+	struct resource 	*mem;
 	bus_space_tag_t		sc_st;
 	bus_space_handle_t	sc_sh;
+	int			irq_rid;
+	struct resource		*irq;
 	void 			*sc_ih;
 	bus_size_t		sc_sz;
 	int			sc_cap_off;	/* PCIe Capabilities. */
