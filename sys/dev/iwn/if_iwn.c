@@ -1127,26 +1127,18 @@ iwn_dma_contig_alloc(struct iwn_softc *sc, struct iwn_dma_info *dma,
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), alignment,
 	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
 	    1, size, BUS_DMA_NOWAIT, NULL, NULL, &dma->tag);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: bus_dma_tag_create failed, error %d\n",
-		    __func__, error);
+	if (error != 0)
 		goto fail;
-	}
+
 	error = bus_dmamem_alloc(dma->tag, (void **)&dma->vaddr,
 	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT, &dma->map);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: bus_dmamem_alloc failed, error %d\n", __func__, error);
+	if (error != 0)
 		goto fail;
-	}
+
 	error = bus_dmamap_load(dma->tag, dma->map, dma->vaddr, size,
 	    iwn_dma_map_addr, &dma->paddr, BUS_DMA_NOWAIT);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: bus_dmamap_load failed, error %d\n", __func__, error);
+	if (error != 0)
 		goto fail;
-	}
 
 	bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
 
@@ -1247,7 +1239,7 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 	    size, 256);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
-		    "%s: could not allocate Rx ring DMA memory, error %d\n",
+		    "%s: could not allocate RX ring DMA memory, error %d\n",
 		    __func__, error);
 		goto fail;
 	}
@@ -1257,7 +1249,7 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 	    sizeof (struct iwn_rx_status), 16);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
-		    "%s: could not allocate Rx status DMA memory, error %d\n",
+		    "%s: could not allocate RX status DMA memory, error %d\n",
 		    __func__, error);
 		goto fail;
 	}
@@ -1269,7 +1261,7 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 	    &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
-		    "%s: bus_dma_tag_create_failed, error %d\n",
+		    "%s: could not create RX buf DMA tag, error %d\n",
 		    __func__, error);
 		goto fail;
 	}
@@ -1284,7 +1276,7 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 		error = bus_dmamap_create(ring->data_dmat, 0, &data->map);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: bus_dmamap_create failed, error %d\n",
+			    "%s: could not create RX buf DMA map, error %d\n",
 			    __func__, error);
 			goto fail;
 		}
@@ -1293,7 +1285,7 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 		    IWN_RBUF_SIZE);
 		if (data->m == NULL) {
 			device_printf(sc->sc_dev,
-			    "%s: could not allocate rx mbuf\n", __func__);
+			    "%s: could not allocate RX mbuf\n", __func__);
 			error = ENOBUFS;
 			goto fail;
 		}
@@ -1303,8 +1295,8 @@ iwn_alloc_rx_ring(struct iwn_softc *sc, struct iwn_rx_ring *ring)
 		    &paddr, BUS_DMA_NOWAIT);
 		if (error != 0 && error != EFBIG) {
 			device_printf(sc->sc_dev,
-			    "%s: bus_dmamap_load failed, error %d\n",
-			    __func__, error);
+			    "%s: can't not map mbuf, error %d\n", __func__,
+			    error);
 			goto fail;
 		}
 
@@ -1415,7 +1407,7 @@ iwn_alloc_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring, int qid)
 	    MCLBYTES, BUS_DMA_NOWAIT, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
-		    "%s: bus_dma_tag_create_failed, error %d\n",
+		    "%s: could not create TX buf DMA tag, error %d\n",
 		    __func__, error);
 		goto fail;
 	}
@@ -1431,7 +1423,7 @@ iwn_alloc_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring, int qid)
 		error = bus_dmamap_create(ring->data_dmat, 0, &data->map);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
-			    "%s: bus_dmamap_create failed, error %d\n",
+			    "%s: could not create TX buf DMA map, error %d\n",
 			    __func__, error);
 			goto fail;
 		}
