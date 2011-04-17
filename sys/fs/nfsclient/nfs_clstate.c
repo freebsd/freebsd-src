@@ -692,6 +692,10 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	int igotlock = 0, error, trystalecnt, clidinusedelay, i;
 	u_int16_t idlen = 0;
 
+	/* For forced unmounts, just return an error. */
+	if ((vnode_mount(vp)->mnt_kern_flag & MNTK_UNMOUNTF) != 0)
+		return (EPERM);
+
 	if (cred != NULL) {
 		getcredhostuuid(cred, uuid, sizeof uuid);
 		idlen = strlen(uuid);
