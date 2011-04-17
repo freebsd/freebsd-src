@@ -1,9 +1,9 @@
 /*
- *  $Id: arrows.c,v 1.29 2010/02/24 09:17:00 Samuel.Martin.Moro Exp $
+ *  $Id: arrows.c,v 1.33 2011/01/19 00:27:53 tom Exp $
  *
  *  arrows.c -- draw arrows to indicate end-of-range for lists
  *
- * Copyright 2000-2009,2010   Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -24,6 +24,13 @@
 #include <dialog.h>
 
 #ifdef USE_WIDE_CURSES
+#if defined(CURSES_WACS_ARRAY) && !defined(CURSES_WACS_SYMBOLS)
+/* workaround for NetBSD 5.1 curses */
+#undef WACS_DARROW
+#undef WACS_UARROW
+#define WACS_DARROW &(CURSES_WACS_ARRAY['.'])
+#define WACS_UARROW &(CURSES_WACS_ARRAY['-'])
+#endif
 #define add_acs(win, code) wadd_wch(win, W ## code)
 #else
 #define add_acs(win, code) waddch(win, dlg_boxchar(code))
@@ -62,7 +69,7 @@ dlg_draw_arrows2(WINDOW *win,
 		 chtype attr,
 		 chtype borderattr)
 {
-    chtype save = getattrs(win);
+    chtype save = dlg_get_attrs(win);
     int cur_x, cur_y;
     int limit_x = getmaxx(win);
     bool draw_top = TRUE;
@@ -127,7 +134,7 @@ dlg_draw_scrollbar(WINDOW *win,
     int len;
     int oldy, oldx, maxy, maxx;
 
-    chtype save = getattrs(win);
+    chtype save = dlg_get_attrs(win);
     int top_arrow = (first_data != 0);
     int bottom_arrow = (next_data < total_data);
 
@@ -154,7 +161,7 @@ dlg_draw_scrollbar(WINDOW *win,
 	    whline(win, dlg_boxchar(ACS_HLINE), 4 - len);
 	}
     }
-#define BARSIZE(num) ((all_high * (num)) + all_high - 1) / total_data
+#define BARSIZE(num) (int) (((all_high * (num)) + all_high - 1) / total_data)
 
     if (dialog_state.use_scrollbar) {
 	int all_high = (bottom - top - 1);
