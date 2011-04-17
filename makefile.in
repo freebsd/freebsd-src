@@ -1,5 +1,32 @@
-# $Id: makefile.in,v 1.71 2010/04/28 00:45:38 tom Exp $
+# $Id: makefile.in,v 1.78 2011/03/02 09:57:24 tom Exp $
 # template makefile for DIALOG
+##############################################################################
+# Copyright (c) 1999-2010,2011 Thomas E. Dickey                              #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
 #
 SHELL		= /bin/sh
 
@@ -34,12 +61,12 @@ MAN3DIR		= $(MANDIR)/man3
 localedir       = $(prefix)/@DATADIRNAME@/locale
 
 CFLAGS		= @CFLAGS@
-CPPFLAGS	= @CPPFLAGS@ @DEFS@ -I. -I$(srcdir) -DLOCALEDIR=\"$(localedir)\"
+CPPFLAGS	= -I. -I$(srcdir) @CPPFLAGS@ @DEFS@ -DLOCALEDIR=\"$(localedir)\"
 EXTRA_CFLAGS	= @EXTRA_CFLAGS@
 CC		= @CC@
 CPP		= @CPP@
 AR		= @AR@
-LDFLAGS		= @LDFLAGS@
+LDFLAGS		= @EXTRA_LDFLAGS@ @LDFLAGS@
 LIBS		= @LIBS@ @INTLLIBS@
 RANLIB		= @LIB_PREP@
 
@@ -65,7 +92,16 @@ INSTALL_DATA	= @INSTALL_DATA@
 
 LINK		= $(LIBTOOL_LINK)
 
-PACKAGE		= `echo @PACKAGE@ |sed @program_transform_name@`
+# The library is always named for the package, but the program can be further
+# renamed at install time, starting with the package name.
+PACKAGE		= @PACKAGE@
+ACTUAL_PROG	= `echo $(PACKAGE) |sed @program_transform_name@`
+LIB_CONFIG	= @PACKAGE@-config
+
+# The library name $(LIB) is set at configure/make time, since it is used as a
+# makefile target.  Ditto for $(PROG).
+LIB		= @LIB_PREFIX@@PACKAGE@$a
+PROG		= dialog$x
 #
 # Standard .c to .o compile line.
 #
@@ -91,6 +127,7 @@ PACKAGE		= `echo @PACKAGE@ |sed @program_transform_name@`
 
 EXTRAOBJS = @EXTRAOBJS@
 OBJECTS = $(EXTRAOBJS) \
+	argv$o \
 	arrows$o \
 	buttons$o \
 	checklist$o \
@@ -118,14 +155,12 @@ HDRS = \
 	dlg_config.h \
 	dlg_keys.h
 
-LIB	= @LIB_PREFIX@dialog$a
-PROG	= dialog$x
-ALL	= $(LIB) $(PROG)
+ALL		= $(LIB) $(PROG)
 
 BIN_DIRS	= $(BINDIR) $(MAN1DIR)
 LIB_DIRS	= $(LIBDIR) $(INCLUDEDIR)
 
-PO_DIR	= $(srcdir)/po
+PO_DIR		= $(srcdir)/po
 
 all	:: $(ALL)
 
@@ -144,7 +179,7 @@ $(LIB) : $(LIB_OBJECT)
 	$(RANLIB) $@
 
 dialog$x : $(LIB) dialog$o @INTLDIR_MAKE@ @INTLLIBS@
-	$(LINK) -o $@ dialog$o -L. -ldialog $(LDFLAGS) $(LIBS)
+	$(LINK) -o $@ dialog$o -L. -l@PACKAGE@ $(LDFLAGS) $(LIBS)
 
 clean	\
 distclean \
@@ -186,22 +221,28 @@ uninstall :: uninstall-bin uninstall-man
 uninstall-full :: uninstall-bin uninstall-man uninstall-lib
 	@echo "made $@"
 
-install-bin : $(PROG) $(BINDIR) 
-	$(INSTALL_PROGRAM) $(PROG) $(BINDIR)/$(PACKAGE)$x
+install-bin : $(PROG) $(BINDIR)
+	$(INSTALL_PROGRAM) $(PROG) $(BINDIR)/$(ACTUAL_PROG)$x
 
 uninstall-bin :
-	$(RM) $(BINDIR)/$(PACKAGE)$x
+	$(RM) $(BINDIR)/$(ACTUAL_PROG)$x
 
 install-man :: $(MAN1DIR)
-	$(INSTALL_DATA) $(srcdir)/dialog.1 $(MAN1DIR)/$(PACKAGE).1
+	@ echo "** installing $(ACTUAL_PROG).1"
+	@ $(SHELL) $(srcdir)/rename.sh \
+		$(srcdir)/dialog.1 \
+		$(MAN1DIR)/$(ACTUAL_PROG).1 \
+		$(ACTUAL_PROG) \
+		@PACKAGE@ \
+		$(INSTALL_DATA)
 
 uninstall-man ::
-	$(RM) $(MAN1DIR)/$(PACKAGE).1
+	$(RM) $(MAN1DIR)/$(ACTUAL_PROG).1
 
 # most users do not want/need the library, so the install rules are distinct.
 install-lib :: $(BINDIR) dialog-config
 	@ echo "** installing config script in $(BINDIR)"
-	@ $(INSTALL_SCRIPT) dialog-config $(BINDIR)
+	@ $(INSTALL_SCRIPT) dialog-config $(BINDIR)/$(LIB_CONFIG)
 
 install-lib :: $(LIB_DIRS) $(LIB) headers.sed
 	@ echo "** installing library in $(LIBDIR)"
@@ -213,20 +254,26 @@ install-lib :: $(LIB_DIRS) $(LIB) headers.sed
 	@ $(SHELL) $(srcdir)/headers-sh $(INSTALL_DATA) $(INCLUDEDIR) .         dlg_config.h
 
 uninstall-lib :: $(BINDIR)
-	$(RM) $(BINDIR)/dialog-config
+	$(RM) $(BINDIR)/$(LIB_CONFIG)
 
 uninstall-lib :: $(LIB_DIRS)
 	- $(LIBTOOL_UNINSTALL) $(RM) $(LIBDIR)/$(LIB)
-	$(RM) $(INCLUDEDIR)/dialog.h
-	$(RM) $(INCLUDEDIR)/dlg_colors.h
-	$(RM) $(INCLUDEDIR)/dlg_keys.h
-	$(RM) $(INCLUDEDIR)/dlg_config.h
+	@ $(SHELL) $(srcdir)/headers-sh $(RM) $(INCLUDEDIR) $(srcdir) dialog.h
+	@ $(SHELL) $(srcdir)/headers-sh $(RM) $(INCLUDEDIR) $(srcdir) dlg_colors.h
+	@ $(SHELL) $(srcdir)/headers-sh $(RM) $(INCLUDEDIR) $(srcdir) dlg_keys.h
+	@ $(SHELL) $(srcdir)/headers-sh $(RM) $(INCLUDEDIR) .         dlg_config.h
 
 install-lib :: $(MAN3DIR)
-	$(INSTALL_DATA) $(srcdir)/dialog.3 $(MAN3DIR)/$(PACKAGE).3
+	@ echo "** installing @PACKAGE@.3"
+	@ $(SHELL) $(srcdir)/rename.sh \
+		$(srcdir)/dialog.3 \
+		$(MAN3DIR)/@PACKAGE@.3 \
+		$(ACTUAL_PROG) \
+		@PACKAGE@ \
+		$(INSTALL_DATA)
 
 uninstall-lib ::
-	$(RM) $(MAN3DIR)/$(PACKAGE).3
+	$(RM) $(MAN3DIR)/@PACKAGE@.3
 
 headers.sed : $(srcdir)/headers-sh
 	$(SHELL) $(srcdir)/headers-sh $(INCLUDEDIR) $(srcdir)

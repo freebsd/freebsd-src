@@ -1,5 +1,9 @@
-# $Id: setup-vars,v 1.1 2010/01/13 00:16:38 tom Exp $
+# $Id: setup-vars,v 1.2 2011/01/04 00:21:43 tom Exp $
 # vile:shmode
+
+# These symbols are defined to use in the sample shell scripts to make them
+# more readable.  But they are (intentionally) not exported.  If they were
+# exported, they would also be visible in the dialog program (a subprocess).
 
 : ${DIALOG=dialog}
 
