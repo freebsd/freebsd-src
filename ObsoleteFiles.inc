@@ -38,6 +38,26 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110417: removal of Objective-C support
+OLD_FILES+=usr/include/objc/encoding.h
+OLD_FILES+=usr/include/objc/hash.h
+OLD_FILES+=usr/include/objc/NXConstStr.h
+OLD_FILES+=usr/include/objc/objc-api.h
+OLD_FILES+=usr/include/objc/objc-decls.h
+OLD_FILES+=usr/include/objc/objc-list.h
+OLD_FILES+=usr/include/objc/objc.h
+OLD_FILES+=usr/include/objc/Object.h
+OLD_FILES+=usr/include/objc/Protocol.h
+OLD_FILES+=usr/include/objc/runtime.h
+OLD_FILES+=usr/include/objc/sarray.h
+OLD_FILES+=usr/include/objc/thr.h
+OLD_FILES+=usr/include/objc/typedstream.h
+OLD_FILES+=usr/lib/libobjc.a
+OLD_FILES+=usr/lib/libobjc.so
+OLD_FILES+=usr/lib/libobjc_p.a
+OLD_FILES+=usr/libexec/cc1obj
+OLD_LIBS+=usr/lib/libobjc.so.4
+OLD_DIRS+=usr/include/objc
 # 20110224: sticky.8 -> sticky.7
 OLD_FILES+=usr/share/man/man8/sticky.8.gz
 # 20110220: new clang import which bumps version from 2.8 to 2.9
