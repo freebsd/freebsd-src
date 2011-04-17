@@ -56,6 +56,7 @@
 #define	NFSV4_UPCALLRETRY 4		/* Number of retries before failure */
 #define	NFS_MAXWINDOW	1024		/* Max number of outstanding requests */
 #define	NFS_RETRANS	10		/* Num of retrans for soft mounts */
+#define	NFS_RETRANS_TCP	2		/* Num of retrans for TCP soft mounts */
 #define	NFS_MAXGRPS	16		/* Max. size of groups list */
 #define	NFS_TRYLATERDEL	15		/* Maximum delay timeout (sec) */
 #ifndef NFS_REMOVETIMEO
