@@ -62,6 +62,7 @@ static HAL_BOOL ar5416SetPowerPerRateTable(struct ath_hal *ah,
 	uint16_t twiceMaxRegulatoryPower, 
 	uint16_t powerLimit);
 static void ar5416Set11nRegs(struct ath_hal *ah, const struct ieee80211_channel *chan);
+static void ar5416MarkPhyInactive(struct ath_hal *ah);
 
 /*
  * Places the device in and out of reset and then places sane
@@ -147,6 +148,9 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	/* For chips on which the RTC reset is done, save TSF before it gets cleared */
 	if (AR_SREV_MERLIN_20_OR_LATER(ah) && ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL))
 		tsf = ar5212GetTsf64(ah);
+
+	/* Mark PHY as inactive; marked active in ar5416InitBB() */
+	ar5416MarkPhyInactive(ah);
 
 	if (!ar5416ChipReset(ah, chan)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: chip reset failed\n", __func__);
@@ -2493,3 +2497,8 @@ ar5416EepromSetAddac(struct ath_hal *ah, const struct ieee80211_channel *chan)
 #undef XPA_LVL_FREQ
 }
 
+static void
+ar5416MarkPhyInactive(struct ath_hal *ah)
+{
+	OS_REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
+}
