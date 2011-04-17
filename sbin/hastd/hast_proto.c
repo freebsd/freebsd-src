@@ -219,21 +219,3 @@ end:
 		free(dptr);
 	return (ret);
 }
-
-int
-hast_proto_recv(const struct hast_resource *res, struct proto_conn *conn,
-    struct nv **nvp, void *data, size_t size)
-{
-	struct nv *nv;
-	int ret;
-
-	ret = hast_proto_recv_hdr(conn, &nv);
-	if (ret < 0)
-		return (ret);
-	ret = hast_proto_recv_data(res, conn, nv, data, size);
-	if (ret < 0)
-		nv_free(nv);
-	else
-		*nvp = nv;
-	return (ret);
-}
