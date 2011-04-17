@@ -100,7 +100,6 @@ LIBNCURSESW?=	${DESTDIR}${LIBDIR}/libncursesw.a
 LIBNETGRAPH?=	${DESTDIR}${LIBDIR}/libnetgraph.a
 LIBNGATM?=	${DESTDIR}${LIBDIR}/libngatm.a
 LIBNVPAIR?=	${DESTDIR}${LIBDIR}/libnvpair.a
-LIBOBJC?=	${DESTDIR}${LIBDIR}/libobjc.a
 LIBODIALOG?=	${DESTDIR}${LIBDIR}/libodialog.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 

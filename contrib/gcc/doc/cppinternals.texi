@@ -72,10 +72,10 @@ into another language, under the above conditions for modified versions.
 
 The GNU C preprocessor is
 implemented as a library, @dfn{cpplib}, so it can be easily shared between
-a stand-alone preprocessor, and a preprocessor integrated with the C,
-C++ and Objective-C front ends.  It is also available for use by other
-programs, though this is not recommended as its exposed interface has
-not yet reached a point of reasonable stability.
+a stand-alone preprocessor, and a preprocessor integrated with the C
+and C++ front ends.  It is also available for use by other programs,
+though this is not recommended as its exposed interface has not yet
+reached a point of reasonable stability.
 
 The library has been written to be re-entrant, so that it can be used
 to preprocess many files simultaneously if necessary.  It has also been
@@ -91,7 +91,7 @@ the way they have.
 
 @menu
 * Conventions::         Conventions used in the code.
-* Lexer::               The combined C, C++ and Objective-C Lexer.
+* Lexer::               The combined C and C++ Lexer.
 * Hash Nodes::          All identifiers are entered into a hash table.
 * Macro Expansion::     Macro expansion algorithm.
 * Token Spacing::       Spacing and paste avoidance issues.
@@ -131,12 +131,12 @@ behavior.
 
 @section Overview
 The lexer is contained in the file @file{lex.c}.  It is a hand-coded
-lexer, and not implemented as a state machine.  It can understand C, C++
-and Objective-C source code, and has been extended to allow reasonably
-successful preprocessing of assembly language.  The lexer does not make
-an initial pass to strip out trigraphs and escaped newlines, but handles
-them as they are encountered in a single pass of the input file.  It
-returns preprocessing tokens individually, not a line at a time.
+lexer, and not implemented as a state machine.  It can understand C and
+C++ source code, and has been extended to allow reasonably successful
+preprocessing of assembly language.  The lexer does not make an initial
+pass to strip out trigraphs and escaped newlines, but handles them as
+they are encountered in a single pass of the input file.  It returns
+preprocessing tokens individually, not a line at a time.
 
 It is mostly transparent to users of the library, since the library's
 interface for obtaining the next token, @code{cpp_get_token}, takes care
@@ -303,9 +303,9 @@ don't allow the terminators of header names to be escaped; the first
 @samp{"} or @samp{>} terminates the header name.
 
 Interpretation of some character sequences depends upon whether we are
-lexing C, C++ or Objective-C, and on the revision of the standard in
-force.  For example, @samp{::} is a single token in C++, but in C it is
-two separate @samp{:} tokens and almost certainly a syntax error.  Such
+lexing C or C++, and on the revision of the standard in force.  For
+example, @samp{::} is a single token in C++, but in C it is two
+separate @samp{:} tokens and almost certainly a syntax error.  Such
 cases are handled by @code{_cpp_lex_direct} based upon command-line
 flags stored in the @code{cpp_options} structure.
 
