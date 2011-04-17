@@ -2653,7 +2653,7 @@ netinet/ip_gre.c		optional gre inet
 netinet/ip_id.c			optional inet
 netinet/in_mcast.c		optional inet
 netinet/in_pcb.c		optional inet | inet6
-netinet/in_proto.c		optional inet \
+netinet/in_proto.c		optional inet | inet6 \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 netinet/in_rmx.c		optional inet
 netinet/ip_divert.c		optional inet ipdivert ipfirewall

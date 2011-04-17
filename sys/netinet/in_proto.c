@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipx.h"
 #include "opt_mrouting.h"
 #include "opt_ipsec.h"
+#include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_pf.h"
 #include "opt_sctp.h"
@@ -50,6 +51,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 
+/*
+ * While this file provides the domain and protocol switch tables for IPv4, it
+ * also provides the sysctl node declarations for net.inet.* often shared with
+ * IPv6 for common features or by upper layer protocols.  In case of no IPv4
+ * support compile out everything but these sysctl nodes.
+ */
+#ifdef INET
 #include <net/if.h>
 #include <net/route.h>
 #ifdef RADIX_MPATH
@@ -372,6 +380,7 @@ struct domain inetdomain = {
 };
 
 VNET_DOMAIN_SET(inet);
+#endif /* INET */
 
 SYSCTL_NODE(_net,      PF_INET,		inet,	CTLFLAG_RW, 0,
 	"Internet Family");
