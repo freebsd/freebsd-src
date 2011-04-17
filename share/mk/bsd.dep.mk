@@ -128,11 +128,9 @@ depend: beforedepend ${DEPENDFILE} afterdepend
 .if ${CC:T:Micc} == "icc"
 MKDEP_CFLAGS=	${CFLAGS:M-X*} ${CFLAGS:M-[BIDU]*}
 MKDEP_CXXFLAGS=	${CXXFLAGS:M-X*} ${CXXFLAGS:M-[BIDU]*}
-MKDEP_OBJCFLAGS=${OBJCFLAGS:M-X*} ${OBJCFLAGS:M-[BIDU]*}
 .else
 MKDEP_CFLAGS=	${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BIDU]*}
 MKDEP_CXXFLAGS=	${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BIDU]*}
-MKDEP_OBJCFLAGS=${OBJCFLAGS:M-nostdinc*} ${OBJCFLAGS:M-[BIDU]*} ${OBJCFLAGS:M-Wno-import*}
 .endif
 
 DPSRCS+= ${SRCS}
@@ -147,10 +145,6 @@ ${DEPENDFILE}: ${DPSRCS}
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
 	    ${MKDEP_CXXFLAGS} \
 	    ${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cpp} ${.ALLSRC:M*.cxx}
-.endif
-.if !empty(DPSRCS:M*.m)
-	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
-	    ${MKDEP_OBJCFLAGS} ${.ALLSRC:M*.m}
 .endif
 .if target(_EXTRADEPEND)
 _EXTRADEPEND: .USE
