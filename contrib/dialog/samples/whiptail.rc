@@ -1,5 +1,13 @@
-# $Id: whiptail.rc,v 1.2 2005/12/01 01:21:31 tom Exp $
+# $Id: whiptail.rc,v 1.3 2011/01/17 00:15:54 tom Exp $
+# vile:confmode
 # Run-time configuration file for dialog, matches whiptail's color scheme.
+#
+# Types of values:
+#
+# Number     -  <number>
+# String     -  "string"
+# Boolean    -  <ON|OFF>
+# Attribute  -  (foreground,background,highlight?)
 
 # Set aspect-ration.
 aspect = 0
@@ -114,3 +122,9 @@ form_active_text_color = (WHITE,BLUE,ON)
 
 # Form text color
 form_text_color = (WHITE,CYAN,ON)
+
+# Readonly form item color
+form_item_readonly_color = (CYAN,WHITE,ON)
+
+# Dialog box gauge color
+gauge_color = (BLUE,WHITE,ON)
