@@ -7,63 +7,64 @@ msgid ""
 msgstr ""
 "Project-Id-Version: dialog 1.1.20080819\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-03-29 19:30-0400\n"
+"POT-Creation-Date: 2011-01-16 17:57-0500\n"
 "PO-Revision-Date: 2009-03-11 10:32+0100\n"
 "Last-Translator: Michał Trzebiatowski <hippie_1968@hotmail.com>\n"
 "Language-Team: Polish <translation-team-pl@lists.sourceforge.net>\n"
+"Language: pl\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Poedit-Language: Polish\n"
 "X-Poedit-Country: POLAND\n"
 
-#: buttons.c:385
+#: buttons.c:387
 msgid "Yes"
 msgstr "Tak"
 
-#: buttons.c:393
+#: buttons.c:395
 msgid "No"
 msgstr "Nie"
 
-#: buttons.c:401
+#: buttons.c:403
 msgid "OK"
 msgstr "OK"
 
-#: buttons.c:409
+#: buttons.c:411
 msgid "Cancel"
 msgstr "Anuluj"
 
-#: buttons.c:417
+#: buttons.c:419
 msgid "EXIT"
 msgstr "WYJDŹ"
 
-#: buttons.c:425
+#: buttons.c:427
 msgid "Extra"
 msgstr "Ekstra"
 
-#: buttons.c:433
+#: buttons.c:435
 msgid "Help"
 msgstr "Pomoc"
 
 #. Headline "Month"
-#: calendar.c:273
+#: calendar.c:298
 msgid "Month"
 msgstr "Miesiąc"
 
 #. Headline "Year"
-#: calendar.c:293
+#: calendar.c:318
 msgid "Year"
 msgstr "Rok"
 
-#: dialog.c:744
+#: dialog.c:756
 msgid "Rename"
 msgstr "Zmień nazwę"
 
-#: fselect.c:550
+#: fselect.c:571
 msgid "Directories"
 msgstr "Katalogi"
 
-#: fselect.c:551
+#: fselect.c:572
 msgid "Files"
 msgstr "Pliki"
 
@@ -107,6 +108,6 @@ msgstr "Brak"
 msgid "Overall Progress"
 msgstr "Ogólny postęp"
 
-#: textbox.c:489
+#: textbox.c:468
 msgid "Search"
 msgstr "Szukaj"

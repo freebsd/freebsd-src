@@ -1,11 +1,36 @@
-dnl $Id: configure.in,v 1.57 2010/04/28 20:33:01 tom Exp $
+dnl $Id: configure.in,v 1.64 2011/03/01 00:59:50 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
+dnl ---------------------------------------------------------------------------
+dnl Copyright 1999-2010,2011 -- Thomas E. Dickey
 dnl
+dnl Permission is hereby granted, free of charge, to any person obtaining a
+dnl copy of this software and associated documentation files (the
+dnl "Software"), to deal in the Software without restriction, including
+dnl without limitation the rights to use, copy, modify, merge, publish,
+dnl distribute, distribute with modifications, sublicense, and/or sell
+dnl copies of the Software, and to permit persons to whom the Software is
+dnl furnished to do so, subject to the following conditions:
+dnl 
+dnl The above copyright notice and this permission notice shall be included
+dnl in all copies or portions of the Software.
+dnl 
+dnl THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+dnl OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+dnl MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+dnl IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+dnl DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+dnl OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+dnl THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+dnl 
+dnl Except as contained in this notice, the name(s) of the above copyright
+dnl holders shall not be used in advertising or otherwise to promote the
+dnl sale, use or other dealings in this Software without prior written
+dnl authorization.
+dnl ---------------------------------------------------------------------------
 AC_PREREQ(2.13.20020210)
 AC_INIT(dialog.h)
 AC_CONFIG_HEADER(dlg_config.h:config.hin)
 
-CF_VERSION_INFO(dialog)
 AC_ARG_PROGRAM
 
 DESTDIR=
@@ -39,6 +64,24 @@ CF_LARGEFILE
 CF_WITH_WARNINGS
 
 dnl
+dnl Allow dialog program and library to be renamed.
+AC_ARG_WITH(package,
+	[  --with-package=XXX      rename dialog to XXX, library to libXXX.a, etc],
+	[PACKAGE=$withval],
+	[PACKAGE=dialog])
+CF_VERSION_INFO(dialog,$PACKAGE)
+
+dnl
+dnl If package is renamed, it is useful to have the dlg_XXX headers in a
+dnl subdirectory (using the package name) so that multiple versions of the
+dnl headers can coexist.
+AC_ARG_ENABLE(header-subdir,
+	[  --enable-header-subdir  install dlg_XXX headers to subdirectory],
+	[SUB_INC=$enableval],
+	[SUB_INC=no])
+AC_SUBST(SUB_INC)
+
+dnl
 dnl Checks for libraries.
 dnl
 EXTRAOBJS=""
@@ -61,6 +104,8 @@ if test "$with_libtool" = "yes" ; then
 	CF_WITH_LIBTOOL_OPTS
 fi
 AC_SUBST(LIBTOOL_MAKE)
+
+CF_WITH_CURSES_DIR
 
 use_ncurses=no
 AC_ARG_WITH(ncurses,
@@ -107,7 +152,7 @@ CF_ARG_MSG_ENABLE([if you want the form dialog],
 CF_ARG_MSG_ENABLE([if you want the gauge dialog],
 	gauge,
 	[  --disable-gauge         do not include the gauge dialogs],
-	[EXTRAOBJS="$EXTRAOBJS guage\$o pause\$o progressbox\$o"
+	[EXTRAOBJS="$EXTRAOBJS guage\$o pause\$o prgbox\$o progressbox\$o"
 	 AC_DEFINE(HAVE_DLG_GAUGE)],,$cf_all_widgets)
 
 CF_ARG_MSG_ENABLE([if you want the tailbox dialog],
@@ -150,14 +195,24 @@ dnl
 AC_TYPE_SIGNAL
 AC_CHECK_FUNCS(\
 _nc_free_and_exit \
+btowc \
+mblen \
+mbrlen \
+mbrtowc \
+mbtowc \
 strcasecmp \
 strftime \
 tsearch \
 waitpid \
+wcsrtombs \
+wcstombs \
+wctob \
+wctomb \
 )
 
 CF_CURSES_FUNCS(\
 flushinp \
+getattrs \
 getbegx \
 getbegy \
 getbegyx \
@@ -175,6 +230,7 @@ wget_wch \
 
 AC_CHECK_FUNC(start_color,[AC_DEFINE(HAVE_COLOR)])
 CF_CURSES_CHTYPE
+CF_CURSES_WACS_SYMBOLS
 CF_FUNC_WAIT
 CF_MBSTATE_T
 

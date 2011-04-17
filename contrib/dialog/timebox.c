@@ -1,9 +1,9 @@
 /*
- * $Id: timebox.c,v 1.41 2010/01/18 10:33:42 tom Exp $
+ * $Id: timebox.c,v 1.43 2011/01/18 01:07:45 Garrett.Cooper Exp $
  *
  *  timebox.c -- implements the timebox dialog
  *
- *  Copyright 2001-2009,2010   Thomas E. Dickey
+ *  Copyright 2001-2010,2011   Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -97,6 +97,8 @@ init_object(BOX * data,
 	    int period, int value,
 	    int code)
 {
+    (void) code;
+
     data->parent = parent;
     data->x = x;
     data->y = y;
@@ -210,6 +212,11 @@ dialog_timebox(const char *title,
     dialog = dlg_new_window(height, width,
 			    dlg_box_y_ordinate(height),
 			    dlg_box_x_ordinate(width));
+
+    if (hour >= 24 || minute >= 60 || second >= 60) {
+	return CleanupResult(DLG_EXIT_ERROR, dialog, prompt, &save_vars);
+    }
+
     dlg_register_window(dialog, "timebox", binding);
     dlg_register_buttons(dialog, "timebox", buttons);
 

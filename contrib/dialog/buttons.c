@@ -1,9 +1,9 @@
 /*
- *  $Id: buttons.c,v 1.81 2010/04/28 20:57:29 tom Exp $
+ *  $Id: buttons.c,v 1.84 2011/01/19 00:27:53 tom Exp $
  *
- * buttons.c -- draw buttons, e.g., OK/Cancel
+ *  buttons.c -- draw buttons, e.g., OK/Cancel
  *
- * Copyright 2000-2007,2010 Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -252,7 +252,7 @@ dlg_draw_buttons(WINDOW *win,
 		 int vertical,
 		 int limit)
 {
-    chtype save = getattrs(win);
+    chtype save = dlg_get_attrs(win);
     int n;
     int step = 0;
     int length;
@@ -465,16 +465,7 @@ dlg_exit_label(void)
 int
 dlg_exit_buttoncode(int button)
 {
-    int result = DLG_EXIT_ERROR;
-
-    if (dialog_vars.extra_button) {
-	result = dlg_ok_buttoncode(button);
-    } else if (button == 0) {
-	result = DLG_EXIT_OK;
-    } else if (button == 1 && dialog_vars.help_button) {
-	result = DLG_EXIT_HELP;
-    }
-    return result;
+    return dlg_ok_buttoncode(button);
 }
 
 const char **

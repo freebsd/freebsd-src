@@ -1,9 +1,9 @@
 /*
- *  $Id: guage.c,v 1.45 2010/01/19 09:15:20 tom Exp $
+ *  $Id: guage.c,v 1.52 2011/01/17 10:39:28 tom Exp $
  *
- * guage.c -- implements the gauge dialog
+ *  guage.c -- implements the gauge dialog
  *
- * Copyright 2000-2007,2010 Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -33,12 +33,11 @@
 #define MIN_HIGH (4)
 #define MIN_WIDE (10 + 2 * (2 + MARGIN))
 
-#define isMarker(buf) !strncmp(buf, "XXX", 3)
+#define isMarker(buf) !strncmp(buf, "XXX", (size_t) 3)
 
 typedef struct {
     DIALOG_CALLBACK obj;
     WINDOW *text;
-    bool done;
     const char *title;
     char *prompt;
     char prompt_buf[MY_LEN];
@@ -82,64 +81,70 @@ repaint_text(MY_OBJ * obj)
     WINDOW *dialog = obj->obj.win;
     int i, x;
 
-    (void) werase(dialog);
-    dlg_draw_box(dialog, 0, 0, obj->height, obj->width, dialog_attr, border_attr);
+    if (dialog != 0 && obj->obj.input != 0) {
+	(void) werase(dialog);
+	dlg_draw_box(dialog, 0, 0, obj->height, obj->width, dialog_attr, border_attr);
 
-    dlg_draw_title(dialog, obj->title);
+	dlg_draw_title(dialog, obj->title);
 
-    wattrset(dialog, dialog_attr);
-    dlg_print_autowrap(dialog, obj->prompt, obj->height, obj->width);
+	wattrset(dialog, dialog_attr);
+	dlg_print_autowrap(dialog, obj->prompt, obj->height, obj->width);
 
-    dlg_draw_box(dialog,
-		 obj->height - 4, 2 + MARGIN,
-		 2 + MARGIN, obj->width - 2 * (2 + MARGIN),
-		 dialog_attr,
-		 border_attr);
+	dlg_draw_box(dialog,
+		     obj->height - 4, 2 + MARGIN,
+		     2 + MARGIN, obj->width - 2 * (2 + MARGIN),
+		     dialog_attr,
+		     border_attr);
 
-    /*
-     * Clear the area for the progress bar by filling it with spaces
-     * in the title-attribute, and write the percentage with that
-     * attribute.
-     */
-    (void) wmove(dialog, obj->height - 3, 4);
-    wattrset(dialog, title_attr);
+	/*
+	 * Clear the area for the progress bar by filling it with spaces
+	 * in the title-attribute, and write the percentage with that
+	 * attribute.
+	 */
+	(void) wmove(dialog, obj->height - 3, 4);
+	wattrset(dialog, gauge_attr);
 
-    for (i = 0; i < (obj->width - 2 * (3 + MARGIN)); i++)
-	(void) waddch(dialog, ' ');
+	for (i = 0; i < (obj->width - 2 * (3 + MARGIN)); i++)
+	    (void) waddch(dialog, ' ');
 
-    (void) wmove(dialog, obj->height - 3, (obj->width / 2) - 2);
-    (void) wprintw(dialog, "%3d%%", obj->percent);
+	(void) wmove(dialog, obj->height - 3, (obj->width / 2) - 2);
+	(void) wprintw(dialog, "%3d%%", obj->percent);
 
-    /*
-     * Now draw a bar in reverse, relative to the background.
-     * The window attribute was useful for painting the background,
-     * but requires some tweaks to reverse it.
-     */
-    x = (obj->percent * (obj->width - 2 * (3 + MARGIN))) / 100;
-    if ((title_attr & A_REVERSE) != 0) {
-	wattroff(dialog, A_REVERSE);
-    } else {
-	wattrset(dialog, A_REVERSE);
-    }
-    (void) wmove(dialog, obj->height - 3, 4);
-    for (i = 0; i < x; i++) {
-	chtype ch2 = winch(dialog);
-	if (title_attr & A_REVERSE) {
-	    ch2 &= ~A_REVERSE;
+	/*
+	 * Now draw a bar in reverse, relative to the background.
+	 * The window attribute was useful for painting the background,
+	 * but requires some tweaks to reverse it.
+	 */
+	x = (obj->percent * (obj->width - 2 * (3 + MARGIN))) / 100;
+	if ((title_attr & A_REVERSE) != 0) {
+	    wattroff(dialog, A_REVERSE);
+	} else {
+	    wattrset(dialog, A_REVERSE);
 	}
-	(void) waddch(dialog, ch2);
-    }
+	(void) wmove(dialog, obj->height - 3, 4);
+	for (i = 0; i < x; i++) {
+	    chtype ch2 = winch(dialog);
+	    if (title_attr & A_REVERSE) {
+		ch2 &= ~A_REVERSE;
+	    }
+	    (void) waddch(dialog, ch2);
+	}
 
-    (void) wrefresh(dialog);
+	(void) wrefresh(dialog);
+    }
 }
 
-static int
-handle_input(MY_OBJ * obj)
+static bool
+handle_input(DIALOG_CALLBACK * cb)
 {
+    MY_OBJ *obj = (MY_OBJ *) cb;
+    bool result;
     int status;
     char buf[MY_LEN];
 
-    if ((status = read_data(buf, dialog_state.pipe_input)) > 0) {
+    if (dialog_state.pipe_input == 0) {
+	status = -1;
+    } else if ((status = read_data(buf, dialog_state.pipe_input)) > 0) {
 
 	if (isMarker(buf)) {
 	    /*
@@ -172,25 +177,32 @@ handle_input(MY_OBJ * obj)
 	    obj->percent = atoi(buf);
 	}
     } else {
-	obj->done = TRUE;
+	if (feof(dialog_state.pipe_input) ||
+	    (ferror(dialog_state.pipe_input) && errno != EINTR)) {
+	    dlg_remove_callback(cb);
+	}
     }
 
-    return status;
+    if (status > 0) {
+	result = TRUE;
+	repaint_text(obj);
+    } else {
+	result = FALSE;
+    }
+
+    return result;
 }
 
 static bool
 handle_my_getc(DIALOG_CALLBACK * cb, int ch, int fkey, int *result)
 {
-    MY_OBJ *obj = (MY_OBJ *) cb;
     int status = TRUE;
 
     *result = DLG_EXIT_OK;
-    if (obj != 0) {
+    if (cb != 0) {
 	if (!fkey && (ch == ERR)) {
-	    if (handle_input(obj) > 0)
-		repaint_text(obj);
-	    else
-		status = FALSE;
+	    (void) handle_input(cb);
+	    status = (cb->input != 0);
 	}
     } else {
 	status = FALSE;
@@ -265,12 +277,15 @@ dialog_gauge(const char *title,
 	obj->obj.keep_win = TRUE;
 	obj->obj.bg_task = TRUE;
 	obj->obj.handle_getc = handle_my_getc;
+	obj->obj.handle_input = handle_input;
 	obj->title = title;
 	obj->prompt = prompt;
 	obj->percent = percent;
 	obj->height = height;
 	obj->width = width;
 	dlg_add_callback_ref((DIALOG_CALLBACK **) objref, my_cleanup);
+    } else {
+	obj->obj.win = dialog;
     }
 
     repaint_text(obj);
