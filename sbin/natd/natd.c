@@ -111,7 +111,7 @@ static void	Usage (void);
 static char*	FormatPacket (struct ip*);
 static void	PrintPacket (struct ip*);
 static void	SyslogPacket (struct ip*, int priority, const char *label);
-static void	SetAliasAddressFromIfName (const char *ifName);
+static int	SetAliasAddressFromIfName (const char *ifName);
 static void	InitiateShutdown (int);
 static void	Shutdown (int);
 static void	RefreshAddr (int);
@@ -156,6 +156,7 @@ int main (int argc, char** argv)
 	struct sockaddr_in	addr;
 	fd_set			readMask;
 	int			fdMax;
+	int			rval;
 /* 
  * Initialize packet aliasing software.
  * Done already here to be able to alter option bits
@@ -301,8 +302,15 @@ int main (int argc, char** argv)
 
 				mip->assignAliasAddr = 1;
 			}
-			else
-				SetAliasAddressFromIfName (mip->ifName);
+			else {
+				do {
+					rval = SetAliasAddressFromIfName (mip->ifName);
+					if (rval == -2)
+						sleep(1);
+				} while (rval == -2);
+				if (rval != 0)
+					exit(1);
+			}
 		}
 
 	}
@@ -531,7 +539,8 @@ static void DoGlobal (int fd)
 
 #if 0
 	if (mip->assignAliasAddr) {
-		SetAliasAddressFromIfName (mip->ifName);
+		if (SetAliasAddressFromIfName (mip->ifName) != 0)
+			exit(1);
 		mip->assignAliasAddr = 0;
 	}
 #endif
@@ -634,10 +643,16 @@ static void DoAliasing (int fd, int direction)
 	socklen_t		addrSize;
 	struct ip*		ip;
 	char			msgBuf[80];
+	int			rval;
 
 	if (mip->assignAliasAddr) {
-
-		SetAliasAddressFromIfName (mip->ifName);
+		do {
+			rval = SetAliasAddressFromIfName (mip->ifName);
+			if (rval == -2)
+				sleep(1);
+		} while (rval == -2);
+		if (rval != 0)
+			exit(1);
 		mip->assignAliasAddr = 0;
 	}
 /*
@@ -867,7 +882,7 @@ static char* FormatPacket (struct ip* ip)
 	return buf;
 }
 
-static void
+static int
 SetAliasAddressFromIfName(const char *ifn)
 {
 	size_t needed;
@@ -951,14 +966,19 @@ SetAliasAddressFromIfName(const char *ifn)
 			}
 		}
 	}
-	if (sin == NULL)
-		errx(1, "%s: cannot get interface address", ifn);
+	if (sin == NULL) {
+		warnx("%s: cannot get interface address", ifn);
+		free(buf);
+		return -2;
+	}
 
 	LibAliasSetAddress(mla, sin->sin_addr);
 	syslog(LOG_INFO, "Aliasing to %s, mtu %d bytes",
 	       inet_ntoa(sin->sin_addr), mip->ifMTU);
 
 	free(buf);
+
+	return 0;
 }
 
 void Quit (const char* msg)
