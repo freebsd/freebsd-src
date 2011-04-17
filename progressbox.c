@@ -1,9 +1,10 @@
 /*
- *  $Id: progressbox.c,v 1.8 2010/01/12 10:46:24 tom Exp $
+ *  $Id: progressbox.c,v 1.11 2011/03/02 01:10:08 tom Exp $
  *
  *  progressbox.c -- implements the progress box
  *
  *  Copyright 2005	Valery Reznic
+ *  Copyright 2006-2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as
@@ -103,18 +104,77 @@ print_line(MY_OBJ * obj, WINDOW *win, int row, int width)
 	(void) waddch(win, ' ');
 }
 
-/*
- * Display text from a stdin in a scrolling window.
- */
+static int
+pause_for_ok(WINDOW *dialog, int height, int width)
+{
+    /* *INDENT-OFF* */
+    static DLG_KEYS_BINDING binding[] = {
+	ENTERKEY_BINDINGS,
+	DLG_KEYS_DATA( DLGK_ENTER,	' ' ),
+	END_KEYS_BINDING
+    };
+    /* *INDENT-ON* */
+
+    int button = 0;
+    int key = 0, fkey;
+    int result = DLG_EXIT_UNKNOWN;
+    const char **buttons = dlg_ok_label();
+    int check;
+
+    dlg_register_window(dialog, "progressbox", binding);
+    dlg_register_buttons(dialog, "progressbox", buttons);
+
+    dlg_draw_bottom_box(dialog);
+    mouse_mkbutton(height - 2, width / 2 - 4, 6, '\n');
+    dlg_draw_buttons(dialog, height - 2, 0, buttons, button, FALSE, width);
+
+    while (result == DLG_EXIT_UNKNOWN) {
+	key = dlg_mouse_wgetch(dialog, &fkey);
+	if (dlg_result_key(key, fkey, &result))
+	    break;
+
+	if (!fkey && (check = dlg_char_to_button(key, buttons)) >= 0) {
+	    result = check ? DLG_EXIT_HELP : DLG_EXIT_OK;
+	    break;
+	}
+
+	if (fkey) {
+	    switch (key) {
+	    case DLGK_ENTER:
+		result = button ? DLG_EXIT_HELP : DLG_EXIT_OK;
+		break;
+	    case DLGK_MOUSE(0):
+		result = DLG_EXIT_OK;
+		break;
+	    case DLGK_MOUSE(1):
+		result = DLG_EXIT_HELP;
+		break;
+	    default:
+		beep();
+		break;
+	    }
+	} else {
+	    beep();
+	}
+    }
+    dlg_unregister_window(dialog);
+    return result;
+}
+
 int
-dialog_progressbox(const char *title, const char *cprompt, int height, int width)
+dlg_progressbox(const char *title,
+		const char *cprompt,
+		int height,
+		int width,
+		int pauseopt,
+		FILE *fp)
 {
     int i;
     int x, y, thigh;
     WINDOW *dialog, *text;
     MY_OBJ *obj;
-    FILE *fd = dialog_state.pipe_input;
     char *prompt = dlg_strclone(cprompt);
+    int result;
 
     dlg_tab_correct_str(prompt);
     dlg_auto_size(title, prompt, &height, &width, MIN_HIGH, MIN_WIDE);
@@ -157,9 +217,9 @@ dialog_progressbox(const char *title, const char *cprompt, int height, int width
     (void) wnoutrefresh(dialog);
 
     obj = dlg_calloc(MY_OBJ, 1);
-    assert_ptr(obj, "dialog_progressbox");
+    assert_ptr(obj, "dlg_progressbox");
 
-    obj->obj.input = fd;
+    obj->obj.input = fp;
     obj->obj.win = dialog;
     obj->text = text;
 
@@ -173,15 +233,41 @@ dialog_progressbox(const char *title, const char *cprompt, int height, int width
 	    scrollok(text, FALSE);
 	    print_line(obj, text, thigh - 1, width - (2 * MARGIN));
 	}
-	(void) wnoutrefresh(text);
 	(void) wrefresh(text);
 	if (obj->is_eof)
 	    break;
     }
-    dlg_unregister_window(text);
+
+    if (pauseopt) {
+	scrollok(text, TRUE);
+	wscrl(text, 1 + MARGIN);
+	(void) wrefresh(text);
+	result = pause_for_ok(dialog, height, width);
+    } else {
+	wrefresh(dialog);
+	result = DLG_EXIT_OK;
+    }
+
     dlg_del_window(dialog);
     free(prompt);
     free(obj);
 
     return DLG_EXIT_OK;
+}
+
+/*
+ * Display text from a stdin in a scrolling window.
+ */
+int
+dialog_progressbox(const char *title, const char *cprompt, int height, int width)
+{
+    int result;
+    result = dlg_progressbox(title,
+			     cprompt,
+			     height,
+			     width,
+			     FALSE,
+			     dialog_state.pipe_input);
+    dialog_state.pipe_input = 0;
+    return result;
 }
