@@ -2942,7 +2942,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	nfsquad_t cookie, ncookie;
 	int error = 0, tlen, more_dirs = 1, blksiz = 0, bigenough = 1;
 	int attrflag, tryformoredirs = 1, eof = 0, gotmnton = 0;
-	int unlocknewvp = 0;
+	int isdotdot = 0, unlocknewvp = 0;
 	long dotfileid, dotdotfileid = 0, fileno = 0;
 	char *cp;
 	nfsattrbit_t attrbits, dattrbits;
@@ -3192,6 +3192,11 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				*cp = '\0';
 				cp += tlen;	/* points to cookie storage */
 				tl2 = (u_int32_t *)cp;
+				if (len == 2 && cnp->cn_nameptr[0] == '.' &&
+				    cnp->cn_nameptr[1] == '.')
+					isdotdot = 1;
+				else
+					isdotdot = 0;
 				uio_iov_base_add(uiop, (tlen + NFSX_HYPER));
 				uio_iov_len_add(uiop, -(tlen + NFSX_HYPER));
 				uio_uio_resid_add(uiop, -(tlen + NFSX_HYPER));
@@ -3269,6 +3274,22 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				    unlocknewvp = 0;
 				    FREE((caddr_t)nfhp, M_NFSFH);
 				    np = dnp;
+				} else if (isdotdot != 0) {
+				    /*
+				     * Skip doing a nfscl_nget() call for "..".
+				     * There's a race between acquiring the nfs
+				     * node here and lookups that look for the
+				     * directory being read (in the parent).
+				     * It would try to get a lock on ".." here,
+				     * owning the lock on the directory being
+				     * read. Lookup will hold the lock on ".."
+				     * and try to acquire the lock on the
+				     * directory being read.
+				     * If the directory is unlocked/relocked,
+				     * then there is a LOR with the buflock
+				     * vp is relocked.
+				     */
+				    free(nfhp, M_NFSFH);
 				} else {
 				    error = nfscl_nget(vnode_mount(vp), vp,
 				      nfhp, cnp, p, &np, NULL, LK_EXCLUSIVE);
