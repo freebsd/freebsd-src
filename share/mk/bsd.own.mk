@@ -248,7 +248,6 @@ WITHOUT_${var}=
     NLS \
     NLS_CATALOGS \
     NS_CACHING \
-    OBJC \
     OPENSSH \
     OPENSSL \
     PAM \
@@ -356,7 +355,6 @@ __DEFAULT_YES_OPTIONS = \
     NLS_CATALOGS \
     NS_CACHING \
     NTP \
-    OBJC \
     OPENSSH \
     OPENSSL \
     PAM \

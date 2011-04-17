@@ -16,9 +16,9 @@ any of these features is used.)  To test for the availability of these
 features in conditional compilation, check for a predefined macro
 @code{__GNUC__}, which is always defined under GCC@.
 
-These extensions are available in C and Objective-C@.  Most of them are
-also available in C++.  @xref{C++ Extensions,,Extensions to the
-C++ Language}, for extensions that apply @emph{only} to C++.
+These extensions are available in C.  Most of them are also available
+in C++.  @xref{C++ Extensions,,Extensions to the C++ Language}, for
+extensions that apply @emph{only} to C++.
 
 Some features that are in ISO C99 but not C89 or C++ are also, as
 extensions, accepted by GCC in C89 mode and in C++.
@@ -1716,8 +1716,6 @@ been called.  Functions with these attributes are useful for
 initializing data that will be used implicitly during the execution of
 the program.
 
-These attributes are not currently implemented for Objective-C@.
-
 @item deprecated
 @cindex @code{deprecated} attribute.
 The @code{deprecated} attribute results in a warning if the function
@@ -2605,9 +2603,9 @@ Preprocessing Directives, cpp, The GNU C Preprocessor}.
 
 This section describes the syntax with which @code{__attribute__} may be
 used, and the constructs to which attribute specifiers bind, for the C
-language.  Some details may vary for C++ and Objective-C@.  Because of
-infelicities in the grammar for attributes, some forms described here
-may not be successfully parsed in all cases.
+language.  Some details may vary for C++.  Because of infelicities in
+the grammar for attributes, some forms described here may not be
+successfully parsed in all cases.
 
 There are some problems with the semantics of attributes in C++.  For
 example, there are no manglings for attributes, although they may affect
@@ -9896,9 +9894,8 @@ The Solaris target supports @code{#pragma redefine_extname}
 Increase the minimum alignment of each @var{variable} to @var{alignment}.
 This is the same as GCC's @code{aligned} attribute @pxref{Variable
 Attributes}).  Macro expansion occurs on the arguments to this pragma
-when compiling C and Objective-C.  It does not currently occur when
-compiling C++, but this is a bug which may be fixed in a future
-release.
+when compiling C.  It does not currently occur when compiling C++, but
+this is a bug which may be fixed in a future release.
 
 @item fini (@var{function} [, @var{function}]...)
 @cindex pragma, fini
