@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: infobox6,v 1.6 2010/01/13 10:20:03 tom Exp $
+# $Id: infobox6,v 1.7 2011/01/18 09:20:59 tom Exp $
 # get rid of all flickering by constructing a script unroll the loop, leaving
 # us in curses-mode until we're done counting.
 #
@@ -23,7 +23,7 @@ do
 cat >>$tempfile <<EOF
 	--sleep 1 \
 	--begin $left `expr $left + 5` \
-	--title "INFO BOX" $last "$@" \
+	--title "INFO BOX" $* $last
         --infobox "Hi, this is an information box. It is
 different from a message box: it will
 not pause waiting for input after displaying

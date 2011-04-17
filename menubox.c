@@ -1,9 +1,9 @@
 /*
- *  $Id: menubox.c,v 1.118 2010/01/17 22:24:11 tom Exp $
+ *  $Id: menubox.c,v 1.120 2011/01/19 00:27:53 tom Exp $
  *
  *  menubox.c -- implements the menu box
  *
- *  Copyright 2000-2009,2010	Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public Licens, version 2.1e
@@ -117,7 +117,7 @@ print_item(WINDOW *win,
 	   Mode selected,
 	   bool is_inputmenu)
 {
-    chtype save = getattrs(win);
+    chtype save = dlg_get_attrs(win);
     int n;
     int my_width = menu_width;
     int my_x = item_x;
@@ -188,7 +188,7 @@ input_menu_edit(WINDOW *win,
 		int choice,
 		char **resultp)
 {
-    chtype save = getattrs(win);
+    chtype save = dlg_get_attrs(win);
     char *result;
     int offset = 0;
     int key = 0, fkey = 0;

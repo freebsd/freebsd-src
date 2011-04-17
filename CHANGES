@@ -1,8 +1,76 @@
--- $Id: CHANGES,v 1.300 2010/04/28 21:27:22 tom Exp $
+-- $Id: CHANGES,v 1.333 2011/03/02 10:06:37 tom Exp $
 -- Thomas E. Dickey <dickey@invisible-island.net>
 
 This version of dialog was originally from a Debian snapshot.  I've done this
 to it:
+
+2011/03/02
+	+ add --prgbox and --programbox (adapted from patch by David Boyd).
+	+ add sl.po from
+		http://translationproject.org/latest/dialog/
+	+ fix timeouts from 2011/01/18, which were being interpreted as
+	  milliseconds rather than seconds (report by Luis Moreira).
+
+2011/01/18
+	+ fix inconsistency in return-codes for textbox when help-button is
+	  used by making dlg_exit_buttoncode() a wrapper for
+	  dlg_ok_buttoncode().
+	+ modify pause widget to use dlg_ok_buttoncode(), so help-button works.
+	+ correct two infobox sample scripts, which did not pass extra
+	  command-line parameters due to quoting problems.
+	+ add a limit-check to the timebox widget (patch by Garrett Cooper).
+	+ modify --trace option to also trace the command-line parameters.
+	+ account for combining characters when wrapping text (Debian #570634).
+	+ correct handling of SIGWINCH in gauge widget (Debian #305705).
+	+ add gauge_color, to make guage's progress-bar distinct from
+	  title_color (request by Dominic Derdau).
+	+ update fi.po from
+		http://translationproject.org/latest/dialog/
+	  as well as resync line-numbers in the other po-files.
+	+ modify configure script and dialog program to build with NetBSD's
+	  wide-character curses functions, including workarounds for its
+	  incorrect WACS_xxx definitions.  Some of the UTF-8 examples work.
+	+ add back-tab for traversal of tailboxbg widgets, for symmetry with
+	  tab-traversal.
+	+ reduce flicker in tailboxbg by checking if the input file size has
+	  changed.
+	+ modify internals of callbacks to avoid blocking reads of their
+	  associated files by keyboard input.
+	+ add command-line option --no-mouse, to suppress use of mouse.
+	+ add configure option --enable-header-subdir to allow the header files
+	  to be installed into a subdirectory named for the package.
+	+ modify dlg_restore_vars() to retain the updated values of
+	  input_result and input_length, eliminating the need for a caller to
+	  provide their own user buffer (prompted by report by Thiago Bimbatti
+	  Felicio).
+	+ add a null-pointer check in show_result() for
+	  dialog_vars.input_result, and ensure it is set to null after freeing
+	  (prompted by report by Thiago Bimbatti Felicio).
+	+ change order of -I options in CPPFLAGS (report by Michel Feldheim)
+	+ modify pause-widget so that it no longer exits when an unrecognized
+	  key is pressed (patch by Creidieki M Crouch).
+	+ add --with-package option to configure script to allow renaming
+	  of the dialog program and library, to support the package scripts.
+	+ add Debian and RPM package scripts for test-builds.
+	+ several improvements to configure script:
+	  + quote params of ifelse()
+	  + change obsolete ${name-value} to standard ${name:-value}
+	  + use new macros CF_ADD_LIB/CF_ADD_LIBS to enforce consistency.
+	  + AM_GNU_GETTEXT, drop $MKINSTALLDIRS, use "mkdir -p" consistently.
+	  + CF_ADD_SUBDIR_PATH, workaround - if $prefix was not mkdir'd yet, no
+	    directories were added.
+	  + CF_BUNDLED_INTL, add --with-textdomain option, to use with lynx-dev
+	    package
+	  + CF_FIND_LINKAGE, simplify save/restore of $LIBS
+	  + CF_GCC_WARNINGS, fix for Mac OS X (compiler makes conftest.dSYM
+	    directory)
+	  + CF_HEADER_PATH, don't search for variations of everything in the
+	    current include-path
+	  + CF_WITH_CURSES_DIR, move the calls to CF_ADD_INCDIR and
+	    CF_ADD_LIBDIR for the curses-directory here, from
+	    CF_NCURSES_CPPFLAGS and CF_NCURSES_LDFLAGS, so it will work even
+	    with the default checking, e.g., no --with-ncurses, etc.
+	+ updated config.guess, config.sub
 
 2010/04/28
 	+ several improvements to configure script:
@@ -278,7 +346,7 @@ to it:
 	+ make --program-prefix, etc., work in configure script, e.g., to make
 	  program install as "cdialog".  This does not alter the library name.
 	+ add install-bin, install-man (and uninstall) rules to makefile.
-	+ updates for configure script macros (originally vile, lynx, xterm): 
+	+ updates for configure script macros (originally vile, lynx, xterm):
 	  AM_PATH_PROG_WITH_TEST, AM_WITH_NLS, CF_CURSES_CPPFLAGS,
 	  CF_CURSES_LIBS, CF_INCLUDE_DIRS, CF_LARGEFILE, CF_MAKEFLAGS,
 	  CF_PATH_SYNTAX, CF_SUBDIR_PATH, CF_SUBST, CF_WITH_DBMALLOC,
@@ -407,7 +475,7 @@ to it:
 	+ fix marker in textbox.c to make it disappear at the top of the file
 	  (report by Patrick J. Volkerding).
 	+ fix marker shown in arrows.c for checklists, etc., which was "(+)"
-	  where it should have been "(-)" (report/patch by Patrick J. 
+	  where it should have been "(-)" (report/patch by Patrick J.
 	  Volkerding).
 	+ fix --input-fd (changes in glibc since 2003 made dialog hang on exit
 	  due to the way dialog updated stdin).

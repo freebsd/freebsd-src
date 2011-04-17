@@ -1,9 +1,9 @@
 /*
- *  $Id: pause.c,v 1.22 2010/04/28 00:29:50 tom Exp $
+ *  $Id: pause.c,v 1.26 2011/01/18 10:16:33 tom Exp $
  *
  *  pause.c -- implements the pause dialog
  *
- *  Copyright 2004-2009,2010	Thomas E. Dickey
+ *  Copyright 2004-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -79,7 +79,7 @@ dialog_pause(const char *title,
     int key = 0, fkey;
     int result = DLG_EXIT_UNKNOWN;
     int button_high = (have_buttons ? BTN_HIGH : MARGIN);
-    int guage_y;
+    int gauge_y;
     char *prompt = dlg_strclone(cprompt);
 
     curs_set(0);
@@ -104,7 +104,7 @@ dialog_pause(const char *title,
 		      MIN_HIGH + MARGIN - BTN_HIGH,
 		      MIN_WIDE);
     }
-    guage_y = height - button_high - (1 + 2 * MARGIN);
+    gauge_y = height - button_high - (1 + 2 * MARGIN);
     dlg_print_size(height, width);
     dlg_ctl_size(height, width);
 
@@ -129,7 +129,7 @@ dialog_pause(const char *title,
 	dlg_print_autowrap(dialog, prompt, height, width);
 
 	dlg_draw_box(dialog,
-		     guage_y, 2 + MARGIN,
+		     gauge_y, 2 + MARGIN,
 		     2 + MARGIN, width - 2 * (2 + MARGIN),
 		     dialog_attr,
 		     border_attr);
@@ -139,13 +139,13 @@ dialog_pause(const char *title,
 	 * in the title-attribute, and write the percentage with that
 	 * attribute.
 	 */
-	(void) wmove(dialog, guage_y + MARGIN, 4);
+	(void) wmove(dialog, gauge_y + MARGIN, 4);
 	wattrset(dialog, title_attr);
 
 	for (i = 0; i < (width - 2 * (3 + MARGIN)); i++)
 	    (void) waddch(dialog, ' ');
 
-	(void) wmove(dialog, guage_y + MARGIN, (width / 2) - 2);
+	(void) wmove(dialog, gauge_y + MARGIN, (width / 2) - 2);
 	(void) wprintw(dialog, "%3d", seconds);
 
 	/*
@@ -159,7 +159,7 @@ dialog_pause(const char *title,
 	} else {
 	    wattrset(dialog, A_REVERSE);
 	}
-	(void) wmove(dialog, guage_y + MARGIN, 4);
+	(void) wmove(dialog, gauge_y + MARGIN, 4);
 	for (i = 0; i < x; i++) {
 	    chtype ch = winch(dialog);
 	    if (title_attr & A_REVERSE) {
@@ -215,10 +215,7 @@ dialog_pause(const char *title,
 				 FALSE, width);
 		break;
 	    case DLGK_ENTER:
-		/* Do not use dlg_exit_buttoncode() since we want to return
-		 * a cancel rather than ok if the timeout has not expired.
-		 */
-		result = button ? DLG_EXIT_CANCEL : DLG_EXIT_OK;
+		result = dlg_ok_buttoncode(button);
 		break;
 	    case DLGK_MOUSE(0):
 		result = DLG_EXIT_OK;
@@ -229,7 +226,6 @@ dialog_pause(const char *title,
 	    case ERR:
 		break;
 	    default:
-		result = DLG_EXIT_OK;
 		break;
 	    }
 	}
