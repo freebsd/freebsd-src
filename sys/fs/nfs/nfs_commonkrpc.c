@@ -143,7 +143,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	CLIENT *client;
 	struct netconfig *nconf;
 	struct socket *so;
-	int one = 1, retries, error, printsbmax = 0;
+	int one = 1, retries, error;
 	struct thread *td = curthread;
 
 	/*
@@ -202,13 +202,8 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 		return (error);
 	}
 	do {
-	    if (error != 0 && pktscale > 2) {
+	    if (error != 0 && pktscale > 2)
 		pktscale--;
-		if (printsbmax == 0) {
-		    printf("nfscl: consider increasing kern.ipc.maxsockbuf\n");
-		    printsbmax = 1;
-		}
-	    }
 	    if (nrp->nr_sotype == SOCK_DGRAM) {
 		if (nmp != NULL) {
 			sndreserve = (NFS_MAXDGRAMDATA + NFS_MAXPKTHDR) *
