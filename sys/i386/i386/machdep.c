@@ -342,12 +342,14 @@ osendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
 	sf.sf_scp = (register_t)&fp->sf_siginfo.si_sc;
+	bzero(&sf.sf_siginfo, sizeof(sf.sf_siginfo));
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		sf.sf_arg2 = (register_t)&fp->sf_siginfo;
 		sf.sf_siginfo.si_signo = sig;
 		sf.sf_siginfo.si_code = ksi->ksi_code;
 		sf.sf_ahu.sf_action = (__osiginfohandler_t *)catcher;
+		sf.sf_addr = 0;
 	} else {
 		/* Old FreeBSD-style arguments. */
 		sf.sf_arg2 = ksi->ksi_code;
@@ -461,6 +463,11 @@ freebsd4_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(*regs));
+	bzero(sf.sf_uc.uc_mcontext.mc_fpregs,
+	    sizeof(sf.sf_uc.uc_mcontext.mc_fpregs));
+	bzero(sf.sf_uc.uc_mcontext.__spare__,
+	    sizeof(sf.sf_uc.uc_mcontext.__spare__));
+	bzero(sf.sf_uc.__spare__, sizeof(sf.sf_uc.__spare__));
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -480,6 +487,7 @@ freebsd4_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
 	sf.sf_ucontext = (register_t)&sfp->sf_uc;
+	bzero(&sf.sf_si, sizeof(sf.sf_si));
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		sf.sf_siginfo = (register_t)&sfp->sf_si;
@@ -596,6 +604,11 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
 	get_fpcontext(td, &sf.sf_uc.uc_mcontext);
 	fpstate_drop(td);
+	bzero(sf.sf_uc.uc_mcontext.mc_spare1,
+	    sizeof(sf.sf_uc.uc_mcontext.mc_spare1));
+	bzero(sf.sf_uc.uc_mcontext.mc_spare2,
+	    sizeof(sf.sf_uc.uc_mcontext.mc_spare2));
+	bzero(sf.sf_uc.__spare__, sizeof(sf.sf_uc.__spare__));
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -617,6 +630,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
 	sf.sf_ucontext = (register_t)&sfp->sf_uc;
+	bzero(&sf.sf_si, sizeof(sf.sf_si));
 	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		sf.sf_siginfo = (register_t)&sfp->sf_si;
@@ -2716,6 +2730,8 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
 	get_fpcontext(td, mcp);
+	bzero(mcp->mc_spare1, sizeof(mcp->mc_spare1));
+	bzero(mcp->mc_spare2, sizeof(mcp->mc_spare2));
 	return (0);
 }
 
@@ -2763,6 +2779,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 #ifndef DEV_NPX
 	mcp->mc_fpformat = _MC_FPFMT_NODEV;
 	mcp->mc_ownedfp = _MC_FPOWNED_NONE;
+	bzero(mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
 #else
 	union savefpu *addr;
 
