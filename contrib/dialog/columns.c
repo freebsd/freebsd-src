@@ -1,9 +1,9 @@
 /*
- *  $Id: columns.c,v 1.5 2010/01/18 10:26:36 tom Exp $
+ *  $Id: columns.c,v 1.7 2011/01/16 21:51:44 tom Exp $
  *
  *  columns.c -- implements column-alignment
  *
- *  Copyright 2008,2010	Thomas E. Dickey
+ *  Copyright 2008-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -79,7 +79,7 @@ split_row(char *source, unsigned *offsets, unsigned *widths)
 	++result;
     } while ((next = next_col(source, offset)) != 0);
 
-    offset = strlen(source);
+    offset = (unsigned) strlen(source);
     widths[result - 1] = offset - offsets[result - 1];
 
     return result;
@@ -98,7 +98,7 @@ dlg_align_columns(char **target, int per_row, int num_rows)
     if (column_separator()) {
 	char **value;
 	unsigned numcols = 1;
-	unsigned maxcols = 0;
+	size_t maxcols = 0;
 	unsigned *widths;
 	unsigned *offsets;
 	unsigned *maxwidth;
@@ -107,7 +107,7 @@ dlg_align_columns(char **target, int per_row, int num_rows)
 
 	/* first allocate arrays for workspace */
 	for (each(row, value)) {
-	    unsigned len = strlen(*value);
+	    size_t len = strlen(*value);
 	    if (maxcols < len)
 		maxcols = len;
 	}
@@ -143,9 +143,9 @@ dlg_align_columns(char **target, int per_row, int num_rows)
 
 	    assert_ptr(text, "dlg_align_columns");
 
-	    memset(text, ' ', realwidth);
+	    memset(text, ' ', (size_t) realwidth);
 	    for (n = 0; n < cols; ++n) {
-		memcpy(text + offset, *value + offsets[n], widths[n]);
+		memcpy(text + offset, *value + offsets[n], (size_t) widths[n]);
 		offset += maxwidth[n] + 1;
 	    }
 	    *value = text;

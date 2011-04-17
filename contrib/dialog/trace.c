@@ -1,9 +1,9 @@
 /*
- *  $Id: trace.c,v 1.11 2010/01/17 15:36:26 tom Exp $
+ *  $Id: trace.c,v 1.12 2011/01/13 01:36:34 tom Exp $
  *
  *  trace.c -- implements screen-dump and keystroke-logging
  *
- *  Copyright 2007-2008,2010	Thomas E. Dickey
+ *  Copyright 2007-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -28,6 +28,13 @@
 #include <time.h>
 
 #define myFP dialog_state.trace_output
+
+static void
+dlg_trace_time(const char *tag)
+{
+    time_t now = time((time_t *) 0);
+    fprintf(myFP, "%s %s", tag, ctime(&now));
+}
 
 void
 dlg_trace_msg(const char *fmt,...)
@@ -115,6 +122,8 @@ dlg_trace_chr(int ch, int fkey)
 		    CASE(DLGK_TRACE);
 		}
 	    }
+	} else if (ch == ERR) {
+	    fkey_name = "ERR";
 	} else {
 	    fkey_name = unctrl((chtype) ch);
 	    if (fkey_name == 0)
@@ -134,13 +143,11 @@ dlg_trace(const char *fname)
 	if (myFP == 0) {
 	    myFP = fopen(fname, "a");
 	    if (myFP != 0) {
-		time_t now = time((time_t *) 0);
-		fprintf(myFP, "** opened at %s", ctime(&now));
+		dlg_trace_time("** opened at");
 	    }
 	}
     } else if (myFP != 0) {
-	time_t now = time((time_t *) 0);
-	fprintf(myFP, "** closed at %s", ctime(&now));
+	dlg_trace_time("** closed at");
 	fclose(myFP);
 	myFP = 0;
     }

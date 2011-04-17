@@ -1,9 +1,9 @@
 /*
- *  $Id: util.c,v 1.201 2010/04/28 21:12:42 tom Exp $
+ *  $Id: util.c,v 1.211 2011/01/19 00:31:43 tom Exp $
  *
  *  util.c -- miscellaneous utilities for dialog
  *
- *  Copyright 2000-2008,2010	Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -99,7 +99,8 @@ DIALOG_COLORS dlg_color_table[] =
     DATA(A_NORMAL,	ITEMHELP,		itemhelp, "Item help-text"),
     DATA(A_BOLD,	FORM_ACTIVE_TEXT,	form_active_text, "Active form text"),
     DATA(A_REVERSE,	FORM_TEXT,		form_text, "Form text"),
-    DATA(A_NORMAL,	FORM_ITEM_READONLY,	form_item_readonly, "Readonly form item") 
+    DATA(A_NORMAL,	FORM_ITEM_READONLY,	form_item_readonly, "Readonly form item"),
+    DATA(A_REVERSE,	GAUGE,			gauge, "Dialog box gauge")
 };
 /* *INDENT-ON* */
 
@@ -327,7 +328,11 @@ init_dialog(FILE *input, FILE *output)
     (void) keypad(stdscr, TRUE);
     (void) cbreak();
     (void) noecho();
-    mouse_open();
+
+    if (!dialog_state.no_mouse) {
+	mouse_open();
+    }
+
     dialog_state.screen_initialized = TRUE;
 
 #ifdef HAVE_COLOR
@@ -399,6 +404,24 @@ dlg_color_count(void)
 }
 
 /*
+ * Wrapper for getattrs(), or the more cumbersome X/Open wattr_get().
+ */
+chtype
+dlg_get_attrs(WINDOW *win)
+{
+    chtype result;
+#ifdef HAVE_GETATTRS
+    result = getattrs(win);
+#else
+    attr_t my_result;
+    short my_pair;
+    wattr_get(win, &my_result, &my_pair, NULL);
+    result = my_result;
+#endif
+    return result;
+}
+
+/*
  * Reuse color pairs (they are limited), returning a COLOR_PAIR() value if we
  * have (or can) define a pair with the given color as foreground on the
  * window's defined background.
@@ -436,7 +459,7 @@ dlg_color_pair(int foreground, int background)
 static chtype
 define_color(WINDOW *win, int foreground)
 {
-    chtype attrs = getattrs(win);
+    chtype attrs = dlg_get_attrs(win);
     int pair;
     short fg, bg, background;
 
@@ -487,6 +510,34 @@ centered(int width, const char *string)
     return left;
 }
 
+#ifdef USE_WIDE_CURSES
+static bool
+is_combining(const char *txt, int *combined)
+{
+    bool result = FALSE;
+
+    if (*combined == 0) {
+	if (UCH(*txt) >= 128) {
+	    wchar_t wch;
+	    mbstate_t state;
+	    size_t given = strlen(txt);
+	    size_t len;
+
+	    memset(&state, 0, sizeof(state));
+	    len = mbrtowc(&wch, txt, given, &state);
+	    if ((int) len > 0 && wcwidth(wch) == 0) {
+		*combined = (int) len - 1;
+		result = TRUE;
+	    }
+	}
+    } else {
+	result = TRUE;
+	*combined -= 1;
+    }
+    return result;
+}
+#endif
+
 /*
  * Print up to 'cols' columns from 'text', optionally rendering our escape
  * sequence for attributes and color.
@@ -501,6 +552,9 @@ dlg_print_text(WINDOW *win, const char *txt, int cols, chtype *attr)
     bool thisTab;
     bool ended = FALSE;
     chtype useattr;
+#ifdef USE_WIDE_CURSES
+    int combined = 0;
+#endif
 
     getyx(win, y_origin, x_origin);
     while (cols > 0 && (*txt != '\0')) {
@@ -582,7 +636,12 @@ dlg_print_text(WINDOW *win, const char *txt, int cols, chtype *attr)
 	getyx(win, y_after, x_after);
 	if (thisTab && (y_after == y_origin))
 	    tabbed += (x_after - x_before);
-	if (y_after != y_origin || x_after >= cols + tabbed + x_origin) {
+	if ((y_after != y_origin) ||
+	    (x_after >= (cols + tabbed + x_origin)
+#ifdef USE_WIDE_CURSES
+	     && !is_combining(txt, &combined)
+#endif
+	    )) {
 	    ended = TRUE;
 	}
     }
@@ -656,6 +715,14 @@ dlg_print_line(WINDOW *win,
 	wrap_inx = test_inx;
     }
     wrap_ptr = prompt + indx[wrap_inx];
+#ifdef USE_WIDE_CURSES
+    if (UCH(*wrap_ptr) >= 128) {
+	int combined = 0;
+	while (is_combining(wrap_ptr, &combined)) {
+	    ++wrap_ptr;
+	}
+    }
+#endif
 
     /*
      * Print the line if we have a window pointer.  Otherwise this routine
@@ -773,6 +840,8 @@ dlg_print_scrolled(WINDOW *win,
 {
     int oldy, oldx;
     int last = 0;
+
+    (void) pauseopt;		/* used only for ncurses */
 
     getyx(win, oldy, oldx);
 #ifdef NCURSES_VERSION
@@ -1105,12 +1174,12 @@ dlg_auto_sizefile(const char *title,
 		offset++;
 
 	if (offset > len)
-	    len = offset;
+	    len = (int) offset;
 
 	count++;
     }
 
-    /* now 'count' has the number of lines of fd and 'len' the max lenght */
+    /* now 'count' has the number of lines of fd and 'len' the max length */
 
     *height = MIN(SLINES, count + numlines + boxlines);
     *width = MIN(SCOLS, MAX((len + nc), mincols));
@@ -1142,7 +1211,7 @@ dlg_draw_box(WINDOW *win, int y, int x, int height, int width,
 	     chtype boxchar, chtype borderchar)
 {
     int i, j;
-    chtype save = getattrs(win);
+    chtype save = dlg_get_attrs(win);
 
     wattrset(win, 0);
     for (i = 0; i < height; i++) {
@@ -1179,7 +1248,7 @@ static void
 draw_childs_shadow(WINDOW *parent, WINDOW *child)
 {
     if (has_colors()) {		/* Whether terminal supports color? */
-	chtype save = getattrs(parent);
+	chtype save = dlg_get_attrs(parent);
 
 	dlg_draw_shadow(parent,
 			getbegy(child) - getbegy(parent),
@@ -1254,7 +1323,7 @@ dlg_exit(int code)
 	    if ((name = getenv(table[n].name)) != 0) {
 		value = strtol(name, &temp, 0);
 		if (temp != 0 && temp != name && *temp == '\0') {
-		    code = value;
+		    code = (int) value;
 		    overridden = TRUE;
 		}
 	    }
@@ -1509,7 +1578,7 @@ dlg_draw_title(WINDOW *win, const char *title)
 {
     if (title != NULL) {
 	chtype attr = A_NORMAL;
-	chtype save = getattrs(win);
+	chtype save = dlg_get_attrs(win);
 	int x = centered(getmaxx(win), title);
 
 	wattrset(win, title_attr);
@@ -1920,7 +1989,7 @@ dlg_clr_result(void)
 char *
 dlg_set_result(const char *string)
 {
-    unsigned need = string ? strlen(string) + 1 : 0;
+    unsigned need = string ? (unsigned) strlen(string) + 1 : 0;
 
     /* inputstr.c needs a fixed buffer */
     if (need < MAX_LEN)
@@ -1953,9 +2022,9 @@ void
 dlg_add_result(const char *string)
 {
     unsigned have = (dialog_vars.input_result
-		     ? strlen(dialog_vars.input_result)
+		     ? (unsigned) strlen(dialog_vars.input_result)
 		     : 0);
-    unsigned want = strlen(string) + 1 + have;
+    unsigned want = (unsigned) strlen(string) + 1 + have;
 
     if ((want >= MAX_LEN)
 	|| (dialog_vars.input_length != 0)
@@ -1964,14 +2033,14 @@ dlg_add_result(const char *string)
 	if (dialog_vars.input_length == 0
 	    || dialog_vars.input_result == 0) {
 
-	    char *save = dialog_vars.input_result;
+	    char *save_result = dialog_vars.input_result;
 
 	    dialog_vars.input_length = want * 2;
 	    dialog_vars.input_result = dlg_malloc(char, dialog_vars.input_length);
 	    assert_ptr(dialog_vars.input_result, "dlg_add_result malloc");
-	    dialog_vars.input_result[0] = 0;
-	    if (save != 0)
-		strcpy(dialog_vars.input_result, save);
+	    dialog_vars.input_result[0] = '\0';
+	    if (save_result != 0)
+		strcpy(dialog_vars.input_result, save_result);
 	} else if (want >= dialog_vars.input_length) {
 	    dialog_vars.input_length = want * 2;
 	    dialog_vars.input_result = dlg_realloc(char,
@@ -2008,7 +2077,7 @@ must_quote(char *string)
     bool code = FALSE;
 
     if (*string != '\0') {
-	unsigned len = strlen(string);
+	size_t len = strlen(string);
 	if (strcspn(string, quote_delimiter()) != len)
 	    code = TRUE;
 	else if (strcspn(string, "\n\t ") != len)
@@ -2096,10 +2165,20 @@ dlg_save_vars(DIALOG_VARS * vars)
     *vars = dialog_vars;
 }
 
+/*
+ * Most of the data in DIALOG_VARS is normally set by command-line options.
+ * The input_result member is an exception; it is normally set by the dialog
+ * library to return result values.
+ */
 void
 dlg_restore_vars(DIALOG_VARS * vars)
 {
+    char *save_result = dialog_vars.input_result;
+    unsigned save_length = dialog_vars.input_length;
+
     dialog_vars = *vars;
+    dialog_vars.input_result = save_result;
+    dialog_vars.input_length = save_length;
 }
 
 /*

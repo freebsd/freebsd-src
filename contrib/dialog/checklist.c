@@ -1,9 +1,9 @@
 /*
- *  $Id: checklist.c,v 1.121 2010/01/17 19:32:17 tom Exp $
+ *  $Id: checklist.c,v 1.124 2011/01/19 00:27:53 tom Exp $
  *
  *  checklist.c -- implements the checklist box
  *
- *  Copyright 2000-2009,2010	Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -50,10 +50,10 @@ print_arrows(WINDOW *win,
 	     int list_height)
 {
     dlg_draw_scrollbar(win,
-		       scrollamt,
-		       scrollamt,
-		       scrollamt + choice,
-		       item_no,
+		       (long) (scrollamt),
+		       (long) (scrollamt),
+		       (long) (scrollamt + choice),
+		       (long) (item_no),
 		       box_x + check_x,
 		       box_x + list_width,
 		       box_y,
@@ -73,7 +73,7 @@ print_item(WINDOW *win,
 	   int choice,
 	   int selected)
 {
-    chtype save = getattrs(win);
+    chtype save = dlg_get_attrs(win);
     int i;
     chtype attr = A_NORMAL;
     const int *cols;
@@ -643,7 +643,7 @@ dialog_checklist(const char *title,
 			     : dlg_strempty());
 	listitems[i].state = !dlg_strcmp(ItemStatus(i), "on");
     }
-    dlg_align_columns(&listitems[0].text, sizeof(DIALOG_LISTITEM), item_no);
+    dlg_align_columns(&listitems[0].text, (int) sizeof(DIALOG_LISTITEM), item_no);
 
     result = dlg_checklist(title,
 			   cprompt,
@@ -706,7 +706,7 @@ dialog_checklist(const char *title,
 	}
     }
 
-    dlg_free_columns(&listitems[0].text, sizeof(DIALOG_LISTITEM), item_no);
+    dlg_free_columns(&listitems[0].text, (int) sizeof(DIALOG_LISTITEM), item_no);
     free(listitems);
     return result;
 }
