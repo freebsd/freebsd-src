@@ -1134,7 +1134,7 @@ ktrpsig(struct ktr_psig *psig)
 	else
 		(void)printf("SIG %d ", psig->signo);
 	if (psig->action == SIG_DFL)
-		(void)printf("SIG_DFL\n");
+		(void)printf("SIG_DFL code=0x%x\n", psig->code);
 	else {
 		(void)printf("caught handler=0x%lx mask=0x%x code=0x%x\n",
 		    (u_long)psig->action, psig->mask.__bits[0], psig->code);
