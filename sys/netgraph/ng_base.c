@@ -596,7 +596,7 @@ ng_make_node(const char *typename, node_p *nodepp)
 	 */
 	if (type->constructor != NULL) {
 		if ((error = ng_make_node_common(type, nodepp)) == 0) {
-			if ((error = ((*type->constructor)(*nodepp)) != 0)) {
+			if ((error = ((*type->constructor)(*nodepp))) != 0) {
 				NG_NODE_UNREF(*nodepp);
 			}
 		}
