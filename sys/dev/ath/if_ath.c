@@ -1565,7 +1565,7 @@ ath_init(void *arg)
 
 	/* Enable global TX timeout and carrier sense timeout if available */
 	if (ath_hal_gtxto_supported(ah))
-		sc->sc_imask |= (HAL_INT_GTT | HAL_INT_CST);
+		sc->sc_imask |= HAL_INT_GTT;
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: imask=0x%x\n",
 		__func__, sc->sc_imask);
