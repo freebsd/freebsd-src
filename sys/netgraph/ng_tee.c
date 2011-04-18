@@ -153,9 +153,7 @@ ng_tee_constructor(node_p node)
 {
 	sc_p privdata;
 
-	privdata = malloc(sizeof(*privdata), M_NETGRAPH, M_NOWAIT|M_ZERO);
-	if (privdata == NULL)
-		return (ENOMEM);
+	privdata = malloc(sizeof(*privdata), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	NG_NODE_SET_PRIVATE(node, privdata);
 	return (0);

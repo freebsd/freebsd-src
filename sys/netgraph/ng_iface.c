@@ -531,9 +531,7 @@ ng_iface_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate node and interface private structures */
-	priv = malloc(sizeof(*priv), M_NETGRAPH_IFACE, M_NOWAIT|M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_IFACE, M_WAITOK | M_ZERO);
 	ifp = if_alloc(IFT_PROPVIRTUAL);
 	if (ifp == NULL) {
 		free(priv, M_NETGRAPH_IFACE);

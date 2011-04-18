@@ -165,9 +165,7 @@ ng_rfc1490_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate private structure */
-	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	/* Initialize to default encapsulation method - ietf-ip */
 	priv->enc = ng_rfc1490_encaps;
