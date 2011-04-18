@@ -130,9 +130,17 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     }
     acpi_timer_dev = dev;
 
+    switch (AcpiGbl_FADT.XPmTimerBlock.SpaceId) {
+    case ACPI_ADR_SPACE_SYSTEM_MEMORY:
+	rtype = SYS_RES_MEMORY;
+	break;
+    case ACPI_ADR_SPACE_SYSTEM_IO:
+	rtype = SYS_RES_IOPORT;
+	break;
+    default:
+	return_VOID;
+    }
     rid = 0;
-    rtype = AcpiGbl_FADT.XPmTimerBlock.SpaceId ?
-	SYS_RES_IOPORT : SYS_RES_MEMORY;
     rlen = AcpiGbl_FADT.PmTimerLength;
     rstart = AcpiGbl_FADT.XPmTimerBlock.Address;
     if (bus_set_resource(dev, rtype, rid, rstart, rlen))
@@ -152,9 +160,17 @@ acpi_timer_probe(device_t dev)
     if (dev != acpi_timer_dev)
 	return (ENXIO);
 
+    switch (AcpiGbl_FADT.XPmTimerBlock.SpaceId) {
+    case ACPI_ADR_SPACE_SYSTEM_MEMORY:
+	rtype = SYS_RES_MEMORY;
+	break;
+    case ACPI_ADR_SPACE_SYSTEM_IO:
+	rtype = SYS_RES_IOPORT;
+	break;
+    default:
+	return (ENXIO);
+    }
     rid = 0;
-    rtype = AcpiGbl_FADT.XPmTimerBlock.SpaceId ?
-	SYS_RES_IOPORT : SYS_RES_MEMORY;
     acpi_timer_reg = bus_alloc_resource_any(dev, rtype, &rid, RF_ACTIVE);
     if (acpi_timer_reg == NULL) {
 	device_printf(dev, "couldn't allocate resource (%s 0x%lx)\n",
@@ -195,8 +211,9 @@ acpi_timer_probe(device_t dev)
     }
     tc_init(&acpi_timer_timecounter);
 
-    sprintf(desc, "%d-bit timer at 3.579545MHz",
-	(AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER) ? 32 : 24);
+    sprintf(desc, "%d-bit timer at %u.%06uMHz",
+	(AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER) != 0 ? 32 : 24,
+	acpi_timer_frequency / 1000000, acpi_timer_frequency % 1000000);
     device_set_desc_copy(dev, desc);
 
     /* Release the resource, we'll allocate it again during attach. */
@@ -211,9 +228,17 @@ acpi_timer_attach(device_t dev)
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
+    switch (AcpiGbl_FADT.XPmTimerBlock.SpaceId) {
+    case ACPI_ADR_SPACE_SYSTEM_MEMORY:
+	rtype = SYS_RES_MEMORY;
+	break;
+    case ACPI_ADR_SPACE_SYSTEM_IO:
+	rtype = SYS_RES_IOPORT;
+	break;
+    default:
+	return (ENXIO);
+    }
     rid = 0;
-    rtype = AcpiGbl_FADT.XPmTimerBlock.SpaceId ?
-	SYS_RES_IOPORT : SYS_RES_MEMORY;
     acpi_timer_reg = bus_alloc_resource_any(dev, rtype, &rid, RF_ACTIVE);
     if (acpi_timer_reg == NULL)
 	return (ENXIO);
