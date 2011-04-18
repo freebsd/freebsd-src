@@ -418,25 +418,25 @@ ipfw_delete_pipe(int do_pipe, int i)
  * We can model the additional delay with an empirical curve
  * that represents its distribution.
  *
- *	cumulative probability
- *	1.0 ^
- *	    |
- *	L   +-- loss-level          x
- *	    |                 ******
- *	    |                *
- *	    |           *****
- *	    |          *
- *	    |        **
- *	    |       *                         
- *	    +-------*------------------->
- *			delay
+ *      cumulative probability
+ *      1.0 ^
+ *          |
+ *      L   +-- loss-level          x
+ *          |                 ******
+ *          |                *
+ *          |           *****
+ *          |          *
+ *          |        **
+ *          |       *
+ *          +-------*------------------->
+ *                      delay
  *
  * The empirical curve may have both vertical and horizontal lines.
  * Vertical lines represent constant delay for a range of
  * probabilities; horizontal lines correspond to a discontinuty
  * in the delay distribution: the link will use the largest delay
  * for a given probability.
- * 
+ *
  * To pass the curve to dummynet, we must store the parameters
  * in a file as described below, and issue the command
  *
@@ -449,9 +449,9 @@ ipfw_delete_pipe(int do_pipe, int i)
  *		the number of samples used in the internal
  *		representation (2..1024; default 100);
  *
- *	loss-level L 
+ *	loss-level L
  *		The probability above which packets are lost.
- *               (0.0 <= L <= 1.0, default 1.0 i.e. no loss);
+ *	       (0.0 <= L <= 1.0, default 1.0 i.e. no loss);
  *
  *	name identifier
  *		Optional a name (listed by "ipfw pipe show")
@@ -472,18 +472,18 @@ ipfw_delete_pipe(int do_pipe, int i)
  * the curve as needed.
  *
  * Example of a profile file:
- 
-        name    bla_bla_bla
-        samples 100
-        loss-level    0.86
-        prob    delay
-        0       200	# minimum overhead is 200ms
-        0.5     200
-        0.5     300
-        0.8     1000
-        0.9     1300
-        1       1300
- 
+
+	name    bla_bla_bla
+	samples 100
+	loss-level    0.86
+	prob    delay
+	0       200	# minimum overhead is 200ms
+	0.5     200
+	0.5     300
+	0.8     1000
+	0.9     1300
+	1       1300
+
  * Internally, we will convert the curve to a fixed number of
  * samples, and when it is time to transmit a packet we will
  * model the extra delay as extra bits in the packet.
@@ -613,7 +613,7 @@ load_extra_delays(const char *filename, struct dn_profile *p,
 	if (f == NULL)
 		err(EX_UNAVAILABLE, "fopen: %s", filename);
 
-	while (fgets(line, ED_MAX_LINE_LEN, f)) {         /* read commands */
+	while (fgets(line, ED_MAX_LINE_LEN, f)) {	 /* read commands */
 		char *s, *cur = line, *name = NULL, *arg = NULL;
 
 		++lineno;
@@ -740,7 +740,7 @@ load_extra_delays(const char *filename, struct dn_profile *p,
 /*
  * configuration of pipes, schedulers, flowsets.
  * When we configure a new scheduler, an empty pipe is created, so:
- * 
+ *
  * do_pipe = 1 -> "pipe N config ..." only for backward compatibility
  *	sched N+Delta type fifo sched_mask ...
  *	pipe N+Delta <parameters>
@@ -955,7 +955,7 @@ ipfw_config_pipe(int ac, char **av)
 				    mask->addr_type = 6;
 				    pa6 = &mask->dst_ip6;
 				    break;
-			    
+
 			    case TOK_SRCIP6:
 				    mask->addr_type = 6;
 				    pa6 = &mask->src_ip6;

@@ -357,7 +357,7 @@ ipfw_main(int oldac, char **oldav)
 	co.do_nat = 0;
 	co.do_pipe = 0;
 	if (!strncmp(*av, "nat", strlen(*av)))
- 	        co.do_nat = 1;
+ 		co.do_nat = 1;
  	else if (!strncmp(*av, "pipe", strlen(*av)))
 		co.do_pipe = 1;
 	else if (_substrcmp(*av, "queue") == 0)
@@ -426,7 +426,7 @@ ipfw_main(int oldac, char **oldav)
 		else if (_substrcmp(*av, "resetlog") == 0)
 			ipfw_zero(ac, av, 1 /* IP_FW_RESETLOG */);
 		else if (_substrcmp(*av, "print") == 0 ||
-		         _substrcmp(*av, "list") == 0)
+			 _substrcmp(*av, "list") == 0)
 			ipfw_list(ac, av, do_acct);
 		else if (_substrcmp(*av, "show") == 0)
 			ipfw_list(ac, av, 1 /* show counters */);
@@ -591,7 +591,7 @@ main(int ac, char *av[])
 		ret = WSAStartup(wVersionRequested, &wsaData);
 		if (ret != 0) {
 			/* Tell the user that we could not find a usable */
-			/* Winsock DLL.                                  */
+			/* Winsock DLL.				  */
 			printf("WSAStartup failed with error: %d\n", ret);
 			return 1;
 		}
