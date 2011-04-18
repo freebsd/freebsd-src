@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2010
+.Dd April 18, 2011
 .Dt MBUF 9
 .Os
 .\"
@@ -371,9 +371,9 @@ on failure.
 The
 .Fa how
 argument is to be set to
-.Dv M_WAIT
+.Dv M_WAITOK
 or
-.Dv M_DONTWAIT .
+.Dv M_NOWAIT .
 It specifies whether the caller is willing to block if necessary.
 A number of other functions and macros related to
 .Vt mbufs
@@ -381,15 +381,16 @@ have the same argument because they may
 at some point need to allocate new
 .Vt mbufs .
 .Pp
-Programmers should be careful not to confuse the
+Historical
 .Vt mbuf
-allocation flag
-.Dv M_DONTWAIT
-with the
-.Xr malloc 9
-allocation flag,
-.Dv M_NOWAIT .
-They are not the same.
+allocator (See
+.Sx HISTORY
+section) used allocation flags
+.Dv M_WAIT
+and
+.Dv M_DONTWAIT .
+These constants are kept for compatibility
+and their use in new code is discouraged.
 .It Fn MGETHDR mbuf how type
 Allocate an
 .Vt mbuf
@@ -964,9 +965,9 @@ Upon success, the original chain will be freed and the new
 chain will be returned.
 .Fa how
 should be either
-.Dv M_WAIT
+.Dv M_WAITOK
 or
-.Dv M_DONTWAIT ,
+.Dv M_NOWAIT ,
 depending on the caller's preference.
 .Pp
 This function is especially useful in network drivers, where
@@ -982,9 +983,9 @@ The original mbuf chain is always reclaimed and the reference
 count of any shared mbuf clusters is decremented.
 .Fa how
 should be either
-.Dv M_WAIT
+.Dv M_WAITOK
 or
-.Dv M_DONTWAIT ,
+.Dv M_NOWAIT ,
 depending on the caller's preference.
 As a side-effect of this process the returned
 mbuf chain may be compacted.
