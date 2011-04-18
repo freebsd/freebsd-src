@@ -605,10 +605,8 @@ ar5416InitUserSettings(struct ath_hal *ah)
 		ar5212SetCTSTimeout(ah, ahp->ah_ctstimeout);
 	if (AH_PRIVATE(ah)->ah_diagreg != 0)
 		OS_REG_WRITE(ah, AR_DIAG_SW, AH_PRIVATE(ah)->ah_diagreg);
-#if 0 /* XXX Todo */
-	if (ahp->ah_globaltxtimeout != (u_int) -1)
-        	ar5416SetGlobalTxTimeout(ah, ahp->ah_globaltxtimeout);
-#endif
+	if (AH5416(ah)->ah_globaltxtimeout != (u_int) -1)
+        	ar5416SetGlobalTxTimeout(ah, AH5416(ah)->ah_globaltxtimeout);
 }
 
 static void
