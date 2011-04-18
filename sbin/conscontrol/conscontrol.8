@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2001
+.Dd April 14, 2011
 .Dt CONSCONTROL 8
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Cm add | delete
 .Ar console
 .Nm
-.Cm set Ar console | Cm unset
+.Cm set | unset Ar console
 .Sh DESCRIPTION
 The
 .Nm
@@ -91,7 +91,7 @@ the name of the directory may be omitted.
 Change the state of console muting.
 All console output is suppressed when console muting is
 .Cm on .
-.It Cm set Ar console | Cm unset
+.It Cm set | unset Ar console
 Set or unset the virtual console.
 When unset, output from the system, such as the kernel
 .Xr printf 9 ,
