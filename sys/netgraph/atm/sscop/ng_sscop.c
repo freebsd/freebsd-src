@@ -246,8 +246,7 @@ ng_sscop_constructor(node_p node)
 {
 	struct priv *p;
 
-	if ((p = malloc(sizeof(*p), M_NG_SSCOP, M_NOWAIT | M_ZERO)) == NULL)
-		return (ENOMEM);
+	p = malloc(sizeof(*p), M_NG_SSCOP, M_WAITOK | M_ZERO);
 
 	if ((p->sscop = sscop_create(node, &sscop_funcs)) == NULL) {
 		free(p, M_NG_SSCOP);

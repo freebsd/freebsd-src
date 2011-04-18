@@ -156,9 +156,7 @@ ngt_constructor(node_p node)
 	sc_p sc;
 
 	/* Allocate private structure */
-	sc = malloc(sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (sc == NULL)
-		return (ENOMEM);
+	sc = malloc(sizeof(*sc), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	NG_NODE_SET_PRIVATE(node, sc);
 	sc->node = node;

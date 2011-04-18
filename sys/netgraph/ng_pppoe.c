@@ -611,9 +611,7 @@ ng_pppoe_constructor(node_p node)
 	int	i;
 
 	/* Initialize private descriptor. */
-	privp = malloc(sizeof(*privp), M_NETGRAPH_PPPOE, M_NOWAIT | M_ZERO);
-	if (privp == NULL)
-		return (ENOMEM);
+	privp = malloc(sizeof(*privp), M_NETGRAPH_PPPOE, M_WAITOK | M_ZERO);
 
 	/* Link structs together; this counts as our one reference to *node. */
 	NG_NODE_SET_PRIVATE(node, privp);

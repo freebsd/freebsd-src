@@ -223,10 +223,7 @@ ng_netflow_constructor(node_p node)
 	int error = 0, i;
 
 	/* Initialize private data */
-	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT);
-	if (priv == NULL)
-		return (ENOMEM);
-	bzero(priv, sizeof(*priv));
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	/* Make node and its data point at each other */
 	NG_NODE_SET_PRIVATE(node, priv);
