@@ -435,7 +435,7 @@ match_value(struct _s_x *p, int value)
 int
 _substrcmp(const char *str1, const char* str2)
 {
-	
+
 	if (strncmp(str1, str2, strlen(str1)) != 0)
 		return 1;
 
@@ -463,7 +463,7 @@ _substrcmp(const char *str1, const char* str2)
 int
 _substrcmp2(const char *str1, const char* str2, const char* str3)
 {
-	
+
 	if (strncmp(str1, str2, strlen(str2)) != 0)
 		return 1;
 
@@ -1123,7 +1123,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		case O_NAT:
 			PRINT_UINT_ARG("nat ", cmd->arg1);
  			break;
-			
+
 		case O_SETFIB:
 			PRINT_UINT_ARG("setfib ", cmd->arg1);
  			break;
@@ -1131,7 +1131,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		case O_REASS:
 			printf("reass");
 			break;
-			
+
 		default:
 			printf("** unrecognized action %d len %d ",
 				cmd->opcode, cmd->len);
@@ -1168,7 +1168,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		} else if (cmd->opcode == O_IP6) {
 			flags |= HAVE_PROTO6;
 			break;
-		}			
+		}
 	}
 	if (rule->_pad & 1) {	/* empty rules before options */
 		if (!co.do_compact) {
@@ -1625,7 +1625,7 @@ show_dyn_ipfw(ipfw_dyn_rule *d, int pcwidth, int bcwidth)
 		    sizeof(buf)), d->id.dst_port);
 	} else
 		printf(" UNKNOWN <-> UNKNOWN\n");
-	
+
 	printf("\n");
 }
 
@@ -2762,7 +2762,7 @@ ipfw_add(char *av[])
 		goto chkarg;
 	case TOK_TEE:
 		action->opcode = O_TEE;
-chkarg:	
+chkarg:
 		if (!av[0])
 			errx(EX_USAGE, "missing argument for %s", *(av - 1));
 		if (isdigit(**av)) {
@@ -2848,7 +2848,7 @@ chkarg:
 	case TOK_REASS:
 		action->opcode = O_REASS;
 		break;
-		
+
 	default:
 		errx(EX_DATAERR, "invalid action %s\n", av[-1]);
 	}
@@ -3196,7 +3196,7 @@ read_options:
 			fill_icmptypes((ipfw_insn_u32 *)cmd, *av);
 			av++;
 			break;
-		
+
 		case TOK_ICMP6TYPES:
 			NEED1("icmptypes requires list of types");
 			fill_icmp6types((ipfw_insn_icmp6 *)cmd, *av);
@@ -3432,7 +3432,7 @@ read_options:
 				av++;
 			}
 			break;
-				
+
 		case TOK_DSTIP6:
 			NEED1("missing destination IP6");
 			if (add_dstip6(cmd, *av)) {
