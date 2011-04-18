@@ -1355,6 +1355,8 @@ ath_intr(void *arg)
 			sc->sc_stats.ast_bmiss++;
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_bmisstask);
 		}
+		if (status & HAL_INT_GTT)
+			sc->sc_stats.ast_tx_timeout++;
 		if (status & HAL_INT_MIB) {
 			sc->sc_stats.ast_mib++;
 			/*
@@ -1558,6 +1560,10 @@ ath_init(void *arg)
 	 */
 	if (sc->sc_needmib && ic->ic_opmode == IEEE80211_M_STA)
 		sc->sc_imask |= HAL_INT_MIB;
+
+	/* Enable global TX timeout statistics if available */
+	if (ath_hal_gtxto_supported(ah))
+		sc->sc_imask |= (HAL_INT_GTT & HAL_INT_BMISC);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	callout_reset(&sc->sc_wd_ch, hz, ath_watchdog, sc);
