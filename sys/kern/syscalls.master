@@ -944,5 +944,8 @@
 529	AUE_NULL	STD	{ int rctl_remove_rule(const void *inbufp, \
 				    size_t inbuflen, void *outbufp, \
 				    size_t outbuflen); }
+530	AUE_NULL	STD	{ int posix_fallocate(int fd, \
+				    off_t offset, off_t len); }
+531	AUE_NULL	UNIMPL	posix_fadvise
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

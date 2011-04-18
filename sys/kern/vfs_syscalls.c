@@ -4671,3 +4671,83 @@ out:
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
+
+static int
+kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
+{
+	struct file *fp;
+	struct mount *mp;
+	struct vnode *vp;
+	int error, vfslocked, vnlocked;
+
+	fp = NULL;
+	mp = NULL;
+	vfslocked = 0;
+	vnlocked = 0;
+	error = fget(td, fd, &fp);
+	if (error != 0)
+		goto out;
+
+	switch (fp->f_type) {
+	case DTYPE_VNODE:
+		break;
+	case DTYPE_PIPE:
+	case DTYPE_FIFO:
+		error = ESPIPE;
+		goto out;
+	default:
+		error = ENODEV;
+		goto out;
+	}
+        if ((fp->f_flag & FWRITE) == 0) {
+                error = EBADF;
+		goto out;
+        }
+	vp = fp->f_vnode;
+	if (vp->v_type != VREG) {
+		error = ENODEV;
+		goto out;
+	}
+	if (offset < 0 || len <= 0) {
+		error = EINVAL;
+		goto out;
+	}
+	/* Check for wrap. */
+	if (offset > OFF_MAX - len) {
+		error = EFBIG;
+		goto out;
+	}
+
+	bwillwrite();
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+	if (error != 0)
+		goto out;
+	error = vn_lock(vp, LK_EXCLUSIVE);
+	if (error != 0)
+		goto out;
+	vnlocked = 1;
+#ifdef MAC
+	error = mac_vnode_check_write(td->td_ucred, fp->f_cred, vp);
+	if (error != 0)
+		goto out;
+#endif
+	error = VOP_ALLOCATE(vp, offset, len);
+	if (error != 0)
+		vnlocked = 0;
+ out:
+	if (vnlocked)
+		VOP_UNLOCK(vp, 0);
+	vn_finished_write(mp);
+	VFS_UNLOCK_GIANT(vfslocked);
+	if (fp != NULL)
+		fdrop(fp, td);
+	return (error);
+}
+
+int
+posix_fallocate(struct thread *td, struct posix_fallocate_args *uap)
+{
+
+	return (kern_posix_fallocate(td, uap->fd, uap->offset, uap->len));
+}
