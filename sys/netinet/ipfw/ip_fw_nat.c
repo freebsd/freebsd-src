@@ -359,28 +359,17 @@ ipfw_nat_cfg(struct sockopt *sopt)
 	IPFW_WLOCK(chain);
 	ptr = lookup_nat(&chain->nat, ser_n->id);
 	if (ptr == NULL) {
+		IPFW_WUNLOCK(chain);
 		/* New rule: allocate and init new instance. */
-		ptr = malloc(sizeof(struct cfg_nat),
-		    M_IPFW, M_NOWAIT | M_ZERO);
-		if (ptr == NULL) {
-			IPFW_WUNLOCK(chain);
-			free(buf, M_IPFW);
-			return (ENOSPC);
-		}
+		ptr = malloc(sizeof(struct cfg_nat), M_IPFW, M_WAITOK | M_ZERO);
 		ptr->lib = LibAliasInit(NULL);
-		if (ptr->lib == NULL) {
-			IPFW_WUNLOCK(chain);
-			free(ptr, M_IPFW);
-			free(buf, M_IPFW);
-			return (EINVAL);
-		}
 		LIST_INIT(&ptr->redir_chain);
 	} else {
 		/* Entry already present: temporarly unhook it. */
 		LIST_REMOVE(ptr, _next);
 		flush_nat_ptrs(chain, ser_n->id);
+		IPFW_WUNLOCK(chain);
 	}
-	IPFW_WUNLOCK(chain);
 
 	/*
 	 * Basic nat configuration.
@@ -407,6 +396,10 @@ ipfw_nat_cfg(struct sockopt *sopt)
 	add_redir_spool_cfg(&buf[(sizeof(struct cfg_nat))], ptr);
 	free(buf, M_IPFW);
 	IPFW_WLOCK(chain);
+	/*
+	 * XXXGL race here: another ipfw_nat_cfg() may already inserted
+	 * entry with the same ser_n->id.
+	 */
 	LIST_INSERT_HEAD(&chain->nat, ptr, _next);
 	IPFW_WUNLOCK(chain);
 	return (0);
