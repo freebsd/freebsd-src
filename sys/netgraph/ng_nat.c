@@ -276,10 +276,6 @@ ng_nat_constructor(node_p node)
 
 	/* Init aliasing engine. */
 	priv->lib = LibAliasInit(NULL);
-	if (priv->lib == NULL) {
-		free(priv, M_NETGRAPH);
-		return (ENOMEM);
-	}
 
 	/* Set same ports on. */
 	(void )LibAliasSetMode(priv->lib, PKT_ALIAS_SAME_PORTS,
