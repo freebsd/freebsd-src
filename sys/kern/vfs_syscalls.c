@@ -4699,10 +4699,10 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 		error = ENODEV;
 		goto out;
 	}
-        if ((fp->f_flag & FWRITE) == 0) {
-                error = EBADF;
+	if ((fp->f_flag & FWRITE) == 0) {
+		error = EBADF;
 		goto out;
-        }
+	}
 	vp = fp->f_vnode;
 	if (vp->v_type != VREG) {
 		error = ENODEV;
