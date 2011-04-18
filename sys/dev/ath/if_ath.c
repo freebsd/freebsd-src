@@ -1563,7 +1563,10 @@ ath_init(void *arg)
 
 	/* Enable global TX timeout statistics if available */
 	if (ath_hal_gtxto_supported(ah))
-		sc->sc_imask |= (HAL_INT_GTT & HAL_INT_BMISC);
+		sc->sc_imask |= HAL_INT_GTT;
+
+	DPRINTF(sc, ATH_DEBUG_RESET, "%s: imask=0x%x\n",
+		__func__, sc->sc_imask);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	callout_reset(&sc->sc_wd_ch, hz, ath_watchdog, sc);

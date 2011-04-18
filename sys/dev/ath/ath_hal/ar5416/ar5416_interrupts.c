@@ -234,12 +234,18 @@ ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 			mask2 |= AR_IMR_S2_DTIMSYNC;
 		if (ints & HAL_INT_CABEND)
 			mask2 |= (AR_IMR_S2_CABEND );
-		if (ints & HAL_INT_GTT)
-			mask2 |= AR_IMR_S2_GTT;			
 		if (ints & HAL_INT_CST)
 			mask2 |= AR_IMR_S2_CST;
 		if (ints & HAL_INT_TSFOOR)
 			mask2 |= AR_IMR_S2_TSFOOR;
+	}
+
+	if (ints & (HAL_INT_GTT | HAL_INT_CST)) {
+		mask |= AR_IMR_BCNMISC;
+		if (ints & HAL_INT_GTT)
+			mask2 |= AR_IMR_S2_GTT;
+		if (ints & HAL_INT_CST)
+			mask2 |= AR_IMR_S2_CST;
 	}
 
 	/* Write the new IMR and store off our SW copy. */
