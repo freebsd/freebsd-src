@@ -707,6 +707,8 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_rx_hitqueueend, 0, "RX hit queue end");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_timeout", CTLFLAG_RD,
 	    &sc->sc_stats.ast_tx_timeout, 0, "TX Global Timeout");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_cst", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_cst, 0, "TX Carrier Sense Timeout");
 
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);
