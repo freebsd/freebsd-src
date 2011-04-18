@@ -1386,10 +1386,6 @@ nfs_sync(struct mount *mp, int waitfor)
 
 	td = curthread;
 
-	/* For a forced unmount, just return EPERM. */
-	if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0)
-		return (EPERM);
-
 	/*
 	 * Force stale buffer cache information to be flushed.
 	 */
