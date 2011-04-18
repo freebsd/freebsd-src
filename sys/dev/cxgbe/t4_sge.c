@@ -876,7 +876,7 @@ doorbell:
 	 * WR that reduced it to 0 so we don't need another flush (we don't have
 	 * any descriptor for a flush WR anyway, duh).
 	 */
-	if (m && eq->avail > 0)
+	if (m && eq->avail > 0 && !(eq->flags & EQ_CRFLUSHED))
 		write_eqflush_wr(eq);
 	txq->m = m;
 
@@ -1882,8 +1882,11 @@ write_txpkt_wr(struct port_info *pi, struct sge_txq *txq, struct mbuf *m,
 	wr->op_immdlen = htobe32(V_FW_WR_OP(FW_ETH_TX_PKT_WR) |
 	    V_FW_WR_IMMDLEN(ctrl));
 	ctrl = V_FW_WR_LEN16(howmany(nflits, 2));
-	if (eq->avail == ndesc)
+	if (eq->avail == ndesc && !(eq->flags & EQ_CRFLUSHED)) {
 		ctrl |= F_FW_WR_EQUEQ | F_FW_WR_EQUIQ;
+		eq->flags |= EQ_CRFLUSHED;
+	}
+
 	wr->equiq_to_len16 = htobe32(ctrl);
 	wr->r3 = 0;
 
@@ -2071,8 +2074,10 @@ write_txpkts_wr(struct sge_txq *txq, struct txpkts *txpkts)
 	wr->op_immdlen = htobe32(V_FW_WR_OP(FW_ETH_TX_PKTS_WR) |
 	    V_FW_WR_IMMDLEN(0)); /* immdlen does not matter in this WR */
 	ctrl = V_FW_WR_LEN16(howmany(txpkts->nflits, 2));
-	if (eq->avail == ndesc)
+	if (eq->avail == ndesc && !(eq->flags & EQ_CRFLUSHED)) {
 		ctrl |= F_FW_WR_EQUEQ | F_FW_WR_EQUIQ;
+		eq->flags |= EQ_CRFLUSHED;
+	}
 	wr->equiq_to_len16 = htobe32(ctrl);
 	wr->plen = htobe16(txpkts->plen);
 	wr->npkt = txpkts->npkt;
@@ -2083,7 +2088,7 @@ write_txpkts_wr(struct sge_txq *txq, struct txpkts *txpkts)
 	txsd = &eq->sdesc[eq->pidx];
 	txsd->desc_used = ndesc;
 
-	KASSERT(eq->avail >= ndesc, ("%s: out ouf descriptors", __func__));
+	KASSERT(eq->avail >= ndesc, ("%s: out of descriptors", __func__));
 
 	eq->pending += ndesc;
 	eq->avail -= ndesc;
@@ -2384,6 +2389,7 @@ write_eqflush_wr(struct sge_eq *eq)
 	txsd->desc_used = 1;
 	txsd->map_used = 0;
 
+	eq->flags |= EQ_CRFLUSHED;
 	eq->pending++;
 	eq->avail--;
 	if (++eq->pidx == eq->cap)
@@ -2438,6 +2444,10 @@ handle_sge_egr_update(struct adapter *sc, const struct cpl_sge_egr_update *cpl)
 	struct port_info *pi;
 
 	txq = (void *)s->eqmap[qid - s->eq_start];
+
+	KASSERT(txq->eq.flags & EQ_CRFLUSHED,
+	    ("%s: tx queue %p not expecting an update.", __func__, txq));
+
 	pi = txq->ifp->if_softc;
 	taskqueue_enqueue(pi->tq, &txq->resume_tx);
 	txq->egr_update++;
