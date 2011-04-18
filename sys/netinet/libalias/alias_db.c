@@ -2490,9 +2490,14 @@ LibAliasInit(struct libalias *la)
 #endif
 
 	if (la == NULL) {
+#ifdef _KERNEL
+#undef malloc	/* XXX: ugly */
+		la = malloc(sizeof *la, M_ALIAS, M_WAITOK | M_ZERO);
+#else
 		la = calloc(sizeof *la, 1);
 		if (la == NULL)
 			return (la);
+#endif
 
 #ifndef	_KERNEL		/* kernel cleans up on module unload */
 		if (LIST_EMPTY(&instancehead))
