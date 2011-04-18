@@ -96,7 +96,7 @@ MAN+=	abort2.2 accept.2 access.2 acct.2 adjtime.2 \
 	mq_setattr.2 \
 	msgctl.2 msgget.2 msgrcv.2 msgsnd.2 \
 	msync.2 munmap.2 nanosleep.2 nfssvc.2 ntp_adjtime.2 open.2 \
-	pathconf.2 pipe.2 poll.2 posix_openpt.2 profil.2 \
+	pathconf.2 pipe.2 poll.2 posix_fallocate.2 posix_openpt.2 profil.2 \
 	pselect.2 ptrace.2 quotactl.2 \
 	read.2 readlink.2 reboot.2 recv.2 rename.2 revoke.2 rfork.2 rmdir.2 \
 	rtprio.2

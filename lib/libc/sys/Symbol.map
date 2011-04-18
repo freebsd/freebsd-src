@@ -364,6 +364,7 @@ FBSD_1.2 {
 	cap_enter;
 	cap_getmode;
 	getloginclass;
+	posix_fallocate;
 	rctl_get_racct;
 	rctl_get_rules;
 	rctl_get_limits;

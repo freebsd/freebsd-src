@@ -986,3 +986,7 @@
 529	AUE_NULL	NOPROTO	{ int rctl_remove_rule(const void *inbufp, \
 				    size_t inbuflen, void *outbufp, \
 				    size_t outbuflen); }
+530	AUE_NULL	STD	{ int freebsd32_posix_fallocate(int fd,\
+				     uint32_t offsetlo, uint32_t offsethi,\
+				     uint32_t lenlo, uint32_t lenhi); }
+531	AUE_NULL	UNIMPL	posix_fadvise
