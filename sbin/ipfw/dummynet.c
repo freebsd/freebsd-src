@@ -284,7 +284,7 @@ flush_buf(char *buf)
 		printf("%s\n", buf);
 	buf[0] = '\0';
 }
-	
+
 /*
  * generic list routine. We expect objects in a specific order, i.e.
  * PIPES AND SCHEDULERS:
