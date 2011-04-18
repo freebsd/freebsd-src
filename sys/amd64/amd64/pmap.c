@@ -239,7 +239,6 @@ static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte);
 static void pmap_fill_ptp(pt_entry_t *firstpte, pt_entry_t newpte);
 static void pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte);
-static void pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva);
 static boolean_t pmap_is_modified_pvh(struct md_page *pvh);
 static boolean_t pmap_is_referenced_pvh(struct md_page *pvh);
 static void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode);
@@ -1105,7 +1104,9 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 }
 #endif /* !SMP */
 
-static void
+#define PMAP_CLFLUSH_THRESHOLD   (2 * 1024 * 1024)
+
+void
 pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 {
 
@@ -1117,7 +1118,7 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 	if (cpu_feature & CPUID_SS)
 		; /* If "Self Snoop" is supported, do nothing. */
 	else if ((cpu_feature & CPUID_CLFSH) != 0 &&
-		 eva - sva < 2 * 1024 * 1024) {
+	    eva - sva < PMAP_CLFLUSH_THRESHOLD) {
 
 		/*
 		 * Otherwise, do per-cache line flush.  Use the mfence
@@ -1138,6 +1139,34 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 		 * Globally invalidate cache.
 		 */
 		pmap_invalidate_cache();
+	}
+}
+
+/*
+ * Remove the specified set of pages from the data and instruction caches.
+ *
+ * In contrast to pmap_invalidate_cache_range(), this function does not
+ * rely on the CPU's self-snoop feature, because it is intended for use
+ * when moving pages into a different cache domain.
+ */
+void
+pmap_invalidate_cache_pages(vm_page_t *pages, int count)
+{
+	vm_offset_t daddr, eva;
+	int i;
+
+	if (count >= PMAP_CLFLUSH_THRESHOLD / PAGE_SIZE ||
+	    (cpu_feature & CPUID_CLFSH) == 0)
+		pmap_invalidate_cache();
+	else {
+		mfence();
+		for (i = 0; i < count; i++) {
+			daddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pages[i]));
+			eva = daddr + PAGE_SIZE;
+			for (; daddr < eva; daddr += cpu_clflush_line_size)
+				clflush(daddr);
+		}
+		mfence();
 	}
 }
 
