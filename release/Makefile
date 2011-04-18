@@ -4,6 +4,7 @@
 # 
 # User-driven targets:
 #  cdrom: Builds release CD-ROM media (release.iso)
+#  memstick: Builds memory stick image (memstick)
 #  ftp: Sets up FTP distribution area (ftp)
 #  release: Build all media and FTP distribution area
 #  install: Copies all release media into ${DESTDIR}
