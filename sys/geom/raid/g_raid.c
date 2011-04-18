@@ -55,7 +55,7 @@ u_int g_raid_aggressive_spare = 0;
 TUNABLE_INT("kern.geom.raid.aggressive_spare", &g_raid_aggressive_spare);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, aggressive_spare, CTLFLAG_RW,
     &g_raid_aggressive_spare, 0, "Use disks without metadata as spare");
-u_int g_raid_debug = 2;
+u_int g_raid_debug = 0;
 TUNABLE_INT("kern.geom.raid.debug", &g_raid_debug);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, debug, CTLFLAG_RW, &g_raid_debug, 0,
     "Debug level");
