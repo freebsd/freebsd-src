@@ -275,6 +275,8 @@ ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
         uint32_t capability, uint32_t *result)
 {
 	switch (type) {
+	case HAL_CAP_GTXTO:
+		return HAL_OK;		/* All AR5416+ supports Global TX Timeout */
 	case HAL_CAP_BB_HANG:
 		switch (capability) {
 		case HAL_BB_HANG_RIFS:

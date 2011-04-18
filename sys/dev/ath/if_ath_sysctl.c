@@ -705,6 +705,8 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_tx_htprotect, 0, "HT tx frames with protection");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_hitqueueend", CTLFLAG_RD,
 	    &sc->sc_stats.ast_rx_hitqueueend, 0, "RX hit queue end");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_timeout", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_timeout, 0, "TX Global Timeout");
 
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);
