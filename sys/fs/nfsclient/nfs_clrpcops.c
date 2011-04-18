@@ -567,11 +567,6 @@ nfsrpc_close(vnode_t vp, int doclose, NFSPROC_T *p)
 
 	if (vnode_vtype(vp) != VREG)
 		return (0);
-
-	/* For forced unmounts, just return. */
-	if ((vp->v_mount->mnt_kern_flag & MNTK_UNMOUNTF) != 0)
-		return (0);
-
 	if (doclose)
 		error = nfscl_doclose(vp, &clp, p);
 	else
