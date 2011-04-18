@@ -339,6 +339,9 @@ IDTVEC(prot)
  * and the new privilige level.  We are still running on the old user stack
  * pointer.  We have to juggle a few things around to find our stack etc.
  * swapgs gives us access to our PCPU space only.
+ *
+ * We do not support invoking this from a custom %cs or %ss (e.g. using
+ * entries from an LDT).
  */
 IDTVEC(fast_syscall)
 	swapgs
@@ -379,7 +382,38 @@ IDTVEC(fast_syscall)
 	FAKE_MCOUNT(TF_RIP(%rsp))
 	movq	%rsp,%rdi
 	call	syscall
-	movq	PCPU(CURPCB),%rax
+1:	movq	PCPU(CURPCB),%rax
+	/* Disable interrupts before testing PCB_FULL_IRET. */
+	cli
+	testl	$PCB_FULL_IRET,PCB_FLAGS(%rax)
+	jnz	3f
+	/* Check for and handle AST's on return to userland. */
+	movq	PCPU(CURTHREAD),%rax
+	testl	$TDF_ASTPENDING | TDF_NEEDRESCHED,TD_FLAGS(%rax)
+	je	2f
+	sti
+	movq	%rsp, %rdi
+	call	ast
+	jmp	1b
+2:	/* Restore preserved registers. */
+	MEXITCOUNT
+	movq	TF_RDI(%rsp),%rdi	/* bonus; preserve arg 1 */
+	movq	TF_RSI(%rsp),%rsi	/* bonus: preserve arg 2 */
+	movq	TF_RDX(%rsp),%rdx	/* return value 2 */
+	movq	TF_RAX(%rsp),%rax	/* return value 1 */
+	movq	TF_RBX(%rsp),%rbx	/* C preserved */
+	movq	TF_RBP(%rsp),%rbp	/* C preserved */
+	movq	TF_R12(%rsp),%r12	/* C preserved */
+	movq	TF_R13(%rsp),%r13	/* C preserved */
+	movq	TF_R14(%rsp),%r14	/* C preserved */
+	movq	TF_R15(%rsp),%r15	/* C preserved */
+	movq	TF_RFLAGS(%rsp),%r11	/* original %rflags */
+	movq	TF_RIP(%rsp),%rcx	/* original %rip */
+	movq	TF_RSP(%rsp),%r9	/* user stack pointer */
+	movq	%r9,%rsp		/* original %rsp */
+	swapgs
+	sysretq
+3:	/* Requested full context restore, use doreti for that. */
 	MEXITCOUNT
 	jmp	doreti
 
@@ -628,7 +662,7 @@ doreti:
 doreti_ast:
 	/*
 	 * Check for ASTs atomically with returning.  Disabling CPU
-	 * interrupts provides sufficient locking eve in the SMP case,
+	 * interrupts provides sufficient locking even in the SMP case,
 	 * since we will be informed of any new ASTs by an IPI.
 	 */
 	cli
@@ -649,8 +683,7 @@ doreti_ast:
 	 */
 doreti_exit:
 	MEXITCOUNT
-	movq	PCPU(CURTHREAD),%r8
-	movq	TD_PCB(%r8),%r8
+	movq	PCPU(CURPCB),%r8
 
 	/*
 	 * Do not reload segment registers for kernel.
