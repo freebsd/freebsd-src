@@ -2856,4 +2856,9 @@ ahcipoll(struct cam_sim *sim)
 	struct ahci_channel *ch = (struct ahci_channel *)cam_sim_softc(sim);
 
 	ahci_ch_intr(ch->dev);
+	if (ch->resetting != 0 &&
+	    (--ch->resetpolldiv <= 0 || !callout_pending(&ch->reset_timer))) {
+		ch->resetpolldiv = 1000;
+		ahci_reset_to(ch->dev);
+	}
 }
