@@ -253,9 +253,7 @@ ngp_constructor(node_p node)
 {
 	priv_p priv;
 
-	priv = malloc(sizeof(*priv), M_NG_PIPE, M_ZERO | M_NOWAIT);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NG_PIPE, M_ZERO | M_WAITOK);
 	NG_NODE_SET_PRIVATE(node, priv);
 
 	/* Mark node as single-threaded */
