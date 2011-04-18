@@ -913,9 +913,10 @@ ipfw_chk(struct ip_fw_args *args)
  * pointer might become stale after other pullups (but we never use it
  * this way).
  */
-#define PULLUP_TO(_len, p, T)					\
+#define PULLUP_TO(_len, p, T)	PULLUP_LEN(_len, p, sizeof(T))
+#define PULLUP_LEN(_len, p, T)					\
 do {								\
-	int x = (_len) + sizeof(T);				\
+	int x = (_len) + T;					\
 	if ((m)->m_len < x) {					\
 		args->m = m = m_pullup(m, x);			\
 		if (m == NULL)					\
@@ -1600,6 +1601,7 @@ do {								\
 				break;
 
 			case O_TCPOPTS:
+				PULLUP_LEN(hlen, ulp, (TCP(ulp)->th_off << 2));
 				match = (proto == IPPROTO_TCP && offset == 0 &&
 				    tcpopts_match(TCP(ulp), cmd));
 				break;
@@ -2233,6 +2235,7 @@ do {								\
 			}
 
 		}	/* end of inner loop, scan opcodes */
+#undef PULLUP_LEN
 
 		if (done)
 			break;
