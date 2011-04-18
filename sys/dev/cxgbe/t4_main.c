@@ -2673,6 +2673,7 @@ cxgbe_txq_start(void *arg, int count)
 	struct sge_txq *txq = arg;
 
 	TXQ_LOCK(txq);
+	txq->eq.flags &= ~EQ_CRFLUSHED;
 	txq_start(txq->ifp, txq);
 	TXQ_UNLOCK(txq);
 }
