@@ -154,10 +154,7 @@ ng_xxx_constructor(node_p node)
 	int i;
 
 	/* Initialize private descriptor */
-	privdata = malloc(sizeof(*privdata), M_NETGRAPH,
-		M_NOWAIT | M_ZERO);
-	if (privdata == NULL)
-		return (ENOMEM);
+	privdata = malloc(sizeof(*privdata), M_NETGRAPH, M_WAITOK | M_ZERO);
 	for (i = 0; i < XXX_NUM_DLCIS; i++) {
 		privdata->channel[i].dlci = -2;
 		privdata->channel[i].channel = i;

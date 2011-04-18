@@ -109,10 +109,7 @@ ng_hci_constructor(node_p node)
 {
 	ng_hci_unit_p	unit = NULL;
 
-	unit = malloc(sizeof(*unit), M_NETGRAPH_HCI,
-		M_NOWAIT | M_ZERO);
-	if (unit == NULL)
-		return (ENOMEM);
+	unit = malloc(sizeof(*unit), M_NETGRAPH_HCI, M_WAITOK | M_ZERO);
 
 	unit->node = node;
 	unit->debug = NG_HCI_WARN_LEVEL;
