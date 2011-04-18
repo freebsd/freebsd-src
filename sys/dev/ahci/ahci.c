@@ -1747,11 +1747,11 @@ ahci_execute_transaction(struct ahci_slot *slot)
 	if (ccb->ccb_h.func_code == XPT_ATA_IO &&
 	    (ccb->ataio.cmd.command == ATA_DEVICE_RESET ||
 	    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL))) {
-		int count, timeout = ccb->ccb_h.timeout;
+		int count, timeout = ccb->ccb_h.timeout * 100;
 		enum ahci_err_type et = AHCI_ERR_NONE;
 
 		for (count = 0; count < timeout; count++) {
-			DELAY(1000);
+			DELAY(10);
 			if (!(ATA_INL(ch->r_mem, AHCI_P_CI) & (1 << slot->slot)))
 				break;
 			if (ATA_INL(ch->r_mem, AHCI_P_TFD) & ATA_S_ERROR) {
@@ -1787,7 +1787,7 @@ ahci_execute_transaction(struct ahci_slot *slot)
 		    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL) &&
 		    (ccb->ataio.cmd.control & ATA_A_RESET) == 0) {
 			while ((val = fis[2]) & (ATA_S_BUSY | ATA_S_DRQ)) {
-				DELAY(1000);
+				DELAY(10);
 				if (count++ >= timeout) {
 					device_printf(dev, "device is not "
 					    "ready after soft-reset: "
@@ -2305,8 +2305,8 @@ ahci_stop(device_t dev)
 	/* Wait for activity stop. */
 	timeout = 0;
 	do {
-		DELAY(1000);
-		if (timeout++ > 1000) {
+		DELAY(10);
+		if (timeout++ > 50000) {
 			device_printf(dev, "stopping AHCI engine failed\n");
 			break;
 		}
@@ -2328,8 +2328,8 @@ ahci_clo(device_t dev)
 		ATA_OUTL(ch->r_mem, AHCI_P_CMD, cmd);
 		timeout = 0;
 		do {
-			DELAY(1000);
-			if (timeout++ > 1000) {
+			DELAY(10);
+			if (timeout++ > 50000) {
 			    device_printf(dev, "executing CLO failed\n");
 			    break;
 			}
@@ -2350,8 +2350,8 @@ ahci_stop_fr(device_t dev)
 	/* Wait for FIS reception stop. */
 	timeout = 0;
 	do {
-		DELAY(1000);
-		if (timeout++ > 1000) {
+		DELAY(10);
+		if (timeout++ > 50000) {
 			device_printf(dev, "stopping AHCI FR engine failed\n");
 			break;
 		}
@@ -2408,11 +2408,11 @@ ahci_reset_to(void *arg)
 	if (ahci_wait_ready(dev, ch->resetting == 0 ? -1 : 0,
 	    (310 - ch->resetting) * 100) == 0) {
 		ch->resetting = 0;
+		ahci_start(dev, 1);
 		xpt_release_simq(ch->sim, TRUE);
 		return;
 	}
 	if (ch->resetting == 0) {
-		ahci_stop(dev);
 		ahci_clo(dev);
 		ahci_start(dev, 1);
 		xpt_release_simq(ch->sim, TRUE);
@@ -2495,7 +2495,6 @@ ahci_reset(device_t dev)
 		else
 			ch->resetting = 310;
 	}
-	ahci_start(dev, 1);
 	ch->devices = 1;
 	/* Enable wanted port interrupts */
 	ATA_OUTL(ch->r_mem, AHCI_P_IE,
@@ -2507,8 +2506,10 @@ ahci_reset(device_t dev)
 	      AHCI_P_IX_DS | AHCI_P_IX_PS | (ctlr->ccc ? 0 : AHCI_P_IX_DHR)));
 	if (ch->resetting)
 		callout_reset(&ch->reset_timer, hz / 10, ahci_reset_to, dev);
-	else
+	else {
+		ahci_start(dev, 1);
 		xpt_release_simq(ch->sim, TRUE);
+	}
 }
 
 static int
@@ -2569,7 +2570,7 @@ ahci_sata_connect(struct ahci_channel *ch)
 	int timeout;
 
 	/* Wait up to 100ms for "connect well" */
-	for (timeout = 0; timeout < 100 ; timeout++) {
+	for (timeout = 0; timeout < 1000 ; timeout++) {
 		status = ATA_INL(ch->r_mem, AHCI_P_SSTS);
 		if (((status & ATA_SS_DET_MASK) == ATA_SS_DET_PHY_ONLINE) &&
 		    ((status & ATA_SS_SPD_MASK) != ATA_SS_SPD_NO_SPEED) &&
@@ -2582,9 +2583,9 @@ ahci_sata_connect(struct ahci_channel *ch)
 			}
 			return (0);
 		}
-		DELAY(1000);
+		DELAY(100);
 	}
-	if (timeout >= 100) {
+	if (timeout >= 1000) {
 		if (bootverbose) {
 			device_printf(ch->dev, "SATA connect timeout status=%08x\n",
 			    status);
@@ -2592,8 +2593,8 @@ ahci_sata_connect(struct ahci_channel *ch)
 		return (0);
 	}
 	if (bootverbose) {
-		device_printf(ch->dev, "SATA connect time=%dms status=%08x\n",
-		    timeout, status);
+		device_printf(ch->dev, "SATA connect time=%dus status=%08x\n",
+		    timeout * 100, status);
 	}
 	/* Clear SATA error register */
 	ATA_OUTL(ch->r_mem, AHCI_P_SERR, 0xffffffff);
@@ -2625,11 +2626,10 @@ ahci_sata_phy_reset(device_t dev)
 	ATA_OUTL(ch->r_mem, AHCI_P_SCTL,
 	    ATA_SC_DET_RESET | val |
 	    ATA_SC_IPM_DIS_PARTIAL | ATA_SC_IPM_DIS_SLUMBER);
-	DELAY(5000);
+	DELAY(1000);
 	ATA_OUTL(ch->r_mem, AHCI_P_SCTL,
 	    ATA_SC_DET_IDLE | val | ((ch->pm_level > 0) ? 0 :
 	    (ATA_SC_IPM_DIS_PARTIAL | ATA_SC_IPM_DIS_SLUMBER)));
-	DELAY(5000);
 	if (!ahci_sata_connect(ch)) {
 		if (ch->caps & AHCI_CAP_SSS) {
 			val = ATA_INL(ch->r_mem, AHCI_P_CMD);
