@@ -305,9 +305,9 @@ int main (int argc, char** argv)
 			else {
 				do {
 					rval = SetAliasAddressFromIfName (mip->ifName);
-					if (rval == -2)
+					if (background != 0 && rval == EAGAIN)
 						sleep(1);
-				} while (rval == -2);
+				} while (background != 0 && rval == EAGAIN);
 				if (rval != 0)
 					exit(1);
 			}
@@ -648,9 +648,9 @@ static void DoAliasing (int fd, int direction)
 	if (mip->assignAliasAddr) {
 		do {
 			rval = SetAliasAddressFromIfName (mip->ifName);
-			if (rval == -2)
+			if (background != 0 && rval == EAGAIN)
 				sleep(1);
-		} while (rval == -2);
+		} while (background != 0 && rval == EAGAIN);
 		if (rval != 0)
 			exit(1);
 		mip->assignAliasAddr = 0;
@@ -969,7 +969,7 @@ SetAliasAddressFromIfName(const char *ifn)
 	if (sin == NULL) {
 		warnx("%s: cannot get interface address", ifn);
 		free(buf);
-		return -2;
+		return EAGAIN;
 	}
 
 	LibAliasSetAddress(mla, sin->sin_addr);
