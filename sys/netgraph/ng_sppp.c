@@ -242,7 +242,6 @@ ng_sppp_constructor (node_p node)
 	struct sppp *pp;
 	struct ifnet *ifp;
 	priv_p priv;
-	int error = 0;
 
 	/* Allocate node and interface private structures */
 	priv = malloc(sizeof(*priv), M_NETGRAPH_SPPP, M_WAITOK | M_ZERO);
