@@ -608,6 +608,7 @@ vop_vptofh {
 	IN struct fid *fhp;
 };
 
+
 %% vptocnp		vp	L L L
 %% vptocnp		vpp	- U -
 
@@ -617,4 +618,13 @@ vop_vptocnp {
 	IN struct ucred *cred;
 	INOUT char *buf;
 	INOUT int *buflen;
+};
+
+
+%% allocate	vp	E E U
+
+vop_allocate {
+	IN struct vnode *vp;
+	IN off_t offset;
+	IN off_t len;
 };
