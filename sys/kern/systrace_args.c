@@ -3185,6 +3185,15 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
+	/* posix_fallocate */
+	case 530: {
+		struct posix_fallocate_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->offset; /* off_t */
+		iarg[2] = p->len; /* off_t */
+		*n_args = 3;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -8468,6 +8477,22 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 3:
 			p = "size_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* posix_fallocate */
+	case 530:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "off_t";
+			break;
+		case 2:
+			p = "off_t";
 			break;
 		default:
 			break;
