@@ -458,7 +458,7 @@ struct flow6_hash_entry {
 			 ((t) << 3))	/* 8   */
 
 /* Prototypes for netflow.c */
-int	ng_netflow_cache_init(priv_p);
+void	ng_netflow_cache_init(priv_p);
 void	ng_netflow_cache_flush(priv_p);
 int	ng_netflow_fib_init(priv_p priv, int fib);
 void	ng_netflow_copyinfo(priv_p, struct ng_netflow_info *);

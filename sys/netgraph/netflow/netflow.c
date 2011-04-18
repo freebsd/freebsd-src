@@ -503,7 +503,7 @@ hash6_insert(priv_p priv, struct flow6_hash_entry *hsh6, struct flow6_rec *r,
  */
 
 /* Allocate memory and set up flow cache */
-int
+void
 ng_netflow_cache_init(priv_p priv)
 {
 	struct flow_hash_entry *hsh;
@@ -546,8 +546,6 @@ ng_netflow_cache_init(priv_p priv)
 
 	ng_netflow_v9_cache_init(priv);
 	CTR0(KTR_NET, "ng_netflow startup()");
-
-	return (0);
 }
 
 /* Initialize new FIB table for v5 and v9 */
