@@ -22,6 +22,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110418:
+	The GNU Objective-C runtime library (libobjc), and other Objective-C
+	related components have been removed from the base system.  If you
+	require an Objective-C library, please use one of the available ports.
+
 20110331:
 	ath(4) has been split into bus- and device- modules. if_ath contains
 	the HAL, the TX rate control and the network device code. if_ath_pci
