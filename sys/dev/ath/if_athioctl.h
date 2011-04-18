@@ -130,6 +130,7 @@ struct ath_stats {
 	u_int32_t	ast_tx_htprotect;	/* HT tx frames with protection */
 	u_int32_t	ast_rx_hitqueueend;
 	u_int32_t	ast_tx_timeout;		/* Global TX timeout */
+	u_int32_t	ast_tx_cst;		/* Carrier sense timeout */
 	u_int32_t	ast_pad[16];
 };
 

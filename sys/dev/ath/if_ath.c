@@ -1357,6 +1357,8 @@ ath_intr(void *arg)
 		}
 		if (status & HAL_INT_GTT)
 			sc->sc_stats.ast_tx_timeout++;
+		if (status & HAL_INT_CST)
+			sc->sc_stats.ast_tx_cst++;
 		if (status & HAL_INT_MIB) {
 			sc->sc_stats.ast_mib++;
 			/*
@@ -1561,9 +1563,9 @@ ath_init(void *arg)
 	if (sc->sc_needmib && ic->ic_opmode == IEEE80211_M_STA)
 		sc->sc_imask |= HAL_INT_MIB;
 
-	/* Enable global TX timeout statistics if available */
+	/* Enable global TX timeout and carrier sense timeout if available */
 	if (ath_hal_gtxto_supported(ah))
-		sc->sc_imask |= HAL_INT_GTT;
+		sc->sc_imask |= (HAL_INT_GTT | HAL_INT_CST);
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: imask=0x%x\n",
 		__func__, sc->sc_imask);
