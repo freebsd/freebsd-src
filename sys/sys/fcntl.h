@@ -278,7 +278,7 @@ struct oflock {
 #endif
 
 /*
- * XXX missing posix_fadvise() and posix_fallocate(), and POSIX_FADV_* macros.
+ * XXX missing posix_fadvise() and POSIX_FADV_* macros.
  */
 
 #ifndef _KERNEL
@@ -288,6 +288,9 @@ int	creat(const char *, mode_t);
 int	fcntl(int, int, ...);
 #if __BSD_VISIBLE || __POSIX_VISIBLE >= 200809
 int	openat(int, const char *, int, ...);
+#endif
+#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112
+int	posix_fallocate(int, off_t, off_t);
 #endif
 #if __BSD_VISIBLE
 int	flock(int, int);
