@@ -2433,7 +2433,10 @@ printf("replace=%s\n",nnn);
 		    newvp = NFSTOV(np);
 		}
 		if (!attrflag && *npp == NULL) {
-			vrele(newvp);
+			if (newvp == dvp)
+				vrele(newvp);
+			else
+				vput(newvp);
 			return (ENOENT);
 		}
 		if (attrflag)
