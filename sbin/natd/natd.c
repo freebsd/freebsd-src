@@ -305,9 +305,11 @@ int main (int argc, char** argv)
 			else {
 				do {
 					rval = SetAliasAddressFromIfName (mip->ifName);
-					if (background != 0 && rval == EAGAIN)
+					if (background == 0 || dynamicMode == 0)
+						break;
+					if (rval == EAGAIN)
 						sleep(1);
-				} while (background != 0 && rval == EAGAIN);
+				} while (rval == EAGAIN);
 				if (rval != 0)
 					exit(1);
 			}
@@ -648,9 +650,11 @@ static void DoAliasing (int fd, int direction)
 	if (mip->assignAliasAddr) {
 		do {
 			rval = SetAliasAddressFromIfName (mip->ifName);
-			if (background != 0 && rval == EAGAIN)
+			if (background == 0 || dynamicMode == 0)
+				break;
+			if (rval == EAGAIN)
 				sleep(1);
-		} while (background != 0 && rval == EAGAIN);
+		} while (rval == EAGAIN);
 		if (rval != 0)
 			exit(1);
 		mip->assignAliasAddr = 0;
