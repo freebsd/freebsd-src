@@ -1266,34 +1266,66 @@ ahci_slotsfree(device_t dev)
 	}
 }
 
-static void
+static int
 ahci_phy_check_events(device_t dev, u_int32_t serr)
 {
 	struct ahci_channel *ch = device_get_softc(dev);
 
-	if ((serr & ATA_SE_PHY_CHANGED) && (ch->pm_level == 0)) {
+	if (((ch->pm_level == 0) && (serr & ATA_SE_PHY_CHANGED)) ||
+	    ((ch->pm_level != 0 || ch->listening) && (serr & ATA_SE_EXCHANGED))) {
 		u_int32_t status = ATA_INL(ch->r_mem, AHCI_P_SSTS);
 		union ccb *ccb;
 
 		if (bootverbose) {
-			if (((status & ATA_SS_DET_MASK) == ATA_SS_DET_PHY_ONLINE) &&
-			    ((status & ATA_SS_SPD_MASK) != ATA_SS_SPD_NO_SPEED) &&
-			    ((status & ATA_SS_IPM_MASK) == ATA_SS_IPM_ACTIVE)) {
+			if ((status & ATA_SS_DET_MASK) != ATA_SS_DET_NO_DEVICE)
 				device_printf(dev, "CONNECT requested\n");
-			} else
+			else
 				device_printf(dev, "DISCONNECT requested\n");
 		}
 		ahci_reset(dev);
 		if ((ccb = xpt_alloc_ccb_nowait()) == NULL)
-			return;
+			return (0);
 		if (xpt_create_path(&ccb->ccb_h.path, NULL,
 		    cam_sim_path(ch->sim),
 		    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 			xpt_free_ccb(ccb);
-			return;
+			return (0);
 		}
 		xpt_rescan(ccb);
+		return (1);
 	}
+	return (0);
+}
+
+static void
+ahci_cpd_check_events(device_t dev)
+{
+	struct ahci_channel *ch = device_get_softc(dev);
+	u_int32_t status;
+	union ccb *ccb;
+
+	if (ch->pm_level == 0)
+		return;
+
+	status = ATA_INL(ch->r_mem, AHCI_P_CMD);
+	if ((status & AHCI_P_CMD_CPD) == 0)
+		return;
+
+	if (bootverbose) {
+		if (status & AHCI_P_CMD_CPS) {
+			device_printf(dev, "COLD CONNECT requested\n");
+		} else
+			device_printf(dev, "COLD DISCONNECT requested\n");
+	}
+	ahci_reset(dev);
+	if ((ccb = xpt_alloc_ccb_nowait()) == NULL)
+		return;
+	if (xpt_create_path(&ccb->ccb_h.path, NULL, cam_sim_path(ch->sim),
+	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		xpt_free_ccb(ccb);
+		return;
+	}
+	xpt_rescan(ccb);
 }
 
 static void
@@ -1353,7 +1385,7 @@ ahci_ch_intr(void *data)
 	struct ahci_channel *ch = device_get_softc(dev);
 	uint32_t istatus, sstatus, cstatus, serr = 0, sntf = 0, ok, err;
 	enum ahci_err_type et;
-	int i, ccs, port;
+	int i, ccs, port, reset = 0;
 
 	/* Read and clear interrupt statuses. */
 	istatus = ATA_INL(ch->r_mem, AHCI_P_IS);
@@ -1389,9 +1421,12 @@ ahci_ch_intr(void *data)
 		serr = ATA_INL(ch->r_mem, AHCI_P_SERR);
 		if (serr) {
 			ATA_OUTL(ch->r_mem, AHCI_P_SERR, serr);
-			ahci_phy_check_events(dev, serr);
+			reset = ahci_phy_check_events(dev, serr);
 		}
 	}
+	/* Process cold presence detection events */
+	if ((istatus & AHCI_P_IX_CPD) && !reset)
+		ahci_cpd_check_events(dev);
 	/* Process command errors */
 	if (istatus & (AHCI_P_IX_OF | AHCI_P_IX_IF |
 	    AHCI_P_IX_HBD | AHCI_P_IX_HBF | AHCI_P_IX_TFE)) {
@@ -2440,7 +2475,8 @@ ahci_reset(device_t dev)
 		ch->devices = 0;
 		/* Enable wanted port interrupts */
 		ATA_OUTL(ch->r_mem, AHCI_P_IE,
-		    (AHCI_P_IX_CPD | AHCI_P_IX_PRC | AHCI_P_IX_PC));
+		    (((ch->pm_level != 0) ? AHCI_P_IX_CPD | AHCI_P_IX_MP : 0) |
+		     AHCI_P_IX_PRC | AHCI_P_IX_PC));
 		xpt_release_simq(ch->sim, TRUE);
 		return;
 	}
@@ -2457,9 +2493,10 @@ ahci_reset(device_t dev)
 	ch->devices = 1;
 	/* Enable wanted port interrupts */
 	ATA_OUTL(ch->r_mem, AHCI_P_IE,
-	     (AHCI_P_IX_CPD | AHCI_P_IX_TFE | AHCI_P_IX_HBF |
+	     (((ch->pm_level != 0) ? AHCI_P_IX_CPD | AHCI_P_IX_MP : 0) |
+	      AHCI_P_IX_TFE | AHCI_P_IX_HBF |
 	      AHCI_P_IX_HBD | AHCI_P_IX_IF | AHCI_P_IX_OF |
-	      ((ch->pm_level == 0) ? AHCI_P_IX_PRC | AHCI_P_IX_PC : 0) |
+	      ((ch->pm_level == 0) ? AHCI_P_IX_PRC : 0) | AHCI_P_IX_PC |
 	      AHCI_P_IX_DP | AHCI_P_IX_UF | (ctlr->ccc ? 0 : AHCI_P_IX_SDB) |
 	      AHCI_P_IX_DS | AHCI_P_IX_PS | (ctlr->ccc ? 0 : AHCI_P_IX_DHR)));
 	if (ch->resetting)
@@ -2564,6 +2601,12 @@ ahci_sata_phy_reset(device_t dev)
 	int sata_rev;
 	uint32_t val;
 
+	if (ch->listening) {
+		val = ATA_INL(ch->r_mem, AHCI_P_CMD);
+		val |= AHCI_P_CMD_SUD;
+		ATA_OUTL(ch->r_mem, AHCI_P_CMD, val);
+		ch->listening = 0;
+	}
 	sata_rev = ch->user[ch->pm_present ? 15 : 0].revision;
 	if (sata_rev == 1)
 		val = ATA_SC_SPD_SPEED_GEN1;
@@ -2582,7 +2625,12 @@ ahci_sata_phy_reset(device_t dev)
 	    (ATA_SC_IPM_DIS_PARTIAL | ATA_SC_IPM_DIS_SLUMBER)));
 	DELAY(5000);
 	if (!ahci_sata_connect(ch)) {
-		if (ch->pm_level > 0)
+		if (ch->caps & AHCI_CAP_SSS) {
+			val = ATA_INL(ch->r_mem, AHCI_P_CMD);
+			val &= ~AHCI_P_CMD_SUD;
+			ATA_OUTL(ch->r_mem, AHCI_P_CMD, val);
+			ch->listening = 1;
+		} else if (ch->pm_level > 0)
 			ATA_OUTL(ch->r_mem, AHCI_P_SCTL, ATA_SC_DET_DISABLE);
 		return (0);
 	}
