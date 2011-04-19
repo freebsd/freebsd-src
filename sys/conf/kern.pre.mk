@@ -23,38 +23,25 @@ NM?=		nm
 OBJCOPY?=	objcopy
 SIZE?=		size
 
-.if ${CC:T:Micc} == "icc"
-COPTFLAGS?=	-O
-.else
-. if defined(DEBUG)
+.if defined(DEBUG)
 _MINUS_O=	-O
 CTFFLAGS+=	-g
-. else
+.else
 _MINUS_O=	-O2
-. endif
-. if ${MACHINE_CPUARCH} == "amd64"
+.endif
+.if ${MACHINE_CPUARCH} == "amd64"
 COPTFLAGS?=-O2 -frename-registers -pipe
-. else
+.else
 COPTFLAGS?=${_MINUS_O} -pipe
-. endif
-. if !empty(COPTFLAGS:M-O[23s]) && empty(COPTFLAGS:M-fno-strict-aliasing)
+.endif
+.if !empty(COPTFLAGS:M-O[23s]) && empty(COPTFLAGS:M-fno-strict-aliasing)
 COPTFLAGS+= -fno-strict-aliasing
-. endif
 .endif
 .if !defined(NO_CPU_COPTFLAGS)
-. if ${CC:T:Micc} == "icc"
-COPTFLAGS+= ${_ICC_CPUCFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
-. else
 COPTFLAGS+= ${_CPUCFLAGS}
-. endif
 .endif
-.if ${CC:T:Micc} == "icc"
-C_DIALECT=
-NOSTDINC= -X
-.else
 C_DIALECT= -std=c99
 NOSTDINC= -nostdinc
-.endif
 
 INCLUDES= ${NOSTDINC} ${INCLMAGIC} -I. -I$S
 
@@ -89,7 +76,6 @@ INCLUDES+= -I$S/dev/cxgb -I$S/dev/cxgbe
 
 CFLAGS=	${COPTFLAGS} ${C_DIALECT} ${DEBUG} ${CWARNFLAGS}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
-.if ${CC:T:Micc} != "icc"
 .if ${CC:T:Mclang} != "clang"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
 .if ${MACHINE_CPUARCH} != "mips"
@@ -103,15 +89,11 @@ CFLAGS+= --param max-inline-insns-single=10000
 .endif
 .endif
 WERROR?= -Werror
-.endif
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
-.if ${CC:T:Micc} == "icc"
-.error "Profiling doesn't work with icc"
-.endif
 CFLAGS+=	-DGPROF -falign-functions=16
 .if ${PROFLEVEL} >= 2
 CFLAGS+=	-DGPROF4 -DGUPROF

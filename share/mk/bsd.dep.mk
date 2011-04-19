@@ -125,13 +125,8 @@ depend: beforedepend ${DEPENDFILE} afterdepend
 
 # Different types of sources are compiled with slightly different flags.
 # Split up the sources, and filter out headers and non-applicable flags.
-.if ${CC:T:Micc} == "icc"
-MKDEP_CFLAGS=	${CFLAGS:M-X*} ${CFLAGS:M-[BIDU]*}
-MKDEP_CXXFLAGS=	${CXXFLAGS:M-X*} ${CXXFLAGS:M-[BIDU]*}
-.else
 MKDEP_CFLAGS=	${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BIDU]*}
 MKDEP_CXXFLAGS=	${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BIDU]*}
-.endif
 
 DPSRCS+= ${SRCS}
 ${DEPENDFILE}: ${DPSRCS}
