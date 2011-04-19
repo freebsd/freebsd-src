@@ -85,8 +85,8 @@
 
 /* RPN parameters - data bits */
 #define RFCOMM_RPN_DATA_5		0x0
-#define RFCOMM_RPN_DATA_6		0x1
-#define RFCOMM_RPN_DATA_7		0x2
+#define RFCOMM_RPN_DATA_6		0x2
+#define RFCOMM_RPN_DATA_7		0x1
 #define RFCOMM_RPN_DATA_8		0x3
 
 /* RPN parameters - stop bit */
