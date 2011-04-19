@@ -112,8 +112,8 @@ drive.
 The disklabel is initialized with information
 read from the scsi inquiry commands, and should be the same as
 the information printed at boot.
-This structure is defined in
-.Xr disklabel 5 .
+This structure is defined in the header file
+.In sys/disklabel.h .
 .It Dv CDIOCCAPABILITY
 .Pq Li "struct ioc_capability"
 Retrieve information from the drive on what features it supports.
@@ -498,7 +498,6 @@ None.
 .Sh SEE ALSO
 .Xr cam 4 ,
 .Xr da 4 ,
-.Xr disklabel 5 ,
 .Xr disklabel 8 ,
 .Xr cd 9
 .Sh HISTORY
