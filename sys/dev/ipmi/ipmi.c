@@ -713,10 +713,10 @@ ipmi_startup(void *arg)
 		return;
 	}
 
-	device_printf(dev, "IPMI device rev. %d, firmware rev. %d.%d, "
+	device_printf(dev, "IPMI device rev. %d, firmware rev. %d.%d%d, "
 	    "version %d.%d\n",
 	     req->ir_reply[1] & 0x0f,
-	     req->ir_reply[2] & 0x0f, req->ir_reply[4],
+	     req->ir_reply[2] & 0x7f, req->ir_reply[3] >> 4, req->ir_reply[3] & 0x0f,
 	     req->ir_reply[4] & 0x0f, req->ir_reply[4] >> 4);
 
 	ipmi_free_request(req);
