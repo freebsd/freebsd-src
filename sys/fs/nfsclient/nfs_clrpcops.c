@@ -1284,16 +1284,22 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
 	struct nfsrv_descript nfsd;
 	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
 	struct nfsrv_descript *nd = &nfsd;
+	int rsize;
 
 	*attrflagp = 0;
 	tsiz = uio_uio_resid(uiop);
-	if (uiop->uio_offset + tsiz > 0xffffffff &&
-	    !NFSHASNFSV3OR4(nmp))
+	NFSLOCKMNT(nmp);
+	if (uiop->uio_offset + tsiz > nmp->nm_maxfilesize) {
+		/* XXX Needs overflow/negative check for uio_offset */
+		NFSUNLOCKMNT(nmp);
 		return (EFBIG);
+	}
+	rsize = nmp->nm_rsize;
+	NFSUNLOCKMNT(nmp);
 	nd->nd_mrep = NULL;
 	while (tsiz > 0) {
 		*attrflagp = 0;
-		len = (tsiz > nmp->nm_rsize) ? nmp->nm_rsize : tsiz;
+		len = (tsiz > rsize) ? rsize : tsiz;
 		NFSCL_REQSTART(nd, NFSPROC_READ, vp);
 		if (nd->nd_flag & ND_NFSV4)
 			nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSTATEID);
@@ -1333,7 +1339,7 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			eof = fxdr_unsigned(int, *tl);
 		}
-		NFSM_STRSIZ(retlen, nmp->nm_rsize);
+		NFSM_STRSIZ(retlen, rsize);
 		error = nfsm_mbufuio(nd, uiop, retlen);
 		if (error)
 			goto nfsmout;
@@ -1457,8 +1463,7 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 	*attrflagp = 0;
 	tsiz = uio_uio_resid(uiop);
 	NFSLOCKMNT(nmp);
-	if (uiop->uio_offset + tsiz > 0xffffffff &&
-	    !NFSHASNFSV3OR4(nmp)) {
+	if (uiop->uio_offset + tsiz > nmp->nm_maxfilesize) {
 		NFSUNLOCKMNT(nmp);
 		return (EFBIG);
 	}
@@ -1467,11 +1472,6 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 	nd->nd_mrep = NULL;	/* NFSv2 sometimes does a write with */
 	nd->nd_repstat = 0;	/* uio_resid == 0, so the while is not done */
 	while (tsiz > 0) {
-		nmp = VFSTONFS(vnode_mount(vp));
-		if (nmp == NULL) {
-			error = ENXIO;
-			goto nfsmout;
-		}
 		*attrflagp = 0;
 		len = (tsiz > wsize) ? wsize : tsiz;
 		NFSCL_REQSTART(nd, NFSPROC_WRITE, vp);
