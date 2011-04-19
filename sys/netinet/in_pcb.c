@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_ipsec.h"
+#include "opt_inet.h"
 #include "opt_inet6.h"
 
 #include <sys/param.h>
@@ -73,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/in6_pcb.h>
 #endif /* INET6 */
 
 
@@ -271,6 +273,124 @@ in_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 	return (0);
 }
 
+#if defined(INET) || defined(INET6)
+int
+in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
+    struct ucred *cred, int wild)
+{
+	struct inpcbinfo *pcbinfo;
+	struct inpcb *tmpinp;
+	unsigned short *lastport;
+	int count, dorandom, error;
+	u_short aux, first, last, lport;
+#ifdef INET
+	struct in_addr laddr;
+#endif
+
+	pcbinfo = inp->inp_pcbinfo;
+
+	/*
+	 * Because no actual state changes occur here, a global write lock on
+	 * the pcbinfo isn't required.
+	 */
+	INP_INFO_LOCK_ASSERT(pcbinfo);
+	INP_LOCK_ASSERT(inp);
+
+	if (inp->inp_flags & INP_HIGHPORT) {
+		first = V_ipport_hifirstauto;	/* sysctl */
+		last  = V_ipport_hilastauto;
+		lastport = &pcbinfo->ipi_lasthi;
+	} else if (inp->inp_flags & INP_LOWPORT) {
+		error = priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT, 0);
+		if (error)
+			return (error);
+		first = V_ipport_lowfirstauto;	/* 1023 */
+		last  = V_ipport_lowlastauto;	/* 600 */
+		lastport = &pcbinfo->ipi_lastlow;
+	} else {
+		first = V_ipport_firstauto;	/* sysctl */
+		last  = V_ipport_lastauto;
+		lastport = &pcbinfo->ipi_lastport;
+	}
+	/*
+	 * For UDP, use random port allocation as long as the user
+	 * allows it.  For TCP (and as of yet unknown) connections,
+	 * use random port allocation only if the user allows it AND
+	 * ipport_tick() allows it.
+	 */
+	if (V_ipport_randomized &&
+		(!V_ipport_stoprandom || pcbinfo == &V_udbinfo))
+		dorandom = 1;
+	else
+		dorandom = 0;
+	/*
+	 * It makes no sense to do random port allocation if
+	 * we have the only port available.
+	 */
+	if (first == last)
+		dorandom = 0;
+	/* Make sure to not include UDP packets in the count. */
+	if (pcbinfo != &V_udbinfo)
+		V_ipport_tcpallocs++;
+	/*
+	 * Instead of having two loops further down counting up or down
+	 * make sure that first is always <= last and go with only one
+	 * code path implementing all logic.
+	 */
+	if (first > last) {
+		aux = first;
+		first = last;
+		last = aux;
+	}
+
+#ifdef INET
+	/* Make the compiler happy. */
+	laddr.s_addr = 0;
+	if ((inp->inp_vflag & INP_IPV4) != 0) {
+		KASSERT(laddrp != NULL, ("%s: laddrp NULL for v4 inp %p",
+		    __func__, inp));
+		laddr = *laddrp;
+	}
+#endif
+	lport = *lportp;
+
+	if (dorandom)
+		*lastport = first + (arc4random() % (last - first));
+
+	count = last - first;
+
+	do {
+		if (count-- < 0)	/* completely used? */
+			return (EADDRNOTAVAIL);
+		++*lastport;
+		if (*lastport < first || *lastport > last)
+			*lastport = first;
+		lport = htons(*lastport);
+
+#ifdef INET6
+		if ((inp->inp_vflag & INP_IPV6) != 0)
+			tmpinp = in6_pcblookup_local(pcbinfo,
+			    &inp->in6p_laddr, lport, wild, cred);
+#endif
+#if defined(INET) && defined(INET6)
+		else
+#endif
+#ifdef INET
+			tmpinp = in_pcblookup_local(pcbinfo, laddr,
+			    lport, wild, cred);
+#endif
+	} while (tmpinp != NULL);
+
+#ifdef INET
+	if ((inp->inp_vflag & INP_IPV4) != 0)
+		laddrp->s_addr = laddr.s_addr;
+#endif                 
+	*lportp = lport;
+
+	return (0);
+}
+#endif /* INET || INET6 */
+
 /*
  * Set up a bind operation on a PCB, performing port allocation
  * as required, but do not actually modify the PCB. Callers can
@@ -285,14 +405,12 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
     u_short *lportp, struct ucred *cred)
 {
 	struct socket *so = inp->inp_socket;
-	unsigned short *lastport;
 	struct sockaddr_in *sin;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	struct in_addr laddr;
 	u_short lport = 0;
 	int wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
 	int error;
-	int dorandom;
 
 	/*
 	 * Because no actual state changes occur here, a global write lock on
@@ -417,72 +535,10 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	if (*lportp != 0)
 		lport = *lportp;
 	if (lport == 0) {
-		u_short first, last, aux;
-		int count;
+		error = in_pcb_lport(inp, &laddr, &lport, cred, wild);
+		if (error != 0)
+			return (error);
 
-		if (inp->inp_flags & INP_HIGHPORT) {
-			first = V_ipport_hifirstauto;	/* sysctl */
-			last  = V_ipport_hilastauto;
-			lastport = &pcbinfo->ipi_lasthi;
-		} else if (inp->inp_flags & INP_LOWPORT) {
-			error = priv_check_cred(cred,
-			    PRIV_NETINET_RESERVEDPORT, 0);
-			if (error)
-				return error;
-			first = V_ipport_lowfirstauto;	/* 1023 */
-			last  = V_ipport_lowlastauto;	/* 600 */
-			lastport = &pcbinfo->ipi_lastlow;
-		} else {
-			first = V_ipport_firstauto;	/* sysctl */
-			last  = V_ipport_lastauto;
-			lastport = &pcbinfo->ipi_lastport;
-		}
-		/*
-		 * For UDP, use random port allocation as long as the user
-		 * allows it.  For TCP (and as of yet unknown) connections,
-		 * use random port allocation only if the user allows it AND
-		 * ipport_tick() allows it.
-		 */
-		if (V_ipport_randomized &&
-			(!V_ipport_stoprandom || pcbinfo == &V_udbinfo))
-			dorandom = 1;
-		else
-			dorandom = 0;
-		/*
-		 * It makes no sense to do random port allocation if
-		 * we have the only port available.
-		 */
-		if (first == last)
-			dorandom = 0;
-		/* Make sure to not include UDP packets in the count. */
-		if (pcbinfo != &V_udbinfo)
-			V_ipport_tcpallocs++;
-		/*
-		 * Instead of having two loops further down counting up or down
-		 * make sure that first is always <= last and go with only one
-		 * code path implementing all logic.
-		 */
-		if (first > last) {
-			aux = first;
-			first = last;
-			last = aux;
-		}
-
-		if (dorandom)
-			*lastport = first +
-				    (arc4random() % (last - first));
-
-		count = last - first;
-
-		do {
-			if (count-- < 0)	/* completely used? */
-				return (EADDRNOTAVAIL);
-			++*lastport;
-			if (*lastport < first || *lastport > last)
-				*lastport = first;
-			lport = htons(*lastport);
-		} while (in_pcblookup_local(pcbinfo, laddr,
-		    lport, wild, cred));
 	}
 	*laddrp = laddr.s_addr;
 	*lportp = lport;
