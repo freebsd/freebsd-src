@@ -383,8 +383,6 @@ struct cfg_redir {
 };
 #endif
 
-#define NAT_BUF_LEN     1024
-
 #ifdef IPFW_INTERNAL
 /* Nat configuration data struct. */
 struct cfg_nat {
