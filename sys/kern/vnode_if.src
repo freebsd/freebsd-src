@@ -621,10 +621,10 @@ vop_vptocnp {
 };
 
 
-%% allocate	vp	E E U
+%% allocate	vp	E E E
 
 vop_allocate {
 	IN struct vnode *vp;
-	IN off_t offset;
-	IN off_t len;
+	IN off_t *offset;
+	IN off_t *len;
 };
