@@ -557,7 +557,7 @@ struct mvs_channel {
 	int			numtslots;	/* Number of NCQ slots */
 	int			numtslotspd[16];/* Number of NCQ slots per dev */
 	int			numhslots;	/* Number of holden slots */
-	int			readlog;	/* Our READ LOG active */
+	int			recoverycmd;	/* Our READ LOG active */
 	int			fatalerr;	/* Fatal error happend */
 	int			lastslot;	/* Last used slot */
 	int			taggedtarget;	/* Last tagged target */
