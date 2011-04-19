@@ -222,6 +222,8 @@ struct iwn_softc {
 	uint32_t		fw_data_maxsz;
 	uint32_t		fwsz;
 	bus_size_t		sched_txfact_addr;
+	uint32_t		reset_noise_gain;
+	uint32_t		noise_gain;
 
 	/* TX scheduler rings. */
 	struct iwn_dma_info	sched_dma;

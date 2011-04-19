@@ -772,6 +772,8 @@ iwn5000_attach(struct iwn_softc *sc, uint16_t pid)
 	sc->fw_data_maxsz = IWN5000_FW_DATA_MAXSZ;
 	sc->fwsz = IWN5000_FWSZ;
 	sc->sched_txfact_addr = IWN5000_SCHED_TXFACT;
+	sc->reset_noise_gain = IWN5000_PHY_CALIB_RESET_NOISE_GAIN;
+	sc->noise_gain = IWN5000_PHY_CALIB_NOISE_GAIN;
 
 	switch (sc->hw_type) {
 	case IWN_HW_REV_TYPE_5100:
@@ -4367,7 +4369,7 @@ iwn5000_init_gains(struct iwn_softc *sc)
 	struct iwn_phy_calib cmd;
 
 	memset(&cmd, 0, sizeof cmd);
-	cmd.code = IWN5000_PHY_CALIB_RESET_NOISE_GAIN;
+	cmd.code = sc->reset_noise_gain;
 	cmd.ngroups = 1;
 	cmd.isvalid = 1;
 	DPRINTF(sc, IWN_DEBUG_CALIBRATE,
@@ -4419,7 +4421,7 @@ iwn5000_set_gains(struct iwn_softc *sc)
 	div = (sc->hw_type == IWN_HW_REV_TYPE_6050) ? 20 : 30;
 
 	memset(&cmd, 0, sizeof cmd);
-	cmd.code = IWN5000_PHY_CALIB_NOISE_GAIN;
+	cmd.code = sc->noise_gain;
 	cmd.ngroups = 1;
 	cmd.isvalid = 1;
 	/* Get first available RX antenna as referential. */
@@ -5900,7 +5902,7 @@ iwn_read_firmware_tlv(struct iwn_softc *sc, struct iwn_fw_info *fw,
 	const struct iwn_fw_tlv *tlv;
 	const uint8_t *ptr, *end;
 	uint64_t altmask;
-	uint32_t len;
+	uint32_t len, tmp;
 
 	if (fw->size < sizeof (*hdr)) {
 		device_printf(sc->sc_dev, "%s: firmware too short: %zu bytes\n",
@@ -5964,6 +5966,17 @@ iwn_read_firmware_tlv(struct iwn_softc *sc, struct iwn_fw_info *fw,
 		case IWN_FW_TLV_BOOT_TEXT:
 			fw->boot.text = ptr;
 			fw->boot.textsz = len;
+			break;
+		case IWN_FW_TLV_ENH_SENS:
+			if (!len)
+				sc->sc_flags |= IWN_FLAG_ENH_SENS;
+			break;
+		case IWN_FW_TLV_PHY_CALIB:
+			tmp = htole32(*ptr);
+			if (tmp < 253) {
+				sc->reset_noise_gain = tmp;
+				sc->noise_gain = tmp + 1;
+			}
 			break;
 		default:
 			DPRINTF(sc, IWN_DEBUG_RESET,
