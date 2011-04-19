@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ata.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
@@ -89,7 +90,7 @@ static void ahci_stop_fr(device_t dev);
 
 static int ahci_sata_connect(struct ahci_channel *ch);
 static int ahci_sata_phy_reset(device_t dev);
-static int ahci_wait_ready(device_t dev, int t);
+static int ahci_wait_ready(device_t dev, int t, int t0);
 
 static void ahci_issue_recovery(device_t dev);
 static void ahci_process_read_log(device_t dev, union ccb *ccb);
@@ -883,6 +884,7 @@ ahci_ch_attach(device_t dev)
 	    device_get_unit(dev), "pm_level", &ch->pm_level);
 	if (ch->pm_level > 3)
 		callout_init_mtx(&ch->pm_timer, &ch->mtx, 0);
+	callout_init_mtx(&ch->reset_timer, &ch->mtx, 0);
 	/* Limit speed for my onboard JMicron external port.
 	 * It is not eSATA really. */
 	if (pci_get_devid(ctlr->dev) == 0x2363197b &&
@@ -999,6 +1001,11 @@ ahci_ch_detach(device_t dev)
 
 	mtx_lock(&ch->mtx);
 	xpt_async(AC_LOST_DEVICE, ch->path, NULL);
+	/* Forget about reset. */
+	if (ch->resetting) {
+		ch->resetting = 0;
+		xpt_release_simq(ch->sim, TRUE);
+	}
 	xpt_free_path(ch->path);
 	xpt_bus_deregister(cam_sim_path(ch->sim));
 	cam_sim_free(ch->sim, /*free_devq*/TRUE);
@@ -1006,6 +1013,7 @@ ahci_ch_detach(device_t dev)
 
 	if (ch->pm_level > 3)
 		callout_drain(&ch->pm_timer);
+	callout_drain(&ch->reset_timer);
 	bus_teardown_intr(dev, ch->r_irq, ch->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
 
@@ -1071,6 +1079,12 @@ ahci_ch_suspend(device_t dev)
 
 	mtx_lock(&ch->mtx);
 	xpt_freeze_simq(ch->sim, 1);
+	/* Forget about reset. */
+	if (ch->resetting) {
+		ch->resetting = 0;
+		callout_stop(&ch->reset_timer);
+		xpt_release_simq(ch->sim, TRUE);
+	}
 	while (ch->oslots)
 		msleep(ch, &ch->mtx, PRIBIO, "ahcisusp", hz/100);
 	ahci_ch_deinit(dev);
@@ -2314,7 +2328,7 @@ ahci_start_fr(device_t dev)
 }
 
 static int
-ahci_wait_ready(device_t dev, int t)
+ahci_wait_ready(device_t dev, int t, int t0)
 {
 	struct ahci_channel *ch = device_get_softc(dev);
 	int timeout = 0;
@@ -2322,16 +2336,47 @@ ahci_wait_ready(device_t dev, int t)
 
 	while ((val = ATA_INL(ch->r_mem, AHCI_P_TFD)) &
 	    (ATA_S_BUSY | ATA_S_DRQ)) {
-		DELAY(1000);
-		if (timeout++ > t) {
-			device_printf(dev, "device is not ready (timeout %dms) "
-			    "tfd = %08x\n", t, val);
+		if (timeout > t) {
+			if (t != 0) {
+				device_printf(dev,
+				    "AHCI reset: device not ready after %dms "
+				    "(tfd = %08x)\n",
+				    MAX(t, 0) + t0, val);
+			}
 			return (EBUSY);
 		}
-	} 
+		DELAY(1000);
+		timeout++;
+	}
 	if (bootverbose)
-		device_printf(dev, "ready wait time=%dms\n", timeout);
+		device_printf(dev, "AHCI reset: device ready after %dms\n",
+		    timeout + t0);
 	return (0);
+}
+
+static void
+ahci_reset_to(void *arg)
+{
+	device_t dev = arg;
+	struct ahci_channel *ch = device_get_softc(dev);
+
+	if (ch->resetting == 0)
+		return;
+	ch->resetting--;
+	if (ahci_wait_ready(dev, ch->resetting == 0 ? -1 : 0,
+	    (310 - ch->resetting) * 100) == 0) {
+		ch->resetting = 0;
+		xpt_release_simq(ch->sim, TRUE);
+		return;
+	}
+	if (ch->resetting == 0) {
+		ahci_stop(dev);
+		ahci_clo(dev);
+		ahci_start(dev, 1);
+		xpt_release_simq(ch->sim, TRUE);
+		return;
+	}
+	callout_schedule(&ch->reset_timer, hz / 10);
 }
 
 static void
@@ -2344,6 +2389,12 @@ ahci_reset(device_t dev)
 	xpt_freeze_simq(ch->sim, 1);
 	if (bootverbose)
 		device_printf(dev, "AHCI reset...\n");
+	/* Forget about previous reset. */
+	if (ch->resetting) {
+		ch->resetting = 0;
+		callout_stop(&ch->reset_timer);
+		xpt_release_simq(ch->sim, TRUE);
+	}
 	/* Requeue freezed command. */
 	if (ch->frozen) {
 		union ccb *fccb = ch->frozen;
@@ -2384,7 +2435,7 @@ ahci_reset(device_t dev)
 	if (!ahci_sata_phy_reset(dev)) {
 		if (bootverbose)
 			device_printf(dev,
-			    "AHCI reset done: phy reset found no device\n");
+			    "AHCI reset: device not found\n");
 		ch->devices = 0;
 		/* Enable wanted port interrupts */
 		ATA_OUTL(ch->r_mem, AHCI_P_IE,
@@ -2392,9 +2443,15 @@ ahci_reset(device_t dev)
 		xpt_release_simq(ch->sim, TRUE);
 		return;
 	}
+	if (bootverbose)
+		device_printf(dev, "AHCI reset: device found\n");
 	/* Wait for clearing busy status. */
-	if (ahci_wait_ready(dev, 15000))
-		ahci_clo(dev);
+	if (ahci_wait_ready(dev, dumping ? 31000 : 0, 0)) {
+		if (dumping)
+			ahci_clo(dev);
+		else
+			ch->resetting = 310;
+	}
 	ahci_start(dev, 1);
 	ch->devices = 1;
 	/* Enable wanted port interrupts */
@@ -2404,9 +2461,10 @@ ahci_reset(device_t dev)
 	      ((ch->pm_level == 0) ? AHCI_P_IX_PRC | AHCI_P_IX_PC : 0) |
 	      AHCI_P_IX_DP | AHCI_P_IX_UF | (ctlr->ccc ? 0 : AHCI_P_IX_SDB) |
 	      AHCI_P_IX_DS | AHCI_P_IX_PS | (ctlr->ccc ? 0 : AHCI_P_IX_DHR)));
-	if (bootverbose)
-		device_printf(dev, "AHCI reset done: device found\n");
-	xpt_release_simq(ch->sim, TRUE);
+	if (ch->resetting)
+		callout_reset(&ch->reset_timer, hz / 10, ahci_reset_to, dev);
+	else
+		xpt_release_simq(ch->sim, TRUE);
 }
 
 static int
