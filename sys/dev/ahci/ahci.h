@@ -118,6 +118,7 @@
 #define         ATA_SE_LINKSEQ_ERR      0x00800000
 #define         ATA_SE_TRANSPORT_ERR    0x01000000
 #define         ATA_SE_UNKNOWN_FIS      0x02000000
+#define         ATA_SE_EXCHANGED        0x04000000
 
 #define ATA_SCONTROL                    15
 #define         ATA_SC_DET_MASK         0x0000000f
@@ -221,7 +222,7 @@
 #define         AHCI_P_IX_UF        0x00000010
 #define         AHCI_P_IX_DP        0x00000020
 #define         AHCI_P_IX_PC        0x00000040
-#define         AHCI_P_IX_DI        0x00000080
+#define         AHCI_P_IX_MP        0x00000080
 
 #define         AHCI_P_IX_PRC       0x00400000
 #define         AHCI_P_IX_IPM       0x00800000
@@ -413,6 +414,7 @@ struct ahci_channel {
 	int			lastslot;	/* Last used slot */
 	int			taggedtarget;	/* Last tagged target */
 	int			resetting;	/* Hard-reset in progress. */
+	int			listening;	/* SUD bit is cleared. */
 	union ccb		*frozen;	/* Frozen command */
 	struct callout		pm_timer;	/* Power management events */
 	struct callout		reset_timer;	/* Hard-reset timeout */
