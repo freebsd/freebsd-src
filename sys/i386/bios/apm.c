@@ -499,11 +499,13 @@ apm_do_suspend(void)
 	if (apm_suspend_system(PMST_SUSPEND) == 0) {
 		sc->suspending = 1;
 		apm_processevent();
-	} else {
-		/* Failure, 'resume' the system again */
-		apm_execute_hook(hook[APM_HOOK_RESUME]);
-		DEVICE_RESUME(root_bus);
+		mtx_unlock(&Giant);
+		return;
 	}
+
+	/* Failure, 'resume' the system again */
+	apm_execute_hook(hook[APM_HOOK_RESUME]);
+	DEVICE_RESUME(root_bus);
 backout:
 	mtx_unlock(&Giant);
 	EVENTHANDLER_INVOKE(power_resume);
