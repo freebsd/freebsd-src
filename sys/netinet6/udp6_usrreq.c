@@ -986,18 +986,6 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 		if (hasv4addr) {
 			struct pr_usrreqs *pru;
 
-			if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr) &&
-			    !IN6_IS_ADDR_V4MAPPED(&inp->in6p_laddr)) {
-				/*
-				 * When remote addr is IPv4-mapped address,
-				 * local addr should not be an IPv6 address;
-				 * since you cannot determine how to map IPv6
-				 * source address to IPv4.
-				 */
-				error = EINVAL;
-				goto out;
-			}
-
 			/*
 			 * XXXRW: We release UDP-layer locks before calling
 			 * udp_send() in order to avoid recursion.  However,
@@ -1021,7 +1009,6 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 	mac_create_mbuf_from_inpcb(inp, m);
 #endif
 	error = udp6_output(inp, m, addr, control, td);
-out:
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
 	return (error);
