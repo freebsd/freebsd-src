@@ -667,6 +667,25 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 	res->hr_secondary_localcnt = nv_get_uint64(nvin, "localcnt");
 	res->hr_secondary_remotecnt = nv_get_uint64(nvin, "remotecnt");
 	res->hr_syncsrc = nv_get_uint8(nvin, "syncsrc");
+	if (nv_exists(nvin, "virgin")) {
+		/*
+		 * Secondary was reinitialized, bump localcnt if it is 0 as
+		 * only we have the data.
+		 */
+		PJDLOG_ASSERT(res->hr_syncsrc == HAST_SYNCSRC_PRIMARY);
+		PJDLOG_ASSERT(res->hr_secondary_localcnt == 0);
+
+		if (res->hr_primary_localcnt == 0) {
+			PJDLOG_ASSERT(res->hr_secondary_remotecnt == 0);
+
+			mtx_lock(&metadata_lock);
+			res->hr_primary_localcnt++;
+			pjdlog_debug(1, "Increasing localcnt to %ju.",
+			    (uintmax_t)res->hr_primary_localcnt);
+			(void)metadata_write(res);
+			mtx_unlock(&metadata_lock);
+		}
+	}
 	map = NULL;
 	mapsize = nv_get_uint32(nvin, "mapsize");
 	if (mapsize > 0) {
