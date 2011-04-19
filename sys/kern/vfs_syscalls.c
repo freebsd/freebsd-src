@@ -4678,12 +4678,11 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 	struct file *fp;
 	struct mount *mp;
 	struct vnode *vp;
-	int error, vfslocked, vnlocked;
+	off_t olen, ooffset;
+	int error, vfslocked;
 
 	fp = NULL;
-	mp = NULL;
 	vfslocked = 0;
-	vnlocked = 0;
 	error = fget(td, fd, &fp);
 	if (error != 0)
 		goto out;
@@ -4718,28 +4717,44 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 		goto out;
 	}
 
-	bwillwrite();
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
-	if (error != 0)
-		goto out;
-	error = vn_lock(vp, LK_EXCLUSIVE);
-	if (error != 0)
-		goto out;
-	vnlocked = 1;
+	/* Allocating blocks may take a long time, so iterate. */
+	for (;;) {
+		olen = len;
+		ooffset = offset;
+
+		bwillwrite();
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+		mp = NULL;
+		error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+		if (error != 0) {
+			VFS_UNLOCK_GIANT(vfslocked);
+			break;
+		}
+		error = vn_lock(vp, LK_EXCLUSIVE);
+		if (error != 0) {
+			vn_finished_write(mp);
+			VFS_UNLOCK_GIANT(vfslocked);
+			break;
+		}
 #ifdef MAC
-	error = mac_vnode_check_write(td->td_ucred, fp->f_cred, vp);
-	if (error != 0)
-		goto out;
+		error = mac_vnode_check_write(td->td_ucred, fp->f_cred, vp);
+		if (error == 0)
 #endif
-	error = VOP_ALLOCATE(vp, offset, len);
-	if (error != 0)
-		vnlocked = 0;
- out:
-	if (vnlocked)
+			error = VOP_ALLOCATE(vp, &offset, &len);
 		VOP_UNLOCK(vp, 0);
-	vn_finished_write(mp);
-	VFS_UNLOCK_GIANT(vfslocked);
+		vn_finished_write(mp);
+		VFS_UNLOCK_GIANT(vfslocked);
+
+		if (olen + ooffset != offset + len) {
+			panic("offset + len changed from %jx/%jx to %jx/%jx",
+			    ooffset, olen, offset, len);
+		}
+		if (error != 0 || len == 0)
+			break;
+		KASSERT(olen > len, ("Iteration did not make progress?"));
+		maybe_yield();
+	}
+ out:
 	if (fp != NULL)
 		fdrop(fp, td);
 	return (error);
