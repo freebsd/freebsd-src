@@ -865,25 +865,25 @@ vop_stdallocate(struct vop_allocate_args *ap)
 	struct iovec aiov;
 	struct vattr vattr, *vap;
 	struct uio auio;
-	off_t len, cur, offset;
+	off_t fsize, len, cur, offset;
 	uint8_t *buf;
 	struct thread *td;
 	struct vnode *vp;
 	size_t iosize;
-	int error, locked;
+	int error;
 
 	buf = NULL;
 	error = 0;
-	locked = 1;
 	td = curthread;
 	vap = &vattr;
 	vp = ap->a_vp;
-	len = ap->a_len;
-	offset = ap->a_offset;
+	len = *ap->a_len;
+	offset = *ap->a_offset;
 
 	error = VOP_GETATTR(vp, vap, td->td_ucred);
 	if (error != 0)
 		goto out;
+	fsize = vap->va_size;
 	iosize = vap->va_blocksize;
 	if (iosize == 0)
 		iosize = BLKDEV_IOSIZE;
@@ -908,27 +908,22 @@ vop_stdallocate(struct vop_allocate_args *ap)
 	} else
 #endif
 	if (offset + len > vap->va_size) {
+		/*
+		 * Test offset + len against the filesystem's maxfilesize.
+		 */
 		VATTR_NULL(vap);
 		vap->va_size = offset + len;
 		error = VOP_SETATTR(vp, vap, td->td_ucred);
 		if (error != 0)
 			goto out;
+		VATTR_NULL(vap);
+		vap->va_size = fsize;
+		error = VOP_SETATTR(vp, vap, td->td_ucred);
+		if (error != 0)
+			goto out;
 	}
 
-	while (len > 0) {
-		if (should_yield()) {
-			VOP_UNLOCK(vp, 0);
-			locked = 0;
-			kern_yield(-1);
-			error = vn_lock(vp, LK_EXCLUSIVE);
-			if (error != 0)
-				break;
-			locked = 1;
-			error = VOP_GETATTR(vp, vap, td->td_ucred);
-			if (error != 0)
-				break;
-		}
-
+	for (;;) {
 		/*
 		 * Read and write back anything below the nominal file
 		 * size.  There's currently no way outside the filesystem
@@ -939,7 +934,7 @@ vop_stdallocate(struct vop_allocate_args *ap)
 			cur -= (offset % iosize);
 		if (cur > len)
 			cur = len;
-		if (offset < vap->va_size) {
+		if (offset < fsize) {
 			aiov.iov_base = buf;
 			aiov.iov_len = cur;
 			auio.uio_iov = &aiov;
@@ -976,12 +971,15 @@ vop_stdallocate(struct vop_allocate_args *ap)
 
 		len -= cur;
 		offset += cur;
+		if (len == 0)
+			break;
+		if (should_yield())
+			break;
 	}
 
  out:
-	KASSERT(locked || error != 0, ("How'd I get unlocked with no error?"));
-	if (locked && error != 0)
-		VOP_UNLOCK(vp, 0);
+	*ap->a_len = len;
+	*ap->a_offset = offset;
 	free(buf, M_TEMP);
 	return (error);
 }
