@@ -809,6 +809,9 @@ iwn5000_attach(struct iwn_softc *sc, uint16_t pid)
 	case IWN_HW_REV_TYPE_6050:
 		sc->limits = &iwn6000_sensitivity_limits;
 		sc->fwname = "iwn6050fw";
+		/* Override chains masks, ROM is known to be broken. */
+		sc->txchainmask = IWN_ANT_AB;
+		sc->rxchainmask = IWN_ANT_AB;
 		break;
 	case IWN_HW_REV_TYPE_6005:
 		sc->limits = &iwn6000_sensitivity_limits;
@@ -2387,7 +2390,9 @@ iwn5000_rx_calib_results(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 	switch (calib->code) {
 	case IWN5000_PHY_CALIB_DC:
-		if (sc->hw_type == IWN_HW_REV_TYPE_5150)
+		if ((sc->sc_flags & IWN_FLAG_INTERNAL_PA) == 0 &&
+		    (sc->hw_type == IWN_HW_REV_TYPE_5150 ||
+		     sc->hw_type >= IWN_HW_REV_TYPE_6000))
 			idx = 0;
 		break;
 	case IWN5000_PHY_CALIB_LO:
