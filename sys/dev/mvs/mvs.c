@@ -137,6 +137,7 @@ mvs_ch_attach(device_t dev)
 			    CTS_SATA_CAPS_H_APST |
 			    CTS_SATA_CAPS_D_PMREQ | CTS_SATA_CAPS_D_APST;
 		}
+		ch->user[i].caps |= CTS_SATA_CAPS_H_AN;
 	}
 	rid = ch->unit;
 	if (!(ch->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -860,6 +861,8 @@ mvs_legacy_intr(device_t dev)
 			if (mvs_wait(dev, ATA_S_DRQ, ATA_S_BUSY, 1000) < 0) {
 			    device_printf(dev, "timeout waiting for read DRQ\n");
 			    et = MVS_ERR_TIMEOUT;
+			    xpt_freeze_simq(ch->sim, 1);
+			    ch->toslots |= (1 << slot->slot);
 			    goto end_finished;
 			}
 			ATA_INSW_STRM(ch->r_mem, ATA_DATA,
@@ -879,6 +882,8 @@ mvs_legacy_intr(device_t dev)
 				    device_printf(dev,
 					"timeout waiting for write DRQ\n");
 				    et = MVS_ERR_TIMEOUT;
+				    xpt_freeze_simq(ch->sim, 1);
+				    ch->toslots |= (1 << slot->slot);
 				    goto end_finished;
 				}
 				ATA_OUTSW_STRM(ch->r_mem, ATA_DATA,
@@ -1324,6 +1329,8 @@ mvs_legacy_execute_transaction(struct mvs_slot *slot)
 			if (mvs_wait(dev, ATA_S_DRQ, ATA_S_BUSY, 1000) < 0) {
 				device_printf(dev,
 				    "timeout waiting for write DRQ\n");
+				xpt_freeze_simq(ch->sim, 1);
+				ch->toslots |= (1 << slot->slot);
 				mvs_end_transaction(slot, MVS_ERR_TIMEOUT);
 				return;
 			}
@@ -1350,6 +1357,8 @@ mvs_legacy_execute_transaction(struct mvs_slot *slot)
 		/* Wait for ready to write ATAPI command block */
 		if (mvs_wait(dev, 0, ATA_S_BUSY, 1000) < 0) {
 			device_printf(dev, "timeout waiting for ATAPI !BUSY\n");
+			xpt_freeze_simq(ch->sim, 1);
+			ch->toslots |= (1 << slot->slot);
 			mvs_end_transaction(slot, MVS_ERR_TIMEOUT);
 			return;
 		}
@@ -1366,6 +1375,8 @@ mvs_legacy_execute_transaction(struct mvs_slot *slot)
 		if (timeout <= 0) {
 			device_printf(dev,
 			    "timeout waiting for ATAPI command ready\n");
+			xpt_freeze_simq(ch->sim, 1);
+			ch->toslots |= (1 << slot->slot);
 			mvs_end_transaction(slot, MVS_ERR_TIMEOUT);
 			return;
 		}
@@ -2204,6 +2215,7 @@ mvsaction(struct cam_sim *sim, union ccb *ccb)
 			cts->xport_specific.sata.caps = d->caps & CTS_SATA_CAPS_D;
 //			if (ch->pm_level)
 //				cts->xport_specific.sata.caps |= CTS_SATA_CAPS_H_PMREQ;
+			cts->xport_specific.sata.caps |= CTS_SATA_CAPS_H_AN;
 			cts->xport_specific.sata.caps &=
 			    ch->user[ccb->ccb_h.target_id].caps;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
@@ -2211,6 +2223,9 @@ mvsaction(struct cam_sim *sim, union ccb *ccb)
 			cts->xport_specific.sata.revision = d->revision;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
 			cts->xport_specific.sata.caps = d->caps;
+			if (cts->type == CTS_TYPE_CURRENT_SETTINGS/* &&
+			    (ch->quirks & MVS_Q_GENIIE) == 0*/)
+				cts->xport_specific.sata.caps &= ~CTS_SATA_CAPS_H_AN;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
 		}
 		cts->xport_specific.sata.mode = d->mode;

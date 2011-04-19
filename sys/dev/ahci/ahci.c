@@ -908,7 +908,8 @@ ahci_ch_attach(device_t dev)
 			    CTS_SATA_CAPS_H_APST |
 			    CTS_SATA_CAPS_D_PMREQ | CTS_SATA_CAPS_D_APST;
 		}
-		ch->user[i].caps |= CTS_SATA_CAPS_H_DMAAA;
+		ch->user[i].caps |= CTS_SATA_CAPS_H_DMAAA |
+		    CTS_SATA_CAPS_H_AN;
 	}
 	rid = ch->unit;
 	if (!(ch->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -2715,6 +2716,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 			if ((ch->caps & AHCI_CAP_SNCQ) &&
 			    (ch->quirks & AHCI_Q_NOAA) == 0)
 				cts->xport_specific.sata.caps |= CTS_SATA_CAPS_H_DMAAA;
+			cts->xport_specific.sata.caps |= CTS_SATA_CAPS_H_AN;
 			cts->xport_specific.sata.caps &=
 			    ch->user[ccb->ccb_h.target_id].caps;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
