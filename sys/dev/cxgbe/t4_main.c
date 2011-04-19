@@ -378,6 +378,7 @@ t4_attach(device_t dev)
 	rc = -t4_config_glbl_rss(sc, sc->mbox,
 	    FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL,
 	    F_FW_RSS_GLB_CONFIG_CMD_TNLMAPEN |
+	    F_FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ |
 	    F_FW_RSS_GLB_CONFIG_CMD_TNLALLLKP);
 	if (rc != 0) {
 		device_printf(dev,
