@@ -288,7 +288,8 @@ acpi_tz_attach(device_t dev)
 		    "critical temp setpoint (shutdown now)");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		    OID_AUTO, "_ACx", CTLTYPE_INT | CTLFLAG_RD,
-		    &sc->tz_zone.ac, 0, sysctl_handle_int, "IK", "");
+		    &sc->tz_zone.ac, sizeof(sc->tz_zone.ac),
+		    sysctl_handle_opaque, "IK", "");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		    OID_AUTO, "_TC1", CTLTYPE_INT | CTLFLAG_RW,
 		    sc, offsetof(struct acpi_tz_softc, tz_zone.tc1),
