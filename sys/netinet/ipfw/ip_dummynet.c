@@ -1836,9 +1836,7 @@ dummynet_get(struct sockopt *sopt, void **compat)
 #endif
 		if (l > sizeof(r)) {
 			/* request larger than default, allocate buffer */
-			cmd = malloc(l,  M_DUMMYNET, M_WAIT);
-			if (cmd == NULL)
-				return ENOMEM; //XXX
+			cmd = malloc(l,  M_DUMMYNET, M_WAITOK);
 			error = sooptcopyin(sopt, cmd, l, l);
 			sopt->sopt_valsize = sopt_valsize;
 			if (error)
@@ -1894,10 +1892,6 @@ dummynet_get(struct sockopt *sopt, void **compat)
 
 		have = need;
 		start = malloc(have, M_DUMMYNET, M_WAITOK | M_ZERO);
-		if (start == NULL) {
-			error = ENOMEM;
-			goto done;
-		}
 	}
 
 	if (start == NULL) {
