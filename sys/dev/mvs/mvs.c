@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ata.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
@@ -74,7 +75,7 @@ static int mvs_sata_phy_reset(device_t dev);
 static int mvs_wait(device_t dev, u_int s, u_int c, int t);
 static void mvs_tfd_read(device_t dev, union ccb *ccb);
 static void mvs_tfd_write(device_t dev, union ccb *ccb);
-static void mvs_legacy_intr(device_t dev);
+static void mvs_legacy_intr(device_t dev, int poll);
 static void mvs_crbq_intr(device_t dev);
 static void mvs_begin_transaction(device_t dev, union ccb *ccb);
 static void mvs_legacy_execute_transaction(struct mvs_slot *slot);
@@ -124,6 +125,7 @@ mvs_ch_attach(device_t dev)
 	    device_get_unit(dev), "pm_level", &ch->pm_level);
 	if (ch->pm_level > 3)
 		callout_init_mtx(&ch->pm_timer, &ch->mtx, 0);
+	callout_init_mtx(&ch->reset_timer, &ch->mtx, 0);
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "sata_rev", &sata_rev);
 	for (i = 0; i < 16; i++) {
@@ -217,6 +219,11 @@ mvs_ch_detach(device_t dev)
 
 	mtx_lock(&ch->mtx);
 	xpt_async(AC_LOST_DEVICE, ch->path, NULL);
+	/* Forget about reset. */
+	if (ch->resetting) {
+		ch->resetting = 0;
+		xpt_release_simq(ch->sim, TRUE);
+	}
 	xpt_free_path(ch->path);
 	xpt_bus_deregister(cam_sim_path(ch->sim));
 	cam_sim_free(ch->sim, /*free_devq*/TRUE);
@@ -224,6 +231,7 @@ mvs_ch_detach(device_t dev)
 
 	if (ch->pm_level > 3)
 		callout_drain(&ch->pm_timer);
+	callout_drain(&ch->reset_timer);
 	bus_teardown_intr(dev, ch->r_irq, ch->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
 
@@ -285,6 +293,12 @@ mvs_ch_suspend(device_t dev)
 	xpt_freeze_simq(ch->sim, 1);
 	while (ch->oslots)
 		msleep(ch, &ch->mtx, PRIBIO, "mvssusp", hz/100);
+	/* Forget about reset. */
+	if (ch->resetting) {
+		ch->resetting = 0;
+		callout_stop(&ch->reset_timer);
+		xpt_release_simq(ch->sim, TRUE);
+	}
 	mvs_ch_deinit(dev);
 	mtx_unlock(&ch->mtx);
 	return (0);
@@ -803,7 +817,7 @@ mvs_ch_intr(void *data)
 	}
 	/* Legacy mode device interrupt. */
 	if ((arg->cause & 2) && !edma)
-		mvs_legacy_intr(dev);
+		mvs_legacy_intr(dev, arg->cause & 4);
 }
 
 static uint8_t
@@ -822,7 +836,7 @@ mvs_getstatus(device_t dev, int clear)
 }
 
 static void
-mvs_legacy_intr(device_t dev)
+mvs_legacy_intr(device_t dev, int poll)
 {
 	struct mvs_channel *ch = device_get_softc(dev);
 	struct mvs_slot *slot = &ch->slot[0]; /* PIO is always in slot 0. */
@@ -840,6 +854,8 @@ mvs_legacy_intr(device_t dev)
 	port = ccb->ccb_h.target_id & 0x0f;
 	/* Wait a bit for late !BUSY status update. */
 	if (status & ATA_S_BUSY) {
+		if (poll)
+			return;
 		DELAY(100);
 		if ((status = mvs_getstatus(dev, 1)) & ATA_S_BUSY) {
 			DELAY(1000);
@@ -1316,7 +1332,7 @@ mvs_legacy_execute_transaction(struct mvs_slot *slot)
 			    DELAY(10);
 			    ccb->ataio.res.status = ATA_INB(ch->r_mem, ATA_STATUS);
 			} while (ccb->ataio.res.status & ATA_S_BUSY && timeout--);
-			mvs_legacy_intr(dev);
+			mvs_legacy_intr(dev, 1);
 			return;
 		}
 		ch->donecount = 0;
@@ -1909,11 +1925,13 @@ mvs_wait(device_t dev, u_int s, u_int c, int t)
 	uint8_t st;
 
 	while (((st =  mvs_getstatus(dev, 0)) & (s | c)) != s) {
-		DELAY(1000);
-		if (timeout++ > t) {
-			device_printf(dev, "Wait status %02x\n", st);
+		if (timeout >= t) {
+			if (t != 0)
+				device_printf(dev, "Wait status %02x\n", st);
 			return (-1);
 		}
+		DELAY(1000);
+		timeout++;
 	} 
 	return (timeout);
 }
@@ -1936,6 +1954,35 @@ mvs_requeue_frozen(device_t dev)
 }
 
 static void
+mvs_reset_to(void *arg)
+{
+	device_t dev = arg;
+	struct mvs_channel *ch = device_get_softc(dev);
+	int t;
+
+	if (ch->resetting == 0)
+		return;
+	ch->resetting--;
+	if ((t = mvs_wait(dev, 0, ATA_S_BUSY | ATA_S_DRQ, 0)) >= 0) {
+		if (bootverbose) {
+			device_printf(dev,
+			    "MVS reset: device ready after %dms\n",
+			    (310 - ch->resetting) * 100);
+		}
+		ch->resetting = 0;
+		xpt_release_simq(ch->sim, TRUE);
+		return;
+	}
+	if (ch->resetting == 0) {
+		device_printf(dev,
+		    "MVS reset: device not ready after 31000ms\n");
+		xpt_release_simq(ch->sim, TRUE);
+		return;
+	}
+	callout_schedule(&ch->reset_timer, hz / 10);
+}
+
+static void
 mvs_reset(device_t dev)
 {
 	struct mvs_channel *ch = device_get_softc(dev);
@@ -1944,6 +1991,12 @@ mvs_reset(device_t dev)
 	xpt_freeze_simq(ch->sim, 1);
 	if (bootverbose)
 		device_printf(dev, "MVS reset...\n");
+	/* Forget about previous reset. */
+	if (ch->resetting) {
+		ch->resetting = 0;
+		callout_stop(&ch->reset_timer);
+		xpt_release_simq(ch->sim, TRUE);
+	}
 	/* Requeue freezed command. */
 	mvs_requeue_frozen(dev);
 	/* Kill the engine and requeue all running commands. */
@@ -1968,6 +2021,7 @@ mvs_reset(device_t dev)
 	ch->eslots = 0;
 	ch->toslots = 0;
 	ch->fatalerr = 0;
+	ch->fake_busy = 0;
 	/* Tell the XPT about the event */
 	xpt_async(AC_BUS_RESET, ch->path, NULL);
 	ATA_OUTL(ch->r_mem, EDMA_IEM, 0);
@@ -1977,8 +2031,7 @@ mvs_reset(device_t dev)
 	/* Reset and reconnect PHY, */
 	if (!mvs_sata_phy_reset(dev)) {
 		if (bootverbose)
-			device_printf(dev,
-			    "MVS reset done: phy reset found no device\n");
+			device_printf(dev, "MVS reset: device not found\n");
 		ch->devices = 0;
 		ATA_OUTL(ch->r_mem, SATA_SE, 0xffffffff);
 		ATA_OUTL(ch->r_mem, EDMA_IEC, 0);
@@ -1986,18 +2039,26 @@ mvs_reset(device_t dev)
 		xpt_release_simq(ch->sim, TRUE);
 		return;
 	}
+	if (bootverbose)
+		device_printf(dev, "MVS reset: device found\n");
 	/* Wait for clearing busy status. */
-	if ((i = mvs_wait(dev, 0, ATA_S_BUSY | ATA_S_DRQ, 15000)) < 0)
-		device_printf(dev, "device is not ready\n");
-	else if (bootverbose)                                                        
-		device_printf(dev, "ready wait time=%dms\n", i);
+	if ((i = mvs_wait(dev, 0, ATA_S_BUSY | ATA_S_DRQ,
+	    dumping ? 31000 : 0)) < 0) {
+		if (dumping) {
+			device_printf(dev,
+			    "MVS reset: device not ready after 31000ms\n");
+		} else
+			ch->resetting = 310;
+	} else if (bootverbose)
+		device_printf(dev, "MVS reset: device ready after %dms\n", i);
 	ch->devices = 1;
 	ATA_OUTL(ch->r_mem, SATA_SE, 0xffffffff);
 	ATA_OUTL(ch->r_mem, EDMA_IEC, 0);
 	ATA_OUTL(ch->r_mem, EDMA_IEM, ~EDMA_IE_TRANSIENT);
-	if (bootverbose)
-		device_printf(dev, "MVS reset done: device found\n");
-	xpt_release_simq(ch->sim, TRUE);
+	if (ch->resetting)
+		callout_reset(&ch->reset_timer, hz / 10, mvs_reset_to, dev);
+	else
+		xpt_release_simq(ch->sim, TRUE);
 }
 
 static void
@@ -2299,7 +2360,12 @@ mvspoll(struct cam_sim *sim)
 	struct mvs_intr_arg arg;
 
 	arg.arg = ch->dev;
-	arg.cause = 2; /* XXX */
+	arg.cause = 2 | 4; /* XXX */
 	mvs_ch_intr(&arg);
+	if (ch->resetting != 0 &&
+	    (--ch->resetpolldiv <= 0 || !callout_pending(&ch->reset_timer))) {
+		ch->resetpolldiv = 1000;
+		mvs_reset_to(ch->dev);
+	}
 }
 
