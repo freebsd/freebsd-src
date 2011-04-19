@@ -849,6 +849,7 @@ struct ccb_trans_settings_sata {
 #define	CTS_SATA_CAPS_H_PMREQ		0x00000001
 #define	CTS_SATA_CAPS_H_APST		0x00000002
 #define	CTS_SATA_CAPS_H_DMAAA		0x00000010 /* Auto-activation */
+#define	CTS_SATA_CAPS_H_AN		0x00000020 /* Async. notification */
 #define	CTS_SATA_CAPS_D			0xffff0000
 #define	CTS_SATA_CAPS_D_PMREQ		0x00010000
 #define	CTS_SATA_CAPS_D_APST		0x00020000
