@@ -543,7 +543,8 @@ t4_attach(device_t dev)
 	s = &sc->sge;
 	s->nrxq = n10g * iaq.nrxq10g + n1g * iaq.nrxq1g;
 	s->ntxq = n10g * iaq.ntxq10g + n1g * iaq.ntxq1g;
-	s->neq = s->ntxq + s->nrxq;	/* the fl in an rxq is an eq */
+	s->neq = s->ntxq + s->nrxq;	/* the free list in an rxq is an eq */
+	s->neq += NCHAN;		/* control queues, 1 per hw channel */
 	s->niq = s->nrxq + 1;		/* 1 extra for firmware event queue */
 	if (iaq.intr_fwd) {
 		sc->flags |= INTR_FWD;
@@ -551,6 +552,8 @@ t4_attach(device_t dev)
 		s->fiq = malloc(NFIQ(sc) * sizeof(struct sge_iq), M_CXGBE,
 		    M_ZERO | M_WAITOK);
 	}
+	s->ctrlq = malloc(NCHAN * sizeof(struct sge_ctrlq), M_CXGBE,
+	    M_ZERO | M_WAITOK);
 	s->rxq = malloc(s->nrxq * sizeof(struct sge_rxq), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 	s->txq = malloc(s->ntxq * sizeof(struct sge_txq), M_CXGBE,
@@ -653,6 +656,7 @@ t4_detach(device_t dev)
 	free(sc->irq, M_CXGBE);
 	free(sc->sge.rxq, M_CXGBE);
 	free(sc->sge.txq, M_CXGBE);
+	free(sc->sge.ctrlq, M_CXGBE);
 	free(sc->sge.fiq, M_CXGBE);
 	free(sc->sge.iqmap, M_CXGBE);
 	free(sc->sge.eqmap, M_CXGBE);
@@ -992,7 +996,7 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 
 	if (m->m_flags & M_FLOWID)
 		txq += (m->m_pkthdr.flowid % pi->ntxq);
-	br = txq->eq.br;
+	br = txq->br;
 
 	if (TXQ_TRYLOCK(txq) == 0) {
 		/*
@@ -1047,7 +1051,7 @@ cxgbe_qflush(struct ifnet *ifp)
 		for_each_txq(pi, i, txq) {
 			TXQ_LOCK(txq);
 			m_freem(txq->m);
-			while ((m = buf_ring_dequeue_sc(txq->eq.br)) != NULL)
+			while ((m = buf_ring_dequeue_sc(txq->br)) != NULL)
 				m_freem(m);
 			TXQ_UNLOCK(txq);
 		}
@@ -1894,9 +1898,9 @@ first_port_up(struct adapter *sc)
 	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
 
 	/*
-	 * The firmware event queue and the optional forwarded interrupt queues.
+	 * queues that belong to the adapter (not any particular port).
 	 */
-	rc = t4_setup_adapter_iqs(sc);
+	rc = t4_setup_adapter_queues(sc);
 	if (rc != 0)
 		goto done;
 
@@ -1963,7 +1967,7 @@ last_port_down(struct adapter *sc)
 
 	t4_intr_disable(sc);
 
-	t4_teardown_adapter_iqs(sc);
+	t4_teardown_adapter_queues(sc);
 
 	for (i = 0; i < sc->intr_count; i++)
 		t4_free_irq(sc, &sc->irq[i]);
@@ -2278,7 +2282,7 @@ cxgbe_tick(void *arg)
 
 	drops = s->tx_drop;
 	for_each_txq(pi, i, txq)
-		drops += txq->eq.br->br_drops;
+		drops += txq->br->br_drops;
 	ifp->if_snd.ifq_drops = drops;
 
 	ifp->if_oerrors = s->tx_error_frames;
@@ -2674,7 +2678,7 @@ txq_start(struct ifnet *ifp, struct sge_txq *txq)
 
 	TXQ_LOCK_ASSERT_OWNED(txq);
 
-	br = txq->eq.br;
+	br = txq->br;
 	m = txq->m ? txq->m : drbr_dequeue(ifp, br);
 	if (m)
 		t4_eth_tx(ifp, txq, m);
