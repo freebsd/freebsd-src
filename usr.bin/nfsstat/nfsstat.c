@@ -325,14 +325,15 @@ intpr(int clientOnly, int serverOnly)
 			nfsstats.write_bios);
 		printf("%9.9s %9.9s %9.9s %9.9s",
 			"BioRLHits", "Misses", "BioD Hits", "Misses");
-		printf(" %9.9s %9.9s\n", "DirE Hits", "Misses");
+		printf(" %9.9s %9.9s %9.9s %9.9s\n", "DirE Hits", "Misses", "Accs Hits", "Misses");
 		printf("%9d %9d %9d %9d",
 			nfsstats.biocache_readlinks-nfsstats.readlink_bios,
 			nfsstats.readlink_bios,
 			nfsstats.biocache_readdirs-nfsstats.readdir_bios,
 			nfsstats.readdir_bios);
-		printf(" %9d %9d\n",
-			nfsstats.direofcache_hits, nfsstats.direofcache_misses);
+		printf(" %9d %9d %9d %9d\n",
+			nfsstats.direofcache_hits, nfsstats.direofcache_misses,
+			nfsstats.accesscache_hits, nfsstats.accesscache_misses);
 	}
 	if (serverOnly && !nfsrvstatsp) {
 		printf("Server not present!\n");
