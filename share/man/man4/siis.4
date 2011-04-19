@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 18, 2009
+.Dd April 8, 2011
 .Dt SIIS 4
 .Os
 .Sh NAME
@@ -93,6 +93,12 @@ Port Multipliers (including FIS-based switching), hardware command queues
 (31 command per port), Native Command Queuing, SATA interface Power Management,
 device hot-plug and Message Signaled Interrupts.
 .Pp
+The activity LEDs of the adapters supported by the
+.Nm
+driver can be controlled via the
+.Xr led 4
+API for localization or status reporting purposes.
+.Pp
 Same hardware is also supported by the atasiliconimage driver from
 .Xr ata 4
 subsystem.
@@ -101,14 +107,21 @@ given precedence as the more functional of the two.
 .Sh HARDWARE
 The
 .Nm
-driver supports the following controllers:
+driver supports the following controller chips:
 .Bl -bullet -compact
 .It
-SiI3124
+SiI3124 (PCI-X 133MHz/64bit, 4 ports)
 .It
-SiI3132
+SiI3131 (PCIe 1.0 x1, 1 port)
 .It
-SiI3531
+SiI3132 (PCIe 1.0 x1, 2 ports)
+.It
+SiI3531 (PCIe 1.0 x1, 1 port)
+.El
+.Sh FILES
+.Bl -tag -width /dev/led/siisch*
+.It Pa /dev/led/siisch*
+identification LED device nodes
 .El
 .Sh SEE ALSO
 .Xr ada 4 ,
@@ -116,6 +129,7 @@ SiI3531
 .Xr cam 4 ,
 .Xr cd 4 ,
 .Xr da 4 ,
+.Xr led 4 ,
 .Xr sa 4
 .Sh HISTORY
 The
