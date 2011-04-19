@@ -65,11 +65,7 @@ PICFLAG=-fpic
 .endif
 .endif
 
-.if ${CC:T:Micc} == "icc"
-PO_FLAG=-p
-.else
 PO_FLAG=-pg
-.endif
 
 .c.po:
 	${CC} ${PO_FLAG} ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
