@@ -2102,11 +2102,13 @@ static int
 mvs_sata_connect(struct mvs_channel *ch)
 {
 	u_int32_t status;
-	int timeout;
+	int timeout, found = 0;
 
 	/* Wait up to 100ms for "connect well" */
-	for (timeout = 0; timeout < 100 ; timeout++) {
+	for (timeout = 0; timeout < 1000 ; timeout++) {
 		status = ATA_INL(ch->r_mem, SATA_SS);
+		if ((status & SATA_SS_DET_MASK) != SATA_SS_DET_NO_DEVICE)
+			found = 1;
 		if (((status & SATA_SS_DET_MASK) == SATA_SS_DET_PHY_ONLINE) &&
 		    ((status & SATA_SS_SPD_MASK) != SATA_SS_SPD_NO_SPEED) &&
 		    ((status & SATA_SS_IPM_MASK) == SATA_SS_IPM_ACTIVE))
@@ -2118,18 +2120,21 @@ mvs_sata_connect(struct mvs_channel *ch)
 			}
 			return (0);
 		}
-		DELAY(1000);
+		if (found == 0 && timeout >= 100)
+			break;
+		DELAY(100);
 	}
-	if (timeout >= 100) {
+	if (timeout >= 1000 || !found) {
 		if (bootverbose) {
-			device_printf(ch->dev, "SATA connect timeout status=%08x\n",
-			    status);
+			device_printf(ch->dev,
+			    "SATA connect timeout time=%dus status=%08x\n",
+			    timeout * 100, status);
 		}
 		return (0);
 	}
 	if (bootverbose) {
-		device_printf(ch->dev, "SATA connect time=%dms status=%08x\n",
-		    timeout, status);
+		device_printf(ch->dev, "SATA connect time=%dus status=%08x\n",
+		    timeout * 100, status);
 	}
 	/* Clear SATA error register */
 	ATA_OUTL(ch->r_mem, SATA_SE, 0xffffffff);
@@ -2155,11 +2160,10 @@ mvs_sata_phy_reset(device_t dev)
 	ATA_OUTL(ch->r_mem, SATA_SC,
 	    SATA_SC_DET_RESET | val |
 	    SATA_SC_IPM_DIS_PARTIAL | SATA_SC_IPM_DIS_SLUMBER);
-	DELAY(5000);
+	DELAY(1000);
 	ATA_OUTL(ch->r_mem, SATA_SC,
 	    SATA_SC_DET_IDLE | val | ((ch->pm_level > 0) ? 0 :
 	    (SATA_SC_IPM_DIS_PARTIAL | SATA_SC_IPM_DIS_SLUMBER)));
-	DELAY(5000);
 	if (!mvs_sata_connect(ch)) {
 		if (ch->pm_level > 0)
 			ATA_OUTL(ch->r_mem, SATA_SC, SATA_SC_DET_DISABLE);
