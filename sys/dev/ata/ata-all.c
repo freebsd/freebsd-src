@@ -1474,12 +1474,83 @@ ata_cam_begin_transaction(device_t dev, union ccb *ccb)
 	}
 }
 
+static void
+ata_cam_request_sense(device_t dev, struct ata_request *request)
+{
+	struct ata_channel *ch = device_get_softc(dev);
+	union ccb *ccb = request->ccb;
+
+	ch->requestsense = 1;
+
+	bzero(request, sizeof(&request));
+	request->dev = NULL;
+	request->parent = dev;
+	request->unit = ccb->ccb_h.target_id;
+	request->data = (void *)&ccb->csio.sense_data;
+	request->bytecount = ccb->csio.sense_len;
+	request->u.atapi.ccb[0] = ATAPI_REQUEST_SENSE;
+	request->u.atapi.ccb[4] = ccb->csio.sense_len;
+	request->flags |= ATA_R_ATAPI;
+	if (ch->curr[ccb->ccb_h.target_id].atapi == 16)
+		request->flags |= ATA_R_ATAPI16;
+	if (ch->curr[ccb->ccb_h.target_id].mode >= ATA_DMA)
+		request->flags |= ATA_R_DMA;
+	request->flags |= ATA_R_READ;
+	request->transfersize = min(request->bytecount,
+	    ch->curr[ccb->ccb_h.target_id].bytecount);
+	request->retries = 0;
+	request->timeout = (ccb->ccb_h.timeout + 999) / 1000;
+	callout_init_mtx(&request->callout, &ch->state_mtx, CALLOUT_RETURNUNLOCKED);
+	request->ccb = ccb;
+
+	ch->running = request;
+	ch->state = ATA_ACTIVE;
+	if (ch->hw.begin_transaction(request) == ATA_OP_FINISHED) {
+		ch->running = NULL;
+		ch->state = ATA_IDLE;
+		ata_cam_end_transaction(dev, request);
+		return;
+	}
+}
+
+static void
+ata_cam_process_sense(device_t dev, struct ata_request *request)
+{
+	struct ata_channel *ch = device_get_softc(dev);
+	union ccb *ccb = request->ccb;
+	int fatalerr = 0;
+
+	ch->requestsense = 0;
+
+	if (request->flags & ATA_R_TIMEOUT)
+		fatalerr = 1;
+	if ((request->flags & ATA_R_TIMEOUT) == 0 &&
+	    (request->status & ATA_S_ERROR) == 0 &&
+	    request->result == 0) {
+		ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
+	} else {
+		ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+		ccb->ccb_h.status |= CAM_AUTOSENSE_FAIL;
+	}
+
+	ata_free_request(request);
+	xpt_done(ccb);
+	/* Do error recovery if needed. */
+	if (fatalerr)
+		ata_reinit(dev);
+}
+
 void
 ata_cam_end_transaction(device_t dev, struct ata_request *request)
 {
 	struct ata_channel *ch = device_get_softc(dev);
 	union ccb *ccb = request->ccb;
 	int fatalerr = 0;
+
+	if (ch->requestsense) {
+		ata_cam_process_sense(dev, request);
+		return;
+	}
 
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	if (request->flags & ATA_R_TIMEOUT) {
@@ -1530,8 +1601,13 @@ ata_cam_end_transaction(device_t dev, struct ata_request *request)
 			    ccb->csio.dxfer_len - request->donecount;
 		}
 	}
-	ata_free_request(request);
-	xpt_done(ccb);
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR &&
+	    (ccb->ccb_h.flags & CAM_DIS_AUTOSENSE) == 0)
+		ata_cam_request_sense(dev, request);
+	else {
+		ata_free_request(request);
+		xpt_done(ccb);
+	}
 	/* Do error recovery if needed. */
 	if (fatalerr)
 		ata_reinit(dev);
