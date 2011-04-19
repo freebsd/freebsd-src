@@ -202,7 +202,7 @@ cpu_startup(void *dummy)
 			    phys_avail[indx + 1] - phys_avail[indx];
 
 			#ifdef __powerpc64__
-			printf("0x%16lx - 0x%16lx, %ld bytes (%ld pages)\n",
+			printf("0x%016lx - 0x%016lx, %ld bytes (%ld pages)\n",
 			#else
 			printf("0x%08x - 0x%08x, %d bytes (%ld pages)\n",
 			#endif
