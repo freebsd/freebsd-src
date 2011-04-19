@@ -261,6 +261,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		} else {
 			memset(map, 0xff, mapsize);
 		}
+		nv_add_int8(nvout, 1, "virgin");
 		nv_add_uint8(nvout, HAST_SYNCSRC_PRIMARY, "syncsrc");
 	} else if (res->hr_resuid != resuid) {
 		char errmsg[256];
