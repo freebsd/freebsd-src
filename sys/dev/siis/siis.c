@@ -1631,9 +1631,9 @@ retry:
 		xpt_release_simq(ch->sim, TRUE);
 		return;
 	}
-	/* Wait for clearing busy status. */
-	if (siis_wait_ready(dev, 10000)) {
-		device_printf(dev, "device ready timeout\n");
+	/* Wait for port ready status. */
+	if (siis_wait_ready(dev, 1000)) {
+		device_printf(dev, "port ready timeout\n");
 		if (!retry) {
 			device_printf(dev, "trying full port reset ...\n");
 			/* Get port to the reset state. */
