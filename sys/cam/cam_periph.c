@@ -1055,6 +1055,7 @@ camperiphsensedone(struct cam_periph *periph, union ccb *done_ccb)
 			saved_ccb->ccb_h.status |=
 			    CAM_AUTOSENSE_FAIL;
 		}
+		saved_ccb->csio.sense_resid = done_ccb->csio.resid;
 		bcopy(saved_ccb, done_ccb, sizeof(union ccb));
 		xpt_free_ccb(saved_ccb);
 		break;
@@ -1211,7 +1212,7 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 			scsi_request_sense(&done_ccb->csio, /*retries*/1,
 					   camperiphsensedone,
 					   &save_ccb->csio.sense_data,
-					   sizeof(save_ccb->csio.sense_data),
+					   save_ccb->csio.sense_len,
 					   CAM_TAG_ACTION_NONE,
 					   /*sense_len*/SSD_FULL_SIZE,
 					   /*timeout*/5000);
@@ -1602,7 +1603,7 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 			scsi_request_sense(&ccb->csio, /*retries*/1,
 					   camperiphsensedone,
 					   &orig_ccb->csio.sense_data,
-					   sizeof(orig_ccb->csio.sense_data),
+					   orig_ccb->csio.sense_len,
 					   CAM_TAG_ACTION_NONE,
 					   /*sense_len*/SSD_FULL_SIZE,
 					   /*timeout*/5000);
