@@ -332,7 +332,7 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 #ifdef INET
 	/* Make the compiler happy. */
 	laddr.s_addr = 0;
-	if ((inp->inp_vflag & INP_IPV4) != 0) {
+	if ((inp->inp_vflag & (INP_IPV4|INP_IPV6)) == INP_IPV4) {
 		KASSERT(laddrp != NULL, ("%s: laddrp NULL for v4 inp %p",
 		    __func__, inp));
 		laddr = *laddrp;
@@ -368,7 +368,7 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 	} while (tmpinp != NULL);
 
 #ifdef INET
-	if ((inp->inp_vflag & INP_IPV4) != 0)
+	if ((inp->inp_vflag & (INP_IPV4|INP_IPV6)) == INP_IPV4)
 		laddrp->s_addr = laddr.s_addr;
 #endif                 
 	*lportp = lport;
