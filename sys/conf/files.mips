@@ -53,7 +53,7 @@ mips/mips/db_disasm.c		optional	ddb
 mips/mips/db_interface.c	optional	ddb
 mips/mips/db_trace.c		optional	ddb
 mips/mips/dump_machdep.c	standard
-mips/mips/in_cksum.c		optional	inet
+mips/mips/in_cksum.c		optional	inet | inet6
 mips/mips/locore.S		standard	no-obj
 mips/mips/minidump_machdep.c	standard
 mips/mips/mem.c			optional	mem

@@ -105,7 +105,7 @@ sparc64/sparc64/eeprom.c	optional	eeprom ebus | eeprom fhc | \
 						eeprom sbus
 sparc64/sparc64/gdb_machdep.c	optional	gdb
 sparc64/sparc64/identcpu.c	standard
-sparc64/sparc64/in_cksum.c	optional	inet
+sparc64/sparc64/in_cksum.c	optional	inet | inet6
 sparc64/sparc64/interrupt.S	standard	no-obj			\
 	compile-with "${NORMAL_S} -mcpu=ultrasparc"
 sparc64/sparc64/intr_machdep.c	standard
