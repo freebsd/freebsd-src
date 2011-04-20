@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20110420:	p5	FreeBSD-SA-11:01.mountd
+	Fix CIDR parsing bug in mountd ACLs.
+
 20101129:	p4	FreeBSD-SA-10:10.openssl
 	Fix OpenSSL multiple vulnerabilities.
 
