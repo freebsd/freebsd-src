@@ -253,6 +253,7 @@ static void	iwn_tune_sensitivity(struct iwn_softc *,
 static int	iwn_send_sensitivity(struct iwn_softc *);
 static int	iwn_set_pslevel(struct iwn_softc *, int, int, int);
 static int	iwn_send_btcoex(struct iwn_softc *);
+static int	iwn_send_advanced_btcoex(struct iwn_softc *);
 static int	iwn_config(struct iwn_softc *);
 static uint8_t	*ieee80211_add_ssid(uint8_t *, const uint8_t *, u_int);
 static int	iwn_scan(struct iwn_softc *);
@@ -816,6 +817,8 @@ iwn5000_attach(struct iwn_softc *sc, uint16_t pid)
 	case IWN_HW_REV_TYPE_6005:
 		sc->limits = &iwn6000_sensitivity_limits;
 		sc->fwname = "iwn6005fw";
+		if (pid != 0x0082 && pid != 0x0085)
+			sc->sc_flags |= IWN_FLAG_ADV_BTCOEX;
 		break;
 	default:
 		device_printf(sc->sc_dev, "adapter type %d not supported\n",
@@ -4721,6 +4724,63 @@ iwn_send_btcoex(struct iwn_softc *sc)
 }
 
 static int
+iwn_send_advanced_btcoex(struct iwn_softc *sc)
+{
+	static const uint32_t btcoex_3wire[12] = {
+		0xaaaaaaaa, 0xaaaaaaaa, 0xaeaaaaaa, 0xaaaaaaaa,
+		0xcc00ff28, 0x0000aaaa, 0xcc00aaaa, 0x0000aaaa,
+		0xc0004000, 0x00004000, 0xf0005000, 0xf0005000,
+	};
+	struct iwn6000_btcoex_config btconfig;
+	struct iwn_btcoex_priotable btprio;
+	struct iwn_btcoex_prot btprot;
+	int error, i;
+
+	memset(&btconfig, 0, sizeof btconfig);
+	btconfig.flags = 145;
+	btconfig.max_kill = 5;
+	btconfig.bt3_t7_timer = 1;
+	btconfig.kill_ack = htole32(0xffff0000);
+	btconfig.kill_cts = htole32(0xffff0000);
+	btconfig.sample_time = 2;
+	btconfig.bt3_t2_timer = 0xc;
+	for (i = 0; i < 12; i++)
+		btconfig.lookup_table[i] = htole32(btcoex_3wire[i]);
+	btconfig.valid = htole16(0xff);
+	btconfig.prio_boost = 0xf0;
+	DPRINTF(sc, IWN_DEBUG_RESET,
+	    "%s: configuring advanced bluetooth coexistence\n", __func__);
+	error = iwn_cmd(sc, IWN_CMD_BT_COEX, &btconfig, sizeof(btconfig), 1);
+	if (error != 0)
+		return error;
+
+	memset(&btprio, 0, sizeof btprio);
+	btprio.calib_init1 = 0x6;
+	btprio.calib_init2 = 0x7;
+	btprio.calib_periodic_low1 = 0x2;
+	btprio.calib_periodic_low2 = 0x3;
+	btprio.calib_periodic_high1 = 0x4;
+	btprio.calib_periodic_high2 = 0x5;
+	btprio.dtim = 0x6;
+	btprio.scan52 = 0x8;
+	btprio.scan24 = 0xa;
+	error = iwn_cmd(sc, IWN_CMD_BT_COEX_PRIOTABLE, &btprio, sizeof(btprio),
+	    1);
+	if (error != 0)
+		return error;
+
+	/* Force BT state machine change. */
+	memset(&btprot, 0, sizeof btprio);
+	btprot.open = 1;
+	btprot.type = 1;
+	error = iwn_cmd(sc, IWN_CMD_BT_COEX_PROT, &btprot, sizeof(btprot), 1);
+	if (error != 0)
+		return error;
+	btprot.open = 0;
+	return iwn_cmd(sc, IWN_CMD_BT_COEX_PROT, &btprot, sizeof(btprot), 1);
+}
+
+static int
 iwn_config(struct iwn_softc *sc)
 {
 	struct iwn_ops *ops = &sc->ops;
@@ -4756,7 +4816,10 @@ iwn_config(struct iwn_softc *sc)
 	}
 
 	/* Configure bluetooth coexistence. */
-	error = iwn_send_btcoex(sc);
+	if (sc->sc_flags & IWN_FLAG_ADV_BTCOEX)
+		error = iwn_send_advanced_btcoex(sc);
+	else
+		error = iwn_send_btcoex(sc);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "%s: could not configure bluetooth coexistence, error %d\n",
