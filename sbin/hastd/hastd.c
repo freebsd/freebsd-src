@@ -739,7 +739,7 @@ listen_accept(void)
 		if (res->hr_role == HAST_ROLE_PRIMARY) {
 			/*
 			 * If we act as primary request the other side to wait
-			 * for us for a bit, as may might be finishing cleanups.
+			 * for us a bit, as we might be finishing cleanups.
 			 */
 			nv_add_uint8(nverr, 1, "wait");
 		}
