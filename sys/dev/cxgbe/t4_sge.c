@@ -1470,7 +1470,7 @@ free_ctrlq(struct adapter *sc, struct sge_ctrlq *ctrlq)
 	struct sge_eq *eq = &ctrlq->eq;
 
 	if (eq->flags & (EQ_ALLOCATED | EQ_STARTED)) {
-		rc = -t4_eth_eq_free(sc, sc->mbox, sc->pf, 0, eq->cntxt_id);
+		rc = -t4_ctrl_eq_free(sc, sc->mbox, sc->pf, 0, eq->cntxt_id);
 		if (rc != 0) {
 			device_printf(sc->dev,
 			    "failed to free ctrl queue %p: %d\n", eq, rc);
