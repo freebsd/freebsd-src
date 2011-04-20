@@ -218,8 +218,6 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, output_flowtable_size, CTLFLAG_RDTUN,
     "number of entries in the per-cpu output flow caches");
 #endif
 
-VNET_DEFINE(int, fw_one_pass) = 1;
-
 static void	ip_freef(struct ipqhead *, struct ipq *);
 
 /*

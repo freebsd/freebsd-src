@@ -113,6 +113,7 @@ static int default_to_accept;
 #endif
 
 VNET_DEFINE(int, autoinc_step);
+VNET_DEFINE(int, fw_one_pass) = 1;
 
 /*
  * Each rule belongs to one of 32 different sets (0..31).
