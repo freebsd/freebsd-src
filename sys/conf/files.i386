@@ -283,7 +283,7 @@ i386/i386/gdb_machdep.c		optional gdb
 i386/i386/geode.c		optional cpu_geode
 i386/i386/i686_mem.c		optional mem
 i386/i386/identcpu.c		standard
-i386/i386/in_cksum.c		optional inet
+i386/i386/in_cksum.c		optional inet | inet6
 i386/i386/initcpu.c		standard
 i386/i386/intr_machdep.c	standard
 i386/i386/io.c			optional io
