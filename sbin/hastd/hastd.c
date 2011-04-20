@@ -730,7 +730,7 @@ listen_accept(void)
 	}
 	/* Is the resource marked as secondary? */
 	if (res->hr_role != HAST_ROLE_SECONDARY) {
-		pjdlog_error("We act as %s for the resource and not as %s as requested by %s.",
+		pjdlog_warning("We act as %s for the resource and not as %s as requested by %s.",
 		    role2str(res->hr_role), role2str(HAST_ROLE_SECONDARY),
 		    raddr);
 		nv_add_stringf(nverr, "errmsg",
