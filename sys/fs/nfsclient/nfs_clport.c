@@ -819,6 +819,8 @@ nfscl_request(struct nfsrv_descript *nd, struct vnode *vp, NFSPROC_T *p,
 	int ret, vers;
 	struct nfsmount *nmp;
 
+	if ((vp->v_iflag & VI_DOOMED) != 0)
+		return (EPERM);
 	nmp = VFSTONFS(vp->v_mount);
 	if (nd->nd_flag & ND_NFSV4)
 		vers = NFS_VER4;
