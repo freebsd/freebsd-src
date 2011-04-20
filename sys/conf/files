@@ -1273,6 +1273,34 @@ iwn6000.fw			optional iwn6000fw | iwnfw		\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000-9.221.4.1.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwn6000.fw"
+iwn6000g2afw.c			optional iwn6000g2afw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn6000g2a.fw:iwn6000g2afw -miwn6000g2afw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn6000g2afw.c"
+iwn6000g2afw.fwo		optional iwn6000g2afw | iwnfw		\
+	dependency	"iwn6000g2a.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn6000g2a.fw" \
+	no-implicit-rule						\
+	clean		"iwn6000g2afw.fwo"
+iwn6000g2a.fw			optional iwn6000g2afw | iwnfw		\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-6000g2a-17.168.5.2.fw.uu" \
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000g2a-17.168.5.2.fw.uu" \
+	no-obj no-implicit-rule						\
+	clean		"iwn6000g2a.fw"
+iwn6000g2bfw.c			optional iwn6000g2bfw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn6000g2b.fw:iwn6000g2bfw -miwn6000g2bfw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn6000g2bfw.c"
+iwn6000g2bfw.fwo		optional iwn6000g2bfw | iwnfw		\
+	dependency	"iwn6000g2b.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn6000g2b.fw" \
+	no-implicit-rule						\
+	clean		"iwn6000g2bfw.fwo"
+iwn6000g2b.fw			optional iwn6000g2bfw | iwnfw		\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-6000g2b-17.168.5.2.fw.uu" \
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000g2b-17.168.5.2.fw.uu" \
+	no-obj no-implicit-rule						\
+	clean		"iwn6000g2b.fw"
 iwn6050fw.c			optional iwn6050fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn6050.fw:iwn6050fw -miwn6050fw -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
