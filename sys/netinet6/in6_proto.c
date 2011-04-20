@@ -169,6 +169,9 @@ struct ip6protosw inet6sw[] = {
 	.pr_input =		udp6_input,
 	.pr_ctlinput =		udp6_ctlinput,
 	.pr_ctloutput =		ip6_ctloutput,
+#ifndef INET	/* Do not call initialization twice. */
+	.pr_init =		udp_init,
+#endif
 	.pr_usrreqs =		&udp6_usrreqs,
 },
 {
@@ -196,6 +199,9 @@ struct ip6protosw inet6sw[] = {
         .pr_ctlinput =  sctp6_ctlinput,
         .pr_ctloutput = sctp_ctloutput,
         .pr_drain =	sctp_drain,
+#ifndef INET	/* Do not call initialization twice. */
+	.pr_init =	sctp_init,
+#endif
         .pr_usrreqs =	&sctp6_usrreqs
 },
 {
@@ -231,6 +237,9 @@ struct ip6protosw inet6sw[] = {
 	.pr_output =		rip6_output,
 	.pr_ctlinput =		rip6_ctlinput,
 	.pr_ctloutput =		rip6_ctloutput,
+#ifndef INET	/* Do not call initialization twice. */
+	.pr_init =		rip_init,
+#endif
 	.pr_usrreqs =		&rip6_usrreqs
 },
 {
