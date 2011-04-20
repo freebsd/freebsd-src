@@ -114,7 +114,7 @@ static void oneseg_dma_callback(void *, bus_dma_segment_t *, int, int);
 static inline bool is_new_response(const struct sge_iq *, struct rsp_ctrl **);
 static inline void iq_next(struct sge_iq *);
 static inline void ring_fl_db(struct adapter *, struct sge_fl *);
-static void refill_fl(struct sge_fl *, int);
+static void refill_fl(struct adapter *, struct sge_fl *, int, int);
 static int alloc_fl_sdesc(struct sge_fl *);
 static void free_fl_sdesc(struct sge_fl *);
 static int alloc_tx_maps(struct sge_txq *);
@@ -763,9 +763,7 @@ t4_eth_rx(void *arg)
 		FL_LOCK(fl);
 		fl->needed += i;
 		if (fl->needed >= 32)
-			refill_fl(fl, 64);
-		if (fl->pending >= 32)
-			ring_fl_db(sc, fl);
+			refill_fl(sc, fl, 64, 32);
 		FL_UNLOCK(fl);
 
 nextdesc:	ndescs++;
@@ -793,9 +791,7 @@ nextdesc:	ndescs++;
 
 	FL_LOCK(fl);
 	if (fl->needed >= 32)
-		refill_fl(fl, 128);
-	if (fl->pending >= 8)
-		ring_fl_db(sc, fl);
+		refill_fl(sc, fl, 128, 8);
 	FL_UNLOCK(fl);
 }
 
@@ -1179,7 +1175,7 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 			    rc);
 			return (rc);
 		}
-		fl->needed = fl->cap - 1; /* one less to avoid cidx = pidx */
+		fl->needed = fl->cap;
 
 		c.iqns_to_fl0congen =
 		    htobe32(V_FW_IQ_CMD_FL0HOSTFCMODE(X_HOSTFCMODE_NONE));
@@ -1222,9 +1218,7 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 		sc->sge.eqmap[cntxt_id] = (void *)fl;
 
 		FL_LOCK(fl);
-		refill_fl(fl, -1);
-		if (fl->pending >= 8)
-			ring_fl_db(sc, fl);
+		refill_fl(sc, fl, -1, 8);
 		FL_UNLOCK(fl);
 	}
 
@@ -1692,24 +1686,31 @@ iq_next(struct sge_iq *iq)
 	}
 }
 
+#define FL_HW_IDX(x) ((x) >> 3)
 static inline void
 ring_fl_db(struct adapter *sc, struct sge_fl *fl)
 {
 	int ndesc = fl->pending / 8;
 
-	/* Caller responsible for ensuring there's something useful to do */
-	KASSERT(ndesc > 0, ("%s called with no useful work to do.", __func__));
+	if (FL_HW_IDX(fl->pidx) == FL_HW_IDX(fl->cidx))
+		ndesc--;	/* hold back one credit */
+
+	if (ndesc <= 0)
+		return;		/* nothing to do */
 
 	wmb();
 
 	t4_write_reg(sc, MYPF_REG(A_SGE_PF_KDOORBELL), F_DBPRIO |
 	    V_QID(fl->cntxt_id) | V_PIDX(ndesc));
-
-	fl->pending &= 7;
+	fl->pending -= ndesc * 8;
 }
 
+/*
+ * Fill up the freelist by upto nbufs and ring its doorbell if the number of
+ * buffers ready to be handed to the hardware >= dbthresh.
+ */
 static void
-refill_fl(struct sge_fl *fl, int nbufs)
+refill_fl(struct adapter *sc, struct sge_fl *fl, int nbufs, int dbthresh)
 {
 	__be64 *d = &fl->desc[fl->pidx];
 	struct fl_sdesc *sd = &fl->sdesc[fl->pidx];
@@ -1800,6 +1801,9 @@ recycled:
 			d = fl->desc;
 		}
 	}
+
+	if (fl->pending >= dbthresh)
+		ring_fl_db(sc, fl);
 }
 
 static int
