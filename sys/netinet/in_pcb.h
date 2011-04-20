@@ -482,8 +482,6 @@ VNET_DECLARE(int, ipport_tcpallocs);
 #define	V_ipport_stoprandom	VNET(ipport_stoprandom)
 #define	V_ipport_tcpallocs	VNET(ipport_tcpallocs)
 
-extern struct callout ipport_tick_callout;
-
 void	in_pcbinfo_destroy(struct inpcbinfo *);
 void	in_pcbinfo_init(struct inpcbinfo *, const char *, struct inpcbhead *,
 	    int, int, char *, uma_init, uma_fini, uint32_t);
@@ -521,7 +519,6 @@ int	in_getsockaddr(struct socket *so, struct sockaddr **nam);
 struct sockaddr *
 	in_sockaddr(in_port_t port, struct in_addr *addr);
 void	in_pcbsosetlabel(struct socket *so);
-void	ipport_tick(void *xtp);
 #endif /* _KERNEL */
 
 #endif /* !_NETINET_IN_PCB_H_ */

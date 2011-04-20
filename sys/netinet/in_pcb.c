@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/callout.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
@@ -84,6 +85,8 @@ __FBSDID("$FreeBSD$");
 #endif /* IPSEC */
 
 #include <security/mac/mac_framework.h>
+
+static struct callout	ipport_tick_callout;
 
 /*
  * These configure the range of local port addresses assigned to
@@ -1668,7 +1671,7 @@ in_pcbsosetlabel(struct socket *so)
  * allocation. We return to random allocation only once we drop below
  * ipport_randomcps for at least ipport_randomtime seconds.
  */
-void
+static void
 ipport_tick(void *xtp)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
@@ -1688,6 +1691,30 @@ ipport_tick(void *xtp)
 	VNET_LIST_RUNLOCK_NOSLEEP();
 	callout_reset(&ipport_tick_callout, hz, ipport_tick, NULL);
 }
+
+static void
+ip_fini(void *xtp)
+{
+
+	callout_stop(&ipport_tick_callout);
+}
+
+/* 
+ * The ipport_callout should start running at about the time we attach the
+ * inet or inet6 domains.
+ */
+static void
+ipport_tick_init(const void *unused __unused)
+{
+
+	/* Start ipport_tick. */
+	callout_init(&ipport_tick_callout, CALLOUT_MPSAFE);
+	callout_reset(&ipport_tick_callout, 1, ipport_tick, NULL);
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, ip_fini, NULL,
+		SHUTDOWN_PRI_DEFAULT);
+}
+SYSINIT(ipport_tick_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, 
+    ipport_tick_init, NULL);
 
 void
 inp_wlock(struct inpcb *inp)
