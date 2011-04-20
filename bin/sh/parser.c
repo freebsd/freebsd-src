@@ -1572,8 +1572,8 @@ varname:
 			pungetc();
 		}
 		STPUTC('=', out);
-		if (subtype != VSLENGTH && (state[level].syntax == DQSYNTAX ||
-		    state[level].syntax == ARISYNTAX))
+		if (state[level].syntax == DQSYNTAX ||
+		    state[level].syntax == ARISYNTAX)
 			flags |= VSQUOTE;
 		*(stackblock() + typeloc) = subtype | flags;
 		if (subtype != VSNORMAL) {
