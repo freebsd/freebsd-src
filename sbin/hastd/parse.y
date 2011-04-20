@@ -461,6 +461,10 @@ compression_type:
 
 timeout_statement:	TIMEOUT NUM
 	{
+		if ($2 <= 0) {
+			pjdlog_error("Negative or zero timeout.");
+			return (1);
+		}
 		switch (depth) {
 		case 0:
 			depth0_timeout = $2;
