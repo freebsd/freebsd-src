@@ -2755,6 +2755,7 @@ tagcontrol(struct cam_device *device, int argc, char **argv,
 		bzero(&(&ccb->ccb_h)[1],
 		      sizeof(struct ccb_relsim) - sizeof(struct ccb_hdr));
 		ccb->ccb_h.func_code = XPT_REL_SIMQ;
+		ccb->ccb_h.flags = CAM_DEV_QFREEZE;
 		ccb->crs.release_flags = RELSIM_ADJUST_OPENINGS;
 		ccb->crs.openings = numtags;
 
