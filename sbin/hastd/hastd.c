@@ -736,6 +736,13 @@ listen_accept(void)
 		nv_add_stringf(nverr, "errmsg",
 		    "Remote node acts as %s for the resource and not as %s.",
 		    role2str(res->hr_role), role2str(HAST_ROLE_SECONDARY));
+		if (res->hr_role == HAST_ROLE_PRIMARY) {
+			/*
+			 * If we act as primary request the other side to wait
+			 * for us for a bit, as may might be finishing cleanups.
+			 */
+			nv_add_uint8(nverr, 1, "wait");
+		}
 		goto fail;
 	}
 	/* Does token (if exists) match? */
