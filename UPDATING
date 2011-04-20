@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20110420:	p1	FreeBSD-SA-11:01.mountd
+	Fix CIDR parsing bug in mountd ACLs.
+
 20110221:
 	FreeBSD 7.4-RELEASE
 
