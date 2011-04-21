@@ -61,21 +61,21 @@
 /*
  * Convenience definitions used in multiple files.
  */
-#define BXE_PRINTF(fmt, args...)				\
-	do {										\
-		device_printf(sc->bxe_dev, fmt, ##args);\
+#define BXE_PRINTF(fmt, args...)					\
+	do {								\
+		device_printf(sc->dev, fmt, ##args);			\
 	}while(0)
 
 
 #ifdef BXE_DEBUG
 
-#define REG_WR(sc, offset, val)		\
+#define REG_WR(sc, offset, val)			\
 	bxe_reg_write32(sc, offset, val)
-#define REG_WR8(sc, offset, val)	\
+#define REG_WR8(sc, offset, val)		\
 	bxe_reg_write8(sc, offset, val)
-#define REG_WR16(sc, offset, val)	\
+#define REG_WR16(sc, offset, val)		\
 	bxe_reg_write16(sc, offset, val)
-#define REG_WR32(sc, offset, val)	\
+#define REG_WR32(sc, offset, val)		\
 	bxe_reg_write32(sc, offset, val)
 
 #define REG_RD(sc, offset)			\
@@ -87,77 +87,77 @@
 #define REG_RD32(sc, offset)			\
 	bxe_reg_read32(sc, offset)
 
-#define REG_RD_IND(sc, offset)		\
+#define REG_RD_IND(sc, offset)			\
 	bxe_reg_rd_ind(sc, offset)
-#define REG_WR_IND(sc, offset, val)	\
+#define REG_WR_IND(sc, offset, val)		\
 	bxe_reg_wr_ind(sc, offset, val)
 
 #else
 
-#define REG_WR(sc, offset, val)		\
+#define REG_WR(sc, offset, val)						\
 	bus_space_write_4(sc->bxe_btag, sc->bxe_bhandle, offset, val)
-#define REG_WR8(sc, offset, val)	\
+#define REG_WR8(sc, offset, val)					\
 	bus_space_write_1(sc->bxe_btag, sc->bxe_bhandle, offset, val)
-#define REG_WR16(sc, offset, val)	\
+#define REG_WR16(sc, offset, val)					\
 	bus_space_write_2(sc->bxe_btag, sc->bxe_bhandle, offset, val)
-#define REG_WR32(sc, offset, val)		\
+#define REG_WR32(sc, offset, val)					\
 	bus_space_write_4(sc->bxe_btag, sc->bxe_bhandle, offset, val)
 
-#define REG_RD(sc, offset)			\
+#define REG_RD(sc, offset)						\
 	bus_space_read_4(sc->bxe_btag, sc->bxe_bhandle, offset)
-#define REG_RD8(sc, offset)			\
+#define REG_RD8(sc, offset)						\
 	bus_space_read_1(sc->bxe_btag, sc->bxe_bhandle, offset)
-#define REG_RD16(sc, offset)			\
+#define REG_RD16(sc, offset)						\
 	bus_space_read_2(sc->bxe_btag, sc->bxe_bhandle, offset)
-#define REG_RD32(sc, offset)			\
+#define REG_RD32(sc, offset)						\
 	bus_space_read_4(sc->bxe_btag, sc->bxe_bhandle, offset)
 
-#define REG_RD_IND(sc, offset)		\
+#define REG_RD_IND(sc, offset)						\
 	bxe_reg_rd_ind(sc, offset)
-#define REG_WR_IND(sc, offset, val)	\
+#define REG_WR_IND(sc, offset, val)					\
 	bxe_reg_wr_ind(sc, offset, val)
 
 #endif /* BXE_DEBUG */
 
 
 #define REG_RD_DMAE(sc, offset, val, len32)				\
-	do {												\
-		bxe_read_dmae(sc, offset, len32);				\
-		memcpy(val, BXE_SP(sc, wb_data[0]), len32 * 4); \
+	do {								\
+		bxe_read_dmae(sc, offset, len32);			\
+		memcpy(val, BXE_SP(sc, wb_data[0]), len32 * 4); 	\
 	} while (0)
 
 
 #define REG_WR_DMAE(sc, offset, val, len32)				\
-	do { 												\
-		memcpy(BXE_SP(sc, wb_data[0]), val, len32 * 4); \
-		bxe_write_dmae(sc, BXE_SP_MAPPING(sc, wb_data), \
-			offset, len32);								\
+	do { 								\
+		memcpy(BXE_SP(sc, wb_data[0]), val, len32 * 4); 	\
+		bxe_write_dmae(sc, BXE_SP_MAPPING(sc, wb_data), 	\
+			offset, len32);					\
 	} while (0)
 
 
-#define SHMEM_ADDR(sc, field)	(sc->common.shmem_base + \
+#define SHMEM_ADDR(sc, field)	(sc->common.shmem_base + 		\
 	offsetof(struct shmem_region, field))
 
-#define SHMEM_RD(sc, field) \
+#define SHMEM_RD(sc, field) 						\
 	REG_RD(sc, SHMEM_ADDR(sc, field))
-#define SHMEM_RD16(sc, field) \
+#define SHMEM_RD16(sc, field) 						\
 	REG_RD16(sc, SHMEM_ADDR(sc, field))
 
-#define SHMEM_WR(sc, field, val) \
+#define SHMEM_WR(sc, field, val) 					\
 	REG_WR(sc, SHMEM_ADDR(sc, field), val)
 
-#define SHMEM2_ADDR(sc, field)		(sc->common.shmem2_base + \
-									 offsetof(struct shmem2_region, field))
+#define SHMEM2_ADDR(sc, field)		(sc->common.shmem2_base + 	\
+	offsetof(struct shmem2_region, field))
 #define SHMEM2_RD(sc, field)		REG_RD(sc, SHMEM2_ADDR(sc, field))
 #define SHMEM2_WR(sc, field, val)	REG_WR(sc, SHMEM2_ADDR(sc, field), val)
 
 
-#define EMAC_RD(sc, reg) \
+#define EMAC_RD(sc, reg) 						\
 	REG_RD(sc, emac_base + (uint32_t) reg)
-#define EMAC_WR(sc, reg, val) \
+#define EMAC_WR(sc, reg, val) 						\
 	REG_WR(sc, emac_base + (uint32_t) reg, val)
 
-#define BMAC_WR(sc, reg, val) \
+#define BMAC_WR(sc, reg, val) 						\
 	REG_WR(sc, GRCBASE_NIG + bmac_addr + reg, val)
 
 #endif /* _BXE_INCLUDE_H */

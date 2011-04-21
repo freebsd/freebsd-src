@@ -76,12 +76,12 @@
 /*
  * Device identification definitions.
  */
-#define	BRCM_VENDORID				0x14E4
+#define	BRCM_VENDORID			0x14E4
 #define	BRCM_DEVICEID_BCM57710		0x164E
 #define	BRCM_DEVICEID_BCM57711		0x164F
 #define	BRCM_DEVICEID_BCM57711E		0x1650
 
-#define PCI_ANY_ID				(u_int16_t) (~0U)
+#define PCI_ANY_ID			(u_int16_t) (~0U)
 
 
 struct bxe_type {
@@ -137,6 +137,8 @@ struct bxe_type {
 	mtx_lock(&(sc->bxe_core_mtx))
 #define	BXE_SP_LOCK(sc)							\
 	mtx_lock(&(sc->bxe_sp_mtx))
+#define	BXE_FP_LOCK(fp)							\
+	mtx_lock(&(fp->mtx))
 #define	BXE_DMAE_LOCK(sc)						\
 	mtx_lock(&(sc->bxe_dmae_mtx))
 #define	BXE_PHY_LOCK(sc)						\
@@ -151,6 +153,8 @@ struct bxe_type {
 	mtx_assert(&(sc->bxe_core_mtx), MA_OWNED)
 #define	BXE_SP_LOCK_ASSERT(sc)						\
 	mtx_assert(&(sc->bxe_sp_mtx), MA_OWNED)
+#define	BXE_FP_LOCK_ASSERT(fp)						\
+	mtx_assert(&(fp->mtx), MA_OWNED)
 #define	BXE_DMAE_LOCK_ASSERT(sc)					\
 	mtx_assert(&(sc->bxe_dmae_mtx), MA_OWNED)
 #define	BXE_PHY_LOCK_ASSERT(sc)						\
@@ -160,6 +164,8 @@ struct bxe_type {
 	mtx_unlock(&(sc->bxe_core_mtx))
 #define	BXE_SP_UNLOCK(sc)						\
 	mtx_unlock(&(sc->bxe_sp_mtx))
+#define	BXE_FP_UNLOCK(fp)						\
+	mtx_unlock(&(fp->mtx))
 #define	BXE_DMAE_UNLOCK(sc)						\
 	mtx_unlock(&(sc->bxe_dmae_mtx))
 #define	BXE_PHY_UNLOCK(sc)						\
@@ -414,12 +420,12 @@ struct bxe_type {
 #if __FreeBSD_version < 700000
 #define	BXE_IF_CAPABILITIES						\
 	(IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | IFCAP_HWCSUM |		\
-	IFCAP_JUMBO_MTU | IFCAP_LRO)
+	IFCAP_JUMBO_MTU)
 #else
 	/* TSO was introduced in FreeBSD 7 */
 #define	BXE_IF_CAPABILITIES						\
 	(IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | IFCAP_HWCSUM |		\
-	IFCAP_JUMBO_MTU | IFCAP_LRO | IFCAP_TSO4 | IFCAP_VLAN_HWCSUM)
+	IFCAP_JUMBO_MTU | IFCAP_TSO4 | IFCAP_VLAN_HWCSUM)
 #endif
 
 /* Some typical Ethernet frame sizes */
@@ -458,6 +464,7 @@ struct bxe_type {
 
 #define	MIN_BXE_BC_VER		0x00040200
 
+#define BXE_BR_SIZE		4096
 
 #define	BXE_NO_RX_FLAGS							\
 	(TSTORM_ETH_DROP_FLAGS_DROP_ALL_PACKETS)
@@ -923,6 +930,9 @@ struct bxe_fastpath {
 	/* Pointer back to parent structure. */
 	struct bxe_softc	*sc;
 
+	struct mtx		mtx;
+	char			mtx_name[16];
+
 	/* Hardware maintained status block. */
 	bus_dma_tag_t		status_block_tag;
 	bus_dmamap_t		status_block_map;
@@ -967,6 +977,9 @@ struct bxe_fastpath {
 	bus_dmamap_t		rx_cq_chain_map[NUM_RCQ_PAGES];
 	union eth_rx_cqe	*rx_cq_chain[NUM_RCQ_PAGES];
 	bus_addr_t		rx_cq_chain_paddr[NUM_RCQ_PAGES];
+
+	/* Ticks until chip reset. */
+	int			watchdog_timer;
 
 	/* Taskqueue reqources. */
 	struct task		task;
@@ -1077,6 +1090,10 @@ struct bxe_fastpath {
 
 	uint16_t		free_rx_bd;
 
+#if __FreeBSD_version >= 800000
+	struct buf_ring		*br;
+#endif
+
 	/* Recieve/transmit packet counters. */
 	unsigned long		rx_pkts;
 	unsigned long		tx_pkts;
@@ -1133,11 +1150,14 @@ struct bxe_fastpath {
 
 /* ToDo: Audit this structure for unused varaibles. */
 struct bxe_softc {
+	/*
+	 * MUST start with ifnet pointer (see definition of miibus_statchg()).
+	 */
 	struct ifnet		*bxe_ifp;
 	int			media;
 
 	/* Parent device handle. */
-	device_t		bxe_dev;
+	device_t		dev;
 
 	/* Driver instance number. */
 	u_int8_t		bxe_unit;
@@ -1309,9 +1329,6 @@ struct bxe_softc {
 	uint16_t		pcie_cap;
 	uint16_t		pm_cap;
 
-	/* PCIe maximum read request size. */
-	int			mrrs;
-
 	/* ToDo: Is this really needed? */
 	uint16_t		sp_running;
 
@@ -1362,8 +1379,20 @@ struct bxe_softc {
 #define	BXE_STATE_DIAG			0xE000
 #define	BXE_STATE_ERROR			0xF000
 
+/* Driver tunable options. */
 	int			int_mode;
 	int			multi_mode;
+	int			tso_enable;
+	int			num_queues;
+	int			stats_enable;
+	int			mrrs;
+	int			dcc_enable;
+
+#define	BXE_NUM_QUEUES(cos)						\
+	((bxe_qs_per_cos & (0xff << (cos * 8))) >> (cos * 8))
+#define	BXE_MAX_QUEUES(sc)						\
+	(IS_E1HMF(sc) ? (MAX_CONTEXT / E1HVN_MAX) : MAX_CONTEXT)
+
 
 #define	BXE_MAX_COS		3
 #define	BXE_MAX_PRIORITY	8
@@ -1380,14 +1409,6 @@ struct bxe_softc {
 
 	/* Class of service to queue mapping. */
 	uint8_t			cos_map[BXE_MAX_COS];
-
-	/* The number of fastpath queues (for RSS/multi-queue). */
-	int			num_queues;
-
-#define	BXE_NUM_QUEUES(cos)						\
-	((bxe_qs_per_cos & (0xff << (cos * 8))) >> (cos * 8))
-#define	BXE_MAX_QUEUES(sc)						\
-	(IS_E1HMF(sc) ? (MAX_CONTEXT / E1HVN_MAX) : MAX_CONTEXT)
 
 	/* Used for multiple function devices. */
 	uint32_t		mf_config[E1HVN_MAX];
@@ -1476,9 +1497,6 @@ struct bxe_softc {
 	int			mbuf_alloc_size;
 
 	uint16_t		tx_driver;
-
-	/* Ticks until chip reset. */
-	int			watchdog_timer;
 
 	/* Verify bxe_function_init is run before handling interrupts. */
 	uint8_t			intr_sem;
