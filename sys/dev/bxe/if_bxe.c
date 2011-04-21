@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 
 /* BXE Debug Options */
 #ifdef BXE_DEBUG
-uint32_t bxe_debug = BXE_INFO;
+uint32_t bxe_debug = BXE_WARN;
 
 
 /*          0 = Never              */
@@ -132,6 +132,7 @@ static int  bxe_attach(device_t);
 static int  bxe_detach(device_t);
 static int  bxe_shutdown(device_t);
 
+static void bxe_set_tunables(struct bxe_softc *);
 static void bxe_print_adapter_info(struct bxe_softc *);
 static void bxe_probe_pci_caps(struct bxe_softc *);
 static void bxe_link_settings_supported(struct bxe_softc *, uint32_t);
@@ -145,6 +146,8 @@ static int  bxe_stop_leading(struct bxe_softc *);
 static int  bxe_setup_multi(struct bxe_softc *, int);
 static int  bxe_stop_multi(struct bxe_softc *, int);
 static int  bxe_stop_locked(struct bxe_softc *, int);
+static int  bxe_alloc_buf_rings(struct bxe_softc *);
+static void bxe_free_buf_rings(struct bxe_softc *);
 static void bxe_init_locked(struct bxe_softc *, int);
 static int  bxe_wait_ramrod(struct bxe_softc *, int, int, int *, int);
 static void bxe_init_str_wr(struct bxe_softc *, uint32_t, const uint32_t *,
@@ -237,6 +240,10 @@ static void bxe_stats_handle(struct bxe_softc *, enum bxe_stats_event);
 static int  bxe_tx_encap(struct bxe_fastpath *, struct mbuf **);
 static void bxe_tx_start(struct ifnet *);
 static void bxe_tx_start_locked(struct ifnet *, struct bxe_fastpath *);
+static int  bxe_tx_mq_start(struct ifnet *, struct mbuf *);
+static int  bxe_tx_mq_start_locked(struct ifnet *, struct bxe_fastpath *,
+    struct mbuf *);
+static void bxe_mq_flush(struct ifnet *ifp);
 static int  bxe_ioctl(struct ifnet *, u_long, caddr_t);
 static __inline int bxe_has_rx_work(struct bxe_fastpath *);
 static __inline int bxe_has_tx_work(struct bxe_fastpath *);
@@ -266,6 +273,8 @@ static struct mbuf *bxe_alloc_mbuf(struct bxe_fastpath *, int);
 static int  bxe_map_mbuf(struct bxe_fastpath *, struct mbuf *, bus_dma_tag_t,
 	    bus_dmamap_t, bus_dma_segment_t *);
 static struct mbuf *bxe_alloc_tpa_mbuf(struct bxe_fastpath *, int, int);
+static void bxe_alloc_mutexes(struct bxe_softc *);
+static void bxe_free_mutexes(struct bxe_softc *);
 static int  bxe_alloc_rx_sge(struct bxe_softc *, struct bxe_fastpath *,
 	    uint16_t);
 static void bxe_init_rx_chains(struct bxe_softc *);
@@ -322,7 +331,7 @@ static void bxe_tpa_stop(struct bxe_softc *, struct bxe_fastpath *, uint16_t,
 static void bxe_rxeof(struct bxe_fastpath *);
 static void bxe_txeof(struct bxe_fastpath *);
 static int  bxe_get_buf(struct bxe_fastpath *, struct mbuf *, uint16_t);
-static void bxe_watchdog(struct bxe_softc *);
+static int  bxe_watchdog(struct bxe_fastpath *fp);
 static int  bxe_change_mtu(struct bxe_softc *, int);
 static void bxe_tick(void *);
 static void bxe_add_sysctls(struct bxe_softc *);
@@ -481,8 +490,7 @@ SYSCTL_UINT(_hw_bxe, OID_AUTO, queue_count, CTLFLAG_RDTUN, &bxe_queue_count,
  * destination IP address and the source/destination TCP port).
  *
  */
-/* static int bxe_multi_mode = ETH_RSS_MODE_REGULAR; */
-static int bxe_multi_mode = ETH_RSS_MODE_DISABLED;
+static int bxe_multi_mode = ETH_RSS_MODE_REGULAR;
 TUNABLE_INT("hw.bxe.multi_mode", &bxe_multi_mode);
 SYSCTL_UINT(_hw_bxe, OID_AUTO, multi_mode, CTLFLAG_RDTUN, &bxe_multi_mode,
     0, "Multi-Queue Mode");
@@ -738,7 +746,7 @@ bxe_calc_vn_wsum(struct bxe_softc *sc)
 	uint32_t vn_cfg, vn_min_rate;
 	int all_zero, vn;
 
-	DBENTER(1);
+	DBENTER(BXE_VERBOSE_LOAD);
 
 	all_zero = 1;
 	sc->vn_wsum = 0;
@@ -764,7 +772,7 @@ bxe_calc_vn_wsum(struct bxe_softc *sc)
 	else
 		sc->cmng.flags.cmng_enables |= CMNG_FLAGS_PER_PORT_FAIRNESS_VN;
 
-	DBEXIT(1);
+	DBEXIT(BXE_VERBOSE_LOAD);
 }
 
 /*
@@ -784,7 +792,7 @@ bxe_init_vn_minmax(struct bxe_softc *sc, int vn)
 	vn_cfg = sc->mf_config[vn];
 	func = 2 * vn + BP_PORT(sc);
 
-	DBENTER(1);
+	DBENTER(BXE_VERBOSE_LOAD);
 
 	/* If function is hidden - set min and max to zeroes. */
 	if (vn_cfg & FUNC_MF_CFG_FUNC_HIDE) {
@@ -807,7 +815,7 @@ bxe_init_vn_minmax(struct bxe_softc *sc, int vn)
 		if (vn_max_rate == 0)
 			return;
 	}
-	DBPRINT(sc, 1,
+	DBPRINT(sc, BXE_INFO_LOAD,
 	    "%s(): func %d: vn_min_rate = %d, vn_max_rate = %d, wsum = %d.\n",
 	    __FUNCTION__, func, vn_min_rate, vn_max_rate, sc->vn_wsum);
 
@@ -846,13 +854,16 @@ bxe_init_vn_minmax(struct bxe_softc *sc, int vn)
 		REG_WR(sc, BAR_XSTORM_INTMEM +
 		    XSTORM_FAIRNESS_PER_VN_VARS_OFFSET(func) + (i * 4),
 		    ((uint32_t *)(&m_fair_vn))[i]);
-	DBEXIT(1);
+
+	DBEXIT(BXE_VERBOSE_LOAD);
 }
 
 static void
 bxe_congestionmgmt(struct bxe_softc *sc, uint8_t readshm)
 {
 	int vn;
+
+	DBENTER(BXE_VERBOSE_LOAD);
 
 	/* Read mf conf from shmem. */
 	if (readshm)
@@ -871,11 +882,14 @@ bxe_congestionmgmt(struct bxe_softc *sc, uint8_t readshm)
 	/* Always enable rate shaping and fairness. */
 	sc->cmng.flags.cmng_enables |= CMNG_FLAGS_PER_PORT_RATE_SHAPING_VN;
 
-	DBPRINT(sc, 1, "rate shaping set\n");
+	DBPRINT(sc, BXE_VERBOSE_LOAD,
+	    "%s(): Rate shaping set\n", __FUNCTION__);
 
 	if (!sc->vn_wsum)
-		DBPRINT(sc, 1,
-		    "All MIN values are zeroes fairness is disabled\n");
+		DBPRINT(sc, BXE_INFO_LOAD, "%s(): All MIN values "
+		    "are zeroes, fairness is disabled\n", __FUNCTION__);
+
+	DBEXIT(BXE_VERBOSE_LOAD);
 }
 
 static void
@@ -883,19 +897,18 @@ bxe_dcc_event(struct bxe_softc *sc, uint32_t dcc_event)
 {
 	int i, port;
 
+	DBENTER(BXE_VERBOSE_LOAD);
+
 	if (dcc_event & DRV_STATUS_DCC_DISABLE_ENABLE_PF) {
-		/*
-		 * This is the only place besides the function initialization
-		 * where the sc->bxe_flags can change so it is done without any
-		 * locks
-		 */
 		if (sc->mf_config[BP_E1HVN(sc)] & FUNC_MF_CFG_FUNC_DISABLED) {
-			DBPRINT(sc, 1, "mf_cfg function disabled\n");
-			sc->bxe_flags = BXE_STATE_DISABLED;
+			DBPRINT(sc, BXE_INFO_LOAD, "%s(): mf_cfg function "
+			    "disabled\n", __FUNCTION__);
+			sc->state = BXE_STATE_DISABLED;
 			bxe_e1h_disable(sc);
 		} else {
-			DBPRINT(sc, 1, "mf_cfg function enabled\n");
-			sc->bxe_flags = BXE_STATE_OPEN;
+			DBPRINT(sc, BXE_INFO_LOAD, "%s(): mf_cfg function "
+			    "enabled\n", __FUNCTION__);
+			sc->state = BXE_STATE_OPEN;
 			bxe_e1h_enable(sc);
 		}
 		dcc_event &= ~DRV_STATUS_DCC_DISABLE_ENABLE_PF;
@@ -915,6 +928,8 @@ bxe_dcc_event(struct bxe_softc *sc, uint32_t dcc_event)
 		bxe_fw_command(sc, DRV_MSG_CODE_DCC_FAILURE);
 	else
 		bxe_fw_command(sc, DRV_MSG_CODE_DCC_OK);
+
+	DBEXIT(BXE_VERBOSE_LOAD);
 }
 
 /*
@@ -935,7 +950,7 @@ bxe_probe(device_t dev)
 	uint16_t did, sdid, svid, vid;
 
 	sc = device_get_softc(dev);
-	sc->bxe_dev = dev;
+	sc->dev = dev;
 	t = bxe_devs;
 
 	/* Get the data for the device to be probed. */
@@ -1028,7 +1043,7 @@ bxe_print_adapter_info(struct bxe_softc *sc)
 		printf("TPA"); i++;
 	}
 
-	printf(") Queues (");
+	printf("); Queues (");
 	switch (sc->multi_mode) {
 	case ETH_RSS_MODE_DISABLED:
 		printf("None");
@@ -1079,7 +1094,7 @@ bxe_interrupt_allocate(struct bxe_softc *sc)
 	int msix_count, msix_required, msix_allocated;
 
 	rc = 0;
-	dev = sc->bxe_dev;
+	dev = sc->dev;
 	msi_count = 0;
 	msi_required = 0;
 	msi_allocated = 0;
@@ -1095,70 +1110,6 @@ bxe_interrupt_allocate(struct bxe_softc *sc)
 	/* Clear any previous priority queue mappings. */
 	for (i = 0; i < BXE_MAX_PRIORITY; i++)
 		sc->pri_map[i] = 0;
-
-	/*
-	 * Get our starting point for interrupt mode/number of queues.
-	 * We will progressively step down from MSI-X to MSI to INTx
-	 * and reduce the number of receive queues as necessary to
-	 * match the system capabilities.
-	 */
-	sc->multi_mode = bxe_multi_mode;
-	sc->int_mode = bxe_int_mode;
-
-	/*
-	 * Verify the Priority -> Receive Queue mappings.
-	 */
-	if (sc->int_mode > 0) {
-		/* Multi-queue modes require MSI/MSI-X. */
-		switch (sc->multi_mode) {
-		case ETH_RSS_MODE_DISABLED:
-			/* No multi-queue mode requested. */
-			sc->num_queues = 1;
-			break;
-		case ETH_RSS_MODE_REGULAR:
-			if (sc->int_mode > 1) {
-				/*
-				 * Assume we can use MSI-X
-				 * (max of 16 receive queues).
-				 */
-				sc->num_queues = min((bxe_queue_count ?
-				    bxe_queue_count : mp_ncpus), MAX_CONTEXT);
-			} else {
-				/*
-				 * Assume we can use MSI
-				 * (max of 7 receive queues).
-				 */
-				sc->num_queues = min((bxe_queue_count ?
-				    bxe_queue_count : mp_ncpus),
-				    BXE_MSI_VECTOR_COUNT - 1);
-			}
-			break;
-		default:
-			BXE_PRINTF(
-    			    "%s(%d): Unsupported multi_mode parameter (%d), "
-			    "disabling multi-queue support!\n", __FILE__,
-			    __LINE__, sc->multi_mode);
-			sc->multi_mode = ETH_RSS_MODE_DISABLED;
-			sc->num_queues = 1;
-			break;
-		}
-	} else {
-		/* User	has forced INTx mode. */
-		sc->multi_mode = ETH_RSS_MODE_DISABLED;
-		sc->num_queues = 1;
-	}
-
-	DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_INTR),
-	    "%s(): Requested: int_mode = %d, multi_mode = %d num_queues = %d\n",
-	    __FUNCTION__, sc->int_mode, sc->multi_mode, sc->num_queues);
-
-#ifdef BXE_DEBUG
-	for (i = 0; i < BXE_MAX_PRIORITY; i++) {
-		DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_INTR),
-		    "%s(): sc->pri_map[%d] = %d.\n", __FUNCTION__, i,
-		    sc->pri_map[i]);
-	}
-#endif
 
 	/* Get the number of available MSI/MSI-X interrupts from the OS. */
 	if (sc->int_mode > 0) {
@@ -1331,7 +1282,7 @@ bxe_interrupt_detach(struct bxe_softc *sc)
 	device_t dev;
 	int i;
 
-	dev = sc->bxe_dev;
+	dev = sc->dev;
 	DBENTER(BXE_VERBOSE_RESET | BXE_VERBOSE_UNLOAD);
 	/* Release interrupt resources. */
 	if ((sc->bxe_flags & BXE_USING_MSIX_FLAG) && sc->msix_count) {
@@ -1381,7 +1332,7 @@ bxe_interrupt_attach(struct bxe_softc *sc)
 	sc->tq = taskqueue_create_fast("bxe_spq", M_NOWAIT,
 		taskqueue_thread_enqueue, &sc->tq);
 	taskqueue_start_threads(&sc->tq, 1, PI_NET, "%s spq",
-		device_get_nameunit(sc->bxe_dev));
+		device_get_nameunit(sc->dev));
 #endif
 
 	/* Setup interrupt handlers. */
@@ -1393,7 +1344,7 @@ bxe_interrupt_attach(struct bxe_softc *sc)
 		 * driver instance to the interrupt handler for the
 		 * slowpath.
 		 */
-		rc = bus_setup_intr(sc->bxe_dev,
+		rc = bus_setup_intr(sc->dev,
 				    sc->bxe_msix_res[0],
 				    INTR_TYPE_NET | INTR_MPSAFE,
 				    NULL,
@@ -1420,7 +1371,7 @@ bxe_interrupt_attach(struct bxe_softc *sc)
 			 * fastpath context to the interrupt handler in this
 			 * case. Also the first msix_res was used by the sp.
 			 */
-			rc = bus_setup_intr(sc->bxe_dev,
+			rc = bus_setup_intr(sc->dev,
 					    sc->bxe_msix_res[i + 1],
 					    INTR_TYPE_NET | INTR_MPSAFE,
 					    NULL,
@@ -1440,7 +1391,7 @@ bxe_interrupt_attach(struct bxe_softc *sc)
 			fp->tq = taskqueue_create_fast("bxe_fpq", M_NOWAIT,
 				taskqueue_thread_enqueue, &fp->tq);
 			taskqueue_start_threads(&fp->tq, 1, PI_NET, "%s fpq",
-				device_get_nameunit(sc->bxe_dev));
+				device_get_nameunit(sc->dev));
 #endif
 			fp->state = BXE_FP_STATE_IRQ;
 		}
@@ -1452,7 +1403,7 @@ bxe_interrupt_attach(struct bxe_softc *sc)
 		 * Setup the interrupt handler. Note that we pass the driver
 		 * instance to the interrupt handler for the slowpath.
 		 */
-		rc = bus_setup_intr(sc->bxe_dev,sc->bxe_msi_res[0],
+		rc = bus_setup_intr(sc->dev,sc->bxe_msi_res[0],
 				    INTR_TYPE_NET | INTR_MPSAFE,
 				    NULL,
 				    bxe_intr_sp,
@@ -1479,7 +1430,7 @@ bxe_interrupt_attach(struct bxe_softc *sc)
 			 * fastpath context to the interrupt handler in this
 			 * case.
 			 */
-			rc = bus_setup_intr(sc->bxe_dev,
+			rc = bus_setup_intr(sc->dev,
 					    sc->bxe_msi_res[i + 1],
 					    INTR_TYPE_NET | INTR_MPSAFE,
 					    NULL,
@@ -1499,7 +1450,7 @@ bxe_interrupt_attach(struct bxe_softc *sc)
 			fp->tq = taskqueue_create_fast("bxe_fpq", M_NOWAIT,
 					taskqueue_thread_enqueue, &fp->tq);
 			taskqueue_start_threads(&fp->tq, 1, PI_NET, "%s fpq",
-				device_get_nameunit(sc->bxe_dev));
+				device_get_nameunit(sc->dev));
 #endif
 		}
 
@@ -1515,7 +1466,7 @@ bxe_interrupt_attach(struct bxe_softc *sc)
 		 * driver instance to the interrupt handler which
 		 * will handle both the slowpath and fastpath.
 		 */
-		rc = bus_setup_intr(sc->bxe_dev,sc->bxe_irq_res,
+		rc = bus_setup_intr(sc->dev,sc->bxe_irq_res,
 		    INTR_TYPE_NET | INTR_MPSAFE,
 		    NULL,
 		    bxe_intr_legacy,
@@ -1529,13 +1480,10 @@ bxe_interrupt_attach(struct bxe_softc *sc)
 		}
 #ifdef BXE_TASK
 		TASK_INIT(&fp->task, 0, bxe_task_fp, fp);
-		fp->tq = taskqueue_create_fast("bxe_fpq", M_NOWAIT,
-					       taskqueue_thread_enqueue,
-					       &fp->tq
-					       );
-		taskqueue_start_threads(&fp->tq, 1, PI_NET, "%s fpq",
-					device_get_nameunit(sc->bxe_dev)
-					);
+		fp->tq = taskqueue_create_fast("bxe_fpq",
+		    M_NOWAIT, taskqueue_thread_enqueue,	&fp->tq);
+		taskqueue_start_threads(&fp->tq, 1,
+		    PI_NET, "%s fpq", device_get_nameunit(sc->dev));
 #endif
 	}
 
@@ -1562,7 +1510,7 @@ bxe_probe_pci_caps(struct bxe_softc *sc)
 	uint32_t reg;
 	uint16_t link_status;
 
-	dev = sc->bxe_dev;
+	dev = sc->dev;
 	DBENTER(BXE_EXTREME_LOAD);
 
 	/* Check if PCI Power Management capability is enabled. */
@@ -1679,46 +1627,118 @@ bxe_init_firmware(struct bxe_softc *sc)
 	return (0);
 }
 
+
+static void
+bxe_set_tunables(struct bxe_softc *sc)
+{
+	/*
+	 * Get our starting point for interrupt mode/number of queues.
+	 * We will progressively step down from MSI-X to MSI to INTx
+	 * and reduce the number of receive queues as necessary to
+	 * match the system capabilities.
+	 */
+	sc->multi_mode	= bxe_multi_mode;
+	sc->int_mode	= bxe_int_mode;
+	sc->tso_enable	= bxe_tso_enable;
+
+	/*
+	 * Verify the Priority -> Receive Queue mappings.
+	 */
+	if (sc->int_mode > 0) {
+		/* Multi-queue modes require MSI/MSI-X. */
+		switch (sc->multi_mode) {
+		case ETH_RSS_MODE_DISABLED:
+			/* No multi-queue mode requested. */
+			sc->num_queues = 1;
+			break;
+		case ETH_RSS_MODE_REGULAR:
+			if (sc->int_mode > 1) {
+				/*
+				 * Assume we can use MSI-X
+				 * (max of 16 receive queues).
+				 */
+				sc->num_queues = min((bxe_queue_count ?
+				    bxe_queue_count : mp_ncpus), MAX_CONTEXT);
+			} else {
+				/*
+				 * Assume we can use MSI
+				 * (max of 7 receive queues).
+				 */
+				sc->num_queues = min((bxe_queue_count ?
+				    bxe_queue_count : mp_ncpus),
+				    BXE_MSI_VECTOR_COUNT - 1);
+			}
+			break;
+		default:
+			BXE_PRINTF(
+			    "%s(%d): Unsupported multi_mode parameter (%d), "
+			    "disabling multi-queue support!\n", __FILE__,
+			    __LINE__, sc->multi_mode);
+			sc->multi_mode = ETH_RSS_MODE_DISABLED;
+			sc->num_queues = 1;
+			break;
+		}
+	} else {
+		/* User	has forced INTx mode. */
+		sc->multi_mode = ETH_RSS_MODE_DISABLED;
+		sc->num_queues = 1;
+	}
+
+	DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_INTR),
+	    "%s(): Requested: int_mode = %d, multi_mode = %d num_queues = %d\n",
+	    __FUNCTION__, sc->int_mode, sc->multi_mode, sc->num_queues);
+
+	/* Set transparent packet aggregation (TPA), aka LRO, flag. */
+	if (bxe_tpa_enable!= FALSE)
+		sc->bxe_flags |= BXE_TPA_ENABLE_FLAG;
+
+	/* Capture the stats enable/disable setting. */
+	if (bxe_stats_enable == FALSE)
+		sc->stats_enable = FALSE;
+	else
+		sc->stats_enable = TRUE;
+
+	/* Select the host coalescing tick count values (limit values). */
+	if (bxe_tx_ticks > 100) {
+		BXE_PRINTF("%s(%d): bxe_tx_ticks too large "
+		    "(%d), setting default value of 50.\n",
+		    __FILE__, __LINE__, bxe_tx_ticks);
+		sc->tx_ticks = 50;
+	} else
+		sc->tx_ticks = bxe_tx_ticks;
+
+	if (bxe_rx_ticks > 100) {
+		BXE_PRINTF("%s(%d): bxe_rx_ticks too large "
+		    "(%d), setting default value of 25.\n",
+		    __FILE__, __LINE__, bxe_rx_ticks);
+		sc->rx_ticks = 25;
+	} else
+		sc->rx_ticks = bxe_rx_ticks;
+
+	/* Select the PCIe maximum read request size (MRRS). */
+	if (bxe_mrrs > 3)
+		sc->mrrs = 3;
+	else
+		sc->mrrs = bxe_mrrs;
+
+	/* Check for DCC support. */
+	if (bxe_dcc_enable == FALSE)
+		sc->dcc_enable = FALSE;
+	else
+		sc->dcc_enable = TRUE;
+}
+
+
 /*
- * Device attach function.
- *
- * Allocates device resources, performs secondary chip identification,
- * resets and initializes the hardware, and initializes driver instance
- * variables.
- *
  * Returns:
- *   0 = Success, Positive value on failure.
+ *   0 = Success, !0 = Failure
  */
 static int
-bxe_attach(device_t dev)
+bxe_alloc_pci_resources(struct bxe_softc *sc)
 {
-	struct bxe_softc *sc;
-	struct ifnet *ifp;
-	int rid, rc;
+	int rid, rc = 0;
 
-	sc = device_get_softc(dev);
-	DBENTER(BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET);
-
-	sc->bxe_dev = dev;
-	sc->bxe_unit = device_get_unit(dev);
-	sc->bxe_func = pci_get_function(dev);
-	sc->bxe_flags = 0;
-	sc->state = BXE_STATE_CLOSED;
-	rc = 0;
-
-	/* Initialize mutexes. */
-	BXE_CORE_LOCK_INIT(sc, device_get_nameunit(dev));
-	BXE_SP_LOCK_INIT(sc, "bxe_sp_lock");
-	BXE_DMAE_LOCK_INIT(sc, "bxe_dmae_lock");
-	BXE_PHY_LOCK_INIT(sc, "bxe_phy_lock");
-	BXE_FWMB_LOCK_INIT(sc, "bxe_fwmb_lock");
-	BXE_PRINT_LOCK_INIT(sc, "bxe_print_lock");
-
-	/* Prepare the tick routine. */
-	callout_init(&sc->bxe_tick_callout, CALLOUT_MPSAFE);
-
-	/* Enable bus master capability */
-	pci_enable_busmaster(dev);
+	DBENTER(BXE_VERBOSE_LOAD);
 
 	/*
 	 * Allocate PCI memory resources for BAR0.
@@ -1726,32 +1746,32 @@ bxe_attach(device_t dev)
 	 * processor memory.
 	 */
 	rid = PCIR_BAR(0);
-	sc->bxe_res = bus_alloc_resource_any(dev,
-	    SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	sc->bxe_res = bus_alloc_resource_any(
+	    sc->dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->bxe_res == NULL) {
 		BXE_PRINTF("%s(%d):PCI BAR0 memory allocation failed\n",
 		    __FILE__, __LINE__);
 		rc = ENXIO;
-		goto bxe_attach_fail;
+		goto bxe_alloc_pci_resources_exit;
 	}
 
 	/* Get OS resource handles for BAR0 memory. */
-	sc->bxe_btag    = rman_get_bustag(sc->bxe_res);
-	sc->bxe_bhandle = rman_get_bushandle(sc->bxe_res);
-	sc->bxe_vhandle = (vm_offset_t) rman_get_virtual(sc->bxe_res);
+	sc->bxe_btag	= rman_get_bustag(sc->bxe_res);
+	sc->bxe_bhandle	= rman_get_bushandle(sc->bxe_res);
+	sc->bxe_vhandle	= (vm_offset_t) rman_get_virtual(sc->bxe_res);
 
 	/*
 	 * Allocate PCI memory resources for BAR2.
 	 * Doorbell (DB) memory.
 	 */
 	rid = PCIR_BAR(2);
-	sc->bxe_db_res = bus_alloc_resource_any(dev,
-	    SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	sc->bxe_db_res = bus_alloc_resource_any(
+	    sc->dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->bxe_db_res == NULL) {
 		BXE_PRINTF("%s(%d): PCI BAR2 memory allocation failed\n",
 		    __FILE__, __LINE__);
 		rc = ENXIO;
-		goto bxe_attach_fail;
+		goto bxe_alloc_pci_resources_exit;
 	}
 
 	/* Get OS resource handles for BAR2 memory. */
@@ -1759,21 +1779,45 @@ bxe_attach(device_t dev)
 	sc->bxe_db_bhandle = rman_get_bushandle(sc->bxe_db_res);
 	sc->bxe_db_vhandle = (vm_offset_t) rman_get_virtual(sc->bxe_db_res);
 
-	/* Put indirect address registers into a sane state. */
-	pci_write_config(sc->bxe_dev, PCICFG_GRC_ADDRESS,
-	    PCICFG_VENDOR_ID_OFFSET, 4);
-	REG_WR(sc, PXP2_REG_PGL_ADDR_88_F0 + BP_PORT(sc) * 16, 0);
-	REG_WR(sc, PXP2_REG_PGL_ADDR_8C_F0 + BP_PORT(sc) * 16, 0);
-	REG_WR(sc, PXP2_REG_PGL_ADDR_90_F0 + BP_PORT(sc) * 16, 0);
-	REG_WR(sc, PXP2_REG_PGL_ADDR_94_F0 + BP_PORT(sc) * 16, 0);
+bxe_alloc_pci_resources_exit:
+	DBEXIT(BXE_VERBOSE_LOAD);
+	return(rc);
+}
 
-	/* Get hardware info from shared memory and validate data. */
-	if (bxe_get_function_hwinfo(sc)) {
-		DBPRINT(sc, BXE_WARN,
-		    "%s(): Failed to get hardware info!\n", __FUNCTION__);
-		rc = ENODEV;
-		goto bxe_attach_fail;
+
+/*
+ * Returns:
+ *   None
+ */
+static void
+bxe_release_pci_resources(struct bxe_softc *sc)
+{
+	/* Release the PCIe BAR0 mapped memory. */
+	if (sc->bxe_res != NULL) {
+		DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET),
+		    "%s(): Releasing PCI BAR0 memory.\n", __FUNCTION__);
+		bus_release_resource(sc->dev,
+		    SYS_RES_MEMORY, PCIR_BAR(0), sc->bxe_res);
 	}
+
+	/* Release the PCIe BAR2 (doorbell) mapped memory. */
+	if (sc->bxe_db_res != NULL) {
+		DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET),
+		    "%s(): Releasing PCI BAR2 memory.\n", __FUNCTION__);
+		bus_release_resource(sc->dev,
+		    SYS_RES_MEMORY, PCIR_BAR(2), sc->bxe_db_res);
+	}
+}
+
+
+/*
+ * Returns:
+ *   0 = Success, !0 = Failure
+ */
+static int
+bxe_media_detect(struct bxe_softc *sc)
+{
+	int rc = 0;
 
 	/* Identify supported media based on the PHY type. */
 	switch (XGXS_EXT_PHY_TYPE(sc->link_params.ext_phy_config)) {
@@ -1782,20 +1826,20 @@ bxe_attach(device_t dev)
 		    "%s(): Found 10GBase-CX4 media.\n", __FUNCTION__);
 		sc->media = IFM_10G_CX4;
 		break;
-#if 0
-	/* ToDo: Configure correct media types for these PHYs. */
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8071
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706
-	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726
-#endif
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
+		/* Technically 10GBase-KR but report as 10GBase-SR*/
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8727_NOC:
 		DBPRINT(sc, BXE_INFO_LOAD,
 		    "%s(): Found 10GBase-SR media.\n", __FUNCTION__);
 		sc->media = IFM_10G_SR;
+		break;
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705:
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706:
+		DBPRINT(sc, BXE_INFO_LOAD,
+		    "%s(): Found 10Gb twinax media.\n", __FUNCTION__);
+		sc->media = IFM_10G_TWINAX;
 		break;
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
@@ -1811,10 +1855,71 @@ bxe_attach(device_t dev)
 		    __FILE__, __LINE__);
 		sc->media = 0;
 		rc = ENODEV;
+	}
+
+	return (rc);
+}
+
+
+/*
+ * Device attach function.
+ *
+ * Allocates device resources, performs secondary chip identification,
+ * resets and initializes the hardware, and initializes driver instance
+ * variables.
+ *
+ * Returns:
+ *   0 = Success, Positive value on failure.
+ */
+static int
+bxe_attach(device_t dev)
+{
+	struct bxe_softc *sc;
+	struct ifnet *ifp;
+	int rc;
+
+	sc = device_get_softc(dev);
+	DBENTER(BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET);
+
+	sc->dev = dev;
+	sc->bxe_unit = device_get_unit(dev);
+	sc->bxe_func = pci_get_function(dev);
+	sc->bxe_flags = 0;
+	sc->state = BXE_STATE_CLOSED;
+	rc = 0;
+	bxe_set_tunables(sc);
+
+	bxe_alloc_mutexes(sc);
+
+	/* Prepare the tick routine. */
+	callout_init(&sc->bxe_tick_callout, CALLOUT_MPSAFE);
+
+	/* Enable bus master capability */
+	pci_enable_busmaster(dev);
+
+	if ((rc = bxe_alloc_pci_resources(sc)) != 0)
+		goto bxe_attach_fail;
+
+	/* Put indirect address registers into a sane state. */
+	pci_write_config(sc->dev, PCICFG_GRC_ADDRESS,
+	    PCICFG_VENDOR_ID_OFFSET, 4);
+	REG_WR(sc, PXP2_REG_PGL_ADDR_88_F0 + BP_PORT(sc) * 16, 0);
+	REG_WR(sc, PXP2_REG_PGL_ADDR_8C_F0 + BP_PORT(sc) * 16, 0);
+	REG_WR(sc, PXP2_REG_PGL_ADDR_90_F0 + BP_PORT(sc) * 16, 0);
+	REG_WR(sc, PXP2_REG_PGL_ADDR_94_F0 + BP_PORT(sc) * 16, 0);
+
+	/* Get hardware info from shared memory and validate data. */
+	if (bxe_get_function_hwinfo(sc)) {
+		DBPRINT(sc, BXE_WARN,
+		    "%s(): Failed to get hardware info!\n", __FUNCTION__);
+		rc = ENODEV;
 		goto bxe_attach_fail;
 	}
 
 	/* Setup supported media options. */
+	if ((rc = bxe_media_detect(sc)) != 0)
+		goto bxe_attach_fail;
+
 	ifmedia_init(&sc->bxe_ifmedia,
 	    IFM_IMASK, bxe_ifmedia_upd,	bxe_ifmedia_status);
 	ifmedia_add(&sc->bxe_ifmedia,
@@ -1823,7 +1928,8 @@ bxe_attach(device_t dev)
 	    IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&sc->bxe_ifmedia,
 	    IFM_ETHER | IFM_AUTO);
-	sc->bxe_ifmedia.ifm_media = sc->bxe_ifmedia.ifm_cur->ifm_media;
+	sc->bxe_ifmedia.ifm_media =
+	    sc->bxe_ifmedia.ifm_cur->ifm_media;
 
 	/* Set init arrays */
 	rc = bxe_init_firmware(sc);
@@ -1877,18 +1983,6 @@ bxe_attach(device_t dev)
 	if (!BP_NOMCP(sc))
 		bxe_undi_unload(sc);
 
-	/* Set TPA flag. */
-	if (bxe_tpa_enable){
-		sc->bxe_flags |= BXE_TPA_ENABLE_FLAG;
-	}else
-		sc->bxe_flags &= ~BXE_TPA_ENABLE_FLAG;
-
-	/* Select the PCIe maximum read request size. */
-	if (bxe_mrrs > 3)
-		sc->mrrs = 3;
-	else
-		sc->mrrs = bxe_mrrs;
-
 	/*
 	 * Select the RX and TX ring sizes.  The actual
 	 * ring size for TX is complicated by the fact
@@ -1904,10 +1998,6 @@ bxe_attach(device_t dev)
 	/* Assume receive IP/TCP/UDP checksum is enabled. */
 	sc->rx_csum = 1;
 
-	/* Select the host coalescing tick count values. */
-	sc->tx_ticks = bxe_tx_ticks;
-	sc->rx_ticks = bxe_rx_ticks;
-
 	/* Disable WoL. */
 	sc->wol = 0;
 
@@ -1915,7 +2005,7 @@ bxe_attach(device_t dev)
 	sc->mbuf_alloc_size  = MCLBYTES;
 
 	/* Allocate DMA memory resources. */
-	if (bxe_dma_alloc(sc->bxe_dev)) {
+	if (bxe_dma_alloc(sc->dev)) {
 		BXE_PRINTF("%s(%d): DMA memory allocation failed!\n",
 		    __FILE__, __LINE__);
 		rc = ENOMEM;
@@ -1937,13 +2027,23 @@ bxe_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = bxe_ioctl;
 	ifp->if_start = bxe_tx_start;
+
+#if __FreeBSD_version >= 800000
+	ifp->if_transmit = bxe_tx_mq_start;
+	ifp->if_qflush   = bxe_mq_flush;
+#endif
+
 #ifdef FreeBSD8_0
 	ifp->if_timer = 0;
 #endif
+
 	ifp->if_init = bxe_init;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_hwassist = BXE_IF_HWASSIST;
 	ifp->if_capabilities = BXE_IF_CAPABILITIES;
+	if (TPA_ENABLED(sc)) {
+		ifp->if_capabilities |= IFCAP_LRO;
+	}
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_baudrate = IF_Gbps(10UL);
 
@@ -2892,6 +2992,7 @@ bxe_detach(device_t dev)
 	if (ifp != NULL)
 		ether_ifdetach(ifp);
 	ifmedia_removeall(&sc->bxe_ifmedia);
+
 	/* Release all remaining resources. */
 	bxe_release_resources(sc);
 	pci_disable_busmaster(dev);
@@ -3425,7 +3526,7 @@ bxe__link_status_update(struct bxe_softc *sc)
 {
 	DBENTER(BXE_VERBOSE_PHY);
 
-	if (bxe_stats_enable == FALSE || sc->state != BXE_STATE_OPEN)
+	if (sc->stats_enable == FALSE || sc->state != BXE_STATE_OPEN)
 		return;
 
 	bxe_link_status_update(&sc->link_params, &sc->link_vars);
@@ -3515,9 +3616,8 @@ bxe_initial_phy_init(struct bxe_softc *sc)
 		}
 
 	} else {
-		DBPRINT(sc, 1,
-		    "%s(): Bootcode is not running, not initializing link!\n",
-		    __FUNCTION__);
+		DBPRINT(sc, BXE_FATAL, "%s(): Bootcode is not running, "
+		    "not initializing link!\n",	__FUNCTION__);
 		rc = EINVAL;
 	}
 
@@ -3525,6 +3625,65 @@ bxe_initial_phy_init(struct bxe_softc *sc)
 	return (rc);
 }
 
+
+#if __FreeBSD_version >= 800000
+/*
+ * Allocate buffer rings used for multiqueue.
+ *
+ * Returns:
+ *   0 = Success, !0 = Failure.
+ */
+static int
+bxe_alloc_buf_rings(struct bxe_softc *sc)
+{
+	struct bxe_fastpath *fp;
+	int i, rc = 0;
+
+	DBENTER(BXE_VERBOSE_LOAD);
+
+	for (i = 0; i < sc->num_queues; i++) {
+		fp = &sc->fp[i];
+
+		if (fp != NULL) {
+			fp->br = buf_ring_alloc(BXE_BR_SIZE,
+			    M_DEVBUF, M_WAITOK,	&fp->mtx);
+			if (fp->br == NULL) {
+				rc = ENOMEM;
+				return(rc);
+			}
+		} else
+			BXE_PRINTF("%s(%d): Bug!\n", __FILE__, __LINE__);
+	}
+
+	DBEXIT(BXE_VERBOSE_LOAD);
+	return(rc);
+}
+
+/*
+ * Releases buffer rings used for multiqueue.
+ *
+ * Returns:
+ *   None
+ */
+static void
+bxe_free_buf_rings(struct bxe_softc *sc)
+{
+	struct bxe_fastpath *fp;
+	int i;
+
+	DBENTER(BXE_VERBOSE_UNLOAD);
+
+	for (i = 0; i < sc->num_queues; i++) {
+		fp = &sc->fp[i];
+		if (fp != NULL) {
+			if (fp->br != NULL)
+				buf_ring_free(fp->br, M_DEVBUF);
+		}
+	}
+
+	DBEXIT(BXE_VERBOSE_UNLOAD);
+}
+#endif
 
 
 /*
@@ -3558,7 +3717,7 @@ bxe_init_locked(struct bxe_softc *sc, int load_mode)
 
 	/* Check if the driver is still running and bail out if it is. */
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		DBPRINT(sc, BXE_WARN,
+		DBPRINT(sc, BXE_INFO,
 		    "%s(): Init called while driver is running!\n",
 		    __FUNCTION__);
 		goto bxe_init_locked_exit;
@@ -3605,9 +3764,8 @@ bxe_init_locked(struct bxe_softc *sc, int load_mode)
 
 		if ((load_code == 0) ||
 		    (load_code == FW_MSG_CODE_DRV_LOAD_REFUSED)) {
-			DBPRINT(sc, (BXE_WARN_LOAD | BXE_WARN_RESET),
-			    "%s(): Bootcode refused load request.!\n",
-			    __FUNCTION__);
+			BXE_PRINTF("%s(%d): Bootcode refused load request.!\n",
+			    __FILE__, __LINE__);
 			goto bxe_init_locked_failed1;
 		}
 	}
@@ -3632,6 +3790,8 @@ bxe_init_locked(struct bxe_softc *sc, int load_mode)
 	/* Calculate and save the Ethernet MTU size. */
 	sc->port.ether_mtu = ifp->if_mtu + ETHER_HDR_LEN +
 	    (ETHER_VLAN_ENCAP_LEN * 2) + ETHER_CRC_LEN + 4;
+	DBPRINT(sc, BXE_INFO, "%s(): Setting MTU = %d\n",
+	    __FUNCTION__, sc->port.ether_mtu);
 
 	/* Setup the mbuf allocation size for RX frames. */
 	if (sc->port.ether_mtu <= MCLBYTES)
@@ -3640,8 +3800,6 @@ bxe_init_locked(struct bxe_softc *sc, int load_mode)
 		sc->mbuf_alloc_size = PAGE_SIZE;
 	else
 		sc->mbuf_alloc_size = MJUM9BYTES;
-
-
 	DBPRINT(sc, BXE_INFO, "%s(): mbuf_alloc_size = %d, "
 	    "max_frame_size = %d\n", __FUNCTION__,
 	    sc->mbuf_alloc_size, sc->port.ether_mtu);
@@ -3651,13 +3809,22 @@ bxe_init_locked(struct bxe_softc *sc, int load_mode)
 
 	if ((load_code == FW_MSG_CODE_DRV_LOAD_COMMON) &&
 	    (sc->common.shmem2_base)){
-		if (bxe_dcc_enable) {
+		if (sc->dcc_enable == TRUE) {
 			BXE_PRINTF("Enabing DCC support\n");
 			SHMEM2_WR(sc, dcc_support,
 			    (SHMEM_DCC_SUPPORT_DISABLE_ENABLE_PF_TLV |
 			     SHMEM_DCC_SUPPORT_BANDWIDTH_ALLOCATION_TLV));
 		}
 	}
+
+#if __FreeBSD_version >= 800000
+	/* Allocate buffer rings for multiqueue operation. */
+	if (bxe_alloc_buf_rings(sc)) {
+		BXE_PRINTF("%s(%d): Buffer ring initialization failed, "
+		    "aborting!\n", __FILE__, __LINE__);
+		goto bxe_init_locked_failed1;
+	}
+#endif
 
 	/* Tell MCP that driver load is done. */
 	if (!BP_NOMCP(sc)) {
@@ -3676,8 +3843,8 @@ bxe_init_locked(struct bxe_softc *sc, int load_mode)
 
 	/* Setup the leading connection for the controller. */
 	if (bxe_setup_leading(sc))
-		DBPRINT(sc, 1, "%s(): Initial PORT_SETUP ramrod failed. "
-		    "State is not OPEN!\n", __FUNCTION__);
+		DBPRINT(sc, BXE_FATAL, "%s(): Initial PORT_SETUP ramrod "
+		    "failed. State is not OPEN!\n", __FUNCTION__);
 
 
 	if (CHIP_IS_E1H(sc)) {
@@ -3778,6 +3945,10 @@ bxe_init_locked_failed1:
 	}
 	sc->port.pmf = 0;
 
+#if __FreeBSD_version >= 800000
+	bxe_free_buf_rings(sc);
+#endif
+
 	DBPRINT(sc, BXE_INFO, "%s(): Initialization failed!\n", __FUNCTION__);
 
 bxe_init_locked_exit:
@@ -3832,7 +4003,7 @@ bxe_wait_ramrod(struct bxe_softc *sc, int state, int idx, int *state_p,
 	}
 
 	/* We timed out polling for a completion. */
-	DBPRINT(sc, 1, "%s(): Timeout %s for state 0x%08X on fp[%d]. "
+	DBPRINT(sc, BXE_FATAL, "%s(): Timeout %s for state 0x%08X on fp[%d]. "
 	    "Got 0x%x instead\n", __FUNCTION__, poll ? "polling" : "waiting",
 	    state, idx, *state_p);
 
@@ -4186,6 +4357,7 @@ bxe_init(void *xsc)
 	DBEXIT(BXE_VERBOSE_RESET | BXE_VERBOSE_UNLOAD);
 }
 
+
 /*
  * Release all resources used by the driver.
  *
@@ -4203,10 +4375,15 @@ bxe_release_resources(struct bxe_softc *sc)
 
 	DBENTER(BXE_VERBOSE_RESET | BXE_VERBOSE_UNLOAD);
 
-	dev = sc->bxe_dev;
+	dev = sc->dev;
+
+	/* Release the FreeBSD interface. */
+	if (sc->bxe_ifp != NULL)
+		if_free(sc->bxe_ifp);
 
 	/* Release interrupt resources. */
 	bxe_interrupt_detach(sc);
+
 	if ((sc->bxe_flags & BXE_USING_MSIX_FLAG) && sc->msix_count) {
 
 		for (i = 0; i < sc->msix_count; i++) {
@@ -4239,39 +4416,22 @@ bxe_release_resources(struct bxe_softc *sc)
 		    BXE_VERBOSE_INTR), "%s(): Releasing legacy interrupt.\n",
 		    __FUNCTION__);
 		if (sc->bxe_irq_res != NULL)
-			bus_release_resource(dev, SYS_RES_IRQ, sc->bxe_irq_rid,
-			    sc->bxe_irq_res);
+			bus_release_resource(dev, SYS_RES_IRQ,
+			    sc->bxe_irq_rid, sc->bxe_irq_res);
 	}
 
-	/* Free the DMA memory */
+	/* Free the DMA resources. */
 	bxe_dma_free(sc);
 
-	/* Release the PCIe BAR0 mapped memory */
-	if (sc->bxe_res != NULL) {
-		DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET),
-		    "%s(): Releasing PCI BAR0 memory.\n", __FUNCTION__);
-		bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(0),
-		    sc->bxe_res);
-	}
+	bxe_release_pci_resources(sc);
 
-	/* Release the PCIe BAR2 mapped memory */
-	if (sc->bxe_db_res != NULL) {
-		DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET),
-		    "%s(): Releasing PCI BAR2 memory.\n", __FUNCTION__);
-		bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(2),
-		    sc->bxe_db_res);
-	}
+#if __FreeBSD_version >= 800000
+	/* Free multiqueue buffer rings. */
+	bxe_free_buf_rings(sc);
+#endif
 
-	/* Release the FreeBSD interface. */
-	if (sc->bxe_ifp != NULL)
-		if_free(sc->bxe_ifp);
-
-	BXE_CORE_LOCK_DESTROY(sc);
-	BXE_SP_LOCK_DESTROY(sc);
-	BXE_DMAE_LOCK_DESTROY(sc);
-	BXE_PHY_LOCK_DESTROY(sc);
-	BXE_FWMB_LOCK_DESTROY(sc);
-	BXE_PRINT_LOCK_DESTROY(sc);
+	/* Free remaining fastpath resources. */
+	bxe_free_mutexes(sc);
 }
 
 
@@ -4291,11 +4451,11 @@ bxe_reg_wr_ind(struct bxe_softc *sc, uint32_t offset, uint32_t val)
 	DBPRINT(sc, BXE_INSANE, "%s(); offset = 0x%08X, val = 0x%08X\n",
 		__FUNCTION__, offset, val);
 
-	pci_write_config(sc->bxe_dev, PCICFG_GRC_ADDRESS, offset, 4);
-	pci_write_config(sc->bxe_dev, PCICFG_GRC_DATA, val, 4);
+	pci_write_config(sc->dev, PCICFG_GRC_ADDRESS, offset, 4);
+	pci_write_config(sc->dev, PCICFG_GRC_DATA, val, 4);
 
 	/* Return to a safe address. */
-	pci_write_config(sc->bxe_dev, PCICFG_GRC_ADDRESS,
+	pci_write_config(sc->dev, PCICFG_GRC_ADDRESS,
 	    PCICFG_VENDOR_ID_OFFSET, 4);
 }
 
@@ -4315,11 +4475,11 @@ bxe_reg_rd_ind(struct bxe_softc *sc, uint32_t offset)
 {
 	uint32_t val;
 
-	pci_write_config(sc->bxe_dev, PCICFG_GRC_ADDRESS, offset, 4);
-	val = pci_read_config(sc->bxe_dev, PCICFG_GRC_DATA, 4);
+	pci_write_config(sc->dev, PCICFG_GRC_ADDRESS, offset, 4);
+	val = pci_read_config(sc->dev, PCICFG_GRC_DATA, 4);
 
 	/* Return to a safe address. */
-	pci_write_config(sc->bxe_dev, PCICFG_GRC_ADDRESS,
+	pci_write_config(sc->dev, PCICFG_GRC_ADDRESS,
 	    PCICFG_VENDOR_ID_OFFSET, 4);
 
 	DBPRINT(sc, BXE_INSANE, "%s(); offset = 0x%08X, val = 0x%08X\n",
@@ -4393,8 +4553,8 @@ bxe_write_dmae(struct bxe_softc *sc, bus_addr_t dma_addr, uint32_t dst_addr,
 	if (!sc->dmae_ready) {
 		data = BXE_SP(sc, wb_data[0]);
 
-		DBPRINT(sc, 1, "%s(): DMAE not ready, using indirect.\n",
-		    __FUNCTION__);
+		DBPRINT(sc, BXE_WARN, "%s(): DMAE not ready, "
+		    "using indirect.\n", __FUNCTION__);
 
 		bxe_init_ind_wr(sc, dst_addr, data, len32);
 		goto bxe_write_dmae_exit;
@@ -4433,7 +4593,7 @@ bxe_write_dmae(struct bxe_softc *sc, bus_addr_t dma_addr, uint32_t dst_addr,
 	timeout = 4000;
 	while (*wb_comp != BXE_WB_COMP_VAL) {
 		if (!timeout) {
-			DBPRINT(sc, 1,
+			DBPRINT(sc, BXE_FATAL,
 			"%s(): DMAE timeout (dst_addr = 0x%08X, len = %d)!\n",
 			    __FUNCTION__, dst_addr, len32);
 			break;
@@ -4477,8 +4637,8 @@ bxe_read_dmae(struct bxe_softc *sc, uint32_t src_addr,
 	if (!sc->dmae_ready) {
 		data = BXE_SP(sc, wb_data[0]);
 
-		DBPRINT(sc, 1, "%s(): DMAE not ready, using indirect.\n",
-		    __FUNCTION__);
+		DBPRINT(sc, BXE_WARN, "%s(): DMAE not ready, "
+		    "using indirect.\n", __FUNCTION__);
 
 		for (i = 0; i < len32; i++)
 			data[i] = bxe_reg_rd_ind(sc, src_addr + i * 4);
@@ -4520,7 +4680,7 @@ bxe_read_dmae(struct bxe_softc *sc, uint32_t src_addr,
 	timeout = 4000;
 	while (*wb_comp != BXE_WB_COMP_VAL) {
 		if (!timeout) {
-			DBPRINT(sc, 1,
+			DBPRINT(sc, BXE_FATAL,
 			"%s(): DMAE timeout (src_addr = 0x%08X, len = %d)!\n",
 			    __FUNCTION__, src_addr, len32);
 			break;
@@ -5578,7 +5738,7 @@ bxe_acquire_hw_lock(struct bxe_softc *sc, uint32_t resource)
 	int cnt, rc;
 
 	DBENTER(BXE_VERBOSE_MISC);
-	DBPRINT(sc, BXE_VERBOSE, "%s(): Locking resource 0x%08X\n",
+	DBPRINT(sc, BXE_VERBOSE_MISC, "%s(): Locking resource 0x%08X\n",
 	    __FUNCTION__, resource);
 
 	func = BP_FUNC(sc);
@@ -5642,7 +5802,7 @@ bxe_release_hw_lock(struct bxe_softc *sc, uint32_t resource)
 	int rc;
 
 	DBENTER(BXE_VERBOSE_MISC);
-	DBPRINT(sc, BXE_VERBOSE, "%s(): Unlocking resource 0x%08X\n",
+	DBPRINT(sc, BXE_VERBOSE_MISC, "%s(): Unlocking resource 0x%08X\n",
 		__FUNCTION__, resource);
 
 	resource_bit = 1 << resource;
@@ -6013,7 +6173,7 @@ bxe_link_attn(struct bxe_softc *sc)
 	if (IS_E1HMF(sc)) {
 		port = BP_PORT(sc);
 		if (sc->link_vars.link_up) {
-			if (bxe_dcc_enable) {
+			if (sc->dcc_enable == TRUE) {
 				bxe_congestionmgmt(sc, TRUE);
 				/* Store in internal memory. */
 				for (i = 0; i <
@@ -6739,7 +6899,7 @@ bxe_attn_int_deasserted3(struct bxe_softc *sc, uint32_t attn)
 			    SHMEM_RD(sc,
 			    mf_cfg.func_mf_config[(sc->bxe_func & 1)].config);
 			val = SHMEM_RD(sc, func_mb[func].drv_status);
-			if (bxe_dcc_enable) {
+			if (sc->dcc_enable == TRUE) {
 				if (val & DRV_STATUS_DCC_EVENT_MASK)
 					bxe_dcc_event(sc,
 					    val & DRV_STATUS_DCC_EVENT_MASK);
@@ -6830,11 +6990,16 @@ bxe_attn_int_deasserted(struct bxe_softc *sc, uint32_t deasserted)
 
 	port = BP_PORT(sc);
 	/* Get the current attention signal bits. */
-	attn.sig[0] = REG_RD(sc, MISC_REG_AEU_AFTER_INVERT_1_FUNC_0 + port * 4);
-	attn.sig[1] = REG_RD(sc, MISC_REG_AEU_AFTER_INVERT_2_FUNC_0 + port * 4);
-	attn.sig[2] = REG_RD(sc, MISC_REG_AEU_AFTER_INVERT_3_FUNC_0 + port * 4);
-	attn.sig[3] = REG_RD(sc, MISC_REG_AEU_AFTER_INVERT_4_FUNC_0 + port * 4);
-	DBPRINT(sc, BXE_VERBOSE,
+	attn.sig[0] = REG_RD(sc,
+	    MISC_REG_AEU_AFTER_INVERT_1_FUNC_0 + port * 4);
+	attn.sig[1] = REG_RD(sc,
+	    MISC_REG_AEU_AFTER_INVERT_2_FUNC_0 + port * 4);
+	attn.sig[2] = REG_RD(sc,
+	    MISC_REG_AEU_AFTER_INVERT_3_FUNC_0 + port * 4);
+	attn.sig[3] = REG_RD(sc,
+	    MISC_REG_AEU_AFTER_INVERT_4_FUNC_0 + port * 4);
+
+	DBPRINT(sc, BXE_EXTREME_INTR,
 	    "%s(): attention = 0x%08X 0x%08X 0x%08X 0x%08X\n", __FUNCTION__,
 	    attn.sig[0], attn.sig[1], attn.sig[2], attn.sig[3]);
 
@@ -6846,7 +7011,7 @@ bxe_attn_int_deasserted(struct bxe_softc *sc, uint32_t deasserted)
 		if (deasserted & (1 << index)) {
 			group_mask = sc->attn_group[index];
 
-			DBPRINT(sc, 1, /*BXE_EXTREME_INTR,*/
+			DBPRINT(sc, BXE_EXTREME_INTR,
 			    "%s(): group[%02d] = 0x%08X 0x%08X 0x%08x 0X%08x\n",
 			    __FUNCTION__, index, group_mask.sig[0],
 			    group_mask.sig[1], group_mask.sig[2],
@@ -6875,10 +7040,11 @@ bxe_attn_int_deasserted(struct bxe_softc *sc, uint32_t deasserted)
 
 	bxe_release_alr(sc);
 
-	reg_addr = (HC_REG_COMMAND_REG + port * 32 + COMMAND_REG_ATTN_BITS_CLR);
+	reg_addr = (HC_REG_COMMAND_REG +
+	    port * 32 + COMMAND_REG_ATTN_BITS_CLR);
 
 	val = ~deasserted;
-	DBPRINT(sc, BXE_VERBOSE_INTR,
+	DBPRINT(sc, BXE_EXTREME_INTR,
 	    "%s(): About to mask 0x%08X at HC addr 0x%08X\n", __FUNCTION__,
 	    deasserted, reg_addr);
 	REG_WR(sc, reg_addr, val);
@@ -6896,6 +7062,7 @@ bxe_attn_int_deasserted(struct bxe_softc *sc, uint32_t deasserted)
 	    "%s(): Current aeu_mask = 0x%08X, newly deasserted = 0x%08X\n",
 	    __FUNCTION__, aeu_mask, deasserted);
 	aeu_mask |= (deasserted & 0xff);
+
 	DBPRINT(sc, BXE_EXTREME_INTR, "%s(): New aeu_mask = 0x%08X\n",
 	    __FUNCTION__, aeu_mask);
 
@@ -6904,6 +7071,7 @@ bxe_attn_int_deasserted(struct bxe_softc *sc, uint32_t deasserted)
 
 	DBPRINT(sc, BXE_EXTREME_INTR, "%s(): Current attn_state = 0x%08X\n",
 	    __FUNCTION__, sc->attn_state);
+
 	sc->attn_state &= ~deasserted;
 	DBPRINT(sc, BXE_EXTREME_INTR, "%s(): New attn_state = 0x%08X\n",
 	    __FUNCTION__, sc->attn_state);
@@ -7223,7 +7391,7 @@ bxe_stats_init(struct bxe_softc *sc)
 
 	DBENTER(BXE_VERBOSE_STATS);
 
-	if (bxe_stats_enable == FALSE)
+	if (sc->stats_enable == FALSE)
 	    return;
 
 	port = BP_PORT(sc);
@@ -8940,10 +9108,10 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 				 * FW job easy...
 				 */
 				tx_start_bd->nbd++;
-				DBPRINT(sc, 1, /*BXE_EXTREME_SEND,*/
-					"%s(): TSO split headr size is %d (%x:%x) nbds %d\n",
-					__FUNCTION__, tx_start_bd->nbytes, tx_start_bd->addr_hi,
-					tx_start_bd->addr_lo, nbds);
+				DBPRINT(sc, BXE_EXTREME_SEND,
+			"%s(): TSO split headr size is %d (%x:%x) nbds %d\n",
+			__FUNCTION__, tx_start_bd->nbytes, tx_start_bd->addr_hi,
+				    tx_start_bd->addr_lo, nbds);
 
 				bd_prod = TX_BD(NEXT_TX_BD(bd_prod));
 
@@ -8962,10 +9130,10 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 				 * not marked with the start flag.
 				 */
 
-				DBPRINT(sc, BXE_EXTREME_SEND, "%s(): TSO split data "
-				    "size is %d (%x:%x)\n", __FUNCTION__,
-				    tx_data_bd->nbytes, tx_data_bd->addr_hi,
-				    tx_data_bd->addr_lo);
+				DBPRINT(sc, BXE_EXTREME_SEND,
+				"%s(): TSO split data size is %d (%x:%x)\n",
+				    __FUNCTION__, tx_data_bd->nbytes,
+				    tx_data_bd->addr_hi, tx_data_bd->addr_lo);
 			}
 
 			/*
@@ -9068,12 +9236,9 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 	return(rc);
 }
 
+
 /*
- * Transmit dispatch routine.
- *
- * This routine acts as a dispatcher, deciding which TX chain will be used
- * to send an outgoing frame and then adding the frame to that chain. It is
- * called by the OS when it's ready to transmit a frame.
+ * Legacy (non-RSS) dispatch routine.
  *
  * Returns:
  *   Nothing.
@@ -9087,36 +9252,29 @@ bxe_tx_start(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	DBENTER(BXE_EXTREME_SEND);
 
-	/* Exit if there's no link. */
-	if (!sc->link_vars.link_up) {
+	/* Exit if the transmit queue is full or link down. */
+	if (((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING) || !sc->link_vars.link_up) {
 		DBPRINT(sc, BXE_VERBOSE_SEND,
-		    "%s(): No link, ignoring transmit request.\n",
-		    __FUNCTION__);
-		goto bxe_tx_start_exit;
-	}
-
-	/* Exit if the transmit queue is full. */
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-		IFF_DRV_RUNNING) {
-		DBPRINT(sc, BXE_VERBOSE_SEND, "%s(): Driver running but "
-		    "transmit queue full, ignoring transmit request.\n",
-		    __FUNCTION__);
+		    "%s(): No link or TX queue full, ignoring "
+		    "transmit request.\n", __FUNCTION__);
 		goto bxe_tx_start_exit;
 	}
 
 	/* Set the TX queue for the frame. */
 	fp = &sc->fp[0];
 
-	BXE_CORE_LOCK(sc);
+	BXE_FP_LOCK(fp);
 	bxe_tx_start_locked(ifp, fp);
-	BXE_CORE_UNLOCK(sc);
+	BXE_FP_UNLOCK(fp);
 
 bxe_tx_start_exit:
 	DBEXIT(BXE_EXTREME_SEND);
 }
 
+
 /*
- * Main transmit routine.
+ * Legacy (non-RSS) transmit routine.
  *
  * Returns:
  *   Nothing.
@@ -9130,6 +9288,8 @@ bxe_tx_start_locked(struct ifnet *ifp, struct bxe_fastpath *fp)
 
 	sc = fp->sc;
 	DBENTER(BXE_EXTREME_SEND);
+
+	BXE_FP_LOCK_ASSERT(fp);
 
  	/* Keep adding entries while there are frames to send. */
 	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
@@ -9178,12 +9338,220 @@ bxe_tx_start_locked(struct ifnet *ifp, struct bxe_fastpath *fp)
 	/* No TX packets were dequeued. */
 	if (tx_count > 0)
 		/* Reset the TX watchdog timeout timer. */
-		sc->watchdog_timer = BXE_TX_TIMEOUT;
+		fp->watchdog_timer = BXE_TX_TIMEOUT;
 	else
 		fp->tx_start_called_on_empty_queue++;
 
 	DBEXIT(BXE_EXTREME_SEND);
 }
+
+#if __FreeBSD_version >= 800000
+/*
+ * Multiqueue (RSS) dispatch routine.
+ *
+ * Returns:
+ *   0 if transmit succeeds, !0 otherwise.
+ */
+static int
+bxe_tx_mq_start(struct ifnet *ifp, struct mbuf *m)
+{
+	struct	bxe_softc *sc;
+	struct	bxe_fastpath *fp;
+	int	fp_index, rc;
+
+	sc = ifp->if_softc;
+	fp_index = 0;
+
+	DBENTER(BXE_EXTREME_SEND);
+
+	/* Map the flow ID to a queue number. */
+	if ((m->m_flags & M_FLOWID) != 0) {
+		fp_index = m->m_pkthdr.flowid % sc->num_queues;
+		DBPRINT(sc, BXE_EXTREME_SEND,
+		    "%s(): Found flowid %d\n",
+		    __FUNCTION__, fp_index);
+	} else {
+		DBPRINT(sc, BXE_EXTREME_SEND,
+		    "%s(): No flowid found, using %d\n",
+		    __FUNCTION__, fp_index);
+	}
+
+
+	/* Select the fastpath TX queue for the frame. */
+	fp = &sc->fp[fp_index];
+
+	/* Exit if the transmit queue is full or link down. */
+	if (((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING) || !sc->link_vars.link_up) {
+		/* We're stuck with the mbuf.  Stash it for now. */
+		DBPRINT(sc, BXE_EXTREME_SEND,
+		    "%s(): TX queue full/link down, "
+		    "parking mbuf...\n", __FUNCTION__);
+		rc = drbr_enqueue(ifp, fp->br, m);
+		/* DRC - Setup a task to try again. */
+		/* taskqueue_enqueue(tq, task); */
+		goto bxe_tx_mq_start_exit;
+	}
+
+	BXE_FP_LOCK(fp);
+	rc = bxe_tx_mq_start_locked(ifp, fp, m);
+	BXE_FP_UNLOCK(fp);
+
+bxe_tx_mq_start_exit:
+	DBEXIT(BXE_EXTREME_SEND);
+	return(rc);
+}
+
+
+/*
+ * Multiqueue (RSS) transmit routine.
+ *
+ * Returns:
+ *   0 if transmit succeeds, !0 otherwise.
+ */
+static int
+bxe_tx_mq_start_locked(struct ifnet *ifp,
+    struct bxe_fastpath *fp, struct mbuf *m)
+{
+	struct bxe_softc *sc;
+	struct mbuf *next;
+	int rc = 0, tx_count = 0;
+
+	sc = fp->sc;
+
+	DBENTER(BXE_EXTREME_SEND);
+	DBPRINT(sc, BXE_EXTREME_SEND,
+	    "%s(): fp[%02d], drbr queue depth=%d\n",
+	    __FUNCTION__, fp->index, drbr_inuse(ifp, fp->br));
+
+	BXE_FP_LOCK_ASSERT(fp);
+
+	if (m == NULL) {
+		/* Check for any other work. */
+		DBPRINT(sc, BXE_EXTREME_SEND,
+		    "%s(): No initial work, dequeue mbuf...\n",
+		    __FUNCTION__);
+		next = drbr_dequeue(ifp, fp->br);
+	} else if (drbr_needs_enqueue(ifp, fp->br)) {
+		/* Work pending, queue mbuf to maintain packet order. */
+		DBPRINT(sc, BXE_EXTREME_SEND,
+		    "%s(): Found queued data pending...\n",
+		    __FUNCTION__);
+		if ((rc = drbr_enqueue(ifp, fp->br, m)) != 0) {
+			DBPRINT(sc, BXE_EXTREME_SEND,
+			    "%s(): Enqueue failed...\n",
+			    __FUNCTION__);
+			goto bxe_tx_mq_start_locked_exit;
+		}
+		DBPRINT(sc, BXE_EXTREME_SEND,
+		    "%s(): Dequeueing old mbuf...\n",
+		    __FUNCTION__);
+		next = drbr_dequeue(ifp, fp->br);
+	} else {
+		/* Work with the mbuf we have. */
+		DBPRINT(sc, BXE_EXTREME_SEND,
+		    "%s(): Start with current mbuf...\n",
+		    __FUNCTION__);
+		next = m;
+	}
+
+ 	/* Keep adding entries while there are frames to send. */
+	while (next != NULL) {
+
+		/* The transmit mbuf now belongs to us, keep track of it. */
+		DBRUN(fp->tx_mbuf_alloc++);
+
+		/*
+		 * Pack the data into the transmit ring. If we
+		 * don't have room, place the mbuf back at the
+		 * head of the TX queue, set the OACTIVE flag,
+		 * and wait for the NIC to drain the chain.
+		 */
+		if (__predict_false(bxe_tx_encap(fp, &next))) {
+			DBPRINT(sc, BXE_WARN, "%s(): TX encap failure...\n",
+			    __FUNCTION__);
+			fp->tx_encap_failures++;
+			/* Very Bad Frames(tm) may have been dropped. */
+			if (next != NULL) {
+				/*
+				 * Mark the TX queue as full and save
+				 * the frame.
+				 */
+				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+				DBPRINT(sc, BXE_EXTREME_SEND,
+				    "%s(): Save mbuf for another time...\n",
+				    __FUNCTION__);
+				rc = drbr_enqueue(ifp, fp->br, next);
+				DBRUN(fp->tx_mbuf_alloc--);
+				sc->eth_stats.driver_xoff++;
+			}
+
+			/* Stop looking for more work. */
+			break;
+		}
+
+		/* The transmit frame was enqueued successfully. */
+		tx_count++;
+
+		/* Send a copy of the frame to any BPF listeners. */
+		BPF_MTAP(ifp, next);
+
+		DBPRINT(sc, BXE_EXTREME_SEND,
+		    "%s(): Check for queued mbufs...\n",
+		    __FUNCTION__);
+		next = drbr_dequeue(ifp, fp->br);
+	}
+
+	DBPRINT(sc, BXE_EXTREME_SEND,
+	    "%s(): Enqueued %d mbufs...\n",
+	    __FUNCTION__, tx_count);
+
+	/* No TX packets were dequeued. */
+	if (tx_count > 0) {
+		/* Reset the TX watchdog timeout timer. */
+		fp->watchdog_timer = BXE_TX_TIMEOUT;
+	} else {
+		fp->tx_start_called_on_empty_queue++;
+	}
+
+bxe_tx_mq_start_locked_exit:
+	DBEXIT(BXE_EXTREME_SEND);
+	return(rc);
+}
+
+
+static void
+bxe_mq_flush(struct ifnet *ifp)
+{
+	struct bxe_softc *sc;
+	struct bxe_fastpath *fp;
+	struct mbuf *m;
+	int i;
+
+	sc = ifp->if_softc;
+
+	DBENTER(BXE_VERBOSE_UNLOAD);
+
+	for (i = 0; i < sc->num_queues; i++) {
+		fp = &sc->fp[i];
+
+		DBPRINT(sc, BXE_VERBOSE_UNLOAD, "%s(): Clearing fp[%02d]...\n",
+		    __FUNCTION__, fp->index);
+
+		if (fp->br != NULL) {
+			BXE_FP_LOCK(fp);
+			while ((m = buf_ring_dequeue_sc(fp->br)) != NULL)
+				m_freem(m);
+			BXE_FP_UNLOCK(fp);
+		}
+	}
+
+	if_qflush(ifp);
+
+	DBEXIT(BXE_VERBOSE_UNLOAD);
+}
+#endif /* FreeBSD_version >= 800000 */
+
 
 /*
  * Handles any IOCTL calls from the operating system.
@@ -9289,11 +9657,13 @@ bxe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 		/* Toggle the LRO capabilites enable flag. */
 		if (mask & IFCAP_LRO) {
-			ifp->if_capenable ^= IFCAP_LRO;
-			sc->bxe_flags ^= BXE_TPA_ENABLE_FLAG;
-			DBPRINT(sc, BXE_INFO_MISC,
-			    "%s(): Toggling LRO (bxe_flags = 0x%08X).\n",
-			    __FUNCTION__, sc->bxe_flags);
+			if (TPA_ENABLED(sc)) {
+				ifp->if_capenable ^= IFCAP_LRO;
+				sc->bxe_flags ^= BXE_TPA_ENABLE_FLAG;
+				DBPRINT(sc, BXE_INFO_MISC,
+				    "%s(): Toggling LRO (bxe_flags = "
+				    "0x%08X).\n", __FUNCTION__, sc->bxe_flags);
+			}
 			reinit = 1;
 		}
 
@@ -9633,8 +10003,9 @@ bxe_intr_fp (void *xfp)
 
 	DBENTER(BXE_EXTREME_INTR);
 
-	DBPRINT(sc, BXE_EXTREME_INTR,
-	    "%s(%d): MSI-X vector on fp[%d].sb_id = %d\n", __FUNCTION__, curcpu,	    fp->index, fp->sb_id);
+	DBPRINT(sc, BXE_VERBOSE_INTR,
+	    "%s(%d): MSI-X vector on fp[%d].sb_id = %d\n",
+	    __FUNCTION__, curcpu, fp->index, fp->sb_id);
 
 	/* Don't handle any interrupts if we're not ready. */
 	if (__predict_false(sc->intr_sem != 0))
@@ -9674,17 +10045,17 @@ bxe_task_fp (void *xfp, int pending)
 	DBPRINT(sc, BXE_EXTREME_INTR, "%s(): pending = %d.\n", __FUNCTION__,
 	    pending);
 
-	DBPRINT(sc, BXE_EXTREME_INTR, "%s(%d): FP task on fp[%d].sb_id = %d\n",
-	    __FUNCTION__, curcpu, fp->index, fp->sb_id);
+	DBPRINT(sc, BXE_EXTREME_INTR, "%s(%d): Fastpath task on fp[%d]"
+	    ".sb_id = %d\n", __FUNCTION__, curcpu, fp->index, fp->sb_id);
 
 	/* Update the fast path indices */
 	bxe_update_fpsb_idx(fp);
 
 	/* Service any completed TX frames. */
 	if (bxe_has_tx_work(fp)) {
-		BXE_CORE_LOCK(sc);
+		BXE_FP_LOCK(fp);
 		bxe_txeof(fp);
-		BXE_CORE_UNLOCK(sc);
+		BXE_FP_UNLOCK(fp);
 	}
 
 	/* Service any completed RX frames. */
@@ -10292,11 +10663,77 @@ bxe_alloc_rx_sge_exit:
 	return (rc);
 }
 
+
+/*
+ * Returns:
+ *   None.
+ */
+static void
+bxe_alloc_mutexes(struct bxe_softc *sc)
+{
+	struct bxe_fastpath *fp;
+	int i;
+
+	DBENTER(BXE_VERBOSE_LOAD);
+
+	BXE_CORE_LOCK_INIT(sc, device_get_nameunit(sc->dev));
+	BXE_SP_LOCK_INIT(sc, "bxe_sp_lock");
+	BXE_DMAE_LOCK_INIT(sc, "bxe_dmae_lock");
+	BXE_PHY_LOCK_INIT(sc, "bxe_phy_lock");
+	BXE_FWMB_LOCK_INIT(sc, "bxe_fwmb_lock");
+	BXE_PRINT_LOCK_INIT(sc, "bxe_print_lock");
+
+	/* Allocate one mutex for each fastpath structure. */
+	for (i=0; i < sc->num_queues; i++ ) {
+		fp = &sc->fp[i];
+
+		/* Allocate per fastpath mutexes. */
+		snprintf(fp->mtx_name, sizeof(fp->mtx_name), "%s:fp[%02d]",
+		    device_get_nameunit(sc->dev), fp->index);
+		mtx_init(&fp->mtx, fp->mtx_name, NULL, MTX_DEF);
+	}
+
+	DBEXIT(BXE_VERBOSE_LOAD);
+}
+
+/*
+ * Returns:
+ *   None.
+ */
+static void
+bxe_free_mutexes(struct bxe_softc *sc)
+{
+	struct bxe_fastpath *fp;
+	int i;
+
+	DBENTER(BXE_VERBOSE_UNLOAD);
+
+	for (i=0; i < sc->num_queues; i++ ) {
+		fp = &sc->fp[i];
+
+		/* Release per fastpath mutexes. */
+		if (mtx_initialized(&(fp->mtx)))
+			mtx_destroy(&(fp->mtx));
+	}
+
+	BXE_PRINT_LOCK_DESTROY(sc);
+	BXE_FWMB_LOCK_DESTROY(sc);
+	BXE_PHY_LOCK_DESTROY(sc);
+	BXE_DMAE_LOCK_DESTROY(sc);
+	BXE_SP_LOCK_DESTROY(sc);
+	BXE_CORE_LOCK_DESTROY(sc);
+
+	DBEXIT(BXE_VERBOSE_UNLOAD);
+
+}
+
+
+
 /*
  * Initialize the receive rings.
  *
  * Returns:
- *   0 = Success, !0 = Failure.
+ *   None.
  */
 static void
 bxe_init_rx_chains(struct bxe_softc *sc)
@@ -10478,7 +10915,7 @@ bxe_init_rx_chains(struct bxe_softc *sc)
 
 		/* Update the driver's copy of the producer indices. */
 		fp->rx_bd_prod = rx_bd_prod;
-		fp->rx_cq_prod = MAX_RCQ_ENTRIES;
+		fp->rx_cq_prod = TOTAL_RCQ_ENTRIES;
 		fp->rx_pkts = fp->rx_calls = 0;
 
 		DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET),
@@ -10544,6 +10981,7 @@ bxe_init_tx_chains(struct bxe_softc *sc)
 
 	for (i = 0; i < sc->num_queues; i++) {
 		fp = &sc->fp[i];
+
 		DBPRINT(sc, (BXE_INSANE_LOAD | BXE_INSANE_RESET),
 		    "%s(): Linking fp[%d] TX chain pages.\n", __FUNCTION__, i);
 
@@ -10779,7 +11217,7 @@ bxe_init_context(struct bxe_softc *sc)
 		/* Enable packet alignment/pad and statistics. */
 		context->ustorm_st_context.common.flags =
 		    USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_MC_ALIGNMENT;
-		if (bxe_stats_enable)
+		if (sc->stats_enable == TRUE)
 			context->ustorm_st_context.common.flags |=
 		    USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_STATISTICS;
 		context->ustorm_st_context.common.statistics_counter_id=cl_id;
@@ -11323,7 +11761,7 @@ bxe_init_internal(struct bxe_softc *sc, uint32_t load_code)
  * Perform driver instance specific initialization.
  *
  * Returns:
- *   0 = Success, !0 = Failure
+ *   None
  */
 static void
 bxe_init_nic(struct bxe_softc *sc, uint32_t load_code)
@@ -11978,7 +12416,7 @@ bxe_init_pxp(struct bxe_softc *sc)
 	uint16_t devctl;
 	int r_order, w_order;
 
-	devctl = pci_read_config(sc->bxe_dev,
+	devctl = pci_read_config(sc->dev,
 	    sc->pcie_cap + PCI_EXP_DEVCTL, 2);
 	DBPRINT(sc, (BXE_VERBOSE_LOAD | BXE_VERBOSE_RESET),
 	    "%s(): Read 0x%x from devctl\n", __FUNCTION__, devctl);
@@ -13254,7 +13692,7 @@ bxe_dma_alloc(device_t dev)
 		/*
 		 * Check required size before mapping to conserve resources.
 		 */
-		if (bxe_tso_enable) {
+		if (sc->tso_enable == TRUE) {
 			max_size     = BXE_TSO_MAX_SIZE;
 			max_segments = BXE_TSO_MAX_SEGMENTS;
 			max_seg_size = BXE_TSO_MAX_SEG_SIZE;
@@ -13988,21 +14426,21 @@ bxe_set_rx_mode(struct bxe_softc *sc)
 	 * multicast address filtering.
 	 */
 	if (ifp->if_flags & IFF_PROMISC) {
-		DBPRINT(sc, BXE_INFO, "%s(): Enabling promiscuous mode.\n",
-		    __FUNCTION__);
+		DBPRINT(sc, BXE_VERBOSE_MISC,
+		    "%s(): Enabling promiscuous mode.\n", __FUNCTION__);
 
 		/* Enable promiscuous mode. */
 		rx_mode = BXE_RX_MODE_PROMISC;
 	} else if ((ifp->if_flags & IFF_ALLMULTI) ||
 	    (ifp->if_amcount > BXE_MAX_MULTICAST)) {
-		DBPRINT(sc, BXE_INFO, "%s(): Enabling all multicast mode.\n",
-		    __FUNCTION__);
+		DBPRINT(sc, BXE_VERBOSE_MISC,
+		    "%s(): Enabling all multicast mode.\n", __FUNCTION__);
 
 		/* Enable all multicast addresses. */
 		rx_mode = BXE_RX_MODE_ALLMULTI;
 	} else {
 		/* Enable selective multicast mode. */
-		DBPRINT(sc, BXE_INFO,
+		DBPRINT(sc, BXE_VERBOSE_MISC,
 		    "%s(): Enabling selective multicast mode.\n",
 		    __FUNCTION__);
 
@@ -15016,6 +15454,12 @@ bxe_rxeof(struct bxe_fastpath *fp)
 				m->m_flags |= M_VLANTAG;
 			}
 
+#if __FreeBSD_version >= 800000
+			/* Tell OS what RSS queue was used for this flow. */
+			m->m_pkthdr.flowid = fp->index;
+			m->m_flags |= M_FLOWID;
+#endif
+
 			/* Last chance to check for problems. */
 			DBRUN(bxe_validate_rx_packet(fp, rx_cq_cons, cqe, m));
 
@@ -15087,6 +15531,8 @@ bxe_txeof(struct bxe_fastpath *fp)
 	ifp = sc->bxe_ifp;
 
 	DBENTER(BXE_EXTREME_SEND);
+	DBPRINT(sc, BXE_EXTREME_SEND, "%s(): Servicing fp[%d]\n",
+	    __FUNCTION__, fp->index);
 
 	/* Get the hardware's view of the TX packet consumer index. */
 	hw_pkt_cons = le16toh(*fp->tx_cons_sb);
@@ -15167,13 +15613,13 @@ bxe_txeof(struct bxe_fastpath *fp)
 			 * Clear the watchdog timer if we've emptied
 			 * the TX chain.
 			 */
-			sc->watchdog_timer = 0;
+			fp->watchdog_timer = 0;
 		} else {
 			/*
 			 * Reset the watchdog timer if we still have
 			 * transmits pending.
 			 */
-			sc->watchdog_timer = BXE_TX_TIMEOUT;
+			fp->watchdog_timer = BXE_TX_TIMEOUT;
 		}
 	}
 
@@ -15259,22 +15705,30 @@ bxe_get_buf_exit:
  * Transmit timeout handler.
  *
  * Returns:
- *   None.
+ *   0 = No timeout, !0 = timeout occurred.
  */
-static void
-bxe_watchdog(struct bxe_softc *sc)
+static int
+bxe_watchdog(struct bxe_fastpath *fp)
 {
+	struct bxe_softc *sc = fp->sc;
+	int rc = 0;
 
 	DBENTER(BXE_INSANE_SEND);
 
-	BXE_CORE_LOCK_ASSERT(sc);
-
-	if (sc->watchdog_timer == 0 || --sc->watchdog_timer)
+	BXE_FP_LOCK(fp);
+	if (fp->watchdog_timer == 0 || --fp->watchdog_timer) {
+		rc = EINVAL;
+		BXE_FP_UNLOCK(fp);
 		goto bxe_watchdog_exit;
+	}
+	BXE_FP_UNLOCK(fp);
 
-	BXE_PRINTF("TX watchdog timeout occurred, resetting!\n");
+	BXE_PRINTF("TX watchdog timeout occurred on fp[%02d], "
+	    "resetting!\n", fp->index);
 
 	/* DBRUNLV(BXE_FATAL, bxe_breakpoint(sc)); */
+
+	BXE_CORE_LOCK(sc);
 
 	/* Mark the interface as down. */
 	sc->bxe_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
@@ -15283,9 +15737,13 @@ bxe_watchdog(struct bxe_softc *sc)
 	DELAY(10000);
 	bxe_init_locked(sc, LOAD_OPEN);
 
+	BXE_CORE_UNLOCK(sc);
+
 bxe_watchdog_exit:
 	DBEXIT(BXE_INSANE_SEND);
+	return(rc);
 }
+
 
 /*
  * Change the MTU size for the port.  The MTU should be validated before
@@ -15328,21 +15786,28 @@ static void
 bxe_tick(void *xsc)
 {
 	struct bxe_softc *sc;
-//zz 	uint32_t drv_pulse, mcp_pulse;
-	int func;
+	struct bxe_fastpath *fp;
+#if 0
+	/* Re-enable at a later time. */
+	uint32_t drv_pulse, mcp_pulse;
+#endif
+	int i, func;
 
 	sc = xsc;
 	DBENTER(BXE_INSANE_MISC);
+
+	/* Check for TX timeouts on any fastpath. */
+	for (i = 0; i < sc->num_queues; i++) {
+		fp = &sc->fp[i];
+		if (bxe_watchdog(fp) != 0)
+			break;
+	}
+
 	BXE_CORE_LOCK(sc);
-func = BP_FUNC(sc);
+	func = BP_FUNC(sc);
+
 	/* Schedule the next tick. */
 	callout_reset(&sc->bxe_tick_callout, hz, bxe_tick, sc);
-	/*
-	 * Check if a transmit timeout has
-	 * occurred and reset the device if
-	 * necessary to get back in service.
-	 */
-	bxe_watchdog(sc);
 
 #if 0
 	if (!BP_NOMCP(sc)) {
@@ -15633,9 +16098,9 @@ static void
 bxe_add_sysctls(struct bxe_softc *sc)
 {
 	struct sysctl_ctx_list *ctx =
-	    device_get_sysctl_ctx(sc->bxe_dev);
+	    device_get_sysctl_ctx(sc->dev);
 	struct sysctl_oid_list *children =
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->bxe_dev));
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
 	struct bxe_eth_stats *estats = &sc->eth_stats;
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
@@ -15669,14 +16134,14 @@ bxe_add_sysctls(struct bxe_softc *sc)
 	    0, "Total unicast packets received (lo)");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"estats_total_bytes_transmitted_hi",
-		CTLFLAG_RD, &estats->total_bytes_transmitted_hi,
-		0, "Total bytes transmitted (hi)");
+	    "estats_total_bytes_transmitted_hi",
+	    CTLFLAG_RD, &estats->total_bytes_transmitted_hi,
+	    0, "Total bytes transmitted (hi)");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
-		"estats_total_bytes_transmitted_lo",
-		CTLFLAG_RD, &estats->total_bytes_transmitted_lo,
-		0, "Total bytes transmitted (lo)");
+	    "estats_total_bytes_transmitted_lo",
+	    CTLFLAG_RD, &estats->total_bytes_transmitted_lo,
+	    0, "Total bytes transmitted (lo)");
 
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
 	    "estats_total_unicast_packets_transmitted_hi",
@@ -16494,8 +16959,8 @@ void bxe_dump_tx_chain(struct bxe_fastpath * fp, int tx_bd_prod, int count)
 	val_hi = U64_HI(fp->tx_bd_chain_paddr);
 	val_lo = U64_LO(fp->tx_bd_chain_paddr);
 	BXE_PRINTF(
-	    "0x%08X:%08X - (fp->tx_bd_chain_paddr) TX Chain physical address\n",
-	    val_hi, val_lo);
+	    "0x%08X:%08X - (fp[%02d]->tx_bd_chain_paddr) TX Chain physical address\n",
+	    val_hi, val_lo, fp->index);
 	BXE_PRINTF(
 	    "page size      = 0x%08X, tx chain pages        = 0x%08X\n",
 	    (uint32_t)BCM_PAGE_SIZE, (uint32_t)NUM_TX_PAGES);
@@ -16532,8 +16997,6 @@ void bxe_dump_tx_chain(struct bxe_fastpath * fp, int tx_bd_prod, int count)
 		}
 		/* Don't skip next page pointers. */
 		   tx_bd_prod = ((tx_bd_prod + 1) & MAX_TX_BD);
-
-		/* tx_bd_prod = TX_BD(NEXT_TX_BD(tx_bd_prod)); */
 	}
 
 	BXE_PRINTF(
