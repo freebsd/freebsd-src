@@ -33,9 +33,10 @@ zfs_cleanup_unmount()
   # Loop through our FS and see if we have any ZFS partitions to cleanup
   for PART in `ls ${PARTDIR}`
   do
+    PARTDEV=`echo $PART | sed 's|-|/|g'`
     PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
     PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
-    ZPOOLNAME=$(get_zpool_name "${PART}")
+    ZPOOLNAME=$(get_zpool_name "${PARTDEV}")
 
     if [ "$PARTFS" = "ZFS" ]
     then
@@ -82,13 +83,21 @@ zfs_cleanup_unmount()
   # Loop through our FS and see if we have any ZFS partitions to cleanup
   for PART in `ls ${PARTDIR}`
   do
+    PARTDEV=`echo $PART | sed 's|-|/|g'`
     PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
     PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
     PARTENC="`cat ${PARTDIR}/${PART} | cut -d ':' -f 3`"
-    ZPOOLNAME=$(get_zpool_name "${PART}")
+    ZPOOLNAME=$(get_zpool_name "${PARTDEV}")
 
     if [ "$PARTFS" = "ZFS" ]
     then
+
+      # Create a list of zpool names we can export
+      echo $ZPOOLEXPORTS | grep -q "$ZPOOLNAME "
+      if [ $? -ne 0 ] ; then
+        export ZPOOLEXPORTS="$ZPOOLNAME $ZPOOLEXPORTS"
+      fi
+
       # Check if we have multiple zfs mounts specified
       for ZMNT in `echo ${PARTMNT} | sed 's|,| |g'`
       do
@@ -122,8 +131,8 @@ setup_dedicated_boot_part()
   rc_halt "mkdir -p ${FSMNT}/${BOOTMNT}/boot"
   rc_halt "mv ${FSMNT}/boot/* ${FSMNT}${BOOTMNT}/boot/"
   rc_halt "mv ${FSMNT}${BOOTMNT}/boot ${FSMNT}/boot/"
-  rc_halt "umount /dev/${BOOTFS}"
-  rc_halt "mount /dev/${BOOTFS} ${FSMNT}${BOOTMNT}"
+  rc_halt "umount ${BOOTFS}"
+  rc_halt "mount ${BOOTFS} ${FSMNT}${BOOTMNT}"
   rc_halt "rmdir ${FSMNT}/boot"
 
   # Strip the '/' from BOOTMNT before making symlink
@@ -144,21 +153,11 @@ setup_fstab()
   # Loop through the partitions, and start creating /etc/fstab
   for PART in `ls ${PARTDIR}`
   do
+    PARTDEV=`echo $PART | sed 's|-|/|g'`
     PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
     PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
     PARTENC="`cat ${PARTDIR}/${PART} | cut -d ':' -f 3`"
     PARTLABEL="`cat ${PARTDIR}/${PART} | cut -d ':' -f 4`"
-
-    DRIVE="`echo ${PART} | rev | cut -b 4- | rev`"
-    # Check if this device is being mirrored
-    if [ -e "${MIRRORCFGDIR}/${DRIVE}" ]
-    then
-      # This device is apart of a gmirror, lets reset PART to correct value
-      MDRIVE="mirror/`cat ${MIRRORCFGDIR}/${DRIVE} | cut -d ':' -f 3`"
-      TMP="`echo ${PART} | rev | cut -b -3 | rev`"
-      PART="${MDRIVE}${TMP}"
-      PARTLABEL=""
-    fi
 
     # Unset EXT
     EXT=""
@@ -184,7 +183,7 @@ setup_fstab()
       if [ "${PARTFS}" = "UFS+J" ] ; then
         EXT="${EXT}.journal"
       fi
-      DEVICE="${PART}${EXT}"
+      DEVICE="${PARTDEV}${EXT}"
     fi
 
 
@@ -193,7 +192,7 @@ setup_fstab()
     if [ $? -eq 0 ] ; then
       if [ "${PARTFS}" = "ZFS" ] ; then
         ROOTFSTYPE="zfs"
-        XPOOLNAME=$(get_zpool_name "${PART}")
+        XPOOLNAME=$(get_zpool_name "${PARTDEV}")
         ROOTFS="${ZPOOLNAME}"
       else
         ROOTFS="${DEVICE}"
@@ -212,7 +211,7 @@ setup_fstab()
 
       # Save the BOOTFS for call at the end
       if [ "${PARTMNT}" = "/boot" ] ; then
-        BOOTFS="${PART}${EXT}"
+        BOOTFS="${PARTDEV}${EXT}"
         BOOTMNT="${BOOT_PART_MOUNT}"
         PARTMNT="${BOOTMNT}"
       fi
@@ -245,28 +244,6 @@ setup_fstab()
 # Setup our disk mirroring with gmirror
 setup_gmirror()
 {
-  NUM="0"
-
-  cd ${MIRRORCFGDIR}
-  for DISK in `ls *`
-  do
-    MIRRORDISK="`cat ${DISK} | cut -d ':' -f 1`"
-    MIRRORBAL="`cat ${DISK} | cut -d ':' -f 2`"
-
-    # Create this mirror device
-    gmirror label -vb $MIRRORBAL gm${NUM} /dev/${DISK} 
-
-    sleep 3
-
-    # Save the gm<num> device in our config
-    echo "${MIRRORDISK}:${MIRRORBAL}:gm${NUM}" > ${DISK}
-
-    sleep 3
-
-    NUM=$((NUM+1))
-  done
-
-  
   cat ${FSMNT}/boot/loader.conf 2>/dev/null | grep -q 'geom_mirror_load="YES"' 2>/dev/null
   if [ $? -ne 0 ]
   then
@@ -283,24 +260,25 @@ setup_geli_loading()
   mkdir -p ${FSMNT}/boot/keys >/dev/null 2>/dev/null
 
   cd ${GELIKEYDIR}
-  for KEYFILE in `ls *`
+  for KEYFILE in `ls`
   do
      # Figure out the partition name based on keyfile name removing .key
      PART="`echo ${KEYFILE} | cut -d '.' -f 1`"
+     PARTDEV="`echo ${PART} | sed 's|-|/|g'`"
+     PARTNAME="`echo ${PART} | sed 's|-dev-||g'`"
 
-     # Add the entries to loader.conf to start this geli provider at boot
-     echo "geli_${PART}_keyfile0_load=\"YES\"" >> ${FSMNT}/boot/loader.conf 
-     echo "geli_${PART}_keyfile0_type=\"${PART}:geli_keyfile0\"" >> ${FSMNT}/boot/loader.conf 
-     echo "geli_${PART}_keyfile0_name=\"/boot/keys/${KEYFILE}\"" >> ${FSMNT}/boot/loader.conf 
+     rc_halt "geli configure -b ${PARTDEV}"
 
-     # If we have a passphrase, set it up now
-     if [ -e "${PARTDIR}-enc/${PART}-encpass" ] ; then
-       geli setkey -J ${PARTDIR}-enc/${PART}-encpass -n 0 -p -k ${KEYFILE} -K ${KEYFILE} ${PART}
-       geli configure -b ${PART}
+     # If no passphrase, setup key files
+     if [ ! -e "${PARTDIR}-enc/${PART}-encpass" ] ; then
+       echo "geli_${PARTNAME}_keyfile0_load=\"YES\"" >> ${FSMNT}/boot/loader.conf 
+       echo "geli_${PARTNAME}_keyfile0_type=\"${PARTNAME}:geli_keyfile0\"" >> ${FSMNT}/boot/loader.conf 
+       echo "geli_${PARTNAME}_keyfile0_name=\"/boot/keys/${PARTNAME}.key\"" >> ${FSMNT}/boot/loader.conf 
+
+       # Copy the key to the disk
+       rc_halt "cp ${GELIKEYDIR}/${KEYFILE} ${FSMNT}/boot/keys/${PARTNAME}.key"
      fi
 
-     # Copy the key to the disk
-     cp ${KEYFILE} ${FSMNT}/boot/keys/${KEYFILE}
   done
 
   # Make sure we have geom_eli set to load at boot

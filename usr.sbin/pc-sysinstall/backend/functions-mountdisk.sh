@@ -84,9 +84,9 @@ mount_partition()
       mkdir -p ${FSMNT}${MNTPOINT} >>${LOGOUT} 2>>${LOGOUT}
     fi
 
-    echo_log "mount ${MNTFLAGS} /dev/${PART} -> ${FSMNT}${MNTPOINT}"
+    echo_log "mount ${MNTFLAGS} ${PART} -> ${FSMNT}${MNTPOINT}"
     sleep 2
-    rc_halt "mount ${MNTFLAGS} /dev/${PART} ${FSMNT}${MNTPOINT}"
+    rc_halt "mount ${MNTFLAGS} ${PART} ${FSMNT}${MNTPOINT}"
   fi
 
 };
@@ -101,9 +101,10 @@ mount_all_filesystems()
   #########################################################
   for PART in `ls ${PARTDIR}`
   do
-    if [ ! -e "/dev/${PART}" ]
+    PARTDEV=`echo $PART | sed 's|-|/|g'` 
+    if [ ! -e "${PARTDEV}" ]
     then
-      exit_err "ERROR: The partition ${PART} does not exist. Failure in bsdlabel?"
+      exit_err "ERROR: The partition ${PARTDEV} does not exist. Failure in bsdlabel?"
     fi 
 
     PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
@@ -122,12 +123,12 @@ mount_all_filesystems()
     if [ "$?" = "0" -o "$PARTMNT" = "/" ]
     then
       case ${PARTFS} in
-        UFS) mount_partition ${PART}${EXT} ${PARTFS} ${PARTMNT} "noatime" ;;
-        UFS+S) mount_partition ${PART}${EXT} ${PARTFS} ${PARTMNT} "noatime" ;;
-        UFS+SUJ) mount_partition ${PART}${EXT} ${PARTFS} ${PARTMNT} "noatime" ;;
-        UFS+J) mount_partition ${PART}${EXT}.journal ${PARTFS} ${PARTMNT} "async,noatime" ;;
-        ZFS) mount_partition ${PART} ${PARTFS} ${PARTMNT} ;;
-        IMAGE) mount_partition ${PART} ${PARTFS} ${PARTMNT} ;;
+        UFS) mount_partition ${PARTDEV}${EXT} ${PARTFS} ${PARTMNT} "noatime" ;;
+        UFS+S) mount_partition ${PARTDEV}${EXT} ${PARTFS} ${PARTMNT} "noatime" ;;
+        UFS+SUJ) mount_partition ${PARTDEV}${EXT} ${PARTFS} ${PARTMNT} "noatime" ;;
+        UFS+J) mount_partition ${PARTDEV}${EXT}.journal ${PARTFS} ${PARTMNT} "async,noatime" ;;
+        ZFS) mount_partition ${PARTDEV} ${PARTFS} ${PARTMNT} ;;
+        IMAGE) mount_partition ${PARTDEV} ${PARTFS} ${PARTMNT} ;;
         *) exit_err "ERROR: Got unknown file-system type $PARTFS" ;;
       esac
     fi
@@ -137,9 +138,10 @@ mount_all_filesystems()
   ##################################################################
   for PART in `ls ${PARTDIR}`
   do
-    if [ ! -e "/dev/${PART}" ]
+    PARTDEV=`echo $PART | sed 's|-|/|g'`
+    if [ ! -e "${PARTDEV}" ]
     then
-      exit_err "ERROR: The partition ${PART} does not exist. Failure in bsdlabel?"
+      exit_err "ERROR: The partition ${PARTDEV} does not exist. Failure in bsdlabel?"
     fi 
      
     PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
@@ -158,23 +160,23 @@ mount_all_filesystems()
     if [ "$?" != "0" -a "$PARTMNT" != "/" ]
     then
        case ${PARTFS} in
-         UFS) mount_partition ${PART}${EXT} ${PARTFS} ${PARTMNT} "noatime" ;;
-         UFS+S) mount_partition ${PART}${EXT} ${PARTFS} ${PARTMNT} "noatime" ;;
-         UFS+SUJ) mount_partition ${PART}${EXT} ${PARTFS} ${PARTMNT} "noatime" ;;
-         UFS+J) mount_partition ${PART}${EXT}.journal ${PARTFS} ${PARTMNT} "async,noatime" ;;
-         ZFS) mount_partition ${PART} ${PARTFS} ${PARTMNT} ;;
+         UFS) mount_partition ${PARTDEV}${EXT} ${PARTFS} ${PARTMNT} "noatime" ;;
+         UFS+S) mount_partition ${PARTDEV}${EXT} ${PARTFS} ${PARTMNT} "noatime" ;;
+         UFS+SUJ) mount_partition ${PARTDEV}${EXT} ${PARTFS} ${PARTMNT} "noatime" ;;
+         UFS+J) mount_partition ${PARTDEV}${EXT}.journal ${PARTFS} ${PARTMNT} "async,noatime" ;;
+         ZFS) mount_partition ${PARTDEV} ${PARTFS} ${PARTMNT} ;;
          SWAP)
 		   # Lets enable this swap now
            if [ "$PARTENC" = "ON" ]
            then
-             echo_log "Enabling encrypted swap on /dev/${PART}"
-             rc_halt "geli onetime -d -e 3des ${PART}"
+             echo_log "Enabling encrypted swap on ${PARTDEV}"
+             rc_halt "geli onetime -d -e 3des ${PARTDEV}"
              sleep 5
-             rc_halt "swapon /dev/${PART}.eli"
+             rc_halt "swapon ${PARTDEV}.eli"
            else
-             echo_log "swapon ${PART}"
+             echo_log "swapon ${PARTDEV}"
              sleep 5
-             rc_halt "swapon /dev/${PART}"
+             rc_halt "swapon ${PARTDEV}"
             fi
             ;;
          IMAGE)
@@ -182,7 +184,7 @@ mount_all_filesystems()
            then
              mkdir -p "${PARTMNT}" 
            fi 
-           mount_partition ${PART} ${PARTFS} ${PARTMNT}
+           mount_partition ${PARTDEV} ${PARTFS} ${PARTMNT}
            ;;
          *) exit_err "ERROR: Got unknown file-system type $PARTFS" ;;
       esac

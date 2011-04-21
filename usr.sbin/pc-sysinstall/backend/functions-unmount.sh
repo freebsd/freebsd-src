@@ -42,7 +42,7 @@ umount_all_dir()
 start_gmirror_sync()
 {
 
- cd ${MIRRORCFGDIR}
+  cd ${MIRRORCFGDIR}
   for DISK in `ls *`
   do
     MIRRORDISK="`cat ${DISK} | cut -d ':' -f 1`"
@@ -50,6 +50,7 @@ start_gmirror_sync()
     MIRRORNAME="`cat ${DISK} | cut -d ':' -f 3`"
    
     # Start the mirroring service
+    rc_nohalt "gmirror forget ${MIRRORNAME}"
     rc_halt "gmirror insert ${MIRRORNAME} /dev/${MIRRORDISK}"
 
   done
@@ -70,7 +71,7 @@ unmount_all_filesystems()
   ##################################################################
   for PART in `ls ${PARTDIR}`
   do
-         
+    PARTDEV=`echo $PART | sed 's|-|/|g'`    
     PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
     PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
     PARTENC="`cat ${PARTDIR}/${PART} | cut -d ':' -f 3`"
@@ -83,24 +84,24 @@ unmount_all_filesystems()
       EXT=""
     fi
 
-    #if [ "${PARTFS}" = "SWAP" ]
-    #then
-    #  rc_nohalt "swapoff /dev/${PART}${EXT}"
-    #fi
+    if [ "${PARTFS}" = "SWAP" ]
+    then
+      rc_nohalt "swapoff ${PARTDEV}${EXT}"
+    fi
 
     # Check if we've found "/", and unmount that last
     if [ "$PARTMNT" != "/" -a "${PARTMNT}" != "none" -a "${PARTFS}" != "ZFS" ]
     then
-      rc_halt "umount -f /dev/${PART}${EXT}"
+      rc_halt "umount -f ${PARTDEV}${EXT}"
 
       # Re-check if we are missing a label for this device and create it again if so
       if [ ! -e "/dev/label/${PARTLABEL}" ]
       then
         case ${PARTFS} in
-          UFS) glabel label ${PARTLABEL} /dev/${PART}${EXT} ;;
-          UFS+S) glabel label ${PARTLABEL} /dev/${PART}${EXT} ;;
-          UFS+SUJ) glabel label ${PARTLABEL} /dev/${PART}${EXT} ;;
-          UFS+J) glabel label ${PARTLABEL} /dev/${PART}${EXT}.journal ;;
+          UFS) glabel label ${PARTLABEL} ${PARTDEV}${EXT} ;;
+          UFS+S) glabel label ${PARTLABEL} ${PARTDEV}${EXT} ;;
+          UFS+SUJ) glabel label ${PARTLABEL} ${PARTDEV}${EXT} ;;
+          UFS+J) glabel label ${PARTLABEL} ${PARTDEV}${EXT}.journal ;;
           *) ;;
         esac 
       fi
@@ -112,10 +113,10 @@ unmount_all_filesystems()
       if [ ! -e "/dev/label/${PARTLABEL}" ]
       then
         case ${PARTFS} in
-          UFS) ROOTRELABEL="glabel label ${PARTLABEL} /dev/${PART}${EXT}" ;;
-          UFS+S) ROOTRELABEL="glabel label ${PARTLABEL} /dev/${PART}${EXT}" ;;
-          UFS+SUJ) ROOTRELABEL="glabel label ${PARTLABEL} /dev/${PART}${EXT}" ;;
-          UFS+J) ROOTRELABEL="glabel label ${PARTLABEL} /dev/${PART}${EXT}.journal" ;;
+          UFS) ROOTRELABEL="glabel label ${PARTLABEL} ${PARTDEV}${EXT}" ;;
+          UFS+S) ROOTRELABEL="glabel label ${PARTLABEL} ${PARTDEV}${EXT}" ;;
+          UFS+SUJ) ROOTRELABEL="glabel label ${PARTLABEL} ${PARTDEV}${EXT}" ;;
+          UFS+J) ROOTRELABEL="glabel label ${PARTLABEL} ${PARTDEV}${EXT}.journal" ;;
           *) ;;
         esac 
       fi
@@ -166,25 +167,25 @@ unmount_all_filesystems_failure()
     then
     for PART in `ls ${PARTDIR}`
     do
-     
+      PARTDEV=`echo $PART | sed 's|-|/|g'` 
       PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
       PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
       PARTENC="`cat ${PARTDIR}/${PART} | cut -d ':' -f 3`"
 
-      #if [ "${PARTFS}" = "SWAP" ]
-      #then
-      #  if [ "${PARTENC}" = "ON" ]
-      #  then
-      #    rc_nohalt "swapoff /dev/${PART}.eli"
-      #  else
-      #    rc_nohalt "swapoff /dev/${PART}"
-      #  fi
-      #fi
+      if [ "${PARTFS}" = "SWAP" ]
+      then
+        if [ "${PARTENC}" = "ON" ]
+        then
+          rc_nohalt "swapoff ${PARTDEV}.eli"
+        else
+          rc_nohalt "swapoff ${PARTDEV}"
+        fi
+      fi
 
       # Check if we've found "/" again, don't need to mount it twice
       if [ "$PARTMNT" != "/" -a "${PARTMNT}" != "none" -a "${PARTFS}" != "ZFS" ]
       then
-        rc_nohalt "umount -f /dev/${PART}"
+        rc_nohalt "umount -f ${PARTDEV}"
         rc_nohalt "umount -f ${FSMNT}${PARTMNT}"
       fi
     done

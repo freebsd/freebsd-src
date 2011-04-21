@@ -241,16 +241,15 @@ delete_all_gpart()
   local DISK="$1"
 
   # Check for any swaps to stop
-  for i in `gpart show ${DISK} 2>/dev/null | grep 'freebsd-swap' | tr -s ' ' | cut -d ' ' -f 4`
+  for i in `swapctl -l | grep "$DISK" | awk '{print $1}'`
   do
-    swapoff /dev/${DISK}s${i}b >/dev/null 2>/dev/null
-    swapoff /dev/${DISK}p${i} >/dev/null 2>/dev/null
+    swapoff ${i} >/dev/null 2>/dev/null
   done
 
   # Delete the gparts now
   for i in `gpart show ${DISK} 2>/dev/null | tr -s ' ' | cut -d ' ' -f 4`
   do
-   if [ "${i}" != "${DISK}" -a "${i}" != "-" ] ; then
+   if [ "/dev/${i}" != "${DISK}" -a "${i}" != "-" ] ; then
      rc_nohalt "gpart delete -i ${i} ${DISK}"
    fi
   done
@@ -262,7 +261,7 @@ delete_all_gpart()
   clear_backup_gpt_table "${DISK}"
 
   # Wipe out front of disk
-  rc_nohalt "dd if=/dev/zero of=/dev/${DISK} count=3000"
+  rc_nohalt "dd if=/dev/zero of=${DISK} count=3000"
 
 };
 
@@ -279,7 +278,7 @@ stop_all_zfs()
 # Function which stops all gmirrors before doing any disk manipulation
 stop_all_gmirror()
 {
-  DISK="${1}"
+  local DISK="`echo ${1} | sed 's|/dev/||g'`"
   GPROV="`gmirror list | grep ". Name: mirror/" | cut -d '/' -f 2`"
   for gprov in $GPROV 
   do
@@ -296,7 +295,7 @@ stop_all_gmirror()
 # Make sure we don't have any geli providers active on this disk
 stop_all_geli()
 {
-  _geld="${1}"
+  local _geld="`echo ${1} | sed 's|/dev/||g'`"
   cd /dev
 
   for i in `ls ${_geld}*`
@@ -321,8 +320,9 @@ setup_disk_slice()
   rm -rf ${MIRRORCFGDIR} >/dev/null 2>/dev/null
   mkdir ${MIRRORCFGDIR}
 
-  # Start with disk0
+  # Start with disk0 and gm0
   disknum="0"
+  gmnum="0"
 
   # Make sure all zpools are exported
   export_all_zpools
@@ -338,10 +338,12 @@ setup_disk_slice()
       get_value_from_string "${line}"
       strip_white_space "$VAL"
       DISK="$VAL"
+
+      echo "${DISK}" | grep -q '^/dev/'
+      if [ $? -ne 0 ] ; then DISK="/dev/$DISK" ; fi
      
       # Before we go further, lets confirm this disk really exists
-      if [ ! -e "/dev/${DISK}" ]
-      then
+      if [ ! -e "${DISK}" ] ; then
         exit_err "ERROR: The disk ${DISK} does not exist!"
       fi
 
@@ -354,7 +356,7 @@ setup_disk_slice()
       # Make sure we don't have any zpools loaded
       stop_all_zfs
 
-    fi
+     fi
 
     # Lets look if this device will be mirrored on another disk
     echo $line | grep -q "^mirror=" 2>/dev/null
@@ -365,9 +367,11 @@ setup_disk_slice()
       get_value_from_string "${line}"
       strip_white_space "$VAL"
       MIRRORDISK="$VAL"
+      echo "${MIRRORDISK}" | grep -q '^/dev/'
+      if [ $? -ne 0 ] ; then MIRRORDISK="/dev/$MIRRORDISK" ; fi
      
       # Before we go further, lets confirm this disk really exists
-      if [ ! -e "/dev/${MIRRORDISK}" ]
+      if [ ! -e "${MIRRORDISK}" ]
       then
         exit_err "ERROR: The mirror disk ${MIRRORDISK} does not exist!"
       fi
@@ -458,8 +462,22 @@ setup_disk_slice()
       # Found our flag to commit this disk setup / lets do sanity check and do it
       if [ ! -z "${DISK}" -a ! -z "${PTYPE}" ]
       then
+
         case ${PTYPE} in
           all)
+            # If we have a gmirror, lets set it up
+            if [ -n "$MIRRORDISK" ]; then
+              # Default to round-robin if the user didn't specify
+              if [ -z "$MIRRORBAL" ]; then MIRRORBAL="round-robin" ; fi
+
+              echo "$MIRRORDISK:$MIRRORBAL:gm${gmnum}" >${MIRRORCFGDIR}/$DISK
+	      init_gmirror "$gmnum" "$MIRRORBAL" "$DISK" "$MIRRORDISK"
+
+	      # Reset DISK to the gmirror device
+	      DISK="/dev/mirror/gm${gmnum}"
+              gmnum=$((gmknum+1))
+            fi
+
             if [ "$PSCHEME" = "MBR" -o -z "$PSCHEME" ] ; then
               PSCHEME="MBR"
               tmpSLICE="${DISK}s1"  
@@ -511,18 +529,8 @@ setup_disk_slice()
         # Now save which disk<num> this is, so we can parse it later during slice partition setup
         if [ -z "${IMAGE}" ]
         then
-          echo "disk${disknum}" >${SLICECFGDIR}/$tmpSLICE
-        fi
-
-        # Save any mirror config
-        if [ -n "$MIRRORDISK" ]
-        then
-          # Default to round-robin if the user didn't specify
-          if [ -z "$MIRRORBAL" ]
-          then
-            MIRRORBAL="round-robin"
-          fi
-          echo "$MIRRORDISK:$MIRRORBAL" >${MIRRORCFGDIR}/$DISK
+	  _sFile=`echo $tmpSLICE | sed 's|/|-|g'`
+          echo "disk${disknum}" >${SLICECFGDIR}/$_sFile
         fi
 
         # Increment our disk counter to look for next disk and unset
@@ -537,10 +545,25 @@ setup_disk_slice()
 
 };
 
+
+# Init the gmirror device
+init_gmirror()
+{
+    local _mNum=$1
+    local _mBal=$2
+    local _mDisk=$3
+
+    # Create this mirror device
+    rc_halt "gmirror label -vb ${_mBal} gm${_mNum} /dev/${_mDisk}"
+
+    sleep 3
+
+}
+
 # Stop all gjournals on disk / slice
 stop_gjournal()
 {
-  _gdsk="$1"
+  _gdsk="`echo $1 | sed 's|/dev/||g'`"
   # Check if we need to shutdown any journals on this drive
   ls /dev/${_gdsk}*.journal >/dev/null 2>/dev/null
   if [ $? -eq 0 ]
@@ -634,8 +657,8 @@ init_mbr_full_disk()
   sec="${VAL}"
 
   # Multiply them all together to get our total blocks
-  totalblocks="`expr ${cyl} \* ${head}`"
-  totalblocks="`expr ${totalblocks} \* ${sec}`"
+  totalblocks="`expr ${cyl} \* ${head} 2>/dev/null`"
+  totalblocks="`expr ${totalblocks} \* ${sec} 2>/dev/null`"
   if [ -z "${totalblocks}" ]
   then
     totalblocks=`gpart show "${_intDISK}"|tail -2|head -1|awk '{ print $2 }'`
@@ -650,7 +673,7 @@ init_mbr_full_disk()
   sleep 2
   
   echo_log "Cleaning up ${_intDISK}s1"
-  rc_halt "dd if=/dev/zero of=/dev/${_intDISK}s1 count=1024"
+  rc_halt "dd if=/dev/zero of=${_intDISK}s1 count=1024"
   
   if [ "$_intBOOT" = "bsd" ] ; then
     echo_log "Stamping boot0 on ${_intDISK}"
@@ -671,10 +694,10 @@ run_gpart_full()
 
   if [ "$SCHEME" = "MBR" ] ; then
     init_mbr_full_disk "$DISK" "$BOOT"
-    slice="${DISK}-1-mbr"
+    slice=`echo "${DISK}:1:mbr" | sed 's|/|-|g'`
   else
     init_gpt_full_disk "$DISK"
-    slice="${DISK}-1-gpt"
+    slice=`echo "${DISK}:1:gpt" | sed 's|/|-|g'`
   fi
 
   # Lets save our slice, so we know what to look for in the config file later on
@@ -723,7 +746,7 @@ run_gpart_slice()
 
   # Clean up old partition
   echo_log "Cleaning up $slice"
-  rc_halt "dd if=/dev/zero of=/dev/${DISK}s${slicenum} count=1024"
+  rc_halt "dd if=/dev/zero of=${DISK}s${slicenum} count=1024"
 
   sleep 1
 
@@ -734,7 +757,7 @@ run_gpart_slice()
   fi
 
   # Set the slice to the format we'll be using for gpart later
-  slice="${1}-${3}-mbr"
+  slice=`echo "${1}:${3}:mbr" | sed 's|/|-|g'`
 
   # Lets save our slice, so we know what to look for in the config file later on
   if [ -z "$WORKINGSLICES" ]
@@ -811,7 +834,7 @@ run_gpart_free()
   sleep 2
   
   echo_log "Cleaning up $slice"
-  rc_halt "dd if=/dev/zero of=/dev/${slice} count=1024"
+  rc_halt "dd if=/dev/zero of=${slice} count=1024"
 
   sleep 1
 
@@ -821,7 +844,7 @@ run_gpart_free()
     rc_halt "gpart bootcode -b /boot/boot0 ${DISK}"
   fi
 
-  slice="${DISK}-${SLICENUM}-mbr"
+  slice=`echo "${DISK}:${SLICENUM}:mbr" | sed 's|/|-|g'`
   # Lets save our slice, so we know what to look for in the config file later on
   if [ -z "$WORKINGSLICES" ]
   then
