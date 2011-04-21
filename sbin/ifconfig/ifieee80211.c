@@ -3139,11 +3139,13 @@ static void
 printmimo(const struct ieee80211_mimo_info *mi)
 {
 	/* NB: don't muddy display unless there's something to show */
-	if (mi->rssi[0] != 0 || mi->rssi[1] != 0 || mi->rssi[2] != 0) {
+	/* XXX should check flags and n_rx_chains */
+	if (mi->rssi_ctl[0] != 0 || mi->rssi_ctl[1] != 0 || mi->rssi_ctl[2] != 0) {
 		/* XXX ignore EVM for now */
+		/* XXX ignore EXT for now */
 		printf(" (rssi %d:%d:%d nf %d:%d:%d)",
-		    mi->rssi[0], mi->rssi[1], mi->rssi[2],
-		    mi->noise[0], mi->noise[1], mi->noise[2]);
+		    mi->rssi_ctl[0], mi->rssi_ctl[1], mi->rssi_ctl[2],
+		    mi->noise_ctl[0], mi->noise_ctl[1], mi->noise_ctl[2]);
 	}
 }
 
