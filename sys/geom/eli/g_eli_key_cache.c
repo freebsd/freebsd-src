@@ -217,6 +217,16 @@ g_eli_key_init(struct g_eli_softc *sc)
 		sc->sc_ekeys_allocated = 0;
 		TAILQ_INIT(&sc->sc_ekeys_queue);
 		RB_INIT(&sc->sc_ekeys_tree);
+		if (sc->sc_ekeys_total <= g_eli_key_cache_limit) {
+			uint64_t keyno;
+
+			for (keyno = 0; keyno < sc->sc_ekeys_total; keyno++)
+				(void)g_eli_key_allocate(sc, keyno);
+			KASSERT(sc->sc_ekeys_total == sc->sc_ekeys_allocated,
+			    ("sc_ekeys_total=%ju != sc_ekeys_allocated=%ju",
+			    (uintmax_t)sc->sc_ekeys_total,
+			    (uintmax_t)sc->sc_ekeys_allocated));
+		}
 	}
 	mtx_unlock(&sc->sc_ekeys_lock);
 }
@@ -268,6 +278,13 @@ g_eli_key_hold(struct g_eli_softc *sc, off_t offset, size_t blocksize)
 
 	keysearch.gek_keyno = keyno;
 
+	if (sc->sc_ekeys_total == sc->sc_ekeys_allocated) {
+		/* We have all the keys, so avoid some overhead. */
+		key = RB_FIND(g_eli_key_tree, &sc->sc_ekeys_tree, &keysearch);
+		KASSERT(key != NULL, ("No key %ju found.", (uintmax_t)keyno));
+		return (key->gek_key);
+	}
+
 	mtx_lock(&sc->sc_ekeys_lock);
 	key = RB_FIND(g_eli_key_tree, &sc->sc_ekeys_tree, &keysearch);
 	if (key != NULL) {
@@ -304,6 +321,9 @@ g_eli_key_drop(struct g_eli_softc *sc, uint8_t *rawkey)
 	struct g_eli_key *key = (struct g_eli_key *)rawkey;
 
 	if ((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) != 0)
+		return;
+
+	if (sc->sc_ekeys_total == sc->sc_ekeys_allocated)
 		return;
 
 	mtx_lock(&sc->sc_ekeys_lock);
