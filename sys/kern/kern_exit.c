@@ -93,9 +93,6 @@ SDT_PROVIDER_DECLARE(proc);
 SDT_PROBE_DEFINE(proc, kernel, , exit, exit);
 SDT_PROBE_ARGTYPE(proc, kernel, , exit, 0, "int");
 
-/* Required to be non-static for SysVR4 emulator */
-MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
-
 /* Hook for NFS teardown procedure. */
 void (*nlminfo_release_p)(struct proc *p);
 
