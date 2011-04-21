@@ -64,7 +64,8 @@ zfsldr.out: zfsldr.o
 	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} zfsldr.o
 
 CLEANFILES+=	zfsboot2 zfsboot.ld zfsboot.ldr zfsboot.bin zfsboot.out \
-		zfsboot.o zfsboot.s zfsboot.s.tmp xreadorg.h sio.o
+		zfsboot.o zfsboot.s zfsboot.s.tmp xreadorg.h sio.o cons.o \
+		drv.o util.o
 
 # We currently allow 65536 bytes for zfsboot - in practice it could be
 # any size up to 3.5Mb but keeping it fixed size simplifies zfsldr.
