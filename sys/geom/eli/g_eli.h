@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,10 @@
 #ifdef _KERNEL
 #include <sys/bio.h>
 #include <sys/libkern.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
+#include <sys/tree.h>
 #include <geom/geom.h>
 #else
 #include <stdio.h>
@@ -150,31 +154,35 @@ struct g_eli_worker {
 };
 
 struct g_eli_softc {
-	struct g_geom	 *sc_geom;
-	u_int		  sc_crypto;
-	uint8_t		  sc_mkey[G_ELI_DATAIVKEYLEN];
-	uint8_t		**sc_ekeys;
-	u_int		  sc_nekeys;
-	u_int		  sc_ealgo;
-	u_int		  sc_ekeylen;
-	uint8_t		  sc_akey[G_ELI_AUTHKEYLEN];
-	u_int		  sc_aalgo;
-	u_int		  sc_akeylen;
-	u_int		  sc_alen;
-	SHA256_CTX	  sc_akeyctx;
-	uint8_t		  sc_ivkey[G_ELI_IVKEYLEN];
-	SHA256_CTX	  sc_ivctx;
-	int		  sc_nkey;
-	uint32_t	  sc_flags;
-	int		  sc_inflight;
-	off_t		  sc_mediasize;
-	size_t		  sc_sectorsize;
-	u_int		  sc_bytes_per_sector;
-	u_int		  sc_data_per_sector;
+	struct g_geom	*sc_geom;
+	u_int		 sc_crypto;
+	uint8_t		 sc_mkey[G_ELI_DATAIVKEYLEN];
+	uint8_t		 sc_ekey[G_ELI_DATAKEYLEN];
+	TAILQ_HEAD(, g_eli_key) sc_ekeys_queue;
+	RB_HEAD(g_eli_key_tree, g_eli_key) sc_ekeys_tree;
+	struct mtx	 sc_ekeys_lock;
+	uint64_t	 sc_ekeys_total;
+	uint64_t	 sc_ekeys_allocated;
+	u_int		 sc_ealgo;
+	u_int		 sc_ekeylen;
+	uint8_t		 sc_akey[G_ELI_AUTHKEYLEN];
+	u_int		 sc_aalgo;
+	u_int		 sc_akeylen;
+	u_int		 sc_alen;
+	SHA256_CTX	 sc_akeyctx;
+	uint8_t		 sc_ivkey[G_ELI_IVKEYLEN];
+	SHA256_CTX	 sc_ivctx;
+	int		 sc_nkey;
+	uint32_t	 sc_flags;
+	int		 sc_inflight;
+	off_t		 sc_mediasize;
+	size_t		 sc_sectorsize;
+	u_int		 sc_bytes_per_sector;
+	u_int		 sc_data_per_sector;
 
 	/* Only for software cryptography. */
 	struct bio_queue_head sc_queue;
-	struct mtx	  sc_queue_mtx;
+	struct mtx	 sc_queue_mtx;
 	LIST_HEAD(, g_eli_worker) sc_workers;
 };
 #define	sc_name		 sc_geom->name
@@ -539,4 +547,11 @@ void g_eli_crypto_hmac_update(struct hmac_ctx *ctx, const uint8_t *data,
 void g_eli_crypto_hmac_final(struct hmac_ctx *ctx, uint8_t *md, size_t mdsize);
 void g_eli_crypto_hmac(const uint8_t *hkey, size_t hkeysize,
     const uint8_t *data, size_t datasize, uint8_t *md, size_t mdsize);
+
+#ifdef _KERNEL
+void g_eli_key_init(struct g_eli_softc *sc);
+void g_eli_key_destroy(struct g_eli_softc *sc);
+uint8_t *g_eli_key_hold(struct g_eli_softc *sc, off_t offset, size_t blocksize);
+void g_eli_key_drop(struct g_eli_softc *sc, uint8_t *rawkey);
+#endif
 #endif	/* !_G_ELI_H_ */
