@@ -946,12 +946,8 @@ flush_and_restart:
 	if (uio->uio_offset < 0)
 		return (EINVAL);
 	tmp_off = uio->uio_offset + uio->uio_resid;
-	mtx_lock(&nmp->nm_mtx);
-	if (tmp_off > nmp->nm_maxfilesize || tmp_off < uio->uio_offset) {
-		mtx_unlock(&nmp->nm_mtx);
+	if (tmp_off > nmp->nm_maxfilesize || tmp_off < uio->uio_offset)
 		return (EFBIG);
-	}
-	mtx_unlock(&nmp->nm_mtx);
 	if (uio->uio_resid == 0)
 		return (0);
 
