@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -181,46 +181,6 @@ g_eli_mkey_encrypt(unsigned algo, const unsigned char *key, unsigned keylen,
 }
 
 #ifdef _KERNEL
-static void
-g_eli_ekeys_generate(struct g_eli_softc *sc)
-{
-	uint8_t *keys;
-	u_int kno;
-	off_t mediasize;
-	size_t blocksize;
-	struct {
-		char magic[4];
-		uint8_t keyno[8];
-	} __packed hmacdata;
-
-	KASSERT((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) == 0,
-	    ("%s: G_ELI_FLAG_SINGLE_KEY flag present", __func__));
-
-	if ((sc->sc_flags & G_ELI_FLAG_AUTH) != 0) {
-		struct g_provider *pp;
-
-		pp = LIST_FIRST(&sc->sc_geom->consumer)->provider;
-		mediasize = pp->mediasize;
-		blocksize = pp->sectorsize;
-	} else {
-		mediasize = sc->sc_mediasize;
-		blocksize = sc->sc_sectorsize;
-	}
-	sc->sc_nekeys = ((mediasize - 1) >> G_ELI_KEY_SHIFT) / blocksize + 1;
-	sc->sc_ekeys =
-	    malloc(sc->sc_nekeys * (sizeof(uint8_t *) + G_ELI_DATAKEYLEN),
-	    M_ELI, M_WAITOK);
-	keys = (uint8_t *)(sc->sc_ekeys + sc->sc_nekeys);
-	bcopy("ekey", hmacdata.magic, 4);
-	for (kno = 0; kno < sc->sc_nekeys; kno++, keys += G_ELI_DATAKEYLEN) {
-		sc->sc_ekeys[kno] = keys;
-		le64enc(hmacdata.keyno, (uint64_t)kno);
-		g_eli_crypto_hmac(sc->sc_mkey, G_ELI_MAXKEYLEN,
-		    (uint8_t *)&hmacdata, sizeof(hmacdata),
-		    sc->sc_ekeys[kno], 0);
-	}
-}
-
 /*
  * When doing encryption only, copy IV key and encryption key.
  * When doing encryption and authentication, copy IV key, generate encryption
@@ -246,24 +206,8 @@ g_eli_mkey_propagate(struct g_eli_softc *sc, const unsigned char *mkey)
 		arc4rand(sc->sc_akey, sizeof(sc->sc_akey), 0);
 	}
 
-	if ((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) != 0) {
-		sc->sc_nekeys = 1;
-		sc->sc_ekeys = malloc(sc->sc_nekeys *
-		    (sizeof(uint8_t *) + G_ELI_DATAKEYLEN), M_ELI, M_WAITOK);
-		sc->sc_ekeys[0] = (uint8_t *)(sc->sc_ekeys + sc->sc_nekeys);
-		if ((sc->sc_flags & G_ELI_FLAG_AUTH) == 0)
-			bcopy(mkey, sc->sc_ekeys[0], G_ELI_DATAKEYLEN);
-		else {
-			/*
-			 * The encryption key is: ekey = HMAC_SHA512(Master-Key, 0x10)
-			 */
-			g_eli_crypto_hmac(mkey, G_ELI_MAXKEYLEN, "\x10", 1,
-			    sc->sc_ekeys[0], 0);
-		}
-	} else {
-		/* Generate all encryption keys. */
-		g_eli_ekeys_generate(sc);
-	}
+	/* Initialize encryption keys. */
+	g_eli_key_init(sc);
 
 	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
 		/*
