@@ -63,7 +63,8 @@ gptldr.bin: gptldr.out
 gptldr.out: gptldr.o
 	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} gptldr.o
 
-CLEANFILES+=	gptzfsboot.bin gptzfsboot.out zfsboot.o sio.o
+CLEANFILES+=	gptzfsboot.bin gptzfsboot.out zfsboot.o sio.o cons.o \
+		drv.o gpt.o util.o
 
 gptzfsboot.bin: gptzfsboot.out
 	objcopy -S -O binary gptzfsboot.out ${.TARGET}
