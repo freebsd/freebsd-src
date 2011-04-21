@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -329,7 +329,7 @@ g_eli_newsession(struct g_eli_worker *wr)
 	crie.cri_klen = sc->sc_ekeylen;
 	if (sc->sc_ealgo == CRYPTO_AES_XTS)
 		crie.cri_klen <<= 1;
-	crie.cri_key = sc->sc_ekeys[0];
+	crie.cri_key = sc->sc_ekey;
 	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
 		bzero(&cria, sizeof(cria));
 		cria.cri_alg = sc->sc_aalgo;
@@ -519,34 +519,6 @@ again:
 				g_eli_crypto_run(wr, bp);
 		}
 	}
-}
-
-/*
- * Select encryption key. If G_ELI_FLAG_SINGLE_KEY is present we only have one
- * key available for all the data. If the flag is not present select the key
- * based on data offset.
- */
-uint8_t *
-g_eli_crypto_key(struct g_eli_softc *sc, off_t offset, size_t blocksize)
-{
-	u_int nkey;
-
-	if (sc->sc_nekeys == 1)
-		return (sc->sc_ekeys[0]);
-
-	KASSERT(sc->sc_nekeys > 1, ("%s: sc_nekeys=%u", __func__,
-	    sc->sc_nekeys));
-	KASSERT((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) == 0,
-	    ("%s: SINGLE_KEY flag set, but sc_nekeys=%u", __func__,
-	    sc->sc_nekeys));
-
-	/* We switch key every 2^G_ELI_KEY_SHIFT blocks. */
-	nkey = (offset >> G_ELI_KEY_SHIFT) / blocksize;
-
-	KASSERT(nkey < sc->sc_nekeys, ("%s: nkey=%u >= sc_nekeys=%u", __func__,
-	    nkey, sc->sc_nekeys));
-
-	return (sc->sc_ekeys[nkey]);
 }
 
 /*
@@ -766,6 +738,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 
 	bioq_init(&sc->sc_queue);
 	mtx_init(&sc->sc_queue_mtx, "geli:queue", NULL, MTX_DEF);
+	mtx_init(&sc->sc_ekeys_lock, "geli:ekeys", NULL, MTX_DEF);
 
 	pp = NULL;
 	cp = g_new_consumer(gp);
@@ -909,11 +882,7 @@ failed:
 	}
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
-	if (sc->sc_ekeys != NULL) {
-		bzero(sc->sc_ekeys,
-		    sc->sc_nekeys * (sizeof(uint8_t *) + G_ELI_DATAKEYLEN));
-		free(sc->sc_ekeys, M_ELI);
-	}
+	g_eli_key_destroy(sc);
 	bzero(sc, sizeof(*sc));
 	free(sc, M_ELI);
 	return (NULL);
@@ -953,12 +922,7 @@ g_eli_destroy(struct g_eli_softc *sc, boolean_t force)
 	}
 	mtx_destroy(&sc->sc_queue_mtx);
 	gp->softc = NULL;
-	if (sc->sc_ekeys != NULL) {
-		/* The sc_ekeys field can be NULL is device is suspended. */
-		bzero(sc->sc_ekeys,
-		    sc->sc_nekeys * (sizeof(uint8_t *) + G_ELI_DATAKEYLEN));
-		free(sc->sc_ekeys, M_ELI);
-	}
+	g_eli_key_destroy(sc);
 	bzero(sc, sizeof(*sc));
 	free(sc, M_ELI);
 
@@ -1191,6 +1155,11 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		return;
 	if (pp != NULL || cp != NULL)
 		return;	/* Nothing here. */
+
+	sbuf_printf(sb, "%s<KeysTotal>%ju</KeysTotal>", indent,
+	    (uintmax_t)sc->sc_ekeys_total);
+	sbuf_printf(sb, "%s<KeysAllocated>%ju</KeysAllocated>", indent,
+	    (uintmax_t)sc->sc_ekeys_allocated);
 	sbuf_printf(sb, "%s<Flags>", indent);
 	if (sc->sc_flags == 0)
 		sbuf_printf(sb, "NONE");
