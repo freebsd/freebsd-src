@@ -70,6 +70,27 @@ cknt()
 	fi
 }
 
+# Check if a file is there, depending of if it's suposed to or not -
+# basically how many log files we are suposed to keep vs. how many we
+# actually keep.
+ckntfe()
+{
+	curcnt=$1
+	keepcnt=$2
+	f=$3
+
+	if [ $curcnt -le $keepcnt ]
+	then
+		#echo Assuming file there
+		ckfe $f
+	else
+		#echo Assuming file NOT there
+		cknt $f
+	fi
+}
+
+
+
 # A part of a test succeeds
 ok()
 {
@@ -220,6 +241,74 @@ tests_normal_rotate() {
 	tmpdir_clean
 }
 
+tests_normal_rotate_keepn() {
+	cnt="$1"
+	ext="$2"
+	dir="$3"
+
+	if [ -n "$dir" ]; then
+		newsyslog_args=" -a ${dir}"
+		name_postfix="${ext} archive dir"
+	else
+		newsyslog_args=""
+		name_postfix="${ext}"
+	fi
+
+	tmpdir_create
+
+	begin "create file ${name_postfix}" -newdir
+	run_newsyslog -C
+	ckfe $LOGFNAME
+	cknt ${dir}${LOGFNAME}.0${ext}
+	end
+
+	begin "rotate normal 1 cnt=$cnt ${name_postfix}"
+	run_newsyslog $newsyslog_args
+	ckfe ${LOGFNAME}
+	ckntfe 1 $cnt ${dir}${LOGFNAME}.0${ext}
+	cknt ${dir}${LOGFNAME}.1${ext}
+	end
+
+	begin "rotate normal 2 cnt=$cnt ${name_postfix}"
+	run_newsyslog $newsyslog_args
+	ckfe ${LOGFNAME}
+	ckntfe 1 $cnt ${dir}${LOGFNAME}.0${ext}
+	ckntfe 2 $cnt ${dir}${LOGFNAME}.1${ext}
+	cknt ${dir}${LOGFNAME}.2${ext}
+	end
+
+	begin "rotate normal 3 cnt=$cnt ${name_postfix}"
+	run_newsyslog $newsyslog_args
+	ckfe ${LOGFNAME}
+	ckntfe 1 $cnt ${dir}${LOGFNAME}.0${ext}
+	ckntfe 2 $cnt ${dir}${LOGFNAME}.1${ext}
+	ckntfe 3 $cnt ${dir}${LOGFNAME}.2${ext}
+	cknt ${dir}${LOGFNAME}.3${ext}
+	end
+
+	begin "rotate normal 3 cnt=$cnt ${name_postfix}"
+	run_newsyslog $newsyslog_args
+	ckfe ${LOGFNAME}
+	ckntfe 1 $cnt ${dir}${LOGFNAME}.0${ext}
+	ckntfe 2 $cnt ${dir}${LOGFNAME}.1${ext}
+	ckntfe 3 $cnt ${dir}${LOGFNAME}.2${ext}
+	ckntfe 4 $cnt ${dir}${LOGFNAME}.3${ext}
+	cknt ${dir}${LOGFNAME}.4${ext}
+	end
+
+	# Wait a bit so we can see if the noaction test rotates files
+	sleep 1.1
+
+	begin "noaction ${name_postfix}"
+	osum=`md5 ${dir}${LOGFNAME} | tr -d '\n'`
+	run_newsyslog ${newsyslog_args} -n >/dev/null
+	ckfe ${LOGFNAME}
+	ckstr "$osum" "`md5 ${dir}${LOGFNAME} | tr -d '\n'`"
+	end
+
+	tmpdir_clean
+}
+
 tests_time_rotate() {
 	ext="$1"
 	dir="$2"
@@ -279,35 +368,57 @@ tests_time_rotate() {
 	tmpdir_clean
 }
 
-echo 1..78
+echo 1..126
 mkdir -p ${TMPDIR}
 cd ${TMPDIR}
 
 LOGFNAME=foo.log
 LOGFPATH=${TMPDIR}/log/${LOGFNAME}
 
+# Normal, no archive dir, keep X files
+echo "$LOGFPATH	640  0	   *	@T00  NC" > newsyslog.conf
+tests_normal_rotate_keepn 0
 
-# XXX for tests_normal_rotate it should be 3 instead of 2 count - but
-# that's currently broken!
+echo "$LOGFPATH	640  1	   *	@T00  NC" > newsyslog.conf
+tests_normal_rotate_keepn 1
 
-# Normal, no archive dir
 echo "$LOGFPATH	640  2	   *	@T00  NC" > newsyslog.conf
-tests_normal_rotate
+tests_normal_rotate_keepn 2
+
+echo "$LOGFPATH	640  3	   *	@T00  NC" > newsyslog.conf
+tests_normal_rotate_keepn 3
+
+# Normal, no archive dir, keep X files, gz
+echo "$LOGFPATH	640  0	   *	@T00  NCZ" > newsyslog.conf
+tests_normal_rotate_keepn 0 ".gz"
+
+echo "$LOGFPATH	640  1	   *	@T00  NCZ" > newsyslog.conf
+tests_normal_rotate_keepn 1 ".gz"
 
 echo "$LOGFPATH	640  2	   *	@T00  NCZ" > newsyslog.conf
+tests_normal_rotate_keepn 2 ".gz"
+
+echo "$LOGFPATH	640  3	   *	@T00  NCZ" > newsyslog.conf
+tests_normal_rotate_keepn 3 ".gz"
+
+# Normal, no archive dir
+echo "$LOGFPATH	640  3	   *	@T00  NC" > newsyslog.conf
+tests_normal_rotate
+
+echo "$LOGFPATH	640  3	   *	@T00  NCZ" > newsyslog.conf
 tests_normal_rotate ".gz"
 
-echo "$LOGFPATH	640  2	   *	@T00  NCJ" > newsyslog.conf
+echo "$LOGFPATH	640  3	   *	@T00  NCJ" > newsyslog.conf
 tests_normal_rotate ".bz2"
 
 # Normal, archive dir
-echo "$LOGFPATH	640  2	   *	@T00  NC" > newsyslog.conf
+echo "$LOGFPATH	640  3	   *	@T00  NC" > newsyslog.conf
 tests_normal_rotate "" "${TMPDIR}/alog/"
 
-echo "$LOGFPATH	640  2	   *	@T00  NCZ" > newsyslog.conf
+echo "$LOGFPATH	640  3	   *	@T00  NCZ" > newsyslog.conf
 tests_normal_rotate ".gz" "${TMPDIR}/alog/"
 
-echo "$LOGFPATH	640  2	   *	@T00  NCJ" > newsyslog.conf
+echo "$LOGFPATH	640  3	   *	@T00  NCJ" > newsyslog.conf
 tests_normal_rotate ".bz2" "${TMPDIR}/alog/"
 
 # Time based, no archive dir
