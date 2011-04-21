@@ -83,7 +83,9 @@ static void bswap(int8_t *, int);
 static void btrim(int8_t *, int);
 static void bpack(int8_t *, int8_t *, int);
 static void ata_interrupt_locked(void *data);
+#ifdef ATA_CAM
 static void ata_periodic_poll(void *data);
+#endif
 
 /* global vars */
 MALLOC_DEFINE(M_ATA, "ata_generic", "ATA driver generic layer");
@@ -178,8 +180,8 @@ ata_attach(device_t dev)
 		if (ch->pm_level > 1)
 			ch->user[i].caps |= CTS_SATA_CAPS_D_PMREQ;
 	}
-#endif
 	callout_init(&ch->poll_callout, 1);
+#endif
 
     /* reset the controller HW, the channel and device(s) */
     while (ATA_LOCKING(dev, ATA_LF_LOCK) != ch->unit)
@@ -207,8 +209,6 @@ ata_attach(device_t dev)
 	device_printf(dev, "unable to setup interrupt\n");
 	return error;
     }
-    if (ch->flags & ATA_PERIODIC_POLL)
-	callout_reset(&ch->poll_callout, hz, ata_periodic_poll, ch);
 
 #ifndef ATA_CAM
     /* probe and attach devices on this channel unless we are in early boot */
@@ -216,6 +216,8 @@ ata_attach(device_t dev)
 	ata_identify(dev);
     return (0);
 #else
+	if (ch->flags & ATA_PERIODIC_POLL)
+		callout_reset(&ch->poll_callout, hz, ata_periodic_poll, ch);
 	mtx_lock(&ch->state_mtx);
 	/* Create the device queue for our SIM. */
 	devq = cam_simq_alloc(1);
@@ -278,8 +280,10 @@ ata_detach(device_t dev)
     mtx_lock(&ch->state_mtx);
     ch->state |= ATA_STALL_QUEUE;
     mtx_unlock(&ch->state_mtx);
+#ifdef ATA_CAM
     if (ch->flags & ATA_PERIODIC_POLL)
 	callout_drain(&ch->poll_callout);
+#endif
 
 #ifndef ATA_CAM
     /* detach & delete all children */
@@ -467,9 +471,9 @@ ata_suspend(device_t dev)
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
-    if (ch->flags & ATA_PERIODIC_POLL)
-	callout_drain(&ch->poll_callout);
 #ifdef ATA_CAM
+	if (ch->flags & ATA_PERIODIC_POLL)
+		callout_drain(&ch->poll_callout);
 	mtx_lock(&ch->state_mtx);
 	xpt_freeze_simq(ch->sim, 1);
 	while (ch->state != ATA_IDLE)
@@ -507,14 +511,14 @@ ata_resume(device_t dev)
 	error = ata_reinit(dev);
 	xpt_release_simq(ch->sim, TRUE);
 	mtx_unlock(&ch->state_mtx);
+	if (ch->flags & ATA_PERIODIC_POLL)
+		callout_reset(&ch->poll_callout, hz, ata_periodic_poll, ch);
 #else
     /* reinit the devices, we dont know what mode/state they are in */
     error = ata_reinit(dev);
     /* kick off requests on the queue */
     ata_start(dev);
 #endif
-    if (ch->flags & ATA_PERIODIC_POLL)
-	callout_reset(&ch->poll_callout, hz, ata_periodic_poll, ch);
     return error;
 }
 
@@ -581,6 +585,7 @@ ata_interrupt_locked(void *data)
 #endif
 }
 
+#ifdef ATA_CAM
 static void
 ata_periodic_poll(void *data)
 {
@@ -589,6 +594,7 @@ ata_periodic_poll(void *data)
     callout_reset(&ch->poll_callout, hz, ata_periodic_poll, ch);
     ata_interrupt(ch);
 }
+#endif
 
 void
 ata_print_cable(device_t dev, u_int8_t *who)
