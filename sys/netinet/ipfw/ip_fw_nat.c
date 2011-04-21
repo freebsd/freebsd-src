@@ -346,7 +346,8 @@ ipfw_nat_cfg(struct sockopt *sopt)
 	struct cfg_nat *cfg, *ptr;
 	char *buf;
 	struct ip_fw_chain *chain = &V_layer3_chain;
-	int gencnt, len, error = 0;
+	size_t len;
+	int gencnt, error = 0;
 
 	len = sopt->sopt_valsize;
 	buf = malloc(len, M_TEMP, M_WAITOK | M_ZERO);
