@@ -101,7 +101,6 @@ setup_zfs_mirror_parts()
     if [ $? -eq 0 ] ; then
       echo "Setting up ZFS mirror disk $_zvars" >>${LOGOUT}
       init_gpt_full_disk "$_zvars" >/dev/null 2>/dev/null
-      rc_halt "gpart bootcode -p /boot/gptzfsboot -i 1 ${_zvars}" >/dev/null 2>/dev/null
       rc_halt "gpart add -t freebsd-zfs ${_zvars}" >/dev/null 2>/dev/null
       _nZFS="$_nZFS ${_zvars}p2"	
     else
@@ -319,7 +318,8 @@ setup_gpart_partitions()
 
       # Save this data to our partition config dir
       if [ "${_pType}" = "gpt" ] ; then
-        echo "${FS}:${MNT}:${ENC}:${PLABEL}:GPT:${XTRAOPTS}" >${PARTDIR}/${_pDisk}p${CURPART}
+	_dFile="`echo $_pDisk | sed 's|/|-|g'`"
+        echo "${FS}:${MNT}:${ENC}:${PLABEL}:GPT:${XTRAOPTS}" >${PARTDIR}/${_dFile}p${CURPART}
 
         # Clear out any headers
         sleep 2
@@ -327,18 +327,19 @@ setup_gpart_partitions()
 
         # If we have a enc password, save it as well
         if [ -n "${ENCPASS}" ] ; then
-          echo "${ENCPASS}" >${PARTDIR}-enc/${_pDisk}p${CURPART}-encpass
+          echo "${ENCPASS}" >${PARTDIR}-enc/${_dFile}p${CURPART}-encpass
         fi
       else
 	# MBR Partition
-        echo "${FS}:${MNT}:${ENC}:${PLABEL}:MBR:${XTRAOPTS}:${IMAGE}" >${PARTDIR}/${_wSlice}${PARTLETTER}
+	_dFile="`echo $_wSlice | sed 's|/|-|g'`"
+        echo "${FS}:${MNT}:${ENC}:${PLABEL}:MBR:${XTRAOPTS}:${IMAGE}" >${PARTDIR}/${_dFile}${PARTLETTER}
         # Clear out any headers
         sleep 2
         dd if=/dev/zero of=${_wSlice}${PARTLETTER} count=2048 2>/dev/null
 
         # If we have a enc password, save it as well
         if [ -n "${ENCPASS}" ] ; then
-          echo "${ENCPASS}" >${PARTDIR}-enc/${_wSlice}${PARTLETTER}-encpass
+          echo "${ENCPASS}" >${PARTDIR}-enc/${_dFile}${PARTLETTER}-encpass
         fi
       fi
 
@@ -404,28 +405,28 @@ populate_disk_label()
   fi
 
   # Set some vars from the given working slice
-  disk="`echo $1 | cut -d '-' -f 1`" 
-  slicenum="`echo $1 | cut -d '-' -f 2`" 
-  type="`echo $1 | cut -d '-' -f 3`" 
+  diskid="`echo $1 | cut -d ':' -f 1`" 
+  disk="`echo $1 | cut -d ':' -f 1 | sed 's|-|/|g'`" 
+  slicenum="`echo $1 | cut -d ':' -f 2`" 
+  type="`echo $1 | cut -d ':' -f 3`" 
   
   # Set WRKSLICE based upon format we are using
   if [ "$type" = "mbr" ] ; then
-    wrkslice="${disk}s${slicenum}"
+    wrkslice="${diskid}s${slicenum}"
   fi
   if [ "$type" = "gpt" ] ; then
-    wrkslice="${disk}p${slicenum}"
+    wrkslice="${diskid}p${slicenum}"
   fi
 
-  if [ -e "${SLICECFGDIR}/${wrkslice}" ]
-  then
-    disktag="`cat ${SLICECFGDIR}/${wrkslice}`"
-  else
+  if [ ! -e "${SLICECFGDIR}/${wrkslice}" ] ; then
     exit_err "ERROR: Missing SLICETAG data. This shouldn't happen - please let the developers know"
   fi
 
-
+  disktag="`cat ${SLICECFGDIR}/${wrkslice}`"
+  slicedev="`echo $wrkslice | sed 's|-|/|g'`"
+  
   # Setup the partitions with gpart
-  setup_gpart_partitions "${disktag}" "${disk}" "${wrkslice}" "${slicenum}" "${type}"
+  setup_gpart_partitions "${disktag}" "${disk}" "${slicedev}" "${slicenum}" "${type}"
 
 };
 
@@ -444,10 +445,10 @@ setup_disk_label()
     disk="`echo $i | cut -d '-' -f 1`" 
     pnum="`echo $i | cut -d '-' -f 2`" 
     type="`echo $i | cut -d '-' -f 3`" 
-    if [ "$type" = "mbr" -a ! -e "/dev/${disk}s${pnum}" ] ; then
+    if [ "$type" = "mbr" -a ! -e "${disk}s${pnum}" ] ; then
       exit_err "ERROR: The partition ${i} doesn't exist! gpart failure!"
     fi
-    if [ "$type" = "gpt" -a ! -e "/dev/${disk}p${pnum}" ] ; then
+    if [ "$type" = "gpt" -a ! -e "${disk}p${pnum}" ] ; then
       exit_err "ERROR: The partition ${i} doesn't exist! gpart failure!"
     fi
   done

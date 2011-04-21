@@ -68,8 +68,8 @@ setup_zfs_filesystem()
         echo_log "Setting up ZFS boot loader support" 
         rc_halt "zpool set bootfs=${ZPOOLNAME} ${ZPOOLNAME}"
         rc_halt "zpool export ${ZPOOLNAME}"
-        rc_halt "dd if=/boot/zfsboot of=/dev/${ROOTSLICE} count=1"
-        rc_halt "dd if=/boot/zfsboot of=/dev/${PART}${EXT} skip=1 seek=1024"
+        rc_halt "dd if=/boot/zfsboot of=${ROOTSLICE} count=1"
+        rc_halt "dd if=/boot/zfsboot of=${PART}${EXT} skip=1 seek=1024"
         rc_halt "zpool import ${ZPOOLNAME}"
       fi
     fi
@@ -89,9 +89,10 @@ setup_filesystems()
   # newfs on any of them
   for PART in `ls ${PARTDIR}`
   do
-    if [ ! -e "/dev/${PART}" ]
+    PARTDEV="`echo $PART | sed 's|-|/|g'`"
+    if [ ! -e "${PARTDEV}" ]
     then
-      exit_err "ERROR: The partition ${PART} does not exist. Failure in bsdlabel?"
+      exit_err "ERROR: The partition ${PARTDEV} does not exist. Failure in bsdlabel?"
     fi 
      
     PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
@@ -103,19 +104,29 @@ setup_filesystems()
     PARTIMAGE="`cat ${PARTDIR}/${PART} | cut -d ':' -f 7`"
 
     # Make sure journaling isn't enabled on this device
-    if [ -e "/dev/${PART}.journal" ]
+    if [ -e "${PARTDEV}.journal" ]
     then
-      rc_nohalt "gjournal stop -f ${PART}.journal"
-      rc_nohalt "gjournal clear ${PART}"
+      rc_nohalt "gjournal stop -f ${PARTDEV}.journal"
+      rc_nohalt "gjournal clear ${PARTDEV}"
     fi
 
     # Setup encryption if necessary
     if [ "${PARTENC}" = "ON" -a "${PARTFS}" != "SWAP" ]
     then
-      echo_log "Creating geli provider for ${PART}"
-      rc_halt "dd if=/dev/random of=${GELIKEYDIR}/${PART}.key bs=64 count=1"
-      rc_halt "geli init -b -s 4096 -P -K ${GELIKEYDIR}/${PART}.key /dev/${PART}"
-      rc_halt "geli attach -p -k ${GELIKEYDIR}/${PART}.key /dev/${PART}"
+      echo_log "Creating geli provider for ${PARTDEV}"
+
+      if [ -e "${PARTDIR}-enc/${PART}-encpass" ] ; then
+	# Using a passphrase
+        rc_halt "dd if=/dev/random of=${GELIKEYDIR}/${PART}.key bs=64 count=1"
+        rc_halt "geli init -J ${PARTDIR}-enc/${PART}-encpass ${PARTDEV}"
+        rc_halt "geli attach -j ${PARTDIR}-enc/${PART}-encpass ${PARTDEV}"
+      else
+	# No Encryption password, use key file
+        rc_halt "dd if=/dev/random of=${GELIKEYDIR}/${PART}.key bs=64 count=1"
+        rc_halt "geli init -b -s 4096 -P -K ${GELIKEYDIR}/${PART}.key ${PARTDEV}"
+        rc_halt "geli attach -p -k ${GELIKEYDIR}/${PART}.key ${PARTDEV}"
+
+      fi
 
       EXT=".eli"
     else
@@ -125,12 +136,12 @@ setup_filesystems()
 
     case ${PARTFS} in
       UFS)
-        echo_log "NEWFS: /dev/${PART} - ${PARTFS}"
+        echo_log "NEWFS: ${PARTDEV} - ${PARTFS}"
         sleep 2
-        rc_halt "newfs /dev/${PART}${EXT}"
+        rc_halt "newfs ${PARTDEV}${EXT}"
         sleep 2
         rc_halt "sync"
-        rc_halt "glabel label ${PARTLABEL} /dev/${PART}${EXT}"
+        rc_halt "glabel label ${PARTLABEL} ${PARTDEV}${EXT}"
         rc_halt "sync"
 
         # Set flag that we've found a boot partition
@@ -141,12 +152,12 @@ setup_filesystems()
         ;;
 
       UFS+S)
-        echo_log "NEWFS: /dev/${PART} - ${PARTFS}"
+        echo_log "NEWFS: ${PARTDEV} - ${PARTFS}"
         sleep 2
-        rc_halt "newfs -U /dev/${PART}${EXT}"
+        rc_halt "newfs -U ${PARTDEV}${EXT}"
         sleep 2
         rc_halt "sync"
-        rc_halt "glabel label ${PARTLABEL} /dev/${PART}${EXT}"
+        rc_halt "glabel label ${PARTLABEL} ${PARTDEV}${EXT}"
         rc_halt "sync"
 	    # Set flag that we've found a boot partition
 	    if [ "$PARTMNT" = "/boot" -o "${PARTMNT}" = "/" ] ; then
@@ -156,15 +167,15 @@ setup_filesystems()
         ;;
 
       UFS+SUJ)
-        echo_log "NEWFS: /dev/${PART} - ${PARTFS}"
+        echo_log "NEWFS: ${PARTDEV} - ${PARTFS}"
         sleep 2
-        rc_halt "newfs -U /dev/${PART}${EXT}"
-        sleep 2
-        rc_halt "sync"
-        rc_halt "tunefs -j enable /dev/${PART}${EXT}"
+        rc_halt "newfs -U ${PARTDEV}${EXT}"
         sleep 2
         rc_halt "sync"
-        rc_halt "glabel label ${PARTLABEL} /dev/${PART}${EXT}"
+        rc_halt "tunefs -j enable ${PARTDEV}${EXT}"
+        sleep 2
+        rc_halt "sync"
+        rc_halt "glabel label ${PARTLABEL} ${PARTDEV}${EXT}"
         rc_halt "sync"
 	    # Set flag that we've found a boot partition
 	    if [ "$PARTMNT" = "/boot" -o "${PARTMNT}" = "/" ] ; then
@@ -175,16 +186,16 @@ setup_filesystems()
 
 
       UFS+J)
-        echo_log "NEWFS: /dev/${PART} - ${PARTFS}"
+        echo_log "NEWFS: ${PARTDEV} - ${PARTFS}"
         sleep 2
-        rc_halt "newfs /dev/${PART}${EXT}"
+        rc_halt "newfs ${PARTDEV}${EXT}"
         sleep 2
-        rc_halt "gjournal label -f /dev/${PART}${EXT}"
+        rc_halt "gjournal label -f ${PARTDEV}${EXT}"
         sleep 2
-        rc_halt "newfs -O 2 -J /dev/${PART}${EXT}.journal"
+        rc_halt "newfs -O 2 -J ${PARTDEV}${EXT}.journal"
         sleep 2
         rc_halt "sync"
-        rc_halt "glabel label ${PARTLABEL} /dev/${PART}${EXT}.journal"
+        rc_halt "glabel label ${PARTLABEL} ${PARTDEV}${EXT}.journal"
         rc_halt "sync"
 	    # Set flag that we've found a boot partition
 	    if [ "$PARTMNT" = "/boot" -o "${PARTMNT}" = "/" ] ; then
@@ -194,19 +205,19 @@ setup_filesystems()
         ;;
 
       ZFS)
-        echo_log "NEWFS: /dev/${PART} - ${PARTFS}" 
-        setup_zfs_filesystem "${PART}" "${PARTFS}" "${PARTMNT}" "${EXT}" "${PARTGEOM}" "${PARTXTRAOPTS}"
+        echo_log "NEWFS: ${PARTDEV} - ${PARTFS}" 
+        setup_zfs_filesystem "${PARTDEV}" "${PARTFS}" "${PARTMNT}" "${EXT}" "${PARTGEOM}" "${PARTXTRAOPTS}"
         ;;
 
       SWAP)
         rc_halt "sync"
-        rc_halt "glabel label ${PARTLABEL} /dev/${PART}${EXT}" 
+        rc_halt "glabel label ${PARTLABEL} ${PARTDEV}${EXT}" 
         rc_halt "sync"
         sleep 2
         ;;
 
       IMAGE)
-        write_image "${PARTIMAGE}" "${PART}"
+        write_image "${PARTIMAGE}" "${PARTDEV}"
         sleep 2
         ;; 
 
