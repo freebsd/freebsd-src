@@ -277,6 +277,7 @@ get_zpool_name()
     # Need to generate a zpool name for this device
     NUM=`ls ${TMPDIR}/.zpools/ | wc -l | sed 's| ||g'`
     NEWNAME="${BASENAME}${NUM}"
+    mkdir -p ${TMPDIR}/.zpools/`dirname $DEVICE`
     echo "$NEWNAME" >${TMPDIR}/.zpools/${DEVICE} 
     echo "${NEWNAME}"
     return
