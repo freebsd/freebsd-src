@@ -871,7 +871,7 @@ ar9285GetGainBoundariesAndPdadcs(struct ath_hal *ah,
 
     /* Fill out pdGainBoundaries - only up to 2 allowed here, but hardware allows up to 4 */
     while (i < AR5416_PD_GAINS_IN_MASK) {
-        pPdGainBoundaries[i] = pPdGainBoundaries[i-1];
+        pPdGainBoundaries[i] = AR5416_4K_EEP_PD_GAIN_BOUNDARY_DEFAULT;
         i++;
     }
 
