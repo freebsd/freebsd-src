@@ -783,7 +783,7 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 		return (1);
 	}
 
-	/* Allocate some DMA accessable memory for replies */
+	/* Allocate some DMA accessible memory for replies */
 	if (bus_dmamem_alloc(mpt->reply_dmat, (void **)&mpt->reply,
 	    BUS_DMA_NOWAIT, &mpt->reply_dmap) != 0) {
 		mpt_prt(mpt, "cannot allocate %lu bytes of reply memory\n",

@@ -3015,7 +3015,7 @@ mpt_fc_els_reply_handler(struct mpt_softc *mpt, request_t *req,
 		elsbuf[1] = htobe32((ox_id << 16) | rx_id);
 		elsbuf[2] = htobe32(0x000ffff);
 		/*
-		 * Dork with the reply frame so that the reponse to it
+		 * Dork with the reply frame so that the response to it
 		 * will be correct.
 		 */
 		rp->Rctl_Did += ((BA_ACC - ABTS) << MPI_FC_RCTL_SHIFT);
@@ -3142,7 +3142,7 @@ XXXX
 				mpt_set_ccb_status(ccb, CAM_AUTOSENSE_FAIL);
 		} else if ((sstate & MPI_SCSI_STATE_RESPONSE_INFO_VALID) != 0) {
 
-			/* XXX Handle SPI-Packet and FCP-2 reponse info. */
+			/* XXX Handle SPI-Packet and FCP-2 response info. */
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
 		} else
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
