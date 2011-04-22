@@ -1434,8 +1434,10 @@ ar5416SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
                         OS_A_REG_RMW_FIELD(ah, AR_AN_RF5G1_CH1, AR_AN_RF5G1_CH1_DB5, pModal->db_ch1);
                 }
                 OS_A_REG_RMW_FIELD(ah, AR_AN_TOP2, AR_AN_TOP2_XPABIAS_LVL, pModal->xpaBiasLvl);
-                OS_A_REG_RMW_FIELD(ah, AR_AN_TOP2, AR_AN_TOP2_LOCALBIAS, pModal->flagBits & AR5416_EEP_FLAG_LOCALBIAS);
-                OS_A_REG_RMW_FIELD(ah, AR_PHY_XPA_CFG, AR_PHY_FORCE_XPA_CFG, pModal->flagBits & AR5416_EEP_FLAG_FORCEXPAON);
+                OS_A_REG_RMW_FIELD(ah, AR_AN_TOP2, AR_AN_TOP2_LOCALBIAS,
+		    !!(pModal->flagBits & AR5416_EEP_FLAG_LOCALBIAS));
+                OS_A_REG_RMW_FIELD(ah, AR_PHY_XPA_CFG, AR_PHY_FORCE_XPA_CFG,
+		    !!(pModal->flagBits & AR5416_EEP_FLAG_FORCEXPAON));
         }
 
     OS_REG_RMW_FIELD(ah, AR_PHY_SETTLING, AR_PHY_SETTLING_SWITCH, pModal->switchSettling);
