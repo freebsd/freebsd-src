@@ -227,6 +227,11 @@ enum {
 	/* iq flags */
 	IQ_ALLOCATED	= (1 << 1),	/* firmware resources allocated */
 	IQ_STARTED	= (1 << 2),	/* started */
+
+	/* iq state */
+	IQS_DISABLED	= 0,
+	IQS_BUSY	= 1,
+	IQS_IDLE	= 2,
 };
 
 /*
@@ -244,7 +249,7 @@ struct sge_iq {
 	iq_intr_handler_t *handler;
 	__be64  *desc;		/* KVA of descriptor ring */
 
-	struct mtx iq_lock;
+	volatile uint32_t state;
 	struct adapter *adapter;
 	const __be64 *cdesc;	/* current descriptor */
 	uint8_t  gen;		/* generation bit */
@@ -445,21 +450,11 @@ struct adapter {
 #define PORT_LOCK_ASSERT_OWNED(pi)	mtx_assert(&(pi)->pi_lock, MA_OWNED)
 #define PORT_LOCK_ASSERT_NOTOWNED(pi)	mtx_assert(&(pi)->pi_lock, MA_NOTOWNED)
 
-#define IQ_LOCK(iq)			mtx_lock(&(iq)->iq_lock)
-#define IQ_UNLOCK(iq)			mtx_unlock(&(iq)->iq_lock)
-#define IQ_LOCK_ASSERT_OWNED(iq)	mtx_assert(&(iq)->iq_lock, MA_OWNED)
-#define IQ_LOCK_ASSERT_NOTOWNED(iq)	mtx_assert(&(iq)->iq_lock, MA_NOTOWNED)
-
 #define FL_LOCK(fl)			mtx_lock(&(fl)->fl_lock)
 #define FL_TRYLOCK(fl)			mtx_trylock(&(fl)->fl_lock)
 #define FL_UNLOCK(fl)			mtx_unlock(&(fl)->fl_lock)
 #define FL_LOCK_ASSERT_OWNED(fl)	mtx_assert(&(fl)->fl_lock, MA_OWNED)
 #define FL_LOCK_ASSERT_NOTOWNED(fl)	mtx_assert(&(fl)->fl_lock, MA_NOTOWNED)
-
-#define RXQ_LOCK(rxq)			IQ_LOCK(&(rxq)->iq)
-#define RXQ_UNLOCK(rxq)			IQ_UNLOCK(&(rxq)->iq)
-#define RXQ_LOCK_ASSERT_OWNED(rxq)	IQ_LOCK_ASSERT_OWNED(&(rxq)->iq)
-#define RXQ_LOCK_ASSERT_NOTOWNED(rxq)	IQ_LOCK_ASSERT_NOTOWNED(&(rxq)->iq)
 
 #define RXQ_FL_LOCK(rxq)		FL_LOCK(&(rxq)->fl)
 #define RXQ_FL_UNLOCK(rxq)		FL_UNLOCK(&(rxq)->fl)
@@ -586,6 +581,8 @@ void t4_intr_fwd(void *);
 void t4_intr_err(void *);
 void t4_intr_evt(void *);
 void t4_intr_data(void *);
+void t4_evt_rx(void *);
+void t4_eth_rx(void *);
 int t4_eth_tx(struct ifnet *, struct sge_txq *, struct mbuf *);
 void t4_update_fl_bufsize(struct ifnet *);
 
