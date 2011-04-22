@@ -143,6 +143,16 @@ typedef struct CalCtlEdges {
 } __packed CAL_CTL_EDGES;
 
 /*
+ * These are the secondary regulatory domain flags
+ * for regDmn[1].
+ */
+#define	AR5416_REGDMN_EN_FCC_MID	0x01	/* 5.47 - 5.7GHz operation */
+#define	AR5416_REGDMN_EN_JAP_MID	0x02	/* 5.47 - 5.7GHz operation */
+#define	AR5416_REGDMN_EN_FCC_DFS_HT40	0x04	/* FCC HT40 + DFS operation */
+#define	AR5416_REGDMN_EN_JAP_HT40	0x08	/* JP HT40 operation */
+#define	AR5416_REGDMN_EN_JAP_DFS_HT40	0x10	/* JP HT40 + DFS operation */
+
+/*
  * NB: The format in EEPROM has words 0 and 2 swapped (i.e. version
  * and length are swapped).  We reverse their position after reading
  * the data into host memory so the version field is at the same
