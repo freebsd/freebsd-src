@@ -35,7 +35,7 @@
 struct thread;
 
 /*
- * membar operand macros for use in other macros when # is a special
+ * Membar operand macros for use in other macros when # is a special
  * character.  Keep these in sync with what the hardware expects.
  */
 #define	C_Lookaside	(0)
@@ -88,8 +88,8 @@ struct thread;
 	__asm __volatile("mov %0, %" __XSTRING(reg) : : "r" (val));	\
 } while (0)
 
-/* Generate ld*a/st*a functions for non-constant ASI's. */
-#define LDNC_GEN(tp, o)							\
+/* Generate ld*a/st*a functions for non-constant ASIs. */
+#define	LDNC_GEN(tp, o)							\
 	static __inline tp						\
 	o ## _nc(caddr_t va, int asi)					\
 	{								\
@@ -117,7 +117,7 @@ LDNC_GEN(u_long, ldxa);
 #define	ldxa(va, asi)	LD_GENERIC(va, asi, ldxa, u_long)
 
 #if 0
-#define STNC_GEN(tp, o)							\
+#define	STNC_GEN(tp, o)							\
 	static __inline void						\
 	o ## _nc(caddr_t va, int asi, tp val)				\
 	{								\
@@ -125,7 +125,7 @@ LDNC_GEN(u_long, ldxa);
 		    : : "r" (val), "r" (va), "r" (asi));		\
 	}
 #else
-#define STNC_GEN(tp, o)							\
+#define	STNC_GEN(tp, o)							\
 	static __inline void						\
 	o ## _nc(caddr_t va, int asi, tp val)				\
 	{								\
@@ -167,9 +167,9 @@ int fasword32(u_long asi, void *addr, uint32_t *val);
 	__sr;								\
 })
 
-#define	wr(name, val, xor) do {						\
+#define	wr(name, val, xorval) do {					\
 	__asm __volatile("wr %0, %1, %%" #name				\
-	    : : "r" (val), "rI" (xor));					\
+	    : : "r" (val), "rI" (xorval));				\
 } while (0)
 
 #define	rdpr(name) ({							\
@@ -178,38 +178,33 @@ int fasword32(u_long asi, void *addr, uint32_t *val);
 	__pr;								\
 })
 
-#define	wrpr(name, val, xor) do {					\
+#define	wrpr(name, val, xorval) do {					\
 	__asm __volatile("wrpr %0, %1, %%" #name			\
-	    : : "r" (val), "rI" (xor));					\
+	    : : "r" (val), "rI" (xorval));				\
 } while (0)
 
 /*
- * Macro intended to be used instead of wr(asr23, val, xor) for writing to
- * the TICK_CMPR register in order to avoid a bug in BlackBird CPUs that
- * can cause these writes to fail under certain condidtions which in turn
- * causes the hardclock to stop. The workaround is to perform the write
- * at the beginning of an I-Cache line directly followed by a dummy read.
+ * Trick GAS/GCC into compiling access to TICK/(S)TICK_COMPARE independently
+ * of the selected instruction set.
  */
-#define	wrtickcmpr(val, xor) ({						\
-	__asm __volatile(						\
-	"	ba,pt	%%xcc, 1f ;		"			\
-	"	 nop	 ;			"			\
-	"	.align	64 ;			"			\
-	"1:	wr	%0, %1, %%asr23 ;	"			\
-	"	rd	%%asr23, %%g0 ;		"			\
-	: : "r" (val), "rI" (xor));					\
-})
+#define	rdtickcmpr()			rd(asr23)
+#define	rdstick()			rd(asr24)
+#define	rdstickcmpr()			rd(asr25)
+#define	wrtickcmpr(val, xorval)		wr(asr23, (val), (xorval))
+#define	wrstick(val, xorval)		wr(asr24, (val), (xorval))
+#define	wrstickcmpr(val, xorval)	wr(asr25, (val), (xorval))
 
 static __inline void
 breakpoint(void)
 {
+
 	__asm __volatile("ta %%xcc, 1" : :);
 }
 
 static __inline register_t
 intr_disable_all(void)
 {
-	u_long s;
+	register_t s;
 
 	s = rdpr(pstate);
 	wrpr(pstate, s & ~PSTATE_IE, 0);
@@ -220,7 +215,7 @@ intr_disable_all(void)
 static __inline register_t
 intr_disable(void)
 {
-	u_long s;
+	register_t s;
 
 	s = rdpr(pil);
 	wrpr(pil, 14, 0);
@@ -228,14 +223,13 @@ intr_disable(void)
 }
 #define	intr_restore(s)	wrpr(pil, (s), 0)
 
-
 /*
  * In some places, it is required that the store is directly followed by a
- * membar #Sync. Don't trust the compiler to not insert instructions in
- * between. We also need to disable interrupts completely.
+ * membar #Sync.  Don't trust the compiler to not insert instructions in
+ * between.  We also need to disable interrupts completely.
  */
 #define	stxa_sync(va, asi, val) do {					\
-	u_long s;							\
+	register_t s;							\
 	s = intr_disable_all();						\
 	__asm __volatile("stxa %0, [%1] %2; membar #Sync"		\
 	    : : "r" (val), "r" (va), "n" (asi));			\
@@ -249,8 +243,8 @@ void aszero(u_long asi, vm_offset_t dst, size_t len);
 
 #include <machine/sun4v_cpufunc.h>
 
-#define USE_CPU_NANOSECONDS
-#define nanoseconds() rd(tick)
+#define	USE_CPU_NANOSECONDS
+#define	nanoseconds() rd(tick)
 
 #undef LDNC_GEN
 #undef STNC_GEN
