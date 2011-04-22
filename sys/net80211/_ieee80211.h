@@ -395,14 +395,9 @@ struct ieee80211_regdomain {
  * XXX This doesn't yet export both ctl/ext chain details
  */
 struct ieee80211_mimo_info {
-        uint16_t	flags;			/* IEEE80211_R_* flags */
-        uint8_t		n_rx_chains;		/* number of RX chains involved */
-	uint8_t		pad[1];
-	int8_t		rssi_ctl[IEEE80211_MAX_CHAINS];		/* per-antenna rssi */
-	int8_t		noise_ctl[IEEE80211_MAX_CHAINS];	/* per-antenna noise floor */
-	int8_t		rssi_ext[IEEE80211_MAX_CHAINS];		/* per-antenna ext rssi */
-	int8_t		noise_ext[IEEE80211_MAX_CHAINS];	/* per-antenna ext noise floor */
-	uint32_t	evm[IEEE80211_MAX_CHAINS][IEEE80211_MAX_EVM_PILOTS];
-								/* EVM data */
+	int8_t		rssi[IEEE80211_MAX_CHAINS];	/* per-antenna rssi */
+	int8_t		noise[IEEE80211_MAX_CHAINS];	/* per-antenna noise floor */
+	uint8_t		pad[2];
+	uint32_t	evm[3];		/* EVM data */
 };
 #endif /* _NET80211__IEEE80211_H_ */
