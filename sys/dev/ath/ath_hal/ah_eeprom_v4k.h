@@ -29,6 +29,8 @@
 
 #define	AR9285_RDEXT_DEFAULT	0x1F
 
+#define	AR5416_4K_EEP_PD_GAIN_BOUNDARY_DEFAULT	58
+
 #undef owl_eep_start_loc
 #ifdef __LINUX_ARM_ARCH__ /* AP71 */
 #define owl_eep_start_loc		0
