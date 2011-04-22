@@ -1091,30 +1091,18 @@ node_getmimoinfo(const struct ieee80211_node *ni,
 
 	bzero(info, sizeof(*info));
 
-	/* XXX set flags - evm, ctl/ext data, etc. */
-	info->n_rx_chains = ni->ni_mimo_chains;
-
 	for (i = 0; i < ni->ni_mimo_chains; i++) {
-		/* Ctl channel */
 		avgrssi = ni->ni_mimo_rssi_ctl[i];
 		if (avgrssi == IEEE80211_RSSI_DUMMY_MARKER) {
-			info->rssi_ctl[i] = 0;
+			info->rssi[i] = 0;
 		} else {
 			rssi = IEEE80211_RSSI_GET(avgrssi);
-			info->rssi_ctl[i] = rssi < 0 ? 0 : rssi > 127 ? 127 : rssi;
+			info->rssi[i] = rssi < 0 ? 0 : rssi > 127 ? 127 : rssi;
 		}
-		info->noise_ctl[i] = ni->ni_mimo_noise_ctl[i];
-
-		/* Ext channel */
-		avgrssi = ni->ni_mimo_rssi_ext[i];
-		if (avgrssi == IEEE80211_RSSI_DUMMY_MARKER) {
-			info->rssi_ext[i] = 0;
-		} else {
-			rssi = IEEE80211_RSSI_GET(avgrssi);
-			info->rssi_ext[i] = rssi < 0 ? 0 : rssi > 127 ? 127 : rssi;
-		}
-		info->noise_ext[i] = ni->ni_mimo_noise_ext[i];
+		info->noise[i] = ni->ni_mimo_noise_ctl[i];
 	}
+
+	/* XXX ext radios? */
 
 	/* XXX EVM? */
 }
