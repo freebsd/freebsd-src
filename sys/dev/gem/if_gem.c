@@ -1064,7 +1064,7 @@ gem_init_locked(struct gem_softc *sc)
 
 	/* step 14.  Issue Transmit Pending command. */
 
-	/* step 15.  Give the reciever a swift kick. */
+	/* step 15.  Give the receiver a swift kick. */
 	GEM_BANK1_WRITE_4(sc, GEM_RX_KICK, GEM_NRXDESC - 4);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
