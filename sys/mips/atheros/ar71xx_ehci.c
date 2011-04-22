@@ -225,13 +225,6 @@ ar71xx_ehci_detach(device_t self)
 	/* during module unload there are lots of children leftover */
 	device_delete_all_children(self);
 
-	/*
-	 * disable interrupts that might have been switched on in ehci_init
-	 */
-	if (sc->sc_io_res) {
-		EOWRITE4(sc, EHCI_USBINTR, 0);
-	}
-
  	if (sc->sc_irq_res && sc->sc_intr_hdl) {
 		/*
 		 * only call ehci_detach() after ehci_init()

@@ -503,12 +503,6 @@ ehci_pci_detach(device_t self)
 
 	pci_disable_busmaster(self);
 
-	/*
-	 * disable interrupts that might have been switched on in ehci_init
-	 */
-	if (sc->sc_io_res) {
-		EOWRITE4(sc, EHCI_USBINTR, 0);
-	}
 	if (sc->sc_irq_res && sc->sc_intr_hdl) {
 		/*
 		 * only call ehci_detach() after ehci_init()
