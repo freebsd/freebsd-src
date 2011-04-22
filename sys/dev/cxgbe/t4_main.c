@@ -378,6 +378,7 @@ t4_attach(device_t dev)
 	rc = -t4_config_glbl_rss(sc, sc->mbox,
 	    FW_RSS_GLB_CONFIG_CMD_MODE_BASICVIRTUAL,
 	    F_FW_RSS_GLB_CONFIG_CMD_TNLMAPEN |
+	    F_FW_RSS_GLB_CONFIG_CMD_HASHTOEPLITZ |
 	    F_FW_RSS_GLB_CONFIG_CMD_TNLALLLKP);
 	if (rc != 0) {
 		device_printf(dev,
@@ -1038,8 +1039,21 @@ static void
 cxgbe_qflush(struct ifnet *ifp)
 {
 	struct port_info *pi = ifp->if_softc;
+	struct sge_txq *txq;
+	int i;
+	struct mbuf *m;
 
-	device_printf(pi->dev, "%s unimplemented.\n", __func__);
+	/* queues do not exist if !IFF_DRV_RUNNING. */
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		for_each_txq(pi, i, txq) {
+			TXQ_LOCK(txq);
+			m_freem(txq->m);
+			while ((m = buf_ring_dequeue_sc(txq->eq.br)) != NULL)
+				m_freem(m);
+			TXQ_UNLOCK(txq);
+		}
+	}
+	if_qflush(ifp);
 }
 
 static int
@@ -2673,8 +2687,11 @@ cxgbe_txq_start(void *arg, int count)
 	struct sge_txq *txq = arg;
 
 	TXQ_LOCK(txq);
-	txq->eq.flags &= ~EQ_CRFLUSHED;
-	txq_start(txq->ifp, txq);
+	if (txq->eq.flags & EQ_CRFLUSHED) {
+		txq->eq.flags &= ~EQ_CRFLUSHED;
+		txq_start(txq->ifp, txq);
+	} else
+		wakeup_one(txq);	/* txq is going away, wakeup free_txq */
 	TXQ_UNLOCK(txq);
 }
 

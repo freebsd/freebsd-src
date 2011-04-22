@@ -32,6 +32,8 @@ __FBSDID("$FreeBSD$");
 #include "t4_regs_values.h"
 #include "t4fw_interface.h"
 
+#undef msleep
+#define msleep(x) DELAY((x) * 1000)
 
 /**
  *	t4_wait_op_done_val - wait until an operation is completed
