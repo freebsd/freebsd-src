@@ -304,28 +304,28 @@ mpt_modevent(module_t mod, int type, void *data)
 int
 mpt_stdload(struct mpt_personality *pers)
 {
-	/* Load is always successfull. */
+	/* Load is always successful. */
 	return (0);
 }
 
 int
 mpt_stdprobe(struct mpt_softc *mpt)
 {
-	/* Probe is always successfull. */
+	/* Probe is always successful. */
 	return (0);
 }
 
 int
 mpt_stdattach(struct mpt_softc *mpt)
 {
-	/* Attach is always successfull. */
+	/* Attach is always successful. */
 	return (0);
 }
 
 int
 mpt_stdenable(struct mpt_softc *mpt)
 {
-	/* Enable is always successfull. */
+	/* Enable is always successful. */
 	return (0);
 }
 
@@ -361,7 +361,7 @@ mpt_stddetach(struct mpt_softc *mpt)
 int
 mpt_stdunload(struct mpt_personality *pers)
 {
-	/* Unload is always successfull. */
+	/* Unload is always successful. */
 	return (0);
 }
 
@@ -659,7 +659,7 @@ mpt_core_event(struct mpt_softc *mpt, request_t *req,
 	{
 		int i;
 
-		/* Some error occured that LSI wants logged */
+		/* Some error occurred that LSI wants logged */
 		mpt_prt(mpt, "EvtLogData: IOCLogInfo: 0x%08x\n",
 			msg->IOCLogInfo);
 		mpt_prt(mpt, "\tEvtLogData: Event Data:");
@@ -2354,7 +2354,7 @@ mpt_core_detach(struct mpt_softc *mpt)
 int
 mpt_core_unload(struct mpt_personality *pers)
 {
-	/* Unload is always successfull. */
+	/* Unload is always successful. */
 	return (0);
 }
 
@@ -2517,7 +2517,7 @@ mpt_dma_buf_alloc(struct mpt_softc *mpt)
 		return (1);
 	}
 
-	/* Allocate some DMA accessable memory for requests */
+	/* Allocate some DMA accessible memory for requests */
 	if (bus_dmamem_alloc(mpt->request_dmat, (void **)&mpt->request,
 	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &mpt->request_dmap) != 0) {
 		mpt_prt(mpt, "cannot allocate %d bytes of request memory\n",
@@ -2715,7 +2715,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		/*
 		 * In some configurations, the IOC's firmware is
 		 * stored in a shared piece of system NVRAM that
-		 * is only accessable via the BIOS.  In this
+		 * is only accessible via the BIOS.  In this
 		 * case, the firmware keeps a copy of firmware in
 		 * RAM until the OS driver retrieves it.  Once
 		 * retrieved, we are responsible for re-downloading
