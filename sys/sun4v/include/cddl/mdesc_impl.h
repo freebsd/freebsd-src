@@ -53,7 +53,7 @@ extern "C" {
  *
  * Elements in the first (description list) section are defined by their
  * index location within the node block. An index is simply the byte offset
- * within the block / element size (16bytes). All elements are refered to
+ * within the block / element size (16bytes). All elements are referred to
  * by their index, to avoid bugs related to alignment etc.
  *
  * The name_len field holds the storage length of an ASCII name, NOT the strlen.
