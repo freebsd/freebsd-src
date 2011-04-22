@@ -945,7 +945,7 @@ static const struct SYM_FWA_SCR SYM_FWA_SCR = {
 	 *  It shall be a tagged command.
 	 *  Read SIMPLE+TAG.
 	 *  The C code will deal with errors.
-	 *  Aggressive optimization, is'nt it? :)
+	 *  Aggressive optimization, isn't it? :)
 	 */
 	SCR_MOVE_ABS (2) ^ SCR_MSG_IN,
 		HADDR_1 (msgin),
