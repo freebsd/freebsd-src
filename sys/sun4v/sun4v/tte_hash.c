@@ -589,7 +589,7 @@ tte_hash_update(tte_hash_t th, vm_offset_t va, tte_t tte_data)
 	tte_t otte_data, tte_tag;
 	tte_hash_field_t field = NULL;
 
-	entry = find_entry(th, va, PAGE_SHIFT); /* should actualy be a function of tte_data */
+	entry = find_entry(th, va, PAGE_SHIFT); /* should actually be a function of tte_data */
 
 	tte_tag = (((uint64_t)th->th_context << TTARGET_CTX_SHIFT)|(va >> TTARGET_VA_SHIFT));
 	s = hash_bucket_lock(entry->the_fields);
