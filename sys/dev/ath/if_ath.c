@@ -1265,7 +1265,7 @@ ath_intr(void *arg)
 	struct ath_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
-	HAL_INT status;
+	HAL_INT status = 0;
 
 	if (sc->sc_invalid) {
 		/*
@@ -1296,6 +1296,11 @@ ath_intr(void *arg)
 	ath_hal_getisr(ah, &status);		/* NB: clears ISR too */
 	DPRINTF(sc, ATH_DEBUG_INTR, "%s: status 0x%x\n", __func__, status);
 	status &= sc->sc_imask;			/* discard unasked for bits */
+
+	/* Short-circuit un-handled interrupts */
+	if (status == 0x0)
+		return;
+
 	if (status & HAL_INT_FATAL) {
 		sc->sc_stats.ast_hardware++;
 		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
