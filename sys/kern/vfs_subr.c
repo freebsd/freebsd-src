@@ -377,9 +377,10 @@ vfs_busy(struct mount *mp, int flags)
 		if (flags & MBF_MNTLSTLOCK)
 			mtx_unlock(&mountlist_mtx);
 		mp->mnt_kern_flag |= MNTK_MWAIT;
-		msleep(mp, MNT_MTX(mp), PVFS, "vfs_busy", 0);
+		msleep(mp, MNT_MTX(mp), PVFS | PDROP, "vfs_busy", 0);
 		if (flags & MBF_MNTLSTLOCK)
 			mtx_lock(&mountlist_mtx);
+		MNT_ILOCK(mp);
 	}
 	if (flags & MBF_MNTLSTLOCK)
 		mtx_unlock(&mountlist_mtx);
