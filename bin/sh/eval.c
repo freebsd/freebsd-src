@@ -179,7 +179,7 @@ evalstring(char *s, int flags)
 	if (!any)
 		exitstatus = 0;
 	if (flags_exit)
-		exitshell(exitstatus);
+		exraise(EXEXIT);
 }
 
 
@@ -285,8 +285,10 @@ evaltree(union node *n, int flags)
 out:
 	if (pendingsigs)
 		dotrap();
-	if ((flags & EV_EXIT) || (eflag && exitstatus != 0 && do_etest))
+	if (eflag && exitstatus != 0 && do_etest)
 		exitshell(exitstatus);
+	if (flags & EV_EXIT)
+		exraise(EXEXIT);
 }
 
 
@@ -440,8 +442,8 @@ evalredir(union node *n, int flags)
 
 		handler = savehandler;
 		e = exception;
+		popredir();
 		if (e == EXERROR || e == EXEXEC) {
-			popredir();
 			if (in_redirect) {
 				exitstatus = 2;
 				return;
@@ -927,8 +929,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		if (setjmp(jmploc.loc)) {
 			freeparam(&shellparam);
 			shellparam = saveparam;
-			if (exception == EXERROR || exception == EXEXEC)
-				popredir();
+			popredir();
 			unreffunc(cmdentry.u.func);
 			poplocalvars();
 			localvars = savelocalvars;
@@ -943,10 +944,8 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		for (sp = varlist.list ; sp ; sp = sp->next)
 			mklocal(sp->text);
 		exitstatus = oexitstatus;
-		if (flags & EV_TESTED)
-			evaltree(getfuncnode(cmdentry.u.func), EV_TESTED);
-		else
-			evaltree(getfuncnode(cmdentry.u.func), 0);
+		evaltree(getfuncnode(cmdentry.u.func),
+		    flags & (EV_TESTED | EV_EXIT));
 		INTOFF;
 		unreffunc(cmdentry.u.func);
 		poplocalvars();
@@ -982,7 +981,10 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
 			e = exception;
-			exitstatus = (e == EXINT)? SIGINT+128 : 2;
+			if (e == EXINT)
+				exitstatus = SIGINT+128;
+			else if (e != EXEXIT)
+				exitstatus = 2;
 			goto cmddone;
 		}
 		handler = &jmploc;
@@ -1018,8 +1020,7 @@ cmddone:
 			backcmd->nleft = memout.nextc - memout.buf;
 			memout.buf = NULL;
 		}
-		if (cmdentry.u.index != EXECCMD &&
-				(e == -1 || e == EXERROR || e == EXEXEC))
+		if (cmdentry.u.index != EXECCMD)
 			popredir();
 		if (e != -1) {
 			if ((e != EXERROR && e != EXEXEC)
