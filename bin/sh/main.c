@@ -111,7 +111,8 @@ main(int argc, char *argv[])
 			break;
 		}
 
-		if (state == 0 || iflag == 0 || ! rootshell)
+		if (state == 0 || iflag == 0 || ! rootshell ||
+		    exception == EXEXIT)
 			exitshell(exitstatus);
 		reset();
 		if (exception == EXINT)
