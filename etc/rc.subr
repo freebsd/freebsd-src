@@ -384,6 +384,45 @@ wait_for_pids()
 }
 
 #
+# get_pidfile_from_conf string file
+#
+#	Takes a string to search for in the specified file.
+#	Ignores lines with traditional comment characters.
+#
+# Example:
+#
+# if get_pidfile_from_conf string file; then
+#	pidfile="$_pidfile_from_conf"
+# else
+#	pidfile='appropriate default'
+# fi
+#
+get_pidfile_from_conf()
+{
+	local string file line
+
+	string="$1" ; file="$2"
+
+	if [ -z "$string" -o -z "$file" ] || [ ! -s "$file" ]; then
+		err 3 'USAGE: get_pidfile_from_conf string file'
+	fi
+
+	while read line; do
+		case "$line" in
+		*[#\;]*${string}*)	continue ;;
+		*${string}*)		break ;;
+		esac
+	done < $file
+
+	if [ -n "$line" ]; then
+		line=${line#*/}
+		_pidfile_from_conf="/${line%%[\"\;]*}"
+	else
+		return 1
+	fi
+}
+
+#
 # check_startmsgs
 #	If rc_quiet is set (usually as a result of using faststart at
 #	boot time) check if rc_startmsgs is enabled.
