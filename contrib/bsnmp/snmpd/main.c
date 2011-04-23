@@ -909,7 +909,8 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	/*
 	 * In case of AF_INET{6} peer, do hosts_access(5) check.
 	 */
-	if (inet_ntop(pi->peer->sa_family,
+	if (pi->peer->sa_family != AF_LOCAL &&
+	    inet_ntop(pi->peer->sa_family,
 	    &((const struct sockaddr_in *)(const void *)pi->peer)->sin_addr,
 	    client, sizeof(client)) != NULL) {
 		request_set(&req, RQ_CLIENT_ADDR, client, 0);
@@ -918,7 +919,7 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 			    eval_client(&req));
 			return (-1);
 		}
-	} else
+	} else if (pi->peer->sa_family != AF_LOCAL)
 		syslog(LOG_ERR, "inet_ntop(): %m");
 #endif
 
