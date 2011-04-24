@@ -538,7 +538,7 @@ struct mvs_channel {
 
 	struct mvs_slot		slot[MVS_MAX_SLOTS];
 	union ccb		*hold[MVS_MAX_SLOTS];
-	int			holdtag[MVS_MAX_SLOTS]; /* Tags used for holden commands. */
+	int			holdtag[MVS_MAX_SLOTS]; /* Tags used for held commands. */
 	struct mtx		mtx;		/* state lock */
 	int			devices;        /* What is present */
 	int			pm_present;	/* PM presence reported */
@@ -556,11 +556,13 @@ struct mvs_channel {
 	int			numdslots;	/* Number of DMA slots */
 	int			numtslots;	/* Number of NCQ slots */
 	int			numtslotspd[16];/* Number of NCQ slots per dev */
-	int			numhslots;	/* Number of holden slots */
-	int			readlog;	/* Our READ LOG active */
+	int			numhslots;	/* Number of held slots */
+	int			recoverycmd;	/* Our READ LOG active */
 	int			fatalerr;	/* Fatal error happend */
 	int			lastslot;	/* Last used slot */
 	int			taggedtarget;	/* Last tagged target */
+	int			resetting;	/* Hard-reset in progress. */
+	int			resetpolldiv;	/* Hard-reset poll divider. */
 	int			out_idx;	/* Next written CRQB */
 	int			in_idx;		/* Next read CRPB */
 	u_int			transfersize;	/* PIO transfer size */
@@ -569,6 +571,7 @@ struct mvs_channel {
 	u_int			fake_busy;	/* Fake busy bit after command submission */
 	union ccb		*frozen;	/* Frozen command */
 	struct callout		pm_timer;	/* Power management events */
+	struct callout		reset_timer;	/* Hard-reset timeout */
 
 	struct mvs_device	user[16];	/* User-specified settings */
 	struct mvs_device	curr[16];	/* Current settings */

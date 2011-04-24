@@ -730,12 +730,19 @@ listen_accept(void)
 	}
 	/* Is the resource marked as secondary? */
 	if (res->hr_role != HAST_ROLE_SECONDARY) {
-		pjdlog_error("We act as %s for the resource and not as %s as requested by %s.",
+		pjdlog_warning("We act as %s for the resource and not as %s as requested by %s.",
 		    role2str(res->hr_role), role2str(HAST_ROLE_SECONDARY),
 		    raddr);
 		nv_add_stringf(nverr, "errmsg",
 		    "Remote node acts as %s for the resource and not as %s.",
 		    role2str(res->hr_role), role2str(HAST_ROLE_SECONDARY));
+		if (res->hr_role == HAST_ROLE_PRIMARY) {
+			/*
+			 * If we act as primary request the other side to wait
+			 * for us a bit, as we might be finishing cleanups.
+			 */
+			nv_add_uint8(nverr, 1, "wait");
+		}
 		goto fail;
 	}
 	/* Does token (if exists) match? */

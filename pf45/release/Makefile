@@ -4,8 +4,10 @@
 # 
 # User-driven targets:
 #  cdrom: Builds release CD-ROM media (release.iso)
+#  memstick: Builds memory stick image (memstick)
 #  ftp: Sets up FTP distribution area (ftp)
 #  release: Build all media and FTP distribution area
+#  install: Copies all release media into ${DESTDIR}
 #
 # Variables affecting the build process:
 #  WORLDDIR: location of src tree -- must have built world and default kernel
@@ -122,34 +124,63 @@ system: packagesystem
 	ln -s /tmp/bsdinstall_etc/resolv.conf ${.OBJDIR}/release/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.OBJDIR}/release/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.OBJDIR}/release/etc/rc.conf
-	touch ${.OBJDIR}/release/etc/fstab
 	cp ${.CURDIR}/rc.local ${.OBJDIR}/release/etc
 	touch ${.OBJDIR}/${.TARGET}
 
+bootonly: packagesystem
+# Install system
+	mkdir ${.OBJDIR}/bootonly
+	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
+	    DESTDIR=${.OBJDIR}/bootonly WITHOUT_AMD=1 WITHOUT_AT=1 \
+	    WITHOUT_BIND_DNSSEC=1 WITHOUT_BIND_ETC=1 WITHOUT_BIND_MTREE=1 \
+	    WITHOUT_BIND_NAMED=1 WITHOUT_GAMES=1 WITHOUT_GROFF=1 \
+	    WITHOUT_INSTALLLIB=1 WITHOUT_LIB32=1 WITHOUT_MAIL=1 \
+	    WITHOUT_NCP=1 WITHOUT_TOOLCHAIN=1 WITHOUT_RESCUE=1 WITHOUT_DICT=1
+	-rm ${.OBJDIR}/bootonly/boot/kernel/*.symbols
+# Copy manifest only (no distfiles) to get checksums
+	mkdir ${.OBJDIR}/bootonly/usr/freebsd-dist
+	cp ${.OBJDIR}/MANIFEST ${.OBJDIR}/bootonly/usr/freebsd-dist
+# Copy documentation, if generated
+.if !defined(NODOC)
+	cp ${.OBJDIR}/reldoc/* ${.OBJDIR}/bootonly
+.endif
+# Set up installation environment
+	ln -s /tmp/bsdinstall_etc/resolv.conf ${.OBJDIR}/bootonly/etc/resolv.conf
+	echo sendmail_enable=\"NONE\" > ${.OBJDIR}/bootonly/etc/rc.conf
+	echo hostid_enable=\"NO\" >> ${.OBJDIR}/bootonly/etc/rc.conf
+	cp ${.CURDIR}/rc.local ${.OBJDIR}/bootonly/etc
+
 release.iso: system
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.OBJDIR}/release.iso ${.OBJDIR}/release
+
+bootonly.iso: bootonly
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.OBJDIR}/bootonly.iso ${.OBJDIR}/bootonly
 
 memstick: system
 	sh ${.CURDIR}/${TARGET}/make-memstick.sh ${.OBJDIR}/release ${.OBJDIR}/memstick
 
 packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
 	sh ${.CURDIR}/scripts/make-manifest.sh ${.OBJDIR}/*.txz > ${.OBJDIR}/MANIFEST
-	touch ${.OBJDIR}/${.TARGET}
+	touch ${.TARGET}
 
-cdrom: release.iso
+cdrom: release.iso bootonly.iso
 ftp: packagesystem
-	rm -rf ${.OBJDIR}/ftp
-	mkdir ${.OBJDIR}/ftp
-	cp ${.OBJDIR}/*.txz ${.OBJDIR}/MANIFEST ${.OBJDIR}/ftp
+	rm -rf ftp
+	mkdir ftp
+	cp *.txz MANIFEST ftp
 
-release: ${RELEASE_TARGETS}
+release: obj ${RELEASE_TARGETS}
 
 clean:
 	chflags -R noschg ${.OBJDIR}
-	rm -rf ${.OBJDIR}/dist ${.OBJDIR}/ftp
+	rm -rf dist ftp
 	rm -f packagesystem
-	rm -f ${.OBJDIR}/*.txz ${.OBJDIR}/MANIFEST
+	rm -f *.txz MANIFEST
 	rm -f system
-	rm -rf ${.OBJDIR}/release
-	rm -f ${.OBJDIR}/release.iso ${.OBJDIR}/memstick
+	rm -rf release bootonly
+	rm -f release.iso bootonly.iso memstick
+
+install:
+	-mkdir ${DESTDIR}
+	cp -a *.iso memstick ftp ${DESTDIR}/
 

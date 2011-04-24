@@ -157,7 +157,7 @@ struct iwn_fw_info {
 	struct iwn_fw_part	boot;
 };
 
-struct iwn_hal {
+struct iwn_ops {
 	int		(*load_firmware)(struct iwn_softc *);
 	void		(*read_eeprom)(struct iwn_softc *);
 	int		(*post_alive)(struct iwn_softc *);
@@ -180,15 +180,6 @@ struct iwn_hal {
 	void		(*ampdu_tx_stop)(struct iwn_softc *, uint8_t,
 			    uint16_t);
 #endif
-	int		ntxqs;
-	int		ndmachnls;
-	uint8_t		broadcast_id;
-	int		rxonsz;
-	int		schedsz;
-	uint32_t	fw_text_maxsz;
-	uint32_t	fw_data_maxsz;
-	uint32_t	fwsz;
-	bus_size_t	sched_txfact_addr;
 };
 
 struct iwn_vap {
@@ -201,31 +192,39 @@ struct iwn_vap {
 #define	IWN_VAP(_vap)	((struct iwn_vap *)(_vap))
 
 struct iwn_softc {
+	device_t		sc_dev;
+
 	struct ifnet		*sc_ifp;
 	int			sc_debug;
 
-	/* Locks */
 	struct mtx		sc_mtx;
 
-	/* Bus */
-	device_t 		sc_dev;
-	int			mem_rid;
-	int			irq_rid;
-	struct resource 	*mem;
-	struct resource		*irq;
-
 	u_int			sc_flags;
-#define IWN_FLAG_HAS_5GHZ	(1 << 0)
 #define IWN_FLAG_HAS_OTPROM	(1 << 1)
 #define IWN_FLAG_CALIB_DONE	(1 << 2)
 #define IWN_FLAG_USE_ICT	(1 << 3)
 #define IWN_FLAG_INTERNAL_PA	(1 << 4)
+#define IWN_FLAG_HAS_11N	(1 << 6)
+#define IWN_FLAG_ENH_SENS	(1 << 7)
+#define IWN_FLAG_ADV_BTCOEX	(1 << 8)
 
 	uint8_t 		hw_type;
-	const struct iwn_hal	*sc_hal;
+
+	struct iwn_ops		ops;
 	const char		*fwname;
 	const struct iwn_sensitivity_limits
 				*limits;
+	int			ntxqs;
+	int			ndmachnls;
+	uint8_t			broadcast_id;
+	int			rxonsz;
+	int			schedsz;
+	uint32_t		fw_text_maxsz;
+	uint32_t		fw_data_maxsz;
+	uint32_t		fwsz;
+	bus_size_t		sched_txfact_addr;
+	uint32_t		reset_noise_gain;
+	uint32_t		noise_gain;
 
 	/* TX scheduler rings. */
 	struct iwn_dma_info	sched_dma;
@@ -250,37 +249,28 @@ struct iwn_softc {
 	struct iwn_tx_ring	txq[IWN5000_NTXQUEUES];
 	struct iwn_rx_ring	rxq;
 
+	int			mem_rid;
+	struct resource		*mem;
 	bus_space_tag_t		sc_st;
 	bus_space_handle_t	sc_sh;
+	int			irq_rid;
+	struct resource		*irq;
 	void 			*sc_ih;
 	bus_size_t		sc_sz;
 	int			sc_cap_off;	/* PCIe Capabilities. */
 
 	/* Tasks used by the driver */
-	struct task             sc_reinit_task;
+	struct task		sc_reinit_task;
 	struct task		sc_radioon_task;
 	struct task		sc_radiooff_task;
 
+	struct callout		calib_to;
 	int			calib_cnt;
 	struct iwn_calib_state	calib;
-	u_int			calib_init;
-	u_int			calib_runtime;
-#define	IWN_CALIB_XTAL			(1 << IWN_CALIB_IDX_XTAL)
-#define	IWN_CALIB_DC			(1 << IWN_CALIB_IDX_DC)
-#define	IWN_CALIB_LO			(1 << IWN_CALIB_IDX_LO)
-#define	IWN_CALIB_TX_IQ			(1 << IWN_CALIB_IDX_TX_IQ)
-#define	IWN_CALIB_TX_IQ_PERIODIC	(1 << IWN_CALIB_IDX_TX_IQ_PERIODIC)
-#define	IWN_CALIB_BASE_BAND		(1 << IWN_CALIB_IDX_BASE_BAND)
-#define	IWN_CALIB_NUM			6
-	struct iwn_calib_info	calib_results[IWN_CALIB_NUM];
-#define	IWN_CALIB_IDX_XTAL		0
-#define	IWN_CALIB_IDX_DC		1
-#define	IWN_CALIB_IDX_LO		2
-#define	IWN_CALIB_IDX_TX_IQ		3
-#define	IWN_CALIB_IDX_TX_IQ_PERIODIC	4
-#define	IWN_CALIB_IDX_BASE_BAND		5
+	struct callout		watchdog_to;
 
 	struct iwn_fw_info	fw;
+	struct iwn_calib_info	calibcmd[5];
 	uint32_t		errptr;
 
 	struct iwn_rx_stat	last_rx_stat;
@@ -299,6 +289,8 @@ struct iwn_softc {
 	uint16_t		rfcfg;
 	uint8_t			calib_ver;
 	char			eeprom_domain[4];
+	uint32_t		eeprom_crystal;
+	int16_t			eeprom_temp;
 	int16_t			eeprom_voltage;
 	int8_t			maxpwr2GHz;
 	int8_t			maxpwr5GHz;
@@ -313,7 +305,6 @@ struct iwn_softc {
 	uint8_t			rxchainmask;
 	uint8_t			chainmask;
 
-	struct callout		sc_timer_to;
 	int			sc_tx_timer;
 
 	struct iwn_rx_radiotap_header sc_rxtap;

@@ -778,12 +778,6 @@ void newnfs_realign(struct mbuf **);
 #define	NFSHASPRIVACY(n)	((n)->nm_flag & NFSMNT_PRIVACY)
 #define	NFSSETWRITEVERF(n)	((n)->nm_state |= NFSSTA_HASWRITEVERF)
 #define	NFSSETHASSETFSID(n)	((n)->nm_state |= NFSSTA_HASSETFSID)
-#ifdef NFS4_ACL_EXTATTR_NAME
-#define	NFSHASNFS4ACL(m)	nfs_supportsnfsv4acls(m)
-int nfs_supportsnfsv4acls(struct mount *);
-#else
-#define	NFSHASNFS4ACL(m)	0
-#endif
 
 /*
  * Gets the stats field out of the mount structure.

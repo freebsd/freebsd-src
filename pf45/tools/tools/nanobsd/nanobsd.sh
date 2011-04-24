@@ -413,8 +413,8 @@ populate_slice ( ) (
 	dir=$2
 	mnt=$3
 	lbl=$4
-	test -z $2 && dir=/var/empty
-	test -d $dir || dir=/var/empty
+	test -z $2 && dir=${NANO_WORLDDIR}/var/empty
+	test -d $dir || dir=${NANO_WORLDDIR}/var/empty
 	echo "Creating ${dev} with ${dir} (mounting on ${mnt})"
 	newfs_part $dev $mnt $lbl
 	cd ${dir}

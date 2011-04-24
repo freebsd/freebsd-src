@@ -1092,11 +1092,14 @@ again:
 	 * Create Tx/Rx buffer parent tag.
 	 * L1 supports full 64bit DMA addressing in Tx/Rx buffers
 	 * so it needs separate parent DMA tag.
+	 * XXX
+	 * It seems enabling 64bit DMA causes data corruption. Limit
+	 * DMA address space to 32bit.
 	 */
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(sc->age_dev), /* parent */
 	    1, 0,			/* alignment, boundary */
-	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
 	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
@@ -2421,6 +2424,8 @@ age_rxintr(struct age_softc *sc, int rr_prod, int count)
 	bus_dmamap_sync(sc->age_cdata.age_rr_ring_tag,
 	    sc->age_cdata.age_rr_ring_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_sync(sc->age_cdata.age_rx_ring_tag,
+	    sc->age_cdata.age_rx_ring_map, BUS_DMASYNC_POSTWRITE);
 
 	for (prog = 0; rr_cons != rr_prod; prog++) {
 		if (count <= 0)
@@ -2452,6 +2457,8 @@ age_rxintr(struct age_softc *sc, int rr_prod, int count)
 		/* Update the consumer index. */
 		sc->age_cdata.age_rr_cons = rr_cons;
 
+		bus_dmamap_sync(sc->age_cdata.age_rx_ring_tag,
+		    sc->age_cdata.age_rx_ring_map, BUS_DMASYNC_PREWRITE);
 		/* Sync descriptors. */
 		bus_dmamap_sync(sc->age_cdata.age_rr_ring_tag,
 		    sc->age_cdata.age_rr_ring_map,
@@ -2978,8 +2985,7 @@ age_init_rx_ring(struct age_softc *sc)
 	}
 
 	bus_dmamap_sync(sc->age_cdata.age_rx_ring_tag,
-	    sc->age_cdata.age_rx_ring_map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	    sc->age_cdata.age_rx_ring_map, BUS_DMASYNC_PREWRITE);
 
 	return (0);
 }

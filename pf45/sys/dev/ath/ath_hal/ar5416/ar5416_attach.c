@@ -57,8 +57,9 @@ ar5416AniSetup(struct ath_hal *ah)
 		.rssiThrLow		= 7,
 		.period			= 100,
 	};
-	/* NB: ANI is not enabled yet */
-	ar5416AniAttach(ah, &aniparams, &aniparams, AH_FALSE);
+	/* NB: disable ANI noise immmunity for reliable RIFS rx */
+	AH5416(ah)->ah_ani_function &= ~ HAL_ANI_NOISE_IMMUNITY_LEVEL;
+	ar5416AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
 }
 
 /*
@@ -179,6 +180,9 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	/* Internal ops */
 	AH5416(ah)->ah_writeIni		= ar5416WriteIni;
 	AH5416(ah)->ah_spurMitigate	= ar5416SpurMitigate;
+
+	/* Internal baseband ops */
+	AH5416(ah)->ah_initPLL		= ar5416InitPLL;
 
 	/* Internal calibration ops */
 	AH5416(ah)->ah_cal_initcal	= ar5416InitCalHardware;
@@ -842,6 +846,8 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halBtCoexSupport = AH_FALSE;	/* XXX need support */
 	pCap->halAutoSleepSupport = AH_FALSE;
 	pCap->hal4kbSplitTransSupport = AH_TRUE;
+	/* Disable this so Block-ACK works correctly */
+	pCap->halHasRxSelfLinkedTail = AH_FALSE;
 #if 0	/* XXX not yet */
 	pCap->halNumAntCfg2GHz = ar5416GetNumAntConfig(ahp, HAL_FREQ_BAND_2GHZ);
 	pCap->halNumAntCfg5GHz = ar5416GetNumAntConfig(ahp, HAL_FREQ_BAND_5GHZ);

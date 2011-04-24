@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
 #include <sys/signalvar.h>
@@ -92,9 +93,6 @@ dtrace_execexit_func_t	dtrace_fasttrap_exit;
 SDT_PROVIDER_DECLARE(proc);
 SDT_PROBE_DEFINE(proc, kernel, , exit, exit);
 SDT_PROBE_ARGTYPE(proc, kernel, , exit, 0, "int");
-
-/* Required to be non-static for SysVR4 emulator */
-MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
 
 /* Hook for NFS teardown procedure. */
 void (*nlminfo_release_p)(struct proc *p);
@@ -176,6 +174,7 @@ exit1(struct thread *td, int rv)
 	}
 	KASSERT(p->p_numthreads == 1,
 	    ("exit1: proc %p exiting with %d threads", p, p->p_numthreads));
+	racct_sub(p, RACCT_NTHR, 1);
 	/*
 	 * Wakeup anyone in procfs' PIOCWAIT.  They should have a hold
 	 * on our vmspace, so we should block below until they have
@@ -741,6 +740,14 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	(void)chgproccnt(p->p_ucred->cr_ruidinfo, -1, 0);
 
 	/*
+	 * Destroy resource accounting information associated with the process.
+	 */
+	racct_proc_exit(p);
+	PROC_LOCK(p->p_pptr);
+	racct_sub(p->p_pptr, RACCT_NPROC, 1);
+	PROC_UNLOCK(p->p_pptr);
+
+	/*
 	 * Free credentials, arguments, and sigacts.
 	 */
 	crfree(p->p_ucred);
@@ -893,13 +900,21 @@ loop:
 void
 proc_reparent(struct proc *child, struct proc *parent)
 {
+	int locked;
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
 	PROC_LOCK_ASSERT(child, MA_OWNED);
 	if (child->p_pptr == parent)
 		return;
 
+	locked = PROC_LOCKED(parent);
+	if (!locked)
+		PROC_LOCK(parent);
+	racct_add_force(parent, RACCT_NPROC, 1);
+	if (!locked)
+		PROC_UNLOCK(parent);
 	PROC_LOCK(child->p_pptr);
+	racct_sub(child->p_pptr, RACCT_NPROC, 1);
 	sigqueue_take(child->p_ksi);
 	PROC_UNLOCK(child->p_pptr);
 	LIST_REMOVE(child, p_sibling);

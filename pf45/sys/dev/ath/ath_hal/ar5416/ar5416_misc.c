@@ -124,6 +124,7 @@ ar5416SetDecompMask(struct ath_hal *ah, uint16_t keyidx, int en)
 void
 ar5416SetCoverageClass(struct ath_hal *ah, uint8_t coverageclass, int now)
 {
+	AH_PRIVATE(ah)->ah_coverageClass = coverageclass;
 }
 
 /*
@@ -274,6 +275,8 @@ ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
         uint32_t capability, uint32_t *result)
 {
 	switch (type) {
+	case HAL_CAP_GTXTO:
+		return HAL_OK;		/* All AR5416+ supports Global TX Timeout */
 	case HAL_CAP_BB_HANG:
 		switch (capability) {
 		case HAL_BB_HANG_RIFS:
@@ -289,6 +292,8 @@ ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		    (ah->ah_macVersion == AR_XSREV_VERSION_OWL_PCIE) ||
 		    AR_SREV_SOWL(ah)) ?
 			HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_DIVERSITY:		/* disable classic fast diversity */
+		return HAL_ENXIO;
 	default:
 		break;
 	}

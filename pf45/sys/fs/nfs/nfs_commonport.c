@@ -70,11 +70,15 @@ static int nfs_realign_test;
 static int nfs_realign_count;
 
 SYSCTL_NODE(_vfs, OID_AUTO, newnfs, CTLFLAG_RW, 0, "New NFS filesystem");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, newnfs_realign_test, CTLFLAG_RW, &nfs_realign_test, 0, "");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, newnfs_realign_count, CTLFLAG_RW, &nfs_realign_count, 0, "");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs4acl_enable, CTLFLAG_RW, &nfsrv_useacl, 0, "");
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, realign_test, CTLFLAG_RW, &nfs_realign_test,
+    0, "Number of realign tests done");
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count,
+    0, "Number of mbuf realignments done");
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs4acl_enable, CTLFLAG_RW, &nfsrv_useacl,
+    0, "Enable NFSv4 ACLs");
 SYSCTL_STRING(_vfs_newnfs, OID_AUTO, callback_addr, CTLFLAG_RW,
-    nfsv4_callbackaddr, sizeof(nfsv4_callbackaddr), "");
+    nfsv4_callbackaddr, sizeof(nfsv4_callbackaddr),
+    "NFSv4 callback addr for server to use");
 
 /*
  * Defines for malloc
@@ -437,18 +441,18 @@ newnfs_portinit(void)
  * Return 1 if it does, 0 otherwise.
  */
 int
-nfs_supportsnfsv4acls(struct mount *mp)
+nfs_supportsnfsv4acls(struct vnode *vp)
 {
+	int error;
+	register_t retval;
 
-	if (mp->mnt_stat.f_fstypename == NULL)
+	ASSERT_VOP_LOCKED(vp, "nfs supports nfsv4acls");
+
+	if (nfsrv_useacl == 0)
 		return (0);
-	if (strcmp(mp->mnt_stat.f_fstypename, "ufs") == 0) {
-		/* Not yet */
-		return (0);
-	} else if (strcmp(mp->mnt_stat.f_fstypename, "zfs") == 0) {
-		/* Always supports them */
+	error = VOP_PATHCONF(vp, _PC_ACL_NFS4, &retval);
+	if (error == 0 && retval != 0)
 		return (1);
-	}
 	return (0);
 }
 

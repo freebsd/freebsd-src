@@ -1,9 +1,9 @@
 /*
- *  $Id: ui_getc.c,v 1.48 2010/01/18 10:24:06 tom Exp $
+ *  $Id: ui_getc.c,v 1.59 2011/02/28 10:56:15 tom Exp $
  *
- * ui_getc.c - user interface glue for getc()
+ *  ui_getc.c - user interface glue for getc()
  *
- * Copyright 2001-2009,2010 Thomas E. Dickey
+ *  Copyright 2001-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -119,24 +119,105 @@ dlg_remove_callback(DIALOG_CALLBACK * p)
 }
 
 /*
- * FIXME: this could be replaced by a select/poll on several file descriptors
+ * A select() might find more than one input ready for service.  Handle them
+ * all.
+ */
+static bool
+handle_inputs(WINDOW *win)
+{
+    bool result = FALSE;
+    DIALOG_CALLBACK *p;
+    DIALOG_CALLBACK *q;
+    int cur_y, cur_x;
+    int state = ERR;
+
+    getyx(win, cur_y, cur_x);
+    for (p = dialog_state.getc_callbacks, q = 0; p != 0; p = q) {
+	q = p->next;
+	if ((p->handle_input != 0) && p->input_ready) {
+	    p->input_ready = FALSE;
+	    if (state == ERR) {
+		state = curs_set(0);
+	    }
+	    if (p->handle_input(p)) {
+		result = TRUE;
+	    }
+	}
+    }
+    if (result) {
+	(void) wmove(win, cur_y, cur_x);	/* Restore cursor position */
+	wrefresh(win);
+	curs_set(state);
+    }
+    return result;
+}
+
+static bool
+may_handle_inputs(void)
+{
+    bool result = FALSE;
+
+    DIALOG_CALLBACK *p;
+
+    for (p = dialog_state.getc_callbacks; p != 0; p = p->next) {
+	if (p->input != 0) {
+	    result = TRUE;
+	    break;
+	}
+    }
+
+    return result;
+}
+
+/*
+ * Check any any inputs registered via callbacks, to see if there is any input
+ * available.  If there is, return a file-descriptor which should be read. 
+ * Otherwise, return -1.
  */
 static int
-dlg_getc_ready(DIALOG_CALLBACK * p)
+check_inputs(void)
 {
+    DIALOG_CALLBACK *p;
     fd_set read_fds;
-    int fd = fileno(p->input);
     struct timeval test;
+    int last_fd = -1;
+    int fd;
+    int found;
+    int result = -1;
 
-    FD_ZERO(&read_fds);
-    FD_SET(fd, &read_fds);
+    if ((p = dialog_state.getc_callbacks) != 0) {
+	FD_ZERO(&read_fds);
 
-    test.tv_sec = 0;		/* Seconds.  */
-    test.tv_usec = (isatty(fd)	/* Microseconds.  */
-		    ? (WTIMEOUT_VAL * 1000)
-		    : 1);
-    return (select(fd + 1, &read_fds, (fd_set *) 0, (fd_set *) 0, &test) == 1)
-	&& (FD_ISSET(fd, &read_fds));
+	while (p != 0) {
+	    p->input_ready = FALSE;
+	    if (p->input != 0 && (fd = fileno(p->input)) >= 0) {
+		FD_SET(fd, &read_fds);
+		if (last_fd < fd)
+		    last_fd = fd;
+	    }
+	    p = p->next;
+	}
+
+	test.tv_sec = 0;
+	test.tv_usec = WTIMEOUT_VAL * 1000;
+	found = select(last_fd + 1, &read_fds,
+		       (fd_set *) 0,
+		       (fd_set *) 0,
+		       &test);
+
+	if (found > 0) {
+	    for (p = dialog_state.getc_callbacks; p != 0; p = p->next) {
+		if (p->input != 0
+		    && (fd = fileno(p->input)) >= 0
+		    && FD_ISSET(fd, &read_fds)) {
+		    p->input_ready = TRUE;
+		    result = fd;
+		}
+	    }
+	}
+    }
+
+    return result;
 }
 
 int
@@ -146,14 +227,16 @@ dlg_getc_callbacks(int ch, int fkey, int *result)
     DIALOG_CALLBACK *p, *q;
 
     if ((p = dialog_state.getc_callbacks) != 0) {
-	do {
-	    q = p->next;
-	    if (dlg_getc_ready(p)) {
-		if (!(p->handle_getc(p, ch, fkey, result))) {
-		    dlg_remove_callback(p);
+	if (check_inputs() >= 0) {
+	    do {
+		q = p->next;
+		if (p->input_ready) {
+		    if (!(p->handle_getc(p, ch, fkey, result))) {
+			dlg_remove_callback(p);
+		    }
 		}
-	    }
-	} while ((p = q) != 0);
+	    } while ((p = q) != 0);
+	}
 	code = (dialog_state.getc_callbacks != 0);
     }
     return code;
@@ -219,6 +302,89 @@ valid_file(FILE *fp)
     return code;
 }
 
+static int
+really_getch(WINDOW *win, int *fkey)
+{
+    int ch;
+#ifdef USE_WIDE_CURSES
+    int code;
+    mbstate_t state;
+    wchar_t my_wchar;
+    wint_t my_wint;
+
+    /*
+     * We get a wide character, translate it to multibyte form to avoid
+     * having to change the rest of the code to use wide-characters.
+     */
+    if (used_last_getc >= have_last_getc) {
+	used_last_getc = 0;
+	have_last_getc = 0;
+	ch = ERR;
+	*fkey = 0;
+	code = wget_wch(win, &my_wint);
+	my_wchar = (wchar_t) my_wint;
+	switch (code) {
+	case KEY_CODE_YES:
+	    ch = *fkey = my_wchar;
+	    last_getc = my_wchar;
+	    break;
+	case OK:
+	    memset(&state, 0, sizeof(state));
+	    have_last_getc = (int) wcrtomb(last_getc_bytes, my_wchar, &state);
+	    if (have_last_getc < 0) {
+		have_last_getc = used_last_getc = 0;
+		last_getc_bytes[0] = (char) my_wchar;
+	    }
+	    ch = (int) CharOf(last_getc_bytes[used_last_getc++]);
+	    last_getc = my_wchar;
+	    break;
+	case ERR:
+	    ch = ERR;
+	    last_getc = ERR;
+	    break;
+	default:
+	    break;
+	}
+    } else {
+	ch = (int) CharOf(last_getc_bytes[used_last_getc++]);
+    }
+#else
+    ch = wgetch(win);
+    last_getc = ch;
+    *fkey = (ch > KEY_MIN && ch < KEY_MAX);
+#endif
+    return ch;
+}
+
+static DIALOG_CALLBACK *
+next_callback(DIALOG_CALLBACK * p)
+{
+    if ((p = dialog_state.getc_redirect) != 0) {
+	p = p->next;
+    } else {
+	p = dialog_state.getc_callbacks;
+    }
+    return p;
+}
+
+static DIALOG_CALLBACK *
+prev_callback(DIALOG_CALLBACK * p)
+{
+    DIALOG_CALLBACK *q;
+
+    if ((p = dialog_state.getc_redirect) != 0) {
+	if (p == dialog_state.getc_callbacks) {
+	    for (p = dialog_state.getc_callbacks; p->next != 0; p = p->next) ;
+	} else {
+	    for (q = dialog_state.getc_callbacks; q->next != p; q = q->next) ;
+	    p = q;
+	}
+    } else {
+	p = dialog_state.getc_callbacks;
+    }
+    return p;
+}
+
 /*
  * Read a character from the given window.  Handle repainting here (to simplify
  * things in the calling application).  Also, if input-callback(s) are set up,
@@ -234,64 +400,21 @@ dlg_getc(WINDOW *win, int *fkey)
     int result;
     bool done = FALSE;
     bool literal = FALSE;
-    DIALOG_CALLBACK *p;
-    int interval = dialog_vars.timeout_secs;
+    DIALOG_CALLBACK *p = 0;
+    int interval = (dialog_vars.timeout_secs * 1000);
     time_t expired = time((time_t *) 0) + dialog_vars.timeout_secs;
     time_t current;
 
-    if (dialog_state.getc_callbacks != 0)
+    if (may_handle_inputs())
 	wtimeout(win, WTIMEOUT_VAL);
     else if (interval > 0)
 	wtimeout(win, interval);
 
     while (!done) {
-#ifdef USE_WIDE_CURSES
-	int code;
-	mbstate_t state;
-	wchar_t my_wchar;
-	wint_t my_wint;
-
 	/*
-	 * We get a wide character, translate it to multibyte form to avoid
-	 * having to change the rest of the code to use wide-characters.
+	 * If there was no pending file-input, check the keyboard.
 	 */
-	if (used_last_getc >= have_last_getc) {
-	    used_last_getc = 0;
-	    have_last_getc = 0;
-	    ch = ERR;
-	    *fkey = 0;
-	    code = wget_wch(win, &my_wint);
-	    my_wchar = (wchar_t) my_wint;
-	    switch (code) {
-	    case KEY_CODE_YES:
-		ch = *fkey = my_wchar;
-		last_getc = my_wchar;
-		break;
-	    case OK:
-		memset(&state, 0, sizeof(state));
-		have_last_getc = (int) wcrtomb(last_getc_bytes, my_wchar, &state);
-		if (have_last_getc < 0) {
-		    have_last_getc = used_last_getc = 0;
-		    last_getc_bytes[0] = (char) my_wchar;
-		}
-		ch = (int) CharOf(last_getc_bytes[used_last_getc++]);
-		last_getc = my_wchar;
-		break;
-	    case ERR:
-		ch = ERR;
-		last_getc = ERR;
-		break;
-	    default:
-		break;
-	    }
-	} else {
-	    ch = (int) CharOf(last_getc_bytes[used_last_getc++]);
-	}
-#else
-	ch = wgetch(win);
-	last_getc = ch;
-	*fkey = (ch > KEY_MIN && ch < KEY_MAX);
-#endif
+	ch = really_getch(win, fkey);
 	if (literal) {
 	    done = TRUE;
 	    continue;
@@ -320,32 +443,38 @@ dlg_getc(WINDOW *win, int *fkey)
 		&& current >= expired) {
 		dlg_exiterr("timeout");
 	    }
-	    if (dlg_getc_callbacks(ch, *fkey, &result)) {
-		dlg_raise_window(win);
-	    } else {
-		done = (interval <= 0);
-	    }
 	    if (!valid_file(stdin)
 		|| !valid_file(dialog_state.screen_output)) {
 		ch = ESC;
 		done = TRUE;
+	    } else if (check_inputs()) {
+		if (handle_inputs(win))
+		    dlg_raise_window(win);
+		else
+		    done = TRUE;
+	    } else {
+		done = (interval <= 0);
 	    }
 	    break;
+	case DLGK_FIELD_PREV:
+	    /* FALLTHRU */
+	case KEY_BTAB:
+	    /* FALLTHRU */
 	case DLGK_FIELD_NEXT:
 	    /* FALLTHRU */
 	case TAB:
-	    /* Handle tab as a special case for traversing between the nominal
-	     * "current" window, and other windows having callbacks.  If the
-	     * nominal (control) window closes, we'll close the windows with
-	     * callbacks.
+	    /* Handle tab/backtab as a special case for traversing between the
+	     * nominal "current" window, and other windows having callbacks. 
+	     * If the nominal (control) window closes, we'll close the windows
+	     * with callbacks.
 	     */
 	    if (dialog_state.getc_callbacks != 0 &&
-		before_lookup == TAB) {
-		if ((p = dialog_state.getc_redirect) != 0) {
-		    p = p->next;
-		} else {
-		    p = dialog_state.getc_callbacks;
-		}
+		(before_lookup == TAB ||
+		 before_lookup == KEY_BTAB)) {
+		if (before_lookup == TAB)
+		    p = next_callback(p);
+		else
+		    p = prev_callback(p);
 		if ((dialog_state.getc_redirect = p) != 0) {
 		    win = p->win;
 		} else {

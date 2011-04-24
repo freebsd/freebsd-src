@@ -176,7 +176,7 @@ powerpc/powerpc/exec_machdep.c	standard
 powerpc/powerpc/fpu.c		optional	aim
 powerpc/powerpc/fuswintr.c	standard
 powerpc/powerpc/gdb_machdep.c	optional	gdb
-powerpc/powerpc/in_cksum.c	optional	inet
+powerpc/powerpc/in_cksum.c	optional	inet | inet6
 powerpc/powerpc/intr_machdep.c	standard
 powerpc/powerpc/iommu_if.m	standard
 powerpc/powerpc/mem.c		optional	mem

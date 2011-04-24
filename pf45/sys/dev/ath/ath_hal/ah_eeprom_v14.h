@@ -143,6 +143,16 @@ typedef struct CalCtlEdges {
 } __packed CAL_CTL_EDGES;
 
 /*
+ * These are the secondary regulatory domain flags
+ * for regDmn[1].
+ */
+#define	AR5416_REGDMN_EN_FCC_MID	0x01	/* 5.47 - 5.7GHz operation */
+#define	AR5416_REGDMN_EN_JAP_MID	0x02	/* 5.47 - 5.7GHz operation */
+#define	AR5416_REGDMN_EN_FCC_DFS_HT40	0x04	/* FCC HT40 + DFS operation */
+#define	AR5416_REGDMN_EN_JAP_HT40	0x08	/* JP HT40 operation */
+#define	AR5416_REGDMN_EN_JAP_DFS_HT40	0x10	/* JP HT40 + DFS operation */
+
+/*
  * NB: The format in EEPROM has words 0 and 2 swapped (i.e. version
  * and length are swapped).  We reverse their position after reading
  * the data into host memory so the version field is at the same
@@ -217,14 +227,14 @@ typedef struct ModalEepHeader {
 	uint8_t		ob_ch1;				// 1 -> ob and db become chain specific from AR9280
 	uint8_t		db_ch1;				// 1
 	uint8_t		flagBits;			// 1
-#define	AR5416_EEP_FLAG_USEANT1		0x01	/* +1 configured antenna */
-#define	AR5416_EEP_FLAG_FORCEXPAON	0x02	/* force XPA bit for 5G */
-#define	AR5416_EEP_FLAG_LOCALBIAS	0x04	/* enable local bias */
-#define	AR5416_EEP_FLAG_FEMBANDSELECT	0x08	/* FEM band select used */
-#define	AR5416_EEP_FLAG_XLNABUFIN	0x10
-#define	AR5416_EEP_FLAG_XLNAISEL	0x60
-#define	AR5416_EEP_FLAG_XLNAISEL_S	5
-#define	AR5416_EEP_FLAG_XLNABUFMODE	0x80
+#define	AR5416_EEP_FLAG_USEANT1		0x80	/* +1 configured antenna */
+#define	AR5416_EEP_FLAG_FORCEXPAON	0x40	/* force XPA bit for 5G */
+#define	AR5416_EEP_FLAG_LOCALBIAS	0x20	/* enable local bias */
+#define	AR5416_EEP_FLAG_FEMBANDSELECT	0x10	/* FEM band select used */
+#define	AR5416_EEP_FLAG_XLNABUFIN	0x08
+#define	AR5416_EEP_FLAG_XLNAISEL1	0x04
+#define	AR5416_EEP_FLAG_XLNAISEL2	0x02
+#define	AR5416_EEP_FLAG_XLNABUFMODE	0x01
 	uint8_t		miscBits;			// [0..1]: bb_tx_dac_scale_cck
 	uint16_t	xpaBiasLvlFreq[3];		// 3
 	uint8_t		futureModal[6];			// 6

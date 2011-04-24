@@ -2084,21 +2084,6 @@ acpi_GetHandleInScope(ACPI_HANDLE parent, char *path, ACPI_HANDLE *result)
     }
 }
 
-/* Find the difference between two PM tick counts. */
-uint32_t
-acpi_TimerDelta(uint32_t end, uint32_t start)
-{
-    uint32_t delta;
-
-    if (end >= start)
-	delta = end - start;
-    else if (AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER)
-	delta = ((0xFFFFFFFF - start) + end + 1);
-    else
-	delta = ((0x00FFFFFF - start) + end + 1) & 0x00FFFFFF;
-    return (delta);
-}
-
 /*
  * Allocate a buffer with a preset data size.
  */
@@ -2609,6 +2594,8 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	return_ACPI_STATUS (AE_OK);
     }
 
+    EVENTHANDLER_INVOKE(power_suspend);
+
     if (smp_started) {
 	thread_lock(curthread);
 	sched_bind(curthread, 0);
@@ -2699,6 +2686,8 @@ backout:
 	sched_unbind(curthread);
 	thread_unlock(curthread);
     }
+
+    EVENTHANDLER_INVOKE(power_resume);
 
     /* Allow another sleep request after a while. */
     timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);

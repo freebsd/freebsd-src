@@ -8,9 +8,9 @@
  * All rights reserved.
  *
  * Portions of this software were developed at the Centre for Advanced Internet
- * Architectures, Swinburne University, by Lawrence Stewart, James Healy and
- * David Hayes, made possible in part by a grant from the Cisco University
- * Research Program Fund at Community Foundation Silicon Valley.
+ * Architectures, Swinburne University of Technology, by Lawrence Stewart,
+ * James Healy and David Hayes, made possible in part by a grant from the Cisco
+ * University Research Program Fund at Community Foundation Silicon Valley.
  *
  * Portions of this software were developed at the Centre for Advanced
  * Internet Architectures, Swinburne University of Technology, Melbourne,
@@ -1756,7 +1756,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				(TF_RCVD_SCALE|TF_REQ_SCALE)) {
 				tp->rcv_scale = tp->request_r_scale;
 			}
-			tp->rcv_adv += tp->rcv_wnd;
+			tp->rcv_adv += imin(tp->rcv_wnd,
+			    TCP_MAXWIN << tp->rcv_scale);
 			tp->snd_una++;		/* SYN is acked */
 			/*
 			 * If there's data, delay ACK; if there's also a FIN

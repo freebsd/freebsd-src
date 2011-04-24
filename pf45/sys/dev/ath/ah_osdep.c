@@ -87,7 +87,7 @@ TUNABLE_INT("hw.ath.hal.debug", &ath_hal_debug);
 
 int ath_hal_ar5416_biasadj = 0;
 SYSCTL_INT(_hw_ath_hal, OID_AUTO, ar5416_biasadj, CTLFLAG_RW,
-	&ath_hal_debug, 0, "Enable 2ghz AR5416 direction sensitivity"
+	&ath_hal_ar5416_biasadj, 0, "Enable 2ghz AR5416 direction sensitivity"
 	" bias adjust");
 
 /* NB: these are deprecated; they exist for now for compatibility */
@@ -173,7 +173,11 @@ DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 static	struct alq *ath_hal_alq;
 static	int ath_hal_alq_emitdev;	/* need to emit DEVICE record */
 static	u_int ath_hal_alq_lost;		/* count of lost records */
-static	const char *ath_hal_logfile = "/tmp/ath_hal.log";
+static	char ath_hal_logfile[MAXPATHLEN] = "/tmp/ath_hal.log";
+
+SYSCTL_STRING(_hw_ath_hal, OID_AUTO, alq_logfile, CTLFLAG_RW,
+    &ath_hal_logfile, sizeof(kernelname), "Name of ALQ logfile");
+
 static	u_int ath_hal_alq_qsize = 64*1024;
 
 static int

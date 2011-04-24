@@ -60,8 +60,8 @@ opt_mount()
 
 
   # Start by checking if we already have a cd mounted at CDMNT
-  mount | grep "${CDMNT} " >/dev/null 2>/dev/null
-  if [ "$?" = "0" ]
+  mount | grep -q "${CDMNT} " 2>/dev/null
+  if [ $? -eq 0 ]
   then
     if [ -e "${CDMNT}/${INSFILE}" ]
     then
@@ -150,4 +150,3 @@ opt_umount()
 {
   /sbin/umount ${CDMNT} >/dev/null 2>/dev/null
 };
-

@@ -34,6 +34,8 @@
 #include "ar9002/ar9280v2.ini"		/* XXX ini for tx/rx gain */
 
 #include "ar9002/ar9285_cal.h"
+#include "ar9002/ar9285_phy.h"
+#include "ar9002/ar9285_diversity.h"
 
 static const HAL_PERCAL_DATA ar9280_iq_cal = {		/* single sample */
 	.calName = "IQ", .calType = IQ_MISMATCH_CAL,
@@ -262,6 +264,12 @@ ar9285Attach(uint16_t devid, HAL_SOFTC sc,
 		goto bad;
 	}
 
+	/* Print out whether the EEPROM settings enable AR9285 diversity */
+	if (ar9285_check_div_comb(ah)) {
+		ath_hal_printf(ah, "[ath] Enabling diversity for Kite\n");
+		ah->ah_rxAntCombDiversity = ar9285_ant_comb_scan;
+	}
+
 	/* Disable 11n for the AR2427 */
 	if (devid == AR2427_DEVID_PCIE)
 		AH_PRIVATE(ah)->ah_caps.halHTSupport = AH_FALSE;
@@ -380,42 +388,24 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 #endif
 	pCap->halAutoSleepSupport = AH_FALSE;	/* XXX? */
 	pCap->hal4kbSplitTransSupport = AH_FALSE;
+	/* Disable this so Block-ACK works correctly */
+	pCap->halHasRxSelfLinkedTail = AH_FALSE;
+	if (AR_SREV_KITE_12_OR_LATER(ah))
+		pCap->halHasPsPollSupport = AH_TRUE;
+
 	pCap->halRxStbcSupport = 1;
 	pCap->halTxStbcSupport = 1;
 
 	return AH_TRUE;
 }
 
+/*
+ * Antenna selection is not (currently) done this way.
+ */
 HAL_BOOL
 ar9285SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 {
-#define ANTENNA0_CHAINMASK    0x1
-#define ANTENNA1_CHAINMASK    0x2
-	struct ath_hal_5416 *ahp = AH5416(ah);
-
-	/* Antenna selection is done by setting the tx/rx chainmasks approp. */
-	switch (settings) {
-	case HAL_ANT_FIXED_A:
-		/* Enable first antenna only */
-		ahp->ah_tx_chainmask = ANTENNA0_CHAINMASK;
-		ahp->ah_rx_chainmask = ANTENNA0_CHAINMASK;
-		break;
-	case HAL_ANT_FIXED_B:
-		/* Enable second antenna only, after checking capability */
-		if (AH_PRIVATE(ah)->ah_caps.halTxChainMask > ANTENNA1_CHAINMASK)
-			ahp->ah_tx_chainmask = ANTENNA1_CHAINMASK;
-		ahp->ah_rx_chainmask = ANTENNA1_CHAINMASK;
-		break;
-	case HAL_ANT_VARIABLE:
-		/* Restore original chainmask settings */
-		/* XXX */
-		ahp->ah_tx_chainmask = AR9285_DEFAULT_TXCHAINMASK;
-		ahp->ah_rx_chainmask = AR9285_DEFAULT_RXCHAINMASK;
-		break;
-	}
 	return AH_TRUE;
-#undef ANTENNA0_CHAINMASK
-#undef ANTENNA1_CHAINMASK
 }
 
 static const char*

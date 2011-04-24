@@ -106,7 +106,7 @@ amd64/amd64/exception.S		standard
 amd64/amd64/fpu.c		standard
 amd64/amd64/gdb_machdep.c	optional	gdb
 amd64/amd64/identcpu.c		standard
-amd64/amd64/in_cksum.c		optional	inet
+amd64/amd64/in_cksum.c		optional	inet | inet6
 amd64/amd64/initcpu.c		standard
 amd64/amd64/intr_machdep.c	standard
 amd64/amd64/io.c		optional	io

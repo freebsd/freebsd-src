@@ -35,24 +35,25 @@
  * Ioctl commands specific to this driver.
  */
 enum {
-	T4_GET32 = 0x40,		/* read 32 bit register */
-	T4_SET32,			/* write 32 bit register */
+	T4_GETREG = 0x40,		/* read register */
+	T4_SETREG,			/* write register */
 	T4_REGDUMP,			/* dump of all registers */
 };
 
-struct t4_reg32 {
+struct t4_reg {
 	uint32_t addr;
-	uint32_t val;
+	uint32_t size;
+	uint64_t val;
 };
 
 #define T4_REGDUMP_SIZE  (160 * 1024)
 struct t4_regdump {
-	uint32_t  version;
-	uint32_t  len; /* bytes */
-	uint8_t   *data;
+	uint32_t version;
+	uint32_t len; /* bytes */
+	uint32_t *data;
 };
 
-#define CHELSIO_T4_GETREG32	_IOWR('f', T4_GET32, struct t4_reg32)
-#define CHELSIO_T4_SETREG32	_IOW('f', T4_SET32, struct t4_reg32)
+#define CHELSIO_T4_GETREG	_IOWR('f', T4_GETREG, struct t4_reg)
+#define CHELSIO_T4_SETREG	_IOW('f', T4_SETREG, struct t4_reg)
 #define CHELSIO_T4_REGDUMP	_IOWR('f', T4_REGDUMP, struct t4_regdump)
 #endif

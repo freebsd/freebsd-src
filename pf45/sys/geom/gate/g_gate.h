@@ -76,6 +76,7 @@
  * 'P:' means 'Protected by'.
  */
 struct g_gate_softc {
+	char			*sc_name;		/* P: (read-only) */
 	int			 sc_unit;		/* P: (read-only) */
 	int			 sc_ref;		/* P: g_gate_list_mtx */
 	struct g_provider	*sc_provider;		/* P: (read-only) */
@@ -96,7 +97,6 @@ struct g_gate_softc {
 	LIST_ENTRY(g_gate_softc) sc_next;		/* P: g_gate_list_mtx */
 	char			 sc_info[G_GATE_INFOSIZE]; /* P: (read-only) */
 };
-#define	sc_name	sc_provider->geom->name
 
 #define	G_GATE_DEBUG(lvl, ...)	do {					\
 	if (g_gate_debug >= (lvl)) {					\

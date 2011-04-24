@@ -924,8 +924,10 @@ ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca)
 	}
 
 #if 0
-	if (priv->dev->features & NETIF_F_SG && priv->hca_caps & IB_DEVICE_UD_TSO)
-		priv->dev->if_capabilities |= IFCAP_TSO4 | CSUM_TSO;
+	if (priv->dev->features & NETIF_F_SG && priv->hca_caps & IB_DEVICE_UD_TSO) {
+		priv->dev->if_capabilities |= IFCAP_TSO4;
+		priv->dev->if_hwassist |= CSUM_TSO;
+	}
 #endif
 #endif
 	priv->dev->if_capabilities |=

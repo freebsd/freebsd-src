@@ -37,6 +37,19 @@ typedef struct {
 	uint16_t	ext_center;
 } CHAN_CENTERS;
 
+typedef enum Ar5416_Rates {
+        rate6mb,  rate9mb,  rate12mb, rate18mb,
+        rate24mb, rate36mb, rate48mb, rate54mb,
+        rate1l,   rate2l,   rate2s,   rate5_5l,
+        rate5_5s, rate11l,  rate11s,  rateXr,
+        rateHt20_0, rateHt20_1, rateHt20_2, rateHt20_3,
+        rateHt20_4, rateHt20_5, rateHt20_6, rateHt20_7,
+        rateHt40_0, rateHt40_1, rateHt40_2, rateHt40_3,
+        rateHt40_4, rateHt40_5, rateHt40_6, rateHt40_7,
+        rateDupCck, rateDupOfdm, rateExtCck, rateExtOfdm,
+        Ar5416RateSize
+} AR5416_RATES;
+
 #define	AR5416_DEFAULT_RXCHAINMASK	7
 #define	AR5416_DEFAULT_TXCHAINMASK	1
 #define	AR5416_MAX_RATE_POWER		63
@@ -90,6 +103,10 @@ struct ath_hal_5416 {
 			    const struct ieee80211_channel *chan,
         		    int16_t *pTxPowerIndexOffset);
 
+	/* baseband operations */
+	void		(*ah_initPLL) (struct ath_hal *ah,
+			    const struct ieee80211_channel *chan);
+
 	u_int       	ah_globaltxtimeout;	/* global tx timeout */
 	u_int		ah_gpioMask;
 	int		ah_hangs;		/* h/w hangs state */
@@ -132,10 +149,6 @@ extern	void ar5416InitState(struct ath_hal_5416 *, uint16_t devid,
 extern	void ar5416Detach(struct ath_hal *ah);
 extern	void ar5416AttachPCIE(struct ath_hal *ah);
 extern	HAL_BOOL ar5416FillCapabilityInfo(struct ath_hal *ah);
-
-#define	IS_5GHZ_FAST_CLOCK_EN(_ah, _c) \
-	(IEEE80211_IS_CHAN_5GHZ(_c) && \
-	 ath_hal_eepromGetFlag(ah, AR_EEP_FSTCLK_5G))
 
 extern	void ar5416AniAttach(struct ath_hal *, const struct ar5212AniParams *,
 		const struct ar5212AniParams *, HAL_BOOL ena);
@@ -237,6 +250,10 @@ extern	void ar5416InitChainMasks(struct ath_hal *ah);
 extern	void ar5416RestoreChainMask(struct ath_hal *ah);
 extern	void ar5416EepromSetAddac(struct ath_hal *ah,
 		const struct ieee80211_channel *chan);
+extern	uint16_t ar5416GetMaxEdgePower(uint16_t freq,
+		CAL_CTL_EDGES *pRdEdgesPower, HAL_BOOL is2GHz);
+extern	void ar5416InitPLL(struct ath_hal *ah,
+		const struct ieee80211_channel *chan);
 
 /* TX power setup related routines in ar5416_reset.c */
 extern	void ar5416GetGainBoundariesAndPdadcs(struct ath_hal *ah,
@@ -257,6 +274,8 @@ extern	void ar5416WritePdadcValues(struct ath_hal *ah, int i,
 extern	HAL_BOOL ar5416SetPowerCalTable(struct ath_hal *ah,
 	struct ar5416eeprom *pEepData, const struct ieee80211_channel *chan,
 	int16_t *pTxPowerIndexOffset);
+extern	void ar5416WriteTxPowerRateRegisters(struct ath_hal *ah,
+	const struct ieee80211_channel *chan, const int16_t ratesArray[]);
 
 extern	HAL_BOOL ar5416StopTxDma(struct ath_hal *ah, u_int q);
 extern	HAL_BOOL ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,

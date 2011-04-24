@@ -249,8 +249,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 
 	p = imgp->proc;
 	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
-	uplatform = (Elf32_Addr *)((caddr_t)arginfo - linux_szsigcode -
-	    linux_szplatform);
+	uplatform = (Elf32_Addr *)((caddr_t)arginfo - linux_szplatform);
 	args = (Elf32_Auxargs *)imgp->auxargs;
 	pos = *stack_base + (imgp->args->argc + imgp->args->envc + 2);
 

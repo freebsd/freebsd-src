@@ -93,8 +93,6 @@ __FBSDID("$FreeBSD$");
 #define	WI_MPSAFEQ	0
 #define	WI_GIANTQ	1
 
-static MALLOC_DEFINE(M_NETADDR, "subr_export_host", "Export host address structure");
-
 static void	delmntque(struct vnode *vp);
 static int	flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo,
 		    int slpflag, int slptimeo);
@@ -379,9 +377,10 @@ vfs_busy(struct mount *mp, int flags)
 		if (flags & MBF_MNTLSTLOCK)
 			mtx_unlock(&mountlist_mtx);
 		mp->mnt_kern_flag |= MNTK_MWAIT;
-		msleep(mp, MNT_MTX(mp), PVFS, "vfs_busy", 0);
+		msleep(mp, MNT_MTX(mp), PVFS | PDROP, "vfs_busy", 0);
 		if (flags & MBF_MNTLSTLOCK)
 			mtx_lock(&mountlist_mtx);
+		MNT_ILOCK(mp);
 	}
 	if (flags & MBF_MNTLSTLOCK)
 		mtx_unlock(&mountlist_mtx);

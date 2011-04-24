@@ -190,6 +190,7 @@ contrib/dev/acpica/dispatcher/dswload2.c	optional acpi
 contrib/dev/acpica/dispatcher/dswscope.c	optional acpi
 contrib/dev/acpica/dispatcher/dswstate.c	optional acpi
 contrib/dev/acpica/events/evevent.c		optional acpi
+contrib/dev/acpica/events/evglock.c		optional acpi
 contrib/dev/acpica/events/evgpe.c		optional acpi
 contrib/dev/acpica/events/evgpeblk.c		optional acpi
 contrib/dev/acpica/events/evgpeinit.c		optional acpi
@@ -570,6 +571,12 @@ dev/ata/atapi-fd.c		optional atapifd
 dev/ata/atapi-tape.c		optional atapist
 dev/ata/atapi-cam.c		optional atapicam
 #
+dev/ath/if_ath_pci.c		optional ath_pci pci \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
+#
+dev/ath/if_ath_ahb.c		optional ath_ahb \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
+#
 dev/ath/if_ath.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_debug.c		optional ath \
@@ -581,8 +588,6 @@ dev/ath/if_ath_tx.c		optional ath \
 dev/ath/if_ath_tx_ht.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_sysctl.c		optional ath \
-	compile-with "${NORMAL_C} -I$S/dev/ath"
-dev/ath/if_ath_pci.c		optional ath pci \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ah_osdep.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
@@ -768,6 +773,10 @@ dev/ath/ath_hal/ar9002/ar9285_attach.c optional ath_hal | ath_ar9285 \
 dev/ath/ath_hal/ar9002/ar9285_reset.c optional ath_hal | ath_ar9285 \ 
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar9002/ar9285_cal.c optional ath_hal | ath_ar9285 \ 
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar9002/ar9285_phy.c optional ath_hal | ath_ar9285 \ 
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
+dev/ath/ath_hal/ar9002/ar9285_diversity.c optional ath_hal | ath_ar9285 \ 
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # rf backends
 dev/ath/ath_hal/ar5212/ar2316.c	optional ath_rf2316 \
@@ -1204,8 +1213,8 @@ iwn1000fw.fwo			optional iwn1000fw | iwnfw		\
 	no-implicit-rule						\
 	clean		"iwn1000fw.fwo"
 iwn1000.fw			optional iwn1000fw | iwnfw		\
-	dependency	"$S/contrib/dev/iwn/iwlwifi-1000-128.50.3.1.fw.uu" \
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-1000-128.50.3.1.fw.uu" \
+	dependency	"$S/contrib/dev/iwn/iwlwifi-1000-39.31.5.1.fw.uu" \
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-1000-39.31.5.1.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwn1000.fw"
 iwn4965fw.c			optional iwn4965fw | iwnfw		\
@@ -1232,8 +1241,8 @@ iwn5000fw.fwo		optional iwn5000fw | iwnfw			\
 	no-implicit-rule						\
 	clean		"iwn5000fw.fwo"
 iwn5000.fw			optional iwn5000fw | iwnfw		\
-	dependency	"$S/contrib/dev/iwn/iwlwifi-5000-8.24.2.12.fw.uu" \
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-5000-8.24.2.12.fw.uu"	\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-5000-8.83.5.1.fw.uu" \
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-5000-8.83.5.1.fw.uu"	\
 	no-obj no-implicit-rule						\
 	clean		"iwn5000.fw"
 iwn5150fw.c			optional iwn5150fw | iwnfw		\
@@ -1264,6 +1273,34 @@ iwn6000.fw			optional iwn6000fw | iwnfw		\
 	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000-9.221.4.1.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwn6000.fw"
+iwn6000g2afw.c			optional iwn6000g2afw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn6000g2a.fw:iwn6000g2afw -miwn6000g2afw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn6000g2afw.c"
+iwn6000g2afw.fwo		optional iwn6000g2afw | iwnfw		\
+	dependency	"iwn6000g2a.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn6000g2a.fw" \
+	no-implicit-rule						\
+	clean		"iwn6000g2afw.fwo"
+iwn6000g2a.fw			optional iwn6000g2afw | iwnfw		\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-6000g2a-17.168.5.2.fw.uu" \
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000g2a-17.168.5.2.fw.uu" \
+	no-obj no-implicit-rule						\
+	clean		"iwn6000g2a.fw"
+iwn6000g2bfw.c			optional iwn6000g2bfw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn6000g2b.fw:iwn6000g2bfw -miwn6000g2bfw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn6000g2bfw.c"
+iwn6000g2bfw.fwo		optional iwn6000g2bfw | iwnfw		\
+	dependency	"iwn6000g2b.fw"					\
+	compile-with	"${LD} -b binary -d -warn-common -r -d -o ${.TARGET} iwn6000g2b.fw" \
+	no-implicit-rule						\
+	clean		"iwn6000g2bfw.fwo"
+iwn6000g2b.fw			optional iwn6000g2bfw | iwnfw		\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-6000g2b-17.168.5.2.fw.uu" \
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6000g2b-17.168.5.2.fw.uu" \
+	no-obj no-implicit-rule						\
+	clean		"iwn6000g2b.fw"
 iwn6050fw.c			optional iwn6050fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn6050.fw:iwn6050fw -miwn6050fw -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
@@ -1274,8 +1311,8 @@ iwn6050fw.fwo			optional iwn6050fw | iwnfw		\
 	no-implicit-rule						\
 	clean		"iwn6050fw.fwo"
 iwn6050.fw			optional iwn6050fw | iwnfw		\
-	dependency	"$S/contrib/dev/iwn/iwlwifi-6050-9.201.4.1.fw.uu" \
-	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6050-9.201.4.1.fw.uu" \
+	dependency	"$S/contrib/dev/iwn/iwlwifi-6050-41.28.5.1.fw.uu" \
+	compile-with	"uudecode -o ${.TARGET} $S/contrib/dev/iwn/iwlwifi-6050-41.28.5.1.fw.uu" \
 	no-obj no-implicit-rule						\
 	clean		"iwn6050.fw"
 dev/ixgb/if_ixgb.c		optional ixgb
@@ -2064,6 +2101,7 @@ geom/eli/g_eli_crypto.c		optional geom_eli
 geom/eli/g_eli_ctl.c		optional geom_eli
 geom/eli/g_eli_integrity.c	optional geom_eli
 geom/eli/g_eli_key.c		optional geom_eli
+geom/eli/g_eli_key_cache.c	optional geom_eli
 geom/eli/g_eli_privacy.c	optional geom_eli
 geom/eli/pkcs5v2.c		optional geom_eli
 geom/gate/g_gate.c		optional geom_gate
@@ -2079,6 +2117,7 @@ geom/geom_event.c		standard
 geom/geom_fox.c			optional geom_fox
 geom/geom_io.c			standard
 geom/geom_kern.c		standard
+geom/geom_map.c			optional geom_map
 geom/geom_mbr.c			optional geom_mbr
 geom/geom_mbr_enc.c		optional geom_mbr
 geom/geom_pc98.c		optional geom_pc98
@@ -2115,6 +2154,19 @@ geom/part/g_part_gpt.c		optional geom_part_gpt
 geom/part/g_part_mbr.c		optional geom_part_mbr
 geom/part/g_part_pc98.c		optional geom_part_pc98
 geom/part/g_part_vtoc8.c	optional geom_part_vtoc8
+geom/raid/g_raid.c		optional geom_raid
+geom/raid/g_raid_ctl.c		optional geom_raid
+geom/raid/g_raid_md_if.m	optional geom_raid
+geom/raid/g_raid_tr_if.m	optional geom_raid
+geom/raid/md_intel.c		optional geom_raid
+geom/raid/md_jmicron.c		optional geom_raid
+geom/raid/md_nvidia.c		optional geom_raid
+geom/raid/md_promise.c		optional geom_raid
+geom/raid/md_sii.c		optional geom_raid
+geom/raid/tr_concat.c		optional geom_raid
+geom/raid/tr_raid0.c		optional geom_raid
+geom/raid/tr_raid1.c		optional geom_raid
+geom/raid/tr_raid1e.c		optional geom_raid
 geom/raid3/g_raid3.c		optional geom_raid3
 geom/raid3/g_raid3_ctl.c	optional geom_raid3
 geom/shsec/g_shsec.c		optional geom_shsec
@@ -2212,6 +2264,8 @@ kern/kern_poll.c		optional device_polling
 kern/kern_priv.c		standard
 kern/kern_proc.c		standard
 kern/kern_prot.c		standard
+kern/kern_racct.c		standard
+kern/kern_rctl.c		standard
 kern/kern_resource.c		standard
 kern/kern_rmlock.c		standard
 kern/kern_rwlock.c		standard
@@ -2524,6 +2578,7 @@ net80211/ieee80211_superg.c	optional wlan ieee80211_support_superg
 net80211/ieee80211_tdma.c	optional wlan ieee80211_support_tdma
 net80211/ieee80211_wds.c	optional wlan
 net80211/ieee80211_xauth.c	optional wlan wlan_xauth
+net80211/ieee80211_alq.c	optional wlan ieee80211_alq
 netatalk/aarp.c			optional netatalk
 netatalk/at_control.c		optional netatalk
 netatalk/at_proto.c		optional netatalk
@@ -2628,7 +2683,7 @@ netinet/ip_gre.c		optional gre inet
 netinet/ip_id.c			optional inet
 netinet/in_mcast.c		optional inet
 netinet/in_pcb.c		optional inet | inet6
-netinet/in_proto.c		optional inet \
+netinet/in_proto.c		optional inet | inet6 \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 netinet/in_rmx.c		optional inet
 netinet/ip_divert.c		optional inet ipdivert ipfirewall

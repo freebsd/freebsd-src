@@ -64,16 +64,17 @@
 #include <amd64/linux32/linux32_proto.h>
 #include <amd64/linux32/linux32_syscalls.c>
 #include <amd64/linux32/linux32_systrace_args.c>
+#define	MODNAME		"linux32"
 #elif defined(__i386__)
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
 #include <i386/linux/linux_syscalls.c>
 #include <i386/linux/linux_systrace_args.c>
+#define	MODNAME		"linux"
 #else
 #error Only i386 and amd64 are supported.
 #endif
 extern struct sysent linux_sysent[];
-#define	MODNAME		"linux32"
 #define	MAXSYSCALL	LINUX_SYS_MAXSYSCALL
 #define	SYSCALLNAMES	linux_syscallnames
 #define	SYSENT		linux_sysent
@@ -132,7 +133,7 @@ static struct cdevsw systrace_cdevsw = {
 	.d_version	= D_VERSION,
 	.d_open		= systrace_open,
 #ifdef LINUX_SYSTRACE
-	.d_name		= "linsystrace",
+	.d_name		= "systrace_" MODNAME,
 #else
 	.d_name		= "systrace",
 #endif

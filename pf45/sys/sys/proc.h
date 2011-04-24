@@ -157,6 +157,7 @@ struct pargs {
  * either lock is sufficient for read access, but both locks must be held
  * for write access.
  */
+struct racct;
 struct kaudit_record;
 struct td_sched;
 struct nlminfo;
@@ -566,6 +567,8 @@ struct proc {
 	struct cv	p_pwait;	/* (*) wait cv for exit/exec. */
 	struct cv	p_dbgwait;	/* (*) wait cv for debugger attach
 					   after fork. */
+	uint64_t	p_prev_runtime;	/* (c) Resource usage accounting. */
+	struct racct	*p_racct;	/* (b) Resource accounting. */
 };
 
 #define	p_session	p_pgrp->pg_session
@@ -661,7 +664,6 @@ MALLOC_DECLARE(M_PARGS);
 MALLOC_DECLARE(M_PGRP);
 MALLOC_DECLARE(M_SESSION);
 MALLOC_DECLARE(M_SUBPROC);
-MALLOC_DECLARE(M_ZOMBIE);
 #endif
 
 #define	FOREACH_PROC_IN_SYSTEM(p)					\

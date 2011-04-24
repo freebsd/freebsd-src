@@ -1,9 +1,9 @@
 /*
- * $Id: fselect.c,v 1.74 2010/04/28 20:45:40 tom Exp $
+ *  $Id: fselect.c,v 1.76 2011/01/16 22:20:16 tom Exp $
  *
- * fselect.c -- implements the file-selector box
+ *  fselect.c -- implements the file-selector box
  *
- * Copyright 2000-2009,2010 Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -241,10 +241,10 @@ display_list(LIST * list)
 	top = y - 1;
 	bottom = y + getmaxy(list->win);
 	dlg_draw_scrollbar(list->par,
-			   list->offset,
-			   list->offset,
-			   list->offset + getmaxy(list->win),
-			   list->length,
+			   (long) list->offset,
+			   (long) list->offset,
+			   (long) (list->offset + getmaxy(list->win)),
+			   (long) (list->length),
 			   x + 1,
 			   x + getmaxx(list->win),
 			   top,
@@ -289,7 +289,7 @@ fix_arrows(LIST * list)
 }
 
 static int
-show_list(char *target, LIST * list, bool keep)
+show_list(char *target, LIST * list, int keep)
 {
     int changed = keep || find_choice(target, list);
     display_list(list);
@@ -301,7 +301,7 @@ show_list(char *target, LIST * list, bool keep)
  * to match.
  */
 static int
-show_both_lists(char *input, LIST * d_list, LIST * f_list, bool keep)
+show_both_lists(char *input, LIST * d_list, LIST * f_list, int keep)
 {
     char *leaf = leaf_of(input);
 
@@ -427,7 +427,7 @@ complete(char *name, LIST * d_list, LIST * f_list, char **buff_ptr)
 }
 
 static bool
-fill_lists(char *current, char *input, LIST * d_list, LIST * f_list, bool keep)
+fill_lists(char *current, char *input, LIST * d_list, LIST * f_list, int keep)
 {
     DIR *dp;
     DIRENT *de;
@@ -528,7 +528,7 @@ usable_state(int state, LIST * dirs, LIST * files)
  * Display a dialog box for entering a filename
  */
 static int
-dlg_fselect(const char *title, const char *path, int height, int width, bool dselect)
+dlg_fselect(const char *title, const char *path, int height, int width, int dselect)
 {
     /* *INDENT-OFF* */
     static DLG_KEYS_BINDING binding[] = {
@@ -568,8 +568,8 @@ dlg_fselect(const char *title, const char *path, int height, int width, bool dse
     WINDOW *w_text = 0;
     WINDOW *w_work = 0;
     const char **buttons = dlg_ok_labels();
-    char *d_label = _("Directories");
-    char *f_label = _("Files");
+    const char *d_label = _("Directories");
+    const char *f_label = _("Files");
     char *partial;
     int min_wide = MIN_WIDE;
     int min_items = height ? 0 : 4;
@@ -682,7 +682,7 @@ dlg_fselect(const char *title, const char *path, int height, int width, bool dse
 	if (resized) {
 	    resized = FALSE;
 	    dlg_show_string(w_text, input, offset, inputbox_attr,
-			    0, 0, tbox_width, 0, first);
+			    0, 0, tbox_width, (bool) 0, (bool) first);
 	}
 #endif
 

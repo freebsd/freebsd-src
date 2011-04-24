@@ -113,6 +113,7 @@ static int default_to_accept;
 #endif
 
 VNET_DEFINE(int, autoinc_step);
+VNET_DEFINE(int, fw_one_pass) = 1;
 
 /*
  * Each rule belongs to one of 32 different sets (0..31).
@@ -913,9 +914,10 @@ ipfw_chk(struct ip_fw_args *args)
  * pointer might become stale after other pullups (but we never use it
  * this way).
  */
-#define PULLUP_TO(_len, p, T)					\
+#define PULLUP_TO(_len, p, T)	PULLUP_LEN(_len, p, sizeof(T))
+#define PULLUP_LEN(_len, p, T)					\
 do {								\
-	int x = (_len) + sizeof(T);				\
+	int x = (_len) + T;					\
 	if ((m)->m_len < x) {					\
 		args->m = m = m_pullup(m, x);			\
 		if (m == NULL)					\
@@ -1121,6 +1123,12 @@ do {								\
 				src_port = TCP(ulp)->th_sport;
 				/* save flags for dynamic rules */
 				args->f_id._flags = TCP(ulp)->th_flags;
+				break;
+
+			case IPPROTO_SCTP:
+				PULLUP_TO(hlen, ulp, struct sctphdr);
+				src_port = SCTP(ulp)->src_port;
+				dst_port = SCTP(ulp)->dest_port;
 				break;
 
 			case IPPROTO_UDP:
@@ -1594,6 +1602,7 @@ do {								\
 				break;
 
 			case O_TCPOPTS:
+				PULLUP_LEN(hlen, ulp, (TCP(ulp)->th_off << 2));
 				match = (proto == IPPROTO_TCP && offset == 0 &&
 				    tcpopts_match(TCP(ulp), cmd));
 				break;
@@ -1783,10 +1792,13 @@ do {								\
 					if (mtag != NULL)
 						m_tag_delete(m, mtag);
 					match = 0;
-				} else if (mtag == NULL) {
-					if ((mtag = m_tag_alloc(MTAG_IPFW,
-					    tag, 0, M_NOWAIT)) != NULL)
-						m_tag_prepend(m, mtag);
+				} else {
+					if (mtag == NULL) {
+						mtag = m_tag_alloc( MTAG_IPFW,
+						    tag, 0, M_NOWAIT);
+						if (mtag != NULL)
+							m_tag_prepend(m, mtag);
+					}
 					match = 1;
 				}
 				break;
@@ -2220,6 +2232,7 @@ do {								\
 			}
 
 		}	/* end of inner loop, scan opcodes */
+#undef PULLUP_LEN
 
 		if (done)
 			break;

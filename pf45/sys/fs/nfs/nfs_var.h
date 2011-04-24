@@ -124,6 +124,7 @@ int nfsrv_checkgetattr(struct nfsrv_descript *, vnode_t,
     struct nfsvattr *, nfsattrbit_t *, struct ucred *, NFSPROC_T *);
 int nfsrv_nfsuserdport(u_short, NFSPROC_T *);
 void nfsrv_nfsuserddelport(void);
+void nfsrv_throwawayallstate(NFSPROC_T *);
 
 /* nfs_nfsdserv.c */
 int nfsrvd_access(struct nfsrv_descript *, int,
@@ -287,9 +288,9 @@ int nfsrv_mtofh(struct nfsrv_descript *, struct nfsrvfh *);
 int nfsrv_putattrbit(struct nfsrv_descript *, nfsattrbit_t *);
 void nfsrv_wcc(struct nfsrv_descript *, int, struct nfsvattr *, int,
     struct nfsvattr *);
-int nfsv4_fillattr(struct nfsrv_descript *, vnode_t, NFSACL_T *,
+int nfsv4_fillattr(struct nfsrv_descript *, struct mount *, vnode_t, NFSACL_T *,
     struct vattr *, fhandle_t *, int, nfsattrbit_t *,
-    struct ucred *, NFSPROC_T *, int, int);
+    struct ucred *, NFSPROC_T *, int, int, int, int, uint64_t);
 void nfsrv_fillattr(struct nfsrv_descript *, struct nfsvattr *);
 void nfsrv_adj(mbuf_t, int, int);
 void nfsrv_postopattr(struct nfsrv_descript *, int, struct nfsvattr *);
@@ -327,6 +328,7 @@ int nfs_catnap(int, int, const char *);
 struct nfsreferral *nfsv4root_getreferral(vnode_t, vnode_t, u_int32_t);
 int nfsrv_atroot(vnode_t, long *);
 void newnfs_timer(void *);
+int nfs_supportsnfsv4acls(vnode_t);
 
 /* nfs_commonacl.c */
 int nfsrv_dissectace(struct nfsrv_descript *, struct acl_entry *,
@@ -485,7 +487,7 @@ void nfscl_cleanup(NFSPROC_T *);
 
 /* nfs_clport.c */
 int nfscl_nget(mount_t, vnode_t, struct nfsfh *,
-    struct componentname *, NFSPROC_T *, struct nfsnode **, void *);
+    struct componentname *, NFSPROC_T *, struct nfsnode **, void *, int);
 NFSPROC_T *nfscl_getparent(NFSPROC_T *);
 void nfscl_start_renewthread(struct nfsclclient *);
 void nfscl_loadsbinfo(struct nfsmount *, struct nfsstatfs *, void *);
@@ -555,9 +557,9 @@ void nfsvno_open(struct nfsrv_descript *, struct nameidata *, nfsquad_t,
     struct nfsexstuff *, vnode_t *);
 void nfsvno_updfilerev(vnode_t, struct nfsvattr *, struct ucred *,
     NFSPROC_T *);
-int nfsvno_fillattr(struct nfsrv_descript *, vnode_t,
+int nfsvno_fillattr(struct nfsrv_descript *, struct mount *, vnode_t,
     struct nfsvattr *, fhandle_t *, int, nfsattrbit_t *,
-    struct ucred *, NFSPROC_T *, int, int);
+    struct ucred *, NFSPROC_T *, int, int, int, int, uint64_t);
 int nfsrv_sattr(struct nfsrv_descript *, struct nfsvattr *, nfsattrbit_t *,
     NFSACL_T *, NFSPROC_T *);
 int nfsv4_sattr(struct nfsrv_descript *, struct nfsvattr *, nfsattrbit_t *,

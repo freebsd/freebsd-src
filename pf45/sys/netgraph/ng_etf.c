@@ -180,10 +180,7 @@ ng_etf_constructor(node_p node)
 	int i;
 
 	/* Initialize private descriptor */
-	privdata = malloc(sizeof(*privdata), M_NETGRAPH_ETF,
-		M_NOWAIT | M_ZERO);
-	if (privdata == NULL)
-		return (ENOMEM);
+	privdata = malloc(sizeof(*privdata), M_NETGRAPH_ETF, M_WAITOK | M_ZERO);
 	for (i = 0; i < HASHSIZE; i++) {
 		LIST_INIT((privdata->hashtable + i));
 	}

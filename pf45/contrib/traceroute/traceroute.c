@@ -509,7 +509,10 @@ main(int argc, char **argv)
 			sockerrno = errno;
 	}
 
-	setuid(getuid());
+	if (setuid(getuid()) != 0) {
+		perror("setuid()");
+		exit(1);
+	}
 
 #ifdef IPCTL_DEFTTL
 	{

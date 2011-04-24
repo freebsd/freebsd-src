@@ -1262,7 +1262,7 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 			mtx_lock(&ps->ps_mtx);
 			action = ps->ps_sigact[_SIG_IDX(sig)];
 			mtx_unlock(&ps->ps_mtx);
-			ktrpsig(sig, action, &td->td_sigmask, 0);
+			ktrpsig(sig, action, &td->td_sigmask, ksi->ksi_code);
 		}
 #endif
 		if (sig == SIGKILL)
@@ -1799,7 +1799,8 @@ pgsignal(struct pgrp *pgrp, int sig, int checkctty, ksiginfo_t *ksi)
 		PGRP_LOCK_ASSERT(pgrp, MA_OWNED);
 		LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (checkctty == 0 || p->p_flag & P_CONTROLT)
+			if (p->p_state == PRS_NORMAL &&
+			    (checkctty == 0 || p->p_flag & P_CONTROLT))
 				pksignal(p, sig, ksi);
 			PROC_UNLOCK(p);
 		}
@@ -2715,7 +2716,7 @@ postsig(sig)
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_PSIG))
 		ktrpsig(sig, action, td->td_pflags & TDP_OLDMASK ?
-		    &td->td_oldsigmask : &td->td_sigmask, 0);
+		    &td->td_oldsigmask : &td->td_sigmask, ksi.ksi_code);
 #endif
 	if (p->p_stops & S_SIG) {
 		mtx_unlock(&ps->ps_mtx);
@@ -3313,7 +3314,8 @@ pgsigio(sigiop, sig, checkctty)
 		PGRP_LOCK(sigio->sio_pgrp);
 		LIST_FOREACH(p, &sigio->sio_pgrp->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (CANSIGIO(sigio->sio_ucred, p->p_ucred) &&
+			if (p->p_state == PRS_NORMAL &&
+			    CANSIGIO(sigio->sio_ucred, p->p_ucred) &&
 			    (checkctty == 0 || (p->p_flag & P_CONTROLT)))
 				psignal(p, sig);
 			PROC_UNLOCK(p);

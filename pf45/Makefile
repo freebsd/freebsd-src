@@ -65,7 +65,7 @@
 #  6.  `mergemaster -p'
 #  7.  `make installworld'
 #  8.  `make delete-old'
-#  9.  `mergemaster'                         (you may wish to use -U or -ai).
+#  9.  `mergemaster'		(you may wish to use -i, along with -U or -F).
 # 10.  `reboot'
 # 11.  `make delete-old-libs' (in case no 3rd party program uses them anymore)
 #
@@ -214,7 +214,7 @@ ${TGTS}:
 .MAIN:	all
 
 STARTTIME!= LC_ALL=C date
-CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0
+CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0s
 .if !empty(CHECK_TIME)
 .error check your date/time: ${STARTTIME}
 .endif

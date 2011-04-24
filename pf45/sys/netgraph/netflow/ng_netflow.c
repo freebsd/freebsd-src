@@ -220,13 +220,10 @@ static int
 ng_netflow_constructor(node_p node)
 {
 	priv_p priv;
-	int error = 0, i;
+	int i;
 
 	/* Initialize private data */
-	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT);
-	if (priv == NULL)
-		return (ENOMEM);
-	bzero(priv, sizeof(*priv));
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	/* Make node and its data point at each other */
 	NG_NODE_SET_PRIVATE(node, priv);
@@ -244,8 +241,7 @@ ng_netflow_constructor(node_p node)
 	callout_init(&priv->exp_callout, CALLOUT_MPSAFE);
 
 	/* Allocate memory and set up flow cache */
-	if ((error = ng_netflow_cache_init(priv)))
-		return (error);
+	ng_netflow_cache_init(priv);
 
 	return (0);
 }

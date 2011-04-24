@@ -39,7 +39,6 @@
 /*
  * Definitions unique to i386 cpu support.
  */
-#include <machine/cputypes.h>
 #include <machine/psl.h>
 #include <machine/frame.h>
 #include <machine/segments.h>
@@ -70,13 +69,8 @@ void	swi_vm(void *);
 static __inline uint64_t
 get_cyclecount(void)
 {
-	struct bintime bt;
 
-	if (cpu_class == CPUCLASS_486) {
-		binuptime(&bt);
-		return ((uint64_t)bt.sec << 56 | bt.frac >> 8);
-	}
-	return (rdtsc());
+	return (cpu_ticks());
 }
 
 #endif

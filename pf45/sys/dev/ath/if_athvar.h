@@ -43,6 +43,14 @@
 
 #define	ATH_TIMEOUT		1000
 
+/*
+ * 802.11n requires more TX and RX buffers to do AMPDU.
+ */
+#ifdef	ATH_ENABLE_11N
+#define	ATH_TXBUF	512
+#define	ATH_RXBUF	512
+#endif
+
 #ifndef ATH_RXBUF
 #define	ATH_RXBUF	40		/* number of RX buffers */
 #endif
@@ -245,7 +253,8 @@ struct ath_softc {
 				sc_resume_up: 1,/* on resume, start all vaps */
 				sc_tdma	    : 1,/* TDMA in use */
 				sc_setcca   : 1,/* set/clr CCA with TDMA */
-				sc_resetcal : 1;/* reset cal state next trip */
+				sc_resetcal : 1,/* reset cal state next trip */
+				sc_rxslink  : 1;/* do self-linked final descriptor */
 	uint32_t		sc_eerd;	/* regdomain from EEPROM */
 	uint32_t		sc_eecc;	/* country code from EEPROM */
 						/* rate tables */
@@ -638,6 +647,10 @@ void	ath_intr(void *);
 	(ath_hal_getcapability(_ah, HAL_CAP_TX_CHAINMASK, 0, _ptxchainmask))
 #define	ath_hal_split4ktrans(_ah) \
 	(ath_hal_getcapability(_ah, HAP_CAP_SPLIT_4KB_TRANS, 0, NULL) == HAL_OK)
+#define	ath_hal_self_linked_final_rxdesc(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_RXDESC_SELFLINK, 0, NULL) == HAL_OK)
+#define	ath_hal_gtxto_supported(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_GTXTO, 0, NULL) == HAL_OK)
 
 #define	ath_hal_setuprxdesc(_ah, _ds, _size, _intreq) \
 	((*(_ah)->ah_setupRxDesc)((_ah), (_ds), (_size), (_intreq)))

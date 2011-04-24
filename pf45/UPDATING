@@ -22,6 +22,63 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110424:
+	The GENERIC kernels for all architectures now default to the new
+	CAM-based ATA stack. It means that all legacy ATA drivers were
+	removed and replaced by respective CAM drivers. If you are using
+	ATA device names in /etc/fstab or other places, make sure to update
+	them respectively (adX -> adaY, acdX -> cdY, afdX -> daY, astX -> saY,
+	where 'Y's are the sequential numbers starting from zero for each type
+	in order of detection, unless configured otherwise with tunables,
+	see cam(4)).
+
+	ataraid(4) functionality is now supported by the RAID GEOM class.
+	To use it you can load geom_raid kernel module and use graid(8) tool
+	for management. Instead of /dev/arX device names, use /dev/raid/rX.
+
+	No kernel config options or code have been removed, so if a problem
+	arises, please report it and optionally revert to the old ATA stack.
+	In order to do it you can remove from the kernel config:
+	    options        ATA_CAM
+	    device         ahci
+	    device         mvs
+	    device         siis
+	, and instead add back:
+	    device         atadisk         # ATA disk drives
+	    device         ataraid         # ATA RAID drives
+	    device         atapicd         # ATAPI CDROM drives
+	    device         atapifd         # ATAPI floppy drives
+	    device         atapist         # ATAPI tape drives
+	    options        ATA_STATIC_ID   # Static device numbering
+
+20110423:
+	The default NFS server has been changed to the new server, which
+	was referred to as the experimental server. If you need to switch
+	back to the old NFS server, you must now put the "-o" option on
+	both the mountd and nfsd commands. This can be done using the
+	mountd_flags and nfs_server_flags rc.conf variables until an
+	update to the rc scripts is committed, which is coming soon.
+
+20110418:
+	The GNU Objective-C runtime library (libobjc), and other Objective-C
+	related components have been removed from the base system.  If you
+	require an Objective-C library, please use one of the available ports.
+
+20110331:
+	ath(4) has been split into bus- and device- modules. if_ath contains
+	the HAL, the TX rate control and the network device code. if_ath_pci
+	contains the PCI bus glue. For Atheros MIPS embedded systems, if_ath_ahb
+	contains the AHB glue. Users need to load both if_ath_pci and if_ath
+	in order to use ath on everything else.
+
+	TO REPEAT: if_ath_ahb is not needed for normal users. Normal users only
+	need to load if_ath and if_ath_pci for ath(4) operation.
+
+20110314:
+	As part of the replacement of sysinstall, the process of building
+	release media has changed significantly. For details, please re-read
+	release(7), which has been updated to reflect the new build process.
+
 20110218:
 	GNU binutils 2.17.50 (as of 2007-07-03) has been merged to -HEAD.  This
 	is the last available version under GPLv2.  It brings a number of new

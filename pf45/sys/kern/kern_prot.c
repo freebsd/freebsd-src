@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/jail.h>
 #include <sys/pioctl.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -584,6 +585,9 @@ setuid(struct thread *td, struct setuid_args *uap)
 	}
 	p->p_ucred = newcred;
 	PROC_UNLOCK(p);
+#ifdef RACCT
+	racct_proc_ucred_changed(p, oldcred, newcred);
+#endif
 	uifree(uip);
 	crfree(oldcred);
 	return (0);
@@ -922,6 +926,9 @@ setreuid(register struct thread *td, struct setreuid_args *uap)
 	}
 	p->p_ucred = newcred;
 	PROC_UNLOCK(p);
+#ifdef RACCT
+	racct_proc_ucred_changed(p, oldcred, newcred);
+#endif
 	uifree(ruip);
 	uifree(euip);
 	crfree(oldcred);
@@ -1060,6 +1067,9 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	}
 	p->p_ucred = newcred;
 	PROC_UNLOCK(p);
+#ifdef RACCT
+	racct_proc_ucred_changed(p, oldcred, newcred);
+#endif
 	uifree(ruip);
 	uifree(euip);
 	crfree(oldcred);

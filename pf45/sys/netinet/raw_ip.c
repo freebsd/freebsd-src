@@ -33,6 +33,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 
@@ -96,6 +97,7 @@ int	(*ng_ipfw_input_p)(struct mbuf **, int,
 /* Hook for telling pf that the destination address changed */
 void	(*m_addr_chg_pf_p)(struct mbuf *m);
 
+#ifdef INET
 /*
  * Hooks for multicast routing. They all default to NULL, so leave them not
  * initialized and rely on BSS being set to 0.
@@ -121,6 +123,15 @@ u_long (*ip_mcast_src)(int);
 void (*rsvp_input_p)(struct mbuf *m, int off);
 int (*ip_rsvp_vif)(struct socket *, struct sockopt *);
 void (*ip_rsvp_force_done)(struct socket *);
+#endif /* INET */
+
+u_long	rip_sendspace = 9216;
+SYSCTL_ULONG(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW,
+    &rip_sendspace, 0, "Maximum outgoing raw IP datagram size");
+
+u_long	rip_recvspace = 9216;
+SYSCTL_ULONG(_net_inet_raw, OID_AUTO, recvspace, CTLFLAG_RW,
+    &rip_recvspace, 0, "Maximum space for incoming raw IP datagrams");
 
 /*
  * Hash functions
@@ -130,6 +141,7 @@ void (*ip_rsvp_force_done)(struct socket *);
 #define INP_PCBHASH_RAW(proto, laddr, faddr, mask) \
         (((proto) + (laddr) + (faddr)) % (mask) + 1)
 
+#ifdef INET
 static void
 rip_inshash(struct inpcb *inp)
 {
@@ -160,6 +172,7 @@ rip_delhash(struct inpcb *inp)
 
 	LIST_REMOVE(inp, inp_hash);
 }
+#endif /* INET */
 
 /*
  * Raw interface to IP protocol.
@@ -203,6 +216,7 @@ rip_destroy(void)
 }
 #endif
 
+#ifdef INET
 static int
 rip_append(struct inpcb *last, struct ip *ip, struct mbuf *n,
     struct sockaddr_in *ripsrc)
@@ -751,14 +765,6 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	}
 }
 
-u_long	rip_sendspace = 9216;
-u_long	rip_recvspace = 9216;
-
-SYSCTL_ULONG(_net_inet_raw, OID_AUTO, maxdgram, CTLFLAG_RW,
-    &rip_sendspace, 0, "Maximum outgoing raw IP datagram size");
-SYSCTL_ULONG(_net_inet_raw, OID_AUTO, recvspace, CTLFLAG_RW,
-    &rip_recvspace, 0, "Maximum space for incoming raw IP datagrams");
-
 static int
 rip_attach(struct socket *so, int proto, struct thread *td)
 {
@@ -983,6 +989,7 @@ rip_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	}
 	return (rip_output(m, so, dst));
 }
+#endif /* INET */
 
 static int
 rip_pcblist(SYSCTL_HANDLER_ARGS)
@@ -1089,6 +1096,7 @@ SYSCTL_PROC(_net_inet_raw, OID_AUTO/*XXX*/, pcblist,
     CTLTYPE_OPAQUE | CTLFLAG_RD, NULL, 0,
     rip_pcblist, "S,xinpcb", "List of active raw IP sockets");
 
+#ifdef INET
 struct pr_usrreqs rip_usrreqs = {
 	.pru_abort =		rip_abort,
 	.pru_attach =		rip_attach,
@@ -1104,3 +1112,4 @@ struct pr_usrreqs rip_usrreqs = {
 	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		rip_close,
 };
+#endif /* INET */

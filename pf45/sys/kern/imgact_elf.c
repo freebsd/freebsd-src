@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pioctl.h>
 #include <sys/proc.h>
 #include <sys/procfs.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sf_buf.h>
 #include <sys/smp.h>
@@ -874,7 +875,9 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	PROC_LOCK(imgp->proc);
 	if (data_size > lim_cur(imgp->proc, RLIMIT_DATA) ||
 	    text_size > maxtsiz ||
-	    total_size > lim_cur(imgp->proc, RLIMIT_VMEM)) {
+	    total_size > lim_cur(imgp->proc, RLIMIT_VMEM) ||
+	    racct_set(imgp->proc, RACCT_DATA, data_size) != 0 ||
+	    racct_set(imgp->proc, RACCT_VMEM, total_size) != 0) {
 		PROC_UNLOCK(imgp->proc);
 		return (ENOMEM);
 	}
@@ -1101,6 +1104,13 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 	hdrsize = 0;
 	__elfN(puthdr)(td, (void *)NULL, &hdrsize, seginfo.count);
 
+	PROC_LOCK(td->td_proc);
+	error = racct_add(td->td_proc, RACCT_CORE, hdrsize + seginfo.size);
+	PROC_UNLOCK(td->td_proc);
+	if (error != 0) {
+		error = EFAULT;
+		goto done;
+	}
 	if (hdrsize + seginfo.size >= limit) {
 		error = EFAULT;
 		goto done;

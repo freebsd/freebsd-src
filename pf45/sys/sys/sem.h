@@ -126,6 +126,7 @@ extern struct seminfo	seminfo;
 struct semid_kernel {
 	struct	semid_ds u;
 	struct	label *label;	/* MAC framework label */
+	struct	ucred *cred;	/* creator's credentials */
 };
 
 /* internal "mode" bits */

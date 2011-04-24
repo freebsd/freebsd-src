@@ -207,15 +207,18 @@ see
 .Pp
 Sample code which searches a directory for entry ``name'' is:
 .Bd -literal -offset indent
-len = strlen(name);
 dirp = opendir(".");
-while ((dp = readdir(dirp)) != NULL)
-	if (dp->d_namlen == len && !strcmp(dp->d_name, name)) {
+if (dirp == NULL)
+	return (ERROR);
+len = strlen(name);
+while ((dp = readdir(dirp)) != NULL) {
+	if (dp->d_namlen == len && strcmp(dp->d_name, name) == 0) {
 		(void)closedir(dirp);
-		return FOUND;
+		return (FOUND);
 	}
+}
 (void)closedir(dirp);
-return NOT_FOUND;
+return (NOT_FOUND);
 .Ed
 .Sh SEE ALSO
 .Xr close 2 ,

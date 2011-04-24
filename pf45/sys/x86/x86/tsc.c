@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 
 uint64_t	tsc_freq;
 int		tsc_is_invariant;
+int		tsc_perf_stat;
+
 static eventhandler_tag tsc_levels_tag, tsc_pre_tag, tsc_post_tag;
 
 SYSCTL_INT(_kern_timecounter, OID_AUTO, invariant_tsc, CTLFLAG_RDTUN,
@@ -67,6 +69,11 @@ SYSCTL_INT(_machdep, OID_AUTO, disable_tsc, CTLFLAG_RDTUN, &tsc_disabled, 0,
     "Disable x86 Time Stamp Counter");
 TUNABLE_INT("machdep.disable_tsc", &tsc_disabled);
 
+static int	tsc_skip_calibration;
+SYSCTL_INT(_machdep, OID_AUTO, disable_tsc_calibration, CTLFLAG_RDTUN,
+    &tsc_skip_calibration, 0, "Disable TSC frequency calibration");
+TUNABLE_INT("machdep.disable_tsc_calibration", &tsc_skip_calibration);
+
 static void tsc_freq_changed(void *arg, const struct cf_level *level,
     int status);
 static void tsc_freq_changing(void *arg, const struct cf_level *level,
@@ -83,24 +90,71 @@ static struct timecounter tsc_timecounter = {
 	800,			/* quality (adjusted in code) */
 };
 
-void
-init_TSC(void)
+static void
+tsc_freq_intel(void)
 {
-	u_int64_t tscval[2];
+	char brand[48];
+	u_int regs[4];
+	uint64_t freq;
+	char *p;
+	u_int i;
 
-	if ((cpu_feature & CPUID_TSC) == 0 || tsc_disabled)
-		return;
+	/*
+	 * Intel Processor Identification and the CPUID Instruction
+	 * Application Note 485.
+	 *
+	 * http://www.intel.com/assets/pdf/appnote/241618.pdf
+	 */
+	if (cpu_exthigh >= 0x80000004) {
+		p = brand;
+		for (i = 0x80000002; i < 0x80000005; i++) {
+			do_cpuid(i, regs);
+			memcpy(p, regs, sizeof(regs));
+			p += sizeof(regs);
+		}
+		p = NULL;
+		for (i = 0; i < sizeof(brand) - 1; i++)
+			if (brand[i] == 'H' && brand[i + 1] == 'z')
+				p = brand + i;
+		if (p != NULL) {
+			p -= 5;
+			switch (p[4]) {
+			case 'M':
+				i = 1;
+				break;
+			case 'G':
+				i = 1000;
+				break;
+			case 'T':
+				i = 1000000;
+				break;
+			default:
+				return;
+			}
+#define	C2D(c)	((c) - '0')
+			if (p[1] == '.') {
+				freq = C2D(p[0]) * 1000;
+				freq += C2D(p[2]) * 100;
+				freq += C2D(p[3]) * 10;
+				freq *= i * 1000;
+			} else {
+				freq = C2D(p[0]) * 1000;
+				freq += C2D(p[1]) * 100;
+				freq += C2D(p[2]) * 10;
+				freq += C2D(p[3]);
+				freq *= i * 1000000;
+			}
+#undef C2D
+			tsc_freq = freq;
+		}
+	}
+}
 
-	if (bootverbose)
-	        printf("Calibrating TSC clock ... ");
-
-	tscval[0] = rdtsc();
-	DELAY(1000000);
-	tscval[1] = rdtsc();
-
-	tsc_freq = tscval[1] - tscval[0];
-	if (bootverbose)
-		printf("TSC clock: %ju Hz\n", (intmax_t)tsc_freq);
+static void
+probe_tsc_freq(void)
+{
+	u_int regs[4];
+	uint64_t tsc1, tsc2;
 
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
@@ -127,12 +181,54 @@ init_TSC(void)
 		break;
 	}
 
+	if (cpu_high >= 6) {
+		do_cpuid(6, regs);
+		if ((regs[2] & CPUID_PERF_STAT) != 0) {
+			/*
+			 * XXX Some emulators expose host CPUID without actual
+			 * support for these MSRs.  We must test whether they
+			 * really work.
+			 */
+			wrmsr(MSR_MPERF, 0);
+			wrmsr(MSR_APERF, 0);
+			DELAY(10);
+			if (rdmsr(MSR_MPERF) > 0 && rdmsr(MSR_APERF) > 0)
+				tsc_perf_stat = 1;
+		}
+	}
+
+	if (tsc_skip_calibration) {
+		if (cpu_vendor_id == CPU_VENDOR_INTEL)
+			tsc_freq_intel();
+		return;
+	}
+
+	if (bootverbose)
+	        printf("Calibrating TSC clock ... ");
+	tsc1 = rdtsc();
+	DELAY(1000000);
+	tsc2 = rdtsc();
+	tsc_freq = tsc2 - tsc1;
+	if (bootverbose)
+		printf("TSC clock: %ju Hz\n", (intmax_t)tsc_freq);
+}
+
+void
+init_TSC(void)
+{
+
+	if ((cpu_feature & CPUID_TSC) == 0 || tsc_disabled)
+		return;
+
+	probe_tsc_freq();
+
 	/*
 	 * Inform CPU accounting about our boot-time clock rate.  This will
 	 * be updated if someone loads a cpufreq driver after boot that
 	 * discovers a new max frequency.
 	 */
-	set_cputicker(rdtsc, tsc_freq, 1);
+	if (tsc_freq != 0)
+		set_cputicker(rdtsc, tsc_freq, 1);
 
 	if (tsc_is_invariant)
 		return;
@@ -245,14 +341,16 @@ tsc_freq_changing(void *arg, const struct cf_level *level, int *status)
 static void
 tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 {
+	uint64_t freq;
 
 	/* If there was an error during the transition, don't do anything. */
 	if (tsc_disabled || status != 0)
 		return;
 
 	/* Total setting for this level gives the new frequency in MHz. */
-	tsc_freq = (uint64_t)level->total_set.freq * 1000000;
-	tsc_timecounter.tc_frequency = tsc_freq;
+	freq = (uint64_t)level->total_set.freq * 1000000;
+	atomic_store_rel_64(&tsc_freq, freq);
+	atomic_store_rel_64(&tsc_timecounter.tc_frequency, freq);
 }
 
 static int
@@ -261,22 +359,23 @@ sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
 	int error;
 	uint64_t freq;
 
-	if (tsc_timecounter.tc_frequency == 0)
+	freq = atomic_load_acq_64(&tsc_freq);
+	if (freq == 0)
 		return (EOPNOTSUPP);
-	freq = tsc_freq;
 	error = sysctl_handle_64(oidp, &freq, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		tsc_freq = freq;
-		tsc_timecounter.tc_frequency = tsc_freq;
+		atomic_store_rel_64(&tsc_freq, freq);
+		atomic_store_rel_64(&tsc_timecounter.tc_frequency, freq);
 	}
 	return (error);
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_U64 | CTLFLAG_RW,
-    0, 0, sysctl_machdep_tsc_freq, "QU", "");
+    0, 0, sysctl_machdep_tsc_freq, "QU", "Time Stamp Counter frequency");
 
-static unsigned
+static u_int
 tsc_get_timecount(struct timecounter *tc)
 {
-	return (rdtsc());
+
+	return (rdtsc32());
 }

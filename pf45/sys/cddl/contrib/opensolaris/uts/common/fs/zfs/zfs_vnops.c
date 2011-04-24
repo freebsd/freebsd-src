@@ -2962,11 +2962,6 @@ top:
 	 */
 
 	if (mask & AT_SIZE) {
-		err = zfs_zaccess(zp, ACE_WRITE_DATA, 0, skipaclchk, cr);
-		if (err) {
-			ZFS_EXIT(zfsvfs);
-			return (err);
-		}
 		/*
 		 * XXX - Note, we are not providing any open
 		 * mode flags here (like FNDELAY), so we may

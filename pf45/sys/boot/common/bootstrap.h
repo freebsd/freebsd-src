@@ -296,8 +296,24 @@ struct arch_switch
     /* Perform ISA byte port I/O (only for systems with ISA) */
     int		(*arch_isainb)(int port);
     void	(*arch_isaoutb)(int port, int value);
-    /* Pass in initial kernel memory size */
-    void        (*arch_maphint)(vm_offset_t va, size_t len);	
+
+    /*
+     * Interface to adjust the load address according to the "object"
+     * being loaded.
+     */
+    uint64_t	(*arch_loadaddr)(u_int type, void *data, uint64_t addr);
+#define	LOAD_ELF	1	/* data points to the ELF header. */
+#define	LOAD_RAW	2	/* data points to the file name. */
+
+    /*
+     * Interface to inform MD code about a loaded (ELF) segment. This
+     * can be used to flush caches and/or set up translations.
+     */
+#ifdef __elfN
+    void	(*arch_loadseg)(Elf_Ehdr *eh, Elf_Phdr *ph, uint64_t delta);
+#else
+    void	(*arch_loadseg)(void *eh, void *ph, uint64_t delta);
+#endif
 };
 extern struct arch_switch archsw;
 

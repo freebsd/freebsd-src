@@ -336,4 +336,23 @@ struct kinfo_proc32 {
 	int	ki_tdflags;
 };
 
+struct kld32_file_stat_1 {
+	int	version;	/* set to sizeof(struct kld_file_stat_1) */
+	char	name[MAXPATHLEN];
+	int	refs;
+	int	id;
+	uint32_t address;	/* load address */
+	uint32_t size;		/* size in bytes */
+};
+
+struct kld32_file_stat {
+	int	version;	/* set to sizeof(struct kld_file_stat) */
+	char	name[MAXPATHLEN];
+	int	refs;
+	int	id;
+	uint32_t address;	/* load address */
+	uint32_t size;		/* size in bytes */
+	char	pathname[MAXPATHLEN];
+};
+
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_H_ */

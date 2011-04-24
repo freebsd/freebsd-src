@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
  * generally, I don't like #includes inside .h files, but it seems to
  * be the easiest way to handle the port.
  */
+#include <sys/hash.h>
 #include <fs/nfs/nfsport.h>
 #include <netinet/if_ether.h>
 #include <net/if_types.h>
@@ -84,7 +85,7 @@ newnfs_vncmpf(struct vnode *vp, void *arg)
 int
 nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
     struct componentname *cnp, struct thread *td, struct nfsnode **npp,
-    void *stuff)
+    void *stuff, int lkflags)
 {
 	struct nfsnode *np, *dnp;
 	struct vnode *vp, *nvp;
@@ -99,7 +100,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 
 	hash = fnv_32_buf(nfhp->nfh_fh, nfhp->nfh_len, FNV1_32_INIT);
 
-	error = vfs_hash_get(mntp, hash, LK_EXCLUSIVE,
+	error = vfs_hash_get(mntp, hash, lkflags,
 	    td, &nvp, newnfs_vncmpf, nfhp);
 	if (error == 0 && nvp != NULL) {
 		/*
@@ -243,7 +244,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 		uma_zfree(newnfsnode_zone, np);
 		return (error);
 	}
-	error = vfs_hash_insert(vp, hash, LK_EXCLUSIVE, 
+	error = vfs_hash_insert(vp, hash, lkflags, 
 	    td, &nvp, newnfs_vncmpf, nfhp);
 	if (error)
 		return (error);
@@ -377,12 +378,23 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	 * be the same as a local fs, but since this is in an NFS mount
 	 * point, I don't think that will cause any problems?
 	 */
-	if ((nmp->nm_flag & (NFSMNT_NFSV4 | NFSMNT_HASSETFSID)) ==
-	    (NFSMNT_NFSV4 | NFSMNT_HASSETFSID) &&
+	if (NFSHASNFSV4(nmp) && NFSHASHASSETFSID(nmp) &&
 	    (nmp->nm_fsid[0] != np->n_vattr.na_filesid[0] ||
-	     nmp->nm_fsid[1] != np->n_vattr.na_filesid[1]))
-		vap->va_fsid = np->n_vattr.na_filesid[0];
-	else
+	     nmp->nm_fsid[1] != np->n_vattr.na_filesid[1])) {
+		/*
+		 * va_fsid needs to be set to some value derived from
+		 * np->n_vattr.na_filesid that is not equal
+		 * vp->v_mount->mnt_stat.f_fsid[0], so that it changes
+		 * from the value used for the top level server volume
+		 * in the mounted subtree.
+		 */
+		if (vp->v_mount->mnt_stat.f_fsid.val[0] !=
+		    (uint32_t)np->n_vattr.na_filesid[0])
+			vap->va_fsid = (uint32_t)np->n_vattr.na_filesid[0];
+		else
+			vap->va_fsid = (uint32_t)hash32_buf(
+			    np->n_vattr.na_filesid, 2 * sizeof(uint64_t), 0);
+	} else
 		vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 	np->n_attrstamp = time_second;
 	if (vap->va_size != np->n_size) {
@@ -791,8 +803,8 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEACCESSSET);
 		if (vap->va_mtime.tv_sec != VNOVAL)
 			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEMODIFYSET);
-		(void) nfsv4_fillattr(nd, vp, NULL, vap, NULL, 0, &attrbits,
-		    NULL, NULL, 0, 0);
+		(void) nfsv4_fillattr(nd, vp->v_mount, vp, NULL, vap, NULL, 0,
+		    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0);
 		break;
 	};
 }
@@ -1102,11 +1114,11 @@ pfind_locked(pid_t pid)
 
 	LIST_FOREACH(p, PIDHASH(pid), p_hash)
 		if (p->p_pid == pid) {
-			if (p->p_state == PRS_NEW) {
-				p = NULL;
-				break;
-			}
 			PROC_LOCK(p);
+			if (p->p_state == PRS_NEW) {
+				PROC_UNLOCK(p);
+				p = NULL;
+			}
 			break;
 		}
 	return (p);

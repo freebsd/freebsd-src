@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd March 16, 2011
+.Dd April 18, 2011
 .Dt PS 1
 .Os
 .Sh NAME
@@ -130,7 +130,10 @@ If either of the
 and
 .Fl r
 options are also used, they control how sibling processes are sorted
-relative to eachother.
+relative to each other.
+Note that this option has no effect if the
+.Dq command
+column is not the last column displayed.
 .It Fl e
 Display the environment as well.
 .It Fl f
@@ -244,9 +247,13 @@ If the
 option is specified more than once,
 .Nm
 will use as many columns as necessary without regard for your window size.
+Note that this option has no effect if the
+.Dq command
+column is not the last column displayed.
 .It Fl X
 When displaying processes matched by other options, skip any processes
 which do not have a controlling terminal.
+This is the default behaviour.
 .It Fl x
 When displaying processes matched by other options, include processes
 which do not have a controlling terminal.

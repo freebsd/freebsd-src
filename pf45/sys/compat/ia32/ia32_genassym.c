@@ -13,6 +13,9 @@ __FBSDID("$FreeBSD$");
 
 ASSYM(IA32_SIGF_HANDLER, offsetof(struct ia32_sigframe, sf_ah));
 ASSYM(IA32_SIGF_UC, offsetof(struct ia32_sigframe, sf_uc));
+#ifdef COMPAT_43
+ASSYM(IA32_SIGF_SC, offsetof(struct ia32_sigframe3, sf_siginfo.si_sc));
+#endif
 ASSYM(IA32_UC_GS, offsetof(struct ia32_ucontext, uc_mcontext.mc_gs));
 ASSYM(IA32_UC_FS, offsetof(struct ia32_ucontext, uc_mcontext.mc_fs));
 ASSYM(IA32_UC_ES, offsetof(struct ia32_ucontext, uc_mcontext.mc_es));

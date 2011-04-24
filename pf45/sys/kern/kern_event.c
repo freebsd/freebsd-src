@@ -684,7 +684,7 @@ kqueue(struct thread *td, struct kqueue_args *uap)
 	int fd, error;
 
 	fdp = td->td_proc->p_fd;
-	error = falloc(td, &fp, &fd);
+	error = falloc(td, &fp, &fd, 0);
 	if (error)
 		goto done2;
 

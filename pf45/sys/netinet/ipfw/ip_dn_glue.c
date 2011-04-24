@@ -807,7 +807,7 @@ ip_dummynet_compat(struct sockopt *sopt)
 		if (error)
 			break;
 		error = dn_compat_del(v);
-		free(v, M_DUMMYNET);
+		free(v, M_TEMP);
 		break;
 
 	case IP_DUMMYNET_CONFIGURE:
@@ -816,7 +816,7 @@ ip_dummynet_compat(struct sockopt *sopt)
 		if (error)
 			break;
 		error = dn_compat_configure(v);
-		free(v, M_DUMMYNET);
+		free(v, M_TEMP);
 		break;
 
 	case IP_DUMMYNET_GET: {

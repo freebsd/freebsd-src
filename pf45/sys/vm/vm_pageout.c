@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/ktr.h>
 #include <sys/mount.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
@@ -1281,14 +1282,13 @@ vm_pageout_oom(int shortage)
 	FOREACH_PROC_IN_SYSTEM(p) {
 		int breakout;
 
-		if (p->p_state != PRS_NORMAL)
-			continue;
 		if (PROC_TRYLOCK(p) == 0)
 			continue;
 		/*
 		 * If this is a system, protected or killed process, skip it.
 		 */
-		if ((p->p_flag & (P_INEXEC | P_PROTECTED | P_SYSTEM)) ||
+		if (p->p_state != PRS_NORMAL ||
+		    (p->p_flag & (P_INEXEC | P_PROTECTED | P_SYSTEM)) ||
 		    (p->p_pid == 1) || P_KILLED(p) ||
 		    ((p->p_pid < 48) && (swap_pager_avail != 0))) {
 			PROC_UNLOCK(p);
@@ -1303,7 +1303,8 @@ vm_pageout_oom(int shortage)
 			thread_lock(td);
 			if (!TD_ON_RUNQ(td) &&
 			    !TD_IS_RUNNING(td) &&
-			    !TD_IS_SLEEPING(td)) {
+			    !TD_IS_SLEEPING(td) &&
+			    !TD_IS_SUSPENDED(td)) {
 				thread_unlock(td);
 				breakout = 1;
 				break;
@@ -1632,11 +1633,16 @@ vm_daemon()
 	struct proc *p;
 	struct thread *td;
 	struct vmspace *vm;
-	int breakout, swapout_flags;
+	int breakout, swapout_flags, tryagain, attempts;
+	uint64_t rsize, ravailable;
 
 	while (TRUE) {
 		mtx_lock(&vm_daemon_mtx);
+#ifdef RACCT
+		msleep(&vm_daemon_needed, &vm_daemon_mtx, PPAUSE, "psleep", hz);
+#else
 		msleep(&vm_daemon_needed, &vm_daemon_mtx, PPAUSE, "psleep", 0);
+#endif
 		swapout_flags = vm_pageout_req_swapout;
 		vm_pageout_req_swapout = 0;
 		mtx_unlock(&vm_daemon_mtx);
@@ -1647,18 +1653,21 @@ vm_daemon()
 		 * scan the processes for exceeding their rlimits or if
 		 * process is swapped out -- deactivate pages
 		 */
+		tryagain = 0;
+		attempts = 0;
+again:
+		attempts++;
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
 			vm_pindex_t limit, size;
 
-			if (p->p_state != PRS_NORMAL)
-				continue;
 			/*
 			 * if this is a system process or if we have already
 			 * looked at this process, skip it.
 			 */
 			PROC_LOCK(p);
-			if (p->p_flag & (P_INEXEC | P_SYSTEM | P_WEXIT)) {
+			if (p->p_state != PRS_NORMAL ||
+			    p->p_flag & (P_INEXEC | P_SYSTEM | P_WEXIT)) {
 				PROC_UNLOCK(p);
 				continue;
 			}
@@ -1671,7 +1680,8 @@ vm_daemon()
 				thread_lock(td);
 				if (!TD_ON_RUNQ(td) &&
 				    !TD_IS_RUNNING(td) &&
-				    !TD_IS_SLEEPING(td)) {
+				    !TD_IS_SLEEPING(td) &&
+				    !TD_IS_SUSPENDED(td)) {
 					thread_unlock(td);
 					breakout = 1;
 					break;
@@ -1706,9 +1716,39 @@ vm_daemon()
 				vm_pageout_map_deactivate_pages(
 				    &vm->vm_map, limit);
 			}
+			rsize = IDX_TO_OFF(size);
+			PROC_LOCK(p);
+			racct_set(p, RACCT_RSS, rsize);
+			ravailable = racct_get_available(p, RACCT_RSS);
+			PROC_UNLOCK(p);
+			if (rsize > ravailable) {
+				/*
+				 * Don't be overly aggressive; this might be
+				 * an innocent process, and the limit could've
+				 * been exceeded by some memory hog.  Don't
+				 * try to deactivate more than 1/4th of process'
+				 * resident set size.
+				 */
+				if (attempts <= 8) {
+					if (ravailable < rsize - (rsize / 4))
+						ravailable = rsize - (rsize / 4);
+				}
+				vm_pageout_map_deactivate_pages(
+				    &vm->vm_map, OFF_TO_IDX(ravailable));
+				/* Update RSS usage after paging out. */
+				size = vmspace_resident_count(vm);
+				rsize = IDX_TO_OFF(size);
+				PROC_LOCK(p);
+				racct_set(p, RACCT_RSS, rsize);
+				PROC_UNLOCK(p);
+				if (rsize > ravailable)
+					tryagain = 1;
+			}
 			vmspace_free(vm);
 		}
 		sx_sunlock(&allproc_lock);
+		if (tryagain != 0 && attempts <= 10)
+			goto again;
 	}
 }
 #endif			/* !defined(NO_SWAPPING) */

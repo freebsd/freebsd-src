@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/msg.h>
+#include <sys/racct.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
@@ -466,6 +467,12 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 		}
 #endif
 
+		racct_sub_cred(msqkptr->cred, RACCT_NMSGQ, 1);
+		racct_sub_cred(msqkptr->cred, RACCT_MSGQQUEUED, msqkptr->u.msg_qnum);
+		racct_sub_cred(msqkptr->cred, RACCT_MSGQSIZE, msqkptr->u.msg_cbytes);
+		crfree(msqkptr->cred);
+		msqkptr->cred = NULL;
+
 		/* Free the message headers */
 		msghdr = msqkptr->u.msg_first;
 		while (msghdr != NULL) {
@@ -613,6 +620,13 @@ msgget(td, uap)
 			error = ENOSPC;
 			goto done2;
 		}
+		PROC_LOCK(td->td_proc);
+		error = racct_add(td->td_proc, RACCT_NMSGQ, 1);
+		PROC_UNLOCK(td->td_proc);
+		if (error != 0) {
+			error = ENOSPC;
+			goto done2;
+		}
 		DPRINTF(("msqid %d is available\n", msqid));
 		msqkptr->u.msg_perm.key = key;
 		msqkptr->u.msg_perm.cuid = cred->cr_uid;
@@ -620,6 +634,7 @@ msgget(td, uap)
 		msqkptr->u.msg_perm.cgid = cred->cr_gid;
 		msqkptr->u.msg_perm.gid = cred->cr_gid;
 		msqkptr->u.msg_perm.mode = (msgflg & 0777);
+		msqkptr->cred = crhold(cred);
 		/* Make sure that the returned msqid is unique */
 		msqkptr->u.msg_perm.seq = (msqkptr->u.msg_perm.seq + 1) & 0x7fff;
 		msqkptr->u.msg_first = NULL;
@@ -670,6 +685,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	register struct msqid_kernel *msqkptr;
 	register struct msg *msghdr;
 	short next;
+	size_t saved_msgsz;
 
 	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
@@ -707,6 +723,21 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 		goto done2;
 #endif
 
+	PROC_LOCK(td->td_proc);
+	if (racct_add(td->td_proc, RACCT_MSGQQUEUED, 1)) {
+		PROC_UNLOCK(td->td_proc);
+		error = EAGAIN;
+		goto done2;
+	}
+	saved_msgsz = msgsz;
+	if (racct_add(td->td_proc, RACCT_MSGQSIZE, msgsz)) {
+		racct_sub(td->td_proc, RACCT_MSGQQUEUED, 1);
+		PROC_UNLOCK(td->td_proc);
+		error = EAGAIN;
+		goto done2;
+	}
+	PROC_UNLOCK(td->td_proc);
+
 	segs_needed = (msgsz + msginfo.msgssz - 1) / msginfo.msgssz;
 	DPRINTF(("msgsz=%zu, msgssz=%d, segs_needed=%d\n", msgsz,
 	    msginfo.msgssz, segs_needed));
@@ -721,7 +752,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 		if (msgsz > msqkptr->u.msg_qbytes) {
 			DPRINTF(("msgsz > msqkptr->u.msg_qbytes\n"));
 			error = EINVAL;
-			goto done2;
+			goto done3;
 		}
 
 		if (msqkptr->u.msg_perm.mode & MSG_LOCKED) {
@@ -748,7 +779,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 				DPRINTF(("need more resources but caller "
 				    "doesn't want to wait\n"));
 				error = EAGAIN;
-				goto done2;
+				goto done3;
 			}
 
 			if ((msqkptr->u.msg_perm.mode & MSG_LOCKED) != 0) {
@@ -774,7 +805,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 			if (error != 0) {
 				DPRINTF(("msgsnd:  interrupted system call\n"));
 				error = EINTR;
-				goto done2;
+				goto done3;
 			}
 
 			/*
@@ -784,7 +815,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 			if (msqkptr->u.msg_qbytes == 0) {
 				DPRINTF(("msqid deleted\n"));
 				error = EIDRM;
-				goto done2;
+				goto done3;
 			}
 
 		} else {
@@ -866,7 +897,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 		wakeup(msqkptr);
 		DPRINTF(("mtype (%ld) < 1\n", msghdr->msg_type));
 		error = EINVAL;
-		goto done2;
+		goto done3;
 	}
 
 	/*
@@ -893,7 +924,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 			msg_freehdr(msghdr);
 			msqkptr->u.msg_perm.mode &= ~MSG_LOCKED;
 			wakeup(msqkptr);
-			goto done2;
+			goto done3;
 		}
 		mtx_lock(&msq_mtx);
 		msgsz -= tlen;
@@ -917,7 +948,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 		msg_freehdr(msghdr);
 		wakeup(msqkptr);
 		error = EIDRM;
-		goto done2;
+		goto done3;
 	}
 
 #ifdef MAC
@@ -936,7 +967,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	if (error != 0) {
 		msg_freehdr(msghdr);
 		wakeup(msqkptr);
-		goto done2;
+		goto done3;
 	}
 #endif
 
@@ -959,6 +990,13 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 
 	wakeup(msqkptr);
 	td->td_retval[0] = 0;
+done3:
+	if (error != 0) {
+		PROC_LOCK(td->td_proc);
+		racct_sub(td->td_proc, RACCT_MSGQQUEUED, 1);
+		racct_sub(td->td_proc, RACCT_MSGQSIZE, saved_msgsz);
+		PROC_UNLOCK(td->td_proc);
+	}
 done2:
 	mtx_unlock(&msq_mtx);
 	return (error);
@@ -1191,6 +1229,9 @@ kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
 	msqkptr->u.msg_qnum--;
 	msqkptr->u.msg_lrpid = td->td_proc->p_pid;
 	msqkptr->u.msg_rtime = time_second;
+
+	racct_sub_cred(msqkptr->cred, RACCT_MSGQQUEUED, 1);
+	racct_sub_cred(msqkptr->cred, RACCT_MSGQSIZE, msghdr->msg_ts);
 
 	/*
 	 * Make msgsz the actual amount that we'll be returning.

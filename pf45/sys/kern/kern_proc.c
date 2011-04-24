@@ -291,11 +291,11 @@ pfind(pid)
 	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, PIDHASH(pid), p_hash)
 		if (p->p_pid == pid) {
-			if (p->p_state == PRS_NEW) {
-				p = NULL;
-				break;
-			}
 			PROC_LOCK(p);
+			if (p->p_state == PRS_NEW) {
+				PROC_UNLOCK(p);
+				p = NULL;
+			}
 			break;
 		}
 	sx_sunlock(&allproc_lock);
@@ -756,7 +756,6 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 		kp->ki_sigcatch = ps->ps_sigcatch;
 		mtx_unlock(&ps->ps_mtx);
 	}
-	PROC_SLOCK(p);
 	if (p->p_state != PRS_NEW &&
 	    p->p_state != PRS_ZOMBIE &&
 	    p->p_vmspace != NULL) {
@@ -782,12 +781,11 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_swtime = (ticks - p->p_swtick) / hz;
 	kp->ki_pid = p->p_pid;
 	kp->ki_nice = p->p_nice;
-	rufetch(p, &kp->ki_rusage);
-	kp->ki_runtime = cputick2usec(p->p_rux.rux_runtime);
-	PROC_SUNLOCK(p);
 	kp->ki_start = p->p_stats->p_start;
 	timevaladd(&kp->ki_start, &boottime);
 	PROC_SLOCK(p);
+	rufetch(p, &kp->ki_rusage);
+	kp->ki_runtime = cputick2usec(p->p_rux.rux_runtime);
 	calcru(p, &kp->ki_rusage.ru_utime, &kp->ki_rusage.ru_stime);
 	PROC_SUNLOCK(p);
 	calccru(p, &kp->ki_childutime, &kp->ki_childstime);
@@ -1213,13 +1211,11 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			/*
 			 * Skip embryonic processes.
 			 */
-			PROC_SLOCK(p);
+			PROC_LOCK(p);
 			if (p->p_state == PRS_NEW) {
-				PROC_SUNLOCK(p);
+				PROC_UNLOCK(p);
 				continue;
 			}
-			PROC_SUNLOCK(p);
-			PROC_LOCK(p);
 			KASSERT(p->p_ucred != NULL,
 			    ("process credential is NULL for non-NEW proc"));
 			/*

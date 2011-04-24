@@ -60,8 +60,8 @@ extern int newnfs_directio_allow_mmap;
 extern struct nfsstats newnfsstats;
 extern struct mtx ncl_iod_mutex;
 extern int ncl_numasync;
-extern enum nfsiod_state ncl_iodwant[NFS_MAXRAHEAD];
-extern struct nfsmount *ncl_iodmount[NFS_MAXRAHEAD];
+extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
+extern struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
 extern int newnfs_directio_enable;
 
 int ncl_pbuf_freecnt = -1;	/* start out unlimited */
@@ -452,6 +452,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 	int bcount;
 	int seqcount;
 	int nra, error = 0, n = 0, on = 0;
+	off_t tmp_off;
 
 	KASSERT(uio->uio_rw == UIO_READ, ("ncl_read mode"));
 	if (uio->uio_resid == 0)
@@ -469,11 +470,14 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 	}
 	if (nmp->nm_rsize == 0 || nmp->nm_readdirsize == 0)
 		(void) newnfs_iosize(nmp);
-	mtx_unlock(&nmp->nm_mtx);		
 
+	tmp_off = uio->uio_offset + uio->uio_resid;
 	if (vp->v_type != VDIR &&
-	    (uio->uio_offset + uio->uio_resid) > nmp->nm_maxfilesize)
+	    (tmp_off > nmp->nm_maxfilesize || tmp_off < uio->uio_offset)) {
+		mtx_unlock(&nmp->nm_mtx);		
 		return (EFBIG);
+	}
+	mtx_unlock(&nmp->nm_mtx);		
 
 	if (newnfs_directio_enable && (ioflag & IO_DIRECT) && (vp->v_type == VREG))
 		/* No caching/ no readaheads. Just read data into the user buffer */
@@ -874,6 +878,7 @@ ncl_write(struct vop_write_args *ap)
 	daddr_t lbn;
 	int bcount;
 	int n, on, error = 0;
+	off_t tmp_off;
 
 	KASSERT(uio->uio_rw == UIO_WRITE, ("ncl_write mode"));
 	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_td == curthread,
@@ -940,7 +945,8 @@ flush_and_restart:
 
 	if (uio->uio_offset < 0)
 		return (EINVAL);
-	if ((uio->uio_offset + uio->uio_resid) > nmp->nm_maxfilesize)
+	tmp_off = uio->uio_offset + uio->uio_resid;
+	if (tmp_off > nmp->nm_maxfilesize || tmp_off < uio->uio_offset)
 		return (EFBIG);
 	if (uio->uio_resid == 0)
 		return (0);
@@ -1354,15 +1360,6 @@ ncl_asyncio(struct nfsmount *nmp, struct buf *bp, struct ucred *cred, struct thr
 	int error, error2;
 
 	/*
-	 * Unless iothreadcnt is set > 0, don't bother with async I/O
-	 * threads. For LAN environments, they don't buy any significant
-	 * performance improvement that you can't get with large block
-	 * sizes.
-	 */
-	if (nmp->nm_readahead == 0)
-		return (EPERM);
-
-	/*
 	 * Commits are usually short and sweet so lets save some cpu and
 	 * leave the async daemons for more important rpc's (such as reads
 	 * and writes).
@@ -1390,13 +1387,9 @@ again:
 	/*
 	 * Try to create one if none are free.
 	 */
-	if (!gotiod) {
-		iod = ncl_nfsiodnew(1);
-		if (iod != -1)
-			gotiod = TRUE;
-	}
-
-	if (gotiod) {
+	if (!gotiod)
+		ncl_nfsiodnew();
+	else {
 		/*
 		 * Found one, so wake it up and tell it which
 		 * mount to process.
@@ -1453,11 +1446,7 @@ again:
 			 * We might have lost our iod while sleeping,
 			 * so check and loop if nescessary.
 			 */
-			if (nmp->nm_bufqiods == 0) {
-				NFS_DPF(ASYNCIO,
-					("ncl_asyncio: no iods after mount %p queue was drained, looping\n", nmp));
-				goto again;
-			}
+			goto again;
 		}
 
 		/* We might have lost our nfsiod */

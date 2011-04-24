@@ -85,7 +85,7 @@ ia64/ia64/emulate.c		standard
 ia64/ia64/exception.S		standard
 ia64/ia64/gdb_machdep.c		optional	gdb
 ia64/ia64/highfp.c		standard
-ia64/ia64/in_cksum.c		optional	inet
+ia64/ia64/in_cksum.c		optional	inet | inet6
 ia64/ia64/interrupt.c		standard
 ia64/ia64/iodev_machdep.c	optional	io
 ia64/ia64/locore.S		standard	no-obj

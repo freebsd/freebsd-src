@@ -57,10 +57,10 @@ PARTINDEX=""
 while 
 z=1
 do
-  CHARS=`expr $CHARS - 1`
+  CHARS=$((CHARS-1))
   LAST_CHAR=`echo "${PARTITION}" | cut -c $CHARS`
-  echo "${LAST_CHAR}" | grep "^[0-9]$" >/dev/null 2>/dev/null
-  if [ "$?" = "0" ] ; then
+  echo "${LAST_CHAR}" | grep -q "^[0-9]$" 2>/dev/null
+  if [ $? -eq 0 ] ; then
     PARTINDEX="${LAST_CHAR}${PARTINDEX}"
   else
     break

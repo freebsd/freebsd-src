@@ -36,8 +36,8 @@ determine_package_dependencies()
   local PKGNAME="${1}"
   local DEPFILE="${2}"
 
-  grep "${PKGNAME}" "${DEPFILE}" >/dev/null
-  if [ "$?" -ne "0" ]
+  grep -q "${PKGNAME}" "${DEPFILE}"
+  if [ $? -ne 0 ]
   then
     echo "${PKGNAME}" >> "${DEPFILE}"
     get_package_dependencies "${PKGNAME}" "1"
@@ -78,7 +78,7 @@ install_packages()
 {
   # First, lets check and see if we even have any packages to install
   get_value_from_cfg installPackages
-  if [ ! -z "${VAL}" ]
+  if [ -n "${VAL}" ]
   then
     HERE=`pwd`
     rc_nohalt "mkdir -p ${FSMNT}/${PKGTMPDIR}"

@@ -47,7 +47,7 @@ enum fw_retval {
 	FW_ENOSYS		= 38,	/* functionality not implemented */
 	FW_EPROTO		= 71,	/* protocol error */
 	FW_ETIMEDOUT		= 110,	/* timeout */
-	FW_TIMEDOUT		= 110,	/* timeout */
+	FW_EINPROGRESS		= 115,	/* fw internal */
 	FW_SCSI_ABORT_REQUESTED	= 128,	/* */
 	FW_SCSI_ABORT_TIMEDOUT	= 129,	/* */
 	FW_SCSI_ABORTED		= 130,	/* */
@@ -3934,13 +3934,11 @@ enum fw_port_cap {
 	FW_PORT_CAP_FC_RX		= 0x0040,
 	FW_PORT_CAP_FC_TX		= 0x0080,
 	FW_PORT_CAP_ANEG		= 0x0100,
-	FW_PORT_CAP_MDI_0		= 0x0200,
-	FW_PORT_CAP_MDI_1		= 0x0400,
-	FW_PORT_CAP_BEAN		= 0x0800,
-	FW_PORT_CAP_PMA_LPBK		= 0x1000,
-	FW_PORT_CAP_PCS_LPBK		= 0x2000,
-	FW_PORT_CAP_PHYXS_LPBK		= 0x4000,
-	FW_PORT_CAP_FAR_END_LPBK	= 0x8000,
+	FW_PORT_CAP_MDIX		= 0x0200,
+	FW_PORT_CAP_MDIAUTO		= 0x0400,
+	FW_PORT_CAP_FEC			= 0x0800,
+	FW_PORT_CAP_TECHKR		= 0x1000,
+	FW_PORT_CAP_TECHKX4		= 0x2000,
 };
 
 #define S_FW_PORT_CAP_SPEED	0
@@ -3954,6 +3952,12 @@ enum fw_port_cap {
 #define V_FW_PORT_CAP_FC(x)	((x) << S_FW_PORT_CAP_FC)
 #define G_FW_PORT_CAP_FC(x) \
     (((x) >> S_FW_PORT_CAP_FC) & M_FW_PORT_CAP_FC)
+
+#define S_FW_PORT_CAP_ANEG	8
+#define M_FW_PORT_CAP_ANEG	0x1
+#define V_FW_PORT_CAP_ANEG(x)	((x) << S_FW_PORT_CAP_ANEG)
+#define G_FW_PORT_CAP_ANEG(x) \
+    (((x) >> S_FW_PORT_CAP_ANEG) & M_FW_PORT_CAP_ANEG)
 
 enum fw_port_mdi {
 	FW_PORT_CAP_MDI_UNCHANGED,
@@ -4253,16 +4257,16 @@ enum fw_port_type {
 /* These are read from module's EEPROM and determined once the
    module is inserted. */
 enum fw_port_module_type {
-	FW_PORT_MOD_TYPE_NA,
-	FW_PORT_MOD_TYPE_LR = 0x1,
-	FW_PORT_MOD_TYPE_SR = 0x2,
-	FW_PORT_MOD_TYPE_ER = 0x3,
-	FW_PORT_MOD_TYPE_TWINAX_PASSIVE = 0x4,
-	FW_PORT_MOD_TYPE_TWINAX_ACTIVE = 0x5,
-
-	FW_PORT_MOD_TYPE_LRM = 0x6,
-
-	FW_PORT_MOD_TYPE_NONE = M_FW_PORT_CMD_MODTYPE
+	FW_PORT_MOD_TYPE_NA		= 0x0,
+	FW_PORT_MOD_TYPE_LR		= 0x1,
+	FW_PORT_MOD_TYPE_SR		= 0x2,
+	FW_PORT_MOD_TYPE_ER		= 0x3,
+	FW_PORT_MOD_TYPE_TWINAX_PASSIVE	= 0x4,
+	FW_PORT_MOD_TYPE_TWINAX_ACTIVE	= 0x5,
+	FW_PORT_MOD_TYPE_LRM		= 0x6,
+	FW_PORT_MOD_TYPE_UNKNOWN	= M_FW_PORT_CMD_MODTYPE - 2,
+	FW_PORT_MOD_TYPE_NOTSUPPORTED	= M_FW_PORT_CMD_MODTYPE - 1,
+	FW_PORT_MOD_TYPE_NONE		= M_FW_PORT_CMD_MODTYPE
 };
 
 /* used by FW and tools may use this to generate VPD */

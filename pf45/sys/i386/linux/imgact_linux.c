@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/vnode.h>
 
@@ -107,7 +108,8 @@ exec_linux_imgact(struct image_params *imgp)
      */
     PROC_LOCK(imgp->proc);
     if (a_out->a_text > maxtsiz ||
-	a_out->a_data + bss_size > lim_cur(imgp->proc, RLIMIT_DATA)) {
+	a_out->a_data + bss_size > lim_cur(imgp->proc, RLIMIT_DATA) ||
+	racct_set(imgp->proc, RACCT_DATA, a_out->a_data + bss_size) != 0) {
 	PROC_UNLOCK(imgp->proc);
 	return (ENOMEM);
     }

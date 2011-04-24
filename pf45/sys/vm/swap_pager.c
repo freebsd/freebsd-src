@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
+#include <sys/racct.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <sys/sysctl.h>
@@ -192,6 +193,12 @@ swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred)
 	if (incr & PAGE_MASK)
 		panic("swap_reserve: & PAGE_MASK");
 
+	PROC_LOCK(curproc);
+	error = racct_add(curproc, RACCT_SWAP, incr);
+	PROC_UNLOCK(curproc);
+	if (error != 0)
+		return (0);
+
 	res = 0;
 	mtx_lock(&sw_dev_mtx);
 	r = swap_reserved + incr;
@@ -230,6 +237,12 @@ swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred)
 		    curproc->p_pid, uip->ui_uid, incr);
 	}
 
+	if (!res) {
+		PROC_LOCK(curproc);
+		racct_sub(curproc, RACCT_SWAP, incr);
+		PROC_UNLOCK(curproc);
+	}
+
 	return (res);
 }
 
@@ -241,6 +254,10 @@ swap_reserve_force(vm_ooffset_t incr)
 	mtx_lock(&sw_dev_mtx);
 	swap_reserved += incr;
 	mtx_unlock(&sw_dev_mtx);
+
+	PROC_LOCK(curproc);
+	racct_add_force(curproc, RACCT_SWAP, incr);
+	PROC_UNLOCK(curproc);
 
 	uip = curthread->td_ucred->cr_ruidinfo;
 	PROC_LOCK(curproc);
@@ -282,6 +299,8 @@ swap_release_by_cred(vm_ooffset_t decr, struct ucred *cred)
 		printf("negative vmsize for uid = %d\n", uip->ui_uid);
 	uip->ui_vmsize -= decr;
 	UIDINFO_VMSIZE_UNLOCK(uip);
+
+	racct_sub_cred(cred, RACCT_SWAP, decr);
 }
 
 static void swapdev_strategy(struct buf *, struct swdevt *sw);

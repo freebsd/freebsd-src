@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #define	FALSE	0
 
 extern struct nfsstats newnfsstats;
+extern int nfsrv_useacl;
 MALLOC_DECLARE(M_NEWNFSREQ);
 
 /*
@@ -103,6 +104,7 @@ static vop_lookup_t	nfs_lookup;
 static vop_create_t	nfs_create;
 static vop_mknod_t	nfs_mknod;
 static vop_open_t	nfs_open;
+static vop_pathconf_t	nfs_pathconf;
 static vop_close_t	nfs_close;
 static vop_access_t	nfs_access;
 static vop_getattr_t	nfs_getattr;
@@ -151,6 +153,7 @@ struct vop_vector newnfs_vnodeops = {
 	.vop_mkdir =		nfs_mkdir,
 	.vop_mknod =		nfs_mknod,
 	.vop_open =		nfs_open,
+	.vop_pathconf =		nfs_pathconf,
 	.vop_print =		nfs_print,
 	.vop_read =		nfs_read,
 	.vop_readdir =		nfs_readdir,
@@ -216,7 +219,7 @@ SYSCTL_INT(_vfs_newnfs, OID_AUTO, clean_pages_on_close, CTLFLAG_RW,
 	   &nfs_clean_pages_on_close, 0, "NFS clean dirty pages on close");
 
 int newnfs_directio_enable = 0;
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, directio_enable, CTLFLAG_RW,
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs_directio_enable, CTLFLAG_RW,
 	   &newnfs_directio_enable, 0, "Enable NFS directio");
 
 /*
@@ -231,7 +234,7 @@ SYSCTL_INT(_vfs_newnfs, OID_AUTO, directio_enable, CTLFLAG_RW,
  * meaningful.
  */
 int newnfs_directio_allow_mmap = 1;
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, directio_allow_mmap, CTLFLAG_RW,
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs_directio_allow_mmap, CTLFLAG_RW,
 	   &newnfs_directio_allow_mmap, 0, "Enable mmaped IO on file with O_DIRECT opens");
 
 #if 0
@@ -1153,7 +1156,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 			FREE((caddr_t)nfhp, M_NFSFH);
 			return (EISDIR);
 		}
-		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np, NULL);
+		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np, NULL,
+		    LK_EXCLUSIVE);
 		if (error)
 			return (error);
 		newvp = NFSTOV(np);
@@ -1182,7 +1186,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 				return (error);
 		}
 		VOP_UNLOCK(dvp, 0);
-		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np, NULL);
+		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np, NULL,
+		    cnp->cn_lkflags);
 		if (error == 0)
 			newvp = NFSTOV(np);
 		vfs_unbusy(mp);
@@ -1210,7 +1215,8 @@ nfs_lookup(struct vop_lookup_args *ap)
 			(void) nfscl_loadattrcache(&newvp, &nfsva, NULL, NULL,
 			    0, 1);
 	} else {
-		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np, NULL);
+		error = nfscl_nget(mp, dvp, nfhp, cnp, td, &np, NULL,
+		    cnp->cn_lkflags);
 		if (error)
 			return (error);
 		newvp = NFSTOV(np);
@@ -1392,15 +1398,18 @@ nfs_mknodrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 			    NULL);
 		if (nfhp)
 			error = nfscl_nget(dvp->v_mount, dvp, nfhp, cnp,
-			    cnp->cn_thread, &np, NULL);
+			    cnp->cn_thread, &np, NULL, LK_EXCLUSIVE);
 	}
 	if (dattrflag)
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, NULL, 0, 1);
 	if (!error) {
 		newvp = NFSTOV(np);
-		if (attrflag)
+		if (attrflag != 0) {
 			error = nfscl_loadattrcache(&newvp, &nfsva, NULL, NULL,
 			    0, 1);
+			if (error != 0)
+				vput(newvp);
+		}
 	}
 	if (!error) {
 		if ((cnp->cn_flags & MAKEENTRY))
@@ -1505,7 +1514,7 @@ again:
 			    NULL);
 		if (nfhp != NULL)
 			error = nfscl_nget(dvp->v_mount, dvp, nfhp, cnp,
-			    cnp->cn_thread, &np, NULL);
+			    cnp->cn_thread, &np, NULL, LK_EXCLUSIVE);
 	}
 	if (dattrflag)
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, NULL, 0, 1);
@@ -1517,7 +1526,7 @@ again:
 	}
 	if (error) {
 		if (newvp != NULL) {
-			vrele(newvp);
+			vput(newvp);
 			newvp = NULL;
 		}
 		if (NFS_ISV34(dvp) && (fmode & O_EXCL) &&
@@ -1527,6 +1536,20 @@ again:
 		}
 	} else if (NFS_ISV34(dvp) && (fmode & O_EXCL)) {
 		if (nfscl_checksattr(vap, &nfsva)) {
+			/*
+			 * We are normally called with only a partially
+			 * initialized VAP. Since the NFSv3 spec says that
+			 * the server may use the file attributes to
+			 * store the verifier, the spec requires us to do a
+			 * SETATTR RPC. FreeBSD servers store the verifier in
+			 * atime, but we can't really assume that all servers
+			 * will so we ensure that our SETATTR sets both atime
+			 * and mtime.
+			 */
+			if (vap->va_mtime.tv_sec == VNOVAL)
+				vfs_timestamp(&vap->va_mtime);
+			if (vap->va_atime.tv_sec == VNOVAL)
+				vap->va_atime = vap->va_mtime;
 			error = nfsrpc_setattr(newvp, vap, NULL, cnp->cn_cred,
 			    cnp->cn_thread, &nfsva, &attrflag, NULL);
 			if (error && (vap->va_uid != (uid_t)VNOVAL ||
@@ -1614,7 +1637,9 @@ nfs_remove(struct vop_remove_args *ap)
 			error = 0;
 	} else if (!np->n_sillyrename)
 		error = nfs_sillyrename(dvp, vp, cnp);
+	mtx_lock(&np->n_mtx);
 	np->n_attrstamp = 0;
+	mtx_unlock(&np->n_mtx);
 	return (error);
 }
 
@@ -1702,7 +1727,7 @@ nfs_rename(struct vop_rename_args *ap)
 		error = 0;
 		goto out;
 	}
-	if ((error = vn_lock(fvp, LK_EXCLUSIVE)))
+	if ((error = vn_lock(fvp, LK_EXCLUSIVE)) != 0)
 		goto out;
 
 	/*
@@ -1740,7 +1765,7 @@ nfs_rename(struct vop_rename_args *ap)
 	    tdvp, tvp, tcnp->cn_nameptr, tcnp->cn_namelen, tcnp->cn_cred,
 	    tcnp->cn_thread);
 
-	if (!error) {
+	if (error == 0 && NFS_ISV4(tdvp)) {
 		/*
 		 * For NFSv4, check to see if it is the same name and
 		 * replace the name, if it is different.
@@ -1836,18 +1861,22 @@ nfs_renamerpc(struct vnode *fdvp, struct vnode *fvp, char *fnameptr,
 	    &tattrflag, NULL, NULL);
 	mtx_lock(&fdnp->n_mtx);
 	fdnp->n_flag |= NMODIFIED;
-	mtx_unlock(&fdnp->n_mtx);
+	if (fattrflag != 0) {
+		mtx_unlock(&fdnp->n_mtx);
+		(void) nfscl_loadattrcache(&fdvp, &fnfsva, NULL, NULL, 0, 1);
+	} else {
+		fdnp->n_attrstamp = 0;
+		mtx_unlock(&fdnp->n_mtx);
+	}
 	mtx_lock(&tdnp->n_mtx);
 	tdnp->n_flag |= NMODIFIED;
-	mtx_unlock(&tdnp->n_mtx);
-	if (fattrflag)
-		(void) nfscl_loadattrcache(&fdvp, &fnfsva, NULL, NULL, 0, 1);
-	else
-		fdnp->n_attrstamp = 0;
-	if (tattrflag)
+	if (tattrflag != 0) {
+		mtx_unlock(&tdnp->n_mtx);
 		(void) nfscl_loadattrcache(&tdvp, &tnfsva, NULL, NULL, 0, 1);
-	else
+	} else {
 		tdnp->n_attrstamp = 0;
+		mtx_unlock(&tdnp->n_mtx);
+	}
 	if (error && NFS_ISV4(fdvp))
 		error = nfscl_maperr(td, error, (uid_t)0, (gid_t)0);
 	return (error);
@@ -1862,7 +1891,7 @@ nfs_link(struct vop_link_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct vnode *tdvp = ap->a_tdvp;
 	struct componentname *cnp = ap->a_cnp;
-	struct nfsnode *tdnp;
+	struct nfsnode *np, *tdnp;
 	struct nfsvattr nfsva, dnfsva;
 	int error = 0, attrflag, dattrflag;
 
@@ -1883,15 +1912,21 @@ nfs_link(struct vop_link_args *ap)
 	tdnp = VTONFS(tdvp);
 	mtx_lock(&tdnp->n_mtx);
 	tdnp->n_flag |= NMODIFIED;
-	mtx_unlock(&tdnp->n_mtx);
+	if (dattrflag != 0) {
+		mtx_unlock(&tdnp->n_mtx);
+		(void) nfscl_loadattrcache(&tdvp, &dnfsva, NULL, NULL, 0, 1);
+	} else {
+		tdnp->n_attrstamp = 0;
+		mtx_unlock(&tdnp->n_mtx);
+	}
 	if (attrflag)
 		(void) nfscl_loadattrcache(&vp, &nfsva, NULL, NULL, 0, 1);
-	else
-		VTONFS(vp)->n_attrstamp = 0;
-	if (dattrflag)
-		(void) nfscl_loadattrcache(&tdvp, &dnfsva, NULL, NULL, 0, 1);
-	else
-		tdnp->n_attrstamp = 0;
+	else {
+		np = VTONFS(vp);
+		mtx_lock(&np->n_mtx);
+		np->n_attrstamp = 0;
+		mtx_unlock(&np->n_mtx);
+	}
 	/*
 	 * If negative lookup caching is enabled, I might as well
 	 * add an entry for this node. Not necessary for correctness,
@@ -1928,7 +1963,7 @@ nfs_symlink(struct vop_symlink_args *ap)
 	    &nfsva, &nfhp, &attrflag, &dattrflag, NULL);
 	if (nfhp) {
 		ret = nfscl_nget(dvp->v_mount, dvp, nfhp, cnp, cnp->cn_thread,
-		    &np, NULL);
+		    &np, NULL, LK_EXCLUSIVE);
 		if (!ret)
 			newvp = NFSTOV(np);
 		else if (!error)
@@ -1971,11 +2006,13 @@ nfs_symlink(struct vop_symlink_args *ap)
 	dnp = VTONFS(dvp);
 	mtx_lock(&dnp->n_mtx);
 	dnp->n_flag |= NMODIFIED;
-	mtx_unlock(&dnp->n_mtx);
-	if (dattrflag)
+	if (dattrflag != 0) {
+		mtx_unlock(&dnp->n_mtx);
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, NULL, 0, 1);
-	else
+	} else {
 		dnp->n_attrstamp = 0;
+		mtx_unlock(&dnp->n_mtx);
+	}
 	return (error);
 }
 
@@ -1995,7 +2032,7 @@ nfs_mkdir(struct vop_mkdir_args *ap)
 	struct nfsvattr nfsva, dnfsva;
 	int error = 0, attrflag, dattrflag, ret;
 
-	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred)))
+	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred)) != 0)
 		return (error);
 	vap->va_type = VDIR;
 	error = nfsrpc_mkdir(dvp, cnp->cn_nameptr, cnp->cn_namelen,
@@ -2004,14 +2041,16 @@ nfs_mkdir(struct vop_mkdir_args *ap)
 	dnp = VTONFS(dvp);
 	mtx_lock(&dnp->n_mtx);
 	dnp->n_flag |= NMODIFIED;
-	mtx_unlock(&dnp->n_mtx);
-	if (dattrflag)
+	if (dattrflag != 0) {
+		mtx_unlock(&dnp->n_mtx);
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, NULL, 0, 1);
-	else
+	} else {
 		dnp->n_attrstamp = 0;
+		mtx_unlock(&dnp->n_mtx);
+	}
 	if (nfhp) {
 		ret = nfscl_nget(dvp->v_mount, dvp, nfhp, cnp, cnp->cn_thread,
-		    &np, NULL);
+		    &np, NULL, LK_EXCLUSIVE);
 		if (!ret) {
 			newvp = NFSTOV(np);
 			if (attrflag)
@@ -2070,11 +2109,13 @@ nfs_rmdir(struct vop_rmdir_args *ap)
 	dnp = VTONFS(dvp);
 	mtx_lock(&dnp->n_mtx);
 	dnp->n_flag |= NMODIFIED;
-	mtx_unlock(&dnp->n_mtx);
-	if (dattrflag)
+	if (dattrflag != 0) {
+		mtx_unlock(&dnp->n_mtx);
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, NULL, 0, 1);
-	else
+	} else {
 		dnp->n_attrstamp = 0;
+		mtx_unlock(&dnp->n_mtx);
+	}
 
 	cache_purge(dvp);
 	cache_purge(vp);
@@ -2386,13 +2427,16 @@ printf("replace=%s\n",nnn);
 		    cn.cn_nameptr = name;
 		    cn.cn_namelen = len;
 		    error = nfscl_nget(dvp->v_mount, dvp, nfhp, &cn, td,
-			&np, NULL);
+			&np, NULL, LK_EXCLUSIVE);
 		    if (error)
 			return (error);
 		    newvp = NFSTOV(np);
 		}
 		if (!attrflag && *npp == NULL) {
-			vrele(newvp);
+			if (newvp == dvp)
+				vrele(newvp);
+			else
+				vput(newvp);
 			return (ENOENT);
 		}
 		if (attrflag)
@@ -3244,3 +3288,115 @@ nfs_setacl(struct vop_setacl_args *ap)
 	}
 	return (error);
 }
+
+/*
+ * Return POSIX pathconf information applicable to nfs filesystems.
+ */
+static int
+nfs_pathconf(struct vop_pathconf_args *ap)
+{
+	struct nfsv3_pathconf pc;
+	struct nfsvattr nfsva;
+	struct vnode *vp = ap->a_vp;
+	struct thread *td = curthread;
+	int attrflag, error;
+
+	if (NFS_ISV34(vp)) {
+		error = nfsrpc_pathconf(vp, &pc, td->td_ucred, td, &nfsva,
+		    &attrflag, NULL);
+		if (attrflag != 0)
+			(void) nfscl_loadattrcache(&vp, &nfsva, NULL, NULL, 0,
+			    1);
+		if (error != 0)
+			return (error);
+	} else {
+		/* For NFSv2, just fake them. */
+		pc.pc_linkmax = LINK_MAX;
+		pc.pc_namemax = NFS_MAXNAMLEN;
+		pc.pc_notrunc = 1;
+		pc.pc_chownrestricted = 1;
+		pc.pc_caseinsensitive = 0;
+		pc.pc_casepreserving = 1;
+		error = 0;
+	}
+	switch (ap->a_name) {
+	case _PC_LINK_MAX:
+		*ap->a_retval = pc.pc_linkmax;
+		break;
+	case _PC_NAME_MAX:
+		*ap->a_retval = pc.pc_namemax;
+		break;
+	case _PC_PATH_MAX:
+		*ap->a_retval = PATH_MAX;
+		break;
+	case _PC_PIPE_BUF:
+		*ap->a_retval = PIPE_BUF;
+		break;
+	case _PC_CHOWN_RESTRICTED:
+		*ap->a_retval = pc.pc_chownrestricted;
+		break;
+	case _PC_NO_TRUNC:
+		*ap->a_retval = pc.pc_notrunc;
+		break;
+	case _PC_ACL_EXTENDED:
+		*ap->a_retval = 0;
+		break;
+	case _PC_ACL_NFS4:
+		if (NFS_ISV4(vp) && nfsrv_useacl != 0 && attrflag != 0 &&
+		    NFSISSET_ATTRBIT(&nfsva.na_suppattr, NFSATTRBIT_ACL))
+			*ap->a_retval = 1;
+		else
+			*ap->a_retval = 0;
+		break;
+	case _PC_ACL_PATH_MAX:
+		if (NFS_ISV4(vp))
+			*ap->a_retval = ACL_MAX_ENTRIES;
+		else
+			*ap->a_retval = 3;
+		break;
+	case _PC_MAC_PRESENT:
+		*ap->a_retval = 0;
+		break;
+	case _PC_ASYNC_IO:
+		/* _PC_ASYNC_IO should have been handled by upper layers. */
+		KASSERT(0, ("_PC_ASYNC_IO should not get here"));
+		error = EINVAL;
+		break;
+	case _PC_PRIO_IO:
+		*ap->a_retval = 0;
+		break;
+	case _PC_SYNC_IO:
+		*ap->a_retval = 0;
+		break;
+	case _PC_ALLOC_SIZE_MIN:
+		*ap->a_retval = vp->v_mount->mnt_stat.f_bsize;
+		break;
+	case _PC_FILESIZEBITS:
+		if (NFS_ISV34(vp))
+			*ap->a_retval = 64;
+		else
+			*ap->a_retval = 32;
+		break;
+	case _PC_REC_INCR_XFER_SIZE:
+		*ap->a_retval = vp->v_mount->mnt_stat.f_iosize;
+		break;
+	case _PC_REC_MAX_XFER_SIZE:
+		*ap->a_retval = -1; /* means ``unlimited'' */
+		break;
+	case _PC_REC_MIN_XFER_SIZE:
+		*ap->a_retval = vp->v_mount->mnt_stat.f_iosize;
+		break;
+	case _PC_REC_XFER_ALIGN:
+		*ap->a_retval = PAGE_SIZE;
+		break;
+	case _PC_SYMLINK_MAX:
+		*ap->a_retval = NFS_MAXPATHLEN;
+		break;
+
+	default:
+		error = EINVAL;
+		break;
+	}
+	return (error);
+}
+

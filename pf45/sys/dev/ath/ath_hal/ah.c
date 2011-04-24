@@ -21,6 +21,7 @@
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
+#include "ah_eeprom.h"			/* for 5ghz fast clock flag */
 
 #include "ar5416/ar5416reg.h"		/* NB: includes ar5212reg.h */
 
@@ -419,6 +420,8 @@ ath_hal_chan2wmode(struct ath_hal *ah, const struct ieee80211_channel *chan)
                                      /* 11a Turbo  11b  11g  108g */
 static const uint8_t CLOCK_RATE[]  = { 40,  80,   22,  44,   88  };
 
+#define	CLOCK_FAST_RATE_5GHZ_OFDM	44
+
 u_int
 ath_hal_mac_clks(struct ath_hal *ah, u_int usecs)
 {
@@ -426,7 +429,12 @@ ath_hal_mac_clks(struct ath_hal *ah, u_int usecs)
 	u_int clks;
 
 	/* NB: ah_curchan may be null when called attach time */
-	if (c != AH_NULL) {
+	/* XXX merlin and later specific workaround - 5ghz fast clock is 44 */
+	if (c != AH_NULL && IS_5GHZ_FAST_CLOCK_EN(ah, c)) {
+		clks = usecs * CLOCK_FAST_RATE_5GHZ_OFDM;
+		if (IEEE80211_IS_CHAN_HT40(c))
+			clks <<= 1;
+	} else if (c != AH_NULL) {
 		clks = usecs * CLOCK_RATE[ath_hal_chan2wmode(ah, c)];
 		if (IEEE80211_IS_CHAN_HT40(c))
 			clks <<= 1;
@@ -442,7 +450,12 @@ ath_hal_mac_usec(struct ath_hal *ah, u_int clks)
 	u_int usec;
 
 	/* NB: ah_curchan may be null when called attach time */
-	if (c != AH_NULL) {
+	/* XXX merlin and later specific workaround - 5ghz fast clock is 44 */
+	if (c != AH_NULL && IS_5GHZ_FAST_CLOCK_EN(ah, c)) {
+		usec = clks / CLOCK_FAST_RATE_5GHZ_OFDM;
+		if (IEEE80211_IS_CHAN_HT40(c))
+			usec >>= 1;
+	} else if (c != AH_NULL) {
 		usec = clks / CLOCK_RATE[ath_hal_chan2wmode(ah, c)];
 		if (IEEE80211_IS_CHAN_HT40(c))
 			usec >>= 1;
@@ -599,8 +612,12 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		default:
 			return HAL_ENOTSUPP;
 		}
-	case HAP_CAP_SPLIT_4KB_TRANS:	/* hardware handles descriptors straddling 4k page boundary */
+	case HAL_CAP_SPLIT_4KB_TRANS:	/* hardware handles descriptors straddling 4k page boundary */
 		return pCap->hal4kbSplitTransSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_HAS_PSPOLL:	/* hardware has ps-poll support */
+		return pCap->halHasPsPollSupport ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_RXDESC_SELFLINK:	/* hardware supports self-linked final RX descriptors correctly */
+		return pCap->halHasRxSelfLinkedTail ? HAL_OK : HAL_ENOTSUPP;
 	default:
 		return HAL_EINVAL;
 	}
@@ -873,6 +890,76 @@ ath_hal_getChanNoise(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		return NOISE_FLOOR[mode] + ath_hal_getNfAdjust(ah, ichan);
 	} else
 		return ichan->rawNoiseFloor + ichan->noiseFloorAdjust;
+}
+
+/*
+ * Fetch the current setup of ctl/ext noise floor values.
+ *
+ * If the CHANNEL_MIMO_NF_VALID flag isn't set, the array is simply
+ * populated with values from NOISE_FLOOR[] + ath_hal_getNfAdjust().
+ *
+ * The caller must supply ctl/ext NF arrays which are at least
+ * AH_MIMO_MAX_CHAINS entries long.
+ */
+int
+ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
+    const struct ieee80211_channel *chan, int16_t *nf_ctl,
+    int16_t *nf_ext)
+{
+	HAL_CHANNEL_INTERNAL *ichan;
+	int i;
+
+	ichan = ath_hal_checkchannel(ah, chan);
+	if (ichan == AH_NULL) {
+		HALDEBUG(ah, HAL_DEBUG_NFCAL,
+		    "%s: invalid channel %u/0x%x; no mapping\n",
+		    __func__, chan->ic_freq, chan->ic_flags);
+		for (i = 0; i < AH_MIMO_MAX_CHAINS; i++) {
+			nf_ctl[i] = nf_ext[i] = 0;
+		}
+		return 0;
+	}
+
+	/* Return 0 if there's no valid MIMO values (yet) */
+	if (! (ichan->privFlags & CHANNEL_MIMO_NF_VALID)) {
+		for (i = 0; i < AH_MIMO_MAX_CHAINS; i++) {
+			nf_ctl[i] = nf_ext[i] = 0;
+		}
+		return 0;
+	}
+	if (ichan->rawNoiseFloor == 0) {
+		WIRELESS_MODE mode = ath_hal_chan2wmode(ah, chan);
+		HALASSERT(mode < WIRELESS_MODE_MAX);
+		/*
+		 * See the comment below - this could cause issues for
+		 * stations which have a very low RSSI, below the
+		 * 'normalised' NF values in NOISE_FLOOR[].
+		 */
+		for (i = 0; i < AH_MIMO_MAX_CHAINS; i++) {
+			nf_ctl[i] = nf_ext[i] = NOISE_FLOOR[mode] +
+			    ath_hal_getNfAdjust(ah, ichan);
+		}
+		return 1;
+	} else {
+		/*
+		 * The value returned here from a MIMO radio is presumed to be
+		 * "good enough" as a NF calculation. As RSSI values are calculated
+		 * against this, an adjusted NF may be higher than the RSSI value
+		 * returned from a vary weak station, resulting in an obscenely
+		 * high signal strength calculation being returned.
+		 *
+		 * This should be re-evaluated at a later date, along with any
+		 * signal strength calculations which are made. Quite likely the
+		 * RSSI values will need to be adjusted to ensure the calculations
+		 * don't "wrap" when RSSI is less than the "adjusted" NF value.
+		 * ("Adjust" here is via ichan->noiseFloorAdjust.)
+		 */
+		for (i = 0; i < AH_MIMO_MAX_CHAINS; i++) {
+			nf_ctl[i] = ichan->noiseFloorCtl[i] + ath_hal_getNfAdjust(ah, ichan);
+			nf_ext[i] = ichan->noiseFloorExt[i] + ath_hal_getNfAdjust(ah, ichan);
+		}
+		return 1;
+	}
 }
 
 /*

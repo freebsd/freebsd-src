@@ -1284,16 +1284,23 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
 	struct nfsrv_descript nfsd;
 	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
 	struct nfsrv_descript *nd = &nfsd;
+	int rsize;
+	off_t tmp_off;
 
 	*attrflagp = 0;
 	tsiz = uio_uio_resid(uiop);
-	if (uiop->uio_offset + tsiz > 0xffffffff &&
-	    !NFSHASNFSV3OR4(nmp))
+	tmp_off = uiop->uio_offset + tsiz;
+	NFSLOCKMNT(nmp);
+	if (tmp_off > nmp->nm_maxfilesize || tmp_off < uiop->uio_offset) {
+		NFSUNLOCKMNT(nmp);
 		return (EFBIG);
+	}
+	rsize = nmp->nm_rsize;
+	NFSUNLOCKMNT(nmp);
 	nd->nd_mrep = NULL;
 	while (tsiz > 0) {
 		*attrflagp = 0;
-		len = (tsiz > nmp->nm_rsize) ? nmp->nm_rsize : tsiz;
+		len = (tsiz > rsize) ? rsize : tsiz;
 		NFSCL_REQSTART(nd, NFSPROC_READ, vp);
 		if (nd->nd_flag & ND_NFSV4)
 			nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSTATEID);
@@ -1333,7 +1340,7 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			eof = fxdr_unsigned(int, *tl);
 		}
-		NFSM_STRSIZ(retlen, nmp->nm_rsize);
+		NFSM_STRSIZ(retlen, rsize);
 		error = nfsm_mbufuio(nd, uiop, retlen);
 		if (error)
 			goto nfsmout;
@@ -1452,13 +1459,14 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 	struct nfsrv_descript nfsd;
 	struct nfsrv_descript *nd = &nfsd;
 	nfsattrbit_t attrbits;
+	off_t tmp_off;
 
 	KASSERT(uiop->uio_iovcnt == 1, ("nfs: writerpc iovcnt > 1"));
 	*attrflagp = 0;
 	tsiz = uio_uio_resid(uiop);
+	tmp_off = uiop->uio_offset + tsiz;
 	NFSLOCKMNT(nmp);
-	if (uiop->uio_offset + tsiz > 0xffffffff &&
-	    !NFSHASNFSV3OR4(nmp)) {
+	if (tmp_off > nmp->nm_maxfilesize || tmp_off < uiop->uio_offset) {
 		NFSUNLOCKMNT(nmp);
 		return (EFBIG);
 	}
@@ -1467,11 +1475,6 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
 	nd->nd_mrep = NULL;	/* NFSv2 sometimes does a write with */
 	nd->nd_repstat = 0;	/* uio_resid == 0, so the while is not done */
 	while (tsiz > 0) {
-		nmp = VFSTONFS(vnode_mount(vp));
-		if (nmp == NULL) {
-			error = ENXIO;
-			goto nfsmout;
-		}
 		*attrflagp = 0;
 		len = (tsiz > wsize) ? wsize : tsiz;
 		NFSCL_REQSTART(nd, NFSPROC_WRITE, vp);
@@ -2738,9 +2741,9 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				len = fxdr_unsigned(int, *tl);
 			} else if (nd->nd_flag & ND_NFSV3) {
 				NFSM_DISSECT(tl, u_int32_t *, 3*NFSX_UNSIGNED);
-				nfsva.na_fileid =
-				    fxdr_unsigned(long, *++tl);
-				len = fxdr_unsigned(int, *++tl);
+				nfsva.na_fileid = fxdr_hyper(tl);
+				tl += 2;
+				len = fxdr_unsigned(int, *tl);
 			} else {
 				NFSM_DISSECT(tl, u_int32_t *, 2*NFSX_UNSIGNED);
 				nfsva.na_fileid =
@@ -2942,7 +2945,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	nfsquad_t cookie, ncookie;
 	int error = 0, tlen, more_dirs = 1, blksiz = 0, bigenough = 1;
 	int attrflag, tryformoredirs = 1, eof = 0, gotmnton = 0;
-	int unlocknewvp = 0;
+	int isdotdot = 0, unlocknewvp = 0;
 	long dotfileid, dotdotfileid = 0, fileno = 0;
 	char *cp;
 	nfsattrbit_t attrbits, dattrbits;
@@ -3192,6 +3195,11 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				*cp = '\0';
 				cp += tlen;	/* points to cookie storage */
 				tl2 = (u_int32_t *)cp;
+				if (len == 2 && cnp->cn_nameptr[0] == '.' &&
+				    cnp->cn_nameptr[1] == '.')
+					isdotdot = 1;
+				else
+					isdotdot = 0;
 				uio_iov_base_add(uiop, (tlen + NFSX_HYPER));
 				uio_iov_len_add(uiop, -(tlen + NFSX_HYPER));
 				uio_uio_resid_add(uiop, -(tlen + NFSX_HYPER));
@@ -3269,9 +3277,25 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				    unlocknewvp = 0;
 				    FREE((caddr_t)nfhp, M_NFSFH);
 				    np = dnp;
+				} else if (isdotdot != 0) {
+				    /*
+				     * Skip doing a nfscl_nget() call for "..".
+				     * There's a race between acquiring the nfs
+				     * node here and lookups that look for the
+				     * directory being read (in the parent).
+				     * It would try to get a lock on ".." here,
+				     * owning the lock on the directory being
+				     * read. Lookup will hold the lock on ".."
+				     * and try to acquire the lock on the
+				     * directory being read.
+				     * If the directory is unlocked/relocked,
+				     * then there is a LOR with the buflock
+				     * vp is relocked.
+				     */
+				    free(nfhp, M_NFSFH);
 				} else {
 				    error = nfscl_nget(vnode_mount(vp), vp,
-				      nfhp, cnp, p, &np, NULL);
+				      nfhp, cnp, p, &np, NULL, LK_EXCLUSIVE);
 				    if (!error) {
 					newvp = NFSTOV(np);
 					unlocknewvp = 1;
@@ -4176,8 +4200,8 @@ nfsrpc_setaclrpc(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSTATEID);
 	NFSZERO_ATTRBIT(&attrbits);
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_ACL);
-	(void) nfsv4_fillattr(nd, vp, aclp, NULL, NULL, 0, &attrbits,
-	    NULL, NULL, 0, 0);
+	(void) nfsv4_fillattr(nd, vnode_mount(vp), vp, aclp, NULL, NULL, 0,
+	    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0);
 	error = nfscl_request(nd, vp, p, cred, stuff);
 	if (error)
 		return (error);

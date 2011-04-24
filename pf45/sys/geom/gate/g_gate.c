@@ -136,7 +136,7 @@ g_gate_destroy(struct g_gate_softc *sc, boolean_t force)
 	mtx_unlock(&g_gate_units_lock);
 	mtx_destroy(&sc->sc_queue_mtx);
 	g_topology_lock();
-	G_GATE_DEBUG(0, "Device %s destroyed.", gp->name);
+	G_GATE_DEBUG(1, "Device %s destroyed.", gp->name);
 	gp->softc = NULL;
 	g_wither_geom(gp, ENXIO);
 	sc->sc_provider = NULL;
@@ -194,7 +194,7 @@ g_gate_start(struct bio *bp)
 	}
 
 	mtx_lock(&sc->sc_queue_mtx);
-	if (sc->sc_queue_count > sc->sc_queue_size) {
+	if (sc->sc_queue_size > 0 && sc->sc_queue_count > sc->sc_queue_size) {
 		mtx_unlock(&sc->sc_queue_mtx);
 		G_GATE_LOGREQ(1, bp, "Queue full, request canceled.");
 		g_io_deliver(bp, ENOMEM);
@@ -409,13 +409,14 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	for (unit = 0; unit < g_gate_maxunits; unit++) {
 		if (g_gate_units[unit] == NULL)
 			continue;
-		if (strcmp(name, g_gate_units[unit]->sc_provider->name) != 0)
+		if (strcmp(name, g_gate_units[unit]->sc_name) != 0)
 			continue;
 		mtx_unlock(&g_gate_units_lock);
 		mtx_destroy(&sc->sc_queue_mtx);
 		free(sc, M_GATE);
 		return (EEXIST);
 	}
+	sc->sc_name = name;
 	g_gate_units[sc->sc_unit] = sc;
 	g_gate_nunits++;
 	mtx_unlock(&g_gate_units_lock);
@@ -434,6 +435,10 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 	sc->sc_provider = pp;
 	g_error_provider(pp, 0);
 	g_topology_unlock();
+	mtx_lock(&g_gate_units_lock);
+	sc->sc_name = sc->sc_provider->name;
+	mtx_unlock(&g_gate_units_lock);
+	G_GATE_DEBUG(1, "Device %s created.", gp->name);
 
 	if (sc->sc_timeout > 0) {
 		callout_reset(&sc->sc_callout, sc->sc_timeout * hz,

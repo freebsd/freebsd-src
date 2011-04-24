@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/taskqueue.h>
 #include <sys/priv.h>
+#include <sys/module.h>
 
 #include <machine/bus.h>
 
@@ -594,6 +595,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_hasbmask = ath_hal_hasbssidmask(ah);
 	sc->sc_hasbmatch = ath_hal_hasbssidmatch(ah);
 	sc->sc_hastsfadd = ath_hal_hastsfadjust(ah);
+	sc->sc_rxslink = ath_hal_self_linked_final_rxdesc(ah);
 	if (ath_hal_hasfastframes(ah))
 		ic->ic_caps |= IEEE80211_C_FF;
 	wmodes = ath_hal_getwirelessmodes(ah);
@@ -612,7 +614,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 * Don't think of doing that unless you know what you're doing.
 	 */
 
-#ifdef	AH_ENABLE_11N
+#ifdef	ATH_ENABLE_11N
 	/*
 	 * Query HT capabilities
 	 */
@@ -1263,7 +1265,7 @@ ath_intr(void *arg)
 	struct ath_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
-	HAL_INT status;
+	HAL_INT status = 0;
 
 	if (sc->sc_invalid) {
 		/*
@@ -1294,6 +1296,11 @@ ath_intr(void *arg)
 	ath_hal_getisr(ah, &status);		/* NB: clears ISR too */
 	DPRINTF(sc, ATH_DEBUG_INTR, "%s: status 0x%x\n", __func__, status);
 	status &= sc->sc_imask;			/* discard unasked for bits */
+
+	/* Short-circuit un-handled interrupts */
+	if (status == 0x0)
+		return;
+
 	if (status & HAL_INT_FATAL) {
 		sc->sc_stats.ast_hardware++;
 		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
@@ -1353,6 +1360,10 @@ ath_intr(void *arg)
 			sc->sc_stats.ast_bmiss++;
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_bmisstask);
 		}
+		if (status & HAL_INT_GTT)
+			sc->sc_stats.ast_tx_timeout++;
+		if (status & HAL_INT_CST)
+			sc->sc_stats.ast_tx_cst++;
 		if (status & HAL_INT_MIB) {
 			sc->sc_stats.ast_mib++;
 			/*
@@ -1556,6 +1567,13 @@ ath_init(void *arg)
 	 */
 	if (sc->sc_needmib && ic->ic_opmode == IEEE80211_M_STA)
 		sc->sc_imask |= HAL_INT_MIB;
+
+	/* Enable global TX timeout and carrier sense timeout if available */
+	if (ath_hal_gtxto_supported(ah))
+		sc->sc_imask |= HAL_INT_GTT;
+
+	DPRINTF(sc, ATH_DEBUG_RESET, "%s: imask=0x%x\n",
+		__func__, sc->sc_imask);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	callout_reset(&sc->sc_wd_ch, hz, ath_watchdog, sc);
@@ -1927,6 +1945,19 @@ ath_calcrxfilter(struct ath_softc *sc)
 	if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
 	    IEEE80211_IS_CHAN_ANYG(ic->ic_curchan))
 		rfilt |= HAL_RX_FILTER_BEACON;
+
+#if 0
+	/*
+	 * Enable hardware PS-POLL RX only for hostap mode;
+	 * STA mode sends PS-POLL frames but never
+	 * receives them.
+	 */
+	if (ath_hal_getcapability(ah, HAL_CAP_HAS_PSPOLL,
+	    0, NULL) == HAL_OK &&
+	    ic->ic_opmode == IEEE80211_M_HOSTAP)
+		rfilt |= HAL_RX_FILTER_PSPOLL;
+#endif
+
 	if (sc->sc_nmeshvaps) {
 		rfilt |= HAL_RX_FILTER_BEACON;
 		if (sc->sc_hasbmatch)
@@ -1936,8 +1967,14 @@ ath_calcrxfilter(struct ath_softc *sc)
 	}
 	if (ic->ic_opmode == IEEE80211_M_MONITOR)
 		rfilt |= HAL_RX_FILTER_CONTROL;
+
+	/*
+	 * Enable RX of compressed BAR frames only when doing
+	 * 802.11n. Required for A-MPDU.
+	 */
 	if (IEEE80211_IS_CHAN_HT(ic->ic_curchan))
 		rfilt |= HAL_RX_FILTER_COMPBAR;
+
 	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x, %s if_flags 0x%x\n",
 	    __func__, rfilt, ieee80211_opmode_name[ic->ic_opmode], ifp->if_flags);
 	return rfilt;
@@ -3115,8 +3152,17 @@ ath_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 	 * descriptor list.  This insures the hardware always has
 	 * someplace to write a new frame.
 	 */
+	/*
+	 * 11N: we can no longer afford to self link the last descriptor.
+	 * MAC acknowledges BA status as long as it copies frames to host
+	 * buffer (or rx fifo). This can incorrectly acknowledge packets
+	 * to a sender if last desc is self-linked.
+	 */
 	ds = bf->bf_desc;
-	ds->ds_link = bf->bf_daddr;	/* link to self */
+	if (sc->sc_rxslink)
+		ds->ds_link = bf->bf_daddr;	/* link to self */
+	else
+		ds->ds_link = 0;		/* terminate the list */
 	ds->ds_data = bf->bf_segs[0].ds_addr;
 	ath_hal_setuprxdesc(ah, ds
 		, m->m_len		/* buffer size */
@@ -3301,8 +3347,15 @@ ath_rx_proc(void *arg, int npending)
 	tsf = ath_hal_gettsf64(ah);
 	do {
 		bf = STAILQ_FIRST(&sc->sc_rxbuf);
-		if (bf == NULL) {		/* NB: shouldn't happen */
+		if (sc->sc_rxslink && bf == NULL) {	/* NB: shouldn't happen */
 			if_printf(ifp, "%s: no buffer!\n", __func__);
+			break;
+		} else if (bf == NULL) {
+			/*
+			 * End of List:
+			 * this can happen for non-self-linked RX chains
+			 */
+			sc->sc_stats.ast_rx_hitqueueend++;
 			break;
 		}
 		m = bf->bf_m;
@@ -3319,6 +3372,7 @@ ath_rx_proc(void *arg, int npending)
 		ds = bf->bf_desc;
 		if (ds->ds_link == bf->bf_daddr) {
 			/* NB: never process the self-linked entry at the end */
+			sc->sc_stats.ast_rx_hitqueueend++;
 			break;
 		}
 		/* XXX sync descriptor memory */
@@ -3577,6 +3631,12 @@ rx_accept:
 			} else
 				sc->sc_rxotherant = 0;
 		}
+
+		/* Newer school diversity - kite specific for now */
+		/* XXX perhaps migrate the normal diversity code to this? */
+		if ((ah)->ah_rxAntCombDiversity)
+			(*(ah)->ah_rxAntCombDiversity)(ah, rs, ticks, hz);
+
 		if (sc->sc_softled) {
 			/*
 			 * Blink for any data frame.  Otherwise do a
@@ -5571,3 +5631,5 @@ ath_tdma_beacon_send(struct ath_softc *sc, struct ieee80211vap *vap)
 }
 #endif /* IEEE80211_SUPPORT_TDMA */
 
+MODULE_VERSION(if_ath, 1);
+MODULE_DEPEND(if_ath, wlan, 1, 1, 1);          /* 802.11 media layer */

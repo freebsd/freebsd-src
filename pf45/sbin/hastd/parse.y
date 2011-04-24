@@ -169,7 +169,7 @@ yy_config_parse(const char *config, bool exitonerror)
 	lineno = 0;
 
 	depth0_timeout = HAST_TIMEOUT;
-	depth0_replication = HAST_REPLICATION_MEMSYNC;
+	depth0_replication = HAST_REPLICATION_FULLSYNC;
 	depth0_checksum = HAST_CHECKSUM_NONE;
 	depth0_compression = HAST_COMPRESSION_HOLE;
 	strlcpy(depth0_control, HAST_CONTROL, sizeof(depth0_control));
@@ -227,6 +227,13 @@ yy_config_parse(const char *config, bool exitonerror)
 			 * Use global or default setting.
 			 */
 			curres->hr_replication = depth0_replication;
+		}
+		if (curres->hr_replication == HAST_REPLICATION_MEMSYNC ||
+		    curres->hr_replication == HAST_REPLICATION_ASYNC) {
+			pjdlog_warning("Replication mode \"%s\" is not implemented, falling back to \"%s\".",
+			    curres->hr_replication == HAST_REPLICATION_MEMSYNC ?
+			    "memsync" : "async", "fullsync");
+			curres->hr_replication = HAST_REPLICATION_FULLSYNC;
 		}
 		if (curres->hr_checksum == -1) {
 			/*
@@ -454,6 +461,10 @@ compression_type:
 
 timeout_statement:	TIMEOUT NUM
 	{
+		if ($2 <= 0) {
+			pjdlog_error("Negative or zero timeout.");
+			return (1);
+		}
 		switch (depth) {
 		case 0:
 			depth0_timeout = $2;

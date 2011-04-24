@@ -28,6 +28,7 @@
 #define	AH_MAX(a,b)	((a)>(b)?(a):(b))
 
 #include <net80211/_ieee80211.h>
+#include "opt_ah.h"			/* needed for AH_SUPPORT_AR5416 */
 
 #ifndef NBBY
 #define	NBBY	8			/* number of bits/byte */
@@ -136,11 +137,16 @@ typedef struct {
 #define	CHANNEL_IQVALID		0x01	/* IQ calibration valid */
 #define	CHANNEL_ANI_INIT	0x02	/* ANI state initialized */
 #define	CHANNEL_ANI_SETUP	0x04	/* ANI state setup */
+#define	CHANNEL_MIMO_NF_VALID	0x04	/* Mimo NF values are valid */
 	uint8_t		calValid;	/* bitmask of cal types */
 	int8_t		iCoff;
 	int8_t		qCoff;
 	int16_t		rawNoiseFloor;
 	int16_t		noiseFloorAdjust;
+#ifdef	AH_SUPPORT_AR5416
+	int16_t		noiseFloorCtl[AH_MIMO_MAX_CHAINS];
+	int16_t		noiseFloorExt[AH_MIMO_MAX_CHAINS];
+#endif	/* AH_SUPPORT_AR5416 */
 	uint16_t	mainSpur;	/* cached spur value for this channel */
 } HAL_CHANNEL_INTERNAL;
 
@@ -196,7 +202,9 @@ typedef struct {
 			halEnhancedPmSupport		: 1,
 			halMbssidAggrSupport		: 1,
 			halBssidMatchSupport		: 1,
-			hal4kbSplitTransSupport		: 1;
+			hal4kbSplitTransSupport		: 1,
+			halHasPsPollSupport		: 1,
+			halHasRxSelfLinkedTail		: 1;
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
 	uint16_t	halKeyCacheSize;
@@ -460,6 +468,8 @@ isBigEndian(void)
  */
 #define	SM(_v, _f)	(((_v) << _f##_S) & (_f))
 #define	MS(_v, _f)	(((_v) & (_f)) >> _f##_S)
+#define OS_REG_RMW(_a, _r, _set, _clr)    \
+	OS_REG_WRITE(_a, _r, (OS_REG_READ(_a, _r) & ~(_clr)) | (_set))
 #define	OS_REG_RMW_FIELD(_a, _r, _f, _v) \
 	OS_REG_WRITE(_a, _r, \
 		(OS_REG_READ(_a, _r) &~ (_f)) | (((_v) << _f##_S) & (_f)))
@@ -794,5 +804,11 @@ extern	HAL_BOOL ath_ee_FillVpdTable(uint8_t pwrMin, uint8_t pwrMax,
 	uint8_t *pRetVpdList);
 extern	int16_t ath_ee_interpolate(uint16_t target, uint16_t srcLeft,
 	uint16_t srcRight, int16_t targetLeft, int16_t targetRight);
+
+/* Whether 5ghz fast clock is needed for Merlin and later */
+#define	IS_5GHZ_FAST_CLOCK_EN(_ah, _c) \
+	(IEEE80211_IS_CHAN_5GHZ(_c) && \
+	ath_hal_eepromGetFlag(ah, AR_EEP_FSTCLK_5G))
+
 
 #endif /* _ATH_AH_INTERAL_H_ */

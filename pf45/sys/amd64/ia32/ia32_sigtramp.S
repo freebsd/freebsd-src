@@ -66,6 +66,35 @@ freebsd4_ia32_sigcode:
 	jmp	1b
 #endif
 
+#ifdef COMPAT_43
+	ALIGN_TEXT
+ia32_osigcode:
+	calll	*IA32_SIGF_HANDLER(%esp)/* call signal handler */
+	leal	IA32_SIGF_SC(%esp),%eax	/* get sigcontext */
+	pushl	%eax
+	movl	$103,%eax		/* 3.x SYS_sigreturn */
+	pushl	%eax			/* junk to fake return addr. */
+	int	$0x80			/* enter kernel with args */
+1:
+	jmp	1b
+
+
+	ALIGN_TEXT
+lcall_tramp:
+	pushl	%ebp
+	movl	%esp,%ebp
+	pushl	0x24(%ebp) /* arg 6 */
+	pushl	0x20(%ebp)
+	pushl	0x1c(%ebp)
+	pushl	0x18(%ebp)
+	pushl	0x14(%ebp)
+	pushl	0x10(%ebp) /* arg 1 */
+	pushl	0xc(%ebp) /* gap */
+	int	$0x80
+	leave
+	lretl
+#endif
+
 	ALIGN_TEXT
 esigcode:
 
@@ -77,4 +106,12 @@ sz_ia32_sigcode:
 	.globl	sz_freebsd4_ia32_sigcode
 sz_freebsd4_ia32_sigcode:
 	.long	esigcode-freebsd4_ia32_sigcode
+#endif
+#ifdef COMPAT_43
+	.globl	sz_ia32_osigcode
+sz_ia32_osigcode:
+	.long	esigcode-ia32_osigcode
+	.globl	sz_lcall_tramp
+sz_lcall_tramp:
+	.long	esigcode-lcall_tramp
 #endif

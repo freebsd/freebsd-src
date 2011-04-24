@@ -31,6 +31,14 @@
 #include "ah_osdep.h"
 
 /*
+ * The maximum number of TX/RX chains supported.
+ * This is intended to be used by various statistics gathering operations
+ * (NF, RSSI, EVM).
+ */
+#define	AH_MIMO_MAX_CHAINS		3
+#define	AH_MIMO_MAX_EVM_PILOTS		6
+
+/*
  * __ahdecl is analogous to _cdecl; it defines the calling
  * convention used within the HAL.  For most systems this
  * can just default to be empty and the compiler will (should)
@@ -112,7 +120,10 @@ typedef enum {
 	HAL_CAP_INTRMASK	= 37,	/* bitmask of supported interrupts */
 	HAL_CAP_BSSIDMATCH	= 38,	/* hardware has disable bssid match */
 	HAL_CAP_STREAMS		= 39,	/* how many 802.11n spatial streams are available */
-	HAP_CAP_SPLIT_4KB_TRANS	= 40,	/* hardware supports descriptors straddling a 4k page boundary */
+	HAL_CAP_SPLIT_4KB_TRANS	= 40,	/* hardware supports descriptors straddling a 4k page boundary */
+	HAL_CAP_HAS_PSPOLL	= 41,	/* hardware has ps-poll support */
+	HAL_CAP_RXDESC_SELFLINK	= 42,	/* support a self-linked tail RX descriptor */
+	HAL_CAP_GTXTO		= 43,	/* hardware supports global tx timeout */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -290,6 +301,10 @@ typedef enum {
 
 /* Rx Filter Frame Types */
 typedef enum {
+	/*
+	 * These bits correspond to AR_RX_FILTER for all chips.
+	 * Not all bits are supported by all chips.
+	 */
 	HAL_RX_FILTER_UCAST	= 0x00000001,	/* Allow unicast frames */
 	HAL_RX_FILTER_MCAST	= 0x00000002,	/* Allow multicast frames */
 	HAL_RX_FILTER_BCAST	= 0x00000004,	/* Allow broadcast frames */
@@ -298,9 +313,19 @@ typedef enum {
 	HAL_RX_FILTER_PROM	= 0x00000020,	/* Promiscuous mode */
 	HAL_RX_FILTER_PROBEREQ	= 0x00000080,	/* Allow probe request frames */
 	HAL_RX_FILTER_PHYERR	= 0x00000100,	/* Allow phy errors */
-	HAL_RX_FILTER_PHYRADAR	= 0x00000200,	/* Allow phy radar errors */
 	HAL_RX_FILTER_COMPBAR	= 0x00000400,	/* Allow compressed BAR */
-	HAL_RX_FILTER_BSSID	= 0x00000800,	/* Disable BSSID match */
+	HAL_RX_FILTER_COMP_BA	= 0x00000800,	/* Allow compressed blockack */
+	HAL_RX_FILTER_PHYRADAR	= 0x00002000,	/* Allow phy radar errors */
+	HAL_RX_FILTER_PSPOLL	= 0x00004000,	/* Allow PS-POLL frames */
+	HAL_RX_FILTER_MCAST_BCAST_ALL	= 0x00008000,
+						/* Allow all mcast/bcast frames */
+
+	/*
+	 * Magic RX filter flags that aren't targetting hardware bits
+	 * but instead the HAL sets individual bits - eg PHYERR will result
+	 * in OFDM/CCK timing error frames being received.
+	 */
+	HAL_RX_FILTER_BSSID	= 0x40000000,	/* Disable BSSID match */
 } HAL_RX_FILTER;
 
 typedef enum {
@@ -743,6 +768,9 @@ struct ath_hal {
 				const struct ieee80211_channel *);
 	void	  __ahdecl(*ah_procMibEvent)(struct ath_hal *,
 				const HAL_NODE_STATS *);
+	void	  __ahdecl(*ah_rxAntCombDiversity)(struct ath_hal *,
+				struct ath_rx_status *,
+				unsigned long, int);
 
 	/* Misc Functions */
 	HAL_STATUS __ahdecl(*ah_getCapability)(struct ath_hal *,
@@ -925,6 +953,14 @@ extern	HAL_STATUS __ahdecl ath_hal_init_channels(struct ath_hal *,
 extern	HAL_STATUS __ahdecl ath_hal_set_channels(struct ath_hal *,
     struct ieee80211_channel *chans, int nchans,
     HAL_CTRY_CODE cc, HAL_REG_DOMAIN regDmn);
+
+/*
+ * Fetch the ctl/ext noise floor values reported by a MIMO
+ * radio. Returns 1 for valid results, 0 for invalid channel.
+ */
+extern int __ahdecl ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
+    const struct ieee80211_channel *chan, int16_t *nf_ctl,
+    int16_t *nf_ext);
 
 /*
  * Calibrate noise floor data following a channel scan or similar.

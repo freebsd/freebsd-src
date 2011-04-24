@@ -1399,6 +1399,7 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 	}     u;
 	struct usb_endpoint *ep;
 	struct usb_endpoint_descriptor *ed;
+	struct usb_xfer *xfer;
 	int error = 0;
 	uint8_t iface_index;
 	uint8_t isread;
@@ -1425,11 +1426,11 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 
 	case USB_FS_START:
 		error = ugen_fs_copy_in(f, u.pstart->ep_index);
-		if (error) {
+		if (error)
 			break;
-		}
 		mtx_lock(f->priv_mtx);
-		usbd_transfer_start(f->fs_xfer[u.pstart->ep_index]);
+		xfer = f->fs_xfer[u.pstart->ep_index];
+		usbd_transfer_start(xfer);
 		mtx_unlock(f->priv_mtx);
 		break;
 
@@ -1439,7 +1440,19 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 			break;
 		}
 		mtx_lock(f->priv_mtx);
-		usbd_transfer_stop(f->fs_xfer[u.pstop->ep_index]);
+		xfer = f->fs_xfer[u.pstart->ep_index];
+		if (usbd_transfer_pending(xfer)) {
+			usbd_transfer_stop(xfer);
+			/*
+			 * Check if the USB transfer was stopped
+			 * before it was even started. Else a cancel
+			 * callback will be pending.
+			 */
+			if (!xfer->flags_int.transferring) {
+				ugen_fs_set_complete(xfer->priv_sc,
+				    USB_P2U(xfer->priv_fifo));
+			}
+		}
 		mtx_unlock(f->priv_mtx);
 		break;
 

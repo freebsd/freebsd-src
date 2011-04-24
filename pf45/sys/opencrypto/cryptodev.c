@@ -1109,7 +1109,7 @@ cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread 
 		TAILQ_INIT(&fcr->csessions);
 		fcr->sesn = 0;
 
-		error = falloc(td, &f, &fd);
+		error = falloc(td, &f, &fd, 0);
 
 		if (error) {
 			free(fcr, M_XDATA);

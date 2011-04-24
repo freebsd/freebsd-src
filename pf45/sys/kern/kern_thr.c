@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/posix4.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
@@ -184,10 +185,18 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		}
 	}
 
+	PROC_LOCK(td->td_proc);
+	error = racct_add(p, RACCT_NTHR, 1);
+	PROC_UNLOCK(td->td_proc);
+	if (error != 0)
+		return (EPROCLIM);
+
 	/* Initialize our td */
 	newtd = thread_alloc(0);
-	if (newtd == NULL)
-		return (ENOMEM);
+	if (newtd == NULL) {
+		error = ENOMEM;
+		goto fail;
+	}
 
 	/*
 	 * Try the copyout as soon as we allocate the td so we don't
@@ -203,7 +212,8 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	    (parent_tid != NULL &&
 	    suword_lwpid(parent_tid, newtd->td_tid))) {
 		thread_free(newtd);
-		return (EFAULT);
+		error = EFAULT;
+		goto fail;
 	}
 
 	bzero(&newtd->td_startzero,
@@ -220,7 +230,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		if (error != 0) {
 			thread_free(newtd);
 			crfree(td->td_ucred);
-			return (error);
+			goto fail;
 		}
 	} else {
 		/* Set up our machine context. */
@@ -233,7 +243,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		if (error != 0) {
 			thread_free(newtd);
 			crfree(td->td_ucred);
-			return (error);
+			goto fail;
 		}
 	}
 
@@ -265,6 +275,12 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	thread_unlock(newtd);
 
 	return (0);
+
+fail:
+	PROC_LOCK(p);
+	racct_sub(p, RACCT_NTHR, 1);
+	PROC_UNLOCK(p);
+	return (error);
 }
 
 int
@@ -294,7 +310,10 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 	}
 
 	rw_wlock(&tidhash_lock);
+
 	PROC_LOCK(p);
+	racct_sub(p, RACCT_NTHR, 1);
+
 	/*
 	 * Shutting down last thread in the proc.  This will actually
 	 * call exit() in the trampoline when it returns.

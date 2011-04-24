@@ -73,11 +73,11 @@ ar5416IsCalSupp(struct ath_hal *ah, const struct ieee80211_channel *chan,
 	case ADC_GAIN_CAL:
 	case ADC_DC_CAL:
 		/* Run ADC Gain Cal for either 5ghz any or 2ghz HT40 */
-		if (IEEE80211_IS_CHAN_2GHZ(chan))
-			return AH_FALSE;
-		if (IEEE80211_IS_CHAN_HT20(chan))
-			return AH_FALSE;
-		return AH_TRUE;
+		if (IEEE80211_IS_CHAN_5GHZ(chan))
+			return AH_TRUE;
+		if (IEEE80211_IS_CHAN_HT40(chan))
+			return AH_TRUE;
+		return AH_FALSE;
 	}
 	return AH_FALSE;
 }
@@ -775,6 +775,7 @@ static int16_t
 ar5416GetNf(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
 	int16_t nf, nfThresh;
+	int i;
 
 	if (ar5212IsNFCalInProgress(ah)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
@@ -806,6 +807,13 @@ ar5416GetNf(struct ath_hal *ah, struct ieee80211_channel *chan)
 		} else {
 			nf = 0;
 		}
+		/* Update MIMO channel statistics, regardless of validity or not (for now) */
+		for (i = 0; i < 3; i++) {
+			ichan->noiseFloorCtl[i] = nfarray[i];
+			ichan->noiseFloorExt[i] = nfarray[i + 3];
+		}
+		ichan->privFlags |= CHANNEL_MIMO_NF_VALID;
+
 		ar5416UpdateNFHistBuff(AH5416(ah)->ah_cal.nfCalHist, nfarray);
 		ichan->rawNoiseFloor = nf;
 	}

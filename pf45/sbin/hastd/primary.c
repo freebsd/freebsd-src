@@ -219,6 +219,7 @@ static pthread_cond_t range_regular_cond;
 static struct rangelocks *range_sync;
 static bool range_sync_wait;
 static pthread_cond_t range_sync_cond;
+static bool fullystarted;
 
 static void *ggate_recv_thread(void *arg);
 static void *local_send_thread(void *arg);
@@ -509,7 +510,7 @@ primary_connect(struct hast_resource *res, struct proto_conn **connp)
 		primary_exit(EX_TEMPFAIL,
 		    "Unable to receive connection from parent");
 	}
-	if (proto_connect_wait(conn, HAST_TIMEOUT) < 0) {
+	if (proto_connect_wait(conn, res->hr_timeout) < 0) {
 		pjdlog_errno(LOG_WARNING, "Unable to connect to %s",
 		    res->hr_remoteaddr);
 		proto_close(conn);
@@ -524,7 +525,7 @@ primary_connect(struct hast_resource *res, struct proto_conn **connp)
 	return (0);
 }
 
-static bool
+static int
 init_remote(struct hast_resource *res, struct proto_conn **inp,
     struct proto_conn **outp)
 {
@@ -537,6 +538,7 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 	int64_t datasize;
 	uint32_t mapsize;
 	size_t size;
+	int error;
 
 	PJDLOG_ASSERT((inp == NULL && outp == NULL) || (inp != NULL && outp != NULL));
 	PJDLOG_ASSERT(real_remote(res));
@@ -545,7 +547,9 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 	errmsg = NULL;
 
 	if (primary_connect(res, &out) == -1)
-		return (false);
+		return (ECONNREFUSED);
+
+	error = ECONNABORTED;
 
 	/*
 	 * First handshake step.
@@ -577,6 +581,8 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 	errmsg = nv_get_string(nvin, "errmsg");
 	if (errmsg != NULL) {
 		pjdlog_warning("%s", errmsg);
+		if (nv_exists(nvin, "wait"))
+			error = EBUSY;
 		nv_free(nvin);
 		goto close;
 	}
@@ -667,6 +673,25 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 	res->hr_secondary_localcnt = nv_get_uint64(nvin, "localcnt");
 	res->hr_secondary_remotecnt = nv_get_uint64(nvin, "remotecnt");
 	res->hr_syncsrc = nv_get_uint8(nvin, "syncsrc");
+	if (nv_exists(nvin, "virgin")) {
+		/*
+		 * Secondary was reinitialized, bump localcnt if it is 0 as
+		 * only we have the data.
+		 */
+		PJDLOG_ASSERT(res->hr_syncsrc == HAST_SYNCSRC_PRIMARY);
+		PJDLOG_ASSERT(res->hr_secondary_localcnt == 0);
+
+		if (res->hr_primary_localcnt == 0) {
+			PJDLOG_ASSERT(res->hr_secondary_remotecnt == 0);
+
+			mtx_lock(&metadata_lock);
+			res->hr_primary_localcnt++;
+			pjdlog_debug(1, "Increasing localcnt to %ju.",
+			    (uintmax_t)res->hr_primary_localcnt);
+			(void)metadata_write(res);
+			mtx_unlock(&metadata_lock);
+		}
+	}
 	map = NULL;
 	mapsize = nv_get_uint32(nvin, "mapsize");
 	if (mapsize > 0) {
@@ -701,6 +726,11 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		(void)hast_activemap_flush(res);
 	}
 	nv_free(nvin);
+	/* Setup directions. */
+	if (proto_send(out, NULL, 0) == -1)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
+	if (proto_recv(in, NULL, 0) == -1)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
 	pjdlog_info("Connected to %s.", res->hr_remoteaddr);
 	if (inp != NULL && outp != NULL) {
 		*inp = in;
@@ -710,14 +740,14 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		res->hr_remoteout = out;
 	}
 	event_send(res, EVENT_CONNECT);
-	return (true);
+	return (0);
 close:
 	if (errmsg != NULL && strcmp(errmsg, "Split-brain condition!") == 0)
 		event_send(res, EVENT_SPLITBRAIN);
 	proto_close(out);
 	if (in != NULL)
 		proto_close(in);
-	return (false);
+	return (error);
 }
 
 static void
@@ -761,7 +791,7 @@ init_ggate(struct hast_resource *res)
 	ggiocreate.gctl_mediasize = res->hr_datasize;
 	ggiocreate.gctl_sectorsize = res->hr_local_sectorsize;
 	ggiocreate.gctl_flags = 0;
-	ggiocreate.gctl_maxcount = G_GATE_MAX_QUEUE_SIZE;
+	ggiocreate.gctl_maxcount = 0;
 	ggiocreate.gctl_timeout = 0;
 	ggiocreate.gctl_unit = G_GATE_NAME_GIVEN;
 	snprintf(ggiocreate.gctl_name, sizeof(ggiocreate.gctl_name), "hast/%s",
@@ -868,7 +898,7 @@ hastd_primary(struct hast_resource *res)
 	pjdlog_init(mode);
 	pjdlog_debug_set(debuglevel);
 	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
-	setproctitle("%s (primary)", res->hr_name);
+	setproctitle("%s (%s)", res->hr_name, role2str(res->hr_role));
 
 	init_local(res);
 	init_ggate(res);
@@ -896,8 +926,30 @@ hastd_primary(struct hast_resource *res)
 	 */
 	error = pthread_create(&td, NULL, ctrl_thread, res);
 	PJDLOG_ASSERT(error == 0);
-	if (real_remote(res) && init_remote(res, NULL, NULL))
-		sync_start();
+	if (real_remote(res)) {
+		error = init_remote(res, NULL, NULL);
+		if (error == 0) {
+			sync_start();
+		} else if (error == EBUSY) {
+			time_t start = time(NULL);
+
+			pjdlog_warning("Waiting for remote node to become %s for %ds.",
+			    role2str(HAST_ROLE_SECONDARY),
+			    res->hr_timeout);
+			for (;;) {
+				sleep(1);
+				error = init_remote(res, NULL, NULL);
+				if (error != EBUSY)
+					break;
+				if (time(NULL) > start + res->hr_timeout)
+					break;
+			}
+			if (error == EBUSY) {
+				pjdlog_warning("Remote node is still %s, starting anyway.",
+				    role2str(HAST_ROLE_PRIMARY));
+			}
+		}
+	}
 	error = pthread_create(&td, NULL, ggate_recv_thread, res);
 	PJDLOG_ASSERT(error == 0);
 	error = pthread_create(&td, NULL, local_send_thread, res);
@@ -908,6 +960,7 @@ hastd_primary(struct hast_resource *res)
 	PJDLOG_ASSERT(error == 0);
 	error = pthread_create(&td, NULL, ggate_send_thread, res);
 	PJDLOG_ASSERT(error == 0);
+	fullystarted = true;
 	(void)sync_thread(res);
 }
 
@@ -2071,7 +2124,7 @@ guard_one(struct hast_resource *res, unsigned int ncomp)
 	pjdlog_debug(2, "remote_guard: Reconnecting to %s.",
 	    res->hr_remoteaddr);
 	in = out = NULL;
-	if (init_remote(res, &in, &out)) {
+	if (init_remote(res, &in, &out) == 0) {
 		rw_wlock(&hio_remote_lock[ncomp]);
 		PJDLOG_ASSERT(res->hr_remotein == NULL);
 		PJDLOG_ASSERT(res->hr_remoteout == NULL);
@@ -2129,12 +2182,19 @@ guard_thread(void *arg)
 			break;
 		}
 
-		pjdlog_debug(2, "remote_guard: Checking connections.");
-		now = time(NULL);
-		if (lastcheck + HAST_KEEPALIVE <= now) {
-			for (ii = 0; ii < ncomps; ii++)
-				guard_one(res, ii);
-			lastcheck = now;
+		/*
+		 * Don't check connections until we fully started,
+		 * as we may still be looping, waiting for remote node
+		 * to switch from primary to secondary.
+		 */
+		if (fullystarted) {
+			pjdlog_debug(2, "remote_guard: Checking connections.");
+			now = time(NULL);
+			if (lastcheck + HAST_KEEPALIVE <= now) {
+				for (ii = 0; ii < ncomps; ii++)
+					guard_one(res, ii);
+				lastcheck = now;
+			}
 		}
 		signo = sigtimedwait(&mask, NULL, &timeout);
 	}

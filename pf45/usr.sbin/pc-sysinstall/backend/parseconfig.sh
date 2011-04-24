@@ -82,16 +82,16 @@ echo "File Sanity Check -> OK"
 
 # Lets load the various universal settings now
 get_value_from_cfg installMode
-INSTALLMODE="${VAL}" ; export INSTALLMODE
+export INSTALLMODE="${VAL}"
 
 get_value_from_cfg installType
-INSTALLTYPE="${VAL}" ; export INSTALLTYPE
+export INSTALLTYPE="${VAL}"
 
 get_value_from_cfg installMedium
-INSTALLMEDIUM="${VAL}" ; export INSTALLMEDIUM
+export INSTALLMEDIUM="${VAL}"
 
 get_value_from_cfg packageType
-PACKAGETYPE="${VAL}" ; export PACKAGETYPE
+export PACKAGETYPE="${VAL}"
 
 # Check if we are doing any networking setup
 start_networking
@@ -110,7 +110,7 @@ case "${INSTALLMODE}" in
   extract)
     # Extracting only, make sure we have a valid target directory
     get_value_from_cfg installLocation
-    FSMNT="${VAL}" ; export FSMNT
+    export FSMNT="${VAL}"
     if [ -z "$FSMNT" ] ; then exit_err "Missing installLocation=" ; fi
     if [ ! -d "$FSMNT" ] ; then exit_err "No such directory: $FSMNT" ; fi
 

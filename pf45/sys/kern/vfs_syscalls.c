@@ -1069,7 +1069,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	else
 		flags = FFLAGS(flags);
 
-	error = falloc(td, &nfp, &indx);
+	error = falloc(td, &nfp, &indx, flags);
 	if (error)
 		return (error);
 	/* An extra reference on `nfp' has been held for us by falloc(). */
@@ -3898,14 +3898,20 @@ struct ogetdirentries_args {
 };
 #endif
 int
-ogetdirentries(td, uap)
-	struct thread *td;
-	register struct ogetdirentries_args /* {
-		int fd;
-		char *buf;
-		u_int count;
-		long *basep;
-	} */ *uap;
+ogetdirentries(struct thread *td, struct ogetdirentries_args *uap)
+{
+	long loff;
+	int error;
+
+	error = kern_ogetdirentries(td, uap, &loff);
+	if (error == 0)
+		error = copyout(&loff, uap->basep, sizeof(long));
+	return (error);
+}
+
+int
+kern_ogetdirentries(struct thread *td, struct ogetdirentries_args *uap,
+    long *ploff)
 {
 	struct vnode *vp;
 	struct file *fp;
@@ -4024,9 +4030,10 @@ unionread:
 	}
 	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
-	error = copyout(&loff, uap->basep, sizeof(long));
 	fdrop(fp, td);
 	td->td_retval[0] = uap->count - auio.uio_resid;
+	if (error == 0)
+		*ploff = loff;
 	return (error);
 }
 #endif /* COMPAT_43 */
@@ -4488,7 +4495,7 @@ fhopen(td, uap)
 	 * end of vn_open code
 	 */
 
-	if ((error = falloc(td, &nfp, &indx)) != 0) {
+	if ((error = falloc(td, &nfp, &indx, fmode)) != 0) {
 		if (fmode & FWRITE)
 			vp->v_writecount--;
 		goto bad;
@@ -4663,4 +4670,99 @@ out:
 	vfs_unbusy(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
+}
+
+static int
+kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
+{
+	struct file *fp;
+	struct mount *mp;
+	struct vnode *vp;
+	off_t olen, ooffset;
+	int error, vfslocked;
+
+	fp = NULL;
+	vfslocked = 0;
+	error = fget(td, fd, &fp);
+	if (error != 0)
+		goto out;
+
+	switch (fp->f_type) {
+	case DTYPE_VNODE:
+		break;
+	case DTYPE_PIPE:
+	case DTYPE_FIFO:
+		error = ESPIPE;
+		goto out;
+	default:
+		error = ENODEV;
+		goto out;
+	}
+	if ((fp->f_flag & FWRITE) == 0) {
+		error = EBADF;
+		goto out;
+	}
+	vp = fp->f_vnode;
+	if (vp->v_type != VREG) {
+		error = ENODEV;
+		goto out;
+	}
+	if (offset < 0 || len <= 0) {
+		error = EINVAL;
+		goto out;
+	}
+	/* Check for wrap. */
+	if (offset > OFF_MAX - len) {
+		error = EFBIG;
+		goto out;
+	}
+
+	/* Allocating blocks may take a long time, so iterate. */
+	for (;;) {
+		olen = len;
+		ooffset = offset;
+
+		bwillwrite();
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+		mp = NULL;
+		error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
+		if (error != 0) {
+			VFS_UNLOCK_GIANT(vfslocked);
+			break;
+		}
+		error = vn_lock(vp, LK_EXCLUSIVE);
+		if (error != 0) {
+			vn_finished_write(mp);
+			VFS_UNLOCK_GIANT(vfslocked);
+			break;
+		}
+#ifdef MAC
+		error = mac_vnode_check_write(td->td_ucred, fp->f_cred, vp);
+		if (error == 0)
+#endif
+			error = VOP_ALLOCATE(vp, &offset, &len);
+		VOP_UNLOCK(vp, 0);
+		vn_finished_write(mp);
+		VFS_UNLOCK_GIANT(vfslocked);
+
+		if (olen + ooffset != offset + len) {
+			panic("offset + len changed from %jx/%jx to %jx/%jx",
+			    ooffset, olen, offset, len);
+		}
+		if (error != 0 || len == 0)
+			break;
+		KASSERT(olen > len, ("Iteration did not make progress?"));
+		maybe_yield();
+	}
+ out:
+	if (fp != NULL)
+		fdrop(fp, td);
+	return (error);
+}
+
+int
+posix_fallocate(struct thread *td, struct posix_fallocate_args *uap)
+{
+
+	return (kern_posix_fallocate(td, uap->fd, uap->offset, uap->len));
 }

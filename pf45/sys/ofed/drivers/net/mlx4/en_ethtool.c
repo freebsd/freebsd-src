@@ -494,6 +494,7 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_ethtool_stats = mlx4_en_get_ethtool_stats,
 	.self_test = mlx4_en_self_test,
 	.get_wol = mlx4_en_get_wol,
+	.set_wol = mlx4_en_set_wol,
 	.get_msglevel = mlx4_en_get_msglevel,
 	.set_msglevel = mlx4_en_set_msglevel,
 	.get_coalesce = mlx4_en_get_coalesce,

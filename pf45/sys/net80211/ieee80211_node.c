@@ -1085,7 +1085,26 @@ static void
 node_getmimoinfo(const struct ieee80211_node *ni,
 	struct ieee80211_mimo_info *info)
 {
-	/* XXX zero data? */
+	int i;
+	uint32_t avgrssi;
+	int32_t rssi;
+
+	bzero(info, sizeof(*info));
+
+	for (i = 0; i < ni->ni_mimo_chains; i++) {
+		avgrssi = ni->ni_mimo_rssi_ctl[i];
+		if (avgrssi == IEEE80211_RSSI_DUMMY_MARKER) {
+			info->rssi[i] = 0;
+		} else {
+			rssi = IEEE80211_RSSI_GET(avgrssi);
+			info->rssi[i] = rssi < 0 ? 0 : rssi > 127 ? 127 : rssi;
+		}
+		info->noise[i] = ni->ni_mimo_noise_ctl[i];
+	}
+
+	/* XXX ext radios? */
+
+	/* XXX EVM? */
 }
 
 struct ieee80211_node *

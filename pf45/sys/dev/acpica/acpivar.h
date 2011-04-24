@@ -273,6 +273,16 @@ acpi_get_type(device_t dev)
     return (t);
 }
 
+/* Find the difference between two PM tick counts. */
+static __inline uint32_t
+acpi_TimerDelta(uint32_t end, uint32_t start)
+{
+
+	if (end < start && (AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER) == 0)
+		end |= 0x01000000;
+	return (end - start);
+}
+
 #ifdef ACPI_DEBUGGER
 void		acpi_EnterDebugger(void);
 #endif
@@ -311,7 +321,6 @@ BOOLEAN		acpi_DeviceIsPresent(device_t dev);
 BOOLEAN		acpi_BatteryIsPresent(device_t dev);
 ACPI_STATUS	acpi_GetHandleInScope(ACPI_HANDLE parent, char *path,
 		    ACPI_HANDLE *result);
-uint32_t	acpi_TimerDelta(uint32_t end, uint32_t start);
 ACPI_BUFFER	*acpi_AllocBuffer(int size);
 ACPI_STATUS	acpi_ConvertBufferToInteger(ACPI_BUFFER *bufp,
 		    UINT32 *number);

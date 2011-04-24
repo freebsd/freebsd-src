@@ -65,3 +65,8 @@ MAXMEM			opt_global.h
 #
 OCTEON_VENDOR_LANNER		opt_cvmx.h
 OCTEON_BOARD_CAPK_0100ND	opt_cvmx.h
+
+#
+# Options that control the Atheros SoC peripherals
+#
+ARGE_DEBUG			opt_global.h

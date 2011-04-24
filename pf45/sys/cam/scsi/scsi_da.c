@@ -1231,6 +1231,34 @@ daregister(struct cam_periph *periph, void *arg)
 	TASK_INIT(&softc->sysctl_task, 0, dasysctlinit, periph);
 
 	/*
+	 * Add async callbacks for bus reset and
+	 * bus device reset calls.  I don't bother
+	 * checking if this fails as, in most cases,
+	 * the system will function just fine without
+	 * them and the only alternative would be to
+	 * not attach the device on failure.
+	 */
+	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE,
+			   daasync, periph, periph->path);
+
+	/*
+	 * Take an exclusive refcount on the periph while dastart is called
+	 * to finish the probe.  The reference will be dropped in dadone at
+	 * the end of probe.
+	 */
+	(void)cam_periph_hold(periph, PRIBIO);
+
+	/*
+	 * Schedule a periodic event to occasionally send an
+	 * ordered tag to a device.
+	 */
+	callout_init_mtx(&softc->sendordered_c, periph->sim->mtx, 0);
+	callout_reset(&softc->sendordered_c,
+	    (DA_DEFAULT_TIMEOUT * hz) / DA_ORDEREDTAG_INTERVAL,
+	    dasendorderedtag, softc);
+
+	mtx_unlock(periph->sim->mtx);
+	/*
 	 * RBC devices don't have to support READ(6), only READ(10).
 	 */
 	if (softc->quirks & DA_Q_NO_6_BYTE || SID_TYPE(&cgd->inq_data) == T_RBC)
@@ -1260,38 +1288,15 @@ daregister(struct cam_periph *periph, void *arg)
 		softc->minimum_cmd_size = 16;
 
 	/*
-	 * Register this media as a disk
+	 * Register this media as a disk.
 	 */
-
-	/*
-	 * Add async callbacks for bus reset and
-	 * bus device reset calls.  I don't bother
-	 * checking if this fails as, in most cases,
-	 * the system will function just fine without
-	 * them and the only alternative would be to
-	 * not attach the device on failure.
-	 */
-	xpt_register_async(AC_SENT_BDR | AC_BUS_RESET | AC_LOST_DEVICE,
-			   daasync, periph, periph->path);
-
-	/*
-	 * Take an exclusive refcount on the periph while dastart is called
-	 * to finish the probe.  The reference will be dropped in dadone at
-	 * the end of probe.
-	 */
-	(void)cam_periph_hold(periph, PRIBIO);
-
-	/*
-	 * Schedule a periodic event to occasionally send an
-	 * ordered tag to a device.
-	 */
-	callout_init_mtx(&softc->sendordered_c, periph->sim->mtx, 0);
-	callout_reset(&softc->sendordered_c,
-	    (DA_DEFAULT_TIMEOUT * hz) / DA_ORDEREDTAG_INTERVAL,
-	    dasendorderedtag, softc);
-
-	mtx_unlock(periph->sim->mtx);
 	softc->disk = disk_alloc();
+	softc->disk->d_devstat = devstat_new_entry(periph->periph_name,
+			  periph->unit_number, 0,
+			  DEVSTAT_BS_UNAVAILABLE,
+			  SID_TYPE(&cgd->inq_data) |
+			  XPORT_DEVSTAT_TYPE(cpi.transport),
+			  DEVSTAT_PRIORITY_DISK);
 	softc->disk->d_open = daopen;
 	softc->disk->d_close = daclose;
 	softc->disk->d_strategy = dastrategy;

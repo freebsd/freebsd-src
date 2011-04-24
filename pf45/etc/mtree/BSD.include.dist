@@ -137,6 +137,10 @@
         wi
         ..
     ..
+    edit
+        readline
+        ..
+    ..
     fs
         devfs
         ..
@@ -189,6 +193,8 @@
         multipath
         ..
         nop
+        ..
+        raid
         ..
         raid3
         ..
@@ -276,8 +282,6 @@
     nfsclient
     ..
     nfsserver
-    ..
-    objc
     ..
     openssl
     ..

@@ -1201,29 +1201,39 @@ int
 kldstat(struct thread *td, struct kldstat_args *uap)
 {
 	struct kld_file_stat stat;
-	linker_file_t lf;
-	int error, namelen, version, version_num;
+	int error, version;
 
 	/*
 	 * Check the version of the user's structure.
 	 */
-	if ((error = copyin(&uap->stat->version, &version, sizeof(version))) != 0)
+	if ((error = copyin(&uap->stat->version, &version, sizeof(version)))
+	    != 0)
 		return (error);
-	if (version == sizeof(struct kld_file_stat_1))
-		version_num = 1;
-	else if (version == sizeof(struct kld_file_stat))
-		version_num = 2;
-	else
+	if (version != sizeof(struct kld_file_stat_1) &&
+	    version != sizeof(struct kld_file_stat))
 		return (EINVAL);
 
+	error = kern_kldstat(td, uap->fileid, &stat);
+	if (error != 0)
+		return (error);
+	return (copyout(&stat, uap->stat, version));
+}
+
+int
+kern_kldstat(struct thread *td, int fileid, struct kld_file_stat *stat)
+{
+	linker_file_t lf;
+	int namelen;
 #ifdef MAC
+	int error;
+
 	error = mac_kld_check_stat(td->td_ucred);
 	if (error)
 		return (error);
 #endif
 
 	KLD_LOCK();
-	lf = linker_find_file_by_id(uap->fileid);
+	lf = linker_find_file_by_id(fileid);
 	if (lf == NULL) {
 		KLD_UNLOCK();
 		return (ENOENT);
@@ -1233,23 +1243,20 @@ kldstat(struct thread *td, struct kldstat_args *uap)
 	namelen = strlen(lf->filename) + 1;
 	if (namelen > MAXPATHLEN)
 		namelen = MAXPATHLEN;
-	bcopy(lf->filename, &stat.name[0], namelen);
-	stat.refs = lf->refs;
-	stat.id = lf->id;
-	stat.address = lf->address;
-	stat.size = lf->size;
-	if (version_num > 1) {
-		/* Version 2 fields: */
-		namelen = strlen(lf->pathname) + 1;
-		if (namelen > MAXPATHLEN)
-			namelen = MAXPATHLEN;
-		bcopy(lf->pathname, &stat.pathname[0], namelen);
-	}
+	bcopy(lf->filename, &stat->name[0], namelen);
+	stat->refs = lf->refs;
+	stat->id = lf->id;
+	stat->address = lf->address;
+	stat->size = lf->size;
+	/* Version 2 fields: */
+	namelen = strlen(lf->pathname) + 1;
+	if (namelen > MAXPATHLEN)
+		namelen = MAXPATHLEN;
+	bcopy(lf->pathname, &stat->pathname[0], namelen);
 	KLD_UNLOCK();
 
 	td->td_retval[0] = 0;
-
-	return (copyout(&stat, uap->stat, version));
+	return (0);
 }
 
 int

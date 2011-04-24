@@ -1,5 +1,6 @@
 .\"-
 .\" Copyright (c) 2001 Chris D. Faulhaber
+.\" Copyright (c) 2011 Edward Tomasz Napierała
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 27, 2010
+.Dd April 9, 2011
 .Dt SETFACL 1
 .Os
 .Sh NAME
@@ -307,7 +308,7 @@ Permissions in long form are separated by the
 .Ql /
 character; in short form, they are concatenated together.
 Valid permissions are:
-.Bl -tag -width ".Dv short"
+.Bl -tag -width ".Dv modify_set"
 .It Short
 Long
 .It r
@@ -338,6 +339,20 @@ write_acl
 write_owner
 .It S
 synchronize
+.El
+.Pp
+In addition, the following permission sets may be used:
+.Bl -tag -width ".Dv modify_set"
+.It Set
+Permissions
+.It full_set
+all permissions, as shown above
+.It modify_set
+all permissions except write_acl and write_owner
+.It read_set
+read_data, read_attributes, read_xattr and read_acl
+.It write_set
+write_data, append_data, write_attributes and write_xattr
 .El
 .It Ar "ACL inheritance flags"
 Inheritance flags may be specified in either short or long form.

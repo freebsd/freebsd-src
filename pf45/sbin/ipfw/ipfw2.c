@@ -210,7 +210,7 @@ static struct _s_x rule_actions[] = {
 	{ "unreach",		TOK_UNREACH },
 	{ "check-state",	TOK_CHECKSTATE },
 	{ "//",			TOK_COMMENT },
-	{ "nat",                TOK_NAT },
+	{ "nat",		TOK_NAT },
 	{ "reass",		TOK_REASS },
 	{ "setfib",		TOK_SETFIB },
 	{ NULL, 0 }	/* terminator */
@@ -380,8 +380,8 @@ do_cmd(int optname, void *optval, uintptr_t optlen)
 
 	if (optname == IP_FW_GET || optname == IP_DUMMYNET_GET ||
 	    optname == IP_FW_ADD || optname == IP_FW_TABLE_LIST ||
-	    optname == IP_FW_TABLE_GETSIZE || 
-	    optname == IP_FW_NAT_GET_CONFIG || 
+	    optname == IP_FW_TABLE_GETSIZE ||
+	    optname == IP_FW_NAT_GET_CONFIG ||
 	    optname < 0 ||
 	    optname == IP_FW_NAT_GET_LOG) {
 		if (optname < 0)
@@ -435,7 +435,7 @@ match_value(struct _s_x *p, int value)
 int
 _substrcmp(const char *str1, const char* str2)
 {
-	
+
 	if (strncmp(str1, str2, strlen(str1)) != 0)
 		return 1;
 
@@ -463,7 +463,7 @@ _substrcmp(const char *str1, const char* str2)
 int
 _substrcmp2(const char *str1, const char* str2, const char* str3)
 {
-	
+
 	if (strncmp(str1, str2, strlen(str2)) != 0)
 		return 1;
 
@@ -1028,7 +1028,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	/*
 	 * first print actions
 	 */
-        for (l = rule->cmd_len - rule->act_ofs, cmd = ACTION_PTR(rule);
+	for (l = rule->cmd_len - rule->act_ofs, cmd = ACTION_PTR(rule);
 			l > 0 ; l -= F_LEN(cmd), cmd += F_LEN(cmd)) {
 		switch(cmd->opcode) {
 		case O_CHECK_STATE:
@@ -1123,7 +1123,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		case O_NAT:
 			PRINT_UINT_ARG("nat ", cmd->arg1);
  			break;
-			
+
 		case O_SETFIB:
 			PRINT_UINT_ARG("setfib ", cmd->arg1);
  			break;
@@ -1131,7 +1131,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		case O_REASS:
 			printf("reass");
 			break;
-			
+
 		default:
 			printf("** unrecognized action %d len %d ",
 				cmd->opcode, cmd->len);
@@ -1158,7 +1158,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	/*
 	 * then print the body.
 	 */
-        for (l = rule->act_ofs, cmd = rule->cmd ;
+	for (l = rule->act_ofs, cmd = rule->cmd ;
 			l > 0 ; l -= F_LEN(cmd) , cmd += F_LEN(cmd)) {
 		if ((cmd->len & F_OR) || (cmd->len & F_NOT))
 			continue;
@@ -1168,7 +1168,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		} else if (cmd->opcode == O_IP6) {
 			flags |= HAVE_PROTO6;
 			break;
-		}			
+		}
 	}
 	if (rule->_pad & 1) {	/* empty rules before options */
 		if (!co.do_compact) {
@@ -1182,7 +1182,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	if (co.comment_only)
 		comment = "...";
 
-        for (l = rule->act_ofs, cmd = rule->cmd ;
+	for (l = rule->act_ofs, cmd = rule->cmd ;
 			l > 0 ; l -= F_LEN(cmd) , cmd += F_LEN(cmd)) {
 		/* useful alias */
 		ipfw_insn_u32 *cmd32 = (ipfw_insn_u32 *)cmd;
@@ -1569,7 +1569,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		}
 	}
 	show_prerequisites(&flags, HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP
-				              | HAVE_IP, 0);
+					      | HAVE_IP, 0);
 	if (comment)
 		printf(" // %s", comment);
 	printf("\n");
@@ -1625,7 +1625,7 @@ show_dyn_ipfw(ipfw_dyn_rule *d, int pcwidth, int bcwidth)
 		    sizeof(buf)), d->id.dst_port);
 	} else
 		printf(" UNKNOWN <-> UNKNOWN\n");
-	
+
 	printf("\n");
 }
 
@@ -2198,7 +2198,6 @@ n2mask(struct in6_addr *mask, int n)
 	}
 	return;
 }
- 
 
 /*
  * helper function to process a set of flags and set bits in the
@@ -2229,9 +2228,9 @@ fill_flags(ipfw_insn *cmd, enum ipfw_opcodes opcode,
 		*which |= (uint8_t)val;
 		p = q;
 	}
-        cmd->opcode = opcode;
-        cmd->len =  (cmd->len & (F_NOT | F_OR)) | 1;
-        cmd->arg1 = (set & 0xff) | ( (clear & 0xff) << 8);
+	cmd->opcode = opcode;
+	cmd->len =  (cmd->len & (F_NOT | F_OR)) | 1;
+	cmd->arg1 = (set & 0xff) | ( (clear & 0xff) << 8);
 }
 
 
@@ -2289,7 +2288,7 @@ ipfw_delete(char *av[])
  * fill the interface structure. We do not check the name as we can
  * create interfaces dynamically, so checking them at insert time
  * makes relatively little sense.
- * Interface names containing '*', '?', or '[' are assumed to be shell 
+ * Interface names containing '*', '?', or '[' are assumed to be shell
  * patterns which match interfaces.
  */
 static void
@@ -2763,7 +2762,7 @@ ipfw_add(char *av[])
 		goto chkarg;
 	case TOK_TEE:
 		action->opcode = O_TEE;
-chkarg:	
+chkarg:
 		if (!av[0])
 			errx(EX_USAGE, "missing argument for %s", *(av - 1));
 		if (isdigit(**av)) {
@@ -2817,7 +2816,7 @@ chkarg:
 				    "illegal forwarding port ``%s''", s);
 			p->sa.sin_port = (u_short)i;
 		}
-		if (_substrcmp(*av, "tablearg") == 0) 
+		if (_substrcmp(*av, "tablearg") == 0)
 			p->sa.sin_addr.s_addr = INADDR_ANY;
 		else
 			lookup_host(*av, &(p->sa.sin_addr));
@@ -2837,7 +2836,7 @@ chkarg:
 
 		action->opcode = O_SETFIB;
  		NEED1("missing fib number");
- 	        action->arg1 = strtoul(*av, NULL, 10);
+ 		action->arg1 = strtoul(*av, NULL, 10);
 		if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
 			errx(EX_DATAERR, "fibs not suported.\n");
 		if (action->arg1 >= numfibs)  /* Temporary */
@@ -2849,7 +2848,7 @@ chkarg:
 	case TOK_REASS:
 		action->opcode = O_REASS;
 		break;
-		
+
 	default:
 		errx(EX_DATAERR, "invalid action %s\n", av[-1]);
 	}
@@ -3144,7 +3143,7 @@ read_options:
 				errx(EX_USAGE, "+missing \")\"\n");
 			open_par = 0;
 			prev = NULL;
-        		break;
+			break;
 
 		case TOK_IN:
 			fill_cmd(cmd, O_IN, 0, 0);
@@ -3197,7 +3196,7 @@ read_options:
 			fill_icmptypes((ipfw_insn_u32 *)cmd, *av);
 			av++;
 			break;
-		
+
 		case TOK_ICMP6TYPES:
 			NEED1("icmptypes requires list of types");
 			fill_icmp6types((ipfw_insn_icmp6 *)cmd, *av);
@@ -3433,7 +3432,7 @@ read_options:
 				av++;
 			}
 			break;
-				
+
 		case TOK_DSTIP6:
 			NEED1("missing destination IP6");
 			if (add_dstip6(cmd, *av)) {
@@ -3829,10 +3828,10 @@ ipfw_table_handler(int ac, char *av[])
 			if (strchr(*av, (int)'.') == NULL && isdigit(**av))  {
 				ent.value = strtoul(*av, NULL, 0);
 			} else {
-		        	if (lookup_host(*av, (struct in_addr *)&tval) == 0) {
+				if (lookup_host(*av, (struct in_addr *)&tval) == 0) {
 					/* The value must be stored in host order	 *
 					 * so that the values < 65k can be distinguished */
-		       			ent.value = ntohl(tval); 
+		       			ent.value = ntohl(tval);
 				} else {
 					errx(EX_NOHOST, "hostname ``%s'' unknown", *av);
 				}
@@ -3851,7 +3850,7 @@ ipfw_table_handler(int ac, char *av[])
 				if (do_cmd(IP_FW_TABLE_ADD,
 				    &ent, sizeof(ent)) < 0)
 					err(EX_OSERR,
-				            "setsockopt(IP_FW_TABLE_ADD)");
+					    "setsockopt(IP_FW_TABLE_ADD)");
 			}
 		}
 	} else if (_substrcmp(*av, "flush") == 0) {

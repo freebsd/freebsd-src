@@ -56,13 +56,14 @@ sun4v/sun4v/trap_trace.S	optional	trap_tracing
 sparc64/pci/ofw_pcib.c		optional	pci
 sparc64/pci/ofw_pcib_subr.c	optional	pci
 sparc64/pci/ofw_pcibus.c	optional	pci
+sparc64/pci/ofw_pci_if.m	optional	pci
 
 # XXX hvcons should be optional
 sun4v/sun4v/hvcons.c		standard
 sun4v/sun4v/hcall.S		standard
 sun4v/sun4v/hviommu.c		standard
 sparc64/sparc64/identcpu.c	standard
-sparc64/sparc64/in_cksum.c	optional	inet
+sparc64/sparc64/in_cksum.c	optional	inet | inet6
 sun4v/sun4v/interrupt.S		standard	no-obj
 sun4v/sun4v/intr_machdep.c	standard
 sun4v/sun4v/locore.S		standard	no-obj

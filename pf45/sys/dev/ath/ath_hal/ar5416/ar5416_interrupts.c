@@ -55,6 +55,8 @@ ar5416IsInterruptPending(struct ath_hal *ah)
  * values.  The value returned is mapped to abstract the hw-specific bit
  * locations in the Interrupt Status Register.
  *
+ * (*masked) is cleared on initial call.
+ *
  * Returns: A hardware-abstracted bitmap of all non-masked-out
  *          interrupts pending, as well as an unmasked value
  */
@@ -73,10 +75,10 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 		isr = 0;
 	sync_cause = OS_REG_READ(ah, AR_INTR_SYNC_CAUSE);
 	sync_cause &= AR_INTR_SYNC_DEFAULT;
-	if (isr == 0 && sync_cause == 0) {
-		*masked = 0;
+	*masked = 0;
+
+	if (isr == 0 && sync_cause == 0)
 		return AH_FALSE;
-	}
 
 	if (isr != 0) {
 		struct ath_hal_5212 *ahp = AH5212(ah);
@@ -128,7 +130,7 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 		}
 
 		/* Interrupt Mitigation on AR5416 */
-#ifdef AR5416_INT_MITIGATION
+#ifdef	AH_AR5416_INTERRUPT_MITIGATION
 		if (isr & (AR_ISR_RXMINTR | AR_ISR_RXINTM))
 			*masked |= HAL_INT_RX;
 		if (isr & (AR_ISR_TXMINTR | AR_ISR_TXINTM))
@@ -194,6 +196,23 @@ ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 	mask = ints & HAL_INT_COMMON;
 	mask2 = 0;
 
+#ifdef	AH_AR5416_INTERRUPT_MITIGATION
+	/*
+	 * Overwrite default mask if Interrupt mitigation
+	 * is specified for AR5416
+	 */
+	mask = ints & HAL_INT_COMMON;
+	if (ints & HAL_INT_TX)
+		mask |= AR_IMR_TXMINTR | AR_IMR_TXINTM;
+	if (ints & HAL_INT_RX)
+		mask |= AR_IMR_RXERR | AR_IMR_RXMINTR | AR_IMR_RXINTM;
+	if (ints & HAL_INT_TX) {
+		if (ahp->ah_txErrInterruptMask)
+			mask |= AR_IMR_TXERR;
+		if (ahp->ah_txEolInterruptMask)
+			mask |= AR_IMR_TXEOL;
+	}
+#else
 	if (ints & HAL_INT_TX) {
 		if (ahp->ah_txOkInterruptMask)
 			mask |= AR_IMR_TXOK;
@@ -206,16 +225,6 @@ ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 	}
 	if (ints & HAL_INT_RX)
 		mask |= AR_IMR_RXOK | AR_IMR_RXERR | AR_IMR_RXDESC;
-#ifdef AR5416_INT_MITIGATION
-	/*
-	 * Overwrite default mask if Interrupt mitigation
-	 * is specified for AR5416
-	 */
-	mask = ints & HAL_INT_COMMON;
-	if (ints & HAL_INT_TX)
-		mask |= AR_IMR_TXMINTR | AR_IMR_TXINTM;
-	if (ints & HAL_INT_RX)
-		mask |= AR_IMR_RXERR | AR_IMR_RXMINTR | AR_IMR_RXINTM;
 #endif
 	if (ints & (HAL_INT_BMISC)) {
 		mask |= AR_IMR_BCNMISC;
@@ -227,12 +236,18 @@ ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 			mask2 |= AR_IMR_S2_DTIMSYNC;
 		if (ints & HAL_INT_CABEND)
 			mask2 |= (AR_IMR_S2_CABEND );
-		if (ints & HAL_INT_GTT)
-			mask2 |= AR_IMR_S2_GTT;			
 		if (ints & HAL_INT_CST)
 			mask2 |= AR_IMR_S2_CST;
 		if (ints & HAL_INT_TSFOOR)
 			mask2 |= AR_IMR_S2_TSFOOR;
+	}
+
+	if (ints & (HAL_INT_GTT | HAL_INT_CST)) {
+		mask |= AR_IMR_BCNMISC;
+		if (ints & HAL_INT_GTT)
+			mask2 |= AR_IMR_S2_GTT;
+		if (ints & HAL_INT_CST)
+			mask2 |= AR_IMR_S2_CST;
 	}
 
 	/* Write the new IMR and store off our SW copy. */

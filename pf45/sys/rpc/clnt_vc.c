@@ -973,8 +973,11 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 				 * the reply.
 				 */
 				if (ct->ct_record->m_len < sizeof(xid) &&
-				    m_length(ct->ct_record, NULL) < sizeof(xid))
+				    m_length(ct->ct_record, NULL) <
+				    sizeof(xid)) {
+					m_freem(ct->ct_record);
 					break;
+				}
 				m_copydata(ct->ct_record, 0, sizeof(xid),
 				    (char *)&xid);
 				xid = ntohl(xid);

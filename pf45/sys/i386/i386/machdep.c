@@ -1136,23 +1136,21 @@ cpu_flush_dcache(void *ptr, size_t len)
 int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
-	register_t reg;
 	uint64_t tsc1, tsc2;
+	uint64_t acnt, mcnt, perf;
+	register_t reg;
 
 	if (pcpu_find(cpu_id) == NULL || rate == NULL)
 		return (EINVAL);
 	if ((cpu_feature & CPUID_TSC) == 0)
 		return (EOPNOTSUPP);
 
-	/* If TSC is P-state invariant, DELAY(9) based logic fails. */
-	if (tsc_is_invariant && tsc_freq != 0)
+	/*
+	 * If TSC is P-state invariant and APERF/MPERF MSRs do not exist,
+	 * DELAY(9) based logic fails.
+	 */
+	if (tsc_is_invariant && !tsc_perf_stat)
 		return (EOPNOTSUPP);
-
-	/* If we're booting, trust the rate calibrated moments ago. */
-	if (cold && tsc_freq != 0) {
-		*rate = tsc_freq;
-		return (0);
-	}
 
 #ifdef SMP
 	if (smp_cpus > 1) {
@@ -1165,10 +1163,24 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 
 	/* Calibrate by measuring a short delay. */
 	reg = intr_disable();
-	tsc1 = rdtsc();
-	DELAY(1000);
-	tsc2 = rdtsc();
-	intr_restore(reg);
+	if (tsc_is_invariant) {
+		wrmsr(MSR_MPERF, 0);
+		wrmsr(MSR_APERF, 0);
+		tsc1 = rdtsc();
+		DELAY(1000);
+		mcnt = rdmsr(MSR_MPERF);
+		acnt = rdmsr(MSR_APERF);
+		tsc2 = rdtsc();
+		intr_restore(reg);
+		perf = 1000 * acnt / mcnt;
+		*rate = (tsc2 - tsc1) * perf;
+	} else {
+		tsc1 = rdtsc();
+		DELAY(1000);
+		tsc2 = rdtsc();
+		intr_restore(reg);
+		*rate = (tsc2 - tsc1) * 1000;
+	}
 
 #ifdef SMP
 	if (smp_cpus > 1) {
@@ -1178,17 +1190,6 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	}
 #endif
 
-	tsc2 -= tsc1;
-	if (tsc_freq != 0) {
-		*rate = tsc2 * 1000;
-		return (0);
-	}
-
-	/*
-	 * Subtract 0.5% of the total.  Empirical testing has shown that
-	 * overhead in DELAY() works out to approximately this value.
-	 */
-	*rate = tsc2 * 1000 - tsc2 * 5;
 	return (0);
 }
 
@@ -1496,6 +1497,22 @@ idle_sysctl(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_machdep, OID_AUTO, idle, CTLTYPE_STRING | CTLFLAG_RW, 0, 0,
     idle_sysctl, "A", "currently selected idle function");
+
+uint64_t (*atomic_load_acq_64)(volatile uint64_t *) =
+    atomic_load_acq_64_i386;
+void (*atomic_store_rel_64)(volatile uint64_t *, uint64_t) =
+    atomic_store_rel_64_i386;
+
+static void
+cpu_probe_cmpxchg8b(void)
+{
+
+	if ((cpu_feature & CPUID_CX8) != 0 ||
+	    cpu_vendor_id == CPU_VENDOR_RISE) {
+		atomic_load_acq_64 = atomic_load_acq_64_i586;
+		atomic_store_rel_64 = atomic_store_rel_64_i586;
+	}
+}
 
 /*
  * Reset registers to default values on exec.
@@ -2730,6 +2747,7 @@ init386(first)
 	thread0.td_pcb->pcb_gsd = PCPU_GET(fsgs_gdt)[1];
 
 	cpu_probe_amdc1e();
+	cpu_probe_cmpxchg8b();
 }
 
 #else
@@ -3006,6 +3024,7 @@ init386(first)
 	thread0.td_frame = &proc0_tf;
 
 	cpu_probe_amdc1e();
+	cpu_probe_cmpxchg8b();
 }
 #endif
 

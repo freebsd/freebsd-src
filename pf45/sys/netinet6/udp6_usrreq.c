@@ -909,43 +909,41 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	INP_INFO_WLOCK(&V_udbinfo);
 	INP_WLOCK(inp);
-	if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0 &&
-	    IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
+	if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
 		struct sockaddr_in sin;
 
+		if ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0) {
+			error = EINVAL;
+			goto out;
+		}
 		if (inp->inp_faddr.s_addr != INADDR_ANY) {
 			error = EISCONN;
 			goto out;
 		}
 		in6_sin6_2_sin(&sin, sin6);
+		inp->inp_vflag |= INP_IPV4;
+		inp->inp_vflag &= ~INP_IPV6;
 		error = prison_remote_ip4(td->td_ucred, &sin.sin_addr);
 		if (error != 0)
 			goto out;
 		error = in_pcbconnect(inp, (struct sockaddr *)&sin,
 		    td->td_ucred);
-		if (error == 0) {
-			inp->inp_vflag |= INP_IPV4;
-			inp->inp_vflag &= ~INP_IPV6;
+		if (error == 0)
 			soisconnected(so);
-		}
 		goto out;
 	}
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
 		error = EISCONN;
 		goto out;
 	}
+	inp->inp_vflag &= ~INP_IPV4;
+	inp->inp_vflag |= INP_IPV6;
 	error = prison_remote_ip6(td->td_ucred, &sin6->sin6_addr);
 	if (error != 0)
 		goto out;
 	error = in6_pcbconnect(inp, nam, td->td_ucred);
-	if (error == 0) {
-		if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0) {
-			/* should be non mapped addr */
-			inp->inp_vflag &= ~INP_IPV4;
-			inp->inp_vflag |= INP_IPV6;
-		}
+	if (error == 0)
 		soisconnected(so);
-	}
 out:
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&V_udbinfo);
@@ -1047,18 +1045,6 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 		if (hasv4addr) {
 			struct pr_usrreqs *pru;
 
-			if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr) &&
-			    !IN6_IS_ADDR_V4MAPPED(&inp->in6p_laddr)) {
-				/*
-				 * When remote addr is IPv4-mapped address,
-				 * local addr should not be an IPv6 address;
-				 * since you cannot determine how to map IPv6
-				 * source address to IPv4.
-				 */
-				error = EINVAL;
-				goto out;
-			}
-
 			/*
 			 * XXXRW: We release UDP-layer locks before calling
 			 * udp_send() in order to avoid recursion.  However,
@@ -1083,7 +1069,6 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 #endif
 	error = udp6_output(inp, m, addr, control, td);
 #ifdef INET
-out:
 #endif	
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&V_udbinfo);

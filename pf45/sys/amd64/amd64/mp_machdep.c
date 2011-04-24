@@ -116,7 +116,6 @@ u_long *ipi_invlrng_counts[MAXCPU];
 u_long *ipi_invlpg_counts[MAXCPU];
 u_long *ipi_invlcache_counts[MAXCPU];
 u_long *ipi_rendezvous_counts[MAXCPU];
-u_long *ipi_lazypmap_counts[MAXCPU];
 static u_long *ipi_hardclock_counts[MAXCPU];
 #endif
 
@@ -1620,8 +1619,6 @@ mp_ipi_intrcnt(void *dummy)
 		intrcnt_add(buf, &ipi_ast_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d:rendezvous", i);
 		intrcnt_add(buf, &ipi_rendezvous_counts[i]);
-		snprintf(buf, sizeof(buf), "cpu%d:lazypmap", i);
-		intrcnt_add(buf, &ipi_lazypmap_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d:hardclock", i);
 		intrcnt_add(buf, &ipi_hardclock_counts[i]);
 	}

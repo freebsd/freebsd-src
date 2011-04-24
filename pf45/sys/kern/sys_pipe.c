@@ -348,7 +348,7 @@ kern_pipe(struct thread *td, int fildes[2])
 	rpipe->pipe_state |= PIPE_DIRECTOK;
 	wpipe->pipe_state |= PIPE_DIRECTOK;
 
-	error = falloc(td, &rf, &fd);
+	error = falloc(td, &rf, &fd, 0);
 	if (error) {
 		pipeclose(rpipe);
 		pipeclose(wpipe);
@@ -364,7 +364,7 @@ kern_pipe(struct thread *td, int fildes[2])
 	 * side while we are blocked trying to allocate the write side.
 	 */
 	finit(rf, FREAD | FWRITE, DTYPE_PIPE, rpipe, &pipeops);
-	error = falloc(td, &wf, &fd);
+	error = falloc(td, &wf, &fd, 0);
 	if (error) {
 		fdclose(fdp, rf, fildes[0], td);
 		fdrop(rf, td);

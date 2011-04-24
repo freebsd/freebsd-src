@@ -30,7 +30,11 @@ struct bootinfo {
 	uint64_t	bi_magic;		/* BOOTINFO_MAGIC */
 #define	BOOTINFO_MAGIC		0xdeadbeeffeedface
 	uint64_t	bi_version;		/* version 1 */
-	uint64_t	bi_spare[5];		/* was: name of booted kernel */
+	uint64_t	bi_spare[3];		/* was: name of booted kernel */
+	uint32_t	bi_itr_used;		/* Number of ITR and DTR ... */
+	uint32_t	bi_dtr_used;		/* ... entries used. */
+	uint32_t	bi_text_mapped;		/* Size of text mapped. */
+	uint32_t	bi_data_mapped;		/* Size of data mapped. */
 	uint64_t	bi_pbvm_pgtbl;		/* PA of PBVM page table. */
 	uint64_t	bi_hcdp;		/* DIG64 HCDP table */
 	uint64_t	bi_fpswa;		/* FPSWA interface */

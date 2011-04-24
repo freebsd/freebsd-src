@@ -159,50 +159,50 @@ extern uint32_t bxe_debug;
 #ifdef BXE_DEBUG
 
 /* Print a message based on the logging level and code path. */
-#define DBPRINT(sc, level, format, args...)					\
-	do {													\
-		if (BXE_LOG_MSG(level)) {							\
-			device_printf(sc->bxe_dev, format, ## args);	\
-		}													\
+#define DBPRINT(sc, level, format, args...)				\
+	do {								\
+		if (BXE_LOG_MSG(level)) {				\
+			device_printf(sc->dev, format, ## args);	\
+		}							\
 	} while (0)
 
 /* Runs a particular command when debugging is enabled. */
-#define DBRUN(args...)			\
-	do {						\
-		args;					\
+#define DBRUN(args...)							\
+	do {								\
+		args;							\
 	} while (0)
 
 /* Runs a particular command based on the logging level. */
-#define DBRUNLV(level, args...) \
-	if (BXE_MSG_LEVEL(level)) { \
-		args; 					\
+#define DBRUNLV(level, args...) 					\
+	if (BXE_MSG_LEVEL(level)) { 					\
+		args; 							\
 	}
 
 /* Runs a particular command based on the code path. */
-#define DBRUNCP(cp, args...) 	\
-	if (BXE_CODE_PATH(cp)) { 	\
-		args; 					\
+#define DBRUNCP(cp, args...) 						\
+	if (BXE_CODE_PATH(cp)) { 					\
+		args; 							\
 	}
 
 /* Runs a particular command based on a condition. */
-#define DBRUNIF(cond, args...)	\
-	if (cond) {					\
-		args;					\
+#define DBRUNIF(cond, args...)						\
+	if (cond) {							\
+		args;							\
 	}
 
 /* Runs a particular command based on the logging level and code path. */
-#define DBRUNMSG(msg, args...)	\
-	if (BXE_LOG_MSG(msg)) {		\
-		args;					\
+#define DBRUNMSG(msg, args...)						\
+	if (BXE_LOG_MSG(msg)) {						\
+		args;							\
 	}
 
 /* Announces function entry. */
-#define DBENTER(cond)	\
-	DBPRINT(sc, (cond), "%s(enter:%d)\n", __FUNCTION__, curcpu) \
+#define DBENTER(cond)							\
+	DBPRINT(sc, (cond), "%s(enter:%d)\n", __FUNCTION__, curcpu)
 
 /* Announces function exit. */
-#define DBEXIT(cond)	\
-	DBPRINT(sc, (cond), "%s(exit:%d)\n", __FUNCTION__, curcpu) \
+#define DBEXIT(cond)							\
+	DBPRINT(sc, (cond), "%s(exit:%d)\n", __FUNCTION__, curcpu)
 
 /* Needed for random() function which is only used in debugging. */
 #include <sys/random.h>

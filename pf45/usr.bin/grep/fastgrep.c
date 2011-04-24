@@ -1,4 +1,6 @@
 /*	$OpenBSD: util.c,v 1.36 2007/10/02 17:59:18 otto Exp $	*/
+/*	$NetBSD: fastgrep.c,v 1.4 2011/02/27 17:33:37 joerg Exp $	*/
+/*	$FreeBSD$ */
 
 /*-
  * Copyright (c) 1999 James Howard and Dag-Erling Coïdan Smørgrav
@@ -60,8 +62,7 @@ fgrepcomp(fastgrep_t *fg, const char *pat)
 	fg->eol = false;
 	fg->reversed = false;
 
-	fg->pattern = grep_malloc(strlen(pat) + 1);
-	strcpy(fg->pattern, pat);
+	fg->pattern = (unsigned char *)grep_strdup(pat);
 
 	/* Preprocess pattern. */
 	for (i = 0; i <= UCHAR_MAX; i++)
@@ -82,44 +83,44 @@ fastcomp(fastgrep_t *fg, const char *pat)
 	int hasDot = 0;
 	int lastHalfDot = 0;
 	int shiftPatternLen;
-	bool bol = false;
-	bool eol = false;
 
 	/* Initialize. */
 	fg->len = strlen(pat);
 	fg->bol = false;
 	fg->eol = false;
 	fg->reversed = false;
+	fg->word = wflag;
 
 	/* Remove end-of-line character ('$'). */
 	if (fg->len > 0 && pat[fg->len - 1] == '$') {
-		eol = true;
 		fg->eol = true;
 		fg->len--;
 	}
 
 	/* Remove beginning-of-line character ('^'). */
 	if (pat[0] == '^') {
-		bol = true;
 		fg->bol = true;
 		fg->len--;
+		pat++;
 	}
 
 	if (fg->len >= 14 &&
-	    strncmp(pat + (fg->bol ? 1 : 0), "[[:<:]]", 7) == 0 &&
-	    strncmp(pat + (fg->bol ? 1 : 0) + fg->len - 7, "[[:>:]]", 7) == 0) {
+	    memcmp(pat, "[[:<:]]", 7) == 0 &&
+	    memcmp(pat + fg->len - 7, "[[:>:]]", 7) == 0) {
 		fg->len -= 14;
+		pat += 7;
 		/* Word boundary is handled separately in util.c */
-		wflag = true;
+		fg->word = true;
 	}
 
 	/*
-	 * Copy pattern minus '^' and '$' characters as well as word
-	 * match character classes at the beginning and ending of the
-	 * string respectively.
+	 * pat has been adjusted earlier to not include '^', '$' or
+	 * the word match character classes at the beginning and ending
+	 * of the string respectively.
 	 */
 	fg->pattern = grep_malloc(fg->len + 1);
-	strlcpy(fg->pattern, pat + (bol ? 1 : 0) + wflag, fg->len + 1);
+	memcpy(fg->pattern, pat, fg->len);
+	fg->pattern[fg->len] = '\0';
 
 	/* Look for ways to cheat...er...avoid the full regex engine. */
 	for (i = 0; i < fg->len; i++) {
@@ -148,7 +149,7 @@ fastcomp(fastgrep_t *fg, const char *pat)
 	 * Determine if a reverse search would be faster based on the placement
 	 * of the dots.
 	 */
-	if ((!(lflag || cflag)) && ((!(bol || eol)) &&
+	if ((!(lflag || cflag)) && ((!(fg->bol || fg->eol)) &&
 	    ((lastHalfDot) && ((firstHalfDot < 0) ||
 	    ((fg->len - (lastHalfDot + 1)) < (size_t)firstHalfDot)))) &&
 	    !oflag && !color) {

@@ -102,6 +102,7 @@ GEOM_PART_MBR	opt_geom.h
 GEOM_PART_PC98	opt_geom.h
 GEOM_PART_VTOC8	opt_geom.h
 GEOM_PC98	opt_geom.h
+GEOM_RAID	opt_geom.h
 GEOM_RAID3	opt_geom.h
 GEOM_SHSEC	opt_geom.h
 GEOM_STRIPE	opt_geom.h
@@ -303,6 +304,9 @@ CAM_DEBUG_FLAGS		opt_cam.h
 SCSI_DELAY		opt_scsi.h
 SCSI_NO_SENSE_STRINGS	opt_scsi.h
 SCSI_NO_OP_STRINGS	opt_scsi.h
+
+# Options used only in cam/ata/ata_da.c
+ADA_TEST_FAILURE       opt_ada.h
 
 # Options used only in cam/scsi/scsi_cd.c
 CHANGER_MIN_BUSY_SECONDS	opt_cd.h
@@ -767,6 +771,7 @@ ATH_TXBUF		opt_ath.h
 ATH_RXBUF		opt_ath.h
 ATH_DIAGAPI		opt_ath.h
 ATH_TX99_DIAG		opt_ath.h
+ATH_ENABLE_11N		opt_ah.h
 
 # options for the Atheros hal
 AH_SUPPORT_AR5416	opt_ah.h
@@ -783,7 +788,9 @@ AH_NEED_DESC_SWAP	opt_ah.h
 AH_USE_INIPDGAIN	opt_ah.h
 AH_MAXCHAN		opt_ah.h
 AH_RXCFG_SDMAMW_4BYTES	opt_ah.h
-AH_ENABLE_11N		opt_ah.h
+
+# AR5416 and later interrupt mitigation
+AH_AR5416_INTERRUPT_MITIGATION	opt_ah.h
 
 # options for the Broadcom BCM43xx driver (bwi)
 BWI_DEBUG		opt_bwi.h
@@ -827,6 +834,7 @@ IEEE80211_AMPDU_AGE	opt_wlan.h
 IEEE80211_SUPPORT_MESH	opt_wlan.h
 IEEE80211_SUPPORT_SUPERG	opt_wlan.h
 IEEE80211_SUPPORT_TDMA	opt_wlan.h
+IEEE80211_ALQ		opt_wlan.h
 
 # 802.11 TDMA support
 TDMA_SLOTLEN_DEFAULT	opt_tdma.h
@@ -871,3 +879,15 @@ SDP		opt_ofed.h
 SDP_DEBUG	opt_ofed.h
 IPOIB_DEBUG	opt_ofed.h
 IPOIB_CM	opt_ofed.h
+
+# Resource Accounting
+RACCT		opt_global.h
+
+# Resource Limits
+RCTL		opt_global.h
+
+# At least one of the AR71XX ubiquiti boards has a Redboot configuration
+# that "lies" about the amount of RAM it has. Until a cleaner method is
+# defined, this option will suffice in overriding what Redboot says.
+AR71XX_REALMEM    opt_global.h
+

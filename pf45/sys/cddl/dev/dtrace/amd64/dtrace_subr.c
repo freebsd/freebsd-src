@@ -403,7 +403,7 @@ dtrace_gethrtime_init(void *arg)
 	 * Otherwise tick->time conversion will be inaccurate, but
 	 * will preserve monotonic property of TSC.
 	 */
-	tsc_f = tsc_freq;
+	tsc_f = atomic_load_acq_64(&tsc_freq);
 
 	/*
 	 * The following line checks that nsec_scale calculated below

@@ -135,6 +135,8 @@ MALLOC_DECLARE(M_PRISON);
 
 #define	HOSTUUIDLEN	64
 
+struct racct;
+
 /*
  * This structure describes a prison.  It is pointed to by all struct
  * ucreds's of the inmates.  pr_ref keeps track of them and is used to
@@ -166,7 +168,8 @@ struct prison {
 	int		 pr_ip6s;			/* (p) number of v6 IPs */
 	struct in_addr	*pr_ip4;			/* (p) v4 IPs of jail */
 	struct in6_addr	*pr_ip6;			/* (p) v6 IPs of jail */
-	void		*pr_sparep[4];
+	struct racct	*pr_racct;			/* (c) resource accounting */
+	void		*pr_sparep[3];
 	int		 pr_childcount;			/* (a) number of child jails */
 	int		 pr_childmax;			/* (p) maximum child jails */
 	unsigned	 pr_allow;			/* (p) PR_ALLOW_* flags */
@@ -380,6 +383,8 @@ int prison_if(struct ucred *cred, struct sockaddr *sa);
 char *prison_name(struct prison *, struct prison *);
 int prison_priv_check(struct ucred *cred, int priv);
 int sysctl_jail_param(SYSCTL_HANDLER_ARGS);
+void prison_racct_foreach(void (*callback)(struct racct *racct,
+    void *arg2, void *arg3), void *arg2, void *arg3);
 
 #endif /* _KERNEL */
 #endif /* !_SYS_JAIL_H_ */

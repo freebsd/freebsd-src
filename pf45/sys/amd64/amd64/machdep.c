@@ -156,6 +156,11 @@ static void get_fpcontext(struct thread *td, mcontext_t *mcp);
 static int  set_fpcontext(struct thread *td, const mcontext_t *mcp);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
+/*
+ * The file "conf/ldscript.amd64" defines the symbol "kernphys".  Its value is
+ * the physical address at which the kernel is loaded.
+ */
+extern char kernphys[];
 #ifdef DDB
 extern vm_offset_t ksym_start, ksym_end;
 #endif
@@ -540,21 +545,19 @@ cpu_flush_dcache(void *ptr, size_t len)
 int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
-	register_t reg;
 	uint64_t tsc1, tsc2;
+	uint64_t acnt, mcnt, perf;
+	register_t reg;
 
 	if (pcpu_find(cpu_id) == NULL || rate == NULL)
 		return (EINVAL);
 
-	/* If TSC is P-state invariant, DELAY(9) based logic fails. */
-	if (tsc_is_invariant && tsc_freq != 0)
+	/*
+	 * If TSC is P-state invariant and APERF/MPERF MSRs do not exist,
+	 * DELAY(9) based logic fails.
+	 */
+	if (tsc_is_invariant && !tsc_perf_stat)
 		return (EOPNOTSUPP);
-
-	/* If we're booting, trust the rate calibrated moments ago. */
-	if (cold && tsc_freq != 0) {
-		*rate = tsc_freq;
-		return (0);
-	}
 
 #ifdef SMP
 	if (smp_cpus > 1) {
@@ -567,10 +570,24 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 
 	/* Calibrate by measuring a short delay. */
 	reg = intr_disable();
-	tsc1 = rdtsc();
-	DELAY(1000);
-	tsc2 = rdtsc();
-	intr_restore(reg);
+	if (tsc_is_invariant) {
+		wrmsr(MSR_MPERF, 0);
+		wrmsr(MSR_APERF, 0);
+		tsc1 = rdtsc();
+		DELAY(1000);
+		mcnt = rdmsr(MSR_MPERF);
+		acnt = rdmsr(MSR_APERF);
+		tsc2 = rdtsc();
+		intr_restore(reg);
+		perf = 1000 * acnt / mcnt;
+		*rate = (tsc2 - tsc1) * perf;
+	} else {
+		tsc1 = rdtsc();
+		DELAY(1000);
+		tsc2 = rdtsc();
+		intr_restore(reg);
+		*rate = (tsc2 - tsc1) * 1000;
+	}
 
 #ifdef SMP
 	if (smp_cpus > 1) {
@@ -580,17 +597,6 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	}
 #endif
 
-	tsc2 -= tsc1;
-	if (tsc_freq != 0) {
-		*rate = tsc2 * 1000;
-		return (0);
-	}
-
-	/*
-	 * Subtract 0.5% of the total.  Empirical testing has shown that
-	 * overhead in DELAY() works out to approximately this value.
-	 */
-	*rate = tsc2 * 1000 - tsc2 * 5;
 	return (0);
 }
 
@@ -1417,7 +1423,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 			/*
 			 * block out kernel memory as not available.
 			 */
-			if (pa >= 0x100000 && pa < first)
+			if (pa >= (vm_paddr_t)kernphys && pa < first)
 				goto do_dump_avail;
 
 			/*

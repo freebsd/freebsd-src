@@ -384,6 +384,49 @@ wait_for_pids()
 }
 
 #
+# get_pidfile_from_conf string file
+#
+#	Takes a string to search for in the specified file.
+#	Ignores lines with traditional comment characters.
+#
+# Example:
+#
+# if get_pidfile_from_conf string file; then
+#	pidfile="$_pidfile_from_conf"
+# else
+#	pidfile='appropriate default'
+# fi
+#
+get_pidfile_from_conf()
+{
+	if [ -z "$1" -o -z "$2" ]; then
+		err 3 "USAGE: get_pidfile_from_conf string file ($name)"
+	fi
+
+	local string file line
+
+	string="$1" ; file="$2"
+
+	if [ ! -s "$file" ]; then
+		err 3 "get_pidfile_from_conf: $file does not exist ($name)"
+	fi
+
+	while read line; do
+		case "$line" in
+		*[#\;]*${string}*)	continue ;;
+		*${string}*)		break ;;
+		esac
+	done < $file
+
+	if [ -n "$line" ]; then
+		line=${line#*/}
+		_pidfile_from_conf="/${line%%[\"\;]*}"
+	else
+		return 1
+	fi
+}
+
+#
 # check_startmsgs
 #	If rc_quiet is set (usually as a result of using faststart at
 #	boot time) check if rc_startmsgs is enabled.
@@ -651,7 +694,8 @@ run_rc_command()
 					#	checkyesno ${rcvar}
 					# and return if that failed
 					#
-		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" -a -z "${rc_pid}" ]; then
+		if [ -n "${rcvar}" -a "$rc_arg" != "rcvar" -a "$rc_arg" != "stop" ] ||
+		    [ -n "${rcvar}" -a "$rc_arg" = "stop" -a -z "${rc_pid}" ]; then
 			if ! checkyesno ${rcvar}; then
 				if [ -n "${rc_quiet}" ]; then
 					return 0
@@ -1015,10 +1059,6 @@ load_rc_config()
 		debug "Sourcing /etc/rc.conf.d/${_name}"
 		. /etc/rc.conf.d/"$_name"
 	fi
-
-	# Old variable name support -- Remove before 9.0-RELEASE
-	#
-	[ -n "$enable_quotas" ] && err 1 "enable_quotas is deprecated, use quota_enable"
 
 	# Set defaults if defined.
 	for _var in $rcvar $rcvars; do

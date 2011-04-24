@@ -221,6 +221,7 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 {
 	int hw_model[2];
 	char model[128];
+	uint64_t freq;
 	size_t size;
 	int class, fqmhz, fqkhz;
 	int i;
@@ -303,9 +304,10 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		if (cpu_feature & (1 << i))
 			sbuf_printf(sb, " %s", flags[i]);
 	sbuf_cat(sb, "\n");
-	if (class >= 5) {
-		fqmhz = (tsc_freq + 4999) / 1000000;
-		fqkhz = ((tsc_freq + 4999) / 10000) % 100;
+	freq = atomic_load_acq_64(&tsc_freq);
+	if (freq != 0) {
+		fqmhz = (freq + 4999) / 1000000;
+		fqkhz = ((freq + 4999) / 10000) % 100;
 		sbuf_printf(sb,
 		    "cpu MHz\t\t: %d.%02d\n"
 		    "bogomips\t: %d.%02d\n",
@@ -740,7 +742,6 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	if (P_SHOULDSTOP(p)) {
 		state = "T (stopped)";
 	} else {
-		PROC_SLOCK(p);
 		switch(p->p_state) {
 		case PRS_NEW:
 			state = "I (idle)";
@@ -770,7 +771,6 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 			state = "? (unknown)";
 			break;
 		}
-		PROC_SUNLOCK(p);
 	}
 
 	fill_kinfo_proc(p, &kp);

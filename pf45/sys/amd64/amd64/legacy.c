@@ -321,7 +321,8 @@ cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 		break;
 	case CPU_IVAR_NOMINAL_MHZ:
 		if (tsc_is_invariant) {
-			*result = (uintptr_t)(tsc_freq / 1000000);
+			*result = (uintptr_t)(atomic_load_acq_64(&tsc_freq) /
+			    1000000);
 			break;
 		}
 		/* FALLTHROUGH */

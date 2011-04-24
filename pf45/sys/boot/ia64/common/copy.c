@@ -28,9 +28,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <stand.h>
-#include <ia64/include/vmparam.h>
+#include <machine/param.h>
 
 #include "libia64.h"
+
+u_int ia64_legacy_kernel;
 
 uint64_t *ia64_pgtbl;
 uint32_t ia64_pgtblsz;
@@ -80,8 +82,8 @@ pgtbl_extend(u_int idx)
 	return (0);
 }
 
-static void *
-va2pa(vm_offset_t va, size_t *len)
+void *
+ia64_va2pa(vm_offset_t va, size_t *len)
 {
 	uint64_t pa;
 	u_int idx, ofs;
@@ -89,6 +91,7 @@ va2pa(vm_offset_t va, size_t *len)
 
 	/* Backward compatibility. */
 	if (va >= IA64_RR_BASE(7)) {
+		ia64_legacy_kernel = 1;
 		pa = IA64_RR_MASK(va);
 		return ((void *)pa);
 	}
@@ -97,6 +100,8 @@ va2pa(vm_offset_t va, size_t *len)
 		error = EINVAL;
 		goto fail;
 	}
+
+	ia64_legacy_kernel = 0;
 
 	idx = (va - IA64_PBVM_BASE) >> IA64_PBVM_PAGE_SHIFT;
 	if (idx >= (ia64_pgtblsz >> 3)) {
@@ -138,7 +143,7 @@ ia64_copyin(const void *src, vm_offset_t va, size_t len)
 	res = 0;
 	while (len > 0) {
 		sz = len;
-		pa = va2pa(va, &sz);
+		pa = ia64_va2pa(va, &sz);
 		if (sz == 0)
 			break;
 		bcopy(src, pa, sz);
@@ -159,7 +164,7 @@ ia64_copyout(vm_offset_t va, void *dst, size_t len)
 	res = 0;
 	while (len > 0) {
 		sz = len;
-		pa = va2pa(va, &sz);
+		pa = ia64_va2pa(va, &sz);
 		if (sz == 0)
 			break;
 		bcopy(pa, dst, sz);
@@ -168,6 +173,19 @@ ia64_copyout(vm_offset_t va, void *dst, size_t len)
 		va += sz;
 	}
 	return (res);
+}
+
+uint64_t
+ia64_loadaddr(u_int type, void *data, uint64_t addr)
+{
+	uint64_t align;
+
+	/*
+	 * Align ELF objects at PBVM page boundaries.  Align all other
+	 * objects at cache line boundaries for good measure.
+	 */
+	align = (type == LOAD_ELF) ? IA64_PBVM_PAGE_SIZE : CACHE_LINE_SIZE;
+	return ((addr + align - 1) & ~(align - 1));
 }
 
 ssize_t
@@ -180,7 +198,7 @@ ia64_readin(int fd, vm_offset_t va, size_t len)
 	res = 0;
 	while (len > 0) {
 		sz = len;
-		pa = va2pa(va, &sz);
+		pa = ia64_va2pa(va, &sz);
 		if (sz == 0)
 			break;
 		s = read(fd, pa, sz);

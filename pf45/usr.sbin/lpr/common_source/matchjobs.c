@@ -1,6 +1,6 @@
 /*
  * ------+---------+---------+---------+---------+---------+---------+---------*
- * Copyright (c) 2002   - Garance Alistair Drosehn <gad@FreeBSD.org>.
+ * Copyright (c) 2002,2011   - Garance Alistair Drosehn <gad@FreeBSD.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -453,7 +453,7 @@ match_jobspec(struct jobqueue *jq, struct jobspec *jspec)
 		cfinf = ctl_readcf("fakeq", jq->job_cfname);
 		if (cfinf == NULL)
 			goto nomatch;
-		if (fnmatch(jspec->wanteduser, cfinf->cji_username, 0) != 0)
+		if (fnmatch(jspec->wanteduser, cfinf->cji_acctuser, 0) != 0)
 			goto nomatch;
 	}
 
@@ -467,7 +467,7 @@ match_jobspec(struct jobqueue *jq, struct jobspec *jspec)
 		 * pattern), then the caller's "doentry()" routine might
 		 * want to know the userid of this job that matched.
 		 */
-		jspec->matcheduser = strdup(cfinf->cji_username);
+		jspec->matcheduser = strdup(cfinf->cji_acctuser);
 	}
 #if DEBUG_SCANJS
 	printf("\t [ job matched! ]\n");

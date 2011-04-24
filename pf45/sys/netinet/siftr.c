@@ -38,10 +38,11 @@
  * for experimental, debugging and performance analysis purposes.
  *
  * SIFTR was first released in 2007 by James Healy and Lawrence Stewart whilst
- * working on the NewTCP research project at Swinburne University's Centre for
- * Advanced Internet Architectures, Melbourne, Australia, which was made
- * possible in part by a grant from the Cisco University Research Program Fund
- * at Community Foundation Silicon Valley. More details are available at:
+ * working on the NewTCP research project at Swinburne University of
+ * Technology's Centre for Advanced Internet Architectures, Melbourne,
+ * Australia, which was made possible in part by a grant from the Cisco
+ * University Research Program Fund at Community Foundation Silicon Valley.
+ * More details are available at:
  *   http://caia.swin.edu.au/urp/newtcp/
  *
  * Work on SIFTR v1.2.x was sponsored by the FreeBSD Foundation as part of
@@ -155,14 +156,11 @@ __FBSDID("$FreeBSD$");
 #define THIRD_OCTET(X)	(((X) & 0x0000FF00) >> 8)
 #define FOURTH_OCTET(X)	((X) & 0x000000FF)
 
-MALLOC_DECLARE(M_SIFTR);
-MALLOC_DEFINE(M_SIFTR, "siftr", "dynamic memory used by SIFTR");
-
-MALLOC_DECLARE(M_SIFTR_PKTNODE);
-MALLOC_DEFINE(M_SIFTR_PKTNODE, "siftr_pktnode", "SIFTR pkt_node struct");
-
-MALLOC_DECLARE(M_SIFTR_HASHNODE);
-MALLOC_DEFINE(M_SIFTR_HASHNODE, "siftr_hashnode", "SIFTR flow_hash_node struct");
+static MALLOC_DEFINE(M_SIFTR, "siftr", "dynamic memory used by SIFTR");
+static MALLOC_DEFINE(M_SIFTR_PKTNODE, "siftr_pktnode",
+    "SIFTR pkt_node struct");
+static MALLOC_DEFINE(M_SIFTR_HASHNODE, "siftr_hashnode",
+    "SIFTR flow_hash_node struct");
 
 /* Used as links in the pkt manager queue. */
 struct pkt_node {

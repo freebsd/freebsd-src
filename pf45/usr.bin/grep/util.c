@@ -1,3 +1,5 @@
+/*	$NetBSD: util.c,v 1.9 2011/02/27 17:33:37 joerg Exp $	*/
+/*	$FreeBSD$	*/
 /*	$OpenBSD: util.c,v 1.39 2010/07/02 22:18:03 tedu Exp $	*/
 
 /*-
@@ -55,14 +57,15 @@ static int	 procline(struct str *l, int);
 bool
 file_matching(const char *fname)
 {
+	char *fname_base;
 	bool ret;
 
 	ret = finclude ? false : true;
+	fname_base = basename(fname);
 
 	for (unsigned int i = 0; i < fpatterns; ++i) {
-		if (fnmatch(fpattern[i].pat,
-		    fname, 0) == 0 || fnmatch(fpattern[i].pat,
-		    basename(fname), 0) == 0) {
+		if (fnmatch(fpattern[i].pat, fname, 0) == 0 ||
+		    fnmatch(fpattern[i].pat, fname_base, 0) == 0) {
 			if (fpattern[i].mode == EXCL_PAT)
 				return (false);
 			else
@@ -277,7 +280,7 @@ procfile(const char *fn)
  * matches.  The matching lines are passed to printline() to display the
  * appropriate output.
  */
-static inline int
+static int
 procline(struct str *l, int nottext)
 {
 	regmatch_t matches[MAX_LINE_MATCHES];
@@ -318,7 +321,8 @@ procline(struct str *l, int nottext)
 					    (size_t)pmatch.rm_eo != l->len)
 						r = REG_NOMATCH;
 				/* Check for whole word match */
-				if (r == 0 && wflag && pmatch.rm_so != 0) {
+				if (r == 0 && fg_pattern[i].word &&
+				    pmatch.rm_so != 0) {
 					wint_t wbegin, wend;
 
 					wbegin = wend = L' ';

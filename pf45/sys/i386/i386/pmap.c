@@ -297,6 +297,7 @@ static boolean_t pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m,
     vm_prot_t prot);
 static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte);
+static void pmap_flush_page(vm_page_t m);
 static void pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte);
 static void pmap_fill_ptp(pt_entry_t *firstpte, pt_entry_t newpte);
 static boolean_t pmap_is_modified_pvh(struct md_page *pvh);
@@ -1136,6 +1137,8 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 }
 #endif /* !SMP */
 
+#define	PMAP_CLFLUSH_THRESHOLD	(2 * 1024 * 1024)
+
 void
 pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 {
@@ -1148,7 +1151,7 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 	if (cpu_feature & CPUID_SS)
 		; /* If "Self Snoop" is supported, do nothing. */
 	else if ((cpu_feature & CPUID_CLFSH) != 0 &&
-		 eva - sva < 2 * 1024 * 1024) {
+	    eva - sva < PMAP_CLFLUSH_THRESHOLD) {
 
 		/*
 		 * Otherwise, do per-cache line flush.  Use the mfence
@@ -1169,6 +1172,20 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 		 * Globally invalidate cache.
 		 */
 		pmap_invalidate_cache();
+	}
+}
+
+void
+pmap_invalidate_cache_pages(vm_page_t *pages, int count)
+{
+	int i;
+
+	if (count >= PMAP_CLFLUSH_THRESHOLD / PAGE_SIZE ||
+	    (cpu_feature & CPUID_CLFSH) == 0) {
+		pmap_invalidate_cache();
+	} else {
+		for (i = 0; i < count; i++)
+			pmap_flush_page(pages[i]);
 	}
 }
 
@@ -4825,8 +4842,6 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 void
 pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 {
-	struct sysmaps *sysmaps;
-	vm_offset_t sva, eva;
 
 	m->md.pat_mode = ma;
 	if ((m->flags & PG_FICTITIOUS) != 0)
@@ -4849,25 +4864,42 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 	 * invalidation. In the worst case, whole cache is flushed by
 	 * pmap_invalidate_cache_range().
 	 */
-	if ((cpu_feature & (CPUID_SS|CPUID_CLFSH)) == CPUID_CLFSH) {
+	if ((cpu_feature & CPUID_SS) == 0)
+		pmap_flush_page(m);
+}
+
+static void
+pmap_flush_page(vm_page_t m)
+{
+	struct sysmaps *sysmaps;
+	vm_offset_t sva, eva;
+
+	if ((cpu_feature & CPUID_CLFSH) != 0) {
 		sysmaps = &sysmaps_pcpu[PCPU_GET(cpuid)];
 		mtx_lock(&sysmaps->lock);
 		if (*sysmaps->CMAP2)
-			panic("pmap_page_set_memattr: CMAP2 busy");
+			panic("pmap_flush_page: CMAP2 busy");
 		sched_pin();
 		*sysmaps->CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) |
 		    PG_A | PG_M | pmap_cache_bits(m->md.pat_mode, 0);
 		invlcaddr(sysmaps->CADDR2);
 		sva = (vm_offset_t)sysmaps->CADDR2;
 		eva = sva + PAGE_SIZE;
-	} else
-		sva = eva = 0; /* gcc */
-	pmap_invalidate_cache_range(sva, eva);
-	if (sva != 0) {
+
+		/*
+		 * Use mfence despite the ordering implied by
+		 * mtx_{un,}lock() because clflush is not guaranteed
+		 * to be ordered by any other instruction.
+		 */
+		mfence();
+		for (; sva < eva; sva += cpu_clflush_line_size)
+			clflush(sva);
+		mfence();
 		*sysmaps->CMAP2 = 0;
 		sched_unpin();
 		mtx_unlock(&sysmaps->lock);
-	}
+	} else
+		pmap_invalidate_cache();
 }
 
 /*

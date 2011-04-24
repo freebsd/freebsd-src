@@ -70,28 +70,18 @@
 #include <sys/bus.h>
 #include <sys/rman.h>
 
-#include <dev/mii/mii.h>
-#include <dev/mii/miivar.h>
-#include "miidevs.h"
-
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
-
-#include "miibus_if.h"
-
 
 /*
  * Device identification definitions.
  */
-#define	BRCM_VENDORID				0x14E4
+#define	BRCM_VENDORID			0x14E4
 #define	BRCM_DEVICEID_BCM57710		0x164E
 #define	BRCM_DEVICEID_BCM57711		0x164F
 #define	BRCM_DEVICEID_BCM57711E		0x1650
 
-#define PCI_ANY_ID				(u_int16_t) (~0U)
+#define PCI_ANY_ID			(u_int16_t) (~0U)
 
 
 struct bxe_type {
@@ -147,6 +137,8 @@ struct bxe_type {
 	mtx_lock(&(sc->bxe_core_mtx))
 #define	BXE_SP_LOCK(sc)							\
 	mtx_lock(&(sc->bxe_sp_mtx))
+#define	BXE_FP_LOCK(fp)							\
+	mtx_lock(&(fp->mtx))
 #define	BXE_DMAE_LOCK(sc)						\
 	mtx_lock(&(sc->bxe_dmae_mtx))
 #define	BXE_PHY_LOCK(sc)						\
@@ -161,6 +153,8 @@ struct bxe_type {
 	mtx_assert(&(sc->bxe_core_mtx), MA_OWNED)
 #define	BXE_SP_LOCK_ASSERT(sc)						\
 	mtx_assert(&(sc->bxe_sp_mtx), MA_OWNED)
+#define	BXE_FP_LOCK_ASSERT(fp)						\
+	mtx_assert(&(fp->mtx), MA_OWNED)
 #define	BXE_DMAE_LOCK_ASSERT(sc)					\
 	mtx_assert(&(sc->bxe_dmae_mtx), MA_OWNED)
 #define	BXE_PHY_LOCK_ASSERT(sc)						\
@@ -170,6 +164,8 @@ struct bxe_type {
 	mtx_unlock(&(sc->bxe_core_mtx))
 #define	BXE_SP_UNLOCK(sc)						\
 	mtx_unlock(&(sc->bxe_sp_mtx))
+#define	BXE_FP_UNLOCK(fp)						\
+	mtx_unlock(&(fp->mtx))
 #define	BXE_DMAE_UNLOCK(sc)						\
 	mtx_unlock(&(sc->bxe_dmae_mtx))
 #define	BXE_PHY_UNLOCK(sc)						\
@@ -290,7 +286,9 @@ struct bxe_type {
 #define	RX_SGE_MASK_LEN_MASK	(RX_SGE_MASK_LEN - 1)
 #define	NEXT_SGE_MASK_ELEM(el)	(((el) + 1) & RX_SGE_MASK_LEN_MASK)
 
-/* Transmit Buffer Descriptor (tx_bd) definitions. */
+/*
+ * Transmit Buffer Descriptor (tx_bd) definitions*
+ */
 
 /* ToDo: Tune this value based on multi-queue/RSS enable/disable. */
 #define	NUM_TX_PAGES		2
@@ -308,18 +306,26 @@ struct bxe_type {
 #define	TX_PAGE(x)		(((x) & ~USABLE_TX_BD_PER_PAGE) >> 8)
 #define	TX_IDX(x)		((x) & USABLE_TX_BD_PER_PAGE)
 
-/* Receive Buffer Descriptor (rx_bd) definitions. */
+/*
+ * Receive Buffer Descriptor (rx_bd) definitions*
+ */
 #define	NUM_RX_PAGES		2
+
 /* 512 (0x200) of 8 byte bds in 4096 byte page. */
 #define	TOTAL_RX_BD_PER_PAGE	(BCM_PAGE_SIZE / sizeof(struct eth_rx_bd))
+
 /* 510 (0x1fe) = 512 - 2 */
 #define	USABLE_RX_BD_PER_PAGE	(TOTAL_RX_BD_PER_PAGE - 2)
+
 /* 1024 (0x400) */
 #define	TOTAL_RX_BD		(TOTAL_RX_BD_PER_PAGE * NUM_RX_PAGES)
+
 /* 1020 (0x3fc) = 1024 - 4 */
 #define	USABLE_RX_BD		(USABLE_RX_BD_PER_PAGE * NUM_RX_PAGES)
+
 /* 1023 (0x3ff) = 1024 -1 */
 #define	MAX_RX_BD		(TOTAL_RX_BD - 1)
+
 /* 511 (0x1ff) = 512 - 1 */
 #define	RX_DESC_MASK		(TOTAL_RX_BD_PER_PAGE - 1)
 
@@ -331,25 +337,31 @@ struct bxe_type {
 #define	RX_PAGE(x)		(((x) & ~RX_DESC_MASK) >> 9)
 #define	RX_IDX(x)		((x) & RX_DESC_MASK)
 
-/* Receive Completion Queue definitions. */
+/*
+ * Receive Completion Queue definitions*
+ */
 
-/* CQEs are 4 times larger (32 bytes) than rx_bd's (8 bytes). 8pages. */
+/* CQEs (32 bytes) are 4 times larger than rx_bd's (8 bytes). */
 #define	NUM_RCQ_PAGES		(NUM_RX_PAGES * 4)
+
 /* 128 (0x80) */
-#define	TOTAL_RCQ_ENTRIES_PER_PAGE					\
-	(BCM_PAGE_SIZE / sizeof(union eth_rx_cqe))
+#define	TOTAL_RCQ_ENTRIES_PER_PAGE (BCM_PAGE_SIZE / sizeof(union eth_rx_cqe))
+
 /* 127 (0x7f)for the next page RCQ bd */
 #define	USABLE_RCQ_ENTRIES_PER_PAGE	(TOTAL_RCQ_ENTRIES_PER_PAGE - 1)
+
 /* 1024 (0x400) */
 #define	TOTAL_RCQ_ENTRIES	(TOTAL_RCQ_ENTRIES_PER_PAGE * NUM_RCQ_PAGES)
+
 /* 1016 (0x3f8) */
 #define	USABLE_RCQ_ENTRIES	(USABLE_RCQ_ENTRIES_PER_PAGE * NUM_RCQ_PAGES)
+
 /* 1023 (0x3ff) */
 #define	MAX_RCQ_ENTRIES		(TOTAL_RCQ_ENTRIES - 1)
 
 #define	NEXT_RCQ_IDX(x)							\
 	((((x) & USABLE_RCQ_ENTRIES_PER_PAGE) ==			\
-	(USABLE_RCQ_ENTRIES_PER_PAGE-1)) ? (x) + 2 : (x) + 1)
+	(USABLE_RCQ_ENTRIES_PER_PAGE - 1)) ? (x) + 2 : (x) + 1)
 #define	RCQ_ENTRY(x)		((x) & MAX_RCQ_ENTRIES)
 #define	RCQ_PAGE(x)		(((x) & ~USABLE_RCQ_ENTRIES_PER_PAGE) >> 7)
 #define	RCQ_IDX(x)		((x) & USABLE_RCQ_ENTRIES_PER_PAGE)
@@ -388,8 +400,9 @@ struct bxe_type {
 
 /* Reduce from 13 to leave room for the parsing buffer. */
 #define	BXE_MAX_SEGMENTS		12
-#define	BXE_TSO_MAX_SIZE		65536
-#define	BXE_TSO_MAX_SEG_SIZE		4096
+#define BXE_TSO_MAX_SEGMENTS		32
+#define	BXE_TSO_MAX_SIZE		(65535 + sizeof(struct ether_vlan_header))
+#define	BXE_TSO_MAX_SEG_SIZE	4096
 
 /*
  * Hardware Support For IP and TCP checksum.
@@ -407,12 +420,12 @@ struct bxe_type {
 #if __FreeBSD_version < 700000
 #define	BXE_IF_CAPABILITIES						\
 	(IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | IFCAP_HWCSUM |		\
-	IFCAP_JUMBO_MTU | IFCAP_LRO)
+	IFCAP_JUMBO_MTU)
 #else
 	/* TSO was introduced in FreeBSD 7 */
 #define	BXE_IF_CAPABILITIES						\
 	(IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | IFCAP_HWCSUM |		\
-	IFCAP_JUMBO_MTU | IFCAP_LRO | IFCAP_TSO4 | IFCAP_VLAN_HWCSUM)
+	IFCAP_JUMBO_MTU | IFCAP_TSO4 | IFCAP_VLAN_HWCSUM)
 #endif
 
 /* Some typical Ethernet frame sizes */
@@ -451,6 +464,7 @@ struct bxe_type {
 
 #define	MIN_BXE_BC_VER		0x00040200
 
+#define BXE_BR_SIZE		4096
 
 #define	BXE_NO_RX_FLAGS							\
 	(TSTORM_ETH_DROP_FLAGS_DROP_ALL_PACKETS)
@@ -916,6 +930,9 @@ struct bxe_fastpath {
 	/* Pointer back to parent structure. */
 	struct bxe_softc	*sc;
 
+	struct mtx		mtx;
+	char			mtx_name[16];
+
 	/* Hardware maintained status block. */
 	bus_dma_tag_t		status_block_tag;
 	bus_dmamap_t		status_block_map;
@@ -956,10 +973,13 @@ struct bxe_fastpath {
 	struct mbuf		*rx_mbuf_ptr[TOTAL_RX_BD];
 
 	/* Hardware maintained Completion Queue (CQ) chains. */
-	bus_dma_tag_t		rx_comp_chain_tag;
-	bus_dmamap_t		rx_comp_chain_map[NUM_RCQ_PAGES];
-	union eth_rx_cqe	*rx_comp_chain[NUM_RCQ_PAGES];
-	bus_addr_t		rx_comp_chain_paddr[NUM_RCQ_PAGES];
+	bus_dma_tag_t		rx_cq_chain_tag;
+	bus_dmamap_t		rx_cq_chain_map[NUM_RCQ_PAGES];
+	union eth_rx_cqe	*rx_cq_chain[NUM_RCQ_PAGES];
+	bus_addr_t		rx_cq_chain_paddr[NUM_RCQ_PAGES];
+
+	/* Ticks until chip reset. */
+	int			watchdog_timer;
 
 	/* Taskqueue reqources. */
 	struct task		task;
@@ -998,10 +1018,8 @@ struct bxe_fastpath {
 	/* Transmit packet consumer index. */
 	uint16_t		tx_pkt_cons;
 
-	/* Transmit buffer descriptor producer index. */
+	/* Transmit buffer descriptor prod/cons indices. */
 	uint16_t		tx_bd_prod;
-
-	/* Transmit buffer descriptor consumer index. */
 	uint16_t		tx_bd_cons;
 
 	/* Driver's copy of the fastpath CSTORM/USTORM indices. */
@@ -1013,11 +1031,11 @@ struct bxe_fastpath {
 	uint16_t		rx_bd_cons;
 
 	/* Driver's copy of the receive completion queue prod/cons indices. */
-	uint16_t		rx_comp_prod;
-	uint16_t		rx_comp_cons;
+	uint16_t		rx_cq_prod;
+	uint16_t		rx_cq_cons;
 
 	/* Pointer to the receive consumer index in the status block. */
-	uint16_t		*rx_cons_sb;
+	uint16_t		*rx_cq_cons_sb;
 
 	/*
 	 * Pointer to the receive buffer descriptor consumer in the
@@ -1070,19 +1088,21 @@ struct bxe_fastpath {
 	struct xstorm_per_client_stats	old_xclient;
 	struct bxe_q_stats	eth_q_stats;
 
-#ifdef BXE_DEBUG
 	uint16_t		free_rx_bd;
+
+#if __FreeBSD_version >= 800000
+	struct buf_ring		*br;
+#endif
 
 	/* Recieve/transmit packet counters. */
 	unsigned long		rx_pkts;
 	unsigned long		tx_pkts;
 	unsigned long		tpa_pkts;
-
-	/* Receive interrupt counter. */
 	unsigned long		rx_calls;
-
-	/* Memory buffer allocation failure counter. */
 	unsigned long		mbuf_alloc_failed;
+	unsigned long		mbuf_defrag_attempts;
+	unsigned long		mbuf_defrag_failures;
+	unsigned long		mbuf_defrag_successes;
 
 	/* Track the number of enqueued mbufs. */
 	int			tx_mbuf_alloc;
@@ -1091,7 +1111,23 @@ struct bxe_fastpath {
 	int			tpa_mbuf_alloc;
 
 	uint64_t		tpa_queue_used;
-#endif
+
+	unsigned long		null_cqe_flags;
+	unsigned long		offload_frames_csum_ip;
+	unsigned long		offload_frames_csum_tcp;
+	unsigned long		offload_frames_csum_udp;
+	unsigned long		offload_frames_tso;
+	unsigned long		tx_encap_failures;
+	unsigned long		tx_start_called_on_empty_queue;
+	unsigned long		tx_queue_too_full;
+	unsigned long		tx_dma_mapping_failure;
+	unsigned long		window_violation_tso;
+	unsigned long		window_violation_std;
+	unsigned long		unsupported_tso_request_ipv6;
+	unsigned long		unsupported_tso_request_not_tcp;
+	unsigned long		tpa_mbuf_alloc_failed;
+	unsigned long		tx_chain_lost_mbuf;
+
 	/* FreeBSD interface statistics. */
 	unsigned long		soft_rx_errors;
 	unsigned long		soft_tx_errors;
@@ -1118,9 +1154,10 @@ struct bxe_softc {
 	 * MUST start with ifnet pointer (see definition of miibus_statchg()).
 	 */
 	struct ifnet		*bxe_ifp;
+	int			media;
 
 	/* Parent device handle. */
-	device_t		bxe_dev;
+	device_t		dev;
 
 	/* Driver instance number. */
 	u_int8_t		bxe_unit;
@@ -1292,9 +1329,6 @@ struct bxe_softc {
 	uint16_t		pcie_cap;
 	uint16_t		pm_cap;
 
-	/* PCIe maximum read request size. */
-	int			mrrs;
-
 	/* ToDo: Is this really needed? */
 	uint16_t		sp_running;
 
@@ -1345,8 +1379,20 @@ struct bxe_softc {
 #define	BXE_STATE_DIAG			0xE000
 #define	BXE_STATE_ERROR			0xF000
 
+/* Driver tunable options. */
 	int			int_mode;
 	int			multi_mode;
+	int			tso_enable;
+	int			num_queues;
+	int			stats_enable;
+	int			mrrs;
+	int			dcc_enable;
+
+#define	BXE_NUM_QUEUES(cos)						\
+	((bxe_qs_per_cos & (0xff << (cos * 8))) >> (cos * 8))
+#define	BXE_MAX_QUEUES(sc)						\
+	(IS_E1HMF(sc) ? (MAX_CONTEXT / E1HVN_MAX) : MAX_CONTEXT)
+
 
 #define	BXE_MAX_COS		3
 #define	BXE_MAX_PRIORITY	8
@@ -1363,14 +1409,6 @@ struct bxe_softc {
 
 	/* Class of service to queue mapping. */
 	uint8_t			cos_map[BXE_MAX_COS];
-
-	/* The number of fastpath queues (for RSS/multi-queue). */
-	int			num_queues;
-
-#define	BXE_NUM_QUEUES(cos)						\
-	((bxe_qs_per_cos & (0xff << (cos * 8))) >> (cos * 8))
-#define	BXE_MAX_QUEUES(sc)						\
-	(IS_E1HMF(sc) ? (MAX_CONTEXT / E1HVN_MAX) : MAX_CONTEXT)
 
 	/* Used for multiple function devices. */
 	uint32_t		mf_config[E1HVN_MAX];
@@ -1457,12 +1495,8 @@ struct bxe_softc {
 	/* Frame size and mbuf allocation size for RX frames. */
 	uint32_t		max_frame_size;
 	int			mbuf_alloc_size;
-	uint32_t		mbuf_alloc_failed;
 
 	uint16_t		tx_driver;
-
-	/* Ticks until chip reset. */
-	int			watchdog_timer;
 
 	/* Verify bxe_function_init is run before handling interrupts. */
 	uint8_t			intr_sem;
@@ -1472,20 +1506,13 @@ struct bxe_softc {
 	unsigned long		debug_mbuf_sim_map_failed;
 	unsigned long		debug_received_frame_error;
 	unsigned long		debug_memory_allocated;
-	unsigned long		debug_udp_csum_offload_frames;
-	unsigned long		debug_tcp_csum_offload_frames;
-	unsigned long		debug_ip_csum_offload_frames;
-	unsigned long		debug_ip6_csum_offload_frames;
-	unsigned long		debug_tso_offload_frames;
 
 	/* A buffer for hardware/firmware state information (grcdump). */
 	uint32_t		*grcdump_buffer;
 #endif
 
-#ifdef EVST_STOP_ON_ERROR
-	uint32_t		next_free;
-	uint32_t		last_alloc;
-#endif
+	unsigned long 		tx_start_called_with_link_down;
+	unsigned long 		tx_start_called_with_queue_full;
 }; /* end of struct bxe_softc */
 
 #define	MDIO_AN_CL73_OR_37_COMPLETE					\

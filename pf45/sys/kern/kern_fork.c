@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/syscall.h>
@@ -630,12 +631,13 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	/*
 	 * Set the child start time and mark the process as being complete.
 	 */
+	PROC_LOCK(p2);
+	PROC_LOCK(p1);
 	microuptime(&p2->p_stats->p_start);
 	PROC_SLOCK(p2);
 	p2->p_state = PRS_NORMAL;
 	PROC_SUNLOCK(p2);
 
-	PROC_LOCK(p1);
 #ifdef KDTRACE_HOOKS
 	/*
 	 * Tell the DTrace fasttrap provider about the new process
@@ -643,11 +645,8 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * p_state is PRS_NORMAL since the fasttrap module will use pfind()
 	 * later on.
 	 */
-	if (dtrace_fasttrap_fork) {
-		PROC_LOCK(p2);
+	if (dtrace_fasttrap_fork)
 		dtrace_fasttrap_fork(p1, p2);
-		PROC_UNLOCK(p2);
-	}
 #endif
 	if ((p1->p_flag & (P_TRACED | P_FOLLOWFORK)) == (P_TRACED |
 	    P_FOLLOWFORK)) {
@@ -660,12 +659,11 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 		 */
 		td->td_dbgflags |= TDB_FORK;
 		td->td_dbg_forked = p2->p_pid;
-		PROC_LOCK(p2);
 		td2->td_dbgflags |= TDB_STOPATFORK;
 		_PHOLD(p2);
 		p2_held = 1;
-		PROC_UNLOCK(p2);
 	}
+	PROC_UNLOCK(p2);
 	if ((flags & RFSTOPPED) == 0) {
 		/*
 		 * If RFSTOPPED not requested, make child runnable and
@@ -736,6 +734,12 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 		return (fork_norfproc(td, flags));
 	}
 
+	PROC_LOCK(p1);
+	error = racct_add(p1, RACCT_NPROC, 1);
+	PROC_UNLOCK(p1);
+	if (error != 0)
+		return (EAGAIN);
+
 	mem_charged = 0;
 	vm2 = NULL;
 	if (pages == 0)
@@ -786,6 +790,21 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 	knlist_init_mtx(&newproc->p_klist, &newproc->p_mtx);
 	STAILQ_INIT(&newproc->p_ktr);
 
+	/*
+	 * XXX: This is ugly; when we copy resource usage, we need to bump
+	 *      per-cred resource counters.
+	 */
+	newproc->p_ucred = p1->p_ucred;
+
+	/*
+	 * Initialize resource accounting for the child process.
+	 */
+	error = racct_proc_fork(p1, newproc);
+	if (error != 0) {
+		error = EAGAIN;
+		goto fail1;
+	}
+
 	/* We have to lock the process tree while we look for a pid. */
 	sx_slock(&proctree_lock);
 
@@ -799,6 +818,17 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 	sx_xlock(&allproc_lock);
 	if ((nprocs >= maxproc - 10 && priv_check_cred(td->td_ucred,
 	    PRIV_MAXPROC, 0) != 0) || nprocs >= maxproc) {
+		error = EAGAIN;
+		goto fail;
+	}
+
+	/*
+	 * After fork, there is exactly one thread running.
+	 */
+	PROC_LOCK(newproc);
+	error = racct_set(newproc, RACCT_NTHR, 1);
+	PROC_UNLOCK(newproc);
+	if (error != 0) {
 		error = EAGAIN;
 		goto fail;
 	}
@@ -830,6 +860,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp)
 
 	error = EAGAIN;
 fail:
+	racct_proc_exit(newproc);
 	sx_sunlock(&proctree_lock);
 	if (ppsratecheck(&lastfail, &curfail, 1))
 		printf("maxproc limit exceeded by uid %i, please see tuning(7) and login.conf(5).\n",
@@ -843,6 +874,9 @@ fail1:
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
 	pause("fork", hz / 2);
+	PROC_LOCK(p1);
+	racct_sub(p1, RACCT_NPROC, 1);
+	PROC_UNLOCK(p1);
 	return (error);
 }
 

@@ -3,7 +3,7 @@ BXE	= ${.CURDIR}/../../dev/bxe
 .PATH:	${BXE}
 
 KMOD=	if_bxe
-SRCS	= opt_bxe.h device_if.h bus_if.h pci_if.h miibus_if.h miidevs.h 
+SRCS	= opt_bxe.h device_if.h bus_if.h pci_if.h
 SRCS	+= if_bxe.c bxe_link.c
 
 CFLAGS += -I${BXE} -DBXE_TASK

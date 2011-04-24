@@ -336,6 +336,7 @@ perfmon_ioctl(struct cdev *dev, u_long cmd, caddr_t param, int flags, struct thr
 	struct pmc *pmc;
 	struct pmc_data *pmcd;
 	struct pmc_tstamp *pmct;
+	uint64_t freq;
 	int *ip;
 	int rv;
 
@@ -386,13 +387,14 @@ perfmon_ioctl(struct cdev *dev, u_long cmd, caddr_t param, int flags, struct thr
 		break;
 
 	case PMIOTSTAMP:
-		if (!tsc_freq) {
+		freq = atomic_load_acq_64(&tsc_freq);
+		if (freq == 0) {
 			rv = ENOTTY;
 			break;
 		}
 		pmct = (struct pmc_tstamp *)param;
 		/* XXX interface loses precision. */
-		pmct->pmct_rate = tsc_freq / 1000000;
+		pmct->pmct_rate = freq / 1000000;
 		pmct->pmct_value = rdtsc();
 		rv = 0;
 		break;
