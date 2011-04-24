@@ -22,6 +22,34 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110424:
+	The GENERIC kernels for all architectures now default to the new
+	CAM-based ATA stack. It means that all legacy ATA drivers were
+	removed and replaced by respective CAM drivers. If you are using
+	ATA device names in /etc/fstab or other places, make sure to update
+	them respectively (adX -> adaY, acdX -> cdY, afdX -> daY, astX -> saY,
+	where 'Y's are the sequential numbers for each type in order of
+	detection, unless configured otherwise with tunables, see cam(4)).
+
+	ataraid(4) functionality is now supported by the RAID GEOM class.
+	To use it you can load geom_raid kernel module and use graid(8) tool
+	for management. Instead of /dev/arX device names, use /dev/raid/rX.
+
+	No kernel config options or code have been removed, so if a problem
+	arises, please report it and optionally revert to the old ATA stack.
+	In order to do it you can remove from the kernel config:
+	    options        ATA_CAM
+	    device         ahci
+	    device         mvs
+	    device         siis
+	, and instead add back:
+	    device         atadisk         # ATA disk drives
+	    device         ataraid         # ATA RAID drives
+	    device         atapicd         # ATAPI CDROM drives
+	    device         atapifd         # ATAPI floppy drives
+	    device         atapist         # ATAPI tape drives
+	    options        ATA_STATIC_ID   # Static device numbering
+
 20110423:
 	The default NFS server has been changed to the new server, which
 	was referred to as the experimental server. If you need to switch

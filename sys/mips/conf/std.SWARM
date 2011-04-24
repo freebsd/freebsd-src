@@ -52,9 +52,9 @@ device ehci
 device umass
 
 device scbus
+device cd
 device da
+device pass
 
 device		ata
-device		atadisk
-device		atapicd
-options		ATA_STATIC_ID
+options 	ATA_CAM

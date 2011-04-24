@@ -16,7 +16,7 @@ device		sc			# syscons
 device		fb
 
 # no support yet for root device name fetching
-options 	ROOTDEVNAME=\"ufs:ad0s1a\"
+options 	ROOTDEVNAME=\"ufs:ada0s1a\"
 #options 	ROOTDEVNAME=\"cd9660:acd0\"
 
 options 	SCHED_4BSD		# 4BSD scheduler
@@ -51,13 +51,13 @@ device		pci
 
 # ATA and ATAPI devices
 device		ata
-device		atadisk		# ATA disk drives
-device		atapicd		# ATAPI CDROM drives
-options 	ATA_STATIC_ID	# Static device numbering
+options 	ATA_CAM
 
-# SCSI peripherals
-device		scbus		# SCSI bus (required for SCSI)
+# ATA/SCSI peripherals
+device		scbus		# SCSI bus (required for ATA/SCSI)
+device		cd		# CD
 device		da		# Direct Access (disks)
+device		pass		# Passthrough device (direct ATA/SCSI access)
 
 # Pseudo devices.
 device		loop		# Network loopback

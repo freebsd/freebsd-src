@@ -73,12 +73,12 @@ device		uart
 device		pci
 
 device		ata
-device		atadisk		# ATA disk drives
-device		ataraid		# ATA RAID drives
-device		atapicd		# ATAPI CDROM drives
-device		atapifd		# ATAPI floppy drives
-device		atapist		# ATAPI tape drives
-options 	ATA_STATIC_ID	# Static device numbering
+options 	ATA_CAM
+
+device		scbus		# SCSI bus (required for ATA/SCSI)
+device		cd		# CD
+device		da		# Direct Access (disks)
+device		pass		# Passthrough device (direct ATA/SCSI access)
 
 # SCSI Controllers
 
@@ -111,4 +111,4 @@ options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 options 	VERBOSE_INIT_ARM
 
 device		bpf
-#options 	ROOTDEVNAME=\"ufs:ad4s1a\"
+#options 	ROOTDEVNAME=\"ufs:ada0s1a\"
