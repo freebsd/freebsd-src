@@ -95,8 +95,8 @@ device		gpioled
 device		cambria_gpio	# GPIO pins on J11
 
 device		ata
-device		atadisk		# ATA disk drives
 device		avila_ata	# Gateworks CF/IDE support
+options 	ATA_CAM
 
 device		npe		# Network Processing Engine
 device		npe_fw
@@ -154,8 +154,9 @@ options 	USB_EHCI_BIG_ENDIAN_DESC	# handle big-endian byte order
 #options 	USB_DEBUG
 device		ehci
 device		umass
-device		scbus		# SCSI bus (required for SCSI)
+device		scbus		# SCSI bus (required for ATA/SCSI)
 device		da		# Direct Access (disks)
+device		pass		# Passthrough device (direct ATA/SCSI access)
 
 #device		ural
 #device		zyd

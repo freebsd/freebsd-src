@@ -95,13 +95,7 @@ device		pci
 
 # ATA and ATAPI devices
 device		ata
-#device		atadisk		# ATA disk drives
-device		atapicd		# ATAPI CDROM drives
-#device		atapifd		# ATAPI floppy drives
-#device		atapist		# ATAPI tape drives
-#	Do NOT enable ATA_STATIC_ID -- cmd646 controller will be !ata2!,
-#	and you will not mount an ATA /.
-#options 	ATA_STATIC_ID	# Static device numbering
+options 	ATA_CAM
 
 # SCSI Controllers
 #device		ahc		# AHA2940 and onboard AIC7xxx devices
