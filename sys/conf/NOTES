@@ -1754,9 +1754,9 @@ hint.ata.1.irq="15"
 #			atapifd, atapist, atapicam) and all user-level APIs.
 #			cam(4) drivers and APIs will be connected instead.
 
-options 	ATA_STATIC_ID
+#options 	ATA_STATIC_ID
 #options 	ATA_REQUEST_TIMEOUT=10
-#options 	ATA_CAM
+options 	ATA_CAM
 
 #
 # Standard floppy disk controllers and floppy tapes, supports

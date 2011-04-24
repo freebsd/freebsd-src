@@ -92,8 +92,8 @@ device		gpioled
 device		avila_gpio	# GPIO pins on J8
 
 device		ata
-device		atadisk         # ATA disk drives
 device		avila_ata	# Gateworks CF/IDE support
+options 	ATA_CAM
 
 device		npe		# Network Processing Engine
 device		npe_fw
@@ -149,8 +149,9 @@ device		usb
 device		ohci
 device		ehci
 device		umass
-device		scbus		# SCSI bus (required for SCSI)
+device		scbus		# SCSI bus (required for ATA/SCSI)
 device		da		# Direct Access (disks)
+device		pass		# Passthrough device (direct ATA/SCSI access)
 
 #device		ural
 #device		zyd

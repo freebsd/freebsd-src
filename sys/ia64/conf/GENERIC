@@ -73,16 +73,15 @@ options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 device		firewire	# FireWire bus code
 device		miibus		# MII bus support (Ethernet)
 device		pci		# PCI bus support
-device		scbus		# SCSI bus (required for SCSI)
+device		scbus		# SCSI bus (required for ATA/SCSI)
 device		usb		# USB Bus (required for USB)
 
-# ATA and ATAPI devices
-device		ata		# ATA controller
-device		atadisk		# ATA disk drives
-device		atapicd		# ATAPI CDROM drives
-device		atapifd		# ATAPI floppy drives
-device		atapist		# ATAPI tape drives
-device		ataraid		# ATA RAID drives
+# ATA controllers
+device		ahci		# AHCI-compatible SATA controllers
+device		ata		# Legacy ATA/SATA controllers
+options 	ATA_CAM		# Handle legacy controllers with CAM
+device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
+device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
 
 # SCSI Controllers
 device		ahc		# AHA2940 and AIC7xxx devices
@@ -101,11 +100,11 @@ device		ips		# IBM (Adaptec) ServeRAID
 device		mly		# Mylex AcceleRAID/eXtremeRAID
 device		twa		# 3ware 9000 series PATA/SATA RAID
 
-# SCSI peripherals
+# ATA/SCSI peripherals
 device		cd		# CD-ROM, DVD-ROM etc.
 device		ch		# Media changer
 device		da		# Direct Access (ie disk)
-device		pass		# Passthrough (direct SCSI access)
+device		pass		# Passthrough (direct ATA/SCSI access)
 device		sa		# Sequential Access (ie tape)
 device		ses		# Environmental Services (and SAF-TE)
 
