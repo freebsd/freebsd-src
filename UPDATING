@@ -22,6 +22,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110423:
+	The default NFS server has been changed to the new server, which
+	was referred to as the experimental server. If you need to switch
+	back to the old NFS server, you must now put the "-o" option on
+	both the mountd and nfsd commands. This can be done using the
+	mountd_flags and nfs_server_flags rc.conf variables until an
+	update to the rc scripts is committed, which is coming soon.
+
 20110418:
 	The GNU Objective-C runtime library (libobjc), and other Objective-C
 	related components have been removed from the base system.  If you

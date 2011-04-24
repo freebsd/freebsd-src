@@ -88,7 +88,7 @@ int	debug = 0;
 pid_t	children[MAXNFSDCNT];	/* PIDs of children */
 int	nfsdcnt;		/* number of children */
 int	new_syscall;
-int	run_v4server = 0;	/* Force running of nfsv4 server */
+int	run_v4server = 1;	/* Force running of nfsv4 server */
 int	nfssvc_nfsd;		/* Set to correct NFSSVC_xxx flag */
 int	stablefd = -1;		/* Fd for the stable restart file */
 int	backupfd;		/* Fd for the backup stable restart file */
@@ -152,8 +152,8 @@ main(int argc, char **argv)
 	nfsdcnt = DEFNFSDCNT;
 	unregister = reregister = tcpflag = maxsock = 0;
 	bindanyflag = udpflag = connect_type_cnt = bindhostc = 0;
-#define	GETOPT	"ah:n:rdtue"
-#define	USAGE	"[-ardtue] [-n num_servers] [-h bindip]"
+#define	GETOPT	"ah:n:rdtueo"
+#define	USAGE	"[-ardtueo] [-n num_servers] [-h bindip]"
 	while ((ch = getopt(argc, argv, GETOPT)) != -1)
 		switch (ch) {
 		case 'a':
@@ -189,7 +189,10 @@ main(int argc, char **argv)
 			udpflag = 1;
 			break;
 		case 'e':
-			run_v4server = 1;
+			/* now a no-op, since this is the default */
+			break;
+		case 'o':
+			run_v4server = 0;
 			break;
 		default:
 		case '?':
@@ -216,9 +219,8 @@ main(int argc, char **argv)
 	}
 
 	/*
-	 * If the "-e" option was specified OR only the nfsd module is
-	 * found in the server, run "nfsd".
-	 * Otherwise, try and run "nfsserver".
+	 * Unless the "-o" option was specified, try and run "nfsd".
+	 * If "-o" was specified, try and run "nfsserver".
 	 */
 	if (run_v4server > 0) {
 		if (modfind("nfsd") < 0) {
@@ -226,8 +228,6 @@ main(int argc, char **argv)
 			if (kldload("nfsd") < 0 || modfind("nfsd") < 0)
 				errx(1, "NFS server is not available");
 		}
-	} else if (modfind("nfsserver") < 0 && modfind("nfsd") >= 0) {
-		run_v4server = 1;
 	} else if (modfind("nfsserver") < 0) {
 		/* Not present in kernel, try loading it */
 		if (kldload("nfsserver") < 0 || modfind("nfsserver") < 0)
