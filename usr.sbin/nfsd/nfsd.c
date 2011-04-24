@@ -51,6 +51,9 @@ static const char rcsid[] =
 #include <sys/fcntl.h>
 #include <sys/linker.h>
 #include <sys/module.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ucred.h>
 
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
@@ -79,6 +82,7 @@ int	debug = 0;
 #endif
 
 #define	NFSD_STABLERESTART	"/var/db/nfs-stablerestart"
+#define	NFSD_STABLEBACKUP	"/var/db/nfs-stablerestart.bak"
 #define	MAXNFSDCNT	256
 #define	DEFNFSDCNT	 4
 pid_t	children[MAXNFSDCNT];	/* PIDs of children */
@@ -86,6 +90,8 @@ int	nfsdcnt;		/* number of children */
 int	new_syscall;
 int	run_v4server = 0;	/* Force running of nfsv4 server */
 int	nfssvc_nfsd;		/* Set to correct NFSSVC_xxx flag */
+int	stablefd = -1;		/* Fd for the stable restart file */
+int	backupfd;		/* Fd for the backup stable restart file */
 
 void	cleanup(int);
 void	child_cleanup(int);
@@ -98,6 +104,9 @@ int	setbindhost(struct addrinfo **ia, const char *bindhost,
 void	start_server(int);
 void	unregistration(void);
 void	usage(void);
+void	open_stable(int *, int *);
+void	copy_stable(int, int);
+void	backup_stable(int);
 
 /*
  * Nfs server daemon mostly just a user context for nfssvc()
@@ -136,7 +145,7 @@ main(int argc, char **argv)
 	int tcp6sock, ip6flag, tcpflag, tcpsock;
 	int udpflag, ecode, error, s, srvcnt;
 	int bindhostc, bindanyflag, rpcbreg, rpcbregcnt;
-	int stablefd, nfssvc_addsock;
+	int nfssvc_addsock;
 	char **bindhost = NULL;
 	pid_t pid;
 
@@ -346,6 +355,7 @@ main(int argc, char **argv)
 	}
 	(void)signal(SIGSYS, nonfs);
 	(void)signal(SIGCHLD, reapchild);
+	(void)signal(SIGUSR2, backup_stable);
 
 	openlog("nfsd", LOG_PID, LOG_DAEMON);
 
@@ -355,22 +365,21 @@ main(int argc, char **argv)
 	 * regular nfssvc() call to service NFS requests.
 	 * (This way the file remains open until the last nfsd is killed
 	 *  off.)
-	 * Note that this file is not created by this daemon and can
-	 * only be relocated by recompiling the daemon, in order to
-	 * minimize accidentally starting up with the wrong file.
-	 * If should be created as an empty file Read and Write for
-	 * root before the first time you run NFS v4 and should never
-	 * be re-initialized if at all possible. It should live on a
+	 * It and the backup copy will be created as empty files
+	 * the first time this nfsd is started and should never be
+	 * deleted/replaced if at all possible. It should live on a
 	 * local, non-volatile storage device that does not do hardware
 	 * level write-back caching. (See SCSI doc for more information
 	 * on how to prevent write-back caching on SCSI disks.)
 	 */
 	if (run_v4server > 0) {
-		stablefd = open(NFSD_STABLERESTART, O_RDWR, 0);
+		open_stable(&stablefd, &backupfd);
 		if (stablefd < 0) {
 			syslog(LOG_ERR, "Can't open %s\n", NFSD_STABLERESTART);
 			exit(1);
 		}
+		/* This system call will fail for old kernels, but that's ok. */
+		nfssvc(NFSSVC_BACKUPSTABLE, NULL);
 		if (nfssvc(NFSSVC_STABLERESTART, (caddr_t)&stablefd) < 0) {
 			syslog(LOG_ERR, "Can't read stable storage file\n");
 			exit(1);
@@ -739,9 +748,9 @@ main(int argc, char **argv)
 			if (select(maxsock + 1,
 			    &ready, NULL, NULL, NULL) < 1) {
 				error = errno;
-				syslog(LOG_ERR, "select failed: %m");
 				if (error == EINTR)
 					continue;
+				syslog(LOG_ERR, "select failed: %m");
 				nfsd_exit(1);
 			}
 		}
@@ -973,3 +982,95 @@ start_server(int master)
 	else
 		exit(status);
 }
+
+/*
+ * Open the stable restart file and return the file descriptor for it.
+ */
+void
+open_stable(int *stable_fdp, int *backup_fdp)
+{
+	int stable_fd, backup_fd = -1, ret;
+	struct stat st, backup_st;
+
+	/* Open and stat the stable restart file. */
+	stable_fd = open(NFSD_STABLERESTART, O_RDWR, 0);
+	if (stable_fd < 0)
+		stable_fd = open(NFSD_STABLERESTART, O_RDWR | O_CREAT, 0600);
+	if (stable_fd >= 0) {
+		ret = fstat(stable_fd, &st);
+		if (ret < 0) {
+			close(stable_fd);
+			stable_fd = -1;
+		}
+	}
+
+	/* Open and stat the backup stable restart file. */
+	if (stable_fd >= 0) {
+		backup_fd = open(NFSD_STABLEBACKUP, O_RDWR, 0);
+		if (backup_fd < 0)
+			backup_fd = open(NFSD_STABLEBACKUP, O_RDWR | O_CREAT,
+			    0600);
+		if (backup_fd >= 0) {
+			ret = fstat(backup_fd, &backup_st);
+			if (ret < 0) {
+				close(backup_fd);
+				backup_fd = -1;
+			}
+		}
+		if (backup_fd < 0) {
+			close(stable_fd);
+			stable_fd = -1;
+		}
+	}
+
+	*stable_fdp = stable_fd;
+	*backup_fdp = backup_fd;
+	if (stable_fd < 0)
+		return;
+
+	/* Sync up the 2 files, as required. */
+	if (st.st_size > 0)
+		copy_stable(stable_fd, backup_fd);
+	else if (backup_st.st_size > 0)
+		copy_stable(backup_fd, stable_fd);
+}
+
+/*
+ * Copy the stable restart file to the backup or vice versa.
+ */
+void
+copy_stable(int from_fd, int to_fd)
+{
+	int cnt, ret;
+	static char buf[1024];
+
+	ret = lseek(from_fd, (off_t)0, SEEK_SET);
+	if (ret >= 0)
+		ret = lseek(to_fd, (off_t)0, SEEK_SET);
+	if (ret >= 0)
+		ret = ftruncate(to_fd, (off_t)0);
+	if (ret >= 0)
+		do {
+			cnt = read(from_fd, buf, 1024);
+			if (cnt > 0)
+				ret = write(to_fd, buf, cnt);
+			else if (cnt < 0)
+				ret = cnt;
+		} while (cnt > 0 && ret >= 0);
+	if (ret >= 0)
+		ret = fsync(to_fd);
+	if (ret < 0)
+		syslog(LOG_ERR, "stable restart copy failure: %m");
+}
+
+/*
+ * Back up the stable restart file when indicated by the kernel.
+ */
+void
+backup_stable(__unused int signo)
+{
+
+	if (stablefd >= 0)
+		copy_stable(stablefd, backupfd);
+}
+
