@@ -268,6 +268,8 @@ extern	void ar5416WritePdadcValues(struct ath_hal *ah, int i,
 extern	HAL_BOOL ar5416SetPowerCalTable(struct ath_hal *ah,
 	struct ar5416eeprom *pEepData, const struct ieee80211_channel *chan,
 	int16_t *pTxPowerIndexOffset);
+extern	void ar5416WriteTxPowerRateRegisters(struct ath_hal *ah,
+	const struct ieee80211_channel *chan, const int16_t ratesArray[]);
 
 extern	HAL_BOOL ar5416StopTxDma(struct ath_hal *ah, u_int q);
 extern	HAL_BOOL ar5416SetupTxDesc(struct ath_hal *ah, struct ath_desc *ds,
