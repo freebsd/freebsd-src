@@ -239,7 +239,7 @@ static int have_v6 = 1;
 
 int v4root_phase = 0;
 char v4root_dirpath[PATH_MAX + 1];
-int run_v4server = 0;
+int run_v4server = 1;
 int has_publicfh = 0;
 
 struct pidfh *pfh = NULL;
@@ -296,13 +296,13 @@ main(int argc, char **argv)
 	else
 		close(s);
 
-	while ((c = getopt(argc, argv, "2deh:lnp:r")) != -1)
+	while ((c = getopt(argc, argv, "2deh:lnop:r")) != -1)
 		switch (c) {
 		case '2':
 			force_v2 = 1;
 			break;
 		case 'e':
-			run_v4server = 1;
+			/* now a no-op, since this is the default */
 			break;
 		case 'n':
 			resvport_only = 0;
@@ -315,6 +315,9 @@ main(int argc, char **argv)
 			break;
 		case 'l':
 			dolog = 1;
+			break;
+		case 'o':
+			run_v4server = 0;
 			break;
 		case 'p':
 			endptr = NULL;
@@ -350,9 +353,8 @@ main(int argc, char **argv)
 		};
 
 	/*
-	 * If the "-e" option was specified OR only the nfsd module is
-	 * found in the server, run "nfsd".
-	 * Otherwise, try and run "nfsserver".
+	 * Unless the "-o" option was specified, try and run "nfsd".
+	 * If "-o" was specified, try and run "nfsserver".
 	 */
 	if (run_v4server > 0) {
 		if (modfind("nfsd") < 0) {
@@ -360,8 +362,6 @@ main(int argc, char **argv)
 			if (kldload("nfsd") < 0 || modfind("nfsd") < 0)
 				errx(1, "NFS server is not available");
 		}
-	} else if (modfind("nfsserver") < 0 && modfind("nfsd") >= 0) {
-		run_v4server = 1;
 	} else if (modfind("nfsserver") < 0) {
 		/* Not present in kernel, try loading it */
 		if (kldload("nfsserver") < 0 || modfind("nfsserver") < 0)
