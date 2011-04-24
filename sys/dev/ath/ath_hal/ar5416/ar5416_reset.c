@@ -54,7 +54,6 @@ static void ar5416SetDeltaSlope(struct ath_hal *, const struct ieee80211_channel
 
 static HAL_BOOL ar5416SetResetPowerOn(struct ath_hal *ah);
 static HAL_BOOL ar5416SetReset(struct ath_hal *ah, int type);
-static void ar5416InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan);
 static HAL_BOOL ar5416SetPowerPerRateTable(struct ath_hal *ah,
 	struct ar5416eeprom *pEepData, 
 	const struct ieee80211_channel *chan, int16_t *ratesArray,
@@ -513,7 +512,7 @@ ar5416InitBB(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	/* Turn on PLL on 5416 */
 	HALDEBUG(ah, HAL_DEBUG_RESET, "%s %s channel\n",
 	    __func__, IEEE80211_IS_CHAN_5GHZ(chan) ? "5GHz" : "2GHz");
-	ar5416InitPLL(ah, chan);
+	AH5416(ah)->ah_initPLL(ah, chan);
 
 	/* Activate the PHY (includes baseband activate and synthesizer on) */
 	OS_REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
@@ -655,7 +654,7 @@ ar5416ChipReset(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	if (!ar5416SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))
 	       return AH_FALSE;
 
-	ar5416InitPLL(ah, chan);
+	AH5416(ah)->ah_initPLL(ah, chan);
 
 	/*
 	 * Perform warm reset before the mode/PLL/turbo registers
@@ -1221,7 +1220,7 @@ ar5416SetReset(struct ath_hal *ah, int type)
 			OS_REG_WRITE(ah, AR_CFG, INIT_CONFIG_STATUS);
 	}
 
-    ar5416InitPLL(ah, AH_NULL);
+    AH5416(ah)->ah_initPLL(ah, AH_NULL);
 
     return AH_TRUE;
 }
@@ -1278,7 +1277,7 @@ ar5416UpdateChainMasks(struct ath_hal *ah, HAL_BOOL is_ht)
 #define	IS_5GHZ_FAST_CLOCK_EN(ah, chan)	AH_FALSE
 #endif
 
-static void
+void
 ar5416InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	uint32_t pll;
