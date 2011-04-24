@@ -86,12 +86,12 @@ device		cpufreq
 device		pci
 device		agp
 
-# ATA and ATAPI devices
-device		ata
-device		atadisk		# ATA disk drives
-device		atapicd		# ATAPI CDROM drives
-#device		atapifd		# ATAPI floppy drives
-#device		atapist		# ATAPI tape drives
+# ATA controllers
+device		ahci		# AHCI-compatible SATA controllers
+device		ata		# Legacy ATA/SATA controllers
+options 	ATA_CAM		# Handle legacy controllers with CAM
+device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
+device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
 
 # SCSI Controllers
 device		ahc		# AHA2940 and onboard AIC7xxx devices
@@ -103,12 +103,12 @@ device		ispfw		# Firmware module for Qlogic host adapters
 device		mpt		# LSI-Logic MPT-Fusion
 device		sym		# NCR/Symbios/LSI Logic 53C8XX/53C1010/53C1510D
 
-# SCSI peripherals
-device		scbus		# SCSI bus (required for SCSI)
+# ATA/SCSI peripherals
+device		scbus		# SCSI bus (required for ATA/SCSI)
 device		da		# Direct Access (disks)
 device		sa		# Sequential Access (tape etc)
 device		cd		# CD
-device		pass		# Passthrough device (direct SCSI access)
+device		pass		# Passthrough device (direct ATA/SCSI access)
 
 # syscons is the default console driver, resembling an SCO console
 device		sc

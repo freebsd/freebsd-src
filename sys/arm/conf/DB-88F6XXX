@@ -80,8 +80,7 @@ device		iic
 device		iicbus
 
 # SATA
-device		ata
-device		atadisk
+device		mvs
 
 # Flattened Device Tree
 options 	FDT
