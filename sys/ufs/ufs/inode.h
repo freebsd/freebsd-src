@@ -120,7 +120,7 @@ struct inode {
 #define	IN_CHANGE	0x0002		/* Inode change time update request. */
 #define	IN_UPDATE	0x0004		/* Modification time update request. */
 #define	IN_MODIFIED	0x0008		/* Inode has been modified. */
-#define	IN_RENAME	0x0010		/* Inode is being renamed. */
+#define	IN_NEEDSYNC	0x0010		/* Inode requires fsync. */
 #define	IN_LAZYMOD	0x0040		/* Modified, but don't write yet. */
 #define	IN_SPACECOUNTED	0x0080		/* Blocks to be freed in free count. */
 #define	IN_LAZYACCESS	0x0100		/* Process IN_ACCESS after the
