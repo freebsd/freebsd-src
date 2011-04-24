@@ -148,75 +148,26 @@ ar9285SetTransmitPower(struct ath_hal *ah,
     ar5416PrintPowerPerRate(ah, ratesArray);
 #endif
 
-    /* Write the OFDM power per rate set */
-    OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE1,
-        POW_SM(ratesArray[rate18mb], 24)
-          | POW_SM(ratesArray[rate12mb], 16)
-          | POW_SM(ratesArray[rate9mb], 8)
-          | POW_SM(ratesArray[rate6mb], 0)
-    );
-    OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE2,
-        POW_SM(ratesArray[rate54mb], 24)
-          | POW_SM(ratesArray[rate48mb], 16)
-          | POW_SM(ratesArray[rate36mb], 8)
-          | POW_SM(ratesArray[rate24mb], 0)
-    );
-
-    /* Write the CCK power per rate set */
-    OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE3,
-        POW_SM(ratesArray[rate2s], 24)
-          | POW_SM(ratesArray[rate2l],  16)
-          | POW_SM(ratesArray[rateXr],  8) /* XR target power */
-          | POW_SM(ratesArray[rate1l],   0)
-    );
-    OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE4,
-        POW_SM(ratesArray[rate11s], 24)
-          | POW_SM(ratesArray[rate11l], 16)
-          | POW_SM(ratesArray[rate5_5s], 8)
-          | POW_SM(ratesArray[rate5_5l], 0)
-    );
-    HALDEBUG(ah, HAL_DEBUG_RESET,
-	"%s AR_PHY_POWER_TX_RATE3=0x%x AR_PHY_POWER_TX_RATE4=0x%x\n",
-	    __func__, OS_REG_READ(ah,AR_PHY_POWER_TX_RATE3),
-	    OS_REG_READ(ah,AR_PHY_POWER_TX_RATE4)); 
-
-    /* Write the HT20 power per rate set */
-    OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE5,
-        POW_SM(ratesArray[rateHt20_3], 24)
-          | POW_SM(ratesArray[rateHt20_2], 16)
-          | POW_SM(ratesArray[rateHt20_1], 8)
-          | POW_SM(ratesArray[rateHt20_0], 0)
-    );
-    OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE6,
-        POW_SM(ratesArray[rateHt20_7], 24)
-          | POW_SM(ratesArray[rateHt20_6], 16)
-          | POW_SM(ratesArray[rateHt20_5], 8)
-          | POW_SM(ratesArray[rateHt20_4], 0)
-    );
-
+    /*
+     * Adjust the HT40 power to meet the correct target TX power
+     * for 40MHz mode, based on TX power curves that are established
+     * for 20MHz mode.
+     *
+     * XXX handle overflow/too high power level?
+     */
     if (IEEE80211_IS_CHAN_HT40(chan)) {
-        /* Write the HT40 power per rate set */
-	/* Correct PAR difference between HT40 and HT20/LEGACY */
-        OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE7,
-            POW_SM(ratesArray[rateHt40_3] + ht40PowerIncForPdadc, 24)
-              | POW_SM(ratesArray[rateHt40_2] + ht40PowerIncForPdadc, 16)
-              | POW_SM(ratesArray[rateHt40_1] + ht40PowerIncForPdadc, 8)
-              | POW_SM(ratesArray[rateHt40_0] + ht40PowerIncForPdadc, 0)
-        );
-        OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE8,
-            POW_SM(ratesArray[rateHt40_7] + ht40PowerIncForPdadc, 24)
-              | POW_SM(ratesArray[rateHt40_6] + ht40PowerIncForPdadc, 16)
-              | POW_SM(ratesArray[rateHt40_5] + ht40PowerIncForPdadc, 8)
-              | POW_SM(ratesArray[rateHt40_4] + ht40PowerIncForPdadc, 0)
-        );
-        /* Write the Dup/Ext 40 power per rate set */
-        OS_REG_WRITE(ah, AR_PHY_POWER_TX_RATE9,
-            POW_SM(ratesArray[rateExtOfdm], 24)
-              | POW_SM(ratesArray[rateExtCck], 16)
-              | POW_SM(ratesArray[rateDupOfdm], 8)
-              | POW_SM(ratesArray[rateDupCck], 0)
-        );
+        ratesArray[rateHt40_0] += ht40PowerIncForPdadc;
+        ratesArray[rateHt40_1] += ht40PowerIncForPdadc;
+        ratesArray[rateHt40_2] += ht40PowerIncForPdadc;
+        ratesArray[rateHt40_3] += ht40PowerIncForPdadc;
+        ratesArray[rateHt40_4] += ht40PowerIncForPdadc;
+        ratesArray[rateHt40_5] += ht40PowerIncForPdadc;
+        ratesArray[rateHt40_6] += ht40PowerIncForPdadc;
+        ratesArray[rateHt40_7] += ht40PowerIncForPdadc;
     }
+
+    /* Write the TX power rate registers */
+    ar5416WriteTxPowerRateRegisters(ah, chan, ratesArray);
 
     return AH_TRUE;
 #undef POW_SM
