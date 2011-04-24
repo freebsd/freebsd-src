@@ -172,6 +172,31 @@ out:
 	return (error);
 }
 
+void
+ufs_prepare_reclaim(struct vnode *vp)
+{
+	struct inode *ip;
+#ifdef QUOTA
+	int i;
+#endif
+
+	ip = VTOI(vp);
+
+	vnode_destroy_vobject(vp);
+#ifdef QUOTA
+	for (i = 0; i < MAXQUOTAS; i++) {
+		if (ip->i_dquot[i] != NODQUOT) {
+			dqrele(vp, ip->i_dquot[i]);
+			ip->i_dquot[i] = NODQUOT;
+		}
+	}
+#endif
+#ifdef UFS_DIRHASH
+	if (ip->i_dirhash != NULL)
+		ufsdirhash_free(ip);
+#endif
+}
+
 /*
  * Reclaim an inode so that it can be used for other purposes.
  */
@@ -185,14 +210,9 @@ ufs_reclaim(ap)
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
 	struct ufsmount *ump = ip->i_ump;
-#ifdef QUOTA
-	int i;
-#endif
 
-	/*
-	 * Destroy the vm object and flush associated pages.
-	 */
-	vnode_destroy_vobject(vp);
+	ufs_prepare_reclaim(vp);
+
 	if (ip->i_flag & IN_LAZYMOD)
 		ip->i_flag |= IN_MODIFIED;
 	UFS_UPDATE(vp, 0);
@@ -200,21 +220,7 @@ ufs_reclaim(ap)
 	 * Remove the inode from its hash chain.
 	 */
 	vfs_hash_remove(vp);
-	/*
-	 * Purge old data structures associated with the inode.
-	 */
-#ifdef QUOTA
-	for (i = 0; i < MAXQUOTAS; i++) {
-		if (ip->i_dquot[i] != NODQUOT) {
-			dqrele(vp, ip->i_dquot[i]);
-			ip->i_dquot[i] = NODQUOT;
-		}
-	}
-#endif
-#ifdef UFS_DIRHASH
-	if (ip->i_dirhash != NULL)
-		ufsdirhash_free(ip);
-#endif
+
 	/*
 	 * Lock the clearing of v_data so ffs_lock() can inspect it
 	 * prior to obtaining the lock.
