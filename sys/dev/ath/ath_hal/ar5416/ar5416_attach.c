@@ -181,6 +181,9 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	AH5416(ah)->ah_writeIni		= ar5416WriteIni;
 	AH5416(ah)->ah_spurMitigate	= ar5416SpurMitigate;
 
+	/* Internal baseband ops */
+	AH5416(ah)->ah_initPLL		= ar5416InitPLL;
+
 	/* Internal calibration ops */
 	AH5416(ah)->ah_cal_initcal	= ar5416InitCalHardware;
 

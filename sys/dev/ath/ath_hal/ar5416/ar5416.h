@@ -103,6 +103,10 @@ struct ath_hal_5416 {
 			    const struct ieee80211_channel *chan,
         		    int16_t *pTxPowerIndexOffset);
 
+	/* baseband operations */
+	void		(*ah_initPLL) (struct ath_hal *ah,
+			    const struct ieee80211_channel *chan);
+
 	u_int       	ah_globaltxtimeout;	/* global tx timeout */
 	u_int		ah_gpioMask;
 	int		ah_hangs;		/* h/w hangs state */
@@ -248,6 +252,8 @@ extern	void ar5416EepromSetAddac(struct ath_hal *ah,
 		const struct ieee80211_channel *chan);
 extern	uint16_t ar5416GetMaxEdgePower(uint16_t freq,
 		CAL_CTL_EDGES *pRdEdgesPower, HAL_BOOL is2GHz);
+extern	void ar5416InitPLL(struct ath_hal *ah,
+		const struct ieee80211_channel *chan);
 
 /* TX power setup related routines in ar5416_reset.c */
 extern	void ar5416GetGainBoundariesAndPdadcs(struct ath_hal *ah,
