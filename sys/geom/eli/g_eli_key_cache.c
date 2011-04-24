@@ -263,12 +263,6 @@ g_eli_key_hold(struct g_eli_softc *sc, off_t offset, size_t blocksize)
 	if ((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) != 0)
 		return (sc->sc_ekey);
 
-	KASSERT(sc->sc_ekeys_total > 1, ("%s: sc_ekeys_total=%ju", __func__,
-	    (uintmax_t)sc->sc_ekeys_total));
-	KASSERT((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) == 0,
-	    ("%s: SINGLE_KEY flag set, but sc_ekeys_total=%ju", __func__,
-	    (uintmax_t)sc->sc_ekeys_total));
-
 	/* We switch key every 2^G_ELI_KEY_SHIFT blocks. */
 	keyno = (offset >> G_ELI_KEY_SHIFT) / blocksize;
 
