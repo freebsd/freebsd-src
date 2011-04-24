@@ -149,7 +149,7 @@ int	nullop(void);
 int	eopnotsupp(void);
 int	ureadc(int, struct uio *);
 void	hashdestroy(void *, struct malloc_type *, u_long);
-void	*hashinit(int count, struct malloc_type *type, u_long *hashmark);
+void	*hashinit(int count, struct malloc_type *type, u_long *hashmask);
 void	*hashinit_flags(int count, struct malloc_type *type,
     u_long *hashmask, int flags);
 #define	HASH_NOWAIT	0x00000001
