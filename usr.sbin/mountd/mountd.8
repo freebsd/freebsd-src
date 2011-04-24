@@ -28,7 +28,7 @@
 .\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2007
+.Dd April 23, 2011
 .Dt MOUNTD 8
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 mount requests
 .Sh SYNOPSIS
 .Nm
-.Op Fl 2delnr
+.Op Fl 2delnor
 .Op Fl h Ar bindip
 .Op Fl p Ar port
 .Op Ar exportsfile ...
@@ -69,17 +69,8 @@ Output debugging information.
 will not detach from the controlling terminal and will print
 debugging messages to stderr.
 .It Fl e
-Forces
-.Nm
-to try and start the experimental server that includes NFSv4 support in it.
-If this flag isn't specified, the experimental server will only be started
-if it is linked into the kernel and the regular one isn't.
-.br
-ie. The kernel is built with the following:
-.Bd -literal -offset indent -compact
-# options	NFSSERVER
-options		NFSD
-.Ed
+The new NFS server that includes NFSv4 support is now the default, so this
+option is now a no-op and should be considered deprecated.
 .It Fl h Ar bindip
 Specify specific IP addresses to bind to for TCP and UDP requests.
 This option may be specified multiple times.
@@ -107,6 +98,9 @@ This should only be specified if there are clients such as PC's,
 that require it.
 It will automatically clear the vfs.nfsrv.nfs_privport sysctl flag, which
 controls if the kernel will accept NFS requests from reserved ports only.
+.It Fl o
+This flag forces the system to run the old NFS server, which does not
+have NFSv4 support in it.
 .It Fl p Ar port
 Force
 .Nm
