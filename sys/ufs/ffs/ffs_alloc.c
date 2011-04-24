@@ -1012,8 +1012,9 @@ dup_alloc:
 		ip->i_din2->di_birthtime = ts.tv_sec;
 		ip->i_din2->di_birthnsec = ts.tv_nsec;
 	}
+	ufs_prepare_reclaim(*vpp);
 	ip->i_flag = 0;
-	vnode_destroy_vobject(*vpp);
+	(*vpp)->v_vflag = 0;
 	(*vpp)->v_type = VNON;
 	if (fs->fs_magic == FS_UFS2_MAGIC)
 		(*vpp)->v_op = &ffs_vnodeops2;
