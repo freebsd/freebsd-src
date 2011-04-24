@@ -550,7 +550,7 @@ write_vc(xprtp, buf, len)
 				cd->strm_stat = XPRT_DIED;
 				return (-1);
 			}
-			if (cd->nonblock && i != cnt) {
+			if (cd->nonblock) {
 				/*
 				 * For non-blocking connections, do not
 				 * take more than 2 seconds writing the
@@ -564,6 +564,7 @@ write_vc(xprtp, buf, len)
 					return (-1);
 				}
 			}
+			i = 0;
 		}
 	}
 
