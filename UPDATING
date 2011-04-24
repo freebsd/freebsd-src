@@ -28,8 +28,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	removed and replaced by respective CAM drivers. If you are using
 	ATA device names in /etc/fstab or other places, make sure to update
 	them respectively (adX -> adaY, acdX -> cdY, afdX -> daY, astX -> saY,
-	where 'Y's are the sequential numbers for each type in order of
-	detection, unless configured otherwise with tunables, see cam(4)).
+	where 'Y's are the sequential numbers starting from zero for each type
+	in order of detection, unless configured otherwise with tunables,
+	see cam(4)).
 
 	ataraid(4) functionality is now supported by the RAID GEOM class.
 	To use it you can load geom_raid kernel module and use graid(8) tool
