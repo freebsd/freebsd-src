@@ -41,7 +41,6 @@ SUBDIR=	${_3dfx} \
 	bfe \
 	bge \
 	${_bxe} \
-	${_bxe} \
 	${_bios} \
 	${_bktr} \
 	${_bm} \
