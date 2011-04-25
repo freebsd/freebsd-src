@@ -1010,7 +1010,8 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	struct syncache_head *sch;
 	struct mbuf *ipopts = NULL;
 	u_int32_t flowtmp;
-	int win, sb_hiwat, ip_ttl, ip_tos, noopt;
+	u_int ltflags;
+	int win, sb_hiwat, ip_ttl, ip_tos;
 	char *s;
 #ifdef INET6
 	int autoflowlabel = 0;
@@ -1043,7 +1044,7 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	ip_tos = inp->inp_ip_tos;
 	win = sbspace(&so->so_rcv);
 	sb_hiwat = so->so_rcv.sb_hiwat;
-	noopt = (tp->t_flags & TF_NOOPT);
+	ltflags = (tp->t_flags & (TF_NOOPT | TF_SIGNATURE));
 
 	/* By the time we drop the lock these should no longer be used. */
 	so = NULL;
@@ -1238,14 +1239,14 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 * XXX: Currently we always record the option by default and will
 	 * attempt to use it in syncache_respond().
 	 */
-	if (to->to_flags & TOF_SIGNATURE)
+	if (to->to_flags & TOF_SIGNATURE || ltflags & TF_SIGNATURE)
 		sc->sc_flags |= SCF_SIGNATURE;
 #endif
 	if (to->to_flags & TOF_SACKPERM)
 		sc->sc_flags |= SCF_SACK;
 	if (to->to_flags & TOF_MSS)
 		sc->sc_peer_mss = to->to_mss;	/* peer mss may be zero */
-	if (noopt)
+	if (ltflags & TF_NOOPT)
 		sc->sc_flags |= SCF_NOOPT;
 	if ((th->th_flags & (TH_ECE|TH_CWR)) && V_tcp_do_ecn)
 		sc->sc_flags |= SCF_ECN;

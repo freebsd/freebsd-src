@@ -213,6 +213,12 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, soreceive_stream, CTLFLAG_RDTUN,
     &tcp_soreceive_stream, 0, "Using soreceive_stream for TCP sockets");
 #endif
 
+#ifdef TCP_SIGNATURE
+static int	tcp_sig_checksigs = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, signature_verify_input, CTLFLAG_RW,
+    &tcp_sig_checksigs, 0, "Verify RFC2385 digests on inbound traffic");
+#endif
+
 VNET_DEFINE(uma_zone_t, sack_hole_zone);
 #define	V_sack_hole_zone		VNET(sack_hole_zone)
 
@@ -1997,6 +2003,66 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 	key_sa_recordxfer(sav, m);
 	KEY_FREESAV(&sav);
 	return (0);
+}
+
+/*
+ * Verify the TCP-MD5 hash of a TCP segment. (RFC2385)
+ *
+ * Parameters:
+ * m		pointer to head of mbuf chain
+ * len		length of TCP segment data, excluding options
+ * optlen	length of TCP segment options
+ * buf		pointer to storage for computed MD5 digest
+ * direction	direction of flow (IPSEC_DIR_INBOUND or OUTBOUND)
+ *
+ * Return 1 if successful, otherwise return 0.
+ */
+int
+tcp_signature_verify(struct mbuf *m, int off0, int tlen, int optlen,
+    struct tcpopt *to, struct tcphdr *th, u_int tcpbflag)
+{
+	char tmpdigest[TCP_SIGLEN];
+
+	if (tcp_sig_checksigs == 0)
+		return (1);
+	if ((tcpbflag & TF_SIGNATURE) == 0) {
+		if ((to->to_flags & TOF_SIGNATURE) != 0) {
+
+			/*
+			 * If this socket is not expecting signature but
+			 * the segment contains signature just fail.
+			 */
+			TCPSTAT_INC(tcps_sig_err_sigopt);
+			TCPSTAT_INC(tcps_sig_rcvbadsig);
+			return (0);
+		}
+
+		/* Signature is not expected, and not present in segment. */
+		return (1);
+	}
+
+	/*
+	 * If this socket is expecting signature but the segment does not
+	 * contain any just fail.
+	 */
+	if ((to->to_flags & TOF_SIGNATURE) == 0) {
+		TCPSTAT_INC(tcps_sig_err_nosigopt);
+		TCPSTAT_INC(tcps_sig_rcvbadsig);
+		return (0);
+	}
+	if (tcp_signature_compute(m, off0, tlen, optlen, &tmpdigest[0],
+	    IPSEC_DIR_INBOUND) == -1) {
+		TCPSTAT_INC(tcps_sig_err_buildsig);
+		TCPSTAT_INC(tcps_sig_rcvbadsig);
+		return (0);
+	}
+	
+	if (bcmp(to->to_signature, &tmpdigest[0], TCP_SIGLEN) != 0) {
+		TCPSTAT_INC(tcps_sig_rcvbadsig);
+		return (0);
+	}
+	TCPSTAT_INC(tcps_sig_rcvgoodsig);
+	return (1);
 }
 #endif /* TCP_SIGNATURE */
 
