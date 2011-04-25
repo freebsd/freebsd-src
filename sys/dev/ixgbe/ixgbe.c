@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2011, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -33,7 +33,7 @@
 /*$FreeBSD$*/
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
-#include "opt_device_polling.h"
+#include "opt_inet.h"
 #endif
 
 #include "ixgbe.h"
@@ -46,7 +46,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.3.8";
+char ixgbe_driver_version[] = "2.3.10";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -270,8 +270,8 @@ TUNABLE_INT("hw.ixgbe.hdr_split", &ixgbe_header_split);
 /*
  * Number of Queues, can be set to 0,
  * it then autoconfigures based on the
- * number of cpus. Each queue is a pair
- * of RX and TX rings with a msix vector
+ * number of cpus with a max of 8. This
+ * can be overriden manually here.
  */
 static int ixgbe_num_queues = 0;
 TUNABLE_INT("hw.ixgbe.num_queues", &ixgbe_num_queues);
@@ -787,10 +787,6 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		return (err);
 	}
 
-	/* Call cleanup if number of TX descriptors low */
-	if (txr->tx_avail <= IXGBE_TX_CLEANUP_THRESHOLD)
-		ixgbe_txeof(txr);
-
 	enqueued = 0;
 	if (m == NULL) {
 		next = drbr_dequeue(ifp, txr->br);
@@ -814,7 +810,9 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			break;
-		if (txr->tx_avail <= IXGBE_TX_OP_THRESHOLD) {
+		if (txr->tx_avail < IXGBE_TX_OP_THRESHOLD)
+			ixgbe_txeof(txr);
+		if (txr->tx_avail < IXGBE_TX_OP_THRESHOLD) {
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
@@ -864,9 +862,34 @@ ixgbe_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	struct ifreq	*ifr = (struct ifreq *) data;
+#ifdef INET
+	struct ifaddr *ifa = (struct ifaddr *)data;
+#endif
 	int             error = 0;
 
 	switch (command) {
+
+        case SIOCSIFADDR:
+#ifdef INET
+		if (ifa->ifa_addr->sa_family == AF_INET) {
+			/*
+			 * Since resetting hardware takes a very long time
+			 * and results in link renegotiation we only
+			 * initialize the hardware only when it is absolutely
+			 * required.
+			 */
+			ifp->if_flags |= IFF_UP;
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+				IXGBE_CORE_LOCK(adapter);
+				ixgbe_init_locked(adapter);
+				IXGBE_CORE_UNLOCK(adapter);
+			}
+			if (!(ifp->if_flags & IFF_NOARP))
+				arp_ifinit(ifp, ifa);
+		} else
+#endif
+			error = ether_ioctl(ifp, command, data);
+		break;
 
 	case SIOCSIFMTU:
 		IOCTL_DEBUGOUT("ioctl: SIOCSIFMTU (Set Interface MTU)");
@@ -989,7 +1012,7 @@ ixgbe_init_locked(struct adapter *adapter)
 	if (ifp->if_capenable & IFCAP_TXCSUM) {
 		ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
 #if __FreeBSD_version >= 800000
-		if (hw->mac.type == ixgbe_mac_82599EB)
+		if (hw->mac.type != ixgbe_mac_82598EB)
 			ifp->if_hwassist |= CSUM_SCTP;
 #endif
 	}
@@ -1032,14 +1055,12 @@ ixgbe_init_locked(struct adapter *adapter)
 
 	gpie = IXGBE_READ_REG(&adapter->hw, IXGBE_GPIE);
 
-	if (hw->mac.type == ixgbe_mac_82599EB) {
-		gpie |= IXGBE_SDP1_GPIEN;
-		gpie |= IXGBE_SDP2_GPIEN;
-	}
-
 	/* Enable Fan Failure Interrupt */
-	if (hw->device_id == IXGBE_DEV_ID_82598AT)
-		gpie |= IXGBE_SDP1_GPIEN;
+	gpie |= IXGBE_SDP1_GPIEN;
+
+	/* Add for Thermal detection */
+	if (hw->mac.type == ixgbe_mac_82599EB)
+		gpie |= IXGBE_SDP2_GPIEN;
 
 	if (adapter->msix > 1) {
 		/* Enable Enhanced MSIX mode */
@@ -1121,7 +1142,7 @@ ixgbe_init_locked(struct adapter *adapter)
 
 #ifdef IXGBE_FDIR
 	/* Init Flow director */
-	if (hw->mac.type == ixgbe_mac_82599EB)
+	if (hw->mac.type != ixgbe_mac_82598EB)
 		ixgbe_init_fdir_signature_82599(&adapter->hw, fdir_pballoc);
 #endif
 
@@ -1338,8 +1359,6 @@ ixgbe_msix_que(void *arg)
 	more_tx = ixgbe_txeof(txr);
 	IXGBE_TX_UNLOCK(txr);
 
-	more_rx = ixgbe_rxeof(que, adapter->rx_process_limit);
-
 	/* Do AIM now? */
 
 	if (ixgbe_enable_aim == FALSE)
@@ -1417,7 +1436,7 @@ ixgbe_msix_link(void *arg)
 	if (reg_eicr & IXGBE_EICR_LSC)
 		taskqueue_enqueue(adapter->tq, &adapter->link_task);
 
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+	if (adapter->hw.mac.type != ixgbe_mac_82598EB) {
 #ifdef IXGBE_FDIR
 		if (reg_eicr & IXGBE_EICR_FLOW_DIR) {
 			/* This is probably overkill :) */
@@ -2792,7 +2811,7 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 
 #ifdef IXGBE_FDIR
 	/* Set the rate at which we sample packets */
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB)
+	if (adapter->hw.mac.type != ixgbe_mac_82598EB)
 		txr->atr_sample = atr_sample_rate;
 #endif
 
@@ -2874,7 +2893,7 @@ ixgbe_initialize_transmit_units(struct adapter *adapter)
 
 	}
 
-	if (hw->mac.type == ixgbe_mac_82599EB) {
+	if (hw->mac.type != ixgbe_mac_82598EB) {
 		u32 dmatxctl, rttdcs;
 		dmatxctl = IXGBE_READ_REG(hw, IXGBE_DMATXCTL);
 		dmatxctl |= IXGBE_DMATXCTL_TE;
@@ -3386,11 +3405,15 @@ ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 	bus_dma_segment_t	pseg[1];
 	struct ixgbe_rx_buf	*rxbuf;
 	struct mbuf		*mh, *mp;
-	int			i, nsegs, error, cleaned;
+	int			i, j, nsegs, error;
+	bool			refreshed = FALSE;
 
-	i = rxr->next_to_refresh;
-	cleaned = -1; /* Signify no completions */
-	while (i != limit) {
+	i = j = rxr->next_to_refresh;
+	/* Control the loop with one beyond */
+	if (++j == adapter->num_rx_desc)
+		j = 0;
+
+	while (j != limit) {
 		rxbuf = &rxr->rx_buffers[i];
 		if (rxr->hdr_split == FALSE)
 			goto no_split;
@@ -3418,7 +3441,8 @@ ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 		rxbuf->m_head = mh;
 		bus_dmamap_sync(rxr->htag, rxbuf->hmap,
 		    BUS_DMASYNC_PREREAD);
-		rxr->rx_base[i].read.hdr_addr = htole64(hseg[0].ds_addr);
+		rxr->rx_base[i].read.hdr_addr =
+		    htole64(hseg[0].ds_addr);
 
 no_split:
 		if (rxbuf->m_pack == NULL) {
@@ -3446,17 +3470,17 @@ no_split:
 		rxr->rx_base[i].read.pkt_addr =
 		    htole64(pseg[0].ds_addr);
 
-		cleaned = i;
-		/* Calculate next index */
-		if (++i == adapter->num_rx_desc)
-			i = 0;
-		/* This is the work marker for refresh */
+		refreshed = TRUE;
+		/* Next is precalculated */
+		i = j;
 		rxr->next_to_refresh = i;
+		if (++j == adapter->num_rx_desc)
+			j = 0;
 	}
 update:
-	if (cleaned != -1) /* If we refreshed some, bump tail */
+	if (refreshed) /* Update hardware tail index */
 		IXGBE_WRITE_REG(&adapter->hw,
-		    IXGBE_RDT(rxr->me), cleaned);
+		    IXGBE_RDT(rxr->me), rxr->next_to_refresh);
 	return;
 }
 
@@ -3727,6 +3751,7 @@ skip_head:
 	rxr->lro_enabled = FALSE;
 	rxr->rx_split_packets = 0;
 	rxr->rx_bytes = 0;
+	rxr->discard = FALSE;
 
 	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -3736,7 +3761,7 @@ skip_head:
 	** 82598 uses software LRO, the
 	** 82599 uses a hardware assist.
 	*/
-	if ((adapter->hw.mac.type == ixgbe_mac_82599EB) &&
+	if ((adapter->hw.mac.type != ixgbe_mac_82598EB) &&
 	    (ifp->if_capenable & IFCAP_RXCSUM) &&
 	    (ifp->if_capenable & IFCAP_LRO))
 		ixgbe_setup_hw_rsc(rxr);
@@ -3862,8 +3887,7 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_RDT(i), 0);
 	}
 
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
-		/* PSRTYPE must be initialized in 82599 */
+	if (adapter->hw.mac.type != ixgbe_mac_82598EB) {
 		u32 psrtype = IXGBE_PSRTYPE_TCPHDR |
 			      IXGBE_PSRTYPE_UDPHDR |
 			      IXGBE_PSRTYPE_IPV4HDR |
@@ -4307,10 +4331,8 @@ next_desc:
 	}
 
 	/* Refresh any remaining buf structs */
-	if (processed != 0) {
+	if (ixgbe_rx_unrefreshed(rxr))
 		ixgbe_refresh_mbufs(rxr, i);
-		processed = 0;
-	}
 
 	rxr->next_to_check = i;
 
@@ -4472,7 +4494,7 @@ ixgbe_setup_vlan_hw_support(struct adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, ctrl);
 
 	/* On 82599 the VLAN enable is per/queue in RXDCTL */
-	if (hw->mac.type == ixgbe_mac_82599EB)
+	if (hw->mac.type != ixgbe_mac_82598EB)
 		for (int i = 0; i < adapter->num_queues; i++) {
 			ctrl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(i));
 				ctrl |= IXGBE_RXDCTL_VME;
@@ -4491,9 +4513,7 @@ ixgbe_enable_intr(struct adapter *adapter)
 	/* Enable Fan Failure detection */
 	if (hw->device_id == IXGBE_DEV_ID_82598AT)
 		    mask |= IXGBE_EIMS_GPI_SDP1;
-
-	/* 82599 specific interrupts */
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+	else {
 		    mask |= IXGBE_EIMS_ECC;
 		    mask |= IXGBE_EIMS_GPI_SDP1;
 		    mask |= IXGBE_EIMS_GPI_SDP2;
@@ -4810,7 +4830,7 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	adapter->stats.gprc += IXGBE_READ_REG(hw, IXGBE_GPRC);
 	adapter->stats.gprc -= missed_rx;
 
-	if (hw->mac.type == ixgbe_mac_82599EB) {
+	if (hw->mac.type != ixgbe_mac_82598EB) {
 		adapter->stats.gorc += IXGBE_READ_REG(hw, IXGBE_GORCL) +
 		    ((u64)IXGBE_READ_REG(hw, IXGBE_GORCH) << 32);
 		adapter->stats.gotc += IXGBE_READ_REG(hw, IXGBE_GOTCL) +
@@ -4878,7 +4898,7 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	adapter->stats.fccrc += IXGBE_READ_REG(hw, IXGBE_FCCRC);
 	adapter->stats.fclast += IXGBE_READ_REG(hw, IXGBE_FCLAST);
 	/* Only read FCOE on 82599 */
-	if (hw->mac.type == ixgbe_mac_82599EB) {
+	if (hw->mac.type != ixgbe_mac_82598EB) {
 		adapter->stats.fcoerpdc += IXGBE_READ_REG(hw, IXGBE_FCOERPDC);
 		adapter->stats.fcoeprc += IXGBE_READ_REG(hw, IXGBE_FCOEPRC);
 		adapter->stats.fcoeptc += IXGBE_READ_REG(hw, IXGBE_FCOEPTC);
