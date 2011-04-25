@@ -64,8 +64,13 @@ __FBSDID("$FreeBSD$");
 #include <net/radix_mpath.h>
 #endif
 #include <net/vnet.h>
+#endif /* INET */
 
+#if defined(INET) || defined(INET6)
 #include <netinet/in.h>
+#endif
+
+#ifdef INET
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
