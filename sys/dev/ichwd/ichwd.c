@@ -228,8 +228,8 @@ ichwd_sts_reset(struct ichwd_softc *sc)
 	 * by writing a 1, not a 0.
 	 */
 	ichwd_write_tco_2(sc, TCO1_STS, TCO_TIMEOUT);
-	/* 
-	 * According to Intel's docs, clearing SECOND_TO_STS and BOOT_STS must 
+	/*
+	 * According to Intel's docs, clearing SECOND_TO_STS and BOOT_STS must
 	 * be done in two separate operations.
 	 */
 	ichwd_write_tco_2(sc, TCO2_STS, TCO_SECOND_TO_STS);
