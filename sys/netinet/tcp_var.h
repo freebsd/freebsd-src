@@ -485,6 +485,13 @@ struct	tcpstat {
 	u_long	tcps_ecn_shs;		/* ECN successful handshakes */
 	u_long	tcps_ecn_rcwnd;		/* # times ECN reduced the cwnd */
 
+	/* TCP_SIGNATURE related stats */
+	u_long	tcps_sig_rcvgoodsig;	/* Total matching signature received */
+	u_long	tcps_sig_rcvbadsig;	/* Total bad signature received */
+	u_long	tcps_sig_err_buildsig;	/* Mismatching signature received */
+	u_long	tcps_sig_err_sigopt;	/* No signature expected by socket */
+	u_long	tcps_sig_err_nosigopt;	/* No signature provided by segment */
+
 	u_long	_pad[12];		/* 6 UTO, 6 TBD */
 };
 
@@ -684,6 +691,8 @@ int	 tcp_twrespond(struct tcptw *, int);
 void	 tcp_setpersist(struct tcpcb *);
 #ifdef TCP_SIGNATURE
 int	 tcp_signature_compute(struct mbuf *, int, int, int, u_char *, u_int);
+int	 tcp_signature_verify(struct mbuf *, int, int, int, struct tcpopt *,
+	    struct tcphdr *, u_int);
 #endif
 void	 tcp_slowtimo(void);
 struct tcptemp *
