@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfsmount.h>
 #include <nfs/xdr_subs.h>
 #include <nfsclient/nfsm_subs.h>
-#include <nfsclient/nfsdiskless.h>
+#include <nfs/nfsdiskless.h>
 
 FEATURE(nfsclient, "NFS client");
 
@@ -163,15 +163,6 @@ static struct nfs_rpcops nfs_rpcops = {
 	nfs_invaldir,
 	nfs_commit,
 };
-
-/*
- * This structure must be filled in by a primary bootstrap or bootstrap
- * server for a diskless/dataless machine. It is initialized below just
- * to ensure that it is allocated to initialized data (.data not .bss).
- */
-struct nfs_diskless nfs_diskless = { { { 0 } } };
-struct nfsv3_diskless nfsv3_diskless = { { { 0 } } };
-int nfs_diskless_valid = 0;
 
 SYSCTL_INT(_vfs_nfs, OID_AUTO, diskless_valid, CTLFLAG_RD,
     &nfs_diskless_valid, 0,
