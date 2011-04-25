@@ -165,7 +165,7 @@ ng_patch_constructor(node_p node)
 {
 	priv_p privdata;
 
-	privdata = malloc(sizeof(*privdata), M_NETGRAPH, M_WAIT | M_ZERO);
+	privdata = malloc(sizeof(*privdata), M_NETGRAPH, M_WAITOK | M_ZERO);
 	NG_NODE_SET_PRIVATE(node, privdata);
 	privdata->in = NULL;
 	privdata->out = NULL;
@@ -208,7 +208,8 @@ ng_patch_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (privp->config == NULL)
 				break;
 			NG_MKRESPONSE(resp, msg,
-			    NG_PATCH_CONF_SIZE(privp->config->count), M_WAIT);
+			    NG_PATCH_CONF_SIZE(privp->config->count),
+			    M_WAITOK);
 			bcopy(privp->config, resp->data,
 			    NG_PATCH_CONF_SIZE(privp->config->count));
 			break;
@@ -248,10 +249,10 @@ ng_patch_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (error == 0) {
 				newconf = malloc(
 				    NG_PATCH_CONF_SIZE(conf->count),
-				    M_NETGRAPH, M_WAIT);
+				    M_NETGRAPH, M_WAITOK);
 				newval = malloc(conf->count *
 				    sizeof(union patch_val), M_NETGRAPH,
-				    M_WAIT);
+				    M_WAITOK);
 				for(i = 0; i < conf->count; i++) {
 					switch (conf->ops[i].length) {
 					case 1:
@@ -288,7 +289,7 @@ ng_patch_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			/* FALLTHROUGH */
 		case NGM_PATCH_GET_STATS:
 			NG_MKRESPONSE(resp, msg, sizeof(struct ng_patch_stats),
-			    M_WAIT);
+			    M_WAITOK);
 			bcopy(&(privp->stats), resp->data,
 			    sizeof(struct ng_patch_stats));
 			if (clear == 0)
