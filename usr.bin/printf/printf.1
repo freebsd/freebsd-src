@@ -337,6 +337,16 @@ command appeared in
 It is modeled
 after the standard library function,
 .Xr printf 3 .
+.Sh CAVEATS
+.Tn ANSI
+hexadecimal character constants were deliberately not provided.
+.Pp
+Trying to print a dash ("-") as the first character causes
+.Nm
+to interpret the dash as a program argument.
+.Nm --
+must be used before 
+.Ar format .
 .Sh BUGS
 Since the floating point numbers are translated from
 .Tn ASCII
@@ -348,9 +358,6 @@ The
 .Cm L
 modifier may produce additional precision, depending on the hardware platform.)
 .Pp
-.Tn ANSI
-hexadecimal character constants were deliberately not provided.
-.Pp
 The escape sequence \e000 is the string terminator.
 When present in the argument for the
 .Cm b
@@ -360,10 +367,3 @@ Multibyte characters are not recognized in format strings (this is only
 a problem if
 .Ql %
 can appear inside a multibyte character).
-.Pp
-Trying to print a dash ("-") as the first character causes
-.Nm
-to interpet the dash as a program argument.
-.Nm --
-must be used before 
-.Ar format .
