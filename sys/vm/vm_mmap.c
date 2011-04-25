@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysproto.h>
@@ -66,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/sysent.h>
 #include <sys/vmmeter.h>
-#include <sys/sysctl.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -80,7 +78,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_page.h>
-#include <vm/vm_kern.h>
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
@@ -91,30 +88,6 @@ struct sbrk_args {
 	int incr;
 };
 #endif
-
-static int max_proc_mmap;
-SYSCTL_INT(_vm, OID_AUTO, max_proc_mmap, CTLFLAG_RW, &max_proc_mmap, 0,
-    "Maximum number of memory-mapped files per process");
-
-/*
- * Set the maximum number of vm_map_entry structures per process.  Roughly
- * speaking vm_map_entry structures are tiny, so allowing them to eat 1/100
- * of our KVM malloc space still results in generous limits.  We want a
- * default that is good enough to prevent the kernel running out of resources
- * if attacked from compromised user account but generous enough such that
- * multi-threaded processes are not unduly inconvenienced.
- */
-static void vmmapentry_rsrc_init(void *);
-SYSINIT(vmmersrc, SI_SUB_KVM_RSRC, SI_ORDER_FIRST, vmmapentry_rsrc_init,
-    NULL);
-
-static void
-vmmapentry_rsrc_init(dummy)
-        void *dummy;
-{
-    max_proc_mmap = vm_kmem_size / sizeof(struct vm_map_entry);
-    max_proc_mmap /= 100;
-}
 
 static int vm_mmap_vnode(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
     int *, struct vnode *, vm_ooffset_t *, vm_object_t *);
@@ -375,18 +348,6 @@ mmap(td, uap)
 		handle_type = OBJT_VNODE;
 	}
 map:
-
-	/*
-	 * Do not allow more then a certain number of vm_map_entry structures
-	 * per process.  Scale with the number of rforks sharing the map
-	 * to make the limit reasonable for threads.
-	 */
-	if (max_proc_mmap &&
-	    vms->vm_map.nentries >= max_proc_mmap * vms->vm_refcnt) {
-		error = ENOMEM;
-		goto done;
-	}
-
 	td->td_fpop = fp;
 	error = vm_mmap(&vms->vm_map, &addr, size, prot, maxprot,
 	    flags, handle_type, handle, pos);
