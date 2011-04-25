@@ -57,8 +57,11 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_wds.h>
 #include <net80211/ieee80211_mesh.h>
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 #include <netinet/in.h> 
+#endif
+
+#ifdef INET
 #include <netinet/if_ether.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
