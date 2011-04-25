@@ -45,6 +45,7 @@ struct ichwd_softc {
 	int			 active;
 	unsigned int		 timeout;
 
+	int			 smi_enabled;
 	int			 smi_rid;
 	struct resource		*smi_res;
 	bus_space_tag_t		 smi_bst;
