@@ -318,7 +318,6 @@ nfs_statfs(struct mount *mp, struct statfs *sbp)
 	    if (gotfsinfo || (nmp->nm_flag & NFSMNT_NFSV4))
 		nfscl_loadfsinfo(nmp, &fs);
 	    nfscl_loadsbinfo(nmp, &sb, sbp);
-	    sbp->f_flags = nmp->nm_flag;
 	    sbp->f_iosize = newnfs_iosize(nmp);
 	    mtx_unlock(&nmp->nm_mtx);
 	    if (sbp != &mp->mnt_stat) {
