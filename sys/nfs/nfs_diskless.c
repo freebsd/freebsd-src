@@ -55,11 +55,20 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
-#include <nfsclient/nfsdiskless.h>
+#include <nfs/nfsdiskless.h>
 
 static int inaddr_to_sockaddr(char *ev, struct sockaddr_in *sa);
 static int hwaddr_to_sockaddr(char *ev, struct sockaddr_dl *sa);
 static int decode_nfshandle(char *ev, u_char *fh, int maxfh);
+
+/*
+ * This structure must be filled in by a primary bootstrap or bootstrap
+ * server for a diskless/dataless machine. It is initialized below just
+ * to ensure that it is allocated to initialized data (.data not .bss).
+ */
+struct nfs_diskless	nfs_diskless = { { { 0 } } };
+struct nfsv3_diskless	nfsv3_diskless = { { { 0 } } };
+int			nfs_diskless_valid = 0;
 
 /*
  * Validate/sanity check a rsize/wsize parameter.
