@@ -763,10 +763,9 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 			    &ndp->ni_cnd, &nvap->na_vattr);
 			vput(ndp->ni_dvp);
 			nfsvno_relpathbuf(ndp);
-			if (error) {
-				vrele(ndp->ni_startdir);
+			vrele(ndp->ni_startdir);
+			if (error)
 				return (error);
-			}
 		} else {
 			vrele(ndp->ni_startdir);
 			nfsvno_relpathbuf(ndp);
