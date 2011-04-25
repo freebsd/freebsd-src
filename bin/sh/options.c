@@ -280,8 +280,10 @@ setoption(int flag, int val)
 	int i;
 
 	if (flag == 'p' && !val && privileged) {
-		(void) setuid(getuid());
-		(void) setgid(getgid());
+		if (setgid(getgid()) == -1)
+			error("setgid");
+		if (setuid(getuid()) == -1)
+			error("setuid");
 	}
 	for (i = 0; i < NOPTS; i++)
 		if (optlist[i].letter == flag) {
