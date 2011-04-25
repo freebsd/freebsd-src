@@ -1964,7 +1964,8 @@ msk_detach(device_t dev)
 		/* Can't hold locks while calling detach. */
 		MSK_IF_UNLOCK(sc_if);
 		callout_drain(&sc_if->msk_tick_ch);
-		ether_ifdetach(ifp);
+		if (ifp)
+			ether_ifdetach(ifp);
 		MSK_IF_LOCK(sc_if);
 	}
 
