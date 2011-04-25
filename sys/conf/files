@@ -493,7 +493,7 @@ dev/advansys/adwcam.c		optional adw
 dev/advansys/adwlib.c		optional adw
 dev/advansys/adwmcode.c		optional adw
 dev/ae/if_ae.c			optional ae pci
-dev/age/if_age.c		optional age pci inet
+dev/age/if_age.c		optional age pci
 dev/agp/agp.c			optional agp pci
 dev/agp/agp_if.m			optional agp pci
 dev/aha/aha.c			optional aha
@@ -515,8 +515,8 @@ dev/aic7xxx/aic7xxx.c		optional ahc
 dev/aic7xxx/aic7xxx_93cx6.c	optional ahc
 dev/aic7xxx/aic7xxx_osm.c	optional ahc
 dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
-dev/alc/if_alc.c		optional alc pci inet
-dev/ale/if_ale.c		optional ale pci inet
+dev/alc/if_alc.c		optional alc pci
+dev/ale/if_ale.c		optional ale pci
 dev/amd/amd.c			optional amd
 dev/amr/amr.c			optional amr
 dev/amr/amr_cam.c		optional amrp amr
@@ -973,11 +973,11 @@ dev/ed/if_ed_pccard.c		optional ed pccard
 dev/ed/if_ed_pci.c		optional ed pci
 dev/eisa/eisa_if.m		standard
 dev/eisa/eisaconf.c		optional eisa
-dev/e1000/if_em.c		optional em inet \
+dev/e1000/if_em.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/if_lem.c		optional em inet \
+dev/e1000/if_lem.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/e1000/if_igb.c		optional igb inet \
+dev/e1000/if_igb.c		optional igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_80003es2lan.c	optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
@@ -1046,7 +1046,7 @@ dev/firewire/sbp.c		optional sbp
 dev/firewire/sbp_targ.c		optional sbp_targ
 dev/flash/at45d.c		optional at45d
 dev/flash/mx25l.c		optional mx25l
-dev/fxp/if_fxp.c		optional fxp inet
+dev/fxp/if_fxp.c		optional fxp
 dev/gem/if_gem.c		optional gem
 dev/gem/if_gem_pci.c		optional gem pci
 dev/gem/if_gem_sbus.c		optional gem sbus
@@ -1336,7 +1336,7 @@ dev/ixgbe/ixgbe_82598.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_82599.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
-dev/jme/if_jme.c		optional jme pci inet
+dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
 dev/joy/joy_pccard.c		optional joy pccard
@@ -1425,7 +1425,7 @@ dev/mpt/mpt_debug.c		optional mpt
 dev/mpt/mpt_pci.c		optional mpt pci
 dev/mpt/mpt_raid.c		optional mpt
 dev/mpt/mpt_user.c		optional mpt
-dev/msk/if_msk.c		optional msk inet
+dev/msk/if_msk.c		optional msk
 dev/mvs/mvs.c			optional mvs
 dev/mvs/mvs_if.m		optional mvs
 dev/mvs/mvs_pci.c		optional mvs pci
@@ -1639,7 +1639,7 @@ dev/siba/siba_bwn.c		optional siba_bwn pci
 dev/siba/siba_core.c		optional siba_bwn pci
 dev/siis/siis.c			optional siis pci
 dev/sis/if_sis.c		optional sis pci
-dev/sk/if_sk.c			optional sk pci inet
+dev/sk/if_sk.c			optional sk pci
 dev/smbus/smb.c			optional smb
 dev/smbus/smbconf.c		optional smbus
 dev/smbus/smbus.c		optional smbus
@@ -1788,7 +1788,7 @@ dev/twa/tw_osl_freebsd.c	optional twa \
 dev/twe/twe.c			optional twe
 dev/twe/twe_freebsd.c		optional twe
 dev/tx/if_tx.c			optional tx
-dev/txp/if_txp.c		optional txp inet
+dev/txp/if_txp.c		optional txp
 dev/uart/uart_bus_acpi.c	optional uart acpi
 #dev/uart/uart_bus_cbus.c	optional uart cbus
 dev/uart/uart_bus_ebus.c	optional uart ebus
