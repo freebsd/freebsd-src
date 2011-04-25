@@ -41,7 +41,6 @@ struct ucred;
 struct nfscred;
 NFSPROC_T;
 struct buf;
-struct nfs_diskless;
 struct sockaddr_in;
 struct nfs_dlmount;
 struct file;
