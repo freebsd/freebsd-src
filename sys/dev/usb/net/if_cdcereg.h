@@ -39,7 +39,7 @@
 #define	CDCE_IND_SIZE_MAX 32            /* bytes */
 
 #define	CDCE_NCM_TX_MINLEN 512		/* bytes, must be power of two */
-#define	CDCE_NCM_TX_MAXLEN (1UL << 14)	/* bytes */
+#define	CDCE_NCM_TX_MAXLEN (16384 + 4)	/* bytes, must be short terminated */
 #define	CDCE_NCM_TX_FRAMES_MAX 8	/* units */
 
 #define	CDCE_NCM_RX_MAXLEN (1UL << 14)	/* bytes */
