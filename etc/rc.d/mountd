@@ -37,11 +37,10 @@ mountd_precmd()
 		fi
 	fi
 
-	# If nfsv4_server_enable is yes, force use of the experimental
-	# server
+	# If oldnfs_server_enable is yes, force use of the old NFS server
 	#
-	if checkyesno nfsv4_server_enable; then
-		rc_flags="-e ${rc_flags}"
+	if checkyesno oldnfs_server_enable; then
+		rc_flags="-o ${rc_flags}"
 	fi
 
 	if checkyesno zfs_enable; then
