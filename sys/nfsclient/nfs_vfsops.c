@@ -164,6 +164,18 @@ static struct nfs_rpcops nfs_rpcops = {
 	nfs_commit,
 };
 
+/*
+ * This structure is now defined in sys/nfs/nfs_diskless.c so that it
+ * can be shared by both NFS clients. It is declared here so that it
+ * will be defined for kernels built without NFS_ROOT, although it
+ * isn't used in that case.
+ */
+#ifndef NFS_ROOT
+struct nfs_diskless	nfs_diskless = { { { 0 } } };
+struct nfsv3_diskless	nfsv3_diskless = { { { 0 } } };
+int			nfs_diskless_valid = 0;
+#endif
+
 SYSCTL_INT(_vfs_nfs, OID_AUTO, diskless_valid, CTLFLAG_RD,
     &nfs_diskless_valid, 0,
     "Has the diskless struct been filled correctly");
