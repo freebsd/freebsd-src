@@ -324,7 +324,7 @@ control_handle(struct hastd_config *cfg)
 		error = EHAST_INVALID;
 		goto fail;
 	}
-	if (cmd == HASTCTL_SET_ROLE) {
+	if (cmd == HASTCTL_CMD_SETROLE) {
 		role = nv_get_uint8(nvin, "role");
 		switch (role) {
 		case HAST_ROLE_INIT:
@@ -345,11 +345,11 @@ control_handle(struct hastd_config *cfg)
 		ii = 0;
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			switch (cmd) {
-			case HASTCTL_SET_ROLE:
+			case HASTCTL_CMD_SETROLE:
 				control_set_role_common(cfg, nvout, role, res,
 				    res->hr_name, ii++);
 				break;
-			case HASTCTL_STATUS:
+			case HASTCTL_CMD_STATUS:
 				control_status(cfg, nvout, res, res->hr_name,
 				    ii++);
 				break;
@@ -368,11 +368,11 @@ control_handle(struct hastd_config *cfg)
 			if (str == NULL)
 				break;
 			switch (cmd) {
-			case HASTCTL_SET_ROLE:
+			case HASTCTL_CMD_SETROLE:
 				control_set_role_common(cfg, nvout, role, NULL,
 				    str, ii);
 				break;
-			case HASTCTL_STATUS:
+			case HASTCTL_CMD_STATUS:
 				control_status(cfg, nvout, NULL, str, ii);
 				break;
 			default:
