@@ -69,7 +69,9 @@ struct hast_pipe_stage {
 
 static struct hast_pipe_stage pipeline[] = {
 	{ "compression", compression_send, compression_recv },
+#ifdef HAVE_CRYPTO
 	{ "checksum", checksum_send, checksum_recv }
+#endif
 };
 
 /*
