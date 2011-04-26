@@ -3569,6 +3569,42 @@ xpt_path_periph(struct cam_path *path)
 	return (path->periph);
 }
 
+int
+xpt_path_legacy_ata_id(struct cam_path *path)
+{
+	struct cam_eb *bus;
+	int bus_id;
+
+	if ((strcmp(path->bus->sim->sim_name, "ata") != 0) &&
+	    strcmp(path->bus->sim->sim_name, "ahcich") != 0 &&
+	    strcmp(path->bus->sim->sim_name, "mvsch") != 0 &&
+	    strcmp(path->bus->sim->sim_name, "siisch") != 0)
+		return (-1);
+
+	if (strcmp(path->bus->sim->sim_name, "ata") == 0 &&
+	    path->bus->sim->unit_number < 2) {
+		bus_id = path->bus->sim->unit_number;
+	} else {
+		bus_id = 2;
+		xpt_lock_buses();
+		TAILQ_FOREACH(bus, &xsoftc.xpt_busses, links) {
+			if (bus == path->bus)
+				break;
+			if ((strcmp(bus->sim->sim_name, "ata") == 0 &&
+			     bus->sim->unit_number >= 2) ||
+			    strcmp(bus->sim->sim_name, "ahcich") == 0 ||
+			    strcmp(bus->sim->sim_name, "mvsch") == 0 ||
+			    strcmp(bus->sim->sim_name, "siisch") == 0)
+				bus_id++;
+		}
+		xpt_unlock_buses();
+	}
+	if (path->target != NULL)
+		return (bus_id * 2 + path->target->target_id);
+	else
+		return (bus_id * 2);
+}
+
 /*
  * Release a CAM control block for the caller.  Remit the cost of the structure
  * to the device referenced by the path.  If the this device had no 'credits'
