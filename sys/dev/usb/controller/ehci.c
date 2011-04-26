@@ -1196,6 +1196,8 @@ ehci_data_toggle_update(struct usb_xfer *xfer, uint16_t actlen, uint16_t xlen)
 		dt ^= 1;	/* short packet at the end */
 	else if (actlen != xlen)
 		dt ^= 1;	/* zero length packet at the end */
+	else if (xlen == 0)
+		dt ^= 1;	/* zero length transfer */
 
 	xfer->endpoint->toggle_next ^= dt;
 }
