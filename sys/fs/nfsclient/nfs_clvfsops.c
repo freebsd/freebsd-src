@@ -137,10 +137,17 @@ VFS_SET(nfs_vfsops, newnfs, VFCF_NETWORK);
 MODULE_VERSION(newnfs, 1);
 
 /*
- * This structure must be filled in by a primary bootstrap or bootstrap
- * server for a diskless/dataless machine. It is initialized below just
- * to ensure that it is allocated to initialized data (.data not .bss).
+ * This structure is now defined in sys/nfs/nfs_diskless.c so that it
+ * can be shared by both NFS clients. It is declared here so that it
+ * will be defined for kernels built without NFS_ROOT, although it
+ * isn't used in that case.
  */
+#if !defined(NFS_ROOT) && !defined(NFSCLIENT)
+struct nfs_diskless	nfs_diskless = { { { 0 } } };
+struct nfsv3_diskless	nfsv3_diskless = { { { 0 } } };
+int			nfs_diskless_valid = 0;
+#endif
+
 SYSCTL_INT(_vfs_newnfs, OID_AUTO, diskless_valid, CTLFLAG_RD,
     &nfs_diskless_valid, 0,
     "Has the diskless struct been filled correctly");
