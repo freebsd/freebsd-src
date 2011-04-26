@@ -424,7 +424,7 @@ resource_reload(const struct hast_resource *res)
 	PJDLOG_ASSERT(res->hr_role == HAST_ROLE_PRIMARY);
 
 	nvout = nv_alloc();
-	nv_add_uint8(nvout, HASTCTL_RELOAD, "cmd");
+	nv_add_uint8(nvout, CONTROL_RELOAD, "cmd");
 	nv_add_string(nvout, res->hr_remoteaddr, "remoteaddr");
 	nv_add_string(nvout, res->hr_sourceaddr, "sourceaddr");
 	nv_add_int32(nvout, (int32_t)res->hr_replication, "replication");

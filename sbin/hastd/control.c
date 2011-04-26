@@ -162,7 +162,7 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 	 * Prepare and send command to worker process.
 	 */
 	cnvout = nv_alloc();
-	nv_add_uint8(cnvout, HASTCTL_STATUS, "cmd");
+	nv_add_uint8(cnvout, CONTROL_STATUS, "cmd");
 	error = nv_error(cnvout);
 	if (error != 0) {
 		pjdlog_common(LOG_ERR, 0, error,
@@ -427,7 +427,7 @@ ctrl_thread(void *arg)
 		}
 		nvout = nv_alloc();
 		switch (cmd) {
-		case HASTCTL_STATUS:
+		case CONTROL_STATUS:
 			if (res->hr_remotein != NULL &&
 			    res->hr_remoteout != NULL) {
 				nv_add_string(nvout, "complete", "status");
@@ -448,7 +448,7 @@ ctrl_thread(void *arg)
 			}
 			nv_add_int16(nvout, 0, "error");
 			break;
-		case HASTCTL_RELOAD:
+		case CONTROL_RELOAD:
 			/*
 			 * When parent receives SIGHUP and discovers that
 			 * something related to us has changes, it sends reload
