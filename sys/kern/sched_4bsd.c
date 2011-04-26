@@ -1246,25 +1246,27 @@ sched_add(struct thread *td, int flags)
 	}
 	TD_SET_RUNQ(td);
 
-	if (td->td_pinned != 0) {
-		cpu = td->td_lastcpu;
-		ts->ts_runq = &runq_pcpu[cpu];
-		single_cpu = 1;
-		CTR3(KTR_RUNQ,
-		    "sched_add: Put td_sched:%p(td:%p) on cpu%d runq", ts, td,
-		    cpu);
-	} else if (td->td_flags & TDF_BOUND) {
-		/* Find CPU from bound runq. */
-		KASSERT(SKE_RUNQ_PCPU(ts),
-		    ("sched_add: bound td_sched not on cpu runq"));
-		cpu = ts->ts_runq - &runq_pcpu[0];
-		single_cpu = 1;
-		CTR3(KTR_RUNQ,
-		    "sched_add: Put td_sched:%p(td:%p) on cpu%d runq", ts, td,
-		    cpu);
-	} else if (ts->ts_flags & TSF_AFFINITY) {
-		/* Find a valid CPU for our cpuset */
-		cpu = sched_pickcpu(td);
+	/*
+	 * If SMP is started and the thread is pinned or otherwise limited to
+	 * a specific set of CPUs, queue the thread to a per-CPU run queue.
+	 * Otherwise, queue the thread to the global run queue.
+	 *
+	 * If SMP has not yet been started we must use the global run queue
+	 * as per-CPU state may not be initialized yet and we may crash if we
+	 * try to access the per-CPU run queues.
+	 */
+	if (smp_started && (td->td_pinned != 0 || td->td_flags & TDF_BOUND ||
+	    ts->ts_flags & TSF_AFFINITY)) {
+		if (td->td_pinned != 0)
+			cpu = td->td_lastcpu;
+		else if (td->td_flags & TDF_BOUND) {
+			/* Find CPU from bound runq. */
+			KASSERT(SKE_RUNQ_PCPU(ts),
+			    ("sched_add: bound td_sched not on cpu runq"));
+			cpu = ts->ts_runq - &runq_pcpu[0];
+		} else
+			/* Find a valid CPU for our cpuset */
+			cpu = sched_pickcpu(td);
 		ts->ts_runq = &runq_pcpu[cpu];
 		single_cpu = 1;
 		CTR3(KTR_RUNQ,
