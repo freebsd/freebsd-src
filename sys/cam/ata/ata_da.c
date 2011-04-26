@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ada.h"
+#include "opt_ata.h"
 
 #include <sys/param.h>
 
@@ -183,6 +184,14 @@ static void		adashutdown(void *arg, int howto);
 static void		adasuspend(void *arg);
 static void		adaresume(void *arg);
 
+#ifndef	ADA_DEFAULT_LEGACY_ALIASES
+#ifdef ATA_CAM
+#define	ADA_DEFAULT_LEGACY_ALIASES	1
+#else
+#define	ADA_DEFAULT_LEGACY_ALIASES	0
+#endif
+#endif
+
 #ifndef ADA_DEFAULT_TIMEOUT
 #define ADA_DEFAULT_TIMEOUT 30	/* Timeout in seconds */
 #endif
@@ -215,6 +224,7 @@ static void		adaresume(void *arg);
 #define	ata_disk_firmware_geom_adjust(disk)
 #endif
 
+static int ada_legacy_aliases = ADA_DEFAULT_LEGACY_ALIASES;
 static int ada_retry_count = ADA_DEFAULT_RETRY;
 static int ada_default_timeout = ADA_DEFAULT_TIMEOUT;
 static int ada_send_ordered = ADA_DEFAULT_SEND_ORDERED;
@@ -224,6 +234,9 @@ static int ada_write_cache = ADA_DEFAULT_WRITE_CACHE;
 
 SYSCTL_NODE(_kern_cam, OID_AUTO, ada, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, legacy_aliases, CTLFLAG_RW,
+           &ada_legacy_aliases, 0, "Create legacy-like device aliases");
+TUNABLE_INT("kern.cam.ada.legacy_aliases", &ada_legacy_aliases);
 SYSCTL_INT(_kern_cam_ada, OID_AUTO, retry_count, CTLFLAG_RW,
            &ada_retry_count, 0, "Normal I/O retry count");
 TUNABLE_INT("kern.cam.ada.retry_count", &ada_retry_count);
@@ -723,10 +736,11 @@ adaregister(struct cam_periph *periph, void *arg)
 	struct ada_softc *softc;
 	struct ccb_pathinq cpi;
 	struct ccb_getdev *cgd;
-	char   announce_buf[80];
+	char   announce_buf[80], buf1[32];
 	struct disk_params *dp;
 	caddr_t match;
 	u_int maxio;
+	int legacy_id;
 
 	cgd = (struct ccb_getdev *)arg;
 	if (periph == NULL) {
@@ -861,6 +875,22 @@ adaregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_fwheads = softc->params.heads;
 	ata_disk_firmware_geom_adjust(softc->disk);
 
+	if (ada_legacy_aliases) {
+#ifdef ATA_STATIC_ID
+		legacy_id = xpt_path_legacy_ata_id(periph->path);
+#else
+		legacy_id = softc->disk->d_unit;
+#endif
+		if (legacy_id >= 0) {
+			snprintf(announce_buf, sizeof(announce_buf),
+			    "kern.devalias.%s%d",
+			    softc->disk->d_name, softc->disk->d_unit);
+			snprintf(buf1, sizeof(buf1),
+			    "ad%d", legacy_id);
+			setenv(announce_buf, buf1);
+		}
+	} else
+		legacy_id = -1;
 	disk_create(softc->disk, DISK_VERSION);
 	mtx_lock(periph->sim->mtx);
 	cam_periph_unhold(periph);
@@ -874,6 +904,9 @@ adaregister(struct cam_periph *periph, void *arg)
 		dp->secsize, dp->heads,
 		dp->secs_per_track, dp->cylinders);
 	xpt_announce_periph(periph, announce_buf);
+	if (legacy_id >= 0)
+		printf("%s%d: Previously was known as ad%d\n",
+		       periph->periph_name, periph->unit_number, legacy_id);
 
 	/*
 	 * Create our sysctl variables, now that we know
