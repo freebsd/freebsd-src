@@ -465,7 +465,7 @@ main(int argc, char *argv[])
 		}
 		break;
 	default:
-		assert(!"Impossible role!");
+		assert(!"Impossible command!");
 	}
 
 	/* Setup control connection... */
@@ -512,7 +512,7 @@ main(int argc, char *argv[])
 		error = control_status(nv);
 		break;
 	default:
-		assert(!"Impossible role!");
+		assert(!"Impossible command!");
 	}
 
 	exit(error);
