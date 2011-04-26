@@ -447,14 +447,21 @@ vm_object_vndeallocate(vm_object_t object)
 		/* vrele may need the vnode lock. */
 		vrele(vp);
 	} else {
+		vhold(vp);
 		VM_OBJECT_UNLOCK(object);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		vdrop(vp);
 		VM_OBJECT_LOCK(object);
 		object->ref_count--;
-		if (object->ref_count == 0)
-			vp->v_vflag &= ~VV_TEXT;
-		VM_OBJECT_UNLOCK(object);
-		vput(vp);
+		if (object->type == OBJT_DEAD) {
+			VM_OBJECT_UNLOCK(object);
+			VOP_UNLOCK(vp, 0);
+		} else {
+			if (object->ref_count == 0)
+				vp->v_vflag &= ~VV_TEXT;
+			VM_OBJECT_UNLOCK(object);
+			vput(vp);
+		}
 	}
 }
 
