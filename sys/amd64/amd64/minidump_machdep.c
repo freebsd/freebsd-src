@@ -62,7 +62,7 @@ static off_t dumplo;
 /* Handle chunked writes. */
 static size_t fragsz;
 static void *dump_va;
-static size_t counter, progress;
+static size_t counter, progress, dumpsize;
 
 CTASSERT(sizeof(*vm_page_dump) == 8);
 
@@ -92,6 +92,40 @@ blk_flush(struct dumperinfo *di)
 	dumplo += fragsz;
 	fragsz = 0;
 	return (error);
+}
+
+static struct {
+	int min_per;
+	int max_per;
+	int visited;
+} progress_track[10] = {
+	{  0,  10, 0},
+	{ 10,  20, 0},
+	{ 20,  30, 0},
+	{ 30,  40, 0},
+	{ 40,  50, 0},
+	{ 50,  60, 0},
+	{ 60,  70, 0},
+	{ 70,  80, 0},
+	{ 80,  90, 0},
+	{ 90, 100, 0}
+};
+
+static void
+report_progress(size_t progress, size_t dumpsize)
+{
+	int sofar, i;
+
+	sofar = 100 - ((progress * 100) / dumpsize);
+	for (i = 0; i < 10; i++) {
+		if (sofar < progress_track[i].min_per || sofar > progress_track[i].max_per)
+			continue;
+		if (progress_track[i].visited)
+			return;
+		progress_track[i].visited = 1;
+		printf("..%d%%", sofar);
+		return;
+	}
 }
 
 static int
@@ -130,7 +164,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 		counter += len;
 		progress -= len;
 		if (counter >> 24) {
-			printf(" %ld", PG2MB(progress >> PAGE_SHIFT));
+			report_progress(progress, dumpsize);
 			counter &= (1<<24) - 1;
 		}
 		if (ptr) {
@@ -170,7 +204,6 @@ static pd_entry_t fakepd[NPDEPG];
 void
 minidumpsys(struct dumperinfo *di)
 {
-	uint64_t dumpsize;
 	uint32_t pmapsize;
 	vm_offset_t va;
 	int error;
@@ -290,8 +323,8 @@ minidumpsys(struct dumperinfo *di)
 
 	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_AMD64_VERSION, dumpsize, di->blocksize);
 
-	printf("Physical memory: %ju MB\n", ptoa((uintmax_t)physmem) / 1048576);
-	printf("Dumping %llu MB:", (long long)dumpsize >> 20);
+	printf("Dumping %llu out of %ju MB:", (long long)dumpsize >> 20,
+	    ptoa((uintmax_t)physmem) / 1048576);
 
 	/* Dump leader */
 	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
