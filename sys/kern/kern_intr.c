@@ -746,7 +746,6 @@ intr_handler_source(void *cookie)
 void
 _intr_drain(int irq)
 {
-	struct mtx *mtx;
 	struct intr_event *ie;
 	struct intr_thread *ithd;
 	struct thread *td;
@@ -758,13 +757,21 @@ _intr_drain(int irq)
 		return;
 	ithd = ie->ie_thread;
 	td = ithd->it_thread;
+	/*
+	 * We set the flag and wait for it to be cleared to avoid
+	 * long delays with potentially busy interrupt handlers
+	 * were we to only sample TD_AWAITING_INTR() every tick.
+	 */
 	thread_lock(td);
-	mtx = td->td_lock;
 	if (!TD_AWAITING_INTR(td)) {
 		ithd->it_flags |= IT_WAIT;
-		msleep_spin(ithd, mtx, "isync", 0);
+		while (ithd->it_flags & IT_WAIT) {
+			thread_unlock(td);
+			pause("idrain", 1);
+			thread_lock(td);
+		}
 	}
-	mtx_unlock_spin(mtx);
+	thread_unlock(td);
 	return;
 }
 
