@@ -38,7 +38,7 @@
 .Nd file system consistency check and interactive repair
 .Sh SYNOPSIS
 .Nm
-.Op Fl BFprfny
+.Op Fl BFfnpry
 .Op Fl b Ar block
 .Op Fl c Ar level
 .Op Fl m Ar mode
@@ -143,6 +143,12 @@ The following flags are interpreted by
 A check is done on the specified and possibly active file system.
 The set of corrections that can be done is limited to those done
 when running in preen mode (see the
+.Fl p
+flag).
+If unexpected errors are found,
+the file system is marked as needing a foreground check and
+.Nm
+exits without attempting any further cleaning.
 .It Fl F
 Determine whether the file system needs to be cleaned immediately
 in foreground, or if its cleaning can be deferred to background.
@@ -164,12 +170,6 @@ The only thing that
 .Nm
 does is to determine whether a foreground or background
 check is needed and exit with an appropriate status code.
-.Fl p
-flag).
-If unexpected errors are found,
-the file system is marked as needing a foreground check and
-.Nm
-exits without attempting any further cleaning.
 .It Fl b
 Use the block specified immediately after the flag as
 the super block for the file system.
