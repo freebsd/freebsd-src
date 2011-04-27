@@ -216,10 +216,12 @@ static void		 pf_clear_srcnodes(void);
 /*
  * Wrapper functions for pfil(9) hooks
  */
+#ifdef INET
 static int pf_check_in(void *arg, struct mbuf **m, struct ifnet *ifp,
 		int dir, struct inpcb *inp);
 static int pf_check_out(void *arg, struct mbuf **m, struct ifnet *ifp,
 		int dir, struct inpcb *inp);
+#endif
 #ifdef INET6
 static int pf_check6_in(void *arg, struct mbuf **m, struct ifnet *ifp,
 		int dir, struct inpcb *inp);
@@ -3622,6 +3624,7 @@ shutdown_pf(void)
         return (error);
 }
 
+#ifdef INET
 static int
 pf_check_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
     struct inpcb *inp)
@@ -3696,6 +3699,7 @@ pf_check_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	}
 	return chk;
 }
+#endif
 
 #ifdef INET6
 static int
@@ -3761,15 +3765,19 @@ hook_pf(void)
 	pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
 	if (pfh_inet == NULL)
 		return (ESRCH); /* XXX */
+#ifdef INET
 	pfil_add_hook(pf_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet);
 	pfil_add_hook(pf_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet);
+#endif
 #ifdef INET6
 	pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
 	if (pfh_inet6 == NULL) {
+#ifdef INET
 		pfil_remove_hook(pf_check_in, NULL, PFIL_IN | PFIL_WAITOK,
 		    pfh_inet);
 		pfil_remove_hook(pf_check_out, NULL, PFIL_OUT | PFIL_WAITOK,
 		    pfh_inet);
+#endif
 		return (ESRCH); /* XXX */
 	}
 	pfil_add_hook(pf_check6_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet6);
@@ -3796,10 +3804,12 @@ dehook_pf(void)
 	pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
 	if (pfh_inet == NULL)
 		return (ESRCH); /* XXX */
+#ifdef INET
 	pfil_remove_hook(pf_check_in, NULL, PFIL_IN | PFIL_WAITOK,
 	    pfh_inet);
 	pfil_remove_hook(pf_check_out, NULL, PFIL_OUT | PFIL_WAITOK,
 	    pfh_inet);
+#endif
 #ifdef INET6
 	pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
 	if (pfh_inet6 == NULL)
