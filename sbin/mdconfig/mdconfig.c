@@ -294,7 +294,7 @@ main(int argc, char **argv)
 	}
 	if (action == LIST) {
 		if (mdio.md_options & MD_AUTOUNIT) {
-			/* 
+			/*
 			 * Listing all devices. This is why we pass NULL
 			 * together with OPT_LIST.
 			 */
