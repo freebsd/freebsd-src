@@ -139,6 +139,10 @@ action.
 The following flags are interpreted by
 .Nm :
 .Bl -tag -width indent
+.It Fl B
+A check is done on the specified and possibly active file system.
+The set of corrections that can be done is limited to those done
+when running in preen mode (see the
 .It Fl F
 Determine whether the file system needs to be cleaned immediately
 in foreground, or if its cleaning can be deferred to background.
@@ -160,10 +164,6 @@ The only thing that
 .Nm
 does is to determine whether a foreground or background
 check is needed and exit with an appropriate status code.
-.It Fl B
-A check is done on the specified and possibly active file system.
-The set of corrections that can be done is limited to those done
-when running in preen mode (see the
 .Fl p
 flag).
 If unexpected errors are found,
