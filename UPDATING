@@ -22,6 +22,24 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110427:
+	The default NFS client is now the new NFS client, so fstype "newnfs"
+	is now "nfs" and the regular/old NFS client is now fstype "oldnfs".
+	Although mounts via fstype "nfs" will usually work without userland
+	changes, it is recommended that the mount(8) and mount_nfs(8)
+	commands be rebuilt from sources and that a link to mount_nfs called
+	mount_oldnfs be created. The new client is compiled into the
+	kernel with "options NFSCL" and this is needed for diskless root
+	file systems. The GENERIC kernel configs have been changed to use
+	NFSCL and NFSD (the new server) instead of NFSCLIENT and NFSSERVER.
+	To use the regular/old client, you can "mount -t oldnfs ...". For
+	a diskless root file system, you must also include a line like:
+	
+	vfs.root.mountfrom="oldnfs:"
+
+	in the boot/loader.conf on the root fs on the NFS server to make
+	a diskless root fs use the old client.
+
 20110424:
 	The GENERIC kernels for all architectures now default to the new
 	CAM-based ATA stack. It means that all legacy ATA drivers were

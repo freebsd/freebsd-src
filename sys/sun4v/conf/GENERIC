@@ -40,8 +40,8 @@ options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
 options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
 options 	MD_ROOT			# MD is a potential root device
-options 	NFSCLIENT		# Network Filesystem Client
-options 	NFSSERVER		# Network Filesystem Server
+options 	NFSCL			# New Network Filesystem Client
+options 	NFSD			# New Network Filesystem Server
 options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
 #options 	MSDOSFS			# MSDOS Filesystem
