@@ -141,8 +141,8 @@ main(int argc, char **argv)
 				mdio.md_options = MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
 				cmdline = 2;
 			}
- 			if (cmdline != 2)
- 				usage();
+			if (cmdline != 2)
+				usage();
 			if (realpath(optarg, mdio.md_file) == NULL) {
 				err(1, "could not find full path for %s",
 				    optarg);
