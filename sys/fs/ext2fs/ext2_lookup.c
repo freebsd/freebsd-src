@@ -57,9 +57,10 @@
 
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2_mount.h>
-#include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2fs.h>
+#include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_dir.h>
+#include <fs/ext2fs/ext2_extern.h>
 
 #ifdef DIAGNOSTIC
 static int dirchk = 1;
@@ -1056,7 +1057,7 @@ ext2_checkpath(source, target, cred)
 		error = EEXIST;
 		goto out;
 	}
-	rootino = ROOTINO;
+	rootino = EXT2_ROOTINO;
 	error = 0;
 	if (target->i_number == rootino)
 		goto out;
