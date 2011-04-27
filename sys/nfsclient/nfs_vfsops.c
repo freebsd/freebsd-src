@@ -147,13 +147,13 @@ static struct vfsops nfs_vfsops = {
 VFS_SET(nfs_vfsops, oldnfs, VFCF_NETWORK);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
-MODULE_VERSION(nfs, 1);
-MODULE_DEPEND(nfs, krpc, 1, 1, 1);
+MODULE_VERSION(oldnfs, 1);
+MODULE_DEPEND(oldnfs, krpc, 1, 1, 1);
 #ifdef KGSSAPI
-MODULE_DEPEND(nfs, kgssapi, 1, 1, 1);
+MODULE_DEPEND(oldnfs, kgssapi, 1, 1, 1);
 #endif
-MODULE_DEPEND(nfs, nfs_common, 1, 1, 1);
-MODULE_DEPEND(nfs, nfslock, 1, 1, 1);
+MODULE_DEPEND(oldnfs, nfs_common, 1, 1, 1);
+MODULE_DEPEND(oldnfs, nfslock, 1, 1, 1);
 
 static struct nfs_rpcops nfs_rpcops = {
 	nfs_readrpc,
