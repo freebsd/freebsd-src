@@ -41,6 +41,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	module work as CAM driver supporting legacy ATA controllers. Device ata
 	still can be used in modular fashion (atacore + ...). Modules atadisk
 	and atapi* are not used and won't affect operation in ATA_CAM mode.
+	Note that to use CAM-based ATA kernel should include CAM devices
+	scbus, pass, da (or explicitly ada), cd and optionally others. All of
+	them are parts of the cam module.
 
 	ataraid(4) functionality is now supported by the RAID GEOM class.
 	To use it you can load geom_raid kernel module and use graid(8) tool
