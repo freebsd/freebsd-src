@@ -43,9 +43,9 @@ options 	KTRACE		# ktrace(1) syscall trace support
 options 	MAC		# TrustedBSD MAC Framework
 options 	MD_ROOT		# MD usable as root device
 options 	MSDOSFS		# MSDOS Filesystem
-options 	NFSCLIENT	# Network Filesystem Client
+options 	NFSCL		# New Network Filesystem Client
 options 	NFSLOCKD	# Network Lock Manager
-options 	NFSSERVER	# Network Filesystem Server
+options 	NFSD		# New Network Filesystem Server
 options 	NFS_ROOT	# NFS usable as root device
 options 	P1003_1B_SEMAPHORES	# POSIX-style semaphores
 options 	PREEMPTION	# Enable kernel thread preemption
