@@ -27,6 +27,10 @@
  * $FreeBSD$
  */
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+#include "opt_enc.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -53,14 +57,12 @@
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/in_var.h>
-#include "opt_inet6.h"
 
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #endif
 
-#include "opt_enc.h"
 #include <netipsec/ipsec.h>
 #include <netipsec/xform.h>
 
@@ -243,11 +245,14 @@ ipsec_filter(struct mbuf **mp, int dir, int flags)
 	}
 
 	/* Skip pfil(9) if no filters are loaded */
-	if (!(PFIL_HOOKED(&V_inet_pfil_hook)
-#ifdef INET6
-	    || PFIL_HOOKED(&V_inet6_pfil_hook)
+	if (1
+#ifdef INET
+	    && !PFIL_HOOKED(&V_inet_pfil_hook)
 #endif
-	    )) {
+#ifdef INET6
+	    && !PFIL_HOOKED(&V_inet6_pfil_hook)
+#endif
+	    ) {
 		return (0);
 	}
 
@@ -263,6 +268,7 @@ ipsec_filter(struct mbuf **mp, int dir, int flags)
 	error = 0;
 	ip = mtod(*mp, struct ip *);
 	switch (ip->ip_v) {
+#ifdef INET
 		case 4:
 			/*
 			 * before calling the firewall, swap fields the same as
@@ -282,7 +288,7 @@ ipsec_filter(struct mbuf **mp, int dir, int flags)
 			ip->ip_len = htons(ip->ip_len);
 			ip->ip_off = htons(ip->ip_off);
 			break;
-
+#endif
 #ifdef INET6
 		case 6:
 			error = pfil_run_hooks(&V_inet6_pfil_hook, mp,

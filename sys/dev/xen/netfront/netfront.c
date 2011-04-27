@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -625,6 +627,7 @@ setup_device(device_t dev, struct netfront_info *info)
 	return (error);
 }
 
+#ifdef INET
 /**
  * If this interface has an ipv4 address, send an arp for it. This
  * helps to get the network going again after migrating hosts.
@@ -642,6 +645,7 @@ netfront_send_fake_arp(device_t dev, struct netfront_info *info)
 		}
 	}
 }
+#endif
 
 /**
  * Callback received when the backend's state changes.
@@ -668,7 +672,9 @@ netfront_backend_changed(device_t dev, XenbusState newstate)
 		if (network_connect(sc) != 0)
 			break;
 		xenbus_set_state(dev, XenbusStateConnected);
+#ifdef INET
 		netfront_send_fake_arp(dev, sc);
+#endif
 		break;
 	case XenbusStateClosing:
 		xenbus_set_state(dev, XenbusStateClosed);
@@ -1725,12 +1731,15 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct netfront_info *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
+#ifdef INET
 	struct ifaddr *ifa = (struct ifaddr *)data;
+#endif
 
 	int mask, error = 0;
 	switch(cmd) {
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
+#ifdef INET
 		XN_LOCK(sc);
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			ifp->if_flags |= IFF_UP;
@@ -1740,8 +1749,11 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			XN_UNLOCK(sc);	
 		} else {
 			XN_UNLOCK(sc);	
+#endif
 			error = ether_ioctl(ifp, cmd, data);
+#ifdef INET
 		}
+#endif
 		break;
 	case SIOCSIFMTU:
 		/* XXX can we alter the MTU on a VN ?*/
