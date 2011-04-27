@@ -41,8 +41,6 @@
 #include <sys/lock.h>
 #include <sys/queue.h>
 
-#define	ROOTINO	((ino_t)2)
-
 #define	NDADDR	12			/* Direct addresses in inode. */
 #define	NIADDR	3			/* Indirect addresses in inode. */
 
