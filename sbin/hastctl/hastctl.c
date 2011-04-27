@@ -492,7 +492,7 @@ main(int argc, char *argv[])
 	}
 	nv_free(nv);
 	/* ...and receive reply. */
-	if (hast_proto_recv(NULL, controlconn, &nv, NULL, 0) < 0) {
+	if (hast_proto_recv_hdr(controlconn, &nv) < 0) {
 		pjdlog_exit(EX_UNAVAILABLE,
 		    "cannot receive reply from hastd via %s",
 		    cfg->hc_controladdr);
