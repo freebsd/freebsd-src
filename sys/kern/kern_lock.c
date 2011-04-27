@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/ktr.h>
-#include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/lock_profile.h>
 #include <sys/lockmgr.h>

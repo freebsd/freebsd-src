@@ -32,7 +32,6 @@
 #include <sys/cons.h>
 #include <sys/kdb.h>
 #include <sys/ktr.h>
-#include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
