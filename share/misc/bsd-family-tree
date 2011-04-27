@@ -245,7 +245,7 @@ FreeBSD 5.2           |      |                 |                       |
  |     |        |     |      |    |        OpenBSD 4.8                 |
  |     |        |     |      | NetBSD 5.1      |                       |
  |  FreeBSD  FreeBSD  |      |                 |                       |
- |    8.2      7.4    |      |                 |                       |
+ |    8.2      7.4    |      |                 |               DragonFly 2.10.1
  |     v              |      |                 |                       |
  |                    |      |                 |                       |
 FreeBSD 9 -current    |  NetBSD -current  OpenBSD -current             |
@@ -532,6 +532,7 @@ OpenBSD 4.8		2010-11-01 [OBD]
 NetBSD 5.1		2010-11-19 [NBD]
 FreeBSD 7.4		2011-02-24 [FBD]
 FreeBSD 8.2		2011-02-24 [FBD]
+DragonFly 2.10.1	2011-04-26 [DFB]
 
 Bibliography
 ------------------------
