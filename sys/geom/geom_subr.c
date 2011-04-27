@@ -1017,6 +1017,43 @@ g_getattr__(const char *attr, struct g_consumer *cp, void *var, int len)
 	return (0);
 }
 
+static int
+g_get_device_prefix_len(const char *name)
+{
+	int len;
+
+	if (strncmp(name, "ada", 3) == 0)
+		len = 3;
+	else if (strncmp(name, "ad", 2) == 0)
+		len = 2;
+	else
+		return (0);
+	if (name[len] < '0' || name[len] > '9')
+		return (0);
+	do {
+		len++;
+	} while (name[len] >= '0' && name[len] <= '9');
+	return (len);
+}
+
+int
+g_compare_names(const char *namea, const char *nameb)
+{
+	int deva, devb;
+
+	if (strcmp(namea, nameb) == 0)
+		return (1);
+	deva = g_get_device_prefix_len(namea);
+	if (deva == 0)
+		return (0);
+	devb = g_get_device_prefix_len(nameb);
+	if (devb == 0)
+		return (0);
+	if (strcmp(namea + deva, nameb + devb) == 0)
+		return (1);
+	return (0);
+}
+
 #if defined(DIAGNOSTIC) || defined(DDB)
 /*
  * This function walks the mesh and returns a non-zero integer if it
