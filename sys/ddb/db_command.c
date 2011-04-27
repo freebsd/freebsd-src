@@ -724,14 +724,6 @@ db_watchdog(dummy1, dummy2, dummy3, dummy4)
 	} else if ((tout & WD_INTERVAL) == WD_TO_NEVER) {
 		db_error("Out of range watchdog interval\n");
 		return;
-	} else {
-
-		/*
-		 * XXX: Right now we only support WD_ACTIVE, in the future we
-		 * may be possibly needing a more convoluted function for
-		 * dealing with different cases.
-		 */
-		tout |= WD_ACTIVE;
 	}
 	EVENTHANDLER_INVOKE(watchdog_list, tout, &i);
 }
