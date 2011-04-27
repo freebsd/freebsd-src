@@ -71,12 +71,13 @@
 
 #include <ufs/ufs/dir.h>
 
-#include <fs/ext2fs/inode.h>
-#include <fs/ext2fs/ext2_mount.h>
 #include <fs/ext2fs/fs.h>
+#include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2_extern.h>
 #include <fs/ext2fs/ext2fs.h>
+#include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_dir.h>
+#include <fs/ext2fs/ext2_mount.h>
 
 static int ext2_makeinode(int mode, struct vnode *, struct vnode **, struct componentname *);
 static void ext2_itimes_locked(struct vnode *);
@@ -1581,7 +1582,7 @@ ext2_vinit(mntp, fifoops, vpp)
 	if (vp->v_type == VFIFO)
 		vp->v_op = fifoops;
 
-	if (ip->i_number == ROOTINO)
+	if (ip->i_number == EXT2_ROOTINO)
 		vp->v_vflag |= VV_ROOT;
 	ip->i_modrev = init_va_filerev();
 	*vpp = vp;
