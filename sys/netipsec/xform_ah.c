@@ -91,6 +91,7 @@ VNET_DEFINE(int, ah_enable) = 1;	/* control flow of packets with AH */
 VNET_DEFINE(int, ah_cleartos) = 1;	/* clear ip_tos when doing AH calc */
 VNET_DEFINE(struct ahstat, ahstat);
 
+#ifdef INET
 SYSCTL_DECL(_net_inet_ah);
 SYSCTL_VNET_INT(_net_inet_ah, OID_AUTO,
 	ah_enable,	CTLFLAG_RW,	&VNET_NAME(ah_enable),	0, "");
@@ -98,6 +99,7 @@ SYSCTL_VNET_INT(_net_inet_ah, OID_AUTO,
 	ah_cleartos,	CTLFLAG_RW,	&VNET_NAME(ah_cleartos), 0, "");
 SYSCTL_VNET_STRUCT(_net_inet_ah, IPSECCTL_STATS,
 	stats,		CTLFLAG_RD,	&VNET_NAME(ahstat), ahstat, "");
+#endif
 
 static unsigned char ipseczeroes[256];	/* larger than an ip6 extension hdr */
 
@@ -724,19 +726,6 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 		return ah_input_cb(crp);
 }
 
-#ifdef INET6
-#define	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, mtag) do {		     \
-	if (saidx->dst.sa.sa_family == AF_INET6) {			     \
-		error = ipsec6_common_input_cb(m, sav, skip, protoff, mtag); \
-	} else {							     \
-		error = ipsec4_common_input_cb(m, sav, skip, protoff, mtag); \
-	}								     \
-} while (0)
-#else
-#define	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, mtag)		     \
-	(error = ipsec4_common_input_cb(m, sav, skip, protoff, mtag))
-#endif
-
 /*
  * AH input callback from the crypto driver.
  */
@@ -873,7 +862,21 @@ ah_input_cb(struct cryptop *crp)
 		goto bad;
 	}
 
-	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, mtag);
+	switch (saidx->dst.sa.sa_family) {
+#ifdef INET6
+	case AF_INET6:
+		error = ipsec6_common_input_cb(m, sav, skip, protoff, mtag);
+		break;
+#endif
+#ifdef INET
+	case AF_INET:
+		error = ipsec4_common_input_cb(m, sav, skip, protoff, mtag);
+		break;
+#endif
+	default:
+		panic("%s: Unexpected address family: %d saidx=%p", __func__,
+		    saidx->dst.sa.sa_family, saidx);
+	}
 
 	KEY_FREESAV(&sav);
 	return error;
