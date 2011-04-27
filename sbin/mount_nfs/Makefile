@@ -12,7 +12,7 @@ UMNTALL= ${.CURDIR}/../../usr.sbin/rpc.umntall
 CFLAGS+= -DNFS -I${MOUNT} -I${UMNTALL}
 WARNS?=	3
 
-LINKS=	${BINDIR}/mount_nfs ${BINDIR}/mount_newnfs
+LINKS=	${BINDIR}/mount_nfs ${BINDIR}/mount_oldnfs
 
 .PATH: ${MOUNT} ${UMNTALL}
 
