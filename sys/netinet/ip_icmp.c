@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
 #include "opt_ipsec.h"
 
 #include <sys/param.h>
@@ -62,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcpip.h>
 #include <netinet/icmp_var.h>
 
+#ifdef INET
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
 #include <netipsec/key.h>
@@ -70,12 +72,26 @@ __FBSDID("$FreeBSD$");
 #include <machine/in_cksum.h>
 
 #include <security/mac/mac_framework.h>
+#endif /* INET */
 
 /*
  * ICMP routines: error generation, receive packet processing, and
  * routines to turnaround packets back to the originator, and
  * host table maintenance routines.
  */
+static VNET_DEFINE(int, icmplim) = 200;
+#define	V_icmplim			VNET(icmplim)
+SYSCTL_VNET_INT(_net_inet_icmp, ICMPCTL_ICMPLIM, icmplim, CTLFLAG_RW,
+	&VNET_NAME(icmplim), 0,
+	"Maximum number of ICMP responses per second");
+
+static VNET_DEFINE(int, icmplim_output) = 1;
+#define	V_icmplim_output		VNET(icmplim_output)
+SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, icmplim_output, CTLFLAG_RW,
+	&VNET_NAME(icmplim_output), 0,
+	"Enable rate limiting of ICMP responses");
+
+#ifdef INET
 VNET_DEFINE(struct icmpstat, icmpstat);
 SYSCTL_VNET_STRUCT(_net_inet_icmp, ICMPCTL_STATS, stats, CTLFLAG_RW,
 	&VNET_NAME(icmpstat), icmpstat, "");
@@ -103,18 +119,6 @@ static VNET_DEFINE(int, log_redirect) = 0;
 SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, log_redirect, CTLFLAG_RW,
 	&VNET_NAME(log_redirect), 0,
 	"Log ICMP redirects to the console");
-
-static VNET_DEFINE(int, icmplim) = 200;
-#define	V_icmplim			VNET(icmplim)
-SYSCTL_VNET_INT(_net_inet_icmp, ICMPCTL_ICMPLIM, icmplim, CTLFLAG_RW,
-	&VNET_NAME(icmplim), 0,
-	"Maximum number of ICMP responses per second");
-
-static VNET_DEFINE(int, icmplim_output) = 1;
-#define	V_icmplim_output		VNET(icmplim_output)
-SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, icmplim_output, CTLFLAG_RW,
-	&VNET_NAME(icmplim_output), 0,
-	"Enable rate limiting of ICMP responses");
 
 static VNET_DEFINE(char, reply_src[IFNAMSIZ]);
 #define	V_reply_src			VNET(reply_src)
@@ -922,6 +926,7 @@ ip_next_mtu(int mtu, int dir)
 	}
 	return 0;
 }
+#endif /* INET */
 
 
 /*
