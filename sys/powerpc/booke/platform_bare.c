@@ -79,7 +79,7 @@ static platform_method_t bare_methods[] = {
 	PLATFORMMETHOD(platform_smp_get_bsp,	bare_smp_get_bsp),
 	PLATFORMMETHOD(platform_smp_start_cpu,	bare_smp_start_cpu),
 
-	PLATFORMMETHOD(platform_reset,		e500_reset);
+	PLATFORMMETHOD(platform_reset,		e500_reset),
 
 	{ 0, 0 }
 };
