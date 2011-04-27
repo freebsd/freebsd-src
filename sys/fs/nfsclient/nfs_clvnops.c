@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #define	FALSE	0
 
 extern struct nfsstats newnfsstats;
+extern int nfsrv_useacl;
 MALLOC_DECLARE(M_NEWNFSREQ);
 
 /*
@@ -103,6 +104,7 @@ static vop_lookup_t	nfs_lookup;
 static vop_create_t	nfs_create;
 static vop_mknod_t	nfs_mknod;
 static vop_open_t	nfs_open;
+static vop_pathconf_t	nfs_pathconf;
 static vop_close_t	nfs_close;
 static vop_access_t	nfs_access;
 static vop_getattr_t	nfs_getattr;
@@ -153,6 +155,7 @@ struct vop_vector newnfs_vnodeops = {
 	.vop_mkdir =		nfs_mkdir,
 	.vop_mknod =		nfs_mknod,
 	.vop_open =		nfs_open,
+	.vop_pathconf =		nfs_pathconf,
 	.vop_print =		nfs_print,
 	.vop_read =		nfs_read,
 	.vop_readdir =		nfs_readdir,
@@ -3247,3 +3250,115 @@ nfs_setacl(struct vop_setacl_args *ap)
 }
 
 #endif	/* NFS4_ACL_EXTATTR_NAME */
+
+/*
+ * Return POSIX pathconf information applicable to nfs filesystems.
+ */
+static int
+nfs_pathconf(struct vop_pathconf_args *ap)
+{
+	struct nfsv3_pathconf pc;
+	struct nfsvattr nfsva;
+	struct vnode *vp = ap->a_vp;
+	struct thread *td = curthread;
+	int attrflag, error;
+
+	if (NFS_ISV34(vp)) {
+		error = nfsrpc_pathconf(vp, &pc, td->td_ucred, td, &nfsva,
+		    &attrflag, NULL);
+		if (attrflag != 0)
+			(void) nfscl_loadattrcache(&vp, &nfsva, NULL, NULL, 0,
+			    1);
+		if (error != 0)
+			return (error);
+	} else {
+		/* For NFSv2, just fake them. */
+		pc.pc_linkmax = LINK_MAX;
+		pc.pc_namemax = NFS_MAXNAMLEN;
+		pc.pc_notrunc = 1;
+		pc.pc_chownrestricted = 1;
+		pc.pc_caseinsensitive = 0;
+		pc.pc_casepreserving = 1;
+		error = 0;
+	}
+	switch (ap->a_name) {
+	case _PC_LINK_MAX:
+		*ap->a_retval = pc.pc_linkmax;
+		break;
+	case _PC_NAME_MAX:
+		*ap->a_retval = pc.pc_namemax;
+		break;
+	case _PC_PATH_MAX:
+		*ap->a_retval = PATH_MAX;
+		break;
+	case _PC_PIPE_BUF:
+		*ap->a_retval = PIPE_BUF;
+		break;
+	case _PC_CHOWN_RESTRICTED:
+		*ap->a_retval = pc.pc_chownrestricted;
+		break;
+	case _PC_NO_TRUNC:
+		*ap->a_retval = pc.pc_notrunc;
+		break;
+	case _PC_ACL_EXTENDED:
+		*ap->a_retval = 0;
+		break;
+	case _PC_ACL_NFS4:
+		if (NFS_ISV4(vp) && nfsrv_useacl != 0 && attrflag != 0 &&
+		    NFSISSET_ATTRBIT(&nfsva.na_suppattr, NFSATTRBIT_ACL))
+			*ap->a_retval = 1;
+		else
+			*ap->a_retval = 0;
+		break;
+	case _PC_ACL_PATH_MAX:
+		if (NFS_ISV4(vp))
+			*ap->a_retval = ACL_MAX_ENTRIES;
+		else
+			*ap->a_retval = 3;
+		break;
+	case _PC_MAC_PRESENT:
+		*ap->a_retval = 0;
+		break;
+	case _PC_ASYNC_IO:
+		/* _PC_ASYNC_IO should have been handled by upper layers. */
+		KASSERT(0, ("_PC_ASYNC_IO should not get here"));
+		error = EINVAL;
+		break;
+	case _PC_PRIO_IO:
+		*ap->a_retval = 0;
+		break;
+	case _PC_SYNC_IO:
+		*ap->a_retval = 0;
+		break;
+	case _PC_ALLOC_SIZE_MIN:
+		*ap->a_retval = vp->v_mount->mnt_stat.f_bsize;
+		break;
+	case _PC_FILESIZEBITS:
+		if (NFS_ISV34(vp))
+			*ap->a_retval = 64;
+		else
+			*ap->a_retval = 32;
+		break;
+	case _PC_REC_INCR_XFER_SIZE:
+		*ap->a_retval = vp->v_mount->mnt_stat.f_iosize;
+		break;
+	case _PC_REC_MAX_XFER_SIZE:
+		*ap->a_retval = -1; /* means ``unlimited'' */
+		break;
+	case _PC_REC_MIN_XFER_SIZE:
+		*ap->a_retval = vp->v_mount->mnt_stat.f_iosize;
+		break;
+	case _PC_REC_XFER_ALIGN:
+		*ap->a_retval = PAGE_SIZE;
+		break;
+	case _PC_SYMLINK_MAX:
+		*ap->a_retval = NFS_MAXPATHLEN;
+		break;
+
+	default:
+		error = EINVAL;
+		break;
+	}
+	return (error);
+}
+
