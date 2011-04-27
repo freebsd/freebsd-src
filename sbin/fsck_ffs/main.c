@@ -407,7 +407,7 @@ checkfilesys(char *filesys)
 		sblock.fs_mtime = time(NULL);
 		sbdirty();
 	}
-	
+
 	/*
 	 * Cleared if any questions answered no. Used to decide if
 	 * the superblock should be marked clean.
@@ -576,7 +576,7 @@ chkdoreload(struct statfs *mntp)
 		/*
 		 * XX: We need the following line until we clean up
 		 * nmount parsing of root mounts and NFS root mounts.
-		 */ 
+		 */
 		build_iovec(&iov, &iovlen, "ro", NULL, 0);
 		if (nmount(iov, iovlen, mntp->f_flags) == 0) {
 			return (0);
@@ -631,9 +631,9 @@ getmntpt(const char *name)
 static void
 usage(void)
 {
-        (void) fprintf(stderr,
-            "usage: %s [-BFprfny] [-b block] [-c level] [-m mode] "
-                        "filesystem ...\n",
-            getprogname());
-        exit(1);
+	(void) fprintf(stderr,
+	    "usage: %s [-BFprfny] [-b block] [-c level] [-m mode] "
+			"filesystem ...\n",
+	    getprogname());
+	exit(1);
 }
