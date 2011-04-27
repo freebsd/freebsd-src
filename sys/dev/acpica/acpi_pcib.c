@@ -170,13 +170,6 @@ acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
     return_VALUE (bus_generic_attach(dev));
 }
 
-int
-acpi_pcib_resume(device_t dev)
-{
-
-    return (bus_generic_resume(dev));
-}
-
 static void
 prt_lookup_device(ACPI_PCI_ROUTING_TABLE *entry, void *arg)
 {
