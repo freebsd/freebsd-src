@@ -63,7 +63,7 @@
 struct inode {
 	struct	vnode  *i_vnode;/* Vnode associated with this inode. */
 	struct	ext2mount *i_ump;
-	u_int32_t i_flag;	/* flags, see below */
+	uint32_t i_flag;	/* flags, see below */
 	ino_t	  i_number;	/* The identity of the inode. */
 
 	struct	m_ext2fs *i_e2fs;	/* EXT2FS */
@@ -71,21 +71,21 @@ struct inode {
 	/*
 	 * Side effects; used during directory lookup.
 	 */
-	int32_t	  i_count;	/* Size of free slot in directory. */
-	doff_t	  i_endoff;	/* End of useful stuff in directory. */
-	doff_t	  i_diroff;	/* Offset in dir, where we found last entry. */
-	doff_t	  i_offset;	/* Offset of free space in directory. */
+	int32_t	 i_count;	/* Size of free slot in directory. */
+	doff_t	 i_endoff;	/* End of useful stuff in directory. */
+	doff_t	 i_diroff;	/* Offset in dir, where we found last entry. */
+	doff_t	 i_offset;	/* Offset of free space in directory. */
 
-	u_int32_t i_block_group;
-	u_int32_t i_next_alloc_block;
-	u_int32_t i_next_alloc_goal;
-	u_int32_t i_prealloc_block;
-	u_int32_t i_prealloc_count;
+	uint32_t i_block_group;
+	uint32_t i_next_alloc_block;
+	uint32_t i_next_alloc_goal;
+	uint32_t i_prealloc_block;
+	uint32_t i_prealloc_count;
 
 	/* Fields from struct dinode in UFS. */
-	u_int16_t	i_mode;		/* IFMT, permissions; see below. */
+	uint16_t	i_mode;		/* IFMT, permissions; see below. */
 	int16_t		i_nlink;	/* File link count. */
-	u_int64_t	i_size;		/* File byte count. */
+	uint64_t	i_size;		/* File byte count. */
 	int32_t		i_atime;	/* Last access time. */
 	int32_t		i_atimensec;	/* Last access time. */
 	int32_t		i_mtime;	/* Last modified time. */
@@ -94,11 +94,11 @@ struct inode {
 	int32_t		i_ctimensec;	/* Last inode change time. */
 	int32_t		i_db[NDADDR];	/* Direct disk blocks. */
 	int32_t		i_ib[NIADDR];	/* Indirect disk blocks. */
-	u_int32_t	i_flags;	/* Status flags (chflags). */
+	uint32_t	i_flags;	/* Status flags (chflags). */
 	int32_t		i_blocks;	/* Blocks actually held. */
 	int32_t		i_gen;		/* Generation number. */
-	u_int32_t	i_uid;		/* File owner. */
-	u_int32_t	i_gid;		/* File group. */
+	uint32_t	i_uid;		/* File owner. */
+	uint32_t	i_gid;		/* File group. */
 };
 
 /*
@@ -162,10 +162,10 @@ struct indir {
 
 /* This overlays the fid structure (see mount.h). */
 struct ufid {
-	u_int16_t ufid_len;	/* Length of structure. */
-	u_int16_t ufid_pad;	/* Force 32-bit alignment. */
-	ino_t	  ufid_ino;	/* File number (ino). */
-	int32_t	  ufid_gen;	/* Generation number. */
+	uint16_t ufid_len;	/* Length of structure. */
+	uint16_t ufid_pad;	/* Force 32-bit alignment. */
+	ino_t	 ufid_ino;	/* File number (ino). */
+	int32_t	 ufid_gen;	/* Generation number. */
 };
 #endif /* _KERNEL */
 
