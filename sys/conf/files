@@ -2707,7 +2707,7 @@ netinet/ipfw/ip_fw_pfil.c	optional inet ipfirewall
 netinet/ipfw/ip_fw_sockopt.c	optional inet ipfirewall
 netinet/ipfw/ip_fw_table.c	optional inet ipfirewall
 netinet/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
-netinet/ip_icmp.c		optional inet
+netinet/ip_icmp.c		optional inet | inet6
 netinet/ip_input.c		optional inet
 netinet/ip_ipsec.c		optional inet ipsec
 netinet/ip_mroute.c		optional mrouting inet | mrouting inet6
