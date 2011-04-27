@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
  * generally, I don't like #includes inside .h files, but it seems to
  * be the easiest way to handle the port.
  */
+#include <sys/hash.h>
 #include <fs/nfs/nfsport.h>
 #include <netinet/if_ether.h>
 #include <net/if_types.h>
@@ -377,12 +378,23 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	 * be the same as a local fs, but since this is in an NFS mount
 	 * point, I don't think that will cause any problems?
 	 */
-	if ((nmp->nm_flag & (NFSMNT_NFSV4 | NFSMNT_HASSETFSID)) ==
-	    (NFSMNT_NFSV4 | NFSMNT_HASSETFSID) &&
+	if (NFSHASNFSV4(nmp) && NFSHASHASSETFSID(nmp) &&
 	    (nmp->nm_fsid[0] != np->n_vattr.na_filesid[0] ||
-	     nmp->nm_fsid[1] != np->n_vattr.na_filesid[1]))
-		vap->va_fsid = np->n_vattr.na_filesid[0];
-	else
+	     nmp->nm_fsid[1] != np->n_vattr.na_filesid[1])) {
+		/*
+		 * va_fsid needs to be set to some value derived from
+		 * np->n_vattr.na_filesid that is not equal
+		 * vp->v_mount->mnt_stat.f_fsid[0], so that it changes
+		 * from the value used for the top level server volume
+		 * in the mounted subtree.
+		 */
+		if (vp->v_mount->mnt_stat.f_fsid.val[0] !=
+		    (uint32_t)np->n_vattr.na_filesid[0])
+			vap->va_fsid = (uint32_t)np->n_vattr.na_filesid[0];
+		else
+			vap->va_fsid = (uint32_t)hash32_buf(
+			    np->n_vattr.na_filesid, 2 * sizeof(uint64_t), 0);
+	} else
 		vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 	np->n_attrstamp = time_second;
 	if (vap->va_size != np->n_size) {
