@@ -73,7 +73,7 @@
 #include <netinet6/ip6_var.h>
 #endif /* INET6 */
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 #include <netinet/in_pcb.h>
 #endif
 #ifdef INET6
