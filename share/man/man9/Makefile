@@ -5,7 +5,6 @@ MAN=	accept_filter.9 \
 	accf_dns.9 \
 	accf_http.9 \
 	acl.9 \
-	alloc_unr.9 \
 	alq.9 \
 	altq.9 \
 	atomic.9 \
@@ -257,6 +256,7 @@ MAN=	accept_filter.9 \
 	ucred.9 \
 	uidinfo.9 \
 	uio.9 \
+	unr.9 \
 	usbdi.9 \
 	utopia.9 \
 	vaccess.9 \
@@ -377,11 +377,12 @@ MAN=	accept_filter.9 \
 	zero_copy.9 \
 	zone.9
 
-MLINKS=	alloc_unr.9 alloc_unrl.9 \
-	alloc_unr.9 alloc_unr_specific.9 \
-	alloc_unr.9 delete_unrhdr.9 \
-	alloc_unr.9 free_unr.9 \
-	alloc_unr.9 new_unrhdr.9
+MLINKS=	unr.9 alloc_unr.9 \
+	unr.9 alloc_unrl.9 \
+	unr.9 alloc_unr_specific.9 \
+	unr.9 delete_unrhdr.9 \
+	unr.9 free_unr.9 \
+	unr.9 new_unrhdr.9
 MLINKS+=alq.9 ALQ.9 \
 	alq.9 alq_close.9 \
 	alq.9 alq_flush.9 \
