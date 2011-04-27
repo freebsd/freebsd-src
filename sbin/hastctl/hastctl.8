@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 13, 2011
+.Dd April 10, 2011
 .Dt HASTCTL 8
 .Os
 .Sh NAME
@@ -88,7 +88,7 @@ Additional options include:
 .It Fl e Ar extentsize
 Size of an extent.
 Extent is a block which is used for synchronization.
-.Nm
+.Xr hastd 8
 maintains a map of dirty extents and extent is the smallest region that
 can be marked as dirty.
 If any part of an extent is modified, entire extent will be synchronized
