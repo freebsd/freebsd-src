@@ -2126,7 +2126,6 @@ ahci_issue_recovery(device_t dev)
 	struct ccb_scsiio *csio;
 	int i;
 
-	ch->recoverycmd = 1;
 	/* Find some holden command. */
 	for (i = 0; i < ch->numslots; i++) {
 		if (ch->hold[i])
@@ -2134,8 +2133,20 @@ ahci_issue_recovery(device_t dev)
 	}
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
-		device_printf(dev, "Unable allocate READ LOG command");
-		return; /* XXX */
+		device_printf(dev, "Unable allocate recovery command\n");
+completeall:
+		/* We can't do anything -- complete holden commands. */
+		for (i = 0; i < ch->numslots; i++) {
+			if (ch->hold[i] == NULL)
+				continue;
+			ch->hold[i]->ccb_h.status &= ~CAM_STATUS_MASK;
+			ch->hold[i]->ccb_h.status |= CAM_RESRC_UNAVAIL;
+			xpt_done(ch->hold[i]);
+			ch->hold[i] = NULL;
+			ch->numhslots--;
+		}
+		ahci_reset(dev);
+		return;
 	}
 	ccb->ccb_h = ch->hold[i]->ccb_h;	/* Reuse old header. */
 	if (ccb->ccb_h.func_code == XPT_ATA_IO) {
@@ -2148,8 +2159,9 @@ ahci_issue_recovery(device_t dev)
 		ataio->data_ptr = malloc(512, M_AHCI, M_NOWAIT);
 		if (ataio->data_ptr == NULL) {
 			xpt_free_ccb(ccb);
-			device_printf(dev, "Unable allocate memory for READ LOG command");
-			return; /* XXX */
+			device_printf(dev,
+			    "Unable allocate memory for READ LOG command\n");
+			goto completeall;
 		}
 		ataio->dxfer_len = 512;
 		bzero(&ataio->cmd, sizeof(ataio->cmd));
@@ -2177,6 +2189,7 @@ ahci_issue_recovery(device_t dev)
 		csio->cdb_io.cdb_bytes[4] = csio->dxfer_len;
 	}
 	/* Freeze SIM while doing recovery. */
+	ch->recoverycmd = 1;
 	xpt_freeze_simq(ch->sim, 1);
 	ahci_begin_transaction(dev, ccb);
 }
