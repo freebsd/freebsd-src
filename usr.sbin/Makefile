@@ -192,6 +192,7 @@ SUBDIR=	${_ac} \
 	ugidfw \
 	${_uhsoctl} \
 	${_usbdevs} \
+	${_usbdump} \
 	${_usbconfig} \
 	${_vidcontrol} \
 	vipw \
@@ -418,6 +419,7 @@ _uathload=	uathload
 .endif
 _uhsoctl=	uhsoctl
 #_usbdevs=	usbdevs
+_usbdump=	usbdump
 _usbconfig=	usbconfig
 .endif
 

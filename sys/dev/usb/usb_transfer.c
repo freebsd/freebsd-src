@@ -59,6 +59,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_pf.h>
 
 struct usb_std_packet_size {
 	struct {
@@ -663,9 +664,13 @@ usbd_transfer_setup_sub(struct usb_setup_params *parm)
 		}
 		xfer->max_data_length -= REQ_SIZE;
 	}
-	/* setup "frlengths" */
+	/*
+	 * Setup "frlengths" and shadow "frlengths" for keeping the
+	 * initial frame lengths when a USB transfer is complete. This
+	 * information is useful when computing isochronous offsets.
+	 */
 	xfer->frlengths = parm->xfer_length_ptr;
-	parm->xfer_length_ptr += n_frlengths;
+	parm->xfer_length_ptr += 2 * n_frlengths;
 
 	/* setup "frbuffers" */
 	xfer->frbuffers = parm->xfer_page_cache_ptr;
@@ -1578,9 +1583,12 @@ usbd_transfer_submit(struct usb_xfer *xfer)
 		USB_BUS_UNLOCK(bus);
 		return;
 	}
-	/* compute total transfer length */
+	/* compute some variables */
 
 	for (x = 0; x != xfer->nframes; x++) {
+		/* make a copy of the frlenghts[] */
+		xfer->frlengths[x + xfer->max_frame_count] = xfer->frlengths[x];
+		/* compute total transfer length */
 		xfer->sumlen += xfer->frlengths[x];
 		if (xfer->sumlen < xfer->frlengths[x]) {
 			/* length wrapped around */
@@ -1969,6 +1977,22 @@ usbd_xfer_frame_data(struct usb_xfer *xfer, usb_frcount_t frindex,
 		*len = xfer->frlengths[frindex];
 }
 
+/*------------------------------------------------------------------------*
+ *	usbd_xfer_old_frame_length
+ *
+ * This function returns the framelength of the given frame at the
+ * time the transfer was submitted. This function can be used to
+ * compute the starting data pointer of the next isochronous frame
+ * when an isochronous transfer has completed.
+ *------------------------------------------------------------------------*/
+usb_frlength_t
+usbd_xfer_old_frame_length(struct usb_xfer *xfer, usb_frcount_t frindex)
+{
+	KASSERT(frindex < xfer->max_frame_count, ("frame index overflow"));
+
+	return (xfer->frlengths[frindex + xfer->max_frame_count]);
+}
+
 void
 usbd_xfer_status(struct usb_xfer *xfer, int *actlen, int *sumlen, int *aframes,
     int *nframes)
@@ -2199,6 +2223,10 @@ usbd_callback_wrapper(struct usb_xfer_queue *pq)
 		}
 	}
 
+#if USB_HAVE_PF
+	if (xfer->usb_state != USB_ST_SETUP)
+		usbpf_xfertap(xfer, USBPF_XFERTAP_DONE);
+#endif
 	/* call processing routine */
 	(xfer->callback) (xfer, xfer->error);
 
@@ -2386,6 +2414,9 @@ usbd_transfer_start_cb(void *arg)
 
 	DPRINTF("start\n");
 
+#if USB_HAVE_PF
+	usbpf_xfertap(xfer, USBPF_XFERTAP_SUBMIT);
+#endif
 	/* start the transfer */
 	(ep->methods->start) (xfer);
 
@@ -2563,6 +2594,9 @@ usbd_pipe_start(struct usb_xfer_queue *pq)
 	}
 	DPRINTF("start\n");
 
+#if USB_HAVE_PF
+	usbpf_xfertap(xfer, USBPF_XFERTAP_SUBMIT);
+#endif
 	/* start USB transfer */
 	(ep->methods->start) (xfer);
 
