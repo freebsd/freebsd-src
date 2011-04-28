@@ -297,7 +297,19 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	else
 		hlen = sizeof (struct newesp) + sav->ivlen;
 	/* Authenticator hash size */
-	alen = esph ? AH_HMAC_HASHLEN : 0;
+	if (esph != NULL) {
+		switch (esph->type) {
+		case CRYPTO_SHA2_256_HMAC:
+		case CRYPTO_SHA2_384_HMAC:
+		case CRYPTO_SHA2_512_HMAC:
+			alen = esph->hashsize/2;
+			break;
+		default:
+			alen = AH_HMAC_HASHLEN;
+			break;
+		}
+	}else
+		alen = 0;
 
 	/*
 	 * Verify payload length is multiple of encryption algorithm
@@ -450,8 +462,8 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 static int
 esp_input_cb(struct cryptop *crp)
 {
-	u_int8_t lastthree[3], aalg[AH_HMAC_HASHLEN];
-	int hlen, skip, protoff, error;
+	u_int8_t lastthree[3], aalg[AH_HMAC_MAXHASHLEN];
+	int hlen, skip, protoff, error, alen;
 	struct mbuf *m;
 	struct cryptodesc *crd;
 	struct auth_hash *esph;
@@ -519,6 +531,16 @@ esp_input_cb(struct cryptop *crp)
 
 	/* If authentication was performed, check now. */
 	if (esph != NULL) {
+		switch (esph->type) {
+		case CRYPTO_SHA2_256_HMAC:
+		case CRYPTO_SHA2_384_HMAC:
+		case CRYPTO_SHA2_512_HMAC:
+			alen = esph->hashsize/2;
+			break;
+		default:
+			alen = AH_HMAC_HASHLEN;
+			break;
+		}
 		/*
 		 * If we have a tag, it means an IPsec-aware NIC did
 		 * the verification for us.  Otherwise we need to
@@ -527,13 +549,13 @@ esp_input_cb(struct cryptop *crp)
 		V_ahstat.ahs_hist[sav->alg_auth]++;
 		if (mtag == NULL) {
 			/* Copy the authenticator from the packet */
-			m_copydata(m, m->m_pkthdr.len - AH_HMAC_HASHLEN,
-				AH_HMAC_HASHLEN, aalg);
+			m_copydata(m, m->m_pkthdr.len - alen,
+				alen, aalg);
 
 			ptr = (caddr_t) (tc + 1);
 
 			/* Verify authenticator */
-			if (bcmp(ptr, aalg, AH_HMAC_HASHLEN) != 0) {
+			if (bcmp(ptr, aalg, alen) != 0) {
 				DPRINTF(("%s: "
 		    "authentication hash mismatch for packet in SA %s/%08lx\n",
 				    __func__,
@@ -546,7 +568,7 @@ esp_input_cb(struct cryptop *crp)
 		}
 
 		/* Remove trailing authenticator */
-		m_adj(m, -AH_HMAC_HASHLEN);
+		m_adj(m, -alen);
 	}
 
 	/* Release the crypto descriptors */
@@ -690,7 +712,16 @@ esp_output(
 	plen = rlen + padding;		/* Padded payload length. */
 
 	if (esph)
+		switch (esph->type) {
+		case CRYPTO_SHA2_256_HMAC:
+		case CRYPTO_SHA2_384_HMAC:
+		case CRYPTO_SHA2_512_HMAC:
+			alen = esph->hashsize/2;
+			break;
+		default:
 		alen = AH_HMAC_HASHLEN;
+			break;
+		}
 	else
 		alen = 0;
 
@@ -944,7 +975,7 @@ esp_output_cb(struct cryptop *crp)
 #ifdef REGRESSION
 	/* Emulate man-in-the-middle attack when ipsec_integrity is TRUE. */
 	if (V_ipsec_integrity) {
-		static unsigned char ipseczeroes[AH_HMAC_HASHLEN];
+		static unsigned char ipseczeroes[AH_HMAC_MAXHASHLEN];
 		struct auth_hash *esph;
 
 		/*
@@ -953,8 +984,20 @@ esp_output_cb(struct cryptop *crp)
 		 */
 		esph = sav->tdb_authalgxform;
 		if (esph !=  NULL) {
-			m_copyback(m, m->m_pkthdr.len - AH_HMAC_HASHLEN,
-			    AH_HMAC_HASHLEN, ipseczeroes);
+			int alen;
+
+			switch (esph->type) {
+			case CRYPTO_SHA2_256_HMAC:
+			case CRYPTO_SHA2_384_HMAC:
+			case CRYPTO_SHA2_512_HMAC:
+				alen = esph->hashsize/2;
+				break;
+			default:
+				alen = AH_HMAC_HASHLEN;
+				break;
+			}
+			m_copyback(m, m->m_pkthdr.len - alen,
+			    alen, ipseczeroes);
 		}
 	}
 #endif

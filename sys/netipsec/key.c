@@ -6103,6 +6103,9 @@ key_getsizes_ah(
 		case SADB_X_AALG_MD5:	*min = *max = 16; break;
 		case SADB_X_AALG_SHA:	*min = *max = 20; break;
 		case SADB_X_AALG_NULL:	*min = 1; *max = 256; break;
+		case SADB_X_AALG_SHA2_256: *min = *max = 32; break;
+		case SADB_X_AALG_SHA2_384: *min = *max = 48; break;
+		case SADB_X_AALG_SHA2_512: *min = *max = 64; break;
 		default:
 			DPRINTF(("%s: unknown AH algorithm %u\n",
 				__func__, alg));
@@ -6128,7 +6131,11 @@ key_getcomb_ah()
 	for (i = 1; i <= SADB_AALG_MAX; i++) {
 #if 1
 		/* we prefer HMAC algorithms, not old algorithms */
-		if (i != SADB_AALG_SHA1HMAC && i != SADB_AALG_MD5HMAC)
+		if (i != SADB_AALG_SHA1HMAC &&
+		    i != SADB_AALG_MD5HMAC  &&
+		    i != SADB_X_AALG_SHA2_256 &&
+		    i != SADB_X_AALG_SHA2_384 &&
+		    i != SADB_X_AALG_SHA2_512)
 			continue;
 #endif
 		algo = ah_algorithm_lookup(i);
