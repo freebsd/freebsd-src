@@ -45,6 +45,15 @@
 #define	WRITE			ext2_write
 #define	WRITE_S			"ext2_write"
 
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
+#include <vm/vnode_pager.h>
+
+#include "opt_directio.h"
+
 /*
  * Vnode op for reading.
  */
@@ -66,15 +75,16 @@ READ(ap)
 	off_t bytesinfile;
 	long size, xfersize, blkoffset;
 	int error, orig_resid, seqcount;
-	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
-	u_short mode;
+	int ioflag;
 
 	vp = ap->a_vp;
-	ip = VTOI(vp);
-	mode = ip->i_mode;
 	uio = ap->a_uio;
+	ioflag = ap->a_ioflag;
 
-#ifdef DIAGNOSTIC
+	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
+	ip = VTOI(vp);
+
+#ifdef INVARIANTS
 	if (uio->uio_rw != UIO_READ)
 		panic("%s: mode", READ_S);
 
@@ -90,8 +100,10 @@ READ(ap)
 		return (0);
 	KASSERT(uio->uio_offset >= 0, ("ext2_read: uio->uio_offset < 0"));
 	fs = ip->I_FS;
-	if (uio->uio_offset < ip->i_size && uio->uio_offset >= fs->e2fs_maxfilesize)
-		return (EOVERFLOW);
+	if (uio->uio_offset < ip->i_size &&
+	    uio->uio_offset >= fs->e2fs_maxfilesize)
+	    	return (EOVERFLOW);
+
 	for (error = 0, bp = NULL; uio->uio_resid > 0; bp = NULL) {
 		if ((bytesinfile = ip->i_size - uio->uio_offset) <= 0)
 			break;
@@ -109,8 +121,8 @@ READ(ap)
 		if (lblktosize(fs, nextlbn) >= ip->i_size)
 			error = bread(vp, lbn, size, NOCRED, &bp);
 		else if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0)
-		error = cluster_read(vp, ip->i_size, lbn, size,
-  			NOCRED, blkoffset + uio->uio_resid, seqcount, &bp);
+			error = cluster_read(vp, ip->i_size, lbn, size,
+			    NOCRED, blkoffset + uio->uio_resid, seqcount, &bp);
 		else if (seqcount > 1) {
 			int nextsize = BLKSIZE(fs, ip, nextlbn);
 			error = breadn(vp, lbn,
@@ -122,6 +134,15 @@ READ(ap)
 			bp = NULL;
 			break;
 		}
+
+		/*
+		 * If IO_DIRECT then set B_DIRECT for the buffer.  This
+		 * will cause us to attempt to release the buffer later on
+		 * and will cause the buffer cache to attempt to free the
+		 * underlying pages.
+		 */
+		if (ioflag & IO_DIRECT)
+			bp->b_flags |= B_DIRECT;
 
 		/*
 		 * We should only get non-zero b_resid when an I/O error
@@ -141,10 +162,42 @@ READ(ap)
 		if (error)
 			break;
 
-		bqrelse(bp);
+		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
+		   (LIST_FIRST(&bp->b_dep) == NULL)) {
+			/*
+			 * If there are no dependencies, and it's VMIO,
+			 * then we don't need the buf, mark it available
+			 * for freeing. The VM has the data.
+			 */
+			bp->b_flags |= B_RELBUF;
+			brelse(bp);
+		} else {
+			/*
+			 * Otherwise let whoever
+			 * made the request take care of
+			 * freeing it. We just queue
+			 * it onto another list.
+			 */
+			bqrelse(bp);
+		}
 	}
-	if (bp != NULL)
-		bqrelse(bp);
+
+	/* 
+	 * This can only happen in the case of an error
+	 * because the loop above resets bp to NULL on each iteration
+	 * and on normal completion has not set a new value into it.
+	 * so it must have come from a 'break' statement
+	 */
+	if (bp != NULL) {
+		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
+		   (LIST_FIRST(&bp->b_dep) == NULL)) {
+			bp->b_flags |= B_RELBUF;
+			brelse(bp);
+		} else {
+			bqrelse(bp);
+		}
+	}
+
 	if ((error == 0 || uio->uio_resid != orig_resid) &&
 	    (vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
 		ip->i_flag |= IN_ACCESS;
@@ -173,12 +226,13 @@ WRITE(ap)
 	int blkoffset, error, flags, ioflag, resid, size, seqcount, xfersize;
 
 	ioflag = ap->a_ioflag;
-	seqcount = ioflag >> IO_SEQSHIFT;
 	uio = ap->a_uio;
 	vp = ap->a_vp;
+
+	seqcount = ioflag >> IO_SEQSHIFT;
 	ip = VTOI(vp);
 
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if (uio->uio_rw != UIO_WRITE)
 		panic("%s: mode", WRITE_S);
 #endif
@@ -217,7 +271,12 @@ WRITE(ap)
 
 	resid = uio->uio_resid;
 	osize = ip->i_size;
-	flags = ioflag & IO_SYNC ? B_SYNC : 0;
+	if (seqcount > BA_SEQMAX)
+		flags = BA_SEQMAX << BA_SEQSHIFT;
+	else
+		flags = seqcount << BA_SEQSHIFT;
+	if ((ioflag & IO_SYNC) && !DOINGASYNC(vp))
+		flags |= IO_SYNC;
 
 	for (error = 0; uio->uio_resid > 0;) {
 		lbn = lblkno(fs, uio->uio_offset);
@@ -228,17 +287,30 @@ WRITE(ap)
 		if (uio->uio_offset + xfersize > ip->i_size)
 			vnode_pager_setsize(vp, uio->uio_offset + xfersize);
 
-		/*
-		 * Avoid a data-consistency race between write() and mmap()
-		 * by ensuring that newly allocated blocks are zeroed. The
-		 * race can occur even in the case where the write covers
-		 * the entire block.
-		 */
-		flags |= B_CLRBUF;
+                /*
+		 * We must perform a read-before-write if the transfer size
+		 * does not cover the entire buffer.
+                 */
+		if (fs->e2fs_bsize > xfersize)
+			flags |= BA_CLRBUF;
+		else
+			flags &= ~BA_CLRBUF;
 		error = ext2_balloc(ip, lbn, blkoffset + xfersize,
-			ap->a_cred, &bp, flags);
+		    ap->a_cred, &bp, flags);
 		if (error != 0)
 			break;
+
+		/*
+		 * If the buffer is not valid and we did not clear garbage
+		 * out above, we have to do so here even though the write
+		 * covers the entire buffer in order to avoid a mmap()/write
+		 * race where another process may see the garbage prior to
+		 * the uiomove() for a write replacing it.
+		 */
+		if ((bp->b_flags & B_CACHE) == 0 && fs->e2fs_bsize <= xfersize)
+			vfs_bio_clrbuf(bp);
+		if ((ioflag & (IO_SYNC|IO_INVAL)) == (IO_SYNC|IO_INVAL))
+			bp->b_flags |= B_NOCACHE;
 		if (uio->uio_offset + xfersize > ip->i_size)
 			ip->i_size = uio->uio_offset + xfersize;
 		size = BLKSIZE(fs, ip, lbn) - bp->b_resid;
@@ -247,12 +319,25 @@ WRITE(ap)
 
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
-		if ((ioflag & IO_VMIO) &&
-		   LIST_FIRST(&bp->b_dep) == NULL) /* in ext2fs? */
+		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
+		   (LIST_EMPTY(&bp->b_dep))) {	/* in ext2fs? */
 			bp->b_flags |= B_RELBUF;
+		}
 
+		/*
+		 * If IO_SYNC each buffer is written synchronously.  Otherwise
+		 * if we have a severe page deficiency write the buffer
+		 * asynchronously.  Otherwise try to cluster, and if that
+		 * doesn't do it then either do an async write (if O_DIRECT),
+		 * or a delayed write (if not).
+		 */
 		if (ioflag & IO_SYNC) {
 			(void)bwrite(bp);
+		} else if (vm_page_count_severe() ||
+		    buf_dirty_count_severe() ||
+		    (ioflag & IO_ASYNC)) {
+			bp->b_flags |= B_CLUSTEROK;
+			bawrite(bp);
 		} else if (xfersize + blkoffset == fs->e2fs_fsize) {
 			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0) {
 				bp->b_flags |= B_CLUSTEROK;
@@ -260,6 +345,9 @@ WRITE(ap)
 			} else {
 				bawrite(bp);
 			}
+		} else if (ioflag & IO_DIRECT) {
+			bp->b_flags |= B_CLUSTEROK;
+			bawrite(bp);
 		} else {
 			bp->b_flags |= B_CLUSTEROK;
 			bdwrite(bp);
@@ -271,18 +359,13 @@ WRITE(ap)
 	 * If we successfully wrote any data, and we are not the superuser
 	 * we clear the setuid and setgid bits as a precaution against
 	 * tampering.
-	 * XXX too late, the tamperer may have opened the file while we
-	 * were writing the data (or before).
-	 * XXX too early, if (error && ioflag & IO_UNIT) then we will
-	 * unwrite the data.
 	 */
-	if (resid > uio->uio_resid && ap->a_cred && ap->a_cred->cr_uid != 0)
-		ip->i_mode &= ~(ISUID | ISGID);
+	if ((ip->i_mode & (ISUID | ISGID)) && resid > uio->uio_resid &&
+	    ap->a_cred) {
+		if (priv_check_cred(ap->a_cred, PRIV_VFS_RETAINSUGID, 0))
+			ip->i_mode &= ~(ISUID | ISGID);
+	}
 	if (error) {
-                /*
-                 * XXX should truncate to the last successfully written
-                 * data if the uiomove() failed.
-                 */
 		if (ioflag & IO_UNIT) {
 			(void)ext2_truncate(vp, osize,
 			    ioflag & IO_SYNC, ap->a_cred, uio->uio_td);

@@ -158,6 +158,9 @@ struct indir {
 #define VTOI(vp)	((struct inode *)(vp)->v_data)
 #define ITOV(ip)	((ip)->i_vnode)
 
+/* Check whether the MNTK_ASYNC flag has been set for a mount point */
+#define DOINGASYNC(vp)		((vp)->v_mount->mnt_kern_flag & MNTK_ASYNC)
+
 /* This overlays the fid structure (see mount.h). */
 struct ufid {
 	uint16_t ufid_len;	/* Length of structure. */
