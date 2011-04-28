@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_panic.h"
 #include "opt_show_busybufs.h"
 #include "opt_sched.h"
+#include "opt_watchdog.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -65,6 +66,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
+#ifdef SW_WATCHDOG
+#include <sys/watchdog.h>
+#endif
 
 #include <ddb/ddb.h>
 
@@ -310,6 +314,9 @@ kern_reboot(int howto)
 
 		waittime = 0;
 
+#ifdef SW_WATCHDOG
+		wdog_kern_pat(WD_LASTVAL);
+#endif
 		sync(curthread, NULL);
 
 		/*
@@ -335,6 +342,9 @@ kern_reboot(int howto)
 			if (nbusy < pbusy)
 				iter = 0;
 			pbusy = nbusy;
+#ifdef SW_WATCHDOG
+			wdog_kern_pat(WD_LASTVAL);
+#endif
 			sync(curthread, NULL);
 
 #ifdef PREEMPTION
