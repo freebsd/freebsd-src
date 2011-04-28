@@ -41,7 +41,7 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/lock.h>
-#include <sys/ucred.h>
+#include <sys/mount.h>
 #include <sys/vnode.h>
 
 #include <fs/ext2fs/inode.h>
@@ -143,7 +143,7 @@ ext2_balloc(ip, lbn, size, cred, bpp, flags)
 				return (error);
 			bp = getblk(vp, lbn, nsize, 0, 0, 0);
 			bp->b_blkno = fsbtodb(fs, newb);
-			if (flags & B_CLRBUF)
+			if (flags & BA_CLRBUF)
 				vfs_bio_clrbuf(bp);
 		}
 		ip->i_db[lbn] = dbtofsb(fs, bp->b_blkno);
@@ -235,7 +235,7 @@ ext2_balloc(ip, lbn, size, cred, bpp, flags)
 		 * If required, write synchronously, otherwise use
 		 * delayed write.
 		 */
-		if (flags & B_SYNC) {
+		if (flags & IO_SYNC) {
 			bwrite(bp);
 		} else {
 			if (bp->b_bufsize == fs->e2fs_bsize)
@@ -258,14 +258,14 @@ ext2_balloc(ip, lbn, size, cred, bpp, flags)
 		nb = newb;
 		nbp = getblk(vp, lbn, fs->e2fs_bsize, 0, 0, 0);
 		nbp->b_blkno = fsbtodb(fs, nb);
-		if (flags & B_CLRBUF)
+		if (flags & BA_CLRBUF)
 			vfs_bio_clrbuf(nbp);
 		bap[indirs[i].in_off] = nb;
 		/*
 		 * If required, write synchronously, otherwise use
 		 * delayed write.
 		 */
-		if (flags & B_SYNC) {
+		if (flags & IO_SYNC) {
 			bwrite(bp);
 		} else {
 		if (bp->b_bufsize == fs->e2fs_bsize)
@@ -276,8 +276,15 @@ ext2_balloc(ip, lbn, size, cred, bpp, flags)
 		return (0);
 	}
 	brelse(bp);
-	if (flags & B_CLRBUF) {
-		error = bread(vp, lbn, (int)fs->e2fs_bsize, NOCRED, &nbp);
+	if (flags & BA_CLRBUF) {
+		int seqcount = (flags & BA_SEQMASK) >> BA_SEQSHIFT;
+		if (seqcount && (vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
+			error = cluster_read(vp, ip->i_size, lbn,
+			    (int)fs->e2fs_bsize, NOCRED,
+			    MAXBSIZE, seqcount, &nbp);
+		} else {
+			error = bread(vp, lbn, (int)fs->e2fs_bsize, NOCRED, &nbp);
+		}
 		if (error) {
 			brelse(nbp);
 			return (error);
