@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2011
+.Dd April 27, 2011
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2024,20 +2024,63 @@ is set to
 these are the flags to pass to the
 .Xr nfsd 8
 daemon.
-.It Va idmapd_enable
+.It Va nfsv4_server_enable
 .Pq Vt bool
-If set to
+If
+.Va nfs_server_enable
+is set to
+.Dq Li YES
+and
+.Va nfsv4_server_enable
+are set to
 .Dq Li YES ,
-run the ID mapping daemon for NFS version 4.
-.It Va idmapd_flags
+enable the server for NFSv4 as well as NFSv2 and NFSv3.
+.It Va nfsuserd_enable
+.Pq Vt bool
+If
+.Va nfsuserd_enable
+is set to
+.Dq Li YES ,
+run the nfsuserd daemon, which is needed for NFSv4 in order
+to map between user/group names vs uid/gid numbers.
+If
+.Va nfsv4_server_enable
+is set to
+.Dq Li YES ,
+this will be forced enabled.
+.It Va nfsuserd_flags
 .Pq Vt str
 If
-.Va idmapd_enable
+.Va nfsuserd_enable
 is set to
 .Dq Li YES ,
 these are the flags to pass to the
-.Xr idmapd 8
+.Xr nfsuserd 8
 daemon.
+.It Va nfscbd_enable
+.Pq Vt bool
+If
+.Va nfscbd_enable
+is set to
+.Dq Li YES ,
+run the nfscbd daemon, which enables callbacks/delegations for the NFSv4 client.
+.It Va nfscbd_flags
+.Pq Vt str
+If
+.Va nfscbd_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr nfscbd 8
+daemon.
+.It Va oldnfs_server_enable
+.Pq Vt bool
+If
+.Va oldnfs_server_enable
+is set to
+.Dq Li YES ,
+force the NFS server daemons to run the old NFS server code
+that does not support NFSv4.
 .It Va mountd_enable
 .Pq Vt bool
 If set to
