@@ -32,6 +32,7 @@ CFLAGS=	-Os \
 	-mno-align-long-strings \
 	-mrtd \
 	-mregparm=3 \
+	-DUSE_XREAD \
 	-D${BOOT2_UFS} \
 	-DFLAGS=${BOOT_BOOT1_FLAGS} \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
