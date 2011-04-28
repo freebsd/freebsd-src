@@ -296,7 +296,7 @@ printcpuinfo(void)
 				"\035<b28>"
 				"\036<b29>"
 				"\037<b30>"
-				"\040<b31>"
+				"\040HV"	/* Hypervisor */
 				);
 			}
 
