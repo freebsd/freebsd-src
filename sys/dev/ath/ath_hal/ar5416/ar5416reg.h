@@ -54,15 +54,30 @@
 #define	AR_GPIO_OUTPUT_MUX3	0x4068
 #define	AR_EEPROM_STATUS_DATA	0x407c
 #define	AR_OBS			0x4080
-#define	AR_RTC_RC		0x7000	/* reset control */
-#define	AR_RTC_PLL_CONTROL	0x7014
-#define	AR_RTC_RESET		0x7040	/* RTC reset register */
-#define	AR_RTC_STATUS		0x7044	/* system sleep status */
-#define	AR_RTC_SLEEP_CLK	0x7048
-#define	AR_RTC_FORCE_WAKE	0x704c	/* control MAC force wake */
-#define	AR_RTC_INTR_CAUSE	0x7050	/* RTC interrupt cause/clear */
-#define	AR_RTC_INTR_ENABLE	0x7054	/* RTC interrupt enable */
-#define	AR_RTC_INTR_MASK	0x7058	/* RTC interrupt mask */
+
+#ifdef	AH_SUPPORT_AR9130
+#define	AR_RTC_BASE		0x20000
+#else
+#define	AR_RTC_BASE		0x7000
+#endif	/* AH_SUPPORT_AR9130 */
+
+#define	AR_RTC_RC		AR_RTC_BASE + 0x00	/* reset control */
+#define	AR_RTC_PLL_CONTROL	AR_RTC_BASE + 0x14
+#define	AR_RTC_RESET		AR_RTC_BASE + 0x40	/* RTC reset register */
+#define	AR_RTC_STATUS		AR_RTC_BASE + 0x44	/* system sleep status */
+#define	AR_RTC_SLEEP_CLK	AR_RTC_BASE + 0x48
+#define	AR_RTC_FORCE_WAKE	AR_RTC_BASE + 0x4c	/* control MAC force wake */
+#define	AR_RTC_INTR_CAUSE	AR_RTC_BASE + 0x50	/* RTC interrupt cause/clear */
+#define	AR_RTC_INTR_ENABLE	AR_RTC_BASE + 0x54	/* RTC interrupt enable */
+#define	AR_RTC_INTR_MASK	AR_RTC_BASE + 0x58	/* RTC interrupt mask */
+
+#ifdef	AH_SUPPORT_AR9130
+/* RTC_DERIVED_* - only for AR9130 */
+#define	AR_RTC_DERIVED_CLK		(AR_RTC_BASE + 0x0038)
+#define	AR_RTC_DERIVED_CLK_PERIOD	0x0000fffe
+#define	AR_RTC_DERIVED_CLK_PERIOD_S	1
+#endif	/* AH_SUPPORT_AR9130 */
+
 /* AR9280: rf long shift registers */
 #define	AR_AN_RF2G1_CH0         0x7810
 #define	AR_AN_RF5G1_CH0         0x7818
@@ -313,6 +328,10 @@
 #define	AR_RTC_RC_M		0x00000003
 #define	AR_RTC_RC_MAC_WARM	0x00000001
 #define	AR_RTC_RC_MAC_COLD	0x00000002
+#ifdef	AH_SUPPORT_AR9130
+#define AR_RTC_RC_COLD_RESET    0x00000004
+#define AR_RTC_RC_WARM_RESET    0x00000008
+#endif	/* AH_SUPPORT_AR9130 */
 #define	AR_RTC_PLL_DIV		0x0000001f
 #define	AR_RTC_PLL_DIV_S	0
 #define	AR_RTC_PLL_DIV2		0x00000020
@@ -328,7 +347,11 @@
 #define	AR_RTC_RESET_EN		0x00000001	/* Reset RTC bit */
 
 #define	AR_RTC_PM_STATUS_M	0x0000000f	/* Pwr Mgmt Status */
+#ifdef	AH_SUPPORT_AR9130
+#define	AR_RTC_STATUS_M		0x0000000f	/* RTC Status */
+#else
 #define	AR_RTC_STATUS_M		0x0000003f	/* RTC Status */
+#endif	/* AH_SUPPORT_AR9130 */
 #define	AR_RTC_STATUS_SHUTDOWN	0x00000001
 #define	AR_RTC_STATUS_ON	0x00000002
 #define	AR_RTC_STATUS_SLEEP	0x00000004
@@ -584,7 +607,7 @@
 #define	AR_XSREV_REVISION_OWL_20	1	/* Owl 2.0/2.1 */
 #define	AR_XSREV_REVISION_OWL_22	2	/* Owl 2.2 */
 #define	AR_XSREV_VERSION_HOWL		0x14	/* Howl (AR9130) */
-#define	AR_XSREV_VERSION_SOWL		0x40
+#define	AR_XSREV_VERSION_SOWL		0x40	/* Sowl (AR9160) */
 #define	AR_XSREV_REVISION_SOWL_10	0	/* Sowl 1.0 */
 #define	AR_XSREV_REVISION_SOWL_11	1	/* Sowl 1.1 */
 #define	AR_XSREV_VERSION_MERLIN		0x80	/* Merlin Version */
@@ -606,6 +629,10 @@
 #define	AR_SREV_OWL_22_OR_LATER(_ah) \
 	((AR_SREV_OWL(_ah) && AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_OWL_22) || \
 	AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_HOWL)
+
+#define AR_SREV_HOWL(_ah) \
+	(AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_HOWL)
+#define	AR_SREV_9100(_ah)	AR_SREV_HOWL(_ah)
 
 #define	AR_SREV_SOWL(_ah) \
 	(AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_SOWL)
@@ -649,6 +676,5 @@
 /* Not yet implemented chips */
 #define	AR_SREV_9271(_ah)	0
 #define	AR_SREV_9287_11_OR_LATER(_ah)	0
-#define	AR_SREV_9100(_ah)	0
 
 #endif /* _DEV_ATH_AR5416REG_H */

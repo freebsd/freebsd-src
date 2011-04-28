@@ -77,6 +77,9 @@ ar5416SetLedState(struct ath_hal *ah, HAL_LED_STATE state)
 	};
 	uint32_t bits;
 
+	if (AR_SREV_HOWL(ah))
+		return;
+
 	bits = OS_REG_READ(ah, AR_MAC_LED);
 	bits = (bits &~ AR_MAC_LED_MODE)
 	     | SM(AR_MAC_LED_MODE_POWON, AR_MAC_LED_MODE)

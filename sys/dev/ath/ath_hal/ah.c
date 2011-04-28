@@ -109,6 +109,8 @@ ath_hal_mac_name(struct ath_hal *ah)
 		return "5416";
 	case AR_XSREV_VERSION_OWL_PCIE:
 		return "5418";
+	case AR_XSREV_VERSION_HOWL:
+		return "9130";
 	case AR_XSREV_VERSION_SOWL:
 		return "9160";
 	case AR_XSREV_VERSION_MERLIN:
