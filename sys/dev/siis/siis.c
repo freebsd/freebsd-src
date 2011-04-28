@@ -1373,11 +1373,22 @@ siis_issue_recovery(device_t dev)
 	}
 	if (i == SIIS_MAX_SLOTS)
 		return;
-	ch->recoverycmd = 1;
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
-		device_printf(dev, "Unable allocate READ LOG command");
-		return; /* XXX */
+		device_printf(dev, "Unable allocate recovery command\n");
+completeall:
+		/* We can't do anything -- complete holden commands. */
+		for (i = 0; i < SIIS_MAX_SLOTS; i++) {
+			if (ch->hold[i] == NULL)
+				continue;
+			ch->hold[i]->ccb_h.status &= ~CAM_STATUS_MASK;
+			ch->hold[i]->ccb_h.status |= CAM_RESRC_UNAVAIL;
+			xpt_done(ch->hold[i]);
+			ch->hold[i] = NULL;
+			ch->numhslots--;
+		}
+		siis_reset(dev);
+		return;
 	}
 	ccb->ccb_h = ch->hold[i]->ccb_h;	/* Reuse old header. */
 	if (ccb->ccb_h.func_code == XPT_ATA_IO) {
@@ -1390,8 +1401,9 @@ siis_issue_recovery(device_t dev)
 		ataio->data_ptr = malloc(512, M_SIIS, M_NOWAIT);
 		if (ataio->data_ptr == NULL) {
 			xpt_free_ccb(ccb);
-			device_printf(dev, "Unable allocate memory for READ LOG command");
-			return; /* XXX */
+			device_printf(dev,
+			    "Unable allocate memory for READ LOG command\n");
+			goto completeall;
 		}
 		ataio->dxfer_len = 512;
 		bzero(&ataio->cmd, sizeof(ataio->cmd));
@@ -1418,6 +1430,7 @@ siis_issue_recovery(device_t dev)
 		csio->cdb_io.cdb_bytes[0] = 0x03;
 		csio->cdb_io.cdb_bytes[4] = csio->dxfer_len;
 	}
+	ch->recoverycmd = 1;
 	siis_begin_transaction(dev, ccb);
 }
 
