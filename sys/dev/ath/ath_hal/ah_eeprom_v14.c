@@ -316,6 +316,11 @@ v14EepromDetach(struct ath_hal *ah)
 #define owl_get_eep_rev(_ee)   \
     (((_ee)->ee_base.baseEepHeader.version) & 0xFFF)
 
+/*
+ * Howl is (hopefully) a special case where the endian-ness of the EEPROM
+ * matches the native endian-ness; and that supplied EEPROMs don't have
+ * a magic value to check.
+ */
 HAL_STATUS
 ath_hal_v14EepromAttach(struct ath_hal *ah)
 {
@@ -328,16 +333,23 @@ ath_hal_v14EepromAttach(struct ath_hal *ah)
 
 	HALASSERT(ee == AH_NULL);
  
-	if (!ath_hal_eepromRead(ah, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
-		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s Error reading Eeprom MAGIC\n", __func__);
-		return HAL_EEREAD;
-	}
-	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s Eeprom Magic = 0x%x\n",
-	    __func__, magic);
-	if (magic != AR5416_EEPROM_MAGIC) {
-		HALDEBUG(ah, HAL_DEBUG_ANY, "Bad magic number\n");
-		return HAL_EEMAGIC;
+	/*
+	 * Don't check magic if we're supplied with an EEPROM block,
+	 * typically this is from Howl but it may also be from later
+	 * boards w/ an embedded Merlin.
+	 */
+	if (ah->ah_eepromdata == NULL) {
+		if (!ath_hal_eepromRead(ah, AR5416_EEPROM_MAGIC_OFFSET, &magic)) {
+			HALDEBUG(ah, HAL_DEBUG_ANY,
+			    "%s Error reading Eeprom MAGIC\n", __func__);
+			return HAL_EEREAD;
+		}
+		HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s Eeprom Magic = 0x%x\n",
+		    __func__, magic);
+		if (magic != AR5416_EEPROM_MAGIC) {
+			HALDEBUG(ah, HAL_DEBUG_ANY, "Bad magic number\n");
+			return HAL_EEMAGIC;
+		}
 	}
 
 	ee = ath_hal_malloc(sizeof(HAL_EEPROM_v14));
@@ -357,7 +369,8 @@ ath_hal_v14EepromAttach(struct ath_hal *ah)
 		}
 	}
 	/* Convert to eeprom native eeprom endian format */
-	if (isBigEndian()) {
+	/* XXX this is likely incorrect but will do for now to get howl/ap83 working. */
+	if (ah->ah_eepromdata == NULL && isBigEndian()) {
 		for (w = 0; w < NW(struct ar5416eeprom); w++)
 			eep_data[w] = __bswap16(eep_data[w]);
 	}
