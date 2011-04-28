@@ -1970,6 +1970,24 @@ dev/vte/if_vte.c		optional vte pci
 dev/vx/if_vx.c			optional vx
 dev/vx/if_vx_eisa.c		optional vx eisa
 dev/vx/if_vx_pci.c		optional vx pci
+dev/vxge/vxge.c				optional vxge
+dev/vxge/vxgehal/vxgehal-ifmsg.c	optional vxge
+dev/vxge/vxgehal/vxgehal-mrpcim.c	optional vxge
+dev/vxge/vxgehal/vxge-queue.c		optional vxge
+dev/vxge/vxgehal/vxgehal-ring.c		optional vxge
+dev/vxge/vxgehal/vxgehal-swapper.c	optional vxge
+dev/vxge/vxgehal/vxgehal-mgmt.c		optional vxge
+dev/vxge/vxgehal/vxgehal-srpcim.c	optional vxge
+dev/vxge/vxgehal/vxgehal-config.c	optional vxge
+dev/vxge/vxgehal/vxgehal-blockpool.c	optional vxge
+dev/vxge/vxgehal/vxgehal-doorbells.c	optional vxge
+dev/vxge/vxgehal/vxgehal-mgmtaux.c	optional vxge
+dev/vxge/vxgehal/vxgehal-device.c	optional vxge
+dev/vxge/vxgehal/vxgehal-mm.c		optional vxge
+dev/vxge/vxgehal/vxgehal-driver.c	optional vxge
+dev/vxge/vxgehal/vxgehal-virtualpath.c	optional vxge
+dev/vxge/vxgehal/vxgehal-channel.c	optional vxge
+dev/vxge/vxgehal/vxgehal-fifo.c		optional vxge
 dev/watchdog/watchdog.c		standard
 dev/wb/if_wb.c			optional wb pci
 dev/wds/wd7000.c		optional wds isa
