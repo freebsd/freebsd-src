@@ -708,7 +708,7 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 	}
 }
 
-static const char *nfs_opts[] = { "from",
+static const char *nfs_opts[] = { "from", "nfs_args",
     "noatime", "noexec", "suiddir", "nosuid", "nosymfollow", "union",
     "noclusterr", "noclusterw", "multilabel", "acls", "force", "update",
     "async", "noconn", "nolockd", "conn", "lockd", "intr", "rdirplus",
@@ -762,8 +762,9 @@ nfs_mount(struct mount *mp)
 	u_char nfh[NFSX_FHMAX], krbname[100], dirpath[100], srvkrbname[100];
 	char *opt, *name, *secname;
 	int negnametimeo = NFS_DEFAULT_NEGNAMETIMEO;
-	int dirlen, krbnamelen, srvkrbnamelen;
+	int dirlen, has_nfs_args_opt, krbnamelen, srvkrbnamelen;
 
+	has_nfs_args_opt = 0;
 	if (vfs_filteropt(mp->mnt_optnew, nfs_opts)) {
 		error = EINVAL;
 		goto out;
@@ -776,6 +777,25 @@ nfs_mount(struct mount *mp)
 	}
 
 	nfscl_init();
+
+	/*
+	 * The old mount_nfs program passed the struct nfs_args
+	 * from userspace to kernel.  The new mount_nfs program
+	 * passes string options via nmount() from userspace to kernel
+	 * and we populate the struct nfs_args in the kernel.
+	 */
+	if (vfs_getopt(mp->mnt_optnew, "nfs_args", NULL, NULL) == 0) {
+		error = vfs_copyopt(mp->mnt_optnew, "nfs_args", &args,
+		    sizeof(args));
+		if (error != 0)
+			goto out;
+
+		if (args.version != NFS_ARGSVERSION) {
+			error = EPROGMISMATCH;
+			goto out;
+		}
+		has_nfs_args_opt = 1;
+	}
 
 	/* Handle the new style options. */
 	if (vfs_getopt(mp->mnt_optnew, "noconn", NULL, NULL) == 0)
@@ -993,27 +1013,52 @@ nfs_mount(struct mount *mp)
 	if (nfs_ip_paranoia == 0)
 		args.flags |= NFSMNT_NOCONN;
 
-	if (vfs_getopt(mp->mnt_optnew, "fh", (void **)&args.fh,
-	    &args.fhsize) == 0) {
-		if (args.fhsize < 0 || args.fhsize > NFSX_FHMAX) {
+	if (has_nfs_args_opt != 0) {
+		/*
+		 * In the 'nfs_args' case, the pointers in the args
+		 * structure are in userland - we copy them in here.
+		 */
+		if (args.fhsize < 0 || args.fhsize > NFSX_V3FHMAX) {
 			vfs_mount_error(mp, "Bad file handle");
 			error = EINVAL;
 			goto out;
 		}
-		bcopy(args.fh, nfh, args.fhsize);
+		error = copyin((caddr_t)args.fh, (caddr_t)nfh,
+		    args.fhsize);
+		if (error != 0)
+			goto out;
+		error = copyinstr(args.hostname, hst, MNAMELEN - 1, &len);
+		if (error != 0)
+			goto out;
+		bzero(&hst[len], MNAMELEN - len);
+		args.hostname = hst;
+		/* sockargs() call must be after above copyin() calls */
+		error = getsockaddr(&nam, (caddr_t)args.addr,
+		    args.addrlen);
+		if (error != 0)
+			goto out;
 	} else {
-		args.fhsize = 0;
+		if (vfs_getopt(mp->mnt_optnew, "fh", (void **)&args.fh,
+		    &args.fhsize) == 0) {
+			if (args.fhsize < 0 || args.fhsize > NFSX_FHMAX) {
+				vfs_mount_error(mp, "Bad file handle");
+				error = EINVAL;
+				goto out;
+			}
+			bcopy(args.fh, nfh, args.fhsize);
+		} else {
+			args.fhsize = 0;
+		}
+		(void) vfs_getopt(mp->mnt_optnew, "hostname",
+		    (void **)&args.hostname, &len);
+		if (args.hostname == NULL) {
+			vfs_mount_error(mp, "Invalid hostname");
+			error = EINVAL;
+			goto out;
+		}
+		bcopy(args.hostname, hst, MNAMELEN);
+		hst[MNAMELEN - 1] = '\0';
 	}
-
-	(void) vfs_getopt(mp->mnt_optnew, "hostname", (void **)&args.hostname,
-	    &len);
-	if (args.hostname == NULL) {
-		vfs_mount_error(mp, "Invalid hostname");
-		error = EINVAL;
-		goto out;
-	}
-	bcopy(args.hostname, hst, MNAMELEN);
-	hst[MNAMELEN - 1] = '\0';
 
 	if (vfs_getopt(mp->mnt_optnew, "principal", (void **)&name, NULL) == 0)
 		strlcpy(srvkrbname, name, sizeof (srvkrbname));
@@ -1033,8 +1078,8 @@ nfs_mount(struct mount *mp)
 		dirpath[0] = '\0';
 	dirlen = strlen(dirpath);
 
-	if (vfs_getopt(mp->mnt_optnew, "addr", (void **)&args.addr,
-	    &args.addrlen) == 0) {
+	if (has_nfs_args_opt == 0 && vfs_getopt(mp->mnt_optnew, "addr",
+	    (void **)&args.addr, &args.addrlen) == 0) {
 		if (args.addrlen > SOCK_MAXADDRLEN) {
 			error = ENAMETOOLONG;
 			goto out;
