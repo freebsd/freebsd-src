@@ -388,6 +388,11 @@ negotiate:
 		/* If SIM disagree - renegotiate. */
 		if (mode != wantmode)
 			goto negotiate;
+		/* Remember what transport thinks about DMA. */
+		if (mode < ATA_DMA)
+			path->device->inq_flags &= ~SID_DMA;
+		else
+			path->device->inq_flags |= SID_DMA;
 		cam_fill_ataio(ataio,
 		      1,
 		      probedone,

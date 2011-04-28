@@ -35,6 +35,8 @@ struct ccb_ataio;
 struct cam_periph;
 union  ccb;
 
+#define	SID_DMA		0x10	/* Abuse inq_flags bit to track enabled DMA. */
+
 struct ata_cmd {
 	u_int8_t	flags;		/* ATA command flags */
 #define		CAM_ATAIO_48BIT		0x01	/* Command has 48-bit format */
