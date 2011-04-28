@@ -890,7 +890,12 @@ ext2_direnter(ip, dvp, cnp)
 		ep = (struct ext2fs_direct_2 *)((char *)ep + dsize);
 	}
 	bcopy((caddr_t)&newdir, (caddr_t)ep, (u_int)newentrysize);
-	error = bwrite(bp);
+	if (DOINGASYNC(dvp)) {
+		bdwrite(bp);
+		error = 0;
+	} else {
+		error = bwrite(bp);
+	}
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	if (!error && dp->i_endoff && dp->i_endoff < dp->i_size)
 		error = ext2_truncate(dvp, (off_t)dp->i_endoff, IO_SYNC,
@@ -947,7 +952,10 @@ ext2_dirremove(dvp, cnp)
 	else
 		rep = (struct ext2fs_direct_2 *)((char *)ep + ep->e2d_reclen);
 	ep->e2d_reclen += rep->e2d_reclen;
-	error = bwrite(bp);
+	if (DOINGASYNC(dvp) && dp->i_count != 0)
+		bdwrite(bp);
+	else
+		error = bwrite(bp);
 	dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
 }

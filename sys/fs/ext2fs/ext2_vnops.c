@@ -738,7 +738,7 @@ ext2_link(ap)
 	}
 	ip->i_nlink++;
 	ip->i_flag |= IN_CHANGE;
-	error = ext2_update(vp, 1);
+	error = ext2_update(vp, !DOINGASYNC(vp));
 	if (!error)
 		error = ext2_direnter(ip, tdvp, cnp);
 	if (error) {
@@ -884,7 +884,7 @@ abortit:
 	 */
 	ip->i_nlink++;
 	ip->i_flag |= IN_CHANGE;
-	if ((error = ext2_update(fvp, 1)) != 0) {
+	if ((error = ext2_update(fvp, !DOINGASYNC(fvp))) != 0) {
 		VOP_UNLOCK(fvp, 0);
 		goto bad;
 	}
@@ -943,7 +943,7 @@ abortit:
 			}
 			dp->i_nlink++;
 			dp->i_flag |= IN_CHANGE;
-			error = ext2_update(tdvp, 1);
+			error = ext2_update(tdvp, !DOINGASYNC(tdvp));
 			if (error)
 				goto bad;
 		}
@@ -1211,7 +1211,7 @@ ext2_mkdir(ap)
 	 */
 	dp->i_nlink++;
 	dp->i_flag |= IN_CHANGE;
-	error = ext2_update(dvp, 1);
+	error = ext2_update(dvp, !DOINGASYNC(dvp));
 	if (error)
 		goto bad;
 
@@ -1655,7 +1655,7 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 	/*
 	 * Make sure inode goes to disk before directory entry.
 	 */
-	error = ext2_update(tvp, 1);
+	error = ext2_update(tvp, !DOINGASYNC(tvp));
 	if (error)
 		goto bad;
 	error = ext2_direnter(ip, dvp, cnp);
