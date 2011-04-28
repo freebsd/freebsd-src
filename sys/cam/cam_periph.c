@@ -527,8 +527,6 @@ cam_periph_invalidate(struct cam_periph *periph)
 	xpt_lock_buses();
 	if (periph->refcount == 0)
 		camperiphfree(periph);
-	else if (periph->refcount < 0)
-		printf("cam_invalidate_periph: refcount < 0!!\n");
 	xpt_unlock_buses();
 }
 
