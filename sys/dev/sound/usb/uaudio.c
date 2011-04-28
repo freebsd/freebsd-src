@@ -1364,11 +1364,10 @@ uaudio_chan_init(struct uaudio_softc *sc, struct snd_dbuf *b,
 	usbd_set_parent_iface(sc->sc_udev, iface_index, sc->sc_mixer_iface_index);
 
 	/*
-	 * If just one sampling rate is supported,
-	 * no need to call "uaudio_set_speed()".
-	 * Roland SD-90 freezes by a SAMPLING_FREQ_CONTROL request.
+	 * Only set the sample rate if the channel reports that it
+	 * supports the frequency control.
 	 */
-	if (ch->p_asf1d->bSamFreqType != 1) {
+	if (ch->p_sed->bmAttributes & UA_SED_FREQ_CONTROL) {
 		if (uaudio_set_speed(sc->sc_udev, endpoint, ch->sample_rate)) {
 			/*
 			 * If the endpoint is adaptive setting the speed may
