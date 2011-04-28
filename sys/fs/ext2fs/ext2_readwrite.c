@@ -164,9 +164,9 @@ READ(ap)
 
 		if (ioflag & (IO_VMIO|IO_DIRECT)) {
 			/*
-			 * If there are no dependencies, and it's VMIO,
-			 * then we don't need the buf, mark it available
-			 * for freeing. The VM has the data.
+			 * If it's VMIO or direct I/O, then we don't
+			 * need the buf, mark it available for
+			 * freeing. If it's VMIO, the VM has the data.
 			 */
 			bp->b_flags |= B_RELBUF;
 			brelse(bp);
