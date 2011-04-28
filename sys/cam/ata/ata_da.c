@@ -737,7 +737,8 @@ adaregister(struct cam_periph *periph, void *arg)
 	bioq_init(&softc->bio_queue);
 	bioq_init(&softc->trim_queue);
 
-	if (cgd->ident_data.capabilities1 & ATA_SUPPORT_DMA)
+	if (cgd->ident_data.capabilities1 & ATA_SUPPORT_DMA &&
+	    (cgd->inq_flags & SID_DMA))
 		softc->flags |= ADA_FLAG_CAN_DMA;
 	if (cgd->ident_data.support.command2 & ATA_SUPPORT_ADDRESS48)
 		softc->flags |= ADA_FLAG_CAN_48BIT;
@@ -746,7 +747,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	if (cgd->ident_data.support.command1 & ATA_SUPPORT_POWERMGT)
 		softc->flags |= ADA_FLAG_CAN_POWERMGT;
 	if (cgd->ident_data.satacapabilities & ATA_SUPPORT_NCQ &&
-	    cgd->inq_flags & SID_CmdQue)
+	    (cgd->inq_flags & SID_DMA) && (cgd->inq_flags & SID_CmdQue))
 		softc->flags |= ADA_FLAG_CAN_NCQ;
 	if (cgd->ident_data.support_dsm & ATA_SUPPORT_DSM_TRIM) {
 		softc->flags |= ADA_FLAG_CAN_TRIM;
