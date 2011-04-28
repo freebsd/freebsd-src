@@ -162,8 +162,7 @@ READ(ap)
 		if (error)
 			break;
 
-		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
-		   (LIST_FIRST(&bp->b_dep) == NULL)) {
+		if (ioflag & (IO_VMIO|IO_DIRECT)) {
 			/*
 			 * If there are no dependencies, and it's VMIO,
 			 * then we don't need the buf, mark it available
@@ -189,8 +188,7 @@ READ(ap)
 	 * so it must have come from a 'break' statement
 	 */
 	if (bp != NULL) {
-		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
-		   (LIST_FIRST(&bp->b_dep) == NULL)) {
+		if (ioflag & (IO_VMIO|IO_DIRECT)) {
 			bp->b_flags |= B_RELBUF;
 			brelse(bp);
 		} else {
@@ -319,8 +317,7 @@ WRITE(ap)
 
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
-		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
-		   (LIST_EMPTY(&bp->b_dep))) {	/* in ext2fs? */
+		if (ioflag & (IO_VMIO|IO_DIRECT)) {
 			bp->b_flags |= B_RELBUF;
 		}
 
