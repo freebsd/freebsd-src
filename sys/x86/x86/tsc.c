@@ -228,7 +228,7 @@ init_TSC(void)
 	 * discovers a new max frequency.
 	 */
 	if (tsc_freq != 0)
-		set_cputicker(rdtsc, tsc_freq, 1);
+		set_cputicker(rdtsc, tsc_freq, !tsc_is_invariant);
 
 	if (tsc_is_invariant)
 		return;
