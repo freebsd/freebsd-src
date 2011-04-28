@@ -632,6 +632,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_2S, 0x10, 4, 0,
 	},
 
+	{   0x1415, 0x9538, 0xffff, 0,
+	    "Oxford Semiconductor OX16PCI958 UARTs",
+	    DEFAULT_RCLK * 10,
+	    PUC_PORT_8S, 0x18, 0, 8,
+	},
+
 	/*
 	 * Perle boards use Oxford Semiconductor chips, but they store the
 	 * Oxford Semiconductor device ID as a subvendor device ID and use
