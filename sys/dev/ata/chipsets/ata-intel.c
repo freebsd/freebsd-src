@@ -140,7 +140,7 @@ ata_intel_probe(device_t dev)
      { ATA_I82801HBM_S3, 0, INTEL_AHCI, 0, ATA_SA300, "ICH8M" },
      { ATA_I82801IB_S1,  0, INTEL_6CH,  0, ATA_SA300, "ICH9" },
      { ATA_I82801IB_S2,  0, INTEL_6CH2, 0, ATA_SA300, "ICH9" },
-     { ATA_I82801IB_AH2, 0, INTEL_AHCI, 0, ATA_SA300, "ICH9" },
+     { ATA_I82801IB_S3,  0, INTEL_6CH2, 0, ATA_SA300, "ICH9" },
      { ATA_I82801IB_AH4, 0, INTEL_AHCI, 0, ATA_SA300, "ICH9" },
      { ATA_I82801IB_AH6, 0, INTEL_AHCI, 0, ATA_SA300, "ICH9" },
      { ATA_I82801IB_R1,  0, INTEL_AHCI, 0, ATA_SA300, "ICH9" },
@@ -336,7 +336,7 @@ ata_intel_ch_attach(device_t dev)
 		} else if (ctlr->chip->cfg1 & INTEL_6CH2) {
 			ch->flags |= ATA_SATA;
 			ch->flags |= ATA_NO_SLAVE;
-			smap[0] = (ch->unit == 0) ? 4 : 5;
+			smap[0] = (ch->unit == 0) ? 0 : 1;
 			smap[1] = 0;
 		} else {
 			map &= 0x03;
