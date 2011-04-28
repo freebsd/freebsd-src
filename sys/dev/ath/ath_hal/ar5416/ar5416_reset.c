@@ -145,7 +145,8 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		 AR_MAC_LED_BLINK_THRESH_SEL | AR_MAC_LED_BLINK_SLOW);
 
 	/* For chips on which the RTC reset is done, save TSF before it gets cleared */
-	if (AR_SREV_MERLIN_20_OR_LATER(ah) && ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL))
+	if (AR_SREV_HOWL(ah) ||
+	    (AR_SREV_MERLIN_20_OR_LATER(ah) && ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL)))
 		tsf = ar5212GetTsf64(ah);
 
 	/* Mark PHY as inactive; marked active in ar5416InitBB() */
@@ -183,6 +184,17 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	ar5416Set11nRegs(ah, chan);	
 
 	OS_MARK(ah, AH_MARK_RESET_LINE, __LINE__);
+
+	/*
+	 * Some AR91xx SoC devices frequently fail to accept TSF writes
+	 * right after the chip reset. When that happens, write a new
+	 * value after the initvals have been applied, with an offset
+	 * based on measured time difference
+	 */
+	if (AR_SREV_HOWL(ah) && (ar5212GetTsf64(ah) < tsf)) {
+		tsf += 1500;
+		ar5212SetTsf64(ah, tsf);
+	}
 
 	HALDEBUG(ah, HAL_DEBUG_RESET, ">>>2 %s: AR_PHY_DAG_CTRLCCK=0x%x\n",
 		__func__, OS_REG_READ(ah,AR_PHY_DAG_CTRLCCK));
@@ -548,14 +560,25 @@ ar5416InitIMR(struct ath_hal *ah, HAL_OPMODE opmode)
                         | AR_IMR_BCNMISC;
 
 #ifdef	AH_AR5416_INTERRUPT_MITIGATION
-       	ahp->ah_maskReg |= AR_IMR_TXINTM | AR_IMR_RXINTM
+	ahp->ah_maskReg |= AR_IMR_TXINTM | AR_IMR_RXINTM
 			|  AR_IMR_TXMINTR | AR_IMR_RXMINTR;
 #else
-        ahp->ah_maskReg |= AR_IMR_TXOK | AR_IMR_RXOK;
+	ahp->ah_maskReg |= AR_IMR_TXOK | AR_IMR_RXOK;
 #endif	
+
 	if (opmode == HAL_M_HOSTAP)
 		ahp->ah_maskReg |= AR_IMR_MIB;
 	OS_REG_WRITE(ah, AR_IMR, ahp->ah_maskReg);
+
+#ifdef  ADRIAN_NOTYET
+	/* This is straight from ath9k */
+	if (! AR_SREV_HOWL(ah)) {
+		OS_REG_WRITE(ah, AR_INTR_SYNC_CAUSE, 0xFFFFFFFF);
+		OS_REG_WRITE(ah, AR_INTR_SYNC_ENABLE, AR_INTR_SYNC_DEFAULT);
+		OS_REG_WRITE(ah, AR_INTR_SYNC_MASK, 0);
+	}
+#endif
+
 	/* Enable bus errors that are OR'd to set the HIUERR bit */
 #if 0
 	OS_REG_WRITE(ah, AR_IMR_S2, 
@@ -1136,10 +1159,13 @@ ar5416SetResetPowerOn(struct ath_hal *ah)
     /*
      * RTC reset and clear
      */
-    OS_REG_WRITE(ah, AR_RC, AR_RC_AHB);
+    if (! AR_SREV_HOWL(ah))
+    	OS_REG_WRITE(ah, AR_RC, AR_RC_AHB);
     OS_REG_WRITE(ah, AR_RTC_RESET, 0);
     OS_DELAY(20);
-    OS_REG_WRITE(ah, AR_RC, 0);
+
+    if (! AR_SREV_HOWL(ah))
+    	OS_REG_WRITE(ah, AR_RC, 0);
 
     OS_REG_WRITE(ah, AR_RTC_RESET, 1);
 
@@ -1158,6 +1184,18 @@ static HAL_BOOL
 ar5416SetReset(struct ath_hal *ah, int type)
 {
     uint32_t tmpReg, mask;
+    uint32_t rst_flags;
+
+#ifdef	AH_SUPPORT_AR9130	/* Because of the AR9130 specific registers */
+    if (AR_SREV_HOWL(ah)) {
+        HALDEBUG(ah, HAL_DEBUG_ANY, "[ath] HOWL: Fiddling with derived clk!\n");
+        uint32_t val = OS_REG_READ(ah, AR_RTC_DERIVED_CLK);
+        val &= ~AR_RTC_DERIVED_CLK_PERIOD;
+        val |= SM(1, AR_RTC_DERIVED_CLK_PERIOD);
+        OS_REG_WRITE(ah, AR_RTC_DERIVED_CLK, val);
+        (void) OS_REG_READ(ah, AR_RTC_DERIVED_CLK);
+    }
+#endif	/* AH_SUPPORT_AR9130 */
 
     /*
      * Force wake
@@ -1165,31 +1203,31 @@ ar5416SetReset(struct ath_hal *ah, int type)
     OS_REG_WRITE(ah, AR_RTC_FORCE_WAKE,
 	AR_RTC_FORCE_WAKE_EN | AR_RTC_FORCE_WAKE_ON_INT);
 
-    /*
-     * Reset AHB
-     */
-    tmpReg = OS_REG_READ(ah, AR_INTR_SYNC_CAUSE);
-    if (tmpReg & (AR_INTR_SYNC_LOCAL_TIMEOUT|AR_INTR_SYNC_RADM_CPL_TIMEOUT)) {
-	OS_REG_WRITE(ah, AR_INTR_SYNC_ENABLE, 0);
-	OS_REG_WRITE(ah, AR_RC, AR_RC_AHB|AR_RC_HOSTIF);
+#ifdef	AH_SUPPORT_AR9130
+    if (AR_SREV_HOWL(ah)) {
+        rst_flags = AR_RTC_RC_MAC_WARM | AR_RTC_RC_MAC_COLD |
+          AR_RTC_RC_COLD_RESET | AR_RTC_RC_WARM_RESET;
     } else {
-	OS_REG_WRITE(ah, AR_RC, AR_RC_AHB);
+#endif	/* AH_SUPPORT_AR9130 */
+        /*
+         * Reset AHB
+         */
+        tmpReg = OS_REG_READ(ah, AR_INTR_SYNC_CAUSE);
+        if (tmpReg & (AR_INTR_SYNC_LOCAL_TIMEOUT|AR_INTR_SYNC_RADM_CPL_TIMEOUT)) {
+            OS_REG_WRITE(ah, AR_INTR_SYNC_ENABLE, 0);
+            OS_REG_WRITE(ah, AR_RC, AR_RC_AHB|AR_RC_HOSTIF);
+        } else {
+	    OS_REG_WRITE(ah, AR_RC, AR_RC_AHB);
+        }
+        rst_flags = AR_RTC_RC_MAC_WARM;
+        if (type == HAL_RESET_COLD)
+            rst_flags |= AR_RTC_RC_MAC_COLD;
+#ifdef	AH_SUPPORT_AR9130
     }
+#endif	/* AH_SUPPORT_AR9130 */
 
-    /*
-     * Set Mac(BB,Phy) Warm Reset
-     */
-    switch (type) {
-    case HAL_RESET_WARM:
-            OS_REG_WRITE(ah, AR_RTC_RC, AR_RTC_RC_MAC_WARM);
-            break;
-    case HAL_RESET_COLD:
-            OS_REG_WRITE(ah, AR_RTC_RC, AR_RTC_RC_MAC_WARM|AR_RTC_RC_MAC_COLD);
-            break;
-    default:
-            HALASSERT(AH_FALSE);
-            break;
-    }
+    OS_REG_WRITE(ah, AR_RTC_RC, rst_flags);
+    OS_DELAY(50);
 
     /*
      * Clear resets and force wakeup
@@ -1201,8 +1239,26 @@ ar5416SetReset(struct ath_hal *ah, int type)
     }
 
     /* Clear AHB reset */
-    OS_REG_WRITE(ah, AR_RC, 0);
+    if (! AR_SREV_HOWL(ah))
+        OS_REG_WRITE(ah, AR_RC, 0);
 
+    if (AR_SREV_HOWL(ah))
+        OS_DELAY(50);
+
+    if (AR_SREV_HOWL(ah)) {
+                uint32_t mask;
+                mask = OS_REG_READ(ah, AR_CFG);
+                if (mask & (AR_CFG_SWRB | AR_CFG_SWTB | AR_CFG_SWRG)) {
+                        HALDEBUG(ah, HAL_DEBUG_RESET,
+                                "CFG Byte Swap Set 0x%x\n", mask);
+                } else {
+                        mask =  
+                                INIT_CONFIG_STATUS | AR_CFG_SWRB | AR_CFG_SWTB;
+                        OS_REG_WRITE(ah, AR_CFG, mask);
+                        HALDEBUG(ah, HAL_DEBUG_RESET,
+                                "Setting CFG 0x%x\n", OS_REG_READ(ah, AR_CFG));
+                }
+    } else {
 	if (type == HAL_RESET_COLD) {
 		if (isBigEndian()) {
 			/*
@@ -1219,6 +1275,7 @@ ar5416SetReset(struct ath_hal *ah, int type)
 		} else
 			OS_REG_WRITE(ah, AR_CFG, INIT_CONFIG_STATUS);
 	}
+    }
 
     AH5416(ah)->ah_initPLL(ah, AH_NULL);
 
@@ -1235,6 +1292,11 @@ ar5416InitChainMasks(struct ath_hal *ah)
 	OS_REG_WRITE(ah, AR_PHY_RX_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
 	OS_REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, AH5416(ah)->ah_rx_chainmask);
 	OS_REG_WRITE(ah, AR_SELFGEN_MASK, AH5416(ah)->ah_tx_chainmask);
+
+	if (AR_SREV_HOWL(ah)) {
+		OS_REG_WRITE(ah, AR_PHY_ANALOG_SWAP,
+		OS_REG_READ(ah, AR_PHY_ANALOG_SWAP) | 0x00000001);
+	}
 }
 
 void
@@ -2440,12 +2502,12 @@ ar5416OverrideIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 
 	/*
 	 * The AR5416 initvals have this already set to 0x11; AR9160 has
-	 * the register set to 0x0. Figure out whether AR9100/AR9160 needs
+	 * the register set to 0x0. Figure out whether AR9130/AR9160 needs
 	 * this before moving forward with it.
 	 */
 #if 0
-	/* Disable BB clock gating for AR5416v2, AR9100, AR9160 */
-        if (AR_SREV_OWL_20_OR_LATER(ah) || AR_SREV_9100(ah) || AR_SREV_SOWL(ah)) {
+	/* Disable BB clock gating for AR5416v2, AR9130, AR9160 */
+        if (AR_SREV_OWL_20_OR_LATER(ah) || AR_SREV_HOWL(ah) || AR_SREV_SOWL(ah)) {
 		/*
 		 * Disable BB clock gating
 		 * Necessary to avoid issues on AR5416 2.0
@@ -2458,7 +2520,7 @@ ar5416OverrideIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * Disable RIFS search on some chips to avoid baseband
 	 * hang issues.
 	 */
-	if (AR_SREV_9100(ah) || AR_SREV_SOWL(ah)) {
+	if (AR_SREV_HOWL(ah) || AR_SREV_SOWL(ah)) {
 		val = OS_REG_READ(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS);
 		val &= ~AR_PHY_RIFS_INIT_DELAY;
 		OS_REG_WRITE(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS, val);
