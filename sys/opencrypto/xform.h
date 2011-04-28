@@ -43,7 +43,8 @@ struct auth_hash {
 	void (*Final) (u_int8_t *, void *);
 };
 
-#define	AH_ALEN_MAX	20	/* max authenticator hash length */
+/* XXX use a define common with other hash stuff ! */
+#define	AH_ALEN_MAX	64	/* max authenticator hash length */
 
 struct enc_xform {
 	int type;
