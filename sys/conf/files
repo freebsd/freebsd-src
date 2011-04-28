@@ -1749,6 +1749,7 @@ dev/usb/usb_lookup.c		optional usb
 dev/usb/usb_mbuf.c		optional usb
 dev/usb/usb_msctest.c		optional usb
 dev/usb/usb_parse.c		optional usb
+dev/usb/usb_pf.c		optional usb
 dev/usb/usb_process.c		optional usb
 dev/usb/usb_request.c		optional usb
 dev/usb/usb_transfer.c		optional usb

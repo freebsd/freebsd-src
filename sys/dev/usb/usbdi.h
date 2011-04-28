@@ -493,6 +493,8 @@ void	usbd_set_power_mode(struct usb_device *udev, uint8_t power_mode);
 uint8_t	usbd_filter_power_mode(struct usb_device *udev, uint8_t power_mode);
 uint8_t	usbd_device_attached(struct usb_device *udev);
 
+usb_frlength_t
+	usbd_xfer_old_frame_length(struct usb_xfer *xfer, usb_frcount_t frindex);
 void	usbd_xfer_status(struct usb_xfer *xfer, int *actlen, int *sumlen,
 	    int *aframes, int *nframes);
 struct usb_page_cache *usbd_xfer_get_frame(struct usb_xfer *xfer,
