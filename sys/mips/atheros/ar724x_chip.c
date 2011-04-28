@@ -146,6 +146,13 @@ ar724x_chip_ddr_flush_ge1(void)
 	ar71xx_ddr_flush(AR724X_DDR_REG_FLUSH_GE1);
 }
 
+static void
+ar724x_chip_ddr_flush_ip2(void)
+{
+	ar71xx_ddr_flush(AR724X_DDR_REG_FLUSH_PCIE);
+}
+
+
 static uint32_t
 ar724x_chip_get_eth_pll(unsigned int mac, int speed)
 {
@@ -207,6 +214,6 @@ struct ar71xx_cpu_def ar724x_chip_def = {
         &ar724x_chip_ddr_flush_ge0,
         &ar724x_chip_ddr_flush_ge1,
         &ar724x_chip_get_eth_pll,
-	NULL,		/* ar71xx_chip_irq_flush_ip2 */
+        &ar724x_chip_ddr_flush_ip2,
 	&ar724x_chip_init_usb_peripheral
 };
