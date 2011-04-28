@@ -3057,6 +3057,14 @@ mxge_intr(void *arg)
 static void
 mxge_init(void *arg)
 {
+	mxge_softc_t *sc = arg;
+	struct ifnet *ifp = sc->ifp;
+
+
+	mtx_lock(&sc->driver_mtx);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		(void) mxge_open(sc);
+	mtx_unlock(&sc->driver_mtx);
 }
 
 
