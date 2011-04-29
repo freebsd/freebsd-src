@@ -763,6 +763,7 @@ nfs_mount(struct mount *mp)
 	char *opt, *name, *secname;
 	int negnametimeo = NFS_DEFAULT_NEGNAMETIMEO;
 	int dirlen, has_nfs_args_opt, krbnamelen, srvkrbnamelen;
+	size_t hstlen;
 
 	has_nfs_args_opt = 0;
 	if (vfs_filteropt(mp->mnt_optnew, nfs_opts)) {
@@ -1027,10 +1028,10 @@ nfs_mount(struct mount *mp)
 		    args.fhsize);
 		if (error != 0)
 			goto out;
-		error = copyinstr(args.hostname, hst, MNAMELEN - 1, &len);
+		error = copyinstr(args.hostname, hst, MNAMELEN - 1, &hstlen);
 		if (error != 0)
 			goto out;
-		bzero(&hst[len], MNAMELEN - len);
+		bzero(&hst[hstlen], MNAMELEN - hstlen);
 		args.hostname = hst;
 		/* sockargs() call must be after above copyin() calls */
 		error = getsockaddr(&nam, (caddr_t)args.addr,
