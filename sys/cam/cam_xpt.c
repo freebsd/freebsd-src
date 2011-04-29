@@ -2328,19 +2328,18 @@ xpt_action(union ccb *start_ccb)
 void
 xpt_action_default(union ccb *start_ccb)
 {
+#ifdef CAMDEBUG
+	char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
+#endif
+	struct cam_path *path;
 
-	CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("xpt_action_default\n"));
+	path = start_ccb->ccb_h.path;
+	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_action_default\n"));
 
 	switch (start_ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:
 	{
 		struct cam_ed *device;
-#ifdef CAMDEBUG
-		char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
-		struct cam_path *path;
-
-		path = start_ccb->ccb_h.path;
-#endif
 
 		/*
 		 * For the sake of compatibility with SCSI-1
@@ -2358,7 +2357,7 @@ xpt_action_default(union ccb *start_ccb)
 		 * This means that this code will be exercised while probing
 		 * devices with an ANSI revision greater than 2.
 		 */
-		device = start_ccb->ccb_h.path->device;
+		device = path->device;
 		if (device->protocol_version <= SCSI_REV_2
 		 && start_ccb->ccb_h.target_lun < 8
 		 && (start_ccb->ccb_h.flags & CAM_CDB_POINTER) == 0) {
@@ -2382,13 +2381,16 @@ xpt_action_default(union ccb *start_ccb)
 	case XPT_ATA_IO:
 		if (start_ccb->ccb_h.func_code == XPT_ATA_IO) {
 			start_ccb->ataio.resid = 0;
+			CAM_DEBUG(path, CAM_DEBUG_CDB,("%s. ACB: %s\n",
+			    ata_op_string(&start_ccb->ataio.cmd),
+			    ata_cmd_string(&start_ccb->ataio.cmd,
+					  cdb_str, sizeof(cdb_str))));
 		}
 		/* FALLTHROUGH */
 	case XPT_RESET_DEV:
 	case XPT_ENG_EXEC:
 	case XPT_SMP_IO:
 	{
-		struct cam_path *path = start_ccb->ccb_h.path;
 		int frozen;
 
 		frozen = cam_ccbq_insert_ccb(&path->device->ccbq, start_ccb);
@@ -2427,7 +2429,7 @@ xpt_action_default(union ccb *start_ccb)
 			break;
 		}
 #endif
-		sim = start_ccb->ccb_h.path->bus->sim;
+		sim = path->bus->sim;
 		(*(sim->sim_action))(sim, start_ccb);
 		break;
 	}
@@ -2495,7 +2497,7 @@ xpt_action_default(union ccb *start_ccb)
 	{
 		struct cam_sim *sim;
 
-		sim = start_ccb->ccb_h.path->bus->sim;
+		sim = path->bus->sim;
 		(*(sim->sim_action))(sim, start_ccb);
 		break;
 	}
@@ -2503,20 +2505,19 @@ xpt_action_default(union ccb *start_ccb)
 	{
 		struct cam_sim *sim;
 
-		sim = start_ccb->ccb_h.path->bus->sim;
+		sim = path->bus->sim;
 		(*(sim->sim_action))(sim, start_ccb);
 		break;
 	}
 	case XPT_PATH_STATS:
-		start_ccb->cpis.last_reset =
-			start_ccb->ccb_h.path->bus->last_reset;
+		start_ccb->cpis.last_reset = path->bus->last_reset;
 		start_ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	case XPT_GDEV_TYPE:
 	{
 		struct cam_ed *dev;
 
-		dev = start_ccb->ccb_h.path->device;
+		dev = path->device;
 		if ((dev->flags & CAM_DEV_UNCONFIGURED) != 0) {
 			start_ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 		} else {
@@ -2540,7 +2541,7 @@ xpt_action_default(union ccb *start_ccb)
 	{
 		struct cam_ed *dev;
 
-		dev = start_ccb->ccb_h.path->device;
+		dev = path->device;
 		if ((dev->flags & CAM_DEV_UNCONFIGURED) != 0) {
 			start_ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 		} else {
@@ -2549,8 +2550,8 @@ xpt_action_default(union ccb *start_ccb)
 			struct cam_et *tar;
 
 			cgds = &start_ccb->cgds;
-			bus = cgds->ccb_h.path->bus;
-			tar = cgds->ccb_h.path->target;
+			bus = path->bus;
+			tar = path->target;
 			cgds->dev_openings = dev->ccbq.dev_openings;
 			cgds->dev_active = dev->ccbq.dev_active;
 			cgds->devq_openings = dev->ccbq.devq_openings;
@@ -2580,7 +2581,7 @@ xpt_action_default(union ccb *start_ccb)
 		/*
 		 * Don't want anyone mucking with our data.
 		 */
-		device = start_ccb->ccb_h.path->device;
+		device = path->device;
 		periph_head = &device->periphs;
 		cgdl = &start_ccb->cgdl;
 
@@ -2697,7 +2698,7 @@ xpt_action_default(union ccb *start_ccb)
 
 		csa = &start_ccb->csa;
 		added = csa->event_enable;
-		async_head = &csa->ccb_h.path->device->asyncs;
+		async_head = &path->device->asyncs;
 
 		/*
 		 * If there is already an entry for us, simply
@@ -2720,7 +2721,7 @@ xpt_action_default(union ccb *start_ccb)
 			if (csa->event_enable == 0) {
 				SLIST_REMOVE(async_head, cur_entry,
 					     async_node, links);
-				xpt_release_device(csa->ccb_h.path->device);
+				xpt_release_device(path->device);
 				free(cur_entry, M_CAMXPT);
 			} else {
 				cur_entry->event_enable = csa->event_enable;
@@ -2737,7 +2738,7 @@ xpt_action_default(union ccb *start_ccb)
 			cur_entry->callback_arg = csa->callback_arg;
 			cur_entry->callback = csa->callback;
 			SLIST_INSERT_HEAD(async_head, cur_entry, links);
-			xpt_acquire_device(csa->ccb_h.path->device);
+			xpt_acquire_device(path->device);
 		}
 		start_ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
@@ -2748,7 +2749,7 @@ xpt_action_default(union ccb *start_ccb)
 		struct cam_ed *dev;
 
 		crs = &start_ccb->crs;
-		dev = crs->ccb_h.path->device;
+		dev = path->device;
 		if (dev == NULL) {
 
 			crs->ccb_h.status = CAM_DEV_NOT_THERE;
@@ -2760,11 +2761,11 @@ xpt_action_default(union ccb *start_ccb)
  			if (INQ_DATA_TQ_ENABLED(&dev->inq_data)) {
 				/* Don't ever go below one opening */
 				if (crs->openings > 0) {
-					xpt_dev_ccbq_resize(crs->ccb_h.path,
+					xpt_dev_ccbq_resize(path,
 							    crs->openings);
 
 					if (bootverbose) {
-						xpt_print(crs->ccb_h.path,
+						xpt_print(path,
 						    "tagged openings now %d\n",
 						    crs->openings);
 					}
@@ -2826,7 +2827,7 @@ xpt_action_default(union ccb *start_ccb)
 		}
 
 		if ((start_ccb->ccb_h.flags & CAM_DEV_QFREEZE) == 0) {
-			xpt_release_devq_rl(crs->ccb_h.path, /*runlevel*/
+			xpt_release_devq_rl(path, /*runlevel*/
 			    (crs->release_flags & RELSIM_RELEASE_RUNLEVEL) ?
 				crs->release_timeout : 0,
 			    /*count*/1, /*run_queue*/TRUE);
@@ -2872,7 +2873,7 @@ xpt_action_default(union ccb *start_ccb)
 	{
 		struct ccb_relsim *crs = &start_ccb->crs;
 
-		xpt_freeze_devq_rl(crs->ccb_h.path, /*runlevel*/
+		xpt_freeze_devq_rl(path, /*runlevel*/
 		    (crs->release_flags & RELSIM_RELEASE_RUNLEVEL) ?
 		    crs->release_timeout : 0, /*count*/1);
 		start_ccb->ccb_h.status = CAM_REQ_CMP;
@@ -2880,7 +2881,7 @@ xpt_action_default(union ccb *start_ccb)
 	}
 	case XPT_NOOP:
 		if ((start_ccb->ccb_h.flags & CAM_DEV_QFREEZE) != 0)
-			xpt_freeze_devq(start_ccb->ccb_h.path, 1);
+			xpt_freeze_devq(path, 1);
 		start_ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	default:
