@@ -68,6 +68,8 @@
 .Op Fl n
 .Op Fl v
 .Op Fl u Ar unit
+.Nm
+.Ar file
 .Sh DESCRIPTION
 The
 .Nm
@@ -185,6 +187,15 @@ Request a specific unit number for the
 .Xr md 4
 device instead of automatic allocation.
 .El
+.Pp
+The last form,
+.Nm
+.Ar file ,
+is provided for convenience as an abbreviation of
+.Nm
+.Fl a
+.Fl t Ar vnode
+.Fl f Ar file .
 .Sh EXAMPLES
 To create a 4 megabyte
 .Xr malloc 9
