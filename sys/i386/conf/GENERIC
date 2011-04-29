@@ -329,6 +329,7 @@ device		udav		# Davicom DM9601E USB
 device		rum		# Ralink Technology RT2501USB wireless NICs
 device		uath		# Atheros AR5523 wireless NICs
 device		ural		# Ralink Technology RT2500USB wireless NICs
+device		urtw		# Realtek RTL8187B/L wireless NICs
 device		zyd		# ZyDAS zb1211/zb1211b wireless NICs
 
 # FireWire support
