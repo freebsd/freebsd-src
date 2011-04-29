@@ -201,23 +201,6 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	HALDEBUG(ah, HAL_DEBUG_RESET, ">>>2 %s: AR_PHY_ADC_CTL=0x%x\n",
 		__func__, OS_REG_READ(ah,AR_PHY_ADC_CTL));	
 
-	/* Set the mute mask to the correct default */
-	if (AH_PRIVATE(ah)->ah_phyRev >= AR_PHY_CHIP_ID_REV_2)
-		OS_REG_WRITE(ah, AR_SEQ_MASK, 0x0000000F);
-
-	if (AH_PRIVATE(ah)->ah_phyRev >= AR_PHY_CHIP_ID_REV_3) {
-		/* Clear reg to alllow RX_CLEAR line debug */
-		OS_REG_WRITE(ah, AR_PHY_BLUETOOTH,  0);
-	}
-	if (AH_PRIVATE(ah)->ah_phyRev >= AR_PHY_CHIP_ID_REV_4) {
-#ifdef notyet
-		/* Enable burst prefetch for the data queues */
-		OS_REG_RMW_FIELD(ah, AR_D_FPCTL, ... );
-		/* Enable double-buffering */
-		OS_REG_CLR_BIT(ah, AR_TXCFG, AR_TXCFG_DBL_BUF_DIS);
-#endif
-	}
-
 	/*
 	 * Setup ah_tx_chainmask / ah_rx_chainmask before we fiddle
 	 * with enabling the TX/RX radio chains.
@@ -228,6 +211,8 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	 * before any radio register twiddling is done.
 	 */
 	ar5416InitChainMasks(ah);
+
+	/* Setup the open-loop temperature compensation if required */
 	AH5416(ah)->ah_olcInit(ah);
 
 	/* Setup the transmit power values. */
