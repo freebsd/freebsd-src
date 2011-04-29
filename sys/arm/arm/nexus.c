@@ -138,10 +138,10 @@ nexus_attach(device_t dev)
 {
 
 	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0u;
+	mem_rman.rm_end = ~0ul;
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "I/O memory addresses";
-	if (rman_init(&mem_rman) || rman_manage_region(&mem_rman, 0, ~0u))
+	if (rman_init(&mem_rman) || rman_manage_region(&mem_rman, 0, ~0))
 		panic("nexus_probe mem_rman");
 
 	/*
