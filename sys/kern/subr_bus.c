@@ -3646,6 +3646,23 @@ bus_generic_teardown_intr(device_t dev, device_t child, struct resource *irq,
 }
 
 /**
+ * @brief Helper function for implementing BUS_ADJUST_RESOURCE().
+ *
+ * This simple implementation of BUS_ADJUST_RESOURCE() simply calls the
+ * BUS_ADJUST_RESOURCE() method of the parent of @p dev.
+ */
+int
+bus_generic_adjust_resource(device_t dev, device_t child, int type,
+    struct resource *r, u_long start, u_long end)
+{
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent)
+		return (BUS_ADJUST_RESOURCE(dev->parent, child, type, r, start,
+		    end));
+	return (EINVAL);
+}
+
+/**
  * @brief Helper function for implementing BUS_ALLOC_RESOURCE().
  *
  * This simple implementation of BUS_ALLOC_RESOURCE() simply calls the
@@ -3973,6 +3990,21 @@ bus_alloc_resource(device_t dev, int type, int *rid, u_long start, u_long end,
 		return (NULL);
 	return (BUS_ALLOC_RESOURCE(dev->parent, dev, type, rid, start, end,
 	    count, flags));
+}
+
+/**
+ * @brief Wrapper function for BUS_ADJUST_RESOURCE().
+ *
+ * This function simply calls the BUS_ADJUST_RESOURCE() method of the
+ * parent of @p dev.
+ */
+int
+bus_adjust_resource(device_t dev, int type, struct resource *r, u_long start,
+    u_long end)
+{
+	if (dev->parent == NULL)
+		return (EINVAL);
+	return (BUS_ADJUST_RESOURCE(dev->parent, dev, type, r, start, end));
 }
 
 /**
