@@ -1916,9 +1916,10 @@ nfsrv_mtostr(struct nfsrv_descript *nd, char *str, int siz)
  * Fill in the attributes as marked by the bitmap (V4).
  */
 APPLESTATIC int
-nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
-    struct vattr *vap, fhandle_t *fhp, int rderror, nfsattrbit_t *attrbitp,
-    struct ucred *cred, NFSPROC_T *p, int isdgram, int reterr)
+nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
+    NFSACL_T *saclp, struct vattr *vap, fhandle_t *fhp, int rderror,
+    nfsattrbit_t *attrbitp, struct ucred *cred, NFSPROC_T *p, int isdgram,
+    int reterr, int at_root, uint64_t mounted_on_fileno)
 {
 	int bitpos, retnum = 0;
 	u_int32_t *tl;
@@ -1928,7 +1929,6 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 	nfsattrbit_t *retbitp = &retbits;
 	u_int32_t freenum, *retnump;
 	u_int64_t uquad;
-	long fid;
 	struct statfs fs;
 	struct nfsfsinfo fsinf;
 	struct timespec temptime;
@@ -1958,7 +1958,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 	 * Get the VFS_STATFS(), since some attributes need them.
 	 */
 	if (NFSISSETSTATFS_ATTRBIT(retbitp)) {
-		error = VFS_STATFS(vnode_mount(vp), &fs);
+		error = VFS_STATFS(mp, &fs);
 		if (error != 0) {
 			if (reterr) {
 				nd->nd_repstat = NFSERR_ACCES;
@@ -1974,12 +1974,12 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 	 */
 	if (NFSISSET_ATTRBIT(retbitp, NFSATTRBIT_ACLSUPPORT) &&
 	    (nfsrv_useacl == 0 || ((cred != NULL || p != NULL) &&
-		!NFSHASNFS4ACL(vnode_mount(vp))))) {
+		!NFSHASNFS4ACL(mp)))) {
 		NFSCLRBIT_ATTRBIT(retbitp, NFSATTRBIT_ACLSUPPORT);
 	}
 	if (NFSISSET_ATTRBIT(retbitp, NFSATTRBIT_ACL)) {
 		if (nfsrv_useacl == 0 || ((cred != NULL || p != NULL) &&
-		    !NFSHASNFS4ACL(vnode_mount(vp)))) {
+		    !NFSHASNFS4ACL(mp))) {
 			NFSCLRBIT_ATTRBIT(retbitp, NFSATTRBIT_ACL);
 		} else if (naclp != NULL) {
 			if (vn_lock(vp, LK_SHARED) == 0) {
@@ -2016,7 +2016,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 		case NFSATTRBIT_SUPPORTEDATTRS:
 			NFSSETSUPP_ATTRBIT(&attrbits);
 			if (nfsrv_useacl == 0 || ((cred != NULL || p != NULL)
-			    && !NFSHASNFS4ACL(vnode_mount(vp)))) {
+			    && !NFSHASNFS4ACL(mp))) {
 			    NFSCLRBIT_ATTRBIT(&attrbits,NFSATTRBIT_ACLSUPPORT);
 			    NFSCLRBIT_ATTRBIT(&attrbits,NFSATTRBIT_ACL);
 			}
@@ -2066,9 +2066,9 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 		case NFSATTRBIT_FSID:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_V4FSID);
 			*tl++ = 0;
-			*tl++=txdr_unsigned(vfs_statfs(vnode_mount(vp))->f_fsid.val[0]);
+			*tl++ = txdr_unsigned(mp->mnt_stat.f_fsid.val[0]);
 			*tl++ = 0;
-			*tl=txdr_unsigned(vfs_statfs(vnode_mount(vp))->f_fsid.val[1]);
+			*tl = txdr_unsigned(mp->mnt_stat.f_fsid.val[1]);
 			retnum += NFSX_V4FSID;
 			break;
 		case NFSATTRBIT_UNIQUEHANDLES:
@@ -2142,7 +2142,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 			 */
 			savuid = p->p_cred->p_ruid;
 			p->p_cred->p_ruid = cred->cr_uid;
-			if (!VFS_QUOTACTL(vnode_mount(vp),QCMD(Q_GETQUOTA,USRQUOTA),
+			if (!VFS_QUOTACTL(mp, QCMD(Q_GETQUOTA,USRQUOTA),
 			    cred->cr_uid, (caddr_t)&dqb))
 			    freenum = min(dqb.dqb_isoftlimit-dqb.dqb_curinodes,
 				freenum);
@@ -2249,7 +2249,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 			 */
 			savuid = p->p_cred->p_ruid;
 			p->p_cred->p_ruid = cred->cr_uid;
-			if (!VFS_QUOTACTL(vnode_mount(vp),QCMD(Q_GETQUOTA,USRQUOTA),
+			if (!VFS_QUOTACTL(mp, QCMD(Q_GETQUOTA,USRQUOTA),
 			    cred->cr_uid, (caddr_t)&dqb))
 			    freenum = min(dqb.dqb_bhardlimit, freenum);
 			p->p_cred->p_ruid = savuid;
@@ -2273,7 +2273,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 			 */
 			savuid = p->p_cred->p_ruid;
 			p->p_cred->p_ruid = cred->cr_uid;
-			if (!VFS_QUOTACTL(vnode_mount(vp),QCMD(Q_GETQUOTA,USRQUOTA),
+			if (!VFS_QUOTACTL(mp, QCMD(Q_GETQUOTA,USRQUOTA),
 			    cred->cr_uid, (caddr_t)&dqb))
 			    freenum = min(dqb.dqb_bsoftlimit, freenum);
 			p->p_cred->p_ruid = savuid;
@@ -2294,7 +2294,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 			 */
 			savuid = p->p_cred->p_ruid;
 			p->p_cred->p_ruid = cred->cr_uid;
-			if (!VFS_QUOTACTL(vnode_mount(vp),QCMD(Q_GETQUOTA,USRQUOTA),
+			if (!VFS_QUOTACTL(mp, QCMD(Q_GETQUOTA,USRQUOTA),
 			    cred->cr_uid, (caddr_t)&dqb))
 			    freenum = dqb.dqb_curblocks;
 			p->p_cred->p_ruid = savuid;
@@ -2390,11 +2390,11 @@ nfsv4_fillattr(struct nfsrv_descript *nd, vnode_t vp, NFSACL_T *saclp,
 			break;
 		case NFSATTRBIT_MOUNTEDONFILEID:
 			NFSM_BUILD(tl, u_int32_t *, NFSX_HYPER);
-			*tl++ = 0;
-			if (nfsrv_atroot(vp, &fid))
-				*tl = txdr_unsigned(fid);
+			if (at_root != 0)
+				uquad = mounted_on_fileno;
 			else
-				*tl = txdr_unsigned(vap->va_fileid);
+				uquad = (u_int64_t)vap->va_fileid;
+			txdr_hyper(uquad, tl);
 			retnum += NFSX_HYPER;
 			break;
 		default:
