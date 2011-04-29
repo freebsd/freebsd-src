@@ -112,8 +112,19 @@ named_reload()
 	${command%/named}/rndc reload
 }
 
+find_pidfile()
+{
+	if get_pidfile_from_conf pid-file $named_conf; then
+		pidfile="$_pidfile_from_conf"
+	else
+		pidfile="/var/run/named/pid"
+	fi
+}
+
 named_stop()
 {
+	find_pidfile
+
 	# This duplicates an undesirably large amount of code from the stop
 	# routine in rc.subr in order to use rndc to shut down the process,
 	# and to give it a second chance in case rndc fails.
@@ -156,6 +167,12 @@ create_file () {
 
 named_prestart()
 {
+	find_pidfile
+
+	if [ -n "$named_pidfile" ]; then
+		warn 'named_pidfile: now determined from the conf file'
+	fi
+
 	command_args="-u ${named_uid:=root}"
 
 	if [ ! "$named_conf" = '/etc/namedb/named.conf' ]; then
@@ -279,7 +296,6 @@ load_rc_config $name
 #
 required_dirs="$named_chrootdir"	# if it is set, it must exist
 
-pidfile="${named_pidfile:-/var/run/named/pid}"
 named_confdir="${named_chrootdir}${named_conf%/*}"
 
 run_rc_command "$1"

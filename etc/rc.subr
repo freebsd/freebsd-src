@@ -372,6 +372,48 @@ wait_for_pids()
 }
 
 #
+# get_pidfile_from_conf string file
+#
+#	Takes a string to search for in the specified file.
+#	Ignores lines with traditional comment characters.
+#
+# Example:
+#
+# if get_pidfile_from_conf string file; then
+#	pidfile="$_pidfile_from_conf"
+# else
+#	pidfile='appropriate default'
+# fi
+#
+get_pidfile_from_conf()
+{
+	if [ -z "$1" -o -z "$2" ]; then
+		err 3 "USAGE: get_pidfile_from_conf string file ($name)"
+	fi
+
+	local string file line
+
+	string="$1" ; file="$2"
+
+	if [ ! -s "$file" ]; then
+		err 3 "get_pidfile_from_conf: $file does not exist ($name)"
+	fi
+
+	while read line; do
+		case "$line" in
+		*[#\;]*${string}*)	continue ;;
+		*${string}*)		break ;;
+		esac
+	done < $file
+
+	if [ -n "$line" ]; then
+		line=${line#*/}
+		_pidfile_from_conf="/${line%%[\"\;]*}"
+	else
+		return 1
+	fi
+}
+
 # run_rc_command argument
 #	Search for argument in the list of supported commands, which is:
 #		"start stop restart rcvar status poll ${extra_commands}"
