@@ -2730,6 +2730,9 @@ device		uath
 # Ralink Technology RT2500USB wireless driver
 device		ural
 #
+# Realtek RTL8187B/L wireless driver
+device		urtw
+#
 # ZyDas ZD1211/ZD1211B wireless driver
 device		zyd
 
