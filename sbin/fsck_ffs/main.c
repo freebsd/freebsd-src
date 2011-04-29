@@ -82,7 +82,7 @@ main(int argc, char *argv[])
 	sync();
 	skipclean = 1;
 	inoopt = 0;
-	while ((ch = getopt(argc, argv, "b:Bc:CdfFm:npry")) != -1) {
+	while ((ch = getopt(argc, argv, "b:Bc:CdEfFm:npry")) != -1) {
 		switch (ch) {
 		case 'b':
 			skipclean = 0;
@@ -104,6 +104,10 @@ main(int argc, char *argv[])
 
 		case 'd':
 			debug++;
+			break;
+
+		case 'E':
+			Eflag++;
 			break;
 
 		case 'f':
@@ -632,7 +636,7 @@ static void
 usage(void)
 {
 	(void) fprintf(stderr,
-	    "usage: %s [-BFprfny] [-b block] [-c level] [-m mode] "
+	    "usage: %s [-BEFprfny] [-b block] [-c level] [-m mode] "
 			"filesystem ...\n",
 	    getprogname());
 	exit(1);
