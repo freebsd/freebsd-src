@@ -206,7 +206,7 @@ fdtbus_attach(device_t dev)
 	 * Mem-mapped I/O space rman.
 	 */
 	start = 0;
-	end = ~0u;
+	end = ~0ul;
 	sc->sc_mem.rm_start = start;
 	sc->sc_mem.rm_end = end;
 	sc->sc_mem.rm_type = RMAN_ARRAY;
