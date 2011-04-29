@@ -52,6 +52,7 @@ extern u_int32_t newnfs_false, newnfs_true;
 extern enum vtype nv34tov_type[8];
 extern struct timeval nfsboottime;
 extern int nfs_rootfhset;
+extern int nfsrv_enable_crossmntpt;
 #endif	/* !APPLEKEXT */
 
 /*
@@ -169,9 +170,13 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 {
 	struct nfsvattr nva;
 	fhandle_t fh;
-	int error = 0;
+	int at_root = 0, error = 0;
 	struct nfsreferral *refp;
 	nfsattrbit_t attrbits;
+	struct mount *mp;
+	struct vnode *tvp = NULL;
+	struct vattr va;
+	uint64_t mounted_on_fileno = 0;
 
 	if (nd->nd_repstat)
 		return (0);
@@ -207,11 +212,46 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 			if (!nd->nd_repstat)
 				nd->nd_repstat = nfsrv_checkgetattr(nd, vp,
 				    &nva, &attrbits, nd->nd_cred, p);
-			NFSVOPUNLOCK(vp, 0, p);
-			if (!nd->nd_repstat)
-				(void) nfsvno_fillattr(nd, vp, &nva, &fh,
-				    0, &attrbits, nd->nd_cred, p, isdgram, 1);
-			vrele(vp);
+			if (nd->nd_repstat == 0) {
+				mp = vp->v_mount;
+				if (nfsrv_enable_crossmntpt != 0 &&
+				    vp->v_type == VDIR &&
+				    (vp->v_vflag & VV_ROOT) != 0 &&
+				    vp != rootvnode) {
+					tvp = mp->mnt_vnodecovered;
+					VREF(tvp);
+					at_root = 1;
+				} else
+					at_root = 0;
+				vfs_ref(mp);
+				VOP_UNLOCK(vp, 0);
+				if (at_root != 0) {
+					if ((nd->nd_repstat =
+					     vn_lock(tvp, LK_SHARED)) == 0) {
+						nd->nd_repstat = VOP_GETATTR(
+						    tvp, &va, nd->nd_cred);
+						vput(tvp);
+					} else
+						vrele(tvp);
+					if (nd->nd_repstat == 0)
+						mounted_on_fileno = (uint64_t)
+						    va.va_fileid;
+					else
+						at_root = 0;
+				}
+				if (nd->nd_repstat == 0)
+					nd->nd_repstat = vfs_busy(mp, 0);
+				vfs_rel(mp);
+				if (nd->nd_repstat == 0) {
+					(void)nfsvno_fillattr(nd, mp, vp, &nva,
+					    &fh, 0, &attrbits, nd->nd_cred, p,
+					    isdgram, 1, at_root,
+					    mounted_on_fileno);
+					vfs_unbusy(mp);
+				}
+				vrele(vp);
+			} else
+				vput(vp);
 		} else {
 			nfsrv_fillattr(nd, &nva);
 			vput(vp);

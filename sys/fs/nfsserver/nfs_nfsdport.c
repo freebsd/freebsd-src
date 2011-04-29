@@ -68,15 +68,15 @@ static uint32_t nfsv4_sysid = 0;
 static int nfssvc_srvcall(struct thread *, struct nfssvc_args *,
     struct ucred *);
 
-static int enable_crossmntpt = 1;
+int nfsrv_enable_crossmntpt = 1;
 static int nfs_commit_blks;
 static int nfs_commit_miss;
 extern int nfsrv_issuedelegs;
 extern int nfsrv_dolocallocks;
 
 SYSCTL_DECL(_vfs_newnfs);
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, mirrormnt, CTLFLAG_RW, &enable_crossmntpt,
-    0, "Enable nfsd to cross mount points");
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, mirrormnt, CTLFLAG_RW,
+    &nfsrv_enable_crossmntpt, 0, "Enable nfsd to cross mount points");
 SYSCTL_INT(_vfs_newnfs, OID_AUTO, commit_blks, CTLFLAG_RW, &nfs_commit_blks,
     0, "");
 SYSCTL_INT(_vfs_newnfs, OID_AUTO, commit_miss, CTLFLAG_RW, &nfs_commit_miss,
@@ -306,12 +306,12 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 			dp = rootvnode;
 			VREF(dp);
 		}
-	} else if ((enable_crossmntpt == 0 && NFSVNO_EXPORTED(exp)) ||
+	} else if ((nfsrv_enable_crossmntpt == 0 && NFSVNO_EXPORTED(exp)) ||
 	    (nd->nd_flag & ND_NFSV4) == 0) {
 		/*
 		 * Only cross mount points for NFSv4 when doing a
 		 * mount while traversing the file system above
-		 * the mount point, unless enable_crossmntpt is set.
+		 * the mount point, unless nfsrv_enable_crossmntpt is set.
 		 */
 		cnp->cn_flags |= NOCROSSMOUNT;
 		crossmnt = 0;
@@ -1391,14 +1391,15 @@ nfsvno_updfilerev(struct vnode *vp, struct nfsvattr *nvap,
  * Glue routine to nfsv4_fillattr().
  */
 int
-nfsvno_fillattr(struct nfsrv_descript *nd, struct vnode *vp,
+nfsvno_fillattr(struct nfsrv_descript *nd, struct mount *mp, struct vnode *vp,
     struct nfsvattr *nvap, fhandle_t *fhp, int rderror, nfsattrbit_t *attrbitp,
-    struct ucred *cred, struct thread *p, int isdgram, int reterr)
+    struct ucred *cred, struct thread *p, int isdgram, int reterr, int at_root,
+    uint64_t mounted_on_fileno)
 {
 	int error;
 
-	error = nfsv4_fillattr(nd, vp, NULL, &nvap->na_vattr, fhp, rderror,
-	    attrbitp, cred, p, isdgram, reterr);
+	error = nfsv4_fillattr(nd, mp, vp, NULL, &nvap->na_vattr, fhp, rderror,
+	    attrbitp, cred, p, isdgram, reterr, at_root, mounted_on_fileno);
 	return (error);
 }
 
@@ -1688,8 +1689,9 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	struct uio io;
 	struct iovec iv;
 	struct componentname cn;
-	int not_zfs;
-	struct mount *mp;
+	int at_root, needs_unbusy, not_zfs;
+	struct mount *mp, *new_mp;
+	uint64_t mounted_on_fileno;
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
@@ -1929,6 +1931,10 @@ again:
 			nvp = NULL;
 			refp = NULL;
 			r = 0;
+			at_root = 0;
+			needs_unbusy = 0;
+			new_mp = mp;
+			mounted_on_fileno = (uint64_t)dp->d_fileno;
 			if ((nd->nd_flag & ND_NFSV3) ||
 			    NFSNONZERO_ATTRBIT(&savbits)) {
 				if (nd->nd_flag & ND_NFSV4)
@@ -1980,6 +1986,29 @@ again:
 								    0);
 						}
 					}
+
+					/*
+					 * For NFSv4, check to see if nvp is
+					 * a mount point and get the mount
+					 * point vnode, as required.
+					 */
+					if (r == 0 &&
+					    nfsrv_enable_crossmntpt != 0 &&
+					    (nd->nd_flag & ND_NFSV4) != 0 &&
+					    nvp->v_type == VDIR &&
+					    nvp->v_mountedhere != NULL) {
+						new_mp = nvp->v_mountedhere;
+						r = vfs_busy(new_mp, 0);
+						vput(nvp);
+						nvp = NULL;
+						if (r == 0) {
+							r = VFS_ROOT(new_mp,
+							    LK_SHARED, &nvp);
+							needs_unbusy = 1;
+							if (r == 0)
+								at_root = 1;
+						}
+					}
 				}
 				if (!r) {
 				    if (refp == NULL &&
@@ -1998,6 +2027,8 @@ again:
 					    NFSATTRBIT_RDATTRERROR)) {
 						if (nvp != NULL)
 							vput(nvp);
+						if (needs_unbusy != 0)
+							vfs_unbusy(new_mp);
 						nd->nd_repstat = r;
 						break;
 					}
@@ -2036,21 +2067,27 @@ again:
 					if (nd->nd_repstat) {
 						if (nvp != NULL)
 							vrele(nvp);
+						if (needs_unbusy != 0)
+							vfs_unbusy(new_mp);
 						break;
 					}
 				} else if (r) {
-					dirlen += nfsvno_fillattr(nd, nvp, nvap,
-					    &nfh, r, &rderrbits, nd->nd_cred,
-					    p, isdgram, 0);
+					dirlen += nfsvno_fillattr(nd, new_mp,
+					    nvp, nvap, &nfh, r, &rderrbits,
+					    nd->nd_cred, p, isdgram, 0, at_root,
+					    mounted_on_fileno);
 				} else {
-					dirlen += nfsvno_fillattr(nd, nvp, nvap,
-					    &nfh, r, &attrbits, nd->nd_cred,
-					    p, isdgram, 0);
+					dirlen += nfsvno_fillattr(nd, new_mp,
+					    nvp, nvap, &nfh, r, &attrbits,
+					    nd->nd_cred, p, isdgram, 0, at_root,
+					    mounted_on_fileno);
 				}
 				if (nvp != NULL)
 					vrele(nvp);
 				dirlen += (3 * NFSX_UNSIGNED);
 			}
+			if (needs_unbusy != 0)
+				vfs_unbusy(new_mp);
 			if (dirlen <= cnt)
 				entrycnt++;
 		}

@@ -803,8 +803,8 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEACCESSSET);
 		if (vap->va_mtime.tv_sec != VNOVAL)
 			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEMODIFYSET);
-		(void) nfsv4_fillattr(nd, vp, NULL, vap, NULL, 0, &attrbits,
-		    NULL, NULL, 0, 0);
+		(void) nfsv4_fillattr(nd, vp->v_mount, vp, NULL, vap, NULL, 0,
+		    &attrbits, NULL, NULL, 0, 0, 0, (uint64_t)0);
 		break;
 	};
 }
