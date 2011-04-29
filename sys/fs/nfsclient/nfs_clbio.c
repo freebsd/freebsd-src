@@ -63,8 +63,8 @@ extern int newnfs_directio_allow_mmap;
 extern struct nfsstats newnfsstats;
 extern struct mtx ncl_iod_mutex;
 extern int ncl_numasync;
-extern enum nfsiod_state ncl_iodwant[NFS_MAXRAHEAD];
-extern struct nfsmount *ncl_iodmount[NFS_MAXRAHEAD];
+extern enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
+extern struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
 extern int newnfs_directio_enable;
 
 int ncl_pbuf_freecnt = -1;	/* start out unlimited */
@@ -1359,15 +1359,6 @@ ncl_asyncio(struct nfsmount *nmp, struct buf *bp, struct ucred *cred, struct thr
 	int error, error2;
 
 	/*
-	 * Unless iothreadcnt is set > 0, don't bother with async I/O
-	 * threads. For LAN environments, they don't buy any significant
-	 * performance improvement that you can't get with large block
-	 * sizes.
-	 */
-	if (nmp->nm_readahead == 0)
-		return (EPERM);
-
-	/*
 	 * Commits are usually short and sweet so lets save some cpu and
 	 * leave the async daemons for more important rpc's (such as reads
 	 * and writes).
@@ -1395,13 +1386,9 @@ again:
 	/*
 	 * Try to create one if none are free.
 	 */
-	if (!gotiod) {
-		iod = ncl_nfsiodnew(1);
-		if (iod != -1)
-			gotiod = TRUE;
-	}
-
-	if (gotiod) {
+	if (!gotiod)
+		ncl_nfsiodnew();
+	else {
 		/*
 		 * Found one, so wake it up and tell it which
 		 * mount to process.
@@ -1458,11 +1445,7 @@ again:
 			 * We might have lost our iod while sleeping,
 			 * so check and loop if nescessary.
 			 */
-			if (nmp->nm_bufqiods == 0) {
-				NFS_DPF(ASYNCIO,
-					("ncl_asyncio: no iods after mount %p queue was drained, looping\n", nmp));
-				goto again;
-			}
+			goto again;
 		}
 
 		/* We might have lost our nfsiod */
