@@ -437,18 +437,18 @@ newnfs_portinit(void)
  * Return 1 if it does, 0 otherwise.
  */
 int
-nfs_supportsnfsv4acls(struct mount *mp)
+nfs_supportsnfsv4acls(struct vnode *vp)
 {
+	int error;
+	register_t retval;
 
-	if (mp->mnt_stat.f_fstypename == NULL)
+	ASSERT_VOP_LOCKED(vp, "nfs supports nfsv4acls");
+
+	if (nfsrv_useacl == 0)
 		return (0);
-	if (strcmp(mp->mnt_stat.f_fstypename, "ufs") == 0) {
-		/* Not yet */
-		return (0);
-	} else if (strcmp(mp->mnt_stat.f_fstypename, "zfs") == 0) {
-		/* Always supports them */
+	error = VOP_PATHCONF(vp, _PC_ACL_NFS4, &retval);
+	if (error == 0 && retval != 0)
 		return (1);
-	}
 	return (0);
 }
 
