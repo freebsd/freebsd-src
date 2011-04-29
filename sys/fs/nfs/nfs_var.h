@@ -332,13 +332,11 @@ void newnfs_timer(void *);
 /* nfs_commonacl.c */
 int nfsrv_dissectace(struct nfsrv_descript *, struct acl_entry *,
     int *, int *, NFSPROC_T *);
-#ifdef NFS4_ACL_EXTATTR_NAME
 int nfsrv_buildacl(struct nfsrv_descript *, NFSACL_T *, enum vtype,
     NFSPROC_T *);
 int nfsrv_setacl(vnode_t, NFSACL_T *, struct ucred *,
     NFSPROC_T *);
 int nfsrv_compareacl(NFSACL_T *, NFSACL_T *);
-#endif
 
 /* nfs_clrpcops.c */
 int nfsrpc_null(vnode_t, struct ucred *, NFSPROC_T *);

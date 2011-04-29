@@ -432,7 +432,6 @@ newnfs_portinit(void)
 	mtx_init(&nfs_state_mutex, "nfs_state_mutex", NULL, MTX_DEF);
 }
 
-#ifdef NFS4_ACL_EXTATTR_NAME
 /*
  * Determine if the file system supports NFSv4 ACLs.
  * Return 1 if it does, 0 otherwise.
@@ -452,7 +451,6 @@ nfs_supportsnfsv4acls(struct mount *mp)
 	}
 	return (0);
 }
-#endif	/* NFS4_ACL_EXTATTR_NAME */
 
 extern int (*nfsd_call_nfscommon)(struct thread *, struct nfssvc_args *);
 
