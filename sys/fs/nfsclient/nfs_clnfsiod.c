@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/lockf.h>
 #include <sys/mutex.h>
+#include <sys/taskqueue.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -68,27 +69,31 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfsclient/nfs.h>
 #include <fs/nfsclient/nfsnode.h>
 
-extern struct mtx ncl_iod_mutex;
+extern struct mtx	ncl_iod_mutex;
+extern struct task	ncl_nfsiodnew_task;
 
 int ncl_numasync;
-enum nfsiod_state ncl_iodwant[NFS_MAXRAHEAD];
-struct nfsmount *ncl_iodmount[NFS_MAXRAHEAD];
+enum nfsiod_state ncl_iodwant[NFS_MAXASYNCDAEMON];
+struct nfsmount *ncl_iodmount[NFS_MAXASYNCDAEMON];
 
 static void	nfssvc_iod(void *);
 
-static int nfs_asyncdaemon[NFS_MAXRAHEAD];
+static int nfs_asyncdaemon[NFS_MAXASYNCDAEMON];
 
 SYSCTL_DECL(_vfs_newnfs);
 
 /* Maximum number of seconds a nfsiod kthread will sleep before exiting */
-static unsigned int ncl_iodmaxidle = 120;
-SYSCTL_UINT(_vfs_newnfs, OID_AUTO, iodmaxidle, CTLFLAG_RW, &ncl_iodmaxidle, 0, "");
+static unsigned int nfs_iodmaxidle = 120;
+SYSCTL_UINT(_vfs_newnfs, OID_AUTO, iodmaxidle, CTLFLAG_RW, &nfs_iodmaxidle, 0,
+    "Max number of seconds an nfsiod kthread will sleep before exiting");
 
 /* Maximum number of nfsiod kthreads */
-unsigned int ncl_iodmax = NFS_MAXRAHEAD;
+unsigned int ncl_iodmax = 20;
 
 /* Minimum number of nfsiod kthreads to keep as spares */
 static unsigned int nfs_iodmin = 0;
+
+static int nfs_nfsiodnew_sync(void);
 
 static int
 sysctl_iodmin(SYSCTL_HANDLER_ARGS)
@@ -113,14 +118,14 @@ sysctl_iodmin(SYSCTL_HANDLER_ARGS)
 	 * than the new minimum, create some more.
 	 */
 	for (i = nfs_iodmin - ncl_numasync; i > 0; i--)
-		ncl_nfsiodnew(0);
+		nfs_nfsiodnew_sync();
 out:
 	mtx_unlock(&ncl_iod_mutex);	
 	return (0);
 }
 SYSCTL_PROC(_vfs_newnfs, OID_AUTO, iodmin, CTLTYPE_UINT | CTLFLAG_RW, 0,
-    sizeof (nfs_iodmin), sysctl_iodmin, "IU", "");
-
+    sizeof (nfs_iodmin), sysctl_iodmin, "IU",
+    "Min number of nfsiod kthreads to keep as spares");
 
 static int
 sysctl_iodmax(SYSCTL_HANDLER_ARGS)
@@ -132,7 +137,7 @@ sysctl_iodmax(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &newmax, 0, req);
 	if (error || (req->newptr == NULL))
 		return (error);
-	if (newmax > NFS_MAXRAHEAD)
+	if (newmax > NFS_MAXASYNCDAEMON)
 		return (EINVAL);
 	mtx_lock(&ncl_iod_mutex);
 	ncl_iodmax = newmax;
@@ -155,64 +160,79 @@ out:
 	return (0);
 }
 SYSCTL_PROC(_vfs_newnfs, OID_AUTO, iodmax, CTLTYPE_UINT | CTLFLAG_RW, 0,
-    sizeof (ncl_iodmax), sysctl_iodmax, "IU", "");
+    sizeof (ncl_iodmax), sysctl_iodmax, "IU",
+    "Max number of nfsiod kthreads");
 
-int
-ncl_nfsiodnew(int set_iodwant)
+static int
+nfs_nfsiodnew_sync(void)
 {
 	int error, i;
-	int newiod;
 
-	if (ncl_numasync >= ncl_iodmax)
-		return (-1);
-	newiod = -1;
-	for (i = 0; i < ncl_iodmax; i++)
+	mtx_assert(&ncl_iod_mutex, MA_OWNED);
+	for (i = 0; i < ncl_iodmax; i++) {
 		if (nfs_asyncdaemon[i] == 0) {
-			nfs_asyncdaemon[i]++;
-			newiod = i;
+			nfs_asyncdaemon[i] = 1;
 			break;
 		}
-	if (newiod == -1)
-		return (-1);
-	if (set_iodwant > 0)
-		ncl_iodwant[i] = NFSIOD_CREATED_FOR_NFS_ASYNCIO;
-	mtx_unlock(&ncl_iod_mutex);
-	error = kproc_create(nfssvc_iod, nfs_asyncdaemon + i, NULL, RFHIGHPID,
-	    0, "nfsiod %d", newiod);
-	mtx_lock(&ncl_iod_mutex);
-	if (error) {
-		if (set_iodwant > 0)
-			ncl_iodwant[i] = NFSIOD_NOT_AVAILABLE;
-		return (-1);
 	}
-	ncl_numasync++;
-	return (newiod);
+	if (i == ncl_iodmax)
+		return (0);
+	mtx_unlock(&ncl_iod_mutex);
+	error = kproc_create(nfssvc_iod, nfs_asyncdaemon + i, NULL,
+	    RFHIGHPID, 0, "newnfs %d", i);
+	mtx_lock(&ncl_iod_mutex);
+	if (error == 0) {
+		ncl_numasync++;
+		ncl_iodwant[i] = NFSIOD_AVAILABLE;
+	} else
+		nfs_asyncdaemon[i] = 0;
+	return (error);
+}
+
+void
+ncl_nfsiodnew_tq(__unused void *arg, int pending)
+{
+
+	mtx_lock(&ncl_iod_mutex);
+	while (pending > 0) {
+		pending--;
+		nfs_nfsiodnew_sync();
+	}
+	mtx_unlock(&ncl_iod_mutex);
+}
+
+void
+ncl_nfsiodnew(void)
+{
+
+	mtx_assert(&ncl_iod_mutex, MA_OWNED);
+	taskqueue_enqueue(taskqueue_thread, &ncl_nfsiodnew_task);
 }
 
 static void
 nfsiod_setup(void *dummy)
 {
-	int i;
 	int error;
 
 	TUNABLE_INT_FETCH("vfs.newnfs.iodmin", &nfs_iodmin);
 	nfscl_init();
 	mtx_lock(&ncl_iod_mutex);
 	/* Silently limit the start number of nfsiod's */
-	if (nfs_iodmin > NFS_MAXRAHEAD)
-		nfs_iodmin = NFS_MAXRAHEAD;
+	if (nfs_iodmin > NFS_MAXASYNCDAEMON)
+		nfs_iodmin = NFS_MAXASYNCDAEMON;
 
-	for (i = 0; i < nfs_iodmin; i++) {
-		error = ncl_nfsiodnew(0);
+	while (ncl_numasync < nfs_iodmin) {
+		error = nfs_nfsiodnew_sync();
 		if (error == -1)
-			panic("newnfsiod_setup: ncl_nfsiodnew failed");
+			panic("nfsiod_setup: nfs_nfsiodnew failed");
 	}
 	mtx_unlock(&ncl_iod_mutex);
 }
 SYSINIT(newnfsiod, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, nfsiod_setup, NULL);
 
 static int nfs_defect = 0;
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, defect, CTLFLAG_RW, &nfs_defect, 0, "");
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, defect, CTLFLAG_RW, &nfs_defect, 0,
+    "Allow nfsiods to migrate serving different mounts");
 
 /*
  * Asynchronous I/O daemons for client nfs.
@@ -245,7 +265,7 @@ nfssvc_iod(void *instance)
 		/*
 		 * Always keep at least nfs_iodmin kthreads.
 		 */
-		timo = (myiod < nfs_iodmin) ? 0 : ncl_iodmaxidle * hz;
+		timo = (myiod < nfs_iodmin) ? 0 : nfs_iodmaxidle * hz;
 		error = msleep(&ncl_iodwant[myiod], &ncl_iod_mutex, PWAIT | PCATCH,
 		    "-", timo);
 		if (error) {
@@ -263,7 +283,6 @@ nfssvc_iod(void *instance)
 	    if (error)
 		    break;
 	    while ((bp = TAILQ_FIRST(&nmp->nm_bufq)) != NULL) {
-		    
 		/* Take one off the front of the list */
 		TAILQ_REMOVE(&nmp->nm_bufq, bp, b_freelist);
 		nmp->nm_bufqlen--;
