@@ -144,7 +144,7 @@ device		ath_rf5112
 device		ath_rf5413
 #
 #device		ath_ar5416
-#options 	AH_SUPPORT_AR5416	# NB: for 11n descriptor format
+options 	AH_SUPPORT_AR5416	# NB: for 11n descriptor format
 #device		ath_ar9160
 #device		ath_ar9280
 
