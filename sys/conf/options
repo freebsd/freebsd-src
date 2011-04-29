@@ -775,6 +775,7 @@ ATH_ENABLE_11N		opt_ah.h
 
 # options for the Atheros hal
 AH_SUPPORT_AR5416	opt_ah.h
+AH_SUPPORT_AR9130	opt_ah.h
 
 AH_DEBUG		opt_ah.h
 AH_ASSERT		opt_ah.h
