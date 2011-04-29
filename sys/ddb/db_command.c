@@ -129,7 +129,7 @@ static struct command db_cmds[] = {
 	{ "reboot",	db_reset,		0,	0 },
 	{ "reset",	db_reset,		0,	0 },
 	{ "kill",	db_kill,		CS_OWN,	0 },
-	{ "watchdog",	db_watchdog,		0,	0 },
+	{ "watchdog",	db_watchdog,		CS_OWN,	0 },
 	{ "thread",	db_set_thread,		CS_OWN,	0 },
 	{ "run",	db_run_cmd,		CS_OWN,	0 },
 	{ "script",	db_script_cmd,		CS_OWN,	0 },
@@ -708,15 +708,32 @@ db_watchdog(dummy1, dummy2, dummy3, dummy4)
 	db_expr_t	dummy3;
 	char *		dummy4;
 {
-	int i;
+	db_expr_t old_radix, tout;
+	int err, i;
 
-	/*
-	 * XXX: It might make sense to be able to set the watchdog to a
-	 * XXX: timeout here so that failure or hang as a result of subsequent
-	 * XXX: ddb commands could be recovered by a reset.
-	 */
+	old_radix = db_radix;
+	db_radix = 10;
+	err = db_expression(&tout);
+	db_skip_to_eol();
+	db_radix = old_radix;
 
-	EVENTHANDLER_INVOKE(watchdog_list, 0, &i);
+	/* If no argument is provided the watchdog will just be disabled. */
+	if (err == 0) {
+		db_printf("No argument provided, disabling watchdog\n");
+		tout = 0;
+	} else if ((tout & WD_INTERVAL) == WD_TO_NEVER) {
+		db_error("Out of range watchdog interval\n");
+		return;
+	} else {
+
+		/*
+		 * XXX: Right now we only support WD_ACTIVE, in the future we
+		 * may be possibly needing a more convoluted function for
+		 * dealing with different cases.
+		 */
+		tout |= WD_ACTIVE;
+	}
+	EVENTHANDLER_INVOKE(watchdog_list, tout, &i);
 }
 
 static void
