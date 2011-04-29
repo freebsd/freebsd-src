@@ -21,6 +21,7 @@ MAN=	accept_filter.9 \
 	BUF_UNLOCK.9 \
 	bus_activate_resource.9 \
 	BUS_ADD_CHILD.9 \
+	bus_adjust_resource.9 \
 	bus_alloc_resource.9 \
 	BUS_BIND_INTR.9 \
 	bus_child_present.9 \
