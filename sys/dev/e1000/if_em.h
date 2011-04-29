@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2011, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -211,6 +211,10 @@
 #define EM_BAR_MEM_TYPE_32BIT	0x00000000
 #define EM_BAR_MEM_TYPE_64BIT	0x00000004
 #define EM_MSIX_BAR		3	/* On 82575 */
+
+#if !defined(SYSCTL_ADD_UQUAD)
+#define SYSCTL_ADD_UQUAD SYSCTL_ADD_QUAD
+#endif
 
 /* Defines for printing debug information */
 #define DEBUG_INIT  0
@@ -458,6 +462,22 @@ struct em_buffer {
         struct mbuf    *m_head;
         bus_dmamap_t    map;         /* bus_dma map for packet */
 };
+
+
+/*
+** Find the number of unrefreshed RX descriptors
+*/
+static inline u16
+e1000_rx_unrefreshed(struct rx_ring *rxr)
+{
+	struct adapter	*adapter = rxr->adapter;
+
+	if (rxr->next_to_check > rxr->next_to_refresh)
+		return (rxr->next_to_check - rxr->next_to_refresh - 1);
+	else
+		return ((adapter->num_rx_desc + rxr->next_to_check) -
+		    rxr->next_to_refresh - 1); 
+}
 
 #define	EM_CORE_LOCK_INIT(_sc, _name) \
 	mtx_init(&(_sc)->core_mtx, _name, "EM Core Lock", MTX_DEF)
