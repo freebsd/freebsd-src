@@ -42,6 +42,7 @@
 struct e1000_hw;
 
 #define E1000_DEV_ID_82576_VF                 0x10CA
+#define E1000_DEV_ID_I350_VF                  0x1520
 
 #define E1000_VF_INIT_TIMEOUT 200 /* Number of retries to clear RSTI */
 
@@ -88,9 +89,10 @@ union e1000_adv_rx_desc {
 			union {
 				u32 data;
 				struct {
-					u16 pkt_info; /* RSS type, Packet type */
-					u16 hdr_info; /* Split Header,
-				        	       * header buffer length */
+					/* RSS type, Packet type */
+					u16 pkt_info;
+					/* Split Header, header buffer len */
+					u16 hdr_info;
 				} hs_rss;
 			} lo_dword;
 			union {
@@ -154,6 +156,7 @@ struct e1000_adv_tx_context_desc {
 enum e1000_mac_type {
 	e1000_undefined = 0,
 	e1000_vfadapt,
+	e1000_vfadapt_i350,
 	e1000_num_macs  /* List is 1-based, so subtract 1 for TRUE count. */
 };
 
@@ -249,8 +252,8 @@ struct e1000_mbx_info {
 };
 
 struct e1000_dev_spec_vf {
-	u32	vf_number;
-	u32	v2p_mailbox;
+	u32 vf_number;
+	u32 v2p_mailbox;
 };
 
 struct e1000_hw {
@@ -264,7 +267,7 @@ struct e1000_hw {
 	struct e1000_mbx_info mbx;
 
 	union {
-		struct e1000_dev_spec_vf	vf;
+		struct e1000_dev_spec_vf vf;
 	} dev_spec;
 
 	u16 device_id;

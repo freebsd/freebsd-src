@@ -154,6 +154,11 @@
 #define IXGBE_FC_HI		0x20000
 #define IXGBE_FC_LO		0x10000
 
+/* Keep older OS drivers building... */
+#if !defined(SYSCTL_ADD_UQUAD)
+#define SYSCTL_ADD_UQUAD SYSCTL_ADD_QUAD
+#endif
+
 /* Defines for printing debug information */
 #define DEBUG_INIT  0
 #define DEBUG_IOCTL 0
