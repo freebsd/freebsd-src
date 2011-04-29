@@ -3062,7 +3062,7 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 					    NFSATTRBIT_CHANGE);
 				}
 				(void) nfsv4_fillattr(nd, NULL, NULL, NULL, &va,
-				    NULL, 0, &rattrbits, NULL, NULL, 0, 0, 0,
+				    NULL, 0, &rattrbits, NULL, NULL, 0, 0, 0, 0,
 				    (uint64_t)0);
 				if (!ret)
 					vrele(vp);

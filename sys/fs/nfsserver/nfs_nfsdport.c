@@ -1393,13 +1393,14 @@ nfsvno_updfilerev(struct vnode *vp, struct nfsvattr *nvap,
 int
 nfsvno_fillattr(struct nfsrv_descript *nd, struct mount *mp, struct vnode *vp,
     struct nfsvattr *nvap, fhandle_t *fhp, int rderror, nfsattrbit_t *attrbitp,
-    struct ucred *cred, struct thread *p, int isdgram, int reterr, int at_root,
-    uint64_t mounted_on_fileno)
+    struct ucred *cred, struct thread *p, int isdgram, int reterr,
+    int supports_nfsv4acls, int at_root, uint64_t mounted_on_fileno)
 {
 	int error;
 
 	error = nfsv4_fillattr(nd, mp, vp, NULL, &nvap->na_vattr, fhp, rderror,
-	    attrbitp, cred, p, isdgram, reterr, at_root, mounted_on_fileno);
+	    attrbitp, cred, p, isdgram, reterr, supports_nfsv4acls, at_root,
+	    mounted_on_fileno);
 	return (error);
 }
 
@@ -1689,7 +1690,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	struct uio io;
 	struct iovec iv;
 	struct componentname cn;
-	int at_root, needs_unbusy, not_zfs;
+	int at_root, needs_unbusy, not_zfs, supports_nfsv4acls;
 	struct mount *mp, *new_mp;
 	uint64_t mounted_on_fileno;
 
@@ -2058,8 +2059,12 @@ again:
 				*tl++ = 0;
 				*tl = txdr_unsigned(*cookiep);
 				dirlen += nfsm_strtom(nd, dp->d_name, nlen);
-				if (nvp != NULL)
+				if (nvp != NULL) {
+					supports_nfsv4acls =
+					    nfs_supportsnfsv4acls(nvp);
 					VOP_UNLOCK(nvp, 0);
+				} else
+					supports_nfsv4acls = 0;
 				if (refp != NULL) {
 					dirlen += nfsrv_putreferralattr(nd,
 					    &savbits, refp, 0,
@@ -2074,12 +2079,14 @@ again:
 				} else if (r) {
 					dirlen += nfsvno_fillattr(nd, new_mp,
 					    nvp, nvap, &nfh, r, &rderrbits,
-					    nd->nd_cred, p, isdgram, 0, at_root,
+					    nd->nd_cred, p, isdgram, 0,
+					    supports_nfsv4acls, at_root,
 					    mounted_on_fileno);
 				} else {
 					dirlen += nfsvno_fillattr(nd, new_mp,
 					    nvp, nvap, &nfh, r, &attrbits,
-					    nd->nd_cred, p, isdgram, 0, at_root,
+					    nd->nd_cred, p, isdgram, 0,
+					    supports_nfsv4acls, at_root,
 					    mounted_on_fileno);
 				}
 				if (nvp != NULL)
