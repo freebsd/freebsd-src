@@ -65,17 +65,22 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/vnet.h>
 
+#if defined(INET) || defined(INET6)
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
-#include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+#endif
+#ifdef INET
+#include <netinet/in_var.h>
+#endif
 #ifdef INET6
 #include <netinet/ip6.h>
-#include <netinet6/ip6_var.h>
 #include <netinet6/in6_pcb.h>
+#include <netinet6/in6_var.h>
+#include <netinet6/ip6_var.h>
 #endif /* INET6 */
 
 
@@ -117,11 +122,12 @@ static VNET_DEFINE(int, ipport_tcplastcount);
 
 #define	V_ipport_tcplastcount		VNET(ipport_tcplastcount)
 
+static void	in_pcbremlists(struct inpcb *inp);
+
+#ifdef INET
 #define RANGECHK(var, min, max) \
 	if ((var) < (min)) { (var) = (min); } \
 	else if ((var) > (max)) { (var) = (max); }
-
-static void	in_pcbremlists(struct inpcb *inp);
 
 static int
 sysctl_net_ipport_check(SYSCTL_HANDLER_ARGS)
@@ -179,6 +185,7 @@ SYSCTL_VNET_INT(_net_inet_ip_portrange, OID_AUTO, randomtime, CTLFLAG_RW,
 	&VNET_NAME(ipport_randomtime), 0,
 	"Minimum time to keep sequental port "
 	"allocation before switching to a random one");
+#endif
 
 /*
  * in_pcb.c: manage the Protocol Control Blocks.
@@ -291,6 +298,7 @@ out:
 	return (error);
 }
 
+#ifdef INET
 int
 in_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 {
@@ -316,6 +324,7 @@ in_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 		inp->inp_flags |= INP_ANONPORT;
 	return (0);
 }
+#endif
 
 #if defined(INET) || defined(INET6)
 int
@@ -396,6 +405,7 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 		laddr = *laddrp;
 	}
 #endif
+	tmpinp = NULL;	/* Make compiler happy. */
 	lport = *lportp;
 
 	if (dorandom)
@@ -435,6 +445,7 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 }
 #endif /* INET || INET6 */
 
+#ifdef INET
 /*
  * Set up a bind operation on a PCB, performing port allocation
  * as required, but do not actually modify the PCB. Callers can
@@ -998,6 +1009,7 @@ in_pcbdisconnect(struct inpcb *inp)
 	inp->inp_fport = 0;
 	in_pcbrehash(inp);
 }
+#endif
 
 /*
  * in_pcbdetach() is responsibe for disassociating a socket from an inpcb.
@@ -1046,8 +1058,10 @@ in_pcbfree_internal(struct inpcb *inp)
 #endif
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
+#ifdef INET
 	if (inp->inp_moptions != NULL)
 		inp_freemoptions(inp->inp_moptions);
+#endif
 	inp->inp_vflag = 0;
 	crfree(inp->inp_cred);
 
@@ -1164,6 +1178,7 @@ in_pcbdrop(struct inpcb *inp)
 	}
 }
 
+#ifdef INET
 /*
  * Common routines to return the socket addresses associated with inpcbs.
  */
@@ -1527,6 +1542,7 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 
 	return (NULL);
 }
+#endif /* INET */
 
 /*
  * Insert PCB onto various hash lists.
