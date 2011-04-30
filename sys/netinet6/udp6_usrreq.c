@@ -849,6 +849,7 @@ udp6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 		if (IN6_IS_ADDR_UNSPECIFIED(&sin6_p->sin6_addr))
 			inp->inp_vflag |= INP_IPV4;
+#ifdef INET
 		else if (IN6_IS_ADDR_V4MAPPED(&sin6_p->sin6_addr)) {
 			struct sockaddr_in sin;
 
@@ -859,10 +860,13 @@ udp6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 			    td->td_ucred);
 			goto out;
 		}
+#endif
 	}
 
 	error = in6_pcbbind(inp, nam, td->td_ucred);
+#ifdef INET
 out:
+#endif
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&V_udbinfo);
 	return (error);
@@ -909,6 +913,7 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	INP_INFO_WLOCK(&V_udbinfo);
 	INP_WLOCK(inp);
+#ifdef INET
 	if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
 		struct sockaddr_in sin;
 
@@ -932,6 +937,7 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 			soisconnected(so);
 		goto out;
 	}
+#endif
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
 		error = EISCONN;
 		goto out;
