@@ -16,6 +16,24 @@
 
 struct pcpu;
 
+struct ia64_ap_state {
+	uint64_t	as_trace;
+	uint64_t	as_pgtbl_pte;
+	uint64_t	as_pgtbl_itir;
+	uint64_t	as_text_va;
+	uint64_t	as_text_pte;
+	uint64_t	as_text_itir;
+	uint64_t	as_data_va;
+	uint64_t	as_data_pte;
+	uint64_t	as_data_itir;
+	void		*as_kstack;
+	void		*as_kstack_top;
+	struct pcpu	*as_pcpu;
+	volatile int	as_delay;
+	volatile u_int	as_awake;
+	volatile u_int	as_spin;
+};
+
 extern int ia64_ipi_ast;
 extern int ia64_ipi_highfp;
 extern int ia64_ipi_nmi;

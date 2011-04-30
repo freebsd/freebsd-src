@@ -129,7 +129,7 @@ efi_boot_minimal(uint64_t systbl)
 	setvirt = (void *)IA64_PHYS_TO_RR7((u_long)efi_runtime->rt_setvirtual);
 	status = ia64_efi_physical(setvirt, bootinfo->bi_memmap_size,
 	    bootinfo->bi_memdesc_size, bootinfo->bi_memdesc_version,
-	    bootinfo->bi_memmap);
+	    ia64_tpa(bootinfo->bi_memmap));
 	return ((status < 0) ? EFAULT : 0);
 }
 
@@ -164,7 +164,7 @@ efi_md_first(void)
 
 	if (bootinfo->bi_memmap == 0)
 		return (NULL);
-	return ((struct efi_md *)IA64_PHYS_TO_RR7(bootinfo->bi_memmap));
+	return ((struct efi_md *)bootinfo->bi_memmap);
 }
 
 struct efi_md *
@@ -172,7 +172,7 @@ efi_md_next(struct efi_md *md)
 {
 	uint64_t plim;
 
-	plim = IA64_PHYS_TO_RR7(bootinfo->bi_memmap + bootinfo->bi_memmap_size);
+	plim = bootinfo->bi_memmap + bootinfo->bi_memmap_size;
 	md = (struct efi_md *)((uintptr_t)md + bootinfo->bi_memdesc_size);
 	return ((md >= (struct efi_md *)plim) ? NULL : md);
 }
