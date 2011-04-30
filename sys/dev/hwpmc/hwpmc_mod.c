@@ -4782,7 +4782,7 @@ pmc_cleanup(void)
 	PMCDBG(MOD,INI,0, "%s", "cleanup");
 
 	/* switch off sampling */
-	atomic_store_int(&pmc_cpumask, 0);
+	pmc_cpumask = 0;
 	pmc_intr = NULL;
 
 	sx_xlock(&pmc_sx);
