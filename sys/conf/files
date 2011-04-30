@@ -2516,7 +2516,7 @@ net/bpf_jitter.c		optional bpf_jitter
 net/bpf_filter.c		optional bpf | netgraph_bpf
 net/bpf_zerocopy.c		optional bpf
 net/bridgestp.c			optional bridge | if_bridge
-net/flowtable.c			optional flowtable inet
+net/flowtable.c			optional flowtable inet | flowtable inet6
 net/ieee8023ad_lacp.c		optional lagg
 net/if.c			standard
 net/if_arcsubr.c		optional arcnet
@@ -2736,10 +2736,10 @@ netinet/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
 netinet/ip_icmp.c		optional inet | inet6
 netinet/ip_input.c		optional inet
 netinet/ip_ipsec.c		optional inet ipsec
-netinet/ip_mroute.c		optional mrouting inet | mrouting inet6
+netinet/ip_mroute.c		optional mrouting inet
 netinet/ip_options.c		optional inet
 netinet/ip_output.c		optional inet
-netinet/raw_ip.c		optional inet
+netinet/raw_ip.c		optional inet | inet6
 netinet/cc/cc.c			optional inet | inet6
 netinet/cc/cc_newreno.c		optional inet | inet6
 netinet/sctp_asconf.c		optional inet sctp
@@ -3207,7 +3207,7 @@ security/mac/mac_atalk.c	optional mac netatalk
 security/mac/mac_audit.c	optional mac audit
 security/mac/mac_cred.c		optional mac
 security/mac/mac_framework.c	optional mac
-security/mac/mac_inet.c		optional mac inet
+security/mac/mac_inet.c		optional mac inet | inet6
 security/mac/mac_inet6.c	optional mac inet6
 security/mac/mac_label.c	optional mac
 security/mac/mac_net.c		optional mac
