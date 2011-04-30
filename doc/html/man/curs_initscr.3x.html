@@ -1,0 +1,167 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_initscr.3x,v 1.17 2010/12/04 18:36:58 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_initscr 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_initscr 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>                                       <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>initscr</STRONG>, <STRONG>newterm</STRONG>, <STRONG>endwin</STRONG>, <STRONG>isendwin</STRONG>, <STRONG>set_term</STRONG>, <STRONG>delscreen</STRONG> -
+       <STRONG>curses</STRONG> screen initialization and manipulation routines
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>WINDOW</STRONG> <STRONG>*initscr(void);</STRONG>
+       <STRONG>int</STRONG> <STRONG>endwin(void);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>isendwin(void);</STRONG>
+       <STRONG>SCREEN</STRONG> <STRONG>*newterm(char</STRONG> <STRONG>*type,</STRONG> <STRONG>FILE</STRONG> <STRONG>*outfd,</STRONG> <STRONG>FILE</STRONG> <STRONG>*infd);</STRONG>
+       <STRONG>SCREEN</STRONG> <STRONG>*set_term(SCREEN</STRONG> <STRONG>*new);</STRONG>
+       <STRONG>void</STRONG> <STRONG>delscreen(SCREEN*</STRONG> <STRONG>sp);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       <STRONG>initscr</STRONG> is normally the first <STRONG>curses</STRONG> routine to call  when
+       initializing  a program.  A few special routines sometimes
+       need to be called before it; these are  <STRONG>slk_init</STRONG>,  <STRONG>filter</STRONG>,
+       <STRONG>ripoffline</STRONG>,  <STRONG>use_env</STRONG>.  For multiple-terminal applications,
+       <STRONG>newterm</STRONG> may be called before <STRONG>initscr</STRONG>.
+
+       The initscr code determines the terminal type and initial-
+       izes  all <STRONG>curses</STRONG> data structures.  <STRONG>initscr</STRONG> also causes the
+       first call to <STRONG>refresh</STRONG> to clear the screen.  If errors  oc-
+       cur,  <STRONG>initscr</STRONG> writes an appropriate error message to stan-
+       dard error and exits; otherwise, a pointer is returned  to
+       <STRONG>stdscr</STRONG>.
+
+       A  program  that  outputs to more than one terminal should
+       use the <STRONG>newterm</STRONG>  routine  for  each  terminal  instead  of
+       <STRONG>initscr</STRONG>.  A program that needs to inspect capabilities, so
+       it can continue to run in a line-oriented mode if the ter-
+       minal cannot support a screen-oriented program, would also
+       use <STRONG>newterm</STRONG>.  The routine <STRONG>newterm</STRONG> should  be  called  once
+       for each terminal.  It returns a variable of type <STRONG>SCREEN</STRONG> <STRONG>*</STRONG>
+       which should be saved as a  reference  to  that  terminal.
+       The  arguments  are the <EM>type</EM> of the terminal to be used in
+       place of <STRONG>$TERM</STRONG>, a file pointer for output to the terminal,
+       and  another  file pointer for input from the terminal (if
+       <EM>type</EM> is <STRONG>NULL</STRONG>, <STRONG>$TERM</STRONG> will be used).  The program must  also
+       call  <STRONG>endwin</STRONG>  for  each terminal being used before exiting
+       from <STRONG>curses</STRONG>.  If <STRONG>newterm</STRONG> is called more than once for  the
+       same  terminal, the first terminal referred to must be the
+       last one for which <STRONG>endwin</STRONG> is called.
+
+       A program should always call <STRONG>endwin</STRONG> before exiting or  es-
+       caping  from  <STRONG>curses</STRONG>  mode  temporarily.  This routine re-
+       stores tty modes, moves the cursor to the lower  left-hand
+       corner  of  the  screen  and  resets the terminal into the
+       proper non-visual mode.  Calling <STRONG>refresh</STRONG> or <STRONG>doupdate</STRONG> after
+       a  temporary  escape  causes  the program to resume visual
+       mode.
+
+       The <STRONG>isendwin</STRONG> routine  returns  <STRONG>TRUE</STRONG>  if  <STRONG>endwin</STRONG>  has  been
+       called without any subsequent calls to <STRONG>wrefresh</STRONG>, and <STRONG>FALSE</STRONG>
+       otherwise.
+
+       The <STRONG>set_term</STRONG> routine is used to switch  between  different
+       terminals.   The screen reference <STRONG>new</STRONG> becomes the new cur-
+       rent terminal.  The previous terminal is returned  by  the
+       routine.   This  is  the  only  routine  which manipulates
+       <STRONG>SCREEN</STRONG> pointers; all other routines affect only  the  cur-
+       rent terminal.
+
+       The  <STRONG>delscreen</STRONG>  routine  frees storage associated with the
+       <STRONG>SCREEN</STRONG> data structure.  The <STRONG>endwin</STRONG>  routine  does  not  do
+       this, so <STRONG>delscreen</STRONG> should be called after <STRONG>endwin</STRONG> if a par-
+       ticular <STRONG>SCREEN</STRONG> is no longer needed.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       <STRONG>endwin</STRONG> returns the integer <STRONG>ERR</STRONG> upon failure  and  <STRONG>OK</STRONG>  upon
+       successful completion.
+
+       Routines that return pointers always return <STRONG>NULL</STRONG> on error.
+
+       X/Open  defines  no error conditions.  In this implementa-
+       tion <STRONG>endwin</STRONG> returns an error if the terminal was not  ini-
+       tialized.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       Note that <STRONG>initscr</STRONG> and <STRONG>newterm</STRONG> may be macros.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       These  functions are described in the XSI Curses standard,
+       Issue 4.  It specifies that portable applications must not
+       call <STRONG>initscr</STRONG> more than once.
+
+       Old versions of curses, e.g., BSD 4.4, may have returned a
+       null pointer from  <STRONG>initscr</STRONG>  when  an  error  is  detected,
+       rather  than  exiting.   It is safe but redundant to check
+       the return value of <STRONG>initscr</STRONG> in XSI Curses.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,       <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>,       <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>,
+       <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>, <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>.
+
+
+
+                                                       <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

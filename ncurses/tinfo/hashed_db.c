@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2006 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2006,2008 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey                        2006                    *
+ *  Author: Thomas E. Dickey                        2006-on                 *
  ****************************************************************************/
 
 #include <curses.priv.h>
@@ -36,7 +36,7 @@
 
 #if USE_HASHED_DB
 
-MODULE_ID("$Id: hashed_db.c,v 1.13 2006/08/19 19:48:38 tom Exp $")
+MODULE_ID("$Id: hashed_db.c,v 1.14 2008/12/13 20:59:02 tom Exp $")
 
 #if HASHED_DB_API >= 2
 static DBC *cursor;
@@ -49,27 +49,30 @@ NCURSES_EXPORT(DB *)
 _nc_db_open(const char *path, bool modify)
 {
     DB *result = 0;
+    int code;
 
 #if HASHED_DB_API >= 4
     db_create(&result, NULL, 0);
-    result->open(result,
-		 NULL,
-		 path,
-		 NULL,
-		 DB_HASH,
-		 modify ? DB_CREATE : DB_RDONLY,
-		 0644);
+    if ((code = result->open(result,
+			     NULL,
+			     path,
+			     NULL,
+			     DB_HASH,
+			     modify ? DB_CREATE : DB_RDONLY,
+			     0644)) != 0) {
+	result = 0;
+    }
 #elif HASHED_DB_API >= 3
     db_create(&result, NULL, 0);
-    result->open(result,
-		 path,
-		 NULL,
-		 DB_HASH,
-		 modify ? DB_CREATE : DB_RDONLY,
-		 0644);
+    if ((code = result->open(result,
+			     path,
+			     NULL,
+			     DB_HASH,
+			     modify ? DB_CREATE : DB_RDONLY,
+			     0644)) != 0) {
+	result = 0;
+    }
 #elif HASHED_DB_API >= 2
-    int code;
-
     if ((code = db_open(path,
 			DB_HASH,
 			modify ? DB_CREATE : DB_RDONLY,
@@ -77,21 +80,22 @@ _nc_db_open(const char *path, bool modify)
 			(DB_ENV *) 0,
 			(DB_INFO *) 0,
 			&result)) != 0) {
-	T(("cannot open %s: %s", path, strerror(code)));
 	result = 0;
-    } else {
-	T(("opened %s", path));
     }
 #else
-    result = dbopen(path,
-		    modify ? (O_CREAT | O_RDWR) : O_RDONLY,
-		    0644,
-		    DB_HASH,
-		    NULL);
-    if (result != 0) {
-	T(("opened %s", path));
+    if ((result = dbopen(path,
+			 modify ? (O_CREAT | O_RDWR) : O_RDONLY,
+			 0644,
+			 DB_HASH,
+			 NULL)) == 0) {
+	code = errno;
     }
 #endif
+    if (result != 0) {
+	T(("opened %s", path));
+    } else {
+	T(("cannot open %s: %s", path, strerror(code)));
+    }
     return result;
 }
 

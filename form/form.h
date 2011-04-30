@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,7 +30,7 @@
  *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
 
-/* $Id: form.h,v 0.20 2004/12/04 22:22:10 tom Exp $ */
+/* $Id: form.h,v 0.21 2009/11/07 19:31:11 tom Exp $ */
 
 #ifndef FORM_H
 #define FORM_H
@@ -105,34 +105,13 @@ typedef struct fieldnode {
   NCURSES_FIELD_INTERNALS
 } FIELD;
 
-	/**************
-	*  FIELDTYPE  *
-	**************/
-
-typedef struct typenode {
-  unsigned short	status;			/* flags		*/
-  long			ref;			/* reference count	*/
-  struct typenode *	left;			/* ptr to operand for | */
-  struct typenode *	right;			/* ptr to operand for | */
-
-  void* (*makearg)(va_list *);			/* make fieldtype arg	*/
-  void* (*copyarg)(const void *);		/* copy fieldtype arg	*/
-  void	(*freearg)(void *);			/* free fieldtype arg	*/
-
-  bool	(*fcheck)(FIELD *,const void *);	/* field validation	*/
-  bool	(*ccheck)(int,const void *);		/* character validation */
-
-  bool	(*next)(FIELD *,const void *);		/* enumerate next value */
-  bool	(*prev)(FIELD *,const void *);		/* enumerate prev value */
-
-} FIELDTYPE;
 
 	/*********
 	*  FORM  *
 	*********/
 
 typedef struct formnode {
-  unsigned short	status;		/* flags			*/
+  unsigned short	status;	  	/* flags			*/
   short			rows;		/* size in rows			*/
   short			cols;		/* size in cols			*/
   int			currow;		/* current row in field window	*/
@@ -157,6 +136,49 @@ typedef struct formnode {
   void			(*fieldterm)(struct formnode *);
 
 } FORM;
+
+
+	/**************
+	*  FIELDTYPE  *
+	**************/
+
+typedef struct typenode {
+  unsigned short	status;			/* flags		    */
+  long			ref;			/* reference count	    */
+  struct typenode *	left;			/* ptr to operand for |     */
+  struct typenode *	right;			/* ptr to operand for |     */
+
+  void* (*makearg)(va_list *);			/* make fieldtype arg	    */
+  void* (*copyarg)(const void *);		/* copy fieldtype arg 	    */
+  void	(*freearg)(void *);			/* free fieldtype arg	    */
+
+#if NCURSES_INTEROP_FUNCS
+  union {
+    bool (*ofcheck)(FIELD *,const void *);	/* field validation	    */
+    bool (*gfcheck)(FORM*,FIELD *,const void*);	/* generic field validation */
+  } fieldcheck;
+  union {
+    bool (*occheck)(int,const void *);		/* character validation     */
+    bool (*gccheck)(int,FORM*,
+		    FIELD*,const void*);        /* generic char validation  */
+  } charcheck;
+  union {
+    bool (*onext)(FIELD *,const void *);        /* enumerate next value     */
+    bool (*gnext)(FORM*,FIELD*,const void*);    /* generic enumerate next   */
+  } enum_next;
+  union {
+    bool (*oprev)(FIELD *,const void *);	/* enumerate prev value     */
+    bool (*gprev)(FORM*,FIELD*,const void*);    /* generic enumerate prev   */
+  } enum_prev;
+  void* (*genericarg)(void*);                   /* Alternate Arg method     */
+#else
+  bool	(*fcheck)(FIELD *,const void *);	/* field validation	*/
+  bool	(*ccheck)(int,const void *);		/* character validation */
+
+  bool	(*next)(FIELD *,const void *);		/* enumerate next value */
+  bool	(*prev)(FIELD *,const void *);		/* enumerate prev value */
+#endif
+} FIELDTYPE;
 
 typedef void (*Form_Hook)(FORM *);
 
@@ -279,13 +301,6 @@ extern NCURSES_EXPORT_VAR(FIELDTYPE *) TYPE_REGEXP;
 extern NCURSES_EXPORT_VAR(FIELDTYPE *) TYPE_IPV4;      /* Internet IP Version 4 address */
 
 	/***********************
-	*   Default objects    *
-	***********************/
-extern NCURSES_EXPORT_VAR(FORM *)	_nc_Default_Form;
-extern NCURSES_EXPORT_VAR(FIELD *)	_nc_Default_Field;
-
-
-	/***********************
 	*  FIELDTYPE routines  *
 	***********************/
 extern NCURSES_EXPORT(FIELDTYPE *) new_fieldtype (
@@ -395,6 +410,10 @@ extern NCURSES_EXPORT(Form_Options)	form_opts (const FORM *);
 
 extern NCURSES_EXPORT(bool)	data_ahead (const FORM *);
 extern NCURSES_EXPORT(bool)	data_behind (const FORM *);
+
+#if NCURSES_SP_FUNCS
+extern NCURSES_EXPORT(FORM *)	NCURSES_SP_NAME(new_form) (SCREEN*, FIELD **);
+#endif
 
 #ifdef __cplusplus
   }

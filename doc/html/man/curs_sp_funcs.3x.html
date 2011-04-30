@@ -1,0 +1,285 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 2010 Free Software Foundation, Inc.                        *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_sp_funcs.3x,v 1.5 2010/12/04 18:38:55 tom Exp @
+  * ***************************************************************************
+  * ***************************************************************************
+  * ***************************************************************************
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_sp_funcs 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_sp_funcs 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_sp_funcs.3x.html">curs_sp_funcs(3x)</A></STRONG>                                     <STRONG><A HREF="curs_sp_funcs.3x.html">curs_sp_funcs(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       new_prescr - <STRONG>curses</STRONG> screen-pointer extension
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>assume_default_colors_sp(SCREEN*,</STRONG> <STRONG>int,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>baudrate_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>beep_sp(SCREEN*);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>can_change_color_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>cbreak_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>color_content_sp(SCREEN*,</STRONG> <STRONG>short,</STRONG> <STRONG>short*,</STRONG> <STRONG>short*,</STRONG> <STRONG>short*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>curs_set_sp(SCREEN*,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>define_key_sp(SCREEN*,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>def_prog_mode_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>def_shell_mode_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>delay_output_sp(SCREEN*,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>doupdate_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>echo_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>endwin_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>erasechar_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>filter_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>flash_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>flushinp_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>get_escdelay_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>getmouse_sp(SCREEN*,</STRONG> <STRONG>MEVENT*);</STRONG>
+       <STRONG>WINDOW*</STRONG> <STRONG>getwin_sp(SCREEN*,</STRONG> <STRONG>FILE*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>halfdelay_sp(SCREEN*);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>has_colors_sp(SCREEN*);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>has_ic_sp(SCREEN*);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>has_il_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>has_key_sp(SCREEN*,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>has_mouse_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>init_color_sp(SCREEN*,</STRONG> <STRONG>short,</STRONG> <STRONG>short,</STRONG> <STRONG>short,</STRONG> <STRONG>short);</STRONG>
+       <STRONG>int</STRONG> <STRONG>init_pair_sp(SCREEN*,</STRONG> <STRONG>short,</STRONG> <STRONG>short,</STRONG> <STRONG>short);</STRONG>
+       <STRONG>int</STRONG> <STRONG>intrflush_sp(SCREEN*,</STRONG> <STRONG>WINDOW*,</STRONG> <STRONG>bool);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>isendwin_sp(SCREEN*);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_term_resized_sp(SCREEN*,</STRONG> <STRONG>int,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>char*</STRONG> <STRONG>keybound_sp(SCREEN*,</STRONG> <STRONG>int,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>key_defined_sp(SCREEN*,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*);</STRONG>
+       <STRONG>NCURSES_CONST</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <STRONG>keyname_sp(SCREEN*,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>keyok_sp(SCREEN*,</STRONG> <STRONG>int,</STRONG> <STRONG>bool);</STRONG>
+       <STRONG>char</STRONG> <STRONG>killchar_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mcprint_sp(SCREEN*,</STRONG> <STRONG>char</STRONG> <STRONG>*,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mouseinterval_sp(SCREEN*,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>mmask_t</STRONG> <STRONG>mousemask_sp(SCREEN*,</STRONG> <STRONG>mmask_t,</STRONG> <STRONG>mmask_t</STRONG> <STRONG>*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvcur_sp(SCREEN*,</STRONG> <STRONG>int,</STRONG> <STRONG>int,</STRONG> <STRONG>int,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>napms_sp(SCREEN*,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>WINDOW*</STRONG> <STRONG>newpad_sp(SCREEN*,</STRONG> <STRONG>int,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>SCREEN*</STRONG> <STRONG>new_prescr(void);</STRONG>
+       <STRONG>SCREEN*</STRONG> <STRONG>newterm_sp(SCREEN*,</STRONG> <STRONG>NCURSES_CONST</STRONG> <STRONG>char</STRONG> <STRONG>*,</STRONG> <STRONG>FILE</STRONG> <STRONG>*,</STRONG> <STRONG>FILE</STRONG> <STRONG>*);</STRONG>
+       <STRONG>WINDOW*</STRONG> <STRONG>newwin_sp(SCREEN*,</STRONG> <STRONG>int,</STRONG> <STRONG>int,</STRONG> <STRONG>int,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>nl_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>nocbreak_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>noecho_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>nofilter_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>nonl_sp(SCREEN*);</STRONG>
+       <STRONG>void</STRONG> <STRONG>noqiflush_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>noraw_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>pair_content_sp(SCREEN*,</STRONG> <STRONG>short,</STRONG> <STRONG>short*,</STRONG> <STRONG>short*);</STRONG>
+       <STRONG>void</STRONG> <STRONG>qiflush_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>raw_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>reset_prog_mode_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>reset_shell_mode_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>resetty_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>resize_term_sp(SCREEN*,</STRONG> <STRONG>int,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>resizeterm_sp(SCREEN*,</STRONG> <STRONG>int,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>restartterm_sp(SCREEN*,</STRONG> <STRONG>NCURSES_CONST</STRONG> <STRONG>char*,</STRONG> <STRONG>int,</STRONG> <STRONG>int</STRONG> <STRONG>*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>ripoffline_sp(SCREEN*,</STRONG> <STRONG>int,</STRONG> <STRONG>int</STRONG> <STRONG>(*)(WINDOW*,</STRONG> <STRONG>int));</STRONG>
+       <STRONG>int</STRONG> <STRONG>savetty_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>scr_init_sp(SCREEN*,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>scr_restore_sp(SCREEN*,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>scr_set_sp(SCREEN*,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*);</STRONG>
+       <STRONG>TERMINAL*</STRONG> <STRONG>set_curterm_sp(SCREEN*,</STRONG> <STRONG>TERMINAL*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>set_escdelay_sp(SCREEN*,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>set_tabsize_sp(SCREEN*,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>slk_attroff_sp(SCREEN*,</STRONG> <STRONG>const</STRONG> <STRONG>chtype);</STRONG>
+       <STRONG>int</STRONG> <STRONG>slk_attron_sp(SCREEN*,</STRONG> <STRONG>const</STRONG> <STRONG>chtype);</STRONG>
+       <STRONG>int</STRONG> <STRONG>slk_attr_set_sp(SCREEN*,</STRONG> <STRONG>const</STRONG> <STRONG>attr_t,</STRONG> <STRONG>short,</STRONG> <STRONG>void*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>slk_attrset_sp(SCREEN*,</STRONG> <STRONG>const</STRONG> <STRONG>chtype);</STRONG>
+       <STRONG>int</STRONG> <STRONG>slk_attr_sp((SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>slk_clear_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>slk_color_sp(SCREEN*,</STRONG> <STRONG>short);</STRONG>
+       <STRONG>int</STRONG> <STRONG>slk_init_sp(SCREEN*,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>slk_label_sp(SCREEN*,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>slk_noutrefresh_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>slk_refresh_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>slk_restore_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>slk_set_sp(SCREEN*,</STRONG> <STRONG>int,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>slk_touch_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>start_color_sp(SCREEN*);</STRONG>
+       <STRONG>attr_t</STRONG> <STRONG>term_attrs_sp(SCREEN*);</STRONG>
+       <STRONG>chtype</STRONG> <STRONG>termattrs_sp(SCREEN*);</STRONG>
+       <STRONG>char*</STRONG> <STRONG>termname_sp(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>typeahead_sp(SCREEN*,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>NCURSES_CONST</STRONG> <STRONG>char*</STRONG> <STRONG>unctrl_sp(SCREEN*,</STRONG> <STRONG>chtype);</STRONG>
+       <STRONG>int</STRONG> <STRONG>ungetch_sp(SCREEN*,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>ungetmouse_sp(SCREEN*,MEVENT</STRONG> <STRONG>*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>unget_wch_sp(SCREEN*,</STRONG> <STRONG>const</STRONG> <STRONG>wchar_t);</STRONG>
+       <STRONG>int</STRONG> <STRONG>use_default_colors_sp(SCREEN*);</STRONG>
+       <STRONG>void</STRONG> <STRONG>use_env_sp(SCREEN*,</STRONG> <STRONG>bool);</STRONG>
+       <STRONG>int</STRONG> <STRONG>use_legacy_coding_sp(SCREEN*,</STRONG> <STRONG>int);</STRONG>
+       <STRONG>int</STRONG> <STRONG>vid_attr_sp(SCREEN*,</STRONG> <STRONG>attr_t,</STRONG> <STRONG>short,</STRONG> <STRONG>void</STRONG> <STRONG>*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>vidattr_sp(SCREEN*,</STRONG> <STRONG>chtype);</STRONG>
+       <STRONG>int</STRONG> <STRONG>vid_puts_sp(SCREEN*,</STRONG> <STRONG>attr_t,</STRONG> <STRONG>short,</STRONG> <STRONG>void</STRONG> <STRONG>*,</STRONG> <STRONG>NCURSES_SP_OUTC);</STRONG>
+       <STRONG>int</STRONG> <STRONG>vidputs_sp(SCREEN*,</STRONG> <STRONG>chtype,</STRONG> <STRONG>NCURSES_SP_OUTC);</STRONG>
+       <STRONG>wchar_t*</STRONG> <STRONG>wunctrl_sp(SCREEN*,</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*);</STRONG>
+
+       <STRONG>#include</STRONG> <STRONG>&lt;form.h&gt;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>new_form_sp(SCREEN*,</STRONG> <STRONG>FIELD</STRONG> <STRONG>**);</STRONG>
+
+       <STRONG>#include</STRONG> <STRONG>&lt;menu.h&gt;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>new_menu_sp(SCREEN*,</STRONG> <STRONG>ITEM</STRONG> <STRONG>**);</STRONG>
+
+       <STRONG>#include</STRONG> <STRONG>&lt;panel.h&gt;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>ceiling_panel(SCREEN*);</STRONG>
+       <STRONG>PANEL*</STRONG> <STRONG>ground_panel(SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>update_panels_sp(SCREEN*);</STRONG>
+
+       <STRONG>#include</STRONG> <STRONG>&lt;term.h&gt;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>del_curterm_sp(SCREEN*,</STRONG> <STRONG>TERMINAL</STRONG> <STRONG>*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>putp_sp(SCREEN*,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>tgetflag_sp(SCREEN*,</STRONG> <STRONG>char</STRONG> <STRONG>*,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>tgetent_sp(SCREEN*,</STRONG> <STRONG>char</STRONG> <STRONG>*,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>tgetnum_sp(SCREEN*,</STRONG> <STRONG>NCURSES_CONST</STRONG> <STRONG>char</STRONG> <STRONG>*);</STRONG>
+       <STRONG>char*</STRONG> <STRONG>tgetstr_sp(SCREEN*,</STRONG> <STRONG>NCURSES_CONST</STRONG> <STRONG>char</STRONG> <STRONG>*,</STRONG> <STRONG>char</STRONG> <STRONG>**);</STRONG>
+       <STRONG>int</STRONG> <STRONG>tigetflag_sp(SCREEN*,</STRONG> <STRONG>NCURSES_CONST</STRONG> <STRONG>char</STRONG> <STRONG>*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>tigetnum_sp(SCREEN*,</STRONG> <STRONG>NCURSES_CONST</STRONG> <STRONG>char</STRONG> <STRONG>*);</STRONG>
+       <STRONG>char*</STRONG> <STRONG>tigetstr_sp(SCREEN*,</STRONG> <STRONG>NCURSES_CONST</STRONG> <STRONG>char</STRONG> <STRONG>*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>tputs_sp(SCREEN*,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*,</STRONG> <STRONG>int,</STRONG> <STRONG>NCURSES_SP_OUTC);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       This  implementation can be configured to provide a set of
+       functions which improve the  ability  to  manage  multiple
+       screens.  This feature can be added to any of the configu-
+       rations supported by  ncurses;  it  adds  new  entrypoints
+       without  changing the meaning of any of the existing ones.
+
+
+   <STRONG>IMPROVED</STRONG> <STRONG>FUNCTIONS</STRONG>
+       Most of the functions are new versions of  existing  func-
+       tions.  A parameter is added at the front of the parameter
+       list.  It is a SCREEN pointer.
+
+       The existing functions all use the current  screen,  which
+       is  a  static  variable.   The  extended functions use the
+       specified screen, thereby reducing the number of variables
+       which must be modified to update multiple screens.
+
+   <STRONG>NEW</STRONG> <STRONG>FUNCTIONS</STRONG>
+       Here are the new functions:
+
+       ceiling_panel
+            this  returns  a  pointer to the topmost panel in the
+            given screen.
+
+       ground_panel
+            this returns a pointer to the  lowest  panel  in  the
+            given screen.
+
+       new_prescr
+            when  creating  a new screen, the library uses static
+            variables  which   have   been   preset,   e.g.,   by
+            <STRONG><A HREF="use_env.3x.html">use_env(3x)</A></STRONG>, <STRONG><A HREF="filter.3x.html">filter(3x)</A></STRONG>, etc.  With the screen-point-
+            er extension, there are situations where it must cre-
+            ate  a  current  screen before the unextended library
+            does.  The <STRONG>new_prescr</STRONG> function is used internally  to
+            handle these cases.  It is also provided as an entry-
+            point to allow applications to customize the  library
+            initialization.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       This extension introduces some new names:
+
+       NCURSES_SP_FUNCS
+            This  is  set  to the library patch-level number.  In
+            the unextended library, this is zero (0), to make  it
+            useful for checking if the extension is provided.
+
+       NCURSES_SP_NAME
+            The  new  functions  are named using the macro <EM>NCURS-</EM>
+            <EM>ES</EM><STRONG>_</STRONG><EM>SP</EM><STRONG>_</STRONG><EM>NAME</EM>, which hides  the  actual  implementation.
+            Currently this adds a "_sp" suffix to the name of the
+            unextended function.  This manual  page  indexes  the
+            extensions showing the full name.  However the proper
+            usage of these functions uses the macro,  to  provide
+            for the possibility of changing the naming convention
+            for specific library configurations.
+
+       NCURSES_SP_OUTC
+            This is a new function-pointer type  to  use  in  the
+            screen-pointer  functions  where  an  <EM>NCURSES</EM><STRONG>_</STRONG><EM>OUTC</EM> is
+            used in the unextended library.
+
+       NCURSES_OUTC
+            This is a function-pointer type used  for  the  cases
+            where  a  function  passes  characters  to the output
+            stream, e.g., <STRONG><A HREF="vidputs.3x.html">vidputs(3x)</A></STRONG>.
+
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       These routines are specific to  ncurses.   They  were  not
+       supported  on  Version 7, BSD or System V implementations.
+       It is recommended that any code depending on  ncurses  ex-
+       tensions be conditioned using <EM>NCURSES</EM><STRONG>_</STRONG><EM>SP</EM><STRONG>_</STRONG><EM>FUNCS</EM>.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>, <STRONG><A HREF="curs_threads.3x.html">curs_threads(3x)</A></STRONG>.
+
+
+
+                                                      <STRONG><A HREF="curs_sp_funcs.3x.html">curs_sp_funcs(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

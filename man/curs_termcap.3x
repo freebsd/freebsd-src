@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,16 +26,24 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_termcap.3x,v 1.22 2007/06/02 20:40:07 tom Exp $
+.\" $Id: curs_termcap.3x,v 1.26 2010/12/04 18:38:55 tom Exp $
 .TH curs_termcap 3X ""
+.na
+.hy 0
 .ds n 5
 .SH NAME
+\fBPC\fR,
+\fBUP\fR,
+\fBBC\fR,
+\fBospeed\fR,
 \fBtgetent\fR,
 \fBtgetflag\fR,
 \fBtgetnum\fR,
 \fBtgetstr\fR,
 \fBtgoto\fR,
-\fBtputs\fR - direct \fBcurses\fR interface to the terminfo capability database
+\fBtputs\fR \- direct \fBcurses\fR interface to the terminfo capability database
+.ad
+.hy
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .br
@@ -69,7 +77,7 @@ can only be used to query the capabilities of entries for which a
 terminfo entry has been compiled.
 .PP
 The \fBtgetent\fR routine loads the entry for \fIname\fR.
-It returns 1 on success, 0 if there is no such entry, and -1 if the
+It returns 1 on success, 0 if there is no such entry, and \-1 if the
 terminfo database could not be found.
 The emulation ignores the buffer pointer \fIbp\fR.
 .PP
@@ -77,7 +85,7 @@ The \fBtgetflag\fR routine gets the boolean entry for \fIid\fR,
 or zero if it is not available.
 .PP
 The \fBtgetnum\fR routine gets the numeric entry for \fIid\fR,
-or -1 if it is not available.
+or \-1 if it is not available.
 .PP
 The \fBtgetstr\fR routine returns the string entry for \fIid\fR,
 or zero if it is not available.
@@ -158,10 +166,7 @@ e.g., not distinguishing between input and output.
 In particular, some applications are reported to declare and/or
 modify \fBospeed\fR.
 .SH SEE ALSO
-\fBcurses\fR(3X), \fBterminfo\fR(\*n), \fBputc\fR(3).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:
+\fBcurses\fR(3X),
+\fBterminfo\fR(\*n),
+\fBterm_variables\fR(3X),
+\fBputc\fR(3).

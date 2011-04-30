@@ -1,0 +1,220 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  * t
+  ****************************************************************************
+  * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_addch.3x,v 1.32 2011/01/15 14:15:10 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_addch 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_addch 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>                                           <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>addch</STRONG>,  <STRONG>waddch</STRONG>,  <STRONG>mvaddch</STRONG>,  <STRONG>mvwaddch</STRONG>, <STRONG>echochar</STRONG>, <STRONG>wechochar</STRONG> -
+       add a character (with attributes) to a <STRONG>curses</STRONG> window, then
+       advance the cursor
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>addch(const</STRONG> <STRONG>chtype</STRONG> <STRONG>ch);</STRONG>
+       <STRONG>int</STRONG> <STRONG>waddch(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>const</STRONG> <STRONG>chtype</STRONG> <STRONG>ch);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvaddch(int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>const</STRONG> <STRONG>chtype</STRONG> <STRONG>ch);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwaddch(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>const</STRONG> <STRONG>chtype</STRONG> <STRONG>ch);</STRONG>
+       <STRONG>int</STRONG> <STRONG>echochar(const</STRONG> <STRONG>chtype</STRONG> <STRONG>ch);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wechochar(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>const</STRONG> <STRONG>chtype</STRONG> <STRONG>ch);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The  <STRONG>addch</STRONG>,  <STRONG>waddch</STRONG>, <STRONG>mvaddch</STRONG> and <STRONG>mvwaddch</STRONG> routines put the
+       character <EM>ch</EM> into the given window at its  current  window
+       position,  which  is then advanced.  They are analogous to
+       <STRONG>putchar</STRONG> in <STRONG><A HREF="stdio.3.html">stdio(3)</A></STRONG>.  If the advance is at the right  mar-
+       gin,  the  cursor  automatically wraps to the beginning of
+       the next line.  At the bottom  of  the  current  scrolling
+       region,  if  <STRONG>scrollok</STRONG>  is enabled, the scrolling region is
+       scrolled up one line.
+
+       If <EM>ch</EM> is a tab, newline, or backspace, the cursor is moved
+       appropriately within the window.  Backspace moves the cur-
+       sor one character left; at the left edge of  a  window  it
+       does  nothing.   Newline  does  a <STRONG>clrtoeol</STRONG>, then moves the
+       cursor to  the  window  left  margin  on  the  next  line,
+       scrolling  the  window if on the last line.  Tabs are con-
+       sidered to be at every eighth column.   The  tab  interval
+       may be altered by setting the <STRONG>TABSIZE</STRONG> variable.
+
+       If <EM>ch</EM> is any control character other than tab, newline, or
+       backspace, it is drawn  in  <STRONG>^</STRONG><EM>X</EM>  notation.   Calling  <STRONG>winch</STRONG>
+       after adding a control character does not return the char-
+       acter itself, but instead returns the ^-representation  of
+       the control character.
+
+       Video attributes can be combined with a character argument
+       passed to <STRONG>addch</STRONG> or related functions by logical-ORing them
+       into  the  character.   (Thus, text, including attributes,
+       can be copied from one place to  another  using  <STRONG>inch</STRONG>  and
+       <STRONG>addch</STRONG>.)   See  the <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG> page for values of prede-
+       fined video attribute constants that can be usefully OR'ed
+       into characters.
+
+       The  <STRONG>echochar</STRONG>  and  <STRONG>wechochar</STRONG> routines are equivalent to a
+       call to <STRONG>addch</STRONG> followed by a call to <STRONG>refresh</STRONG>, or a call  to
+       <STRONG>waddch</STRONG> followed by a call to <STRONG>wrefresh</STRONG>.  The knowledge that
+       only a single character is being output is used  and,  for
+       non-control  characters,  a  considerable performance gain
+       may be seen by  using  these  routines  instead  of  their
+       equivalents.
+
+   <STRONG>Line</STRONG> <STRONG>Graphics</STRONG>
+       The  following  variables  may be used to add line drawing
+       characters to the screen with routines of the  <STRONG>addch</STRONG>  fam-
+       ily.   The  default  character listed below is used if the
+       <STRONG>acsc</STRONG>  capability  does  not  define  a   terminal-specific
+       replacement  for  it.   The  names  are  taken  from VT100
+       nomenclature.
+
+
+       <EM>Name</EM>           <EM>Default</EM>   <EM>Description</EM>
+       --------------------------------------------------
+       ACS_BLOCK      #         solid square block
+       ACS_BOARD      #         board of squares
+       ACS_BTEE       +         bottom tee
+       ACS_BULLET     o         bullet
+       ACS_CKBOARD    :         checker board (stipple)
+       ACS_DARROW     v         arrow pointing down
+       ACS_DEGREE     '         degree symbol
+       ACS_DIAMOND    +         diamond
+       ACS_GEQUAL     &gt;         greater-than-or-equal-to
+       ACS_HLINE      -         horizontal line
+       ACS_LANTERN    #         lantern symbol
+       ACS_LARROW     &lt;         arrow pointing left
+       ACS_LEQUAL     &lt;         less-than-or-equal-to
+       ACS_LLCORNER   +         lower left-hand corner
+       ACS_LRCORNER   +         lower right-hand corner
+       ACS_LTEE       +         left tee
+       ACS_NEQUAL     !         not-equal
+       ACS_PI         *         greek pi
+       ACS_PLMINUS    #         plus/minus
+       ACS_PLUS       +         plus
+       ACS_RARROW     &gt;         arrow pointing right
+       ACS_RTEE       +         right tee
+       ACS_S1         -         scan line 1
+       ACS_S3         -         scan line 3
+       ACS_S7         -         scan line 7
+       ACS_S9         _         scan line 9
+       ACS_STERLING   f         pound-sterling symbol
+       ACS_TTEE       +         top tee
+       ACS_UARROW     ^         arrow pointing up
+       ACS_ULCORNER   +         upper left-hand corner
+       ACS_URCORNER   +         upper right-hand corner
+       ACS_VLINE      |         vertical line
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       All routines return the integer <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> on
+       success  (the  SVr4 manuals specify only "an integer value
+       other than <STRONG>ERR</STRONG>") upon successful completion, unless other-
+       wise noted in the preceding routine descriptions.
+
+       Functions  with a "mv" prefix first perform a cursor move-
+       ment using <STRONG>wmove</STRONG>, and return an error if the  position  is
+       outside the window, or if the window pointer is null.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       Note  that  <STRONG>addch</STRONG>,  <STRONG>mvaddch</STRONG>, <STRONG>mvwaddch</STRONG>, and <STRONG>echochar</STRONG> may be
+       macros.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       All these functions are described in the XSI Curses  stan-
+       dard,  Issue  4.  The defaults specified for forms-drawing
+       characters apply in the POSIX locale.
+
+       X/Open Curses states that the <EM>ACS</EM><STRONG>_</STRONG>  definitions  are  <STRONG>char</STRONG>
+       constants.   For  the  wide-character  implementation (see
+       <STRONG>curs_add_wch</STRONG>), there are analogous <EM>WACS</EM><STRONG>_</STRONG> definitions which
+       are <STRONG>cchar_t</STRONG> constants.
+
+       Some  ACS symbols (ACS_S3, ACS_S7, ACS_LEQUAL, ACS_GEQUAL,
+       ACS_PI, ACS_NEQUAL, ACS_STERLING) were not  documented  in
+       any  publicly  released  System V.  However, many publicly
+       available terminfos include <STRONG>acsc</STRONG> strings  in  which  their
+       key  characters  (pryz{|}) are embedded, and a second-hand
+       list of their character descriptions has  come  to  light.
+       The   ACS-prefixed   names  for  them  were  invented  for
+       <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>.
+
+       The <STRONG>TABSIZE</STRONG> variable is implemented in  some  versions  of
+       curses, but is not part of X/Open curses.
+
+       If  <EM>ch</EM>  is  a  carriage return, the cursor is moved to the
+       beginning of the current row of the window.  This is  true
+       of other implementations, but is not documented.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,  <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>, <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>, <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>,
+       <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,  <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>,   <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>,
+       <STRONG><A HREF="putc.3.html">putc(3)</A></STRONG>.
+
+       Comparable  functions  in  the  wide-character  (ncursesw)
+       library are described in <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>.
+
+
+
+                                                         <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

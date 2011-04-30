@@ -1,0 +1,153 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>terminal_interface-curses-panels.ads</TITLE></HEAD>
+<BODY>
+<HR><DIV ALIGN="center"><H1> File : terminal_interface-curses-panels.ads </H1></DIV><HR>
+<PRE>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                           <A HREF="http://www.gnat.com">GNAT</A> ncurses Binding                           --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                      Terminal_Interface.Curses.Panels                    --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                                 S P E C                                  --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>-- Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.              --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></FONT>
+<FONT COLOR=green><EM>-- copy of this software and associated documentation files (the            --</EM></FONT>
+<FONT COLOR=green><EM>-- "Software"), to deal in the Software without restriction, including      --</EM></FONT>
+<FONT COLOR=green><EM>-- without limitation the rights to use, copy, modify, merge, publish,      --</EM></FONT>
+<FONT COLOR=green><EM>-- distribute, distribute with modifications, sublicense, and/or sell       --</EM></FONT>
+<FONT COLOR=green><EM>-- copies of the Software, and to permit persons to whom the Software is    --</EM></FONT>
+<FONT COLOR=green><EM>-- furnished to do so, subject to the following conditions:                 --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- The above copyright notice and this permission notice shall be included  --</EM></FONT>
+<FONT COLOR=green><EM>-- in all copies or substantial portions of the Software.                   --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</EM></FONT>
+<FONT COLOR=green><EM>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</EM></FONT>
+<FONT COLOR=green><EM>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</EM></FONT>
+<FONT COLOR=green><EM>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</EM></FONT>
+<FONT COLOR=green><EM>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Except as contained in this notice, the name(s) of the above copyright   --</EM></FONT>
+<FONT COLOR=green><EM>-- holders shall not be used in advertising or otherwise to promote the     --</EM></FONT>
+<FONT COLOR=green><EM>-- sale, use or other dealings in this Software without prior written       --</EM></FONT>
+<FONT COLOR=green><EM>-- authorization.                                                           --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
+<FONT COLOR=green><EM>--  Version Control:</EM></FONT>
+<FONT COLOR=green><EM>--  @Revision: 1.20 @</EM></FONT>
+<FONT COLOR=green><EM>--  @Date: 2009/12/26 17:38:58 @</EM></FONT>
+<FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<b>with</b> System;
+
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<FONT COLOR=red><A NAME="ref_44_35" HREF="terminal_interface-curses-panels__adb.htm#ref_45_40">Panels</A></FONT> <b>is</b>
+   <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-panels__ads.htm#ref_44_35">Panels</A>);
+   <b>pragma</b> Linker_Options ("-lpanel");
+   <b>pragma</b> Linker_Options ("-lncurses");
+
+   <b>type</b> <FONT COLOR=red><A NAME="ref_49_9">Panel</A></FONT> <b>is</b> <b>private</b>;
+
+   <FONT COLOR=green><EM>---------------------------</EM></FONT>
+   <FONT COLOR=green><EM>--  Interface constants  --</EM></FONT>
+   <FONT COLOR=green><EM>---------------------------</EM></FONT>
+   <FONT COLOR=red><A NAME="ref_54_4">Null_Panel</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>;
+
+   <FONT COLOR=green><EM>-------------------</EM></FONT>
+   <FONT COLOR=green><EM>--  Exceptions   --</EM></FONT>
+   <FONT COLOR=green><EM>-------------------</EM></FONT>
+
+   <FONT COLOR=red><A NAME="ref_60_4">Panel_Exception</A></FONT> : <b>exception</b>;
+
+   <FONT COLOR=green><EM>--  |=====================================================================</EM></FONT>
+   <FONT COLOR=green><EM>--  | Man page <A HREF="../man/panel.3x.html">panel.3x</A></EM></FONT>
+   <FONT COLOR=green><EM>--  |=====================================================================</EM></FONT>
+
+   <FONT COLOR=green><EM>--  #1A NAME="AFU_1"#2|</EM></FONT>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_67_13" HREF="terminal_interface-curses-panels__adb.htm#ref_49_13">Create</A></FONT> (<FONT COLOR=red><A NAME="ref_67_21" HREF="terminal_interface-curses-panels__adb.htm#ref_49_21">Win</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>;
+   <FONT COLOR=green><EM>--  AKA: <A HREF="../man/panel.3x.html">new_panel()</A></EM></FONT>
+   <b>pragma</b> Inline (Create);
+
+   <FONT COLOR=green><EM>--  #1A NAME="AFU_2"#2|</EM></FONT>
+   <b>function</b> New_Panel (<FONT COLOR=red><A NAME="ref_72_24">Win</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A> <b>renames</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_67_13">Create</A>;
+   <FONT COLOR=green><EM>--  AKA: <A HREF="../man/panel.3x.html">new_panel()</A></EM></FONT>
+   <FONT COLOR=green><EM>--  pragma Inline (New_Panel);</EM></FONT>
+
+   <FONT COLOR=green><EM>--  #1A NAME="AFU_3"#2|</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_77_14" HREF="terminal_interface-curses-panels__adb.htm#ref_63_14">Bottom</A></FONT> (<FONT COLOR=red><A NAME="ref_77_22" HREF="terminal_interface-curses-panels__adb.htm#ref_63_22">Pan</A></FONT> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>);
+   <FONT COLOR=green><EM>--  AKA: <A HREF="../man/panel.3x.html">bottom_panel()</A></EM></FONT>
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_77_14">Bottom</A>);
+
+   <FONT COLOR=green><EM>--  #1A NAME="AFU_4"#2|</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_82_14" HREF="terminal_interface-curses-panels__adb.htm#ref_73_14">Top</A></FONT> (<FONT COLOR=red><A NAME="ref_82_19" HREF="terminal_interface-curses-panels__adb.htm#ref_73_19">Pan</A></FONT> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>);
+   <FONT COLOR=green><EM>--  AKA: <A HREF="../man/panel.3x.html">top_panel()</A></EM></FONT>
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_82_14">Top</A>);
+
+   <FONT COLOR=green><EM>--  #1A NAME="AFU_5"#2|</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_87_14" HREF="terminal_interface-curses-panels__adb.htm#ref_83_14">Show</A></FONT> (<FONT COLOR=red><A NAME="ref_87_20" HREF="terminal_interface-curses-panels__adb.htm#ref_83_20">Pan</A></FONT> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>);
+   <FONT COLOR=green><EM>--  AKA: <A HREF="../man/panel.3x.html">show_panel()</A></EM></FONT>
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_87_14">Show</A>);
+
+   <FONT COLOR=green><EM>--  #1A NAME="AFU_6"#2|</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_92_14">Update_Panels</A></FONT>;
+   <FONT COLOR=green><EM>--  AKA: <A HREF="../man/panel.3x.html">update_panels()</A></EM></FONT>
+   <b>pragma</b> Import (C, Update_Panels, "update_panels");
+
+   <FONT COLOR=green><EM>--  #1A NAME="AFU_7"#2|</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_97_14" HREF="terminal_interface-curses-panels__adb.htm#ref_93_14">Hide</A></FONT> (<FONT COLOR=red><A NAME="ref_97_20" HREF="terminal_interface-curses-panels__adb.htm#ref_93_20">Pan</A></FONT> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>);
+   <FONT COLOR=green><EM>--  AKA: <A HREF="../man/panel.3x.html">hide_panel()</A></EM></FONT>
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_97_14">Hide</A>);
+
+   <FONT COLOR=green><EM>--  #1A NAME="AFU_8"#2|</EM></FONT>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_102_13" HREF="terminal_interface-curses-panels__adb.htm#ref_103_13">Get_Window</A></FONT> (<FONT COLOR=red><A NAME="ref_102_25" HREF="terminal_interface-curses-panels__adb.htm#ref_103_25">Pan</A></FONT> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>;
+   <FONT COLOR=green><EM>--  AKA: <A HREF="../man/panel.3x.html">panel_window()</A></EM></FONT>
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_102_13">Get_Window</A>);
+
+   <FONT COLOR=green><EM>--  #1A NAME="AFU_9"#2|</EM></FONT>
+   <b>function</b> Panel_Window (<FONT COLOR=red><A NAME="ref_107_27">Pan</A></FONT> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A> <b>renames</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_102_13">Get_Window</A>;
+   <FONT COLOR=green><EM>--  pragma Inline (Panel_Window);</EM></FONT>
+
+   <FONT COLOR=green><EM>--  #1A NAME="AFU_10"#2|</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_111_14" HREF="terminal_interface-curses-panels__adb.htm#ref_116_14">Replace</A></FONT> (<FONT COLOR=red><A NAME="ref_111_23" HREF="terminal_interface-curses-panels__adb.htm#ref_116_23">Pan</A></FONT> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>;
+                      <FONT COLOR=red><A NAME="ref_112_23" HREF="terminal_interface-curses-panels__adb.htm#ref_117_23">Win</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>);
+   <FONT COLOR=green><EM>--  AKA: <A HREF="../man/panel.3x.html">replace_panel()</A></EM></FONT>
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_111_14">Replace</A>);
+
+   <FONT COLOR=green><EM>--  #1A NAME="AFU_11"#2|</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_117_14" HREF="terminal_interface-curses-panels__adb.htm#ref_128_14">Move</A></FONT> (<FONT COLOR=red><A NAME="ref_117_20" HREF="terminal_interface-curses-panels__adb.htm#ref_128_20">Pan</A></FONT>    : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>;
+                   <FONT COLOR=red><A NAME="ref_118_20" HREF="terminal_interface-curses-panels__adb.htm#ref_129_20">Line</A></FONT>   : <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>;
+                   <FONT COLOR=red><A NAME="ref_119_20" HREF="terminal_interface-curses-panels__adb.htm#ref_130_20">Column</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A>);
+   <FONT COLOR=green><EM>--  AKA: <A HREF="../man/panel.3x.html">move_panel()</A></EM></FONT>
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_117_14">Move</A>);
+
+   <FONT COLOR=green><EM>--  #1A NAME="AFU_12"#2|</EM></FONT>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_124_13" HREF="terminal_interface-curses-panels__adb.htm#ref_142_13">Is_Hidden</A></FONT> (<FONT COLOR=red><A NAME="ref_124_24" HREF="terminal_interface-curses-panels__adb.htm#ref_142_24">Pan</A></FONT> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>) <b>return</b> Boolean;
+   <FONT COLOR=green><EM>--  AKA: <A HREF="../man/panel.3x.html">panel_hidden()</A></EM></FONT>
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-panels__ads.htm#ref_124_13">Is_Hidden</A>);
+
+   <FONT COLOR=green><EM>--  #1A NAME="AFU_13"#2|</EM></FONT>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_129_13">Above</A></FONT> (<FONT COLOR=red><A NAME="ref_129_20" HREF="terminal_interface-curses-panels__ads.htm#ref_129_13">Pan</A></FONT> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>) <b>return</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>;
+   <FONT COLOR=green><EM>--  AKA: <A HREF="../man/panel.3x.html">panel_above()</A></EM></FONT>
+   <b>pragma</b> Import (C, Above, "panel_above");
+
+   <FONT COLOR=green><EM>--  #1A NAME="AFU_14"#2|</EM></FONT>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_134_13">Below</A></FONT> (<FONT COLOR=red><A NAME="ref_134_20" HREF="terminal_interface-curses-panels__ads.htm#ref_134_13">Pan</A></FONT> : <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>) <b>return</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>;
+   <FONT COLOR=green><EM>--  AKA: <A HREF="../man/panel.3x.html">panel_below()</A></EM></FONT>
+   <b>pragma</b> Import (C, Below, "panel_below");
+
+   <FONT COLOR=green><EM>--  #1A NAME="AFU_15"#2|</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_139_14" HREF="terminal_interface-curses-panels__adb.htm#ref_154_14">Delete</A></FONT> (<FONT COLOR=red><A NAME="ref_139_22" HREF="terminal_interface-curses-panels__adb.htm#ref_154_22">Pan</A></FONT> : <b>in</b> <b>out</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A>);
+   <FONT COLOR=green><EM>--  AKA: <A HREF="../man/panel.3x.html">del_panel()</A></EM></FONT>
+   <b>pragma</b> Inline (Delete);
+
+<b>private</b>
+      <b>type</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A> <b>is</b> <b>new</b> System.Storage_Elements.Integer_Address;
+      <A HREF="terminal_interface-curses-panels__ads.htm#ref_54_4">Null_Panel</A> : <b>constant</b> <A HREF="terminal_interface-curses-panels__ads.htm#ref_49_9">Panel</A> := 0;
+
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-panels__ads.htm#ref_44_35">Panels</A>;
+</PRE></BODY></HTML>

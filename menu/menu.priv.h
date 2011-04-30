@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,7 +30,7 @@
  *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
 
-/* $Id: menu.priv.h,v 1.22 2005/01/16 01:02:23 tom Exp $ */
+/* $Id: menu.priv.h,v 1.23 2009/02/28 21:02:57 juergen Exp $ */
 
 /***************************************************************************
 * Module menu.priv.h                                                       *
@@ -56,8 +56,12 @@ extern NCURSES_EXPORT_VAR(MENU) _nc_Default_Menu;
 /* Normalize menu to default if none was given */
 #define Normalize_Menu( menu ) ((menu)=(menu)?(menu):&_nc_Default_Menu)
 
+#define Get_Menu_Screen( menu ) (menu->userwin ? \
+				 _nc_screen_of(menu->userwin) : CURRENT_SCREEN)
+
 /* Get the user defined (framing) window of the menu */
-#define Get_Menu_UserWin(menu) ((menu)->userwin ? (menu)->userwin : stdscr)
+#define Get_Menu_UserWin(menu) ((menu)->userwin ? \
+    (menu)->userwin : CURRENT_SCREEN->_stdscr)
 
 /* Normalize menu window */
 #define Get_Menu_Window(  menu ) \

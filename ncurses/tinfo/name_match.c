@@ -31,10 +31,9 @@
  ****************************************************************************/
 
 #include <curses.priv.h>
-#include <term.h>
 #include <tic.h>
 
-MODULE_ID("$Id: name_match.c,v 1.17 2008/08/03 19:49:33 tom Exp $")
+MODULE_ID("$Id: name_match.c,v 1.18 2008/11/16 00:19:59 juergen Exp $")
 
 /*
  *	_nc_first_name(char *names)

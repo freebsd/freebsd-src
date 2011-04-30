@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -44,7 +44,7 @@
 #endif
 #endif
 
-MODULE_ID("$Id: m_item_new.c,v 1.27 2006/12/17 19:47:09 tom Exp $")
+MODULE_ID("$Id: m_item_new.c,v 1.30 2010/01/23 21:20:11 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -122,7 +122,7 @@ new_item(const char *name, const char *description)
     }
   else
     {
-      item = (ITEM *) calloc(1, sizeof(ITEM));
+      item = typeCalloc(ITEM, 1);
       if (item)
 	{
 	  *item = _nc_Default_Item;	/* hope we have struct assignment */
@@ -162,7 +162,7 @@ new_item(const char *name, const char *description)
 NCURSES_EXPORT(int)
 free_item(ITEM * item)
 {
-  T((T_CALLED("free_item(%p)"), item));
+  T((T_CALLED("free_item(%p)"), (void *)item));
 
   if (!item)
     RETURN(E_BAD_ARGUMENT);
@@ -197,7 +197,7 @@ set_menu_mark(MENU * menu, const char *mark)
 {
   unsigned l;
 
-  T((T_CALLED("set_menu_mark(%p,%s)"), menu, _nc_visbuf(mark)));
+  T((T_CALLED("set_menu_mark(%p,%s)"), (void *)menu, _nc_visbuf(mark)));
 
   if (mark && (*mark != '\0') && Is_Printable_String(mark))
     l = strlen(mark);
@@ -219,7 +219,7 @@ set_menu_mark(MENU * menu, const char *mark)
       menu->marklen = l;
       if (l)
 	{
-	  menu->mark = (char *)malloc(l + 1);
+	  menu->mark = strdup(mark);
 	  if (menu->mark)
 	    {
 	      strcpy(menu->mark, mark);
@@ -229,6 +229,7 @@ set_menu_mark(MENU * menu, const char *mark)
 	  else
 	    {
 	      menu->mark = old_mark;
+	      menu->marklen = (old_mark != 0) ? strlen(old_mark) : 0;
 	      RETURN(E_SYSTEM_ERROR);
 	    }
 	}
@@ -267,7 +268,7 @@ set_menu_mark(MENU * menu, const char *mark)
 NCURSES_EXPORT(const char *)
 menu_mark(const MENU * menu)
 {
-  T((T_CALLED("menu_mark(%p)"), menu));
+  T((T_CALLED("menu_mark(%p)"), (const void *)menu));
   returnPtr(Normalize_Menu(menu)->mark);
 }
 

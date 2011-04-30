@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_deleteln.3x,v 1.11 2007/06/02 20:40:07 tom Exp $
+.\" $Id: curs_deleteln.3x,v 1.13 2010/12/04 18:36:44 tom Exp $
 .TH curs_deleteln 3X ""
 .SH NAME
 \fBdeleteln\fR,
@@ -34,7 +34,7 @@
 \fBinsdelln\fR,
 \fBwinsdelln\fR,
 \fBinsertln\fR,
-\fBwinsertln\fR - delete and insert lines in a \fBcurses\fR window
+\fBwinsertln\fR \- delete and insert lines in a \fBcurses\fR window
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
@@ -83,9 +83,3 @@ terminal.  In fact, they will not use hardware line delete/insert unless
 \fBidlok(..., TRUE)\fR has been set on the current window.
 .SH SEE ALSO
 \fBcurses\fR(3X)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

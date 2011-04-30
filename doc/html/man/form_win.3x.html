@@ -1,0 +1,139 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  * t
+  ****************************************************************************
+  * Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: form_win.3x,v 1.13 2010/12/04 18:38:55 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>form_win 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>form_win 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="form_win.3x.html">form_win(3x)</A></STRONG>                                               <STRONG><A HREF="form_win.3x.html">form_win(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>form_win</STRONG>  - make and break form window and subwindow asso-
+       ciations
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;form.h&gt;</STRONG>
+       int set_form_win(FORM *form, WINDOW *win);
+       WINDOW *form_win(const FORM *form);
+       int set_form_sub(FORM *form, WINDOW *sub);
+       WINDOW *form_sub(const FORM *form);
+       int scale_form(const FORM *form, int *rows, int *columns);
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       Every form has an associated pair of <STRONG>curses</STRONG> windows.   The
+       form  window displays any title and border associated with
+       the window; the form subwindow displays the items  of  the
+       form that are currently available for selection.
+
+       The first four functions get and set those windows.  It is
+       not necessary to set either window; by default, the driver
+       code uses <STRONG>stdscr</STRONG> for both.
+
+       In  the <STRONG>set_</STRONG> functions, window argument of <STRONG>NULL</STRONG> is treated
+       as though it were <STRONG>stsdcr</STRONG>.  A  form  argument  of  <STRONG>NULL</STRONG>  is
+       treated  as  a  request  to change the system default form
+       window or subwindow.
+
+       The function <STRONG>scale_form</STRONG> returns the minimum size  required
+       for the subwindow of <EM>form</EM>.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       Routines  that return pointers return <STRONG>NULL</STRONG> on error.  Rou-
+       tines that return an integer return one of  the  following
+       error codes:
+
+       <STRONG>E_OK</STRONG> The routine succeeded.
+
+       <STRONG>E_SYSTEM_ERROR</STRONG>
+            System error occurred (see <STRONG>errno</STRONG>).
+
+       <STRONG>E_BAD_ARGUMENT</STRONG>
+            Routine  detected  an incorrect or out-of-range argu-
+            ment.
+
+       <STRONG>E_POSTED</STRONG>
+            The form has already been posted.
+
+       <STRONG>E_NOT_CONNECTED</STRONG>
+            No items are connected to the form.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>, <STRONG><A HREF="form.3x.html">form(3x)</A></STRONG>.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       The header file <STRONG>&lt;form.h&gt;</STRONG> automatically includes the header
+       file <STRONG>&lt;curses.h&gt;</STRONG>.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       These  routines  emulate the System V forms library.  They
+       were not supported on Version 7 or BSD versions.
+
+
+</PRE>
+<H2>AUTHORS</H2><PRE>
+       Juergen Pfeifer.  Manual  pages  and  adaptation  for  new
+       curses by Eric S. Raymond.
+
+
+
+                                                           <STRONG><A HREF="form_win.3x.html">form_win(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

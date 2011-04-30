@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,15 +27,16 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_mouse.3x,v 1.30 2006/12/30 23:43:34 tom Exp $
+.\" $Id: curs_mouse.3x,v 1.38 2010/12/04 18:38:55 tom Exp $
 .TH curs_mouse 3X ""
 .na
 .hy 0
 .SH NAME
+\fBhas_mouse\fR,
 \fBgetmouse\fR, \fBungetmouse\fR,
 \fBmousemask\fR, \fBwenclose\fR,
 \fBmouse_trafo\fR, \fBwmouse_trafo\fR,
-\fBmouseinterval\fR - mouse interface through curses
+\fBmouseinterval\fR \- mouse interface through curses
 .ad
 .hy
 .SH SYNOPSIS
@@ -52,6 +53,8 @@ typedef struct
 }
 MEVENT;\fR
 .fi
+.br
+\fBbool has_mouse(void);\fR
 .br
 \fBint getmouse(MEVENT *event);\fR
 .br
@@ -146,6 +149,9 @@ x in the event structure coordinates will be screen-relative character-cell
 coordinates.
 The returned state mask will have exactly one bit set to
 indicate the event type.
+The corresponding data in the queue is marked invalid.
+A subsequent call to \fBgetmouse\fP will retrieve the next older
+item from the queue.
 .PP
 The \fBungetmouse\fR function behaves analogously to \fBungetch\fR.
 It pushes
@@ -194,8 +200,11 @@ second) that can elapse between press and release events for them to
 be recognized as a click.
 Use \fBmouseinterval(0)\fR to disable click resolution.
 This function returns the previous interval value.
-Use \fBmouseinterval(-1)\fR to obtain the interval without altering it.
+Use \fBmouseinterval(\-1)\fR to obtain the interval without altering it.
 The default is one sixth of a second.
+.PP
+The \fBhas_mouse\fP function returns TRUE if the mouse driver has been
+successfully initialized.
 .PP
 Note that mouse events will be ignored when input is in cooked mode, and will
 cause an error beep when cooked mode is being simulated in a window by a
@@ -211,6 +220,7 @@ upon successful completion.
 returns an error.
 If no mouse driver was initialized, or
 if the mask parameter is zero,
+it also returns an error if no more events remain in the queue.
 .TP 5
 \fBungetmouse\fP
 returns an error if the FIFO is full.
@@ -256,7 +266,7 @@ Under \fBncurses\fR(3X), these calls are implemented using either
 xterm's built-in mouse-tracking API or
 platform-specific drivers including
 .RS
-Alessandro Rubini's gpm server.
+Alessandro Rubini's gpm server
 .br
 FreeBSD sysmouse
 .br
@@ -301,10 +311,5 @@ the terminal description, then the terminal may send mouse events.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBcurs_kernel\fR(3X),
-\fBcurs_slk\fR(3X).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:
+\fBcurs_slk\fR(3X),
+\fBcurs_variables\fR(3X).

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_pattern.c,v 1.15 2006/11/04 18:46:39 tom Exp $")
+MODULE_ID("$Id: m_pattern.c,v 1.16 2010/01/23 21:20:10 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -55,7 +55,7 @@ menu_pattern(const MENU * menu)
 {
   static char empty[] = "";
 
-  T((T_CALLED("menu_pattern(%p)"), menu));
+  T((T_CALLED("menu_pattern(%p)"), (const void *)menu));
   returnPtr(menu ? (menu->pattern ? menu->pattern : empty) : 0);
 }
 
@@ -78,7 +78,7 @@ set_menu_pattern(MENU * menu, const char *p)
   ITEM *matchitem;
   int matchpos;
 
-  T((T_CALLED("set_menu_pattern(%p,%s)"), menu, _nc_visbuf(p)));
+  T((T_CALLED("set_menu_pattern(%p,%s)"), (void *)menu, _nc_visbuf(p)));
 
   if (!menu || !p)
     RETURN(E_BAD_ARGUMENT);

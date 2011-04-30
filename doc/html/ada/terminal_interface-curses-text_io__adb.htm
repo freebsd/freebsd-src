@@ -1,0 +1,343 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>terminal_interface-curses-text_io.adb</TITLE></HEAD>
+<BODY>
+<HR><DIV ALIGN="center"><H1> File : terminal_interface-curses-text_io.adb </H1></DIV><HR>
+<PRE>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                           <A HREF="http://www.gnat.com">GNAT</A> ncurses Binding                           --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                     Terminal_Interface.Curses.Text_IO                    --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                                 B O D Y                                  --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>-- Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.              --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></FONT>
+<FONT COLOR=green><EM>-- copy of this software and associated documentation files (the            --</EM></FONT>
+<FONT COLOR=green><EM>-- "Software"), to deal in the Software without restriction, including      --</EM></FONT>
+<FONT COLOR=green><EM>-- without limitation the rights to use, copy, modify, merge, publish,      --</EM></FONT>
+<FONT COLOR=green><EM>-- distribute, distribute with modifications, sublicense, and/or sell       --</EM></FONT>
+<FONT COLOR=green><EM>-- copies of the Software, and to permit persons to whom the Software is    --</EM></FONT>
+<FONT COLOR=green><EM>-- furnished to do so, subject to the following conditions:                 --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- The above copyright notice and this permission notice shall be included  --</EM></FONT>
+<FONT COLOR=green><EM>-- in all copies or substantial portions of the Software.                   --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</EM></FONT>
+<FONT COLOR=green><EM>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</EM></FONT>
+<FONT COLOR=green><EM>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</EM></FONT>
+<FONT COLOR=green><EM>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</EM></FONT>
+<FONT COLOR=green><EM>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Except as contained in this notice, the name(s) of the above copyright   --</EM></FONT>
+<FONT COLOR=green><EM>-- holders shall not be used in advertising or otherwise to promote the     --</EM></FONT>
+<FONT COLOR=green><EM>-- sale, use or other dealings in this Software without prior written       --</EM></FONT>
+<FONT COLOR=green><EM>-- authorization.                                                           --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
+<FONT COLOR=green><EM>--  Version Control:</EM></FONT>
+<FONT COLOR=green><EM>--  @Revision: 1.19 @</EM></FONT>
+<FONT COLOR=green><EM>--  @Date: 2009/12/26 17:40:46 @</EM></FONT>
+<FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<FONT COLOR=red><A NAME="ref_42_40" HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A></FONT> <b>is</b>
+
+   <FONT COLOR=red><A NAME="ref_44_4">Default_Window</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A> := <A HREF="terminal_interface-curses__ads.htm#ref_58_4">Null_Window</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_46_14" HREF="terminal_interface-curses-text_io__ads.htm#ref_59_14">Set_Window</A></FONT> (<FONT COLOR=red><A NAME="ref_46_26" HREF="terminal_interface-curses-text_io__ads.htm#ref_59_26">Win</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>)
+   <b>is</b>
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-text_io__adb.htm#ref_44_4">Default_Window</A> := <A HREF="terminal_interface-curses-text_io__ads.htm#ref_59_26">Win</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_59_14">Set_Window</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_52_13" HREF="terminal_interface-curses-text_io__ads.htm#ref_62_13">Get_Window</A></FONT> <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>
+   <b>is</b>
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-text_io__adb.htm#ref_44_4">Default_Window</A> = <A HREF="terminal_interface-curses__ads.htm#ref_58_4">Null_Window</A> <b>then</b>
+         <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_476_13">Standard_Window</A>;
+      <b>else</b>
+         <b>return</b> <A HREF="terminal_interface-curses-text_io__adb.htm#ref_44_4">Default_Window</A>;
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_62_13">Get_Window</A>;
+   <b>pragma</b> Inline (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_62_13">Get_Window</A>);
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_63_14" HREF="terminal_interface-curses-text_io__ads.htm#ref_65_14">Flush</A></FONT> (<FONT COLOR=red><A NAME="ref_63_21" HREF="terminal_interface-curses-text_io__ads.htm#ref_65_21">Win</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>)
+   <b>is</b>
+   <b>begin</b>
+      <A HREF="terminal_interface-curses__ads.htm#ref_1045_14">Refresh</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_65_21">Win</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_65_14">Flush</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_69_14" HREF="terminal_interface-curses-text_io__ads.htm#ref_66_14">Flush</A></FONT>
+   <b>is</b>
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-text_io__ads.htm#ref_65_14">Flush</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_62_13">Get_Window</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_66_14">Flush</A>;
+
+   <FONT COLOR=green><EM>--------------------------------------------</EM></FONT>
+   <FONT COLOR=green><EM>-- Specification of line and page lengths --</EM></FONT>
+   <FONT COLOR=green><EM>--------------------------------------------</EM></FONT>
+
+   <FONT COLOR=green><EM>--  There are no set routines in this package. I assume, that you allocate</EM></FONT>
+   <FONT COLOR=green><EM>--  the window with an appropriate size.</EM></FONT>
+   <FONT COLOR=green><EM>--  A scroll-window is interpreted as an page with unbounded page length,</EM></FONT>
+   <FONT COLOR=green><EM>--  i.e. it returns the conventional 0 as page length.</EM></FONT>
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_84_13" HREF="terminal_interface-curses-text_io__ads.htm#ref_77_13">Line_Length</A></FONT> (<FONT COLOR=red><A NAME="ref_84_26" HREF="terminal_interface-curses-text_io__ads.htm#ref_77_26">Win</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_47_12">Count</A>
+   <b>is</b>
+      <FONT COLOR=red><A NAME="ref_86_7">N_Lines</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_63_12">Line_Count</A>;
+      <FONT COLOR=red><A NAME="ref_87_7">N_Cols</A></FONT>  : <A HREF="terminal_interface-curses__ads.htm#ref_65_12">Column_Count</A>;
+   <b>begin</b>
+      <A HREF="terminal_interface-curses__ads.htm#ref_1228_14">Get_Size</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_77_26">Win</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_86_7">N_Lines</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_87_7">N_Cols</A>);
+      <FONT COLOR=green><EM>--  if Natural (N_Cols) &gt; Natural (Count'Last) then</EM></FONT>
+      <FONT COLOR=green><EM>--     raise Layout_Error;</EM></FONT>
+      <FONT COLOR=green><EM>--  end if;</EM></FONT>
+      <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_47_12">Count</A> (<A HREF="terminal_interface-curses-text_io__adb.htm#ref_87_7">N_Cols</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_77_13">Line_Length</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_96_13" HREF="terminal_interface-curses-text_io__ads.htm#ref_78_13">Line_Length</A></FONT> <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_47_12">Count</A>
+   <b>is</b>
+   <b>begin</b>
+      <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_77_13">Line_Length</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_62_13">Get_Window</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_78_13">Line_Length</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_102_13" HREF="terminal_interface-curses-text_io__ads.htm#ref_80_13">Page_Length</A></FONT> (<FONT COLOR=red><A NAME="ref_102_26" HREF="terminal_interface-curses-text_io__ads.htm#ref_80_26">Win</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_47_12">Count</A>
+   <b>is</b>
+      <FONT COLOR=red><A NAME="ref_104_7">N_Lines</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_63_12">Line_Count</A>;
+      <FONT COLOR=red><A NAME="ref_105_7">N_Cols</A></FONT>  : <A HREF="terminal_interface-curses__ads.htm#ref_65_12">Column_Count</A>;
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses__ads.htm#ref_1022_13">Scrolling_Allowed</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_80_26">Win</A>) <b>then</b>
+         <b>return</b> 0;
+      <b>else</b>
+         <A HREF="terminal_interface-curses__ads.htm#ref_1228_14">Get_Size</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_80_26">Win</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_104_7">N_Lines</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_105_7">N_Cols</A>);
+         <FONT COLOR=green><EM>--  if Natural (N_Lines) &gt; Natural (Count'Last) then</EM></FONT>
+         <FONT COLOR=green><EM>--     raise Layout_Error;</EM></FONT>
+         <FONT COLOR=green><EM>--  end if;</EM></FONT>
+         <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_47_12">Count</A> (<A HREF="terminal_interface-curses-text_io__adb.htm#ref_104_7">N_Lines</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_80_13">Page_Length</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_118_13" HREF="terminal_interface-curses-text_io__ads.htm#ref_81_13">Page_Length</A></FONT> <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_47_12">Count</A>
+   <b>is</b>
+   <b>begin</b>
+      <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_80_13">Page_Length</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_62_13">Get_Window</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_81_13">Page_Length</A>;
+
+   <FONT COLOR=green><EM>------------------------------------</EM></FONT>
+   <FONT COLOR=green><EM>-- Column, Line, and Page Control --</EM></FONT>
+   <FONT COLOR=green><EM>------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_127_14" HREF="terminal_interface-curses-text_io__ads.htm#ref_86_14">New_Line</A></FONT> (<FONT COLOR=red><A NAME="ref_127_24" HREF="terminal_interface-curses-text_io__ads.htm#ref_86_24">Win</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>; <FONT COLOR=red><A NAME="ref_127_38" HREF="terminal_interface-curses-text_io__ads.htm#ref_86_38">Spacing</A></FONT> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A> := 1)
+   <b>is</b>
+      <FONT COLOR=red><A NAME="ref_129_7">P_Size</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_47_12">Count</A> := <A HREF="terminal_interface-curses-text_io__ads.htm#ref_80_13">Page_Length</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_86_24">Win</A>);
+   <b>begin</b>
+      <b>if</b> <b>not</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_86_38">Spacing</A>'Valid <b>then</b>
+         <b>raise</b> Constraint_Error;
+      <b>end</b> <b>if</b>;
+
+      <b>for</b> <FONT COLOR=red><A NAME="ref_135_11">I</A></FONT> <b>in</b> 1 .. <A HREF="terminal_interface-curses-text_io__ads.htm#ref_86_38">Spacing</A> <b>loop</b>
+         <b>if</b> <A HREF="terminal_interface-curses-text_io__adb.htm#ref_129_7">P_Size</A> &gt; 0 <b>and</b> <b>then</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_101_13">Line</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_86_24">Win</A>) &gt;= <A HREF="terminal_interface-curses-text_io__adb.htm#ref_129_7">P_Size</A> <b>then</b>
+            <A HREF="terminal_interface-curses-text_io__ads.htm#ref_89_14">New_Page</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_86_24">Win</A>);
+         <b>else</b>
+            <A HREF="terminal_interface-curses__ads.htm#ref_528_14">Add</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_86_24">Win</A>, ASCII.LF);
+         <b>end</b> <b>if</b>;
+      <b>end</b> <b>loop</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_86_14">New_Line</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_144_14" HREF="terminal_interface-curses-text_io__ads.htm#ref_87_14">New_Line</A></FONT> (<FONT COLOR=red><A NAME="ref_144_24" HREF="terminal_interface-curses-text_io__ads.htm#ref_87_24">Spacing</A></FONT> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A> := 1)
+   <b>is</b>
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-text_io__ads.htm#ref_86_14">New_Line</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_62_13">Get_Window</A>, <A HREF="terminal_interface-curses-text_io__ads.htm#ref_87_24">Spacing</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_87_14">New_Line</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_150_14" HREF="terminal_interface-curses-text_io__ads.htm#ref_89_14">New_Page</A></FONT> (<FONT COLOR=red><A NAME="ref_150_24" HREF="terminal_interface-curses-text_io__ads.htm#ref_89_24">Win</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>)
+   <b>is</b>
+   <b>begin</b>
+      <A HREF="terminal_interface-curses__ads.htm#ref_1080_14">Clear</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_89_24">Win</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_89_14">New_Page</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_156_14" HREF="terminal_interface-curses-text_io__ads.htm#ref_90_14">New_Page</A></FONT>
+   <b>is</b>
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-text_io__ads.htm#ref_89_14">New_Page</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_62_13">Get_Window</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_90_14">New_Page</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_162_14" HREF="terminal_interface-curses-text_io__ads.htm#ref_92_14">Set_Col</A></FONT> (<FONT COLOR=red><A NAME="ref_162_23" HREF="terminal_interface-curses-text_io__ads.htm#ref_92_23">Win</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>;  <FONT COLOR=red><A NAME="ref_162_38" HREF="terminal_interface-curses-text_io__ads.htm#ref_92_38">To</A></FONT> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>)
+   <b>is</b>
+      <FONT COLOR=red><A NAME="ref_164_7">Y</A></FONT>  : <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>;
+      <FONT COLOR=red><A NAME="ref_165_7">X1</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A>;
+      <FONT COLOR=red><A NAME="ref_166_7">X2</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A>;
+      <FONT COLOR=red><A NAME="ref_167_7">N</A></FONT>  : Natural;
+   <b>begin</b>
+      <b>if</b> <b>not</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_92_38">To</A>'Valid <b>then</b>
+         <b>raise</b> Constraint_Error;
+      <b>end</b> <b>if</b>;
+
+      <A HREF="terminal_interface-curses__ads.htm#ref_1244_14">Get_Cursor_Position</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_92_23">Win</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_164_7">Y</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_165_7">X1</A>);
+      <A HREF="terminal_interface-curses-text_io__adb.htm#ref_167_7">N</A>  := Natural (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_92_38">To</A>); <A HREF="terminal_interface-curses-text_io__adb.htm#ref_167_7">N</A> := <A HREF="terminal_interface-curses-text_io__adb.htm#ref_167_7">N</A> - 1;
+      <A HREF="terminal_interface-curses-text_io__adb.htm#ref_166_7">X2</A> := <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A> (<A HREF="terminal_interface-curses-text_io__adb.htm#ref_167_7">N</A>);
+      <b>if</b> <A HREF="terminal_interface-curses-text_io__adb.htm#ref_165_7">X1</A> &gt; <A HREF="terminal_interface-curses-text_io__adb.htm#ref_166_7">X2</A> <b>then</b>
+         <A HREF="terminal_interface-curses-text_io__ads.htm#ref_86_14">New_Line</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_92_23">Win</A>, 1);
+         <A HREF="terminal_interface-curses-text_io__adb.htm#ref_165_7">X1</A> := 0;
+      <b>end</b> <b>if</b>;
+      <b>if</b> <A HREF="terminal_interface-curses-text_io__adb.htm#ref_165_7">X1</A> &lt; <A HREF="terminal_interface-curses-text_io__adb.htm#ref_166_7">X2</A> <b>then</b>
+         <b>declare</b>
+            <FONT COLOR=red><A NAME="ref_182_13">Filler</A></FONT> : <b>constant</b> String (Integer (<A HREF="terminal_interface-curses-text_io__adb.htm#ref_165_7">X1</A>) .. (Integer (<A HREF="terminal_interface-curses-text_io__adb.htm#ref_166_7">X2</A>) - 1))
+              := (<b>others</b> =&gt; ' ');
+         <b>begin</b>
+            <A HREF="terminal_interface-curses-text_io__ads.htm#ref_115_14">Put</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_92_23">Win</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_182_13">Filler</A>);
+         <b>end</b>;
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_92_14">Set_Col</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_190_14" HREF="terminal_interface-curses-text_io__ads.htm#ref_93_14">Set_Col</A></FONT> (<FONT COLOR=red><A NAME="ref_190_23" HREF="terminal_interface-curses-text_io__ads.htm#ref_93_23">To</A></FONT> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>)
+   <b>is</b>
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-text_io__ads.htm#ref_92_14">Set_Col</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_62_13">Get_Window</A>, <A HREF="terminal_interface-curses-text_io__ads.htm#ref_93_23">To</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_93_14">Set_Col</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_196_14" HREF="terminal_interface-curses-text_io__ads.htm#ref_95_14">Set_Line</A></FONT> (<FONT COLOR=red><A NAME="ref_196_24" HREF="terminal_interface-curses-text_io__ads.htm#ref_95_24">Win</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>; <FONT COLOR=red><A NAME="ref_196_38" HREF="terminal_interface-curses-text_io__ads.htm#ref_95_38">To</A></FONT> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>)
+   <b>is</b>
+      <FONT COLOR=red><A NAME="ref_198_7">Y1</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>;
+      <FONT COLOR=red><A NAME="ref_199_7">Y2</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>;
+      <FONT COLOR=red><A NAME="ref_200_7">X</A></FONT>  : <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A>;
+      <FONT COLOR=red><A NAME="ref_201_7">N</A></FONT>  : Natural;
+   <b>begin</b>
+      <b>if</b> <b>not</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_95_38">To</A>'Valid <b>then</b>
+         <b>raise</b> Constraint_Error;
+      <b>end</b> <b>if</b>;
+
+      <A HREF="terminal_interface-curses__ads.htm#ref_1244_14">Get_Cursor_Position</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_95_24">Win</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_198_7">Y1</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_200_7">X</A>);
+      <A HREF="terminal_interface-curses-text_io__adb.htm#ref_201_7">N</A>  := Natural (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_95_38">To</A>); <A HREF="terminal_interface-curses-text_io__adb.htm#ref_201_7">N</A> := <A HREF="terminal_interface-curses-text_io__adb.htm#ref_201_7">N</A> - 1;
+      <A HREF="terminal_interface-curses-text_io__adb.htm#ref_199_7">Y2</A> := <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A> (<A HREF="terminal_interface-curses-text_io__adb.htm#ref_201_7">N</A>);
+      <b>if</b> <A HREF="terminal_interface-curses-text_io__adb.htm#ref_199_7">Y2</A> &lt; <A HREF="terminal_interface-curses-text_io__adb.htm#ref_198_7">Y1</A> <b>then</b>
+         <A HREF="terminal_interface-curses-text_io__ads.htm#ref_89_14">New_Page</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_95_24">Win</A>);
+         <A HREF="terminal_interface-curses-text_io__adb.htm#ref_198_7">Y1</A> := 0;
+      <b>end</b> <b>if</b>;
+      <b>if</b> <A HREF="terminal_interface-curses-text_io__adb.htm#ref_198_7">Y1</A> &lt; <A HREF="terminal_interface-curses-text_io__adb.htm#ref_199_7">Y2</A> <b>then</b>
+         <A HREF="terminal_interface-curses-text_io__ads.htm#ref_86_14">New_Line</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_95_24">Win</A>, <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A> (<A HREF="terminal_interface-curses-text_io__adb.htm#ref_199_7">Y2</A> - <A HREF="terminal_interface-curses-text_io__adb.htm#ref_198_7">Y1</A>));
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_95_14">Set_Line</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_219_14" HREF="terminal_interface-curses-text_io__ads.htm#ref_96_14">Set_Line</A></FONT> (<FONT COLOR=red><A NAME="ref_219_24" HREF="terminal_interface-curses-text_io__ads.htm#ref_96_24">To</A></FONT> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>)
+   <b>is</b>
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-text_io__ads.htm#ref_95_14">Set_Line</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_62_13">Get_Window</A>, <A HREF="terminal_interface-curses-text_io__ads.htm#ref_96_24">To</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_96_14">Set_Line</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_225_13" HREF="terminal_interface-curses-text_io__ads.htm#ref_98_13">Col</A></FONT> (<FONT COLOR=red><A NAME="ref_225_18" HREF="terminal_interface-curses-text_io__ads.htm#ref_98_18">Win</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>
+   <b>is</b>
+      <FONT COLOR=red><A NAME="ref_227_7">Y</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>;
+      <FONT COLOR=red><A NAME="ref_228_7">X</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A>;
+      <FONT COLOR=red><A NAME="ref_229_7">N</A></FONT> : Natural;
+   <b>begin</b>
+      <A HREF="terminal_interface-curses__ads.htm#ref_1244_14">Get_Cursor_Position</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_98_18">Win</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_227_7">Y</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_228_7">X</A>);
+      <A HREF="terminal_interface-curses-text_io__adb.htm#ref_229_7">N</A> := Natural (<A HREF="terminal_interface-curses-text_io__adb.htm#ref_228_7">X</A>); <A HREF="terminal_interface-curses-text_io__adb.htm#ref_229_7">N</A> := <A HREF="terminal_interface-curses-text_io__adb.htm#ref_229_7">N</A> + 1;
+      <FONT COLOR=green><EM>--  if N &gt; Natural (Count'Last) then</EM></FONT>
+      <FONT COLOR=green><EM>--     raise Layout_Error;</EM></FONT>
+      <FONT COLOR=green><EM>--  end if;</EM></FONT>
+      <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A> (<A HREF="terminal_interface-curses-text_io__adb.htm#ref_229_7">N</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_98_13">Col</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_239_13" HREF="terminal_interface-curses-text_io__ads.htm#ref_99_13">Col</A></FONT> <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>
+   <b>is</b>
+   <b>begin</b>
+      <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_98_13">Col</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_62_13">Get_Window</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_99_13">Col</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_245_13" HREF="terminal_interface-curses-text_io__ads.htm#ref_101_13">Line</A></FONT> (<FONT COLOR=red><A NAME="ref_245_19" HREF="terminal_interface-curses-text_io__ads.htm#ref_101_19">Win</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>
+   <b>is</b>
+      <FONT COLOR=red><A NAME="ref_247_7">Y</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>;
+      <FONT COLOR=red><A NAME="ref_248_7">X</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A>;
+      <FONT COLOR=red><A NAME="ref_249_7">N</A></FONT> : Natural;
+   <b>begin</b>
+      <A HREF="terminal_interface-curses__ads.htm#ref_1244_14">Get_Cursor_Position</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_101_19">Win</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_247_7">Y</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_248_7">X</A>);
+      <A HREF="terminal_interface-curses-text_io__adb.htm#ref_249_7">N</A> := Natural (<A HREF="terminal_interface-curses-text_io__adb.htm#ref_247_7">Y</A>); <A HREF="terminal_interface-curses-text_io__adb.htm#ref_249_7">N</A> := <A HREF="terminal_interface-curses-text_io__adb.htm#ref_249_7">N</A> + 1;
+      <FONT COLOR=green><EM>--  if N &gt; Natural (Count'Last) then</EM></FONT>
+      <FONT COLOR=green><EM>--     raise Layout_Error;</EM></FONT>
+      <FONT COLOR=green><EM>--  end if;</EM></FONT>
+      <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A> (<A HREF="terminal_interface-curses-text_io__adb.htm#ref_249_7">N</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_101_13">Line</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_259_13" HREF="terminal_interface-curses-text_io__ads.htm#ref_102_13">Line</A></FONT> <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_48_12">Positive_Count</A>
+   <b>is</b>
+   <b>begin</b>
+      <b>return</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_101_13">Line</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_62_13">Get_Window</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_102_13">Line</A>;
+
+   <FONT COLOR=green><EM>-----------------------</EM></FONT>
+   <FONT COLOR=green><EM>-- Characters Output --</EM></FONT>
+   <FONT COLOR=green><EM>-----------------------</EM></FONT>
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_269_14" HREF="terminal_interface-curses-text_io__ads.htm#ref_108_14">Put</A></FONT> (<FONT COLOR=red><A NAME="ref_269_19" HREF="terminal_interface-curses-text_io__ads.htm#ref_108_19">Win</A></FONT>  : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>; <FONT COLOR=red><A NAME="ref_269_34" HREF="terminal_interface-curses-text_io__ads.htm#ref_108_34">Item</A></FONT> : Character)
+   <b>is</b>
+      <FONT COLOR=red><A NAME="ref_271_7">P_Size</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_47_12">Count</A> := <A HREF="terminal_interface-curses-text_io__ads.htm#ref_80_13">Page_Length</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_108_19">Win</A>);
+      <FONT COLOR=red><A NAME="ref_272_7">Y</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>;
+      <FONT COLOR=red><A NAME="ref_273_7">X</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A>;
+      <FONT COLOR=red><A NAME="ref_274_7">L</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_63_12">Line_Count</A>;
+      <FONT COLOR=red><A NAME="ref_275_7">C</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_65_12">Column_Count</A>;
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-text_io__adb.htm#ref_271_7">P_Size</A> &gt; 0 <b>then</b>
+         <A HREF="terminal_interface-curses__ads.htm#ref_1244_14">Get_Cursor_Position</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_108_19">Win</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_272_7">Y</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_273_7">X</A>);
+         <A HREF="terminal_interface-curses__ads.htm#ref_1228_14">Get_Size</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_108_19">Win</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_274_7">L</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_275_7">C</A>);
+         <b>if</b> (<A HREF="terminal_interface-curses-text_io__adb.htm#ref_272_7">Y</A> + 1) = <A HREF="terminal_interface-curses-text_io__adb.htm#ref_274_7">L</A> <b>and</b> <b>then</b> (<A HREF="terminal_interface-curses-text_io__adb.htm#ref_273_7">X</A> + 1) = <A HREF="terminal_interface-curses-text_io__adb.htm#ref_275_7">C</A> <b>then</b>
+            <A HREF="terminal_interface-curses-text_io__ads.htm#ref_89_14">New_Page</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_108_19">Win</A>);
+         <b>end</b> <b>if</b>;
+      <b>end</b> <b>if</b>;
+      <A HREF="terminal_interface-curses__ads.htm#ref_528_14">Add</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_108_19">Win</A>, <A HREF="terminal_interface-curses-text_io__ads.htm#ref_108_34">Item</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_108_14">Put</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_287_14" HREF="terminal_interface-curses-text_io__ads.htm#ref_109_14">Put</A></FONT> (<FONT COLOR=red><A NAME="ref_287_19" HREF="terminal_interface-curses-text_io__ads.htm#ref_109_19">Item</A></FONT> : Character)
+   <b>is</b>
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-text_io__ads.htm#ref_108_14">Put</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_62_13">Get_Window</A>, <A HREF="terminal_interface-curses-text_io__ads.htm#ref_109_19">Item</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_109_14">Put</A>;
+
+   <FONT COLOR=green><EM>--------------------</EM></FONT>
+   <FONT COLOR=green><EM>-- Strings-Output --</EM></FONT>
+   <FONT COLOR=green><EM>--------------------</EM></FONT>
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_297_14" HREF="terminal_interface-curses-text_io__ads.htm#ref_115_14">Put</A></FONT> (<FONT COLOR=red><A NAME="ref_297_19" HREF="terminal_interface-curses-text_io__ads.htm#ref_115_19">Win</A></FONT>  : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>; <FONT COLOR=red><A NAME="ref_297_34" HREF="terminal_interface-curses-text_io__ads.htm#ref_115_34">Item</A></FONT> : String)
+   <b>is</b>
+      <FONT COLOR=red><A NAME="ref_299_7">P_Size</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_47_12">Count</A> := <A HREF="terminal_interface-curses-text_io__ads.htm#ref_80_13">Page_Length</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_115_19">Win</A>);
+      <FONT COLOR=red><A NAME="ref_300_7">Y</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>;
+      <FONT COLOR=red><A NAME="ref_301_7">X</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A>;
+      <FONT COLOR=red><A NAME="ref_302_7">L</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_63_12">Line_Count</A>;
+      <FONT COLOR=red><A NAME="ref_303_7">C</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_65_12">Column_Count</A>;
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-text_io__adb.htm#ref_299_7">P_Size</A> &gt; 0 <b>then</b>
+         <A HREF="terminal_interface-curses__ads.htm#ref_1244_14">Get_Cursor_Position</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_115_19">Win</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_300_7">Y</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_301_7">X</A>);
+         <A HREF="terminal_interface-curses__ads.htm#ref_1228_14">Get_Size</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_115_19">Win</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_302_7">L</A>, <A HREF="terminal_interface-curses-text_io__adb.htm#ref_303_7">C</A>);
+         <b>if</b> (<A HREF="terminal_interface-curses-text_io__adb.htm#ref_300_7">Y</A> + 1) = <A HREF="terminal_interface-curses-text_io__adb.htm#ref_302_7">L</A> <b>and</b> <b>then</b> (<A HREF="terminal_interface-curses-text_io__adb.htm#ref_301_7">X</A> + 1 + <A HREF="terminal_interface-curses-text_io__ads.htm#ref_115_34">Item</A>'Length) &gt;= <A HREF="terminal_interface-curses-text_io__adb.htm#ref_303_7">C</A> <b>then</b>
+            <A HREF="terminal_interface-curses-text_io__ads.htm#ref_89_14">New_Page</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_115_19">Win</A>);
+         <b>end</b> <b>if</b>;
+      <b>end</b> <b>if</b>;
+      <A HREF="terminal_interface-curses__ads.htm#ref_653_14">Add</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_115_19">Win</A>, <A HREF="terminal_interface-curses-text_io__ads.htm#ref_115_34">Item</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_115_14">Put</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_315_14" HREF="terminal_interface-curses-text_io__ads.htm#ref_116_14">Put</A></FONT> (<FONT COLOR=red><A NAME="ref_315_19" HREF="terminal_interface-curses-text_io__ads.htm#ref_116_19">Item</A></FONT> : String)
+   <b>is</b>
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-text_io__ads.htm#ref_115_14">Put</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_62_13">Get_Window</A>, <A HREF="terminal_interface-curses-text_io__ads.htm#ref_116_19">Item</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_116_14">Put</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_321_14" HREF="terminal_interface-curses-text_io__ads.htm#ref_118_14">Put_Line</A></FONT>
+     (<FONT COLOR=red><A NAME="ref_322_7" HREF="terminal_interface-curses-text_io__ads.htm#ref_119_7">Win</A></FONT>  : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>;
+      <FONT COLOR=red><A NAME="ref_323_7" HREF="terminal_interface-curses-text_io__ads.htm#ref_120_7">Item</A></FONT> : String)
+   <b>is</b>
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-text_io__ads.htm#ref_115_14">Put</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_119_7">Win</A>, <A HREF="terminal_interface-curses-text_io__ads.htm#ref_120_7">Item</A>);
+      <A HREF="terminal_interface-curses-text_io__ads.htm#ref_86_14">New_Line</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_119_7">Win</A>, 1);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_118_14">Put_Line</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_330_14" HREF="terminal_interface-curses-text_io__ads.htm#ref_122_14">Put_Line</A></FONT>
+     (<FONT COLOR=red><A NAME="ref_331_7" HREF="terminal_interface-curses-text_io__ads.htm#ref_123_7">Item</A></FONT> : String)
+   <b>is</b>
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-text_io__ads.htm#ref_118_14">Put_Line</A> (<A HREF="terminal_interface-curses-text_io__ads.htm#ref_62_13">Get_Window</A>, <A HREF="terminal_interface-curses-text_io__ads.htm#ref_123_7">Item</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_122_14">Put_Line</A>;
+
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>;
+</PRE></BODY></HTML>

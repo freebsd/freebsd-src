@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_addstr.3x,v 1.13 2005/05/15 16:17:14 tom Exp $
+.\" $Id: curs_addstr.3x,v 1.16 2010/12/04 18:36:44 tom Exp $
 .TH curs_addstr 3X ""
 .na
 .hy 0
@@ -38,7 +38,7 @@
 \fBmvaddstr\fR,
 \fBmvaddnstr\fR,
 \fBmvwaddstr\fR,
-\fBmvwaddnstr\fR - add a string of characters to a \fBcurses\fR window and advance cursor
+\fBmvwaddnstr\fR \- add a string of characters to a \fBcurses\fR window and advance cursor
 .ad
 .hy
 .SH SYNOPSIS
@@ -67,7 +67,7 @@ These routines write the characters of the (null-terminated) character string
 It is similar to calling \fBwaddch\fR once for each character in the string.
 The four routines with \fIn\fR as the last argument
 write at most \fIn\fR characters.
-If \fIn\fR is -1, then the entire string will be added,
+If \fIn\fR is \-1, then the entire string will be added,
 up to the maximum number of characters that will fit on the line,
 or until a terminating null is reached.
 .SH RETURN VALUE
@@ -80,6 +80,10 @@ This implementation returns an error
 if the window pointer is null or
 if the string pointer is null or
 if the corresponding calls to \fBwaddch\fP return an error.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
 .SH NOTES
 Note that all of these routines except \fBwaddstr\fR and \fBwaddnstr\fR may be
 macros.
@@ -89,9 +93,3 @@ XSI errors EILSEQ and EOVERFLOW, associated with extended-level conformance,
 are not yet detected.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBcurs_addch\fR(3X).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

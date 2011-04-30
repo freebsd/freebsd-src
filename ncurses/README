@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright (c) 1998-2000,2006 Free Software Foundation, Inc.               --
+-- Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.               --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
 -- copy of this software and associated documentation files (the             --
@@ -25,7 +25,26 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: README,v 1.9 2006/04/22 22:19:37 tom Exp $
+-- $Id: README,v 1.10 2009/06/27 14:44:30 tom Exp $
 -------------------------------------------------------------------------------
 For discussion of the package internals, see hackguide.html in the doc/html
 directory.
+
+-------------------------------------------------------------------------------
+The llib-lXXXX files could be used as lint-library sources (and were, at one
+time).  However, they are actually used as a documentation aid to keep track
+of changes to the public/private interfaces in ncurses.  Most of the text in
+these files is generated using cproto; some manual cleanup and adjustment of
+types (to reflect #define's in curses.h) is needed.  The functions listed in
+the llib-lXXXX files do not correspond to the default configure options; some
+additional ones are added to include "all" of the entrypoints for each of the
+major configurations (normal, wide-character, threaded):
+
+	--disable-macros
+	--disable-root-environ
+	--enable-expanded
+	--enable-getcap
+	--enable-getcap-cache
+	--enable-sp-funcs
+	--enable-termcap
+	--with-develop

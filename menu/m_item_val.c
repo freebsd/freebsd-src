@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_item_val.c,v 1.14 2004/12/11 23:29:34 tom Exp $")
+MODULE_ID("$Id: m_item_val.c,v 1.15 2010/01/23 21:20:10 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -57,7 +57,7 @@ set_item_value(ITEM * item, bool value)
 {
   MENU *menu;
 
-  T((T_CALLED("set_item_value(%p,%d)"), item, value));
+  T((T_CALLED("set_item_value(%p,%d)"), (void *)item, value));
   if (item)
     {
       menu = item->imenu;
@@ -97,7 +97,7 @@ set_item_value(ITEM * item, bool value)
 NCURSES_EXPORT(bool)
 item_value(const ITEM * item)
 {
-  T((T_CALLED("item_value(%p)"), item));
+  T((T_CALLED("item_value(%p)"), (const void *)item));
   returnBool((Normalize_Item(item)->value) ? TRUE : FALSE);
 }
 

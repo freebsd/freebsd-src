@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2001,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,14 +40,14 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_clrbot.c,v 1.20 2006/10/14 20:43:31 tom Exp $")
+MODULE_ID("$Id: lib_clrbot.c,v 1.21 2009/10/24 22:33:19 tom Exp $")
 
 NCURSES_EXPORT(int)
 wclrtobot(WINDOW *win)
 {
     int code = ERR;
 
-    T((T_CALLED("wclrtobot(%p)"), win));
+    T((T_CALLED("wclrtobot(%p)"), (void *) win));
 
     if (win) {
 	NCURSES_SIZE_T y;

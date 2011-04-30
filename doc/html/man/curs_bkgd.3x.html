@@ -1,0 +1,131 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2003,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_bkgd.3x,v 1.22 2010/12/04 18:36:44 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_bkgd 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_bkgd 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_bkgd.3x.html">curs_bkgd(3x)</A></STRONG>                                             <STRONG><A HREF="curs_bkgd.3x.html">curs_bkgd(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>bkgdset</STRONG>,  <STRONG>wbkgdset</STRONG>,  <STRONG>bkgd</STRONG>,  <STRONG>wbkgd</STRONG>, <STRONG>getbkgd</STRONG> - <STRONG>curses</STRONG> window
+       background manipulation routines
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>void</STRONG> <STRONG>bkgdset(chtype</STRONG> <STRONG>ch);</STRONG>
+       <STRONG>void</STRONG> <STRONG>wbkgdset(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>chtype</STRONG> <STRONG>ch);</STRONG>
+       <STRONG>int</STRONG> <STRONG>bkgd(chtype</STRONG> <STRONG>ch);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wbkgd(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>chtype</STRONG> <STRONG>ch);</STRONG>
+       <STRONG>chtype</STRONG> <STRONG>getbkgd(WINDOW</STRONG> <STRONG>*win);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The <STRONG>bkgdset</STRONG> and <STRONG>wbkgdset</STRONG>  routines  manipulate  the  back-
+       ground  of  the  named window.  The window background is a
+       <STRONG>chtype</STRONG> consisting of any combination of attributes  (i.e.,
+       rendition)  and  a  character.   The attribute part of the
+       background is combined (OR'ed) with all non-blank  charac-
+       ters  that  are written into the window with <STRONG>waddch</STRONG>.  Both
+       the character and attribute parts of  the  background  are
+       combined   with  the  blank  characters.   The  background
+       becomes a property of the character  and  moves  with  the
+       character   through   any   scrolling   and  insert/delete
+       line/character operations.
+
+       To the extent  possible  on  a  particular  terminal,  the
+       attribute  part  of  the  background  is  displayed as the
+       graphic rendition of the character put on the screen.
+
+       The <STRONG>bkgd</STRONG> and <STRONG>wbkgd</STRONG> functions set the  background  property
+       of  the  current  or  specified window and then apply this
+       setting to every character position in that window:
+
+              The rendition of every character on the  screen  is
+              changed to the new background rendition.
+
+              Wherever  the  former background character appears,
+              it is changed to the new background character.
+
+       The <STRONG>getbkgd</STRONG> function returns the  given  window's  current
+       background character/attribute pair.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       The  routines  <STRONG>bkgd</STRONG>  and <STRONG>wbkgd</STRONG> return the integer <STRONG>OK</STRONG>.  The
+       SVr4.0 manual says "or a non-negative integer  if  <STRONG>immedok</STRONG>
+       is set", but this appears to be an error.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       Note that <STRONG>bkgdset</STRONG> and <STRONG>bkgd</STRONG> may be macros.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       These  functions are described in the XSI Curses standard,
+       Issue 4.  It specifies that <STRONG>bkgd</STRONG> and <STRONG>wbkgd</STRONG> return  <STRONG>ERR</STRONG>  on
+       failure, but gives no failure conditions.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,   <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>,   <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>,   <STRONG>curs_out-</STRONG>
+       <STRONG><A HREF="curs_outopts.3x.html">opts(3x)</A></STRONG>
+
+
+
+                                                          <STRONG><A HREF="curs_bkgd.3x.html">curs_bkgd(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

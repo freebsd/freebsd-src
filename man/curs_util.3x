@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,11 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_util.3x,v 1.27 2008/10/25 23:45:41 tom Exp $
+.\" $Id: curs_util.3x,v 1.32 2010/12/04 18:38:55 tom Exp $
 .TH curs_util 3X ""
+.de bP
+.IP \(bu 4
+..
 .na
 .hy 0
 .SH NAME
@@ -41,7 +44,7 @@
 \fBputwin\fR,
 \fBunctrl\fR,
 \fBuse_env\fR,
-\fBwunctrl\fR - miscellaneous \fBcurses\fR utility routines
+\fBwunctrl\fR \- miscellaneous \fBcurses\fR utility routines
 .ad
 .hy
 .SH SYNOPSIS
@@ -75,33 +78,27 @@ representation of the character \fIc\fR, ignoring attributes.
 Control characters are displayed in the \fB^\fR\fIX\fR notation.
 Printing characters are displayed as is.
 The corresponding \fBwunctrl\fR returns a printable representation of
-a wide-character.
+a wide character.
 .PP
 The \fBkeyname\fR routine returns a character string corresponding to the key \fIc\fR:
 .RS 3
-.TP 3
--
+.bP
 Printable characters are displayed as themselves, e.g., a one-character string containing the key.
-.TP 3
--
+.bP
 Control characters are displayed in the \fB^\fR\fIX\fR notation.
-.TP 3
--
+.bP
 DEL (character 127) is displayed as \fB^?\fP.
-.TP 3
--
+.bP
 Values above 128 are either meta characters
 (if the screen has not been initialized,
 or if \fBmeta\fP has been called with a TRUE parameter),
-shown in the \fBM-\fR\fIX\fR notation,
+shown in the \fBM\-\fR\fIX\fR notation,
 or are displayed as themselves.
 In the latter case, the values may not be printable;
 this follows the X/Open specification.
-.TP 3
--
+.bP
 Values above 256 may be the names of the names of function keys.
-.TP 3
--
+.bP
 Otherwise (if there is no corresponding name) the function returns null,
 to denote an error.
 X/Open also lists an "UNKNOWN KEY" return value, which some implementations
@@ -177,14 +174,12 @@ The XSI Curses standard, Issue 4 describes these functions.
 It states that \fBunctrl\fR and \fBwunctrl\fR will return a null pointer if
 unsuccessful, but does not define any error conditions.
 This implementation checks for three cases:
-.RS
-.TP 5
--
-the parameter is a 7-bit US-ASCII code.
+.RS 3
+.bP
+the parameter is a 7-bit US\-ASCII code.
 This is the case that X/Open Curses documented.
-.TP 5
--
-the parameter is in the range 128-159, i.e., a C1 control code.
+.bP
+the parameter is in the range 128\-159, i.e., a C1 control code.
 If \fBuse_legacy_coding\fP has been called with a \fB2\fP parameter,
 \fBunctrl\fP returns the parameter, i.e., a one-character string with
 the parameter as the first character.
@@ -194,8 +189,7 @@ X/Open Curses does not document whether \fBunctrl\fP can be called before
 initializing curses.
 This implementation permits that,
 and returns the ``~@'', etc., values in that case.
-.TP 5
--
+.bP
 parameter values outside the 0 to 255 range.
 \fBunctrl\fP returns a null pointer.
 .RE
@@ -219,17 +213,17 @@ change the output of \fBunctrl\fP.
 .PP
 Likewise, the \fBmeta\fP function allows the caller to change the
 output of \fBkeyname\fP, i.e.,
-it determines whether to use the `M-' prefix
+it determines whether to use the `M\-' prefix
 for ``meta'' keys (codes in the range 128 to 255).
 Both \fBuse_legacy_coding\fP and \fBmeta\fP succeed only after
 curses is initialized. 
 X/Open Curses does not document the treatment of codes 128 to 159.
 When treating them as ``meta'' keys
 (or if \fBkeyname\fP is called before initializing curses),
-this implementation returns strings ``M-^@'', ``M-^A'', etc.
+this implementation returns strings ``M\-^@'', ``M\-^A'', etc.
 .PP
 The \fBkeyname\fP function may return the names of user-defined
-string capabilities which are defined in the terminfo entry via the \fB-x\fP
+string capabilities which are defined in the terminfo entry via the \fB\-x\fP
 option of \fBtic\fP.
 This implementation automatically assigns at run-time keycodes to 
 user-defined strings which begin with "k".
@@ -249,10 +243,5 @@ be conditioned using NCURSES_VERSION.
 \fBcurs_initscr\fR(3X),
 \fBcurs_kernel\fR(3X),
 \fBcurs_scr_dump\fR(3X),
+\fBcurs_variables\fR(3X),
 \fBlegacy_coding\fR(3X).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

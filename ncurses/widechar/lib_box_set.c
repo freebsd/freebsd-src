@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2002-2003,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_box_set.c,v 1.4 2003/12/06 18:02:13 tom Exp $")
+MODULE_ID("$Id: lib_box_set.c,v 1.5 2009/10/24 22:36:56 tom Exp $")
 
 NCURSES_EXPORT(int)
 wborder_set(WINDOW *win,
@@ -53,7 +53,7 @@ wborder_set(WINDOW *win,
     NCURSES_CH_T wls, wrs, wts, wbs, wtl, wtr, wbl, wbr;
 
     T((T_CALLED("wborder(%p,%s,%s,%s,%s,%s,%s,%s,%s)"),
-       win,
+       (void *) win,
        _tracech_t2(1, ls),
        _tracech_t2(2, rs),
        _tracech_t2(3, ts),

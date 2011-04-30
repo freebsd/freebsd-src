@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1999-2009,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1999                        *
+ *  Author: Thomas E. Dickey 1999                                           *
  ****************************************************************************/
 /*
  *	trace_tries.c - Tracing/Debugging buffers (keycode tries-trees)
@@ -35,7 +35,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: trace_tries.c,v 1.13 2008/08/03 15:43:30 tom Exp $")
+MODULE_ID("$Id: trace_tries.c,v 1.16 2011/01/09 00:23:27 tom Exp $")
 
 #ifdef TRACE
 #define my_buffer _nc_globals.tracetry_buf
@@ -46,7 +46,7 @@ recur_tries(TRIES * tree, unsigned level)
 {
     if (level > my_length) {
 	my_length = (level + 1) * 4;
-	my_buffer = (unsigned char *) realloc(my_buffer, my_length);
+	my_buffer = (unsigned char *) _nc_doalloc(my_buffer, my_length);
     }
 
     while (tree != 0) {
@@ -67,12 +67,12 @@ NCURSES_EXPORT(void)
 _nc_trace_tries(TRIES * tree)
 {
     my_buffer = typeMalloc(unsigned char, my_length = 80);
-    _tracef("BEGIN tries %p", tree);
+    _tracef("BEGIN tries %p", (void *) tree);
     recur_tries(tree, 0);
-    _tracef(". . . tries %p", tree);
+    _tracef(". . . tries %p", (void *) tree);
     free(my_buffer);
 }
 
 #else
-EMPTY_MODULE(_nc_trace_tries)
+EMPTY_MODULE(_nc_empty_trace_tries)
 #endif

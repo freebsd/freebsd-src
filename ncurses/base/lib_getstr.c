@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,9 +39,8 @@
 */
 
 #include <curses.priv.h>
-#include <term.h>
 
-MODULE_ID("$Id: lib_getstr.c,v 1.27 2008/08/16 19:20:04 tom Exp $")
+MODULE_ID("$Id: lib_getstr.c,v 1.29 2009/10/24 21:59:02 tom Exp $")
 
 /*
  * This wipes out the last character, no matter whether it was a tab, control
@@ -84,24 +83,24 @@ wgetnstr_events(WINDOW *win,
     int ch;
     int y, x;
 
-    T((T_CALLED("wgetnstr(%p,%p, %d)"), win, str, maxlen));
+    T((T_CALLED("wgetnstr(%p,%p,%d)"), (void *) win, (void *) str, maxlen));
 
     if (!win)
 	returnCode(ERR);
 
-    _nc_get_tty_mode(&buf);
+    NCURSES_SP_NAME(_nc_get_tty_mode) (NCURSES_SP_ARGx &buf);
 
     oldnl = sp->_nl;
     oldecho = sp->_echo;
     oldraw = sp->_raw;
     oldcbreak = sp->_cbreak;
-    nl();
-    noecho();
-    noraw();
-    cbreak();
+    NCURSES_SP_NAME(nl) (NCURSES_SP_ARG);
+    NCURSES_SP_NAME(noecho) (NCURSES_SP_ARG);
+    NCURSES_SP_NAME(noraw) (NCURSES_SP_ARG);
+    NCURSES_SP_NAME(cbreak) (NCURSES_SP_ARG);
 
-    erasec = erasechar();
-    killc = killchar();
+    erasec = NCURSES_SP_NAME(erasechar) (NCURSES_SP_ARG);
+    killc = NCURSES_SP_NAME(killchar) (NCURSES_SP_ARG);
 
     oldstr = str;
     getyx(win, y, x);
@@ -144,7 +143,7 @@ wgetnstr_events(WINDOW *win,
 	    }
 	} else if (ch >= KEY_MIN
 		   || (maxlen >= 0 && str - oldstr >= maxlen)) {
-	    beep();
+	    NCURSES_SP_NAME(beep) (NCURSES_SP_ARG);
 	} else {
 	    *str++ = (char) ch;
 	    if (oldecho == TRUE) {
@@ -193,7 +192,7 @@ wgetnstr_events(WINDOW *win,
     sp->_raw = oldraw;
     sp->_cbreak = oldcbreak;
 
-    _nc_set_tty_mode(&buf);
+    NCURSES_SP_NAME(_nc_set_tty_mode) (NCURSES_SP_ARGx &buf);
 
     *str = '\0';
     if (ch == ERR)

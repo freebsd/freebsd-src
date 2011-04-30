@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,13 +26,13 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_getyx.3x,v 1.16 2007/05/12 16:34:49 tom Exp $
+.\" $Id: curs_getyx.3x,v 1.18 2010/12/04 18:36:44 tom Exp $
 .TH curs_getyx 3X ""
 .SH NAME
 \fBgetyx\fR,
 \fBgetparyx\fR,
 \fBgetbegyx\fR,
-\fBgetmaxyx\fR - get \fBcurses\fR cursor and window coordinates
+\fBgetmaxyx\fR \- get \fBcurses\fR cursor and window coordinates
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
@@ -51,7 +51,7 @@ the two integer variables \fIy\fR and \fIx\fR.
 If \fIwin\fR is a subwindow, the \fBgetparyx\fR macro places the beginning
 coordinates of the subwindow relative to the parent window into two integer
 variables \fIy\fR and \fIx\fR.
-Otherwise, \fB-1\fR is placed into \fIy\fR and \fIx\fR.
+Otherwise, \fB\-1\fR is placed into \fIy\fR and \fIx\fR.
 .PP
 Like \fBgetyx\fR, the \fBgetbegyx\fR and \fBgetmaxyx\fR macros store
 the current beginning coordinates and size of the specified window.
@@ -98,9 +98,3 @@ The difference is hidden by means of the macro \fBgetmaxyx\fP.
 \fBcurses\fR(3X),
 \fBcurs_legacy\fR(3X),
 \fBcurs_opaque\fR(3X)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

@@ -1,0 +1,191 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_termcap.3x,v 1.26 2010/12/04 18:38:55 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_termcap 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_termcap 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_termcap.3x.html">curs_termcap(3x)</A></STRONG>                                       <STRONG><A HREF="curs_termcap.3x.html">curs_termcap(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>PC</STRONG>, <STRONG>UP</STRONG>, <STRONG>BC</STRONG>, <STRONG>ospeed</STRONG>, <STRONG>tgetent</STRONG>, <STRONG>tgetflag</STRONG>, <STRONG>tgetnum</STRONG>, <STRONG>tgetstr</STRONG>,
+       <STRONG>tgoto</STRONG>, <STRONG>tputs</STRONG> - direct <STRONG>curses</STRONG> interface to the terminfo
+       capability database
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+       <STRONG>#include</STRONG> <STRONG>&lt;term.h&gt;</STRONG>
+
+       <STRONG>extern</STRONG> <STRONG>char</STRONG> <STRONG>PC;</STRONG>
+       <STRONG>extern</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <STRONG>UP;</STRONG>
+       <STRONG>extern</STRONG> <STRONG>char</STRONG> <STRONG>*</STRONG> <STRONG>BC;</STRONG>
+       <STRONG>extern</STRONG> <STRONG>short</STRONG> <STRONG>ospeed;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>tgetent(char</STRONG> <STRONG>*bp,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*name);</STRONG>
+       <STRONG>int</STRONG> <STRONG>tgetflag(char</STRONG> <STRONG>*id);</STRONG>
+       <STRONG>int</STRONG> <STRONG>tgetnum(char</STRONG> <STRONG>*id);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*tgetstr(char</STRONG> <STRONG>*id,</STRONG> <STRONG>char</STRONG> <STRONG>**area);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*tgoto(const</STRONG> <STRONG>char</STRONG> <STRONG>*cap,</STRONG> <STRONG>int</STRONG> <STRONG>col,</STRONG> <STRONG>int</STRONG> <STRONG>row);</STRONG>
+       <STRONG>int</STRONG> <STRONG>tputs(const</STRONG> <STRONG>char</STRONG> <STRONG>*str,</STRONG> <STRONG>int</STRONG> <STRONG>affcnt,</STRONG> <STRONG>int</STRONG> <STRONG>(*putc)(int));</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       These  routines  are included as a conversion aid for pro-
+       grams that use the <EM>termcap</EM> library.  Their parameters  are
+       the  same and the routines are emulated using the <EM>terminfo</EM>
+       database.  Thus, they can only be used to query the  capa-
+       bilities  of  entries  for which a terminfo entry has been
+       compiled.
+
+       The <STRONG>tgetent</STRONG> routine loads the entry for <EM>name</EM>.  It  returns
+       1  on  success, 0 if there is no such entry, and -1 if the
+       terminfo database could not be found.  The  emulation  ig-
+       nores the buffer pointer <EM>bp</EM>.
+
+       The <STRONG>tgetflag</STRONG> routine gets the boolean entry for <EM>id</EM>, or ze-
+       ro if it is not available.
+
+       The <STRONG>tgetnum</STRONG> routine gets the numeric entry for <EM>id</EM>,  or  -1
+       if it is not available.
+
+       The  <STRONG>tgetstr</STRONG>  routine  returns the string entry for <EM>id</EM>, or
+       zero if it is not available.  Use <STRONG>tputs</STRONG> to output the  re-
+       turned  string.   The  return value will also be copied to
+       the buffer pointed to by <EM>area</EM>, and the <EM>area</EM> value will  be
+       updated to point past the null ending this value.
+
+       Only the first two characters of the <STRONG>id</STRONG> parameter of <STRONG>tget-</STRONG>
+       <STRONG>flag</STRONG>, <STRONG>tgetnum</STRONG> and <STRONG>tgetstr</STRONG> are compared in lookups.
+
+       The <STRONG>tgoto</STRONG> routine instantiates  the  parameters  into  the
+       given  capability.   The output from this routine is to be
+       passed to <STRONG>tputs</STRONG>.
+
+       The <STRONG>tputs</STRONG> routine is described  on  the  <STRONG><A HREF="curs_terminfo.3x.html">curs_terminfo(3x)</A></STRONG>
+       manual page.  It can retrieve capabilities by either term-
+       cap or terminfo name.
+
+       The variables <STRONG>PC</STRONG>, <STRONG>UP</STRONG> and <STRONG>BC</STRONG> are set by <STRONG>tgetent</STRONG> to the ter-
+       minfo   entry's   data   for   <STRONG>pad_char</STRONG>,   <STRONG>cursor_up</STRONG>   and
+       <STRONG>backspace_if_not_bs</STRONG>, respectively.   <STRONG>UP</STRONG>  is  not  used  by
+       ncurses.  <STRONG>PC</STRONG> is used in the <STRONG>tdelay_output</STRONG> function.  <STRONG>BC</STRONG> is
+       used in the <STRONG>tgoto</STRONG> emulation.  The variable <STRONG>ospeed</STRONG>  is  set
+       by ncurses in a system-specific coding to reflect the ter-
+       minal speed.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       Except where explicitly noted, routines that return an in-
+       teger  return <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> (SVr4 only specifies
+       "an integer value other than <STRONG>ERR</STRONG>") upon successful comple-
+       tion.
+
+       Routines that return pointers return <STRONG>NULL</STRONG> on error.
+
+
+</PRE>
+<H2>BUGS</H2><PRE>
+       If you call <STRONG>tgetstr</STRONG> to fetch <STRONG>ca</STRONG> or any other parameterized
+       string, be aware that it will be returned in terminfo  no-
+       tation, not the older and not-quite-compatible termcap no-
+       tation.  This will not cause problems if all you  do  with
+       it  is  call  <STRONG>tgoto</STRONG>  or <STRONG>tparm</STRONG>, which both expand terminfo-
+       style strings as terminfo.  (The <STRONG>tgoto</STRONG> function,  if  con-
+       figured  to  support  termcap, will check if the string is
+       indeed terminfo-style by looking for  "%p"  parameters  or
+       "$&lt;..&gt;"  delays,  and invoke a termcap-style parser if the
+       string does not appear to be terminfo).
+
+       Because terminfo conventions for representing  padding  in
+       string  capabilities  differ  from termcap's, <STRONG>tputs("50");</STRONG>
+       will put out a literal "50" rather than  busy-waiting  for
+       50 milliseconds.  Cope with it.
+
+       Note  that termcap has nothing analogous to terminfo's <STRONG>sgr</STRONG>
+       string.  One consequence of this is that termcap  applica-
+       tions  assume me (terminfo <STRONG>sgr0</STRONG>) does not reset the alter-
+       nate character set.  This implementation checks  for,  and
+       modifies the data shown to the termcap interface to accom-
+       modate termcap's limitation in this respect.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       The XSI Curses standard, Issue  4  describes  these  func-
+       tions.   However,  they are marked TO BE WITHDRAWN and may
+       be removed in future versions.
+
+       Neither the XSI Curses standard nor  the  SVr4  man  pages
+       documented  the return values of <STRONG>tgetent</STRONG> correctly, though
+       all three were in fact returned ever since SVr1.  In  par-
+       ticular,  an  omission in the XSI Curses documentation has
+       been misinterpreted to mean that  <STRONG>tgetent</STRONG>  returns  <STRONG>OK</STRONG>  or
+       <STRONG>ERR</STRONG>.  Because the purpose of these functions is to provide
+       compatibility with the <EM>termcap</EM> library, that is  a  defect
+       in XCurses, Issue 4, Version 2 rather than in ncurses.
+
+       External  variables  are  provided  for support of certain
+       termcap applications.  However, termcap applications'  use
+       of those variables is poorly documented, e.g., not distin-
+       guishing between input and output.   In  particular,  some
+       applications are reported to declare and/or modify <STRONG>ospeed</STRONG>.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>, <STRONG><A HREF="term_variables.3x.html">term_variables(3x)</A></STRONG>, <STRONG><A HREF="putc.3.html">putc(3)</A></STRONG>.
+
+
+
+                                                       <STRONG><A HREF="curs_termcap.3x.html">curs_termcap(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

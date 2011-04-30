@@ -1,0 +1,126 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: toe.1m,v 1.23 2010/12/04 18:40:45 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>toe 1m</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>toe 1m</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="toe.1m.html">toe(1m)</A></STRONG>                                                         <STRONG><A HREF="toe.1m.html">toe(1m)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>toe</STRONG> - table of (terminfo) entries
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>toe</STRONG> [<STRONG>-v</STRONG>[<EM>n</EM>]] [<STRONG>-ahuUV</STRONG>] <EM>file...</EM>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       With no options, <STRONG>toe</STRONG> lists all available terminal types by
+       primary name with descriptions.   File  arguments  specify
+       the  directories  to  be scanned; if no such arguments are
+       given, your default terminfo directory is scanned.  If you
+       also  specify  the  <STRONG>-h</STRONG>  option, a directory header will be
+       issued as each directory is entered.
+
+       There are other options intended for use by terminfo  file
+       maintainers:
+
+       <STRONG>-a</STRONG>     report  on  all  of  the  terminal  databases which
+              ncurses would search, rather than  only  the  first
+              one that it finds.
+
+       <STRONG>-u</STRONG> <EM>file</EM>
+              says  to  write  a  report  to the standard output,
+              listing dependencies in the given  terminfo/termcap
+              source  file.  The report condenses the `use' rela-
+              tion: each line consists of the primary name  of  a
+              terminal  that  has use capabilities, followed by a
+              colon, followed by the whitespace-separated primary
+              names  of  all  terminals  which occur in those use
+              capabilities, followed by a newline
+
+       <STRONG>-U</STRONG> <EM>file</EM>
+              says to write a  report  to  the  standard  output,
+              listing  reverse  dependencies  in  the  given ter-
+              minfo/termcap source file.  The report reverses the
+              `use'  relation:  each line consists of the primary
+              name of a terminal that occurs in use capabilities,
+              followed  by  a  colon, followed by the whitespace-
+              separated primary  names  of  all  terminals  which
+              depend on it, followed by a newline.
+
+       <STRONG>-v</STRONG><EM>n</EM>    specifies that (verbose) output be written to stan-
+              dard error, showing <STRONG>toe</STRONG>'s progress.   The  optional
+              parameter  <EM>n</EM>  is a number from 1 to 10, interpreted
+              as for <STRONG><A HREF="tic.1m.html">tic(1m)</A></STRONG>.
+
+       <STRONG>-V</STRONG>     reports the version of ncurses which  was  used  in
+              this program, and exits.
+
+
+</PRE>
+<H2>FILES</H2><PRE>
+       <STRONG>/usr/share/terminfo/?/*</STRONG>
+            Compiled terminal description database.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="tic.1m.html">tic(1m)</A></STRONG>,    <STRONG><A HREF="infocmp.1m.html">infocmp(1m)</A></STRONG>,   <STRONG><A HREF="captoinfo.1m.html">captoinfo(1m)</A></STRONG>,   <STRONG><A HREF="infotocap.1m.html">infotocap(1m)</A></STRONG>,
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>.
+
+       This describes <STRONG>ncurses</STRONG> version 5.8 (patch 20110226).
+
+
+
+                                                                <STRONG><A HREF="toe.1m.html">toe(1m)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

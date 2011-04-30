@@ -32,7 +32,7 @@
  *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
-/* $Id: capdefaults.c,v 1.13 2008/08/04 12:33:42 tom Exp $ */
+/* $Id: capdefaults.c,v 1.14 2008/11/16 00:19:59 juergen Exp $ */
 
     /*
      * Compute obsolete capabilities.  The reason this is an include file is
@@ -44,11 +44,11 @@
      * postprocess_termcap().
      */
 {
-    char *sp;
+    char *strp;
     short capval;
 
 #define EXTRACT_DELAY(str) \
-    	(short) (sp = strchr(str, '*'), sp ? atoi(sp+1) : 0)
+    	(short) (strp = strchr(str, '*'), strp ? atoi(strp+1) : 0)
 
     /* current (4.4BSD) capabilities marked obsolete */
     if (VALID_STRING(carriage_return)

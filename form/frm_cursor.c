@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_cursor.c,v 1.9 2004/12/11 22:01:03 tom Exp $")
+MODULE_ID("$Id: frm_cursor.c,v 1.10 2010/01/23 21:14:36 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -53,7 +53,7 @@ pos_form_cursor(FORM *form)
 {
   int res;
 
-  T((T_CALLED("pos_form_cursor(%p)"), form));
+  T((T_CALLED("pos_form_cursor(%p)"), (void *)form));
 
   if (!form)
     res = E_BAD_ARGUMENT;

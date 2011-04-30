@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_tracedmp.c,v 1.31 2008/08/16 19:30:56 tom Exp $")
+MODULE_ID("$Id: lib_tracedmp.c,v 1.32 2009/04/18 21:01:38 tom Exp $")
 
 #ifdef TRACE
 
@@ -68,7 +68,7 @@ _tracedump(const char *name, WINDOW *win)
     if (width < win->_maxx)
 	++width;
     if (++width + 1 > (int) my_length) {
-	my_length = 2 * (width + 1);
+	my_length = (unsigned) (2 * (width + 1));
 	my_buffer = typeRealloc(char, my_length, my_buffer);
     }
 
@@ -82,7 +82,7 @@ _tracedump(const char *name, WINDOW *win)
 	 * we map those to '.' and '?' respectively.
 	 */
 	for (j = 0; j < width; ++j) {
-	    chtype test = CharOf(win->_line[n].text[j]);
+	    chtype test = (chtype) CharOf(win->_line[n].text[j]);
 	    ep[j] = (char) ((UChar(test) == test
 #if USE_WIDEC_SUPPORT
 			     && (win->_line[n].text[j].chars[1] == 0)
@@ -111,7 +111,7 @@ _tracedump(const char *name, WINDOW *win)
 	    if (multicolumn) {
 		ep = my_buffer;
 		for (j = 0; j < width; ++j) {
-		    int test = WidecExt(win->_line[n].text[j]);
+		    chtype test = WidecExt(win->_line[n].text[j]);
 		    if (test) {
 			ep[j] = (char) (test + '0');
 		    } else {
@@ -153,7 +153,7 @@ _tracedump(const char *name, WINDOW *win)
 
 	for (i = 0; i < 4; ++i) {
 	    const char *hex = " 123456789ABCDEF";
-	    attr_t mask = (0xf << ((i + 4) * 4));
+	    attr_t mask = (attr_t) (0xf << ((i + 4) * 4));
 
 	    haveattrs = FALSE;
 	    for (j = 0; j < width; ++j)

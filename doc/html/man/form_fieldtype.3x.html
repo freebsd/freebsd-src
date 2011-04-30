@@ -1,0 +1,190 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  * t
+  ****************************************************************************
+  * Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: form_fieldtype.3x,v 1.16 2010/12/04 18:40:45 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>form_fieldtype 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>form_fieldtype 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="form_fieldtype.3x.html">form_fieldtype(3x)</A></STRONG>                                   <STRONG><A HREF="form_fieldtype.3x.html">form_fieldtype(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>form_fieldtype</STRONG> - define validation-field types
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;form.h&gt;</STRONG>
+       FIELDTYPE *new_fieldtype(
+           bool (* const field_check)(FIELD *, const void *),
+           bool (* const char_check)(int, const void *));
+       int free_fieldtype(FIELDTYPE *fieldtype);
+       int set_fieldtype_arg(
+           FIELDTYPE *fieldtype,
+           void *(* const make_arg)(va_list *),
+           void *(* const copy_arg)(const void *),
+           void  (* const free_arg)(void *));
+       int set_fieldtype_choice(
+           FIELDTYPE *fieldtype,
+           bool (* const next_choice)(FIELD *, const void *),
+           bool (* const prev_choice)(FIELD *, const void *));
+       FIELDTYPE *link_fieldtype(FIELDTYPE *type1,
+                                 FIELDTYPE *type2);
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The function <STRONG>new_fieldtype</STRONG> creates a new field type usable
+       for data validation.  You supply it  with  <EM>field</EM><STRONG>_</STRONG><EM>check</EM>,  a
+       predicate  to check the validity of an entered data string
+       whenever the user attempts to leave a field.   The  (FIELD
+       *)  argument  is passed in so the validation predicate can
+       see the field's buffer, sizes and  other  attributes;  the
+       second  argument  is  an  argument-block  structure, about
+       which more below.
+
+       You also supply <STRONG>new_fieldtype</STRONG> with <EM>char</EM><STRONG>_</STRONG><EM>check</EM>, a  function
+       to  validate input characters as they are entered; it will
+       be passed the character to be checked and a pointer to  an
+       argument-block structure.
+
+       The  function <STRONG>free_fieldtype</STRONG> frees the space allocated for
+       a given validation type.
+
+       The function <STRONG>set_fieldtype_arg</STRONG> associates  three  storage-
+       management  functions  with  a  field  type.  The <EM>make</EM><STRONG>_</STRONG><EM>arg</EM>
+       function is automatically applied to the list of arguments
+       you  give  <STRONG>set_field_type</STRONG>  when  attaching validation to a
+       field; its job is to bundle these into an allocated  argu-
+       ment-block  object which can later be passed to validation
+       predicated.  The other two hook arguments should copy  and
+       free  argument-block structures.  They will be used by the
+       forms-driver code.  You must supply the <EM>make</EM><STRONG>_</STRONG><EM>arg</EM> function,
+       the  other two are optional, you may supply NULL for them.
+       In this case it is assumed that <EM>make</EM><STRONG>_</STRONG><EM>arg</EM> does not allocate
+       memory  but simply loads the argument into a single scalar
+       value.
+
+       The function <STRONG>link_fieldtype</STRONG> creates a new field type  from
+       the  two  given  types.   They are connected by an logical
+       'OR'.
+
+       The   form    driver    requests    <STRONG>REQ_NEXT_CHOICE</STRONG>    and
+       <STRONG>REQ_PREV_CHOICE</STRONG> assume that the possible values of a field
+       form an ordered set, and provide the forms user with a way
+       to  move  through the set.  The <STRONG>set_fieldtype_choice</STRONG> func-
+       tion allows forms  programmers  to  define  successor  and
+       predecessor functions for the field type.  These functions
+       take the field pointer and an argument-block structure  as
+       arguments.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       The  pointer-valued  routines  return NULL on error.  They
+       set errno according to their success:
+
+       <STRONG>E_OK</STRONG> The routine succeeded.
+
+       <STRONG>E_BAD_ARGUMENT</STRONG>
+            Routine detected an incorrect or  out-of-range  argu-
+            ment.
+
+       <STRONG>E_SYSTEM_ERROR</STRONG>
+            System error occurred, e.g., malloc failure.
+
+       The  integer-valued  routines  return one of the following
+       codes on error:
+
+       <STRONG>E_OK</STRONG> The routine succeeded.
+
+       <STRONG>E_BAD_ARGUMENT</STRONG>
+            Routine detected an incorrect or  out-of-range  argu-
+            ment.
+
+       <STRONG>E_CONNECTED</STRONG>
+            The field is already connected to a form.
+
+       <STRONG>E_CURRENT</STRONG>
+            The field is the current field.
+
+       <STRONG>E_SYSTEM_ERROR</STRONG>
+            System error occurred (see <STRONG>errno</STRONG>).
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="form.3x.html">form(3x)</A></STRONG>.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       The header file <STRONG>&lt;form.h&gt;</STRONG> automatically includes the header
+       file <STRONG>&lt;curses.h&gt;</STRONG>.
+
+       All of the <STRONG>(char</STRONG> <STRONG>*)</STRONG> arguments of  these  functions  should
+       actually  be <STRONG>(void</STRONG> <STRONG>*)</STRONG>.  The type has been left uncorrected
+       for strict compatibility with System V.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       These routines emulate the System V forms  library.   They
+       were not supported on Version 7 or BSD versions.
+
+
+</PRE>
+<H2>AUTHORS</H2><PRE>
+       Juergen  Pfeifer.   Manual  pages  and  adaptation for new
+       curses by Eric S. Raymond.
+
+
+
+                                                     <STRONG><A HREF="form_fieldtype.3x.html">form_fieldtype(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

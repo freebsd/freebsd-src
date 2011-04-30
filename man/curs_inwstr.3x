@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2002-2005,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 2002-2006,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_inwstr.3x,v 1.5 2006/02/25 21:20:20 tom Exp $
+.\" $Id: curs_inwstr.3x,v 1.7 2010/12/04 18:38:55 tom Exp $
 .TH curs_inwstr 3X ""
 .SH NAME
 \fBinwstr\fR,
@@ -81,13 +81,11 @@ routines return
 \fBOK\fR, and the *\fBinnwstr\fR
 routines return the
 number of characters read into the string.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBcurs_instr\fR(3X),
 \fBcurs_in_wchstr\fR(3X)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

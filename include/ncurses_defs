@@ -1,6 +1,6 @@
-# $Id: ncurses_defs,v 1.40 2008/09/06 15:57:41 tom Exp $
+# $Id: ncurses_defs,v 1.45 2011/01/15 18:19:51 tom Exp $
 ##############################################################################
-# Copyright (c) 2000-2007,2008 Free Software Foundation, Inc.                #
+# Copyright (c) 2000-2010,2011 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -110,11 +110,13 @@ HAVE_REMOVE
 HAVE_RESIZETERM
 HAVE_RESIZE_TERM
 HAVE_RIPOFFLINE	1
+HAVE_SCR_DUMP 1
 HAVE_SELECT
 HAVE_SETBUF
 HAVE_SETBUFFER
 HAVE_SETUPTERM	1
 HAVE_SETVBUF
+HAVE_SGTTY_H
 HAVE_SIGACTION
 HAVE_SIGVEC
 HAVE_SIZECHANGE
@@ -140,6 +142,7 @@ HAVE_TERMIOS_H
 HAVE_TERMIO_H
 HAVE_TERMNAME	1
 HAVE_TERM_H	1
+HAVE_TERM_ENTRY_H	1
 HAVE_TGETENT	1
 HAVE_TIGETNUM	1
 HAVE_TIGETSTR	1
@@ -161,6 +164,7 @@ HAVE_WCTOB
 HAVE_WCTOMB
 HAVE_WCTYPE_H
 HAVE_WINSSTR	1
+HAVE_WSYNCDOWN	1
 HAVE_WORKING_POLL
 HAVE_WRESIZE
 HAVE__DOSCAN
@@ -171,7 +175,6 @@ NCURSES_EXT_COLORS
 NCURSES_EXT_FUNCS
 NCURSES_NO_PADDING
 NCURSES_PATHSEP	':'
-NDEBUG
 NEED_PTEM_H
 NO_LEAKS
 PURE_TERMINFO
@@ -195,6 +198,7 @@ USE_HOME_TERMINFO
 USE_LINKS
 USE_MY_MEMMOVE
 USE_OK_BCOPY
+USE_PTHREADS_EINTR
 USE_RCS_IDS
 USE_REENTRANT
 USE_SAFE_SPRINTF

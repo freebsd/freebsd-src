@@ -1,0 +1,149 @@
+-------------------------------------------------------------------------------
+-- Copyright (c) 2008-2010,2011 Free Software Foundation, Inc.               --
+--                                                                           --
+-- Permission is hereby granted, free of charge, to any person obtaining a   --
+-- copy of this software and associated documentation files (the             --
+-- "Software"), to deal in the Software without restriction, including       --
+-- without limitation the rights to use, copy, modify, merge, publish,       --
+-- distribute, distribute with modifications, sublicense, and/or sell copies --
+-- of the Software, and to permit persons to whom the Software is furnished  --
+-- to do so, subject to the following conditions:                            --
+--                                                                           --
+-- The above copyright notice and this permission notice shall be included   --
+-- in all copies or substantial portions of the Software.                    --
+--                                                                           --
+-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS   --
+-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF                --
+-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN --
+-- NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,       --
+-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR     --
+-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE --
+-- USE OR OTHER DEALINGS IN THE SOFTWARE.                                    --
+--                                                                           --
+-- Except as contained in this notice, the name(s) of the above copyright    --
+-- holders shall not be used in advertising or otherwise to promote the      --
+-- sale, use or other dealings in this Software without prior written        --
+-- authorization.                                                            --
+-------------------------------------------------------------------------------
+-- $Id: README.MinGW,v 1.5 2011/02/26 16:57:17 tom Exp $
+-- Author: Juergen Pfeifer
+-------------------------------------------------------------------------------
+
+This is work in progress, but it's in an state where one can see it
+works at least on the Windows Console.
+
+You should install the MSYS package, so that you've a shell environment that
+allows you to run the scripts, especially configure etc.  You can get that
+from http://www.mingw.org
+
+To build ncurses for native Windows, you need the MinGW toolchain.  The
+original MinGW toolchain from the above site is only for 32-Bit Windows.  As
+Windows Server - and also regular workstations - are moving to 64-Bit, it
+seems to be reasonable to have a toolchain that supports both architectures. 
+I recommend to use the TDM gcc toolchain which you can find at
+http://tdm-gcc.tdragon.net/download.  Go to the download section and select
+the bundle installer for tdm64 (MinGW-w64).  This installs a multilib version
+of the gcc toolchain that can compile for native 32- and 64-Bit Windows
+versions.  It also comes with a working pthread implementation.
+
+The latest config and build scripts we use for MinGW have only been tested
+for the gcc-4.4 compiler toolchain (or better).
+
+Using MinGW is a pragmatic decision, it's the easiest way to port this
+heavily UNIX based sourcebase to native Windows. The goal is of course
+to provide the includes, libraries and DLLs to be used with the more
+common traditional development environments on Windows, mainly with
+Microsoft Visual Studio.
+
+If you start a bash from the MSYS environment, please make sure that the
+Microsoft Development tools are in your PATH right after the MinGW
+tools. The LIB.EXE tool is the only one needed. You need this only if 
+you want to build DLLs that work with native Windows programs. If you 
+don't have any Microsoft  Development tools on your machine, consider 
+at least to get the free "Visual C++ 2010 Express Edition". 
+It contains the LIB.EXE tool. You may also use this compiler to test 
+writing native Windows programs using the ncurses DLLs without using 
+MinGW then for writing apps.
+
+It is necessary to unset the TERM environment variable, to activate the
+Windows console-driver.
+
+Please also make sure that MSYS links to the correct directory containing
+your MinGW toolchain. For TDM this is usually C:\MinGW64. In your Windows
+CMD.EXE command shell go to the MSYS root directory (most probably 
+C:\MSYS or C:\MSYS\1.0) and verify, that there is a junction point mingw
+that points to the MinGW toolchain directory. If not, delete the mingw
+directory and use the mklink command (or the linkd.exe utility on older
+Windows) to create the junction point.
+
+This code requires WindowsNT 5.1 or better, which means on the client
+Windows XP or better, on the server Windows Server 2003 or better.
+
+In order to build ncurses for the planned interop layer with .NET, we
+recommend to use these options with configure
+
+	  --disable-home-terminfo
+	  --enable-reentrant
+	  --enable-sp-funcs
+	  --enable-term-driver
+	  --enable-interop
+	  --with-pthread         (if using TDM toolchain as recommended)
+
+This is the configuration commandline as I'm using it at the moment:
+
+./configure \
+	--prefix=/mingw \
+	--without-cxx-binding \
+	--without-ada \
+	--enable-warnings \
+	--enable-assertions \
+	--enable-reentrant \
+	--with-debug \
+	--with-normal \
+	--disable-home-terminfo \
+	--enable-sp-funcs \
+	--enable-term-driver \
+	--enable-interop \
+	--with-pthread
+
+If you are on a 64-Bit Windows system and want to build a 32-Bit version
+of ncurses, you may use this commandline for configuration (when using
+the TDM toolchain):
+
+CC="gcc -m32" LD="ld -m32" ./configure \
+	--prefix=/mingw \
+	--without-cxx-binding \
+	--without-ada \
+	--enable-warnings \
+	--enable-assertions \
+	--enable-reentrant \
+	--with-debug \
+	--with-normal \
+	--disable-home-terminfo \
+	--enable-sp-funcs \
+	--enable-term-driver \
+	--enable-interop \
+	--with-pthread
+
+All the options above are - like the whole Windows support -
+experimental.
+
+In order to build the DLLs, after your regular make you must call
+
+   make dlls
+
+A lot is still TODO, e.g.:
+
+  - Wide Character support
+    The Win32Con driver should actually only use Unicode in the
+    future.
+  - Thread support (locking). If using TDM toolchain this is done by
+    configuring pthreads.
+  - A GUI console driver
+  - Support for Terminals attached via a serial port (via terminfo)
+  - Support for networked Terminal connections (via terminfo)
+  - Workarounds for MinGW's filesystem access are necessary to make infocmp
+    work (though tic works).
+
+To support terminfo, we need to have an ioctl() simulation for the
+serial and networked Terminals.

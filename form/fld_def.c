@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_def.c,v 1.36 2007/10/13 19:29:58 tom Exp $")
+MODULE_ID("$Id: fld_def.c,v 1.38 2010/01/23 21:14:35 tom Exp $")
 
 /* this can't be readonly */
 static FIELD default_field =
@@ -252,8 +252,8 @@ _nc_Free_Type(FIELD *field)
   if (field->type != 0)
     {
       field->type->ref--;
+      _nc_Free_Argument(field->type, (TypeArgument *)(field->arg));
     }
-  _nc_Free_Argument(field->type, (TypeArgument *)(field->arg));
 }
 
 /*---------------------------------------------------------------------------
@@ -291,7 +291,7 @@ new_field(int rows, int cols, int frow, int fcol, int nrow, int nbuf)
       ((err = E_SYSTEM_ERROR) != 0) &&	/* trick: this resets the default error */
       (New_Field = typeMalloc(FIELD, 1)) != 0)
     {
-      T((T_CREATE("field %p"), New_Field));
+      T((T_CREATE("field %p"), (void *)New_Field));
       *New_Field = default_field;
       New_Field->rows = rows;
       New_Field->cols = cols;
@@ -355,7 +355,7 @@ new_field(int rows, int cols, int frow, int fcol, int nrow, int nbuf)
 NCURSES_EXPORT(int)
 free_field(FIELD *field)
 {
-  T((T_CALLED("free_field(%p)"), field));
+  T((T_CALLED("free_field(%p)"), (void *)field));
   if (!field)
     {
       RETURN(E_BAD_ARGUMENT);

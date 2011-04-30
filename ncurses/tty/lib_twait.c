@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -65,10 +65,12 @@
 #  include <sys/select.h>
 # endif
 #endif
-
+#ifdef __MINGW32__
+#  include <sys/time.h>
+#endif
 #undef CUR
 
-MODULE_ID("$Id: lib_twait.c,v 1.59 2008/08/30 20:08:19 tom Exp $")
+MODULE_ID("$Id: lib_twait.c,v 1.61 2010/12/25 23:43:58 tom Exp $")
 
 static long
 _nc_gettime(TimeType * t0, bool first)
@@ -124,15 +126,27 @@ _nc_eventlist_timeout(_nc_eventlist * evl)
 }
 #endif /* NCURSES_WGETCH_EVENTS */
 
+#if (USE_FUNC_POLL || HAVE_SELECT)
+#  define MAYBE_UNUSED
+#else
+#  define MAYBE_UNUSED GCC_UNUSED
+#endif
+
+#if (USE_FUNC_POLL || HAVE_SELECT)
+#  define MAYBE_UNUSED
+#else
+#  define MAYBE_UNUSED GCC_UNUSED
+#endif
+
 /*
  * Wait a specified number of milliseconds, returning nonzero if the timer
  * didn't expire before there is activity on the specified file descriptors.
  * The file-descriptors are specified by the mode:
- *	0 - none (absolute time)
- *	1 - ncurses' normal input-descriptor
- *	2 - mouse descriptor, if any
- *	3 - either input or mouse.
- *
+ *	TW_NONE    0 - none (absolute time)
+ *	TW_INPUT   1 - ncurses' normal input-descriptor
+ *	TW_MOUSE   2 - mouse descriptor, if any
+ *	TW_ANY     3 - either input or mouse.
+ *      TW_EVENT   4 -
  * Experimental:  if NCURSES_WGETCH_EVENTS is defined, (mode & 4) determines
  * whether to pay attention to evl argument.  If set, the smallest of
  * millisecond and of timeout of evl is taken.
@@ -143,16 +157,18 @@ _nc_eventlist_timeout(_nc_eventlist * evl)
  * descriptors.
  */
 NCURSES_EXPORT(int)
-_nc_timed_wait(SCREEN *sp,
-	       int mode,
+_nc_timed_wait(SCREEN *sp MAYBE_UNUSED,
+	       int mode MAYBE_UNUSED,
 	       int milliseconds,
 	       int *timeleft
 	       EVENTLIST_2nd(_nc_eventlist * evl))
 {
-    int fd;
     int count;
-    int result = 0;
+    int result = TW_NONE;
     TimeType t0;
+#if (USE_FUNC_POLL || HAVE_SELECT)
+    int fd;
+#endif
 
 #ifdef NCURSES_WGETCH_EVENTS
     int timeout_is_event = 0;
@@ -174,7 +190,7 @@ _nc_timed_wait(SCREEN *sp,
 		      milliseconds, mode));
 
 #ifdef NCURSES_WGETCH_EVENTS
-    if (mode & 4) {
+    if (mode & TW_EVENT) {
 	int event_delay = _nc_eventlist_timeout(evl);
 
 	if (event_delay >= 0
@@ -193,7 +209,7 @@ _nc_timed_wait(SCREEN *sp,
     count = 0;
 
 #ifdef NCURSES_WGETCH_EVENTS
-    if ((mode & 4) && evl)
+    if ((mode & TW_EVENT) && evl)
 	evl->result_flags = 0;
 #endif
 
@@ -201,23 +217,23 @@ _nc_timed_wait(SCREEN *sp,
     memset(fd_list, 0, sizeof(fd_list));
 
 #ifdef NCURSES_WGETCH_EVENTS
-    if ((mode & 4) && evl)
+    if ((mode & TW_EVENT) && evl)
 	fds = typeMalloc(struct pollfd, MIN_FDS + evl->count);
 #endif
 
-    if (mode & 1) {
+    if (mode & TW_INPUT) {
 	fds[count].fd = sp->_ifd;
 	fds[count].events = POLLIN;
 	count++;
     }
-    if ((mode & 2)
+    if ((mode & TW_MOUSE)
 	&& (fd = sp->_mouse_fd) >= 0) {
 	fds[count].fd = fd;
 	fds[count].events = POLLIN;
 	count++;
     }
 #ifdef NCURSES_WGETCH_EVENTS
-    if ((mode & 4) && evl) {
+    if ((mode & TW_EVENT) && evl) {
 	for (n = 0; n < evl->count; ++n) {
 	    _nc_event *ev = evl->events[n];
 
@@ -234,7 +250,7 @@ _nc_timed_wait(SCREEN *sp,
     result = poll(fds, (unsigned) count, milliseconds);
 
 #ifdef NCURSES_WGETCH_EVENTS
-    if ((mode & 4) && evl) {
+    if ((mode & TW_EVENT) && evl) {
 	int c;
 
 	if (!result)
@@ -276,8 +292,8 @@ _nc_timed_wait(SCREEN *sp,
      *
      * FIXME: this assumes mode&1 if milliseconds < 0 (see lib_getch.c).
      */
-    result = 0;
-    if (mode & 1) {
+    result = TW_NONE;
+    if (mode & TW_INPUT) {
 	int step = (milliseconds < 0) ? 0 : 5000;
 	bigtime_t d;
 	bigtime_t useconds = milliseconds * 1000;
@@ -313,17 +329,17 @@ _nc_timed_wait(SCREEN *sp,
      */
     FD_ZERO(&set);
 
-    if (mode & 1) {
+    if (mode & TW_INPUT) {
 	FD_SET(sp->_ifd, &set);
 	count = sp->_ifd + 1;
     }
-    if ((mode & 2)
+    if ((mode & TW_MOUSE)
 	&& (fd = sp->_mouse_fd) >= 0) {
 	FD_SET(fd, &set);
 	count = max(fd, count) + 1;
     }
 #ifdef NCURSES_WGETCH_EVENTS
-    if ((mode & 4) && evl) {
+    if ((mode & TW_EVENT) && evl) {
 	for (n = 0; n < evl->count; ++n) {
 	    _nc_event *ev = evl->events[n];
 
@@ -346,7 +362,7 @@ _nc_timed_wait(SCREEN *sp,
     }
 
 #ifdef NCURSES_WGETCH_EVENTS
-    if ((mode & 4) && evl) {
+    if ((mode & TW_EVENT) && evl) {
 	evl->result_flags = 0;
 	for (n = 0; n < evl->count; ++n) {
 	    _nc_event *ev = evl->events[n];
@@ -370,7 +386,7 @@ _nc_timed_wait(SCREEN *sp,
     returntime = _nc_gettime(&t0, FALSE);
 
     if (milliseconds >= 0)
-	milliseconds -= (returntime - starttime);
+	milliseconds -= (int) (returntime - starttime);
 
 #ifdef NCURSES_WGETCH_EVENTS
     if (evl) {
@@ -428,22 +444,22 @@ _nc_timed_wait(SCREEN *sp,
 		}
 	    }
 #elif defined(__BEOS__)
-	    result = 1;		/* redundant, but simple */
+	    result = TW_INPUT;	/* redundant, but simple */
 #elif HAVE_SELECT
-	    if ((mode & 2)
+	    if ((mode & TW_MOUSE)
 		&& (fd = sp->_mouse_fd) >= 0
 		&& FD_ISSET(fd, &set))
-		result |= 2;
-	    if ((mode & 1)
+		result |= TW_MOUSE;
+	    if ((mode & TW_INPUT)
 		&& FD_ISSET(sp->_ifd, &set))
-		result |= 1;
+		result |= TW_INPUT;
 #endif
 	} else
 	    result = 0;
     }
 #ifdef NCURSES_WGETCH_EVENTS
-    if ((mode & 4) && evl && evl->result_flags)
-	result |= 4;
+    if ((mode & TW_EVENT) && evl && evl->result_flags)
+	result |= TW_EVENT;
 #endif
 
     return (result);

@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.               --
+-- Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.               --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
 -- copy of this software and associated documentation files (the             --
@@ -25,7 +25,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: INSTALL,v 1.135 2008/11/02 21:13:51 tom Exp $
+-- $Id: INSTALL,v 1.152 2011/02/25 22:10:53 tom Exp $
 ---------------------------------------------------------------------
              How to install Ncurses/Terminfo on your system
 ---------------------------------------------------------------------
@@ -39,9 +39,8 @@ d.d is the current version number.  There should be several subdirectories,
 including `c++', `form', `man', `menu', 'misc', `ncurses', `panel', `progs',
 and `test'.  See the README file for a roadmap to the package.
 
-If you are a Linux or FreeBSD or NetBSD distribution integrator or packager,
-please read and act on the section titled IF YOU ARE A SYSTEM INTEGRATOR
-below.
+If you are a distribution integrator or packager, please read and act on the
+section titled IF YOU ARE A SYSTEM INTEGRATOR below.
 
 If you are converting from BSD curses and do not have root access, be sure
 to read the BSD CONVERSION NOTES section below.
@@ -57,10 +56,6 @@ CROSS-COMPILER.
 
 If you want to build the Ada95 binding, go to the Ada95 directory and
 follow the instructions there.  The Ada95 binding is not covered below.
-
-If you are using anything but (a) Linux, or (b) one of the 4.4BSD-based
-i386 Unixes, go read the Portability section in the TO-DO file before you
-do anything else.
 
 
 REQUIREMENTS:
@@ -86,14 +81,14 @@ INSTALLATION PROCEDURE:
 
     The --prefix option to configure changes the root directory for installing
     ncurses.  The default is normally in subdirectories of /usr/local, except
-    for systems where ncurses is normally installed as a system library, e.g.,
-    Linux, the various BSD systems and Cygwin.  Use --prefix=/usr to replace
-    your default curses distribution.
+    for systems where ncurses is normally installed as a system library (see
+    "IF YOU ARE A SYSTEM INTEGRATOR").  Use --prefix=/usr to replace your
+    default curses distribution.
 
     The package gets installed beneath the --prefix directory as follows:
 
     In $(prefix)/bin:          tic, infocmp, captoinfo, tset,
-				reset, clear, tput, toe
+				reset, clear, tput, toe, tabs
     In $(prefix)/lib:          libncurses*.* libcurses.a
     In $(prefix)/share/terminfo: compiled terminal descriptions
     In $(prefix)/include:      C header files
@@ -105,12 +100,12 @@ INSTALLATION PROCEDURE:
 
     Do not use commands such as
 
-    	make install prefix=XXX
+	make install prefix=XXX
 
     to change the prefix after configuration, since the prefix value is used
     for some absolute pathnames such as TERMINFO.  Instead do this
 
-    	make install DESTDIR=XXX
+	make install DESTDIR=XXX
 
     See also the discussion of --with-install-prefix.
 
@@ -147,7 +142,7 @@ INSTALLATION PROCEDURE:
     library interfaces are not binary-compatible with the non-wide-character
     version.  Building and running the wide-character code relies on a fairly
     recent implementation of libiconv.  We have built this configuration on
-    Linux using libiconv, sometimes requiring libutf8.
+    various systems using libiconv, sometimes requiring libutf8.
 
     If you configure using the --with-pthread option, a "t" is appended to
     the library names (e.g., libncursest.a, libncursestw.a).
@@ -170,8 +165,8 @@ INSTALLATION PROCEDURE:
 	./configure --with-shared --without-normal --without-debug
 
     Rules for generating shared libraries are highly dependent upon the choice
-    of host system and compiler.  We've been testing shared libraries on Linux
-    and SunOS with gcc, but more work needs to be done to make shared libraries
+    of host system and compiler.  We've been testing shared libraries on
+    several systems, but more work needs to be done to make shared libraries
     work on other systems.
 
     If you have libtool installed, you can type
@@ -338,6 +333,17 @@ SUMMARY OF CONFIGURE OPTIONS:
     --disable-largefile
 	Disable compiler flags needed to use large-file interfaces.
 
+    --disable-libtool-version
+	when using --with-libtool, control how the major/minor version numbers
+	are used for constructing the library name.
+
+	The default uses the -version-number feature of libtool, which makes
+	the library names compatible (though not identical) with the standard
+	build using --with-shared.
+
+	Use --disable-libtool-version to use the libtool -version-info feature.
+	This corresponds to the setting used before patch 20100515.
+
     --disable-leaks
 	For testing, compile-in code that frees memory that normally would not
 	be freed, to simplify analysis of memory-leaks.
@@ -388,6 +394,12 @@ SUMMARY OF CONFIGURE OPTIONS:
 	are not available when running as root, or via a setuid/setgid
 	application.  These are (for example $TERMINFO) those that allow the
 	search path for the terminfo or termcap entry to be customized.
+
+    --disable-rpath-hack
+	Normally the configure script helps link libraries found in unusual
+	places by adding an rpath option to the link command.  If you are
+	building packages, this feature may be redundant.  Use this option
+	to suppress the feature.
 
     --disable-scroll-hints
 	Compile without scroll-hints code.  This option is ignored when
@@ -513,6 +525,10 @@ SUMMARY OF CONFIGURE OPTIONS:
 	may not be accurate, or that your stty settings have disabled the use
 	of tabs.
 
+    --enable-interop
+	Compile-in experimental interop bindings.  These provide generic types
+	for the form-library.
+
     --enable-mixed-case
 	Controls whether the filesystem on which the terminfo database resides
 	supports mixed-case filenames (normal for UNIX, but not on other
@@ -524,6 +540,15 @@ SUMMARY OF CONFIGURE OPTIONS:
 	which allows you to suppress the effect of non-mandatory padding in
 	terminfo entries.  This is the default, unless you have disabled the
 	extended functions.
+
+    --enable-pc-files
+	If pkg-config is found (see --with-pkg-config), generate ".pc" files
+	for each of the libraries, and install them in pkg-config's library
+	directory.
+
+    --enable-pthreads-eintr
+	add logic in threaded configuration to ensure that a read(2) system
+	call can be interrupted for SIGWINCH.
 
     --enable-reentrant
 	Compile experimental configuration which improves reentrant use of the
@@ -565,6 +590,11 @@ SUMMARY OF CONFIGURE OPTIONS:
 	is not strictly compatible.  This option allows one to implement this
 	alteration without patching the source code.
 
+    --enable-sp-funcs
+	Compile-in support for extended functions which accept a SCREEN pointer,
+	reducing the need for juggling the global SP value with set_term() and
+	delscreen().
+
     --enable-symlinks
 	If your system supports symbolic links, make tic use symbolic links
 	rather than hard links to save diskspace when writing aliases in the
@@ -575,6 +605,11 @@ SUMMARY OF CONFIGURE OPTIONS:
 	-x option of tic and infocmp to treat unrecognized terminal
 	capabilities as user-defined strings.  This option is the default,
 	unless you have disabled the extended functions.
+
+    --enable-term-driver
+	Enable experimental terminal-driver.  This is currently used for the
+	MinGW port, by providing a way to substitute the low-level terminfo
+	library with different terminal drivers.
 
     --enable-termcap
 	Compile in support for reading terminal descriptions from termcap if no
@@ -630,11 +665,18 @@ SUMMARY OF CONFIGURE OPTIONS:
     --with-ada-objects=DIR
 	Tell where to install the Ada objects (default:  PREFIX/lib/ada/adalib)
 
+    --with-ada-sharedlib
+	Build a shared library for Ada95 binding, if the compiler permits.
+
     --with-bool=TYPE
 	If --without-cxx is specified, override the type used for the "bool"
 	declared in curses.h (normally the type is automatically chosen to
 	correspond with that in <stdbool.h>, or defaults to platform-specific
 	sizes).
+
+    --with-build-cpp=XXX
+	This option is provided by the same macro used for $BUILD_CC, etc.,
+	but is not directly used by ncurses.
 
     --with-build-cc=XXX
 	If cross-compiling, specify a host C compiler, which is needed to
@@ -682,6 +724,10 @@ SUMMARY OF CONFIGURE OPTIONS:
 	to use a terminfo database which is compatible with the native
 	applications.
 
+    --with-ccharw-max=XXX
+	Override the size of the wide-character array in cchar_t structures.
+	Changing this will alter the binary interface.  This defaults to 5.
+
     --with-chtype=TYPE
 	Override type of chtype, which stores the video attributes and (if
 	--enable-widec is not given) a character.  Prior to ncurses 5.5, this
@@ -719,7 +765,7 @@ SUMMARY OF CONFIGURE OPTIONS:
 	use Alessandro Rubini's GPM library to provide mouse support on the
 	Linux console.  Prior to ncurses 5.5, this introduced a dependency on
 	the GPM library.
-	
+
 	Currently ncurses uses the dlsym() function to bind to the library at
 	runtime, so it is only necessary that the library be present when
 	ncurses is built, to obtain the filename (or soname) used in the
@@ -736,7 +782,7 @@ SUMMARY OF CONFIGURE OPTIONS:
 	Use a hashed database for storing terminfo data rather than storing
 	each compiled entry in a separate binary file within a directory
 	tree.
-	
+
 	In particular, this uses the Berkeley database 1.8.5 interface, as
 	provided by that and its successors db 2, 3, and 4.  The actual
 	interface is slightly different in the successor versions of the
@@ -807,9 +853,9 @@ SUMMARY OF CONFIGURE OPTIONS:
 
     --with-manpage-renames=XXX
 	Tell the configure script that you wish to rename the manpages while
-	installing.  Currently the only distribution which does this is
-	the Linux Debian.  The option value specifies the name of a file
-	that lists the renamed files, e.g., $srcdir/man/man_db.renames
+	installing.  Currently the only distribution which does this is Debian.
+	The option value specifies the name of a file that lists the renamed
+	files, e.g., $srcdir/man/man_db.renames
 
     --with-manpage-symlinks
 	Tell the configure script that you wish to make symbolic links in the
@@ -850,6 +896,9 @@ SUMMARY OF CONFIGURE OPTIONS:
 	those using termcap, do not use the higher speeds.  Your application
 	(or system, in general) may or may not.
 
+    --with-pkg-config=[DIR]
+	Check for pkg-config, optionally specifying its path.
+
     --with-profile
 	Generate profile-libraries These are named by adding "_p" to the root,
 	e.g., libncurses_p.a
@@ -885,7 +934,7 @@ SUMMARY OF CONFIGURE OPTIONS:
 	loads the system's copy of the ncurses shared libraries.  In that
 	case, using the misc/shlib script may be helpful, since it sets
 	$LD_LIBRARY_PATH to point to the build tree, e.g.,
-		./misc/shlib make install 	
+		./misc/shlib make install
 
     --with-shlib-version=XXX
 	Specify whether to use the release or ABI version for shared libraries.
@@ -946,6 +995,17 @@ SUMMARY OF CONFIGURE OPTIONS:
 	For testing, compile with debug option.
 	This also sets the --disable-leaks option.
 
+    --with-wrap-prefix=XXX
+	When using the --enable-reentrant option, ncurses redefines variables
+	that would be global in curses, e.g., LINES, as a macro that calls a
+	"wrapping" function which fetches the data from the current SCREEN
+	structure.  Normally that function is named by prepending "_nc_" to the
+	variable's name.  The function is technically private (since portable
+	applications would not refer directly to it).  But according to one
+	line of reasoning, it is not the same type of "private" as functions
+	which applications should not call even via a macro.  This configure
+	option lets you choose the prefix for these wrapped variables.
+
     --without-ada
 	Suppress the configure script's check for Ada95, do not build the
 	Ada95 binding and related demo.
@@ -975,10 +1035,17 @@ SUMMARY OF CONFIGURE OPTIONS:
     --without-dlsym
 	Do not use dlsym() to load GPM dynamically.
 
+    --without-manpages
+	Tell the configure script to suppress the install of ncurses' manpages.
+
     --without-progs
 	Tell the configure script to suppress the build of ncurses' application
 	programs (e.g., tic).  The test applications will still be built if you
 	type "make", though not if you simply do "make install".
+
+    --without-tests
+	Tell the configure script to suppress the build of ncurses' test
+	programs.
 
     --without-xterm-new
 	Tell the configure script to use "xterm-old" for the entry used in
@@ -1001,6 +1068,60 @@ COMPATIBILITY WITH OLDER VERSIONS OF NCURSES:
     you may encounter when building a system with different versions of
     ncurses:
 
+    5.8 (Feb 26, 2011)
+	Interface changes:
+
+	+ add an alternate library configuration, i.e., "terminal driver" to
+	  support port to Windows, built with MinGW.  There are two drivers
+	  (terminfo and Windows console).  The terminfo driver works on other
+	  platforms.
+
+	+ add a new set of functions which accept a SCREEN* parameter, in
+	  contrast with the original set which use the global value "sp".
+	  By default, these names end with "_sp", and are otherwise
+	  functionally identical with the originals.
+
+	  In addition to the "_sp" functions, there are a few new functions
+	  associated with this feature:  ceiling_panel, ground_panel,
+	  new_prescr.
+
+	  If the library is not built with the sp-funcs extension, there
+	  are no related interface changes.
+
+	+ add tiparm function based on review of X/Open Curses Issue 7.
+
+	+ change internal _nc_has_mouse function to public has_mouse function
+
+	Added extensions:
+
+	+ add a few more functions to support the NCURSES_OPAQUE feature:
+	  get_escdelay, is_pad, is_subwin
+
+	Added internal functions (other than "_sp" variants):
+		_nc_curscr_of
+		_nc_format_slks
+		_nc_get_alias_table
+		_nc_get_hash_info
+		_nc_insert_wch
+		_nc_newscr_of
+		_nc_outc_wrapper
+		_nc_retrace_char
+		_nc_retrace_int_attr_t
+		_nc_retrace_mmask_t
+		_nc_setup_tinfo
+		_nc_stdscr_of
+		_nc_tinfo_cmdch
+
+	Removed internal functions:
+		_nc_makenew (some configurations replace by _nc_makenew_sp)
+
+	Modified internal functions:
+		_nc_UpdateAttrs
+		_nc_get_hash_table
+		_nc_has_mouse
+		_nc_insert_ch
+		_nc_wgetch
+
     5.7 (November 2, 2008)
 	Interface changes:
 
@@ -1011,7 +1132,7 @@ COMPATIBILITY WITH OLDER VERSIONS OF NCURSES:
 	  of the ncurses library used for the tic program as well as some
 	  others such as tack.  There is no API change, but makefiles would be
 	  changed to use the tic-library built separately.
-	  
+
 	  tack, distributed separately from ncurses, uses some of the internal
 	  _nc_XXX functions, which are declared in the tic.h header file.
 
@@ -1158,7 +1279,7 @@ COMPATIBILITY WITH OLDER VERSIONS OF NCURSES:
 	  still used in this release to allow compiling with not-so-old
 	  compilers.
 
-	+ form and menu libraries now work with wide-character data. 
+	+ form and menu libraries now work with wide-character data.
 	  Applications which bypassed the form library and manipulated the
 	  FIELD.buf data directly will not work properly with libformw, since
 	  that no longer points to an array of char.  The set_field_buffer()
@@ -1438,8 +1559,8 @@ COMPATIBILITY WITH OLDER VERSIONS OF NCURSES:
 
     4.0 (December 24, 1996)
 
-	We bumped to version 4.0 because the newly released dynamic loader
-	(ld.so.1.8.5) on Linux did not load shared libraries whose ABI and REL
+	We bumped to version 4.0 because the newly released Linux dynamic
+	loader (ld.so.1.8.5) did not load shared libraries whose ABI and REL
 	versions were inconsistent.  At that point, ncurses ABI was 3.4 and the
 	REL was 1.9.9g, so we made them consistent.
 
@@ -1496,10 +1617,10 @@ IF YOU ARE A SYSTEM INTEGRATOR:
 
     Configuration and Installation:
 
-    	On platforms where ncurses is assumed to be installed in /usr/lib,
+	On platforms where ncurses is assumed to be installed in /usr/lib,
 	the configure script uses "/usr" as a default:
 
-		Linux, FreeBSD, NetBSD, OpenBSD, Cygwin
+		GNU/Linux, FreeBSD, NetBSD, OpenBSD, Cygwin
 
 	For other platforms, the default is "/usr/local".  See the discussion
 	of the "--disable-overwrite" option.
@@ -1562,7 +1683,7 @@ IF YOU ARE A SYSTEM INTEGRATOR:
 		bsdos	-- BSD/OS
 
 	If you are responsible for integrating ncurses for one of these
-	distribution, please either use the recommended name or get back
+	distributions, please either use the recommended name or get back
 	to us explaining why you don't want to, so we can work out nomenclature
 	that will make users' lives easier rather than harder.
 
@@ -1584,7 +1705,8 @@ CONFIGURING FALLBACK ENTRIES:
 	tree is accessible (that is, in single-user mode or at OS installation
 	time) the ncurses library can be compiled to include an array of
 	pre-fetched fallback entries.  This must be done on a machine which
-	has ncurses' infocmp and terminfo database installed.
+	has ncurses' infocmp and terminfo database installed (as well as
+	ncurses' tic and infocmp programs).
 
 	These entries are checked by setupterm() only when the conventional
 	fetches from the terminfo tree and the termcap fallback (if configured)
@@ -1689,8 +1811,8 @@ USING NCURSES WITH AFS:
 	with this by making tic use symbolic links.
 
 USING NCURSES WITH GPM:
-	Ncurses 4.1 and up can be configured to use GPM (General Purpose
-	Mouse) which is used on Linux console.  Be aware that GPM is commonly
+	Ncurses 4.1 and up can be configured to use GPM (General Purpose Mouse)
+	which is used with Linux console.  Be aware that GPM is commonly
 	installed as a shared library which contains a wrapper for the curses
 	wgetch() function (libcurses.o).  Some integrators have simplified
 	linking applications by combining all or part of libcurses.so into the
@@ -1734,6 +1856,10 @@ BUILDING NCURSES WITH A CROSS-COMPILER
 	install tree.  Note that in this case (as with the --with-fallbacks
 	option), ncurses uses the development platform's tic to do the
 	"make install.data" portion.
+
+	The system's tic program is used to install the terminal database,
+	even for cross-compiles.  For best results, the tic program should
+	be from the most current version of ncurses.
 
 BUGS:
 	Send any feedback to the ncurses mailing list at

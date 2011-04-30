@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002-2004,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 2002-2008,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,9 +38,8 @@
 */
 
 #include <curses.priv.h>
-#include <term.h>
 
-MODULE_ID("$Id: lib_get_wstr.c,v 1.10 2008/08/16 19:25:33 tom Exp $")
+MODULE_ID("$Id: lib_get_wstr.c,v 1.12 2009/10/24 22:38:11 tom Exp $")
 
 static int
 wadd_wint(WINDOW *win, wint_t *src)
@@ -96,7 +95,7 @@ wgetn_wstr(WINDOW *win, wint_t *str, int maxlen)
     wint_t ch;
     int y, x, code;
 
-    T((T_CALLED("wgetn_wstr(%p,%p, %d)"), win, str, maxlen));
+    T((T_CALLED("wgetn_wstr(%p,%p, %d)"), (void *) win, (void *) str, maxlen));
 
     if (!win)
 	returnCode(ERR);

@@ -1,0 +1,126 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_printw.3x,v 1.20 2010/12/04 18:40:45 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_printw 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_printw 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_printw.3x.html">curs_printw(3x)</A></STRONG>                                         <STRONG><A HREF="curs_printw.3x.html">curs_printw(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>printw</STRONG>, <STRONG>wprintw</STRONG>, <STRONG>mvprintw</STRONG>, <STRONG>mvwprintw</STRONG>, <STRONG>vwprintw</STRONG>, <STRONG>vw_printw</STRONG>
+       - print formatted output in <STRONG>curses</STRONG> windows
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>printw(const</STRONG> <STRONG>char</STRONG> <STRONG>*fmt,</STRONG> <STRONG>...);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wprintw(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*fmt,</STRONG> <STRONG>...);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvprintw(int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*fmt,</STRONG> <STRONG>...);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwprintw(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG>  <STRONG>*fmt,</STRONG>
+       <STRONG>...);</STRONG>
+       <STRONG>int</STRONG>  <STRONG>vwprintw(WINDOW</STRONG>  <STRONG>*win,</STRONG>  <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*fmt,</STRONG> <STRONG>va_list</STRONG> <STRONG>var-</STRONG>
+       <STRONG>glist);</STRONG>
+       <STRONG>int</STRONG> <STRONG>vw_printw(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>const</STRONG> <STRONG>char</STRONG> <STRONG>*fmt,</STRONG>  <STRONG>va_list</STRONG>  <STRONG>var-</STRONG>
+       <STRONG>glist);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The  <STRONG>printw</STRONG>,  <STRONG>wprintw</STRONG>, <STRONG>mvprintw</STRONG> and <STRONG>mvwprintw</STRONG> routines are
+       analogous to  <STRONG>printf</STRONG>  [see  <STRONG><A HREF="printf.3.html">printf(3)</A></STRONG>].   In  effect,  the
+       string that would be output by <STRONG>printf</STRONG> is output instead as
+       though <STRONG>waddstr</STRONG> were used on the given window.
+
+       The <STRONG>vwprintw</STRONG>  and  <STRONG>wv_printw</STRONG>  routines  are  analogous  to
+       <STRONG>vprintf</STRONG>  [see  <STRONG><A HREF="printf.3.html">printf(3)</A></STRONG>]  and  perform  a <STRONG>wprintw</STRONG> using a
+       variable argument list.  The third argument is a  <STRONG>va_list</STRONG>,
+       a   pointer   to  a  list  of  arguments,  as  defined  in
+       <STRONG>&lt;stdarg.h&gt;</STRONG>.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       Routines that return an integer return  <STRONG>ERR</STRONG>  upon  failure
+       and  <STRONG>OK</STRONG>  (SVr4 only specifies "an integer value other than
+       <STRONG>ERR</STRONG>") upon successful completion.
+
+       X/Open defines no error conditions.  In  this  implementa-
+       tion,  an  error  may  be  returned  if it cannot allocate
+       enough memory for the buffer used to format  the  results.
+       It will return an error if the window pointer is null.
+
+       Functions  with a "mv" prefix first perform a cursor move-
+       ment using <STRONG>wmove</STRONG>, and return an error if the  position  is
+       outside the window, or if the window pointer is null.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       The  XSI  Curses  standard,  Issue 4 describes these func-
+       tions.  The function <STRONG>vwprintw</STRONG> is marked TO  BE  WITHDRAWN,
+       and  is  to  be replaced by a function <STRONG>vw_printw</STRONG> using the
+       <STRONG>&lt;stdarg.h&gt;</STRONG> interface.  The Single Unix Specification, Ver-
+       sion  2  states  that  <STRONG>vw_printw</STRONG>  is preferred to <STRONG>vwprintw</STRONG>
+       since the latter  requires  including  <STRONG>&lt;varargs.h&gt;</STRONG>,  which
+       cannot  be  used in the same file as <STRONG>&lt;stdarg.h&gt;</STRONG>.  This im-
+       plementation uses <STRONG>&lt;stdarg.h&gt;</STRONG> for both, because that header
+       is included in <STRONG>&lt;curses.h</STRONG>&gt;.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="printf.3.html">printf(3)</A></STRONG>, <STRONG>vprintf(3)</STRONG>
+
+
+
+                                                        <STRONG><A HREF="curs_printw.3x.html">curs_printw(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

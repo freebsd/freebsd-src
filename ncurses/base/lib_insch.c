@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,24 +43,31 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_insch.c,v 1.25 2008/02/03 00:14:37 tom Exp $")
+MODULE_ID("$Id: lib_insch.c,v 1.32 2009/10/24 22:04:35 tom Exp $")
 
 /*
  * Insert the given character, updating the current location to simplify
  * inserting a string.
  */
 NCURSES_EXPORT(int)
-_nc_insert_ch(WINDOW *win, chtype ch)
+_nc_insert_ch(SCREEN *sp, WINDOW *win, chtype ch)
 {
     int code = OK;
     NCURSES_CH_T wch;
     int count;
     NCURSES_CONST char *s;
+    int tabsize = (
+#if USE_REENTRANT
+		      sp->_TABSIZE
+#else
+		      TABSIZE
+#endif
+    );
 
     switch (ch) {
     case '\t':
-	for (count = (TABSIZE - (win->_curx % TABSIZE)); count > 0; count--) {
-	    if ((code = _nc_insert_ch(win, ' ')) != OK)
+	for (count = (tabsize - (win->_curx % tabsize)); count > 0; count--) {
+	    if ((code = _nc_insert_ch(sp, win, ' ')) != OK)
 		break;
 	}
 	break;
@@ -76,7 +83,9 @@ _nc_insert_ch(WINDOW *win, chtype ch)
 	       WINDOW_EXT(win, addch_used) == 0 &&
 #endif
 	       is8bits(ChCharOf(ch)) &&
-	       isprint(ChCharOf(ch))) {
+	       (isprint(ChCharOf(ch)) ||
+		(ChAttrOf(ch) & A_ALTCHARSET) ||
+		(sp != 0 && sp->_legacy_coding && !iscntrl(ChCharOf(ch))))) {
 	    if (win->_curx <= win->_maxx) {
 		struct ldat *line = &(win->_line[win->_cury]);
 		NCURSES_CH_T *end = &(line->text[win->_curx]);
@@ -93,9 +102,9 @@ _nc_insert_ch(WINDOW *win, chtype ch)
 		win->_curx++;
 	    }
 	} else if (is8bits(ChCharOf(ch)) && iscntrl(ChCharOf(ch))) {
-	    s = unctrl(ChCharOf(ch));
+	    s = NCURSES_SP_NAME(unctrl) (NCURSES_SP_ARGx ChCharOf(ch));
 	    while (*s != '\0') {
-		code = _nc_insert_ch(win, ChAttrOf(ch) | UChar(*s));
+		code = _nc_insert_ch(sp, win, ChAttrOf(ch) | UChar(*s));
 		if (code != OK)
 		    break;
 		++s;
@@ -110,16 +119,21 @@ _nc_insert_ch(WINDOW *win, chtype ch)
 	    wch = _nc_render(win, wch);
 	    count = _nc_build_wch(win, &wch);
 	    if (count > 0) {
-		code = wins_wch(win, &wch);
+		code = _nc_insert_wch(win, &wch);
 	    } else if (count == -1) {
 		/* handle EILSEQ */
 		if (is8bits(ch)) {
-		    s = unctrl(ChCharOf(ch));
-		    while (*s != '\0') {
-			code = _nc_insert_ch(win, ChAttrOf(ch) | UChar(*s));
-			if (code != OK)
-			    break;
-			++s;
+		    s = NCURSES_SP_NAME(unctrl) (NCURSES_SP_ARGx ChCharOf(ch));
+		    if (strlen(s) > 1) {
+			while (*s != '\0') {
+			    code = _nc_insert_ch(sp, win,
+						 ChAttrOf(ch) | UChar(*s));
+			    if (code != OK)
+				break;
+			    ++s;
+			}
+		    } else {
+			code = ERR;
 		    }
 		} else {
 		    code = ERR;
@@ -139,13 +153,13 @@ winsch(WINDOW *win, chtype c)
     NCURSES_SIZE_T ox;
     int code = ERR;
 
-    T((T_CALLED("winsch(%p, %s)"), win, _tracechtype(c)));
+    T((T_CALLED("winsch(%p, %s)"), (void *) win, _tracechtype(c)));
 
     if (win != 0) {
 	oy = win->_cury;
 	ox = win->_curx;
 
-	code = _nc_insert_ch(win, c);
+	code = _nc_insert_ch(_nc_screen_of(win), win, c);
 
 	win->_curx = ox;
 	win->_cury = oy;

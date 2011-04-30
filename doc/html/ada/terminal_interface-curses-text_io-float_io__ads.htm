@@ -1,0 +1,72 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>terminal_interface-curses-text_io-float_io.ads</TITLE></HEAD>
+<BODY>
+<HR><DIV ALIGN="center"><H1> File : terminal_interface-curses-text_io-float_io.ads </H1></DIV><HR>
+<PRE>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                           <A HREF="http://www.gnat.com">GNAT</A> ncurses Binding                           --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                Terminal_Interface.Curses.Text_IO.Float_IO                --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                                 S P E C                                  --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>-- Copyright (c) 1998-2003,2009 Free Software Foundation, Inc.              --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></FONT>
+<FONT COLOR=green><EM>-- copy of this software and associated documentation files (the            --</EM></FONT>
+<FONT COLOR=green><EM>-- "Software"), to deal in the Software without restriction, including      --</EM></FONT>
+<FONT COLOR=green><EM>-- without limitation the rights to use, copy, modify, merge, publish,      --</EM></FONT>
+<FONT COLOR=green><EM>-- distribute, distribute with modifications, sublicense, and/or sell       --</EM></FONT>
+<FONT COLOR=green><EM>-- copies of the Software, and to permit persons to whom the Software is    --</EM></FONT>
+<FONT COLOR=green><EM>-- furnished to do so, subject to the following conditions:                 --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- The above copyright notice and this permission notice shall be included  --</EM></FONT>
+<FONT COLOR=green><EM>-- in all copies or substantial portions of the Software.                   --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</EM></FONT>
+<FONT COLOR=green><EM>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</EM></FONT>
+<FONT COLOR=green><EM>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</EM></FONT>
+<FONT COLOR=green><EM>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</EM></FONT>
+<FONT COLOR=green><EM>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Except as contained in this notice, the name(s) of the above copyright   --</EM></FONT>
+<FONT COLOR=green><EM>-- holders shall not be used in advertising or otherwise to promote the     --</EM></FONT>
+<FONT COLOR=green><EM>-- sale, use or other dealings in this Software without prior written       --</EM></FONT>
+<FONT COLOR=green><EM>-- authorization.                                                           --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
+<FONT COLOR=green><EM>--  Version Control:</EM></FONT>
+<FONT COLOR=green><EM>--  @Revision: 1.12 @</EM></FONT>
+<FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<b>generic</b>
+   <b>type</b> <FONT COLOR=red><A NAME="ref_42_9" HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_44_43">Num</A></FONT> <b>is</b> <b>digits</b> &lt;&gt;;
+
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<FONT COLOR=red><A NAME="ref_44_43" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_44_48">Float_IO</A></FONT> <b>is</b>
+
+   <FONT COLOR=red><A NAME="ref_46_4">Default_Fore</A></FONT> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := 2;
+   <FONT COLOR=red><A NAME="ref_47_4">Default_Aft</A></FONT>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_42_9">Num</A>'<b>Digits</b> - 1;
+   <FONT COLOR=red><A NAME="ref_48_4">Default_Exp</A></FONT>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := 3;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_50_14" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_49_14">Put</A></FONT>
+     (<FONT COLOR=red><A NAME="ref_51_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_50_7">Win</A></FONT>  : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>;
+      <FONT COLOR=red><A NAME="ref_52_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_51_7">Item</A></FONT> : <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_42_9">Num</A>;
+      <FONT COLOR=red><A NAME="ref_53_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_52_7">Fore</A></FONT> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_46_4">Default_Fore</A>;
+      <FONT COLOR=red><A NAME="ref_54_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_53_7">Aft</A></FONT>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_47_4">Default_Aft</A>;
+      <FONT COLOR=red><A NAME="ref_55_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_54_7">Exp</A></FONT>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_48_4">Default_Exp</A>);
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_57_14" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_66_14">Put</A></FONT>
+     (<FONT COLOR=red><A NAME="ref_58_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_67_7">Item</A></FONT> : <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_42_9">Num</A>;
+      <FONT COLOR=red><A NAME="ref_59_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_68_7">Fore</A></FONT> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_46_4">Default_Fore</A>;
+      <FONT COLOR=red><A NAME="ref_60_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_69_7">Aft</A></FONT>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_47_4">Default_Aft</A>;
+      <FONT COLOR=red><A NAME="ref_61_7" HREF="terminal_interface-curses-text_io-float_io__adb.htm#ref_70_7">Exp</A></FONT>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_48_4">Default_Exp</A>);
+
+<b>private</b>
+   <b>pragma</b> Inline (Put);
+
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-float_io__ads.htm#ref_44_43">Float_IO</A>;
+</PRE></BODY></HTML>

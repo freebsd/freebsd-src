@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2007 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 2007-2009,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_opaque.3x,v 1.6 2007/09/08 18:49:13 tom Exp $
+.\" $Id: curs_opaque.3x,v 1.9 2010/12/04 18:40:45 tom Exp $
 .TH curs_opaque 3X ""
 .na
 .hy 0
@@ -38,9 +38,11 @@
 \fBis_keypad\fR,
 \fBis_leaveok\fR,
 \fBis_nodelay\fR,
-\fBis_timeout\fR,
+\fBis_notimeout\fR,
+\fBis_pad\fR,
 \fBis_scrollok\fR,
-\fBis_syncok\fR - \fBcurses\fR window properties
+\fBis_subwin\fR,
+\fBis_syncok\fR \- \fBcurses\fR window properties
 .ad
 .hy
 .SH SYNOPSIS
@@ -62,7 +64,11 @@
 .br
 \fBbool is_notimeout(const WINDOW *win);\fR
 .br
+\fBbool is_pad(const WINDOW *win);\fR
+.br
 \fBbool is_scrollok(const WINDOW *win);\fR
+.br
+\fBbool is_subwin(const WINDOW *win);\fR
 .br
 \fBbool is_syncok(const WINDOW *win);\fR
 .br
@@ -99,8 +105,16 @@ returns the value set in \fBnodelay\fR
 \fBis_notimeout\fR
 returns the value set in \fBnotimeout\fR
 .TP 5
+\fBis_pad\fR
+returns TRUE if the window is a pad
+i.e., created by \fBnewpad\fP
+.TP 5
 \fBis_scrollok\fR
 returns the value set in \fBscrollok\fR
+.TP 5
+\fBis_subwin\fR
+returns TRUE if the window is a subwindow,
+i.e., created by \fBsubwin\fP or \fBderwin\fP
 .TP 5
 \fBis_syncok\fR
 returns the value set in \fBsyncok\fR
@@ -125,9 +139,3 @@ be conditioned using NCURSES_VERSION.
 \fBcurs_inopts\fR(3X),
 \fBcurs_outopts\fR(3X),
 \fBcurs_window\fR(3X)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

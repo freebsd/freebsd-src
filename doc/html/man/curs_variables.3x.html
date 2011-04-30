@@ -1,0 +1,164 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 2010 Free Software Foundation, Inc.                        *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_variables.3x,v 1.4 2010/12/04 18:38:55 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_variables 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_variables 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>                                   <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>COLORS</STRONG>, <STRONG>COLOR_PAIRS</STRONG>, <STRONG>COLS</STRONG>, <STRONG>ESCDELAY</STRONG>, <STRONG>LINES</STRONG>, <STRONG>TABSIZE</STRONG>,
+       <STRONG>curscr</STRONG>, <STRONG>newscr</STRONG>, <STRONG>stdscr</STRONG> - <STRONG>curses</STRONG> global variables
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>COLOR_PAIRS;</STRONG>
+       <STRONG>int</STRONG> <STRONG>COLORS;</STRONG>
+       <STRONG>int</STRONG> <STRONG>COLS;</STRONG>
+       <STRONG>int</STRONG> <STRONG>ESCDELAY;</STRONG>
+       <STRONG>int</STRONG> <STRONG>LINES;</STRONG>
+       <STRONG>int</STRONG> <STRONG>TABSIZE;</STRONG>
+       <STRONG>WINDOW</STRONG> <STRONG>*</STRONG> <STRONG>curscr;</STRONG>
+       <STRONG>WINDOW</STRONG> <STRONG>*</STRONG> <STRONG>newscr;</STRONG>
+       <STRONG>WINDOW</STRONG> <STRONG>*</STRONG> <STRONG>stdscr;</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       This page summarizes variables provided by the <STRONG>curses</STRONG>  li-
+       brary.   A more complete description is given in the <STRONG>curs-</STRONG>
+       <STRONG><A HREF="ncurses.3x.html">es(3x)</A></STRONG> manual page.
+
+       Depending on the configuration, these may be actual  vari-
+       ables,  or  macros  (see  <STRONG><A HREF="curs_threads.3x.html">curs_threads(3x)</A></STRONG>)  which provide
+       read-only access to <EM>curses</EM>'s state.  In either  case,  ap-
+       plications should treat them as read-only to avoid confus-
+       ing the library.
+
+   <STRONG>COLOR_PAIRS</STRONG>
+       After initializing curses, this variable contains the num-
+       ber of color pairs which the terminal can support.  Usual-
+       ly the number of color pairs  will  be  the  product  <STRONG>COL-</STRONG>
+       <STRONG>ORS</STRONG>*<STRONG>COLORS</STRONG>, however this is not always true:
+
+       <STRONG>o</STRONG>   a  few  terminals  use HLS colors, which do not follow
+           this rule
+
+       <STRONG>o</STRONG>   terminals supporting a large number of colors are lim-
+           ited  by  the number of color pairs that can be repre-
+           sented in a <EM>signed</EM> <EM>short</EM> value.
+
+   <STRONG>COLORS</STRONG>
+       After initializing curses, this variable contains the num-
+       ber of colors which the terminal can support.
+
+   <STRONG>COLS</STRONG>
+       After  initializing  curses,  this  variable  contains the
+       width of the screen, i.e., the number of columns.
+
+   <STRONG>ESCDELAY</STRONG>
+       This variable holds the number of milliseconds to wait af-
+       ter reading an escape character, to distinguish between an
+       individual escape character entered on the  keyboard  from
+       escape  sequences  sent  by cursor- and function-keys (see
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>.
+
+   <STRONG>LINES</STRONG>
+       After initializing  curses,  this  variable  contains  the
+       height of the screen, i.e., the number of lines.
+
+   <STRONG>TABSIZE</STRONG>
+       This  variable  holds  the  number  of columns used by the
+       <EM>curses</EM> library when converting a tab character  to  spaces
+       as it adds the tab to a window (see <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>.
+
+   <STRONG>The</STRONG> <STRONG>Current</STRONG> <STRONG>Screen</STRONG>
+       This implementation of curses uses a special window <STRONG>curscr</STRONG>
+       to record its updates to the terminal screen.
+
+   <STRONG>The</STRONG> <STRONG>New</STRONG> <STRONG>Screen</STRONG>
+       This implementation of curses uses a special window <STRONG>newscr</STRONG>
+       to  hold  updates  to  the terminal screen before applying
+       them to <STRONG>curscr</STRONG>.
+
+   <STRONG>The</STRONG> <STRONG>Standard</STRONG> <STRONG>Screen</STRONG>
+       Upon initializing curses, a default window called  <STRONG>stdscr</STRONG>,
+       which  is  the  size  of  the terminal screen, is created.
+       Many curses functions use this window.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       The   curses   library   is   initialized   using   either
+       <STRONG><A HREF="initscr.3x.html">initscr(3x)</A></STRONG>, or <STRONG><A HREF="newterm.3x.html">newterm(3x)</A></STRONG>.
+
+       If  <STRONG>curses</STRONG>  is  configured to use separate curses/terminfo
+       libraries, most of these variables reside  in  the  curses
+       library.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       ESCDELAY  and TABSIZE are extensions, not provided in most
+       other implementations of curses.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_threads.3x.html">curs_threads(3x)</A></STRONG>, <STRONG><A HREF="term_variables.3x.html">term_variables(3x)</A></STRONG>,  <STRONG>termin-</STRONG>
+       <STRONG><A HREF="terminfo.3x.html">fo(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>.
+
+
+
+                                                     <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

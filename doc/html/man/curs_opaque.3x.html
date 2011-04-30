@@ -1,0 +1,161 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 2007-2009,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_opaque.3x,v 1.9 2010/12/04 18:40:45 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_opaque 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_opaque 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>                                         <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>is_cleared</STRONG>, <STRONG>is_idlok</STRONG>, <STRONG>is_idcok</STRONG>, <STRONG>is_immedok</STRONG>, <STRONG>is_keypad</STRONG>,
+       <STRONG>is_leaveok</STRONG>, <STRONG>is_nodelay</STRONG>, <STRONG>is_notimeout</STRONG>, <STRONG>is_pad</STRONG>, <STRONG>is_scrollok</STRONG>,
+       <STRONG>is_subwin</STRONG>, <STRONG>is_syncok</STRONG> - <STRONG>curses</STRONG> window properties
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>bool</STRONG> <STRONG>is_cleared(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_idcok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_idlok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_immedok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_keypad(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_leaveok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_nodelay(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_notimeout(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_pad(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_scrollok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_subwin(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>is_syncok(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>WINDOW</STRONG> <STRONG>*</STRONG> <STRONG>wgetparent(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wgetscrreg(const</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>*top,</STRONG> <STRONG>int</STRONG> <STRONG>*bottom);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       This  implementation provides functions which return prop-
+       erties set in the WINDOW  structure,  allowing  it  to  be
+       ``opaque'' if the symbol <STRONG>NCURSES_OPAQUE</STRONG> is defined:
+
+       <STRONG>is_cleared</STRONG>
+            returns the value set in <STRONG>clearok</STRONG>
+
+       <STRONG>is_idcok</STRONG>
+            returns the value set in <STRONG>idcok</STRONG>
+
+       <STRONG>is_idlok</STRONG>
+            returns the value set in <STRONG>idlok</STRONG>
+
+       <STRONG>is_immedok</STRONG>
+            returns the value set in <STRONG>immedok</STRONG>
+
+       <STRONG>is_keypad</STRONG>
+            returns the value set in <STRONG>keypad</STRONG>
+
+       <STRONG>is_leaveok</STRONG>
+            returns the value set in <STRONG>leaveok</STRONG>
+
+       <STRONG>is_nodelay</STRONG>
+            returns the value set in <STRONG>nodelay</STRONG>
+
+       <STRONG>is_notimeout</STRONG>
+            returns the value set in <STRONG>notimeout</STRONG>
+
+       <STRONG>is_pad</STRONG>
+            returns  TRUE if the window is a pad i.e., created by
+            <STRONG>newpad</STRONG>
+
+       <STRONG>is_scrollok</STRONG>
+            returns the value set in <STRONG>scrollok</STRONG>
+
+       <STRONG>is_subwin</STRONG>
+            returns TRUE if the window is a subwindow, i.e., cre-
+            ated by <STRONG>subwin</STRONG> or <STRONG>derwin</STRONG>
+
+       <STRONG>is_syncok</STRONG>
+            returns the value set in <STRONG>syncok</STRONG>
+
+       <STRONG>wgetparent</STRONG>
+            returns  the parent WINDOW pointer for subwindows, or
+            NULL for windows having no parent.
+
+       <STRONG>wgetscrreg</STRONG>
+            returns the top and bottom  rows  for  the  scrolling
+            margin as set in <STRONG>wsetscrreg</STRONG>.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       These functions all return TRUE or FALSE, except as noted.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       Both a macro and a function are provided for each name.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       These  routines  are  specific  to ncurses.  They were not
+       supported on Version 7, BSD or System  V  implementations.
+       It  is  recommended that any code depending on ncurses ex-
+       tensions be conditioned using NCURSES_VERSION.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>,  <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,  <STRONG>curs_win-</STRONG>
+       <STRONG><A HREF="curs_window.3x.html">dow(3x)</A></STRONG>
+
+
+
+                                                        <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

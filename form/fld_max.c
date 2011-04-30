@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_max.c,v 1.9 2004/12/11 21:51:54 tom Exp $")
+MODULE_ID("$Id: fld_max.c,v 1.10 2010/01/23 21:14:36 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -47,7 +47,7 @@ MODULE_ID("$Id: fld_max.c,v 1.9 2004/12/11 21:51:54 tom Exp $")
 NCURSES_EXPORT(int)
 set_max_field(FIELD *field, int maxgrow)
 {
-  T((T_CALLED("set_max_field(%p,%d)"), field, maxgrow));
+  T((T_CALLED("set_max_field(%p,%d)"), (void *)field, maxgrow));
 
   if (!field || (maxgrow < 0))
     RETURN(E_BAD_ARGUMENT);
