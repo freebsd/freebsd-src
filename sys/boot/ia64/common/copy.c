@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include <machine/param.h>
+#include <machine/pte.h>
 
 #include "libia64.h"
 
@@ -40,6 +41,7 @@ uint32_t ia64_pgtblsz;
 static int
 pgtbl_extend(u_int idx)
 {
+	vm_paddr_t pa;
 	uint64_t *pgtbl;
 	uint32_t pgtblsz;
 	u_int pot;
@@ -65,9 +67,10 @@ pgtbl_extend(u_int idx)
 		pgtblsz <<= 1;
 
 	/* Allocate naturally aligned memory. */
-	pgtbl = (void *)ia64_platform_alloc(0, pgtblsz);
-	if (pgtbl == NULL)
+	pa = ia64_platform_alloc(0, pgtblsz);
+	if (pa == ~0UL)
 		return (ENOMEM);
+	pgtbl = (void *)pa;
 
 	/* Initialize new page table. */
 	if (ia64_pgtbl != NULL && ia64_pgtbl != pgtbl)
@@ -85,7 +88,7 @@ pgtbl_extend(u_int idx)
 void *
 ia64_va2pa(vm_offset_t va, size_t *len)
 {
-	uint64_t pa;
+	uint64_t pa, pte;
 	u_int idx, ofs;
 	int error;
 
@@ -111,16 +114,18 @@ ia64_va2pa(vm_offset_t va, size_t *len)
 	}
 
 	ofs = va & IA64_PBVM_PAGE_MASK;
-	pa = ia64_pgtbl[idx];
-	if (pa == 0) {
+	pte = ia64_pgtbl[idx];
+	if ((pte & PTE_PRESENT) == 0) {
 		pa = ia64_platform_alloc(va - ofs, IA64_PBVM_PAGE_SIZE);
-		if (pa == 0) {
+		if (pa == ~0UL) {
 			error = ENOMEM;
 			goto fail;
 		}
-		ia64_pgtbl[idx] = pa;
+		pte = PTE_AR_RWX | PTE_DIRTY | PTE_ACCESSED | PTE_PRESENT;
+		pte |= (pa & PTE_PPN_MASK);
+		ia64_pgtbl[idx] = pte;
 	}
-	pa += ofs;
+	pa = (pte & PTE_PPN_MASK) + ofs;
 
 	/* We can not cross page boundaries (in general). */
 	if (*len + ofs > IA64_PBVM_PAGE_SIZE)
