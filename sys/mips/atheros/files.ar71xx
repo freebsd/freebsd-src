@@ -6,6 +6,7 @@ mips/atheros/ar71xx_machdep.c	standard
 mips/atheros/ar71xx_ehci.c	optional ehci
 mips/atheros/ar71xx_ohci.c	optional ohci
 mips/atheros/ar71xx_pci.c	optional ar71xx_pci pci
+mips/atheros/ar724x_pci.c	optional ar724x_pci pci
 mips/atheros/ar71xx_pci_bus_space.c	optional pci
 mips/atheros/ar71xx_spi.c	optional ar71xx_spi
 mips/atheros/pcf2123_rtc.c	optional pcf2123_rtc ar71xx_spi
