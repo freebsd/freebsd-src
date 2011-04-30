@@ -45,6 +45,7 @@ options		BOOTP_COMPAT
 options		ROOTDEVNAME=\"nfs:192.168.10.1:/mnt/bsd\"
 
 device		pci
+device		ar71xx_pci
 
 # Wireless NIC cards
 options		IEEE80211_DEBUG
