@@ -2740,8 +2740,8 @@ netinet/ip_mroute.c		optional mrouting inet | mrouting inet6
 netinet/ip_options.c		optional inet
 netinet/ip_output.c		optional inet
 netinet/raw_ip.c		optional inet
-netinet/cc/cc.c			optional inet
-netinet/cc/cc_newreno.c		optional inet
+netinet/cc/cc.c			optional inet | inet6
+netinet/cc/cc_newreno.c		optional inet | inet6
 netinet/sctp_asconf.c		optional inet sctp
 netinet/sctp_auth.c		optional inet sctp
 netinet/sctp_bsd_addr.c		optional inet sctp
@@ -2758,18 +2758,18 @@ netinet/sctp_timer.c		optional inet sctp
 netinet/sctp_usrreq.c		optional inet sctp
 netinet/sctputil.c		optional inet sctp
 netinet/tcp_debug.c		optional tcpdebug
-netinet/tcp_hostcache.c		optional inet
-netinet/tcp_input.c		optional inet
-netinet/tcp_lro.c		optional inet
-netinet/tcp_output.c		optional inet
-netinet/tcp_offload.c		optional inet
-netinet/tcp_reass.c		optional inet
-netinet/tcp_sack.c		optional inet
-netinet/tcp_subr.c		optional inet
-netinet/tcp_syncache.c		optional inet
-netinet/tcp_timer.c		optional inet
-netinet/tcp_timewait.c		optional inet
-netinet/tcp_usrreq.c		optional inet
+netinet/tcp_hostcache.c		optional inet | inet6
+netinet/tcp_input.c		optional inet | inet6
+netinet/tcp_lro.c		optional inet | inet6
+netinet/tcp_output.c		optional inet | inet6
+netinet/tcp_offload.c		optional inet | inet6
+netinet/tcp_reass.c		optional inet | inet6
+netinet/tcp_sack.c		optional inet | inet6
+netinet/tcp_subr.c		optional inet | inet6
+netinet/tcp_syncache.c		optional inet | inet6
+netinet/tcp_timer.c		optional inet | inet6
+netinet/tcp_timewait.c		optional inet | inet6
+netinet/tcp_usrreq.c		optional inet | inet6
 netinet/udp_usrreq.c		optional inet | inet6
 netinet/libalias/alias.c	optional libalias inet | netgraph_nat inet
 netinet/libalias/alias_db.c	optional libalias inet | netgraph_nat inet
