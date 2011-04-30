@@ -202,12 +202,14 @@ ncl_inactive(struct vop_inactive_args *ap)
 		(void) nfsrpc_close(vp, 1, ap->a_td);
 	}
 
+	mtx_lock(&np->n_mtx);
 	if (vp->v_type != VDIR) {
 		sp = np->n_sillyrename;
 		np->n_sillyrename = NULL;
 	} else
 		sp = NULL;
 	if (sp) {
+		mtx_unlock(&np->n_mtx);
 		(void) ncl_vinvalbuf(vp, 0, ap->a_td, 1);
 		/*
 		 * Remove the silly file that was rename'd earlier
@@ -216,8 +218,10 @@ ncl_inactive(struct vop_inactive_args *ap)
 		crfree(sp->s_cred);
 		vrele(sp->s_dvp);
 		FREE((caddr_t)sp, M_NEWNFSREQ);
+		mtx_lock(&np->n_mtx);
 	}
 	np->n_flag &= NMODIFIED;
+	mtx_unlock(&np->n_mtx);
 	return (0);
 }
 
