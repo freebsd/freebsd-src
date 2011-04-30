@@ -370,7 +370,11 @@ cc_conn_init(struct tcpcb *tp)
 	else if (isipv6 && in6_localaddr(&inp->in6p_faddr))
 		tp->snd_cwnd = tp->t_maxseg * V_ss_fltsz_local;
 #endif
-#if defined(INET) || defined(INET6)
+#if defined(INET) && defined(INET6)
+	else if (!isipv6 && in_localaddr(inp->inp_faddr))
+		tp->snd_cwnd = tp->t_maxseg * V_ss_fltsz_local;
+#endif
+#ifdef INET
 	else if (in_localaddr(inp->inp_faddr))
 		tp->snd_cwnd = tp->t_maxseg * V_ss_fltsz_local;
 #endif
