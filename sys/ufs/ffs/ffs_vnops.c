@@ -591,7 +591,8 @@ ffs_read(ap)
 			/*
 			 * If there are no dependencies, and it's VMIO,
 			 * then we don't need the buf, mark it available
-			 * for freeing. The VM has the data.
+			 * for freeing.  For non-direct VMIO reads, he VM
+			 * has the data.
 			 */
 			bp->b_flags |= B_RELBUF;
 			brelse(bp);
@@ -985,7 +986,8 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 			/*
 			 * If there are no dependencies, and it's VMIO,
 			 * then we don't need the buf, mark it available
-			 * for freeing. The VM has the data.
+			 * for freeing.  For non-direct VMIO reads, The VM
+			 * has the data.
 			 */
 			bp->b_flags |= B_RELBUF;
 			brelse(bp);
