@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ipfw.h"
+#include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
 
@@ -143,9 +144,12 @@ SYSCTL_VNET_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RW,
     &VNET_NAME(udpstat), udpstat,
     "UDP statistics (struct udpstat, netinet/udp_var.h)");
 
+#ifdef INET
 static void	udp_detach(struct socket *so);
 static int	udp_output(struct inpcb *, struct mbuf *, struct sockaddr *,
 		    struct mbuf *, struct thread *);
+#endif
+
 #ifdef IPSEC
 #ifdef IPSEC_NAT_T
 #define	UF_ESPINUDP_ALL	(UF_ESPINUDP_NON_IKE|UF_ESPINUDP)
@@ -229,6 +233,7 @@ udp_destroy(void)
 }
 #endif
 
+#ifdef INET
 /*
  * Subroutine of udp_input(), which appends the provided mbuf chain to the
  * passed pcb/socket.  The caller must provide a sockaddr_in via udp_in that
@@ -272,7 +277,6 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 		return;
 	}
 #ifdef IPSEC_NAT_T
-#ifdef INET
 	up = intoudpcb(inp);
 	KASSERT(up != NULL, ("%s: udpcb NULL", __func__));
 	if (up->u_flags & UF_ESPINUDP_ALL) {	/* IPSec UDP encaps. */
@@ -280,7 +284,6 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 		if (n == NULL)				/* Consumed. */
 			return;
 	}
-#endif /* INET */
 #endif /* IPSEC_NAT_T */
 #endif /* IPSEC */
 #ifdef MAC
@@ -288,14 +291,14 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 		m_freem(n);
 		return;
 	}
-#endif
+#endif /* MAC */
 	if (inp->inp_flags & INP_CONTROLOPTS ||
 	    inp->inp_socket->so_options & (SO_TIMESTAMP | SO_BINTIME)) {
 #ifdef INET6
 		if (inp->inp_vflag & INP_IPV6)
 			(void)ip6_savecontrol_v4(inp, n, &opts, NULL);
 		else
-#endif
+#endif /* INET6 */
 			ip_savecontrol(inp, &opts, ip, n);
 	}
 #ifdef INET6
@@ -306,7 +309,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 		in6_sin_2_v4mapsin6(udp_in, &udp_in6);
 		append_sa = (struct sockaddr *)&udp_in6;
 	} else
-#endif
+#endif /* INET6 */
 		append_sa = (struct sockaddr *)udp_in;
 	m_adj(n, off);
 
@@ -598,6 +601,7 @@ badheadlocked:
 badunlocked:
 	m_freem(m);
 }
+#endif /* INET */
 
 /*
  * Notify a udp user of an asynchronous error; just wake up so that they can
@@ -621,6 +625,7 @@ udp_notify(struct inpcb *inp, int errno)
 	return (inp);
 }
 
+#ifdef INET
 void
 udp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
@@ -666,6 +671,7 @@ udp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		in_pcbnotifyall(&V_udbinfo, faddr, inetctlerrmap[cmd],
 		    udp_notify);
 }
+#endif /* INET */
 
 static int
 udp_pcblist(SYSCTL_HANDLER_ARGS)
@@ -778,6 +784,7 @@ SYSCTL_PROC(_net_inet_udp, UDPCTL_PCBLIST, pcblist,
     CTLTYPE_OPAQUE | CTLFLAG_RD, NULL, 0,
     udp_pcblist, "S,xinpcb", "List of active UDP sockets");
 
+#ifdef INET
 static int
 udp_getcred(SYSCTL_HANDLER_ARGS)
 {
@@ -817,6 +824,7 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net_inet_udp, OID_AUTO, getcred,
     CTLTYPE_OPAQUE|CTLFLAG_RW|CTLFLAG_PRISON, 0, 0,
     udp_getcred, "S,xucred", "Get the xucred of a UDP connection");
+#endif /* INET */
 
 int
 udp_ctloutput(struct socket *so, struct sockopt *sopt)
@@ -835,11 +843,15 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 		if (INP_CHECK_SOCKAF(so, AF_INET6)) {
 			INP_WUNLOCK(inp);
 			error = ip6_ctloutput(so, sopt);
-		} else {
+		}
 #endif
+#if defined(INET) && defined(INET6)
+		else
+#endif
+#ifdef INET
+		{
 			INP_WUNLOCK(inp);
 			error = ip_ctloutput(so, sopt);
-#ifdef INET6
 		}
 #endif
 		return (error);
@@ -911,6 +923,7 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 	return (error);
 }
 
+#ifdef INET
 static int
 udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
     struct mbuf *control, struct thread *td)
@@ -1223,7 +1236,6 @@ release:
 
 
 #if defined(IPSEC) && defined(IPSEC_NAT_T)
-#ifdef INET
 /*
  * Potentially decap ESP in UDP frame.  Check for an ESP header
  * and optional marker; if present, strip the UDP header and
@@ -1355,7 +1367,6 @@ udp4_espdecap(struct inpcb *inp, struct mbuf *m, int off)
 	(void) ipsec4_common_input(m, iphlen, ip->ip_p);
 	return (NULL);			/* NB: consumed, bypass processing. */
 }
-#endif /* INET */
 #endif /* defined(IPSEC) && defined(IPSEC_NAT_T) */
 
 static void
@@ -1410,6 +1421,7 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 	INP_INFO_WUNLOCK(&V_udbinfo);
 	return (0);
 }
+#endif /* INET */
 
 int
 udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f)
@@ -1432,6 +1444,7 @@ udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f)
 	return (0);
 }
 
+#ifdef INET
 static int
 udp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
@@ -1553,6 +1566,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	KASSERT(inp != NULL, ("udp_send: inp == NULL"));
 	return (udp_output(inp, m, addr, control, td));
 }
+#endif /* INET */
 
 int
 udp_shutdown(struct socket *so)
@@ -1567,6 +1581,7 @@ udp_shutdown(struct socket *so)
 	return (0);
 }
 
+#ifdef INET
 struct pr_usrreqs udp_usrreqs = {
 	.pru_abort =		udp_abort,
 	.pru_attach =		udp_attach,
@@ -1584,3 +1599,4 @@ struct pr_usrreqs udp_usrreqs = {
 	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		udp_close,
 };
+#endif /* INET */

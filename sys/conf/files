@@ -2770,7 +2770,7 @@ netinet/tcp_syncache.c		optional inet
 netinet/tcp_timer.c		optional inet
 netinet/tcp_timewait.c		optional inet
 netinet/tcp_usrreq.c		optional inet
-netinet/udp_usrreq.c		optional inet
+netinet/udp_usrreq.c		optional inet | inet6
 netinet/libalias/alias.c	optional libalias inet | netgraph_nat inet
 netinet/libalias/alias_db.c	optional libalias inet | netgraph_nat inet
 netinet/libalias/alias_mod.c	optional libalias | netgraph_nat
