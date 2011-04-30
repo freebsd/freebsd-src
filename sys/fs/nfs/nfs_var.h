@@ -487,7 +487,7 @@ void nfscl_cleanup(NFSPROC_T *);
 
 /* nfs_clport.c */
 int nfscl_nget(mount_t, vnode_t, struct nfsfh *,
-    struct componentname *, NFSPROC_T *, struct nfsnode **, void *);
+    struct componentname *, NFSPROC_T *, struct nfsnode **, void *, int);
 NFSPROC_T *nfscl_getparent(NFSPROC_T *);
 void nfscl_start_renewthread(struct nfsclclient *);
 void nfscl_loadsbinfo(struct nfsmount *, struct nfsstatfs *, void *);
