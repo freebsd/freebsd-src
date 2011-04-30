@@ -1,0 +1,613 @@
+/*-
+ * Copyright (c) 2009, Oleksandr Tymoshenko <gonzo@FreeBSD.org>
+ * Copyright (c) 2011, Luiz Otavio O Souza.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice unmodified, this list of conditions, and the following
+ *    disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/param.h>
+#include <sys/systm.h>
+
+#include <sys/bus.h>
+#include <sys/interrupt.h>
+#include <sys/malloc.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/rman.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_extern.h>
+
+#include <machine/bus.h>
+#include <machine/cpu.h>
+#include <machine/intr_machdep.h>
+#include <machine/pmap.h>
+
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+
+#include <dev/pci/pcib_private.h>
+#include "pcib_if.h"
+
+#include <mips/atheros/ar71xxreg.h>
+#include <mips/atheros/ar724xreg.h>
+#include <mips/atheros/ar71xx_setup.h>
+#include <mips/atheros/ar71xx_pci_bus_space.h>		/* XXX */
+#include <mips/atheros/ar71xx_bus_space_reversed.h>	/* XXX */
+
+#include <mips/atheros/ar71xx_cpudef.h>
+
+#define	AR724X_PCI_DEBUG
+#ifdef AR724X_PCI_DEBUG
+#define dprintf printf
+#else
+#define dprintf(x, arg...)
+#endif
+
+struct ar71xx_pci_softc {
+	device_t		sc_dev;
+
+	int			sc_busno;
+	struct rman		sc_mem_rman;
+	struct rman		sc_irq_rman;
+
+	struct intr_event	*sc_eventstab[AR71XX_PCI_NIRQS];	
+	mips_intrcnt_t		sc_intr_counter[AR71XX_PCI_NIRQS];	
+	struct resource		*sc_irq;
+	void			*sc_ih;
+};
+
+static int ar724x_pci_setup_intr(device_t, device_t, struct resource *, int, 
+		    driver_filter_t *, driver_intr_t *, void *, void **);
+static int ar724x_pci_teardown_intr(device_t, device_t, struct resource *,
+		    void *);
+static int ar724x_pci_intr(void *);
+
+static void
+ar724x_pci_write(uint32_t reg, uint32_t offset, uint32_t data, int bytes)
+{
+	uint32_t val, mask, shift;
+
+	/* Register access is 32-bit aligned */
+	shift = 8 * (offset & (bytes % 4));
+	if (bytes % 4)
+		mask = (1 << (bytes * 8)) - 1;
+	else
+		mask = 0xffffffff;
+
+	val = ATH_READ_REG(reg + (offset & ~3));
+	val &= ~(mask << shift);
+	val |= ((data & mask) << shift);
+	ATH_WRITE_REG(reg + (offset & ~3), val);
+
+	dprintf("%s: %#x/%#x addr=%#x, data=%#x(%#x), bytes=%d\n", __func__, 
+	    reg, reg + (offset & ~3), offset, data, val, bytes);
+}
+
+static uint32_t
+ar724x_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func, 
+    u_int reg, int bytes)
+{
+	uint32_t cmd, data, shift, mask;
+
+	/* Register access is 32-bit aligned */
+	shift = (reg & 3) * 8;
+	if (shift)
+		mask = (1 << shift) - 1;
+	else
+		mask = 0xffffffff;
+
+	dprintf("%s: tag (%x, %x, %x) reg %d(%d)\n", __func__, bus, slot,
+	    func, reg, bytes);
+
+	if ((bus == 0) && (slot == 0) && (func == 0)) {
+		data = ATH_READ_REG(AR724X_PCI_CFG_BASE + (reg & ~3));
+		/*
+		 * WAR for BAR issue - We are unable to access the PCI device
+		 * space if we set the BAR with proper base address.
+		 */
+		if (reg == PCIR_BAR(0) && bytes == 4) {
+			cmd = (ar71xx_soc == AR71XX_SOC_AR7240) ?
+			    0xffff : 0x1000ffff;
+			ar724x_pci_write(AR724X_PCI_CFG_BASE, reg, cmd, bytes);
+		}
+	} else
+		data = -1;
+
+	/* Get request bytes from 32-bit word */
+	data = (data >> shift) & mask;
+
+	dprintf("%s: read 0x%x\n", __func__, data);
+
+	return (data);
+}
+
+static void
+ar724x_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func, 
+    u_int reg, uint32_t data, int bytes)
+{
+
+	dprintf("%s: tag (%x, %x, %x) reg %d(%d): %x\n", __func__, bus, slot, 
+	    func, reg, bytes, data);
+
+	if ((bus != 0) || (slot != 0) || (func != 0))
+		return;
+
+	ar724x_pci_write(AR724X_PCI_CFG_BASE, reg, data, bytes);
+	/*
+	 * WAR for BAR issue - We are unable to access the PCI device space
+	 * if we set the BAR with proper base address.
+	 * Force a flush here (at register writing).
+	 */
+	if (reg == PCIR_BAR(0) && bytes == 4)
+		(void)ar724x_pci_read_config(dev, bus, slot, func, reg, bytes);
+}
+
+static void 
+ar724x_pci_mask_irq(void *source)
+{
+	uint32_t reg;
+	unsigned int irq = (unsigned int)source;
+
+	/* XXX - Only one interrupt ? Only one device ? */
+	if (irq != AR71XX_PCI_IRQ_START)
+		return;
+
+	/* Update the interrupt mask reg */
+	reg = ATH_READ_REG(AR724X_PCI_INTR_MASK);
+	ATH_WRITE_REG(AR724X_PCI_INTR_MASK,
+	    reg & ~AR724X_PCI_INTR_DEV0);
+
+	/* Clear any pending interrupt */
+	reg = ATH_READ_REG(AR724X_PCI_INTR_STATUS);
+	ATH_WRITE_REG(AR724X_PCI_INTR_STATUS,
+	    reg | AR724X_PCI_INTR_DEV0);
+}
+
+static void 
+ar724x_pci_unmask_irq(void *source)
+{
+	uint32_t reg;
+	unsigned int irq = (unsigned int)source;
+
+	/* XXX */
+	if (irq != AR71XX_PCI_IRQ_START)
+		return;
+
+	/* Update the interrupt mask reg */
+	reg = ATH_READ_REG(AR724X_PCI_INTR_MASK);
+	ATH_WRITE_REG(AR724X_PCI_INTR_MASK,
+	    reg | AR724X_PCI_INTR_DEV0);
+}
+
+static int
+ar724x_pci_setup(device_t dev)
+{
+	uint32_t reg;
+
+	/* setup COMMAND register */
+	reg = PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN | PCIM_CMD_SERRESPEN |
+	    PCIM_CMD_BACKTOBACK | PCIM_CMD_PERRESPEN | PCIM_CMD_MWRICEN;
+
+	ar724x_pci_write(AR724X_PCI_CRP_BASE, PCIR_COMMAND, reg, 2);
+	ar724x_pci_write(AR724X_PCI_CRP_BASE, 0x20, 0x1ff01000, 4);
+	ar724x_pci_write(AR724X_PCI_CRP_BASE, 0x24, 0x1ff01000, 4);
+
+	reg = ATH_READ_REG(AR724X_PCI_RESET);
+	if (reg != 0x7) {
+		DELAY(100000);
+		ATH_WRITE_REG(AR724X_PCI_RESET, 0);
+		DELAY(100);
+		ATH_WRITE_REG(AR724X_PCI_RESET, 4);
+		DELAY(100000);
+	}
+
+	if (ar71xx_soc == AR71XX_SOC_AR7240)
+		reg = AR724X_PCI_APP_LTSSM_ENABLE;
+	else
+		reg = 0x1ffc1;
+	ATH_WRITE_REG(AR724X_PCI_APP, reg);
+	DELAY(1000);
+
+	reg = ATH_READ_REG(AR724X_PCI_RESET);
+	if ((reg & AR724X_PCI_RESET_LINK_UP) == 0) {
+		device_printf(dev, "no PCIe controller found\n");
+		return (ENXIO);
+	}
+
+	if (ar71xx_soc == AR71XX_SOC_AR7241 ||
+	    ar71xx_soc == AR71XX_SOC_AR7242) {
+		reg = ATH_READ_REG(AR724X_PCI_APP);
+		reg |= (1 << 16);
+		ATH_WRITE_REG(AR724X_PCI_APP, reg);
+	}
+
+	return (0);
+}
+
+#define	AR5416_EEPROM_MAGIC		0xa55a
+
+/*
+ * XXX - This should not be here ! And this looks like Atheros (if_ath) only.
+ */
+static void
+ar724x_load_eeprom_data(device_t dev)
+{
+	uint32_t	bar0, hint, reg, val;
+	uint16_t	*data = NULL;
+
+	/* Search for a hint of eeprom data offset */
+	if (resource_int_value(device_get_name(dev),
+	    device_get_unit(dev), "eepromdata", &hint) != 0)
+		return;
+
+	device_printf(dev, "Loading the eeprom fixup data from %#x\n", hint);
+	data = (uint16_t *)MIPS_PHYS_TO_KSEG1(hint);
+
+	if (*data != AR5416_EEPROM_MAGIC) {
+		device_printf(dev, "Invalid calibration data from %#x\n", hint);
+		return;
+	}
+
+	/* Save bar(0) address - just to flush bar(0) (SoC WAR) ? */
+	bar0 = ar724x_pci_read_config(dev, 0, 0, 0, PCIR_BAR(0), 4);
+
+	val = ar724x_pci_read_config(dev, 0, 0, 0, PCIR_COMMAND, 2);
+	val |= (PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
+	ar724x_pci_write_config(dev, 0, 0, 0, PCIR_COMMAND, val, 2); 
+
+	/* set pointer to first reg address */
+	data += 3;
+	while (*data != 0xffff) {
+		reg = *data++;
+		val = *data++;
+		val |= (*data++) << 16;
+
+		/* Write eeprom fixup data to device memory */
+		ATH_WRITE_REG(AR71XX_PCI_MEM_BASE + reg, val);
+		DELAY(100);
+	}
+
+	val = ar724x_pci_read_config(dev, 0, 0, 0, PCIR_COMMAND, 2);
+	val &= ~(PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
+	ar724x_pci_write_config(dev, 0, 0, 0, PCIR_COMMAND, val, 2); 
+
+	/* Write the saved bar(0) address */
+	ar724x_pci_write_config(dev, 0, 0, 0, PCIR_BAR(0), bar0, 4);
+}
+
+#undef	AR5416_EEPROM_MAGIC
+
+static int
+ar724x_pci_probe(device_t dev)
+{
+
+	return (0);
+}
+
+static int
+ar724x_pci_attach(device_t dev)
+{
+	struct ar71xx_pci_softc *sc = device_get_softc(dev);
+	int busno = 0;
+	int rid = 0;
+
+	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
+	sc->sc_mem_rman.rm_descr = "ar724x PCI memory window";
+	if (rman_init(&sc->sc_mem_rman) != 0 || 
+	    rman_manage_region(&sc->sc_mem_rman, AR71XX_PCI_MEM_BASE, 
+		AR71XX_PCI_MEM_BASE + AR71XX_PCI_MEM_SIZE - 1) != 0) {
+		panic("ar724x_pci_attach: failed to set up I/O rman");
+	}
+
+	sc->sc_irq_rman.rm_type = RMAN_ARRAY;
+	sc->sc_irq_rman.rm_descr = "ar724x PCI IRQs";
+	if (rman_init(&sc->sc_irq_rman) != 0 ||
+	    rman_manage_region(&sc->sc_irq_rman, AR71XX_PCI_IRQ_START, 
+	        AR71XX_PCI_IRQ_END) != 0)
+		panic("ar724x_pci_attach: failed to set up IRQ rman");
+
+	/* Disable interrupts */
+	ATH_WRITE_REG(AR724X_PCI_INTR_STATUS, 0);
+	ATH_WRITE_REG(AR724X_PCI_INTR_MASK, 0);
+
+	/* Hook up our interrupt handler. */
+	if ((sc->sc_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_SHAREABLE | RF_ACTIVE)) == NULL) {
+		device_printf(dev, "unable to allocate IRQ resource\n");
+		return (ENXIO);
+	}
+
+	if ((bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_MISC,
+			    ar724x_pci_intr, NULL, sc, &sc->sc_ih))) {
+		device_printf(dev, 
+		    "WARNING: unable to register interrupt handler\n");
+		return (ENXIO);
+	}
+
+	/* Reset PCIe core and PCIe PHY */
+	ar71xx_device_stop(AR724X_RESET_PCIE);
+	ar71xx_device_stop(AR724X_RESET_PCIE_PHY);
+	ar71xx_device_stop(AR724X_RESET_PCIE_PHY_SERIAL);
+	DELAY(100);
+
+	ar71xx_device_start(AR724X_RESET_PCIE_PHY_SERIAL);
+	DELAY(100);
+	ar71xx_device_start(AR724X_RESET_PCIE_PHY);
+	ar71xx_device_start(AR724X_RESET_PCIE);
+
+	if (ar724x_pci_setup(dev))
+		return (ENXIO);
+
+	/* XXX - Load eeprom fixup data */
+	ar724x_load_eeprom_data(dev);
+
+	/* Fixup internal PCI bridge */
+	ar724x_pci_write_config(dev, 0, 0, 0, PCIR_COMMAND, 
+            PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN 
+	    | PCIM_CMD_SERRESPEN | PCIM_CMD_BACKTOBACK
+	    | PCIM_CMD_PERRESPEN | PCIM_CMD_MWRICEN, 2);
+
+	device_add_child(dev, "pci", busno);
+	return (bus_generic_attach(dev));
+}
+
+static int
+ar724x_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
+{
+	struct ar71xx_pci_softc *sc = device_get_softc(dev);
+
+	switch (which) {
+	case PCIB_IVAR_DOMAIN:
+		*result = 0;
+		return (0);
+	case PCIB_IVAR_BUS:
+		*result = sc->sc_busno;
+		return (0);
+	}
+
+	return (ENOENT);
+}
+
+static int
+ar724x_pci_write_ivar(device_t dev, device_t child, int which, uintptr_t result)
+{
+	struct ar71xx_pci_softc * sc = device_get_softc(dev);
+
+	switch (which) {
+	case PCIB_IVAR_BUS:
+		sc->sc_busno = result;
+		return (0);
+	}
+
+	return (ENOENT);
+}
+
+static struct resource *
+ar724x_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct ar71xx_pci_softc *sc = device_get_softc(bus);	
+	struct resource *rv;
+	struct rman *rm;
+
+	switch (type) {
+	case SYS_RES_IRQ:
+		rm = &sc->sc_irq_rman;
+		break;
+	case SYS_RES_MEMORY:
+		rm = &sc->sc_mem_rman;
+		break;
+	default:
+		return (NULL);
+	}
+
+	rv = rman_reserve_resource(rm, start, end, count, flags, child);
+
+	if (rv == NULL)
+		return (NULL);
+
+	rman_set_rid(rv, *rid);
+
+	if (flags & RF_ACTIVE) {
+		if (bus_activate_resource(child, type, *rid, rv)) {
+			rman_release_resource(rv);
+			return (NULL);
+		}
+	} 
+
+
+	return (rv);
+}
+
+static int
+ar724x_pci_activate_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *r)
+{
+	int res = (BUS_ACTIVATE_RESOURCE(device_get_parent(bus),
+	    child, type, rid, r));
+
+	if (!res) {
+		switch(type) {
+		case SYS_RES_MEMORY:
+		case SYS_RES_IOPORT:
+
+			/* XXX */
+			//rman_set_bustag(r, ar71xx_bus_space_pcimem);
+			//rman_set_bustag(r, mips_bus_space_generic);
+			rman_set_bustag(r, ar71xx_bus_space_reversed);
+			break;
+		}
+	}
+
+	return (res);
+}
+
+static int
+ar724x_pci_setup_intr(device_t bus, device_t child, struct resource *ires,
+		int flags, driver_filter_t *filt, driver_intr_t *handler,
+		void *arg, void **cookiep)
+{
+	struct ar71xx_pci_softc *sc = device_get_softc(bus);
+	struct intr_event *event;
+	int irq, error;
+
+	irq = rman_get_start(ires);
+	if (irq > AR71XX_PCI_IRQ_END)
+		panic("%s: bad irq %d", __func__, irq);
+
+	event = sc->sc_eventstab[irq];
+	if (event == NULL) {
+		error = intr_event_create(&event, (void *)irq, 0, irq, 
+		    ar724x_pci_mask_irq, ar724x_pci_unmask_irq, NULL, NULL,
+		    "pci intr%d:", irq);
+
+		if (error == 0) {
+			sc->sc_eventstab[irq] = event;
+			sc->sc_intr_counter[irq] =
+			    mips_intrcnt_create(event->ie_name);
+		}
+		else
+			return error;
+	}
+
+	intr_event_add_handler(event, device_get_nameunit(child), filt,
+	    handler, arg, intr_priority(flags), flags, cookiep);
+	mips_intrcnt_setname(sc->sc_intr_counter[irq], event->ie_fullname);
+
+	ar724x_pci_unmask_irq((void*)irq);
+
+	return (0);
+}
+
+static int
+ar724x_pci_teardown_intr(device_t dev, device_t child, struct resource *ires,
+    void *cookie)
+{
+	struct ar71xx_pci_softc *sc = device_get_softc(dev);
+	int irq, result;
+
+	irq = rman_get_start(ires);
+	if (irq > AR71XX_PCI_IRQ_END)
+		panic("%s: bad irq %d", __func__, irq);
+
+	if (sc->sc_eventstab[irq] == NULL)
+		panic("Trying to teardown unoccupied IRQ");
+
+	ar724x_pci_mask_irq((void*)irq);
+
+	result = intr_event_remove_handler(cookie);
+	if (!result)
+		sc->sc_eventstab[irq] = NULL;
+
+	return (result);
+}
+
+static int
+ar724x_pci_intr(void *arg)
+{
+	struct ar71xx_pci_softc *sc = arg;
+	struct intr_event *event;
+	uint32_t reg, irq, mask;
+
+	ar71xx_device_ddr_flush_ip2();
+
+	reg = ATH_READ_REG(AR724X_PCI_INTR_STATUS);
+	mask = ATH_READ_REG(AR724X_PCI_INTR_MASK);
+	/*
+	 * Handle only unmasked interrupts
+	 */
+	reg &= mask;
+	if (reg & AR724X_PCI_INTR_DEV0) {
+
+		irq = AR71XX_PCI_IRQ_START;
+		event = sc->sc_eventstab[irq];
+		if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
+			printf("Stray IRQ %d\n", irq);
+			return (FILTER_STRAY);
+		}
+
+		/* TODO: frame instead of NULL? */
+		intr_event_handle(event, NULL);
+		mips_intrcnt_inc(sc->sc_intr_counter[irq]);
+	}
+
+	return (FILTER_HANDLED);
+}
+
+static int
+ar724x_pci_maxslots(device_t dev)
+{
+
+	return (PCI_SLOTMAX);
+}
+
+static int
+ar724x_pci_route_interrupt(device_t pcib, device_t device, int pin)
+{
+
+	return (pci_get_slot(device));
+}
+
+static device_method_t ar724x_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ar724x_pci_probe),
+	DEVMETHOD(device_attach,	ar724x_pci_attach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_read_ivar,	ar724x_pci_read_ivar),
+	DEVMETHOD(bus_write_ivar,	ar724x_pci_write_ivar),
+	DEVMETHOD(bus_alloc_resource,	ar724x_pci_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, ar724x_pci_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	ar724x_pci_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	ar724x_pci_teardown_intr),
+
+	/* pcib interface */
+	DEVMETHOD(pcib_maxslots,	ar724x_pci_maxslots),
+	DEVMETHOD(pcib_read_config,	ar724x_pci_read_config),
+	DEVMETHOD(pcib_write_config,	ar724x_pci_write_config),
+	DEVMETHOD(pcib_route_interrupt,	ar724x_pci_route_interrupt),
+
+	{0, 0}
+};
+
+static driver_t ar724x_pci_driver = {
+	"pcib",
+	ar724x_pci_methods,
+	sizeof(struct ar71xx_pci_softc),
+};
+
+static devclass_t ar724x_pci_devclass;
+
+DRIVER_MODULE(ar724x_pci, nexus, ar724x_pci_driver, ar724x_pci_devclass, 0, 0);
