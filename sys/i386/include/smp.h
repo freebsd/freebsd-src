@@ -65,6 +65,7 @@ void 	ipi_bitmap_handler(struct trapframe frame);
 void	ipi_cpu(int cpu, u_int ipi);
 int	ipi_nmi_handler(void);
 void	ipi_selected(cpumask_t cpus, u_int ipi);
+void	md_assert_nopreempt(void);
 u_int	mp_bootaddress(u_int);
 int	mp_grab_cpu_hlt(void);
 void	smp_cache_flush(void);
