@@ -129,6 +129,7 @@ void
 txg_sync_start(dsl_pool_t *dp)
 {
 	tx_state_t *tx = &dp->dp_tx;
+	size_t stksize = 0;
 
 	mutex_enter(&tx->tx_sync_lock);
 
@@ -146,7 +147,10 @@ txg_sync_start(dsl_pool_t *dp)
 	 * 32-bit x86.  This is due in part to nested pools and
 	 * scrub_visitbp() recursion.
 	 */
-	tx->tx_sync_thread = thread_create(NULL, 16<<10, txg_sync_thread,
+#ifdef __i386__
+	stksize = 16 << 10;
+#endif
+	tx->tx_sync_thread = thread_create(NULL, stksize, txg_sync_thread,
 	    dp, 0, &p0, TS_RUN, minclsyspri);
 
 	mutex_exit(&tx->tx_sync_lock);
