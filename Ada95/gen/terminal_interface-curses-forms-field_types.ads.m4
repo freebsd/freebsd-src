@@ -10,7 +10,7 @@ include(M4MACRO)dnl
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2003,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -38,7 +38,7 @@ include(M4MACRO)dnl
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.15 $
+--  $Revision: 1.16 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Interfaces.C;
@@ -101,15 +101,15 @@ private
    pragma Convention (C, Freearg_Function);
 
    type Field_Check_Function is access
-     function (Fld : Field; Usr : System.Address) return C_Int;
+     function (Fld : Field; Usr : System.Address) return Curses_Bool;
    pragma Convention (C, Field_Check_Function);
 
    type Char_Check_Function is access
-     function (Ch : C_Int; Usr : System.Address) return C_Int;
+     function (Ch : C_Int; Usr : System.Address) return Curses_Bool;
    pragma Convention (C, Char_Check_Function);
 
    type Choice_Function is access
-     function (Fld : Field; Usr : System.Address) return C_Int;
+     function (Fld : Field; Usr : System.Address) return Curses_Bool;
    pragma Convention (C, Choice_Function);
 
    --  +----------------------------------------------------------------------
@@ -117,7 +117,7 @@ private
    --  |
    type Low_Level_Field_Type is
       record
-         Status :              Interfaces.C.short;
+         Status :              Interfaces.C.unsigned_short;
          Ref_Count :           Interfaces.C.long;
          Left, Right :         System.Address;
          Makearg :             Makearg_Function;
@@ -159,7 +159,7 @@ private
    --  Any other value will raise a Form_Exception.
 
    function Make_Arg (Args : System.Address) return System.Address;
-   pragma Convention (C, Make_Arg);
+   pragma Import (C, Make_Arg, "void_star_make_arg");
    --  This is the Makearg_Function for the internal low-level types
    --  introduced by this binding.
 
@@ -174,7 +174,7 @@ private
    --  introduced by this binding.
 
    function Field_Check_Router (Fld : Field;
-                                Usr : System.Address) return C_Int;
+                                Usr : System.Address) return Curses_Bool;
    pragma Convention (C, Field_Check_Router);
    --  This is the Field_Check_Function for the internal low-level types
    --  introduced to wrap the low-level types by a Field_Type derived
@@ -182,7 +182,7 @@ private
    --  function.
 
    function Char_Check_Router (Ch : C_Int;
-                               Usr : System.Address) return C_Int;
+                               Usr : System.Address) return Curses_Bool;
    pragma Convention (C, Char_Check_Router);
    --  This is the Char_Check_Function for the internal low-level types
    --  introduced to wrap the low-level types by a Field_Type derived
@@ -190,7 +190,7 @@ private
    --  function.
 
    function Next_Router (Fld : Field;
-                         Usr : System.Address) return C_Int;
+                         Usr : System.Address) return Curses_Bool;
    pragma Convention (C, Next_Router);
    --  This is the Choice_Function for the internal low-level types
    --  introduced to wrap the low-level types by a Field_Type derived
@@ -198,7 +198,7 @@ private
    --  function.
 
    function Prev_Router (Fld : Field;
-                         Usr : System.Address) return C_Int;
+                         Usr : System.Address) return Curses_Bool;
    pragma Convention (C, Prev_Router);
    --  This is the Choice_Function for the internal low-level types
    --  introduced to wrap the low-level types by a Field_Type derived

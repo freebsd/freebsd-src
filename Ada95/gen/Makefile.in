@@ -28,7 +28,7 @@
 #
 #  Author:  Juergen Pfeifer, 1996
 #
-#  $Id: Makefile.in,v 1.71 2011/01/22 19:47:09 tom Exp $
+#  $Id: Makefile.in,v 1.74 2011/03/26 23:36:30 tom Exp $
 #
 .SUFFIXES:
 
@@ -57,7 +57,7 @@ CC		= @CC@
 HOST_CC		= @BUILD_CC@
 CFLAGS		= @CFLAGS@
 
-CPPFLAGS	= @ACPPFLAGS@ \
+CPPFLAGS	= @ACPPFLAGS@ @CPPFLAGS@ \
 		  -DHAVE_CONFIG_H -I$(srcdir)
 
 CCFLAGS		= $(CPPFLAGS) $(CFLAGS)
@@ -88,7 +88,7 @@ PROG_GENERATE	= ./generate$x
 GENERATE	= $(PROG_GENERATE) '@DFT_ARG_SUFFIX@'
 DEL_ADAMODE	= sed -e '/^\-\-\ \ \-\*\-\ ada\ \-\*\-.*/d'
 
-GNATHTML	= `type -p gnathtml || type -p gnathtml.pl`
+GNATHTML	= `type -p gnathtml || type -p gnathtml.pl 2>/dev/null`
 GNATHP          = www.gnat.com
 
 ################################################################################
@@ -305,6 +305,7 @@ $(ADA_SRCDIR)/$(ABASE)-mouse.ads: $(srcdir)/$(ABASE)-mouse.ads.m4 \
 	$(DEL_ADAMODE) >$@
 
 $(ADA_SRCDIR)/$(ABASE)-panels.ads: $(srcdir)/$(ABASE)-panels.ads.m4 \
+                                  $(GEN_FILES4) \
 				   $(srcdir)/normal.m4
 	$(M4) $(M4FLAGS) -DM4MACRO=$(srcdir)/normal.m4 \
 	$(srcdir)/$(ABASE)-panels.ads.m4 |\
@@ -377,7 +378,7 @@ distclean :: clean
 
 realclean :: distclean
 
-HTML_DIR = ../../doc/html/ada
+HTML_DIR = @ADAHTML_DIR@
 
 instab.tmp : table.m4 $(GEN_SRC)
 	@rm -f $@
@@ -405,6 +406,7 @@ $(HTML_DIR)/table.html : instab.tmp
 	@rm -f instab.tmp
 
 adahtml:
+	test -n "$(GNATHTML)" || exit 1
 	@find $(HTML_DIR) -type f -exec rm -f {} \;
 	@mkdir -p $(HTML_DIR)
 	cp -p ../src/*.ad[sb] . && chmod +w *.ad[sb]

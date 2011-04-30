@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2003,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,7 +35,7 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.9 $
+--  $Revision: 1.10 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Interfaces.C; use Interfaces.C;
@@ -48,13 +48,9 @@ package body Terminal_Interface.Curses.Forms.Field_Types.RegExp is
    is
       type Char_Ptr is access all Interfaces.C.char;
 
-      C_Regexp_Field_Type : C_Field_Type;
-      pragma Import (C, C_Regexp_Field_Type, "TYPE_REGEXP");
-
       function Set_Ftyp (F    : Field := Fld;
-                         Cft  : C_Field_Type := C_Regexp_Field_Type;
                          Arg1 : Char_Ptr) return C_Int;
-      pragma Import (C, Set_Ftyp, "set_field_type");
+      pragma Import (C, Set_Ftyp, "set_field_type_regexp");
 
       Txt : char_array (0 .. Typ.Regular_Expression.all'Length);
       Len : size_t;

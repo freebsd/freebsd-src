@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------------
--- Copyright (c) 2010 Free Software Foundation, Inc.                        --
+-- Copyright (c) 2010,2011 Free Software Foundation, Inc.                   --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -25,7 +25,7 @@
 -- sale, use or other dealings in this Software without prior written       --
 -- authorization.                                                           --
 ------------------------------------------------------------------------------
--- $Id: library.gpr,v 1.5 2010/11/27 22:15:04 tom Exp $
+-- $Id: library.gpr,v 1.7 2011/03/18 23:10:28 Nicolas.Boulenguez Exp $
 -- http://gcc.gnu.org/onlinedocs/gnat_ugn_unw/Library-Projects.html
 -- http://www.adaworld.com/debian/debian-ada-policy.html
 project Library is
@@ -43,6 +43,7 @@ project Library is
   for Source_Dirs use (Source_Dir & "/src",
                        Source_Dir2,
                        Build_Dir & "/src");
+  for Library_Options use ("-lncurses", "-lpanel", "-lmenu", "-lform");
   package Compiler is
      for Default_Switches ("Ada") use
        ("-g",
@@ -51,5 +52,5 @@ project Library is
         "-gnatVa",   -- All validity checks
         "-gnatwa");  -- Activate all optional errors
   end Compiler;
-
+  for Languages use ("C", "Ada");
 end Library;

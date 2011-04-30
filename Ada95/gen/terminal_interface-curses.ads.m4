@@ -9,7 +9,7 @@ include(M4MACRO)----------------------------------------------------------------
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2007,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -37,8 +37,8 @@ include(M4MACRO)----------------------------------------------------------------
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.42 $
---  $Date: 2009/12/26 17:38:58 $
+--  $Revision: 1.44 $
+--  $Date: 2011/03/19 23:05:56 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 include(`Base_Defs')
@@ -52,8 +52,8 @@ include(`Version_Info')
    type Window is private;
    Null_Window : constant Window;
 
-   type Line_Position   is new Natural; --  line coordinate
-   type Column_Position is new Natural; --  column coordinate
+   type Line_Position   is new Integer; --  line coordinate
+   type Column_Position is new Integer; --  column coordinate
 
    subtype Line_Count   is Line_Position   range 1 .. Line_Position'Last;
    --  Type to count lines. We do not allow null windows, so must be positive
@@ -461,7 +461,7 @@ include(`ACS_Map')dnl
    --  ALIAS(`getch()')
    --  Get a character from the keyboard and echo it - if enabled - to the
    --  window.
-   --  If for any reason (i.e. a timeout) we couldn't get a character the
+   --  If for any reason (i.e. a timeout) we could not get a character the
    --  returned keycode is Key_None.
    pragma Inline (Get_Keystroke);
 
@@ -659,7 +659,7 @@ include(`ACS_Map')dnl
    --  introduce the Timeout_Mode parameter. This should improve
    --  readability. For Blocking and Non_Blocking, the Amount is not
    --  evaluated.
-   --  We don't inline this procedure.
+   --  We do not inline this procedure.
 
    --  ANCHOR(`notimeout()',`Set_Escape_Time_Mode')
    procedure Set_Escape_Timer_Mode
@@ -940,7 +940,7 @@ include(`ACS_Map')dnl
       Top_Left_Column    : out Column_Position;
       Is_Not_A_Subwindow : out Boolean);
    --  AKA
-   --  Instead of placing -1 in the coordinates as return, we use a boolean
+   --  Instead of placing -1 in the coordinates as return, we use a Boolean
    --  to return the info that the window has no parent.
    pragma Inline (Get_Origin_Relative_To_Parent);
 
@@ -1122,7 +1122,7 @@ include(`ACS_Map')dnl
    --  ALIAS(`mvwinchstr()')
    --  ALIAS(`mvinchnstr()')
    --  ALIAS(`mvinchstr()')
-   --  We don't inline the Peek procedures
+   --  We do not inline the Peek procedures
 
    --  MANPAGE(`curs_getstr.3x')
 
@@ -1171,7 +1171,7 @@ include(`ACS_Map')dnl
                                  Text  : String;
                                  Fmt   : Label_Justification := Left);
    --  AKA
-   --  We don't inline this procedure
+   --  We do not inline this procedure
 
    --  ANCHOR(`slk_refresh()',`Refresh_Soft_Label_Key')
    procedure Refresh_Soft_Label_Keys;
@@ -1273,7 +1273,7 @@ include(`ACS_Map')dnl
    function Key_Name (Key  : Real_Key_Code) return String;
    --  AKA
    --  Same as function
-   --  We don't inline this routine
+   --  We do not inline this routine
 
    --  ANCHOR(`unctrl()',`Un_Control')
    procedure Un_Control (Ch  : Attributed_Character;
@@ -1443,7 +1443,7 @@ include(`ACS_Map')dnl
    --  N.B.: to be more precise, this uses a ncurses specific enhancement of
    --        ripoffline(), in which the Lines argument absolute value is the
    --        number of lines to be ripped of. The official ripoffline() only
-   --        uses the sign of Lines to rip of a single line from bottom or top.
+   --        uses the sign of Lines to remove a single line from bottom or top.
    pragma Inline (Rip_Off_Lines);
 
    type Cursor_Visibility is (Invisible, Normal, Very_Visible);
@@ -1469,10 +1469,10 @@ include(`ACS_Map')dnl
       Dir    : Transform_Direction := From_Screen);
    --  This procedure transforms screen coordinates into coordinates relative
    --  to the window and vice versa, depending on the Dir parameter.
-   --  Screen coordinates are the position informations on the physical device.
+   --  Screen coordinates are the position information for the physical device.
    --  An Curses_Exception will be raised if Line and Column are not in the
    --  Window or if you pass the Null_Window as argument.
-   --  We don't inline this procedure
+   --  We do not inline this procedure
 
    --  MANPAGE(`default_colors.3x')
 
@@ -1529,7 +1529,7 @@ include(`ACS_Map')dnl
    --  Not implemented: printw,  wprintw, mvprintw, mvwprintw, vwprintw,
    --                   vw_printw
    --  Please use the Ada style Text_IO child packages for formatted
-   --  printing. It doesn't make a lot of sense to map the printf style
+   --  printing. It does not make a lot of sense to map the printf style
    --  C functions to Ada.
 
    --  MANPAGE(`curs_scanw.3x')

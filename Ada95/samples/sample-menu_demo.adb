@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2004,2008 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2008,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control
---  $Revision: 1.18 $
---  $Date: 2008/07/26 18:48:30 $
+--  $Revision: 1.19 $
+--  $Date: 2011/03/23 00:44:12 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Terminal_Interface.Curses; use Terminal_Interface.Curses;
@@ -154,7 +154,7 @@ package body Sample.Menu_Demo is
                         O : Item_Option_Set;
                      begin
                         for J in I'Range loop
-                           Get_Options (I (J), O);
+                           Get_Options (I.all (J), O);
                            O.Selectable := True;
                            if Hide_Long then
                               case J is
@@ -163,7 +163,7 @@ package body Sample.Menu_Demo is
                                  when others => null;
                               end case;
                            end if;
-                           Set_Options (I (J), O);
+                           Set_Options (I.all (J), O);
                         end loop;
                      end;
                      return False;
@@ -378,14 +378,14 @@ package body Sample.Menu_Demo is
       Set_Pad_Character (M, '|');
 
       MUD.Set_User_Data (M, U1);
-      IUD.Set_User_Data (Itm (1), U3);
+      IUD.Set_User_Data (Itm.all (1), U3);
 
       Mh.Drive_Me (M);
 
       MUD.Get_User_Data (M, U2);
       pragma Assert (U1 = U2 and U1.all = 4711);
 
-      IUD.Get_User_Data (Itm (1), U4);
+      IUD.Get_User_Data (Itm.all (1), U4);
       pragma Assert (U3 = U4 and U3.all = 4712);
 
       Pop_Environment;

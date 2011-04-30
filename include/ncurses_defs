@@ -1,4 +1,4 @@
-# $Id: ncurses_defs,v 1.45 2011/01/15 18:19:51 tom Exp $
+# $Id: ncurses_defs,v 1.46 2011/03/22 09:17:59 tom Exp $
 ##############################################################################
 # Copyright (c) 2000-2010,2011 Free Software Foundation, Inc.                #
 #                                                                            #
@@ -85,6 +85,7 @@ HAVE_LIMITS_H
 HAVE_LINK
 HAVE_LOCALE_H
 HAVE_LONG_FILE_NAMES
+HAVE_MATH_H
 HAVE_MBLEN
 HAVE_MBRLEN
 HAVE_MBRTOWC
@@ -141,8 +142,8 @@ HAVE_TERMATTRS	1
 HAVE_TERMIOS_H
 HAVE_TERMIO_H
 HAVE_TERMNAME	1
-HAVE_TERM_H	1
 HAVE_TERM_ENTRY_H	1
+HAVE_TERM_H	1
 HAVE_TGETENT	1
 HAVE_TIGETNUM	1
 HAVE_TIGETSTR	1
@@ -164,9 +165,9 @@ HAVE_WCTOB
 HAVE_WCTOMB
 HAVE_WCTYPE_H
 HAVE_WINSSTR	1
-HAVE_WSYNCDOWN	1
 HAVE_WORKING_POLL
 HAVE_WRESIZE
+HAVE_WSYNCDOWN	1
 HAVE__DOSCAN
 MIXEDCASE_FILENAMES
 NCURSES_CHAR_EQ

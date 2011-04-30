@@ -12,7 +12,7 @@
 <FONT COLOR=green><EM>--                                 S P E C                                  --</EM></FONT>
 <FONT COLOR=green><EM>--                                                                          --</EM></FONT>
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
-<FONT COLOR=green><EM>-- Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              --</EM></FONT>
+<FONT COLOR=green><EM>-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --</EM></FONT>
 <FONT COLOR=green><EM>--                                                                          --</EM></FONT>
 <FONT COLOR=green><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></FONT>
 <FONT COLOR=green><EM>-- copy of this software and associated documentation files (the            --</EM></FONT>
@@ -40,8 +40,8 @@
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
 <FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
 <FONT COLOR=green><EM>--  Version Control:</EM></FONT>
-<FONT COLOR=green><EM>--  @Revision: 1.13 @</EM></FONT>
-<FONT COLOR=green><EM>--  @Date: 2009/12/26 17:38:58 @</EM></FONT>
+<FONT COLOR=green><EM>--  @Revision: 1.15 @</EM></FONT>
+<FONT COLOR=green><EM>--  @Date: 2011/03/19 12:27:21 @</EM></FONT>
 <FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
 <b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C;
@@ -83,18 +83,18 @@
 <b>private</b>
    <b>function</b> <FONT COLOR=red><A NAME="ref_79_13" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_108_13">C_Generic_Type</A></FONT>   <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_132_9">C_Field_Type</A>;
 
-   <b>function</b> <FONT COLOR=red><A NAME="ref_81_13" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_84_13">Generic_Field_Check</A></FONT> (<FONT COLOR=red><A NAME="ref_81_34" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_84_34">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
-                                 <FONT COLOR=red><A NAME="ref_82_34" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_85_34">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_46_12">C_Int</A>;
+   <b>function</b> <FONT COLOR=red><A NAME="ref_81_13" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_82_13">Generic_Field_Check</A></FONT> (<FONT COLOR=red><A NAME="ref_81_34" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_82_34">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
+                                 <FONT COLOR=red><A NAME="ref_82_34" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_83_34">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_1926_9">Curses_Bool</A>;
    <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_81_13">Generic_Field_Check</A>);
    <FONT COLOR=green><EM>--  This is the generic Field_Check_Function for the low-level fieldtype</EM></FONT>
-   <FONT COLOR=green><EM>--  representing all the User_Defined_Field_Type derivates. It routes</EM></FONT>
+   <FONT COLOR=green><EM>--  representing all the User_Defined_Field_Type derivatives. It routes</EM></FONT>
    <FONT COLOR=green><EM>--  the call to the Field_Check implementation for the type.</EM></FONT>
 
-   <b>function</b> <FONT COLOR=red><A NAME="ref_88_13" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_95_13">Generic_Char_Check</A></FONT> (<FONT COLOR=red><A NAME="ref_88_33" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_95_33">Ch</A></FONT>  : <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_46_12">C_Int</A>;
-                                <FONT COLOR=red><A NAME="ref_89_33" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_96_33">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_46_12">C_Int</A>;
+   <b>function</b> <FONT COLOR=red><A NAME="ref_88_13" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_94_13">Generic_Char_Check</A></FONT> (<FONT COLOR=red><A NAME="ref_88_33" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_94_33">Ch</A></FONT>  : <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_46_12">C_Int</A>;
+                                <FONT COLOR=red><A NAME="ref_89_33" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_95_33">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_1926_9">Curses_Bool</A>;
    <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_88_13">Generic_Char_Check</A>);
    <FONT COLOR=green><EM>--  This is the generic Char_Check_Function for the low-level fieldtype</EM></FONT>
-   <FONT COLOR=green><EM>--  representing all the User_Defined_Field_Type derivates. It routes</EM></FONT>
+   <FONT COLOR=green><EM>--  representing all the User_Defined_Field_Type derivatives. It routes</EM></FONT>
    <FONT COLOR=green><EM>--  the call to the Character_Check implementation for the type.</EM></FONT>
 
 <b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_49_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_43_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_44_53">User</A>;

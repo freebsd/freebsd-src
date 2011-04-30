@@ -1,0 +1,81 @@
+# $Id: Makefile.in,v 1.2 2011/03/26 19:26:17 tom Exp $
+##############################################################################
+# Copyright (c) 2011 Free Software Foundation, Inc.                          #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+#
+# Author: Thomas E. Dickey
+#
+# Makefile for AdaCurses manual pages.
+
+SHELL		= /bin/sh
+VPATH		= @srcdir@
+
+DESTDIR		= @DESTDIR@
+srcdir		= @srcdir@
+prefix		= @prefix@
+exec_prefix	= @exec_prefix@
+datadir		= @datadir@
+mandir		= @mandir@
+
+INSTALL		= @INSTALL@
+INSTALL_DATA	= @INSTALL_DATA@
+
+DFT_ARG_SUFFIX	= @DFT_ARG_SUFFIX@
+
+THIS		= AdaCurses
+DOCDIR		= $(DESTDIR)$(datadir)/doc/$(THIS)
+MANDIR		= $(DESTDIR)$(mandir)/man1
+
+all \
+sources \
+depend \
+tags :
+
+$(DOCDIR) \
+$(MANDIR) :
+	mkdir -p $@
+
+install install.man : $(MANDIR)
+	$(INSTALL_DATA) adacurses${DFT_ARG_SUFFIX}-config.1 $(MANDIR)
+
+uninstall uninstall.man :
+	-rm -f $(MANDIR)/adacurses${DFT_ARG_SUFFIX}-config.1
+
+# HTML documentation is optional, usually in a separate package.
+install.html : $(DOCDIR)
+	cd $(srcdir) && tar -cf - *.htm* ada | tar -C $(DOCDIR) -xf -
+
+uninstall.html :
+	-rm -rf $(DOCDIR)
+
+mostlyclean :
+	-rm -f core tags TAGS *~ *.bak *.ln *.atac trace
+
+clean:	mostlyclean
+
+distclean realclean: clean
+	-rm -f Makefile *-config.1

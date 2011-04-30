@@ -1,6 +1,8 @@
-/* $Id: tclock.c,v 1.29 2010/11/14 01:04:52 tom Exp $ */
+/* $Id: tclock.c,v 1.30 2011/03/22 09:16:00 tom Exp $ */
 
 #include <test.priv.h>
+
+#if HAVE_MATH_H
 
 #include <math.h>
 
@@ -256,3 +258,11 @@ main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
     endwin();
     ExitProgram(EXIT_SUCCESS);
 }
+#else
+int
+main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+{
+    printf("This program requires the development header math.h\n");
+    ExitProgram(EXIT_FAILURE);
+}
+#endif

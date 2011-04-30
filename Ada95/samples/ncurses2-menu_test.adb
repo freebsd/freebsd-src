@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000-2004,2006 Free Software Foundation, Inc.              --
+-- Copyright (c) 2000-2006,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control
---  $Revision: 1.6 $
---  $Date: 2006/06/25 14:24:40 $
+--  $Revision: 1.8 $
+--  $Date: 2011/03/23 00:39:28 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with ncurses2.util; use ncurses2.util;
@@ -46,10 +46,10 @@ with Terminal_Interface.Curses.Menus; use Terminal_Interface.Curses.Menus;
 with Terminal_Interface.Curses.Mouse; use Terminal_Interface.Curses.Mouse;
 
 procedure ncurses2.menu_test is
-   function menu_virtualize (c : Key_Code) return Menu_Request_Code;
+   function menu_virtualize (c : Key_Code) return Key_Code;
    procedure xAdd (l : Line_Position; c : Column_Position; s : String);
 
-   function menu_virtualize (c : Key_Code) return Menu_Request_Code is
+   function menu_virtualize (c : Key_Code) return Key_Code is
    begin
       case c is
          when Character'Pos (newl) | Key_Exit =>
@@ -110,7 +110,7 @@ procedure ncurses2.menu_test is
    c1 : Key_Code;
 
    c : Driver_Result;
-   r : Menu_Request_Code;
+   r : Key_Code;
 begin
    tmp := Start_Mouse;
    xAdd (0, 0, "This is the menu test:");
@@ -121,9 +121,9 @@ begin
    Refresh;
 
    for i in animals'Range loop
-      items_a (i) := New_Item (animals (i).all);
+      items_a.all (i) := New_Item (animals (i).all);
    end loop;
-   items_a (animals'Last + 1) := Null_Item;
+   items_a.all (animals'Last + 1) := Null_Item;
 
    m := New_Menu (items_a);
 

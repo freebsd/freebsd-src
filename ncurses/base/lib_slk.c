@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -47,7 +47,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_slk.c,v 1.47 2010/12/25 22:58:58 tom Exp $")
+MODULE_ID("$Id: lib_slk.c,v 1.48 2011/03/05 21:21:52 tom Exp $")
 
 #ifdef USE_TERM_DRIVER
 #define NumLabels    InfoOf(SP_PARM).numlabels
@@ -138,7 +138,7 @@ _nc_slk_initialize(WINDOW *stwin, int cols)
 {
     int i;
     int res = OK;
-    int max_length;
+    size_t max_length;
     SCREEN *sp;
     int numlab;
 
@@ -189,9 +189,9 @@ _nc_slk_initialize(WINDOW *stwin, int cols)
 	== NULL)
 	returnCode(slk_failed(NCURSES_SP_ARG));
 
-    max_length = SP_PARM->_slk->maxlen;
+    max_length = (size_t) SP_PARM->_slk->maxlen;
     for (i = 0; i < SP_PARM->_slk->labcnt; i++) {
-	size_t used = (size_t) max_length + 1;
+	size_t used = max_length + 1;
 
 	SP_PARM->_slk->ent[i].ent_text = (char *) _nc_doalloc(0, used);
 	if (SP_PARM->_slk->ent[i].ent_text == 0)
@@ -202,8 +202,10 @@ _nc_slk_initialize(WINDOW *stwin, int cols)
 	if (SP_PARM->_slk->ent[i].form_text == 0)
 	    returnCode(slk_failed(NCURSES_SP_ARG));
 
-	memset(SP_PARM->_slk->ent[i].form_text, ' ', used - 1);
-	SP_PARM->_slk->ent[i].form_text[used] = '\0';
+	if (used > 1) {
+	    memset(SP_PARM->_slk->ent[i].form_text, ' ', used - 1);
+	}
+	SP_PARM->_slk->ent[i].form_text[used - 1] = '\0';
 
 	SP_PARM->_slk->ent[i].visible = (char) (i < SP_PARM->_slk->maxlab);
     }

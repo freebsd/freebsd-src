@@ -12,7 +12,7 @@
 <FONT COLOR=green><EM>--                                 B O D Y                                  --</EM></FONT>
 <FONT COLOR=green><EM>--                                                                          --</EM></FONT>
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
-<FONT COLOR=green><EM>-- Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              --</EM></FONT>
+<FONT COLOR=green><EM>-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --</EM></FONT>
 <FONT COLOR=green><EM>--                                                                          --</EM></FONT>
 <FONT COLOR=green><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></FONT>
 <FONT COLOR=green><EM>-- copy of this software and associated documentation files (the            --</EM></FONT>
@@ -40,11 +40,11 @@
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
 <FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
 <FONT COLOR=green><EM>--  Version Control:</EM></FONT>
-<FONT COLOR=green><EM>--  @Revision: 1.16 @</EM></FONT>
-<FONT COLOR=green><EM>--  @Date: 2009/12/26 17:38:58 @</EM></FONT>
+<FONT COLOR=green><EM>--  @Revision: 1.21 @</EM></FONT>
+<FONT COLOR=green><EM>--  @Date: 2011/03/23 00:44:58 @</EM></FONT>
 <FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
-<b>with</b> Ada.Unchecked_Conversion;
+<b>with</b> System.Address_To_Access_Conversions;
 <b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>; <b>use</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>;
 
 <b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_49_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_43_41">Field_Types</A>.<FONT COLOR=red><A NAME="ref_45_58" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_44_53">User</A></FONT> <b>is</b>
@@ -59,7 +59,7 @@
                              <FONT COLOR=red><A NAME="ref_54_30" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_53_16">Cft</A></FONT>  : <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_132_9">C_Field_Type</A> := <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_79_13">C_Generic_Type</A>;
                              <FONT COLOR=red><A NAME="ref_55_30" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_53_16">Arg1</A></FONT> : <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_216_9">Argument_Access</A>)
                              <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_46_12">C_Int</A>;
-      <b>pragma</b> Import (C, Set_Fld_Type, "set_field_type");
+      <b>pragma</b> Import (C, Set_Fld_Type, "set_field_type_user");
 
       <FONT COLOR=red><A NAME="ref_59_7">Res</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A>;
 
@@ -81,31 +81,31 @@
       <b>end</b> <b>if</b>;
    <b>end</b> <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_70_14">Set_Field_Type</A>;
 
-   <b>pragma</b> Warnings (Off);
-   <b>function</b> To_Argument_Access <b>is</b> <b>new</b> Ada.Unchecked_Conversion
-     (System.Address, <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_216_9">Argument_Access</A>);
-   <b>pragma</b> Warnings (On);
+   <b>package</b> Argument_Conversions <b>is</b>
+      <b>new</b> System.Address_To_Access_Conversions (<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_211_9">Argument</A>);
 
-   <b>function</b> <FONT COLOR=red><A NAME="ref_84_13" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_81_13">Generic_Field_Check</A></FONT> (<FONT COLOR=red><A NAME="ref_84_34" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_81_34">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
-                                 <FONT COLOR=red><A NAME="ref_85_34" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_82_34">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_46_12">C_Int</A>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_82_13" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_81_13">Generic_Field_Check</A></FONT> (<FONT COLOR=red><A NAME="ref_82_34" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_81_34">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
+                                 <FONT COLOR=red><A NAME="ref_83_34" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_82_34">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_1926_9">Curses_Bool</A>
    <b>is</b>
-      <FONT COLOR=red><A NAME="ref_87_7">Result</A></FONT> : Boolean;
-      <FONT COLOR=red><A NAME="ref_88_7">Udf</A></FONT>    : <b>constant</b> <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_53_9">User_Defined_Field_Type_Access</A> :=
-        <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_53_9">User_Defined_Field_Type_Access</A> (To_Argument_Access (<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_82_34">Usr</A>).<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_212_7">Typ</A>);
+      <FONT COLOR=red><A NAME="ref_85_7">Result</A></FONT> : Boolean;
+      <FONT COLOR=red><A NAME="ref_86_7">Udf</A></FONT>    : <b>constant</b> <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_53_9">User_Defined_Field_Type_Access</A> :=
+        <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_53_9">User_Defined_Field_Type_Access</A>
+          (<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_216_9">Argument_Access</A> (Argument_Conversions.To_Pointer (<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_82_34">Usr</A>)).<b>all</b>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_212_7">Typ</A>);
    <b>begin</b>
-      <A HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_87_7">Result</A> := <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_56_13">Field_Check</A> (<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_81_34">Fld</A>, <A HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_88_7">Udf</A>.<b>all</b>);
-      <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_46_12">C_Int</A> (Boolean'Pos (<A HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_87_7">Result</A>));
+      <A HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_85_7">Result</A> := <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_56_13">Field_Check</A> (<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_81_34">Fld</A>, <A HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_86_7">Udf</A>.<b>all</b>);
+      <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_1926_9">Curses_Bool</A> (Boolean'Pos (<A HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_85_7">Result</A>));
    <b>end</b> <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_81_13">Generic_Field_Check</A>;
 
-   <b>function</b> <FONT COLOR=red><A NAME="ref_95_13" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_88_13">Generic_Char_Check</A></FONT> (<FONT COLOR=red><A NAME="ref_95_33" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_88_33">Ch</A></FONT>  : <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_46_12">C_Int</A>;
-                                <FONT COLOR=red><A NAME="ref_96_33" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_89_33">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_46_12">C_Int</A>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_94_13" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_88_13">Generic_Char_Check</A></FONT> (<FONT COLOR=red><A NAME="ref_94_33" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_88_33">Ch</A></FONT>  : <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_46_12">C_Int</A>;
+                                <FONT COLOR=red><A NAME="ref_95_33" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_89_33">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_1926_9">Curses_Bool</A>
    <b>is</b>
-      <FONT COLOR=red><A NAME="ref_98_7">Result</A></FONT> : Boolean;
-      <FONT COLOR=red><A NAME="ref_99_7">Udf</A></FONT>    : <b>constant</b> <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_53_9">User_Defined_Field_Type_Access</A> :=
-        <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_53_9">User_Defined_Field_Type_Access</A> (To_Argument_Access (<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_89_33">Usr</A>).<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_212_7">Typ</A>);
+      <FONT COLOR=red><A NAME="ref_97_7">Result</A></FONT> : Boolean;
+      <FONT COLOR=red><A NAME="ref_98_7">Udf</A></FONT>    : <b>constant</b> <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_53_9">User_Defined_Field_Type_Access</A> :=
+        <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_53_9">User_Defined_Field_Type_Access</A>
+          (<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_216_9">Argument_Access</A> (Argument_Conversions.To_Pointer (<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_89_33">Usr</A>)).<b>all</b>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_212_7">Typ</A>);
    <b>begin</b>
-      <A HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_98_7">Result</A> := <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_63_13">Character_Check</A> (Character'Val (<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_88_33">Ch</A>), <A HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_99_7">Udf</A>.<b>all</b>);
-      <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_46_12">C_Int</A> (Boolean'Pos (<A HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_98_7">Result</A>));
+      <A HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_97_7">Result</A> := <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_63_13">Character_Check</A> (Character'Val (<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_88_33">Ch</A>), <A HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_98_7">Udf</A>.<b>all</b>);
+      <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_1926_9">Curses_Bool</A> (Boolean'Pos (<A HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_97_7">Result</A>));
    <b>end</b> <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_88_13">Generic_Char_Check</A>;
 
    <FONT COLOR=green><EM>--  -----------------------------------------------------------------------</EM></FONT>
@@ -119,7 +119,7 @@
          <A HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_111_7">T</A> := <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_222_13">New_Fieldtype</A> (<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_81_13">Generic_Field_Check</A>'<b>Access</b>,
                              <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_88_13">Generic_Char_Check</A>'<b>Access</b>);
          <b>if</b> <A HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_111_7">T</A> = <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_134_4">Null_Field_Type</A> <b>then</b>
-            <b>raise</b> <A HREF="terminal_interface-curses-forms__ads.htm#ref_286_4">Form_Exception</A>;
+            <b>raise</b> <A HREF="terminal_interface-curses-forms__ads.htm#ref_290_4">Form_Exception</A>;
          <b>else</b>
             <A HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_110_7">Res</A> := <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_227_13">Set_Fieldtype_Arg</A> (<A HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_111_7">T</A>,
                                       <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_162_13">Make_Arg</A>'<b>Access</b>,

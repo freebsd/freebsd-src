@@ -26,7 +26,7 @@ dnl sale, use or other dealings in this Software without prior written       *
 dnl authorization.                                                           *
 dnl***************************************************************************
 dnl
-dnl $Id: aclocal.m4,v 1.49 2011/01/15 23:47:10 tom Exp $
+dnl $Id: aclocal.m4,v 1.50 2011/03/24 08:28:07 tom Exp $
 dnl
 dnl Author: Thomas E. Dickey
 dnl
@@ -624,7 +624,7 @@ fi
 AC_CHECK_HEADERS($cf_cv_ncurses_header)
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_CURSES_LIBS version: 31 updated: 2010/10/23 15:54:49
+dnl CF_CURSES_LIBS version: 33 updated: 2011/03/06 12:37:18
 dnl --------------
 dnl Look for the curses libraries.  Older curses implementations may require
 dnl termcap/termlib to be linked as well.  Call CF_CURSES_CPPFLAGS first.
@@ -655,8 +655,20 @@ hpux10.*) #(vi
         ac_cv_func_initscr=yes
         ])])
     ;;
-linux*) # Suse Linux does not follow /usr/lib convention
-    CF_ADD_LIBDIR(/lib)
+linux*)
+	case `arch 2>/dev/null` in
+	x86_64)
+		if test -d /lib64
+		then
+			CF_ADD_LIBDIR(/lib64)
+		else
+			CF_ADD_LIBDIR(/lib)
+		fi
+		;;
+	*)
+		CF_ADD_LIBDIR(/lib)
+		;;
+	esac
     ;;
 sunos3*|sunos4*)
     if test -d /usr/5lib ; then
@@ -2164,7 +2176,7 @@ else
 fi
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_PKG_CONFIG version: 3 updated: 2009/01/25 10:55:09
+dnl CF_PKG_CONFIG version: 4 updated: 2011/02/18 20:26:24
 dnl -------------
 dnl Check for the package-config program, unless disabled by command-line.
 AC_DEFUN([CF_PKG_CONFIG],
@@ -2181,7 +2193,7 @@ no) #(vi
 	PKG_CONFIG=none
 	;;
 yes) #(vi
-	AC_PATH_PROG(PKG_CONFIG, pkg-config, none)
+	AC_PATH_TOOL(PKG_CONFIG, pkg-config, none)
 	;;
 *)
 	PKG_CONFIG=$withval
@@ -2663,7 +2675,7 @@ CF_NO_LEAKS_OPTION(valgrind,
 	[USE_VALGRIND])
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_XOPEN_CURSES version: 10 updated: 2010/10/23 15:54:49
+dnl CF_XOPEN_CURSES version: 11 updated: 2011/01/18 18:15:30
 dnl ---------------
 dnl Test if we should define X/Open source for curses, needed on Digital Unix
 dnl 4.x, to see the extended functions, but breaks on IRIX 6.x.
@@ -2678,7 +2690,7 @@ AC_TRY_LINK([
 #include <stdlib.h>
 #include <${cf_cv_ncurses_header:-curses.h}>],[
 #if defined(NCURSES_VERSION_PATCH)
-if (NCURSES_VERSION_PATCH < 20100501) && (NCURSES_VERSION_PATCH >= 20100403)
+#if (NCURSES_VERSION_PATCH < 20100501) && (NCURSES_VERSION_PATCH >= 20100403)
 	make an error
 #endif
 #endif
@@ -2702,7 +2714,7 @@ if (NCURSES_VERSION_PATCH < 20100501) && (NCURSES_VERSION_PATCH >= 20100403)
 test $cf_cv_need_xopen_extension = yes && CPPFLAGS="$CPPFLAGS -D_XOPEN_SOURCE_EXTENDED"
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_XOPEN_SOURCE version: 34 updated: 2010/05/26 05:38:42
+dnl CF_XOPEN_SOURCE version: 35 updated: 2011/02/20 20:37:37
 dnl ---------------
 dnl Try to get _XOPEN_SOURCE defined properly that we can use POSIX functions,
 dnl or adapt to the vendor's definitions to get equivalent functionality,
@@ -2720,6 +2732,9 @@ cf_xopen_source=
 case $host_os in #(vi
 aix[[456]]*) #(vi
 	cf_xopen_source="-D_ALL_SOURCE"
+	;;
+cygwin) #(vi
+	cf_XOPEN_SOURCE=600
 	;;
 darwin[[0-8]].*) #(vi
 	cf_xopen_source="-D_APPLE_C_SOURCE"
@@ -2942,7 +2957,7 @@ elif test "$cf_x_athena_inc" != default ; then
 fi
 ])
 dnl ---------------------------------------------------------------------------
-dnl CF_X_ATHENA_LIBS version: 9 updated: 2010/06/02 05:03:05
+dnl CF_X_ATHENA_LIBS version: 10 updated: 2011/02/13 13:31:33
 dnl ----------------
 dnl Normally invoked by CF_X_ATHENA, with $1 set to the appropriate flavor of
 dnl the Athena widgets, e.g., Xaw, Xaw3d, neXtaw.
@@ -2972,7 +2987,11 @@ do
 				CF_ADD_LIBS($cf_lib)
 				AC_MSG_CHECKING(for $cf_test in $cf_lib)
 			fi
-			AC_TRY_LINK([],[$cf_test()],
+			AC_TRY_LINK([
+#include <X11/Intrinsic.h>
+#include <X11/$cf_x_athena_root/SimpleMenu.h>
+],[
+$cf_test((XtAppContext) 0)],
 				[cf_result=yes],
 				[cf_result=no])
 			AC_MSG_RESULT($cf_result)

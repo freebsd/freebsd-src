@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000-2008,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 2000-2009,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control
---  $Revision: 1.9 $
---  $Date: 2009/12/26 17:38:58 $
+--  $Revision: 1.11 $
+--  $Date: 2011/03/23 00:33:00 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 --  Windows and scrolling tester.
@@ -345,7 +345,7 @@ procedure ncurses2.acs_and_scroll is
                return;
             when KEY_UP =>
                i := i + si - 1;
-               --  same as  i := i - 1 because of Modulus arithetic,
+               --  same as  i := i - 1 because of Modulus arithmetic,
                --  on Line_Position, which is a Natural
                --  the C version uses this form too, interestingly.
             when KEY_DOWN =>
@@ -452,19 +452,19 @@ procedure ncurses2.acs_and_scroll is
    function delete_framed (fp : FrameA; showit : Boolean) return FrameA is
       np : FrameA;
    begin
-      fp.last.next := fp.next;
-      fp.next.last := fp.last;
+      fp.all.last.all.next := fp.all.next;
+      fp.all.next.all.last := fp.all.last;
 
       if showit then
-         Erase (fp.wind);
-         Refresh (fp.wind);
+         Erase (fp.all.wind);
+         Refresh (fp.all.wind);
       end if;
-      Delete (fp.wind);
+      Delete (fp.all.wind);
 
-      if fp = fp.next then
+      if fp = fp.all.next then
          np := null;
       else
-         np := fp.next;
+         np := fp.all.next;
       end if;
       --  TODO free(fp);
       return np;
@@ -494,64 +494,64 @@ begin
                                                     False, False,
                                                     Null_Window);
             begin
-               neww.wind := getwindow;
-               if neww.wind = Null_Window  then
+               neww.all.wind := getwindow;
+               if neww.all.wind = Null_Window  then
                   exit;
                   --  was goto breakout; ha ha ha
                else
 
                   if current = null  then
-                     neww.next := neww;
-                     neww.last := neww;
+                     neww.all.next := neww;
+                     neww.all.last := neww;
                   else
-                     neww.next := current.next;
-                     neww.last := current;
-                     neww.last.next := neww;
-                     neww.next.last := neww;
+                     neww.all.next := current.all.next;
+                     neww.all.last := current;
+                     neww.all.last.all.next := neww;
+                     neww.all.next.all.last := neww;
                   end if;
                   current := neww;
 
-                  Set_KeyPad_Mode (current.wind, True);
-                  current.do_keypad := HaveKeyPad (current.wind);
-                  current.do_scroll := HaveScroll (current.wind);
+                  Set_KeyPad_Mode (current.all.wind, True);
+                  current.all.do_keypad := HaveKeyPad (current.all.wind);
+                  current.all.do_scroll := HaveScroll (current.all.wind);
                end if;
             end;
          when Character'Pos ('N') mod 16#20#  => --  Ctrl('N')
             if current /= null then
-               current := current.next;
+               current := current.all.next;
             end if;
          when Character'Pos ('P') mod 16#20#  => --  Ctrl('P')
             if current /= null then
-               current := current.last;
+               current := current.all.last;
             end if;
          when Character'Pos ('F') mod 16#20#  => --  Ctrl('F')
-            if current /= null and then HaveScroll (current.wind) then
-               Scroll (current.wind, 1);
+            if current /= null and then HaveScroll (current.all.wind) then
+               Scroll (current.all.wind, 1);
             end if;
          when Character'Pos ('B') mod 16#20#  => --  Ctrl('B')
-            if current /= null and then HaveScroll (current.wind) then
+            if current /= null and then HaveScroll (current.all.wind) then
             --  The C version of Scroll may return ERR which is ignored
             --  we need to avoid the exception
             --  with the 'and HaveScroll(current.wind)'
-               Scroll (current.wind, -1);
+               Scroll (current.all.wind, -1);
             end if;
          when Character'Pos ('K') mod 16#20#  => --  Ctrl('K')
             if current /= null then
-               current.do_keypad := not current.do_keypad;
-               Set_KeyPad_Mode (current.wind, current.do_keypad);
+               current.all.do_keypad := not current.all.do_keypad;
+               Set_KeyPad_Mode (current.all.wind, current.all.do_keypad);
             end if;
          when Character'Pos ('S') mod 16#20#  => --  Ctrl('S')
             if current /= null then
-               current.do_scroll := not current.do_scroll;
-               Allow_Scrolling (current.wind, current.do_scroll);
+               current.all.do_scroll := not current.all.do_scroll;
+               Allow_Scrolling (current.all.wind, current.all.do_scroll);
             end if;
          when Character'Pos ('W') mod 16#20#  => --  Ctrl('W')
-            if current /= current.next then
+            if current /= current.all.next then
                Create (f, Name => dumpfile); -- TODO error checking
                if not Is_Open (f) then
                   raise Curses_Exception;
                end if;
-               Put_Window (current.wind, f);
+               Put_Window (current.all.wind, f);
                Close (f);
                current := delete_framed (current, True);
             end if;
@@ -563,15 +563,15 @@ begin
                Open (f, Mode => In_File, Name => dumpfile);
                neww := new Frame'(null, null, False, False, Null_Window);
 
-               neww.next := current.next;
-               neww.last := current;
-               neww.last.next := neww;
-               neww.next.last := neww;
+               neww.all.next := current.all.next;
+               neww.all.last := current;
+               neww.all.last.all.next := neww;
+               neww.all.next.all.last := neww;
 
-               neww.wind := Get_Window (f);
+               neww.all.wind := Get_Window (f);
                Close (f);
 
-               Refresh (neww.wind);
+               Refresh (neww.all.wind);
             end;
          when Character'Pos ('X') mod 16#20# => --  Ctrl('X')
             if current /= null then
@@ -587,7 +587,7 @@ begin
                        "to mark new corner");
                   Refresh;
 
-                  Get_Window_Position (current.wind, ul.y, ul.x);
+                  Get_Window_Position (current.all.wind, ul.y, ul.x);
 
                   selectcell (ul.y, ul.x, Lines - Botlines - 2, Columns - 2,
                               tmp, tmpbool);
@@ -595,43 +595,43 @@ begin
                      --  the C version had a goto. I refuse gotos.
                      Beep;
                   else
-                     Get_Size (current.wind, lr.y, lr.x);
+                     Get_Size (current.all.wind, lr.y, lr.x);
                      lr.y := lr.y + ul.y - 1;
                      lr.x := lr.x + ul.x - 1;
                      Outerbox (ul, lr, False);
                      Refresh_Without_Update;
 
-                     Get_Size (current.wind, my, mx);
+                     Get_Size (current.all.wind, my, mx);
                      if my > tmp.y - ul.y then
-                        Get_Cursor_Position (current.wind, lr.y, lr.x);
-                        Move_Cursor (current.wind, tmp.y - ul.y + 1, 0);
-                        Clear_To_End_Of_Screen (current.wind);
-                        Move_Cursor (current.wind, lr.y, lr.x);
+                        Get_Cursor_Position (current.all.wind, lr.y, lr.x);
+                        Move_Cursor (current.all.wind, tmp.y - ul.y + 1, 0);
+                        Clear_To_End_Of_Screen (current.all.wind);
+                        Move_Cursor (current.all.wind, lr.y, lr.x);
                      end if;
                      if mx > tmp.x - ul.x then
                         for i in 0 .. my - 1 loop
-                           Move_Cursor (current.wind, i, tmp.x - ul.x + 1);
-                           Clear_To_End_Of_Line (current.wind);
+                           Move_Cursor (current.all.wind, i, tmp.x - ul.x + 1);
+                           Clear_To_End_Of_Line (current.all.wind);
                         end loop;
                      end if;
-                     Refresh_Without_Update (current.wind);
+                     Refresh_Without_Update (current.all.wind);
 
                      lr := tmp;
                      --  The C version passes invalid args to resize
                      --  which returns an ERR. For Ada we avoid the exception.
                      if lr.y /= ul.y and lr.x /= ul.x then
-                        Resize (current.wind, lr.y - ul.y + 0,
+                        Resize (current.all.wind, lr.y - ul.y + 0,
                                 lr.x - ul.x + 0);
                      end if;
 
-                     Get_Window_Position (current.wind, ul.y, ul.x);
-                     Get_Size (current.wind, lr.y, lr.x);
+                     Get_Window_Position (current.all.wind, ul.y, ul.x);
+                     Get_Size (current.all.wind, lr.y, lr.x);
                      lr.y := lr.y + ul.y - 1;
                      lr.x := lr.x + ul.x - 1;
                      Outerbox (ul, lr, True);
                      Refresh_Without_Update;
 
-                     Refresh_Without_Update (current.wind);
+                     Refresh_Without_Update (current.all.wind);
                      Move_Cursor (Line => 0, Column => 0);
                      Clear_To_End_Of_Line;
                      Update_Screen;
@@ -647,30 +647,30 @@ begin
                Refresh;
             end;
          when Key_Cursor_Up =>
-            newwin_move (current.wind, -1, 0);
+            newwin_move (current.all.wind, -1, 0);
          when Key_Cursor_Down  =>
-            newwin_move (current.wind, 1, 0);
+            newwin_move (current.all.wind, 1, 0);
          when Key_Cursor_Left  =>
-            newwin_move (current.wind, 0, -1);
+            newwin_move (current.all.wind, 0, -1);
          when Key_Cursor_Right  =>
-            newwin_move (current.wind, 0, 1);
+            newwin_move (current.all.wind, 0, 1);
          when Key_Backspace | Key_Delete_Char  =>
             declare
                y : Line_Position;
                x : Column_Position;
                tmp : Line_Position;
             begin
-               Get_Cursor_Position (current.wind, y, x);
+               Get_Cursor_Position (current.all.wind, y, x);
                --  x := x - 1;
                --  I got tricked by the -1 = Max_Natural - 1 result
                --  y := y - 1;
                if not (x = 0 and y = 0) then
                   if x = 0 then
                      y := y - 1;
-                     Get_Size (current.wind, tmp, x);
+                     Get_Size (current.all.wind, tmp, x);
                   end if;
                   x := x - 1;
-                  Delete_Character (current.wind, y, x);
+                  Delete_Character (current.all.wind, y, x);
                end if;
             end;
          when others =>
@@ -678,7 +678,7 @@ begin
             if current /= null then
                declare
                begin
-                  Add (current.wind, Ch => Code_To_Char (c));
+                  Add (current.all.wind, Ch => Code_To_Char (c));
                exception
                   when Curses_Exception => null;
                      --  this happens if we are at the
@@ -688,9 +688,9 @@ begin
                Beep;
             end if;
       end case;
-      newwin_report (current.wind);
+      newwin_report (current.all.wind);
       if current /= null then
-         usescr := current.wind;
+         usescr := current.all.wind;
       else
          usescr := Standard_Window;
       end if;

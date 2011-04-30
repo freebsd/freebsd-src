@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2004,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control
---  $Revision: 1.14 $
---  $Date: 2009/12/26 17:38:58 $
+--  $Revision: 1.15 $
+--  $Date: 2011/03/23 00:44:12 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Ada.Unchecked_Deallocation;
@@ -88,18 +88,18 @@ package body Sample.Function_Key_Setting is
    begin
       --  Store the current labels in the environment
       for I in 1 .. Number_Of_Keys loop
-         Get_Soft_Label_Key (I, P.Labels (I));
+         Get_Soft_Label_Key (I, P.all.Labels (I));
          if Reset then
             Set_Soft_Label_Key (I, " ");
          end if;
       end loop;
-      P.Prev := Top_Of_Stack;
+      P.all.Prev := Top_Of_Stack;
       --  now store active help context and notepad
-      P.Help := Active_Context;
-      P.Notepad := Active_Notepad;
+      P.all.Help := Active_Context;
+      P.all.Notepad := Active_Notepad;
       --  The notepad must now vanish and the new notepad is empty.
-      if P.Notepad /= Null_Panel then
-         Hide (P.Notepad);
+      if P.all.Notepad /= Null_Panel then
+         Hide (P.all.Notepad);
          Update_Panels;
       end if;
       Active_Notepad := Null_Panel;
@@ -119,14 +119,14 @@ package body Sample.Function_Key_Setting is
          raise Function_Key_Stack_Error;
       else
          for I in 1 .. Number_Of_Keys loop
-            Set_Soft_Label_Key (I, P.Labels (I), Justification);
+            Set_Soft_Label_Key (I, P.all.Labels (I), Justification);
          end loop;
          pragma Assert (Active_Context /= null);
          Release_String (Active_Context);
-         Active_Context := P.Help;
+         Active_Context := P.all.Help;
          Refresh_Soft_Label_Keys_Without_Update;
-         Notepad_To_Context (P.Notepad);
-         Top_Of_Stack := P.Prev;
+         Notepad_To_Context (P.all.Notepad);
+         Top_Of_Stack := P.all.Prev;
          Release_Environment (P);
       end if;
    end Pop_Environment;
@@ -150,10 +150,10 @@ package body Sample.Function_Key_Setting is
       else
          loop
             exit when P = null;
-            if P.Help.all = Key then
+            if P.all.Help.all = Key then
                return True;
             else
-               P := P.Prev;
+               P := P.all.Prev;
             end if;
          end loop;
          return False;

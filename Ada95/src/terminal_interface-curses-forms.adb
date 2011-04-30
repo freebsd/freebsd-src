@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.27 $
---  $Date: 2009/12/26 17:38:58 $
+--  $Revision: 1.28 $
+--  $Date: 2011/03/22 23:37:32 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Ada.Unchecked_Deallocation;
@@ -736,11 +736,11 @@ package body Terminal_Interface.Curses.Forms is
 
       Res : Eti_Error;
    begin
-      pragma Assert (Flds (Flds'Last) = Null_Field);
-      if Flds (Flds'Last) /= Null_Field then
+      pragma Assert (Flds.all (Flds'Last) = Null_Field);
+      if Flds.all (Flds'Last) /= Null_Field then
          raise Form_Exception;
       else
-         Res := Set_Frm_Fields (Frm, Flds (Flds'First)'Address);
+         Res := Set_Frm_Fields (Frm, Flds.all (Flds'First)'Address);
          if  Res /= E_Ok then
             Eti_Exception (Res);
          end if;
@@ -806,11 +806,11 @@ package body Terminal_Interface.Curses.Forms is
 
       M   : Form;
    begin
-      pragma Assert (Fields (Fields'Last) = Null_Field);
-      if Fields (Fields'Last) /= Null_Field then
+      pragma Assert (Fields.all (Fields'Last) = Null_Field);
+      if Fields.all (Fields'Last) /= Null_Field then
          raise Form_Exception;
       else
-         M := NewForm (Fields (Fields'First)'Address);
+         M := NewForm (Fields.all (Fields'First)'Address);
          if M = Null_Form then
             raise Form_Exception;
          end if;
@@ -1136,8 +1136,8 @@ package body Terminal_Interface.Curses.Forms is
    begin
       if FA /= null and then Free_Fields then
          for I in FA'First .. (FA'Last - 1) loop
-            if FA (I) /= Null_Field then
-               Delete (FA (I));
+            if FA.all (I) /= Null_Field then
+               Delete (FA.all (I));
             end if;
          end loop;
       end if;

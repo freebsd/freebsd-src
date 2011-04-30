@@ -1,7 +1,7 @@
 #!/bin/sh
-# $Id: make-tar.sh,v 1.6 2010/11/06 19:59:07 tom Exp $
+# $Id: make-tar.sh,v 1.12 2011/03/26 19:07:38 tom Exp $
 ##############################################################################
-# Copyright (c) 2010 Free Software Foundation, Inc.                          #
+# Copyright (c) 2010,2011 Free Software Foundation, Inc.                     #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -31,15 +31,53 @@
 # documentation.  The reason for doing that is to simplify distributing the
 # ada binding as a separate package.
 
+CDPATH=:
+export CDPATH
+
 TARGET=`pwd`
 
 : ${ROOTNAME:=ncurses-Ada95}
+: ${PKG_NAME:=AdaCurses}
 : ${DESTDIR:=$TARGET}
 : ${TMPDIR:=/tmp}
 
-# This can be run from either the Ada95 subdirectory, or from the top-level
+grep_assign() {
+	grep_assign=`egrep "^$2\>" "$1" | sed -e "s/^$2[ 	]*=[ 	]*//" -e 's/"//g'`
+	eval $2=\"$grep_assign\"
+}
+
+grep_patchdate() {
+	grep_assign ../dist.mk NCURSES_MAJOR
+	grep_assign ../dist.mk NCURSES_MINOR
+	grep_assign ../dist.mk NCURSES_PATCH
+}
+
+# The rpm spec-file in the ncurses tree is a template.  Fill in the version
+# information from dist.mk
+edit_specfile() {
+	sed \
+		-e "s/\\<MAJOR\\>/$NCURSES_MAJOR/g" \
+		-e "s/\\<MINOR\\>/$NCURSES_MINOR/g" \
+		-e "s/\\<YYYYMMDD\\>/$NCURSES_PATCH/g" $1 >$1.new
+	chmod u+w $1
+	mv $1.new $1
+}
+
+make_changelog() {
+	test -f $1 && chmod u+w $1
+	cat >$1 <<EOF
+`echo $PKG_NAME|tr '[A-Z]' '[a-z]'` ($NCURSES_PATCH) unstable; urgency=low
+
+  * snapshot of ncurses subpackage for $PKG_NAME.
+
+ -- `head -1 $HOME/.signature`  `date -R`
+EOF
+}
+
+# This can be run from either the subdirectory, or from the top-level
 # source directory.  We will put the tar file in the original directory.
 test -d ./Ada95 && cd ./Ada95
+SOURCE=`cd ..;pwd`
 
 BUILD=$TMPDIR/make-tar$$
 trap "cd /; rm -rf $BUILD; exit 0" 0 1 2 5 15
@@ -64,20 +102,43 @@ do
 	done
 done
 
-# Add the ada documentation.
-mkdir $BUILD/$ROOTNAME/doc || exit
-cd ../doc/html || exit
+# Make rpm and dpkg scripts for test-builds
+grep_patchdate
+for spec in $BUILD/$ROOTNAME/package/*.spec
+do
+	edit_specfile $spec
+done
+make_changelog $BUILD/$ROOTNAME/package/debian/changelog
 
-cp -p -r Ada* $BUILD/$ROOTNAME/doc/
-cp -p -r ada $BUILD/$ROOTNAME/doc/
+cp -p ../man/MKada_config.in $BUILD/$ROOTNAME/doc/
+if test -z "$NO_HTML_DOCS"
+then
+	# Add the ada documentation.
+	cd ../doc/html || exit
+
+	cp -p -r Ada* $BUILD/$ROOTNAME/doc/
+	cp -p -r ada $BUILD/$ROOTNAME/doc/
+fi
+
+cp -p $SOURCE/NEWS $BUILD/$ROOTNAME
+
+# cleanup empty directories (an artifact of ncurses source archives)
+
+touch $BUILD/$ROOTNAME/MANIFEST 
+( cd $BUILD/$ROOTNAME && find . -type f -print |$SOURCE/misc/csort >MANIFEST )
 
 cd $BUILD || exit 
+
+# Remove build-artifacts.
+find . -name RCS -exec rm -rf {} \;
+find $BUILD/$ROOTNAME -type d -exec rmdir {} \; 2>/dev/null
+find $BUILD/$ROOTNAME -type d -exec rmdir {} \; 2>/dev/null
+find $BUILD/$ROOTNAME -type d -exec rmdir {} \; 2>/dev/null
 
 # There is no need for this script in the tar file.
 rm -f $ROOTNAME/make-tar.sh
 
 # Remove build-artifacts.
-find . -name RCS -exec rm -rf {} \;
 find . -name "*.gz" -exec rm -rf {} \;
 
 # Make the files writable...
@@ -88,3 +149,5 @@ cd $DESTDIR
 
 pwd
 ls -l $ROOTNAME.tar.gz
+
+# vi:ts=4 sw=4

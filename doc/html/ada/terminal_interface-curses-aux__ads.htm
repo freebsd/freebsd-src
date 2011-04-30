@@ -12,7 +12,7 @@
 <FONT COLOR=green><EM>--                                 S P E C                                  --</EM></FONT>
 <FONT COLOR=green><EM>--                                                                          --</EM></FONT>
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
-<FONT COLOR=green><EM>-- Copyright (c) 1998-2007,2009 Free Software Foundation, Inc.              --</EM></FONT>
+<FONT COLOR=green><EM>-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --</EM></FONT>
 <FONT COLOR=green><EM>--                                                                          --</EM></FONT>
 <FONT COLOR=green><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></FONT>
 <FONT COLOR=green><EM>-- copy of this software and associated documentation files (the            --</EM></FONT>
@@ -40,7 +40,7 @@
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
 <FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
 <FONT COLOR=green><EM>--  Version Control:</EM></FONT>
-<FONT COLOR=green><EM>--  @Revision: 1.17 @</EM></FONT>
+<FONT COLOR=green><EM>--  @Revision: 1.18 @</EM></FONT>
 <FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
 <FONT COLOR=green><EM>--  curses binding.</EM></FONT>
@@ -71,7 +71,7 @@
    <FONT COLOR=green><EM>--  This is how those constants are defined in ncurses. I see them also</EM></FONT>
    <FONT COLOR=green><EM>--  exactly like this in all ETI implementations I ever tested. So it</EM></FONT>
    <FONT COLOR=green><EM>--  could be that this is quite general, but please check with your curses.</EM></FONT>
-   <FONT COLOR=green><EM>--  This is critical, because curses sometime mixes boolean returns with</EM></FONT>
+   <FONT COLOR=green><EM>--  This is critical, because curses sometime mixes Boolean returns with</EM></FONT>
    <FONT COLOR=green><EM>--  returning an error status.</EM></FONT>
    <FONT COLOR=red><A NAME="ref_71_4">Curses_Ok</A></FONT>    : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := 0;
    <FONT COLOR=red><A NAME="ref_72_4">Curses_Err</A></FONT>   : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := -1;
@@ -105,18 +105,18 @@
    <FONT COLOR=green><EM>--  Some helpers</EM></FONT>
    <b>function</b> Chtype_To_AttrChar <b>is</b> <b>new</b>
      <A HREF="unchconv__ads.htm#ref_20_10">Unchecked_Conversion</A> (<A HREF="unchconv__ads.htm#ref_17_9">Source</A> =&gt; <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_12">C_Chtype</A>,
-                           <A HREF="unchconv__ads.htm#ref_18_9">Target</A> =&gt; <A HREF="terminal_interface-curses__ads.htm#ref_352_9">Attributed_Character</A>);
+                           <A HREF="unchconv__ads.htm#ref_18_9">Target</A> =&gt; <A HREF="terminal_interface-curses__ads.htm#ref_354_9">Attributed_Character</A>);
    <b>function</b> AttrChar_To_Chtype <b>is</b> <b>new</b>
-     <A HREF="unchconv__ads.htm#ref_20_10">Unchecked_Conversion</A> (<A HREF="unchconv__ads.htm#ref_17_9">Source</A> =&gt; <A HREF="terminal_interface-curses__ads.htm#ref_352_9">Attributed_Character</A>,
+     <A HREF="unchconv__ads.htm#ref_20_10">Unchecked_Conversion</A> (<A HREF="unchconv__ads.htm#ref_17_9">Source</A> =&gt; <A HREF="terminal_interface-curses__ads.htm#ref_354_9">Attributed_Character</A>,
                            <A HREF="unchconv__ads.htm#ref_18_9">Target</A> =&gt; <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_12">C_Chtype</A>);
 
    <b>function</b> AttrChar_To_AttrType <b>is</b> <b>new</b>
-     <A HREF="unchconv__ads.htm#ref_20_10">Unchecked_Conversion</A> (<A HREF="unchconv__ads.htm#ref_17_9">Source</A> =&gt; <A HREF="terminal_interface-curses__ads.htm#ref_352_9">Attributed_Character</A>,
+     <A HREF="unchconv__ads.htm#ref_20_10">Unchecked_Conversion</A> (<A HREF="unchconv__ads.htm#ref_17_9">Source</A> =&gt; <A HREF="terminal_interface-curses__ads.htm#ref_354_9">Attributed_Character</A>,
                            <A HREF="unchconv__ads.htm#ref_18_9">Target</A> =&gt; <A HREF="terminal_interface-curses-aux__ads.htm#ref_64_12">C_AttrType</A>);
 
    <b>function</b> AttrType_To_AttrChar <b>is</b> <b>new</b>
      <A HREF="unchconv__ads.htm#ref_20_10">Unchecked_Conversion</A> (<A HREF="unchconv__ads.htm#ref_17_9">Source</A> =&gt; <A HREF="terminal_interface-curses-aux__ads.htm#ref_64_12">C_AttrType</A>,
-                           <A HREF="unchconv__ads.htm#ref_18_9">Target</A> =&gt; <A HREF="terminal_interface-curses__ads.htm#ref_352_9">Attributed_Character</A>);
+                           <A HREF="unchconv__ads.htm#ref_18_9">Target</A> =&gt; <A HREF="terminal_interface-curses__ads.htm#ref_354_9">Attributed_Character</A>);
 
    <b>procedure</b> <FONT COLOR=red><A NAME="ref_116_14" HREF="terminal_interface-curses-aux__adb.htm#ref_44_14">Fill_String</A></FONT> (<FONT COLOR=red><A NAME="ref_116_27" HREF="terminal_interface-curses-aux__adb.htm#ref_44_27">Cp</A></FONT>  : chars_ptr;
                           <FONT COLOR=red><A NAME="ref_117_27" HREF="terminal_interface-curses-aux__adb.htm#ref_45_27">Str</A></FONT> : <b>out</b> String);

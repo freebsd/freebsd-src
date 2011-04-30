@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2004-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 2004-2010,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 #include <wctype.h>
 #endif
 
-MODULE_ID("$Id: lib_add_wch.c,v 1.11 2010/12/19 01:32:55 tom Exp $")
+MODULE_ID("$Id: lib_add_wch.c,v 1.12 2011/03/22 09:31:15 Petr.Pavlu Exp $")
 
 /* clone/adapt lib_addch.c */
 static const cchar_t blankchar = NewChar(BLANK_TEXT);
@@ -308,7 +308,7 @@ wadd_wch_nosync(WINDOW *win, cchar_t ch)
 
     /*
      * If we are using the alternate character set, forget about locale.
-     * Otherwise, if the locale * claims the code is printable, treat it that
+     * Otherwise, if the locale claims the code is printable, treat it that
      * way.
      */
     if ((AttrOf(ch) & A_ALTCHARSET)

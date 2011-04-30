@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998,2004 Free Software Foundation, Inc.                   --
+-- Copyright (c) 1998-2004,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.10 $
---  $Date: 2004/08/21 21:37:00 $
+--  $Revision: 1.11 $
+--  $Date: 2011/03/22 23:36:20 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Ada.Characters.Handling; use Ada.Characters.Handling;
@@ -61,8 +61,8 @@ package body Terminal_Interface.Curses.Forms.Field_Types.Enumeration.Ada is
          if Set /= Upper_Case then
             I.Names (J).all := To_Lower (I.Names (J).all);
             if Set = Mixed_Case then
-               I.Names (J)(I.Names (J).all'First) :=
-                 To_Upper (I.Names (J)(I.Names (J).all'First));
+               I.Names (J).all (I.Names (J).all'First) :=
+                 To_Upper (I.Names (J).all (I.Names (J).all'First));
             end if;
          end if;
          J := J + 1;

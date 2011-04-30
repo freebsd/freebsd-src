@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998,2008 Free Software Foundation, Inc.                   --
+-- Copyright (c) 1998-2008,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control
---  $Revision: 1.17 $
---  $Date: 2008/09/27 14:42:40 $
+--  $Revision: 1.18 $
+--  $Date: 2011/03/23 00:44:12 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Text_IO;
@@ -143,7 +143,7 @@ package body Sample is
          Ud.Set_User_Data (M, D1);
 
          I1 := new User_Data'(Data => 1174);
-         Id.Set_User_Data (I (1), I1);
+         Id.Set_User_Data (I.all (1), I1);
 
          Set_Spacing (Men => M, Row => 2);
 
@@ -156,7 +156,7 @@ package body Sample is
          pragma Assert (D1 = D2);
          pragma Assert (D1.Data = D2.Data);
 
-         Id.Get_User_Data (I (1), I2);
+         Id.Get_User_Data (I.all (1), I2);
          pragma Assert (I1 = I2);
          pragma Assert (I1.Data = I2.Data);
 

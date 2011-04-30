@@ -25,7 +25,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: NEWS,v 1.1651 2011/02/26 16:54:31 tom Exp $
+-- $Id: NEWS,v 1.1682 2011/04/04 00:02:42 tom Exp $
 -------------------------------------------------------------------------------
 
 This is a log of changes that ncurses has gone through since Zeyd started
@@ -44,6 +44,94 @@ See the AUTHORS file for the corresponding full names.
 
 Changes through 1.9.9e did not credit all contributions;
 it is not possible to add this information.
+
+20110404 5.9 release for upload to ftp.gnu.org
+
+20110402
+	+ various build-fixes for the rpm/dpkg scripts.
+	+ add "--enable-rpath-link" option to Ada95/configure, to allow
+	  packages to suppress the rpath feature which is normally used for
+	  the in-tree build of sample programs.
+	+ corrected definition of libdir variable in Ada95/src/Makefile.in,
+	  needed for rpm script.
+	+ add "--with-shared" option to Ada95/configure script, to allow
+	  making the C-language parts of the binding use appropriate compiler
+	  options if building a shared library with gnat.
+
+20110329
+	> portability fixes for Ada95 binding:
+	+ add configure check to ensure that SIGINT works with gnat.  This is
+	  needed for the "rain" sample program.  If SIGINT does not work, omit
+	  that sample program.
+	+ correct typo in check of $PKG_CONFIG variable in Ada95/configure
+	+ add ncurses_compat.c, to supply functions used in the Ada95 binding
+	  which were added in 5.7 and later.
+	+ modify sed expression in CF_NCURSES_ADDON to eliminate a dependency
+	  upon GNU sed.
+
+20110326
+	+ add special check in Ada95/configure script for ncurses6 reentrant
+	  code.
+	+ regen Ada html documentation.
+	+ build-fix for Ada shared libraries versus the varargs workaround.
+	+ add rpm and dpkg scripts for Ada95 and test directories, for test
+	  builds.
+	+ update test/configure macros CF_CURSES_LIBS, CF_XOPEN_SOURCE and
+	  CF_X_ATHENA_LIBS.
+	+ add configure check to determine if gnat's project feature supports
+	  libraries, i.e., collections of .ali files.
+	+ make all dereferences in Ada95 samples explicit.
+	+ fix typo in comment in lib_add_wch.c (patch by Petr Pavlu).
+	+ add configure check for, ifdef's for math.h which is in a separate
+	  package on Solaris and potentially not installed (report by Petr
+	  Pavlu).
+	> fixes for Ada95 binding (Nicolas Boulenguez):
+	+ improve type-checking in Ada95 by eliminating a few warning-suppress
+	  pragmas.
+	+ suppress unreferenced warnings.
+	+ make all dereferences in binding explicit.
+
+20110319
+	+ regen Ada html documentation.
+	+ change order of -I options from ncurses*-config script when the
+	  --disable-overwrite option was used, so that the subdirectory include
+	  is listed first.
+	+ modify the make-tar.sh scripts to add a MANIFEST and NEWS file.
+	+ modify configure script to provide value for HTML_DIR in
+	  Ada95/gen/Makefile.in, which depends on whether the Ada95 binding is
+	  distributed separately (report by Nicolas Boulenguez).
+	+ modify configure script to add -g and/or -O3 to ADAFLAGS if the
+	  CFLAGS for the build has these options.
+	+ amend change from 20070324, to not add 1 to the result of getmaxx
+	  and getmaxy in the Ada binding (report by Nicolas Boulenguez for
+	  thread in comp.lang.ada).
+	+ build-fix Ada95/samples for gnat 4.5
+	+ spelling fixes for Ada95/samples/explain.txt
+	> fixes for Ada95 binding (Nicolas Boulenguez):
+	+ add item in Trace_Attribute_Set corresponding to TRACE_ATTRS.
+	+ add workaround for binding to set_field_type(), which uses varargs.
+	  The original binding from 990220 relied on the prevalent
+	  implementation of varargs which did not support or need va_copy().
+	+ add dependency on gen/Makefile.in needed for *-panels.ads
+	+ add Library_Options to library.gpr
+	+ add Languages to library.gpr, for gprbuild
+
+20110307
+	+ revert changes to limit-checks from 20110122 (Debian #616711).
+	> minor type-cleanup of Ada95 binding (Nicolas Boulenguez):
+	+ corrected a minor sign error in a field of Low_Level_Field_Type, to
+	  conform to form.h.
+	+ replaced C_Int by Curses_Bool as return type for some callbacks, see
+	  fieldtype(3FORM).
+	+ modify samples/sample-explain.adb to provide explicit message when
+	  explain.txt is not found.
+
+20110305
+	+ improve makefiles for Ada95 tree (patch by Nicolas Boulenguez).
+	+ fix an off-by-one error in _nc_slk_initialize() from 20100605 fixes
+	  for compiler warnings (report by Nicolas Boulenguez).
+	+ modify Ada95/gen/gen.c to declare unused bits in generated layouts,
+	  needed to compile when chtype is 64-bits using gnat 4.4.5
 
 20110226 5.8 release for upload to ftp.gnu.org
 

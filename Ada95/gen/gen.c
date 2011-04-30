@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,2010,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 /*
     Version Control
-    $Id: gen.c,v 1.54 2010/09/04 21:19:50 tom Exp $
+    $Id: gen.c,v 1.59 2011/03/31 23:50:24 tom Exp $
   --------------------------------------------------------------------------*/
 /*
   This program generates various record structures and constants from the
@@ -124,7 +124,10 @@ gen_reps(
 	  int len,		/* size of the record in bytes          */
 	  int bias)
 {
-  int i, n, l, cnt = 0, low, high;
+  const char *unused_name = "Unused";
+  int long_bits = (8 * (int)sizeof(unsigned long));
+  int len_bits = (8 * len);
+  int i, j, n, l, cnt = 0, low, high;
   int width = strlen(RES_NAME) + 3;
   unsigned long a;
   unsigned long mask = 0;
@@ -144,7 +147,31 @@ gen_reps(
   printf("      record\n");
   for (i = 0; nap[i].name != (char *)0; i++)
     {
+      mask |= nap[i].attr;
       printf("         %-*s : Boolean;\n", width, nap[i].name);
+    }
+
+  /*
+   * Compute a mask for the unused bits in this target.
+   */
+  mask = ~mask;
+  /*
+   * Bits in the biased area are unused by the target.
+   */
+  for (j = 0; j < bias; ++j)
+    {
+      mask &= (unsigned long)(~(1L << j));
+    }
+  /*
+   * Bits past the target's size are really unused.
+   */
+  for (j = len_bits + bias; j < long_bits; ++j)
+    {
+      mask &= (unsigned long)(~(1L << j));
+    }
+  if (mask != 0)
+    {
+      printf("         %-*s : Boolean;\n", width, unused_name);
     }
   printf("      end record;\n");
   printf("   pragma Convention (C, %s);\n\n", name);
@@ -155,16 +182,22 @@ gen_reps(
   for (i = 0; nap[i].name != (char *)0; i++)
     {
       a = nap[i].attr;
-      mask |= a;
       l = find_pos((char *)&a, sizeof(a), &low, &high);
       if (l >= 0)
 	printf("         %-*s at 0 range %2d .. %2d;\n", width, nap[i].name,
 	       low - bias, high - bias);
     }
+  if (mask != 0)
+    {
+      l = find_pos((char *)&mask, sizeof(mask), &low, &high);
+      if (l >= 0)
+	printf("         %-*s at 0 range %2d .. %2d;\n", width, unused_name,
+	       low - bias, high - bias);
+    }
   i = 1;
   n = cnt;
   printf("      end record;\n");
-  printf("   for %s'Size use %d;\n", name, 8 * len);
+  printf("   for %s'Size use %d;\n", name, len_bits);
   printf("   --  Please note: this rep. clause is generated and may be\n");
   printf("   --               different on your system.");
 }
@@ -241,7 +274,10 @@ static void
 gen_attr_set(const char *name)
 {
   /* All of the A_xxx symbols are defined in ncurses, but not all are nonzero
-   * if "configure --enable-widec" is specified.
+   * if "configure --enable-widec" is not specified.  Originally (in
+   * 1999-2000), the ifdef's also were needed since the proposed bit-layout
+   * for wide characters allocated 16-bits for A_CHARTEXT, leaving too few
+   * bits for a few of the A_xxx symbols.
    */
   static const name_attribute_pair nap[] =
   {
@@ -332,6 +368,7 @@ gen_trace(const char *name)
     {"Internal_Calls", TRACE_ICALLS},
     {"Character_Calls", TRACE_CCALLS},
     {"Termcap_TermInfo", TRACE_DATABASE},
+    {"Attributes_And_Colors", TRACE_ATTRS},
     {(char *)0, 0}
   };
   gen_reps(nap, name, sizeof(int), 0);
@@ -770,7 +807,7 @@ gen_keydefs(int mode)
 static void
 acs_def(const char *name, chtype *a)
 {
-  int c = a - &acs_map[0];
+  int c = (int)(a - &acs_map[0]);
 
   printf("   %-24s : constant Character := ", name);
   if (isprint(UChar(c)) && (c != '`'))
@@ -1278,12 +1315,6 @@ gen_offsets(void)
   printf("   Sizeof%-*s : constant Natural := %2ld; --  %s\n",
 	 12, "_bool", (long)sizeof(bool), "bool");
 
-  /* In ncurses _maxy and _maxx needs an offset for the "public"
-   * value
-   */
-  printf("   Offset%-*s : constant Natural := %2d; --  %s\n",
-	 12, "_XY", 1, "int");
-  printf("\n");
   printf("   type Curses_Bool is mod 2 ** Interfaces.C.%s'Size;\n", s_bool);
 }
 

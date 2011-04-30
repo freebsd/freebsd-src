@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,13 +35,13 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control
---  $Revision: 1.13 $
---  $Date: 2009/12/26 17:38:58 $
+--  $Revision: 1.14 $
+--  $Date: 2011/03/19 12:13:21 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Sample.Explanation; use Sample.Explanation;
 
---  This package contains some conveniant helper routines used throughout
+--  This package contains some convenient helper routines used throughout
 --  this example.
 --
 package body Sample.Helpers is

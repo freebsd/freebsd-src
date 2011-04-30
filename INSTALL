@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.               --
+-- Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.               --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
 -- copy of this software and associated documentation files (the             --
@@ -25,7 +25,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: INSTALL,v 1.152 2011/02/25 22:10:53 tom Exp $
+-- $Id: INSTALL,v 1.155 2011/03/31 08:27:24 tom Exp $
 ---------------------------------------------------------------------
              How to install Ncurses/Terminfo on your system
 ---------------------------------------------------------------------
@@ -433,7 +433,7 @@ SUMMARY OF CONFIGURE OPTIONS:
 	changes several data references to functions to work around this
 	problem.
 
-	NOTE:  With ncurses 5.1, this may not be necessary, since we are
+	NOTE: With ncurses 5.1, this may not be necessary, since we are
 	told that some linkers interpret uninitialized global data as a
 	different type of reference which behaves as described above.  We have
 	explicitly initialized all of the global data to work around the
@@ -462,7 +462,7 @@ SUMMARY OF CONFIGURE OPTIONS:
 	warning.  There will still be warnings due to subtle inconsistencies
 	in the interface, but at a lower level.
 
-	NOTE:  configuring ncurses with this option may detract from the
+	NOTE: configuring ncurses with this option may detract from the
 	portability of your applications by encouraging you to use const in
 	places where the XSI curses interface would not allow them.  Similar
 	issues arise when porting to SVr4 curses, which uses const in even
@@ -483,7 +483,7 @@ SUMMARY OF CONFIGURE OPTIONS:
 	encoded.  This applies only to the wide-character (--enable-widec)
 	configuration.
 
-	NOTE:  using this option will make libraries which are not binary-
+	NOTE: using this option will make libraries which are not binary-
 	compatible with libncursesw 5.4.  None of the interfaces change, but
 	applications which have an array of cchar_t's must be recompiled.
 
@@ -492,7 +492,7 @@ SUMMARY OF CONFIGURE OPTIONS:
 	That allows one to use ncurses with a wheel mouse with xterm or
 	similar X terminal emulators.
 
-	NOTE:  using this option will make libraries which are not binary-
+	NOTE: using this option will make libraries which are not binary-
 	compatible with libncursesw 5.4.  None of the interfaces change, but
 	applications which have mouse mask mmask_t's must be recompiled.
 
@@ -512,7 +512,7 @@ SUMMARY OF CONFIGURE OPTIONS:
     --enable-getcap-cache
 	Cache translated termcaps under the directory $HOME/.terminfo
 
-	NOTE:  this sounds good - it makes ncurses run faster the second time.
+	NOTE: this sounds good - it makes ncurses run faster the second time.
 	But look where the data comes from - an /etc/termcap containing lots of
 	entries that are not up to date.  If you configure with this option and
 	forget to install the terminfo database before running an ncurses
@@ -668,6 +668,10 @@ SUMMARY OF CONFIGURE OPTIONS:
     --with-ada-sharedlib
 	Build a shared library for Ada95 binding, if the compiler permits.
 
+	NOTE: You must also set the --with-shared option on some platforms
+	for a successful build.  You need not use this option when you set
+	--with-shared, unless you want to use the Ada shared library.
+
     --with-bool=TYPE
 	If --without-cxx is specified, override the type used for the "bool"
 	declared in curses.h (normally the type is automatically chosen to
@@ -733,7 +737,8 @@ SUMMARY OF CONFIGURE OPTIONS:
 	--enable-widec is not given) a character.  Prior to ncurses 5.5, this
 	was always unsigned long, but with ncurses 5.5, it may be unsigned.
 	Use this option if you need to preserve compatibility with 64-bit
-	executables.
+	executables, e.g., by setting "--with-chtype=long" (the configure
+	script supplies "unsigned").
 
     --with-database=XXX
 	Specify the terminfo source file to install.  Usually you will wish
@@ -816,7 +821,7 @@ SUMMARY OF CONFIGURE OPTIONS:
 		make install DESTDIR=XXX
 	since the makefiles pass that variable to subordinate makes.
 
-	NOTE:  a few systems build shared libraries with fixed pathnames; this
+	NOTE: a few systems build shared libraries with fixed pathnames; this
 	option probably will not work for those configurations.
 
      --with-libtool[=XXX]
@@ -922,7 +927,7 @@ SUMMARY OF CONFIGURE OPTIONS:
 	which you are building, typically using a ".so" suffix, along with
 	symbolic links that refer to the release version.
 
-	NOTE:  Unless you override the configure script by setting the $CFLAGS
+	NOTE: Unless you override the configure script by setting the $CFLAGS
 	environment variable, these will not be built with the -g debugging
 	option.
 
@@ -935,6 +940,10 @@ SUMMARY OF CONFIGURE OPTIONS:
 	case, using the misc/shlib script may be helpful, since it sets
 	$LD_LIBRARY_PATH to point to the build tree, e.g.,
 		./misc/shlib make install
+
+	NOTE: If you use the --with-ada-sharedlib option, you should also
+	set this option, to ensure that C-language modules needed for the
+	Ada binding use appropriate compiler options.
 
     --with-shlib-version=XXX
 	Specify whether to use the release or ABI version for shared libraries.

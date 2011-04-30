@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2006,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control
---  $Revision: 1.15 $
---  $Date: 2006/06/25 14:30:22 $
+--  $Revision: 1.16 $
+--  $Date: 2011/03/23 00:44:12 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Terminal_Interface.Curses; use Terminal_Interface.Curses;
@@ -108,16 +108,16 @@ package body Sample.Form_Demo is
       Notepad ("FORM-PAD00");
       Default_Labels;
 
-      Set_Field_Type (FA (6), Enum_Field);
-      Set_Field_Type (FA (7), I_F);
-      Set_Field_Type (FA (8), Mft);
+      Set_Field_Type (FA.all (6), Enum_Field);
+      Set_Field_Type (FA.all (7), I_F);
+      Set_Field_Type (FA.all (8), Mft);
 
       F1 := new User_Data'(Data => 4711);
-      Fld_U.Set_User_Data (FA (1), F1);
+      Fld_U.Set_User_Data (FA.all (1), F1);
 
       Fh.Drive_Me (Frm);
 
-      Fld_U.Get_User_Data (FA (1), F2);
+      Fld_U.Get_User_Data (FA.all (1), F2);
       pragma Assert (F1 = F2);
       pragma Assert (F1.Data = F2.Data);
 

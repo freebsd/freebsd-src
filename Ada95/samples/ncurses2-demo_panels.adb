@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000-2004,2008 Free Software Foundation, Inc.              --
+-- Copyright (c) 2000-2008,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control
---  $Revision: 1.6 $
---  $Date: 2008/08/30 23:35:01 $
+--  $Revision: 1.7 $
+--  $Date: 2011/03/23 00:44:12 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with ncurses2.util; use ncurses2.util;
@@ -139,7 +139,7 @@ procedure ncurses2.demo_panels (nap_mseci : Integer) is
 
    procedure fill_panel (pan : Panel) is
       win : constant Window := Panel_Window (pan);
-      num : constant Character := Get_User_Data (pan) (2);
+      num : constant Character := Get_User_Data (pan).all (2);
       tmp6 : String (1 .. 6) := "-panx-";
       maxy : Line_Count;
       maxx : Column_Count;

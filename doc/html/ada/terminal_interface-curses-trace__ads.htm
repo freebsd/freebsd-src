@@ -44,41 +44,45 @@
 <FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
 
-<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<FONT COLOR=red><A NAME="ref_42_35" HREF="terminal_interface-curses-trace__adb.htm#ref_45_40">Trace</A></FONT> <b>is</b>
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<FONT COLOR=red><A NAME="ref_42_35" HREF="terminal_interface-curses-trace__adb.htm#ref_42_40">Trace</A></FONT> <b>is</b>
    <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-trace__ads.htm#ref_42_35">Trace</A>);
 
    <b>pragma</b> Warnings (Off);
    <b>type</b> <FONT COLOR=red><A NAME="ref_46_9">Trace_Attribute_Set</A></FONT> <b>is</b>
       <b>record</b>
-         <FONT COLOR=red><A NAME="ref_48_10">Times</A></FONT>            : Boolean;
-         <FONT COLOR=red><A NAME="ref_49_10">Tputs</A></FONT>            : Boolean;
-         <FONT COLOR=red><A NAME="ref_50_10">Update</A></FONT>           : Boolean;
-         <FONT COLOR=red><A NAME="ref_51_10">Cursor_Move</A></FONT>      : Boolean;
-         <FONT COLOR=red><A NAME="ref_52_10">Character_Output</A></FONT> : Boolean;
-         <FONT COLOR=red><A NAME="ref_53_10">Calls</A></FONT>            : Boolean;
-         <FONT COLOR=red><A NAME="ref_54_10">Virtual_Puts</A></FONT>     : Boolean;
-         <FONT COLOR=red><A NAME="ref_55_10">Input_Events</A></FONT>     : Boolean;
-         <FONT COLOR=red><A NAME="ref_56_10">TTY_State</A></FONT>        : Boolean;
-         <FONT COLOR=red><A NAME="ref_57_10">Internal_Calls</A></FONT>   : Boolean;
-         <FONT COLOR=red><A NAME="ref_58_10">Character_Calls</A></FONT>  : Boolean;
-         <FONT COLOR=red><A NAME="ref_59_10">Termcap_TermInfo</A></FONT> : Boolean;
+         <FONT COLOR=red><A NAME="ref_48_10">Times</A></FONT>                 : Boolean;
+         <FONT COLOR=red><A NAME="ref_49_10">Tputs</A></FONT>                 : Boolean;
+         <FONT COLOR=red><A NAME="ref_50_10">Update</A></FONT>                : Boolean;
+         <FONT COLOR=red><A NAME="ref_51_10">Cursor_Move</A></FONT>           : Boolean;
+         <FONT COLOR=red><A NAME="ref_52_10">Character_Output</A></FONT>      : Boolean;
+         <FONT COLOR=red><A NAME="ref_53_10">Calls</A></FONT>                 : Boolean;
+         <FONT COLOR=red><A NAME="ref_54_10">Virtual_Puts</A></FONT>          : Boolean;
+         <FONT COLOR=red><A NAME="ref_55_10">Input_Events</A></FONT>          : Boolean;
+         <FONT COLOR=red><A NAME="ref_56_10">TTY_State</A></FONT>             : Boolean;
+         <FONT COLOR=red><A NAME="ref_57_10">Internal_Calls</A></FONT>        : Boolean;
+         <FONT COLOR=red><A NAME="ref_58_10">Character_Calls</A></FONT>       : Boolean;
+         <FONT COLOR=red><A NAME="ref_59_10">Termcap_TermInfo</A></FONT>      : Boolean;
+         <FONT COLOR=red><A NAME="ref_60_10">Attributes_And_Colors</A></FONT> : Boolean;
+         <FONT COLOR=red><A NAME="ref_61_10">Unused</A></FONT>                : Boolean;
       <b>end</b> <b>record</b>;
    <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A>);
 
    <b>for</b> <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A> <b>use</b>
       <b>record</b>
-         <A HREF="terminal_interface-curses-trace__ads.htm#ref_48_10">Times</A>            <b>at</b> 0 <b>range</b>  0 ..  0;
-         <A HREF="terminal_interface-curses-trace__ads.htm#ref_49_10">Tputs</A>            <b>at</b> 0 <b>range</b>  1 ..  1;
-         <A HREF="terminal_interface-curses-trace__ads.htm#ref_50_10">Update</A>           <b>at</b> 0 <b>range</b>  2 ..  2;
-         <A HREF="terminal_interface-curses-trace__ads.htm#ref_51_10">Cursor_Move</A>      <b>at</b> 0 <b>range</b>  3 ..  3;
-         <A HREF="terminal_interface-curses-trace__ads.htm#ref_52_10">Character_Output</A> <b>at</b> 0 <b>range</b>  4 ..  4;
-         <A HREF="terminal_interface-curses-trace__ads.htm#ref_53_10">Calls</A>            <b>at</b> 0 <b>range</b>  5 ..  5;
-         <A HREF="terminal_interface-curses-trace__ads.htm#ref_54_10">Virtual_Puts</A>     <b>at</b> 0 <b>range</b>  6 ..  6;
-         <A HREF="terminal_interface-curses-trace__ads.htm#ref_55_10">Input_Events</A>     <b>at</b> 0 <b>range</b>  7 ..  7;
-         <A HREF="terminal_interface-curses-trace__ads.htm#ref_56_10">TTY_State</A>        <b>at</b> 0 <b>range</b>  8 ..  8;
-         <A HREF="terminal_interface-curses-trace__ads.htm#ref_57_10">Internal_Calls</A>   <b>at</b> 0 <b>range</b>  9 ..  9;
-         <A HREF="terminal_interface-curses-trace__ads.htm#ref_58_10">Character_Calls</A>  <b>at</b> 0 <b>range</b> 10 .. 10;
-         <A HREF="terminal_interface-curses-trace__ads.htm#ref_59_10">Termcap_TermInfo</A> <b>at</b> 0 <b>range</b> 11 .. 11;
+         <A HREF="terminal_interface-curses-trace__ads.htm#ref_48_10">Times</A>                 <b>at</b> 0 <b>range</b>  0 ..  0;
+         <A HREF="terminal_interface-curses-trace__ads.htm#ref_49_10">Tputs</A>                 <b>at</b> 0 <b>range</b>  1 ..  1;
+         <A HREF="terminal_interface-curses-trace__ads.htm#ref_50_10">Update</A>                <b>at</b> 0 <b>range</b>  2 ..  2;
+         <A HREF="terminal_interface-curses-trace__ads.htm#ref_51_10">Cursor_Move</A>           <b>at</b> 0 <b>range</b>  3 ..  3;
+         <A HREF="terminal_interface-curses-trace__ads.htm#ref_52_10">Character_Output</A>      <b>at</b> 0 <b>range</b>  4 ..  4;
+         <A HREF="terminal_interface-curses-trace__ads.htm#ref_53_10">Calls</A>                 <b>at</b> 0 <b>range</b>  5 ..  5;
+         <A HREF="terminal_interface-curses-trace__ads.htm#ref_54_10">Virtual_Puts</A>          <b>at</b> 0 <b>range</b>  6 ..  6;
+         <A HREF="terminal_interface-curses-trace__ads.htm#ref_55_10">Input_Events</A>          <b>at</b> 0 <b>range</b>  7 ..  7;
+         <A HREF="terminal_interface-curses-trace__ads.htm#ref_56_10">TTY_State</A>             <b>at</b> 0 <b>range</b>  8 ..  8;
+         <A HREF="terminal_interface-curses-trace__ads.htm#ref_57_10">Internal_Calls</A>        <b>at</b> 0 <b>range</b>  9 ..  9;
+         <A HREF="terminal_interface-curses-trace__ads.htm#ref_58_10">Character_Calls</A>       <b>at</b> 0 <b>range</b> 10 .. 10;
+         <A HREF="terminal_interface-curses-trace__ads.htm#ref_59_10">Termcap_TermInfo</A>      <b>at</b> 0 <b>range</b> 11 .. 11;
+         <A HREF="terminal_interface-curses-trace__ads.htm#ref_60_10">Attributes_And_Colors</A> <b>at</b> 0 <b>range</b> 12 .. 12;
+         <A HREF="terminal_interface-curses-trace__ads.htm#ref_61_10">Unused</A>                <b>at</b> 0 <b>range</b> 13 .. 31;
       <b>end</b> <b>record</b>;
    <b>for</b> <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A>'Size <b>use</b> 32;
    <FONT COLOR=green><EM>--  Please note: this rep. clause is generated and may be</EM></FONT>
@@ -86,16 +90,16 @@
 
    <b>pragma</b> Warnings (On);
 
-   <FONT COLOR=red><A NAME="ref_84_4">Trace_Disable</A></FONT>  : <b>constant</b> <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A> := (<b>others</b> =&gt; False);
+   <FONT COLOR=red><A NAME="ref_88_4">Trace_Disable</A></FONT>  : <b>constant</b> <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A> := (<b>others</b> =&gt; False);
 
-   <FONT COLOR=red><A NAME="ref_86_4">Trace_Ordinary</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A> :=
+   <FONT COLOR=red><A NAME="ref_90_4">Trace_Ordinary</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A> :=
      (<A HREF="terminal_interface-curses-trace__ads.htm#ref_48_10">Times</A>            =&gt; True,
       <A HREF="terminal_interface-curses-trace__ads.htm#ref_49_10">Tputs</A>            =&gt; True,
       <A HREF="terminal_interface-curses-trace__ads.htm#ref_50_10">Update</A>           =&gt; True,
       <A HREF="terminal_interface-curses-trace__ads.htm#ref_51_10">Cursor_Move</A>      =&gt; True,
       <A HREF="terminal_interface-curses-trace__ads.htm#ref_52_10">Character_Output</A> =&gt; True,
       <b>others</b>           =&gt; False);
-   <FONT COLOR=red><A NAME="ref_93_4">Trace_Maximum</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A> := (<b>others</b> =&gt; True);
+   <FONT COLOR=red><A NAME="ref_97_4">Trace_Maximum</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A> := (<b>others</b> =&gt; True);
 
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
 
@@ -104,15 +108,15 @@
    <FONT COLOR=green><EM>--  |=====================================================================</EM></FONT>
 
    <FONT COLOR=green><EM>--  #1A NAME="AFU_1"#2|</EM></FONT>
-   <b>procedure</b> <FONT COLOR=red><A NAME="ref_102_14" HREF="terminal_interface-curses-trace__adb.htm#ref_53_14">Trace_On</A></FONT> (<FONT COLOR=red><A NAME="ref_102_24" HREF="terminal_interface-curses-trace__adb.htm#ref_53_24">x</A></FONT> : <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A>);
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_106_14" HREF="terminal_interface-curses-trace__adb.htm#ref_44_14">Trace_On</A></FONT> (<FONT COLOR=red><A NAME="ref_106_24" HREF="terminal_interface-curses-trace__adb.htm#ref_44_24">x</A></FONT> : <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A>);
    <FONT COLOR=green><EM>--  The debugging library has trace.</EM></FONT>
 
    <FONT COLOR=green><EM>--  #1A NAME="AFU_2"#2|</EM></FONT>
-   <b>procedure</b> <FONT COLOR=red><A NAME="ref_106_14" HREF="terminal_interface-curses-trace__adb.htm#ref_64_14">Trace_Put</A></FONT> (<FONT COLOR=red><A NAME="ref_106_25" HREF="terminal_interface-curses-trace__adb.htm#ref_64_25">str</A></FONT> : String);
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_110_14" HREF="terminal_interface-curses-trace__adb.htm#ref_50_14">Trace_Put</A></FONT> (<FONT COLOR=red><A NAME="ref_110_25" HREF="terminal_interface-curses-trace__adb.htm#ref_50_25">str</A></FONT> : String);
    <FONT COLOR=green><EM>--  AKA: <A HREF="../man/curs_trace.3x.html">_tracef()</A></EM></FONT>
 
-   <FONT COLOR=red><A NAME="ref_109_4">Current_Trace_Setting</A></FONT> : <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A>;
-   <b>pragma</b> Import (C, <A HREF="terminal_interface-curses-trace__ads.htm#ref_109_4">Current_Trace_Setting</A>, "_nc_tracing");
+   <FONT COLOR=red><A NAME="ref_113_4">Current_Trace_Setting</A></FONT> : <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A>;
+   <b>pragma</b> Import (C, <A HREF="terminal_interface-curses-trace__ads.htm#ref_113_4">Current_Trace_Setting</A>, "_nc_tracing");
 
 <b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-trace__ads.htm#ref_42_35">Trace</A>;
 </PRE></BODY></HTML>

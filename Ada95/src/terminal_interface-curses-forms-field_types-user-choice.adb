@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2008,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,42 +35,40 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.15 $
---  $Date: 2008/07/26 18:48:58 $
+--  $Revision: 1.17 $
+--  $Date: 2011/03/22 10:53:37 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
-with Ada.Unchecked_Conversion;
+with System.Address_To_Access_Conversions;
 with Terminal_Interface.Curses.Aux; use Terminal_Interface.Curses.Aux;
 
 package body Terminal_Interface.Curses.Forms.Field_Types.User.Choice is
 
-   pragma Warnings (Off);
-   function To_Argument_Access is new Ada.Unchecked_Conversion
-     (System.Address, Argument_Access);
-   pragma Warnings (On);
+   package Argument_Conversions is
+      new System.Address_To_Access_Conversions (Argument);
 
    function Generic_Next (Fld : Field;
-                          Usr : System.Address) return C_Int
+                          Usr : System.Address) return Curses_Bool
    is
       Result : Boolean;
       Udf    : constant User_Defined_Field_Type_With_Choice_Access :=
         User_Defined_Field_Type_With_Choice_Access
-        (To_Argument_Access (Usr).Typ);
+        (Argument_Access (Argument_Conversions.To_Pointer (Usr)).Typ);
    begin
       Result := Next (Fld, Udf.all);
-      return C_Int (Boolean'Pos (Result));
+      return Curses_Bool (Boolean'Pos (Result));
    end Generic_Next;
 
    function Generic_Prev (Fld : Field;
-                          Usr : System.Address) return C_Int
+                          Usr : System.Address) return Curses_Bool
    is
       Result : Boolean;
       Udf    : constant User_Defined_Field_Type_With_Choice_Access :=
         User_Defined_Field_Type_With_Choice_Access
-        (To_Argument_Access (Usr).Typ);
+        (Argument_Access (Argument_Conversions.To_Pointer (Usr)).Typ);
    begin
       Result := Previous (Fld, Udf.all);
-      return C_Int (Boolean'Pos (Result));
+      return Curses_Bool (Boolean'Pos (Result));
    end Generic_Prev;
 
    --  -----------------------------------------------------------------------

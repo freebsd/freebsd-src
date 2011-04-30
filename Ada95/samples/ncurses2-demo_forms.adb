@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000-2004,2006 Free Software Foundation, Inc.              --
+-- Copyright (c) 2000-2006,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control
---  $Revision: 1.5 $
---  $Date: 2006/06/25 14:24:40 $
+--  $Revision: 1.6 $
+--  $Date: 2011/03/23 00:44:12 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with ncurses2.util; use ncurses2.util;
@@ -451,19 +451,19 @@ begin
    Refresh;
 
    --  describe the form
-   f (1) := make_label (0, 15, "Sample Form");
-   f (2) := make_label (2, 0, "Last Name");
-   f (3) := make_field (3, 0, 1, 18, False);
-   f (4) := make_label (2, 20, "First Name");
-   f (5) := make_field (3, 20, 1, 12, False);
-   f (6) := make_label (2, 34, "Middle Name");
-   f (7) := make_field (3, 34, 1, 12, False);
-   f (8) := make_label (5, 0, "Comments");
-   f (9) := make_field (6, 0, 4, 46, False);
-   f (10) := make_label (5, 20, "Password:");
-   f (11) := make_field (5, 30, 1, 9, True);
-   secure := f (11);
-   f (12) := Null_Field;
+   f.all (1) := make_label (0, 15, "Sample Form");
+   f.all (2) := make_label (2, 0, "Last Name");
+   f.all (3) := make_field (3, 0, 1, 18, False);
+   f.all (4) := make_label (2, 20, "First Name");
+   f.all (5) := make_field (3, 20, 1, 12, False);
+   f.all (6) := make_label (2, 34, "Middle Name");
+   f.all (7) := make_field (3, 34, 1, 12, False);
+   f.all (8) := make_label (5, 0, "Comments");
+   f.all (9) := make_field (6, 0, 4, 46, False);
+   f.all (10) := make_label (5, 20, "Password:");
+   f.all (11) := make_field (5, 30, 1, 9, True);
+   secure := f.all (11);
+   f.all (12) := Null_Field;
 
    myform := New_Form (f);
 

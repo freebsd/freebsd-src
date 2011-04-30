@@ -64,7 +64,7 @@
       To_C (<A HREF="terminal_interface-curses-termcap__ads.htm#ref_59_24">Name</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_54_7">NameTxt</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_55_7">Length</A>);
       <A HREF="terminal_interface-curses-termcap__adb.htm#ref_57_7">result</A> := <A HREF="terminal_interface-curses-termcap__adb.htm#ref_51_16">tgetent</A> (char_array (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_56_7">ignored</A>), <A HREF="terminal_interface-curses-termcap__adb.htm#ref_54_7">NameTxt</A>);
       <b>if</b> <A HREF="terminal_interface-curses-termcap__adb.htm#ref_57_7">result</A> = -1 <b>then</b>
-         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_383_4">Curses_Exception</A>;
+         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_385_4">Curses_Exception</A>;
       <b>else</b>
          <b>return</b> Boolean'Val (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_57_7">result</A>);
       <b>end</b> <b>if</b>;
