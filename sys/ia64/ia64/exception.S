@@ -48,9 +48,16 @@ __FBSDID("$FreeBSD$");
  * ar.k4 = PCPU data
  */
 
+	.section .ivt.data, "aw"
+
+	.global pmap_ptc_g_sem
+pmap_ptc_g_sem:	data8	0
+
+	.global ia64_kptdir
+ia64_kptdir:	data8	0
+
 #ifdef EXCEPTION_TRACING
 
-	.data
 	.global xtrace, xhead
 xtrace:	.space	1024*5*8
 xhead:	data8	xtrace
@@ -101,7 +108,7 @@ xhead:	data8	xtrace
 
 #endif
 
-	.section .text.ivt, "ax"
+	.section .ivt.text, "ax"
 
 /*
  * exception_save: save interrupted state
@@ -129,7 +136,7 @@ ENTRY_NOPROFILE(exception_save, 0)
 	;;
 }
 {	.mmi
-	cmp.le		p14,p15=5,r31
+	cmp.le		p14,p15=IA64_VM_MINKERN_REGION,r31
 	;;
 (p15)	mov		r23=ar.k7		// kernel memory stack
 (p14)	mov		r23=sp
@@ -233,7 +240,7 @@ exception_save_restart:
 {	.mmi
 	st8		[r30]=r19,16		// rnat
 	st8		[r31]=r0,16		// __spare
-	cmp.le		p12,p13=5,r24
+	cmp.le		p12,p13=IA64_VM_MINKERN_REGION,r24
 	;;
 }
 {	.mmi
@@ -602,7 +609,7 @@ ENTRY_NOPROFILE(exception_restore, 0)
 {	.mmi
 	ld8.fill	r1=[r30],16		// gp
 	ld8		r27=[r31],16		// ndirty
-	cmp.le		p14,p15=5,r28
+	cmp.le		p14,p15=IA64_VM_MINKERN_REGION,r28
 	;;
 }
 {	.mmi
@@ -915,7 +922,7 @@ IVT_ENTRY(Alternate_Instruction_TLB, 0x0c00)
 	extr.u	r17=r16,61,3		// get region number
 	mov	r19=PTE_PRESENT+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+PTE_AR_RWX
 	;;
-	cmp.eq	p13,p0=4,r17		// RR4?
+	cmp.eq	p13,p0=IA64_PBVM_RR,r17		// RR4?
 (p13)	br.cond.sptk.few	4f
 	;;
 	cmp.ge	p13,p0=5,r17		// RR0-RR5?
@@ -958,7 +965,7 @@ IVT_ENTRY(Alternate_Data_TLB, 0x1000)
 	extr.u	r17=r16,61,3		// get region number
 	mov	r19=PTE_PRESENT+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+PTE_AR_RWX
 	;;
-	cmp.eq	p13,p0=4,r17		// RR4?
+	cmp.eq	p13,p0=IA64_PBVM_RR,r17		// RR4?
 (p13)	br.cond.sptk.few	4f
 	;;
 	cmp.ge	p13,p0=5,r17		// RR0-RR5?
@@ -1007,21 +1014,22 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 	// double nested faults. Since all virtual addresses we encounter
 	// here are direct mapped region 7 addresses, we have no problem
 	// constructing physical addresses.
+
 {	.mlx
-	rsm		psr.dt
+	nop		0
 	movl		r27=ia64_kptdir
 	;;
 }
 {	.mii
-	srlz.d
-	dep		r27=0,r27,61,3
-	;;
+	ld8		r27=[r27]
 	extr.u		r28=r30,3*PAGE_SHIFT-8, PAGE_SHIFT-3	// dir L0 index
-}
-{	.mii
-	ld8		r27=[r27]				// dir L0 page
 	extr.u		r26=r30,2*PAGE_SHIFT-5, PAGE_SHIFT-3	// dir L1 index
 	;;
+}
+{	.mmi
+	rsm		psr.dt
+	;;
+	srlz.d
 	dep		r27=0,r27,61,3
 	;;
 }

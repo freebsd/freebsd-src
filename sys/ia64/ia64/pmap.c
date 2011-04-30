@@ -159,7 +159,8 @@ vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
  * Kernel virtual memory management.
  */
 static int nkpt;
-struct ia64_lpte ***ia64_kptdir;
+extern struct ia64_lpte ***ia64_kptdir;
+
 #define KPTE_DIR0_INDEX(va) \
 	(((va) >> (3*PAGE_SHIFT-8)) & ((1<<(PAGE_SHIFT-3))-1))
 #define KPTE_DIR1_INDEX(va) \
@@ -177,7 +178,7 @@ static uint64_t pmap_ptc_e_count2 = 2;
 static uint64_t pmap_ptc_e_stride1 = 0x2000;
 static uint64_t pmap_ptc_e_stride2 = 0x100000000;
 
-volatile u_long pmap_ptc_g_sem;
+extern volatile u_long pmap_ptc_g_sem;
 
 /*
  * Data for the RID allocator
@@ -390,13 +391,18 @@ pmap_bootstrap()
 		;
 	count = i+2;
 
+	/*
+	 * Determine a valid (mappable) VHPT size.
+	 */
 	TUNABLE_INT_FETCH("machdep.vhpt.log2size", &pmap_vhpt_log2size);
 	if (pmap_vhpt_log2size == 0)
 		pmap_vhpt_log2size = 20;
-	else if (pmap_vhpt_log2size < 15)
-		pmap_vhpt_log2size = 15;
-	else if (pmap_vhpt_log2size > 61)
-		pmap_vhpt_log2size = 61;
+	else if (pmap_vhpt_log2size < 16)
+		pmap_vhpt_log2size = 16;
+	else if (pmap_vhpt_log2size > 28)
+		pmap_vhpt_log2size = 28;
+	if (pmap_vhpt_log2size & 1)
+		pmap_vhpt_log2size--;
 
 	base = 0;
 	size = 1UL << pmap_vhpt_log2size;
@@ -452,16 +458,6 @@ pmap_bootstrap()
 
 	/* Region 5 is mapped via the VHPT. */
 	ia64_set_rr(IA64_RR_BASE(5), (5 << 8) | (PAGE_SHIFT << 2) | 1);
-
-	/*
-	 * Region 6 is direct mapped UC and region 7 is direct mapped
-	 * WC. The details of this is controlled by the Alt {I,D}TLB
-	 * handlers. Here we just make sure that they have the largest 
-	 * possible page size to minimise TLB usage.
-	 */
-	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (IA64_ID_PAGE_SHIFT << 2));
-	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (IA64_ID_PAGE_SHIFT << 2));
-	ia64_srlz_d();
 
 	/*
 	 * Clear out any random TLB entries left over from booting.
@@ -1210,7 +1206,6 @@ vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
 	struct ia64_lpte *pte;
-	vm_offset_t gwpage;
 
 	KASSERT(va >= VM_MAXUSER_ADDRESS, ("Must be kernel VA"));
 
@@ -1218,19 +1213,16 @@ pmap_kextract(vm_offset_t va)
 	if (va >= IA64_RR_BASE(6))
 		return (IA64_RR_MASK(va));
 
-	/* EPC gateway page? */
-	gwpage = (vm_offset_t)ia64_get_k5();
-	if (va >= gwpage && va < gwpage + PAGE_SIZE)
-		return (IA64_RR_MASK((vm_offset_t)ia64_gateway_page));
-
 	/* Bail out if the virtual address is beyond our limits. */
 	if (va >= kernel_vm_end)
 		return (0);
 
-	pte = pmap_find_kpte(va);
-	if (!pmap_present(pte))
-		return (0);
-	return (pmap_ppn(pte) | (va & PAGE_MASK));
+	if (va >= VM_MIN_KERNEL_ADDRESS) {
+		pte = pmap_find_kpte(va);
+		return (pmap_present(pte) ? pmap_ppn(pte)|(va&PAGE_MASK) : 0);
+	}
+
+	return (0);
 }
 
 /*
