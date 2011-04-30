@@ -42,7 +42,6 @@ extern u_long *ipi_invlrng_counts[MAXCPU];
 extern u_long *ipi_invlpg_counts[MAXCPU];
 extern u_long *ipi_invlcache_counts[MAXCPU];
 extern u_long *ipi_rendezvous_counts[MAXCPU];
-extern u_long *ipi_lazypmap_counts[MAXCPU];
 #endif
 
 /* IPI handlers */
@@ -53,8 +52,7 @@ inthand_t
 	IDTVEC(invlcache),	/* Write back and invalidate cache */
 	IDTVEC(ipi_intr_bitmap_handler), /* Bitmap based IPIs */ 
 	IDTVEC(cpustop),	/* CPU stops & waits to be restarted */
-	IDTVEC(rendezvous),	/* handle CPU rendezvous */
-	IDTVEC(lazypmap);	/* handle lazy pmap release */
+	IDTVEC(rendezvous);	/* handle CPU rendezvous */
 
 /* functions in mp_machdep.c */
 void	cpu_add(u_int apic_id, char boot_cpu);
