@@ -166,7 +166,8 @@ READ(ap)
 			/*
 			 * If it's VMIO or direct I/O, then we don't
 			 * need the buf, mark it available for
-			 * freeing. If it's VMIO, the VM has the data.
+			 * freeing. If it's non-direct VMIO, the VM has
+			 * the data.
 			 */
 			bp->b_flags |= B_RELBUF;
 			brelse(bp);
