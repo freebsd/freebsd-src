@@ -7,7 +7,7 @@
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2003,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,7 +35,7 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control
---  $Revision: 1.10 $
+--  $Revision: 1.11 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Terminal_Interface.Curses; use  Terminal_Interface.Curses;
@@ -49,7 +49,7 @@ package Sample.Menu_Demo.Aux is
                        C  : out Column_Count;
                        Y  : out Line_Position;
                        X  : out Column_Position);
-   --  Calculate the geometry for a panel beeing able to be used to display
+   --  Calculate the geometry for a panel being able to be used to display
    --  the menu.
 
    function Create (M     : Menu;

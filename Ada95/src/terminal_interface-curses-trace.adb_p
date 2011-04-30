@@ -35,7 +35,7 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.6 $
+--  $Revision: 1.7 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 #if ADA_TRACE then
@@ -66,7 +66,7 @@ package body Terminal_Interface.Curses.Trace is
 
    procedure Trace_Put (str : String) is
       procedure tracef (format : char_array; s : char_array);
-      pragma Import (C, tracef, "_tracef");
+      pragma Import (C, tracef, "_traces");
       Txt    : char_array (0 .. str'Length);
       Length : size_t;
       formatstr : constant String := "%s" &  ASCII.NUL;

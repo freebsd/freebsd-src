@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000,2004 Free Software Foundation, Inc.                   --
+-- Copyright (c) 2000-2004,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control
---  $Revision: 1.4 $
---  $Date: 2004/08/21 21:37:00 $
+--  $Revision: 1.5 $
+--  $Date: 2011/03/19 12:07:18 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with ncurses2.util; use ncurses2.util;
@@ -101,7 +101,7 @@ begin
 
    Move_Cursor (Line => 18, Column => 0);
    Add (Str => "a = refresh A, then B, then doupdate. b = refresh B, " &
-        "then A, then doupdaute");
+        "then A, then doupdate");
    Add (Ch => newl);
    Add (Str => "c = fill window A with letter A.      d = fill window B " &
         "with letter B.");

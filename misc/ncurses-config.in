@@ -1,7 +1,7 @@
 #!@SHELL@
-# $Id: ncurses-config.in,v 1.24 2010/02/06 22:12:16 Miroslav.Lichvar Exp $
+# $Id: ncurses-config.in,v 1.25 2011/03/19 22:43:38 tom Exp $
 ##############################################################################
-# Copyright (c) 2006-2009,2010 Free Software Foundation, Inc.                #
+# Copyright (c) 2006-2010,2011 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -72,11 +72,11 @@ while test $# -gt 0; do
 	# compile/link
 	--cflags)
 		INCS=
-		if test "${includedir}" != /usr/include ; then
-			INCS="-I${includedir}"
-		fi
 		if test "x@WITH_OVERWRITE@" = xno ; then
 			INCS="$INCS -I${includedir}/${THIS}"
+		fi
+		if test "${includedir}" != /usr/include ; then
+			INCS="$INCS -I${includedir}"
 		fi
 		sed -e 's,^[ ]*,,' -e 's, [ ]*, ,g' -e 's,[ ]*$,,' <<-ENDECHO
 			$INCS

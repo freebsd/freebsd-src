@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000-2004,2008 Free Software Foundation, Inc.              --
+-- Copyright (c) 2000-2008,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control
---  $Revision: 1.7 $
---  $Date: 2008/07/26 18:46:44 $
+--  $Revision: 1.8 $
+--  $Date: 2011/03/19 12:09:51 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 --  A simplified version of the  GNU getopt function
@@ -56,7 +56,7 @@ package body ncurses2.getopt is
    --  also the user is not allowed to modify argv or argc
    --  Doing so is Erroneous execution.
 
-   --  longoptions are not handled.
+   --  long options are not handled.
 
    procedure Qgetopt (retval : out Integer;
                       argc : Integer;
@@ -67,7 +67,7 @@ package body ncurses2.getopt is
                         --  ignored for ncurses, must be initialized to 1 by
                         --  the caller
                       Optarg : out stringa
-                        --  a garbage colector would be useful here.
+                        --  a garbage collector would be useful here.
                      ) is
 
       package BS is new Ada.Strings.Bounded.Generic_Bounded_Length (200);

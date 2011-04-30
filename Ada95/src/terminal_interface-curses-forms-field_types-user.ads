@@ -7,7 +7,7 @@
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.13 $
---  $Date: 2009/12/26 17:38:58 $
+--  $Revision: 1.15 $
+--  $Date: 2011/03/19 12:27:21 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Interfaces.C;
@@ -79,17 +79,17 @@ private
    function C_Generic_Type   return C_Field_Type;
 
    function Generic_Field_Check (Fld : Field;
-                                 Usr : System.Address) return C_Int;
+                                 Usr : System.Address) return Curses_Bool;
    pragma Convention (C, Generic_Field_Check);
    --  This is the generic Field_Check_Function for the low-level fieldtype
-   --  representing all the User_Defined_Field_Type derivates. It routes
+   --  representing all the User_Defined_Field_Type derivatives. It routes
    --  the call to the Field_Check implementation for the type.
 
    function Generic_Char_Check (Ch  : C_Int;
-                                Usr : System.Address) return C_Int;
+                                Usr : System.Address) return Curses_Bool;
    pragma Convention (C, Generic_Char_Check);
    --  This is the generic Char_Check_Function for the low-level fieldtype
-   --  representing all the User_Defined_Field_Type derivates. It routes
+   --  representing all the User_Defined_Field_Type derivatives. It routes
    --  the call to the Character_Check implementation for the type.
 
 end Terminal_Interface.Curses.Forms.Field_Types.User;

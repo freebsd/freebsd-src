@@ -40,44 +40,23 @@
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
 <FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
 <FONT COLOR=green><EM>--  Version Control:</EM></FONT>
-<FONT COLOR=green><EM>--  @Revision: 1.6 @</EM></FONT>
+<FONT COLOR=green><EM>--  @Revision: 1.7 @</EM></FONT>
 <FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
-<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C; <b>use</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C;
-<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>; <b>use</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>;
-<b>with</b> Ada.Unchecked_Conversion;
 
-<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<FONT COLOR=red><A NAME="ref_45_40" HREF="terminal_interface-curses-trace__ads.htm#ref_42_35">Trace</A></FONT> <b>is</b>
+<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<FONT COLOR=red><A NAME="ref_42_40" HREF="terminal_interface-curses-trace__ads.htm#ref_42_35">Trace</A></FONT> <b>is</b>
 
-   <b>type</b> <FONT COLOR=red><A NAME="ref_47_9">C_TraceType</A></FONT> <b>is</b> <b>new</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_59_12">C_UInt</A>;
-
-   <b>function</b> TraceAda_To_TraceC <b>is</b> <b>new</b>
-     Ada.Unchecked_Conversion (Source =&gt; <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A>,
-                               Target =&gt; <A HREF="terminal_interface-curses-trace__adb.htm#ref_47_9">C_TraceType</A>);
-
-   <b>procedure</b> <FONT COLOR=red><A NAME="ref_53_14" HREF="terminal_interface-curses-trace__ads.htm#ref_102_14">Trace_On</A></FONT> (<FONT COLOR=red><A NAME="ref_53_24" HREF="terminal_interface-curses-trace__ads.htm#ref_102_24">x</A></FONT> : <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A>) <b>is</b>
-      <b>procedure</b> <FONT COLOR=red><A NAME="ref_54_17">traceC</A></FONT> (<FONT COLOR=red><A NAME="ref_54_25" HREF="terminal_interface-curses-trace__adb.htm#ref_54_17">y</A></FONT> : <A HREF="terminal_interface-curses-trace__adb.htm#ref_47_9">C_TraceType</A>);
-      <b>pragma</b> Import (C, traceC, "trace");
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_44_14" HREF="terminal_interface-curses-trace__ads.htm#ref_106_14">Trace_On</A></FONT> (<FONT COLOR=red><A NAME="ref_44_24" HREF="terminal_interface-curses-trace__ads.htm#ref_106_24">x</A></FONT> : <A HREF="terminal_interface-curses-trace__ads.htm#ref_46_9">Trace_Attribute_Set</A>) <b>is</b>
+   <b>pragma</b> Unreferenced (<A HREF="terminal_interface-curses-trace__ads.htm#ref_106_24">x</A>);
    <b>begin</b>
-      <A HREF="terminal_interface-curses-trace__adb.htm#ref_54_17">traceC</A> (TraceAda_To_TraceC (<A HREF="terminal_interface-curses-trace__ads.htm#ref_102_24">x</A>));
-   <b>end</b> <A HREF="terminal_interface-curses-trace__ads.htm#ref_102_14">Trace_On</A>;
+      <b>null</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-trace__ads.htm#ref_106_14">Trace_On</A>;
 
-   <FONT COLOR=green><EM>--  75. (12) A C function that takes a variable number of arguments can</EM></FONT>
-   <FONT COLOR=green><EM>--      correspond to several Ada subprograms, taking various specific</EM></FONT>
-   <FONT COLOR=green><EM>--      numbers and types of parameters.</EM></FONT>
-
-   <b>procedure</b> <FONT COLOR=red><A NAME="ref_64_14" HREF="terminal_interface-curses-trace__ads.htm#ref_106_14">Trace_Put</A></FONT> (<FONT COLOR=red><A NAME="ref_64_25" HREF="terminal_interface-curses-trace__ads.htm#ref_106_25">str</A></FONT> : String) <b>is</b>
-      <b>procedure</b> <FONT COLOR=red><A NAME="ref_65_17">tracef</A></FONT> (<FONT COLOR=red><A NAME="ref_65_25" HREF="terminal_interface-curses-trace__adb.htm#ref_65_17">format</A></FONT> : char_array; <FONT COLOR=red><A NAME="ref_65_46" HREF="terminal_interface-curses-trace__adb.htm#ref_65_17">s</A></FONT> : char_array);
-      <b>pragma</b> Import (C, tracef, "_tracef");
-      <FONT COLOR=red><A NAME="ref_67_7">Txt</A></FONT>    : char_array (0 .. <A HREF="terminal_interface-curses-trace__ads.htm#ref_106_25">str</A>'Length);
-      <FONT COLOR=red><A NAME="ref_68_7">Length</A></FONT> : size_t;
-      <FONT COLOR=red><A NAME="ref_69_7">formatstr</A></FONT> : <b>constant</b> String := "%s" &amp;  ASCII.NUL;
-      <FONT COLOR=red><A NAME="ref_70_7">formattxt</A></FONT> : char_array (0 .. <A HREF="terminal_interface-curses-trace__adb.htm#ref_69_7">formatstr</A>'Length);
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_50_14" HREF="terminal_interface-curses-trace__ads.htm#ref_110_14">Trace_Put</A></FONT> (<FONT COLOR=red><A NAME="ref_50_25" HREF="terminal_interface-curses-trace__ads.htm#ref_110_25">str</A></FONT> : String) <b>is</b>
+   <b>pragma</b> Unreferenced (<A HREF="terminal_interface-curses-trace__ads.htm#ref_110_25">str</A>);
    <b>begin</b>
-      To_C (<A HREF="terminal_interface-curses-trace__adb.htm#ref_69_7">formatstr</A>, <A HREF="terminal_interface-curses-trace__adb.htm#ref_70_7">formattxt</A>, <A HREF="terminal_interface-curses-trace__adb.htm#ref_68_7">Length</A>);
-      To_C (<A HREF="terminal_interface-curses-trace__ads.htm#ref_106_25">str</A>, <A HREF="terminal_interface-curses-trace__adb.htm#ref_67_7">Txt</A>, <A HREF="terminal_interface-curses-trace__adb.htm#ref_68_7">Length</A>);
-      <A HREF="terminal_interface-curses-trace__adb.htm#ref_65_17">tracef</A> (<A HREF="terminal_interface-curses-trace__adb.htm#ref_70_7">formattxt</A>, <A HREF="terminal_interface-curses-trace__adb.htm#ref_67_7">Txt</A>);
-   <b>end</b> <A HREF="terminal_interface-curses-trace__ads.htm#ref_106_14">Trace_Put</A>;
+      <b>null</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-trace__ads.htm#ref_110_14">Trace_Put</A>;
 
 <b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-trace__ads.htm#ref_42_35">Trace</A>;
 </PRE></BODY></HTML>

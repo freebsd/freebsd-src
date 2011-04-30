@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2006,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,18 +35,24 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control
---  $Revision: 1.16 $
---  $Date: 2006/06/25 14:30:22 $
+--  $Revision: 1.17 $
+--  $Date: 2011/03/23 00:44:12 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Ada.Numerics.Generic_Elementary_Functions;
+
 with Ada.Numerics.Complex_Types;
 use  Ada.Numerics.Complex_Types;
 
-with Terminal_Interface.Curses; use Terminal_Interface.Curses;
-with Terminal_Interface.Curses.Panels; use Terminal_Interface.Curses.Panels;
+with Terminal_Interface.Curses;
+use  Terminal_Interface.Curses;
+
+with Terminal_Interface.Curses.Panels;
+use  Terminal_Interface.Curses.Panels;
+
 with Terminal_Interface.Curses.Text_IO;
 use  Terminal_Interface.Curses.Text_IO;
+
 with Terminal_Interface.Curses.Text_IO.Integer_IO;
 with Terminal_Interface.Curses.Text_IO.Float_IO;
 with Terminal_Interface.Curses.Text_IO.Enumeration_IO;
@@ -59,6 +65,14 @@ with Sample.Manifest; use Sample.Manifest;
 with Sample.Function_Key_Setting; use Sample.Function_Key_Setting;
 with Sample.Keyboard_Handler; use Sample.Keyboard_Handler;
 with Sample.Explanation; use Sample.Explanation;
+
+pragma Elaborate_All (Terminal_Interface.Curses.Text_Io.Complex_IO);
+pragma Elaborate_All (Terminal_Interface.Curses.Text_Io.Decimal_IO);
+pragma Elaborate_All (Terminal_Interface.Curses.Text_Io.Enumeration_IO);
+pragma Elaborate_All (Terminal_Interface.Curses.Text_Io.Fixed_IO);
+pragma Elaborate_All (Terminal_Interface.Curses.Text_Io.Float_IO);
+pragma Elaborate_All (Terminal_Interface.Curses.Text_Io.Integer_IO);
+pragma Elaborate_All (Terminal_Interface.Curses.Text_Io.Modular_IO);
 
 package body Sample.Text_IO_Demo is
 

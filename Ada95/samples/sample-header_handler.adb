@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,13 +35,15 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control
---  $Revision: 1.17 $
---  $Date: 2009/12/26 17:38:58 $
+--  $Revision: 1.19 $
+--  $Date: 2011/03/22 23:54:38 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Ada.Calendar; use Ada.Calendar;
 with Terminal_Interface.Curses.Text_IO.Integer_IO;
 with Sample.Manifest; use Sample.Manifest;
+
+pragma Elaborate_All (Terminal_Interface.Curses.Text_Io.Integer_IO);
 
 --  This package handles the painting of the header line of the screen.
 --
@@ -169,7 +171,7 @@ package body Sample.Header_Handler is
          Pos := Columns - Column_Position (Title'Length);
          Add (Win, 0, Pos / 2, Title);
          --  In this phase we must not allow a physical update, because
-         --  ncurses isn´t properly initialized at this point.
+         --  ncurses is not properly initialized at this point.
          Internal_Update_Header_Window (False);
          return 0;
       else

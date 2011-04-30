@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998,2004 Free Software Foundation, Inc.                   --
+-- Copyright (c) 1998-2004,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control
---  $Revision: 1.15 $
---  $Date: 2004/08/21 21:37:00 $
+--  $Revision: 1.17 $
+--  $Date: 2011/03/23 00:29:04 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Terminal_Interface.Curses; use Terminal_Interface.Curses;
@@ -61,7 +61,7 @@ package body Sample.Curses_Demo is
    type User_Data_Access is access all User_Data;
    package PUD is new Panels.User_Data (User_Data, User_Data_Access);
    --  We use above instantiation of the generic User_Data package to
-   --  demonstrate and test the use of the user data maechanism.
+   --  demonstrate and test the use of the user data mechanism.
 
    procedure Demo
    is
@@ -122,9 +122,9 @@ package body Sample.Curses_Demo is
          declare
             O : Item_Option_Set;
          begin
-            Get_Options (Itm (2), O);
+            Get_Options (Itm.all (2), O);
             O.Selectable := False;
-            Set_Options (Itm (2), O);
+            Set_Options (Itm.all (2), O);
          end;
       end if;
 

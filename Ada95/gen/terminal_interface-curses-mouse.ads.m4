@@ -10,7 +10,7 @@ include(M4MACRO)dnl
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -38,8 +38,8 @@ include(M4MACRO)dnl
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.28 $
---  $Date: 2009/12/26 17:38:58 $
+--  $Revision: 1.29 $
+--  $Date: 2011/03/19 12:35:58 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 include(`Mouse_Base_Defs')
@@ -49,10 +49,6 @@ package Terminal_Interface.Curses.Mouse is
    pragma Preelaborate (Terminal_Interface.Curses.Mouse);
 
    --  MANPAGE(`curs_mouse.3x')
-   --  Please note, that in ncurses-1.9.9e documentation mouse support
-   --  is still marked as experimental. So also this binding will change
-   --  if the ncurses methods change.
-   --
    --  mouse_trafo, wmouse_trafo are implemented as Transform_Coordinates
    --  in the parent package.
    --
@@ -99,7 +95,7 @@ package Terminal_Interface.Curses.Mouse is
       State  : Button_State;
       Mask   : in out Event_Mask);
    --  Stores the event described by the button and the state in the mask.
-   --  Before you call this the first time, you should init the mask
+   --  Before you call this the first time, you should initialize the mask
    --  with the Empty_Mask constant
    pragma Inline (Register_Reportable_Event);
 
@@ -108,7 +104,7 @@ package Terminal_Interface.Curses.Mouse is
       State  : Button_States;
       Mask   : in out Event_Mask);
    --  Register all events described by the Button and the State bitmap.
-   --  Before you call this the first time, you should init the mask
+   --  Before you call this the first time, you should initialize the mask
    --  with the Empty_Mask constant
 
    --  ANCHOR(`mousemask()',`Start_Mouse')

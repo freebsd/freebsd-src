@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000-2006,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 2000-2009,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author: Eugene V. Melaragno <aldomel@ix.netcom.com> 2000
 --  Version Control
---  $Revision: 1.8 $
---  $Date: 2009/12/26 17:38:58 $
+--  $Revision: 1.9 $
+--  $Date: 2011/03/19 12:03:08 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with ncurses2.util; use ncurses2.util;
@@ -161,7 +161,7 @@ begin
          when 'x' | 'q' =>
             exit;
             --  the C version needed a goto, ha ha
-            --  breaks exit the case not the loop because fall-throuh
+            --  breaks exit the case not the loop because fall-through
             --  happens in C!
          when others =>
             Beep;

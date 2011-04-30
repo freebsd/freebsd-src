@@ -10,7 +10,7 @@ include(M4MACRO)dnl
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2007,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -38,7 +38,7 @@ include(M4MACRO)dnl
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.17 $
+--  $Revision: 1.18 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 include(`Base_Defs')
@@ -64,7 +64,7 @@ include(`Chtype_Def')
    --  This is how those constants are defined in ncurses. I see them also
    --  exactly like this in all ETI implementations I ever tested. So it
    --  could be that this is quite general, but please check with your curses.
-   --  This is critical, because curses sometime mixes boolean returns with
+   --  This is critical, because curses sometime mixes Boolean returns with
    --  returning an error status.
    Curses_Ok    : constant C_Int := CF_CURSES_OK;
    Curses_Err   : constant C_Int := CF_CURSES_ERR;

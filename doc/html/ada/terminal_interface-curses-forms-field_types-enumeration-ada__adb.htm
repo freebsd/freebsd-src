@@ -12,7 +12,7 @@
 <FONT COLOR=green><EM>--                                 B O D Y                                  --</EM></FONT>
 <FONT COLOR=green><EM>--                                                                          --</EM></FONT>
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
-<FONT COLOR=green><EM>-- Copyright (c) 1998,2004 Free Software Foundation, Inc.                   --</EM></FONT>
+<FONT COLOR=green><EM>-- Copyright (c) 1998-2004,2011 Free Software Foundation, Inc.              --</EM></FONT>
 <FONT COLOR=green><EM>--                                                                          --</EM></FONT>
 <FONT COLOR=green><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></FONT>
 <FONT COLOR=green><EM>-- copy of this software and associated documentation files (the            --</EM></FONT>
@@ -40,8 +40,8 @@
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
 <FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
 <FONT COLOR=green><EM>--  Version Control:</EM></FONT>
-<FONT COLOR=green><EM>--  @Revision: 1.10 @</EM></FONT>
-<FONT COLOR=green><EM>--  @Date: 2004/08/21 21:37:00 @</EM></FONT>
+<FONT COLOR=green><EM>--  @Revision: 1.11 @</EM></FONT>
+<FONT COLOR=green><EM>--  @Date: 2011/03/22 23:36:20 @</EM></FONT>
 <FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
 <b>with</b> Ada.Characters.Handling; <b>use</b> Ada.Characters.Handling;
@@ -66,8 +66,8 @@
          <b>if</b> <A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_48_21">Set</A> /= <A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_50_34">Upper_Case</A> <b>then</b>
             <A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_51_7">I</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_57_10">Names</A> (<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_52_7">J</A>).<b>all</b> := To_Lower (<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_51_7">I</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_57_10">Names</A> (<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_52_7">J</A>).<b>all</b>);
             <b>if</b> <A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_48_21">Set</A> = <A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_50_46">Mixed_Case</A> <b>then</b>
-               <A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_51_7">I</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_57_10">Names</A> (<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_52_7">J</A>)(<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_51_7">I</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_57_10">Names</A> (<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_52_7">J</A>).<b>all</b>'First) :=
-                 To_Upper (<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_51_7">I</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_57_10">Names</A> (<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_52_7">J</A>)(<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_51_7">I</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_57_10">Names</A> (<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_52_7">J</A>).<b>all</b>'First));
+               <A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_51_7">I</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_57_10">Names</A> (<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_52_7">J</A>).<b>all</b> (<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_51_7">I</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_57_10">Names</A> (<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_52_7">J</A>).<b>all</b>'First) :=
+                 To_Upper (<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_51_7">I</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_57_10">Names</A> (<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_52_7">J</A>).<b>all</b> (<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_51_7">I</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_57_10">Names</A> (<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_52_7">J</A>).<b>all</b>'First));
             <b>end</b> <b>if</b>;
          <b>end</b> <b>if</b>;
          <A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_52_7">J</A> := <A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__adb.htm#ref_52_7">J</A> + 1;
@@ -77,10 +77,10 @@
    <b>end</b> <A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_48_13">Create</A>;
 
    <b>function</b> <FONT COLOR=red><A NAME="ref_74_13" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_53_13">Value</A></FONT> (<FONT COLOR=red><A NAME="ref_74_20" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_53_20">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
-                   <FONT COLOR=red><A NAME="ref_75_20" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_54_20">Buf</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_129_9">Buffer_Number</A> := <A HREF="terminal_interface-curses-forms__ads.htm#ref_129_9">Buffer_Number</A>'First) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_42_9">T</A>
+                   <FONT COLOR=red><A NAME="ref_75_20" HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_54_20">Buf</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_133_9">Buffer_Number</A> := <A HREF="terminal_interface-curses-forms__ads.htm#ref_133_9">Buffer_Number</A>'First) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_42_9">T</A>
    <b>is</b>
    <b>begin</b>
-      <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_42_9">T</A>'Value (<A HREF="terminal_interface-curses-forms__ads.htm#ref_368_13">Get_Buffer</A> (<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_53_20">Fld</A>, <A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_54_20">Buf</A>));
+      <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_42_9">T</A>'Value (<A HREF="terminal_interface-curses-forms__ads.htm#ref_372_13">Get_Buffer</A> (<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_53_20">Fld</A>, <A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_54_20">Buf</A>));
    <b>end</b> <A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_53_13">Value</A>;
 
 <b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_49_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_43_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration__ads.htm#ref_43_53">Enumeration</A>.<A HREF="terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm#ref_44_65">Ada</A>;

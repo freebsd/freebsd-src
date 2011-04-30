@@ -61,7 +61,7 @@
       <FONT COLOR=red><A NAME="ref_56_7">R</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := <A HREF="terminal_interface-curses-putwin__adb.htm#ref_53_16">putwin</A> (<A HREF="terminal_interface-curses-putwin__ads.htm#ref_45_26">Win</A>, <A HREF="terminal_interface-curses-putwin__adb.htm#ref_48_12">ACS</A>.C_Stream (<A HREF="terminal_interface-curses-putwin__ads.htm#ref_46_26">File</A>));
    <b>begin</b>
       <b>if</b> <A HREF="terminal_interface-curses-putwin__adb.htm#ref_56_7">R</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_71_4">Curses_Ok</A> <b>then</b>
-         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_383_4">Curses_Exception</A>;
+         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_385_4">Curses_Exception</A>;
       <b>end</b> <b>if</b>;
    <b>end</b> <A HREF="terminal_interface-curses-putwin__ads.htm#ref_45_14">Put_Window</A>;
 
@@ -73,7 +73,7 @@
       <FONT COLOR=red><A NAME="ref_68_7">W</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A> := <A HREF="terminal_interface-curses-putwin__adb.htm#ref_65_16">getwin</A> (<A HREF="terminal_interface-curses-putwin__adb.htm#ref_48_12">ACS</A>.C_Stream (<A HREF="terminal_interface-curses-putwin__ads.htm#ref_48_25">File</A>));
    <b>begin</b>
       <b>if</b> <A HREF="terminal_interface-curses-putwin__adb.htm#ref_68_7">W</A> = <A HREF="terminal_interface-curses__ads.htm#ref_58_4">Null_Window</A> <b>then</b>
-         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_383_4">Curses_Exception</A>;
+         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_385_4">Curses_Exception</A>;
       <b>else</b>
          <b>return</b> <A HREF="terminal_interface-curses-putwin__adb.htm#ref_68_7">W</A>;
       <b>end</b> <b>if</b>;

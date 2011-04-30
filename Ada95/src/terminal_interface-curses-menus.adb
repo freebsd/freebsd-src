@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.27 $
---  $Date: 2009/12/26 17:38:58 $
+--  $Revision: 1.28 $
+--  $Date: 2011/03/22 23:38:12 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Ada.Unchecked_Deallocation;
@@ -896,8 +896,8 @@ package body Terminal_Interface.Curses.Menus is
 
       Res : Eti_Error;
    begin
-      pragma Assert (Items (Items'Last) = Null_Item);
-      if Items (Items'Last) /= Null_Item then
+      pragma Assert (Items.all (Items'Last) = Null_Item);
+      if Items.all (Items'Last) /= Null_Item then
          raise Menu_Exception;
       else
          Res := Set_Items (Men, Items.all'Address);
@@ -941,8 +941,8 @@ package body Terminal_Interface.Curses.Menus is
 
       M   : Menu;
    begin
-      pragma Assert (Items (Items'Last) = Null_Item);
-      if Items (Items'Last) /= Null_Item then
+      pragma Assert (Items.all (Items'Last) = Null_Item);
+      if Items.all (Items'Last) /= Null_Item then
          raise Menu_Exception;
       else
          M := Newmenu (Items.all'Address);
@@ -997,8 +997,8 @@ package body Terminal_Interface.Curses.Menus is
    begin
       if IA /= null and then Free_Items then
          for I in IA'First .. (IA'Last - 1) loop
-            if IA (I) /= Null_Item then
-               Delete (IA (I));
+            if IA.all (I) /= Null_Item then
+               Delete (IA.all (I));
             end if;
          end loop;
       end if;

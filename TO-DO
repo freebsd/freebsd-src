@@ -25,7 +25,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: TO-DO,v 1.56 2011/02/26 16:58:53 tom Exp $
+-- $Id: TO-DO,v 1.57 2011/03/28 00:23:02 tom Exp $
 -------------------------------------------------------------------------------
 
 SHORT-TERM TO-DO ITEMS:
@@ -65,24 +65,6 @@ Known Problems:
 
 + the --with-pthread configuration builds for Cygwin, but does not work
   properly (test/worm.c shows all of the worms in the same location).
-
-+ the Ada95 tree may require a small fix to build on Cygwin, since the GNAT
-  port to that platform for 3.4.4 provides an incomplete Interrupts.Names
-  package.  For instance (your gcc version may be different):
-        /usr/lib/gcc/i686-pc-cygwin/3.4.4/adainclude/a-intnam.ads
-
-  cut here...
--------------------------------------------------------------------------------
---- a-intnam.ads.orig   2003-10-21 13:41:51.000000000 +0000
-+++ a-intnam.ads        2007-05-05 22:40:02.609375000 +0000
-@@ -44,5 +44,6 @@
-
-    DUMMY_INTERRUPT_1 : constant Interrupt_ID := 1;
-    DUMMY_INTERRUPT_2 : constant Interrupt_ID := 2;
-+   SIGINT : constant Interrupt_ID := 2;
-
- end Ada.Interrupts.Names;
--------------------------------------------------------------------------------
 
 + the --enable-rpath configure option builds for the corresponding platforms;
   however combining it with --with-ticlib and --with-termlib does not always

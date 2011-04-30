@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+dnl Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
 dnl copy of this software and associated documentation files (the            *
@@ -28,14 +28,14 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey 1995-on
 dnl
-dnl $Id: configure.in,v 1.514 2010/11/28 00:12:45 tom Exp $
+dnl $Id: configure.in,v 1.520 2011/03/28 00:22:26 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
 dnl
 dnl See http://invisible-island.net/autoconf/ for additional information.
 dnl
 dnl ---------------------------------------------------------------------------
 AC_PREREQ(2.13.20020210)
-AC_REVISION($Revision: 1.514 $)
+AC_REVISION($Revision: 1.520 $)
 AC_INIT(ncurses/base/lib_initscr.c)
 AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
 
@@ -1330,6 +1330,7 @@ fcntl.h \
 getopt.h \
 limits.h \
 locale.h \
+math.h \
 poll.h \
 sys/bsdtypes.h \
 sys/ioctl.h \
@@ -1593,9 +1594,24 @@ dnl At the moment we support no other Ada95 compiler.
 	if test "$cf_with_ada" != "no" ; then
 		CF_PROG_GNAT
 		if test	"$cf_cv_prog_gnat_correct" = yes; then
-			CF_ADD_ADAFLAGS(-O3 -gnatpn)
+			CF_ADD_ADAFLAGS(-gnatpn)
 
+			# make ADAFLAGS consistent with CFLAGS
+			case "$CFLAGS" in
+			*-g*)
+				CF_ADD_ADAFLAGS(-g)
+				;;
+			esac
+			case "$CFLAGS" in
+			*-O*)
+				CF_ADD_ADAFLAGS(-O3)
+				;;
+			esac
+
+			CF_GNAT_GENERICS
+			CF_GNAT_SIGINT
 			CF_GNAT_PRAGMA_UNREF
+			CF_GNAT_PROJECTS
 
 			CF_WITH_ADA_COMPILER
 
@@ -1897,6 +1913,9 @@ else
 	MAKE_TESTS="#"
 fi
 AC_SUBST(MAKE_TESTS)
+
+ADAHTML_DIR=../../doc/html/ada
+AC_SUBST(ADAHTML_DIR)
 
 SUB_SCRIPTS=
 case $cf_cv_system_name in #(vi

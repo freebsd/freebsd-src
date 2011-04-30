@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright (c) 2010 Free Software Foundation, Inc.                        *
+dnl Copyright (c) 2010,2011 Free Software Foundation, Inc.                   *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
 dnl copy of this software and associated documentation files (the            *
@@ -28,14 +28,14 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey
 dnl
-dnl $Id: configure.in,v 1.21 2010/11/06 22:11:21 tom Exp $
+dnl $Id: configure.in,v 1.30 2011/03/31 22:49:22 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
 dnl
 dnl See http://invisible-island.net/autoconf/ for additional information.
 dnl
 dnl ---------------------------------------------------------------------------
 AC_PREREQ(2.13.20020210)
-AC_REVISION($Revision: 1.21 $)
+AC_REVISION($Revision: 1.30 $)
 AC_INIT(gen/gen.c)
 AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
 
@@ -76,7 +76,7 @@ AC_SYS_LONG_FILE_NAMES
 # if we find pkg-config, check if we should install the ".pc" files.
 CF_PKG_CONFIG
 
-if test "$PKG_CONFIG" != no ; then
+if test "$PKG_CONFIG" != none ; then
 	AC_MSG_CHECKING(if we should install .pc files for $PKG_CONFIG)
 
 	# Leave this as something that can be overridden in the environment.
@@ -160,6 +160,15 @@ CF_HELP_MESSAGE(Options to Specify the Libraries Built/Used:)
 ### Use "--without-normal --with-shared" to allow the default model to be
 ### shared, for example.
 cf_list_models=""
+
+AC_MSG_CHECKING(if you want to build shared C-objects)
+AC_ARG_WITH(shared,
+	[  --with-shared           generate shared C-objects (needed for --with-ada-sharedlib)],
+	[with_shared=$withval],
+	[with_shared=no])
+AC_MSG_RESULT($with_shared)
+test "$with_shared" = "yes" && cf_list_models="$cf_list_models shared"
+
 AC_MSG_CHECKING(for specified models)
 test -z "$cf_list_models" && cf_list_models=normal
 AC_MSG_RESULT($cf_list_models)
@@ -205,6 +214,23 @@ AC_SUBST(LD_MODEL)dnl		the type of link (e.g., -g or -pg)
 AC_MSG_RESULT($LD_MODEL)
 
 CF_SHARED_OPTS
+
+# The test/sample programs in the original tree link using rpath option.
+# Make it optional for packagers.
+if test -n "$LOCAL_LDFLAGS"
+then
+	AC_MSG_CHECKING(if you want to link sample programs with rpath option)
+	AC_ARG_ENABLE(rpath-link,
+		[  --enable-rpath-link     link sample programs with rpath option],
+		[with_rpath_link=$enableval],
+		[with_rpath_link=yes])
+	AC_MSG_RESULT($with_rpath_link)
+	if test "$with_rpath_link" = no
+	then
+		LOCAL_LDFLAGS=
+		LOCAL_LDFLAGS2=
+	fi
+fi
 
 ###############################################################################
 CF_HELP_MESSAGE(Fine-Tuning Your Configuration:)
@@ -324,6 +350,9 @@ if test "$with_pthread" = "yes" ; then
 fi
 AC_SUBST(PTHREAD)
 
+# OpenSUSE is installing ncurses6, using reentrant option.
+AC_CHECK_FUNC(_nc_TABSIZE,[assume_reentrant=yes], [assume_reentrant=no])
+
 # Reentrant code has to be opaque; there's little advantage to making ncurses
 # opaque outside of that, so there is no --enable-opaque option.  We can use
 # this option without --with-pthreads, but this will be always set for
@@ -332,13 +361,13 @@ AC_MSG_CHECKING(if you want experimental reentrant code)
 AC_ARG_ENABLE(reentrant,
 	[  --enable-reentrant      compile with experimental reentrant code],
 	[with_reentrant=$enableval],
-	[with_reentrant=no])
+	[with_reentrant=$assume_reentrant])
 AC_MSG_RESULT($with_reentrant)
 if test "$with_reentrant" = yes ; then
 	cf_cv_enable_reentrant=1
 	if test $cf_cv_weak_symbols = yes ; then
 		CF_REMOVE_LIB(LIBS,$LIBS,pthread)
-	else
+	elif test "$assume_reentrant" = no ; then
 		LIB_SUFFIX="t${LIB_SUFFIX}"
 	fi
 	AC_DEFINE(USE_REENTRANT)
@@ -386,7 +415,7 @@ AC_ARG_ENABLE(warnings,
 AC_MSG_RESULT($with_warnings)
 
 if test "x$with_warnings" = "xyes"; then
- 	ADAFLAGS="$ADAFLAGS -gnatg"
+ 	CF_ADD_ADAFLAGS(-gnatg)
 	CF_GCC_WARNINGS(Wdeclaration-after-statement Wextra Wno-unknown-pragmas Wswitch-enum)
 fi
 CF_GCC_ATTRIBUTES
@@ -405,7 +434,7 @@ then
 		AC_DEFINE(NDEBUG)
 		CPPFLAGS="$CPPFLAGS -DNDEBUG"
 	else
-		ADAFLAGS="$ADAFLAGS -gnata"
+		CF_ADD_ADAFLAGS(-gnata)
 	fi
 fi
 
@@ -491,9 +520,23 @@ dnl At the moment we support no other Ada95 compiler.
 if test "$cf_with_ada" != "no" ; then
 	CF_PROG_GNAT
 	if test	"$cf_cv_prog_gnat_correct" = yes; then
-		CF_ADD_ADAFLAGS(-O3 -gnatpn)
 
+		# make ADAFLAGS consistent with CFLAGS
+		case "$CFLAGS" in
+		*-g*)
+			CF_ADD_ADAFLAGS(-g)
+			;;
+		esac
+		case "$CFLAGS" in
+		*-O*)
+			CF_ADD_ADAFLAGS(-O3)
+			;;
+		esac
+
+		CF_GNAT_GENERICS
+		CF_GNAT_SIGINT
 		CF_GNAT_PRAGMA_UNREF
+		CF_GNAT_PROJECTS
 
 		CF_WITH_ADA_COMPILER
 
@@ -503,7 +546,11 @@ if test "$cf_with_ada" != "no" ; then
 		CF_WITH_ADA_INCLUDE
 		CF_WITH_ADA_OBJECTS
 		CF_WITH_ADA_SHAREDLIB
+	else
+		AC_MSG_ERROR(No usable Ada compiler found)
 	fi
+else
+	AC_MSG_ERROR(The Ada compiler is needed for this package)
 fi
 
 ################################################################################
@@ -575,7 +622,7 @@ dnl for separate build, this is good enough for "sh $(top_srcdir)/misc/shlib"
 NCURSES_SHLIB2="sh -c"
 AC_SUBST(NCURSES_SHLIB2)
 
-ADA_SUBDIRS="include gen src"
+ADA_SUBDIRS="include gen src doc"
 if test "x$cf_with_tests" != "xno" ; then
 	ADA_SUBDIRS="$ADA_SUBDIRS samples"
 fi
@@ -591,8 +638,13 @@ AC_SUBST(NCURSES_TREE)
 EXTERNAL_TREE=
 AC_SUBST(EXTERNAL_TREE)
 
+# match layout used by make-tar.sh
+ADAHTML_DIR=../doc/ada
+AC_SUBST(ADAHTML_DIR)
+
 AC_OUTPUT( \
 	$SUB_MAKEFILES \
+	doc/adacurses${DFT_ARG_SUFFIX}-config.1:doc/MKada_config.in \
 	Makefile,[
 if test -z "$USE_OLD_MAKERULES" ; then
 	$AWK -f $srcdir/mk-1st.awk <$srcdir/src/modules >>src/Makefile

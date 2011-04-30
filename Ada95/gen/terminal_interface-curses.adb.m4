@@ -9,7 +9,7 @@ include(M4MACRO)----------------------------------------------------------------
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -37,8 +37,8 @@ include(M4MACRO)----------------------------------------------------------------
 ------------------------------------------------------------------------------
 --  Author: Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.6 $
---  $Date: 2009/12/26 17:38:58 $
+--  $Revision: 1.8 $
+--  $Date: 2011/03/22 23:02:14 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with System;
@@ -1208,6 +1208,7 @@ package body Terminal_Interface.Curses is
       X : Column_Position;
    begin
       Get_Size (Win, Y, X);
+      pragma Unreferenced (X);
       Change_Lines_Status (Win, 0, Positive (Y), True);
    end Touch;
 
@@ -1217,6 +1218,7 @@ package body Terminal_Interface.Curses is
       X : Column_Position;
    begin
       Get_Size (Win, Y, X);
+      pragma Unreferenced (X);
       Change_Lines_Status (Win, 0, Positive (Y), False);
    end Untouch;
 
@@ -1352,10 +1354,8 @@ package body Terminal_Interface.Curses is
       function GetMaxX (W : Window) return C_Int;
       pragma Import (C, GetMaxX, "getmaxx");
 
-      Y : constant C_Int := GetMaxY (Win)
-                          + C_Int (Offset_XY);
-      X : constant C_Int := GetMaxX (Win)
-                          + C_Int (Offset_XY);
+      Y : constant C_Int := GetMaxY (Win);
+      X : constant C_Int := GetMaxX (Win);
    begin
       Number_Of_Lines   := Line_Count (Y);
       Number_Of_Columns := Column_Count (X);

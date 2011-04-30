@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.              --
+-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -35,8 +35,8 @@
 ------------------------------------------------------------------------------
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
---  $Revision: 1.19 $
---  $Date: 2009/12/26 17:40:46 $
+--  $Revision: 1.20 $
+--  $Date: 2011/03/22 23:38:49 $
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 package body Terminal_Interface.Curses.Text_IO is
@@ -205,6 +205,7 @@ package body Terminal_Interface.Curses.Text_IO is
       end if;
 
       Get_Cursor_Position (Win, Y1, X);
+      pragma Unreferenced (X);
       N  := Natural (To); N := N - 1;
       Y2 := Line_Position (N);
       if Y2 < Y1 then

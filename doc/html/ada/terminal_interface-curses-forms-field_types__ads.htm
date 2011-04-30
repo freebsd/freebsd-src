@@ -12,7 +12,7 @@
 <FONT COLOR=green><EM>--                                 S P E C                                  --</EM></FONT>
 <FONT COLOR=green><EM>--                                                                          --</EM></FONT>
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
-<FONT COLOR=green><EM>-- Copyright (c) 1998-2003,2009 Free Software Foundation, Inc.              --</EM></FONT>
+<FONT COLOR=green><EM>-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --</EM></FONT>
 <FONT COLOR=green><EM>--                                                                          --</EM></FONT>
 <FONT COLOR=green><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></FONT>
 <FONT COLOR=green><EM>-- copy of this software and associated documentation files (the            --</EM></FONT>
@@ -40,12 +40,12 @@
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
 <FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
 <FONT COLOR=green><EM>--  Version Control:</EM></FONT>
-<FONT COLOR=green><EM>--  @Revision: 1.15 @</EM></FONT>
+<FONT COLOR=green><EM>--  @Revision: 1.16 @</EM></FONT>
 <FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
 <FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
 <b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C;
 
-<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_49_35">Forms</A>.<FONT COLOR=red><A NAME="ref_43_41" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_50_46">Field_Types</A></FONT> <b>is</b>
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_49_35">Forms</A>.<FONT COLOR=red><A NAME="ref_43_41" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_51_46">Field_Types</A></FONT> <b>is</b>
    <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_49_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_43_41">Field_Types</A>);
    <b>use</b> <b>type</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.int;
    <b>subtype</b> <FONT COLOR=red><A NAME="ref_46_12">C_Int</A></FONT> <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.int;
@@ -81,7 +81,7 @@
    <FONT COLOR=green><EM>--  |=====================================================================</EM></FONT>
 
    <FONT COLOR=green><EM>--  #1A NAME="AFU_2"#2|</EM></FONT>
-   <b>function</b> <FONT COLOR=red><A NAME="ref_79_13" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_71_13">Get_Type</A></FONT> (<FONT COLOR=red><A NAME="ref_79_23" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_71_23">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_63_9">Field_Type_Access</A>;
+   <b>function</b> <FONT COLOR=red><A NAME="ref_79_13" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_70_13">Get_Type</A></FONT> (<FONT COLOR=red><A NAME="ref_79_23" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_70_23">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_63_9">Field_Type_Access</A>;
    <FONT COLOR=green><EM>--  AKA: <A HREF="../man/form_field_validation.3x.html">field_type()</A></EM></FONT>
    <FONT COLOR=green><EM>--  AKA: field_arg()</EM></FONT>
    <FONT COLOR=green><EM>--  In Ada95 we can combine these. If you try to retrieve the field type</EM></FONT>
@@ -107,15 +107,15 @@
    <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_100_9">Freearg_Function</A>);
 
    <b>type</b> <FONT COLOR=red><A NAME="ref_104_9">Field_Check_Function</A></FONT> <b>is</b> <b>access</b>
-     <b>function</b> (<FONT COLOR=red><A NAME="ref_105_16">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>; <FONT COLOR=red><A NAME="ref_105_29">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_46_12">C_Int</A>;
+     <b>function</b> (<FONT COLOR=red><A NAME="ref_105_16">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>; <FONT COLOR=red><A NAME="ref_105_29">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_1926_9">Curses_Bool</A>;
    <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_104_9">Field_Check_Function</A>);
 
    <b>type</b> <FONT COLOR=red><A NAME="ref_108_9">Char_Check_Function</A></FONT> <b>is</b> <b>access</b>
-     <b>function</b> (<FONT COLOR=red><A NAME="ref_109_16">Ch</A></FONT> : <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_46_12">C_Int</A>; <FONT COLOR=red><A NAME="ref_109_28">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_46_12">C_Int</A>;
+     <b>function</b> (<FONT COLOR=red><A NAME="ref_109_16">Ch</A></FONT> : <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_46_12">C_Int</A>; <FONT COLOR=red><A NAME="ref_109_28">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_1926_9">Curses_Bool</A>;
    <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_108_9">Char_Check_Function</A>);
 
    <b>type</b> <FONT COLOR=red><A NAME="ref_112_9">Choice_Function</A></FONT> <b>is</b> <b>access</b>
-     <b>function</b> (<FONT COLOR=red><A NAME="ref_113_16">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>; <FONT COLOR=red><A NAME="ref_113_29">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_46_12">C_Int</A>;
+     <b>function</b> (<FONT COLOR=red><A NAME="ref_113_16">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>; <FONT COLOR=red><A NAME="ref_113_29">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_1926_9">Curses_Bool</A>;
    <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_112_9">Choice_Function</A>);
 
    <FONT COLOR=green><EM>--  +----------------------------------------------------------------------</EM></FONT>
@@ -123,7 +123,7 @@
    <FONT COLOR=green><EM>--  |</EM></FONT>
    <b>type</b> <FONT COLOR=red><A NAME="ref_119_9">Low_Level_Field_Type</A></FONT> <b>is</b>
       <b>record</b>
-         <FONT COLOR=red><A NAME="ref_121_10">Status</A></FONT> :              <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.short;
+         <FONT COLOR=red><A NAME="ref_121_10">Status</A></FONT> :              <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.unsigned_short;
          <FONT COLOR=red><A NAME="ref_122_10">Ref_Count</A></FONT> :           <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.long;
          <FONT COLOR=red><A NAME="ref_123_10">Left</A></FONT>, <FONT COLOR=red><A NAME="ref_123_16">Right</A></FONT> :         System.Address;
          <FONT COLOR=red><A NAME="ref_124_10">Makearg</A></FONT> :             <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_92_9">Makearg_Function</A>;
@@ -150,12 +150,12 @@
 
    <FONT COLOR=green><EM>--  Two wrapper functions to access those low-level fieldtypes defined</EM></FONT>
    <FONT COLOR=green><EM>--  in this package.</EM></FONT>
-   <b>function</b> <FONT COLOR=red><A NAME="ref_148_13" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_237_13">C_Builtin_Router</A></FONT> <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_132_9">C_Field_Type</A>;
-   <b>function</b> <FONT COLOR=red><A NAME="ref_149_13" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_264_13">C_Choice_Router</A></FONT>  <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_132_9">C_Field_Type</A>;
+   <b>function</b> <FONT COLOR=red><A NAME="ref_148_13" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_224_13">C_Builtin_Router</A></FONT> <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_132_9">C_Field_Type</A>;
+   <b>function</b> <FONT COLOR=red><A NAME="ref_149_13" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_251_13">C_Choice_Router</A></FONT>  <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_132_9">C_Field_Type</A>;
 
-   <b>procedure</b> <FONT COLOR=red><A NAME="ref_151_14" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_143_14">Wrap_Builtin</A></FONT> (<FONT COLOR=red><A NAME="ref_151_28" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_143_28">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
-                           <FONT COLOR=red><A NAME="ref_152_28" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_144_28">Typ</A></FONT> : <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_52_9">Field_Type</A>'Class;
-                           <FONT COLOR=red><A NAME="ref_153_28" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_145_28">Cft</A></FONT> : <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_132_9">C_Field_Type</A> := <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_148_13">C_Builtin_Router</A>);
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_151_14" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_126_14">Wrap_Builtin</A></FONT> (<FONT COLOR=red><A NAME="ref_151_28" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_126_28">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
+                           <FONT COLOR=red><A NAME="ref_152_28" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_127_28">Typ</A></FONT> : <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_52_9">Field_Type</A>'Class;
+                           <FONT COLOR=red><A NAME="ref_153_28" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_128_28">Cft</A></FONT> : <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_132_9">C_Field_Type</A> := <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_148_13">C_Builtin_Router</A>);
    <FONT COLOR=green><EM>--  This procedure has to be called by the Set_Field_Type implementation</EM></FONT>
    <FONT COLOR=green><EM>--  for builtin low-level fieldtypes to replace it by an Ada95</EM></FONT>
    <FONT COLOR=green><EM>--  conformant Field_Type object.</EM></FONT>
@@ -164,47 +164,47 @@
    <FONT COLOR=green><EM>--  low-level fieldtypes witch choice functions (like TYP_ENUM).</EM></FONT>
    <FONT COLOR=green><EM>--  Any other value will raise a Form_Exception.</EM></FONT>
 
-   <b>function</b> <FONT COLOR=red><A NAME="ref_162_13" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_95_13">Make_Arg</A></FONT> (<FONT COLOR=red><A NAME="ref_162_23" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_95_23">Args</A></FONT> : System.Address) <b>return</b> System.Address;
-   <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_162_13">Make_Arg</A>);
+   <b>function</b> <FONT COLOR=red><A NAME="ref_162_13">Make_Arg</A></FONT> (<FONT COLOR=red><A NAME="ref_162_23" HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_162_13">Args</A></FONT> : System.Address) <b>return</b> System.Address;
+   <b>pragma</b> Import (C, Make_Arg, "void_star_make_arg");
    <FONT COLOR=green><EM>--  This is the Makearg_Function for the internal low-level types</EM></FONT>
    <FONT COLOR=green><EM>--  introduced by this binding.</EM></FONT>
 
-   <b>function</b> <FONT COLOR=red><A NAME="ref_167_13" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_113_13">Copy_Arg</A></FONT> (<FONT COLOR=red><A NAME="ref_167_23" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_113_23">Usr</A></FONT> : System.Address) <b>return</b> System.Address;
+   <b>function</b> <FONT COLOR=red><A NAME="ref_167_13" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_95_13">Copy_Arg</A></FONT> (<FONT COLOR=red><A NAME="ref_167_23" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_95_23">Usr</A></FONT> : System.Address) <b>return</b> System.Address;
    <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_167_13">Copy_Arg</A>);
    <FONT COLOR=green><EM>--  This is the Copyarg_Function for the internal low-level types</EM></FONT>
    <FONT COLOR=green><EM>--  introduced by this binding.</EM></FONT>
 
-   <b>procedure</b> <FONT COLOR=red><A NAME="ref_172_14" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_119_14">Free_Arg</A></FONT> (<FONT COLOR=red><A NAME="ref_172_24" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_119_24">Usr</A></FONT> : System.Address);
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_172_14" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_101_14">Free_Arg</A></FONT> (<FONT COLOR=red><A NAME="ref_172_24" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_101_24">Usr</A></FONT> : System.Address);
    <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_172_14">Free_Arg</A>);
    <FONT COLOR=green><EM>--  This is the Freearg_Function for the internal low-level types</EM></FONT>
    <FONT COLOR=green><EM>--  introduced by this binding.</EM></FONT>
 
-   <b>function</b> <FONT COLOR=red><A NAME="ref_177_13" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_179_13">Field_Check_Router</A></FONT> (<FONT COLOR=red><A NAME="ref_177_33" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_179_33">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
-                                <FONT COLOR=red><A NAME="ref_178_33" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_180_33">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_46_12">C_Int</A>;
+   <b>function</b> <FONT COLOR=red><A NAME="ref_177_13" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_162_13">Field_Check_Router</A></FONT> (<FONT COLOR=red><A NAME="ref_177_33" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_162_33">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
+                                <FONT COLOR=red><A NAME="ref_178_33" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_163_33">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_1926_9">Curses_Bool</A>;
    <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_177_13">Field_Check_Router</A>);
    <FONT COLOR=green><EM>--  This is the Field_Check_Function for the internal low-level types</EM></FONT>
    <FONT COLOR=green><EM>--  introduced to wrap the low-level types by a Field_Type derived</EM></FONT>
    <FONT COLOR=green><EM>--  type. It routes the call to the corresponding low-level validation</EM></FONT>
    <FONT COLOR=green><EM>--  function.</EM></FONT>
 
-   <b>function</b> <FONT COLOR=red><A NAME="ref_185_13" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_193_13">Char_Check_Router</A></FONT> (<FONT COLOR=red><A NAME="ref_185_32" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_193_32">Ch</A></FONT> : <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_46_12">C_Int</A>;
-                               <FONT COLOR=red><A NAME="ref_186_32" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_194_32">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_46_12">C_Int</A>;
+   <b>function</b> <FONT COLOR=red><A NAME="ref_185_13" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_177_13">Char_Check_Router</A></FONT> (<FONT COLOR=red><A NAME="ref_185_32" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_177_32">Ch</A></FONT> : <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_46_12">C_Int</A>;
+                               <FONT COLOR=red><A NAME="ref_186_32" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_178_32">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_1926_9">Curses_Bool</A>;
    <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_185_13">Char_Check_Router</A>);
    <FONT COLOR=green><EM>--  This is the Char_Check_Function for the internal low-level types</EM></FONT>
    <FONT COLOR=green><EM>--  introduced to wrap the low-level types by a Field_Type derived</EM></FONT>
    <FONT COLOR=green><EM>--  type. It routes the call to the corresponding low-level validation</EM></FONT>
    <FONT COLOR=green><EM>--  function.</EM></FONT>
 
-   <b>function</b> <FONT COLOR=red><A NAME="ref_193_13" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_207_13">Next_Router</A></FONT> (<FONT COLOR=red><A NAME="ref_193_26" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_207_26">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
-                         <FONT COLOR=red><A NAME="ref_194_26" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_208_26">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_46_12">C_Int</A>;
+   <b>function</b> <FONT COLOR=red><A NAME="ref_193_13" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_192_13">Next_Router</A></FONT> (<FONT COLOR=red><A NAME="ref_193_26" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_192_26">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
+                         <FONT COLOR=red><A NAME="ref_194_26" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_193_26">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_1926_9">Curses_Bool</A>;
    <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_193_13">Next_Router</A>);
    <FONT COLOR=green><EM>--  This is the Choice_Function for the internal low-level types</EM></FONT>
    <FONT COLOR=green><EM>--  introduced to wrap the low-level types by a Field_Type derived</EM></FONT>
    <FONT COLOR=green><EM>--  type. It routes the call to the corresponding low-level next_choice</EM></FONT>
    <FONT COLOR=green><EM>--  function.</EM></FONT>
 
-   <b>function</b> <FONT COLOR=red><A NAME="ref_201_13" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_221_13">Prev_Router</A></FONT> (<FONT COLOR=red><A NAME="ref_201_26" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_221_26">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
-                         <FONT COLOR=red><A NAME="ref_202_26" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_222_26">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_46_12">C_Int</A>;
+   <b>function</b> <FONT COLOR=red><A NAME="ref_201_13" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_207_13">Prev_Router</A></FONT> (<FONT COLOR=red><A NAME="ref_201_26" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_207_26">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
+                         <FONT COLOR=red><A NAME="ref_202_26" HREF="terminal_interface-curses-forms-field_types__adb.htm#ref_208_26">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_1926_9">Curses_Bool</A>;
    <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_201_13">Prev_Router</A>);
    <FONT COLOR=green><EM>--  This is the Choice_Function for the internal low-level types</EM></FONT>
    <FONT COLOR=green><EM>--  introduced to wrap the low-level types by a Field_Type derived</EM></FONT>

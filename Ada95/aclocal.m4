@@ -28,7 +28,7 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey
 dnl
-dnl $Id: aclocal.m4,v 1.20 2011/01/22 19:46:50 tom Exp $
+dnl $Id: aclocal.m4,v 1.24 2011/03/31 23:32:36 tom Exp $
 dnl Macros used in NCURSES Ada95 auto-configuration script.
 dnl
 dnl These macros are maintained separately from NCURSES.  The copyright on
@@ -1040,10 +1040,12 @@ rm -rf conftest*
 AC_SUBST(EXTRA_CFLAGS)
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_GNAT_GENERICS version: 1 updated: 2010/11/13 14:15:18
+dnl CF_GNAT_GENERICS version: 2 updated: 2011/03/23 20:24:41
 dnl ----------------
 AC_DEFUN([CF_GNAT_GENERICS],
 [
+AC_REQUIRE([CF_GNAT_VERSION])
+
 AC_MSG_CHECKING(if GNAT supports generics)
 case $cf_gnat_version in #(vi
 3.[[1-9]]*|[[4-9]].*) #(vi
@@ -1066,6 +1068,53 @@ fi
 
 AC_SUBST(cf_compile_generics)
 AC_SUBST(cf_generic_objects)
+])dnl
+dnl ---------------------------------------------------------------------------
+dnl CF_GNAT_SIGINT version: 1 updated: 2011/03/27 20:07:59
+dnl --------------
+dnl Check if gnat supports SIGINT, and presumably tasking.  For the latter, it
+dnl is noted that gnat may compile a tasking unit even for configurations which
+dnl fail at runtime.
+AC_DEFUN([CF_GNAT_SIGINT],[
+AC_CACHE_CHECK(if GNAT supports SIGINT,cf_cv_gnat_sigint,[
+CF_GNAT_TRY_LINK([with Ada.Interrupts.Names;
+
+package ConfTest is
+
+   pragma Warnings (Off);  --  the next pragma exists since 3.11p
+   pragma Unreserve_All_Interrupts;
+   pragma Warnings (On);
+
+   protected Process is
+      procedure Stop;
+      function Continue return Boolean;
+      pragma Attach_Handler (Stop, Ada.Interrupts.Names.SIGINT);
+   private
+      Done : Boolean := False;
+   end Process;
+
+end ConfTest;],
+[package body ConfTest is
+   protected body Process is
+      procedure Stop is
+      begin
+         Done := True;
+      end Stop;
+      function Continue return Boolean is
+      begin
+         return not Done;
+      end Continue;
+   end Process;
+end ConfTest;],
+	[cf_cv_gnat_sigint=yes],
+	[cf_cv_gnat_sigint=no])])
+
+if test $cf_cv_gnat_sigint = yes ; then
+	USE_GNAT_SIGINT=""
+else
+	USE_GNAT_SIGINT="#"
+fi
+AC_SUBST(USE_GNAT_SIGINT)
 ])dnl
 dnl ---------------------------------------------------------------------------
 dnl CF_GNAT_PRAGMA_UNREF version: 1 updated: 2010/06/19 15:22:18
@@ -1097,27 +1146,91 @@ fi
 AC_SUBST(PRAGMA_UNREF)
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_GNAT_PROJECTS version: 1 updated: 2010/11/13 14:15:18
+dnl CF_GNAT_PROJECTS version: 2 updated: 2011/03/23 20:24:41
 dnl ----------------
+dnl GNAT projects are configured with ".gpr" project files.
+dnl GNAT libraries are a further development, using the project feature.
 AC_DEFUN([CF_GNAT_PROJECTS],
 [
+AC_REQUIRE([CF_GNAT_VERSION])
+
+cf_gnat_libraries=no
+cf_gnat_projects=no
+
 AC_MSG_CHECKING(if GNAT supports project files)
 case $cf_gnat_version in #(vi
 3.[[0-9]]*) #(vi
-	cf_gnat_projects=no
 	;;
 *)
 	case $cf_cv_system_name in #(vi
 	cygwin*) #(vi
-		cf_gnat_projects=no
 		;;
 	*)
-		cf_gnat_projects=yes
+		mkdir conftest.src conftest.bin conftest.lib
+		cd conftest.src
+		rm -rf conftest* *~conftest*
+		cat >>library.gpr <<CF_EOF
+project Library is
+  Kind := External ("LIB_KIND");
+  for Library_Name use "ConfTest";
+  for Object_Dir use ".";
+  for Library_ALI_Dir use External("LIBRARY_DIR");
+  for Library_Version use External ("SONAME");
+  for Library_Kind use Kind;
+  for Library_Dir use External("BUILD_DIR");
+  Source_Dir := External ("SOURCE_DIR");
+  for Source_Dirs use (Source_Dir);
+  package Compiler is
+     for Default_Switches ("Ada") use
+       ("-g",
+        "-O2",
+        "-gnatafno",
+        "-gnatVa",   -- All validity checks
+        "-gnatwa");  -- Activate all optional errors
+  end Compiler;
+end Library;
+CF_EOF
+		cat >>confpackage.ads <<CF_EOF
+package ConfPackage is
+   procedure conftest;
+end ConfPackage;
+CF_EOF
+		cat >>confpackage.adb <<CF_EOF
+with Text_IO;
+package body ConfPackage is
+   procedure conftest is
+   begin
+      Text_IO.Put ("Hello World");
+      Text_IO.New_Line;
+   end conftest;
+end ConfPackage;
+CF_EOF
+		if ( $cf_ada_make $ADAFLAGS \
+				-Plibrary.gpr \
+				-XBUILD_DIR=`cd ../conftest.bin;pwd` \
+				-XLIBRARY_DIR=`cd ../conftest.lib;pwd` \
+				-XSOURCE_DIR=`pwd` \
+				-XSONAME=libConfTest.so.1 \
+				-XLIB_KIND=static 1>&AC_FD_CC 2>&1 ) ; then
+			cf_gnat_projects=yes
+		fi
+		cd ..
+		if test -f conftest.lib/confpackage.ali
+		then
+			cf_gnat_libraries=yes
+		fi
+		rm -rf conftest* *~conftest*
 		;;
 	esac
 	;;
 esac
 AC_MSG_RESULT($cf_gnat_projects)
+
+if test $cf_gnat_projects = yes
+then
+	AC_MSG_CHECKING(if GNAT supports libraries)
+	AC_MSG_RESULT($cf_gnat_libraries)
+fi
 
 if test "$cf_gnat_projects" = yes
 then
@@ -1128,11 +1241,19 @@ else
 	USE_GNAT_PROJECTS="#"
 fi
 
+if test "$cf_gnat_libraries" = yes
+then
+	USE_GNAT_LIBRARIES=""
+else
+	USE_GNAT_LIBRARIES="#"
+fi
+
 AC_SUBST(USE_OLD_MAKERULES)
 AC_SUBST(USE_GNAT_PROJECTS)
+AC_SUBST(USE_GNAT_LIBRARIES)
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_GNAT_TRY_LINK version: 2 updated: 2010/08/14 18:25:37
+dnl CF_GNAT_TRY_LINK version: 3 updated: 2011/03/19 14:47:45
 dnl ----------------
 dnl Verify that a test program compiles/links with GNAT.
 dnl $cf_ada_make is set to the program that compiles/links
@@ -1144,7 +1265,7 @@ dnl $3 is the shell command to execute if successful
 dnl $4 is the shell command to execute if not successful
 AC_DEFUN([CF_GNAT_TRY_LINK],
 [
-rm -rf conftest*
+rm -rf conftest* *~conftest*
 cat >>conftest.ads <<CF_EOF
 $1
 CF_EOF
@@ -1156,10 +1277,10 @@ ifelse($3,,      :,[      $3])
 ifelse($4,,,[else
    $4])
 fi
-rm -rf conftest*
+rm -rf conftest* *~conftest*
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_GNAT_TRY_RUN version: 4 updated: 2010/08/14 18:25:37
+dnl CF_GNAT_TRY_RUN version: 5 updated: 2011/03/19 14:47:45
 dnl ---------------
 dnl Verify that a test program compiles and runs with GNAT
 dnl $cf_ada_make is set to the program that compiles/links
@@ -1171,7 +1292,7 @@ dnl $3 is the shell command to execute if successful
 dnl $4 is the shell command to execute if not successful
 AC_DEFUN([CF_GNAT_TRY_RUN],
 [
-rm -rf conftest*
+rm -rf conftest* *~conftest*
 cat >>conftest.ads <<CF_EOF
 $1
 CF_EOF
@@ -1187,10 +1308,10 @@ ifelse($4,,,[   else
 ifelse($4,,,[else
    $4])
 fi
-rm -rf conftest*
+rm -rf conftest* *~conftest*
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_GNAT_VERSION version: 16 updated: 2010/11/13 14:15:18
+dnl CF_GNAT_VERSION version: 17 updated: 2011/03/23 20:24:41
 dnl ---------------
 dnl Verify version of GNAT.
 AC_DEFUN([CF_GNAT_VERSION],
@@ -1210,9 +1331,6 @@ case $cf_gnat_version in #(vi
 	cf_cv_prog_gnat_correct=no
 	;;
 esac
-
-CF_GNAT_GENERICS
-CF_GNAT_PROJECTS
 ])
 dnl ---------------------------------------------------------------------------
 dnl CF_GNU_SOURCE version: 6 updated: 2005/07/09 13:23:07
@@ -1749,7 +1867,7 @@ AC_DEFUN([CF_MAIN_RETURN],
 cf_cv_main_return=return
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_MAKEFLAGS version: 13 updated: 2010/10/23 15:52:32
+dnl CF_MAKEFLAGS version: 14 updated: 2011/03/31 19:29:46
 dnl ------------
 dnl Some 'make' programs support ${MAKEFLAGS}, some ${MFLAGS}, to pass 'make'
 dnl options to lower-levels.  It's very useful for "make -n" -- if we have it.
@@ -1766,7 +1884,7 @@ SHELL = /bin/sh
 all :
 	@ echo '.$cf_option'
 CF_EOF
-		cf_result=`${MAKE:-make} -k -f cf_makeflags.tmp 2>/dev/null | sed -e 's,[[ 	]]*$,,'`
+		cf_result=`${MAKE:-make} -k -f cf_makeflags.tmp 2>/dev/null | fgrep -v "ing directory" | sed -e 's,[[ 	]]*$,,'`
 		case "$cf_result" in
 		.*k)
 			cf_result=`${MAKE:-make} -k -f cf_makeflags.tmp CC=cc 2>/dev/null`
@@ -1914,7 +2032,7 @@ AC_DEFUN([CF_MSG_LOG],[
 echo "${as_me:-configure}:__oline__: testing $* ..." 1>&AC_FD_CC
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_NCURSES_ADDON version: 3 updated: 2010/10/23 15:54:49
+dnl CF_NCURSES_ADDON version: 4 updated: 2011/03/27 17:10:13
 dnl ----------------
 dnl Configure an ncurses add-on, built outside the ncurses tree.
 AC_DEFUN([CF_NCURSES_ADDON],[
@@ -1939,8 +2057,8 @@ if test "$NCURSES_CONFIG" != none ; then
 cf_version=`$NCURSES_CONFIG --version`
 
 NCURSES_MAJOR=`echo "$cf_version" | sed -e 's/\..*//'`
-NCURSES_MINOR=`echo "$cf_version" | sed -e 's/^[[0-9]]\+\.//' -e 's/\..*//'`
-NCURSES_PATCH=`echo "$cf_version" | sed -e 's/^[[0-9]]\+\.[[0-9]]\+\.//'`
+NCURSES_MINOR=`echo "$cf_version" | sed -e 's/^[[0-9]][[0-9]]*\.//' -e 's/\..*//'`
+NCURSES_PATCH=`echo "$cf_version" | sed -e 's/^[[0-9]][[0-9]]*\.[[0-9]][[0-9]]*\.//'`
 
 # ABI version is not available from headers
 cf_cv_abi_version=`$NCURSES_CONFIG --abi-version`
@@ -1956,10 +2074,10 @@ CF_EOF
 	cf_try="$ac_cpp conftest.$ac_ext 2>&5 | fgrep AUTOCONF_$cf_name >conftest.out"
 	AC_TRY_EVAL(cf_try)
 	if test -f conftest.out ; then
-		cf_result=`cat conftest.out | sed -e "s/^.*AUTOCONF_$cf_name[[ 	]]\+//"`
-		eval NCURSES_$cf_name=$cf_result
-		cat conftest.$ac_ext
-		cat conftest.out
+		cf_result=`cat conftest.out | sed -e "s/^.*AUTOCONF_$cf_name[[ 	]][[ 	]]*//"`
+		eval NCURSES_$cf_name=\"$cf_result\"
+		# cat conftest.$ac_ext
+		# cat conftest.out
 	fi
 done
 
@@ -2428,7 +2546,7 @@ case ".[$]$1" in #(vi
 esac
 ])dnl
 dnl ---------------------------------------------------------------------------
-dnl CF_PKG_CONFIG version: 3 updated: 2009/01/25 10:55:09
+dnl CF_PKG_CONFIG version: 4 updated: 2011/02/18 20:26:24
 dnl -------------
 dnl Check for the package-config program, unless disabled by command-line.
 AC_DEFUN([CF_PKG_CONFIG],
@@ -2445,7 +2563,7 @@ no) #(vi
 	PKG_CONFIG=none
 	;;
 yes) #(vi
-	AC_PATH_PROG(PKG_CONFIG, pkg-config, none)
+	AC_PATH_TOOL(PKG_CONFIG, pkg-config, none)
 	;;
 *)
 	PKG_CONFIG=$withval
@@ -3355,7 +3473,7 @@ if test "$with_pthread" != no ; then
 fi
 ])
 dnl ---------------------------------------------------------------------------
-dnl CF_XOPEN_SOURCE version: 34 updated: 2010/05/26 05:38:42
+dnl CF_XOPEN_SOURCE version: 35 updated: 2011/02/20 20:37:37
 dnl ---------------
 dnl Try to get _XOPEN_SOURCE defined properly that we can use POSIX functions,
 dnl or adapt to the vendor's definitions to get equivalent functionality,
@@ -3373,6 +3491,9 @@ cf_xopen_source=
 case $host_os in #(vi
 aix[[456]]*) #(vi
 	cf_xopen_source="-D_ALL_SOURCE"
+	;;
+cygwin) #(vi
+	cf_XOPEN_SOURCE=600
 	;;
 darwin[[0-8]].*) #(vi
 	cf_xopen_source="-D_APPLE_C_SOURCE"
