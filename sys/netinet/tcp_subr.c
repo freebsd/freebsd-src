@@ -66,23 +66,20 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/cc.h>
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#ifdef INET6
-#include <netinet/ip6.h>
-#endif
 #include <netinet/in_pcb.h>
-#ifdef INET6
-#include <netinet6/in6_pcb.h>
-#endif
+#include <netinet/in_systm.h>
 #include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
 #ifdef INET6
+#include <netinet/ip6.h>
+#include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
 #endif
-#include <netinet/ip_icmp.h>
+
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -96,7 +93,9 @@ __FBSDID("$FreeBSD$");
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
+#ifdef INET6
 #include <netinet6/ip6protosw.h>
+#endif
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -160,7 +159,7 @@ SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
     CTLTYPE_INT|CTLFLAG_RW, &VNET_NAME(tcp_v6mssdflt), 0,
     &sysctl_net_inet_tcp_mss_v6_check, "I",
    "Default TCP Maximum Segment Size for IPv6");
-#endif
+#endif /* INET6 */
 
 /*
  * Minimum MSS we accept and use. This prevents DoS attacks where
@@ -414,8 +413,12 @@ tcpip_fillheaders(struct inpcb *inp, void *ip_ptr, void *tcp_ptr)
 		ip6->ip6_plen = htons(sizeof(struct tcphdr));
 		ip6->ip6_src = inp->in6p_laddr;
 		ip6->ip6_dst = inp->in6p_faddr;
-	} else
+	}
+#endif /* INET6 */
+#if defined(INET6) && defined(INET)
+	else
 #endif
+#ifdef INET
 	{
 		struct ip *ip;
 
@@ -432,6 +435,7 @@ tcpip_fillheaders(struct inpcb *inp, void *ip_ptr, void *tcp_ptr)
 		ip->ip_src = inp->inp_laddr;
 		ip->ip_dst = inp->inp_faddr;
 	}
+#endif /* INET */
 	th->th_sport = inp->inp_lport;
 	th->th_dport = inp->inp_fport;
 	th->th_seq = 0;
@@ -493,7 +497,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	KASSERT(tp != NULL || m != NULL, ("tcp_respond: tp and m both NULL"));
 
 #ifdef INET6
-	isipv6 = ((struct ip *)ipgen)->ip_v == 6;
+	isipv6 = ((struct ip *)ipgen)->ip_v == (IPV6_VERSION >> 4);
 	ip6 = ipgen;
 #endif /* INET6 */
 	ip = ipgen;
@@ -574,8 +578,12 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		ip6->ip6_plen = htons((u_short)(sizeof (struct tcphdr) +
 						tlen));
 		tlen += sizeof (struct ip6_hdr) + sizeof (struct tcphdr);
-	} else
+	}
 #endif
+#if defined(INET) && defined(INET6)
+	else
+#endif
+#ifdef INET
 	{
 		tlen += sizeof (struct tcpiphdr);
 		ip->ip_len = tlen;
@@ -583,6 +591,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		if (V_path_mtu_discovery)
 			ip->ip_off |= IP_DF;
 	}
+#endif
 	m->m_len = tlen;
 	m->m_pkthdr.len = tlen;
 	m->m_pkthdr.rcvif = NULL;
@@ -620,14 +629,19 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 					tlen - sizeof(struct ip6_hdr));
 		ip6->ip6_hlim = in6_selecthlim(tp != NULL ? tp->t_inpcb :
 		    NULL, NULL);
-	} else
+	}
 #endif /* INET6 */
+#if defined(INET6) && defined(INET)
+	else
+#endif
+#ifdef INET
 	{
 		nth->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
 		    htons((u_short)(tlen - sizeof(struct ip) + ip->ip_p)));
 		m->m_pkthdr.csum_flags = CSUM_TCP;
 		m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 	}
+#endif /* INET */
 #ifdef TCPDEBUG
 	if (tp == NULL || (inp->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_OUTPUT, 0, tp, mtod(m, void *), th, 0);
@@ -635,9 +649,13 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 #ifdef INET6
 	if (isipv6)
 		(void) ip6_output(m, NULL, NULL, ipflags, NULL, NULL, inp);
-	else
 #endif /* INET6 */
-	(void) ip_output(m, NULL, NULL, ipflags, NULL, inp);
+#if defined(INET) && defined(INET6)
+	else
+#endif
+#ifdef INET
+		(void) ip_output(m, NULL, NULL, ipflags, NULL, inp);
+#endif
 }
 
 /*
@@ -1200,6 +1218,7 @@ SYSCTL_PROC(_net_inet_tcp, TCPCTL_PCBLIST, pcblist,
     CTLTYPE_OPAQUE | CTLFLAG_RD, NULL, 0,
     tcp_pcblist, "S,xtcpcb", "List of active TCP connections");
 
+#ifdef INET
 static int
 tcp_getcred(SYSCTL_HANDLER_ARGS)
 {
@@ -1239,6 +1258,7 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, getcred,
     CTLTYPE_OPAQUE|CTLFLAG_RW|CTLFLAG_PRISON, 0, 0,
     tcp_getcred, "S,xucred", "Get the xucred of a TCP connection");
+#endif /* INET */
 
 #ifdef INET6
 static int
@@ -1247,7 +1267,10 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 	struct xucred xuc;
 	struct sockaddr_in6 addrs[2];
 	struct inpcb *inp;
-	int error, mapped = 0;
+	int error;
+#ifdef INET
+	int mapped = 0;
+#endif
 
 	error = priv_check(req->td, PRIV_NETINET_GETCRED);
 	if (error)
@@ -1260,13 +1283,16 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 		return (error);
 	}
 	if (IN6_IS_ADDR_V4MAPPED(&addrs[0].sin6_addr)) {
+#ifdef INET
 		if (IN6_IS_ADDR_V4MAPPED(&addrs[1].sin6_addr))
 			mapped = 1;
 		else
+#endif
 			return (EINVAL);
 	}
 
 	INP_INFO_RLOCK(&V_tcbinfo);
+#ifdef INET
 	if (mapped == 1)
 		inp = in_pcblookup_hash(&V_tcbinfo,
 			*(struct in_addr *)&addrs[1].sin6_addr.s6_addr[12],
@@ -1275,6 +1301,7 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 			addrs[0].sin6_port,
 			0, NULL);
 	else
+#endif
 		inp = in6_pcblookup_hash(&V_tcbinfo,
 			&addrs[1].sin6_addr, addrs[1].sin6_port,
 			&addrs[0].sin6_addr, addrs[0].sin6_port, 0, NULL);
@@ -1300,9 +1327,10 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net_inet6_tcp6, OID_AUTO, getcred,
     CTLTYPE_OPAQUE|CTLFLAG_RW|CTLFLAG_PRISON, 0, 0,
     tcp6_getcred, "S,xucred", "Get the xucred of a TCP6 connection");
-#endif
+#endif /* INET6 */
 
 
+#ifdef INET
 void
 tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
@@ -1415,6 +1443,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	} else
 		in_pcbnotifyall(&V_tcbinfo, faddr, inetctlerrmap[cmd], notify);
 }
+#endif /* INET */
 
 #ifdef INET6
 void
@@ -1694,6 +1723,7 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 	return (inp);
 }
 
+#ifdef INET
 /*
  * Look-up the routing entry to the peer of this inpcb.  If no route
  * is found and it cannot be allocated, then return 0.  This routine
@@ -1735,6 +1765,7 @@ tcp_maxmtu(struct in_conninfo *inc, int *flags)
 	}
 	return (maxmtu);
 }
+#endif /* INET */
 
 #ifdef INET6
 u_long
@@ -1858,11 +1889,15 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
     u_char *buf, u_int direction)
 {
 	union sockaddr_union dst;
+#ifdef INET
 	struct ippseudo ippseudo;
+#endif
 	MD5_CTX ctx;
 	int doff;
 	struct ip *ip;
+#ifdef INET
 	struct ipovly *ipovly;
+#endif
 	struct secasvar *sav;
 	struct tcphdr *th;
 #ifdef INET6
@@ -1884,12 +1919,14 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 	ip6 = NULL;	/* Make the compiler happy. */
 #endif
 	switch (ip->ip_v) {
+#ifdef INET
 	case IPVERSION:
 		dst.sa.sa_len = sizeof(struct sockaddr_in);
 		dst.sa.sa_family = AF_INET;
 		dst.sin.sin_addr = (direction == IPSEC_DIR_INBOUND) ?
 		    ip->ip_src : ip->ip_dst;
 		break;
+#endif
 #ifdef INET6
 	case (IPV6_VERSION >> 4):
 		ip6 = mtod(m, struct ip6_hdr *);
@@ -1929,6 +1966,7 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 	 * tcp_output(), the underlying ip_len member has not yet been set.
 	 */
 	switch (ip->ip_v) {
+#ifdef INET
 	case IPVERSION:
 		ipovly = (struct ipovly *)ip;
 		ippseudo.ippseudo_src = ipovly->ih_src;
@@ -1942,6 +1980,7 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 		th = (struct tcphdr *)((u_char *)ip + sizeof(struct ip));
 		doff = sizeof(struct ip) + sizeof(struct tcphdr) + optlen;
 		break;
+#endif
 #ifdef INET6
 	/*
 	 * RFC 2385, 2.0  Proposal
@@ -2122,6 +2161,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 			return (error);
 		break;
 #endif
+#ifdef INET
 	case AF_INET:
 		fin = (struct sockaddr_in *)&addrs[0];
 		lin = (struct sockaddr_in *)&addrs[1];
@@ -2129,6 +2169,7 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 		    lin->sin_len != sizeof(struct sockaddr_in))
 			return (EINVAL);
 		break;
+#endif
 	default:
 		return (EINVAL);
 	}
@@ -2141,10 +2182,12 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 		    NULL);
 		break;
 #endif
+#ifdef INET
 	case AF_INET:
 		inp = in_pcblookup_hash(&V_tcbinfo, fin->sin_addr,
 		    fin->sin_port, lin->sin_addr, lin->sin_port, 0, NULL);
 		break;
+#endif
 	}
 	if (inp != NULL) {
 		INP_WLOCK(inp);
@@ -2272,6 +2315,7 @@ tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 		sp = s + strlen(s);
 		sprintf(sp, "]:%i", ntohs(th->th_dport));
 #endif /* INET6 */
+#ifdef INET
 	} else if (ip && th) {
 		inet_ntoa_r(ip->ip_src, sp);
 		sp = s + strlen(s);
@@ -2280,6 +2324,7 @@ tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 		inet_ntoa_r(ip->ip_dst, sp);
 		sp = s + strlen(s);
 		sprintf(sp, "]:%i", ntohs(th->th_dport));
+#endif /* INET */
 	} else {
 		free(s, M_TCPLOG);
 		return (NULL);
