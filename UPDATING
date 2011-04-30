@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20110430:
+	Users of the Atheros AR71xx SoC code now need to add 'device ar71xx_pci'
+	into their kernel configurations along with 'device pci'.
+
 20110427:
 	The default NFS client is now the new NFS client, so fstype "newnfs"
 	is now "nfs" and the regular/old NFS client is now fstype "oldnfs".
