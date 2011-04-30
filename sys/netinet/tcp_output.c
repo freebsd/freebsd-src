@@ -173,7 +173,7 @@ tcp_output(struct tcpcb *tp)
 {
 	struct socket *so = tp->t_inpcb->inp_socket;
 	long len, recwin, sendwin;
-	int off, flags, error;
+	int off, flags, error = 0;	/* Keep compiler happy */
 	struct mbuf *m;
 	struct ip *ip = NULL;
 	struct ipovly *ipov = NULL;
@@ -659,7 +659,7 @@ send:
 		hdrlen = sizeof (struct ip6_hdr) + sizeof (struct tcphdr);
 	else
 #endif
-	hdrlen = sizeof (struct tcpiphdr);
+		hdrlen = sizeof (struct tcpiphdr);
 
 	/*
 	 * Compute options for segment.
@@ -866,7 +866,7 @@ send:
 				goto out;
 			}
 		}
-#endif
+#endif /* notyet */
 		/*
 		 * If we're sending everything we've got, set PUSH.
 		 * (This will keep happy those implementations which only
@@ -1189,7 +1189,7 @@ timer:
 #endif
 		ipov->ih_len = save;
 	}
-#endif
+#endif /* TCPDEBUG */
 
 	/*
 	 * Fill in IP length and desired time to live and
@@ -1216,8 +1216,12 @@ timer:
 			    tp->t_inpcb->in6p_outputopts, NULL,
 			    ((so->so_options & SO_DONTROUTE) ?
 			    IP_ROUTETOIF : 0), NULL, NULL, tp->t_inpcb);
-	} else
+	}
 #endif /* INET6 */
+#if defined(INET) && defined(INET6)
+	else
+#endif
+#ifdef INET
     {
 	ip->ip_len = m->m_pkthdr.len;
 #ifdef INET6
@@ -1239,6 +1243,7 @@ timer:
 	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0,
 	    tp->t_inpcb);
     }
+#endif /* INET */
 	if (error) {
 
 		/*
