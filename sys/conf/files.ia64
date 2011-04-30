@@ -92,6 +92,7 @@ ia64/ia64/locore.S		standard	no-obj
 ia64/ia64/machdep.c		standard
 ia64/ia64/mca.c			standard
 ia64/ia64/mem.c			optional	mem
+ia64/ia64/mp_locore.S		optional	smp
 ia64/ia64/mp_machdep.c		optional	smp
 ia64/ia64/nexus.c		standard
 ia64/ia64/pal.S			standard

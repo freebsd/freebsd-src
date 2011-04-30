@@ -101,10 +101,6 @@ ia64_sal_init(void)
 		}
 		case 5: {
 			struct sal_ap_wakeup_descriptor *dp;
-#ifdef SMP
-			struct ia64_sal_result result;
-			struct ia64_fdesc *fd;
-#endif
 
 			dp = (struct sal_ap_wakeup_descriptor*)p;
 			if (dp->sale_mechanism != 0) {
@@ -126,14 +122,6 @@ ia64_sal_init(void)
 			if (bootverbose)
 				printf("SAL: AP wake-up XIV: %#x\n",
 				    ia64_ipi_wakeup);
-
-#ifdef SMP
-			fd = (struct ia64_fdesc *) os_boot_rendez;
-			result = ia64_sal_entry(SAL_SET_VECTORS,
-			    SAL_OS_BOOT_RENDEZ, ia64_tpa(fd->func),
-			    ia64_tpa(fd->gp), 0, 0, 0, 0);
-#endif
-
 			break;
 		}
 		}
