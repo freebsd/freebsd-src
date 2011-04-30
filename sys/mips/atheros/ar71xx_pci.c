@@ -500,6 +500,9 @@ ar71xx_pci_intr(void *arg)
 				continue;
 			}
 
+			/* Flush DDR FIFO for IP2 */
+			ar71xx_device_ddr_flush_ip2();
+
 			/* TODO: frame instead of NULL? */
 			intr_event_handle(event, NULL);
 			mips_intrcnt_inc(sc->sc_intr_counter[irq]);
