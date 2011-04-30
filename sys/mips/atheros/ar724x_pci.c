@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/atheros/ar71xx_cpudef.h>
 
-#define	AR724X_PCI_DEBUG
+#undef	AR724X_PCI_DEBUG
 #ifdef AR724X_PCI_DEBUG
 #define dprintf printf
 #else
