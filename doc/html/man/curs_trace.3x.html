@@ -1,0 +1,186 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 2000-2009,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_trace.3x,v 1.12 2010/12/04 18:40:45 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_trace 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_trace 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_trace.3x.html">curs_trace(3x)</A></STRONG>                                           <STRONG><A HREF="curs_trace.3x.html">curs_trace(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>_tracef</STRONG>, <STRONG>_tracedump</STRONG>, <STRONG>_traceattr</STRONG>, <STRONG>_traceattr2</STRONG>,
+       <STRONG>_nc_tracebits</STRONG>, <STRONG>_tracecchar_t</STRONG>, <STRONG>_tracecchar_t2</STRONG>, <STRONG>_tracechar</STRONG>,
+       <STRONG>_tracechtype</STRONG>, <STRONG>_tracechtype2</STRONG>, <STRONG>_tracemouse</STRONG>, <STRONG>trace</STRONG> - <STRONG>curses</STRONG>
+       debugging routines
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>void</STRONG> <STRONG>_tracef(const</STRONG> <STRONG>char</STRONG> <STRONG>*format,</STRONG> <STRONG>...);</STRONG>
+       <STRONG>void</STRONG> <STRONG>_tracedump(const</STRONG> <STRONG>char</STRONG> <STRONG>*label,</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*_traceattr(attr_t</STRONG> <STRONG>attr);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*_traceattr2(int</STRONG> <STRONG>buffer,</STRONG> <STRONG>chtype</STRONG> <STRONG>ch);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*_nc_tracebits(void);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*</STRONG> <STRONG>_tracecchar_t(const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*string);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*</STRONG> <STRONG>_tracecchar_t2(int</STRONG> <STRONG>buffer,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*string);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*_tracechar(int</STRONG> <STRONG>ch);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*_tracechtype(chtype</STRONG> <STRONG>ch);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*_tracechtype2(int</STRONG> <STRONG>buffer,</STRONG> <STRONG>chtype</STRONG> <STRONG>ch);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*_tracemouse(const</STRONG> <STRONG>MEVENT</STRONG> <STRONG>*event);</STRONG>
+       <STRONG>void</STRONG> <STRONG>trace(const</STRONG> <STRONG>unsigned</STRONG> <STRONG>int</STRONG> <STRONG>param);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The <STRONG>trace</STRONG> routines are used for debugging the ncurses  li-
+       braries, as well as applications which use the ncurses li-
+       braries.  These functions are normally available only with
+       the  debugging library <EM>libncurses</EM><STRONG>_</STRONG><EM>g.a</EM>, but may be compiled
+       into any model (shared, static, profile) by  defining  the
+       symbol  <STRONG>TRACE</STRONG>.   Additionally,  some  functions  are  only
+       available with the wide-character configuration of the li-
+       braries.
+
+       The  principal  parts of this interface are the <STRONG>trace</STRONG> rou-
+       tine which selectively enables different tracing features,
+       and the <STRONG>_tracef</STRONG> routine which writes formatted data to the
+       <EM>trace</EM> file.
+
+       Calling <STRONG>trace</STRONG> with a  nonzero  parameter  opens  the  file
+       <STRONG>trace</STRONG>  in the current directory for output.  The parameter
+       is formed by OR'ing values from the list of <STRONG>TRACE_</STRONG><EM>xxx</EM> def-
+       initions in <STRONG>&lt;curses.h&gt;</STRONG>.  These include:
+
+       TRACE_DISABLE
+            turn off tracing.
+
+       TRACE_TIMES
+            trace user and system times of updates.
+
+       TRACE_TPUTS
+            trace tputs calls.
+
+       TRACE_UPDATE
+            trace update actions, old &amp; new screens.
+
+       TRACE_MOVE
+            trace cursor movement and scrolling.
+
+       TRACE_CHARPUT
+            trace all character outputs.
+
+       TRACE_ORDINARY
+            trace  all  update  actions.   The old and new screen
+            contents are written to the trace file for  each  re-
+            fresh.
+
+       TRACE_CALLS
+            trace all curses calls.  The parameters for each call
+            are traced, as well as return values.
+
+       TRACE_VIRTPUT
+            trace virtual character puts, i.e., calls to <STRONG>addch</STRONG>.
+
+       TRACE_IEVENT
+            trace low-level input processing, including timeouts.
+
+       TRACE_BITS
+            trace state of TTY control bits.
+
+       TRACE_ICALLS
+            trace internal/nested calls.
+
+       TRACE_CCALLS
+            trace per-character calls.
+
+       TRACE_DATABASE
+            trace read/write of terminfo/termcap data.
+
+       TRACE_ATTRS
+            trace changes to video attributes and colors.
+
+       TRACE_MAXIMUM
+            maximum trace level,  enables  all  of  the  separate
+            trace features.
+
+       Some  tracing  features are enabled whenever the <STRONG>trace</STRONG> pa-
+       rameter is nonzero.  Some features overlap.  The  specific
+       names are used as a guideline.
+
+       These  functions check the <STRONG>NCURSES_TRACE</STRONG> environment vari-
+       able, to set the tracing feature as if <STRONG>trace</STRONG> was called:
+              filter,  initscr,  new_prescr,  newterm,  nofilter,
+              ripoffline, setupterm, slk_init, tgetent
+
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       Routines  which  return a value are designed to be used as
+       parameters to the <STRONG>_tracef</STRONG> routine.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       These functions are not part of the XSI  interface.   Some
+       other  curses  implementations  are known to have similar,
+       undocumented features, but they are  not  compatible  with
+       ncurses.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>.
+
+
+
+                                                         <STRONG><A HREF="curs_trace.3x.html">curs_trace(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

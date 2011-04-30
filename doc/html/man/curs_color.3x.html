@@ -1,0 +1,285 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_color.3x,v 1.35 2010/12/20 00:50:58 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_color 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_color 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_color.3x.html">curs_color(3x)</A></STRONG>                                           <STRONG><A HREF="curs_color.3x.html">curs_color(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>start_color</STRONG>, <STRONG>init_pair</STRONG>, <STRONG>init_color</STRONG>, <STRONG>has_colors</STRONG>,
+       <STRONG>can_change_color</STRONG>, <STRONG>color_content</STRONG>, <STRONG>pair_content</STRONG>, <STRONG>COLOR_PAIR</STRONG>
+       - <STRONG>curses</STRONG> color manipulation routines
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#</STRONG> <STRONG>include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>start_color(void);</STRONG>
+       <STRONG>int</STRONG> <STRONG>init_pair(short</STRONG> <STRONG>pair,</STRONG> <STRONG>short</STRONG> <STRONG>f,</STRONG> <STRONG>short</STRONG> <STRONG>b);</STRONG>
+       <STRONG>int</STRONG> <STRONG>init_color(short</STRONG> <STRONG>color,</STRONG> <STRONG>short</STRONG> <STRONG>r,</STRONG> <STRONG>short</STRONG> <STRONG>g,</STRONG> <STRONG>short</STRONG> <STRONG>b);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>has_colors(void);</STRONG>
+       <STRONG>bool</STRONG> <STRONG>can_change_color(void);</STRONG>
+       <STRONG>int</STRONG>  <STRONG>color_content(short</STRONG>  <STRONG>color,</STRONG> <STRONG>short</STRONG> <STRONG>*r,</STRONG> <STRONG>short</STRONG> <STRONG>*g,</STRONG> <STRONG>short</STRONG>
+       <STRONG>*b);</STRONG>
+       <STRONG>int</STRONG> <STRONG>pair_content(short</STRONG> <STRONG>pair,</STRONG> <STRONG>short</STRONG> <STRONG>*f,</STRONG> <STRONG>short</STRONG> <STRONG>*b);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+   <STRONG>Overview</STRONG>
+       <STRONG>curses</STRONG> support color attributes on terminals with that ca-
+       pability.   To  use  these  routines  <STRONG>start_color</STRONG>  must be
+       called, usually right after <STRONG>initscr</STRONG>.   Colors  are  always
+       used  in pairs (referred to as color-pairs).  A color-pair
+       consists of a foreground  color  (for  characters)  and  a
+       background color (for the blank field on which the charac-
+       ters are displayed).  A programmer  initializes  a  color-
+       pair  with  the routine <STRONG>init_pair</STRONG>.  After it has been ini-
+       tialized, <STRONG>COLOR_PAIR</STRONG>(<EM>n</EM>), a macro  defined  in  <STRONG>&lt;curses.h&gt;</STRONG>,
+       can be used as a new video attribute.
+
+       If  a  terminal  is capable of redefining colors, the pro-
+       grammer can use the routine <STRONG>init_color</STRONG> to change the defi-
+       nition   of   a   color.    The  routines  <STRONG>has_colors</STRONG>  and
+       <STRONG>can_change_color</STRONG>  return  <STRONG>TRUE</STRONG>  or  <STRONG>FALSE</STRONG>,  depending   on
+       whether  the  terminal  has color capabilities and whether
+       the programmer can change the colors.   The  routine  <STRONG>col-</STRONG>
+       <STRONG>or_content</STRONG>  allows  a programmer to extract the amounts of
+       red, green, and blue components in an  initialized  color.
+       The  routine  <STRONG>pair_content</STRONG> allows a programmer to find out
+       how a given color-pair is currently defined.
+
+   <STRONG>Routine</STRONG> <STRONG>Descriptions</STRONG>
+       The <STRONG>start_color</STRONG> routine requires no arguments.  It must be
+       called  if  the programmer wants to use colors, and before
+       any other color manipulation routine  is  called.   It  is
+       good  practice  to  call this routine right after <STRONG>initscr</STRONG>.
+       <STRONG>start_color</STRONG> initializes eight basic  colors  (black,  red,
+       green,  yellow,  blue,  magenta, cyan, and white), and two
+       global variables,  <STRONG>COLORS</STRONG>  and  <STRONG>COLOR_PAIRS</STRONG>  (respectively
+       defining  the maximum number of colors and color-pairs the
+       terminal can support).  It also restores the colors on the
+       terminal to the values they had when the terminal was just
+       turned on.
+
+       The <STRONG>init_pair</STRONG> routine changes the definition of  a  color-
+       pair.   It takes three arguments: the number of the color-
+       pair to be changed, the foreground color number,  and  the
+       background color number.  For portable applications:
+
+       <STRONG>o</STRONG>   The  value of the first argument must be between <STRONG>1</STRONG> and
+           <STRONG>COLOR_PAIRS-1</STRONG>, except that if default colors are  used
+           (see  <STRONG>use_default_colors</STRONG>)  the upper limit is adjusted
+           to allow for extra pairs which use a default color  in
+           foreground and/or background.
+
+       <STRONG>o</STRONG>   The  value  of  the second and third arguments must be
+           between 0 and <STRONG>COLORS</STRONG>.  Color pair 0 is assumed  to  be
+           white  on black, but is actually whatever the terminal
+           implements before color is initialized.  It cannot  be
+           modified by the application.
+
+       If  the  color-pair was previously initialized, the screen
+       is refreshed and all occurrences of  that  color-pair  are
+       changed to the new definition.
+
+       As  an  extension,  ncurses allows you to set color pair 0
+       via the <STRONG>assume_default_colors</STRONG> routine, or to  specify  the
+       use  of  default colors (color number <STRONG>-1</STRONG>) if you first in-
+       voke the <STRONG>use_default_colors</STRONG> routine.
+
+       The <STRONG>init_color</STRONG> routine changes the definition of a  color.
+       It  takes  four  arguments:  the number of the color to be
+       changed followed by three RGB values (for the  amounts  of
+       red,  green, and blue components).  The value of the first
+       argument must be between <STRONG>0</STRONG> and <STRONG>COLORS</STRONG>.  (See  the  section
+       <STRONG>Colors</STRONG>  for  the  default  color index.)  Each of the last
+       three arguments must be a value between 0 and 1000.   When
+       <STRONG>init_color</STRONG>  is  used, all occurrences of that color on the
+       screen immediately change to the new definition.
+
+       The <STRONG>has_colors</STRONG> routine requires no arguments.  It  returns
+       <STRONG>TRUE</STRONG>  if the terminal can manipulate colors; otherwise, it
+       returns <STRONG>FALSE</STRONG>.  This routine facilitates writing terminal-
+       independent  programs.   For example, a programmer can use
+       it to decide whether to use color or some other video  at-
+       tribute.
+
+       The  <STRONG>can_change_color</STRONG>  routine  requires no arguments.  It
+       returns <STRONG>TRUE</STRONG> if  the  terminal  supports  colors  and  can
+       change  their  definitions; other, it returns <STRONG>FALSE</STRONG>.  This
+       routine facilitates writing terminal-independent programs.
+
+       The <STRONG>color_content</STRONG> routine gives programmers a way to  find
+       the intensity of the red, green, and blue (RGB) components
+       in a color.  It requires four arguments: the color number,
+       and  three addresses of <STRONG>short</STRONG>s for storing the information
+       about the amounts of red, green, and  blue  components  in
+       the  given color.  The value of the first argument must be
+       between 0 and <STRONG>COLORS</STRONG>.  The values that are stored  at  the
+       addresses  pointed  to by the last three arguments are be-
+       tween 0 (no component) and 1000 (maximum amount of  compo-
+       nent).
+
+       The  <STRONG>pair_content</STRONG>  routine  allows programmers to find out
+       what colors a given color-pair consists of.   It  requires
+       three  arguments: the color-pair number, and two addresses
+       of <STRONG>short</STRONG>s for storing the foreground  and  the  background
+       color  numbers.   The  value of the first argument must be
+       between 1 and <STRONG>COLOR_PAIRS-1</STRONG>.  The values that  are  stored
+       at  the addresses pointed to by the second and third argu-
+       ments are between 0 and <STRONG>COLORS</STRONG>.
+
+   <STRONG>Colors</STRONG>
+       In <STRONG>&lt;curses.h&gt;</STRONG> the following macros are defined.  These are
+       the  default colors.  <STRONG>curses</STRONG> also assumes that <STRONG>COLOR_BLACK</STRONG>
+       is the default background color for all terminals.
+
+             <STRONG>COLOR_BLACK</STRONG>
+             <STRONG>COLOR_RED</STRONG>
+             <STRONG>COLOR_GREEN</STRONG>
+             <STRONG>COLOR_YELLOW</STRONG>
+             <STRONG>COLOR_BLUE</STRONG>
+             <STRONG>COLOR_MAGENTA</STRONG>
+             <STRONG>COLOR_CYAN</STRONG>
+             <STRONG>COLOR_WHITE</STRONG>
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       The routines <STRONG>can_change_color()</STRONG>  and  <STRONG>has_colors()</STRONG>  return
+       <STRONG>TRUE</STRONG> or <STRONG>FALSE</STRONG>.
+
+       All other routines return the integer <STRONG>ERR</STRONG> upon failure and
+       an <STRONG>OK</STRONG> (SVr4 specifies only "an integer  value  other  than
+       <STRONG>ERR</STRONG>") upon successful completion.
+
+       X/Open  defines  no error conditions.  This implementation
+       will return <STRONG>ERR</STRONG> on attempts to use  color  values  outside
+       the range 0 to COLORS-1 (except for the default colors ex-
+       tension), or use color pairs outside the range 0  to  COL-
+       OR_PAIRS-1.   Color  values  used in <STRONG>init_color</STRONG> must be in
+       the range 0 to 1000.  An error is returned from all  func-
+       tions  if the terminal has not been initialized.  An error
+       is returned from secondary functions such as <STRONG>init_pair</STRONG>  if
+       <STRONG>start_color</STRONG> was not called.
+
+          <STRONG>init_color</STRONG>
+               returns  an error if the terminal does not support
+               this feature, e.g., if the <EM>initialize</EM><STRONG>_</STRONG><EM>color</EM>  capa-
+               bility is absent from the terminal description.
+
+          <STRONG>start_color</STRONG>
+               returns  an error if the color table cannot be al-
+               located.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       In the <EM>ncurses</EM> implementation, there is a  separate  color
+       activation flag, color palette, color pairs table, and as-
+       sociated COLORS and COLOR_PAIRS counts  for  each  screen;
+       the  <STRONG>start_color</STRONG> function only affects the current screen.
+       The SVr4/XSI interface is not really designed with this in
+       mind,  and  historical  implementations  may  use a single
+       shared color palette.
+
+       Note that setting an implicit background color via a color
+       pair  affects  only character cells that a character write
+       operation explicitly touches.  To  change  the  background
+       color  used  when parts of a window are blanked by erasing
+       or scrolling operations, see <STRONG><A HREF="curs_bkgd.3x.html">curs_bkgd(3x)</A></STRONG>.
+
+       Several caveats apply on 386 and 486  machines  with  VGA-
+       compatible graphics:
+
+       <STRONG>o</STRONG>   COLOR_YELLOW  is  actually  brown.  To get yellow, use
+           COLOR_YELLOW combined with the <STRONG>A_BOLD</STRONG> attribute.
+
+       <STRONG>o</STRONG>   The A_BLINK attribute should in theory cause the back-
+           ground  to  go  bright.  This often fails to work, and
+           even some cards for which it mostly works (such as the
+           Paradise  and compatibles) do the wrong thing when you
+           try to set a bright "yellow"  background  (you  get  a
+           blinking yellow foreground instead).
+
+       <STRONG>o</STRONG>   Color RGB values are not settable.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       This  implementation  satisfies XSI Curses's minimum maxi-
+       mums for <STRONG>COLORS</STRONG> and <STRONG>COLOR_PAIRS</STRONG>.
+
+       The <STRONG>init_pair</STRONG> routine accepts  negative  values  of  fore-
+       ground   and  background  color  to  support  the  <STRONG>use_de-</STRONG>
+       <STRONG>fault_colors</STRONG> extension, but only if that routine has  been
+       first invoked.
+
+       The  assumption that <STRONG>COLOR_BLACK</STRONG> is the default background
+       color for all terminals can  be  modified  using  the  <STRONG>as-</STRONG>
+       <STRONG>sume_default_colors</STRONG> extension.
+
+       This  implementation  checks  the  pointers, e.g., for the
+       values returned by  <STRONG>color_content</STRONG>  and  <STRONG>pair_content</STRONG>,  and
+       will treat those as optional parameters when null.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,  <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>,  <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>,  <STRONG>curs_vari-</STRONG>
+       <STRONG><A HREF="curs_variables.3x.html">ables(3x)</A></STRONG>, <STRONG><A HREF="default_colors.3x.html">default_colors(3x)</A></STRONG>
+
+
+
+                                                         <STRONG><A HREF="curs_color.3x.html">curs_color(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

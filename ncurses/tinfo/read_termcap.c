@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -56,9 +56,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <tic.h>
-#include <term_entry.h>
 
-MODULE_ID("$Id: read_termcap.c,v 1.71 2006/07/29 12:06:51 tom Exp $")
+MODULE_ID("$Id: read_termcap.c,v 1.74 2010/01/23 17:57:43 tom Exp $")
 
 #if !PURE_TERMINFO
 
@@ -79,6 +78,15 @@ get_termpath(void)
     return result;
 }
 
+/*
+ * Note:
+ * getcap(), cgetent(), etc., are BSD functions.  A copy of those was added to
+ * this file in November 1995, derived from the BSD4.4 Lite sources.
+ *
+ * The initial adaptation uses 518 lines from that source.
+ * The current source (in 2009) uses 183 lines of BSD4.4 Lite (441 ignoring
+ * whitespace).
+ */
 #if USE_GETCAP
 
 #if HAVE_BSD_CGETENT
@@ -107,11 +115,7 @@ static int _nc_nfcmp(const char *, char *);
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgment:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *

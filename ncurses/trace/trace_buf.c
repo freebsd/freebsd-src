@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +35,9 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: trace_buf.c,v 1.14 2008/08/03 15:13:56 tom Exp $")
+MODULE_ID("$Id: trace_buf.c,v 1.17 2011/01/22 19:48:16 tom Exp $")
+
+#ifdef TRACE
 
 #define MyList _nc_globals.tracebuf_ptr
 #define MySize _nc_globals.tracebuf_used
@@ -47,7 +49,7 @@ _nc_trace_alloc(int bufnum, size_t want)
 
     if (bufnum >= 0) {
 	if ((size_t) (bufnum + 1) > MySize) {
-	    size_t need = (bufnum + 1) * 2;
+	    size_t need = (size_t) (bufnum + 1) * 2;
 	    if ((MyList = typeRealloc(TRACEBUF, need, MyList)) != 0) {
 		while (need > MySize)
 		    MyList[MySize++].text = 0;
@@ -112,3 +114,6 @@ _nc_trace_bufcat(int bufnum, const char *value)
     }
     return buffer;
 }
+#else
+EMPTY_MODULE(_nc_empty_trace_buf)
+#endif /* TRACE */

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,23 +38,16 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_tracemse.c,v 1.15 2008/08/03 15:39:29 tom Exp $")
+MODULE_ID("$Id: lib_tracemse.c,v 1.18 2011/01/22 19:48:08 tom Exp $")
 
 #ifdef TRACE
 
 #define my_buffer sp->tracemse_buf
 
-NCURSES_EXPORT(char *)
-_nc_tracemouse(SCREEN *sp, MEVENT const *ep)
+static char *
+_trace_mmask_t(SCREEN *sp, mmask_t code)
 {
-    (void) sprintf(my_buffer, TRACEMSE_FMT,
-		   ep->id,
-		   ep->x,
-		   ep->y,
-		   ep->z,
-		   (unsigned long) ep->bstate);
-
-#define SHOW(m, s) if ((ep->bstate & m) == m) strcat(strcat(my_buffer, s), ", ")
+#define SHOW(m, s) if ((code & m) == m) strcat(strcat(my_buffer, s), ", ")
 
     SHOW(BUTTON1_RELEASED, "release-1");
     SHOW(BUTTON1_PRESSED, "press-1");
@@ -110,14 +103,37 @@ _nc_tracemouse(SCREEN *sp, MEVENT const *ep)
 
     if (my_buffer[strlen(my_buffer) - 1] == ' ')
 	my_buffer[strlen(my_buffer) - 2] = '\0';
+
+    return (my_buffer);
+}
+
+NCURSES_EXPORT(char *)
+_nc_tracemouse(SCREEN *sp, MEVENT const *ep)
+{
+    (void) sprintf(my_buffer, TRACEMSE_FMT,
+		   ep->id,
+		   ep->x,
+		   ep->y,
+		   ep->z,
+		   (unsigned long) ep->bstate);
+
+    (void) _trace_mmask_t(sp, ep->bstate);
     (void) strcat(my_buffer, "}");
     return (my_buffer);
+}
+
+NCURSES_EXPORT(mmask_t)
+_nc_retrace_mmask_t(SCREEN *sp, mmask_t code)
+{
+    *my_buffer = '\0';
+    T((T_RETURN("{%s}"), _trace_mmask_t(sp, code)));
+    return code;
 }
 
 NCURSES_EXPORT(char *)
 _tracemouse(MEVENT const *ep)
 {
-    return _nc_tracemouse(SP, ep);
+    return _nc_tracemouse(CURRENT_SCREEN, ep);
 }
 
 #else /* !TRACE */

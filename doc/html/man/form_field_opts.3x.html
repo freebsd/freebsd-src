@@ -1,0 +1,168 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  * t
+  ****************************************************************************
+  * Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: form_field_opts.3x,v 1.16 2010/12/04 18:41:07 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>form_field_opts 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>form_field_opts 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="form_field_opts.3x.html">form_field_opts(3x)</A></STRONG>                                 <STRONG><A HREF="form_field_opts.3x.html">form_field_opts(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>form_field_opts</STRONG> - set and get field options
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;form.h&gt;</STRONG>
+       int set_field_opts(FIELD *field, Field_Options opts);
+       int field_opts_on(FIELD *field, Field_Options opts);
+       int field_opts_off(FIELD *field, Field_Options opts);
+       Field_Options field_opts(const FIELD *field);
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The  function  <STRONG>set_field_opts</STRONG>  sets  all the given field's
+       option bits (field  option  bits  may  be  logically-OR'ed
+       together).
+
+       The function <STRONG>field_opts_on</STRONG> turns on the given option bits,
+       and leaves others alone.
+
+       The function <STRONG>field_opts_off</STRONG> turns  off  the  given  option
+       bits, and leaves others alone.
+
+       The function <STRONG>field_opts</STRONG> returns the field's current option
+       bits.
+
+       The following options are defined (all are on by default):
+
+       O_VISIBLE
+            The field is displayed.  If this option is off,  dis-
+            play of the field is suppressed.
+
+       O_ACTIVE
+            The  field  is  visited  during  processing.  If this
+            option is off, the field will  not  be  reachable  by
+            navigation  keys.  Please  notice  that  an invisible
+            field appears to be inactive also.
+
+       O_PUBLIC
+            The field contents are displayed as data is entered.
+
+       O_EDIT
+            The field can be edited.
+
+       O_WRAP
+            Words that do not fit on a line are  wrapped  to  the
+            next line.  Words are blank-separated.
+
+       O_BLANK
+            The  field is cleared whenever a character is entered
+            at the first position.
+
+       O_AUTOSKIP
+            Skip to the next field when this one fills.
+
+       O_NULLOK
+            Allow a blank field.
+
+       O_STATIC
+            Field buffers are fixed  to  field's  original  size.
+            Turn this option off to create a dynamic field.
+
+       O_PASSOK
+            Validate field only if modified by user.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       Except  for  <STRONG>field_opts</STRONG>,  each  routine returns one of the
+       following:
+
+       <STRONG>E_OK</STRONG> The routine succeeded.
+
+       <STRONG>E_BAD_ARGUMENT</STRONG>
+            Routine detected an incorrect or  out-of-range  argu-
+            ment.
+
+       <STRONG>E_CURRENT</STRONG>
+            The field is the current field.
+
+       <STRONG>E_SYSTEM_ERROR</STRONG>
+            System error occurred (see <STRONG>errno</STRONG>).
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="form.3x.html">form(3x)</A></STRONG>.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       The header file <STRONG>&lt;form.h&gt;</STRONG> automatically includes the header
+       file <STRONG>&lt;curses.h&gt;</STRONG>.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       These routines emulate the System V forms  library.   They
+       were not supported on Version 7 or BSD versions.
+
+
+</PRE>
+<H2>AUTHORS</H2><PRE>
+       Juergen  Pfeifer.   Manual  pages  and  adaptation for new
+       curses by Eric S. Raymond.
+
+
+
+                                                    <STRONG><A HREF="form_field_opts.3x.html">form_field_opts(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

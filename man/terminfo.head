@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: terminfo.head,v 1.16 2007/03/04 00:09:46 tom Exp $
+.\" $Id: terminfo.head,v 1.18 2010/07/31 16:08:48 tom Exp $
 .TH terminfo 5 "" "" "File Formats"
 .ds n 5
 .ds d @TERMINFO@
@@ -68,7 +68,7 @@ will move comments so they occur only between entries.
 .PP
 Newlines and leading tabs may be used for formatting entries for readability.
 These are removed from parsed entries.
-The \fB@INFOCMP@\ -f\fP option relies on this to format if-then-else expressions:
+The \fB@INFOCMP@\ \-f\fP option relies on this to format if-then-else expressions:
 the result can be read by \fB@TIC@\fP.
 .PP
 Terminal names (except for the last, verbose entry) should
@@ -78,7 +78,7 @@ have a root name, thus ``hp2621''.
 This name should not contain hyphens.
 Modes that the hardware can be in, or user preferences, should
 be indicated by appending a hyphen and a mode suffix.
-Thus, a vt100 in 132 column mode would be vt100-w.
+Thus, a vt100 in 132 column mode would be vt100\-w.
 The following suffixes should be used where possible:
 .PP
 .TS
@@ -86,19 +86,19 @@ center ;
 l c l
 l l l.
 \fBSuffix	Meaning	Example\fP
--\fInn\fP	Number of lines on the screen	aaa-60
--\fIn\fPp	Number of pages of memory	c100-4p
--am	With automargins (usually the default)	vt100-am
--m	Mono mode; suppress color       	ansi-m
--mc	Magic cookie; spaces when highlighting	wy30-mc
--na	No arrow keys (leave them in local)	c100-na
--nam	Without automatic margins       	vt100-nam
--nl	No status line                  	att4415-nl
--ns	No status line                  	hp2626-ns
--rv	Reverse video                   	c100-rv
--s	Enable status line              	vt100-s
--vb	Use visible bell instead of beep	wy370-vb
--w	Wide mode (> 80 columns, usually 132)	vt100-w
+\-\fInn\fP	Number of lines on the screen	aaa\-60
+\-\fIn\fPp	Number of pages of memory	c100\-4p
+\-am	With automargins (usually the default)	vt100\-am
+\-m	Mono mode; suppress color       	ansi\-m
+\-mc	Magic cookie; spaces when highlighting	wy30\-mc
+\-na	No arrow keys (leave them in local)	c100\-na
+\-nam	Without automatic margins       	vt100\-nam
+\-nl	No status line                  	att4415\-nl
+\-ns	No status line                  	hp2626\-ns
+\-rv	Reverse video                   	c100\-rv
+\-s	Enable status line              	vt100\-s
+\-vb	Use visible bell instead of beep	wy370\-vb
+\-w	Wide mode (> 80 columns, usually 132)	vt100\-w
 .TE
 .PP
 For more on terminal naming conventions, see the \fBterm(7)\fR manual page.

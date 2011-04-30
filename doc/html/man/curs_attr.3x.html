@@ -1,0 +1,267 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  * t
+  ****************************************************************************
+  * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_attr.3x,v 1.36 2010/12/04 18:36:44 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_attr 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_attr 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>                                             <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>attroff</STRONG>, <STRONG>wattroff</STRONG>, <STRONG>attron</STRONG>, <STRONG>wattron</STRONG>, <STRONG>attrset</STRONG>, <STRONG>wattrset</STRONG>,
+       <STRONG>color_set</STRONG>, <STRONG>wcolor_set</STRONG>, <STRONG>standend</STRONG>, <STRONG>wstandend</STRONG>, <STRONG>standout</STRONG>,
+       <STRONG>wstandout</STRONG>, <STRONG>attr_get</STRONG>, <STRONG>wattr_get</STRONG>, <STRONG>attr_off</STRONG>, <STRONG>wattr_off</STRONG>,
+       <STRONG>attr_on</STRONG>, <STRONG>wattr_on</STRONG>, <STRONG>attr_set</STRONG>, <STRONG>wattr_set</STRONG>, <STRONG>chgat</STRONG>, <STRONG>wchgat</STRONG>,
+       <STRONG>mvchgat</STRONG>, <STRONG>mvwchgat</STRONG>, <STRONG>PAIR_NUMBER</STRONG> - <STRONG>curses</STRONG> character and
+       window attribute control routines
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+       <STRONG>int</STRONG> <STRONG>attroff(int</STRONG> <STRONG>attrs);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wattroff(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>attrs);</STRONG>
+       <STRONG>int</STRONG> <STRONG>attron(int</STRONG> <STRONG>attrs);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wattron(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>attrs);</STRONG>
+       <STRONG>int</STRONG> <STRONG>attrset(int</STRONG> <STRONG>attrs);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wattrset(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>attrs);</STRONG>
+       <STRONG>int</STRONG> <STRONG>color_set(short</STRONG> <STRONG>color_pair_number,</STRONG> <STRONG>void*</STRONG> <STRONG>opts);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wcolor_set(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>short</STRONG> <STRONG>color_pair_number,</STRONG>
+             <STRONG>void*</STRONG> <STRONG>opts);</STRONG>
+       <STRONG>int</STRONG> <STRONG>standend(void);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wstandend(WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>int</STRONG> <STRONG>standout(void);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wstandout(WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>int</STRONG> <STRONG>attr_get(attr_t</STRONG> <STRONG>*attrs,</STRONG> <STRONG>short</STRONG> <STRONG>*pair,</STRONG> <STRONG>void</STRONG> <STRONG>*opts);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wattr_get(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>attr_t</STRONG> <STRONG>*attrs,</STRONG> <STRONG>short</STRONG> <STRONG>*pair,</STRONG>
+              <STRONG>void</STRONG> <STRONG>*opts);</STRONG>
+       <STRONG>int</STRONG> <STRONG>attr_off(attr_t</STRONG> <STRONG>attrs,</STRONG> <STRONG>void</STRONG> <STRONG>*opts);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wattr_off(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>attr_t</STRONG> <STRONG>attrs,</STRONG> <STRONG>void</STRONG> <STRONG>*opts);</STRONG>
+       <STRONG>int</STRONG> <STRONG>attr_on(attr_t</STRONG> <STRONG>attrs,</STRONG> <STRONG>void</STRONG> <STRONG>*opts);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wattr_on(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>attr_t</STRONG> <STRONG>attrs,</STRONG> <STRONG>void</STRONG> <STRONG>*opts);</STRONG>
+       <STRONG>int</STRONG> <STRONG>attr_set(attr_t</STRONG> <STRONG>attrs,</STRONG> <STRONG>short</STRONG> <STRONG>pair,</STRONG> <STRONG>void</STRONG> <STRONG>*opts);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wattr_set(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>attr_t</STRONG> <STRONG>attrs,</STRONG> <STRONG>short</STRONG> <STRONG>pair,</STRONG>  <STRONG>void</STRONG>
+       <STRONG>*opts);</STRONG>
+       <STRONG>int</STRONG> <STRONG>chgat(int</STRONG> <STRONG>n,</STRONG> <STRONG>attr_t</STRONG> <STRONG>attr,</STRONG> <STRONG>short</STRONG> <STRONG>color,</STRONG>
+             <STRONG>const</STRONG> <STRONG>void</STRONG> <STRONG>*opts)</STRONG>
+       <STRONG>int</STRONG> <STRONG>wchgat(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>n,</STRONG> <STRONG>attr_t</STRONG> <STRONG>attr,</STRONG>
+             <STRONG>short</STRONG> <STRONG>color,</STRONG> <STRONG>const</STRONG> <STRONG>void</STRONG> <STRONG>*opts)</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvchgat(int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>int</STRONG> <STRONG>n,</STRONG> <STRONG>attr_t</STRONG> <STRONG>attr,</STRONG>
+             <STRONG>short</STRONG> <STRONG>color,</STRONG> <STRONG>const</STRONG> <STRONG>void</STRONG> <STRONG>*opts)</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwchgat(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>int</STRONG> <STRONG>n,</STRONG>
+             <STRONG>attr_t</STRONG> <STRONG>attr,</STRONG> <STRONG>short</STRONG> <STRONG>color,</STRONG> <STRONG>const</STRONG> <STRONG>void</STRONG> <STRONG>*opts)</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       These  routines  manipulate  the current attributes of the
+       named window.  The current attributes of a window apply to
+       all characters that are written into the window with <STRONG>wadd-</STRONG>
+       <STRONG>ch</STRONG>, <STRONG>waddstr</STRONG> and <STRONG>wprintw</STRONG>.  Attributes are a property of the
+       character,   and  move  with  the  character  through  any
+       scrolling and insert/delete line/character operations.  To
+       the  extent  possible,  they  are displayed as appropriate
+       modifications to the graphic rendition of  characters  put
+       on the screen.
+
+       The  routine  <STRONG>attrset</STRONG>  sets  the current attributes of the
+       given window to <EM>attrs</EM>.  The routine <STRONG>attroff</STRONG> turns off  the
+       named  attributes  without turning any other attributes on
+       or off.  The routine <STRONG>attron</STRONG> turns on the named  attributes
+       without affecting any others.  The routine <STRONG>standout</STRONG> is the
+       same as <STRONG>attron(A_STANDOUT)</STRONG>.  The routine <STRONG>standend</STRONG>  is  the
+       same as <STRONG>attrset(A_NORMAL)</STRONG> or <STRONG>attrset(0)</STRONG>, that is, it turns
+       off all attributes.
+
+       The <STRONG>attrset</STRONG> and related routines do  not  affect  the  at-
+       tributes  used  when  erasing portions of the window.  See
+       <STRONG><A HREF="curs_bkgd.3x.html">curs_bkgd(3x)</A></STRONG> for functions which  modify  the  attributes
+       used for erasing and clearing.
+
+       The  routine <STRONG>color_set</STRONG> sets the current color of the given
+       window to the foreground/background combination  described
+       by  the  color_pair_number. The parameter opts is reserved
+       for future use, applications must supply a null pointer.
+
+       The routine <STRONG>wattr_get</STRONG> returns the  current  attribute  and
+       color pair for the given window; <STRONG>attr_get</STRONG> returns the cur-
+       rent attribute and color pair for <STRONG>stdscr</STRONG>.   The  remaining
+       <STRONG>attr_</STRONG>*  functions  operate  exactly like the corresponding
+       <STRONG>attr</STRONG>* functions, except that they take arguments  of  type
+       <STRONG>attr_t</STRONG> rather than <STRONG>int</STRONG>.
+
+       The routine <STRONG>chgat</STRONG> changes the attributes of a given number
+       of characters starting at the current cursor  location  of
+       <STRONG>stdscr</STRONG>.   It  does not update the cursor and does not per-
+       form wrapping.  A character count of -1  or  greater  than
+       the  remaining window width means to change attributes all
+       the way to the end of the current line.  The <STRONG>wchgat</STRONG>  func-
+       tion generalizes this to any window; the <STRONG>mvwchgat</STRONG> function
+       does a cursor move before acting.  In these functions, the
+       color  argument is a color-pair index (as in the first ar-
+       gument of <EM>init</EM><STRONG>_</STRONG><EM>pair</EM>, see <STRONG><A HREF="curs_color.3x.html">curs_color(3x)</A></STRONG>).  The <STRONG>opts</STRONG>  argu-
+       ment is not presently used, but is reserved for the future
+       (leave it <STRONG>NULL</STRONG>).
+
+   <STRONG>Attributes</STRONG>
+       The following video attributes, defined in <STRONG>&lt;curses.h&gt;</STRONG>, can
+       be passed to the routines <STRONG>attron</STRONG>, <STRONG>attroff</STRONG>, and <STRONG>attrset</STRONG>, or
+       OR'd with the characters passed to <STRONG>addch</STRONG>.
+
+
+        <STRONG>A_NORMAL</STRONG>        Normal display (no highlight)
+        <STRONG>A_STANDOUT</STRONG>      Best highlighting mode of the terminal.
+        <STRONG>A_UNDERLINE</STRONG>     Underlining
+        <STRONG>A_REVERSE</STRONG>       Reverse video
+        <STRONG>A_BLINK</STRONG>         Blinking
+        <STRONG>A_DIM</STRONG>           Half bright
+        <STRONG>A_BOLD</STRONG>          Extra bright or bold
+        <STRONG>A_PROTECT</STRONG>       Protected mode
+        <STRONG>A_INVIS</STRONG>         Invisible or blank mode
+        <STRONG>A_ALTCHARSET</STRONG>    Alternate character set
+        <STRONG>A_CHARTEXT</STRONG>      Bit-mask to extract a character
+        <STRONG>COLOR_PAIR(</STRONG><EM>n</EM><STRONG>)</STRONG>   Color-pair number <EM>n</EM>
+
+       The following macro is the reverse of <STRONG>COLOR_PAIR(</STRONG><EM>n</EM><STRONG>)</STRONG>:
+
+       <STRONG>PAIR_NUMBER(</STRONG><EM>attrs</EM>) Returns the pair number associated
+                          with the <STRONG>COLOR_PAIR(</STRONG><EM>n</EM><STRONG>)</STRONG> attribute.
+
+       The return values of many of these routines are not  mean-
+       ingful (they are implemented as macro-expanded assignments
+       and simply return their argument).  The SVr4  manual  page
+       claims (falsely) that these routines always return <STRONG>1</STRONG>.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       Note  that  <STRONG>attroff</STRONG>,  <STRONG>wattroff</STRONG>,  <STRONG>attron</STRONG>, <STRONG>wattron</STRONG>, <STRONG>attrset</STRONG>,
+       <STRONG>wattrset</STRONG>, <STRONG>standend</STRONG> and <STRONG>standout</STRONG> may be macros.
+
+       <STRONG>COLOR_PAIR</STRONG> values can only be OR'd with attributes if  the
+       pair  number  is  less  than 256.  The alternate functions
+       such as <STRONG>color_set</STRONG> can pass a color  pair  value  directly.
+       However,  ncurses  ABI 4 and 5 simply OR this value within
+       the alternate functions.  You must use ncurses  ABI  6  to
+       support more than 256 color pairs.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       These  functions are supported in the XSI Curses standard,
+       Issue 4.  The standard  defined  the  dedicated  type  for
+       highlights,  <STRONG>attr_t</STRONG>,  which is not defined in SVr4 curses.
+       The functions taking <STRONG>attr_t</STRONG> arguments  are  not  supported
+       under SVr4.
+
+       The XSI Curses standard states that whether the tradition-
+       al functions  <STRONG>attron</STRONG>/<STRONG>attroff</STRONG>/<STRONG>attrset</STRONG>  can  manipulate  at-
+       tributes  other  than  <STRONG>A_BLINK</STRONG>,  <STRONG>A_BOLD</STRONG>, <STRONG>A_DIM</STRONG>, <STRONG>A_REVERSE</STRONG>,
+       <STRONG>A_STANDOUT</STRONG>, or <STRONG>A_UNDERLINE</STRONG> is "unspecified".   Under  this
+       implementation  as  well  as  SVr4 curses, these functions
+       correctly manipulate all other  highlights  (specifically,
+       <STRONG>A_ALTCHARSET</STRONG>, <STRONG>A_PROTECT</STRONG>, and <STRONG>A_INVIS</STRONG>).
+
+       XSI  Curses added the new entry points, <STRONG>attr_get</STRONG>, <STRONG>attr_on</STRONG>,
+       <STRONG>attr_off</STRONG>, <STRONG>attr_set</STRONG>, <STRONG>wattr_on</STRONG>, <STRONG>wattr_off</STRONG>,  <STRONG>wattr_get</STRONG>,  <STRONG>wat-</STRONG>
+       <STRONG>tr_set</STRONG>.   These  are intended to work with a new series of
+       highlight macros prefixed with <STRONG>WA_</STRONG>.
+
+       Older versions of this library did not force an update  of
+       the  screen when changing the attributes.  Use <STRONG>touchwin</STRONG> to
+       force the screen to match the updated attributes.
+
+
+        <STRONG>WA_NORMAL</STRONG>       Normal display (no highlight)
+        <STRONG>WA_STANDOUT</STRONG>     Best highlighting mode of the terminal.
+        <STRONG>WA_UNDERLINE</STRONG>    Underlining
+        <STRONG>WA_REVERSE</STRONG>      Reverse video
+        <STRONG>WA_BLINK</STRONG>        Blinking
+        <STRONG>WA_DIM</STRONG>          Half bright
+        <STRONG>WA_BOLD</STRONG>         Extra bright or bold
+        <STRONG>WA_ALTCHARSET</STRONG>   Alternate character set
+
+       The XSI curses standard specifies that each pair of corre-
+       sponding  <STRONG>A_</STRONG>  and <STRONG>WA_</STRONG>-using functions operates on the same
+       current-highlight information.
+
+       The XSI standard extended conformance level adds new high-
+       lights <STRONG>A_HORIZONTAL</STRONG>, <STRONG>A_LEFT</STRONG>, <STRONG>A_LOW</STRONG>, <STRONG>A_RIGHT</STRONG>, <STRONG>A_TOP</STRONG>, <STRONG>A_VER-</STRONG>
+       <STRONG>TICAL</STRONG> (and corresponding <STRONG>WA_</STRONG> macros for each)  which  this
+       implementation does not yet support.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       All  routines  return the integer <STRONG>OK</STRONG> on success, or <STRONG>ERR</STRONG> on
+       failure.
+
+       X/Open does not define any error conditions.
+
+       This implementation returns an error if the window pointer
+       is  null.  The <STRONG>wcolor_set</STRONG> function returns an error if the
+       color  pair  parameter  is  outside  the   range   0..COL-
+       OR_PAIRS-1.   This  implementation  also provides <STRONG>getattrs</STRONG>
+       for compatibility with older versions of curses.
+
+       Functions with a "mv" prefix first perform a cursor  move-
+       ment  using  <STRONG>wmove</STRONG>, and return an error if the position is
+       outside the window, or if the window pointer is null.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,        <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>,        <STRONG><A HREF="curs_addstr.3x.html">curs_addstr(3x)</A></STRONG>,
+       <STRONG><A HREF="curs_bkgd.3x.html">curs_bkgd(3x)</A></STRONG>, <STRONG><A HREF="curs_printw.3x.html">curs_printw(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>
+
+
+
+                                                          <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

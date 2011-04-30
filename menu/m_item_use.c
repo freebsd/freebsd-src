@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_item_use.c,v 1.16 2004/12/25 21:33:31 tom Exp $")
+MODULE_ID("$Id: m_item_use.c,v 1.17 2010/01/23 21:20:10 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -51,7 +51,7 @@ MODULE_ID("$Id: m_item_use.c,v 1.16 2004/12/25 21:33:31 tom Exp $")
 NCURSES_EXPORT(int)
 set_item_userptr(ITEM * item, void *userptr)
 {
-  T((T_CALLED("set_item_userptr(%p,%p)"), item, userptr));
+  T((T_CALLED("set_item_userptr(%p,%p)"), (void *)item, (void *)userptr));
   Normalize_Item(item)->userptr = userptr;
   RETURN(E_OK);
 }
@@ -69,7 +69,7 @@ set_item_userptr(ITEM * item, void *userptr)
 NCURSES_EXPORT(void *)
 item_userptr(const ITEM * item)
 {
-  T((T_CALLED("item_userptr(%p)"), item));
+  T((T_CALLED("item_userptr(%p)"), (const void *)item));
   returnVoidPtr(Normalize_Item(item)->userptr);
 }
 

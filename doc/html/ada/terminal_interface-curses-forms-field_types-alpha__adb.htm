@@ -1,0 +1,72 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>terminal_interface-curses-forms-field_types-alpha.adb</TITLE></HEAD>
+<BODY>
+<HR><DIV ALIGN="center"><H1> File : terminal_interface-curses-forms-field_types-alpha.adb </H1></DIV><HR>
+<PRE>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                           <A HREF="http://www.gnat.com">GNAT</A> ncurses Binding                           --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--              Terminal_Interface.Curses.Forms.Field_Types.Alpha           --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                                 B O D Y                                  --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>-- Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></FONT>
+<FONT COLOR=green><EM>-- copy of this software and associated documentation files (the            --</EM></FONT>
+<FONT COLOR=green><EM>-- "Software"), to deal in the Software without restriction, including      --</EM></FONT>
+<FONT COLOR=green><EM>-- without limitation the rights to use, copy, modify, merge, publish,      --</EM></FONT>
+<FONT COLOR=green><EM>-- distribute, distribute with modifications, sublicense, and/or sell       --</EM></FONT>
+<FONT COLOR=green><EM>-- copies of the Software, and to permit persons to whom the Software is    --</EM></FONT>
+<FONT COLOR=green><EM>-- furnished to do so, subject to the following conditions:                 --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- The above copyright notice and this permission notice shall be included  --</EM></FONT>
+<FONT COLOR=green><EM>-- in all copies or substantial portions of the Software.                   --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</EM></FONT>
+<FONT COLOR=green><EM>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</EM></FONT>
+<FONT COLOR=green><EM>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</EM></FONT>
+<FONT COLOR=green><EM>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</EM></FONT>
+<FONT COLOR=green><EM>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Except as contained in this notice, the name(s) of the above copyright   --</EM></FONT>
+<FONT COLOR=green><EM>-- holders shall not be used in advertising or otherwise to promote the     --</EM></FONT>
+<FONT COLOR=green><EM>-- sale, use or other dealings in this Software without prior written       --</EM></FONT>
+<FONT COLOR=green><EM>-- authorization.                                                           --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
+<FONT COLOR=green><EM>--  Version Control:</EM></FONT>
+<FONT COLOR=green><EM>--  @Revision: 1.10 @</EM></FONT>
+<FONT COLOR=green><EM>--  @Date: 2009/12/26 17:38:58 @</EM></FONT>
+<FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>; <b>use</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>;
+
+<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_49_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_43_41">Field_Types</A>.<FONT COLOR=red><A NAME="ref_44_58" HREF="terminal_interface-curses-forms-field_types-alpha__ads.htm#ref_41_53">Alpha</A></FONT> <b>is</b>
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_46_14" HREF="terminal_interface-curses-forms-field_types-alpha__ads.htm#ref_49_14">Set_Field_Type</A></FONT> (<FONT COLOR=red><A NAME="ref_46_30" HREF="terminal_interface-curses-forms-field_types-alpha__ads.htm#ref_49_30">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
+                             <FONT COLOR=red><A NAME="ref_47_30" HREF="terminal_interface-curses-forms-field_types-alpha__ads.htm#ref_50_30">Typ</A></FONT> : <A HREF="terminal_interface-curses-forms-field_types-alpha__ads.htm#ref_44_9">Alpha_Field</A>)
+   <b>is</b>
+      <FONT COLOR=red><A NAME="ref_49_7">C_Alpha_Field_Type</A></FONT> : <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_132_9">C_Field_Type</A>;
+      <b>pragma</b> Import (C, <A HREF="terminal_interface-curses-forms-field_types-alpha__adb.htm#ref_49_7">C_Alpha_Field_Type</A>, "TYPE_ALPHA");
+
+      <b>function</b> <FONT COLOR=red><A NAME="ref_52_16">Set_Fld_Type</A></FONT> (<FONT COLOR=red><A NAME="ref_52_30" HREF="terminal_interface-curses-forms-field_types-alpha__adb.htm#ref_52_16">F</A></FONT>    : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A> := <A HREF="terminal_interface-curses-forms-field_types-alpha__ads.htm#ref_49_30">Fld</A>;
+                             <FONT COLOR=red><A NAME="ref_53_30" HREF="terminal_interface-curses-forms-field_types-alpha__adb.htm#ref_52_16">Cft</A></FONT>  : <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_132_9">C_Field_Type</A> := <A HREF="terminal_interface-curses-forms-field_types-alpha__adb.htm#ref_49_7">C_Alpha_Field_Type</A>;
+                             <FONT COLOR=red><A NAME="ref_54_30" HREF="terminal_interface-curses-forms-field_types-alpha__adb.htm#ref_52_16">Arg1</A></FONT> : <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_46_12">C_Int</A>) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_46_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Fld_Type, "set_field_type");
+
+      <FONT COLOR=red><A NAME="ref_57_7">Res</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A>;
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-forms-field_types-alpha__adb.htm#ref_57_7">Res</A> := <A HREF="terminal_interface-curses-forms-field_types-alpha__adb.htm#ref_52_16">Set_Fld_Type</A> (<A HREF="terminal_interface-curses-forms-field_types-alpha__adb.htm#ref_54_30">Arg1</A> =&gt; <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_46_12">C_Int</A> (<A HREF="terminal_interface-curses-forms-field_types-alpha__ads.htm#ref_50_30">Typ</A>.<A HREF="terminal_interface-curses-forms-field_types-alpha__ads.htm#ref_46_9">Minimum_Field_Width</A>));
+      <b>if</b> <A HREF="terminal_interface-curses-forms-field_types-alpha__adb.htm#ref_57_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-forms-field_types-alpha__adb.htm#ref_57_7">Res</A>);
+      <b>end</b> <b>if</b>;
+      <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_151_14">Wrap_Builtin</A> (<A HREF="terminal_interface-curses-forms-field_types-alpha__ads.htm#ref_49_30">Fld</A>, <A HREF="terminal_interface-curses-forms-field_types-alpha__ads.htm#ref_50_30">Typ</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-forms-field_types-alpha__ads.htm#ref_49_14">Set_Field_Type</A>;
+
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_49_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_43_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-alpha__ads.htm#ref_41_53">Alpha</A>;
+</PRE></BODY></HTML>

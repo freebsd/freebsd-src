@@ -1,0 +1,359 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  * t
+  ****************************************************************************
+  * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_getch.3x,v 1.36 2011/01/22 19:38:51 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_getch 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_getch 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_getch.3x.html">curs_getch(3x)</A></STRONG>                                           <STRONG><A HREF="curs_getch.3x.html">curs_getch(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>getch</STRONG>, <STRONG>wgetch</STRONG>, <STRONG>mvgetch</STRONG>, <STRONG>mvwgetch</STRONG>, <STRONG>ungetch</STRONG>, <STRONG>has_key</STRONG> - get
+       (or push back) characters from <STRONG>curses</STRONG> terminal keyboard
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>getch(void);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wgetch(WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvgetch(int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwgetch(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x);</STRONG>
+       <STRONG>int</STRONG> <STRONG>ungetch(int</STRONG> <STRONG>ch);</STRONG>
+       <STRONG>int</STRONG> <STRONG>has_key(int</STRONG> <STRONG>ch);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The <STRONG>getch</STRONG>, <STRONG>wgetch</STRONG>, <STRONG>mvgetch</STRONG> and <STRONG>mvwgetch</STRONG>, routines  read  a
+       character  from the window.  In no-delay mode, if no input
+       is waiting, the value <STRONG>ERR</STRONG> is returned.  In delay mode, the
+       program  waits until the system passes text through to the
+       program.  Depending on the setting of <STRONG>cbreak</STRONG>, this is  af-
+       ter  one  character (cbreak mode), or after the first new-
+       line (nocbreak mode).  In  half-delay  mode,  the  program
+       waits  until a character is typed or the specified timeout
+       has been reached.
+
+       Unless <STRONG>noecho</STRONG> has been set, then the character  will  also
+       be echoed into the designated window according to the fol-
+       lowing rules: if the character is the current erase  char-
+       acter,  left  arrow, or backspace, the cursor is moved one
+       space to the left and that screen position is erased as if
+       <STRONG>delch</STRONG> had been called.  If the character value is any oth-
+       er <STRONG>KEY_</STRONG> define, the user is  alerted  with  a  <STRONG>beep</STRONG>  call.
+       Otherwise the character is simply output to the screen.
+
+       If the window is not a pad, and it has been moved or modi-
+       fied since the last call to  <STRONG>wrefresh</STRONG>,  <STRONG>wrefresh</STRONG>  will  be
+       called before another character is read.
+
+       If  <STRONG>keypad</STRONG> is <STRONG>TRUE</STRONG>, and a function key is pressed, the to-
+       ken for that function key is returned instead of  the  raw
+       characters.   Possible function keys are defined in <STRONG>&lt;curs-</STRONG>
+       <STRONG>es.h&gt;</STRONG> as macros with values outside  the  range  of  8-bit
+       characters  whose  names begin with <STRONG>KEY_</STRONG>. Thus, a variable
+       intended to hold the return value of a function  key  must
+       be of short size or larger.
+
+       When a character that could be the beginning of a function
+       key is received (which, on modern terminals, means an  es-
+       cape character), <STRONG>curses</STRONG> sets a timer.  If the remainder of
+       the sequence does not come in within the designated  time,
+       the  character  is passed through; otherwise, the function
+       key value is returned.  For this  reason,  many  terminals
+       experience a delay between the time a user presses the es-
+       cape key and the escape is returned to the program.
+
+       The <STRONG>ungetch</STRONG> routine places <EM>ch</EM> back onto the input queue to
+       be returned by the next call to <STRONG>wgetch</STRONG>.  There is just one
+       input queue for all windows.
+
+
+   <STRONG>Function</STRONG> <STRONG>Keys</STRONG>
+       The following function keys, defined in <STRONG>&lt;curses.h&gt;</STRONG>,  might
+       be  returned  by  <STRONG>getch</STRONG>  if <STRONG>keypad</STRONG> has been enabled.  Note
+       that not all of these are  necessarily  supported  on  any
+       particular terminal.
+
+
+            <EM>Name</EM>            <EM>Key</EM> <EM>name</EM>
+            KEY_BREAK       Break key
+            KEY_DOWN        The four arrow keys ...
+            KEY_UP
+            KEY_LEFT
+            KEY_RIGHT
+            KEY_HOME        Home key (upward+left arrow)
+            KEY_BACKSPACE   Backspace
+            KEY_F0          Function keys; space for 64 keys
+                            is reserved.
+            KEY_F(<EM>n</EM>)        For 0 &lt;= <EM>n</EM> &lt;= 63
+            KEY_DL          Delete line
+            KEY_IL          Insert line
+            KEY_DC          Delete character
+            KEY_IC          Insert char or enter insert mode
+            KEY_EIC         Exit insert char mode
+            KEY_CLEAR       Clear screen
+            KEY_EOS         Clear to end of screen
+            KEY_EOL         Clear to end of line
+            KEY_SF          Scroll 1 line forward
+            KEY_SR          Scroll 1 line backward (reverse)
+            KEY_NPAGE       Next page
+            KEY_PPAGE       Previous page
+            KEY_STAB        Set tab
+            KEY_CTAB        Clear tab
+            KEY_CATAB       Clear all tabs
+            KEY_ENTER       Enter or send
+            KEY_SRESET      Soft (partial) reset
+            KEY_RESET       Reset or hard reset
+            KEY_PRINT       Print or copy
+            KEY_LL          Home down or bottom (lower left)
+            KEY_A1          Upper left of keypad
+            KEY_A3          Upper right of keypad
+            KEY_B2          Center of keypad
+            KEY_C1          Lower left of keypad
+            KEY_C3          Lower right of keypad
+            KEY_BTAB        Back tab key
+            KEY_BEG         Beg(inning) key
+            KEY_CANCEL      Cancel key
+            KEY_CLOSE       Close key
+            KEY_COMMAND     Cmd (command) key
+            KEY_COPY        Copy key
+            KEY_CREATE      Create key
+            KEY_END         End key
+            KEY_EXIT        Exit key
+            KEY_FIND        Find key
+            KEY_HELP        Help key
+            KEY_MARK        Mark key
+            KEY_MESSAGE     Message key
+            KEY_MOUSE       Mouse event read
+            KEY_MOVE        Move key
+            KEY_NEXT        Next object key
+            KEY_OPEN        Open key
+            KEY_OPTIONS     Options key
+            KEY_PREVIOUS    Previous object key
+            KEY_REDO        Redo key
+            KEY_REFERENCE   Ref(erence) key
+            KEY_REFRESH     Refresh key
+            KEY_REPLACE     Replace key
+            KEY_RESIZE      Screen resized
+            KEY_RESTART     Restart key
+            KEY_RESUME      Resume key
+
+            KEY_SAVE        Save key
+            KEY_SBEG        Shifted beginning key
+            KEY_SCANCEL     Shifted cancel key
+            KEY_SCOMMAND    Shifted command key
+            KEY_SCOPY       Shifted copy key
+            KEY_SCREATE     Shifted create key
+            KEY_SDC         Shifted delete char key
+            KEY_SDL         Shifted delete line key
+            KEY_SELECT      Select key
+            KEY_SEND        Shifted end key
+            KEY_SEOL        Shifted clear line key
+            KEY_SEXIT       Shifted exit key
+            KEY_SFIND       Shifted find key
+            KEY_SHELP       Shifted help key
+            KEY_SHOME       Shifted home key
+            KEY_SIC         Shifted input key
+            KEY_SLEFT       Shifted left arrow key
+            KEY_SMESSAGE    Shifted message key
+            KEY_SMOVE       Shifted move key
+            KEY_SNEXT       Shifted next key
+            KEY_SOPTIONS    Shifted options key
+            KEY_SPREVIOUS   Shifted prev key
+            KEY_SPRINT      Shifted print key
+            KEY_SREDO       Shifted redo key
+            KEY_SREPLACE    Shifted replace key
+            KEY_SRIGHT      Shifted right arrow
+            KEY_SRSUME      Shifted resume key
+            KEY_SSAVE       Shifted save key
+            KEY_SSUSPEND    Shifted suspend key
+            KEY_SUNDO       Shifted undo key
+            KEY_SUSPEND     Suspend key
+            KEY_UNDO        Undo key
+
+       Keypad is arranged like this:
+
+
+                         +-----+------+-------+
+                         | <STRONG>A1</STRONG>  |  <STRONG>up</STRONG>  |  <STRONG>A3</STRONG>   |
+                         +-----+------+-------+
+                         |<STRONG>left</STRONG> |  <STRONG>B2</STRONG>  | <STRONG>right</STRONG> |
+                         +-----+------+-------+
+                         | <STRONG>C1</STRONG>  | <STRONG>down</STRONG> |  <STRONG>C3</STRONG>   |
+                         +-----+------+-------+
+       The <STRONG>has_key</STRONG> routine takes a key value from the above list,
+       and returns TRUE or FALSE according to whether the current
+       terminal type recognizes a key with that value.  Note that
+       a  few  values  do  not  correspond  to  a real key, e.g.,
+       <STRONG>KEY_RESIZE</STRONG> and <STRONG>KEY_MOUSE</STRONG>.  See <STRONG><A HREF="resizeterm.3x.html">resizeterm(3x)</A></STRONG> for more de-
+       tails  about  <STRONG>KEY_RESIZE</STRONG>, and <STRONG><A HREF="curs_mouse.3x.html">curs_mouse(3x)</A></STRONG> for a discus-
+       sion of <STRONG>KEY_MOUSE</STRONG>.
+
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       All routines return the integer <STRONG>ERR</STRONG> upon  failure  and  an
+       integer value other than <STRONG>ERR</STRONG> (<STRONG>OK</STRONG> in the case of ungetch())
+       upon successful completion.
+
+              <STRONG>ungetch</STRONG>
+                   returns an error if there is no more  room  in
+                   the FIFO.
+
+              <STRONG>wgetch</STRONG>
+                   returns  an  error  if  the  window pointer is
+                   null, or if its timeout expires without having
+                   any data.
+
+       Functions  with a "mv" prefix first perform a cursor move-
+       ment using <STRONG>wmove</STRONG>, and return an error if the  position  is
+       outside the window, or if the window pointer is null.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       Use of the escape key by a programmer for a single charac-
+       ter function is discouraged, as it will cause a  delay  of
+       up to one second while the keypad code looks for a follow-
+       ing function-key sequence.
+
+       Note that some keys may be the same as commonly used  con-
+       trol keys, e.g., <STRONG>KEY_ENTER</STRONG> versus control/M, <STRONG>KEY_BACKSPACE</STRONG>
+       versus control/H.  Some curses implementations may  differ
+       according  to  whether  they treat these control keys spe-
+       cially (and ignore the terminfo), or use the terminfo def-
+       initions.   <STRONG>Ncurses</STRONG>  uses  the terminfo definition.  If it
+       says  that  <STRONG>KEY_ENTER</STRONG>  is  control/M,  <STRONG>getch</STRONG>  will  return
+       <STRONG>KEY_ENTER</STRONG> when you press control/M.
+
+       Generally,  <STRONG>KEY_ENTER</STRONG> denotes the character(s) sent by the
+       <EM>Enter</EM> key on the numeric keypad:
+
+       <STRONG>o</STRONG>   the terminal description lists the most useful keys,
+
+       <STRONG>o</STRONG>   the <EM>Enter</EM> key on the regular keyboard is already  han-
+           dled by the standard ASCII characters for carriage-re-
+           turn and line-feed,
+
+       <STRONG>o</STRONG>   depending on whether <STRONG>nl</STRONG> or <STRONG>nonl</STRONG> was  called,  pressing
+           "Enter"  on  the  regular keyboard may return either a
+           carriage-return or line-feed, and finally
+
+       <STRONG>o</STRONG>   "Enter or send" is the standard description  for  this
+           key.
+
+       When  using  <STRONG>getch</STRONG>, <STRONG>wgetch</STRONG>, <STRONG>mvgetch</STRONG>, or <STRONG>mvwgetch</STRONG>, nocbreak
+       mode (<STRONG>nocbreak</STRONG>) and echo mode (<STRONG>echo</STRONG>) should not be used at
+       the  same  time.  Depending on the state of the tty driver
+       when each character is typed, the program may produce  un-
+       desirable results.
+
+       Note that <STRONG>getch</STRONG>, <STRONG>mvgetch</STRONG>, and <STRONG>mvwgetch</STRONG> may be macros.
+
+       Historically, the set of keypad macros was largely defined
+       by the extremely function-key-rich keyboard  of  the  AT&amp;T
+       7300,  aka  3B1,  aka Safari 4.  Modern personal computers
+       usually have only a small subset of these.   IBM  PC-style
+       consoles   typically  support  little  more  than  <STRONG>KEY_UP</STRONG>,
+       <STRONG>KEY_DOWN</STRONG>,   <STRONG>KEY_LEFT</STRONG>,   <STRONG>KEY_RIGHT</STRONG>,   <STRONG>KEY_HOME</STRONG>,    <STRONG>KEY_END</STRONG>,
+       <STRONG>KEY_NPAGE</STRONG>, <STRONG>KEY_PPAGE</STRONG>, and function keys 1 through 12.  The
+       Ins key is usually mapped to <STRONG>KEY_IC</STRONG>.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       The *get* functions are described in the XSI Curses  stan-
+       dard,  Issue  4.   They  read single-byte characters only.
+       The standard specifies that they return  <STRONG>ERR</STRONG>  on  failure,
+       but specifies no error conditions.
+
+       The  echo  behavior of these functions on input of <STRONG>KEY_</STRONG> or
+       backspace characters was not specified in the  SVr4  docu-
+       mentation.  This description is adopted from the XSI Curs-
+       es standard.
+
+       The behavior of <STRONG>getch</STRONG> and friends in the presence of  han-
+       dled  signals  is  unspecified  in the SVr4 and XSI Curses
+       documentation.  Under historical  curses  implementations,
+       it  varied depending on whether the operating system's im-
+       plementation  of  handled  signal  receipt  interrupts   a
+       <STRONG><A HREF="read.2.html">read(2)</A></STRONG>  call in progress or not, and also (in some imple-
+       mentations) depending on whether an input timeout or  non-
+       blocking mode has been set.
+
+       Programmers concerned about portability should be prepared
+       for either of two cases: (a) signal receipt does  not  in-
+       terrupt  <STRONG>getch</STRONG>;  (b)  signal  receipt interrupts <STRONG>getch</STRONG> and
+       causes it to return ERR with <STRONG>errno</STRONG> set  to  <STRONG>EINTR</STRONG>.   Under
+       the  <STRONG>ncurses</STRONG>  implementation, handled signals never inter-
+       rupt <STRONG>getch</STRONG>.
+
+       The <STRONG>has_key</STRONG> function is unique to <STRONG>ncurses</STRONG>.   We  recommend
+       that  any  code  using it be conditionalized on the <STRONG>NCURS-</STRONG>
+       <STRONG>ES_VERSION</STRONG> feature macro.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,       <STRONG><A HREF="curs_inopts.3x.html">curs_inopts(3x)</A></STRONG>,       <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,
+       <STRONG><A HREF="curs_mouse.3x.html">curs_mouse(3x)</A></STRONG>,   <STRONG><A HREF="curs_move.3x.html">curs_move(3x)</A></STRONG>,   <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>,   <STRONG>re-</STRONG>
+       <STRONG><A HREF="resizeterm.3x.html">sizeterm(3x)</A></STRONG>.
+
+       Comparable functions in the wide-character (ncursesw)  li-
+       brary are described in <STRONG><A HREF="curs_get_wch.3x.html">curs_get_wch(3x)</A></STRONG>.
+
+
+
+                                                         <STRONG><A HREF="curs_getch.3x.html">curs_getch(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

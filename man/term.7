@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: term.7,v 1.18 2007/06/02 20:40:07 tom Exp $
+.\" $Id: term.7,v 1.22 2010/12/04 18:41:07 tom Exp $
 .TH term 7
 .ds n 5
 .ds d @TERMINFO@
@@ -39,9 +39,9 @@ the terminal, console or display-device type you are using.  This information
 is critical for all screen-oriented programs, including your editor and mailer.
 .PP
 A default \fBTERM\fR value will be set on a per-line basis by either
-\fB/etc/inittab\fR (Linux and System-V-like UNIXes) or \fB/etc/ttys\fR (BSD
-UNIXes).  This will nearly always suffice for workstation and microcomputer
-consoles.
+\fB/etc/inittab\fR (e.g., System\-V-like UNIXes)
+or \fB/etc/ttys\fR (BSD UNIXes).
+This will nearly always suffice for workstation and microcomputer consoles.
 .PP
 If you use a dialup line, the type of device attached to it may vary.  Older
 UNIX systems pre-set a very dumb terminal type like `dumb' or `dialup' on
@@ -73,9 +73,9 @@ retrieval speed (unlike the old text-based \fBtermcap\fR format they replace);
 to examine an entry, you must use the \fB@INFOCMP@\fR(1M) command.
 Invoke it as follows:
 .sp
-	@INFOCMP@ \fIentry-name\fR
+	@INFOCMP@ \fIentry_name\fR
 .sp
-where \fIentry-name\fR is the name of the type you wish to examine (and the
+where \fIentry_name\fR is the name of the type you wish to examine (and the
 name of its capability file the subdirectory of \*d named for its first
 letter).  This command dumps a capability file in the text format described by
 \fBterminfo\fR(\*n).
@@ -114,14 +114,14 @@ The root name prefix should be followed when appropriate by a model number;
 thus \fBvt100\fR, \fBhp2621\fR, \fBwy50\fR.
 .PP
 The root name for a PC-Unix console type should be the OS name,
-i.e. \fBlinux\fR, \fBbsdos\fR, \fBfreebsd\fR, \fBnetbsd\fR.  It should
+i.e., \fBlinux\fR, \fBbsdos\fR, \fBfreebsd\fR, \fBnetbsd\fR.  It should
 \fInot\fR be \fBconsole\fR or any other generic that might cause confusion in a
 multi-platform environment!  If a model number follows, it should indicate
 either the OS release level or the console driver release level.
 .PP
 The root name for a terminal emulator (assuming it does not fit one of the
 standard ANSI or vt100 types) should be the program name or a readily
-recognizable abbreviation of it (i.e. \fBversaterm\fR, \fBctrm\fR).
+recognizable abbreviation of it (i.e., \fBversaterm\fR, \fBctrm\fR).
 .PP
 Following the root name, you may add any reasonable number of hyphen-separated
 feature suffixes.
@@ -135,52 +135,52 @@ attribute without magic-cookie lossage.  Their base entry is usually paired
 with another that has this suffix and uses magic cookies to support multiple
 attributes.
 .TP 5
--am
+\-am
 Enable auto-margin (right-margin wraparound).
 .TP 5
--m
-Mono mode - suppress color support.
+\-m
+Mono mode \- suppress color support.
 .TP 5
--na
-No arrow keys - termcap ignores arrow keys which are actually there on the
+\-na
+No arrow keys \- termcap ignores arrow keys which are actually there on the
 terminal, so the user can use the arrow keys locally.
 .TP 5
--nam
-No auto-margin - suppress am capability.
+\-nam
+No auto-margin \- suppress am capability.
 .TP 5
--nl
-No labels - suppress soft labels.
+\-nl
+No labels \- suppress soft labels.
 .TP 5
--nsl
-No status line - suppress status line.
+\-nsl
+No status line \- suppress status line.
 .TP 5
--pp
+\-pp
 Has a printer port which is used.
 .TP 5
--rv
+\-rv
 Terminal in reverse video mode (black on white).
 .TP 5
--s
+\-s
 Enable status line.
 .TP 5
--vb
+\-vb
 Use visible bell (flash) rather than beep.
 .TP 5
--w
+\-w
 Wide; terminal is in 132 column mode.
 .PP
 Conventionally, if your terminal type is a variant intended to specify a
 line height, that suffix should go first.  So, for a hypothetical FuBarCo
 model 2317 terminal in 30-line mode with reverse video, best form would be
-\fBfubar-30-rv\fR (rather than, say, `fubar-rv-30').
+\fBfubar\-30\-rv\fR (rather than, say, `fubar\-rv\-30').
 .PP
 Terminal types that are written not as standalone entries, but rather as
 components to be plugged into other entries via \fBuse\fP capabilities,
 are distinguished by using embedded plus signs rather than dashes.
 .PP
-Commands which use a terminal type to control display often accept a -T
+Commands which use a terminal type to control display often accept a \-T
 option that accepts a terminal name argument.  Such programs should fall back
-on the \fBTERM\fR environment variable when no -T option is specified.
+on the \fBTERM\fR environment variable when no \-T option is specified.
 .SH PORTABILITY
 For maximum compatibility with older System V UNIXes, names and aliases
 should be unique within the first 14 characters.
@@ -196,9 +196,3 @@ tty line initialization (AT&T-like UNIXes)
 tty line initialization (BSD-like UNIXes)
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBterminfo\fR(\*n), \fBterm\fR(\*n).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

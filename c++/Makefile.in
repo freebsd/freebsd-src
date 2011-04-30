@@ -1,0 +1,248 @@
+# $Id: Makefile.in,v 1.93 2010/11/27 21:45:27 tom Exp $
+##############################################################################
+# Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.                #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+#
+# Author: Thomas E. Dickey
+#
+#  Simple makefile for c++ window class demo
+
+# turn off _all_ suffix rules; we'll generate our own
+.SUFFIXES:
+
+SHELL		= /bin/sh
+VPATH		= @srcdir@
+
+CF_MFLAGS 	= @cf_cv_makeflags@
+@SET_MAKE@
+x		= @EXEEXT@
+o		= .@OBJEXT@
+
+MODEL		= ../@DFT_OBJ_SUBDIR@
+DESTDIR		= @DESTDIR@
+srcdir		= @srcdir@
+prefix		= @prefix@
+exec_prefix	= @exec_prefix@
+libdir		= @libdir@
+includedir	= @includedir@
+
+LIBTOOL		= @LIBTOOL_CXX@
+LIBTOOL_CLEAN	= @LIB_CLEAN@
+LIBTOOL_COMPILE	= @LIB_COMPILE@
+LIBTOOL_LINK	= @LIB_LINK@
+LIBTOOL_INSTALL	= @LIB_INSTALL@
+LIBTOOL_UNINSTALL = @LIB_UNINSTALL@
+LIBTOOL_VERSION = @LIBTOOL_VERSION@
+LT_UNDEF	= @LT_UNDEF@
+
+INSTALL		= @INSTALL@
+INSTALL_LIB	= @INSTALL@ @INSTALL_LIB@
+INSTALL_DATA	= @INSTALL_DATA@
+
+AR		= @AR@
+ARFLAGS		= @ARFLAGS@
+
+CXX_AR		= @CXX_AR@
+CXX_ARFLAGS	= @CXX_ARFLAGS@
+RANLIB		= @LIB_PREP@
+
+CXX		= @CXX@
+CPP		= @CXXCPP@
+CXXFLAGS	= @CXXFLAGS@ @EXTRA_CXXFLAGS@
+CXXLIBS		= @CXXLIBS@
+
+INCDIR		= ../include
+CPPFLAGS	= -I../c++ -I$(INCDIR) -I$(srcdir) -DHAVE_CONFIG_H @CPPFLAGS@
+
+CTAGS		= @CTAGS@
+ETAGS		= @ETAGS@
+
+CC		= ${CXX}
+CCFLAGS		= $(CPPFLAGS) $(CXXFLAGS)
+
+CFLAGS_LIBTOOL	= $(CCFLAGS)
+CFLAGS_NORMAL	= $(CCFLAGS)
+CFLAGS_DEBUG	= $(CCFLAGS) @CXX_G_OPT@ -DTRACE
+CFLAGS_PROFILE	= $(CCFLAGS) -pg
+CFLAGS_SHARED	= $(CCFLAGS) @CC_SHARED_OPTS@
+
+CFLAGS_DEFAULT	= $(CFLAGS_@DFT_UPR_MODEL@)
+
+NCURSES_MAJOR	= @NCURSES_MAJOR@
+NCURSES_MINOR	= @NCURSES_MINOR@
+REL_VERSION     = @cf_cv_rel_version@
+ABI_VERSION	= @cf_cv_abi_version@
+
+LOCAL_LIBDIR	= @top_builddir@/lib
+
+LINK		= @LINK_PROGS@ $(LIBTOOL_LINK) @CXXLDFLAGS@
+SHLIB_DIRS	= -L../lib
+SHLIB_LIST	= $(SHLIB_DIRS) -lform@LIB_SUFFIX@ -lmenu@LIB_SUFFIX@ -lpanel@LIB_SUFFIX@ -lncurses@LIB_SUFFIX@ @SHLIB_LIST@
+
+LIBROOT		= ncurses++
+
+LIBNAME_LIBTOOL	= @LIB_PREFIX@$(LIBROOT)@LIB_SUFFIX@.la
+LIBNAME_NORMAL	= @LIB_PREFIX@$(LIBROOT)@LIB_SUFFIX@.a
+LIBNAME		= @LIB_PREFIX@$(LIBROOT)@CXX_LIB_SUFFIX@
+
+MY_LIBRARY	= ../lib/$(LIBNAME)
+
+LINK_FLAGS	= @EXTRA_LDFLAGS@ -L../lib -l$(LIBROOT)@LIB_SUFFIX@
+
+LINK_LIBTOOL	= @EXTRA_LDFLAGS@ -L../lib $(MY_LIBRARY)
+LINK_NORMAL	= $(LINK_FLAGS)
+LINK_DEBUG	= $(LINK_FLAGS)
+LINK_PROFILE	= $(LINK_FLAGS)
+LINK_SHARED	= $(LINK_FLAGS)
+
+TEST_LIBS	= @TEST_LIBS@
+TEST_ARGS	= @LDFLAGS_STATIC@ @TEST_ARGS@ @LDFLAGS_SHARED@ 
+
+LDFLAGS		= $(TEST_ARGS) @LDFLAGS@ \
+	@LD_MODEL@ $(TEST_LIBS) @LIBS@ @LOCAL_LDFLAGS@ $(CXXLIBS)
+
+LDFLAGS_LIBTOOL	= $(LDFLAGS) $(CFLAGS_LIBTOOL)
+LDFLAGS_NORMAL	= $(LDFLAGS) $(CFLAGS_NORMAL)
+LDFLAGS_DEBUG	= $(LDFLAGS) $(CFLAGS_DEBUG)
+LDFLAGS_PROFILE	= $(LDFLAGS) $(CFLAGS_PROFILE)
+LDFLAGS_SHARED	= $(LDFLAGS) $(CFLAGS_SHARED) @LD_SHARED_OPTS@
+
+LDFLAGS_DEFAULT	= $(LINK_@DFT_UPR_MODEL@) $(LDFLAGS_@DFT_UPR_MODEL@)
+
+AUTO_SRC	= \
+		etip.h
+
+all \
+libs ::		$(AUTO_SRC) $(MY_LIBRARY)
+
+@MAKE_TESTS@all ::		demo$x
+
+sources :	$(AUTO_SRC)
+
+depend :
+
+tags:
+	$(CTAGS) *.[h] *.cc
+
+# Build a conventional library for installing, since a shared library would
+# pull in all of the ncurses libraries (panel, menu, form, ncurses) as direct
+# dependencies.
+LIB_OBJS = \
+	$(MODEL)/cursesf$o \
+	$(MODEL)/cursesm$o \
+	$(MODEL)/cursesw$o \
+	$(MODEL)/cursespad$o \
+	$(MODEL)/cursesp$o \
+	$(MODEL)/cursslk$o \
+	$(MODEL)/cursesapp$o \
+	$(MODEL)/cursesmain$o
+
+../lib/$(LIBNAME_NORMAL) : $(LIB_OBJS)
+	$(CXX_AR) $(CXX_ARFLAGS) $@ $?
+	$(RANLIB) $@
+
+../lib/$(LIBNAME_LIBTOOL) : $(LIB_OBJS)
+	cd ../lib && $(LIBTOOL_LINK) $(CXX) $(CXXFLAGS) \
+		-o $(LIBNAME) $(LIB_OBJS:$o=.lo) \
+		-rpath $(INSTALL_PREFIX)$(libdir) \
+		$(LIBTOOL_VERSION) $(NCURSES_MAJOR):$(NCURSES_MINOR) $(LT_UNDEF) $(SHLIB_LIST)
+
+OBJS_DEMO = $(MODEL)/demo$o
+
+$(MODEL)/demo$o : $(srcdir)/demo.cc \
+	$(cursesf_h) $(cursesm_h) $(cursesapp_h)
+
+demo$x:	$(OBJS_DEMO) \
+	$(MY_LIBRARY)  \
+	@TEST_DEPS@
+	@ECHO_LINK@ $(LINK) -o $@ $(OBJS_DEMO) $(LDFLAGS_DEFAULT)
+
+etip.h:	$(srcdir)/etip.h.in $(srcdir)/edit_cfg.sh
+	cp $(srcdir)/etip.h.in $@
+	sh $(srcdir)/edit_cfg.sh ../include/ncurses_cfg.h $@
+
+$(DESTDIR)$(libdir) :
+	mkdir -p $@
+
+install \
+install.libs:: $(MY_LIBRARY) $(DESTDIR)$(libdir)
+	$(LIBTOOL_INSTALL) $(INSTALL_LIB) $(MY_LIBRARY) $(DESTDIR)$(libdir)/$(LIBNAME)
+
+uninstall \
+uninstall.libs::
+	-$(LIBTOOL_UNINSTALL) rm -f $(DESTDIR)$(libdir)/$(LIBNAME)
+
+mostlyclean ::
+	-rm -f core tags TAGS *~ *.bak *.i *.ii *.ln *.atac trace
+
+clean :: mostlyclean
+	-sh -c "if test -n '$x' ; then $(MAKE) clean x=''; fi"
+	-rm -rf $(MODEL)/SunWS_cache
+	-$(LIBTOOL_CLEAN) rm -f demo$x $(AUTO_SRC) $(MY_LIBRARY) $(LIB_OBJS) $(OBJS_DEMO)
+	-rm -rf .libs
+
+distclean :: clean
+	-rm -f Makefile
+
+realclean :: distclean
+
+###############################################################################
+
+cursesw_h	= $(srcdir)/cursesw.h \
+		  etip.h \
+		  $(INCDIR)/curses.h
+
+cursesp_h	= $(srcdir)/cursesp.h \
+		  $(cursesw_h) \
+		  $(INCDIR)/panel.h
+
+cursesf_h	= $(srcdir)/cursesf.h \
+		  $(cursesp_h) \
+		  $(INCDIR)/form.h
+
+cursesm_h	= $(srcdir)/cursesm.h \
+		  $(cursesp_h) \
+		  $(INCDIR)/menu.h
+
+cursslk_h	= $(srcdir)/cursslk.h \
+		  $(cursesw_h)
+
+cursesapp_h	= $(srcdir)/cursesapp.h \
+		  $(cursslk_h)
+
+$(INCDIR)/form.h :
+	cd ../form && $(MAKE) $@
+
+$(INCDIR)/menu.h :
+	cd ../menu && $(MAKE) $@
+
+$(INCDIR)/panel.h :
+	cd ../panel && $(MAKE) $@
+
+###############################################################################
+# The remainder of this file is automatically generated during configuration
+###############################################################################

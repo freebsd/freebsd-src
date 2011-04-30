@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2001,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_scanw.c,v 1.11 2001/06/30 23:39:41 tom Exp $")
+MODULE_ID("$Id: lib_scanw.c,v 1.12 2009/10/24 22:35:14 tom Exp $")
 
 NCURSES_EXPORT(int)
 vwscanw(WINDOW *win, NCURSES_CONST char *fmt, va_list argp)
@@ -73,7 +73,7 @@ wscanw(WINDOW *win, NCURSES_CONST char *fmt,...)
     int code;
     va_list ap;
 
-    T(("wscanw(%p,\"%s\",...) called", win, fmt));
+    T(("wscanw(%p,\"%s\",...) called", (void *) win, fmt));
 
     va_start(ap, fmt);
     code = vwscanw(win, fmt, ap);

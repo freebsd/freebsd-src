@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2002-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,16 +39,16 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_vline_set.c,v 1.2 2002/03/23 21:36:01 tom Exp $")
+MODULE_ID("$Id: lib_vline_set.c,v 1.4 2010/12/19 01:50:50 tom Exp $")
 
 NCURSES_EXPORT(int)
-wvline_set(WINDOW *win, const cchar_t * ch, int n)
+wvline_set(WINDOW *win, const cchar_t *ch, int n)
 {
     int code = ERR;
-    NCURSES_SIZE_T row, col;
-    NCURSES_SIZE_T end;
+    int row, col;
+    int end;
 
-    T((T_CALLED("wvline(%p,%s,%d)"), win, _tracecchar_t(ch), n));
+    T((T_CALLED("wvline(%p,%s,%d)"), (void *) win, _tracecchar_t(ch), n));
 
     if (win) {
 	NCURSES_CH_T wch;

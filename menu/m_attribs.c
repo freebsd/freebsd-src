@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_attribs.c,v 1.14 2004/12/11 23:29:12 tom Exp $")
+MODULE_ID("$Id: m_attribs.c,v 1.16 2010/01/23 21:16:54 tom Exp $")
 
 /* Macro to redraw menu if it is posted and changed */
 #define Refresh_Menu(menu) \
@@ -49,9 +49,9 @@ MODULE_ID("$Id: m_attribs.c,v 1.14 2004/12/11 23:29:12 tom Exp $")
 
 /* "Template" macro to generate a function to set a menus attribute */
 #define GEN_MENU_ATTR_SET_FCT( name ) \
-NCURSES_IMPEXP int NCURSES_API set_menu_ ## name (MENU * menu, chtype attr)\
+NCURSES_IMPEXP int NCURSES_API set_menu_ ## name (MENU* menu, chtype attr) \
 {\
-   T((T_CALLED("set_menu_" #name "(%p,%s)"), menu, _traceattr(attr)));\
+  T((T_CALLED("set_menu_" #name "(%p,%s)"), menu, _traceattr(attr))); \
    if (!(attr==A_NORMAL || (attr & A_ATTRIBUTES)==attr))\
       RETURN(E_BAD_ARGUMENT);\
    if (menu && ( menu -> name != attr))\
@@ -67,7 +67,7 @@ NCURSES_IMPEXP int NCURSES_API set_menu_ ## name (MENU * menu, chtype attr)\
 #define GEN_MENU_ATTR_GET_FCT( name ) \
 NCURSES_IMPEXP chtype NCURSES_API menu_ ## name (const MENU * menu)\
 {\
-   T((T_CALLED("menu_" #name "(%p)"), menu));\
+   T((T_CALLED("menu_" #name "(%p)"), (const void *) menu));\
    returnAttr(Normalize_Menu( menu ) -> name);\
 }
 
@@ -140,4 +140,5 @@ GEN_MENU_ATTR_SET_FCT(grey)
 |   Return Values :  Attribute value
 +--------------------------------------------------------------------------*/
 GEN_MENU_ATTR_GET_FCT(grey)
+
 /* m_attribs.c ends here */

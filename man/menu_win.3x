@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,10 +27,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_win.3x,v 1.8 2006/11/04 17:12:00 tom Exp $
+.\" $Id: menu_win.3x,v 1.11 2010/12/04 18:38:55 tom Exp $
 .TH menu_win 3X ""
 .SH NAME
-\fBmenu_win\fR - make and break menu window and subwindow associations
+\fBmenu_win\fR \- make and break menu window and subwindow associations
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
 .br
@@ -77,7 +77,9 @@ The menu has already been posted.
 .B E_NOT_CONNECTED
 No items are connected to the menu.
 .SH SEE ALSO
-\fBcurses\fR(3X), \fBmenu\fR(3X).
+\fBcurses\fR(3X),
+\fBcurs_variables\fR(3X),
+\fBmenu\fR(3X).
 .SH NOTES
 The header file \fB<menu.h>\fR automatically includes the header file
 \fB<curses.h>\fR.
@@ -87,9 +89,3 @@ Version 7 or BSD versions.
 .SH AUTHORS
 Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
 S. Raymond.
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,34 +36,37 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_show.c,v 1.11 2005/02/19 16:42:02 tom Exp $")
+MODULE_ID("$Id: p_show.c,v 1.13 2010/01/23 21:22:16 tom Exp $")
 
 NCURSES_EXPORT(int)
 show_panel(PANEL * pan)
 {
-  int err = OK;
+  int err = ERR;
 
-  T((T_CALLED("show_panel(%p)"), pan));
+  T((T_CALLED("show_panel(%p)"), (void *)pan));
 
-  if (!pan)
-    returnCode(ERR);
+  if (pan)
+    {
+      GetHook(pan);
 
-  if (Is_Top(pan))
-    returnCode(OK);
+      if (Is_Top(pan))
+	returnCode(OK);
 
-  dBug(("--> show_panel %s", USER_PTR(pan->user)));
+      dBug(("--> show_panel %s", USER_PTR(pan->user)));
 
-  HIDE_PANEL(pan, err, OK);
+      HIDE_PANEL(pan, err, OK);
 
-  dStack("<lt%d>", 1, pan);
-  assert(_nc_bottom_panel == _nc_stdscr_pseudo_panel);
+      dStack("<lt%d>", 1, pan);
+      assert(_nc_bottom_panel == _nc_stdscr_pseudo_panel);
 
-  _nc_top_panel->above = pan;
-  pan->below = _nc_top_panel;
-  pan->above = (PANEL *) 0;
-  _nc_top_panel = pan;
+      _nc_top_panel->above = pan;
+      pan->below = _nc_top_panel;
+      pan->above = (PANEL *) 0;
+      _nc_top_panel = pan;
 
-  dStack("<lt%d>", 9, pan);
+      err = OK;
 
-  returnCode(OK);
+      dStack("<lt%d>", 9, pan);
+    }
+  returnCode(err);
 }

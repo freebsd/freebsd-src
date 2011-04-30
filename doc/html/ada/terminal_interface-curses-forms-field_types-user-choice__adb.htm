@@ -1,0 +1,116 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>terminal_interface-curses-forms-field_types-user-choice.adb</TITLE></HEAD>
+<BODY>
+<HR><DIV ALIGN="center"><H1> File : terminal_interface-curses-forms-field_types-user-choice.adb </H1></DIV><HR>
+<PRE>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                           <A HREF="http://www.gnat.com">GNAT</A> ncurses Binding                           --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--          Terminal_Interface.Curses.Forms.Field_Types.User.Choice         --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                                 B O D Y                                  --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>-- Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></FONT>
+<FONT COLOR=green><EM>-- copy of this software and associated documentation files (the            --</EM></FONT>
+<FONT COLOR=green><EM>-- "Software"), to deal in the Software without restriction, including      --</EM></FONT>
+<FONT COLOR=green><EM>-- without limitation the rights to use, copy, modify, merge, publish,      --</EM></FONT>
+<FONT COLOR=green><EM>-- distribute, distribute with modifications, sublicense, and/or sell       --</EM></FONT>
+<FONT COLOR=green><EM>-- copies of the Software, and to permit persons to whom the Software is    --</EM></FONT>
+<FONT COLOR=green><EM>-- furnished to do so, subject to the following conditions:                 --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- The above copyright notice and this permission notice shall be included  --</EM></FONT>
+<FONT COLOR=green><EM>-- in all copies or substantial portions of the Software.                   --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</EM></FONT>
+<FONT COLOR=green><EM>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</EM></FONT>
+<FONT COLOR=green><EM>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</EM></FONT>
+<FONT COLOR=green><EM>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</EM></FONT>
+<FONT COLOR=green><EM>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Except as contained in this notice, the name(s) of the above copyright   --</EM></FONT>
+<FONT COLOR=green><EM>-- holders shall not be used in advertising or otherwise to promote the     --</EM></FONT>
+<FONT COLOR=green><EM>-- sale, use or other dealings in this Software without prior written       --</EM></FONT>
+<FONT COLOR=green><EM>-- authorization.                                                           --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
+<FONT COLOR=green><EM>--  Version Control:</EM></FONT>
+<FONT COLOR=green><EM>--  @Revision: 1.15 @</EM></FONT>
+<FONT COLOR=green><EM>--  @Date: 2008/07/26 18:48:58 @</EM></FONT>
+<FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<b>with</b> Ada.Unchecked_Conversion;
+<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>; <b>use</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>;
+
+<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_49_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_43_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_44_53">User</A>.<FONT COLOR=red><A NAME="ref_45_63" HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_44_58">Choice</A></FONT> <b>is</b>
+
+   <b>pragma</b> Warnings (Off);
+   <b>function</b> To_Argument_Access <b>is</b> <b>new</b> Ada.Unchecked_Conversion
+     (System.Address, <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_216_9">Argument_Access</A>);
+   <b>pragma</b> Warnings (On);
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_52_13" HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_80_13">Generic_Next</A></FONT> (<FONT COLOR=red><A NAME="ref_52_27" HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_80_27">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
+                          <FONT COLOR=red><A NAME="ref_53_27" HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_81_27">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_48_12">C_Int</A>
+   <b>is</b>
+      <FONT COLOR=red><A NAME="ref_55_7">Result</A></FONT> : Boolean;
+      <FONT COLOR=red><A NAME="ref_56_7">Udf</A></FONT>    : <b>constant</b> <A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_57_9">User_Defined_Field_Type_With_Choice_Access</A> :=
+        <A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_57_9">User_Defined_Field_Type_With_Choice_Access</A>
+        (To_Argument_Access (<A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_81_27">Usr</A>).<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_212_7">Typ</A>);
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-forms-field_types-user-choice__adb.htm#ref_55_7">Result</A> := <A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_60_13">Next</A> (<A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_80_27">Fld</A>, <A HREF="terminal_interface-curses-forms-field_types-user-choice__adb.htm#ref_56_7">Udf</A>.<b>all</b>);
+      <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_48_12">C_Int</A> (Boolean'Pos (<A HREF="terminal_interface-curses-forms-field_types-user-choice__adb.htm#ref_55_7">Result</A>));
+   <b>end</b> <A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_80_13">Generic_Next</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_64_13" HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_87_13">Generic_Prev</A></FONT> (<FONT COLOR=red><A NAME="ref_64_27" HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_87_27">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
+                          <FONT COLOR=red><A NAME="ref_65_27" HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_88_27">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_48_12">C_Int</A>
+   <b>is</b>
+      <FONT COLOR=red><A NAME="ref_67_7">Result</A></FONT> : Boolean;
+      <FONT COLOR=red><A NAME="ref_68_7">Udf</A></FONT>    : <b>constant</b> <A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_57_9">User_Defined_Field_Type_With_Choice_Access</A> :=
+        <A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_57_9">User_Defined_Field_Type_With_Choice_Access</A>
+        (To_Argument_Access (<A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_88_27">Usr</A>).<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_212_7">Typ</A>);
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-forms-field_types-user-choice__adb.htm#ref_67_7">Result</A> := <A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_67_13">Previous</A> (<A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_87_27">Fld</A>, <A HREF="terminal_interface-curses-forms-field_types-user-choice__adb.htm#ref_68_7">Udf</A>.<b>all</b>);
+      <b>return</b> <A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_48_12">C_Int</A> (Boolean'Pos (<A HREF="terminal_interface-curses-forms-field_types-user-choice__adb.htm#ref_67_7">Result</A>));
+   <b>end</b> <A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_87_13">Generic_Prev</A>;
+
+   <FONT COLOR=green><EM>--  -----------------------------------------------------------------------</EM></FONT>
+   <FONT COLOR=green><EM>--</EM></FONT>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_78_13" HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_78_13">C_Generic_Choice</A></FONT> <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_132_9">C_Field_Type</A>
+   <b>is</b>
+      <FONT COLOR=red><A NAME="ref_80_7">Res</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A>;
+      <FONT COLOR=red><A NAME="ref_81_7">T</A></FONT>   : <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_132_9">C_Field_Type</A>;
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_142_4">M_Generic_Choice</A> = <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_134_4">Null_Field_Type</A> <b>then</b>
+         <A HREF="terminal_interface-curses-forms-field_types-user-choice__adb.htm#ref_81_7">T</A> := <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_222_13">New_Fieldtype</A> (<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_81_13">Generic_Field_Check</A>'<b>Access</b>,
+                             <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_88_13">Generic_Char_Check</A>'<b>Access</b>);
+         <b>if</b> <A HREF="terminal_interface-curses-forms-field_types-user-choice__adb.htm#ref_81_7">T</A> = <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_134_4">Null_Field_Type</A> <b>then</b>
+            <b>raise</b> <A HREF="terminal_interface-curses-forms__ads.htm#ref_286_4">Form_Exception</A>;
+         <b>else</b>
+            <A HREF="terminal_interface-curses-forms-field_types-user-choice__adb.htm#ref_80_7">Res</A> := <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_227_13">Set_Fieldtype_Arg</A> (<A HREF="terminal_interface-curses-forms-field_types-user-choice__adb.htm#ref_81_7">T</A>,
+                                      <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_162_13">Make_Arg</A>'<b>Access</b>,
+                                      <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_167_13">Copy_Arg</A>'<b>Access</b>,
+                                      <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_172_14">Free_Arg</A>'<b>Access</b>);
+            <b>if</b> <A HREF="terminal_interface-curses-forms-field_types-user-choice__adb.htm#ref_80_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+               <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-forms-field_types-user-choice__adb.htm#ref_80_7">Res</A>);
+            <b>end</b> <b>if</b>;
+
+            <A HREF="terminal_interface-curses-forms-field_types-user-choice__adb.htm#ref_80_7">Res</A> := <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_234_13">Set_Fieldtype_Choice</A> (<A HREF="terminal_interface-curses-forms-field_types-user-choice__adb.htm#ref_81_7">T</A>,
+                                         <A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_80_13">Generic_Next</A>'<b>Access</b>,
+                                         <A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_87_13">Generic_Prev</A>'<b>Access</b>);
+            <b>if</b> <A HREF="terminal_interface-curses-forms-field_types-user-choice__adb.htm#ref_80_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+               <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-forms-field_types-user-choice__adb.htm#ref_80_7">Res</A>);
+            <b>end</b> <b>if</b>;
+         <b>end</b> <b>if</b>;
+         <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_142_4">M_Generic_Choice</A> := <A HREF="terminal_interface-curses-forms-field_types-user-choice__adb.htm#ref_81_7">T</A>;
+      <b>end</b> <b>if</b>;
+      <b>pragma</b> Assert (<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_142_4">M_Generic_Choice</A> /= <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_134_4">Null_Field_Type</A>);
+      <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_142_4">M_Generic_Choice</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_78_13">C_Generic_Choice</A>;
+
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_49_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_43_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_44_53">User</A>.<A HREF="terminal_interface-curses-forms-field_types-user-choice__ads.htm#ref_44_58">Choice</A>;
+</PRE></BODY></HTML>

@@ -1,0 +1,146 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  * t
+  ****************************************************************************
+  * Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: mitem_current.3x,v 1.13 2010/12/04 18:40:45 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>mitem_current 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>mitem_current 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="mitem_current.3x.html">mitem_current(3x)</A></STRONG>                                     <STRONG><A HREF="mitem_current.3x.html">mitem_current(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>mitem_current</STRONG> - set and get current_menu_item
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;menu.h&gt;</STRONG>
+       int set_current_item(MENU *menu, const ITEM *item);
+       ITEM *current_item(const MENU *menu);
+       int set_top_row(MENU *menu, int row);
+       int top_row(const MENU *menu);
+       int item_index(const ITEM *item);
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The  function  <STRONG>set_current_item</STRONG> sets the current item (the
+       item on  which  the  menu  cursor  is  positioned).   <STRONG>cur-</STRONG>
+       <STRONG>rent_item</STRONG>  returns  a  pointer  to the current item in the
+       given menu.
+
+       The function <STRONG>set_top_row</STRONG> sets the top row of the  menu  to
+       show  the  given  row  (the top row is initially 0, and is
+       reset to this value whenever the <STRONG>O_ROWMAJOR</STRONG> option is tog-
+       gled).   The  item  leftmost on the given row becomes cur-
+       rent.  The function <STRONG>top_row</STRONG> returns the number of the  top
+       menu row being displayed.
+
+       The function <STRONG>item_index</STRONG> returns the (zero-origin) index of
+       <EM>item</EM> in the menu's item pointer list.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       <STRONG>current_item</STRONG> returns a pointer (which may  be  <STRONG>NULL</STRONG>).   It
+       does not set errno.
+
+       <STRONG>top_row</STRONG>  and  <STRONG>item_index</STRONG>  return  <STRONG>ERR</STRONG>  (the general <STRONG>curses</STRONG>
+       error value) if their <EM>menu</EM> parameter is <STRONG>NULL</STRONG>.
+
+       <STRONG>set_current_item</STRONG> and <STRONG>set_top_row</STRONG> return one of the follow-
+       ing:
+
+       <STRONG>E_OK</STRONG> The routine succeeded.
+
+       <STRONG>E_BAD_ARGUMENT</STRONG>
+            Routine  detected  an incorrect or out-of-range argu-
+            ment.
+
+       <STRONG>E_BAD_STATE</STRONG>
+            Routine was called from an initialization or termina-
+            tion function.
+
+       <STRONG>E_NOT_CONNECTED</STRONG>
+            No items are connected to the menu.
+
+       <STRONG>E_SYSTEM_ERROR</STRONG>
+            System error occurred (see <STRONG>errno</STRONG>).
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="menu.3x.html">menu(3x)</A></STRONG>.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       The header file <STRONG>&lt;menu.h&gt;</STRONG> automatically includes the header
+       file <STRONG>&lt;curses.h&gt;</STRONG>.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       These routines emulate the System V  menu  library.   They
+       were not supported on Version 7 or BSD versions.
+
+       The  SVr4 menu library documentation specifies the <STRONG>top_row</STRONG>
+       and <STRONG>index_item</STRONG> error value as -1 (which is  the  value  of
+       <STRONG>ERR</STRONG>).
+
+
+</PRE>
+<H2>AUTHORS</H2><PRE>
+       Juergen  Pfeifer.   Manual  pages  and  adaptation for new
+       curses by Eric S. Raymond.
+
+
+
+                                                      <STRONG><A HREF="mitem_current.3x.html">mitem_current(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

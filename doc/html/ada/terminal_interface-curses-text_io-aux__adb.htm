@@ -1,0 +1,134 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>terminal_interface-curses-text_io-aux.adb</TITLE></HEAD>
+<BODY>
+<HR><DIV ALIGN="center"><H1> File : terminal_interface-curses-text_io-aux.adb </H1></DIV><HR>
+<PRE>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                           <A HREF="http://www.gnat.com">GNAT</A> ncurses Binding                           --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                   Terminal_Interface.Curses.Text_IO.Aux                  --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                                 B O D Y                                  --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>-- Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.              --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></FONT>
+<FONT COLOR=green><EM>-- copy of this software and associated documentation files (the            --</EM></FONT>
+<FONT COLOR=green><EM>-- "Software"), to deal in the Software without restriction, including      --</EM></FONT>
+<FONT COLOR=green><EM>-- without limitation the rights to use, copy, modify, merge, publish,      --</EM></FONT>
+<FONT COLOR=green><EM>-- distribute, distribute with modifications, sublicense, and/or sell       --</EM></FONT>
+<FONT COLOR=green><EM>-- copies of the Software, and to permit persons to whom the Software is    --</EM></FONT>
+<FONT COLOR=green><EM>-- furnished to do so, subject to the following conditions:                 --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- The above copyright notice and this permission notice shall be included  --</EM></FONT>
+<FONT COLOR=green><EM>-- in all copies or substantial portions of the Software.                   --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</EM></FONT>
+<FONT COLOR=green><EM>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</EM></FONT>
+<FONT COLOR=green><EM>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</EM></FONT>
+<FONT COLOR=green><EM>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</EM></FONT>
+<FONT COLOR=green><EM>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Except as contained in this notice, the name(s) of the above copyright   --</EM></FONT>
+<FONT COLOR=green><EM>-- holders shall not be used in advertising or otherwise to promote the     --</EM></FONT>
+<FONT COLOR=green><EM>-- sale, use or other dealings in this Software without prior written       --</EM></FONT>
+<FONT COLOR=green><EM>-- authorization.                                                           --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
+<FONT COLOR=green><EM>--  Version Control:</EM></FONT>
+<FONT COLOR=green><EM>--  @Revision: 1.13 @</EM></FONT>
+<FONT COLOR=green><EM>--  @Date: 2009/12/26 17:38:58 @</EM></FONT>
+<FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<FONT COLOR=red><A NAME="ref_42_48" HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_42_51">Aux</A></FONT> <b>is</b>
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_44_14" HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_48_14">Put_Buf</A></FONT>
+     (<FONT COLOR=red><A NAME="ref_45_7" HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_49_7">Win</A></FONT>    : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>;
+      <FONT COLOR=red><A NAME="ref_46_7" HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_50_7">Buf</A></FONT>    : String;
+      <FONT COLOR=red><A NAME="ref_47_7" HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_51_7">Width</A></FONT>  : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A>;
+      <FONT COLOR=red><A NAME="ref_48_7" HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_52_7">Signal</A></FONT> : Boolean := True;
+      <FONT COLOR=red><A NAME="ref_49_7" HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_53_7">Ljust</A></FONT>  : Boolean := False)
+   <b>is</b>
+      <FONT COLOR=red><A NAME="ref_51_7">L</A></FONT>   : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A>;
+      <FONT COLOR=red><A NAME="ref_52_7">Len</A></FONT> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A>;
+      <FONT COLOR=red><A NAME="ref_53_7">W</A></FONT>   : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A> := <A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_51_7">Width</A>;
+      <FONT COLOR=red><A NAME="ref_54_7">LC</A></FONT>  : <A HREF="terminal_interface-curses__ads.htm#ref_63_12">Line_Count</A>;
+      <FONT COLOR=red><A NAME="ref_55_7">CC</A></FONT>  : <A HREF="terminal_interface-curses__ads.htm#ref_65_12">Column_Count</A>;
+      <FONT COLOR=red><A NAME="ref_56_7">Y</A></FONT>   : <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>;
+      <FONT COLOR=red><A NAME="ref_57_7">X</A></FONT>   : <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A>;
+
+      <b>procedure</b> <FONT COLOR=red><A NAME="ref_59_17" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_61_17">Output</A></FONT> (<FONT COLOR=red><A NAME="ref_59_25" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_61_25">From</A></FONT>, <FONT COLOR=red><A NAME="ref_59_31" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_61_31">To</A></FONT> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A>);
+
+      <b>procedure</b> <FONT COLOR=red><A NAME="ref_61_17" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_59_17">Output</A></FONT> (<FONT COLOR=red><A NAME="ref_61_25" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_59_25">From</A></FONT>, <FONT COLOR=red><A NAME="ref_61_31" HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_59_31">To</A></FONT> : <A HREF="terminal_interface-curses-text_io__ads.htm#ref_50_12">Field</A>)
+      <b>is</b>
+      <b>begin</b>
+         <b>if</b> <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_52_7">Len</A> &gt; 0 <b>then</b>
+            <b>if</b> <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_53_7">W</A> = 0 <b>then</b>
+               <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_53_7">W</A> := <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_52_7">Len</A>;
+            <b>end</b> <b>if</b>;
+            <b>if</b> <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_52_7">Len</A> &gt; <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_53_7">W</A> <b>then</b>
+               <FONT COLOR=green><EM>--  LRM A10.6 (7) says this</EM></FONT>
+               <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_53_7">W</A> := <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_52_7">Len</A>;
+            <b>end</b> <b>if</b>;
+
+            <b>pragma</b> Assert (<A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_52_7">Len</A> &lt;= <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_53_7">W</A>);
+            <A HREF="terminal_interface-curses__ads.htm#ref_1228_14">Get_Size</A> (<A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_49_7">Win</A>, <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_54_7">LC</A>, <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_55_7">CC</A>);
+            <b>if</b> <A HREF="terminal_interface-curses__ads.htm#ref_65_12">Column_Count</A> (<A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_52_7">Len</A>) &gt; <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_55_7">CC</A> <b>then</b>
+               <b>if</b> <A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_52_7">Signal</A> <b>then</b>
+                  <b>raise</b> <A HREF="terminal_interface-curses-text_io__ads.htm#ref_134_4">Layout_Error</A>;
+               <b>else</b>
+                  <b>return</b>;
+               <b>end</b> <b>if</b>;
+            <b>else</b>
+               <b>if</b> <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_52_7">Len</A> &lt; <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_53_7">W</A> <b>and</b> <b>then</b> <b>not</b> <A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_53_7">Ljust</A> <b>then</b>
+                  <b>declare</b>
+                     <FONT COLOR=red><A NAME="ref_84_22">Filler</A></FONT> : <b>constant</b> String (1 .. (<A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_53_7">W</A> - <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_52_7">Len</A>))
+                       := (<b>others</b> =&gt; ' ');
+                  <b>begin</b>
+                     <A HREF="terminal_interface-curses-text_io__ads.htm#ref_115_14">Put</A> (<A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_49_7">Win</A>, <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_84_22">Filler</A>);
+                  <b>end</b>;
+               <b>end</b> <b>if</b>;
+               <A HREF="terminal_interface-curses__ads.htm#ref_1244_14">Get_Cursor_Position</A> (<A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_49_7">Win</A>, <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_56_7">Y</A>, <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_57_7">X</A>);
+               <b>if</b> (<A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_57_7">X</A> + <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A> (<A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_52_7">Len</A>)) &gt; <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_55_7">CC</A> <b>then</b>
+                  <A HREF="terminal_interface-curses-text_io__ads.htm#ref_86_14">New_Line</A> (<A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_49_7">Win</A>);
+               <b>end</b> <b>if</b>;
+               <A HREF="terminal_interface-curses-text_io__ads.htm#ref_115_14">Put</A> (<A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_49_7">Win</A>, <A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_50_7">Buf</A> (<A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_59_25">From</A> .. <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_59_31">To</A>));
+               <b>if</b> <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_52_7">Len</A> &lt; <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_53_7">W</A> <b>and</b> <b>then</b> <A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_53_7">Ljust</A> <b>then</b>
+                  <b>declare</b>
+                     <FONT COLOR=red><A NAME="ref_97_22">Filler</A></FONT> : <b>constant</b> String (1 .. (<A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_53_7">W</A> - <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_52_7">Len</A>))
+                       := (<b>others</b> =&gt; ' ');
+                  <b>begin</b>
+                     <A HREF="terminal_interface-curses-text_io__ads.htm#ref_115_14">Put</A> (<A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_49_7">Win</A>, <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_97_22">Filler</A>);
+                  <b>end</b>;
+               <b>end</b> <b>if</b>;
+            <b>end</b> <b>if</b>;
+         <b>end</b> <b>if</b>;
+      <b>end</b> <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_59_17">Output</A>;
+
+   <b>begin</b>
+      <b>pragma</b> Assert (<A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_49_7">Win</A> /= <A HREF="terminal_interface-curses__ads.htm#ref_58_4">Null_Window</A>);
+      <b>if</b> <A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_53_7">Ljust</A> <b>then</b>
+         <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_51_7">L</A> := 1;
+         <b>for</b> <FONT COLOR=red><A NAME="ref_111_14">I</A></FONT> <b>in</b> 1 .. <A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_50_7">Buf</A>'Length <b>loop</b>
+            <b>exit</b> <b>when</b> <A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_50_7">Buf</A> (<A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_51_7">L</A>) = ' ';
+            <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_51_7">L</A> := <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_51_7">L</A> + 1;
+         <b>end</b> <b>loop</b>;
+         <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_52_7">Len</A> := <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_51_7">L</A> - 1;
+         <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_59_17">Output</A> (1, <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_52_7">Len</A>);
+      <b>else</b>  <FONT COLOR=green><EM>-- input buffer is not left justified</EM></FONT>
+         <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_51_7">L</A> := <A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_50_7">Buf</A>'Length;
+         <b>for</b> <FONT COLOR=red><A NAME="ref_119_14">I</A></FONT> <b>in</b> 1 .. <A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_50_7">Buf</A>'Length <b>loop</b>
+            <b>exit</b> <b>when</b> <A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_50_7">Buf</A> (<A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_51_7">L</A>) = ' ';
+            <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_51_7">L</A> := <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_51_7">L</A> - 1;
+         <b>end</b> <b>loop</b>;
+         <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_52_7">Len</A> := <A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_50_7">Buf</A>'Length - <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_51_7">L</A>;
+         <A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_59_17">Output</A> (<A HREF="terminal_interface-curses-text_io-aux__adb.htm#ref_51_7">L</A> + 1, <A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_50_7">Buf</A>'Length);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_48_14">Put_Buf</A>;
+
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-text_io__ads.htm#ref_44_35">Text_IO</A>.<A HREF="terminal_interface-curses-text_io-aux__ads.htm#ref_42_51">Aux</A>;
+</PRE></BODY></HTML>

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1999-2007,2008 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1999-2008,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_terminfo.3x,v 1.30 2008/08/16 20:53:27 tom Exp $
+.\" $Id: curs_terminfo.3x,v 1.35 2010/12/04 18:38:55 tom Exp $
 .TH curs_terminfo 3X ""
 .ds n 5
 .na
@@ -42,12 +42,13 @@
 \fBtigetflag\fR,
 \fBtigetnum\fR,
 \fBtigetstr\fR,
+\fBtiparm\fR,
 \fBtparm\fR,
 \fBtputs\fR,
 \fBvid_attr\fR,
 \fBvid_puts\fR,
 \fBvidattr\fR,
-\fBvidputs\fR - \fBcurses\fR interfaces to terminfo database
+\fBvidputs\fR \- \fBcurses\fR interfaces to terminfo database
 .ad
 .hy
 .SH SYNOPSIS
@@ -87,6 +88,8 @@
 \fBint tigetnum(char *\fR\fIcapname\fR\fB);\fR
 .br
 \fBchar *tigetstr(char *\fR\fIcapname\fR\fB);\fR
+.br
+\fBchar *tiparm(const char *\fR\fIstr\fR\fB, ...);\fR
 .br
 .fi
 .SH DESCRIPTION
@@ -153,7 +156,7 @@ means that the terminal could not be found,
 or that it is a generic type,
 having too little information for curses applications to run.
 .TP 5
-.B -1
+.B \-1
 means that the \fBterminfo\fR database could not be found.
 .RE
 .PP
@@ -196,6 +199,10 @@ The \fBtparm\fR routine instantiates the string \fIstr\fR with
 parameters \fIpi\fR.  A pointer is returned to the result of \fIstr\fR
 with the parameters applied.
 .PP
+\fBtiparm\fP is a newer form of \fBtparm\fP which uses \fI<stdarg.h>\fP
+rather than a fixed-parameter list.
+Its numeric parameters are integers (int) rather than longs.
+.PP
 The \fBtputs\fR routine applies padding information to the string
 \fIstr\fR and outputs it.  The \fIstr\fR must be a terminfo string
 variable or the return value from \fBtparm\fR, \fBtgetstr\fR, or
@@ -233,15 +240,15 @@ The \fBtigetflag\fR, \fBtigetnum\fR and \fBtigetstr\fR routines return
 the value of the capability corresponding to the \fBterminfo\fR
 \fIcapname\fR passed to them, such as \fBxenl\fR.
 .PP
-The \fBtigetflag\fR routine returns the value \fB-1\fR if
+The \fBtigetflag\fR routine returns the value \fB\-1\fR if
 \fIcapname\fR is not a boolean capability,
 or \fB0\fR if it is canceled or absent from the terminal description.
 .PP
-The \fBtigetnum\fR routine returns the value \fB-2\fR if
+The \fBtigetnum\fR routine returns the value \fB\-2\fR if
 \fIcapname\fR is not a numeric capability,
-or \fB-1\fR if it is canceled or absent from the terminal description.
+or \fB\-1\fR if it is canceled or absent from the terminal description.
 .PP
-The \fBtigetstr\fR routine returns the value \fB(char *)-1\fR
+The \fBtigetstr\fR routine returns the value \fB(char *)\-1\fR
 if \fIcapname\fR is not a string capability,
 or \fB0\fR if it is canceled or absent from the terminal description.
 .PP
@@ -319,9 +326,13 @@ That returns the length of the string, and does no error-checking.
 .PP
 X/Open Curses prototypes \fBtparm\fR with a fixed number of parameters,
 rather than a variable argument list.
-This implementation uses a variable argument list.
+This implementation uses a variable argument list, but can be
+configured to use the fixed-parameter list.
 Portable applications should provide 9 parameters after the format;
 zeroes are fine for this purpose.
+.PP
+In response to comments by Thomas E. Dickey,
+X/Open Curses Issue 7 proposed the \fBtiparam\fP function in mid-2009.
 .PP
 X/Open notes that after calling \fBmvcur\fR, the curses state may not match the
 actual terminal state, and that an application should touch and refresh
@@ -332,21 +343,17 @@ So though it is documented as a terminfo function,
 \fBmvcur\fR is really a curses function which is not well specified.
 .PP
 X/Open states that the old location must be given for \fBmvcur\fP.
-This implementation allows the caller to use -1's for the old ordinates.
+This implementation allows the caller to use \-1's for the old ordinates.
 In that case, the old location is unknown.
 .PP
-Extended terminal capability names, e.g., as defined by \fBtic\ -x\fP,
+Extended terminal capability names, e.g., as defined by \fBtic\ \-x\fP,
 are not stored in the arrays described in this section.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBcurs_initscr\fR(3X),
 \fBcurs_kernel\fR(3X),
 \fBcurs_termcap\fR(3X),
+\fBcurs_variables\fR(3X),
+\fBterm_variables\fR(3X),
 \fBputc\fR(3),
 \fBterminfo\fR(\*n)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

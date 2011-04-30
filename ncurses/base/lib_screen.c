@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,35 +30,45 @@
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  *     and: Thomas E. Dickey                        1996 on                 *
+ *     and: Juergen Pfeifer                         2009                    *
  ****************************************************************************/
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_screen.c,v 1.31 2008/08/16 19:05:37 tom Exp $")
+#ifndef CUR
+#define CUR SP_TERMTYPE
+#endif
+
+MODULE_ID("$Id: lib_screen.c,v 1.38 2009/10/24 22:08:55 tom Exp $")
 
 #define MAX_SIZE 0x3fff		/* 16k is big enough for a window or pad */
 
 NCURSES_EXPORT(WINDOW *)
-getwin(FILE *filep)
+NCURSES_SP_NAME(getwin) (NCURSES_SP_DCLx FILE *filep)
 {
     WINDOW tmp, *nwin;
     int n;
 
-    T((T_CALLED("getwin(%p)"), filep));
+    T((T_CALLED("getwin(%p)"), (void *) filep));
 
     clearerr(filep);
-    (void) fread(&tmp, sizeof(WINDOW), 1, filep);
-    if (ferror(filep)
+    if (fread(&tmp, 1, sizeof(WINDOW), filep) < sizeof(WINDOW)
+	|| ferror(filep)
 	|| tmp._maxy == 0
 	|| tmp._maxy > MAX_SIZE
 	|| tmp._maxx == 0
-	|| tmp._maxx > MAX_SIZE)
+	|| tmp._maxx > MAX_SIZE) {
 	returnWin(0);
+    }
 
     if (tmp._flags & _ISPAD) {
-	nwin = newpad(tmp._maxy + 1, tmp._maxx + 1);
+	nwin = NCURSES_SP_NAME(newpad) (NCURSES_SP_ARGx
+					tmp._maxy + 1,
+					tmp._maxx + 1);
     } else {
-	nwin = newwin(tmp._maxy + 1, tmp._maxx + 1, 0, 0);
+	nwin = NCURSES_SP_NAME(newwin) (NCURSES_SP_ARGx
+					tmp._maxy + 1,
+					tmp._maxx + 1, 0, 0);
     }
 
     /*
@@ -67,6 +77,8 @@ getwin(FILE *filep)
      * made sense is probably gone.
      */
     if (nwin != 0) {
+	size_t linesize = sizeof(NCURSES_CH_T) * (size_t) (tmp._maxx + 1);
+
 	nwin->_curx = tmp._curx;
 	nwin->_cury = tmp._cury;
 	nwin->_maxy = tmp._maxy;
@@ -98,11 +110,8 @@ getwin(FILE *filep)
 
 	for (n = 0; n <= nwin->_maxy; n++) {
 	    clearerr(filep);
-	    (void) fread(nwin->_line[n].text,
-			 sizeof(NCURSES_CH_T),
-			 (size_t) (nwin->_maxx + 1),
-			 filep);
-	    if (ferror(filep)) {
+	    if (fread(nwin->_line[n].text, 1, linesize, filep) < linesize
+		|| ferror(filep)) {
 		delwin(nwin);
 		returnWin(0);
 	    }
@@ -112,13 +121,21 @@ getwin(FILE *filep)
     returnWin(nwin);
 }
 
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(WINDOW *)
+getwin(FILE *filep)
+{
+    return NCURSES_SP_NAME(getwin) (CURRENT_SCREEN, filep);
+}
+#endif
+
 NCURSES_EXPORT(int)
 putwin(WINDOW *win, FILE *filep)
 {
     int code = ERR;
     int n;
 
-    T((T_CALLED("putwin(%p,%p)"), win, filep));
+    T((T_CALLED("putwin(%p,%p)"), (void *) win, (void *) filep));
 
     if (win != 0) {
 	size_t len = (size_t) (win->_maxx + 1);
@@ -141,25 +158,33 @@ putwin(WINDOW *win, FILE *filep)
 }
 
 NCURSES_EXPORT(int)
-scr_restore(const char *file)
+NCURSES_SP_NAME(scr_restore) (NCURSES_SP_DCLx const char *file)
 {
     FILE *fp = 0;
 
-    T((T_CALLED("scr_restore(%s)"), _nc_visbuf(file)));
+    T((T_CALLED("scr_restore(%p,%s)"), (void *) SP_PARM, _nc_visbuf(file)));
 
     if (_nc_access(file, R_OK) < 0
 	|| (fp = fopen(file, "rb")) == 0) {
 	returnCode(ERR);
     } else {
-	delwin(newscr);
-	SP->_newscr = getwin(fp);
+	delwin(NewScreen(SP_PARM));
+	NewScreen(SP_PARM) = getwin(fp);
 #if !USE_REENTRANT
-	newscr = SP->_newscr;
+	newscr = NewScreen(SP_PARM);
 #endif
 	(void) fclose(fp);
 	returnCode(OK);
     }
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
+scr_restore(const char *file)
+{
+    return NCURSES_SP_NAME(scr_restore) (CURRENT_SCREEN, file);
+}
+#endif
 
 NCURSES_EXPORT(int)
 scr_dump(const char *file)
@@ -179,42 +204,63 @@ scr_dump(const char *file)
 }
 
 NCURSES_EXPORT(int)
-scr_init(const char *file)
+NCURSES_SP_NAME(scr_init) (NCURSES_SP_DCLx const char *file)
 {
     FILE *fp = 0;
+    int code = ERR;
 
-    T((T_CALLED("scr_init(%s)"), _nc_visbuf(file)));
+    T((T_CALLED("scr_init(%p,%s)"), (void *) SP_PARM, _nc_visbuf(file)));
 
-    if (exit_ca_mode && non_rev_rmcup)
-	returnCode(ERR);
+    if (SP_PARM != 0 &&
+#ifdef USE_TERM_DRIVER
+	InfoOf(SP_PARM).caninit
+#else
+	!(exit_ca_mode && non_rev_rmcup)
+#endif
+	) {
+	if (_nc_access(file, R_OK) >= 0
+	    && (fp = fopen(file, "rb")) != 0) {
+	    delwin(CurScreen(SP_PARM));
+	    CurScreen(SP_PARM) = getwin(fp);
+#if !USE_REENTRANT
+	    curscr = CurScreen(SP_PARM);
+#endif
+	    (void) fclose(fp);
+	    code = OK;
+	}
+    }
+    returnCode(code);
+}
 
-    if (_nc_access(file, R_OK) < 0
-	|| (fp = fopen(file, "rb")) == 0) {
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
+scr_init(const char *file)
+{
+    return NCURSES_SP_NAME(scr_init) (CURRENT_SCREEN, file);
+}
+#endif
+
+NCURSES_EXPORT(int)
+NCURSES_SP_NAME(scr_set) (NCURSES_SP_DCLx const char *file)
+{
+    T((T_CALLED("scr_set(%p,%s)"), (void *) SP_PARM, _nc_visbuf(file)));
+
+    if (NCURSES_SP_NAME(scr_init) (NCURSES_SP_ARGx file) == ERR) {
 	returnCode(ERR);
     } else {
-	delwin(curscr);
-	SP->_curscr = getwin(fp);
+	delwin(NewScreen(SP_PARM));
+	NewScreen(SP_PARM) = dupwin(curscr);
 #if !USE_REENTRANT
-	curscr = SP->_curscr;
+	newscr = NewScreen(SP_PARM);
 #endif
-	(void) fclose(fp);
 	returnCode(OK);
     }
 }
 
+#if NCURSES_SP_FUNCS
 NCURSES_EXPORT(int)
 scr_set(const char *file)
 {
-    T((T_CALLED("scr_set(%s)"), _nc_visbuf(file)));
-
-    if (scr_init(file) == ERR) {
-	returnCode(ERR);
-    } else {
-	delwin(newscr);
-	SP->_newscr = dupwin(curscr);
-#if !USE_REENTRANT
-	newscr = SP->_newscr;
-#endif
-	returnCode(OK);
-    }
+    return NCURSES_SP_NAME(scr_set) (CURRENT_SCREEN, file);
 }
+#endif

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,23 +36,27 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_hide.c,v 1.9 2005/02/19 16:39:41 tom Exp $")
+MODULE_ID("$Id: p_hide.c,v 1.11 2010/01/23 21:22:16 tom Exp $")
 
 NCURSES_EXPORT(int)
 hide_panel(register PANEL * pan)
 {
-  int err = OK;
+  int err = ERR;
 
-  T((T_CALLED("hide_panel(%p)"), pan));
-  if (!pan)
-    returnCode(ERR);
+  T((T_CALLED("hide_panel(%p)"), (void *)pan));
 
-  dBug(("--> hide_panel %s", USER_PTR(pan->user)));
-  dStack("<u%d>", 1, pan);
+  if (pan)
+    {
+      GetHook(pan);
 
-  HIDE_PANEL(pan, err, ERR);
+      dBug(("--> hide_panel %s", USER_PTR(pan->user)));
+      dStack("<u%d>", 1, pan);
 
-  dStack("<u%d>", 9, pan);
+      HIDE_PANEL(pan, err, ERR);
 
+      err = OK;
+
+      dStack("<u%d>", 9, pan);
+    }
   returnCode(err);
 }

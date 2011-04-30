@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +42,7 @@
 
 #include <dump_entry.h>
 
-MODULE_ID("$Id: infocmp.c,v 1.103 2008/08/16 22:04:56 tom Exp $")
+MODULE_ID("$Id: infocmp.c,v 1.105 2010/05/01 22:04:08 tom Exp $")
 
 #define L_CURL "{"
 #define R_CURL "}"
@@ -894,8 +894,6 @@ file_comparison(int argc, char *argv[])
 
     (void) printf("The following entries are equivalent:\n");
     for (qp = heads[0]; qp; qp = qp->next) {
-	rp = qp->crosslinks[0];
-
 	if (qp->ncrosslinks == 1) {
 	    rp = qp->crosslinks[0];
 
@@ -1255,6 +1253,15 @@ terminal_env(void)
  *
  ***************************************************************************/
 
+#if NO_LEAKS
+#define MAIN_LEAKS() \
+    free(myargv); \
+    free(tfile); \
+    free(tname)
+#else
+#define MAIN_LEAKS()		/* nothing */
+#endif
+
 int
 main(int argc, char *argv[])
 {
@@ -1514,6 +1521,7 @@ main(int argc, char *argv[])
 #else
 		(void) fprintf(stderr, "%s: terminfo files not supported\n",
 			       _nc_progname);
+		MAIN_LEAKS();
 		ExitProgram(EXIT_FAILURE);
 #endif
 	    } else {
@@ -1526,7 +1534,6 @@ main(int argc, char *argv[])
 		status = _nc_read_entry(tname[termcount],
 					tfile[termcount],
 					&entries[termcount].tterm);
-		directory = TERMINFO;	/* for error message */
 	    }
 
 	    if (status <= 0) {
@@ -1534,6 +1541,7 @@ main(int argc, char *argv[])
 			       "%s: couldn't open terminfo file %s.\n",
 			       _nc_progname,
 			       tfile[termcount]);
+		MAIN_LEAKS();
 		ExitProgram(EXIT_FAILURE);
 	    }
 	    repair_acsc(&entries[termcount].tterm);
@@ -1642,11 +1650,7 @@ main(int argc, char *argv[])
     else
 	file_comparison(argc - optind, argv + optind);
 
-#if NO_LEAKS
-    free(myargv);
-    free(tfile);
-    free(tname);
-#endif
+    MAIN_LEAKS();
     ExitProgram(EXIT_SUCCESS);
 }
 

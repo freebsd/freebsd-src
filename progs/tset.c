@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,6 +33,22 @@
  ****************************************************************************/
 
 /*
+ * Notes:
+ * The initial adaptation from 4.4BSD Lite sources in September 1995 used 686
+ * lines from that version, and made changes/additions for 150 lines.  There
+ * was no reformatting, so with/without ignoring whitespace, the amount of
+ * change is the same.
+ *
+ * Comparing with current (2009) source, excluding this comment:
+ * a) 209 lines match identically to the 4.4BSD Lite sources, with 771 lines
+ *    changed/added.
+ * a) Ignoring whitespace, the current version still uses 516 lines from the
+ *    4.4BSD Lite sources, with 402 lines changed/added.
+ *
+ * Raymond's original comment on this follows...
+ */
+
+/*
  * tset.c - terminal initialization utility
  *
  * This code was mostly swiped from 4.4BSD tset, with some obsolescent
@@ -52,11 +68,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -107,7 +119,7 @@ char *ttyname(int fd);
 #include <dump_entry.h>
 #include <transform.h>
 
-MODULE_ID("$Id: tset.c,v 1.76 2008/10/11 19:26:19 tom Exp $")
+MODULE_ID("$Id: tset.c,v 1.82 2010/05/01 21:42:46 tom Exp $")
 
 /*
  * SCO defines TIOCGSIZE and the corresponding struct.  Other systems (SunOS,
@@ -129,7 +141,9 @@ MODULE_ID("$Id: tset.c,v 1.76 2008/10/11 19:26:19 tom Exp $")
 # endif
 #endif
 
+#ifndef environ
 extern char **environ;
+#endif
 
 #undef CTRL
 #define CTRL(x)	((x) & 0x1f)
@@ -385,9 +399,13 @@ add_mapping(const char *port, char *arg)
     char *base = 0;
 
     copy = strdup(arg);
-    mapp = (MAP *) malloc(sizeof(MAP));
+    mapp = typeMalloc(MAP, 1);
     if (copy == 0 || mapp == 0)
 	failed("malloc");
+
+    assert(copy != 0);
+    assert(mapp != 0);
+
     mapp->next = 0;
     if (maplist == 0)
 	cur = maplist = mapp;
@@ -1247,12 +1265,12 @@ main(int argc, char **argv)
     ospeed = (NCURSES_OSPEED) mode.sg_ospeed;
 #endif
 
-    if (!strcmp(_nc_progname, PROG_RESET)) {
+    if (same_program(_nc_progname, PROG_RESET)) {
 	isreset = TRUE;
 	reset_mode();
     }
 
-    ttype = get_termcap_entry(*argv);
+    (void) get_termcap_entry(*argv);
 
     if (!noset) {
 	tcolumns = columns;

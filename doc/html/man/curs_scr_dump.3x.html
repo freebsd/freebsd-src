@@ -1,0 +1,137 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_scr_dump.3x,v 1.9 2010/12/04 18:40:45 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_scr_dump 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_scr_dump 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>                                     <STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>scr_dump</STRONG>, <STRONG>scr_restore</STRONG>, <STRONG>scr_init</STRONG>, <STRONG>scr_set</STRONG> - read (write) a
+       <STRONG>curses</STRONG> screen from (to) a file
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>scr_dump(const</STRONG> <STRONG>char</STRONG> <STRONG>*filename);</STRONG>
+       <STRONG>int</STRONG> <STRONG>scr_restore(const</STRONG> <STRONG>char</STRONG> <STRONG>*filename);</STRONG>
+       <STRONG>int</STRONG> <STRONG>scr_init(const</STRONG> <STRONG>char</STRONG> <STRONG>*filename);</STRONG>
+       <STRONG>int</STRONG> <STRONG>scr_set(const</STRONG> <STRONG>char</STRONG> <STRONG>*filename);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The <STRONG>scr_dump</STRONG> routine dumps the  current  contents  of  the
+       virtual screen to the file <EM>filename</EM>.
+
+       The  <STRONG>scr_restore</STRONG>  routine  sets  the virtual screen to the
+       contents of <EM>filename</EM>, which must have been  written  using
+       <STRONG>scr_dump</STRONG>.   The  next call to <STRONG>doupdate</STRONG> restores the screen
+       to the way it looked in the dump file.
+
+       The <STRONG>scr_init</STRONG> routine reads in the contents of <EM>filename</EM> and
+       uses  them  to initialize the <STRONG>curses</STRONG> data structures about
+       what the terminal currently has on its screen.  If the da-
+       ta is determined to be valid, <STRONG>curses</STRONG> bases its next update
+       of the screen on this information rather than clearing the
+       screen  and starting from scratch.  <STRONG>scr_init</STRONG> is used after
+       <STRONG>initscr</STRONG> or a <STRONG>system</STRONG> call to share the screen with  another
+       process  which  has done a <STRONG>scr_dump</STRONG> after its <STRONG>endwin</STRONG> call.
+       The data is declared invalid if the terminfo  capabilities
+       <STRONG>rmcup</STRONG> and <STRONG>nrrmc</STRONG> exist; also if the terminal has been writ-
+       ten to since the preceding <STRONG>scr_dump</STRONG> call.
+
+       The <STRONG>scr_set</STRONG> routine is a combination  of  <STRONG>scr_restore</STRONG>  and
+       <STRONG>scr_init</STRONG>.   It  tells  the program that the information in
+       <EM>filename</EM> is what is currently on the screen, and also what
+       the  program  wants on the screen.  This can be thought of
+       as a screen inheritance function.
+
+       To read (write) a window from (to) a file, use the  <STRONG>getwin</STRONG>
+       and <STRONG>putwin</STRONG> routines [see <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>].
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       All  routines  return  the integer <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG>
+       upon success.
+
+       X/Open defines no error conditions.  In  this  implementa-
+       tion,  each  will  return  an  error if the file cannot be
+       opened.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       Note  that  <STRONG>scr_init</STRONG>,  <STRONG>scr_set</STRONG>,  and  <STRONG>scr_restore</STRONG>  may  be
+       macros.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       The  XSI  Curses  standard, Issue 4, describes these func-
+       tions (adding the const qualifiers).
+
+       The SVr4 docs merely say under <STRONG>scr_init</STRONG> that the dump data
+       is  also  considered invalid "if the time-stamp of the tty
+       is old" but do not define "old".
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,      <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>,       <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>,
+       <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>, <STRONG><A HREF="system.3.html">system(3)</A></STRONG>
+
+
+
+                                                      <STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

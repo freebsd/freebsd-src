@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2003,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,13 +26,13 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_insch.3x,v 1.10 2006/12/02 17:01:50 tom Exp $
+.\" $Id: curs_insch.3x,v 1.13 2010/12/04 18:38:55 tom Exp $
 .TH curs_insch 3X ""
 .SH NAME
 \fBinsch\fR,
 \fBwinsch\fR,
 \fBmvinsch\fR,
-\fBmvwinsch\fR - insert a character before cursor in a \fBcurses\fR window
+\fBmvwinsch\fR \- insert a character before cursor in a \fBcurses\fR window
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
@@ -53,6 +53,10 @@ The insertion operation does not change the cursor position.
 All routines that return an integer return \fBERR\fR upon failure and OK (SVr4
 specifies only "an integer value other than \fBERR\fR") upon successful
 completion, unless otherwise noted in the preceding routine descriptions.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
 .SH NOTES
 These routines do not necessarily imply use of a hardware insert character
 feature.
@@ -66,9 +70,3 @@ These functions are described in the XSI Curses standard, Issue 4.
 Comparable functions in the wide-character (ncursesw) library are
 described in
 \fBcurs_ins_wch\fR(3X).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

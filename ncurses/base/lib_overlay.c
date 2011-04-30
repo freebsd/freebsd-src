@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_overlay.c,v 1.27 2008/06/07 23:30:34 tom Exp $")
+MODULE_ID("$Id: lib_overlay.c,v 1.29 2009/10/24 23:21:31 tom Exp $")
 
 static int
 overlap(const WINDOW *const src, WINDOW *const dst, int const flag)
@@ -52,7 +52,7 @@ overlap(const WINDOW *const src, WINDOW *const dst, int const flag)
     int dminrow, dmincol;
     int dmaxrow, dmaxcol;
 
-    T((T_CALLED("overlap(%p,%p,%d)"), src, dst, flag));
+    T((T_CALLED("overlap(%p,%p,%d)"), (const void *) src, (void *) dst, flag));
 
     if (src != 0 && dst != 0) {
 	_nc_lock_global(curses);
@@ -110,7 +110,7 @@ overlap(const WINDOW *const src, WINDOW *const dst, int const flag)
 NCURSES_EXPORT(int)
 overlay(const WINDOW *win1, WINDOW *win2)
 {
-    T((T_CALLED("overlay(%p,%p)"), win1, win2));
+    T((T_CALLED("overlay(%p,%p)"), (const void *) win1, (void *) win2));
     returnCode(overlap(win1, win2, TRUE));
 }
 
@@ -127,7 +127,7 @@ overlay(const WINDOW *win1, WINDOW *win2)
 NCURSES_EXPORT(int)
 overwrite(const WINDOW *win1, WINDOW *win2)
 {
-    T((T_CALLED("overwrite(%p,%p)"), win1, win2));
+    T((T_CALLED("overwrite(%p,%p)"), (const void *) win1, (void *) win2));
     returnCode(overlap(win1, win2, FALSE));
 }
 
@@ -145,7 +145,11 @@ copywin(const WINDOW *src, WINDOW *dst,
     attr_t mask;
 
     T((T_CALLED("copywin(%p, %p, %d, %d, %d, %d, %d, %d, %d)"),
-       src, dst, sminrow, smincol, dminrow, dmincol, dmaxrow, dmaxcol, over));
+       (const void *) src,
+       (void *) dst,
+       sminrow, smincol,
+       dminrow, dmincol,
+       dmaxrow, dmaxcol, over));
 
     if (src && dst) {
 	_nc_lock_global(curses);

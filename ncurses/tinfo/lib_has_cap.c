@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2003 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2003,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,6 +30,7 @@
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  *     and: Thomas E. Dickey                        1996-2003               *
+ *     and: Juergen Pfeifer                         2009                    *
  ****************************************************************************/
 
 /*
@@ -41,25 +42,53 @@
 
 #include <curses.priv.h>
 
-#include <term.h>
+#ifndef CUR
+#define CUR SP_TERMTYPE
+#endif
 
-MODULE_ID("$Id: lib_has_cap.c,v 1.4 2003/10/25 19:43:55 tom Exp $")
+MODULE_ID("$Id: lib_has_cap.c,v 1.9 2009/10/24 22:15:47 tom Exp $")
 
+NCURSES_EXPORT(bool)
+NCURSES_SP_NAME(has_ic) (NCURSES_SP_DCL0)
+{
+    bool code = FALSE;
+
+    T((T_CALLED("has_ic(%p)"), (void *) SP_PARM));
+
+    if (IsValidTIScreen(SP_PARM) && IsTermInfo(SP_PARM)) {
+	code = ((insert_character || parm_ich
+		 || (enter_insert_mode && exit_insert_mode))
+		&& (delete_character || parm_dch)) ? TRUE : FALSE;
+    }
+
+    returnCode(code);
+}
+
+#if NCURSES_SP_FUNCS
 NCURSES_EXPORT(bool)
 has_ic(void)
 {
-    T((T_CALLED("has_ic()")));
-    returnCode(cur_term &&
-	       (insert_character || parm_ich
-		|| (enter_insert_mode && exit_insert_mode))
-	       && (delete_character || parm_dch));
+    return NCURSES_SP_NAME(has_ic) (CURRENT_SCREEN);
+}
+#endif
+
+NCURSES_EXPORT(bool)
+NCURSES_SP_NAME(has_il) (NCURSES_SP_DCL0)
+{
+    bool code = FALSE;
+    T((T_CALLED("has_il(%p)"), (void *) SP_PARM));
+    if (IsValidTIScreen(SP_PARM) && IsTermInfo(SP_PARM)) {
+	code = ((insert_line || parm_insert_line)
+		&& (delete_line || parm_delete_line)) ? TRUE : FALSE;
+    }
+
+    returnCode(code);
 }
 
+#if NCURSES_SP_FUNCS
 NCURSES_EXPORT(bool)
 has_il(void)
 {
-    T((T_CALLED("has_il()")));
-    returnCode(cur_term
-	       && (insert_line || parm_insert_line)
-	       && (delete_line || parm_delete_line));
+    return NCURSES_SP_NAME(has_il) (CURRENT_SCREEN);
 }
+#endif

@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_inopts.3x,v 1.13 2005/05/15 16:18:07 tom Exp $
+.\" $Id: curs_inopts.3x,v 1.15 2010/12/04 18:40:45 tom Exp $
 .TH curs_inopts 3X ""
 .na
 .hy 0
@@ -47,7 +47,7 @@
 \fBqiflush\fR,
 \fBtimeout\fR,
 \fBwtimeout\fR,
-\fBtypeahead\fR - \fBcurses\fR input options
+\fBtypeahead\fR \- \fBcurses\fR input options
 .ad
 .hy
 .SH SYNOPSIS
@@ -197,7 +197,7 @@ pointer passed to \fBnewterm\fR, or \fBstdin\fR in the case that
 \fBinitscr\fR was used, will be used to do this typeahead checking.
 The \fBtypeahead\fR routine specifies that the file descriptor
 \fIfd\fR is to be used to check for typeahead instead.  If \fIfd\fR is
--1, then no typeahead checking is done.
+\-1, then no typeahead checking is done.
 .SH RETURN VALUE
 All routines that return an integer return \fBERR\fR upon failure and OK (SVr4
 specifies only "an integer value other than \fBERR\fR") upon successful
@@ -234,9 +234,3 @@ respectively.  Mixing raw/noraw and cbreak/nocbreak calls leads to tty driver
 control states that are hard to predict or understand; it is not recommended.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBcurs_getch\fR(3X), \fBcurs_initscr\fR(3X), \fBtermio\fR(7)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

@@ -1,0 +1,86 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>terminal_interface-curses-termcap.ads</TITLE></HEAD>
+<BODY>
+<HR><DIV ALIGN="center"><H1> File : terminal_interface-curses-termcap.ads </H1></DIV><HR>
+<PRE>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                           <A HREF="http://www.gnat.com">GNAT</A> ncurses Binding                           --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                     Terminal_Interface.Curses.Termcap                    --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                                 S P E C                                  --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>-- Copyright (c) 2000 Free Software Foundation, Inc.                        --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></FONT>
+<FONT COLOR=green><EM>-- copy of this software and associated documentation files (the            --</EM></FONT>
+<FONT COLOR=green><EM>-- "Software"), to deal in the Software without restriction, including      --</EM></FONT>
+<FONT COLOR=green><EM>-- without limitation the rights to use, copy, modify, merge, publish,      --</EM></FONT>
+<FONT COLOR=green><EM>-- distribute, distribute with modifications, sublicense, and/or sell       --</EM></FONT>
+<FONT COLOR=green><EM>-- copies of the Software, and to permit persons to whom the Software is    --</EM></FONT>
+<FONT COLOR=green><EM>-- furnished to do so, subject to the following conditions:                 --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- The above copyright notice and this permission notice shall be included  --</EM></FONT>
+<FONT COLOR=green><EM>-- in all copies or substantial portions of the Software.                   --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</EM></FONT>
+<FONT COLOR=green><EM>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</EM></FONT>
+<FONT COLOR=green><EM>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</EM></FONT>
+<FONT COLOR=green><EM>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</EM></FONT>
+<FONT COLOR=green><EM>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Except as contained in this notice, the name(s) of the above copyright   --</EM></FONT>
+<FONT COLOR=green><EM>-- holders shall not be used in advertising or otherwise to promote the     --</EM></FONT>
+<FONT COLOR=green><EM>-- sale, use or other dealings in this Software without prior written       --</EM></FONT>
+<FONT COLOR=green><EM>-- authorization.                                                           --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
+<FONT COLOR=green><EM>--  Version Control:</EM></FONT>
+<FONT COLOR=green><EM>--  @Revision: 1.3 @</EM></FONT>
+<FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<FONT COLOR=red><A NAME="ref_42_35" HREF="terminal_interface-curses-termcap__adb.htm#ref_47_40">Termcap</A></FONT> <b>is</b>
+   <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-termcap__ads.htm#ref_42_35">Termcap</A>);
+
+   <FONT COLOR=green><EM>--  |=====================================================================</EM></FONT>
+   <FONT COLOR=green><EM>--  | Man page curs_termcap.3x</EM></FONT>
+   <FONT COLOR=green><EM>--  |=====================================================================</EM></FONT>
+   <FONT COLOR=green><EM>--  Not implemented:  tputs (see curs_terminfo)</EM></FONT>
+
+   <b>type</b> Termcap_String <b>is</b> <b>new</b> String;
+
+   <FONT COLOR=green><EM>--  |</EM></FONT>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_53_13" HREF="terminal_interface-curses-termcap__adb.htm#ref_148_13">TGoto</A></FONT> (<FONT COLOR=red><A NAME="ref_53_20" HREF="terminal_interface-curses-termcap__adb.htm#ref_148_20">Cap</A></FONT> : String;
+                   <FONT COLOR=red><A NAME="ref_54_20" HREF="terminal_interface-curses-termcap__adb.htm#ref_149_20">Col</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A>;
+                   <FONT COLOR=red><A NAME="ref_55_20" HREF="terminal_interface-curses-termcap__adb.htm#ref_150_20">Row</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>) <b>return</b> Termcap_String;
+   <FONT COLOR=green><EM>--  AKA: tgoto()</EM></FONT>
+
+   <FONT COLOR=green><EM>--  |</EM></FONT>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_59_13" HREF="terminal_interface-curses-termcap__adb.htm#ref_49_13">Get_Entry</A></FONT> (<FONT COLOR=red><A NAME="ref_59_24" HREF="terminal_interface-curses-termcap__adb.htm#ref_49_24">Name</A></FONT> : String) <b>return</b> Boolean;
+   <FONT COLOR=green><EM>--  AKA: tgetent()</EM></FONT>
+
+   <FONT COLOR=green><EM>--  |</EM></FONT>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_63_13" HREF="terminal_interface-curses-termcap__adb.htm#ref_69_13">Get_Flag</A></FONT> (<FONT COLOR=red><A NAME="ref_63_23" HREF="terminal_interface-curses-termcap__adb.htm#ref_69_23">Name</A></FONT> : String) <b>return</b> Boolean;
+   <FONT COLOR=green><EM>--  AKA: tgetflag()</EM></FONT>
+
+   <FONT COLOR=green><EM>--  |</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_67_14" HREF="terminal_interface-curses-termcap__adb.htm#ref_85_14">Get_Number</A></FONT> (<FONT COLOR=red><A NAME="ref_67_26" HREF="terminal_interface-curses-termcap__adb.htm#ref_85_26">Name</A></FONT>   : String;
+                         <FONT COLOR=red><A NAME="ref_68_26" HREF="terminal_interface-curses-termcap__adb.htm#ref_86_26">Value</A></FONT>  : <b>out</b> Integer;
+                         <FONT COLOR=red><A NAME="ref_69_26" HREF="terminal_interface-curses-termcap__adb.htm#ref_87_26">Result</A></FONT> : <b>out</b> Boolean);
+   <FONT COLOR=green><EM>--  AKA: tgetnum()</EM></FONT>
+
+   <FONT COLOR=green><EM>--  |</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_73_14" HREF="terminal_interface-curses-termcap__adb.htm#ref_104_14">Get_String</A></FONT> (<FONT COLOR=red><A NAME="ref_73_26" HREF="terminal_interface-curses-termcap__adb.htm#ref_104_26">Name</A></FONT>   : String;
+                         <FONT COLOR=red><A NAME="ref_74_26" HREF="terminal_interface-curses-termcap__adb.htm#ref_105_26">Value</A></FONT>  : <b>out</b> String;
+                         <FONT COLOR=red><A NAME="ref_75_26" HREF="terminal_interface-curses-termcap__adb.htm#ref_106_26">Result</A></FONT> : <b>out</b> Boolean);
+   <b>function</b> <FONT COLOR=red><A NAME="ref_76_13" HREF="terminal_interface-curses-termcap__adb.htm#ref_127_13">Get_String</A></FONT> (<FONT COLOR=red><A NAME="ref_76_25" HREF="terminal_interface-curses-termcap__adb.htm#ref_127_25">Name</A></FONT> : String) <b>return</b> Boolean;
+   <FONT COLOR=green><EM>--  Returns True if the string is found.</EM></FONT>
+   <FONT COLOR=green><EM>--  AKA: tgetstr()</EM></FONT>
+
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-termcap__ads.htm#ref_42_35">Termcap</A>;
+</PRE></BODY></HTML>

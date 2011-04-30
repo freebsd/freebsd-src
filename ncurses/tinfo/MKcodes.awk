@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -25,7 +25,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKcodes.awk,v 1.5 2008/06/28 23:13:25 tom Exp $
+# $Id: MKcodes.awk,v 1.9 2010/01/23 17:57:43 tom Exp $
 function large_item(value) {
 	result = sprintf("%d,", offset);
 	offset = offset + length(value) + 1;
@@ -101,8 +101,6 @@ END	{
 		print  ""
 		print  "#if BROKEN_LINKER || USE_REENTRANT"
 		print  ""
-		print  "#include <term.h>"
-		print  ""
 		if (bigstrings) {
 			printf "static const char _nc_code_blob[] = \n"
 			printf "%s;\n", bigstr;
@@ -117,28 +115,39 @@ END	{
 			print  "		if ((*value = typeCalloc(NCURSES_CONST char *, size + 1)) != 0) {"
 			print  "			unsigned n;"
 			print  "			for (n = 0; n < size; ++n) {"
-			print  "				(*value)[n] = _nc_code_blob + offsets[n];"
+			print  "				(*value)[n] = (NCURSES_CONST char *) _nc_code_blob + offsets[n];"
 			print  "			}"
 			print  "		}"
 			print  "	}"
 			print  "	return *value;"
 			print  "}"
 			print  ""
-			print  "#define FIX(it) NCURSES_IMPEXP IT * NCURSES_API _nc_##it(void) { return alloc_array(&ptr_##it, _nc_offset_##it, SIZEOF(_nc_offset_##it)); }"
+			print  "#define FIX(it) NCURSES_IMPEXP IT * NCURSES_API NCURSES_PUBLIC_VAR(it)(void) { return alloc_array(&ptr_##it, _nc_offset_##it, SIZEOF(_nc_offset_##it)); }"
 		} else {
 			print  "#define DCL(it) static IT data##it[]"
 			print  ""
 			print_strings("boolcodes", small_boolcodes);
 			print_strings("numcodes", small_numcodes);
 			print_strings("strcodes", small_strcodes);
-			print  "#define FIX(it) NCURSES_IMPEXP IT * NCURSES_API _nc_##it(void) { return data##it; }"
+			print  "#define FIX(it) NCURSES_IMPEXP IT * NCURSES_API NCURSES_PUBLIC_VAR(it)(void) { return data##it; }"
 		}
 		print  ""
+		print  "/* remove public definition which conflicts with FIX() */"
+		print  "#undef boolcodes"
+		print  "#undef numcodes"
+		print  "#undef strcodes"
+		print  ""
+		print  "/* add local definition */"
 		print  "FIX(boolcodes)"
 		print  "FIX(numcodes)"
 		print  "FIX(strcodes)"
 		print  ""
+		print  "/* restore the public definition */"
+		print  ""
 		print  "#define FREE_FIX(it) if (ptr_##it) { FreeAndNull(ptr_##it); }"
+		print  "#define boolcodes  NCURSES_PUBLIC_VAR(boolcodes())"
+		print  "#define numcodes   NCURSES_PUBLIC_VAR(numcodes())"
+		print  "#define strcodes   NCURSES_PUBLIC_VAR(strcodes())"
 		print  ""
 		print  "#if NO_LEAKS"
 		print  "NCURSES_EXPORT(void)"

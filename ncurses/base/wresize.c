@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,12 +27,13 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey 1996-2002                                      *
+ *  Author: Thomas E. Dickey 1996-on                                        *
+ *     and: Juergen Pfeifer                                                 *
  ****************************************************************************/
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: wresize.c,v 1.29 2008/06/07 13:59:01 tom Exp $")
+MODULE_ID("$Id: wresize.c,v 1.34 2010/06/05 22:36:26 tom Exp $")
 
 static int
 cleanup_lines(struct ldat *data, int length)
@@ -53,10 +54,13 @@ repair_subwindows(WINDOW *cmp)
     WINDOWLIST *wp;
     struct ldat *pline = cmp->_line;
     int row;
+#ifdef USE_SP_WINDOWLIST
+    SCREEN *sp = _nc_screen_of(cmp);
+#endif
 
     _nc_lock_global(curses);
 
-    for (each_window(wp)) {
+    for (each_window(SP_PARM, wp)) {
 	WINDOW *tst = &(wp->win);
 
 	if (tst->_parent == cmp) {
@@ -67,9 +71,9 @@ repair_subwindows(WINDOW *cmp)
 		tst->_parx = cmp->_maxx;
 
 	    if (tst->_maxy + tst->_pary > cmp->_maxy)
-		tst->_maxy = cmp->_maxy - tst->_pary;
+		tst->_maxy = (NCURSES_SIZE_T) (cmp->_maxy - tst->_pary);
 	    if (tst->_maxx + tst->_parx > cmp->_maxx)
-		tst->_maxx = cmp->_maxx - tst->_parx;
+		tst->_maxx = (NCURSES_SIZE_T) (cmp->_maxx - tst->_parx);
 
 	    for (row = 0; row <= tst->_maxy; ++row) {
 		tst->_line[row].text = &pline[tst->_pary + row].text[tst->_parx];
@@ -93,7 +97,7 @@ wresize(WINDOW *win, int ToLines, int ToCols)
     struct ldat *new_lines = 0;
 
 #ifdef TRACE
-    T((T_CALLED("wresize(%p,%d,%d)"), win, ToLines, ToCols));
+    T((T_CALLED("wresize(%p,%d,%d)"), (void *) win, ToLines, ToCols));
     if (win) {
 	TR(TRACE_UPDATE, ("...beg (%ld, %ld), max(%ld,%ld), reg(%ld,%ld)",
 			  (long) win->_begy, (long) win->_begx,
@@ -153,7 +157,8 @@ wresize(WINDOW *win, int ToLines, int ToCols)
 	if (!(win->_flags & _SUBWIN)) {
 	    if (row <= size_y) {
 		if (ToCols != size_x) {
-		    if ((s = typeMalloc(NCURSES_CH_T, ToCols + 1)) == 0)
+		    s = typeMalloc(NCURSES_CH_T, (unsigned) ToCols + 1);
+		    if (s == 0)
 			returnCode(cleanup_lines(new_lines, row));
 		    for (col = 0; col <= ToCols; ++col) {
 			s[col] = (col <= size_x
@@ -164,12 +169,14 @@ wresize(WINDOW *win, int ToLines, int ToCols)
 		    s = win->_line[row].text;
 		}
 	    } else {
-		if ((s = typeMalloc(NCURSES_CH_T, ToCols + 1)) == 0)
+		s = typeMalloc(NCURSES_CH_T, (unsigned) ToCols + 1);
+		if (s == 0)
 		    returnCode(cleanup_lines(new_lines, row));
 		for (col = 0; col <= ToCols; ++col)
 		    s[col] = win->_nc_bkgd;
 	    }
 	} else {
+	    assert(pline != 0);
 	    s = &pline[win->_pary + row].text[win->_parx];
 	}
 
@@ -181,11 +188,11 @@ wresize(WINDOW *win, int ToLines, int ToCols)
 	if ((ToCols != size_x) || (row > size_y)) {
 	    if (end >= begin) {	/* growing */
 		if (new_lines[row].firstchar < begin)
-		    new_lines[row].firstchar = begin;
+		    new_lines[row].firstchar = (NCURSES_SIZE_T) begin;
 	    } else {		/* shrinking */
 		new_lines[row].firstchar = 0;
 	    }
-	    new_lines[row].lastchar = ToCols;
+	    new_lines[row].lastchar = (NCURSES_SIZE_T) ToCols;
 	}
 	new_lines[row].text = s;
     }
@@ -212,8 +219,8 @@ wresize(WINDOW *win, int ToLines, int ToCols)
      * Finally, adjust the parameters showing screen size and cursor
      * position:
      */
-    win->_maxx = ToCols;
-    win->_maxy = ToLines;
+    win->_maxx = (NCURSES_SIZE_T) ToCols;
+    win->_maxy = (NCURSES_SIZE_T) ToLines;
 
     if (win->_regtop > win->_maxy)
 	win->_regtop = win->_maxy;

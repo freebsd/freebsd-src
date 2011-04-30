@@ -1,6 +1,6 @@
-# $Id: modules,v 1.15 2006/12/24 00:52:58 tom Exp $
+# $Id: modules,v 1.17 2010/01/23 16:26:37 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -28,49 +28,51 @@
 ##############################################################################
 #
 # Author: Thomas E. Dickey	1995-on
+#    and: Juergen Pfeifer       2008
 #
 
 @ base
 # Library objects
-f_trace		lib		$(srcdir)	$(FORM_PRIV_H)
-fld_arg		lib		$(srcdir)	$(FORM_PRIV_H)
-fld_attr	lib		$(srcdir)	$(FORM_PRIV_H)
-fld_current	lib		$(srcdir)	$(FORM_PRIV_H)
-fld_def		lib		$(srcdir)	$(FORM_PRIV_H)
-fld_dup		lib		$(srcdir)	$(FORM_PRIV_H)
-fld_ftchoice	lib		$(srcdir)	$(FORM_PRIV_H)
-fld_ftlink	lib		$(srcdir)	$(FORM_PRIV_H)
-fld_info	lib		$(srcdir)	$(FORM_PRIV_H)
-fld_just	lib		$(srcdir)	$(FORM_PRIV_H)
-fld_link	lib		$(srcdir)	$(FORM_PRIV_H)
-fld_max		lib		$(srcdir)	$(FORM_PRIV_H)
-fld_move	lib		$(srcdir)	$(FORM_PRIV_H)
-fld_newftyp	lib		$(srcdir)	$(FORM_PRIV_H)
-fld_opts	lib		$(srcdir)	$(FORM_PRIV_H)
-fld_pad		lib		$(srcdir)	$(FORM_PRIV_H)
-fld_page	lib		$(srcdir)	$(FORM_PRIV_H)
-fld_stat	lib		$(srcdir)	$(FORM_PRIV_H)
-fld_type	lib		$(srcdir)	$(FORM_PRIV_H)
-fld_user	lib		$(srcdir)	$(FORM_PRIV_H)
-frm_cursor	lib		$(srcdir)	$(FORM_PRIV_H)
-frm_data	lib		$(srcdir)	$(FORM_PRIV_H)
-frm_def		lib		$(srcdir)	$(FORM_PRIV_H)
-frm_driver	lib		$(srcdir)	$(FORM_PRIV_H)
-frm_hook	lib		$(srcdir)	$(FORM_PRIV_H)
-frm_opts	lib		$(srcdir)	$(FORM_PRIV_H)
-frm_page	lib		$(srcdir)	$(FORM_PRIV_H)
-frm_post	lib		$(srcdir)	$(FORM_PRIV_H)
-frm_req_name	lib		$(srcdir)	$(FORM_PRIV_H)
-frm_scale	lib		$(srcdir)	$(FORM_PRIV_H)
-frm_sub		lib		$(srcdir)	$(FORM_PRIV_H)
-frm_user	lib		$(srcdir)	$(FORM_PRIV_H)
-frm_win		lib		$(srcdir)	$(FORM_PRIV_H)
-fty_alnum	lib		$(srcdir)	$(FORM_PRIV_H)
-fty_alpha	lib		$(srcdir)	$(FORM_PRIV_H)
-fty_enum	lib		$(srcdir)	$(FORM_PRIV_H)
-fty_int		lib		$(srcdir)	$(FORM_PRIV_H)
-fty_ipv4	lib		$(srcdir)	$(FORM_PRIV_H)
-fty_num		lib		$(srcdir)	$(FORM_PRIV_H)
-fty_regex	lib		$(srcdir)	$(FORM_PRIV_H)
+f_trace		lib		$(srcdir)	$(HEADER_DEPS)
+fld_arg		lib		$(srcdir)	$(HEADER_DEPS)
+fld_attr	lib		$(srcdir)	$(HEADER_DEPS)
+fld_current	lib		$(srcdir)	$(HEADER_DEPS)
+fld_def		lib		$(srcdir)	$(HEADER_DEPS)
+fld_dup		lib		$(srcdir)	$(HEADER_DEPS)
+fld_ftchoice	lib		$(srcdir)	$(HEADER_DEPS)
+fld_ftlink	lib		$(srcdir)	$(HEADER_DEPS)
+fld_info	lib		$(srcdir)	$(HEADER_DEPS)
+fld_just	lib		$(srcdir)	$(HEADER_DEPS)
+fld_link	lib		$(srcdir)	$(HEADER_DEPS)
+fld_max		lib		$(srcdir)	$(HEADER_DEPS)
+fld_move	lib		$(srcdir)	$(HEADER_DEPS)
+fld_newftyp	lib		$(srcdir)	$(HEADER_DEPS)
+fld_opts	lib		$(srcdir)	$(HEADER_DEPS)
+fld_pad		lib		$(srcdir)	$(HEADER_DEPS)
+fld_page	lib		$(srcdir)	$(HEADER_DEPS)
+fld_stat	lib		$(srcdir)	$(HEADER_DEPS)
+fld_type	lib		$(srcdir)	$(HEADER_DEPS)
+fld_user	lib		$(srcdir)	$(HEADER_DEPS)
+frm_cursor	lib		$(srcdir)	$(HEADER_DEPS)
+frm_data	lib		$(srcdir)	$(HEADER_DEPS)
+frm_def		lib		$(srcdir)	$(HEADER_DEPS)
+frm_driver	lib		$(srcdir)	$(HEADER_DEPS)
+frm_hook	lib		$(srcdir)	$(HEADER_DEPS)
+frm_opts	lib		$(srcdir)	$(HEADER_DEPS)
+frm_page	lib		$(srcdir)	$(HEADER_DEPS)
+frm_post	lib		$(srcdir)	$(HEADER_DEPS)
+frm_req_name	lib		$(srcdir)	$(HEADER_DEPS)
+frm_scale	lib		$(srcdir)	$(HEADER_DEPS)
+frm_sub		lib		$(srcdir)	$(HEADER_DEPS)
+frm_user	lib		$(srcdir)	$(HEADER_DEPS)
+frm_win		lib		$(srcdir)	$(HEADER_DEPS)
+fty_alnum	lib		$(srcdir)	$(HEADER_DEPS)
+fty_alpha	lib		$(srcdir)	$(HEADER_DEPS)
+fty_enum	lib		$(srcdir)	$(HEADER_DEPS)
+fty_generic	lib		$(srcdir)	$(HEADER_DEPS)
+fty_int		lib		$(srcdir)	$(HEADER_DEPS)
+fty_ipv4	lib		$(srcdir)	$(HEADER_DEPS)
+fty_num		lib		$(srcdir)	$(HEADER_DEPS)
+fty_regex	lib		$(srcdir)	$(HEADER_DEPS)
 
 # vile:makemode

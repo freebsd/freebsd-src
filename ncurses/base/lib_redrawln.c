@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_redrawln.c,v 1.12 2007/10/13 20:08:56 tom Exp $")
+MODULE_ID("$Id: lib_redrawln.c,v 1.17 2010/12/19 00:03:23 tom Exp $")
 
 NCURSES_EXPORT(int)
 wredrawln(WINDOW *win, int beg, int num)
@@ -47,11 +47,14 @@ wredrawln(WINDOW *win, int beg, int num)
     int i;
     int end;
     size_t len;
+    SCREEN *sp;
 
-    T((T_CALLED("wredrawln(%p,%d,%d)"), win, beg, num));
+    T((T_CALLED("wredrawln(%p,%d,%d)"), (void *) win, beg, num));
 
     if (win == 0)
 	returnCode(ERR);
+
+    sp = _nc_screen_of(win);
 
     if (beg < 0)
 	beg = 0;
@@ -59,25 +62,25 @@ wredrawln(WINDOW *win, int beg, int num)
     if (touchline(win, beg, num) == ERR)
 	returnCode(ERR);
 
-    if (touchline(curscr, beg + win->_begy, num) == ERR)
+    if (touchline(CurScreen(sp), beg + win->_begy, num) == ERR)
 	returnCode(ERR);
 
     end = beg + num;
-    if (end > curscr->_maxy + 1)
-	end = curscr->_maxy + 1;
+    if (end > CurScreen(sp)->_maxy + 1 - win->_begy)
+	end = CurScreen(sp)->_maxy + 1 - win->_begy;
     if (end > win->_maxy + 1)
 	end = win->_maxy + 1;
 
-    len = (win->_maxx + 1);
-    if (len > (size_t) (curscr->_maxx + 1))
-	len = (size_t) (curscr->_maxx + 1);
-    len *= sizeof(curscr->_line[0].text[0]);
+    len = (size_t) (win->_maxx + 1);
+    if (len > (size_t) (CurScreen(sp)->_maxx + 1 - win->_begx))
+	len = (size_t) (CurScreen(sp)->_maxx + 1 - win->_begx);
+    len *= sizeof(CurScreen(sp)->_line[0].text[0]);
 
     for (i = beg; i < end; i++) {
 	int crow = i + win->_begy;
 
-	memset(curscr->_line[crow].text + win->_begx, 0, len);
-	_nc_make_oldhash(crow);
+	memset(CurScreen(sp)->_line[crow].text + win->_begx, 0, len);
+	NCURSES_SP_NAME(_nc_make_oldhash) (NCURSES_SP_ARGx crow);
     }
 
     returnCode(OK);
