@@ -90,6 +90,10 @@ ia64_efi_memmap_update(void)
 	return (TRUE);
 }
 
+/*
+ * Returns 0 on failure. Successful allocations return an address
+ * larger or equal to IA64_EFI_ALLOC_BOUNDARY.
+ */
 static vm_paddr_t
 ia64_efi_alloc(vm_size_t sz)
 {
@@ -144,11 +148,12 @@ ia64_efi_alloc(vm_size_t sz)
 vm_paddr_t
 ia64_platform_alloc(vm_offset_t va, vm_size_t sz)
 {
+	vm_paddr_t pa;
 
 	if (va == 0) {
 		/* Page table itself. */
 		if (sz > IA64_EFI_PGTBLSZ_MAX)
-			return (0);
+			return (~0UL);
 		if (ia64_efi_pgtbl == 0)
 			ia64_efi_pgtbl = ia64_efi_alloc(IA64_EFI_PGTBLSZ_MAX);
 		if (ia64_efi_pgtbl != 0)
@@ -156,7 +161,7 @@ ia64_platform_alloc(vm_offset_t va, vm_size_t sz)
 		return (ia64_efi_pgtbl);
 	} else if (va < IA64_PBVM_BASE) {
 		/* Should not happen. */
-		return (0);
+		return (~0UL);
 	}
 
 	/* Loader virtual memory page. */
@@ -169,7 +174,8 @@ ia64_platform_alloc(vm_offset_t va, vm_size_t sz)
 		return (ia64_efi_chunk + va);
 
 	/* Allocate a page at a time when we go beyond the chunk. */
-	return (ia64_efi_alloc(sz));
+	pa = ia64_efi_alloc(sz);
+	return ((pa == 0) ? ~0UL : pa);
 }
 
 void
