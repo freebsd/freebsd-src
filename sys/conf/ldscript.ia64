@@ -3,7 +3,7 @@ OUTPUT_FORMAT("elf64-ia64-freebsd", "elf64-ia64-freebsd", "elf64-ia64-freebsd")
 OUTPUT_ARCH(ia64)
 ENTRY(__start)
 SEARCH_DIR(/usr/lib);
-kernel_text = 0xe000000004000000;
+kernel_text = 0x9ffc000000000000;
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
@@ -11,10 +11,10 @@ SECTIONS
   .interp         : { *(.interp) }
 
   PROVIDE (btext = .);
-  .ivt		  : { *(.ivt) }
   .text           :
   {
-    *(.text.ivt)
+    *(.ivt)
+    *(.ivt.text)
     *(.text .stub .text.* .gnu.linkonce.t.*)
     /* .gnu.warning sections are handled specially by elf32.em.  */
     *(.gnu.warning)
@@ -60,9 +60,11 @@ SECTIONS
      page in the loader virtual memory. */
   . = ALIGN(65536);
 
+  PROVIDE (bdata = .);
   .data           :
   {
-    *(.data.kstack .data .data.* .gnu.linkonce.d.*)
+    *(.ivt.data)
+    *(.data .data.* .gnu.linkonce.d.*)
     SORT(CONSTRUCTORS)
   }
   .data1          : { *(.data1) }

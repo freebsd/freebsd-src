@@ -124,8 +124,8 @@
 #define IA64_RR_BASE(n)         (((uint64_t) (n)) << 61)
 #define IA64_RR_MASK(x)         ((x) & ((1L << 61) - 1))
 
-#define	IA64_PHYS_TO_RR6(x)     ((x) | IA64_RR_BASE(6))
-#define	IA64_PHYS_TO_RR7(x)     ((x) | IA64_RR_BASE(7))
+#define	IA64_PHYS_TO_RR6(x)	((x) | IA64_RR_BASE(6))
+#define	IA64_PHYS_TO_RR7(x)	((x) | IA64_RR_BASE(7))
 
 /*
  * The Itanium architecture defines that all implementations support at
@@ -137,18 +137,6 @@
  */
 #define	IA64_REGION_GAP_START	0x0004000000000000
 #define	IA64_REGION_GAP_EXTEND	0x1ffc000000000000
-
-/*
- * Page size of the identity mappings in region 7.
- */
-#ifndef LOG2_ID_PAGE_SIZE
-#define	LOG2_ID_PAGE_SIZE	28		/* 256M */
-#endif
-
-#define	IA64_ID_PAGE_SHIFT	(LOG2_ID_PAGE_SIZE)
-#define	IA64_ID_PAGE_SIZE	(1<<(LOG2_ID_PAGE_SIZE))
-#define	IA64_ID_PAGE_MASK	(IA64_ID_PAGE_SIZE-1)
-
 
 /*
  * Parameters for Pre-Boot Virtual Memory (PBVM).
