@@ -1935,11 +1935,16 @@ device		xmphy		# XaQti XMAC II
 #	(hint of prefer_iomap can be done to prefer I/O instead of Mem mapping)
 # gem:  Apple GMAC/Sun ERI/Sun GEM
 # hme:  Sun HME (Happy Meal Ethernet)
+# ipw:  Intel 2100 wireless NICs.
+# iwi:  Intel 2200BG/2225BG/2915ABG wireless NICs.
+# iwn:  Intel 4965/1000/5000/6000 wireless NICs.
 # jme:  JMicron JMC260 Fast Ethernet/JMC250 Gigabit Ethernet based adapters.
 # le:   AMD Am7900 LANCE and Am79C9xx PCnet
 # lge:	Support for PCI gigabit ethernet adapters based on the Level 1
 #	LXT1001 NetCellerator chipset. This includes the D-Link DGE-500SX,
 #	SMC TigerCard 1000 (SMC9462SX), and some Addtron cards.
+# malo: Marvell Libertas wireless NICs.
+# mwl:  Marvell 88W8363 802.11n wireless NICs.
 # msk:	Support for gigabit ethernet adapters based on the Marvell/SysKonnect
 #	Yukon II Gigabit controllers, including 88E8021, 88E8022, 88E8061,
 #	88E8062, 88E8035, 88E8036, 88E8038, 88E8050, 88E8052, 88E8053,
@@ -2011,6 +2016,7 @@ device		xmphy		# XaQti XMAC II
 # wi:   Lucent WaveLAN/IEEE 802.11 PCMCIA adapters. Note: this supports both
 #       the PCMCIA and ISA cards: the ISA card is really a PCMCIA to ISA
 #       bridge with a PCMCIA adapter plugged into it.
+# wpi:  Intel 3945ABG wireless NICs.
 # xe:   Xircom/Intel EtherExpress Pro100/16 PC Card ethernet controller,
 #       Accton Fast EtherCard-16, Compaq Netelligent 10/100 PC Card,
 #       Toshiba 10/100 Ethernet PC Card, Xircom 16-bit Ethernet + Modem 56
@@ -2131,7 +2137,13 @@ options	   	AH_RXCFG_SDMAMW_4BYTES
 device		ath_rate_sample	# SampleRate tx rate control for ath
 device		bwi		# Broadcom BCM430* BCM431*
 device		bwn		# Broadcom BCM43xx
+device		ipw		# Intel 2100 wireless NICs.
+device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
+device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
+device		malo		# Marvell Libertas wireless NICs.
+device		mwl		# Marvell 88W8363 802.11n wireless NICs.
 device		ral		# Ralink Technology RT2500 wireless NICs.
+device		wpi		# Intel 3945ABG wireless NICs.
 
 # Use "private" jumbo buffers allocated exclusively for the ti(4) driver.
 # This option is incompatible with the TI_JUMBO_HDRSPLIT option below.
@@ -2726,6 +2738,9 @@ device		run
 #
 # Atheros AR5523 wireless driver
 device		uath
+#
+# Conexant/Intersil PrismGT wireless driver
+device		upgt
 #
 # Ralink Technology RT2500USB wireless driver
 device		ural
