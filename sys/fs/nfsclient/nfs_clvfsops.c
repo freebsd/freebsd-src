@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/clock.h>
 #include <sys/jail.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -556,14 +557,29 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 	if (argp->sotype == SOCK_STREAM) {
 		nmp->nm_flag &= ~NFSMNT_NOCONN;
 		nmp->nm_timeo = NFS_MAXTIMEO;
+		if ((argp->flags & NFSMNT_NFSV4) != 0)
+			nmp->nm_retry = INT_MAX;
+		else
+			nmp->nm_retry = NFS_RETRANS_TCP;
 	}
 
-	/* Also clear RDIRPLUS if not NFSv3, it crashes some servers */
-	if ((argp->flags & NFSMNT_NFSV3) == 0)
+	/* Also clear RDIRPLUS if NFSv2, it crashes some servers */
+	if ((argp->flags & (NFSMNT_NFSV3 | NFSMNT_NFSV4)) == 0) {
+		argp->flags &= ~NFSMNT_RDIRPLUS;
 		nmp->nm_flag &= ~NFSMNT_RDIRPLUS;
+	}
 
+	/* Clear NFSMNT_RESVPORT for NFSv4, since it is not required. */
+	if ((argp->flags & NFSMNT_NFSV4) != 0) {
+		argp->flags &= ~NFSMNT_RESVPORT;
+		nmp->nm_flag &= ~NFSMNT_RESVPORT;
+	}
+
+	/* Re-bind if rsrvd port requested and wasn't on one */
+	adjsock = !(nmp->nm_flag & NFSMNT_RESVPORT)
+		  && (argp->flags & NFSMNT_RESVPORT);
 	/* Also re-bind if we're switching to/from a connected UDP socket */
-	adjsock = ((nmp->nm_flag & NFSMNT_NOCONN) !=
+	adjsock |= ((nmp->nm_flag & NFSMNT_NOCONN) !=
 		    (argp->flags & NFSMNT_NOCONN));
 
 	/* Update flags atomically.  Don't change the lock bits. */
@@ -708,7 +724,7 @@ nfs_mount(struct mount *mp)
 	    .proto = 0,
 	    .fh = NULL,
 	    .fhsize = 0,
-	    .flags = 0,
+	    .flags = NFSMNT_RESVPORT,
 	    .wsize = NFS_WSIZE,
 	    .rsize = NFS_RSIZE,
 	    .readdirsize = NFS_READDIRSIZE,
