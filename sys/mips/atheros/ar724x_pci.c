@@ -57,8 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar724xreg.h>
 #include <mips/atheros/ar71xx_setup.h>
-#include <mips/atheros/ar71xx_pci_bus_space.h>		/* XXX */
-#include <mips/atheros/ar71xx_bus_space_reversed.h>	/* XXX */
+#include <mips/atheros/ar71xx_pci_bus_space.h>
 
 #include <mips/atheros/ar71xx_cpudef.h>
 
@@ -113,7 +112,7 @@ static uint32_t
 ar724x_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func, 
     u_int reg, int bytes)
 {
-	uint32_t cmd, data, shift, mask;
+	uint32_t data, shift, mask;
 
 	/* Register access is 32-bit aligned */
 	shift = (reg & 3) * 8;
@@ -125,18 +124,9 @@ ar724x_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 	dprintf("%s: tag (%x, %x, %x) reg %d(%d)\n", __func__, bus, slot,
 	    func, reg, bytes);
 
-	if ((bus == 0) && (slot == 0) && (func == 0)) {
+	if ((bus == 0) && (slot == 0) && (func == 0))
 		data = ATH_READ_REG(AR724X_PCI_CFG_BASE + (reg & ~3));
-		/*
-		 * WAR for BAR issue - We are unable to access the PCI device
-		 * space if we set the BAR with proper base address.
-		 */
-		if (reg == PCIR_BAR(0) && bytes == 4) {
-			cmd = (ar71xx_soc == AR71XX_SOC_AR7240) ?
-			    0xffff : 0x1000ffff;
-			ar724x_pci_write(AR724X_PCI_CFG_BASE, reg, cmd, bytes);
-		}
-	} else
+	else
 		data = -1;
 
 	/* Get request bytes from 32-bit word */
@@ -158,14 +148,14 @@ ar724x_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 	if ((bus != 0) || (slot != 0) || (func != 0))
 		return;
 
-	ar724x_pci_write(AR724X_PCI_CFG_BASE, reg, data, bytes);
 	/*
-	 * WAR for BAR issue - We are unable to access the PCI device space
-	 * if we set the BAR with proper base address.
-	 * Force a flush here (at register writing).
+	 * WAR for BAR issue on AR7240 - We are unable to access the PCI device
+	 * space if we set the BAR with proper base address.
 	 */
-	if (reg == PCIR_BAR(0) && bytes == 4)
-		(void)ar724x_pci_read_config(dev, bus, slot, func, reg, bytes);
+	if (reg == PCIR_BAR(0) && bytes == 4 && ar71xx_soc == AR71XX_SOC_AR7240)
+		ar724x_pci_write(AR724X_PCI_CFG_BASE, reg, 0xffff, bytes);
+	else
+		ar724x_pci_write(AR724X_PCI_CFG_BASE, reg, data, bytes);
 }
 
 static void 
@@ -232,6 +222,9 @@ ar724x_pci_setup(device_t dev)
 	else
 		reg = 0x1ffc1;
 	ATH_WRITE_REG(AR724X_PCI_APP, reg);
+	/* Flush write */
+	(void) ATH_READ_REG(AR724X_PCI_APP);
+
 	DELAY(1000);
 
 	reg = ATH_READ_REG(AR724X_PCI_RESET);
@@ -457,10 +450,7 @@ ar724x_pci_activate_resource(device_t bus, device_t child, int type, int rid,
 		case SYS_RES_MEMORY:
 		case SYS_RES_IOPORT:
 
-			/* XXX */
-			//rman_set_bustag(r, ar71xx_bus_space_pcimem);
-			//rman_set_bustag(r, mips_bus_space_generic);
-			rman_set_bustag(r, ar71xx_bus_space_reversed);
+			rman_set_bustag(r, ar71xx_bus_space_pcimem);
 			break;
 		}
 	}
