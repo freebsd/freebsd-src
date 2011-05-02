@@ -100,6 +100,10 @@ void CXXNewExpr::AllocateArgsArray(ASTContext &C, bool isArray,
   SubExprs = new (C) Stmt*[TotalSize];
 }
 
+bool CXXNewExpr::shouldNullCheckAllocation(ASTContext &Ctx) const {
+  return getOperatorNew()->getType()->
+    castAs<FunctionProtoType>()->isNothrow(Ctx);
+}
 
 // CXXDeleteExpr
 QualType CXXDeleteExpr::getDestroyedType() const {
@@ -174,8 +178,7 @@ SourceRange CXXPseudoDestructorExpr::getSourceRange() const {
 UnresolvedLookupExpr *
 UnresolvedLookupExpr::Create(ASTContext &C, 
                              CXXRecordDecl *NamingClass,
-                             NestedNameSpecifier *Qualifier,
-                             SourceRange QualifierRange,
+                             NestedNameSpecifierLoc QualifierLoc,
                              const DeclarationNameInfo &NameInfo,
                              bool ADL,
                              const TemplateArgumentListInfo &Args,
@@ -184,10 +187,9 @@ UnresolvedLookupExpr::Create(ASTContext &C,
 {
   void *Mem = C.Allocate(sizeof(UnresolvedLookupExpr) + 
                          ExplicitTemplateArgumentList::sizeFor(Args));
-  return new (Mem) UnresolvedLookupExpr(C, NamingClass,
-                                        Qualifier, QualifierRange, NameInfo,
+  return new (Mem) UnresolvedLookupExpr(C, NamingClass, QualifierLoc, NameInfo,
                                         ADL, /*Overload*/ true, &Args,
-                                        Begin, End);
+                                        Begin, End, /*StdIsAssociated=*/false);
 }
 
 UnresolvedLookupExpr *
@@ -204,7 +206,7 @@ UnresolvedLookupExpr::CreateEmpty(ASTContext &C, bool HasExplicitTemplateArgs,
 }
 
 OverloadExpr::OverloadExpr(StmtClass K, ASTContext &C, 
-                           NestedNameSpecifier *Qualifier, SourceRange QRange,
+                           NestedNameSpecifierLoc QualifierLoc,
                            const DeclarationNameInfo &NameInfo,
                            const TemplateArgumentListInfo *TemplateArgs,
                            UnresolvedSetIterator Begin, 
@@ -215,10 +217,11 @@ OverloadExpr::OverloadExpr(StmtClass K, ASTContext &C,
          KnownDependent,
          (KnownContainsUnexpandedParameterPack ||
           NameInfo.containsUnexpandedParameterPack() ||
-          (Qualifier && Qualifier->containsUnexpandedParameterPack()))),
+          (QualifierLoc && 
+           QualifierLoc.getNestedNameSpecifier()
+                                      ->containsUnexpandedParameterPack()))),
     Results(0), NumResults(End - Begin), NameInfo(NameInfo), 
-    Qualifier(Qualifier), QualifierRange(QRange), 
-    HasExplicitTemplateArgs(TemplateArgs != 0)
+    QualifierLoc(QualifierLoc), HasExplicitTemplateArgs(TemplateArgs != 0)
 {
   NumResults = End - Begin;
   if (NumResults) {
@@ -365,8 +368,10 @@ SourceRange CXXOperatorCallExpr::getSourceRange() const {
                          getArg(0)->getSourceRange().getEnd());
     else
       // Postfix operator
-      return SourceRange(getArg(0)->getSourceRange().getEnd(),
+      return SourceRange(getArg(0)->getSourceRange().getBegin(),
                          getOperatorLoc());
+  } else if (Kind == OO_Arrow) {
+    return getArg(0)->getSourceRange();
   } else if (Kind == OO_Call) {
     return SourceRange(getArg(0)->getSourceRange().getBegin(), getRParenLoc());
   } else if (Kind == OO_Subscript) {
@@ -381,13 +386,24 @@ SourceRange CXXOperatorCallExpr::getSourceRange() const {
   }
 }
 
-Expr *CXXMemberCallExpr::getImplicitObjectArgument() {
-  if (MemberExpr *MemExpr = dyn_cast<MemberExpr>(getCallee()->IgnoreParens()))
+Expr *CXXMemberCallExpr::getImplicitObjectArgument() const {
+  if (const MemberExpr *MemExpr = 
+        dyn_cast<MemberExpr>(getCallee()->IgnoreParens()))
     return MemExpr->getBase();
 
   // FIXME: Will eventually need to cope with member pointers.
   return 0;
 }
+
+CXXMethodDecl *CXXMemberCallExpr::getMethodDecl() const {
+  if (const MemberExpr *MemExpr = 
+      dyn_cast<MemberExpr>(getCallee()->IgnoreParens()))
+    return cast<CXXMethodDecl>(MemExpr->getMemberDecl());
+
+  // FIXME: Will eventually need to cope with member pointers.
+  return 0;
+}
+
 
 CXXRecordDecl *CXXMemberCallExpr::getRecordDecl() {
   Expr* ThisArg = getImplicitObjectArgument();
@@ -464,6 +480,36 @@ CXXDynamicCastExpr *CXXDynamicCastExpr::CreateEmpty(ASTContext &C,
   void *Buffer =
     C.Allocate(sizeof(CXXDynamicCastExpr) + PathSize * sizeof(CXXBaseSpecifier*));
   return new (Buffer) CXXDynamicCastExpr(EmptyShell(), PathSize);
+}
+
+/// isAlwaysNull - Return whether the result of the dynamic_cast is proven
+/// to always be null. For example:
+///
+/// struct A { };
+/// struct B final : A { };
+/// struct C { };
+///
+/// C *f(B* b) { return dynamic_cast<C*>(b); }
+bool CXXDynamicCastExpr::isAlwaysNull() const
+{
+  QualType SrcType = getSubExpr()->getType();
+  QualType DestType = getType();
+
+  if (const PointerType *SrcPTy = SrcType->getAs<PointerType>()) {
+    SrcType = SrcPTy->getPointeeType();
+    DestType = DestType->castAs<PointerType>()->getPointeeType();
+  }
+
+  const CXXRecordDecl *SrcRD = 
+    cast<CXXRecordDecl>(SrcType->castAs<RecordType>()->getDecl());
+
+  if (!SrcRD->hasAttr<FinalAttr>())
+    return false;
+
+  const CXXRecordDecl *DestRD = 
+    cast<CXXRecordDecl>(DestType->castAs<RecordType>()->getDecl());
+
+  return !DestRD->isDerivedFrom(SrcRD);
 }
 
 CXXReinterpretCastExpr *
@@ -689,20 +735,20 @@ CXXDependentScopeMemberExpr::CXXDependentScopeMemberExpr(ASTContext &C,
                                                  Expr *Base, QualType BaseType,
                                                  bool IsArrow,
                                                  SourceLocation OperatorLoc,
-                                                 NestedNameSpecifier *Qualifier,
-                                                 SourceRange QualifierRange,
+                                           NestedNameSpecifierLoc QualifierLoc,
                                           NamedDecl *FirstQualifierFoundInScope,
                                           DeclarationNameInfo MemberNameInfo,
                                    const TemplateArgumentListInfo *TemplateArgs)
   : Expr(CXXDependentScopeMemberExprClass, C.DependentTy,
          VK_LValue, OK_Ordinary, true, true,
          ((Base && Base->containsUnexpandedParameterPack()) ||
-          (Qualifier && Qualifier->containsUnexpandedParameterPack()) ||
+          (QualifierLoc && 
+           QualifierLoc.getNestedNameSpecifier()
+                                       ->containsUnexpandedParameterPack()) ||
           MemberNameInfo.containsUnexpandedParameterPack())),
     Base(Base), BaseType(BaseType), IsArrow(IsArrow),
     HasExplicitTemplateArgs(TemplateArgs != 0),
-    OperatorLoc(OperatorLoc),
-    Qualifier(Qualifier), QualifierRange(QualifierRange),
+    OperatorLoc(OperatorLoc), QualifierLoc(QualifierLoc), 
     FirstQualifierFoundInScope(FirstQualifierFoundInScope),
     MemberNameInfo(MemberNameInfo) {
   if (TemplateArgs) {
@@ -719,18 +765,19 @@ CXXDependentScopeMemberExpr::CXXDependentScopeMemberExpr(ASTContext &C,
                           Expr *Base, QualType BaseType,
                           bool IsArrow,
                           SourceLocation OperatorLoc,
-                          NestedNameSpecifier *Qualifier,
-                          SourceRange QualifierRange,
+                          NestedNameSpecifierLoc QualifierLoc,
                           NamedDecl *FirstQualifierFoundInScope,
                           DeclarationNameInfo MemberNameInfo)
   : Expr(CXXDependentScopeMemberExprClass, C.DependentTy,
          VK_LValue, OK_Ordinary, true, true,
          ((Base && Base->containsUnexpandedParameterPack()) ||
-          (Qualifier && Qualifier->containsUnexpandedParameterPack()) ||
+          (QualifierLoc && 
+           QualifierLoc.getNestedNameSpecifier()->
+                                         containsUnexpandedParameterPack()) ||
           MemberNameInfo.containsUnexpandedParameterPack())),
     Base(Base), BaseType(BaseType), IsArrow(IsArrow),
     HasExplicitTemplateArgs(false), OperatorLoc(OperatorLoc),
-    Qualifier(Qualifier), QualifierRange(QualifierRange),
+    QualifierLoc(QualifierLoc), 
     FirstQualifierFoundInScope(FirstQualifierFoundInScope),
     MemberNameInfo(MemberNameInfo) { }
 
@@ -738,15 +785,14 @@ CXXDependentScopeMemberExpr *
 CXXDependentScopeMemberExpr::Create(ASTContext &C,
                                 Expr *Base, QualType BaseType, bool IsArrow,
                                 SourceLocation OperatorLoc,
-                                NestedNameSpecifier *Qualifier,
-                                SourceRange QualifierRange,
+                                NestedNameSpecifierLoc QualifierLoc,
                                 NamedDecl *FirstQualifierFoundInScope,
                                 DeclarationNameInfo MemberNameInfo,
                                 const TemplateArgumentListInfo *TemplateArgs) {
   if (!TemplateArgs)
     return new (C) CXXDependentScopeMemberExpr(C, Base, BaseType,
                                                IsArrow, OperatorLoc,
-                                               Qualifier, QualifierRange,
+                                               QualifierLoc,
                                                FirstQualifierFoundInScope,
                                                MemberNameInfo);
 
@@ -757,7 +803,7 @@ CXXDependentScopeMemberExpr::Create(ASTContext &C,
   void *Mem = C.Allocate(size, llvm::alignOf<CXXDependentScopeMemberExpr>());
   return new (Mem) CXXDependentScopeMemberExpr(C, Base, BaseType,
                                                IsArrow, OperatorLoc,
-                                               Qualifier, QualifierRange,
+                                               QualifierLoc,
                                                FirstQualifierFoundInScope,
                                                MemberNameInfo, TemplateArgs);
 }
@@ -768,8 +814,8 @@ CXXDependentScopeMemberExpr::CreateEmpty(ASTContext &C,
                                          unsigned NumTemplateArgs) {
   if (!HasExplicitTemplateArgs)
     return new (C) CXXDependentScopeMemberExpr(C, 0, QualType(),
-                                               0, SourceLocation(), 0,
-                                               SourceRange(), 0,
+                                               0, SourceLocation(), 
+                                               NestedNameSpecifierLoc(), 0,
                                                DeclarationNameInfo());
 
   std::size_t size = sizeof(CXXDependentScopeMemberExpr) +
@@ -777,11 +823,40 @@ CXXDependentScopeMemberExpr::CreateEmpty(ASTContext &C,
   void *Mem = C.Allocate(size, llvm::alignOf<CXXDependentScopeMemberExpr>());
   CXXDependentScopeMemberExpr *E
     =  new (Mem) CXXDependentScopeMemberExpr(C, 0, QualType(),
-                                             0, SourceLocation(), 0,
-                                             SourceRange(), 0,
+                                             0, SourceLocation(), 
+                                             NestedNameSpecifierLoc(), 0,
                                              DeclarationNameInfo(), 0);
   E->HasExplicitTemplateArgs = true;
   return E;
+}
+
+bool CXXDependentScopeMemberExpr::isImplicitAccess() const {
+  if (Base == 0)
+    return true;
+  
+  return cast<Expr>(Base)->isImplicitCXXThis();
+}
+
+static bool hasOnlyNonStaticMemberFunctions(UnresolvedSetIterator begin,
+                                            UnresolvedSetIterator end) {
+  do {
+    NamedDecl *decl = *begin;
+    if (isa<UnresolvedUsingValueDecl>(decl))
+      return false;
+    if (isa<UsingShadowDecl>(decl))
+      decl = cast<UsingShadowDecl>(decl)->getUnderlyingDecl();
+
+    // Unresolved member expressions should only contain methods and
+    // method templates.
+    assert(isa<CXXMethodDecl>(decl) || isa<FunctionTemplateDecl>(decl));
+
+    if (isa<FunctionTemplateDecl>(decl))
+      decl = cast<FunctionTemplateDecl>(decl)->getTemplatedDecl();
+    if (cast<CXXMethodDecl>(decl)->isStatic())
+      return false;
+  } while (++begin != end);
+
+  return true;
 }
 
 UnresolvedMemberExpr::UnresolvedMemberExpr(ASTContext &C, 
@@ -789,14 +864,12 @@ UnresolvedMemberExpr::UnresolvedMemberExpr(ASTContext &C,
                                            Expr *Base, QualType BaseType,
                                            bool IsArrow,
                                            SourceLocation OperatorLoc,
-                                           NestedNameSpecifier *Qualifier,
-                                           SourceRange QualifierRange,
+                                           NestedNameSpecifierLoc QualifierLoc,
                                    const DeclarationNameInfo &MemberNameInfo,
                                    const TemplateArgumentListInfo *TemplateArgs,
                                            UnresolvedSetIterator Begin, 
                                            UnresolvedSetIterator End)
-  : OverloadExpr(UnresolvedMemberExprClass, C, 
-                 Qualifier, QualifierRange, MemberNameInfo,
+  : OverloadExpr(UnresolvedMemberExprClass, C, QualifierLoc, MemberNameInfo,
                  TemplateArgs, Begin, End,
                  // Dependent
                  ((Base && Base->isTypeDependent()) ||
@@ -806,6 +879,18 @@ UnresolvedMemberExpr::UnresolvedMemberExpr(ASTContext &C,
                   BaseType->containsUnexpandedParameterPack())),
     IsArrow(IsArrow), HasUnresolvedUsing(HasUnresolvedUsing),
     Base(Base), BaseType(BaseType), OperatorLoc(OperatorLoc) {
+
+  // Check whether all of the members are non-static member functions,
+  // and if so, mark give this bound-member type instead of overload type.
+  if (hasOnlyNonStaticMemberFunctions(Begin, End))
+    setType(C.BoundMemberTy);
+}
+
+bool UnresolvedMemberExpr::isImplicitAccess() const {
+  if (Base == 0)
+    return true;
+  
+  return cast<Expr>(Base)->isImplicitCXXThis();
 }
 
 UnresolvedMemberExpr *
@@ -813,8 +898,7 @@ UnresolvedMemberExpr::Create(ASTContext &C,
                              bool HasUnresolvedUsing,
                              Expr *Base, QualType BaseType, bool IsArrow,
                              SourceLocation OperatorLoc,
-                             NestedNameSpecifier *Qualifier,
-                             SourceRange QualifierRange,
+                             NestedNameSpecifierLoc QualifierLoc,
                              const DeclarationNameInfo &MemberNameInfo,
                              const TemplateArgumentListInfo *TemplateArgs,
                              UnresolvedSetIterator Begin, 
@@ -826,7 +910,7 @@ UnresolvedMemberExpr::Create(ASTContext &C,
   void *Mem = C.Allocate(size, llvm::alignOf<UnresolvedMemberExpr>());
   return new (Mem) UnresolvedMemberExpr(C, 
                              HasUnresolvedUsing, Base, BaseType,
-                             IsArrow, OperatorLoc, Qualifier, QualifierRange,
+                             IsArrow, OperatorLoc, QualifierLoc,
                              MemberNameInfo, TemplateArgs, Begin, End);
 }
 

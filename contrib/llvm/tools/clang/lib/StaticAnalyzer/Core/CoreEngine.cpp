@@ -19,8 +19,6 @@
 #include "clang/AST/Expr.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/ADT/DenseMap.h"
-#include <vector>
-#include <queue>
 
 using llvm::cast;
 using llvm::isa;
@@ -310,7 +308,7 @@ void CoreEngine::HandleBlockEdge(const BlockEdge& L, ExplodedNode* Pred) {
   for (llvm::SmallVectorImpl<ExplodedNode*>::const_iterator
        I = nodeBuilder.sinks().begin(), E = nodeBuilder.sinks().end();
        I != E; ++I) {
-    blocksAborted.push_back(std::make_pair(L, *I));
+    blocksExhausted.push_back(std::make_pair(L, *I));
   }
 }
 
@@ -599,6 +597,25 @@ StmtNodeBuilder::generateNodeInternal(const ProgramPoint &Loc,
     return N;
   }
 
+  return NULL;
+}
+
+// This function generate a new ExplodedNode but not a new branch(block edge).
+ExplodedNode* BranchNodeBuilder::generateNode(const Stmt* Condition,
+                                              const GRState* State) {
+  bool IsNew;
+  
+  ExplodedNode* Succ 
+    = Eng.G->getNode(PostCondition(Condition, Pred->getLocationContext()), State,
+                     &IsNew);
+  
+  Succ->addPredecessor(Pred, *Eng.G);
+  
+  Pred = Succ;
+  
+  if (IsNew) 
+    return Succ;
+  
   return NULL;
 }
 

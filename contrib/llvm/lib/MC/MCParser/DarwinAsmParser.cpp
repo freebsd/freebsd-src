@@ -100,6 +100,8 @@ public:
     AddDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveText>(".text");
     AddDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveThreadInitFunc>(".thread_init_func");
     AddDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveTLV>(".tlv");
+
+    AddDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveIdent>(".ident");
   }
 
   bool ParseDirectiveDesc(StringRef, SMLoc);
@@ -277,6 +279,11 @@ public:
     return ParseSectionSwitch("__DATA", "__thread_vars",
                               MCSectionMachO::S_THREAD_LOCAL_VARIABLES);
   }
+  bool ParseSectionDirectiveIdent(StringRef, SMLoc) {
+    // Darwin silently ignores the .ident directive.
+    getParser().EatToEndOfStatement();
+    return false;
+  }
   bool ParseSectionDirectiveThreadInitFunc(StringRef, SMLoc) {
     return ParseSectionSwitch("__DATA", "__thread_init",
                          MCSectionMachO::S_THREAD_LOCAL_INIT_FUNCTION_POINTERS);
@@ -427,10 +434,12 @@ bool DarwinAsmParser::ParseDirectiveSection(StringRef, SMLoc) {
 
 
   StringRef Segment, Section;
-  unsigned TAA, StubSize;
+  unsigned StubSize;
+  unsigned TAA;
+  bool TAAParsed;
   std::string ErrorStr =
     MCSectionMachO::ParseSectionSpecifier(SectionSpec, Segment, Section,
-                                          TAA, StubSize);
+                                          TAA, TAAParsed, StubSize);
 
   if (!ErrorStr.empty())
     return Error(Loc, ErrorStr.c_str());

@@ -443,7 +443,7 @@ BUILTIN(__builtin_dwarf_sp_column, "Ui", "n")
 BUILTIN(__builtin_extend_pointer, "ULLiv*", "n") // _Unwind_Word == uint64_t
 
 // GCC Object size checking builtins
-BUILTIN(__builtin_object_size, "zv*i", "n")
+BUILTIN(__builtin_object_size, "zvC*i", "n")
 BUILTIN(__builtin___memcpy_chk, "v*v*vC*zz", "nF")
 BUILTIN(__builtin___memmove_chk, "v*v*vC*zz", "nF")
 BUILTIN(__builtin___mempcpy_chk, "v*v*vC*zz", "nF")
@@ -576,6 +576,13 @@ BUILTIN(__sync_lock_release_2, "vsD*.", "n")
 BUILTIN(__sync_lock_release_4, "viD*.", "n")
 BUILTIN(__sync_lock_release_8, "vLLiD*.", "n")
 BUILTIN(__sync_lock_release_16, "vLLLiD*.", "n")
+
+BUILTIN(__sync_swap, "v.", "")
+BUILTIN(__sync_swap_1, "ccD*c.", "n")
+BUILTIN(__sync_swap_2, "ssD*s.", "n")
+BUILTIN(__sync_swap_4, "iiD*i.", "n")
+BUILTIN(__sync_swap_8, "LLiLLiD*LLi.", "n")
+BUILTIN(__sync_swap_16, "LLLiLLLiD*LLLi.", "n")
 
 
 

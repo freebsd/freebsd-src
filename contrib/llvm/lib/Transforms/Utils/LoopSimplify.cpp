@@ -115,7 +115,7 @@ INITIALIZE_PASS_DEPENDENCY(LoopInfo)
 INITIALIZE_PASS_END(LoopSimplify, "loop-simplify",
                 "Canonicalize natural loops", true, false)
 
-// Publically exposed interface to pass...
+// Publicly exposed interface to pass...
 char &llvm::LoopSimplifyID = LoopSimplify::ID;
 Pass *llvm::createLoopSimplifyPass() { return new LoopSimplify(); }
 
@@ -648,9 +648,8 @@ LoopSimplify::InsertUniqueBackedgeBlock(Loop *L, BasicBlock *Preheader) {
   // the backedge block which correspond to any PHI nodes in the header block.
   for (BasicBlock::iterator I = Header->begin(); isa<PHINode>(I); ++I) {
     PHINode *PN = cast<PHINode>(I);
-    PHINode *NewPN = PHINode::Create(PN->getType(), PN->getName()+".be",
-                                     BETerminator);
-    NewPN->reserveOperandSpace(BackedgeBlocks.size());
+    PHINode *NewPN = PHINode::Create(PN->getType(), BackedgeBlocks.size(),
+                                     PN->getName()+".be", BETerminator);
     if (AA) AA->copyValue(PN, NewPN);
 
     // Loop over the PHI node, moving all entries except the one for the

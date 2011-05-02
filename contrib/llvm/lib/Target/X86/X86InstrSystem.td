@@ -34,8 +34,15 @@ let Uses = [EFLAGS] in
   def INTO : I<0xce, RawFrm, (outs), (ins), "into", []>;
 def INT3 : I<0xcc, RawFrm, (outs), (ins), "int3",
               [(int_x86_int (i8 3))]>;
+
+// The long form of "int $3" turns into int3 as a size optimization.
+// FIXME: This doesn't work because InstAlias can't match immediate constants.
+//def : InstAlias<"int\t$3", (INT3)>;
+
+
 def INT : Ii8<0xcd, RawFrm, (outs), (ins i8imm:$trap), "int\t$trap",
               [(int_x86_int imm:$trap)]>;
+
 
 def SYSCALL  : I<0x05, RawFrm, (outs), (ins), "syscall", []>, TB;
 def SYSRETL  : I<0x07, RawFrm, (outs), (ins), "sysretl", []>, TB;
@@ -207,10 +214,15 @@ def LSL64rr : RI<0x03, MRMSrcReg, (outs GR64:$dst), (ins GR64:$src),
 
 def INVLPG : I<0x01, MRM7m, (outs), (ins i8mem:$addr), "invlpg\t$addr", []>, TB;
 
-def STRr : I<0x00, MRM1r, (outs GR16:$dst), (ins),
-             "str{w}\t{$dst}", []>, TB;
-def STRm : I<0x00, MRM1m, (outs i16mem:$dst), (ins),
-             "str{w}\t{$dst}", []>, TB;
+def STR16r : I<0x00, MRM1r, (outs GR16:$dst), (ins),
+               "str{w}\t{$dst}", []>, TB, OpSize;
+def STR32r : I<0x00, MRM1r, (outs GR32:$dst), (ins),
+               "str{l}\t{$dst}", []>, TB;
+def STR64r : RI<0x00, MRM1r, (outs GR64:$dst), (ins),
+                "str{q}\t{$dst}", []>, TB;
+def STRm   : I<0x00, MRM1m, (outs i16mem:$dst), (ins),
+               "str{w}\t{$dst}", []>, TB;
+
 def LTRr : I<0x00, MRM3r, (outs), (ins GR16:$src),
              "ltr{w}\t{$src}", []>, TB;
 def LTRm : I<0x00, MRM3m, (outs), (ins i16mem:$src),
@@ -393,3 +405,23 @@ let Defs = [RDX, RAX], Uses = [RCX] in
 
 let Uses = [RDX, RAX, RCX] in
   def XSETBV : I<0x01, MRM_D1, (outs), (ins), "xsetbv", []>, TB;
+
+//===----------------------------------------------------------------------===//
+// VIA PadLock crypto instructions
+let Defs = [RAX, RDI], Uses = [RDX, RDI] in
+  def XSTORE : I<0xc0, RawFrm, (outs), (ins), "xstore", []>, A7;
+
+let Defs = [RSI, RDI], Uses = [RBX, RDX, RSI, RDI] in {
+  def XCRYPTECB : I<0xc8, RawFrm, (outs), (ins), "xcryptecb", []>, A7;
+  def XCRYPTCBC : I<0xd0, RawFrm, (outs), (ins), "xcryptcbc", []>, A7;
+  def XCRYPTCTR : I<0xd8, RawFrm, (outs), (ins), "xcryptctr", []>, A7;
+  def XCRYPTCFB : I<0xe0, RawFrm, (outs), (ins), "xcryptcfb", []>, A7;
+  def XCRYPTOFB : I<0xe8, RawFrm, (outs), (ins), "xcryptofb", []>, A7;
+}
+
+let Defs = [RAX, RSI, RDI], Uses = [RAX, RSI, RDI] in {
+  def XSHA1 : I<0xc8, RawFrm, (outs), (ins), "xsha1", []>, A6;
+  def XSHA256 : I<0xd0, RawFrm, (outs), (ins), "xsha256", []>, A6;
+}
+let Defs = [RAX, RDX, RSI], Uses = [RAX, RSI] in
+  def MONTMUL : I<0xc0, RawFrm, (outs), (ins), "montmul", []>, A6;

@@ -12,6 +12,7 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCObjectWriter.h"
+#include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/SmallString.h"
@@ -25,6 +26,29 @@ MCStreamer::MCStreamer(MCContext &Ctx) : Context(Ctx) {
 }
 
 MCStreamer::~MCStreamer() {
+}
+
+const MCExpr *MCStreamer::BuildSymbolDiff(MCContext &Context,
+                                          const MCSymbol *A,
+                                          const MCSymbol *B) {
+  MCSymbolRefExpr::VariantKind Variant = MCSymbolRefExpr::VK_None;
+  const MCExpr *ARef =
+    MCSymbolRefExpr::Create(A, Variant, Context);
+  const MCExpr *BRef =
+    MCSymbolRefExpr::Create(B, Variant, Context);
+  const MCExpr *AddrDelta =
+    MCBinaryExpr::Create(MCBinaryExpr::Sub, ARef, BRef, Context);
+  return AddrDelta;
+}
+
+const MCExpr *MCStreamer::ForceExpAbs(MCStreamer *Streamer,
+                                      MCContext &Context, const MCExpr* Expr) {
+ if (Context.getAsmInfo().hasAggressiveSymbolFolding())
+   return Expr;
+
+ MCSymbol *ABS = Context.CreateTempSymbol();
+ Streamer->EmitAssignment(ABS, Expr);
+ return MCSymbolRefExpr::Create(ABS, Context);
 }
 
 raw_ostream &MCStreamer::GetCommentOS() {
@@ -90,28 +114,13 @@ void MCStreamer::EmitAbsValue(const MCExpr *Value, unsigned Size,
 
 void MCStreamer::EmitValue(const MCExpr *Value, unsigned Size,
                            unsigned AddrSpace) {
-  EmitValueImpl(Value, Size, false, AddrSpace);
-}
-
-void MCStreamer::EmitPCRelValue(const MCExpr *Value, unsigned Size,
-                                unsigned AddrSpace) {
-  EmitValueImpl(Value, Size, true, AddrSpace);
+  EmitValueImpl(Value, Size, AddrSpace);
 }
 
 void MCStreamer::EmitSymbolValue(const MCSymbol *Sym, unsigned Size,
-                                 bool isPCRel, unsigned AddrSpace) {
-  EmitValueImpl(MCSymbolRefExpr::Create(Sym, getContext()), Size, isPCRel,
+                                  unsigned AddrSpace) {
+  EmitValueImpl(MCSymbolRefExpr::Create(Sym, getContext()), Size,
                 AddrSpace);
-}
-
-void MCStreamer::EmitSymbolValue(const MCSymbol *Sym, unsigned Size,
-                                 unsigned AddrSpace) {
-  EmitSymbolValue(Sym, Size, false, AddrSpace);
-}
-
-void MCStreamer::EmitPCRelSymbolValue(const MCSymbol *Sym, unsigned Size,
-                                      unsigned AddrSpace) {
-  EmitSymbolValue(Sym, Size, true, AddrSpace);
 }
 
 void MCStreamer::EmitGPRel32Value(const MCExpr *Value) {
@@ -135,7 +144,8 @@ bool MCStreamer::EmitDwarfFileDirective(unsigned FileNo,
 void MCStreamer::EmitDwarfLocDirective(unsigned FileNo, unsigned Line,
                                        unsigned Column, unsigned Flags,
                                        unsigned Isa,
-                                       unsigned Discriminator) {
+                                       unsigned Discriminator,
+                                       StringRef FileName) {
   getContext().setCurrentDwarfLoc(FileNo, Line, Column, Flags, Isa,
                                   Discriminator);
 }
@@ -152,28 +162,39 @@ void MCStreamer::EnsureValidFrame() {
     report_fatal_error("No open frame");
 }
 
-bool MCStreamer::EmitCFIStartProc() {
-  MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
-  if (CurFrame && !CurFrame->End) {
-    report_fatal_error("Starting a frame before finishing the previous one!");
-    return true;
-  }
-  MCDwarfFrameInfo Frame;
-  Frame.Begin = getContext().CreateTempSymbol();
-  EmitLabel(Frame.Begin);
-  FrameInfos.push_back(Frame);
-  return false;
+void MCStreamer::EmitEHSymAttributes(const MCSymbol *Symbol,
+                                     MCSymbol *EHSymbol) {
 }
 
-bool MCStreamer::EmitCFIEndProc() {
+void MCStreamer::EmitLabel(MCSymbol *Symbol) {
+  assert(!Symbol->isVariable() && "Cannot emit a variable symbol!");
+  assert(getCurrentSection() && "Cannot emit before setting section!");
+  Symbol->setSection(*getCurrentSection());
+
+  StringRef Prefix = getContext().getAsmInfo().getPrivateGlobalPrefix();
+  if (!Symbol->getName().startswith(Prefix))
+    LastNonPrivate = Symbol;
+}
+
+void MCStreamer::EmitCFIStartProc() {
+  MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
+  if (CurFrame && !CurFrame->End)
+    report_fatal_error("Starting a frame before finishing the previous one!");
+  MCDwarfFrameInfo Frame;
+  Frame.Begin = getContext().CreateTempSymbol();
+  Frame.Function = LastNonPrivate;
+  EmitLabel(Frame.Begin);
+  FrameInfos.push_back(Frame);
+}
+
+void MCStreamer::EmitCFIEndProc() {
   EnsureValidFrame();
   MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
   CurFrame->End = getContext().CreateTempSymbol();
   EmitLabel(CurFrame->End);
-  return false;
 }
 
-bool MCStreamer::EmitCFIDefCfa(int64_t Register, int64_t Offset) {
+void MCStreamer::EmitCFIDefCfa(int64_t Register, int64_t Offset) {
   EnsureValidFrame();
   MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
   MCSymbol *Label = getContext().CreateTempSymbol();
@@ -182,10 +203,9 @@ bool MCStreamer::EmitCFIDefCfa(int64_t Register, int64_t Offset) {
   MachineLocation Source(Register, -Offset);
   MCCFIInstruction Instruction(Label, Dest, Source);
   CurFrame->Instructions.push_back(Instruction);
-  return false;
 }
 
-bool MCStreamer::EmitCFIDefCfaOffset(int64_t Offset) {
+void MCStreamer::EmitCFIDefCfaOffset(int64_t Offset) {
   EnsureValidFrame();
   MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
   MCSymbol *Label = getContext().CreateTempSymbol();
@@ -194,10 +214,20 @@ bool MCStreamer::EmitCFIDefCfaOffset(int64_t Offset) {
   MachineLocation Source(MachineLocation::VirtualFP, -Offset);
   MCCFIInstruction Instruction(Label, Dest, Source);
   CurFrame->Instructions.push_back(Instruction);
-  return false;
 }
 
-bool MCStreamer::EmitCFIDefCfaRegister(int64_t Register) {
+void MCStreamer::EmitCFIAdjustCfaOffset(int64_t Adjustment) {
+  EnsureValidFrame();
+  MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
+  MCSymbol *Label = getContext().CreateTempSymbol();
+  EmitLabel(Label);
+  MachineLocation Dest(MachineLocation::VirtualFP);
+  MachineLocation Source(MachineLocation::VirtualFP, Adjustment);
+  MCCFIInstruction Instruction(MCCFIInstruction::RelMove, Label, Dest, Source);
+  CurFrame->Instructions.push_back(Instruction);
+}
+
+void MCStreamer::EmitCFIDefCfaRegister(int64_t Register) {
   EnsureValidFrame();
   MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
   MCSymbol *Label = getContext().CreateTempSymbol();
@@ -206,10 +236,9 @@ bool MCStreamer::EmitCFIDefCfaRegister(int64_t Register) {
   MachineLocation Source(MachineLocation::VirtualFP);
   MCCFIInstruction Instruction(Label, Dest, Source);
   CurFrame->Instructions.push_back(Instruction);
-  return false;
 }
 
-bool MCStreamer::EmitCFIOffset(int64_t Register, int64_t Offset) {
+void MCStreamer::EmitCFIOffset(int64_t Register, int64_t Offset) {
   EnsureValidFrame();
   MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
   MCSymbol *Label = getContext().CreateTempSymbol();
@@ -218,37 +247,44 @@ bool MCStreamer::EmitCFIOffset(int64_t Register, int64_t Offset) {
   MachineLocation Source(Register, Offset);
   MCCFIInstruction Instruction(Label, Dest, Source);
   CurFrame->Instructions.push_back(Instruction);
-  return false;
 }
 
-bool MCStreamer::EmitCFIPersonality(const MCSymbol *Sym,
+void MCStreamer::EmitCFIRelOffset(int64_t Register, int64_t Offset) {
+  EnsureValidFrame();
+  MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
+  MCSymbol *Label = getContext().CreateTempSymbol();
+  EmitLabel(Label);
+  MachineLocation Dest(Register, Offset);
+  MachineLocation Source(Register, Offset);
+  MCCFIInstruction Instruction(MCCFIInstruction::RelMove, Label, Dest, Source);
+  CurFrame->Instructions.push_back(Instruction);
+}
+
+void MCStreamer::EmitCFIPersonality(const MCSymbol *Sym,
                                     unsigned Encoding) {
   EnsureValidFrame();
   MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
   CurFrame->Personality = Sym;
   CurFrame->PersonalityEncoding = Encoding;
-  return false;
 }
 
-bool MCStreamer::EmitCFILsda(const MCSymbol *Sym, unsigned Encoding) {
+void MCStreamer::EmitCFILsda(const MCSymbol *Sym, unsigned Encoding) {
   EnsureValidFrame();
   MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
   CurFrame->Lsda = Sym;
   CurFrame->LsdaEncoding = Encoding;
-  return false;
 }
 
-bool MCStreamer::EmitCFIRememberState() {
+void MCStreamer::EmitCFIRememberState() {
   EnsureValidFrame();
   MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
   MCSymbol *Label = getContext().CreateTempSymbol();
   EmitLabel(Label);
   MCCFIInstruction Instruction(MCCFIInstruction::Remember, Label);
   CurFrame->Instructions.push_back(Instruction);
-  return false;
 }
 
-bool MCStreamer::EmitCFIRestoreState() {
+void MCStreamer::EmitCFIRestoreState() {
   // FIXME: Error if there is no matching cfi_remember_state.
   EnsureValidFrame();
   MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
@@ -256,7 +292,55 @@ bool MCStreamer::EmitCFIRestoreState() {
   EmitLabel(Label);
   MCCFIInstruction Instruction(MCCFIInstruction::Restore, Label);
   CurFrame->Instructions.push_back(Instruction);
-  return false;
+}
+
+void MCStreamer::EmitCFISameValue(int64_t Register) {
+  EnsureValidFrame();
+  MCDwarfFrameInfo *CurFrame = getCurrentFrameInfo();
+  MCSymbol *Label = getContext().CreateTempSymbol();
+  EmitLabel(Label);
+  MCCFIInstruction Instruction(MCCFIInstruction::SameValue, Label, Register);
+  CurFrame->Instructions.push_back(Instruction);
+}
+
+void MCStreamer::EmitFnStart() {
+  errs() << "Not implemented yet\n";
+  abort();
+}
+
+void MCStreamer::EmitFnEnd() {
+  errs() << "Not implemented yet\n";
+  abort();
+}
+
+void MCStreamer::EmitCantUnwind() {
+  errs() << "Not implemented yet\n";
+  abort();
+}
+
+void MCStreamer::EmitHandlerData() {
+  errs() << "Not implemented yet\n";
+  abort();
+}
+
+void MCStreamer::EmitPersonality(const MCSymbol *Personality) {
+  errs() << "Not implemented yet\n";
+  abort();
+}
+
+void MCStreamer::EmitSetFP(unsigned FpReg, unsigned SpReg, int64_t Offset) {
+  errs() << "Not implemented yet\n";
+  abort();
+}
+
+void MCStreamer::EmitPad(int64_t Offset) {
+  errs() << "Not implemented yet\n";
+  abort();
+}
+
+void MCStreamer::EmitRegSave(const SmallVectorImpl<unsigned> &RegList, bool) {
+  errs() << "Not implemented yet\n";
+  abort();
 }
 
 /// EmitRawText - If this file is backed by an assembly streamer, this dumps

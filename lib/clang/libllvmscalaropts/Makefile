@@ -11,7 +11,6 @@ SRCS=	ADCE.cpp \
 	DCE.cpp \
 	DeadStoreElimination.cpp \
 	EarlyCSE.cpp \
-	GEPSplitter.cpp \
 	GVN.cpp \
 	IndVarSimplify.cpp \
 	JumpThreading.cpp \
@@ -27,7 +26,6 @@ SRCS=	ADCE.cpp \
 	SCCP.cpp \
 	ScalarReplAggregates.cpp \
 	SimplifyCFGPass.cpp \
-	SimplifyHalfPowrLibCalls.cpp \
 	SimplifyLibCalls.cpp \
 	Sink.cpp \
 	TailDuplication.cpp \

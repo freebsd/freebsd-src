@@ -899,7 +899,8 @@ bool PPCTargetLowering::SelectAddressRegImm(SDValue N, SDValue &Disp,
     short Imm;
     if (isIntS16Immediate(CN, Imm)) {
       Disp = DAG.getTargetConstant(Imm, CN->getValueType(0));
-      Base = DAG.getRegister(PPC::R0, CN->getValueType(0));
+      Base = DAG.getRegister(PPCSubTarget.isPPC64() ? PPC::X0 : PPC::R0,
+                             CN->getValueType(0));
       return true;
     }
 
@@ -947,7 +948,8 @@ bool PPCTargetLowering::SelectAddressRegRegOnly(SDValue N, SDValue &Base,
   }
 
   // Otherwise, do it the hard way, using R0 as the base register.
-  Base = DAG.getRegister(PPC::R0, N.getValueType());
+  Base = DAG.getRegister(PPCSubTarget.isPPC64() ? PPC::X0 : PPC::R0,
+                         N.getValueType());
   Index = N;
   return true;
 }
@@ -2153,7 +2155,7 @@ CalculateParameterAndLinkageAreaSize(SelectionDAG &DAG,
 }
 
 /// CalculateTailCallSPDiff - Get the amount the stack pointer has to be
-/// adjusted to accomodate the arguments for the tailcall.
+/// adjusted to accommodate the arguments for the tailcall.
 static int CalculateTailCallSPDiff(SelectionDAG& DAG, bool isTailCall,
                                    unsigned ParamSize) {
 
@@ -2394,7 +2396,7 @@ void PrepareTailCall(SelectionDAG &DAG, SDValue &InFlag, SDValue &Chain,
   // Emit a sequence of copyto/copyfrom virtual registers for arguments that
   // might overwrite each other in case of tail call optimization.
   SmallVector<SDValue, 8> MemOpChains2;
-  // Do not flag preceeding copytoreg stuff together with the following stuff.
+  // Do not flag preceding copytoreg stuff together with the following stuff.
   InFlag = SDValue();
   StoreTailCallArgumentsToStackSlot(DAG, Chain, TailCallArguments,
                                     MemOpChains2, dl);
@@ -2442,7 +2444,8 @@ unsigned PrepareCall(SelectionDAG &DAG, SDValue &Callee, SDValue &InFlag,
     if (!DAG.getTarget().getSubtarget<PPCSubtarget>().isJITCodeModel()) {
       unsigned OpFlags = 0;
       if (DAG.getTarget().getRelocationModel() != Reloc::Static &&
-          PPCSubTarget.getDarwinVers() < 9 &&
+          (!PPCSubTarget.getTargetTriple().isMacOSX() ||
+           PPCSubTarget.getTargetTriple().isMacOSXVersionLT(10, 5)) &&
           (G->getGlobal()->isDeclaration() ||
            G->getGlobal()->isWeakForLinker())) {
         // PC-relative references to external symbols should go through $stub,
@@ -2465,7 +2468,8 @@ unsigned PrepareCall(SelectionDAG &DAG, SDValue &Callee, SDValue &InFlag,
     unsigned char OpFlags = 0;
 
     if (DAG.getTarget().getRelocationModel() != Reloc::Static &&
-        PPCSubTarget.getDarwinVers() < 9) {
+        (!PPCSubTarget.getTargetTriple().isMacOSX() ||
+         PPCSubTarget.getTargetTriple().isMacOSXVersionLT(10, 5))) {
       // PC-relative references to external symbols should go through $stub,
       // unless we're building with the leopard linker or later, which
       // automatically synthesizes these stubs.
@@ -4571,6 +4575,7 @@ PPCTargetLowering::EmitPartwordAtomicBinary(MachineInstr *MI,
   // registers without caring whether they're 32 or 64, but here we're
   // doing actual arithmetic on the addresses.
   bool is64bit = PPCSubTarget.isPPC64();
+  unsigned ZeroReg = is64bit ? PPC::X0 : PPC::R0;
 
   const BasicBlock *LLVM_BB = BB->getBasicBlock();
   MachineFunction *F = BB->getParent();
@@ -4634,8 +4639,7 @@ PPCTargetLowering::EmitPartwordAtomicBinary(MachineInstr *MI,
   //   bne- loopMBB
   //   fallthrough --> exitMBB
   //   srw dest, tmpDest, shift
-
-  if (ptrA!=PPC::R0) {
+  if (ptrA != ZeroReg) {
     Ptr1Reg = RegInfo.createVirtualRegister(RC);
     BuildMI(BB, dl, TII->get(is64bit ? PPC::ADD8 : PPC::ADD4), Ptr1Reg)
       .addReg(ptrA).addReg(ptrB);
@@ -4665,7 +4669,7 @@ PPCTargetLowering::EmitPartwordAtomicBinary(MachineInstr *MI,
 
   BB = loopMBB;
   BuildMI(BB, dl, TII->get(PPC::LWARX), TmpDestReg)
-    .addReg(PPC::R0).addReg(PtrReg);
+    .addReg(ZeroReg).addReg(PtrReg);
   if (BinOpcode)
     BuildMI(BB, dl, TII->get(BinOpcode), TmpReg)
       .addReg(Incr2Reg).addReg(TmpDestReg);
@@ -4676,7 +4680,7 @@ PPCTargetLowering::EmitPartwordAtomicBinary(MachineInstr *MI,
   BuildMI(BB, dl, TII->get(is64bit ? PPC::OR8 : PPC::OR), Tmp4Reg)
     .addReg(Tmp3Reg).addReg(Tmp2Reg);
   BuildMI(BB, dl, TII->get(PPC::STWCX))
-    .addReg(Tmp4Reg).addReg(PPC::R0).addReg(PtrReg);
+    .addReg(Tmp4Reg).addReg(ZeroReg).addReg(PtrReg);
   BuildMI(BB, dl, TII->get(PPC::BCC))
     .addImm(PPC::PRED_NE).addReg(PPC::CR0).addMBB(loopMBB);
   BB->addSuccessor(loopMBB);
@@ -4685,7 +4689,8 @@ PPCTargetLowering::EmitPartwordAtomicBinary(MachineInstr *MI,
   //  exitMBB:
   //   ...
   BB = exitMBB;
-  BuildMI(BB, dl, TII->get(PPC::SRW), dest).addReg(TmpDestReg).addReg(ShiftReg);
+  BuildMI(*BB, BB->begin(), dl, TII->get(PPC::SRW), dest).addReg(TmpDestReg)
+    .addReg(ShiftReg);
   return BB;
 }
 
@@ -4933,6 +4938,7 @@ PPCTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
     unsigned TmpDestReg = RegInfo.createVirtualRegister(RC);
     unsigned Ptr1Reg;
     unsigned TmpReg = RegInfo.createVirtualRegister(RC);
+    unsigned ZeroReg = is64bit ? PPC::X0 : PPC::R0;
     //  thisMBB:
     //   ...
     //   fallthrough --> loopMBB
@@ -4965,7 +4971,7 @@ PPCTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
     //   stwcx. tmpDest, ptr
     // exitBB:
     //   srw dest, tmpDest, shift
-    if (ptrA!=PPC::R0) {
+    if (ptrA != ZeroReg) {
       Ptr1Reg = RegInfo.createVirtualRegister(RC);
       BuildMI(BB, dl, TII->get(is64bit ? PPC::ADD8 : PPC::ADD4), Ptr1Reg)
         .addReg(ptrA).addReg(ptrB);
@@ -5002,7 +5008,7 @@ PPCTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
 
     BB = loop1MBB;
     BuildMI(BB, dl, TII->get(PPC::LWARX), TmpDestReg)
-        .addReg(PPC::R0).addReg(PtrReg);
+        .addReg(ZeroReg).addReg(PtrReg);
     BuildMI(BB, dl, TII->get(PPC::AND),TmpReg)
         .addReg(TmpDestReg).addReg(MaskReg);
     BuildMI(BB, dl, TII->get(PPC::CMPW), PPC::CR0)
@@ -5018,7 +5024,7 @@ PPCTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
     BuildMI(BB, dl, TII->get(PPC::OR),Tmp4Reg)
         .addReg(Tmp2Reg).addReg(NewVal3Reg);
     BuildMI(BB, dl, TII->get(PPC::STWCX)).addReg(Tmp4Reg)
-        .addReg(PPC::R0).addReg(PtrReg);
+        .addReg(ZeroReg).addReg(PtrReg);
     BuildMI(BB, dl, TII->get(PPC::BCC))
       .addImm(PPC::PRED_NE).addReg(PPC::CR0).addMBB(loop1MBB);
     BuildMI(BB, dl, TII->get(PPC::B)).addMBB(exitMBB);
@@ -5027,13 +5033,14 @@ PPCTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
 
     BB = midMBB;
     BuildMI(BB, dl, TII->get(PPC::STWCX)).addReg(TmpDestReg)
-      .addReg(PPC::R0).addReg(PtrReg);
+      .addReg(ZeroReg).addReg(PtrReg);
     BB->addSuccessor(exitMBB);
 
     //  exitMBB:
     //   ...
     BB = exitMBB;
-    BuildMI(BB, dl, TII->get(PPC::SRW),dest).addReg(TmpReg).addReg(ShiftReg);
+    BuildMI(*BB, BB->begin(), dl, TII->get(PPC::SRW),dest).addReg(TmpReg)
+      .addReg(ShiftReg);
   } else {
     llvm_unreachable("Unexpected instr type to insert");
   }

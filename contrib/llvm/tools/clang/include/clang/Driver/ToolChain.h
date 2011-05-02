@@ -88,8 +88,10 @@ public:
     return 0;
   }
 
-  /// SelectTool - Choose a tool to use to handle the action \arg JA.
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const = 0;
+  /// SelectTool - Choose a tool to use to handle the action \arg JA with the
+  /// given \arg Inputs.
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const = 0;
 
   // Helper methods
 
@@ -150,6 +152,9 @@ public:
   /// for this tool chain, or 0 if this tool chain does not force a
   /// particular PIC mode.
   virtual const char *GetForcedPicModel() const = 0;
+
+  /// SupportsProfiling - Does this tool chain support -pg.
+  virtual bool SupportsProfiling() const { return true; }
 
   /// Does this tool chain support Objective-C garbage collection.
   virtual bool SupportsObjCGC() const { return false; }

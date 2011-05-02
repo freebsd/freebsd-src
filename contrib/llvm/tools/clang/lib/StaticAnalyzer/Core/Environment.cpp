@@ -27,7 +27,17 @@ SVal Environment::lookupExpr(const Stmt* E) const {
   return UnknownVal();
 }
 
-SVal Environment::getSVal(const Stmt *E, SValBuilder& svalBuilder) const {
+SVal Environment::getSVal(const Stmt *E, SValBuilder& svalBuilder,
+			  bool useOnlyDirectBindings) const {
+
+  if (useOnlyDirectBindings) {
+    // This branch is rarely taken, but can be exercised by
+    // checkers that explicitly bind values to arbitrary
+    // expressions.  It is crucial that we do not ignore any
+    // expression here, and do a direct lookup.
+    return lookupExpr(E);
+  }
+
   for (;;) {
     switch (E->getStmtClass()) {
       case Stmt::AddrLabelExprClass:
@@ -40,6 +50,10 @@ SVal Environment::getSVal(const Stmt *E, SValBuilder& svalBuilder) const {
       case Stmt::ParenExprClass:
         // ParenExprs are no-ops.
         E = cast<ParenExpr>(E)->getSubExpr();
+        continue;
+      case Stmt::GenericSelectionExprClass:
+        // GenericSelectionExprs are no-ops.
+        E = cast<GenericSelectionExpr>(E)->getResultExpr();
         continue;
       case Stmt::CharacterLiteralClass: {
         const CharacterLiteral* C = cast<CharacterLiteral>(E);
@@ -60,6 +74,9 @@ SVal Environment::getSVal(const Stmt *E, SValBuilder& svalBuilder) const {
         else
           return svalBuilder.makeIntVal(cast<IntegerLiteral>(E));
       }
+      // For special C0xx nullptr case, make a null pointer SVal.
+      case Stmt::CXXNullPtrLiteralExprClass:
+        return svalBuilder.makeNull();
       case Stmt::ImplicitCastExprClass:
       case Stmt::CXXFunctionalCastExprClass:
       case Stmt::CStyleCastExprClass: {

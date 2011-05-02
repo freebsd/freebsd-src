@@ -17,6 +17,8 @@
 
 #include "llvm/Instructions.h"
 #include "llvm/BasicBlock.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/ConstantFolder.h"
 
@@ -152,9 +154,10 @@ public:
 
   /// CreateGlobalString - Make a new global variable with an initializer that
   /// has array of i8 type filled in with the nul terminated string value
-  /// specified.  If Name is specified, it is the name of the global variable
-  /// created.
-  Value *CreateGlobalString(const char *Str = "", const Twine &Name = "");
+  /// specified.  The new global variable will be marked mergable with any
+  /// others of the same contents.  If Name is specified, it is the name of the
+  /// global variable created.
+  Value *CreateGlobalString(StringRef Str, const Twine &Name = "");
 
   /// getInt1 - Get a constant value representing either true or false.
   ConstantInt *getInt1(bool V) {
@@ -189,6 +192,10 @@ public:
   /// getInt64 - Get a constant 64-bit value.
   ConstantInt *getInt64(uint64_t C) {
     return ConstantInt::get(getInt64Ty(), C);
+  }
+  
+  ConstantInt *getInt(const APInt &AI) {
+    return ConstantInt::get(Context, AI);
   }
 
   //===--------------------------------------------------------------------===//
@@ -301,7 +308,7 @@ public:
     : IRBuilderBase(C), Inserter(I), Folder(F) {
   }
 
-  explicit IRBuilder(LLVMContext &C) : IRBuilderBase(C), Folder(C) {
+  explicit IRBuilder(LLVMContext &C) : IRBuilderBase(C), Folder() {
   }
 
   explicit IRBuilder(BasicBlock *TheBB, const T &F)
@@ -310,12 +317,12 @@ public:
   }
 
   explicit IRBuilder(BasicBlock *TheBB)
-    : IRBuilderBase(TheBB->getContext()), Folder(Context) {
+    : IRBuilderBase(TheBB->getContext()), Folder() {
     SetInsertPoint(TheBB);
   }
 
   explicit IRBuilder(Instruction *IP)
-    : IRBuilderBase(IP->getContext()), Folder(Context) {
+    : IRBuilderBase(IP->getContext()), Folder() {
     SetInsertPoint(IP);
   }
   
@@ -325,7 +332,7 @@ public:
   }
 
   IRBuilder(BasicBlock *TheBB, BasicBlock::iterator IP)
-    : IRBuilderBase(TheBB->getContext()), Folder(Context) {
+    : IRBuilderBase(TheBB->getContext()), Folder() {
     SetInsertPoint(TheBB, IP);
   }
 
@@ -861,7 +868,7 @@ public:
 
   /// CreateGlobalStringPtr - Same as CreateGlobalString, but return a pointer
   /// with "i8*" type instead of a pointer to array of i8.
-  Value *CreateGlobalStringPtr(const char *Str = "", const Twine &Name = "") {
+  Value *CreateGlobalStringPtr(StringRef Str, const Twine &Name = "") {
     Value *gv = CreateGlobalString(Str, Name);
     Value *zero = ConstantInt::get(Type::getInt32Ty(Context), 0);
     Value *Args[] = { zero, zero };
@@ -1070,8 +1077,9 @@ public:
   // Instruction creation methods: Other Instructions
   //===--------------------------------------------------------------------===//
 
-  PHINode *CreatePHI(const Type *Ty, const Twine &Name = "") {
-    return Insert(PHINode::Create(Ty), Name);
+  PHINode *CreatePHI(const Type *Ty, unsigned NumReservedValues,
+                     const Twine &Name = "") {
+    return Insert(PHINode::Create(Ty, NumReservedValues), Name);
   }
 
   CallInst *CreateCall(Value *Callee, const Twine &Name = "") {
@@ -1099,6 +1107,11 @@ public:
                         Value *Arg4, Value *Arg5, const Twine &Name = "") {
     Value *Args[] = { Arg1, Arg2, Arg3, Arg4, Arg5 };
     return Insert(CallInst::Create(Callee, Args, Args+5), Name);
+  }
+
+  CallInst *CreateCall(Value *Callee, ArrayRef<Value *> Arg,
+                       const Twine &Name = "") {
+    return Insert(CallInst::Create(Callee, Arg.begin(), Arg.end(), Name));
   }
 
   template<typename RandomAccessIterator>

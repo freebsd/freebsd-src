@@ -4,10 +4,12 @@ LIB=	llvmcodegen
 
 SRCDIR=	lib/CodeGen
 SRCS=	AggressiveAntiDepBreaker.cpp \
+	AllocationOrder.cpp \
 	Analysis.cpp \
 	BranchFolding.cpp \
 	CalcSpillWeights.cpp \
 	CallingConvLower.cpp \
+	CodeGen.cpp \
 	CodePlacementOpt.cpp \
 	CriticalAntiDepBreaker.cpp \
 	DeadMachineInstructionElim.cpp \
@@ -17,9 +19,11 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	EdgeBundles.cpp \
 	ExpandISelPseudos.cpp \
 	GCMetadata.cpp \
+	GCMetadataPrinter.cpp \
 	GCStrategy.cpp \
 	IfConversion.cpp \
 	InlineSpiller.cpp \
+	InterferenceCache.cpp \
 	IntrinsicLowering.cpp \
 	LLVMTargetMachine.cpp \
 	LatencyPriorityQueue.cpp \
@@ -42,6 +46,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	MachineInstr.cpp \
 	MachineLICM.cpp \
 	MachineLoopInfo.cpp \
+	MachineLoopRanges.cpp \
 	MachineModuleInfo.cpp \
 	MachineModuleInfoImpls.cpp \
 	MachinePassRegistry.cpp \
@@ -63,6 +68,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	PseudoSourceValue.cpp \
 	RegAllocBasic.cpp \
 	RegAllocFast.cpp \
+	RegAllocGreedy.cpp \
 	RegAllocLinearScan.cpp \
 	RegAllocPBQP.cpp \
 	RegisterCoalescer.cpp \
@@ -79,6 +85,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	SjLjEHPrepare.cpp \
 	SlotIndexes.cpp \
 	Spiller.cpp \
+	SpillPlacement.cpp \
 	SplitKit.cpp \
 	Splitter.cpp \
 	StackProtector.cpp \

@@ -15,6 +15,7 @@
 #define LLVM_CLANG_AST_EXPRCXX_H
 
 #include "clang/Basic/TypeTraits.h"
+#include "clang/Basic/ExpressionTraits.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/UnresolvedSet.h"
 #include "clang/AST/TemplateBase.h"
@@ -99,7 +100,10 @@ public:
   /// getImplicitObjectArgument - Retrieves the implicit object
   /// argument for the member call. For example, in "x.f(5)", this
   /// operation would return "x".
-  Expr *getImplicitObjectArgument();
+  Expr *getImplicitObjectArgument() const;
+  
+  /// Retrieves the declaration of the called method.
+  CXXMethodDecl *getMethodDecl() const;
 
   /// getRecordDecl - Retrieves the CXXRecordDecl for the underlying type of
   /// the implicit object argument. Note that this is may not be the same
@@ -249,6 +253,8 @@ public:
   
   static CXXDynamicCastExpr *CreateEmpty(ASTContext &Context,
                                          unsigned pathSize);
+
+  bool isAlwaysNull() const;
 
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == CXXDynamicCastExprClass;
@@ -774,7 +780,8 @@ public:
   enum ConstructionKind {
     CK_Complete,
     CK_NonVirtualBase,
-    CK_VirtualBase
+    CK_VirtualBase,
+    CK_Delegating
   };
     
 private:
@@ -1080,6 +1087,17 @@ public:
   TypeSourceInfo *getAllocatedTypeSourceInfo() const {
     return AllocatedTypeInfo;
   }
+
+  /// \brief True if the allocation result needs to be null-checked.
+  /// C++0x [expr.new]p13:
+  ///   If the allocation function returns null, initialization shall
+  ///   not be done, the deallocation function shall not be called,
+  ///   and the value of the new-expression shall be null.
+  /// An allocation function is not allowed to return null unless it
+  /// has a non-throwing exception-specification.  The '03 rule is
+  /// identical except that the definition of a non-throwing
+  /// exception specification is just "is it throw()?".
+  bool shouldNullCheckAllocation(ASTContext &Ctx) const;
   
   FunctionDecl *getOperatorNew() const { return OperatorNew; }
   void setOperatorNew(FunctionDecl *D) { OperatorNew = D; }
@@ -1577,6 +1595,122 @@ public:
   friend class ASTStmtReader;
 };
 
+/// ArrayTypeTraitExpr - An Embarcadero array type trait, as used in the
+/// implementation of __array_rank and __array_extent.
+/// Example:
+/// __array_rank(int[10][20]) == 2
+/// __array_extent(int, 1)    == 20
+class ArrayTypeTraitExpr : public Expr {
+  /// ATT - The trait. An ArrayTypeTrait enum in MSVC compat unsigned.
+  unsigned ATT : 2;
+
+  /// The value of the type trait. Unspecified if dependent.
+  uint64_t Value;
+
+  /// The array dimension being queried, or -1 if not used
+  Expr *Dimension;
+
+  /// Loc - The location of the type trait keyword.
+  SourceLocation Loc;
+
+  /// RParen - The location of the closing paren.
+  SourceLocation RParen;
+
+  /// The type being queried.
+  TypeSourceInfo *QueriedType;
+
+public:
+  ArrayTypeTraitExpr(SourceLocation loc, ArrayTypeTrait att,
+                     TypeSourceInfo *queried, uint64_t value,
+                     Expr *dimension, SourceLocation rparen, QualType ty)
+    : Expr(ArrayTypeTraitExprClass, ty, VK_RValue, OK_Ordinary,
+           false, queried->getType()->isDependentType(),
+           queried->getType()->containsUnexpandedParameterPack()),
+      ATT(att), Value(value), Dimension(dimension),
+      Loc(loc), RParen(rparen), QueriedType(queried) { }
+
+
+  explicit ArrayTypeTraitExpr(EmptyShell Empty)
+    : Expr(ArrayTypeTraitExprClass, Empty), ATT(0), Value(false),
+      QueriedType() { }
+
+  virtual ~ArrayTypeTraitExpr() { }
+
+  virtual SourceRange getSourceRange() const { return SourceRange(Loc, RParen); }
+
+  ArrayTypeTrait getTrait() const { return static_cast<ArrayTypeTrait>(ATT); }
+
+  QualType getQueriedType() const { return QueriedType->getType(); }
+
+  TypeSourceInfo *getQueriedTypeSourceInfo() const { return QueriedType; }
+
+  uint64_t getValue() const { assert(!isTypeDependent()); return Value; }
+
+  Expr *getDimensionExpression() const { return Dimension; }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == ArrayTypeTraitExprClass;
+  }
+  static bool classof(const ArrayTypeTraitExpr *) { return true; }
+
+  // Iterators
+  child_range children() { return child_range(); }
+
+  friend class ASTStmtReader;
+};
+
+/// ExpressionTraitExpr - An expression trait intrinsic
+/// Example:
+/// __is_lvalue_expr(std::cout) == true
+/// __is_lvalue_expr(1) == false
+class ExpressionTraitExpr : public Expr {
+  /// ET - The trait. A ExpressionTrait enum in MSVC compat unsigned.
+  unsigned ET : 31;
+  /// The value of the type trait. Unspecified if dependent.
+  bool Value : 1;
+
+  /// Loc - The location of the type trait keyword.
+  SourceLocation Loc;
+
+  /// RParen - The location of the closing paren.
+  SourceLocation RParen;
+
+  Expr* QueriedExpression;
+public:
+  ExpressionTraitExpr(SourceLocation loc, ExpressionTrait et, 
+                     Expr *queried, bool value,
+                     SourceLocation rparen, QualType resultType)
+    : Expr(ExpressionTraitExprClass, resultType, VK_RValue, OK_Ordinary,
+           false, // Not type-dependent
+           // Value-dependent if the argument is type-dependent.
+           queried->isTypeDependent(),
+           queried->containsUnexpandedParameterPack()),
+      ET(et), Value(value), Loc(loc), RParen(rparen), QueriedExpression(queried) { }
+
+  explicit ExpressionTraitExpr(EmptyShell Empty)
+    : Expr(ExpressionTraitExprClass, Empty), ET(0), Value(false),
+      QueriedExpression() { }
+
+  SourceRange getSourceRange() const { return SourceRange(Loc, RParen);}
+
+  ExpressionTrait getTrait() const { return static_cast<ExpressionTrait>(ET); }
+
+  Expr *getQueriedExpression() const { return QueriedExpression; }
+
+  bool getValue() const { return Value; }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == ExpressionTraitExprClass;
+  }
+  static bool classof(const ExpressionTraitExpr *) { return true; }
+
+  // Iterators
+  child_range children() { return child_range(); }
+
+  friend class ASTStmtReader;
+};
+
+
 /// \brief A reference to an overloaded function set, either an
 /// \t UnresolvedLookupExpr or an \t UnresolvedMemberExpr.
 class OverloadExpr : public Expr {
@@ -1590,18 +1724,15 @@ class OverloadExpr : public Expr {
   /// The common name of these declarations.
   DeclarationNameInfo NameInfo;
 
-  /// The scope specifier, if any.
-  NestedNameSpecifier *Qualifier;
-  
-  /// The source range of the scope specifier.
-  SourceRange QualifierRange;
+  /// \brief The nested-name-specifier that qualifies the name, if any.
+  NestedNameSpecifierLoc QualifierLoc;
 
 protected:
   /// True if the name was a template-id.
   bool HasExplicitTemplateArgs;
 
   OverloadExpr(StmtClass K, ASTContext &C,
-               NestedNameSpecifier *Qualifier, SourceRange QRange,
+               NestedNameSpecifierLoc QualifierLoc,
                const DeclarationNameInfo &NameInfo,
                const TemplateArgumentListInfo *TemplateArgs,
                UnresolvedSetIterator Begin, UnresolvedSetIterator End,
@@ -1610,7 +1741,7 @@ protected:
 
   OverloadExpr(StmtClass K, EmptyShell Empty)
     : Expr(K, Empty), Results(0), NumResults(0),
-      Qualifier(0), HasExplicitTemplateArgs(false) { }
+      QualifierLoc(), HasExplicitTemplateArgs(false) { }
 
   void initializeResults(ASTContext &C,
                          UnresolvedSetIterator Begin,
@@ -1665,23 +1796,21 @@ public:
 
   /// Gets the full name info.
   const DeclarationNameInfo &getNameInfo() const { return NameInfo; }
-  void setNameInfo(const DeclarationNameInfo &N) { NameInfo = N; }
 
   /// Gets the name looked up.
   DeclarationName getName() const { return NameInfo.getName(); }
-  void setName(DeclarationName N) { NameInfo.setName(N); }
 
   /// Gets the location of the name.
   SourceLocation getNameLoc() const { return NameInfo.getLoc(); }
-  void setNameLoc(SourceLocation Loc) { NameInfo.setLoc(Loc); }
 
   /// Fetches the nested-name qualifier, if one was given.
-  NestedNameSpecifier *getQualifier() const { return Qualifier; }
-  void setQualifier(NestedNameSpecifier *NNS) { Qualifier = NNS; }
+  NestedNameSpecifier *getQualifier() const { 
+    return QualifierLoc.getNestedNameSpecifier(); 
+  }
 
-  /// Fetches the range of the nested-name qualifier.
-  SourceRange getQualifierRange() const { return QualifierRange; }
-  void setQualifierRange(SourceRange R) { QualifierRange = R; }
+  /// Fetches the nested-name qualifier with source-location information, if 
+  /// one was given.
+  NestedNameSpecifierLoc getQualifierLoc() const { return QualifierLoc; }
 
   /// \brief Determines whether this expression had an explicit
   /// template argument list, e.g. f<int>.
@@ -1727,6 +1856,10 @@ class UnresolvedLookupExpr : public OverloadExpr {
   /// call.
   bool RequiresADL;
 
+  /// True if namespace ::std should be considered an associated namespace
+  /// for the purposes of argument-dependent lookup. See C++0x [stmt.ranged]p1.
+  bool StdIsAssociatedNamespace;
+
   /// True if these lookup results are overloaded.  This is pretty
   /// trivially rederivable if we urgently need to kill this field.
   bool Overloaded;
@@ -1740,39 +1873,46 @@ class UnresolvedLookupExpr : public OverloadExpr {
 
   UnresolvedLookupExpr(ASTContext &C, 
                        CXXRecordDecl *NamingClass,
-                       NestedNameSpecifier *Qualifier, SourceRange QRange,
+                       NestedNameSpecifierLoc QualifierLoc,
                        const DeclarationNameInfo &NameInfo,
                        bool RequiresADL, bool Overloaded, 
                        const TemplateArgumentListInfo *TemplateArgs,
-                       UnresolvedSetIterator Begin, UnresolvedSetIterator End)
-    : OverloadExpr(UnresolvedLookupExprClass, C, Qualifier,  QRange, NameInfo, 
+                       UnresolvedSetIterator Begin, UnresolvedSetIterator End,
+                       bool StdIsAssociatedNamespace)
+    : OverloadExpr(UnresolvedLookupExprClass, C, QualifierLoc, NameInfo, 
                    TemplateArgs, Begin, End),
-      RequiresADL(RequiresADL), Overloaded(Overloaded), NamingClass(NamingClass)
+      RequiresADL(RequiresADL),
+      StdIsAssociatedNamespace(StdIsAssociatedNamespace),
+      Overloaded(Overloaded), NamingClass(NamingClass)
   {}
 
   UnresolvedLookupExpr(EmptyShell Empty)
     : OverloadExpr(UnresolvedLookupExprClass, Empty),
-      RequiresADL(false), Overloaded(false), NamingClass(0)
+      RequiresADL(false), StdIsAssociatedNamespace(false), Overloaded(false),
+      NamingClass(0)
   {}
 
+  friend class ASTStmtReader;
+  
 public:
   static UnresolvedLookupExpr *Create(ASTContext &C,
                                       CXXRecordDecl *NamingClass,
-                                      NestedNameSpecifier *Qualifier,
-                                      SourceRange QualifierRange,
+                                      NestedNameSpecifierLoc QualifierLoc,
                                       const DeclarationNameInfo &NameInfo,
                                       bool ADL, bool Overloaded,
                                       UnresolvedSetIterator Begin, 
-                                      UnresolvedSetIterator End) {
-    return new(C) UnresolvedLookupExpr(C, NamingClass, Qualifier, 
-                                       QualifierRange, NameInfo, ADL, 
-                                       Overloaded, 0, Begin, End);
+                                      UnresolvedSetIterator End,
+                                      bool StdIsAssociatedNamespace = false) {
+    assert((ADL || !StdIsAssociatedNamespace) &&
+           "std considered associated namespace when not performing ADL");
+    return new(C) UnresolvedLookupExpr(C, NamingClass, QualifierLoc, NameInfo, 
+                                       ADL, Overloaded, 0, Begin, End,
+                                       StdIsAssociatedNamespace);
   }
 
   static UnresolvedLookupExpr *Create(ASTContext &C,
                                       CXXRecordDecl *NamingClass,
-                                      NestedNameSpecifier *Qualifier,
-                                      SourceRange QualifierRange,
+                                      NestedNameSpecifierLoc QualifierLoc,
                                       const DeclarationNameInfo &NameInfo,
                                       bool ADL,
                                       const TemplateArgumentListInfo &Args,
@@ -1786,17 +1926,18 @@ public:
   /// True if this declaration should be extended by
   /// argument-dependent lookup.
   bool requiresADL() const { return RequiresADL; }
-  void setRequiresADL(bool V) { RequiresADL = V; }
+
+  /// True if namespace ::std should be artificially added to the set of
+  /// associated namespaecs for argument-dependent lookup purposes.
+  bool isStdAssociatedNamespace() const { return StdIsAssociatedNamespace; }
 
   /// True if this lookup is overloaded.
   bool isOverloaded() const { return Overloaded; }
-  void setOverloaded(bool V) { Overloaded = V; }
 
   /// Gets the 'naming class' (in the sense of C++0x
   /// [class.access.base]p5) of the lookup.  This is the scope
   /// that was looked in to find these results.
   CXXRecordDecl *getNamingClass() const { return NamingClass; }
-  void setNamingClass(CXXRecordDecl *D) { NamingClass = D; }
 
   // Note that, inconsistently with the explicit-template-argument AST
   // nodes, users are *forbidden* from calling these methods on objects
@@ -1845,8 +1986,10 @@ public:
 
   SourceRange getSourceRange() const {
     SourceRange Range(getNameInfo().getSourceRange());
-    if (getQualifier()) Range.setBegin(getQualifierRange().getBegin());
-    if (hasExplicitTemplateArgs()) Range.setEnd(getRAngleLoc());
+    if (getQualifierLoc()) 
+      Range.setBegin(getQualifierLoc().getBeginLoc());
+    if (hasExplicitTemplateArgs()) 
+      Range.setEnd(getRAngleLoc());
     return Range;
   }
 
@@ -2186,16 +2329,13 @@ class CXXDependentScopeMemberExpr : public Expr {
   SourceLocation OperatorLoc;
 
   /// \brief The nested-name-specifier that precedes the member name, if any.
-  NestedNameSpecifier *Qualifier;
-
-  /// \brief The source range covering the nested name specifier.
-  SourceRange QualifierRange;
+  NestedNameSpecifierLoc QualifierLoc;
 
   /// \brief In a qualified member access expression such as t->Base::f, this
   /// member stores the resolves of name lookup in the context of the member
   /// access expression, to be used at instantiation time.
   ///
-  /// FIXME: This member, along with the Qualifier and QualifierRange, could
+  /// FIXME: This member, along with the QualifierLoc, could
   /// be stuck into a structure that is optionally allocated at the end of
   /// the CXXDependentScopeMemberExpr, to save space in the common case.
   NamedDecl *FirstQualifierFoundInScope;
@@ -2208,8 +2348,7 @@ class CXXDependentScopeMemberExpr : public Expr {
   CXXDependentScopeMemberExpr(ASTContext &C,
                           Expr *Base, QualType BaseType, bool IsArrow,
                           SourceLocation OperatorLoc,
-                          NestedNameSpecifier *Qualifier,
-                          SourceRange QualifierRange,
+                          NestedNameSpecifierLoc QualifierLoc,
                           NamedDecl *FirstQualifierFoundInScope,
                           DeclarationNameInfo MemberNameInfo,
                           const TemplateArgumentListInfo *TemplateArgs);
@@ -2219,8 +2358,7 @@ public:
                               Expr *Base, QualType BaseType,
                               bool IsArrow,
                               SourceLocation OperatorLoc,
-                              NestedNameSpecifier *Qualifier,
-                              SourceRange QualifierRange,
+                              NestedNameSpecifierLoc QualifierLoc,
                               NamedDecl *FirstQualifierFoundInScope,
                               DeclarationNameInfo MemberNameInfo);
 
@@ -2228,8 +2366,7 @@ public:
   Create(ASTContext &C,
          Expr *Base, QualType BaseType, bool IsArrow,
          SourceLocation OperatorLoc,
-         NestedNameSpecifier *Qualifier,
-         SourceRange QualifierRange,
+         NestedNameSpecifierLoc QualifierLoc,
          NamedDecl *FirstQualifierFoundInScope,
          DeclarationNameInfo MemberNameInfo,
          const TemplateArgumentListInfo *TemplateArgs);
@@ -2241,7 +2378,7 @@ public:
   /// \brief True if this is an implicit access, i.e. one in which the
   /// member being accessed was not written in the source.  The source
   /// location of the operator is invalid in this case.
-  bool isImplicitAccess() const { return Base == 0; }
+  bool isImplicitAccess() const;
 
   /// \brief Retrieve the base object of this member expressions,
   /// e.g., the \c x in \c x.m.
@@ -2249,30 +2386,27 @@ public:
     assert(!isImplicitAccess());
     return cast<Expr>(Base);
   }
-  void setBase(Expr *E) { Base = E; }
 
   QualType getBaseType() const { return BaseType; }
-  void setBaseType(QualType T) { BaseType = T; }
 
   /// \brief Determine whether this member expression used the '->'
   /// operator; otherwise, it used the '.' operator.
   bool isArrow() const { return IsArrow; }
-  void setArrow(bool A) { IsArrow = A; }
 
   /// \brief Retrieve the location of the '->' or '.' operator.
   SourceLocation getOperatorLoc() const { return OperatorLoc; }
-  void setOperatorLoc(SourceLocation L) { OperatorLoc = L; }
 
   /// \brief Retrieve the nested-name-specifier that qualifies the member
   /// name.
-  NestedNameSpecifier *getQualifier() const { return Qualifier; }
-  void setQualifier(NestedNameSpecifier *NNS) { Qualifier = NNS; }
+  NestedNameSpecifier *getQualifier() const { 
+    return QualifierLoc.getNestedNameSpecifier(); 
+  }
 
-  /// \brief Retrieve the source range covering the nested-name-specifier
-  /// that qualifies the member name.
-  SourceRange getQualifierRange() const { return QualifierRange; }
-  void setQualifierRange(SourceRange R) { QualifierRange = R; }
-
+  /// \brief Retrieve the nested-name-specifier that qualifies the member
+  /// name, with source location information.
+  NestedNameSpecifierLoc getQualifierLoc() const { return QualifierLoc; }
+  
+  
   /// \brief Retrieve the first part of the nested-name-specifier that was
   /// found in the scope of the member access expression when the member access
   /// was initially parsed.
@@ -2287,26 +2421,20 @@ public:
   NamedDecl *getFirstQualifierFoundInScope() const {
     return FirstQualifierFoundInScope;
   }
-  void setFirstQualifierFoundInScope(NamedDecl *D) {
-    FirstQualifierFoundInScope = D;
-  }
 
   /// \brief Retrieve the name of the member that this expression
   /// refers to.
   const DeclarationNameInfo &getMemberNameInfo() const {
     return MemberNameInfo;
   }
-  void setMemberNameInfo(const DeclarationNameInfo &N) { MemberNameInfo = N; }
 
   /// \brief Retrieve the name of the member that this expression
   /// refers to.
   DeclarationName getMember() const { return MemberNameInfo.getName(); }
-  void setMember(DeclarationName N) { MemberNameInfo.setName(N); }
 
   // \brief Retrieve the location of the name of the member that this
   // expression refers to.
   SourceLocation getMemberLoc() const { return MemberNameInfo.getLoc(); }
-  void setMemberLoc(SourceLocation L) { MemberNameInfo.setLoc(L); }
 
   /// \brief Determines whether this member expression actually had a C++
   /// template argument list explicitly specified, e.g., x.f<int>.
@@ -2376,7 +2504,7 @@ public:
     if (!isImplicitAccess())
       Range.setBegin(Base->getSourceRange().getBegin());
     else if (getQualifier())
-      Range.setBegin(getQualifierRange().getBegin());
+      Range.setBegin(getQualifierLoc().getBeginLoc());
     else
       Range.setBegin(MemberNameInfo.getBeginLoc());
 
@@ -2438,8 +2566,7 @@ class UnresolvedMemberExpr : public OverloadExpr {
   UnresolvedMemberExpr(ASTContext &C, bool HasUnresolvedUsing,
                        Expr *Base, QualType BaseType, bool IsArrow,
                        SourceLocation OperatorLoc,
-                       NestedNameSpecifier *Qualifier,
-                       SourceRange QualifierRange,
+                       NestedNameSpecifierLoc QualifierLoc,
                        const DeclarationNameInfo &MemberNameInfo,
                        const TemplateArgumentListInfo *TemplateArgs,
                        UnresolvedSetIterator Begin, UnresolvedSetIterator End);
@@ -2448,13 +2575,14 @@ class UnresolvedMemberExpr : public OverloadExpr {
     : OverloadExpr(UnresolvedMemberExprClass, Empty), IsArrow(false),
       HasUnresolvedUsing(false), Base(0) { }
 
+  friend class ASTStmtReader;
+  
 public:
   static UnresolvedMemberExpr *
   Create(ASTContext &C, bool HasUnresolvedUsing,
          Expr *Base, QualType BaseType, bool IsArrow,
          SourceLocation OperatorLoc,
-         NestedNameSpecifier *Qualifier,
-         SourceRange QualifierRange,
+         NestedNameSpecifierLoc QualifierLoc,
          const DeclarationNameInfo &MemberNameInfo,
          const TemplateArgumentListInfo *TemplateArgs,
          UnresolvedSetIterator Begin, UnresolvedSetIterator End);
@@ -2466,7 +2594,7 @@ public:
   /// \brief True if this is an implicit access, i.e. one in which the
   /// member being accessed was not written in the source.  The source
   /// location of the operator is invalid in this case.
-  bool isImplicitAccess() const { return Base == 0; }
+  bool isImplicitAccess() const;
 
   /// \brief Retrieve the base object of this member expressions,
   /// e.g., the \c x in \c x.m.
@@ -2478,24 +2606,19 @@ public:
     assert(!isImplicitAccess());
     return cast<Expr>(Base);
   }
-  void setBase(Expr *E) { Base = E; }
 
   QualType getBaseType() const { return BaseType; }
-  void setBaseType(QualType T) { BaseType = T; }
 
   /// \brief Determine whether the lookup results contain an unresolved using
   /// declaration.
   bool hasUnresolvedUsing() const { return HasUnresolvedUsing; }
-  void setHasUnresolvedUsing(bool V) { HasUnresolvedUsing = V; }
 
   /// \brief Determine whether this member expression used the '->'
   /// operator; otherwise, it used the '.' operator.
   bool isArrow() const { return IsArrow; }
-  void setArrow(bool A) { IsArrow = A; }
 
   /// \brief Retrieve the location of the '->' or '.' operator.
   SourceLocation getOperatorLoc() const { return OperatorLoc; }
-  void setOperatorLoc(SourceLocation L) { OperatorLoc = L; }
 
   /// \brief Retrieves the naming class of this lookup.
   CXXRecordDecl *getNamingClass() const;
@@ -2503,17 +2626,14 @@ public:
   /// \brief Retrieve the full name info for the member that this expression
   /// refers to.
   const DeclarationNameInfo &getMemberNameInfo() const { return getNameInfo(); }
-  void setMemberNameInfo(const DeclarationNameInfo &N) { setNameInfo(N); }
 
   /// \brief Retrieve the name of the member that this expression
   /// refers to.
   DeclarationName getMemberName() const { return getName(); }
-  void setMemberName(DeclarationName N) { setName(N); }
 
   // \brief Retrieve the location of the name of the member that this
   // expression refers to.
   SourceLocation getMemberLoc() const { return getNameLoc(); }
-  void setMemberLoc(SourceLocation L) { setNameLoc(L); }
 
   /// \brief Retrieve the explicit template argument list that followed the
   /// member template name.
@@ -2570,8 +2690,8 @@ public:
     SourceRange Range = getMemberNameInfo().getSourceRange();
     if (!isImplicitAccess())
       Range.setBegin(Base->getSourceRange().getBegin());
-    else if (getQualifier())
-      Range.setBegin(getQualifierRange().getBegin());
+    else if (getQualifierLoc())
+      Range.setBegin(getQualifierLoc().getBeginLoc());
 
     if (hasExplicitTemplateArgs())
       Range.setEnd(getRAngleLoc());

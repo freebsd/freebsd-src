@@ -46,6 +46,7 @@ class Argument<string name> {
   string Name = name;
 }
 
+class BoolArgument<string name> : Argument<name>;
 class IdentifierArgument<string name> : Argument<name>;
 class IntArgument<string name> : Argument<name>;
 class StringArgument<string name> : Argument<name>;
@@ -54,6 +55,9 @@ class FunctionArgument<string name> : Argument<name>;
 class TypeArgument<string name> : Argument<name>;
 class UnsignedArgument<string name> : Argument<name>;
 class VariadicUnsignedArgument<string name> : Argument<name>;
+
+// A version of the form major.minor[.subminor].
+class VersionArgument<string name> : Argument<name>;
 
 // This one's a doozy, so it gets its own special type
 // It can be an unsigned integer, or a type. Either can
@@ -89,7 +93,12 @@ class Attr {
   code AdditionalMembers = [{}];
 }
 
+/// An inheritable attribute is inherited by later redeclarations.
 class InheritableAttr : Attr;
+
+/// An inheritable parameter attribute is inherited by later
+/// redeclarations, even when it's written on a parameter.
+class InheritableParamAttr : InheritableAttr;
 
 //
 // Attributes begin here
@@ -129,12 +138,26 @@ def AsmLabel : InheritableAttr {
   let Args = [StringArgument<"Label">];
 }
 
+def Availability : InheritableAttr {
+  let Spellings = ["availability"];
+  let Args = [IdentifierArgument<"platform">, VersionArgument<"introduced">,
+              VersionArgument<"deprecated">, VersionArgument<"obsoleted">,
+              BoolArgument<"unavailable">];
+  let AdditionalMembers =
+[{static llvm::StringRef getPrettyPlatformName(llvm::StringRef Platform) {
+    return llvm::StringSwitch<llvm::StringRef>(Platform)
+             .Case("ios", "iOS")
+             .Case("macosx", "Mac OS X")
+             .Default(llvm::StringRef());
+} }];
+}
+
 def Blocks : InheritableAttr {
   let Spellings = ["blocks"];
   let Args = [EnumArgument<"Type", "BlockType", ["byref"], ["ByRef"]>];
 }
 
-def CarriesDependency : InheritableAttr {
+def CarriesDependency : InheritableParamAttr {
   let Spellings = ["carries_dependency"];
   let Subjects = [ParmVar, Function];
   let Namespaces = ["", "std"];
@@ -154,7 +177,7 @@ def CFReturnsNotRetained : InheritableAttr {
   let Subjects = [ObjCMethod, Function];
 }
 
-def CFConsumed : InheritableAttr {
+def CFConsumed : InheritableParamAttr {
   let Spellings = ["cf_consumed"];
   let Subjects = [ParmVar];
 }
@@ -224,16 +247,16 @@ def DLLImport : InheritableAttr {
   let Spellings = ["dllimport"];
 }
 
-def Explicit : InheritableAttr {
-  let Spellings = [];
-}
-
 def FastCall : InheritableAttr {
   let Spellings = ["fastcall", "__fastcall"];
 }
 
 def Final : InheritableAttr { 
   let Spellings = [];
+}
+
+def MsStruct : InheritableAttr {
+  let Spellings = ["__ms_struct__"];
 }
 
 def Format : InheritableAttr {
@@ -261,7 +284,7 @@ def IBOutlet : InheritableAttr {
 
 def IBOutletCollection : InheritableAttr {
   let Spellings = ["iboutletcollection"];
-  let Args = [TypeArgument<"Interface">];
+  let Args = [TypeArgument<"InterFace">];
 }
 
 def Malloc : InheritableAttr {
@@ -355,13 +378,22 @@ def NSConsumesSelf : InheritableAttr {
   let Subjects = [ObjCMethod];
 }
 
-def NSConsumed : InheritableAttr {
+def NSConsumed : InheritableParamAttr {
   let Spellings = ["ns_consumed"];
   let Subjects = [ParmVar];
 }
 
 def ObjCException : InheritableAttr {
   let Spellings = ["objc_exception"];
+}
+
+def ObjCMethodFamily : InheritableAttr {
+  let Spellings = ["objc_method_family"];
+  let Subjects = [ObjCMethod];
+  let Args = [EnumArgument<"Family", "FamilyKind",
+               ["none", "alloc", "copy", "init", "mutableCopy", "new"],
+               ["OMF_None", "OMF_alloc", "OMF_copy", "OMF_init",
+                "OMF_mutableCopy", "OMF_new"]>];
 }
 
 def ObjCNSObject : InheritableAttr {
@@ -386,6 +418,13 @@ def Ownership : InheritableAttr {
 
 def Packed : InheritableAttr {
   let Spellings = ["packed"];
+}
+
+def Pcs : InheritableAttr {
+  let Spellings = ["pcs"];
+  let Args = [EnumArgument<"PCS", "PCSType",
+                           ["aapcs", "aapcs-vfp"],
+                           ["AAPCS", "AAPCS_VFP"]>];
 }
 
 def Pure : InheritableAttr {

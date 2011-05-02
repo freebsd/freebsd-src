@@ -169,6 +169,8 @@ StringMapEntryBase *StringMapImpl::RemoveKey(StringRef Key) {
   TheTable[Bucket].Item = getTombstoneVal();
   --NumItems;
   ++NumTombstones;
+  assert(NumItems + NumTombstones <= NumBuckets);
+
   return Result;
 }
 
@@ -177,7 +179,19 @@ StringMapEntryBase *StringMapImpl::RemoveKey(StringRef Key) {
 /// RehashTable - Grow the table, redistributing values into the buckets with
 /// the appropriate mod-of-hashtable-size.
 void StringMapImpl::RehashTable() {
-  unsigned NewSize = NumBuckets*2;
+  unsigned NewSize;
+
+  // If the hash table is now more than 3/4 full, or if fewer than 1/8 of
+  // the buckets are empty (meaning that many are filled with tombstones),
+  // grow/rehash the table.
+  if (NumItems*4 > NumBuckets*3) {
+    NewSize = NumBuckets*2;
+  } else if (NumBuckets-(NumItems+NumTombstones) < NumBuckets/8) {
+    NewSize = NumBuckets;
+  } else {
+    return;
+  }
+
   // Allocate one extra bucket which will always be non-empty.  This allows the
   // iterators to stop at end.
   ItemBucket *NewTableArray =(ItemBucket*)calloc(NewSize+1, sizeof(ItemBucket));
@@ -212,4 +226,5 @@ void StringMapImpl::RehashTable() {
   
   TheTable = NewTableArray;
   NumBuckets = NewSize;
+  NumTombstones = 0;
 }

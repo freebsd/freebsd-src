@@ -19,10 +19,11 @@
 #include "llvm/Support/raw_ostream.h"
 #include "RAIIObjectsForParser.h"
 #include "ParsePragma.h"
+#include "clang/AST/DeclTemplate.h"
 using namespace clang;
 
 Parser::Parser(Preprocessor &pp, Sema &actions)
-  : CrashInfo(*this), PP(pp), Actions(actions), Diags(PP.getDiagnostics()),
+  : PP(pp), Actions(actions), Diags(PP.getDiagnostics()),
     GreaterThanIsOperator(true), ColonIsSacred(false), 
     InMessageExpression(false), TemplateParameterDepth(0) {
   Tok.setKind(tok::eof);
@@ -44,6 +45,9 @@ Parser::Parser(Preprocessor &pp, Sema &actions)
 
   PackHandler.reset(new PragmaPackHandler(actions));
   PP.AddPragmaHandler(PackHandler.get());
+    
+  MSStructHandler.reset(new PragmaMSStructHandler(actions));
+  PP.AddPragmaHandler(MSStructHandler.get());
 
   UnusedHandler.reset(new PragmaUnusedHandler(actions, *this));
   PP.AddPragmaHandler(UnusedHandler.get());
@@ -362,6 +366,11 @@ Parser::~Parser() {
   for (unsigned i = 0, e = NumCachedScopes; i != e; ++i)
     delete ScopeCache[i];
 
+  // Free LateParsedTemplatedFunction nodes.
+  for (LateParsedTemplateMapT::iterator it = LateParsedTemplateMap.begin();
+      it != LateParsedTemplateMap.end(); ++it)
+    delete it->second;
+
   // Remove the pragma handlers we installed.
   PP.RemovePragmaHandler(AlignHandler.get());
   AlignHandler.reset();
@@ -371,6 +380,8 @@ Parser::~Parser() {
   OptionsHandler.reset();
   PP.RemovePragmaHandler(PackHandler.get());
   PackHandler.reset();
+  PP.RemovePragmaHandler(MSStructHandler.get());
+  MSStructHandler.reset();
   PP.RemovePragmaHandler(UnusedHandler.get());
   UnusedHandler.reset();
   PP.RemovePragmaHandler(WeakHandler.get());
@@ -422,6 +433,37 @@ void Parser::Initialize() {
     Ident_vector = &PP.getIdentifierTable().get("vector");
     Ident_pixel = &PP.getIdentifierTable().get("pixel");
   }
+
+  Ident_introduced = 0;
+  Ident_deprecated = 0;
+  Ident_obsoleted = 0;
+  Ident_unavailable = 0;
+
+  Ident__exception_code = Ident__exception_info = Ident__abnormal_termination = 0;
+  Ident___exception_code = Ident___exception_info = Ident___abnormal_termination = 0;
+  Ident_GetExceptionCode = Ident_GetExceptionInfo = Ident_AbnormalTermination = 0;
+
+  if(getLang().Borland) {
+    Ident__exception_info        = PP.getIdentifierInfo("_exception_info");
+    Ident___exception_info       = PP.getIdentifierInfo("__exception_info");
+    Ident_GetExceptionInfo       = PP.getIdentifierInfo("GetExceptionInformation");
+    Ident__exception_code        = PP.getIdentifierInfo("_exception_code");
+    Ident___exception_code       = PP.getIdentifierInfo("__exception_code");
+    Ident_GetExceptionCode       = PP.getIdentifierInfo("GetExceptionCode");
+    Ident__abnormal_termination  = PP.getIdentifierInfo("_abnormal_termination");
+    Ident___abnormal_termination = PP.getIdentifierInfo("__abnormal_termination");
+    Ident_AbnormalTermination    = PP.getIdentifierInfo("AbnormalTermination");
+
+    PP.SetPoisonReason(Ident__exception_code,diag::err_seh___except_block);
+    PP.SetPoisonReason(Ident___exception_code,diag::err_seh___except_block);
+    PP.SetPoisonReason(Ident_GetExceptionCode,diag::err_seh___except_block);
+    PP.SetPoisonReason(Ident__exception_info,diag::err_seh___except_filter);
+    PP.SetPoisonReason(Ident___exception_info,diag::err_seh___except_filter);
+    PP.SetPoisonReason(Ident_GetExceptionInfo,diag::err_seh___except_filter);
+    PP.SetPoisonReason(Ident__abnormal_termination,diag::err_seh___finally_block);
+    PP.SetPoisonReason(Ident___abnormal_termination,diag::err_seh___finally_block);
+    PP.SetPoisonReason(Ident_AbnormalTermination,diag::err_seh___finally_block);
+  }
 }
 
 /// ParseTopLevelDecl - Parse one top-level declaration, return whatever the
@@ -433,11 +475,15 @@ bool Parser::ParseTopLevelDecl(DeclGroupPtrTy &Result) {
 
   Result = DeclGroupPtrTy();
   if (Tok.is(tok::eof)) {
+    // Late template parsing can begin.
+    if (getLang().DelayedTemplateParsing)
+      Actions.SetLateTemplateParser(LateTemplateParserCallback, this);
+
     Actions.ActOnEndOfTranslationUnit();
     return true;
   }
 
-  ParsedAttributesWithRange attrs;
+  ParsedAttributesWithRange attrs(AttrFactory);
   MaybeParseCXX0XAttributes(attrs);
   MaybeParseMicrosoftAttributes(attrs);
   
@@ -513,14 +559,16 @@ Parser::ParseExternalDeclaration(ParsedAttributesWithRange &attrs,
   case tok::kw_asm: {
     ProhibitAttributes(attrs);
 
-    ExprResult Result(ParseSimpleAsm());
+    SourceLocation StartLoc = Tok.getLocation();
+    SourceLocation EndLoc;
+    ExprResult Result(ParseSimpleAsm(&EndLoc));
 
     ExpectAndConsume(tok::semi, diag::err_expected_semi_after,
                      "top-level asm block");
 
     if (Result.isInvalid())
       return DeclGroupPtrTy();
-    SingleDecl = Actions.ActOnFileScopeAsmDecl(Tok.getLocation(), Result.get());
+    SingleDecl = Actions.ActOnFileScopeAsmDecl(Result.get(), StartLoc, EndLoc);
     break;
   }
   case tok::at:
@@ -550,6 +598,7 @@ Parser::ParseExternalDeclaration(ParsedAttributesWithRange &attrs,
   case tok::kw_template:
   case tok::kw_export:    // As in 'export template'
   case tok::kw_static_assert:
+  case tok::kw__Static_assert:
     // A function definition cannot start with a these keywords.
     {
       SourceLocation DeclEnd;
@@ -743,6 +792,8 @@ Parser::ParseDeclarationOrFunctionDefinition(ParsedAttributes &attrs,
 ///
 Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
                                       const ParsedTemplateInfo &TemplateInfo) {
+  // Poison the SEH identifiers so they are flagged as illegal in function bodies
+  PoisonSEHIdentifiersRAIIObject PoisonSEHIdentifiers(*this, true);
   const DeclaratorChunk::FunctionTypeInfo &FTI = D.getFunctionTypeInfo();
 
   // If this is C90 and the declspecs were completely missing, fudge in an
@@ -778,6 +829,44 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
       return 0;
   }
 
+  // In delayed template parsing mode, for function template we consume the
+  // tokens and store them for late parsing at the end of the translation unit.
+  if (getLang().DelayedTemplateParsing &&
+      TemplateInfo.Kind == ParsedTemplateInfo::Template) {
+    MultiTemplateParamsArg TemplateParameterLists(Actions,
+                                         TemplateInfo.TemplateParams->data(),
+                                         TemplateInfo.TemplateParams->size());
+    
+    ParseScope BodyScope(this, Scope::FnScope|Scope::DeclScope);
+    Scope *ParentScope = getCurScope()->getParent();
+
+    Decl *DP = Actions.HandleDeclarator(ParentScope, D,
+                                move(TemplateParameterLists),
+                                /*IsFunctionDefinition=*/true);
+    D.complete(DP);
+    D.getMutableDeclSpec().abort();
+
+    if (DP) {
+      LateParsedTemplatedFunction *LPT = new LateParsedTemplatedFunction(this, DP);
+
+      FunctionDecl *FnD = 0;
+      if (FunctionTemplateDecl *FunTmpl = dyn_cast<FunctionTemplateDecl>(DP))
+        FnD = FunTmpl->getTemplatedDecl();
+      else
+        FnD = cast<FunctionDecl>(DP);
+      Actions.CheckForFunctionRedefinition(FnD);
+
+      LateParsedTemplateMap[FnD] = LPT;
+      Actions.MarkAsLateParsedTemplate(FnD);
+      LexTemplateFunctionForLateParsing(LPT->Toks);
+    } else {
+      CachedTokens Toks;
+      LexTemplateFunctionForLateParsing(Toks);
+    }
+    return DP;
+  }
+
+
   // Enter a scope for the function body.
   ParseScope BodyScope(this, Scope::FnScope|Scope::DeclScope);
 
@@ -799,7 +888,7 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
   D.getMutableDeclSpec().abort();
 
   if (Tok.is(tok::kw_try))
-    return ParseFunctionTryBlock(Res);
+    return ParseFunctionTryBlock(Res, BodyScope);
 
   // If we have a colon, then we're probably parsing a C++
   // ctor-initializer.
@@ -808,13 +897,14 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
 
     // Recover from error.
     if (!Tok.is(tok::l_brace)) {
+      BodyScope.Exit();
       Actions.ActOnFinishFunctionBody(Res, 0);
       return Res;
     }
   } else
     Actions.ActOnDefaultCtorInitializers(Res);
 
-  return ParseFunctionStatementBody(Res);
+  return ParseFunctionStatementBody(Res, BodyScope);
 }
 
 /// ParseKNRParamDeclarations - Parse 'declaration-list[opt]' which provides
@@ -832,7 +922,7 @@ void Parser::ParseKNRParamDeclarations(Declarator &D) {
     SourceLocation DSStart = Tok.getLocation();
 
     // Parse the common declaration-specifiers piece.
-    DeclSpec DS;
+    DeclSpec DS(AttrFactory);
     ParseDeclarationSpecifiers(DS);
 
     // C99 6.9.1p6: 'each declaration in the declaration list shall have at
@@ -1029,10 +1119,14 @@ bool Parser::TryAnnotateTypeOrScopeToken(bool EnteringContext) {
     //            simple-template-id
     SourceLocation TypenameLoc = ConsumeToken();
     CXXScopeSpec SS;
-    if (ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/ParsedType(), false))
+    if (ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/ParsedType(), false,
+                                       0, /*IsTypename*/true))
       return true;
     if (!SS.isSet()) {
-      Diag(Tok.getLocation(), diag::err_expected_qualified_after_typename);
+      if (getLang().Microsoft)
+        Diag(Tok.getLocation(), diag::warn_expected_qualified_after_typename);
+      else
+        Diag(Tok.getLocation(), diag::err_expected_qualified_after_typename);
       return true;
     }
 
@@ -1051,15 +1145,18 @@ bool Parser::TryAnnotateTypeOrScopeToken(bool EnteringContext) {
         return true;
       }
 
-      AnnotateTemplateIdTokenAsType(0);
-      assert(Tok.is(tok::annot_typename) &&
-             "AnnotateTemplateIdTokenAsType isn't working properly");
-      if (Tok.getAnnotationValue())
-        Ty = Actions.ActOnTypenameType(getCurScope(), TypenameLoc, SS, 
-                                       SourceLocation(),
-                                       getTypeAnnotation(Tok));
-      else
-        Ty = true;
+      ASTTemplateArgsPtr TemplateArgsPtr(Actions,
+                                         TemplateId->getTemplateArgs(),
+                                         TemplateId->NumArgs);
+      
+      Ty = Actions.ActOnTypenameType(getCurScope(), TypenameLoc, SS,
+                                     /*FIXME:*/SourceLocation(),
+                                     TemplateId->Template,
+                                     TemplateId->TemplateNameLoc,
+                                     TemplateId->LAngleLoc,
+                                     TemplateArgsPtr, 
+                                     TemplateId->RAngleLoc);
+      TemplateId->Destroy();
     } else {
       Diag(Tok, diag::err_expected_type_name_after_typename)
         << SS.getRange();
@@ -1088,7 +1185,9 @@ bool Parser::TryAnnotateTypeOrScopeToken(bool EnteringContext) {
     if (ParsedType Ty = Actions.getTypeName(*Tok.getIdentifierInfo(),
                                             Tok.getLocation(), getCurScope(),
                                             &SS, false, 
-                                            NextToken().is(tok::period))) {
+                                            NextToken().is(tok::period),
+                                            ParsedType(),
+                                            /*NonTrivialTypeSourceInfo*/true)) {
       // This is a typename. Replace the current token in-place with an
       // annotation type token.
       Tok.setKind(tok::annot_typename);
@@ -1124,7 +1223,7 @@ bool Parser::TryAnnotateTypeOrScopeToken(bool EnteringContext) {
                                    Template, MemberOfUnknownSpecialization)) {
         // Consume the identifier.
         ConsumeToken();
-        if (AnnotateTemplateIdToken(Template, TNK, &SS, TemplateName)) {
+        if (AnnotateTemplateIdToken(Template, TNK, SS, TemplateName)) {
           // If an unrecoverable error occurred, we need to return true here,
           // because the token stream is in a damaged state.  We may not return
           // a valid identifier.
@@ -1147,7 +1246,7 @@ bool Parser::TryAnnotateTypeOrScopeToken(bool EnteringContext) {
       // template-id annotation in a context where we weren't allowed
       // to produce a type annotation token. Update the template-id
       // annotation token to a type annotation token now.
-      AnnotateTemplateIdTokenAsType(&SS);
+      AnnotateTemplateIdTokenAsType();
       return false;
     }
   }
@@ -1184,7 +1283,8 @@ bool Parser::TryAnnotateTypeOrScopeToken(bool EnteringContext) {
 bool Parser::TryAnnotateCXXScopeToken(bool EnteringContext) {
   assert(getLang().CPlusPlus &&
          "Call sites of this function should be guarded by checking for C++");
-  assert((Tok.is(tok::identifier) || Tok.is(tok::coloncolon)) &&
+  assert((Tok.is(tok::identifier) || Tok.is(tok::coloncolon) ||
+          (Tok.is(tok::annot_template_id) && NextToken().is(tok::coloncolon)))&&
          "Cannot be a type or scope token!");
 
   CXXScopeSpec SS;
