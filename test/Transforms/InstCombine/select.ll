@@ -714,3 +714,38 @@ define i32 @test52(i32 %n, i32 %m) nounwind {
   ret i32 %storemerge
 }
 
+; PR9454
+define i32 @test53(i32 %x) nounwind {
+  %and = and i32 %x, 2
+  %cmp = icmp eq i32 %and, %x
+  %sel = select i1 %cmp, i32 2, i32 1
+  ret i32 %sel
+; CHECK: @test53
+; CHECK: select i1 %cmp
+; CHECK: ret
+}
+
+define i32 @test54(i32 %X, i32 %Y) {
+  %A = ashr exact i32 %X, %Y
+  %B = icmp eq i32 %A, 0
+  %C = select i1 %B, i32 %A, i32 1
+  ret i32 %C
+; CHECK: @test54
+; CHECK-NOT: ashr
+; CHECK-NOT: select
+; CHECK: icmp ne i32 %X, 0
+; CHECK: zext 
+; CHECK: ret
+}
+
+define i1 @test55(i1 %X, i32 %Y, i32 %Z) {
+  %A = ashr exact i32 %Y, %Z
+  %B = select i1 %X, i32 %Y, i32 %A
+  %C = icmp eq i32 %B, 0
+  ret i1 %C
+; CHECK: @test55
+; CHECK-NOT: ashr
+; CHECK-NOT: select
+; CHECK: icmp eq
+; CHECK: ret i1
+}

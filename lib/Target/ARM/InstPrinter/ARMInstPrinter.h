@@ -17,14 +17,18 @@
 #include "llvm/MC/MCInstPrinter.h"
 
 namespace llvm {
-  class MCOperand;
+
+class MCOperand;
+class TargetMachine;
 
 class ARMInstPrinter : public MCInstPrinter {
 public:
-  ARMInstPrinter(const MCAsmInfo &MAI) : MCInstPrinter(MAI) {}
+  ARMInstPrinter(TargetMachine &TM, const MCAsmInfo &MAI)
+    : MCInstPrinter(MAI) {}
 
   virtual void printInst(const MCInst *MI, raw_ostream &O);
   virtual StringRef getOpcodeName(unsigned Opcode) const;
+  virtual StringRef getRegName(unsigned RegNo) const;
 
   static const char *getInstructionName(unsigned Opcode);
 
@@ -38,15 +42,25 @@ public:
   void printSOImmOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
 
   void printSORegOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+
   void printAddrMode2Operand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printAM2PostIndexOp(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printAM2PreOrOffsetIndexOp(const MCInst *MI, unsigned OpNum,
+                                  raw_ostream &O);
   void printAddrMode2OffsetOperand(const MCInst *MI, unsigned OpNum,
                                    raw_ostream &O);
+
   void printAddrMode3Operand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printAM3PostIndexOp(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printAM3PreOrOffsetIndexOp(const MCInst *MI, unsigned OpNum,
+                                  raw_ostream &O);
   void printAddrMode3OffsetOperand(const MCInst *MI, unsigned OpNum,
                                    raw_ostream &O);
+
   void printLdStmModeOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printAddrMode5Operand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printAddrMode6Operand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printAddrMode7Operand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printAddrMode6OffsetOperand(const MCInst *MI, unsigned OpNum,
                                    raw_ostream &O);
 
@@ -87,9 +101,7 @@ public:
   void printSetendOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printCPSIMod(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printCPSIFlag(const MCInst *MI, unsigned OpNum, raw_ostream &O);
-  void printCPSOptionOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printMSRMaskOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
-  void printNegZeroOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printPredicateOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printMandatoryPredicateOperand(const MCInst *MI, unsigned OpNum,
                                       raw_ostream &O);

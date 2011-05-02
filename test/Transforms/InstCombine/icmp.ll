@@ -377,3 +377,136 @@ define i1 @test38(i32 %x, i32 %y, i32 %z) {
   %c = icmp ugt i32 %lhs, %rhs
   ret i1 %c
 }
+
+; PR9343 #1
+; CHECK: @test39
+; CHECK: %B = icmp eq i32 %X, 0
+define i1 @test39(i32 %X, i32 %Y) {
+  %A = ashr exact i32 %X, %Y
+  %B = icmp eq i32 %A, 0
+  ret i1 %B
+}
+
+; CHECK: @test40
+; CHECK: %B = icmp ne i32 %X, 0
+define i1 @test40(i32 %X, i32 %Y) {
+  %A = lshr exact i32 %X, %Y
+  %B = icmp ne i32 %A, 0
+  ret i1 %B
+}
+
+; PR9343 #3
+; CHECK: @test41
+; CHECK: ret i1 true
+define i1 @test41(i32 %X, i32 %Y) {
+  %A = urem i32 %X, %Y
+  %B = icmp ugt i32 %Y, %A
+  ret i1 %B
+}
+
+; CHECK: @test42
+; CHECK: %B = icmp sgt i32 %Y, -1
+define i1 @test42(i32 %X, i32 %Y) {
+  %A = srem i32 %X, %Y
+  %B = icmp slt i32 %A, %Y
+  ret i1 %B
+}
+
+; CHECK: @test43
+; CHECK: %B = icmp slt i32 %Y, 0
+define i1 @test43(i32 %X, i32 %Y) {
+  %A = srem i32 %X, %Y
+  %B = icmp slt i32 %Y, %A
+  ret i1 %B
+}
+
+; CHECK: @test44
+; CHECK: %B = icmp sgt i32 %Y, -1
+define i1 @test44(i32 %X, i32 %Y) {
+  %A = srem i32 %X, %Y
+  %B = icmp slt i32 %A, %Y
+  ret i1 %B
+}
+
+; CHECK: @test45
+; CHECK: %B = icmp slt i32 %Y, 0
+define i1 @test45(i32 %X, i32 %Y) {
+  %A = srem i32 %X, %Y
+  %B = icmp slt i32 %Y, %A
+  ret i1 %B
+}
+
+; PR9343 #4
+; CHECK: @test46
+; CHECK: %C = icmp ult i32 %X, %Y
+define i1 @test46(i32 %X, i32 %Y, i32 %Z) {
+  %A = ashr exact i32 %X, %Z
+  %B = ashr exact i32 %Y, %Z
+  %C = icmp ult i32 %A, %B
+  ret i1 %C
+}
+
+; PR9343 #5
+; CHECK: @test47
+; CHECK: %C = icmp ugt i32 %X, %Y
+define i1 @test47(i32 %X, i32 %Y, i32 %Z) {
+  %A = ashr exact i32 %X, %Z
+  %B = ashr exact i32 %Y, %Z
+  %C = icmp ugt i32 %A, %B
+  ret i1 %C
+}
+
+; PR9343 #8
+; CHECK: @test48
+; CHECK: %C = icmp eq i32 %X, %Y
+define i1 @test48(i32 %X, i32 %Y, i32 %Z) {
+  %A = sdiv exact i32 %X, %Z
+  %B = sdiv exact i32 %Y, %Z
+  %C = icmp eq i32 %A, %B
+  ret i1 %C
+}
+
+; PR8469
+; CHECK: @test49
+; CHECK: ret <2 x i1> <i1 true, i1 true>
+define <2 x i1> @test49(<2 x i32> %tmp3) {
+entry:
+  %tmp11 = and <2 x i32> %tmp3, <i32 3, i32 3>
+  %cmp = icmp ult <2 x i32> %tmp11, <i32 4, i32 4>
+  ret <2 x i1> %cmp  
+}
+
+; PR9343 #7
+; CHECK: @test50
+; CHECK: ret i1 true
+define i1 @test50(i16 %X, i32 %Y) {
+  %A = zext i16 %X to i32
+  %B = srem i32 %A, %Y
+  %C = icmp sgt i32 %B, -1
+  ret i1 %C
+}
+
+; CHECK: @test51
+; CHECK: ret i1 %C
+define i1 @test51(i32 %X, i32 %Y) {
+  %A = and i32 %X, 2147483648
+  %B = srem i32 %A, %Y
+  %C = icmp sgt i32 %B, -1
+  ret i1 %C
+}
+
+; CHECK: @test52
+; CHECK-NEXT: and i32 %x1, 16711935
+; CHECK-NEXT: icmp eq i32 {{.*}}, 4980863
+; CHECK-NEXT: ret i1
+define i1 @test52(i32 %x1) nounwind {
+  %conv = and i32 %x1, 255
+  %cmp = icmp eq i32 %conv, 127
+  %tmp2 = lshr i32 %x1, 16
+  %tmp3 = trunc i32 %tmp2 to i8
+  %cmp15 = icmp eq i8 %tmp3, 76
+
+  %A = and i1 %cmp, %cmp15
+  ret i1 %A
+}
+

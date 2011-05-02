@@ -196,6 +196,9 @@
 /* Define to 1 if you have the `udis86' library (-ludis86). */
 #undef HAVE_LIBUDIS86
 
+/* Type of 1st arg on ELM Callback */
+#cmakedefine WIN32_ELMCB_PCSTR ${WIN32_ELMCB_PCSTR}
+
 /* Define to 1 if you have the <limits.h> header file. */
 #cmakedefine HAVE_LIMITS_H ${HAVE_LIMITS_H}
 
@@ -453,7 +456,7 @@
 #cmakedefine HAVE_WRITEV ${HAVE_WRITEV}
 
 /* Define if the xdot.py program is available */
-#undef HAVE_XDOT_PY
+#cmakedefine HAVE_XDOT_PY ${HAVE_XDOT_PY}
 
 /* Have host's _alloca */
 #cmakedefine HAVE__ALLOCA ${HAVE__ALLOCA}
@@ -585,7 +588,7 @@
 #cmakedefine LLVM_PATH_TWOPI "${LLVM_PATH_TWOPI}"
 
 /* Define to path to xdot.py program if found or 'echo xdot.py' otherwise */
-#undef LLVM_PATH_XDOT_PY
+#cmakedefine LLVM_PATH_XDOT_PY "${LLVM_PATH_XDOT_PY}"
 
 /* Installation prefix directory */
 #cmakedefine LLVM_PREFIX "${LLVM_PREFIX}"

@@ -7,9 +7,9 @@
 </head>
 <body>
 
-<div class="doc_title">
+<h1>
   How to submit an LLVM bug report
-</div>
+</h1>
 
 <table class="layout" style="width: 90%" >
 <tr class="layout">
@@ -37,12 +37,12 @@
 </table>
 
 <!-- *********************************************************************** -->
-<div class="doc_section">
+<h2>
   <a name="introduction">Introduction - Got bugs?</a>
-</div>
+</h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>If you're working with LLVM and run into a bug, we definitely want to know
 about it.  This document describes what you can do to increase the odds of
@@ -76,12 +76,12 @@ information:</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section">
+<h2>
   <a name="crashers">Crashing Bugs</a>
-</div>
+</h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>More often than not, bugs in the compiler cause it to crash&mdash;often due
 to an assertion failure of some sort. The most important
@@ -109,14 +109,12 @@ with the following extra command line options:</p>
 
 </ul>
 
-</div>
-
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="front-end">Front-end bugs</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <p>If the problem is in the front-end, you should re-run the same
 <tt>llvm-gcc</tt> command that resulted in the crash, but add the
@@ -137,11 +135,11 @@ has instructions on the best way to use delta.</p>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="ct_optimizer">Compile-time optimization bugs</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <p>If you find that a bug crashes in the optimizer, compile your test-case to a
 <tt>.bc</tt> file by passing "<tt><b>-emit-llvm -O0 -c -o foo.bc</b></tt>".
@@ -171,11 +169,11 @@ that bugpoint emits.  If something goes wrong with bugpoint, please submit the
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="ct_codegen">Code generator bugs</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <p>If you find a bug that crashes llvm-gcc in the code generator, compile your
 source file to a .bc file by passing "<tt><b>-emit-llvm -c -o foo.bc</b></tt>"
@@ -207,13 +205,15 @@ that bugpoint emits.  If something goes wrong with bugpoint, please submit the
 
 </div>
 
-<!-- *********************************************************************** -->
-<div class="doc_section">
-  <a name="miscompilations">Miscompilations</a>
 </div>
+
+<!-- *********************************************************************** -->
+<h2>
+  <a name="miscompilations">Miscompilations</a>
+</h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>If llvm-gcc successfully produces an executable, but that executable doesn't
 run right, this is either a bug in the code or a bug in the
@@ -241,12 +241,12 @@ error.</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section">
+<h2>
   <a name="codegen">Incorrect code generation</a>
-</div>
+</h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>Similarly to debugging incorrect compilation by mis-behaving passes, you can
 debug incorrect code generation by either LLC or the JIT, using
@@ -338,9 +338,9 @@ the following:</p>
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
-  <a href="http://llvm.org">The LLVM Compiler Infrastructure</a>
+  <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a>
   <br>
-  Last modified: $Date: 2010-05-07 02:28:04 +0200 (Fri, 07 May 2010) $
+  Last modified: $Date: 2011-04-23 02:30:22 +0200 (Sat, 23 Apr 2011) $
 </address>
 
 </body>

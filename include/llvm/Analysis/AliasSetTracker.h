@@ -259,6 +259,7 @@ private:
       if (CallSites[i] == CS.getInstruction()) {
         CallSites[i] = CallSites.back();
         CallSites.pop_back();
+        --i; --e;  // Revisit the moved entry.
       }
   }
   void setVolatile() { Volatile = true; }
@@ -283,6 +284,7 @@ class AliasSetTracker {
   class ASTCallbackVH : public CallbackVH {
     AliasSetTracker *AST;
     virtual void deleted();
+    virtual void allUsesReplacedWith(Value *);
   public:
     ASTCallbackVH(Value *V, AliasSetTracker *AST = 0);
     ASTCallbackVH &operator=(Value *V);

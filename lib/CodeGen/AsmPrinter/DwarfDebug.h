@@ -16,6 +16,7 @@
 
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineLocation.h"
+#include "llvm/Analysis/DebugInfo.h"
 #include "DIE.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
@@ -39,21 +40,6 @@ class DIEAbbrev;
 class DIE;
 class DIEBlock;
 class DIEEntry;
-
-class DIEnumerator;
-class DIDescriptor;
-class DIVariable;
-class DIGlobal;
-class DIGlobalVariable;
-class DISubprogram;
-class DIBasicType;
-class DIDerivedType;
-class DIType;
-class DINameSpace;
-class DISubrange;
-class DICompositeType;
-class DITemplateTypeParameter;
-class DITemplateValueParameter;
 
 //===----------------------------------------------------------------------===//
 /// SrcLineInfo - This class is used to record source line correspondence.
@@ -80,10 +66,12 @@ typedef struct DotDebugLocEntry {
   const MCSymbol *Begin;
   const MCSymbol *End;
   MachineLocation Loc;
+  const MDNode *Variable;
   bool Merged;
-  DotDebugLocEntry() : Begin(0), End(0), Merged(false) {}
-  DotDebugLocEntry(const MCSymbol *B, const MCSymbol *E, MachineLocation &L) 
-    : Begin(B), End(E), Loc(L), Merged(false) {}
+  DotDebugLocEntry() : Begin(0), End(0), Variable(0), Merged(false) {}
+  DotDebugLocEntry(const MCSymbol *B, const MCSymbol *E, MachineLocation &L,
+                   const MDNode *V) 
+    : Begin(B), End(E), Loc(L), Variable(V), Merged(false) {}
   /// Empty entries are also used as a trigger to emit temp label. Such
   /// labels are referenced is used to find debug_loc offset for a given DIE.
   bool isEmpty() { return Begin == 0 && End == 0; }
@@ -95,6 +83,43 @@ typedef struct DotDebugLocEntry {
     Merged = true;
   }
 } DotDebugLocEntry;
+
+//===----------------------------------------------------------------------===//
+/// DbgVariable - This class is used to track local variable information.
+///
+class DbgVariable {
+  DIVariable Var;                    // Variable Descriptor.
+  DIE *TheDIE;                       // Variable DIE.
+  unsigned DotDebugLocOffset;        // Offset in DotDebugLocEntries.
+public:
+  // AbsVar may be NULL.
+  DbgVariable(DIVariable V) : Var(V), TheDIE(0), DotDebugLocOffset(~0U) {}
+
+  // Accessors.
+  DIVariable getVariable()           const { return Var; }
+  void setDIE(DIE *D)                      { TheDIE = D; }
+  DIE *getDIE()                      const { return TheDIE; }
+  void setDotDebugLocOffset(unsigned O)    { DotDebugLocOffset = O; }
+  unsigned getDotDebugLocOffset()    const { return DotDebugLocOffset; }
+  StringRef getName()                const { return Var.getName(); }
+  unsigned getTag()                  const { return Var.getTag(); }
+  bool variableHasComplexAddress()   const {
+    assert(Var.Verify() && "Invalid complex DbgVariable!");
+    return Var.hasComplexAddress();
+  }
+  bool isBlockByrefVariable()        const {
+    assert(Var.Verify() && "Invalid complex DbgVariable!");
+    return Var.isBlockByrefVariable();
+  }
+  unsigned getNumAddrElements()      const { 
+    assert(Var.Verify() && "Invalid complex DbgVariable!");
+    return Var.getNumAddrElements();
+  }
+  uint64_t getAddrElement(unsigned i) const {
+    return Var.getAddrElement(i);
+  }
+  DIType getType() const;
+};
 
 class DwarfDebug {
   /// Asm - Target of Dwarf emission.
@@ -122,12 +147,6 @@ class DwarfDebug {
   /// id mapped to a unique id.
   StringMap<unsigned> SourceIdMap;
 
-  /// DIEBlocks - A list of all the DIEBlocks in use.
-  std::vector<DIEBlock *> DIEBlocks;
-
-  // DIEValueAllocator - All DIEValues are allocated through this allocator.
-  BumpPtrAllocator DIEValueAllocator;
-
   /// StringPool - A String->Symbol mapping of strings used by indirect
   /// references.
   StringMap<std::pair<MCSymbol*, unsigned> > StringPool;
@@ -139,10 +158,13 @@ class DwarfDebug {
   ///
   UniqueVector<const MCSection*> SectionMap;
 
-  // CurrentFnDbgScope - Top level scope for the current function.
-  //
+  /// CurrentFnDbgScope - Top level scope for the current function.
+  ///
   DbgScope *CurrentFnDbgScope;
   
+  /// CurrentFnArguments - List of Arguments (DbgValues) for current function.
+  SmallVector<DbgVariable *, 8> CurrentFnArguments;
+
   /// DbgScopeMap - Tracks the scopes in the current function.  Owns the
   /// contained DbgScope*s.
   ///
@@ -195,10 +217,6 @@ class DwarfDebug {
   /// corresponds to the MDNode mapped with the subprogram DIE.
   DenseMap<DIE *, const MDNode *> ContainingTypeMap;
 
-  typedef SmallVector<DbgScope *, 2> ScopeVector;
-
-  SmallPtrSet<const MachineInstr *, 8> InsnsEndScopeSet;
-
   /// InlineInfo - Keep track of inlined functions and their location.  This
   /// information is used to populate debug_inlined section.
   typedef std::pair<const MCSymbol *, DIE *> InlineInfoLabels;
@@ -217,9 +235,16 @@ class DwarfDebug {
   /// instruction.
   DenseMap<const MachineInstr *, MCSymbol *> LabelsAfterInsn;
 
-  /// insnNeedsLabel - Collection of instructions that need a label to mark
-  /// a debuggging information entity.
-  SmallPtrSet<const MachineInstr *, 8> InsnNeedsLabel;
+  /// UserVariables - Every user variable mentioned by a DBG_VALUE instruction
+  /// in order of appearance.
+  SmallVector<const MDNode*, 8> UserVariables;
+
+  /// DbgValues - For each user variable, keep a list of DBG_VALUE
+  /// instructions in order. The list can also contain normal instructions that
+  /// clobber the previous DBG_VALUE.
+  typedef DenseMap<const MDNode*, SmallVector<const MachineInstr*, 4> >
+    DbgValueHistoryMap;
+  DbgValueHistoryMap DbgValues;
 
   SmallVector<const MCSymbol *, 8> DebugRangeSymbols;
 
@@ -238,6 +263,9 @@ class DwarfDebug {
 
   std::vector<FunctionDebugFrameInfo> DebugFrames;
 
+  // DIEValueAllocator - All DIEValues are allocated through this allocator.
+  BumpPtrAllocator DIEValueAllocator;
+
   // Section Symbols: these are assembler temporary labels that are emitted at
   // the beginning of each supported dwarf section.  These are used to form
   // section offsets and are created by EmitSectionLabels.
@@ -246,149 +274,11 @@ class DwarfDebug {
   MCSymbol *DwarfDebugLocSectionSym;
   MCSymbol *FunctionBeginSym, *FunctionEndSym;
 
-  DIEInteger *DIEIntegerOne;
 private:
-
-  /// getNumSourceIds - Return the number of unique source ids.
-  unsigned getNumSourceIds() const {
-    return SourceIdMap.size();
-  }
 
   /// assignAbbrevNumber - Define a unique number for the abbreviation.
   ///
   void assignAbbrevNumber(DIEAbbrev &Abbrev);
-
-  /// createDIEEntry - Creates a new DIEEntry to be a proxy for a debug
-  /// information entry.
-  DIEEntry *createDIEEntry(DIE *Entry);
-
-  /// addUInt - Add an unsigned integer attribute data and value.
-  ///
-  void addUInt(DIE *Die, unsigned Attribute, unsigned Form, uint64_t Integer);
-
-  /// addSInt - Add an signed integer attribute data and value.
-  ///
-  void addSInt(DIE *Die, unsigned Attribute, unsigned Form, int64_t Integer);
-
-  /// addString - Add a string attribute data and value.
-  ///
-  void addString(DIE *Die, unsigned Attribute, unsigned Form,
-                 const StringRef Str);
-
-  /// addLabel - Add a Dwarf label attribute data and value.
-  ///
-  void addLabel(DIE *Die, unsigned Attribute, unsigned Form,
-                const MCSymbol *Label);
-
-  /// addDelta - Add a label delta attribute data and value.
-  ///
-  void addDelta(DIE *Die, unsigned Attribute, unsigned Form,
-                const MCSymbol *Hi, const MCSymbol *Lo);
-
-  /// addDIEEntry - Add a DIE attribute data and value.
-  ///
-  void addDIEEntry(DIE *Die, unsigned Attribute, unsigned Form, DIE *Entry);
-  
-  /// addBlock - Add block data.
-  ///
-  void addBlock(DIE *Die, unsigned Attribute, unsigned Form, DIEBlock *Block);
-
-  /// addSourceLine - Add location information to specified debug information
-  /// entry.
-  void addSourceLine(DIE *Die, DIVariable V);
-  void addSourceLine(DIE *Die, DIGlobalVariable G);
-  void addSourceLine(DIE *Die, DISubprogram SP);
-  void addSourceLine(DIE *Die, DIType Ty);
-  void addSourceLine(DIE *Die, DINameSpace NS);
-
-  /// addAddress - Add an address attribute to a die based on the location
-  /// provided.
-  void addAddress(DIE *Die, unsigned Attribute,
-                  const MachineLocation &Location);
-
-  /// addRegisterAddress - Add register location entry in variable DIE.
-  bool addRegisterAddress(DIE *Die, const MachineOperand &MO);
-
-  /// addConstantValue - Add constant value entry in variable DIE.
-  bool addConstantValue(DIE *Die, const MachineOperand &MO);
-  bool addConstantValue(DIE *Die, ConstantInt *CI, bool Unsigned);
-
-  /// addConstantFPValue - Add constant value entry in variable DIE.
-  bool addConstantFPValue(DIE *Die, const MachineOperand &MO);
-
-  /// addComplexAddress - Start with the address based on the location provided,
-  /// and generate the DWARF information necessary to find the actual variable
-  /// (navigating the extra location information encoded in the type) based on
-  /// the starting location.  Add the DWARF information to the die.
-  ///
-  void addComplexAddress(DbgVariable *&DV, DIE *Die, unsigned Attribute,
-                         const MachineLocation &Location);
-
-  // FIXME: Should be reformulated in terms of addComplexAddress.
-  /// addBlockByrefAddress - Start with the address based on the location
-  /// provided, and generate the DWARF information necessary to find the
-  /// actual Block variable (navigating the Block struct) based on the
-  /// starting location.  Add the DWARF information to the die.  Obsolete,
-  /// please use addComplexAddress instead.
-  ///
-  void addBlockByrefAddress(DbgVariable *&DV, DIE *Die, unsigned Attribute,
-                            const MachineLocation &Location);
-
-  /// addVariableAddress - Add DW_AT_location attribute for a DbgVariable based
-  /// on provided frame index.
-  void addVariableAddress(DbgVariable *&DV, DIE *Die, int64_t FI);
-
-  /// addToContextOwner - Add Die into the list of its context owner's children.
-  void addToContextOwner(DIE *Die, DIDescriptor Context);
-
-  /// addType - Add a new type attribute to the specified entity.
-  void addType(DIE *Entity, DIType Ty);
-
- 
-  /// getOrCreateNameSpace - Create a DIE for DINameSpace.
-  DIE *getOrCreateNameSpace(DINameSpace NS);
-
-  /// getOrCreateTypeDIE - Find existing DIE or create new DIE for the
-  /// given DIType.
-  DIE *getOrCreateTypeDIE(DIType Ty);
-
-  /// getOrCreateTemplateTypeParameterDIE - Find existing DIE or create new DIE 
-  /// for the given DITemplateTypeParameter.
-  DIE *getOrCreateTemplateTypeParameterDIE(DITemplateTypeParameter TP);
-
-  /// getOrCreateTemplateValueParameterDIE - Find existing DIE or create new DIE 
-  /// for the given DITemplateValueParameter.
-  DIE *getOrCreateTemplateValueParameterDIE(DITemplateValueParameter TVP);
-
-  void addPubTypes(DISubprogram SP);
-
-  /// constructTypeDIE - Construct basic type die from DIBasicType.
-  void constructTypeDIE(DIE &Buffer,
-                        DIBasicType BTy);
-
-  /// constructTypeDIE - Construct derived type die from DIDerivedType.
-  void constructTypeDIE(DIE &Buffer,
-                        DIDerivedType DTy);
-
-  /// constructTypeDIE - Construct type DIE from DICompositeType.
-  void constructTypeDIE(DIE &Buffer,
-                        DICompositeType CTy);
-
-  /// constructSubrangeDIE - Construct subrange DIE from DISubrange.
-  void constructSubrangeDIE(DIE &Buffer, DISubrange SR, DIE *IndexTy);
-
-  /// constructArrayTypeDIE - Construct array type DIE from DICompositeType.
-  void constructArrayTypeDIE(DIE &Buffer, 
-                             DICompositeType *CTy);
-
-  /// constructEnumTypeDIE - Construct enum type DIE from DIEnumerator.
-  DIE *constructEnumTypeDIE(DIEnumerator ETy);
-
-  /// createMemberDIE - Create new member DIE.
-  DIE *createMemberDIE(DIDerivedType DT);
-
-  /// createSubprogramDIE - Create new DIE using SP.
-  DIE *createSubprogramDIE(DISubprogram SP);
 
   /// getOrCreateDbgScope - Create DbgScope for the scope.
   DbgScope *getOrCreateDbgScope(const MDNode *Scope, const MDNode *InlinedAt);
@@ -504,11 +394,6 @@ private:
   ///  inlining instance.
   void emitDebugInlineInfo();
 
-  /// GetOrCreateSourceID - Look up the source id with the given directory and
-  /// source file names. If none currently exists, create a new id and insert it
-  /// in the SourceIds map.
-  unsigned GetOrCreateSourceID(StringRef FullName);
-
   /// constructCompileUnit - Create new CompileUnit for the given 
   /// metadata node with tag DW_TAG_compile_unit.
   void constructCompileUnit(const MDNode *N);
@@ -525,7 +410,7 @@ private:
   /// recordSourceLine - Register a source line with debug info. Returns the
   /// unique label that was emitted and which provides correspondence to
   /// the source line list.
-  MCSymbol *recordSourceLine(unsigned Line, unsigned Col, const MDNode *Scope);
+  void recordSourceLine(unsigned Line, unsigned Col, const MDNode *Scope);
   
   /// recordVariableFrameIndex - Record a variable's index.
   void recordVariableFrameIndex(const DbgVariable *V, int Index);
@@ -546,6 +431,11 @@ private:
   /// and collect DbgScopes. Return true, if atleast one scope was found.
   bool extractScopeInformation();
   
+  /// addCurrentFnArgument - If Var is an current function argument that add
+  /// it in CurrentFnArguments list.
+  bool addCurrentFnArgument(const MachineFunction *MF,
+                            DbgVariable *Var, DbgScope *Scope);
+
   /// collectVariableInfo - Populate DbgScope entries with variables' info.
   void collectVariableInfo(const MachineFunction *,
                            SmallPtrSet<const MDNode *, 16> &ProcessedVars);
@@ -554,6 +444,23 @@ private:
   /// side table maintained by MMI.
   void collectVariableInfoFromMMITable(const MachineFunction * MF,
                                        SmallPtrSet<const MDNode *, 16> &P);
+
+  /// requestLabelBeforeInsn - Ensure that a label will be emitted before MI.
+  void requestLabelBeforeInsn(const MachineInstr *MI) {
+    LabelsBeforeInsn.insert(std::make_pair(MI, (MCSymbol*)0));
+  }
+
+  /// getLabelBeforeInsn - Return Label preceding the instruction.
+  const MCSymbol *getLabelBeforeInsn(const MachineInstr *MI);
+
+  /// requestLabelAfterInsn - Ensure that a label will be emitted after MI.
+  void requestLabelAfterInsn(const MachineInstr *MI) {
+    LabelsAfterInsn.insert(std::make_pair(MI, (MCSymbol*)0));
+  }
+
+  /// getLabelAfterInsn - Return Label immediately following the instruction.
+  const MCSymbol *getLabelAfterInsn(const MachineInstr *MI);
+
 public:
   //===--------------------------------------------------------------------===//
   // Main entry points.
@@ -577,17 +484,19 @@ public:
   ///
   void endFunction(const MachineFunction *MF);
 
-  /// getLabelBeforeInsn - Return Label preceding the instruction.
-  const MCSymbol *getLabelBeforeInsn(const MachineInstr *MI);
-
-  /// getLabelAfterInsn - Return Label immediately following the instruction.
-  const MCSymbol *getLabelAfterInsn(const MachineInstr *MI);
-
   /// beginInstruction - Process beginning of an instruction.
   void beginInstruction(const MachineInstr *MI);
 
   /// endInstruction - Prcess end of an instruction.
   void endInstruction(const MachineInstr *MI);
+
+  /// GetOrCreateSourceID - Look up the source id with the given directory and
+  /// source file names. If none currently exists, create a new id and insert it
+  /// in the SourceIds map.
+  unsigned GetOrCreateSourceID(StringRef DirName, StringRef FullName);
+
+  /// createSubprogramDIE - Create new DIE using SP.
+  DIE *createSubprogramDIE(DISubprogram SP);
 };
 } // End of namespace llvm
 

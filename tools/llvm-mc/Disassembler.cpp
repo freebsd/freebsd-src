@@ -127,7 +127,8 @@ static bool ByteArrayFromString(ByteArrayTy &ByteArray,
   return false;
 }
 
-int Disassembler::disassemble(const Target &T, const std::string &Triple,
+int Disassembler::disassemble(const Target &T,  TargetMachine &TM,
+                              const std::string &Triple,
                               MemoryBuffer &Buffer,
                               raw_ostream &Out) {
   // Set up disassembler.
@@ -145,7 +146,7 @@ int Disassembler::disassemble(const Target &T, const std::string &Triple,
   }
   
   int AsmPrinterVariant = AsmInfo->getAssemblerDialect();
-  OwningPtr<MCInstPrinter> IP(T.createMCInstPrinter(AsmPrinterVariant,
+  OwningPtr<MCInstPrinter> IP(T.createMCInstPrinter(TM, AsmPrinterVariant,
                                                     *AsmInfo));
   if (!IP) {
     errs() << "error: no instruction printer for target " << Triple << '\n';
@@ -239,12 +240,12 @@ int Disassembler::disassembleEnhanced(const std::string &TS,
     OwningPtr<EDInst>
       inst(disassembler->createInst(byteArrayReader, 0, &ByteArray));
   
-    ByteArray.erase (ByteArray.begin(), ByteArray.begin() + inst->byteSize());
-                               
     if (inst == 0) {
       errs() << "error: Didn't get an instruction\n";
       return -1;
     }
+
+    ByteArray.erase (ByteArray.begin(), ByteArray.begin() + inst->byteSize());
     
     unsigned numTokens = inst->numTokens();
     if ((int)numTokens < 0) {

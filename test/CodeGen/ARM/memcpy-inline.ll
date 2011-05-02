@@ -1,9 +1,11 @@
-; RUN: llc < %s -mtriple=arm-apple-darwin | grep ldmia
-; RUN: llc < %s -mtriple=arm-apple-darwin | grep stmia
-; RUN: llc < %s -mtriple=arm-apple-darwin | grep ldrb
-; RUN: llc < %s -mtriple=arm-apple-darwin | grep ldrh
+; RUN: llc < %s -mtriple=thumbv7-apple-darwin -regalloc=linearscan -disable-post-ra | FileCheck %s
 
-	%struct.x = type { i8, i8, i8, i8, i8, i8, i8, i8, i8, i8, i8 }
+; The ARM magic hinting works best with linear scan.
+; CHECK: ldrd
+; CHECK: strd
+; CHECK: ldrb
+
+%struct.x = type { i8, i8, i8, i8, i8, i8, i8, i8, i8, i8, i8 }
 @src = external global %struct.x
 @dst = external global %struct.x
 

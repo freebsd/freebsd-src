@@ -9,9 +9,9 @@
 
 <body>
 
-<div class="doc_title">
+<h1>
   Architecture/platform information for compiler writers
-</div>
+</h1>
 
 <div class="doc_warning">
   <p>Note: This document is a work-in-progress.  Additions and clarifications
@@ -43,13 +43,15 @@
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="hw">Hardware</a></div>
+<h2><a name="hw">Hardware</a></h2>
 <!-- *********************************************************************** -->
 
-<!-- ======================================================================= -->
-<div class="doc_subsection"><a name="alpha">Alpha</a></div>
+<div>
 
-<div class="doc_text">
+<!-- ======================================================================= -->
+<h3><a name="alpha">Alpha</a></h3>
+
+<div>
 <ul>
 <li><a
 href="http://ftp.digital.com/pub/Digital/info/semiconductor/literature/dsc-library.html">Alpha manuals</a> 
@@ -58,9 +60,9 @@ href="http://ftp.digital.com/pub/Digital/info/semiconductor/literature/dsc-libra
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection"><a name="arm">ARM</a></div>
+<h3><a name="arm">ARM</a></h3>
 
-<div class="doc_text">
+<div>
 <ul>
 <li><a href="http://www.arm.com/documentation/">ARM documentation</a> 
 (<a href="http://www.arm.com/documentation/ARMProcessor_Cores/">Processor
@@ -70,9 +72,9 @@ Cores</a>)</li>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection"><a name="ia64">Itanium (ia64)</a></div>
+<h3><a name="ia64">Itanium (ia64)</a></h3>
 
-<div class="doc_text">
+<div>
 <ul>
 <li><a
 href="http://developer.intel.com/design/itanium2/documentation.htm">Itanium documentation</a> 
@@ -81,9 +83,9 @@ href="http://developer.intel.com/design/itanium2/documentation.htm">Itanium docu
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection"><a name="mips">MIPS</a></div>
+<h3><a name="mips">MIPS</a></h3>
 
-<div class="doc_text">
+<div>
 <ul>
 <li><a
 href="http://mips.com/content/Documentation/MIPSDocumentation/ProcessorArchitecture/doclibrary">MIPS
@@ -92,12 +94,14 @@ Processor Architecture</a></li>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection"><a name="ppc">PowerPC</a></div>
+<h3><a name="ppc">PowerPC</a></h3>
+
+<div>
 
 <!-- _______________________________________________________________________ -->
-<div class="doc_subsubsection">IBM - Official manuals and docs</div>
+<h4>IBM - Official manuals and docs</h4>
 
-<div class="doc_text">
+<div>
 
 <ul>
 <li><a
@@ -129,9 +133,9 @@ PowerPC architecture</a></li>
 </div>
 
 <!-- _______________________________________________________________________ -->
-<div class="doc_subsubsection">Other documents, collections, notes</div>
+<h4>Other documents, collections, notes</h4>
 
-<div class="doc_text">
+<div>
 
 <ul>
 <li><a href="http://penguinppc.org/dev/#library">PowerPC ABI documents</a></li>
@@ -143,10 +147,12 @@ branch stubs for powerpc64-linux (from binutils)</a></li>
 
 </div>
 
-<!-- ======================================================================= -->
-<div class="doc_subsection"><a name="sparc">SPARC</a></div>
+</div>
 
-<div class="doc_text">
+<!-- ======================================================================= -->
+<h3><a name="sparc">SPARC</a></h3>
+
+<div>
 
 <ul>
 <li><a href="http://www.sparc.org/resource.htm">SPARC resources</a></li>
@@ -156,12 +162,14 @@ branch stubs for powerpc64-linux (from binutils)</a></li>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection"><a name="x86">X86</a></div>
+<h3><a name="x86">X86</a></h3>
+
+<div>
 
 <!-- _______________________________________________________________________ -->
-<div class="doc_subsubsection">AMD - Official manuals and docs</div>
+<h4>AMD - Official manuals and docs</h4>
 
-<div class="doc_text">
+<div>
 <ul>
 <li><a
 href="http://www.amd.com/us-en/Processors/TechnicalResources/0,,30_182_739,00.html">AMD processor manuals</a></li>
@@ -170,9 +178,9 @@ href="http://www.amd.com/us-en/Processors/TechnicalResources/0,,30_182_739,00.ht
 </div>
 
 <!-- _______________________________________________________________________ -->
-<div class="doc_subsubsection">Intel - Official manuals and docs</div>
+<h4>Intel - Official manuals and docs</h4>
 
-<div class="doc_text">
+<div>
 <ul>
 <li><a
 href="http://developer.intel.com/design/pentium4/manuals/index_new.htm">IA-32
@@ -184,19 +192,21 @@ Itanium documentation</a></li>
 </div>
 
 <!-- _______________________________________________________________________ -->
-<div class="doc_subsubsection">Other x86-specific information</div>
+<h4>Other x86-specific information</h4>
 
-<div class="doc_text">
+<div>
 <ul>
 <li><a href="http://www.agner.org/assem/calling_conventions.pdf">Calling
 conventions for different C++ compilers and operating systems</a></li>
 </ul>
 </div>
 
-<!-- ======================================================================= -->
-<div class="doc_subsection"><a name="other">Other relevant lists</a></div>
+</div>
 
-<div class="doc_text">
+<!-- ======================================================================= -->
+<h3><a name="other">Other relevant lists</a></h3>
+
+<div>
 
 <ul>
 <li><a href="http://gcc.gnu.org/readings.html">GCC reading list</a></li>
@@ -204,14 +214,18 @@ conventions for different C++ compilers and operating systems</a></li>
 
 </div>
 
+</div>
+
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="abi">ABI</a></div>
+<h2><a name="abi">ABI</a></h2>
 <!-- *********************************************************************** -->
+
+<div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection"><a name="linux">Linux</a></div>
+<h3><a name="linux">Linux</a></h3>
 
-<div class="doc_text">
+<div>
 <ol>
 <li><a href="http://www.linuxbase.org/spec/ELF/ppc64/">PowerPC 64-bit ELF ABI
 Supplement</a></li>
@@ -219,9 +233,9 @@ Supplement</a></li>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection"><a name="osx">OS X</a></div>
+<h3><a name="osx">OS X</a></h3>
 
-<div class="doc_text">
+<div>
 <ol>
 <li><a
 href="http://developer.apple.com/documentation/Darwin/RuntimeArchitecture-date.html">Mach-O
@@ -232,8 +246,10 @@ ABI</a></li>
 
 </div>
 
+</div>
+
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="misc">Miscellaneous resources</a></div>
+<h2><a name="misc">Miscellaneous resources</a></h2>
 <!-- *********************************************************************** -->
 
 <ul>
@@ -255,8 +271,8 @@ processors.</li>
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
 
   <a href="http://misha.brukman.net">Misha Brukman</a><br>
-  <a href="http://llvm.org">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-05-07 02:28:04 +0200 (Fri, 07 May 2010) $
+  <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
+  Last modified: $Date: 2011-04-23 02:30:22 +0200 (Sat, 23 Apr 2011) $
 </address>
 
 </body>

@@ -87,8 +87,8 @@ static unsigned copyHint(const MachineInstr *mi, unsigned reg,
 }
 
 void VirtRegAuxInfo::CalculateWeightAndHint(LiveInterval &li) {
-  MachineRegisterInfo &mri = mf_.getRegInfo();
-  const TargetRegisterInfo &tri = *mf_.getTarget().getRegisterInfo();
+  MachineRegisterInfo &mri = MF.getRegInfo();
+  const TargetRegisterInfo &tri = *MF.getTarget().getRegisterInfo();
   MachineBasicBlock *mbb = 0;
   MachineLoop *loop = 0;
   unsigned loopDepth = 0;
@@ -103,6 +103,9 @@ void VirtRegAuxInfo::CalculateWeightAndHint(LiveInterval &li) {
   // Don't recompute a target specific hint.
   bool noHint = mri.getRegAllocationHint(li.reg).first != 0;
 
+  // Don't recompute spill weight for an unspillable register.
+  bool Spillable = li.isSpillable();
+
   for (MachineRegisterInfo::reg_iterator I = mri.reg_begin(li.reg);
        MachineInstr *mi = I.skipInstruction();) {
     if (mi->isIdentityCopy() || mi->isImplicitDef() || mi->isDebugValue())
@@ -110,24 +113,27 @@ void VirtRegAuxInfo::CalculateWeightAndHint(LiveInterval &li) {
     if (!visited.insert(mi))
       continue;
 
-    // Get loop info for mi.
-    if (mi->getParent() != mbb) {
-      mbb = mi->getParent();
-      loop = loops_.getLoopFor(mbb);
-      loopDepth = loop ? loop->getLoopDepth() : 0;
-      isExiting = loop ? loop->isLoopExiting(mbb) : false;
+    float weight = 1.0f;
+    if (Spillable) {
+      // Get loop info for mi.
+      if (mi->getParent() != mbb) {
+        mbb = mi->getParent();
+        loop = Loops.getLoopFor(mbb);
+        loopDepth = loop ? loop->getLoopDepth() : 0;
+        isExiting = loop ? loop->isLoopExiting(mbb) : false;
+      }
+
+      // Calculate instr weight.
+      bool reads, writes;
+      tie(reads, writes) = mi->readsWritesVirtualRegister(li.reg);
+      weight = LiveIntervals::getSpillWeight(writes, reads, loopDepth);
+
+      // Give extra weight to what looks like a loop induction variable update.
+      if (writes && isExiting && LIS.isLiveOutOfMBB(li, mbb))
+        weight *= 3;
+
+      totalWeight += weight;
     }
-
-    // Calculate instr weight.
-    bool reads, writes;
-    tie(reads, writes) = mi->readsWritesVirtualRegister(li.reg);
-    float weight = LiveIntervals::getSpillWeight(writes, reads, loopDepth);
-
-    // Give extra weight to what looks like a loop induction variable update.
-    if (writes && isExiting && lis_.isLiveOutOfMBB(li, mbb))
-      weight *= 3;
-
-    totalWeight += weight;
 
     // Get allocation hints from copies.
     if (noHint || !mi->isCopy())
@@ -135,9 +141,9 @@ void VirtRegAuxInfo::CalculateWeightAndHint(LiveInterval &li) {
     unsigned hint = copyHint(mi, li.reg, tri, mri);
     if (!hint)
       continue;
-    float hweight = hint_[hint] += weight;
+    float hweight = Hint[hint] += weight;
     if (TargetRegisterInfo::isPhysicalRegister(hint)) {
-      if (hweight > bestPhys && lis_.isAllocatable(hint))
+      if (hweight > bestPhys && LIS.isAllocatable(hint))
         bestPhys = hweight, hintPhys = hint;
     } else {
       if (hweight > bestVirt)
@@ -145,14 +151,18 @@ void VirtRegAuxInfo::CalculateWeightAndHint(LiveInterval &li) {
     }
   }
 
-  hint_.clear();
+  Hint.clear();
 
   // Always prefer the physreg hint.
   if (unsigned hint = hintPhys ? hintPhys : hintVirt) {
     mri.setRegAllocationHint(li.reg, 0, hint);
-    // Weakly boost the spill weifght of hinted registers.
+    // Weakly boost the spill weight of hinted registers.
     totalWeight *= 1.01F;
   }
+
+  // If the live interval was already unspillable, leave it that way.
+  if (!Spillable)
+    return;
 
   // Mark li as unspillable if all live ranges are tiny.
   if (li.isZeroLength()) {
@@ -166,8 +176,7 @@ void VirtRegAuxInfo::CalculateWeightAndHint(LiveInterval &li) {
   // FIXME: this gets much more complicated once we support non-trivial
   // re-materialization.
   bool isLoad = false;
-  SmallVector<LiveInterval*, 4> spillIs;
-  if (lis_.isReMaterializable(li, spillIs, isLoad)) {
+  if (LIS.isReMaterializable(li, 0, isLoad)) {
     if (isLoad)
       totalWeight *= 0.9F;
     else
@@ -178,50 +187,29 @@ void VirtRegAuxInfo::CalculateWeightAndHint(LiveInterval &li) {
 }
 
 void VirtRegAuxInfo::CalculateRegClass(unsigned reg) {
-  MachineRegisterInfo &mri = mf_.getRegInfo();
-  const TargetRegisterInfo *tri = mf_.getTarget().getRegisterInfo();
-  const TargetRegisterClass *orc = mri.getRegClass(reg);
-  SmallPtrSet<const TargetRegisterClass*,8> rcs;
+  MachineRegisterInfo &MRI = MF.getRegInfo();
+  const TargetRegisterInfo *TRI = MF.getTarget().getRegisterInfo();
+  const TargetRegisterClass *OldRC = MRI.getRegClass(reg);
+  const TargetRegisterClass *NewRC = TRI->getLargestLegalSuperClass(OldRC);
 
-  for (MachineRegisterInfo::reg_nodbg_iterator I = mri.reg_nodbg_begin(reg),
-       E = mri.reg_nodbg_end(); I != E; ++I) {
-    // The targets don't have accurate enough regclass descriptions that we can
-    // handle subregs. We need something similar to
-    // TRI::getMatchingSuperRegClass, but returning a super class instead of a
-    // sub class.
-    if (I.getOperand().getSubReg()) {
-      DEBUG(dbgs() << "Cannot handle subregs: " << I.getOperand() << '\n');
+  // Stop early if there is no room to grow.
+  if (NewRC == OldRC)
+    return;
+
+  // Accumulate constraints from all uses.
+  for (MachineRegisterInfo::reg_nodbg_iterator I = MRI.reg_nodbg_begin(reg),
+       E = MRI.reg_nodbg_end(); I != E; ++I) {
+    // TRI doesn't have accurate enough information to model this yet.
+    if (I.getOperand().getSubReg())
       return;
-    }
-    if (const TargetRegisterClass *rc =
-                                I->getDesc().getRegClass(I.getOperandNo(), tri))
-      rcs.insert(rc);
+    const TargetRegisterClass *OpRC =
+      I->getDesc().getRegClass(I.getOperandNo(), TRI);
+    if (OpRC)
+      NewRC = getCommonSubClass(NewRC, OpRC);
+    if (!NewRC || NewRC == OldRC)
+      return;
   }
-
-  // If we found no regclass constraints, just leave reg as is.
-  // In theory, we could inflate to the largest superclass of reg's existing
-  // class, but that might not be legal for the current cpu setting.
-  // This could happen if reg is only used by COPY instructions, so we may need
-  // to improve on this.
-  if (rcs.empty()) {
-    return;
-  }
-
-  // Compute the intersection of all classes in rcs.
-  // This ought to be independent of iteration order, but if the target register
-  // classes don't form a proper algebra, it is possible to get different
-  // results. The solution is to make sure the intersection of any two register
-  // classes is also a register class or the null set.
-  const TargetRegisterClass *rc = 0;
-  for (SmallPtrSet<const TargetRegisterClass*,8>::iterator I = rcs.begin(),
-         E = rcs.end(); I != E; ++I) {
-    rc = rc ? getCommonSubClass(rc, *I) : *I;
-    assert(rc && "Incompatible regclass constraints found");
-  }
-
-  if (rc == orc)
-    return;
-  DEBUG(dbgs() << "Inflating " << orc->getName() << ':' << PrintReg(reg)
-               << " to " << rc->getName() <<".\n");
-  mri.setRegClass(reg, rc);
+  DEBUG(dbgs() << "Inflating " << OldRC->getName() << ':' << PrintReg(reg)
+               << " to " << NewRC->getName() <<".\n");
+  MRI.setRegClass(reg, NewRC);
 }

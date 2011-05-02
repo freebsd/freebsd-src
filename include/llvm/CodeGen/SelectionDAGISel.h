@@ -127,6 +127,7 @@ public:
 
     OPC_EmitInteger,
     OPC_EmitRegister,
+    OPC_EmitRegister2,
     OPC_EmitConvertToTarget,
     OPC_EmitMergeInputChains,
     OPC_EmitMergeInputChains1_0,
@@ -257,7 +258,7 @@ public:
   }
 
   virtual SDValue RunSDNodeXForm(SDValue V, unsigned XFormNo) {
-    assert(0 && "Tblgen shoudl generate this!");
+    assert(0 && "Tblgen should generate this!");
     return SDValue();
   }
 
@@ -279,7 +280,8 @@ private:
 
   void PrepareEHLandingPad();
   void SelectAllBasicBlocks(const Function &Fn);
-  bool TryToFoldFastISelLoad(const LoadInst *LI, FastISel *FastIS);
+  bool TryToFoldFastISelLoad(const LoadInst *LI, const Instruction *FoldInst,
+                             FastISel *FastIS);
   void FinishBasicBlock();
 
   void SelectBasicBlock(BasicBlock::const_iterator Begin,

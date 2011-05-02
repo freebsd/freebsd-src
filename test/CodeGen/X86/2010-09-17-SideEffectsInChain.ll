@@ -18,9 +18,9 @@ entry:
   ret i32 0
 }
 
-; CHECK: movq	___stack_chk_guard@GOTPCREL(%rip), %rax
-; CHECK: movb	30(%rsp), %dl
-; CHECK: movb	(%rsp), %sil
-; CHECK: movb	%sil, (%rsp)
-; CHECK: movb	%dl, 30(%rsp)
+; CHECK: movq	___stack_chk_guard@GOTPCREL(%rip)
+; CHECK: movb   38(%rsp), [[R0:%.+]]
+; CHECK: movb   8(%rsp), [[R1:%.+]]
+; CHECK: movb   [[R1]], 8(%rsp)
+; CHECK: movb   [[R0]], 38(%rsp)
 ; CHECK: callq	___stack_chk_fail

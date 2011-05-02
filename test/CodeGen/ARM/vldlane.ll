@@ -1,4 +1,5 @@
 ; RUN: llc < %s -march=arm -mattr=+neon | FileCheck %s
+; RUN: llc < %s -march=arm -mattr=+neon -regalloc=basic | FileCheck %s
 
 define <8 x i8> @vld1lanei8(i8* %A, <8 x i8>* %B) nounwind {
 ;CHECK: vld1lanei8:
@@ -279,7 +280,7 @@ define <8 x i16> @vld3laneQi16(i16* %A, <8 x i16>* %B) nounwind {
 ;Check for a post-increment updating load with register increment.
 define <8 x i16> @vld3laneQi16_update(i16** %ptr, <8 x i16>* %B, i32 %inc) nounwind {
 ;CHECK: vld3laneQi16_update:
-;CHECK: vld3.16 {d16[1], d18[1], d20[1]}, [r2], r1
+;CHECK: vld3.16 {d16[1], d18[1], d20[1]}, [{{r[0-9]+}}], {{r[0-9]+}}
 	%A = load i16** %ptr
 	%tmp0 = bitcast i16* %A to i8*
 	%tmp1 = load <8 x i16>* %B
@@ -490,7 +491,7 @@ declare %struct.__neon_float32x4x4_t @llvm.arm.neon.vld4lane.v4f32(i8*, <4 x flo
 ; in the QPR_VFP2 regclass, it needs to be copied to a QPR regclass because
 ; we don't currently have a QQQQ_VFP2 super-regclass.  (The "0" for the low
 ; part of %ins67 is supposed to be loaded by a VLDRS instruction in this test.)
-define void @test_qqqq_regsequence_subreg([6 x i64] %b) nounwind {
+define <8 x i16> @test_qqqq_regsequence_subreg([6 x i64] %b) nounwind {
 ;CHECK: test_qqqq_regsequence_subreg
 ;CHECK: vld3.16
   %tmp63 = extractvalue [6 x i64] %b, 5
@@ -499,8 +500,12 @@ define void @test_qqqq_regsequence_subreg([6 x i64] %b) nounwind {
   %ins67 = or i128 %tmp65, 0
   %tmp78 = bitcast i128 %ins67 to <8 x i16>
   %vld3_lane = tail call %struct.__neon_int16x8x3_t @llvm.arm.neon.vld3lane.v8i16(i8* undef, <8 x i16> undef, <8 x i16> undef, <8 x i16> %tmp78, i32 1, i32 2)
-  call void @llvm.trap()
-  unreachable
+  %tmp3 = extractvalue %struct.__neon_int16x8x3_t %vld3_lane, 0
+  %tmp4 = extractvalue %struct.__neon_int16x8x3_t %vld3_lane, 1
+  %tmp5 = extractvalue %struct.__neon_int16x8x3_t %vld3_lane, 2
+  %tmp6 = add <8 x i16> %tmp3, %tmp4
+  %tmp7 = add <8 x i16> %tmp5, %tmp6
+  ret <8 x i16> %tmp7
 }
 
 declare void @llvm.trap() nounwind

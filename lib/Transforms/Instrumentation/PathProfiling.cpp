@@ -63,7 +63,6 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Instrumentation.h"
-#include <map>
 #include <vector>
 
 #define HASH_THRESHHOLD 100000
@@ -259,7 +258,7 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// PathProfiler is a module pass which intruments path profiling instructions
+// PathProfiler is a module pass which instruments path profiling instructions
 // ---------------------------------------------------------------------------
 class PathProfiler : public ModulePass {
 private:
@@ -388,6 +387,9 @@ namespace llvm {
   ftEntryTypeBuilder;
 
   // BallLarusEdge << operator overloading
+  raw_ostream& operator<<(raw_ostream& os,
+                          const BLInstrumentationEdge& edge)
+      LLVM_ATTRIBUTE_USED;
   raw_ostream& operator<<(raw_ostream& os,
                           const BLInstrumentationEdge& edge) {
     os << "[" << edge.getSource()->getName() << " -> "
@@ -929,14 +931,16 @@ BasicBlock::iterator PathProfiler::getInsertionPoint(BasicBlock* block, Value*
 void PathProfiler::preparePHI(BLInstrumentationNode* node) {
   BasicBlock* block = node->getBlock();
   BasicBlock::iterator insertPoint = block->getFirstNonPHI();
-  PHINode* phi = PHINode::Create(Type::getInt32Ty(*Context), "pathNumber",
+  pred_iterator PB = pred_begin(node->getBlock()),
+          PE = pred_end(node->getBlock());
+  PHINode* phi = PHINode::Create(Type::getInt32Ty(*Context),
+                                 std::distance(PB, PE), "pathNumber",
                                  insertPoint );
   node->setPathPHI(phi);
   node->setStartingPathNumber(phi);
   node->setEndingPathNumber(phi);
 
-  for(pred_iterator predIt = pred_begin(node->getBlock()),
-        end = pred_end(node->getBlock()); predIt != end; predIt++) {
+  for(pred_iterator predIt = PB; predIt != PE; predIt++) {
     BasicBlock* pred = (*predIt);
 
     if(pred != NULL)

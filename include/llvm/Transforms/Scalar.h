@@ -128,7 +128,7 @@ Pass *createLoopInstSimplifyPass();
 //
 // LoopUnroll - This pass is a simple loop unrolling pass.
 //
-Pass *createLoopUnrollPass();
+Pass *createLoopUnrollPass(int Threshold = -1, int Count = -1, int AllowPartial = -1);
 
 //===----------------------------------------------------------------------===//
 //
@@ -298,12 +298,6 @@ Pass *createLoopDeletionPass();
 /// createSimplifyLibCallsPass - This pass optimizes specific calls to
 /// specific well-known (library) functions.
 FunctionPass *createSimplifyLibCallsPass();
-
-//===----------------------------------------------------------------------===//
-//
-/// createSimplifyHalfPowrLibCallsPass - This is an experimental pass that
-/// optimizes specific half_pow functions.
-FunctionPass *createSimplifyHalfPowrLibCallsPass();
 
 //===----------------------------------------------------------------------===//
 //

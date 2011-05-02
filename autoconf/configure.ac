@@ -31,7 +31,7 @@ dnl===
 dnl===-----------------------------------------------------------------------===
 dnl Initialize autoconf and define the package name, version number and
 dnl email address for reporting bugs.
-AC_INIT([[llvm]],[[2.9svn]],[llvmbugs@cs.uiuc.edu])
+AC_INIT([[llvm]],[[3.0svn]],[llvmbugs@cs.uiuc.edu])
 
 dnl Provide a copyright substitution and ensure the copyright notice is included
 dnl in the output of --version option of the generated configure script.
@@ -657,12 +657,19 @@ for a_target in $TARGETS_TO_BUILD; do
     LLVM_NATIVE_TARGET="LLVMInitialize${LLVM_NATIVE_ARCH}Target"
     LLVM_NATIVE_TARGETINFO="LLVMInitialize${LLVM_NATIVE_ARCH}TargetInfo"
     LLVM_NATIVE_ASMPRINTER="LLVMInitialize${LLVM_NATIVE_ARCH}AsmPrinter"
+    if test -f ${srcdir}/lib/Target/${LLVM_NATIVE_ARCH}/AsmParser/Makefile ; then
+      LLVM_NATIVE_ASMPARSER="LLVMInitialize${LLVM_NATIVE_ARCH}AsmParser"
+    fi
     AC_DEFINE_UNQUOTED(LLVM_NATIVE_TARGET, $LLVM_NATIVE_TARGET,
       [LLVM name for the native Target init function, if available])
     AC_DEFINE_UNQUOTED(LLVM_NATIVE_TARGETINFO, $LLVM_NATIVE_TARGETINFO,
       [LLVM name for the native TargetInfo init function, if available])
     AC_DEFINE_UNQUOTED(LLVM_NATIVE_ASMPRINTER, $LLVM_NATIVE_ASMPRINTER,
       [LLVM name for the native AsmPrinter init function, if available])
+    if test -f ${srcdir}/lib/Target/${LLVM_NATIVE_ARCH}/AsmParser/Makefile ; then
+      AC_DEFINE_UNQUOTED(LLVM_NATIVE_ASMPARSER, $LLVM_NATIVE_ASMPARSER,
+       [LLVM name for the native AsmParser init function, if available])
+    fi
   fi
 done
 
@@ -1420,6 +1427,24 @@ if test "$llvm_cv_os_type" = "MingW" ; then
 
   AC_CHECK_LIB(gcc,__main,AC_DEFINE([HAVE___MAIN],[1],[Have host's __main]))
   AC_CHECK_LIB(gcc,__cmpdi2,AC_DEFINE([HAVE___CMPDI2],[1],[Have host's __cmpdi2]))
+fi
+
+dnl Check Win32 API EnumerateLoadedModules.
+if test "$llvm_cv_os_type" = "MingW" ; then
+  AC_MSG_CHECKING([whether EnumerateLoadedModules() accepts new decl])
+  AC_COMPILE_IFELSE([[#include <windows.h>
+#include <imagehlp.h>
+extern void foo(PENUMLOADED_MODULES_CALLBACK);
+extern void foo(BOOL(CALLBACK*)(PCSTR,ULONG_PTR,ULONG,PVOID));]],
+[
+  AC_MSG_RESULT([yes])
+  llvm_cv_win32_elmcb_pcstr="PCSTR"
+],
+[
+  AC_MSG_RESULT([no])
+  llvm_cv_win32_elmcb_pcstr="PSTR"
+])
+  AC_DEFINE_UNQUOTED([WIN32_ELMCB_PCSTR],$llvm_cv_win32_elmcb_pcstr,[Type of 1st arg on ELM Callback])
 fi
 
 dnl Check for variations in the Standard C++ library and STL. These macros are

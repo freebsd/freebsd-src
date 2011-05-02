@@ -99,6 +99,9 @@ cl::opt<bool> NoVerify("disable-verify", cl::Hidden,
 cl::opt<bool> DisableDotLoc("disable-dot-loc", cl::Hidden,
                             cl::desc("Do not use .loc entries"));
 
+cl::opt<bool> DisableCFI("disable-cfi", cl::Hidden,
+                         cl::desc("Do not use .cfi_* directives"));
+
 static cl::opt<bool>
 DisableRedZone("disable-red-zone",
   cl::desc("Do not emit code that uses the red zone."),
@@ -207,7 +210,7 @@ int main(int argc, char **argv) {
   InitializeAllAsmParsers();
 
   cl::ParseCommandLineOptions(argc, argv, "llvm system compiler\n");
-  
+
   // Load the module to be compiled...
   SMDiagnostic Err;
   std::auto_ptr<Module> M;
@@ -271,25 +274,21 @@ int main(int argc, char **argv) {
     FeaturesStr = Features.getString();
   }
 
-  std::auto_ptr<TargetMachine> 
+  std::auto_ptr<TargetMachine>
     target(TheTarget->createTargetMachine(TheTriple.getTriple(), FeaturesStr));
   assert(target.get() && "Could not allocate target machine!");
   TargetMachine &Target = *target.get();
 
   if (DisableDotLoc)
     Target.setMCUseLoc(false);
-  if (TheTriple.getOS() == Triple::Darwin) {
-    switch (TheTriple.getDarwinMajorNumber()) {
-    case 7:
-    case 8:
-    case 9:
-      // disable .loc support for older darwin OS.
-      Target.setMCUseLoc(false);
-      break;
-    default:
-      break;
-    }
-  }
+
+  if (DisableCFI)
+    Target.setMCUseCFI(false);
+
+  // Disable .loc support for older OS X versions.
+  if (TheTriple.isMacOSX() &&
+      TheTriple.isMacOSXVersionLT(10, 6))
+    Target.setMCUseLoc(false);
 
   // Figure out where we are going to send the output...
   OwningPtr<tool_output_file> Out
@@ -337,6 +336,9 @@ int main(int argc, char **argv) {
              << " file type!\n";
       return 1;
     }
+
+    // Before executing passes, print the final values of the LLVM options.
+    cl::PrintOptionValues();
 
     PM.run(mod);
   }

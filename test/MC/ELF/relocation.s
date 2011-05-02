@@ -20,14 +20,7 @@ bar:
 
 
 // CHECK:  # Section 0x00000001
-// CHECK: (('sh_name', 0x00000001) # '.text'
-
-// CHECK:   # Symbol 0x00000002
-// CHECK: (('st_name', 0x00000000) # ''
-// CHECK:  ('st_bind', 0x00000000)
-// CHECK:  ('st_type', 0x00000003)
-// CHECK:  ('st_other', 0x00000000)
-// CHECK:  ('st_shndx', 0x00000001)
+// CHECK: (('sh_name', 0x00000006) # '.text'
 
 // CHECK: # Relocation 0x00000000
 // CHECK-NEXT:  (('r_offset', 0x00000001)
@@ -112,3 +105,10 @@ bar:
 // CHECK-NEXT:  ('r_sym', 0x00000006)
 // CHECK-NEXT:  ('r_type', 0x00000002)
 // CHECK-NEXT:  ('r_addend', 0x0000005c)
+
+// CHECK:   # Symbol 0x00000002
+// CHECK: (('st_name', 0x00000000) # ''
+// CHECK:  ('st_bind', 0x00000000)
+// CHECK:  ('st_type', 0x00000003)
+// CHECK:  ('st_other', 0x00000000)
+// CHECK:  ('st_shndx', 0x00000001)

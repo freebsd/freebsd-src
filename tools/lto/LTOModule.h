@@ -52,7 +52,12 @@ struct LTOModule {
     static LTOModule*        makeLTOModule(const char* path,
                                           std::string& errMsg);
     static LTOModule*        makeLTOModule(int fd, const char *path,
-                                           off_t size,
+                                           size_t size,
+                                           std::string& errMsg);
+    static LTOModule*        makeLTOModule(int fd, const char *path,
+                                           size_t file_size,
+                                           size_t map_size,
+                                           off_t offset,
                                            std::string& errMsg);
     static LTOModule*        makeLTOModule(const void* mem, size_t length,
                                            std::string& errMsg);
@@ -64,23 +69,27 @@ struct LTOModule {
     const char*              getSymbolName(uint32_t index);
     
     llvm::Module *           getLLVVMModule() { return _module.get(); }
+    const std::vector<const char*> &getAsmUndefinedRefs() {
+            return _asm_undefines;
+    }
 
 private:
                             LTOModule(llvm::Module* m, llvm::TargetMachine* t);
 
-    void                    lazyParseSymbols();
+    bool                    ParseSymbols();
     void                    addDefinedSymbol(llvm::GlobalValue* def, 
                                                     llvm::Mangler& mangler, 
                                                     bool isFunction);
     void                    addPotentialUndefinedSymbol(llvm::GlobalValue* decl, 
                                                         llvm::Mangler &mangler);
-    void                    findExternalRefs(llvm::Value* value, 
-                                                llvm::Mangler& mangler);
     void                    addDefinedFunctionSymbol(llvm::Function* f, 
                                                         llvm::Mangler &mangler);
     void                    addDefinedDataSymbol(llvm::GlobalValue* v, 
                                                         llvm::Mangler &mangler);
-    void                    addAsmGlobalSymbol(const char *);
+    bool                    addAsmGlobalSymbols(llvm::MCContext &Context);
+    void                    addAsmGlobalSymbol(const char *,
+                                               lto_symbol_attributes scope);
+    void                    addAsmGlobalSymbolUndef(const char *);
     void                    addObjCClass(llvm::GlobalVariable* clgv);
     void                    addObjCCategory(llvm::GlobalVariable* clgv);
     void                    addObjCClassRef(llvm::GlobalVariable* clgv);
@@ -103,11 +112,11 @@ private:
 
     llvm::OwningPtr<llvm::Module>           _module;
     llvm::OwningPtr<llvm::TargetMachine>    _target;
-    bool                                    _symbolsParsed;
     std::vector<NameAndAttributes>          _symbols;
     // _defines and _undefines only needed to disambiguate tentative definitions
     StringSet                               _defines;    
     llvm::StringMap<NameAndAttributes>      _undefines;
+    std::vector<const char*>                _asm_undefines;
 };
 
 #endif // LTO_MODULE_H

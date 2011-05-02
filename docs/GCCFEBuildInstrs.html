@@ -8,9 +8,9 @@
 </head>
 <body>
 
-<div class="doc_title">
+<h1>
   Building the LLVM GCC Front-End
-</div>
+</h1>
 
 <ol>
   <li><a href="#instructions">Building llvm-gcc from Source</a></li>
@@ -24,10 +24,10 @@
 </div>
 
 <!-- *********************************************************************** -->
-<h1><a name="instructions">Building llvm-gcc from Source</a></h1>
+<h2><a name="instructions">Building llvm-gcc from Source</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>This section describes how to acquire and build llvm-gcc 4.2, which is based
 on the GCC 4.2.1 front-end.  Supported languages are Ada, C, C++, Fortran,
@@ -67,10 +67,10 @@ svn co http://llvm.org/svn/llvm-project/llvm-gcc-4.2/trunk <i>dst-directory</i>
 </div>
 
 <!-- *********************************************************************** -->
-<h1><a name="ada">Building the Ada front-end</a></h1>
+<h2><a name="ada">Building the Ada front-end</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 <p>Building with support for Ada amounts to following the directions in the
 top-level <tt>README.LLVM</tt> file, adding ",ada" to EXTRALANGS, for example:
 <tt>EXTRALANGS=,ada</tt></p>
@@ -100,7 +100,7 @@ top-level <tt>README.LLVM</tt> file, adding ",ada" to EXTRALANGS, for example:
   <li><p>Because the Ada front-end is experimental, it is wise to build the
       compiler with checking enabled.  This causes it to run much slower, but
       helps catch mistakes in the compiler (please report any problems using
-      <a href="http://llvm.org/bugs">LLVM bugzilla</a>).</p></li>
+      <a href="http://llvm.org/bugs/">LLVM bugzilla</a>).</p></li>
   <li><p>The Ada front-end <a href="http://llvm.org/PR2007">fails to
       bootstrap</a>, due to lack of LLVM support for
       <tt>setjmp</tt>/<tt>longjmp</tt> style exception handling (used
@@ -233,10 +233,10 @@ make install
 </div>
 
 <!-- *********************************************************************** -->
-<h1><a name="fortran">Building the Fortran front-end</a></h1>
+<h2><a name="fortran">Building the Fortran front-end</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 <p>To build with support for Fortran, follow the directions in the top-level
 <tt>README.LLVM</tt> file, adding ",fortran" to EXTRALANGS, for example:</p>
 
@@ -247,10 +247,10 @@ EXTRALANGS=,fortran
 </div>
 
 <!-- *********************************************************************** -->
-<h1><a name="license">License Information</a></h1>
+<h2><a name="license">License Information</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 <p>
 The LLVM GCC frontend is licensed to you under the GNU General Public License
 and the GNU Lesser General Public License.  Please see the files COPYING and
@@ -271,8 +271,8 @@ More information is <a href="FAQ.html#license">available in the FAQ</a>.
   <a href="http://validator.w3.org/check/referer"><img
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
 
-  <a href="http://llvm.org">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-08-31 21:40:21 +0200 (Tue, 31 Aug 2010) $
+  <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
+  Last modified: $Date: 2011-04-23 02:30:22 +0200 (Sat, 23 Apr 2011) $
 </address>
 
 </body>

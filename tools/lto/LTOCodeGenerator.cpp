@@ -75,7 +75,6 @@ LTOCodeGenerator::LTOCodeGenerator()
 {
     InitializeAllTargets();
     InitializeAllAsmPrinters();
-    InitializeAllAsmParsers();
 }
 
 LTOCodeGenerator::~LTOCodeGenerator()
@@ -88,7 +87,17 @@ LTOCodeGenerator::~LTOCodeGenerator()
 
 bool LTOCodeGenerator::addModule(LTOModule* mod, std::string& errMsg)
 {
-    return _linker.LinkInModule(mod->getLLVVMModule(), &errMsg);
+
+  if(mod->getLLVVMModule()->MaterializeAllPermanently(&errMsg))
+    return true;
+
+  bool ret = _linker.LinkInModule(mod->getLLVVMModule(), &errMsg);
+
+  const std::vector<const char*> &undefs = mod->getAsmUndefinedRefs();
+  for (int i = 0, e = undefs.size(); i != e; ++i)
+    _asmUndefinedRefs[undefs[i]] = 1;
+
+  return ret;
 }
     
 
@@ -167,51 +176,63 @@ bool LTOCodeGenerator::writeMergedModules(const char *path,
 }
 
 
+bool LTOCodeGenerator::compile_to_file(const char** name, std::string& errMsg)
+{
+  // make unique temp .o file to put generated object file
+  sys::PathWithStatus uniqueObjPath("lto-llvm.o");
+  if ( uniqueObjPath.createTemporaryFileOnDisk(false, &errMsg) ) {
+    uniqueObjPath.eraseFromDisk();
+    return true;
+  }
+  sys::RemoveFileOnSignal(uniqueObjPath);
+
+  // generate object file
+  bool genResult = false;
+  tool_output_file objFile(uniqueObjPath.c_str(), errMsg);
+  if (!errMsg.empty())
+    return NULL;
+  genResult = this->generateObjectFile(objFile.os(), errMsg);
+  objFile.os().close();
+  if (objFile.os().has_error()) {
+    objFile.os().clear_error();
+    return true;
+  }
+  objFile.keep();
+  if ( genResult ) {
+    uniqueObjPath.eraseFromDisk();
+    return true;
+  }
+
+  _nativeObjectPath = uniqueObjPath.str();
+  *name = _nativeObjectPath.c_str();
+  return false;
+}
+
 const void* LTOCodeGenerator::compile(size_t* length, std::string& errMsg)
 {
-    // make unique temp .o file to put generated object file
-    sys::PathWithStatus uniqueObjPath("lto-llvm.o");
-    if ( uniqueObjPath.createTemporaryFileOnDisk(false, &errMsg) ) {
-        uniqueObjPath.eraseFromDisk();
-        return NULL;
-    }
-    sys::RemoveFileOnSignal(uniqueObjPath);
+  const char *name;
+  if (compile_to_file(&name, errMsg))
+    return NULL;
 
-    // generate object file
-    bool genResult = false;
-    tool_output_file objFile(uniqueObjPath.c_str(), errMsg);
-    if (!errMsg.empty())
-      return NULL;
-    genResult = this->generateObjectFile(objFile.os(), errMsg);
-    objFile.os().close();
-    if (objFile.os().has_error()) {
-      objFile.os().clear_error();
-      return NULL;
-    }
-    objFile.keep();
-    if ( genResult ) {
-      uniqueObjPath.eraseFromDisk();
-      return NULL;
-    }
+  // remove old buffer if compile() called twice
+  delete _nativeObjectFile;
 
-    const std::string& uniqueObjStr = uniqueObjPath.str();
-    // remove old buffer if compile() called twice
-    delete _nativeObjectFile;
+  // read .o file into memory buffer
+  OwningPtr<MemoryBuffer> BuffPtr;
+  if (error_code ec = MemoryBuffer::getFile(name, BuffPtr, -1, false)) {
+    errMsg = ec.message();
+    return NULL;
+  }
+  _nativeObjectFile = BuffPtr.take();
 
-    // read .o file into memory buffer
-    OwningPtr<MemoryBuffer> BuffPtr;
-    if (error_code ec = MemoryBuffer::getFile(uniqueObjStr.c_str(),BuffPtr))
-      errMsg = ec.message();
-    _nativeObjectFile = BuffPtr.take();
+  // remove temp files
+  sys::Path(_nativeObjectPath).eraseFromDisk();
 
-    // remove temp files
-    uniqueObjPath.eraseFromDisk();
-
-    // return buffer, unless error
-    if ( _nativeObjectFile == NULL )
-        return NULL;
-    *length = _nativeObjectFile->getBufferSize();
-    return _nativeObjectFile->getBufferStart();
+  // return buffer, unless error
+  if ( _nativeObjectFile == NULL )
+    return NULL;
+  *length = _nativeObjectFile->getBufferSize();
+  return _nativeObjectFile->getBufferStart();
 }
 
 bool LTOCodeGenerator::determineTarget(std::string& errMsg)
@@ -249,6 +270,34 @@ bool LTOCodeGenerator::determineTarget(std::string& errMsg)
     return false;
 }
 
+void LTOCodeGenerator::applyRestriction(GlobalValue &GV,
+                                     std::vector<const char*> &mustPreserveList,
+                                        SmallPtrSet<GlobalValue*, 8> &asmUsed,
+                                        Mangler &mangler) {
+  SmallString<64> Buffer;
+  mangler.getNameWithPrefix(Buffer, &GV, false);
+
+  if (GV.isDeclaration())
+    return;
+  if (_mustPreserveSymbols.count(Buffer))
+    mustPreserveList.push_back(GV.getName().data());
+  if (_asmUndefinedRefs.count(Buffer))
+    asmUsed.insert(&GV);
+}
+
+static void findUsedValues(GlobalVariable *LLVMUsed,
+                           SmallPtrSet<GlobalValue*, 8> &UsedValues) {
+  if (LLVMUsed == 0) return;
+
+  ConstantArray *Inits = dyn_cast<ConstantArray>(LLVMUsed->getInitializer());
+  if (Inits == 0) return;
+
+  for (unsigned i = 0, e = Inits->getNumOperands(); i != e; ++i)
+    if (GlobalValue *GV = 
+          dyn_cast<GlobalValue>(Inits->getOperand(i)->stripPointerCasts()))
+      UsedValues.insert(GV);
+}
+
 void LTOCodeGenerator::applyScopeRestrictions() {
   if (_scopeRestrictionsDone) return;
   Module *mergedModule = _linker.getModule();
@@ -258,38 +307,47 @@ void LTOCodeGenerator::applyScopeRestrictions() {
   passes.add(createVerifierPass());
 
   // mark which symbols can not be internalized 
-  if (!_mustPreserveSymbols.empty()) {
-    MCContext Context(*_target->getMCAsmInfo(), NULL);
-    Mangler mangler(Context, *_target->getTargetData());
-    std::vector<const char*> mustPreserveList;
-    SmallString<64> Buffer;
-    for (Module::iterator f = mergedModule->begin(),
-         e = mergedModule->end(); f != e; ++f) {
-      Buffer.clear();
-      mangler.getNameWithPrefix(Buffer, f, false);
-      if (!f->isDeclaration() &&
-          _mustPreserveSymbols.count(Buffer))
-        mustPreserveList.push_back(f->getName().data());
-    }
-    for (Module::global_iterator v = mergedModule->global_begin(), 
-         e = mergedModule->global_end(); v !=  e; ++v) {
-      Buffer.clear();
-      mangler.getNameWithPrefix(Buffer, v, false);
-      if (!v->isDeclaration() &&
-          _mustPreserveSymbols.count(Buffer))
-        mustPreserveList.push_back(v->getName().data());
-    }
-    for (Module::alias_iterator a = mergedModule->alias_begin(),
-         e = mergedModule->alias_end(); a != e; ++a) {
-      Buffer.clear();
-      mangler.getNameWithPrefix(Buffer, a, false);
-      if (!a->isDeclaration() &&
-          _mustPreserveSymbols.count(Buffer))
-        mustPreserveList.push_back(a->getName().data());
-    }
-    passes.add(createInternalizePass(mustPreserveList));
+  MCContext Context(*_target->getMCAsmInfo(), NULL);
+  Mangler mangler(Context, *_target->getTargetData());
+  std::vector<const char*> mustPreserveList;
+  SmallPtrSet<GlobalValue*, 8> asmUsed;
+
+  for (Module::iterator f = mergedModule->begin(),
+         e = mergedModule->end(); f != e; ++f)
+    applyRestriction(*f, mustPreserveList, asmUsed, mangler);
+  for (Module::global_iterator v = mergedModule->global_begin(), 
+         e = mergedModule->global_end(); v !=  e; ++v)
+    applyRestriction(*v, mustPreserveList, asmUsed, mangler);
+  for (Module::alias_iterator a = mergedModule->alias_begin(),
+         e = mergedModule->alias_end(); a != e; ++a)
+    applyRestriction(*a, mustPreserveList, asmUsed, mangler);
+
+  GlobalVariable *LLVMCompilerUsed =
+    mergedModule->getGlobalVariable("llvm.compiler.used");
+  findUsedValues(LLVMCompilerUsed, asmUsed);
+  if (LLVMCompilerUsed)
+    LLVMCompilerUsed->eraseFromParent();
+
+  const llvm::Type *i8PTy = llvm::Type::getInt8PtrTy(_context);
+  std::vector<Constant*> asmUsed2;
+  for (SmallPtrSet<GlobalValue*, 16>::const_iterator i = asmUsed.begin(),
+         e = asmUsed.end(); i !=e; ++i) {
+    GlobalValue *GV = *i;
+    Constant *c = ConstantExpr::getBitCast(GV, i8PTy);
+    asmUsed2.push_back(c);
   }
-  
+
+  llvm::ArrayType *ATy = llvm::ArrayType::get(i8PTy, asmUsed2.size());
+  LLVMCompilerUsed =
+    new llvm::GlobalVariable(*mergedModule, ATy, false,
+                             llvm::GlobalValue::AppendingLinkage,
+                             llvm::ConstantArray::get(ATy, asmUsed2),
+                             "llvm.compiler.used");
+
+  LLVMCompilerUsed->setSection("llvm.metadata");
+
+  passes.add(createInternalizePass(mustPreserveList));
+
   // apply scope restrictions
   passes.run(*mergedModule);
   

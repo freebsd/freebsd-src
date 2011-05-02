@@ -19,6 +19,9 @@ declare void @llvm.xcore.syncr.p1i8(i8 addrspace(1)* %r)
 declare void @llvm.xcore.settw.p1i8(i8 addrspace(1)* %r, i32 %value)
 declare void @llvm.xcore.setv.p1i8(i8 addrspace(1)* %r, i8* %p)
 declare void @llvm.xcore.eeu.p1i8(i8 addrspace(1)* %r)
+declare void @llvm.xcore.setclk.p1i8.p1i8(i8 addrspace(1)* %a, i8 addrspace(1)* %b)
+declare void @llvm.xcore.setrdy.p1i8.p1i8(i8 addrspace(1)* %a, i8 addrspace(1)* %b)
+declare void @llvm.xcore.setpsc.p1i8(i8 addrspace(1)* %r, i32 %value)
 
 define i8 addrspace(1)* @getr() {
 ; CHECK: getr:
@@ -172,5 +175,26 @@ define void @eeu(i8 addrspace(1)* %r) {
 ; CHECK: eeu:
 ; CHECK: eeu res[r0]
 	call void @llvm.xcore.eeu.p1i8(i8 addrspace(1)* %r)
+	ret void
+}
+
+define void @setclk(i8 addrspace(1)* %a, i8 addrspace(1)* %b) {
+; CHECK: setclk
+; CHECK: setclk res[r0], r1
+	call void @llvm.xcore.setclk.p1i8.p1i8(i8 addrspace(1)* %a, i8 addrspace(1)* %b)
+	ret void
+}
+
+define void @setrdy(i8 addrspace(1)* %a, i8 addrspace(1)* %b) {
+; CHECK: setrdy
+; CHECK: setrdy res[r0], r1
+	call void @llvm.xcore.setrdy.p1i8.p1i8(i8 addrspace(1)* %a, i8 addrspace(1)* %b)
+	ret void
+}
+
+define void @setpsc(i8 addrspace(1)* %r, i32 %value) {
+; CHECK: setpsc
+; CHECK: setpsc res[r0], r1
+	call void @llvm.xcore.setpsc.p1i8(i8 addrspace(1)* %r, i32 %value)
 	ret void
 }

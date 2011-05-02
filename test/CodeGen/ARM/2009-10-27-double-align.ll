@@ -1,4 +1,5 @@
-; RUN: llc < %s  -mtriple=arm-linux-gnueabi  | FileCheck %s
+; RUN: llc < %s  -mtriple=arm-linux-gnueabi | FileCheck %s
+; RUN: llc < %s  -mtriple=arm-linux-gnueabi -regalloc=basic | FileCheck %s
 
 @.str = private constant [1 x i8] zeroinitializer, align 1
 

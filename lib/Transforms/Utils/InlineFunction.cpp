@@ -320,7 +320,7 @@ static Value *HandleByValArgument(Value *Arg, Instruction *TheCall,
 //
 // Note that this only does one level of inlining.  For example, if the
 // instruction 'call B' is inlined, and 'B' calls 'C', then the call to 'C' now
-// exists in the instruction stream.  Similiarly this will inline a recursive
+// exists in the instruction stream.  Similarly this will inline a recursive
 // function by one level.
 //
 bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
@@ -624,7 +624,7 @@ bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
     // The PHI node should go at the front of the new basic block to merge all
     // possible incoming values.
     if (!TheCall->use_empty()) {
-      PHI = PHINode::Create(RTy, TheCall->getName(),
+      PHI = PHINode::Create(RTy, Returns.size(), TheCall->getName(),
                             AfterCallBB->begin());
       // Anything that used the result of the function call should now use the
       // PHI node as their operand.

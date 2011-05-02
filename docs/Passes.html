@@ -40,7 +40,7 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 
   -->
 
-<div class="doc_title">LLVM's Analysis and Transform Passes</div>
+<h1>LLVM's Analysis and Transform Passes</h1>
 
 <ol>
   <li><a href="#intro">Introduction</a></li>
@@ -55,8 +55,8 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_section"> <a name="intro">Introduction</a> </div>
-<div class="doc_text">
+<h2><a name="intro">Introduction</a></h2>
+<div>
   <p>This document serves as a high level summary of the optimization features 
   that LLVM provides. Optimizations are implemented as Passes that traverse some
   portion of a program to either collect information or transform the program.
@@ -69,15 +69,13 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
   bitcode are neither analysis nor transform passes.
   <p>The table below provides a quick summary of each pass and links to the more
   complete pass description later in the document.</p>
-</div>
-<div class="doc_text" >
+
 <table>
 <tr><th colspan="2"><b>ANALYSIS PASSES</b></th></tr>
 <tr><th>Option</th><th>Name</th></tr>
 <tr><td><a href="#aa-eval">-aa-eval</a></td><td>Exhaustive Alias Analysis Precision Evaluator</td></tr>
-<tr><td><a href="#basicaa">-basicaa</a></td><td>Basic Alias Analysis (default AA impl)</td></tr>
+<tr><td><a href="#basicaa">-basicaa</a></td><td>Basic Alias Analysis (stateless AA impl)</td></tr>
 <tr><td><a href="#basiccg">-basiccg</a></td><td>Basic CallGraph Construction</td></tr>
-<tr><td><a href="#codegenprepare">-codegenprepare</a></td><td>Optimize for code generation</td></tr>
 <tr><td><a href="#count-aa">-count-aa</a></td><td>Count Alias Analysis Query Responses</td></tr>
 <tr><td><a href="#debug-aa">-debug-aa</a></td><td>AA use debugger</td></tr>
 <tr><td><a href="#domfrontier">-domfrontier</a></td><td>Dominance Frontier Construction</td></tr>
@@ -85,27 +83,23 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 <tr><td><a href="#dot-callgraph">-dot-callgraph</a></td><td>Print Call Graph to 'dot' file</td></tr>
 <tr><td><a href="#dot-cfg">-dot-cfg</a></td><td>Print CFG of function to 'dot' file</td></tr>
 <tr><td><a href="#dot-cfg-only">-dot-cfg-only</a></td><td>Print CFG of function to 'dot' file (with no function bodies)</td></tr>
-<tr><td><a href="#dot-dom">-dot-dom</a></td><td>Print dominator tree of function to 'dot' file</td></tr>
-<tr><td><a href="#dot-dom-only">-dot-dom-only</a></td><td>Print dominator tree of function to 'dot' file (with no function bodies)</td></tr>
-<tr><td><a href="#dot-postdom">-dot-postdom</a></td><td>Print post dominator tree of function to 'dot' file</td></tr>
-<tr><td><a href="#dot-postdom-only">-dot-postdom-only</a></td><td>Print post dominator tree of function to 'dot' file (with no function bodies)</td></tr>
+<tr><td><a href="#dot-dom">-dot-dom</a></td><td>Print dominance tree of function to 'dot' file</td></tr>
+<tr><td><a href="#dot-dom-only">-dot-dom-only</a></td><td>Print dominance tree of function to 'dot' file (with no function bodies)</td></tr>
+<tr><td><a href="#dot-postdom">-dot-postdom</a></td><td>Print postdominance tree of function to 'dot' file</td></tr>
+<tr><td><a href="#dot-postdom-only">-dot-postdom-only</a></td><td>Print postdominance tree of function to 'dot' file (with no function bodies)</td></tr>
 <tr><td><a href="#globalsmodref-aa">-globalsmodref-aa</a></td><td>Simple mod/ref analysis for globals</td></tr>
 <tr><td><a href="#instcount">-instcount</a></td><td>Counts the various types of Instructions</td></tr>
-<tr><td><a href="#interprocedural-aa-eval">-interprocedural-aa-eval</a></td><td>Exhaustive Interprocedural Alias Analysis Precision Evaluator</td></tr>
-<tr><td><a href="#interprocedural-basic-aa">-interprocedural-basic-aa</a></td><td>Interprocedural Basic Alias Analysis</td></tr>
 <tr><td><a href="#intervals">-intervals</a></td><td>Interval Partition Construction</td></tr>
 <tr><td><a href="#iv-users">-iv-users</a></td><td>Induction Variable Users</td></tr>
 <tr><td><a href="#lazy-value-info">-lazy-value-info</a></td><td>Lazy Value Information Analysis</td></tr>
 <tr><td><a href="#lda">-lda</a></td><td>Loop Dependence Analysis</td></tr>
 <tr><td><a href="#libcall-aa">-libcall-aa</a></td><td>LibCall Alias Analysis</td></tr>
-<tr><td><a href="#lint">-lint</a></td><td>Check for common errors in LLVM IR</td></tr>
-<tr><td><a href="#live-values">-live-values</a></td><td>Value Liveness Analysis</td></tr>
+<tr><td><a href="#lint">-lint</a></td><td>Statically lint-checks LLVM IR</td></tr>
 <tr><td><a href="#loops">-loops</a></td><td>Natural Loop Information</td></tr>
 <tr><td><a href="#memdep">-memdep</a></td><td>Memory Dependence Analysis</td></tr>
-<tr><td><a href="#module-debuginfo">-module-debuginfo</a></td><td>Prints module debug info metadata</td></tr>
+<tr><td><a href="#module-debuginfo">-module-debuginfo</a></td><td>Decodes module-level debug info</td></tr>
 <tr><td><a href="#no-aa">-no-aa</a></td><td>No Alias Analysis (always returns 'may' alias)</td></tr>
 <tr><td><a href="#no-profile">-no-profile</a></td><td>No Profile Information</td></tr>
-<tr><td><a href="#pointertracking">-pointertracking</a></td><td>Track pointer bounds</td></tr>
 <tr><td><a href="#postdomfrontier">-postdomfrontier</a></td><td>Post-Dominance Frontier Construction</td></tr>
 <tr><td><a href="#postdomtree">-postdomtree</a></td><td>Post-Dominator Tree Construction</td></tr>
 <tr><td><a href="#print-alias-sets">-print-alias-sets</a></td><td>Alias Set Printer</td></tr>
@@ -120,8 +114,8 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 <tr><td><a href="#print-used-types">-print-used-types</a></td><td>Find Used Types</td></tr>
 <tr><td><a href="#profile-estimator">-profile-estimator</a></td><td>Estimate profiling information</td></tr>
 <tr><td><a href="#profile-loader">-profile-loader</a></td><td>Load profile information from llvmprof.out</td></tr>
-<tr><td><a href="#regions">-regions</a></td><td>Detect single entry single exit regions in a function</td></tr>
 <tr><td><a href="#profile-verifier">-profile-verifier</a></td><td>Verify profiling information</td></tr>
+<tr><td><a href="#regions">-regions</a></td><td>Detect single entry single exit regions</td></tr>
 <tr><td><a href="#scalar-evolution">-scalar-evolution</a></td><td>Scalar Evolution Analysis</td></tr>
 <tr><td><a href="#scev-aa">-scev-aa</a></td><td>ScalarEvolution-based Alias Analysis</td></tr>
 <tr><td><a href="#targetdata">-targetdata</a></td><td>Target Data Layout</td></tr>
@@ -129,13 +123,12 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 
 <tr><th colspan="2"><b>TRANSFORM PASSES</b></th></tr>
 <tr><th>Option</th><th>Name</th></tr>
-<tr><td><a href="#abcd">-abcd</a></td><td>Remove redundant conditional branches</td></tr>
 <tr><td><a href="#adce">-adce</a></td><td>Aggressive Dead Code Elimination</td></tr>
 <tr><td><a href="#always-inline">-always-inline</a></td><td>Inliner for always_inline functions</td></tr>
 <tr><td><a href="#argpromotion">-argpromotion</a></td><td>Promote 'by reference' arguments to scalars</td></tr>
 <tr><td><a href="#block-placement">-block-placement</a></td><td>Profile Guided Basic Block Placement</td></tr>
 <tr><td><a href="#break-crit-edges">-break-crit-edges</a></td><td>Break critical edges in CFG</td></tr>
-<tr><td><a href="#codegenprepare">-codegenprepare</a></td><td>Prepare a function for code generation </td></tr>
+<tr><td><a href="#codegenprepare">-codegenprepare</a></td><td>Optimize for code generation</td></tr>
 <tr><td><a href="#constmerge">-constmerge</a></td><td>Merge Duplicate Global Constants</td></tr>
 <tr><td><a href="#constprop">-constprop</a></td><td>Simple constant propagation</td></tr>
 <tr><td><a href="#dce">-dce</a></td><td>Dead Code Elimination</td></tr>
@@ -155,46 +148,40 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 <tr><td><a href="#internalize">-internalize</a></td><td>Internalize Global Symbols</td></tr>
 <tr><td><a href="#ipconstprop">-ipconstprop</a></td><td>Interprocedural constant propagation</td></tr>
 <tr><td><a href="#ipsccp">-ipsccp</a></td><td>Interprocedural Sparse Conditional Constant Propagation</td></tr>
-<tr><td><a href="#jump-threading">-jump-threading</a></td><td>Thread control through conditional blocks </td></tr>
+<tr><td><a href="#jump-threading">-jump-threading</a></td><td>Jump Threading</td></tr>
 <tr><td><a href="#lcssa">-lcssa</a></td><td>Loop-Closed SSA Form Pass</td></tr>
 <tr><td><a href="#licm">-licm</a></td><td>Loop Invariant Code Motion</td></tr>
-<tr><td><a href="#loop-deletion">-loop-deletion</a></td><td>Dead Loop Deletion Pass </td></tr>
+<tr><td><a href="#loop-deletion">-loop-deletion</a></td><td>Delete dead loops</td></tr>
 <tr><td><a href="#loop-extract">-loop-extract</a></td><td>Extract loops into new functions</td></tr>
 <tr><td><a href="#loop-extract-single">-loop-extract-single</a></td><td>Extract at most one loop into a new function</td></tr>
-<tr><td><a href="#loop-index-split">-loop-index-split</a></td><td>Index Split Loops</td></tr>
 <tr><td><a href="#loop-reduce">-loop-reduce</a></td><td>Loop Strength Reduction</td></tr>
 <tr><td><a href="#loop-rotate">-loop-rotate</a></td><td>Rotate Loops</td></tr>
+<tr><td><a href="#loop-simplify">-loop-simplify</a></td><td>Canonicalize natural loops</td></tr>
 <tr><td><a href="#loop-unroll">-loop-unroll</a></td><td>Unroll loops</td></tr>
 <tr><td><a href="#loop-unswitch">-loop-unswitch</a></td><td>Unswitch loops</td></tr>
-<tr><td><a href="#loop-simplify">-loop-simplify</a></td><td>Canonicalize natural loops</td></tr>
-<tr><td><a href="#loweratomic">-loweratomic</a></td><td>Lower atomic intrinsics</td></tr>
+<tr><td><a href="#loweratomic">-loweratomic</a></td><td>Lower atomic intrinsics to non-atomic form</td></tr>
 <tr><td><a href="#lowerinvoke">-lowerinvoke</a></td><td>Lower invoke and unwind, for unwindless code generators</td></tr>
 <tr><td><a href="#lowersetjmp">-lowersetjmp</a></td><td>Lower Set Jump</td></tr>
 <tr><td><a href="#lowerswitch">-lowerswitch</a></td><td>Lower SwitchInst's to branches</td></tr>
 <tr><td><a href="#mem2reg">-mem2reg</a></td><td>Promote Memory to Register</td></tr>
-<tr><td><a href="#memcpyopt">-memcpyopt</a></td><td>Optimize use of memcpy and friends</td></tr>
+<tr><td><a href="#memcpyopt">-memcpyopt</a></td><td>MemCpy Optimization</td></tr>
 <tr><td><a href="#mergefunc">-mergefunc</a></td><td>Merge Functions</td></tr>
 <tr><td><a href="#mergereturn">-mergereturn</a></td><td>Unify function exit nodes</td></tr>
 <tr><td><a href="#partial-inliner">-partial-inliner</a></td><td>Partial Inliner</td></tr>
-<tr><td><a href="#partialspecialization">-partialspecialization</a></td><td>Partial Specialization</td></tr>
 <tr><td><a href="#prune-eh">-prune-eh</a></td><td>Remove unused exception handling info</td></tr>
 <tr><td><a href="#reassociate">-reassociate</a></td><td>Reassociate expressions</td></tr>
 <tr><td><a href="#reg2mem">-reg2mem</a></td><td>Demote all values to stack slots</td></tr>
-<tr><td><a href="#scalarrepl">-scalarrepl</a></td><td>Scalar Replacement of Aggregates</td></tr>
+<tr><td><a href="#scalarrepl">-scalarrepl</a></td><td>Scalar Replacement of Aggregates (DT)</td></tr>
 <tr><td><a href="#sccp">-sccp</a></td><td>Sparse Conditional Constant Propagation</td></tr>
-<tr><td><a href="#sink">-sink</a></td><td>Code Sinking</td></tr>
 <tr><td><a href="#simplify-libcalls">-simplify-libcalls</a></td><td>Simplify well-known library calls</td></tr>
-<tr><td><a href="#simplify-libcalls-halfpowr">-simplify-libcalls-halfpowr</a></td><td>Simplify half_powr library calls</td></tr>
 <tr><td><a href="#simplifycfg">-simplifycfg</a></td><td>Simplify the CFG</td></tr>
-<tr><td><a href="#split-geps">-split-geps</a></td><td>Split complex GEPs into simple GEPs</td></tr>
-<tr><td><a href="#ssi">-ssi</a></td><td>Static Single Information Construction</td></tr>
-<tr><td><a href="#ssi-everything">-ssi-everything</a></td><td>Static Single Information Construction (everything, intended for debugging)</td></tr>
+<tr><td><a href="#sink">-sink</a></td><td>Code sinking</td></tr>
+<tr><td><a href="#sretpromotion">-sretpromotion</a></td><td>Promote sret arguments to multiple ret values</td></tr>
 <tr><td><a href="#strip">-strip</a></td><td>Strip all symbols from a module</td></tr>
 <tr><td><a href="#strip-dead-debug-info">-strip-dead-debug-info</a></td><td>Strip debug info for unused symbols</td></tr>
-<tr><td><a href="#strip-dead-prototypes">-strip-dead-prototypes</a></td><td>Remove unused function declarations</td></tr>
+<tr><td><a href="#strip-dead-prototypes">-strip-dead-prototypes</a></td><td>Strip Unused Function Prototypes</td></tr>
 <tr><td><a href="#strip-debug-declare">-strip-debug-declare</a></td><td>Strip all llvm.dbg.declare intrinsics</td></tr>
 <tr><td><a href="#strip-nondebug">-strip-nondebug</a></td><td>Strip all symbols, except dbg symbols, from a module</td></tr>
-<tr><td><a href="#sretpromotion">-sretpromotion</a></td><td>Promote sret arguments</td></tr>
 <tr><td><a href="#tailcallelim">-tailcallelim</a></td><td>Tail Call Elimination</td></tr>
 <tr><td><a href="#tailduplicate">-tailduplicate</a></td><td>Tail Duplication</td></tr>
 
@@ -208,24 +195,24 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 <tr><td><a href="#verify">-verify</a></td><td>Module Verifier</td></tr>
 <tr><td><a href="#view-cfg">-view-cfg</a></td><td>View CFG of function</td></tr>
 <tr><td><a href="#view-cfg-only">-view-cfg-only</a></td><td>View CFG of function (with no function bodies)</td></tr>
-<tr><td><a href="#view-dom">-view-dom</a></td><td>View dominator tree of function</td></tr>
-<tr><td><a href="#view-dom-only">-view-dom-only</a></td><td>View dominator tree of function (with no function bodies)</td></tr>
-<tr><td><a href="#view-postdom">-view-postdom</a></td><td>View post dominator tree of function</td></tr>
-<tr><td><a href="#view-postdom-only">-view-postdom-only</a></td><td>View post dominator tree of function (with no function bodies)</td></tr>
+<tr><td><a href="#view-dom">-view-dom</a></td><td>View dominance tree of function</td></tr>
+<tr><td><a href="#view-dom-only">-view-dom-only</a></td><td>View dominance tree of function (with no function bodies)</td></tr>
+<tr><td><a href="#view-postdom">-view-postdom</a></td><td>View postdominance tree of function</td></tr>
+<tr><td><a href="#view-postdom-only">-view-postdom-only</a></td><td>View postdominance tree of function (with no function bodies)</td></tr>
 </table>
+
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_section"> <a name="example">Analysis Passes</a></div>
-<div class="doc_text">
+<h2><a name="analyses">Analysis Passes</a></h2>
+<div>
   <p>This section describes the LLVM Analysis Passes.</p>
-</div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="aa-eval">-aa-eval: Exhaustive Alias Analysis Precision Evaluator</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>This is a simple N^2 alias analysis accuracy evaluator.
   Basically, for each function in the program, it simply queries to see how the
   alias analysis implementation answers alias queries between each pair of
@@ -236,10 +223,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="basicaa">-basicaa: Basic Alias Analysis (default AA impl)</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="basicaa">-basicaa: Basic Alias Analysis (stateless AA impl)</a>
+</h3>
+<div>
   <p>
   This is the default implementation of the Alias Analysis interface
   that simply implements a few identities (two different globals cannot alias,
@@ -248,30 +235,18 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="basiccg">-basiccg: Basic CallGraph Construction</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>Yet to be written.</p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="codegenprepare">-codegenprepare: Optimize for code generation</a>
-</div>
-<div class="doc_text">
-  <p>
-  This pass munges the code in the input function to better prepare it for
-  SelectionDAG-based code generation.  This works around limitations in it's
-  basic-block-at-a-time approach.  It should eventually be removed.
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="count-aa">-count-aa: Count Alias Analysis Query Responses</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   A pass which can be used to count how many alias queries
   are being made and how the alias analysis implementation being used responds.
@@ -279,10 +254,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="debug-aa">-debug-aa: AA use debugger</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This simple pass checks alias analysis users to ensure that if they
   create a new value, they do not query AA without informing it of the value.
@@ -296,10 +271,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="domfrontier">-domfrontier: Dominance Frontier Construction</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass is a simple dominator construction algorithm for finding forward
   dominator frontiers.
@@ -307,10 +282,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="domtree">-domtree: Dominator Tree Construction</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass is a simple dominator construction algorithm for finding forward
   dominators.
@@ -318,10 +293,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="dot-callgraph">-dot-callgraph: Print Call Graph to 'dot' file</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass, only available in <code>opt</code>, prints the call graph into a
   <code>.dot</code> graph.  This graph can then be processed with the "dot" tool
@@ -330,10 +305,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="dot-cfg">-dot-cfg: Print CFG of function to 'dot' file</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass, only available in <code>opt</code>, prints the control flow graph
   into a <code>.dot</code> graph.  This graph can then be processed with the
@@ -342,10 +317,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="dot-cfg-only">-dot-cfg-only: Print CFG of function to 'dot' file (with no function bodies)</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass, only available in <code>opt</code>, prints the control flow graph
   into a <code>.dot</code> graph, omitting the function bodies.  This graph can
@@ -355,10 +330,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="dot-dom">-dot-dom: Print dominator tree of function to 'dot' file</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="dot-dom">-dot-dom: Print dominance tree of function to 'dot' file</a>
+</h3>
+<div>
   <p>
   This pass, only available in <code>opt</code>, prints the dominator tree
   into a <code>.dot</code> graph.  This graph can then be processed with the
@@ -367,11 +342,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="dot-dom-only">-dot-dom-only: Print dominator tree of function to 'dot' file (with no
-  function bodies)</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="dot-dom-only">-dot-dom-only: Print dominance tree of function to 'dot' file (with no function bodies)</a>
+</h3>
+<div>
   <p>
   This pass, only available in <code>opt</code>, prints the dominator tree
   into a <code>.dot</code> graph, omitting the function bodies.  This graph can
@@ -381,10 +355,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="dot-postdom">-dot-postdom: Print post dominator tree of function to 'dot' file</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="dot-postdom">-dot-postdom: Print postdominance tree of function to 'dot' file</a>
+</h3>
+<div>
   <p>
   This pass, only available in <code>opt</code>, prints the post dominator tree
   into a <code>.dot</code> graph.  This graph can then be processed with the
@@ -393,11 +367,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="dot-postdom-only">-dot-postdom-only: Print post dominator tree of function to 'dot' file
-  (with no function bodies)</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="dot-postdom-only">-dot-postdom-only: Print postdominance tree of function to 'dot' file (with no function bodies)</a>
+</h3>
+<div>
   <p>
   This pass, only available in <code>opt</code>, prints the post dominator tree
   into a <code>.dot</code> graph, omitting the function bodies.  This graph can
@@ -407,10 +380,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="globalsmodref-aa">-globalsmodref-aa: Simple mod/ref analysis for globals</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This simple pass provides alias and mod/ref information for global values
   that do not have their address taken, and keeps track of whether functions
@@ -420,43 +393,20 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="instcount">-instcount: Counts the various types of Instructions</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass collects the count of all instructions and reports them
   </p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="interprocedural-aa-eval">-interprocedural-aa-eval: Exhaustive Interprocedural Alias Analysis Precision Evaluator</a>
-</div>
-<div class="doc_text">
-  <p>This pass implements a simple N^2 alias analysis accuracy evaluator.
-  Basically, for each function in the program, it simply queries to see how the
-  alias analysis implementation answers alias queries between each pair of
-  pointers in the function.
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="interprocedural-basic-aa">-interprocedural-basic-aa: Interprocedural Basic Alias Analysis</a>
-</div>
-<div class="doc_text">
-  <p>This pass defines the default implementation of the Alias Analysis interface
-  that simply implements a few identities (two different globals cannot alias,
-  etc), but otherwise does no analysis.
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="intervals">-intervals: Interval Partition Construction</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This analysis calculates and represents the interval partition of a function,
   or a preexisting interval partition.
@@ -469,44 +419,44 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="iv-users">-iv-users: Induction Variable Users</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>Bookkeeping for "interesting" users of expressions computed from 
   induction variables.</p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="lazy-value-info">-lazy-value-info: Lazy Value Information Analysis</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>Interface for lazy computation of value constraint information.</p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="lda">-lda: Loop Dependence Analysis</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>Loop dependence analysis framework, which is used to detect dependences in
   memory accesses in loops.</p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="libcall-aa">-libcall-aa: LibCall Alias Analysis</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>LibCall Alias Analysis.</p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="lint">-lint: Check for common errors in LLVM IR</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="lint">-lint: Statically lint-checks LLVM IR</a>
+</h3>
+<div>
   <p>This pass statically checks for common and easily-identified constructs
   which produce undefined or likely unintended behavior in LLVM IR.</p>
  
@@ -534,18 +484,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="live-values">-live-values: Values Liveness Analysis</a>
-</div>
-<div class="doc_text">
-  <p>LLVM IR Value liveness analysis pass.</p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="loops">-loops: Natural Loop Construction</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="loops">-loops: Natural Loop Information</a>
+</h3>
+<div>
   <p>
   This analysis is used to identify natural loops and determine the loop depth
   of various nodes of the CFG.  Note that the loops identified may actually be
@@ -555,10 +497,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="memdep">-memdep: Memory Dependence Analysis</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   An analysis that determines, for a given memory operation, what preceding 
   memory operations it depends on.  It builds on alias analysis information, and 
@@ -568,10 +510,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="module-debuginfo">-module-debuginfo: Prints module debug info metadata</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="module-debuginfo">-module-debuginfo: Decodes module-level debug info</a>
+</h3>
+<div>
   <p>This pass decodes the debug info metadata in a module and prints in a
  (sufficiently-prepared-) human-readable form.
 
@@ -581,10 +523,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="no-aa">-no-aa: No Alias Analysis (always returns 'may' alias)</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Always returns "I don't know" for alias queries.  NoAA is unlike other alias
   analysis implementations, in that it does not chain to a previous analysis. As
@@ -593,10 +535,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="no-profile">-no-profile: No Profile Information</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   The default "no profile" implementation of the abstract
   <code>ProfileInfo</code> interface.
@@ -604,19 +546,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="pointertracking">-pointertracking: Track pointer bounds.</a>
-</div>
-<div class="doc_text">
-  <p>Tracking of pointer bounds.
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="postdomfrontier">-postdomfrontier: Post-Dominance Frontier Construction</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass is a simple post-dominator construction algorithm for finding
   post-dominator frontiers.
@@ -624,10 +557,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="postdomtree">-postdomtree: Post-Dominator Tree Construction</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass is a simple post-dominator construction algorithm for finding
   post-dominators.
@@ -635,18 +568,18 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="print-alias-sets">-print-alias-sets: Alias Set Printer</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>Yet to be written.</p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="print-callgraph">-print-callgraph: Print a call graph</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass, only available in <code>opt</code>, prints the call graph to
   standard error in a human-readable form.
@@ -654,10 +587,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="print-callgraph-sccs">-print-callgraph-sccs: Print SCCs of the Call Graph</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass, only available in <code>opt</code>, prints the SCCs of the call
   graph to standard error in a human-readable form.
@@ -665,10 +598,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="print-cfg-sccs">-print-cfg-sccs: Print SCCs of each function CFG</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass, only available in <code>opt</code>, prints the SCCs of each
   function CFG to standard error in a human-readable form.
@@ -676,10 +609,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="print-dbginfo">-print-dbginfo: Print debug info in human readable form</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>Pass that prints instructions, and associated debug info:</p>
   <ul>
   
@@ -690,18 +623,18 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="print-dom-info">-print-dom-info: Dominator Info Printer</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>Dominator Info Printer.</p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="print-externalfnconstants">-print-externalfnconstants: Print external fn callsites passed constants</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass, only available in <code>opt</code>, prints out call sites to
   external functions that are called with constant arguments.  This can be
@@ -711,10 +644,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="print-function">-print-function: Print function to stderr</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   The <code>PrintFunctionPass</code> class is designed to be pipelined with
   other <code>FunctionPass</code>es, and prints out the functions of the module
@@ -723,20 +656,20 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="print-module">-print-module: Print module to stderr</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass simply prints out the entire module when it is executed.
   </p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="print-used-types">-print-used-types: Find Used Types</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass is used to seek out all of the types in use by the program.  Note
   that this analysis explicitly does not include types only used by the symbol
@@ -744,20 +677,20 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="profile-estimator">-profile-estimator: Estimate profiling information</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>Profiling information that estimates the profiling information 
   in a very crude and unimaginative way.
   </p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="profile-loader">-profile-loader: Load profile information from llvmprof.out</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   A concrete implementation of profiling information that loads the information
   from a profile dump file.
@@ -765,16 +698,16 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="profile-verifier">-profile-verifier: Verify profiling information</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>Pass that checks profiling information for plausibility.</p>
 </div>
-<div class="doc_subsection">
-  <a name="regions">-regions: Detect single entry single exit regions in a function</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="regions">-regions: Detect single entry single exit regions</a>
+</h3>
+<div>
   <p>
   The <code>RegionInfo</code> pass detects single entry single exit regions in a
   function, where a region is defined as any subgraph that is connected to the
@@ -784,10 +717,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="scalar-evolution">-scalar-evolution: Scalar Evolution Analysis</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   The <code>ScalarEvolution</code> analysis can be used to analyze and
   catagorize scalar expressions in loops.  It specializes in recognizing general
@@ -803,10 +736,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="scev-aa">-scev-aa: </a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="scev-aa">-scev-aa: ScalarEvolution-based Alias Analysis</a>
+</h3>
+<div>
   <p>Simple alias analysis implemented in terms of ScalarEvolution queries.
  
   This differs from traditional loop dependence analysis in that it tests
@@ -819,62 +752,26 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="strip-dead-debug-info">-strip-dead-debug-info: Strip debug info for unused symbols</a>
-</div>
-<div class="doc_text">
-  <p>
-  performs code stripping. this transformation can delete:
-  </p>
-  
-  <ol>
-    <li>names for virtual registers</li>
-    <li>symbols for internal globals and functions</li>
-    <li>debug information</li>
-  </ol>
-  
-  <p>
-  note that this transformation makes code much less readable, so it should
-  only be used in situations where the <tt>strip</tt> utility would be used,
-  such as reducing code size or making it harder to reverse engineer code.
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="targetdata">-targetdata: Target Data Layout</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>Provides other passes access to information on how the size and alignment
   required by the the target ABI for various data types.</p>
 </div>
 
+</div>
+
 <!-- ======================================================================= -->
-<div class="doc_section"> <a name="transform">Transform Passes</a></div>
-<div class="doc_text">
+<h2><a name="transforms">Transform Passes</a></h2>
+<div>
   <p>This section describes the LLVM Transform Passes.</p>
-</div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="abcd">-abcd: Remove redundant conditional branches</a>
-</div>
-<div class="doc_text">
-  <p>ABCD removes conditional branch instructions that can be proved redundant.
-  With the SSI representation, each variable has a constraint. By analyzing these 
-  constraints we can prove that a branch is redundant. When a branch is proved 
-  redundant it means that one direction will always be taken; thus, we can change 
-  this branch into an unconditional jump.</p>
-  <p>It is advisable to run <a href="#simplifycfg">SimplifyCFG</a> and 
-  <a href="#adce">Aggressive Dead Code Elimination</a> after ABCD 
-  to clean up the code.</p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="adce">-adce: Aggressive Dead Code Elimination</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>ADCE aggressively tries to eliminate code. This pass is similar to
   <a href="#dce">DCE</a> but it assumes that values are dead until proven 
   otherwise. This is similar to <a href="#sccp">SCCP</a>, except applied to 
@@ -882,19 +779,19 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="always-inline">-always-inline: Inliner for always_inline functions</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>A custom inliner that handles only functions that are marked as 
   "always inline".</p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="argpromotion">-argpromotion: Promote 'by reference' arguments to scalars</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass promotes "by reference" arguments to be "by value" arguments.  In
   practice, this means looking for internal functions that have pointer
@@ -922,10 +819,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="block-placement">-block-placement: Profile Guided Basic Block Placement</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>This pass is a very simple profile guided basic block placement algorithm.
   The idea is to put frequently executed blocks together at the start of the
   function and hopefully increase the number of fall-through conditional
@@ -934,10 +831,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="break-crit-edges">-break-crit-edges: Break critical edges in CFG</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Break all of the critical edges in the CFG by inserting a dummy basic block.
   It may be "required" by passes that cannot deal with critical edges. This
@@ -947,20 +844,20 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="codegenprepare">-codegenprepare: Prepare a function for code generation</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="codegenprepare">-codegenprepare: Optimize for code generation</a>
+</h3>
+<div>
   This pass munges the code in the input function to better prepare it for
   SelectionDAG-based code generation. This works around limitations in it's
   basic-block-at-a-time approach. It should eventually be removed.
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="constmerge">-constmerge: Merge Duplicate Global Constants</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Merges duplicate global constants together into a single constant that is
   shared.  This is useful because some passes (ie TraceValues) insert a lot of
@@ -970,10 +867,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="constprop">-constprop: Simple constant propagation</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>This file implements constant propagation and merging. It looks for
   instructions involving only constant operands and replaces them with a
   constant value instead of an instruction. For example:</p>
@@ -986,10 +883,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="dce">-dce: Dead Code Elimination</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Dead code elimination is similar to <a href="#die">dead instruction
   elimination</a>, but it rechecks instructions that were used by removed
@@ -998,10 +895,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="deadargelim">-deadargelim: Dead Argument Elimination</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass deletes dead arguments from internal functions.  Dead argument
   elimination removes arguments which are directly dead, as well as arguments
@@ -1016,10 +913,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="deadtypeelim">-deadtypeelim: Dead Type Elimination</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass is used to cleanup the output of GCC.  It eliminate names for types
   that are unused in the entire translation unit, using the <a
@@ -1028,10 +925,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="die">-die: Dead Instruction Elimination</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Dead instruction elimination performs a single pass over the function,
   removing instructions that are obviously dead.
@@ -1039,10 +936,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="dse">-dse: Dead Store Elimination</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   A trivial dead store elimination that only considers basic-block local
   redundant stores.
@@ -1050,10 +947,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="functionattrs">-functionattrs: Deduce function attributes</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>A simple interprocedural pass which walks the call-graph, looking for 
   functions which do not access or only read non-local memory, and marking them 
   readnone/readonly.  In addition, it marks function arguments (of pointer type) 
@@ -1065,10 +962,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="globaldce">-globaldce: Dead Global Elimination</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This transform is designed to eliminate unreachable internal globals from the
   program.  It uses an aggressive algorithm, searching out globals that are
@@ -1079,10 +976,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="globalopt">-globalopt: Global Variable Optimizer</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass transforms simple global variables that never have their address
   taken.  If obviously true, it marks read/write globals as constant, deletes
@@ -1091,10 +988,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="gvn">-gvn: Global Value Numbering</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass performs global value numbering to eliminate fully and partially
   redundant instructions.  It also performs redundant load elimination.
@@ -1102,10 +999,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="indvars">-indvars: Canonicalize Induction Variables</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This transformation analyzes and transforms the induction variables (and
   computations derived from them) into simpler forms suitable for subsequent
@@ -1153,20 +1050,20 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="inline">-inline: Function Integration/Inlining</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Bottom-up inlining of functions into callees.
   </p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="insert-edge-profiling">-insert-edge-profiling: Insert instrumentation for edge profiling</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass instruments the specified program with counters for edge profiling.
   Edge profiling can give a reasonable approximation of the hot paths through a
@@ -1181,10 +1078,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="insert-optimal-edge-profiling">-insert-optimal-edge-profiling: Insert optimal instrumentation for edge profiling</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>This pass instruments the specified program with counters for edge profiling.
   Edge profiling can give a reasonable approximation of the hot paths through a
   program, and is used for a wide variety of program transformations.
@@ -1192,10 +1089,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="instcombine">-instcombine: Combine redundant instructions</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Combine instructions to form fewer, simple
   instructions.  This pass does not modify the CFG This pass is where algebraic
@@ -1246,10 +1143,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="internalize">-internalize: Internalize Global Symbols</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass loops over all of the functions in the input module, looking for a
   main function.  If a main function is found, all other functions and all
@@ -1258,10 +1155,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="ipconstprop">-ipconstprop: Interprocedural constant propagation</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass implements an <em>extremely</em> simple interprocedural constant
   propagation pass.  It could certainly be improved in many different ways,
@@ -1272,10 +1169,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="ipsccp">-ipsccp: Interprocedural Sparse Conditional Constant Propagation</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   An interprocedural variant of <a href="#sccp">Sparse Conditional Constant 
   Propagation</a>.
@@ -1283,10 +1180,10 @@ perl -e '$/ = undef; for (split(/\n/, <>)) { s:^ *///? ?::; print "  <p>\n" if !
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="jump-threading">-jump-threading: Thread control through conditional blocks</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="jump-threading">-jump-threading: Jump Threading</a>
+</h3>
+<div>
   <p>
   Jump threading tries to find distinct threads of control flow running through
   a basic block. This pass looks at blocks that have multiple predecessors and
@@ -1312,10 +1209,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="lcssa">-lcssa: Loop-Closed SSA Form Pass</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass transforms loops by placing phi nodes at the end of the loops for
   all values that are live across the loop boundary.  For example, it turns
@@ -1341,10 +1238,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="licm">-licm: Loop Invariant Code Motion</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass performs loop invariant code motion, attempting to remove as much
   code from the body of a loop as possible.  It does this by either hoisting
@@ -1376,11 +1273,12 @@ if (X &lt; 3) {</pre>
         variable.</li>
   </ul>
 </div>
+
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="loop-deletion">-loop-deletion: Dead Loop Deletion Pass</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="loop-deletion">-loop-deletion: Delete dead loops</a>
+</h3>
+<div>
   <p>
   This file implements the Dead Loop Deletion Pass.  This pass is responsible
   for eliminating loops with non-infinite computable trip counts that have no
@@ -1390,10 +1288,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="loop-extract">-loop-extract: Extract loops into new functions</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   A pass wrapper around the <code>ExtractLoop()</code> scalar transformation to 
   extract each top-level loop into its own new function. If the loop is the
@@ -1403,10 +1301,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="loop-extract-single">-loop-extract-single: Extract at most one loop into a new function</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Similar to <a href="#loop-extract">Extract loops into new functions</a>,
   this pass extracts one natural loop from the program into a function if it
@@ -1415,21 +1313,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="loop-index-split">-loop-index-split: Index Split Loops</a>
-</div>
-<div class="doc_text">
-  <p>
-  This pass divides loop's iteration range by spliting loop such that each 
-  individual loop is executed efficiently.
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="loop-reduce">-loop-reduce: Loop Strength Reduction</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass performs a strength reduction on array references inside loops that
   have as one or more of their components the loop induction variable.  This is
@@ -1440,60 +1327,18 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="loop-rotate">-loop-rotate: Rotate Loops</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>A simple loop rotation transformation.</p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="loop-unroll">-loop-unroll: Unroll loops</a>
-</div>
-<div class="doc_text">
-  <p>
-  This pass implements a simple loop unroller.  It works best when loops have
-  been canonicalized by the <a href="#indvars"><tt>-indvars</tt></a> pass,
-  allowing it to determine the trip counts of loops easily.
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="loop-unswitch">-loop-unswitch: Unswitch loops</a>
-</div>
-<div class="doc_text">
-  <p>
-  This pass transforms loops that contain branches on loop-invariant conditions
-  to have multiple loops.  For example, it turns the left into the right code:
-  </p>
-  
-  <pre
->for (...)                  if (lic)
-  A                          for (...)
-  if (lic)                     A; B; C
-    B                      else
-  C                          for (...)
-                               A; C</pre>
-  
-  <p>
-  This can increase the size of the code exponentially (doubling it every time
-  a loop is unswitched) so we only unswitch if the resultant code will be
-  smaller than a threshold.
-  </p>
-  
-  <p>
-  This pass expects LICM to be run before it to hoist invariant conditions out
-  of the loop, to make the unswitching opportunity obvious.
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="loop-simplify">-loop-simplify: Canonicalize natural loops</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass performs several transformations to transform natural loops into a
   simpler form, which makes subsequent analyses and transformations simpler and
@@ -1531,26 +1376,52 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="lowerallocs">-lowerallocs: Lower allocations from instructions to calls</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="loop-unroll">-loop-unroll: Unroll loops</a>
+</h3>
+<div>
   <p>
-  Turn <tt>malloc</tt> and <tt>free</tt> instructions into <tt>@malloc</tt> and
-  <tt>@free</tt> calls.
-  </p>
-
-  <p>
-  This is a target-dependent tranformation because it depends on the size of
-  data types and alignment constraints.
+  This pass implements a simple loop unroller.  It works best when loops have
+  been canonicalized by the <a href="#indvars"><tt>-indvars</tt></a> pass,
+  allowing it to determine the trip counts of loops easily.
   </p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="loweratomic">-loweratomic: Lower atomic intrinsics</a>
+<h3>
+  <a name="loop-unswitch">-loop-unswitch: Unswitch loops</a>
+</h3>
+<div>
+  <p>
+  This pass transforms loops that contain branches on loop-invariant conditions
+  to have multiple loops.  For example, it turns the left into the right code:
+  </p>
+  
+  <pre
+>for (...)                  if (lic)
+  A                          for (...)
+  if (lic)                     A; B; C
+    B                      else
+  C                          for (...)
+                               A; C</pre>
+  
+  <p>
+  This can increase the size of the code exponentially (doubling it every time
+  a loop is unswitched) so we only unswitch if the resultant code will be
+  smaller than a threshold.
+  </p>
+  
+  <p>
+  This pass expects LICM to be run before it to hoist invariant conditions out
+  of the loop, to make the unswitching opportunity obvious.
+  </p>
 </div>
-<div class="doc_text">
+
+<!-------------------------------------------------------------------------- -->
+<h3>
+  <a name="loweratomic">-loweratomic: Lower atomic intrinsics to non-atomic form</a>
+</h3>
+<div>
   <p>
   This pass lowers atomic intrinsics to non-atomic form for use in a known
   non-preemptible environment.
@@ -1565,10 +1436,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="lowerinvoke">-lowerinvoke: Lower invoke and unwind, for unwindless code generators</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This transformation is designed for use by code generators which do not yet
   support stack unwinding.  This pass supports two models of exception handling
@@ -1606,10 +1477,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="lowersetjmp">-lowersetjmp: Lower Set Jump</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
    Lowers <tt>setjmp</tt> and <tt>longjmp</tt> to use the LLVM invoke and unwind
    instructions as necessary.
@@ -1635,10 +1506,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="lowerswitch">-lowerswitch: Lower SwitchInst's to branches</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Rewrites <tt>switch</tt> instructions with a sequence of branches, which
   allows targets to get away with not implementing the switch instruction until
@@ -1647,10 +1518,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="mem2reg">-mem2reg: Promote Memory to Register</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This file promotes memory references to be register references.  It promotes
   <tt>alloca</tt> instructions which only have <tt>load</tt>s and
@@ -1663,10 +1534,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="memcpyopt">-memcpyopt: Optimize use of memcpy and friend</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="memcpyopt">-memcpyopt: MemCpy Optimization</a>
+</h3>
+<div>
   <p>
   This pass performs various transformations related to eliminating memcpy
   calls, or transforming sets of stores into memset's.
@@ -1674,10 +1545,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="mergefunc">-mergefunc: Merge Functions</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>This pass looks for equivalent functions that are mergable and folds them.
  
   A hash is computed from the function, based on its type and number of
@@ -1695,10 +1566,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="mergereturn">-mergereturn: Unify function exit nodes</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Ensure that functions have at most one <tt>ret</tt> instruction in them.
   Additionally, it keeps track of which node is the new exit node of the CFG.
@@ -1706,36 +1577,20 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="partial-inliner">-partial-inliner: Partial Inliner</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>This pass performs partial inlining, typically by inlining an if 
   statement that surrounds the body of the function.
   </p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="partialspecialization">-partialspecialization: Partial Specialization</a>
-</div>
-<div class="doc_text">
-  <p>This pass finds function arguments that are often a common constant and 
-  specializes a version of the called function for that constant.
- 
-  This pass simply does the cloning for functions it specializes.  It depends
-  on <a href="#ipsccp">IPSCCP</a> and <a href="#deadargelim">DAE</a> to clean up the results.
- 
-  The initial heuristic favors constant arguments that are used in control 
-  flow.
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="prune-eh">-prune-eh: Remove unused exception handling info</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This file implements a simple interprocedural pass which walks the call-graph,
   turning <tt>invoke</tt> instructions into <tt>call</tt> instructions if and
@@ -1745,10 +1600,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="reassociate">-reassociate: Reassociate expressions</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass reassociates commutative expressions in an order that is designed
   to promote better constant propagation, GCSE, LICM, PRE, etc.
@@ -1768,10 +1623,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="reg2mem">-reg2mem: Demote all values to stack slots</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This file demotes all registers to memory references.  It is intented to be
   the inverse of <a href="#mem2reg"><tt>-mem2reg</tt></a>.  By converting to
@@ -1785,10 +1640,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="scalarrepl">-scalarrepl: Scalar Replacement of Aggregates</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="scalarrepl">-scalarrepl: Scalar Replacement of Aggregates (DT)</a>
+</h3>
+<div>
   <p>
   The well-known scalar replacement of aggregates transformation.  This
   transform breaks up <tt>alloca</tt> instructions of aggregate type (structure
@@ -1807,10 +1662,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="sccp">-sccp: Sparse Conditional Constant Propagation</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Sparse conditional constant propagation and merging, which can be summarized
   as:
@@ -1830,20 +1685,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="sink">-sink: Code Sinking</a>
-</div>
-<div class="doc_text">
-  <p>This pass moves instructions into successor blocks, when possible, so that
- they aren't executed on paths where their results aren't needed.
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="simplify-libcalls">-simplify-libcalls: Simplify well-known library calls</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Applies a variety of small optimizations for calls to specific well-known 
   function calls (e.g. runtime library functions). For example, a call
@@ -1853,20 +1698,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="simplify-libcalls-halfpowr">-simplify-libcalls-halfpowr: Simplify half_powr library calls</a>
-</div>
-<div class="doc_text">
-  <p>Simple pass that applies an experimental transformation on calls 
-  to specific functions.
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="simplifycfg">-simplifycfg: Simplify the CFG</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Performs dead code elimination and basic block merging. Specifically:
   </p>
@@ -1882,118 +1717,20 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="split-geps">-split-geps: Split complex GEPs into simple GEPs</a>
-</div>
-<div class="doc_text">
-  <p>This function breaks GEPs with more than 2 non-zero operands into smaller
-  GEPs each with no more than 2 non-zero operands. This exposes redundancy
-  between GEPs with common initial operand sequences.
+<h3>
+  <a name="sink">-sink: Code sinking</a>
+</h3>
+<div>
+  <p>This pass moves instructions into successor blocks, when possible, so that
+ they aren't executed on paths where their results aren't needed.
   </p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="ssi">-ssi: Static Single Information Construction</a>
-</div>
-<div class="doc_text">
-  <p>This pass converts a list of variables to the Static Single Information
-  form. 
- 
-  We are building an on-demand representation, that is, we do not convert
-  every single variable in the target function to SSI form. Rather, we receive
-  a list of target variables that must be converted. We also do not
-  completely convert a target variable to the SSI format. Instead, we only
-  change the variable in the points where new information can be attached
-  to its live range, that is, at branch points.
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="ssi-everything">-ssi-everything: Static Single Information Construction (everything, intended for debugging)</a>
-</div>
-<div class="doc_text">
-  <p>A pass that runs <a href="#ssi">SSI</a> on every non-void variable, intended for debugging.
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="strip">-strip: Strip all symbols from a module</a>
-</div>
-<div class="doc_text">
-  <p>
-  performs code stripping. this transformation can delete:
-  </p>
-  
-  <ol>
-    <li>names for virtual registers</li>
-    <li>symbols for internal globals and functions</li>
-    <li>debug information</li>
-  </ol>
-  
-  <p>
-  note that this transformation makes code much less readable, so it should
-  only be used in situations where the <tt>strip</tt> utility would be used,
-  such as reducing code size or making it harder to reverse engineer code.
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="strip-dead-prototypes">-strip-dead-prototypes: Remove unused function declarations</a>
-</div>
-<div class="doc_text">
-  <p>
-  This pass loops over all of the functions in the input module, looking for
-  dead declarations and removes them. Dead declarations are declarations of
-  functions for which no implementation is available (i.e., declarations for
-  unused library functions).
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="strip-debug-declare">-strip-debug-declare: Strip all llvm.dbg.declare intrinsics</a>
-</div>
-<div class="doc_text">
-  <p>This pass implements code stripping. Specifically, it can delete:</p>
-  <ul>
-  <li>names for virtual registers</li>
-  <li>symbols for internal globals and functions</li>
-  <li>debug information</li>
-  </ul>
-  <p>
-  Note that this transformation makes code much less readable, so it should
-  only be used in situations where the 'strip' utility would be used, such as
-  reducing code size or making it harder to reverse engineer code.
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="strip-nondebug">-strip-nondebug: Strip all symbols, except dbg symbols, from a module</a>
-</div>
-<div class="doc_text">
-  <p>This pass implements code stripping. Specifically, it can delete:</p>
-  <ul>
-  <li>names for virtual registers</li>
-  <li>symbols for internal globals and functions</li>
-  <li>debug information</li>
-  </ul>
-  <p>
-  Note that this transformation makes code much less readable, so it should
-  only be used in situations where the 'strip' utility would be used, such as
-  reducing code size or making it harder to reverse engineer code.
-  </p>
-</div>
-
-<!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="sretpromotion">-sretpromotion: Promote sret arguments</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="sretpromotion">-sretpromotion: Promote sret arguments to multiple ret values</a>
+</h3>
+<div>
   <p>
   This pass finds functions that return a struct (using a pointer to the struct
   as the first argument of the function, marked with the '<tt>sret</tt>' attribute) and
@@ -2013,10 +1750,103 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="tailcallelim">-tailcallelim: Tail Call Elimination</a>
+<h3>
+  <a name="strip">-strip: Strip all symbols from a module</a>
+</h3>
+<div>
+  <p>
+  performs code stripping. this transformation can delete:
+  </p>
+  
+  <ol>
+    <li>names for virtual registers</li>
+    <li>symbols for internal globals and functions</li>
+    <li>debug information</li>
+  </ol>
+  
+  <p>
+  note that this transformation makes code much less readable, so it should
+  only be used in situations where the <tt>strip</tt> utility would be used,
+  such as reducing code size or making it harder to reverse engineer code.
+  </p>
 </div>
-<div class="doc_text">
+
+<!-------------------------------------------------------------------------- -->
+<h3>
+  <a name="strip-dead-debug-info">-strip-dead-debug-info: Strip debug info for unused symbols</a>
+</h3>
+<div>
+  <p>
+  performs code stripping. this transformation can delete:
+  </p>
+  
+  <ol>
+    <li>names for virtual registers</li>
+    <li>symbols for internal globals and functions</li>
+    <li>debug information</li>
+  </ol>
+  
+  <p>
+  note that this transformation makes code much less readable, so it should
+  only be used in situations where the <tt>strip</tt> utility would be used,
+  such as reducing code size or making it harder to reverse engineer code.
+  </p>
+</div>
+
+<!-------------------------------------------------------------------------- -->
+<h3>
+  <a name="strip-dead-prototypes">-strip-dead-prototypes: Strip Unused Function Prototypes</a>
+</h3>
+<div>
+  <p>
+  This pass loops over all of the functions in the input module, looking for
+  dead declarations and removes them. Dead declarations are declarations of
+  functions for which no implementation is available (i.e., declarations for
+  unused library functions).
+  </p>
+</div>
+
+<!-------------------------------------------------------------------------- -->
+<h3>
+  <a name="strip-debug-declare">-strip-debug-declare: Strip all llvm.dbg.declare intrinsics</a>
+</h3>
+<div>
+  <p>This pass implements code stripping. Specifically, it can delete:</p>
+  <ul>
+  <li>names for virtual registers</li>
+  <li>symbols for internal globals and functions</li>
+  <li>debug information</li>
+  </ul>
+  <p>
+  Note that this transformation makes code much less readable, so it should
+  only be used in situations where the 'strip' utility would be used, such as
+  reducing code size or making it harder to reverse engineer code.
+  </p>
+</div>
+
+<!-------------------------------------------------------------------------- -->
+<h3>
+  <a name="strip-nondebug">-strip-nondebug: Strip all symbols, except dbg symbols, from a module</a>
+</h3>
+<div>
+  <p>This pass implements code stripping. Specifically, it can delete:</p>
+  <ul>
+  <li>names for virtual registers</li>
+  <li>symbols for internal globals and functions</li>
+  <li>debug information</li>
+  </ul>
+  <p>
+  Note that this transformation makes code much less readable, so it should
+  only be used in situations where the 'strip' utility would be used, such as
+  reducing code size or making it harder to reverse engineer code.
+  </p>
+</div>
+
+<!-------------------------------------------------------------------------- -->
+<h3>
+  <a name="tailcallelim">-tailcallelim: Tail Call Elimination</a>
+</h3>
+<div>
   <p>
   This file transforms calls of the current function (self recursion) followed
   by a return instruction with a branch to the entry of the function, creating
@@ -2045,10 +1875,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="tailduplicate">-tailduplicate: Tail Duplication</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass performs a limited form of tail duplication, intended to simplify
   CFGs by removing some unconditional branches.  This pass is necessary to
@@ -2058,17 +1888,18 @@ if (X &lt; 3) {</pre>
   </p>
 </div>
 
-<!-- ======================================================================= -->
-<div class="doc_section"> <a name="transform">Utility Passes</a></div>
-<div class="doc_text">
-  <p>This section describes the LLVM Utility Passes.</p>
 </div>
 
+<!-- ======================================================================= -->
+<h2><a name="utilities">Utility Passes</a></h2>
+<div>
+  <p>This section describes the LLVM Utility Passes.</p>
+
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="deadarghaX0r">-deadarghaX0r: Dead Argument Hacking (BUGPOINT USE ONLY; DO NOT USE)</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Same as dead argument elimination, but deletes arguments to functions which
   are external.  This is only for use by <a
@@ -2076,20 +1907,20 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="extract-blocks">-extract-blocks: Extract Basic Blocks From Module (for bugpoint use)</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   This pass is used by bugpoint to extract all blocks from the module into their
   own functions.</p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="instnamer">-instnamer: Assign names to anonymous instructions</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>This is a little utility pass that gives instructions names, this is mostly
  useful when diffing the effect of an optimization because deleting an
  unnamed instruction can change all other instruction numbering, making the
@@ -2098,10 +1929,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="preverify">-preverify: Preliminary module verification</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Ensures that the module is in the form required by the <a
   href="#verifier">Module Verifier</a> pass.
@@ -2114,10 +1945,10 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="verify">-verify: Module Verifier</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Verifies an LLVM IR code. This is useful to run after an optimization which is
   undergoing testing. Note that <tt>llvm-as</tt> verifies its input before
@@ -2165,20 +1996,20 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="view-cfg">-view-cfg: View CFG of function</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Displays the control flow graph using the GraphViz tool.
   </p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
+<h3>
   <a name="view-cfg-only">-view-cfg-only: View CFG of function (with no function bodies)</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>
   Displays the control flow graph using the GraphViz tool, but omitting function
   bodies.
@@ -2186,22 +2017,20 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="view-dom">-view-dom: View dominator tree of function</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="view-dom">-view-dom: View dominance tree of function</a>
+</h3>
+<div>
   <p>
   Displays the dominator tree using the GraphViz tool.
   </p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="view-dom-only">-view-dom-only: View dominator tree of function (with no function
-  bodies)
-  </a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="view-dom-only">-view-dom-only: View dominance tree of function (with no function bodies)</a>
+</h3>
+<div>
   <p>
   Displays the dominator tree using the GraphViz tool, but omitting function
   bodies.
@@ -2209,26 +2038,26 @@ if (X &lt; 3) {</pre>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="view-postdom">-view-postdom: View post dominator tree of function</a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="view-postdom">-view-postdom: View postdominance tree of function</a>
+</h3>
+<div>
   <p>
   Displays the post dominator tree using the GraphViz tool.
   </p>
 </div>
 
 <!-------------------------------------------------------------------------- -->
-<div class="doc_subsection">
-  <a name="view-postdom-only">-view-postdom-only: View post dominator tree of function (with no
-  function bodies)
-  </a>
-</div>
-<div class="doc_text">
+<h3>
+  <a name="view-postdom-only">-view-postdom-only: View postdominance tree of function (with no function bodies)</a>
+</h3>
+<div>
   <p>
   Displays the post dominator tree using the GraphViz tool, but omitting
   function bodies.
   </p>
+</div>
+
 </div>
 
 <!-- *********************************************************************** -->
@@ -2241,8 +2070,8 @@ if (X &lt; 3) {</pre>
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
 
   <a href="mailto:rspencer@x10sys.com">Reid Spencer</a><br>
-  <a href="http://llvm.org">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2011-02-13 21:57:25 +0100 (Sun, 13 Feb 2011) $
+  <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
+  Last modified: $Date: 2011-04-23 02:30:22 +0200 (Sat, 23 Apr 2011) $
 </address>
 
 </body>

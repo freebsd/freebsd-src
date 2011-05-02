@@ -40,5 +40,37 @@ entry:
   ret double %1
 }
 
+; rdar://9059537
+define i32 @test4() ssp {
+entry:
+; SOFT: test4:
+; SOFT: vmov.f64 [[REG4:(d[0-9]+)]], #1.000000e+00
+; This S-reg must be the first sub-reg of the last D-reg on vbsl.
+; SOFT: vcvt.f32.f64 {{s1?[02468]}}, [[REG4]]
+; SOFT: vshr.u64 [[REG4]], [[REG4]], #32
+; SOFT: vmov.i32 [[REG5:(d[0-9]+)]], #0x80000000
+; SOFT: vbsl [[REG5]], [[REG4]], {{d[0-9]+}}
+  %call80 = tail call double @copysign(double 1.000000e+00, double undef)
+  %conv81 = fptrunc double %call80 to float
+  %tmp88 = bitcast float %conv81 to i32
+  ret i32 %tmp88
+}
+
+; rdar://9287902
+define float @test5() nounwind {
+entry:
+; SOFT: test5:
+; SOFT: vmov.i32 [[REG6:(d[0-9]+)]], #0x80000000
+; SOFT: vmov [[REG7:(d[0-9]+)]], r0, r1
+; SOFT: vshr.u64 [[REG7]], [[REG7]], #32
+; SOFT: vbsl [[REG6]], [[REG7]], 
+  %0 = tail call double (...)* @bar() nounwind
+  %1 = fptrunc double %0 to float
+  %2 = tail call float @copysignf(float 5.000000e-01, float %1) nounwind readnone
+  %3 = fadd float %1, %2
+  ret float %3
+}
+
+declare double @bar(...)
 declare double @copysign(double, double) nounwind
 declare float @copysignf(float, float) nounwind

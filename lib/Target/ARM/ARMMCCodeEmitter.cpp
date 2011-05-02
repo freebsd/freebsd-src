@@ -278,6 +278,15 @@ public:
   unsigned getAddrMode6OffsetOpValue(const MCInst &MI, unsigned Op,
                                      SmallVectorImpl<MCFixup> &Fixups) const;
 
+  unsigned getShiftRight8Imm(const MCInst &MI, unsigned Op,
+                             SmallVectorImpl<MCFixup> &Fixups) const;
+  unsigned getShiftRight16Imm(const MCInst &MI, unsigned Op,
+                              SmallVectorImpl<MCFixup> &Fixups) const;
+  unsigned getShiftRight32Imm(const MCInst &MI, unsigned Op,
+                              SmallVectorImpl<MCFixup> &Fixups) const;
+  unsigned getShiftRight64Imm(const MCInst &MI, unsigned Op,
+                              SmallVectorImpl<MCFixup> &Fixups) const;
+
   unsigned NEONThumb2DataIPostEncoder(const MCInst &MI,
                                       unsigned EncodedValue) const;
   unsigned NEONThumb2LoadStorePostEncoder(const MCInst &MI,
@@ -1199,6 +1208,30 @@ getAddrMode6OffsetOpValue(const MCInst &MI, unsigned Op,
   const MCOperand &MO = MI.getOperand(Op);
   if (MO.getReg() == 0) return 0x0D;
   return MO.getReg();
+}
+
+unsigned ARMMCCodeEmitter::
+getShiftRight8Imm(const MCInst &MI, unsigned Op,
+                  SmallVectorImpl<MCFixup> &Fixups) const {
+  return 8 - MI.getOperand(Op).getImm();
+}
+
+unsigned ARMMCCodeEmitter::
+getShiftRight16Imm(const MCInst &MI, unsigned Op,
+                   SmallVectorImpl<MCFixup> &Fixups) const {
+  return 16 - MI.getOperand(Op).getImm();
+}
+
+unsigned ARMMCCodeEmitter::
+getShiftRight32Imm(const MCInst &MI, unsigned Op,
+                   SmallVectorImpl<MCFixup> &Fixups) const {
+  return 32 - MI.getOperand(Op).getImm();
+}
+
+unsigned ARMMCCodeEmitter::
+getShiftRight64Imm(const MCInst &MI, unsigned Op,
+                   SmallVectorImpl<MCFixup> &Fixups) const {
+  return 64 - MI.getOperand(Op).getImm();
 }
 
 void ARMMCCodeEmitter::

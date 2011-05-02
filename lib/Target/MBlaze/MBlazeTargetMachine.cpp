@@ -36,19 +36,18 @@ static MCStreamer *createMCStreamer(const Target &T, const std::string &TT,
                                     bool RelaxAll,
                                     bool NoExecStack) {
   Triple TheTriple(TT);
-  switch (TheTriple.getOS()) {
-  case Triple::Darwin:
+
+  if (TheTriple.isOSDarwin()) {
     llvm_unreachable("MBlaze does not support Darwin MACH-O format");
     return NULL;
-  case Triple::MinGW32:
-  case Triple::Cygwin:
-  case Triple::Win32:
+  }
+
+  if (TheTriple.isOSWindows()) {
     llvm_unreachable("MBlaze does not support Windows COFF format");
     return NULL;
-  default:
-    return createELFStreamer(Ctx, TAB, _OS, _Emitter, RelaxAll,
-                             NoExecStack);
   }
+
+  return createELFStreamer(Ctx, TAB, _OS, _Emitter, RelaxAll, NoExecStack);
 }
 
 
@@ -87,7 +86,8 @@ MBlazeTargetMachine(const Target &T, const std::string &TT,
   DataLayout("E-p:32:32:32-i8:8:8-i16:16:16"),
   InstrInfo(*this),
   FrameLowering(Subtarget),
-  TLInfo(*this), TSInfo(*this), ELFWriterInfo(*this) {
+  TLInfo(*this), TSInfo(*this), ELFWriterInfo(*this),
+  InstrItins(Subtarget.getInstrItineraryData()) {
   if (getRelocationModel() == Reloc::Default) {
       setRelocationModel(Reloc::Static);
   }

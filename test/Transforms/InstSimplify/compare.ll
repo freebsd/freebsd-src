@@ -137,18 +137,34 @@ define i1 @shl(i32 %x) {
 ; CHECK: ret i1 false
 }
 
-define i1 @lshr(i32 %x) {
-; CHECK: @lshr
+define i1 @lshr1(i32 %x) {
+; CHECK: @lshr1
   %s = lshr i32 -1, %x
   %c = icmp eq i32 %s, 0
   ret i1 %c
 ; CHECK: ret i1 false
 }
 
-define i1 @ashr(i32 %x) {
-; CHECK: @ashr
+define i1 @lshr2(i32 %x) {
+; CHECK: @lshr2
+  %s = lshr i32 %x, 30
+  %c = icmp ugt i32 %s, 8
+  ret i1 %c
+; CHECK: ret i1 false
+}
+
+define i1 @ashr1(i32 %x) {
+; CHECK: @ashr1
   %s = ashr i32 -1, %x
   %c = icmp eq i32 %s, 0
+  ret i1 %c
+; CHECK: ret i1 false
+}
+
+define i1 @ashr2(i32 %x) {
+; CHECK: @ashr2
+  %s = ashr i32 %x, 30
+  %c = icmp slt i32 %s, -5
   ret i1 %c
 ; CHECK: ret i1 false
 }
@@ -186,4 +202,135 @@ define i1 @select4(i1 %cond) {
   %c = icmp ne i32 %s, 0
   ret i1 %c
 ; CHECK: ret i1 %cond
+}
+
+define i1 @urem1(i32 %X, i32 %Y) {
+; CHECK: @urem1
+  %A = urem i32 %X, %Y
+  %B = icmp ult i32 %A, %Y
+  ret i1 %B
+; CHECK: ret i1 true
+}
+
+define i1 @urem2(i32 %X, i32 %Y) {
+; CHECK: @urem2
+  %A = urem i32 %X, %Y
+  %B = icmp eq i32 %A, %Y
+  ret i1 %B
+; CHECK: ret i1 false
+}
+
+define i1 @urem3(i32 %X) {
+; CHECK: @urem3
+  %A = urem i32 %X, 10
+  %B = icmp ult i32 %A, 15
+  ret i1 %B
+; CHECK: ret i1 true
+}
+
+define i1 @urem4(i32 %X) {
+; CHECK: @urem4
+  %A = urem i32 %X, 15
+  %B = icmp ult i32 %A, 10
+  ret i1 %B
+; CHECK: ret i1 %B
+}
+
+define i1 @urem5(i16 %X, i32 %Y) {
+; CHECK: @urem5
+  %A = zext i16 %X to i32
+  %B = urem i32 %A, %Y
+  %C = icmp slt i32 %B, %Y
+  ret i1 %C
+; CHECK: ret i1 true
+}
+
+define i1 @urem6(i32 %X, i32 %Y) {
+; CHECK: @urem6
+  %A = urem i32 %X, %Y
+  %B = icmp ugt i32 %Y, %A
+  ret i1 %B
+; CHECK: ret i1 true
+}
+
+define i1 @srem1(i32 %X) {
+; CHECK: @srem1
+  %A = srem i32 %X, -5
+  %B = icmp sgt i32 %A, 5
+  ret i1 %B
+; CHECK: ret i1 false
+}
+
+; PR9343 #15
+; CHECK: @srem2
+; CHECK: ret i1 false
+define i1 @srem2(i16 %X, i32 %Y) {
+  %A = zext i16 %X to i32
+  %B = add nsw i32 %A, 1
+  %C = srem i32 %B, %Y
+  %D = icmp slt i32 %C, 0
+  ret i1 %D
+}
+
+; CHECK: @srem3
+; CHECK-NEXT: ret i1 false
+define i1 @srem3(i16 %X, i32 %Y) {
+  %A = zext i16 %X to i32
+  %B = or i32 2147483648, %A
+  %C = sub nsw i32 1, %B
+  %D = srem i32 %C, %Y
+  %E = icmp slt i32 %D, 0
+  ret i1 %E
+}
+
+; CHECK: @srem4
+; CHECK-NEXT: ret i1 false
+define i1 @srem4(i16 %X, i32 %Y) {
+  %A = zext i16 %X to i32
+  %B = or i32 2147483648, %A
+  %C = sub nsw i32 %A, %B
+  %D = srem i32 %C, %Y
+  %E = icmp slt i32 %D, 0
+  ret i1 %E
+}
+
+define i1 @udiv1(i32 %X) {
+; CHECK: @udiv1
+  %A = udiv i32 %X, 1000000
+  %B = icmp ult i32 %A, 5000
+  ret i1 %B
+; CHECK: ret i1 true
+}
+
+define i1 @udiv2(i32 %X, i32 %Y, i32 %Z) {
+; CHECK: @udiv2
+  %A = udiv exact i32 10, %Z
+  %B = udiv exact i32 20, %Z
+  %C = icmp ult i32 %A, %B
+  ret i1 %C
+; CHECK: ret i1 true
+}
+
+define i1 @sdiv1(i32 %X) {
+; CHECK: @sdiv1
+  %A = sdiv i32 %X, 1000000
+  %B = icmp slt i32 %A, 3000
+  ret i1 %B
+; CHECK: ret i1 true
+}
+
+define i1 @or1(i32 %X) {
+; CHECK: @or1
+  %A = or i32 %X, 62
+  %B = icmp ult i32 %A, 50
+  ret i1 %B
+; CHECK: ret i1 false
+}
+
+define i1 @and1(i32 %X) {
+; CHECK: @and1
+  %A = and i32 %X, 62
+  %B = icmp ugt i32 %A, 70
+  ret i1 %B
+; CHECK: ret i1 false
 }
