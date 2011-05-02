@@ -140,6 +140,9 @@ public:
   const MCSection *getStaticDtorSection() const { return StaticDtorSection; }
   const MCSection *getLSDASection() const { return LSDASection; }
   virtual const MCSection *getEHFrameSection() const = 0;
+  virtual void emitPersonalityValue(MCStreamer &Streamer,
+                                    const TargetMachine &TM,
+                                    const MCSymbol *Sym) const;
   const MCSection *getDwarfAbbrevSection() const { return DwarfAbbrevSection; }
   const MCSection *getDwarfInfoSection() const { return DwarfInfoSection; }
   const MCSection *getDwarfLineSection() const { return DwarfLineSection; }
@@ -218,15 +221,19 @@ public:
                                  MachineModuleInfo *MMI, unsigned Encoding,
                                  MCStreamer &Streamer) const;
 
+  // getCFIPersonalitySymbol - The symbol that gets passed to .cfi_personality.
+  virtual MCSymbol *
+  getCFIPersonalitySymbol(const GlobalValue *GV, Mangler *Mang,
+                          MachineModuleInfo *MMI) const;
+
   /// 
   const MCExpr *
-  getExprForDwarfReference(const MCSymbol *Sym, Mangler *Mang,
-                           MachineModuleInfo *MMI, unsigned Encoding,
+  getExprForDwarfReference(const MCSymbol *Sym, unsigned Encoding,
                            MCStreamer &Streamer) const;
   
   virtual unsigned getPersonalityEncoding() const;
   virtual unsigned getLSDAEncoding() const;
-  virtual unsigned getFDEEncoding() const;
+  virtual unsigned getFDEEncoding(bool CFI) const;
   virtual unsigned getTTypeEncoding() const;
 
 protected:

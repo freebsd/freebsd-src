@@ -31,20 +31,14 @@ namespace llvm {
 
       // Get the Higher 16 bits from a 32-bit immediate
       // No relation with Mips Hi register
-      Hi, 
+      Hi,
 
       // Get the Lower 16 bits from a 32-bit immediate
       // No relation with Mips Lo register
-      Lo, 
+      Lo,
 
       // Handle gp_rel (small data/bss sections) relocation.
       GPRel,
-
-      // Select CC Pseudo Instruction
-      SelectCC,
-
-      // Floating Point Select CC Pseudo Instruction
-      FPSelectCC,
 
       // Floating Point Branch Conditional
       FPBrcond,
@@ -52,24 +46,35 @@ namespace llvm {
       // Floating Point Compare
       FPCmp,
 
+      // Floating Point Conditional Moves
+      CMovFP_T,
+      CMovFP_F,
+
       // Floating Point Rounding
       FPRound,
 
-      // Return 
+      // Return
       Ret,
 
       // MAdd/Sub nodes
       MAdd,
       MAddu,
       MSub,
-      MSubu
+      MSubu,
+
+      // DivRem(u)
+      DivRem,
+      DivRemU,
+
+      BuildPairF64,
+      ExtractElementF64
     };
   }
 
   //===--------------------------------------------------------------------===//
   // TargetLowering Implementation
   //===--------------------------------------------------------------------===//
-  
+
   class MipsTargetLowering : public TargetLowering  {
   public:
     explicit MipsTargetLowering(MipsTargetMachine &TM);
@@ -77,7 +82,7 @@ namespace llvm {
     /// LowerOperation - Provide custom lowering hooks for some operations.
     virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const;
 
-    /// getTargetNodeName - This method returns the name of a target specific 
+    /// getTargetNodeName - This method returns the name of a target specific
     //  DAG node.
     virtual const char *getTargetNodeName(unsigned Opcode) const;
 
@@ -87,7 +92,7 @@ namespace llvm {
     /// getFunctionAlignment - Return the Log2 alignment of this function.
     virtual unsigned getFunctionAlignment(const Function *F) const;
 
-    virtual SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const; 
+    virtual SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const;
   private:
     // Subtarget Info
     const MipsSubtarget *Subtarget;
@@ -101,16 +106,15 @@ namespace llvm {
                             SmallVectorImpl<SDValue> &InVals) const;
 
     // Lower Operand specifics
-    SDValue LowerANDOR(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerBRCOND(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerConstantPool(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerDYNAMIC_STACKALLOC(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerFP_TO_SINT(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerBlockAddress(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerJumpTable(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerSELECT(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerVASTART(SDValue Op, SelectionDAG &DAG) const;
 
     virtual SDValue
@@ -149,7 +153,7 @@ namespace llvm {
     ConstraintWeight getSingleConstraintMatchWeight(
       AsmOperandInfo &info, const char *constraint) const;
 
-    std::pair<unsigned, const TargetRegisterClass*> 
+    std::pair<unsigned, const TargetRegisterClass*>
               getRegForInlineAsmConstraint(const std::string &Constraint,
               EVT VT) const;
 

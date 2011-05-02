@@ -21,6 +21,7 @@
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Module.h"
+#include "llvm/Operator.h"
 #include "llvm/Pass.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
@@ -54,6 +55,7 @@ STATISTIC(NumCtorsEvaluated, "Number of static ctors evaluated");
 STATISTIC(NumNestRemoved   , "Number of nest attributes removed");
 STATISTIC(NumAliasesResolved, "Number of global aliases resolved");
 STATISTIC(NumAliasesRemoved, "Number of global aliases eliminated");
+STATISTIC(NumCXXDtorsRemoved, "Number of global C++ destructors removed");
 
 namespace {
   struct GlobalStatus;
@@ -77,6 +79,7 @@ namespace {
     bool ProcessInternalGlobal(GlobalVariable *GV,Module::global_iterator &GVI,
                                const SmallPtrSet<const PHINode*, 16> &PHIUsers,
                                const GlobalStatus &GS);
+    bool OptimizeEmptyGlobalCXXDtors(Function *CXAAtExitFn);
   };
 }
 
@@ -1191,9 +1194,11 @@ static Value *GetHeapSROAValue(Value *V, unsigned FieldNo,
     const StructType *ST =
       cast<StructType>(cast<PointerType>(PN->getType())->getElementType());
 
-    Result =
+    PHINode *NewPN =
      PHINode::Create(PointerType::getUnqual(ST->getElementType(FieldNo)),
+                     PN->getNumIncomingValues(),
                      PN->getName()+".f"+Twine(FieldNo), PN);
+    Result = NewPN;
     PHIsToRewrite.push_back(std::make_pair(PN, FieldNo));
   } else {
     llvm_unreachable("Unknown usable value");
@@ -1940,36 +1945,24 @@ bool GlobalOpt::OptimizeGlobalVars(Module &M) {
   return Changed;
 }
 
-/// FindGlobalCtors - Find the llvm.globalctors list, verifying that all
+/// FindGlobalCtors - Find the llvm.global_ctors list, verifying that all
 /// initializers have an init priority of 65535.
 GlobalVariable *GlobalOpt::FindGlobalCtors(Module &M) {
   GlobalVariable *GV = M.getGlobalVariable("llvm.global_ctors");
   if (GV == 0) return 0;
   
-  // Found it, verify it's an array of { int, void()* }.
-  const ArrayType *ATy =dyn_cast<ArrayType>(GV->getType()->getElementType());
-  if (!ATy) return 0;
-  const StructType *STy = dyn_cast<StructType>(ATy->getElementType());
-  if (!STy || STy->getNumElements() != 2 ||
-      !STy->getElementType(0)->isIntegerTy(32)) return 0;
-  const PointerType *PFTy = dyn_cast<PointerType>(STy->getElementType(1));
-  if (!PFTy) return 0;
-  const FunctionType *FTy = dyn_cast<FunctionType>(PFTy->getElementType());
-  if (!FTy || !FTy->getReturnType()->isVoidTy() ||
-      FTy->isVarArg() || FTy->getNumParams() != 0)
-    return 0;
-
   // Verify that the initializer is simple enough for us to handle. We are
   // only allowed to optimize the initializer if it is unique.
   if (!GV->hasUniqueInitializer()) return 0;
-  
-  ConstantArray *CA = dyn_cast<ConstantArray>(GV->getInitializer());
-  if (!CA) return 0;
-  
+
+  if (isa<ConstantAggregateZero>(GV->getInitializer()))
+    return GV;
+  ConstantArray *CA = cast<ConstantArray>(GV->getInitializer());
+
   for (User::op_iterator i = CA->op_begin(), e = CA->op_end(); i != e; ++i) {
-    ConstantStruct *CS = dyn_cast<ConstantStruct>(*i);
-    if (CS == 0) return 0;
-    
+    if (isa<ConstantAggregateZero>(*i))
+      continue;
+    ConstantStruct *CS = cast<ConstantStruct>(*i);
     if (isa<ConstantPointerNull>(CS->getOperand(1)))
       continue;
 
@@ -1978,8 +1971,8 @@ GlobalVariable *GlobalOpt::FindGlobalCtors(Module &M) {
       return 0;
 
     // Init priority must be standard.
-    ConstantInt *CI = dyn_cast<ConstantInt>(CS->getOperand(0));
-    if (!CI || CI->getZExtValue() != 65535)
+    ConstantInt *CI = cast<ConstantInt>(CS->getOperand(0));
+    if (CI->getZExtValue() != 65535)
       return 0;
   }
 
@@ -1989,6 +1982,8 @@ GlobalVariable *GlobalOpt::FindGlobalCtors(Module &M) {
 /// ParseGlobalCtors - Given a llvm.global_ctors list that we can understand,
 /// return a list of the functions and null terminator as a vector.
 static std::vector<Function*> ParseGlobalCtors(GlobalVariable *GV) {
+  if (GV->getInitializer()->isNullValue())
+    return std::vector<Function*>();
   ConstantArray *CA = cast<ConstantArray>(GV->getInitializer());
   std::vector<Function*> Result;
   Result.reserve(CA->getNumOperands());
@@ -2019,7 +2014,7 @@ static GlobalVariable *InstallGlobalCtors(GlobalVariable *GCL,
       const PointerType *PFTy = PointerType::getUnqual(FTy);
       CSVals[1] = Constant::getNullValue(PFTy);
       CSVals[0] = ConstantInt::get(Type::getInt32Ty(GCL->getContext()),
-                                   2147483647);
+                                   0x7fffffff);
     }
     CAList.push_back(ConstantStruct::get(GCL->getContext(), CSVals, false));
   }
@@ -2696,11 +2691,125 @@ bool GlobalOpt::OptimizeGlobalAliases(Module &M) {
   return Changed;
 }
 
+static Function *FindCXAAtExit(Module &M) {
+  Function *Fn = M.getFunction("__cxa_atexit");
+  
+  if (!Fn)
+    return 0;
+  
+  const FunctionType *FTy = Fn->getFunctionType();
+  
+  // Checking that the function has the right return type, the right number of 
+  // parameters and that they all have pointer types should be enough.
+  if (!FTy->getReturnType()->isIntegerTy() ||
+      FTy->getNumParams() != 3 ||
+      !FTy->getParamType(0)->isPointerTy() ||
+      !FTy->getParamType(1)->isPointerTy() ||
+      !FTy->getParamType(2)->isPointerTy())
+    return 0;
+
+  return Fn;
+}
+
+/// cxxDtorIsEmpty - Returns whether the given function is an empty C++
+/// destructor and can therefore be eliminated.
+/// Note that we assume that other optimization passes have already simplified
+/// the code so we only look for a function with a single basic block, where
+/// the only allowed instructions are 'ret' or 'call' to empty C++ dtor.
+static bool cxxDtorIsEmpty(const Function &Fn,
+                           SmallPtrSet<const Function *, 8> &CalledFunctions) {
+  // FIXME: We could eliminate C++ destructors if they're readonly/readnone and
+  // nounwind, but that doesn't seem worth doing.
+  if (Fn.isDeclaration())
+    return false;
+
+  if (++Fn.begin() != Fn.end())
+    return false;
+
+  const BasicBlock &EntryBlock = Fn.getEntryBlock();
+  for (BasicBlock::const_iterator I = EntryBlock.begin(), E = EntryBlock.end();
+       I != E; ++I) {
+    if (const CallInst *CI = dyn_cast<CallInst>(I)) {
+      // Ignore debug intrinsics.
+      if (isa<DbgInfoIntrinsic>(CI))
+        continue;
+
+      const Function *CalledFn = CI->getCalledFunction();
+
+      if (!CalledFn)
+        return false;
+
+      SmallPtrSet<const Function *, 8> NewCalledFunctions(CalledFunctions);
+
+      // Don't treat recursive functions as empty.
+      if (!NewCalledFunctions.insert(CalledFn))
+        return false;
+
+      if (!cxxDtorIsEmpty(*CalledFn, NewCalledFunctions))
+        return false;
+    } else if (isa<ReturnInst>(*I))
+      return true;
+    else
+      return false;
+  }
+
+  return false;
+}
+
+bool GlobalOpt::OptimizeEmptyGlobalCXXDtors(Function *CXAAtExitFn) {
+  /// Itanium C++ ABI p3.3.5:
+  ///
+  ///   After constructing a global (or local static) object, that will require
+  ///   destruction on exit, a termination function is registered as follows:
+  ///
+  ///   extern "C" int __cxa_atexit ( void (*f)(void *), void *p, void *d );
+  ///
+  ///   This registration, e.g. __cxa_atexit(f,p,d), is intended to cause the
+  ///   call f(p) when DSO d is unloaded, before all such termination calls
+  ///   registered before this one. It returns zero if registration is
+  ///   successful, nonzero on failure.
+
+  // This pass will look for calls to __cxa_atexit where the function is trivial
+  // and remove them.
+  bool Changed = false;
+
+  for (Function::use_iterator I = CXAAtExitFn->use_begin(), 
+       E = CXAAtExitFn->use_end(); I != E;) {
+    // We're only interested in calls. Theoretically, we could handle invoke
+    // instructions as well, but neither llvm-gcc nor clang generate invokes
+    // to __cxa_atexit.
+    CallInst *CI = dyn_cast<CallInst>(*I++);
+    if (!CI)
+      continue;
+
+    Function *DtorFn = 
+      dyn_cast<Function>(CI->getArgOperand(0)->stripPointerCasts());
+    if (!DtorFn)
+      continue;
+
+    SmallPtrSet<const Function *, 8> CalledFunctions;
+    if (!cxxDtorIsEmpty(*DtorFn, CalledFunctions))
+      continue;
+
+    // Just remove the call.
+    CI->replaceAllUsesWith(Constant::getNullValue(CI->getType()));
+    CI->eraseFromParent();
+
+    ++NumCXXDtorsRemoved;
+
+    Changed |= true;
+  }
+
+  return Changed;
+}
+
 bool GlobalOpt::runOnModule(Module &M) {
   bool Changed = false;
 
   // Try to find the llvm.globalctors list.
   GlobalVariable *GlobalCtors = FindGlobalCtors(M);
+
+  Function *CXAAtExitFn = FindCXAAtExit(M);
 
   bool LocalChange = true;
   while (LocalChange) {
@@ -2718,6 +2827,11 @@ bool GlobalOpt::runOnModule(Module &M) {
 
     // Resolve aliases, when possible.
     LocalChange |= OptimizeGlobalAliases(M);
+
+    // Try to remove trivial global destructors.
+    if (CXAAtExitFn)
+      LocalChange |= OptimizeEmptyGlobalCXXDtors(CXAAtExitFn);
+
     Changed |= LocalChange;
   }
 

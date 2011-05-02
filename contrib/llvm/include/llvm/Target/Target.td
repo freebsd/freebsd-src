@@ -32,17 +32,6 @@ class Register<string n> {
   string Namespace = "";
   string AsmName = n;
 
-  // SpillSize - If this value is set to a non-zero value, it is the size in
-  // bits of the spill slot required to hold this register.  If this value is
-  // set to zero, the information is inferred from any register classes the
-  // register belongs to.
-  int SpillSize = 0;
-
-  // SpillAlignment - This value is used to specify the alignment required for
-  // spilling the register.  Like SpillSize, this should only be explicitly
-  // specified if the register is not in a register class.
-  int SpillAlignment = 0;
-
   // Aliases - A list of registers that this register overlaps with.  A read or
   // modification of this register can potentially read or modify the aliased
   // registers.
@@ -78,6 +67,13 @@ class Register<string n> {
   // -1 indicates that the gcc number is undefined and -2 that register number
   // is invalid for this mode/flavour.
   list<int> DwarfNumbers = [];
+
+  // CostPerUse - Additional cost of instructions using this register compared
+  // to other registers in its class. The register allocator will try to
+  // minimize the number of instructions using a register with a CostPerUse.
+  // This is used by the x86-64 and ARM Thumb targets where some registers 
+  // require larger instruction encodings.
+  int CostPerUse = 0;
 }
 
 // RegisterWithSubRegs - This can be used to define instances of Register which
@@ -200,6 +196,7 @@ class Instruction {
   bit isIndirectBranch = 0; // Is this instruction an indirect branch?
   bit isCompare    = 0;     // Is this instruction a comparison instruction?
   bit isMoveImm    = 0;     // Is this instruction a move immediate instruction?
+  bit isBitcast    = 0;     // Is this instruction a bitcast instruction?
   bit isBarrier    = 0;     // Can control flow fall through this instruction?
   bit isCall       = 0;     // Is this instruction a call instruction?
   bit canFoldAsLoad = 0;    // Can this be folded as a simple memory operand?
@@ -590,9 +587,10 @@ class MnemonicAlias<string From, string To> {
 /// InstAlias - This defines an alternate assembly syntax that is allowed to
 /// match an instruction that has a different (more canonical) assembly
 /// representation.
-class InstAlias<string Asm, dag Result> {
+class InstAlias<string Asm, dag Result, bit Emit = 0b1> {
   string AsmString = Asm;      // The .s format to match the instruction with.
   dag ResultInst = Result;     // The MCInst to generate.
+  bit EmitAlias = Emit;        // Emit the alias instead of what's aliased.
 
   // Predicates - Predicates that must be true for this to match.
   list<Predicate> Predicates = [];

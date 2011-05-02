@@ -350,7 +350,7 @@ DecomposeGEPExpression(const Value *V, int64_t &BaseOffs,
       Scale *= IndexScale.getSExtValue();
       
       
-      // If we already had an occurrance of this index variable, merge this
+      // If we already had an occurrence of this index variable, merge this
       // scale into it.  For example, we want to handle:
       //   A[x][x] -> x*16 + x*4 -> x*20
       // This also ensures that 'x' only appears in the index list once.
@@ -779,6 +779,26 @@ BasicAliasAnalysis::getModRefInfo(ImmutableCallSite CS,
         return NoModRef;
       break;
     }
+    case Intrinsic::arm_neon_vld1: {
+      // LLVM's vld1 and vst1 intrinsics currently only support a single
+      // vector register.
+      uint64_t Size =
+        TD ? TD->getTypeStoreSize(II->getType()) : UnknownSize;
+      if (isNoAlias(Location(II->getArgOperand(0), Size,
+                             II->getMetadata(LLVMContext::MD_tbaa)),
+                    Loc))
+        return NoModRef;
+      break;
+    }
+    case Intrinsic::arm_neon_vst1: {
+      uint64_t Size =
+        TD ? TD->getTypeStoreSize(II->getArgOperand(1)->getType()) : UnknownSize;
+      if (isNoAlias(Location(II->getArgOperand(0), Size,
+                             II->getMetadata(LLVMContext::MD_tbaa)),
+                    Loc))
+        return NoModRef;
+      break;
+    }
     }
 
   // The AliasAnalysis base class has some smarts, lets use them.
@@ -883,7 +903,7 @@ BasicAliasAnalysis::aliasGEP(const GEPOperator *GEP1, uint64_t V1Size,
   if (GEP1BaseOffset == 0 && GEP1VariableIndices.empty())
     return MustAlias;
 
-  // If there is a difference betwen the pointers, but the difference is
+  // If there is a difference between the pointers, but the difference is
   // less than the size of the associated memory object, then we know
   // that the objects are partially overlapping.
   if (GEP1BaseOffset != 0 && GEP1VariableIndices.empty()) {

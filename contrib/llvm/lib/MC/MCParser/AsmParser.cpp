@@ -251,10 +251,14 @@ public:
                                                          ".cfi_def_cfa");
     AddDirectiveHandler<&GenericAsmParser::ParseDirectiveCFIDefCfaOffset>(
                                                          ".cfi_def_cfa_offset");
+    AddDirectiveHandler<&GenericAsmParser::ParseDirectiveCFIAdjustCfaOffset>(
+                                                      ".cfi_adjust_cfa_offset");
     AddDirectiveHandler<&GenericAsmParser::ParseDirectiveCFIDefCfaRegister>(
                                                        ".cfi_def_cfa_register");
     AddDirectiveHandler<&GenericAsmParser::ParseDirectiveCFIOffset>(
                                                                  ".cfi_offset");
+    AddDirectiveHandler<&GenericAsmParser::ParseDirectiveCFIRelOffset>(
+                                                             ".cfi_rel_offset");
     AddDirectiveHandler<
      &GenericAsmParser::ParseDirectiveCFIPersonalityOrLsda>(".cfi_personality");
     AddDirectiveHandler<
@@ -263,6 +267,8 @@ public:
       &GenericAsmParser::ParseDirectiveCFIRememberState>(".cfi_remember_state");
     AddDirectiveHandler<
       &GenericAsmParser::ParseDirectiveCFIRestoreState>(".cfi_restore_state");
+    AddDirectiveHandler<
+      &GenericAsmParser::ParseDirectiveCFISameValue>(".cfi_same_value");
 
     // Macro directives.
     AddDirectiveHandler<&GenericAsmParser::ParseDirectiveMacrosOnOff>(
@@ -287,11 +293,14 @@ public:
   bool ParseDirectiveCFIEndProc(StringRef, SMLoc DirectiveLoc);
   bool ParseDirectiveCFIDefCfa(StringRef, SMLoc DirectiveLoc);
   bool ParseDirectiveCFIDefCfaOffset(StringRef, SMLoc DirectiveLoc);
+  bool ParseDirectiveCFIAdjustCfaOffset(StringRef, SMLoc DirectiveLoc);
   bool ParseDirectiveCFIDefCfaRegister(StringRef, SMLoc DirectiveLoc);
   bool ParseDirectiveCFIOffset(StringRef, SMLoc DirectiveLoc);
+  bool ParseDirectiveCFIRelOffset(StringRef, SMLoc DirectiveLoc);
   bool ParseDirectiveCFIPersonalityOrLsda(StringRef, SMLoc DirectiveLoc);
   bool ParseDirectiveCFIRememberState(StringRef, SMLoc DirectiveLoc);
   bool ParseDirectiveCFIRestoreState(StringRef, SMLoc DirectiveLoc);
+  bool ParseDirectiveCFISameValue(StringRef, SMLoc DirectiveLoc);
 
   bool ParseDirectiveMacrosOnOff(StringRef, SMLoc DirectiveLoc);
   bool ParseDirectiveMacro(StringRef, SMLoc DirectiveLoc);
@@ -517,6 +526,9 @@ bool AsmParser::ParsePrimaryExpr(const MCExpr *&Res, SMLoc &EndLoc) {
   switch (Lexer.getKind()) {
   default:
     return TokError("unknown token in expression");
+  // If we have an error assume that we've already handled it.
+  case AsmToken::Error:
+    return true;
   case AsmToken::Exclaim:
     Lex(); // Eat the operator.
     if (ParsePrimaryExpr(Res, EndLoc))
@@ -880,6 +892,7 @@ bool AsmParser::ParseStatement() {
     EatToEndOfStatement();
     return false;
   }
+
   // Allow an integer followed by a ':' as a directional local label.
   if (Lexer.is(AsmToken::Integer)) {
     LocalLabelVal = getTok().getIntVal();
@@ -896,12 +909,18 @@ bool AsmParser::ParseStatement() {
           return TokError("unexpected token at start of statement");
       }
     }
-  }
-  else if (ParseIdentifier(IDVal)) {
+
+  } else if (Lexer.is(AsmToken::Dot)) {
+    // Treat '.' as a valid identifier in this context.
+    Lex();
+    IDVal = ".";
+
+  } else if (ParseIdentifier(IDVal)) {
     if (!TheCondState.Ignore)
       return TokError("unexpected token at start of statement");
     IDVal = "";
   }
+
 
   // Handle conditional assembly here before checking for skipping.  We
   // have to do this so that .endif isn't skipped in a ".if 0" block for
@@ -934,6 +953,10 @@ bool AsmParser::ParseStatement() {
 
     // identifier ':'   -> Label.
     Lex();
+
+    // Diagnose attempt to use '.' as a label.
+    if (IDVal == ".")
+      return Error(IDLoc, "invalid use of pseudo-symbol '.' as a label");
 
     // Diagnose attempt to use a variable as a label.
     //
@@ -978,7 +1001,7 @@ bool AsmParser::ParseStatement() {
       return HandleMacroEntry(IDVal, IDLoc, M);
 
   // Otherwise, we have a normal instruction or directive.
-  if (IDVal[0] == '.') {
+  if (IDVal[0] == '.' && IDVal != ".") {
     // Assembler features
     if (IDVal == ".set" || IDVal == ".equ")
       return ParseDirectiveSet(IDVal, true);
@@ -1041,7 +1064,7 @@ bool AsmParser::ParseStatement() {
 
     if (IDVal == ".fill")
       return ParseDirectiveFill();
-    if (IDVal == ".space")
+    if (IDVal == ".space" || IDVal == ".skip")
       return ParseDirectiveSpace();
     if (IDVal == ".zero")
       return ParseDirectiveZero();
@@ -1306,6 +1329,12 @@ bool AsmParser::ParseAssignment(StringRef Name, bool allow_redef) {
   if (Lexer.isNot(AsmToken::EndOfStatement))
     return TokError("unexpected token in assignment");
 
+  // Error on assignment to '.'.
+  if (Name == ".") {
+    return Error(EqualLoc, ("assignment to pseudo-symbol '.' is unsupported "
+                            "(use '.space' or '.org').)"));
+  }
+
   // Eat the end of statement marker.
   Lex();
 
@@ -1319,7 +1348,7 @@ bool AsmParser::ParseAssignment(StringRef Name, bool allow_redef) {
     // FIXME: Diagnose assignment to protected identifier (e.g., register name).
     if (Sym->isUndefined() && !Sym->isUsed() && !Sym->isVariable())
       ; // Allow redefinitions of undefined symbols only used in directives.
-    else if (!Sym->isUndefined() && (!Sym->isAbsolute() || !allow_redef))
+    else if (!Sym->isUndefined() && (!Sym->isVariable() || !allow_redef))
       return Error(EqualLoc, "redefinition of '" + Name + "'");
     else if (!Sym->isVariable())
       return Error(EqualLoc, "invalid assignment to '" + Name + "'");
@@ -1535,13 +1564,21 @@ bool AsmParser::ParseDirectiveRealValue(const fltSemantics &Semantics) {
         Lex();
 
       if (getLexer().isNot(AsmToken::Integer) &&
-          getLexer().isNot(AsmToken::Real))
+          getLexer().isNot(AsmToken::Real) &&
+          getLexer().isNot(AsmToken::Identifier))
         return TokError("unexpected token in directive");
 
       // Convert to an APFloat.
       APFloat Value(Semantics);
-      if (Value.convertFromString(getTok().getString(),
-                                  APFloat::rmNearestTiesToEven) ==
+      StringRef IDVal = getTok().getString();
+      if (getLexer().is(AsmToken::Identifier)) {
+        if (!IDVal.compare_lower("infinity") || !IDVal.compare_lower("inf"))
+          Value = APFloat::getInf(Semantics);
+        else if (!IDVal.compare_lower("nan"))
+          Value = APFloat::getNaN(Semantics, false, ~0);
+        else
+          return TokError("invalid floating point literal");
+      } else if (Value.convertFromString(IDVal, APFloat::rmNearestTiesToEven) ==
           APFloat::opInvalidOp)
         return TokError("invalid floating point literal");
       if (IsNeg)
@@ -2216,7 +2253,7 @@ bool GenericAsmParser::ParseDirectiveLoc(StringRef, SMLoc DirectiveLoc) {
   }
 
   getStreamer().EmitDwarfLocDirective(FileNumber, LineNumber, ColumnPos, Flags,
-                                      Isa, Discriminator);
+                                      Isa, Discriminator, StringRef());
 
   return false;
 }
@@ -2232,13 +2269,15 @@ bool GenericAsmParser::ParseDirectiveStabs(StringRef Directive,
 /// ::= .cfi_startproc
 bool GenericAsmParser::ParseDirectiveCFIStartProc(StringRef,
                                                   SMLoc DirectiveLoc) {
-  return getStreamer().EmitCFIStartProc();
+  getStreamer().EmitCFIStartProc();
+  return false;
 }
 
 /// ParseDirectiveCFIEndProc
 /// ::= .cfi_endproc
 bool GenericAsmParser::ParseDirectiveCFIEndProc(StringRef, SMLoc DirectiveLoc) {
-  return getStreamer().EmitCFIEndProc();
+  getStreamer().EmitCFIEndProc();
+  return false;
 }
 
 /// ParseRegisterOrRegisterNumber - parse register name or number.
@@ -2273,7 +2312,8 @@ bool GenericAsmParser::ParseDirectiveCFIDefCfa(StringRef,
   if (getParser().ParseAbsoluteExpression(Offset))
     return true;
 
-  return getStreamer().EmitCFIDefCfa(Register, Offset);
+  getStreamer().EmitCFIDefCfa(Register, Offset);
+  return false;
 }
 
 /// ParseDirectiveCFIDefCfaOffset
@@ -2284,7 +2324,20 @@ bool GenericAsmParser::ParseDirectiveCFIDefCfaOffset(StringRef,
   if (getParser().ParseAbsoluteExpression(Offset))
     return true;
 
-  return getStreamer().EmitCFIDefCfaOffset(Offset);
+  getStreamer().EmitCFIDefCfaOffset(Offset);
+  return false;
+}
+
+/// ParseDirectiveCFIAdjustCfaOffset
+/// ::= .cfi_adjust_cfa_offset adjustment
+bool GenericAsmParser::ParseDirectiveCFIAdjustCfaOffset(StringRef,
+                                                        SMLoc DirectiveLoc) {
+  int64_t Adjustment = 0;
+  if (getParser().ParseAbsoluteExpression(Adjustment))
+    return true;
+
+  getStreamer().EmitCFIAdjustCfaOffset(Adjustment);
+  return false;
 }
 
 /// ParseDirectiveCFIDefCfaRegister
@@ -2295,11 +2348,12 @@ bool GenericAsmParser::ParseDirectiveCFIDefCfaRegister(StringRef,
   if (ParseRegisterOrRegisterNumber(Register, DirectiveLoc))
     return true;
 
-  return getStreamer().EmitCFIDefCfaRegister(Register);
+  getStreamer().EmitCFIDefCfaRegister(Register);
+  return false;
 }
 
 /// ParseDirectiveCFIOffset
-/// ::= .cfi_off register, offset
+/// ::= .cfi_offset register, offset
 bool GenericAsmParser::ParseDirectiveCFIOffset(StringRef, SMLoc DirectiveLoc) {
   int64_t Register = 0;
   int64_t Offset = 0;
@@ -2314,7 +2368,29 @@ bool GenericAsmParser::ParseDirectiveCFIOffset(StringRef, SMLoc DirectiveLoc) {
   if (getParser().ParseAbsoluteExpression(Offset))
     return true;
 
-  return getStreamer().EmitCFIOffset(Register, Offset);
+  getStreamer().EmitCFIOffset(Register, Offset);
+  return false;
+}
+
+/// ParseDirectiveCFIRelOffset
+/// ::= .cfi_rel_offset register, offset
+bool GenericAsmParser::ParseDirectiveCFIRelOffset(StringRef,
+                                                  SMLoc DirectiveLoc) {
+  int64_t Register = 0;
+
+  if (ParseRegisterOrRegisterNumber(Register, DirectiveLoc))
+    return true;
+
+  if (getLexer().isNot(AsmToken::Comma))
+    return TokError("unexpected token in directive");
+  Lex();
+
+  int64_t Offset = 0;
+  if (getParser().ParseAbsoluteExpression(Offset))
+    return true;
+
+  getStreamer().EmitCFIRelOffset(Register, Offset);
+  return false;
 }
 
 static bool isValidEncoding(int64_t Encoding) {
@@ -2364,25 +2440,42 @@ bool GenericAsmParser::ParseDirectiveCFIPersonalityOrLsda(StringRef IDVal,
   MCSymbol *Sym = getContext().GetOrCreateSymbol(Name);
 
   if (IDVal == ".cfi_personality")
-    return getStreamer().EmitCFIPersonality(Sym, Encoding);
+    getStreamer().EmitCFIPersonality(Sym, Encoding);
   else {
     assert(IDVal == ".cfi_lsda");
-    return getStreamer().EmitCFILsda(Sym, Encoding);
+    getStreamer().EmitCFILsda(Sym, Encoding);
   }
+  return false;
 }
 
 /// ParseDirectiveCFIRememberState
 /// ::= .cfi_remember_state
 bool GenericAsmParser::ParseDirectiveCFIRememberState(StringRef IDVal,
                                                       SMLoc DirectiveLoc) {
-  return getStreamer().EmitCFIRememberState();
+  getStreamer().EmitCFIRememberState();
+  return false;
 }
 
 /// ParseDirectiveCFIRestoreState
 /// ::= .cfi_remember_state
 bool GenericAsmParser::ParseDirectiveCFIRestoreState(StringRef IDVal,
                                                      SMLoc DirectiveLoc) {
-  return getStreamer().EmitCFIRestoreState();
+  getStreamer().EmitCFIRestoreState();
+  return false;
+}
+
+/// ParseDirectiveCFISameValue
+/// ::= .cfi_same_value register
+bool GenericAsmParser::ParseDirectiveCFISameValue(StringRef IDVal,
+                                                  SMLoc DirectiveLoc) {
+  int64_t Register = 0;
+
+  if (ParseRegisterOrRegisterNumber(Register, DirectiveLoc))
+    return true;
+
+  getStreamer().EmitCFISameValue(Register);
+
+  return false;
 }
 
 /// ParseDirectiveMacrosOnOff

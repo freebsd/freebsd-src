@@ -39,6 +39,7 @@ namespace llvm {
   class AllocaInst;
   class APFloat;
   class CallInst;
+  class CCState;
   class Function;
   class FastISel;
   class FunctionLoweringInfo;
@@ -187,14 +188,6 @@ public:
   virtual uint8_t getRepRegClassCostFor(EVT VT) const {
     assert(VT.isSimple() && "getRepRegClassCostFor called on illegal type!");
     return RepRegClassCostForVT[VT.getSimpleVT().SimpleTy];
-  }
-
-  /// getRegPressureLimit - Return the register pressure "high water mark" for
-  /// the specific register class. The scheduler is in high register pressure
-  /// mode (for the specific register class) if it goes over the limit.
-  virtual unsigned getRegPressureLimit(const TargetRegisterClass *RC,
-                                       MachineFunction &MF) const {
-    return 0;
   }
 
   /// isTypeLegal - Return true if the target has native support for the
@@ -934,6 +927,7 @@ public:
     bool isCalledByLegalizer() const { return CalledByLegalizer; }
 
     void AddToWorklist(SDNode *N);
+    void RemoveFromWorklist(SDNode *N);
     SDValue CombineTo(SDNode *N, const std::vector<SDValue> &To,
                       bool AddTo = true);
     SDValue CombineTo(SDNode *N, SDValue Res, bool AddTo = true);
@@ -1048,7 +1042,7 @@ protected:
   }
 
   /// JumpIsExpensive - Tells the code generator not to expand sequence of
-  /// operations into a seperate sequences that increases the amount of
+  /// operations into a separate sequences that increases the amount of
   /// flow control.
   void setJumpIsExpensive(bool isExpensive = true) {
     JumpIsExpensive = isExpensive;
@@ -1258,6 +1252,9 @@ public:
     return SDValue();    // this is here to silence compiler errors
   }
 
+  /// HandleByVal - Target-specific cleanup for formal ByVal parameters.
+  virtual void HandleByVal(CCState *, unsigned &) const {}
+
   /// CanLowerReturn - This hook should be implemented to check whether the
   /// return values described by the Outs array can fit into the return
   /// registers.  If false is returned, an sret-demotion is performed.
@@ -1289,6 +1286,26 @@ public:
   /// to codegen a libcall as tail call at legalization time.
   virtual bool isUsedByReturnOnly(SDNode *N) const {
     return false;
+  }
+
+  /// mayBeEmittedAsTailCall - Return true if the target may be able emit the
+  /// call instruction as a tail call. This is used by optimization passes to
+  /// determine if it's profitable to duplicate return instructions to enable
+  /// tailcall optimization.
+  virtual bool mayBeEmittedAsTailCall(CallInst *CI) const {
+    return false;
+  }
+
+  /// getTypeForExtArgOrReturn - Return the type that should be used to zero or
+  /// sign extend a zeroext/signext integer argument or return value.
+  /// FIXME: Most C calling convention requires the return type to be promoted,
+  /// but this is not true all the time, e.g. i1 on x86-64. It is also not
+  /// necessary for non-C calling conventions. The frontend should handle this
+  /// and include all of the necessary information.
+  virtual EVT getTypeForExtArgOrReturn(LLVMContext &Context, EVT VT,
+                                       ISD::NodeType ExtendKind) const {
+    EVT MinVT = getRegisterType(Context, MVT::i32);
+    return VT.bitsLT(MinVT) ? MinVT : VT;
   }
 
   /// LowerOperationWrapper - This callback is invoked by the type legalizer

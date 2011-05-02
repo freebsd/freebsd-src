@@ -84,7 +84,6 @@ static bool UpgradeIntrinsicFunction1(Function *F, Function *&NewFn) {
             Name.compare(14, 5, "vsubl", 5) == 0 ||
             Name.compare(14, 5, "vaddw", 5) == 0 ||
             Name.compare(14, 5, "vsubw", 5) == 0 ||
-            Name.compare(14, 5, "vmull", 5) == 0 ||
             Name.compare(14, 5, "vmlal", 5) == 0 ||
             Name.compare(14, 5, "vmlsl", 5) == 0 ||
             Name.compare(14, 5, "vabdl", 5) == 0 ||
@@ -528,6 +527,12 @@ static bool UpgradeIntrinsicFunction1(Function *F, Function *&NewFn) {
       // or 0.
       NewFn = 0;
       return true;           
+    } else if (Name.compare(5, 16, "x86.sse.loadu.ps", 16) == 0 ||
+               Name.compare(5, 17, "x86.sse2.loadu.dq", 17) == 0 ||
+               Name.compare(5, 17, "x86.sse2.loadu.pd", 17) == 0) {
+      // Calls to these instructions are transformed into unaligned loads.
+      NewFn = 0;
+      return true;
     } else if (Name.compare(5, 17, "x86.ssse3.pshuf.w", 17) == 0) {
       // This is an SSE/MMX instruction.
       const Type *X86_MMXTy = VectorType::getX86_MMXTy(FTy->getContext());
@@ -947,7 +952,29 @@ void llvm::UpgradeIntrinsicCall(CallInst *CI, Function *NewFn) {
         
       // Remove upgraded instruction.
       CI->eraseFromParent();
-      
+    
+    } else if (F->getName() == "llvm.x86.sse.loadu.ps" ||
+               F->getName() == "llvm.x86.sse2.loadu.dq" ||
+               F->getName() == "llvm.x86.sse2.loadu.pd") {
+      // Convert to a native, unaligned load.
+      const Type *VecTy = CI->getType();
+      const Type *IntTy = IntegerType::get(C, 128);
+      IRBuilder<> Builder(C);
+      Builder.SetInsertPoint(CI->getParent(), CI);
+
+      Value *BC = Builder.CreateBitCast(CI->getArgOperand(0),
+                                        PointerType::getUnqual(IntTy),
+                                        "cast");
+      LoadInst *LI = Builder.CreateLoad(BC, CI->getName());
+      LI->setAlignment(1);      // Unaligned load.
+      BC = Builder.CreateBitCast(LI, VecTy, "new.cast");
+
+      // Fix up all the uses with our new load.
+      if (!CI->use_empty())
+        CI->replaceAllUsesWith(BC);
+
+      // Remove intrinsic.
+      CI->eraseFromParent();
     } else {
       llvm_unreachable("Unknown function for CallInst upgrade.");
     }
@@ -1179,74 +1206,6 @@ void llvm::UpgradeIntrinsicCall(CallInst *CI, Function *NewFn) {
     ConstructNewCallInst(NewFn, CI, Operands, 2);
     break;
   }
-
-#if 0
-  case Intrinsic::x86_mmx_cvtsi32_si64: {
-    // The return type needs to be changed.
-    Value *Operands[1];
-    Operands[0] = CI->getArgOperand(0);
-    ConstructNewCallInst(NewFn, CI, Operands, 1);
-    break;
-  }
-  case Intrinsic::x86_mmx_cvtsi64_si32: {
-    Value *Operands[1];
-
-    // Cast the operand to the X86 MMX type.
-    Operands[0] = new BitCastInst(CI->getArgOperand(0),
-                                  NewFn->getFunctionType()->getParamType(0),
-                                  "upgraded.", CI);
-
-    ConstructNewCallInst(NewFn, CI, Operands, 1);
-    break;
-  }
-  case Intrinsic::x86_mmx_vec_init_b:
-  case Intrinsic::x86_mmx_vec_init_w:
-  case Intrinsic::x86_mmx_vec_init_d: {
-    // The return type needs to be changed.
-    Value *Operands[8];
-    unsigned NumOps = 0;
-
-    switch (NewFn->getIntrinsicID()) {
-    default: break;
-    case Intrinsic::x86_mmx_vec_init_b: NumOps = 8; break;
-    case Intrinsic::x86_mmx_vec_init_w: NumOps = 4; break;
-    case Intrinsic::x86_mmx_vec_init_d: NumOps = 2; break;
-    }
-
-    switch (NewFn->getIntrinsicID()) {
-    default: break;
-    case Intrinsic::x86_mmx_vec_init_b:
-      Operands[7] = CI->getArgOperand(7);
-      Operands[6] = CI->getArgOperand(6);
-      Operands[5] = CI->getArgOperand(5);
-      Operands[4] = CI->getArgOperand(4);
-      // FALLTHRU
-    case Intrinsic::x86_mmx_vec_init_w:
-      Operands[3] = CI->getArgOperand(3);
-      Operands[2] = CI->getArgOperand(2);
-      // FALLTHRU
-    case Intrinsic::x86_mmx_vec_init_d:
-      Operands[1] = CI->getArgOperand(1);
-      Operands[0] = CI->getArgOperand(0);
-      break;
-    }
-
-    ConstructNewCallInst(NewFn, CI, Operands, NumOps);
-    break;
-  }
-  case Intrinsic::x86_mmx_vec_ext_d: {
-    Value *Operands[2];
-
-    // Cast the operand to the X86 MMX type.
-    Operands[0] = new BitCastInst(CI->getArgOperand(0),
-                                  NewFn->getFunctionType()->getParamType(0),
-                                  "upgraded.", CI);
-    Operands[1] = CI->getArgOperand(1);
-
-    ConstructNewCallInst(NewFn, CI, Operands, 2);
-    break;
-  }
-#endif
 
   case Intrinsic::ctlz:
   case Intrinsic::ctpop:

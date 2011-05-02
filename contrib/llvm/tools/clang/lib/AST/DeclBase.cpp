@@ -25,11 +25,11 @@
 #include "clang/AST/Stmt.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/ASTMutationListener.h"
+#include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <cstdio>
-#include <vector>
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -173,9 +173,6 @@ void PrettyStackTraceDecl::print(llvm::raw_ostream &OS) const {
 Decl::~Decl() { }
 
 void Decl::setDeclContext(DeclContext *DC) {
-  if (isOutOfSemaDC())
-    delete getMultipleDC();
-
   DeclCtx = DC;
 }
 
@@ -244,6 +241,177 @@ bool Decl::isUsed(bool CheckUsedAttr) const {
   return false; 
 }
 
+bool Decl::isReferenced() const { 
+  if (Referenced)
+    return true;
+
+  // Check redeclarations.
+  for (redecl_iterator I = redecls_begin(), E = redecls_end(); I != E; ++I)
+    if (I->Referenced)
+      return true;
+
+  return false; 
+}
+
+/// \brief Determine the availability of the given declaration based on
+/// the target platform.
+///
+/// When it returns an availability result other than \c AR_Available,
+/// if the \p Message parameter is non-NULL, it will be set to a
+/// string describing why the entity is unavailable.
+///
+/// FIXME: Make these strings localizable, since they end up in
+/// diagnostics.
+static AvailabilityResult CheckAvailability(ASTContext &Context,
+                                            const AvailabilityAttr *A,
+                                            std::string *Message) {
+  llvm::StringRef TargetPlatform = Context.Target.getPlatformName();
+  llvm::StringRef PrettyPlatformName
+    = AvailabilityAttr::getPrettyPlatformName(TargetPlatform);
+  if (PrettyPlatformName.empty())
+    PrettyPlatformName = TargetPlatform;
+
+  VersionTuple TargetMinVersion = Context.Target.getPlatformMinVersion();
+  if (TargetMinVersion.empty())
+    return AR_Available;
+
+  // Match the platform name.
+  if (A->getPlatform()->getName() != TargetPlatform)
+    return AR_Available;
+
+  // Make sure that this declaration has not been marked 'unavailable'.
+  if (A->getUnavailable()) {
+    if (Message) {
+      Message->clear();
+      llvm::raw_string_ostream Out(*Message);
+      Out << "not available on " << PrettyPlatformName;
+    }
+
+    return AR_Unavailable;
+  }
+
+  // Make sure that this declaration has already been introduced.
+  if (!A->getIntroduced().empty() && 
+      TargetMinVersion < A->getIntroduced()) {
+    if (Message) {
+      Message->clear();
+      llvm::raw_string_ostream Out(*Message);
+      Out << "introduced in " << PrettyPlatformName << ' ' 
+          << A->getIntroduced();
+    }
+
+    return AR_NotYetIntroduced;
+  }
+
+  // Make sure that this declaration hasn't been obsoleted.
+  if (!A->getObsoleted().empty() && TargetMinVersion >= A->getObsoleted()) {
+    if (Message) {
+      Message->clear();
+      llvm::raw_string_ostream Out(*Message);
+      Out << "obsoleted in " << PrettyPlatformName << ' ' 
+          << A->getObsoleted();
+    }
+    
+    return AR_Unavailable;
+  }
+
+  // Make sure that this declaration hasn't been deprecated.
+  if (!A->getDeprecated().empty() && TargetMinVersion >= A->getDeprecated()) {
+    if (Message) {
+      Message->clear();
+      llvm::raw_string_ostream Out(*Message);
+      Out << "first deprecated in " << PrettyPlatformName << ' '
+          << A->getDeprecated();
+    }
+    
+    return AR_Deprecated;
+  }
+
+  return AR_Available;
+}
+
+AvailabilityResult Decl::getAvailability(std::string *Message) const {
+  AvailabilityResult Result = AR_Available;
+  std::string ResultMessage;
+
+  for (attr_iterator A = attr_begin(), AEnd = attr_end(); A != AEnd; ++A) {
+    if (DeprecatedAttr *Deprecated = dyn_cast<DeprecatedAttr>(*A)) {
+      if (Result >= AR_Deprecated)
+        continue;
+
+      if (Message)
+        ResultMessage = Deprecated->getMessage();
+
+      Result = AR_Deprecated;
+      continue;
+    }
+
+    if (UnavailableAttr *Unavailable = dyn_cast<UnavailableAttr>(*A)) {
+      if (Message)
+        *Message = Unavailable->getMessage();
+      return AR_Unavailable;
+    }
+
+    if (AvailabilityAttr *Availability = dyn_cast<AvailabilityAttr>(*A)) {
+      AvailabilityResult AR = CheckAvailability(getASTContext(), Availability,
+                                                Message);
+
+      if (AR == AR_Unavailable)
+        return AR_Unavailable;
+
+      if (AR > Result) {
+        Result = AR;
+        if (Message)
+          ResultMessage.swap(*Message);
+      }
+      continue;
+    }
+  }
+
+  if (Message)
+    Message->swap(ResultMessage);
+  return Result;
+}
+
+bool Decl::canBeWeakImported(bool &IsDefinition) const {
+  IsDefinition = false;
+  if (const VarDecl *Var = dyn_cast<VarDecl>(this)) {
+    if (!Var->hasExternalStorage() || Var->getInit()) {
+      IsDefinition = true;
+      return false;
+    }
+  } else if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(this)) {
+    if (FD->hasBody()) {
+      IsDefinition = true;
+      return false;
+    }
+  } else if (isa<ObjCPropertyDecl>(this) || isa<ObjCMethodDecl>(this))
+    return false;
+  else if (!(getASTContext().getLangOptions().ObjCNonFragileABI &&
+             isa<ObjCInterfaceDecl>(this)))
+    return false;
+
+  return true;
+}
+
+bool Decl::isWeakImported() const {
+  bool IsDefinition;
+  if (!canBeWeakImported(IsDefinition))
+    return false;
+
+  for (attr_iterator A = attr_begin(), AEnd = attr_end(); A != AEnd; ++A) {
+    if (isa<WeakImportAttr>(*A))
+      return true;
+
+    if (AvailabilityAttr *Availability = dyn_cast<AvailabilityAttr>(*A)) {
+      if (CheckAvailability(getASTContext(), Availability, 0) 
+                                                         == AR_NotYetIntroduced)
+        return true;
+    }
+  }
+
+  return false;
+}
 
 unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
   switch (DeclKind) {
@@ -270,6 +438,7 @@ unsigned Decl::getIdentifierNamespaceForKind(Kind DeclKind) {
       return IDNS_Ordinary | IDNS_Type;
 
     case Typedef:
+    case TypeAlias:
     case UnresolvedUsingTypename:
     case TemplateTypeParm:
       return IDNS_Ordinary | IDNS_Type;
@@ -960,7 +1129,7 @@ void DeclContext::makeDeclVisibleInContext(NamedDecl *D, bool Recoverable) {
   // FIXME: This feels like a hack. Should DeclarationName support
   // template-ids, or is there a better way to keep specializations
   // from being visible?
-  if (isa<ClassTemplateSpecializationDecl>(D))
+  if (isa<ClassTemplateSpecializationDecl>(D) || D->isTemplateParameter())
     return;
   if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D))
     if (FD->isFunctionTemplateSpecialization())
@@ -999,7 +1168,7 @@ void DeclContext::makeDeclVisibleInContextImpl(NamedDecl *D) {
   // FIXME: This feels like a hack. Should DeclarationName support
   // template-ids, or is there a better way to keep specializations
   // from being visible?
-  if (isa<ClassTemplateSpecializationDecl>(D))
+  if (isa<ClassTemplateSpecializationDecl>(D) || D->isTemplateParameter())
     return;
 
   ASTContext *C = 0;

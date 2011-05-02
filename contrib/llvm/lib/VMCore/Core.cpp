@@ -335,7 +335,7 @@ unsigned LLVMCountStructElementTypes(LLVMTypeRef StructTy) {
 
 void LLVMGetStructElementTypes(LLVMTypeRef StructTy, LLVMTypeRef *Dest) {
   StructType *Ty = unwrap<StructType>(StructTy);
-  for (FunctionType::param_iterator I = Ty->element_begin(),
+  for (StructType::element_iterator I = Ty->element_begin(),
                                     E = Ty->element_end(); I != E; ++I)
     *Dest++ = wrap(*I);
 }
@@ -543,7 +543,8 @@ LLVMValueRef LLVMMDString(const char *Str, unsigned SLen) {
 
 LLVMValueRef LLVMMDNodeInContext(LLVMContextRef C, LLVMValueRef *Vals,
                                  unsigned Count) {
-  return wrap(MDNode::get(*unwrap(C), unwrap<Value>(Vals, Count), Count));
+  return wrap(MDNode::get(*unwrap(C),
+                          ArrayRef<Value*>(unwrap<Value>(Vals, Count), Count)));
 }
 
 LLVMValueRef LLVMMDNode(LLVMValueRef *Vals, unsigned Count) {
@@ -2082,7 +2083,7 @@ LLVMValueRef LLVMBuildFCmp(LLVMBuilderRef B, LLVMRealPredicate Op,
 /*--.. Miscellaneous instructions ..........................................--*/
 
 LLVMValueRef LLVMBuildPhi(LLVMBuilderRef B, LLVMTypeRef Ty, const char *Name) {
-  return wrap(unwrap(B)->CreatePHI(unwrap(Ty), Name));
+  return wrap(unwrap(B)->CreatePHI(unwrap(Ty), 0, Name));
 }
 
 LLVMValueRef LLVMBuildCall(LLVMBuilderRef B, LLVMValueRef Fn,

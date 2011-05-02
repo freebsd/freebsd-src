@@ -34,7 +34,6 @@ class ObjCForCollectionStmt;
 namespace ento {
 
 class AnalysisManager;
-class Checker;
 
 class ExprEngine : public SubEngine {
   AnalysisManager &AMgr;
@@ -73,39 +72,6 @@ class ExprEngine : public SubEngine {
   // Obj-C Selectors.
   Selector* NSExceptionInstanceRaiseSelectors;
   Selector RaiseSel;
-
-  enum CallbackKind {
-    PreVisitStmtCallback,
-    PostVisitStmtCallback,
-    processAssumeCallback,
-    EvalRegionChangesCallback
-  };
-
-  typedef uint32_t CallbackTag;
-
-  /// GetCallbackTag - Create a tag for a certain kind of callback. The 'Sub'
-  ///  argument can be used to differentiate callbacks that depend on another
-  ///  value from a small set of possibilities, such as statement classes.
-  static inline CallbackTag GetCallbackTag(CallbackKind K, uint32_t Sub = 0) {
-    assert(Sub == ((Sub << 8) >> 8) && "Tag sub-kind must fit into 24 bits");
-    return K | (Sub << 8);
-  }
-
-  typedef llvm::DenseMap<void *, unsigned> CheckerMap;
-  typedef std::vector<std::pair<void *, Checker*> > CheckersOrdered;
-  typedef llvm::DenseMap<CallbackTag, CheckersOrdered *> CheckersOrderedCache;
-  
-  /// A registration map from checker tag to the index into the
-  ///  ordered checkers vector.
-  CheckerMap CheckerM;
-
-  /// An ordered vector of checkers that are called when evaluating
-  ///  various expressions and statements.
-  CheckersOrdered Checkers;
-
-  /// A map used for caching the checkers that respond to the callback for
-  ///  a particular callback tag.
-  CheckersOrderedCache COCache;
 
   /// The BugReporter associated with this engine.  It is important that
   ///  this object be placed at the very end of member variables so that its
@@ -164,21 +130,6 @@ public:
 
   ExplodedGraph& getGraph() { return G; }
   const ExplodedGraph& getGraph() const { return G; }
-
-  template <typename CHECKER>
-  void registerCheck(CHECKER *check) {
-    unsigned entry = Checkers.size();
-    void *tag = CHECKER::getTag();
-    Checkers.push_back(std::make_pair(tag, check));
-    CheckerM[tag] = entry;
-  }
-  
-  Checker *lookupChecker(void *tag) const;
-
-  template <typename CHECKER>
-  CHECKER *getChecker() const {
-     return static_cast<CHECKER*>(lookupChecker(CHECKER::getTag()));
-  }
 
   /// processCFGElement - Called by CoreEngine. Used to generate new successor
   ///  nodes by processing the 'effects' of a CFG element.
@@ -262,11 +213,9 @@ public:
   const SymbolManager& getSymbolManager() const { return SymMgr; }
 
   // Functions for external checking of whether we have unfinished work
-  bool wasBlockAborted() const { return Engine.wasBlockAborted(); }
+  bool wasBlocksExhausted() const { return Engine.wasBlocksExhausted(); }
   bool hasEmptyWorkList() const { return !Engine.getWorkList()->hasWork(); }
-  bool hasWorkRemaining() const {
-    return wasBlockAborted() || Engine.getWorkList()->hasWork();
-  }
+  bool hasWorkRemaining() const { return Engine.hasWorkRemaining(); }
 
   const CoreEngine &getCoreEngine() const { return Engine; }
 
@@ -280,27 +229,6 @@ public:
                          ExplodedNode* Pred, const GRState* St,
                          ProgramPoint::Kind K = ProgramPoint::PostStmtKind,
                          const void *tag = 0);
-
-  /// CheckerVisit - Dispatcher for performing checker-specific logic
-  ///  at specific statements.
-  void CheckerVisit(const Stmt *S, ExplodedNodeSet &Dst, ExplodedNodeSet &Src, 
-                    CallbackKind Kind);
-
-  void CheckerVisitObjCMessage(const ObjCMessage &msg, ExplodedNodeSet &Dst,
-                               ExplodedNodeSet &Src, bool isPrevisit);
-
-  bool CheckerEvalCall(const CallExpr *CE, 
-                       ExplodedNodeSet &Dst, 
-                       ExplodedNode *Pred);
-
-  void CheckerEvalNilReceiver(const ObjCMessage &msg,
-                              ExplodedNodeSet &Dst,
-                              const GRState *state,
-                              ExplodedNode *Pred);
-  
-  void CheckerVisitBind(const Stmt *StoreE, ExplodedNodeSet &Dst,
-                        ExplodedNodeSet &Src,  SVal location, SVal val,
-                        bool isPrevisit);
 
   /// Visit - Transfer function logic for all statements.  Dispatches to
   ///  other functions that handle specific kinds of statements.
@@ -334,10 +262,8 @@ public:
 
 
   /// VisitCall - Transfer function for function calls.
-  void VisitCall(const CallExpr* CE, ExplodedNode* Pred,
-                 CallExpr::const_arg_iterator AI, 
-                 CallExpr::const_arg_iterator AE,
-                 ExplodedNodeSet& Dst);
+  void VisitCallExpr(const CallExpr* CE, ExplodedNode* Pred,
+                     ExplodedNodeSet& Dst);
 
   /// VisitCast - Transfer function logic for all casts (implicit and explicit).
   void VisitCast(const CastExpr *CastE, const Expr *Ex, ExplodedNode *Pred,
@@ -358,11 +284,6 @@ public:
   /// VisitGuardedExpr - Transfer function logic for ?, __builtin_choose
   void VisitGuardedExpr(const Expr* Ex, const Expr* L, const Expr* R, 
                         ExplodedNode* Pred, ExplodedNodeSet& Dst);
-
-  /// VisitCondInit - Transfer function for handling the initialization
-  ///  of a condition variable in an IfStmt, SwitchStmt, etc.
-  void VisitCondInit(const VarDecl *VD, const Stmt *S, ExplodedNode *Pred,
-                     ExplodedNodeSet& Dst);
   
   void VisitInitListExpr(const InitListExpr* E, ExplodedNode* Pred,
                          ExplodedNodeSet& Dst);
@@ -409,9 +330,9 @@ public:
   void VisitOffsetOfExpr(const OffsetOfExpr* Ex, ExplodedNode* Pred,
                          ExplodedNodeSet& Dst);
 
-  /// VisitSizeOfAlignOfExpr - Transfer function for sizeof.
-  void VisitSizeOfAlignOfExpr(const SizeOfAlignOfExpr* Ex, ExplodedNode* Pred,
-                              ExplodedNodeSet& Dst);
+  /// VisitUnaryExprOrTypeTraitExpr - Transfer function for sizeof.
+  void VisitUnaryExprOrTypeTraitExpr(const UnaryExprOrTypeTraitExpr* Ex,
+                              ExplodedNode* Pred, ExplodedNodeSet& Dst);
 
   /// VisitUnaryOperator - Transfer function logic for unary operators.
   void VisitUnaryOperator(const UnaryOperator* B, ExplodedNode* Pred, 
@@ -431,12 +352,6 @@ public:
   void VisitCXXDestructor(const CXXDestructorDecl *DD,
                           const MemRegion *Dest, const Stmt *S,
                           ExplodedNode *Pred, ExplodedNodeSet &Dst);
-
-  void VisitCXXMemberCallExpr(const CXXMemberCallExpr *MCE, ExplodedNode *Pred,
-                              ExplodedNodeSet &Dst);
-
-  void VisitCXXOperatorCallExpr(const CXXOperatorCallExpr *C,
-                                ExplodedNode *Pred, ExplodedNodeSet &Dst);
 
   void VisitCXXNewExpr(const CXXNewExpr *CNE, ExplodedNode *Pred,
                        ExplodedNodeSet &Dst);
@@ -463,12 +378,10 @@ public:
                      const FunctionProtoType *FnType, 
                      ExplodedNode *Pred, ExplodedNodeSet &Dst,
                      bool FstArgAsLValue = false);
-
-  /// Evaluate method call itself. Used for CXXMethodCallExpr and
-  /// CXXOperatorCallExpr.
-  void evalMethodCall(const CallExpr *MCE, const CXXMethodDecl *MD,
-                      const Expr *ThisExpr, ExplodedNode *Pred,
-                      ExplodedNodeSet &Src, ExplodedNodeSet &Dst);
+  
+  /// Evaluate callee expression (for a function call).
+  void evalCallee(const CallExpr *callExpr, const ExplodedNodeSet &src,
+                  ExplodedNodeSet &dest);
 
   /// evalEagerlyAssume - Given the nodes in 'Src', eagerly assume symbolic
   ///  expressions of the form 'x != 0' and generate new nodes (stored in Dst)

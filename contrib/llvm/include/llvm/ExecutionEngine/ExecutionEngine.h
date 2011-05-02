@@ -21,6 +21,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/ValueMap.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/Mutex.h"
 #include "llvm/Target/TargetMachine.h"
@@ -117,11 +118,11 @@ protected:
   /// The list of Modules that we are JIT'ing from.  We use a SmallVector to
   /// optimize for the case where there is only one module.
   SmallVector<Module*, 1> Modules;
-  
+
   void setTargetData(const TargetData *td) {
     TD = td;
   }
-  
+
   /// getMemoryforGV - Allocate memory for a global variable.
   virtual char *getMemoryForGV(const GlobalVariable *GV);
 
@@ -155,13 +156,15 @@ protected:
   /// pointer is invoked to create it.  If this returns null, the JIT will
   /// abort.
   void *(*LazyFunctionCreator)(const std::string &);
-  
+
   /// ExceptionTableRegister - If Exception Handling is set, the JIT will
   /// register dwarf tables with this function.
   typedef void (*EERegisterFn)(void*);
   EERegisterFn ExceptionTableRegister;
   EERegisterFn ExceptionTableDeregister;
-  std::vector<void*> AllExceptionTables;
+  /// This maps functions to their exception tables frames.
+  DenseMap<const Function*, void*> AllExceptionTables;
+
 
 public:
   /// lock - This lock protects the ExecutionEngine, JIT, JITResolver and
@@ -182,7 +185,7 @@ public:
   /// \param GVsWithCode - Allocating globals with code breaks
   /// freeMachineCodeForFunction and is probably unsafe and bad for performance.
   /// However, we have clients who depend on this behavior, so we must support
-  /// it.  Eventually, when we're willing to break some backwards compatability,
+  /// it.  Eventually, when we're willing to break some backwards compatibility,
   /// this flag should be flipped to false, so that by default
   /// freeMachineCodeForFunction works.
   static ExecutionEngine *create(Module *M,
@@ -213,7 +216,7 @@ public:
   virtual void addModule(Module *M) {
     Modules.push_back(M);
   }
-  
+
   //===--------------------------------------------------------------------===//
 
   const TargetData *getTargetData() const { return TD; }
@@ -226,7 +229,7 @@ public:
   /// defines FnName.  This is very slow operation and shouldn't be used for
   /// general code.
   Function *FindFunctionNamed(const char *FnName);
-  
+
   /// runFunction - Execute the specified function with the specified arguments,
   /// and return the result.
   virtual GenericValue runFunction(Function *F,
@@ -243,8 +246,8 @@ public:
   ///
   /// \param isDtors - Run the destructors instead of constructors.
   void runStaticConstructorsDestructors(Module *module, bool isDtors);
-  
-  
+
+
   /// runFunctionAsMain - This is a helper function which wraps runFunction to
   /// handle the common task of starting up main with the specified argc, argv,
   /// and envp parameters.
@@ -259,21 +262,21 @@ public:
   /// existing data in memory.  Mappings are automatically removed when their
   /// GlobalValue is destroyed.
   void addGlobalMapping(const GlobalValue *GV, void *Addr);
-  
+
   /// clearAllGlobalMappings - Clear all global mappings and start over again,
   /// for use in dynamic compilation scenarios to move globals.
   void clearAllGlobalMappings();
-  
+
   /// clearGlobalMappingsFromModule - Clear all global mappings that came from a
   /// particular module, because it has been removed from the JIT.
   void clearGlobalMappingsFromModule(Module *M);
-  
+
   /// updateGlobalMapping - Replace an existing mapping for GV with a new
   /// address.  This updates both maps as required.  If "Addr" is null, the
   /// entry for the global is removed from the mappings.  This returns the old
   /// value of the pointer, or null if it was not in the map.
   void *updateGlobalMapping(const GlobalValue *GV, void *Addr);
-  
+
   /// getPointerToGlobalIfAvailable - This returns the address of the specified
   /// global value if it is has already been codegen'd, otherwise it returns
   /// null.
@@ -294,7 +297,7 @@ public:
   /// different ways.  Return the representation for a blockaddress of the
   /// specified block.
   virtual void *getPointerToBasicBlock(BasicBlock *BB) = 0;
-  
+
   /// getPointerToFunctionOrStub - If the specified function has been
   /// code-gen'd, return a pointer to the function.  If not, compile it, or use
   /// a stub to implement lazy compilation if available.  See
@@ -398,7 +401,7 @@ public:
   void InstallLazyFunctionCreator(void* (*P)(const std::string &)) {
     LazyFunctionCreator = P;
   }
-  
+
   /// InstallExceptionTableRegister - The JIT will use the given function
   /// to register the exception tables it generates.
   void InstallExceptionTableRegister(EERegisterFn F) {
@@ -407,13 +410,26 @@ public:
   void InstallExceptionTableDeregister(EERegisterFn F) {
     ExceptionTableDeregister = F;
   }
-  
+
   /// RegisterTable - Registers the given pointer as an exception table.  It
   /// uses the ExceptionTableRegister function.
-  void RegisterTable(void* res) {
+  void RegisterTable(const Function *fn, void* res) {
     if (ExceptionTableRegister) {
       ExceptionTableRegister(res);
-      AllExceptionTables.push_back(res);
+      AllExceptionTables[fn] = res;
+    }
+  }
+
+  /// DeregisterTable - Deregisters the exception frame previously registered
+  /// for the given function.
+  void DeregisterTable(const Function *Fn) {
+    if (ExceptionTableDeregister) {
+      DenseMap<const Function*, void*>::iterator frame =
+        AllExceptionTables.find(Fn);
+      if(frame != AllExceptionTables.end()) {
+        ExceptionTableDeregister(frame->second);
+        AllExceptionTables.erase(frame);
+      }
     }
   }
 
@@ -429,7 +445,7 @@ protected:
   void EmitGlobalVariable(const GlobalVariable *GV);
 
   GenericValue getConstantValue(const Constant *C);
-  void LoadValueFromMemory(GenericValue &Result, GenericValue *Ptr, 
+  void LoadValueFromMemory(GenericValue &Result, GenericValue *Ptr,
                            const Type *Ty);
 };
 
@@ -540,8 +556,9 @@ public:
 
   /// setUseMCJIT - Set whether the MC-JIT implementation should be used
   /// (experimental).
-  void setUseMCJIT(bool Value) {
+  EngineBuilder &setUseMCJIT(bool Value) {
     UseMCJIT = Value;
+    return *this;
   }
 
   /// setMAttrs - Set cpu-specific attributes.

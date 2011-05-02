@@ -16,6 +16,7 @@
 #define LLVM_ANALYSIS_DIBUILDER_H
 
 #include "llvm/Support/DataTypes.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
@@ -145,6 +146,30 @@ namespace llvm {
                             unsigned LineNo, uint64_t SizeInBits, 
                             uint64_t AlignInBits, uint64_t OffsetInBits, 
                             unsigned Flags, DIType Ty);
+
+    /// createObjCIVar - Create debugging information entry for Objective-C
+    /// instance variable.
+    /// @param Name         Member name.
+    /// @param File         File where this member is defined.
+    /// @param LineNo       Line number.
+    /// @param SizeInBits   Member size.
+    /// @param AlignInBits  Member alignment.
+    /// @param OffsetInBits Member offset.
+    /// @param Flags        Flags to encode member attribute, e.g. private
+    /// @param Ty           Parent type.
+    /// @param PropertyName Name of the Objective C property assoicated with
+    ///                     this ivar.
+    /// @param GetterName   Name of the Objective C property getter selector.
+    /// @param SetterName   Name of the Objective C property setter selector.
+    /// @param PropertyAttributes Objective C property attributes.
+    DIType createObjCIVar(StringRef Name, DIFile File,
+                          unsigned LineNo, uint64_t SizeInBits, 
+                          uint64_t AlignInBits, uint64_t OffsetInBits, 
+                          unsigned Flags, DIType Ty,
+                          StringRef PropertyName = StringRef(),
+                          StringRef PropertyGetterName = StringRef(),
+                          StringRef PropertySetterName = StringRef(),
+                          unsigned PropertyAttributes = 0);
 
     /// createClassType - Create debugging information entry for a class.
     /// @param Scope        Scope in which this class is defined.
@@ -278,7 +303,7 @@ namespace llvm {
     DIDescriptor createUnspecifiedParameter();
 
     /// getOrCreateArray - Get a DIArray, create one if required.
-    DIArray getOrCreateArray(Value *const *Elements, unsigned NumElements);
+    DIArray getOrCreateArray(ArrayRef<Value *> Elements);
 
     /// getOrCreateSubrange - Create a descriptor for a value range.  This
     /// implicitly uniques the values returned.
@@ -326,11 +351,14 @@ namespace llvm {
     /// @param AlwaysPreserve Boolean. Set to true if debug info for this
     ///                       variable should be preserved in optimized build.
     /// @param Flags          Flags, e.g. artificial variable.
+    /// @param ArgNo       If this variable is an arugment then this argument's
+    ///                    number. 1 indicates 1st argument.
     DIVariable createLocalVariable(unsigned Tag, DIDescriptor Scope,
                                    StringRef Name,
                                    DIFile File, unsigned LineNo,
                                    DIType Ty, bool AlwaysPreserve = false,
-                                   unsigned Flags = 0);
+                                   unsigned Flags = 0,
+                                   unsigned ArgNo = 0);
 
 
     /// createComplexVariable - Create a new descriptor for the specified
@@ -342,12 +370,13 @@ namespace llvm {
     /// @param File        File where this variable is defined.
     /// @param LineNo      Line number.
     /// @param Ty          Variable Type
-    /// @param Addr        A pointer to a vector of complex address operations.
-    /// @param NumAddr     Num of address operations in the vector.
+    /// @param Addr        An array of complex address operations.
+    /// @param ArgNo       If this variable is an arugment then this argument's
+    ///                    number. 1 indicates 1st argument.
     DIVariable createComplexVariable(unsigned Tag, DIDescriptor Scope,
                                      StringRef Name, DIFile F, unsigned LineNo,
-                                     DIType Ty, Value *const *Addr,
-                                     unsigned NumAddr);
+                                     DIType Ty, ArrayRef<Value *> Addr,
+                                     unsigned ArgNo = 0);
 
     /// createFunction - Create a new descriptor for the specified subprogram.
     /// See comments in DISubprogram for descriptions of these fields.
@@ -363,6 +392,7 @@ namespace llvm {
     ///                      This flags are used to emit dwarf attributes.
     /// @param isOptimized   True if optimization is ON.
     /// @param Fn            llvm::Function pointer.
+    /// @param TParam        Function template parameters.
     DISubprogram createFunction(DIDescriptor Scope, StringRef Name,
                                 StringRef LinkageName,
                                 DIFile File, unsigned LineNo,
@@ -370,7 +400,9 @@ namespace llvm {
                                 bool isDefinition,
                                 unsigned Flags = 0,
                                 bool isOptimized = false,
-                                Function *Fn = 0);
+                                Function *Fn = 0,
+                                MDNode *TParam = 0,
+                                MDNode *Decl = 0);
 
     /// createMethod - Create a new descriptor for the specified C++ method.
     /// See comments in DISubprogram for descriptions of these fields.
@@ -382,7 +414,7 @@ namespace llvm {
     /// @param Ty            Function type.
     /// @param isLocalToUnit True if this function is not externally visible..
     /// @param isDefinition  True if this is a function definition.
-    /// @param Virtuality    Attributes describing virutallness. e.g. pure 
+    /// @param Virtuality    Attributes describing virtualness. e.g. pure 
     ///                      virtual function.
     /// @param VTableIndex   Index no of this method in virtual table.
     /// @param VTableHolder  Type that holds vtable.
@@ -390,6 +422,7 @@ namespace llvm {
     ///                      This flags are used to emit dwarf attributes.
     /// @param isOptimized   True if optimization is ON.
     /// @param Fn            llvm::Function pointer.
+    /// @param TParam        Function template parameters.
     DISubprogram createMethod(DIDescriptor Scope, StringRef Name,
                               StringRef LinkageName,
                               DIFile File, unsigned LineNo,
@@ -399,7 +432,8 @@ namespace llvm {
                               MDNode *VTableHolder = 0,
                               unsigned Flags = 0,
                               bool isOptimized = false,
-                              Function *Fn = 0);
+                              Function *Fn = 0,
+                              MDNode *TParam = 0);
 
     /// createNameSpace - This creates new descriptor for a namespace
     /// with the specified parent scope.

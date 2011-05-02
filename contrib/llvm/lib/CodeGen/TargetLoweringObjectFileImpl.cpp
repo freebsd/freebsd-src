@@ -23,6 +23,7 @@
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCSectionCOFF.h"
+#include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetData.h"
@@ -174,6 +175,52 @@ const MCSection *TargetLoweringObjectFileELF::getEHFrameSection() const {
   return getContext().getELFSection(".eh_frame", ELF::SHT_PROGBITS,
                                     ELF::SHF_ALLOC,
                                     SectionKind::getDataRel());
+}
+
+MCSymbol *
+TargetLoweringObjectFileELF::getCFIPersonalitySymbol(const GlobalValue *GV,
+                                                     Mangler *Mang,
+                                                MachineModuleInfo *MMI) const {
+  unsigned Encoding = getPersonalityEncoding();
+  switch (Encoding & 0x70) {
+  default:
+    report_fatal_error("We do not support this DWARF encoding yet!");
+  case dwarf::DW_EH_PE_absptr:
+    return  Mang->getSymbol(GV);
+    break;
+  case dwarf::DW_EH_PE_pcrel: {
+    Twine FullName = StringRef("DW.ref.") + Mang->getSymbol(GV)->getName();
+    return getContext().GetOrCreateSymbol(FullName);
+    break;
+  }
+  }
+}
+
+void TargetLoweringObjectFileELF::emitPersonalityValue(MCStreamer &Streamer,
+                                                       const TargetMachine &TM,
+                                                       const MCSymbol *Sym) const {
+  Twine FullName = StringRef("DW.ref.") + Sym->getName();
+  MCSymbol *Label = getContext().GetOrCreateSymbol(FullName);
+  Streamer.EmitSymbolAttribute(Label, MCSA_Hidden);
+  Streamer.EmitSymbolAttribute(Label, MCSA_Weak);
+  Twine SectionName = StringRef(".data.") + Label->getName();
+  SmallString<64> NameData;
+  SectionName.toVector(NameData);
+  unsigned Flags = ELF::SHF_ALLOC | ELF::SHF_WRITE | ELF::SHF_GROUP;
+  const MCSection *Sec = getContext().getELFSection(NameData,
+                                                    ELF::SHT_PROGBITS,
+                                                    Flags,
+                                                    SectionKind::getDataRel(),
+                                                    0, Label->getName());
+  Streamer.SwitchSection(Sec);
+  Streamer.EmitValueToAlignment(8);
+  Streamer.EmitSymbolAttribute(Label, MCSA_ELF_TypeObject);
+  const MCExpr *E = MCConstantExpr::Create(8, getContext());
+  Streamer.EmitELFSize(Label, E);
+  Streamer.EmitLabel(Label);
+
+  unsigned Size = TM.getTargetData()->getPointerSize();
+  Streamer.EmitSymbolValue(Sym, Size);
 }
 
 static SectionKind
@@ -424,8 +471,7 @@ getExprForDwarfGlobalReference(const GlobalValue *GV, Mangler *Mang,
     }
 
     return TargetLoweringObjectFile::
-      getExprForDwarfReference(SSym, Mang, MMI,
-                               Encoding & ~dwarf::DW_EH_PE_indirect, Streamer);
+      getExprForDwarfReference(SSym, Encoding & ~dwarf::DW_EH_PE_indirect, Streamer);
   }
 
   return TargetLoweringObjectFile::
@@ -446,18 +492,10 @@ void TargetLoweringObjectFileMachO::Initialize(MCContext &Ctx,
   IsFunctionEHFrameSymbolPrivate = false;
   SupportsWeakOmittedEHFrame = false;
 
+  // .comm doesn't support alignment before Leopard.
   Triple T(((LLVMTargetMachine&)TM).getTargetTriple());
-  if (T.getOS() == Triple::Darwin) {
-    switch (T.getDarwinMajorNumber()) {
-    case 7:  // 10.3 Panther.
-    case 8:  // 10.4 Tiger.
-      CommDirectiveSupportsAlignment = false;
-      break;
-    case 9:   // 10.5 Leopard.
-    case 10:  // 10.6 SnowLeopard.
-      break;
-    }
-  }
+  if (T.isMacOSX() && T.isMacOSXVersionLT(10, 5))
+    CommDirectiveSupportsAlignment = false;
 
   TargetLoweringObjectFile::Initialize(Ctx, TM);
 
@@ -641,10 +679,11 @@ getExplicitSectionGlobal(const GlobalValue *GV, SectionKind Kind,
                          Mangler *Mang, const TargetMachine &TM) const {
   // Parse the section specifier and create it if valid.
   StringRef Segment, Section;
-  unsigned TAA = (unsigned)MCSectionMachO::SECTION_ATTRIBUTES, StubSize = 0;
+  unsigned TAA = 0, StubSize = 0;
+  bool TAAParsed;
   std::string ErrorCode =
     MCSectionMachO::ParseSectionSpecifier(GV->getSection(), Segment, Section,
-                                          TAA, StubSize);
+                                          TAA, TAAParsed, StubSize);
   if (!ErrorCode.empty()) {
     // If invalid, report the error with report_fatal_error.
     report_fatal_error("Global variable '" + GV->getNameStr() +
@@ -654,17 +693,13 @@ getExplicitSectionGlobal(const GlobalValue *GV, SectionKind Kind,
     return DataSection;
   }
 
-  bool TAAWasSet = (TAA != MCSectionMachO::SECTION_ATTRIBUTES);
-  if (!TAAWasSet)
-    TAA = 0;      // Sensible default if this is a new section.
-    
   // Get the section.
   const MCSectionMachO *S =
     getContext().getMachOSection(Segment, Section, TAA, StubSize, Kind);
 
   // If TAA wasn't set by ParseSectionSpecifier() above,
   // use the value returned by getMachOSection() as a default.
-  if (!TAAWasSet)
+  if (!TAAParsed)
     TAA = S->getTypeAndAttributes();
 
   // Okay, now that we got the section, verify that the TAA & StubSize agree.
@@ -806,12 +841,34 @@ getExprForDwarfGlobalReference(const GlobalValue *GV, Mangler *Mang,
     }
 
     return TargetLoweringObjectFile::
-      getExprForDwarfReference(SSym, Mang, MMI,
-                               Encoding & ~dwarf::DW_EH_PE_indirect, Streamer);
+      getExprForDwarfReference(SSym, Encoding & ~dwarf::DW_EH_PE_indirect, Streamer);
   }
 
   return TargetLoweringObjectFile::
     getExprForDwarfGlobalReference(GV, Mang, MMI, Encoding, Streamer);
+}
+
+MCSymbol *TargetLoweringObjectFileMachO::
+getCFIPersonalitySymbol(const GlobalValue *GV, Mangler *Mang,
+                        MachineModuleInfo *MMI) const {
+  // The mach-o version of this method defaults to returning a stub reference.
+  MachineModuleInfoMachO &MachOMMI =
+    MMI->getObjFileInfo<MachineModuleInfoMachO>();
+
+  SmallString<128> Name;
+  Mang->getNameWithPrefix(Name, GV, true);
+  Name += "$non_lazy_ptr";
+
+  // Add information about the stub reference to MachOMMI so that the stub
+  // gets emitted by the asmprinter.
+  MCSymbol *SSym = getContext().GetOrCreateSymbol(Name.str());
+  MachineModuleInfoImpl::StubValueTy &StubSym = MachOMMI.getGVStubEntry(SSym);
+  if (StubSym.getPointer() == 0) {
+    MCSymbol *Sym = Mang->getSymbol(GV);
+    StubSym = MachineModuleInfoImpl::StubValueTy(Sym, !GV->hasLocalLinkage());
+  }
+
+  return SSym;
 }
 
 unsigned TargetLoweringObjectFileMachO::getPersonalityEncoding() const {
@@ -822,7 +879,7 @@ unsigned TargetLoweringObjectFileMachO::getLSDAEncoding() const {
   return DW_EH_PE_pcrel;
 }
 
-unsigned TargetLoweringObjectFileMachO::getFDEEncoding() const {
+unsigned TargetLoweringObjectFileMachO::getFDEEncoding(bool CFI) const {
   return DW_EH_PE_pcrel;
 }
 

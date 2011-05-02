@@ -15,6 +15,8 @@
 namespace llvm {
 class StringRef;
 
+class CrashRecoveryContextCleanup;
+  
 /// \brief Crash recovery helper object.
 ///
 /// This class implements support for running operations in a safe context so
@@ -42,10 +44,14 @@ class StringRef;
 /// Crash recovery contexts may not be nested.
 class CrashRecoveryContext {
   void *Impl;
+  CrashRecoveryContextCleanup *head;
 
 public:
-  CrashRecoveryContext() : Impl(0) {}
+  CrashRecoveryContext() : Impl(0), head(0) {}
   ~CrashRecoveryContext();
+  
+  void registerCleanup(CrashRecoveryContextCleanup *cleanup);
+  void unregisterCleanup(CrashRecoveryContextCleanup *cleanup);
 
   /// \brief Enable crash recovery.
   static void Enable();
@@ -56,6 +62,10 @@ public:
   /// \brief Return the active context, if the code is currently executing in a
   /// thread which is in a protected context.
   static CrashRecoveryContext *GetCurrent();
+
+  /// \brief Return true if the current thread is recovering from a
+  /// crash.
+  static bool isRecoveringFromCrash();
 
   /// \brief Execute the provide callback function (with the given arguments) in
   /// a protected context.
@@ -87,6 +97,99 @@ public:
   const std::string &getBacktrace() const;
 };
 
+class CrashRecoveryContextCleanup {
+protected:
+  CrashRecoveryContext *context;
+  CrashRecoveryContextCleanup(CrashRecoveryContext *context)
+    : context(context), cleanupFired(false) {}
+public:
+  bool cleanupFired;
+  
+  virtual ~CrashRecoveryContextCleanup();
+  virtual void recoverResources() = 0;
+
+  CrashRecoveryContext *getContext() const {
+    return context;
+  }
+
+private:
+  friend class CrashRecoveryContext;
+  CrashRecoveryContextCleanup *prev, *next;
+};
+
+template<typename DERIVED, typename T>
+class CrashRecoveryContextCleanupBase : public CrashRecoveryContextCleanup {
+protected:
+  T *resource;
+  CrashRecoveryContextCleanupBase(CrashRecoveryContext *context, T* resource)
+    : CrashRecoveryContextCleanup(context), resource(resource) {}
+public:
+  static DERIVED *create(T *x) {
+    if (x) {
+      if (CrashRecoveryContext *context = CrashRecoveryContext::GetCurrent())
+        return new DERIVED(context, x);
+    }
+    return 0;
+  }
+};
+
+template <typename T>
+class CrashRecoveryContextDestructorCleanup : public
+  CrashRecoveryContextCleanupBase<CrashRecoveryContextDestructorCleanup<T>, T> {
+public:
+  CrashRecoveryContextDestructorCleanup(CrashRecoveryContext *context,
+                                        T *resource) 
+    : CrashRecoveryContextCleanupBase<
+        CrashRecoveryContextDestructorCleanup<T>, T>(context, resource) {}
+
+  virtual void recoverResources() {
+    this->resource->~T();
+  }
+};
+
+template <typename T>
+class CrashRecoveryContextDeleteCleanup : public
+  CrashRecoveryContextCleanupBase<CrashRecoveryContextDeleteCleanup<T>, T> {
+public:
+  CrashRecoveryContextDeleteCleanup(CrashRecoveryContext *context, T *resource)
+    : CrashRecoveryContextCleanupBase<
+        CrashRecoveryContextDeleteCleanup<T>, T>(context, resource) {}
+
+  virtual void recoverResources() {
+    delete this->resource;
+  }  
+};
+
+template <typename T>
+class CrashRecoveryContextReleaseRefCleanup : public
+  CrashRecoveryContextCleanupBase<CrashRecoveryContextReleaseRefCleanup<T>, T>
+{
+public:
+  CrashRecoveryContextReleaseRefCleanup(CrashRecoveryContext *context, 
+                                        T *resource)
+    : CrashRecoveryContextCleanupBase<CrashRecoveryContextReleaseRefCleanup<T>,
+          T>(context, resource) {}
+
+  virtual void recoverResources() {
+    this->resource->Release();
+  }
+};
+
+template <typename T, typename Cleanup = CrashRecoveryContextDeleteCleanup<T> >
+class CrashRecoveryContextCleanupRegistrar {
+  CrashRecoveryContextCleanup *cleanup;
+public:
+  CrashRecoveryContextCleanupRegistrar(T *x)
+    : cleanup(Cleanup::create(x)) {
+    if (cleanup)
+      cleanup->getContext()->registerCleanup(cleanup);
+  }
+
+  ~CrashRecoveryContextCleanupRegistrar() {
+    if (cleanup && !cleanup->cleanupFired)
+        cleanup->getContext()->unregisterCleanup(cleanup);
+  }
+};
 }
 
 #endif

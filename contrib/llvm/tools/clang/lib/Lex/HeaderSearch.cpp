@@ -114,8 +114,11 @@ const char *DirectoryLookup::getName() const {
 
 /// LookupFile - Lookup the specified file in this search path, returning it
 /// if it exists or returning null if not.
-const FileEntry *DirectoryLookup::LookupFile(llvm::StringRef Filename,
-                                             HeaderSearch &HS) const {
+const FileEntry *DirectoryLookup::LookupFile(
+    llvm::StringRef Filename,
+    HeaderSearch &HS,
+    llvm::SmallVectorImpl<char> *SearchPath,
+    llvm::SmallVectorImpl<char> *RelativePath) const {
   llvm::SmallString<1024> TmpDir;
   if (isNormalDir()) {
     // Concatenate the requested file onto the directory.
@@ -123,21 +126,46 @@ const FileEntry *DirectoryLookup::LookupFile(llvm::StringRef Filename,
     TmpDir += getDir()->getName();
     TmpDir.push_back('/');
     TmpDir.append(Filename.begin(), Filename.end());
-    return HS.getFileMgr().getFile(TmpDir.str());
+    if (SearchPath != NULL) {
+      llvm::StringRef SearchPathRef(getDir()->getName());
+      SearchPath->clear();
+      SearchPath->append(SearchPathRef.begin(), SearchPathRef.end());
+    }
+    if (RelativePath != NULL) {
+      RelativePath->clear();
+      RelativePath->append(Filename.begin(), Filename.end());
+    }
+    return HS.getFileMgr().getFile(TmpDir.str(), /*openFile=*/true);
   }
 
   if (isFramework())
-    return DoFrameworkLookup(Filename, HS);
+    return DoFrameworkLookup(Filename, HS, SearchPath, RelativePath);
 
   assert(isHeaderMap() && "Unknown directory lookup");
-  return getHeaderMap()->LookupFile(Filename, HS.getFileMgr());
+  const FileEntry * const Result = getHeaderMap()->LookupFile(
+      Filename, HS.getFileMgr());
+  if (Result) {
+    if (SearchPath != NULL) {
+      llvm::StringRef SearchPathRef(getName());
+      SearchPath->clear();
+      SearchPath->append(SearchPathRef.begin(), SearchPathRef.end());
+    }
+    if (RelativePath != NULL) {
+      RelativePath->clear();
+      RelativePath->append(Filename.begin(), Filename.end());
+    }
+  }
+  return Result;
 }
 
 
 /// DoFrameworkLookup - Do a lookup of the specified file in the current
 /// DirectoryLookup, which is a framework directory.
-const FileEntry *DirectoryLookup::DoFrameworkLookup(llvm::StringRef Filename,
-                                                    HeaderSearch &HS) const {
+const FileEntry *DirectoryLookup::DoFrameworkLookup(
+    llvm::StringRef Filename,
+    HeaderSearch &HS,
+    llvm::SmallVectorImpl<char> *SearchPath,
+    llvm::SmallVectorImpl<char> *RelativePath) const {
   FileManager &FileMgr = HS.getFileMgr();
 
   // Framework names must have a '/' in the filename.
@@ -183,19 +211,37 @@ const FileEntry *DirectoryLookup::DoFrameworkLookup(llvm::StringRef Filename,
     FrameworkDirCache = getFrameworkDir();
   }
 
+  if (RelativePath != NULL) {
+    RelativePath->clear();
+    RelativePath->append(Filename.begin()+SlashPos+1, Filename.end());
+  }
+
   // Check "/System/Library/Frameworks/Cocoa.framework/Headers/file.h"
   unsigned OrigSize = FrameworkName.size();
 
   FrameworkName += "Headers/";
+
+  if (SearchPath != NULL) {
+    SearchPath->clear();
+    // Without trailing '/'.
+    SearchPath->append(FrameworkName.begin(), FrameworkName.end()-1);
+  }
+
   FrameworkName.append(Filename.begin()+SlashPos+1, Filename.end());
-  if (const FileEntry *FE = FileMgr.getFile(FrameworkName.str()))
+  if (const FileEntry *FE = FileMgr.getFile(FrameworkName.str(),
+                                            /*openFile=*/true)) {
     return FE;
+  }
 
   // Check "/System/Library/Frameworks/Cocoa.framework/PrivateHeaders/file.h"
   const char *Private = "Private";
   FrameworkName.insert(FrameworkName.begin()+OrigSize, Private,
                        Private+strlen(Private));
-  return FileMgr.getFile(FrameworkName.str());
+  if (SearchPath != NULL)
+    SearchPath->insert(SearchPath->begin()+OrigSize, Private,
+                       Private+strlen(Private));
+
+  return FileMgr.getFile(FrameworkName.str(), /*openFile=*/true);
 }
 
 
@@ -209,11 +255,14 @@ const FileEntry *DirectoryLookup::DoFrameworkLookup(llvm::StringRef Filename,
 /// for system #include's or not (i.e. using <> instead of "").  CurFileEnt, if
 /// non-null, indicates where the #including file is, in case a relative search
 /// is needed.
-const FileEntry *HeaderSearch::LookupFile(llvm::StringRef Filename,
-                                          bool isAngled,
-                                          const DirectoryLookup *FromDir,
-                                          const DirectoryLookup *&CurDir,
-                                          const FileEntry *CurFileEnt) {
+const FileEntry *HeaderSearch::LookupFile(
+    llvm::StringRef Filename,
+    bool isAngled,
+    const DirectoryLookup *FromDir,
+    const DirectoryLookup *&CurDir,
+    const FileEntry *CurFileEnt,
+    llvm::SmallVectorImpl<char> *SearchPath,
+    llvm::SmallVectorImpl<char> *RelativePath) {
   // If 'Filename' is absolute, check to see if it exists and no searching.
   if (llvm::sys::path::is_absolute(Filename)) {
     CurDir = 0;
@@ -221,8 +270,14 @@ const FileEntry *HeaderSearch::LookupFile(llvm::StringRef Filename,
     // If this was an #include_next "/absolute/file", fail.
     if (FromDir) return 0;
 
+    if (SearchPath != NULL)
+      SearchPath->clear();
+    if (RelativePath != NULL) {
+      RelativePath->clear();
+      RelativePath->append(Filename.begin(), Filename.end());
+    }
     // Otherwise, just return the file.
-    return FileMgr.getFile(Filename);
+    return FileMgr.getFile(Filename, /*openFile=*/true);
   }
 
   // Step #0, unless disabled, check to see if the file is in the #includer's
@@ -237,7 +292,7 @@ const FileEntry *HeaderSearch::LookupFile(llvm::StringRef Filename,
     TmpDir += CurFileEnt->getDir()->getName();
     TmpDir.push_back('/');
     TmpDir.append(Filename.begin(), Filename.end());
-    if (const FileEntry *FE = FileMgr.getFile(TmpDir.str())) {
+    if (const FileEntry *FE = FileMgr.getFile(TmpDir.str(),/*openFile=*/true)) {
       // Leave CurDir unset.
       // This file is a system header or C++ unfriendly if the old file is.
       //
@@ -246,6 +301,15 @@ const FileEntry *HeaderSearch::LookupFile(llvm::StringRef Filename,
       // of evaluation.
       unsigned DirInfo = getFileInfo(CurFileEnt).DirInfo;
       getFileInfo(FE).DirInfo = DirInfo;
+      if (SearchPath != NULL) {
+        llvm::StringRef SearchPathRef(CurFileEnt->getDir()->getName());
+        SearchPath->clear();
+        SearchPath->append(SearchPathRef.begin(), SearchPathRef.end());
+      }
+      if (RelativePath != NULL) {
+        RelativePath->clear();
+        RelativePath->append(Filename.begin(), Filename.end());
+      }
       return FE;
     }
   }
@@ -283,7 +347,7 @@ const FileEntry *HeaderSearch::LookupFile(llvm::StringRef Filename,
   // Check each directory in sequence to see if it contains this file.
   for (; i != SearchDirs.size(); ++i) {
     const FileEntry *FE =
-      SearchDirs[i].LookupFile(Filename, *this);
+      SearchDirs[i].LookupFile(Filename, *this, SearchPath, RelativePath);
     if (!FE) continue;
 
     CurDir = &SearchDirs[i];
@@ -308,7 +372,9 @@ const FileEntry *HeaderSearch::LookupFile(llvm::StringRef Filename,
 /// for the designated file, otherwise return null.
 const FileEntry *HeaderSearch::
 LookupSubframeworkHeader(llvm::StringRef Filename,
-                         const FileEntry *ContextFileEnt) {
+                         const FileEntry *ContextFileEnt,
+                         llvm::SmallVectorImpl<char> *SearchPath,
+                         llvm::SmallVectorImpl<char> *RelativePath) {
   assert(ContextFileEnt && "No context file?");
 
   // Framework names must have a '/' in the filename.  Find it.
@@ -356,17 +422,34 @@ LookupSubframeworkHeader(llvm::StringRef Filename,
 
   const FileEntry *FE = 0;
 
+  if (RelativePath != NULL) {
+    RelativePath->clear();
+    RelativePath->append(Filename.begin()+SlashPos+1, Filename.end());
+  }
+
   // Check ".../Frameworks/HIToolbox.framework/Headers/HIToolbox.h"
   llvm::SmallString<1024> HeadersFilename(FrameworkName);
   HeadersFilename += "Headers/";
+  if (SearchPath != NULL) {
+    SearchPath->clear();
+    // Without trailing '/'.
+    SearchPath->append(HeadersFilename.begin(), HeadersFilename.end()-1);
+  }
+
   HeadersFilename.append(Filename.begin()+SlashPos+1, Filename.end());
-  if (!(FE = FileMgr.getFile(HeadersFilename.str()))) {
+  if (!(FE = FileMgr.getFile(HeadersFilename.str(), /*openFile=*/true))) {
 
     // Check ".../Frameworks/HIToolbox.framework/PrivateHeaders/HIToolbox.h"
     HeadersFilename = FrameworkName;
     HeadersFilename += "PrivateHeaders/";
+    if (SearchPath != NULL) {
+      SearchPath->clear();
+      // Without trailing '/'.
+      SearchPath->append(HeadersFilename.begin(), HeadersFilename.end()-1);
+    }
+
     HeadersFilename.append(Filename.begin()+SlashPos+1, Filename.end());
-    if (!(FE = FileMgr.getFile(HeadersFilename.str())))
+    if (!(FE = FileMgr.getFile(HeadersFilename.str(), /*openFile=*/true)))
       return 0;
   }
 

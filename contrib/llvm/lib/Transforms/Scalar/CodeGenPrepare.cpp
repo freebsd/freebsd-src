@@ -47,21 +47,21 @@ using namespace llvm;
 using namespace llvm::PatternMatch;
 
 STATISTIC(NumBlocksElim, "Number of blocks eliminated");
-STATISTIC(NumPHIsElim, "Number of trivial PHIs eliminated");
-STATISTIC(NumGEPsElim, "Number of GEPs converted to casts");
+STATISTIC(NumPHIsElim,   "Number of trivial PHIs eliminated");
+STATISTIC(NumGEPsElim,   "Number of GEPs converted to casts");
 STATISTIC(NumCmpUses, "Number of uses of Cmp expressions replaced with uses of "
                       "sunken Cmps");
 STATISTIC(NumCastUses, "Number of uses of Cast expressions replaced with uses "
                        "of sunken Casts");
 STATISTIC(NumMemoryInsts, "Number of memory instructions whose address "
                           "computations were sunk");
-STATISTIC(NumExtsMoved, "Number of [s|z]ext instructions combined with loads");
-STATISTIC(NumExtUses, "Number of uses of [s|z]ext instructions optimized");
+STATISTIC(NumExtsMoved,  "Number of [s|z]ext instructions combined with loads");
+STATISTIC(NumExtUses,    "Number of uses of [s|z]ext instructions optimized");
+STATISTIC(NumRetsDup,    "Number of return instructions duplicated");
 
-static cl::opt<bool>
-CriticalEdgeSplit("cgp-critical-edge-splitting",
-                  cl::desc("Split critical edges during codegen prepare"),
-                  cl::init(false), cl::Hidden);
+static cl::opt<bool> DisableBranchOpts(
+  "disable-cgp-branch-opts", cl::Hidden, cl::init(false),
+  cl::desc("Disable branch optimizations in CodeGenPrepare"));
 
 namespace {
   class CodeGenPrepare : public FunctionPass {
@@ -76,14 +76,14 @@ namespace {
     /// update it.
     BasicBlock::iterator CurInstIterator;
 
-    /// BackEdges - Keep a set of all the loop back edges.
-    ///
-    SmallSet<std::pair<const BasicBlock*, const BasicBlock*>, 8> BackEdges;
-
-    // Keeps track of non-local addresses that have been sunk into a block. This
-    // allows us to avoid inserting duplicate code for blocks with multiple
-    // load/stores of the same address.
+    /// Keeps track of non-local addresses that have been sunk into a block.
+    /// This allows us to avoid inserting duplicate code for blocks with
+    /// multiple load/stores of the same address.
     DenseMap<Value*, Value*> SunkAddrs;
+
+    /// ModifiedDT - If CFG is modified in anyway, dominator tree may need to
+    /// be updated.
+    bool ModifiedDT;
 
   public:
     static char ID; // Pass identification, replacement for typeid
@@ -98,10 +98,6 @@ namespace {
       AU.addPreserved<ProfileInfo>();
     }
 
-    virtual void releaseMemory() {
-      BackEdges.clear();
-    }
-
   private:
     bool EliminateMostlyEmptyBlocks(Function &F);
     bool CanMergeBlocks(const BasicBlock *BB, const BasicBlock *DestBB) const;
@@ -113,7 +109,7 @@ namespace {
     bool OptimizeCallInst(CallInst *CI);
     bool MoveExtToFormExtLoad(Instruction *I);
     bool OptimizeExtUses(Instruction *I);
-    void findLoopBackEdges(const Function &F);
+    bool DupRetToEnableTailCallOpts(ReturnInst *RI);
   };
 }
 
@@ -125,39 +121,41 @@ FunctionPass *llvm::createCodeGenPreparePass(const TargetLowering *TLI) {
   return new CodeGenPrepare(TLI);
 }
 
-/// findLoopBackEdges - Do a DFS walk to find loop back edges.
-///
-void CodeGenPrepare::findLoopBackEdges(const Function &F) {
-  SmallVector<std::pair<const BasicBlock*,const BasicBlock*>, 32> Edges;
-  FindFunctionBackedges(F, Edges);
-  
-  BackEdges.insert(Edges.begin(), Edges.end());
-}
-
-
 bool CodeGenPrepare::runOnFunction(Function &F) {
   bool EverMadeChange = false;
 
+  ModifiedDT = false;
   DT = getAnalysisIfAvailable<DominatorTree>();
   PFI = getAnalysisIfAvailable<ProfileInfo>();
+
   // First pass, eliminate blocks that contain only PHI nodes and an
   // unconditional branch.
   EverMadeChange |= EliminateMostlyEmptyBlocks(F);
 
-  // Now find loop back edges, but only if they are being used to decide which
-  // critical edges to split.
-  if (CriticalEdgeSplit)
-    findLoopBackEdges(F);
-
   bool MadeChange = true;
   while (MadeChange) {
     MadeChange = false;
-    for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
+    for (Function::iterator I = F.begin(), E = F.end(); I != E; ) {
+      BasicBlock *BB = I++;
       MadeChange |= OptimizeBlock(*BB);
+    }
     EverMadeChange |= MadeChange;
   }
 
   SunkAddrs.clear();
+
+  if (!DisableBranchOpts) {
+    MadeChange = false;
+    for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
+      MadeChange |= ConstantFoldTerminator(BB);
+
+    if (MadeChange)
+      ModifiedDT = true;
+    EverMadeChange |= MadeChange;
+  }
+
+  if (ModifiedDT && DT)
+    DT->DT->recalculate(F);
 
   return EverMadeChange;
 }
@@ -333,7 +331,7 @@ void CodeGenPrepare::EliminateMostlyEmptyBlock(BasicBlock *BB) {
   // The PHIs are now updated, change everything that refers to BB to use
   // DestBB and remove BB.
   BB->replaceAllUsesWith(DestBB);
-  if (DT) {
+  if (DT && !ModifiedDT) {
     BasicBlock *BBIDom  = DT->getNode(BB)->getIDom()->getBlock();
     BasicBlock *DestBBIDom = DT->getNode(DestBB)->getIDom()->getBlock();
     BasicBlock *NewIDom = DT->findNearestCommonDominator(BBIDom, DestBBIDom);
@@ -349,110 +347,6 @@ void CodeGenPrepare::EliminateMostlyEmptyBlock(BasicBlock *BB) {
 
   DEBUG(dbgs() << "AFTER:\n" << *DestBB << "\n\n\n");
 }
-
-/// FindReusablePredBB - Check all of the predecessors of the block DestPHI
-/// lives in to see if there is a block that we can reuse as a critical edge
-/// from TIBB.
-static BasicBlock *FindReusablePredBB(PHINode *DestPHI, BasicBlock *TIBB) {
-  BasicBlock *Dest = DestPHI->getParent();
-  
-  /// TIPHIValues - This array is lazily computed to determine the values of
-  /// PHIs in Dest that TI would provide.
-  SmallVector<Value*, 32> TIPHIValues;
-  
-  /// TIBBEntryNo - This is a cache to speed up pred queries for TIBB.
-  unsigned TIBBEntryNo = 0;
-  
-  // Check to see if Dest has any blocks that can be used as a split edge for
-  // this terminator.
-  for (unsigned pi = 0, e = DestPHI->getNumIncomingValues(); pi != e; ++pi) {
-    BasicBlock *Pred = DestPHI->getIncomingBlock(pi);
-    // To be usable, the pred has to end with an uncond branch to the dest.
-    BranchInst *PredBr = dyn_cast<BranchInst>(Pred->getTerminator());
-    if (!PredBr || !PredBr->isUnconditional())
-      continue;
-    // Must be empty other than the branch and debug info.
-    BasicBlock::iterator I = Pred->begin();
-    while (isa<DbgInfoIntrinsic>(I))
-      I++;
-    if (&*I != PredBr)
-      continue;
-    // Cannot be the entry block; its label does not get emitted.
-    if (Pred == &Dest->getParent()->getEntryBlock())
-      continue;
-    
-    // Finally, since we know that Dest has phi nodes in it, we have to make
-    // sure that jumping to Pred will have the same effect as going to Dest in
-    // terms of PHI values.
-    PHINode *PN;
-    unsigned PHINo = 0;
-    unsigned PredEntryNo = pi;
-    
-    bool FoundMatch = true;
-    for (BasicBlock::iterator I = Dest->begin();
-         (PN = dyn_cast<PHINode>(I)); ++I, ++PHINo) {
-      if (PHINo == TIPHIValues.size()) {
-        if (PN->getIncomingBlock(TIBBEntryNo) != TIBB)
-          TIBBEntryNo = PN->getBasicBlockIndex(TIBB);
-        TIPHIValues.push_back(PN->getIncomingValue(TIBBEntryNo));
-      }
-      
-      // If the PHI entry doesn't work, we can't use this pred.
-      if (PN->getIncomingBlock(PredEntryNo) != Pred)
-        PredEntryNo = PN->getBasicBlockIndex(Pred);
-      
-      if (TIPHIValues[PHINo] != PN->getIncomingValue(PredEntryNo)) {
-        FoundMatch = false;
-        break;
-      }
-    }
-    
-    // If we found a workable predecessor, change TI to branch to Succ.
-    if (FoundMatch)
-      return Pred;
-  }
-  return 0;  
-}
-
-
-/// SplitEdgeNicely - Split the critical edge from TI to its specified
-/// successor if it will improve codegen.  We only do this if the successor has
-/// phi nodes (otherwise critical edges are ok).  If there is already another
-/// predecessor of the succ that is empty (and thus has no phi nodes), use it
-/// instead of introducing a new block.
-static void SplitEdgeNicely(TerminatorInst *TI, unsigned SuccNum,
-                     SmallSet<std::pair<const BasicBlock*,
-                                        const BasicBlock*>, 8> &BackEdges,
-                             Pass *P) {
-  BasicBlock *TIBB = TI->getParent();
-  BasicBlock *Dest = TI->getSuccessor(SuccNum);
-  assert(isa<PHINode>(Dest->begin()) &&
-         "This should only be called if Dest has a PHI!");
-  PHINode *DestPHI = cast<PHINode>(Dest->begin());
-
-  // Do not split edges to EH landing pads.
-  if (InvokeInst *Invoke = dyn_cast<InvokeInst>(TI))
-    if (Invoke->getSuccessor(1) == Dest)
-      return;
-
-  // As a hack, never split backedges of loops.  Even though the copy for any
-  // PHIs inserted on the backedge would be dead for exits from the loop, we
-  // assume that the cost of *splitting* the backedge would be too high.
-  if (BackEdges.count(std::make_pair(TIBB, Dest)))
-    return;
-
-  if (BasicBlock *ReuseBB = FindReusablePredBB(DestPHI, TIBB)) {
-    ProfileInfo *PFI = P->getAnalysisIfAvailable<ProfileInfo>();
-    if (PFI)
-      PFI->splitEdge(TIBB, Dest, ReuseBB);
-    Dest->removePredecessor(TIBB);
-    TI->setSuccessor(SuccNum, ReuseBB);
-    return;
-  }
-
-  SplitCriticalEdge(TI, SuccNum, P, true);
-}
-
 
 /// OptimizeNoopCopyExpression - If the specified cast instruction is a noop
 /// copy (e.g. it's casting from one pointer type to another, i32->i8 on PPC),
@@ -640,7 +534,8 @@ bool CodeGenPrepare::OptimizeCallInst(CallInst *CI) {
     // happens.
     WeakVH IterHandle(CurInstIterator);
     
-    ReplaceAndSimplifyAllUses(CI, RetVal, TLI ? TLI->getTargetData() : 0, DT);
+    ReplaceAndSimplifyAllUses(CI, RetVal, TLI ? TLI->getTargetData() : 0,
+                              ModifiedDT ? 0 : DT);
 
     // If the iterator instruction was recursively deleted, start over at the
     // start of the block.
@@ -664,6 +559,129 @@ bool CodeGenPrepare::OptimizeCallInst(CallInst *CI) {
   // should be left alone.
   CodeGenPrepareFortifiedLibCalls Simplifier;
   return Simplifier.fold(CI, TD);
+}
+
+/// DupRetToEnableTailCallOpts - Look for opportunities to duplicate return
+/// instructions to the predecessor to enable tail call optimizations. The
+/// case it is currently looking for is:
+/// bb0:
+///   %tmp0 = tail call i32 @f0()
+///   br label %return
+/// bb1:
+///   %tmp1 = tail call i32 @f1()
+///   br label %return
+/// bb2:
+///   %tmp2 = tail call i32 @f2()
+///   br label %return
+/// return:
+///   %retval = phi i32 [ %tmp0, %bb0 ], [ %tmp1, %bb1 ], [ %tmp2, %bb2 ]
+///   ret i32 %retval
+///
+/// =>
+///
+/// bb0:
+///   %tmp0 = tail call i32 @f0()
+///   ret i32 %tmp0
+/// bb1:
+///   %tmp1 = tail call i32 @f1()
+///   ret i32 %tmp1
+/// bb2:
+///   %tmp2 = tail call i32 @f2()
+///   ret i32 %tmp2
+///
+bool CodeGenPrepare::DupRetToEnableTailCallOpts(ReturnInst *RI) {
+  if (!TLI)
+    return false;
+
+  Value *V = RI->getReturnValue();
+  PHINode *PN = V ? dyn_cast<PHINode>(V) : NULL;
+  if (V && !PN)
+    return false;
+
+  BasicBlock *BB = RI->getParent();
+  if (PN && PN->getParent() != BB)
+    return false;
+
+  // It's not safe to eliminate the sign / zero extension of the return value.
+  // See llvm::isInTailCallPosition().
+  const Function *F = BB->getParent();
+  unsigned CallerRetAttr = F->getAttributes().getRetAttributes();
+  if ((CallerRetAttr & Attribute::ZExt) || (CallerRetAttr & Attribute::SExt))
+    return false;
+
+  // Make sure there are no instructions between the PHI and return, or that the
+  // return is the first instruction in the block.
+  if (PN) {
+    BasicBlock::iterator BI = BB->begin();
+    do { ++BI; } while (isa<DbgInfoIntrinsic>(BI));
+    if (&*BI != RI)
+      return false;
+  } else {
+    BasicBlock::iterator BI = BB->begin();
+    while (isa<DbgInfoIntrinsic>(BI)) ++BI;
+    if (&*BI != RI)
+      return false;
+  }
+
+  /// Only dup the ReturnInst if the CallInst is likely to be emitted as a tail
+  /// call.
+  SmallVector<CallInst*, 4> TailCalls;
+  if (PN) {
+    for (unsigned I = 0, E = PN->getNumIncomingValues(); I != E; ++I) {
+      CallInst *CI = dyn_cast<CallInst>(PN->getIncomingValue(I));
+      // Make sure the phi value is indeed produced by the tail call.
+      if (CI && CI->hasOneUse() && CI->getParent() == PN->getIncomingBlock(I) &&
+          TLI->mayBeEmittedAsTailCall(CI))
+        TailCalls.push_back(CI);
+    }
+  } else {
+    SmallPtrSet<BasicBlock*, 4> VisitedBBs;
+    for (pred_iterator PI = pred_begin(BB), PE = pred_end(BB); PI != PE; ++PI) {
+      if (!VisitedBBs.insert(*PI))
+        continue;
+
+      BasicBlock::InstListType &InstList = (*PI)->getInstList();
+      BasicBlock::InstListType::reverse_iterator RI = InstList.rbegin();
+      BasicBlock::InstListType::reverse_iterator RE = InstList.rend();
+      do { ++RI; } while (RI != RE && isa<DbgInfoIntrinsic>(&*RI));
+      if (RI == RE)
+        continue;
+
+      CallInst *CI = dyn_cast<CallInst>(&*RI);
+      if (CI && CI->use_empty() && TLI->mayBeEmittedAsTailCall(CI))
+        TailCalls.push_back(CI);
+    }
+  }
+
+  bool Changed = false;
+  for (unsigned i = 0, e = TailCalls.size(); i != e; ++i) {
+    CallInst *CI = TailCalls[i];
+    CallSite CS(CI);
+
+    // Conservatively require the attributes of the call to match those of the
+    // return. Ignore noalias because it doesn't affect the call sequence.
+    unsigned CalleeRetAttr = CS.getAttributes().getRetAttributes();
+    if ((CalleeRetAttr ^ CallerRetAttr) & ~Attribute::NoAlias)
+      continue;
+
+    // Make sure the call instruction is followed by an unconditional branch to
+    // the return block.
+    BasicBlock *CallBB = CI->getParent();
+    BranchInst *BI = dyn_cast<BranchInst>(CallBB->getTerminator());
+    if (!BI || !BI->isUnconditional() || BI->getSuccessor(0) != BB)
+      continue;
+
+    // Duplicate the return into CallBB.
+    (void)FoldReturnIntoUncondBranch(RI, BB, CallBB);
+    ModifiedDT = Changed = true;
+    ++NumRetsDup;
+  }
+
+  // If we eliminated all predecessors of the block, delete the block now.
+  if (Changed && pred_begin(BB) == pred_end(BB))
+    BB->eraseFromParent();
+
+  return Changed;
 }
 
 //===----------------------------------------------------------------------===//
@@ -701,7 +719,8 @@ bool CodeGenPrepare::OptimizeMemoryInst(Instruction *MemoryInst, Value *Addr,
   // the addressing mode obtained from the non-PHI roots of the graph
   // are equivalent.
   Value *Consensus = 0;
-  unsigned NumUses = 0;
+  unsigned NumUsesConsensus = 0;
+  bool IsNumUsesConsensusValid = false;
   SmallVector<Instruction*, 16> AddrModeInsts;
   ExtAddrMode AddrMode;
   while (!worklist.empty()) {
@@ -728,16 +747,31 @@ bool CodeGenPrepare::OptimizeMemoryInst(Instruction *MemoryInst, Value *Addr,
     ExtAddrMode NewAddrMode =
       AddressingModeMatcher::Match(V, AccessTy,MemoryInst,
                                    NewAddrModeInsts, *TLI);
-    
-    // Ensure that the obtained addressing mode is equivalent to that obtained
-    // for all other roots of the PHI traversal.  Also, when choosing one
-    // such root as representative, select the one with the most uses in order
-    // to keep the cost modeling heuristics in AddressingModeMatcher applicable.
-    if (!Consensus || NewAddrMode == AddrMode) {
-      if (V->getNumUses() > NumUses) {
+
+    // This check is broken into two cases with very similar code to avoid using
+    // getNumUses() as much as possible. Some values have a lot of uses, so
+    // calling getNumUses() unconditionally caused a significant compile-time
+    // regression.
+    if (!Consensus) {
+      Consensus = V;
+      AddrMode = NewAddrMode;
+      AddrModeInsts = NewAddrModeInsts;
+      continue;
+    } else if (NewAddrMode == AddrMode) {
+      if (!IsNumUsesConsensusValid) {
+        NumUsesConsensus = Consensus->getNumUses();
+        IsNumUsesConsensusValid = true;
+      }
+
+      // Ensure that the obtained addressing mode is equivalent to that obtained
+      // for all other roots of the PHI traversal.  Also, when choosing one
+      // such root as representative, select the one with the most uses in order
+      // to keep the cost modeling heuristics in AddressingModeMatcher
+      // applicable.
+      unsigned NumUses = V->getNumUses();
+      if (NumUses > NumUsesConsensus) {
         Consensus = V;
-        NumUses = V->getNumUses();
-        AddrMode = NewAddrMode;
+        NumUsesConsensus = NumUses;
         AddrModeInsts = NewAddrModeInsts;
       }
       continue;
@@ -855,11 +889,26 @@ bool CodeGenPrepare::OptimizeMemoryInst(Instruction *MemoryInst, Value *Addr,
 
   MemoryInst->replaceUsesOfWith(Repl, SunkAddr);
 
+  // If we have no uses, recursively delete the value and all dead instructions
+  // using it.
   if (Repl->use_empty()) {
+    // This can cause recursive deletion, which can invalidate our iterator.
+    // Use a WeakVH to hold onto it in case this happens.
+    WeakVH IterHandle(CurInstIterator);
+    BasicBlock *BB = CurInstIterator->getParent();
+    
     RecursivelyDeleteTriviallyDeadInstructions(Repl);
-    // This address is now available for reassignment, so erase the table entry;
-    // we don't want to match some completely different instruction.
-    SunkAddrs[Addr] = 0;
+
+    if (IterHandle != CurInstIterator) {
+      // If the iterator instruction was recursively deleted, start over at the
+      // start of the block.
+      CurInstIterator = BB->begin();
+      SunkAddrs.clear();
+    } else {
+      // This address is now available for reassignment, so erase the table
+      // entry; we don't want to match some completely different instruction.
+      SunkAddrs[Addr] = 0;
+    }    
   }
   ++NumMemoryInsts;
   return true;
@@ -1073,6 +1122,9 @@ bool CodeGenPrepare::OptimizeInst(Instruction *I) {
   if (CallInst *CI = dyn_cast<CallInst>(I))
     return OptimizeCallInst(CI);
 
+  if (ReturnInst *RI = dyn_cast<ReturnInst>(I))
+    return DupRetToEnableTailCallOpts(RI);
+
   return false;
 }
 
@@ -1080,21 +1132,8 @@ bool CodeGenPrepare::OptimizeInst(Instruction *I) {
 // across basic blocks and rewrite them to improve basic-block-at-a-time
 // selection.
 bool CodeGenPrepare::OptimizeBlock(BasicBlock &BB) {
-  bool MadeChange = false;
-
-  // Split all critical edges where the dest block has a PHI.
-  if (CriticalEdgeSplit) {
-    TerminatorInst *BBTI = BB.getTerminator();
-    if (BBTI->getNumSuccessors() > 1 && !isa<IndirectBrInst>(BBTI)) {
-      for (unsigned i = 0, e = BBTI->getNumSuccessors(); i != e; ++i) {
-        BasicBlock *SuccBB = BBTI->getSuccessor(i);
-        if (isa<PHINode>(SuccBB->begin()) && isCriticalEdge(BBTI, i, true))
-          SplitEdgeNicely(BBTI, i, BackEdges, this);
-      }
-    }
-  }
-
   SunkAddrs.clear();
+  bool MadeChange = false;
 
   CurInstIterator = BB.begin();
   for (BasicBlock::iterator E = BB.end(); CurInstIterator != E; )

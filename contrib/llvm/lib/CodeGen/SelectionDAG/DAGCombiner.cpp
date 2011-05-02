@@ -319,6 +319,10 @@ void TargetLowering::DAGCombinerInfo::AddToWorklist(SDNode *N) {
   ((DAGCombiner*)DC)->AddToWorkList(N);
 }
 
+void TargetLowering::DAGCombinerInfo::RemoveFromWorklist(SDNode *N) {
+  ((DAGCombiner*)DC)->removeFromWorkList(N);
+}
+
 SDValue TargetLowering::DAGCombinerInfo::
 CombineTo(SDNode *N, const std::vector<SDValue> &To, bool AddTo) {
   return ((DAGCombiner*)DC)->CombineTo(N, &To[0], To.size(), AddTo);
@@ -1290,6 +1294,16 @@ SDValue combineShlAddConstant(DebugLoc DL, SDValue N0, SDValue N1,
   return SDValue();
 }
 
+/// isCarryMaterialization - Returns true if V is an ADDE node that is known to
+/// return 0 or 1 depending on the carry flag.
+static bool isCarryMaterialization(SDValue V) {
+  if (V.getOpcode() != ISD::ADDE)
+    return false;
+
+  ConstantSDNode *C = dyn_cast<ConstantSDNode>(V.getOperand(0));
+  return C && C->isNullValue() && V.getOperand(0) == V.getOperand(1);
+}
+
 SDValue DAGCombiner::visitADD(SDNode *N) {
   SDValue N0 = N->getOperand(0);
   SDValue N1 = N->getOperand(1);
@@ -1453,6 +1467,18 @@ SDValue DAGCombiner::visitADD(SDNode *N) {
     return DAG.getNode(ISD::SUB, DL, VT, N1, ZExt);
   }
 
+  // add (adde 0, 0, glue), X -> adde X, 0, glue
+  if (N0->hasOneUse() && isCarryMaterialization(N0))
+    return DAG.getNode(ISD::ADDE, N->getDebugLoc(),
+                       DAG.getVTList(VT, MVT::Glue), N1, N0.getOperand(0),
+                       N0.getOperand(2));
+
+  // add X, (adde 0, 0, glue) -> adde X, 0, glue
+  if (N1->hasOneUse() && isCarryMaterialization(N1))
+    return DAG.getNode(ISD::ADDE, N->getDebugLoc(),
+                       DAG.getVTList(VT, MVT::Glue), N0, N1.getOperand(0),
+                       N1.getOperand(2));
+
   return SDValue();
 }
 
@@ -1496,6 +1522,16 @@ SDValue DAGCombiner::visitADDC(SDNode *N) {
                                    N->getDebugLoc(), MVT::Glue));
   }
 
+  // addc (adde 0, 0, glue), X -> adde X, 0, glue
+  if (N0->hasOneUse() && isCarryMaterialization(N0))
+    return DAG.getNode(ISD::ADDE, N->getDebugLoc(), N->getVTList(), N1,
+                       DAG.getConstant(0, VT), N0.getOperand(2));
+
+  // addc X, (adde 0, 0, glue) -> adde X, 0, glue
+  if (N1->hasOneUse() && isCarryMaterialization(N1))
+    return DAG.getNode(ISD::ADDE, N->getDebugLoc(), N->getVTList(), N0,
+                       DAG.getConstant(0, VT), N1.getOperand(2));
+
   return SDValue();
 }
 
@@ -1505,6 +1541,12 @@ SDValue DAGCombiner::visitADDE(SDNode *N) {
   SDValue CarryIn = N->getOperand(2);
   ConstantSDNode *N0C = dyn_cast<ConstantSDNode>(N0);
   ConstantSDNode *N1C = dyn_cast<ConstantSDNode>(N1);
+
+  // If both operands are null we know that carry out will always be false.
+  if (N0C && N0C->isNullValue() && N0 == N1)
+    DAG.ReplaceAllUsesOfValueWith(SDValue(N, 1), DAG.getNode(ISD::CARRY_FALSE,
+                                                             N->getDebugLoc(),
+                                                             MVT::Glue));
 
   // canonicalize constant to RHS
   if (N0C && !N1C)
@@ -3281,8 +3323,10 @@ SDValue DAGCombiner::visitSRL(SDNode *N) {
       return DAG.getUNDEF(VT);
 
     if (!LegalTypes || TLI.isTypeDesirableForOp(ISD::SRL, SmallVT)) {
+      uint64_t ShiftAmt = N1C->getZExtValue();
       SDValue SmallShift = DAG.getNode(ISD::SRL, N0.getDebugLoc(), SmallVT,
-                                       N0.getOperand(0), N1);
+                                       N0.getOperand(0),
+                          DAG.getConstant(ShiftAmt, getShiftAmountTy(SmallVT)));
       AddToWorkList(SmallShift.getNode());
       return DAG.getNode(ISD::ANY_EXTEND, N->getDebugLoc(), VT, SmallShift);
     }
@@ -3688,7 +3732,8 @@ SDValue DAGCombiner::visitSIGN_EXTEND(SDNode *N) {
 
   // fold (sext (load x)) -> (sext (truncate (sextload x)))
   // None of the supported targets knows how to perform load and sign extend
-  // in one instruction.  We only perform this transformation on scalars.
+  // on vectors in one instruction.  We only perform this transformation on
+  // scalars.
   if (ISD::isNON_EXTLoad(N0.getNode()) && !VT.isVector() &&
       ((!LegalOperations && !cast<LoadSDNode>(N0)->isVolatile()) ||
        TLI.isLoadExtLegal(ISD::SEXTLOAD, N0.getValueType()))) {
@@ -3839,7 +3884,7 @@ SDValue DAGCombiner::visitZERO_EXTEND(SDNode *N) {
         // CombineTo deleted the truncate, if needed, but not what's under it.
         AddToWorkList(oye);
       }
-      return DAG.getNode(ISD::ZERO_EXTEND, N->getDebugLoc(), VT, NarrowLoad);
+      return SDValue(N, 0);   // Return N so it doesn't get rechecked!
     }
   }
 
@@ -3892,7 +3937,8 @@ SDValue DAGCombiner::visitZERO_EXTEND(SDNode *N) {
 
   // fold (zext (load x)) -> (zext (truncate (zextload x)))
   // None of the supported targets knows how to perform load and vector_zext
-  // in one instruction.  We only perform this transformation on scalar zext.
+  // on vectors in one instruction.  We only perform this transformation on
+  // scalars.
   if (ISD::isNON_EXTLoad(N0.getNode()) && !VT.isVector() &&
       ((!LegalOperations && !cast<LoadSDNode>(N0)->isVolatile()) ||
        TLI.isLoadExtLegal(ISD::ZEXTLOAD, N0.getValueType()))) {
@@ -4066,7 +4112,7 @@ SDValue DAGCombiner::visitANY_EXTEND(SDNode *N) {
         // CombineTo deleted the truncate, if needed, but not what's under it.
         AddToWorkList(oye);
       }
-      return DAG.getNode(ISD::ANY_EXTEND, N->getDebugLoc(), VT, NarrowLoad);
+      return SDValue(N, 0);   // Return N so it doesn't get rechecked!
     }
   }
 
@@ -4101,7 +4147,8 @@ SDValue DAGCombiner::visitANY_EXTEND(SDNode *N) {
 
   // fold (aext (load x)) -> (aext (truncate (extload x)))
   // None of the supported targets knows how to perform load and any_ext
-  // in one instruction.  We only perform this transformation on scalars.
+  // on vectors in one instruction.  We only perform this transformation on
+  // scalars.
   if (ISD::isNON_EXTLoad(N0.getNode()) && !VT.isVector() &&
       ((!LegalOperations && !cast<LoadSDNode>(N0)->isVolatile()) ||
        TLI.isLoadExtLegal(ISD::EXTLOAD, N0.getValueType()))) {
@@ -4514,7 +4561,7 @@ SDValue DAGCombiner::visitTRUNCATE(SDNode *N) {
   // See if we can simplify the input to this truncate through knowledge that
   // only the low bits are being used.
   // For example "trunc (or (shl x, 8), y)" // -> trunc y
-  // Currenly we only perform this optimization on scalars because vectors
+  // Currently we only perform this optimization on scalars because vectors
   // may have different active low bits.
   if (!VT.isVector()) {
     SDValue Shorter =
@@ -5101,7 +5148,9 @@ SDValue DAGCombiner::visitSINT_TO_FP(SDNode *N) {
   EVT OpVT = N0.getValueType();
 
   // fold (sint_to_fp c1) -> c1fp
-  if (N0C && OpVT != MVT::ppcf128)
+  if (N0C && OpVT != MVT::ppcf128 &&
+      // ...but only if the target supports immediate floating-point values
+      (Level == llvm::Unrestricted || TLI.isOperationLegalOrCustom(llvm::ISD::ConstantFP, VT)))
     return DAG.getNode(ISD::SINT_TO_FP, N->getDebugLoc(), VT, N0);
 
   // If the input is a legal type, and SINT_TO_FP is not legal on this target,
@@ -5123,7 +5172,9 @@ SDValue DAGCombiner::visitUINT_TO_FP(SDNode *N) {
   EVT OpVT = N0.getValueType();
 
   // fold (uint_to_fp c1) -> c1fp
-  if (N0C && OpVT != MVT::ppcf128)
+  if (N0C && OpVT != MVT::ppcf128 &&
+      // ...but only if the target supports immediate floating-point values
+      (Level == llvm::Unrestricted || TLI.isOperationLegalOrCustom(llvm::ISD::ConstantFP, VT)))
     return DAG.getNode(ISD::UINT_TO_FP, N->getDebugLoc(), VT, N0);
 
   // If the input is a legal type, and UINT_TO_FP is not legal on this target,
@@ -5817,8 +5868,7 @@ SDValue DAGCombiner::visitLOAD(SDNode *N) {
   // value.
   // TODO: Handle store large -> read small portion.
   // TODO: Handle TRUNCSTORE/LOADEXT
-  if (LD->getExtensionType() == ISD::NON_EXTLOAD &&
-      !LD->isVolatile()) {
+  if (ISD::isNormalLoad(N) && !LD->isVolatile()) {
     if (ISD::isNON_TRUNCStore(Chain.getNode())) {
       StoreSDNode *PrevST = cast<StoreSDNode>(Chain);
       if (PrevST->getBasePtr() == Ptr &&
@@ -6217,6 +6267,10 @@ SDValue DAGCombiner::visitSTORE(SDNode *N) {
                           ST->isNonTemporal(), OrigAlign);
   }
 
+  // Turn 'store undef, Ptr' -> nothing.
+  if (Value.getOpcode() == ISD::UNDEF && ST->isUnindexed())
+    return Chain;
+
   // Turn 'store float 1.0, Ptr' -> 'store int 0x12345678, Ptr'
   if (ConstantFPSDNode *CFP = dyn_cast<ConstantFPSDNode>(Value)) {
     // NOTE: If the original store is volatile, this transform must not increase
@@ -6250,8 +6304,10 @@ SDValue DAGCombiner::visitSTORE(SDNode *N) {
           return DAG.getStore(Chain, N->getDebugLoc(), Tmp,
                               Ptr, ST->getPointerInfo(), ST->isVolatile(),
                               ST->isNonTemporal(), ST->getAlignment());
-        } else if (!ST->isVolatile() &&
-                   TLI.isOperationLegalOrCustom(ISD::STORE, MVT::i32)) {
+        }
+
+        if (!ST->isVolatile() &&
+            TLI.isOperationLegalOrCustom(ISD::STORE, MVT::i32)) {
           // Many FP stores are not made apparent until after legalize, e.g. for
           // argument passing.  Since this is so common, custom legalize the
           // 64-bit integer store into two 32-bit stores.

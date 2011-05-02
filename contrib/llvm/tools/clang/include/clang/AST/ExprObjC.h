@@ -337,6 +337,39 @@ public:
   QualType getSuperReceiverType() const { 
     return QualType(Receiver.get<const Type*>(), 0); 
   }
+  QualType getGetterResultType() const {
+    QualType ResultType;
+    if (isExplicitProperty()) {
+      const ObjCPropertyDecl *PDecl = getExplicitProperty();
+      if (const ObjCMethodDecl *Getter = PDecl->getGetterMethodDecl())
+        ResultType = Getter->getResultType();
+      else
+        ResultType = getType();
+    } else {
+      const ObjCMethodDecl *Getter = getImplicitPropertyGetter();
+      ResultType = Getter->getResultType(); // with reference!
+    }
+    return ResultType;
+  }
+  
+  QualType getSetterArgType() const {
+    QualType ArgType;
+    if (isImplicitProperty()) {
+      const ObjCMethodDecl *Setter = getImplicitPropertySetter();
+      ObjCMethodDecl::param_iterator P = Setter->param_begin(); 
+      ArgType = (*P)->getType();
+    } else {
+      if (ObjCPropertyDecl *PDecl = getExplicitProperty())
+        if (const ObjCMethodDecl *Setter = PDecl->getSetterMethodDecl()) {
+          ObjCMethodDecl::param_iterator P = Setter->param_begin(); 
+          ArgType = (*P)->getType();
+        }
+      if (ArgType.isNull())
+        ArgType = getType();
+    }
+    return ArgType;
+  }
+  
   ObjCInterfaceDecl *getClassReceiver() const {
     return Receiver.get<ObjCInterfaceDecl*>();
   }
@@ -741,6 +774,11 @@ public:
     SelectorOrMethod = reinterpret_cast<uintptr_t>(MD);
   }
 
+  ObjCMethodFamily getMethodFamily() const {
+    if (HasMethod) return getMethodDecl()->getMethodFamily();
+    return getSelector().getMethodFamily();
+  }
+
   /// \brief Return the number of actual arguments in this message,
   /// not counting the receiver.
   unsigned getNumArgs() const { return NumArgs; }
@@ -808,7 +846,7 @@ public:
 };
 
 /// ObjCIsaExpr - Represent X->isa and X.isa when X is an ObjC 'id' type.
-/// (similiar in spirit to MemberExpr).
+/// (similar in spirit to MemberExpr).
 class ObjCIsaExpr : public Expr {
   /// Base - the expression for the base object pointer.
   Stmt *Base;

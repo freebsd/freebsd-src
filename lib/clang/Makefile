@@ -14,9 +14,9 @@ SUBDIR=	libclanganalysis \
 	libclangrewrite \
 	libclangsema \
 	libclangserialization \
+	libclangstaticanalyzercheckers \
 	libclangstaticanalyzercore \
 	libclangstaticanalyzerfrontend \
-	libclangstaticanalyzercheckers \
 	\
 	libllvmanalysis \
 	libllvmasmparser \
@@ -24,8 +24,9 @@ SUBDIR=	libclanganalysis \
 	libllvmbitreader \
 	libllvmbitwriter \
 	libllvmcodegen \
-	libllvminstcombine \
 	libllvmcore \
+	libllvminstcombine \
+	libllvminstrumentation \
 	libllvmipa \
 	libllvmipo \
 	libllvmmc \
@@ -37,20 +38,20 @@ SUBDIR=	libclanganalysis \
 	libllvmtransformutils \
 	\
 	libllvmarmasmparser \
-	libllvmarminstprinter \
 	libllvmarmcodegen \
 	libllvmarmdisassembler \
 	libllvmarminfo \
+	libllvmarminstprinter \
 	libllvmmipscodegen \
 	libllvmmipsinfo \
-	libllvmpowerpcinstprinter \
 	libllvmpowerpccodegen \
 	libllvmpowerpcinfo \
+	libllvmpowerpcinstprinter \
 	libllvmx86asmparser \
-	libllvmx86instprinter \
 	libllvmx86codegen \
 	libllvmx86disassembler \
 	libllvmx86info \
+	libllvmx86instprinter \
 	libllvmx86utils
 .endif
 

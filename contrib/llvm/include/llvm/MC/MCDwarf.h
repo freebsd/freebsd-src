@@ -23,6 +23,7 @@
 #include <vector>
 
 namespace llvm {
+  class TargetAsmInfo;
   class MachineMove;
   class MCContext;
   class MCExpr;
@@ -230,7 +231,7 @@ namespace llvm {
 
   class MCCFIInstruction {
   public:
-    enum OpType { Remember, Restore, Move };
+    enum OpType { SameValue, Remember, Restore, Move, RelMove };
   private:
     OpType Operation;
     MCSymbol *Label;
@@ -242,9 +243,18 @@ namespace llvm {
       : Operation(Op), Label(L) {
       assert(Op == Remember || Op == Restore);
     }
+    MCCFIInstruction(OpType Op, MCSymbol *L, unsigned Register)
+      : Operation(Op), Label(L), Destination(Register) {
+      assert(Op == SameValue);
+    }
     MCCFIInstruction(MCSymbol *L, const MachineLocation &D,
                      const MachineLocation &S)
       : Operation(Move), Label(L), Destination(D), Source(S) {
+    }
+    MCCFIInstruction(OpType Op, MCSymbol *L, const MachineLocation &D,
+                     const MachineLocation &S)
+      : Operation(Op), Label(L), Destination(D), Source(S) {
+      assert(Op == RelMove);
     }
     OpType getOperation() const { return Operation; }
     MCSymbol *getLabel() const { return Label; }
@@ -254,12 +264,13 @@ namespace llvm {
 
   struct MCDwarfFrameInfo {
     MCDwarfFrameInfo() : Begin(0), End(0), Personality(0), Lsda(0),
-                         Instructions(), PersonalityEncoding(0),
+                         Function(0), Instructions(), PersonalityEncoding(),
                          LsdaEncoding(0) {}
     MCSymbol *Begin;
     MCSymbol *End;
     const MCSymbol *Personality;
     const MCSymbol *Lsda;
+    const MCSymbol *Function;
     std::vector<MCCFIInstruction> Instructions;
     unsigned PersonalityEncoding;
     unsigned LsdaEncoding;
@@ -270,9 +281,11 @@ namespace llvm {
     //
     // This emits the frame info section.
     //
-    static void Emit(MCStreamer &streamer);
+    static void Emit(MCStreamer &streamer, bool usingCFI);
+    static void EmitDarwin(MCStreamer &streamer, bool usingCFI);
     static void EmitAdvanceLoc(MCStreamer &Streamer, uint64_t AddrDelta);
-    static void EncodeAdvanceLoc(uint64_t AddrDelta, raw_ostream &OS);
+    static void EncodeAdvanceLoc(uint64_t AddrDelta, raw_ostream &OS,
+                                 const TargetAsmInfo &AsmInfo);
   };
 } // end namespace llvm
 
