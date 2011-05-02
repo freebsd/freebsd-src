@@ -317,7 +317,6 @@ static device_method_t cardbus_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	cardbus_read_ivar),
-	DEVMETHOD(bus_write_ivar,	pci_write_ivar),
 	DEVMETHOD(bus_driver_added,	cardbus_driver_added),
 
 	/* Card Interface */
