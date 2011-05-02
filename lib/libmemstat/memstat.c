@@ -193,7 +193,7 @@ _memstat_mt_reset_stats(struct memory_type *mtp)
 	mtp->mt_zonefree = 0;
 	mtp->mt_kegfree = 0;
 
-	for (i = 0; i < MEMSTAT_MAXCPU; i++) {
+	for (i = 0; i < MAXCPU; i++) {
 		mtp->mt_percpu_alloc[i].mtp_memalloced = 0;
 		mtp->mt_percpu_alloc[i].mtp_memfreed = 0;
 		mtp->mt_percpu_alloc[i].mtp_numallocs = 0;

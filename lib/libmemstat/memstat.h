@@ -29,13 +29,6 @@
 #ifndef _MEMSTAT_H_
 #define	_MEMSTAT_H_
 
-#include <machine/param.h>
-
-/*
- * Number of CPU slots in library-internal data structures.
- */
-#define	MEMSTAT_MAXCPU	MAXCPU
-
 /*
  * Amount of caller data to maintain for each caller data slot.  Applications
  * must not request more than this number of caller save data, or risk
