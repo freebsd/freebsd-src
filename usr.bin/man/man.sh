@@ -889,16 +889,18 @@ do_whatis() {
 	search_whatis whatis "$@"
 }
 
-EQN=/usr/bin/eqn
+# User's PATH setting decides on the groff-suite to pick up.
+EQN=eqn
+NROFF='groff -S -P-c -Wall -mtty-char -man'
+PIC=pic
+REFER=refer
+TBL=tbl
+TROFF='groff -S -P-c -man'
+VGRIND=vgrind
+
 COL=/usr/bin/col
 LOCALE=/usr/bin/locale
-NROFF='/usr/bin/groff -S -Wall -mtty-char -man'
-PIC=/usr/bin/pic
 SYSCTL=/sbin/sysctl
-TBL=/usr/bin/tbl
-TROFF='/usr/bin/groff -S -man'
-REFER=/usr/bin/refer
-VGRIND=/usr/bin/vgrind
 
 debug=0
 man_default_sections='1:1aout:8:2:3:n:4:5:6:7:9:l'

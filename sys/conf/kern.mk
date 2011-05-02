@@ -3,24 +3,25 @@
 #
 # Warning flags for compiling the kernel and components of the kernel.
 #
-# Note that the newly added -Wcast-qual is responsible for generating 
+# Note that the newly added -Wcast-qual is responsible for generating
 # most of the remaining warnings.  Warnings introduced with -Wall will
 # also pop up, but are easier to fix.
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
-		-Wundef -Wno-pointer-sign -fformat-extensions
+		-Wundef -Wno-pointer-sign -fformat-extensions \
+		-Wmissing-include-dirs
 #
 # The following flags are next up for working on:
-#	-W
+#	-Wextra
 
 #
-# On the i386, do not align the stack to 16-byte boundaries.  Otherwise GCC
-# 2.95 adds code to the entry and exit point of every function to align the
+# On i386, do not align the stack to 16-byte boundaries.  Otherwise GCC 2.95
+# and above adds code to the entry and exit point of every function to align the
 # stack to 16-byte boundaries -- thus wasting approximately 12 bytes of stack
-# per function call.  While the 16-byte alignment may benefit micro benchmarks, 
+# per function call.  While the 16-byte alignment may benefit micro benchmarks,
 # it is probably an overall loss as it makes the code bigger (less efficient
 # use of code cache tag lines) and uses more stack (less efficient use of data
-# cache tag lines).  Explicitly prohibit the use of SSE and other SIMD
+# cache tag lines).  Explicitly prohibit the use of FPU, SSE and other SIMD
 # operations inside the kernel itself.  These operations are exclusively
 # reserved for user applications.
 #
@@ -35,6 +36,7 @@ INLINE_LIMIT?=	8000
 .if ${MACHINE_CPUARCH} == "arm"
 INLINE_LIMIT?=	8000
 .endif
+
 #
 # For IA-64, we use r13 for the kernel globals pointer and we only use
 # a very small subset of float registers for integer divides.
@@ -98,7 +100,7 @@ INLINE_LIMIT?=	8000
 CFLAGS+=	-ffreestanding
 
 #
-# GCC SSP support.
+# GCC SSP support
 #
 .if ${MK_SSP} != "no" && ${MACHINE_CPUARCH} != "ia64" && \
     ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
@@ -106,9 +108,8 @@ CFLAGS+=	-fstack-protector
 .endif
 
 #
-# Enable CTF conversation on request.
+# Enable CTF conversation on request
 #
 .if defined(WITH_CTF)
 .undef NO_CTF
 .endif
-
