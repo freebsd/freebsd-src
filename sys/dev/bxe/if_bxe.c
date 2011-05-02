@@ -3600,7 +3600,7 @@ bxe_initial_phy_init(struct bxe_softc *sc)
 		 * It is recommended to turn off RX flow control for 5771x
 		 * when using jumbo frames for better performance.
 		 */
-		if (!IS_E1HMF(sc) & (sc->mbuf_alloc_size > 5000))
+		if (!IS_E1HMF(sc) && (sc->mbuf_alloc_size > 5000))
 			sc->link_params.req_fc_auto_adv = FLOW_CTRL_TX;
 		else
 			sc->link_params.req_fc_auto_adv = FLOW_CTRL_BOTH;
