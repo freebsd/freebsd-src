@@ -268,7 +268,7 @@ acpi_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
     switch (which) {
     case PCIB_IVAR_DOMAIN:
-	*result = 0;
+	*result = sc->ap_segment;
 	return (0);
     case PCIB_IVAR_BUS:
 	*result = sc->ap_bus;
