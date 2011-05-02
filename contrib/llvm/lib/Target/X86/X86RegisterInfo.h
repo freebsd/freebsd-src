@@ -91,6 +91,9 @@ public:
   getMatchingSuperRegClass(const TargetRegisterClass *A,
                            const TargetRegisterClass *B, unsigned Idx) const;
 
+  const TargetRegisterClass*
+  getLargestLegalSuperClass(const TargetRegisterClass *RC) const;
+
   /// getPointerRegClass - Returns a TargetRegisterClass used for pointer
   /// values.
   const TargetRegisterClass *getPointerRegClass(unsigned Kind = 0) const;
@@ -100,6 +103,9 @@ public:
   /// between a two registers of the specified class.
   const TargetRegisterClass *
   getCrossCopyRegClass(const TargetRegisterClass *RC) const;
+
+  unsigned getRegPressureLimit(const TargetRegisterClass *RC,
+                               MachineFunction &MF) const;
 
   /// getCalleeSavedRegs - Return a null-terminated list of all of the
   /// callee-save registers on this target.

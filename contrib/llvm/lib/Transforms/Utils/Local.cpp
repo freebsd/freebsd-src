@@ -20,8 +20,11 @@
 #include "llvm/Instructions.h"
 #include "llvm/Intrinsics.h"
 #include "llvm/IntrinsicInst.h"
+#include "llvm/Operator.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Analysis/DebugInfo.h"
+#include "llvm/Analysis/DIBuilder.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/InstructionSimplify.h"
@@ -65,8 +68,7 @@ bool llvm::ConstantFoldTerminator(BasicBlock *BB) {
 
       // Let the basic block know that we are letting go of it.  Based on this,
       // it will adjust it's PHI nodes.
-      assert(BI->getParent() && "Terminator not inserted in block!");
-      OldDest->removePredecessor(BI->getParent());
+      OldDest->removePredecessor(BB);
 
       // Replace the conditional branch with an unconditional one.
       BranchInst::Create(Destination, BI);
@@ -209,8 +211,18 @@ bool llvm::ConstantFoldTerminator(BasicBlock *BB) {
 bool llvm::isInstructionTriviallyDead(Instruction *I) {
   if (!I->use_empty() || isa<TerminatorInst>(I)) return false;
 
-  // We don't want debug info removed by anything this general.
-  if (isa<DbgInfoIntrinsic>(I)) return false;
+  // We don't want debug info removed by anything this general, unless
+  // debug info is empty.
+  if (DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(I)) {
+    if (DDI->getAddress()) 
+      return false;
+    return true;
+  } 
+  if (DbgValueInst *DVI = dyn_cast<DbgValueInst>(I)) {
+    if (DVI->getValue())
+      return false;
+    return true;
+  }
 
   if (!I->mayHaveSideEffects()) return true;
 
@@ -320,8 +332,14 @@ bool llvm::SimplifyInstructionsInBlock(BasicBlock *BB, const TargetData *TD) {
         BI = BB->begin();
       continue;
     }
-    
+
+    if (Inst->isTerminator())
+      break;
+
+    WeakVH BIHandle(BI);
     MadeChange |= RecursivelyDeleteTriviallyDeadInstructions(Inst);
+    if (BIHandle != BI)
+      BI = BB->begin();
   }
   return MadeChange;
 }
@@ -632,6 +650,8 @@ bool llvm::EliminateDuplicatePHINodes(BasicBlock *BB) {
       Hash ^= reinterpret_cast<uintptr_t>(static_cast<Value *>(*I));
       Hash = (Hash << 7) | (Hash >> (sizeof(uintptr_t) * CHAR_BIT - 7));
     }
+    // Avoid colliding with the DenseMap sentinels ~0 and ~0-1.
+    Hash >>= 1;
     // If we've never seen this hash value before, it's a unique PHI.
     std::pair<DenseMap<uintptr_t, PHINode *>::iterator, bool> Pair =
       HashMap.insert(std::make_pair(Hash, PN));
@@ -753,3 +773,83 @@ unsigned llvm::getOrEnforceKnownAlignment(Value *V, unsigned PrefAlign,
   return Align;
 }
 
+///===---------------------------------------------------------------------===//
+///  Dbg Intrinsic utilities
+///
+
+/// Inserts a llvm.dbg.value instrinsic before the stores to an alloca'd value
+/// that has an associated llvm.dbg.decl intrinsic.
+bool llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
+                                           StoreInst *SI, DIBuilder &Builder) {
+  DIVariable DIVar(DDI->getVariable());
+  if (!DIVar.Verify())
+    return false;
+
+  Instruction *DbgVal = 
+    Builder.insertDbgValueIntrinsic(SI->getOperand(0), 0,
+                                    DIVar, SI);
+  
+  // Propagate any debug metadata from the store onto the dbg.value.
+  DebugLoc SIDL = SI->getDebugLoc();
+  if (!SIDL.isUnknown())
+    DbgVal->setDebugLoc(SIDL);
+  // Otherwise propagate debug metadata from dbg.declare.
+  else
+    DbgVal->setDebugLoc(DDI->getDebugLoc());
+  return true;
+}
+
+/// Inserts a llvm.dbg.value instrinsic before the stores to an alloca'd value
+/// that has an associated llvm.dbg.decl intrinsic.
+bool llvm::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
+                                           LoadInst *LI, DIBuilder &Builder) {
+  DIVariable DIVar(DDI->getVariable());
+  if (!DIVar.Verify())
+    return false;
+
+  Instruction *DbgVal = 
+    Builder.insertDbgValueIntrinsic(LI->getOperand(0), 0,
+                                    DIVar, LI);
+  
+  // Propagate any debug metadata from the store onto the dbg.value.
+  DebugLoc LIDL = LI->getDebugLoc();
+  if (!LIDL.isUnknown())
+    DbgVal->setDebugLoc(LIDL);
+  // Otherwise propagate debug metadata from dbg.declare.
+  else
+    DbgVal->setDebugLoc(DDI->getDebugLoc());
+  return true;
+}
+
+/// LowerDbgDeclare - Lowers llvm.dbg.declare intrinsics into appropriate set
+/// of llvm.dbg.value intrinsics.
+bool llvm::LowerDbgDeclare(Function &F) {
+  DIBuilder DIB(*F.getParent());
+  SmallVector<DbgDeclareInst *, 4> Dbgs;
+  for (Function::iterator FI = F.begin(), FE = F.end(); FI != FE; ++FI)
+    for (BasicBlock::iterator BI = FI->begin(), BE = FI->end(); BI != BE; ++BI) {
+      if (DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(BI))
+        Dbgs.push_back(DDI);
+    }
+  if (Dbgs.empty())
+    return false;
+
+  for (SmallVector<DbgDeclareInst *, 4>::iterator I = Dbgs.begin(),
+         E = Dbgs.end(); I != E; ++I) {
+    DbgDeclareInst *DDI = *I;
+    if (AllocaInst *AI = dyn_cast_or_null<AllocaInst>(DDI->getAddress())) {
+      bool RemoveDDI = true;
+      for (Value::use_iterator UI = AI->use_begin(), E = AI->use_end();
+           UI != E; ++UI)
+        if (StoreInst *SI = dyn_cast<StoreInst>(*UI))
+          ConvertDebugDeclareToDebugValue(DDI, SI, DIB);
+        else if (LoadInst *LI = dyn_cast<LoadInst>(*UI))
+          ConvertDebugDeclareToDebugValue(DDI, LI, DIB);
+        else
+          RemoveDDI = false;
+      if (RemoveDDI)
+        DDI->eraseFromParent();
+    }
+  }
+  return true;
+}

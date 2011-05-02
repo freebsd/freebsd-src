@@ -320,6 +320,10 @@ Instruction *InstCombiner::commonIDivTransforms(BinaryOperator &I) {
     }
   }
 
+  // See if we can fold away this div instruction.
+  if (SimplifyDemandedInstructionBits(I))
+    return &I;
+
   // (X - (X rem Y)) / Y -> X / Y; usually originates as ((X / Y) * Y) / Y
   Value *X = 0, *Z = 0;
   if (match(Op0, m_Sub(m_Value(X), m_Value(Z)))) { // (X - Z) / Y; Y = Op1
@@ -329,6 +333,19 @@ Instruction *InstCombiner::commonIDivTransforms(BinaryOperator &I) {
       return BinaryOperator::Create(I.getOpcode(), X, Op1);
   }
 
+  return 0;
+}
+
+/// dyn_castZExtVal - Checks if V is a zext or constant that can
+/// be truncated to Ty without losing bits.
+static Value *dyn_castZExtVal(Value *V, const Type *Ty) {
+  if (ZExtInst *Z = dyn_cast<ZExtInst>(V)) {
+    if (Z->getSrcTy() == Ty)
+      return Z->getOperand(0);
+  } else if (ConstantInt *C = dyn_cast<ConstantInt>(V)) {
+    if (C->getValue().getActiveBits() <= cast<IntegerType>(Ty)->getBitWidth())
+      return ConstantExpr::getTrunc(C, Ty);
+  }
   return 0;
 }
 
@@ -390,6 +407,14 @@ Instruction *InstCombiner::visitUDiv(BinaryOperator &I) {
       return SelectInst::Create(Cond, TSI, FSI);
     }
   }
+
+  // (zext A) udiv (zext B) --> zext (A udiv B)
+  if (ZExtInst *ZOp0 = dyn_cast<ZExtInst>(Op0))
+    if (Value *ZOp1 = dyn_castZExtVal(Op1, ZOp0->getSrcTy()))
+      return new ZExtInst(Builder->CreateUDiv(ZOp0->getOperand(0), ZOp1, "div",
+                                              I.isExact()),
+                          I.getType());
+
   return 0;
 }
 
@@ -452,27 +477,17 @@ Instruction *InstCombiner::visitFDiv(BinaryOperator &I) {
   if (Value *V = SimplifyFDivInst(Op0, Op1, TD))
     return ReplaceInstUsesWith(I, V);
 
-  return 0;
-}
+  if (ConstantFP *Op1C = dyn_cast<ConstantFP>(Op1)) {
+    const APFloat &Op1F = Op1C->getValueAPF();
 
-/// This function implements the transforms on rem instructions that work
-/// regardless of the kind of rem instruction it is (urem, srem, or frem). It 
-/// is used by the visitors to those instructions.
-/// @brief Transforms common to all three rem instructions
-Instruction *InstCombiner::commonRemTransforms(BinaryOperator &I) {
-  Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
-
-  if (isa<UndefValue>(Op0)) {             // undef % X -> 0
-    if (I.getType()->isFPOrFPVectorTy())
-      return ReplaceInstUsesWith(I, Op0);  // X % undef -> undef (could be SNaN)
-    return ReplaceInstUsesWith(I, Constant::getNullValue(I.getType()));
+    // If the divisor has an exact multiplicative inverse we can turn the fdiv
+    // into a cheaper fmul.
+    APFloat Reciprocal(Op1F.getSemantics());
+    if (Op1F.getExactInverse(&Reciprocal)) {
+      ConstantFP *RFP = ConstantFP::get(Builder->getContext(), Reciprocal);
+      return BinaryOperator::CreateFMul(Op0, RFP);
+    }
   }
-  if (isa<UndefValue>(Op1))
-    return ReplaceInstUsesWith(I, Op1);  // X % undef -> undef
-
-  // Handle cases involving: rem X, (select Cond, Y, Z)
-  if (isa<SelectInst>(Op1) && SimplifyDivRemOfSelect(I))
-    return &I;
 
   return 0;
 }
@@ -484,26 +499,11 @@ Instruction *InstCombiner::commonRemTransforms(BinaryOperator &I) {
 Instruction *InstCombiner::commonIRemTransforms(BinaryOperator &I) {
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
 
-  if (Instruction *common = commonRemTransforms(I))
-    return common;
-
-  // X % X == 0
-  if (Op0 == Op1)
-    return ReplaceInstUsesWith(I, Constant::getNullValue(I.getType()));
-
-  // 0 % X == 0 for integer, we don't need to preserve faults!
-  if (Constant *LHS = dyn_cast<Constant>(Op0))
-    if (LHS->isNullValue())
-      return ReplaceInstUsesWith(I, Constant::getNullValue(I.getType()));
+  // Handle cases involving: rem X, (select Cond, Y, Z)
+  if (isa<SelectInst>(Op1) && SimplifyDivRemOfSelect(I))
+    return &I;
 
   if (ConstantInt *RHS = dyn_cast<ConstantInt>(Op1)) {
-    // X % 0 == undef, we don't need to preserve faults!
-    if (RHS->equalsInt(0))
-      return ReplaceInstUsesWith(I, UndefValue::get(I.getType()));
-    
-    if (RHS->equalsInt(1))  // X % 1 == 0
-      return ReplaceInstUsesWith(I, Constant::getNullValue(I.getType()));
-
     if (Instruction *Op0I = dyn_cast<Instruction>(Op0)) {
       if (SelectInst *SI = dyn_cast<SelectInst>(Op0I)) {
         if (Instruction *R = FoldOpIntoSelect(I, SI))
@@ -524,6 +524,9 @@ Instruction *InstCombiner::commonIRemTransforms(BinaryOperator &I) {
 
 Instruction *InstCombiner::visitURem(BinaryOperator &I) {
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
+
+  if (Value *V = SimplifyURemInst(Op0, Op1, TD))
+    return ReplaceInstUsesWith(I, V);
 
   if (Instruction *common = commonIRemTransforms(I))
     return common;
@@ -552,12 +555,21 @@ Instruction *InstCombiner::visitURem(BinaryOperator &I) {
       return SelectInst::Create(Cond, TrueAnd, FalseAnd);
     }
   }
-  
+
+  // (zext A) urem (zext B) --> zext (A urem B)
+  if (ZExtInst *ZOp0 = dyn_cast<ZExtInst>(Op0))
+    if (Value *ZOp1 = dyn_castZExtVal(Op1, ZOp0->getSrcTy()))
+      return new ZExtInst(Builder->CreateURem(ZOp0->getOperand(0), ZOp1),
+                          I.getType());
+
   return 0;
 }
 
 Instruction *InstCombiner::visitSRem(BinaryOperator &I) {
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
+
+  if (Value *V = SimplifySRemInst(Op0, Op1, TD))
+    return ReplaceInstUsesWith(I, V);
 
   // Handle the integer rem common cases
   if (Instruction *Common = commonIRemTransforms(I))
@@ -617,6 +629,14 @@ Instruction *InstCombiner::visitSRem(BinaryOperator &I) {
 }
 
 Instruction *InstCombiner::visitFRem(BinaryOperator &I) {
-  return commonRemTransforms(I);
-}
+  Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
 
+  if (Value *V = SimplifyFRemInst(Op0, Op1, TD))
+    return ReplaceInstUsesWith(I, V);
+
+  // Handle cases involving: rem X, (select Cond, Y, Z)
+  if (isa<SelectInst>(Op1) && SimplifyDivRemOfSelect(I))
+    return &I;
+
+  return 0;
+}

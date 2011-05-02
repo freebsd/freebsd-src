@@ -29,7 +29,6 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
 #include <map>
-#include <set>
 #include <stack>
 using namespace llvm;
 
@@ -268,6 +267,8 @@ public:
 } // end anonymous namespace.
 
 namespace llvm {
+raw_ostream &operator<<(raw_ostream &OS, const LVILatticeVal &Val)
+    LLVM_ATTRIBUTE_USED;
 raw_ostream &operator<<(raw_ostream &OS, const LVILatticeVal &Val) {
   if (Val.isUndefined())
     return OS << "undefined";

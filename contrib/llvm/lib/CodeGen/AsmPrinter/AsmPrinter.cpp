@@ -33,10 +33,12 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/Mangler.h"
+#include "llvm/Target/TargetAsmInfo.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
+#include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/ADT/SmallString.h"
@@ -70,17 +72,17 @@ static unsigned getGVAlignmentLog2(const GlobalValue *GV, const TargetData &TD,
   unsigned NumBits = 0;
   if (const GlobalVariable *GVar = dyn_cast<GlobalVariable>(GV))
     NumBits = TD.getPreferredAlignmentLog(GVar);
-  
+
   // If InBits is specified, round it to it.
   if (InBits > NumBits)
     NumBits = InBits;
-  
+
   // If the GV has a specified alignment, take it into account.
   if (GV->getAlignment() == 0)
     return NumBits;
-  
+
   unsigned GVAlign = Log2_32(GV->getAlignment());
-  
+
   // If the GVAlign is larger than NumBits, or if we are required to obey
   // NumBits because the GV has an assigned section, obey it.
   if (GVAlign > NumBits || GV->hasSection())
@@ -104,16 +106,16 @@ AsmPrinter::AsmPrinter(TargetMachine &tm, MCStreamer &Streamer)
 
 AsmPrinter::~AsmPrinter() {
   assert(DD == 0 && DE == 0 && "Debug/EH info didn't get finalized");
-  
+
   if (GCMetadataPrinters != 0) {
     gcp_map_type &GCMap = getGCMap(GCMetadataPrinters);
-    
+
     for (gcp_map_type::iterator I = GCMap.begin(), E = GCMap.end(); I != E; ++I)
       delete I->second;
     delete &GCMap;
     GCMetadataPrinters = 0;
   }
-  
+
   delete &OutStreamer;
 }
 
@@ -156,9 +158,9 @@ bool AsmPrinter::doInitialization(Module &M) {
   // Initialize TargetLoweringObjectFile.
   const_cast<TargetLoweringObjectFile&>(getObjFileLowering())
     .Initialize(OutContext, TM);
-  
+
   Mang = new Mangler(OutContext, *TM.getTargetData());
-  
+
   // Allow the target to emit any magic that it wants at the start of the file.
   EmitStartOfAsmFile(M);
 
@@ -195,6 +197,9 @@ bool AsmPrinter::doInitialization(Module &M) {
       break;
     case ExceptionHandling::DwarfCFI:
       DE = new DwarfCFIException(this);
+      break;
+    case ExceptionHandling::ARM:
+      DE = new ARMException(this);
       break;
     }
 
@@ -250,56 +255,52 @@ void AsmPrinter::EmitLinkage(unsigned Linkage, MCSymbol *GVSym) const {
 
 /// EmitGlobalVariable - Emit the specified global variable to the .s file.
 void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
-  if (!GV->hasInitializer())   // External globals require no code.
-    return;
-  
-  // Check to see if this is a special global used by LLVM, if so, emit it.
-  if (EmitSpecialLLVMGlobal(GV))
-    return;
+  if (GV->hasInitializer()) {
+    // Check to see if this is a special global used by LLVM, if so, emit it.
+    if (EmitSpecialLLVMGlobal(GV))
+      return;
 
-  if (isVerbose()) {
-    WriteAsOperand(OutStreamer.GetCommentOS(), GV,
-                   /*PrintType=*/false, GV->getParent());
-    OutStreamer.GetCommentOS() << '\n';
-  }
-  
-  MCSymbol *GVSym = Mang->getSymbol(GV);
-  EmitVisibility(GVSym, GV->getVisibility());
-
-  if (MAI->hasDotTypeDotSizeDirective())
-    OutStreamer.EmitSymbolAttribute(GVSym, MCSA_ELF_TypeObject);
-  
-  SectionKind GVKind = TargetLoweringObjectFile::getKindForGlobal(GV, TM);
-
-  const TargetData *TD = TM.getTargetData();
-  uint64_t Size = TD->getTypeAllocSize(GV->getType()->getElementType());
-  
-  // If the alignment is specified, we *must* obey it.  Overaligning a global
-  // with a specified alignment is a prompt way to break globals emitted to
-  // sections and expected to be contiguous (e.g. ObjC metadata).
-  unsigned AlignLog = getGVAlignmentLog2(GV, *TD);
-  
-  // Handle common and BSS local symbols (.lcomm).
-  if (GVKind.isCommon() || GVKind.isBSSLocal()) {
-    if (Size == 0) Size = 1;   // .comm Foo, 0 is undefined, avoid it.
-    
     if (isVerbose()) {
       WriteAsOperand(OutStreamer.GetCommentOS(), GV,
                      /*PrintType=*/false, GV->getParent());
       OutStreamer.GetCommentOS() << '\n';
     }
-    
+  }
+
+  MCSymbol *GVSym = Mang->getSymbol(GV);
+  EmitVisibility(GVSym, GV->getVisibility());
+
+  if (!GV->hasInitializer())   // External globals require no extra code.
+    return;
+
+  if (MAI->hasDotTypeDotSizeDirective())
+    OutStreamer.EmitSymbolAttribute(GVSym, MCSA_ELF_TypeObject);
+
+  SectionKind GVKind = TargetLoweringObjectFile::getKindForGlobal(GV, TM);
+
+  const TargetData *TD = TM.getTargetData();
+  uint64_t Size = TD->getTypeAllocSize(GV->getType()->getElementType());
+
+  // If the alignment is specified, we *must* obey it.  Overaligning a global
+  // with a specified alignment is a prompt way to break globals emitted to
+  // sections and expected to be contiguous (e.g. ObjC metadata).
+  unsigned AlignLog = getGVAlignmentLog2(GV, *TD);
+
+  // Handle common and BSS local symbols (.lcomm).
+  if (GVKind.isCommon() || GVKind.isBSSLocal()) {
+    if (Size == 0) Size = 1;   // .comm Foo, 0 is undefined, avoid it.
+
     // Handle common symbols.
     if (GVKind.isCommon()) {
       unsigned Align = 1 << AlignLog;
       if (!getObjFileLowering().getCommDirectiveSupportsAlignment())
         Align = 0;
-          
+
       // .comm _foo, 42, 4
       OutStreamer.EmitCommonSymbol(GVSym, Size, Align);
       return;
     }
-    
+
     // Handle local BSS symbols.
     if (MAI->hasMachoZeroFillDirective()) {
       const MCSection *TheSection =
@@ -308,7 +309,7 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
       OutStreamer.EmitZerofill(TheSection, GVSym, Size, 1 << AlignLog);
       return;
     }
-    
+
     if (MAI->hasLCOMMDirective()) {
       // .lcomm _foo, 42
       OutStreamer.EmitLocalCommonSymbol(GVSym, Size);
@@ -318,14 +319,14 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
     unsigned Align = 1 << AlignLog;
     if (!getObjFileLowering().getCommDirectiveSupportsAlignment())
       Align = 0;
-    
+
     // .local _foo
     OutStreamer.EmitSymbolAttribute(GVSym, MCSA_Local);
     // .comm _foo, 42, 4
     OutStreamer.EmitCommonSymbol(GVSym, Size, Align);
     return;
   }
-  
+
   const MCSection *TheSection =
     getObjFileLowering().SectionForGlobal(GV, GVKind, Mang, TM);
 
@@ -333,14 +334,14 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
   // emission.
   if (GVKind.isBSSExtern() && MAI->hasMachoZeroFillDirective()) {
     if (Size == 0) Size = 1;  // zerofill of 0 bytes is undefined.
-    
+
     // .globl _foo
     OutStreamer.EmitSymbolAttribute(GVSym, MCSA_Global);
     // .zerofill __DATA, __common, _foo, 400, 5
     OutStreamer.EmitZerofill(TheSection, GVSym, Size, 1 << AlignLog);
     return;
   }
-  
+
   // Handle thread local data for mach-o which requires us to output an
   // additional structure of data and mangle the original symbol so that we
   // can reference it later.
@@ -353,31 +354,31 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
   // specific code.
   if (GVKind.isThreadLocal() && MAI->hasMachoTBSSDirective()) {
     // Emit the .tbss symbol
-    MCSymbol *MangSym = 
+    MCSymbol *MangSym =
       OutContext.GetOrCreateSymbol(GVSym->getName() + Twine("$tlv$init"));
-    
+
     if (GVKind.isThreadBSS())
       OutStreamer.EmitTBSSSymbol(TheSection, MangSym, Size, 1 << AlignLog);
     else if (GVKind.isThreadData()) {
       OutStreamer.SwitchSection(TheSection);
 
-      EmitAlignment(AlignLog, GV);      
+      EmitAlignment(AlignLog, GV);
       OutStreamer.EmitLabel(MangSym);
-      
+
       EmitGlobalConstant(GV->getInitializer());
     }
-    
+
     OutStreamer.AddBlankLine();
-    
+
     // Emit the variable struct for the runtime.
-    const MCSection *TLVSect 
+    const MCSection *TLVSect
       = getObjFileLowering().getTLSExtraDataSection();
-      
+
     OutStreamer.SwitchSection(TLVSect);
     // Emit the linkage here.
     EmitLinkage(GV->getLinkage(), GVSym);
     OutStreamer.EmitLabel(GVSym);
-    
+
     // Three pointers in size:
     //   - __tlv_bootstrap - used to make sure support exists
     //   - spare pointer, used when mapped by the runtime
@@ -387,7 +388,7 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
                           PtrSize, 0);
     OutStreamer.EmitIntValue(0, PtrSize, 0);
     OutStreamer.EmitSymbolValue(MangSym, PtrSize, 0);
-    
+
     OutStreamer.AddBlankLine();
     return;
   }
@@ -404,7 +405,7 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
   if (MAI->hasDotTypeDotSizeDirective())
     // .size foo, 42
     OutStreamer.EmitELFSize(GVSym, MCConstantExpr::Create(Size, OutContext));
-  
+
   OutStreamer.AddBlankLine();
 }
 
@@ -413,7 +414,7 @@ void AsmPrinter::EmitGlobalVariable(const GlobalVariable *GV) {
 void AsmPrinter::EmitFunctionHeader() {
   // Print out constants referenced by the function
   EmitConstantPool();
-  
+
   // Print the 'header' of function.
   const Function *F = MF->getFunction();
 
@@ -435,7 +436,7 @@ void AsmPrinter::EmitFunctionHeader() {
   // Emit the CurrentFnSym.  This is a virtual function to allow targets to
   // do their wild and crazy things as required.
   EmitFunctionEntryLabel();
-  
+
   // If the function had address-taken blocks that got deleted, then we have
   // references to the dangling symbols.  Emit them at the start of the function
   // so that we don't get references to undefined symbols.
@@ -445,17 +446,17 @@ void AsmPrinter::EmitFunctionHeader() {
     OutStreamer.AddComment("Address taken block that was later removed");
     OutStreamer.EmitLabel(DeadBlockSyms[i]);
   }
-  
+
   // Add some workaround for linkonce linkage on Cygwin\MinGW.
   if (MAI->getLinkOnceDirective() != 0 &&
       (F->hasLinkOnceLinkage() || F->hasWeakLinkage())) {
     // FIXME: What is this?
-    MCSymbol *FakeStub = 
+    MCSymbol *FakeStub =
       OutContext.GetOrCreateSymbol(Twine("Lllvm$workaround$fake$stub$")+
                                    CurrentFnSym->getName());
     OutStreamer.EmitLabel(FakeStub);
   }
-  
+
   // Emit pre-function debug and/or EH information.
   if (DE) {
     NamedRegionTimer T(EHTimerName, DWARFGroupName, TimePassesIsEnabled);
@@ -480,44 +481,16 @@ void AsmPrinter::EmitFunctionEntryLabel() {
 }
 
 
-static void EmitDebugLoc(DebugLoc DL, const MachineFunction *MF, 
-                         raw_ostream &CommentOS) {
-  const LLVMContext &Ctx = MF->getFunction()->getContext();
-  if (!DL.isUnknown()) {          // Print source line info.
-    DIScope Scope(DL.getScope(Ctx));
-    // Omit the directory, because it's likely to be long and uninteresting.
-    if (Scope.Verify())
-      CommentOS << Scope.getFilename();
-    else
-      CommentOS << "<unknown>";
-    CommentOS << ':' << DL.getLine();
-    if (DL.getCol() != 0)
-      CommentOS << ':' << DL.getCol();
-    DebugLoc InlinedAtDL = DebugLoc::getFromDILocation(DL.getInlinedAt(Ctx));
-    if (!InlinedAtDL.isUnknown()) {
-      CommentOS << "[ ";
-      EmitDebugLoc(InlinedAtDL, MF, CommentOS);
-      CommentOS << " ]";
-    }
-  }
-}
-
 /// EmitComments - Pretty-print comments for instructions.
 static void EmitComments(const MachineInstr &MI, raw_ostream &CommentOS) {
   const MachineFunction *MF = MI.getParent()->getParent();
   const TargetMachine &TM = MF->getTarget();
-  
-  DebugLoc DL = MI.getDebugLoc();
-  if (!DL.isUnknown()) {          // Print source line info.
-    EmitDebugLoc(DL, MF, CommentOS);
-    CommentOS << '\n';
-  }
-  
+
   // Check for spills and reloads
   int FI;
-  
+
   const MachineFrameInfo *FrameInfo = MF->getFrameInfo();
-  
+
   // We assume a single instruction only has a spill or reload, not
   // both.
   const MachineMemOperand *MMO;
@@ -538,7 +511,7 @@ static void EmitComments(const MachineInstr &MI, raw_ostream &CommentOS) {
     if (FrameInfo->isSpillSlotObjectIndex(FI))
       CommentOS << MMO->getSize() << "-byte Folded Spill\n";
   }
-  
+
   // Check for spill-induced copies
   if (MI.getAsmPrinterFlag(MachineInstr::ReloadReuse))
     CommentOS << " Reload Reuse\n";
@@ -612,11 +585,51 @@ static bool EmitDebugValueComment(const MachineInstr *MI, AsmPrinter &AP) {
     }
     OS << AP.TM.getRegisterInfo()->getName(MI->getOperand(0).getReg());
   }
-  
+
   OS << '+' << MI->getOperand(1).getImm();
   // NOTE: Want this comment at start of line, don't emit with AddComment.
   AP.OutStreamer.EmitRawText(OS.str());
   return true;
+}
+
+bool AsmPrinter::needsCFIMoves() {
+  if (UnwindTablesMandatory)
+    return true;
+
+  if (MMI->hasDebugInfo() && !MAI->doesDwarfRequireFrameSection())
+    return true;
+
+  if (MF->getFunction()->doesNotThrow())
+    return false;
+
+  return true;
+}
+
+void AsmPrinter::emitPrologLabel(const MachineInstr &MI) {
+  MCSymbol *Label = MI.getOperand(0).getMCSymbol();
+
+  if (MAI->doesDwarfRequireFrameSection() ||
+      MAI->getExceptionHandlingType() != ExceptionHandling::DwarfCFI)
+    OutStreamer.EmitLabel(Label);
+
+  if (MAI->getExceptionHandlingType() != ExceptionHandling::DwarfCFI)
+    return;
+
+  if (!needsCFIMoves())
+    return;
+
+  MachineModuleInfo &MMI = MF->getMMI();
+  std::vector<MachineMove> &Moves = MMI.getFrameMoves();
+  bool FoundOne = false;
+  (void)FoundOne;
+  for (std::vector<MachineMove>::iterator I = Moves.begin(),
+         E = Moves.end(); I != E; ++I) {
+    if (I->getLabel() == Label) {
+      EmitCFIFrameMove(*I);
+      FoundOne = true;
+    }
+  }
+  assert(FoundOne);
 }
 
 /// EmitFunctionBody - This method emits the body and trailer for a
@@ -624,9 +637,9 @@ static bool EmitDebugValueComment(const MachineInstr *MI, AsmPrinter &AP) {
 void AsmPrinter::EmitFunctionBody() {
   // Emit target-specific gunk before the function body.
   EmitFunctionBodyStart();
-  
+
   bool ShouldPrintDebugScopes = DD && MMI->hasDebugInfo();
-  
+
   // Print out code for the function.
   bool HasAnyRealCode = false;
   const MachineInstr *LastMI = 0;
@@ -649,12 +662,15 @@ void AsmPrinter::EmitFunctionBody() {
         NamedRegionTimer T(DbgTimerName, DWARFGroupName, TimePassesIsEnabled);
         DD->beginInstruction(II);
       }
-      
+
       if (isVerbose())
         EmitComments(*II, OutStreamer.GetCommentOS());
 
       switch (II->getOpcode()) {
       case TargetOpcode::PROLOG_LABEL:
+        emitPrologLabel(*II);
+        break;
+
       case TargetOpcode::EH_LABEL:
       case TargetOpcode::GC_LABEL:
         OutStreamer.EmitLabel(II->getOperand(0).getMCSymbol());
@@ -675,10 +691,13 @@ void AsmPrinter::EmitFunctionBody() {
         if (isVerbose()) EmitKill(II, *this);
         break;
       default:
+        if (!TM.hasMCUseLoc())
+          MCLineEntry::Make(&OutStreamer, getCurrentSection());
+
         EmitInstruction(II);
         break;
       }
-      
+
       if (ShouldPrintDebugScopes) {
         NamedRegionTimer T(DbgTimerName, DWARFGroupName, TimePassesIsEnabled);
         DD->endInstruction(II);
@@ -705,10 +724,10 @@ void AsmPrinter::EmitFunctionBody() {
     } else  // Target not mc-ized yet.
       OutStreamer.EmitRawText(StringRef("\tnop\n"));
   }
-  
+
   // Emit target-specific gunk after the function body.
   EmitFunctionBodyEnd();
-  
+
   // If the target wants a .size directive for the size of the function, emit
   // it.
   if (MAI->hasDotTypeDotSizeDirective()) {
@@ -716,14 +735,14 @@ void AsmPrinter::EmitFunctionBody() {
     // difference between the function label and the temp label.
     MCSymbol *FnEndLabel = OutContext.CreateTempSymbol();
     OutStreamer.EmitLabel(FnEndLabel);
-    
+
     const MCExpr *SizeExp =
       MCBinaryExpr::CreateSub(MCSymbolRefExpr::Create(FnEndLabel, OutContext),
                               MCSymbolRefExpr::Create(CurrentFnSym, OutContext),
                               OutContext);
     OutStreamer.EmitELFSize(CurrentFnSym, SizeExp);
   }
-  
+
   // Emit post-function debug information.
   if (DD) {
     NamedRegionTimer T(DbgTimerName, DWARFGroupName, TimePassesIsEnabled);
@@ -734,18 +753,69 @@ void AsmPrinter::EmitFunctionBody() {
     DE->EndFunction();
   }
   MMI->EndFunction();
-  
+
   // Print out jump tables referenced by the function.
   EmitJumpTableInfo();
-  
+
   OutStreamer.AddBlankLine();
 }
 
 /// getDebugValueLocation - Get location information encoded by DBG_VALUE
 /// operands.
-MachineLocation AsmPrinter::getDebugValueLocation(const MachineInstr *MI) const {
+MachineLocation AsmPrinter::
+getDebugValueLocation(const MachineInstr *MI) const {
   // Target specific DBG_VALUE instructions are handled by each target.
   return MachineLocation();
+}
+
+/// getDwarfRegOpSize - get size required to emit given machine location using
+/// dwarf encoding.
+unsigned AsmPrinter::getDwarfRegOpSize(const MachineLocation &MLoc) const {
+  const TargetRegisterInfo *RI = TM.getRegisterInfo();
+  unsigned DWReg = RI->getDwarfRegNum(MLoc.getReg(), false);
+  if (int Offset = MLoc.getOffset()) {
+    // If the value is at a certain offset from frame register then
+    // use DW_OP_breg.
+    if (DWReg < 32)
+      return 1 + MCAsmInfo::getSLEB128Size(Offset);
+    else
+      return 1 + MCAsmInfo::getULEB128Size(MLoc.getReg()) 
+        + MCAsmInfo::getSLEB128Size(Offset);
+  }
+  if (DWReg < 32)
+    return 1;
+
+  return 1 + MCAsmInfo::getULEB128Size(DWReg);
+}
+
+/// EmitDwarfRegOp - Emit dwarf register operation.
+void AsmPrinter::EmitDwarfRegOp(const MachineLocation &MLoc) const {
+  const TargetRegisterInfo *TRI = TM.getRegisterInfo();
+  unsigned Reg = TRI->getDwarfRegNum(MLoc.getReg(), false);
+  if (int Offset =  MLoc.getOffset()) {
+    if (Reg < 32) {
+      OutStreamer.AddComment(
+        dwarf::OperationEncodingString(dwarf::DW_OP_breg0 + Reg));
+      EmitInt8(dwarf::DW_OP_breg0 + Reg);
+    } else {
+      OutStreamer.AddComment("DW_OP_bregx");
+      EmitInt8(dwarf::DW_OP_bregx);
+      OutStreamer.AddComment(Twine(Reg));
+      EmitULEB128(Reg);
+    }
+    EmitSLEB128(Offset);
+  } else {
+    if (Reg < 32) {
+      OutStreamer.AddComment(
+        dwarf::OperationEncodingString(dwarf::DW_OP_reg0 + Reg));
+      EmitInt8(dwarf::DW_OP_reg0 + Reg);
+    } else {
+      OutStreamer.AddComment("DW_OP_regx");
+      EmitInt8(dwarf::DW_OP_regx);
+      OutStreamer.AddComment(Twine(Reg));
+      EmitULEB128(Reg);
+    }
+  }
 }
 
 bool AsmPrinter::doFinalization(Module &M) {
@@ -782,7 +852,7 @@ bool AsmPrinter::doFinalization(Module &M) {
     }
     delete DD; DD = 0;
   }
-  
+
   // If the target wants to know about weak references, print them all.
   if (MAI->getWeakRefDirective()) {
     // FIXME: This is not lazy, it would be nice to only print weak references
@@ -796,7 +866,7 @@ bool AsmPrinter::doFinalization(Module &M) {
       if (!I->hasExternalWeakLinkage()) continue;
       OutStreamer.EmitSymbolAttribute(Mang->getSymbol(I), MCSA_WeakReference);
     }
-    
+
     for (Module::const_iterator I = M.begin(), E = M.end(); I != E; ++I) {
       if (!I->hasExternalWeakLinkage()) continue;
       OutStreamer.EmitSymbolAttribute(Mang->getSymbol(I), MCSA_WeakReference);
@@ -822,7 +892,7 @@ bool AsmPrinter::doFinalization(Module &M) {
       EmitVisibility(Name, I->getVisibility());
 
       // Emit the directives as assignments aka .set:
-      OutStreamer.EmitAssignment(Name, 
+      OutStreamer.EmitAssignment(Name,
                                  MCSymbolRefExpr::Create(Target, OutContext));
     }
   }
@@ -839,14 +909,14 @@ bool AsmPrinter::doFinalization(Module &M) {
   if (!InitTrampolineIntrinsic || InitTrampolineIntrinsic->use_empty())
     if (const MCSection *S = MAI->getNonexecutableStackSection(OutContext))
       OutStreamer.SwitchSection(S);
-  
+
   // Allow the target to emit any magic that it wants at the end of the file,
   // after everything else has gone out.
   EmitEndOfAsmFile(M);
-  
+
   delete Mang; Mang = 0;
   MMI = 0;
-  
+
   OutStreamer.Finish();
   return false;
 }
@@ -886,7 +956,7 @@ void AsmPrinter::EmitConstantPool() {
   for (unsigned i = 0, e = CP.size(); i != e; ++i) {
     const MachineConstantPoolEntry &CPE = CP[i];
     unsigned Align = CPE.getAlignment();
-    
+
     SectionKind Kind;
     switch (CPE.getRelocationInfo()) {
     default: llvm_unreachable("Unknown section kind");
@@ -904,7 +974,7 @@ void AsmPrinter::EmitConstantPool() {
     }
 
     const MCSection *S = getObjFileLowering().getSectionForConstant(Kind);
-    
+
     // The number of sections are small, just do a linear search from the
     // last section to the first.
     bool Found = false;
@@ -953,7 +1023,7 @@ void AsmPrinter::EmitConstantPool() {
 }
 
 /// EmitJumpTableInfo - Print assembly representations of the jump tables used
-/// by the current function to the current output stream.  
+/// by the current function to the current output stream.
 ///
 void AsmPrinter::EmitJumpTableInfo() {
   const MachineJumpTableInfo *MJTI = MF->getJumpTableInfo();
@@ -962,7 +1032,7 @@ void AsmPrinter::EmitJumpTableInfo() {
   const std::vector<MachineJumpTableEntry> &JT = MJTI->getJumpTables();
   if (JT.empty()) return;
 
-  // Pick the directive to use to print the jump table entries, and switch to 
+  // Pick the directive to use to print the jump table entries, and switch to
   // the appropriate section.
   const Function *F = MF->getFunction();
   bool JTInDiffSection = false;
@@ -978,18 +1048,18 @@ void AsmPrinter::EmitJumpTableInfo() {
     OutStreamer.SwitchSection(getObjFileLowering().SectionForGlobal(F,Mang,TM));
   } else {
     // Otherwise, drop it in the readonly section.
-    const MCSection *ReadOnlySection = 
+    const MCSection *ReadOnlySection =
       getObjFileLowering().getSectionForConstant(SectionKind::getReadOnly());
     OutStreamer.SwitchSection(ReadOnlySection);
     JTInDiffSection = true;
   }
 
   EmitAlignment(Log2_32(MJTI->getEntryAlignment(*TM.getTargetData())));
-  
+
   for (unsigned JTI = 0, e = JT.size(); JTI != e; ++JTI) {
     const std::vector<MachineBasicBlock*> &JTBBs = JT[JTI].MBBs;
-    
-    // If this jump table was deleted, ignore it. 
+
+    // If this jump table was deleted, ignore it.
     if (JTBBs.empty()) continue;
 
     // For the EK_LabelDifference32 entry, if the target supports .set, emit a
@@ -1003,15 +1073,15 @@ void AsmPrinter::EmitJumpTableInfo() {
       for (unsigned ii = 0, ee = JTBBs.size(); ii != ee; ++ii) {
         const MachineBasicBlock *MBB = JTBBs[ii];
         if (!EmittedSets.insert(MBB)) continue;
-        
+
         // .set LJTSet, LBB32-base
         const MCExpr *LHS =
           MCSymbolRefExpr::Create(MBB->getSymbol(), OutContext);
         OutStreamer.EmitAssignment(GetJTSetSymbol(JTI, MBB->getNumber()),
                                 MCBinaryExpr::CreateSub(LHS, Base, OutContext));
       }
-    }          
-    
+    }
+
     // On some targets (e.g. Darwin) we want to emit two consecutive labels
     // before each jump table.  The first label is never referenced, but tells
     // the assembler and linker the extents of the jump table object.  The
@@ -1064,8 +1134,8 @@ void AsmPrinter::EmitJumpTableEntry(const MachineJumpTableInfo *MJTI,
     // If the .set directive is supported, this is emitted as:
     //      .set L4_5_set_123, LBB123 - LJTI1_2
     //      .word L4_5_set_123
-    
-    // If we have emitted set directives for the jump table entries, print 
+
+    // If we have emitted set directives for the jump table entries, print
     // them rather than the entries themselves.  If we're emitting PIC, then
     // emit the table entries as differences between two text section labels.
     if (MAI->hasSetDirective()) {
@@ -1081,9 +1151,9 @@ void AsmPrinter::EmitJumpTableEntry(const MachineJumpTableInfo *MJTI,
     break;
   }
   }
-  
+
   assert(Value && "Unknown entry kind!");
- 
+
   unsigned EntrySize = MJTI->getEntrySize(*TM.getTargetData());
   OutStreamer.EmitValue(Value, EntrySize, /*addrspace*/0);
 }
@@ -1103,18 +1173,18 @@ bool AsmPrinter::EmitSpecialLLVMGlobal(const GlobalVariable *GV) {
   if (GV->getSection() == "llvm.metadata" ||
       GV->hasAvailableExternallyLinkage())
     return true;
-  
+
   if (!GV->hasAppendingLinkage()) return false;
 
   assert(GV->hasInitializer() && "Not a special LLVM global!");
-  
+
   const TargetData *TD = TM.getTargetData();
   unsigned Align = Log2_32(TD->getPointerPrefAlignment());
   if (GV->getName() == "llvm.global_ctors") {
     OutStreamer.SwitchSection(getObjFileLowering().getStaticCtorSection());
     EmitAlignment(Align);
     EmitXXStructorList(GV->getInitializer());
-    
+
     if (TM.getRelocationModel() == Reloc::Static &&
         MAI->hasStaticCtorDtorReferenceInStaticMode()) {
       StringRef Sym(".constructors_used");
@@ -1122,8 +1192,8 @@ bool AsmPrinter::EmitSpecialLLVMGlobal(const GlobalVariable *GV) {
                                       MCSA_Reference);
     }
     return true;
-  } 
-  
+  }
+
   if (GV->getName() == "llvm.global_dtors") {
     OutStreamer.SwitchSection(getObjFileLowering().getStaticDtorSection());
     EmitAlignment(Align);
@@ -1137,7 +1207,7 @@ bool AsmPrinter::EmitSpecialLLVMGlobal(const GlobalVariable *GV) {
     }
     return true;
   }
-  
+
   return false;
 }
 
@@ -1148,7 +1218,7 @@ void AsmPrinter::EmitLLVMUsedList(Constant *List) {
   // Should be an array of 'i8*'.
   ConstantArray *InitList = dyn_cast<ConstantArray>(List);
   if (InitList == 0) return;
-  
+
   for (unsigned i = 0, e = InitList->getNumOperands(); i != e; ++i) {
     const GlobalValue *GV =
       dyn_cast<GlobalValue>(InitList->getOperand(i)->stripPointerCasts());
@@ -1157,7 +1227,7 @@ void AsmPrinter::EmitLLVMUsedList(Constant *List) {
   }
 }
 
-/// EmitXXStructorList - Emit the ctor or dtor list.  This just prints out the 
+/// EmitXXStructorList - Emit the ctor or dtor list.  This just prints out the
 /// function pointers, ignoring the init priority.
 void AsmPrinter::EmitXXStructorList(Constant *List) {
   // Should be an array of '{ int, void ()* }' structs.  The first value is the
@@ -1203,11 +1273,11 @@ void AsmPrinter::EmitInt32(int Value) const {
 void AsmPrinter::EmitLabelDifference(const MCSymbol *Hi, const MCSymbol *Lo,
                                      unsigned Size) const {
   // Get the Hi-Lo expression.
-  const MCExpr *Diff = 
+  const MCExpr *Diff =
     MCBinaryExpr::CreateSub(MCSymbolRefExpr::Create(Hi, OutContext),
                             MCSymbolRefExpr::Create(Lo, OutContext),
                             OutContext);
-  
+
   if (!MAI->hasSetDirective()) {
     OutStreamer.EmitValue(Diff, Size, 0/*AddrSpace*/);
     return;
@@ -1219,27 +1289,27 @@ void AsmPrinter::EmitLabelDifference(const MCSymbol *Hi, const MCSymbol *Lo,
   OutStreamer.EmitSymbolValue(SetLabel, Size, 0/*AddrSpace*/);
 }
 
-/// EmitLabelOffsetDifference - Emit something like ".long Hi+Offset-Lo" 
+/// EmitLabelOffsetDifference - Emit something like ".long Hi+Offset-Lo"
 /// where the size in bytes of the directive is specified by Size and Hi/Lo
 /// specify the labels.  This implicitly uses .set if it is available.
 void AsmPrinter::EmitLabelOffsetDifference(const MCSymbol *Hi, uint64_t Offset,
-                                           const MCSymbol *Lo, unsigned Size) 
+                                           const MCSymbol *Lo, unsigned Size)
   const {
-  
+
   // Emit Hi+Offset - Lo
   // Get the Hi+Offset expression.
   const MCExpr *Plus =
-    MCBinaryExpr::CreateAdd(MCSymbolRefExpr::Create(Hi, OutContext), 
+    MCBinaryExpr::CreateAdd(MCSymbolRefExpr::Create(Hi, OutContext),
                             MCConstantExpr::Create(Offset, OutContext),
                             OutContext);
-  
+
   // Get the Hi+Offset-Lo expression.
-  const MCExpr *Diff = 
+  const MCExpr *Diff =
     MCBinaryExpr::CreateSub(Plus,
                             MCSymbolRefExpr::Create(Lo, OutContext),
                             OutContext);
-  
-  if (!MAI->hasSetDirective()) 
+
+  if (!MAI->hasSetDirective())
     OutStreamer.EmitValue(Diff, 4, 0/*AddrSpace*/);
   else {
     // Otherwise, emit with .set (aka assignment).
@@ -1249,22 +1319,22 @@ void AsmPrinter::EmitLabelOffsetDifference(const MCSymbol *Hi, uint64_t Offset,
   }
 }
 
-/// EmitLabelPlusOffset - Emit something like ".long Label+Offset" 
+/// EmitLabelPlusOffset - Emit something like ".long Label+Offset"
 /// where the size in bytes of the directive is specified by Size and Label
 /// specifies the label.  This implicitly uses .set if it is available.
 void AsmPrinter::EmitLabelPlusOffset(const MCSymbol *Label, uint64_t Offset,
-                                      unsigned Size) 
+                                      unsigned Size)
   const {
-  
+
   // Emit Label+Offset
   const MCExpr *Plus =
-    MCBinaryExpr::CreateAdd(MCSymbolRefExpr::Create(Label, OutContext), 
+    MCBinaryExpr::CreateAdd(MCSymbolRefExpr::Create(Label, OutContext),
                             MCConstantExpr::Create(Offset, OutContext),
                             OutContext);
-  
+
   OutStreamer.EmitValue(Plus, 4, 0/*AddrSpace*/);
 }
-    
+
 
 //===----------------------------------------------------------------------===//
 
@@ -1276,9 +1346,9 @@ void AsmPrinter::EmitLabelPlusOffset(const MCSymbol *Label, uint64_t Offset,
 //
 void AsmPrinter::EmitAlignment(unsigned NumBits, const GlobalValue *GV) const {
   if (GV) NumBits = getGVAlignmentLog2(GV, *TM.getTargetData(), NumBits);
-  
+
   if (NumBits == 0) return;   // 1-byte aligned: no need to emit alignment.
-  
+
   if (getCurrentSection()->getKind().isText())
     OutStreamer.EmitCodeAlignment(1 << NumBits);
   else
@@ -1293,25 +1363,25 @@ void AsmPrinter::EmitAlignment(unsigned NumBits, const GlobalValue *GV) const {
 ///
 static const MCExpr *LowerConstant(const Constant *CV, AsmPrinter &AP) {
   MCContext &Ctx = AP.OutContext;
-  
+
   if (CV->isNullValue() || isa<UndefValue>(CV))
     return MCConstantExpr::Create(0, Ctx);
 
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV))
     return MCConstantExpr::Create(CI->getZExtValue(), Ctx);
-  
+
   if (const GlobalValue *GV = dyn_cast<GlobalValue>(CV))
     return MCSymbolRefExpr::Create(AP.Mang->getSymbol(GV), Ctx);
 
   if (const BlockAddress *BA = dyn_cast<BlockAddress>(CV))
     return MCSymbolRefExpr::Create(AP.GetBlockAddressSymbol(BA), Ctx);
-  
+
   const ConstantExpr *CE = dyn_cast<ConstantExpr>(CV);
   if (CE == 0) {
     llvm_unreachable("Unknown constant value to lower!");
     return MCConstantExpr::Create(0, Ctx);
   }
-  
+
   switch (CE->getOpcode()) {
   default:
     // If the code isn't optimized, there may be outstanding folding
@@ -1339,21 +1409,21 @@ static const MCExpr *LowerConstant(const Constant *CV, AsmPrinter &AP) {
     SmallVector<Value*, 8> IdxVec(CE->op_begin()+1, CE->op_end());
     int64_t Offset = TD.getIndexedOffset(PtrVal->getType(), &IdxVec[0],
                                          IdxVec.size());
-    
+
     const MCExpr *Base = LowerConstant(CE->getOperand(0), AP);
     if (Offset == 0)
       return Base;
-    
+
     // Truncate/sext the offset to the pointer size.
     if (TD.getPointerSizeInBits() != 64) {
       int SExtAmount = 64-TD.getPointerSizeInBits();
       Offset = (Offset << SExtAmount) >> SExtAmount;
     }
-    
+
     return MCBinaryExpr::CreateAdd(Base, MCConstantExpr::Create(Offset, Ctx),
                                    Ctx);
   }
-      
+
   case Instruction::Trunc:
     // We emit the value and depend on the assembler to truncate the generated
     // expression properly.  This is important for differences between
@@ -1372,7 +1442,7 @@ static const MCExpr *LowerConstant(const Constant *CV, AsmPrinter &AP) {
                                       false/*ZExt*/);
     return LowerConstant(Op, AP);
   }
-    
+
   case Instruction::PtrToInt: {
     const TargetData &TD = *AP.TM.getTargetData();
     // Support only foldable casts to/from pointers that can be eliminated by
@@ -1394,7 +1464,7 @@ static const MCExpr *LowerConstant(const Constant *CV, AsmPrinter &AP) {
     const MCExpr *MaskExpr = MCConstantExpr::Create(~0ULL >> (64-InBits), Ctx);
     return MCBinaryExpr::CreateAnd(OpExpr, MaskExpr, Ctx);
   }
-      
+
   // The MC library also has a right-shift operator, but it isn't consistently
   // signed or unsigned between different targets.
   case Instruction::Add:
@@ -1435,7 +1505,7 @@ static void EmitGlobalConstantArray(const ConstantArray *CA, unsigned AddrSpace,
       EmitGlobalConstantImpl(CA->getOperand(i), AddrSpace, AP);
     return;
   }
-  
+
   // Otherwise, it can be emitted as .ascii.
   SmallVector<char, 128> TmpVec;
   TmpVec.reserve(CA->getNumOperands());
@@ -1493,7 +1563,7 @@ static void EmitGlobalConstantFP(const ConstantFP *CFP, unsigned AddrSpace,
     AP.OutStreamer.EmitIntValue(Val, 8, AddrSpace);
     return;
   }
-  
+
   if (CFP->getType()->isFloatTy()) {
     if (AP.isVerbose()) {
       float Val = CFP->getValueAPF().convertToFloat();
@@ -1503,7 +1573,7 @@ static void EmitGlobalConstantFP(const ConstantFP *CFP, unsigned AddrSpace,
     AP.OutStreamer.EmitIntValue(Val, 4, AddrSpace);
     return;
   }
-  
+
   if (CFP->getType()->isX86_FP80Ty()) {
     // all long double variants are printed as hex
     // API needed to prevent premature destruction
@@ -1518,7 +1588,7 @@ static void EmitGlobalConstantFP(const ConstantFP *CFP, unsigned AddrSpace,
       AP.OutStreamer.GetCommentOS() << "x86_fp80 ~= "
         << DoubleVal.convertToDouble() << '\n';
     }
-    
+
     if (AP.TM.getTargetData()->isBigEndian()) {
       AP.OutStreamer.EmitIntValue(p[1], 2, AddrSpace);
       AP.OutStreamer.EmitIntValue(p[0], 8, AddrSpace);
@@ -1526,14 +1596,14 @@ static void EmitGlobalConstantFP(const ConstantFP *CFP, unsigned AddrSpace,
       AP.OutStreamer.EmitIntValue(p[0], 8, AddrSpace);
       AP.OutStreamer.EmitIntValue(p[1], 2, AddrSpace);
     }
-    
+
     // Emit the tail padding for the long double.
     const TargetData &TD = *AP.TM.getTargetData();
     AP.OutStreamer.EmitZeros(TD.getTypeAllocSize(CFP->getType()) -
                              TD.getTypeStoreSize(CFP->getType()), AddrSpace);
     return;
   }
-  
+
   assert(CFP->getType()->isPPC_FP128Ty() &&
          "Floating point constant type not handled");
   // All long double variants are printed as hex
@@ -1588,10 +1658,10 @@ static void EmitGlobalConstantImpl(const Constant *CV, unsigned AddrSpace,
       return;
     }
   }
-  
+
   if (const ConstantArray *CVA = dyn_cast<ConstantArray>(CV))
     return EmitGlobalConstantArray(CVA, AddrSpace, AP);
-  
+
   if (const ConstantStruct *CVS = dyn_cast<ConstantStruct>(CV))
     return EmitGlobalConstantStruct(CVS, AddrSpace, AP);
 
@@ -1603,10 +1673,10 @@ static void EmitGlobalConstantImpl(const Constant *CV, unsigned AddrSpace,
     AP.OutStreamer.EmitIntValue(0, Size, AddrSpace);
     return;
   }
-  
+
   if (const ConstantVector *V = dyn_cast<ConstantVector>(CV))
     return EmitGlobalConstantVector(V, AddrSpace, AP);
-  
+
   // Otherwise, it must be a ConstantExpr.  Lower it to an MCExpr, then emit it
   // thread the streamer with EmitValue.
   AP.OutStreamer.EmitValue(LowerConstant(CV, AP),
@@ -1703,7 +1773,7 @@ MCSymbol *AsmPrinter::GetExternalSymbolSymbol(StringRef Sym) const {
   SmallString<60> NameStr;
   Mang->getNameWithPrefix(NameStr, Sym);
   return OutContext.GetOrCreateSymbol(NameStr.str());
-}  
+}
 
 
 
@@ -1740,10 +1810,10 @@ static void EmitBasicBlockLoopComments(const MachineBasicBlock &MBB,
   // Add loop depth information
   const MachineLoop *Loop = LI->getLoopFor(&MBB);
   if (Loop == 0) return;
-  
+
   MachineBasicBlock *Header = Loop->getHeader();
   assert(Header && "No header for loop");
-  
+
   // If this block is not a loop header, just print out what is the loop header
   // and return.
   if (Header != &MBB) {
@@ -1753,21 +1823,21 @@ static void EmitBasicBlockLoopComments(const MachineBasicBlock &MBB,
                               " Depth="+Twine(Loop->getLoopDepth()));
     return;
   }
-  
+
   // Otherwise, it is a loop header.  Print out information about child and
   // parent loops.
   raw_ostream &OS = AP.OutStreamer.GetCommentOS();
-  
-  PrintParentLoopComment(OS, Loop->getParentLoop(), AP.getFunctionNumber()); 
-  
+
+  PrintParentLoopComment(OS, Loop->getParentLoop(), AP.getFunctionNumber());
+
   OS << "=>";
   OS.indent(Loop->getLoopDepth()*2-2);
-  
+
   OS << "This ";
   if (Loop->empty())
     OS << "Inner ";
   OS << "Loop Header: Depth=" + Twine(Loop->getLoopDepth()) << '\n';
-  
+
   PrintChildLoopComment(OS, Loop, AP.getFunctionNumber());
 }
 
@@ -1788,7 +1858,7 @@ void AsmPrinter::EmitBasicBlockStart(const MachineBasicBlock *MBB) const {
     const BasicBlock *BB = MBB->getBasicBlock();
     if (isVerbose())
       OutStreamer.AddComment("Block address taken");
-    
+
     std::vector<MCSymbol*> Syms = MMI->getAddrLabelSymbolToEmit(BB);
 
     for (unsigned i = 0, e = Syms.size(); i != e; ++i)
@@ -1801,9 +1871,9 @@ void AsmPrinter::EmitBasicBlockStart(const MachineBasicBlock *MBB) const {
       if (const BasicBlock *BB = MBB->getBasicBlock())
         if (BB->hasName())
           OutStreamer.AddComment("%" + BB->getName());
-      
+
       EmitBasicBlockLoopComments(*MBB, LI, *this);
-      
+
       // NOTE: Want this comment at start of line, don't emit with AddComment.
       OutStreamer.EmitRawText(Twine(MAI->getCommentString()) + " BB#" +
                               Twine(MBB->getNumber()) + ":");
@@ -1823,7 +1893,7 @@ void AsmPrinter::EmitBasicBlockStart(const MachineBasicBlock *MBB) const {
 void AsmPrinter::EmitVisibility(MCSymbol *Sym, unsigned Visibility,
                                 bool IsDefinition) const {
   MCSymbolAttr Attr = MCSA_Invalid;
-  
+
   switch (Visibility) {
   default: break;
   case GlobalValue::HiddenVisibility:
@@ -1850,23 +1920,23 @@ isBlockOnlyReachableByFallthrough(const MachineBasicBlock *MBB) const {
   // then nothing falls through to it.
   if (MBB->isLandingPad() || MBB->pred_empty())
     return false;
-  
+
   // If there isn't exactly one predecessor, it can't be a fall through.
   MachineBasicBlock::const_pred_iterator PI = MBB->pred_begin(), PI2 = PI;
   ++PI2;
   if (PI2 != MBB->pred_end())
     return false;
-  
+
   // The predecessor has to be immediately before this block.
   const MachineBasicBlock *Pred = *PI;
-  
+
   if (!Pred->isLayoutSuccessor(MBB))
     return false;
-  
+
   // If the block is completely empty, then it definitely does fall through.
   if (Pred->empty())
     return true;
-  
+
   // Otherwise, check the last instruction.
   const MachineInstr &LastInst = Pred->back();
   return !LastInst.getDesc().isBarrier();
@@ -1882,9 +1952,9 @@ GCMetadataPrinter *AsmPrinter::GetOrCreateGCPrinter(GCStrategy *S) {
   gcp_map_type::iterator GCPI = GCMap.find(S);
   if (GCPI != GCMap.end())
     return GCPI->second;
-  
+
   const char *Name = S->getName().c_str();
-  
+
   for (GCMetadataPrinterRegistry::iterator
          I = GCMetadataPrinterRegistry::begin(),
          E = GCMetadataPrinterRegistry::end(); I != E; ++I)
@@ -1894,7 +1964,7 @@ GCMetadataPrinter *AsmPrinter::GetOrCreateGCPrinter(GCStrategy *S) {
       GCMap.insert(std::make_pair(S, GMP));
       return GMP;
     }
-  
+
   report_fatal_error("no GCMetadataPrinter registered for GC: " + Twine(Name));
   return 0;
 }

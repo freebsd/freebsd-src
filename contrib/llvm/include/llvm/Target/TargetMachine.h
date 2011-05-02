@@ -38,6 +38,7 @@ class PassManager;
 class Pass;
 class TargetELFWriterInfo;
 class formatted_raw_ostream;
+class raw_ostream;
 
 // Relocation model types.
 namespace Reloc {
@@ -105,7 +106,9 @@ protected: // Can only create subclasses.
 
   unsigned MCRelaxAll : 1;
   unsigned MCNoExecStack : 1;
+  unsigned MCSaveTempLabels : 1;
   unsigned MCUseLoc : 1;
+  unsigned MCUseCFI : 1;
 
 public:
   virtual ~TargetMachine();
@@ -171,6 +174,14 @@ public:
   /// relaxed.
   void setMCRelaxAll(bool Value) { MCRelaxAll = Value; }
 
+  /// hasMCSaveTempLabels - Check whether temporary labels will be preserved
+  /// (i.e., not treated as temporary).
+  bool hasMCSaveTempLabels() const { return MCSaveTempLabels; }
+
+  /// setMCSaveTempLabels - Set whether temporary labels will be preserved
+  /// (i.e., not treated as temporary).
+  void setMCSaveTempLabels(bool Value) { MCSaveTempLabels = Value; }
+
   /// hasMCNoExecStack - Check whether an executable stack is not needed.
   bool hasMCNoExecStack() const { return MCNoExecStack; }
 
@@ -182,6 +193,12 @@ public:
 
   /// setMCUseLoc - Set whether all we should use dwarf's .loc directive.
   void setMCUseLoc(bool Value) { MCUseLoc = Value; }
+
+  /// hasMCUseCFI - Check whether we should use dwarf's .cfi_* directives.
+  bool hasMCUseCFI() const { return MCUseCFI; }
+
+  /// setMCUseCFI - Set whether all we should use dwarf's .cfi_* directives.
+  void setMCUseCFI(bool Value) { MCUseCFI = Value; }
 
   /// getRelocationModel - Returns the code generation relocation model. The
   /// choices are static, PIC, and dynamic-no-pic, and target default.
@@ -267,6 +284,7 @@ public:
   ///
   virtual bool addPassesToEmitMC(PassManagerBase &,
                                  MCContext *&,
+                                 raw_ostream &,
                                  CodeGenOpt::Level,
                                  bool = true) {
     return true;
@@ -324,6 +342,7 @@ public:
   ///
   virtual bool addPassesToEmitMC(PassManagerBase &PM,
                                  MCContext *&Ctx,
+                                 raw_ostream &OS,
                                  CodeGenOpt::Level OptLevel,
                                  bool DisableVerify = true);
 

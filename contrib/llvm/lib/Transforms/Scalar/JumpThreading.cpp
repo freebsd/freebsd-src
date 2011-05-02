@@ -16,6 +16,7 @@
 #include "llvm/IntrinsicInst.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Pass.h"
+#include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LazyValueInfo.h"
 #include "llvm/Analysis/Loads.h"
@@ -170,9 +171,9 @@ bool JumpThreading::runOnFunction(Function &F) {
         Changed = true;
         continue;
       }
-      
+
       BranchInst *BI = dyn_cast<BranchInst>(BB->getTerminator());
-      
+
       // Can't thread an unconditional jump, but if the block is "almost
       // empty", we can replace uses of it with uses of the successor and make
       // this dead.
@@ -608,7 +609,7 @@ static unsigned GetBestDestForJumpOnUndef(BasicBlock *BB) {
 
 static bool hasAddressTakenAndUsed(BasicBlock *BB) {
   if (!BB->hasAddressTaken()) return false;
-  
+
   // If the block has its address taken, it may be a tree of dead constants
   // hanging off of it.  These shouldn't keep the block alive.
   BlockAddress *BA = BlockAddress::get(BB);
@@ -666,6 +667,17 @@ bool JumpThreading::ProcessBlock(BasicBlock *BB) {
     Preference = WantBlockAddress;
   } else {
     return false; // Must be an invoke.
+  }
+
+  // Run constant folding to see if we can reduce the condition to a simple
+  // constant.
+  if (Instruction *I = dyn_cast<Instruction>(Condition)) {
+    Value *SimpleVal = ConstantFoldInstruction(I, TD);
+    if (SimpleVal) {
+      I->replaceAllUsesWith(SimpleVal);
+      I->eraseFromParent();
+      Condition = SimpleVal;
+    }
   }
 
   // If the terminator is branching on an undef, we can pick any of the
@@ -928,13 +940,14 @@ bool JumpThreading::SimplifyPartiallyRedundantLoad(LoadInst *LI) {
   array_pod_sort(AvailablePreds.begin(), AvailablePreds.end());
 
   // Create a PHI node at the start of the block for the PRE'd load value.
-  PHINode *PN = PHINode::Create(LI->getType(), "", LoadBB->begin());
+  pred_iterator PB = pred_begin(LoadBB), PE = pred_end(LoadBB);
+  PHINode *PN = PHINode::Create(LI->getType(), std::distance(PB, PE), "",
+                                LoadBB->begin());
   PN->takeName(LI);
 
   // Insert new entries into the PHI for each predecessor.  A single block may
   // have multiple entries here.
-  for (pred_iterator PI = pred_begin(LoadBB), E = pred_end(LoadBB); PI != E;
-       ++PI) {
+  for (pred_iterator PI = PB; PI != PE; ++PI) {
     BasicBlock *P = *PI;
     AvailablePredsTy::iterator I =
       std::lower_bound(AvailablePreds.begin(), AvailablePreds.end(),

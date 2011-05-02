@@ -250,7 +250,9 @@ namespace llvm {
     unsigned NumSuccsLeft;              // # of succs not scheduled.
     unsigned short NumRegDefsLeft;      // # of reg defs with no scheduled use.
     unsigned short Latency;             // Node latency.
+    bool isVRegCycle      : 1;          // May use and def the same vreg.
     bool isCall           : 1;          // Is a function call.
+    bool isCallOp         : 1;          // Is a function call operand.
     bool isTwoAddress     : 1;          // Is a two-address instruction.
     bool isCommutable     : 1;          // Is a commutable instruction.
     bool hasPhysRegDefs   : 1;          // Has physreg defs that are being used.
@@ -259,6 +261,7 @@ namespace llvm {
     bool isAvailable      : 1;          // True once available.
     bool isScheduled      : 1;          // True once scheduled.
     bool isScheduleHigh   : 1;          // True if preferable to schedule high.
+    bool isScheduleLow    : 1;          // True if preferable to schedule low.
     bool isCloned         : 1;          // True if this node has been cloned.
     Sched::Preference SchedulingPref;   // Scheduling preference.
 
@@ -278,10 +281,10 @@ namespace llvm {
       : Node(node), Instr(0), OrigNode(0), NodeNum(nodenum),
         NodeQueueId(0), NumPreds(0), NumSuccs(0), NumPredsLeft(0),
         NumSuccsLeft(0), NumRegDefsLeft(0), Latency(0),
-        isCall(false), isTwoAddress(false), isCommutable(false),
-        hasPhysRegDefs(false), hasPhysRegClobbers(false),
+        isVRegCycle(false), isCall(false), isCallOp(false), isTwoAddress(false),
+        isCommutable(false), hasPhysRegDefs(false), hasPhysRegClobbers(false),
         isPending(false), isAvailable(false), isScheduled(false),
-        isScheduleHigh(false), isCloned(false),
+        isScheduleHigh(false), isScheduleLow(false), isCloned(false),
         SchedulingPref(Sched::None),
         isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
         CopyDstRC(NULL), CopySrcRC(NULL) {}
@@ -292,10 +295,10 @@ namespace llvm {
       : Node(0), Instr(instr), OrigNode(0), NodeNum(nodenum),
         NodeQueueId(0), NumPreds(0), NumSuccs(0), NumPredsLeft(0),
         NumSuccsLeft(0), NumRegDefsLeft(0), Latency(0),
-        isCall(false), isTwoAddress(false), isCommutable(false),
-        hasPhysRegDefs(false), hasPhysRegClobbers(false),
+        isVRegCycle(false), isCall(false), isCallOp(false), isTwoAddress(false),
+        isCommutable(false), hasPhysRegDefs(false), hasPhysRegClobbers(false),
         isPending(false), isAvailable(false), isScheduled(false),
-        isScheduleHigh(false), isCloned(false),
+        isScheduleHigh(false), isScheduleLow(false), isCloned(false),
         SchedulingPref(Sched::None),
         isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
         CopyDstRC(NULL), CopySrcRC(NULL) {}
@@ -305,10 +308,10 @@ namespace llvm {
       : Node(0), Instr(0), OrigNode(0), NodeNum(~0u),
         NodeQueueId(0), NumPreds(0), NumSuccs(0), NumPredsLeft(0),
         NumSuccsLeft(0), NumRegDefsLeft(0), Latency(0),
-        isCall(false), isTwoAddress(false), isCommutable(false),
-        hasPhysRegDefs(false), hasPhysRegClobbers(false),
+        isVRegCycle(false), isCall(false), isCallOp(false), isTwoAddress(false),
+        isCommutable(false), hasPhysRegDefs(false), hasPhysRegClobbers(false),
         isPending(false), isAvailable(false), isScheduled(false),
-        isScheduleHigh(false), isCloned(false),
+        isScheduleHigh(false), isScheduleLow(false), isCloned(false),
         SchedulingPref(Sched::None),
         isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
         CopyDstRC(NULL), CopySrcRC(NULL) {}
@@ -356,7 +359,7 @@ namespace llvm {
     void removePred(const SDep &D);
 
     /// getDepth - Return the depth of this node, which is the length of the
-    /// maximum path up to any node with has no predecessors.
+    /// maximum path up to any node which has no predecessors.
     unsigned getDepth() const {
       if (!isDepthCurrent)
         const_cast<SUnit *>(this)->ComputeDepth();
@@ -364,7 +367,7 @@ namespace llvm {
     }
 
     /// getHeight - Return the height of this node, which is the length of the
-    /// maximum path down to any node with has no successors.
+    /// maximum path down to any node which has no successors.
     unsigned getHeight() const {
       if (!isHeightCurrent)
         const_cast<SUnit *>(this)->ComputeHeight();
@@ -690,11 +693,11 @@ namespace llvm {
     /// will create a cycle.
     bool WillCreateCycle(SUnit *SU, SUnit *TargetSU);
 
-    /// AddPred - Updates the topological ordering to accomodate an edge
+    /// AddPred - Updates the topological ordering to accommodate an edge
     /// to be added from SUnit X to SUnit Y.
     void AddPred(SUnit *Y, SUnit *X);
 
-    /// RemovePred - Updates the topological ordering to accomodate an
+    /// RemovePred - Updates the topological ordering to accommodate an
     /// an edge to be removed from the specified node N from the predecessors
     /// of the current node M.
     void RemovePred(SUnit *M, SUnit *N);

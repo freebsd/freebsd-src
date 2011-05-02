@@ -95,6 +95,9 @@ public:
   // Remove a live virtual register's segments from this union.
   void extract(LiveInterval &VirtReg);
 
+  // Remove all inserted virtual registers.
+  void clear() { Segments.clear(); ++Tag; }
+
   // Print union, using TRI to translate register names
   void print(raw_ostream &OS, const TargetRegisterInfo *TRI) const;
 
@@ -163,10 +166,10 @@ public:
     bool CheckedFirstInterference;
     bool SeenAllInterferences;
     bool SeenUnspillableVReg;
-    unsigned Tag;
+    unsigned Tag, UserTag;
 
   public:
-    Query(): LiveUnion(), VirtReg() {}
+    Query(): LiveUnion(), VirtReg(), Tag(0), UserTag(0) {}
 
     Query(LiveInterval *VReg, LiveIntervalUnion *LIU):
       LiveUnion(LIU), VirtReg(VReg), CheckedFirstInterference(false),
@@ -181,11 +184,13 @@ public:
       SeenAllInterferences = false;
       SeenUnspillableVReg = false;
       Tag = 0;
+      UserTag = 0;
     }
 
-    void init(LiveInterval *VReg, LiveIntervalUnion *LIU) {
+    void init(unsigned UTag, LiveInterval *VReg, LiveIntervalUnion *LIU) {
       assert(VReg && LIU && "Invalid arguments");
-      if (VirtReg == VReg && LiveUnion == LIU && !LIU->changedSince(Tag)) {
+      if (UserTag == UTag && VirtReg == VReg &&
+          LiveUnion == LIU && !LIU->changedSince(Tag)) {
         // Retain cached results, e.g. firstInterference.
         return;
       }
@@ -193,6 +198,7 @@ public:
       LiveUnion = LIU;
       VirtReg = VReg;
       Tag = LIU->getTag();
+      UserTag = UTag;
     }
 
     LiveInterval &virtReg() const {
@@ -223,7 +229,8 @@ public:
 
     // Count the virtual registers in this union that interfere with this
     // query's live virtual register, up to maxInterferingRegs.
-    unsigned collectInterferingVRegs(unsigned MaxInterferingRegs = UINT_MAX);
+    unsigned collectInterferingVRegs(unsigned MaxInterferingRegs = UINT_MAX,
+                                     float MaxWeight = HUGE_VALF);
 
     // Was this virtual register visited during collectInterferingVRegs?
     bool isSeenInterference(LiveInterval *VReg) const;

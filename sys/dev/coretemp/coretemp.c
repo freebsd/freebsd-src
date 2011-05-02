@@ -192,7 +192,7 @@ coretemp_attach(device_t dev)
 	} else if (cpu_model == 0x17) {
 		switch (cpu_stepping) {
 		case 0x6:	/* Mobile Core 2 Duo */
-			sc->sc_tjmax = 104;
+			sc->sc_tjmax = 105;
 			break;
 		default:	/* Unknown stepping */
 			break;

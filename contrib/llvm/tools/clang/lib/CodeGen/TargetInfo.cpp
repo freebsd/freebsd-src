@@ -16,6 +16,7 @@
 #include "ABIInfo.h"
 #include "CodeGenFunction.h"
 #include "clang/AST/RecordLayout.h"
+#include "clang/Frontend/CodeGenOptions.h"
 #include "llvm/Type.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/ADT/Triple.h"
@@ -358,7 +359,7 @@ bool UseX86_MMXType(const llvm::Type *IRType) {
 static const llvm::Type* X86AdjustInlineAsmType(CodeGen::CodeGenFunction &CGF,
                                                 llvm::StringRef Constraint,
                                                 const llvm::Type* Ty) {
-  if (Constraint=="y" && Ty->isVectorTy())
+  if ((Constraint == "y" || Constraint == "&y") && Ty->isVectorTy())
     return llvm::Type::getX86_MMXTy(CGF.getLLVMContext());
   return Ty;
 }
@@ -864,6 +865,15 @@ class X86_64ABIInfo : public ABIInfo {
                                   unsigned &neededInt,
                                   unsigned &neededSSE) const;
 
+  /// The 0.98 ABI revision clarified a lot of ambiguities,
+  /// unfortunately in ways that were not always consistent with
+  /// certain previous compilers.  In particular, platforms which
+  /// required strict binary compatibility with older versions of GCC
+  /// may need to exempt themselves.
+  bool honorsRevision0_98() const {
+    return !getContext().Target.getTriple().isOSDarwin();
+  }
+
 public:
   X86_64ABIInfo(CodeGen::CodeGenTypes &CGT) : ABIInfo(CGT) {}
 
@@ -1252,14 +1262,23 @@ void X86_64ABIInfo::classify(QualType Ty, uint64_t OffsetBase,
     // (a) If one of the classes is MEMORY, the whole argument is
     // passed in memory.
     //
-    // (b) If SSEUP is not preceeded by SSE, it is converted to SSE.
-
-    // The first of these conditions is guaranteed by how we implement
-    // the merge (just bail).
+    // (b) If X87UP is not preceded by X87, the whole argument is 
+    // passed in memory.
+    // 
+    // (c) If the size of the aggregate exceeds two eightbytes and the first
+    // eight-byte isn’t SSE or any other eightbyte isn’t SSEUP, the whole 
+    // argument is passed in memory.
+    // 
+    // (d) If SSEUP is not preceded by SSE or SSEUP, it is converted to SSE.
     //
-    // The second condition occurs in the case of unions; for example
-    // union { _Complex double; unsigned; }.
+    // Some of these are enforced by the merging logic.  Others can arise
+    // only with unions; for example:
+    //   union { _Complex double; unsigned; }
+    //
+    // Note that clauses (b) and (c) were added in 0.98.
     if (Hi == Memory)
+      Lo = Memory;
+    if (Hi == X87Up && Lo != X87 && honorsRevision0_98())
       Lo = Memory;
     if (Hi == SSEUp && Lo != SSE)
       Hi = SSE;
@@ -1689,7 +1708,7 @@ classifyReturnType(QualType RetTy) const {
     // AMD64-ABI 3.2.3p4: Rule 5. If the class is SSEUP, the eightbyte
     // is passed in the upper half of the last used SSE register.
     //
-    // SSEUP should always be preceeded by SSE, just widen.
+    // SSEUP should always be preceded by SSE, just widen.
   case SSEUp:
     assert(Lo == SSE && "Unexpected SSEUp classification.");
     ResType = Get16ByteVectorType(RetTy);
@@ -1698,9 +1717,9 @@ classifyReturnType(QualType RetTy) const {
     // AMD64-ABI 3.2.3p4: Rule 7. If the class is X87UP, the value is
     // returned together with the previous X87 value in %st0.
   case X87Up:
-    // If X87Up is preceeded by X87, we don't need to do
+    // If X87Up is preceded by X87, we don't need to do
     // anything. However, in some cases with unions it may not be
-    // preceeded by X87. In such situations we follow gcc and pass the
+    // preceded by X87. In such situations we follow gcc and pass the
     // extra bits in an SSE reg.
     if (Lo != X87) {
       HighPart = GetSSETypeAtOffset(CGT.ConvertTypeRecursive(RetTy),
@@ -1799,7 +1818,7 @@ ABIArgInfo X86_64ABIInfo::classifyArgumentType(QualType Ty, unsigned &neededInt,
   const llvm::Type *HighPart = 0;
   switch (Hi) {
     // Memory was handled previously, ComplexX87 and X87 should
-    // never occur as hi classes, and X87Up must be preceed by X87,
+    // never occur as hi classes, and X87Up must be preceded by X87,
     // which is passed in memory.
   case Memory:
   case X87:
@@ -2082,9 +2101,8 @@ llvm::Value *X86_64ABIInfo::EmitVAArg(llvm::Value *VAListAddr, QualType Ty,
   // Return the appropriate result.
 
   CGF.EmitBlock(ContBlock);
-  llvm::PHINode *ResAddr = CGF.Builder.CreatePHI(RegAddr->getType(),
+  llvm::PHINode *ResAddr = CGF.Builder.CreatePHI(RegAddr->getType(), 2,
                                                  "vaarg.addr");
-  ResAddr->reserveOperandSpace(2);
   ResAddr->addIncoming(RegAddr, InRegBlock);
   ResAddr->addIncoming(MemAddr, InMemBlock);
   return ResAddr;
@@ -2271,27 +2289,33 @@ void ARMABIInfo::computeInfo(CGFunctionInfo &FI) const {
        it != ie; ++it)
     it->info = classifyArgumentType(it->type);
 
-  const llvm::Triple &Triple(getContext().Target.getTriple());
+  // Always honor user-specified calling convention.
+  if (FI.getCallingConvention() != llvm::CallingConv::C)
+    return;
+
+  // Calling convention as default by an ABI.
   llvm::CallingConv::ID DefaultCC;
-  if (Triple.getEnvironmentName() == "gnueabi" ||
-      Triple.getEnvironmentName() == "eabi")
+  llvm::StringRef Env = getContext().Target.getTriple().getEnvironmentName();
+  if (Env == "gnueabi" || Env == "eabi")
     DefaultCC = llvm::CallingConv::ARM_AAPCS;
   else
     DefaultCC = llvm::CallingConv::ARM_APCS;
 
+  // If user did not ask for specific calling convention explicitly (e.g. via
+  // pcs attribute), set effective calling convention if it's different than ABI
+  // default.
   switch (getABIKind()) {
   case APCS:
     if (DefaultCC != llvm::CallingConv::ARM_APCS)
       FI.setEffectiveCallingConvention(llvm::CallingConv::ARM_APCS);
     break;
-
   case AAPCS:
     if (DefaultCC != llvm::CallingConv::ARM_AAPCS)
       FI.setEffectiveCallingConvention(llvm::CallingConv::ARM_AAPCS);
     break;
-
   case AAPCS_VFP:
-    FI.setEffectiveCallingConvention(llvm::CallingConv::ARM_AAPCS_VFP);
+    if (DefaultCC != llvm::CallingConv::ARM_AAPCS_VFP)
+      FI.setEffectiveCallingConvention(llvm::CallingConv::ARM_AAPCS_VFP);
     break;
   }
 }
@@ -2317,22 +2341,26 @@ ABIArgInfo ARMABIInfo::classifyArgumentType(QualType Ty) const {
 
   // Otherwise, pass by coercing to a structure of the appropriate size.
   //
-  // FIXME: This is kind of nasty... but there isn't much choice because the ARM
-  // backend doesn't support byval.
   // FIXME: This doesn't handle alignment > 64 bits.
   const llvm::Type* ElemTy;
   unsigned SizeRegs;
-  if (getContext().getTypeAlign(Ty) > 32) {
-    ElemTy = llvm::Type::getInt64Ty(getVMContext());
-    SizeRegs = (getContext().getTypeSize(Ty) + 63) / 64;
-  } else {
+  if (getContext().getTypeSizeInChars(Ty) <= CharUnits::fromQuantity(64)) {
     ElemTy = llvm::Type::getInt32Ty(getVMContext());
     SizeRegs = (getContext().getTypeSize(Ty) + 31) / 32;
+  } else if (getABIKind() == ARMABIInfo::APCS) {
+    // Initial ARM ByVal support is APCS-only.
+    return ABIArgInfo::getIndirect(0, /*ByVal=*/true);
+  } else {
+    // FIXME: This is kind of nasty... but there isn't much choice
+    // because most of the ARM calling conventions don't yet support
+    // byval.
+    ElemTy = llvm::Type::getInt64Ty(getVMContext());
+    SizeRegs = (getContext().getTypeSize(Ty) + 63) / 64;
   }
-  std::vector<const llvm::Type*> LLVMFields;
-  LLVMFields.push_back(llvm::ArrayType::get(ElemTy, SizeRegs));
-  const llvm::Type* STy = llvm::StructType::get(getVMContext(), LLVMFields,
-                                                true);
+
+  const llvm::Type *STy =
+    llvm::StructType::get(getVMContext(),
+                          llvm::ArrayType::get(ElemTy, SizeRegs), NULL, NULL);
   return ABIArgInfo::getDirect(STy);
 }
 
@@ -2513,6 +2541,74 @@ llvm::Value *ARMABIInfo::EmitVAArg(llvm::Value *VAListAddr, QualType Ty,
   Builder.CreateStore(NextAddr, VAListAddrAsBPP);
 
   return AddrTyped;
+}
+
+//===----------------------------------------------------------------------===//
+// PTX ABI Implementation
+//===----------------------------------------------------------------------===//
+
+namespace {
+
+class PTXABIInfo : public ABIInfo {
+public:
+  PTXABIInfo(CodeGenTypes &CGT) : ABIInfo(CGT) {}
+
+  ABIArgInfo classifyReturnType(QualType RetTy) const;
+  ABIArgInfo classifyArgumentType(QualType Ty) const;
+
+  virtual void computeInfo(CGFunctionInfo &FI) const;
+  virtual llvm::Value *EmitVAArg(llvm::Value *VAListAddr, QualType Ty,
+                                 CodeGenFunction &CFG) const;
+};
+
+class PTXTargetCodeGenInfo : public TargetCodeGenInfo {
+public:
+  PTXTargetCodeGenInfo(CodeGenTypes &CGT)
+    : TargetCodeGenInfo(new PTXABIInfo(CGT)) {}
+};
+
+ABIArgInfo PTXABIInfo::classifyReturnType(QualType RetTy) const {
+  if (RetTy->isVoidType())
+    return ABIArgInfo::getIgnore();
+  if (isAggregateTypeForABI(RetTy))
+    return ABIArgInfo::getIndirect(0);
+  return ABIArgInfo::getDirect();
+}
+
+ABIArgInfo PTXABIInfo::classifyArgumentType(QualType Ty) const {
+  if (isAggregateTypeForABI(Ty))
+    return ABIArgInfo::getIndirect(0);
+
+  return ABIArgInfo::getDirect();
+}
+
+void PTXABIInfo::computeInfo(CGFunctionInfo &FI) const {
+  FI.getReturnInfo() = classifyReturnType(FI.getReturnType());
+  for (CGFunctionInfo::arg_iterator it = FI.arg_begin(), ie = FI.arg_end();
+       it != ie; ++it)
+    it->info = classifyArgumentType(it->type);
+
+  // Always honor user-specified calling convention.
+  if (FI.getCallingConvention() != llvm::CallingConv::C)
+    return;
+
+  // Calling convention as default by an ABI.
+  llvm::CallingConv::ID DefaultCC;
+  llvm::StringRef Env = getContext().Target.getTriple().getEnvironmentName();
+  if (Env == "device")
+    DefaultCC = llvm::CallingConv::PTX_Device;
+  else
+    DefaultCC = llvm::CallingConv::PTX_Kernel;
+
+  FI.setEffectiveCallingConvention(DefaultCC);
+}
+
+llvm::Value *PTXABIInfo::EmitVAArg(llvm::Value *VAListAddr, QualType Ty,
+                                   CodeGenFunction &CFG) const {
+  llvm_unreachable("PTX does not support varargs");
+  return 0;
+}
+
 }
 
 //===----------------------------------------------------------------------===//
@@ -2815,16 +2911,23 @@ const TargetCodeGenInfo &CodeGenModule::getTargetCodeGenInfo() {
 
   case llvm::Triple::arm:
   case llvm::Triple::thumb:
-    // FIXME: We want to know the float calling convention as well.
-    if (strcmp(getContext().Target.getABI(), "apcs-gnu") == 0)
-      return *(TheTargetCodeGenInfo =
-               new ARMTargetCodeGenInfo(Types, ARMABIInfo::APCS));
+    {
+      ARMABIInfo::ABIKind Kind = ARMABIInfo::AAPCS;
 
-    return *(TheTargetCodeGenInfo =
-             new ARMTargetCodeGenInfo(Types, ARMABIInfo::AAPCS));
+      if (strcmp(getContext().Target.getABI(), "apcs-gnu") == 0)
+        Kind = ARMABIInfo::APCS;
+      else if (CodeGenOpts.FloatABI == "hard")
+        Kind = ARMABIInfo::AAPCS_VFP;
+
+      return *(TheTargetCodeGenInfo = new ARMTargetCodeGenInfo(Types, Kind));
+    }
 
   case llvm::Triple::ppc:
     return *(TheTargetCodeGenInfo = new PPC32TargetCodeGenInfo(Types));
+
+  case llvm::Triple::ptx32:
+  case llvm::Triple::ptx64:
+    return *(TheTargetCodeGenInfo = new PTXTargetCodeGenInfo(Types));
 
   case llvm::Triple::systemz:
     return *(TheTargetCodeGenInfo = new SystemZTargetCodeGenInfo(Types));
@@ -2836,10 +2939,11 @@ const TargetCodeGenInfo &CodeGenModule::getTargetCodeGenInfo() {
     return *(TheTargetCodeGenInfo = new MSP430TargetCodeGenInfo(Types));
 
   case llvm::Triple::x86:
-    switch (Triple.getOS()) {
-    case llvm::Triple::Darwin:
+    if (Triple.isOSDarwin())
       return *(TheTargetCodeGenInfo =
                new X86_32TargetCodeGenInfo(Types, true, true));
+
+    switch (Triple.getOS()) {
     case llvm::Triple::Cygwin:
     case llvm::Triple::MinGW32:
     case llvm::Triple::AuroraUX:

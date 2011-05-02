@@ -25,6 +25,7 @@
 
 namespace llvm {
   class raw_ostream;
+  template<typename T> class ArrayRef;
 }
 namespace clang {
 namespace driver {
@@ -77,6 +78,12 @@ public:
   typedef llvm::SmallVector<std::string, 4> prefix_list;
   prefix_list PrefixDirs;
 
+  /// sysroot, if present
+  std::string SysRoot;
+
+  /// If the standard library is used
+  bool UseStdLib;
+
   /// Default host triple.
   std::string DefaultHostTriple;
 
@@ -90,7 +97,7 @@ public:
   /// will generally be the actual host platform, but not always.
   const HostInfo *Host;
 
-  /// Information about the host which can be overriden by the user.
+  /// Information about the host which can be overridden by the user.
   std::string HostBits, HostMachine, HostSystem, HostRelease;
 
   /// The file to log CC_PRINT_OPTIONS output to, if enabled.
@@ -99,8 +106,14 @@ public:
   /// The file to log CC_PRINT_HEADERS output to, if enabled.
   const char *CCPrintHeadersFilename;
 
+  /// The file to log CC_LOG_DIAGNOSTICS output to, if enabled.
+  const char *CCLogDiagnosticsFilename;
+
   /// Whether the driver should follow g++ like behavior.
   unsigned CCCIsCXX : 1;
+
+  /// Whether the driver is just the preprocessor
+  unsigned CCCIsCPP : 1;
 
   /// Echo commands while executing (in -v style).
   unsigned CCCEcho : 1;
@@ -116,8 +129,13 @@ public:
   /// information to CCPrintHeadersFilename or to stderr.
   unsigned CCPrintHeaders : 1;
 
+  /// Set CC_LOG_DIAGNOSTICS mode, which causes the frontend to log diagnostics
+  /// to CCLogDiagnosticsFilename or to stderr, in a stable machine readable
+  /// format.
+  unsigned CCLogDiagnostics : 1;
+
 private:
-  /// Name to use when calling the generic gcc.
+  /// Name to use when invoking gcc/g++.
   std::string CCCGenericGCCName;
 
   /// Whether to check that input files exist when constructing compilation
@@ -165,7 +183,7 @@ public:
   /// @name Accessors
   /// @{
 
-  /// Name to use when calling the generic gcc.
+  /// Name to use when invoking gcc/g++.
   const std::string &getCCCGenericGCCName() const { return CCCGenericGCCName; }
 
 
@@ -206,14 +224,14 @@ public:
   /// argument vector. A null return value does not necessarily
   /// indicate an error condition, the diagnostics should be queried
   /// to determine if an error occurred.
-  Compilation *BuildCompilation(int argc, const char **argv);
+  Compilation *BuildCompilation(llvm::ArrayRef<const char *> Args);
 
   /// @name Driver Steps
   /// @{
 
   /// ParseArgStrings - Parse the given list of strings into an
   /// ArgList.
-  InputArgList *ParseArgStrings(const char **ArgBegin, const char **ArgEnd);
+  InputArgList *ParseArgStrings(llvm::ArrayRef<const char *> Args);
 
   /// BuildActions - Construct the list of actions to perform for the
   /// given arguments, which are only done for a single architecture.
@@ -221,7 +239,7 @@ public:
   /// \param TC - The default host tool chain.
   /// \param Args - The input arguments.
   /// \param Actions - The list to store the resulting actions onto.
-  void BuildActions(const ToolChain &TC, const ArgList &Args,
+  void BuildActions(const ToolChain &TC, const DerivedArgList &Args,
                     ActionList &Actions) const;
 
   /// BuildUniversalActions - Construct the list of actions to perform
@@ -230,7 +248,7 @@ public:
   /// \param TC - The default host tool chain.
   /// \param Args - The input arguments.
   /// \param Actions - The list to store the resulting actions onto.
-  void BuildUniversalActions(const ToolChain &TC, const ArgList &Args,
+  void BuildUniversalActions(const ToolChain &TC, const DerivedArgList &Args,
                              ActionList &Actions) const;
 
   /// BuildJobs - Bind actions to concrete tools and translate

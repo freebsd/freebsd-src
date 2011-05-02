@@ -367,11 +367,7 @@ void TokenLexer::Lex(Token &Tok) {
     // won't be handled by Preprocessor::HandleIdentifier because this is coming
     // from a macro expansion.
     if (II->isPoisoned() && TokenIsFromPaste) {
-      // We warn about __VA_ARGS__ with poisoning.
-      if (II->isStr("__VA_ARGS__"))
-        PP.Diag(Tok, diag::ext_pp_bad_vaargs_use);
-      else
-        PP.Diag(Tok, diag::err_pp_used_poisoned_id);
+      PP.HandlePoisonedIdentifier(Tok);
     }
 
     if (!DisableMacroExpansion && II->isHandleIdentifierCase())
@@ -546,7 +542,7 @@ unsigned TokenLexer::isNextTokenLParen() const {
 /// isParsingPreprocessorDirective - Return true if we are in the middle of a
 /// preprocessor directive.
 bool TokenLexer::isParsingPreprocessorDirective() const {
-  return Tokens[NumTokens-1].is(tok::eom) && !isAtEnd();
+  return Tokens[NumTokens-1].is(tok::eod) && !isAtEnd();
 }
 
 /// HandleMicrosoftCommentPaste - In microsoft compatibility mode, /##/ pastes

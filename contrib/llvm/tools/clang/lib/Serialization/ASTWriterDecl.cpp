@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Serialization/ASTWriter.h"
+#include "ASTCommon.h"
 #include "clang/AST/DeclVisitor.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclTemplate.h"
@@ -21,6 +22,7 @@
 #include "llvm/Bitcode/BitstreamWriter.h"
 #include "llvm/Support/ErrorHandling.h"
 using namespace clang;
+using namespace serialization;
 
 //===----------------------------------------------------------------------===//
 // Declaration serialization
@@ -53,6 +55,7 @@ namespace clang {
     void VisitNamespaceAliasDecl(NamespaceAliasDecl *D);
     void VisitTypeDecl(TypeDecl *D);
     void VisitTypedefDecl(TypedefDecl *D);
+    void VisitTypeAliasDecl(TypeAliasDecl *D);
     void VisitUnresolvedUsingTypenameDecl(UnresolvedUsingTypenameDecl *D);
     void VisitTagDecl(TagDecl *D);
     void VisitEnumDecl(EnumDecl *D);
@@ -140,6 +143,7 @@ void ASTDeclWriter::VisitDecl(Decl *D) {
     Writer.WriteAttributes(D->getAttrs(), Record);
   Record.push_back(D->isImplicit());
   Record.push_back(D->isUsed(false));
+  Record.push_back(D->isReferenced());
   Record.push_back(D->getAccess());
   Record.push_back(D->getPCHLevel());
 }
@@ -157,6 +161,7 @@ void ASTDeclWriter::VisitNamedDecl(NamedDecl *D) {
 
 void ASTDeclWriter::VisitTypeDecl(TypeDecl *D) {
   VisitNamedDecl(D);
+  Writer.AddSourceLocation(D->getLocStart(), Record);
   Writer.AddTypeRef(QualType(D->getTypeForDecl(), 0), Record);
 }
 
@@ -164,6 +169,12 @@ void ASTDeclWriter::VisitTypedefDecl(TypedefDecl *D) {
   VisitTypeDecl(D);
   Writer.AddTypeSourceInfo(D->getTypeSourceInfo(), Record);
   Code = serialization::DECL_TYPEDEF;
+}
+
+void ASTDeclWriter::VisitTypeAliasDecl(TypeAliasDecl *D) {
+  VisitTypeDecl(D);
+  Writer.AddTypeSourceInfo(D->getTypeSourceInfo(), Record);
+  Code = serialization::DECL_TYPEALIAS;
 }
 
 void ASTDeclWriter::VisitTagDecl(TagDecl *D) {
@@ -174,12 +185,11 @@ void ASTDeclWriter::VisitTagDecl(TagDecl *D) {
   Record.push_back(D->isDefinition());
   Record.push_back(D->isEmbeddedInDeclarator());
   Writer.AddSourceLocation(D->getRBraceLoc(), Record);
-  Writer.AddSourceLocation(D->getTagKeywordLoc(), Record);
   Record.push_back(D->hasExtInfo());
   if (D->hasExtInfo())
     Writer.AddQualifierInfo(*D->getExtInfo(), Record);
   else
-    Writer.AddDeclRef(D->getTypedefForAnonDecl(), Record);
+    Writer.AddDeclRef(D->getTypedefNameForAnonDecl(), Record);
 }
 
 void ASTDeclWriter::VisitEnumDecl(EnumDecl *D) {
@@ -221,6 +231,7 @@ void ASTDeclWriter::VisitEnumConstantDecl(EnumConstantDecl *D) {
 
 void ASTDeclWriter::VisitDeclaratorDecl(DeclaratorDecl *D) {
   VisitValueDecl(D);
+  Writer.AddSourceLocation(D->getInnerLocStart(), Record);
   Record.push_back(D->hasExtInfo());
   if (D->hasExtInfo())
     Writer.AddQualifierInfo(*D->getExtInfo(), Record);
@@ -552,6 +563,7 @@ void ASTDeclWriter::VisitVarDecl(VarDecl *D) {
   Record.push_back(D->hasCXXDirectInitializer());
   Record.push_back(D->isExceptionVariable());
   Record.push_back(D->isNRVOVariable());
+  Record.push_back(D->isCXXForRangeDecl());
   Record.push_back(D->getInit() ? 1 : 0);
   if (D->getInit())
     Writer.AddStmt(D->getInit());
@@ -575,7 +587,11 @@ void ASTDeclWriter::VisitImplicitParamDecl(ImplicitParamDecl *D) {
 
 void ASTDeclWriter::VisitParmVarDecl(ParmVarDecl *D) {
   VisitVarDecl(D);
+  Record.push_back(D->isObjCMethodParameter());
+  Record.push_back(D->getFunctionScopeDepth());
+  Record.push_back(D->getFunctionScopeIndex());
   Record.push_back(D->getObjCDeclQualifier()); // FIXME: stable encoding
+  Record.push_back(D->isKNRPromoted());
   Record.push_back(D->hasInheritedDefaultArg());
   Record.push_back(D->hasUninstantiatedDefaultArg());
   if (D->hasUninstantiatedDefaultArg())
@@ -593,7 +609,9 @@ void ASTDeclWriter::VisitParmVarDecl(ParmVarDecl *D) {
       D->getPCHLevel() == 0 &&
       D->getStorageClass() == 0 &&
       !D->hasCXXDirectInitializer() && // Can params have this ever?
+      D->getFunctionScopeDepth() == 0 &&
       D->getObjCDeclQualifier() == 0 &&
+      !D->isKNRPromoted() &&
       !D->hasInheritedDefaultArg() &&
       D->getInit() == 0 &&
       !D->hasUninstantiatedDefaultArg())  // No default expr.
@@ -613,6 +631,7 @@ void ASTDeclWriter::VisitParmVarDecl(ParmVarDecl *D) {
 void ASTDeclWriter::VisitFileScopeAsmDecl(FileScopeAsmDecl *D) {
   VisitDecl(D);
   Writer.AddStmt(D->getAsmString());
+  Writer.AddSourceLocation(D->getRParenLoc(), Record);
   Code = serialization::DECL_FILE_SCOPE_ASM;
 }
 
@@ -645,15 +664,15 @@ void ASTDeclWriter::VisitBlockDecl(BlockDecl *D) {
 
 void ASTDeclWriter::VisitLinkageSpecDecl(LinkageSpecDecl *D) {
   VisitDecl(D);
-  // FIXME: It might be nice to serialize the brace locations for this
-  // declaration, which don't seem to be readily available in the AST.
   Record.push_back(D->getLanguage());
-  Record.push_back(D->hasBraces());
+  Writer.AddSourceLocation(D->getExternLoc(), Record);
+  Writer.AddSourceLocation(D->getRBraceLoc(), Record);
   Code = serialization::DECL_LINKAGE_SPEC;
 }
 
 void ASTDeclWriter::VisitLabelDecl(LabelDecl *D) {
   VisitNamedDecl(D);
+  Writer.AddSourceLocation(D->getLocStart(), Record);
   Code = serialization::DECL_LABEL;
 }
 
@@ -661,8 +680,8 @@ void ASTDeclWriter::VisitLabelDecl(LabelDecl *D) {
 void ASTDeclWriter::VisitNamespaceDecl(NamespaceDecl *D) {
   VisitNamedDecl(D);
   Record.push_back(D->isInline());
-  Writer.AddSourceLocation(D->getLBracLoc(), Record);
-  Writer.AddSourceLocation(D->getRBracLoc(), Record);
+  Writer.AddSourceLocation(D->getLocStart(), Record);
+  Writer.AddSourceLocation(D->getRBraceLoc(), Record);
   Writer.AddDeclRef(D->getNextNamespace(), Record);
 
   // Only write one reference--original or anonymous
@@ -690,6 +709,20 @@ void ASTDeclWriter::VisitNamespaceDecl(NamespaceDecl *D) {
           ++Result.first;
         }
       }
+    }
+  }
+
+  if (Writer.hasChain() && D->isAnonymousNamespace() && !D->getNextNamespace()){
+    // This is a most recent reopening of the anonymous namespace. If its parent
+    // is in a previous PCH (or is the TU), mark that parent for update, because
+    // the original namespace always points to the latest re-opening of its
+    // anonymous namespace.
+    Decl *Parent = cast<Decl>(
+        D->getParent()->getRedeclContext()->getPrimaryContext());
+    if (Parent->getPCHLevel() > 0) {
+      ASTWriter::UpdateRecord &Record = Writer.DeclUpdates[Parent];
+      Record.push_back(UPD_CXX_ADDED_ANONYMOUS_NAMESPACE);
+      Writer.AddDeclRef(D, Record);
     }
   }
 }
@@ -743,7 +776,6 @@ void ASTDeclWriter::VisitUnresolvedUsingValueDecl(UnresolvedUsingValueDecl *D) {
 void ASTDeclWriter::VisitUnresolvedUsingTypenameDecl(
                                                UnresolvedUsingTypenameDecl *D) {
   VisitTypeDecl(D);
-  Writer.AddSourceLocation(D->getUsingLoc(), Record);
   Writer.AddSourceLocation(D->getTypenameLoc(), Record);
   Writer.AddNestedNameSpecifierLoc(D->getQualifierLoc(), Record);
   Code = serialization::DECL_UNRESOLVED_USING_TYPENAME;
@@ -1001,7 +1033,6 @@ void ASTDeclWriter::VisitTemplateTypeParmDecl(TemplateTypeParmDecl *D) {
   VisitTypeDecl(D);
 
   Record.push_back(D->wasDeclaredWithTypename());
-  Record.push_back(D->isParameterPack());
   Record.push_back(D->defaultArgumentWasInherited());
   Writer.AddTypeSourceInfo(D->getDefaultArgumentInfo(), Record);
 
@@ -1054,6 +1085,7 @@ void ASTDeclWriter::VisitStaticAssertDecl(StaticAssertDecl *D) {
   VisitDecl(D);
   Writer.AddStmt(D->getAssertExpr());
   Writer.AddStmt(D->getMessage());
+  Writer.AddSourceLocation(D->getRParenLoc(), Record);
   Code = serialization::DECL_STATIC_ASSERT;
 }
 
@@ -1121,6 +1153,7 @@ void ASTWriter::WriteDeclsBlockAbbrevs() {
   Abv->Add(BitCodeAbbrevOp(0));                       // HasAttrs
   Abv->Add(BitCodeAbbrevOp(0));                       // isImplicit
   Abv->Add(BitCodeAbbrevOp(0));                       // isUsed
+  Abv->Add(BitCodeAbbrevOp(0));                       // isReferenced
   Abv->Add(BitCodeAbbrevOp(AS_none));                 // C++ AccessSpecifier
   Abv->Add(BitCodeAbbrevOp(0));                       // PCH level
 
@@ -1130,6 +1163,7 @@ void ASTWriter::WriteDeclsBlockAbbrevs() {
   // ValueDecl
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // Type
   // DeclaratorDecl
+  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // InnerStartLoc
   Abv->Add(BitCodeAbbrevOp(0));                       // hasExtInfo
   Abv->Add(BitCodeAbbrevOp(serialization::PREDEF_TYPE_NULL_ID)); // InfoType
   // VarDecl
@@ -1140,10 +1174,15 @@ void ASTWriter::WriteDeclsBlockAbbrevs() {
   Abv->Add(BitCodeAbbrevOp(0));                       // hasCXXDirectInitializer
   Abv->Add(BitCodeAbbrevOp(0));                       // isExceptionVariable
   Abv->Add(BitCodeAbbrevOp(0));                       // isNRVOVariable
+  Abv->Add(BitCodeAbbrevOp(0));                       // isCXXForRangeDecl
   Abv->Add(BitCodeAbbrevOp(0));                       // HasInit
   Abv->Add(BitCodeAbbrevOp(0));                   // HasMemberSpecializationInfo
   // ParmVarDecl
+  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // IsObjCMethodParameter
+  Abv->Add(BitCodeAbbrevOp(0));                       // ScopeDepth
+  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // ScopeIndex
   Abv->Add(BitCodeAbbrevOp(0));                       // ObjCDeclQualifier
+  Abv->Add(BitCodeAbbrevOp(0));                       // KNRPromoted
   Abv->Add(BitCodeAbbrevOp(0));                       // HasInheritedDefaultArg
   Abv->Add(BitCodeAbbrevOp(0));                   // HasUninstantiatedDefaultArg
 

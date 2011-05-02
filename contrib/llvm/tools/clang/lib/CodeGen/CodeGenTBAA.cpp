@@ -74,7 +74,8 @@ llvm::MDNode *CodeGenTBAA::getTBAAInfoForNamedType(llvm::StringRef NameStr,
   };
 
   // Create the mdnode.
-  return llvm::MDNode::get(VMContext, Ops, llvm::array_lengthof(Ops) - !Flags);
+  unsigned Len = llvm::array_lengthof(Ops) - !Flags;
+  return llvm::MDNode::get(VMContext, llvm::ArrayRef<llvm::Value*>(Ops, Len));
 }
 
 static bool TypeHasMayAlias(QualType QTy) {
@@ -155,7 +156,7 @@ CodeGenTBAA::getTBAAInfo(QualType QTy) {
     // theoretically implement this by combining information about all the
     // members into a single identifying MDNode.
     if (!Features.CPlusPlus &&
-        ETy->getDecl()->getTypedefForAnonDecl())
+        ETy->getDecl()->getTypedefNameForAnonDecl())
       return MetadataCache[Ty] = getChar();
 
     // In C++ mode, types have linkage, so we can rely on the ODR and

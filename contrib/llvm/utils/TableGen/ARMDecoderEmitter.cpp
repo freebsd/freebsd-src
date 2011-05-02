@@ -607,7 +607,7 @@ void ARMFilter::recurse() {
     for (bitIndex = 0; bitIndex < NumBits; bitIndex++)
       BitValueArray[StartBit + bitIndex] = BIT_UNSET;
 
-    // Delegates to an inferior filter chooser for futher processing on this
+    // Delegates to an inferior filter chooser for further processing on this
     // group of instructions whose segment values are variable.
     FilterChooserMap.insert(std::pair<unsigned, ARMFilterChooser*>(
                               (unsigned)-1,
@@ -639,7 +639,7 @@ void ARMFilter::recurse() {
         BitValueArray[StartBit + bitIndex] = BIT_FALSE;
     }
 
-    // Delegates to an inferior filter chooser for futher processing on this
+    // Delegates to an inferior filter chooser for further processing on this
     // category of instructions.
     FilterChooserMap.insert(std::pair<unsigned, ARMFilterChooser*>(
                               mapIterator->first,
@@ -1382,7 +1382,7 @@ bool ARMFilterChooser::emit(raw_ostream &o, unsigned &Indentation) {
     // 2. source registers are identical => VMOVQ; otherwise => VORRq
     // 3. LDR, LDRcp => return LDR for now.
     // FIXME: How can we distinguish between LDR and LDRcp?  Do we need to?
-    // 4. tLDM, tLDM_UPD => Rn = Inst{10-8}, reglist = Inst{7-0},
+    // 4. tLDMIA, tLDMIA_UPD => Rn = Inst{10-8}, reglist = Inst{7-0},
     //    wback = registers<Rn> = 0
     // NOTE: (tLDM, tLDM_UPD) resolution must come before Advanced SIMD
     //       addressing mode resolution!!!
@@ -1423,7 +1423,7 @@ bool ARMFilterChooser::emit(raw_ostream &o, unsigned &Indentation) {
         << "; // Returning LDR for {LDR, LDRcp}\n";
       return true;
     }
-    if (name1 == "tLDM" && name2 == "tLDM_UPD") {
+    if (name1 == "tLDMIA" && name2 == "tLDMIA_UPD") {
       // Inserting the opening curly brace for this case block.
       --Indentation; --Indentation;
       o.indent(Indentation) << "{\n";
@@ -1570,9 +1570,7 @@ ARMDEBackend::populateInstruction(const CodeGenInstruction &CGI,
     return false;
 
   if (TN == TARGET_ARM) {
-    // FIXME: what about Int_MemBarrierV6 and Int_SyncBarrierV6?
-    if ((Name != "Int_MemBarrierV7" && Name != "Int_SyncBarrierV7") &&
-        Form == ARM_FORMAT_PSEUDO)
+    if (Form == ARM_FORMAT_PSEUDO)
       return false;
     if (thumbInstruction(Form))
       return false;
@@ -1586,60 +1584,17 @@ ARMDEBackend::populateInstruction(const CodeGenInstruction &CGI,
         Name == "MOVr_TC")
       return false;
 
+    // Delegate ADR disassembly to the more generic ADDri/SUBri instructions.
+    if (Name == "ADR")
+      return false;
+
     //
     // The following special cases are for conflict resolutions.
     //
 
-    // NEON NLdStFrm conflict resolutions:
-    //
-    // 1. Ignore suffix "odd" and "odd_UPD", prefer the "even" register-
-    //    numbered ones which have the same Asm format string.
-    // 2. Ignore VST2d64_UPD, which conflicts with VST1q64_UPD.
-    // 3. Ignore VLD2d64_UPD, which conflicts with VLD1q64_UPD.
-    // 4. Ignore VLD1q[_UPD], which conflicts with VLD1q64[_UPD].
-    // 5. Ignore VST1q[_UPD], which conflicts with VST1q64[_UPD].
-    if (Name.endswith("odd") || Name.endswith("odd_UPD") ||
-        Name == "VST2d64_UPD" || Name == "VLD2d64_UPD" ||
-        Name == "VLD1q" || Name == "VLD1q_UPD" ||
-        Name == "VST1q" || Name == "VST1q_UPD")
-      return false;
-
     // RSCSri and RSCSrs set the 's' bit, but are not predicated.  We are
     // better off using the generic RSCri and RSCrs instructions.
     if (Name == "RSCSri" || Name == "RSCSrs") return false;
-
-    // MOVCCr, MOVCCs, MOVCCi, MOVCCi16, FCYPScc, FCYPDcc, FNEGScc, and
-    // FNEGDcc are used in the compiler to implement conditional moves.
-    // We can ignore them in favor of their more generic versions of
-    // instructions. See also SDNode *ARMDAGToDAGISel::Select(SDValue Op).
-    if (Name == "MOVCCr"   || Name == "MOVCCs"  || Name == "MOVCCi" ||
-        Name == "MOVCCi16" || Name == "FCPYScc" || Name == "FCPYDcc" ||
-        Name == "FNEGScc"  || Name == "FNEGDcc")
-      return false;
-
-    // Ditto for VMOVDcc, VMOVScc, VNEGDcc, and VNEGScc.
-    if (Name == "VMOVDcc" || Name == "VMOVScc" || Name == "VNEGDcc" ||
-        Name == "VNEGScc")
-      return false;
-
-    // LDMIA_RET is a special case of LDM (Load Multiple) where the registers
-    // loaded include the PC, causing a branch to a loaded address.  Ignore
-    // the LDMIA_RET instruction when decoding.
-    if (Name == "LDMIA_RET") return false;
-
-    // Bcc is in a more generic form than B.  Ignore B when decoding.
-    if (Name == "B") return false;
-
-    // Ignore the non-Darwin BL instructions and the TPsoft (TLS) instruction.
-    if (Name == "BL" || Name == "BL_pred" || Name == "BLX" || Name == "BX" ||
-        Name == "TPsoft")
-      return false;
-
-    // Ignore VDUPf[d|q] instructions known to conflict with VDUP32[d-q] for
-    // decoding.  The instruction duplicates an element from an ARM core
-    // register into every element of the destination vector.  There is no
-    // distinction between data types.
-    if (Name == "VDUPfd" || Name == "VDUPfq") return false;
 
     // A8-598: VEXT
     // Vector Extract extracts elements from the bottom end of the second
@@ -1656,32 +1611,21 @@ ARMDEBackend::populateInstruction(const CodeGenInstruction &CGI,
     if (Name == "VEXTd16" || Name == "VEXTd32" || Name == "VEXTdf" ||
         Name == "VEXTq16" || Name == "VEXTq32" || Name == "VEXTqf")
       return false;
-
-    // Vector Reverse is similar to Vector Extract.  There is no distinction
-    // between data types, other than size.
-    //
-    // VREV64df is equivalent to VREV64d32.
-    // VREV64qf is equivalent to VREV64q32.
-    if (Name == "VREV64df" || Name == "VREV64qf") return false;
-
-    // VDUPLNfd is equivalent to VDUPLN32d.
-    // VDUPLNfq is equivalent to VDUPLN32q.
-    // VLD1df is equivalent to VLD1d32.
-    // VLD1qf is equivalent to VLD1q32.
-    // VLD2d64 is equivalent to VLD1q64.
-    // VST1df is equivalent to VST1d32.
-    // VST1qf is equivalent to VST1q32.
-    // VST2d64 is equivalent to VST1q64.
-    if (Name == "VDUPLNfd" || Name == "VDUPLNfq" ||
-        Name == "VLD1df"   || Name == "VLD1qf"   || Name == "VLD2d64" ||
-        Name == "VST1df"   || Name == "VST1qf"   || Name == "VST2d64")
-      return false;
   } else if (TN == TARGET_THUMB) {
     if (!thumbInstruction(Form))
       return false;
 
+    // A8.6.189 STM / STMIA / STMEA -- Encoding T1
+    // There's only STMIA_UPD for Thumb1.
+    if (Name == "tSTMIA")
+      return false;
+
     // On Darwin R9 is call-clobbered.  Ignore the non-Darwin counterparts.
     if (Name == "tBL" || Name == "tBLXi" || Name == "tBLXr")
+      return false;
+
+    // A8.6.25 BX.  Use the generic tBX_Rm, ignore tBX_RET and tBX_RET_vararg.
+    if (Name == "tBX_RET" || Name == "tBX_RET_vararg")
       return false;
 
     // Ignore the TPsoft (TLS) instructions, which conflict with tBLr9.
@@ -1690,6 +1634,11 @@ ARMDEBackend::populateInstruction(const CodeGenInstruction &CGI,
 
     // Ignore tADR, prefer tADDrPCi.
     if (Name == "tADR")
+      return false;
+
+    // Delegate t2ADR disassembly to the more generic t2ADDri12/t2SUBri12
+    // instructions.
+    if (Name == "t2ADR")
       return false;
 
     // Ignore tADDrSP, tADDspr, and tPICADD, prefer the generic tADDhirr.
@@ -1701,6 +1650,11 @@ ARMDEBackend::populateInstruction(const CodeGenInstruction &CGI,
         Name == "t2SUBrSPs" || Name == "t2ADDrSPs" ||
         Name == "t2ADDrSPi" || Name == "t2SUBrSPi" ||
         Name == "t2ADDrSPi12" || Name == "t2SUBrSPi12")
+      return false;
+
+    // FIXME: Use ldr.n to work around a Darwin assembler bug.
+    // Introduce a workaround with tLDRpciDIS opcode.
+    if (Name == "tLDRpci")
       return false;
 
     // Ignore t2LDRDpci, prefer the generic t2LDRDi8, t2LDRD_PRE, t2LDRD_POST.

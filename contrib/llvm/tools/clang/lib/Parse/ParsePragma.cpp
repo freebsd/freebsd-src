@@ -74,7 +74,7 @@ void PragmaGCCVisibilityHandler::HandlePragma(Preprocessor &PP,
     return;
   }
   PP.Lex(Tok);
-  if (Tok.isNot(tok::eom)) {
+  if (Tok.isNot(tok::eod)) {
     PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
       << "visibility";
     return;
@@ -168,13 +168,45 @@ void PragmaPackHandler::HandlePragma(Preprocessor &PP,
 
   SourceLocation RParenLoc = Tok.getLocation();
   PP.Lex(Tok);
-  if (Tok.isNot(tok::eom)) {
+  if (Tok.isNot(tok::eod)) {
     PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol) << "pack";
     return;
   }
 
   Actions.ActOnPragmaPack(Kind, Name, Alignment.release(), PackLoc,
                           LParenLoc, RParenLoc);
+}
+
+// #pragma ms_struct on
+// #pragma ms_struct off
+void PragmaMSStructHandler::HandlePragma(Preprocessor &PP, 
+                                         PragmaIntroducerKind Introducer,
+                                         Token &MSStructTok) {
+  Sema::PragmaMSStructKind Kind = Sema::PMSST_OFF;
+  
+  Token Tok;
+  PP.Lex(Tok);
+  if (Tok.isNot(tok::identifier)) {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_ms_struct);
+    return;
+  }
+  const IdentifierInfo *II = Tok.getIdentifierInfo();
+  if (II->isStr("on")) {
+    Kind = Sema::PMSST_ON;
+    PP.Lex(Tok);
+  }
+  else if (II->isStr("off") || II->isStr("reset"))
+    PP.Lex(Tok);
+  else {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_ms_struct);
+    return;
+  }
+  
+  if (Tok.isNot(tok::eod)) {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol) << "ms_struct";
+    return;
+  }
+  Actions.ActOnPragmaMSStruct(Kind);
 }
 
 // #pragma 'align' '=' {'native','natural','mac68k','power','reset'}
@@ -228,7 +260,7 @@ static void ParseAlignPragma(Sema &Actions, Preprocessor &PP, Token &FirstTok,
 
   SourceLocation KindLoc = Tok.getLocation();
   PP.Lex(Tok);
-  if (Tok.isNot(tok::eom)) {
+  if (Tok.isNot(tok::eod)) {
     PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
       << (IsOptions ? "options" : "align");
     return;
@@ -302,7 +334,7 @@ void PragmaUnusedHandler::HandlePragma(Preprocessor &PP,
   }
 
   PP.Lex(Tok);
-  if (Tok.isNot(tok::eom)) {
+  if (Tok.isNot(tok::eod)) {
     PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol) <<
         "unused";
     return;
@@ -359,7 +391,7 @@ void PragmaWeakHandler::HandlePragma(Preprocessor &PP,
     PP.Lex(Tok);
   }
 
-  if (Tok.isNot(tok::eom)) {
+  if (Tok.isNot(tok::eod)) {
     PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol) << "weak";
     return;
   }
@@ -387,7 +419,7 @@ void
 PragmaOpenCLExtensionHandler::HandlePragma(Preprocessor &PP, 
                                            PragmaIntroducerKind Introducer,
                                            Token &Tok) {
-  PP.Lex(Tok);
+  PP.LexUnexpandedToken(Tok);
   if (Tok.isNot(tok::identifier)) {
     PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_identifier) <<
       "OPENCL";

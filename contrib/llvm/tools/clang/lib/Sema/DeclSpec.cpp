@@ -47,278 +47,130 @@ void UnqualifiedId::setConstructorTemplateId(TemplateIdAnnotation *TemplateId) {
   EndLocation = TemplateId->RAngleLoc;
 }
 
-CXXScopeSpec::CXXScopeSpec(const CXXScopeSpec &Other)
-  : Range(Other.Range), ScopeRep(Other.ScopeRep), Buffer(0), 
-    BufferSize(Other.BufferSize), BufferCapacity(Other.BufferSize) 
-{
-  if (BufferSize) {
-    Buffer = static_cast<char *>(malloc(BufferSize));
-    memcpy(Buffer, Other.Buffer, BufferSize);
-  }
-}
-
-CXXScopeSpec &CXXScopeSpec::operator=(const CXXScopeSpec &Other) {
-  Range = Other.Range;
-  ScopeRep = Other.ScopeRep;
-  if (Buffer && Other.Buffer && BufferCapacity >= Other.BufferSize) {
-    // Re-use our storage.
-    BufferSize = Other.BufferSize;
-    memcpy(Buffer, Other.Buffer, BufferSize);
-    return *this;
-  }
-  
-  if (BufferCapacity)
-    free(Buffer);
-  if (Other.Buffer) {
-    BufferSize = Other.BufferSize;
-    BufferCapacity = BufferSize;
-    Buffer = static_cast<char *>(malloc(BufferSize));
-    memcpy(Buffer, Other.Buffer, BufferSize);
-  } else {
-    Buffer = 0;
-    BufferSize = 0;
-    BufferCapacity = 0;
-  }
-  return *this;
-}
-
-CXXScopeSpec::~CXXScopeSpec() {
-  if (BufferCapacity)
-    free(Buffer);
-}
-
-namespace {
-  void Append(char *Start, char *End, char *&Buffer, unsigned &BufferSize,
-              unsigned &BufferCapacity) {
-    if (BufferSize + (End - Start) > BufferCapacity) {
-      // Reallocate the buffer.
-      unsigned NewCapacity 
-        = std::max((unsigned)(BufferCapacity? BufferCapacity * 2 
-                                            : sizeof(void*) * 2),
-                   (unsigned)(BufferSize + (End - Start)));
-      char *NewBuffer = static_cast<char *>(malloc(NewCapacity));
-      memcpy(NewBuffer, Buffer, BufferSize);
-      
-      if (BufferCapacity)
-        free(Buffer);
-      Buffer = NewBuffer;
-      BufferCapacity = NewCapacity;
-    }
-    
-    memcpy(Buffer + BufferSize, Start, End - Start);
-    BufferSize += End-Start;
-  }
-  
-  /// \brief Save a source location to the given buffer.
-  void SaveSourceLocation(SourceLocation Loc, char *&Buffer,
-                          unsigned &BufferSize, unsigned &BufferCapacity) {
-    unsigned Raw = Loc.getRawEncoding();
-    Append(reinterpret_cast<char *>(&Raw),
-           reinterpret_cast<char *>(&Raw) + sizeof(unsigned),
-           Buffer, BufferSize, BufferCapacity);
-  }
-  
-  /// \brief Save a pointer to the given buffer.
-  void SavePointer(void *Ptr, char *&Buffer, unsigned &BufferSize,
-                   unsigned &BufferCapacity) {
-    Append(reinterpret_cast<char *>(&Ptr),
-           reinterpret_cast<char *>(&Ptr) + sizeof(void *),
-           Buffer, BufferSize, BufferCapacity);
-  }
-}
 void CXXScopeSpec::Extend(ASTContext &Context, SourceLocation TemplateKWLoc, 
                           TypeLoc TL, SourceLocation ColonColonLoc) {
-  ScopeRep = NestedNameSpecifier::Create(Context, ScopeRep, 
-                                         TemplateKWLoc.isValid(), 
-                                         TL.getTypePtr());
+  Builder.Extend(Context, TemplateKWLoc, TL, ColonColonLoc);
   if (Range.getBegin().isInvalid())
     Range.setBegin(TL.getBeginLoc());
   Range.setEnd(ColonColonLoc);
 
-  // Push source-location info into the buffer.
-  SavePointer(TL.getOpaqueData(), Buffer, BufferSize, BufferCapacity);
-  SaveSourceLocation(ColonColonLoc, Buffer, BufferSize, BufferCapacity);
-
-  assert(Range == NestedNameSpecifierLoc(ScopeRep, Buffer).getSourceRange() &&
+  assert(Range == Builder.getSourceRange() &&
          "NestedNameSpecifierLoc range computation incorrect");
 }
 
 void CXXScopeSpec::Extend(ASTContext &Context, IdentifierInfo *Identifier,
                           SourceLocation IdentifierLoc, 
                           SourceLocation ColonColonLoc) {
-  ScopeRep = NestedNameSpecifier::Create(Context, ScopeRep, Identifier);
+  Builder.Extend(Context, Identifier, IdentifierLoc, ColonColonLoc);
+  
   if (Range.getBegin().isInvalid())
     Range.setBegin(IdentifierLoc);
   Range.setEnd(ColonColonLoc);
   
-  // Push source-location info into the buffer.
-  SaveSourceLocation(IdentifierLoc, Buffer, BufferSize, BufferCapacity);
-  SaveSourceLocation(ColonColonLoc, Buffer, BufferSize, BufferCapacity);
-  
-  assert(Range == NestedNameSpecifierLoc(ScopeRep, Buffer).getSourceRange() &&
+  assert(Range == Builder.getSourceRange() &&
          "NestedNameSpecifierLoc range computation incorrect");
 }
 
 void CXXScopeSpec::Extend(ASTContext &Context, NamespaceDecl *Namespace,
                           SourceLocation NamespaceLoc, 
                           SourceLocation ColonColonLoc) {
-  ScopeRep = NestedNameSpecifier::Create(Context, ScopeRep, Namespace);
+  Builder.Extend(Context, Namespace, NamespaceLoc, ColonColonLoc);
+  
   if (Range.getBegin().isInvalid())
     Range.setBegin(NamespaceLoc);
   Range.setEnd(ColonColonLoc);
 
-  // Push source-location info into the buffer.
-  SaveSourceLocation(NamespaceLoc, Buffer, BufferSize, BufferCapacity);
-  SaveSourceLocation(ColonColonLoc, Buffer, BufferSize, BufferCapacity);
-  
-  assert(Range == NestedNameSpecifierLoc(ScopeRep, Buffer).getSourceRange() &&
+  assert(Range == Builder.getSourceRange() &&
          "NestedNameSpecifierLoc range computation incorrect");
 }
 
 void CXXScopeSpec::Extend(ASTContext &Context, NamespaceAliasDecl *Alias,
                           SourceLocation AliasLoc, 
                           SourceLocation ColonColonLoc) {
-  ScopeRep = NestedNameSpecifier::Create(Context, ScopeRep, Alias);
+  Builder.Extend(Context, Alias, AliasLoc, ColonColonLoc);
+  
   if (Range.getBegin().isInvalid())
     Range.setBegin(AliasLoc);
   Range.setEnd(ColonColonLoc);
 
-  // Push source-location info into the buffer.
-  SaveSourceLocation(AliasLoc, Buffer, BufferSize, BufferCapacity);
-  SaveSourceLocation(ColonColonLoc, Buffer, BufferSize, BufferCapacity);
-  
-  assert(Range == NestedNameSpecifierLoc(ScopeRep, Buffer).getSourceRange() &&
+  assert(Range == Builder.getSourceRange() &&
          "NestedNameSpecifierLoc range computation incorrect");
 }
 
 void CXXScopeSpec::MakeGlobal(ASTContext &Context, 
                               SourceLocation ColonColonLoc) {
-  assert(!ScopeRep && "Already have a nested-name-specifier!?");
-  ScopeRep = NestedNameSpecifier::GlobalSpecifier(Context);
+  Builder.MakeGlobal(Context, ColonColonLoc);
+  
   Range = SourceRange(ColonColonLoc);
   
-  // Push source-location info into the buffer.
-  SaveSourceLocation(ColonColonLoc, Buffer, BufferSize, BufferCapacity);
-  
-  assert(Range == NestedNameSpecifierLoc(ScopeRep, Buffer).getSourceRange() &&
+  assert(Range == Builder.getSourceRange() &&
          "NestedNameSpecifierLoc range computation incorrect");
 }
 
 void CXXScopeSpec::MakeTrivial(ASTContext &Context, 
                                NestedNameSpecifier *Qualifier, SourceRange R) {
-  ScopeRep = Qualifier;
+  Builder.MakeTrivial(Context, Qualifier, R);
   Range = R;
-
-  // Construct bogus (but well-formed) source information for the 
-  // nested-name-specifier.
-  BufferSize = 0;
-  llvm::SmallVector<NestedNameSpecifier *, 4> Stack;
-  for (NestedNameSpecifier *NNS = Qualifier; NNS; NNS = NNS->getPrefix())
-    Stack.push_back(NNS);
-  while (!Stack.empty()) {
-    NestedNameSpecifier *NNS = Stack.back();
-    Stack.pop_back();
-    switch (NNS->getKind()) {
-    case NestedNameSpecifier::Identifier:
-    case NestedNameSpecifier::Namespace:
-    case NestedNameSpecifier::NamespaceAlias:
-      SaveSourceLocation(R.getBegin(), Buffer, BufferSize, BufferCapacity);
-      break;
-
-    case NestedNameSpecifier::TypeSpec:
-    case NestedNameSpecifier::TypeSpecWithTemplate: {
-      TypeSourceInfo *TSInfo
-        = Context.getTrivialTypeSourceInfo(QualType(NNS->getAsType(), 0),
-                                           R.getBegin());
-      SavePointer(TSInfo->getTypeLoc().getOpaqueData(), Buffer, BufferSize, 
-                  BufferCapacity);
-      break;
-    }
-        
-    case NestedNameSpecifier::Global:
-      break;
-    }
-
-    // Save the location of the '::'.
-    SaveSourceLocation(Stack.empty()? R.getEnd() : R.getBegin(), 
-                       Buffer, BufferSize, BufferCapacity);
-  }
 }
 
 void CXXScopeSpec::Adopt(NestedNameSpecifierLoc Other) {
   if (!Other) {
     Range = SourceRange();
-    ScopeRep = 0;
+    Builder.Clear();
     return;
   }
-    
-  if (BufferCapacity)
-    free(Buffer);
-  
-  // Rather than copying the data (which is wasteful), "adopt" the 
-  // pointer (which points into the ASTContext) but set the capacity to zero to
-  // indicate that we don't own it.
+
   Range = Other.getSourceRange();
-  ScopeRep = Other.getNestedNameSpecifier();
-  Buffer = static_cast<char *>(Other.getOpaqueData());
-  BufferSize = Other.getDataLength();
-  BufferCapacity = 0;
+  Builder.Adopt(Other);
 }
 
 NestedNameSpecifierLoc 
 CXXScopeSpec::getWithLocInContext(ASTContext &Context) const {
-  if (isEmpty() || isInvalid())
+  if (!Builder.getRepresentation())
     return NestedNameSpecifierLoc();
   
-  // If we adopted our data pointer from elsewhere in the AST context, there's
-  // no need to copy the memory.
-  if (BufferCapacity == 0)
-    return NestedNameSpecifierLoc(ScopeRep, Buffer);
-  
-  void *Mem = Context.Allocate(BufferSize, llvm::alignOf<void *>());
-  memcpy(Mem, Buffer, BufferSize);
-  return NestedNameSpecifierLoc(ScopeRep, Mem);
+  return Builder.getWithLocInContext(Context);
 }
 
 /// DeclaratorChunk::getFunction - Return a DeclaratorChunk for a function.
 /// "TheDeclarator" is the declarator that this will be added to.
-DeclaratorChunk DeclaratorChunk::getFunction(const ParsedAttributes &attrs,
-                                             bool hasProto, bool isVariadic,
+DeclaratorChunk DeclaratorChunk::getFunction(bool hasProto, bool isVariadic,
                                              SourceLocation EllipsisLoc,
                                              ParamInfo *ArgInfo,
                                              unsigned NumArgs,
                                              unsigned TypeQuals,
                                              bool RefQualifierIsLvalueRef,
                                              SourceLocation RefQualifierLoc,
-                                             bool hasExceptionSpec,
-                                             SourceLocation ThrowLoc,
-                                             bool hasAnyExceptionSpec,
+                                             ExceptionSpecificationType
+                                                 ESpecType,
+                                             SourceLocation ESpecLoc,
                                              ParsedType *Exceptions,
                                              SourceRange *ExceptionRanges,
                                              unsigned NumExceptions,
-                                             SourceLocation LPLoc,
-                                             SourceLocation RPLoc,
+                                             Expr *NoexceptExpr,
+                                             SourceLocation LocalRangeBegin,
+                                             SourceLocation LocalRangeEnd,
                                              Declarator &TheDeclarator,
                                              ParsedType TrailingReturnType) {
   DeclaratorChunk I;
-  I.Kind                 = Function;
-  I.Loc                  = LPLoc;
-  I.EndLoc               = RPLoc;
-  I.Fun.AttrList         = attrs.getList();
-  I.Fun.hasPrototype     = hasProto;
-  I.Fun.isVariadic       = isVariadic;
-  I.Fun.EllipsisLoc      = EllipsisLoc.getRawEncoding();
-  I.Fun.DeleteArgInfo    = false;
-  I.Fun.TypeQuals        = TypeQuals;
-  I.Fun.NumArgs          = NumArgs;
-  I.Fun.ArgInfo          = 0;
+  I.Kind                        = Function;
+  I.Loc                         = LocalRangeBegin;
+  I.EndLoc                      = LocalRangeEnd;
+  I.Fun.AttrList                = 0;
+  I.Fun.hasPrototype            = hasProto;
+  I.Fun.isVariadic              = isVariadic;
+  I.Fun.EllipsisLoc             = EllipsisLoc.getRawEncoding();
+  I.Fun.DeleteArgInfo           = false;
+  I.Fun.TypeQuals               = TypeQuals;
+  I.Fun.NumArgs                 = NumArgs;
+  I.Fun.ArgInfo                 = 0;
   I.Fun.RefQualifierIsLValueRef = RefQualifierIsLvalueRef;
-  I.Fun.RefQualifierLoc = RefQualifierLoc.getRawEncoding();
-  I.Fun.hasExceptionSpec = hasExceptionSpec;
-  I.Fun.ThrowLoc         = ThrowLoc.getRawEncoding();
-  I.Fun.hasAnyExceptionSpec = hasAnyExceptionSpec;
-  I.Fun.NumExceptions    = NumExceptions;
-  I.Fun.Exceptions       = 0;
+  I.Fun.RefQualifierLoc         = RefQualifierLoc.getRawEncoding();
+  I.Fun.ExceptionSpecType       = ESpecType;
+  I.Fun.ExceptionSpecLoc        = ESpecLoc.getRawEncoding();
+  I.Fun.NumExceptions           = 0;
+  I.Fun.Exceptions              = 0;
+  I.Fun.NoexceptExpr            = 0;
   I.Fun.TrailingReturnType   = TrailingReturnType.getAsOpaquePtr();
 
   // new[] an argument array if needed.
@@ -338,13 +190,25 @@ DeclaratorChunk DeclaratorChunk::getFunction(const ParsedAttributes &attrs,
     }
     memcpy(I.Fun.ArgInfo, ArgInfo, sizeof(ArgInfo[0])*NumArgs);
   }
-  // new[] an exception array if needed
-  if (NumExceptions) {
-    I.Fun.Exceptions = new DeclaratorChunk::TypeAndRange[NumExceptions];
-    for (unsigned i = 0; i != NumExceptions; ++i) {
-      I.Fun.Exceptions[i].Ty = Exceptions[i];
-      I.Fun.Exceptions[i].Range = ExceptionRanges[i];
+
+  // Check what exception specification information we should actually store.
+  switch (ESpecType) {
+  default: break; // By default, save nothing.
+  case EST_Dynamic:
+    // new[] an exception array if needed
+    if (NumExceptions) {
+      I.Fun.NumExceptions = NumExceptions;
+      I.Fun.Exceptions = new DeclaratorChunk::TypeAndRange[NumExceptions];
+      for (unsigned i = 0; i != NumExceptions; ++i) {
+        I.Fun.Exceptions[i].Ty = Exceptions[i];
+        I.Fun.Exceptions[i].Range = ExceptionRanges[i];
+      }
     }
+    break;
+
+  case EST_ComputedNoexcept:
+    I.Fun.NoexceptExpr = NoexceptExpr;
+    break;
   }
   return I;
 }
@@ -445,6 +309,7 @@ const char *DeclSpec::getSpecifierName(DeclSpec::TST T) {
   case DeclSpec::TST_typeofExpr:  return "typeof";
   case DeclSpec::TST_auto:        return "auto";
   case DeclSpec::TST_decltype:    return "(decltype)";
+  case DeclSpec::TST_unknown_anytype: return "__unknown_anytype";
   case DeclSpec::TST_error:       return "(error)";
   }
   llvm_unreachable("Unknown typespec!");
@@ -515,12 +380,14 @@ bool DeclSpec::SetStorageClassSpecThread(SourceLocation Loc,
 bool DeclSpec::SetTypeSpecWidth(TSW W, SourceLocation Loc,
                                 const char *&PrevSpec,
                                 unsigned &DiagID) {
-  if (TypeSpecWidth != TSW_unspecified &&
-      // Allow turning long -> long long.
-      (W != TSW_longlong || TypeSpecWidth != TSW_long))
+  // Overwrite TSWLoc only if TypeSpecWidth was unspecified, so that
+  // for 'long long' we will keep the source location of the first 'long'.
+  if (TypeSpecWidth == TSW_unspecified)
+    TSWLoc = Loc;
+  // Allow turning long -> long long.
+  else if (W != TSW_longlong || TypeSpecWidth != TSW_long)
     return BadSpecifier(W, (TSW)TypeSpecWidth, PrevSpec, DiagID);
   TypeSpecWidth = W;
-  TSWLoc = Loc;
   if (TypeAltiVecVector && !TypeAltiVecBool &&
       ((TypeSpecWidth == TSW_long) || (TypeSpecWidth == TSW_longlong))) {
     PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType);
@@ -554,6 +421,14 @@ bool DeclSpec::SetTypeSpecType(TST T, SourceLocation Loc,
                                const char *&PrevSpec,
                                unsigned &DiagID,
                                ParsedType Rep) {
+  return SetTypeSpecType(T, Loc, Loc, PrevSpec, DiagID, Rep);
+}
+
+bool DeclSpec::SetTypeSpecType(TST T, SourceLocation TagKwLoc,
+                               SourceLocation TagNameLoc,
+                               const char *&PrevSpec,
+                               unsigned &DiagID,
+                               ParsedType Rep) {
   assert(isTypeRep(T) && "T does not store a type");
   assert(Rep && "no type provided!");
   if (TypeSpecType != TST_unspecified) {
@@ -563,7 +438,8 @@ bool DeclSpec::SetTypeSpecType(TST T, SourceLocation Loc,
   }
   TypeSpecType = T;
   TypeRep = Rep;
-  TSTLoc = Loc;
+  TSTLoc = TagKwLoc;
+  TSTNameLoc = TagNameLoc;
   TypeSpecOwned = false;
   return false;
 }
@@ -582,11 +458,20 @@ bool DeclSpec::SetTypeSpecType(TST T, SourceLocation Loc,
   TypeSpecType = T;
   ExprRep = Rep;
   TSTLoc = Loc;
+  TSTNameLoc = Loc;
   TypeSpecOwned = false;
   return false;
 }
 
 bool DeclSpec::SetTypeSpecType(TST T, SourceLocation Loc,
+                               const char *&PrevSpec,
+                               unsigned &DiagID,
+                               Decl *Rep, bool Owned) {
+  return SetTypeSpecType(T, Loc, Loc, PrevSpec, DiagID, Rep, Owned);
+}
+
+bool DeclSpec::SetTypeSpecType(TST T, SourceLocation TagKwLoc,
+                               SourceLocation TagNameLoc,
                                const char *&PrevSpec,
                                unsigned &DiagID,
                                Decl *Rep, bool Owned) {
@@ -600,7 +485,8 @@ bool DeclSpec::SetTypeSpecType(TST T, SourceLocation Loc,
   }
   TypeSpecType = T;
   DeclRep = Rep;
-  TSTLoc = Loc;
+  TSTLoc = TagKwLoc;
+  TSTNameLoc = TagNameLoc;
   TypeSpecOwned = Owned;
   return false;
 }
@@ -615,13 +501,13 @@ bool DeclSpec::SetTypeSpecType(TST T, SourceLocation Loc,
     DiagID = diag::err_invalid_decl_spec_combination;
     return true;
   }
+  TSTLoc = Loc;
+  TSTNameLoc = Loc;
   if (TypeAltiVecVector && (T == TST_bool) && !TypeAltiVecBool) {
     TypeAltiVecBool = true;
-    TSTLoc = Loc;
     return false;
   }
   TypeSpecType = T;
-  TSTLoc = Loc;
   TypeSpecOwned = false;
   if (TypeAltiVecVector && !TypeAltiVecBool && (TypeSpecType == TST_double)) {
     PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType);
@@ -653,6 +539,7 @@ bool DeclSpec::SetTypeAltiVecPixel(bool isAltiVecPixel, SourceLocation Loc,
   }
   TypeAltiVecPixel = isAltiVecPixel;
   TSTLoc = Loc;
+  TSTNameLoc = Loc;
   return false;
 }
 
@@ -660,6 +547,7 @@ bool DeclSpec::SetTypeSpecError() {
   TypeSpecType = TST_error;
   TypeSpecOwned = false;
   TSTLoc = SourceLocation();
+  TSTNameLoc = SourceLocation();
   return false;
 }
 
@@ -929,6 +817,8 @@ void UnqualifiedId::setOperatorFunctionId(SourceLocation OperatorLoc,
 
 bool VirtSpecifiers::SetSpecifier(Specifier VS, SourceLocation Loc,
                                   const char *&PrevSpec) {
+  LastLocation = Loc;
+  
   if (Specifiers & VS) {
     PrevSpec = getSpecifierName(VS);
     return true;
@@ -940,7 +830,6 @@ bool VirtSpecifiers::SetSpecifier(Specifier VS, SourceLocation Loc,
   default: assert(0 && "Unknown specifier!");
   case VS_Override: VS_overrideLoc = Loc; break;
   case VS_Final:    VS_finalLoc = Loc; break;
-  case VS_New:      VS_newLoc = Loc; break;
   }
 
   return false;
@@ -951,33 +840,5 @@ const char *VirtSpecifiers::getSpecifierName(Specifier VS) {
   default: assert(0 && "Unknown specifier");
   case VS_Override: return "override";
   case VS_Final: return "final";
-  case VS_New: return "new";
   }
 }
-
-bool ClassVirtSpecifiers::SetSpecifier(Specifier CVS, SourceLocation Loc,
-                                       const char *&PrevSpec) {
-  if (Specifiers & CVS) {
-    PrevSpec = getSpecifierName(CVS);
-    return true;
-  }
-
-  Specifiers |= CVS;
-
-  switch (CVS) {
-  default: assert(0 && "Unknown specifier!");
-  case CVS_Final: CVS_finalLoc = Loc; break;
-  case CVS_Explicit: CVS_explicitLoc = Loc; break;
-  }
-
-  return false;
-}
-
-const char *ClassVirtSpecifiers::getSpecifierName(Specifier CVS) {
-  switch (CVS) {
-  default: assert(0 && "Unknown specifier");
-  case CVS_Final: return "final";
-  case CVS_Explicit: return "explicit";
-  }
-}
-
