@@ -43,15 +43,16 @@ struct BaseOffset {
   /// (Or the offset from the virtual base class to the base class, if the 
   /// path from the derived class to the base class involves a virtual base
   /// class.
-  int64_t NonVirtualOffset;
+  CharUnits NonVirtualOffset;
   
-  BaseOffset() : DerivedClass(0), VirtualBase(0), NonVirtualOffset(0) { }
+  BaseOffset() : DerivedClass(0), VirtualBase(0), 
+    NonVirtualOffset(CharUnits::Zero()) { }
   BaseOffset(const CXXRecordDecl *DerivedClass,
-             const CXXRecordDecl *VirtualBase, int64_t NonVirtualOffset)
+             const CXXRecordDecl *VirtualBase, CharUnits NonVirtualOffset)
     : DerivedClass(DerivedClass), VirtualBase(VirtualBase), 
     NonVirtualOffset(NonVirtualOffset) { }
 
-  bool isEmpty() const { return !NonVirtualOffset && !VirtualBase; }
+  bool isEmpty() const { return NonVirtualOffset.isZero() && !VirtualBase; }
 };
 
 /// FinalOverriders - Contains the final overrider member functions for all
@@ -64,9 +65,9 @@ public:
     const CXXMethodDecl *Method;
 
     /// Offset - the base offset of the overrider in the layout class.
-    uint64_t Offset;
+    CharUnits Offset;
     
-    OverriderInfo() : Method(0), Offset(0) { }
+    OverriderInfo() : Method(0), Offset(CharUnits::Zero()) { }
   };
 
 private:
@@ -77,7 +78,7 @@ private:
   /// MostDerivedClassOffset - If we're building final overriders for a 
   /// construction vtable, this holds the offset from the layout class to the
   /// most derived class.
-  const uint64_t MostDerivedClassOffset;
+  const CharUnits MostDerivedClassOffset;
 
   /// LayoutClass - The class we're using for layout information. Will be 
   /// different than the most derived class if the final overriders are for a
@@ -91,7 +92,7 @@ private:
 
   /// MethodBaseOffsetPairTy - Uniquely identifies a member function
   /// in a base subobject.
-  typedef std::pair<const CXXMethodDecl *, uint64_t> MethodBaseOffsetPairTy;
+  typedef std::pair<const CXXMethodDecl *, CharUnits> MethodBaseOffsetPairTy;
 
   typedef llvm::DenseMap<MethodBaseOffsetPairTy,
                          OverriderInfo> OverridersMapTy;
@@ -104,14 +105,14 @@ private:
   /// as a record decl and a subobject number) and its offsets in the most
   /// derived class as well as the layout class.
   typedef llvm::DenseMap<std::pair<const CXXRecordDecl *, unsigned>, 
-                         uint64_t> SubobjectOffsetMapTy;
+                         CharUnits> SubobjectOffsetMapTy;
 
   typedef llvm::DenseMap<const CXXRecordDecl *, unsigned> SubobjectCountMapTy;
   
   /// ComputeBaseOffsets - Compute the offsets for all base subobjects of the
   /// given base.
   void ComputeBaseOffsets(BaseSubobject Base, bool IsVirtual,
-                          uint64_t OffsetInLayoutClass,
+                          CharUnits OffsetInLayoutClass,
                           SubobjectOffsetMapTy &SubobjectOffsets,
                           SubobjectOffsetMapTy &SubobjectLayoutClassOffsets,
                           SubobjectCountMapTy &SubobjectCounts);
@@ -125,13 +126,13 @@ private:
   
 public:
   FinalOverriders(const CXXRecordDecl *MostDerivedClass,
-                  uint64_t MostDerivedClassOffset,
+                  CharUnits MostDerivedClassOffset,
                   const CXXRecordDecl *LayoutClass);
 
   /// getOverrider - Get the final overrider for the given method declaration in
   /// the subobject with the given base offset. 
   OverriderInfo getOverrider(const CXXMethodDecl *MD, 
-                             uint64_t BaseOffset) const {
+                             CharUnits BaseOffset) const {
     assert(OverridersMap.count(std::make_pair(MD, BaseOffset)) && 
            "Did not find overrider!");
     
@@ -141,7 +142,8 @@ public:
   /// dump - dump the final overriders.
   void dump() {
     VisitedVirtualBasesSetTy VisitedVirtualBases;
-    dump(llvm::errs(), BaseSubobject(MostDerivedClass, 0), VisitedVirtualBases);
+    dump(llvm::errs(), BaseSubobject(MostDerivedClass, CharUnits::Zero()), 
+         VisitedVirtualBases);
   }
   
 };
@@ -149,7 +151,7 @@ public:
 #define DUMP_OVERRIDERS 0
 
 FinalOverriders::FinalOverriders(const CXXRecordDecl *MostDerivedClass,
-                                 uint64_t MostDerivedClassOffset,
+                                 CharUnits MostDerivedClassOffset,
                                  const CXXRecordDecl *LayoutClass)
   : MostDerivedClass(MostDerivedClass), 
   MostDerivedClassOffset(MostDerivedClassOffset), LayoutClass(LayoutClass),
@@ -160,9 +162,11 @@ FinalOverriders::FinalOverriders(const CXXRecordDecl *MostDerivedClass,
   SubobjectOffsetMapTy SubobjectOffsets;
   SubobjectOffsetMapTy SubobjectLayoutClassOffsets;
   SubobjectCountMapTy SubobjectCounts;
-  ComputeBaseOffsets(BaseSubobject(MostDerivedClass, 0), /*IsVirtual=*/false,
-                     MostDerivedClassOffset, SubobjectOffsets, 
-                     SubobjectLayoutClassOffsets, SubobjectCounts);
+  ComputeBaseOffsets(BaseSubobject(MostDerivedClass, CharUnits::Zero()), 
+                     /*IsVirtual=*/false,
+                     MostDerivedClassOffset, 
+                     SubobjectOffsets, SubobjectLayoutClassOffsets, 
+                     SubobjectCounts);
 
   // Get the the final overriders.
   CXXFinalOverriderMap FinalOverriders;
@@ -180,7 +184,7 @@ FinalOverriders::FinalOverriders(const CXXRecordDecl *MostDerivedClass,
                                                    SubobjectNumber)) &&
              "Did not find subobject offset!");
       
-      uint64_t BaseOffset = SubobjectOffsets[std::make_pair(MD->getParent(),
+      CharUnits BaseOffset = SubobjectOffsets[std::make_pair(MD->getParent(),
                                                             SubobjectNumber)];
 
       assert(I->second.size() == 1 && "Final overrider is not unique!");
@@ -190,7 +194,7 @@ FinalOverriders::FinalOverriders(const CXXRecordDecl *MostDerivedClass,
       assert(SubobjectLayoutClassOffsets.count(
              std::make_pair(OverriderRD, Method.Subobject))
              && "Did not find subobject offset!");
-      uint64_t OverriderOffset =
+      CharUnits OverriderOffset =
         SubobjectLayoutClassOffsets[std::make_pair(OverriderRD, 
                                                    Method.Subobject)];
 
@@ -211,7 +215,7 @@ FinalOverriders::FinalOverriders(const CXXRecordDecl *MostDerivedClass,
 static BaseOffset ComputeBaseOffset(ASTContext &Context, 
                                     const CXXRecordDecl *DerivedRD,
                                     const CXXBasePath &Path) {
-  int64_t NonVirtualOffset = 0;
+  CharUnits NonVirtualOffset = CharUnits::Zero();
 
   unsigned NonVirtualStart = 0;
   const CXXRecordDecl *VirtualBase = 0;
@@ -240,13 +244,13 @@ static BaseOffset ComputeBaseOffset(ASTContext &Context,
     const RecordType *BaseType = Element.Base->getType()->getAs<RecordType>();
     const CXXRecordDecl *Base = cast<CXXRecordDecl>(BaseType->getDecl());
 
-    NonVirtualOffset += Layout.getBaseClassOffsetInBits(Base);
+    NonVirtualOffset += Layout.getBaseClassOffset(Base);
   }
   
   // FIXME: This should probably use CharUnits or something. Maybe we should
   // even change the base offsets in ASTRecordLayout to be specified in 
   // CharUnits.
-  return BaseOffset(DerivedRD, VirtualBase, NonVirtualOffset / 8);
+  return BaseOffset(DerivedRD, VirtualBase, NonVirtualOffset);
   
 }
 
@@ -321,7 +325,7 @@ ComputeReturnAdjustmentBaseOffset(ASTContext &Context,
 
 void 
 FinalOverriders::ComputeBaseOffsets(BaseSubobject Base, bool IsVirtual,
-                              uint64_t OffsetInLayoutClass,
+                              CharUnits OffsetInLayoutClass,
                               SubobjectOffsetMapTy &SubobjectOffsets,
                               SubobjectOffsetMapTy &SubobjectLayoutClassOffsets,
                               SubobjectCountMapTy &SubobjectCounts) {
@@ -337,8 +341,7 @@ FinalOverriders::ComputeBaseOffsets(BaseSubobject Base, bool IsVirtual,
   assert(!SubobjectLayoutClassOffsets.count(std::make_pair(RD, SubobjectNumber)) 
          && "Subobject offset already exists!");
 
-  SubobjectOffsets[std::make_pair(RD, SubobjectNumber)] =
-    Base.getBaseOffset();
+  SubobjectOffsets[std::make_pair(RD, SubobjectNumber)] = Base.getBaseOffset();
   SubobjectLayoutClassOffsets[std::make_pair(RD, SubobjectNumber)] =
     OffsetInLayoutClass;
   
@@ -348,8 +351,8 @@ FinalOverriders::ComputeBaseOffsets(BaseSubobject Base, bool IsVirtual,
     const CXXRecordDecl *BaseDecl = 
       cast<CXXRecordDecl>(I->getType()->getAs<RecordType>()->getDecl());
 
-    uint64_t BaseOffset;
-    uint64_t BaseOffsetInLayoutClass;
+    CharUnits BaseOffset;
+    CharUnits BaseOffsetInLayoutClass;
     if (I->isVirtual()) {
       // Check if we've visited this virtual base before.
       if (SubobjectOffsets.count(std::make_pair(BaseDecl, 0)))
@@ -358,20 +361,21 @@ FinalOverriders::ComputeBaseOffsets(BaseSubobject Base, bool IsVirtual,
       const ASTRecordLayout &LayoutClassLayout =
         Context.getASTRecordLayout(LayoutClass);
 
-      BaseOffset = MostDerivedClassLayout.getVBaseClassOffsetInBits(BaseDecl);
+      BaseOffset = MostDerivedClassLayout.getVBaseClassOffset(BaseDecl);
       BaseOffsetInLayoutClass = 
-        LayoutClassLayout.getVBaseClassOffsetInBits(BaseDecl);
+        LayoutClassLayout.getVBaseClassOffset(BaseDecl);
     } else {
       const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
-      uint64_t Offset = Layout.getBaseClassOffsetInBits(BaseDecl);
+      CharUnits Offset = Layout.getBaseClassOffset(BaseDecl);
     
       BaseOffset = Base.getBaseOffset() + Offset;
       BaseOffsetInLayoutClass = OffsetInLayoutClass + Offset;
     }
 
-    ComputeBaseOffsets(BaseSubobject(BaseDecl, BaseOffset), I->isVirtual(),
-                       BaseOffsetInLayoutClass, SubobjectOffsets,
-                       SubobjectLayoutClassOffsets, SubobjectCounts);
+    ComputeBaseOffsets(BaseSubobject(BaseDecl, BaseOffset), 
+                       I->isVirtual(), BaseOffsetInLayoutClass, 
+                       SubobjectOffsets, SubobjectLayoutClassOffsets, 
+                       SubobjectCounts);
   }
 }
 
@@ -389,24 +393,23 @@ void FinalOverriders::dump(llvm::raw_ostream &Out, BaseSubobject Base,
     if (!BaseDecl->isPolymorphic())
       continue;
 
-    uint64_t BaseOffset;
+    CharUnits BaseOffset;
     if (I->isVirtual()) {
       if (!VisitedVirtualBases.insert(BaseDecl)) {
         // We've visited this base before.
         continue;
       }
       
-      BaseOffset = MostDerivedClassLayout.getVBaseClassOffsetInBits(BaseDecl);
+      BaseOffset = MostDerivedClassLayout.getVBaseClassOffset(BaseDecl);
     } else {
-      BaseOffset = Layout.getBaseClassOffsetInBits(BaseDecl) + 
-        Base.getBaseOffset();
+      BaseOffset = Layout.getBaseClassOffset(BaseDecl) + Base.getBaseOffset();
     }
 
     dump(Out, BaseSubobject(BaseDecl, BaseOffset), VisitedVirtualBases);
   }
 
   Out << "Final overriders for (" << RD->getQualifiedNameAsString() << ", ";
-  Out << Base.getBaseOffset() / 8 << ")\n";
+  Out << Base.getBaseOffset().getQuantity() << ")\n";
 
   // Now dump the overriders for this base subobject.
   for (CXXRecordDecl::method_iterator I = RD->method_begin(), 
@@ -420,7 +423,7 @@ void FinalOverriders::dump(llvm::raw_ostream &Out, BaseSubobject Base,
 
     Out << "  " << MD->getQualifiedNameAsString() << " - (";
     Out << Overrider.Method->getQualifiedNameAsString();
-    Out << ", " << ", " << Overrider.Offset / 8 << ')';
+    Out << ", " << ", " << Overrider.Offset.getQuantity() << ')';
 
     BaseOffset Offset;
     if (!Overrider.Method->isPure())
@@ -431,7 +434,7 @@ void FinalOverriders::dump(llvm::raw_ostream &Out, BaseSubobject Base,
       if (Offset.VirtualBase)
         Out << Offset.VirtualBase->getQualifiedNameAsString() << " vbase, ";
              
-      Out << Offset.NonVirtualOffset << " nv]";
+      Out << Offset.NonVirtualOffset.getQuantity() << " nv]";
     }
     
     Out << "\n";
@@ -460,15 +463,15 @@ public:
     CK_UnusedFunctionPointer
   };
 
-  static VTableComponent MakeVCallOffset(int64_t Offset) {
+  static VTableComponent MakeVCallOffset(CharUnits Offset) {
     return VTableComponent(CK_VCallOffset, Offset);
   }
 
-  static VTableComponent MakeVBaseOffset(int64_t Offset) {
+  static VTableComponent MakeVBaseOffset(CharUnits Offset) {
     return VTableComponent(CK_VBaseOffset, Offset);
   }
 
-  static VTableComponent MakeOffsetToTop(int64_t Offset) {
+  static VTableComponent MakeOffsetToTop(CharUnits Offset) {
     return VTableComponent(CK_OffsetToTop, Offset);
   }
   
@@ -510,19 +513,19 @@ public:
     return (Kind)(Value & 0x7);
   }
 
-  int64_t getVCallOffset() const {
+  CharUnits getVCallOffset() const {
     assert(getKind() == CK_VCallOffset && "Invalid component kind!");
     
     return getOffset();
   }
 
-  int64_t getVBaseOffset() const {
+  CharUnits getVBaseOffset() const {
     assert(getKind() == CK_VBaseOffset && "Invalid component kind!");
     
     return getOffset();
   }
 
-  int64_t getOffsetToTop() const {
+  CharUnits getOffsetToTop() const {
     assert(getKind() == CK_OffsetToTop && "Invalid component kind!");
     
     return getOffset();
@@ -554,13 +557,13 @@ public:
   }
   
 private:
-  VTableComponent(Kind ComponentKind, int64_t Offset) {
+  VTableComponent(Kind ComponentKind, CharUnits Offset) {
     assert((ComponentKind == CK_VCallOffset || 
             ComponentKind == CK_VBaseOffset ||
             ComponentKind == CK_OffsetToTop) && "Invalid component kind!");
-    assert(Offset <= ((1LL << 56) - 1) && "Offset is too big!");
+    assert(Offset.getQuantity() <= ((1LL << 56) - 1) && "Offset is too big!");
     
-    Value = ((Offset << 3) | ComponentKind);
+    Value = ((Offset.getQuantity() << 3) | ComponentKind);
   }
 
   VTableComponent(Kind ComponentKind, uintptr_t Ptr) {
@@ -576,11 +579,11 @@ private:
     Value = Ptr | ComponentKind;
   }
   
-  int64_t getOffset() const {
+  CharUnits getOffset() const {
     assert((getKind() == CK_VCallOffset || getKind() == CK_VBaseOffset ||
             getKind() == CK_OffsetToTop) && "Invalid component kind!");
     
-    return Value >> 3;
+    return CharUnits::fromQuantity(Value >> 3);
   }
 
   uintptr_t getPointer() const {
@@ -608,7 +611,7 @@ private:
 /// VCallOffsetMap - Keeps track of vcall offsets when building a vtable.
 struct VCallOffsetMap {
   
-  typedef std::pair<const CXXMethodDecl *, int64_t> MethodAndOffsetPairTy;
+  typedef std::pair<const CXXMethodDecl *, CharUnits> MethodAndOffsetPairTy;
   
   /// Offsets - Keeps track of methods and their offsets.
   // FIXME: This should be a real map and not a vector.
@@ -623,11 +626,11 @@ public:
   /// AddVCallOffset - Adds a vcall offset to the map. Returns true if the
   /// add was successful, or false if there was already a member function with
   /// the same signature in the map.
-  bool AddVCallOffset(const CXXMethodDecl *MD, int64_t OffsetOffset);
+  bool AddVCallOffset(const CXXMethodDecl *MD, CharUnits OffsetOffset);
   
   /// getVCallOffsetOffset - Returns the vcall offset offset (relative to the
   /// vtable address point) for the given virtual member function.
-  int64_t getVCallOffsetOffset(const CXXMethodDecl *MD);
+  CharUnits getVCallOffsetOffset(const CXXMethodDecl *MD);
   
   // empty - Return whether the offset map is empty or not.
   bool empty() const { return Offsets.empty(); }
@@ -677,7 +680,7 @@ bool VCallOffsetMap::MethodsCanShareVCallOffset(const CXXMethodDecl *LHS,
 }
 
 bool VCallOffsetMap::AddVCallOffset(const CXXMethodDecl *MD, 
-                                    int64_t OffsetOffset) {
+                                    CharUnits OffsetOffset) {
   // Check if we can reuse an offset.
   for (unsigned I = 0, E = Offsets.size(); I != E; ++I) {
     if (MethodsCanShareVCallOffset(Offsets[I].first, MD))
@@ -689,7 +692,7 @@ bool VCallOffsetMap::AddVCallOffset(const CXXMethodDecl *MD,
   return true;
 }
 
-int64_t VCallOffsetMap::getVCallOffsetOffset(const CXXMethodDecl *MD) {
+CharUnits VCallOffsetMap::getVCallOffsetOffset(const CXXMethodDecl *MD) {
   // Look for an offset.
   for (unsigned I = 0, E = Offsets.size(); I != E; ++I) {
     if (MethodsCanShareVCallOffset(Offsets[I].first, MD))
@@ -697,13 +700,13 @@ int64_t VCallOffsetMap::getVCallOffsetOffset(const CXXMethodDecl *MD) {
   }
   
   assert(false && "Should always find a vcall offset offset!");
-  return 0;
+  return CharUnits::Zero();
 }
 
 /// VCallAndVBaseOffsetBuilder - Class for building vcall and vbase offsets.
 class VCallAndVBaseOffsetBuilder {
 public:
-  typedef llvm::DenseMap<const CXXRecordDecl *, int64_t> 
+  typedef llvm::DenseMap<const CXXRecordDecl *, CharUnits> 
     VBaseOffsetOffsetsMapTy;
 
 private:
@@ -741,24 +744,25 @@ private:
   /// AddVCallAndVBaseOffsets - Add vcall offsets and vbase offsets for the
   /// given base subobject.
   void AddVCallAndVBaseOffsets(BaseSubobject Base, bool BaseIsVirtual,
-                               uint64_t RealBaseOffset);
+                               CharUnits RealBaseOffset);
   
   /// AddVCallOffsets - Add vcall offsets for the given base subobject.
-  void AddVCallOffsets(BaseSubobject Base, uint64_t VBaseOffset);
+  void AddVCallOffsets(BaseSubobject Base, CharUnits VBaseOffset);
   
   /// AddVBaseOffsets - Add vbase offsets for the given class.
-  void AddVBaseOffsets(const CXXRecordDecl *Base, uint64_t OffsetInLayoutClass);
+  void AddVBaseOffsets(const CXXRecordDecl *Base, 
+                       CharUnits OffsetInLayoutClass);
   
   /// getCurrentOffsetOffset - Get the current vcall or vbase offset offset in
-  /// bytes, relative to the vtable address point.
-  int64_t getCurrentOffsetOffset() const;
+  /// chars, relative to the vtable address point.
+  CharUnits getCurrentOffsetOffset() const;
   
 public:
   VCallAndVBaseOffsetBuilder(const CXXRecordDecl *MostDerivedClass,
                              const CXXRecordDecl *LayoutClass,
                              const FinalOverriders *Overriders,
                              BaseSubobject Base, bool BaseIsVirtual,
-                             uint64_t OffsetInLayoutClass)
+                             CharUnits OffsetInLayoutClass)
     : MostDerivedClass(MostDerivedClass), LayoutClass(LayoutClass), 
     Context(MostDerivedClass->getASTContext()), Overriders(Overriders) {
       
@@ -780,7 +784,7 @@ public:
 void 
 VCallAndVBaseOffsetBuilder::AddVCallAndVBaseOffsets(BaseSubobject Base,
                                                     bool BaseIsVirtual,
-                                                    uint64_t RealBaseOffset) {
+                                                    CharUnits RealBaseOffset) {
   const ASTRecordLayout &Layout = Context.getASTRecordLayout(Base.getBase());
   
   // Itanium C++ ABI 2.5.2:
@@ -795,7 +799,7 @@ VCallAndVBaseOffsetBuilder::AddVCallAndVBaseOffsets(BaseSubobject Base,
   if (const CXXRecordDecl *PrimaryBase = Layout.getPrimaryBase()) {
     bool PrimaryBaseIsVirtual = Layout.isPrimaryBaseVirtual();
 
-    uint64_t PrimaryBaseOffset;
+    CharUnits PrimaryBaseOffset;
     
     // Get the base offset of the primary base.
     if (PrimaryBaseIsVirtual) {
@@ -806,7 +810,7 @@ VCallAndVBaseOffsetBuilder::AddVCallAndVBaseOffsets(BaseSubobject Base,
         Context.getASTRecordLayout(MostDerivedClass);
       
       PrimaryBaseOffset = 
-        MostDerivedClassLayout.getVBaseClassOffsetInBits(PrimaryBase);
+        MostDerivedClassLayout.getVBaseClassOffset(PrimaryBase);
     } else {
       assert(Layout.getBaseClassOffsetInBits(PrimaryBase) == 0 &&
              "Primary base should have a zero offset!");
@@ -814,8 +818,9 @@ VCallAndVBaseOffsetBuilder::AddVCallAndVBaseOffsets(BaseSubobject Base,
       PrimaryBaseOffset = Base.getBaseOffset();
     }
 
-    AddVCallAndVBaseOffsets(BaseSubobject(PrimaryBase, PrimaryBaseOffset),
-                            PrimaryBaseIsVirtual, RealBaseOffset);
+    AddVCallAndVBaseOffsets(
+      BaseSubobject(PrimaryBase,PrimaryBaseOffset),
+      PrimaryBaseIsVirtual, RealBaseOffset);
   }
 
   AddVBaseOffsets(Base.getBase(), RealBaseOffset);
@@ -825,22 +830,21 @@ VCallAndVBaseOffsetBuilder::AddVCallAndVBaseOffsets(BaseSubobject Base,
     AddVCallOffsets(Base, RealBaseOffset);
 }
 
-int64_t VCallAndVBaseOffsetBuilder::getCurrentOffsetOffset() const {
+CharUnits VCallAndVBaseOffsetBuilder::getCurrentOffsetOffset() const {
   // OffsetIndex is the index of this vcall or vbase offset, relative to the 
   // vtable address point. (We subtract 3 to account for the information just
   // above the address point, the RTTI info, the offset to top, and the
   // vcall offset itself).
   int64_t OffsetIndex = -(int64_t)(3 + Components.size());
     
-  // FIXME: We shouldn't use / 8 here.
-  int64_t OffsetOffset = OffsetIndex * 
-    (int64_t)Context.Target.getPointerWidth(0) / 8;
-
+  CharUnits PointerWidth = 
+    Context.toCharUnitsFromBits(Context.Target.getPointerWidth(0));
+  CharUnits OffsetOffset = PointerWidth * OffsetIndex;
   return OffsetOffset;
 }
 
 void VCallAndVBaseOffsetBuilder::AddVCallOffsets(BaseSubobject Base, 
-                                                 uint64_t VBaseOffset) {
+                                                 CharUnits VBaseOffset) {
   const CXXRecordDecl *RD = Base.getBase();
   const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
 
@@ -866,14 +870,14 @@ void VCallAndVBaseOffsetBuilder::AddVCallOffsets(BaseSubobject Base,
     if (!MD->isVirtual())
       continue;
 
-    int64_t OffsetOffset = getCurrentOffsetOffset();
+    CharUnits OffsetOffset = getCurrentOffsetOffset();
     
     // Don't add a vcall offset if we already have one for this member function
     // signature.
     if (!VCallOffsets.AddVCallOffset(MD, OffsetOffset))
       continue;
 
-    int64_t Offset = 0;
+    CharUnits Offset = CharUnits::Zero();
 
     if (Overriders) {
       // Get the final overrider.
@@ -882,11 +886,11 @@ void VCallAndVBaseOffsetBuilder::AddVCallOffsets(BaseSubobject Base,
       
       /// The vcall offset is the offset from the virtual base to the object 
       /// where the function was overridden.
-      // FIXME: We should not use / 8 here.
-      Offset = (int64_t)(Overrider.Offset - VBaseOffset) / 8;
+      Offset = Overrider.Offset - VBaseOffset;
     }
     
-    Components.push_back(VTableComponent::MakeVCallOffset(Offset));
+    Components.push_back(
+      VTableComponent::MakeVCallOffset(Offset));
   }
 
   // And iterate over all non-virtual bases (ignoring the primary base).
@@ -902,15 +906,17 @@ void VCallAndVBaseOffsetBuilder::AddVCallOffsets(BaseSubobject Base,
       continue;
 
     // Get the base offset of this base.
-    uint64_t BaseOffset = Base.getBaseOffset() + 
-      Layout.getBaseClassOffsetInBits(BaseDecl);
+    CharUnits BaseOffset = Base.getBaseOffset() + 
+      Layout.getBaseClassOffset(BaseDecl);
     
-    AddVCallOffsets(BaseSubobject(BaseDecl, BaseOffset), VBaseOffset);
+    AddVCallOffsets(BaseSubobject(BaseDecl, BaseOffset), 
+                    VBaseOffset);
   }
 }
 
-void VCallAndVBaseOffsetBuilder::AddVBaseOffsets(const CXXRecordDecl *RD,
-                                                 uint64_t OffsetInLayoutClass) {
+void 
+VCallAndVBaseOffsetBuilder::AddVBaseOffsets(const CXXRecordDecl *RD,
+                                            CharUnits OffsetInLayoutClass) {
   const ASTRecordLayout &LayoutClassLayout = 
     Context.getASTRecordLayout(LayoutClass);
 
@@ -922,19 +928,19 @@ void VCallAndVBaseOffsetBuilder::AddVBaseOffsets(const CXXRecordDecl *RD,
 
     // Check if this is a virtual base that we haven't visited before.
     if (I->isVirtual() && VisitedVirtualBases.insert(BaseDecl)) {
-      // FIXME: We shouldn't use / 8 here.
-      int64_t Offset = 
-        (int64_t)(LayoutClassLayout.getVBaseClassOffsetInBits(BaseDecl) - 
-                  OffsetInLayoutClass) / 8;
+      CharUnits Offset = 
+        LayoutClassLayout.getVBaseClassOffset(BaseDecl) - OffsetInLayoutClass;
 
       // Add the vbase offset offset.
       assert(!VBaseOffsetOffsets.count(BaseDecl) &&
              "vbase offset offset already exists!");
 
-      int64_t VBaseOffsetOffset = getCurrentOffsetOffset();
-      VBaseOffsetOffsets.insert(std::make_pair(BaseDecl, VBaseOffsetOffset));
+      CharUnits VBaseOffsetOffset = getCurrentOffsetOffset();
+      VBaseOffsetOffsets.insert(
+          std::make_pair(BaseDecl, VBaseOffsetOffset));
 
-      Components.push_back(VTableComponent::MakeVBaseOffset(Offset));
+      Components.push_back(
+          VTableComponent::MakeVBaseOffset(Offset));
     }
 
     // Check the base class looking for more vbase offsets.
@@ -950,7 +956,7 @@ public:
   typedef llvm::SmallSetVector<const CXXRecordDecl *, 8> 
     PrimaryBasesSetVectorTy;
   
-  typedef llvm::DenseMap<const CXXRecordDecl *, int64_t> 
+  typedef llvm::DenseMap<const CXXRecordDecl *, CharUnits> 
     VBaseOffsetOffsetsMapTy;
   
   typedef llvm::DenseMap<BaseSubobject, uint64_t> 
@@ -966,7 +972,7 @@ private:
 
   /// MostDerivedClassOffset - If we're building a construction vtable, this
   /// holds the offset from the layout class to the most derived class.
-  const uint64_t MostDerivedClassOffset;
+  const CharUnits MostDerivedClassOffset;
   
   /// MostDerivedClassIsVirtual - Whether the most derived class is a virtual 
   /// base. (This only makes sense when building a construction vtable).
@@ -1001,23 +1007,26 @@ private:
   /// (Used for computing 'this' pointer adjustment thunks.
   struct MethodInfo {
     /// BaseOffset - The base offset of this method.
-    const uint64_t BaseOffset;
+    const CharUnits BaseOffset;
     
     /// BaseOffsetInLayoutClass - The base offset in the layout class of this
     /// method.
-    const uint64_t BaseOffsetInLayoutClass;
+    const CharUnits BaseOffsetInLayoutClass;
     
     /// VTableIndex - The index in the vtable that this method has.
     /// (For destructors, this is the index of the complete destructor).
     const uint64_t VTableIndex;
     
-    MethodInfo(uint64_t BaseOffset, uint64_t BaseOffsetInLayoutClass, 
+    MethodInfo(CharUnits BaseOffset, CharUnits BaseOffsetInLayoutClass, 
                uint64_t VTableIndex)
       : BaseOffset(BaseOffset), 
       BaseOffsetInLayoutClass(BaseOffsetInLayoutClass),
       VTableIndex(VTableIndex) { }
     
-    MethodInfo() : BaseOffset(0), BaseOffsetInLayoutClass(0), VTableIndex(0) { }
+    MethodInfo() 
+      : BaseOffset(CharUnits::Zero()), 
+      BaseOffsetInLayoutClass(CharUnits::Zero()), 
+      VTableIndex(0) { }
   };
   
   typedef llvm::DenseMap<const CXXMethodDecl *, MethodInfo> MethodInfoMapTy;
@@ -1066,7 +1075,7 @@ private:
   /// final overrider.
   ThisAdjustment 
   ComputeThisAdjustment(const CXXMethodDecl *MD, 
-                        uint64_t BaseOffsetInLayoutClass,
+                        CharUnits BaseOffsetInLayoutClass,
                         FinalOverriders::OverriderInfo Overrider);
 
   /// AddMethod - Add a single virtual member function to the vtable
@@ -1093,16 +1102,16 @@ private:
   ///   C-in-D's copy of A's vtable is never referenced, so this is not 
   ///   necessary.
   bool IsOverriderUsed(const CXXMethodDecl *Overrider,
-                       uint64_t BaseOffsetInLayoutClass,
+                       CharUnits BaseOffsetInLayoutClass,
                        const CXXRecordDecl *FirstBaseInPrimaryBaseChain,
-                       uint64_t FirstBaseOffsetInLayoutClass) const;
+                       CharUnits FirstBaseOffsetInLayoutClass) const;
 
   
   /// AddMethods - Add the methods of this base subobject and all its
   /// primary bases to the vtable components vector.
-  void AddMethods(BaseSubobject Base, uint64_t BaseOffsetInLayoutClass,                  
+  void AddMethods(BaseSubobject Base, CharUnits BaseOffsetInLayoutClass,
                   const CXXRecordDecl *FirstBaseInPrimaryBaseChain,
-                  uint64_t FirstBaseOffsetInLayoutClass,
+                  CharUnits FirstBaseOffsetInLayoutClass,
                   PrimaryBasesSetVectorTy &PrimaryBases);
 
   // LayoutVTable - Layout the vtable for the given base class, including its
@@ -1120,7 +1129,7 @@ private:
   void LayoutPrimaryAndSecondaryVTables(BaseSubobject Base,
                                         bool BaseIsMorallyVirtual,
                                         bool BaseIsVirtualInLayoutClass,
-                                        uint64_t OffsetInLayoutClass);
+                                        CharUnits OffsetInLayoutClass);
   
   /// LayoutSecondaryVTables - Layout the secondary vtables for the given base
   /// subobject.
@@ -1128,12 +1137,12 @@ private:
   /// \param BaseIsMorallyVirtual whether the base subobject is a virtual base
   /// or a direct or indirect base of a virtual base.
   void LayoutSecondaryVTables(BaseSubobject Base, bool BaseIsMorallyVirtual,
-                              uint64_t OffsetInLayoutClass);
+                              CharUnits OffsetInLayoutClass);
 
   /// DeterminePrimaryVirtualBases - Determine the primary virtual bases in this
   /// class hierarchy.
   void DeterminePrimaryVirtualBases(const CXXRecordDecl *RD, 
-                                    uint64_t OffsetInLayoutClass,
+                                    CharUnits OffsetInLayoutClass,
                                     VisitedVirtualBasesSetTy &VBases);
 
   /// LayoutVTablesForVirtualBases - Layout vtables for all virtual bases of the
@@ -1149,8 +1158,9 @@ private:
 
 public:
   VTableBuilder(CodeGenVTables &VTables, const CXXRecordDecl *MostDerivedClass,
-                uint64_t MostDerivedClassOffset, bool MostDerivedClassIsVirtual,
-                const CXXRecordDecl *LayoutClass)
+                CharUnits MostDerivedClassOffset, 
+                bool MostDerivedClassIsVirtual, const 
+                CXXRecordDecl *LayoutClass)
     : VTables(VTables), MostDerivedClass(MostDerivedClass),
     MostDerivedClassOffset(MostDerivedClassOffset), 
     MostDerivedClassIsVirtual(MostDerivedClassIsVirtual), 
@@ -1325,15 +1335,15 @@ ReturnAdjustment VTableBuilder::ComputeReturnAdjustment(BaseOffset Offset) {
       if (Offset.DerivedClass == MostDerivedClass) {
         // We can get the offset offset directly from our map.
         Adjustment.VBaseOffsetOffset = 
-          VBaseOffsetOffsets.lookup(Offset.VirtualBase);
+          VBaseOffsetOffsets.lookup(Offset.VirtualBase).getQuantity();
       } else {
         Adjustment.VBaseOffsetOffset = 
           VTables.getVirtualBaseOffsetOffset(Offset.DerivedClass,
-                                             Offset.VirtualBase);
+                                             Offset.VirtualBase).getQuantity();
       }
     }
 
-    Adjustment.NonVirtual = Offset.NonVirtualOffset;
+    Adjustment.NonVirtual = Offset.NonVirtualOffset.getQuantity();
   }
   
   return Adjustment;
@@ -1360,8 +1370,7 @@ VTableBuilder::ComputeThisAdjustmentBaseOffset(BaseSubobject Base,
        I != E; ++I) {
     BaseOffset Offset = ComputeBaseOffset(Context, DerivedRD, *I);
     
-    // FIXME: Should not use * 8 here.
-    uint64_t OffsetToBaseSubobject = Offset.NonVirtualOffset * 8;
+    CharUnits OffsetToBaseSubobject = Offset.NonVirtualOffset;
     
     if (Offset.VirtualBase) {
       // If we have a virtual base class, the non-virtual offset is relative
@@ -1372,7 +1381,7 @@ VTableBuilder::ComputeThisAdjustmentBaseOffset(BaseSubobject Base,
       /// Get the virtual base offset, relative to the most derived class 
       /// layout.
       OffsetToBaseSubobject += 
-        LayoutClassLayout.getVBaseClassOffsetInBits(Offset.VirtualBase);
+        LayoutClassLayout.getVBaseClassOffset(Offset.VirtualBase);
     } else {
       // Otherwise, the non-virtual offset is relative to the derived class 
       // offset.
@@ -1393,13 +1402,13 @@ VTableBuilder::ComputeThisAdjustmentBaseOffset(BaseSubobject Base,
   
 ThisAdjustment 
 VTableBuilder::ComputeThisAdjustment(const CXXMethodDecl *MD, 
-                                     uint64_t BaseOffsetInLayoutClass,
+                                     CharUnits BaseOffsetInLayoutClass,
                                      FinalOverriders::OverriderInfo Overrider) {
   // Ignore adjustments for pure virtual member functions.
   if (Overrider.Method->isPure())
     return ThisAdjustment();
   
-  BaseSubobject OverriddenBaseSubobject(MD->getParent(),
+  BaseSubobject OverriddenBaseSubobject(MD->getParent(), 
                                         BaseOffsetInLayoutClass);
   
   BaseSubobject OverriderBaseSubobject(Overrider.Method->getParent(),
@@ -1422,18 +1431,21 @@ VTableBuilder::ComputeThisAdjustment(const CXXMethodDecl *MD,
       // build them.
       VCallAndVBaseOffsetBuilder Builder(MostDerivedClass, MostDerivedClass,
                                          /*FinalOverriders=*/0,
-                                         BaseSubobject(Offset.VirtualBase, 0),                                           
+                                         BaseSubobject(Offset.VirtualBase,
+                                                       CharUnits::Zero()),
                                          /*BaseIsVirtual=*/true,
-                                         /*OffsetInLayoutClass=*/0);
+                                         /*OffsetInLayoutClass=*/
+                                             CharUnits::Zero());
         
       VCallOffsets = Builder.getVCallOffsets();
     }
       
-    Adjustment.VCallOffsetOffset = VCallOffsets.getVCallOffsetOffset(MD);
+    Adjustment.VCallOffsetOffset = 
+      VCallOffsets.getVCallOffsetOffset(MD).getQuantity();
   }
 
   // Set the non-virtual part of the adjustment.
-  Adjustment.NonVirtual = Offset.NonVirtualOffset;
+  Adjustment.NonVirtual = Offset.NonVirtualOffset.getQuantity();
   
   return Adjustment;
 }
@@ -1489,9 +1501,9 @@ OverridesIndirectMethodInBases(const CXXMethodDecl *MD,
 
 bool 
 VTableBuilder::IsOverriderUsed(const CXXMethodDecl *Overrider,
-                               uint64_t BaseOffsetInLayoutClass,
+                               CharUnits BaseOffsetInLayoutClass,
                                const CXXRecordDecl *FirstBaseInPrimaryBaseChain,
-                               uint64_t FirstBaseOffsetInLayoutClass) const {
+                               CharUnits FirstBaseOffsetInLayoutClass) const {
   // If the base and the first base in the primary base chain have the same
   // offsets, then this overrider will be used.
   if (BaseOffsetInLayoutClass == FirstBaseOffsetInLayoutClass)
@@ -1529,7 +1541,7 @@ VTableBuilder::IsOverriderUsed(const CXXMethodDecl *Overrider,
 
       // Now check if this is the primary base that is not a primary base in the
       // most derived class.
-      if (LayoutClassLayout.getVBaseClassOffsetInBits(PrimaryBase) !=
+      if (LayoutClassLayout.getVBaseClassOffset(PrimaryBase) !=
           FirstBaseOffsetInLayoutClass) {
         // We found it, stop walking the chain.
         break;
@@ -1576,16 +1588,16 @@ FindNearestOverriddenMethod(const CXXMethodDecl *MD,
 }  
 
 void
-VTableBuilder::AddMethods(BaseSubobject Base, uint64_t BaseOffsetInLayoutClass,                  
+VTableBuilder::AddMethods(BaseSubobject Base, CharUnits BaseOffsetInLayoutClass,
                           const CXXRecordDecl *FirstBaseInPrimaryBaseChain,
-                          uint64_t FirstBaseOffsetInLayoutClass,
+                          CharUnits FirstBaseOffsetInLayoutClass,
                           PrimaryBasesSetVectorTy &PrimaryBases) {
   const CXXRecordDecl *RD = Base.getBase();
   const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
 
   if (const CXXRecordDecl *PrimaryBase = Layout.getPrimaryBase()) {
-    uint64_t PrimaryBaseOffset;
-    uint64_t PrimaryBaseOffsetInLayoutClass;
+    CharUnits PrimaryBaseOffset;
+    CharUnits PrimaryBaseOffsetInLayoutClass;
     if (Layout.isPrimaryBaseVirtual()) {
       assert(Layout.getVBaseClassOffsetInBits(PrimaryBase) == 0 &&
              "Primary vbase should have a zero offset!");
@@ -1594,13 +1606,13 @@ VTableBuilder::AddMethods(BaseSubobject Base, uint64_t BaseOffsetInLayoutClass,
         Context.getASTRecordLayout(MostDerivedClass);
       
       PrimaryBaseOffset = 
-        MostDerivedClassLayout.getVBaseClassOffsetInBits(PrimaryBase);
+        MostDerivedClassLayout.getVBaseClassOffset(PrimaryBase);
       
       const ASTRecordLayout &LayoutClassLayout =
         Context.getASTRecordLayout(LayoutClass);
 
       PrimaryBaseOffsetInLayoutClass =
-        LayoutClassLayout.getVBaseClassOffsetInBits(PrimaryBase);
+        LayoutClassLayout.getVBaseClassOffset(PrimaryBase);
     } else {
       assert(Layout.getBaseClassOffsetInBits(PrimaryBase) == 0 &&
              "Primary base should have a zero offset!");
@@ -1642,8 +1654,7 @@ VTableBuilder::AddMethods(BaseSubobject Base, uint64_t BaseOffsetInLayoutClass,
                "Did not find the overridden method!");
         MethodInfo &OverriddenMethodInfo = MethodInfoMap[OverriddenMD];
         
-        MethodInfo MethodInfo(Base.getBaseOffset(), 
-                              BaseOffsetInLayoutClass,
+        MethodInfo MethodInfo(Base.getBaseOffset(), BaseOffsetInLayoutClass,
                               OverriddenMethodInfo.VTableIndex);
 
         assert(!MethodInfoMap.count(MD) &&
@@ -1716,7 +1727,8 @@ VTableBuilder::AddMethods(BaseSubobject Base, uint64_t BaseOffsetInLayoutClass,
 }
 
 void VTableBuilder::LayoutVTable() {
-  LayoutPrimaryAndSecondaryVTables(BaseSubobject(MostDerivedClass, 0),
+  LayoutPrimaryAndSecondaryVTables(BaseSubobject(MostDerivedClass,
+                                                 CharUnits::Zero()),
                                    /*BaseIsMorallyVirtual=*/false,
                                    MostDerivedClassIsVirtual,
                                    MostDerivedClassOffset);
@@ -1724,7 +1736,7 @@ void VTableBuilder::LayoutVTable() {
   VisitedVirtualBasesSetTy VBases;
   
   // Determine the primary virtual bases.
-  DeterminePrimaryVirtualBases(MostDerivedClass, MostDerivedClassOffset,
+  DeterminePrimaryVirtualBases(MostDerivedClass, MostDerivedClassOffset, 
                                VBases);
   VBases.clear();
   
@@ -1735,7 +1747,7 @@ void
 VTableBuilder::LayoutPrimaryAndSecondaryVTables(BaseSubobject Base,
                                                 bool BaseIsMorallyVirtual,
                                                 bool BaseIsVirtualInLayoutClass,
-                                                uint64_t OffsetInLayoutClass) {
+                                                CharUnits OffsetInLayoutClass) {
   assert(Base.getBase()->isDynamicClass() && "class does not have a vtable!");
 
   // Add vcall and vbase offsets for this vtable.
@@ -1758,10 +1770,9 @@ VTableBuilder::LayoutPrimaryAndSecondaryVTables(BaseSubobject Base,
     VBaseOffsetOffsets = Builder.getVBaseOffsetOffsets();
 
   // Add the offset to top.
-  // FIXME: We should not use / 8 here.
-  int64_t OffsetToTop = -(int64_t)(OffsetInLayoutClass -
-                                   MostDerivedClassOffset) / 8;
-  Components.push_back(VTableComponent::MakeOffsetToTop(OffsetToTop));
+  CharUnits OffsetToTop = MostDerivedClassOffset - OffsetInLayoutClass;
+  Components.push_back(
+    VTableComponent::MakeOffsetToTop(OffsetToTop));
   
   // Next, add the RTTI.
   Components.push_back(VTableComponent::MakeRTTI(MostDerivedClass));
@@ -1770,7 +1781,8 @@ VTableBuilder::LayoutPrimaryAndSecondaryVTables(BaseSubobject Base,
 
   // Now go through all virtual member functions and add them.
   PrimaryBasesSetVectorTy PrimaryBases;
-  AddMethods(Base, OffsetInLayoutClass, Base.getBase(), OffsetInLayoutClass, 
+  AddMethods(Base, OffsetInLayoutClass,
+             Base.getBase(), OffsetInLayoutClass, 
              PrimaryBases);
 
   // Compute 'this' pointer adjustments.
@@ -1779,8 +1791,9 @@ VTableBuilder::LayoutPrimaryAndSecondaryVTables(BaseSubobject Base,
   // Add all address points.
   const CXXRecordDecl *RD = Base.getBase();
   while (true) {
-    AddressPoints.insert(std::make_pair(BaseSubobject(RD, OffsetInLayoutClass),
-                                        AddressPoint));
+    AddressPoints.insert(std::make_pair(
+      BaseSubobject(RD, OffsetInLayoutClass),
+      AddressPoint));
 
     const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
     const CXXRecordDecl *PrimaryBase = Layout.getPrimaryBase();
@@ -1794,7 +1807,7 @@ VTableBuilder::LayoutPrimaryAndSecondaryVTables(BaseSubobject Base,
       const ASTRecordLayout &LayoutClassLayout =
         Context.getASTRecordLayout(LayoutClass);
 
-      if (LayoutClassLayout.getVBaseClassOffsetInBits(PrimaryBase) !=
+      if (LayoutClassLayout.getVBaseClassOffset(PrimaryBase) !=
           OffsetInLayoutClass) {
         // We don't want to add this class (or any of its primary bases).
         break;
@@ -1810,7 +1823,7 @@ VTableBuilder::LayoutPrimaryAndSecondaryVTables(BaseSubobject Base,
 
 void VTableBuilder::LayoutSecondaryVTables(BaseSubobject Base,
                                            bool BaseIsMorallyVirtual,
-                                           uint64_t OffsetInLayoutClass) {
+                                           CharUnits OffsetInLayoutClass) {
   // Itanium C++ ABI 2.5.2:
   //   Following the primary virtual table of a derived class are secondary 
   //   virtual tables for each of its proper base classes, except any primary
@@ -1844,10 +1857,11 @@ void VTableBuilder::LayoutSecondaryVTables(BaseSubobject Base,
     }
 
     // Get the base offset of this base.
-    uint64_t RelativeBaseOffset = Layout.getBaseClassOffsetInBits(BaseDecl);
-    uint64_t BaseOffset = Base.getBaseOffset() + RelativeBaseOffset;
+    CharUnits RelativeBaseOffset = Layout.getBaseClassOffset(BaseDecl);
+    CharUnits BaseOffset = Base.getBaseOffset() + RelativeBaseOffset;
     
-    uint64_t BaseOffsetInLayoutClass = OffsetInLayoutClass + RelativeBaseOffset;
+    CharUnits BaseOffsetInLayoutClass = 
+      OffsetInLayoutClass + RelativeBaseOffset;
     
     // Don't emit a secondary vtable for a primary base. We might however want 
     // to emit secondary vtables for other bases of this base.
@@ -1858,16 +1872,17 @@ void VTableBuilder::LayoutSecondaryVTables(BaseSubobject Base,
     }
 
     // Layout the primary vtable (and any secondary vtables) for this base.
-    LayoutPrimaryAndSecondaryVTables(BaseSubobject(BaseDecl, BaseOffset),
-                                     BaseIsMorallyVirtual,
-                                     /*BaseIsVirtualInLayoutClass=*/false,
-                                     BaseOffsetInLayoutClass);
+    LayoutPrimaryAndSecondaryVTables(
+      BaseSubobject(BaseDecl, BaseOffset),
+      BaseIsMorallyVirtual,
+      /*BaseIsVirtualInLayoutClass=*/false,
+      BaseOffsetInLayoutClass);
   }
 }
 
 void
 VTableBuilder::DeterminePrimaryVirtualBases(const CXXRecordDecl *RD,
-                                            uint64_t OffsetInLayoutClass,
+                                            CharUnits OffsetInLayoutClass,
                                             VisitedVirtualBasesSetTy &VBases) {
   const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
   
@@ -1884,8 +1899,8 @@ VTableBuilder::DeterminePrimaryVirtualBases(const CXXRecordDecl *RD,
         const ASTRecordLayout &LayoutClassLayout =
           Context.getASTRecordLayout(LayoutClass);
 
-        uint64_t PrimaryBaseOffsetInLayoutClass =
-          LayoutClassLayout.getVBaseClassOffsetInBits(PrimaryBase);
+        CharUnits PrimaryBaseOffsetInLayoutClass =
+          LayoutClassLayout.getVBaseClassOffset(PrimaryBase);
         
         // We know that the base is not a primary base in the layout class if 
         // the base offsets are different.
@@ -1904,7 +1919,7 @@ VTableBuilder::DeterminePrimaryVirtualBases(const CXXRecordDecl *RD,
     const CXXRecordDecl *BaseDecl = 
       cast<CXXRecordDecl>(I->getType()->getAs<RecordType>()->getDecl());
 
-    uint64_t BaseOffsetInLayoutClass;
+    CharUnits BaseOffsetInLayoutClass;
     
     if (I->isVirtual()) {
       if (!VBases.insert(BaseDecl))
@@ -1914,10 +1929,10 @@ VTableBuilder::DeterminePrimaryVirtualBases(const CXXRecordDecl *RD,
         Context.getASTRecordLayout(LayoutClass);
 
       BaseOffsetInLayoutClass = 
-        LayoutClassLayout.getVBaseClassOffsetInBits(BaseDecl);
+        LayoutClassLayout.getVBaseClassOffset(BaseDecl);
     } else {
       BaseOffsetInLayoutClass = 
-        OffsetInLayoutClass + Layout.getBaseClassOffsetInBits(BaseDecl);
+        OffsetInLayoutClass + Layout.getBaseClassOffset(BaseDecl);
     }
 
     DeterminePrimaryVirtualBases(BaseDecl, BaseOffsetInLayoutClass, VBases);
@@ -1942,18 +1957,19 @@ VTableBuilder::LayoutVTablesForVirtualBases(const CXXRecordDecl *RD,
         !PrimaryVirtualBases.count(BaseDecl) && VBases.insert(BaseDecl)) {
       const ASTRecordLayout &MostDerivedClassLayout =
         Context.getASTRecordLayout(MostDerivedClass);
-      uint64_t BaseOffset = 
-        MostDerivedClassLayout.getVBaseClassOffsetInBits(BaseDecl);
+      CharUnits BaseOffset = 
+        MostDerivedClassLayout.getVBaseClassOffset(BaseDecl);
       
       const ASTRecordLayout &LayoutClassLayout =
         Context.getASTRecordLayout(LayoutClass);
-      uint64_t BaseOffsetInLayoutClass = 
-        LayoutClassLayout.getVBaseClassOffsetInBits(BaseDecl);
+      CharUnits BaseOffsetInLayoutClass = 
+        LayoutClassLayout.getVBaseClassOffset(BaseDecl);
 
-      LayoutPrimaryAndSecondaryVTables(BaseSubobject(BaseDecl, BaseOffset),
-                                       /*BaseIsMorallyVirtual=*/true,
-                                       /*BaseIsVirtualInLayoutClass=*/true,
-                                       BaseOffsetInLayoutClass);
+      LayoutPrimaryAndSecondaryVTables(
+        BaseSubobject(BaseDecl, BaseOffset),
+        /*BaseIsMorallyVirtual=*/true,
+        /*BaseIsVirtualInLayoutClass=*/true,
+        BaseOffsetInLayoutClass);
     }
     
     // We only need to check the base for virtual base vtables if it actually
@@ -1969,8 +1985,7 @@ void VTableBuilder::dumpLayout(llvm::raw_ostream& Out) {
   if (isBuildingConstructorVTable()) {
     Out << "Construction vtable for ('";
     Out << MostDerivedClass->getQualifiedNameAsString() << "', ";
-    // FIXME: Don't use / 8 .
-    Out << MostDerivedClassOffset / 8 << ") in '";
+    Out << MostDerivedClassOffset.getQuantity() << ") in '";
     Out << LayoutClass->getQualifiedNameAsString();
   } else {
     Out << "Vtable for '";
@@ -2002,15 +2017,21 @@ void VTableBuilder::dumpLayout(llvm::raw_ostream& Out) {
     switch (Component.getKind()) {
 
     case VTableComponent::CK_VCallOffset:
-      Out << "vcall_offset (" << Component.getVCallOffset() << ")";
+      Out << "vcall_offset ("
+          << Component.getVCallOffset().getQuantity() 
+          << ")";
       break;
 
     case VTableComponent::CK_VBaseOffset:
-      Out << "vbase_offset (" << Component.getVBaseOffset() << ")";
+      Out << "vbase_offset ("
+          << Component.getVBaseOffset().getQuantity()
+          << ")";
       break;
 
     case VTableComponent::CK_OffsetToTop:
-      Out << "offset_to_top (" << Component.getOffsetToTop() << ")";
+      Out << "offset_to_top ("
+          << Component.getOffsetToTop().getQuantity()
+          << ")";
       break;
     
     case VTableComponent::CK_RTTI:
@@ -2116,11 +2137,11 @@ void VTableBuilder::dumpLayout(llvm::raw_ostream& Out) {
         const BaseSubobject &Base = 
           AddressPointsByIndex.find(NextIndex)->second;
         
-        // FIXME: Instead of dividing by 8, we should be using CharUnits.
         Out << "       -- (" << Base.getBase()->getQualifiedNameAsString();
-        Out << ", " << Base.getBaseOffset() / 8 << ") vtable address --\n";
+        Out << ", " << Base.getBaseOffset().getQuantity();
+        Out << ") vtable address --\n";
       } else {
-        uint64_t BaseOffset = 
+        CharUnits BaseOffset =
           AddressPointsByIndex.lower_bound(NextIndex)->second.getBaseOffset();
         
         // We store the class names in a set to get a stable order.
@@ -2136,9 +2157,8 @@ void VTableBuilder::dumpLayout(llvm::raw_ostream& Out) {
         
         for (std::set<std::string>::const_iterator I = ClassNames.begin(),
              E = ClassNames.end(); I != E; ++I) {
-          // FIXME: Instead of dividing by 8, we should be using CharUnits.
           Out << "       -- (" << *I;
-          Out << ", " << BaseOffset / 8 << ") vtable address --\n";
+          Out << ", " << BaseOffset.getQuantity() << ") vtable address --\n";
         }
       }
     }
@@ -2153,12 +2173,13 @@ void VTableBuilder::dumpLayout(llvm::raw_ostream& Out) {
     // We store the virtual base class names and their offsets in a map to get
     // a stable order.
 
-    std::map<std::string, int64_t> ClassNamesAndOffsets;
+    std::map<std::string, CharUnits> ClassNamesAndOffsets;
     for (VBaseOffsetOffsetsMapTy::const_iterator I = VBaseOffsetOffsets.begin(),
          E = VBaseOffsetOffsets.end(); I != E; ++I) {
       std::string ClassName = I->first->getQualifiedNameAsString();
-      int64_t OffsetOffset = I->second;
-      ClassNamesAndOffsets.insert(std::make_pair(ClassName, OffsetOffset));
+      CharUnits OffsetOffset = I->second;
+      ClassNamesAndOffsets.insert(
+          std::make_pair(ClassName, OffsetOffset));
     }
     
     Out << "Virtual base offset offsets for '";
@@ -2166,10 +2187,10 @@ void VTableBuilder::dumpLayout(llvm::raw_ostream& Out) {
     Out << ClassNamesAndOffsets.size();
     Out << (ClassNamesAndOffsets.size() == 1 ? " entry" : " entries") << ").\n";
 
-    for (std::map<std::string, int64_t>::const_iterator I =
+    for (std::map<std::string, CharUnits>::const_iterator I =
          ClassNamesAndOffsets.begin(), E = ClassNamesAndOffsets.end(); 
          I != E; ++I)
-      Out << "   " << I->first << " | " << I->second << '\n';
+      Out << "   " << I->first << " | " << I->second.getQuantity() << '\n';
 
     Out << "\n";
   }
@@ -2233,9 +2254,51 @@ void VTableBuilder::dumpLayout(llvm::raw_ostream& Out) {
       }
       
       Out << '\n';
-
     }
   }
+
+  // Compute the vtable indices for all the member functions.
+  // Store them in a map keyed by the index so we'll get a sorted table.
+  std::map<uint64_t, std::string> IndicesMap;
+
+  for (CXXRecordDecl::method_iterator i = MostDerivedClass->method_begin(),
+       e = MostDerivedClass->method_end(); i != e; ++i) {
+    const CXXMethodDecl *MD = *i;
+    
+    // We only want virtual member functions.
+    if (!MD->isVirtual())
+      continue;
+
+    std::string MethodName =
+      PredefinedExpr::ComputeName(PredefinedExpr::PrettyFunctionNoVirtual,
+                                  MD);
+
+    if (const CXXDestructorDecl *DD = dyn_cast<CXXDestructorDecl>(MD)) {
+      IndicesMap[VTables.getMethodVTableIndex(GlobalDecl(DD, Dtor_Complete))] =
+        MethodName + " [complete]";
+      IndicesMap[VTables.getMethodVTableIndex(GlobalDecl(DD, Dtor_Deleting))] =
+        MethodName + " [deleting]";
+    } else {
+      IndicesMap[VTables.getMethodVTableIndex(MD)] = MethodName;
+    }
+  }
+
+  // Print the vtable indices for all the member functions.
+  if (!IndicesMap.empty()) {
+    Out << "VTable indices for '";
+    Out << MostDerivedClass->getQualifiedNameAsString();
+    Out << "' (" << IndicesMap.size() << " entries).\n";
+
+    for (std::map<uint64_t, std::string>::const_iterator I = IndicesMap.begin(),
+         E = IndicesMap.end(); I != E; ++I) {
+      uint64_t VTableIndex = I->first;
+      const std::string &MethodName = I->second;
+
+      Out << llvm::format(" %4u | ", VTableIndex) << MethodName << '\n';
+    }
+  }
+
+  Out << '\n';
 }
   
 }
@@ -2243,14 +2306,16 @@ void VTableBuilder::dumpLayout(llvm::raw_ostream& Out) {
 static void 
 CollectPrimaryBases(const CXXRecordDecl *RD, ASTContext &Context,
                     VTableBuilder::PrimaryBasesSetVectorTy &PrimaryBases) {
-  while (RD) {
-    const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
-    const CXXRecordDecl *PrimaryBase = Layout.getPrimaryBase();
-    if (PrimaryBase)
-      PrimaryBases.insert(PrimaryBase);
+  const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
+  const CXXRecordDecl *PrimaryBase = Layout.getPrimaryBase();
 
-    RD = PrimaryBase;
-  }
+  if (!PrimaryBase)
+    return;
+
+  CollectPrimaryBases(PrimaryBase, Context, PrimaryBases);
+
+  if (!PrimaryBases.insert(PrimaryBase))
+    assert(false && "Found a duplicate primary base!");
 }
 
 void CodeGenVTables::ComputeMethodVTableIndices(const CXXRecordDecl *RD) {
@@ -2410,8 +2475,9 @@ uint64_t CodeGenVTables::getMethodVTableIndex(GlobalDecl GD) {
   return I->second;
 }
 
-int64_t CodeGenVTables::getVirtualBaseOffsetOffset(const CXXRecordDecl *RD, 
-                                                   const CXXRecordDecl *VBase) {
+CharUnits 
+CodeGenVTables::getVirtualBaseOffsetOffset(const CXXRecordDecl *RD, 
+                                           const CXXRecordDecl *VBase) {
   ClassPairTy ClassPair(RD, VBase);
   
   VirtualBaseClassOffsetOffsetsMapTy::iterator I = 
@@ -2420,9 +2486,9 @@ int64_t CodeGenVTables::getVirtualBaseOffsetOffset(const CXXRecordDecl *RD,
     return I->second;
   
   VCallAndVBaseOffsetBuilder Builder(RD, RD, /*FinalOverriders=*/0,
-                                     BaseSubobject(RD, 0),                                           
+                                     BaseSubobject(RD, CharUnits::Zero()),
                                      /*BaseIsVirtual=*/false,
-                                     /*OffsetInLayoutClass=*/0);
+                                     /*OffsetInLayoutClass=*/CharUnits::Zero());
 
   for (VCallAndVBaseOffsetBuilder::VBaseOffsetOffsetsMapTy::const_iterator I =
        Builder.getVBaseOffsetOffsets().begin(), 
@@ -2430,7 +2496,8 @@ int64_t CodeGenVTables::getVirtualBaseOffsetOffset(const CXXRecordDecl *RD,
     // Insert all types.
     ClassPairTy ClassPair(RD, I->first);
     
-    VirtualBaseClassOffsetOffsets.insert(std::make_pair(ClassPair, I->second));
+    VirtualBaseClassOffsetOffsets.insert(
+        std::make_pair(ClassPair, I->second));
   }
   
   I = VirtualBaseClassOffsetOffsets.find(ClassPair);
@@ -2531,7 +2598,7 @@ static void setThunkVisibility(CodeGenModule &CGM, const CXXMethodDecl *MD,
       Fn->getVisibility() != llvm::GlobalVariable::DefaultVisibility)
     return;
 
-  if (MD->hasAttr<VisibilityAttr>())
+  if (MD->getExplicitVisibility())
     return;
 
   switch (MD->getTemplateSpecializationKind()) {
@@ -2559,8 +2626,19 @@ static void setThunkVisibility(CodeGenModule &CGM, const CXXMethodDecl *MD,
   Fn->setVisibility(llvm::GlobalValue::HiddenVisibility);
 }
 
-void CodeGenFunction::GenerateThunk(llvm::Function *Fn, GlobalDecl GD,
-                                    const ThunkInfo &Thunk) {
+#ifndef NDEBUG
+static bool similar(const ABIArgInfo &infoL, CanQualType typeL,
+                    const ABIArgInfo &infoR, CanQualType typeR) {
+  return (infoL.getKind() == infoR.getKind() &&
+          (typeL == typeR ||
+           (isa<PointerType>(typeL) && isa<PointerType>(typeR)) ||
+           (isa<ReferenceType>(typeL) && isa<ReferenceType>(typeR))));
+}
+#endif
+
+void CodeGenFunction::GenerateThunk(llvm::Function *Fn,
+                                    const CGFunctionInfo &FnInfo,
+                                    GlobalDecl GD, const ThunkInfo &Thunk) {
   const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl());
   const FunctionProtoType *FPT = MD->getType()->getAs<FunctionProtoType>();
   QualType ResultType = FPT->getResultType();
@@ -2580,10 +2658,11 @@ void CodeGenFunction::GenerateThunk(llvm::Function *Fn, GlobalDecl GD,
        E = MD->param_end(); I != E; ++I) {
     ParmVarDecl *Param = *I;
     
-    FunctionArgs.push_back(std::make_pair(Param, Param->getType()));
+    FunctionArgs.push_back(Param);
   }
   
-  StartFunction(GlobalDecl(), ResultType, Fn, FunctionArgs, SourceLocation());
+  StartFunction(GlobalDecl(), ResultType, Fn, FnInfo, FunctionArgs,
+                SourceLocation());
 
   CGM.getCXXABI().EmitInstanceFunctionProlog(*this);
 
@@ -2596,16 +2675,13 @@ void CodeGenFunction::GenerateThunk(llvm::Function *Fn, GlobalDecl GD,
   CallArgList CallArgs;
   
   // Add our adjusted 'this' pointer.
-  CallArgs.push_back(std::make_pair(RValue::get(AdjustedThisPtr), ThisType));
+  CallArgs.add(RValue::get(AdjustedThisPtr), ThisType);
 
   // Add the rest of the parameters.
   for (FunctionDecl::param_const_iterator I = MD->param_begin(),
        E = MD->param_end(); I != E; ++I) {
-    ParmVarDecl *Param = *I;
-    QualType ArgType = Param->getType();
-    RValue Arg = EmitDelegateCallArg(Param);
-    
-    CallArgs.push_back(std::make_pair(Arg, ArgType));
+    ParmVarDecl *param = *I;
+    EmitDelegateCallArg(CallArgs, param);
   }
 
   // Get our callee.
@@ -2614,9 +2690,20 @@ void CodeGenFunction::GenerateThunk(llvm::Function *Fn, GlobalDecl GD,
                                    FPT->isVariadic());
   llvm::Value *Callee = CGM.GetAddrOfFunction(GD, Ty, /*ForVTable=*/true);
 
-  const CGFunctionInfo &FnInfo = 
-    CGM.getTypes().getFunctionInfo(ResultType, CallArgs,
-                                   FPT->getExtInfo());
+#ifndef NDEBUG
+  const CGFunctionInfo &CallFnInfo = 
+    CGM.getTypes().getFunctionInfo(ResultType, CallArgs, FPT->getExtInfo());
+  assert(CallFnInfo.getRegParm() == FnInfo.getRegParm() &&
+         CallFnInfo.isNoReturn() == FnInfo.isNoReturn() &&
+         CallFnInfo.getCallingConvention() == FnInfo.getCallingConvention());
+  assert(similar(CallFnInfo.getReturnInfo(), CallFnInfo.getReturnType(),
+                 FnInfo.getReturnInfo(), FnInfo.getReturnType()));
+  assert(CallFnInfo.arg_size() == FnInfo.arg_size());
+  for (unsigned i = 0, e = FnInfo.arg_size(); i != e; ++i)
+    assert(similar(CallFnInfo.arg_begin()[i].info,
+                   CallFnInfo.arg_begin()[i].type,
+                   FnInfo.arg_begin()[i].info, FnInfo.arg_begin()[i].type));
+#endif
   
   // Determine whether we have a return value slot to use.
   ReturnValueSlot Slot;
@@ -2658,8 +2745,7 @@ void CodeGenFunction::GenerateThunk(llvm::Function *Fn, GlobalDecl GD,
       Builder.CreateBr(AdjustEnd);
       EmitBlock(AdjustEnd);
     
-      llvm::PHINode *PHI = Builder.CreatePHI(ReturnValue->getType());
-      PHI->reserveOperandSpace(2);
+      llvm::PHINode *PHI = Builder.CreatePHI(ReturnValue->getType(), 2);
       PHI->addIncoming(ReturnValue, AdjustNotNull);
       PHI->addIncoming(llvm::Constant::getNullValue(ReturnValue->getType()), 
                        AdjustNull);
@@ -2684,6 +2770,9 @@ void CodeGenFunction::GenerateThunk(llvm::Function *Fn, GlobalDecl GD,
 void CodeGenVTables::EmitThunk(GlobalDecl GD, const ThunkInfo &Thunk, 
                                bool UseAvailableExternallyLinkage)
 {
+  const CGFunctionInfo &FnInfo = CGM.getTypes().getFunctionInfo(GD);
+
+  // FIXME: re-use FnInfo in this computation.
   llvm::Constant *Entry = CGM.GetAddrOfThunk(GD, Thunk);
   
   // Strip off a bitcast if we got one back.
@@ -2735,7 +2824,7 @@ void CodeGenVTables::EmitThunk(GlobalDecl GD, const ThunkInfo &Thunk,
   }
 
   // Actually generate the thunk body.
-  CodeGenFunction(CGM).GenerateThunk(ThunkFn, GD, Thunk);
+  CodeGenFunction(CGM).GenerateThunk(ThunkFn, FnInfo, GD, Thunk);
 
   if (UseAvailableExternallyLinkage)
     ThunkFn->setLinkage(llvm::GlobalValue::AvailableExternallyLinkage);
@@ -2796,7 +2885,8 @@ void CodeGenVTables::ComputeVTableRelatedInformation(const CXXRecordDecl *RD,
   if (Entry.getPointer())
     return;
 
-  VTableBuilder Builder(*this, RD, 0, /*MostDerivedClassIsVirtual=*/0, RD);
+  VTableBuilder Builder(*this, RD, CharUnits::Zero(), 
+                        /*MostDerivedClassIsVirtual=*/0, RD);
 
   // Add the VTable layout.
   uint64_t NumVTableComponents = Builder.getNumVTableComponents();
@@ -2864,7 +2954,8 @@ void CodeGenVTables::ComputeVTableRelatedInformation(const CXXRecordDecl *RD,
     // Insert all types.
     ClassPairTy ClassPair(RD, I->first);
     
-    VirtualBaseClassOffsetOffsets.insert(std::make_pair(ClassPair, I->second));
+    VirtualBaseClassOffsetOffsets.insert(
+        std::make_pair(ClassPair, I->second));
   }
 }
 
@@ -2895,15 +2986,18 @@ CodeGenVTables::CreateVTableInitializer(const CXXRecordDecl *RD,
 
     switch (Component.getKind()) {
     case VTableComponent::CK_VCallOffset:
-      Init = llvm::ConstantInt::get(PtrDiffTy, Component.getVCallOffset());
+      Init = llvm::ConstantInt::get(PtrDiffTy, 
+                                    Component.getVCallOffset().getQuantity());
       Init = llvm::ConstantExpr::getIntToPtr(Init, Int8PtrTy);
       break;
     case VTableComponent::CK_VBaseOffset:
-      Init = llvm::ConstantInt::get(PtrDiffTy, Component.getVBaseOffset());
+      Init = llvm::ConstantInt::get(PtrDiffTy, 
+                                    Component.getVBaseOffset().getQuantity());
       Init = llvm::ConstantExpr::getIntToPtr(Init, Int8PtrTy);
       break;
     case VTableComponent::CK_OffsetToTop:
-      Init = llvm::ConstantInt::get(PtrDiffTy, Component.getOffsetToTop());
+      Init = llvm::ConstantInt::get(PtrDiffTy, 
+                                    Component.getOffsetToTop().getQuantity());
       Init = llvm::ConstantExpr::getIntToPtr(Init, Int8PtrTy);
       break;
     case VTableComponent::CK_RTTI:
@@ -3001,7 +3095,8 @@ CodeGenVTables::EmitVTableDefinition(llvm::GlobalVariable *VTable,
                                      const CXXRecordDecl *RD) {
   // Dump the vtable layout if necessary.
   if (CGM.getLangOptions().DumpVTableLayouts) {
-    VTableBuilder Builder(*this, RD, 0, /*MostDerivedClassIsVirtual=*/0, RD);
+    VTableBuilder Builder(*this, RD, CharUnits::Zero(), 
+                          /*MostDerivedClassIsVirtual=*/0, RD);
 
     Builder.dumpLayout(llvm::errs());
   }
@@ -3028,8 +3123,10 @@ llvm::GlobalVariable *
 CodeGenVTables::GenerateConstructionVTable(const CXXRecordDecl *RD, 
                                       const BaseSubobject &Base, 
                                       bool BaseIsVirtual, 
+                                   llvm::GlobalVariable::LinkageTypes Linkage,
                                       VTableAddressPointsMapTy& AddressPoints) {
-  VTableBuilder Builder(*this, Base.getBase(), Base.getBaseOffset(), 
+  VTableBuilder Builder(*this, Base.getBase(), 
+                        Base.getBaseOffset(), 
                         /*MostDerivedClassIsVirtual=*/BaseIsVirtual, RD);
 
   // Dump the vtable layout if necessary.
@@ -3044,7 +3141,8 @@ CodeGenVTables::GenerateConstructionVTable(const CXXRecordDecl *RD,
   llvm::SmallString<256> OutName;
   llvm::raw_svector_ostream Out(OutName);
   CGM.getCXXABI().getMangleContext().
-    mangleCXXCtorVTable(RD, Base.getBaseOffset() / 8, Base.getBase(), Out);
+    mangleCXXCtorVTable(RD, Base.getBaseOffset().getQuantity(), Base.getBase(), 
+                        Out);
   Out.flush();
   llvm::StringRef Name = OutName.str();
 
@@ -3054,8 +3152,11 @@ CodeGenVTables::GenerateConstructionVTable(const CXXRecordDecl *RD,
 
   // Create the variable that will hold the construction vtable.
   llvm::GlobalVariable *VTable = 
-    CGM.CreateOrReplaceCXXRuntimeVariable(Name, ArrayType, 
-                                          llvm::GlobalValue::InternalLinkage);
+    CGM.CreateOrReplaceCXXRuntimeVariable(Name, ArrayType, Linkage);
+  CGM.setTypeVisibility(VTable, RD, CodeGenModule::TVK_ForConstructionVTable);
+
+  // V-tables are always unnamed_addr.
+  VTable->setUnnamedAddr(true);
 
   // Add the thunks.
   VTableThunksTy VTableThunks;

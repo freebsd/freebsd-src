@@ -14,6 +14,7 @@
 #ifndef POWERPCSUBTARGET_H
 #define POWERPCSUBTARGET_H
 
+#include "llvm/ADT/Triple.h"
 #include "llvm/Target/TargetInstrItineraries.h"
 #include "llvm/Target/TargetSubtarget.h"
 
@@ -65,9 +66,9 @@ protected:
   bool HasLazyResolverStubs;
   bool IsJITCodeModel;
   
-  /// DarwinVers - Nonzero if this is a darwin platform.  Otherwise, the numeric
-  /// version of the platform, e.g. 8 = 10.4 (Tiger), 9 = 10.5 (Leopard), etc.
-  unsigned char DarwinVers; // Is any darwin-ppc platform.
+  /// TargetTriple - What processor and OS we're targeting.
+  Triple TargetTriple;
+
 public:
   /// This constructor initializes the data members to match that
   /// of the specified triple.
@@ -134,13 +135,10 @@ public:
   bool hasAltivec() const { return HasAltivec; }
   bool isGigaProcessor() const { return IsGigaProcessor; }
 
-  /// isDarwin - True if this is any darwin platform.
-  bool isDarwin() const { return DarwinVers != 0; }
-  /// isDarwin - True if this is darwin9 (leopard, 10.5) or above.
-  bool isDarwin9() const { return DarwinVers >= 9; }
+  const Triple &getTargetTriple() const { return TargetTriple; }
 
-  /// getDarwinVers - Return the darwin version number, 8 = tiger, 9 = leopard.
-  unsigned getDarwinVers() const { return DarwinVers; }
+  /// isDarwin - True if this is any darwin platform.
+  bool isDarwin() const { return TargetTriple.isMacOSX(); }
 
   bool isDarwinABI() const { return isDarwin(); }
   bool isSVR4ABI() const { return !isDarwin(); }

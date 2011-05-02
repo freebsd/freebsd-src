@@ -12,28 +12,89 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Sema/AttributeList.h"
+#include "clang/AST/Expr.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "llvm/ADT/StringSwitch.h"
 using namespace clang;
 
-AttributeList::AttributeList(llvm::BumpPtrAllocator &Alloc,
-                             IdentifierInfo *aName, SourceLocation aLoc,
-                             IdentifierInfo *sName, SourceLocation sLoc,
-                             IdentifierInfo *pName, SourceLocation pLoc,
-                             Expr **ExprList, unsigned numArgs,
-                             bool declspec, bool cxx0x)
-  : AttrName(aName), AttrLoc(aLoc), ScopeName(sName),
-    ScopeLoc(sLoc),
-    ParmName(pName), ParmLoc(pLoc), NumArgs(numArgs), Next(0),
-    DeclspecAttribute(declspec), CXX0XAttribute(cxx0x), Invalid(false) {
+size_t AttributeList::allocated_size() const {
+  if (IsAvailability) return AttributeFactory::AvailabilityAllocSize;
+  return (sizeof(AttributeList) + NumArgs * sizeof(Expr*));
+}
 
-  if (numArgs == 0)
-    Args = 0;
-  else {
-    // Allocate the Args array using the BumpPtrAllocator.
-    Args = Alloc.Allocate<Expr*>(numArgs);
-    memcpy(Args, ExprList, numArgs*sizeof(Args[0]));
+AttributeFactory::AttributeFactory() {
+  // Go ahead and configure all the inline capacity.  This is just a memset.
+  FreeLists.resize(InlineFreeListsCapacity);
+}
+AttributeFactory::~AttributeFactory() {}
+
+static size_t getFreeListIndexForSize(size_t size) {
+  assert(size >= sizeof(AttributeList));
+  assert((size % sizeof(void*)) == 0);
+  return ((size - sizeof(AttributeList)) / sizeof(void*));
+}
+
+void *AttributeFactory::allocate(size_t size) {
+  // Check for a previously reclaimed attribute.
+  size_t index = getFreeListIndexForSize(size);
+  if (index < FreeLists.size()) {
+    if (AttributeList *attr = FreeLists[index]) {
+      FreeLists[index] = attr->NextInPool;
+      return attr;
+    }
   }
+
+  // Otherwise, allocate something new.
+  return Alloc.Allocate(size, llvm::AlignOf<AttributeFactory>::Alignment);
+}
+
+void AttributeFactory::reclaimPool(AttributeList *cur) {
+  assert(cur && "reclaiming empty pool!");
+  do {
+    // Read this here, because we're going to overwrite NextInPool
+    // when we toss 'cur' into the appropriate queue.
+    AttributeList *next = cur->NextInPool;
+
+    size_t size = cur->allocated_size();
+    size_t freeListIndex = getFreeListIndexForSize(size);
+
+    // Expand FreeLists to the appropriate size, if required.
+    if (freeListIndex >= FreeLists.size())
+      FreeLists.resize(freeListIndex+1);
+
+    // Add 'cur' to the appropriate free-list.
+    cur->NextInPool = FreeLists[freeListIndex];
+    FreeLists[freeListIndex] = cur;
+    
+    cur = next;
+  } while (cur);
+}
+
+void AttributePool::takePool(AttributeList *pool) {
+  assert(pool);
+
+  // Fast path:  this pool is empty.
+  if (!Head) {
+    Head = pool;
+    return;
+  }
+
+  // Reverse the pool onto the current head.  This optimizes for the
+  // pattern of pulling a lot of pools into a single pool.
+  do {
+    AttributeList *next = pool->NextInPool;
+    pool->NextInPool = Head;
+    Head = pool;
+    pool = next;
+  } while (pool);
+}
+
+AttributeList *
+AttributePool::createIntegerAttribute(ASTContext &C, IdentifierInfo *Name,
+                                      SourceLocation TokLoc, int Arg) {
+  Expr *IArg = IntegerLiteral::Create(C, llvm::APInt(32, (uint64_t) Arg),
+                                      C.IntTy, TokLoc);
+  return create(Name, TokLoc, 0, TokLoc, 0, TokLoc, &IArg, 1, 0);
 }
 
 AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name) {
@@ -83,6 +144,7 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name) {
     .Case("may_alias", AT_may_alias)
     .Case("base_check", AT_base_check)
     .Case("deprecated", AT_deprecated)
+    .Case("availability", AT_availability)
     .Case("visibility", AT_visibility)
     .Case("destructor", AT_destructor)
     .Case("format_arg", AT_format_arg)
@@ -94,10 +156,12 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name) {
     .Case("unavailable", AT_unavailable)
     .Case("overloadable", AT_overloadable)
     .Case("address_space", AT_address_space)
+    .Case("opencl_image_access", AT_opencl_image_access)
     .Case("always_inline", AT_always_inline)
     .Case("returns_twice", IgnoredAttribute)
     .Case("vec_type_hint", IgnoredAttribute)
     .Case("objc_exception", AT_objc_exception)
+    .Case("objc_method_family", AT_objc_method_family)
     .Case("ext_vector_type", AT_ext_vector_type)
     .Case("neon_vector_type", AT_neon_vector_type)
     .Case("neon_polyvector_type", AT_neon_polyvector_type)
@@ -137,5 +201,7 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name) {
     .Case("nocommon", AT_nocommon)
     .Case("opencl_kernel_function", AT_opencl_kernel_function)
     .Case("uuid", AT_uuid)
+    .Case("pcs", AT_pcs)
+    .Case("ms_struct", AT_MsStruct)
     .Default(UnknownAttribute);
 }

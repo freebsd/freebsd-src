@@ -46,6 +46,7 @@ std::string ReadPCHRecord(StringRef type) {
               ">(GetDecl(Record[Idx++]))")
     .Case("QualType", "GetType(Record[Idx++])")
     .Case("Expr *", "ReadSubExpr()")
+    .Case("IdentifierInfo *", "GetIdentifierInfo(Record, Idx)")
     .Default("Record[Idx++]");
 }
 
@@ -56,6 +57,8 @@ std::string WritePCHRecord(StringRef type, StringRef name) {
                         ", Record);\n")
     .Case("QualType", "AddTypeRef(" + std::string(name) + ", Record);\n")
     .Case("Expr *", "AddStmt(" + std::string(name) + ");\n")
+    .Case("IdentifierInfo *", 
+          "AddIdentifierRef(" + std::string(name) + ", Record);\n")
     .Default("Record.push_back(" + std::string(name) + ");\n");
 }
 
@@ -415,6 +418,47 @@ namespace {
       OS << "Record.push_back(SA->get" << getUpperName() << "());\n";
     }
   };
+
+  class VersionArgument : public Argument {
+  public:
+    VersionArgument(Record &Arg, StringRef Attr)
+      : Argument(Arg, Attr)
+    {}
+
+    void writeAccessors(raw_ostream &OS) const {
+      OS << "  VersionTuple get" << getUpperName() << "() const {\n";
+      OS << "    return " << getLowerName() << ";\n";
+      OS << "  }\n";
+      OS << "  void set" << getUpperName() 
+         << "(ASTContext &C, VersionTuple V) {\n";
+      OS << "    " << getLowerName() << " = V;\n";
+      OS << "  }";
+    }
+    void writeCloneArgs(raw_ostream &OS) const {
+      OS << "get" << getUpperName() << "()";
+    }
+    void writeCtorBody(raw_ostream &OS) const {
+    }
+    void writeCtorInitializers(raw_ostream &OS) const {
+      OS << getLowerName() << "(" << getUpperName() << ")";
+    }
+    void writeCtorParameters(raw_ostream &OS) const {
+      OS << "VersionTuple " << getUpperName();
+    }
+    void writeDeclarations(raw_ostream &OS) const {
+      OS << "VersionTuple " << getLowerName() << ";\n";
+    }
+    void writePCHReadDecls(raw_ostream &OS) const {
+      OS << "    VersionTuple " << getLowerName()
+         << "= ReadVersionTuple(Record, Idx);\n";
+    }
+    void writePCHReadArgs(raw_ostream &OS) const {
+      OS << getLowerName();
+    }
+    void writePCHWrite(raw_ostream &OS) const {
+      OS << "    AddVersionTuple(SA->get" << getUpperName() << "(), Record);\n";
+    }
+  };
 }
 
 static Argument *createArgument(Record &Arg, StringRef Attr,
@@ -433,6 +477,8 @@ static Argument *createArgument(Record &Arg, StringRef Attr,
     Ptr = new SimpleArgument(Arg, Attr, "FunctionDecl *");
   else if (ArgName == "IdentifierArgument")
     Ptr = new SimpleArgument(Arg, Attr, "IdentifierInfo *");
+  else if (ArgName == "BoolArgument") Ptr = new SimpleArgument(Arg, Attr, 
+                                                               "bool");
   else if (ArgName == "IntArgument") Ptr = new SimpleArgument(Arg, Attr, "int");
   else if (ArgName == "StringArgument") Ptr = new StringArgument(Arg, Attr);
   else if (ArgName == "TypeArgument")
@@ -441,6 +487,8 @@ static Argument *createArgument(Record &Arg, StringRef Attr,
     Ptr = new SimpleArgument(Arg, Attr, "unsigned");
   else if (ArgName == "VariadicUnsignedArgument")
     Ptr = new VariadicArgument(Arg, Attr, "unsigned");
+  else if (ArgName == "VersionArgument")
+    Ptr = new VersionArgument(Arg, Attr);
 
   if (!Ptr) {
     std::vector<Record*> Bases = Search->getSuperClasses();
@@ -589,23 +637,37 @@ void ClangAttrListEmitter::run(raw_ostream &OS) {
   OS << "#define LAST_INHERITABLE_ATTR(NAME) INHERITABLE_ATTR(NAME)\n";
   OS << "#endif\n\n";
 
+  OS << "#ifndef INHERITABLE_PARAM_ATTR\n";
+  OS << "#define INHERITABLE_PARAM_ATTR(NAME) ATTR(NAME)\n";
+  OS << "#endif\n\n";
+
+  OS << "#ifndef LAST_INHERITABLE_PARAM_ATTR\n";
+  OS << "#define LAST_INHERITABLE_PARAM_ATTR(NAME)"
+        " INHERITABLE_PARAM_ATTR(NAME)\n";
+  OS << "#endif\n\n";
+
   Record *InhClass = Records.getClass("InheritableAttr");
+  Record *InhParamClass = Records.getClass("InheritableParamAttr");
   std::vector<Record*> Attrs = Records.getAllDerivedDefinitions("Attr"),
-                       NonInhAttrs, InhAttrs;
+                       NonInhAttrs, InhAttrs, InhParamAttrs;
   for (std::vector<Record*>::iterator i = Attrs.begin(), e = Attrs.end();
        i != e; ++i) {
-    if ((*i)->isSubClassOf(InhClass))
+    if ((*i)->isSubClassOf(InhParamClass))
+      InhParamAttrs.push_back(*i);
+    else if ((*i)->isSubClassOf(InhClass))
       InhAttrs.push_back(*i);
     else
       NonInhAttrs.push_back(*i);
   }
 
+  EmitAttrList(OS, "INHERITABLE_PARAM_ATTR", InhParamAttrs);
   EmitAttrList(OS, "INHERITABLE_ATTR", InhAttrs);
   EmitAttrList(OS, "ATTR", NonInhAttrs);
 
   OS << "#undef LAST_ATTR\n";
   OS << "#undef INHERITABLE_ATTR\n";
   OS << "#undef LAST_INHERITABLE_ATTR\n";
+  OS << "#undef LAST_INHERITABLE_PARAM_ATTR\n";
   OS << "#undef ATTR\n";
 }
 

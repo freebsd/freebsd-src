@@ -19,15 +19,18 @@
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetLowering.h"
 using namespace llvm;
 
 CCState::CCState(CallingConv::ID CC, bool isVarArg, const TargetMachine &tm,
                  SmallVector<CCValAssign, 16> &locs, LLVMContext &C)
   : CallingConv(CC), IsVarArg(isVarArg), TM(tm),
-    TRI(*TM.getRegisterInfo()), Locs(locs), Context(C) {
+    TRI(*TM.getRegisterInfo()), Locs(locs), Context(C),
+    CallOrPrologue(Invalid) {
   // No stack is used.
   StackOffset = 0;
   
+  clearFirstByValReg();
   UsedRegs.resize((TRI.getNumRegs()+31)/32);
 }
 
@@ -44,8 +47,8 @@ void CCState::HandleByVal(unsigned ValNo, MVT ValVT,
     Size = MinSize;
   if (MinAlign > (int)Align)
     Align = MinAlign;
+  TM.getTargetLowering()->HandleByVal(const_cast<CCState*>(this), Size);
   unsigned Offset = AllocateStack(Size, Align);
-
   addLoc(CCValAssign::getMem(ValNo, ValVT, Offset, LocVT, LocInfo));
 }
 
@@ -155,7 +158,7 @@ void CCState::AnalyzeCallResult(const SmallVectorImpl<ISD::InputArg> &Ins,
     if (Fn(i, VT, VT, CCValAssign::Full, Flags, *this)) {
 #ifndef NDEBUG
       dbgs() << "Call result #" << i << " has unhandled type "
-             << EVT(VT).getEVTString();
+             << EVT(VT).getEVTString() << "\n";
 #endif
       llvm_unreachable(0);
     }

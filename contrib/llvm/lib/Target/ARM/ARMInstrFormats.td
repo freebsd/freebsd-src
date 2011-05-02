@@ -206,19 +206,30 @@ def setend_op : Operand<i32> {
   let PrintMethod = "printSetendOperand";
 }
 
-def cps_opt : Operand<i32> {
-  let PrintMethod = "printCPSOptionOperand";
-}
-
 def msr_mask : Operand<i32> {
   let PrintMethod = "printMSRMaskOperand";
   let ParserMatchClass = MSRMaskOperand;
 }
 
-// A8.6.117, A8.6.118.  Different instructions are generated for #0 and #-0.
-// The neg_zero operand translates -0 to -1, -1 to -2, ..., etc.
-def neg_zero : Operand<i32> {
-  let PrintMethod = "printNegZeroOperand";
+// Shift Right Immediate - A shift right immediate is encoded differently from
+// other shift immediates. The imm6 field is encoded like so:
+//
+//    Offset    Encoding
+//     8        imm6<5:3> = '001', 8 - <imm> is encoded in imm6<2:0>
+//     16       imm6<5:4> = '01', 16 - <imm> is encoded in imm6<3:0>
+//     32       imm6<5> = '1', 32 - <imm> is encoded in imm6<4:0>
+//     64       64 - <imm> is encoded in imm6<5:0>
+def shr_imm8  : Operand<i32> {
+  let EncoderMethod = "getShiftRight8Imm";
+}
+def shr_imm16 : Operand<i32> {
+  let EncoderMethod = "getShiftRight16Imm";
+}
+def shr_imm32 : Operand<i32> {
+  let EncoderMethod = "getShiftRight32Imm";
+}
+def shr_imm64 : Operand<i32> {
+  let EncoderMethod = "getShiftRight64Imm";
 }
 
 //===----------------------------------------------------------------------===//
@@ -279,6 +290,7 @@ class PseudoInst<dag oops, dag iops, InstrItinClass itin, list<dag> pattern>
   let OutOperandList = oops;
   let InOperandList = iops;
   let Pattern = pattern;
+  let isCodeGenOnly = 1;
 }
 
 // PseudoInst that's ARM-mode only.
@@ -422,11 +434,11 @@ class AIstrex<bits<2> opcod, dag oops, dag iops, InstrItinClass itin,
       opc, asm, "", pattern> {
   bits<4> Rd;
   bits<4> Rt;
-  bits<4> Rn;
+  bits<4> addr;
   let Inst{27-23} = 0b00011;
   let Inst{22-21} = opcod;
   let Inst{20}    = 0;
-  let Inst{19-16} = Rn;
+  let Inst{19-16} = addr;
   let Inst{15-12} = Rd;
   let Inst{11-4}  = 0b11111001;
   let Inst{3-0}   = Rt;
@@ -513,6 +525,24 @@ class AI2stridx<bit isByte, bit isPre, dag oops, dag iops,
   let Inst{19-16} = Rn;
   let Inst{11-0} = offset{11-0};
 }
+// FIXME: Merge with the above class when addrmode2 gets used for STR, STRB
+// but for now use this class for STRT and STRBT.
+class AI2stridxT<bit isByte, bit isPre, dag oops, dag iops,
+                IndexMode im, Format f, InstrItinClass itin, string opc,
+                string asm, string cstr, list<dag> pattern>
+  : AI2ldstidx<0, isByte, isPre, oops, iops, im, f, itin, opc, asm, cstr,
+               pattern> {
+  // AM2 store w/ two operands: (GPR, am2offset)
+  // {17-14}  Rn
+  // {13}     1 == Rm, 0 == imm12
+  // {12}     isAdd
+  // {11-0}   imm12/Rm
+  bits<18> addr;
+  let Inst{25} = addr{13};
+  let Inst{23} = addr{12};
+  let Inst{19-16} = addr{17-14};
+  let Inst{11-0} = addr{11-0};
+}
 
 // addrmode3 instructions
 class AI3ld<bits<4> op, bit op20, dag oops, dag iops, Format f,
@@ -547,6 +577,34 @@ class AI3ldstidx<bits<4> op, bit op20, bit isLd, bit isPre, dag oops, dag iops,
   let Inst{15-12} = Rt;           // Rt
   let Inst{7-4}   = op;
 }
+
+// FIXME: Merge with the above class when addrmode2 gets used for LDR, LDRB
+// but for now use this class for LDRSBT, LDRHT, LDSHT.
+class AI3ldstidxT<bits<4> op, bit op20, bit isLd, bit isPre, dag oops, dag iops,
+                  IndexMode im, Format f, InstrItinClass itin, string opc,
+                  string asm, string cstr, list<dag> pattern>
+  : I<oops, iops, AddrMode3, Size4Bytes, im, f, itin,
+      opc, asm, cstr, pattern> {
+  // {13}     1 == imm8, 0 == Rm
+  // {12-9}   Rn
+  // {8}      isAdd
+  // {7-4}    imm7_4/zero
+  // {3-0}    imm3_0/Rm
+  bits<14> addr;
+  bits<4> Rt;
+  let Inst{27-25} = 0b000;
+  let Inst{24}    = isPre;        // P bit
+  let Inst{23}    = addr{8};      // U bit
+  let Inst{22}    = addr{13};     // 1 == imm8, 0 == Rm
+  let Inst{20}    = op20;         // L bit
+  let Inst{19-16} = addr{12-9};   // Rn
+  let Inst{15-12} = Rt;           // Rt
+  let Inst{11-8}  = addr{7-4};    // imm7_4/zero
+  let Inst{7-4}   = op;
+  let Inst{3-0}   = addr{3-0};    // imm3_0/Rm
+  let AsmMatchConverter = "CvtLdWriteBackRegAddrMode3";
+}
+
 class AI3stridx<bits<4> op, bit isByte, bit isPre, dag oops, dag iops,
                 IndexMode im, Format f, InstrItinClass itin, string opc,
                 string asm, string cstr, list<dag> pattern>
@@ -619,12 +677,25 @@ class AI3sthpo<dag oops, dag iops, Format f, InstrItinClass itin,
                string opc, string asm, string cstr, list<dag> pattern>
   : I<oops, iops, AddrMode3, Size4Bytes, IndexModePost, f, itin,
       opc, asm, cstr,pattern> {
+  // {13}     1 == imm8, 0 == Rm
+  // {12-9}   Rn
+  // {8}      isAdd
+  // {7-4}    imm7_4/zero
+  // {3-0}    imm3_0/Rm
+  bits<14> addr;
+  bits<4> Rt;
+  let Inst{3-0}   = addr{3-0};    // imm3_0/Rm
   let Inst{4}     = 1;
   let Inst{5}     = 1; // H bit
   let Inst{6}     = 0; // S bit
   let Inst{7}     = 1;
+  let Inst{11-8}  = addr{7-4};    // imm7_4/zero
+  let Inst{15-12} = Rt;           // Rt
+  let Inst{19-16} = addr{12-9};   // Rn
   let Inst{20}    = 0; // L bit
   let Inst{21}    = 0; // W bit
+  let Inst{22}    = addr{13};     // 1 == imm8, 0 == Rm
+  let Inst{23}    = addr{8};      // U bit
   let Inst{24}    = 0; // P bit
   let Inst{27-25} = 0b000;
 }
@@ -1670,7 +1741,8 @@ class N2VImm<bit op24, bit op23, bits<4> op11_8, bit op7, bit op6, bit op4,
 }
 
 // NEON 3 vector register format.
-class N3V<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op6, bit op4,
+
+class N3VCommon<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op6, bit op4,
           dag oops, dag iops, Format f, InstrItinClass itin,
           string opc, string dt, string asm, string cstr, list<dag> pattern>
   : NDataI<oops, iops, f, itin, opc, dt, asm, cstr, pattern> {
@@ -1680,6 +1752,13 @@ class N3V<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op6, bit op4,
   let Inst{11-8}  = op11_8;
   let Inst{6}     = op6;
   let Inst{4}     = op4;
+}
+
+class N3V<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op6, bit op4,
+          dag oops, dag iops, Format f, InstrItinClass itin,
+          string opc, string dt, string asm, string cstr, list<dag> pattern>
+  : N3VCommon<op24, op23, op21_20, op11_8, op6, op4,
+              oops, iops, f, itin, opc, dt, asm, cstr, pattern> {
 
   // Instruction operands.
   bits<5> Vd;
@@ -1692,6 +1771,47 @@ class N3V<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op6, bit op4,
   let Inst{7}     = Vn{4};
   let Inst{3-0}   = Vm{3-0};
   let Inst{5}     = Vm{4};
+}
+
+class N3VLane32<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op6, bit op4,
+          dag oops, dag iops, Format f, InstrItinClass itin,
+          string opc, string dt, string asm, string cstr, list<dag> pattern>
+  : N3VCommon<op24, op23, op21_20, op11_8, op6, op4,
+              oops, iops, f, itin, opc, dt, asm, cstr, pattern> {
+
+  // Instruction operands.
+  bits<5> Vd;
+  bits<5> Vn;
+  bits<5> Vm;
+  bit lane;
+
+  let Inst{15-12} = Vd{3-0};
+  let Inst{22}    = Vd{4};
+  let Inst{19-16} = Vn{3-0};
+  let Inst{7}     = Vn{4};
+  let Inst{3-0}   = Vm{3-0};
+  let Inst{5}     = lane;
+}
+
+class N3VLane16<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op6, bit op4,
+          dag oops, dag iops, Format f, InstrItinClass itin,
+          string opc, string dt, string asm, string cstr, list<dag> pattern>
+  : N3VCommon<op24, op23, op21_20, op11_8, op6, op4,
+              oops, iops, f, itin, opc, dt, asm, cstr, pattern> {
+
+  // Instruction operands.
+  bits<5> Vd;
+  bits<5> Vn;
+  bits<5> Vm;
+  bits<2> lane;
+
+  let Inst{15-12} = Vd{3-0};
+  let Inst{22}    = Vd{4};
+  let Inst{19-16} = Vn{3-0};
+  let Inst{7}     = Vn{4};
+  let Inst{2-0}   = Vm{2-0};
+  let Inst{5}     = lane{1};
+  let Inst{3}     = lane{0};
 }
 
 // Same as N3V except it doesn't have a data type suffix.
@@ -1730,6 +1850,8 @@ class NVLaneOp<bits<8> opcod1, bits<4> opcod2, bits<2> opcod3,
   let Inst{11-8}  = opcod2;
   let Inst{6-5}   = opcod3;
   let Inst{4}     = 1;
+  // A8.6.303, A8.6.328, A8.6.329
+  let Inst{3-0}   = 0b0000;
 
   let OutOperandList = oops;
   let InOperandList = !con(iops, (ins pred:$p));

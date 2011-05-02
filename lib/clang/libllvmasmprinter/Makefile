@@ -3,11 +3,13 @@
 LIB=	llvmasmprinter
 
 SRCDIR=	lib/CodeGen/AsmPrinter
-SRCS=	AsmPrinter.cpp \
+SRCS=	ARMException.cpp \
+	AsmPrinter.cpp \
 	AsmPrinterDwarf.cpp \
 	AsmPrinterInlineAsm.cpp \
 	DIE.cpp \
 	DwarfCFIException.cpp \
+	DwarfCompileUnit.cpp \
 	DwarfDebug.cpp \
 	DwarfException.cpp \
 	DwarfTableException.cpp \

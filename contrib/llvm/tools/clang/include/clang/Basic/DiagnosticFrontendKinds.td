@@ -79,6 +79,8 @@ def warn_fe_macro_contains_embedded_newline : Warning<
     "macro '%0' contains embedded newline, text after the newline is ignored.">;
 def warn_fe_cc_print_header_failure : Warning<
     "unable to open CC_PRINT_HEADERS file: %0 (using stderr)">;
+def warn_fe_cc_log_diagnostics_failure : Warning<
+    "unable to open CC_LOG_DIAGNOSTICS file: %0 (using stderr)">;
 
 def err_verify_missing_start : Error<
     "cannot find start ('{{') of expected %0">;
@@ -112,6 +114,9 @@ def warn_pch_target_triple : Error<
     "unit is being compiled for target '%1'">;
 def warn_pch_c99 : Error<
     "C99 support was %select{disabled|enabled}0 in PCH file but is "
+    "currently %select{disabled|enabled}1">;
+def warn_pch_c1x : Error<
+    "C1X support was %select{disabled|enabled}0 in PCH file but is "
     "currently %select{disabled|enabled}1">;
 def warn_pch_cplusplus : Error<
     "C++ support was %select{disabled|enabled}0 in PCH file but is "
@@ -229,6 +234,9 @@ def warn_pch_gnu_inline : Error<
     "%select{C99|GNU}1 inline semantics are currently selected">;
 def warn_pch_no_inline : Error<
     "the macro '__NO_INLINE__' was %select{not defined|defined}0 in "
+    "the PCH file but is currently %select{undefined|defined}1">;
+def warn_pch_deprecated : Error<
+    "the macro '__DEPRECATED' was %select{not defined|defined}0 in "
     "the PCH file but is currently %select{undefined|defined}1">;
 def warn_pch_gc_mode : Error<
     "the PCH file was built with %select{no||hybrid}0 garbage collection but "

@@ -10,10 +10,9 @@ SRCS=	ASTConsumers.cpp \
 	CacheTokens.cpp \
 	CompilerInstance.cpp \
 	CompilerInvocation.cpp \
-	DeclXML.cpp \
+	CreateInvocationFromCommandLine.cpp \
 	DependencyFile.cpp \
 	DiagChecker.cpp \
-	DocumentXML.cpp \
 	FrontendAction.cpp \
 	FrontendActions.cpp \
 	FrontendOptions.cpp \
@@ -21,12 +20,11 @@ SRCS=	ASTConsumers.cpp \
 	InitHeaderSearch.cpp \
 	InitPreprocessor.cpp \
 	LangStandards.cpp \
+	LogDiagnosticPrinter.cpp \
 	MultiplexConsumer.cpp \
 	PrintPreprocessedOutput.cpp \
-	StmtXML.cpp \
 	TextDiagnosticBuffer.cpp \
 	TextDiagnosticPrinter.cpp \
-	TypeXML.cpp \
 	VerifyDiagnosticsClient.cpp \
 	Warnings.cpp
 
@@ -40,6 +38,7 @@ TGHDRS=	AttrList \
 	DiagnosticFrontendKinds \
 	DiagnosticLexKinds \
 	DiagnosticSemaKinds \
+	Options \
 	StmtNodes
 
 .include "../clang.lib.mk"

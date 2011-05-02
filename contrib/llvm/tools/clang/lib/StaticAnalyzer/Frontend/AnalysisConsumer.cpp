@@ -17,8 +17,6 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/ParentMap.h"
-#include "clang/Analysis/Analyses/LiveVariables.h"
-#include "clang/Analysis/Analyses/UninitializedValues.h"
 #include "clang/Analysis/CFG.h"
 #include "clang/StaticAnalyzer/Frontend/CheckerRegistration.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
@@ -29,12 +27,6 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/TransferFuncs.h"
 #include "clang/StaticAnalyzer/Core/PathDiagnosticClients.h"
-
-// FIXME: Restructure checker registration.
-#include "../Checkers/ClangSACheckers.h"
-#include "../Checkers/ExperimentalChecks.h"
-#include "../Checkers/InternalChecks.h"
-#include "../Checkers/BasicObjCFoundationChecks.h"
 
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
@@ -69,20 +61,6 @@ createPlistHTMLDiagnosticClient(const std::string& prefix,
 namespace {
 
 class AnalysisConsumer : public ASTConsumer {
-public:
-  typedef void (*CodeAction)(AnalysisConsumer &C, AnalysisManager &M, Decl *D);
-  typedef void (*TUAction)(AnalysisConsumer &C, AnalysisManager &M,
-                           TranslationUnitDecl &TU);
-
-private:
-  typedef std::vector<CodeAction> Actions;
-  typedef std::vector<TUAction> TUActions;
-
-  Actions FunctionActions;
-  Actions ObjCMethodActions;
-  Actions ObjCImplementationActions;
-  Actions CXXMethodActions;
-
 public:
   ASTContext* Ctx;
   const Preprocessor &PP;
@@ -163,16 +141,6 @@ public:
     }
   }
 
-  void addCodeAction(CodeAction action) {
-    FunctionActions.push_back(action);
-    ObjCMethodActions.push_back(action);
-    CXXMethodActions.push_back(action);
-  }
-
-  void addObjCImplementationAction(CodeAction action) {
-    ObjCImplementationActions.push_back(action);
-  }
-
   virtual void Initialize(ASTContext &Context) {
     Ctx = &Context;
     checkerMgr.reset(registerCheckers(Opts, PP.getLangOptions(),
@@ -194,7 +162,7 @@ public:
   virtual void HandleTranslationUnit(ASTContext &C);
   void HandleDeclContext(ASTContext &C, DeclContext *dc);
 
-  void HandleCode(Decl *D, Actions& actions);
+  void HandleCode(Decl *D);
 };
 } // end anonymous namespace
 
@@ -228,23 +196,25 @@ void AnalysisConsumer::HandleDeclContext(ASTContext &C, DeclContext *dc) {
               FD->getDeclName().getAsString() != Opts.AnalyzeSpecificFunction)
             break;
           DisplayFunction(FD);
-          HandleCode(FD, FunctionActions);
+          HandleCode(FD);
         }
         break;
       }
         
       case Decl::ObjCImplementation: {
         ObjCImplementationDecl* ID = cast<ObjCImplementationDecl>(*I);
-        HandleCode(ID, ObjCImplementationActions);
+        HandleCode(ID);
         
         for (ObjCImplementationDecl::method_iterator MI = ID->meth_begin(), 
              ME = ID->meth_end(); MI != ME; ++MI) {
+          checkerMgr->runCheckersOnASTDecl(*MI, *Mgr, BR);
+
           if ((*MI)->isThisDeclarationADefinition()) {
             if (!Opts.AnalyzeSpecificFunction.empty() &&
                 Opts.AnalyzeSpecificFunction != (*MI)->getSelector().getAsString())
               break;
             DisplayFunction(*MI);
-            HandleCode(*MI, ObjCMethodActions);
+            HandleCode(*MI);
           }
         }
         break;
@@ -279,9 +249,12 @@ static void FindBlocks(DeclContext *D, llvm::SmallVectorImpl<Decl*> &WL) {
       FindBlocks(DC, WL);
 }
 
-void AnalysisConsumer::HandleCode(Decl *D, Actions& actions) {
+static void ActionObjCMemChecker(AnalysisConsumer &C, AnalysisManager& mgr,
+                                 Decl *D);
 
-  // Don't run the actions if an error has occured with parsing the file.
+void AnalysisConsumer::HandleCode(Decl *D) {
+
+  // Don't run the actions if an error has occurred with parsing the file.
   Diagnostic &Diags = PP.getDiagnostics();
   if (Diags.hasErrorOccurred() || Diags.hasFatalErrorOccurred())
     return;
@@ -306,26 +279,16 @@ void AnalysisConsumer::HandleCode(Decl *D, Actions& actions) {
   BugReporter BR(*Mgr);
   for (llvm::SmallVectorImpl<Decl*>::iterator WI=WL.begin(), WE=WL.end();
        WI != WE; ++WI)
-    if ((*WI)->hasBody())
+    if ((*WI)->hasBody()) {
       checkerMgr->runCheckersOnASTBody(*WI, *Mgr, BR);
-
-  for (Actions::iterator I = actions.begin(), E = actions.end(); I != E; ++I)
-    for (llvm::SmallVectorImpl<Decl*>::iterator WI=WL.begin(), WE=WL.end();
-         WI != WE; ++WI)
-      (*I)(*this, *Mgr, *WI);
+      if (checkerMgr->hasPathSensitiveCheckers())
+        ActionObjCMemChecker(*this, *Mgr, *WI);
+    }
 }
 
 //===----------------------------------------------------------------------===//
-// Analyses
+// Path-sensitive checking.
 //===----------------------------------------------------------------------===//
-
-static void ActionWarnUninitVals(AnalysisConsumer &C, AnalysisManager& mgr,
-                                 Decl *D) {
-  if (CFG* c = mgr.getCFG(D)) {
-    CheckUninitializedValues(*c, mgr.getASTContext(), mgr.getDiagnostic());
-  }
-}
-
 
 static void ActionExprEngine(AnalysisConsumer &C, AnalysisManager& mgr,
                                Decl *D,
@@ -339,18 +302,6 @@ static void ActionExprEngine(AnalysisConsumer &C, AnalysisManager& mgr,
   if (!mgr.getLiveVariables(D))
     return;
   ExprEngine Eng(mgr, TF.take());
-
-  RegisterNSErrorChecks(Eng.getBugReporter(), Eng, *D);
-
-  if (C.Opts.EnableExperimentalChecks)
-    RegisterExperimentalChecks(Eng);
-
-  if (C.Opts.BufferOverflows)
-    RegisterArrayBoundCheckerV2(Eng);
-
-  // Enable AnalyzerStatsChecker if it was given as an argument
-  if (C.Opts.AnalyzerStats)
-    RegisterAnalyzerStatsChecker(Eng);
 
   // Set the graph auditor.
   llvm::OwningPtr<ExplodedNode::Auditor> Auditor;
@@ -413,16 +364,6 @@ ASTConsumer* ento::CreateAnalysisConsumer(const Preprocessor& pp,
                                            const std::string& OutDir,
                                            const AnalyzerOptions& Opts) {
   llvm::OwningPtr<AnalysisConsumer> C(new AnalysisConsumer(pp, OutDir, Opts));
-
-  for (unsigned i = 0; i < Opts.AnalysisList.size(); ++i)
-    switch (Opts.AnalysisList[i]) {
-#define ANALYSIS(NAME, CMD, DESC, SCOPE)\
-    case NAME:\
-      C->add ## SCOPE ## Action(&Action ## NAME);\
-      break;
-#include "clang/Frontend/Analyses.def"
-    default: break;
-    }
 
   // Last, disable the effects of '-Werror' when using the AnalysisConsumer.
   pp.getDiagnostics().setWarningsAsErrors(false);

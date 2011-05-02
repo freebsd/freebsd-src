@@ -27,22 +27,22 @@ def imm_comp_XFORM : SDNodeXForm<imm, [{
 }]>;
 
 /// imm0_7 predicate - True if the 32-bit immediate is in the range [0,7].
-def imm0_7 : PatLeaf<(i32 imm), [{
-  return (uint32_t)N->getZExtValue() < 8;
+def imm0_7 : ImmLeaf<i32, [{
+  return Imm >= 0 && Imm < 8;
 }]>;
 def imm0_7_neg : PatLeaf<(i32 imm), [{
   return (uint32_t)-N->getZExtValue() < 8;
 }], imm_neg_XFORM>;
 
-def imm0_255 : PatLeaf<(i32 imm), [{
-  return (uint32_t)N->getZExtValue() < 256;
+def imm0_255 : ImmLeaf<i32, [{
+  return Imm >= 0 && Imm < 256;
 }]>;
 def imm0_255_comp : PatLeaf<(i32 imm), [{
   return ~((uint32_t)N->getZExtValue()) < 256;
 }]>;
 
-def imm8_255 : PatLeaf<(i32 imm), [{
-  return (uint32_t)N->getZExtValue() >= 8 && (uint32_t)N->getZExtValue() < 256;
+def imm8_255 : ImmLeaf<i32, [{
+  return Imm >= 8 && Imm < 256;
 }]>;
 def imm8_255_neg : PatLeaf<(i32 imm), [{
   unsigned Val = -N->getZExtValue();
@@ -366,6 +366,15 @@ let isReturn = 1, isTerminator = 1, isBarrier = 1 in {
                 T1Special<{1,1,0,?}> {
     // A6.2.3 & A8.6.25
     let Inst{6-3} = 0b1110; // Rm = lr
+    let Inst{2-0} = 0b000;
+  }
+
+  def tBX_Rm : TI<(outs), (ins pred:$p, GPR:$Rm), IIC_Br, "bx${p}\t$Rm",
+                  [/* for disassembly only */]>,
+               T1Special<{1,1,0,?}> {
+    // A6.2.3 & A8.6.25
+    bits<4> Rm;
+    let Inst{6-3} = Rm;
     let Inst{2-0} = 0b000;
   }
 
@@ -705,6 +714,19 @@ def tLDRpci : T1pIs<(outs tGPR:$Rt), (ins t_addrmode_pc:$addr), IIC_iLoad_i,
                   "ldr", ".n\t$Rt, $addr",
                   [(set tGPR:$Rt, (load (ARMWrapper tconstpool:$addr)))]>,
               T1Encoding<{0,1,0,0,1,?}> {
+  // A6.2 & A8.6.59
+  bits<3> Rt;
+  bits<8> addr;
+  let Inst{10-8} = Rt;
+  let Inst{7-0}  = addr;
+}
+
+// FIXME: Remove this entry when the above ldr.n workaround is fixed.
+// For disassembly use only.
+def tLDRpciDIS : T1pIs<(outs tGPR:$Rt), (ins t_addrmode_pc:$addr), IIC_iLoad_i,
+                       "ldr", "\t$Rt, $addr",
+                       [/* disassembly only */]>,
+                 T1Encoding<{0,1,0,0,1,?}> {
   // A6.2 & A8.6.59
   bits<3> Rt;
   bits<8> addr;
@@ -1175,9 +1197,17 @@ def tREVSH :                    // A8.6.136
                  "revsh", "\t$Rd, $Rm",
                  [(set tGPR:$Rd,
                        (sext_inreg
-                         (or (srl (and tGPR:$Rm, 0xFF00), (i32 8)),
+                         (or (srl tGPR:$Rm, (i32 8)),
                              (shl tGPR:$Rm, (i32 8))), i16))]>,
                  Requires<[IsThumb, IsThumb1Only, HasV6]>;
+
+def : T1Pat<(sext_inreg (or (srl (and tGPR:$Rm, 0xFF00), (i32 8)),
+                            (shl tGPR:$Rm, (i32 8))), i16),
+            (tREVSH tGPR:$Rm)>,
+      Requires<[IsThumb, IsThumb1Only, HasV6]>;
+
+def : T1Pat<(sra (bswap tGPR:$Rm), (i32 16)), (tREVSH tGPR:$Rm)>,
+      Requires<[IsThumb, IsThumb1Only, HasV6]>;
 
 // Rotate right register
 def tROR :                      // A8.6.139
@@ -1322,10 +1352,8 @@ def tLEApcrelJT : tPseudoInst<(outs tGPR:$Rd),
 // Move between coprocessor and ARM core register -- for disassembly only
 //
 
-class tMovRCopro<string opc, bit direction>
-  : T1Cop<(outs), (ins p_imm:$cop, i32imm:$opc1,
-                       GPR:$Rt, c_imm:$CRn, c_imm:$CRm, i32imm:$opc2),
-          !strconcat(opc, "\t$cop, $opc1, $Rt, $CRn, $CRm, $opc2"),
+class tMovRCopro<string opc, bit direction, dag oops, dag iops>
+  : T1Cop<oops, iops, !strconcat(opc, "\t$cop, $opc1, $Rt, $CRn, $CRm, $opc2"),
           [/* For disassembly only; pattern left blank */]> {
   let Inst{27-24} = 0b1110;
   let Inst{20} = direction;
@@ -1346,8 +1374,12 @@ class tMovRCopro<string opc, bit direction>
   let Inst{19-16} = CRn;
 }
 
-def tMCR : tMovRCopro<"mcr", 0 /* from ARM core register to coprocessor */>;
-def tMRC : tMovRCopro<"mrc", 1 /* from coprocessor to ARM core register */>;
+def tMCR : tMovRCopro<"mcr", 0 /* from ARM core register to coprocessor */,
+           (outs), (ins p_imm:$cop, i32imm:$opc1, GPR:$Rt, c_imm:$CRn,
+                        c_imm:$CRm, i32imm:$opc2)>;
+def tMRC : tMovRCopro<"mrc", 1 /* from coprocessor to ARM core register */,
+           (outs GPR:$Rt), (ins p_imm:$cop, i32imm:$opc1, c_imm:$CRn,
+                                c_imm:$CRm, i32imm:$opc2)>;
 
 class tMovRRCopro<string opc, bit direction>
   : T1Cop<(outs), (ins p_imm:$cop, i32imm:$opc1, GPR:$Rt, GPR:$Rt2, c_imm:$CRm),
@@ -1420,7 +1452,7 @@ def tTPsoft : TIx2<0b11110, 0b11, 1, (outs), (ins), IIC_Br,
 // from some other function to get here, and we're using the stack frame for the
 // containing function to save/restore registers, we can't keep anything live in
 // regs across the eh_sjlj_setjmp(), else it will almost certainly have been
-// tromped upon when we get here from a longjmp(). We force everthing out of
+// tromped upon when we get here from a longjmp(). We force everything out of
 // registers except for our own input by listing the relevant registers in
 // Defs. By doing so, we also cause the prologue/epilogue code to actively
 // preserve all of the callee-saved resgisters, which is exactly what we want.

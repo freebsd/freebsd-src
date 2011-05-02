@@ -76,6 +76,7 @@ namespace clang {
     ICK_Vector_Splat,          ///< A vector splat from an arithmetic type
     ICK_Complex_Real,          ///< Complex-real conversions (C99 6.3.1.7)
     ICK_Block_Pointer_Conversion,    ///< Block Pointer conversions 
+    ICK_TransparentUnionConversion, /// Transparent Union Conversions
     ICK_Num_Conversion_Kinds   ///< The number of conversion kinds
   };
 
@@ -647,8 +648,6 @@ namespace clang {
 
     /// \brief Clear out all of the candidates.
     void clear();
-    
-    ~OverloadCandidateSet() { clear(); }
 
     /// Find the best viable function on this overload set, if it exists.
     OverloadingResult BestViableFunction(Sema &S, SourceLocation Loc,

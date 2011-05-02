@@ -247,13 +247,18 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   Builder.defineMacro("__GNUC_PATCHLEVEL__", "1");
   Builder.defineMacro("__GNUC__", "4");
   Builder.defineMacro("__GXX_ABI_VERSION", "1002");
-  Builder.defineMacro("__VERSION__", "\"4.2.1 Compatible Clang Compiler\"");
+
+  // As sad as it is, enough software depends on the __VERSION__ for version
+  // checks that it is necessary to report 4.2.1 (the base GCC version we claim
+  // compatibility with) first.
+  Builder.defineMacro("__VERSION__", "\"4.2.1 Compatible " + 
+                      llvm::Twine(getClangFullCPPVersion()) + "\"");
 
   // Initialize language-specific preprocessor defines.
 
   // These should all be defined in the preprocessor according to the
   // current language configuration.
-  if (!LangOpts.Microsoft)
+  if (!LangOpts.Microsoft && !LangOpts.TraditionalCPP)
     Builder.defineMacro("__STDC__");
   if (LangOpts.AsmPreprocessor)
     Builder.defineMacro("__ASSEMBLER__");
@@ -313,8 +318,10 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   if (LangOpts.SjLjExceptions)
     Builder.defineMacro("__USING_SJLJ_EXCEPTIONS__");
 
-  if (LangOpts.CPlusPlus) {
+  if (LangOpts.Deprecated)
     Builder.defineMacro("__DEPRECATED");
+
+  if (LangOpts.CPlusPlus) {
     Builder.defineMacro("__GNUG__", "4");
     Builder.defineMacro("__GXX_WEAK__");
     if (LangOpts.GNUMode)
@@ -328,12 +335,6 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   }
 
   if (LangOpts.Microsoft) {
-    // Filter out some microsoft extensions when trying to parse in ms-compat
-    // mode.
-    Builder.defineMacro("__int8", "__INT8_TYPE__");
-    Builder.defineMacro("__int16", "__INT16_TYPE__");
-    Builder.defineMacro("__int32", "__INT32_TYPE__");
-    Builder.defineMacro("__int64", "__INT64_TYPE__");
     // Both __PRETTY_FUNCTION__ and __FUNCTION__ are GCC extensions, however
     // VC++ appears to only like __FUNCTION__.
     Builder.defineMacro("__PRETTY_FUNCTION__", "__FUNCTION__");
@@ -413,6 +414,9 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
 
   if (!LangOpts.CharIsSigned)
     Builder.defineMacro("__CHAR_UNSIGNED__");
+
+  if (!TargetInfo::isTypeSigned(TI.getWIntType()))
+    Builder.defineMacro("__WINT_UNSIGNED__");
 
   // Define exact-width integer types for stdint.h
   Builder.defineMacro("__INT" + llvm::Twine(TI.getCharWidth()) + "_TYPE__",
@@ -531,20 +535,13 @@ static void InitializeFileRemapping(Diagnostic &Diags,
       continue;
     }
     
-    // Load the contents of the file we're mapping to.
-    std::string ErrorStr;
-    const llvm::MemoryBuffer *Buffer
-      = FileMgr.getBufferForFile(ToFile->getName(), &ErrorStr);
-    if (!Buffer) {
-      Diags.Report(diag::err_fe_error_opening)
-        << Remap->second << ErrorStr;
-      continue;
-    }
-    
     // Override the contents of the "from" file with the contents of
     // the "to" file.
-    SourceMgr.overrideFileContents(FromFile, Buffer);
+    SourceMgr.overrideFileContents(FromFile, ToFile);
   }
+
+  SourceMgr.setOverridenFilesKeepOriginalName(
+                                        InitOpts.RemappedFilesKeepOriginalName);
 }
 
 /// InitializePreprocessor - Initialize the preprocessor getting it and the

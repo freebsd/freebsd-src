@@ -44,15 +44,29 @@ namespace clang {
 namespace CodeGen {
   typedef llvm::SmallVector<llvm::AttributeWithIndex, 8> AttributeListType;
 
+  struct CallArg {
+    RValue RV;
+    QualType Ty;
+    CallArg(RValue rv, QualType ty)
+    : RV(rv), Ty(ty)
+    { }
+  };
+
   /// CallArgList - Type for representing both the value and type of
   /// arguments in a call.
-  typedef llvm::SmallVector<std::pair<RValue, QualType>, 16> CallArgList;
+  class CallArgList :
+    public llvm::SmallVector<CallArg, 16> {
+  public:
+    void add(RValue rvalue, QualType type) {
+      push_back(CallArg(rvalue, type));
+    }
+  };
 
   /// FunctionArgList - Type for representing both the decl and type
   /// of parameters to a function. The decl must be either a
   /// ParmVarDecl or ImplicitParamDecl.
-  typedef llvm::SmallVector<std::pair<const VarDecl*, QualType>,
-                            16> FunctionArgList;
+  class FunctionArgList : public llvm::SmallVector<const VarDecl*, 16> {
+  };
 
   /// CGFunctionInfo - Class to encapsulate the information about a
   /// function definition.
@@ -77,6 +91,7 @@ namespace CodeGen {
     ArgInfo *Args;
 
     /// How many arguments to pass inreg.
+    bool HasRegParm;
     unsigned RegParm;
 
   public:
@@ -84,7 +99,7 @@ namespace CodeGen {
     typedef ArgInfo *arg_iterator;
 
     CGFunctionInfo(unsigned CallingConvention, bool NoReturn,
-                   unsigned RegParm, CanQualType ResTy,
+                   bool HasRegParm, unsigned RegParm, CanQualType ResTy,
                    const CanQualType *ArgTys, unsigned NumArgTys);
     ~CGFunctionInfo() { delete[] Args; }
 
@@ -110,6 +125,7 @@ namespace CodeGen {
       EffectiveCallingConvention = Value;
     }
 
+    bool getHasRegParm() const { return HasRegParm; }
     unsigned getRegParm() const { return RegParm; }
 
     CanQualType getReturnType() const { return Args[0].type; }
@@ -120,6 +136,7 @@ namespace CodeGen {
     void Profile(llvm::FoldingSetNodeID &ID) {
       ID.AddInteger(getCallingConvention());
       ID.AddBoolean(NoReturn);
+      ID.AddBoolean(HasRegParm);
       ID.AddInteger(RegParm);
       getReturnType().Profile(ID);
       for (arg_iterator it = arg_begin(), ie = arg_end(); it != ie; ++it)
@@ -133,6 +150,7 @@ namespace CodeGen {
                         Iterator end) {
       ID.AddInteger(Info.getCC());
       ID.AddBoolean(Info.getNoReturn());
+      ID.AddBoolean(Info.getHasRegParm());
       ID.AddInteger(Info.getRegParm());
       ResTy.Profile(ID);
       for (; begin != end; ++begin) {

@@ -25,15 +25,15 @@
 namespace llvm {
 class PTXTargetMachine : public LLVMTargetMachine {
   private:
-    const TargetData DataLayout;
-    PTXFrameLowering FrameLowering;
-    PTXInstrInfo InstrInfo;
+    const TargetData  DataLayout;
+    PTXSubtarget      Subtarget; // has to be initialized before FrameLowering
+    PTXFrameLowering  FrameLowering;
+    PTXInstrInfo      InstrInfo;
     PTXTargetLowering TLInfo;
-    PTXSubtarget Subtarget;
 
   public:
     PTXTargetMachine(const Target &T, const std::string &TT,
-                     const std::string &FS);
+                     const std::string &FS, bool is64Bit);
 
     virtual const TargetData *getTargetData() const { return &DataLayout; }
 
@@ -55,6 +55,22 @@ class PTXTargetMachine : public LLVMTargetMachine {
     virtual bool addPostRegAlloc(PassManagerBase &PM,
                                  CodeGenOpt::Level OptLevel);
 }; // class PTXTargetMachine
+
+
+class PTX32TargetMachine : public PTXTargetMachine {
+public:
+
+  PTX32TargetMachine(const Target &T, const std::string &TT,
+                     const std::string& FS);
+}; // class PTX32TargetMachine
+
+class PTX64TargetMachine : public PTXTargetMachine {
+public:
+
+  PTX64TargetMachine(const Target &T, const std::string &TT,
+                     const std::string& FS);
+}; // class PTX32TargetMachine
+
 } // namespace llvm
 
 #endif // PTX_TARGET_MACHINE_H

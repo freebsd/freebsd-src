@@ -30,19 +30,22 @@
 #include <algorithm>
 using namespace llvm;
 
-// CompEnd - Compare LiveRange ends.
-namespace {
-struct CompEnd {
-  bool operator()(const LiveRange &A, const LiveRange &B) const {
-    return A.end < B.end;
-  }
-};
-}
-
 LiveInterval::iterator LiveInterval::find(SlotIndex Pos) {
-  assert(Pos.isValid() && "Cannot search for an invalid index");
-  return std::upper_bound(begin(), end(), LiveRange(SlotIndex(), Pos, 0),
-                          CompEnd());
+  // This algorithm is basically std::upper_bound.
+  // Unfortunately, std::upper_bound cannot be used with mixed types until we
+  // adopt C++0x. Many libraries can do it, but not all.
+  if (empty() || Pos >= endIndex())
+    return end();
+  iterator I = begin();
+  size_t Len = ranges.size();
+  do {
+    size_t Mid = Len >> 1;
+    if (Pos < I[Mid].end)
+      Len = Mid;
+    else
+      I += Mid + 1, Len -= Mid + 1;
+  } while (Len);
+  return I;
 }
 
 /// killedInRange - Return true if the interval has kills in [Start,End).
@@ -291,6 +294,22 @@ LiveInterval::addRangeFrom(LiveRange LR, iterator From) {
   return ranges.insert(it, LR);
 }
 
+/// extendInBlock - If this interval is live before UseIdx in the basic
+/// block that starts at StartIdx, extend it to be live at UseIdx and return
+/// the value. If there is no live range before UseIdx, return NULL.
+VNInfo *LiveInterval::extendInBlock(SlotIndex StartIdx, SlotIndex UseIdx) {
+  if (empty())
+    return 0;
+  iterator I = std::upper_bound(begin(), end(), UseIdx);
+  if (I == begin())
+    return 0;
+  --I;
+  if (I->end <= StartIdx)
+    return 0;
+  if (I->end <= UseIdx)
+    extendIntervalEndTo(I, UseIdx.getNextSlot());
+  return I->valno;
+}
 
 /// removeRange - Remove the specified range from this interval.  Note that
 /// the range must be in a single LiveRange in its entirety.
@@ -476,58 +495,17 @@ void LiveInterval::MergeRangesInAsValue(const LiveInterval &RHS,
 void LiveInterval::MergeValueInAsValue(
                                     const LiveInterval &RHS,
                                     const VNInfo *RHSValNo, VNInfo *LHSValNo) {
-  SmallVector<VNInfo*, 4> ReplacedValNos;
-  iterator IP = begin();
+  // TODO: Make this more efficient.
+  iterator InsertPos = begin();
   for (const_iterator I = RHS.begin(), E = RHS.end(); I != E; ++I) {
-    assert(I->valno == RHS.getValNumInfo(I->valno->id) && "Bad VNInfo");
     if (I->valno != RHSValNo)
       continue;
-    SlotIndex Start = I->start, End = I->end;
-    IP = std::upper_bound(IP, end(), Start);
-    // If the start of this range overlaps with an existing liverange, trim it.
-    if (IP != begin() && IP[-1].end > Start) {
-      if (IP[-1].valno != LHSValNo) {
-        ReplacedValNos.push_back(IP[-1].valno);
-        IP[-1].valno = LHSValNo; // Update val#.
-      }
-      Start = IP[-1].end;
-      // Trimmed away the whole range?
-      if (Start >= End) continue;
-    }
-    // If the end of this range overlaps with an existing liverange, trim it.
-    if (IP != end() && End > IP->start) {
-      if (IP->valno != LHSValNo) {
-        ReplacedValNos.push_back(IP->valno);
-        IP->valno = LHSValNo;  // Update val#.
-      }
-      End = IP->start;
-      // If this trimmed away the whole range, ignore it.
-      if (Start == End) continue;
-    }
-
     // Map the valno in the other live range to the current live range.
-    IP = addRangeFrom(LiveRange(Start, End, LHSValNo), IP);
-  }
-
-
-  SmallSet<VNInfo*, 4> Seen;
-  for (unsigned i = 0, e = ReplacedValNos.size(); i != e; ++i) {
-    VNInfo *V1 = ReplacedValNos[i];
-    if (Seen.insert(V1)) {
-      bool isDead = true;
-      for (const_iterator I = begin(), E = end(); I != E; ++I)
-        if (I->valno == V1) {
-          isDead = false;
-          break;
-        }
-      if (isDead) {
-        // Now that V1 is dead, remove it.
-        markValNoForDeletion(V1);
-      }
-    }
+    LiveRange Tmp = *I;
+    Tmp.valno = LHSValNo;
+    InsertPos = addRangeFrom(Tmp, InsertPos);
   }
 }
-
 
 
 /// MergeValueNumberInto - This method is called when two value nubmers
@@ -700,8 +678,8 @@ void LiveRange::print(raw_ostream &os) const {
 
 unsigned ConnectedVNInfoEqClasses::Classify(const LiveInterval *LI) {
   // Create initial equivalence classes.
-  eqClass_.clear();
-  eqClass_.grow(LI->getNumValNums());
+  EqClass.clear();
+  EqClass.grow(LI->getNumValNums());
 
   const VNInfo *used = 0, *unused = 0;
 
@@ -712,48 +690,65 @@ unsigned ConnectedVNInfoEqClasses::Classify(const LiveInterval *LI) {
     // Group all unused values into one class.
     if (VNI->isUnused()) {
       if (unused)
-        eqClass_.join(unused->id, VNI->id);
+        EqClass.join(unused->id, VNI->id);
       unused = VNI;
       continue;
     }
     used = VNI;
     if (VNI->isPHIDef()) {
-      const MachineBasicBlock *MBB = lis_.getMBBFromIndex(VNI->def);
+      const MachineBasicBlock *MBB = LIS.getMBBFromIndex(VNI->def);
       assert(MBB && "Phi-def has no defining MBB");
       // Connect to values live out of predecessors.
       for (MachineBasicBlock::const_pred_iterator PI = MBB->pred_begin(),
            PE = MBB->pred_end(); PI != PE; ++PI)
         if (const VNInfo *PVNI =
-              LI->getVNInfoAt(lis_.getMBBEndIdx(*PI).getPrevSlot()))
-          eqClass_.join(VNI->id, PVNI->id);
+              LI->getVNInfoAt(LIS.getMBBEndIdx(*PI).getPrevSlot()))
+          EqClass.join(VNI->id, PVNI->id);
     } else {
       // Normal value defined by an instruction. Check for two-addr redef.
       // FIXME: This could be coincidental. Should we really check for a tied
       // operand constraint?
       // Note that VNI->def may be a use slot for an early clobber def.
       if (const VNInfo *UVNI = LI->getVNInfoAt(VNI->def.getPrevSlot()))
-        eqClass_.join(VNI->id, UVNI->id);
+        EqClass.join(VNI->id, UVNI->id);
     }
   }
 
   // Lump all the unused values in with the last used value.
   if (used && unused)
-    eqClass_.join(used->id, unused->id);
+    EqClass.join(used->id, unused->id);
 
-  eqClass_.compress();
-  return eqClass_.getNumClasses();
+  EqClass.compress();
+  return EqClass.getNumClasses();
 }
 
-void ConnectedVNInfoEqClasses::Distribute(LiveInterval *LIV[]) {
+void ConnectedVNInfoEqClasses::Distribute(LiveInterval *LIV[],
+                                          MachineRegisterInfo &MRI) {
   assert(LIV[0] && "LIV[0] must be set");
   LiveInterval &LI = *LIV[0];
 
-  // First move runs to new intervals.
+  // Rewrite instructions.
+  for (MachineRegisterInfo::reg_iterator RI = MRI.reg_begin(LI.reg),
+       RE = MRI.reg_end(); RI != RE;) {
+    MachineOperand &MO = RI.getOperand();
+    MachineInstr *MI = MO.getParent();
+    ++RI;
+    if (MO.isUse() && MO.isUndef())
+      continue;
+    // DBG_VALUE instructions should have been eliminated earlier.
+    SlotIndex Idx = LIS.getInstructionIndex(MI);
+    Idx = MO.isUse() ? Idx.getUseIndex() : Idx.getDefIndex();
+    const VNInfo *VNI = LI.getVNInfoAt(Idx);
+    assert(VNI && "Interval not live at use.");
+    MO.setReg(LIV[getEqClass(VNI)]->reg);
+  }
+
+  // Move runs to new intervals.
   LiveInterval::iterator J = LI.begin(), E = LI.end();
-  while (J != E && eqClass_[J->valno->id] == 0)
+  while (J != E && EqClass[J->valno->id] == 0)
     ++J;
   for (LiveInterval::iterator I = J; I != E; ++I) {
-    if (unsigned eq = eqClass_[I->valno->id]) {
+    if (unsigned eq = EqClass[I->valno->id]) {
       assert((LIV[eq]->empty() || LIV[eq]->expiredAt(I->start)) &&
              "New intervals should be empty");
       LIV[eq]->ranges.push_back(*I);
@@ -764,11 +759,11 @@ void ConnectedVNInfoEqClasses::Distribute(LiveInterval *LIV[]) {
 
   // Transfer VNInfos to their new owners and renumber them.
   unsigned j = 0, e = LI.getNumValNums();
-  while (j != e && eqClass_[j] == 0)
+  while (j != e && EqClass[j] == 0)
     ++j;
   for (unsigned i = j; i != e; ++i) {
     VNInfo *VNI = LI.getValNumInfo(i);
-    if (unsigned eq = eqClass_[i]) {
+    if (unsigned eq = EqClass[i]) {
       VNI->id = LIV[eq]->getNumValNums();
       LIV[eq]->valnos.push_back(VNI);
     } else {

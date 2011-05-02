@@ -24,6 +24,7 @@ SRCS=	BackendUtil.cpp \
 	CGObjC.cpp \
 	CGObjCGNU.cpp \
 	CGObjCMac.cpp \
+	CGObjCRuntime.cpp \
 	CGRTTI.cpp \
 	CGRecordLayoutBuilder.cpp \
 	CGStmt.cpp \

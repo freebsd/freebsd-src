@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "ssaupdater"
+#include "llvm/Constants.h"
 #include "llvm/Instructions.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Analysis/InstructionSimplify.h"
@@ -20,8 +21,10 @@
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
 #include "llvm/Transforms/Utils/SSAUpdaterImpl.h"
+
 using namespace llvm;
 
 typedef DenseMap<BasicBlock*, Value*> AvailableValsTy;
@@ -170,8 +173,8 @@ Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
   }
 
   // Ok, we have no way out, insert a new one now.
-  PHINode *InsertedPHI = PHINode::Create(ProtoType, ProtoName, &BB->front());
-  InsertedPHI->reserveOperandSpace(PredValues.size());
+  PHINode *InsertedPHI = PHINode::Create(ProtoType, PredValues.size(),
+                                         ProtoName, &BB->front());
 
   // Fill in all the predecessors of the PHI.
   for (unsigned i = 0, e = PredValues.size(); i != e; ++i)
@@ -183,6 +186,9 @@ Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
     InsertedPHI->eraseFromParent();
     return V;
   }
+
+  // Set DebugLoc.
+  InsertedPHI->setDebugLoc(GetFirstDebugLocInBasicBlock(BB));
 
   // If the client wants to know about all new instructions, tell it.
   if (InsertedPHIs) InsertedPHIs->push_back(InsertedPHI);
@@ -289,9 +295,8 @@ public:
   /// Reserve space for the operands but do not fill them in yet.
   static Value *CreateEmptyPHI(BasicBlock *BB, unsigned NumPreds,
                                SSAUpdater *Updater) {
-    PHINode *PHI = PHINode::Create(Updater->ProtoType, Updater->ProtoName,
-                                   &BB->front());
-    PHI->reserveOperandSpace(NumPreds);
+    PHINode *PHI = PHINode::Create(Updater->ProtoType, NumPreds,
+                                   Updater->ProtoName, &BB->front());
     return PHI;
   }
 

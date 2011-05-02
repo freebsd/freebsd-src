@@ -19,18 +19,19 @@ include "MipsInstrFormats.td"
 
 def SDT_MipsRet          : SDTypeProfile<0, 1, [SDTCisInt<0>]>;
 def SDT_MipsJmpLink      : SDTypeProfile<0, 1, [SDTCisVT<0, iPTR>]>;
-def SDT_MipsSelectCC     : SDTypeProfile<1, 3, [SDTCisSameAs<0, 2>,
-                                         SDTCisSameAs<2, 3>, SDTCisInt<1>]>;
 def SDT_MipsCMov         : SDTypeProfile<1, 4, [SDTCisSameAs<0, 1>,
-                                         SDTCisSameAs<1, 2>, SDTCisSameAs<3, 4>,
-                                         SDTCisInt<4>]>;
+                                                SDTCisSameAs<1, 2>,
+                                                SDTCisSameAs<3, 4>,
+                                                SDTCisInt<4>]>;
 def SDT_MipsCallSeqStart : SDCallSeqStart<[SDTCisVT<0, i32>]>;
 def SDT_MipsCallSeqEnd   : SDCallSeqEnd<[SDTCisVT<0, i32>, SDTCisVT<1, i32>]>;
-def SDT_MipsMAddMSub     : SDTypeProfile<0, 4, 
+def SDT_MipsMAddMSub     : SDTypeProfile<0, 4,
                                          [SDTCisVT<0, i32>, SDTCisSameAs<0, 1>,
-                                          SDTCisSameAs<1, 2>, 
+                                          SDTCisSameAs<1, 2>,
                                           SDTCisSameAs<2, 3>]>;
-
+def SDT_MipsDivRem       : SDTypeProfile<0, 2,
+                                         [SDTCisVT<0, i32>,
+                                          SDTCisSameAs<0, 1>]>;
 
 // Call
 def MipsJmpLink : SDNode<"MipsISD::JmpLink",SDT_MipsJmpLink,
@@ -54,9 +55,6 @@ def callseq_start : SDNode<"ISD::CALLSEQ_START", SDT_MipsCallSeqStart,
 def callseq_end   : SDNode<"ISD::CALLSEQ_END", SDT_MipsCallSeqEnd,
                            [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
 
-// Select Condition Code
-def MipsSelectCC  : SDNode<"MipsISD::SelectCC", SDT_MipsSelectCC>;
-
 // MAdd*/MSub* nodes
 def MipsMAdd      : SDNode<"MipsISD::MAdd", SDT_MipsMAddMSub,
                            [SDNPOptInGlue, SDNPOutGlue]>;
@@ -66,6 +64,12 @@ def MipsMSub      : SDNode<"MipsISD::MSub", SDT_MipsMAddMSub,
                            [SDNPOptInGlue, SDNPOutGlue]>;
 def MipsMSubu     : SDNode<"MipsISD::MSubu", SDT_MipsMAddMSub,
                            [SDNPOptInGlue, SDNPOutGlue]>;
+
+// DivRem(u) nodes
+def MipsDivRem    : SDNode<"MipsISD::DivRem", SDT_MipsDivRem,
+                           [SDNPOutGlue]>;
+def MipsDivRemU   : SDNode<"MipsISD::DivRemU", SDT_MipsDivRem,
+                           [SDNPOutGlue]>;
 
 //===----------------------------------------------------------------------===//
 // Mips Instruction Predicate Definitions.
@@ -165,7 +169,7 @@ class ArithOverflowI<bits<6> op, string instr_asm, SDNode OpNode,
 let rd = 0, shamt = 0, Defs = [HI, LO], Uses = [HI, LO] in
 class MArithR<bits<6> func, string instr_asm, SDNode op> :
   FR<0x1c, func, (outs), (ins CPURegs:$rs, CPURegs:$rt),
-     !strconcat(instr_asm, "\t$rs, $rt"), 
+     !strconcat(instr_asm, "\t$rs, $rt"),
      [(op CPURegs:$rs, CPURegs:$rt, LO, HI)], IIImul>;
 
 //  Logical
@@ -185,7 +189,7 @@ class LogicNOR<bits<6> op, bits<6> func, string instr_asm>:
      [(set CPURegs:$dst, (not (or CPURegs:$b, CPURegs:$c)))], IIAlu>;
 
 // Shifts
-class LogicR_shift_rotate_imm<bits<6> func, bits<5> _rs, string instr_asm, 
+class LogicR_shift_rotate_imm<bits<6> func, bits<5> _rs, string instr_asm,
                               SDNode OpNode>:
   FR<0x00, func, (outs CPURegs:$dst), (ins CPURegs:$b, shamt:$c),
      !strconcat(instr_asm, "\t$dst, $b, $c"),
@@ -193,7 +197,7 @@ class LogicR_shift_rotate_imm<bits<6> func, bits<5> _rs, string instr_asm,
   let rs = _rs;
 }
 
-class LogicR_shift_rotate_reg<bits<6> func, bits<5> _shamt, string instr_asm, 
+class LogicR_shift_rotate_reg<bits<6> func, bits<5> _shamt, string instr_asm,
                               SDNode OpNode>:
   FR<0x00, func, (outs CPURegs:$dst), (ins CPURegs:$c, CPURegs:$b),
      !strconcat(instr_asm, "\t$dst, $b, $c"),
@@ -283,9 +287,16 @@ let isCall=1, hasDelaySlot=1,
 }
 
 // Mul, Div
-class MulDiv<bits<6> func, string instr_asm, InstrItinClass itin>:
-  FR<0x00, func, (outs), (ins CPURegs:$a, CPURegs:$b),
-     !strconcat(instr_asm, "\t$a, $b"), [], itin>;
+let Defs = [HI, LO] in {
+  class Mul<bits<6> func, string instr_asm, InstrItinClass itin>:
+    FR<0x00, func, (outs), (ins CPURegs:$a, CPURegs:$b),
+       !strconcat(instr_asm, "\t$a, $b"), [], itin>;
+
+  class Div<SDNode op, bits<6> func, string instr_asm, InstrItinClass itin>:
+            FR<0x00, func, (outs), (ins CPURegs:$a, CPURegs:$b),
+            !strconcat(instr_asm, "\t$$zero, $a, $b"),
+            [(op CPURegs:$a, CPURegs:$b)], itin>;
+}
 
 // Move from Hi/Lo
 class MoveFromLOHI<bits<6> func, string instr_asm>:
@@ -348,24 +359,17 @@ def REORDER   : MipsPseudo<(outs), (ins), ".set\treorder",   []>;
 def NOMACRO   : MipsPseudo<(outs), (ins), ".set\tnomacro",   []>;
 def NOREORDER : MipsPseudo<(outs), (ins), ".set\tnoreorder", []>;
 
+// These macros are inserted to prevent GAS from complaining
+// when using the AT register.
+def NOAT      : MipsPseudo<(outs), (ins), ".set\tnoat", []>;
+def ATMACRO   : MipsPseudo<(outs), (ins), ".set\tat", []>;
+
 // When handling PIC code the assembler needs .cpload and .cprestore
 // directives. If the real instructions corresponding these directives
 // are used, we have the same behavior, but get also a bunch of warnings
 // from the assembler.
 def CPLOAD : MipsPseudo<(outs), (ins CPURegs:$picreg), ".cpload\t$picreg", []>;
 def CPRESTORE : MipsPseudo<(outs), (ins uimm16:$loc), ".cprestore\t$loc\n", []>;
-
-// The supported Mips ISAs dont have any instruction close to the SELECT_CC
-// operation. The solution is to create a Mips pseudo SELECT_CC instruction
-// (MipsSelectCC), use LowerSELECT_CC to generate this instruction and finally
-// replace it for real supported nodes into EmitInstrWithCustomInserter
-let usesCustomInserter = 1 in {
-  class PseudoSelCC<RegisterClass RC, string asmstr>:
-    MipsPseudo<(outs RC:$dst), (ins CPURegs:$CmpRes, RC:$T, RC:$F), asmstr,
-    [(set RC:$dst, (MipsSelectCC CPURegs:$CmpRes, RC:$T, RC:$F))]>;
-}
-
-def Select_CC : PseudoSelCC<CPURegs, "# MipsSelect_CC_i32">;
 
 //===----------------------------------------------------------------------===//
 // Instruction definition
@@ -447,12 +451,10 @@ let isReturn=1, isTerminator=1, hasDelaySlot=1,
                 "jr\t$target", [(MipsRet CPURegs:$target)], IIBranch>;
 
 /// Multiply and Divide Instructions.
-let Defs = [HI, LO] in {
-  def MULT    : MulDiv<0x18, "mult", IIImul>;
-  def MULTu   : MulDiv<0x19, "multu", IIImul>;
-  def DIV     : MulDiv<0x1a, "div", IIIdiv>;
-  def DIVu    : MulDiv<0x1b, "divu", IIIdiv>;
-}
+def MULT    : Mul<0x18, "mult", IIImul>;
+def MULTu   : Mul<0x19, "multu", IIImul>;
+def SDIV    : Div<MipsDivRem, 0x1a, "div", IIIdiv>;
+def UDIV    : Div<MipsDivRemU, 0x1b, "divu", IIIdiv>;
 
 let Defs = [HI] in
   def MTHI  : MoveToLOHI<0x11, "mthi">;
@@ -489,10 +491,19 @@ let Predicates = [HasSwap] in {
 def MIPS_CMOV_ZERO  : PatLeaf<(i32 0)>;
 def MIPS_CMOV_NZERO : PatLeaf<(i32 1)>;
 
-let Predicates = [HasCondMov], Constraints = "$F = $dst" in {
-  def MOVN : CondMov<0x0a, "movn", MIPS_CMOV_NZERO>;
-  def MOVZ : CondMov<0x0b, "movz", MIPS_CMOV_ZERO>;
-}
+// Conditional moves:
+// These instructions are expanded in
+// MipsISelLowering::EmitInstrWithCustomInserter if target does not have
+// conditional move instructions.
+// flag:int, data:int
+let usesCustomInserter = 1, shamt = 0, Constraints = "$F = $dst" in
+  class CondMovIntInt<bits<6> funct, string instr_asm> :
+    FR<0, funct, (outs CPURegs:$dst),
+       (ins CPURegs:$T, CPURegs:$cond, CPURegs:$F),
+       !strconcat(instr_asm, "\t$dst, $T, $cond"), [], NoItinerary>;
+
+def MOVZ_I : CondMovIntInt<0x0a, "movz">;
+def MOVN_I : CondMovIntInt<0x0b, "movn">;
 
 /// No operation
 let addr=0 in
@@ -533,7 +544,7 @@ def : Pat<(subc CPURegs:$lhs, CPURegs:$rhs),
           (SUBu CPURegs:$lhs, CPURegs:$rhs)>;
 def : Pat<(addc CPURegs:$lhs, CPURegs:$rhs),
           (ADDu CPURegs:$lhs, CPURegs:$rhs)>;
-def : Pat<(addc  CPURegs:$src, imm:$imm),
+def : Pat<(addc  CPURegs:$src, immSExt16:$imm),
           (ADDiu CPURegs:$src, imm:$imm)>;
 
 // Call
@@ -546,8 +557,11 @@ def : Pat<(MipsJmpLink (i32 texternalsym:$dst)),
 
 // hi/lo relocs
 def : Pat<(MipsHi tglobaladdr:$in), (LUi tglobaladdr:$in)>;
+def : Pat<(MipsHi tblockaddress:$in), (LUi tblockaddress:$in)>;
 def : Pat<(add CPURegs:$hi, (MipsLo tglobaladdr:$lo)),
           (ADDiu CPURegs:$hi, tglobaladdr:$lo)>;
+def : Pat<(add CPURegs:$hi, (MipsLo tblockaddress:$lo)),
+          (ADDiu CPURegs:$hi, tblockaddress:$lo)>;
 
 def : Pat<(MipsHi tjumptable:$in), (LUi tjumptable:$in)>;
 def : Pat<(add CPURegs:$hi, (MipsLo tjumptable:$lo)),
@@ -599,33 +613,43 @@ def : Pat<(brcond CPURegs:$cond, bb:$dst),
           (BNE CPURegs:$cond, ZERO, bb:$dst)>;
 
 // select patterns
-def : Pat<(select (setge CPURegs:$lhs, CPURegs:$rhs), CPURegs:$T, CPURegs:$F),
-          (MOVZ CPURegs:$F, CPURegs:$T, (SLT CPURegs:$lhs, CPURegs:$rhs))>;
-def : Pat<(select (setuge CPURegs:$lhs, CPURegs:$rhs), CPURegs:$T, CPURegs:$F),
-          (MOVZ CPURegs:$F, CPURegs:$T, (SLTu CPURegs:$lhs, CPURegs:$rhs))>;
-def : Pat<(select (setge CPURegs:$lhs, immSExt16:$rhs), CPURegs:$T, CPURegs:$F),
-          (MOVZ CPURegs:$F, CPURegs:$T, (SLTi CPURegs:$lhs, immSExt16:$rhs))>;
-def : Pat<(select (setuge CPURegs:$lh, immSExt16:$rh), CPURegs:$T, CPURegs:$F),
-          (MOVZ CPURegs:$F, CPURegs:$T, (SLTiu CPURegs:$lh, immSExt16:$rh))>;
+multiclass MovzPats<RegisterClass RC, Instruction MOVZInst> {
+  def : Pat<(select (setge CPURegs:$lhs, CPURegs:$rhs), RC:$T, RC:$F),
+            (MOVZInst RC:$T, (SLT CPURegs:$lhs, CPURegs:$rhs), RC:$F)>;
+  def : Pat<(select (setuge CPURegs:$lhs, CPURegs:$rhs), RC:$T, RC:$F),
+            (MOVZInst RC:$T, (SLTu CPURegs:$lhs, CPURegs:$rhs), RC:$F)>;
+  def : Pat<(select (setge CPURegs:$lhs, immSExt16:$rhs), RC:$T, RC:$F),
+            (MOVZInst RC:$T, (SLTi CPURegs:$lhs, immSExt16:$rhs), RC:$F)>;
+  def : Pat<(select (setuge CPURegs:$lh, immSExt16:$rh), RC:$T, RC:$F),
+            (MOVZInst RC:$T, (SLTiu CPURegs:$lh, immSExt16:$rh), RC:$F)>;
+  def : Pat<(select (setle CPURegs:$lhs, CPURegs:$rhs), RC:$T, RC:$F),
+            (MOVZInst RC:$T, (SLT CPURegs:$rhs, CPURegs:$lhs), RC:$F)>;
+  def : Pat<(select (setule CPURegs:$lhs, CPURegs:$rhs), RC:$T, RC:$F),
+            (MOVZInst RC:$T, (SLTu CPURegs:$rhs, CPURegs:$lhs), RC:$F)>;
+  def : Pat<(select (seteq CPURegs:$lhs, CPURegs:$rhs), RC:$T, RC:$F),
+            (MOVZInst RC:$T, (XOR CPURegs:$lhs, CPURegs:$rhs), RC:$F)>;
+  def : Pat<(select (seteq CPURegs:$lhs, 0), RC:$T, RC:$F),
+            (MOVZInst RC:$T, CPURegs:$lhs, RC:$F)>;
+}
 
-def : Pat<(select (setle CPURegs:$lhs, CPURegs:$rhs), CPURegs:$T, CPURegs:$F),
-          (MOVZ CPURegs:$F, CPURegs:$T, (SLT CPURegs:$rhs, CPURegs:$lhs))>;
-def : Pat<(select (setule CPURegs:$lhs, CPURegs:$rhs), CPURegs:$T, CPURegs:$F),
-          (MOVZ CPURegs:$F, CPURegs:$T, (SLTu CPURegs:$rhs, CPURegs:$lhs))>;
+multiclass MovnPats<RegisterClass RC, Instruction MOVNInst> {
+  def : Pat<(select (setne CPURegs:$lhs, CPURegs:$rhs), RC:$T, RC:$F),
+            (MOVNInst RC:$T, (XOR CPURegs:$lhs, CPURegs:$rhs), RC:$F)>;
+  def : Pat<(select CPURegs:$cond, RC:$T, RC:$F),
+            (MOVNInst RC:$T, CPURegs:$cond, RC:$F)>;
+  def : Pat<(select (setne CPURegs:$lhs, 0), RC:$T, RC:$F),
+            (MOVNInst RC:$T, CPURegs:$lhs, RC:$F)>;
+}
 
-def : Pat<(select (seteq CPURegs:$lhs, CPURegs:$rhs), CPURegs:$T, CPURegs:$F),
-          (MOVZ CPURegs:$F, CPURegs:$T, (XOR CPURegs:$lhs, CPURegs:$rhs))>;
-def : Pat<(select (setne CPURegs:$lhs, CPURegs:$rhs), CPURegs:$T, CPURegs:$F),
-          (MOVN CPURegs:$F, CPURegs:$T, (XOR CPURegs:$lhs, CPURegs:$rhs))>;
-
-def : Pat<(select CPURegs:$cond, CPURegs:$T, CPURegs:$F),
-          (MOVN CPURegs:$F, CPURegs:$T, CPURegs:$cond)>;
+defm : MovzPats<CPURegs, MOVZ_I>;
+defm : MovnPats<CPURegs, MOVN_I>;
 
 // select patterns with got access
-def : Pat<(select (setne CPURegs:$lhs, CPURegs:$rhs),
-                  (i32 tglobaladdr:$T), CPURegs:$F),
-          (MOVN CPURegs:$F, (ADDiu GP, tglobaladdr:$T),
-                (XOR CPURegs:$lhs, CPURegs:$rhs))>;
+let AddedComplexity = 10 in
+  def : Pat<(select (setne CPURegs:$lhs, CPURegs:$rhs),
+                    (i32 tglobaladdr:$T), CPURegs:$F),
+            (MOVN_I CPURegs:$F, (ADDiu GP, tglobaladdr:$T),
+                    (XOR CPURegs:$lhs, CPURegs:$rhs))>;
 
 // setcc patterns
 def : Pat<(seteq CPURegs:$lhs, CPURegs:$rhs),

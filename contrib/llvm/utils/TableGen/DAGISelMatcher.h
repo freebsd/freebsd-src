@@ -17,6 +17,7 @@
 #include "llvm/Support/Casting.h"
 
 namespace llvm {
+  struct CodeGenRegister;
   class CodeGenDAGPatterns;
   class Matcher;
   class PatternToMatch;
@@ -24,6 +25,8 @@ namespace llvm {
   class ComplexPattern;
   class Record;
   class SDNodeInfo;
+  class TreePredicateFn;
+  class TreePattern;
 
 Matcher *ConvertPatternToMatcher(const PatternToMatch &Pattern,unsigned Variant,
                                  const CodeGenDAGPatterns &CGP);
@@ -418,12 +421,11 @@ private:
 /// CheckPredicateMatcher - This checks the target-specific predicate to
 /// see if the node is acceptable.
 class CheckPredicateMatcher : public Matcher {
-  StringRef PredName;
+  TreePattern *Pred;
 public:
-  CheckPredicateMatcher(StringRef predname)
-    : Matcher(CheckPredicate), PredName(predname) {}
+  CheckPredicateMatcher(const TreePredicateFn &pred);
 
-  StringRef getPredicateName() const { return PredName; }
+  TreePredicateFn getPredicate() const;
 
   static inline bool classof(const Matcher *N) {
     return N->getKind() == CheckPredicate;
@@ -435,7 +437,7 @@ public:
 private:
   virtual void printImpl(raw_ostream &OS, unsigned indent) const;
   virtual bool isEqualImpl(const Matcher *M) const {
-    return cast<CheckPredicateMatcher>(M)->PredName == PredName;
+    return cast<CheckPredicateMatcher>(M)->Pred == Pred;
   }
   virtual unsigned getHashImpl() const;
 };
@@ -816,13 +818,13 @@ private:
 class EmitRegisterMatcher : public Matcher {
   /// Reg - The def for the register that we're emitting.  If this is null, then
   /// this is a reference to zero_reg.
-  Record *Reg;
+  const CodeGenRegister *Reg;
   MVT::SimpleValueType VT;
 public:
-  EmitRegisterMatcher(Record *reg, MVT::SimpleValueType vt)
+  EmitRegisterMatcher(const CodeGenRegister *reg, MVT::SimpleValueType vt)
     : Matcher(EmitRegister), Reg(reg), VT(vt) {}
 
-  Record *getReg() const { return Reg; }
+  const CodeGenRegister *getReg() const { return Reg; }
   MVT::SimpleValueType getVT() const { return VT; }
 
   static inline bool classof(const Matcher *N) {

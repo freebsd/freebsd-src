@@ -71,12 +71,12 @@ public:
   
 private:
   llvm::IntrusiveRefCntPtr<Diagnostic> Diagnostics;
-  llvm::OwningPtr<FileManager>      FileMgr;
-  llvm::OwningPtr<SourceManager>    SourceMgr;
+  llvm::IntrusiveRefCntPtr<FileManager>      FileMgr;
+  llvm::IntrusiveRefCntPtr<SourceManager>    SourceMgr;
   llvm::OwningPtr<HeaderSearch>     HeaderInfo;
-  llvm::OwningPtr<TargetInfo>       Target;
-  llvm::OwningPtr<Preprocessor>     PP;
-  llvm::OwningPtr<ASTContext>       Ctx;
+  llvm::IntrusiveRefCntPtr<TargetInfo>       Target;
+  llvm::IntrusiveRefCntPtr<Preprocessor>     PP;
+  llvm::IntrusiveRefCntPtr<ASTContext>       Ctx;
 
   FileSystemOptions FileSystemOpts;
 
@@ -90,7 +90,7 @@ private:
   
   /// Optional owned invocation, just used to make the invocation used in
   /// LoadFromCommandLine available.
-  llvm::OwningPtr<CompilerInvocation> Invocation;
+  llvm::IntrusiveRefCntPtr<CompilerInvocation> Invocation;
   
   /// \brief The set of target features.
   ///
@@ -115,6 +115,9 @@ private:
 
   /// \brief Whether we should time each operation.
   bool WantTiming;
+
+  /// \brief Whether the ASTUnit should delete the remapped buffers.
+  bool OwnsRemappedFileBuffers;
   
   /// Track the top-level decls which appeared in an ASTUnit which was loaded
   /// from a source file.
@@ -393,11 +396,11 @@ public:
   const SourceManager &getSourceManager() const { return *SourceMgr; }
         SourceManager &getSourceManager()       { return *SourceMgr; }
 
-  const Preprocessor &getPreprocessor() const { return *PP.get(); }
-        Preprocessor &getPreprocessor()       { return *PP.get(); }
+  const Preprocessor &getPreprocessor() const { return *PP; }
+        Preprocessor &getPreprocessor()       { return *PP; }
 
-  const ASTContext &getASTContext() const { return *Ctx.get(); }
-        ASTContext &getASTContext()       { return *Ctx.get(); }
+  const ASTContext &getASTContext() const { return *Ctx; }
+        ASTContext &getASTContext()       { return *Ctx; }
 
   bool hasSema() const { return TheSema; }
   Sema &getSema() const { 
@@ -421,6 +424,9 @@ public:
   }
                         
   bool getOnlyLocalDecls() const { return OnlyLocalDecls; }
+
+  bool getOwnsRemappedFileBuffers() const { return OwnsRemappedFileBuffers; }
+  void setOwnsRemappedFileBuffers(bool val) { OwnsRemappedFileBuffers = val; }
 
   /// \brief Retrieve the maximum PCH level of declarations that a
   /// traversal of the translation unit should consider.
@@ -529,10 +535,16 @@ public:
   /// that might still be used as a precompiled header or preamble.
   bool isCompleteTranslationUnit() const { return CompleteTranslationUnit; }
 
+  typedef llvm::PointerUnion<const char *, const llvm::MemoryBuffer *>
+      FilenameOrMemBuf;
   /// \brief A mapping from a file name to the memory buffer that stores the
   /// remapped contents of that file.
-  typedef std::pair<std::string, const llvm::MemoryBuffer *> RemappedFile;
-  
+  typedef std::pair<std::string, FilenameOrMemBuf> RemappedFile;
+
+  /// \brief Create a ASTUnit. Gets ownership of the passed CompilerInvocation. 
+  static ASTUnit *create(CompilerInvocation *CI,
+                         llvm::IntrusiveRefCntPtr<Diagnostic> Diags);
+
   /// \brief Create a ASTUnit from an AST file.
   ///
   /// \param Filename - The AST file to load.
@@ -603,6 +615,7 @@ public:
                                       bool CaptureDiagnostics = false,
                                       RemappedFile *RemappedFiles = 0,
                                       unsigned NumRemappedFiles = 0,
+                                      bool RemappedFilesKeepOriginalName = true,
                                       bool PrecompilePreamble = false,
                                       bool CompleteTranslationUnit = true,
                                       bool CacheCodeCompletionResults = false,
@@ -647,6 +660,11 @@ public:
   ///
   /// \returns True if an error occurred, false otherwise.
   bool Save(llvm::StringRef File);
+
+  /// \brief Serialize this translation unit with the given output stream.
+  ///
+  /// \returns True if an error occurred, false otherwise.
+  bool serialize(llvm::raw_ostream &OS);
 };
 
 } // namespace clang

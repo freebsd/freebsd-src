@@ -187,7 +187,12 @@ public:
   /// InvalidatePHILiveOutRegInfo - Invalidates a PHI's LiveOutInfo, to be
   /// called when a block is visited before all of its predecessors.
   void InvalidatePHILiveOutRegInfo(const PHINode *PN) {
-    unsigned Reg = ValueMap[PN];
+    // PHIs with no uses have no ValueMap entry.
+    DenseMap<const Value*, unsigned>::const_iterator It = ValueMap.find(PN);
+    if (It == ValueMap.end())
+      return;
+
+    unsigned Reg = It->second;
     LiveOutRegInfo.grow(Reg);
     LiveOutRegInfo[Reg].IsValid = false;
   }
@@ -209,8 +214,9 @@ private:
 void AddCatchInfo(const CallInst &I,
                   MachineModuleInfo *MMI, MachineBasicBlock *MBB);
 
-/// CopyCatchInfo - Copy catch information from DestBB to SrcBB.
-void CopyCatchInfo(const BasicBlock *SrcBB, const BasicBlock *DestBB,
+/// CopyCatchInfo - Copy catch information from SuccBB (or one of its
+/// successors) to LPad.
+void CopyCatchInfo(const BasicBlock *SuccBB, const BasicBlock *LPad,
                    MachineModuleInfo *MMI, FunctionLoweringInfo &FLI);
 
 } // end namespace llvm

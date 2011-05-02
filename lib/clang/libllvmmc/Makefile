@@ -12,6 +12,7 @@ SRCS=	ELFObjectWriter.cpp \
 	MCCodeEmitter.cpp \
 	MCContext.cpp \
 	MCDwarf.cpp \
+	MCELF.cpp \
 	MCELFObjectTargetWriter.cpp \
 	MCELFStreamer.cpp \
 	MCExpr.cpp \

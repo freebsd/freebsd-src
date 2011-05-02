@@ -96,24 +96,29 @@ arm_neon.inc.h: ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
 
 DiagnosticGroups.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 	${TBLGEN} -gen-clang-diag-groups -I${CLANG_SRCS}/include/clang/Basic \
-	    ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td > ${.TARGET}
+	    ${.ALLSRC} > ${.TARGET}
+
+DiagnosticIndexName.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
+	${TBLGEN} -gen-clang-diags-index-name \
+	    -I${CLANG_SRCS}/include/clang/Basic ${.ALLSRC} > ${.TARGET}
+
 .for hdr in AST Analysis Common Driver Frontend Lex Parse Sema
 Diagnostic${hdr}Kinds.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
 	${TBLGEN} -gen-clang-diags-defs -clang-component=${hdr} \
-	    -I${CLANG_SRCS}/include/clang/Basic \
-	    ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td > ${.TARGET}
+	    -I${CLANG_SRCS}/include/clang/Basic ${.ALLSRC} > ${.TARGET}
 .endfor
+
 Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/Options.td
 	${TBLGEN} -gen-opt-parser-defs -I${CLANG_SRCS}/include/clang/Driver \
-	    ${CLANG_SRCS}/include/clang/Driver/Options.td > ${.TARGET}
+	    ${.ALLSRC} > ${.TARGET}
 
 CC1Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/CC1Options.td
 	${TBLGEN} -gen-opt-parser-defs -I${CLANG_SRCS}/include/clang/Driver \
-	    ${CLANG_SRCS}/include/clang/Driver/CC1Options.td > ${.TARGET}
+	    ${.ALLSRC} > ${.TARGET}
 
 CC1AsOptions.inc.h: ${CLANG_SRCS}/include/clang/Driver/CC1AsOptions.td
 	${TBLGEN} -gen-opt-parser-defs -I${CLANG_SRCS}/include/clang/Driver \
-	    ${CLANG_SRCS}/include/clang/Driver/CC1AsOptions.td > ${.TARGET}
+	    ${.ALLSRC} > ${.TARGET}
 
 Checkers.inc.h: ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td \
 	    ${CLANG_SRCS}/include/clang/StaticAnalyzer/Checkers/CheckerBase.td

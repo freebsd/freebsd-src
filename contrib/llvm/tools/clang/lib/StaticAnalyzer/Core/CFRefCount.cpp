@@ -12,7 +12,11 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/AST/DeclObjC.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/SourceManager.h"
@@ -20,7 +24,6 @@
 #include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
 #include "clang/StaticAnalyzer/Checkers/LocalCheckers.h"
 #include "clang/Analysis/DomainSpecific/CocoaConventions.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerVisitor.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngineBuilders.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/GRStateTrait.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/TransferFuncs.h"
@@ -1198,7 +1201,7 @@ RetainSummaryManager::updateSummaryFromAnnotations(RetainSummary &Summ,
   // Effects on the parameters.
   unsigned parm_idx = 0;
   for (FunctionDecl::param_const_iterator pi = FD->param_begin(), 
-       pe = FD->param_end(); pi != pe; ++pi) {
+         pe = FD->param_end(); pi != pe; ++pi, ++parm_idx) {
     const ParmVarDecl *pd = *pi;
     if (pd->getAttr<NSConsumedAttr>()) {
       if (!GCEnabled)
@@ -2428,7 +2431,7 @@ CFRefLeakReport::CFRefLeakReport(CFRefBug& D, const CFRefCount &tf,
                                  SymbolRef sym, ExprEngine& Eng)
 : CFRefReport(D, tf, n, sym) {
 
-  // Most bug reports are cached at the location where they occured.
+  // Most bug reports are cached at the location where they occurred.
   // With leaks, we want to unique them by the location where they were
   // allocated, and only report a single path.  To do this, we need to find
   // the allocation site of a piece of tracked memory, which we do via a
@@ -2524,6 +2527,14 @@ void CFRefCount::evalSummary(ExplodedNodeSet& Dst,
     }
     if (const MemRegion *region = V.getAsRegion())
       RegionsToInvalidate.push_back(region);
+  }
+  
+  // Invalidate all instance variables for the callee of a C++ method call.
+  // FIXME: We should be able to do better with inter-procedural analysis.
+  // FIXME: we can probably do better for const versus non-const methods.
+  if (callOrMsg.isCXXCall()) {
+    if (const MemRegion *callee = callOrMsg.getCXXCallee().getAsRegion())
+      RegionsToInvalidate.push_back(callee);
   }
   
   for (unsigned idx = 0, e = callOrMsg.getNumArgs(); idx != e; ++idx) {
@@ -2678,11 +2689,14 @@ void CFRefCount::evalSummary(ExplodedNodeSet& Dst,
       // FIXME: We eventually should handle structs and other compound types
       // that are returned by value.
 
-      QualType T = callOrMsg.getResultType(Eng.getContext());
-      if (Loc::isLocType(T) || (T->isIntegerType() && T->isScalarType())) {
+      // Use the result type from callOrMsg as it automatically adjusts
+      // for methods/functions that return references.
+      QualType resultTy = callOrMsg.getResultType(Eng.getContext());
+      if (Loc::isLocType(resultTy) || 
+            (resultTy->isIntegerType() && resultTy->isScalarType())) {
         unsigned Count = Builder.getCurrentBlockCount();
         SValBuilder &svalBuilder = Eng.getSValBuilder();
-        SVal X = svalBuilder.getConjuredSymbolVal(NULL, Ex, T, Count);
+        SVal X = svalBuilder.getConjuredSymbolVal(NULL, Ex, resultTy, Count);
         state = state->BindExpr(Ex, X, false);
       }
 
@@ -2709,9 +2723,12 @@ void CFRefCount::evalSummary(ExplodedNodeSet& Dst,
       unsigned Count = Builder.getCurrentBlockCount();
       SValBuilder &svalBuilder = Eng.getSValBuilder();
       SymbolRef Sym = svalBuilder.getConjuredSymbol(Ex, Count);
-      QualType RetT = GetReturnType(Ex, svalBuilder.getContext());
+
+      // Use the result type from callOrMsg as it automatically adjusts
+      // for methods/functions that return references.      
+      QualType resultTy = callOrMsg.getResultType(Eng.getContext());
       state = state->set<RefBindings>(Sym, RefVal::makeOwned(RE.getObjKind(),
-                                                            RetT));
+                                                            resultTy));
       state = state->BindExpr(Ex, svalBuilder.makeLoc(Sym), false);
 
       // FIXME: Add a flag to the checker where allocations are assumed to
@@ -2764,11 +2781,17 @@ void CFRefCount::evalCall(ExplodedNodeSet& Dst,
   if (dyn_cast_or_null<BlockDataRegion>(L.getAsRegion())) {
     Summ = Summaries.getPersistentStopSummary();
   }
-  else {
-    const FunctionDecl* FD = L.getAsFunctionDecl();
-    Summ = !FD ? Summaries.getDefaultSummary() :
-                 Summaries.getSummary(FD);
+  else if (const FunctionDecl* FD = L.getAsFunctionDecl()) {
+    Summ = Summaries.getSummary(FD);
   }
+  else if (const CXXMemberCallExpr *me = dyn_cast<CXXMemberCallExpr>(CE)) {
+    if (const CXXMethodDecl *MD = me->getMethodDecl())
+      Summ = Summaries.getSummary(MD);
+    else
+      Summ = Summaries.getDefaultSummary();    
+  }
+  else
+    Summ = Summaries.getDefaultSummary();
 
   assert(Summ);
   evalSummary(Dst, Eng, Builder, CE,
@@ -3395,19 +3418,15 @@ void CFRefCount::ProcessNonLeakError(ExplodedNodeSet& Dst,
 
 namespace {
 class RetainReleaseChecker
-  : public CheckerVisitor<RetainReleaseChecker> {
-  CFRefCount *TF;
+  : public Checker< check::PostStmt<BlockExpr> > {
 public:
-    RetainReleaseChecker(CFRefCount *tf) : TF(tf) {}
-    static void* getTag() { static int x = 0; return &x; }
-
-    void PostVisitBlockExpr(CheckerContext &C, const BlockExpr *BE);
+    void checkPostStmt(const BlockExpr *BE, CheckerContext &C) const;
 };
 } // end anonymous namespace
 
 
-void RetainReleaseChecker::PostVisitBlockExpr(CheckerContext &C,
-                                              const BlockExpr *BE) {
+void RetainReleaseChecker::checkPostStmt(const BlockExpr *BE,
+                                         CheckerContext &C) const {
 
   // Scan the BlockDecRefExprs for any object the retain/release checker
   // may be tracking.
@@ -3510,7 +3529,9 @@ void CFRefCount::RegisterChecks(ExprEngine& Eng) {
   // Register the RetainReleaseChecker with the ExprEngine object.
   // Functionality in CFRefCount will be migrated to RetainReleaseChecker
   // over time.
-  Eng.registerCheck(new RetainReleaseChecker(this));
+  // FIXME: HACK! Remove TransferFuncs and turn all of CFRefCount into fully
+  // using the checker mechanism.
+  Eng.getCheckerManager().registerChecker<RetainReleaseChecker>();
 }
 
 TransferFuncs* ento::MakeCFRefCountTF(ASTContext& Ctx, bool GCEnabled,

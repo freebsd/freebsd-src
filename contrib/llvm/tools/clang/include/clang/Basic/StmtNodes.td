@@ -41,6 +41,7 @@ def ObjCForCollectionStmt : Stmt;
 // C++ statments
 def CXXCatchStmt : Stmt;
 def CXXTryStmt : Stmt;
+def CXXForRangeStmt : Stmt;
 
 // Expressions
 def Expr : Stmt<1>;
@@ -54,7 +55,7 @@ def CharacterLiteral : DStmt<Expr>;
 def ParenExpr : DStmt<Expr>;
 def UnaryOperator : DStmt<Expr>;
 def OffsetOfExpr : DStmt<Expr>;
-def SizeOfAlignOfExpr : DStmt<Expr>;
+def UnaryExprOrTypeTraitExpr : DStmt<Expr>;
 def ArraySubscriptExpr : DStmt<Expr>;
 def CallExpr : DStmt<Expr>;
 def MemberExpr : DStmt<Expr>;
@@ -74,6 +75,7 @@ def DesignatedInitExpr : DStmt<Expr>;
 def ImplicitValueInitExpr : DStmt<Expr>;
 def ParenListExpr : DStmt<Expr>;
 def VAArgExpr : DStmt<Expr>;
+def GenericSelectionExpr : DStmt<Expr>;
 
 // GNU Extensions.
 def AddrLabelExpr : DStmt<Expr>;
@@ -102,6 +104,8 @@ def CXXDeleteExpr : DStmt<Expr>;
 def CXXPseudoDestructorExpr : DStmt<Expr>;
 def UnaryTypeTraitExpr : DStmt<Expr>;
 def BinaryTypeTraitExpr : DStmt<Expr>;
+def ArrayTypeTraitExpr : DStmt<Expr>;
+def ExpressionTraitExpr : DStmt<Expr>;
 def DependentScopeDeclRefExpr : DStmt<Expr>;
 def CXXConstructExpr : DStmt<Expr>;
 def CXXBindTemporaryExpr : DStmt<Expr>;
@@ -138,4 +142,7 @@ def OpaqueValueExpr : DStmt<Expr>;
 
 // Microsoft Extensions.
 def CXXUuidofExpr : DStmt<Expr>; 
+def SEHTryStmt : Stmt;
+def SEHExceptStmt : Stmt;
+def SEHFinallyStmt : Stmt;
 

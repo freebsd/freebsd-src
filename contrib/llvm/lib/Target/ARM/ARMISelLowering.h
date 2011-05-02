@@ -57,7 +57,6 @@ namespace llvm {
       CMPFPw0,      // ARM VFP compare against zero instruction, sets FPSCR.
       FMSTAT,       // ARM fmstat instruction.
       CMOV,         // ARM conditional move instructions.
-      CNEG,         // ARM conditional negate instructions.
 
       BCC_i64,
 
@@ -89,7 +88,7 @@ namespace llvm {
       MEMBARRIER_MCR, // Memory barrier (MCR)
 
       PRELOAD,      // Preload
-      
+
       VCEQ,         // Vector compare equal.
       VCEQZ,        // Vector compare equal to zero.
       VCGE,         // Vector compare greater than or equal.
@@ -154,6 +153,8 @@ namespace llvm {
       VZIP,         // zip (interleave)
       VUZP,         // unzip (deinterleave)
       VTRN,         // transpose
+      VTBL1,        // 1-register shuffle with mask
+      VTBL2,        // 2-register shuffle with mask
 
       // Vector multiply long:
       VMULLs,       // ...signed
@@ -172,11 +173,14 @@ namespace llvm {
 
       // Bit-field insert
       BFI,
-      
+
       // Vector OR with immediate
       VORRIMM,
       // Vector AND with NOT of immediate
       VBICIMM,
+
+      // Vector bitwise select
+      VBSL,
 
       // Vector load N-element structure to all lanes:
       VLD2DUP = ISD::FIRST_TARGET_MEMORY_OPCODE,
@@ -330,9 +334,6 @@ namespace llvm {
 
     Sched::Preference getSchedulingPreference(SDNode *N) const;
 
-    unsigned getRegPressureLimit(const TargetRegisterClass *RC,
-                                 MachineFunction &MF) const;
-
     bool isShuffleMaskLegal(const SmallVectorImpl<int> &M, EVT VT) const;
     bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const;
 
@@ -407,7 +408,7 @@ namespace llvm {
     SDValue LowerShiftRightParts(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerShiftLeftParts(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerFLT_ROUNDS_(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG, 
+    SDValue LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG,
                               const ARMSubtarget *ST) const;
 
     SDValue ReconstructShuffle(SDValue Op, SelectionDAG &DAG) const;
@@ -425,6 +426,13 @@ namespace llvm {
                            DebugLoc dl, SelectionDAG &DAG,
                            SmallVectorImpl<SDValue> &InVals) const;
 
+    void VarArgStyleRegisters(CCState &CCInfo, SelectionDAG &DAG,
+                              DebugLoc dl, SDValue &Chain, unsigned ArgOffset)
+      const;
+
+    void computeRegArea(CCState &CCInfo, MachineFunction &MF,
+                        unsigned &VARegSize, unsigned &VARegSaveSize) const;
+
     virtual SDValue
       LowerCall(SDValue Chain, SDValue Callee,
                 CallingConv::ID CallConv, bool isVarArg,
@@ -434,6 +442,9 @@ namespace llvm {
                 const SmallVectorImpl<ISD::InputArg> &Ins,
                 DebugLoc dl, SelectionDAG &DAG,
                 SmallVectorImpl<SDValue> &InVals) const;
+
+    /// HandleByVal - Target-specific cleanup for ByVal support.
+    virtual void HandleByVal(CCState *, unsigned &) const;
 
     /// IsEligibleForTailCallOptimization - Check whether the call is eligible
     /// for tail call optimization. Targets which want to do tail call
@@ -456,10 +467,13 @@ namespace llvm {
 
     virtual bool isUsedByReturnOnly(SDNode *N) const;
 
+    virtual bool mayBeEmittedAsTailCall(CallInst *CI) const;
+
     SDValue getARMCmp(SDValue LHS, SDValue RHS, ISD::CondCode CC,
                       SDValue &ARMcc, SelectionDAG &DAG, DebugLoc dl) const;
     SDValue getVFPCmp(SDValue LHS, SDValue RHS,
                       SelectionDAG &DAG, DebugLoc dl) const;
+    SDValue duplicateCmp(SDValue Cmp, SelectionDAG &DAG) const;
 
     SDValue OptimizeVFPBrcond(SDValue Op, SelectionDAG &DAG) const;
 
@@ -470,16 +484,22 @@ namespace llvm {
                                         MachineBasicBlock *BB,
                                         unsigned Size,
                                         unsigned BinOpcode) const;
+    MachineBasicBlock * EmitAtomicBinaryMinMax(MachineInstr *MI,
+                                               MachineBasicBlock *BB,
+                                               unsigned Size,
+                                               bool signExtend,
+                                               ARMCC::CondCodes Cond) const;
 
+    bool RemapAddSubWithFlags(MachineInstr *MI, MachineBasicBlock *BB) const;
   };
-  
+
   enum NEONModImmType {
     VMOVModImm,
     VMVNModImm,
     OtherModImm
   };
-  
-  
+
+
   namespace ARM {
     FastISel *createFastISel(FunctionLoweringInfo &funcInfo);
   }

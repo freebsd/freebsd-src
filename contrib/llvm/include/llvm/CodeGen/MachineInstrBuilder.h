@@ -48,6 +48,7 @@ public:
   /// Allow automatic conversion to the machine instruction we are working on.
   ///
   operator MachineInstr*() const { return MI; }
+  MachineInstr *operator->() const { return MI; }
   operator MachineBasicBlock::iterator() const { return MI; }
 
   /// addReg - Add a new virtual register operand...
@@ -142,6 +143,16 @@ public:
   
   const MachineInstrBuilder &addSym(MCSymbol *Sym) const {
     MI->addOperand(MachineOperand::CreateMCSymbol(Sym));
+    return *this;
+  }
+
+  const MachineInstrBuilder &setMIFlags(unsigned Flags) const {
+    MI->setFlags(Flags);
+    return *this;
+  }
+
+  const MachineInstrBuilder &setMIFlag(MachineInstr::MIFlag Flag) const {
+    MI->setFlag(Flag);
     return *this;
   }
 

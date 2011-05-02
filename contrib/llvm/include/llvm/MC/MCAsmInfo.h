@@ -20,13 +20,16 @@
 #include <cassert>
 
 namespace llvm {
+  class MCExpr;
   class MCSection;
+  class MCStreamer;
+  class MCSymbol;
   class MCContext;
 
   /// MCAsmInfo - This class is intended to be used as a base class for asm
   /// properties and features specific to the target.
   namespace ExceptionHandling {
-    enum ExceptionsType { None, DwarfTable, DwarfCFI, SjLj };
+    enum ExceptionsType { None, DwarfTable, DwarfCFI, SjLj, ARM };
   }
 
   class MCAsmInfo {
@@ -66,10 +69,9 @@ namespace llvm {
     /// relative expressions.
     const char *PCSymbol;                    // Defaults to "$".
 
-    /// SeparatorChar - This character, if specified, is used to separate
-    /// instructions from each other when on the same line.  This is used to
-    /// measure inline asm instructions.
-    char SeparatorChar;                      // Defaults to ';'
+    /// SeparatorString - This string, if specified, is used to separate
+    /// instructions from each other when on the same line.
+    const char *SeparatorString;             // Defaults to ';'
 
     /// CommentColumn - This indicates the comment num (zero-based) at
     /// which asm comments should be printed.
@@ -322,6 +324,16 @@ namespace llvm {
       return 0;
     }
 
+    virtual const MCExpr *
+    getExprForPersonalitySymbol(const MCSymbol *Sym,
+                                unsigned Encoding,
+                                MCStreamer &Streamer) const;
+
+    const MCExpr *
+    getExprForFDESymbol(const MCSymbol *Sym,
+                        unsigned Encoding,
+                        MCStreamer &Streamer) const;
+
     bool usesSunStyleELFSectionSwitchSyntax() const {
       return SunStyleELFSectionSwitchSyntax;
     }
@@ -350,8 +362,8 @@ namespace llvm {
     const char *getPCSymbol() const {
       return PCSymbol;
     }
-    char getSeparatorChar() const {
-      return SeparatorChar;
+    const char *getSeparatorString() const {
+      return SeparatorString;
     }
     unsigned getCommentColumn() const {
       return CommentColumn;
@@ -451,7 +463,8 @@ namespace llvm {
     bool isExceptionHandlingDwarf() const {
       return
         (ExceptionsType == ExceptionHandling::DwarfTable ||
-         ExceptionsType == ExceptionHandling::DwarfCFI);
+         ExceptionsType == ExceptionHandling::DwarfCFI ||
+         ExceptionsType == ExceptionHandling::ARM);
     }
 
     bool doesDwarfRequireFrameSection() const {

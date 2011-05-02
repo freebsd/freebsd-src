@@ -10,8 +10,8 @@
 // This analysis computes the optimal spill code placement between basic blocks.
 //
 // The runOnMachineFunction() method only precomputes some profiling information
-// about the CFG. The real work is done by placeSpills() which is called by the
-// register allocator.
+// about the CFG. The real work is done by prepare(), addConstraints(), and
+// finish() which are called by the register allocator.
 //
 // Given a variable that is live across multiple basic blocks, and given
 // constraints on the basic blocks where the variable is live, determine which
@@ -27,6 +27,8 @@
 #ifndef LLVM_CODEGEN_SPILLPLACEMENT_H
 #define LLVM_CODEGEN_SPILLPLACEMENT_H
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 
 namespace llvm {
@@ -35,7 +37,6 @@ class BitVector;
 class EdgeBundles;
 class MachineBasicBlock;
 class MachineLoopInfo;
-template <typename> class SmallVectorImpl;
 
 class SpillPlacement  : public MachineFunctionPass {
   struct Node;
@@ -44,9 +45,19 @@ class SpillPlacement  : public MachineFunctionPass {
   const MachineLoopInfo *loops;
   Node *nodes;
 
-  // Nodes that are active in the current computation. Owned by the placeSpills
+  // Nodes that are active in the current computation. Owned by the prepare()
   // caller.
   BitVector *ActiveNodes;
+
+  // Nodes with active links. Populated by scanActiveBundles.
+  SmallVector<unsigned, 8> Linked;
+
+  // Nodes that went positive during the last call to scanActiveBundles or
+  // iterate.
+  SmallVector<unsigned, 8> RecentPositive;
+
+  // Block frequencies are computed once. Indexed by block number.
+  SmallVector<float, 4> BlockFrequency;
 
 public:
   static char ID; // Pass identification, replacement for typeid.
@@ -70,28 +81,53 @@ public:
     BorderConstraint Exit : 8;  ///< Constraint on block exit.
   };
 
-  /// placeSpills - Compute the optimal spill code placement given the
-  /// constraints. No MustSpill constraints will be violated, and the smallest
-  /// possible number of PrefX constraints will be violated, weighted by
-  /// expected execution frequencies.
-  /// @param LiveBlocks Constraints for blocks that have the variable live in or
-  ///                   live out. DontCare/DontCare means the variable is live
-  ///                   through the block. DontCare/X means the variable is live
-  ///                   out, but not live in.
+  /// prepare - Reset state and prepare for a new spill placement computation.
   /// @param RegBundles Bit vector to receive the edge bundles where the
   ///                   variable should be kept in a register. Each bit
   ///                   corresponds to an edge bundle, a set bit means the
   ///                   variable should be kept in a register through the
   ///                   bundle. A clear bit means the variable should be
-  ///                   spilled.
+  ///                   spilled. This vector is retained.
+  void prepare(BitVector &RegBundles);
+
+  /// addConstraints - Add constraints and biases. This method may be called
+  /// more than once to accumulate constraints.
+  /// @param LiveBlocks Constraints for blocks that have the variable live in or
+  ///                   live out.
+  void addConstraints(ArrayRef<BlockConstraint> LiveBlocks);
+
+  /// addLinks - Add transparent blocks with the given numbers.
+  void addLinks(ArrayRef<unsigned> Links);
+
+  /// scanActiveBundles - Perform an initial scan of all bundles activated by
+  /// addConstraints and addLinks, updating their state. Add all the bundles
+  /// that now prefer a register to RecentPositive.
+  /// Prepare internal data structures for iterate.
+  /// Return true is there are any positive nodes.
+  bool scanActiveBundles();
+
+  /// iterate - Update the network iteratively until convergence, or new bundles
+  /// are found.
+  void iterate();
+
+  /// getRecentPositive - Return an array of bundles that became positive during
+  /// the previous call to scanActiveBundles or iterate.
+  ArrayRef<unsigned> getRecentPositive() { return RecentPositive; }
+
+  /// finish - Compute the optimal spill code placement given the
+  /// constraints. No MustSpill constraints will be violated, and the smallest
+  /// possible number of PrefX constraints will be violated, weighted by
+  /// expected execution frequencies.
+  /// The selected bundles are returned in the bitvector passed to prepare().
   /// @return True if a perfect solution was found, allowing the variable to be
   ///         in a register through all relevant bundles.
-  bool placeSpills(const SmallVectorImpl<BlockConstraint> &LiveBlocks,
-                   BitVector &RegBundles);
+  bool finish();
 
   /// getBlockFrequency - Return the estimated block execution frequency per
   /// function invocation.
-  float getBlockFrequency(const MachineBasicBlock*);
+  float getBlockFrequency(unsigned Number) const {
+    return BlockFrequency[Number];
+  }
 
 private:
   virtual bool runOnMachineFunction(MachineFunction&);
@@ -99,8 +135,6 @@ private:
   virtual void releaseMemory();
 
   void activate(unsigned);
-  void prepareNodes(const SmallVectorImpl<BlockConstraint>&);
-  void iterate(const SmallVectorImpl<unsigned>&);
 };
 
 } // end namespace llvm
