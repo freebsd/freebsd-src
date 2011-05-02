@@ -128,6 +128,12 @@ public:
 
   const TargetRegisterClass *getPointerRegClass(unsigned Kind = 0) const;
 
+  const TargetRegisterClass*
+  getLargestLegalSuperClass(const TargetRegisterClass *RC) const;
+
+  unsigned getRegPressureLimit(const TargetRegisterClass *RC,
+                               MachineFunction &MF) const;
+
   std::pair<TargetRegisterClass::iterator,TargetRegisterClass::iterator>
   getAllocationOrder(const TargetRegisterClass *RC,
                      unsigned HintType, unsigned HintReg,
@@ -138,6 +144,8 @@ public:
 
   void UpdateRegAllocHint(unsigned Reg, unsigned NewReg,
                           MachineFunction &MF) const;
+
+  virtual bool avoidWriteAfterWrite(const TargetRegisterClass *RC) const;
 
   bool hasBasePointer(const MachineFunction &MF) const;
 
@@ -176,7 +184,8 @@ public:
                                  unsigned DestReg, unsigned SubIdx,
                                  int Val,
                                  ARMCC::CondCodes Pred = ARMCC::AL,
-                                 unsigned PredReg = 0) const;
+                                 unsigned PredReg = 0,
+                                 unsigned MIFlags = MachineInstr::NoFlags)const;
 
   /// Code Generation virtual methods...
   virtual bool isReservedReg(const MachineFunction &MF, unsigned Reg) const;

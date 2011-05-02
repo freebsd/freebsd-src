@@ -28,24 +28,22 @@ using namespace CodeGen;
 
 static llvm::Constant *getAllocateExceptionFn(CodeGenFunction &CGF) {
   // void *__cxa_allocate_exception(size_t thrown_size);
-  const llvm::Type *SizeTy = CGF.ConvertType(CGF.getContext().getSizeType());
-  std::vector<const llvm::Type*> Args(1, SizeTy);
 
+  const llvm::Type *SizeTy = CGF.ConvertType(CGF.getContext().getSizeType());
   const llvm::FunctionType *FTy =
-  llvm::FunctionType::get(llvm::Type::getInt8PtrTy(CGF.getLLVMContext()),
-                          Args, false);
+    llvm::FunctionType::get(llvm::Type::getInt8PtrTy(CGF.getLLVMContext()),
+                            SizeTy, /*IsVarArgs=*/false);
 
   return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_allocate_exception");
 }
 
 static llvm::Constant *getFreeExceptionFn(CodeGenFunction &CGF) {
   // void __cxa_free_exception(void *thrown_exception);
-  const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
-  std::vector<const llvm::Type*> Args(1, Int8PtrTy);
 
+  const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
   const llvm::FunctionType *FTy =
-  llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()),
-                          Args, false);
+    llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()),
+                            Int8PtrTy, /*IsVarArgs=*/false);
 
   return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_free_exception");
 }
@@ -55,11 +53,10 @@ static llvm::Constant *getThrowFn(CodeGenFunction &CGF) {
   //                  void (*dest) (void *));
 
   const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
-  std::vector<const llvm::Type*> Args(3, Int8PtrTy);
-
+  const llvm::Type *Args[3] = { Int8PtrTy, Int8PtrTy, Int8PtrTy };
   const llvm::FunctionType *FTy =
     llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()),
-                            Args, false);
+                            Args, /*IsVarArgs=*/false);
 
   return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_throw");
 }
@@ -68,18 +65,18 @@ static llvm::Constant *getReThrowFn(CodeGenFunction &CGF) {
   // void __cxa_rethrow();
 
   const llvm::FunctionType *FTy =
-    llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()), false);
+    llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()), 
+                            /*IsVarArgs=*/false);
 
   return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_rethrow");
 }
 
 static llvm::Constant *getGetExceptionPtrFn(CodeGenFunction &CGF) {
   // void *__cxa_get_exception_ptr(void*);
-  const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
-  std::vector<const llvm::Type*> Args(1, Int8PtrTy);
 
+  const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
   const llvm::FunctionType *FTy =
-    llvm::FunctionType::get(Int8PtrTy, Args, false);
+    llvm::FunctionType::get(Int8PtrTy, Int8PtrTy, /*IsVarArgs=*/false);
 
   return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_get_exception_ptr");
 }
@@ -88,10 +85,8 @@ static llvm::Constant *getBeginCatchFn(CodeGenFunction &CGF) {
   // void *__cxa_begin_catch(void*);
 
   const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
-  std::vector<const llvm::Type*> Args(1, Int8PtrTy);
-
   const llvm::FunctionType *FTy =
-    llvm::FunctionType::get(Int8PtrTy, Args, false);
+    llvm::FunctionType::get(Int8PtrTy, Int8PtrTy, /*IsVarArgs=*/false);
 
   return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_begin_catch");
 }
@@ -100,7 +95,8 @@ static llvm::Constant *getEndCatchFn(CodeGenFunction &CGF) {
   // void __cxa_end_catch();
 
   const llvm::FunctionType *FTy =
-    llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()), false);
+    llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()), 
+                            /*IsVarArgs=*/false);
 
   return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_end_catch");
 }
@@ -109,22 +105,18 @@ static llvm::Constant *getUnexpectedFn(CodeGenFunction &CGF) {
   // void __cxa_call_unexepcted(void *thrown_exception);
 
   const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
-  std::vector<const llvm::Type*> Args(1, Int8PtrTy);
-
   const llvm::FunctionType *FTy =
     llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()),
-                            Args, false);
+                            Int8PtrTy, /*IsVarArgs=*/false);
 
   return CGF.CGM.CreateRuntimeFunction(FTy, "__cxa_call_unexpected");
 }
 
 llvm::Constant *CodeGenFunction::getUnwindResumeOrRethrowFn() {
   const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(getLLVMContext());
-  std::vector<const llvm::Type*> Args(1, Int8PtrTy);
-
   const llvm::FunctionType *FTy =
-    llvm::FunctionType::get(llvm::Type::getVoidTy(getLLVMContext()), Args,
-                            false);
+    llvm::FunctionType::get(llvm::Type::getVoidTy(getLLVMContext()), Int8PtrTy,
+                            /*IsVarArgs=*/false);
 
   if (CGM.getLangOptions().SjLjExceptions)
     return CGM.CreateRuntimeFunction(FTy, "_Unwind_SjLj_Resume_or_Rethrow");
@@ -135,7 +127,8 @@ static llvm::Constant *getTerminateFn(CodeGenFunction &CGF) {
   // void __terminate();
 
   const llvm::FunctionType *FTy =
-    llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()), false);
+    llvm::FunctionType::get(llvm::Type::getVoidTy(CGF.getLLVMContext()), 
+                            /*IsVarArgs=*/false);
 
   return CGF.CGM.CreateRuntimeFunction(FTy, 
       CGF.CGM.getLangOptions().CPlusPlus ? "_ZSt9terminatev" : "abort");
@@ -145,10 +138,9 @@ static llvm::Constant *getCatchallRethrowFn(CodeGenFunction &CGF,
                                             llvm::StringRef Name) {
   const llvm::Type *Int8PtrTy =
     llvm::Type::getInt8PtrTy(CGF.getLLVMContext());
-  std::vector<const llvm::Type*> Args(1, Int8PtrTy);
-
   const llvm::Type *VoidTy = llvm::Type::getVoidTy(CGF.getLLVMContext());
-  const llvm::FunctionType *FTy = llvm::FunctionType::get(VoidTy, Args, false);
+  const llvm::FunctionType *FTy = llvm::FunctionType::get(VoidTy, Int8PtrTy,
+                                                          /*IsVarArgs=*/false);
 
   return CGF.CGM.CreateRuntimeFunction(FTy, Name);
 }
@@ -160,6 +152,7 @@ const EHPersonality EHPersonality::GNU_CPlusPlus("__gxx_personality_v0");
 const EHPersonality EHPersonality::GNU_CPlusPlus_SJLJ("__gxx_personality_sj0");
 const EHPersonality EHPersonality::GNU_ObjC("__gnu_objc_personality_v0",
                                             "objc_exception_throw");
+const EHPersonality EHPersonality::GNU_ObjCXX("__gnustep_objcxx_personality_v0");
 
 static const EHPersonality &getCPersonality(const LangOptions &L) {
   if (L.SjLjExceptions)
@@ -201,7 +194,7 @@ static const EHPersonality &getObjCXXPersonality(const LangOptions &L) {
 
   // The GNU runtime's personality function inherently doesn't support
   // mixed EH.  Use the C++ personality just to avoid returning null.
-  return getCXXPersonality(L);
+  return EHPersonality::GNU_ObjCXX;
 }
 
 const EHPersonality &EHPersonality::get(const LangOptions &L) {
@@ -273,7 +266,7 @@ static bool PersonalityHasOnlyCXXUses(llvm::Constant *Fn) {
 /// when it really needs it.
 void CodeGenModule::SimplifyPersonality() {
   // For now, this is really a Darwin-specific operation.
-  if (Context.Target.getTriple().getOS() != llvm::Triple::Darwin)
+  if (!Context.Target.getTriple().isOSDarwin())
     return;
 
   // If we're not in ObjC++ -fexceptions, there's nothing to do.
@@ -439,7 +432,7 @@ void CodeGenFunction::EmitCXXThrowExpr(const CXXThrowExpr *E) {
 }
 
 void CodeGenFunction::EmitStartEHSpec(const Decl *D) {
-  if (!CGM.getLangOptions().areExceptionsEnabled())
+  if (!CGM.getLangOptions().CXXExceptions)
     return;
   
   const FunctionDecl* FD = dyn_cast_or_null<FunctionDecl>(D);
@@ -449,25 +442,28 @@ void CodeGenFunction::EmitStartEHSpec(const Decl *D) {
   if (Proto == 0)
     return;
 
-  assert(!Proto->hasAnyExceptionSpec() && "function with parameter pack");
+  ExceptionSpecificationType EST = Proto->getExceptionSpecType();
+  if (isNoexceptExceptionSpec(EST)) {
+    if (Proto->getNoexceptSpec(getContext()) == FunctionProtoType::NR_Nothrow) {
+      // noexcept functions are simple terminate scopes.
+      EHStack.pushTerminate();
+    }
+  } else if (EST == EST_Dynamic || EST == EST_DynamicNone) {
+    unsigned NumExceptions = Proto->getNumExceptions();
+    EHFilterScope *Filter = EHStack.pushFilter(NumExceptions);
 
-  if (!Proto->hasExceptionSpec())
-    return;
-
-  unsigned NumExceptions = Proto->getNumExceptions();
-  EHFilterScope *Filter = EHStack.pushFilter(NumExceptions);
-
-  for (unsigned I = 0; I != NumExceptions; ++I) {
-    QualType Ty = Proto->getExceptionType(I);
-    QualType ExceptType = Ty.getNonReferenceType().getUnqualifiedType();
-    llvm::Value *EHType = CGM.GetAddrOfRTTIDescriptor(ExceptType,
-                                                      /*ForEH=*/true);
-    Filter->setFilter(I, EHType);
+    for (unsigned I = 0; I != NumExceptions; ++I) {
+      QualType Ty = Proto->getExceptionType(I);
+      QualType ExceptType = Ty.getNonReferenceType().getUnqualifiedType();
+      llvm::Value *EHType = CGM.GetAddrOfRTTIDescriptor(ExceptType,
+                                                        /*ForEH=*/true);
+      Filter->setFilter(I, EHType);
+    }
   }
 }
 
 void CodeGenFunction::EmitEndEHSpec(const Decl *D) {
-  if (!CGM.getLangOptions().areExceptionsEnabled())
+  if (!CGM.getLangOptions().CXXExceptions)
     return;
   
   const FunctionDecl* FD = dyn_cast_or_null<FunctionDecl>(D);
@@ -477,10 +473,14 @@ void CodeGenFunction::EmitEndEHSpec(const Decl *D) {
   if (Proto == 0)
     return;
 
-  if (!Proto->hasExceptionSpec())
-    return;
-
-  EHStack.popFilter();
+  ExceptionSpecificationType EST = Proto->getExceptionSpecType();
+  if (isNoexceptExceptionSpec(EST)) {
+    if (Proto->getNoexceptSpec(getContext()) == FunctionProtoType::NR_Nothrow) {
+      EHStack.popTerminate();
+    }
+  } else if (EST == EST_Dynamic || EST == EST_DynamicNone) {
+    EHStack.popFilter();
+  }
 }
 
 void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
@@ -541,7 +541,7 @@ llvm::BasicBlock *CodeGenFunction::getInvokeDestImpl() {
   assert(EHStack.requiresLandingPad());
   assert(!EHStack.empty());
 
-  if (!CGM.getLangOptions().areExceptionsEnabled())
+  if (!CGM.getLangOptions().Exceptions)
     return 0;
 
   // Check the innermost scope for a cached landing pad.  If this is
@@ -664,7 +664,7 @@ llvm::BasicBlock *CodeGenFunction::EmitLandingPad() {
       assert(I.next() == EHStack.end() && "EH filter is not end of EH stack");
       assert(!CatchAll.isValid() && "EH filter reached after catch-all");
 
-      // Filter scopes get added to the selector in wierd ways.
+      // Filter scopes get added to the selector in weird ways.
       EHFilterScope &Filter = cast<EHFilterScope>(*I);
       HasEHFilter = true;
 

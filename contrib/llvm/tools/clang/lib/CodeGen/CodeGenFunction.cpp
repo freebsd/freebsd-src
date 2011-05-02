@@ -33,7 +33,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule &cgm)
     Target(CGM.getContext().Target), Builder(cgm.getModule().getContext()),
     BlockInfo(0), BlockPointer(0),
     NormalCleanupDest(0), EHCleanupDest(0), NextCleanupDestIndex(1),
-    ExceptionSlot(0), DebugInfo(0), IndirectBranch(0),
+    ExceptionSlot(0), DebugInfo(0), DisableDebugInfo(false), IndirectBranch(0),
     SwitchInsn(0), CaseRangeBlock(0),
     DidCallStackSave(false), UnreachableBlock(0),
     CXXThisDecl(0), CXXThisValue(0), CXXVTTDecl(0), CXXVTTValue(0),
@@ -210,6 +210,7 @@ void CodeGenFunction::EmitMCountInstrumentation() {
 
 void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
                                     llvm::Function *Fn,
+                                    const CGFunctionInfo &FnInfo,
                                     const FunctionArgList &Args,
                                     SourceLocation StartLoc) {
   const Decl *D = GD.getDecl();
@@ -218,6 +219,7 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   CurCodeDecl = CurFuncDecl = D;
   FnRetTy = RetTy;
   CurFn = Fn;
+  CurFnInfo = &FnInfo;
   assert(CurFn->isDeclaration() && "Function already has body?");
 
   // Pass inline keyword to optimizer if it appears explicitly on any
@@ -239,7 +241,7 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
           CGM.getModule().getOrInsertNamedMetadata("opencl.kernels");
           
         llvm::Value *Op = Fn;
-        OpenCLMetadata->addOperand(llvm::MDNode::get(Context, &Op, 1));
+        OpenCLMetadata->addOperand(llvm::MDNode::get(Context, Op));
       }
   }
 
@@ -275,11 +277,6 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   if (CGM.getCodeGenOpts().InstrumentForProfiling)
     EmitMCountInstrumentation();
 
-  // FIXME: Leaked.
-  // CC info is ignored, hopefully?
-  CurFnInfo = &CGM.getTypes().getFunctionInfo(FnRetTy, Args,
-                                              FunctionType::ExtInfo());
-
   if (RetTy->isVoidType()) {
     // Void type; nothing to return.
     ReturnValue = 0;
@@ -302,7 +299,7 @@ void CodeGenFunction::StartFunction(GlobalDecl GD, QualType RetTy,
   // emit the type size.
   for (FunctionArgList::const_iterator i = Args.begin(), e = Args.end();
        i != e; ++i) {
-    QualType Ty = i->second;
+    QualType Ty = (*i)->getType();
 
     if (Ty->isVariablyModifiedType())
       EmitVLASize(Ty);
@@ -332,12 +329,13 @@ static void TryMarkNoThrow(llvm::Function *F) {
   F->setDoesNotThrow(true);
 }
 
-void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn) {
+void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
+                                   const CGFunctionInfo &FnInfo) {
   const FunctionDecl *FD = cast<FunctionDecl>(GD.getDecl());
   
   // Check if we should generate debug info for this function.
-  if (CGM.getDebugInfo() && !FD->hasAttr<NoDebugAttr>())
-    DebugInfo = CGM.getDebugInfo();
+  if (CGM.getModuleDebugInfo() && !FD->hasAttr<NoDebugAttr>())
+    DebugInfo = CGM.getModuleDebugInfo();
 
   FunctionArgList Args;
   QualType ResTy = FD->getResultType();
@@ -346,20 +344,15 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn) {
   if (isa<CXXMethodDecl>(FD) && cast<CXXMethodDecl>(FD)->isInstance())
     CGM.getCXXABI().BuildInstanceFunctionParams(*this, ResTy, Args);
 
-  if (FD->getNumParams()) {
-    const FunctionProtoType* FProto = FD->getType()->getAs<FunctionProtoType>();
-    assert(FProto && "Function def must have prototype!");
-
+  if (FD->getNumParams())
     for (unsigned i = 0, e = FD->getNumParams(); i != e; ++i)
-      Args.push_back(std::make_pair(FD->getParamDecl(i),
-                                    FProto->getArgType(i)));
-  }
+      Args.push_back(FD->getParamDecl(i));
 
   SourceRange BodyRange;
   if (Stmt *Body = FD->getBody()) BodyRange = Body->getSourceRange();
 
   // Emit the standard function prologue.
-  StartFunction(GD, ResTy, Fn, Args, BodyRange.getBegin());
+  StartFunction(GD, ResTy, Fn, FnInfo, Args, BodyRange.getBegin());
 
   // Generate the body of the function.
   if (isa<CXXDestructorDecl>(FD))
@@ -387,9 +380,12 @@ bool CodeGenFunction::ContainsLabel(const Stmt *S, bool IgnoreCaseStmts) {
 
   // If this is a label, we have to emit the code, consider something like:
   // if (0) {  ...  foo:  bar(); }  goto foo;
+  //
+  // TODO: If anyone cared, we could track __label__'s, since we know that you
+  // can't jump to one from outside their declared region.
   if (isa<LabelStmt>(S))
     return true;
-
+  
   // If this is a case/default statement, and we haven't seen a switch, we have
   // to emit the code.
   if (isa<SwitchCase>(S) && !IgnoreCaseStmts)
@@ -407,24 +403,63 @@ bool CodeGenFunction::ContainsLabel(const Stmt *S, bool IgnoreCaseStmts) {
   return false;
 }
 
+/// containsBreak - Return true if the statement contains a break out of it.
+/// If the statement (recursively) contains a switch or loop with a break
+/// inside of it, this is fine.
+bool CodeGenFunction::containsBreak(const Stmt *S) {
+  // Null statement, not a label!
+  if (S == 0) return false;
 
-/// ConstantFoldsToSimpleInteger - If the sepcified expression does not fold to
-/// a constant, or if it does but contains a label, return 0.  If it constant
-/// folds to 'true' and does not contain a label, return 1, if it constant folds
-/// to 'false' and does not contain a label, return -1.
-int CodeGenFunction::ConstantFoldsToSimpleInteger(const Expr *Cond) {
+  // If this is a switch or loop that defines its own break scope, then we can
+  // include it and anything inside of it.
+  if (isa<SwitchStmt>(S) || isa<WhileStmt>(S) || isa<DoStmt>(S) ||
+      isa<ForStmt>(S))
+    return false;
+  
+  if (isa<BreakStmt>(S))
+    return true;
+  
+  // Scan subexpressions for verboten breaks.
+  for (Stmt::const_child_range I = S->children(); I; ++I)
+    if (containsBreak(*I))
+      return true;
+  
+  return false;
+}
+
+
+/// ConstantFoldsToSimpleInteger - If the specified expression does not fold
+/// to a constant, or if it does but contains a label, return false.  If it
+/// constant folds return true and set the boolean result in Result.
+bool CodeGenFunction::ConstantFoldsToSimpleInteger(const Expr *Cond,
+                                                   bool &ResultBool) {
+  llvm::APInt ResultInt;
+  if (!ConstantFoldsToSimpleInteger(Cond, ResultInt))
+    return false;
+  
+  ResultBool = ResultInt.getBoolValue();
+  return true;
+}
+
+/// ConstantFoldsToSimpleInteger - If the specified expression does not fold
+/// to a constant, or if it does but contains a label, return false.  If it
+/// constant folds return true and set the folded value.
+bool CodeGenFunction::
+ConstantFoldsToSimpleInteger(const Expr *Cond, llvm::APInt &ResultInt) {
   // FIXME: Rename and handle conversion of other evaluatable things
   // to bool.
   Expr::EvalResult Result;
   if (!Cond->Evaluate(Result, getContext()) || !Result.Val.isInt() ||
       Result.HasSideEffects)
-    return 0;  // Not foldable, not integer or not fully evaluatable.
-
+    return false;  // Not foldable, not integer or not fully evaluatable.
+  
   if (CodeGenFunction::ContainsLabel(Cond))
-    return 0;  // Contains a label.
-
-  return Result.Val.getInt().getBoolValue() ? 1 : -1;
+    return false;  // Contains a label.
+  
+  ResultInt = Result.Val.getInt();
+  return true;
 }
+
 
 
 /// EmitBranchOnBoolExpr - Emit a branch on a boolean condition (e.g. for an if
@@ -434,22 +469,24 @@ int CodeGenFunction::ConstantFoldsToSimpleInteger(const Expr *Cond) {
 void CodeGenFunction::EmitBranchOnBoolExpr(const Expr *Cond,
                                            llvm::BasicBlock *TrueBlock,
                                            llvm::BasicBlock *FalseBlock) {
-  if (const ParenExpr *PE = dyn_cast<ParenExpr>(Cond))
-    return EmitBranchOnBoolExpr(PE->getSubExpr(), TrueBlock, FalseBlock);
+  Cond = Cond->IgnoreParens();
 
   if (const BinaryOperator *CondBOp = dyn_cast<BinaryOperator>(Cond)) {
     // Handle X && Y in a condition.
     if (CondBOp->getOpcode() == BO_LAnd) {
       // If we have "1 && X", simplify the code.  "0 && X" would have constant
       // folded if the case was simple enough.
-      if (ConstantFoldsToSimpleInteger(CondBOp->getLHS()) == 1) {
+      bool ConstantBool = false;
+      if (ConstantFoldsToSimpleInteger(CondBOp->getLHS(), ConstantBool) &&
+          ConstantBool) {
         // br(1 && X) -> br(X).
         return EmitBranchOnBoolExpr(CondBOp->getRHS(), TrueBlock, FalseBlock);
       }
 
       // If we have "X && 1", simplify the code to use an uncond branch.
       // "X && 0" would have been constant folded to 0.
-      if (ConstantFoldsToSimpleInteger(CondBOp->getRHS()) == 1) {
+      if (ConstantFoldsToSimpleInteger(CondBOp->getRHS(), ConstantBool) &&
+          ConstantBool) {
         // br(X && 1) -> br(X).
         return EmitBranchOnBoolExpr(CondBOp->getLHS(), TrueBlock, FalseBlock);
       }
@@ -468,17 +505,22 @@ void CodeGenFunction::EmitBranchOnBoolExpr(const Expr *Cond,
       eval.end(*this);
 
       return;
-    } else if (CondBOp->getOpcode() == BO_LOr) {
+    }
+    
+    if (CondBOp->getOpcode() == BO_LOr) {
       // If we have "0 || X", simplify the code.  "1 || X" would have constant
       // folded if the case was simple enough.
-      if (ConstantFoldsToSimpleInteger(CondBOp->getLHS()) == -1) {
+      bool ConstantBool = false;
+      if (ConstantFoldsToSimpleInteger(CondBOp->getLHS(), ConstantBool) &&
+          !ConstantBool) {
         // br(0 || X) -> br(X).
         return EmitBranchOnBoolExpr(CondBOp->getRHS(), TrueBlock, FalseBlock);
       }
 
       // If we have "X || 0", simplify the code to use an uncond branch.
       // "X || 1" would have been constant folded to 1.
-      if (ConstantFoldsToSimpleInteger(CondBOp->getRHS()) == -1) {
+      if (ConstantFoldsToSimpleInteger(CondBOp->getRHS(), ConstantBool) &&
+          !ConstantBool) {
         // br(X || 0) -> br(X).
         return EmitBranchOnBoolExpr(CondBOp->getLHS(), TrueBlock, FalseBlock);
       }
@@ -575,8 +617,7 @@ static void emitNonZeroVLAInit(CodeGenFunction &CGF, QualType baseType,
   // count must be nonzero.
   CGF.EmitBlock(loopBB);
 
-  llvm::PHINode *cur = Builder.CreatePHI(i8p, "vla.cur");
-  cur->reserveOperandSpace(2);
+  llvm::PHINode *cur = Builder.CreatePHI(i8p, 2, "vla.cur");
   cur->addIncoming(begin, originBB);
 
   // memcpy the individual element bit-pattern.
@@ -613,15 +654,16 @@ CodeGenFunction::EmitNullInitialization(llvm::Value *DestPtr, QualType Ty) {
     DestPtr = Builder.CreateBitCast(DestPtr, BP, "tmp");
 
   // Get size and alignment info for this aggregate.
-  std::pair<uint64_t, unsigned> TypeInfo = getContext().getTypeInfo(Ty);
-  uint64_t Size = TypeInfo.first / 8;
-  unsigned Align = TypeInfo.second / 8;
+  std::pair<CharUnits, CharUnits> TypeInfo = 
+    getContext().getTypeInfoInChars(Ty);
+  CharUnits Size = TypeInfo.first;
+  CharUnits Align = TypeInfo.second;
 
   llvm::Value *SizeVal;
   const VariableArrayType *vla;
 
   // Don't bother emitting a zero-byte memset.
-  if (Size == 0) {
+  if (Size.isZero()) {
     // But note that getTypeInfo returns 0 for a VLA.
     if (const VariableArrayType *vlaType =
           dyn_cast_or_null<VariableArrayType>(
@@ -632,7 +674,7 @@ CodeGenFunction::EmitNullInitialization(llvm::Value *DestPtr, QualType Ty) {
       return;
     }
   } else {
-    SizeVal = llvm::ConstantInt::get(IntPtrTy, Size);
+    SizeVal = llvm::ConstantInt::get(IntPtrTy, Size.getQuantity());
     vla = 0;
   }
 
@@ -657,14 +699,15 @@ CodeGenFunction::EmitNullInitialization(llvm::Value *DestPtr, QualType Ty) {
     if (vla) return emitNonZeroVLAInit(*this, Ty, DestPtr, SrcPtr, SizeVal);
 
     // Get and call the appropriate llvm.memcpy overload.
-    Builder.CreateMemCpy(DestPtr, SrcPtr, SizeVal, Align, false);
+    Builder.CreateMemCpy(DestPtr, SrcPtr, SizeVal, Align.getQuantity(), false);
     return;
   } 
   
   // Otherwise, just memset the whole thing to zero.  This is legal
   // because in LLVM, all default initializers (other than the ones we just
   // handled above) are guaranteed to have a bit pattern of all zeros.
-  Builder.CreateMemSet(DestPtr, Builder.getInt8(0), SizeVal, Align, false);
+  Builder.CreateMemSet(DestPtr, Builder.getInt8(0), SizeVal, 
+                       Align.getQuantity(), false);
 }
 
 llvm::BlockAddress *CodeGenFunction::GetAddrOfLabel(const LabelDecl *L) {
@@ -686,7 +729,8 @@ llvm::BasicBlock *CodeGenFunction::GetIndirectGotoBlock() {
   CGBuilderTy TmpBuilder(createBasicBlock("indirectgoto"));
   
   // Create the PHI node that indirect gotos will add entries to.
-  llvm::Value *DestVal = TmpBuilder.CreatePHI(Int8PtrTy, "indirect.goto.dest");
+  llvm::Value *DestVal = TmpBuilder.CreatePHI(Int8PtrTy, 0,
+                                              "indirect.goto.dest");
   
   // Create the indirect branch instruction.
   IndirectBranch = TmpBuilder.CreateIndirectBr(DestVal);

@@ -71,9 +71,22 @@ void Lexer::InitLexer(const char *BufStart, const char *BufPtr,
          "We assume that the input buffer has a null character at the end"
          " to simplify lexing!");
 
+  // Check whether we have a BOM in the beginning of the buffer. If yes - act
+  // accordingly. Right now we support only UTF-8 with and without BOM, so, just
+  // skip the UTF-8 BOM if it's present.
+  if (BufferStart == BufferPtr) {
+    // Determine the size of the BOM.
+    size_t BOMLength = llvm::StringSwitch<size_t>(BufferStart)
+      .StartsWith("\xEF\xBB\xBF", 3) // UTF-8 BOM
+      .Default(0);
+
+    // Skip the BOM.
+    BufferPtr += BOMLength;
+  }
+
   Is_PragmaLexer = false;
   IsInConflictMarker = false;
-  
+
   // Start of the file is a start of line.
   IsAtStartOfLine = true;
 
@@ -178,7 +191,7 @@ Lexer *Lexer::Create_PragmaLexer(SourceLocation SpellingLoc,
                                          InstantiationLocEnd, TokLen);
 
   // Ensure that the lexer thinks it is inside a directive, so that end \n will
-  // return an EOM token.
+  // return an EOD token.
   L->ParsingPreprocessorDirective = true;
 
   // This lexer really is for _Pragma.
@@ -215,6 +228,54 @@ void Lexer::Stringify(llvm::SmallVectorImpl<char> &Str) {
 //===----------------------------------------------------------------------===//
 // Token Spelling
 //===----------------------------------------------------------------------===//
+
+/// getSpelling() - Return the 'spelling' of this token.  The spelling of a
+/// token are the characters used to represent the token in the source file
+/// after trigraph expansion and escaped-newline folding.  In particular, this
+/// wants to get the true, uncanonicalized, spelling of things like digraphs
+/// UCNs, etc.
+llvm::StringRef Lexer::getSpelling(SourceLocation loc,
+                                   llvm::SmallVectorImpl<char> &buffer,
+                                   const SourceManager &SM,
+                                   const LangOptions &options,
+                                   bool *invalid) {
+  // Break down the source location.
+  std::pair<FileID, unsigned> locInfo = SM.getDecomposedLoc(loc);
+
+  // Try to the load the file buffer.
+  bool invalidTemp = false;
+  llvm::StringRef file = SM.getBufferData(locInfo.first, &invalidTemp);
+  if (invalidTemp) {
+    if (invalid) *invalid = true;
+    return llvm::StringRef();
+  }
+
+  const char *tokenBegin = file.data() + locInfo.second;
+
+  // Lex from the start of the given location.
+  Lexer lexer(SM.getLocForStartOfFile(locInfo.first), options,
+              file.begin(), tokenBegin, file.end());
+  Token token;
+  lexer.LexFromRawLexer(token);
+
+  unsigned length = token.getLength();
+
+  // Common case:  no need for cleaning.
+  if (!token.needsCleaning())
+    return llvm::StringRef(tokenBegin, length);
+  
+  // Hard case, we need to relex the characters into the string.
+  buffer.clear();
+  buffer.reserve(length);
+  
+  for (const char *ti = tokenBegin, *te = ti + length; ti != te; ) {
+    unsigned charSize;
+    buffer.push_back(Lexer::getCharAndSizeNoWarn(ti, charSize, options));
+    ti += charSize;
+  }
+
+  return llvm::StringRef(buffer.data(), buffer.size());
+}
 
 /// getSpelling() - Return the 'spelling' of this token.  The spelling of a
 /// token are the characters used to represent the token in the source file
@@ -626,7 +687,7 @@ SourceLocation Lexer::getLocForEndOfToken(SourceLocation Loc, unsigned Offset,
   else
     return Loc;
   
-  return AdvanceToTokenCharacter(Loc, Len, SM, Features);
+  return Loc.getFileLocWithOffset(Len);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1407,7 +1468,7 @@ bool Lexer::SkipBCPLComment(Token &Result, const char *CurPtr) {
     return SaveBCPLComment(Result, CurPtr);
 
   // If we are inside a preprocessor directive and we see the end of line,
-  // return immediately, so that the lexer can return this as an EOM token.
+  // return immediately, so that the lexer can return this as an EOD token.
   if (ParsingPreprocessorDirective || CurPtr == BufferEnd) {
     BufferPtr = CurPtr;
     return false;
@@ -1534,7 +1595,7 @@ static bool isEndOfBlockCommentWithEscapedNewLine(const char *CurPtr,
 /// some tokens, this will store the first token and return true.
 bool Lexer::SkipBlockComment(Token &Result, const char *CurPtr) {
   // Scan one character past where we should, looking for a '/' character.  Once
-  // we find it, check to see if it was preceeded by a *.  This common
+  // we find it, check to see if it was preceded by a *.  This common
   // optimization helps people who like to put a lot of * characters in their
   // comments.
 
@@ -1715,14 +1776,14 @@ std::string Lexer::ReadToEndOfLine() {
       assert(CurPtr[-1] == Char && "Trigraphs for newline?");
       BufferPtr = CurPtr-1;
 
-      // Next, lex the character, which should handle the EOM transition.
+      // Next, lex the character, which should handle the EOD transition.
       Lex(Tmp);
       if (Tmp.is(tok::code_completion)) {
         if (PP && PP->getCodeCompletionHandler())
           PP->getCodeCompletionHandler()->CodeCompleteNaturalLanguage();
         Lex(Tmp);
       }
-      assert(Tmp.is(tok::eom) && "Unexpected token!");
+      assert(Tmp.is(tok::eod) && "Unexpected token!");
 
       // Finally, we're done, return the string we found.
       return Result;
@@ -1758,7 +1819,7 @@ bool Lexer::LexEndOfFile(Token &Result, const char *CurPtr) {
     // Done parsing the "line".
     ParsingPreprocessorDirective = false;
     // Update the location of token as well as BufferPtr.
-    FormTokenWithChars(Result, CurPtr, tok::eom);
+    FormTokenWithChars(Result, CurPtr, tok::eod);
 
     // Restore comment saving mode, in case it was disabled for directive.
     SetCommentRetentionState(PP->getCommentRetentionState());
@@ -2006,7 +2067,7 @@ LexNextToken:
   case '\n':
   case '\r':
     // If we are inside a preprocessor directive and we see the end of line,
-    // we know we are done with the directive, so return an EOM token.
+    // we know we are done with the directive, so return an EOD token.
     if (ParsingPreprocessorDirective) {
       // Done parsing the "line".
       ParsingPreprocessorDirective = false;
@@ -2017,7 +2078,7 @@ LexNextToken:
       // Since we consumed a newline, we are back at the start of a line.
       IsAtStartOfLine = true;
 
-      Kind = tok::eom;
+      Kind = tok::eod;
       break;
     }
     // The returned token is at the start of the line.
@@ -2043,7 +2104,7 @@ LexNextToken:
     // If the next token is obviously a // or /* */ comment, skip it efficiently
     // too (without going through the big switch stmt).
     if (CurPtr[0] == '/' && CurPtr[1] == '/' && !inKeepCommentMode() &&
-        Features.BCPLComment) {
+        Features.BCPLComment && !Features.TraditionalCPP) {
       if (SkipBCPLComment(Result, CurPtr+2))
         return; // There is a token to return.
       goto SkipIgnoredUnits;
@@ -2232,8 +2293,10 @@ LexNextToken:
       // this as "foo / bar" and langauges with BCPL comments would lex it as
       // "foo".  Check to see if the character after the second slash is a '*'.
       // If so, we will lex that as a "/" instead of the start of a comment.
-      if (Features.BCPLComment ||
-          getCharAndSize(CurPtr+SizeTmp, SizeTmp2) != '*') {
+      // However, we never do this in -traditional-cpp mode.
+      if ((Features.BCPLComment ||
+           getCharAndSize(CurPtr+SizeTmp, SizeTmp2) != '*') &&
+          !Features.TraditionalCPP) {
         if (SkipBCPLComment(Result, ConsumeChar(CurPtr, SizeTmp, Result)))
           return; // There is a token to return.
 
@@ -2335,6 +2398,21 @@ LexNextToken:
       CurPtr = ConsumeChar(CurPtr, SizeTmp, Result);
       Kind = tok::lessequal;
     } else if (Features.Digraphs && Char == ':') {     // '<:' -> '['
+      if (Features.CPlusPlus0x &&
+          getCharAndSize(CurPtr + SizeTmp, SizeTmp2) == ':') {
+        // C++0x [lex.pptoken]p3:
+        //  Otherwise, if the next three characters are <:: and the subsequent
+        //  character is neither : nor >, the < is treated as a preprocessor
+        //  token by itself and not as the first character of the alternative
+        //  token <:.
+        unsigned SizeTmp3;
+        char After = getCharAndSize(CurPtr + SizeTmp + SizeTmp2, SizeTmp3);
+        if (After != ':' && After != '>') {
+          Kind = tok::less;
+          break;
+        }
+      }
+
       CurPtr = ConsumeChar(CurPtr, SizeTmp, Result);
       Kind = tok::l_square;
     } else if (Features.Digraphs && Char == '%') {     // '<%' -> '{'

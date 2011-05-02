@@ -38,6 +38,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20110502: new clang import which bumps version from 2.9 to 3.0
+OLD_FILES+=usr/include/clang/2.9/emmintrin.h
+OLD_FILES+=usr/include/clang/2.9/mm_malloc.h
+OLD_FILES+=usr/include/clang/2.9/mmintrin.h
+OLD_FILES+=usr/include/clang/2.9/pmmintrin.h
+OLD_FILES+=usr/include/clang/2.9/tmmintrin.h
+OLD_FILES+=usr/include/clang/2.9/xmmintrin.h
+OLD_DIRS+=usr/include/clang/2.9
 # 20110417: removal of Objective-C support
 OLD_FILES+=usr/include/objc/encoding.h
 OLD_FILES+=usr/include/objc/hash.h

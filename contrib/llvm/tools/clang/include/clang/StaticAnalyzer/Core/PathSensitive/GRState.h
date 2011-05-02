@@ -35,7 +35,6 @@ class ASTContext;
 namespace ento {
 
 class GRStateManager;
-class Checker;
 
 typedef ConstraintManager* (*ConstraintManagerCreator)(GRStateManager&,
                                                        SubEngine&);
@@ -261,7 +260,7 @@ public:
   const llvm::APSInt *getSymVal(SymbolRef sym) const;
 
   /// Returns the SVal bound to the statement 'S' in the state's environment.
-  SVal getSVal(const Stmt* S) const;
+  SVal getSVal(const Stmt* S, bool useOnlyDirectBindings = false) const;
   
   SVal getSValAsScalarOrLoc(const Stmt *Ex) const;
 
@@ -274,8 +273,6 @@ public:
 
   SVal getSValAsScalarOrLoc(const MemRegion *R) const;
   
-  const llvm::APSInt *getSymVal(SymbolRef sym);
-
   bool scanReachableSymbols(SVal val, SymbolVisitor& visitor) const;
   
   bool scanReachableSymbols(const SVal *I, const SVal *E,
@@ -627,10 +624,6 @@ public:
 // Out-of-line method definitions for GRState.
 //===----------------------------------------------------------------------===//
 
-inline const llvm::APSInt *GRState::getSymVal(SymbolRef sym) {
-  return getStateManager().getSymVal(this, sym);
-}
-  
 inline const VarRegion* GRState::getRegion(const VarDecl *D,
                                            const LocationContext *LC) const {
   return getStateManager().getRegionManager().getVarRegion(D, LC);
@@ -690,14 +683,15 @@ inline const llvm::APSInt *GRState::getSymVal(SymbolRef sym) const {
   return getStateManager().getSymVal(this, sym);
 }
 
-inline SVal GRState::getSVal(const Stmt* Ex) const {
-  return Env.getSVal(Ex, *getStateManager().svalBuilder);
+inline SVal GRState::getSVal(const Stmt* Ex, bool useOnlyDirectBindings) const{
+  return Env.getSVal(Ex, *getStateManager().svalBuilder,
+		     useOnlyDirectBindings);
 }
 
 inline SVal GRState::getSValAsScalarOrLoc(const Stmt *S) const {
   if (const Expr *Ex = dyn_cast<Expr>(S)) {
     QualType T = Ex->getType();
-    if (Loc::isLocType(T) || T->isIntegerType())
+    if (Ex->isLValue() || Loc::isLocType(T) || T->isIntegerType())
       return getSVal(S);
   }
 

@@ -1517,13 +1517,15 @@ APInt::ms APInt::magic() const {
 /// division by a constant as a sequence of multiplies, adds and shifts.
 /// Requires that the divisor not be 0.  Taken from "Hacker's Delight", Henry
 /// S. Warren, Jr., chapter 10.
-APInt::mu APInt::magicu() const {
+/// LeadingZeros can be used to simplify the calculation if the upper bits
+/// of the divided value are known zero.
+APInt::mu APInt::magicu(unsigned LeadingZeros) const {
   const APInt& d = *this;
   unsigned p;
   APInt nc, delta, q1, r1, q2, r2;
   struct mu magu;
   magu.a = 0;               // initialize "add" indicator
-  APInt allOnes = APInt::getAllOnesValue(d.getBitWidth());
+  APInt allOnes = APInt::getAllOnesValue(d.getBitWidth()).lshr(LeadingZeros);
   APInt signedMin = APInt::getSignedMinValue(d.getBitWidth());
   APInt signedMax = APInt::getSignedMaxValue(d.getBitWidth());
 
@@ -2071,6 +2073,16 @@ APInt APInt::smul_ov(const APInt &RHS, bool &Overflow) const {
   
   if (*this != 0 && RHS != 0)
     Overflow = Res.sdiv(RHS) != *this || Res.sdiv(*this) != RHS;
+  else
+    Overflow = false;
+  return Res;
+}
+
+APInt APInt::umul_ov(const APInt &RHS, bool &Overflow) const {
+  APInt Res = *this * RHS;
+
+  if (*this != 0 && RHS != 0)
+    Overflow = Res.udiv(RHS) != *this || Res.udiv(*this) != RHS;
   else
     Overflow = false;
   return Res;

@@ -1,4 +1,4 @@
-//===- UninitializedValues.h - unintialized values analysis ----*- C++ --*-===//
+//= UninitializedValues.h - Finding uses of uninitialized values --*- C++ -*-==//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,71 +7,35 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file provides the interface for the Unintialized Values analysis,
-// a flow-sensitive analysis that detects when variable values are unintialized.
+// This file defines APIs for invoking and reported uninitialized values
+// warnings.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_UNITVALS_H
-#define LLVM_CLANG_UNITVALS_H
-
-#include "clang/Analysis/Support/BlkExprDeclBitVector.h"
-#include "clang/Analysis/FlowSensitive/DataflowValues.h"
+#ifndef LLVM_CLANG_UNINIT_VALS_H
+#define LLVM_CLANG_UNINIT_VALS_H
 
 namespace clang {
 
-  class BlockVarDecl;
-  class Expr;
-  class DeclRefExpr;
-  class VarDecl;
-
-/// UninitializedValues_ValueTypes - Utility class to wrap type declarations
-///   for dataflow values and dataflow analysis state for the
-///   Unitialized Values analysis.
-class UninitializedValues_ValueTypes {
+class AnalysisContext;
+class CFG;  
+class DeclContext;
+class Expr;
+class VarDecl;
+  
+class UninitVariablesHandler {
 public:
-
-  struct ObserverTy;
-
-  struct AnalysisDataTy : public StmtDeclBitVector_Types::AnalysisDataTy {
-    AnalysisDataTy() : Observer(NULL), FullUninitTaint(true) {}
-    virtual ~AnalysisDataTy() {}
-
-    ObserverTy* Observer;
-    bool FullUninitTaint;
-  };
-
-  typedef StmtDeclBitVector_Types::ValTy ValTy;
-
-  //===--------------------------------------------------------------------===//
-  // ObserverTy - Observer for querying DeclRefExprs that use an uninitalized
-  //   value.
-  //===--------------------------------------------------------------------===//
-
-  struct ObserverTy {
-    virtual ~ObserverTy();
-    virtual void ObserveDeclRefExpr(ValTy& Val, AnalysisDataTy& AD,
-                                    DeclRefExpr* DR, VarDecl* VD) = 0;
-  };
+  UninitVariablesHandler() {}
+  virtual ~UninitVariablesHandler();
+  
+  virtual void handleUseOfUninitVariable(const Expr *ex,
+                                         const VarDecl *vd,
+                                         bool isAlwaysUninit) {}
 };
+  
+void runUninitializedVariablesAnalysis(const DeclContext &dc, const CFG &cfg,
+                                       AnalysisContext &ac,
+                                       UninitVariablesHandler &handler);
 
-/// UninitializedValues - Objects of this class encapsulate dataflow analysis
-///  information regarding what variable declarations in a function are
-///  potentially unintialized.
-class UninitializedValues :
-  public DataflowValues<UninitializedValues_ValueTypes> {
-public:
-  typedef UninitializedValues_ValueTypes::ObserverTy ObserverTy;
-
-  UninitializedValues(CFG &cfg) { getAnalysisData().setCFG(cfg); }
-
-  /// IntializeValues - Create initial dataflow values and meta data for
-  ///  a given CFG.  This is intended to be called by the dataflow solver.
-  void InitializeValues(const CFG& cfg);
-};
-
-
-void CheckUninitializedValues(CFG& cfg, ASTContext& Ctx, Diagnostic& Diags,
-                              bool FullUninitTaint=false);
-} // end namespace clang
+}
 #endif

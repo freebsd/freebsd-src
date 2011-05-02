@@ -87,10 +87,8 @@ Instruction *InstCombiner::PromoteCastOfAllocation(BitCastInst &CI,
 
   // If the allocation has multiple uses, only promote it if we are strictly
   // increasing the alignment of the resultant allocation.  If we keep it the
-  // same, we open the door to infinite loops of various kinds.  (A reference
-  // from a dbg.declare doesn't count as a use for this purpose.)
-  if (!AI.hasOneUse() && !hasOneUsePlusDeclare(&AI) &&
-      CastElTyAlign == AllocElTyAlign) return 0;
+  // same, we open the door to infinite loops of various kinds.
+  if (!AI.hasOneUse() && CastElTyAlign == AllocElTyAlign) return 0;
 
   uint64_t AllocElTySize = TD->getTypeAllocSize(AllocElTy);
   uint64_t CastElTySize = TD->getTypeAllocSize(CastElTy);
@@ -128,15 +126,10 @@ Instruction *InstCombiner::PromoteCastOfAllocation(BitCastInst &CI,
   New->setAlignment(AI.getAlignment());
   New->takeName(&AI);
   
-  // If the allocation has one real use plus a dbg.declare, just remove the
-  // declare.
-  if (DbgDeclareInst *DI = hasOneUsePlusDeclare(&AI)) {
-    EraseInstFromFunction(*(Instruction*)DI);
-  }
   // If the allocation has multiple real uses, insert a cast and change all
   // things that used it to use the new cast.  This will also hack on CI, but it
   // will die soon.
-  else if (!AI.hasOneUse()) {
+  if (!AI.hasOneUse()) {
     // New is the allocation instruction, pointer typed. AI is the original
     // allocation instruction, also pointer typed. Thus, cast to use is BitCast.
     Value *NewCast = AllocaBuilder.CreateBitCast(New, AI.getType(), "tmpcast");
@@ -203,7 +196,7 @@ Value *InstCombiner::EvaluateInDifferentType(Value *V, const Type *Ty,
   }
   case Instruction::PHI: {
     PHINode *OPN = cast<PHINode>(I);
-    PHINode *NPN = PHINode::Create(Ty);
+    PHINode *NPN = PHINode::Create(Ty, OPN->getNumIncomingValues());
     for (unsigned i = 0, e = OPN->getNumIncomingValues(); i != e; ++i) {
       Value *V =EvaluateInDifferentType(OPN->getIncomingValue(i), Ty, isSigned);
       NPN->addIncoming(V, OPN->getIncomingBlock(i));
@@ -883,6 +876,102 @@ Instruction *InstCombiner::visitZExt(ZExtInst &CI) {
   return 0;
 }
 
+/// transformSExtICmp - Transform (sext icmp) to bitwise / integer operations
+/// in order to eliminate the icmp.
+Instruction *InstCombiner::transformSExtICmp(ICmpInst *ICI, Instruction &CI) {
+  Value *Op0 = ICI->getOperand(0), *Op1 = ICI->getOperand(1);
+  ICmpInst::Predicate Pred = ICI->getPredicate();
+
+  if (ConstantInt *Op1C = dyn_cast<ConstantInt>(Op1)) {
+    // (x <s  0) ? -1 : 0 -> ashr x, 31        -> all ones if negative
+    // (x >s -1) ? -1 : 0 -> not (ashr x, 31)  -> all ones if positive
+    if ((Pred == ICmpInst::ICMP_SLT && Op1C->isZero()) ||
+        (Pred == ICmpInst::ICMP_SGT && Op1C->isAllOnesValue())) {
+
+      Value *Sh = ConstantInt::get(Op0->getType(),
+                                   Op0->getType()->getScalarSizeInBits()-1);
+      Value *In = Builder->CreateAShr(Op0, Sh, Op0->getName()+".lobit");
+      if (In->getType() != CI.getType())
+        In = Builder->CreateIntCast(In, CI.getType(), true/*SExt*/, "tmp");
+
+      if (Pred == ICmpInst::ICMP_SGT)
+        In = Builder->CreateNot(In, In->getName()+".not");
+      return ReplaceInstUsesWith(CI, In);
+    }
+
+    // If we know that only one bit of the LHS of the icmp can be set and we
+    // have an equality comparison with zero or a power of 2, we can transform
+    // the icmp and sext into bitwise/integer operations.
+    if (ICI->hasOneUse() &&
+        ICI->isEquality() && (Op1C->isZero() || Op1C->getValue().isPowerOf2())){
+      unsigned BitWidth = Op1C->getType()->getBitWidth();
+      APInt KnownZero(BitWidth, 0), KnownOne(BitWidth, 0);
+      APInt TypeMask(APInt::getAllOnesValue(BitWidth));
+      ComputeMaskedBits(Op0, TypeMask, KnownZero, KnownOne);
+
+      APInt KnownZeroMask(~KnownZero);
+      if (KnownZeroMask.isPowerOf2()) {
+        Value *In = ICI->getOperand(0);
+
+        // If the icmp tests for a known zero bit we can constant fold it.
+        if (!Op1C->isZero() && Op1C->getValue() != KnownZeroMask) {
+          Value *V = Pred == ICmpInst::ICMP_NE ?
+                       ConstantInt::getAllOnesValue(CI.getType()) :
+                       ConstantInt::getNullValue(CI.getType());
+          return ReplaceInstUsesWith(CI, V);
+        }
+
+        if (!Op1C->isZero() == (Pred == ICmpInst::ICMP_NE)) {
+          // sext ((x & 2^n) == 0)   -> (x >> n) - 1
+          // sext ((x & 2^n) != 2^n) -> (x >> n) - 1
+          unsigned ShiftAmt = KnownZeroMask.countTrailingZeros();
+          // Perform a right shift to place the desired bit in the LSB.
+          if (ShiftAmt)
+            In = Builder->CreateLShr(In,
+                                     ConstantInt::get(In->getType(), ShiftAmt));
+
+          // At this point "In" is either 1 or 0. Subtract 1 to turn
+          // {1, 0} -> {0, -1}.
+          In = Builder->CreateAdd(In,
+                                  ConstantInt::getAllOnesValue(In->getType()),
+                                  "sext");
+        } else {
+          // sext ((x & 2^n) != 0)   -> (x << bitwidth-n) a>> bitwidth-1
+          // sext ((x & 2^n) == 2^n) -> (x << bitwidth-n) a>> bitwidth-1
+          unsigned ShiftAmt = KnownZeroMask.countLeadingZeros();
+          // Perform a left shift to place the desired bit in the MSB.
+          if (ShiftAmt)
+            In = Builder->CreateShl(In,
+                                    ConstantInt::get(In->getType(), ShiftAmt));
+
+          // Distribute the bit over the whole bit width.
+          In = Builder->CreateAShr(In, ConstantInt::get(In->getType(),
+                                                        BitWidth - 1), "sext");
+        }
+
+        if (CI.getType() == In->getType())
+          return ReplaceInstUsesWith(CI, In);
+        return CastInst::CreateIntegerCast(In, CI.getType(), true/*SExt*/);
+      }
+    }
+  }
+
+  // vector (x <s 0) ? -1 : 0 -> ashr x, 31   -> all ones if signed.
+  if (const VectorType *VTy = dyn_cast<VectorType>(CI.getType())) {
+    if (Pred == ICmpInst::ICMP_SLT && match(Op1, m_Zero()) &&
+        Op0->getType() == CI.getType()) {
+      const Type *EltTy = VTy->getElementType();
+
+      // splat the shift constant to a constant vector.
+      Constant *VSh = ConstantInt::get(VTy, EltTy->getScalarSizeInBits()-1);
+      Value *In = Builder->CreateAShr(Op0, VSh, Op0->getName()+".lobit");
+      return ReplaceInstUsesWith(CI, In);
+    }
+  }
+
+  return 0;
+}
+
 /// CanEvaluateSExtd - Return true if we can take the specified value
 /// and return it as type Ty without inserting any new casts and without
 /// changing the value of the common low bits.  This is used by code that tries
@@ -1006,44 +1095,9 @@ Instruction *InstCombiner::visitSExt(SExtInst &CI) {
       Value *Res = Builder->CreateShl(TI->getOperand(0), ShAmt, "sext");
       return BinaryOperator::CreateAShr(Res, ShAmt);
     }
-  
-  
-  // (x <s 0) ? -1 : 0 -> ashr x, 31   -> all ones if signed
-  // (x >s -1) ? -1 : 0 -> ashr x, 31  -> all ones if not signed
-  {
-  ICmpInst::Predicate Pred; Value *CmpLHS; ConstantInt *CmpRHS;
-  if (match(Src, m_ICmp(Pred, m_Value(CmpLHS), m_ConstantInt(CmpRHS)))) {
-    // sext (x <s  0) to i32 --> x>>s31       true if signbit set.
-    // sext (x >s -1) to i32 --> (x>>s31)^-1  true if signbit clear.
-    if ((Pred == ICmpInst::ICMP_SLT && CmpRHS->isZero()) ||
-        (Pred == ICmpInst::ICMP_SGT && CmpRHS->isAllOnesValue())) {
-      Value *Sh = ConstantInt::get(CmpLHS->getType(),
-                                   CmpLHS->getType()->getScalarSizeInBits()-1);
-      Value *In = Builder->CreateAShr(CmpLHS, Sh, CmpLHS->getName()+".lobit");
-      if (In->getType() != CI.getType())
-        In = Builder->CreateIntCast(In, CI.getType(), true/*SExt*/, "tmp");
-      
-      if (Pred == ICmpInst::ICMP_SGT)
-        In = Builder->CreateNot(In, In->getName()+".not");
-      return ReplaceInstUsesWith(CI, In);
-    }
-  }
-  }
 
-  // vector (x <s 0) ? -1 : 0 -> ashr x, 31   -> all ones if signed.
-  if (const VectorType *VTy = dyn_cast<VectorType>(DestTy)) {
-    ICmpInst::Predicate Pred; Value *CmpLHS;
-    if (match(Src, m_ICmp(Pred, m_Value(CmpLHS), m_Zero()))) {
-      if (Pred == ICmpInst::ICMP_SLT && CmpLHS->getType() == DestTy) {
-        const Type *EltTy = VTy->getElementType();
-
-        // splat the shift constant to a constant vector.
-        Constant *VSh = ConstantInt::get(VTy, EltTy->getScalarSizeInBits()-1);
-        Value *In = Builder->CreateAShr(CmpLHS, VSh,CmpLHS->getName()+".lobit");
-        return ReplaceInstUsesWith(CI, In);
-      }
-    }
-  }
+  if (ICmpInst *ICI = dyn_cast<ICmpInst>(Src))
+    return transformSExtICmp(ICI, CI);
 
   // If the input is a shl/ashr pair of a same constant, then this is a sign
   // extension from a smaller value.  If we could trust arbitrary bitwidth

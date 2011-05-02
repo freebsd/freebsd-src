@@ -153,7 +153,6 @@ bool StackProtector::InsertStackProtectors() {
 
   for (Function::iterator I = F->begin(), E = F->end(); I != E; ) {
     BasicBlock *BB = I++;
-
     ReturnInst *RI = dyn_cast<ReturnInst>(BB->getTerminator());
     if (!RI) continue;
 
@@ -191,8 +190,6 @@ bool StackProtector::InsertStackProtectors() {
 
       // Create the basic block to jump to when the guard check fails.
       FailBB = CreateFailBB();
-      if (DT)
-        FailBBDom = DT->isReachableFromEntry(BB) ? BB : 0;
     }
 
     // For each block with a return instruction, convert this:
@@ -219,9 +216,10 @@ bool StackProtector::InsertStackProtectors() {
 
     // Split the basic block before the return instruction.
     BasicBlock *NewBB = BB->splitBasicBlock(RI, "SP_return");
-    if (DT) {
-      DT->addNewBlock(NewBB, DT->isReachableFromEntry(BB) ? BB : 0);
-      FailBBDom = DT->findNearestCommonDominator(FailBBDom, BB);
+
+    if (DT && DT->isReachableFromEntry(BB)) {
+      DT->addNewBlock(NewBB, BB);
+      FailBBDom = FailBBDom ? DT->findNearestCommonDominator(FailBBDom, BB) :BB;
     }
 
     // Remove default branch instruction to the new BB.
@@ -242,7 +240,7 @@ bool StackProtector::InsertStackProtectors() {
   // statements in the function.
   if (!FailBB) return false;
 
-  if (DT)
+  if (DT && FailBBDom)
     DT->addNewBlock(FailBB, FailBBDom);
 
   return true;

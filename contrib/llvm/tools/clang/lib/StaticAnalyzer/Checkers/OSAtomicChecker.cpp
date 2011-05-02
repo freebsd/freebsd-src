@@ -11,8 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "InternalChecks.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/Checker.h"
+#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/Basic/Builtins.h"
 
 using namespace clang;
@@ -20,22 +22,17 @@ using namespace ento;
 
 namespace {
 
-class OSAtomicChecker : public Checker {
+class OSAtomicChecker : public Checker<eval::Call> {
 public:
-  static void *getTag() { static int tag = 0; return &tag; }
-  virtual bool evalCallExpr(CheckerContext &C, const CallExpr *CE);
+  bool evalCall(const CallExpr *CE, CheckerContext &C) const;
 
 private:
-  bool evalOSAtomicCompareAndSwap(CheckerContext &C, const CallExpr *CE);
+  static bool evalOSAtomicCompareAndSwap(CheckerContext &C, const CallExpr *CE);
 };
 
 }
 
-void ento::RegisterOSAtomicChecker(ExprEngine &Eng) {
-  Eng.registerCheck(new OSAtomicChecker());
-}
-
-bool OSAtomicChecker::evalCallExpr(CheckerContext &C,const CallExpr *CE) {
+bool OSAtomicChecker::evalCall(const CallExpr *CE, CheckerContext &C) const {
   const GRState *state = C.getState();
   const Expr *Callee = CE->getCallee();
   SVal L = state->getSVal(Callee);
@@ -130,7 +127,12 @@ bool OSAtomicChecker::evalOSAtomicCompareAndSwap(CheckerContext &C,
 
     ExplodedNode *N = *I;
     const GRState *stateLoad = N->getState();
-    SVal theValueVal_untested = stateLoad->getSVal(theValueExpr);
+
+    // Use direct bindings from the environment since we are forcing a load
+    // from a location that the Environment would typically not be used
+    // to bind a value.
+    SVal theValueVal_untested = stateLoad->getSVal(theValueExpr, true);
+
     SVal oldValueVal_untested = stateLoad->getSVal(oldValueExpr);
 
     // FIXME: Issue an error.
@@ -200,4 +202,8 @@ bool OSAtomicChecker::evalOSAtomicCompareAndSwap(CheckerContext &C,
   }
 
   return true;
+}
+
+void ento::registerOSAtomicChecker(CheckerManager &mgr) {
+  mgr.registerChecker<OSAtomicChecker>();
 }

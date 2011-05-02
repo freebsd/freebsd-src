@@ -14,18 +14,20 @@
 #ifndef LLVM_CLANG_BASIC_TARGETINFO_H
 #define LLVM_CLANG_BASIC_TARGETINFO_H
 
-// FIXME: Daniel isn't smart enough to use a prototype for this.
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/DataTypes.h"
+#include "clang/Basic/AddressSpaces.h"
+#include "clang/Basic/VersionTuple.h"
 #include <cassert>
 #include <vector>
 #include <string>
 
 namespace llvm {
 struct fltSemantics;
-class StringRef;
 }
 
 namespace clang {
@@ -56,7 +58,7 @@ enum TargetCXXABI {
 
 /// TargetInfo - This class exposes information about the current target.
 ///
-class TargetInfo {
+class TargetInfo : public llvm::RefCountedBase<TargetInfo> {
   llvm::Triple Triple;
 protected:
   // Target values set by the ctor of the actual target implementation.  Default
@@ -78,6 +80,10 @@ protected:
   const llvm::fltSemantics *FloatFormat, *DoubleFormat, *LongDoubleFormat;
   unsigned char RegParmMax, SSERegParmMax;
   TargetCXXABI CXXABI;
+  const LangAS::Map *AddrSpaceMap;
+
+  mutable llvm::StringRef PlatformName;
+  mutable VersionTuple PlatformMinVersion;
 
   unsigned HasAlignMac68kSupport : 1;
   unsigned RealTypeUsesObjCFPRet : 3;
@@ -530,6 +536,19 @@ public:
   virtual const char *getStaticInitSectionSpecifier() const {
     return 0;
   }
+
+  const LangAS::Map &getAddressSpaceMap() const {
+    return *AddrSpaceMap;
+  }
+
+  /// \brief Retrieve the name of the platform as it is used in the
+  /// availability attribute.
+  llvm::StringRef getPlatformName() const { return PlatformName; }
+
+  /// \brief Retrieve the minimum desired version of the platform, to
+  /// which the program should be compiled.
+  VersionTuple getPlatformMinVersion() const { return PlatformMinVersion; }
+
 protected:
   virtual uint64_t getPointerWidthV(unsigned AddrSpace) const {
     return PointerWidth;

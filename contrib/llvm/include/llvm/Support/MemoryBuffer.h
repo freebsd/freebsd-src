@@ -40,7 +40,8 @@ class MemoryBuffer {
   MemoryBuffer &operator=(const MemoryBuffer &); // DO NOT IMPLEMENT
 protected:
   MemoryBuffer() {}
-  void init(const char *BufStart, const char *BufEnd);
+  void init(const char *BufStart, const char *BufEnd,
+            bool RequiresNullTerminator);
 public:
   virtual ~MemoryBuffer();
 
@@ -63,21 +64,27 @@ public:
   /// specified, this means that the client knows that the file exists and that
   /// it has the specified size.
   static error_code getFile(StringRef Filename, OwningPtr<MemoryBuffer> &result,
-                            int64_t FileSize = -1);
+                            int64_t FileSize = -1,
+                            bool RequiresNullTerminator = true);
   static error_code getFile(const char *Filename,
                             OwningPtr<MemoryBuffer> &result,
-                            int64_t FileSize = -1);
+                            int64_t FileSize = -1,
+                            bool RequiresNullTerminator = true);
 
   /// getOpenFile - Given an already-open file descriptor, read the file and
   /// return a MemoryBuffer.
   static error_code getOpenFile(int FD, const char *Filename,
                                 OwningPtr<MemoryBuffer> &result,
-                                int64_t FileSize = -1);
+                                size_t FileSize = -1,
+                                size_t MapSize = -1,
+                                off_t Offset = 0,
+                                bool RequiresNullTerminator = true);
 
   /// getMemBuffer - Open the specified memory range as a MemoryBuffer.  Note
   /// that InputData must be null terminated.
   static MemoryBuffer *getMemBuffer(StringRef InputData,
-                                    StringRef BufferName = "");
+                                    StringRef BufferName = "",
+                                    bool RequiresNullTerminator = true);
 
   /// getMemBufferCopy - Open the specified memory range as a MemoryBuffer,
   /// copying the contents and taking ownership of it.  InputData does not
@@ -112,6 +119,21 @@ public:
   static error_code getFileOrSTDIN(const char *Filename,
                                    OwningPtr<MemoryBuffer> &result,
                                    int64_t FileSize = -1);
+  
+  
+  //===--------------------------------------------------------------------===//
+  // Provided for performance analysis.
+  //===--------------------------------------------------------------------===//
+
+  /// The kind of memory backing used to support the MemoryBuffer.
+  enum BufferKind {
+    MemoryBuffer_Malloc,
+    MemoryBuffer_MMap
+  };
+
+  /// Return information on the memory mechanism used to support the
+  /// MemoryBuffer.
+  virtual BufferKind getBufferKind() const = 0;  
 };
 
 } // end namespace llvm

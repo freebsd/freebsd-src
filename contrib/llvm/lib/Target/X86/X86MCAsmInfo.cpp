@@ -15,7 +15,9 @@
 #include "X86TargetMachine.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSectionELF.h"
+#include "llvm/MC/MCStreamer.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ELF.h"
 using namespace llvm;
@@ -69,7 +71,22 @@ X86MCAsmInfoDarwin::X86MCAsmInfoDarwin(const Triple &Triple) {
   DwarfUsesInlineInfoSection = true;
 
   // Exceptions handling
-  ExceptionsType = ExceptionHandling::DwarfTable;
+  ExceptionsType = ExceptionHandling::DwarfCFI;
+}
+
+const MCExpr *
+X86_64MCAsmInfoDarwin::getExprForPersonalitySymbol(const MCSymbol *Sym,
+                                                   unsigned Encoding,
+                                                   MCStreamer &Streamer) const {
+  MCContext &Context = Streamer.getContext();
+  const MCExpr *Res =
+    MCSymbolRefExpr::Create(Sym, MCSymbolRefExpr::VK_GOTPCREL, Context);
+  const MCExpr *Four = MCConstantExpr::Create(4, Context);
+  return MCBinaryExpr::CreateAdd(Res, Four, Context);
+}
+
+X86_64MCAsmInfoDarwin::X86_64MCAsmInfoDarwin(const Triple &Triple)
+  : X86MCAsmInfoDarwin(Triple) {
 }
 
 X86ELFMCAsmInfo::X86ELFMCAsmInfo(const Triple &T) {
@@ -89,7 +106,9 @@ X86ELFMCAsmInfo::X86ELFMCAsmInfo(const Triple &T) {
   SupportsDebugInformation = true;
 
   // Exceptions handling
-  ExceptionsType = ExceptionHandling::DwarfTable;
+  ExceptionsType = ExceptionHandling::DwarfCFI;
+
+  DwarfRequiresFrameSection = false;
 
   // OpenBSD has buggy support for .quad in 32-bit mode, just split into two
   // .words.

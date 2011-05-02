@@ -76,7 +76,6 @@ INITIALIZE_PASS(InstCombiner, "instcombine",
                 "Combine redundant instructions", false, false)
 
 void InstCombiner::getAnalysisUsage(AnalysisUsage &AU) const {
-  AU.addPreservedID(LCSSAID);
   AU.setPreservesCFG();
 }
 
@@ -600,8 +599,7 @@ Instruction *InstCombiner::FoldOpIntoPhi(Instruction &I) {
   }
 
   // Okay, we can do the transformation: create the new PHI node.
-  PHINode *NewPN = PHINode::Create(I.getType(), "");
-  NewPN->reserveOperandSpace(PN->getNumOperands()/2);
+  PHINode *NewPN = PHINode::Create(I.getType(), PN->getNumIncomingValues(), "");
   InsertNewInstBefore(NewPN, *PN);
   NewPN->takeName(PN);
   
@@ -850,22 +848,23 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
         GetElementPtrInst::Create(Src->getOperand(0), Indices.begin(),
                                   Indices.end(), GEP.getName());
   }
-  
+
   // Handle gep(bitcast x) and gep(gep x, 0, 0, 0).
   Value *StrippedPtr = PtrOp->stripPointerCasts();
-  if (StrippedPtr != PtrOp) {
-    const PointerType *StrippedPtrTy =cast<PointerType>(StrippedPtr->getType());
+  const PointerType *StrippedPtrTy =cast<PointerType>(StrippedPtr->getType());
+  if (StrippedPtr != PtrOp &&
+    StrippedPtrTy->getAddressSpace() == GEP.getPointerAddressSpace()) {
 
     bool HasZeroPointerIndex = false;
     if (ConstantInt *C = dyn_cast<ConstantInt>(GEP.getOperand(1)))
       HasZeroPointerIndex = C->isZero();
-    
+
     // Transform: GEP (bitcast [10 x i8]* X to [0 x i8]*), i32 0, ...
     // into     : GEP [10 x i8]* X, i32 0, ...
     //
     // Likewise, transform: GEP (bitcast i8* X to [0 x i8]*), i32 0, ...
     //           into     : GEP i8* X, ...
-    // 
+    //
     // This occurs when the program declares an array extern like "int X[];"
     if (HasZeroPointerIndex) {
       const PointerType *CPTy = cast<PointerType>(PtrOp->getType());
@@ -976,7 +975,7 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
       }
     }
   }
-  
+
   /// See if we can simplify:
   ///   X = bitcast A* to B*
   ///   Y = gep X, <...constant indices...>
@@ -984,12 +983,14 @@ Instruction *InstCombiner::visitGetElementPtrInst(GetElementPtrInst &GEP) {
   /// analysis of unions.  If "A" is also a bitcast, wait for A/X to be merged.
   if (BitCastInst *BCI = dyn_cast<BitCastInst>(PtrOp)) {
     if (TD &&
-        !isa<BitCastInst>(BCI->getOperand(0)) && GEP.hasAllConstantIndices()) {
+        !isa<BitCastInst>(BCI->getOperand(0)) && GEP.hasAllConstantIndices() &&
+        StrippedPtrTy->getAddressSpace() == GEP.getPointerAddressSpace()) {
+
       // Determine how much the GEP moves the pointer.  We are guaranteed to get
       // a constant back from EmitGEPOffset.
       ConstantInt *OffsetV = cast<ConstantInt>(EmitGEPOffset(&GEP));
       int64_t Offset = OffsetV->getSExtValue();
-      
+
       // If this GEP instruction doesn't move the pointer, just replace the GEP
       // with a bitcast of the real input to the dest type.
       if (Offset == 0) {
@@ -1635,7 +1636,6 @@ bool InstCombiner::DoOneIteration(Function &F, unsigned Iteration) {
 
 
 bool InstCombiner::runOnFunction(Function &F) {
-  MustPreserveLCSSA = mustPreserveAnalysisID(LCSSAID);
   TD = getAnalysisIfAvailable<TargetData>();
 
   
@@ -1647,6 +1647,10 @@ bool InstCombiner::runOnFunction(Function &F) {
   Builder = &TheBuilder;
   
   bool EverMadeChange = false;
+
+  // Lower dbg.declare intrinsics otherwise their value may be clobbered
+  // by instcombiner.
+  EverMadeChange = LowerDbgDeclare(F);
 
   // Iterate while there is work to do.
   unsigned Iteration = 0;

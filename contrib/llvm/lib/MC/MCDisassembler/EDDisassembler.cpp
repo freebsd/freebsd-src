@@ -193,7 +193,8 @@ EDDisassembler::EDDisassembler(CPUKey &key) :
   
   InstString.reset(new std::string);
   InstStream.reset(new raw_string_ostream(*InstString));
-  InstPrinter.reset(Tgt->createMCInstPrinter(LLVMSyntaxVariant, *AsmInfo));
+  InstPrinter.reset(Tgt->createMCInstPrinter(*TargetMachine, LLVMSyntaxVariant,
+                                             *AsmInfo));
   
   if (!InstPrinter)
     return;
@@ -253,9 +254,11 @@ EDInst *EDDisassembler::createInst(EDByteReaderCallback byteReader,
     delete inst;
     return NULL;
   } else {
-    const llvm::EDInstInfo *thisInstInfo;
+    const llvm::EDInstInfo *thisInstInfo = NULL;
 
-    thisInstInfo = &InstInfos[inst->getOpcode()];
+    if (InstInfos) {
+      thisInstInfo = &InstInfos[inst->getOpcode()];
+    }
     
     EDInst* sdInst = new EDInst(inst, byteSize, *this, thisInstInfo);
     return sdInst;
@@ -331,6 +334,15 @@ int EDDisassembler::printInst(std::string &str, MCInst &inst) {
   return 0;
 }
 
+static void diag_handler(const SMDiagnostic &diag,
+                         void *context)
+{
+  if (context) {
+    EDDisassembler *disassembler = static_cast<EDDisassembler*>(context);
+    diag.Print("", disassembler->ErrorStream);
+  }
+}
+
 int EDDisassembler::parseInst(SmallVectorImpl<MCParsedAsmOperand*> &operands,
                               SmallVectorImpl<AsmToken> &tokens,
                               const std::string &str) {
@@ -353,6 +365,7 @@ int EDDisassembler::parseInst(SmallVectorImpl<MCParsedAsmOperand*> &operands,
   SMLoc instLoc;
   
   SourceMgr sourceMgr;
+  sourceMgr.setDiagHandler(diag_handler, static_cast<void*>(this));
   sourceMgr.AddNewSourceBuffer(buf, SMLoc()); // ownership of buf handed over
   MCContext context(*AsmInfo, NULL);
   OwningPtr<MCStreamer> streamer(createNullStreamer(context));

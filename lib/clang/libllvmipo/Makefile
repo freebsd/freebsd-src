@@ -22,8 +22,7 @@ SRCS=	ArgumentPromotion.cpp \
 	PartialInlining.cpp \
 	PruneEH.cpp \
 	StripDeadPrototypes.cpp \
-	StripSymbols.cpp \
-	StructRetPromotion.cpp
+	StripSymbols.cpp
 
 TGHDRS=	Intrinsics
 

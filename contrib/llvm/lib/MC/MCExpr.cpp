@@ -310,6 +310,11 @@ static void AttemptToFoldSymbolOffsetDifference(const MCAssembler *Asm,
   if (AD.getFragment() == BD.getFragment()) {
     Addend += (AD.getOffset() - BD.getOffset());
 
+    // Pointers to Thumb symbols need to have their low-bit set to allow
+    // for interworking.
+    if (Asm->isThumbFunc(&SA))
+      Addend |= 1;
+
     // Clear the symbol expr pointers to indicate we have folded these
     // operands.
     A = B = 0;
@@ -384,7 +389,7 @@ static bool EvaluateSymbolicAdd(const MCAssembler *Asm,
     //   (LHS_A - RHS_B),
     //   (RHS_A - LHS_B),
     //   (RHS_A - RHS_B).
-    // Since we are attempting to be as aggresive as possible about folding, we
+    // Since we are attempting to be as aggressive as possible about folding, we
     // attempt to evaluate each possible alternative.
     AttemptToFoldSymbolOffsetDifference(Asm, Layout, Addrs, InSet, LHS_A, LHS_B,
                                         Result_Cst);
@@ -553,4 +558,46 @@ bool MCExpr::EvaluateAsRelocatableImpl(MCValue &Res,
 
   assert(0 && "Invalid assembly expression kind!");
   return false;
+}
+
+const MCSection *MCExpr::FindAssociatedSection() const {
+  switch (getKind()) {
+  case Target:
+    // We never look through target specific expressions.
+    return cast<MCTargetExpr>(this)->FindAssociatedSection();
+
+  case Constant:
+    return MCSymbol::AbsolutePseudoSection;
+
+  case SymbolRef: {
+    const MCSymbolRefExpr *SRE = cast<MCSymbolRefExpr>(this);
+    const MCSymbol &Sym = SRE->getSymbol();
+
+    if (Sym.isDefined())
+      return &Sym.getSection();
+
+    return 0;
+  }
+
+  case Unary:
+    return cast<MCUnaryExpr>(this)->getSubExpr()->FindAssociatedSection();
+
+  case Binary: {
+    const MCBinaryExpr *BE = cast<MCBinaryExpr>(this);
+    const MCSection *LHS_S = BE->getLHS()->FindAssociatedSection();
+    const MCSection *RHS_S = BE->getRHS()->FindAssociatedSection();
+
+    // If either section is absolute, return the other.
+    if (LHS_S == MCSymbol::AbsolutePseudoSection)
+      return RHS_S;
+    if (RHS_S == MCSymbol::AbsolutePseudoSection)
+      return LHS_S;
+
+    // Otherwise, return the first non-null section.
+    return LHS_S ? LHS_S : RHS_S;
+  }
+  }
+
+  assert(0 && "Invalid assembly expression kind!");
+  return 0;
 }

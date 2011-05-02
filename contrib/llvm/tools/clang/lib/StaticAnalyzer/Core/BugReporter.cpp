@@ -432,7 +432,7 @@ public:
     else if (const DeclStmt* DS = dyn_cast<DeclStmt>(S)) {
       // FIXME: Eventually CFGs won't have DeclStmts.  Right now we
       //  assume that each DeclStmt has a single Decl.  This invariant
-      //  holds by contruction in the CFG.
+      //  holds by construction in the CFG.
       VD = dyn_cast<VarDecl>(*DS->decl_begin());
     }
 
@@ -859,7 +859,8 @@ class EdgeBuilder {
           default:
             break;
           case Stmt::ParenExprClass:
-            S = cast<ParenExpr>(S)->IgnoreParens();
+          case Stmt::GenericSelectionExprClass:
+            S = cast<Expr>(S)->IgnoreParens();
             firstCharOnly = true;
             continue;
           case Stmt::BinaryConditionalOperatorClass:
@@ -1170,13 +1171,14 @@ static void GenerateExtensivePathDiagnostic(PathDiagnostic& PD,
       }
 
       if (const BlockEntrance *BE = dyn_cast<BlockEntrance>(&P)) {
-        if (CFGStmt S = BE->getFirstElement().getAs<CFGStmt>()) {
-          if (IsControlFlowExpr(S)) {
+        if (const CFGStmt *S = BE->getFirstElement().getAs<CFGStmt>()) {
+          const Stmt *stmt = S->getStmt();
+          if (IsControlFlowExpr(stmt)) {
             // Add the proper context for '&&', '||', and '?'.
-            EB.addContext(S);
+            EB.addContext(stmt);
           }
           else
-            EB.addExtendedContext(PDB.getEnclosingStmtLocation(S).asStmt());
+            EB.addExtendedContext(PDB.getEnclosingStmtLocation(stmt).asStmt());
         }
         
         break;

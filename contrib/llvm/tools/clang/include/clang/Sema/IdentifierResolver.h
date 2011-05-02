@@ -28,7 +28,7 @@ class Scope;
 
 /// IdentifierResolver - Keeps track of shadowed decls on enclosing
 /// scopes.  It manages the shadowing chains of declaration names and
-/// implements efficent decl lookup based on a declaration name.
+/// implements efficient decl lookup based on a declaration name.
 class IdentifierResolver {
 
   /// IdDeclInfo - Keeps track of information about decls associated
@@ -53,6 +53,11 @@ class IdentifierResolver {
     /// declaration was not found, returns false.
     bool ReplaceDecl(NamedDecl *Old, NamedDecl *New);
 
+    /// \brief Insert the given declaration at the given position in the list.
+    void InsertDecl(DeclsTy::iterator Pos, NamedDecl *D) {
+      Decls.insert(Pos, D);
+    }
+                    
   private:
     DeclsTy Decls;
   };
@@ -146,8 +151,13 @@ public:
   /// isDeclInScope - If 'Ctx' is a function/method, isDeclInScope returns true
   /// if 'D' is in Scope 'S', otherwise 'S' is ignored and isDeclInScope returns
   /// true if 'D' belongs to the given declaration context.
+  ///
+  /// \param ExplicitInstantiationOrSpecialization When true, we are checking
+  /// whether the declaration is in scope for the purposes of explicit template
+  /// instantiation or specialization. The default is false.
   bool isDeclInScope(Decl *D, DeclContext *Ctx, ASTContext &Context,
-                     Scope *S = 0) const;
+                     Scope *S = 0,
+                     bool ExplicitInstantiationOrSpecialization = false) const;
 
   /// AddDecl - Link the decl to its shadowed decl chain.
   void AddDecl(NamedDecl *D);
@@ -160,6 +170,10 @@ public:
   /// identifier chain. Returns true if the old declaration was found
   /// (and, therefore, replaced).
   bool ReplaceDecl(NamedDecl *Old, NamedDecl *New);
+
+  /// \brief Insert the given declaration after the given iterator
+  /// position.
+  void InsertDeclAfter(iterator Pos, NamedDecl *D);
 
   /// \brief Link the declaration into the chain of declarations for
   /// the given identifier.

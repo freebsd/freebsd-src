@@ -24,11 +24,11 @@
 namespace llvm {
 
 class SubtargetEmitter : public TableGenBackend {
-  
+
   RecordKeeper &Records;
   std::string Target;
   bool HasItineraries;
-  
+
   void Enumeration(raw_ostream &OS, const char *ClassName, bool isBits);
   void FeatureKeyValues(raw_ostream &OS);
   void CPUKeyValues(raw_ostream &OS);
@@ -48,11 +48,12 @@ class SubtargetEmitter : public TableGenBackend {
                      std::vector<Record*> &ItinClassList,
                      std::vector<std::vector<InstrItinerary> > &ProcList);
   void EmitProcessorData(raw_ostream &OS,
-                       std::vector<std::vector<InstrItinerary> > &ProcList);
+                         std::vector<Record*> &ItinClassList,
+                         std::vector<std::vector<InstrItinerary> > &ProcList);
   void EmitProcessorLookup(raw_ostream &OS);
   void EmitData(raw_ostream &OS);
   void ParseFeaturesFunction(raw_ostream &OS);
-  
+
 public:
   SubtargetEmitter(RecordKeeper &R) : Records(R), HasItineraries(false) {}
 

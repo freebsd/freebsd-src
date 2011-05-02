@@ -408,16 +408,18 @@ namespace ARM_AM {
   //
   // The first operand is always a Reg.  The second operand is a reg if in
   // reg/reg form, otherwise it's reg#0.  The third field encodes the operation
-  // in bit 12, the immediate in bits 0-11, and the shift op in 13-15.
+  // in bit 12, the immediate in bits 0-11, and the shift op in 13-15. The
+  // fourth operand 16-17 encodes the index mode.
   //
   // If this addressing mode is a frame index (before prolog/epilog insertion
   // and code rewriting), this operand will have the form:  FI#, reg0, <offs>
   // with no shift amount for the frame offset.
   //
-  static inline unsigned getAM2Opc(AddrOpc Opc, unsigned Imm12, ShiftOpc SO) {
+  static inline unsigned getAM2Opc(AddrOpc Opc, unsigned Imm12, ShiftOpc SO,
+                                   unsigned IdxMode = 0) {
     assert(Imm12 < (1 << 12) && "Imm too large!");
     bool isSub = Opc == sub;
-    return Imm12 | ((int)isSub << 12) | (SO << 13);
+    return Imm12 | ((int)isSub << 12) | (SO << 13) | (IdxMode << 16) ;
   }
   static inline unsigned getAM2Offset(unsigned AM2Opc) {
     return AM2Opc & ((1 << 12)-1);
@@ -426,7 +428,10 @@ namespace ARM_AM {
     return ((AM2Opc >> 12) & 1) ? sub : add;
   }
   static inline ShiftOpc getAM2ShiftOpc(unsigned AM2Opc) {
-    return (ShiftOpc)(AM2Opc >> 13);
+    return (ShiftOpc)((AM2Opc >> 13) & 7);
+  }
+  static inline unsigned getAM2IdxMode(unsigned AM2Opc) {
+    return (AM2Opc >> 16);
   }
 
 
@@ -441,18 +446,23 @@ namespace ARM_AM {
   //
   // The first operand is always a Reg.  The second operand is a reg if in
   // reg/reg form, otherwise it's reg#0.  The third field encodes the operation
-  // in bit 8, the immediate in bits 0-7.
+  // in bit 8, the immediate in bits 0-7. The fourth operand 9-10 encodes the
+  // index mode.
 
   /// getAM3Opc - This function encodes the addrmode3 opc field.
-  static inline unsigned getAM3Opc(AddrOpc Opc, unsigned char Offset) {
+  static inline unsigned getAM3Opc(AddrOpc Opc, unsigned char Offset,
+                                   unsigned IdxMode = 0) {
     bool isSub = Opc == sub;
-    return ((int)isSub << 8) | Offset;
+    return ((int)isSub << 8) | Offset | (IdxMode << 9);
   }
   static inline unsigned char getAM3Offset(unsigned AM3Opc) {
     return AM3Opc & 0xFF;
   }
   static inline AddrOpc getAM3Op(unsigned AM3Opc) {
     return ((AM3Opc >> 8) & 1) ? sub : add;
+  }
+  static inline unsigned getAM3IdxMode(unsigned AM3Opc) {
+    return (AM3Opc >> 9);
   }
 
   //===--------------------------------------------------------------------===//

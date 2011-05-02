@@ -57,6 +57,8 @@ protected:
 public:
   static ConstantInt *getTrue(LLVMContext &Context);
   static ConstantInt *getFalse(LLVMContext &Context);
+  static Constant *getTrue(const Type *Ty);
+  static Constant *getFalse(const Type *Ty);
   
   /// If Ty is a vector type, return a Constant with a splat of the given
   /// value. Otherwise return a ConstantInt for the given value.
@@ -425,6 +427,8 @@ public:
                        const std::vector<Constant*> &V, bool Packed);
   static Constant *get(LLVMContext &Context,
                        Constant *const *Vals, unsigned NumVals, bool Packed);
+  static Constant *get(LLVMContext &Context, bool Packed,
+                       Constant * Val, ...) END_WITH_NULL;
 
   /// Transparently provide more efficient getOperand methods.
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Constant);
@@ -599,6 +603,7 @@ struct OperandTraits<BlockAddress> :
 
 DEFINE_TRANSPARENT_CASTED_OPERAND_ACCESSORS(BlockAddress, Value)
   
+
 //===----------------------------------------------------------------------===//
 /// ConstantExpr - a constant value that is initialized with an expression using
 /// other constant values.
@@ -836,7 +841,7 @@ public:
   static Constant *getICmp(unsigned short pred, Constant *LHS, Constant *RHS);
   static Constant *getFCmp(unsigned short pred, Constant *LHS, Constant *RHS);
 
-  /// Getelementptr form.  std::vector<Value*> is only accepted for convenience:
+  /// Getelementptr form.  Value* is only accepted for convenience;
   /// all elements must be Constant's.
   ///
   static Constant *getGetElementPtr(Constant *C,
@@ -880,7 +885,7 @@ public:
 
   /// getIndices - Assert that this is an insertvalue or exactvalue
   /// expression and return the list of indices.
-  const SmallVector<unsigned, 4> &getIndices() const;
+  ArrayRef<unsigned> getIndices() const;
 
   /// getOpcodeName - Return a string representation for an opcode.
   const char *getOpcodeName() const;
@@ -892,10 +897,7 @@ public:
   /// getWithOperands - This returns the current constant expression with the
   /// operands replaced with the specified values.  The specified operands must
   /// match count and type with the existing ones.
-  Constant *getWithOperands(const std::vector<Constant*> &Ops) const {
-    return getWithOperands(&Ops[0], (unsigned)Ops.size());
-  }
-  Constant *getWithOperands(Constant *const *Ops, unsigned NumOps) const;
+  Constant *getWithOperands(ArrayRef<Constant*> Ops) const;
   
   virtual void destroyConstant();
   virtual void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U);
