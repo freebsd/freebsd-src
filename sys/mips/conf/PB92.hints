@@ -30,7 +30,11 @@ hint.arge.0.at="nexus0"
 hint.arge.0.maddr=0x19000000
 hint.arge.0.msize=0x1000
 hint.arge.0.irq=2
-hint.arge.0.phymask=0x1
+
+# AR8316 workaround for now
+hint.arge.0.media=1000
+hint.arge.0.fduplex=1
+hint.arge.0.phymask=0x3
 
 # GPIO
 hint.gpio.0.at="apb0"
