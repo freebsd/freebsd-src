@@ -1706,7 +1706,6 @@ pmap_release(pmap_t pmap)
 	mtx_lock(&createdelete_lock);
 #endif
 
-	pmap_lazyfix(pmap);
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_REMOVE(pmap, pm_list);
 	mtx_unlock_spin(&allpmaps_lock);
