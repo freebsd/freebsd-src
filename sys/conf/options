@@ -775,6 +775,8 @@ ATH_ENABLE_11N		opt_ah.h
 
 # options for the Atheros hal
 AH_SUPPORT_AR5416	opt_ah.h
+# XXX For now, this breaks non-AR9130 chipsets, so only use it
+# XXX when actually targetting AR9130.
 AH_SUPPORT_AR9130	opt_ah.h
 
 AH_DEBUG		opt_ah.h
@@ -791,6 +793,7 @@ AH_MAXCHAN		opt_ah.h
 AH_RXCFG_SDMAMW_4BYTES	opt_ah.h
 
 # AR5416 and later interrupt mitigation
+# XXX do not use this for AR9130
 AH_AR5416_INTERRUPT_MITIGATION	opt_ah.h
 
 # options for the Broadcom BCM43xx driver (bwi)
