@@ -1493,6 +1493,7 @@ devfs_symlink(struct vop_symlink_args *ap)
 	mac_devfs_create_symlink(ap->a_cnp->cn_cred, dmp->dm_mount, dd, de);
 #endif
 	TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
+	devfs_rules_apply(dmp, de);
 	return (devfs_allocv(de, ap->a_dvp->v_mount, LK_EXCLUSIVE, ap->a_vpp));
 }
 
