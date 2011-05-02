@@ -21,12 +21,12 @@
 #include "clang/AST/OperationKinds.h"
 #include "clang/AST/ASTVector.h"
 #include "clang/AST/UsuallyTinyPtrVector.h"
+#include "clang/Basic/TypeTraits.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include <cctype>
-#include <vector>
 
 namespace clang {
   class ASTContext;
@@ -172,6 +172,7 @@ public:
     LV_IncompleteVoidType,
     LV_DuplicateVectorComponents,
     LV_InvalidExpression,
+    LV_InvalidMessageExpression,
     LV_MemberFunction,
     LV_SubObjCPropertySetting,
     LV_ClassTemporary
@@ -203,6 +204,7 @@ public:
     MLV_NoSetterProperty,
     MLV_MemberFunction,
     MLV_SubObjCPropertySetting,
+    MLV_InvalidMessageExpression,
     MLV_ClassTemporary
   };
   isModifiableLvalueResult isModifiableLvalue(ASTContext &Ctx,
@@ -218,10 +220,12 @@ public:
       CL_XValue,
       CL_Function, // Functions cannot be lvalues in C.
       CL_Void, // Void cannot be an lvalue in C.
+      CL_AddressableVoid, // Void expression whose address can be taken in C.
       CL_DuplicateVectorComponents, // A vector shuffle with dupes.
       CL_MemberFunction, // An expression referring to a member function
       CL_SubObjCPropertySetting,
       CL_ClassTemporary, // A prvalue of class type
+      CL_ObjCMessageRValue, // ObjC message is an rvalue
       CL_PRValue // A prvalue for any other reason, of any other type
     };
     /// \brief The results of modification testing.
@@ -482,6 +486,11 @@ public:
   /// \brief Returns true if this expression is a bound member function.
   bool isBoundMemberFunction(ASTContext &Ctx) const;
 
+  /// \brief Given an expression of bound-member type, find the type
+  /// of the member.  Returns null if this is an *overloaded* bound
+  /// member expression.
+  static QualType findBoundMemberType(const Expr *expr);
+
   /// \brief Result type of CanThrow().
   enum CanThrowResult {
     CT_Cannot,
@@ -536,6 +545,9 @@ public:
   /// temporary object of the given class type.
   bool isTemporaryObject(ASTContext &Ctx, const CXXRecordDecl *TempTy) const;
 
+  /// \brief Whether this expression is an implicit reference to 'this' in C++.
+  bool isImplicitCXXThis() const;
+  
   const Expr *IgnoreParens() const {
     return const_cast<Expr*>(this)->IgnoreParens();
   }
@@ -618,16 +630,6 @@ public:
   static bool classof(const OpaqueValueExpr *) { return true; }
 };
 
-/// \brief Represents the qualifier that may precede a C++ name, e.g., the
-/// "std::" in "std::sort".
-struct NameQualifier {
-  /// \brief The nested name specifier.
-  NestedNameSpecifier *NNS;
-  
-  /// \brief The source range covered by the nested name specifier.
-  SourceRange Range;
-};
-
 /// \brief Represents an explicit template argument list in C++, e.g.,
 /// the "<int>" in "sort<int>".
 struct ExplicitTemplateArgumentList {
@@ -659,95 +661,118 @@ struct ExplicitTemplateArgumentList {
   static std::size_t sizeFor(unsigned NumTemplateArgs);
   static std::size_t sizeFor(const TemplateArgumentListInfo &List);
 };
-  
-/// DeclRefExpr - [C99 6.5.1p2] - A reference to a declared variable, function,
-/// enum, etc.
-class DeclRefExpr : public Expr {
-  enum {
-    // Flag on DecoratedD that specifies when this declaration reference 
-    // expression has a C++ nested-name-specifier.
-    HasQualifierFlag = 0x01,
-    // Flag on DecoratedD that specifies when this declaration reference 
-    // expression has an explicit C++ template argument list.
-    HasExplicitTemplateArgumentListFlag = 0x02
-  };
-  
-  // DecoratedD - The declaration that we are referencing, plus two bits to 
-  // indicate whether (1) the declaration's name was explicitly qualified and
-  // (2) the declaration's name was followed by an explicit template 
-  // argument list.
-  llvm::PointerIntPair<ValueDecl *, 2> DecoratedD;
 
-  // Loc - The location of the declaration name itself.
+/// \brief A reference to a declared variable, function, enum, etc.
+/// [C99 6.5.1p2]
+///
+/// This encodes all the information about how a declaration is referenced
+/// within an expression.
+///
+/// There are several optional constructs attached to DeclRefExprs only when
+/// they apply in order to conserve memory. These are laid out past the end of
+/// the object, and flags in the DeclRefExprBitfield track whether they exist:
+///
+///   DeclRefExprBits.HasQualifier:
+///       Specifies when this declaration reference expression has a C++
+///       nested-name-specifier.
+///   DeclRefExprBits.HasFoundDecl:
+///       Specifies when this declaration reference expression has a record of
+///       a NamedDecl (different from the referenced ValueDecl) which was found
+///       during name lookup and/or overload resolution.
+///   DeclRefExprBits.HasExplicitTemplateArgs:
+///       Specifies when this declaration reference expression has an explicit
+///       C++ template argument list.
+class DeclRefExpr : public Expr {
+  /// \brief The declaration that we are referencing.
+  ValueDecl *D;
+
+  /// \brief The location of the declaration name itself.
   SourceLocation Loc;
 
-  /// DNLoc - Provides source/type location info for the
-  /// declaration name embedded in DecoratedD.
+  /// \brief Provides source/type location info for the declaration name
+  /// embedded in D.
   DeclarationNameLoc DNLoc;
 
-  /// \brief Retrieve the qualifier that preceded the declaration name, if any.
-  NameQualifier *getNameQualifier() {
-    if ((DecoratedD.getInt() & HasQualifierFlag) == 0)
-      return 0;
-    
-    return reinterpret_cast<NameQualifier *> (this + 1);
-  }
-  
-  /// \brief Retrieve the qualifier that preceded the member name, if any.
-  const NameQualifier *getNameQualifier() const {
-    return const_cast<DeclRefExpr *>(this)->getNameQualifier();
+  /// \brief Helper to retrieve the optional NestedNameSpecifierLoc.
+  NestedNameSpecifierLoc &getInternalQualifierLoc() {
+    assert(hasQualifier());
+    return *reinterpret_cast<NestedNameSpecifierLoc *>(this + 1);
   }
 
-  DeclRefExpr(NestedNameSpecifier *Qualifier, SourceRange QualifierRange,
-              ValueDecl *D, SourceLocation NameLoc,
-              const TemplateArgumentListInfo *TemplateArgs,
-              QualType T, ExprValueKind VK);
+  /// \brief Helper to retrieve the optional NestedNameSpecifierLoc.
+  const NestedNameSpecifierLoc &getInternalQualifierLoc() const {
+    return const_cast<DeclRefExpr *>(this)->getInternalQualifierLoc();
+  }
 
-  DeclRefExpr(NestedNameSpecifier *Qualifier, SourceRange QualifierRange,
+  /// \brief Test whether there is a distinct FoundDecl attached to the end of
+  /// this DRE.
+  bool hasFoundDecl() const { return DeclRefExprBits.HasFoundDecl; }
+
+  /// \brief Helper to retrieve the optional NamedDecl through which this
+  /// reference occured.
+  NamedDecl *&getInternalFoundDecl() {
+    assert(hasFoundDecl());
+    if (hasQualifier())
+      return *reinterpret_cast<NamedDecl **>(&getInternalQualifierLoc() + 1);
+    return *reinterpret_cast<NamedDecl **>(this + 1);
+  }
+
+  /// \brief Helper to retrieve the optional NamedDecl through which this
+  /// reference occured.
+  NamedDecl *getInternalFoundDecl() const {
+    return const_cast<DeclRefExpr *>(this)->getInternalFoundDecl();
+  }
+
+  DeclRefExpr(NestedNameSpecifierLoc QualifierLoc,
               ValueDecl *D, const DeclarationNameInfo &NameInfo,
+              NamedDecl *FoundD,
               const TemplateArgumentListInfo *TemplateArgs,
               QualType T, ExprValueKind VK);
 
   /// \brief Construct an empty declaration reference expression.
   explicit DeclRefExpr(EmptyShell Empty)
     : Expr(DeclRefExprClass, Empty) { }
-  
+
   /// \brief Computes the type- and value-dependence flags for this
   /// declaration reference expression.
   void computeDependence();
 
 public:
-  DeclRefExpr(ValueDecl *d, QualType t, ExprValueKind VK, SourceLocation l) :
-    Expr(DeclRefExprClass, t, VK, OK_Ordinary, false, false, false),
-    DecoratedD(d, 0), Loc(l) {
+  DeclRefExpr(ValueDecl *D, QualType T, ExprValueKind VK, SourceLocation L)
+    : Expr(DeclRefExprClass, T, VK, OK_Ordinary, false, false, false),
+      D(D), Loc(L) {
+    DeclRefExprBits.HasQualifier = 0;
+    DeclRefExprBits.HasExplicitTemplateArgs = 0;
+    DeclRefExprBits.HasFoundDecl = 0;
     computeDependence();
   }
 
   static DeclRefExpr *Create(ASTContext &Context,
-                             NestedNameSpecifier *Qualifier,
-                             SourceRange QualifierRange,
+                             NestedNameSpecifierLoc QualifierLoc,
                              ValueDecl *D,
                              SourceLocation NameLoc,
                              QualType T, ExprValueKind VK,
+                             NamedDecl *FoundD = 0,
                              const TemplateArgumentListInfo *TemplateArgs = 0);
 
   static DeclRefExpr *Create(ASTContext &Context,
-                             NestedNameSpecifier *Qualifier,
-                             SourceRange QualifierRange,
+                             NestedNameSpecifierLoc QualifierLoc,
                              ValueDecl *D,
                              const DeclarationNameInfo &NameInfo,
                              QualType T, ExprValueKind VK,
+                             NamedDecl *FoundD = 0,
                              const TemplateArgumentListInfo *TemplateArgs = 0);
 
   /// \brief Construct an empty declaration reference expression.
   static DeclRefExpr *CreateEmpty(ASTContext &Context,
-                                  bool HasQualifier, 
+                                  bool HasQualifier,
+                                  bool HasFoundDecl,
                                   bool HasExplicitTemplateArgs,
                                   unsigned NumTemplateArgs);
-  
-  ValueDecl *getDecl() { return DecoratedD.getPointer(); }
-  const ValueDecl *getDecl() const { return DecoratedD.getPointer(); }
-  void setDecl(ValueDecl *NewD) { DecoratedD.setPointer(NewD); }
+
+  ValueDecl *getDecl() { return D; }
+  const ValueDecl *getDecl() const { return D; }
+  void setDecl(ValueDecl *NewD) { D = NewD; }
 
   DeclarationNameInfo getNameInfo() const {
     return DeclarationNameInfo(getDecl()->getDeclName(), Loc, DNLoc);
@@ -759,43 +784,62 @@ public:
 
   /// \brief Determine whether this declaration reference was preceded by a
   /// C++ nested-name-specifier, e.g., \c N::foo.
-  bool hasQualifier() const { return DecoratedD.getInt() & HasQualifierFlag; }
-  
-  /// \brief If the name was qualified, retrieves the source range of
-  /// the nested-name-specifier that precedes the name. Otherwise,
-  /// returns an empty source range.
-  SourceRange getQualifierRange() const {
-    if (!hasQualifier())
-      return SourceRange();
-    
-    return getNameQualifier()->Range;
-  }
-  
-  /// \brief If the name was qualified, retrieves the nested-name-specifier 
+  bool hasQualifier() const { return DeclRefExprBits.HasQualifier; }
+
+  /// \brief If the name was qualified, retrieves the nested-name-specifier
   /// that precedes the name. Otherwise, returns NULL.
   NestedNameSpecifier *getQualifier() const {
     if (!hasQualifier())
       return 0;
-    
-    return getNameQualifier()->NNS;
+
+    return getInternalQualifierLoc().getNestedNameSpecifier();
   }
-  
+
+  /// \brief If the name was qualified, retrieves the nested-name-specifier
+  /// that precedes the name, with source-location information.
+  NestedNameSpecifierLoc getQualifierLoc() const {
+    if (!hasQualifier())
+      return NestedNameSpecifierLoc();
+
+    return getInternalQualifierLoc();
+  }
+
+  /// \brief Get the NamedDecl through which this reference occured.
+  ///
+  /// This Decl may be different from the ValueDecl actually referred to in the
+  /// presence of using declarations, etc. It always returns non-NULL, and may
+  /// simple return the ValueDecl when appropriate.
+  NamedDecl *getFoundDecl() {
+    return hasFoundDecl() ? getInternalFoundDecl() : D;
+  }
+
+  /// \brief Get the NamedDecl through which this reference occurred.
+  /// See non-const variant.
+  const NamedDecl *getFoundDecl() const {
+    return hasFoundDecl() ? getInternalFoundDecl() : D;
+  }
+
+  /// \brief Determines whether this declaration reference was followed by an
+  /// explict template argument list.
   bool hasExplicitTemplateArgs() const {
-    return (DecoratedD.getInt() & HasExplicitTemplateArgumentListFlag);
+    return DeclRefExprBits.HasExplicitTemplateArgs;
   }
-  
+
   /// \brief Retrieve the explicit template argument list that followed the
   /// member template name.
   ExplicitTemplateArgumentList &getExplicitTemplateArgs() {
     assert(hasExplicitTemplateArgs());
+    if (hasFoundDecl())
+      return *reinterpret_cast<ExplicitTemplateArgumentList *>(
+        &getInternalFoundDecl() + 1);
 
-    if ((DecoratedD.getInt() & HasQualifierFlag) == 0)
-      return *reinterpret_cast<ExplicitTemplateArgumentList *>(this + 1);
-    
-    return *reinterpret_cast<ExplicitTemplateArgumentList *>(
-                                                      getNameQualifier() + 1);
+    if (hasQualifier())
+      return *reinterpret_cast<ExplicitTemplateArgumentList *>(
+        &getInternalQualifierLoc() + 1);
+
+    return *reinterpret_cast<ExplicitTemplateArgumentList *>(this + 1);
   }
-  
+
   /// \brief Retrieve the explicit template argument list that followed the
   /// member template name.
   const ExplicitTemplateArgumentList &getExplicitTemplateArgs() const {
@@ -809,50 +853,50 @@ public:
     if (!hasExplicitTemplateArgs()) return 0;
     return &getExplicitTemplateArgs();
   }
-  
+
   /// \brief Copies the template arguments (if present) into the given
   /// structure.
   void copyTemplateArgumentsInto(TemplateArgumentListInfo &List) const {
     if (hasExplicitTemplateArgs())
       getExplicitTemplateArgs().copyInto(List);
   }
-  
+
   /// \brief Retrieve the location of the left angle bracket following the
   /// member name ('<'), if any.
   SourceLocation getLAngleLoc() const {
     if (!hasExplicitTemplateArgs())
       return SourceLocation();
-    
+
     return getExplicitTemplateArgs().LAngleLoc;
   }
-  
+
   /// \brief Retrieve the template arguments provided as part of this
   /// template-id.
   const TemplateArgumentLoc *getTemplateArgs() const {
     if (!hasExplicitTemplateArgs())
       return 0;
-    
+
     return getExplicitTemplateArgs().getTemplateArgs();
   }
-  
+
   /// \brief Retrieve the number of template arguments provided as part of this
   /// template-id.
   unsigned getNumTemplateArgs() const {
     if (!hasExplicitTemplateArgs())
       return 0;
-    
+
     return getExplicitTemplateArgs().NumTemplateArgs;
   }
-  
+
   /// \brief Retrieve the location of the right angle bracket following the
   /// template arguments ('>').
   SourceLocation getRAngleLoc() const {
     if (!hasExplicitTemplateArgs())
       return SourceLocation();
-    
+
     return getExplicitTemplateArgs().RAngleLoc;
   }
-  
+
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == DeclRefExprClass;
   }
@@ -860,7 +904,7 @@ public:
 
   // Iterators
   child_range children() { return child_range(); }
-  
+
   friend class ASTStmtReader;
   friend class ASTStmtWriter;
 };
@@ -1133,9 +1177,12 @@ public:
 /// In this case, getByteLength() will return 6, but the string literal will
 /// have type "char[2]".
 class StringLiteral : public Expr {
+  friend class ASTStmtReader;
+
   const char *StrData;
   unsigned ByteLength;
   bool IsWide;
+  bool IsPascal;
   unsigned NumConcatenated;
   SourceLocation TokLocs[1];
 
@@ -1146,14 +1193,15 @@ public:
   /// This is the "fully general" constructor that allows representation of
   /// strings formed from multiple concatenated tokens.
   static StringLiteral *Create(ASTContext &C, const char *StrData,
-                               unsigned ByteLength, bool Wide, QualType Ty,
+                               unsigned ByteLength, bool Wide, bool Pascal,
+                               QualType Ty,
                                const SourceLocation *Loc, unsigned NumStrs);
 
   /// Simple constructor for string literals made from one token.
   static StringLiteral *Create(ASTContext &C, const char *StrData,
-                               unsigned ByteLength,
-                               bool Wide, QualType Ty, SourceLocation Loc) {
-    return Create(C, StrData, ByteLength, Wide, Ty, &Loc, 1);
+                               unsigned ByteLength, bool Wide, 
+                               bool Pascal, QualType Ty, SourceLocation Loc) {
+    return Create(C, StrData, ByteLength, Wide, Pascal, Ty, &Loc, 1);
   }
 
   /// \brief Construct an empty string literal.
@@ -1169,8 +1217,8 @@ public:
   void setString(ASTContext &C, llvm::StringRef Str);
 
   bool isWide() const { return IsWide; }
-  void setWide(bool W) { IsWide = W; }
-
+  bool isPascal() const { return IsPascal; }
+  
   bool containsNonAsciiOrNull() const {
     llvm::StringRef Str = getString();
     for (unsigned i = 0, e = Str.size(); i != e; ++i)
@@ -1458,7 +1506,7 @@ public:
     /// the square brackets. For a field or identifier node, the source range
     /// contains the location of the period (if there is one) and the 
     /// identifier.
-    SourceRange getRange() const { return Range; }
+    SourceRange getSourceRange() const { return Range; }
   };
 
 private:
@@ -1556,10 +1604,11 @@ public:
   }
 };
 
-/// SizeOfAlignOfExpr - [C99 6.5.3.4] - This is for sizeof/alignof, both of
-/// types and expressions.
-class SizeOfAlignOfExpr : public Expr {
-  bool isSizeof : 1;  // true if sizeof, false if alignof.
+/// UnaryExprOrTypeTraitExpr - expression with either a type or (unevaluated)
+/// expression operand.  Used for sizeof/alignof (C99 6.5.3.4) and
+/// vec_step (OpenCL 1.1 6.11.12).
+class UnaryExprOrTypeTraitExpr : public Expr {
+  unsigned Kind : 2;
   bool isType : 1;    // true if operand is a type, false if an expression
   union {
     TypeSourceInfo *Ty;
@@ -1568,36 +1617,38 @@ class SizeOfAlignOfExpr : public Expr {
   SourceLocation OpLoc, RParenLoc;
 
 public:
-  SizeOfAlignOfExpr(bool issizeof, TypeSourceInfo *TInfo,
-                    QualType resultType, SourceLocation op,
-                    SourceLocation rp) :
-      Expr(SizeOfAlignOfExprClass, resultType, VK_RValue, OK_Ordinary,
+  UnaryExprOrTypeTraitExpr(UnaryExprOrTypeTrait ExprKind, TypeSourceInfo *TInfo,
+                           QualType resultType, SourceLocation op,
+                           SourceLocation rp) :
+      Expr(UnaryExprOrTypeTraitExprClass, resultType, VK_RValue, OK_Ordinary,
            false, // Never type-dependent (C++ [temp.dep.expr]p3).
            // Value-dependent if the argument is type-dependent.
            TInfo->getType()->isDependentType(),
            TInfo->getType()->containsUnexpandedParameterPack()),
-      isSizeof(issizeof), isType(true), OpLoc(op), RParenLoc(rp) {
+      Kind(ExprKind), isType(true), OpLoc(op), RParenLoc(rp) {
     Argument.Ty = TInfo;
   }
 
-  SizeOfAlignOfExpr(bool issizeof, Expr *E,
-                    QualType resultType, SourceLocation op,
-                    SourceLocation rp) :
-      Expr(SizeOfAlignOfExprClass, resultType, VK_RValue, OK_Ordinary,
+  UnaryExprOrTypeTraitExpr(UnaryExprOrTypeTrait ExprKind, Expr *E,
+                           QualType resultType, SourceLocation op,
+                           SourceLocation rp) :
+      Expr(UnaryExprOrTypeTraitExprClass, resultType, VK_RValue, OK_Ordinary,
            false, // Never type-dependent (C++ [temp.dep.expr]p3).
            // Value-dependent if the argument is type-dependent.
            E->isTypeDependent(),
            E->containsUnexpandedParameterPack()),
-      isSizeof(issizeof), isType(false), OpLoc(op), RParenLoc(rp) {
+      Kind(ExprKind), isType(false), OpLoc(op), RParenLoc(rp) {
     Argument.Ex = E;
   }
 
   /// \brief Construct an empty sizeof/alignof expression.
-  explicit SizeOfAlignOfExpr(EmptyShell Empty)
-    : Expr(SizeOfAlignOfExprClass, Empty) { }
+  explicit UnaryExprOrTypeTraitExpr(EmptyShell Empty)
+    : Expr(UnaryExprOrTypeTraitExprClass, Empty) { }
 
-  bool isSizeOf() const { return isSizeof; }
-  void setSizeof(bool S) { isSizeof = S; }
+  UnaryExprOrTypeTrait getKind() const {
+    return static_cast<UnaryExprOrTypeTrait>(Kind);
+  }
+  void setKind(UnaryExprOrTypeTrait K) { Kind = K; }
 
   bool isArgumentType() const { return isType; }
   QualType getArgumentType() const {
@@ -1612,7 +1663,7 @@ public:
     return static_cast<Expr*>(Argument.Ex);
   }
   const Expr *getArgumentExpr() const {
-    return const_cast<SizeOfAlignOfExpr*>(this)->getArgumentExpr();
+    return const_cast<UnaryExprOrTypeTraitExpr*>(this)->getArgumentExpr();
   }
 
   void setArgument(Expr *E) { Argument.Ex = E; isType = false; }
@@ -1638,9 +1689,9 @@ public:
   }
 
   static bool classof(const Stmt *T) {
-    return T->getStmtClass() == SizeOfAlignOfExprClass;
+    return T->getStmtClass() == UnaryExprOrTypeTraitExprClass;
   }
-  static bool classof(const SizeOfAlignOfExpr *) { return true; }
+  static bool classof(const UnaryExprOrTypeTraitExpr *) { return true; }
 
   // Iterators
   child_range children();
@@ -1862,7 +1913,13 @@ public:
 ///
 class MemberExpr : public Expr {
   /// Extra data stored in some member expressions.
-  struct MemberNameQualifier : public NameQualifier {
+  struct MemberNameQualifier {
+    /// \brief The nested-name-specifier that qualifies the name, including
+    /// source-location information.
+    NestedNameSpecifierLoc QualifierLoc;
+
+    /// \brief The DeclAccessPair through which the MemberDecl was found due to
+    /// name qualifiers.
     DeclAccessPair FoundDecl;
   };
 
@@ -1936,7 +1993,7 @@ public:
       HasQualifierOrFoundDecl(false), HasExplicitTemplateArgumentList(false) {}
 
   static MemberExpr *Create(ASTContext &C, Expr *base, bool isarrow,
-                            NestedNameSpecifier *qual, SourceRange qualrange,
+                            NestedNameSpecifierLoc QualifierLoc,
                             ValueDecl *memberdecl, DeclAccessPair founddecl,
                             DeclarationNameInfo MemberNameInfo,
                             const TemplateArgumentListInfo *targs,
@@ -1965,16 +2022,6 @@ public:
   /// x->Base::foo.
   bool hasQualifier() const { return getQualifier() != 0; }
 
-  /// \brief If the member name was qualified, retrieves the source range of
-  /// the nested-name-specifier that precedes the member name. Otherwise,
-  /// returns an empty source range.
-  SourceRange getQualifierRange() const {
-    if (!HasQualifierOrFoundDecl)
-      return SourceRange();
-
-    return getMemberQualifier()->Range;
-  }
-
   /// \brief If the member name was qualified, retrieves the
   /// nested-name-specifier that precedes the member name. Otherwise, returns
   /// NULL.
@@ -1982,7 +2029,17 @@ public:
     if (!HasQualifierOrFoundDecl)
       return 0;
 
-    return getMemberQualifier()->NNS;
+    return getMemberQualifier()->QualifierLoc.getNestedNameSpecifier();
+  }
+
+  /// \brief If the member name was qualified, retrieves the 
+  /// nested-name-specifier that precedes the member name, with source-location
+  /// information.
+  NestedNameSpecifierLoc getQualifierLoc() const {
+    if (!hasQualifier())
+      return NestedNameSpecifierLoc();
+    
+    return getMemberQualifier()->QualifierLoc;
   }
 
   /// \brief Determines whether this member expression actually had a C++
@@ -2075,20 +2132,15 @@ public:
   SourceLocation getMemberLoc() const { return MemberLoc; }
   void setMemberLoc(SourceLocation L) { MemberLoc = L; }
 
-  SourceRange getSourceRange() const {
-    // If we have an implicit base (like a C++ implicit this),
-    // make sure not to return its location
-    SourceLocation EndLoc = (HasExplicitTemplateArgumentList)
-      ? getRAngleLoc() : getMemberNameInfo().getEndLoc();
-
-    SourceLocation BaseLoc = getBase()->getLocStart();
-    if (BaseLoc.isInvalid())
-      return SourceRange(MemberLoc, EndLoc);
-    return SourceRange(BaseLoc, EndLoc);
-  }
-
+  SourceRange getSourceRange() const;
+  
   SourceLocation getExprLoc() const { return MemberLoc; }
 
+  /// \brief Determine whether the base of this explicit is implicit.
+  bool isImplicitAccess() const {
+    return getBase() && getBase()->isImplicitCXXThis();
+  }
+  
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == MemberExprClass;
   }
@@ -2234,6 +2286,12 @@ private:
   }
   CXXBaseSpecifier **path_buffer();
 
+  void setBasePathSize(unsigned basePathSize) {
+    CastExprBits.BasePathSize = basePathSize;
+    assert(CastExprBits.BasePathSize == basePathSize &&
+           "basePathSize doesn't fit in bits of CastExprBits.BasePathSize!");
+  }
+
 protected:
   CastExpr(StmtClass SC, QualType ty, ExprValueKind VK,
            const CastKind kind, Expr *op, unsigned BasePathSize) :
@@ -2249,14 +2307,14 @@ protected:
     Op(op) {
     assert(kind != CK_Invalid && "creating cast with invalid cast kind");
     CastExprBits.Kind = kind;
-    CastExprBits.BasePathSize = BasePathSize;
+    setBasePathSize(BasePathSize);
     CheckCastConsistency();
   }
 
   /// \brief Construct an empty cast.
   CastExpr(StmtClass SC, EmptyShell Empty, unsigned BasePathSize)
     : Expr(SC, Empty) {
-    CastExprBits.BasePathSize = BasePathSize;
+    setBasePathSize(BasePathSize);
   }
 
 public:
@@ -3173,9 +3231,14 @@ class InitListExpr : public Expr {
   /// written in the source code.
   InitListExpr *SyntacticForm;
 
-  /// If this initializer list initializes a union, specifies which
-  /// field within the union will be initialized.
-  FieldDecl *UnionFieldInit;
+  /// \brief Either:
+  ///  If this initializer list initializes an array with more elements than
+  ///  there are initializers in the list, specifies an expression to be used
+  ///  for value initialization of the rest of the elements.
+  /// Or
+  ///  If this initializer list initializes a union, specifies which
+  ///  field within the union will be initialized.
+  llvm::PointerUnion<Expr *, FieldDecl *> ArrayFillerOrUnionFieldInit;
 
   /// Whether this initializer list originally had a GNU array-range
   /// designator in it. This is a temporary marker used by CodeGen.
@@ -3227,8 +3290,16 @@ public:
   ///
   /// When @p Init is out of range for this initializer list, the
   /// initializer list will be extended with NULL expressions to
-  /// accomodate the new entry.
+  /// accommodate the new entry.
   Expr *updateInit(ASTContext &C, unsigned Init, Expr *expr);
+
+  /// \brief If this initializer list initializes an array with more elements
+  /// than there are initializers in the list, specifies an expression to be
+  /// used for value initialization of the rest of the elements.
+  Expr *getArrayFiller() {
+    return ArrayFillerOrUnionFieldInit.dyn_cast<Expr *>();
+  }
+  void setArrayFiller(Expr *filler);
 
   /// \brief If this initializes a union, specifies which field in the
   /// union to initialize.
@@ -3236,8 +3307,12 @@ public:
   /// Typically, this field is the first named field within the
   /// union. However, a designated initializer can specify the
   /// initialization of a different field within the union.
-  FieldDecl *getInitializedFieldInUnion() { return UnionFieldInit; }
-  void setInitializedFieldInUnion(FieldDecl *FD) { UnionFieldInit = FD; }
+  FieldDecl *getInitializedFieldInUnion() {
+    return ArrayFillerOrUnionFieldInit.dyn_cast<FieldDecl *>();
+  }
+  void setInitializedFieldInUnion(FieldDecl *FD) {
+    ArrayFillerOrUnionFieldInit = FD;
+  }
 
   // Explicit InitListExpr's originate from source code (and have valid source
   // locations). Implicit InitListExpr's are created by the semantic analyzer.
@@ -3288,6 +3363,9 @@ public:
   const_reverse_iterator rbegin() const { return InitExprs.rbegin(); }
   reverse_iterator rend() { return InitExprs.rend(); }
   const_reverse_iterator rend() const { return InitExprs.rend(); }
+
+  friend class ASTStmtReader;
+  friend class ASTStmtWriter;
 };
 
 /// @brief Represents a C99 designated initializer expression.
@@ -3492,6 +3570,12 @@ public:
       else
         return getLBracketLoc();
     }
+    SourceLocation getEndLocation() const {
+      return Kind == FieldDesignator ? getFieldLoc() : getRBracketLoc();
+    }
+    SourceRange getSourceRange() const {
+      return SourceRange(getStartLocation(), getEndLocation());
+    }
   };
 
   static DesignatedInitExpr *Create(ASTContext &C, Designator *Designators,
@@ -3573,6 +3657,8 @@ public:
   /// of designators in [First, Last).
   void ExpandDesignator(ASTContext &C, unsigned Idx, const Designator *First,
                         const Designator *Last);
+
+  SourceRange getDesignatorsSourceRange() const;
 
   SourceRange getSourceRange() const;
 
@@ -3666,6 +3752,118 @@ public:
   friend class ASTStmtWriter;
 };
 
+
+/// \brief Represents a C1X generic selection.
+///
+/// A generic selection (C1X 6.5.1.1) contains an unevaluated controlling
+/// expression, followed by one or more generic associations.  Each generic
+/// association specifies a type name and an expression, or "default" and an
+/// expression (in which case it is known as a default generic association).
+/// The type and value of the generic selection are identical to those of its
+/// result expression, which is defined as the expression in the generic
+/// association with a type name that is compatible with the type of the
+/// controlling expression, or the expression in the default generic association
+/// if no types are compatible.  For example:
+///
+/// @code
+/// _Generic(X, double: 1, float: 2, default: 3)
+/// @endcode
+///
+/// The above expression evaluates to 1 if 1.0 is substituted for X, 2 if 1.0f
+/// or 3 if "hello".
+///
+/// As an extension, generic selections are allowed in C++, where the following
+/// additional semantics apply:
+///
+/// Any generic selection whose controlling expression is type-dependent or
+/// which names a dependent type in its association list is result-dependent,
+/// which means that the choice of result expression is dependent.
+/// Result-dependent generic associations are both type- and value-dependent.
+class GenericSelectionExpr : public Expr {
+  enum { CONTROLLING, END_EXPR };
+  TypeSourceInfo **AssocTypes;
+  Stmt **SubExprs;
+  unsigned NumAssocs, ResultIndex;
+  SourceLocation GenericLoc, DefaultLoc, RParenLoc;
+
+public:
+  GenericSelectionExpr(ASTContext &Context,
+                       SourceLocation GenericLoc, Expr *ControllingExpr,
+                       TypeSourceInfo **AssocTypes, Expr **AssocExprs,
+                       unsigned NumAssocs, SourceLocation DefaultLoc,
+                       SourceLocation RParenLoc,
+                       bool ContainsUnexpandedParameterPack,
+                       unsigned ResultIndex);
+
+  /// This constructor is used in the result-dependent case.
+  GenericSelectionExpr(ASTContext &Context,
+                       SourceLocation GenericLoc, Expr *ControllingExpr,
+                       TypeSourceInfo **AssocTypes, Expr **AssocExprs,
+                       unsigned NumAssocs, SourceLocation DefaultLoc,
+                       SourceLocation RParenLoc,
+                       bool ContainsUnexpandedParameterPack);
+
+  explicit GenericSelectionExpr(EmptyShell Empty)
+    : Expr(GenericSelectionExprClass, Empty) { }
+
+  unsigned getNumAssocs() const { return NumAssocs; }
+
+  SourceLocation getGenericLoc() const { return GenericLoc; }
+  SourceLocation getDefaultLoc() const { return DefaultLoc; }
+  SourceLocation getRParenLoc() const { return RParenLoc; }
+
+  const Expr *getAssocExpr(unsigned i) const {
+    return cast<Expr>(SubExprs[END_EXPR+i]);
+  }
+  Expr *getAssocExpr(unsigned i) { return cast<Expr>(SubExprs[END_EXPR+i]); }
+
+  const TypeSourceInfo *getAssocTypeSourceInfo(unsigned i) const {
+    return AssocTypes[i];
+  }
+  TypeSourceInfo *getAssocTypeSourceInfo(unsigned i) { return AssocTypes[i]; }
+
+  QualType getAssocType(unsigned i) const {
+    if (const TypeSourceInfo *TS = getAssocTypeSourceInfo(i))
+      return TS->getType();
+    else
+      return QualType();
+  }
+
+  const Expr *getControllingExpr() const {
+    return cast<Expr>(SubExprs[CONTROLLING]);
+  }
+  Expr *getControllingExpr() { return cast<Expr>(SubExprs[CONTROLLING]); }
+
+  /// Whether this generic selection is result-dependent.
+  bool isResultDependent() const { return ResultIndex == -1U; }
+
+  /// The zero-based index of the result expression's generic association in
+  /// the generic selection's association list.  Defined only if the
+  /// generic selection is not result-dependent.
+  unsigned getResultIndex() const {
+    assert(!isResultDependent() && "Generic selection is result-dependent");
+    return ResultIndex;
+  }
+
+  /// The generic selection's result expression.  Defined only if the
+  /// generic selection is not result-dependent.
+  const Expr *getResultExpr() const { return getAssocExpr(getResultIndex()); }
+  Expr *getResultExpr() { return getAssocExpr(getResultIndex()); }
+
+  SourceRange getSourceRange() const {
+    return SourceRange(GenericLoc, RParenLoc);
+  }
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == GenericSelectionExprClass;
+  }
+  static bool classof(const GenericSelectionExpr *) { return true; }
+
+  child_range children() {
+    return child_range(SubExprs, SubExprs+END_EXPR+NumAssocs);
+  }
+
+  friend class ASTStmtReader;
+};
 
 //===----------------------------------------------------------------------===//
 // Clang Extensions

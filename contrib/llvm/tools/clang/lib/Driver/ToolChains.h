@@ -33,7 +33,8 @@ public:
   Generic_GCC(const HostInfo &Host, const llvm::Triple& Triple);
   ~Generic_GCC();
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 
   virtual bool IsUnwindTablesDefault() const;
   virtual const char *GetDefaultRelocationModel() const;
@@ -56,10 +57,13 @@ private:
   // the argument translation business.
   mutable bool TargetInitialized;
 
-  /// Whether we are targetting iPhoneOS target.
+  /// Whether we are targeting iPhoneOS target.
   mutable bool TargetIsIPhoneOS;
 
-  /// The OS version we are targetting.
+  /// Whether we are targeting the iPhoneOS simulator target.
+  mutable bool TargetIsIPhoneOSSimulator;
+
+  /// The OS version we are targeting.
   mutable unsigned TargetVersion[3];
 
   /// The default macosx-version-min of this tool chain; empty until
@@ -80,18 +84,22 @@ public:
 
   // FIXME: Eliminate these ...Target functions and derive separate tool chains
   // for these targets and put version in constructor.
-  void setTarget(bool isIPhoneOS, unsigned Major, unsigned Minor,
-                 unsigned Micro) const {
+  void setTarget(bool IsIPhoneOS, unsigned Major, unsigned Minor,
+                 unsigned Micro, bool IsIOSSim) const {
+    assert((!IsIOSSim || IsIPhoneOS) && "Unexpected deployment target!");
+
     // FIXME: For now, allow reinitialization as long as values don't
     // change. This will go away when we move away from argument translation.
-    if (TargetInitialized && TargetIsIPhoneOS == isIPhoneOS &&
+    if (TargetInitialized && TargetIsIPhoneOS == IsIPhoneOS &&
+        TargetIsIPhoneOSSimulator == IsIOSSim &&
         TargetVersion[0] == Major && TargetVersion[1] == Minor &&
         TargetVersion[2] == Micro)
       return;
 
     assert(!TargetInitialized && "Target already initialized!");
     TargetInitialized = true;
-    TargetIsIPhoneOS = isIPhoneOS;
+    TargetIsIPhoneOS = IsIPhoneOS;
+    TargetIsIPhoneOSSimulator = IsIOSSim;
     TargetVersion[0] = Major;
     TargetVersion[1] = Minor;
     TargetVersion[2] = Micro;
@@ -100,6 +108,11 @@ public:
   bool isTargetIPhoneOS() const {
     assert(TargetInitialized && "Target not initialized!");
     return TargetIsIPhoneOS;
+  }
+
+  bool isTargetIOSSimulator() const {
+    assert(TargetInitialized && "Target not initialized!");
+    return TargetIsIPhoneOSSimulator;
   }
 
   bool isTargetInitialized() const { return TargetInitialized; }
@@ -160,7 +173,8 @@ public:
   virtual DerivedArgList *TranslateArgs(const DerivedArgList &Args,
                                         const char *BoundArch) const;
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 
   virtual bool IsBlocksDefault() const {
     // Always allow blocks on Darwin; users interested in versioning are
@@ -212,6 +226,8 @@ public:
   virtual const char *GetDefaultRelocationModel() const;
   virtual const char *GetForcedPicModel() const;
 
+  virtual bool SupportsProfiling() const;
+
   virtual bool SupportsObjCGC() const;
 
   virtual bool UseDwarfDebugFlags() const;
@@ -244,29 +260,6 @@ public:
   /// }
 };
 
-/// DarwinGCC - The Darwin toolchain used by GCC.
-class LLVM_LIBRARY_VISIBILITY DarwinGCC : public Darwin {
-  /// GCC version to use.
-  unsigned GCCVersion[3];
-
-  /// The directory suffix for this tool chain.
-  std::string ToolChainDir;
-
-public:
-  DarwinGCC(const HostInfo &Host, const llvm::Triple& Triple);
-
-  /// @name Darwin ToolChain Implementation
-  /// {
-
-  virtual void AddLinkSearchPathArgs(const ArgList &Args,
-                                    ArgStringList &CmdArgs) const;
-
-  virtual void AddLinkRuntimeLibArgs(const ArgList &Args,
-                                     ArgStringList &CmdArgs) const;
-
-  /// }
-};
-
 /// Darwin_Generic_GCC - Generic Darwin tool chain using gcc.
 class LLVM_LIBRARY_VISIBILITY Darwin_Generic_GCC : public Generic_GCC {
 public:
@@ -294,42 +287,48 @@ class LLVM_LIBRARY_VISIBILITY AuroraUX : public Generic_GCC {
 public:
   AuroraUX(const HostInfo &Host, const llvm::Triple& Triple);
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 };
 
 class LLVM_LIBRARY_VISIBILITY OpenBSD : public Generic_ELF {
 public:
   OpenBSD(const HostInfo &Host, const llvm::Triple& Triple);
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 };
 
 class LLVM_LIBRARY_VISIBILITY FreeBSD : public Generic_ELF {
 public:
   FreeBSD(const HostInfo &Host, const llvm::Triple& Triple);
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 };
 
 class LLVM_LIBRARY_VISIBILITY NetBSD : public Generic_ELF {
 public:
   NetBSD(const HostInfo &Host, const llvm::Triple& Triple);
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 };
 
 class LLVM_LIBRARY_VISIBILITY Minix : public Generic_GCC {
 public:
   Minix(const HostInfo &Host, const llvm::Triple& Triple);
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 };
 
 class LLVM_LIBRARY_VISIBILITY DragonFly : public Generic_ELF {
 public:
   DragonFly(const HostInfo &Host, const llvm::Triple& Triple);
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 };
 
 class LLVM_LIBRARY_VISIBILITY Linux : public Generic_ELF {
@@ -338,7 +337,8 @@ public:
 
   virtual bool HasNativeLLVMSupport() const;
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 
   std::string Linker;
   std::vector<std::string> ExtraOpts;
@@ -352,7 +352,8 @@ public:
   TCEToolChain(const HostInfo &Host, const llvm::Triple& Triple);
   ~TCEToolChain();
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
   bool IsMathErrnoDefault() const;
   bool IsUnwindTablesDefault() const;
   const char* GetDefaultRelocationModel() const;
@@ -369,7 +370,8 @@ class LLVM_LIBRARY_VISIBILITY Windows : public ToolChain {
 public:
   Windows(const HostInfo &Host, const llvm::Triple& Triple);
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 
   virtual bool IsIntegratedAssemblerDefault() const;
   virtual bool IsUnwindTablesDefault() const;

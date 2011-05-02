@@ -15,6 +15,7 @@
 #include "PTXTargetMachine.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
 #include "llvm/DerivedTypes.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
@@ -42,8 +43,14 @@ class PTXDAGToDAGISel : public SelectionDAGISel {
   private:
     SDNode *SelectREAD_PARAM(SDNode *Node);
 
+    // We need this only because we can't match intruction BRAdp
+    // pattern (PTXbrcond bb:$d, ...) in PTXInstrInfo.td
+    SDNode *SelectBRCOND(SDNode *Node);
+
     bool isImm(const SDValue &operand);
     bool SelectImm(const SDValue &operand, SDValue &imm);
+
+    const PTXSubtarget& getSubtarget() const;
 }; // class PTXDAGToDAGISel
 } // namespace
 
@@ -59,21 +66,62 @@ PTXDAGToDAGISel::PTXDAGToDAGISel(PTXTargetMachine &TM,
   : SelectionDAGISel(TM, OptLevel) {}
 
 SDNode *PTXDAGToDAGISel::Select(SDNode *Node) {
-  if (Node->getOpcode() == PTXISD::READ_PARAM)
-    return SelectREAD_PARAM(Node);
-  else
-    return SelectCode(Node);
+  switch (Node->getOpcode()) {
+    case PTXISD::READ_PARAM:
+      return SelectREAD_PARAM(Node);
+    case ISD::BRCOND:
+      return SelectBRCOND(Node);
+    default:
+      return SelectCode(Node);
+  }
 }
 
 SDNode *PTXDAGToDAGISel::SelectREAD_PARAM(SDNode *Node) {
-  SDValue index = Node->getOperand(1);
-  DebugLoc dl = Node->getDebugLoc();
+  SDValue  index = Node->getOperand(1);
+  DebugLoc dl    = Node->getDebugLoc();
+  unsigned opcode;
 
   if (index.getOpcode() != ISD::TargetConstant)
     llvm_unreachable("READ_PARAM: index is not ISD::TargetConstant");
 
+  if (Node->getValueType(0) == MVT::i16) {
+    opcode = PTX::LDpiU16;
+  }
+  else if (Node->getValueType(0) == MVT::i32) {
+    opcode = PTX::LDpiU32;
+  }
+  else if (Node->getValueType(0) == MVT::i64) {
+    opcode = PTX::LDpiU64;
+  }
+  else if (Node->getValueType(0) == MVT::f32) {
+    opcode = PTX::LDpiF32;
+  }
+  else if (Node->getValueType(0) == MVT::f64) {
+    opcode = PTX::LDpiF64;
+  }
+  else {
+    llvm_unreachable("Unknown parameter type for ld.param");
+  }
+
   return PTXInstrInfo::
-    GetPTXMachineNode(CurDAG, PTX::LDpi, dl, MVT::i32, index);
+    GetPTXMachineNode(CurDAG, opcode, dl, Node->getValueType(0), index);
+}
+
+SDNode *PTXDAGToDAGISel::SelectBRCOND(SDNode *Node) {
+  assert(Node->getNumOperands() >= 3);
+
+  SDValue Chain  = Node->getOperand(0);
+  SDValue Pred   = Node->getOperand(1);
+  SDValue Target = Node->getOperand(2); // branch target
+  SDValue PredOp = CurDAG->getTargetConstant(PTX::PRED_NORMAL, MVT::i32);
+  DebugLoc dl = Node->getDebugLoc();
+
+  assert(Target.getOpcode()  == ISD::BasicBlock);
+  assert(Pred.getValueType() == MVT::i1);
+
+  // Emit BRAdp
+  SDValue Ops[] = { Target, Pred, PredOp, Chain };
+  return CurDAG->getMachineNode(PTX::BRAdp, dl, MVT::Other, Ops, 4);
 }
 
 // Match memory operand of the form [reg+reg]
@@ -82,8 +130,11 @@ bool PTXDAGToDAGISel::SelectADDRrr(SDValue &Addr, SDValue &R1, SDValue &R2) {
       isImm(Addr.getOperand(0)) || isImm(Addr.getOperand(1)))
     return false;
 
+  assert(Addr.getValueType().isSimple() && "Type must be simple");
+
   R1 = Addr;
-  R2 = CurDAG->getTargetConstant(0, MVT::i32);
+  R2 = CurDAG->getTargetConstant(0, Addr.getValueType().getSimpleVT());
+
   return true;
 }
 
@@ -95,8 +146,12 @@ bool PTXDAGToDAGISel::SelectADDRri(SDValue &Addr, SDValue &Base,
     if (isImm(Addr))
       return false;
     // it is [reg]
+
+    assert(Addr.getValueType().isSimple() && "Type must be simple");
+
     Base = Addr;
-    Offset = CurDAG->getTargetConstant(0, MVT::i32);
+    Offset = CurDAG->getTargetConstant(0, Addr.getValueType().getSimpleVT());
+
     return true;
   }
 
@@ -129,7 +184,10 @@ bool PTXDAGToDAGISel::SelectADDRii(SDValue &Addr, SDValue &Base,
 
   // is [imm]?
   if (SelectImm(Addr, Base)) {
-    Offset = CurDAG->getTargetConstant(0, MVT::i32);
+    assert(Addr.getValueType().isSimple() && "Type must be simple");
+
+    Offset = CurDAG->getTargetConstant(0, Addr.getValueType().getSimpleVT());
+
     return true;
   }
 
@@ -146,6 +204,13 @@ bool PTXDAGToDAGISel::SelectImm(const SDValue &operand, SDValue &imm) {
     return false;
 
   ConstantSDNode *CN = cast<ConstantSDNode>(node);
-  imm = CurDAG->getTargetConstant(*CN->getConstantIntValue(), MVT::i32);
+  imm = CurDAG->getTargetConstant(*CN->getConstantIntValue(),
+                                  operand.getValueType());
   return true;
 }
+
+const PTXSubtarget& PTXDAGToDAGISel::getSubtarget() const
+{
+  return TM.getSubtarget<PTXSubtarget>();
+}
+

@@ -67,11 +67,13 @@ void Sema::ActOnTranslationUnitScope(Scope *S) {
     TInfo = Context.getTrivialTypeSourceInfo(Context.Int128Ty);
     PushOnScopeChains(TypedefDecl::Create(Context, CurContext,
                                           SourceLocation(),
+                                          SourceLocation(),
                                           &Context.Idents.get("__int128_t"),
                                           TInfo), TUScope);
 
     TInfo = Context.getTrivialTypeSourceInfo(Context.UnsignedInt128Ty);
     PushOnScopeChains(TypedefDecl::Create(Context, CurContext,
+                                          SourceLocation(),
                                           SourceLocation(),
                                           &Context.Idents.get("__uint128_t"),
                                           TInfo), TUScope);
@@ -87,7 +89,8 @@ void Sema::ActOnTranslationUnitScope(Scope *S) {
     QualType SelT = Context.getPointerType(Context.ObjCBuiltinSelTy);
     TypeSourceInfo *SelInfo = Context.getTrivialTypeSourceInfo(SelT);
     TypedefDecl *SelTypedef
-      = TypedefDecl::Create(Context, CurContext, SourceLocation(),
+      = TypedefDecl::Create(Context, CurContext,
+                            SourceLocation(), SourceLocation(),
                             &Context.Idents.get("SEL"), SelInfo);
     PushOnScopeChains(SelTypedef, TUScope);
     Context.setObjCSelType(Context.getTypeDeclType(SelTypedef));
@@ -109,7 +112,8 @@ void Sema::ActOnTranslationUnitScope(Scope *S) {
     T = Context.getObjCObjectPointerType(T);
     TypeSourceInfo *IdInfo = Context.getTrivialTypeSourceInfo(T);
     TypedefDecl *IdTypedef
-      = TypedefDecl::Create(Context, CurContext, SourceLocation(),
+      = TypedefDecl::Create(Context, CurContext,
+                            SourceLocation(), SourceLocation(),
                             &Context.Idents.get("id"), IdInfo);
     PushOnScopeChains(IdTypedef, TUScope);
     Context.setObjCIdType(Context.getTypeDeclType(IdTypedef));
@@ -121,7 +125,8 @@ void Sema::ActOnTranslationUnitScope(Scope *S) {
     T = Context.getObjCObjectPointerType(T);
     TypeSourceInfo *ClassInfo = Context.getTrivialTypeSourceInfo(T);
     TypedefDecl *ClassTypedef
-      = TypedefDecl::Create(Context, CurContext, SourceLocation(),
+      = TypedefDecl::Create(Context, CurContext,
+                            SourceLocation(), SourceLocation(),
                             &Context.Idents.get("Class"), ClassInfo);
     PushOnScopeChains(ClassTypedef, TUScope);
     Context.setObjCClassType(Context.getTypeDeclType(ClassTypedef));
@@ -136,7 +141,8 @@ Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
     LangOpts(pp.getLangOptions()), PP(pp), Context(ctxt), Consumer(consumer),
     Diags(PP.getDiagnostics()), SourceMgr(PP.getSourceManager()),
     ExternalSource(0), CodeCompleter(CodeCompleter), CurContext(0), 
-    PackContext(0), VisContext(0),
+    PackContext(0), MSStructPragmaOn(false), VisContext(0),
+    LateTemplateParser(0), OpaqueParser(0),
     IdResolver(pp.getLangOptions()), CXXTypeInfoDecl(0), MSVCGuidDecl(0),
     GlobalNewDeleteDeclared(false), 
     CompleteTranslationUnit(CompleteTranslationUnit),
@@ -178,7 +184,7 @@ Sema::~Sema() {
   if (PackContext) FreePackedContext();
   if (VisContext) FreeVisContext();
   delete TheTargetAttributesSema;
-
+  MSStructPragmaOn = false;
   // Kill all the active scopes.
   for (unsigned I = 1, E = FunctionScopes.size(); I != E; ++I)
     delete FunctionScopes[I];
@@ -195,39 +201,58 @@ Sema::~Sema() {
     ExternalSema->ForgetSema();
 }
 
+ASTMutationListener *Sema::getASTMutationListener() const {
+  return getASTConsumer().GetASTMutationListener();
+}
+
 /// ImpCastExprToType - If Expr is not of type 'Type', insert an implicit cast.
 /// If there is already an implicit cast, merge into the existing one.
 /// The result is of the given category.
-void Sema::ImpCastExprToType(Expr *&Expr, QualType Ty,
-                             CastKind Kind, ExprValueKind VK,
-                             const CXXCastPath *BasePath) {
-  QualType ExprTy = Context.getCanonicalType(Expr->getType());
+ExprResult Sema::ImpCastExprToType(Expr *E, QualType Ty,
+                                   CastKind Kind, ExprValueKind VK,
+                                   const CXXCastPath *BasePath) {
+  QualType ExprTy = Context.getCanonicalType(E->getType());
   QualType TypeTy = Context.getCanonicalType(Ty);
 
   if (ExprTy == TypeTy)
-    return;
+    return Owned(E);
 
   // If this is a derived-to-base cast to a through a virtual base, we
   // need a vtable.
   if (Kind == CK_DerivedToBase && 
       BasePathInvolvesVirtualBase(*BasePath)) {
-    QualType T = Expr->getType();
+    QualType T = E->getType();
     if (const PointerType *Pointer = T->getAs<PointerType>())
       T = Pointer->getPointeeType();
     if (const RecordType *RecordTy = T->getAs<RecordType>())
-      MarkVTableUsed(Expr->getLocStart(), 
+      MarkVTableUsed(E->getLocStart(), 
                      cast<CXXRecordDecl>(RecordTy->getDecl()));
   }
 
-  if (ImplicitCastExpr *ImpCast = dyn_cast<ImplicitCastExpr>(Expr)) {
+  if (ImplicitCastExpr *ImpCast = dyn_cast<ImplicitCastExpr>(E)) {
     if (ImpCast->getCastKind() == Kind && (!BasePath || BasePath->empty())) {
       ImpCast->setType(Ty);
       ImpCast->setValueKind(VK);
-      return;
+      return Owned(E);
     }
   }
 
-  Expr = ImplicitCastExpr::Create(Context, Ty, Kind, Expr, BasePath, VK);
+  return Owned(ImplicitCastExpr::Create(Context, Ty, Kind, E, BasePath, VK));
+}
+
+/// ScalarTypeToBooleanCastKind - Returns the cast kind corresponding
+/// to the conversion from scalar type ScalarTy to the Boolean type.
+CastKind Sema::ScalarTypeToBooleanCastKind(QualType ScalarTy) {
+  switch (ScalarTy->getScalarTypeKind()) {
+  case Type::STK_Bool: return CK_NoOp;
+  case Type::STK_Pointer: return CK_PointerToBoolean;
+  case Type::STK_MemberPointer: return CK_MemberPointerToBoolean;
+  case Type::STK_Integral: return CK_IntegralToBoolean;
+  case Type::STK_Floating: return CK_FloatingToBoolean;
+  case Type::STK_IntegralComplex: return CK_IntegralComplexToBoolean;
+  case Type::STK_FloatingComplex: return CK_FloatingComplexToBoolean;
+  }
+  return CK_Invalid;
 }
 
 ExprValueKind Sema::CastCategory(Expr *E) {
@@ -352,22 +377,30 @@ void Sema::ActOnEndOfTranslationUnit() {
       }
     }
 
-    // If DefinedUsedVTables ends up marking any virtual member functions it
-    // might lead to more pending template instantiations, which we then need
-    // to instantiate.
-    DefineUsedVTables();
+    bool SomethingChanged;
+    do {
+      SomethingChanged = false;
+      
+      // If DefinedUsedVTables ends up marking any virtual member functions it
+      // might lead to more pending template instantiations, which we then need
+      // to instantiate.
+      if (DefineUsedVTables())
+        SomethingChanged = true;
 
-    // C++: Perform implicit template instantiations.
-    //
-    // FIXME: When we perform these implicit instantiations, we do not
-    // carefully keep track of the point of instantiation (C++ [temp.point]).
-    // This means that name lookup that occurs within the template
-    // instantiation will always happen at the end of the translation unit,
-    // so it will find some names that should not be found. Although this is
-    // common behavior for C++ compilers, it is technically wrong. In the
-    // future, we either need to be able to filter the results of name lookup
-    // or we need to perform template instantiations earlier.
-    PerformPendingInstantiations();
+      // C++: Perform implicit template instantiations.
+      //
+      // FIXME: When we perform these implicit instantiations, we do not
+      // carefully keep track of the point of instantiation (C++ [temp.point]).
+      // This means that name lookup that occurs within the template
+      // instantiation will always happen at the end of the translation unit,
+      // so it will find some names that should not be found. Although this is
+      // common behavior for C++ compilers, it is technically wrong. In the
+      // future, we either need to be able to filter the results of name lookup
+      // or we need to perform template instantiations earlier.
+      if (PerformPendingInstantiations())
+        SomethingChanged = true;
+      
+    } while (SomethingChanged);
   }
   
   // Remove file scoped decls that turned out to be used.
@@ -451,16 +484,32 @@ void Sema::ActOnEndOfTranslationUnit() {
         const FunctionDecl *DiagD;
         if (!FD->hasBody(DiagD))
           DiagD = FD;
-        Diag(DiagD->getLocation(),
-             isa<CXXMethodDecl>(DiagD) ? diag::warn_unused_member_function
-                                       : diag::warn_unused_function)
-              << DiagD->getDeclName();
+        if (DiagD->isDeleted())
+          continue; // Deleted functions are supposed to be unused.
+        if (DiagD->isReferenced()) {
+          if (isa<CXXMethodDecl>(DiagD))
+            Diag(DiagD->getLocation(), diag::warn_unneeded_member_function)
+                  << DiagD->getDeclName();
+          else
+            Diag(DiagD->getLocation(), diag::warn_unneeded_internal_decl)
+                  << /*function*/0 << DiagD->getDeclName();
+        } else {
+          Diag(DiagD->getLocation(),
+               isa<CXXMethodDecl>(DiagD) ? diag::warn_unused_member_function
+                                         : diag::warn_unused_function)
+                << DiagD->getDeclName();
+        }
       } else {
         const VarDecl *DiagD = cast<VarDecl>(*I)->getDefinition();
         if (!DiagD)
           DiagD = cast<VarDecl>(*I);
-        Diag(DiagD->getLocation(), diag::warn_unused_variable)
-              << DiagD->getDeclName();
+        if (DiagD->isReferenced()) {
+          Diag(DiagD->getLocation(), diag::warn_unneeded_internal_decl)
+                << /*variable*/1 << DiagD->getDeclName();
+        } else {
+          Diag(DiagD->getLocation(), diag::warn_unused_variable)
+                << DiagD->getDeclName();
+        }
       }
     }
 
@@ -583,6 +632,27 @@ Sema::Diag(SourceLocation Loc, const PartialDiagnostic& PD) {
   PD.Emit(Builder);
 
   return Builder;
+}
+
+/// \brief Looks through the macro-instantiation chain for the given
+/// location, looking for a macro instantiation with the given name.
+/// If one is found, returns true and sets the location to that
+/// instantiation loc.
+bool Sema::findMacroSpelling(SourceLocation &locref, llvm::StringRef name) {
+  SourceLocation loc = locref;
+  if (!loc.isMacroID()) return false;
+
+  // There's no good way right now to look at the intermediate
+  // instantiations, so just jump to the instantiation location.
+  loc = getSourceManager().getInstantiationLoc(loc);
+
+  // If that's written with the name, stop here.
+  llvm::SmallVector<char, 16> buffer;
+  if (getPreprocessor().getSpelling(loc, buffer) == name) {
+    locref = loc;
+    return true;
+  }
+  return false;
 }
 
 /// \brief Determines the active Scope associated with the given declaration

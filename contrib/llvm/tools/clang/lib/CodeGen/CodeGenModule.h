@@ -20,7 +20,6 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Mangle.h"
-#include "CGCall.h"
 #include "CGVTables.h"
 #include "CodeGenTypes.h"
 #include "GlobalDecl.h"
@@ -69,12 +68,14 @@ namespace clang {
 
 namespace CodeGen {
 
+  class CallArgList;
   class CodeGenFunction;
   class CodeGenTBAA;
   class CGCXXABI;
   class CGDebugInfo;
   class CGObjCRuntime;
   class BlockFieldFlags;
+  class FunctionArgList;
   
   struct OrderGlobalInits {
     unsigned int priority;
@@ -246,9 +247,6 @@ class CodeGenModule : public CodeGenTypeCache {
     int GlobalUniqueCount;
   } Block;
 
-  llvm::DenseMap<uint64_t, llvm::Constant *> AssignCache;
-  llvm::DenseMap<uint64_t, llvm::Constant *> DestroyCache;
-
   /// @}
 public:
   CodeGenModule(ASTContext &C, const CodeGenOptions &CodeGenOpts,
@@ -281,7 +279,8 @@ public:
     StaticLocalDeclMap[D] = GV;
   }
 
-  CGDebugInfo *getDebugInfo() { return DebugInfo; }
+  CGDebugInfo *getModuleDebugInfo() { return DebugInfo; }
+
   ASTContext &getContext() const { return Context; }
   const CodeGenOptions &getCodeGenOpts() const { return CodeGenOpts; }
   const LangOptions &getLangOptions() const { return Features; }
@@ -311,6 +310,7 @@ public:
   enum TypeVisibilityKind {
     TVK_ForVTT,
     TVK_ForVTable,
+    TVK_ForConstructionVTable,
     TVK_ForRTTI,
     TVK_ForRTTIName
   };
@@ -358,6 +358,7 @@ public:
   llvm::Constant *GetAddrOfGlobalVar(const VarDecl *D,
                                      const llvm::Type *Ty = 0);
 
+
   /// GetAddrOfFunction - Return the address of the given function.  If Ty is
   /// non-null, then this function will use the specified type if it has to
   /// create it.
@@ -382,14 +383,35 @@ public:
                                CastExpr::path_const_iterator PathBegin,
                                CastExpr::path_const_iterator PathEnd);
 
-  llvm::Constant *BuildbyrefCopyHelper(const llvm::Type *T,
-                                       BlockFieldFlags flags,
-                                       unsigned Align,
-                                       const VarDecl *variable);
-  llvm::Constant *BuildbyrefDestroyHelper(const llvm::Type *T,
-                                          BlockFieldFlags flags,
-                                          unsigned Align,
-                                          const VarDecl *variable);
+  /// A pair of helper functions for a __block variable.
+  class ByrefHelpers : public llvm::FoldingSetNode {
+  public:
+    llvm::Constant *CopyHelper;
+    llvm::Constant *DisposeHelper;
+
+    /// The alignment of the field.  This is important because
+    /// different offsets to the field within the byref struct need to
+    /// have different helper functions.
+    CharUnits Alignment;
+
+    ByrefHelpers(CharUnits alignment) : Alignment(alignment) {}
+    virtual ~ByrefHelpers();
+
+    void Profile(llvm::FoldingSetNodeID &id) const {
+      id.AddInteger(Alignment.getQuantity());
+      profileImpl(id);
+    }
+    virtual void profileImpl(llvm::FoldingSetNodeID &id) const = 0;
+
+    virtual bool needsCopy() const { return true; }
+    virtual void emitCopy(CodeGenFunction &CGF,
+                          llvm::Value *dest, llvm::Value *src) = 0;
+
+    virtual bool needsDispose() const { return true; }
+    virtual void emitDispose(CodeGenFunction &CGF, llvm::Value *field) = 0;
+  };
+
+  llvm::FoldingSet<ByrefHelpers> ByrefHelpersCache;
 
   /// getUniqueBlockCount - Fetches the global unique block count.
   int getUniqueBlockCount() { return ++Block.GlobalUniqueCount; }
@@ -437,7 +459,7 @@ public:
   ///
   /// \param GlobalName If provided, the name to use for the global
   /// (if one is created).
-  llvm::Constant *GetAddrOfConstantString(const std::string& str,
+  llvm::Constant *GetAddrOfConstantString(llvm::StringRef Str,
                                           const char *GlobalName=0);
 
   /// GetAddrOfConstantCString - Returns a pointer to a character array
@@ -451,13 +473,15 @@ public:
 
   /// GetAddrOfCXXConstructor - Return the address of the constructor of the
   /// given type.
-  llvm::GlobalValue *GetAddrOfCXXConstructor(const CXXConstructorDecl *D,
-                                             CXXCtorType Type);
+  llvm::GlobalValue *GetAddrOfCXXConstructor(const CXXConstructorDecl *ctor,
+                                             CXXCtorType ctorType,
+                                             const CGFunctionInfo *fnInfo = 0);
 
   /// GetAddrOfCXXDestructor - Return the address of the constructor of the
   /// given type.
-  llvm::GlobalValue *GetAddrOfCXXDestructor(const CXXDestructorDecl *D,
-                                            CXXDtorType Type);
+  llvm::GlobalValue *GetAddrOfCXXDestructor(const CXXDestructorDecl *dtor,
+                                            CXXDtorType dtorType,
+                                            const CGFunctionInfo *fnInfo = 0);
 
   /// getBuiltinLibFunction - Given a builtin id for a function like
   /// "__builtin_fabsf", return a Function* for "fabsf".
@@ -502,10 +526,8 @@ public:
 
   ///@}
 
-  void UpdateCompletedType(const TagDecl *TD) {
-    // Make sure that this type is translated.
-    Types.UpdateCompletedType(TD);
-  }
+  // UpdateCompleteType - Make sure that this type is translated.
+  void UpdateCompletedType(const TagDecl *TD);
 
   llvm::Constant *getMemberPointerConstant(const UnaryOperator *e);
 
@@ -522,6 +544,9 @@ public:
 
   llvm::Constant *EmitAnnotateAttr(llvm::GlobalValue *GV,
                                    const AnnotateAttr *AA, unsigned LineNo);
+
+  /// Error - Emit a general error that something can't be done.
+  void Error(SourceLocation loc, llvm::StringRef error);
 
   /// ErrorUnsupported - Print out an error that codegen doesn't support the
   /// specified stmt yet.

@@ -442,25 +442,18 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
   BasicBlock *DispatchBlock =
     BasicBlock::Create(F.getContext(), "eh.sjlj.setjmp.catch", &F);
 
-  // Add a call to dispatch_setup at the start of the dispatch block. This is
-  // expanded to any target-specific setup that needs to be done.
-  Value *SetupArg =
-    CastInst::Create(Instruction::BitCast, FunctionContext,
-                     Type::getInt8PtrTy(F.getContext()), "",
-                     DispatchBlock);
-  CallInst::Create(DispatchSetupFn, SetupArg, "", DispatchBlock);
-
   // Insert a load of the callsite in the dispatch block, and a switch on its
-  // value.  By default, we go to a block that just does an unwind (which is the
-  // correct action for a standard call).
-  BasicBlock *UnwindBlock =
-    BasicBlock::Create(F.getContext(), "unwindbb", &F);
-  Unwinds.push_back(new UnwindInst(F.getContext(), UnwindBlock));
+  // value. By default, we issue a trap statement.
+  BasicBlock *TrapBlock =
+    BasicBlock::Create(F.getContext(), "trapbb", &F);
+  CallInst::Create(Intrinsic::getDeclaration(F.getParent(), Intrinsic::trap),
+                   "", TrapBlock);
+  new UnreachableInst(F.getContext(), TrapBlock);
 
   Value *DispatchLoad = new LoadInst(CallSite, "invoke.num", true,
                                      DispatchBlock);
   SwitchInst *DispatchSwitch =
-    SwitchInst::Create(DispatchLoad, UnwindBlock, Invokes.size(),
+    SwitchInst::Create(DispatchLoad, TrapBlock, Invokes.size(),
                        DispatchBlock);
   // Split the entry block to insert the conditional branch for the setjmp.
   BasicBlock *ContBlock = EntryBB->splitBasicBlock(EntryBB->getTerminator(),
@@ -524,6 +517,11 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
   Value *DispatchVal = CallInst::Create(BuiltinSetjmpFn, SetjmpArg,
                                         "dispatch",
                                         EntryBB->getTerminator());
+
+  // Add a call to dispatch_setup after the setjmp call. This is expanded to any
+  // target-specific setup that needs to be done.
+  CallInst::Create(DispatchSetupFn, "", EntryBB->getTerminator());
+
   // check the return value of the setjmp. non-zero goes to dispatcher.
   Value *IsNormal = new ICmpInst(EntryBB->getTerminator(),
                                  ICmpInst::ICMP_EQ, DispatchVal, Zero,
@@ -564,7 +562,7 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
   // Replace all unwinds with a branch to the unwind handler.
   // ??? Should this ever happen with sjlj exceptions?
   for (unsigned i = 0, e = Unwinds.size(); i != e; ++i) {
-    BranchInst::Create(UnwindBlock, Unwinds[i]);
+    BranchInst::Create(TrapBlock, Unwinds[i]);
     Unwinds[i]->eraseFromParent();
   }
 

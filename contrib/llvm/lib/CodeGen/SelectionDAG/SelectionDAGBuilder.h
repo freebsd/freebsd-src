@@ -23,7 +23,6 @@
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <vector>
-#include <set>
 
 namespace llvm {
 
@@ -60,7 +59,6 @@ class MDNode;
 class PHINode;
 class PtrToIntInst;
 class ReturnInst;
-class SDISelAsmOperandInfo;
 class SDDbgValue;
 class SExtInst;
 class SelectInst;
@@ -380,10 +378,6 @@ public:
     assert(N.getNode() == 0 && "Already set a value for this node!");
     N = NewN;
   }
-  
-  void GetRegistersForValue(SDISelAsmOperandInfo &OpInfo,
-                            std::set<unsigned> &OutputRegs, 
-                            std::set<unsigned> &InputRegs);
 
   void FindMergedConditions(const Value *Cond, MachineBasicBlock *TBB,
                             MachineBasicBlock *FBB, MachineBasicBlock *CurBB,

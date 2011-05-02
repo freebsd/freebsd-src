@@ -59,7 +59,7 @@ def FeatureMips1       : SubtargetFeature<"mips1", "MipsArchVersion", "Mips1",
 def FeatureMips2       : SubtargetFeature<"mips2", "MipsArchVersion", "Mips2",
                                 "Mips2 ISA Support">;
 def FeatureMips32      : SubtargetFeature<"mips32", "MipsArchVersion", "Mips32",
-                                "Mips32 ISA Support", 
+                                "Mips32 ISA Support",
                                 [FeatureCondMov, FeatureBitCount]>;
 def FeatureMips32r2    : SubtargetFeature<"mips32r2", "MipsArchVersion",
                                 "Mips32r2", "Mips32r2 ISA Support",
@@ -81,7 +81,7 @@ def : Proc<"r6000", [FeatureMips2]>;
 
 def : Proc<"4ke", [FeatureMips32r2]>;
 
-// Allegrex is a 32bit subset of r4000, both for interger and fp registers,
+// Allegrex is a 32bit subset of r4000, both for integer and fp registers,
 // but much more similar to Mips2 than Mips3. It also contains some of
 // Mips32/Mips32r2 instructions and a custom vector fpu processor.
 def : Proc<"allegrex", [FeatureMips2, FeatureSingleFloat, FeatureEABI,

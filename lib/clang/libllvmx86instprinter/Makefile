@@ -10,6 +10,7 @@ SRCS=	X86ATTInstPrinter.cpp \
 
 TGHDRS=	X86GenAsmWriter \
 	X86GenAsmWriter1 \
-	X86GenInstrNames
+	X86GenInstrNames \
+	X86GenRegisterNames
 
 .include "../clang.lib.mk"

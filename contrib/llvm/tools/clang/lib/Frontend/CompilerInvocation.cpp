@@ -30,16 +30,6 @@
 #include "llvm/Support/Path.h"
 using namespace clang;
 
-static const char *getAnalysisName(Analyses Kind) {
-  switch (Kind) {
-  default:
-    llvm_unreachable("Unknown analysis kind!");
-#define ANALYSIS(NAME, CMDFLAG, DESC, SCOPE)\
-  case NAME: return "-" CMDFLAG;
-#include "clang/Frontend/Analyses.def"
-  }
-}
-
 static const char *getAnalysisStoreName(AnalysisStores Kind) {
   switch (Kind) {
   default:
@@ -76,8 +66,6 @@ static const char *getAnalysisDiagClientName(AnalysisDiagClients Kind) {
 
 static void AnalyzerOptsToArgs(const AnalyzerOptions &Opts,
                                std::vector<std::string> &Res) {
-  for (unsigned i = 0, e = Opts.AnalysisList.size(); i != e; ++i)
-    Res.push_back(getAnalysisName(Opts.AnalysisList[i]));
   if (Opts.ShowCheckerHelp)
     Res.push_back("-analyzer-checker-help");
   if (Opts.AnalysisStoreOpt != BasicStoreModel) {
@@ -102,8 +90,6 @@ static void AnalyzerOptsToArgs(const AnalyzerOptions &Opts,
     Res.push_back("-analyzer-display-progress");
   if (Opts.AnalyzeNestedBlocks)
     Res.push_back("-analyzer-opt-analyze-nested-blocks");
-  if (Opts.AnalyzerStats)
-    Res.push_back("-analyzer-stats");
   if (Opts.EagerlyAssume)
     Res.push_back("-analyzer-eagerly-assume");
   if (!Opts.PurgeDead)
@@ -112,12 +98,8 @@ static void AnalyzerOptsToArgs(const AnalyzerOptions &Opts,
     Res.push_back("-trim-egraph");
   if (Opts.VisualizeEGDot)
     Res.push_back("-analyzer-viz-egraph-graphviz");
-  if (Opts.VisualizeEGDot)
+  if (Opts.VisualizeEGUbi)
     Res.push_back("-analyzer-viz-egraph-ubigraph");
-  if (Opts.EnableExperimentalChecks)
-    Res.push_back("-analyzer-experimental-checks");
-  if (Opts.BufferOverflows)
-    Res.push_back("-analyzer-check-buffer-overflows");
 
   for (unsigned i = 0, e = Opts.CheckersControlList.size(); i != e; ++i) {
     const std::pair<std::string, bool> &opt = Opts.CheckersControlList[i];
@@ -141,17 +123,23 @@ static void CodeGenOptsToArgs(const CodeGenOptions &Opts,
     Res.push_back("-dwarf-debug-flags");
     Res.push_back(Opts.DwarfDebugFlags);
   }
+  if (Opts.EmitGcovArcs)
+    Res.push_back("-femit-coverage-data");
+  if (Opts.EmitGcovNotes)
+    Res.push_back("-femit-coverage-notes");
   if (!Opts.MergeAllConstants)
     Res.push_back("-fno-merge-all-constants");
   if (Opts.NoCommon)
     Res.push_back("-fno-common");
+  if (Opts.ForbidGuardVariables)
+    Res.push_back("-fforbid-guard-variables");
   if (Opts.NoImplicitFloat)
     Res.push_back("-no-implicit-float");
   if (Opts.OmitLeafFramePointer)
     Res.push_back("-momit-leaf-frame-pointer");
   if (Opts.OptimizeSize) {
     assert(Opts.OptimizationLevel == 2 && "Invalid options!");
-    Res.push_back("-Os");
+    Opts.OptimizeSize == 1 ? Res.push_back("-Os") : Res.push_back("-Oz");
   } else if (Opts.OptimizationLevel != 0)
     Res.push_back("-O" + llvm::utostr(Opts.OptimizationLevel));
   if (!Opts.MainFileName.empty()) {
@@ -213,6 +201,10 @@ static void CodeGenOptsToArgs(const CodeGenOptions &Opts,
   }
   if (Opts.RelaxAll)
     Res.push_back("-mrelax-all");
+  if (Opts.SaveTempLabels)
+    Res.push_back("-msave-temp-labels");
+  if (Opts.NoDwarf2CFIAsm)
+    Res.push_back("-fno-dwarf2-cfi-asm");
   if (Opts.SoftFloat)
     Res.push_back("-msoft-float");
   if (Opts.UnwindTables)
@@ -223,6 +215,10 @@ static void CodeGenOptsToArgs(const CodeGenOptions &Opts,
   }
   if (!Opts.VerifyModule)
     Res.push_back("-disable-llvm-verifier");
+  for (unsigned i = 0, e = Opts.BackendOptions.size(); i != e; ++i) {
+    Res.push_back("-backend-option");
+    Res.push_back(Opts.BackendOptions[i]);
+  }
 }
 
 static void DependencyOutputOptsToArgs(const DependencyOutputOptions &Opts,
@@ -273,6 +269,8 @@ static void DiagnosticOptsToArgs(const DiagnosticOptions &Opts,
     Res.push_back("-fcolor-diagnostics");
   if (Opts.VerifyDiagnostics)
     Res.push_back("-verify");
+  if (Opts.ShowNames)
+    Res.push_back("-fdiagnostics-show-name");
   if (Opts.ShowOptionNames)
     Res.push_back("-fdiagnostics-show-option");
   if (Opts.ShowCategories == 1)
@@ -282,6 +280,10 @@ static void DiagnosticOptsToArgs(const DiagnosticOptions &Opts,
   if (Opts.ErrorLimit) {
     Res.push_back("-ferror-limit");
     Res.push_back(llvm::utostr(Opts.ErrorLimit));
+  }
+  if (!Opts.DiagnosticLogFile.empty()) {
+    Res.push_back("-diagnostic-log-file");
+    Res.push_back(Opts.DiagnosticLogFile);
   }
   if (Opts.MacroBacktraceLimit
                         != DiagnosticOptions::DefaultMacroBacktraceLimit) {
@@ -340,7 +342,6 @@ static const char *getActionName(frontend::ActionKind Kind) {
   case frontend::ASTDump:                return "-ast-dump";
   case frontend::ASTDumpXML:             return "-ast-dump-xml";
   case frontend::ASTPrint:               return "-ast-print";
-  case frontend::ASTPrintXML:            return "-ast-print-xml";
   case frontend::ASTView:                return "-ast-view";
   case frontend::BoostCon:               return "-boostcon";
   case frontend::CreateModule:           return "-create-module";
@@ -578,7 +579,7 @@ static void LangOptsToArgs(const LangOptions &Opts,
   if (Opts.WritableStrings)
     Res.push_back("-fwritable-strings");
   if (Opts.ConstStrings)
-    Res.push_back("-Wwrite-strings");
+    Res.push_back("-fconst-strings");
   if (!Opts.LaxVectorConversions)
     Res.push_back("-fno-lax-vector-conversions");
   if (Opts.AltiVec)
@@ -591,6 +592,8 @@ static void LangOptsToArgs(const LangOptions &Opts,
     Res.push_back("-fcxx-exceptions");
   if (Opts.SjLjExceptions)
     Res.push_back("-fsjlj-exceptions");
+  if (Opts.TraditionalCPP)
+    Res.push_back("-traditional-cpp");
   if (!Opts.RTTI)
     Res.push_back("-fno-rtti");
   if (Opts.MSBitfields)
@@ -689,6 +692,14 @@ static void LangOptsToArgs(const LangOptions &Opts,
     Res.push_back("-fconstant-string-class");
     Res.push_back(Opts.ObjCConstantStringClass);
   }
+  if (Opts.FakeAddressSpaceMap)
+    Res.push_back("-ffake-address-space-map");
+  if (Opts.ParseUnknownAnytype)
+    Res.push_back("-funknown-anytype");
+  if (Opts.DelayedTemplateParsing)
+    Res.push_back("-fdelayed-template-parsing");
+  if (Opts.Deprecated)
+    Res.push_back("-fdeprecated-macro");
 }
 
 static void PreprocessorOptsToArgs(const PreprocessorOptions &Opts,
@@ -724,6 +735,10 @@ static void PreprocessorOptsToArgs(const PreprocessorOptions &Opts,
     } else
       assert(Opts.ImplicitPTHInclude == Opts.TokenCache &&
              "Unsupported option combination!");
+  }
+  for (unsigned i = 0, e = Opts.ChainedIncludes.size(); i != e; ++i) {
+    Res.push_back("-chain-include");
+    Res.push_back(Opts.ChainedIncludes[i]);
   }
   for (unsigned i = 0, e = Opts.RemappedFiles.size(); i != e; ++i) {
     Res.push_back("-remap-file");
@@ -804,19 +819,14 @@ static unsigned getOptimizationLevel(ArgList &Args, InputKind IK,
   unsigned DefaultOpt = 0;
   if (IK == IK_OpenCL && !Args.hasArg(OPT_cl_opt_disable))
     DefaultOpt = 2;
-  // -Os implies -O2
-  return Args.hasArg(OPT_Os) ? 2 :
+  // -Os/-Oz implies -O2
+  return (Args.hasArg(OPT_Os) || Args.hasArg (OPT_Oz)) ? 2 :
     Args.getLastArgIntValue(OPT_O, DefaultOpt, Diags);
 }
 
 static void ParseAnalyzerArgs(AnalyzerOptions &Opts, ArgList &Args,
                               Diagnostic &Diags) {
   using namespace cc1options;
-
-  Opts.AnalysisList.clear();
-#define ANALYSIS(NAME, CMDFLAG, DESC, SCOPE) \
-  if (Args.hasArg(OPT_analysis_##NAME)) Opts.AnalysisList.push_back(NAME);
-#include "clang/Frontend/Analyses.def"
 
   if (Arg *A = Args.getLastArg(OPT_analyzer_store)) {
     llvm::StringRef Name = A->getValue(Args);
@@ -870,20 +880,17 @@ static void ParseAnalyzerArgs(AnalyzerOptions &Opts, ArgList &Args,
   Opts.AnalyzerDisplayProgress = Args.hasArg(OPT_analyzer_display_progress);
   Opts.AnalyzeNestedBlocks =
     Args.hasArg(OPT_analyzer_opt_analyze_nested_blocks);
-  Opts.AnalyzerStats = Args.hasArg(OPT_analysis_AnalyzerStats);
   Opts.PurgeDead = !Args.hasArg(OPT_analyzer_no_purge_dead);
   Opts.EagerlyAssume = Args.hasArg(OPT_analyzer_eagerly_assume);
   Opts.AnalyzeSpecificFunction = Args.getLastArgValue(OPT_analyze_function);
   Opts.UnoptimizedCFG = Args.hasArg(OPT_analysis_UnoptimizedCFG);
   Opts.CFGAddImplicitDtors = Args.hasArg(OPT_analysis_CFGAddImplicitDtors);
   Opts.CFGAddInitializers = Args.hasArg(OPT_analysis_CFGAddInitializers);
-  Opts.EnableExperimentalChecks = Args.hasArg(OPT_analyzer_experimental_checks);
   Opts.TrimGraph = Args.hasArg(OPT_trim_egraph);
   Opts.MaxNodes = Args.getLastArgIntValue(OPT_analyzer_max_nodes, 150000,Diags);
   Opts.MaxLoop = Args.getLastArgIntValue(OPT_analyzer_max_loop, 4, Diags);
   Opts.EagerlyTrimEGraph = !Args.hasArg(OPT_analyzer_no_eagerly_trim_egraph);
   Opts.InlineCall = Args.hasArg(OPT_analyzer_inline_call);
-  Opts.BufferOverflows = Args.hasArg(OPT_analysis_WarnBufferOverflows);
 
   Opts.CheckersControlList.clear();
   for (arg_iterator it = Args.filtered_begin(OPT_analyzer_checker,
@@ -921,12 +928,14 @@ static void ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   Opts.LimitDebugInfo = Args.hasArg(OPT_flimit_debug_info);
   Opts.DisableLLVMOpts = Args.hasArg(OPT_disable_llvm_optzns);
   Opts.DisableRedZone = Args.hasArg(OPT_disable_red_zone);
+  Opts.ForbidGuardVariables = Args.hasArg(OPT_fforbid_guard_variables);
   Opts.RelaxedAliasing = Args.hasArg(OPT_relaxed_aliasing);
   Opts.DwarfDebugFlags = Args.getLastArgValue(OPT_dwarf_debug_flags);
   Opts.MergeAllConstants = !Args.hasArg(OPT_fno_merge_all_constants);
   Opts.NoCommon = Args.hasArg(OPT_fno_common);
   Opts.NoImplicitFloat = Args.hasArg(OPT_no_implicit_float);
   Opts.OptimizeSize = Args.hasArg(OPT_Os);
+  Opts.OptimizeSize = Args.hasArg(OPT_Oz) ? 2 : Opts.OptimizeSize;
   Opts.SimplifyLibCalls = !(Args.hasArg(OPT_fno_builtin) ||
                             Args.hasArg(OPT_ffreestanding));
   Opts.UnrollLoops = Args.hasArg(OPT_funroll_loops) ||
@@ -945,9 +954,12 @@ static void ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   Opts.NoInfsFPMath = Opts.NoNaNsFPMath = Args.hasArg(OPT_cl_finite_math_only)||
                                           Args.hasArg(OPT_cl_fast_relaxed_math);
   Opts.NoZeroInitializedInBSS = Args.hasArg(OPT_mno_zero_initialized_in_bss);
+  Opts.BackendOptions = Args.getAllArgValues(OPT_backend_option);
   Opts.NumRegisterParameters = Args.getLastArgIntValue(OPT_mregparm, 0, Diags);
   Opts.RelaxAll = Args.hasArg(OPT_mrelax_all);
   Opts.OmitLeafFramePointer = Args.hasArg(OPT_momit_leaf_frame_pointer);
+  Opts.SaveTempLabels = Args.hasArg(OPT_msave_temp_labels);
+  Opts.NoDwarf2CFIAsm = Args.hasArg(OPT_fno_dwarf2_cfi_asm);
   Opts.SoftFloat = Args.hasArg(OPT_msoft_float);
   Opts.UnsafeFPMath = Args.hasArg(OPT_cl_unsafe_math_optimizations) ||
                       Args.hasArg(OPT_cl_fast_relaxed_math);
@@ -962,6 +974,8 @@ static void ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
 
   Opts.InstrumentFunctions = Args.hasArg(OPT_finstrument_functions);
   Opts.InstrumentForProfiling = Args.hasArg(OPT_pg);
+  Opts.EmitGcovArcs = Args.hasArg(OPT_femit_coverage_data);
+  Opts.EmitGcovNotes = Args.hasArg(OPT_femit_coverage_notes);
 
   if (Arg *A = Args.getLastArg(OPT_fobjc_dispatch_method_EQ)) {
     llvm::StringRef Name = A->getValue(Args);
@@ -991,6 +1005,7 @@ static void ParseDependencyOutputArgs(DependencyOutputOptions &Opts,
 static void ParseDiagnosticArgs(DiagnosticOptions &Opts, ArgList &Args,
                                 Diagnostic &Diags) {
   using namespace cc1options;
+  Opts.DiagnosticLogFile = Args.getLastArgValue(OPT_diagnostic_log_file);
   Opts.IgnoreWarnings = Args.hasArg(OPT_w);
   Opts.NoRewriteMacros = Args.hasArg(OPT_Wno_rewrite_macros);
   Opts.Pedantic = Args.hasArg(OPT_pedantic);
@@ -1000,7 +1015,15 @@ static void ParseDiagnosticArgs(DiagnosticOptions &Opts, ArgList &Args,
   Opts.ShowColumn = !Args.hasArg(OPT_fno_show_column);
   Opts.ShowFixits = !Args.hasArg(OPT_fno_diagnostics_fixit_info);
   Opts.ShowLocation = !Args.hasArg(OPT_fno_show_source_location);
+  Opts.ShowNames = Args.hasArg(OPT_fdiagnostics_show_name);
   Opts.ShowOptionNames = Args.hasArg(OPT_fdiagnostics_show_option);
+
+  // Default behavior is to not to show note include stacks.
+  Opts.ShowNoteIncludeStack = false;
+  if (Arg *A = Args.getLastArg(OPT_fdiagnostics_show_note_include_stack,
+                               OPT_fno_diagnostics_show_note_include_stack))
+    if (A->getOption().matches(OPT_fdiagnostics_show_note_include_stack))
+      Opts.ShowNoteIncludeStack = true;
 
   llvm::StringRef ShowOverloads =
     Args.getLastArgValue(OPT_fshow_overloads_EQ, "all");
@@ -1067,8 +1090,6 @@ static InputKind ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
       Opts.ProgramAction = frontend::ASTDumpXML; break;
     case OPT_ast_print:
       Opts.ProgramAction = frontend::ASTPrint; break;
-    case OPT_ast_print_xml:
-      Opts.ProgramAction = frontend::ASTPrintXML; break;
     case OPT_ast_view:
       Opts.ProgramAction = frontend::ASTView; break;
     case OPT_boostcon:
@@ -1179,8 +1200,6 @@ static InputKind ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
     DashX = llvm::StringSwitch<InputKind>(A->getValue(Args))
       .Case("c", IK_C)
       .Case("cl", IK_OpenCL)
-      .Case("c", IK_C)
-      .Case("cl", IK_OpenCL)
       .Case("cuda", IK_CUDA)
       .Case("c++", IK_CXX)
       .Case("objective-c", IK_ObjC)
@@ -1189,6 +1208,7 @@ static InputKind ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
       .Case("assembler-with-cpp", IK_Asm)
       .Case("c++-cpp-output", IK_PreprocessedCXX)
       .Case("objective-c-cpp-output", IK_PreprocessedObjC)
+      .Case("objc-cpp-output", IK_PreprocessedObjC)
       .Case("objective-c++-cpp-output", IK_PreprocessedObjCXX)
       .Case("c-header", IK_C)
       .Case("objective-c-header", IK_ObjC)
@@ -1288,7 +1308,7 @@ static void ParseHeaderSearchArgs(HeaderSearchOptions &Opts, ArgList &Args) {
 
 void CompilerInvocation::setLangDefaults(LangOptions &Opts, InputKind IK,
                                          LangStandard::Kind LangStd) {
-  // Set some properties which depend soley on the input kind; it would be nice
+  // Set some properties which depend solely on the input kind; it would be nice
   // to move these to the language standard, and have the driver resolve the
   // input kind + language standard.
   if (IK == IK_Asm) {
@@ -1332,6 +1352,7 @@ void CompilerInvocation::setLangDefaults(LangOptions &Opts, InputKind IK,
   const LangStandard &Std = LangStandard::getLangStandardForKind(LangStd);
   Opts.BCPLComment = Std.hasBCPLComments();
   Opts.C99 = Std.isC99();
+  Opts.C1X = Std.isC1X();
   Opts.CPlusPlus = Std.isCPlusPlus();
   Opts.CPlusPlus0x = Std.isCPlusPlus0x();
   Opts.Digraphs = Std.hasDigraphs();
@@ -1423,6 +1444,9 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   if (Args.hasArg(OPT_pthread))
     Opts.POSIXThreads = 1;
 
+  if (Args.hasArg(OPT_fdelayed_template_parsing))
+    Opts.DelayedTemplateParsing = 1;
+
   llvm::StringRef Vis = Args.getLastArgValue(OPT_fvisibility, "default");
   if (Vis == "default")
     Opts.setVisibilityMode(DefaultVisibility);
@@ -1457,7 +1481,8 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   Opts.MSCVersion = Args.getLastArgIntValue(OPT_fmsc_version, 0, Diags);
   Opts.Borland = Args.hasArg(OPT_fborland_extensions);
   Opts.WritableStrings = Args.hasArg(OPT_fwritable_strings);
-  Opts.ConstStrings = Args.hasArg(OPT_Wwrite_strings);
+  Opts.ConstStrings = Args.hasFlag(OPT_fconst_strings, OPT_fno_const_strings,
+                                   Opts.ConstStrings);
   if (Args.hasArg(OPT_fno_lax_vector_conversions))
     Opts.LaxVectorConversions = 0;
   if (Args.hasArg(OPT_fno_threadsafe_statics))
@@ -1466,6 +1491,7 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   Opts.ObjCExceptions = Args.hasArg(OPT_fobjc_exceptions);
   Opts.CXXExceptions = Args.hasArg(OPT_fcxx_exceptions);
   Opts.SjLjExceptions = Args.hasArg(OPT_fsjlj_exceptions);
+  Opts.TraditionalCPP = Args.hasArg(OPT_traditional_cpp);
 
   Opts.RTTI = !Args.hasArg(OPT_fno_rtti);
   Opts.Blocks = Args.hasArg(OPT_fblocks);
@@ -1482,6 +1508,7 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   Opts.MathErrno = Args.hasArg(OPT_fmath_errno);
   Opts.InstantiationDepth = Args.getLastArgIntValue(OPT_ftemplate_depth, 1024,
                                                Diags);
+  Opts.DelayedTemplateParsing = Args.hasArg(OPT_fdelayed_template_parsing);
   Opts.NumLargeByValueCopy = Args.getLastArgIntValue(OPT_Wlarge_by_value_copy,
                                                     0, Diags);
   Opts.MSBitfields = Args.hasArg(OPT_mms_bitfields);
@@ -1504,6 +1531,14 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   Opts.SinglePrecisionConstants = Args.hasArg(OPT_cl_single_precision_constant);
   Opts.FastRelaxedMath = Args.hasArg(OPT_cl_fast_relaxed_math);
   Opts.OptimizeSize = 0;
+  Opts.MRTD = Args.hasArg(OPT_mrtd);
+  Opts.FakeAddressSpaceMap = Args.hasArg(OPT_ffake_address_space_map);
+  Opts.ParseUnknownAnytype = Args.hasArg(OPT_funknown_anytype);
+
+  // Record whether the __DEPRECATED define was requested.
+  Opts.Deprecated = Args.hasFlag(OPT_fdeprecated_macro,
+                                 OPT_fno_deprecated_macro,
+                                 Opts.Deprecated);
 
   // FIXME: Eliminate this dependency.
   unsigned Opt = getOptimizationLevel(Args, IK, Diags);
@@ -1591,6 +1626,12 @@ static void ParsePreprocessorArgs(PreprocessorOptions &Opts, ArgList &Args,
       Opts.Includes.push_back(OriginalFile);
     } else
       Opts.Includes.push_back(A->getValue(Args));
+  }
+
+  for (arg_iterator it = Args.filtered_begin(OPT_chain_include),
+         ie = Args.filtered_end(); it != ie; ++it) {
+    const Arg *A = *it;
+    Opts.ChainedIncludes.push_back(A->getValue(Args));
   }
 
   // Include 'altivec.h' if -faltivec option present

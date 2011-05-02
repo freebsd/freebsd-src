@@ -421,10 +421,9 @@ bool SelectionDAGISel::runOnMachineFunction(MachineFunction &mf) {
   return true;
 }
 
-void
-SelectionDAGISel::SelectBasicBlock(BasicBlock::const_iterator Begin,
-                                   BasicBlock::const_iterator End,
-                                   bool &HadTailCall) {
+void SelectionDAGISel::SelectBasicBlock(BasicBlock::const_iterator Begin,
+                                        BasicBlock::const_iterator End,
+                                        bool &HadTailCall) {
   // Lower all of the non-terminator instructions. If a call is emitted
   // as a tail call, cease emitting nodes for this block. Terminators
   // are handled below.
@@ -438,7 +437,6 @@ SelectionDAGISel::SelectBasicBlock(BasicBlock::const_iterator Begin,
 
   // Final step, emit the lowered DAG as machine code.
   CodeGenAndEmitDAG();
-  return;
 }
 
 void SelectionDAGISel::ComputeLiveOutVRegInfo() {
@@ -489,13 +487,19 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
   if (TimePassesIsEnabled)
     GroupName = "Instruction Selection and Scheduling";
   std::string BlockName;
+  int BlockNumber = -1;
+#ifdef NDEBUG
   if (ViewDAGCombine1 || ViewLegalizeTypesDAGs || ViewLegalizeDAGs ||
       ViewDAGCombine2 || ViewDAGCombineLT || ViewISelDAGs || ViewSchedDAGs ||
       ViewSUnitDAGs)
+#endif
+  {
+    BlockNumber = FuncInfo->MBB->getNumber();
     BlockName = MF->getFunction()->getNameStr() + ":" +
                 FuncInfo->MBB->getBasicBlock()->getNameStr();
-
-  DEBUG(dbgs() << "Initial selection DAG:\n"; CurDAG->dump());
+  }
+  DEBUG(dbgs() << "Initial selection DAG: BB#" << BlockNumber
+        << " '" << BlockName << "'\n"; CurDAG->dump());
 
   if (ViewDAGCombine1) CurDAG->viewGraph("dag-combine1 input for " + BlockName);
 
@@ -505,7 +509,8 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
     CurDAG->Combine(Unrestricted, *AA, OptLevel);
   }
 
-  DEBUG(dbgs() << "Optimized lowered selection DAG:\n"; CurDAG->dump());
+  DEBUG(dbgs() << "Optimized lowered selection DAG: BB#" << BlockNumber
+        << " '" << BlockName << "'\n"; CurDAG->dump());
 
   // Second step, hack on the DAG until it only uses operations and types that
   // the target supports.
@@ -518,7 +523,8 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
     Changed = CurDAG->LegalizeTypes();
   }
 
-  DEBUG(dbgs() << "Type-legalized selection DAG:\n"; CurDAG->dump());
+  DEBUG(dbgs() << "Type-legalized selection DAG: BB#" << BlockNumber
+        << " '" << BlockName << "'\n"; CurDAG->dump());
 
   if (Changed) {
     if (ViewDAGCombineLT)
@@ -531,8 +537,8 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
       CurDAG->Combine(NoIllegalTypes, *AA, OptLevel);
     }
 
-    DEBUG(dbgs() << "Optimized type-legalized selection DAG:\n";
-          CurDAG->dump());
+    DEBUG(dbgs() << "Optimized type-legalized selection DAG: BB#" << BlockNumber
+          << " '" << BlockName << "'\n"; CurDAG->dump());
   }
 
   {
@@ -556,8 +562,8 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
       CurDAG->Combine(NoIllegalOperations, *AA, OptLevel);
     }
 
-    DEBUG(dbgs() << "Optimized vector-legalized selection DAG:\n";
-          CurDAG->dump());
+    DEBUG(dbgs() << "Optimized vector-legalized selection DAG: BB#"
+          << BlockNumber << " '" << BlockName << "'\n"; CurDAG->dump());
   }
 
   if (ViewLegalizeDAGs) CurDAG->viewGraph("legalize input for " + BlockName);
@@ -567,7 +573,8 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
     CurDAG->Legalize(OptLevel);
   }
 
-  DEBUG(dbgs() << "Legalized selection DAG:\n"; CurDAG->dump());
+  DEBUG(dbgs() << "Legalized selection DAG: BB#" << BlockNumber
+        << " '" << BlockName << "'\n"; CurDAG->dump());
 
   if (ViewDAGCombine2) CurDAG->viewGraph("dag-combine2 input for " + BlockName);
 
@@ -577,7 +584,8 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
     CurDAG->Combine(NoIllegalOperations, *AA, OptLevel);
   }
 
-  DEBUG(dbgs() << "Optimized legalized selection DAG:\n"; CurDAG->dump());
+  DEBUG(dbgs() << "Optimized legalized selection DAG: BB#" << BlockNumber
+        << " '" << BlockName << "'\n"; CurDAG->dump());
 
   if (OptLevel != CodeGenOpt::None)
     ComputeLiveOutVRegInfo();
@@ -591,7 +599,8 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
     DoInstructionSelection();
   }
 
-  DEBUG(dbgs() << "Selected selection DAG:\n"; CurDAG->dump());
+  DEBUG(dbgs() << "Selected selection DAG: BB#" << BlockNumber
+        << " '" << BlockName << "'\n"; CurDAG->dump());
 
   if (ViewSchedDAGs) CurDAG->viewGraph("scheduler input for " + BlockName);
 
@@ -632,7 +641,9 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
 }
 
 void SelectionDAGISel::DoInstructionSelection() {
-  DEBUG(errs() << "===== Instruction selection begins:\n");
+  DEBUG(errs() << "===== Instruction selection begins: BB#"
+        << FuncInfo->MBB->getNumber()
+        << " '" << FuncInfo->MBB->getName() << "'\n");
 
   PreprocessISelDAG();
 
@@ -735,16 +746,49 @@ void SelectionDAGISel::PrepareEHLandingPad() {
 
 
 
-
+/// TryToFoldFastISelLoad - We're checking to see if we can fold the specified
+/// load into the specified FoldInst.  Note that we could have a sequence where
+/// multiple LLVM IR instructions are folded into the same machineinstr.  For
+/// example we could have:
+///   A: x = load i32 *P
+///   B: y = icmp A, 42
+///   C: br y, ...
+///
+/// In this scenario, LI is "A", and FoldInst is "C".  We know about "B" (and
+/// any other folded instructions) because it is between A and C.
+///
+/// If we succeed in folding the load into the operation, return true.
+///
 bool SelectionDAGISel::TryToFoldFastISelLoad(const LoadInst *LI,
+                                             const Instruction *FoldInst,
                                              FastISel *FastIS) {
+  // We know that the load has a single use, but don't know what it is.  If it
+  // isn't one of the folded instructions, then we can't succeed here.  Handle
+  // this by scanning the single-use users of the load until we get to FoldInst.
+  unsigned MaxUsers = 6;  // Don't scan down huge single-use chains of instrs.
+  
+  const Instruction *TheUser = LI->use_back();
+  while (TheUser != FoldInst &&   // Scan up until we find FoldInst.
+         // Stay in the right block.
+         TheUser->getParent() == FoldInst->getParent() &&
+         --MaxUsers) {  // Don't scan too far.
+    // If there are multiple or no uses of this instruction, then bail out.
+    if (!TheUser->hasOneUse())
+      return false;
+    
+    TheUser = TheUser->use_back();
+  }
+  
   // Don't try to fold volatile loads.  Target has to deal with alignment
   // constraints.
   if (LI->isVolatile()) return false;
 
-  // Figure out which vreg this is going into.
+  // Figure out which vreg this is going into.  If there is no assigned vreg yet
+  // then there actually was no reference to it.  Perhaps the load is referenced
+  // by a dead instruction.
   unsigned LoadReg = FastIS->getRegForValue(LI);
-  assert(LoadReg && "Load isn't already assigned a vreg? ");
+  if (LoadReg == 0)
+    return false;
 
   // Check to see what the uses of this vreg are.  If it has no uses, or more
   // than one use (at the machine instr level) then we can't fold it.
@@ -764,7 +808,7 @@ bool SelectionDAGISel::TryToFoldFastISelLoad(const LoadInst *LI,
          "The only use of the vreg must be a use, we haven't emitted the def!");
 
   MachineInstr *User = &*RI;
-  
+
   // Set the insertion point properly.  Folding the load can cause generation of
   // other random instructions (like sign extends) for addressing modes, make
   // sure they get inserted in a logical place before the new instruction.
@@ -817,6 +861,17 @@ static void CheckLineNumbers(const MachineBasicBlock *MBB) {
 }
 #endif
 
+/// isFoldedOrDeadInstruction - Return true if the specified instruction is
+/// side-effect free and is either dead or folded into a generated instruction.
+/// Return false if it needs to be emitted.
+static bool isFoldedOrDeadInstruction(const Instruction *I,
+                                      FunctionLoweringInfo *FuncInfo) {
+  return !I->mayWriteToMemory() && // Side-effecting instructions aren't folded.
+         !isa<TerminatorInst>(I) && // Terminators aren't folded.
+         !isa<DbgInfoIntrinsic>(I) &&  // Debug instructions aren't folded.
+         !FuncInfo->isExportedInst(I); // Exported instrs must be computed.
+}
+
 void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
   // Initialize the Fast-ISel state, if needed.
   FastISel *FastIS = 0;
@@ -843,15 +898,13 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
       }
 
       if (AllPredsVisited) {
-        for (BasicBlock::const_iterator I = LLVMBB->begin(), E = LLVMBB->end();
-             I != E && isa<PHINode>(I); ++I) {
+        for (BasicBlock::const_iterator I = LLVMBB->begin();
+             isa<PHINode>(I); ++I)
           FuncInfo->ComputePHILiveOutRegInfo(cast<PHINode>(I));
-        }
       } else {
-        for (BasicBlock::const_iterator I = LLVMBB->begin(), E = LLVMBB->end();
-             I != E && isa<PHINode>(I); ++I) {
+        for (BasicBlock::const_iterator I = LLVMBB->begin();
+             isa<PHINode>(I); ++I)
           FuncInfo->InvalidatePHILiveOutRegInfo(cast<PHINode>(I));
-        }
       }
 
       FuncInfo->VisitedBBs.insert(LLVMBB);
@@ -899,10 +952,7 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
         const Instruction *Inst = llvm::prior(BI);
 
         // If we no longer require this instruction, skip it.
-        if (!Inst->mayWriteToMemory() &&
-            !isa<TerminatorInst>(Inst) &&
-            !isa<DbgInfoIntrinsic>(Inst) &&
-            !FuncInfo->isExportedInst(Inst))
+        if (isFoldedOrDeadInstruction(Inst, FuncInfo))
           continue;
 
         // Bottom-up: reset the insert pos at the top, after any local-value
@@ -911,16 +961,20 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
 
         // Try to select the instruction with FastISel.
         if (FastIS->SelectInstruction(Inst)) {
-          // If fast isel succeeded, check to see if there is a single-use
-          // non-volatile load right before the selected instruction, and see if
-          // the load is used by the instruction.  If so, try to fold it.
-          const Instruction *BeforeInst = 0;
-          if (Inst != Begin)
-            BeforeInst = llvm::prior(llvm::prior(BI));
-          if (BeforeInst && isa<LoadInst>(BeforeInst) &&
-              BeforeInst->hasOneUse() && *BeforeInst->use_begin() == Inst &&
-              TryToFoldFastISelLoad(cast<LoadInst>(BeforeInst), FastIS))
-            --BI; // If we succeeded, don't re-select the load.
+          // If fast isel succeeded, skip over all the folded instructions, and
+          // then see if there is a load right before the selected instructions.
+          // Try to fold the load if so.
+          const Instruction *BeforeInst = Inst;
+          while (BeforeInst != Begin) {
+            BeforeInst = llvm::prior(BasicBlock::const_iterator(BeforeInst));
+            if (!isFoldedOrDeadInstruction(BeforeInst, FuncInfo))
+              break;
+          }
+          if (BeforeInst != Inst && isa<LoadInst>(BeforeInst) &&
+              BeforeInst->hasOneUse() &&
+              TryToFoldFastISelLoad(cast<LoadInst>(BeforeInst), Inst, FastIS))
+            // If we succeeded, don't re-select the load.
+            BI = llvm::next(BasicBlock::const_iterator(BeforeInst));
           continue;
         }
 
@@ -974,11 +1028,13 @@ void SelectionDAGISel::SelectAllBasicBlocks(const Function &Fn) {
     else
       ++NumFastIselBlocks;
 
-    // Run SelectionDAG instruction selection on the remainder of the block
-    // not handled by FastISel. If FastISel is not run, this is the entire
-    // block.
-    bool HadTailCall;
-    SelectBasicBlock(Begin, BI, HadTailCall);
+    if (Begin != BI) {
+      // Run SelectionDAG instruction selection on the remainder of the block
+      // not handled by FastISel. If FastISel is not run, this is the entire
+      // block.
+      bool HadTailCall;
+      SelectBasicBlock(Begin, BI, HadTailCall);
+    }
 
     FinishBasicBlock();
     FuncInfo->PHINodesToUpdate.clear();
@@ -2388,6 +2444,18 @@ SelectCodeCommon(SDNode *NodeToMatch, const unsigned char *MatcherTable,
       MVT::SimpleValueType VT =
         (MVT::SimpleValueType)MatcherTable[MatcherIndex++];
       unsigned RegNo = MatcherTable[MatcherIndex++];
+      RecordedNodes.push_back(std::pair<SDValue, SDNode*>(
+                              CurDAG->getRegister(RegNo, VT), (SDNode*)0));
+      continue;
+    }
+    case OPC_EmitRegister2: {
+      // For targets w/ more than 256 register names, the register enum
+      // values are stored in two bytes in the matcher table (just like
+      // opcodes).
+      MVT::SimpleValueType VT =
+        (MVT::SimpleValueType)MatcherTable[MatcherIndex++];
+      unsigned RegNo = MatcherTable[MatcherIndex++];
+      RegNo |= MatcherTable[MatcherIndex++] << 8;
       RecordedNodes.push_back(std::pair<SDValue, SDNode*>(
                               CurDAG->getRegister(RegNo, VT), (SDNode*)0));
       continue;

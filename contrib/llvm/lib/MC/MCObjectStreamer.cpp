@@ -31,6 +31,13 @@ MCObjectStreamer::MCObjectStreamer(MCContext &Context, TargetAsmBackend &TAB,
 {
 }
 
+MCObjectStreamer::MCObjectStreamer(MCContext &Context, TargetAsmBackend &TAB,
+                                   raw_ostream &OS, MCCodeEmitter *Emitter_,
+                                   MCAssembler *_Assembler)
+  : MCStreamer(Context), Assembler(_Assembler), CurSectionData(0)
+{
+}
+
 MCObjectStreamer::~MCObjectStreamer() {
   delete &Assembler->getBackend();
   delete &Assembler->getEmitter();
@@ -83,7 +90,7 @@ const MCExpr *MCObjectStreamer::AddValueSymbols(const MCExpr *Value) {
 }
 
 void MCObjectStreamer::EmitValueImpl(const MCExpr *Value, unsigned Size,
-                                     bool isPCRel, unsigned AddrSpace) {
+                                     unsigned AddrSpace) {
   assert(AddrSpace == 0 && "Address space must be 0!");
   MCDataFragment *DF = getOrCreateDataFragment();
 
@@ -95,15 +102,12 @@ void MCObjectStreamer::EmitValueImpl(const MCExpr *Value, unsigned Size,
   }
   DF->addFixup(MCFixup::Create(DF->getContents().size(),
                                Value,
-                               MCFixup::getKindForSize(Size, isPCRel)));
+                               MCFixup::getKindForSize(Size, false)));
   DF->getContents().resize(DF->getContents().size() + Size, 0);
 }
 
 void MCObjectStreamer::EmitLabel(MCSymbol *Symbol) {
-  assert(!Symbol->isVariable() && "Cannot emit a variable symbol!");
-  assert(getCurrentSection() && "Cannot emit before setting section!");
-
-  Symbol->setSection(*getCurrentSection());
+  MCStreamer::EmitLabel(Symbol);
 
   MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Symbol);
 
@@ -117,23 +121,23 @@ void MCObjectStreamer::EmitLabel(MCSymbol *Symbol) {
   SD.setOffset(F->getContents().size());
 }
 
-void MCObjectStreamer::EmitULEB128Value(const MCExpr *Value,
-                                        unsigned AddrSpace) {
+void MCObjectStreamer::EmitULEB128Value(const MCExpr *Value) {
   int64_t IntValue;
   if (Value->EvaluateAsAbsolute(IntValue, getAssembler())) {
-    EmitULEB128IntValue(IntValue, AddrSpace);
+    EmitULEB128IntValue(IntValue);
     return;
   }
+  Value = ForceExpAbs(this, getContext(), Value);
   new MCLEBFragment(*Value, false, getCurrentSectionData());
 }
 
-void MCObjectStreamer::EmitSLEB128Value(const MCExpr *Value,
-                                        unsigned AddrSpace) {
+void MCObjectStreamer::EmitSLEB128Value(const MCExpr *Value) {
   int64_t IntValue;
   if (Value->EvaluateAsAbsolute(IntValue, getAssembler())) {
-    EmitSLEB128IntValue(IntValue, AddrSpace);
+    EmitSLEB128IntValue(IntValue);
     return;
   }
+  Value = ForceExpAbs(this, getContext(), Value);
   new MCLEBFragment(*Value, true, getCurrentSectionData());
 }
 
@@ -184,30 +188,11 @@ void MCObjectStreamer::EmitInstruction(const MCInst &Inst) {
 void MCObjectStreamer::EmitInstToFragment(const MCInst &Inst) {
   MCInstFragment *IF = new MCInstFragment(Inst, getCurrentSectionData());
 
-  raw_svector_ostream VecOS(IF->getCode());
+  SmallString<128> Code;
+  raw_svector_ostream VecOS(Code);
   getAssembler().getEmitter().EncodeInstruction(Inst, VecOS, IF->getFixups());
-}
-
-static const MCExpr *BuildSymbolDiff(MCContext &Context,
-                                     const MCSymbol *A, const MCSymbol *B) {
-  MCSymbolRefExpr::VariantKind Variant = MCSymbolRefExpr::VK_None;
-  const MCExpr *ARef =
-    MCSymbolRefExpr::Create(A, Variant, Context);
-  const MCExpr *BRef =
-    MCSymbolRefExpr::Create(B, Variant, Context);
-  const MCExpr *AddrDelta =
-    MCBinaryExpr::Create(MCBinaryExpr::Sub, ARef, BRef, Context);
-  return AddrDelta;
-}
-
-static const MCExpr *ForceExpAbs(MCObjectStreamer *Streamer,
-                                  MCContext &Context, const MCExpr* Expr) {
- if (Context.getAsmInfo().hasAggressiveSymbolFolding())
-   return Expr;
-
- MCSymbol *ABS = Context.CreateTempSymbol();
- Streamer->EmitAssignment(ABS, Expr);
- return MCSymbolRefExpr::Create(ABS, Context);
+  VecOS.flush();
+  IF->getCode().append(Code.begin(), Code.end());
 }
 
 void MCObjectStreamer::EmitDwarfAdvanceLineAddr(int64_t LineDelta,

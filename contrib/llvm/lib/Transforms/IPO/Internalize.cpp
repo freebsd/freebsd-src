@@ -126,6 +126,8 @@ bool InternalizePass::runOnModule(Module &M) {
   // FIXME: maybe use private linkage?
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I)
     if (!I->isDeclaration() &&         // Function must be defined here
+        // Available externally is really just a "declaration with a body".
+        !I->hasAvailableExternallyLinkage() &&
         !I->hasLocalLinkage() &&  // Can't already have internal linkage
         !ExternalNames.count(I->getName())) {// Not marked to keep external?
       I->setLinkage(GlobalValue::InternalLinkage);
@@ -144,9 +146,6 @@ bool InternalizePass::runOnModule(Module &M) {
 
   // Never internalize anchors used by the machine module info, else the info
   // won't find them.  (see MachineModuleInfo.)
-  ExternalNames.insert("llvm.dbg.compile_units");
-  ExternalNames.insert("llvm.dbg.global_variables");
-  ExternalNames.insert("llvm.dbg.subprograms");
   ExternalNames.insert("llvm.global_ctors");
   ExternalNames.insert("llvm.global_dtors");
   ExternalNames.insert("llvm.noinline");

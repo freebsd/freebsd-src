@@ -400,6 +400,12 @@ void TypePrinter::printFunctionProto(const FunctionProtoType *T,
   case CC_X86Pascal:
     S += " __attribute__((pascal))";
     break;
+  case CC_AAPCS:
+    S += " __attribute__((pcs(\"aapcs\")))";
+    break;
+  case CC_AAPCS_VFP:
+    S += " __attribute__((pcs(\"aapcs-vfp\")))";
+    break;
   }
   if (Info.getNoReturn())
     S += " __attribute__((noreturn))";
@@ -421,12 +427,12 @@ void TypePrinter::printFunctionProto(const FunctionProtoType *T,
     S += " &&";
     break;
   }
-  
-  if (T->hasExceptionSpec()) {
+
+  if (T->hasDynamicExceptionSpec()) {
     S += " throw(";
-    if (T->hasAnyExceptionSpec())
+    if (T->getExceptionSpecType() == EST_MSAny)
       S += "...";
-    else 
+    else
       for (unsigned I = 0, N = T->getNumExceptions(); I != N; ++I) {
         if (I)
           S += ", ";
@@ -436,6 +442,16 @@ void TypePrinter::printFunctionProto(const FunctionProtoType *T,
         S += ExceptionType;
       }
     S += ")";
+  } else if (isNoexceptExceptionSpec(T->getExceptionSpecType())) {
+    S += " noexcept";
+    if (T->getExceptionSpecType() == EST_ComputedNoexcept) {
+      S += "(";
+      llvm::raw_string_ostream EOut(S);
+      T->getNoexceptExpr()->printPretty(EOut, 0, Policy);
+      EOut.flush();
+      S += EOut.str();
+      S += ")";
+    }
   }
 
   print(T->getResultType(), S);
@@ -530,7 +546,7 @@ void TypePrinter::AppendScope(DeclContext *DC, std::string &Buffer) {
     Buffer += Spec->getIdentifier()->getName();
     Buffer += TemplateArgsStr;
   } else if (TagDecl *Tag = dyn_cast<TagDecl>(DC)) {
-    if (TypedefDecl *Typedef = Tag->getTypedefForAnonDecl())
+    if (TypedefNameDecl *Typedef = Tag->getTypedefNameForAnonDecl())
       Buffer += Typedef->getIdentifier()->getName();
     else if (Tag->getIdentifier())
       Buffer += Tag->getIdentifier()->getName();
@@ -547,9 +563,13 @@ void TypePrinter::printTag(TagDecl *D, std::string &InnerString) {
   std::string Buffer;
   bool HasKindDecoration = false;
 
+  // bool SuppressTagKeyword
+  //   = Policy.LangOpts.CPlusPlus || Policy.SuppressTagKeyword;
+
   // We don't print tags unless this is an elaborated type.
   // In C, we just assume every RecordType is an elaborated type.
-  if (!Policy.LangOpts.CPlusPlus && !D->getTypedefForAnonDecl()) {
+  if (!(Policy.LangOpts.CPlusPlus || Policy.SuppressTagKeyword ||
+        D->getTypedefNameForAnonDecl())) {
     HasKindDecoration = true;
     Buffer += D->getKindName();
     Buffer += ' ';
@@ -563,7 +583,7 @@ void TypePrinter::printTag(TagDecl *D, std::string &InnerString) {
 
   if (const IdentifierInfo *II = D->getIdentifier())
     Buffer += II->getNameStart();
-  else if (TypedefDecl *Typedef = D->getTypedefForAnonDecl()) {
+  else if (TypedefNameDecl *Typedef = D->getTypedefNameForAnonDecl()) {
     assert(Typedef->getIdentifier() && "Typedef without identifier?");
     Buffer += Typedef->getIdentifier()->getNameStart();
   } else {
@@ -632,12 +652,12 @@ void TypePrinter::printTemplateTypeParm(const TemplateTypeParmType *T,
                                         std::string &S) { 
   if (!S.empty())    // Prefix the basic type, e.g. 'parmname X'.
     S = ' ' + S;
-  
-  if (!T->getName())
+
+  if (IdentifierInfo *Id = T->getIdentifier())
+    S = Id->getName().str() + S;
+  else
     S = "type-parameter-" + llvm::utostr_32(T->getDepth()) + '-' +
         llvm::utostr_32(T->getIndex()) + S;
-  else
-    S = T->getName()->getName().str() + S;  
 }
 
 void TypePrinter::printSubstTemplateTypeParm(const SubstTemplateTypeParmType *T, 
@@ -691,6 +711,7 @@ void TypePrinter::printElaborated(const ElaboratedType *T, std::string &S) {
   
   std::string TypeStr;
   PrintingPolicy InnerPolicy(Policy);
+  InnerPolicy.SuppressTagKeyword = true;
   InnerPolicy.SuppressScope = true;
   TypePrinter(InnerPolicy).print(T->getNamedType(), TypeStr);
   
@@ -737,7 +758,8 @@ void TypePrinter::printDependentTemplateSpecialization(
     if (T->getKeyword() != ETK_None)
       OS << " ";
     
-    T->getQualifier()->print(OS, Policy);    
+    if (T->getQualifier())
+      T->getQualifier()->print(OS, Policy);    
     OS << T->getIdentifier()->getName();
     OS << TemplateSpecializationType::PrintTemplateArgumentList(
                                                             T->getArgs(),
@@ -759,10 +781,14 @@ void TypePrinter::printPackExpansion(const PackExpansionType *T,
 
 void TypePrinter::printAttributed(const AttributedType *T,
                                   std::string &S) {
+  // Prefer the macro forms of the GC qualifiers.
+  if (T->getAttrKind() == AttributedType::attr_objc_gc)
+    return print(T->getEquivalentType(), S);
+
   print(T->getModifiedType(), S);
 
   // TODO: not all attributes are GCC-style attributes.
-  S += "__attribute__((";
+  S += " __attribute__((";
   switch (T->getAttrKind()) {
   case AttributedType::attr_address_space:
     S += "address_space(";
@@ -831,6 +857,16 @@ void TypePrinter::printAttributed(const AttributedType *T,
   case AttributedType::attr_stdcall: S += "stdcall"; break;
   case AttributedType::attr_thiscall: S += "thiscall"; break;
   case AttributedType::attr_pascal: S += "pascal"; break;
+  case AttributedType::attr_pcs: {
+   S += "pcs(";
+   QualType t = T->getEquivalentType();
+   while (!t->isFunctionType())
+     t = t->getPointeeType();
+   S += (t->getAs<FunctionType>()->getCallConv() == CC_AAPCS ?
+         "\"aapcs\"" : "\"aapcs-vfp\"");
+   S += ")";
+   break;
+  }
   }
   S += "))";
 }
@@ -1031,20 +1067,18 @@ std::string Qualifiers::getAsString() const {
 void Qualifiers::getAsStringInternal(std::string &S,
                                      const PrintingPolicy&) const {
   AppendTypeQualList(S, getCVRQualifiers());
-  if (unsigned AddressSpace = getAddressSpace()) {
+  if (unsigned addrspace = getAddressSpace()) {
     if (!S.empty()) S += ' ';
     S += "__attribute__((address_space(";
-    S += llvm::utostr_32(AddressSpace);
+    S += llvm::utostr_32(addrspace);
     S += ")))";
   }
-  if (Qualifiers::GC GCAttrType = getObjCGCAttr()) {
+  if (Qualifiers::GC gc = getObjCGCAttr()) {
     if (!S.empty()) S += ' ';
-    S += "__attribute__((objc_gc(";
-    if (GCAttrType == Qualifiers::Weak)
-      S += "weak";
+    if (gc == Qualifiers::Weak)
+      S += "__weak";
     else
-      S += "strong";
-    S += ")))";
+      S += "__strong";
   }
 }
 

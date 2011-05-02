@@ -22,13 +22,16 @@ class HeaderIncludesCallback : public PPCallbacks {
   bool HasProcessedPredefines;
   bool OwnsOutputFile;
   bool ShowAllHeaders;
+  bool ShowDepth;
 
 public:
   HeaderIncludesCallback(const Preprocessor *PP, bool ShowAllHeaders_,
-                         llvm::raw_ostream *OutputFile_, bool OwnsOutputFile_)
+                         llvm::raw_ostream *OutputFile_, bool OwnsOutputFile_,
+                         bool ShowDepth_)
     : SM(PP->getSourceManager()), OutputFile(OutputFile_),
       CurrentIncludeDepth(0), HasProcessedPredefines(false),
-      OwnsOutputFile(OwnsOutputFile_), ShowAllHeaders(ShowAllHeaders_) {}
+      OwnsOutputFile(OwnsOutputFile_), ShowAllHeaders(ShowAllHeaders_),
+      ShowDepth(ShowDepth_) {}
 
   ~HeaderIncludesCallback() {
     if (OwnsOutputFile)
@@ -41,7 +44,7 @@ public:
 }
 
 void clang::AttachHeaderIncludeGen(Preprocessor &PP, bool ShowAllHeaders,
-                                   llvm::StringRef OutputPath) {
+                                   llvm::StringRef OutputPath, bool ShowDepth) {
   llvm::raw_ostream *OutputFile = &llvm::errs();
   bool OwnsOutputFile = false;
 
@@ -63,7 +66,8 @@ void clang::AttachHeaderIncludeGen(Preprocessor &PP, bool ShowAllHeaders,
   }
 
   PP.addPPCallbacks(new HeaderIncludesCallback(&PP, ShowAllHeaders,
-                                               OutputFile, OwnsOutputFile));
+                                               OutputFile, OwnsOutputFile,
+                                               ShowDepth));
 }
 
 void HeaderIncludesCallback::FileChanged(SourceLocation Loc,
@@ -78,15 +82,18 @@ void HeaderIncludesCallback::FileChanged(SourceLocation Loc,
   // Adjust the current include depth.
   if (Reason == PPCallbacks::EnterFile) {
     ++CurrentIncludeDepth;
-  } else {
+  } else if (Reason == PPCallbacks::ExitFile) {
     if (CurrentIncludeDepth)
       --CurrentIncludeDepth;
 
     // We track when we are done with the predefines by watching for the first
-    // place where we drop back to a nesting depth of 0.
-    if (CurrentIncludeDepth == 0 && !HasProcessedPredefines)
+    // place where we drop back to a nesting depth of 1.
+    if (CurrentIncludeDepth == 1 && !HasProcessedPredefines)
       HasProcessedPredefines = true;
-  }
+
+    return;
+  } else
+    return;
 
   // Show the header if we are (a) past the predefines, or (b) showing all
   // headers and in the predefines at a depth past the initial file and command
@@ -102,9 +109,12 @@ void HeaderIncludesCallback::FileChanged(SourceLocation Loc,
     Lexer::Stringify(Filename);
 
     llvm::SmallString<256> Msg;
-    for (unsigned i = 0; i != CurrentIncludeDepth; ++i)
-      Msg += '.';
-    Msg += ' ';
+    if (ShowDepth) {
+      // The main source file is at depth 1, so skip one dot.
+      for (unsigned i = 1; i != CurrentIncludeDepth; ++i)
+        Msg += '.';
+      Msg += ' ';
+    }
     Msg += Filename;
     Msg += '\n';
 

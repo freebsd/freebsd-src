@@ -262,7 +262,8 @@ static bool FactorOutConstant(const SCEV *&S,
     const SCEV *Start = A->getStart();
     if (!FactorOutConstant(Start, Remainder, Factor, SE, TD))
       return false;
-    S = SE.getAddRecExpr(Start, Step, A->getLoop());
+    // FIXME: can use A->getNoWrapFlags(FlagNW)
+    S = SE.getAddRecExpr(Start, Step, A->getLoop(), SCEV::FlagAnyWrap);
     return true;
   }
 
@@ -314,7 +315,9 @@ static void SplitAddRecs(SmallVectorImpl<const SCEV *> &Ops,
       const SCEV *Zero = SE.getConstant(Ty, 0);
       AddRecs.push_back(SE.getAddRecExpr(Zero,
                                          A->getStepRecurrence(SE),
-                                         A->getLoop()));
+                                         A->getLoop(),
+                                         // FIXME: A->getNoWrapFlags(FlagNW)
+                                         SCEV::FlagAnyWrap));
       if (const SCEVAddExpr *Add = dyn_cast<SCEVAddExpr>(Start)) {
         Ops[i] = Zero;
         Ops.append(Add->op_begin(), Add->op_end());
@@ -823,7 +826,9 @@ static void ExposePointerBase(const SCEV *&Base, const SCEV *&Rest,
     Rest = SE.getAddExpr(Rest,
                          SE.getAddRecExpr(SE.getConstant(A->getType(), 0),
                                           A->getStepRecurrence(SE),
-                                          A->getLoop()));
+                                          A->getLoop(),
+                                          // FIXME: A->getNoWrapFlags(FlagNW)
+                                          SCEV::FlagAnyWrap));
   }
   if (const SCEVAddExpr *A = dyn_cast<SCEVAddExpr>(Base)) {
     Base = A->getOperand(A->getNumOperands()-1);
@@ -858,7 +863,8 @@ SCEVExpander::getAddRecExprPHILiterally(const SCEVAddRecExpr *Normalized,
         // loop already visited by LSR for example, but it wouldn't have
         // to be.
         do {
-          if (IncV->getNumOperands() == 0 || isa<PHINode>(IncV)) {
+          if (IncV->getNumOperands() == 0 || isa<PHINode>(IncV) ||
+              (isa<CastInst>(IncV) && !isa<BitCastInst>(IncV))) {
             IncV = 0;
             break;
           }
@@ -926,14 +932,14 @@ SCEVExpander::getAddRecExprPHILiterally(const SCEVAddRecExpr *Normalized,
   Value *StepV = expandCodeFor(Step, IntTy, L->getHeader()->begin());
 
   // Create the PHI.
-  Builder.SetInsertPoint(L->getHeader(), L->getHeader()->begin());
-  PHINode *PN = Builder.CreatePHI(ExpandTy, "lsr.iv");
+  BasicBlock *Header = L->getHeader();
+  Builder.SetInsertPoint(Header, Header->begin());
+  pred_iterator HPB = pred_begin(Header), HPE = pred_end(Header);
+  PHINode *PN = Builder.CreatePHI(ExpandTy, std::distance(HPB, HPE), "lsr.iv");
   rememberInstruction(PN);
 
   // Create the step instructions and populate the PHI.
-  BasicBlock *Header = L->getHeader();
-  for (pred_iterator HPI = pred_begin(Header), HPE = pred_end(Header);
-       HPI != HPE; ++HPI) {
+  for (pred_iterator HPI = HPB; HPI != HPE; ++HPI) {
     BasicBlock *Pred = *HPI;
 
     // Add a start value.
@@ -1004,10 +1010,11 @@ Value *SCEVExpander::expandAddRecExprLiterally(const SCEVAddRecExpr *S) {
   if (!SE.properlyDominates(Start, L->getHeader())) {
     PostLoopOffset = Start;
     Start = SE.getConstant(Normalized->getType(), 0);
-    Normalized =
-      cast<SCEVAddRecExpr>(SE.getAddRecExpr(Start,
-                                            Normalized->getStepRecurrence(SE),
-                                            Normalized->getLoop()));
+    Normalized = cast<SCEVAddRecExpr>(
+      SE.getAddRecExpr(Start, Normalized->getStepRecurrence(SE),
+                       Normalized->getLoop(),
+                       // FIXME: Normalized->getNoWrapFlags(FlagNW)
+                       SCEV::FlagAnyWrap));
   }
 
   // Strip off any non-loop-dominating component from the addrec step.
@@ -1018,7 +1025,10 @@ Value *SCEVExpander::expandAddRecExprLiterally(const SCEVAddRecExpr *S) {
     Step = SE.getConstant(Normalized->getType(), 1);
     Normalized =
       cast<SCEVAddRecExpr>(SE.getAddRecExpr(Start, Step,
-                                            Normalized->getLoop()));
+                                            Normalized->getLoop(),
+                                            // FIXME: Normalized
+                                            // ->getNoWrapFlags(FlagNW)
+                                            SCEV::FlagAnyWrap));
   }
 
   // Expand the core addrec. If we need post-loop scaling, force it to
@@ -1081,7 +1091,9 @@ Value *SCEVExpander::visitAddRecExpr(const SCEVAddRecExpr *S) {
     SmallVector<const SCEV *, 4> NewOps(S->getNumOperands());
     for (unsigned i = 0, e = S->getNumOperands(); i != e; ++i)
       NewOps[i] = SE.getAnyExtendExpr(S->op_begin()[i], CanonicalIV->getType());
-    Value *V = expand(SE.getAddRecExpr(NewOps, S->getLoop()));
+    Value *V = expand(SE.getAddRecExpr(NewOps, S->getLoop(),
+                                       // FIXME: S->getNoWrapFlags(FlagNW)
+                                       SCEV::FlagAnyWrap));
     BasicBlock *SaveInsertBB = Builder.GetInsertBlock();
     BasicBlock::iterator SaveInsertPt = Builder.GetInsertPoint();
     BasicBlock::iterator NewInsertPt =
@@ -1098,7 +1110,8 @@ Value *SCEVExpander::visitAddRecExpr(const SCEVAddRecExpr *S) {
   if (!S->getStart()->isZero()) {
     SmallVector<const SCEV *, 4> NewOps(S->op_begin(), S->op_end());
     NewOps[0] = SE.getConstant(Ty, 0);
-    const SCEV *Rest = SE.getAddRecExpr(NewOps, L);
+    // FIXME: can use S->getNoWrapFlags()
+    const SCEV *Rest = SE.getAddRecExpr(NewOps, L, SCEV::FlagAnyWrap);
 
     // Turn things like ptrtoint+arithmetic+inttoptr into GEP. See the
     // comments on expandAddToGEP for details.
@@ -1128,12 +1141,13 @@ Value *SCEVExpander::visitAddRecExpr(const SCEVAddRecExpr *S) {
     // Create and insert the PHI node for the induction variable in the
     // specified loop.
     BasicBlock *Header = L->getHeader();
-    CanonicalIV = PHINode::Create(Ty, "indvar", Header->begin());
+    pred_iterator HPB = pred_begin(Header), HPE = pred_end(Header);
+    CanonicalIV = PHINode::Create(Ty, std::distance(HPB, HPE), "indvar",
+                                  Header->begin());
     rememberInstruction(CanonicalIV);
 
     Constant *One = ConstantInt::get(Ty, 1);
-    for (pred_iterator HPI = pred_begin(Header), HPE = pred_end(Header);
-         HPI != HPE; ++HPI) {
+    for (pred_iterator HPI = HPB; HPI != HPE; ++HPI) {
       BasicBlock *HP = *HPI;
       if (L->contains(HP)) {
         // Insert a unit add instruction right before the terminator
@@ -1333,7 +1347,7 @@ void SCEVExpander::rememberInstruction(Value *I) {
     InsertedValues.insert(I);
 
   // If we just claimed an existing instruction and that instruction had
-  // been the insert point, adjust the insert point forward so that 
+  // been the insert point, adjust the insert point forward so that
   // subsequently inserted code will be dominated.
   if (Builder.GetInsertPoint() == I) {
     BasicBlock::iterator It = cast<Instruction>(I);
@@ -1361,8 +1375,9 @@ SCEVExpander::getOrInsertCanonicalInductionVariable(const Loop *L,
   assert(Ty->isIntegerTy() && "Can only insert integer induction variables!");
 
   // Build a SCEV for {0,+,1}<L>.
+  // Conservatively use FlagAnyWrap for now.
   const SCEV *H = SE.getAddRecExpr(SE.getConstant(Ty, 0),
-                                   SE.getConstant(Ty, 1), L);
+                                   SE.getConstant(Ty, 1), L, SCEV::FlagAnyWrap);
 
   // Emit code for it.
   BasicBlock *SaveInsertBB = Builder.GetInsertBlock();

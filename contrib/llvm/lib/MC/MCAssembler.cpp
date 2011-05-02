@@ -28,7 +28,6 @@
 #include "llvm/Target/TargetRegistry.h"
 #include "llvm/Target/TargetAsmBackend.h"
 
-#include <vector>
 using namespace llvm;
 
 namespace {
@@ -103,6 +102,33 @@ uint64_t MCAsmLayout::getFragmentOffset(const MCFragment *F) const {
 }
 
 uint64_t MCAsmLayout::getSymbolOffset(const MCSymbolData *SD) const {
+  const MCSymbol &S = SD->getSymbol();
+
+  // If this is a variable, then recursively evaluate now.
+  if (S.isVariable()) {
+    MCValue Target;
+    if (!S.getVariableValue()->EvaluateAsRelocatable(Target, *this))
+      report_fatal_error("unable to evaluate offset for variable '" +
+                         S.getName() + "'");
+
+    // Verify that any used symbols are defined.
+    if (Target.getSymA() && Target.getSymA()->getSymbol().isUndefined())
+      report_fatal_error("unable to evaluate offset to undefined symbol '" +
+                         Target.getSymA()->getSymbol().getName() + "'");
+    if (Target.getSymB() && Target.getSymB()->getSymbol().isUndefined())
+      report_fatal_error("unable to evaluate offset to undefined symbol '" +
+                         Target.getSymB()->getSymbol().getName() + "'");
+      
+    uint64_t Offset = Target.getConstant();
+    if (Target.getSymA())
+      Offset += getSymbolOffset(&Assembler.getSymbolData(
+                                  Target.getSymA()->getSymbol()));
+    if (Target.getSymB())
+      Offset -= getSymbolOffset(&Assembler.getSymbolData(
+                                  Target.getSymB()->getSymbol()));
+    return Offset;
+  }
+
   assert(SD->getFragment() && "Invalid getOffset() on undefined symbol!");
   return getFragmentOffset(SD->getFragment()) + SD->getOffset();
 }
@@ -692,7 +718,9 @@ bool MCAssembler::RelaxInstruction(MCAsmLayout &Layout,
 bool MCAssembler::RelaxLEB(MCAsmLayout &Layout, MCLEBFragment &LF) {
   int64_t Value = 0;
   uint64_t OldSize = LF.getContents().size();
-  LF.getValue().EvaluateAsAbsolute(Value, Layout);
+  bool IsAbs = LF.getValue().EvaluateAsAbsolute(Value, Layout);
+  (void)IsAbs;
+  assert(IsAbs);
   SmallString<8> &Data = LF.getContents();
   Data.clear();
   raw_svector_ostream OSE(Data);
@@ -731,7 +759,8 @@ bool MCAssembler::RelaxDwarfCallFrameFragment(MCAsmLayout &Layout,
   SmallString<8> &Data = DF.getContents();
   Data.clear();
   raw_svector_ostream OSE(Data);
-  MCDwarfFrameEmitter::EncodeAdvanceLoc(AddrDelta, OSE);
+  const TargetAsmInfo &AsmInfo = getContext().getTargetAsmInfo();
+  MCDwarfFrameEmitter::EncodeAdvanceLoc(AddrDelta, OSE, AsmInfo);
   OSE.flush();
   return OldSize != Data.size();
 }

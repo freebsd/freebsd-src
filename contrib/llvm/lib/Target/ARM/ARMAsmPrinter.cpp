@@ -88,6 +88,11 @@ namespace {
       case ARMBuildAttrs::CPU_name:
         Streamer.EmitRawText(StringRef("\t.cpu ") + LowercaseString(String));
         break;
+      /* GAS requires .fpu to be emitted regardless of EABI attribute */
+      case ARMBuildAttrs::Advanced_SIMD_arch:
+      case ARMBuildAttrs::VFP_arch:
+        Streamer.EmitRawText(StringRef("\t.fpu ") + LowercaseString(String));
+        break;    
       default: assert(0 && "Unsupported Text attribute in ASM Mode"); break;
       }
     }
@@ -165,6 +170,117 @@ getDebugValueLocation(const MachineInstr *MI) const {
     DEBUG(dbgs() << "DBG_VALUE instruction ignored! " << *MI << "\n");
   }
   return Location;
+}
+
+/// getDwarfRegOpSize - get size required to emit given machine location using
+/// dwarf encoding.
+unsigned ARMAsmPrinter::getDwarfRegOpSize(const MachineLocation &MLoc) const {
+ const TargetRegisterInfo *RI = TM.getRegisterInfo();
+  if (RI->getDwarfRegNum(MLoc.getReg(), false) != -1)
+    return AsmPrinter::getDwarfRegOpSize(MLoc);
+  else {
+    unsigned Reg = MLoc.getReg();
+    if (Reg >= ARM::S0 && Reg <= ARM::S31) {
+      assert(ARM::S0 + 31 == ARM::S31 && "Unexpected ARM S register numbering");
+      // S registers are described as bit-pieces of a register
+      // S[2x] = DW_OP_regx(256 + (x>>1)) DW_OP_bit_piece(32, 0)
+      // S[2x+1] = DW_OP_regx(256 + (x>>1)) DW_OP_bit_piece(32, 32)
+      
+      unsigned SReg = Reg - ARM::S0;
+      unsigned Rx = 256 + (SReg >> 1);
+      OutStreamer.AddComment("Loc expr size");
+      // DW_OP_regx + ULEB + DW_OP_bit_piece + ULEB + ULEB
+      //   1 + ULEB(Rx) + 1 + 1 + 1
+      return 4 + MCAsmInfo::getULEB128Size(Rx);
+    } 
+    
+    if (Reg >= ARM::Q0 && Reg <= ARM::Q15) {
+      assert(ARM::Q0 + 15 == ARM::Q15 && "Unexpected ARM Q register numbering");
+      // Q registers Q0-Q15 are described by composing two D registers together.
+      // Qx = DW_OP_regx(256+2x) DW_OP_piece(8) DW_OP_regx(256+2x+1) DW_OP_piece(8)
+
+      unsigned QReg = Reg - ARM::Q0;
+      unsigned D1 = 256 + 2 * QReg;
+      unsigned D2 = D1 + 1;
+      
+      OutStreamer.AddComment("Loc expr size");
+      // DW_OP_regx + ULEB + DW_OP_piece + ULEB(8) +
+      // DW_OP_regx + ULEB + DW_OP_piece + ULEB(8);
+      //   6 + ULEB(D1) + ULEB(D2)
+      return 6 + MCAsmInfo::getULEB128Size(D1) + MCAsmInfo::getULEB128Size(D2);
+    }
+  }
+  return 0;
+}
+
+/// EmitDwarfRegOp - Emit dwarf register operation.
+void ARMAsmPrinter::EmitDwarfRegOp(const MachineLocation &MLoc) const {
+  const TargetRegisterInfo *RI = TM.getRegisterInfo();
+  if (RI->getDwarfRegNum(MLoc.getReg(), false) != -1)
+    AsmPrinter::EmitDwarfRegOp(MLoc);
+  else {
+    unsigned Reg = MLoc.getReg();
+    if (Reg >= ARM::S0 && Reg <= ARM::S31) {
+      assert(ARM::S0 + 31 == ARM::S31 && "Unexpected ARM S register numbering");
+      // S registers are described as bit-pieces of a register
+      // S[2x] = DW_OP_regx(256 + (x>>1)) DW_OP_bit_piece(32, 0)
+      // S[2x+1] = DW_OP_regx(256 + (x>>1)) DW_OP_bit_piece(32, 32)
+      
+      unsigned SReg = Reg - ARM::S0;
+      bool odd = SReg & 0x1;
+      unsigned Rx = 256 + (SReg >> 1);
+      OutStreamer.AddComment("Loc expr size");
+      // DW_OP_regx + ULEB + DW_OP_bit_piece + ULEB + ULEB
+      //   1 + ULEB(Rx) + 1 + 1 + 1
+      EmitInt16(4 + MCAsmInfo::getULEB128Size(Rx));
+
+      OutStreamer.AddComment("DW_OP_regx for S register");
+      EmitInt8(dwarf::DW_OP_regx);
+
+      OutStreamer.AddComment(Twine(SReg));
+      EmitULEB128(Rx);
+
+      if (odd) {
+        OutStreamer.AddComment("DW_OP_bit_piece 32 32");
+        EmitInt8(dwarf::DW_OP_bit_piece);
+        EmitULEB128(32);
+        EmitULEB128(32);
+      } else {
+        OutStreamer.AddComment("DW_OP_bit_piece 32 0");
+        EmitInt8(dwarf::DW_OP_bit_piece);
+        EmitULEB128(32);
+        EmitULEB128(0);
+      }
+    } else if (Reg >= ARM::Q0 && Reg <= ARM::Q15) {
+      assert(ARM::Q0 + 15 == ARM::Q15 && "Unexpected ARM Q register numbering");
+      // Q registers Q0-Q15 are described by composing two D registers together.
+      // Qx = DW_OP_regx(256+2x) DW_OP_piece(8) DW_OP_regx(256+2x+1) DW_OP_piece(8)
+
+      unsigned QReg = Reg - ARM::Q0;
+      unsigned D1 = 256 + 2 * QReg;
+      unsigned D2 = D1 + 1;
+      
+      OutStreamer.AddComment("Loc expr size");
+      // DW_OP_regx + ULEB + DW_OP_piece + ULEB(8) +
+      // DW_OP_regx + ULEB + DW_OP_piece + ULEB(8);
+      //   6 + ULEB(D1) + ULEB(D2)
+      EmitInt16(6 + MCAsmInfo::getULEB128Size(D1) + MCAsmInfo::getULEB128Size(D2));
+
+      OutStreamer.AddComment("DW_OP_regx for Q register: D1");
+      EmitInt8(dwarf::DW_OP_regx);
+      EmitULEB128(D1);
+      OutStreamer.AddComment("DW_OP_piece 8");
+      EmitInt8(dwarf::DW_OP_piece);
+      EmitULEB128(8);
+
+      OutStreamer.AddComment("DW_OP_regx for Q register: D2");
+      EmitInt8(dwarf::DW_OP_regx);
+      EmitULEB128(D2);
+      OutStreamer.AddComment("DW_OP_piece 8");
+      EmitInt8(dwarf::DW_OP_piece);
+      EmitULEB128(8);
+    }
+  }
 }
 
 void ARMAsmPrinter::EmitFunctionEntryLabel() {
@@ -453,10 +569,13 @@ void ARMAsmPrinter::emitAttributes() {
 
   emitARMAttributeSection();
 
+  /* GAS expect .fpu to be emitted, regardless of VFP build attribute */
+  bool emitFPU = false;
   AttributeEmitter *AttrEmitter;
-  if (OutStreamer.hasRawTextSupport())
+  if (OutStreamer.hasRawTextSupport()) {
     AttrEmitter = new AsmAttributeEmitter(OutStreamer);
-  else {
+    emitFPU = true;
+  } else {
     MCObjectStreamer &O = static_cast<MCObjectStreamer&>(OutStreamer);
     AttrEmitter = new ObjectAttributeEmitter(O);
   }
@@ -490,10 +609,36 @@ void ARMAsmPrinter::emitAttributes() {
                                ARMBuildAttrs::Allowed);
   }
 
-  // FIXME: Emit FPU type
-  if (Subtarget->hasVFP2())
+  if (Subtarget->hasNEON() && emitFPU) {
+    /* NEON is not exactly a VFP architecture, but GAS emit one of
+     * neon/vfpv3/vfpv2 for .fpu parameters */
+    AttrEmitter->EmitTextAttribute(ARMBuildAttrs::Advanced_SIMD_arch, "neon");
+    /* If emitted for NEON, omit from VFP below, since you can have both
+     * NEON and VFP in build attributes but only one .fpu */
+    emitFPU = false;
+  }
+
+  /* VFPv3 + .fpu */
+  if (Subtarget->hasVFP3()) {
+    AttrEmitter->EmitAttribute(ARMBuildAttrs::VFP_arch,
+                               ARMBuildAttrs::AllowFPv3A);
+    if (emitFPU)
+      AttrEmitter->EmitTextAttribute(ARMBuildAttrs::VFP_arch, "vfpv3");
+
+  /* VFPv2 + .fpu */
+  } else if (Subtarget->hasVFP2()) {
     AttrEmitter->EmitAttribute(ARMBuildAttrs::VFP_arch,
                                ARMBuildAttrs::AllowFPv2);
+    if (emitFPU)
+      AttrEmitter->EmitTextAttribute(ARMBuildAttrs::VFP_arch, "vfpv2");
+  }
+
+  /* TODO: ARMBuildAttrs::Allowed is not completely accurate,
+   * since NEON can have 1 (allowed) or 2 (fused MAC operations) */
+  if (Subtarget->hasNEON()) {
+    AttrEmitter->EmitAttribute(ARMBuildAttrs::Advanced_SIMD_arch,
+                               ARMBuildAttrs::Allowed);
+  }
 
   // Signal various FP modes.
   if (!UnsafeFPMath) {
@@ -777,10 +922,161 @@ void ARMAsmPrinter::EmitPatchedInstruction(const MachineInstr *MI,
   OutStreamer.EmitInstruction(TmpInst);
 }
 
+void ARMAsmPrinter::EmitUnwindingInstruction(const MachineInstr *MI) {
+  assert(MI->getFlag(MachineInstr::FrameSetup) &&
+      "Only instruction which are involved into frame setup code are allowed");
+
+  const MachineFunction &MF = *MI->getParent()->getParent();
+  const TargetRegisterInfo *RegInfo = MF.getTarget().getRegisterInfo();
+  const ARMFunctionInfo &AFI = *MF.getInfo<ARMFunctionInfo>();
+
+  unsigned FramePtr = RegInfo->getFrameRegister(MF);
+  unsigned Opc = MI->getOpcode();
+  unsigned SrcReg, DstReg;
+
+  if (Opc == ARM::tPUSH || Opc == ARM::tLDRpci) {
+    // Two special cases:
+    // 1) tPUSH does not have src/dst regs.
+    // 2) for Thumb1 code we sometimes materialize the constant via constpool
+    // load. Yes, this is pretty fragile, but for now I don't see better
+    // way... :(
+    SrcReg = DstReg = ARM::SP;
+  } else {
+    SrcReg = MI->getOperand(1).getReg();
+    DstReg = MI->getOperand(0).getReg();
+  }
+
+  // Try to figure out the unwinding opcode out of src / dst regs.
+  if (MI->getDesc().mayStore()) {
+    // Register saves.
+    assert(DstReg == ARM::SP &&
+           "Only stack pointer as a destination reg is supported");
+
+    SmallVector<unsigned, 4> RegList;
+    // Skip src & dst reg, and pred ops.
+    unsigned StartOp = 2 + 2;
+    // Use all the operands.
+    unsigned NumOffset = 0;
+
+    switch (Opc) {
+    default:
+      MI->dump();
+      assert(0 && "Unsupported opcode for unwinding information");
+    case ARM::tPUSH:
+      // Special case here: no src & dst reg, but two extra imp ops.
+      StartOp = 2; NumOffset = 2;
+    case ARM::STMDB_UPD:
+    case ARM::t2STMDB_UPD:
+    case ARM::VSTMDDB_UPD:
+      assert(SrcReg == ARM::SP &&
+             "Only stack pointer as a source reg is supported");
+      for (unsigned i = StartOp, NumOps = MI->getNumOperands() - NumOffset;
+           i != NumOps; ++i)
+        RegList.push_back(MI->getOperand(i).getReg());
+      break;
+    case ARM::STR_PRE:
+      assert(MI->getOperand(2).getReg() == ARM::SP &&
+             "Only stack pointer as a source reg is supported");
+      RegList.push_back(SrcReg);
+      break;
+    }
+    OutStreamer.EmitRegSave(RegList, Opc == ARM::VSTMDDB_UPD);
+  } else {
+    // Changes of stack / frame pointer.
+    if (SrcReg == ARM::SP) {
+      int64_t Offset = 0;
+      switch (Opc) {
+      default:
+        MI->dump();
+        assert(0 && "Unsupported opcode for unwinding information");
+      case ARM::MOVr:
+      case ARM::tMOVgpr2gpr:
+      case ARM::tMOVgpr2tgpr:
+        Offset = 0;
+        break;
+      case ARM::ADDri:
+        Offset = -MI->getOperand(2).getImm();
+        break;
+      case ARM::SUBri:
+      case ARM::t2SUBrSPi:
+        Offset =  MI->getOperand(2).getImm();
+        break;
+      case ARM::tSUBspi:
+        Offset =  MI->getOperand(2).getImm()*4;
+        break;
+      case ARM::tADDspi:
+      case ARM::tADDrSPi:
+        Offset = -MI->getOperand(2).getImm()*4;
+        break;
+      case ARM::tLDRpci: {
+        // Grab the constpool index and check, whether it corresponds to
+        // original or cloned constpool entry.
+        unsigned CPI = MI->getOperand(1).getIndex();
+        const MachineConstantPool *MCP = MF.getConstantPool();
+        if (CPI >= MCP->getConstants().size())
+          CPI = AFI.getOriginalCPIdx(CPI);
+        assert(CPI != -1U && "Invalid constpool index");
+
+        // Derive the actual offset.
+        const MachineConstantPoolEntry &CPE = MCP->getConstants()[CPI];
+        assert(!CPE.isMachineConstantPoolEntry() && "Invalid constpool entry");
+        // FIXME: Check for user, it should be "add" instruction!
+        Offset = -cast<ConstantInt>(CPE.Val.ConstVal)->getSExtValue();
+        break;
+      }
+      }
+
+      if (DstReg == FramePtr && FramePtr != ARM::SP)
+        // Set-up of the frame pointer. Positive values correspond to "add"
+        // instruction.
+        OutStreamer.EmitSetFP(FramePtr, ARM::SP, -Offset);
+      else if (DstReg == ARM::SP) {
+        // Change of SP by an offset. Positive values correspond to "sub"
+        // instruction.
+        OutStreamer.EmitPad(Offset);
+      } else {
+        MI->dump();
+        assert(0 && "Unsupported opcode for unwinding information");
+      }
+    } else if (DstReg == ARM::SP) {
+      // FIXME: .movsp goes here
+      MI->dump();
+      assert(0 && "Unsupported opcode for unwinding information");
+    }
+    else {
+      MI->dump();
+      assert(0 && "Unsupported opcode for unwinding information");
+    }
+  }
+}
+
+extern cl::opt<bool> EnableARMEHABI;
+
 void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
   unsigned Opc = MI->getOpcode();
   switch (Opc) {
   default: break;
+  case ARM::B: {
+    // B is just a Bcc with an 'always' predicate.
+    MCInst TmpInst;
+    LowerARMMachineInstrToMCInst(MI, TmpInst, *this);
+    TmpInst.setOpcode(ARM::Bcc);
+    // Add predicate operands.
+    TmpInst.addOperand(MCOperand::CreateImm(ARMCC::AL));
+    TmpInst.addOperand(MCOperand::CreateReg(0));
+    OutStreamer.EmitInstruction(TmpInst);
+    return;
+  }
+  case ARM::LDMIA_RET: {
+    // LDMIA_RET is just a normal LDMIA_UPD instruction that targets PC and as
+    // such has additional code-gen properties and scheduling information.
+    // To emit it, we just construct as normal and set the opcode to LDMIA_UPD.
+    MCInst TmpInst;
+    LowerARMMachineInstrToMCInst(MI, TmpInst, *this);
+    TmpInst.setOpcode(ARM::LDMIA_UPD);
+    OutStreamer.EmitInstruction(TmpInst);
+    return;
+  }
   case ARM::t2ADDrSPi:
   case ARM::t2ADDrSPi12:
   case ARM::t2SUBrSPi:
@@ -847,6 +1143,26 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     TmpInst.addOperand(MCOperand::CreateReg(0));
     // Add 's' bit operand (always reg0 for this)
     TmpInst.addOperand(MCOperand::CreateReg(0));
+    OutStreamer.EmitInstruction(TmpInst);
+    return;
+  }
+  // Darwin call instructions are just normal call instructions with different
+  // clobber semantics (they clobber R9).
+  case ARM::BLr9:
+  case ARM::BLr9_pred:
+  case ARM::BLXr9:
+  case ARM::BLXr9_pred: {
+    unsigned newOpc;
+    switch (Opc) {
+    default: assert(0);
+    case ARM::BLr9:       newOpc = ARM::BL; break;
+    case ARM::BLr9_pred:  newOpc = ARM::BL_pred; break;
+    case ARM::BLXr9:      newOpc = ARM::BLX; break;
+    case ARM::BLXr9_pred: newOpc = ARM::BLX_pred; break;
+    }
+    MCInst TmpInst;
+    LowerARMMachineInstrToMCInst(MI, TmpInst, *this);
+    TmpInst.setOpcode(newOpc);
     OutStreamer.EmitInstruction(TmpInst);
     return;
   }
@@ -1502,6 +1818,49 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     }
     return;
   }
+  // Tail jump branches are really just branch instructions with additional
+  // code-gen attributes. Convert them to the canonical form here.
+  case ARM::TAILJMPd:
+  case ARM::TAILJMPdND: {
+    MCInst TmpInst, TmpInst2;
+    // Lower the instruction as-is to get the operands properly converted.
+    LowerARMMachineInstrToMCInst(MI, TmpInst2, *this);
+    TmpInst.setOpcode(ARM::Bcc);
+    TmpInst.addOperand(TmpInst2.getOperand(0));
+    // Add predicate operands.
+    TmpInst.addOperand(MCOperand::CreateImm(ARMCC::AL));
+    TmpInst.addOperand(MCOperand::CreateReg(0));
+    OutStreamer.AddComment("TAILCALL");
+    OutStreamer.EmitInstruction(TmpInst);
+    return;
+  }
+  case ARM::tTAILJMPd:
+  case ARM::tTAILJMPdND: {
+    MCInst TmpInst, TmpInst2;
+    LowerARMMachineInstrToMCInst(MI, TmpInst2, *this);
+    TmpInst.setOpcode(ARM::tB);
+    TmpInst.addOperand(TmpInst2.getOperand(0));
+    OutStreamer.AddComment("TAILCALL");
+    OutStreamer.EmitInstruction(TmpInst);
+    return;
+  }
+  case ARM::TAILJMPrND:
+  case ARM::tTAILJMPrND:
+  case ARM::TAILJMPr:
+  case ARM::tTAILJMPr: {
+    unsigned newOpc = (Opc == ARM::TAILJMPr || Opc == ARM::TAILJMPrND)
+      ? ARM::BX : ARM::tBX;
+    MCInst TmpInst;
+    TmpInst.setOpcode(newOpc);
+    TmpInst.addOperand(MCOperand::CreateReg(MI->getOperand(0).getReg()));
+    // Predicate.
+    TmpInst.addOperand(MCOperand::CreateImm(ARMCC::AL));
+    TmpInst.addOperand(MCOperand::CreateReg(0));
+    OutStreamer.AddComment("TAILCALL");
+    OutStreamer.EmitInstruction(TmpInst);
+    return;
+  }
+
   // These are the pseudos created to comply with stricter operand restrictions
   // on ARMv5. Lower them now to "normal" instructions, since all the
   // restrictions are already satisfied.
@@ -1530,6 +1889,11 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
 
   MCInst TmpInst;
   LowerARMMachineInstrToMCInst(MI, TmpInst, *this);
+
+  // Emit unwinding stuff for frame-related instructions
+  if (EnableARMEHABI && MI->getFlag(MachineInstr::FrameSetup))
+    EmitUnwindingInstruction(MI);
+
   OutStreamer.EmitInstruction(TmpInst);
 }
 
@@ -1538,10 +1902,11 @@ void ARMAsmPrinter::EmitInstruction(const MachineInstr *MI) {
 //===----------------------------------------------------------------------===//
 
 static MCInstPrinter *createARMMCInstPrinter(const Target &T,
+                                             TargetMachine &TM,
                                              unsigned SyntaxVariant,
                                              const MCAsmInfo &MAI) {
   if (SyntaxVariant == 0)
-    return new ARMInstPrinter(MAI);
+    return new ARMInstPrinter(TM, MAI);
   return 0;
 }
 

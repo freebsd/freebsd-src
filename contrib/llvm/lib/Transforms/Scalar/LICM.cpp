@@ -445,7 +445,8 @@ void LICM::sink(Instruction &I) {
   // enough that we handle it as a special (more efficient) case.  It is more
   // efficient to handle because there are no PHI nodes that need to be placed.
   if (ExitBlocks.size() == 1) {
-    if (!DT->dominates(I.getParent(), ExitBlocks[0])) {
+    if (!isa<DbgInfoIntrinsic>(I) && 
+        !DT->dominates(I.getParent(), ExitBlocks[0])) {
       // Instruction is not used, just delete it.
       CurAST->deleteValue(&I);
       // If I has users in unreachable blocks, eliminate.
@@ -742,30 +743,13 @@ void LICM::PromoteAliasSet(AliasSet &AS) {
                  Preheader->getTerminator());
   SSA.AddAvailableValue(Preheader, PreheaderLoad);
 
-  // Copy any value stored to or loaded from a must-alias of the pointer.
-  if (PreheaderLoad->getType()->isPointerTy()) {
-    Value *SomeValue;
-    if (LoadInst *LI = dyn_cast<LoadInst>(LoopUses[0]))
-      SomeValue = LI;
-    else
-      SomeValue = cast<StoreInst>(LoopUses[0])->getValueOperand();
-    
-    CurAST->copyValue(SomeValue, PreheaderLoad);
-  }
-
   // Rewrite all the loads in the loop and remember all the definitions from
   // stores in the loop.
   Promoter.run(LoopUses);
-  
-  // If the preheader load is itself a pointer, we need to tell alias analysis
-  // about the new pointer we created in the preheader block and about any PHI
-  // nodes that just got inserted.
-  if (PreheaderLoad->getType()->isPointerTy()) {
-    for (unsigned i = 0, e = NewPHIs.size(); i != e; ++i)
-      CurAST->copyValue(PreheaderLoad, NewPHIs[i]);
-  }
-  
-  // fwew, we're done!
+
+  // If the SSAUpdater didn't use the load in the preheader, just zap it now.
+  if (PreheaderLoad->use_empty())
+    PreheaderLoad->eraseFromParent();
 }
 
 

@@ -475,7 +475,36 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
       }
     }
     break;
-  case Intrinsic::umul_with_overflow:
+  case Intrinsic::umul_with_overflow: {
+    Value *LHS = II->getArgOperand(0), *RHS = II->getArgOperand(1);
+    unsigned BitWidth = cast<IntegerType>(LHS->getType())->getBitWidth();
+    APInt Mask = APInt::getAllOnesValue(BitWidth);
+
+    APInt LHSKnownZero(BitWidth, 0);
+    APInt LHSKnownOne(BitWidth, 0);
+    ComputeMaskedBits(LHS, Mask, LHSKnownZero, LHSKnownOne);
+    APInt RHSKnownZero(BitWidth, 0);
+    APInt RHSKnownOne(BitWidth, 0);
+    ComputeMaskedBits(RHS, Mask, RHSKnownZero, RHSKnownOne);
+
+    // Get the largest possible values for each operand.
+    APInt LHSMax = ~LHSKnownZero;
+    APInt RHSMax = ~RHSKnownZero;
+
+    // If multiplying the maximum values does not overflow then we can turn
+    // this into a plain NUW mul.
+    bool Overflow;
+    LHSMax.umul_ov(RHSMax, Overflow);
+    if (!Overflow) {
+      Value *Mul = Builder->CreateNUWMul(LHS, RHS, "umul_with_overflow");
+      Constant *V[] = {
+        UndefValue::get(LHS->getType()),
+        Builder->getFalse()
+      };
+      Constant *Struct = ConstantStruct::get(II->getContext(), V, 2, false);
+      return InsertValueInst::Create(Struct, Mul, 0);
+    }
+  } // FALL THROUGH
   case Intrinsic::smul_with_overflow:
     // Canonicalize constants into the RHS.
     if (isa<Constant>(II->getArgOperand(0)) &&
@@ -508,11 +537,7 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
     break;
   case Intrinsic::ppc_altivec_lvx:
   case Intrinsic::ppc_altivec_lvxl:
-  case Intrinsic::x86_sse_loadu_ps:
-  case Intrinsic::x86_sse2_loadu_pd:
-  case Intrinsic::x86_sse2_loadu_dq:
-    // Turn PPC lvx     -> load if the pointer is known aligned.
-    // Turn X86 loadups -> load if the pointer is known aligned.
+    // Turn PPC lvx -> load if the pointer is known aligned.
     if (getOrEnforceKnownAlignment(II->getArgOperand(0), 16, TD) >= 16) {
       Value *Ptr = Builder->CreateBitCast(II->getArgOperand(0),
                                          PointerType::getUnqual(II->getType()));
@@ -731,9 +756,13 @@ protected:
                            dyn_cast<ConstantInt>(CI->getArgOperand(SizeCIOp))) {
       if (SizeCI->isAllOnesValue())
         return true;
-      if (isString)
-        return SizeCI->getZExtValue() >=
-               GetStringLength(CI->getArgOperand(SizeArgOp));
+      if (isString) {
+        uint64_t Len = GetStringLength(CI->getArgOperand(SizeArgOp));
+        // If the length is 0 we don't know how long it is and so we can't
+        // remove the check.
+        if (Len == 0) return false;
+        return SizeCI->getZExtValue() >= Len;
+      }
       if (ConstantInt *Arg = dyn_cast<ConstantInt>(
                                                   CI->getArgOperand(SizeArgOp)))
         return SizeCI->getZExtValue() >= Arg->getZExtValue();

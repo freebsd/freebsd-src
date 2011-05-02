@@ -17,6 +17,8 @@
 #include "clang/Sema/ParsedTemplate.h"
 #include "clang/Sema/Scope.h"
 #include "RAIIObjectsForParser.h"
+#include "clang/AST/DeclTemplate.h"
+#include "clang/AST/ASTConsumer.h"
 using namespace clang;
 
 /// \brief Parse a template declaration, explicit instantiation, or
@@ -196,7 +198,7 @@ Parser::ParseSingleDeclarationAfterTemplate(
     return 0;
   }
 
-  ParsedAttributesWithRange prefixAttrs;
+  ParsedAttributesWithRange prefixAttrs(AttrFactory);
   MaybeParseCXX0XAttributes(prefixAttrs);
 
   if (Tok.is(tok::kw_using))
@@ -205,7 +207,7 @@ Parser::ParseSingleDeclarationAfterTemplate(
 
   // Parse the declaration specifiers, stealing the accumulated
   // diagnostics from the template parameters.
-  ParsingDeclSpec DS(DiagsFromTParams);
+  ParsingDeclSpec DS(*this, &DiagsFromTParams);
 
   DS.takeAttributesFrom(prefixAttrs);
 
@@ -598,7 +600,7 @@ Parser::ParseNonTypeTemplateParameter(unsigned Depth, unsigned Position) {
   // Parse the declaration-specifiers (i.e., the type).
   // FIXME: The type should probably be restricted in some way... Not all
   // declarators (parts of declarators?) are accepted for parameters.
-  DeclSpec DS;
+  DeclSpec DS(AttrFactory);
   ParseDeclarationSpecifiers(DS);
 
   // Parse this as a typename.
@@ -661,7 +663,7 @@ Parser::ParseNonTypeTemplateParameter(unsigned Depth, unsigned Position) {
 bool
 Parser::ParseTemplateIdAfterTemplateName(TemplateTy Template,
                                          SourceLocation TemplateNameLoc,
-                                         const CXXScopeSpec *SS,
+                                         const CXXScopeSpec &SS,
                                          bool ConsumeLastToken,
                                          SourceLocation &LAngleLoc,
                                          TemplateArgList &TemplateArgs,
@@ -756,7 +758,7 @@ Parser::ParseTemplateIdAfterTemplateName(TemplateTy Template,
 /// formed, this function returns true.
 ///
 bool Parser::AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
-                                     const CXXScopeSpec *SS,
+                                     CXXScopeSpec &SS,
                                      UnqualifiedId &TemplateName,
                                      SourceLocation TemplateKWLoc,
                                      bool AllowTypeAnnotation) {
@@ -790,7 +792,8 @@ bool Parser::AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
   // Build the annotation token.
   if (TNK == TNK_Type_template && AllowTypeAnnotation) {
     TypeResult Type
-      = Actions.ActOnTemplateIdType(Template, TemplateNameLoc,
+      = Actions.ActOnTemplateIdType(SS, 
+                                    Template, TemplateNameLoc,
                                     LAngleLoc, TemplateArgsPtr,
                                     RAngleLoc);
     if (Type.isInvalid()) {
@@ -803,8 +806,8 @@ bool Parser::AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
 
     Tok.setKind(tok::annot_typename);
     setTypeAnnotation(Tok, Type.get());
-    if (SS && SS->isNotEmpty())
-      Tok.setLocation(SS->getBeginLoc());
+    if (SS.isNotEmpty())
+      Tok.setLocation(SS.getBeginLoc());
     else if (TemplateKWLoc.isValid())
       Tok.setLocation(TemplateKWLoc);
     else
@@ -823,6 +826,7 @@ bool Parser::AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
       TemplateId->Name = 0;
       TemplateId->Operator = TemplateName.OperatorFunctionId.Operator;
     }
+    TemplateId->SS = SS;
     TemplateId->Template = Template;
     TemplateId->Kind = TNK;
     TemplateId->LAngleLoc = LAngleLoc;
@@ -854,7 +858,7 @@ bool Parser::AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
 /// If there was a failure when forming the type from the template-id,
 /// a type annotation token will still be created, but will have a
 /// NULL type pointer to signify an error.
-void Parser::AnnotateTemplateIdTokenAsType(const CXXScopeSpec *SS) {
+void Parser::AnnotateTemplateIdTokenAsType() {
   assert(Tok.is(tok::annot_template_id) && "Requires template-id tokens");
 
   TemplateIdAnnotation *TemplateId
@@ -868,7 +872,8 @@ void Parser::AnnotateTemplateIdTokenAsType(const CXXScopeSpec *SS) {
                                      TemplateId->NumArgs);
 
   TypeResult Type
-    = Actions.ActOnTemplateIdType(TemplateId->Template,
+    = Actions.ActOnTemplateIdType(TemplateId->SS,
+                                  TemplateId->Template,
                                   TemplateId->TemplateNameLoc,
                                   TemplateId->LAngleLoc,
                                   TemplateArgsPtr,
@@ -876,8 +881,8 @@ void Parser::AnnotateTemplateIdTokenAsType(const CXXScopeSpec *SS) {
   // Create the new "type" annotation token.
   Tok.setKind(tok::annot_typename);
   setTypeAnnotation(Tok, Type.isInvalid() ? ParsedType() : Type.get());
-  if (SS && SS->isNotEmpty()) // it was a C++ qualified type name.
-    Tok.setLocation(SS->getBeginLoc());
+  if (TemplateId->SS.isNotEmpty()) // it was a C++ qualified type name.
+    Tok.setLocation(TemplateId->SS.getBeginLoc());
   // End location stays the same
 
   // Replace the template-id annotation token, and possible the scope-specifier
@@ -1121,4 +1126,126 @@ SourceRange Parser::ParsedTemplateInfo::getSourceRange() const {
   if (ExternLoc.isValid())
     R.setBegin(ExternLoc);
   return R;
+}
+
+void Parser::LateTemplateParserCallback(void *P, const FunctionDecl *FD) {
+  ((Parser*)P)->LateTemplateParser(FD);
+}
+
+
+void Parser::LateTemplateParser(const FunctionDecl *FD) {
+  LateParsedTemplatedFunction *LPT = LateParsedTemplateMap[FD];
+  if (LPT) {
+    ParseLateTemplatedFuncDef(*LPT);
+    return;
+  }
+
+  llvm_unreachable("Late templated function without associated lexed tokens");
+}
+
+/// \brief Late parse a C++ function template in Microsoft mode.
+void Parser::ParseLateTemplatedFuncDef(LateParsedTemplatedFunction &LMT) {
+  if(!LMT.D)
+     return;
+
+  // If this is a member template, introduce the template parameter scope.
+  ParseScope TemplateScope(this, Scope::TemplateParamScope);
+
+  // Get the FunctionDecl.
+  FunctionDecl *FD = 0;
+  if (FunctionTemplateDecl *FunTmpl = dyn_cast<FunctionTemplateDecl>(LMT.D))
+    FD = FunTmpl->getTemplatedDecl();
+  else
+    FD = cast<FunctionDecl>(LMT.D);
+  
+  // Reinject the template parameters.
+  DeclaratorDecl* Declarator = dyn_cast<DeclaratorDecl>(FD);
+  if (Declarator && Declarator->getNumTemplateParameterLists() != 0) {
+    Actions.ActOnReenterDeclaratorTemplateScope(getCurScope(), Declarator);
+    Actions.ActOnReenterTemplateScope(getCurScope(), LMT.D);
+  } else {
+    Actions.ActOnReenterTemplateScope(getCurScope(), LMT.D);
+
+    DeclContext *DD = FD->getLexicalParent();
+    while (DD && DD->isRecord()) {
+      if (ClassTemplatePartialSpecializationDecl* MD =
+                  dyn_cast_or_null<ClassTemplatePartialSpecializationDecl>(DD))
+          Actions.ActOnReenterTemplateScope(getCurScope(), MD);
+      else if (CXXRecordDecl* MD = dyn_cast_or_null<CXXRecordDecl>(DD))
+          Actions.ActOnReenterTemplateScope(getCurScope(),
+                                            MD->getDescribedClassTemplate());
+
+      DD = DD->getLexicalParent();
+    }
+  }
+  assert(!LMT.Toks.empty() && "Empty body!");
+
+  // Append the current token at the end of the new token stream so that it
+  // doesn't get lost.
+  LMT.Toks.push_back(Tok);
+  PP.EnterTokenStream(LMT.Toks.data(), LMT.Toks.size(), true, false);
+
+  // Consume the previously pushed token.
+  ConsumeAnyToken();
+  assert((Tok.is(tok::l_brace) || Tok.is(tok::colon) || Tok.is(tok::kw_try))
+         && "Inline method not starting with '{', ':' or 'try'");
+
+  // Parse the method body. Function body parsing code is similar enough
+  // to be re-used for method bodies as well.
+  ParseScope FnScope(this, Scope::FnScope|Scope::DeclScope);
+
+  // Recreate the DeclContext.
+  Sema::ContextRAII SavedContext(Actions, Actions.getContainingDC(FD));
+
+  if (FunctionTemplateDecl *FunctionTemplate
+        = dyn_cast_or_null<FunctionTemplateDecl>(LMT.D))
+    Actions.ActOnStartOfFunctionDef(getCurScope(),
+                                   FunctionTemplate->getTemplatedDecl());
+  if (FunctionDecl *Function = dyn_cast_or_null<FunctionDecl>(LMT.D))
+    Actions.ActOnStartOfFunctionDef(getCurScope(), Function);
+  
+
+  if (Tok.is(tok::kw_try)) {
+    ParseFunctionTryBlock(LMT.D, FnScope);
+    return;
+  }
+  if (Tok.is(tok::colon)) {
+    ParseConstructorInitializer(LMT.D);
+
+    // Error recovery.
+    if (!Tok.is(tok::l_brace)) {
+      Actions.ActOnFinishFunctionBody(LMT.D, 0);
+      return;
+    }
+  } else
+    Actions.ActOnDefaultCtorInitializers(LMT.D);
+
+  ParseFunctionStatementBody(LMT.D, FnScope);
+  Actions.MarkAsLateParsedTemplate(FD, false);
+
+  DeclGroupPtrTy grp = Actions.ConvertDeclToDeclGroup(LMT.D);
+  if (grp)
+    Actions.getASTConsumer().HandleTopLevelDecl(grp.get());
+}
+
+/// \brief Lex a delayed template function for late parsing.
+void Parser::LexTemplateFunctionForLateParsing(CachedTokens &Toks) {
+  tok::TokenKind kind = Tok.getKind();
+  // We may have a constructor initializer or function-try-block here.
+  if (kind == tok::colon || kind == tok::kw_try)
+    ConsumeAndStoreUntil(tok::l_brace, Toks);
+  else {
+    Toks.push_back(Tok);
+    ConsumeBrace();
+  }
+  // Consume everything up to (and including) the matching right brace.
+  ConsumeAndStoreUntil(tok::r_brace, Toks, /*StopAtSemi=*/false);
+
+  // If we're in a function-try-block, we need to store all the catch blocks.
+  if (kind == tok::kw_try) {
+    while (Tok.is(tok::kw_catch)) {
+      ConsumeAndStoreUntil(tok::l_brace, Toks, /*StopAtSemi=*/false);
+      ConsumeAndStoreUntil(tok::r_brace, Toks, /*StopAtSemi=*/false);
+    }
+  }
 }

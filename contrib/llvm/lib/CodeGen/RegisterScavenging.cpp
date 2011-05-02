@@ -126,9 +126,10 @@ void RegScavenger::forward() {
     MBBI = MBB->begin();
     Tracking = true;
   } else {
-    assert(MBBI != MBB->end() && "Already at the end of the basic block!");
+    assert(MBBI != MBB->end() && "Already past the end of the basic block!");
     MBBI = llvm::next(MBBI);
   }
+  assert(MBBI != MBB->end() && "Already at the end of the basic block!");
 
   MachineInstr *MI = MBBI;
 
@@ -241,12 +242,13 @@ unsigned RegScavenger::FindUnusedReg(const TargetRegisterClass *RC) const {
 
 /// getRegsAvailable - Return all available registers in the register class
 /// in Mask.
-void RegScavenger::getRegsAvailable(const TargetRegisterClass *RC,
-                                    BitVector &Mask) {
+BitVector RegScavenger::getRegsAvailable(const TargetRegisterClass *RC) {
+  BitVector Mask(TRI->getNumRegs());
   for (TargetRegisterClass::iterator I = RC->begin(), E = RC->end();
        I != E; ++I)
     if (!isAliasUsed(*I))
       Mask.set(*I);
+  return Mask;
 }
 
 /// findSurvivorReg - Return the candidate register that is unused for the
@@ -335,9 +337,13 @@ unsigned RegScavenger::scavengeRegister(const TargetRegisterClass *RC,
   }
 
   // Try to find a register that's unused if there is one, as then we won't
-  // have to spill.
-  if ((Candidates & RegsAvailable).any())
-     Candidates &= RegsAvailable;
+  // have to spill. Search explicitly rather than masking out based on
+  // RegsAvailable, as RegsAvailable does not take aliases into account.
+  // That's what getRegsAvailable() is for.
+  BitVector Available = getRegsAvailable(RC);
+
+  if ((Candidates & Available).any())
+     Candidates &= Available;
 
   // Find the register whose use is furthest away.
   MachineBasicBlock::iterator UseMI;

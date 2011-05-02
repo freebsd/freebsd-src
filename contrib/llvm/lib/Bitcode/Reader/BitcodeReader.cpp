@@ -301,8 +301,7 @@ void BitcodeReaderValueList::ResolveConstantForwardRefs() {
         NewC = ConstantVector::get(NewOps);
       } else {
         assert(isa<ConstantExpr>(UserC) && "Must be a ConstantExpr.");
-        NewC = cast<ConstantExpr>(UserC)->getWithOperands(&NewOps[0],
-                                                          NewOps.size());
+        NewC = cast<ConstantExpr>(UserC)->getWithOperands(NewOps);
       }
 
       UserC->replaceAllUsesWith(NewC);
@@ -350,7 +349,7 @@ Value *BitcodeReaderMDValueList::getValueFwdRef(unsigned Idx) {
   }
 
   // Create and return a placeholder, which will later be RAUW'd.
-  Value *V = MDNode::getTemporary(Context, 0, 0);
+  Value *V = MDNode::getTemporary(Context, ArrayRef<Value*>());
   MDValuePtrs[Idx] = V;
   return V;
 }
@@ -844,9 +843,7 @@ bool BitcodeReader::ParseMetadata() {
         else
           Elts.push_back(NULL);
       }
-      Value *V = MDNode::getWhenValsUnresolved(Context,
-                                               Elts.data(), Elts.size(),
-                                               IsFunctionLocal);
+      Value *V = MDNode::getWhenValsUnresolved(Context, Elts, IsFunctionLocal);
       IsFunctionLocal = false;
       MDValueList.AssignValue(V, NextMDValueNo++);
       break;
@@ -2288,9 +2285,8 @@ bool BitcodeReader::ParseFunctionBody(Function *F) {
       const Type *Ty = getTypeByID(Record[0]);
       if (!Ty) return Error("Invalid PHI record");
 
-      PHINode *PN = PHINode::Create(Ty);
+      PHINode *PN = PHINode::Create(Ty, (Record.size()-1)/2);
       InstructionList.push_back(PN);
-      PN->reserveOperandSpace((Record.size()-1)/2);
 
       for (unsigned i = 0, e = Record.size()-1; i != e; i += 2) {
         Value *V = getFnValueByID(Record[1+i], Ty);

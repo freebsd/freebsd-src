@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Frontend/ASTConsumers.h"
-#include "clang/Frontend/DocumentXML.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/FileManager.h"
@@ -49,39 +48,6 @@ namespace {
 
 ASTConsumer *clang::CreateASTPrinter(llvm::raw_ostream* out) {
   return new ASTPrinter(out);
-}
-
-//===----------------------------------------------------------------------===//
-/// ASTPrinterXML - XML-printer of ASTs
-
-namespace {
-  class ASTPrinterXML : public ASTConsumer {
-    DocumentXML         Doc;
-
-  public:
-    ASTPrinterXML(llvm::raw_ostream& o) : Doc("CLANG_XML", o) {}
-
-    void Initialize(ASTContext &Context) {
-      Doc.initialize(Context);
-    }
-
-    virtual void HandleTranslationUnit(ASTContext &Ctx) {
-      Doc.addSubNode("TranslationUnit");
-      for (DeclContext::decl_iterator
-             D = Ctx.getTranslationUnitDecl()->decls_begin(),
-             DEnd = Ctx.getTranslationUnitDecl()->decls_end();
-           D != DEnd;
-           ++D)
-        Doc.PrintDecl(*D);
-      Doc.toParent();
-      Doc.finalize();
-    }
-  };
-} // end anonymous namespace
-
-
-ASTConsumer *clang::CreateASTPrinterXML(llvm::raw_ostream* out) {
-  return new ASTPrinterXML(out ? *out : llvm::outs());
 }
 
 ASTConsumer *clang::CreateASTDumper() {
@@ -369,8 +335,9 @@ void DeclContextPrinter::PrintDeclContext(const DeclContext* DC,
       Out << "<field> " << FD << '\n';
       break;
     }
-    case Decl::Typedef: {
-      TypedefDecl* TD = cast<TypedefDecl>(*I);
+    case Decl::Typedef:
+    case Decl::TypeAlias: {
+      TypedefNameDecl* TD = cast<TypedefNameDecl>(*I);
       Out << "<typedef> " << TD << '\n';
       break;
     }

@@ -138,6 +138,8 @@ CodeGenFunction::EmitCXXGlobalDtorRegistration(llvm::Constant *DtorFn,
 
   llvm::Constant *AtExitFn = CGM.CreateRuntimeFunction(AtExitFnTy,
                                                        "__cxa_atexit");
+  if (llvm::Function *Fn = dyn_cast<llvm::Function>(AtExitFn))
+    Fn->setDoesNotThrow();
 
   llvm::Constant *Handle = CGM.CreateRuntimeVariable(Int8PtrTy,
                                                      "__dso_handle");
@@ -149,6 +151,14 @@ CodeGenFunction::EmitCXXGlobalDtorRegistration(llvm::Constant *DtorFn,
 
 void CodeGenFunction::EmitCXXGuardedInit(const VarDecl &D,
                                          llvm::GlobalVariable *DeclPtr) {
+  // If we've been asked to forbid guard variables, emit an error now.
+  // This diagnostic is hard-coded for Darwin's use case;  we can find
+  // better phrasing if someone else needs it.
+  if (CGM.getCodeGenOpts().ForbidGuardVariables)
+    CGM.Error(D.getLocation(),
+              "this initialization requires a guard variable, which "
+              "the kernel does not support");
+
   CGM.getCXXABI().EmitGuardedInit(*this, D, DeclPtr);
 }
 
@@ -166,7 +176,7 @@ CreateGlobalInitOrDestructFunction(CodeGenModule &CGM,
       Fn->setSection(Section);
   }
 
-  if (!CGM.getLangOptions().areExceptionsEnabled())
+  if (!CGM.getLangOptions().Exceptions)
     Fn->setDoesNotThrow();
 
   return Fn;
@@ -260,12 +270,16 @@ void CodeGenModule::EmitCXXGlobalDtorFunc() {
 void CodeGenFunction::GenerateCXXGlobalVarDeclInitFunc(llvm::Function *Fn,
                                                        const VarDecl *D,
                                                  llvm::GlobalVariable *Addr) {
-  StartFunction(GlobalDecl(), getContext().VoidTy, Fn, FunctionArgList(),
-                SourceLocation());
+  StartFunction(GlobalDecl(), getContext().VoidTy, Fn,
+                getTypes().getNullaryFunctionInfo(),
+                FunctionArgList(), SourceLocation());
 
   // Use guarded initialization if the global variable is weak due to
-  // being a class template's static data member.
-  if (Addr->hasWeakLinkage() && D->getInstantiatedFromStaticDataMember()) {
+  // being a class template's static data member.  These will always
+  // have weak_odr linkage.
+  if (Addr->getLinkage() == llvm::GlobalValue::WeakODRLinkage &&
+      D->isStaticDataMember() &&
+      D->getInstantiatedFromStaticDataMember()) {
     EmitCXXGuardedInit(*D, Addr);
   } else {
     EmitCXXGlobalVarDeclInit(*D, Addr);
@@ -277,8 +291,9 @@ void CodeGenFunction::GenerateCXXGlobalVarDeclInitFunc(llvm::Function *Fn,
 void CodeGenFunction::GenerateCXXGlobalInitFunc(llvm::Function *Fn,
                                                 llvm::Constant **Decls,
                                                 unsigned NumDecls) {
-  StartFunction(GlobalDecl(), getContext().VoidTy, Fn, FunctionArgList(),
-                SourceLocation());
+  StartFunction(GlobalDecl(), getContext().VoidTy, Fn,
+                getTypes().getNullaryFunctionInfo(),
+                FunctionArgList(), SourceLocation());
 
   for (unsigned i = 0; i != NumDecls; ++i)
     if (Decls[i])
@@ -290,8 +305,9 @@ void CodeGenFunction::GenerateCXXGlobalInitFunc(llvm::Function *Fn,
 void CodeGenFunction::GenerateCXXGlobalDtorFunc(llvm::Function *Fn,
                   const std::vector<std::pair<llvm::WeakVH, llvm::Constant*> >
                                                 &DtorsAndObjects) {
-  StartFunction(GlobalDecl(), getContext().VoidTy, Fn, FunctionArgList(),
-                SourceLocation());
+  StartFunction(GlobalDecl(), getContext().VoidTy, Fn,
+                getTypes().getNullaryFunctionInfo(),
+                FunctionArgList(), SourceLocation());
 
   // Emit the dtors, in reverse order from construction.
   for (unsigned i = 0, e = DtorsAndObjects.size(); i != e; ++i) {
@@ -313,21 +329,19 @@ llvm::Function *
 CodeGenFunction::GenerateCXXAggrDestructorHelper(const CXXDestructorDecl *D,
                                                  const ArrayType *Array,
                                                  llvm::Value *This) {
-  FunctionArgList Args;
-  ImplicitParamDecl *Dst =
-    ImplicitParamDecl::Create(getContext(), 0,
-                              SourceLocation(), 0,
-                              getContext().getPointerType(getContext().VoidTy));
-  Args.push_back(std::make_pair(Dst, Dst->getType()));
+  FunctionArgList args;
+  ImplicitParamDecl dst(0, SourceLocation(), 0, getContext().VoidPtrTy);
+  args.push_back(&dst);
   
   const CGFunctionInfo &FI = 
-    CGM.getTypes().getFunctionInfo(getContext().VoidTy, Args, 
+    CGM.getTypes().getFunctionInfo(getContext().VoidTy, args, 
                                    FunctionType::ExtInfo());
   const llvm::FunctionType *FTy = CGM.getTypes().GetFunctionType(FI, false);
   llvm::Function *Fn = 
     CreateGlobalInitOrDestructFunction(CGM, FTy, "__cxx_global_array_dtor");
 
-  StartFunction(GlobalDecl(), getContext().VoidTy, Fn, Args, SourceLocation());
+  StartFunction(GlobalDecl(), getContext().VoidTy, Fn, FI, args,
+                SourceLocation());
 
   QualType BaseElementTy = getContext().getBaseElementType(Array);
   const llvm::Type *BasePtr = ConvertType(BaseElementTy)->getPointerTo();

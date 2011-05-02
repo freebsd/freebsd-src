@@ -1021,7 +1021,7 @@ reMaterialize(MachineBasicBlock &MBB,
     MachineInstrBuilder MIB = BuildMI(MBB, I, Orig->getDebugLoc(), get(Opcode),
                                       DestReg)
       .addConstantPoolIndex(CPI).addImm(PCLabelId);
-    (*MIB).setMemRefs(Orig->memoperands_begin(), Orig->memoperands_end());
+    MIB->setMemRefs(Orig->memoperands_begin(), Orig->memoperands_end());
     break;
   }
   }
@@ -1080,11 +1080,18 @@ bool ARMBaseInstrInfo::produceSameValue(const MachineInstr *MI0,
     int CPI1 = MO1.getIndex();
     const MachineConstantPoolEntry &MCPE0 = MCP->getConstants()[CPI0];
     const MachineConstantPoolEntry &MCPE1 = MCP->getConstants()[CPI1];
-    ARMConstantPoolValue *ACPV0 =
-      static_cast<ARMConstantPoolValue*>(MCPE0.Val.MachineCPVal);
-    ARMConstantPoolValue *ACPV1 =
-      static_cast<ARMConstantPoolValue*>(MCPE1.Val.MachineCPVal);
-    return ACPV0->hasSameValue(ACPV1);
+    bool isARMCP0 = MCPE0.isMachineConstantPoolEntry();
+    bool isARMCP1 = MCPE1.isMachineConstantPoolEntry();
+    if (isARMCP0 && isARMCP1) {
+      ARMConstantPoolValue *ACPV0 =
+        static_cast<ARMConstantPoolValue*>(MCPE0.Val.MachineCPVal);
+      ARMConstantPoolValue *ACPV1 =
+        static_cast<ARMConstantPoolValue*>(MCPE1.Val.MachineCPVal);
+      return ACPV0->hasSameValue(ACPV1);
+    } else if (!isARMCP0 && !isARMCP1) {
+      return MCPE0.Val.ConstVal == MCPE1.Val.ConstVal;
+    }
+    return false;
   } else if (Opcode == ARM::PICLDR) {
     if (MI1->getOpcode() != Opcode)
       return false;
@@ -1194,7 +1201,7 @@ bool ARMBaseInstrInfo::areLoadsFromSameBasePtr(SDNode *Load1, SDNode *Load2,
 }
 
 /// shouldScheduleLoadsNear - This is a used by the pre-regalloc scheduler to
-/// determine (in conjuction with areLoadsFromSameBasePtr) if two loads should
+/// determine (in conjunction with areLoadsFromSameBasePtr) if two loads should
 /// be scheduled togther. On some targets if two loads are loading from
 /// addresses in the same cache line, it's better if they are scheduled
 /// together. This function takes two integers that represent the load offsets
@@ -1263,19 +1270,19 @@ bool ARMBaseInstrInfo::isSchedulingBoundary(const MachineInstr *MI,
 }
 
 bool ARMBaseInstrInfo::isProfitableToIfCvt(MachineBasicBlock &MBB,
-                                           unsigned NumCyles,
+                                           unsigned NumCycles,
                                            unsigned ExtraPredCycles,
                                            float Probability,
                                            float Confidence) const {
-  if (!NumCyles)
+  if (!NumCycles)
     return false;
 
   // Attempt to estimate the relative costs of predication versus branching.
-  float UnpredCost = Probability * NumCyles;
+  float UnpredCost = Probability * NumCycles;
   UnpredCost += 1.0; // The branch itself
   UnpredCost += (1.0 - Confidence) * Subtarget.getMispredictionPenalty();
 
-  return (float)(NumCyles + ExtraPredCycles) < UnpredCost;
+  return (float)(NumCycles + ExtraPredCycles) < UnpredCost;
 }
 
 bool ARMBaseInstrInfo::
@@ -1328,7 +1335,7 @@ void llvm::emitARMRegPlusImmediate(MachineBasicBlock &MBB,
                                MachineBasicBlock::iterator &MBBI, DebugLoc dl,
                                unsigned DestReg, unsigned BaseReg, int NumBytes,
                                ARMCC::CondCodes Pred, unsigned PredReg,
-                               const ARMBaseInstrInfo &TII) {
+                               const ARMBaseInstrInfo &TII, unsigned MIFlags) {
   bool isSub = NumBytes < 0;
   if (isSub) NumBytes = -NumBytes;
 
@@ -1346,7 +1353,8 @@ void llvm::emitARMRegPlusImmediate(MachineBasicBlock &MBB,
     unsigned Opc = isSub ? ARM::SUBri : ARM::ADDri;
     BuildMI(MBB, MBBI, dl, TII.get(Opc), DestReg)
       .addReg(BaseReg, RegState::Kill).addImm(ThisVal)
-      .addImm((unsigned)Pred).addReg(PredReg).addReg(0);
+      .addImm((unsigned)Pred).addReg(PredReg).addReg(0)
+      .setMIFlags(MIFlags);
     BaseReg = DestReg;
   }
 }
@@ -1610,17 +1618,83 @@ OptimizeCompareInstr(MachineInstr *CmpInstr, unsigned SrcReg, int CmpMask,
   // Set the "zero" bit in CPSR.
   switch (MI->getOpcode()) {
   default: break;
+  case ARM::RSBrr:
+  case ARM::RSBri:
+  case ARM::RSCrr:
+  case ARM::RSCri:
+  case ARM::ADDrr:
   case ARM::ADDri:
-  case ARM::ANDri:
-  case ARM::t2ANDri:
+  case ARM::ADCrr:
+  case ARM::ADCri:
+  case ARM::SUBrr:
   case ARM::SUBri:
+  case ARM::SBCrr:
+  case ARM::SBCri:
+  case ARM::t2RSBri:
+  case ARM::t2ADDrr:
   case ARM::t2ADDri:
+  case ARM::t2ADCrr:
+  case ARM::t2ADCri:
+  case ARM::t2SUBrr:
   case ARM::t2SUBri:
+  case ARM::t2SBCrr:
+  case ARM::t2SBCri:
+  case ARM::ANDrr:
+  case ARM::ANDri:
+  case ARM::t2ANDrr:
+  case ARM::t2ANDri:
+  case ARM::ORRrr:
+  case ARM::ORRri:
+  case ARM::t2ORRrr:
+  case ARM::t2ORRri:
+  case ARM::EORrr:
+  case ARM::EORri:
+  case ARM::t2EORrr:
+  case ARM::t2EORri: {
+    // Scan forward for the use of CPSR, if it's a conditional code requires
+    // checking of V bit, then this is not safe to do. If we can't find the
+    // CPSR use (i.e. used in another block), then it's not safe to perform
+    // the optimization.
+    bool isSafe = false;
+    I = CmpInstr;
+    E = MI->getParent()->end();
+    while (!isSafe && ++I != E) {
+      const MachineInstr &Instr = *I;
+      for (unsigned IO = 0, EO = Instr.getNumOperands();
+           !isSafe && IO != EO; ++IO) {
+        const MachineOperand &MO = Instr.getOperand(IO);
+        if (!MO.isReg() || MO.getReg() != ARM::CPSR)
+          continue;
+        if (MO.isDef()) {
+          isSafe = true;
+          break;
+        }
+        // Condition code is after the operand before CPSR.
+        ARMCC::CondCodes CC = (ARMCC::CondCodes)Instr.getOperand(IO-1).getImm();
+        switch (CC) {
+        default:
+          isSafe = true;
+          break;
+        case ARMCC::VS:
+        case ARMCC::VC:
+        case ARMCC::GE:
+        case ARMCC::LT:
+        case ARMCC::GT:
+        case ARMCC::LE:
+          return false;
+        }
+      }
+    }
+
+    if (!isSafe)
+      return false;
+
     // Toggle the optional operand to CPSR.
     MI->getOperand(5).setReg(ARM::CPSR);
     MI->getOperand(5).setIsDef(true);
     CmpInstr->eraseFromParent();
     return true;
+  }
   }
 
   return false;
@@ -1741,9 +1815,7 @@ ARMBaseInstrInfo::getNumMicroOps(const InstrItineraryData *ItinData,
     llvm_unreachable("Unexpected multi-uops instruction!");
     break;
   case ARM::VLDMQIA:
-  case ARM::VLDMQDB:
   case ARM::VSTMQIA:
-  case ARM::VSTMQDB:
     return 2;
 
   // The number of uOps for load / store multiple are determined by the number
@@ -1757,19 +1829,15 @@ ARMBaseInstrInfo::getNumMicroOps(const InstrItineraryData *ItinData,
   // is not 64-bit aligned, then AGU would take an extra cycle.  For VFP / NEON
   // load / store multiple, the formula is (#reg / 2) + (#reg % 2) + 1.
   case ARM::VLDMDIA:
-  case ARM::VLDMDDB:
   case ARM::VLDMDIA_UPD:
   case ARM::VLDMDDB_UPD:
   case ARM::VLDMSIA:
-  case ARM::VLDMSDB:
   case ARM::VLDMSIA_UPD:
   case ARM::VLDMSDB_UPD:
   case ARM::VSTMDIA:
-  case ARM::VSTMDDB:
   case ARM::VSTMDIA_UPD:
   case ARM::VSTMDDB_UPD:
   case ARM::VSTMSIA:
-  case ARM::VSTMSDB:
   case ARM::VSTMSIA_UPD:
   case ARM::VSTMSDB_UPD: {
     unsigned NumRegs = MI->getNumOperands() - Desc.getNumOperands();
@@ -1859,7 +1927,6 @@ ARMBaseInstrInfo::getVLDMDefCycle(const InstrItineraryData *ItinData,
     switch (DefTID.getOpcode()) {
     default: break;
     case ARM::VLDMSIA:
-    case ARM::VLDMSDB:
     case ARM::VLDMSIA_UPD:
     case ARM::VLDMSDB_UPD:
       isSLoad = true;
@@ -1935,7 +2002,6 @@ ARMBaseInstrInfo::getVSTMUseCycle(const InstrItineraryData *ItinData,
     switch (UseTID.getOpcode()) {
     default: break;
     case ARM::VSTMSIA:
-    case ARM::VSTMSDB:
     case ARM::VSTMSIA_UPD:
     case ARM::VSTMSDB_UPD:
       isSStore = true;
@@ -2006,11 +2072,9 @@ ARMBaseInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
     break;
 
   case ARM::VLDMDIA:
-  case ARM::VLDMDDB:
   case ARM::VLDMDIA_UPD:
   case ARM::VLDMDDB_UPD:
   case ARM::VLDMSIA:
-  case ARM::VLDMSDB:
   case ARM::VLDMSIA_UPD:
   case ARM::VLDMSDB_UPD:
     DefCycle = getVLDMDefCycle(ItinData, DefTID, DefClass, DefIdx, DefAlign);
@@ -2049,11 +2113,9 @@ ARMBaseInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
     break;
 
   case ARM::VSTMDIA:
-  case ARM::VSTMDDB:
   case ARM::VSTMDIA_UPD:
   case ARM::VSTMDDB_UPD:
   case ARM::VSTMSIA:
-  case ARM::VSTMSDB:
   case ARM::VSTMSIA_UPD:
   case ARM::VSTMSDB_UPD:
     UseCycle = getVSTMUseCycle(ItinData, UseTID, UseClass, UseIdx, UseAlign);
@@ -2160,6 +2222,101 @@ ARMBaseInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
     }
   }
 
+  if (DefAlign < 8 && Subtarget.isCortexA9())
+    switch (DefTID.getOpcode()) {
+    default: break;
+    case ARM::VLD1q8:
+    case ARM::VLD1q16:
+    case ARM::VLD1q32:
+    case ARM::VLD1q64:
+    case ARM::VLD1q8_UPD:
+    case ARM::VLD1q16_UPD:
+    case ARM::VLD1q32_UPD:
+    case ARM::VLD1q64_UPD:
+    case ARM::VLD2d8:
+    case ARM::VLD2d16:
+    case ARM::VLD2d32:
+    case ARM::VLD2q8:
+    case ARM::VLD2q16:
+    case ARM::VLD2q32:
+    case ARM::VLD2d8_UPD:
+    case ARM::VLD2d16_UPD:
+    case ARM::VLD2d32_UPD:
+    case ARM::VLD2q8_UPD:
+    case ARM::VLD2q16_UPD:
+    case ARM::VLD2q32_UPD:
+    case ARM::VLD3d8:
+    case ARM::VLD3d16:
+    case ARM::VLD3d32:
+    case ARM::VLD1d64T:
+    case ARM::VLD3d8_UPD:
+    case ARM::VLD3d16_UPD:
+    case ARM::VLD3d32_UPD:
+    case ARM::VLD1d64T_UPD:
+    case ARM::VLD3q8_UPD:
+    case ARM::VLD3q16_UPD:
+    case ARM::VLD3q32_UPD:
+    case ARM::VLD4d8:
+    case ARM::VLD4d16:
+    case ARM::VLD4d32:
+    case ARM::VLD1d64Q:
+    case ARM::VLD4d8_UPD:
+    case ARM::VLD4d16_UPD:
+    case ARM::VLD4d32_UPD:
+    case ARM::VLD1d64Q_UPD:
+    case ARM::VLD4q8_UPD:
+    case ARM::VLD4q16_UPD:
+    case ARM::VLD4q32_UPD:
+    case ARM::VLD1DUPq8:
+    case ARM::VLD1DUPq16:
+    case ARM::VLD1DUPq32:
+    case ARM::VLD1DUPq8_UPD:
+    case ARM::VLD1DUPq16_UPD:
+    case ARM::VLD1DUPq32_UPD:
+    case ARM::VLD2DUPd8:
+    case ARM::VLD2DUPd16:
+    case ARM::VLD2DUPd32:
+    case ARM::VLD2DUPd8_UPD:
+    case ARM::VLD2DUPd16_UPD:
+    case ARM::VLD2DUPd32_UPD:
+    case ARM::VLD4DUPd8:
+    case ARM::VLD4DUPd16:
+    case ARM::VLD4DUPd32:
+    case ARM::VLD4DUPd8_UPD:
+    case ARM::VLD4DUPd16_UPD:
+    case ARM::VLD4DUPd32_UPD:
+    case ARM::VLD1LNd8:
+    case ARM::VLD1LNd16:
+    case ARM::VLD1LNd32:
+    case ARM::VLD1LNd8_UPD:
+    case ARM::VLD1LNd16_UPD:
+    case ARM::VLD1LNd32_UPD:
+    case ARM::VLD2LNd8:
+    case ARM::VLD2LNd16:
+    case ARM::VLD2LNd32:
+    case ARM::VLD2LNq16:
+    case ARM::VLD2LNq32:
+    case ARM::VLD2LNd8_UPD:
+    case ARM::VLD2LNd16_UPD:
+    case ARM::VLD2LNd32_UPD:
+    case ARM::VLD2LNq16_UPD:
+    case ARM::VLD2LNq32_UPD:
+    case ARM::VLD4LNd8:
+    case ARM::VLD4LNd16:
+    case ARM::VLD4LNd32:
+    case ARM::VLD4LNq16:
+    case ARM::VLD4LNq32:
+    case ARM::VLD4LNd8_UPD:
+    case ARM::VLD4LNd16_UPD:
+    case ARM::VLD4LNd32_UPD:
+    case ARM::VLD4LNq16_UPD:
+    case ARM::VLD4LNq32_UPD:
+      // If the address is not 64-bit aligned, the latencies of these
+      // instructions increases by one.
+      ++Latency;
+      break;
+    }
+
   return Latency;
 }
 
@@ -2226,6 +2383,113 @@ ARMBaseInstrInfo::getOperandLatency(const InstrItineraryData *ItinData,
     }
   }
 
+  if (DefAlign < 8 && Subtarget.isCortexA9())
+    switch (DefTID.getOpcode()) {
+    default: break;
+    case ARM::VLD1q8Pseudo:
+    case ARM::VLD1q16Pseudo:
+    case ARM::VLD1q32Pseudo:
+    case ARM::VLD1q64Pseudo:
+    case ARM::VLD1q8Pseudo_UPD:
+    case ARM::VLD1q16Pseudo_UPD:
+    case ARM::VLD1q32Pseudo_UPD:
+    case ARM::VLD1q64Pseudo_UPD:
+    case ARM::VLD2d8Pseudo:
+    case ARM::VLD2d16Pseudo:
+    case ARM::VLD2d32Pseudo:
+    case ARM::VLD2q8Pseudo:
+    case ARM::VLD2q16Pseudo:
+    case ARM::VLD2q32Pseudo:
+    case ARM::VLD2d8Pseudo_UPD:
+    case ARM::VLD2d16Pseudo_UPD:
+    case ARM::VLD2d32Pseudo_UPD:
+    case ARM::VLD2q8Pseudo_UPD:
+    case ARM::VLD2q16Pseudo_UPD:
+    case ARM::VLD2q32Pseudo_UPD:
+    case ARM::VLD3d8Pseudo:
+    case ARM::VLD3d16Pseudo:
+    case ARM::VLD3d32Pseudo:
+    case ARM::VLD1d64TPseudo:
+    case ARM::VLD3d8Pseudo_UPD:
+    case ARM::VLD3d16Pseudo_UPD:
+    case ARM::VLD3d32Pseudo_UPD:
+    case ARM::VLD1d64TPseudo_UPD:
+    case ARM::VLD3q8Pseudo_UPD:
+    case ARM::VLD3q16Pseudo_UPD:
+    case ARM::VLD3q32Pseudo_UPD:
+    case ARM::VLD3q8oddPseudo:
+    case ARM::VLD3q16oddPseudo:
+    case ARM::VLD3q32oddPseudo:
+    case ARM::VLD3q8oddPseudo_UPD:
+    case ARM::VLD3q16oddPseudo_UPD:
+    case ARM::VLD3q32oddPseudo_UPD:
+    case ARM::VLD4d8Pseudo:
+    case ARM::VLD4d16Pseudo:
+    case ARM::VLD4d32Pseudo:
+    case ARM::VLD1d64QPseudo:
+    case ARM::VLD4d8Pseudo_UPD:
+    case ARM::VLD4d16Pseudo_UPD:
+    case ARM::VLD4d32Pseudo_UPD:
+    case ARM::VLD1d64QPseudo_UPD:
+    case ARM::VLD4q8Pseudo_UPD:
+    case ARM::VLD4q16Pseudo_UPD:
+    case ARM::VLD4q32Pseudo_UPD:
+    case ARM::VLD4q8oddPseudo:
+    case ARM::VLD4q16oddPseudo:
+    case ARM::VLD4q32oddPseudo:
+    case ARM::VLD4q8oddPseudo_UPD:
+    case ARM::VLD4q16oddPseudo_UPD:
+    case ARM::VLD4q32oddPseudo_UPD:
+    case ARM::VLD1DUPq8Pseudo:
+    case ARM::VLD1DUPq16Pseudo:
+    case ARM::VLD1DUPq32Pseudo:
+    case ARM::VLD1DUPq8Pseudo_UPD:
+    case ARM::VLD1DUPq16Pseudo_UPD:
+    case ARM::VLD1DUPq32Pseudo_UPD:
+    case ARM::VLD2DUPd8Pseudo:
+    case ARM::VLD2DUPd16Pseudo:
+    case ARM::VLD2DUPd32Pseudo:
+    case ARM::VLD2DUPd8Pseudo_UPD:
+    case ARM::VLD2DUPd16Pseudo_UPD:
+    case ARM::VLD2DUPd32Pseudo_UPD:
+    case ARM::VLD4DUPd8Pseudo:
+    case ARM::VLD4DUPd16Pseudo:
+    case ARM::VLD4DUPd32Pseudo:
+    case ARM::VLD4DUPd8Pseudo_UPD:
+    case ARM::VLD4DUPd16Pseudo_UPD:
+    case ARM::VLD4DUPd32Pseudo_UPD:
+    case ARM::VLD1LNq8Pseudo:
+    case ARM::VLD1LNq16Pseudo:
+    case ARM::VLD1LNq32Pseudo:
+    case ARM::VLD1LNq8Pseudo_UPD:
+    case ARM::VLD1LNq16Pseudo_UPD:
+    case ARM::VLD1LNq32Pseudo_UPD:
+    case ARM::VLD2LNd8Pseudo:
+    case ARM::VLD2LNd16Pseudo:
+    case ARM::VLD2LNd32Pseudo:
+    case ARM::VLD2LNq16Pseudo:
+    case ARM::VLD2LNq32Pseudo:
+    case ARM::VLD2LNd8Pseudo_UPD:
+    case ARM::VLD2LNd16Pseudo_UPD:
+    case ARM::VLD2LNd32Pseudo_UPD:
+    case ARM::VLD2LNq16Pseudo_UPD:
+    case ARM::VLD2LNq32Pseudo_UPD:
+    case ARM::VLD4LNd8Pseudo:
+    case ARM::VLD4LNd16Pseudo:
+    case ARM::VLD4LNd32Pseudo:
+    case ARM::VLD4LNq16Pseudo:
+    case ARM::VLD4LNq32Pseudo:
+    case ARM::VLD4LNd8Pseudo_UPD:
+    case ARM::VLD4LNd16Pseudo_UPD:
+    case ARM::VLD4LNd32Pseudo_UPD:
+    case ARM::VLD4LNq16Pseudo_UPD:
+    case ARM::VLD4LNq32Pseudo_UPD:
+      // If the address is not 64-bit aligned, the latencies of these
+      // instructions increases by one.
+      ++Latency;
+      break;
+    }
+
   return Latency;
 }
 
@@ -2264,9 +2528,7 @@ int ARMBaseInstrInfo::getInstrLatency(const InstrItineraryData *ItinData,
   default:
     return ItinData->getStageLatency(get(Opcode).getSchedClass());
   case ARM::VLDMQIA:
-  case ARM::VLDMQDB:
   case ARM::VSTMQIA:
-  case ARM::VSTMQDB:
     return 2;
   }
 }

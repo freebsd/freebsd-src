@@ -19,12 +19,13 @@
 #include "llvm/Support/DataTypes.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/PointerUnion.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include <vector>
 #include <cassert>
 
 namespace llvm {
-class MemoryBuffer;
 class StringRef;
 }
 
@@ -66,10 +67,16 @@ namespace SrcMgr {
     mutable llvm::PointerIntPair<const llvm::MemoryBuffer *, 2> Buffer;
 
   public:
-    /// Reference to the file entry.  This reference does not own
-    /// the FileEntry object.  It is possible for this to be NULL if
+    /// Reference to the file entry representing this ContentCache.
+    /// This reference does not own the FileEntry object.
+    /// It is possible for this to be NULL if
     /// the ContentCache encapsulates an imaginary text buffer.
-    const FileEntry *Entry;
+    const FileEntry *OrigEntry;
+
+    /// \brief References the file which the contents were actually loaded from.
+    /// Can be different from 'Entry' if we overridden the contents of one file
+    /// with the contents of another file.
+    const FileEntry *ContentsEntry;
 
     /// SourceLineCache - A bump pointer allocated array of offsets for each
     /// source line.  This is lazily computed.  This is owned by the
@@ -104,6 +111,10 @@ namespace SrcMgr {
     ///  this ContentCache.  This can be 0 if the MemBuffer was not actually
     ///  instantiated.
     unsigned getSizeBytesMapped() const;
+    
+    /// Returns the kind of memory used to back the memory buffer for
+    /// this content cache.  This is used for performance analysis.
+    llvm::MemoryBuffer::BufferKind getMemoryBufferKind() const;
 
     void setBuffer(const llvm::MemoryBuffer *B) {
       assert(!Buffer.getPointer() && "MemoryBuffer already set.");
@@ -132,17 +143,23 @@ namespace SrcMgr {
     }
     
     ContentCache(const FileEntry *Ent = 0)
-      : Buffer(0, false), Entry(Ent), SourceLineCache(0), NumLines(0) {}
+      : Buffer(0, false), OrigEntry(Ent), ContentsEntry(Ent),
+        SourceLineCache(0), NumLines(0) {}
+
+    ContentCache(const FileEntry *Ent, const FileEntry *contentEnt)
+      : Buffer(0, false), OrigEntry(Ent), ContentsEntry(contentEnt),
+        SourceLineCache(0), NumLines(0) {}
 
     ~ContentCache();
 
     /// The copy ctor does not allow copies where source object has either
     ///  a non-NULL Buffer or SourceLineCache.  Ownership of allocated memory
-    ///  is not transfered, so this is a logical error.
+    ///  is not transferred, so this is a logical error.
     ContentCache(const ContentCache &RHS) 
       : Buffer(0, false), SourceLineCache(0) 
     {
-      Entry = RHS.Entry;
+      OrigEntry = RHS.OrigEntry;
+      ContentsEntry = RHS.ContentsEntry;
 
       assert (RHS.Buffer.getPointer() == 0 && RHS.SourceLineCache == 0
               && "Passed ContentCache object cannot own a buffer.");
@@ -301,7 +318,10 @@ public:
   virtual ~ExternalSLocEntrySource();
 
   /// \brief Read the source location entry with index ID.
-  virtual void ReadSLocEntry(unsigned ID) = 0;
+  ///
+  /// \returns true if an error occurred that prevented the source-location
+  /// entry from being loaded.
+  virtual bool ReadSLocEntry(unsigned ID) = 0;
 };
   
 
@@ -364,9 +384,9 @@ public:
 /// Spelling locations represent where the bytes corresponding to a token came
 /// from and instantiation locations represent where the location is in the
 /// user's view.  In the case of a macro expansion, for example, the spelling
-/// location indicates where the expanded token came from and the instantiation
+/// location indicates  where the expanded token came from and the instantiation
 /// location specifies where it was expanded.
-class SourceManager {
+class SourceManager : public llvm::RefCountedBase<SourceManager> {
   /// \brief Diagnostic object.
   Diagnostic &Diag;
 
@@ -379,6 +399,13 @@ class SourceManager {
   /// on their FileEntry*.  All ContentCache objects will thus have unique,
   /// non-null, FileEntry pointers.
   llvm::DenseMap<const FileEntry*, SrcMgr::ContentCache*> FileInfos;
+
+  /// \brief True if the ContentCache for files that are overriden by other
+  /// files, should report the original file name. Defaults to true.
+  bool OverridenFilesKeepOriginalName;
+
+  /// \brief Files that have been overriden with the contents from another file.
+  llvm::DenseMap<const FileEntry *, const FileEntry *> OverriddenFiles;
 
   /// MemBufferInfos - Information about various memory buffers that we have
   /// read in.  All FileEntry* within the stored ContentCache objects are NULL,
@@ -425,6 +452,9 @@ class SourceManager {
   // Cache results for the isBeforeInTranslationUnit method.
   mutable IsBeforeInTranslationUnitCache IsBeforeInTUCache;
 
+  // Cache for the "fake" buffer used for error-recovery purposes.
+  mutable llvm::MemoryBuffer *FakeBufferForRecovery;
+  
   // SourceManager doesn't support copy construction.
   explicit SourceManager(const SourceManager&);
   void operator=(const SourceManager&);
@@ -437,6 +467,12 @@ public:
   Diagnostic &getDiagnostics() const { return Diag; }
 
   FileManager &getFileManager() const { return FileMgr; }
+
+  /// \brief Set true if the SourceManager should report the original file name
+  /// for contents of files that were overriden by other files.Defaults to true.
+  void setOverridenFilesKeepOriginalName(bool value) {
+    OverridenFilesKeepOriginalName = value;
+  }
 
   //===--------------------------------------------------------------------===//
   // MainFileID creation and querying methods.
@@ -527,6 +563,15 @@ public:
                             const llvm::MemoryBuffer *Buffer,
                             bool DoNotFree = false);
 
+  /// \brief Override the the given source file with another one.
+  ///
+  /// \param SourceFile the source file which will be overriden.
+  ///
+  /// \param NewFile the file whose contents will be used as the
+  /// data instead of the contents of the given source file.
+  void overrideFileContents(const FileEntry *SourceFile,
+                            const FileEntry *NewFile);
+
   //===--------------------------------------------------------------------===//
   // FileID manipulation methods.
   //===--------------------------------------------------------------------===//
@@ -536,18 +581,48 @@ public:
   /// buffer and returns a non-empty error string.
   const llvm::MemoryBuffer *getBuffer(FileID FID, SourceLocation Loc,
                                       bool *Invalid = 0) const {
-    return getSLocEntry(FID).getFile().getContentCache()
-       ->getBuffer(Diag, *this, Loc, Invalid);
+    bool MyInvalid = false;
+    const SrcMgr::SLocEntry &Entry = getSLocEntry(FID, &MyInvalid);
+    if (MyInvalid || !Entry.isFile()) {
+      if (Invalid)
+        *Invalid = true;
+      
+      return getFakeBufferForRecovery();
+    }
+        
+    return Entry.getFile().getContentCache()->getBuffer(Diag, *this, Loc, 
+                                                        Invalid);
   }
 
   const llvm::MemoryBuffer *getBuffer(FileID FID, bool *Invalid = 0) const {
-    return getSLocEntry(FID).getFile().getContentCache()
-       ->getBuffer(Diag, *this, SourceLocation(), Invalid);
+    bool MyInvalid = false;
+    const SrcMgr::SLocEntry &Entry = getSLocEntry(FID, &MyInvalid);
+    if (MyInvalid || !Entry.isFile()) {
+      if (Invalid)
+        *Invalid = true;
+      
+      return getFakeBufferForRecovery();
+    }
+
+    return Entry.getFile().getContentCache()->getBuffer(Diag, *this, 
+                                                        SourceLocation(), 
+                                                        Invalid);
   }
   
   /// getFileEntryForID - Returns the FileEntry record for the provided FileID.
   const FileEntry *getFileEntryForID(FileID FID) const {
-    return getSLocEntry(FID).getFile().getContentCache()->Entry;
+    bool MyInvalid = false;
+    const SrcMgr::SLocEntry &Entry = getSLocEntry(FID, &MyInvalid);
+    if (MyInvalid || !Entry.isFile())
+      return 0;
+    
+    return Entry.getFile().getContentCache()->OrigEntry;
+  }
+
+  /// Returns the FileEntry record for the provided SLocEntry.
+  const FileEntry *getFileEntryForSLocEntry(const SrcMgr::SLocEntry &sloc) const
+  {
+    return sloc.getFile().getContentCache()->OrigEntry;
   }
 
   /// getBufferData - Return a StringRef to the source buffer data for the
@@ -581,8 +656,12 @@ public:
   /// first byte of the specified file.
   SourceLocation getLocForStartOfFile(FileID FID) const {
     assert(FID.ID < SLocEntryTable.size() && "FileID out of range");
-    assert(getSLocEntry(FID).isFile() && "FileID is not a file");
-    unsigned FileOffset = getSLocEntry(FID).getOffset();
+    bool Invalid = false;
+    const SrcMgr::SLocEntry &Entry = getSLocEntry(FID, &Invalid);
+    if (Invalid || !Entry.isFile())
+      return SourceLocation();
+    
+    unsigned FileOffset = Entry.getOffset();
     return SourceLocation::getFileLoc(FileOffset);
   }
 
@@ -775,6 +854,28 @@ public:
   LineTableInfo &getLineTable();
 
   //===--------------------------------------------------------------------===//
+  // Queries for performance analysis.
+  //===--------------------------------------------------------------------===//
+
+  /// Return the total amount of physical memory allocated by the
+  /// ContentCache allocator.
+  size_t getContentCacheSize() const {
+    return ContentCacheAlloc.getTotalMemory();
+  }
+  
+  struct MemoryBufferSizes {
+    const size_t malloc_bytes;
+    const size_t mmap_bytes;
+    
+    MemoryBufferSizes(size_t malloc_bytes, size_t mmap_bytes)
+      : malloc_bytes(malloc_bytes), mmap_bytes(mmap_bytes) {}
+  };
+
+  /// Return the amount of memory used by memory buffers, breaking down
+  /// by heap-backed versus mmap'ed memory.
+  MemoryBufferSizes getMemoryBufferSizes() const;
+
+  //===--------------------------------------------------------------------===//
   // Other miscellaneous methods.
   //===--------------------------------------------------------------------===//
 
@@ -810,17 +911,22 @@ public:
   //  any other external source).
   unsigned sloc_loaded_entry_size() const { return SLocEntryLoaded.size(); }
 
-  const SrcMgr::SLocEntry &getSLocEntry(unsigned ID) const {
+  const SrcMgr::SLocEntry &getSLocEntry(unsigned ID, bool *Invalid = 0) const {
     assert(ID < SLocEntryTable.size() && "Invalid id");
+    // If we haven't loaded this source-location entry from the external source
+    // yet, do so now.
     if (ExternalSLocEntries &&
         ID < SLocEntryLoaded.size() &&
-        !SLocEntryLoaded[ID])
-      ExternalSLocEntries->ReadSLocEntry(ID);
+        !SLocEntryLoaded[ID] &&
+        ExternalSLocEntries->ReadSLocEntry(ID) &&
+        Invalid)
+      *Invalid = true;
+
     return SLocEntryTable[ID];
   }
 
-  const SrcMgr::SLocEntry &getSLocEntry(FileID FID) const {
-    return getSLocEntry(FID.ID);
+  const SrcMgr::SLocEntry &getSLocEntry(FileID FID, bool *Invalid = 0) const {
+    return getSLocEntry(FID.ID, Invalid);
   }
 
   unsigned getNextOffset() const { return NextOffset; }
@@ -836,6 +942,8 @@ public:
   void ClearPreallocatedSLocEntries();
 
 private:
+  const llvm::MemoryBuffer *getFakeBufferForRecovery() const;
+
   /// isOffsetInFileID - Return true if the specified FileID contains the
   /// specified SourceLocation offset.  This is a very hot method.
   inline bool isOffsetInFileID(FileID FID, unsigned SLocOffset) const {
