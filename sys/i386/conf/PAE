@@ -77,5 +77,11 @@ nodevice	ath		# Atheros pci/cardbus NIC's
 nodevice	ath_pci
 nodevice	ath_hal
 nodevice	ath_rate_sample	# SampleRate tx rate control for ath
+nodevice	ipw
+nodevice	iwi
+nodevice	iwn
+nodevice	malo
+nodevice	mwl
 nodevice	ral
 nodevice	wi
+nodevice	wpi
