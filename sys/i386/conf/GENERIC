@@ -273,9 +273,17 @@ device		ath_pci		# Atheros pci/cardbus glue
 device		ath_hal		# pci/cardbus chip support
 options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample	# SampleRate tx rate control for ath
+#device		bwi		# Broadcom BCM430x/BCM431x wireless NICs.
+#device		bwn		# Broadcom BCM43xx wireless NICs.
+device		ipw		# Intel 2100 wireless NICs.
+device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
+device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
+device		malo		# Marvell Libertas wireless NICs.
+device		mwl		# Marvell 88W8363 802.11n wireless NICs.
 device		ral		# Ralink Technology RT2500 wireless NICs.
 device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 #device		wl		# Older non 802.11 Wavelan wireless NIC.
+device		wpi		# Intel 3945ABG wireless NICs.
 
 # Pseudo devices.
 device		loop		# Network loopback
@@ -327,7 +335,9 @@ device		rue		# RealTek RTL8150 USB Ethernet
 device		udav		# Davicom DM9601E USB
 # USB Wireless
 device		rum		# Ralink Technology RT2501USB wireless NICs
+device		run		# Ralink Technology RT2700/RT2800/RT3000 NICs.
 device		uath		# Atheros AR5523 wireless NICs
+device		upgt		# Conexant/Intersil PrismGT wireless NICs.
 device		ural		# Ralink Technology RT2500USB wireless NICs
 device		urtw		# Realtek RTL8187B/L wireless NICs
 device		zyd		# ZyDAS zb1211/zb1211b wireless NICs

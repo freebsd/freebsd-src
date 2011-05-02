@@ -2298,7 +2298,7 @@ wpi_mrr_setup(struct wpi_softc *sc)
 	}
 
 	/* setup MRR for control frames */
-	mrr.which = htole32(WPI_MRR_CTL);
+	mrr.which = WPI_MRR_CTL;
 	error = wpi_cmd(sc, WPI_CMD_MRR_SETUP, &mrr, sizeof mrr, 0);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
@@ -2307,7 +2307,7 @@ wpi_mrr_setup(struct wpi_softc *sc)
 	}
 
 	/* setup MRR for data frames */
-	mrr.which = htole32(WPI_MRR_DATA);
+	mrr.which = WPI_MRR_DATA;
 	error = wpi_cmd(sc, WPI_CMD_MRR_SETUP, &mrr, sizeof mrr, 0);
 	if (error != 0) {
 		device_printf(sc->sc_dev,

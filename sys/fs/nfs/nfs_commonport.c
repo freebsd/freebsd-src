@@ -404,6 +404,8 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 	} else if (uap->flag & NFSSVC_GETSTATS) {
 		error = copyout(&newnfsstats,
 		    CAST_USER_ADDR_T(uap->argp), sizeof (newnfsstats));
+		if ((uap->flag & NFSSVC_ZEROSTATS) != 0 && error == 0)
+			bzero(&newnfsstats, sizeof(newnfsstats));
 		return (error);
 	} else if (uap->flag & NFSSVC_NFSUSERDPORT) {
 		u_short sockport;
