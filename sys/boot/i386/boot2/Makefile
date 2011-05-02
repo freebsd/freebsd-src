@@ -2,9 +2,6 @@
 
 .include <bsd.own.mk>
 
-# XXX: clang can compile the boot code just fine, but boot2 gets too big
-CC:=${CC:C/^(.*\/)?clang$/gcc/1}
-
 FILES=		boot boot1 boot2
 
 NM?=		nm
@@ -44,6 +41,12 @@ CFLAGS=	-Os \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline --param max-inline-insns-single=100
+
+.if ${CC:T:Mclang} == "clang"
+CFLAGS+=	-mllvm -stack-alignment=8 -mllvm -inline-threshold=3
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS+=	${.IMPSRC:T:Mboot1.S:C/^.+$/-no-integrated-as/}
+.endif
 
 LDFLAGS=-static -N --gc-sections
 
