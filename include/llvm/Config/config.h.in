@@ -567,6 +567,9 @@
 /* LLVM architecture name for the native architecture, if available */
 #undef LLVM_NATIVE_ARCH
 
+/* LLVM name for the native AsmParser init function, if available */
+#undef LLVM_NATIVE_ASMPARSER
+
 /* LLVM name for the native AsmPrinter init function, if available */
 #undef LLVM_NATIVE_ASMPRINTER
 
@@ -671,6 +674,9 @@
 
 /* Define if use udis86 library */
 #undef USE_UDIS86
+
+/* Type of 1st arg on ELM Callback */
+#undef WIN32_ELMCB_PCSTR
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const

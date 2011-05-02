@@ -9,6 +9,7 @@
 
 #include "llvm/Instructions.h"
 #include "llvm/BasicBlock.h"
+#include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/ADT/STLExtras.h"
@@ -105,6 +106,19 @@ TEST(InstructionsTest, BranchInst) {
 
   delete bb0;
   delete bb1;
+}
+
+TEST(InstructionsTest, CastInst) {
+  LLVMContext &C(getGlobalContext());
+
+  const Type* Int8Ty = Type::getInt8Ty(C);
+  const Type* Int64Ty = Type::getInt64Ty(C);
+  const Type* V8x8Ty = VectorType::get(Int8Ty, 8);
+  const Type* X86MMXTy = Type::getX86_MMXTy(C);
+
+  EXPECT_TRUE(CastInst::isCastable(V8x8Ty, X86MMXTy));
+  EXPECT_TRUE(CastInst::isCastable(X86MMXTy, V8x8Ty));
+  EXPECT_FALSE(CastInst::isCastable(Int64Ty, X86MMXTy));
 }
 
 }  // end anonymous namespace

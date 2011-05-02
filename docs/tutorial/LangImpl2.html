@@ -11,7 +11,7 @@
 
 <body>
 
-<div class="doc_title">Kaleidoscope: Implementing a Parser and AST</div>
+<h1>Kaleidoscope: Implementing a Parser and AST</h1>
 
 <ul>
 <li><a href="index.html">Up to Tutorial Index</a></li>
@@ -36,10 +36,10 @@
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="intro">Chapter 2 Introduction</a></div>
+<h2><a name="intro">Chapter 2 Introduction</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>Welcome to Chapter 2 of the "<a href="index.html">Implementing a language
 with LLVM</a>" tutorial.  This chapter shows you how to use the lexer, built in 
@@ -61,10 +61,10 @@ Tree.</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="ast">The Abstract Syntax Tree (AST)</a></div>
+<h2><a name="ast">The Abstract Syntax Tree (AST)</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>The AST for a program captures its behavior in such a way that it is easy for
 later stages of the compiler (e.g. code generation) to interpret.  We basically
@@ -178,10 +178,10 @@ bodies in Kaleidoscope.</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="parserbasics">Parser Basics</a></div>
+<h2><a name="parserbasics">Parser Basics</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>Now that we have an AST to build, we need to define the parser code to build
 it.  The idea here is that we want to parse something like "x+y" (which is
@@ -239,11 +239,10 @@ piece of our grammar: numeric literals.</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="parserprimexprs">Basic Expression
- Parsing</a></div>
+<h2><a name="parserprimexprs">Basic Expression Parsing</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>We start with numeric literals, because they are the simplest to process.
 For each production in our grammar, we'll define a function which parses that
@@ -394,11 +393,10 @@ They are a bit more complex.</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="parserbinops">Binary Expression
- Parsing</a></div>
+<h2><a name="parserbinops">Binary Expression Parsing</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>Binary expressions are significantly harder to parse because they are often
 ambiguous.  For example, when given the string "x+y*z", the parser can choose
@@ -617,10 +615,10 @@ handle function definitions, etc.</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="parsertop">Parsing the Rest</a></div>
+<h2><a name="parsertop">Parsing the Rest</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>
 The next thing missing is handling of function prototypes.  In Kaleidoscope,
@@ -714,10 +712,10 @@ actually <em>execute</em> this code we've built!</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="driver">The Driver</a></div>
+<h2><a name="driver">The Driver</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>The driver for this simply invokes all of the parsing pieces with a top-level
 dispatch loop.  There isn't much interesting here, so I'll just include the
@@ -753,10 +751,10 @@ type "4+5;", and the parser will know you are done.</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="conclusions">Conclusions</a></div>
+<h2><a name="conclusions">Conclusions</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>With just under 400 lines of commented code (240 lines of non-comment, 
 non-blank code), we fully defined our minimal language, including a lexer,
@@ -790,10 +788,10 @@ Representation (IR) from the AST.</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="code">Full Code Listing</a></div>
+<h2><a name="code">Full Code Listing</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>
 Here is the complete code listing for this and the previous chapter.  
@@ -1226,8 +1224,8 @@ int main() {
   src="http://www.w3.org/Icons/valid-html401" alt="Valid HTML 4.01!"></a>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
-  <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-05-07 02:28:04 +0200 (Fri, 07 May 2010) $
+  <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a><br>
+  Last modified: $Date: 2011-04-23 02:30:22 +0200 (Sat, 23 Apr 2011) $
 </address>
 </body>
 </html>

@@ -23,15 +23,15 @@ tailrecurse:                                      ; preds = %sw.bb, %entry
   %tmp2 = load i8** %scevgep5
   %0 = ptrtoint i8* %tmp2 to i32
 
-; ARM:      ands r12, r12, #3
+; ARM:      ands {{r[0-9]+}}, {{r[0-9]+}}, #3
 ; ARM-NEXT: beq
 
-; THUMB:      movs r5, #3
-; THUMB-NEXT: ands r5, r4
-; THUMB-NEXT: cmp r5, #0
+; THUMB:      movs r[[R0:[0-9]+]], #3
+; THUMB-NEXT: ands r[[R0]], r
+; THUMB-NEXT: cmp r[[R0]], #0
 ; THUMB-NEXT: beq
 
-; T2:      ands r12, r12, #3
+; T2:      ands {{r[0-9]+}}, {{r[0-9]+}}, #3
 ; T2-NEXT: beq
 
   %and = and i32 %0, 3

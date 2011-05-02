@@ -12,7 +12,7 @@
 
 <body>
 
-<div class="doc_title">Kaleidoscope: Extending the Language: Control Flow</div>
+<h1>Kaleidoscope: Extending the Language: Control Flow</h1>
 
 <ul>
 <li><a href="index.html">Up to Tutorial Index</a></li>
@@ -52,10 +52,10 @@ User-defined Operators</li>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="intro">Chapter 5 Introduction</a></div>
+<h2><a name="intro">Chapter 5 Introduction</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>Welcome to Chapter 5 of the "<a href="index.html">Implementing a language
 with LLVM</a>" tutorial.  Parts 1-4 described the implementation of the simple
@@ -69,10 +69,10 @@ have an if/then/else expression plus a simple 'for' loop.</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="ifthen">If/Then/Else</a></div>
+<h2><a name="ifthen">If/Then/Else</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>
 Extending Kaleidoscope to support if/then/else is quite straightforward.  It
@@ -112,15 +112,12 @@ Since Kaleidoscope allows side-effects, this behavior is important to nail down.
 <p>Now that we know what we "want", lets break this down into its constituent
 pieces.</p>
 
-</div>
-
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="iflexer">Lexer Extensions for
-If/Then/Else</a></div>
+<h4><a name="iflexer">Lexer Extensions for If/Then/Else</a></h4>
 <!-- ======================================================================= -->
 
 
-<div class="doc_text">
+<div>
 
 <p>The lexer extensions are straightforward.  First we add new variants
 for the relevant tokens:</p>
@@ -153,11 +150,10 @@ stuff:</p>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="ifast">AST Extensions for
- If/Then/Else</a></div>
+<h4><a name="ifast">AST Extensions for If/Then/Else</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>To represent the new expression we add a new AST variant for it:</p>
 
@@ -175,11 +171,10 @@ type expr =
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="ifparser">Parser Extensions for
-If/Then/Else</a></div>
+<h4><a name="ifparser">Parser Extensions for If/Then/Else</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>Now that we have the relevant tokens coming from the lexer and we have the
 AST node to build, our parsing logic is relatively straightforward.  First we
@@ -214,10 +209,10 @@ let rec parse_primary = parser
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="ifir">LLVM IR for If/Then/Else</a></div>
+<h4><a name="ifir">LLVM IR for If/Then/Else</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>Now that we have it parsing and building the AST, the final piece is adding
 LLVM code generation support.  This is the most interesting part of the
@@ -331,11 +326,10 @@ directly.</p>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="ifcodegen">Code Generation for
-If/Then/Else</a></div>
+<h4><a name="ifcodegen">Code Generation for If/Then/Else</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>In order to generate code for this, we implement the <tt>Codegen</tt> method
 for <tt>IfExprAST</tt>:</p>
@@ -492,11 +486,13 @@ another useful expression that is familiar from non-functional languages...</p>
 
 </div>
 
+</div>
+
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="for">'for' Loop Expression</a></div>
+<h2><a name="for">'for' Loop Expression</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>Now that we know how to add basic control flow constructs to the language,
 we have the tools to add more powerful things.  Lets add something more
@@ -525,14 +521,11 @@ variables, it will get more useful.</p>
 <p>As before, lets talk about the changes that we need to Kaleidoscope to
 support this.</p>
 
-</div>
-
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="forlexer">Lexer Extensions for
-the 'for' Loop</a></div>
+<h4><a name="forlexer">Lexer Extensions for the 'for' Loop</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>The lexer extensions are the same sort of thing as for if/then/else:</p>
 
@@ -559,11 +552,10 @@ the 'for' Loop</a></div>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="forast">AST Extensions for
-the 'for' Loop</a></div>
+<h4><a name="forast">AST Extensions for the 'for' Loop</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>The AST variant is just as simple.  It basically boils down to capturing
 the variable name and the constituent expressions in the node.</p>
@@ -580,11 +572,10 @@ type expr =
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="forparser">Parser Extensions for
-the 'for' Loop</a></div>
+<h4><a name="forparser">Parser Extensions for the 'for' Loop</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>The parser code is also fairly standard.  The only interesting thing here is
 handling of the optional step value.  The parser code handles it by checking to
@@ -628,11 +619,10 @@ let rec parse_primary = parser
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="forir">LLVM IR for
-the 'for' Loop</a></div>
+<h4><a name="forir">LLVM IR for the 'for' Loop</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>Now we get to the good part: the LLVM IR we want to generate for this thing.
 With the simple example above, we get this LLVM IR (note that this dump is
@@ -674,11 +664,10 @@ expressions, and some basic blocks.  Lets see how this fits together.</p>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="forcodegen">Code Generation for
-the 'for' Loop</a></div>
+<h4><a name="forcodegen">Code Generation for the 'for' Loop</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>The first part of Codegen is very simple: we just output the start expression
 for the loop value:</p>
@@ -851,11 +840,13 @@ to our poor innocent language.</p>
 
 </div>
 
+</div>
+
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="code">Full Code Listing</a></div>
+<h2><a name="code">Full Code Listing</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>
 Here is the complete code listing for our running example, enhanced with the
@@ -1562,8 +1553,8 @@ operators</a>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
   <a href="mailto:idadesub@users.sourceforge.net">Erick Tryzelaar</a><br>
-  <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-05-28 19:07:41 +0200 (Fri, 28 May 2010) $
+  <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a><br>
+  Last modified: $Date: 2011-04-23 02:30:22 +0200 (Sat, 23 Apr 2011) $
 </address>
 </body>
 </html>

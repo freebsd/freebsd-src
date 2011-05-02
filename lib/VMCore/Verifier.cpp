@@ -471,6 +471,23 @@ void Verifier::visitGlobalVariable(GlobalVariable &GV) {
             "invalid linkage type for global declaration", &GV);
   }
 
+  if (GV.hasName() && (GV.getName() == "llvm.global_ctors" ||
+                       GV.getName() == "llvm.global_dtors")) {
+    Assert1(!GV.hasInitializer() || GV.hasAppendingLinkage(),
+            "invalid linkage for intrinsic global variable", &GV);
+    // Don't worry about emitting an error for it not being an array,
+    // visitGlobalValue will complain on appending non-array.
+    if (const ArrayType *ATy = dyn_cast<ArrayType>(GV.getType())) {
+      const StructType *STy = dyn_cast<StructType>(ATy->getElementType());
+      const PointerType *FuncPtrTy =
+          FunctionType::get(Type::getVoidTy(*Context), false)->getPointerTo();
+      Assert1(STy && STy->getNumElements() == 2 &&
+              STy->getTypeAtIndex(0u)->isIntegerTy(32) &&
+              STy->getTypeAtIndex(1) == FuncPtrTy,
+              "wrong type for intrinsic global variable", &GV);
+    }
+  }
+
   visitGlobalValue(GV);
 }
 
@@ -826,30 +843,10 @@ void Verifier::visitReturnInst(ReturnInst &RI) {
     Assert2(N == 0,
             "Found return instr that returns non-void in Function of void "
             "return type!", &RI, F->getReturnType());
-  else if (N == 1 && F->getReturnType() == RI.getOperand(0)->getType()) {
-    // Exactly one return value and it matches the return type. Good.
-  } else if (const StructType *STy = dyn_cast<StructType>(F->getReturnType())) {
-    // The return type is a struct; check for multiple return values.
-    Assert2(STy->getNumElements() == N,
-            "Incorrect number of return values in ret instruction!",
-            &RI, F->getReturnType());
-    for (unsigned i = 0; i != N; ++i)
-      Assert2(STy->getElementType(i) == RI.getOperand(i)->getType(),
-              "Function return type does not match operand "
-              "type of return inst!", &RI, F->getReturnType());
-  } else if (const ArrayType *ATy = dyn_cast<ArrayType>(F->getReturnType())) {
-    // The return type is an array; check for multiple return values.
-    Assert2(ATy->getNumElements() == N,
-            "Incorrect number of return values in ret instruction!",
-            &RI, F->getReturnType());
-    for (unsigned i = 0; i != N; ++i)
-      Assert2(ATy->getElementType() == RI.getOperand(i)->getType(),
-              "Function return type does not match operand "
-              "type of return inst!", &RI, F->getReturnType());
-  } else {
-    CheckFailed("Function return type does not match operand "
-                "type of return inst!", &RI, F->getReturnType());
-  }
+  else
+    Assert2(N == 1 && F->getReturnType() == RI.getOperand(0)->getType(),
+            "Function return type does not match operand "
+            "type of return inst!", &RI, F->getReturnType());
 
   // Check to make sure that the return value has necessary properties for
   // terminators...

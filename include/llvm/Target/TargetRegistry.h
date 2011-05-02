@@ -43,7 +43,7 @@ namespace llvm {
 
   MCStreamer *createAsmStreamer(MCContext &Ctx, formatted_raw_ostream &OS,
                                 bool isVerboseAsm,
-                                bool useLoc,
+                                bool useLoc, bool useCFI,
                                 MCInstPrinter *InstPrint,
                                 MCCodeEmitter *CE,
                                 TargetAsmBackend *TAB,
@@ -78,6 +78,7 @@ namespace llvm {
                                                 TargetMachine &TM);
     typedef MCDisassembler *(*MCDisassemblerCtorTy)(const Target &T);
     typedef MCInstPrinter *(*MCInstPrinterCtorTy)(const Target &T,
+                                                  TargetMachine &TM,
                                                   unsigned SyntaxVariant,
                                                   const MCAsmInfo &MAI);
     typedef MCCodeEmitter *(*CodeEmitterCtorTy)(const Target &T,
@@ -95,6 +96,7 @@ namespace llvm {
                                              formatted_raw_ostream &OS,
                                              bool isVerboseAsm,
                                              bool useLoc,
+                                             bool useCFI,
                                              MCInstPrinter *InstPrint,
                                              MCCodeEmitter *CE,
                                              TargetAsmBackend *TAB,
@@ -286,11 +288,12 @@ namespace llvm {
       return MCDisassemblerCtorFn(*this);
     }
 
-    MCInstPrinter *createMCInstPrinter(unsigned SyntaxVariant,
+    MCInstPrinter *createMCInstPrinter(TargetMachine &TM,
+                                       unsigned SyntaxVariant,
                                        const MCAsmInfo &MAI) const {
       if (!MCInstPrinterCtorFn)
         return 0;
-      return MCInstPrinterCtorFn(*this, SyntaxVariant, MAI);
+      return MCInstPrinterCtorFn(*this, TM, SyntaxVariant, MAI);
     }
 
 
@@ -327,12 +330,13 @@ namespace llvm {
                                   formatted_raw_ostream &OS,
                                   bool isVerboseAsm,
                                   bool useLoc,
+                                  bool useCFI,
                                   MCInstPrinter *InstPrint,
                                   MCCodeEmitter *CE,
                                   TargetAsmBackend *TAB,
                                   bool ShowInst) const {
       // AsmStreamerCtorFn is default to llvm::createAsmStreamer
-      return AsmStreamerCtorFn(Ctx, OS, isVerboseAsm, useLoc,
+      return AsmStreamerCtorFn(Ctx, OS, isVerboseAsm, useLoc, useCFI,
                                InstPrint, CE, TAB, ShowInst);
     }
 

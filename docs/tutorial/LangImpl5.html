@@ -11,7 +11,7 @@
 
 <body>
 
-<div class="doc_title">Kaleidoscope: Extending the Language: Control Flow</div>
+<h1>Kaleidoscope: Extending the Language: Control Flow</h1>
 
 <ul>
 <li><a href="index.html">Up to Tutorial Index</a></li>
@@ -48,10 +48,10 @@ User-defined Operators</li>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="intro">Chapter 5 Introduction</a></div>
+<h2><a name="intro">Chapter 5 Introduction</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>Welcome to Chapter 5 of the "<a href="index.html">Implementing a language
 with LLVM</a>" tutorial.  Parts 1-4 described the implementation of the simple
@@ -65,14 +65,14 @@ have an if/then/else expression plus a simple 'for' loop.</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="ifthen">If/Then/Else</a></div>
+<h2><a name="ifthen">If/Then/Else</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>
 Extending Kaleidoscope to support if/then/else is quite straightforward.  It
-basically requires adding lexer support for this "new" concept to the lexer,
+basically requires adding support for this "new" concept to the lexer,
 parser, AST, and LLVM code emitter.  This example is nice, because it shows how
 easy it is to "grow" a language over time, incrementally extending it as new
 ideas are discovered.</p>
@@ -108,15 +108,12 @@ Since Kaleidoscope allows side-effects, this behavior is important to nail down.
 <p>Now that we know what we "want", lets break this down into its constituent
 pieces.</p>
 
-</div>
-
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="iflexer">Lexer Extensions for
-If/Then/Else</a></div>
+<h4><a name="iflexer">Lexer Extensions for If/Then/Else</a></h4>
 <!-- ======================================================================= -->
 
 
-<div class="doc_text">
+<div>
 
 <p>The lexer extensions are straightforward.  First we add new enum values
 for the relevant tokens:</p>
@@ -146,11 +143,10 @@ stuff:</p>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="ifast">AST Extensions for
- If/Then/Else</a></div>
+<h4><a name="ifast">AST Extensions for If/Then/Else</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>To represent the new expression we add a new AST node for it:</p>
 
@@ -172,11 +168,10 @@ public:
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="ifparser">Parser Extensions for
-If/Then/Else</a></div>
+<h4><a name="ifparser">Parser Extensions for If/Then/Else</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>Now that we have the relevant tokens coming from the lexer and we have the
 AST node to build, our parsing logic is relatively straightforward.  First we
@@ -231,10 +226,10 @@ static ExprAST *ParsePrimary() {
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="ifir">LLVM IR for If/Then/Else</a></div>
+<h4><a name="ifir">LLVM IR for If/Then/Else</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>Now that we have it parsing and building the AST, the final piece is adding
 LLVM code generation support.  This is the most interesting part of the
@@ -347,11 +342,10 @@ directly.</p>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="ifcodegen">Code Generation for 
-If/Then/Else</a></div>
+<h4><a name="ifcodegen">Code Generation for If/Then/Else</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>In order to generate code for this, we implement the <tt>Codegen</tt> method
 for <tt>IfExprAST</tt>:</p>
@@ -472,7 +466,7 @@ are emitted, we can finish up with the merge code:</p>
   // Emit merge block.
   TheFunction->getBasicBlockList().push_back(MergeBB);
   Builder.SetInsertPoint(MergeBB);
-  PHINode *PN = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()),
+  PHINode *PN = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()), 2,
                                   "iftmp");
   
   PN->addIncoming(ThenV, ThenBB);
@@ -500,11 +494,13 @@ another useful expression that is familiar from non-functional languages...</p>
 
 </div>
 
+</div>
+
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="for">'for' Loop Expression</a></div>
+<h2><a name="for">'for' Loop Expression</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>Now that we know how to add basic control flow constructs to the language,
 we have the tools to add more powerful things.  Lets add something more
@@ -533,14 +529,11 @@ variables, it will get more useful.</p>
 <p>As before, lets talk about the changes that we need to Kaleidoscope to
 support this.</p>
 
-</div>
-
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="forlexer">Lexer Extensions for
-the 'for' Loop</a></div>
+<h4><a name="forlexer">Lexer Extensions for the 'for' Loop</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>The lexer extensions are the same sort of thing as for if/then/else:</p>
 
@@ -566,11 +559,10 @@ the 'for' Loop</a></div>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="forast">AST Extensions for
-the 'for' Loop</a></div>
+<h4><a name="forast">AST Extensions for the 'for' Loop</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>The AST node is just as simple.  It basically boils down to capturing
 the variable name and the constituent expressions in the node.</p>
@@ -593,11 +585,10 @@ public:
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="forparser">Parser Extensions for
-the 'for' Loop</a></div>
+<h4><a name="forparser">Parser Extensions for the 'for' Loop</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>The parser code is also fairly standard.  The only interesting thing here is
 handling of the optional step value.  The parser code handles it by checking to
@@ -653,11 +644,10 @@ static ExprAST *ParseForExpr() {
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="forir">LLVM IR for 
-the 'for' Loop</a></div>
+<h4><a name="forir">LLVM IR for the 'for' Loop</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>Now we get to the good part: the LLVM IR we want to generate for this thing.
 With the simple example above, we get this LLVM IR (note that this dump is
@@ -699,11 +689,10 @@ expressions, and some basic blocks.  Lets see how this fits together.</p>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection"><a name="forcodegen">Code Generation for 
-the 'for' Loop</a></div>
+<h4><a name="forcodegen">Code Generation for the 'for' Loop</a></h4>
 <!-- ======================================================================= -->
 
-<div class="doc_text">
+<div>
 
 <p>The first part of Codegen is very simple: we just output the start expression
 for the loop value:</p>
@@ -746,7 +735,7 @@ create an unconditional branch for the fall-through between the two blocks.</p>
   Builder.SetInsertPoint(LoopBB);
   
   // Start the PHI node with an entry for Start.
-  PHINode *Variable = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()), VarName.c_str());
+  PHINode *Variable = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()), 2, VarName.c_str());
   Variable-&gt;addIncoming(StartVal, PreheaderBB);
 </pre>
 </div>
@@ -876,11 +865,13 @@ language.</p>
 
 </div>
 
+</div>
+
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="code">Full Code Listing</a></div>
+<h2><a name="code">Full Code Listing</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>
 Here is the complete code listing for our running example, enhanced with the
@@ -1452,7 +1443,7 @@ Value *IfExprAST::Codegen() {
   // Emit merge block.
   TheFunction-&gt;getBasicBlockList().push_back(MergeBB);
   Builder.SetInsertPoint(MergeBB);
-  PHINode *PN = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()),
+  PHINode *PN = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()), 2,
                                   "iftmp");
   
   PN-&gt;addIncoming(ThenV, ThenBB);
@@ -1494,7 +1485,7 @@ Value *ForExprAST::Codegen() {
   Builder.SetInsertPoint(LoopBB);
   
   // Start the PHI node with an entry for Start.
-  PHINode *Variable = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()), VarName.c_str());
+  PHINode *Variable = Builder.CreatePHI(Type::getDoubleTy(getGlobalContext()), 2, VarName.c_str());
   Variable-&gt;addIncoming(StartVal, PreheaderBB);
   
   // Within the loop, the variable is defined equal to the PHI node.  If it
@@ -1721,7 +1712,7 @@ int main() {
 
   // Create the JIT.  This takes ownership of the module.
   std::string ErrStr;
-  TheExecutionEngine = EngineBuilder(TheModule).setErrorStr(&ErrStr).create();
+  TheExecutionEngine = EngineBuilder(TheModule).setErrorStr(&amp;ErrStr).create();
   if (!TheExecutionEngine) {
     fprintf(stderr, "Could not create ExecutionEngine: %s\n", ErrStr.c_str());
     exit(1);
@@ -1773,8 +1764,8 @@ int main() {
   src="http://www.w3.org/Icons/valid-html401" alt="Valid HTML 4.01!"></a>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
-  <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-11-16 18:28:22 +0100 (Tue, 16 Nov 2010) $
+  <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a><br>
+  Last modified: $Date: 2011-04-23 02:30:22 +0200 (Sat, 23 Apr 2011) $
 </address>
 </body>
 </html>

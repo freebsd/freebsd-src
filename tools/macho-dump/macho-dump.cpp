@@ -49,25 +49,6 @@ static void Warning(const Twine &Msg) {
 
 ///
 
-static int DumpHeader(MachOObject &Obj) {
-  // Read the header.
-  const macho::Header &Hdr = Obj.getHeader();
-  outs() << "('cputype', " << Hdr.CPUType << ")\n";
-  outs() << "('cpusubtype', " << Hdr.CPUSubtype << ")\n";
-  outs() << "('filetype', " << Hdr.FileType << ")\n";
-  outs() << "('num_load_commands', " << Hdr.NumLoadCommands << ")\n";
-  outs() << "('load_commands_size', " << Hdr.SizeOfLoadCommands << ")\n";
-  outs() << "('flag', " << Hdr.Flags << ")\n";
-
-  // Print extended header if 64-bit.
-  if (Obj.is64Bit()) {
-    const macho::Header64Ext &Hdr64 = Obj.getHeader64Ext();
-    outs() << "('reserved', " << Hdr64.Reserved << ")\n";
-  }
-
-  return 0;
-}
-
 static void DumpSegmentCommandData(StringRef Name,
                                    uint64_t VMAddr, uint64_t VMSize,
                                    uint64_t FileOffset, uint64_t FileSize,
@@ -376,8 +357,8 @@ int main(int argc, char **argv) {
   if (!InputObject)
     return Error("unable to load object: '" + ErrorStr + "'");
 
-  if (int Res = DumpHeader(*InputObject))
-    return Res;
+  // Print the header
+  InputObject->printHeader(outs());
 
   // Print the load commands.
   int Res = 0;

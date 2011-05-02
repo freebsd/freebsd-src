@@ -131,26 +131,15 @@ Value *PHINode::removeIncomingValue(unsigned Idx, bool DeletePHIIfEmpty) {
   return Removed;
 }
 
-/// resizeOperands - resize operands - This adjusts the length of the operands
-/// list according to the following behavior:
-///   1. If NumOps == 0, grow the operand list in response to a push_back style
-///      of operation.  This grows the number of ops by 1.5 times.
-///   2. If NumOps > NumOperands, reserve space for NumOps operands.
-///   3. If NumOps == NumOperands, trim the reserved space.
+/// growOperands - grow operands - This grows the operand list in response
+/// to a push_back style of operation.  This grows the number of ops by 1.5
+/// times.
 ///
-void PHINode::resizeOperands(unsigned NumOps) {
+void PHINode::growOperands() {
   unsigned e = getNumOperands();
-  if (NumOps == 0) {
-    NumOps = e*3/2;
-    if (NumOps < 4) NumOps = 4;      // 4 op PHI nodes are VERY common.
-  } else if (NumOps*2 > NumOperands) {
-    // No resize needed.
-    if (ReservedSpace >= NumOps) return;
-  } else if (NumOps == NumOperands) {
-    if (ReservedSpace == NumOps) return;
-  } else {
-    return;
-  }
+  // Multiply by 1.5 and round down so the result is still even.
+  unsigned NumOps = e + e / 4 * 2;
+  if (NumOps < 4) NumOps = 4;      // 4 op PHI nodes are VERY common.
 
   ReservedSpace = NumOps;
   Use *OldOps = OperandList;
@@ -2297,8 +2286,12 @@ bool CastInst::isCastable(const Type *SrcTy, const Type *DestTy) {
     if (const VectorType *SrcPTy = dyn_cast<VectorType>(SrcTy)) {
                                                 // Casting from vector
       return DestPTy->getBitWidth() == SrcPTy->getBitWidth();
-    } else {                                    // Casting from something else
-      return DestPTy->getBitWidth() == SrcBits;
+    } else if (DestPTy->getBitWidth() == SrcBits) {
+      return true;                              // float/int -> vector
+    } else if (SrcTy->isX86_MMXTy()) {
+      return DestPTy->getBitWidth() == 64;      // MMX to 64-bit vector
+    } else {
+      return false;
     }
   } else if (DestTy->isPointerTy()) {        // Casting to pointer
     if (SrcTy->isPointerTy()) {              // Casting from pointer
@@ -2308,8 +2301,12 @@ bool CastInst::isCastable(const Type *SrcTy, const Type *DestTy) {
     } else {                                    // Casting from something else
       return false;
     }
-  } else if (DestTy->isX86_MMXTy()) {     
-    return SrcBits == 64;
+  } else if (DestTy->isX86_MMXTy()) {
+    if (const VectorType *SrcPTy = dyn_cast<VectorType>(SrcTy)) {
+      return SrcPTy->getBitWidth() == 64;       // 64-bit vector to MMX
+    } else {
+      return false;
+    }
   } else {                                      // Casting to something else
     return false;
   }
@@ -2990,7 +2987,7 @@ SwitchInst::~SwitchInst() {
 void SwitchInst::addCase(ConstantInt *OnVal, BasicBlock *Dest) {
   unsigned OpNo = NumOperands;
   if (OpNo+2 > ReservedSpace)
-    resizeOperands(0);  // Get more space!
+    growOperands();  // Get more space!
   // Initialize some new operands.
   assert(OpNo+1 < ReservedSpace && "Growing didn't work!");
   NumOperands = OpNo+2;
@@ -3021,25 +3018,12 @@ void SwitchInst::removeCase(unsigned idx) {
   NumOperands = NumOps-2;
 }
 
-/// resizeOperands - resize operands - This adjusts the length of the operands
-/// list according to the following behavior:
-///   1. If NumOps == 0, grow the operand list in response to a push_back style
-///      of operation.  This grows the number of ops by 3 times.
-///   2. If NumOps > NumOperands, reserve space for NumOps operands.
-///   3. If NumOps == NumOperands, trim the reserved space.
+/// growOperands - grow operands - This grows the operand list in response
+/// to a push_back style of operation.  This grows the number of ops by 3 times.
 ///
-void SwitchInst::resizeOperands(unsigned NumOps) {
+void SwitchInst::growOperands() {
   unsigned e = getNumOperands();
-  if (NumOps == 0) {
-    NumOps = e*3;
-  } else if (NumOps*2 > NumOperands) {
-    // No resize needed.
-    if (ReservedSpace >= NumOps) return;
-  } else if (NumOps == NumOperands) {
-    if (ReservedSpace == NumOps) return;
-  } else {
-    return;
-  }
+  unsigned NumOps = e*3;
 
   ReservedSpace = NumOps;
   Use *NewOps = allocHungoffUses(NumOps);
@@ -3077,25 +3061,12 @@ void IndirectBrInst::init(Value *Address, unsigned NumDests) {
 }
 
 
-/// resizeOperands - resize operands - This adjusts the length of the operands
-/// list according to the following behavior:
-///   1. If NumOps == 0, grow the operand list in response to a push_back style
-///      of operation.  This grows the number of ops by 2 times.
-///   2. If NumOps > NumOperands, reserve space for NumOps operands.
-///   3. If NumOps == NumOperands, trim the reserved space.
+/// growOperands - grow operands - This grows the operand list in response
+/// to a push_back style of operation.  This grows the number of ops by 2 times.
 ///
-void IndirectBrInst::resizeOperands(unsigned NumOps) {
+void IndirectBrInst::growOperands() {
   unsigned e = getNumOperands();
-  if (NumOps == 0) {
-    NumOps = e*2;
-  } else if (NumOps*2 > NumOperands) {
-    // No resize needed.
-    if (ReservedSpace >= NumOps) return;
-  } else if (NumOps == NumOperands) {
-    if (ReservedSpace == NumOps) return;
-  } else {
-    return;
-  }
+  unsigned NumOps = e*2;
   
   ReservedSpace = NumOps;
   Use *NewOps = allocHungoffUses(NumOps);
@@ -3139,7 +3110,7 @@ IndirectBrInst::~IndirectBrInst() {
 void IndirectBrInst::addDestination(BasicBlock *DestBB) {
   unsigned OpNo = NumOperands;
   if (OpNo+1 > ReservedSpace)
-    resizeOperands(0);  // Get more space!
+    growOperands();  // Get more space!
   // Initialize some new operands.
   assert(OpNo < ReservedSpace && "Growing didn't work!");
   NumOperands = OpNo+1;

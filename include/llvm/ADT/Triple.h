@@ -64,7 +64,8 @@ public:
     x86_64,  // X86-64: amd64, x86_64
     xcore,   // XCore: xcore
     mblaze,  // MBlaze: mblaze
-    ptx,     // PTX: ptx
+    ptx32,   // PTX: ptx (32-bit)
+    ptx64,   // PTX: ptx (64-bit)
 
     InvalidArch
   };
@@ -72,7 +73,8 @@ public:
     UnknownVendor,
 
     Apple,
-    PC
+    PC,
+    SCEI
   };
   enum OSType {
     UnknownOS,
@@ -82,8 +84,10 @@ public:
     Darwin,
     DragonFly,
     FreeBSD,
+    IOS,
     Linux,
     Lv2,        // PS3
+    MacOSX,
     MinGW32,    // i*86-pc-mingw32, *-w64-mingw32
     NetBSD,
     OpenBSD,
@@ -221,21 +225,81 @@ public:
   /// if the environment component is present).
   StringRef getOSAndEnvironmentName() const;
 
+  /// getOSNumber - Parse the version number from the OS name component of the
+  /// triple, if present.
+  ///
+  /// For example, "fooos1.2.3" would return (1, 2, 3).
+  ///
+  /// If an entry is not defined, it will be returned as 0.
+  void getOSVersion(unsigned &Major, unsigned &Minor, unsigned &Micro) const;
 
-  /// getDarwinNumber - Parse the 'darwin number' out of the specific target
-  /// triple.  For example, if we have darwin8.5 return 8,5,0.  If any entry is
-  /// not defined, return 0's.  This requires that the triple have an OSType of
-  /// darwin before it is called.
-  void getDarwinNumber(unsigned &Maj, unsigned &Min, unsigned &Revision) const;
-
-  /// getDarwinMajorNumber - Return just the major version number, this is
+  /// getOSMajorVersion - Return just the major version number, this is
   /// specialized because it is a common query.
-  unsigned getDarwinMajorNumber() const {
-    unsigned Maj, Min, Rev;
-    getDarwinNumber(Maj, Min, Rev);
+  unsigned getOSMajorVersion() const {
+    unsigned Maj, Min, Micro;
+    getDarwinNumber(Maj, Min, Micro);
     return Maj;
   }
 
+  void getDarwinNumber(unsigned &Major, unsigned &Minor,
+                       unsigned &Micro) const {
+    return getOSVersion(Major, Minor, Micro);
+  }
+
+  unsigned getDarwinMajorNumber() const {
+    return getOSMajorVersion();
+  }
+
+  /// isOSVersionLT - Helper function for doing comparisons against version
+  /// numbers included in the target triple.
+  bool isOSVersionLT(unsigned Major, unsigned Minor = 0,
+                     unsigned Micro = 0) const {
+    unsigned LHS[3];
+    getOSVersion(LHS[0], LHS[1], LHS[2]);
+
+    if (LHS[0] != Major)
+      return LHS[0] < Major;
+    if (LHS[1] != Minor)
+      return LHS[1] < Minor;
+    if (LHS[2] != Micro)
+      return LHS[1] < Micro;
+
+    return false;
+  }
+
+  /// isMacOSX - Is this a Mac OS X triple. For legacy reasons, we support both
+  /// "darwin" and "osx" as OS X triples.
+  bool isMacOSX() const {
+    return getOS() == Triple::Darwin || getOS() == Triple::MacOSX;
+  }
+
+  /// isOSDarwin - Is this a "Darwin" OS (OS X or iOS).
+  bool isOSDarwin() const {
+    return isMacOSX() ||getOS() == Triple::IOS;
+  }
+
+  /// isOSWindows - Is this a "Windows" OS.
+  bool isOSWindows() const {
+    return getOS() == Triple::Win32 || getOS() == Triple::Cygwin ||
+      getOS() == Triple::MinGW32;
+  }
+
+  /// isMacOSXVersionLT - Comparison function for checking OS X version
+  /// compatibility, which handles supporting skewed version numbering schemes
+  /// used by the "darwin" triples.
+  unsigned isMacOSXVersionLT(unsigned Major, unsigned Minor = 0,
+                          unsigned Micro = 0) const {
+    assert(isMacOSX() && "Not an OS X triple!");
+
+    // If this is OS X, expect a sane version number.
+    if (getOS() == Triple::MacOSX)
+      return isOSVersionLT(Major, Minor, Micro);
+
+    // Otherwise, compare to the "Darwin" number.
+    assert(Major == 10 && "Unexpected major version");
+    return isOSVersionLT(Minor + 4, Micro, 0);
+  }
+    
   /// @}
   /// @name Mutators
   /// @{

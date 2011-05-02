@@ -10,12 +10,14 @@
 #define MCDISASSEMBLER_H
 
 #include "llvm/Support/DataTypes.h"
+#include "llvm-c/Disassembler.h"
 
 namespace llvm {
   
 class MCInst;
 class MemoryObject;
 class raw_ostream;
+class MCContext;
   
 struct EDInstInfo;
 
@@ -24,7 +26,7 @@ struct EDInstInfo;
 class MCDisassembler {
 public:
   /// Constructor     - Performs initial setup for the disassembler.
-  MCDisassembler() {}
+  MCDisassembler() : GetOpInfo(0), DisInfo(0), Ctx(0) {}
   
   virtual ~MCDisassembler();
   
@@ -46,13 +48,37 @@ public:
                                        uint64_t address,
                                        raw_ostream &vStream) const = 0;
 
-  /// getEDInfo - Returns the enhanced insturction information corresponding to
+  /// getEDInfo - Returns the enhanced instruction information corresponding to
   ///   the disassembler.
   ///
   /// @return         - An array of instruction information, with one entry for
   ///                   each MCInst opcode this disassembler returns.
   ///                   NULL if there is no info for this target.
   virtual EDInstInfo   *getEDInfo() const { return (EDInstInfo*)0; }
+
+private:
+  //
+  // Hooks for symbolic disassembly via the public 'C' interface.
+  //
+  // The function to get the symbolic information for operands.
+  LLVMOpInfoCallback GetOpInfo;
+  // The pointer to the block of symbolic information for above call back.
+  void *DisInfo;
+  // The assembly context for creating symbols and MCExprs in place of
+  // immediate operands when there is symbolic information.
+  MCContext *Ctx;
+
+public:
+  void setupForSymbolicDisassembly(LLVMOpInfoCallback getOpInfo,
+                                   void *disInfo,
+                                   MCContext *ctx) {
+    GetOpInfo = getOpInfo;
+    DisInfo = disInfo;
+    Ctx = ctx;
+  }
+  LLVMOpInfoCallback getLLVMOpInfoCallback() const { return GetOpInfo; }
+  void *getDisInfoBlock() const { return DisInfo; }
+  MCContext *getMCContext() const { return Ctx; }
 };
 
 } // namespace llvm

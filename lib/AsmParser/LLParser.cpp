@@ -249,11 +249,7 @@ bool LLParser::ParseModuleAsm() {
   if (ParseToken(lltok::kw_asm, "expected 'module asm'") ||
       ParseStringConstant(AsmStr)) return true;
 
-  const std::string &AsmSoFar = M->getModuleInlineAsm();
-  if (AsmSoFar.empty())
-    M->setModuleInlineAsm(AsmStr);
-  else
-    M->setModuleInlineAsm(AsmSoFar+"\n"+AsmStr);
+  M->appendModuleInlineAsm(AsmStr);
   return false;
 }
 
@@ -518,7 +514,7 @@ bool LLParser::ParseMDNodeID(MDNode *&Result) {
   if (Result) return false;
 
   // Otherwise, create MDNode forward reference.
-  MDNode *FwdNode = MDNode::getTemporary(Context, 0, 0);
+  MDNode *FwdNode = MDNode::getTemporary(Context, ArrayRef<Value*>());
   ForwardRefMDNodes[MID] = std::make_pair(FwdNode, Lex.getLoc());
   
   if (NumberedMetadata.size() <= MID)
@@ -576,7 +572,7 @@ bool LLParser::ParseStandaloneMetadata() {
       ParseToken(lltok::rbrace, "expected end of metadata node"))
     return true;
 
-  MDNode *Init = MDNode::get(Context, Elts.data(), Elts.size());
+  MDNode *Init = MDNode::get(Context, Elts);
   
   // See if this was forward referenced, if so, handle it.
   std::map<unsigned, std::pair<TrackingVH<MDNode>, LocTy> >::iterator
@@ -2502,7 +2498,7 @@ bool LLParser::ParseMetadataListValue(ValID &ID, PerFunctionState *PFS) {
       ParseToken(lltok::rbrace, "expected end of metadata node"))
     return true;
 
-  ID.MDNodeVal = MDNode::get(Context, Elts.data(), Elts.size());
+  ID.MDNodeVal = MDNode::get(Context, Elts);
   ID.Kind = ValID::t_MDNode;
   return false;
 }
@@ -3638,8 +3634,7 @@ int LLParser::ParsePHI(Instruction *&Inst, PerFunctionState &PFS) {
   if (!Ty->isFirstClassType())
     return Error(TypeLoc, "phi node must have first class type");
 
-  PHINode *PN = PHINode::Create(Ty);
-  PN->reserveOperandSpace(PHIVals.size());
+  PHINode *PN = PHINode::Create(Ty, PHIVals.size());
   for (unsigned i = 0, e = PHIVals.size(); i != e; ++i)
     PN->addIncoming(PHIVals[i].first, PHIVals[i].second);
   Inst = PN;

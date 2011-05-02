@@ -444,11 +444,11 @@ endif
 # LLVM Capable Compiler
 #--------------------------------------------------------------------
 
-ifeq ($(LLVMCC_OPTION),llvm-gcc)
+ifneq ($(findstring llvm-gcc,$(LLVMCC_OPTION)),)
   LLVMCC := $(LLVMGCC)
   LLVMCXX := $(LLVMGXX)
 else
-  ifeq ($(LLVMCC_OPTION),clang)
+  ifneq ($(findstring clang,$(LLVMCC_OPTION)),)
     ifneq ($(CLANGPATH),)
       LLVMCC := $(CLANGPATH)
       LLVMCXX := $(CLANGXXPATH)
@@ -646,26 +646,42 @@ CPP.Flags     += $(sort -I$(PROJ_OBJ_DIR) -I$(PROJ_SRC_DIR) \
 	         $(LLVM_OBJ_ROOT) $(LLVM_SRC_ROOT))) \
 	         $(CPP.BaseFlags)
 
+# SHOW_DIAGNOSTICS support.
+ifeq ($(SHOW_DIAGNOSTICS),1)
+  Compile.Wrapper := env CC_LOG_DIAGNOSTICS=1 \
+	                  CC_LOG_DIAGNOSTICS_FILE="$(LLVM_OBJ_ROOT)/$(BuildMode)/diags"
+else
+  Compile.Wrapper :=
+endif
+
 ifeq ($(BUILD_COMPONENT), 1)
-  Compile.C     = $(BUILD_CC) $(CPP.Flags) $(C.Flags) $(CFLAGS) $(CPPFLAGS) \
+  Compile.C     = $(Compile.Wrapper) \
+	          $(BUILD_CC) $(CPP.Flags) $(C.Flags) $(CFLAGS) $(CPPFLAGS) \
                   $(TargetCommonOpts) $(CompileCommonOpts) -c
-  Compile.CXX   = $(BUILD_CXX) $(CPP.Flags) $(CXX.Flags) $(CXXFLAGS) \
+  Compile.CXX   = $(Compile.Wrapper) \
+	          $(BUILD_CXX) $(CPP.Flags) $(CXX.Flags) $(CXXFLAGS) \
 		  $(CPPFLAGS) \
                   $(TargetCommonOpts) $(CompileCommonOpts) -c
-  Preprocess.CXX= $(BUILD_CXX) $(CPP.Flags) $(CPPFLAGS) $(TargetCommonOpts) \
+  Preprocess.CXX= $(Compile.Wrapper) \
+	          $(BUILD_CXX) $(CPP.Flags) $(CPPFLAGS) $(TargetCommonOpts) \
                   $(CompileCommonOpts) $(CXX.Flags) -E
-  Link          = $(BUILD_CXX) $(CPP.Flags) $(CXX.Flags) $(CXXFLAGS) \
-		  $(LDFLAGS) \
-                  $(TargetCommonOpts) $(CompileCommonOpts) $(LD.Flags) $(Strip)
+  Link          = $(Compile.Wrapper) \
+	          $(BUILD_CXX) $(CPP.Flags) $(CXX.Flags) $(CXXFLAGS) \
+		  $(LD.Flags) $(LDFLAGS) \
+                  $(TargetCommonOpts) $(CompileCommonOpts) $(Strip)
 else
-  Compile.C     = $(CC) $(CPP.Flags) $(C.Flags) $(CFLAGS) $(CPPFLAGS) \
+  Compile.C     = $(Compile.Wrapper) \
+	          $(CC) $(CPP.Flags) $(C.Flags) $(CFLAGS) $(CPPFLAGS) \
                   $(TargetCommonOpts) $(CompileCommonOpts) -c
-  Compile.CXX   = $(CXX) $(CPP.Flags) $(CXX.Flags) $(CXXFLAGS) $(CPPFLAGS) \
+  Compile.CXX   = $(Compile.Wrapper) \
+	          $(CXX) $(CPP.Flags) $(CXX.Flags) $(CXXFLAGS) $(CPPFLAGS) \
                   $(TargetCommonOpts) $(CompileCommonOpts) -c
-  Preprocess.CXX= $(CXX) $(CPP.Flags) $(TargetCommonOpts) $(CPPFLAGS) \
+  Preprocess.CXX= $(Compile.Wrapper) \
+	          $(CXX) $(CPP.Flags) $(TargetCommonOpts) $(CPPFLAGS) \
                   $(CompileCommonOpts) $(CXX.Flags) -E
-  Link          = $(CXX) $(CPP.Flags) $(CXX.Flags) $(CXXFLAGS) $(LDFLAGS) \
-                  $(TargetCommonOpts)  $(CompileCommonOpts) $(LD.Flags) $(Strip)
+  Link          = $(Compile.Wrapper) \
+	          $(CXX) $(CPP.Flags) $(CXX.Flags) $(CXXFLAGS) $(LD.Flags) \
+                  $(LDFLAGS) $(TargetCommonOpts)  $(CompileCommonOpts) $(Strip)
 endif
 
 BCCompile.C   = $(LLVMCC) $(CPP.Flags) $(C.Flags) $(CFLAGS) $(CPPFLAGS) \
@@ -718,6 +734,24 @@ BaseNameSources := $(sort $(basename $(Sources)))
 
 ObjectsO  := $(BaseNameSources:%=$(ObjDir)/%.o)
 ObjectsBC := $(BaseNameSources:%=$(ObjDir)/%.bc)
+
+#----------------------------------------------------------
+# For Mingw MSYS bash and Python/w32:
+#
+# $(ECHOPATH) prints DOSish pathstring.
+#   ex) $(ECHOPATH) /include/sys/types.h
+#   --> C:/mingw/include/sys/types.h
+# built-in "echo" does not transform path to DOSish path.
+#
+# FIXME: It would not be needed when MSYS's python
+# were provided.
+#----------------------------------------------------------
+
+ifeq (-mingw32,$(findstring -mingw32,$(BUILD_TRIPLE)))
+  ECHOPATH := $(Verb)python -u -c "import sys;print ' '.join(sys.argv[1:])"
+else
+  ECHOPATH := $(Verb)$(ECHO)
+endif
 
 ###############################################################################
 # DIRECTORIES: Handle recursive descent of directory structure
@@ -1510,31 +1544,31 @@ BC_DEPEND_MOVEFILE = then $(MV) -f "$(ObjDir)/$*.bc.d.tmp" "$(ObjDir)/$*.bc.d"; 
 $(ObjDir)/%.ll: %.cpp $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCXX)
 	$(Echo) "Compiling $*.cpp for $(BuildMode) build (bytecode)"
 	$(Verb) if $(BCCompile.CXX) $(BC_DEPEND_OPTIONS) \
-			$< -o $(ObjDir)/$*.ll -S -$(LLVMCC_EMITIR_FLAG) ; \
+			$< -o $(ObjDir)/$*.ll -S $(LLVMCC_EMITIR_FLAG) ; \
 	        $(BC_DEPEND_MOVEFILE)
 
 $(ObjDir)/%.ll: %.mm $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCXX)
 	$(Echo) "Compiling $*.mm for $(BuildMode) build (bytecode)"
 	$(Verb) if $(BCCompile.CXX) $(BC_DEPEND_OPTIONS) \
-			$< -o $(ObjDir)/$*.ll -S -$(LLVMCC_EMITIR_FLAG) ; \
+			$< -o $(ObjDir)/$*.ll -S $(LLVMCC_EMITIR_FLAG) ; \
 	        $(BC_DEPEND_MOVEFILE)
 
 $(ObjDir)/%.ll: %.cc $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCXX)
 	$(Echo) "Compiling $*.cc for $(BuildMode) build (bytecode)"
 	$(Verb) if $(BCCompile.CXX) $(BC_DEPEND_OPTIONS) \
-			$< -o $(ObjDir)/$*.ll -S -$(LLVMCC_EMITIR_FLAG) ; \
+			$< -o $(ObjDir)/$*.ll -S $(LLVMCC_EMITIR_FLAG) ; \
 	        $(BC_DEPEND_MOVEFILE)
 
 $(ObjDir)/%.ll: %.c $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCC)
 	$(Echo) "Compiling $*.c for $(BuildMode) build (bytecode)"
 	$(Verb) if $(BCCompile.C) $(BC_DEPEND_OPTIONS) \
-			$< -o $(ObjDir)/$*.ll -S -$(LLVMCC_EMITIR_FLAG) ; \
+			$< -o $(ObjDir)/$*.ll -S $(LLVMCC_EMITIR_FLAG) ; \
 	        $(BC_DEPEND_MOVEFILE)
 
 $(ObjDir)/%.ll: %.m $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCC)
 	$(Echo) "Compiling $*.m for $(BuildMode) build (bytecode)"
 	$(Verb) if $(BCCompile.C) $(BC_DEPEND_OPTIONS) \
-			$< -o $(ObjDir)/$*.ll -S -$(LLVMCC_EMITIR_FLAG) ; \
+			$< -o $(ObjDir)/$*.ll -S $(LLVMCC_EMITIR_FLAG) ; \
 	        $(BC_DEPEND_MOVEFILE)
 
 # Provide alternate rule sets if dependencies are disabled
@@ -1562,23 +1596,23 @@ $(ObjDir)/%.o: %.m $(ObjDir)/.dir $(BUILT_SOURCES)
 
 $(ObjDir)/%.ll: %.cpp $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCXX)
 	$(Echo) "Compiling $*.cpp for $(BuildMode) build (bytecode)"
-	$(BCCompile.CXX) $< -o $@ -S -$(LLVMCC_EMITIR_FLAG)
+	$(BCCompile.CXX) $< -o $@ -S $(LLVMCC_EMITIR_FLAG)
 
 $(ObjDir)/%.ll: %.mm $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCXX)
 	$(Echo) "Compiling $*.mm for $(BuildMode) build (bytecode)"
-	$(BCCompile.CXX) $< -o $@ -S -$(LLVMCC_EMITIR_FLAG)
+	$(BCCompile.CXX) $< -o $@ -S $(LLVMCC_EMITIR_FLAG)
 
 $(ObjDir)/%.ll: %.cc $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCXX)
 	$(Echo) "Compiling $*.cc for $(BuildMode) build (bytecode)"
-	$(BCCompile.CXX) $< -o $@ -S -$(LLVMCC_EMITIR_FLAG)
+	$(BCCompile.CXX) $< -o $@ -S $(LLVMCC_EMITIR_FLAG)
 
 $(ObjDir)/%.ll: %.c $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCC)
 	$(Echo) "Compiling $*.c for $(BuildMode) build (bytecode)"
-	$(BCCompile.C) $< -o $@ -S -$(LLVMCC_EMITIR_FLAG)
+	$(BCCompile.C) $< -o $@ -S $(LLVMCC_EMITIR_FLAG)
 
 $(ObjDir)/%.ll: %.m $(ObjDir)/.dir $(BUILT_SOURCES) $(LLVMCC)
 	$(Echo) "Compiling $*.m for $(BuildMode) build (bytecode)"
-	$(BCCompile.C) $< -o $@ -S -$(LLVMCC_EMITIR_FLAG)
+	$(BCCompile.C) $< -o $@ -S $(LLVMCC_EMITIR_FLAG)
 
 endif
 
@@ -1990,7 +2024,7 @@ $(DistZip) : $(TopDistDir)/.makedistdir
 	$(Verb) cd $(PROJ_OBJ_ROOT) ; $(ZIP) -rq $(DistZip) $(DistName)
 
 dist :: $(DistTarGZip) $(DistTarBZ2) $(DistZip)
-	$(Echo) ===== DISTRIBUTION PACKAGING SUCESSFUL =====
+	$(Echo) ===== DISTRIBUTION PACKAGING SUCCESSFUL =====
 
 DistCheckDir := $(PROJ_OBJ_ROOT)/_distcheckdir
 
@@ -2139,8 +2173,13 @@ install-local::
 	$(Verb) $(MKDIR) $(DESTDIR)$(PROJ_includedir)
 	$(Verb) if test -d "$(PROJ_SRC_ROOT)/include" ; then \
 	  cd $(PROJ_SRC_ROOT)/include && \
-	  for  hdr in `find . -type f '!' '(' -name '*~' \
-	      -o -name '.#*' -o -name '*.in' ')' -print | grep -v CVS | \
+	  for hdr in `find . -type f \
+	      '(' -name LICENSE.TXT \
+	       -o -name '*.def' \
+	       -o -name '*.h' \
+	       -o -name '*.inc' \
+	       -o -name '*.td' \
+	      ')' -print | grep -v CVS | \
 	      grep -v .svn` ; do \
 	    instdir=`dirname "$(DESTDIR)$(PROJ_includedir)/$$hdr"` ; \
 	    if test \! -d "$$instdir" ; then \
@@ -2153,7 +2192,19 @@ install-local::
 ifneq ($(PROJ_SRC_ROOT),$(PROJ_OBJ_ROOT))
 	$(Verb) if test -d "$(PROJ_OBJ_ROOT)/include" ; then \
 	  cd $(PROJ_OBJ_ROOT)/include && \
-	  for hdr in `find . -type f -print | grep -v CVS` ; do \
+	  for hdr in `find . -type f \
+	      '(' -name LICENSE.TXT \
+	       -o -name '*.def' \
+	       -o -name '*.h' \
+	       -o -name '*.inc' \
+	       -o -name '*.td' \
+	      ')' -print | grep -v CVS | \
+	      grep -v .svn` ; do \
+	    instdir=`dirname "$(DESTDIR)$(PROJ_includedir)/$$hdr"` ; \
+	    if test \! -d "$$instdir" ; then \
+	      $(EchoCmd) Making install directory $$instdir ; \
+	      $(MKDIR) $$instdir ;\
+	    fi ; \
 	    $(DataInstall) $$hdr $(DESTDIR)$(PROJ_includedir)/$$hdr ; \
 	  done ; \
 	fi

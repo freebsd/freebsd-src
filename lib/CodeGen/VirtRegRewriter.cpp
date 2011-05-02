@@ -32,7 +32,7 @@ STATISTIC(NumCommutes, "Number of instructions commuted");
 STATISTIC(NumDRM     , "Number of re-materializable defs elided");
 STATISTIC(NumStores  , "Number of stores added");
 STATISTIC(NumPSpills , "Number of physical register spills");
-STATISTIC(NumOmitted , "Number of reloads omited");
+STATISTIC(NumOmitted , "Number of reloads omitted");
 STATISTIC(NumAvoided , "Number of reloads deemed unnecessary");
 STATISTIC(NumCopified, "Number of available reloads turned into copies");
 STATISTIC(NumReMats  , "Number of re-materialization");
@@ -260,6 +260,10 @@ public:
   /// previous value for this slot lives in (as the previous value is dead
   /// now).
   void ModifyStackSlotOrReMat(int SlotOrReMat);
+
+  /// ClobberSharingStackSlots - When a register mapped to a stack slot changes,
+  /// other stack slots sharing the same register are no longer valid.
+  void ClobberSharingStackSlots(int StackSlot);
 
   /// AddAvailableRegsToLiveIn - Availability information is being kept coming
   /// into the specified MBB. Add available physical registers as potential
@@ -665,7 +669,7 @@ static void UpdateKills(MachineInstr &MI, const TargetRegisterInfo* TRI,
   }
 }
 
-/// ReMaterialize - Re-materialize definition for Reg targetting DestReg.
+/// ReMaterialize - Re-materialize definition for Reg targeting DestReg.
 ///
 static void ReMaterialize(MachineBasicBlock &MBB,
                           MachineBasicBlock::iterator &MII,
@@ -829,6 +833,26 @@ void AvailableSpills::ModifyStackSlotOrReMat(int SlotOrReMat) {
     if (I->second == SlotOrReMat) break;
   }
   PhysRegsAvailable.erase(I);
+}
+
+void AvailableSpills::ClobberSharingStackSlots(int StackSlot) {
+  std::map<int, unsigned>::iterator It =
+    SpillSlotsOrReMatsAvailable.find(StackSlot);
+  if (It == SpillSlotsOrReMatsAvailable.end()) return;
+  unsigned Reg = It->second >> 1;
+
+  // Erase entries in PhysRegsAvailable for other stack slots.
+  std::multimap<unsigned, int>::iterator I = PhysRegsAvailable.lower_bound(Reg);
+  while (I != PhysRegsAvailable.end() && I->first == Reg) {
+    std::multimap<unsigned, int>::iterator NextI = llvm::next(I);
+    if (I->second != StackSlot) {
+      DEBUG(dbgs() << "Clobbered sharing SS#" << I->second << " in "
+                   << PrintReg(Reg, TRI) << '\n');
+      SpillSlotsOrReMatsAvailable.erase(I->second);
+      PhysRegsAvailable.erase(I);
+    }
+    I = NextI;
+  }
 }
 
 // ************************** //
@@ -1791,8 +1815,8 @@ bool LocalRewriter::InsertRestores(MachineInstr *MI,
       else
         DEBUG(dbgs() << "Reusing SS#" << SSorRMId);
       DEBUG(dbgs() << " from physreg "
-                   << TRI->getName(InReg) << " for vreg"
-                   << VirtReg <<" instead of reloading into physreg "
+                   << TRI->getName(InReg) << " for " << PrintReg(VirtReg)
+                   <<" instead of reloading into physreg "
                    << TRI->getName(Phys) << '\n');
 
       // Reusing a physreg may resurrect it. But we expect ProcessUses to update
@@ -1807,8 +1831,8 @@ bool LocalRewriter::InsertRestores(MachineInstr *MI,
       else
         DEBUG(dbgs() << "Reusing SS#" << SSorRMId);
       DEBUG(dbgs() << " from physreg "
-                   << TRI->getName(InReg) << " for vreg"
-                   << VirtReg <<" by copying it into physreg "
+                   << TRI->getName(InReg) << " for " << PrintReg(VirtReg)
+                   <<" by copying it into physreg "
                    << TRI->getName(Phys) << '\n');
 
       // If the reloaded / remat value is available in another register,
@@ -2025,7 +2049,8 @@ void LocalRewriter::ProcessUses(MachineInstr &MI, AvailableSpills &Spills,
               TRI->regsOverlap(MOk.getReg(), PhysReg)) {
             CanReuse = false;
             DEBUG(dbgs() << "Not reusing physreg " << TRI->getName(PhysReg)
-                         << " for vreg" << VirtReg << ": " << MOk << '\n');
+                         << " for " << PrintReg(VirtReg) << ": " << MOk
+                         << '\n');
             break;
           }
         }
@@ -2039,9 +2064,9 @@ void LocalRewriter::ProcessUses(MachineInstr &MI, AvailableSpills &Spills,
         else
           DEBUG(dbgs() << "Reusing SS#" << ReuseSlot);
         DEBUG(dbgs() << " from physreg "
-              << TRI->getName(PhysReg) << " for vreg"
-              << VirtReg <<" instead of reloading into physreg "
-              << TRI->getName(VRM->getPhys(VirtReg)) << '\n');
+              << TRI->getName(PhysReg) << " for " << PrintReg(VirtReg)
+              << " instead of reloading into "
+              << PrintReg(VRM->getPhys(VirtReg), TRI) << '\n');
         unsigned RReg = SubIdx ? TRI->getSubReg(PhysReg, SubIdx) : PhysReg;
         MI.getOperand(i).setReg(RReg);
         MI.getOperand(i).setSubReg(0);
@@ -2126,7 +2151,7 @@ void LocalRewriter::ProcessUses(MachineInstr &MI, AvailableSpills &Spills,
         else
           DEBUG(dbgs() << "Reusing SS#" << ReuseSlot);
         DEBUG(dbgs() << " from physreg " << TRI->getName(PhysReg)
-              << " for vreg" << VirtReg
+              << " for " << PrintReg(VirtReg)
               << " instead of reloading into same physreg.\n");
         unsigned RReg = SubIdx ? TRI->getSubReg(PhysReg, SubIdx) : PhysReg;
         MI.getOperand(i).setReg(RReg);
@@ -2315,7 +2340,7 @@ LocalRewriter::RewriteMBB(LiveIntervals *LIs,
     for (unsigned FVI = 0, FVE = FoldedVirts.size(); FVI != FVE; ++FVI) {
       unsigned VirtReg = FoldedVirts[FVI].first;
       VirtRegMap::ModRef MR = FoldedVirts[FVI].second;
-      DEBUG(dbgs() << "Folded vreg: " << VirtReg << "  MR: " << MR);
+      DEBUG(dbgs() << "Folded " << PrintReg(VirtReg) << "  MR: " << MR);
 
       int SS = VRM->getStackSlot(VirtReg);
       if (SS == VirtRegMap::NO_STACK_SLOT)
@@ -2548,6 +2573,10 @@ LocalRewriter::RewriteMBB(LiveIntervals *LIs,
                       Spills, MaybeDeadStores, RegKills, KillOps, *VRM);
         }
       }
+
+      // If StackSlot is available in a register that also holds other stack
+      // slots, clobber those stack slots now.
+      Spills.ClobberSharingStackSlots(StackSlot);
 
       assert(PhysReg && "VR not assigned a physical register?");
       MRI->setPhysRegUsed(PhysReg);

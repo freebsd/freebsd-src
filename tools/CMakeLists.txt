@@ -38,6 +38,7 @@ add_subdirectory(llvm-extract)
 add_subdirectory(llvm-diff)
 add_subdirectory(macho-dump)
 add_subdirectory(llvm-objdump)
+add_subdirectory(llvm-rtdyld)
 
 add_subdirectory(bugpoint)
 add_subdirectory(bugpoint-passes)
@@ -45,6 +46,17 @@ add_subdirectory(llvm-bcanalyzer)
 add_subdirectory(llvm-stub)
 add_subdirectory(edis)
 add_subdirectory(llvmc)
+
+if( NOT WIN32 )
+  add_subdirectory(lto)
+endif()
+
+if( LLVM_ENABLE_PIC )
+  # TODO: support other systems:
+  if( CMAKE_SYSTEM_NAME STREQUAL "Linux" )
+    add_subdirectory(gold)
+  endif()
+endif()
 
 if( EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/clang/CMakeLists.txt )
   add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/clang )

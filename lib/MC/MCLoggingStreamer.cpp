@@ -154,21 +154,19 @@ public:
   }
 
   virtual void EmitValueImpl(const MCExpr *Value, unsigned Size,
-                             bool isPCRel, unsigned AddrSpace){
+                             unsigned AddrSpace){
     LogCall("EmitValue");
-    return Child->EmitValueImpl(Value, Size, isPCRel, AddrSpace);
+    return Child->EmitValueImpl(Value, Size, AddrSpace);
   }
 
-  virtual void EmitULEB128Value(const MCExpr *Value,
-                                unsigned AddrSpace = 0) {
+  virtual void EmitULEB128Value(const MCExpr *Value) {
     LogCall("EmitULEB128Value");
-    return Child->EmitULEB128Value(Value, AddrSpace);
+    return Child->EmitULEB128Value(Value);
   }
 
-  virtual void EmitSLEB128Value(const MCExpr *Value,
-                                unsigned AddrSpace = 0) {
+  virtual void EmitSLEB128Value(const MCExpr *Value) {
     LogCall("EmitSLEB128Value");
-    return Child->EmitSLEB128Value(Value, AddrSpace);
+    return Child->EmitSLEB128Value(Value);
   }
 
   virtual void EmitGPRel32Value(const MCExpr *Value) {
@@ -215,13 +213,14 @@ public:
 
   virtual void EmitDwarfLocDirective(unsigned FileNo, unsigned Line,
                                      unsigned Column, unsigned Flags,
-                                     unsigned Isa, unsigned Discriminator) {
+                                     unsigned Isa, unsigned Discriminator,
+                                     StringRef FileName) {
     LogCall("EmitDwarfLocDirective",
             "FileNo:" + Twine(FileNo) + " Line:" + Twine(Line) +
             " Column:" + Twine(Column) + " Flags:" + Twine(Flags) +
             " Isa:" + Twine(Isa) + " Discriminator:" + Twine(Discriminator));
             return Child->EmitDwarfLocDirective(FileNo, Line, Column, Flags,
-                                                Isa, Discriminator);
+                                                Isa, Discriminator, FileName);
   }
 
   virtual void EmitInstruction(const MCInst &Inst) {

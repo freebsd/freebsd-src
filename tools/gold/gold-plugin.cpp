@@ -50,6 +50,7 @@ namespace {
   ld_plugin_add_input_file add_input_file = NULL;
   ld_plugin_add_input_library add_input_library = NULL;
   ld_plugin_set_extra_library_path set_extra_library_path = NULL;
+  ld_plugin_get_view get_view = NULL;
   ld_plugin_message message = discard_message;
 
   int api_version = 0;
@@ -73,7 +74,6 @@ namespace options {
   static generate_bc generate_bc_file = BC_NO;
   static std::string bc_path;
   static std::string obj_path;
-  static std::vector<std::string> pass_through;
   static std::string extra_library_path;
   static std::string triple;
   static std::string mcpu;
@@ -96,9 +96,6 @@ namespace options {
       mcpu = opt.substr(strlen("mcpu="));
     } else if (opt.startswith("extra-library-path=")) {
       extra_library_path = opt.substr(strlen("extra_library_path="));
-    } else if (opt.startswith("pass-through=")) {
-      llvm::StringRef item = opt.substr(strlen("pass-through="));
-      pass_through.push_back(item.str());
     } else if (opt.startswith("mtriple=")) {
       triple = opt.substr(strlen("mtriple="));
     } else if (opt.startswith("obj-path=")) {
@@ -209,6 +206,9 @@ ld_plugin_status onload(ld_plugin_tv *tv) {
       case LDPT_SET_EXTRA_LIBRARY_PATH:
         set_extra_library_path = tv->tv_u.tv_set_extra_library_path;
         break;
+      case LDPT_GET_VIEW:
+        get_view = tv->tv_u.tv_get_view;
+        break;
       case LDPT_MESSAGE:
         message = tv->tv_u.tv_message;
         break;
@@ -236,60 +236,23 @@ static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
                                         int *claimed) {
   lto_module_t M;
 
-  if (file->offset) {
+  if (get_view) {
+    const void *view;
+    if (get_view(file->handle, &view) != LDPS_OK) {
+      (*message)(LDPL_ERROR, "Failed to get a view of %s", file->name);
+      return LDPS_ERR;
+    }
+    M = lto_module_create_from_memory(view, file->filesize);
+  } else if (file->offset) {
     // Gold has found what might be IR part-way inside of a file, such as
     // an .a archive.
-    if (lseek(file->fd, file->offset, SEEK_SET) == -1) {
-      (*message)(LDPL_ERROR,
-                 "Failed to seek to archive member of %s at offset %d: %s\n",
-                 file->name,
-                 file->offset, sys::StrError(errno).c_str());
-      return LDPS_ERR;
-    }
-    void *buf = malloc(file->filesize);
-    if (!buf) {
-      (*message)(LDPL_ERROR,
-                 "Failed to allocate buffer for archive member of size: %d\n",
-                 file->filesize);
-      return LDPS_ERR;
-    }
-    if (read(file->fd, buf, file->filesize) != file->filesize) {
-      (*message)(LDPL_ERROR,
-                 "Failed to read archive member of %s at offset %d: %s\n",
-                 file->name,
-                 file->offset,
-                 sys::StrError(errno).c_str());
-      free(buf);
-      return LDPS_ERR;
-    }
-    if (!lto_module_is_object_file_in_memory(buf, file->filesize)) {
-      free(buf);
-      return LDPS_OK;
-    }
-    M = lto_module_create_from_memory(buf, file->filesize);
-    if (!M) {
-      (*message)(LDPL_ERROR, "Failed to create LLVM module: %s",
-                 lto_get_error_message());
-      return LDPS_ERR;
-    }
-    free(buf);
+    M = lto_module_create_from_fd_at_offset(file->fd, file->name, -1,
+                                            file->filesize, file->offset);
   } else {
-    // FIXME: We should not need to pass -1 as the file size, but there
-    // is a bug in BFD that causes it to pass 0 to us. Remove this once
-    // that is fixed.
-    off_t size = file->filesize ? file->filesize : -1;
-
-    // FIXME: We should not need to reset the position in the file, but there
-    // is a bug in BFD. Remove this once that is fixed.
-    off_t old_pos = lseek(file->fd, 0, SEEK_CUR);
-
-    lseek(file->fd, 0, SEEK_SET);
-    M = lto_module_create_from_fd(file->fd, file->name, size);
-
-    lseek(file->fd, old_pos, SEEK_SET);
-    if (!M)
-      return LDPS_OK;
+    M = lto_module_create_from_fd(file->fd, file->name, file->filesize);
   }
+  if (!M)
+    return LDPS_OK;
 
   *claimed = 1;
   Modules.resize(Modules.size() + 1);
@@ -446,38 +409,10 @@ static ld_plugin_status all_symbols_read_hook(void) {
       exit(0);
   }
   size_t bufsize = 0;
-  const char *buffer = static_cast<const char *>(lto_codegen_compile(code_gen,
-                                                                     &bufsize));
-
-  std::string ErrMsg;
-
   const char *objPath;
-  sys::Path uniqueObjPath("/tmp/llvmgold.o");
-  if (!options::obj_path.empty()) {
-    objPath = options::obj_path.c_str();
-  } else {
-    if (uniqueObjPath.createTemporaryFileOnDisk(true, &ErrMsg)) {
-      (*message)(LDPL_ERROR, "%s", ErrMsg.c_str());
-      return LDPS_ERR;
-    }
-    objPath = uniqueObjPath.c_str();
+  if (lto_codegen_compile_to_file(code_gen, &objPath)) {
+    (*message)(LDPL_ERROR, "Could not produce a combined object file\n");
   }
-  tool_output_file objFile(objPath, ErrMsg,
-                             raw_fd_ostream::F_Binary);
-    if (!ErrMsg.empty()) {
-      (*message)(LDPL_ERROR, "%s", ErrMsg.c_str());
-      return LDPS_ERR;
-    }
-
-  objFile.os().write(buffer, bufsize);
-  objFile.os().close();
-  if (objFile.os().has_error()) {
-    (*message)(LDPL_ERROR, "Error writing output file '%s'",
-               objPath);
-    objFile.os().clear_error();
-    return LDPS_ERR;
-  }
-  objFile.keep();
 
   lto_codegen_dispose(code_gen);
   for (std::list<claimed_file>::iterator I = Modules.begin(),
@@ -498,24 +433,6 @@ static ld_plugin_status all_symbols_read_hook(void) {
       set_extra_library_path(options::extra_library_path.c_str()) != LDPS_OK) {
     (*message)(LDPL_ERROR, "Unable to set the extra library path.");
     return LDPS_ERR;
-  }
-
-  for (std::vector<std::string>::iterator i = options::pass_through.begin(),
-                                          e = options::pass_through.end();
-       i != e; ++i) {
-    std::string &item = *i;
-    const char *item_p = item.c_str();
-    if (llvm::StringRef(item).startswith("-l")) {
-      if (add_input_library(item_p + 2) != LDPS_OK) {
-        (*message)(LDPL_ERROR, "Unable to add library to the link.");
-        return LDPS_ERR;
-      }
-    } else {
-      if (add_input_file(item_p) != LDPS_OK) {
-        (*message)(LDPL_ERROR, "Unable to add .o file to the link.");
-        return LDPS_ERR;
-      }
-    }
   }
 
   if (options::obj_path.empty())

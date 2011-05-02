@@ -818,6 +818,7 @@ public:
   APInt usub_ov(const APInt &RHS, bool &Overflow) const;
   APInt sdiv_ov(const APInt &RHS, bool &Overflow) const;
   APInt smul_ov(const APInt &RHS, bool &Overflow) const;
+  APInt umul_ov(const APInt &RHS, bool &Overflow) const;
   APInt sshl_ov(unsigned Amt, bool &Overflow) const;
 
   /// @returns the bit value at bitPosition
@@ -1372,7 +1373,7 @@ public:
 
   /// Calculate the magic number for unsigned division by a constant.
   struct mu;
-  mu magicu() const;
+  mu magicu(unsigned LeadingZeros = 0) const;
 
   /// @}
   /// @name Building-block Operations for APInt and APFloat

@@ -1,5 +1,5 @@
 include(LLVMProcessSources)
-include(LLVMConfig)
+include(LLVM-Config)
 
 macro(add_llvm_library name)
   llvm_process_sources( ALL_FILES ${ARGN} )
@@ -10,13 +10,20 @@ macro(add_llvm_library name)
   endif( LLVM_COMMON_DEPENDS )
 
   if( BUILD_SHARED_LIBS )
-    get_system_libs(sl)
-    target_link_libraries( ${name} ${sl} )
+    llvm_config( ${name} ${LLVM_LINK_COMPONENTS} )
   endif()
 
-  install(TARGETS ${name}
-    LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX}
-    ARCHIVE DESTINATION lib${LLVM_LIBDIR_SUFFIX})
+  # Ensure that the system libraries always comes last on the
+  # list. Without this, linking the unit tests on MinGW fails.
+  link_system_libs( ${name} )
+
+  if( EXCLUDE_FROM_ALL )
+    set_target_properties( ${name} PROPERTIES EXCLUDE_FROM_ALL ON)
+  else()
+    install(TARGETS ${name}
+      LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX}
+      ARCHIVE DESTINATION lib${LLVM_LIBDIR_SUFFIX})
+  endif()
   # The LLVM Target library shall be built before its sublibraries
   # (asmprinter, etc) because those may use tablegenned files which
   # generation is triggered by the main LLVM target library. Necessary
@@ -45,15 +52,22 @@ ${name} ignored.")
     add_library( ${name} ${libkind} ${ALL_FILES} )
     set_target_properties( ${name} PROPERTIES PREFIX "" )
 
+    llvm_config( ${name} ${LLVM_LINK_COMPONENTS} )
+    link_system_libs( ${name} )
+
     if (APPLE)
       # Darwin-specific linker flags for loadable modules.
       set_target_properties(${name} PROPERTIES
         LINK_FLAGS "-Wl,-flat_namespace -Wl,-undefined -Wl,suppress")
     endif()
 
-    install(TARGETS ${name}
-      LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX}
-      ARCHIVE DESTINATION lib${LLVM_LIBDIR_SUFFIX})
+    if( EXCLUDE_FROM_ALL )
+      set_target_properties( ${name} PROPERTIES EXCLUDE_FROM_ALL ON)
+    else()
+      install(TARGETS ${name}
+	LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX}
+	ARCHIVE DESTINATION lib${LLVM_LIBDIR_SUFFIX})
+    endif()
   endif()
 
   set_target_properties(${name} PROPERTIES FOLDER "Loadable modules")
@@ -68,23 +82,12 @@ macro(add_llvm_executable name)
     add_executable(${name} ${ALL_FILES})
   endif()
   set(EXCLUDE_FROM_ALL OFF)
-  if( LLVM_USED_LIBS )
-    foreach(lib ${LLVM_USED_LIBS})
-      target_link_libraries( ${name} ${lib} )
-    endforeach(lib)
-  endif( LLVM_USED_LIBS )
-  if( LLVM_LINK_COMPONENTS )
-    llvm_config(${name} ${LLVM_LINK_COMPONENTS})
-  endif( LLVM_LINK_COMPONENTS )
+  target_link_libraries( ${name} ${LLVM_USED_LIBS} )
+  llvm_config( ${name} ${LLVM_LINK_COMPONENTS} )
   if( LLVM_COMMON_DEPENDS )
     add_dependencies( ${name} ${LLVM_COMMON_DEPENDS} )
   endif( LLVM_COMMON_DEPENDS )
-  if( NOT MINGW )
-    get_system_libs(llvm_system_libs)
-    if( llvm_system_libs )
-      target_link_libraries(${name} ${llvm_system_libs})
-    endif()
-  endif()
+  link_system_libs( ${name} )
 endmacro(add_llvm_executable name)
 
 

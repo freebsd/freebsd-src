@@ -224,6 +224,7 @@ check_type_exists(error_t errno.h HAVE_ERROR_T)
 # available programs checks
 function(llvm_find_program name)
   string(TOUPPER ${name} NAME)
+  string(REGEX REPLACE "\\." "_" NAME ${NAME})
   find_program(LLVM_PATH_${NAME} ${name})
   mark_as_advanced(LLVM_PATH_${NAME})
   if(LLVM_PATH_${NAME})
@@ -241,6 +242,7 @@ llvm_find_program(neato)
 llvm_find_program(fdp)
 llvm_find_program(dot)
 llvm_find_program(dotty)
+llvm_find_program(xdot.py)
 
 if( LLVM_ENABLE_FFI )
   find_path(FFI_INCLUDE_PATH ffi.h PATHS ${FFI_INCLUDE_DIR})
@@ -269,6 +271,10 @@ if( LLVM_ENABLE_FFI )
   check_symbol_exists(ffi_call ${FFI_HEADER} HAVE_FFI_CALL)
   list(REMOVE_ITEM CMAKE_REQUIRED_INCLUDES ${FFI_INCLUDE_PATH})
   list(REMOVE_ITEM CMAKE_REQUIRED_LIBRARIES ${FFI_LIBRARY_PATH})
+else()
+  unset(HAVE_FFI_FFI_H CACHE)
+  unset(HAVE_FFI_H CACHE)
+  unset(HAVE_FFI_CALL CACHE)
 endif( LLVM_ENABLE_FFI )
 
 # Define LLVM_MULTITHREADED if gcc atomic builtins exists.
@@ -319,24 +325,19 @@ elseif (LLVM_NATIVE_ARCH MATCHES "xcore")
 elseif (LLVM_NATIVE_ARCH MATCHES "msp430")
   set(LLVM_NATIVE_ARCH MSP430)
 else ()
-  message(STATUS
-    "Unknown architecture ${LLVM_NATIVE_ARCH}; lli will not JIT code")
-  set(LLVM_NATIVE_ARCH)
+  message(FATAL_ERROR "Unknown architecture ${LLVM_NATIVE_ARCH}")
 endif ()
 
-if (LLVM_NATIVE_ARCH)
-  list(FIND LLVM_TARGETS_TO_BUILD ${LLVM_NATIVE_ARCH} NATIVE_ARCH_IDX)
-  if (NATIVE_ARCH_IDX EQUAL -1)
-    message(STATUS
-      "Native target ${LLVM_NATIVE_ARCH} is not selected; lli will not JIT code")
-    set(LLVM_NATIVE_ARCH)
-  else ()
-    message(STATUS "Native target architecture is ${LLVM_NATIVE_ARCH}")
-    set(LLVM_NATIVE_TARGET LLVMInitialize${LLVM_NATIVE_ARCH}Target)
-    set(LLVM_NATIVE_TARGETINFO LLVMInitialize${LLVM_NATIVE_ARCH}TargetInfo)
-    set(LLVM_NATIVE_ASMPRINTER LLVMInitialize${LLVM_NATIVE_ARCH}AsmPrinter)
-  endif ()
-endif()
+list(FIND LLVM_TARGETS_TO_BUILD ${LLVM_NATIVE_ARCH} NATIVE_ARCH_IDX)
+if (NATIVE_ARCH_IDX EQUAL -1)
+  message(STATUS
+    "Native target ${LLVM_NATIVE_ARCH} is not selected; lli will not JIT code")
+else ()
+  message(STATUS "Native target architecture is ${LLVM_NATIVE_ARCH}")
+  set(LLVM_NATIVE_TARGET LLVMInitialize${LLVM_NATIVE_ARCH}Target)
+  set(LLVM_NATIVE_TARGETINFO LLVMInitialize${LLVM_NATIVE_ARCH}TargetInfo)
+  set(LLVM_NATIVE_ASMPRINTER LLVMInitialize${LLVM_NATIVE_ARCH}AsmPrinter)
+endif ()
 
 if( MINGW )
   set(HAVE_LIBIMAGEHLP 1)
@@ -364,6 +365,21 @@ else( MSVC )
   set(LTDL_SYSSEARCHPATH "") # TODO
   set(LTDL_DLOPEN_DEPLIBS 0)  # TODO
 endif( MSVC )
+
+if( PURE_WINDOWS )
+  CHECK_CXX_SOURCE_COMPILES("
+    #include <windows.h>
+    #include <imagehlp.h>
+    extern \"C\" void foo(PENUMLOADED_MODULES_CALLBACK);
+    extern \"C\" void foo(BOOL(CALLBACK*)(PCSTR,ULONG_PTR,ULONG,PVOID));
+    int main(){return 0;}"
+    HAVE_ELMCB_PCSTR)
+  if( HAVE_ELMCB_PCSTR )
+    set(WIN32_ELMCB_PCSTR "PCSTR")
+  else()
+    set(WIN32_ELMCB_PCSTR "PSTR")
+  endif()
+endif( PURE_WINDOWS )
 
 # FIXME: Signal handler return type, currently hardcoded to 'void'
 set(RETSIGTYPE void)

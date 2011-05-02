@@ -48,6 +48,7 @@ namespace llvm {
   bool RealignStack;
   bool DisableJumpTables;
   bool StrongPHIElim;
+  bool HasDivModLibcall;
   bool AsmVerbosityDefault(false);
 }
 
@@ -205,6 +206,10 @@ EnableStrongPHIElim(cl::Hidden, "strong-phi-elim",
   cl::desc("Use strong PHI elimination."),
   cl::location(StrongPHIElim),
   cl::init(false));
+static cl::opt<std::string>
+TrapFuncName("trap-func", cl::Hidden,
+  cl::desc("Emit a call to trap function rather than a trap instruction"),
+  cl::init(""));
 static cl::opt<bool>
 DataSections("fdata-sections",
   cl::desc("Emit data into separate sections"),
@@ -221,7 +226,9 @@ TargetMachine::TargetMachine(const Target &T)
   : TheTarget(T), AsmInfo(0),
     MCRelaxAll(false),
     MCNoExecStack(false),
-    MCUseLoc(true) {
+    MCSaveTempLabels(false),
+    MCUseLoc(true),
+    MCUseCFI(true) {
   // Typically it will be subtargets that will adjust FloatABIType from Default
   // to Soft or Hard.
   if (UseSoftFloat)
@@ -302,5 +309,12 @@ namespace llvm {
   /// that the rounding mode of the FPU can change from its default.
   bool HonorSignDependentRoundingFPMath() {
     return !UnsafeFPMath && HonorSignDependentRoundingFPMathOption;
+  }
+
+  /// getTrapFunctionName - If this returns a non-empty string, this means isel
+  /// should lower Intrinsic::trap to a call to the specified function name
+  /// instead of an ISD::TRAP node.
+  StringRef getTrapFunctionName() {
+    return TrapFuncName;
   }
 }

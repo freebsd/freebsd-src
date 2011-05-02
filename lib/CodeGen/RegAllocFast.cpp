@@ -97,7 +97,7 @@ namespace {
       // immediately without checking aliases.
       regFree,
 
-      // A reserved register has been assigned expolicitly (e.g., setting up a
+      // A reserved register has been assigned explicitly (e.g., setting up a
       // call parameter), and it remains reserved until it is used.
       regReserved
 
@@ -396,7 +396,6 @@ void RAFast::definePhysReg(MachineInstr *MI, unsigned PhysReg,
   PhysRegState[PhysReg] = NewState;
   for (const unsigned *AS = TRI->getAliasSet(PhysReg);
        unsigned Alias = *AS; ++AS) {
-    UsedInInstr.set(Alias);
     switch (unsigned VirtReg = PhysRegState[Alias]) {
     case regDisabled:
       break;
@@ -420,20 +419,25 @@ void RAFast::definePhysReg(MachineInstr *MI, unsigned PhysReg,
 // can be allocated directly.
 // Returns spillImpossible when PhysReg or an alias can't be spilled.
 unsigned RAFast::calcSpillCost(unsigned PhysReg) const {
-  if (UsedInInstr.test(PhysReg))
+  if (UsedInInstr.test(PhysReg)) {
+    DEBUG(dbgs() << "PhysReg: " << PhysReg << " is already used in instr.\n");
     return spillImpossible;
+  }
   switch (unsigned VirtReg = PhysRegState[PhysReg]) {
   case regDisabled:
     break;
   case regFree:
     return 0;
   case regReserved:
+    DEBUG(dbgs() << "VirtReg: " << VirtReg << " corresponding to PhysReg: "
+          << PhysReg << " is reserved already.\n");
     return spillImpossible;
   default:
     return LiveVirtRegs.lookup(VirtReg).Dirty ? spillDirty : spillClean;
   }
 
-  // This is a disabled register, add up const of aliases.
+  // This is a disabled register, add up cost of aliases.
+  DEBUG(dbgs() << "\tRegister: " << PhysReg << " is disabled.\n");
   unsigned Cost = 0;
   for (const unsigned *AS = TRI->getAliasSet(PhysReg);
        unsigned Alias = *AS; ++AS) {
@@ -511,9 +515,14 @@ void RAFast::allocVirtReg(MachineInstr *MI, LiveRegEntry &LRE, unsigned Hint) {
 
   unsigned BestReg = 0, BestCost = spillImpossible;
   for (TargetRegisterClass::iterator I = AOB; I != AOE; ++I) {
-    if (!Allocatable.test(*I))
+    if (!Allocatable.test(*I)) {
+      DEBUG(dbgs() << "\tRegister " << *I << " is not allocatable.\n");
       continue;
+    }
     unsigned Cost = calcSpillCost(*I);
+    DEBUG(dbgs() << "\tRegister: " << *I << "\n");
+    DEBUG(dbgs() << "\tCost: " << Cost << "\n");
+    DEBUG(dbgs() << "\tBestCost: " << BestCost << "\n");
     // Cost is 0 when all aliases are already disabled.
     if (Cost == 0)
       return assignVirtToPhysReg(LRE, *I);
@@ -722,9 +731,8 @@ void RAFast::handleThroughOperands(MachineInstr *MI,
     if (!MO.isReg() || (MO.isDef() && !MO.isEarlyClobber())) continue;
     unsigned Reg = MO.getReg();
     if (!Reg || !TargetRegisterInfo::isPhysicalRegister(Reg)) continue;
+    DEBUG(dbgs() << "\tSetting reg " << Reg << " as used in instr\n");
     UsedInInstr.set(Reg);
-    for (const unsigned *AS = TRI->getAliasSet(Reg); *AS; ++AS)
-      UsedInInstr.set(*AS);
   }
 
   // Also mark PartialDefs as used to avoid reallocation.

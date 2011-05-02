@@ -1,5 +1,7 @@
 ;RUN: llc -march=sparc < %s | FileCheck %s -check-prefix=V8
 ;RUN: llc -march=sparc -mattr=v9 < %s | FileCheck %s -check-prefix=V9
+;RUN: llc -march=sparc -regalloc=basic < %s | FileCheck %s -check-prefix=V8
+;RUN: llc -march=sparc -regalloc=basic -mattr=v9 < %s | FileCheck %s -check-prefix=V9
 
 define i8* @frameaddr() nounwind readnone {
 entry:

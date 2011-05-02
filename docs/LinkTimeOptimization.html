@@ -6,9 +6,9 @@
   <link rel="stylesheet" href="llvm.css" type="text/css">
 </head>
 
-<div class="doc_title">
+<h1>
   LLVM Link Time Optimization: Design and Implementation
-</div>
+</h1>
 
 <ul>
   <li><a href="#desc">Description</a></li>
@@ -36,12 +36,12 @@
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section">
+<h2>
 <a name="desc">Description</a>
-</div>
+</h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 <p>
 LLVM features powerful intermodular optimizations which can be used at link 
 time.  Link Time Optimization (LTO) is another name for intermodular optimization 
@@ -50,12 +50,12 @@ and design between the LTO optimizer and the linker.</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section">
+<h2>
 <a name="design">Design Philosophy</a>
-</div>
+</h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 <p>
 The LLVM Link Time Optimizer provides complete transparency, while doing 
 intermodular optimization, in the compiler tool chain. Its main goal is to let 
@@ -69,14 +69,13 @@ the linker and LLVM optimizer helps to do optimizations that are not possible
 in other models. The linker input allows the optimizer to avoid relying on 
 conservative escape analysis.
 </p>
-</div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="example1">Example of link time optimization</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
   <p>The following example illustrates the advantages of LTO's integrated
   approach and clean interface. This example requires a system linker which
   supports LTO through the interface described in this document.  Here,
@@ -145,11 +144,11 @@ $ llvm-gcc a.o main.o -o main # &lt;-- standard link command without any modific
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="alternative_approaches">Alternative Approaches</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
   <dl>
     <dt><b>Compiler driver invokes link time optimizer separately.</b></dt>
     <dd>In this model the link time optimizer is not able to take advantage of 
@@ -175,12 +174,14 @@ $ llvm-gcc a.o main.o -o main # &lt;-- standard link command without any modific
   </dl>
 </div>
 
-<!-- *********************************************************************** -->
-<div class="doc_section">
-  <a name="multiphase">Multi-phase communication between libLTO and linker</a>
 </div>
 
-<div class="doc_text">
+<!-- *********************************************************************** -->
+<h2>
+  <a name="multiphase">Multi-phase communication between libLTO and linker</a>
+</h2>
+
+<div>
   <p>The linker collects information about symbol defininitions and uses in 
   various link objects which is more accurate than any information collected 
   by other tools during typical build cycles.  The linker collects this 
@@ -192,14 +193,13 @@ $ llvm-gcc a.o main.o -o main # &lt;-- standard link command without any modific
   Our goal is to take advantage of tight integration between the linker and 
   the optimizer by sharing this information during various linking phases.
 </p>
-</div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="phase1">Phase 1 : Read LLVM Bitcode Files</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
   <p>The linker first reads all object files in natural order and collects 
   symbol information. This includes native object files as well as LLVM bitcode 
   files.  To minimize the cost to the linker in the case that all .o files
@@ -219,11 +219,11 @@ $ llvm-gcc a.o main.o -o main # &lt;-- standard link command without any modific
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="phase2">Phase 2 : Symbol Resolution</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
   <p>In this stage, the linker resolves symbols using global symbol table. 
   It may report undefined symbol errors, read archive members, replace 
   weak symbols, etc.  The linker is able to do this seamlessly even though it 
@@ -233,10 +233,10 @@ $ llvm-gcc a.o main.o -o main # &lt;-- standard link command without any modific
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="phase3">Phase 3 : Optimize Bitcode Files</a>
-</div>
-<div class="doc_text">
+</h3>
+<div>
   <p>After symbol resolution, the linker tells the LTO shared object which
   symbols are needed by native object files.  In the example above, the linker 
   reports that only <tt>foo1()</tt> is used by native object files using 
@@ -248,11 +248,11 @@ $ llvm-gcc a.o main.o -o main # &lt;-- standard link command without any modific
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="phase4">Phase 4 : Symbol Resolution after optimization</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
   <p>In this phase, the linker reads optimized a native object file and 
   updates the internal global symbol table to reflect any changes. The linker 
   also collects information about any changes in use of external symbols by 
@@ -264,12 +264,14 @@ $ llvm-gcc a.o main.o -o main # &lt;-- standard link command without any modific
   bitcode files.</p>
 </div>
 
-<!-- *********************************************************************** -->
-<div class="doc_section">
-<a name="lto">libLTO</a>
 </div>
 
-<div class="doc_text">
+<!-- *********************************************************************** -->
+<h2>
+<a name="lto">libLTO</a>
+</h2>
+
+<div>
   <p><tt>libLTO</tt> is a shared object that is part of the LLVM tools, and 
   is intended for use by a linker. <tt>libLTO</tt> provides an abstract C 
   interface to use the LLVM interprocedural optimizer without exposing details 
@@ -278,14 +280,13 @@ $ llvm-gcc a.o main.o -o main # &lt;-- standard link command without any modific
   be possible for a completely different compilation technology to provide
   a different libLTO that works with their object files and the standard
   linker tool.</p>
-</div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="lto_module_t">lto_module_t</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <p>A non-native object file is handled via an <tt>lto_module_t</tt>.  
 The following functions allow the linker to check if a file (on disk
@@ -325,11 +326,11 @@ lto_module_get_symbol_attribute(lto_module_t, unsigned int)
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="lto_code_gen_t">lto_code_gen_t</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <p>Once the linker has loaded each non-native object files into an
 <tt>lto_module_t</tt>, it can request libLTO to process them all and
@@ -371,6 +372,8 @@ of the native object files.</p>
 
 </div>
 
+</div>
+
 <!-- *********************************************************************** -->
 
 <hr>
@@ -381,8 +384,8 @@ of the native object files.</p>
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
 
   Devang Patel and Nick Kledzik<br>
-  <a href="http://llvm.org">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-09-29 22:09:55 +0200 (Wed, 29 Sep 2010) $
+  <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
+  Last modified: $Date: 2011-04-23 02:30:22 +0200 (Sat, 23 Apr 2011) $
 </address>
 
 </body>

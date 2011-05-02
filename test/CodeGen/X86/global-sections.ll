@@ -99,7 +99,7 @@
 ; DARWIN: _G7:
 ; DARWIN:	.asciz	"abcdefghi"
 
-; LINUX:	.section		.rodata.str1.1,"aMS",@progbits,1
+; LINUX:	.section	.rodata.str1.1,"aMS",@progbits,1
 ; LINUX:	.globl G7
 ; LINUX: G7:
 ; LINUX:	.asciz	"abcdefghi"
@@ -114,7 +114,7 @@
 ; DARWIN:	.globl _G8
 ; DARWIN: _G8:
 
-; LINUX:	.section		.rodata.str2.2,"aMS",@progbits,2
+; LINUX:	.section	.rodata.str2.2,"aMS",@progbits,2
 ; LINUX:	.globl G8
 ; LINUX:G8:
 
@@ -123,7 +123,7 @@
 ; DARWIN:	.globl _G9
 ; DARWIN: _G9:
 
-; LINUX:	.section		.rodata.str4.4,"aMS",@progbits,4
+; LINUX:	.section	.rodata.str4.4,"aMS",@progbits,4
 ; LINUX:	.globl G9
 ; LINUX:G9
 

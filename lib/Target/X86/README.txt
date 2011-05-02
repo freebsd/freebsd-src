@@ -7,14 +7,6 @@ copy (3-addr bswap + memory support?)  This is available on Atom processors.
 
 //===---------------------------------------------------------------------===//
 
-CodeGen/X86/lea-3.ll:test3 should be a single LEA, not a shift/move.  The X86
-backend knows how to three-addressify this shift, but it appears the register
-allocator isn't even asking it to do so in this case.  We should investigate
-why this isn't happening, it could have significant impact on other important
-cases for X86 as well.
-
-//===---------------------------------------------------------------------===//
-
 This should be one DIV/IDIV instruction, not a libcall:
 
 unsigned test(unsigned long long X, unsigned Y) {
@@ -1572,7 +1564,7 @@ Implement processor-specific optimizations for parity with GCC on these
 processors.  GCC does two optimizations:
 
 1. ix86_pad_returns inserts a noop before ret instructions if immediately
-   preceeded by a conditional branch or is the target of a jump.
+   preceded by a conditional branch or is the target of a jump.
 2. ix86_avoid_jump_misspredicts inserts noops in cases where a 16-byte block of
    code contains more than 3 branches.
    
@@ -1656,25 +1648,58 @@ information to add the "lock" prefix.
 
 //===---------------------------------------------------------------------===//
 
-_Bool bar(int *x) { return *x & 1; }
+struct B {
+  unsigned char y0 : 1;
+};
 
-define zeroext i1 @bar(i32* nocapture %x) nounwind readonly {
-entry:
-  %tmp1 = load i32* %x                            ; <i32> [#uses=1]
-  %and = and i32 %tmp1, 1                         ; <i32> [#uses=1]
-  %tobool = icmp ne i32 %and, 0                   ; <i1> [#uses=1]
-  ret i1 %tobool
+int bar(struct B* a) { return a->y0; }
+
+define i32 @bar(%struct.B* nocapture %a) nounwind readonly optsize {
+  %1 = getelementptr inbounds %struct.B* %a, i64 0, i32 0
+  %2 = load i8* %1, align 1
+  %3 = and i8 %2, 1
+  %4 = zext i8 %3 to i32
+  ret i32 %4
 }
 
-bar:                                                        # @bar
-# BB#0:                                                     # %entry
-	movl	4(%esp), %eax
-	movb	(%eax), %al
-	andb	$1, %al
-	movzbl	%al, %eax
-	ret
+bar:                                    # @bar
+# BB#0:
+        movb    (%rdi), %al
+        andb    $1, %al
+        movzbl  %al, %eax
+        ret
 
 Missed optimization: should be movl+andl.
+
+//===---------------------------------------------------------------------===//
+
+The x86_64 abi says:
+
+Booleans, when stored in a memory object, are stored as single byte objects the
+value of which is always 0 (false) or 1 (true).
+
+We are not using this fact:
+
+int bar(_Bool *a) { return *a; }
+
+define i32 @bar(i8* nocapture %a) nounwind readonly optsize {
+  %1 = load i8* %a, align 1, !tbaa !0
+  %tmp = and i8 %1, 1
+  %2 = zext i8 %tmp to i32
+  ret i32 %2
+}
+
+bar:
+        movb    (%rdi), %al
+        andb    $1, %al
+        movzbl  %al, %eax
+        ret
+
+GCC produces
+
+bar:
+        movzbl  (%rdi), %eax
+        ret
 
 //===---------------------------------------------------------------------===//
 
@@ -1699,26 +1724,6 @@ bar:
 
 The second function generates more code even though the two functions are
 are functionally identical.
-
-//===---------------------------------------------------------------------===//
-
-Take the following C code:
-int x(int y) { return (y & 63) << 14; }
-
-Code produced by gcc:
-	andl	$63, %edi
-	sall	$14, %edi
-	movl	%edi, %eax
-	ret
-
-Code produced by clang:
-	shll	$14, %edi
-	movl	%edi, %eax
-	andl	$1032192, %eax
-	ret
-
-The code produced by gcc is 3 bytes shorter.  This sort of construct often
-shows up with bitfields.
 
 //===---------------------------------------------------------------------===//
 
@@ -1947,3 +1952,91 @@ which is "perfect".
 
 //===---------------------------------------------------------------------===//
 
+For the branch in the following code:
+int a();
+int b(int x, int y) {
+  if (x & (1<<(y&7)))
+    return a();
+  return y;
+}
+
+We currently generate:
+	movb	%sil, %al
+	andb	$7, %al
+	movzbl	%al, %eax
+	btl	%eax, %edi
+	jae	.LBB0_2
+
+movl+andl would be shorter than the movb+andb+movzbl sequence.
+
+//===---------------------------------------------------------------------===//
+
+For the following:
+struct u1 {
+    float x, y;
+};
+float foo(struct u1 u) {
+    return u.x + u.y;
+}
+
+We currently generate:
+	movdqa	%xmm0, %xmm1
+	pshufd	$1, %xmm0, %xmm0        # xmm0 = xmm0[1,0,0,0]
+	addss	%xmm1, %xmm0
+	ret
+
+We could save an instruction here by commuting the addss.
+
+//===---------------------------------------------------------------------===//
+
+This (from PR9661):
+
+float clamp_float(float a) {
+        if (a > 1.0f)
+                return 1.0f;
+        else if (a < 0.0f)
+                return 0.0f;
+        else
+                return a;
+}
+
+Could compile to:
+
+clamp_float:                            # @clamp_float
+        movss   .LCPI0_0(%rip), %xmm1
+        minss   %xmm1, %xmm0
+        pxor    %xmm1, %xmm1
+        maxss   %xmm1, %xmm0
+        ret
+
+with -ffast-math.
+
+//===---------------------------------------------------------------------===//
+
+This function (from PR9803):
+
+int clamp2(int a) {
+        if (a > 5)
+                a = 5;
+        if (a < 0) 
+                return 0;
+        return a;
+}
+
+Compiles to:
+
+_clamp2:                                ## @clamp2
+        pushq   %rbp
+        movq    %rsp, %rbp
+        cmpl    $5, %edi
+        movl    $5, %ecx
+        cmovlel %edi, %ecx
+        testl   %ecx, %ecx
+        movl    $0, %eax
+        cmovnsl %ecx, %eax
+        popq    %rbp
+        ret
+
+The move of 0 could be scheduled above the test to make it is xor reg,reg.
+
+//===---------------------------------------------------------------------===//

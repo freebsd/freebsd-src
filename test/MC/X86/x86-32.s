@@ -613,11 +613,11 @@ pshufw $90, %mm4, %mm0
 // CHECK:  encoding: [0xd5,0x01]
         	aad	$1
 
-// CHECK: aad	$10
+// CHECK: aad
 // CHECK:  encoding: [0xd5,0x0a]
         	aad	$0xA
 
-// CHECK: aad	$10
+// CHECK: aad
 // CHECK:  encoding: [0xd5,0x0a]
         	aad
 
@@ -625,11 +625,11 @@ pshufw $90, %mm4, %mm0
 // CHECK:  encoding: [0xd4,0x02]
         	aam	$2
 
-// CHECK: aam	$10
+// CHECK: aam
 // CHECK:  encoding: [0xd4,0x0a]
         	aam	$0xA
 
-// CHECK: aam	$10
+// CHECK: aam
 // CHECK:  encoding: [0xd4,0x0a]
         	aam
 
@@ -725,7 +725,7 @@ pshufw $90, %mm4, %mm0
 // CHECK:  encoding: [0xdf,0xf2]
         	fcompi	%st(2)
 
-// CHECK: fcompi	%st(1)
+// CHECK: fcompi
 // CHECK:  encoding: [0xdf,0xf1]
         	fcompi
 
@@ -737,7 +737,7 @@ pshufw $90, %mm4, %mm0
 // CHECK:  encoding: [0xdf,0xea]
         	fucompi	%st(2)
 
-// CHECK: fucompi	%st(1)
+// CHECK: fucompi
 // CHECK:  encoding: [0xdf,0xe9]
         	fucompi
 
@@ -816,3 +816,121 @@ pshufw $90, %mm4, %mm0
 // CHECK: loopne 0
 // CHECK: encoding: [0xe0,A]
 	loopnz 0
+
+// CHECK: outsb # encoding: [0x6e]
+// CHECK: outsb
+// CHECK: outsb
+	outsb
+	outsb	%ds:(%esi), %dx
+	outsb	(%esi), %dx
+
+// CHECK: outsw # encoding: [0x66,0x6f]
+// CHECK: outsw
+// CHECK: outsw
+	outsw
+	outsw	%ds:(%esi), %dx
+	outsw	(%esi), %dx
+
+// CHECK: outsl # encoding: [0x6f]
+// CHECK: outsl
+	outsl
+	outsl	%ds:(%esi), %dx
+	outsl	(%esi), %dx
+
+// CHECK: insb # encoding: [0x6c]
+// CHECK: insb
+	insb
+	insb	%dx, %es:(%edi)
+
+// CHECK: insw # encoding: [0x66,0x6d]
+// CHECK: insw
+	insw
+	insw	%dx, %es:(%edi)
+
+// CHECK: insl # encoding: [0x6d]
+// CHECK: insl
+	insl
+	insl	%dx, %es:(%edi)
+
+// CHECK: movsb # encoding: [0xa4]
+// CHECK: movsb
+// CHECK: movsb
+	movsb
+	movsb	%ds:(%esi), %es:(%edi)
+	movsb	(%esi), %es:(%edi)
+
+// CHECK: movsw # encoding: [0x66,0xa5]
+// CHECK: movsw
+// CHECK: movsw
+	movsw
+	movsw	%ds:(%esi), %es:(%edi)
+	movsw	(%esi), %es:(%edi)
+
+// CHECK: movsd # encoding: [0xa5]
+// CHECK: movsd
+// CHECK: movsd
+	movsl
+	movsl	%ds:(%esi), %es:(%edi)
+	movsl	(%esi), %es:(%edi)
+
+// CHECK: lodsb # encoding: [0xac]
+// CHECK: lodsb
+// CHECK: lodsb
+// CHECK: lodsb
+// CHECK: lodsb
+	lodsb
+	lodsb	%ds:(%esi), %al
+	lodsb	(%esi), %al
+	lods	%ds:(%esi), %al
+	lods	(%esi), %al
+
+// CHECK: lodsw # encoding: [0x66,0xad]
+// CHECK: lodsw
+// CHECK: lodsw
+// CHECK: lodsw
+// CHECK: lodsw
+	lodsw
+	lodsw	%ds:(%esi), %ax
+	lodsw	(%esi), %ax
+	lods	%ds:(%esi), %ax
+	lods	(%esi), %ax
+
+// CHECK: lodsl # encoding: [0xad]
+// CHECK: lodsl
+// CHECK: lodsl
+// CHECK: lodsl
+// CHECK: lodsl
+	lodsl
+	lodsl	%ds:(%esi), %eax
+	lodsl	(%esi), %eax
+	lods	%ds:(%esi), %eax
+	lods	(%esi), %eax
+
+// CHECK: stosb # encoding: [0xaa]
+// CHECK: stosb
+// CHECK: stosb
+	stosb
+	stosb	%al, %es:(%edi)
+	stos	%al, %es:(%edi)
+
+// CHECK: stosw # encoding: [0x66,0xab]
+// CHECK: stosw
+// CHECK: stosw
+	stosw
+	stosw	%ax, %es:(%edi)
+	stos	%ax, %es:(%edi)
+
+// CHECK: stosl # encoding: [0xab]
+// CHECK: stosl
+// CHECK: stosl
+	stosl
+	stosl	%eax, %es:(%edi)
+	stos	%eax, %es:(%edi)
+
+// CHECK: strw
+// CHECK: encoding: [0x66,0x0f,0x00,0xc8]
+	str %ax
+
+// CHECK: strl
+// CHECK: encoding: [0x0f,0x00,0xc8]
+	str %eax

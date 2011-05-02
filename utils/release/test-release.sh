@@ -12,7 +12,7 @@
 #
 #===------------------------------------------------------------------------===#
 
-set -e
+set -e                          # Exit if any command fails
 
 Release=""
 Release_no_dot=""
@@ -33,9 +33,9 @@ function usage() {
     echo " -build-dir DIR    Directory to perform testing in. [default: pwd]"
     echo " -no-checkout      Don't checkout the sources from SVN."
     echo " -no-64bit         Don't test the 64-bit version. [default: yes]"
-    echo " -ada              Build Ada. [default: no]"
-    echo " -disable-objc     Disable ObjC build. [default: build]"
-    echo " -disable-fortran  Disable Fortran build. [default: build]"
+    echo " -enable-ada       Build Ada. [default: disable]"
+    echo " -disable-objc     Disable ObjC build. [default: enable]"
+    echo " -disable-fortran  Disable Fortran build. [default: enable]"
 }
 
 while [ $# -gt 0 ]; do
@@ -66,7 +66,7 @@ while [ $# -gt 0 ]; do
         -no-64bit | --no-64bit )
             do_64bit="no"
             ;;
-        -ada | --ada )
+        -enable-ada | --enable-ada )
             do_ada="yes"
             ;;
         -disable-objc | --disable-objc )

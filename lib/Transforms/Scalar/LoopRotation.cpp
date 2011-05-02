@@ -184,7 +184,11 @@ bool LoopRotate::rotateLoop(Loop *L) {
   // Now, this loop is suitable for rotation.
   BasicBlock *OrigPreheader = L->getLoopPreheader();
   BasicBlock *OrigLatch = L->getLoopLatch();
-  assert(OrigPreheader && OrigLatch && "Loop not in canonical form?");
+  
+  // If the loop could not be converted to canonical form, it must have an
+  // indirectbr in it, just give up.
+  if (OrigPreheader == 0 || OrigLatch == 0)
+    return false;
 
   // Anything ScalarEvolution may know about this loop or the PHI nodes
   // in its header will soon be invalidated.
@@ -322,7 +326,8 @@ bool LoopRotate::rotateLoop(Loop *L) {
     // We can fold the conditional branch in the preheader, this makes things
     // simpler. The first step is to remove the extra edge to the Exit block.
     Exit->removePredecessor(OrigPreheader, true /*preserve LCSSA*/);
-    BranchInst::Create(NewHeader, PHBI);
+    BranchInst *NewBI = BranchInst::Create(NewHeader, PHBI);
+    NewBI->setDebugLoc(PHBI->getDebugLoc());
     PHBI->eraseFromParent();
     
     // With our CFG finalized, update DomTree if it is available.

@@ -1,7 +1,7 @@
-; RUN: opt < %s -basicaa -gvn -S | FileCheck %s
+; RUN: opt < %s -basicaa -gvn -S -die | FileCheck %s
 
 ; 32-bit little endian target.
-target datalayout = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-f32:32:32-f64:32:64-v64:64:64-v128:128:128-a0:0:64-f80:128:128"
+target datalayout = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-f32:32:32-f64:32:64-v64:64:64-v128:128:128-a0:0:64-f80:128:128-n8:16:32"
 
 ;; Trivial RLE test.
 define i32 @test0(i32 %V, i32* %P) {
@@ -542,5 +542,101 @@ entry:
   ret i32 %tmp1
 ; CHECK: @memset_to_load
 ; CHECK: ret i32 0
+}
+
+
+;;===----------------------------------------------------------------------===;;
+;; Load -> Load forwarding in partial alias case.
+;;===----------------------------------------------------------------------===;;
+
+define i32 @load_load_partial_alias(i8* %P) nounwind ssp {
+entry:
+  %0 = bitcast i8* %P to i32*
+  %tmp2 = load i32* %0
+  %add.ptr = getelementptr inbounds i8* %P, i64 1
+  %tmp5 = load i8* %add.ptr
+  %conv = zext i8 %tmp5 to i32
+  %add = add nsw i32 %tmp2, %conv
+  ret i32 %add
+
+; CHECK: @load_load_partial_alias
+; CHECK: load i32*
+; CHECK-NOT: load
+; CHECK: lshr i32 {{.*}}, 8
+; CHECK-NOT: load
+; CHECK: trunc i32 {{.*}} to i8
+; CHECK-NOT: load
+; CHECK: ret i32
+}
+
+
+; Cross block partial alias case.
+define i32 @load_load_partial_alias_cross_block(i8* %P) nounwind ssp {
+entry:
+  %xx = bitcast i8* %P to i32*
+  %x1 = load i32* %xx, align 4
+  %cmp = icmp eq i32 %x1, 127
+  br i1 %cmp, label %land.lhs.true, label %if.end
+
+land.lhs.true:                                    ; preds = %entry
+  %arrayidx4 = getelementptr inbounds i8* %P, i64 1
+  %tmp5 = load i8* %arrayidx4, align 1
+  %conv6 = zext i8 %tmp5 to i32
+  ret i32 %conv6
+
+if.end:
+  ret i32 52
+; CHECK: @load_load_partial_alias_cross_block
+; CHECK: land.lhs.true:
+; CHECK-NOT: load i8
+; CHECK: ret i32 %conv6
+}
+
+
+;;===----------------------------------------------------------------------===;;
+;; Load Widening
+;;===----------------------------------------------------------------------===;;
+
+%widening1 = type { i32, i8, i8, i8, i8 }
+
+@f = global %widening1 zeroinitializer, align 4
+
+define i32 @test_widening1(i8* %P) nounwind ssp noredzone {
+entry:
+  %tmp = load i8* getelementptr inbounds (%widening1* @f, i64 0, i32 1), align 4
+  %conv = zext i8 %tmp to i32
+  %tmp1 = load i8* getelementptr inbounds (%widening1* @f, i64 0, i32 2), align 1
+  %conv2 = zext i8 %tmp1 to i32
+  %add = add nsw i32 %conv, %conv2
+  ret i32 %add
+; CHECK: @test_widening1
+; CHECK-NOT: load
+; CHECK: load i16*
+; CHECK-NOT: load
+; CHECK-ret i32
+}
+
+define i32 @test_widening2() nounwind ssp noredzone {
+entry:
+  %tmp = load i8* getelementptr inbounds (%widening1* @f, i64 0, i32 1), align 4
+  %conv = zext i8 %tmp to i32
+  %tmp1 = load i8* getelementptr inbounds (%widening1* @f, i64 0, i32 2), align 1
+  %conv2 = zext i8 %tmp1 to i32
+  %add = add nsw i32 %conv, %conv2
+
+  %tmp2 = load i8* getelementptr inbounds (%widening1* @f, i64 0, i32 3), align 2
+  %conv3 = zext i8 %tmp2 to i32
+  %add2 = add nsw i32 %add, %conv3
+
+  %tmp3 = load i8* getelementptr inbounds (%widening1* @f, i64 0, i32 4), align 1
+  %conv4 = zext i8 %tmp3 to i32
+  %add3 = add nsw i32 %add2, %conv3
+
+  ret i32 %add3
+; CHECK: @test_widening2
+; CHECK-NOT: load
+; CHECK: load i32*
+; CHECK-NOT: load
+; CHECK-ret i32
 }
 

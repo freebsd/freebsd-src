@@ -61,6 +61,9 @@
 /* LLVM name for the native AsmPrinter init function, if available */
 #cmakedefine LLVM_NATIVE_ASMPRINTER LLVMInitialize${LLVM_NATIVE_ARCH}AsmPrinter
 
+/* LLVM name for the native AsmPrinter init function, if available */
+#cmakedefine LLVM_NATIVE_ASMPARSER LLVMInitialize${LLVM_NATIVE_ARCH}AsmParser
+
 /* Define if this is Unixish platform */
 #cmakedefine LLVM_ON_UNIX ${LLVM_ON_UNIX}
 
@@ -90,6 +93,9 @@
 
 /* Define to path to twopi program if found or 'echo twopi' otherwise */
 #cmakedefine LLVM_PATH_TWOPI "${LLVM_PATH_TWOPI}"
+
+/* Define to path to xdot.py program if found or 'echo xdot.py' otherwise */
+#cmakedefine LLVM_PATH_XDOT_PY "${LLVM_PATH_XDOT.PY}"
 
 /* Installation prefix directory */
 #cmakedefine LLVM_PREFIX "${LLVM_PREFIX}"

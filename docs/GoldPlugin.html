@@ -7,7 +7,7 @@
 </head>
 <body>
       
-<div class="doc_title">LLVM gold plugin</div>
+<h1>LLVM gold plugin</h1>
 <ol>
   <li><a href="#introduction">Introduction</a></li>
   <li><a href="#build">How to build it</a></li>
@@ -21,9 +21,9 @@
 <div class="doc_author">Written by Nick Lewycky</div>
 
 <!--=========================================================================-->
-<div class="doc_section"><a name="introduction">Introduction</a></div>
+<h2><a name="introduction">Introduction</a></h2>
 <!--=========================================================================-->
-<div class="doc_text">
+<div>
   <p>Building with link time optimization requires cooperation from the
 system linker. LTO support on Linux systems requires that you use
 the <a href="http://sourceware.org/binutils">gold linker</a> which supports
@@ -33,14 +33,14 @@ project.</p>
   <p>The LLVM gold plugin implements the
 <a href="http://gcc.gnu.org/wiki/whopr/driver">gold plugin interface</a>
 on top of
-<a href="http://llvm.org/docs/LinkTimeOptimization.html#lto">libLTO</a>.
+<a href="LinkTimeOptimization.html#lto">libLTO</a>.
 The same plugin can also be used by other tools such as <tt>ar</tt> and
 <tt>nm</tt>.
 </div>
 <!--=========================================================================-->
-<div class="doc_section"><a name="build">How to build it</a></div>
+<h2><a name="build">How to build it</a></h2>
 <!--=========================================================================-->
-<div class="doc_text">
+<div>
   <p>You need to have gold with plugin support and build the LLVMgold
 plugin. Check whether you have gold running <tt>/usr/bin/ld -v</tt>. It will
 report &#8220;GNU gold&#8221; or else &#8220GNU ld&#8221; if not. If you have
@@ -72,9 +72,9 @@ placed.
 </ul>
 </div>
 <!--=========================================================================-->
-<div class="doc_section"><a name="usage">Usage</a></div>
+<h2><a name="usage">Usage</a></h2>
 <!--=========================================================================-->
-<div class="doc_text">
+<div>
   <p>The linker takes a <tt>-plugin</tt> option that points to the path of
   the plugin <tt>.so</tt> file. To find out what link command <tt>gcc</tt>
   would run in a given situation, run <tt>gcc -v <em>[...]</em></tt> and look
@@ -95,14 +95,13 @@ placed.
   own gold, be sure to install the <tt>ar</tt> and <tt>nm-new</tt> you built to
   <tt>/usr/bin</tt>.
   <p>
-</div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="example1">Example of link time optimization</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
   <p>The following example shows a worked example of the gold plugin mixing
   LLVM bitcode and native code.
 <pre class="doc_code">
@@ -145,14 +144,20 @@ $ llvm-gcc -use-gold-plugin a.a b.o -o main # &lt;-- link with LLVMgold plugin
 </pre>
   <p>Gold informs the plugin that foo3 is never referenced outside the IR,
   leading LLVM to delete that function. However, unlike in the
-  <a href="http://llvm.org/docs/LinkTimeOptimization.html#example1">libLTO
+  <a href="LinkTimeOptimization.html#example1">libLTO
   example</a> gold does not currently eliminate foo4.</p>
 </div>
 
+</div>
+
 <!--=========================================================================-->
-<div class="doc_section"><a name="lto_autotools">Quickstart for using LTO with autotooled projects</a></div>
+<h2>
+  <a name="lto_autotools">
+    Quickstart for using LTO with autotooled projects
+  </a>
+</h2>
 <!--=========================================================================-->
-<div class="doc_text">
+<div>
   <p>Once your system <tt>ld</tt>, <tt>ar</tt> and <tt>nm</tt> all support LLVM
   bitcode, everything is in place for an easy to use LTO build of autotooled
   projects:</p>
@@ -189,9 +194,9 @@ export CFLAGS="-O4"
 </div>
 
 <!--=========================================================================-->
-<div class="doc_section"><a name="licensing">Licensing</a></div>
+<h2><a name="licensing">Licensing</a></h2>
 <!--=========================================================================-->
-<div class="doc_text">
+<div>
   <p>Gold is licensed under the GPLv3. LLVMgold uses the interface file
 <tt>plugin-api.h</tt> from gold which means that the resulting LLVMgold.so
 binary is also GPLv3. This can still be used to link non-GPLv3 programs just
@@ -206,7 +211,7 @@ as much as gold could without the plugin.</p>
   <a href="http://validator.w3.org/check/referer"><img
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
   <a href="mailto:nicholas@metrix.on.ca">Nick Lewycky</a><br>
-  <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
+  <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a><br>
   Last modified: $Date: 2010-04-16 23:58:21 -0800 (Fri, 16 Apr 2010) $
 </address>
 </body>

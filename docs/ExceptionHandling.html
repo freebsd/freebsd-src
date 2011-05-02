@@ -11,7 +11,7 @@
 
 <body>
 
-<div class="doc_title">Exception Handling in LLVM</div>
+<h1>Exception Handling in LLVM</h1>
 
 <table class="layout" style="width:100%">
   <tr class="layout">
@@ -58,10 +58,10 @@
 
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="introduction">Introduction</a></div>
+<h2><a name="introduction">Introduction</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>This document is the central repository for all information pertaining to
    exception handling in LLVM.  It describes the format that LLVM exception
@@ -70,14 +70,12 @@
    provides specific examples of what exception handling information is used for
    in C/C++.</p>
 
-</div>
-
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="itanium">Itanium ABI Zero-cost Exception Handling</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <p>Exception handling for most programming languages is designed to recover from
    conditions that rarely occur during general use of an application.  To that
@@ -106,11 +104,11 @@
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="sjlj">Setjmp/Longjmp Exception Handling</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <p>Setjmp/Longjmp (SJLJ) based exception handling uses LLVM intrinsics
    <a href="#llvm_eh_sjlj_setjmp"><tt>llvm.eh.sjlj.setjmp</tt></a> and
@@ -138,11 +136,11 @@
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="overview">Overview</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <p>When an exception is thrown in LLVM code, the runtime does its best to find a
    handler suited to processing the circumstance.</p>
@@ -185,12 +183,14 @@
 
 </div>
 
-<!-- ======================================================================= -->
-<div class="doc_section">
-  <a name="codegen">LLVM Code Generation</a>
 </div>
 
-<div class="doc_text">
+<!-- ======================================================================= -->
+<h2>
+  <a name="codegen">LLVM Code Generation</a>
+</h2>
+
+<div>
 
 <p>At the time of this writing, only C++ exception handling support is available
    in LLVM.  So the remainder of this document will be somewhat C++-centric.</p>
@@ -200,14 +200,12 @@
    we will describe the implementation of LLVM exception handling in terms of
    C++ examples.</p>
 
-</div>
-
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="throw">Throw</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <p>Languages that support exception handling typically provide a <tt>throw</tt>
    operation to initiate the exception process.  Internally, a throw operation
@@ -225,11 +223,11 @@
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="try_catch">Try/Catch</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <p>A call within the scope of a <i>try</i> statement can potentially raise an
    exception.  In those circumstances, the LLVM C++ front-end replaces the call
@@ -313,11 +311,11 @@
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="cleanups">Cleanups</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <p>To handle destructors and cleanups in <tt>try</tt> code, control may not run
    directly from a landing pad to the first catch.  Control may actually flow
@@ -332,11 +330,11 @@
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="throw_filters">Throw Filters</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <p>C++ allows the specification of which exception types can be thrown from a
    function.  To represent this a top level landing pad may exist to filter out
@@ -359,11 +357,11 @@
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="restrictions">Restrictions</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <p>The semantics of the invoke instruction require that any exception that
    unwinds through an invoke call should result in a branch to the invoke's
@@ -384,25 +382,25 @@
 
 </div>
 
-<!-- ======================================================================= -->
-<div class="doc_section">
-  <a name="format_common_intrinsics">Exception Handling Intrinsics</a>
 </div>
 
-<div class="doc_text">
+<!-- ======================================================================= -->
+<h2>
+  <a name="format_common_intrinsics">Exception Handling Intrinsics</a>
+</h2>
+
+<div>
 
 <p>LLVM uses several intrinsic functions (name prefixed with "llvm.eh") to
    provide exception handling information at various points in generated
    code.</p>
 
-</div>
-
 <!-- ======================================================================= -->
-<div class="doc_subsubsection">
+<h4>
   <a name="llvm_eh_exception">llvm.eh.exception</a>
-</div>
+</h4>
 
-<div class="doc_text">
+<div>
 
 <pre>
   i8* %<a href="#llvm_eh_exception">llvm.eh.exception</a>()
@@ -413,11 +411,11 @@
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection">
+<h4>
   <a name="llvm_eh_selector">llvm.eh.selector</a>
-</div>
+</h4>
 
-<div class="doc_text">
+<div>
 
 <pre>
   i32 %<a href="#llvm_eh_selector">llvm.eh.selector</a>(i8*, i8*, ...)
@@ -445,11 +443,11 @@
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection">
+<h4>
   <a name="llvm_eh_typeid_for">llvm.eh.typeid.for</a>
-</div>
+</h4>
 
-<div class="doc_text">
+<div>
 
 <pre>
   i32 %<a href="#llvm_eh_typeid_for">llvm.eh.typeid.for</a>(i8*)
@@ -463,11 +461,11 @@
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection">
+<h4>
   <a name="llvm_eh_sjlj_setjmp">llvm.eh.sjlj.setjmp</a>
-</div>
+</h4>
 
-<div class="doc_text">
+<div>
 
 <pre>
   i32 %<a href="#llvm_eh_sjlj_setjmp">llvm.eh.sjlj.setjmp</a>(i8*)
@@ -492,11 +490,11 @@
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection">
+<h4>
   <a name="llvm_eh_sjlj_longjmp">llvm.eh.sjlj.longjmp</a>
-</div>
+</h4>
 
-<div class="doc_text">
+<div>
 
 <pre>
   void %<a href="#llvm_eh_sjlj_longjmp">llvm.eh.sjlj.setjmp</a>(i8*)
@@ -507,16 +505,16 @@
    style exception handling. The single parameter is a pointer to a
    buffer populated by <a href="#llvm_eh_sjlj_setjmp">
      <tt>llvm.eh.sjlj.setjmp</tt></a>. The frame pointer and stack pointer
-   are restored from the buffer, then control is transfered to the
+   are restored from the buffer, then control is transferred to the
    destination address.</p>
 
 </div>
 <!-- ======================================================================= -->
-<div class="doc_subsubsection">
+<h4>
   <a name="llvm_eh_sjlj_lsda">llvm.eh.sjlj.lsda</a>
-</div>
+</h4>
 
-<div class="doc_text">
+<div>
 
 <pre>
   i8* %<a href="#llvm_eh_sjlj_lsda">llvm.eh.sjlj.lsda</a>()
@@ -531,11 +529,11 @@
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection">
+<h4>
   <a name="llvm_eh_sjlj_callsite">llvm.eh.sjlj.callsite</a>
-</div>
+</h4>
 
-<div class="doc_text">
+<div>
 
 <pre>
   void %<a href="#llvm_eh_sjlj_callsite">llvm.eh.sjlj.callsite</a>(i32)
@@ -549,11 +547,11 @@
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsubsection">
+<h4>
   <a name="llvm_eh_sjlj_dispatchsetup">llvm.eh.sjlj.dispatchsetup</a>
-</div>
+</h4>
 
-<div class="doc_text">
+<div>
 
 <pre>
   void %<a href="#llvm_eh_sjlj_dispatchsetup">llvm.eh.sjlj.dispatchsetup</a>(i32)
@@ -565,24 +563,24 @@
 
 </div>
 
-<!-- ======================================================================= -->
-<div class="doc_section">
-  <a name="asm">Asm Table Formats</a>
 </div>
 
-<div class="doc_text">
+<!-- ======================================================================= -->
+<h2>
+  <a name="asm">Asm Table Formats</a>
+</h2>
+
+<div>
 
 <p>There are two tables that are used by the exception handling runtime to
    determine which actions should take place when an exception is thrown.</p>
 
-</div>
-
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="unwind_tables">Exception Handling Frame</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <p>An exception handling frame <tt>eh_frame</tt> is very similar to the unwind
    frame used by dwarf debug info.  The frame contains all the information
@@ -596,11 +594,11 @@
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="exception_tables">Exception Tables</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <p>An exception table contains information about what actions to take when an
    exception is thrown in a particular part of a function's code.  There is one
@@ -611,12 +609,14 @@
 
 </div>
 
-<!-- ======================================================================= -->
-<div class="doc_section">
-  <a name="todo">ToDo</a>
 </div>
 
-<div class="doc_text">
+<!-- ======================================================================= -->
+<h2>
+  <a name="todo">ToDo</a>
+</h2>
+
+<div>
 
 <ol>
 
@@ -636,8 +636,8 @@
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
-  <a href="http://llvm.org">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2010-12-10 00:05:48 +0100 (Fri, 10 Dec 2010) $
+  <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
+  Last modified: $Date: 2011-04-23 02:30:22 +0200 (Sat, 23 Apr 2011) $
 </address>
 
 </body>

@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=arm -mattr=+neon | FileCheck %s
+; RUN: llc < %s -march=arm -mcpu=cortex-a8 | FileCheck %s
 
 define <8 x i8> @vmuli8(<8 x i8>* %A, <8 x i8>* %B) nounwind {
 ;CHECK: vmuli8:
@@ -158,6 +158,15 @@ define <8 x i16> @vmulls8(<8 x i8>* %A, <8 x i8>* %B) nounwind {
 	ret <8 x i16> %tmp5
 }
 
+define <8 x i16> @vmulls8_int(<8 x i8>* %A, <8 x i8>* %B) nounwind {
+;CHECK: vmulls8_int:
+;CHECK: vmull.s8
+	%tmp1 = load <8 x i8>* %A
+	%tmp2 = load <8 x i8>* %B
+	%tmp3 = call <8 x i16> @llvm.arm.neon.vmulls.v8i16(<8 x i8> %tmp1, <8 x i8> %tmp2)
+	ret <8 x i16> %tmp3
+}
+
 define <4 x i32> @vmulls16(<4 x i16>* %A, <4 x i16>* %B) nounwind {
 ;CHECK: vmulls16:
 ;CHECK: vmull.s16
@@ -167,6 +176,15 @@ define <4 x i32> @vmulls16(<4 x i16>* %A, <4 x i16>* %B) nounwind {
 	%tmp4 = sext <4 x i16> %tmp2 to <4 x i32>
 	%tmp5 = mul <4 x i32> %tmp3, %tmp4
 	ret <4 x i32> %tmp5
+}
+
+define <4 x i32> @vmulls16_int(<4 x i16>* %A, <4 x i16>* %B) nounwind {
+;CHECK: vmulls16_int:
+;CHECK: vmull.s16
+	%tmp1 = load <4 x i16>* %A
+	%tmp2 = load <4 x i16>* %B
+	%tmp3 = call <4 x i32> @llvm.arm.neon.vmulls.v4i32(<4 x i16> %tmp1, <4 x i16> %tmp2)
+	ret <4 x i32> %tmp3
 }
 
 define <2 x i64> @vmulls32(<2 x i32>* %A, <2 x i32>* %B) nounwind {
@@ -180,6 +198,15 @@ define <2 x i64> @vmulls32(<2 x i32>* %A, <2 x i32>* %B) nounwind {
 	ret <2 x i64> %tmp5
 }
 
+define <2 x i64> @vmulls32_int(<2 x i32>* %A, <2 x i32>* %B) nounwind {
+;CHECK: vmulls32_int:
+;CHECK: vmull.s32
+	%tmp1 = load <2 x i32>* %A
+	%tmp2 = load <2 x i32>* %B
+	%tmp3 = call <2 x i64> @llvm.arm.neon.vmulls.v2i64(<2 x i32> %tmp1, <2 x i32> %tmp2)
+	ret <2 x i64> %tmp3
+}
+
 define <8 x i16> @vmullu8(<8 x i8>* %A, <8 x i8>* %B) nounwind {
 ;CHECK: vmullu8:
 ;CHECK: vmull.u8
@@ -189,6 +216,15 @@ define <8 x i16> @vmullu8(<8 x i8>* %A, <8 x i8>* %B) nounwind {
 	%tmp4 = zext <8 x i8> %tmp2 to <8 x i16>
 	%tmp5 = mul <8 x i16> %tmp3, %tmp4
 	ret <8 x i16> %tmp5
+}
+
+define <8 x i16> @vmullu8_int(<8 x i8>* %A, <8 x i8>* %B) nounwind {
+;CHECK: vmullu8_int:
+;CHECK: vmull.u8
+	%tmp1 = load <8 x i8>* %A
+	%tmp2 = load <8 x i8>* %B
+	%tmp3 = call <8 x i16> @llvm.arm.neon.vmullu.v8i16(<8 x i8> %tmp1, <8 x i8> %tmp2)
+	ret <8 x i16> %tmp3
 }
 
 define <4 x i32> @vmullu16(<4 x i16>* %A, <4 x i16>* %B) nounwind {
@@ -202,6 +238,15 @@ define <4 x i32> @vmullu16(<4 x i16>* %A, <4 x i16>* %B) nounwind {
 	ret <4 x i32> %tmp5
 }
 
+define <4 x i32> @vmullu16_int(<4 x i16>* %A, <4 x i16>* %B) nounwind {
+;CHECK: vmullu16_int:
+;CHECK: vmull.u16
+	%tmp1 = load <4 x i16>* %A
+	%tmp2 = load <4 x i16>* %B
+	%tmp3 = call <4 x i32> @llvm.arm.neon.vmullu.v4i32(<4 x i16> %tmp1, <4 x i16> %tmp2)
+	ret <4 x i32> %tmp3
+}
+
 define <2 x i64> @vmullu32(<2 x i32>* %A, <2 x i32>* %B) nounwind {
 ;CHECK: vmullu32:
 ;CHECK: vmull.u32
@@ -211,6 +256,15 @@ define <2 x i64> @vmullu32(<2 x i32>* %A, <2 x i32>* %B) nounwind {
 	%tmp4 = zext <2 x i32> %tmp2 to <2 x i64>
 	%tmp5 = mul <2 x i64> %tmp3, %tmp4
 	ret <2 x i64> %tmp5
+}
+
+define <2 x i64> @vmullu32_int(<2 x i32>* %A, <2 x i32>* %B) nounwind {
+;CHECK: vmullu32_int:
+;CHECK: vmull.u32
+	%tmp1 = load <2 x i32>* %A
+	%tmp2 = load <2 x i32>* %B
+	%tmp3 = call <2 x i64> @llvm.arm.neon.vmullu.v2i64(<2 x i32> %tmp1, <2 x i32> %tmp2)
+	ret <2 x i64> %tmp3
 }
 
 define <8 x i16> @vmullp8(<8 x i8>* %A, <8 x i8>* %B) nounwind {
@@ -233,6 +287,15 @@ entry:
   ret <4 x i32> %3
 }
 
+define arm_aapcs_vfpcc <4 x i32> @test_vmull_lanes16_int(<4 x i16> %arg0_int16x4_t, <4 x i16> %arg1_int16x4_t) nounwind readnone {
+entry:
+; CHECK: test_vmull_lanes16_int
+; CHECK: vmull.s16 q0, d0, d1[1]
+  %0 = shufflevector <4 x i16> %arg1_int16x4_t, <4 x i16> undef, <4 x i32> <i32 1, i32 1, i32 1, i32 1> ; <<4 x i16>> [#uses=1]
+  %1 = tail call <4 x i32> @llvm.arm.neon.vmulls.v4i32(<4 x i16> %arg0_int16x4_t, <4 x i16> %0) ; <<4 x i32>> [#uses=1]
+  ret <4 x i32> %1
+}
+
 define arm_aapcs_vfpcc <2 x i64> @test_vmull_lanes32(<2 x i32> %arg0_int32x2_t, <2 x i32> %arg1_int32x2_t) nounwind readnone {
 entry:
 ; CHECK: test_vmull_lanes32
@@ -242,6 +305,15 @@ entry:
   %2 = sext <2 x i32> %0 to <2 x i64>
   %3 = mul <2 x i64> %1, %2
   ret <2 x i64> %3
+}
+
+define arm_aapcs_vfpcc <2 x i64> @test_vmull_lanes32_int(<2 x i32> %arg0_int32x2_t, <2 x i32> %arg1_int32x2_t) nounwind readnone {
+entry:
+; CHECK: test_vmull_lanes32_int
+; CHECK: vmull.s32 q0, d0, d1[1]
+  %0 = shufflevector <2 x i32> %arg1_int32x2_t, <2 x i32> undef, <2 x i32> <i32 1, i32 1> ; <<2 x i32>> [#uses=1]
+  %1 = tail call <2 x i64> @llvm.arm.neon.vmulls.v2i64(<2 x i32> %arg0_int32x2_t, <2 x i32> %0) ; <<2 x i64>> [#uses=1]
+  ret <2 x i64> %1
 }
 
 define arm_aapcs_vfpcc <4 x i32> @test_vmull_laneu16(<4 x i16> %arg0_uint16x4_t, <4 x i16> %arg1_uint16x4_t) nounwind readnone {
@@ -255,6 +327,15 @@ entry:
   ret <4 x i32> %3
 }
 
+define arm_aapcs_vfpcc <4 x i32> @test_vmull_laneu16_int(<4 x i16> %arg0_uint16x4_t, <4 x i16> %arg1_uint16x4_t) nounwind readnone {
+entry:
+; CHECK: test_vmull_laneu16_int
+; CHECK: vmull.u16 q0, d0, d1[1]
+  %0 = shufflevector <4 x i16> %arg1_uint16x4_t, <4 x i16> undef, <4 x i32> <i32 1, i32 1, i32 1, i32 1> ; <<4 x i16>> [#uses=1]
+  %1 = tail call <4 x i32> @llvm.arm.neon.vmullu.v4i32(<4 x i16> %arg0_uint16x4_t, <4 x i16> %0) ; <<4 x i32>> [#uses=1]
+  ret <4 x i32> %1
+}
+
 define arm_aapcs_vfpcc <2 x i64> @test_vmull_laneu32(<2 x i32> %arg0_uint32x2_t, <2 x i32> %arg1_uint32x2_t) nounwind readnone {
 entry:
 ; CHECK: test_vmull_laneu32
@@ -265,6 +346,23 @@ entry:
   %3 = mul <2 x i64> %1, %2
   ret <2 x i64> %3
 }
+
+define arm_aapcs_vfpcc <2 x i64> @test_vmull_laneu32_int(<2 x i32> %arg0_uint32x2_t, <2 x i32> %arg1_uint32x2_t) nounwind readnone {
+entry:
+; CHECK: test_vmull_laneu32_int
+; CHECK: vmull.u32 q0, d0, d1[1]
+  %0 = shufflevector <2 x i32> %arg1_uint32x2_t, <2 x i32> undef, <2 x i32> <i32 1, i32 1> ; <<2 x i32>> [#uses=1]
+  %1 = tail call <2 x i64> @llvm.arm.neon.vmullu.v2i64(<2 x i32> %arg0_uint32x2_t, <2 x i32> %0) ; <<2 x i64>> [#uses=1]
+  ret <2 x i64> %1
+}
+
+declare <8 x i16> @llvm.arm.neon.vmulls.v8i16(<8 x i8>, <8 x i8>) nounwind readnone
+declare <4 x i32> @llvm.arm.neon.vmulls.v4i32(<4 x i16>, <4 x i16>) nounwind readnone
+declare <2 x i64> @llvm.arm.neon.vmulls.v2i64(<2 x i32>, <2 x i32>) nounwind readnone
+
+declare <8 x i16> @llvm.arm.neon.vmullu.v8i16(<8 x i8>, <8 x i8>) nounwind readnone
+declare <4 x i32> @llvm.arm.neon.vmullu.v4i32(<4 x i16>, <4 x i16>) nounwind readnone
+declare <2 x i64> @llvm.arm.neon.vmullu.v2i64(<2 x i32>, <2 x i32>) nounwind readnone
 
 declare <8 x i16>  @llvm.arm.neon.vmullp.v8i16(<8 x i8>, <8 x i8>) nounwind readnone
 
@@ -338,4 +436,59 @@ define <2 x i64> @vmull_extvec_u32(<2 x i32> %arg) nounwind {
   %tmp3 = zext <2 x i32> %arg to <2 x i64>
   %tmp4 = mul <2 x i64> %tmp3, <i64 1234, i64 1234>
   ret <2 x i64> %tmp4
+}
+
+; rdar://9197392
+define void @distribue(i16* %dst, i8* %src, i32 %mul) nounwind {
+entry:
+; CHECK: distribue:
+; CHECK: vmull.u8 [[REG1:(q[0-9]+)]], d{{.*}}, [[REG2:(d[0-9]+)]]
+; CHECK: vmlal.u8 [[REG1]], d{{.*}}, [[REG2]]
+  %0 = trunc i32 %mul to i8
+  %1 = insertelement <8 x i8> undef, i8 %0, i32 0
+  %2 = shufflevector <8 x i8> %1, <8 x i8> undef, <8 x i32> zeroinitializer
+  %3 = tail call <16 x i8> @llvm.arm.neon.vld1.v16i8(i8* %src, i32 1)
+  %4 = bitcast <16 x i8> %3 to <2 x double>
+  %5 = extractelement <2 x double> %4, i32 1
+  %6 = bitcast double %5 to <8 x i8>
+  %7 = zext <8 x i8> %6 to <8 x i16>
+  %8 = zext <8 x i8> %2 to <8 x i16>
+  %9 = extractelement <2 x double> %4, i32 0
+  %10 = bitcast double %9 to <8 x i8>
+  %11 = zext <8 x i8> %10 to <8 x i16>
+  %12 = add <8 x i16> %7, %11
+  %13 = mul <8 x i16> %12, %8
+  %14 = bitcast i16* %dst to i8*
+  tail call void @llvm.arm.neon.vst1.v8i16(i8* %14, <8 x i16> %13, i32 2)
+  ret void
+}
+
+declare <16 x i8> @llvm.arm.neon.vld1.v16i8(i8*, i32) nounwind readonly
+
+declare void @llvm.arm.neon.vst1.v8i16(i8*, <8 x i16>, i32) nounwind
+
+; Take advantage of the Cortex-A8 multiplier accumulator forward.
+
+%struct.uint8x8_t = type { <8 x i8> }
+
+define void @distribue2(%struct.uint8x8_t* nocapture %dst, i8* %src, i32 %mul) nounwind {
+entry:
+; CHECK: distribue2
+; CHECK-NOT: vadd.i8
+; CHECK: vmul.i8
+; CHECK: vmla.i8
+  %0 = trunc i32 %mul to i8
+  %1 = insertelement <8 x i8> undef, i8 %0, i32 0
+  %2 = shufflevector <8 x i8> %1, <8 x i8> undef, <8 x i32> zeroinitializer
+  %3 = tail call <16 x i8> @llvm.arm.neon.vld1.v16i8(i8* %src, i32 1)
+  %4 = bitcast <16 x i8> %3 to <2 x double>
+  %5 = extractelement <2 x double> %4, i32 1
+  %6 = bitcast double %5 to <8 x i8>
+  %7 = extractelement <2 x double> %4, i32 0
+  %8 = bitcast double %7 to <8 x i8>
+  %9 = add <8 x i8> %6, %8
+  %10 = mul <8 x i8> %9, %2
+  %11 = getelementptr inbounds %struct.uint8x8_t* %dst, i32 0, i32 0
+  store <8 x i8> %10, <8 x i8>* %11, align 8
+  ret void
 }

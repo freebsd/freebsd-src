@@ -1,4 +1,4 @@
-; RUN: llc < %s -mtriple=thumbv7-apple-darwin -mcpu=cortex-a8 -relocation-model=pic -disable-fp-elim | FileCheck %s
+; RUN: llc < %s -mtriple=thumbv7-apple-darwin -mcpu=cortex-a8 -relocation-model=pic -disable-fp-elim -regalloc=linearscan | FileCheck %s
 ; rdar://7352504
 ; Make sure we use "str r9, [sp, #+28]" instead of "sub.w r4, r7, #256" followed by "str r9, [r4, #-32]".
 
@@ -22,7 +22,7 @@
 
 define %union.rec* @Manifest(%union.rec* %x, %union.rec* %env, %struct.STYLE* %style, %union.rec** %bthr, %union.rec** %fthr, %union.rec** %target, %union.rec** %crs, i32 %ok, i32 %need_expand, %union.rec** %enclose, i32 %fcr) nounwind {
 entry:
-; CHECK:       ldr.w	{{(r[0-9])|(lr)}}, [r7, #28]
+; CHECK:       ldr.w	{{(r[0-9]+)|(lr)}}, [r7, #28]
   %xgaps.i = alloca [32 x %union.rec*], align 4   ; <[32 x %union.rec*]*> [#uses=0]
   %ycomp.i = alloca [32 x %union.rec*], align 4   ; <[32 x %union.rec*]*> [#uses=0]
   br label %bb20

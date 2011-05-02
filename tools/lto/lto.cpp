@@ -95,9 +95,22 @@ lto_module_t lto_module_create(const char* path)
 // loads an object file from disk
 // returns NULL on error (check lto_get_error_message() for details)
 //
-lto_module_t lto_module_create_from_fd(int fd, const char *path, off_t size)
+lto_module_t lto_module_create_from_fd(int fd, const char *path, size_t size)
 {
      return LTOModule::makeLTOModule(fd, path, size, sLastErrorString);
+}
+
+//
+// loads an object file from disk
+// returns NULL on error (check lto_get_error_message() for details)
+//
+lto_module_t lto_module_create_from_fd_at_offset(int fd, const char *path,
+                                                 size_t file_size,
+                                                 size_t map_size,
+                                                 off_t offset)
+{
+     return LTOModule::makeLTOModule(fd, path, file_size, map_size,
+                                     offset, sLastErrorString);
 }
 
 //
@@ -268,7 +281,7 @@ bool lto_codegen_write_merged_modules(lto_code_gen_t cg, const char* path)
 
 //
 // Generates code for all added modules into one native object file.
-// On sucess returns a pointer to a generated mach-o/ELF buffer and
+// On success returns a pointer to a generated mach-o/ELF buffer and
 // length set to the buffer size.  The buffer is owned by the 
 // lto_code_gen_t and will be freed when lto_codegen_dispose()
 // is called, or lto_codegen_compile() is called again.
@@ -278,6 +291,12 @@ extern const void*
 lto_codegen_compile(lto_code_gen_t cg, size_t* length)
 {
   return cg->compile(length, sLastErrorString);
+}
+
+extern bool
+lto_codegen_compile_to_file(lto_code_gen_t cg, const char **name)
+{
+  return cg->compile_to_file(name, sLastErrorString);
 }
 
 

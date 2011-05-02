@@ -11,7 +11,7 @@
 
 <body>
 
-<div class="doc_title">Kaleidoscope: Code generation to LLVM IR</div>
+<h1>Kaleidoscope: Code generation to LLVM IR</h1>
 
 <ul>
 <li><a href="index.html">Up to Tutorial Index</a></li>
@@ -34,10 +34,10 @@ Support</li>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="intro">Chapter 3 Introduction</a></div>
+<h2><a name="intro">Chapter 3 Introduction</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>Welcome to Chapter 3 of the "<a href="index.html">Implementing a language
 with LLVM</a>" tutorial.  This chapter shows you how to transform the <a 
@@ -57,10 +57,10 @@ releases page</a>.</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="basics">Code Generation Setup</a></div>
+<h2><a name="basics">Code Generation Setup</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>
 In order to generate LLVM IR, we want some simple setup to get started.  First
@@ -147,10 +147,10 @@ has already been done, and we'll just use it to emit code.
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="exprs">Expression Code Generation</a></div>
+<h2><a name="exprs">Expression Code Generation</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>Generating LLVM code for expression nodes is very straightforward: less
 than 45 lines of commented code for all four of our expression nodes.  First
@@ -293,10 +293,10 @@ basic framework.</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="funcs">Function Code Generation</a></div>
+<h2><a name="funcs">Function Code Generation</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>Code generation for prototypes and functions must handle a number of
 details, which make their code less beautiful than expression code
@@ -515,11 +515,10 @@ def bar() foo(1, 2); # error, unknown function "foo"
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="driver">Driver Changes and 
-Closing Thoughts</a></div>
+<h2><a name="driver">Driver Changes and Closing Thoughts</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>
 For now, code generation to LLVM doesn't really get us much, except that we can
@@ -657,10 +656,10 @@ support</a> to this so we can actually start running code!</p>
 
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="code">Full Code Listing</a></div>
+<h2><a name="code">Full Code Listing</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>
 Here is the complete code listing for our running example, enhanced with the
@@ -1262,8 +1261,8 @@ int main() {
   src="http://www.w3.org/Icons/valid-html401" alt="Valid HTML 4.01!"></a>
 
   <a href="mailto:sabre@nondot.org">Chris Lattner</a><br>
-  <a href="http://llvm.org">The LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2011-02-15 01:24:32 +0100 (Tue, 15 Feb 2011) $
+  <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a><br>
+  Last modified: $Date: 2011-04-23 02:30:22 +0200 (Sat, 23 Apr 2011) $
 </address>
 </body>
 </html>

@@ -429,6 +429,29 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
       KnownZero |= LHSKnownZero & Mask;
       KnownOne  |= LHSKnownOne & Mask;
     }
+
+    // Are we still trying to solve for the sign bit?
+    if (Mask.isNegative() && !KnownZero.isNegative() && !KnownOne.isNegative()){
+      OverflowingBinaryOperator *OBO = cast<OverflowingBinaryOperator>(I);
+      if (OBO->hasNoSignedWrap()) {
+        if (I->getOpcode() == Instruction::Add) {
+          // Adding two positive numbers can't wrap into negative
+          if (LHSKnownZero.isNegative() && KnownZero2.isNegative())
+            KnownZero |= APInt::getSignBit(BitWidth);
+          // and adding two negative numbers can't wrap into positive.
+          else if (LHSKnownOne.isNegative() && KnownOne2.isNegative())
+            KnownOne |= APInt::getSignBit(BitWidth);
+        } else {
+          // Subtracting a negative number from a positive one can't wrap
+          if (LHSKnownZero.isNegative() && KnownOne2.isNegative())
+            KnownZero |= APInt::getSignBit(BitWidth);
+          // neither can subtracting a positive number from a negative one.
+          else if (LHSKnownOne.isNegative() && KnownZero2.isNegative())
+            KnownOne |= APInt::getSignBit(BitWidth);
+        }
+      }
+    }
+
     return;
   }
   case Instruction::SRem:
@@ -460,6 +483,19 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
         assert((KnownZero & KnownOne) == 0 && "Bits known to be one AND zero?"); 
       }
     }
+
+    // The sign bit is the LHS's sign bit, except when the result of the
+    // remainder is zero.
+    if (Mask.isNegative() && KnownZero.isNonNegative()) {
+      APInt Mask2 = APInt::getSignBit(BitWidth);
+      APInt LHSKnownZero(BitWidth, 0), LHSKnownOne(BitWidth, 0);
+      ComputeMaskedBits(I->getOperand(0), Mask2, LHSKnownZero, LHSKnownOne, TD,
+                        Depth+1);
+      // If it's known zero, our sign bit is also zero.
+      if (LHSKnownZero.isNegative())
+        KnownZero |= LHSKnownZero;
+    }
+
     break;
   case Instruction::URem: {
     if (ConstantInt *Rem = dyn_cast<ConstantInt>(I->getOperand(1))) {
@@ -597,6 +633,10 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
     // Otherwise take the unions of the known bit sets of the operands,
     // taking conservative care to avoid excessive recursion.
     if (Depth < MaxDepth - 1 && !KnownZero && !KnownOne) {
+      // Skip if every incoming value references to ourself.
+      if (P->hasConstantValue() == P)
+        break;
+
       KnownZero = APInt::getAllOnesValue(BitWidth);
       KnownOne = APInt::getAllOnesValue(BitWidth);
       for (unsigned i = 0, e = P->getNumIncomingValues(); i != e; ++i) {
@@ -684,6 +724,16 @@ bool llvm::isPowerOfTwo(Value *V, const TargetData *TD, unsigned Depth) {
     return isPowerOfTwo(SI->getTrueValue(), TD, Depth) &&
       isPowerOfTwo(SI->getFalseValue(), TD, Depth);
 
+  // An exact divide or right shift can only shift off zero bits, so the result
+  // is a power of two only if the first operand is a power of two and not
+  // copying a sign bit (sdiv int_min, 2).
+  if (match(V, m_LShr(m_Value(), m_Value())) ||
+      match(V, m_UDiv(m_Value(), m_Value()))) {
+    PossiblyExactOperator *PEO = cast<PossiblyExactOperator>(V);
+    if (PEO->isExact())
+      return isPowerOfTwo(PEO->getOperand(0), TD, Depth);
+  }
+
   return false;
 }
 
@@ -720,6 +770,11 @@ bool llvm::isKnownNonZero(Value *V, const TargetData *TD, unsigned Depth) {
   // shl X, Y != 0 if X is odd.  Note that the value of the shift is undefined
   // if the lowest bit is shifted off the end.
   if (BitWidth && match(V, m_Shl(m_Value(X), m_Value(Y)))) {
+    // shl nuw can't remove any non-zero bits.
+    BinaryOperator *BO = cast<BinaryOperator>(V);
+    if (BO->hasNoUnsignedWrap())
+      return isKnownNonZero(X, TD, Depth);
+
     APInt KnownZero(BitWidth, 0);
     APInt KnownOne(BitWidth, 0);
     ComputeMaskedBits(X, APInt(BitWidth, 1), KnownZero, KnownOne, TD, Depth);
@@ -729,10 +784,21 @@ bool llvm::isKnownNonZero(Value *V, const TargetData *TD, unsigned Depth) {
   // shr X, Y != 0 if X is negative.  Note that the value of the shift is not
   // defined if the sign bit is shifted off the end.
   else if (match(V, m_Shr(m_Value(X), m_Value(Y)))) {
+    // shr exact can only shift out zero bits.
+    BinaryOperator *BO = cast<BinaryOperator>(V);
+    if (BO->isExact())
+      return isKnownNonZero(X, TD, Depth);
+
     bool XKnownNonNegative, XKnownNegative;
     ComputeSignBit(X, XKnownNonNegative, XKnownNegative, TD, Depth);
     if (XKnownNegative)
       return true;
+  }
+  // div exact can only produce a zero if the dividend is zero.
+  else if (match(V, m_IDiv(m_Value(X), m_Value()))) {
+    BinaryOperator *BO = cast<BinaryOperator>(V);
+    if (BO->isExact())
+      return isKnownNonZero(X, TD, Depth);
   }
   // X + Y.
   else if (match(V, m_Add(m_Value(X), m_Value(Y)))) {
@@ -1262,7 +1328,7 @@ static Value *BuildSubAggregate(Value *From, Value* To, const Type *IndexedType,
         break;
       }
     }
-    // If we succesfully found a value for each of our subaggregates 
+    // If we successfully found a value for each of our subaggregates
     if (To)
       return To;
   }
@@ -1691,7 +1757,7 @@ llvm::GetUnderlyingObject(Value *V, const TargetData *TD, unsigned MaxLookup) {
     } else {
       // See if InstructionSimplify knows any relevant tricks.
       if (Instruction *I = dyn_cast<Instruction>(V))
-        // TODO: Aquire a DominatorTree and use it.
+        // TODO: Acquire a DominatorTree and use it.
         if (Value *Simplified = SimplifyInstruction(I, TD, 0)) {
           V = Simplified;
           continue;

@@ -7,7 +7,7 @@
 </head>
 <body>
 
-<div class="doc_title">Creating an LLVM Project</div>
+<h1>Creating an LLVM Project</h1>
 
 <ol>
 <li><a href="#overview">Overview</a></li>
@@ -30,10 +30,10 @@
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section"><a name="overview">Overview</a></div>
+<h2><a name="overview">Overview</a></h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>The LLVM build system is designed to facilitate the building of third party
 projects that use LLVM header files, libraries, and tools.  In order to use
@@ -73,12 +73,12 @@ provide enough information on how to write your own Makefiles.</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section">
+<h2>
   <a name="create">Create a Project from the Sample Project</a>
-</div>
+</h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>Follow these simple steps to start your project:</p>
 
@@ -145,12 +145,12 @@ project should build.</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section">
+<h2>
   <a name="source">Source Tree Layout</a>
-</div>
+</h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>In order to use the LLVM build system, you will want to organize your
 source code so that it can benefit from the build system's features.
@@ -230,26 +230,24 @@ your <b>tools</b> directory.</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section">
+<h2>
   <a name="makefiles">Writing LLVM Style Makefiles</a>
-</div>
+</h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>The LLVM build system provides a convenient way to build libraries and
 executables.  Most of your project Makefiles will only need to define a few
 variables.  Below is a list of the variables one can set and what they can
 do:</p>
 
-</div>
-
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="reqVars">Required Variables</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <dl>
   <dt>LEVEL
@@ -263,11 +261,11 @@ do:</p>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="varsBuildDir">Variables for Building Subdirectories</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <dl>
   <dt>DIRS
@@ -294,11 +292,11 @@ do:</p>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="varsBuildLib">Variables for Building Libraries</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <dl>
   <dt>LIBRARYNAME
@@ -325,11 +323,11 @@ do:</p>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="varsBuildProg">Variables for Building Programs</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <dl>
   <dt>TOOLNAME
@@ -368,11 +366,11 @@ do:</p>
 </div>
 
 <!-- ======================================================================= -->
-<div class="doc_subsection">
+<h3>
   <a name="miscVars">Miscellaneous Variables</a>
-</div>
+</h3>
 
-<div class="doc_text">
+<div>
 
 <dl>
   <dt>ExtraSource
@@ -398,13 +396,15 @@ do:</p>
 
 </div>
 
-<!-- *********************************************************************** -->
-<div class="doc_section">
-  <a name="objcode">Placement of Object Code</a>
 </div>
+
+<!-- *********************************************************************** -->
+<h2>
+  <a name="objcode">Placement of Object Code</a>
+</h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>The final location of built libraries and executables will depend upon
 whether you do a Debug, Release, or Profile build.</p>
@@ -427,12 +427,12 @@ whether you do a Debug, Release, or Profile build.</p>
 </div>
 
 <!-- *********************************************************************** -->
-<div class="doc_section">
+<h2>
   <a name="help">Further Help</a>
-</div>
+</h2>
 <!-- *********************************************************************** -->
 
-<div class="doc_text">
+<div>
 
 <p>If you have any questions or need any help creating an LLVM project,
 the LLVM team would be more than happy to help.  You can always post your
@@ -451,9 +451,9 @@ Mailing List</a>.</p>
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
 
   <a href="mailto:criswell@uiuc.edu">John Criswell</a><br>
-  <a href="http://llvm.org">The LLVM Compiler Infrastructure</a>
+  <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a>
   <br>
-  Last modified: $Date: 2010-05-07 02:28:04 +0200 (Fri, 07 May 2010) $
+  Last modified: $Date: 2011-04-23 02:30:22 +0200 (Sat, 23 Apr 2011) $
 </address>
 
 </body>

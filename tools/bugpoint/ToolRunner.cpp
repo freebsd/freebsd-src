@@ -503,7 +503,7 @@ int LLC::ExecuteProgram(const std::string &Bitcode,
   sys::Path OutputAsmFile;
   GCC::FileType FileKind = OutputCode(Bitcode, OutputAsmFile, *Error, Timeout,
                                       MemoryLimit);
-  FileRemover OutFileRemover(OutputAsmFile, !SaveTemps);
+  FileRemover OutFileRemover(OutputAsmFile.str(), !SaveTemps);
 
   std::vector<std::string> GCCArgs(ArgsForGCC);
   GCCArgs.insert(GCCArgs.end(), SharedLibs.begin(), SharedLibs.end());
@@ -675,7 +675,7 @@ int CBE::ExecuteProgram(const std::string &Bitcode,
   sys::Path OutputCFile;
   OutputCode(Bitcode, OutputCFile, *Error, Timeout, MemoryLimit);
 
-  FileRemover CFileRemove(OutputCFile, !SaveTemps);
+  FileRemover CFileRemove(OutputCFile.str(), !SaveTemps);
 
   std::vector<std::string> GCCArgs(ArgsForGCC);
   GCCArgs.insert(GCCArgs.end(), SharedLibs.begin(), SharedLibs.end());
@@ -758,8 +758,7 @@ int GCC::ExecuteProgram(const std::string &ProgramFile,
       // For ARM architectures we don't want this flag. bugpoint isn't
       // explicitly told what architecture it is working on, so we get
       // it from gcc flags
-      if ((TargetTriple.getOS() == Triple::Darwin) &&
-          !IsARMArchitecture(GCCArgs))
+      if (TargetTriple.isOSDarwin() && !IsARMArchitecture(GCCArgs))
         GCCArgs.push_back("-force_cpusubtype_ALL");
     }
   }
@@ -851,7 +850,7 @@ int GCC::ExecuteProgram(const std::string &ProgramFile,
         errs() << "\n";
         );
 
-  FileRemover OutputBinaryRemover(OutputBinary, !SaveTemps);
+  FileRemover OutputBinaryRemover(OutputBinary.str(), !SaveTemps);
 
   if (RemoteClientPath.isEmpty()) {
     DEBUG(errs() << "<run locally>");
@@ -900,7 +899,7 @@ int GCC::MakeSharedObject(const std::string &InputFile, FileType fileType,
   GCCArgs.push_back("none");
   if (TargetTriple.getArch() == Triple::sparc)
     GCCArgs.push_back("-G");       // Compile a shared library, `-G' for Sparc
-  else if (TargetTriple.getOS() == Triple::Darwin) {
+  else if (TargetTriple.isOSDarwin()) {
     // link all source files into a single module in data segment, rather than
     // generating blocks. dynamic_lookup requires that you set
     // MACOSX_DEPLOYMENT_TARGET=10.3 in your env.  FIXME: it would be better for

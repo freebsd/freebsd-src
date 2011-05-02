@@ -22,16 +22,13 @@
 #include "llvm/Target/TargetRegistry.h"
 using namespace llvm;
 
-static cl::opt<bool>ExpandMLx("expand-fp-mlx", cl::init(false), cl::Hidden);
-
 static MCAsmInfo *createMCAsmInfo(const Target &T, StringRef TT) {
   Triple TheTriple(TT);
-  switch (TheTriple.getOS()) {
-  case Triple::Darwin:
+
+  if (TheTriple.isOSDarwin())
     return new ARMMCAsmInfoDarwin();
-  default:
-    return new ARMELFMCAsmInfo();
-  }
+
+  return new ARMELFMCAsmInfo();
 }
 
 // This is duplicated code. Refactor this.
@@ -41,17 +38,17 @@ static MCStreamer *createMCStreamer(const Target &T, const std::string &TT,
                                     MCCodeEmitter *Emitter,
                                     bool RelaxAll,
                                     bool NoExecStack) {
-  switch (Triple(TT).getOS()) {
-  case Triple::Darwin:
+  Triple TheTriple(TT);
+
+  if (TheTriple.isOSDarwin())
     return createMachOStreamer(Ctx, TAB, OS, Emitter, RelaxAll);
-  case Triple::MinGW32:
-  case Triple::Cygwin:
-  case Triple::Win32:
+
+  if (TheTriple.isOSWindows()) {
     llvm_unreachable("ARM does not support Windows COFF format");
     return NULL;
-  default:
-    return createELFStreamer(Ctx, TAB, OS, Emitter, RelaxAll, NoExecStack);
   }
+
+  return createELFStreamer(Ctx, TAB, OS, Emitter, RelaxAll, NoExecStack);
 }
 
 extern "C" void LLVMInitializeARMTarget() {
@@ -86,8 +83,7 @@ ARMBaseTargetMachine::ARMBaseTargetMachine(const Target &T,
   : LLVMTargetMachine(T, TT),
     Subtarget(TT, FS, isThumb),
     JITInfo(),
-    InstrItins(Subtarget.getInstrItineraryData())
-{
+    InstrItins(Subtarget.getInstrItineraryData()) {
   DefRelocModel = getRelocationModel();
 }
 
@@ -149,8 +145,7 @@ bool ARMBaseTargetMachine::addPreRegAlloc(PassManagerBase &PM,
   // FIXME: temporarily disabling load / store optimization pass for Thumb1.
   if (OptLevel != CodeGenOpt::None && !Subtarget.isThumb1Only())
     PM.add(createARMLoadStoreOptimizationPass(true));
-  if (ExpandMLx &&
-      OptLevel != CodeGenOpt::None && Subtarget.hasVFP2())
+  if (OptLevel != CodeGenOpt::None && Subtarget.isCortexA9())
     PM.add(createMLxExpansionPass());
 
   return true;
