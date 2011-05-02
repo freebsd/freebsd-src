@@ -1404,9 +1404,12 @@ nfs_mknodrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, NULL, 0, 1);
 	if (!error) {
 		newvp = NFSTOV(np);
-		if (attrflag)
+		if (attrflag != 0) {
 			error = nfscl_loadattrcache(&newvp, &nfsva, NULL, NULL,
 			    0, 1);
+			if (error != 0)
+				vput(newvp);
+		}
 	}
 	if (!error) {
 		if ((cnp->cn_flags & MAKEENTRY))
@@ -1512,7 +1515,7 @@ again:
 	}
 	if (error) {
 		if (newvp != NULL) {
-			vrele(newvp);
+			vput(newvp);
 			newvp = NULL;
 		}
 		if (NFS_ISV34(dvp) && (fmode & O_EXCL) &&
