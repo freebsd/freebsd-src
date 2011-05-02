@@ -27,6 +27,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/cpuset.h>
 #include <sys/sysctl.h>
 
 #define	LIBMEMSTAT	/* Cause vm_page.h not to include opt_vmpage.h */
@@ -104,7 +105,7 @@ retry:
 		return (-1);
 	}
 
-	if (maxcpus > MEMSTAT_MAXCPU) {
+	if (maxcpus > MAXCPU) {
 		list->mtl_error = MEMSTAT_ERROR_TOOMANYCPUS;
 		return (-1);
 	}
@@ -168,7 +169,7 @@ retry:
 		return (-1);
 	}
 
-	if (ushp->ush_maxcpus > MEMSTAT_MAXCPU) {
+	if (ushp->ush_maxcpus > MAXCPU) {
 		list->mtl_error = MEMSTAT_ERROR_TOOMANYCPUS;
 		free(buffer);
 		return (-1);
@@ -313,7 +314,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 	struct uma_keg *kzp, kz;
 	int hint_dontsearch, i, mp_maxid, ret;
 	char name[MEMTYPE_MAXNAME];
-	__cpumask_t all_cpus;
+	cpuset_t all_cpus;
 	kvm_t *kvm;
 
 	kvm = (kvm_t *)kvm_handle;
@@ -407,7 +408,7 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 			if (kz.uk_flags & UMA_ZFLAG_INTERNAL)
 				goto skip_percpu;
 			for (i = 0; i < mp_maxid + 1; i++) {
-				if ((all_cpus & (1 << i)) == 0)
+				if (!CPU_ISSET(i, &all_cpus))
 					continue;
 				ucp = &ucp_array[i];
 				mtp->mt_numallocs += ucp->uc_allocs;

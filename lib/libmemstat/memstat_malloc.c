@@ -96,7 +96,7 @@ retry:
 		return (-1);
 	}
 
-	if (maxcpus > MEMSTAT_MAXCPU) {
+	if (maxcpus > MAXCPU) {
 		list->mtl_error = MEMSTAT_ERROR_TOOMANYCPUS;
 		return (-1);
 	}
@@ -160,7 +160,7 @@ retry:
 		return (-1);
 	}
 
-	if (mtshp->mtsh_maxcpus > MEMSTAT_MAXCPU) {
+	if (mtshp->mtsh_maxcpus > MAXCPU) {
 		list->mtl_error = MEMSTAT_ERROR_TOOMANYCPUS;
 		free(buffer);
 		return (-1);
@@ -295,7 +295,7 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 	void *kmemstatistics;
 	int hint_dontsearch, j, mp_maxcpus, ret;
 	char name[MEMTYPE_MAXNAME];
-	struct malloc_type_stats mts[MEMSTAT_MAXCPU], *mtsp;
+	struct malloc_type_stats mts[MAXCPU], *mtsp;
 	struct malloc_type_internal *mtip;
 	struct malloc_type type, *typep;
 	kvm_t *kvm;
@@ -322,7 +322,7 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 		return (-1);
 	}
 
-	if (mp_maxcpus > MEMSTAT_MAXCPU) {
+	if (mp_maxcpus > MAXCPU) {
 		list->mtl_error = MEMSTAT_ERROR_TOOMANYCPUS;
 		return (-1);
 	}
@@ -348,11 +348,6 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 			list->mtl_error = ret;
 			return (-1);
 		}
-
-		/*
-		 * Since our compile-time value for MAXCPU may differ from the
-		 * kernel's, we populate our own array.
-		 */
 		mtip = type.ks_handle;
 		ret = kread(kvm, mtip->mti_stats, mts, mp_maxcpus *
 		    sizeof(struct malloc_type_stats), 0);
