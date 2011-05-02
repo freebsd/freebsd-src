@@ -39,6 +39,7 @@ const char *host_detect_local_cpu (int argc, const char **argv);
 #define bit_SSE2 (1 << 26)
 
 #define bit_SSE3 (1 << 0)
+#define bit_SSSE3 (1 << 9)
 #define bit_CMPXCHG16B (1 << 13)
 
 #define bit_3DNOW (1 << 31)
@@ -66,7 +67,7 @@ const char *host_detect_local_cpu (int argc, const char **argv)
   unsigned int vendor;
   unsigned int ext_level;
   unsigned char has_mmx = 0, has_3dnow = 0, has_3dnowp = 0, has_sse = 0;
-  unsigned char has_sse2 = 0, has_sse3 = 0, has_cmov = 0;
+  unsigned char has_sse2 = 0, has_sse3 = 0, has_ssse3 = 0, has_cmov = 0;
   unsigned char has_longmode = 0, has_cmpxchg8b = 0;
   unsigned char is_amd = 0;
   unsigned int family = 0;
@@ -107,6 +108,7 @@ const char *host_detect_local_cpu (int argc, const char **argv)
   has_sse = !!(edx & bit_SSE);
   has_sse2 = !!(edx & bit_SSE2);
   has_sse3 = !!(ecx & bit_SSE3);
+  has_ssse3 = !!(ecx & bit_SSSE3);
   /* We don't care for extended family.  */
   family = (eax >> 8) & ~(1 << 4);
 
@@ -148,7 +150,9 @@ const char *host_detect_local_cpu (int argc, const char **argv)
 	  /* We have no idea.  Use something reasonable.  */
 	  if (arch)
 	    {
-	      if (has_sse3)
+	      if (has_ssse3)
+		cpu = "core2";
+	      else if (has_sse3)
 		{
 		  if (has_longmode)
 		    cpu = "nocona";
@@ -229,6 +233,9 @@ const char *host_detect_local_cpu (int argc, const char **argv)
 	  /* For -mtune, we default to -mtune=generic.  */
 	  cpu = "generic";
 	}
+      break;
+    case PROCESSOR_GEODE:
+      cpu = "geode";
       break;
     case PROCESSOR_K6:
       if (has_3dnow)
