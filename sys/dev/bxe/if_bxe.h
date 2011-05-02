@@ -1150,9 +1150,6 @@ struct bxe_fastpath {
 
 /* ToDo: Audit this structure for unused varaibles. */
 struct bxe_softc {
-	/*
-	 * MUST start with ifnet pointer (see definition of miibus_statchg()).
-	 */
 	struct ifnet		*bxe_ifp;
 	int			media;
 
